@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>The Manual — Interval</title>
+<title>The Manual: Interval</title>
 <link rel="stylesheet" href="/site/site.css"></head><body>
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
@@ -9,7 +9,7 @@
   <h2>The world in one paragraph</h2>
   <p>Interval is a deterministic world: fixed rules, integer numbers,
   time in 600ms intervals. Every player's node computes the same next
-  state from the same inputs, so the network needs no referee — a state
+  state from the same inputs, so the network needs no referee: a state
   that disagrees with the rules simply doesn't match anyone else's hash
   and is ignored. The rules live in <code>SPEC.md</code>, the constitution.
   Changing them creates a new world; nobody is ever force-updated.</p>
@@ -21,8 +21,8 @@
     <tr><td>Mining</td><td>Gathering</td><td>Mine rocks → ore (35 xp)</td></tr>
     <tr><td>Fishing</td><td>Gathering</td><td>Fish spots → raw fish (30 xp)</td></tr>
     <tr><td>Smithing</td><td>Processing</td><td>Forge tools and weapons at an anvil from ore + logs (30 xp per ore). Bronze sword: +2 max hit. Bronze hatchet/pickaxe: gather faster.</td></tr>
-    <tr><td>Firemaking</td><td>Processing</td><td>Light logs where you stand (40 xp) — a fire that cooks and glows for a minute. Success rises with level.</td></tr>
-    <tr><td>Cooking</td><td>Processing</td><td>Cook raw fish at a campfire (30 xp on success; failures burn — the fish is consumed either way)</td></tr>
+    <tr><td>Firemaking</td><td>Processing</td><td>Light logs where you stand (40 xp): a fire that cooks and glows for a minute. Success rises with level.</td></tr>
+    <tr><td>Cooking</td><td>Processing</td><td>Cook raw fish at a campfire (30 xp on success; failures burn: the fish is consumed either way)</td></tr>
     <tr><td>Attack</td><td>Combat</td><td>4 xp per damage dealt</td></tr>
     <tr><td>Defence</td><td>Combat</td><td>4 xp per enemy blow you avoid</td></tr>
     <tr><td>Hitpoints</td><td>Combat</td><td>1 xp per damage dealt; starts at level 10; max HP equals its level</td></tr>
@@ -34,7 +34,7 @@
   <div class="cards">
     <div class="card stone"><b>The browser window</b><p><code>node serve.mjs yourname</code>,
     open <code>localhost:8787</code>. Click-to-everything. This is the
-    reference window — the founding aesthetic, not the required one.</p></div>
+    reference window: the founding aesthetic, not the required one.</p></div>
     <div class="card stone"><b>The terminal window</b><p><code>node play.mjs yourname</code>.
     WASD, g, x, f, e. The whole world in ASCII, because it can be.</p></div>
     <div class="card stone"><b>The SDK</b><p>Write your own hands. <code>sdk.mjs</code>
@@ -47,12 +47,12 @@
 
   <h2>The bank</h2>
   <p>Stand at a bank and tap items to deposit; tap the vault to withdraw.
-  One item per interval — patience is the fee. <b>The bank survives
+  One item per interval: patience is the fee. <b>The bank survives
   death.</b> What you carry can burn; what you vault endures.</p>
 
   <h2>Trade</h2>
   <p>Walk up to someone (adjacent tiles), offer an item for an item, they
-  accept, and the swap settles atomically in a single interval — whole or
+  accept, and the swap settles atomically in a single interval: whole or
   not at all. Trade deliberately requires being there.</p>
 
   <h2>Death</h2>
@@ -68,7 +68,7 @@
 
   <h2>Worlds and forks</h2>
   <p>A world is identified by the hash of its constitution. Change a rule
-  and you have created a different world on a different network — one
+  and you have created a different world on a different network: one
   that shares history up to the fork and welcomes whoever prefers it.
   Updates don't happen to you; they compete for you.</p>
 
@@ -80,14 +80,14 @@
   all night; it cannot be <i>there</i>.</p>
 
   <h2>The readable world (API)</h2>
-  <p>Every serving node exposes the world as JSON — hiscores sites,
+  <p>Every serving node exposes the world as JSON: hiscores sites,
   clan pages, and market trackers are all just windows:</p>
   <pre>GET /api/world      → { tick, worldId, players, mobs }
 GET /api/hiscores   → { players: [{ name, levels, total, xp }] }
 GET /api/player/:name → one citizen, full public record</pre>
 
   <h2>For the systems-minded</h2>
-  <p>The full constitution is <code>SPEC.md</code> in the repository —
+  <p>The full constitution is <code>SPEC.md</code> in the repository,
   state machine, XP tables, combat math, checkpoint and catch-up
   protocols, the works. The engine is ~400 lines of dependency-light
   JavaScript that runs identically in Node and browsers. Reimplement it

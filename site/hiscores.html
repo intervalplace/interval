@@ -1,5 +1,5 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Hiscores — Interval</title>
+<title>Hiscores: Interval</title>
 <link rel="stylesheet" href="/site/site.css"></head><body>
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
@@ -8,16 +8,17 @@
   <div id="board">loading the world…</div>
   <p style="font-size:11px;color:var(--dim);margin-top:14px">Raw data:
   <code>GET /api/hiscores</code>. Identities are free, so global rank is
-  a measure of work done, not of who's "best" — real prestige lives in
+  a measure of work done, not of who's "best": real prestige lives in
   the communities that vouch for their own. Build your own board; it's
   just a window.</p>
 </main></div>
 <script>
-const SKILLS = ['attack','defence','hitpoints','woodcutting','mining','fishing','cooking']
+let SKILLS = []
 async function load() {
   try {
     const r = await fetch('/api/hiscores'); const j = await r.json()
     if (!j.players.length) { document.getElementById('board').textContent = 'No citizens yet. Be first.'; return }
+    SKILLS = Object.keys(j.players[0].levels)  // whatever the constitution says
     let html = '<table><tr><th class="rank">Rank</th><th>Name</th><th>Total</th>'
       + SKILLS.map(s => '<th>' + s.slice(0,4) + '</th>').join('') + '</tr>'
     j.players.forEach((p, i) => {
@@ -25,7 +26,7 @@ async function load() {
         + SKILLS.map(s => '<td>' + p.levels[s] + '</td>').join('') + '</tr>'
     })
     document.getElementById('board').innerHTML = html + '</table>'
-  } catch { document.getElementById('board').textContent = 'world unreachable — is a node running?' }
+  } catch { document.getElementById('board').textContent = 'world unreachable. Is a node running?' }
 }
 load(); setInterval(load, 3000)
 </script>
