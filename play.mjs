@@ -1,8 +1,8 @@
-// Interval play v0.6 — the human window.
+// Interval play v0.6: the human window.
 // Interactive terminal client: a solo world you actually play with keys.
 //   usage: node play.mjs [name]
 //   WASD / arrows: move   g: gather adjacent node   c: cancel/stop   q: quit
-// One input per tick (600ms), exactly as the constitution demands — your
+// One input per tick (600ms), exactly as the constitution demands: your
 // keypress is queued and signed on the next interval. Networked
 // interactive play needs the shared tick scheduler (roadmap: v0.7).
 
@@ -17,7 +17,7 @@ const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
 const GENESIS = E.makeGenesis(SEED, RULES_HASH, 0)
 
-// your key is your character — persisted. Delete identities/solo.json
+// your key is your character: persisted. Delete identities/solo.json
 // to be reborn; guard it to stay yourself.
 fs.mkdirSync('identities', { recursive: true })
 const me = E.loadOrCreateIdentity(fs, 'identities/solo.json')
@@ -84,12 +84,12 @@ if (process.stdin.isTTY) {
   })
   setInterval(loop, E.TICK_MS)
 } else {
-  // headless self-test: spawn, name, walk, gather — then exit
+  // headless self-test: spawn, name, walk, gather: then exit
   const script = [null, null, 'd', 'd', 'd', 'g', null, null, null, null]
   for (const k of script) { queued = k; await loop() }
   const p = client.me
   const okay = p && p.name === (NAME || null) || (NAME === '' && p)
-  console.log(`self-test: spawned ✓ named:${p?.name ?? '—'} inv:${client.inventoryCount()}`)
+  console.log(`self-test: spawned ✓ named:${p?.name ?? ', '} inv:${client.inventoryCount()}`)
   await node.stop()
   process.exit(p ? 0 : 1)
 }
