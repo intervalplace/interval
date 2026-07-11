@@ -12,6 +12,7 @@ import { WebSocketServer } from 'ws'
 import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { IntervalClient } from './sdk.mjs'
+import { buildWorld } from './worldgen.mjs'
 
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
@@ -22,64 +23,38 @@ const CP_FILE = 'checkpoints/web.json'        // the living state
 fs.mkdirSync('identities', { recursive: true })
 fs.mkdirSync('checkpoints', { recursive: true })
 
-// The terrain grows deterministically from the genesis seed: every node
-// that builds this world computes the identical landscape.
-function buildWorld(genesis) {
-  const w = E.newWorld(genesis)
-  const W2 = genesis.worldW, H2 = genesis.worldH
-  const spawn = { x: Math.floor(W2 / 2), y: Math.floor(H2 / 2) }
-  const taken = new Set()
-  const clear = (x, y) => { // keep spawn area open
-    return Math.max(Math.abs(x - spawn.x), Math.abs(y - spawn.y)) <= 1 }
-  const place = (kind, count, addFn) => {
-    let placed = 0, i = 0
-    while (placed < count && i < count * 40) {
-      const h = E.sha256(Buffer.from(genesis.genesisSeed + ':' + kind + ':' + i))
-      const x = h[0] % W2, y = h[1] % H2, k = x + ',' + y
-      i++
-      if (taken.has(k) || clear(x, y)) continue
-      taken.add(k); addFn(kind + '-' + placed, x, y); placed++
-    }
-  }
-  place('tree', 26, (id, x, y) => E.addNode(w, id, 'tree', x, y))
-  place('rock', 12, (id, x, y) => E.addNode(w, id, 'rock', x, y))
-  place('fish', 8,  (id, x, y) => E.addNode(w, id, 'fishing-spot', x, y))
-  place('fire', 4,  (id, x, y) => E.addNode(w, id, 'campfire', x, y))
-  place('anvil', 2, (id, x, y) => E.addNode(w, id, 'anvil', x, y))
-  place('gob', 10,  (id, x, y) => E.addMob(w, id, 'goblin', x, y))
-  return w
-}
+const P2P_PORT = Number(process.env.INTERVAL_P2P_PORT || 4600)
 
 // ---- persistence across restarts and updates ----
 // Same rules → resume the same world from checkpoint.
-// Changed rules → found a NEW world whose genesis imports the citizens:
-// skills, names and hp cross over. Migration is a founding decision.
+// Changed rules → found a NEW world whose genesis imports the citizens.
 const KNOWN_ITEMS = new Set(['logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish', 'bones',
   ...Object.keys(E.RECIPES)])
 let GENESIS, migrated = 0
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
 
 if (saved && saved.genesis.rulesHash === RULES_HASH && saved.genesis.genesisSeed === SEED) {
-  GENESIS = saved.genesis // same constitution: same world, resumed below
+  GENESIS = saved.genesis
 } else {
   GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
   if (saved && fs.existsSync(CP_FILE)) {
-    // the constitution changed: citizens cross over into the new founding
     try {
       const old = JSON.parse(fs.readFileSync(CP_FILE)).state
       GENESIS._imported = Object.entries(old.players).map(([pid, p]) => ({
-        pid, skills: p.skills, name: p.name, hp: p.hp,
+        pid, skills: p.skills, name: p.name, hp: p.hp, bank: p.bank ?? {},
         inventory: (p.inventory ?? []).filter(sl => sl && KNOWN_ITEMS.has(sl.item)),
         weapon: p.equipment?.weapon && KNOWN_ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
       }))
     } catch { /* unreadable old world: found fresh */ }
-    fs.rmSync(CP_FILE, { force: true }) // old world's state belongs to the old world
+    fs.rmSync(CP_FILE, { force: true })
   }
-  fs.mkdirSync('checkpoints', { recursive: true })
   fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
 }
 
-const node = await new IntervalNode({ genesis: GENESIS, buildWorld, name: 'web', checkpointFile: CP_FILE }).start()
+const node = await new IntervalNode({
+  genesis: GENESIS, buildWorld, name: 'web', checkpointFile: CP_FILE,
+  listen: `/ip4/0.0.0.0/tcp/${P2P_PORT}`,   // the pillar accepts peers
+}).start()
 
 // apply the crossing (only on a fresh founding with imports)
 if (GENESIS._imported && node.state.tick === 0) {
@@ -91,6 +66,7 @@ if (GENESIS._imported && node.state.tick === 0) {
     p.hp = Math.min(c.hp ?? p.hp, E.levelForXp(p.skills.hitpoints))
     c.inventory.forEach((sl, i) => { if (i < p.inventory.length) p.inventory[i] = sl })
     p.equipment.weapon = c.weapon
+    for (const [it, q] of Object.entries(c.bank ?? {})) if (KNOWN_ITEMS.has(it)) p.bank[it] = q
     if (c.name && !(c.name in node.state.names)) { node.state.names[c.name] = c.pid; p.name = c.name }
     migrated++
   }
@@ -143,6 +119,10 @@ const server = http.createServer((req, res) => {
   const path = req.url.split('?')[0]
   const json = (obj) => { res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }); res.end(JSON.stringify(obj)) }
   try {
+    if (path === '/api/genesis') return json({
+      genesis: node.genesis, peerId: node.peerId(), p2pPort: P2P_PORT,
+      note: 'run join.mjs against this URL to enter this world with your own node and keys',
+    })
     if (path === '/api/world') return json({
       tick: node.state.tick, worldId: RULES_HASH.slice(0, 12),
       players: Object.keys(node.state.players).length,
@@ -202,6 +182,9 @@ function handle(ws, buf) {
     else if (a.do === 'unwield') client.unwield()
     else if (a.do === 'drop') client.drop(a.slot | 0)
     else if (a.do === 'pickup') client.pickup(String(a.groundId))
+    else if (a.do === 'light') client.light(a.slot | 0)
+    else if (a.do === 'deposit') client.deposit(a.slot | 0)
+    else if (a.do === 'withdraw') client.withdraw(String(a.item))
     else if (a.do === 'offer_trade') client.offerTrade(String(a.to), a.giveSlot | 0, String(a.wantItem))
     else if (a.do === 'accept_trade') client.acceptTrade(String(a.from))
     else if (a.do === 'cancel_trade') client.cancelTrade()
@@ -223,4 +206,7 @@ node.onTick = (state) => {
 }
 
 node.startTicking()
-server.listen(8787, () => console.log('Interval is live: http://localhost:8787  (site, game, hiscores, API)'))
+server.listen(8787, () => {
+  console.log('Interval is live: http://localhost:8787  (site, game, hiscores, API)')
+  console.log('peers may join via join.mjs — p2p port ' + P2P_PORT + ', peer ' + node.peerId())
+})
