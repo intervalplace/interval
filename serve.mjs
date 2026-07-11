@@ -13,7 +13,6 @@ import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { IntervalClient } from './sdk.mjs'
 
-const NAME = (process.argv[2] || '').toLowerCase()
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
 const WORLD_W = 36, WORLD_H = 20
@@ -21,7 +20,6 @@ const GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
 
 fs.mkdirSync('identities', { recursive: true })
 fs.mkdirSync('checkpoints', { recursive: true })
-const me = E.loadOrCreateIdentity(fs, 'identities/web.json')
 
 // The terrain grows deterministically from the genesis seed: every node
 // that builds this world computes the identical landscape.
@@ -52,7 +50,14 @@ function buildWorld(genesis) {
 }
 
 const node = await new IntervalNode({ genesis: GENESIS, buildWorld, name: 'web' }).start()
-const client = new IntervalClient({ node, identity: me })
+// every visitor is their own citizen: one identity per browser, keyed by a
+// local ID the browser stores. The node custodies these keys (a friendly
+// pillar); browser-held keys are the v1.0 light-client milestone.
+function identityFor(uid) {
+  const safe = String(uid).toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40)
+  if (!safe) return null
+  return E.loadOrCreateIdentity(fs, 'identities/web-' + safe + '.json')
+}
 
 // ---- the readable world: JSON API (hiscores sites are just windows) ----
 const lvl = E.levelForXp
@@ -84,27 +89,36 @@ const server = http.createServer((req, res) => {
       if (!hit) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end('{"error":"no such citizen"}') }
       return json({ playerId: hit[0], ...hit[1] })
     }
-    if (path === '/play') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end(fs.readFileSync(new URL('./window-web.html', import.meta.url))) }
+    const NC = { 'Cache-Control': 'no-cache' } // stale windows caused ghost bugs
+    if (path === '/play') { res.writeHead(200, { 'Content-Type': 'text/html', ...NC }); return res.end(fs.readFileSync(new URL('./window-web.html', import.meta.url))) }
     if (path.startsWith('/site/')) {
       const f = path.slice(6).replace(/[^a-z0-9.-]/g, '')
       const ext = f.split('.').pop()
-      res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'text/plain' })
+      res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'text/plain', ...NC })
       return res.end(fs.readFileSync(new URL('./site/' + f, import.meta.url)))
     }
-    if (PAGES[path]) { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end(fs.readFileSync(new URL('./site/' + PAGES[path], import.meta.url))) }
+    if (PAGES[path]) { res.writeHead(200, { 'Content-Type': 'text/html', ...NC }); return res.end(fs.readFileSync(new URL('./site/' + PAGES[path], import.meta.url))) }
     res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('nothing here')
   } catch (e) { res.writeHead(500); res.end('error') }
 })
 const wss = new WebSocketServer({ server })
-const sockets = new Set()
+const sockets = new Map() // ws -> IntervalClient (per-visitor identity)
 
 wss.on('connection', (ws) => {
-  sockets.add(ws)
-  ws.send(JSON.stringify({ type: 'hello', playerId: me.playerId, name: NAME }))
+  sockets.set(ws, null)
   ws.on('close', () => sockets.delete(ws))
   ws.on('message', (buf) => {
     let m; try { m = JSON.parse(buf) } catch { return }
+    if (m.type === 'auth') {
+      const id = identityFor(m.uid)
+      if (!id) return
+      sockets.set(ws, new IntervalClient({ node, identity: id }))
+      ws.send(JSON.stringify({ type: 'hello', playerId: id.playerId }))
+      return
+    }
     if (m.type !== 'act') return
+    const client = sockets.get(ws)
+    if (!client) return
     const a = m.action
     // one input per tick, exactly as the constitution demands
     if (a.do === 'spawn') client.spawn()
@@ -116,22 +130,25 @@ wss.on('connection', (ws) => {
     else if (a.do === 'smith') client.smith(String(a.recipe))
     else if (a.do === 'wield') client.wield(a.slot | 0)
     else if (a.do === 'unwield') client.unwield()
+    else if (a.do === 'drop') client.drop(a.slot | 0)
+    else if (a.do === 'pickup') client.pickup(String(a.groundId))
     else if (a.do === 'chat') client.chat(String(a.text))
     else if (a.do === 'name') client.claimName(String(a.name))
     else if (a.do === 'stop') client.stop()
   })
 })
 
-client.onChat((msg) => {
+node.onChat = (msg) => {
   const name = node.state.players[msg.playerId]?.name ?? msg.playerId.slice(0, 6)
   const out = JSON.stringify({ type: 'chat', playerId: msg.playerId, name, text: msg.text })
-  for (const ws of sockets) if (ws.readyState === 1) ws.send(out)
-})
+  for (const ws of sockets.keys()) if (ws.readyState === 1) ws.send(out)
+}
 
-client.onTick((state) => {
-  const msg = JSON.stringify({ type: 'state', state, worldId: client.worldId })
-  for (const ws of sockets) if (ws.readyState === 1) ws.send(msg)
-})
+const worldId = RULES_HASH.slice(0, 12)
+node.onTick = (state) => {
+  const msg = JSON.stringify({ type: 'state', state, worldId })
+  for (const ws of sockets.keys()) if (ws.readyState === 1) ws.send(msg)
+}
 
 node.startTicking()
 server.listen(8787, () => console.log('Interval is live: http://localhost:8787  (site, game, hiscores, API)'))
