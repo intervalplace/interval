@@ -64,6 +64,8 @@
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
   <div id="equip" style="font-size:12px;padding:4px 6px;background:var(--stone-dk);cursor:pointer"></div>
+  <div id="trade" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
+  <div id="offers" style="font-size:12px"></div>
     <h2>Skills</h2><div id="skills"></div>
     <h2>Inventory</h2><div id="inv"></div>
     <div id="feed" class="stone"></div>
@@ -212,14 +214,16 @@ function onState(s, worldId) {
   else if (me && intent && !me.action) {
     const goal = intent.kind === 'walk' ? intent
       : intent.kind === 'pickup' ? s.ground[intent.id]
+      : intent.kind === 'meet' ? s.players[intent.id]
       : (s.nodes[intent.id] ?? s.mobs[intent.id])
     if (!goal) { intent = null }
-    else if ((intent.kind === 'gather' || intent.kind === 'attack' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo')
+    else if ((intent.kind === 'gather' || intent.kind === 'attack' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo' || intent.kind === 'meet')
              && Math.abs(me.x - goal.x) + Math.abs(me.y - goal.y) === 1) {
       // arrived: engage automatically — clicking once was the whole command
       if (intent.kind === 'gather') { send({ do: 'gather', nodeId: intent.id }); feed(intent.msg); intent = null }
       else if (intent.kind === 'attack') { send({ do: 'attack', mobId: intent.id }); feed('You attack the goblin!'); intent = null }
       else if (intent.kind === 'anvilgo') { smithBest(me); intent = null }
+      else if (intent.kind === 'meet') { openTrade(intent.id); intent = null }
       else { // at the fire: start cooking if there's anything raw
         const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
         if (i !== -1) { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026') }
@@ -262,6 +266,9 @@ function onState(s, worldId) {
     const cnt = inv => inv.reduce((m, s) => (s && (m[s.item] = (m[s.item] || 0) + 1), m), {})
     const a = cnt(old.inventory), b = cnt(me.inventory)
     for (const item in b) if ((b[item] || 0) > (a[item] || 0) && GAIN[item]) feed(GAIN[item])
+    if (old.trade && !me.trade && JSON.stringify(old.inventory) !== JSON.stringify(me.inventory)) {
+      feed('The trade settles. Pleasure doing business.')
+    }
     // your foe fell → its loot is lying there
     if (old.action?.type === 'attack') {
       const mob = s.mobs[old.action.mobId], mobOld = prev.mobs[old.action.mobId]
@@ -668,6 +675,28 @@ function panel(s) {
     }).join('')
   document.getElementById('inv').innerHTML = me.inventory.slice(0, 28)
     .map((it, i) => '<div class="slot" data-i="' + i + '" title="' + (it ? it.item : '') + '">' + (it ? (ICONS[it.item] ?? '?') : '') + '</div>').join('')
+  // trade offers: incoming (accept) and outgoing (cancel)
+  const offers = []
+  for (const [pid, p] of Object.entries(s.players)) {
+    if (pid === myId || p.trade?.to !== myId) continue
+    const giveItem = p.inventory[p.trade.giveSlot]?.item
+    if (!giveItem) continue
+    const haveWant = me.inventory.some(sl => sl && sl.item === p.trade.wantItem)
+    offers.push('<div class="stone" style="padding:5px 7px;margin-top:4px">'
+      + '<b style="color:var(--gold)">' + (p.name ?? pid.slice(0, 6)) + '</b> offers '
+      + giveItem.replace('-', ' ') + ' for your ' + p.trade.wantItem.replace('-', ' ') + ' '
+      + (haveWant ? '<button onclick="send({do:\'accept_trade\',from:\'' + pid + '\'})">accept</button>'
+                  : '<span style="color:var(--dim)">(you have none)</span>')
+      + '</div>')
+  }
+  if (me.trade) {
+    const gi = me.inventory[me.trade.giveSlot]?.item ?? '?'
+    offers.push('<div style="padding:4px 7px;margin-top:4px;background:var(--stone-dk)">your offer: '
+      + gi.replace('-', ' ') + ' for ' + me.trade.wantItem.replace('-', ' ')
+      + ' <button onclick="send({do:\'cancel_trade\'})">cancel</button></div>')
+  }
+  document.getElementById('offers').innerHTML = offers.join('')
+
   const wep = me.equipment?.weapon
   document.getElementById('equip').innerHTML = wep
     ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>'
@@ -679,6 +708,28 @@ function panel(s) {
 document.getElementById('equip').addEventListener('click', () => {
   if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
 })
+
+function openTrade(pid) {
+  const me = world?.players[myId], them = world?.players[pid]
+  if (!me || !them) return
+  const mine = me.inventory.map((sl, i) => sl ? { i, item: sl.item } : null).filter(Boolean)
+  if (!mine.length) { feed('You have nothing to offer.'); return }
+  const theirs = [...new Set(them.inventory.filter(Boolean).map(sl => sl.item))]
+  if (!theirs.length) { feed((them.name ?? 'They') + ' carries nothing you could ask for.'); return }
+  const box = document.getElementById('trade')
+  box.style.display = 'block'
+  box.innerHTML = '<b style="color:var(--gold)">Trade with ' + (them.name ?? pid.slice(0, 6)) + '</b><br>'
+    + 'give <select id="tgive">' + mine.map(o => '<option value="' + o.i + '">' + o.item.replace('-', ' ') + '</option>').join('') + '</select> '
+    + 'for <select id="twant">' + theirs.map(it => '<option value="' + it + '">' + it.replace('-', ' ') + '</option>').join('') + '</select> '
+    + '<button id="toffer">offer</button> <button id="tclose">close</button>'
+  document.getElementById('toffer').onclick = () => {
+    send({ do: 'offer_trade', to: pid, giveSlot: +document.getElementById('tgive').value,
+           wantItem: document.getElementById('twant').value })
+    feed('You make your offer. Now they must accept.')
+    box.style.display = 'none'
+  }
+  document.getElementById('tclose').onclick = () => { box.style.display = 'none' }
+}
 
 document.getElementById('say').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return
@@ -711,6 +762,13 @@ cv.addEventListener('click', (e) => {
   if (x < 0 || x >= W || y < 0 || y >= H) return
   const me = world.players[myId]; if (!me) return
   const adj = (o) => Math.abs(me.x - o.x) + Math.abs(me.y - o.y) === 1
+
+  for (const [pid, p] of Object.entries(world.players))
+    if (pid !== myId && p.x === x && p.y === y) {
+      if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
+      else { intent = { kind: 'meet', id: pid }; feed('You approach ' + (p.name ?? 'the stranger') + '.') }
+      return
+    }
 
   for (const [id, m] of Object.entries(world.mobs))
     if (m.hp > 0 && m.x === x && m.y === y) {
