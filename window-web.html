@@ -59,7 +59,7 @@
     <h2>Skills</h2><div id="skills"></div>
     <h2>Inventory</h2><div id="inv"></div>
     <div id="feed" class="stone"></div>
-    <input id="say" maxlength="80" placeholder="say something\u2026" autocomplete="off"
+    <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
       style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--gold);
              font:12px Verdana;padding:5px 7px;outline:none">
     <div id="status"></div>
@@ -84,7 +84,11 @@ const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'fishing-spot':
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
 let lastFeed = { text: '', at: 0 }
+let uid = localStorage.getItem('interval-uid')
+if (!uid) { uid = crypto.randomUUID(); localStorage.setItem('interval-uid', uid) }
 const ws = new WebSocket('ws://' + location.host)
+ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', uid }))
+let askedName = false
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -151,7 +155,7 @@ function smithBest(me) {
 
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
-  if (m.type === 'hello') { myId = m.playerId; myName = m.name; feed('The interval begins.') }
+  if (m.type === 'hello') { myId = m.playerId; feed('The interval begins.') }
   if (m.type === 'state') { onState(m.state, m.worldId) }
   if (m.type === 'chat') {
     bubbles[m.playerId] = { text: m.text, at: performance.now() }
@@ -177,7 +181,13 @@ function onState(s, worldId) {
   }
   const me = s.players[myId]
   if (!me) { send({ do: 'spawn' }) }
-  else if (myName && !me.name) { send({ do: 'name', name: myName }) }
+  else if (!me.name && !askedName) {
+    askedName = true
+    setTimeout(() => {
+      const nm = (prompt('Claim your name, citizen (a-z, 0-9, dash, max 12 — cancel to stay nameless):') || '').toLowerCase().trim()
+      if (/^[a-z0-9-]{1,12}$/.test(nm) && !nm.startsWith('-') && !nm.endsWith('-')) send({ do: 'name', name: nm })
+    }, 100)
+  }
   else if (me && intent?.kind === 'cookall') {
     const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
     const fire = Object.values(s.nodes).find(n => n.type === 'campfire'
@@ -300,6 +310,21 @@ function buildGround() {
 
 const facing = {}  // pid -> -1 left / 1 right
 
+// appearance derives from the public key: unique, universal, stored nowhere
+const lookCache = {}
+function lookOf(pid) {
+  if (lookCache[pid]) return lookCache[pid]
+  const b = (i) => parseInt(pid.slice(i * 2, i * 2 + 2), 16) || 0
+  const hue = Math.round((b(0) / 255) * 360)
+  const skin = ['#e8c98f', '#d9b07a', '#b98a5a', '#8a5f3c'][b(1) % 4]
+  const hair = ['#6b4a1e', '#2b2b2b', '#8a6d3f', '#a83232', '#d9c9a3', '#3c2f22'][b(2) % 6]
+  return lookCache[pid] = {
+    tunic: 'hsl(' + hue + ',44%,40%)',
+    tunicDk: 'hsl(' + hue + ',44%,28%)',
+    skin, hair,
+  }
+}
+
 // the little citizen: shadow, legs, tunic, arms, tool, head. ~26px tall.
 function drawCitizen(X, Y, o) {
   const now = o.now
@@ -315,10 +340,11 @@ function drawCitizen(X, Y, o) {
   cx.fillStyle = 'rgba(0,0,0,.28)'
   cx.beginPath(); cx.ellipse(X + 20, Y + 35, 8, 2.6, 0, 0, 7); cx.fill()
 
+  const look = lookOf(o.pid)
   const flash = o.hitAt && now - o.hitAt < 220
-  const tunic = flash ? '#ffffff' : (o.mine ? '#c9a227' : '#3a6ea5')
-  const tunicDk = flash ? '#dddddd' : (o.mine ? '#9a7c1c' : '#2c547e')
-  const skin = flash ? '#ffffff' : '#e8c98f'
+  const tunic = flash ? '#ffffff' : look.tunic
+  const tunicDk = flash ? '#dddddd' : look.tunicDk
+  const skin = flash ? '#ffffff' : look.skin
 
   // legs (alternate while walking)
   cx.fillStyle = '#4a3a26'
@@ -363,14 +389,15 @@ function drawCitizen(X, Y, o) {
   }
   // head: skin, hair cap, eye toward facing
   cx.fillStyle = skin; cx.fillRect(X + 15.5, Y + 7, 9, 9)
-  cx.fillStyle = o.mine ? '#6b4a1e' : '#2b2b2b'
+  cx.fillStyle = flash ? '#ffffff' : look.hair
   cx.fillRect(X + 15, Y + 5.5, 10, 3.4)
   cx.fillRect(X + (F > 0 ? 15 : 23), Y + 7, 2, 5) // sideburn on trailing side
   cx.fillStyle = '#1c1710'
   cx.fillRect(X + (F > 0 ? 21.5 : 17), Y + 10, 1.6, 1.6)
 
-  // name + hp (hp shown when hurt or fighting)
-  cx.fillStyle = '#ffcc33'; cx.font = 'bold 10px Verdana'; cx.textAlign = 'center'
+  // name + hp (your own name reads white so you can find yourself in a crowd)
+  cx.fillStyle = o.mine ? '#ffffff' : '#ffcc33'
+  cx.font = 'bold 10px Verdana'; cx.textAlign = 'center'
   cx.fillText(o.name, X + 20, Y + 2)
   if (o.hp < o.maxHp || o.anim === 'fight') {
     cx.fillStyle = '#4a1008'; cx.fillRect(X + 12, Y + 3, 16, 2.4)
@@ -497,7 +524,7 @@ function drawScene(now) {
     const bronzeTool = (workNode?.type === 'tree' && wep === 'bronze-hatchet')
                     || (workNode?.type === 'rock' && wep === 'bronze-pickaxe')
     drawCitizen(px(ix), py(iy), {
-      now, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
+      now, pid, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
       sword: wep === 'bronze-sword', bronzeTool,
       name: p.name ?? pid.slice(0, 6), hp: p.hp, maxHp: XP_TO_LVL(p.skills.hitpoints),
       hitAt: hitFlash[pid],
