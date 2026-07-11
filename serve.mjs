@@ -16,7 +16,8 @@ import { IntervalClient } from './sdk.mjs'
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
 const WORLD_W = 36, WORLD_H = 20
-const GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
+const WORLD_FILE = 'checkpoints/world.json'   // the founding record
+const CP_FILE = 'checkpoints/web.json'        // the living state
 
 fs.mkdirSync('identities', { recursive: true })
 fs.mkdirSync('checkpoints', { recursive: true })
@@ -49,7 +50,71 @@ function buildWorld(genesis) {
   return w
 }
 
-const node = await new IntervalNode({ genesis: GENESIS, buildWorld, name: 'web' }).start()
+// ---- persistence across restarts and updates ----
+// Same rules → resume the same world from checkpoint.
+// Changed rules → found a NEW world whose genesis imports the citizens:
+// skills, names and hp cross over. Migration is a founding decision.
+const KNOWN_ITEMS = new Set(['logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish', 'bones',
+  ...Object.keys(E.RECIPES)])
+let GENESIS, migrated = 0
+const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
+
+if (saved && saved.genesis.rulesHash === RULES_HASH && saved.genesis.genesisSeed === SEED) {
+  GENESIS = saved.genesis // same constitution: same world, resumed below
+} else {
+  GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
+  if (saved && fs.existsSync(CP_FILE)) {
+    // the constitution changed: citizens cross over into the new founding
+    try {
+      const old = JSON.parse(fs.readFileSync(CP_FILE)).state
+      GENESIS._imported = Object.entries(old.players).map(([pid, p]) => ({
+        pid, skills: p.skills, name: p.name, hp: p.hp,
+        inventory: (p.inventory ?? []).filter(sl => sl && KNOWN_ITEMS.has(sl.item)),
+        weapon: p.equipment?.weapon && KNOWN_ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
+      }))
+    } catch { /* unreadable old world: found fresh */ }
+    fs.rmSync(CP_FILE, { force: true }) // old world's state belongs to the old world
+  }
+  fs.mkdirSync('checkpoints', { recursive: true })
+  fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
+}
+
+const node = await new IntervalNode({ genesis: GENESIS, buildWorld, name: 'web', checkpointFile: CP_FILE }).start()
+
+// apply the crossing (only on a fresh founding with imports)
+if (GENESIS._imported && node.state.tick === 0) {
+  const sp = { x: Math.floor(WORLD_W / 2), y: Math.floor(WORLD_H / 2) }
+  for (const c of GENESIS._imported) {
+    E.addPlayer(node.state, c.pid, sp.x, sp.y)
+    const p = node.state.players[c.pid]
+    for (const k of Object.keys(p.skills)) if (c.skills?.[k] !== undefined) p.skills[k] = c.skills[k]
+    p.hp = Math.min(c.hp ?? p.hp, E.levelForXp(p.skills.hitpoints))
+    c.inventory.forEach((sl, i) => { if (i < p.inventory.length) p.inventory[i] = sl })
+    p.equipment.weapon = c.weapon
+    if (c.name && !(c.name in node.state.names)) { node.state.names[c.name] = c.pid; p.name = c.name }
+    migrated++
+  }
+  delete GENESIS._imported
+  fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
+  console.log(`constitution changed: ${migrated} citizen(s) crossed into the new world`)
+}
+
+// if the pillar slept a long time, rebase the clock rather than replaying
+// days of empty ticks. (A solo pillar may do this; a multi-node world must
+// fast-forward or re-corroborate — rebasing is a whole-world decision.)
+{
+  const expected = Math.floor((Date.now() - GENESIS.anchorMs) / E.TICK_MS)
+  const gap = expected - node.state.tick
+  if (gap > 3000) {
+    GENESIS.anchorMs = Date.now() - node.state.tick * E.TICK_MS
+    node.genesis.anchorMs = GENESIS.anchorMs
+    node.state.genesis.anchorMs = GENESIS.anchorMs
+    fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
+    console.log(`the world slept ${Math.round(gap * E.TICK_MS / 60000)} minutes — clock rebased at tick ${node.state.tick}`)
+  } else if (gap > 0) {
+    console.log(`catching up ${gap} ticks…`)
+  }
+}
 // every visitor is their own citizen: one identity per browser, keyed by a
 // local ID the browser stores. The node custodies these keys (a friendly
 // pillar); browser-held keys are the v1.0 light-client milestone.
