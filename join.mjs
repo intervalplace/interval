@@ -61,18 +61,37 @@ const step = (me2, goal) => {
     return client.move(mx, my)
   }
 }
-let said = false
+let said = false, banking = false
+const nearest = (s, p, type) => Object.entries(s.nodes)
+  .filter(([, n]) => n.type === type && n.depletedUntil <= s.tick)
+  .sort(([, a], [, b]) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)))[0]
+
 client.onTick((s) => {
   const p = client.me
   if (!p) return client.spawn()
   if (NAME && !p.name) return client.claimName(NAME)
   if (!said) { said = true; return client.chat('the interval provides') }
   if (p.action) return
-  const trees = Object.entries(s.nodes)
-    .filter(([, n]) => n.type === 'tree' && n.depletedUntil <= s.tick)
-    .sort(([, a], [, b]) => (Math.abs(a.x - p.x) + Math.abs(a.y - p.y)) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)))
-  if (!trees.length) return
-  const [id, t] = trees[0]
+
+  // a full pack is wealth in danger: carry it to the vault
+  if (!banking && !p.inventory.some(sl => sl === null)) {
+    banking = true
+    client.chat('to the bank')
+  }
+  if (banking) {
+    const slot = p.inventory.findIndex(sl => sl?.item === 'logs')
+    if (slot === -1) { banking = false } // vaulted everything: back to work
+    else {
+      const bank = nearest(s, p, 'bank')
+      if (!bank) { banking = false } // a world without banks: chop on
+      else if (Math.abs(p.x - bank[1].x) + Math.abs(p.y - bank[1].y) === 1) return client.deposit(slot)
+      else return step(p, bank[1])
+    }
+  }
+
+  const tree = nearest(s, p, 'tree')
+  if (!tree) return
+  const [id, t] = tree
   if (Math.abs(p.x - t.x) + Math.abs(p.y - t.y) === 1) return client.gather(id)
   step(p, t)
 })
@@ -81,5 +100,6 @@ setInterval(() => {
   const p = client.me
   if (!p) return
   const logs = p.inventory.filter(sl => sl?.item === 'logs').length
-  console.log(`tick ${node.state.tick} · (${p.x},${p.y}) · wc ${client.level('woodcutting')} · ${logs} logs · peers ${client.peers} · flags ${node.divergent.size}`)
+  const vault = p.bank?.logs ?? 0
+  console.log(`tick ${node.state.tick} · (${p.x},${p.y}) · wc ${client.level('woodcutting')} · ${logs} carried · ${vault} vaulted · peers ${client.peers} · flags ${node.divergent.size}`)
 }, 6000)
