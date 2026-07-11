@@ -47,6 +47,12 @@ pre {
 }
 code { color: var(--gold); font-family: "Courier New", monospace; font-size: .95em; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 10px 0; }
+/* the board holds its shape: twelve skills scroll inside the stone,
+   they do not escape it */
+#board { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+#board table { min-width: max-content; white-space: nowrap; font-size: 12px; margin: 10px 0 4px; }
+#board th, #board td { padding: 6px 9px; }
+#board th:nth-child(2), #board td:nth-child(2) { position: sticky; left: 0; background: var(--stone, #4a4238); }
 th { text-align: left; color: var(--gold); padding: 8px 10px; background: var(--stone-dk); font-size: 12px; letter-spacing: .5px; }
 td { padding: 7px 10px; border-bottom: 1px solid var(--stone-dk); }
 tr:hover td { background: rgba(0,0,0,.18); }
@@ -64,7 +70,7 @@ h1 {
 }
 .hero { position: relative; }
 .torch {
-  position: absolute; top: -18px; width: 12px; height: 26px;
+  position: absolute; top: -26px; width: 12px; height: 26px;
   background: radial-gradient(ellipse at 50% 85%, #f4d03f 0%, #e67e22 45%, transparent 72%);
   filter: drop-shadow(0 0 8px rgba(230,126,34,.6));
   animation: flick .6s infinite alternate ease-in-out;
