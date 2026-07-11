@@ -50,6 +50,9 @@ export class IntervalClient {
   eat(slot) { return this.#send({ type: 'eat', slot }) }
   drop(slot) { return this.#send({ type: 'drop', slot }) }
   pickup(groundId) { return this.#send({ type: 'pickup', groundId }) }
+  light(slot) { return this.#send({ type: 'light', slot }) }
+  deposit(slot) { return this.#send({ type: 'deposit', slot }) }
+  withdraw(item) { return this.#send({ type: 'withdraw', item }) }
   smith(recipe) { return this.#send({ type: 'smith', recipe }) }
   wield(slot) { return this.#send({ type: 'wield', slot }) }
   unwield() { return this.#send({ type: 'unwield' }) }
