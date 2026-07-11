@@ -68,9 +68,9 @@ h1 {
   text-shadow: 0 0 14px rgba(255,204,51,.35), 0 2px 0 #1c1710;
   letter-spacing: 4px;
 }
-.hero { position: relative; }
+.page > main.stone { position: relative; }
 .torch {
-  position: absolute; top: -26px; width: 12px; height: 26px;
+  position: absolute; top: -21px; width: 12px; height: 26px;
   background: radial-gradient(ellipse at 50% 85%, #f4d03f 0%, #e67e22 45%, transparent 72%);
   filter: drop-shadow(0 0 8px rgba(230,126,34,.6));
   animation: flick .6s infinite alternate ease-in-out;
