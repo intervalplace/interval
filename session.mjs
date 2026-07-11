@@ -1,6 +1,6 @@
-// Interval v0.5 session — a played world, seen through a window.
+// Interval v0.5 session: a played world, seen through a window.
 // Alice "plays" through the SDK on node A: claims her name, walks to a
-// tree, chops it. Bob runs a scripted gatherer on node B (a bot — same
+// tree, chops it. Bob runs a scripted gatherer on node B (a bot: same
 // SDK, same rights). The terminal window renders A's view at key ticks.
 // Layer check: this file touches the SDK and window only for play and
 // rendering; the engine appears solely to set up genesis.
@@ -48,7 +48,7 @@ const session = {
   4: () => player.gather('tree-1'),   // adjacent now: (4,4) → tree at (5,4)
 }
 
-// bob's bot: gather forever, the honest way — through the same SDK
+// bob's bot: gather forever, the honest way: through the same SDK
 bot.onTick(() => { if (bot.me && !bot.me.action) bot.gather('rock-1') })
 if (!bot.me.action) await bot.gather('rock-1')
 
