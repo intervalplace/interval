@@ -1,0 +1,49 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>New Player Guide — Interval</title>
+<link rel="stylesheet" href="/site/site.css"></head><body>
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
+  <h1>New Player Guide</h1>
+  <p class="tagline">From nothing to your first cooked fish, as fast as possible.</p>
+
+  <h2>The fastest way: play right here</h2>
+  <p>If this page is being served by a running node, just open
+  <a href="/play"><b>Play</b></a>. You'll spawn in the middle of the map.
+  Click the ground to walk. That's it, you're playing.</p>
+
+  <h2>Your first ten minutes</h2>
+  <ol>
+    <li><b>Walk to water</b> (the blue tile, top-left) and click it. You'll
+    start fishing — a raw fish lands in your inventory every so often.</li>
+    <li><b>Catch three or four</b>, then walk to the campfire ♨ and click
+    it. You will burn most of them. Everyone does. Burn rate falls as
+    your cooking level rises.</li>
+    <li><b>Click a cooked fish</b> in your inventory to eat it — it heals.
+    You'll want that, because:</li>
+    <li><b>Click a goblin.</b> Combat runs itself once engaged: you trade
+    blows every interval until one of you falls. Goblins drop bones,
+    sometimes ore.</li>
+    <li><b>Don't die carelessly.</b> Death sends you back to spawn and
+    destroys everything you're carrying. Skills survive; stuff doesn't.</li>
+  </ol>
+
+  <h2>Run your own world (two minutes)</h2>
+  <p>You need <a href="https://nodejs.org">Node.js</a> 20+.</p>
+  <pre>git clone &lt;repo-url&gt; interval && cd interval
+npm install
+node serve.mjs yourname     # then open http://localhost:8787</pre>
+  <p>Prefer a terminal? <code>node play.mjs yourname</code> — WASD to move,
+  <code>g</code> gather, <code>x</code> attack, <code>f</code> cook,
+  <code>e</code> eat, <code>q</code> quit.</p>
+
+  <h2>Three things worth knowing on day one</h2>
+  <ul>
+    <li><b>Your character is a file.</b> <code>identities/</code> holds your
+    key. Back it up: it IS your character, and there is no password reset
+    in a world with no authority.</li>
+    <li><b>One action per interval.</b> The world moves every 600ms and so
+    do you. Clicks queue for the next interval — the rhythm is the game.</li>
+    <li><b>Everything is public.</b> Skills, inventories, names — all world
+    state is verifiable by anyone. Your 99 will be provable forever.</li>
+  </ul>
+</main></div></body></html>

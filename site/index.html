@@ -1,1 +1,61 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interval — a world that runs on rules, not servers</title>
+<link rel="stylesheet" href="/site/site.css"></head><body>
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
+  <h1>INTERVAL</h1>
+  <p class="tagline">A world that runs on rules, not servers.</p>
 
+  <div class="tick" id="tick">— — — — —</div>
+  <div class="ticklabel" id="ticklabel">connecting to the world…</div>
+
+  <h2>What is this?</h2>
+  <p>Interval is a small online world in the spirit of early-2000s
+  browser games: chop trees, catch fish, burn half of them on a
+  campfire, fight goblins, trade with whoever is standing next to you.
+  Every 600 milliseconds the world advances one interval, and everything
+  that ever happens, happens on one.</p>
+  <p>The difference is underneath. There is no game server. The rules
+  are written in a public constitution, every player's computer enforces
+  them independently, and anyone whose world disagrees with the rules is
+  simply ignored by everyone else. Nobody can shut it down, charge for
+  it, or change it out from under you — an update you don't like is just
+  a different world you don't have to move to.</p>
+
+  <div class="cards">
+    <div class="card stone"><b>Free forever</b><p>No company, no servers, no
+    subscription. The world runs on the computers of the people playing
+    in it, and stays alive as long as anyone cares.</p></div>
+    <div class="card stone"><b>Your key is your character</b><p>Your character
+    is a cryptographic keypair on your machine. No account, no password
+    reset, no one to confiscate it.</p></div>
+    <div class="card stone"><b>Any window you like</b><p>There is no official
+    look. This site's client is one window among many — the same world
+    renders in a terminal, in ASCII, or in whatever anyone builds.</p></div>
+    <div class="card stone"><b>Honest with bots</b><p>The rules never ask
+    whether a player is human. Automation is priced into the economy
+    instead of policed — but presence cannot be automated.</p></div>
+  </div>
+
+  <h2>Start here</h2>
+  <p><a href="/play"><b>Play in this browser</b></a> — the reference window,
+  one click. Or read the <a href="/quickstart">New Player Guide</a> to run
+  your own world in two minutes, and <a href="/manual">The Manual</a> for
+  everything else. Standings live on the <a href="/hiscores">Hiscores</a>.</p>
+
+  <div class="footer">Inspired by early-2000s RuneScape. An independent
+  project with no affiliation to Jagex. The constitution is the game.</div>
+</main></div>
+<script>
+async function poll() {
+  try {
+    const r = await fetch('/api/world'); const j = await r.json()
+    document.getElementById('tick').textContent = String(j.tick).padStart(9, '0')
+    document.getElementById('ticklabel').textContent =
+      'the world is on interval ' + j.tick.toLocaleString() + ' · ' +
+      j.players + ' citizen' + (j.players === 1 ? '' : 's') + ' · world ' + j.worldId
+  } catch { document.getElementById('ticklabel').textContent = 'world unreachable — is a node running?' }
+}
+poll(); setInterval(poll, 1200)
+</script>
+</body></html>
