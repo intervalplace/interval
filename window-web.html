@@ -55,9 +55,44 @@
   #feed { height: 84px; overflow-y: auto; font-size: 10px; color: var(--parch); padding: 4px 6px; }
   #feed div { margin-bottom: 1px; }
   #status { font-size: 10px; color: #8a7a5c; }
+  #gate {
+    position: fixed; inset: 0; z-index: 10;
+    background: radial-gradient(ellipse at center, #241d12 0%, #16120c 70%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #gatebox { width: min(92vw, 380px); padding: 26px 28px; text-align: center; }
+  #gatebox h1 { color: var(--gold); font-size: 30px; letter-spacing: 4px; margin-bottom: 2px; }
+  #gatebox .sub { color: var(--dim); font-size: 11px; margin-bottom: 18px; }
+  #gateinfo { color: var(--parch); font-size: 12px; min-height: 18px; margin-bottom: 14px; }
+  #gatekey { color: var(--dim); font-size: 10px; margin-top: 14px; }
+  #gatename {
+    display: none; width: 100%; margin-bottom: 10px;
+    background: var(--stone-dk); border: 1px solid var(--stone-lt); color: var(--gold);
+    font: 14px Verdana; padding: 9px 10px; outline: none; text-align: center;
+  }
+  #gatebtn {
+    width: 100%; padding: 11px; cursor: pointer;
+    background: var(--stone-dk); color: var(--gold);
+    border-top: 2px solid var(--stone-lt); border-left: 2px solid var(--stone-lt);
+    border-bottom: 2px solid #1c1710; border-right: 2px solid #1c1710;
+    font: bold 14px Verdana; letter-spacing: 1px;
+  }
+  #gatebtn:disabled { color: var(--dim); cursor: wait; }
+  #gatebtn:active { border-top-color: #1c1710; border-left-color: #1c1710;
+    border-bottom-color: var(--stone-lt); border-right-color: var(--stone-lt); }
 </style>
 </head>
 <body>
+<div id="gate">
+  <div id="gatebox" class="stone">
+    <h1>INTERVAL</h1>
+    <div class="sub">a world that runs on rules, not servers</div>
+    <div id="gateinfo">waking the world&hellip;</div>
+    <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
+    <button id="gatebtn" disabled>&hellip;</button>
+    <div id="gatekey"></div>
+  </div>
+</div>
 <div id="frame">
   <div id="view"><canvas id="world" width="560" height="400"></canvas></div>
   <div id="panel" class="stone">
@@ -103,7 +138,7 @@ if (!uid) {
 }
 const ws = new WebSocket('ws://' + location.host)
 ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', uid }))
-let askedName = false
+let entered = false, loginName = ''
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -170,7 +205,10 @@ function smithBest(me) {
 
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
-  if (m.type === 'hello') { myId = m.playerId; feed('The interval begins.') }
+  if (m.type === 'hello') {
+    myId = m.playerId
+    document.getElementById('gatekey').textContent = 'your key: ' + myId.slice(0, 12) + '\u2026'
+  }
   if (m.type === 'state') { onState(m.state, m.worldId) }
   if (m.type === 'chat') {
     bubbles[m.playerId] = { text: m.text, at: performance.now() }
@@ -184,8 +222,22 @@ const hitFlash = {}   // pid -> ms timestamp of last damage taken
 let celebrate = null  // { text, at } — level-up banner + sparks
 const bubbles = {}    // pid -> { text, at } speech bubbles
 let xpDrops = []      // { amt, x, y, at } — floating +xp for gathering/cooking
+function updateGate(s, worldId) {
+  const me = s.players[myId]
+  const citizens = Object.keys(s.players).length
+  document.getElementById('gateinfo').textContent =
+    'interval ' + s.tick.toLocaleString() + ' \u00b7 ' + citizens + ' citizen' + (citizens === 1 ? '' : 's') + ' \u00b7 world ' + worldId
+  const btn = document.getElementById('gatebtn')
+  btn.disabled = !myId
+  btn.textContent = me
+    ? 'Enter as ' + (me.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026')
+    : 'Enter the world'
+  document.getElementById('gatename').style.display = (me?.name) ? 'none' : 'block'
+}
+
 function onState(s, worldId) {
   world = s
+  if (!entered) updateGate(s, worldId)
   if (s.genesis && (W !== s.genesis.worldW || !groundReady)) {
     W = s.genesis.worldW; H = s.genesis.worldH; buildGround()
   }
@@ -195,13 +247,10 @@ function onState(s, worldId) {
     if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
   }
   const me = s.players[myId]
+  if (!entered) { prev = s; panel(s); return } // wait at the gate
   if (!me) { send({ do: 'spawn' }) }
-  else if (!me.name && !askedName) {
-    askedName = true
-    setTimeout(() => {
-      const nm = (prompt('Claim your name, citizen (a-z, 0-9, dash, max 12 — cancel to stay nameless):') || '').toLowerCase().trim()
-      if (/^[a-z0-9-]{1,12}$/.test(nm) && !nm.startsWith('-') && !nm.endsWith('-')) send({ do: 'name', name: nm })
-    }, 100)
+  else if (!me.name && loginName) {
+    send({ do: 'name', name: loginName }); loginName = ''
   }
   else if (me && intent?.kind === 'cookall') {
     const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
@@ -498,22 +547,34 @@ function drawScene(now) {
     }
   }
 
-  // ground items: small piles where they fell
+  // ground items: piles at the tile's lower-left, clear of standing feet,
+  // with a glint so the eye finds them even in clutter
   for (const [gid, g2] of Object.entries(s.ground ?? {})) {
     const X = px(g2.x), Y = py(g2.y)
     const fading = g2.expiresAt - s.tick < 16
     cx.globalAlpha = fading ? 0.45 + Math.sin(now / 180) * 0.2 : 1
     if (g2.item === 'logs') {
-      cx.fillStyle = '#5c4023'; cx.fillRect(X + 12, Y + 24, 14, 3.4)
-      cx.fillStyle = '#6e4e2b'; cx.fillRect(X + 14, Y + 20, 14, 3.4)
+      cx.fillStyle = '#3a2a14'; cx.fillRect(X + 3, Y + 32, 15, 4)
+      cx.fillStyle = '#6e4e2b'; cx.fillRect(X + 4, Y + 28, 13, 3.4)
+      cx.fillStyle = '#8a6238'; cx.fillRect(X + 5.5, Y + 29, 2, 1.6)
     } else if (g2.item === 'ore') {
-      poly([[X+15,Y+28],[X+18,Y+21],[X+25,Y+22],[X+26,Y+28]], '#7a7a72', '#2c2c2c')
+      poly([[X+4,Y+36],[X+7,Y+28],[X+14,Y+29],[X+15,Y+36]], '#8a8a80', '#2c2c2c')
     } else if (g2.item === 'bones') {
-      cx.fillStyle = '#d9d3c0'; cx.fillRect(X + 13, Y + 24, 13, 2.4)
-      cx.fillStyle = '#efe9d8'; cx.fillRect(X + 12, Y + 22, 3.4, 6); cx.fillRect(X + 24, Y + 22, 3.4, 6)
+      cx.fillStyle = '#efe9d8'; cx.fillRect(X + 4, Y + 31, 12, 2.6)
+      cx.fillStyle = '#fffdf2'; cx.fillRect(X + 3, Y + 29, 3.4, 7); cx.fillRect(X + 14, Y + 29, 3.4, 7)
+    } else if (g2.item?.startsWith('bronze-')) {
+      cx.fillStyle = '#c9862a'; cx.fillRect(X + 5, Y + 30, 11, 3)
+      cx.fillStyle = '#8a5c1a'; cx.fillRect(X + 5, Y + 33, 11, 1.4)
     } else { // fish variants
       cx.fillStyle = g2.item === 'burnt-fish' ? '#3a3a3a' : g2.item === 'cooked-fish' ? '#b06a2a' : '#7aa8c9'
-      cx.beginPath(); cx.ellipse(X + 20, Y + 25, 7, 3.4, 0.2, 0, 7); cx.fill()
+      cx.beginPath(); cx.ellipse(X + 10, Y + 32, 7, 3.4, 0.2, 0, 7); cx.fill()
+    }
+    // the glint: a white spark that blinks every ~1.6s
+    if ((now + g2.x * 337) % 1600 < 260) {
+      cx.fillStyle = 'rgba(255,255,220,.95)'
+      cx.fillRect(X + 8, Y + 26, 2.2, 2.2)
+      cx.fillRect(X + 8.6, Y + 24.6, 1, 5)
+      cx.fillRect(X + 6.6, Y + 26.6, 5, 1)
     }
     cx.globalAlpha = 1
   }
@@ -685,7 +746,7 @@ function panel(s) {
     offers.push('<div class="stone" style="padding:5px 7px;margin-top:4px">'
       + '<b style="color:var(--gold)">' + (p.name ?? pid.slice(0, 6)) + '</b> offers '
       + giveItem.replace('-', ' ') + ' for your ' + p.trade.wantItem.replace('-', ' ') + ' '
-      + (haveWant ? '<button onclick="send({do:\'accept_trade\',from:\'' + pid + '\'})">accept</button>'
+      + (haveWant ? '<button data-accept="' + pid + '">accept</button>'
                   : '<span style="color:var(--dim)">(you have none)</span>')
       + '</div>')
   }
@@ -693,7 +754,7 @@ function panel(s) {
     const gi = me.inventory[me.trade.giveSlot]?.item ?? '?'
     offers.push('<div style="padding:4px 7px;margin-top:4px;background:var(--stone-dk)">your offer: '
       + gi.replace('-', ' ') + ' for ' + me.trade.wantItem.replace('-', ' ')
-      + ' <button onclick="send({do:\'cancel_trade\'})">cancel</button></div>')
+      + ' <button data-cancel="1">cancel</button></div>')
   }
   document.getElementById('offers').innerHTML = offers.join('')
 
@@ -730,6 +791,23 @@ function openTrade(pid) {
   }
   document.getElementById('tclose').onclick = () => { box.style.display = 'none' }
 }
+
+function enterWorld() {
+  if (!myId) return
+  const nm = document.getElementById('gatename').value.toLowerCase().trim()
+  if (/^[a-z0-9-]{1,12}$/.test(nm) && !nm.startsWith('-') && !nm.endsWith('-')) loginName = nm
+  entered = true
+  document.getElementById('gate').style.display = 'none'
+  feed('The interval begins.')
+}
+document.getElementById('gatebtn').addEventListener('click', enterWorld)
+document.getElementById('gatename').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterWorld() })
+
+document.getElementById('offers').addEventListener('click', (e) => {
+  const acc = e.target.dataset.accept
+  if (acc) { send({ do: 'accept_trade', from: acc }); feed('You accept the offer.') }
+  else if (e.target.dataset.cancel) { send({ do: 'cancel_trade' }); feed('You withdraw your offer.') }
+})
 
 document.getElementById('say').addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return
