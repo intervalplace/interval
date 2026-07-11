@@ -96,4 +96,4 @@ pre { padding: 10px 12px; overflow-x: auto; }
 
 /* the hero stands centered: a title, a heartbeat, a caption */
 main.stone > h1, main.stone > .tagline, main.stone > .ticklabel { text-align: center; }
-main.stone > .tick { margin-left: auto; margin-right: auto; width: fit-content; }
+main.stone > .tick { display: block; width: fit-content; margin: 12px auto 6px; }

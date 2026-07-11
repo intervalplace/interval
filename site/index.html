@@ -54,7 +54,7 @@ async function poll() {
     document.getElementById('tick').textContent = String(j.tick).padStart(9, '0')
     document.getElementById('ticklabel').textContent =
       'the world is on interval ' + j.tick.toLocaleString() + ' · ' +
-      j.players + ' citizen' + (j.players === 1 ? '' : 's') + ' · world ' + j.worldId
+      (j.awake ?? j.players) + ' awake of ' + j.players + ' citizen' + (j.players === 1 ? '' : 's') + ' · world ' + j.worldId
   } catch { document.getElementById('ticklabel').textContent = 'world unreachable. Is a node running?' }
 }
 poll(); setInterval(poll, 1200)
