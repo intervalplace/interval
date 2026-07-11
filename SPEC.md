@@ -1,11 +1,11 @@
-# Interval — Protocol Specification v0.19 ("The Constitution")
+# Interval: Protocol Specification v0.19 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
 window into the shared world. State disagreements mean one party broke the
 rules and is ignored by the network.
 
-The world advances in fixed intervals — ticks — and everything that ever
+The world advances in fixed intervals, ticks, and everything that ever
 happens, happens on one.
 
 ## 1. Core principles
@@ -30,7 +30,7 @@ happens, happens on one.
 - All actions resolve on tick boundaries. There is no sub-tick time.
 - The genesis object contains `anchorMs`, the wall-clock epoch (Unix ms)
   of tick 0. Tick N finalizes at `anchorMs + (N+1) * 600`. Every node
-  runs this schedule independently — the world has one clock, and it is
+  runs this schedule independently: the world has one clock, and it is
   arithmetic, not a server. Inputs for tick N must reach a node before
   it finalizes N; a node that stalls past a boundary must re-sync from
   checkpoints rather than guess.
@@ -40,11 +40,11 @@ happens, happens on one.
 The world state is a canonical JSON object (sorted keys, no whitespace)
 containing:
 
-- `tick` — current tick number
-- `players` — map of playerId → Player
-- `nodes` — map of nodeId → ResourceNode
-- `names` — map of name → playerId (see §5a)
-- `mobs` — map of mobId → Mob (see §3.3)
+- `tick`: current tick number
+- `players`: map of playerId → Player
+- `nodes`: map of nodeId → ResourceNode
+- `names`: map of name → playerId (see §5a)
+- `mobs`: map of mobId → Mob (see §3.3)
 
 `playerId` is the hex-encoded public key of the player's keypair.
 The **state hash** is SHA-256 of the canonical JSON encoding.
@@ -84,13 +84,13 @@ not move, and act only when attacked (fully deterministic). A mob with
 `hp <= 0` is dead until `respawnAt`, when its hp resets to max at the
 start of the tick.
 
-Mob stats table (v0.9): `goblin` — 5 max HP, attack 1, defence 1,
+Mob stats table (v0.9): `goblin`: 5 max HP, attack 1, defence 1,
 max hit 1, respawns 16 ticks after death. Drops on death, rolled on the
 beacon: `bones` (always) and `ore` (chance 64/256).
 
 ### 3.4 Ground items
 
-World state includes `ground` — a map of groundId →
+World state includes `ground`: a map of groundId →
 `{item, x, y, expiresAt}`. Dropped items lie where they fell, visible
 to all and takeable by anyone; at the start of each tick, items with
 `expiresAt <= tick` vanish. The ground forgets in about a minute.
@@ -129,7 +129,7 @@ v0.1 input types:
   The world is a bounded grid of **genesis-defined size**: the genesis
   object carries `worldW` and `worldH` (defaults 14 × 8), and a move
   whose destination lies outside is invalid. The world has edges
-  because its founding says so — and how much world there is, is a
+  because its founding says so: and how much world there is, is a
   founding decision like everything else. Resource nodes (all types,
   including campfires) are **impassable**: a move onto a tile occupied
   by a node is invalid. You fish beside the water, not in it.
@@ -158,7 +158,7 @@ v0.1 input types:
 - `pickup` → `{groundId}`; valid iff the item exists, the player stands
   on its tile, and a free inventory slot exists.
 - `eat` → `{slot}`; slot must hold `cooked-fish`. Consumes it, heals
-  3 HP (capped at max HP), and **clears the player's current action** —
+  3 HP (capped at max HP), and **clears the player's current action**,
   you stop what you are doing to eat. Re-engaging costs a future input,
   so eating mid-fight trades a swing for the heal. Resolves in the
   same tick.
@@ -185,7 +185,7 @@ external service.
 - A name matches `^[a-z0-9-]{1,12}$` and may not start or end with `-`.
 - `claim_name` is valid iff the name is unclaimed AND the claiming
   player has no name. First valid claim wins, forever (v0.4 has no
-  release or transfer; a future constitution may add them — that is a
+  release or transfer; a future constitution may add them: that is a
   fork, as always).
 - On success: `names[name] = playerId` and `player.name = name`.
 - Clients SHOULD render names where known and MUST fall back to the
@@ -197,8 +197,8 @@ A player need not exist in genesis to join a world.
 
 - `spawn` is valid iff `playerId` is not already in `players`. It is the
   ONLY input type valid for an unknown playerId.
-- On success the player is created at the **spawn point** — the center
-  tile `(floor(worldW/2), floor(worldH/2))` — with
+- On success the player is created at the **spawn point**: the center
+  tile `(floor(worldW/2), floor(worldH/2))`: with
   empty inventory, no name, no action, level-1 skills.
 - Spawning is permanent: there is no despawn in v0.6. Identities are
   free, but each playerId spawns at most once, ever.
@@ -208,18 +208,18 @@ A player need not exist in genesis to join a world.
 Trade is a two-phase atomic swap between adjacent players. Adjacency is
 deliberate: trade requires *being there*.
 
-- `offer_trade {to, giveSlot, wantItem}` — valid iff `to` is another
+- `offer_trade {to, giveSlot, wantItem}`: valid iff `to` is another
   existing player, `giveSlot` holds an item, and `wantItem` is an item
   string. Sets `player.trade = {to, giveSlot, wantItem}`. A new offer
   replaces any previous one.
-- `accept_trade {from}` — valid iff `from` has an open offer targeting
+- `accept_trade {from}`: valid iff `from` has an open offer targeting
   the acceptor, the two players are adjacent (orthogonally), and the
   acceptor holds at least one `wantItem`. On success, executed
   atomically in the same tick: the offerer's `giveSlot` item and the
   acceptor's first `wantItem` slot are swapped, and the offer clears.
   If any condition no longer holds at application time (item gone,
-  players moved apart), the accept is ignored — never partially applied.
-- `cancel_trade` — clears the caller's open offer.
+  players moved apart), the accept is ignored: never partially applied.
+- `cancel_trade`: clears the caller's open offer.
 
 There is no partial trade, no negotiation protocol, and no escrow: the
 swap either happens whole in one tick or not at all.
@@ -249,7 +249,7 @@ tick:
 3. Success: the slot becomes `cooked-fish`; award 30 cooking XP.
 4. Failure: the slot becomes `burnt-fish`; no XP.
 
-Either way the raw fish is consumed — cooking destroys supply. Burn
+Either way the raw fish is consumed: cooking destroys supply. Burn
 rate falls as the skill grows, exactly like the classic curve.
 
 ## 6b. Combat resolution
@@ -271,11 +271,11 @@ respawns are processed:
    loses `1 + (roll(beacon, playerId, "mobdmg") mod mobMaxHit)` HP;
    on a miss the player gains 4 defence XP.
 
-## 6c. Death (provisional — the most fork-worthy rule in this document)
+## 6c. Death (provisional: the most fork-worthy rule in this document)
 
 If a player's HP reaches 0: they respawn at the spawn point at full HP
 with their action cleared and their **entire inventory and equipment
-destroyed**. Skills, XP, name, and **bank** survive. Destroyed items leave the world — death
+destroyed**. Skills, XP, name, and **bank** survive. Destroyed items leave the world: death
 is the deepest sink. This severity is explicitly provisional; softer
 death rules are an expected and legitimate fork.
 
@@ -295,7 +295,7 @@ and awards 30 smithing XP per ore consumed.
 ## 5d. Equipment
 
 `equipment.weapon` holds at most one wielded item. Wielded gear is
-destroyed on death along with the inventory (§6c) — the sink spares
+destroyed on death along with the inventory (§6c): the sink spares
 nothing. Tool bonuses apply only when the wielded tool matches the node
 type; the sword bonus applies only in combat.
 
@@ -305,7 +305,7 @@ type; the sword bonus applies only in combat.
 tile carries no node. It resolves in the same tick on the beacon:
 `T = 64 + 2*level(firemaking)`, capped at 240. On success the logs are
 consumed, 40 firemaking XP is awarded, and a `fire` node appears on the
-player's tile with `expiresAt = tick + 100` — light that cooks, made by
+player's tile with `expiresAt = tick + 100`: light that cooks, made by
 hand, gone in a minute. On failure the logs survive for another try.
 On success the maker **steps aside** to the first free orthogonal tile
 (west, east, south, north, in that order); only if all four are blocked
@@ -317,7 +317,7 @@ stand in it.
 `player.bank` is a map of item → quantity: goods vaulted outside the
 world's dangers. `deposit {slot}` and `withdraw {item}` are valid only
 orthogonally adjacent to a `bank` node (withdraw also needs a free
-inventory slot). One item per interval — patience is the fee.
+inventory slot). One item per interval: patience is the fee.
 **The bank survives death** (§6c): what you carry can burn; what you
 vault endures. This is the world's memory, and the foundation of wealth.
 
@@ -333,7 +333,7 @@ Chat is NOT part of world state and never affects a state hash. It is a
 separate gossip topic, `interval/<ns>/chat/1.0.0`, carrying
 `{playerId, tick, text, sig}` signed by the speaking key. Nodes MUST
 drop messages over 80 characters, with invalid signatures, or exceeding
-one message per tick per key — the interval applies to speech too.
+one message per tick per key: the interval applies to speech too.
 Clients may mute any key locally. The world does not remember what was
 said; only who said it.
 
@@ -385,7 +385,7 @@ canonical timeline comes from corroboration, not authority:
   corroboration is better; one peer is never enough.
 - After adopting a checkpoint at tick T, the peer buffers gossiped
   inputs and advances normally from T. Its hashes must then agree with
-  the network's — if they don't, the peer adopted a minority timeline
+  the network's: if they don't, the peer adopted a minority timeline
   and should re-sync from different peers.
 
 ## 9b. Catch-up by replay
@@ -394,7 +394,7 @@ Nodes retain a recent **input log** (the exact input sets applied per
 tick) and serve contiguous ranges of it on
 `interval/<ns>/ticklog/1.0.0`. A node that stalls past one or more tick
 boundaries recovers by fetching the missed range and replaying it
-through the state machine — recomputing, not trusting: hash gossip
+through the state machine: recomputing, not trusting: hash gossip
 still judges the result. If no reachable peer's log extends back far
 enough, the node falls back to checkpoint re-sync (§9a). Determinism
 makes history replayable; replayability makes stalls survivable.
@@ -404,4 +404,4 @@ makes history replayable; replayability makes stalls survivable.
 Sharding, combat, hidden information, name release/transfer,
 multi-item trades, distributed beacon. The v0.x series exists to prove one thing:
 **independent implementations replaying the same inputs agree on every
-byte of the world — and anyone can join it, leave it, or fork it.**
+byte of the world: and anyone can join it, leave it, or fork it.**
