@@ -55,9 +55,13 @@
   <div id="panel" class="stone">
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
+  <div id="equip" style="font-size:12px;padding:4px 6px;background:var(--stone-dk);cursor:pointer"></div>
     <h2>Skills</h2><div id="skills"></div>
     <h2>Inventory</h2><div id="inv"></div>
     <div id="feed" class="stone"></div>
+    <input id="say" maxlength="80" placeholder="say something\u2026" autocomplete="off"
+      style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--gold);
+             font:12px Verdana;padding:5px 7px;outline:none">
     <div id="status"></div>
   </div>
 </div>
@@ -65,8 +69,13 @@
 const TILE = 40, VIEW_W = 14, VIEW_H = 8
 let W = 14, H = 8            // world dims: set from genesis on first state
 let cam = { x: 0, y: 0 }      // top-left tile of the viewport
+const DAY = 2400              // ticks per day: a full day every 24 minutes
+// the sky is derived from the tick — shared by every window, stored by none
+const lightCv = document.createElement('canvas')
 const cv = document.getElementById('world'), cx = cv.getContext('2d')
-const ICONS = { 'logs': '🪵', 'ore': '🪨', 'raw-fish': '🐟', 'cooked-fish': '🍖', 'burnt-fish': '💀', 'bones': '🦴' }
+const ICONS = { 'logs': '🪵', 'ore': '🪨', 'raw-fish': '🐟', 'cooked-fish': '🍖', 'burnt-fish': '💀', 'bones': '🦴',
+                'bronze-sword': '🗡️', 'bronze-hatchet': '🪓', 'bronze-pickaxe': '⛏️' }
+const EQUIPPABLE = new Set(['bronze-sword', 'bronze-hatchet', 'bronze-pickaxe'])
 const XP_TABLE = (() => { const t = [0, 0]; let pts = 0
   for (let l = 2; l <= 99; l++) { pts += Math.floor((l-1) + 300 * Math.pow(2, (l-1)/7)); t[l] = Math.floor(pts/4) }
   return t })()
@@ -116,11 +125,12 @@ function nextStep(s, me, goals) {
 
 function stepToward(s, me, goal, reach) {
   const goals = new Set()
-  if (reach) { // any free tile adjacent to the target
-    for (let gx = goal.x - 1; gx <= goal.x + 1; gx++)
-      for (let gy = goal.y - 1; gy <= goal.y + 1; gy++)
-        if (gx >= 0 && gx < W && gy >= 0 && gy < H && !blockedAt(s, gx, gy))
-          goals.add(gx + ',' + gy)
+  if (reach) { // the four tiles you can face it from
+    for (const [mx, my] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const gx = goal.x + mx, gy = goal.y + my
+      if (gx >= 0 && gx < W && gy >= 0 && gy < H && !blockedAt(s, gx, gy))
+        goals.add(gx + ',' + gy)
+    }
   } else goals.add(goal.x + ',' + goal.y)
   const step = nextStep(s, me, goals)
   if (step === null) { feed("You can't reach that."); intent = null; return }
@@ -129,16 +139,31 @@ function stepToward(s, me, goal, reach) {
   send({ do: 'move', dx: step.dx, dy: step.dy })
 }
 
+function smithBest(me) {
+  const have = (item) => me.inventory.filter(sl => sl && sl.item === item).length
+  if (have('ore') >= 2 && have('logs') >= 1) { send({ do: 'smith', recipe: 'bronze-sword' }); feed('You hammer at the anvil\u2026 a bronze sword takes shape.') }
+  else if (have('ore') >= 1 && have('logs') >= 1) {
+    const recipe = XP_TO_LVL(me.skills.woodcutting) <= XP_TO_LVL(me.skills.mining) ? 'bronze-hatchet' : 'bronze-pickaxe'
+    send({ do: 'smith', recipe }); feed('You hammer at the anvil\u2026 a ' + recipe.replace('-', ' ') + ' takes shape.')
+  }
+  else feed('You need ore and logs to smith. (Sword: 2 ore. Tools: 1 ore.)')
+}
+
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
   if (m.type === 'hello') { myId = m.playerId; myName = m.name; feed('The interval begins.') }
   if (m.type === 'state') { onState(m.state, m.worldId) }
+  if (m.type === 'chat') {
+    bubbles[m.playerId] = { text: m.text, at: performance.now() }
+    feed('<span style="color:#fff">' + m.name + ':</span> ' + m.text.replace(/</g, '&lt;'))
+  }
 }
 
 let prev = null
 let curState = null, prevState = null, stateAt = 0, curWorldId = ''
 const hitFlash = {}   // pid -> ms timestamp of last damage taken
 let celebrate = null  // { text, at } — level-up banner + sparks
+const bubbles = {}    // pid -> { text, at } speech bubbles
 let xpDrops = []      // { amt, x, y, at } — floating +xp for gathering/cooking
 function onState(s, worldId) {
   world = s
@@ -156,20 +181,36 @@ function onState(s, worldId) {
   else if (me && intent?.kind === 'cookall') {
     const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
     const fire = Object.values(s.nodes).find(n => n.type === 'campfire'
-      && Math.max(Math.abs(me.x - n.x), Math.abs(me.y - n.y)) <= 1)
+      && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
     if (i === -1) { intent = null; feed("You've cooked everything you had.") }
     else if (!fire) { intent = null }
     else send({ do: 'cook', slot: i })
   }
   else if (me && intent && !me.action) {
     const goal = intent.kind === 'walk' ? intent
+      : intent.kind === 'pickup' ? s.ground[intent.id]
       : (s.nodes[intent.id] ?? s.mobs[intent.id])
     if (!goal) { intent = null }
-    else if (intent.kind !== 'walk' && Math.max(Math.abs(me.x - goal.x), Math.abs(me.y - goal.y)) <= 1) {
+    else if ((intent.kind === 'gather' || intent.kind === 'attack' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo')
+             && Math.abs(me.x - goal.x) + Math.abs(me.y - goal.y) === 1) {
       // arrived: engage automatically — clicking once was the whole command
-      if (intent.kind === 'gather') { send({ do: 'gather', nodeId: intent.id }); feed(intent.msg) }
-      else { send({ do: 'attack', mobId: intent.id }); feed('You attack the goblin!') }
-      intent = null
+      if (intent.kind === 'gather') { send({ do: 'gather', nodeId: intent.id }); feed(intent.msg); intent = null }
+      else if (intent.kind === 'attack') { send({ do: 'attack', mobId: intent.id }); feed('You attack the goblin!'); intent = null }
+      else if (intent.kind === 'anvilgo') { smithBest(me); intent = null }
+      else { // at the fire: start cooking if there's anything raw
+        const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
+        if (i !== -1) { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026') }
+        else { feed('You have nothing to cook.'); intent = null }
+      }
+    }
+    else if (intent.kind === 'pickup') {
+      const g2 = s.ground[intent.id]
+      if (!g2) intent = null
+      else if (me.x === g2.x && me.y === g2.y) {
+        send({ do: 'pickup', groundId: intent.id })
+        feed('You pick up the ' + g2.item.replace('-', ' ') + '.')
+        intent = null
+      } else stepToward(s, me, g2, false)
     } else {
       stepToward(s, me, goal, intent.kind !== 'walk')
       if (intent?.kind === 'walk' && me.x === goal.x && me.y === goal.y) intent = null
@@ -194,10 +235,15 @@ function onState(s, worldId) {
     // announce what landed in the inventory this tick
     const GAIN = { 'logs': 'You get some logs.', 'ore': 'You manage to mine some ore.',
                    'raw-fish': 'You catch a fish!', 'cooked-fish': 'Nicely cooked.',
-                   'burnt-fish': 'You accidentally burn the fish.', 'bones': 'The goblin drops bones.' }
+                   'burnt-fish': 'You accidentally burn the fish.' }
     const cnt = inv => inv.reduce((m, s) => (s && (m[s.item] = (m[s.item] || 0) + 1), m), {})
     const a = cnt(old.inventory), b = cnt(me.inventory)
     for (const item in b) if ((b[item] || 0) > (a[item] || 0) && GAIN[item]) feed(GAIN[item])
+    // your foe fell → its loot is lying there
+    if (old.action?.type === 'attack') {
+      const mob = s.mobs[old.action.mobId], mobOld = prev.mobs[old.action.mobId]
+      if (mob && mobOld?.hp > 0 && mob.hp <= 0) feed('The goblin falls. Its drops lie where it fell.')
+    }
     // your working node just went dark → tell the player why they stopped
     if (old.action?.type === 'gather' && !me.action) {
       const n = s.nodes[old.action.nodeId]
@@ -230,9 +276,24 @@ let groundReady = false
 function buildGround() {
   ground.width = W * TILE; ground.height = H * TILE
   const g = ground.getContext('2d')
+  const h2 = (x, y, k) => ((x * 73 + y * 149 + k * 31) % 97) / 97
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     g.fillStyle = tileShade(x, y); g.fillRect(px(x), py(y), TILE, TILE)
     g.strokeStyle = 'rgba(0,0,0,.12)'; g.strokeRect(px(x) + .5, py(y) + .5, TILE - 1, TILE - 1)
+    // grass tufts
+    if (h2(x, y, 1) < 0.35) {
+      const tx = px(x) + 6 + h2(x, y, 2) * 26, ty = py(y) + 6 + h2(x, y, 3) * 26
+      g.strokeStyle = 'rgba(30,60,15,.55)'; g.lineWidth = 1.2
+      g.beginPath(); g.moveTo(tx, ty + 4); g.lineTo(tx - 1.5, ty); g.moveTo(tx + 1, ty + 4); g.lineTo(tx + 2.5, ty + .5)
+      g.moveTo(tx + 2, ty + 4); g.lineTo(tx + 1, ty - 1); g.stroke()
+    }
+    // rare flowers
+    if (h2(x, y, 4) < 0.05) {
+      const fx = px(x) + 8 + h2(x, y, 5) * 24, fy = py(y) + 8 + h2(x, y, 6) * 24
+      g.fillStyle = h2(x, y, 7) < 0.5 ? '#e8d44f' : '#d9ecf0'
+      g.fillRect(fx - 1.4, fy - 1.4, 2.8, 2.8)
+      g.fillStyle = '#b0722a'; g.fillRect(fx - 0.5, fy - 0.5, 1, 1)
+    }
   }
   groundReady = true
 }
@@ -276,6 +337,7 @@ function drawCitizen(X, Y, o) {
   cx.translate(ax + 1.5, ay + 1)
   cx.rotate(F * (o.anim === 'gather' ? -0.6 + swing * 0.9 : o.anim === 'fight' ? -0.3 + swing * 1.1 : 0.15))
   cx.fillStyle = skin; cx.fillRect(-1.5, 0, 3, 9)
+  const metal = o.bronzeTool ? '#c9862a' : '#8a8a82'
   if (o.anim === 'gather' && o.tool === 'rod') { // fishing rod: long, thin, line down
     cx.rotate(F * -0.5)
     cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, 6, 1.6, 15)
@@ -283,16 +345,22 @@ function drawCitizen(X, Y, o) {
     cx.beginPath(); cx.moveTo(0, 21); cx.lineTo(F * 4, 26 + Math.sin(o.now / 300) * 1.5); cx.stroke()
   } else if (o.anim === 'gather' && o.tool === 'pick') { // pickaxe
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 10)
-    cx.strokeStyle = '#8a8a82'; cx.lineWidth = 3
+    cx.strokeStyle = metal; cx.lineWidth = 3
     cx.beginPath(); cx.arc(0, 17, 5, F > 0 ? -0.6 : 2.5, F > 0 ? 0.6 : 3.7); cx.stroke()
   } else if (o.anim === 'gather') { // hatchet
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 9)
-    cx.fillStyle = '#8a8a82'; cx.fillRect(F > 0 ? 1 : -6, 14, 5, 4)
-  } else if (o.anim === 'fight') { // sword
-    cx.fillStyle = '#b8b8b0'; cx.fillRect(-1, 8, 2, 12)
+    cx.fillStyle = metal; cx.fillRect(F > 0 ? 1 : -6, 14, 5, 4)
+  } else if (o.anim === 'fight') { // sword — bronze gleams if forged
+    cx.fillStyle = o.sword ? '#c9862a' : '#b8b8b0'; cx.fillRect(-1, 8, 2, o.sword ? 14 : 12)
     cx.fillStyle = '#5c4023'; cx.fillRect(-3, 8, 6, 2)
   }
   cx.restore()
+  if (o.sword && o.anim !== 'fight') { // sheathed at the hip
+    cx.save(); cx.translate(X + (F > 0 ? 13 : 27), Y + 24); cx.rotate(F * 0.7)
+    cx.fillStyle = '#c9862a'; cx.fillRect(-0.8, 0, 1.6, 8)
+    cx.fillStyle = '#5c4023'; cx.fillRect(-2.2, -1, 4.4, 1.6)
+    cx.restore()
+  }
   // head: skin, hair cap, eye toward facing
   cx.fillStyle = skin; cx.fillRect(X + 15.5, Y + 7, 9, 9)
   cx.fillStyle = o.mine ? '#6b4a1e' : '#2b2b2b'
@@ -330,16 +398,22 @@ function drawScene(now) {
   for (const [id, n] of Object.entries(s.nodes)) {
     const X = px(n.x), Y = py(n.y), dep = n.depletedUntil > s.tick
     if (n.type === 'tree') {
+      const v = (n.x * 7 + n.y * 13) % 3   // three tree builds
+      const g1 = ['#2f6b1e', '#2a6329', '#356f18'][v]
+      const g2 = ['#3a7d26', '#347634', '#428321'][v]
+      const spread = [14, 11, 16][v], top = [2, 6, 0][v]
       poly([[X+18,Y+22],[X+22,Y+22],[X+22,Y+34],[X+18,Y+34]], '#5c4023')
       if (!dep) {
         const sway = Math.sin(now / 900 + n.x) * 1.2
-        poly([[X+20+sway,Y+2],[X+34,Y+24],[X+6,Y+24]], '#2f6b1e', '#1e4712')
-        poly([[X+20+sway,Y+8],[X+31,Y+26],[X+9,Y+26]], '#3a7d26')
+        poly([[X+20+sway,Y+top],[X+20+spread,Y+24],[X+20-spread,Y+24]], g1, '#1e4712')
+        poly([[X+20+sway,Y+top+6],[X+20+spread-3,Y+26],[X+20-spread+3,Y+26]], g2)
       } else poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319')
     }
     if (n.type === 'rock') {
-      const c = dep ? '#3a3a3a' : '#7a7a72'
+      const v = (n.x * 5 + n.y * 11) % 3
+      const c = dep ? '#3a3a3a' : ['#7a7a72', '#83786a', '#6f7478'][v]
       poly([[X+8,Y+30],[X+14,Y+12],[X+26,Y+9],[X+34,Y+24],[X+28,Y+33]], c, '#2c2c2c')
+      if (!dep) { cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(X+16, Y+13, 6, 3) }
     }
     if (n.type === 'fishing-spot') {
       cx.fillStyle = dep ? '#2a4a5a' : '#2e6b8a'
@@ -348,6 +422,11 @@ function drawScene(now) {
       const d1 = (now / 90) % (TILE - 18), d2 = (now / 130 + 14) % (TILE - 18)
       cx.fillRect(X + 6 + d1, Y + 13, 8, 1.6)
       cx.fillRect(X + 6 + d2, Y + 24, 8, 1.6)
+    }
+    if (n.type === 'anvil') {
+      poly([[X+11,Y+31],[X+29,Y+31],[X+27,Y+27],[X+13,Y+27]], '#3a342c')
+      poly([[X+13,Y+27],[X+27,Y+27],[X+26,Y+22],[X+14,Y+22]], '#55504a')
+      poly([[X+10,Y+22],[X+30,Y+22],[X+30,Y+17],[X+16,Y+17],[X+10,Y+19]], '#66625c', '#2c2a26')
     }
     if (n.type === 'campfire') {
       poly([[X+10,Y+32],[X+30,Y+32],[X+26,Y+28],[X+14,Y+28]], '#4a3319')
@@ -366,6 +445,26 @@ function drawScene(now) {
       cx.strokeStyle = 'rgba(255,204,51,' + (0.65 + Math.sin(now / 250) * 0.3) + ')'
       cx.lineWidth = 2; cx.strokeRect(px(tgt.x) + 2, py(tgt.y) + 2, TILE - 4, TILE - 4)
     }
+  }
+
+  // ground items: small piles where they fell
+  for (const [gid, g2] of Object.entries(s.ground ?? {})) {
+    const X = px(g2.x), Y = py(g2.y)
+    const fading = g2.expiresAt - s.tick < 16
+    cx.globalAlpha = fading ? 0.45 + Math.sin(now / 180) * 0.2 : 1
+    if (g2.item === 'logs') {
+      cx.fillStyle = '#5c4023'; cx.fillRect(X + 12, Y + 24, 14, 3.4)
+      cx.fillStyle = '#6e4e2b'; cx.fillRect(X + 14, Y + 20, 14, 3.4)
+    } else if (g2.item === 'ore') {
+      poly([[X+15,Y+28],[X+18,Y+21],[X+25,Y+22],[X+26,Y+28]], '#7a7a72', '#2c2c2c')
+    } else if (g2.item === 'bones') {
+      cx.fillStyle = '#d9d3c0'; cx.fillRect(X + 13, Y + 24, 13, 2.4)
+      cx.fillStyle = '#efe9d8'; cx.fillRect(X + 12, Y + 22, 3.4, 6); cx.fillRect(X + 24, Y + 22, 3.4, 6)
+    } else { // fish variants
+      cx.fillStyle = g2.item === 'burnt-fish' ? '#3a3a3a' : g2.item === 'cooked-fish' ? '#b06a2a' : '#7aa8c9'
+      cx.beginPath(); cx.ellipse(X + 20, Y + 25, 7, 3.4, 0.2, 0, 7); cx.fill()
+    }
+    cx.globalAlpha = 1
   }
 
   for (const [id, m] of Object.entries(s.mobs)) {
@@ -394,11 +493,28 @@ function drawScene(now) {
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
     const tool = workNode?.type === 'fishing-spot' ? 'rod'
                : workNode?.type === 'rock' ? 'pick' : 'axe'
+    const wep = p.equipment?.weapon?.item
+    const bronzeTool = (workNode?.type === 'tree' && wep === 'bronze-hatchet')
+                    || (workNode?.type === 'rock' && wep === 'bronze-pickaxe')
     drawCitizen(px(ix), py(iy), {
       now, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
+      sword: wep === 'bronze-sword', bronzeTool,
       name: p.name ?? pid.slice(0, 6), hp: p.hp, maxHp: XP_TO_LVL(p.skills.hitpoints),
       hitAt: hitFlash[pid],
     })
+  }
+
+  // speech bubbles: gold text over heads, RS-style, ~4s
+  for (const [pid, b] of Object.entries(bubbles)) {
+    if (now - b.at > 4000) { delete bubbles[pid]; continue }
+    const p = s.players[pid]; if (!p) continue
+    const o = prevState?.players[pid]
+    const bx2 = px(o ? lerp(o.x, p.x, t) : p.x) + 20
+    const by2 = py(o ? lerp(o.y, p.y, t) : p.y) - 12
+    cx.globalAlpha = now - b.at > 3400 ? (4000 - (now - b.at)) / 600 : 1
+    cx.fillStyle = '#ffff9c'; cx.font = 'bold 11px Verdana'; cx.textAlign = 'center'
+    cx.fillText(b.text, bx2, by2)
+    cx.globalAlpha = 1
   }
 
   // floating xp drops (world coords, so drawn before restore)
@@ -437,8 +553,52 @@ function drawScene(now) {
     cx.globalAlpha = 1
   } else if (celebrate && now - celebrate.at >= 2400) celebrate = null
 
+  // ---- day/night: a pure function of the shared tick ----
+  const cyc = (((s.tick + t) % DAY) / DAY)          // 0 dawn · .25 noon · .5 dusk · .75 midnight
+  const brightness = (Math.sin(cyc * Math.PI * 2) + 1) / 2
+  const darkness = (1 - brightness) * 0.58
+  const duskiness = Math.max(0, 1 - Math.abs(brightness - 0.42) * 6) // orange band at dawn/dusk
+  if (duskiness > 0.02) {
+    cx.fillStyle = 'rgba(181,86,30,' + (duskiness * 0.16) + ')'
+    cx.fillRect(0, 0, cv.width, cv.height)
+  }
+  if (darkness > 0.03) {
+    lightCv.width = cv.width; lightCv.height = cv.height
+    const L = lightCv.getContext('2d')
+    L.fillStyle = 'rgba(8,12,38,' + darkness + ')'
+    L.fillRect(0, 0, cv.width, cv.height)
+    // campfires hold back the night
+    L.globalCompositeOperation = 'destination-out'
+    for (const n of Object.values(s.nodes)) {
+      if (n.type !== 'campfire') continue
+      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + 24
+      if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
+      const r = 96 + Math.sin(now / 140 + n.x) * 5
+      const grad = L.createRadialGradient(fx, fy, 8, fx, fy, r)
+      grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)')
+      L.fillStyle = grad; L.beginPath(); L.arc(fx, fy, r, 0, 7); L.fill()
+    }
+    cx.drawImage(lightCv, 0, 0)
+    // warm halo on top of the cut
+    for (const n of Object.values(s.nodes)) {
+      if (n.type !== 'campfire') continue
+      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + 24
+      const grad2 = cx.createRadialGradient(fx, fy, 4, fx, fy, 60)
+      grad2.addColorStop(0, 'rgba(230,126,34,' + (darkness * 0.3) + ')')
+      grad2.addColorStop(1, 'rgba(230,126,34,0)')
+      cx.fillStyle = grad2; cx.beginPath(); cx.arc(fx, fy, 60, 0, 7); cx.fill()
+    }
+  }
+
+  // soft vignette: the old-monitor glow
+  const vg = cx.createRadialGradient(cv.width/2, cv.height/2, cv.height*0.55, cv.width/2, cv.height/2, cv.height*1.05)
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,14,6,.34)')
+  cx.fillStyle = vg; cx.fillRect(0, 0, cv.width, cv.height)
+
+  const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk'
+              : cyc < 0.94 ? 'night' : 'dawn'
   cx.fillStyle = 'rgba(217,201,163,.75)'; cx.font = '10px Verdana'; cx.textAlign = 'left'
-  cx.fillText('world ' + curWorldId + '  ·  tick ' + s.tick, 6, cv.height - 6)
+  cx.fillText('world ' + curWorldId + '  ·  tick ' + s.tick + '  ·  ' + phase, 6, cv.height - 6)
 }
 requestAnimationFrame(function frame(now) { drawScene(now); requestAnimationFrame(frame) })
 
@@ -464,21 +624,38 @@ function panel(s) {
     }).join('')
   document.getElementById('inv').innerHTML = me.inventory.slice(0, 28)
     .map((it, i) => '<div class="slot" data-i="' + i + '" title="' + (it ? it.item : '') + '">' + (it ? (ICONS[it.item] ?? '?') : '') + '</div>').join('')
+  const wep = me.equipment?.weapon
+  document.getElementById('equip').innerHTML = wep
+    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>'
+    : 'Weapon: <span style="color:var(--dim)">bare hands</span>'
   document.getElementById('status').textContent =
     me.action ? 'busy: ' + me.action.type : 'idle — click the world'
 }
+
+document.getElementById('equip').addEventListener('click', () => {
+  if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
+})
+
+document.getElementById('say').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return
+  const t = e.target.value.trim()
+  if (t) send({ do: 'chat', text: t })
+  e.target.value = ''
+})
 
 document.getElementById('inv').addEventListener('click', (e) => {
   const i = e.target.dataset.i; if (i === undefined || !world) return
   const meNow = world.players[myId]
   const it = meNow?.inventory[i]
-  if (it?.item === 'cooked-fish') {
+  if (it && EQUIPPABLE.has(it.item)) { send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.') }
+  else if (it?.item === 'cooked-fish') {
     const foe = meNow.action?.type === 'attack' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
     if (foe) { intent = { kind: 'attack', id: foe }; feed('You wolf it down and raise your sword again.') }
     else feed('You eat the fish.')
   }
-  if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
+  else if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
+  else if (it) { send({ do: 'drop', slot: +i }); feed('You drop the ' + it.item.replace('-', ' ') + '.') }
 })
 
 cv.addEventListener('click', (e) => {
@@ -489,7 +666,7 @@ cv.addEventListener('click', (e) => {
   const x = Math.floor(sx / TILE + cam.x), y = Math.floor(sy / TILE + cam.y)
   if (x < 0 || x >= W || y < 0 || y >= H) return
   const me = world.players[myId]; if (!me) return
-  const adj = (o) => Math.max(Math.abs(me.x - o.x), Math.abs(me.y - o.y)) <= 1
+  const adj = (o) => Math.abs(me.x - o.x) + Math.abs(me.y - o.y) === 1
 
   for (const [id, m] of Object.entries(world.mobs))
     if (m.hp > 0 && m.x === x && m.y === y) {
@@ -498,6 +675,9 @@ cv.addEventListener('click', (e) => {
       else intent = { kind: 'attack', id }                     // walk there, then engage
       return
     }
+
+  for (const [gid, g2] of Object.entries(world.ground ?? {}))
+    if (g2.x === x && g2.y === y) { intent = { kind: 'pickup', id: gid }; return }
 
   for (const [id, n] of Object.entries(world.nodes))
     if (n.x === x && n.y === y) {
@@ -508,8 +688,13 @@ cv.addEventListener('click', (e) => {
                'fishing-spot': "The fish aren't biting here yet." }[n.type] ?? 'Nothing left here.')
         return
       }
-      if (n.type === 'campfire') {
-        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y - 1 }; return }
+      if (n.type === 'anvil') {
+      poly([[X+11,Y+31],[X+29,Y+31],[X+27,Y+27],[X+13,Y+27]], '#3a342c')
+      poly([[X+13,Y+27],[X+27,Y+27],[X+26,Y+22],[X+14,Y+22]], '#55504a')
+      poly([[X+10,Y+22],[X+30,Y+22],[X+30,Y+17],[X+16,Y+17],[X+10,Y+19]], '#66625c', '#2c2a26')
+    }
+    if (n.type === 'campfire') {
+        if (!adj(n)) { intent = { kind: 'gatherfire', id, msg: 'You warm your hands by the fire.' }; return }
         const i = me.inventory.findIndex(s => s && s.item === 'raw-fish')
         if (i !== -1) { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026') }
         else feed('You have nothing to cook.')

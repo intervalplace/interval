@@ -1,4 +1,4 @@
-# Interval — Protocol Specification v0.14 ("The Constitution")
+# Interval — Protocol Specification v0.16 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -62,12 +62,13 @@ The genesis object is
 | `action`    | Action or null  | Current ongoing action                 |
 | `name`      | string or null  | Claimed display name (see §5a)         |
 | `trade`     | Offer or null   | Open trade offer (see §5c)             |
+| `equipment` | {weapon}        | Wielded item or null (see §5d)         |
 
 ### 3.2 Resource nodes
 
-A node is `{type, x, y, depletedUntil}`. Types in v0.8: `tree`, `rock`,
-`fishing-spot` (gatherable) and `campfire` (not gatherable; enables
-cooking, §6a). A node with `depletedUntil > tick` yields nothing and
+A node is `{type, x, y, depletedUntil}`. Types: `tree`, `rock`,
+`fishing-spot` (gatherable); `campfire` (enables cooking, §6a); and
+`anvil` (enables smithing, §6d). A node with `depletedUntil > tick` yields nothing and
 cannot be targeted.
 
 Gather yield table: `tree` → `logs` (woodcutting, 25 XP), `rock` →
@@ -84,10 +85,18 @@ Mob stats table (v0.9): `goblin` — 5 max HP, attack 1, defence 1,
 max hit 1, respawns 16 ticks after death. Drops on death, rolled on the
 beacon: `bones` (always) and `ore` (chance 64/256).
 
+### 3.4 Ground items
+
+World state includes `ground` — a map of groundId →
+`{item, x, y, expiresAt}`. Dropped items lie where they fell, visible
+to all and takeable by anyone; at the start of each tick, items with
+`expiresAt <= tick` vanish. The ground forgets in about a minute.
+
 ## 4. Skills and XP
 
-v0.9 skills: `woodcutting`, `mining`, `fishing` (gathering); `cooking`
-(processing); `attack`, `defence`, `hitpoints` (combat). Gathering
+v0.16 skills: `woodcutting`, `mining`, `fishing` (gathering);
+`cooking`, `smithing` (processing); `attack`, `defence`, `hitpoints`
+(combat). Gathering
 creates items, processing consumes them, combat consumes everything.
 Players start with `hitpoints` at 1,154 XP (level 10); all other skills
 at 0. Max HP equals the hitpoints level.
@@ -121,7 +130,10 @@ v0.1 input types:
   founding decision like everything else. Resource nodes (all types,
   including campfires) are **impassable**: a move onto a tile occupied
   by a node is invalid. You fish beside the water, not in it.
-- `gather` → `{nodeId}`; must be adjacent (Chebyshev distance ≤ 1).
+- `gather` → `{nodeId}`; must be adjacent. Throughout this spec,
+  **adjacent means orthogonally adjacent** (Manhattan distance exactly
+  1): you stand before what you work, facing it. Diagonal interaction
+  is invalid; diagonal *movement* remains legal.
 - `stop` → cancels current action.
 - `claim_name` → `{name}`; see §5a.
 - `spawn` → no params; see §5b.
@@ -131,6 +143,15 @@ v0.1 input types:
 - `cook` → `{slot}`; see §6a.
 - `attack` → `{mobId}`; mob must exist, be alive, and be adjacent.
   Sets an ongoing attack action (§6b).
+- `smith` → `{recipe}`; see §6d.
+- `wield` → `{slot}`; slot must hold an equippable item. Swaps it with
+  the current weapon (which returns to that slot).
+- `unwield` → no params; weapon returns to the first free slot.
+- `drop` → `{slot}`; slot must hold an item. The item leaves the
+  inventory and becomes a **ground item** on the player's tile,
+  expiring 100 ticks later (§3.4).
+- `pickup` → `{groundId}`; valid iff the item exists, the player stands
+  on its tile, and a free inventory slot exists.
 - `eat` → `{slot}`; slot must hold `cooked-fish`. Consumes it, heals
   3 HP (capped at max HP), and **clears the player's current action** —
   you stop what you are doing to eat. Re-engaging costs a future input,
@@ -187,7 +208,7 @@ deliberate: trade requires *being there*.
   string. Sets `player.trade = {to, giveSlot, wantItem}`. A new offer
   replaces any previous one.
 - `accept_trade {from}` — valid iff `from` has an open offer targeting
-  the acceptor, the two players are adjacent (Chebyshev ≤ 1), and the
+  the acceptor, the two players are adjacent (orthogonally), and the
   acceptor holds at least one `wantItem`. On success, executed
   atomically in the same tick: the offerer's `giveSlot` item and the
   acceptor's first `wantItem` slot are swapped, and the offer clears.
@@ -215,7 +236,7 @@ While a player's `action` is `gather(nodeId)`, on each tick:
 ## 6a. Cooking (the first sink)
 
 `cook {slot}` is valid iff the slot holds `raw-fish` and the player is
-adjacent (Chebyshev ≤ 1) to a `campfire` node. It resolves in the same
+orthogonally adjacent to a `campfire` node. It resolves in the same
 tick:
 
 1. `r = roll(beacon, playerId, "cook")`, uniform in [0, 255].
@@ -252,6 +273,42 @@ with their action cleared and their **entire inventory destroyed**.
 Skills, XP, and name survive. Destroyed items leave the world — death
 is the deepest sink. This severity is explicitly provisional; softer
 death rules are an expected and legitimate fork.
+
+## 6d. Smithing (the ore sink)
+
+`smith {recipe}` is valid iff the player is orthogonally adjacent to an
+`anvil` and holds the materials. It resolves in the same tick, always
+succeeds, consumes the materials, places the product in a free slot,
+and awards 30 smithing XP per ore consumed.
+
+| Recipe           | Materials       | Effect when wielded            |
+|------------------|-----------------|--------------------------------|
+| `bronze-sword`   | 2 ore + 1 logs  | +2 max hit in combat           |
+| `bronze-hatchet` | 1 ore + 1 logs  | +24 gather threshold on trees  |
+| `bronze-pickaxe` | 1 ore + 1 logs  | +24 gather threshold on rocks  |
+
+## 5d. Equipment
+
+`equipment.weapon` holds at most one wielded item. Wielded gear is
+destroyed on death along with the inventory (§6c) — the sink spares
+nothing. Tool bonuses apply only when the wielded tool matches the node
+type; the sword bonus applies only in combat.
+
+## 6e. Mob drops lie where they fall
+
+On a mob's death its drops become **ground items** (§3.4) on the mob's
+tile rather than entering anyone's inventory. The killer has no special
+claim: loot belongs to whoever walks over and takes it.
+
+## 9c. Chat (auxiliary, never consensus)
+
+Chat is NOT part of world state and never affects a state hash. It is a
+separate gossip topic, `interval/<ns>/chat/1.0.0`, carrying
+`{playerId, tick, text, sig}` signed by the speaking key. Nodes MUST
+drop messages over 80 characters, with invalid signatures, or exceeding
+one message per tick per key — the interval applies to speech too.
+Clients may mute any key locally. The world does not remember what was
+said; only who said it.
 
 ## 7. Verifiable randomness
 

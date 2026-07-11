@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.14';
+const SPEC_VERSION = '0.16';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -31,6 +31,14 @@ const MOB_STATS = {
             drops: [{ item: 'bones' }, { item: 'ore', chance: 64 }] },
 };
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+const RECIPES = {
+  'bronze-sword':   { ore: 2, logs: 1 },
+  'bronze-hatchet': { ore: 1, logs: 1 },
+  'bronze-pickaxe': { ore: 1, logs: 1 },
+};
+const EQUIPPABLE = new Set(Object.keys(RECIPES));
+const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
+const XP_SMITH_PER_ORE = 30;
 const spawnOf = (g) => ({ x: Math.floor(g.worldW / 2), y: Math.floor(g.worldH / 2) });
 
 // ---------- XP table: spec constants (Appendix A). Index = level. ----------
@@ -141,6 +149,7 @@ function newWorld(genesis) {
     nodes: {},
     names: {},
     mobs: {},
+    ground: {},
   };
 }
 
@@ -151,9 +160,10 @@ function sameWorld(a, b) {
 function addPlayer(state, playerId, x, y) {
   state.players[playerId] = {
     x, y,
-    skills: { woodcutting: 0, mining: 0, fishing: 0, cooking: 0,
+    skills: { woodcutting: 0, mining: 0, fishing: 0, cooking: 0, smithing: 0,
               attack: 0, defence: 0, hitpoints: HP_START_XP },
     hp: 10,
+    equipment: { weapon: null },
     inventory: Array(INV_SLOTS).fill(null),
     action: null,
     name: null,
@@ -174,8 +184,8 @@ function firstFreeSlot(inv) {
   return -1;
 }
 
-function adjacent(p, n) {
-  return Math.max(Math.abs(p.x - n.x), Math.abs(p.y - n.y)) <= 1;
+function adjacent(p, n) { // orthogonal (§5): you face what you work
+  return Math.abs(p.x - n.x) + Math.abs(p.y - n.y) === 1;
 }
 
 // ---------- input validation (spec §5) ----------
@@ -234,6 +244,27 @@ function validInput(state, input) {
       const m = state.mobs[input.mobId];
       return !!m && m.hp > 0 && adjacent(p, m);
     }
+    case 'smith': {
+      const r = RECIPES[input.recipe];
+      if (!r) return false;
+      if (!Object.values(state.nodes).some(n => n.type === 'anvil' && adjacent(p, n))) return false;
+      const have = (item) => p.inventory.filter(sl => sl && sl.item === item).length;
+      return Object.entries(r).every(([item, qty]) => have(item) >= qty);
+    }
+    case 'wield': {
+      const sl = p.inventory[input.slot];
+      return Number.isInteger(input.slot) && !!sl && EQUIPPABLE.has(sl.item);
+    }
+    case 'unwield':
+      return p.equipment.weapon !== null && firstFreeSlot(p.inventory) !== -1;
+    case 'drop': {
+      return Number.isInteger(input.slot) && !!p.inventory[input.slot];
+    }
+    case 'pickup': {
+      const g2 = state.ground[input.groundId];
+      if (!g2 || g2.x !== p.x || g2.y !== p.y) return false;
+      return firstFreeSlot(p.inventory) !== -1;
+    }
     case 'eat': {
       const slot = p.inventory[input.slot];
       return Number.isInteger(input.slot) && !!slot && slot.item === 'cooked-fish';
@@ -252,6 +283,10 @@ function nextState(state, inputs, beacon) {
   // mob respawns (spec §3.3): processed at tick start
   for (const m of Object.values(s.mobs)) {
     if (m.hp <= 0 && m.respawnAt <= s.tick) m.hp = MOB_STATS[m.type].maxHp;
+  }
+  // ground decay (spec §3.4): the ground forgets
+  for (const [gid, g2] of Object.entries(s.ground)) {
+    if (g2.expiresAt <= s.tick) delete s.ground[gid];
   }
 
   // discard duplicate-input bundles (spec §5)
@@ -294,6 +329,48 @@ function nextState(state, inputs, beacon) {
       }
     } else if (inp.type === 'attack') {
       p.action = { type: 'attack', mobId: inp.mobId };
+    } else if (inp.type === 'smith') {
+      const r = RECIPES[inp.recipe];
+      const nearAnvil = Object.values(s.nodes).some(n => n.type === 'anvil' && adjacent(p, n));
+      const have = (item) => p.inventory.filter(sl => sl && sl.item === item).length;
+      if (r && nearAnvil && Object.entries(r).every(([item, qty]) => have(item) >= qty)) {
+        for (const [item, qty] of Object.entries(r)) {
+          let left = qty;
+          for (let i = 0; i < p.inventory.length && left > 0; i++) {
+            if (p.inventory[i]?.item === item) { p.inventory[i] = null; left--; }
+          }
+        }
+        const slot = firstFreeSlot(p.inventory);
+        if (slot !== -1) p.inventory[slot] = { item: inp.recipe, qty: 1 };
+        p.skills.smithing += XP_SMITH_PER_ORE * r.ore;
+      }
+    } else if (inp.type === 'wield') {
+      const sl = p.inventory[inp.slot];
+      if (sl && EQUIPPABLE.has(sl.item)) {
+        const cur = p.equipment.weapon;
+        p.equipment.weapon = sl;
+        p.inventory[inp.slot] = cur;
+      }
+    } else if (inp.type === 'unwield') {
+      const slot = firstFreeSlot(p.inventory);
+      if (p.equipment.weapon && slot !== -1) {
+        p.inventory[slot] = p.equipment.weapon;
+        p.equipment.weapon = null;
+      }
+    } else if (inp.type === 'drop') {
+      const it = p.inventory[inp.slot];
+      if (it) {
+        p.inventory[inp.slot] = null;
+        const gid = 'g' + s.tick + '-' + pid.slice(0, 8) + '-' + inp.slot;
+        s.ground[gid] = { item: it.item, x: p.x, y: p.y, expiresAt: s.tick + 100 };
+      }
+    } else if (inp.type === 'pickup') {
+      const g2 = s.ground[inp.groundId];
+      const slot = firstFreeSlot(p.inventory);
+      if (g2 && g2.x === p.x && g2.y === p.y && slot !== -1) {
+        p.inventory[slot] = { item: g2.item, qty: 1 };
+        delete s.ground[inp.groundId];
+      }
     } else if (inp.type === 'eat') {
       const slot = p.inventory[inp.slot];
       if (slot && slot.item === 'cooked-fish') {
@@ -339,7 +416,8 @@ function nextState(state, inputs, beacon) {
       const atkLvl = levelForXp(p.skills.attack);
       const T = clamp(128 + 4 * (atkLvl - stats.def), 16, 240);
       if (roll(beacon, pid, 'atk') < T) {
-        const maxHit = 1 + Math.floor(atkLvl / 10);
+        const maxHit = 1 + Math.floor(atkLvl / 10)
+          + (p.equipment.weapon?.item === 'bronze-sword' ? 2 : 0);
         const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
         m.hp -= dmg;
         p.skills.attack += 4 * dmg;
@@ -347,11 +425,11 @@ function nextState(state, inputs, beacon) {
       }
 
       if (m.hp <= 0) {
-        // drops (spec §3.3): rolled on the beacon, to killer's free slots
+        // drops lie where they fall (spec §6e): loot belongs to whoever takes it
         for (const d of stats.drops) {
           if (d.chance !== undefined && roll(beacon, pid, 'loot-' + d.item) >= d.chance) continue;
-          const slot = firstFreeSlot(p.inventory);
-          if (slot !== -1) p.inventory[slot] = { item: d.item, qty: 1 };
+          const gid = 'g' + s.tick + '-' + p.action.mobId + '-' + d.item;
+          s.ground[gid] = { item: d.item, x: m.x, y: m.y, expiresAt: s.tick + 100 };
         }
         m.respawnAt = s.tick + stats.respawn;
         p.action = null;
@@ -367,6 +445,7 @@ function nextState(state, inputs, beacon) {
             p.x = sp.x; p.y = sp.y;
             p.hp = levelForXp(p.skills.hitpoints);
             p.inventory = Array(INV_SLOTS).fill(null);
+            p.equipment = { weapon: null }; // the sink spares nothing (§5d)
             p.action = null;
             p.trade = null;
           }
@@ -389,7 +468,8 @@ function nextState(state, inputs, beacon) {
 
     const y = NODE_YIELD[n.type];
     const lvl = levelForXp(p.skills[y.skill]);
-    const threshold = Math.min(64 + 2 * lvl, 240);
+    const toolBonus = p.equipment.weapon?.item === TOOL_FOR[n.type] ? 24 : 0;
+    const threshold = Math.min(64 + 2 * lvl + toolBonus, 240);
     const r = roll(beacon, pid, 'gather');
 
     if (r < threshold) {
