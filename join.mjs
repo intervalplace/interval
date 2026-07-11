@@ -1,13 +1,14 @@
-// Interval join v0.17 — the foreign node.
+// Interval join v0.17: the foreign node.
 // Run this against any pillar's URL and you enter that world as a full
 // peer: your OWN node computing every tick, your OWN keys signing every
-// action, held locally. No custodian. The pillar can't lie to you —
+// action, held locally. No custodian. The pillar can't lie to you,
 // divergence detection judges its hashes like anyone else's.
 //
-//   usage: node join.mjs http://host:8787 [name]
+//   usage: node join.mjs https://host [name] [--chop]
 //
-// Includes an example executor: the citizen trains woodcutting on the
-// nearest tree, forever. A bot and a person enter this world the same way.
+// By default your citizen simply exists: a full peer, verifying every
+// tick. Add --chop for the example executor (trains woodcutting and
+// banks the logs). A bot and a person enter this world the same way.
 
 import fs from 'fs'
 import { multiaddr } from '@multiformats/multiaddr'
@@ -17,8 +18,9 @@ import { IntervalClient } from './sdk.mjs'
 import { buildWorld } from './worldgen.mjs'
 
 const URL_ = process.argv[2]
-const NAME = (process.argv[3] || '').toLowerCase()
-if (!URL_) { console.log('usage: node join.mjs http://host:8787 [name]'); process.exit(1) }
+const NAME = (process.argv[3] || '').toLowerCase().replace(/^--.*/, '')
+const CHOP = process.argv.includes('--chop')
+if (!URL_) { console.log('usage: node join.mjs https://host [name] [--chop]'); process.exit(1) }
 
 // 1. fetch the founding record
 const info = await (await fetch(URL_.replace(/\/$/, '') + '/api/genesis')).json()
@@ -36,10 +38,10 @@ if (myRulesHash !== info.genesis.rulesHash) {
   process.exit(1)
 }
 
-// 3. your key IS your character — generated and held HERE, never sent
+// 3. your key IS your character: generated and held HERE, never sent
 fs.mkdirSync('identities', { recursive: true })
 const me = E.loadOrCreateIdentity(fs, `identities/join-${NAME || 'wanderer'}.json`)
-console.log(`your key: ${me.playerId.slice(0, 12)}… (identities/join-${NAME || 'wanderer'}.json — guard it)`)
+console.log(`your key: ${me.playerId.slice(0, 12)}… (identities/join-${NAME || 'wanderer'}.json: guard it)`)
 
 // 4. own node: sync the world, then march in lockstep
 const node = await new IntervalNode({ genesis: info.genesis, buildWorld, name: 'join' }).start()
@@ -72,6 +74,8 @@ client.onTick((s) => {
   if (NAME && !p.name) return client.claimName(NAME)
   if (!said) { said = true; return client.chat('the interval provides') }
   if (p.action) return
+
+  if (!CHOP) return  // an idle citizen: present, verifying, sovereign
 
   // a full pack is wealth in danger: carry it to the vault
   if (!banking && !p.inventory.some(sl => sl === null)) {
