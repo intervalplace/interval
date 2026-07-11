@@ -125,6 +125,8 @@ const server = http.createServer((req, res) => {
     })
     if (path === '/api/world') return json({
       tick: node.state.tick, worldId: RULES_HASH.slice(0, 12),
+      awake: Object.values(node.state.players).filter(p => E.isAwake(p, node.state.tick)).length,
+      awake: Object.values(node.state.players).filter(p => E.isAwake(p, node.state.tick)).length,
       players: Object.keys(node.state.players).length,
       mobs: Object.values(node.state.mobs).filter(m => m.hp > 0).length })
     if (path === '/api/hiscores') return json({ tick: node.state.tick, players: hiscores() })
