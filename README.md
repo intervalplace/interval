@@ -15,7 +15,7 @@ is an independent project with no affiliation to Jagex.
 ## The network is real
 
 Two sovereign machines now run this world. A pillar founds it and
-serves the web window; any stranger runs `node join.mjs <url> <name>`
+serves the web window; any stranger runs `node join.mjs https://interval.place <name>`
 and becomes a full peer: their machine fetches the founding record,
 refuses unless its own SPEC.md hashes to the same constitution, syncs a
 checkpoint, and then computes every tick independently, comparing state
