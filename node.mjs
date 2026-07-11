@@ -70,6 +70,12 @@ export class IntervalNode {
     ps.subscribe(this.topics.inputs)
     ps.subscribe(this.topics.hashes)
     ps.subscribe(this.chatTopic)
+    this.p2p.addEventListener('peer:connect', (e) => {
+      console.log(`[${this.name}] peer connected: ${e.detail.toString().slice(0, 24)}… (${this.p2p.getConnections().length} total)`)
+    })
+    this.p2p.addEventListener('peer:disconnect', (e) => {
+      console.log(`[${this.name}] peer left: ${e.detail.toString().slice(0, 24)}… (${this.p2p.getConnections().length} total)`)
+    })
     ps.addEventListener('message', (evt) => this.onMessage(evt))
     // serve recent input history for catch-up (spec §9b)
     await this.p2p.handle(this.ticklogProto, async ({ stream }) => {
@@ -86,6 +92,7 @@ export class IntervalNode {
 
     // serve our latest checkpoint to joining peers (spec §9a)
     await this.p2p.handle(this.checkpointProto, ({ stream }) => {
+      console.log(`[${this.name}] serving checkpoint at tick ${this.state.tick} to a joining peer`)
       const cp = Buffer.from(JSON.stringify({ tick: this.state.tick, state: this.state }))
       stream.sink([cp]).catch(() => {})
     })
