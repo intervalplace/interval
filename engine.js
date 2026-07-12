@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.31';
+const SPEC_VERSION = '0.32';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -466,7 +466,7 @@ function nextState(state, inputs, beacon) {
         }
       }
     } else if (inp.type === 'attack') {
-      p.action = { type: 'attack', mobId: inp.mobId };
+      p.action = { type: 'attack', mobId: inp.mobId, since: s.tick };
     } else if (inp.type === 'smith') {
       const r = RECIPES[inp.recipe];
       const nearAnvil = Object.values(s.nodes).some(n => n.type === 'anvil' && adjacent(p, n));
@@ -493,7 +493,7 @@ function nextState(state, inputs, beacon) {
     } else if (inp.type === 'attackp') {
       const q = s.players[inp.targetId];
       if (q && q.hp > 0 && inWilds(p.x, p.y) && inWilds(q.x, q.y)) {
-        p.action = { type: 'attackp', targetId: inp.targetId };
+        p.action = { type: 'attackp', targetId: inp.targetId, since: s.tick };
       }
     } else if (inp.type === 'sell') {
       const sl = p.inventory[inp.slot];
@@ -601,7 +601,7 @@ function nextState(state, inputs, beacon) {
       if (slot && slot.item === 'cooked-fish') {
         p.inventory[inp.slot] = null;
         p.hp = Math.min(p.hp + HEAL_FISH, effLevel(p.skills.hitpoints));
-        p.action = null; // §5: you stop what you're doing to eat
+        // v0.32 (spec 6m): eating does not lower your guard; the fight holds
       }
     } else if (inp.type === 'cook') {
       // re-check against new state; instant, same-tick resolution (§6a)
@@ -641,6 +641,7 @@ function nextState(state, inputs, beacon) {
             && p.equipment.weapon?.item === 'wooden-bow'
             && p.inventory.some(sl => sl?.item === 'arrows')));
       if (!near) { p.action = null; }
+      else if ((s.tick - (p.action.since ?? 0)) % 2 !== 0) { /* combat breathes (6m) */ }
       else {
         const bowDrawn2 = p.equipment.weapon?.item === 'wooden-bow' && !adjacent(p, q);
         let lvl2, tag2;
@@ -661,6 +662,9 @@ function nextState(state, inputs, beacon) {
           q.hp -= dmg;
           p.skills[tag2] += 4 * dmg;
           p.skills.hitpoints += dmg;
+          if (q.hp > 0 && q.action?.type !== 'attackp' && q.action?.type !== 'attack') {
+            q.action = { type: 'attackp', targetId: pid, since: s.tick + 1 }; // struck: strikes back
+          }
           if (q.hp <= 0) {
             // slain in the Wilds (spec 2g): the pack spills where they fall
             for (const sl of q.inventory) if (sl) {
@@ -685,6 +689,7 @@ function nextState(state, inputs, beacon) {
       const bowHeld = p.equipment.weapon?.item === 'wooden-bow'
         && Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y)) <= 4;
       if (!adjacent(p, m) && !bowHeld) { p.action = null; continue; }
+      if ((s.tick - (p.action.since ?? 0)) % 2 !== 0) continue; // combat breathes (6m)
 
       const bowDrawn = p.equipment.weapon?.item === 'wooden-bow' && !adjacent(p, m);
       if (bowDrawn) { // ranged (spec 6j): every draw costs an arrow, hit or miss

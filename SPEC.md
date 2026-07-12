@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.31 ("The Constitution")
+# Interval: Protocol Specification v0.32 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -97,6 +97,23 @@ an inventory item. What gold BUYS is reserved for a future amendment:
 the till is patient.
 
 New inert node type: `store` (with its `keeper`).
+
+## 6m. Combat breathes (v0.32)
+
+Every engagement carries `since`, the tick it began. Swings: both the
+attacker's and the defender's retaliation: resolve only on ticks where
+`(tick - since) mod 2 == 0`: one exchange every 1.2 seconds. The first
+swing is immediate; the rhythm follows. This paces citizen and beast
+alike; there is no fast blade in this world, only a patient one.
+
+**Instant acts do not lower your guard.** `eat` no longer clears a
+combat action: swallowing a fish mid-fight is the veteran's way. All
+other inputs still interrupt as before.
+
+**A struck citizen strikes back.** In the Wilds, when a citizen with
+no combat action of their own is hit by another citizen, they
+automatically engage their attacker. Flight remains possible: any
+move breaks the engagement, and the boundary still protects.
 
 ## 2g. The Wilds (where the law thins)
 
