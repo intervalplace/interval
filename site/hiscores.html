@@ -23,7 +23,7 @@ async function load() {
       + SKILLS.map(s => '<th>' + s.slice(0,4) + '</th>').join('') + '</tr>'
     j.players.forEach((p, i) => {
       html += '<tr><td class="rank">' + (i+1) + '</td><td>' + p.name + '</td><td><b style="color:var(--gold)">' + p.total + '</b></td>'
-        + SKILLS.map(s => '<td>' + p.levels[s] + '</td>').join('') + '</tr>'
+        + SKILLS.map(s => '<td' + (p.levels[s] >= 99 ? ' style="color:#ffcc33;font-weight:bold"' : '') + '>' + p.levels[s] + '</td>').join('') + '</tr>'
     })
     document.getElementById('board').innerHTML = html + '</table>'
   } catch { document.getElementById('board').textContent = 'world unreachable. Is a node running?' }
