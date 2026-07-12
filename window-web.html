@@ -143,7 +143,7 @@ const DAY = 2400              // ticks per day: a full day every 24 minutes
 const lightCv = document.createElement('canvas')
 let vignette = null
 const cv = document.getElementById('world'), cx = cv.getContext('2d')
-const ICONS = { 'logs': '🪵', 'ore': '🪨', 'raw-fish': '🐟', 'cooked-fish': '🍖',
+const ICONS = { 'logs': '🪵', 'ore': '🪨', 'raw-fish': '🐟', 'cooked-fish': '<span style="filter:sepia(1) saturate(1.6) hue-rotate(-18deg) brightness(.9)">🐟</span>',
                 'burnt-fish': '<span style="filter:brightness(.4) sepia(.8) hue-rotate(-30deg)">🐟</span>',
                 'bones': '🦴', 'bronze-sword': '🗡️', 'bronze-hatchet': '🪓', 'bronze-pickaxe': '⛏️',
                 'wooden-bow': '🏹', 'arrows': '<span style="display:inline-block;transform:rotate(45deg)">➵</span>',
@@ -312,7 +312,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b57'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b59'  // stamp: if your screen says an older build, hard-refresh
 const send = a => {
   if (ws.readyState !== 1) return
   if (ownKey && BRIDGE_TO_INPUT(a)) { signAndSend(a); return }
@@ -407,6 +407,13 @@ const mobFacing = {}  // mobId -> -1 left / 1 right
 const MOB_LEVEL = { goblin: 2, wolf: 5, troll: 9 } // derived from their stats row
 const splats = []     // { x, y, amount, at } damage made visible
 const layerArr = []   // reused render layer (perf)
+function renderT(now) { // one clock for drawing AND clicking: what you see is what you hit
+  if (tickOffset !== null && curState) {
+    const renderTick = (now - tickOffset) / 600 - 1.0
+    return Math.min(1.15, Math.max(0, renderTick - (curState.tick - 1)))
+  }
+  return Math.min(1.2, (now - stateAt) / statePeriod)
+}
 function chooseAction(opts) {
   const bar = document.getElementById('choosebar') ?? (() => {
     const d = document.createElement('div'); d.id = 'choosebar'
@@ -913,13 +920,7 @@ function drawScene(now) {
   // render on the tick timeline, one tick behind the newest state: the
   // sprite walks from prevState to curState exactly as the clock crosses
   // that tick, however raggedly the broadcasts arrived
-  let t
-  if (tickOffset !== null && curState) {
-    // render a full tick behind the fastest schedule: jitter up to 600ms
-    // arrives before we ever need the state it carries
-    const renderTick = (now - tickOffset) / 600 - 1.0
-    t = Math.min(1.15, Math.max(0, renderTick - (curState.tick - 1)))
-  } else t = Math.min(1.2, (now - stateAt) / statePeriod)
+  const t = renderT(now)
 
   // camera follows you, clamped to world edges, smooth between ticks
   const meCam = s.players[myId], oCam = prevState?.players[myId]
@@ -1410,44 +1411,37 @@ function drawScene(now) {
     L.clearRect(0, 0, cv.width, cv.height)
     L.fillStyle = 'rgba(8,12,38,' + darkness + ')'
     L.fillRect(0, 0, cv.width, cv.height)
-    // campfires hold back the night
+    // light holds back the night: one punch pass, destination-out THROUGHOUT.
+    // (A reset mid-loop once turned every later fire into painted darkness.)
     L.globalCompositeOperation = 'destination-out'
     for (const n of (s._nodesV ?? Object.values(s.nodes))) {
-      if (n.type === 'magic-rock' && n.depletedUntil <= s.tick) {
-        const MX = px(n.x) + 20, MY = py(n.y) + 20
-        const mg = L.createRadialGradient(MX, MY, 4, MX, MY, 46)
-        mg.addColorStop(0, 'rgba(120,220,255,.5)'); mg.addColorStop(1, 'rgba(120,220,255,0)')
-        L.globalCompositeOperation = 'destination-out'
-        L.fillStyle = mg; L.beginPath(); L.arc(MX, MY, 46, 0, 7); L.fill()
-        L.globalCompositeOperation = 'source-over'
-        continue
-      }
-      if (n.type !== 'campfire' && n.type !== 'fire') continue
-      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + 24
+      const isFire = n.type === 'campfire' || n.type === 'fire'
+      const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
+      if (!isFire && !isGlow) continue
+      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
-      const r = 96 + Math.sin(now / 140 + n.x) * 5
-      const grad = L.createRadialGradient(fx, fy, 8, fx, fy, r)
-      grad.addColorStop(0, 'rgba(0,0,0,1)'); grad.addColorStop(1, 'rgba(0,0,0,0)')
+      const r = isFire ? 96 + Math.sin(now / 140 + n.x) * 5 : 42 + Math.sin(now / 600 + n.x) * 4
+      const grad = L.createRadialGradient(fx, fy, isFire ? 8 : 4, fx, fy, r)
+      grad.addColorStop(0, 'rgba(0,0,0,' + (isFire ? 1 : 0.6) + ')')
+      grad.addColorStop(1, 'rgba(0,0,0,0)')
       L.fillStyle = grad; L.beginPath(); L.arc(fx, fy, r, 0, 7); L.fill()
     }
+    L.globalCompositeOperation = 'source-over'
     cx.drawImage(lightCv, 0, 0)
-    // warm halo on top of the cut
+    // colored halos on top of the cut: warm for flame, cool for the stones
     for (const n of (s._nodesV ?? Object.values(s.nodes))) {
-      if (n.type === 'magic-rock' && n.depletedUntil <= s.tick) {
-        const MX = px(n.x) + 20, MY = py(n.y) + 20
-        const mg = L.createRadialGradient(MX, MY, 4, MX, MY, 46)
-        mg.addColorStop(0, 'rgba(120,220,255,.5)'); mg.addColorStop(1, 'rgba(120,220,255,0)')
-        L.globalCompositeOperation = 'destination-out'
-        L.fillStyle = mg; L.beginPath(); L.arc(MX, MY, 46, 0, 7); L.fill()
-        L.globalCompositeOperation = 'source-over'
-        continue
-      }
-      if (n.type !== 'campfire' && n.type !== 'fire') continue
-      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + 24
-      const grad2 = cx.createRadialGradient(fx, fy, 4, fx, fy, 60)
-      grad2.addColorStop(0, 'rgba(230,126,34,' + (darkness * 0.3) + ')')
-      grad2.addColorStop(1, 'rgba(230,126,34,0)')
-      cx.fillStyle = grad2; cx.beginPath(); cx.arc(fx, fy, 60, 0, 7); cx.fill()
+      const isFire = n.type === 'campfire' || n.type === 'fire'
+      const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
+      if (!isFire && !isGlow) continue
+      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
+      if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
+      const R = isFire ? 60 : 40
+      const grad2 = cx.createRadialGradient(fx, fy, 4, fx, fy, R)
+      grad2.addColorStop(0, isFire
+        ? 'rgba(230,126,34,' + (darkness * 0.3) + ')'
+        : 'rgba(120,210,255,' + (darkness * 0.22) + ')')
+      grad2.addColorStop(1, isFire ? 'rgba(230,126,34,0)' : 'rgba(120,210,255,0)')
+      cx.fillStyle = grad2; cx.beginPath(); cx.arc(fx, fy, R, 0, 7); cx.fill()
     }
   }
 
@@ -1712,20 +1706,39 @@ cv.addEventListener('click', (e) => {
   const me = world.players[myId]; if (!me) return
   const adj = (o) => Math.abs(me.x - o.x) + Math.abs(me.y - o.y) === 1
 
-  for (const [pid, p] of Object.entries(world.players))
-    if (pid !== myId && p.x === x && p.y === y) {
-      if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
-      else { intent = { kind: 'meet', id: pid }; feed('You approach ' + (p.name ?? 'the stranger') + '.') }
-      return
-    }
-
-  for (const [id, m] of Object.entries(world.mobs))
-    if (m.hp > 0 && m.x === x && m.y === y) {
-      if (me.action?.mobId === id) return                      // already fighting it: silent
-      if (adj(m)) { send({ do: 'attack', mobId: id }); feed('You attack the goblin!') }
-      else intent = { kind: 'attack', id }                     // walk there, then engage
-      return
-    }
+  // hit-test against RENDERED positions: a goblin mid-stride is clickable
+  // where its body is, not where the grid will say it is in 300ms
+  const fxT = sx / TILE + cam.x, fyT = sy / TILE + cam.y
+  const tc = renderT(performance.now())
+  const lp = (a, b) => a + (b - a) * tc
+  let best = null
+  for (const [id, m] of Object.entries(world.mobs)) {
+    if (m.hp <= 0) continue
+    const o = prevState?.mobs?.[id]
+    const ix = o ? lp(o.x, m.x) : m.x, iy = o ? lp(o.y, m.y) : m.y
+    const d = Math.hypot(ix + 0.5 - fxT, iy + 0.5 - fyT)
+    if (d < 0.8 && (!best || d < best.d)) best = { d, kind: 'mob', id, m }
+  }
+  for (const [pid, p] of Object.entries(world.players)) {
+    if (pid === myId) continue
+    const o = prevState?.players?.[pid]
+    const ix = o ? lp(o.x, p.x) : p.x, iy = o ? lp(o.y, p.y) : p.y
+    const d = Math.hypot(ix + 0.5 - fxT, iy + 0.5 - fyT)
+    if (d < 0.8 && (!best || d < best.d)) best = { d, kind: 'citizen', id: pid, p }
+  }
+  if (best?.kind === 'mob') {
+    const { id, m } = best
+    if (me.action?.mobId === id) return                        // already fighting it: silent
+    if (adj(m)) { send({ do: 'attack', mobId: id }); feed('You attack the ' + m.type + '!') }
+    else intent = { kind: 'attack', id }                       // hunt it down, then engage
+    return
+  }
+  if (best?.kind === 'citizen') {
+    const { id: pid, p } = best
+    if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
+    else { intent = { kind: 'meet', id: pid }; feed('You approach ' + (p.name ?? 'the stranger') + '.') }
+    return
+  }
 
   for (const [gid, g2] of Object.entries(world.ground ?? {}))
     if (g2.x === x && g2.y === y) {
