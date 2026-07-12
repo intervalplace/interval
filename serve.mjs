@@ -59,7 +59,7 @@ if (saved && saved.genesis.rulesHash === RULES_HASH && saved.genesis.genesisSeed
   fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
 }
 
-const node = await new IntervalNode({
+const node = await new IntervalNode({ peerKeyFile: 'identities/peer-pillar.json',
   genesis: GENESIS, buildWorld, name: 'web', checkpointFile: CP_FILE,
   listen: `/ip4/0.0.0.0/tcp/${P2P_PORT}`,   // the pillar accepts peers
 }).start()
