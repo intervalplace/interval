@@ -209,7 +209,7 @@ function handle(ws, buf) {
     }
     if (m.type !== 'act') return
     const client = sockets.get(ws)
-    if (!client) return
+    if (!client || client.external) return // externals speak only in signatures
     const a = m.action
     // one input per tick, exactly as the constitution demands
     if (a.do === 'spawn') client.spawn()
