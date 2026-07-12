@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.24';
+const SPEC_VERSION = '0.25';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -29,6 +29,8 @@ const HP_START_XP = 1154; // hitpoints level 10
 const MOB_STATS = {
   goblin: { maxHp: 5, atk: 1, def: 1, maxHit: 1, respawn: 16,
             drops: [{ item: 'bones' }, { item: 'ore', chance: 64 }] },
+  wolf:   { maxHp: 8, atk: 2, def: 2, maxHit: 2, respawn: 150,
+            drops: [{ item: 'bones' }, { item: 'bones', chance: 96 }] },
 };
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 const RECIPES = {
@@ -40,6 +42,7 @@ const EQUIPPABLE = new Set(Object.keys(RECIPES));
 const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
 const XP_SMITH_PER_ORE = 30;
 const XP_FIREMAKING = 40;
+const XP_BURY = 25;
 const FIRE_TICKS = 100;
 const SLEEP_AFTER = 500;
 function isAwake(p, tick) {
@@ -184,7 +187,7 @@ function addPlayer(state, playerId, x, y) {
   state.players[playerId] = {
     x, y,
     skills: { woodcutting: 0, mining: 0, fishing: 0, cooking: 0, smithing: 0,
-              firemaking: 0, attack: 0, defence: 0, hitpoints: HP_START_XP },
+              firemaking: 0, prayer: 0, attack: 0, defence: 0, hitpoints: HP_START_XP },
     hp: 10,
     equipment: { weapon: null },
     bank: {},
@@ -286,6 +289,10 @@ function validInput(state, input) {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl || sl.item !== 'logs') return false;
       return !Object.values(state.nodes).some(n => n.x === p.x && n.y === p.y);
+    }
+    case 'bury': {
+      const sl = p.inventory[input.slot];
+      return Number.isInteger(input.slot) && !!sl && sl.item === 'bones';
     }
     case 'deposit': {
       if (!Number.isInteger(input.slot) || !p.inventory[input.slot]) return false;
@@ -437,6 +444,12 @@ function nextState(state, inputs, beacon) {
             break;
           }
         }
+      }
+    } else if (inp.type === 'bury') {
+      const sl = p.inventory[inp.slot];
+      if (sl && sl.item === 'bones') {
+        p.inventory[inp.slot] = null;
+        p.skills.prayer += XP_BURY;
       }
     } else if (inp.type === 'deposit') {
       const sl = p.inventory[inp.slot];

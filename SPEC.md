@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.24 ("The Constitution")
+# Interval: Protocol Specification v0.25 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -120,11 +120,18 @@ bounds, free of nodes, and within Chebyshev distance 2 of the mob's
 attack stands and fights. Mobs respawn at home. The goblins pace
 because the beacon says so; every node watches them pace identically.
 
+**Mob kinds.** `goblin` (5 hp, meadow-dweller) and, from v0.25,
+`wolf` (8 hp, hits up to 2, drops bones and sometimes more bones).
+Wolves keep to the fringes of the world; the hedgerows are theirs.
+Every mob kind inherits wandering, pinning, home respawn, and
+drops-to-ground from the universal mechanisms; a new creature costs
+one stats row and one sprite.
+
 ## 4. Skills and XP
 
-v0.18 skills: `woodcutting`, `mining`, `fishing` (gathering);
-`cooking`, `smithing`, `firemaking` (processing); `attack`, `defence`,
-`hitpoints` (combat). Gathering
+v0.25 skills: `woodcutting`, `mining`, `fishing` (gathering);
+`cooking`, `smithing`, `firemaking` (processing); `prayer` (rite);
+`attack`, `defence`, `hitpoints` (combat). Gathering
 creates items, processing consumes them, combat consumes everything.
 Players start with `hitpoints` at 1,154 XP (level 10); all other skills
 at 0. Max HP equals the hitpoints level.
@@ -378,6 +385,13 @@ orthogonally adjacent to a `bank` node (withdraw also needs a free
 inventory slot). One item per interval: patience is the fee.
 **The bank survives death** (§6c): what you carry can burn; what you
 vault endures. This is the world's memory, and the foundation of wealth.
+
+## 6h. Prayer (the bones sink)
+
+`bury {slot}` is valid iff the slot holds `bones`. It resolves in the
+same tick, always: the bones are consumed, the earth accepts them, and
+25 prayer XP is awarded. Prayer has no mechanical effect yet; its
+powers are reserved for a future amendment. The dead are patient.
 
 ## 6e. Mob drops lie where they fall
 
