@@ -46,6 +46,25 @@ console.log(`your key: ${me.playerId.slice(0, 12)}… (identities/join-${NAME ||
 // 4. own node: sync the world, then march in lockstep
 const node = await new IntervalNode({ genesis: info.genesis, buildWorld, name: 'join' }).start()
 await node.dial(pillarAddr)
+
+// ---- the mesh, not the star: dial every peer the pillar knows, and keep
+// looking. If the pillar dies, the world keeps talking around the hole.
+const dialed = new Set([pillarAddr.toString()])
+async function meshUp() {
+  try {
+    const r = await fetch(url + '/api/peers').then(x => x.json())
+    for (const a of r.peers ?? []) {
+      if (dialed.has(a)) continue
+      dialed.add(a)
+      try {
+        await node.dial(multiaddr(a))
+        console.log('[mesh] dialed peer ' + a)
+      } catch { /* unreachable is fine: NAT, gone, or us */ }
+    }
+  } catch { /* pillar unreachable: the mesh we already have carries on */ }
+}
+await meshUp()
+setInterval(meshUp, 60000)
 await node.syncFromPeers([pillarAddr], { allowSingle: true })
 console.log(node.log[node.log.length - 1])
 node.startTicking()
