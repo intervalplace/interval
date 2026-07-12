@@ -20,7 +20,7 @@ async function load() {
     if (!j.players.length) { document.getElementById('board').textContent = 'No citizens yet. Be first.'; return }
     SKILLS = Object.keys(j.players[0].levels)  // whatever the constitution says
     let html = '<table><tr><th class="rank">Rank</th><th>Name</th><th>Total</th>'
-      + SKILLS.map(s => '<th>' + s.slice(0,4) + '</th>').join('') + '</tr>'
+      + SKILLS.map(s => '<th>' + s + '</th>').join('') + '</tr>'
     j.players.forEach((p, i) => {
       html += '<tr><td class="rank">' + (i+1) + '</td><td>' + p.name + '</td><td><b style="color:var(--gold)">' + p.total + '</b></td>'
         + SKILLS.map(s => '<td' + (p.levels[s] >= 99 ? ' style="color:#ffcc33;font-weight:bold"' : '') + '>' + p.levels[s] + '</td>').join('') + '</tr>'

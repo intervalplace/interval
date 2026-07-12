@@ -97,3 +97,14 @@ pre { padding: 10px 12px; overflow-x: auto; }
 /* the hero stands centered: a title, a heartbeat, a caption */
 main.stone > h1, main.stone > .tagline, main.stone > .ticklabel { text-align: center; }
 main.stone > .tick { display: block; width: fit-content; margin: 12px auto 6px; }
+
+
+/* the board, readable: full names, striped rows, honored ranks */
+#board th { text-transform: capitalize; font-size: 11px; letter-spacing: .3px; }
+#board tr:nth-child(even) td { background: rgba(0,0,0,.10); }
+#board tr:nth-child(even) td:nth-child(2) { background: #3f382e; }
+#board tr:hover td { background: rgba(255,204,51,.06); }
+#board td:nth-child(3) { color: var(--gold); font-weight: bold; }
+#board tr:nth-child(2) td:first-child { color: #ffcc33; font-weight: bold; }
+#board tr:nth-child(3) td:first-child { color: #c0c0c0; font-weight: bold; }
+#board tr:nth-child(4) td:first-child { color: #b08d57; font-weight: bold; }
