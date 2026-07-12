@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.25';
+const SPEC_VERSION = '0.26';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -231,7 +231,8 @@ function validInput(state, input) {
       const { dx, dy } = input;
       if (![ -1, 0, 1 ].includes(dx) || ![ -1, 0, 1 ].includes(dy)) return false;
       const nx = p.x + dx, ny = p.y + dy;
-      if (nx < 0 || nx >= state.genesis.worldW || ny < 0 || ny >= state.genesis.worldH) return false;
+      // the hedge is law (spec 2c): the outer ring is impassable
+      if (nx < 1 || nx >= state.genesis.worldW - 1 || ny < 1 || ny >= state.genesis.worldH - 1) return false;
       // nodes are impassable (§5): you fish beside the water, not in it
       return !Object.values(state.nodes).some(n => n.x === nx && n.y === ny);
     }
@@ -342,7 +343,7 @@ function nextState(state, inputs, beacon) {
     if (roll(beacon, mid, 'wander') >= 48) continue;
     const [dx, dy] = [[0, -1], [1, 0], [0, 1], [-1, 0]][roll(beacon, mid, 'dir') % 4];
     const nx = m.x + dx, ny = m.y + dy;
-    if (nx < 0 || nx >= s.genesis.worldW || ny < 0 || ny >= s.genesis.worldH) continue;
+    if (nx < 1 || nx >= s.genesis.worldW - 1 || ny < 1 || ny >= s.genesis.worldH - 1) continue;
     if (Math.max(Math.abs(nx - m.hx), Math.abs(ny - m.hy)) > 2) continue;
     if (Object.values(s.nodes).some(n => n.x === nx && n.y === ny)) continue;
     m.x = nx; m.y = ny;
@@ -438,7 +439,7 @@ function nextState(state, inputs, beacon) {
           // step aside (§6f): west, east, south, north: first free tile
           for (const [mx, my] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) {
             const nx = p.x + mx, ny = p.y + my;
-            if (nx < 0 || nx >= s.genesis.worldW || ny < 0 || ny >= s.genesis.worldH) continue;
+            if (nx < 1 || nx >= s.genesis.worldW - 1 || ny < 1 || ny >= s.genesis.worldH - 1) continue;
             if (Object.values(s.nodes).some(n => n.x === nx && n.y === ny)) continue;
             p.x = nx; p.y = ny;
             break;

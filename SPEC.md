@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.25 ("The Constitution")
+# Interval: Protocol Specification v0.26 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -47,6 +47,13 @@ center of the trail: every citizen arrives on the road, halfway
 between the two lights. The trail itself is not state; windows may
 paint the road however they like, but the buildings stand where the
 constitution says.
+
+## 2c. The hedge is law
+
+The outermost ring of tiles is impassable to players and mobs alike:
+the world ends one tile before its arithmetic does. Windows may paint
+the boundary as hedgerow, fence, cliff, or sea; what they may not do
+is let anyone stand in it.
 
 ## 3. World state
 

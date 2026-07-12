@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b42'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b43'  // stamp: if your screen says an older build, hard-refresh
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -326,6 +326,7 @@ const hitFlash = {}   // pid -> ms timestamp of last damage taken
 let celebrate = null  // { text, at }: level-up banner + sparks
 const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
+const splats = []     // { x, y, amount, at } damage made visible
 const SLEEP_AFTER = 500
 const CAPE_COLORS = {
   woodcutting: '#2f7d2f', mining: '#5a6b7d', fishing: '#2a6f9e',
@@ -369,6 +370,16 @@ function onState(s, worldId) {
   }
   s._pinnedBy = {}
   for (const [pid2, p2] of Object.entries(s.players)) if (p2.action?.mobId) s._pinnedBy[p2.action.mobId] = p2
+  if (prev) { // hit splats: damage this tick, made visible where it landed
+    for (const [mid, m] of Object.entries(s.mobs)) {
+      const o2 = prev.mobs?.[mid]
+      if (o2 && o2.hp > m.hp && m.hp >= 0) splats.push({ x: m.x, y: m.y, amount: o2.hp - m.hp, at: performance.now() })
+    }
+    for (const [pid2, p2] of Object.entries(s.players)) {
+      const o2 = prev.players?.[pid2]
+      if (o2 && o2.hp > p2.hp) splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
+    }
+  }
   if (!entered) updateGate(s, worldId)
   if (s.genesis && (W !== s.genesis.worldW || !groundReady)) {
     W = s.genesis.worldW; H = s.genesis.worldH; buildGround()
@@ -409,7 +420,7 @@ function onState(s, worldId) {
         // the hunt persists: keep the intent until the state confirms the
         // fight began, so a goblin that steps at the tick boundary is chased
         send({ do: 'attack', mobId: intent.id })
-        if (!intent.announced) { feed('You attack the goblin!'); intent.announced = true }
+        if (!intent.announced) { feed('You attack the ' + (s.mobs[intent.id]?.type ?? 'creature') + '!'); intent.announced = true }
       }
       else if (intent.kind === 'anvilgo') { smithBest(me); intent = null }
       else if (intent.kind === 'meet') { openTrade(intent.id); intent = null }
@@ -451,13 +462,29 @@ function onState(s, worldId) {
       }
     }
     if (me.hp < old.hp) { feed('You take ' + (old.hp - me.hp) + ' damage.'); SFX.hit() }
-    if (me.hp > old.hp) { feed('You eat the fish. It heals ' + (me.hp - old.hp) + '.'); SFX.eat() }
+    if (me.hp > old.hp && !died) { feed('You eat the fish. It heals ' + (me.hp - old.hp) + '.'); SFX.eat() }
     // announce what landed in the inventory this tick
     const GAIN = { 'logs': 'You get some logs.', 'ore': 'You manage to mine some ore.',
                    'raw-fish': 'You catch a fish!', 'cooked-fish': 'Nicely cooked.',
                    'burnt-fish': 'You accidentally burn the fish.' }
     const cnt = inv => inv.reduce((m, sl) => (sl && (m[sl.item] = (m[sl.item] || 0) + 1), m), {})
     const a = cnt(old.inventory), b = cnt(me.inventory)
+
+    // death: recognized before anything else can misread it
+    const died = me.hp > old.hp
+      && (me.x !== old.x || me.y !== old.y)
+      && old.inventory.some(Boolean) && !me.inventory.some(Boolean)
+    if (died) {
+      feed('Oh dear, you are dead. You awaken at the crossroads; your bank remembers what your hands forgot.')
+      tone(160, 0.5, { type: 'sawtooth', vol: 0.05, glide: 60 })
+      tone(110, 0.7, { type: 'sine', vol: 0.06, glide: 50, at: 0.2 })
+    }
+
+    // withdrawals are not catches: bank decreases mark their items
+    const withdrawn = new Set()
+    for (const item in (old.bank ?? {})) {
+      if ((me.bank?.[item] ?? 0) < old.bank[item]) withdrawn.add(item)
+    }
 
     // trade settlement beats the generic gain messages, on BOTH sides
     let tradeItem = null
@@ -481,7 +508,7 @@ function onState(s, worldId) {
         feed('Trade complete: you received ' + gi.replace('-', ' ') + '.')
       }
     }
-    for (const item in b) if ((b[item] || 0) > (a[item] || 0) && item !== tradeItem) {
+    for (const item in b) if ((b[item] || 0) > (a[item] || 0) && item !== tradeItem && !withdrawn.has(item) && !died) {
       if (GAIN[item]) feed(GAIN[item])
       SFX[item]?.()
     }
@@ -489,7 +516,7 @@ function onState(s, worldId) {
     // your foe fell → its loot is lying there
     if (old.action?.type === 'attack') {
       const mob = s.mobs[old.action.mobId], mobOld = prev.mobs[old.action.mobId]
-      if (mob && mobOld?.hp > 0 && mob.hp <= 0) feed('The goblin falls. Its drops lie where it fell.')
+      if (mob && mobOld?.hp > 0 && mob.hp <= 0) feed('The ' + mob.type + ' falls. Its drops lie where it fell.')
     }
     // your working node just went dark → tell the player why they stopped
     if (old.action?.type === 'gather' && !me.action) {
@@ -497,7 +524,6 @@ function onState(s, worldId) {
       if (n && n.depletedUntil > s.tick) feed({ 'tree': 'The tree falls.', 'rock': 'The rock crumbles.',
         'fishing-spot': 'The fish stop biting: for now.' }[n.type] ?? 'Exhausted.')
     }
-    if (old.hp <= 2 && me.hp > old.hp && me.x === 7 && me.y === 4 && old.x !== 7) feed('Oh dear, you are dead. Your items are gone.')
   }
   prev = s
   panel(s)
@@ -547,6 +573,13 @@ function buildGround() {
     g.fillRect(px(x) + TILE - 2, py(y), 2, TILE)
     g.fillStyle = 'rgba(255,255,255,.03)'
     g.fillRect(px(x), py(y), TILE, 1.5)
+    // pebbles on the trodden road
+    if (terrainOf(x, y) === 'trail' && h2(x, y, 70) < 0.5) {
+      for (let pb = 0; pb < 2; pb++) {
+        g.fillStyle = ['#9a8a5e', '#7a6c44', '#a5966a'][tileHash(x, y, 71 + pb) % 3]
+        g.fillRect(px(x) + 4 + h2(x, y, 73 + pb) * 30, py(y) + 4 + h2(x, y, 76 + pb) * 30, 2.4, 1.8)
+      }
+    }
     // the hedgerow: the world ends in wild green, not in nothing
     if (isEdge(x, y)) {
       g.fillStyle = '#2c451a'; g.fillRect(px(x), py(y), TILE, TILE)
@@ -614,6 +647,7 @@ function drawCitizen(X, Y, o) {
   cx.beginPath(); cx.ellipse(X + 20, Y + 35, 8, 2.6, 0, 0, 7); cx.fill()
 
   const look = lookOf(o.pid)
+  if (o.anim === 'idle') Y += Math.sin(o.now / 800 + X * 0.1) * 0.7
   if (o.cape) {
     const sway = Math.sin(o.now / 420 + X) * 1.6 + (o.anim === 'walk' ? Math.sin(o.now / 130) * 2.2 : 0)
     const capeC = o.cape.radiant
@@ -780,7 +814,19 @@ function drawScene(now) {
       continue
     }
     layer.push({ z: Z(n.y, 2), draw: () => {
-      if (n.type === 'tree') {
+      if (n.type === 'tree' && tileHash(n.x, n.y, 7) % 3 === 0) {
+        // the deciduous cousin: round canopy, sun-kissed crown
+        if (!dep) shadow(X, Y, 12)
+        cx.fillStyle = '#4a3319'; cx.fillRect(X + 17.5, Y + 22, 5, 12)
+        cx.fillStyle = '#5c4023'; cx.fillRect(X + 19.5, Y + 22, 3, 12)
+        if (!dep) {
+          const sway2 = Math.sin(now / 1100 + n.y) * 1.1
+          cx.fillStyle = '#2a5c1e'; cx.beginPath(); cx.arc(X + 20 + sway2, Y + 15, 12, 0, 7); cx.fill()
+          cx.fillStyle = '#397a26'; cx.beginPath(); cx.arc(X + 18 + sway2, Y + 13, 9, 0, 7); cx.fill()
+          cx.fillStyle = '#4f9433'; cx.beginPath(); cx.arc(X + 16 + sway2, Y + 11, 5, 0, 7); cx.fill()
+        } else { shadow(X, Y, 7); poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319') }
+      }
+      else if (n.type === 'tree') {
         const v = tileHash(n.x, n.y, 9) % 3
         const dk = ['#26571a', '#225122', '#2b5a14'][v]
         const g1 = ['#2f6b1e', '#2a6329', '#356f18'][v]
@@ -838,6 +884,14 @@ function drawScene(now) {
         cx.fillStyle = nightNow ? '#f4d03f' : '#2c2620'
         cx.fillRect(X + 27, Y + 22, 5, 5)
         cx.strokeStyle = '#1c1710'; cx.lineWidth = 1; cx.strokeRect(X + 27, Y + 22, 5, 5)
+        cx.fillStyle = '#4a4038'; cx.fillRect(X + 27, Y + 7, 5, 8) // the chimney breathes
+        for (let pf = 0; pf < 3; pf++) {
+          const st = ((now / (2200 + pf * 700)) + pf * 0.33 + n.x * 0.1) % 1
+          cx.fillStyle = 'rgba(200,200,195,' + (0.3 * (1 - st)) + ')'
+          cx.beginPath()
+          cx.arc(X + 29 + Math.sin(st * 5 + pf) * 4, Y + 5 - st * 16, 2 + st * 3.4, 0, 7)
+          cx.fill()
+        }
       }
       if (n.type === 'bank') {
         shadow(X, Y, 15)
@@ -979,6 +1033,25 @@ function drawScene(now) {
 
   layer.sort((a, b) => a.z - b.z)
   for (const item of layer) item.draw()
+
+  // hit splats: the red star of damage, 700ms
+  for (let i = splats.length - 1; i >= 0; i--) {
+    const sp = splats[i]
+    const age = now - sp.at
+    if (age > 700) { splats.splice(i, 1); continue }
+    const SX = px(sp.x) + 20, SY = py(sp.y) + 18 - age / 90
+    cx.globalAlpha = age > 500 ? (700 - age) / 200 : 1
+    cx.fillStyle = '#a11212'
+    cx.beginPath()
+    for (let k = 0; k < 8; k++) {
+      const r2 = k % 2 ? 5.5 : 9, ang = k * Math.PI / 4 + 0.4
+      cx[k ? 'lineTo' : 'moveTo'](SX + Math.cos(ang) * r2, SY + Math.sin(ang) * r2)
+    }
+    cx.closePath(); cx.fill()
+    cx.fillStyle = '#fff'; cx.font = 'bold 9px Verdana'; cx.textAlign = 'center'
+    cx.fillText(sp.amount, SX, SY + 3.4)
+    cx.globalAlpha = 1
+  }
 
   // speech bubbles: gold text over heads, RS-style, ~4s
   for (const [pid, b] of Object.entries(bubbles)) {
@@ -1296,6 +1369,14 @@ cv.addEventListener('click', (e) => {
         cx.fillStyle = nightNow ? '#f4d03f' : '#2c2620'
         cx.fillRect(X + 27, Y + 22, 5, 5)
         cx.strokeStyle = '#1c1710'; cx.lineWidth = 1; cx.strokeRect(X + 27, Y + 22, 5, 5)
+        cx.fillStyle = '#4a4038'; cx.fillRect(X + 27, Y + 7, 5, 8) // the chimney breathes
+        for (let pf = 0; pf < 3; pf++) {
+          const st = ((now / (2200 + pf * 700)) + pf * 0.33 + n.x * 0.1) % 1
+          cx.fillStyle = 'rgba(200,200,195,' + (0.3 * (1 - st)) + ')'
+          cx.beginPath()
+          cx.arc(X + 29 + Math.sin(st * 5 + pf) * 4, Y + 5 - st * 16, 2 + st * 3.4, 0, 7)
+          cx.fill()
+        }
       }
       if (n.type === 'bank') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }
