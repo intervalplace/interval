@@ -16,7 +16,7 @@ import { buildWorld } from './worldgen.mjs'
 
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
-const WORLD_W = 60, WORLD_H = 30
+const WORLD_W = 72, WORLD_H = 36
 const WORLD_FILE = 'checkpoints/world.json'   // the founding record
 const CP_FILE = 'checkpoints/web.json'        // the living state
 
@@ -29,7 +29,7 @@ const P2P_PORT = Number(process.env.INTERVAL_P2P_PORT || 4600)
 // Same rules → resume the same world from checkpoint.
 // Changed rules → found a NEW world whose genesis imports the citizens.
 const KNOWN_ITEMS = new Set(['logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish', 'bones',
-  ...Object.keys(E.RECIPES)])
+  ...Object.keys(E.RECIPES), 'wooden-bow', 'arrows', 'bronze-helm', 'bronze-plate', 'magic-stone', 'sigil'])
 let GENESIS, migrated = 0
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
 
@@ -194,6 +194,8 @@ function handle(ws, buf) {
     else if (a.do === 'pickup') client.pickup(String(a.groundId))
     else if (a.do === 'light') client.light(a.slot | 0)
     else if (a.do === 'bury') client.bury(a.slot | 0)
+    else if (a.do === 'invoke') client.invoke()
+    else if (a.do === 'cast') client.cast('anchor')
     else if (a.do === 'fletch') client.fletch(a.slot | 0, a.make === 'arrows' ? 'arrows' : 'bow')
     else if (a.do === 'unequip') client.unequip(['weapon','head','body'].includes(a.gear) ? a.gear : 'weapon')
     else if (a.do === 'deposit') client.deposit(a.slot | 0)
