@@ -28,7 +28,7 @@ const P2P_PORT = Number(process.env.INTERVAL_P2P_PORT || 4600)
 // ---- persistence across restarts and updates ----
 // Same rules → resume the same world from checkpoint.
 // Changed rules → found a NEW world whose genesis imports the citizens.
-const KNOWN_ITEMS = new Set(['logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish', 'bones',
+const KNOWN_ITEMS = new Set(['seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish', 'bones',
   ...Object.keys(E.RECIPES), 'wooden-bow', 'arrows', 'bronze-helm', 'bronze-plate', 'magic-stone', 'sigil'])
 let GENESIS, migrated = 0
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
@@ -225,6 +225,8 @@ function handle(ws, buf) {
     else if (a.do === 'pickup') client.pickup(String(a.groundId))
     else if (a.do === 'light') client.light(a.slot | 0)
     else if (a.do === 'bury') client.bury(a.slot | 0)
+    else if (a.do === 'plant') client.plant(a.slot | 0)
+    else if (a.do === 'harvest') client.harvest(String(a.nodeId))
     else if (a.do === 'sell') client.sell(a.slot | 0)
     else if (a.do === 'invoke') client.invoke()
     else if (a.do === 'cast') client.cast('anchor')
