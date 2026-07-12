@@ -172,7 +172,7 @@ if (!uid) {
 }
 const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
 ws.onopen = () => ws.send(JSON.stringify({ type: 'auth', uid }))
-let entered = false, loginName = ''
+let entered = false, loginName = '', pendingName = ''
 
 // ---- sound: the world's voice, synthesized from nothing ----
 // The AudioContext wakes on the gate click (browsers require a gesture),
@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b45'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b46'  // stamp: if your screen says an older build, hard-refresh
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -357,6 +357,7 @@ function updateGate(s, worldId) {
     ? 'Enter as ' + (me.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026')
     : 'Enter the world'
   document.getElementById('gatename').style.display = (me?.name) ? 'none' : 'block'
+  validateGateName(s)
 }
 
 function onState(s, worldId) {
@@ -393,7 +394,14 @@ function onState(s, worldId) {
   if (!entered) { prev = s; panel(s); return } // wait at the gate
   if (!me) { send({ do: 'spawn' }) }
   else if (!me.name && loginName) {
-    send({ do: 'name', name: loginName }); loginName = ''
+    if (s.names?.[loginName]) {
+      feed('"' + loginName + '" was claimed while you stood at the gate. You remain nameless; another name awaits your choosing.')
+      loginName = ''
+    } else { send({ do: 'name', name: loginName }); pendingName = loginName; loginName = '' }
+  }
+  else if (!me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
+    feed('"' + pendingName + '" is taken. You remain nameless.')
+    pendingName = ''
   }
   else if (me && intent?.kind === 'cookall') {
     const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
@@ -1160,8 +1168,15 @@ function drawScene(now) {
 requestAnimationFrame(function frame(now) {
   if (document.hidden) { requestAnimationFrame(frame); return } drawScene(now); requestAnimationFrame(frame) })
 
+let panelSig = ''
 function panel(s) {
   const me = s.players[myId]; if (!me) return
+  // walking changes nothing here; rebuilding anyway stole frames
+  const sig = JSON.stringify([me.hp, me.name, me.skills, me.inventory, me.equipment,
+    me.bank, me.trade,
+    Object.values(s.players).filter(p => p.trade?.to === myId).map(p => [p.trade, p.name])])
+  if (sig === panelSig) return
+  panelSig = sig
   document.getElementById('whoami').textContent = me.name ?? '(unnamed)'
   const maxHp = XP_TO_LVL(me.skills.hitpoints)
   document.getElementById('hpfill').style.width = (100 * me.hp / maxHp) + '%'
@@ -1252,10 +1267,31 @@ function openTrade(pid) {
   document.getElementById('tclose').onclick = () => { box.style.display = 'none' }
 }
 
+function validateGateName(s) {
+  const inp = document.getElementById('gatename')
+  const btn = document.getElementById('gatebtn')
+  const nm = inp.value.toLowerCase().trim()
+  const takenBy = nm && s?.names?.[nm]
+  if (takenBy && takenBy !== myId) {
+    inp.style.borderColor = '#a11212'
+    btn.textContent = '"' + nm + '" is taken: try another'
+    btn.disabled = true
+  } else if (!entered) {
+    inp.style.borderColor = ''
+    btn.disabled = !myId
+    const me2 = world?.players[myId]
+    btn.textContent = me2
+      ? 'Enter as ' + (me2.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026')
+      : 'Enter the world'
+  }
+}
+document.getElementById('gatename').addEventListener('input', () => validateGateName(world))
+
 function enterWorld() {
   if (!myId) return
   wakeAudio()
   const nm = document.getElementById('gatename').value.toLowerCase().trim()
+  if (nm && world?.names?.[nm] && world.names[nm] !== myId) return // taken: the button already says so
   if (/^[a-z0-9-]{1,12}$/.test(nm) && !nm.startsWith('-') && !nm.endsWith('-')) loginName = nm
   entered = true
   document.getElementById('gate').style.display = 'none'
