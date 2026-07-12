@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.29 ("The Constitution")
+# Interval: Protocol Specification v0.30 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -71,6 +71,32 @@ highlands is **the cave**, a dark gallery where **trolls** dwell.
 Southwest across the trail spreads the **deep forest**, thick with
 trees. Windows may paint the cave dark and the forest deep; the nodes
 and mobs stand where the founding says.
+
+## 2f. The wide world (v0.30)
+
+The founding grows to town scale. Along the great east-west road:
+**Westhearth** and **Eastmere** as before. North up the king's road:
+**Anchor**, the walled city. Northeast: the **highlands** and the
+**cave**. Southwest: the **deep forest**, now the haunt of the
+**bear**. South down the lake road lies **Stillwater**, a fishing
+village on the shore of the great lake, keeping the world's first
+**general store**. Southeast sits **Milbrook**, a quiet town of
+houses, bank, anvil, and well. Roads are painted by windows; every
+building, water tile, and creature stands where the founding says.
+
+## 6l. The store and gold (the first coin)
+
+Each citizen carries `gold` (an integer, starting 0). `sell {slot}`
+is valid beside a `store` node when the slot's item has a listed
+price; it resolves same-tick: the whole stack is consumed and
+`gold += price * qty`. Prices: logs 2, ore 5, raw-fish 3,
+cooked-fish 6, bones 2, arrows 1, magic-stone 20, bronze-sword 15,
+bronze-hatchet 10, bronze-pickaxe 10, bronze-helm 12, bronze-plate 30,
+wooden-bow 8. Gold survives death (coin knows no master) and is not
+an inventory item. What gold BUYS is reserved for a future amendment:
+the till is patient.
+
+New inert node type: `store` (with its `keeper`).
 
 ## 2c. The hedge is law
 
@@ -154,7 +180,9 @@ because the beacon says so; every node watches them pace identically.
 **Mob kinds.** `goblin` (5 hp, meadow-dweller) and, from v0.25,
 `wolf` (8 hp, hits up to 2, drops bones and sometimes more bones); and, from
 v0.29, `troll` (20 hp, hits up to 3, dwells in the cave, drops bones,
-ore, and rarely a bronze-plate it has no use for).
+ore, and rarely a bronze-plate it has no use for); and, from v0.30,
+`bear` (14 hp, hits up to 2, keeps the deep forest, drops bones and
+rarely the hatchet of the last woodcutter who argued).
 Wolves keep to the fringes of the world; the hedgerows are theirs.
 Every mob kind inherits wandering, pinning, home respawn, and
 drops-to-ground from the universal mechanisms; a new creature costs

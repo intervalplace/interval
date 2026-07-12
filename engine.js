@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.29';
+const SPEC_VERSION = '0.30';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -39,6 +39,14 @@ const MOB_STATS = {
             drops: [{ item: 'bones' }, { item: 'bones', chance: 96 }] },
   troll:  { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300,
             drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'bronze-plate', chance: 24 }] },
+  bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220,
+            drops: [{ item: 'bones' }, { item: 'bones', chance: 128 }, { item: 'bronze-hatchet', chance: 16 }] },
+};
+// the store's ledger (spec 6l)
+const PRICES = {
+  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
+  'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8,
 };
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 // the city of Anchor (spec 2d): mob-forbidden bounds
@@ -213,6 +221,7 @@ function addPlayer(state, playerId, x, y) {
     equipment: { weapon: null, head: null, body: null },
     bank: {},
     lastInput: state.tick,
+    gold: 0,
     inventory: Array(INV_SLOTS).fill(null),
     action: null,
     name: null,
@@ -298,6 +307,11 @@ function validInput(state, input) {
       const cheb = Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y));
       return cheb <= 4 && p.equipment.weapon?.item === 'wooden-bow'
         && p.inventory.some(sl => sl?.item === 'arrows');
+    }
+    case 'sell': {
+      const sl = p.inventory[input.slot];
+      if (!Number.isInteger(input.slot) || !sl || !(sl.item in PRICES)) return false;
+      return Object.values(state.nodes).some(n => n.type === 'store' && adjacent(p, n));
     }
     case 'invoke': {
       // magic begins at night (spec 6k): daylight cannot make a sigil
@@ -464,6 +478,13 @@ function nextState(state, inputs, beacon) {
         const cur = p.equipment[g];
         p.equipment[g] = sl;
         p.inventory[inp.slot] = cur;
+      }
+    } else if (inp.type === 'sell') {
+      const sl = p.inventory[inp.slot];
+      const nearStore = Object.values(s.nodes).some(n => n.type === 'store' && adjacent(p, n));
+      if (sl && PRICES[sl.item] && nearStore) {
+        p.gold = (p.gold ?? 0) + PRICES[sl.item] * (sl.qty ?? 1);
+        p.inventory[inp.slot] = null;
       }
     } else if (inp.type === 'invoke') {
       if (isNight(s.tick)) {
@@ -698,5 +719,5 @@ module.exports = {
   canonical, stateHash, sha256, beaconValue, roll,
   generateIdentity, signInput, verifyInputSig,
   exportIdentity, importIdentity, loadOrCreateIdentity,
-  SLEEP_AFTER, isAwake, effLevel, cityRectOf, inCity, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  SLEEP_AFTER, isAwake, effLevel, cityRectOf, inCity, PRICES, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };
