@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.27';
+const SPEC_VERSION = '0.28';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -46,8 +46,12 @@ const RECIPES = {
   'bronze-sword':   { ore: 2, logs: 1 },
   'bronze-hatchet': { ore: 1, logs: 1 },
   'bronze-pickaxe': { ore: 1, logs: 1 },
+  'bronze-helm':    { ore: 1, logs: 1 },
+  'bronze-plate':   { ore: 3, logs: 1 },
 };
-const EQUIPPABLE = new Set(Object.keys(RECIPES));
+const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow']);
+const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body' }; // default: weapon
+const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
 const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
 const XP_SMITH_PER_ORE = 30;
 const XP_FIREMAKING = 40;
@@ -196,9 +200,9 @@ function addPlayer(state, playerId, x, y) {
   state.players[playerId] = {
     x, y,
     skills: { woodcutting: 0, mining: 0, fishing: 0, cooking: 0, smithing: 0,
-              firemaking: 0, prayer: 0, attack: 0, defence: 0, hitpoints: HP_START_XP },
+              firemaking: 0, prayer: 0, ranged: 0, attack: 0, defence: 0, hitpoints: HP_START_XP },
     hp: 10,
-    equipment: { weapon: null },
+    equipment: { weapon: null, head: null, body: null },
     bank: {},
     lastInput: state.tick,
     inventory: Array(INV_SLOTS).fill(null),
@@ -280,7 +284,18 @@ function validInput(state, input) {
       return p.trade !== null;
     case 'attack': {
       const m = state.mobs[input.mobId];
-      return !!m && m.hp > 0 && adjacent(p, m);
+      if (!m || m.hp <= 0) return false;
+      if (adjacent(p, m)) return true;
+      // ranged (spec 6j): a wielded bow and a carried arrow reach to 4
+      const cheb = Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y));
+      return cheb <= 4 && p.equipment.weapon?.item === 'wooden-bow'
+        && p.inventory.some(sl => sl?.item === 'arrows');
+    }
+    case 'fletch': {
+      const sl = p.inventory[input.slot];
+      if (!Number.isInteger(input.slot) || !sl) return false;
+      return (input.make === 'bow' && sl.item === 'logs')
+        || (input.make === 'arrows' && sl.item === 'bones');
     }
     case 'smith': {
       const r = RECIPES[input.recipe];
@@ -293,8 +308,10 @@ function validInput(state, input) {
       const sl = p.inventory[input.slot];
       return Number.isInteger(input.slot) && !!sl && EQUIPPABLE.has(sl.item);
     }
-    case 'unwield':
-      return p.equipment.weapon !== null && firstFreeSlot(p.inventory) !== -1;
+    case 'unwield': {
+      const g = ['weapon', 'head', 'body'].includes(input.gear) ? input.gear : 'weapon';
+      return p.equipment[g] !== null && firstFreeSlot(p.inventory) !== -1;
+    }
     case 'light': {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl || sl.item !== 'logs') return false;
@@ -426,15 +443,26 @@ function nextState(state, inputs, beacon) {
     } else if (inp.type === 'wield') {
       const sl = p.inventory[inp.slot];
       if (sl && EQUIPPABLE.has(sl.item)) {
-        const cur = p.equipment.weapon;
-        p.equipment.weapon = sl;
+        const g = slotOf(sl.item);
+        const cur = p.equipment[g];
+        p.equipment[g] = sl;
         p.inventory[inp.slot] = cur;
       }
+    } else if (inp.type === 'fletch') {
+      const sl = p.inventory[inp.slot];
+      if (sl && inp.make === 'bow' && sl.item === 'logs') {
+        p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
+        p.skills.ranged += 15;
+      } else if (sl && inp.make === 'arrows' && sl.item === 'bones') {
+        p.inventory[inp.slot] = { item: 'arrows', qty: 5 };
+        p.skills.ranged += 5;
+      }
     } else if (inp.type === 'unwield') {
+      const g = ['weapon', 'head', 'body'].includes(inp.gear) ? inp.gear : 'weapon';
       const slot = firstFreeSlot(p.inventory);
-      if (p.equipment.weapon && slot !== -1) {
-        p.inventory[slot] = p.equipment.weapon;
-        p.equipment.weapon = null;
+      if (p.equipment[g] && slot !== -1) {
+        p.inventory[slot] = p.equipment[g];
+        p.equipment[g] = null;
       }
     } else if (inp.type === 'light') {
       const sl = p.inventory[inp.slot];
@@ -532,8 +560,27 @@ function nextState(state, inputs, beacon) {
     if (p.action.type === 'attack') {
       const m = s.mobs[p.action.mobId];
       const stats = m && MOB_STATS[m.type];
-      if (!m || m.hp <= 0 || !adjacent(p, m)) { p.action = null; continue; }
+      if (!m || m.hp <= 0) { p.action = null; continue; }
+      const bowHeld = p.equipment.weapon?.item === 'wooden-bow'
+        && Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y)) <= 4;
+      if (!adjacent(p, m) && !bowHeld) { p.action = null; continue; }
 
+      const bowDrawn = p.equipment.weapon?.item === 'wooden-bow' && !adjacent(p, m);
+      if (bowDrawn) { // ranged (spec 6j): every draw costs an arrow, hit or miss
+        const aSlot = p.inventory.findIndex(sl => sl?.item === 'arrows');
+        if (aSlot === -1) { p.action = null; continue; }
+        p.inventory[aSlot].qty -= 1;
+        if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
+        const rLvl = effLevel(p.skills.ranged);
+        const Tr = clamp(128 + 4 * (rLvl - stats.def), 16, 240);
+        if (roll(beacon, pid, 'atk') < Tr) {
+          const maxHit = 1 + Math.floor(rLvl / 12);
+          const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
+          m.hp -= dmg;
+          p.skills.ranged += 4 * dmg;
+          p.skills.hitpoints += dmg;
+        }
+      } else {
       const atkLvl = effLevel(p.skills.attack);
       const T = clamp(128 + 4 * (atkLvl - stats.def), 16, 240);
       if (roll(beacon, pid, 'atk') < T) {
@@ -543,6 +590,7 @@ function nextState(state, inputs, beacon) {
         m.hp -= dmg;
         p.skills.attack += 4 * dmg;
         p.skills.hitpoints += dmg;
+      }
       }
 
       if (m.hp <= 0) {
@@ -558,15 +606,17 @@ function nextState(state, inputs, beacon) {
         // retaliation (spec §6b.4)
         const defLvl = effLevel(p.skills.defence);
         const Tm = clamp(128 + 4 * (stats.atk - defLvl), 16, 240);
-        if (roll(beacon, pid, 'mobatk') < Tm) {
-          p.hp -= 1 + (roll(beacon, pid, 'mobdmg') % stats.maxHit);
+        if (roll(beacon, pid, 'mobatk') < Tm && !bowDrawn) {
+          // armor soaks (spec 6i): each worn piece turns aside 1 damage
+          const soak = (p.equipment.head ? 1 : 0) + (p.equipment.body ? 1 : 0);
+          p.hp -= Math.max(0, 1 + (roll(beacon, pid, 'mobdmg') % stats.maxHit) - soak);
           if (p.hp <= 0) {
             // death (spec §6c): respawn, full hp, inventory destroyed
             const sp = spawnOf(s.genesis);
             p.x = sp.x; p.y = sp.y;
             p.hp = effLevel(p.skills.hitpoints);
             p.inventory = Array(INV_SLOTS).fill(null);
-            p.equipment = { weapon: null }; // the sink spares nothing (§5d)
+            p.equipment = { weapon: null, head: null, body: null }; // the sink spares nothing (§5d)
             p.action = null;
             p.trade = null;
           }

@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.27 ("The Constitution")
+# Interval: Protocol Specification v0.28 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -407,6 +407,31 @@ orthogonally adjacent to a `bank` node (withdraw also needs a free
 inventory slot). One item per interval: patience is the fee.
 **The bank survives death** (§6c): what you carry can burn; what you
 vault endures. This is the world's memory, and the foundation of wealth.
+
+## 6i. Armor (the deeper ore sink)
+
+Two new anvil recipes: `bronze-helm` (1 ore, 1 logs, 30 xp) and
+`bronze-plate` (3 ore, 1 logs, 90 xp). Equipment gains `head` and
+`body` slots beside `weapon`; `wield` routes each item to its slot.
+Worn armor soaks incoming damage: each piece reduces every hit taken
+by 1, to a minimum of 0. Death destroys all of it. The sink spares
+nothing, and now it eats plate.
+
+## 6j. Ranged (the bow and the bone arrow)
+
+`fletch {slot, make}` works anywhere: `make: "bow"` turns 1 logs into
+a `wooden-bow` (15 ranged xp); `make: "arrows"` turns 1 bones into 5
+`arrows` (5 ranged xp): the second bones sink. With a bow wielded and
+arrows carried, `attack` is valid at Chebyshev distance <= 4. Each
+attack roll consumes one arrow, hit or miss: distance is paid for in
+ammunition. Ranged max hit is `1 + floor(rangedLevel / 12)`; damage
+grants 4 ranged xp per point and 1 hitpoints xp. A pinned target
+endures under fire; hunting behavior is reserved for a future
+amendment.
+
+`ranged` joins the skills. The eleventh: `woodcutting`, `mining`,
+`fishing`, `cooking`, `smithing`, `firemaking`, `prayer`, `ranged`,
+`attack`, `defence`, `hitpoints`.
 
 ## 6h. Prayer (the bones sink)
 
