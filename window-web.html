@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b53'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b54'  // stamp: if your screen says an older build, hard-refresh
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -424,6 +424,11 @@ function onState(s, worldId) {
   // clock-skew or route change heals within a minute.
   const impliedOffset = arrivedAt - s.tick * 600
   tickOffset = tickOffset === null ? impliedOffset : Math.min(tickOffset + 2, impliedOffset)
+  // after a stall (device slept, network gasped), the backlog arrives in a
+  // burst. A faithful clock would REPLAY it. Nobody wants to rewatch a
+  // freeze: if we have fallen more than a tick behind the present, snap to it.
+  const prospectiveT = (arrivedAt - tickOffset) / 600 - 1 - (s.tick - 1)
+  if (prospectiveT > 1.25) tickOffset = arrivedAt - s.tick * 600
   if (prevState) for (const pid in s.players) {
     const o = prevState.players[pid]
     if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
