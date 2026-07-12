@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b43'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b44'  // stamp: if your screen says an older build, hard-refresh
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -446,6 +446,17 @@ function onState(s, worldId) {
   // event feed from state diffs
   if (prev && me && prev.players[myId]) {
     const old = prev.players[myId]
+
+    // death: computed FIRST, so nothing below can misread it (and nothing
+    // above it may reference it: that lesson cost us a frozen panel)
+    const died = me.hp > old.hp
+      && (me.x !== old.x || me.y !== old.y)
+      && old.inventory.some(Boolean) && !me.inventory.some(Boolean)
+    if (died) {
+      feed('Oh dear, you are dead. You awaken at the crossroads; your bank remembers what your hands forgot.')
+      tone(160, 0.5, { type: 'sawtooth', vol: 0.05, glide: 60 })
+      tone(110, 0.7, { type: 'sine', vol: 0.06, glide: 50, at: 0.2 })
+    }
     for (const k in me.skills) if (me.skills[k] > old.skills[k]) {
       const l1 = XP_TO_LVL(old.skills[k]), l2 = XP_TO_LVL(me.skills[k])
       if (k === 'smithing' && me.skills[k] > old.skills[k]) SFX.smith()
@@ -469,16 +480,6 @@ function onState(s, worldId) {
                    'burnt-fish': 'You accidentally burn the fish.' }
     const cnt = inv => inv.reduce((m, sl) => (sl && (m[sl.item] = (m[sl.item] || 0) + 1), m), {})
     const a = cnt(old.inventory), b = cnt(me.inventory)
-
-    // death: recognized before anything else can misread it
-    const died = me.hp > old.hp
-      && (me.x !== old.x || me.y !== old.y)
-      && old.inventory.some(Boolean) && !me.inventory.some(Boolean)
-    if (died) {
-      feed('Oh dear, you are dead. You awaken at the crossroads; your bank remembers what your hands forgot.')
-      tone(160, 0.5, { type: 'sawtooth', vol: 0.05, glide: 60 })
-      tone(110, 0.7, { type: 'sine', vol: 0.06, glide: 50, at: 0.2 })
-    }
 
     // withdrawals are not catches: bank decreases mark their items
     const withdrawn = new Set()
