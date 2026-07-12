@@ -225,10 +225,14 @@ export class IntervalNode {
         .catch(() => {})
     }
 
-    await this.p2p.services.pubsub.publish(
+    // local windows hear the tick FIRST; the mesh hears it when it hears it.
+    // Awaiting the gossip publish here fed libp2p's flush stalls straight
+    // into browser broadcast timing: the second half of the walking stutter.
+    if (this.onTick) this.onTick(this.state)
+    this.p2p.services.pubsub.publish(
       this.topics.hashes,
       Buffer.from(JSON.stringify({ tick: tick + 1, hash, peer: this.peerId() })))
-    if (this.onTick) this.onTick(this.state)
+      .catch(() => {})
     return hash
   }
 
