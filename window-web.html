@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b46'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b47'  // stamp: if your screen says an older build, hard-refresh
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -327,6 +327,7 @@ let celebrate = null  // { text, at }: level-up banner + sparks
 const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
 const splats = []     // { x, y, amount, at } damage made visible
+const layerArr = []   // reused render layer (perf)
 const SLEEP_AFTER = 500
 const CAPE_COLORS = {
   woodcutting: '#2f7d2f', mining: '#5a6b7d', fishing: '#2a6f9e',
@@ -371,6 +372,12 @@ function onState(s, worldId) {
   }
   s._pinnedBy = {}
   for (const [pid2, p2] of Object.entries(s.players)) if (p2.action?.mobId) s._pinnedBy[p2.action.mobId] = p2
+  // perf: entries computed once per state; sixty frames read them for free
+  s._nodesE = Object.entries(s.nodes)
+  s._mobsE = Object.entries(s.mobs)
+  s._playersE = Object.entries(s.players)
+  s._groundE = Object.entries(s.ground ?? {})
+  s._nodesV = Object.values(s.nodes)
   if (prev) { // hit splats: damage this tick, made visible where it landed
     for (const [mid, m] of Object.entries(s.mobs)) {
       const o2 = prev.mobs?.[mid]
@@ -761,7 +768,8 @@ function drawScene(now) {
   // painter's algorithm: everything sorts by its tile row (then a layer
   // priority within the row), so a citizen north of a tree stands BEHIND
   // its canopy. Depth is what makes a flat world read as a place.
-  const layer = []  // { z, draw }
+  layerArr.length = 0
+  const layer = layerArr  // reused across frames: allocation is the enemy
   const Z = (y, prio) => y * 10 + prio
   const shadow = (X, Y, rx) => {
     cx.fillStyle = 'rgba(0,0,0,.25)'
@@ -778,7 +786,7 @@ function drawScene(now) {
     }
   }
 
-  for (const [id, n] of Object.entries(s.nodes)) {
+  for (const [id, n] of (s._nodesE ?? Object.entries(s.nodes))) {
     const X = px(n.x), Y = py(n.y), dep = n.depletedUntil > s.tick
     if (n.type === 'fishing-spot') {
       // ponds paint flat on the ground, below every standing thing
@@ -923,7 +931,7 @@ function drawScene(now) {
   }
 
   // ground items: bottom of their row's stack
-  for (const [gid, g2] of Object.entries(s.ground ?? {})) {
+  for (const [gid, g2] of (s._groundE ?? Object.entries(s.ground ?? {}))) {
     layer.push({ z: Z(g2.y, 1), draw: () => {
       const X = px(g2.x), Y = py(g2.y)
       const fading = g2.expiresAt - s.tick < 16
@@ -954,7 +962,7 @@ function drawScene(now) {
     }})
   }
 
-  for (const [id, m] of Object.entries(s.mobs)) {
+  for (const [id, m] of (s._mobsE ?? Object.entries(s.mobs))) {
     if (m.hp <= 0) continue
     const mo = prevState?.mobs?.[id]
     const mix = mo ? lerp(mo.x, m.x, t) : m.x
@@ -1000,7 +1008,7 @@ function drawScene(now) {
     }})
   }
 
-  for (const [pid, p] of Object.entries(s.players)) {
+  for (const [pid, p] of (s._playersE ?? Object.entries(s.players))) {
     const o = prevState?.players[pid]
     const ix = o ? lerp(o.x, p.x, t) : p.x
     const iy = o ? lerp(o.y, p.y, t) : p.y
@@ -1132,7 +1140,7 @@ function drawScene(now) {
     L.fillRect(0, 0, cv.width, cv.height)
     // campfires hold back the night
     L.globalCompositeOperation = 'destination-out'
-    for (const n of Object.values(s.nodes)) {
+    for (const n of (s._nodesV ?? Object.values(s.nodes))) {
       if (n.type !== 'campfire' && n.type !== 'fire') continue
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + 24
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
@@ -1143,7 +1151,7 @@ function drawScene(now) {
     }
     cx.drawImage(lightCv, 0, 0)
     // warm halo on top of the cut
-    for (const n of Object.values(s.nodes)) {
+    for (const n of (s._nodesV ?? Object.values(s.nodes))) {
       if (n.type !== 'campfire' && n.type !== 'fire') continue
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + 24
       const grad2 = cx.createRadialGradient(fx, fy, 4, fx, fy, 60)
