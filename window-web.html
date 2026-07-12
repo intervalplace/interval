@@ -241,7 +241,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b40'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b41'  // stamp: if your screen says an older build, hard-refresh
 const send = a => ws.readyState === 1 && ws.send(JSON.stringify({ type: 'act', action: a }))
 const feed = t => { const now = performance.now()
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
@@ -327,6 +327,21 @@ let celebrate = null  // { text, at }: level-up banner + sparks
 const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
 const SLEEP_AFTER = 500
+const CAPE_COLORS = {
+  woodcutting: '#2f7d2f', mining: '#5a6b7d', fishing: '#2a6f9e',
+  cooking: '#7d2f5a', smithing: '#b06a2a', firemaking: '#c9432a',
+  attack: '#8e1f1f', defence: '#3a5a8e', hitpoints: '#7d7d2f',
+}
+function capeOf(p) { // mastery is a fact; the cape is what it looks like
+  const mastered = Object.entries(p.skills).filter(([, xp]) => XP_TO_LVL(xp) >= 99)
+  if (!mastered.length) return null
+  mastered.sort((a, b) => b[1] - a[1])
+  return {
+    color: CAPE_COLORS[mastered[0][0]] ?? '#c9a227',
+    trim: mastered.length >= 2,
+    radiant: mastered.length >= 9,
+  }
+}
 const isAwake = (p, tick) => p.action !== null || tick - (p.lastInput ?? 0) <= SLEEP_AFTER
 let xpDrops = []      // { amt, x, y, at }: floating +xp for gathering/cooking
 function updateGate(s, worldId) {
@@ -572,6 +587,16 @@ function drawCitizen(X, Y, o) {
   cx.beginPath(); cx.ellipse(X + 20, Y + 35, 8, 2.6, 0, 0, 7); cx.fill()
 
   const look = lookOf(o.pid)
+  if (o.cape) {
+    const sway = Math.sin(o.now / 420 + X) * 1.6 + (o.anim === 'walk' ? Math.sin(o.now / 130) * 2.2 : 0)
+    const capeC = o.cape.radiant
+      ? 'hsl(' + Math.round((o.now / 30) % 360) + ',70%,45%)'
+      : o.cape.color
+    const CF = o.face ?? 1
+    poly([[X + 20 - CF * 6, Y + 15], [X + 20 - CF * 9, Y + 16],
+          [X + 20 - CF * (10 + Math.abs(sway)), Y + 30 + sway * 0.4],
+          [X + 20 - CF * 5, Y + 29]], capeC, o.cape.trim ? '#ffcc33' : undefined)
+  }
   const flash = o.hitAt && now - o.hitAt < 220
   const tunic = flash ? '#ffffff' : look.tunic
   const tunicDk = flash ? '#dddddd' : look.tunicDk
@@ -885,6 +910,7 @@ function drawScene(now) {
       if (!awake) cx.globalAlpha = 0.55
       drawCitizen(px(ix), py(iy), {
         now, pid, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
+      cape: capeOf(p),
         sword: wep === 'bronze-sword', wepItem: wep, bronzeTool,
         name: p.name ?? pid.slice(0, 6), hp: p.hp, maxHp: XP_TO_LVL(p.skills.hitpoints),
         hitAt: hitFlash[pid],
@@ -1026,7 +1052,7 @@ function panel(s) {
         : Math.floor(100 * (xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl]))
       const hot = k === training
       return '<div' + (hot ? ' style="outline:1px solid var(--gold)"' : '') + '>'
-        + k + ' <b>' + lvl + '</b>'
+        + k + ' <b style="' + (lvl >= 99 ? 'color:#ffcc33;text-shadow:0 0 6px rgba(255,204,51,.5)' : '') + '">' + lvl + '</b>'
         + '<div style="height:3px;background:#1c1710;margin-top:3px">'
         + '<div style="height:3px;width:' + pct + '%;background:' + (hot ? '#ffcc33' : '#8a7a4a') + '"></div></div></div>'
     }).join('')

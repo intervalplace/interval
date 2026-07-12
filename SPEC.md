@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.23 ("The Constitution")
+# Interval: Protocol Specification v0.24 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -148,6 +148,19 @@ recurrence, without bound. Every mechanic that reads a level reads
 buys a stronger swing or a faster axe. Levels past 99 are honor, proof
 of intervals spent. A bot can reach them; so can you. The ledger does
 not care, and that is the point.
+
+## 4c. Mastery and the cape
+
+**Mastery** is level 99 in a skill: the ceiling of power (4b). XP
+itself has no ceiling; the recurrence runs as long as anyone does.
+
+The mastery cape is not an item. It cannot be bought, traded, dropped,
+or lost to death, because it is not a thing: it is a fact about a
+citizen's XP, and windows are invited to paint that fact as cloth. The
+reference window renders one cape in the color of the mastered skill,
+gold trim for a second mastery, and a radiant cape for all nine.
+Mastery is proved by the state and verified by every node; the cape is
+simply what proof looks like from a distance.
 
 ## 5. Actions
 
