@@ -137,6 +137,15 @@ const server = http.createServer((req, res) => {
       awake: Object.values(node.state.players).filter(p => E.isAwake(p, node.state.tick)).length,
       players: Object.keys(node.state.players).length,
       mobs: Object.values(node.state.mobs).filter(m => m.hp > 0).length })
+    if (path === '/api/peers') {
+      // the mesh directory: every reachable node, so joiners dial EVERYONE.
+      // A network where all roads lead to one node is a server with extra steps.
+      const seen = new Set()
+      const peers = node.p2p.getConnections()
+        .map(c => c.remoteAddr?.toString()).filter(Boolean)
+        .filter(a => { if (seen.has(a)) return false; seen.add(a); return true })
+      return json({ peers, count: peers.length })
+    }
     if (path === '/api/hiscores') return json({ tick: node.state.tick, players: hiscores() })
     if (path.startsWith('/api/player/')) {
       const q = decodeURIComponent(path.slice(12)).toLowerCase()
@@ -169,6 +178,22 @@ wss.on('connection', (ws) => {
 
 function handle(ws, buf) {
     let m; try { m = JSON.parse(buf) } catch { return }
+    if (m.type === 'adopt') {
+      // browser-held keys (v1.0): the pillar holds NOTHING for this citizen.
+      // It merely relays inputs the browser signed; the engine judges them.
+      if (!/^[0-9a-f]{64}$/.test(m.pub ?? '')) return
+      sockets.set(ws, { external: true, playerId: m.pub })
+      ws.send(JSON.stringify({ type: 'hello', playerId: m.pub, external: true }))
+      return
+    }
+    if (m.type === 'raw') {
+      const ext = sockets.get(ws)
+      if (!ext?.external) return
+      const inp = m.input
+      if (!inp || inp.playerId !== ext.playerId || typeof inp.sig !== 'string') return
+      node.submitInput(inp).catch(() => {}) // the engine verifies; forgeries die in gossip
+      return
+    }
     if (m.type === 'auth') {
       const id = identityFor(m.uid)
       if (!id) return
