@@ -54,6 +54,8 @@ export class IntervalClient {
   bury(slot) { return this.#send({ type: 'bury', slot }) }
   fletch(slot, make) { return this.#send({ type: 'fletch', slot, make }) }
   attackp(targetId) { return this.#send({ type: 'attackp', targetId }) }
+  plant(slot) { return this.#send({ type: 'plant', slot }) }
+  harvest(nodeId) { return this.#send({ type: 'harvest', nodeId }) }
   sell(slot) { return this.#send({ type: 'sell', slot }) }
   invoke() { return this.#send({ type: 'invoke' }) }
   cast(spell) { return this.#send({ type: 'cast', spell }) }
