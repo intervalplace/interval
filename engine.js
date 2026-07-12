@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.30';
+const SPEC_VERSION = '0.31';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -49,6 +49,8 @@ const PRICES = {
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8,
 };
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+// the Wilds (spec 2g): where citizens may hunt citizens
+const inWilds = (x, y) => x >= 1 && x <= 26 && y >= 1 && y <= 16;
 // the city of Anchor (spec 2d): mob-forbidden bounds
 function cityRectOf(g) {
   const cx = Math.floor(g.worldW / 2);
@@ -308,6 +310,15 @@ function validInput(state, input) {
       return cheb <= 4 && p.equipment.weapon?.item === 'wooden-bow'
         && p.inventory.some(sl => sl?.item === 'arrows');
     }
+    case 'attackp': {
+      const q = state.players[input.targetId];
+      if (!q || q.hp <= 0 || input.targetId === p.playerId) return false;
+      if (!inWilds(p.x, p.y) || !inWilds(q.x, q.y)) return false;
+      if (adjacent(p, q)) return true;
+      const cheb = Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
+      return cheb <= 4 && p.equipment.weapon?.item === 'wooden-bow'
+        && p.inventory.some(sl => sl?.item === 'arrows');
+    }
     case 'sell': {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl || !(sl.item in PRICES)) return false;
@@ -479,6 +490,11 @@ function nextState(state, inputs, beacon) {
         p.equipment[g] = sl;
         p.inventory[inp.slot] = cur;
       }
+    } else if (inp.type === 'attackp') {
+      const q = s.players[inp.targetId];
+      if (q && q.hp > 0 && inWilds(p.x, p.y) && inWilds(q.x, q.y)) {
+        p.action = { type: 'attackp', targetId: inp.targetId };
+      }
     } else if (inp.type === 'sell') {
       const sl = p.inventory[inp.slot];
       const nearStore = Object.values(s.nodes).some(n => n.type === 'store' && adjacent(p, n));
@@ -617,6 +633,51 @@ function nextState(state, inputs, beacon) {
     const p = s.players[pid];
     if (!p.action) continue;
 
+    if (p.action.type === 'attackp') {
+      const q = s.players[p.action.targetId];
+      const both = q && q.hp > 0 && inWilds(p.x, p.y) && inWilds(q.x, q.y);
+      const near = both && (adjacent(p, q)
+        || (Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)) <= 4
+            && p.equipment.weapon?.item === 'wooden-bow'
+            && p.inventory.some(sl => sl?.item === 'arrows')));
+      if (!near) { p.action = null; }
+      else {
+        const bowDrawn2 = p.equipment.weapon?.item === 'wooden-bow' && !adjacent(p, q);
+        let lvl2, tag2;
+        if (bowDrawn2) {
+          const aSlot = p.inventory.findIndex(sl => sl?.item === 'arrows');
+          if (aSlot === -1) { p.action = null; continue; }
+          p.inventory[aSlot].qty -= 1;
+          if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
+          lvl2 = effLevel(p.skills.ranged); tag2 = 'ranged';
+        } else { lvl2 = effLevel(p.skills.attack); tag2 = 'attack'; }
+        const defL = effLevel(q.skills.defence);
+        const Tp = clamp(128 + 4 * (lvl2 - defL), 16, 240);
+        if (roll(beacon, pid, 'atk') < Tp) {
+          const maxHit = 1 + Math.floor(lvl2 / (bowDrawn2 ? 12 : 10))
+            + (!bowDrawn2 && p.equipment.weapon?.item === 'bronze-sword' ? 2 : 0);
+          const soak = (q.equipment.head ? 1 : 0) + (q.equipment.body ? 1 : 0);
+          const dmg = Math.max(0, 1 + (roll(beacon, pid, 'dmg') % maxHit) - soak);
+          q.hp -= dmg;
+          p.skills[tag2] += 4 * dmg;
+          p.skills.hitpoints += dmg;
+          if (q.hp <= 0) {
+            // slain in the Wilds (spec 2g): the pack spills where they fall
+            for (const sl of q.inventory) if (sl) {
+              s.ground['g' + s.tick + '-' + Object.keys(s.ground).length] =
+                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
+            }
+            q.inventory = q.inventory.map(() => null);
+            q.equipment = { weapon: null, head: null, body: null };
+            const sp = spawnOf(s.genesis);
+            q.x = sp.x; q.y = sp.y;
+            q.hp = effLevel(q.skills.hitpoints);
+            q.action = null; q.trade = null;
+          }
+        }
+      }
+      continue;
+    }
     if (p.action.type === 'attack') {
       const m = s.mobs[p.action.mobId];
       const stats = m && MOB_STATS[m.type];
@@ -719,5 +780,5 @@ module.exports = {
   canonical, stateHash, sha256, beaconValue, roll,
   generateIdentity, signInput, verifyInputSig,
   exportIdentity, importIdentity, loadOrCreateIdentity,
-  SLEEP_AFTER, isAwake, effLevel, cityRectOf, inCity, PRICES, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  SLEEP_AFTER, isAwake, effLevel, cityRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

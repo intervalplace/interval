@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.30 ("The Constitution")
+# Interval: Protocol Specification v0.31 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -97,6 +97,18 @@ an inventory item. What gold BUYS is reserved for a future amendment:
 the till is patient.
 
 New inert node type: `store` (with its `keeper`).
+
+## 2g. The Wilds (where the law thins)
+
+The northwest quarter's far corner is the **Wilds**: the rectangle
+`x in [1, 26], y in [1, 16]`. Inside it, and only inside it,
+`attackp {targetId}` is valid: citizen against citizen, melee adjacent
+or bow within 4, resolved by the same combat law as any beast. Both
+attacker AND target must stand inside the Wilds: the boundary protects
+whoever keeps a foot in the lawful world. A citizen slain in the Wilds
+drops every carried item where they fall, for anyone to take: the only
+place in the world where loot comes from people. Equipment is
+destroyed as ever. Enter armed, or enter fast.
 
 ## 2c. The hedge is law
 
