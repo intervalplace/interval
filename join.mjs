@@ -44,7 +44,7 @@ const me = E.loadOrCreateIdentity(fs, `identities/join-${NAME || 'wanderer'}.jso
 console.log(`your key: ${me.playerId.slice(0, 12)}… (identities/join-${NAME || 'wanderer'}.json: guard it)`)
 
 // 4. own node: sync the world, then march in lockstep
-const node = await new IntervalNode({ genesis: info.genesis, buildWorld, name: 'join' }).start()
+const node = await new IntervalNode({ peerKeyFile: 'identities/peer-' + name + '.json', genesis: info.genesis, buildWorld, name: 'join' }).start()
 await node.dial(pillarAddr)
 
 // ---- the mesh, not the star: dial every peer the pillar knows, and keep
