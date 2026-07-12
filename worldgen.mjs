@@ -1,7 +1,7 @@
 // Interval worldgen: shared by every node of a world.
 // The terrain is a pure function of genesis: any node, anywhere,
 // grows the identical landscape from the founding record.
-// v0.27 geography (spec 2b, 2d): Westhearth, Eastmere, and the city of Anchor.
+// v0.29 geography (spec 2b, 2d, 2e): hamlets, Anchor, the highlands, the cave, the deep forest.
 import E from './engine.js'
 
 export function buildWorld(genesis) {
@@ -53,6 +53,10 @@ export function buildWorld(genesis) {
   put('well-1', 'well', cx, 6)
   put('hearth-city', 'campfire', cx, 8)
 
+  // the highlands, the cave, and the deep forest (spec 2e)
+  const inHighlands = (x, y) => x >= W - 22 && y <= 14
+  const inCave = (x, y) => x >= W - 14 && x <= W - 4 && y >= 3 && y <= 9
+  const inForest = (x, y) => x <= 26 && y >= H - 12
   const isEdge = (x, y) => x === 0 || y === 0 || x === W - 1 || y === H - 1
   const onTrail = (x, y) => Math.abs(y - trailY) <= 1
   const onNorthRoad = (x, y) => Math.abs(x - cx) <= 1 && y > city.y1 && y < trailY
@@ -71,8 +75,11 @@ export function buildWorld(genesis) {
       taken.add(k); addFn(kind + '-' + placed, x, y); placed++
     }
   }
-  place('tree', 40, () => true, (id, x, y) => E.addNode(w, id, 'tree', x, y))
-  place('rock', 16, (x, y) => y > trailY || x < cx - 12 || x > cx + 12, (id, x, y) => E.addNode(w, id, 'rock', x, y))
+  place('tree', 36, (x, y) => !inHighlands(x, y), (id, x, y) => E.addNode(w, id, 'tree', x, y))
+  place('foresttree', 30, (x, y) => inForest(x, y), (id, x, y) => E.addNode(w, id, 'tree', x, y))
+  place('rock', 10, (x, y) => (y > trailY || x < cx - 12) && !inHighlands(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
+  place('highrock', 16, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
+  place('magicrock', 4, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'magic-rock', x, y))
   place('fish', 0, () => true, () => {})
   const waters = [
     [10, trailY + 4], [11, trailY + 4], [10, trailY + 5],
@@ -82,6 +89,7 @@ export function buildWorld(genesis) {
   put('fire-way1', 'campfire', Math.floor(W / 3), trailY - 1)
   put('fire-way2', 'campfire', Math.floor(2 * W / 3), trailY + 1)
   place('gob', 14, (x) => x > 13 && x < W - 14, (id, x, y) => E.addMob(w, id, 'goblin', x, y))
-  place('wolf', 7, (x, y) => y <= 4 || y >= H - 5, (id, x, y) => E.addMob(w, id, 'wolf', x, y))
+  place('wolf', 7, (x, y) => (y <= 4 || y >= H - 5) && !inHighlands(x, y), (id, x, y) => E.addMob(w, id, 'wolf', x, y))
+  place('troll', 3, (x, y) => inCave(x, y), (id, x, y) => E.addMob(w, id, 'troll', x, y))
   return w
 }
