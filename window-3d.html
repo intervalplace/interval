@@ -1,0 +1,357 @@
+<!doctype html>
+<!-- INTERVAL: the deluxe window. A different renderer, the same world.
+     This file proves the architecture's central claim: no window is
+     authoritative. The reference window paints pixels; this one builds
+     geometry, casts real shadows, and lights fires that actually shine.
+     Both read the same states from the same nodes and disagree about
+     nothing but light. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Interval · deluxe window</title>
+<style>
+  body { margin: 0; background: #0a0c12; overflow: hidden; font-family: Verdana, sans-serif; }
+  #hud { position: fixed; top: 0; left: 0; right: 0; padding: 8px 14px; color: #d9d3c0;
+    background: linear-gradient(rgba(8,10,16,.85), rgba(8,10,16,0)); font-size: 12px;
+    pointer-events: none; z-index: 5; text-shadow: 0 1px 2px #000; }
+  #hud b { color: #ffcc33; }
+  #hud .sub { color: #8a8474; font-size: 10px; margin-top: 2px; }
+  #stat { position: fixed; bottom: 8px; left: 14px; color: #8a8474; font-size: 10px; z-index: 5;
+    text-shadow: 0 1px 2px #000; }
+  #feed { position: fixed; bottom: 8px; right: 14px; color: #d9d3c0; font-size: 11px; z-index: 5;
+    text-align: right; text-shadow: 0 1px 2px #000; max-width: 40vw; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <b>INTERVAL</b> · the deluxe window · <span id="wid">connecting&hellip;</span>
+  <div class="sub">the same world as <a href="/play" style="color:#8a8474">/play</a>, rendered by a different program.
+  Same ticks, same citizens, same fires. No window is authoritative: that is the whole point.</div>
+</div>
+<div id="stat"></div>
+<div id="feed"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const feedEl = document.getElementById('feed'), statEl = document.getElementById('stat')
+const feed = (t) => { feedEl.textContent = t; setTimeout(() => { if (feedEl.textContent === t) feedEl.textContent = '' }, 4000) }
+
+// ---- the same wire, verbatim: hello, states, custodial acts ----
+const proto = location.protocol === 'https:' ? 'wss://' : 'ws://'
+const ws = new WebSocket(proto + location.host)
+let myId = null, world = null, prevWorld = null
+let clock = { tick: 0, at: 0 } // render one tick behind, exactly like the reference window
+const TICK_MS = 600
+const send = (a) => { if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'act', action: a })) }
+
+// ---- three.js: geometry where the reference window has pixels ----
+const scene = new THREE.Scene()
+scene.fog = new THREE.Fog(0x0a0c12, 30, 90)
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 200)
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setSize(innerWidth, innerHeight)
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+document.body.appendChild(renderer.domElement)
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix()
+  renderer.setSize(innerWidth, innerHeight)
+})
+
+const sun = new THREE.DirectionalLight(0xfff2dd, 1)
+sun.castShadow = true
+sun.shadow.mapSize.set(2048, 2048)
+sun.shadow.camera.left = -30; sun.shadow.camera.right = 30
+sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30
+scene.add(sun); scene.add(sun.target)
+const ambient = new THREE.AmbientLight(0x8899bb, 0.5)
+scene.add(ambient)
+const moon = new THREE.HemisphereLight(0x223355, 0x0a0c12, 0.4)
+scene.add(moon)
+
+// ---- terrain: the SAME pure functions as every other window ----
+let W = 192, H = 96, DAY = 2400
+const tileHash = (x, y, salt) => { let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
+  h = (h ^ (h >> 13)) >>> 0; h = (h * 1274126177) >>> 0; return (h ^ (h >> 16)) >>> 0 }
+const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
+function riverXC(y) { const cx2 = Math.floor(W / 2)
+  return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
+function terrainOf(x, y) {
+  const ty = Math.floor(H / 2), cx2 = Math.floor(W / 2), cy0 = 2, cy1 = 10
+  if (x >= W - 4) return 'sea'
+  if (inWildsC(x, y)) return 'wilds'
+  if (x >= W - 30 && x <= W - 10 && y >= 5 && y <= 16) return 'cave'
+  if (x >= W - 46 && y <= 26) return 'scree'
+  if (y <= 8 && (x < cx2 - 10 || x > cx2 + 10)) return 'mountain'
+  if (x >= cx2 - 8 && x <= cx2 + 8 && y >= cy0 && y <= cy1) return 'cobble'
+  const lakeX = cx2 - 10, lakeY = H - 16, mbX = W - 22, mbY = H - 14
+  if (x >= lakeX + 5 && x <= lakeX + 14 && y >= lakeY - 9 && y <= lakeY - 2) return 'plaza'
+  if (Math.abs(x - mbX) <= 6 && Math.abs(y - mbY) <= 6) return 'plaza'
+  const road = (Math.abs(x - cx2) <= (tileHash(0, y, 3) % 2) && y > cy1 && y < ty)
+    || (Math.abs(x - cx2) <= (tileHash(0, y, 4) % 2) && y > ty && y < lakeY - 4)
+    || Math.abs(y - ty) <= (tileHash(x, 0, 3) % 2)
+  if (road) {
+    if (Math.abs(x - riverXC(y)) <= 2 && y >= 6 && y <= lakeY - 4) return 'bridge'
+    return 'trail'
+  }
+  if ((x <= 14 || x >= W - 16) && Math.abs(y - ty) <= 4) return 'plaza'
+  return 'meadow'
+}
+const TERRAIN_COL = { meadow: 0x3d5a23, trail: 0x8a7449, cobble: 0x7a756b, plaza: 0x6e5f3e,
+  scree: 0x5d5a52, cave: 0x22202a, wilds: 0x4a3d2e, sea: 0x2a5f7d, mountain: 0x6e6a60, bridge: 0x8a6a3a }
+
+let groundBuilt = false
+function buildGround() {
+  const geo = new THREE.PlaneGeometry(W, H, W, H)
+  geo.rotateX(-Math.PI / 2)
+  const colors = []
+  const pos = geo.attributes.position
+  for (let i = 0; i < pos.count; i++) {
+    const gx = Math.min(W - 1, Math.max(0, Math.floor(pos.getX(i) + W / 2)))
+    const gy = Math.min(H - 1, Math.max(0, Math.floor(pos.getZ(i) + H / 2)))
+    const t2 = terrainOf(gx, gy)
+    const c = new THREE.Color(TERRAIN_COL[t2])
+    const v2 = 0.9 + (tileHash(gx, gy, 0) % 100) / 500
+    c.multiplyScalar(v2)
+    // gentle height: mountains rise, water sits low
+    let h2 = 0
+    if (t2 === 'mountain') h2 = 0.8 + (tileHash(gx, gy, 5) % 100) / 90
+    if (t2 === 'scree') h2 = 0.25
+    if (t2 === 'sea') h2 = -0.35
+    pos.setY(i, h2)
+    colors.push(c.r, c.g, c.b)
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geo.computeVertexNormals()
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })
+  const mesh = new THREE.Mesh(geo, mat)
+  mesh.receiveShadow = true
+  scene.add(mesh)
+  groundBuilt = true
+}
+const wx = (x) => x - W / 2 + 0.5
+const wz = (y) => y - H / 2 + 0.5
+
+// ---- the standing world: trees, rocks, buildings, fires, water ----
+const nodeMeshes = new Map(), fireLights = new Map(), waterMeshes = []
+function nodeMesh(n) {
+  const g = new THREE.Group()
+  const std = (c, r = 0.9) => new THREE.MeshStandardMaterial({ color: c, roughness: r })
+  if (n.type === 'tree') {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.7, 6), std(0x5c4023))
+    trunk.position.y = 0.35; trunk.castShadow = true; g.add(trunk)
+    const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(0.48, 1), std(0x3f7d23))
+    canopy.position.y = 0.95; canopy.castShadow = true; canopy.userData.sway = tileHash(n.x, n.y, 2) % 100
+    g.add(canopy); g.userData.canopy = canopy
+  } else if (n.type === 'rock' || n.type === 'magic-rock') {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(0.34, 0),
+      n.type === 'magic-rock'
+        ? new THREE.MeshStandardMaterial({ color: 0x4ea8c9, roughness: 0.4, emissive: 0x1a5f7d, emissiveIntensity: 0.7 })
+        : std(0x8a867c))
+    m.position.y = 0.22; m.scale.y = 0.75; m.castShadow = true; g.add(m)
+    if (n.type === 'magic-rock') {
+      const gl = new THREE.PointLight(0x66ccff, 0.5, 3); gl.position.y = 0.5; g.add(gl)
+    }
+  } else if (n.type === 'campfire' || n.type === 'fire') {
+    const logs = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.1, 7), std(0x4a3319))
+    logs.position.y = 0.05; g.add(logs)
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.5, 6),
+      new THREE.MeshBasicMaterial({ color: 0xf4a03f }))
+    flame.position.y = 0.35; g.add(flame); g.userData.flame = flame
+    const pl = new THREE.PointLight(0xff9040, 1.4, 7)
+    pl.position.y = 0.8; pl.castShadow = true; g.add(pl)
+    fireLights.set(n.x + ',' + n.y, pl)
+  } else if (n.type === 'fishing-spot') {
+    const wmesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x2f6889, roughness: 0.15, metalness: 0.35, transparent: true, opacity: 0.92 }))
+    wmesh.rotation.x = -Math.PI / 2; wmesh.position.y = -0.12
+    g.add(wmesh); waterMeshes.push(wmesh)
+  } else if (n.type === 'bank' || n.type === 'store' || n.type === 'house' || n.type === 'anvil' || n.type === 'smith' || n.type === 'well' || n.type === 'guard') {
+    const hues = { bank: 0x8a6a3a, store: 0x7a5a8a, house: 0x6e5f3e, anvil: 0x4a4a52, smith: 0x4a4a52, well: 0x7a756b, guard: 0x5c6e3a }
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.8), std(hues[n.type] ?? 0x6e5f3e))
+    b.position.y = 0.45; b.castShadow = true; g.add(b)
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.68, 0.5, 4), std(0x8a3a2a))
+    roof.position.y = 1.12; roof.rotation.y = Math.PI / 4; roof.castShadow = true; g.add(roof)
+  } else if (n.type === 'wall') {
+    const wl = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.35), std(0x7a756b))
+    wl.position.y = 0.4; wl.castShadow = true; g.add(wl)
+  } else if (n.type === 'plot') {
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.9), std(0x4a3520))
+    soil.position.y = 0.03; g.add(soil); g.userData.plot = true
+  } else {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), std(0x8a7449))
+    m.position.y = 0.25; g.add(m)
+  }
+  g.position.set(wx(n.x), 0, wz(n.y))
+  return g
+}
+function syncNodes(s) {
+  for (const [id, n] of Object.entries(s.nodes)) {
+    if (!nodeMeshes.has(id)) { const m = nodeMesh(n); nodeMeshes.set(id, m); scene.add(m) }
+    const m = nodeMeshes.get(id)
+    const depleted = n.depletedUntil > s.tick
+    m.visible = !(n.type === 'fire' && n.expiresAt <= s.tick)
+    if (m.userData.canopy) m.userData.canopy.visible = !depleted
+    if (m.userData.plot) { // crops rise from the same arithmetic
+      if (n.plantedAt > 0 && !m.userData.crop) {
+        const crop = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.4, 5),
+          new THREE.MeshStandardMaterial({ color: 0x7dbb45 }))
+        crop.position.y = 0.2; m.add(crop); m.userData.crop = crop
+      }
+      if (m.userData.crop) {
+        const el2 = s.tick - (n.plantedAt || 0)
+        m.userData.crop.visible = n.plantedAt > 0
+        if (n.plantedAt > 0) {
+          const st2 = Math.min(1, el2 / 1200)
+          m.userData.crop.scale.setScalar(0.3 + st2 * 1.2)
+          m.userData.crop.material.color.set(st2 >= 1 ? 0xe8c53a : 0x7dbb45)
+        }
+      }
+    }
+  }
+}
+
+// ---- citizens and beasts: bodies with real shadows ----
+const beings = new Map()
+function makeName(text) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 48
+  const g = c.getContext('2d')
+  g.font = 'bold 24px Verdana'; g.textAlign = 'center'
+  g.fillStyle = '#000'; g.fillText(text, 129, 31)
+  g.fillStyle = '#fff'; g.fillText(text, 128, 30)
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }))
+  sp.scale.set(2.2, 0.42, 1); sp.position.y = 1.55
+  return sp
+}
+const MOB_LOOK = { goblin: [0x5c8a3a, 0.5], wolf: [0x6b6b62, 0.55], troll: [0x4a6b52, 0.95], bear: [0x5c4023, 0.85] }
+function beingMesh(kind, id, thing) {
+  const g = new THREE.Group()
+  if (kind === 'citizen') {
+    const hue = parseInt(id.slice(0, 6), 16) % 360
+    const tunic = new THREE.Color().setHSL(hue / 360, 0.45, 0.42)
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.6, 8), // r128 has no capsules; a cylinder wears the tunic fine
+      new THREE.MeshStandardMaterial({ color: tunic, roughness: 0.8 }))
+    body.position.y = 0.5; body.castShadow = true; g.add(body)
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8),
+      new THREE.MeshStandardMaterial({ color: 0xd9a877, roughness: 0.7 }))
+    head.position.y = 1.0; head.castShadow = true; g.add(head)
+    g.userData.name = makeName('')
+    g.add(g.userData.name)
+  } else {
+    const [col, sz] = MOB_LOOK[thing.type] ?? [0x8a7449, 0.5]
+    const body = new THREE.Mesh(new THREE.SphereGeometry(sz * 0.5, 10, 8),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 }))
+    body.position.y = sz * 0.5; body.scale.y = 1.15; body.castShadow = true; g.add(body)
+    const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.045), new THREE.MeshBasicMaterial({ color: 0x10100c }))
+    eyeL.position.set(-0.1, sz * 0.62, sz * 0.42); g.add(eyeL)
+    const eyeR = eyeL.clone(); eyeR.position.x = 0.1; g.add(eyeR)
+  }
+  return g
+}
+function syncBeings(s, prev) {
+  const seen = new Set()
+  const t2 = Math.min(1, Math.max(0, (performance.now() - clock.at) / TICK_MS))
+  const place = (kind, id, thing, old) => {
+    seen.add(id)
+    if (!beings.has(id)) { const m = beingMesh(kind, id, thing); beings.set(id, m); scene.add(m) }
+    const m = beings.get(id)
+    const ox = old?.x ?? thing.x, oy = old?.y ?? thing.y
+    const ix = ox + (thing.x - ox) * t2, iy = oy + (thing.y - oy) * t2
+    m.position.set(wx(ix), 0, wz(iy))
+    if (thing.x !== ox) m.rotation.y = thing.x > ox ? Math.PI / 2 : -Math.PI / 2
+    if (kind === 'citizen') {
+      const nm = thing.name ? thing.name + ' (lvl ' + lvlOf(thing) + ')' : '(unnamed)'
+      if (m.userData.lastName !== nm) {
+        m.userData.lastName = nm
+        m.remove(m.userData.name); m.userData.name = makeName(nm); m.add(m.userData.name)
+      }
+      const moving = thing.x !== ox || thing.y !== oy
+      m.children[0].position.y = 0.5 + (moving ? Math.abs(Math.sin(performance.now() / 130)) * 0.06 : 0)
+      if (thing.action?.type === 'attack' || thing.action?.type === 'attackp') m.rotation.z = Math.sin(performance.now() / 130) * 0.08
+      else m.rotation.z = 0
+      if (thing.hp <= 0) m.visible = false; else m.visible = true
+    } else if (thing.hp <= 0) m.visible = false
+    else m.visible = true
+  }
+  for (const [id, p] of Object.entries(s.players)) place('citizen', id, p, prev?.players?.[id])
+  for (const [id, mb] of Object.entries(s.mobs)) place('mob', id, mb, prev?.mobs?.[id])
+  for (const [id, m] of beings) if (!seen.has(id)) { scene.remove(m); beings.delete(id) }
+}
+const XP_LVL = (xp) => { let l = 1, need = 83, tot = 0; while (tot + need <= xp && l < 99) { tot += need; l++; need = Math.floor(need * 1.104) } return l }
+const lvlOf = (p) => Math.max(1, Math.floor(Object.entries(p.skills ?? {}).filter(([k]) => ['attack','defence','hitpoints','ranged','magic'].includes(k)).reduce((a, [, v]) => a + XP_LVL(v), 0) / 3) - 2)
+
+// ---- the same clock discipline as the reference window ----
+ws.onmessage = (ev) => {
+  const m = JSON.parse(ev.data)
+  if (m.type === 'hello') { myId = m.playerId; send({ do: 'spawn' }) }
+  if (m.type === 'state') {
+    prevWorld = world; world = m.state
+    clock = { tick: m.state.tick, at: performance.now() }
+    if (!groundBuilt) {
+      W = m.state.genesis.worldW; H = m.state.genesis.worldH
+      buildGround()
+      document.getElementById('wid').textContent = 'world ' + (m.worldId ?? '').slice(0, 12) + '…'
+    }
+    syncNodes(m.state)
+  }
+}
+
+// ---- click to walk: raycast where the reference window does arithmetic ----
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2()
+let walkGoal = null
+renderer.domElement.addEventListener('click', (e) => {
+  if (!world || !myId || !world.players[myId]) return
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
+  ray.setFromCamera(mouse, camera)
+  const hit = ray.intersectObjects(scene.children, true)[0]
+  if (!hit) return
+  const gx = Math.round(hit.point.x + W / 2 - 0.5), gy = Math.round(hit.point.z + H / 2 - 0.5)
+  walkGoal = { x: gx, y: gy }
+  feed('walking to ' + gx + ',' + gy)
+})
+setInterval(() => { // one greedy step per tick: the deluxe window keeps its legs simple
+  if (!walkGoal || !world || !myId) return
+  const me = world.players[myId]; if (!me) return
+  if (me.x === walkGoal.x && me.y === walkGoal.y) { walkGoal = null; return }
+  const dx = Math.sign(walkGoal.x - me.x), dy = Math.sign(walkGoal.y - me.y)
+  if (Math.abs(walkGoal.x - me.x) >= Math.abs(walkGoal.y - me.y)) send({ do: 'move', dx, dy: 0 })
+  else send({ do: 'move', dx: 0, dy })
+}, TICK_MS)
+
+// ---- the frame: sun, fires, water, bodies, camera ----
+function animate(now) {
+  requestAnimationFrame(animate)
+  if (!world) return
+  const s = world
+  syncBeings(s, prevWorld)
+  const t2 = Math.min(1, Math.max(0, (now - clock.at) / TICK_MS))
+  const cyc = (((s.tick + t2) % DAY) / DAY)
+  const bright = (Math.sin(cyc * Math.PI * 2) + 1) / 2
+  // the sun crosses the sky because the tick says so
+  const sunA = cyc * Math.PI * 2
+  sun.position.set(Math.cos(sunA) * 20, Math.max(2, Math.sin(sunA) * 24), 8)
+  sun.intensity = Math.max(0.02, bright * 1.15)
+  sun.color.setHSL(0.09, 0.5, 0.55 + bright * 0.35)
+  ambient.intensity = 0.12 + bright * 0.45
+  moon.intensity = 0.15 + (1 - bright) * 0.4
+  scene.fog.color.setHSL(0.62, 0.4, 0.02 + bright * 0.16)
+  renderer.setClearColor(scene.fog.color)
+  // fires flicker; water breathes; canopies sway
+  for (const [, pl] of fireLights) pl.intensity = 1.2 + Math.sin(now / 90 + pl.position.x) * 0.35 + (1 - bright) * 0.8
+  for (const wm of waterMeshes) wm.position.y = -0.12 + Math.sin(now / 900 + wm.parent.position.x) * 0.02
+  for (const [, m] of nodeMeshes) if (m.userData.canopy) m.userData.canopy.rotation.z = Math.sin(now / 1400 + m.userData.canopy.userData.sway) * 0.05
+  for (const [, m] of nodeMeshes) if (m.userData.flame) { m.userData.flame.scale.y = 0.9 + Math.sin(now / 80 + m.position.x) * 0.18 }
+  // the camera rides with my citizen (or surveys the crossroads)
+  const me = myId && s.players[myId]
+  const fx = me ? wx(me.x) : 0, fz = me ? wz(me.y) : 0
+  camera.position.lerp(new THREE.Vector3(fx, 8.5, fz + 8.5), 0.06)
+  camera.lookAt(fx, 0, fz)
+  statEl.textContent = 'tick ' + s.tick + ' · ' + Object.keys(s.players).length + ' citizens · deluxe window (three.js) · same world as /play'
+  renderer.render(scene, camera)
+}
+requestAnimationFrame(animate)
+</script>
+</body>
+</html>
