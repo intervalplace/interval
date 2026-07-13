@@ -146,7 +146,7 @@ function terrainOf(x, y) {
 const TERRAIN_COL = { meadow: 0x3d5a23, trail: 0x8a7449, cobble: 0x7a756b, plaza: 0x6e5f3e,
   scree: 0x5d5a52, cave: 0x22202a, wilds: 0x4a3d2e, sea: 0x2a5f7d, mountain: 0x6e6a60, bridge: 0x8a6a3a }
 
-let groundBuilt = false, groundMesh = null
+let groundBuilt = false, groundMesh = null, stars = null
 function buildGround() {
   const geo = new THREE.PlaneGeometry(W, H, W, H)
   geo.rotateX(-Math.PI / 2)
@@ -174,6 +174,34 @@ function buildGround() {
   mesh.receiveShadow = true
   scene.add(mesh)
   groundMesh = mesh
+  // grass: instanced tufts wherever the meadow is: an RPG is mostly grass
+  const tuftGeo = new THREE.ConeGeometry(0.03, 0.16, 4)
+  const tuftMat = new THREE.MeshStandardMaterial({ color: 0x4a7028, roughness: 1 })
+  const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 6000)
+  const dummy = new THREE.Object3D()
+  let ti = 0
+  for (let i = 0; i < 30000 && ti < 6000; i++) {
+    const gx = tileHash(i, 7, 40) % W, gy = tileHash(i, 11, 41) % H
+    if (terrainOf(gx, gy) !== 'meadow') continue
+    dummy.position.set(wx(gx) + ((tileHash(i, 3, 42) % 80) - 40) / 100, 0.07, wz(gy) + ((tileHash(i, 5, 43) % 80) - 40) / 100)
+    dummy.rotation.y = (tileHash(i, 9, 44) % 628) / 100
+    dummy.scale.setScalar(0.7 + (tileHash(i, 13, 45) % 60) / 100)
+    dummy.updateMatrix()
+    tufts.setMatrixAt(ti++, dummy.matrix)
+  }
+  tufts.count = ti
+  scene.add(tufts)
+  // stars: the night has a ceiling
+  const starGeo = new THREE.BufferGeometry()
+  const starPos = []
+  for (let i = 0; i < 700; i++) {
+    const a = (tileHash(i, 1, 50) % 6283) / 1000, r2 = 60 + tileHash(i, 2, 51) % 60
+    const h2 = 12 + tileHash(i, 3, 52) % 55
+    starPos.push(Math.cos(a) * r2, h2, Math.sin(a) * r2)
+  }
+  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3))
+  stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfe0ff, size: 0.35, transparent: true, opacity: 0 }))
+  scene.add(stars)
   groundBuilt = true
 }
 const wx = (x) => x - W / 2 + 0.5
@@ -229,6 +257,11 @@ function nodeMesh(n) {
     const win = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.03),
       new THREE.MeshStandardMaterial({ color: 0x2a2418, emissive: 0xffb84d, emissiveIntensity: 0 }))
     win.position.set(0.24, 0.55, 0.44); g.add(win); g.userData.win = win // it glows after dark
+  } else if (n.type === 'signpost') {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.9, 6), std(0x5c4023))
+    pole.position.y = 0.45; pole.castShadow = true; g.add(pole)
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.04), std(0x8a6a3a))
+    board.position.y = 0.72; board.castShadow = true; g.add(board)
   } else if (n.type === 'wall') {
     const wl = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.35), std(0x7a756b))
     wl.position.y = 0.4; wl.castShadow = true; g.add(wl)
@@ -270,6 +303,21 @@ function syncNodes(s) {
 
 // ---- citizens and beasts: bodies with real shadows ----
 const beings = new Map()
+function makeHpBar() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 8
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }))
+  sp.scale.set(0.7, 0.09, 1)
+  sp.userData.cv = c
+  return sp
+}
+function paintHp(sp, frac) {
+  const g2 = sp.userData.cv.getContext('2d')
+  g2.clearRect(0, 0, 64, 8)
+  g2.fillStyle = 'rgba(10,10,10,.75)'; g2.fillRect(0, 0, 64, 8)
+  g2.fillStyle = frac > 0.5 ? '#4ac94a' : frac > 0.25 ? '#e8c53a' : '#e8533a'
+  g2.fillRect(1, 1, 62 * Math.max(0, frac), 6)
+  sp.material.map.needsUpdate = true
+}
 function makeName(text) {
   const c = document.createElement('canvas'); c.width = 256; c.height = 48
   const g = c.getContext('2d')
@@ -338,6 +386,7 @@ function beingMesh(kind, id, thing) {
     chain.position.set(0, -0.4, 0.03); chain.visible = false; hand.add(chain); g.userData.chain = chain
     g.userData.name = makeName('')
     g.add(g.userData.name)
+    g.userData.hpbar = makeHpBar(); g.userData.hpbar.position.y = 1.36; g.add(g.userData.hpbar)
   } else {
     const [col, sz] = MOB_LOOK[thing.type] ?? [0x8a7449, 0.5]
     const M = (c, r = 0.85) => new THREE.MeshStandardMaterial({ color: c, roughness: r })
@@ -380,6 +429,9 @@ function beingMesh(kind, id, thing) {
       const eye2 = eye.clone(); eye2.position.z = -sz * 0.13; g.add(eye2)
       g.rotation.y = Math.PI / 2
     }
+    g.userData.hpbar = makeHpBar()
+    g.userData.hpbar.position.y = (thing.type === 'troll' ? 1.5 : 0.95); g.add(g.userData.hpbar)
+    g.userData.maxHp = thing.hp
   }
   return g
 }
@@ -428,14 +480,28 @@ function syncBeings(s, prev) {
       }
       if (m.userData.legs4) for (let li = 0; li < 4; li++)
         m.userData.legs4[li].rotation.x = moving ? Math.sin(performance.now() / 130 + li * Math.PI / 2) * 0.6 : 0
+      if (m.userData.hpbar) {
+        const maxHp2 = 10 + Math.floor((thing.skills?.hitpoints ?? 0) / 1154)
+        const fr = thing.hp / Math.max(1, Math.min(99, effHp(thing)))
+        if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, Math.max(0, Math.min(1, fr))) }
+        m.userData.hpbar.visible = thing.hp < effHp(thing)
+      }
       if (thing.hp <= 0) m.visible = false; else m.visible = true
-    } else if (thing.hp <= 0) m.visible = false
-    else m.visible = true
+    } else {
+      if (m.userData.hpbar) {
+        m.userData.maxHp = Math.max(m.userData.maxHp ?? thing.hp, thing.hp)
+        if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, thing.hp / m.userData.maxHp) }
+        m.userData.hpbar.visible = thing.hp < m.userData.maxHp
+      }
+      if (thing.hp <= 0) m.visible = false
+      else m.visible = true
+    }
   }
   for (const [id, p] of Object.entries(s.players)) place('citizen', id, p, prev?.players?.[id])
   for (const [id, mb] of Object.entries(s.mobs)) place('mob', id, mb, prev?.mobs?.[id])
   for (const [id, m] of beings) if (!seen.has(id)) { scene.remove(m); beings.delete(id) }
 }
+const effHp = (p) => Math.min(99, 10 + Math.max(0, XP_LVL(p.skills?.hitpoints ?? 0) - 10))
 const XP_LVL = (xp) => { let l = 1, need = 83, tot = 0; while (tot + need <= xp && l < 99) { tot += need; l++; need = Math.floor(need * 1.104) } return l }
 const lvlOf = (p) => Math.max(1, Math.floor(Object.entries(p.skills ?? {}).filter(([k]) => ['attack','defence','hitpoints','ranged','magic'].includes(k)).reduce((a, [, v]) => a + XP_LVL(v), 0) / 3) - 2)
 
@@ -465,6 +531,16 @@ ws.onmessage = async (ev) => {
 // ---- click to walk: raycast where the reference window does arithmetic ----
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2()
 let walkGoal = null
+// the goal ring: yellow means walking, exactly like the reference window
+const goalRing = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.44, 24),
+  new THREE.MeshBasicMaterial({ color: 0xffe83a, transparent: true, opacity: 0.85, side: THREE.DoubleSide }))
+goalRing.rotation.x = -Math.PI / 2; goalRing.position.y = 0.03; goalRing.visible = false
+scene.add(goalRing)
+const tapBurst = new THREE.Mesh(new THREE.RingGeometry(0.1, 0.16, 20),
+  new THREE.MeshBasicMaterial({ color: 0xffe83a, transparent: true, opacity: 0, side: THREE.DoubleSide }))
+tapBurst.rotation.x = -Math.PI / 2; tapBurst.position.y = 0.04
+scene.add(tapBurst)
+let burstAt = -1e9
 
 // raycast the GROUND alone: a dozen citizens' nameplates once formed an
 // invisible wall at spawn that swallowed every tap
@@ -476,7 +552,8 @@ const pick = (cxp, cyp) => {
   if (!hit) return
   const gx = Math.round(hit.point.x + W / 2 - 0.5), gy = Math.round(hit.point.z + H / 2 - 0.5)
   walkGoal = { x: gx, y: gy }
-  feed('walking to ' + gx + ',' + gy)
+  goalRing.position.set(wx(gx), 0.03, wz(gy)); goalRing.visible = true
+  tapBurst.position.set(wx(gx), 0.04, wz(gy)); burstAt = performance.now()
 }
 // drag orbits, tap walks: 8 pixels of movement is the border between them
 let camAz = 0, camDist = 11, camPitch = 0.72
@@ -485,7 +562,8 @@ const onDown = (x, y) => { pdown = { x, y, az: camAz, pitch: camPitch }; dragged
 const onMove = (x, y) => {
   if (!pdown) return
   const dx2 = x - pdown.x, dy2 = y - pdown.y
-  if (Math.abs(dx2) + Math.abs(dy2) > 8) dragged = true
+  // a fingertip wobbles ~10px during an honest tap: 16 is the border
+  if (Math.abs(dx2) + Math.abs(dy2) > 16) dragged = true
   if (dragged) {
     camAz = pdown.az - dx2 * 0.008
     camPitch = Math.min(1.35, Math.max(0.25, pdown.pitch + dy2 * 0.005))
@@ -502,7 +580,7 @@ addEventListener('wheel', (e) => { camDist = Math.min(20, Math.max(5, camDist + 
 setInterval(() => { // one greedy step per tick: the deluxe window keeps its legs simple
   if (!walkGoal || !world || !myId) return
   const me = world.players[myId]; if (!me) return
-  if (me.x === walkGoal.x && me.y === walkGoal.y) { walkGoal = null; return }
+  if (me.x === walkGoal.x && me.y === walkGoal.y) { walkGoal = null; goalRing.visible = false; return }
   const dx = Math.sign(walkGoal.x - me.x), dy = Math.sign(walkGoal.y - me.y)
   const stuck = lastStep && lastStep.x === me.x && lastStep.y === me.y
   const preferX = Math.abs(walkGoal.x - me.x) >= Math.abs(walkGoal.y - me.y)
@@ -528,6 +606,7 @@ function animate(now) {
   ambient.intensity = 0.12 + bright * 0.45
   moon.intensity = 0.15 + (1 - bright) * 0.4
   scene.fog.color.setHSL(0.62, 0.4, 0.02 + bright * 0.16)
+  if (stars) stars.material.opacity = Math.max(0, (0.45 - bright) * 2)
   renderer.setClearColor(scene.fog.color)
   // fires flicker; water breathes; canopies sway
   for (const [, pl] of fireLights) pl.intensity = 1.2 + Math.sin(now / 90 + pl.position.x) * 0.35 + (1 - bright) * 0.8
@@ -542,6 +621,11 @@ function animate(now) {
   const cy2 = Math.sin(camPitch) * camDist, cr = Math.cos(camPitch) * camDist
   camera.position.lerp(new THREE.Vector3(fx + Math.sin(camAz) * cr, cy2, fz + Math.cos(camAz) * cr), 0.12)
   camera.lookAt(fx, 0.6, fz)
+  goalRing.material.opacity = 0.55 + Math.sin(now / 260) * 0.3
+  goalRing.scale.setScalar(1 + Math.sin(now / 260) * 0.08)
+  const bAge = (now - burstAt) / 420
+  if (bAge < 1) { tapBurst.material.opacity = 0.9 * (1 - bAge); tapBurst.scale.setScalar(1 + bAge * 3.2) }
+  else tapBurst.material.opacity = 0
   statEl.textContent = 'tick ' + s.tick + ' · ' + Object.keys(s.players).length + ' citizens · deluxe window (three.js) · same world as /play'
   renderer.render(scene, camera)
 }
