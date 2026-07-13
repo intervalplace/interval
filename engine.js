@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.38';
+const SPEC_VERSION = '0.39';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -186,6 +186,20 @@ function delayChain(prevBeacon, digest) {
   let h = sha256(Buffer.concat([prevBeacon, digest]));
   for (let i = 1; i < LOTS_N; i++) h = sha256(h);
   return h;
+}
+
+// v0.39, the Reading Rule: chance may only judge deeds whose lots are
+// not yet drawn. The beacon for tick T is public DURING T (drawn at
+// T-1's close), so any instant deed judged by it can be pre-read and
+// timed: perfect cooking from level 1 by waiting for kind ticks.
+// Instant deeds are therefore judged by COUNTING: a Bresenham
+// accumulator that grants successes at exactly the constitutional
+// rate, in a fixed order no timing can bend. Same curve, no dice.
+// countedSuccess(n, q256): true iff attempt n (1-based) crosses a new
+// multiple of the rate q/256. Over any window the success count is
+// floor(n*q/256): the promised rate, exactly, with zero variance.
+function countedSuccess(n, q256) {
+  return Math.floor((n * q256) / 256) > Math.floor(((n - 1) * q256) / 256);
 }
 
 function roll(beacon, playerId, tag) {
@@ -617,7 +631,8 @@ function nextState(state, inputs, _legacyBeacon) {
       const clear = !Object.values(s.nodes).some(n => n.x === p.x && n.y === p.y);
       if (sl && sl.item === 'logs' && clear) {
         const lvl = effLevel(p.skills.firemaking);
-        if (roll(beacon, pid, 'light') < Math.min(64 + 2 * lvl, 240)) {
+        p.lightsTried = (p.lightsTried ?? 0) + 1; // the tally, not the dice
+        if (countedSuccess(p.lightsTried, Math.min(64 + 2 * lvl, 240))) {
           p.inventory[inp.slot] = null;
           p.skills.firemaking += XP_FIREMAKING;
           s.nodes['f' + s.tick + '-' + pid.slice(0, 8)] =
@@ -686,9 +701,8 @@ function nextState(state, inputs, _legacyBeacon) {
       const nearFire = Object.values(s.nodes).some(n => (n.type === 'campfire' || n.type === 'fire') && adjacent(p, n));
       if (slot && slot.item === 'raw-fish' && nearFire) {
         const lvl = effLevel(p.skills.cooking);
-        const threshold = Math.min(64 + 2 * lvl, 240);
-        const r = roll(beacon, pid, 'cook');
-        if (r < threshold) {
+        p.cooksTried = (p.cooksTried ?? 0) + 1; // the pan counts; it does not gamble
+        if (countedSuccess(p.cooksTried, Math.min(64 + 2 * lvl, 240))) {
           p.inventory[inp.slot] = { item: 'cooked-fish', qty: 1 };
           p.skills.cooking += XP_COOK;
         } else {

@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.38 ("The Constitution")
+# Interval: Protocol Specification v0.39 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -656,6 +656,29 @@ Properties, honestly stated:
   quiet. The bias buys nothing it doesn't immediately destroy.
 
 No client-side randomness exists anywhere in the protocol.
+
+### 7a. The Reading Rule (v0.39)
+
+The beacon for tick T is public **during** T: it was drawn at the close
+of T-1. Chance may therefore only judge deeds whose lots are not yet
+drawn: multi-tick deeds (combat exchanges, gathering yields, drops on a
+future death) are safe, because their rolls land on beacons that do not
+exist when the deed is committed, and committing reshuffles them.
+
+**Instant deeds are judged by counting, not chance.** Cooking and
+firemaking resolve the same tick they are submitted; under any beacon
+they could be pre-read and timed. They now use a per-citizen tally and
+a Bresenham accumulator:
+
+```
+success on attempt n  iff  floor(n*q/256) > floor((n-1)*q/256)
+q = min(64 + 2*level, 240)      (the same curve as before)
+```
+
+Over any window of attempts the success count is exact: the promised
+rate with zero variance. Attempt n's outcome is a pure function of n
+and level: no tick is kinder than another, so timing buys nothing.
+The pan counts; it does not gamble.
 
 ## 8. Bot indifference (design doctrine)
 
