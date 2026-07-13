@@ -49,17 +49,26 @@ await node.dial(pillarAddr)
 
 // ---- the mesh, not the star: dial every peer the pillar knows, and keep
 // looking. If the pillar dies, the world keeps talking around the hole.
-const dialed = new Set([pillarAddr.toString()])
+const dialedPeers = new Set([node.peerId()]) // never dial ourselves
 async function meshUp() {
   try {
-    const r = await fetch(url + '/api/peers').then(x => x.json())
+    // 1. announce our own door: our listening port, paired server-side
+    //    with the address the pillar observes us calling from
+    const port = node.listenPort()
+    if (port) await fetch(URL_ + '/api/announce', {
+      method: 'POST',
+      body: JSON.stringify({ peerId: node.peerId(), port }),
+    }).catch(() => {})
+    // 2. dial every announced door we have not yet knocked on
+    const r = await fetch(URL_ + '/api/peers').then(x => x.json())
     for (const a of r.peers ?? []) {
-      if (dialed.has(a)) continue
-      dialed.add(a)
+      const pid2 = /\/p2p\/(.+)$/.exec(a)?.[1]
+      if (!pid2 || dialedPeers.has(pid2)) continue
+      dialedPeers.add(pid2)
       try {
         await node.dial(multiaddr(a))
-        console.log('[mesh] dialed peer ' + a)
-      } catch { /* unreachable is fine: NAT, gone, or us */ }
+        console.log('[mesh] peer connected: ' + a)
+      } catch { dialedPeers.delete(pid2) /* try again next sweep */ }
     }
   } catch { /* pillar unreachable: the mesh we already have carries on */ }
 }
