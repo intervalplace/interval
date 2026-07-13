@@ -51,6 +51,8 @@
   flex-wrap:wrap;justify-content:center;max-width:92vw;z-index:5;pointer-events:none"></div>
 <div id="feed"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
 const feedEl = document.getElementById('feed'), statEl = document.getElementById('stat')
 const feed = (t) => { feedEl.textContent = t; setTimeout(() => { if (feedEl.textContent === t) feedEl.textContent = '' }, 4000) }
@@ -360,9 +362,47 @@ function makeName(text) {
   sp.scale.set(2.2, 0.42, 1); sp.position.y = 1.55
   return sp
 }
+// ---- the ceiling, first rung: a real rigged character with real clips.
+// One URL to swap for any fantasy asset pack; primitives stand by if the
+// net fails. Assets are the ceiling: everything else was always shader.
+let charGltf = null, charClips = null
+const CHAR_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb'
+const CHAR_SCALE = 0.55
+try {
+  new THREE.GLTFLoader().load(CHAR_URL, (g2) => {
+    charGltf = g2.scene
+    charGltf.traverse((o2) => { if (o2.isMesh) { o2.castShadow = true } })
+    charClips = { idle: THREE.AnimationClip.findByName(g2.animations, 'Idle'),
+      walk: THREE.AnimationClip.findByName(g2.animations, 'Walk'),
+      run: THREE.AnimationClip.findByName(g2.animations, 'Run') }
+    // reborn in the new flesh: existing citizens rebuild on their next frame
+    for (const [id2, m2] of [...beings]) if (m2.userData.beingKind === 'citizen') { scene.remove(m2); beings.delete(id2) }
+    feed('character models loaded')
+  }, undefined, () => { feed('model CDN unreachable: the primitive folk carry on') })
+} catch {}
+const mixers = new Map()
 const MOB_LOOK = { goblin: [0x5c8a3a, 0.5], wolf: [0x6b6b62, 0.55], troll: [0x4a6b52, 0.95], bear: [0x5c4023, 0.85] }
 function beingMesh(kind, id, thing) {
   const g = new THREE.Group()
+  if (kind === 'citizen' && charGltf && THREE.SkeletonUtils) {
+    // the rigged body: cloned skeleton, its own animation mixer
+    const body = THREE.SkeletonUtils.clone(charGltf)
+    body.scale.setScalar(CHAR_SCALE)
+    g.add(body)
+    const mx = new THREE.AnimationMixer(body)
+    const acts = { idle: charClips.idle && mx.clipAction(charClips.idle),
+      walk: charClips.walk && mx.clipAction(charClips.walk),
+      run: charClips.run && mx.clipAction(charClips.run) }
+    if (acts.idle) acts.idle.play()
+    mixers.set(id, mx)
+    g.userData.acts = acts
+    g.userData.rigged = true
+    g.userData.mode = 'idle'
+    g.userData.name = makeName('')
+    g.add(g.userData.name)
+    g.userData.hpbar = makeHpBar(); g.userData.hpbar.position.y = 1.36; g.add(g.userData.hpbar)
+    return g
+  }
   if (kind === 'citizen') {
     const hv = parseInt(id.slice(0, 8), 16)
     // an adventurer's palette: worn dyes, not resort pastels
@@ -534,6 +574,16 @@ function syncBeings(s, prev) {
       }
       const moving = thing.x !== ox || thing.y !== oy
       const ph = Math.sin(performance.now() / 140)
+      if (m.userData.rigged) { // clips crossfade by state: idle, walk, fight
+        const fighting2 = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
+        const want2 = fighting2 ? 'run' : moving ? 'walk' : 'idle'
+        if (want2 !== m.userData.mode && m.userData.acts[want2]) {
+          const from2 = m.userData.acts[m.userData.mode], to2 = m.userData.acts[want2]
+          to2.reset().play()
+          if (from2) from2.crossFadeTo(to2, 0.25, false)
+          m.userData.mode = want2
+        }
+      }
       if (m.userData.arms) {
         const fighting = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
         const working = thing.action?.type === 'gather'
@@ -585,7 +635,7 @@ function syncBeings(s, prev) {
   }
   for (const [id, p] of Object.entries(s.players)) place('citizen', id, p, prev?.players?.[id])
   for (const [id, mb] of Object.entries(s.mobs)) place('mob', id, mb, prev?.mobs?.[id])
-  for (const [id, m] of beings) if (!seen.has(id)) { scene.remove(m); beings.delete(id) }
+  for (const [id, m] of beings) if (!seen.has(id)) { scene.remove(m); beings.delete(id); mixers.delete(id) }
 }
 const effHp = (p) => Math.min(99, 10 + Math.max(0, XP_LVL(p.skills?.hitpoints ?? 0) - 10))
 const XP_LVL = (xp) => { let l = 1, need = 83, tot = 0; while (tot + need <= xp && l < 99) { tot += need; l++; need = Math.floor(need * 1.104) } return l }
@@ -726,18 +776,19 @@ setInterval(() => { // one greedy step per tick: the deluxe window keeps its leg
     if (!mb || mb.hp <= 0) { huntTarget = null; goalRing.visible = false; return }
     goalRing.position.set(wx(mb.x), 0.03, wz(mb.y))
     const dist = Math.abs(me.x - mb.x) + Math.abs(me.y - mb.y)
-    if (dist === 1) { // adjacency is the law: standing ON it is too close to swing
+    if (dist === 0) { send({ do: 'move', dx: 1, dy: 0 }); return } // step OFF the beast
+    if (dist <= 2) {
+      // the hunter STOPS: two moving bodies are never adjacent at the same
+      // instant. Stand, and press the attack each tick: the beast's own
+      // wandering walks it onto the blade.
       if (!me.action) send({ do: 'attack', mobId: huntTarget })
       return
     }
-    if (dist === 0) { send({ do: 'move', dx: 1, dy: 0 }); return } // step OFF the beast
-    // one step toward it, refusing the step that would land ON it
+    // still far: one step toward it, refusing the tile it stands on
     const dx3 = Math.sign(mb.x - me.x), dy3 = Math.sign(mb.y - me.y)
     const stepX = Math.abs(mb.x - me.x) >= Math.abs(mb.y - me.y)
-    const wouldLandOn = (nx, ny) => nx === mb.x && ny === mb.y && dist === 1
-    if (stepX && dx3 && !wouldLandOn(me.x + dx3, me.y)) send({ do: 'move', dx: dx3, dy: 0 })
-    else if (dy3 && !wouldLandOn(me.x, me.y + dy3)) send({ do: 'move', dx: 0, dy: dy3 })
-    else if (dx3) send({ do: 'move', dx: dx3, dy: 0 })
+    if (stepX && dx3) send({ do: 'move', dx: dx3, dy: 0 })
+    else if (dy3) send({ do: 'move', dx: 0, dy: dy3 })
     return
   }
   if (workTarget) { // the work: stand beside, then gather until it yields
@@ -761,8 +812,11 @@ setInterval(() => { // one greedy step per tick: the deluxe window keeps its leg
 let lastStep = null
 
 // ---- the frame: sun, fires, water, bodies, camera ----
+let lastFrame = 0
 function animate(now) {
   requestAnimationFrame(animate)
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now
+  for (const mx of mixers.values()) mx.update(dt)
   if (!world) return
   const s = world
   syncBeings(s, prevWorld)
