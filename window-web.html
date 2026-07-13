@@ -456,7 +456,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b76'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b77'  // stamp: if your screen says an older build, hard-refresh
 const send = a => {
   if (ws.readyState !== 1) return
   if (ownKey && a.do === 'chat') { signChat(a.text); return }
@@ -1366,15 +1366,9 @@ function drawCitizen(X, Y, o) {
 }
 
 let sunDirX = 0, shadowLen = 0
-const cyc2Pi = (s) => (((s.tick + t) % DAY) / DAY) * Math.PI * 2
-const brightnessOf = (s) => (Math.sin(cyc2Pi(s)) + 1) / 2
 function drawScene(now) {
   const s = curState; if (!s || !groundReady) return
   cx.setTransform(ZR, 0, 0, ZR, 0, 0) // the whole frame, a step closer (and in HD, twice as fine)
-  if (HD) { // the sun writes the shadows: long at the golden hours, gone at noon
-    sunDirX = -Math.cos(cyc2Pi(s))
-    shadowLen = Math.max(0, (1 - Math.sin(Math.min(Math.PI, cyc2Pi(s)))) * 9) * (brightnessOf(s) > 0.25 ? 1 : 0)
-  }
   // render on the tick timeline, one tick behind the newest state: the
   // sprite walks from prevState to curState exactly as the clock crosses
   // that tick, however raggedly the broadcasts arrived
@@ -2032,6 +2026,10 @@ function drawScene(now) {
   const cyc = (((s.tick + t) % DAY) / DAY)          // 0 dawn · .25 noon · .5 dusk · .75 midnight
   const brightness = (Math.sin(cyc * Math.PI * 2) + 1) / 2
   const darkness = (1 - brightness) * 0.58
+  if (HD) { // the sun writes the shadows: long at the golden hours, gone at noon
+    sunDirX = -Math.cos(cyc * Math.PI * 2)
+    shadowLen = brightness > 0.45 ? (1 - brightness) * 16 + 1 : 0
+  }
   const duskiness = Math.max(0, 1 - Math.abs(brightness - 0.42) * 6) // the golden hours
   if (duskiness > 0.02) {
     // rising light is gold; falling light is violet: the sky knows which
