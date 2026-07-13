@@ -94,6 +94,7 @@ const BRIDGE = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
   : a.do === 'spawn' ? { type: 'spawn' }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
+  : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
   : null
 async function send(a) {
   if (ws.readyState !== 1 || !ownKey) return
@@ -306,7 +307,7 @@ function nodeMesh(n) {
 }
 function syncNodes(s) {
   for (const [id, n] of Object.entries(s.nodes)) {
-    if (!nodeMeshes.has(id)) { const m = nodeMesh(n); nodeMeshes.set(id, m); scene.add(m) }
+    if (!nodeMeshes.has(id)) { const m = nodeMesh(n); m.userData.nodeId = id; m.userData.nodeType = n.type; nodeMeshes.set(id, m); scene.add(m) }
     const m = nodeMeshes.get(id)
     const depleted = n.depletedUntil > s.tick
     m.visible = !(n.type === 'fire' && n.expiresAt <= s.tick)
@@ -631,23 +632,46 @@ let burstAt = -1e9
 // raycast the GROUND alone: a dozen citizens' nameplates once formed an
 // invisible wall at spawn that swallowed every tap
 let huntTarget = null // a mob id: walk in, then strike
+let workTarget = null // a node id: walk in, then gather
+const GATHERABLE = new Set(['tree', 'rock', 'magic-rock', 'fishing-spot'])
+// small screens, small goblins: a tap within a thumb's width of a target
+// counts. Raycasts are precise; fingers are not.
+function nearestTapTarget(cxp, cyp) {
+  const ndc = new THREE.Vector2((cxp / innerWidth) * 2 - 1, -(cyp / innerHeight) * 2 + 1)
+  const v3 = new THREE.Vector3()
+  let best = null, bd = 0.085 // ~ a thumb, in NDC
+  for (const m of beings.values()) {
+    if (m.userData.beingKind !== 'mob' || !m.visible) continue
+    v3.copy(m.position); v3.y += 0.4; v3.project(camera)
+    if (v3.z > 1) continue
+    const d = Math.hypot(v3.x - ndc.x, v3.y - ndc.y)
+    if (d < bd) { bd = d; best = { kind: 'mob', id: m.userData.beingId } }
+  }
+  for (const m of nodeMeshes.values()) {
+    if (!GATHERABLE.has(m.userData.nodeType) || !m.visible) continue
+    v3.copy(m.position); v3.y += 0.5; v3.project(camera)
+    if (v3.z > 1) continue
+    const d = Math.hypot(v3.x - ndc.x, v3.y - ndc.y)
+    if (d < bd) { bd = d; best = { kind: 'node', id: m.userData.nodeId } }
+  }
+  return best
+}
 const pick = (cxp, cyp) => {
   if (!world || !myId || !world.players[myId] || !groundMesh) return
   mouse.set((cxp / innerWidth) * 2 - 1, -(cyp / innerHeight) * 2 + 1)
   ray.setFromCamera(mouse, camera)
-  // beasts first: a tap on a body means a fight, not a stroll to its feet
-  const beingHit = ray.intersectObjects([...beings.values()].filter(b2 => b2.userData.beingKind === 'mob' && b2.visible), true)[0]
-  if (beingHit) {
-    let o2 = beingHit.object
-    while (o2 && !o2.userData.beingId) o2 = o2.parent
-    if (o2) {
-      huntTarget = o2.userData.beingId; walkGoal = null
-      goalRing.material.color.set(0xe86e3a) // ember means fight
-      goalRing.visible = true
-      tapBurst.material.color.set(0xe86e3a)
-      tapBurst.position.copy(o2.position); tapBurst.position.y = 0.04; burstAt = performance.now()
-      return
-    }
+  // targets first: a tap near a beast means a fight; near a tree, work
+  const tgt = nearestTapTarget(cxp, cyp)
+  if (tgt) {
+    walkGoal = null; huntTarget = null; workTarget = null
+    if (tgt.kind === 'mob') { huntTarget = tgt.id; feed('you go for it') }
+    else { workTarget = tgt.id; feed('you make for it') }
+    goalRing.material.color.set(0xe86e3a) // ember means acting
+    goalRing.visible = true
+    tapBurst.material.color.set(0xe86e3a)
+    const src = tgt.kind === 'mob' ? beings.get(tgt.id) : nodeMeshes.get(tgt.id)
+    if (src) { tapBurst.position.copy(src.position); tapBurst.position.y = 0.04; burstAt = performance.now() }
+    return
   }
   const hit = ray.intersectObject(groundMesh)[0]
   if (!hit) return
@@ -695,6 +719,16 @@ setInterval(() => { // one greedy step per tick: the deluxe window keeps its leg
     }
     walkGoal = { x: mb.x, y: mb.y } // fall through to the legs below
   }
+  if (workTarget) { // the work: stand beside, then gather until it yields
+    const nd = world.nodes[workTarget]
+    if (!nd || (nd.depletedUntil > world.tick)) { workTarget = null; goalRing.visible = false; return }
+    goalRing.position.set(wx(nd.x), 0.03, wz(nd.y))
+    if (Math.abs(me.x - nd.x) + Math.abs(me.y - nd.y) === 1) {
+      if (!me.action) send({ do: 'gather', nodeId: workTarget })
+      return
+    }
+    walkGoal = { x: nd.x, y: nd.y }
+  }
   if (!walkGoal) return
   if (me.x === walkGoal.x && me.y === walkGoal.y) { walkGoal = null; goalRing.visible = false; return }
   const dx = Math.sign(walkGoal.x - me.x), dy = Math.sign(walkGoal.y - me.y)
@@ -734,11 +768,15 @@ function animate(now) {
   }
   for (const [, m] of nodeMeshes) if (m.userData.canopy) m.userData.canopy.rotation.z = Math.sin(now / 1400 + m.userData.canopy.userData.sway) * 0.05
   for (const [, m] of nodeMeshes) if (m.userData.flame) { m.userData.flame.scale.y = 0.9 + Math.sin(now / 80 + m.position.x) * 0.18 }
-  // the camera rides with my citizen (or surveys the crossroads)
+  // the camera rides the INTERPOLATED body: anchoring on the raw tile
+  // made it lunge after every 600ms teleport, a seasick pulse
   const me = myId && s.players[myId]
-  const fx = me ? wx(me.x) : 0, fz = me ? wz(me.y) : 0
+  const om = myId && prevWorld?.players?.[myId]
+  const mix = me ? (om ? om.x + (me.x - om.x) * t2 : me.x) : null
+  const miy = me ? (om ? om.y + (me.y - om.y) * t2 : me.y) : null
+  const fx = me ? wx(mix) : 0, fz = me ? wz(miy) : 0
   const cy2 = Math.sin(camPitch) * camDist, cr = Math.cos(camPitch) * camDist
-  camera.position.lerp(new THREE.Vector3(fx + Math.sin(camAz) * cr, cy2, fz + Math.cos(camAz) * cr), 0.12)
+  camera.position.lerp(new THREE.Vector3(fx + Math.sin(camAz) * cr, cy2, fz + Math.cos(camAz) * cr), 0.28)
   camera.lookAt(fx, 0.6, fz)
   goalRing.material.opacity = 0.55 + Math.sin(now / 260) * 0.3
   goalRing.scale.setScalar(1 + Math.sin(now / 260) * 0.08)
