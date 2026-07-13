@@ -72,7 +72,7 @@ export class IntervalNode {
     }
     this.p2p = await createLibp2p({
       ...(peerPriv ? { privateKey: peerPriv } : {}),
-      addresses: { listen: [this.listen ?? '/ip4/127.0.0.1/tcp/0'] },
+      addresses: { listen: [this.listen ?? '/ip4/0.0.0.0/tcp/0'] }, // dialable by default: a mesh of mutes is a star
       transports: [tcp()],
       connectionEncrypters: [noise()],
       streamMuxers: [yamux()],
@@ -142,6 +142,13 @@ export class IntervalNode {
   addr() { return this.p2p.getMultiaddrs()[0] }
   async dial(addr) { await this.p2p.dial(addr) }
   peerId() { return this.p2p.peerId.toString() }
+  listenPort() {
+    for (const a of this.p2p.getMultiaddrs()) {
+      const m = /\/tcp\/(\d+)/.exec(a.toString())
+      if (m) return Number(m[1])
+    }
+    return null
+  }
 
   acceptChat(msg) { // spec §9c: signed, short, one per interval per key
     if (typeof msg.text !== 'string' || msg.text.length === 0 || msg.text.length > 80) return false
