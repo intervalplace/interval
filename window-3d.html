@@ -552,16 +552,17 @@ const XP_LVL = (xp) => { let l = 1, need = 83, tot = 0; while (tot + need <= xp 
 const lvlOf = (p) => Math.max(1, Math.floor(Object.entries(p.skills ?? {}).filter(([k]) => ['attack','defence','hitpoints','ranged','magic'].includes(k)).reduce((a, [, v]) => a + XP_LVL(v), 0) / 3) - 2)
 
 // ---- the same clock discipline as the reference window ----
+// the serve answers; it does not greet. Speak first, at the door.
+ws.onopen = async () => {
+  ownKey = await ownIdentity()
+  if (ownKey) {
+    myId = ownKey.pub
+    ws.send(JSON.stringify({ type: 'adopt', pub: ownKey.pub }))
+  } else feed('this browser cannot sign (no Ed25519): spectating')
+}
 ws.onmessage = async (ev) => {
   const m = JSON.parse(ev.data)
-  if (m.type === 'hello') {
-    ownKey = await ownIdentity()
-    if (ownKey) {
-      myId = ownKey.pub
-      ws.send(JSON.stringify({ type: 'adopt', pub: ownKey.pub }))
-      send({ do: 'spawn' })
-    } else { myId = m.playerId; feed('this browser cannot sign (no Ed25519): spectating') }
-  }
+  if (m.type === 'hello') { myId = m.playerId }
   if (m.type === 'state') {
     prevWorld = world; world = m.state
     clock = { tick: m.state.tick, at: performance.now() }
