@@ -47,6 +47,8 @@
   Same ticks, same citizens, same fires. No window is authoritative: that is the whole point.</div>
 </div>
 <div id="stat"></div>
+<div id="inv3d" style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);display:flex;gap:6px;
+  flex-wrap:wrap;justify-content:center;max-width:92vw;z-index:5;pointer-events:none"></div>
 <div id="feed"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -517,7 +519,13 @@ function syncBeings(s, prev) {
     const ox = old?.x ?? thing.x, oy = old?.y ?? thing.y
     const ix = ox + (thing.x - ox) * t2, iy = oy + (thing.y - oy) * t2
     m.position.set(wx(ix), 0, wz(iy))
-    if (thing.x !== ox) m.rotation.y = thing.x > ox ? Math.PI / 2 : -Math.PI / 2
+    if (thing.x !== ox || thing.y !== oy) {
+      const want = Math.atan2(thing.x - ox, thing.y - oy)
+      let dAng = want - m.rotation.y
+      while (dAng > Math.PI) dAng -= Math.PI * 2
+      while (dAng < -Math.PI) dAng += Math.PI * 2
+      m.rotation.y += dAng * 0.25 // the body TURNS, then walks forward
+    }
     if (kind === 'citizen') {
       const nm = thing.name ? thing.name + ' (lvl ' + lvlOf(thing) + ')' : '(unnamed)'
       if (m.userData.lastName !== nm) {
@@ -528,14 +536,17 @@ function syncBeings(s, prev) {
       const ph = Math.sin(performance.now() / 140)
       if (m.userData.arms) {
         const fighting = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
+        const working = thing.action?.type === 'gather'
         m.userData.legs[0].rotation.x = moving ? ph * 0.65 : 0
         m.userData.legs[1].rotation.x = moving ? -ph * 0.65 : 0
         m.userData.legs[0].userData.joint.rotation.x = moving ? Math.max(0, -ph) * 0.9 : 0
         m.userData.legs[1].userData.joint.rotation.x = moving ? Math.max(0, ph) * 0.9 : 0
         m.userData.arms[0].rotation.x = moving ? -ph * 0.5 : 0.06
-        m.userData.arms[1].rotation.x = fighting ? (-1.7 + Math.abs(Math.sin(performance.now() / 300)) * 1.2) : (moving ? ph * 0.5 : 0.06)
+        m.userData.arms[1].rotation.x = fighting ? (-1.7 + Math.abs(Math.sin(performance.now() / 300)) * 1.2)
+          : working ? (-2.0 + Math.abs(Math.sin(performance.now() / 420)) * 1.5) // the axe rises and falls
+          : (moving ? ph * 0.5 : 0.06)
         m.userData.arms[0].userData.joint.rotation.x = moving ? -0.3 : -0.12
-        m.userData.arms[1].userData.joint.rotation.x = fighting ? -0.5 : (moving ? -0.3 : -0.12)
+        m.userData.arms[1].userData.joint.rotation.x = (fighting || working) ? -0.5 : (moving ? -0.3 : -0.12)
         m.userData.torso.scale.y = 1 + Math.sin(performance.now() / 900 + m.position.x) * 0.015 // breath
         if (m.userData.cloak) m.userData.cloak.rotation.x = 0.08 + (moving ? 0.28 + ph * 0.05 : Math.sin(performance.now() / 1100) * 0.03)
         const wep = thing.equipment?.weapon?.item
@@ -618,6 +629,7 @@ ws.onmessage = async (ev) => {
 // ---- click to walk: raycast where the reference window does arithmetic ----
 const ray = new THREE.Raycaster(), mouse = new THREE.Vector2()
 let walkGoal = null
+let lastInvSig = ''
 // the goal ring: yellow means walking, exactly like the reference window
 const goalRing = new THREE.Mesh(new THREE.RingGeometry(0.32, 0.44, 24),
   new THREE.MeshBasicMaterial({ color: 0xffe83a, transparent: true, opacity: 0.85, side: THREE.DoubleSide }))
@@ -709,15 +721,24 @@ addEventListener('wheel', (e) => { camDist = Math.min(20, Math.max(5, camDist + 
 setInterval(() => { // one greedy step per tick: the deluxe window keeps its legs simple
   if (!world || !myId) return
   const me = world.players[myId]; if (!me) return
-  if (huntTarget) { // the hunt: close in, then strike; ember rides the beast
+  if (huntTarget) { // the hunt: close to a sword's length, then strike
     const mb = world.mobs[huntTarget]
     if (!mb || mb.hp <= 0) { huntTarget = null; goalRing.visible = false; return }
     goalRing.position.set(wx(mb.x), 0.03, wz(mb.y))
-    if (Math.abs(me.x - mb.x) + Math.abs(me.y - mb.y) <= 1) {
+    const dist = Math.abs(me.x - mb.x) + Math.abs(me.y - mb.y)
+    if (dist === 1) { // adjacency is the law: standing ON it is too close to swing
       if (!me.action) send({ do: 'attack', mobId: huntTarget })
       return
     }
-    walkGoal = { x: mb.x, y: mb.y } // fall through to the legs below
+    if (dist === 0) { send({ do: 'move', dx: 1, dy: 0 }); return } // step OFF the beast
+    // one step toward it, refusing the step that would land ON it
+    const dx3 = Math.sign(mb.x - me.x), dy3 = Math.sign(mb.y - me.y)
+    const stepX = Math.abs(mb.x - me.x) >= Math.abs(mb.y - me.y)
+    const wouldLandOn = (nx, ny) => nx === mb.x && ny === mb.y && dist === 1
+    if (stepX && dx3 && !wouldLandOn(me.x + dx3, me.y)) send({ do: 'move', dx: dx3, dy: 0 })
+    else if (dy3 && !wouldLandOn(me.x, me.y + dy3)) send({ do: 'move', dx: 0, dy: dy3 })
+    else if (dx3) send({ do: 'move', dx: dx3, dy: 0 })
+    return
   }
   if (workTarget) { // the work: stand beside, then gather until it yields
     const nd = world.nodes[workTarget]
@@ -783,6 +804,20 @@ function animate(now) {
   const bAge = (now - burstAt) / 420
   if (bAge < 1) { tapBurst.material.opacity = 0.9 * (1 - bAge); tapBurst.scale.setScalar(1 + bAge * 3.2) }
   else tapBurst.material.opacity = 0
+  // the pack: item chips, refreshed when the inventory truly changes
+  if (me) {
+    const stacks = {}
+    for (const sl of me.inventory ?? []) if (sl) stacks[sl.item] = (stacks[sl.item] ?? 0) + (sl.qty ?? 1)
+    const sig2 = JSON.stringify(stacks) + '|' + (me.gold ?? 0)
+    if (sig2 !== lastInvSig) {
+      lastInvSig = sig2
+      const chips = Object.entries(stacks).map(([it, q]) =>
+        '<span style="background:rgba(20,17,12,.82);border:1px solid #6b5d43;color:#d9d3c0;' +
+        'padding:4px 9px;font-size:11px;border-radius:3px">' + it.replace(/-/g, ' ') + (q > 1 ? ' ×' + q : '') + '</span>').join('')
+      document.getElementById('inv3d').innerHTML = chips +
+        ((me.gold ?? 0) > 0 ? '<span style="background:rgba(20,17,12,.82);border:1px solid #6b5d43;color:#ffcc33;padding:4px 9px;font-size:11px;border-radius:3px">' + me.gold + ' gold</span>' : '')
+    }
+  }
   statEl.textContent = 'tick ' + s.tick + ' · ' + Object.keys(s.players).length + ' citizens · '
     + (me ? 'you are ' + (me.name ?? 'unnamed') + ' · ' : ownKey ? 'spawning you… · ' : 'spectating · ')
     + 'same world as /play'
