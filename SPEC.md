@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.35 ("The Constitution")
+# Interval: Protocol Specification v0.36 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -157,10 +157,24 @@ no combat action of their own is hit by another citizen, they
 automatically engage their attacker. Flight remains possible: any
 move breaks the engagement, and the boundary still protects.
 
+## 2h. The real world (v0.36): the river, the sea, the mountains
+
+The founding grows to 192 x 96, and gains geography that ROUTES:
+
+**The river** rises in the northern mountains east of Anchor and winds
+south to the great lake: a chain of water, impassable and fishable
+along its whole length. Where the roads meet it, **bridges** stand:
+the road wins, the water flows beneath. **The sea** bounds the east:
+the last three columns are open water, and Eastmere is a coastal town.
+**The mountains** span the far north on both sides of Anchor: rich in
+ore, richer in magic rock. The deep forest, the highlands, the cave,
+Stillwater, and Milbrook keep their places, scaled. The Wilds grow
+with the world: `x in [1, 34], y in [1, 22]`.
+
 ## 2g. The Wilds (where the law thins)
 
 The northwest quarter's far corner is the **Wilds**: the rectangle
-`x in [1, 26], y in [1, 16]`. Inside it, and only inside it,
+`x in [1, 34], y in [1, 22]` (as amended in 2h). Inside it, and only inside it,
 `attackp {targetId}` is valid: citizen against citizen, melee adjacent
 or bow within 4, resolved by the same combat law as any beast. Both
 attacker AND target must stand inside the Wilds: the boundary protects

@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.35';
+const SPEC_VERSION = '0.36';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -51,7 +51,7 @@ const PRICES = {
 };
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 // the Wilds (spec 2g): where citizens may hunt citizens
-const inWilds = (x, y) => x >= 1 && x <= 26 && y >= 1 && y <= 16;
+const inWilds = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22; // grown with the world (2h)
 // the city of Anchor (spec 2d): mob-forbidden bounds
 function cityRectOf(g) {
   const cx = Math.floor(g.worldW / 2);
