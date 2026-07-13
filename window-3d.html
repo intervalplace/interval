@@ -331,7 +331,7 @@ function buildGround(s0) {
   // the horizon skirt: beyond the founding, misty land instead of void
   const skirt = new THREE.Mesh(new THREE.CircleGeometry(400, 32),
     new THREE.MeshStandardMaterial({ color: 0x3d5a23, roughness: 1 }))
-  skirt.rotation.x = -Math.PI / 2; skirt.position.y = -0.02
+  skirt.rotation.x = -Math.PI / 2; skirt.position.y = -0.5 // BELOW the water beds: it once smothered every lake
   scene.add(skirt)
   // the earth textured: procedural grass mottling under the vertex colors
   const tcv = document.createElement('canvas'); tcv.width = 256; tcv.height = 256
@@ -779,6 +779,9 @@ function syncBeings(s, prev) {
     if (kind === 'citizen' && (thing.action?.type === 'attack' || thing.action?.type === 'attackp')) {
       const foe = thing.action.mobId ? s.mobs[thing.action.mobId] : s.players[thing.action.targetId]
       if (foe) faceTarget = Math.atan2(foe.x - thing.x, foe.y - thing.y)
+    } else if (kind === 'citizen' && thing.action?.type === 'gather') {
+      const nd3 = s.nodes[thing.action.nodeId]
+      if (nd3) faceTarget = Math.atan2(nd3.x - thing.x, nd3.y - thing.y) // face the work
     }
     if (faceTarget !== null || thing.x !== ox || thing.y !== oy) {
       const want = faceTarget ?? Math.atan2(thing.x - ox, thing.y - oy)
@@ -811,6 +814,7 @@ function syncBeings(s, prev) {
         // rocking the whole root read as a headbutt. The arm chops; the
         // spine merely agrees with a small lean.
         const ab = m.userData.armBone, rb = m.userData.rigBody
+        if (working2 && (performance.now() % 840) < 17) snd('chop')
         if (ab && working2) {
           ab.rotation.x = -2.4 + Math.abs(Math.sin(performance.now() / 420)) * 1.7
           if (rb) rb.rotation.x = 0.06
@@ -861,8 +865,11 @@ function syncBeings(s, prev) {
       if (m.userData.hpbar) {
         const fighting3 = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
         const fr = thing.hp / Math.max(1, Math.min(99, effHp(thing)))
-        if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp)
+        if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp) {
           spawnSplat(m.position, m.userData.lastHp - thing.hp) // the blow, seen
+          snd('thud')
+          if (thing.hp <= 0 && id === myId) snd('gong')
+        }
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, Math.max(0, Math.min(1, fr))) }
         m.userData.hpbar.visible = fighting3 || thing.hp < effHp(thing)
       }
@@ -870,8 +877,10 @@ function syncBeings(s, prev) {
     } else {
       if (m.userData.hpbar) {
         m.userData.maxHp = Math.max(m.userData.maxHp ?? thing.hp, thing.hp)
-        if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp)
+        if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp) {
           spawnSplat(m.position, m.userData.lastHp - thing.hp)
+          snd('thud')
+        }
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, thing.hp / m.userData.maxHp) }
         m.userData.hpbar.visible = thing.hp < m.userData.maxHp
       }
@@ -899,8 +908,39 @@ ws.onopen = async () => {
     if (kEl) kEl.textContent = 'your key: ' + ownKey.pub.slice(0, 12) + '… (held by this browser, shared with /play)'
   } else feed('this browser cannot sign (no Ed25519): spectating')
 }
+// ---- sound: synthesized from nothing, in /play's tradition ----
+let AC3 = null
+function snd(kind) {
+  if (!AC3) return
+  try {
+    const t0 = AC3.currentTime
+    const o = AC3.createOscillator(), g2 = AC3.createGain()
+    o.connect(g2); g2.connect(AC3.destination)
+    if (kind === 'thud') { // a blow lands
+      o.type = 'triangle'; o.frequency.setValueAtTime(90, t0)
+      o.frequency.exponentialRampToValueAtTime(45, t0 + 0.12)
+      g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14)
+      o.start(t0); o.stop(t0 + 0.15)
+    } else if (kind === 'pluck') { // the pack gains
+      o.type = 'square'; o.frequency.setValueAtTime(620, t0)
+      g2.gain.setValueAtTime(0.12, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.1)
+      o.start(t0); o.stop(t0 + 0.11)
+    } else if (kind === 'chop') { // wood answers
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(160, t0)
+      o.frequency.exponentialRampToValueAtTime(70, t0 + 0.06)
+      g2.gain.setValueAtTime(0.2, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08)
+      o.start(t0); o.stop(t0 + 0.09)
+    } else if (kind === 'gong') { // a citizen falls
+      o.type = 'sine'; o.frequency.setValueAtTime(150, t0)
+      o.frequency.exponentialRampToValueAtTime(60, t0 + 0.9)
+      g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 1)
+      o.start(t0); o.stop(t0 + 1)
+    }
+  } catch {}
+}
 document.getElementById('gate3dbtn').addEventListener('click', () => {
   entered = true
+  try { AC3 = new (window.AudioContext ?? window.webkitAudioContext)() } catch {}
   document.getElementById('gate3d').style.display = 'none'
 })
 ws.onmessage = async (ev) => {
@@ -1111,22 +1151,24 @@ function animate(now) {
   if (bAge < 1) { tapBurst.material.opacity = 0.9 * (1 - bAge); tapBurst.scale.setScalar(1 + bAge * 3.2) }
   else tapBurst.material.opacity = 0
   // the pack: item chips, refreshed when the inventory truly changes
-  if (me) {
+  if (me) try {
     const stacks = {}
     for (const sl of me.inventory ?? []) if (sl) stacks[sl.item] = (stacks[sl.item] ?? 0) + (sl.qty ?? 1)
     const sig2 = JSON.stringify(stacks) + '|' + (me.gold ?? 0)
+    const gained = lastInvSig && sig2.length > lastInvSig.length
     if (sig2 !== lastInvSig) {
       lastInvSig = sig2
+      if (gained) { snd('pluck') }
       // the same item art as /play: one hand draws for both windows
       const slot2 = (inner, label) => '<span style="background:rgba(20,17,12,.85);border:2px solid #6b5d43;' +
         'width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;position:relative;border-radius:4px">' +
         inner + (label ? '<span style="position:absolute;bottom:0;right:2px;color:#ffcc33;font-size:10px;font-weight:bold;text-shadow:0 1px 2px #000">' + label + '</span>' : '') + '</span>'
       const chips = Object.entries(stacks).map(([it, q]) =>
         slot2('<img src="' + itemSprite(it).toDataURL() + '" style="width:30px;height:30px;image-rendering:pixelated">', q > 1 ? q : '')).join('')
-      document.getElementById('inv3d').innerHTML = chips +
+      document.getElementById('inv3d').innerHTML = (chips || '<span style="color:#5c564a;font-size:11px;background:rgba(20,17,12,.7);padding:4px 10px;border-radius:3px">pack: empty</span>') +
         ((me.gold ?? 0) > 0 ? slot2('<img src="' + itemSprite('gold-coin').toDataURL() + '" style="width:28px;height:28px;image-rendering:pixelated">', me.gold) : '')
     }
-  }
+  } catch (e) { document.getElementById('inv3d').textContent = '[pack error] ' + e.message }
   statEl.textContent = 'tick ' + s.tick + ' · ' + Object.keys(s.players).length + ' citizens · '
     + (me ? 'you are ' + (me.name ?? 'unnamed') + ' · ' : ownKey ? 'spawning you… · ' : 'spectating · ')
     + 'same world as /play'
