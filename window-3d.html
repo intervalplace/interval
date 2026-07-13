@@ -148,7 +148,16 @@ const TERRAIN_COL = { meadow: 0x3d5a23, trail: 0x8a7449, cobble: 0x7a756b, plaza
   scree: 0x5d5a52, cave: 0x22202a, wilds: 0x4a3d2e, sea: 0x2a5f7d, mountain: 0x6e6a60, bridge: 0x8a6a3a }
 
 let groundBuilt = false, groundMesh = null, stars = null
-function buildGround() {
+function buildGround(s0) {
+  // the water's bed: lakes and rivers were planes UNDER a flat earth,
+  // drowned in soil. Carve their basins first; then the water shows.
+  const waterSet = new Set()
+  if (s0) for (const n of Object.values(s0.nodes)) if (n.type === 'fishing-spot') waterSet.add(n.x + ',' + n.y)
+  const nearWater = (gx, gy) => {
+    for (let dx2 = -1; dx2 <= 0; dx2++) for (let dy2 = -1; dy2 <= 0; dy2++)
+      if (waterSet.has((gx + dx2) + ',' + (gy + dy2))) return true
+    return false
+  }
   const geo = new THREE.PlaneGeometry(W, H, W, H)
   geo.rotateX(-Math.PI / 2)
   const colors = []
@@ -165,6 +174,7 @@ function buildGround() {
     if (t2 === 'mountain') h2 = 0.8 + (tileHash(gx, gy, 5) % 100) / 90
     if (t2 === 'scree') h2 = 0.25
     if (t2 === 'sea') h2 = -0.35
+    if (nearWater(gx, gy)) h2 = Math.min(h2, -0.3) // the basin
     pos.setY(i, h2)
     colors.push(c.r, c.g, c.b)
   }
@@ -572,7 +582,7 @@ ws.onmessage = async (ev) => {
     if (ownKey && !m.state.players[ownKey.pub] && m.state.tick % 3 === 0) send({ do: 'spawn' })
     if (!groundBuilt) {
       W = m.state.genesis.worldW; H = m.state.genesis.worldH
-      buildGround()
+      buildGround(m.state)
       document.getElementById('wid').textContent = 'world ' + (m.worldId ?? '').slice(0, 12) + '…'
     }
     syncNodes(m.state)
