@@ -47,13 +47,138 @@
   Same ticks, same citizens, same fires. No window is authoritative: that is the whole point.</div>
 </div>
 <div id="stat"></div>
-<div id="inv3d" style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);display:flex;gap:6px;
+<div id="inv3d" style="position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;gap:5px;
   flex-wrap:wrap;justify-content:center;max-width:92vw;z-index:5;pointer-events:none"></div>
 <div id="feed"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
+function itemSprite(item) {
+  if (ICON_CV[item]) return ICON_CV[item]
+  const c = document.createElement('canvas'); c.width = 32; c.height = 32
+  const g = c.getContext('2d')
+  const pl = (pts, fill, stroke) => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1])
+    for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1])
+    g.closePath(); g.fillStyle = fill; g.fill()
+    if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1.4; g.stroke() } }
+  const fishBody = (belly, back) => {
+    pl([[4,16],[10,10],[20,9],[26,14],[26,18],[20,23],[10,22]], belly, back)
+    pl([[26,14],[31,9],[31,23],[26,18]], back)
+    g.fillStyle = '#10100c'; g.fillRect(9, 14, 2, 2)
+  }
+  switch (item) {
+    case 'logs':
+      pl([[4,20],[26,12],[29,17],[7,25]], '#8a5a2a', '#4a2f14')
+      g.fillStyle = '#c9a86a'; g.beginPath(); g.ellipse(27.4, 14.5, 2.8, 3.6, -0.35, 0, 7); g.fill()
+      g.strokeStyle = '#8a5a2a'; g.lineWidth = 1; g.beginPath(); g.ellipse(27.4, 14.5, 1.3, 1.8, -0.35, 0, 7); g.stroke()
+      g.strokeStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.moveTo(8, 21); g.lineTo(24, 15); g.stroke(); break
+    case 'ore':
+      pl([[5,25],[9,13],[17,9],[26,14],[27,24],[14,28]], '#8a867c', '#4a463e')
+      pl([[12,16],[17,13],[21,17],[15,20]], '#a5a198')
+      g.fillStyle = '#c9862a'; g.fillRect(13, 21, 3, 3); g.fillRect(20, 15, 2.4, 2.4); break
+    case 'raw-fish': fishBody('#7da5c9', '#3a6b96'); break
+    case 'cooked-fish': fishBody('#d9a05e', '#96622a'); break
+    case 'burnt-fish': fishBody('#4a4440', '#2a2624'); break
+    case 'bones':
+      g.strokeStyle = '#e8e4d0'; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(9, 22); g.lineTo(23, 10); g.stroke()
+      g.fillStyle = '#e8e4d0'
+      for (const [bx, by] of [[7,20],[11,24],[21,8],[25,12]]) { g.beginPath(); g.arc(bx, by, 3.2, 0, 7); g.fill() }
+      break
+    case 'bronze-sword':
+      pl([[16,3],[20,7],[11,20],[8,17]], '#c9c2b2', '#6b6558')
+      g.fillStyle = '#8a5a2a'; g.fillRect(6, 19, 9, 3.4)
+      pl([[8,21],[4,27],[7,29],[12,24]], '#5c4023', '#33220f'); break
+    case 'bronze-hatchet':
+      g.fillStyle = '#5c4023'; g.save(); g.translate(16, 16); g.rotate(0.7); g.fillRect(-1.8, -3, 3.6, 17); g.restore()
+      pl([[16,4],[25,7],[24,15],[14,12]], '#c9862a', '#6b4515'); break
+    case 'bronze-pickaxe':
+      g.fillStyle = '#5c4023'; g.save(); g.translate(16, 17); g.rotate(0.6); g.fillRect(-1.8, -4, 3.6, 17); g.restore()
+      pl([[6,10],[16,4],[26,10],[24,13],[16,8],[8,13]], '#c9862a', '#6b4515'); break
+    case 'wooden-bow':
+      g.strokeStyle = '#8a5a2a'; g.lineWidth = 3
+      g.beginPath(); g.arc(12, 16, 11, -1.25, 1.25); g.stroke()
+      g.strokeStyle = '#d9d3c0'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(12 + Math.cos(-1.25) * 11, 16 + Math.sin(-1.25) * 11)
+      g.lineTo(12 + Math.cos(1.25) * 11, 16 + Math.sin(1.25) * 11); g.stroke(); break
+    case 'arrows':
+      for (const off of [0, 7]) {
+        g.strokeStyle = '#8a5a2a'; g.lineWidth = 1.8
+        g.beginPath(); g.moveTo(6 + off, 26 - off); g.lineTo(20 + off, 12 - off); g.stroke()
+        pl([[20+off,12-off],[25+off,7-off],[23+off,14-off]], '#c9c2b2')
+        g.fillStyle = '#e8e4d0'; g.fillRect(5 + off, 24 - off, 3, 3)
+      }
+      break
+    case 'bronze-helm':
+      pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#c9862a', '#6b4515')
+      g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(9, 9.5, 14, 2)
+      g.fillStyle = '#6b4515'; g.fillRect(7, 20, 18, 2.6); break
+    case 'bronze-plate':
+      pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#c9862a', '#6b4515')
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
+      g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(9, 7.5, 14, 1.6); break
+    case 'magic-stone':
+      pl([[16,3],[26,16],[16,29],[6,16]], '#8ce0ff', '#2a7d9e')
+      pl([[16,3],[16,29],[6,16]], 'rgba(255,255,255,.28)')
+      g.fillStyle = '#e0f6ff'; g.fillRect(14, 12, 3, 3); break
+    case 'seeds':
+      g.fillStyle = '#8a6a3a'
+      for (const [sx3, sy3, r3] of [[12,13,0.4],[19,10,0.9],[22,17,0.1],[14,20,0.7],[19,22,0.5]]) {
+        g.save(); g.translate(sx3, sy3); g.rotate(r3)
+        g.beginPath(); g.ellipse(0, 0, 2.2, 3.4, 0, 0, 7); g.fill(); g.restore()
+      }
+      g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(18, 9, 1.4, 1.4); break
+    case 'grain':
+      for (const [gx3, off] of [[11, 0], [17, -2], [23, 0]]) {
+        g.strokeStyle = '#a08a2a'; g.lineWidth = 1.6
+        g.beginPath(); g.moveTo(gx3, 27); g.lineTo(gx3 + 2, 12 + off); g.stroke()
+        g.fillStyle = '#e8c53a'
+        g.beginPath(); g.ellipse(gx3 + 2, 9 + off, 3, 5.4, 0.15, 0, 7); g.fill()
+        g.strokeStyle = '#c9a52a'; g.lineWidth = 0.8
+        g.beginPath(); g.moveTo(gx3 + 2, 5 + off); g.lineTo(gx3 + 2, 13 + off); g.stroke()
+      }
+      break
+    case 'star-sword':
+      pl([[16,3],[20,7],[11,20],[8,17]], '#8ce0ff', '#2a7d9e')
+      g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(14.4, 6.5, 1.6, 6)
+      g.fillStyle = '#8a5a2a'; g.fillRect(6, 19, 9, 3.4)
+      pl([[8,21],[4,27],[7,29],[12,24]], '#5c4023', '#33220f'); break
+    case 'star-helm':
+      pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#5cb8d9', '#2a7d9e')
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(9, 9.5, 14, 2)
+      g.fillStyle = '#2a7d9e'; g.fillRect(7, 20, 18, 2.6); break
+    case 'star-plate':
+      pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#5cb8d9', '#2a7d9e')
+      g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
+      g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(9, 7.5, 14, 1.6); break
+    case 'old-chain': {
+      g.strokeStyle = '#8a8a82'; g.lineWidth = 2
+      for (let li = 0; li < 5; li++) {
+        const lx = 8 + li * 4.2, ly = 24 - li * 4.2
+        g.beginPath(); g.ellipse(lx, ly, 2.6, 3.4, -0.78, 0, 7); g.stroke()
+      }
+      g.strokeStyle = '#6b6b62'; g.lineWidth = 1
+      g.beginPath(); g.ellipse(8, 24, 2.6, 3.4, -0.78, 0, 7); g.stroke()
+      break }
+    case 'gold-coin':
+      g.fillStyle = '#8a6415'; g.beginPath(); g.arc(16, 17.4, 10, 0, 7); g.fill()
+      g.fillStyle = '#e8b53a'; g.beginPath(); g.arc(16, 16, 10, 0, 7); g.fill()
+      g.strokeStyle = '#a5801f'; g.lineWidth = 1.6
+      g.beginPath(); g.arc(16, 16, 7, 0, 7); g.stroke()
+      g.fillStyle = 'rgba(255,255,255,.45)'; g.fillRect(11, 10.5, 6, 2)
+      g.fillStyle = '#a5801f'; g.font = 'bold 9px Verdana'; g.textAlign = 'center'; g.fillText('i', 16, 20)
+      break
+    case 'sigil':
+      g.fillStyle = '#1c2233'; g.beginPath(); g.arc(16, 16, 11, 0, 7); g.fill()
+      g.strokeStyle = '#8ce0ff'; g.lineWidth = 1.6
+      g.beginPath(); g.arc(16, 16, 7, 0.6, 5.2); g.stroke()
+      g.fillStyle = '#8ce0ff'; g.fillRect(14.6, 8, 2.8, 2.8); break
+    default:
+      g.fillStyle = '#6e5433'; g.fillRect(8, 8, 16, 16)
+  }
+  return ICON_CV[item] = c
+}
 const feedEl = document.getElementById('feed'), statEl = document.getElementById('stat')
 const feed = (t) => { feedEl.textContent = t; setTimeout(() => { if (feedEl.textContent === t) feedEl.textContent = '' }, 4000) }
 addEventListener('error', (e) => { feedEl.textContent = '[err] ' + (e.message ?? e.type) })
@@ -111,7 +236,7 @@ async function send(a) {
 
 // ---- three.js: geometry where the reference window has pixels ----
 const scene = new THREE.Scene()
-scene.fog = new THREE.Fog(0x0a0c12, 30, 90)
+scene.fog = new THREE.Fog(0x0a0c12, 18, 58) // the world fades before it ends
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 200)
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setSize(innerWidth, innerHeight)
@@ -202,7 +327,29 @@ function buildGround(s0) {
   }
   geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
   geo.computeVertexNormals()
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })
+  // the horizon skirt: beyond the founding, misty land instead of void
+  const skirt = new THREE.Mesh(new THREE.CircleGeometry(400, 32),
+    new THREE.MeshStandardMaterial({ color: 0x3d5a23, roughness: 1 }))
+  skirt.rotation.x = -Math.PI / 2; skirt.position.y = -0.02
+  scene.add(skirt)
+  // the earth textured: procedural grass mottling under the vertex colors
+  const tcv = document.createElement('canvas'); tcv.width = 256; tcv.height = 256
+  const tg = tcv.getContext('2d')
+  tg.fillStyle = '#8a9a7a'; tg.fillRect(0, 0, 256, 256)
+  for (let i = 0; i < 2600; i++) {
+    const tx2 = (i * 97) % 256, ty2 = (i * 61 + ((i * i) % 13)) % 256
+    tg.fillStyle = ['#7d8f6e', '#95a583', '#839272', '#8d9d7d'][i % 4]
+    tg.fillRect(tx2, ty2, 1 + (i % 3), 1 + ((i >> 2) % 3))
+  }
+  for (let i = 0; i < 500; i++) { // blades
+    const tx2 = (i * 151) % 256, ty2 = (i * 83) % 256
+    tg.strokeStyle = 'rgba(60,80,40,.5)'; tg.beginPath()
+    tg.moveTo(tx2, ty2 + 3); tg.lineTo(tx2 + 1, ty2); tg.stroke()
+  }
+  const gtex = new THREE.CanvasTexture(tcv)
+  gtex.wrapS = gtex.wrapT = THREE.RepeatWrapping
+  gtex.repeat.set(W / 3, H / 3)
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: gtex, roughness: 0.95, metalness: 0 })
   const mesh = new THREE.Mesh(geo, mat)
   mesh.receiveShadow = true
   scene.add(mesh)
@@ -249,9 +396,11 @@ function nodeMesh(n) {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.8, 6), std(0x5c4023))
     trunk.position.y = 0.4; trunk.castShadow = true; g.add(trunk)
     const canopy = new THREE.Group() // three blobs, like the painter's two-tone crowns
-    const c1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.44, 1), std(0x3a7020))
-    const c2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 1), std(0x4a8a2a))
-    const c3 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), std(0x2f5c1a))
+    const tv = 0.85 + (tileHash(n.x, n.y, 6) % 30) / 100 // no two trees one green
+    const tint = (c) => new THREE.Color(c).multiplyScalar(tv)
+    const c1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.44, 1), std(tint(0x3a7020)))
+    const c2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 1), std(tint(0x4a8a2a)))
+    const c3 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), std(tint(0x2f5c1a)))
     c1.position.set(0, 1.0, 0); c2.position.set(0.24, 1.2, 0.12); c3.position.set(-0.22, 1.15, -0.1)
     for (const c of [c1, c2, c3]) { c.castShadow = true; canopy.add(c) }
     canopy.userData.sway = tileHash(n.x, n.y, 2) % 100
@@ -374,6 +523,8 @@ let charGltf = null, charClips = null
 // the rest. The Soldier below is placeholder flesh, not a destiny.
 // Xbot: a clean, neutral mannequin: a blank adventurer the key can dye,
 // not a camouflage soldier. Still placeholder flesh; the slot awaits a pack.
+const USE_RIG = false // the hand-built adventurer is the face of this window
+// until a real pack lands in the slot: androids and soldiers both felt wrong
 const CHAR_URL = 'https://threejs.org/examples/models/gltf/Xbot.glb'
 const CHAR_SCALE = 0.55
 const CHAR_FACING = 0 // flip to Math.PI if a model moonwalks
@@ -395,7 +546,7 @@ const mixers = new Map()
 const MOB_LOOK = { goblin: [0x5c8a3a, 0.5], wolf: [0x6b6b62, 0.55], troll: [0x4a6b52, 0.95], bear: [0x5c4023, 0.85] }
 function beingMesh(kind, id, thing) {
   const g = new THREE.Group()
-  if (kind === 'citizen' && charGltf && THREE.SkeletonUtils) {
+  if (kind === 'citizen' && USE_RIG && charGltf && THREE.SkeletonUtils) {
     // the rigged body: cloned skeleton, its own animation mixer
     const body = THREE.SkeletonUtils.clone(charGltf)
     body.scale.setScalar(CHAR_SCALE)
@@ -446,6 +597,13 @@ function beingMesh(kind, id, thing) {
     neck.position.y = 0.93; g.add(neck)
     const head = cast(new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 12), M(skinC, 0.55)))
     head.position.y = 1.06; head.scale.set(0.92, 1.05, 0.95); g.add(head)
+    // a face: two eyes and a brow, and the doll becomes a person
+    for (const ex2 of [-0.045, 0.045]) {
+      const eye3 = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 5), new THREE.MeshBasicMaterial({ color: 0x1a140e }))
+      eye3.position.set(ex2, 1.07, 0.115); g.add(eye3)
+    }
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.016, 0.02), new THREE.MeshBasicMaterial({ color: hairC }))
+    brow.position.set(0, 1.1, 0.115); g.add(brow)
     const hair = cast(new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), M(hairC, 0.9)))
     hair.position.y = 1.09; g.add(hair); g.userData.hair = hair
     const helm = cast(new THREE.Mesh(new THREE.SphereGeometry(0.145, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6), M(0xa3743a, 0.35)))
@@ -900,11 +1058,14 @@ function animate(now) {
     const sig2 = JSON.stringify(stacks) + '|' + (me.gold ?? 0)
     if (sig2 !== lastInvSig) {
       lastInvSig = sig2
+      // the same item art as /play: one hand draws for both windows
+      const slot2 = (inner, label) => '<span style="background:rgba(20,17,12,.85);border:2px solid #6b5d43;' +
+        'width:42px;height:42px;display:inline-flex;align-items:center;justify-content:center;position:relative;border-radius:4px">' +
+        inner + (label ? '<span style="position:absolute;bottom:0;right:2px;color:#ffcc33;font-size:10px;font-weight:bold;text-shadow:0 1px 2px #000">' + label + '</span>' : '') + '</span>'
       const chips = Object.entries(stacks).map(([it, q]) =>
-        '<span style="background:rgba(20,17,12,.82);border:1px solid #6b5d43;color:#d9d3c0;' +
-        'padding:4px 9px;font-size:11px;border-radius:3px">' + it.replace(/-/g, ' ') + (q > 1 ? ' ×' + q : '') + '</span>').join('')
+        slot2('<img src="' + itemSprite(it).toDataURL() + '" style="width:30px;height:30px;image-rendering:pixelated">', q > 1 ? q : '')).join('')
       document.getElementById('inv3d').innerHTML = chips +
-        ((me.gold ?? 0) > 0 ? '<span style="background:rgba(20,17,12,.82);border:1px solid #6b5d43;color:#ffcc33;padding:4px 9px;font-size:11px;border-radius:3px">' + me.gold + ' gold</span>' : '')
+        ((me.gold ?? 0) > 0 ? slot2('<img src="' + itemSprite('gold-coin').toDataURL() + '" style="width:28px;height:28px;image-rendering:pixelated">', me.gold) : '')
     }
   }
   statEl.textContent = 'tick ' + s.tick + ' · ' + Object.keys(s.players).length + ' citizens · '
