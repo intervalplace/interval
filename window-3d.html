@@ -366,15 +366,23 @@ function makeName(text) {
 // One URL to swap for any fantasy asset pack; primitives stand by if the
 // net fails. Assets are the ceiling: everything else was always shader.
 let charGltf = null, charClips = null
+// ---- THE ASSET SLOT ----------------------------------------------------
+// Drop any rigged GLB into site/ (the serve already exposes /site/*) and
+// point CHAR_URL at it: e.g. '/site/knight.glb'. KayKit's CC0 Adventurers
+// pack has medieval knights/rogues/barbarians with Idle/Walk/Run/Attack/
+// Gather-worthy clips: set CLIP_NAMES to match and the crossfader does
+// the rest. The Soldier below is placeholder flesh, not a destiny.
 const CHAR_URL = 'https://threejs.org/examples/models/gltf/Soldier.glb'
 const CHAR_SCALE = 0.55
+const CHAR_FACING = Math.PI // this model's sculptor chose -Z as forward
+const CLIP_NAMES = { idle: 'Idle', walk: 'Walk', run: 'Run', fight: 'Run', work: null }
 try {
   new THREE.GLTFLoader().load(CHAR_URL, (g2) => {
     charGltf = g2.scene
     charGltf.traverse((o2) => { if (o2.isMesh) { o2.castShadow = true } })
-    charClips = { idle: THREE.AnimationClip.findByName(g2.animations, 'Idle'),
-      walk: THREE.AnimationClip.findByName(g2.animations, 'Walk'),
-      run: THREE.AnimationClip.findByName(g2.animations, 'Run') }
+    charClips = {}
+    for (const [k2, nm2] of Object.entries(CLIP_NAMES))
+      if (nm2) charClips[k2] = THREE.AnimationClip.findByName(g2.animations, nm2)
     // reborn in the new flesh: existing citizens rebuild on their next frame
     for (const [id2, m2] of [...beings]) if (m2.userData.beingKind === 'citizen') { scene.remove(m2); beings.delete(id2) }
     feed('character models loaded')
@@ -388,11 +396,20 @@ function beingMesh(kind, id, thing) {
     // the rigged body: cloned skeleton, its own animation mixer
     const body = THREE.SkeletonUtils.clone(charGltf)
     body.scale.setScalar(CHAR_SCALE)
+    body.rotation.y = CHAR_FACING // face where the maths says forward is
+    // one people, many dyes: the key colors the cloth
+    const hue2 = (parseInt(id.slice(0, 8), 16) % 360) / 360
+    body.traverse((o2) => {
+      if (o2.isMesh && o2.material) {
+        o2.material = o2.material.clone()
+        o2.material.color = new THREE.Color().setHSL(hue2, 0.30, 0.62)
+      }
+    })
     g.add(body)
+    g.userData.rigBody = body
     const mx = new THREE.AnimationMixer(body)
-    const acts = { idle: charClips.idle && mx.clipAction(charClips.idle),
-      walk: charClips.walk && mx.clipAction(charClips.walk),
-      run: charClips.run && mx.clipAction(charClips.run) }
+    const acts = {}
+    for (const [k2, c2] of Object.entries(charClips)) if (c2) acts[k2] = mx.clipAction(c2)
     if (acts.idle) acts.idle.play()
     mixers.set(id, mx)
     g.userData.acts = acts
@@ -574,14 +591,24 @@ function syncBeings(s, prev) {
       }
       const moving = thing.x !== ox || thing.y !== oy
       const ph = Math.sin(performance.now() / 140)
-      if (m.userData.rigged) { // clips crossfade by state: idle, walk, fight
+      if (m.userData.rigged) { // clips crossfade; missing clips get body english
         const fighting2 = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
-        const want2 = fighting2 ? 'run' : moving ? 'walk' : 'idle'
+        const working2 = thing.action?.type === 'gather'
+        const want2 = (fighting2 && m.userData.acts.fight) ? 'fight'
+          : (working2 && m.userData.acts.work) ? 'work'
+          : moving ? 'walk' : 'idle'
         if (want2 !== m.userData.mode && m.userData.acts[want2]) {
           const from2 = m.userData.acts[m.userData.mode], to2 = m.userData.acts[want2]
           to2.reset().play()
           if (from2) from2.crossFadeTo(to2, 0.25, false)
           m.userData.mode = want2
+        }
+        // procedural overlays until the pack brings true clips:
+        const rb = m.userData.rigBody
+        if (rb) {
+          if (working2) rb.rotation.x = 0.12 + Math.max(0, Math.sin(performance.now() / 420)) * 0.3 // the chop rocks the spine
+          else if (fighting2 && !m.userData.acts.fight) rb.rotation.x = Math.max(0, Math.sin(performance.now() / 300)) * 0.25 // the lunge
+          else rb.rotation.x = 0
         }
       }
       if (m.userData.arms) {
