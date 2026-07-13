@@ -449,7 +449,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b74'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b75'  // stamp: if your screen says an older build, hard-refresh
 const send = a => {
   if (ws.readyState !== 1) return
   if (ownKey && a.do === 'chat') { signChat(a.text); return }
@@ -574,7 +574,7 @@ function drawGoalMarker(s, tNow) {
   let gx = null, gy = null, isAct = true
   if (intent.kind === 'walk') { gx = intent.x; gy = intent.y; isAct = false }
   else if (intent.kind === 'pickup') { const g2 = s.ground[intent.id]; if (g2) { gx = g2.x; gy = g2.y } }
-  else if (intent.kind === 'attack' || intent.kind === 'meet') {
+  else if (intent.kind === 'attack' || intent.kind === 'meet' || intent.kind === 'pvpattack') {
     const e2 = s.mobs[intent.id] ?? s.players[intent.id]
     if (e2) {
       const o2 = (s.mobs[intent.id] ? prevState?.mobs?.[intent.id] : prevState?.players?.[intent.id])
@@ -794,7 +794,7 @@ function onState(s, worldId) {
     if (moveLock && ((me.x === moveLock.x && me.y === moveLock.y) || s.tick >= moveLock.until)) moveLock = null
     const goal = (intent.kind === 'walk' ? intent
       : intent.kind === 'pickup' ? s.ground[intent.id]
-      : intent.kind === 'meet' ? s.players[intent.id]
+      : intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]
       : (s.nodes[intent.id] ?? s.mobs[intent.id]))
     if (!goal) { intent = null }
     else if (moveLock) {
@@ -817,10 +817,11 @@ function onState(s, worldId) {
       send({ do: 'attack', mobId: intent.id })
       if (!intent.announced) { feed('You draw your bow at the ' + (s.mobs[intent.id]?.type ?? 'creature') + '!'); intent.announced = true }
     }
-    else if ((intent.kind === 'gather' || intent.kind === 'attack' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo' || intent.kind === 'meet' || intent.kind === 'plant' || intent.kind === 'harvest')
+    else if ((intent.kind === 'gather' || intent.kind === 'attack' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo' || intent.kind === 'meet' || intent.kind === 'plant' || intent.kind === 'harvest' || intent.kind === 'pvpattack')
              && Math.abs(me.x - goal.x) + Math.abs(me.y - goal.y) === 1) {
       // arrived: engage automatically: clicking once was the whole command
-      if (intent.kind === 'plant') { send({ do: 'plant', slot: intent.slot }); feed('You press a seed into the tilled earth.'); intent = null }
+      if (intent.kind === 'pvpattack') { send({ do: 'attackp', targetId: intent.id }); intent = null }
+      else if (intent.kind === 'plant') { send({ do: 'plant', slot: intent.slot }); feed('You press a seed into the tilled earth.'); intent = null }
       else if (intent.kind === 'harvest') { send({ do: 'harvest', nodeId: intent.id }); feed('You gather the golden heads. The earth rests.'); intent = null }
       else if (intent.kind === 'gather') { send({ do: 'gather', nodeId: intent.id }); feed(intent.msg); intent = null }
       else if (intent.kind === 'attack') {
@@ -906,6 +907,17 @@ function onState(s, worldId) {
       const t2 = act.mobId ? s.mobs[act.mobId] : s.players[act.targetId]
       if (!t2 || Math.abs(p2.x - t2.x) + Math.abs(p2.y - t2.y) <= 1) continue
       effects.push({ kind: 'arrowshot', x: p2.x, y: p2.y, tx: t2.x, ty: t2.y, at: performance.now() })
+    }
+
+    // the Wilds chase: a fleeing target breaks the engagement (spec 2g),
+    // but the chaser's window renews the hunt: they run, you follow.
+    if (old.action?.type === 'attackp' && !me.action && intent === null) {
+      const tid2 = old.action.targetId
+      const q2 = s.players[tid2]
+      if (q2 && q2.hp > 0 && inWildsC(me.x, me.y) && inWildsC(q2.x, q2.y)) {
+        feed('They break away: you give chase!')
+        intent = { kind: 'pvpattack', id: tid2 }
+      }
     }
 
     // an archer's quiver ran dry mid-fight: close to melee (spec 6n spirit)
@@ -2336,7 +2348,11 @@ cv.addEventListener('click', (e) => {
     if (inWildsC(me.x, me.y) && inWildsC(p.x, p.y)) {
       const nm = p.name ?? pid.slice(0, 6)
       chooseAction([
-        { label: 'attack ' + nm, act: () => { send({ do: 'attackp', targetId: pid }); feed('You turn on ' + nm + '. The Wilds allow it.') } },
+        { label: 'attack ' + nm, act: () => {
+          const q2 = world.players[pid]
+          if (q2 && Math.abs(me.x - q2.x) + Math.abs(me.y - q2.y) <= 1) { send({ do: 'attackp', targetId: pid }); feed('You turn on ' + nm + '. The Wilds allow it.') }
+          else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. The Wilds allow it.') }
+        } },
         { label: 'trade', act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
       ]); return
     }
