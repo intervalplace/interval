@@ -111,6 +111,7 @@
     <div class="sub">a world that runs on rules, not servers</div>
     <div id="gateinfo">waking the world&hellip;</div>
     <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
+    <div id="gatedetail" style="font-size:11px;color:var(--dim);cursor:pointer;margin:6px 0;user-select:none"></div>
     <button id="gatebtn" disabled>&hellip;</button>
     <div id="gatekey"></div>
   </div>
@@ -135,7 +136,13 @@
   </div>
 </div>
 <script>
+// two detail modes, one world: the same states, the same constitution,
+// rendered twice. No window is authoritative: not even ours. (And yes:
+// low detail / high detail. Some of us remember choosing.)
+const HD = (localStorage.getItem('interval-detail') ?? 'high') === 'high'
+const RES = HD ? 2 : 1 // high detail supersamples the whole frame
 const ZOOM = 1.17 // the world, a step closer: sprites read bigger, tiles fewer
+const ZR = ZOOM * RES
 const TILE = 40, VIEW_W = 14 / ZOOM, VIEW_H = 10 / ZOOM
 let W = 14, H = 8            // world dims: set from genesis on first state
 let cam = { x: 0, y: 0 }      // top-left tile of the viewport
@@ -449,7 +456,7 @@ setInterval(() => {
   }
 }, 5000)
 let lastCancelAt = 0
-const BUILD = 'b75'  // stamp: if your screen says an older build, hard-refresh
+const BUILD = 'b76'  // stamp: if your screen says an older build, hard-refresh
 const send = a => {
   if (ws.readyState !== 1) return
   if (ownKey && a.do === 'chat') { signChat(a.text); return }
@@ -1100,6 +1107,23 @@ function buildGround() {
       if (x === W - 1 && y > 0 && y < H - 1) { g.fillRect(px(x) + 3, py(y), 2.4, TILE); if (y % 2 === 0) g.fillRect(px(x) + 2, py(y) + 18, 9, 4) }
       continue
     }
+    if (HD) { // the ground up close: blades, stones, pebbles
+      const t3 = terrainOf(x, y)
+      if (t3 === 'meadow') {
+        g.strokeStyle = 'rgba(20,50,10,.35)'; g.lineWidth = 1
+        for (let b3 = 0; b3 < 2; b3++) {
+          const bx3 = px(x) + 5 + tileHash(x, y, 20 + b3) % 30, by3 = py(y) + 6 + tileHash(x, y, 24 + b3) % 28
+          g.beginPath(); g.moveTo(bx3, by3 + 3); g.lineTo(bx3 + 1, by3); g.stroke()
+        }
+      } else if (t3 === 'cobble' || t3 === 'plaza') {
+        g.strokeStyle = 'rgba(0,0,0,.12)'; g.lineWidth = 1
+        const cx3 = px(x) + 8 + tileHash(x, y, 21) % 20, cy3 = py(y) + 8 + tileHash(x, y, 22) % 20
+        g.beginPath(); g.arc(cx3, cy3, 3.5 + tileHash(x, y, 23) % 3, 0.5, 3.6); g.stroke()
+      } else if (t3 === 'trail' || t3 === 'bridge') {
+        g.fillStyle = 'rgba(0,0,0,.10)'
+        g.fillRect(px(x) + 6 + tileHash(x, y, 25) % 26, py(y) + 6 + tileHash(x, y, 26) % 26, 2.4, 1.8)
+      }
+    }
     // the bevel: a whisper of light on each tile's crown, shade at its foot.
     // The flat checkerboard becomes ground you could stub a toe on.
     g.fillStyle = 'rgba(255,255,255,.045)'; g.fillRect(px(x), py(y), TILE, 2.4)
@@ -1187,9 +1211,12 @@ function drawCitizen(X, Y, o) {
   X += lunge; Y += bob
   const F = o.face
 
-  // shadow
+  // shadow: in high detail it leans away from the sun and stretches at the golden hours
   cx.fillStyle = 'rgba(0,0,0,.28)'
-  cx.beginPath(); cx.ellipse(X + 20, Y + 35, 8, 2.6, 0, 0, 7); cx.fill()
+  cx.beginPath()
+  if (HD && shadowLen > 0.5) cx.ellipse(X + 20 + sunDirX * (4 + shadowLen) * 0.7, Y + 35, 8 + shadowLen, 2.6, 0, 0, 7)
+  else cx.ellipse(X + 20, Y + 35, 8, 2.6, 0, 0, 7)
+  cx.fill()
   // starmetal hums: a soft cyan breath around whoever wears the sky
   if (o.starHelm || o.starPlate || o.starSword) {
     const hum = 0.07 + (Math.sin(o.now / 620) + 1) * 0.035
@@ -1338,9 +1365,16 @@ function drawCitizen(X, Y, o) {
   }
 }
 
+let sunDirX = 0, shadowLen = 0
+const cyc2Pi = (s) => (((s.tick + t) % DAY) / DAY) * Math.PI * 2
+const brightnessOf = (s) => (Math.sin(cyc2Pi(s)) + 1) / 2
 function drawScene(now) {
   const s = curState; if (!s || !groundReady) return
-  cx.setTransform(ZOOM, 0, 0, ZOOM, 0, 0) // the whole frame, a step closer
+  cx.setTransform(ZR, 0, 0, ZR, 0, 0) // the whole frame, a step closer (and in HD, twice as fine)
+  if (HD) { // the sun writes the shadows: long at the golden hours, gone at noon
+    sunDirX = -Math.cos(cyc2Pi(s))
+    shadowLen = Math.max(0, (1 - Math.sin(Math.min(Math.PI, cyc2Pi(s)))) * 9) * (brightnessOf(s) > 0.25 ? 1 : 0)
+  }
   // render on the tick timeline, one tick behind the newest state: the
   // sprite walks from prevState to curState exactly as the clock crosses
   // that tick, however raggedly the broadcasts arrived
@@ -1408,6 +1442,12 @@ function drawScene(now) {
         if (!adj2.w) { cx.moveTo(X + ix0 + 1, Y + iy0 + rTL); cx.lineTo(X + ix0 + 1, Y + iy1 - rBL) }
         if (!adj2.e) { cx.moveTo(X + ix1 - 1, Y + iy0 + rTR); cx.lineTo(X + ix1 - 1, Y + iy1 - rBR) }
         cx.stroke()
+        if (HD) { // a ring opens and fades, again and again
+          const rt = ((now / 2600) + (n.x * 3 + n.y * 5) % 8 / 8) % 1
+          cx.strokeStyle = 'rgba(255,255,255,' + ((1 - rt) * 0.22) + ')'
+          cx.lineWidth = 1
+          cx.beginPath(); cx.arc(X + 12 + tileHash(n.x, n.y, 30) % 16, Y + 12 + tileHash(n.x, n.y, 31) % 16, 2 + rt * 9, 0, 7); cx.stroke()
+        }
         // the water lives: two glints drifting with a slow current
         const drift = (now / 60 + n.x * 13 + n.y * 7) % 40
         cx.strokeStyle = 'rgba(255,255,255,.28)'; cx.lineWidth = 1.2
@@ -1446,6 +1486,15 @@ function drawScene(now) {
           cx.fillStyle = '#4f9433'; cx.beginPath(); cx.arc(X + 16 + sway2, Y + 11, 5, 0, 7); cx.fill()
         } else { shadow(X, Y, 7); poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319') }
       }
+      else if (n.type === 'tree' && HD && tileHash(n.x, n.y, 13) % 4 === 0 && (() => {
+        const lt = ((now / 5200) + (n.x * 7 + n.y * 13) % 10 / 10) % 1
+        if (lt < 0.55) {
+          cx.fillStyle = 'rgba(110,160,60,' + (0.9 - lt) + ')'
+          cx.save(); cx.translate(X + 14 + lt * 22, Y + 10 + lt * 26); cx.rotate(lt * 9)
+          cx.fillRect(-1.6, -1, 3.2, 2); cx.restore()
+        }
+        return false
+      })()) {}
       else if (n.type === 'tree') {
         const v = tileHash(n.x, n.y, 9) % 3
         const dk = ['#26571a', '#225122', '#2b5a14'][v]
@@ -1494,6 +1543,18 @@ function drawScene(now) {
         const f1 = Math.sin(now / 90 + n.x) * 2.4, f2 = Math.sin(now / 70 + n.y) * 1.8
         poly([[X+20+f1,Y+8],[X+27,Y+28],[X+13,Y+28]], '#e67e22', '#a04000')
         poly([[X+20+f2,Y+13],[X+24,Y+28],[X+16,Y+28]], '#f4d03f')
+        if (HD) { // embers rise; smoke follows; the fire is a small weather
+          for (let k2 = 0; k2 < 4; k2++) {
+            const et = ((now / 1100) + k2 * 0.27 + (n.x % 7) * 0.11) % 1
+            cx.fillStyle = 'rgba(255,' + (140 + k2 * 20) + ',40,' + ((1 - et) * 0.85) + ')'
+            cx.fillRect(X + 19 + Math.sin(et * 9 + k2 * 2.1) * 4, Y + 24 - et * 22, 1.8, 1.8)
+          }
+          for (let k2 = 0; k2 < 2; k2++) {
+            const st2 = ((now / 3200) + k2 * 0.5 + (n.y % 5) * 0.13) % 1
+            cx.fillStyle = 'rgba(120,120,118,' + ((1 - st2) * 0.16) + ')'
+            cx.beginPath(); cx.arc(X + 20 + Math.sin(st2 * 5 + k2) * 5, Y + 4 - st2 * 16, 3 + st2 * 5, 0, 7); cx.fill()
+          }
+        }
         // embers drift upward
         for (let i = 0; i < 3; i++) {
           const t2 = ((now / (900 + i * 260)) + i * 0.37 + n.x) % 1
@@ -1978,7 +2039,7 @@ function drawScene(now) {
     cx.fillStyle = rising
       ? 'rgba(224,140,40,' + (duskiness * 0.15) + ')'
       : 'rgba(120,70,170,' + (duskiness * 0.14) + ')'
-    cx.fillRect(0, 0, cv.width / ZOOM, cv.height / ZOOM)
+    cx.fillRect(0, 0, cv.width / ZR, cv.height / ZR)
   }
   if (darkness > 0.03) {
     // resizing a canvas reallocates it; do that only when the size changed
@@ -2032,7 +2093,7 @@ function drawScene(now) {
     vignette = cx.createRadialGradient(cv.width/2, cv.height/2, cv.height*0.55, cv.width/2, cv.height/2, cv.height*1.05)
     vignette.addColorStop(0, 'rgba(0,0,0,0)'); vignette.addColorStop(1, 'rgba(10,14,6,.34)')
   }
-  cx.fillStyle = vignette; cx.fillRect(0, 0, cv.width / ZOOM, cv.height / ZOOM)
+  cx.fillStyle = vignette; cx.fillRect(0, 0, cv.width / ZR, cv.height / ZR)
 
   const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk'
               : cyc < 0.94 ? 'night' : 'dawn'
@@ -2209,6 +2270,21 @@ function enterWorld() {
 }
 const sndEl = document.getElementById('sndtoggle')
 const sndLabel = () => sndEl.textContent = 'sound: ' + (soundOn ? 'on' : 'off') + ' (tap to toggle)'
+// high detail supersamples: same CSS size, twice the pixels
+if (HD) { cv.width = 560 * RES; cv.height = 400 * RES }
+{
+  const detEl = document.getElementById('gatedetail')
+  const detText = () => 'detail: ' + (HD ? 'high' : 'low') + ' \u25b8 tap to switch (one world, two renderings)'
+  if (detEl) {
+    detEl.textContent = detText()
+    detEl.onclick = () => { localStorage.setItem('interval-detail', HD ? 'low' : 'high'); location.reload() }
+  }
+  const sd = document.createElement('div')
+  sd.style.cssText = 'font-size:10px;color:var(--dim);cursor:pointer;user-select:none;margin-top:2px'
+  sd.textContent = detText()
+  sd.onclick = () => { localStorage.setItem('interval-detail', HD ? 'low' : 'high'); location.reload() }
+  sndEl.parentNode.insertBefore(sd, sndEl.nextSibling)
+}
 sndLabel()
 sndEl.addEventListener('click', () => {
   soundOn = !soundOn
@@ -2302,8 +2378,8 @@ document.getElementById('inv').addEventListener('click', (e) => {
 cv.addEventListener('click', (e) => {
   if (!world) return
   const r = cv.getBoundingClientRect()
-  const sx = (e.clientX - r.left) * (cv.width / r.width) / ZOOM
-  const sy = (e.clientY - r.top) * (cv.height / r.height) / ZOOM
+  const sx = (e.clientX - r.left) * (cv.width / r.width) / ZR
+  const sy = (e.clientY - r.top) * (cv.height / r.height) / ZR
   const x = Math.floor(sx / TILE + cam.x), y = Math.floor(sy / TILE + cam.y)
   if (x < 0 || x >= W || y < 0 || y >= H) return
   const me = world.players[myId]; if (!me) return
