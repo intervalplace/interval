@@ -54,6 +54,7 @@
 <script src="https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <script>
+const ICON_CV = {} // the sprite cache: cut off in extraction, restored here
 function itemSprite(item) {
   if (ICON_CV[item]) return ICON_CV[item]
   const c = document.createElement('canvas'); c.width = 32; c.height = 32
@@ -486,6 +487,20 @@ function syncNodes(s) {
 
 // ---- citizens and beasts: bodies with real shadows ----
 const beings = new Map()
+const splats = []
+function spawnSplat(pos, dmg) {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 64
+  const g2 = c.getContext('2d')
+  g2.fillStyle = '#c0392b'; g2.beginPath(); g2.arc(32, 32, 20, 0, 7); g2.fill()
+  g2.strokeStyle = '#7b241c'; g2.lineWidth = 3; g2.stroke()
+  g2.fillStyle = '#fff'; g2.font = 'bold 24px Verdana'; g2.textAlign = 'center'
+  g2.fillText(String(dmg), 32, 41)
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }))
+  sp.scale.set(0.4, 0.4, 1)
+  sp.position.copy(pos); sp.position.y += 1.1
+  scene.add(sp)
+  splats.push({ sp, at: performance.now() })
+}
 function makeHpBar() {
   const c = document.createElement('canvas'); c.width = 64; c.height = 8
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }))
@@ -641,6 +656,23 @@ function beingMesh(kind, id, thing) {
     g.add(cloak); g.userData.cloak = cloak
     // the hand knows its weapon
     const hand = armR.userData.joint
+    // the working tools: shown by the job, not the wardrobe
+    const hatchet = new THREE.Group()
+    const hh = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.34, 6), M(0x5c4023)))
+    hh.position.y = -0.3; hatchet.add(hh)
+    const hb = cast(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.02), M(0xc9862a, 0.35)))
+    hb.position.set(0.05, -0.44, 0); hatchet.add(hb)
+    hatchet.visible = false; hand.add(hatchet); g.userData.hatchet = hatchet
+    const pick = new THREE.Group()
+    const ph2 = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.36, 6), M(0x5c4023)))
+    ph2.position.y = -0.32; pick.add(ph2)
+    const pb = cast(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.035, 0.03), M(0xc9862a, 0.35)))
+    pb.position.set(0, -0.47, 0); pb.rotation.z = 0.12; pick.add(pb)
+    pick.visible = false; hand.add(pick); g.userData.pick = pick
+    const rod = new THREE.Group()
+    const rh = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.016, 0.5, 5), M(0x8a5a2a)))
+    rh.position.y = -0.36; rh.rotation.x = -0.5; rod.add(rh)
+    rod.visible = false; hand.add(rod); g.userData.rod = rod
     const sword = cast(new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.4, 0.018), M(0xc9c2b2, 0.25)))
     sword.position.set(0, -0.36, 0.05); sword.visible = false; hand.add(sword); g.userData.sword = sword
     const bow = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.016, 6, 12, Math.PI), M(0x8a5a2a))
@@ -738,8 +770,18 @@ function syncBeings(s, prev) {
     const ox = old?.x ?? thing.x, oy = old?.y ?? thing.y
     const ix = ox + (thing.x - ox) * t2, iy = oy + (thing.y - oy) * t2
     m.position.set(wx(ix), 0, wz(iy))
-    if (thing.x !== ox || thing.y !== oy) {
-      const want = Math.atan2(thing.x - ox, thing.y - oy)
+    if (kind === 'citizen' && (thing.action?.type === 'attack' || thing.action?.type === 'attackp')) {
+      const lg = Math.max(0, Math.sin(performance.now() / 300)) * 0.14 // the lunge
+      m.position.x += Math.sin(m.rotation.y) * lg
+      m.position.z += Math.cos(m.rotation.y) * lg
+    }
+    let faceTarget = null
+    if (kind === 'citizen' && (thing.action?.type === 'attack' || thing.action?.type === 'attackp')) {
+      const foe = thing.action.mobId ? s.mobs[thing.action.mobId] : s.players[thing.action.targetId]
+      if (foe) faceTarget = Math.atan2(foe.x - thing.x, foe.y - thing.y)
+    }
+    if (faceTarget !== null || thing.x !== ox || thing.y !== oy) {
+      const want = faceTarget ?? Math.atan2(thing.x - ox, thing.y - oy)
       let dAng = want - m.rotation.y
       while (dAng > Math.PI) dAng -= Math.PI * 2
       while (dAng < -Math.PI) dAng += Math.PI * 2
@@ -785,13 +827,20 @@ function syncBeings(s, prev) {
         m.userData.legs[0].userData.joint.rotation.x = moving ? Math.max(0, -ph) * 0.9 : 0
         m.userData.legs[1].userData.joint.rotation.x = moving ? Math.max(0, ph) * 0.9 : 0
         m.userData.arms[0].rotation.x = moving ? -ph * 0.5 : 0.06
-        m.userData.arms[1].rotation.x = fighting ? (-1.7 + Math.abs(Math.sin(performance.now() / 300)) * 1.2)
+        m.userData.arms[1].rotation.x = fighting ? (-2.3 + Math.abs(Math.sin(performance.now() / 300)) * 2.1)
           : working ? (-2.0 + Math.abs(Math.sin(performance.now() / 420)) * 1.5) // the axe rises and falls
           : (moving ? ph * 0.5 : 0.06)
         m.userData.arms[0].userData.joint.rotation.x = moving ? -0.3 : -0.12
         m.userData.arms[1].userData.joint.rotation.x = (fighting || working) ? -0.5 : (moving ? -0.3 : -0.12)
         m.userData.torso.scale.y = 1 + Math.sin(performance.now() / 900 + m.position.x) * 0.015 // breath
         if (m.userData.cloak) m.userData.cloak.rotation.x = 0.08 + (moving ? 0.28 + ph * 0.05 : Math.sin(performance.now() / 1100) * 0.03)
+        // the job puts its tool in the hand
+        const nd2 = working ? s.nodes[thing.action.nodeId] : null
+        if (m.userData.hatchet) {
+          m.userData.hatchet.visible = nd2?.type === 'tree'
+          m.userData.pick.visible = nd2?.type === 'rock' || nd2?.type === 'magic-rock'
+          m.userData.rod.visible = nd2?.type === 'fishing-spot'
+        }
         const wep = thing.equipment?.weapon?.item
         m.userData.sword.visible = wep === 'bronze-sword' || wep === 'star-sword'
         m.userData.sword.material.color.set(wep === 'star-sword' ? 0x8ce0ff : 0xc9c2b2)
@@ -810,15 +859,19 @@ function syncBeings(s, prev) {
         m.userData.legs4[li].rotation.x = moving ? Math.sin(performance.now() / 130 + li * Math.PI / 2) * 0.6 : 0
       if (m.userData.hunch) m.userData.hunch.rotation.x = 0.32 + Math.sin(performance.now() / 700 + m.position.x) * 0.04 // it breathes
       if (m.userData.hpbar) {
-        const maxHp2 = 10 + Math.floor((thing.skills?.hitpoints ?? 0) / 1154)
+        const fighting3 = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
         const fr = thing.hp / Math.max(1, Math.min(99, effHp(thing)))
+        if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp)
+          spawnSplat(m.position, m.userData.lastHp - thing.hp) // the blow, seen
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, Math.max(0, Math.min(1, fr))) }
-        m.userData.hpbar.visible = thing.hp < effHp(thing)
+        m.userData.hpbar.visible = fighting3 || thing.hp < effHp(thing)
       }
       if (thing.hp <= 0) m.visible = false; else m.visible = true
     } else {
       if (m.userData.hpbar) {
         m.userData.maxHp = Math.max(m.userData.maxHp ?? thing.hp, thing.hp)
+        if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp)
+          spawnSplat(m.position, m.userData.lastHp - thing.hp)
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, thing.hp / m.userData.maxHp) }
         m.userData.hpbar.visible = thing.hp < m.userData.maxHp
       }
@@ -1010,6 +1063,12 @@ function animate(now) {
   requestAnimationFrame(animate)
   const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now
   for (const mx of mixers.values()) mx.update(dt)
+  for (let i = splats.length - 1; i >= 0; i--) {
+    const s2 = splats[i], age = (performance.now() - s2.at) / 750
+    if (age >= 1) { scene.remove(s2.sp); splats.splice(i, 1); continue }
+    s2.sp.position.y += 0.006
+    s2.sp.material.opacity = 1 - age * age
+  }
   if (!world) return
   const s = world
   syncBeings(s, prevWorld)
