@@ -483,7 +483,7 @@ const feed = t => { const now = performance.now()
   const el = document.getElementById('feed')
   el.innerHTML = feedLines.map(x => '<div>' + x + '</div>').join(''); el.scrollTop = 9e9 }
 
-const blockedAt = (s, x, y) => Object.values(s.nodes).some(n => n.x === x && n.y === y)
+const blockedAt = (s, x, y) => s._nodeTiles ? s._nodeTiles.has(x + ',' + y) : Object.values(s.nodes).some(n => n.x === x && n.y === y)
 const DIRS8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
 
 // BFS over the whole grid: returns the first step of a shortest path to
@@ -726,10 +726,15 @@ function onState(s, worldId) {
   s._waterAdj = {}
   s._waterTiles = new Set()
   for (const n2 of Object.values(s.nodes)) if (n2.type === 'fishing-spot') s._waterTiles.add(n2.x + ',' + n2.y)
+  s._nodeTiles = new Set()
+  for (const n2 of Object.values(s.nodes)) s._nodeTiles.add(n2.x + ',' + n2.y) // O(1) blocked-tile checks for pathfinding
   for (const n of Object.values(s.nodes)) {
     if (n.type !== 'fishing-spot') continue
-    const wat = (x, y) => Object.values(s.nodes).some(o => o.type === 'fishing-spot' && o.x === x && o.y === y)
-    s._waterAdj[n.x + ',' + n.y] = { n: wat(n.x, n.y - 1), s: wat(n.x, n.y + 1), e: wat(n.x + 1, n.y), w: wat(n.x - 1, n.y) }
+    // O(1) Set lookups, not an O(n) scan per neighbour. On the epic world (~800
+    // water tiles) the old scan was ~4M ops per state — enough to fall behind the
+    // pillar's tick, so every stamped input was stale and silently rejected.
+    const has = (x, y) => s._waterTiles.has(x + ',' + y)
+    s._waterAdj[n.x + ',' + n.y] = { n: has(n.x, n.y - 1), s: has(n.x, n.y + 1), e: has(n.x + 1, n.y), w: has(n.x - 1, n.y) }
   }
   s._pinnedBy = {}
   for (const [pid2, p2] of Object.entries(s.players)) if (p2.action?.mobId) s._pinnedBy[p2.action.mobId] = p2
