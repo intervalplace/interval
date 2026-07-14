@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.39 ("The Constitution")
+# Interval: Protocol Specification v0.40 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -556,12 +556,14 @@ vault endures. This is the world's memory, and the foundation of wealth.
 ## 6k. Magic (the dark half of the interval)
 
 Mining a `magic-rock` yields a `magic-stone` (30 mining xp; the rock
-rests long after). Magic itself begins at night: **`invoke` is valid
-only while the world is dark** (`phase = (tick mod 2400) / 2400`;
-night iff `(sin(2 pi phase) + 1) / 2 < 0.42`, the same sky every
-window already paints). Invoking consumes 3 carried magic-stones and
-grants 1 `sigil` and 20 magic xp. A sigil is a compressed piece of
-night; daylight cannot make one.
+rests long after). **The night gate is repealed (v0.40).** Invoking a
+sigil requires three magic-stones and nothing else: any tick, any sky.
+The old rule (`invoke` valid only while the shared day-cycle read
+night) was deterministic arithmetic, not wall-clock authority: but its
+only effect was mandatory waiting, and waiting is the one cost this
+constitution rejects. The stones price the sigil. The day cycle
+remains in the spec as shared cosmology for the windows to paint:
+it decides nothing.
 
 `cast {spell}` spends sigils. The first spell is `anchor` (1 sigil,
 30 magic xp): the caster is returned instantly to the plaza beside the
