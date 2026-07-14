@@ -1,7 +1,8 @@
 // Interval worldgen: shared by every node of a world.
 // The terrain is a pure function of genesis: any node, anywhere,
 // grows the identical landscape from the founding record.
-// v0.36 geography (spec 2b-2h): the river, the sea, the mountains.
+// v0.40 geography (spec 2b-2j): the river, the sea, the mountains,
+// Norwick, the winding road, and a world with texture in between.
 import E from './engine.js'
 
 // the river's course: pure, shared with every window that paints it
@@ -9,6 +10,22 @@ export function riverX(genesis, y) {
   const cx = Math.floor(genesis.worldW / 2)
   const h = E.sha256(Buffer.from(genesis.genesisSeed + ':river:' + y))[0]
   return cx + 22 + Math.round(Math.sin(y / 9) * 7) + (h % 3) - 1
+}
+
+// the road's course (spec 2j): flat and true through every settlement and
+// the river crossing, winding everywhere else. Pure, shared with every window.
+export function trailYAt(genesis, x) {
+  const W = genesis.worldW, H = genesis.worldH
+  const cx = Math.floor(W / 2)
+  const base = Math.floor(H / 2)
+  const anchors = [6, cx, W - 10, riverX(genesis, base)]
+  let dist = Infinity
+  for (const ax of anchors) dist = Math.min(dist, Math.abs(x - ax))
+  const FLAT = 9, FADE = 34, AMP = 6
+  const settle = dist <= FLAT ? 1 : dist >= FLAT + FADE ? 0 : 1 - (dist - FLAT) / FADE
+  const h = E.sha256(Buffer.from(genesis.genesisSeed + ':trail:' + x))[0]
+  const wobble = Math.sin(x / 21) * AMP + Math.sin(x / 8 + 3) * 2 + (h % 5 - 2)
+  return base + Math.round(wobble * (1 - settle))
 }
 
 export function buildWorld(genesis) {
@@ -19,19 +36,31 @@ export function buildWorld(genesis) {
   const city = E.cityRectOf(genesis)
   const spawn = { x: cx, y: trailY }
   const taken = new Set()
-  const put = (id, type, x, y) => { taken.add(x + ',' + y); E.addNode(w, id, type, x, y) }
-  const hamlet = (tag, hx) => {
-    put('bank-' + tag, 'bank', hx, trailY - 2)
-    put('anvil-' + tag, 'anvil', hx, trailY + 2)
-    put('hearth-' + tag, 'campfire', hx + (hx < cx ? 2 : -2), trailY - 1)
-    put('house-' + tag + '1', 'house', hx - 2, trailY - 3)
-    put('house-' + tag + '2', 'house', hx + 3, trailY - 3)
-    put('house-' + tag + '3', 'house', hx - 2, trailY + 3)
-  }
-  hamlet('west', 6)
-  hamlet('east', W - 10) // Eastmere: a coastal town now
+  const put = (id, type, x, y, extra) => { taken.add(x + ',' + y); E.addNode(w, id, type, x, y, extra) }
 
-  // ---- Anchor (spec 2d) ----
+  // ---- hamlets (spec 2b, 2k): same pattern, different trades ----
+  const hamlet = (tag, hx, kind) => {
+    const ty = trailYAt(genesis, hx) // each hamlet sits on its own (locally flat) stretch of road
+    put('bank-' + tag, 'bank', hx, ty - 2)
+    if (kind === 'port') {
+      put('store-' + tag, 'store', hx, ty + 2)
+      put('keeper-' + tag, 'smith', hx + (hx < cx ? 1 : -1), ty + 2)
+      const dfx = hx + (hx < cx ? -4 : 4)
+      put('dock-fish-' + tag + '1', 'fishing-spot', dfx, ty)
+      put('dock-fish-' + tag + '2', 'fishing-spot', dfx, ty + 1)
+    } else {
+      put('anvil-' + tag, 'anvil', hx, ty + 2)
+    }
+    put('hearth-' + tag, 'campfire', hx + (hx < cx ? 2 : -2), ty - 1)
+    put('house-' + tag + '1', 'house', hx - 2, ty - 3)
+    put('house-' + tag + '2', 'house', hx + 3, ty - 3)
+    put('house-' + tag + '3', 'house', hx - 2, ty + 3)
+    return ty
+  }
+  hamlet('west', 6, 'starter') // Westhearth: modest, where every citizen begins
+  hamlet('east', W - 10, 'port') // Eastmere: a coastal trade town, no forge, all dock
+
+  // ---- Anchor (spec 2d): the capital, smithing and commerce both ----
   let wi = 0
   for (let x = city.x0; x <= city.x1; x++) for (const y of [city.y0, city.y1]) {
     if (y === city.y1 && x >= cx - 1 && x <= cx + 1) continue
@@ -40,18 +69,46 @@ export function buildWorld(genesis) {
   for (let y = city.y0 + 1; y < city.y1; y++) for (const x of [city.x0, city.x1]) put('wall-' + (wi++), 'wall', x, y)
   put('guard-w', 'guard', cx - 2, city.y1 + 1)
   put('guard-e', 'guard', cx + 2, city.y1 + 1)
-  put('sign-x', 'signpost', cx + 1, trailY - 1)
+  put('sign-x', 'signpost', cx + 1, trailY - 1,
+    { text: "The King's Road. West: Westhearth. East: Eastmere. South: the lake road." })
   for (const [x, y] of [[city.x0+2, city.y0+2], [city.x0+3, city.y0+2], [city.x0+4, city.y0+2],
                         [city.x0+2, city.y0+4], [city.x0+3, city.y0+4], [city.x0+4, city.y0+4],
                         [city.x0+2, city.y0+3]]) put('wall-' + (wi++), 'wall', x, y)
   put('anvil-city', 'anvil', city.x0 + 3, city.y0 + 3)
   put('smith-1', 'smith', city.x0 + 4, city.y0 + 3)
+  put('anvil-city2', 'anvil', city.x1 - 4, city.y0 + 3)
+  put('smith-2', 'smith', city.x1 - 5, city.y0 + 3)
+  put('store-city', 'store', city.x0 + 2, city.y1 - 3)
+  put('keeper-city', 'smith', city.x0 + 3, city.y1 - 3)
   put('bank-city', 'bank', city.x1 - 3, city.y0 + 2)
   put('house-c1', 'house', city.x0 + 3, city.y1 - 2)
   put('house-c2', 'house', city.x1 - 3, city.y1 - 2)
   put('house-c3', 'house', city.x1 - 6, city.y0 + 2)
   put('well-1', 'well', cx, city.y0 + 4)
   put('hearth-city', 'campfire', cx, city.y1 - 2)
+
+  // ---- Norwick (spec 2i): the garrison town, walled against the Wilds ----
+  const nw = E.norwickRectOf(genesis)
+  let ni = 0
+  for (let x = nw.x0; x <= nw.x1; x++) for (const y of [nw.y0, nw.y1]) {
+    if (y === nw.y1 && x >= nw.x0 + 5 && x <= nw.x0 + 7) continue // south gate
+    put('nwall-' + (ni++), 'wall', x, y)
+  }
+  for (let y = nw.y0 + 1; y < nw.y1; y++) for (const x of [nw.x0, nw.x1]) put('nwall-' + (ni++), 'wall', x, y)
+  put('guard-nw', 'guard', nw.x0 + 5, nw.y1 + 1)
+  put('guard-ne', 'guard', nw.x0 + 7, nw.y1 + 1)
+  put('bank-norwick', 'bank', nw.x0 + 2, nw.y0 + 2)
+  put('anvil-norwick', 'anvil', nw.x1 - 3, nw.y0 + 2)
+  put('well-norwick', 'well', nw.x0 + 6, nw.y0 + 5)
+  put('hearth-norwick', 'campfire', nw.x0 + 6, nw.y1 - 2)
+  put('house-n1', 'house', nw.x0 + 2, nw.y1 - 2)
+  put('house-n2', 'house', nw.x1 - 2, nw.y1 - 2)
+  put('sign-norwick', 'signpost', nw.x0 + 6, nw.y1 + 2, { text: 'Norwick garrison. The Wilds start at your back; mind your coin.' })
+  // the quarry outside the walls: what a garrison town mines to pay for itself
+  for (const [qx, qy] of [[nw.x0 - 3, nw.y1 + 1], [nw.x0 - 4, nw.y1 + 2], [nw.x0 - 2, nw.y1 + 3],
+                           [nw.x0 - 5, nw.y0 - 2], [nw.x0 - 3, nw.y0 - 3]]) put('quarry-' + qx + '-' + qy, 'rock', qx, qy)
+  put('sign-wilds', 'signpost', nw.x0 - 8, nw.y0 + 4,
+    { text: 'The Wilds lie north and west of here. The King\u2019s peace does not follow.' })
 
   // ---- Stillwater and Milbrook, scaled south ----
   const lakeC = { x: cx - 10, y: H - 16 }
@@ -67,19 +124,19 @@ export function buildWorld(genesis) {
   put('hearth-still', 'campfire', lakeC.x + 7, lakeC.y - 6)
   put('house-s1', 'house', lakeC.x + 12, lakeC.y - 6)
   put('house-s2', 'house', lakeC.x + 12, lakeC.y - 3)
-  put('sign-south', 'signpost', cx + 1, lakeC.y - 6)
+  put('sign-south', 'signpost', cx + 1, lakeC.y - 6, { text: 'Stillwater ahead. Nets, not swords.' })
   const mb = { x: W - 22, y: H - 14 }
   put('bank-mil', 'bank', mb.x, mb.y)
-  put('anvil-mil', 'anvil', mb.x + 3, mb.y)
   put('well-mil', 'well', mb.x + 1, mb.y + 3)
   put('hearth-mil', 'campfire', mb.x - 2, mb.y + 2)
   put('house-m1', 'house', mb.x - 3, mb.y - 2)
   put('house-m2', 'house', mb.x + 4, mb.y - 2)
   put('house-m3', 'house', mb.x - 3, mb.y + 4)
   put('house-m4', 'house', mb.x + 4, mb.y + 4)
+  put('sign-mil', 'signpost', mb.x - 10, mb.y, { text: 'Milbrook ahead: quiet fields, quieter nights.' })
 
-  // ---- the river (spec 2h): mountains to lake, bridged by roads ----
-  const onRoadAt = (x, y) => Math.abs(y - trailY) <= 1
+  // ---- the river (spec 2h): mountains to lake, bridged by the road ----
+  const onRoadAt = (x, y) => Math.abs(y - trailYAt(genesis, x)) <= 1
     || (Math.abs(x - cx) <= 1 && y > city.y1 && y < lakeC.y - 4)
   for (let y = 6; y <= lakeC.y - 4; y++) {
     for (const rx of [riverX(genesis, y), riverX(genesis, y) + 1]) {
@@ -97,14 +154,31 @@ export function buildWorld(genesis) {
   plotsAt('west', 4, trailY + 4)
   plotsAt('east', W - 14, trailY + 4)
   plotsAt('mil', mb.x - 4, mb.y - 5)
+  plotsAt('mil2', mb.x - 4, mb.y - 6)
   plotsAt('anchor', cx + 4, city.y1 + 3)
   plotsAt('still', lakeC.x + 8, lakeC.y - 9)
+  plotsAt('norwick', nw.x0 + 3, nw.y1 + 4)
 
-  put('fire-way1', 'campfire', Math.floor(W / 3), trailY - 1)
-  put('fire-way2', 'campfire', Math.floor(2 * W / 3), trailY + 1)
+  const wy1 = Math.floor(W / 3), wy2 = Math.floor(2 * W / 3)
+  put('fire-way1', 'campfire', wy1, trailYAt(genesis, wy1) - 1)
+  put('fire-way2', 'campfire', wy2, trailYAt(genesis, wy2) + 1)
   put('fire-way3', 'campfire', cx - 1, Math.floor((trailY + lakeC.y) / 2))
   for (const [i, [x, y]] of [[0, [12, trailY + 5]], [1, [13, trailY + 5]], [2, [12, trailY + 6]]])
     put('fish-w' + i, 'fishing-spot', x, y)
+
+  // ---- waypoints (spec 2k): the road remembers who walked it ----
+  const midWest = Math.floor((6 + cx) / 2)
+  put('sign-midwest', 'signpost', midWest, trailYAt(genesis, midWest) - 1,
+    { text: 'Halfway to Westhearth. Or halfway home, depending which way you\u2019re walking.' })
+  const riverCrossX = riverX(genesis, trailY)
+  put('sign-bridge', 'signpost', riverCrossX + 3, trailYAt(genesis, riverCrossX + 3) - 1,
+    { text: 'The old crossing. Older than the town at either end of it.' })
+  const forestEdgeX = 52
+  put('sign-forest', 'signpost', forestEdgeX, H - 32,
+    { text: 'The deep forest starts here. Something in there growls back.' })
+  // two ruins: a wall standing alone means something used to be here
+  put('ruin-1', 'wall', Math.floor(W * 0.32), trailYAt(genesis, Math.floor(W * 0.32)) + 8)
+  put('ruin-2', 'wall', 46, H - 34)
 
   // ---- regions ----
   const inMountains = (x, y) => y <= 8 && (x < city.x0 - 2 || x > city.x1 + 2)
@@ -117,32 +191,102 @@ export function buildWorld(genesis) {
   const nearRiver = (x, y) => Math.abs(x - riverX(genesis, y)) <= 2 && y >= 6 && y <= lakeC.y - 4
   const inSea = (x, y) => x >= W - 4
   const inCityArea = (x, y) => x >= city.x0 - 1 && x <= city.x1 + 1 && y >= city.y0 - 1 && y <= city.y1 + 2
+  const inNorwickArea = (x, y) => x >= nw.x0 - 9 && x <= nw.x1 + 2 && y >= nw.y0 - 4 && y <= nw.y1 + 4
   const inHamlet = (x, y) => (x <= 14 || x >= W - 16) && Math.abs(y - trailY) <= 4
   const nearSpawn = (x, y) => Math.max(Math.abs(x - spawn.x), Math.abs(y - spawn.y)) <= 1
   const clearOf = (x, y) => !taken.has(x + ',' + y) && !isEdge(x, y) && !onRoadAt(x, y)
-    && !inCityArea(x, y) && !inHamlet(x, y) && !nearSpawn(x, y) && !nearMilbrook(x, y)
+    && !inCityArea(x, y) && !inNorwickArea(x, y) && !inHamlet(x, y) && !nearSpawn(x, y) && !nearMilbrook(x, y)
     && !nearRiver(x, y) && !inSea(x, y)
 
-  const place = (kind, count, ok, addFn) => {
+  // ---- danger gradient (spec 2j): the ground tells you before a wolf does ----
+  const rectDist = (x, y, r) => Math.max(
+    x < r.x0 ? r.x0 - x : x > r.x1 ? x - r.x1 : 0,
+    y < r.y0 ? r.y0 - y : y > r.y1 ? y - r.y1 : 0)
+  const caveRect = { x0: W - 30, x1: W - 10, y0: 5, y1: 16 }
+  const closeness = (d, buf) => d >= buf ? 0 : 1 - d / buf
+  const hazardCloseness = (x, y) => Math.max(
+    closeness(Math.max(0, y - 8), 18), // approaching the mountains
+    closeness(rectDist(x, y, { x0: 1, x1: 34, y0: 1, y1: 22 }), 16), // approaching the Wilds
+    closeness(rectDist(x, y, caveRect), 14)) // approaching the cave
+
+  const place = (kind, count, ok, addFn, opts = {}) => {
     let placed = 0, i = 0
-    while (placed < count && i < count * 120) {
+    while (placed < count && i < count * 160) {
       const h = E.sha256(Buffer.from(genesis.genesisSeed + ':' + kind + ':' + i))
       const x = (h[0] * 256 + h[1]) % W, y = (h[2] * 256 + h[3]) % H
       i++
       if (!clearOf(x, y) || !ok(x, y)) continue
+      if (opts.thinNearHazard && (h[2] / 256) < hazardCloseness(x, y) * 0.75) continue
       taken.add(x + ',' + y); addFn(kind + '-' + placed, x, y); placed++
     }
   }
-  place('tree', 90, (x, y) => !inHighlands(x, y) && !inMountains(x, y) && !nearLake(x, y), (id, x, y) => E.addNode(w, id, 'tree', x, y))
+  // clustered placement (spec 2j): patchy woods and goblin camps, not uniform noise
+  const placeClustered = (kind, count, clusterN, radius, ok, addFn, opts = {}) => {
+    const centers = []
+    for (let c = 0; c < clusterN; c++) {
+      const h = E.sha256(Buffer.from(genesis.genesisSeed + ':' + kind + ':ctr:' + c))
+      centers.push([(h[0] * 256 + h[1]) % W, (h[2] * 256 + h[3]) % H])
+    }
+    let placed = 0, i = 0
+    while (placed < count && i < count * 220) {
+      const [ccx, ccy] = centers[i % centers.length]
+      const h = E.sha256(Buffer.from(genesis.genesisSeed + ':' + kind + ':' + i))
+      const ang = (h[0] / 255) * Math.PI * 2, rad = (h[1] / 255) * radius
+      const x = Math.round(ccx + Math.cos(ang) * rad), y = Math.round(ccy + Math.sin(ang) * rad)
+      i++
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
+      if (!clearOf(x, y) || !ok(x, y)) continue
+      if (opts.thinNearHazard && (h[2] / 256) < hazardCloseness(x, y) * 0.75) continue
+      taken.add(x + ',' + y); addFn(kind + '-' + placed, x, y); placed++
+    }
+  }
+  placeClustered('tree', 100, 10, 12, (x, y) => !inHighlands(x, y) && !inMountains(x, y) && !nearLake(x, y),
+    (id, x, y) => E.addNode(w, id, 'tree', x, y), { thinNearHazard: true })
   place('foresttree', 80, (x, y) => inForest(x, y), (id, x, y) => E.addNode(w, id, 'tree', x, y))
-  place('rock', 18, (x, y) => !inHighlands(x, y) && !inMountains(x, y) && !inForest(x, y) && !nearLake(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
+  placeClustered('rock', 22, 7, 8, (x, y) => !inHighlands(x, y) && !inMountains(x, y) && !inForest(x, y) && !nearLake(x, y),
+    (id, x, y) => E.addNode(w, id, 'rock', x, y))
   place('highrock', 30, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
   place('mtnrock', 24, (x, y) => inMountains(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
   place('magicrock', 7, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'magic-rock', x, y))
   place('mtnmagic', 5, (x, y) => inMountains(x, y), (id, x, y) => E.addNode(w, id, 'magic-rock', x, y))
-  place('gob', 34, (x, y) => x > 20 && x < W - 40 && !nearLake(x, y) && !inForest(x, y) && !inMountains(x, y), (id, x, y) => E.addMob(w, id, 'goblin', x, y))
+  // the scree band: sparser trees near hazard country are backfilled with bare rock
+  place('screerock', 18, (x, y) => hazardCloseness(x, y) > 0.2 && hazardCloseness(x, y) < 1
+    && !inMountains(x, y) && !E.inWilds(x, y) && !inCave(x, y) && !inHighlands(x, y) && !inForest(x, y),
+    (id, x, y) => E.addNode(w, id, 'rock', x, y))
+  placeClustered('gob', 36, 7, 4, (x, y) => x > 20 && x < W - 40 && !nearLake(x, y) && !inForest(x, y) && !inMountains(x, y),
+    (id, x, y) => E.addMob(w, id, 'goblin', x, y))
   place('wolf', 16, (x, y) => (y <= 10 || y >= H - 9 || x <= 10) && !inHighlands(x, y) && !nearLake(x, y) && !nearMilbrook(x, y) && !inMountains(x, y), (id, x, y) => E.addMob(w, id, 'wolf', x, y))
   place('troll', 7, (x, y) => inCave(x, y), (id, x, y) => E.addMob(w, id, 'troll', x, y))
   place('bear', 7, (x, y) => inForest(x, y), (id, x, y) => E.addMob(w, id, 'bear', x, y))
+
+  // ---- waystones (spec 2k): recall to any you have walked to; the slow road stays open ----
+  const putWaystone = (id, x, y) => {
+    for (const [dx, dy] of [[0, 0], [0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [-1, 1]]) {
+      const nx = x + dx, ny = y + dy
+      if (nx >= 1 && ny >= 1 && nx < W - 1 && ny < H - 1 && !taken.has(nx + ',' + ny)) { put(id, 'waystone', nx, ny); return }
+    }
+    put(id, 'waystone', x, y)
+  }
+  putWaystone('waystone-anchor', cx - 1, city.y1 + 2)
+  putWaystone('waystone-west', 6, trailY - 3)
+  putWaystone('waystone-east', W - 10, trailY - 3)
+  putWaystone('waystone-norwick', nw.x0 + 4, nw.y0 + 3)
+  putWaystone('waystone-still', lakeC.x + 8, lakeC.y - 5)
+  putWaystone('waystone-mil', mb.x + 2, mb.y + 1)
+
+  // ---- skeleton-knight warbands: the bone-knights of the frontier, seldom alone ----
+  const warbands = [[10, 8], [20, 14], [30, 10], [40, 20], [18, 26], [46, 12]]
+  let sk = 0
+  for (const [wcx, wcy] of warbands) {
+    for (let k = 0; k < 5; k++) {
+      const hh = E.sha256(Buffer.from(genesis.genesisSeed + ':skel:' + sk))
+      const x = wcx + (hh[0] % 5) - 2, y = wcy + (hh[1] % 5) - 2
+      sk++
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
+      if (taken.has(x + ',' + y) || inCityArea(x, y) || inNorwickArea(x, y)) continue
+      taken.add(x + ',' + y); E.addMob(w, 'skel-' + sk, 'skeleton-knight', x, y)
+    }
+  }
+
   return w
 }
