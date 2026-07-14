@@ -78,6 +78,9 @@
 <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://unpkg.com/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<!-- the mirror: a real reflection for the sea. Optional; the wave shader
+     stands in if it never arrives. -->
+<script src="https://unpkg.com/three@0.128.0/examples/js/objects/Reflector.js"></script>
 <script>
 const ICON_CV = {} // the sprite cache: cut off in extraction, restored here
 function itemSprite(item) {
@@ -500,6 +503,216 @@ addEventListener('resize', () => {
   }
 })
 
+// ======================================================================
+//  ATMOSPHERE: weather from the tick, wind, juice, and a living sky.
+//  The weather is a PURE function of the tick — so /play and every other
+//  window would compute the same storm at the same moment, with not one
+//  byte crossing the wire. Determinism was always the point; here it buys
+//  us a shared sky.
+// ======================================================================
+const lerp = (a, b, t) => a + (b - a) * t
+const clamp01 = (v) => Math.max(0, Math.min(1, v))
+// the wind the grass and clouds obey; a scalar gust strength, 0..~1.4
+const uWind = { value: 0.3 }
+
+// ---- the weather oracle: hashed slow sinusoids, smooth and repeatable ----
+function weatherAt(tick) {
+  const step = Math.floor(tick / 240)
+  const h = (salt) => (tileHash(step, 0, salt) % 1000) / 1000
+  const slow = (period, salt) => Math.sin(tick / period + h(salt) * 6.283)
+  // precipitation builds and breaks over a few hundred ticks
+  let precip = slow(430, 71) * 0.6 + slow(175, 72) * 0.4
+  precip = clamp01((precip - 0.34) / 0.55)
+  // a temperature proxy decides rain vs snow
+  const cold = slow(880, 73) + (h(77) - 0.5) * 0.6
+  const snow = cold > 0.4 ? precip : 0
+  const rain = cold > 0.4 ? 0 : precip
+  // fog: low banks that thicken at the cold hours and under rain
+  let fog = clamp01((slow(520, 74) * 0.5 + 0.5 - 0.58) / 0.4)
+  fog = clamp01(fog + rain * 0.25 + snow * 0.15)
+  // wind: a breeze always, gusting, whipped up by storms
+  const wind = 0.28 + (slow(70, 75) * 0.5 + 0.5) * 0.45 + rain * 0.5 + snow * 0.2
+  const storm = rain > 0.62 ? clamp01((rain - 0.62) / 0.3) : 0
+  return { rain, snow, fog, wind: Math.min(1.5, wind), storm }
+}
+// the smoothed, currently-felt weather (lerped toward the oracle each frame)
+const curW = { rain: 0, snow: 0, fog: 0, wind: 0.3, storm: 0 }
+let curDay = 1, curNight = 0 // read by the ambient-audio scheduler
+
+// ---- textures for the falling weather ----
+function rainTex() {
+  const c = document.createElement('canvas'); c.width = 8; c.height = 32
+  const g = c.getContext('2d')
+  const gr = g.createLinearGradient(0, 0, 0, 32)
+  gr.addColorStop(0, 'rgba(200,220,255,0)'); gr.addColorStop(0.5, 'rgba(210,228,255,.7)'); gr.addColorStop(1, 'rgba(200,220,255,0)')
+  g.fillStyle = gr; g.fillRect(3, 0, 2, 32)
+  return new THREE.CanvasTexture(c)
+}
+const RAIN_TEX = rainTex()
+
+// ---- a camera-following field of falling precipitation ----
+const RAIN_BOX = 34, RAIN_TOP = 22
+function makePrecip(n, tex, size, additive) {
+  const geo = new THREE.BufferGeometry()
+  const pos = new Float32Array(n * 3)
+  const spd = new Float32Array(n), dft = new Float32Array(n)
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * RAIN_BOX * 2
+    pos[i * 3 + 1] = Math.random() * RAIN_TOP
+    pos[i * 3 + 2] = (Math.random() - 0.5) * RAIN_BOX * 2
+    spd[i] = 0.6 + Math.random() * 0.8
+    dft[i] = Math.random() * 6.28
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+  const mat = new THREE.PointsMaterial({ map: tex, size, transparent: true, opacity: 0, depthWrite: false,
+    blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, sizeAttenuation: true })
+  const pts = new THREE.Points(geo, mat)
+  pts.frustumCulled = false; pts.visible = false
+  scene.add(pts)
+  return { pts, pos, spd, dft, n }
+}
+const rainField = makePrecip(1400, RAIN_TEX, 0.5, false)
+const snowField = makePrecip(900, GLOW_TEX, 0.16, true)
+snowField.pts.material.color.set(0xeaf2ff)
+function stepPrecip(field, fall, slantX, slantZ, dt, cx, cz) {
+  field.pts.position.set(Math.round(cx), 0, Math.round(cz))
+  const p = field.pos
+  for (let i = 0; i < field.n; i++) {
+    const j = i * 3
+    p[j + 1] -= field.spd[i] * fall * dt
+    p[j] += (slantX + Math.sin(performance.now() / 900 + field.dft[i]) * 0.25) * dt
+    p[j + 2] += slantZ * dt
+    if (p[j + 1] < 0) {
+      p[j + 1] += RAIN_TOP
+      p[j] = (Math.random() - 0.5) * RAIN_BOX * 2
+      p[j + 2] = (Math.random() - 0.5) * RAIN_BOX * 2
+    }
+  }
+  field.pts.geometry.attributes.position.needsUpdate = true
+}
+
+// ---- low fog banks that hug the ground, following the walker ----
+const fogGroup = new THREE.Group(); scene.add(fogGroup)
+const fogBanks = []
+for (let i = 0; i < 7; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: 0xbfc6cf,
+    transparent: true, opacity: 0, depthWrite: false }))
+  const a = (i / 7) * Math.PI * 2
+  sp.position.set(Math.cos(a) * (7 + i % 3 * 3), 0.7, Math.sin(a) * (7 + i % 4 * 2))
+  sp.scale.set(16, 5, 1)
+  fogGroup.add(sp); fogBanks.push(sp)
+}
+
+// ---- a generic recycled sprite pool: dust, sparks, flashes ----
+function makePool(n, color, blending) {
+  const items = []
+  for (let i = 0; i < n; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color, transparent: true,
+      opacity: 0, depthWrite: false, blending: blending ?? THREE.NormalBlending }))
+    sp.visible = false; scene.add(sp)
+    items.push({ sp, life: 0, max: 1, vx: 0, vy: 0, vz: 0, g: 0, base: 0.3, grow: 1, op0: 1 })
+  }
+  return {
+    items, cursor: 0,
+    spawn(x, y, z, o) {
+      const it = items[this.cursor]; this.cursor = (this.cursor + 1) % items.length
+      it.life = 0; it.max = o.max ?? 0.6; it.vx = o.vx ?? 0; it.vy = o.vy ?? 0; it.vz = o.vz ?? 0
+      it.g = o.g ?? 0; it.base = o.size ?? 0.3; it.grow = o.grow ?? 1; it.op0 = o.opacity ?? 1
+      it.sp.position.set(x, y, z); it.sp.material.color.set(o.color ?? color)
+      it.sp.material.opacity = it.op0; it.sp.scale.setScalar(it.base); it.sp.visible = true
+      return it
+    },
+    update(dt) {
+      for (const it of items) {
+        if (!it.sp.visible) continue
+        it.life += dt; const f = it.life / it.max
+        if (f >= 1) { it.sp.visible = false; continue }
+        it.vy += it.g * dt
+        it.sp.position.x += it.vx * dt; it.sp.position.y += it.vy * dt; it.sp.position.z += it.vz * dt
+        it.sp.material.opacity = it.op0 * (1 - f * f)
+        it.sp.scale.setScalar(it.base * (1 + f * (it.grow - 1)))
+      }
+    }
+  }
+}
+const dustPool = makePool(48, 0xbdb096, THREE.NormalBlending)
+const flashPool = makePool(24, 0xffffff, THREE.AdditiveBlending)
+const sparkPool = makePool(80, 0xffdc7a, THREE.AdditiveBlending)
+// the sea's mirror, built in buildGround if the Reflector script arrived
+const USE_REFLECTOR = true
+let seaReflector = null, seaWaves = null
+// adaptive quality: if frames grow heavy, the weather thins and the pixels
+// coarsen, then recover when there's headroom. Phones stay smooth.
+let quality = 1, frameAvg = 16, slowStreak = 0, fastStreak = 0
+// the blow, made of light: a white pop plus a few embers
+function hitFlash(pos) {
+  flashPool.spawn(pos.x, pos.y + 0.7, pos.z, { max: 0.22, size: 0.5, grow: 2.4, opacity: 0.9, color: 0xffe0b0 })
+  for (let i = 0; i < 4; i++) {
+    const a = Math.random() * 6.28
+    sparkPool.spawn(pos.x, pos.y + 0.7, pos.z, { max: 0.4, size: 0.09, grow: 0.4, opacity: 1,
+      vx: Math.cos(a) * 1.6, vy: 1 + Math.random(), vz: Math.sin(a) * 1.6, g: -4, color: 0xffb060 })
+  }
+}
+// a level won: a rising fountain of gold
+function levelBurst(pos) {
+  for (let i = 0; i < 22; i++) {
+    const a = Math.random() * 6.28, r = Math.random()
+    sparkPool.spawn(pos.x, pos.y + 0.3, pos.z, { max: 0.9 + Math.random() * 0.5, size: 0.12, grow: 0.3, opacity: 1,
+      vx: Math.cos(a) * r * 1.2, vy: 2.4 + Math.random() * 1.8, vz: Math.sin(a) * r * 1.2, g: -3.2, color: 0xffd24a })
+  }
+  flashPool.spawn(pos.x, pos.y + 1.0, pos.z, { max: 0.6, size: 1.2, grow: 2.2, opacity: 0.7, color: 0xffe27a })
+  snd('level')
+}
+
+// ---- the ambient bed: wind, rain, birds, crickets, all synthesized ----
+let ambient3 = null
+function initAmbient() {
+  if (!AC3 || ambient3) return
+  try {
+    const noiseBuf = AC3.createBuffer(1, AC3.sampleRate * 2, AC3.sampleRate)
+    const nd = noiseBuf.getChannelData(0)
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+    const mkNoise = (type, freq, q) => {
+      const src = AC3.createBufferSource(); src.buffer = noiseBuf; src.loop = true
+      const f = AC3.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (q) f.Q.value = q
+      const g = AC3.createGain(); g.gain.value = 0
+      src.connect(f); f.connect(g); g.connect(AC3.destination); src.start()
+      return g
+    }
+    const windGain = mkNoise('lowpass', 480)
+    const rainGain = mkNoise('highpass', 1200)
+    // wind breathes: a slow LFO on its cutoff-following gain, done in-frame
+    ambient3 = { windGain, rainGain }
+    // birds by day, crickets by night: scheduled, reading the live sky
+    setInterval(() => {
+      if (!AC3 || !entered) return
+      if (curDay > 0.5 && Math.random() < 0.5) { // a chirp or two
+        const notes = 2 + (Math.random() * 2 | 0)
+        for (let i = 0; i < notes; i++) {
+          const o = AC3.createOscillator(), g = AC3.createGain()
+          const t0 = AC3.currentTime + i * 0.11
+          o.type = 'sine'; o.frequency.setValueAtTime(2200 + Math.random() * 1400, t0)
+          o.frequency.exponentialRampToValueAtTime(1800 + Math.random() * 1000, t0 + 0.07)
+          g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(0.05 * (1 - curW.rain), t0 + 0.01)
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09)
+          o.connect(g); g.connect(AC3.destination); o.start(t0); o.stop(t0 + 0.1)
+        }
+      }
+      if (curNight > 0.5 && curW.rain < 0.3 && Math.random() < 0.7) { // crickets
+        const o = AC3.createOscillator(), g = AC3.createGain()
+        const t0 = AC3.currentTime
+        o.type = 'square'; o.frequency.value = 4200
+        for (let k = 0; k < 3; k++) {
+          g.gain.setValueAtTime(0.0001, t0 + k * 0.08)
+          g.gain.linearRampToValueAtTime(0.018, t0 + k * 0.08 + 0.01)
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + k * 0.08 + 0.05)
+        }
+        o.connect(g); g.connect(AC3.destination); o.start(t0); o.stop(t0 + 0.3)
+      }
+    }, 1400)
+  } catch {}
+}
+
 // ---- terrain: the SAME pure functions as every other window ----
 let W = 192, H = 96, DAY = 2400
 const tileHash = (x, y, salt) => { let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
@@ -634,12 +847,28 @@ function buildGround(s0) {
   scene.add(mesh)
   groundMesh = mesh
 
-  // ---- the sea proper: one broad sheet of the living water off the east edge ----
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(70, H + 120, 24, 36), waterMat)
-  sea.rotation.x = -Math.PI / 2
-  sea.position.set(wx(W - 4) + 33, -0.20, 0)
-  sea.renderOrder = 1
-  scene.add(sea)
+  // ---- the sea proper: one broad sheet off the east edge. If the mirror
+  // loaded, it reflects the true sky and shore; the waves ripple that
+  // reflection. Otherwise the fresnel wave-shader stands in, unbothered. ----
+  if (USE_REFLECTOR && THREE.Reflector) {
+    try {
+      const seaGeo = new THREE.PlaneGeometry(70, H + 120, 40, 60)
+      seaReflector = new THREE.Reflector(seaGeo, { color: 0x2b4a5c, textureWidth: 512, textureHeight: 512, clipBias: 0.004 })
+      seaReflector.rotation.x = -Math.PI / 2
+      seaReflector.position.set(wx(W - 4) + 33, -0.20, 0)
+      scene.add(seaReflector)
+      // keep the flat rest-state so waves can be added and released cleanly
+      seaWaves = { geo: seaGeo, base: Float32Array.from(seaGeo.attributes.position.array) }
+      feed('the sea holds a mirror')
+    } catch (e) { seaReflector = null }
+  }
+  if (!seaReflector) {
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(70, H + 120, 24, 36), waterMat)
+    sea.rotation.x = -Math.PI / 2
+    sea.position.set(wx(W - 4) + 33, -0.20, 0)
+    sea.renderOrder = 1
+    scene.add(sea)
+  }
 
   // grass: instanced tufts wherever the meadow is: an RPG is mostly grass,
   // and now the wind moves through all of it
@@ -648,13 +877,15 @@ function buildGround(s0) {
   const tuftMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 })
   tuftMat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = uT
-    sh.vertexShader = 'uniform float uTime;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+    sh.uniforms.uWind = uWind
+    sh.vertexShader = 'uniform float uTime;\nuniform float uWind;\n' + sh.vertexShader.replace('#include <begin_vertex>',
       `#include <begin_vertex>
       #ifdef USE_INSTANCING
         vec4 iw = instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
-        float sway = sin(uTime * 1.7 + iw.x * 0.9 + iw.z * 0.7) + sin(uTime * 2.6 + iw.z * 1.3) * 0.5;
-        transformed.x += sway * 0.10 * position.y * 5.0 * 0.2;
-        transformed.z += sway * 0.05 * position.y * 5.0 * 0.2;
+        float gust = 0.35 + uWind;                                        // the whole field leans with the wind
+        float sway = sin(uTime * (1.3 + uWind) + iw.x * 0.9 + iw.z * 0.7) + sin(uTime * 2.6 + iw.z * 1.3) * 0.5;
+        transformed.x += (sway * 0.09 + uWind * 0.10) * position.y * gust;// gusts bend it downwind
+        transformed.z += (sway * 0.05 + uWind * 0.05) * position.y * gust;
       #endif`)
   }
   const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 12000)
@@ -1264,6 +1495,9 @@ function syncBeings(s, prev) {
         m.userData.lastName = nm
         m.remove(m.userData.name); m.userData.name = makeName(nm); m.add(m.userData.name)
       }
+      const curLvl = lvlOf(thing) // a level won throws a fountain of gold
+      if (m.userData.lvl !== undefined && curLvl > m.userData.lvl) levelBurst(m.position)
+      m.userData.lvl = curLvl
       const moving = thing.x !== ox || thing.y !== oy
       const ph = Math.sin(performance.now() / 140)
       if (m.userData.rigged) { // clips crossfade; missing clips get body english
@@ -1282,7 +1516,7 @@ function syncBeings(s, prev) {
         // rocking the whole root read as a headbutt. The arm chops; the
         // spine merely agrees with a small lean.
         const ab = m.userData.armBone, rb = m.userData.rigBody
-        if (working2 && (performance.now() % 840) < 17) snd('chop')
+        if (working2 && (performance.now() % 840) < 17) snd('chop', m.position)
         if (ab && working2) {
           ab.rotation.x = -2.4 + Math.abs(Math.sin(performance.now() / 420)) * 1.7
           if (rb) rb.rotation.x = 0.06
@@ -1342,8 +1576,9 @@ function syncBeings(s, prev) {
         const fr = thing.hp / Math.max(1, Math.min(99, effHp(thing)))
         if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp) {
           spawnSplat(m.position, m.userData.lastHp - thing.hp) // the blow, seen
-          snd('thud')
-          if (thing.hp <= 0 && id === myId) snd('gong')
+          hitFlash(m.position)
+          snd('thud', m.position)
+          if (thing.hp <= 0 && id === myId) snd('gong', m.position)
         }
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, Math.max(0, Math.min(1, fr))) }
         m.userData.hpbar.visible = fighting3 || thing.hp < effHp(thing)
@@ -1358,7 +1593,8 @@ function syncBeings(s, prev) {
         m.userData.maxHp = Math.max(m.userData.maxHp ?? thing.hp, thing.hp)
         if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp) {
           spawnSplat(m.position, m.userData.lastHp - thing.hp)
-          snd('thud')
+          hitFlash(m.position)
+          snd('thud', m.position)
         }
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, thing.hp / m.userData.maxHp) }
         m.userData.hpbar.visible = thing.hp < m.userData.maxHp
@@ -1389,12 +1625,16 @@ ws.onopen = async () => {
 }
 // ---- sound: synthesized from nothing, in /play's tradition ----
 let AC3 = null
-function snd(kind) {
+function snd(kind, pos) {
   if (!AC3) return
   try {
+    // the world falls quiet with distance: a blow across the map is a whisper
+    const vol = pos ? Math.max(0, 1 - camera.position.distanceTo(pos) / 30) : 1
+    if (vol <= 0.02) return
     const t0 = AC3.currentTime
+    const master = AC3.createGain(); master.gain.value = vol; master.connect(AC3.destination)
     const o = AC3.createOscillator(), g2 = AC3.createGain()
-    o.connect(g2); g2.connect(AC3.destination)
+    o.connect(g2); g2.connect(master)
     if (kind === 'thud') { // a blow lands
       o.type = 'triangle'; o.frequency.setValueAtTime(90, t0)
       o.frequency.exponentialRampToValueAtTime(45, t0 + 0.12)
@@ -1414,12 +1654,25 @@ function snd(kind) {
       o.frequency.exponentialRampToValueAtTime(60, t0 + 0.9)
       g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 1)
       o.start(t0); o.stop(t0 + 1)
+    } else if (kind === 'level') { // a level won: a small rising fanfare
+      o.type = 'triangle'
+      const seq = [523, 659, 784, 1047]
+      seq.forEach((f, i) => o.frequency.setValueAtTime(f, t0 + i * 0.08))
+      g2.gain.setValueAtTime(0.0001, t0); g2.gain.linearRampToValueAtTime(0.16, t0 + 0.02)
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42)
+      o.start(t0); o.stop(t0 + 0.44)
+    } else if (kind === 'thunder') { // the storm answers the flash
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(68, t0)
+      o.frequency.exponentialRampToValueAtTime(28, t0 + 1.2)
+      g2.gain.setValueAtTime(0.0001, t0); g2.gain.linearRampToValueAtTime(0.42, t0 + 0.05)
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5)
+      o.start(t0); o.stop(t0 + 1.5)
     }
   } catch {}
 }
 document.getElementById('gate3dbtn').addEventListener('click', () => {
   entered = true
-  try { AC3 = new (window.AudioContext ?? window.webkitAudioContext)() } catch {}
+  try { AC3 = new (window.AudioContext ?? window.webkitAudioContext)(); initAmbient() } catch {}
   document.getElementById('gate3d').style.display = 'none'
 })
 ws.onmessage = async (ev) => {
@@ -1593,9 +1846,12 @@ let lastStep = null
 
 // ---- the frame: sun, moon, clouds, fires, water, bodies, camera ----
 const NIGHT_HOR = new THREE.Color(0x0a1120), DAY_HOR = new THREE.Color(0xa9c2da), DUSK_HOR = new THREE.Color(0xb06238)
+const STORM_GREY = new THREE.Color(0x3a4048)
 const fogCol = new THREE.Color()
 const sunDirV = new THREE.Vector3()
 let lastFrame = 0
+let lightAt = -1e9, lastStrikeTick = -1     // the last flash, and its tick
+const camDesired = new THREE.Vector3(), camRay = new THREE.Raycaster()
 function animate(now) {
   requestAnimationFrame(animate)
   const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now
@@ -1649,6 +1905,74 @@ function animate(now) {
   scene.fog.color.copy(fogCol)
   renderer.setClearColor(scene.fog.color)
   ridgeMat.color.setHSL(0.62, 0.22, 0.04 + day * 0.14)
+
+  // ---- WEATHER: the tick decides the sky, and every window agrees ----
+  const tgt = weatherAt(s.tick)
+  const wl = Math.min(1, dt * 1.2) // ease toward the oracle, no snapping
+  curW.rain = lerp(curW.rain, tgt.rain, wl); curW.snow = lerp(curW.snow, tgt.snow, wl)
+  curW.fog = lerp(curW.fog, tgt.fog, wl); curW.wind = lerp(curW.wind, tgt.wind, wl * 0.7)
+  curW.storm = lerp(curW.storm, tgt.storm, wl)
+  curDay = day; curNight = night
+  uWind.value = curW.wind
+  const gloom = clamp01(curW.rain * 0.85 + curW.storm * 0.25 + curW.snow * 0.4)
+  const murk = Math.max(curW.fog, gloom)
+  // the storm dims the day and greys the sky
+  sun.intensity *= (1 - gloom * 0.62)
+  ambient.intensity = ambient.intensity * (1 - gloom * 0.25) + gloom * 0.06
+  hemi.intensity *= (1 - gloom * 0.3)
+  skyMat.uniforms.uDay.value *= (1 - gloom * 0.45)
+  skyMat.uniforms.uDusk.value *= (1 - gloom * 0.6)
+  fogCol.lerp(STORM_GREY, gloom * 0.6)
+  scene.fog.color.copy(fogCol); renderer.setClearColor(fogCol)
+  scene.fog.near = lerp(26, 7, murk); scene.fog.far = lerp(120, 40, murk)
+  // the rain and the snow, each a camera-following field
+  const rainOn = curW.rain > 0.02, snowOn = curW.snow > 0.02
+  rainField.pts.visible = rainOn && quality > 0.5
+  snowField.pts.visible = snowOn && quality > 0.5
+  const slantX = curW.wind * 3.2, slantZ = curW.wind * 1.1
+  if (rainField.pts.visible) {
+    rainField.pts.material.opacity = curW.rain * 0.6
+    stepPrecip(rainField, 26, slantX, slantZ, dt, camera.position.x, camera.position.z)
+  }
+  if (snowField.pts.visible) {
+    snowField.pts.material.opacity = curW.snow * 0.85
+    stepPrecip(snowField, 3.5, slantX * 0.5, slantZ * 0.5, dt, camera.position.x, camera.position.z)
+  }
+  // the low fog banks drift about the walker's knees
+  fogGroup.position.set(fx, 0, fz)
+  fogGroup.rotation.y = now / 90000
+  for (const fb of fogBanks) {
+    fb.material.opacity = murk * 0.5 * (0.7 + Math.sin(now / 2600 + fb.position.x) * 0.3)
+    fb.material.color.setHSL(0.6, 0.05, 0.55 + day * 0.25)
+  }
+  // lightning: struck from the tick, so the whole town flashes together
+  if (s.tick !== lastStrikeTick && curW.storm > 0.2 && (tileHash(s.tick, 0, 91) % 100) < 5) {
+    lastStrikeTick = s.tick; lightAt = now
+    setTimeout(() => snd('thunder'), 500 + Math.random() * 1600)
+  }
+  const flash = Math.max(0, 1 - (now - lightAt) / 200)
+  if (flash > 0) {
+    ambient.intensity += flash * 1.2; hemi.intensity += flash * 0.8
+    fogCol.lerp(new THREE.Color(0xdfe6ff), flash * 0.5)
+    scene.fog.color.copy(fogCol); renderer.setClearColor(fogCol)
+  }
+  // the ambient bed follows the weather and the hour
+  if (ambient3) {
+    ambient3.windGain.gain.setTargetAtTime(0.02 + curW.wind * 0.05, AC3.currentTime, 0.6)
+    ambient3.rainGain.gain.setTargetAtTime(curW.rain * 0.10, AC3.currentTime, 0.4)
+  }
+  // the juice pools breathe out
+  dustPool.update(dt); flashPool.update(dt); sparkPool.update(dt)
+  // the mirror-sea ripples: waving verts catch the planar reflection
+  if (seaWaves) {
+    const arr = seaWaves.geo.attributes.position.array, base = seaWaves.base
+    const tt = now / 1000
+    for (let i = 0; i < arr.length; i += 3) {
+      arr[i + 2] = base[i + 2] + Math.sin(tt * 1.3 + base[i] * 0.4) * 0.12 + Math.cos(tt * 1.7 + base[i + 1] * 0.3) * 0.10
+    }
+    seaWaves.geo.attributes.position.needsUpdate = true
+  }
+
   // the celestial furniture keeps pace with the walker
   celestial.position.set(fx, 0, fz)
   celestial.rotation.y = now / 600000 // the slowest drift there is
@@ -1735,8 +2059,42 @@ function animate(now) {
     }
   }
   const cy2 = Math.sin(camPitch) * camDist, cr2 = Math.cos(camPitch) * camDist
-  camera.position.lerp(new THREE.Vector3(fx + Math.sin(camAz) * cr2, cy2, fz + Math.cos(camAz) * cr2), 0.28)
+  camDesired.set(fx + Math.sin(camAz) * cr2, cy2, fz + Math.cos(camAz) * cr2)
+  // camera collision: the eye stays above the hills and out of the ground
+  if (groundMesh) {
+    const head = new THREE.Vector3(fx, 1.2, fz)
+    const toCam = camDesired.clone().sub(head)
+    const len = toCam.length(); toCam.normalize()
+    camRay.set(head, toCam); camRay.far = len
+    const hit = camRay.intersectObject(groundMesh)[0]
+    if (hit && hit.distance < len) camDesired.copy(hit.point).addScaledVector(toCam, -0.5)
+    camDesired.y = Math.max(camDesired.y, 0.8)
+  }
+  camera.position.lerp(camDesired, 0.28)
   camera.lookAt(fx, 0.6, fz)
+  // ---- LOD + footstep dust: distant folk shed shadows and nameplates,
+  // and a scuff of dust rises where the near ones tread ----
+  for (const [, m] of beings) {
+    if (!m.visible) continue
+    const d = camera.position.distanceTo(m.position)
+    const near = d < 26, mid = d < 44
+    if (m.userData.name) m.userData.name.visible = near
+    if (m.userData.hpbar && !near) m.userData.hpbar.visible = false
+    const lod = near ? 2 : mid ? 1 : 0
+    if (m.userData.lod !== lod) {
+      m.userData.lod = lod
+      m.traverse(o => { if (o.isMesh) o.castShadow = lod === 2 })
+    }
+    const lp = m.userData.lastPos
+    if (lp) {
+      const moved = Math.hypot(m.position.x - lp.x, m.position.z - lp.z)
+      if (moved > 0.02 && near && Math.random() < 0.22) {
+        dustPool.spawn(m.position.x + (Math.random() - 0.5) * 0.2, 0.05, m.position.z + (Math.random() - 0.5) * 0.2,
+          { max: 0.55, size: 0.11, grow: 2.4, opacity: 0.35, vy: 0.12, color: 0xbdb096 })
+      }
+      lp.set(m.position.x, 0, m.position.z)
+    } else m.userData.lastPos = m.position.clone()
+  }
   if (motes) { // they drift with the citizen, wandering gently
     motes.position.set(Math.floor(fx / 8) * 8, 0, Math.floor(fz / 8) * 8)
     motes.rotation.y = now / 40000
@@ -1787,6 +2145,18 @@ function animate(now) {
   statEl.textContent = 'tick ' + s.tick + ' · ' + Object.keys(s.players).length + ' citizens · '
     + (me ? 'you are ' + (me.name ?? 'unnamed') + ' · ' : ownKey ? 'spawning you… · ' : 'spectating · ')
     + 'same world as /play'
+  // adaptive quality: watch the frame, ease down when heavy, recover when light
+  frameAvg = frameAvg * 0.92 + (dt * 1000) * 0.08
+  if (frameAvg > 34) { slowStreak++; fastStreak = 0 }
+  else if (frameAvg < 22) { fastStreak++; slowStreak = 0 }
+  else { slowStreak = 0; fastStreak = 0 }
+  if (slowStreak > 90 && quality > 0.5) {
+    quality = 0.5; renderer.setPixelRatio(1); if (composer) composer.setPixelRatio(1); slowStreak = 0
+    feed('easing the graphics for a smoother frame')
+  } else if (fastStreak > 200 && quality < 1) {
+    quality = 1; const pr = Math.min(devicePixelRatio, 2)
+    renderer.setPixelRatio(pr); if (composer) composer.setPixelRatio(pr); fastStreak = 0
+  }
   if (composer) composer.render()
   else renderer.render(scene, camera)
 }
