@@ -14,7 +14,7 @@ const ed = require('@noble/ed25519');
 ed.hashes.sha512 = sha512;
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.41';
+const SPEC_VERSION = '0.42';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 const DEPLETE_TICKS = 8;
@@ -51,6 +51,14 @@ const MOB_STATS = {
                     { item: 'old-chain', chance: 5 }] },
   bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220,
             drops: [{ item: 'bones' }, { item: 'bones', chance: 128 }, { item: 'bronze-hatchet', chance: 16 }] },
+  // the skeleton-knight (v0.42): a horned, shield-bearing warrior of the frontier.
+  // Seldom alone — they muster in warbands in and around the Wilds. The round
+  // shield makes them hard to strike (high def); the longsword bites back. And
+  // their bones are rich: a fallen knight gives up twice what a lesser thing does.
+  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120,
+            drops: [{ item: 'bones' }, { item: 'bones' },   // double bones — the warrior's due
+                    { item: 'ore', chance: 48 },            // scavenged metal
+                    { item: 'star-helm', chance: 5 }] },    // rare: the horned helm itself
 };
 // the store's ledger (spec 6l)
 const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
@@ -68,9 +76,14 @@ function cityRectOf(g) {
   const cx = Math.floor(g.worldW / 2);
   return { x0: cx - 8, x1: cx + 8, y0: 2, y1: 10 };
 }
+// Norwick (spec 2i): the garrison town, a second safe settlement on the Wilds frontier
+function norwickRectOf(g) {
+  return { x0: 36, x1: 50, y0: 24, y1: 36 };
+}
 const inCity = (g, x, y) => {
-  const r = cityRectOf(g);
-  return x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1;
+  const c = cityRectOf(g), n = norwickRectOf(g);
+  return (x >= c.x0 && x <= c.x1 && y >= c.y0 && y <= c.y1)
+      || (x >= n.x0 && x <= n.x1 && y >= n.y0 && y <= n.y1);
 };
 const RECIPES = {
   'bronze-sword':   { ore: 2, logs: 1 },
@@ -287,8 +300,8 @@ function addMob(state, mobId, type, x, y) {
   state.mobs[mobId] = { type, x, y, hx: x, hy: y, hp: MOB_STATS[type].maxHp, respawnAt: 0 };
 }
 
-function addNode(state, nodeId, type, x, y) {
-  state.nodes[nodeId] = { type, x, y, depletedUntil: 0 };
+function addNode(state, nodeId, type, x, y, extra) {
+  state.nodes[nodeId] = { type, x, y, depletedUntil: 0, ...(extra || {}) };
 }
 
 function firstFreeSlot(inv) {
@@ -334,6 +347,14 @@ function validInput(state, input) {
     }
     case 'stop':
       return true;
+    case 'recall': {
+      // spec 2k: recall to any waystone you have walked to. Never from the Wilds —
+      // magic will not carry you out of danger you chose to enter.
+      if (p.hp <= 0 || inWilds(p.x, p.y)) return false;
+      const ws = state.nodes[input.to];
+      if (!ws || ws.type !== 'waystone') return false;
+      return (p.attuned ?? []).includes(input.to);
+    }
     case 'claim_name': {
       // spec §5a: lowercase a-z0-9- (no leading/trailing -), 1-12 chars,
       // name unclaimed, claimant nameless
@@ -534,10 +555,29 @@ function nextState(state, inputs, _legacyBeacon) {
     if (inp.type === 'spawn') { const sp = spawnOf(s.genesis); addPlayer(s, pid, sp.x, sp.y); continue; }
     const p = s.players[pid];
     if (p) p.lastInput = s.tick; // presence (spec 5e)
+    if (p) { // spec 2k: attune to a waystone you stand beside — the road remembers who walked it
+      for (const [nid, n] of Object.entries(s.nodes)) {
+        if (n.type === 'waystone' && Math.abs(n.x - p.x) + Math.abs(n.y - p.y) === 1) {
+          if (!p.attuned) p.attuned = [];
+          if (!p.attuned.includes(nid)) p.attuned.push(nid);
+        }
+      }
+    }
     if (inp.type === 'move') {
       p.x += inp.dx;
       p.y += inp.dy;
       p.action = null;
+    } else if (inp.type === 'recall') {
+      // spec 2k: step out of the world beside one waystone and in beside another
+      const ws = s.nodes[inp.to];
+      if (ws && !inWilds(p.x, p.y) && (p.attuned ?? []).includes(inp.to)) {
+        const spot = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+          .map(([dx, dy]) => ({ x: ws.x + dx, y: ws.y + dy }))
+          .find(t => t.x >= 1 && t.x < s.genesis.worldW - 1 && t.y >= 1 && t.y < s.genesis.worldH - 1
+            && !Object.values(s.nodes).some(n => n.x === t.x && n.y === t.y));
+        if (spot) { p.x = spot.x; p.y = spot.y; }
+        p.action = null; p.trade = null;
+      }
     } else if (inp.type === 'gather') {
       p.action = { type: 'gather', nodeId: inp.nodeId };
     } else if (inp.type === 'stop') {
@@ -659,7 +699,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const si = p.inventory.findIndex(sl => sl?.item === 'sigil');
       if (inp.spell === 'mend' && si !== -1) {
         p.inventory[si] = null;
-        p.hp = effLevel(p.skills.hitpoints); // made whole (v0.41)
+        p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + 20); // v0.41: a strong heal (+20), not a full reset — keeps mend premium without making sigil-stackers unkillable
         p.skills.magic += 40;
       } else if (inp.spell === 'anchor' && si !== -1) {
         p.inventory[si] = null;
@@ -880,9 +920,10 @@ function nextState(state, inputs, _legacyBeacon) {
 
       if (m.hp <= 0) {
         // drops lie where they fall (spec §6e): loot belongs to whoever takes it
-        for (const d of stats.drops) {
-          if (d.chance !== undefined && roll(beacon, pid, 'loot-' + d.item) >= d.chance) continue;
-          const gid = 'g' + s.tick + '-' + p.action.mobId + '-' + d.item;
+        for (let di = 0; di < stats.drops.length; di++) {
+          const d = stats.drops[di];
+          if (d.chance !== undefined && roll(beacon, pid, 'loot' + di + '-' + d.item) >= d.chance) continue;
+          const gid = 'g' + s.tick + '-' + p.action.mobId + '-' + di + '-' + d.item; // di keeps twin drops distinct
           s.ground[gid] = { item: d.item, x: m.x, y: m.y, expiresAt: s.tick + 100 };
         }
         m.respawnAt = s.tick + stats.respawn;
@@ -945,5 +986,5 @@ module.exports = {
   canonical, stateHash, sha256, beaconValue, roll,
   generateIdentity, signInput, verifyInputSig,
   exportIdentity, importIdentity, loadOrCreateIdentity,
-  SLEEP_AFTER, isAwake, effLevel, cityRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  SLEEP_AFTER, isAwake, effLevel, cityRectOf, norwickRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

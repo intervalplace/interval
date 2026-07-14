@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.41 ("The Constitution")
+# Interval: Protocol Specification v0.42 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -195,6 +195,90 @@ ore, richer in magic rock. The deep forest, the highlands, the cave,
 Stillwater, and Milbrook keep their places, scaled. The Wilds grow
 with the world: `x in [1, 34], y in [1, 22]`.
 
+## 2i. Norwick and the wider world (v0.40)
+
+The founding grows again, to 288 x 144, lengthening every road the
+constitution already draws. Fixed near the Wilds' southern border,
+at `x in [36, 50], y in [24, 36]`, stands **Norwick**: a walled
+garrison town, smaller and grimmer than Anchor, built for one reason
+— holding the line against the lawless quarter at its back. Walls
+trace its perimeter, broken by a gate in the south wall flanked by
+guards; **no mob may enter its bounds**, the same law that protects
+Anchor. Inside stand a bank, an anvil, houses, a well, a hearth, and
+farming plots. Outside its walls, on the side facing away from the
+Wilds, a small quarry supplies the ore a garrison spends on itself.
+Norwick is reached by leaving the king's road on foot; no path is
+drawn in state, as ever, only the town itself is law.
+
+New inert node type: none (Norwick reuses `wall`, `guard`, `bank`,
+`anvil`, `well`, `house`, `signpost`, `rock`, `plot`). New founding
+constant: a second mob-forbidden rectangle, checked alongside
+Anchor's wherever the wander rule applies.
+
+## 2j. The road learns to bend, and the world to feel walked (v0.41)
+
+The founding grows once more, to 320 x 200, calibrated rather than
+guessed: at one tile per interval, Westhearth to Eastmere along the
+full breadth of the road is a three-minute walk, Anchor to Stillwater
+under two, the shortest hop under a minute. Distance in tiles **is**
+distance in seconds; a founding's dimensions are now chosen against
+that arithmetic, not eyeballed.
+
+**The road bends.** `trailYAt(genesis, x)` replaces the flat trail
+row: true and level through every settlement and the river crossing,
+it winds through open country between them on a seeded curve, same
+treatment the river has always had. Nothing paints the road as state;
+windows compute the curve themselves, as they already do for the
+river.
+
+**The hamlets stop mirroring each other.** Westhearth keeps its
+modest bank-and-anvil founding. Eastmere trades its anvil for a
+store and two dockside fishing spots: a port, not a second
+Westhearth. Anchor gains a second forge and its own store: the
+capital both smiths and trades. Milbrook keeps no forge at all: bank,
+well, houses, plots, nothing else — a farming town and only that.
+
+**Danger now shows before it bites.** Approaching the mountains, the
+Wilds, or the cave, trees thin probabilistically the closer a tile
+sits to the boundary, and bare rock backfills the gaps: the ground
+tells a citizen they are leaving the safe country before any wolf
+does. This is a founding-time density gradient, not a client tint:
+the thinned tiles are genuinely treeless in every node's state.
+
+**Growth clusters.** Trees, open-field rock, and goblins no longer
+seed independently across their whole range; each kind rolls a
+handful of cluster centers first, then place mostly near one of them.
+Woods read as woods, and goblins keep camps, not a uniform sprinkle.
+
+**Landmarks (§3, node field `text`).** `addNode` now accepts an
+optional extra-fields object, merged onto the node. Signposts carry
+a `text` field: unique flavor per post, shown on interaction, in
+place of one generic message repeated at every post. Eight stand
+along the founding's roads, plus two solitary `wall` nodes standing
+alone in open country as ruins — nothing built beside them, on
+purpose.
+
+New founding constant: none. New node field: `text` (optional,
+currently used by `signpost`).
+
+## 2k. Waystones (v0.42): the road remembers who walked it
+
+Each settlement holds a **waystone** node. Stand orthogonally beside one
+and you **attune** to it: its id is appended to your `attuned` list, and
+the world remembers it forever. Thereafter `recall {to}` steps you out of
+the world beside one waystone and back in beside another you have walked
+to — instant, free, no material spent. Convenience, not power.
+
+Two rules keep it honest. You may only recall to a stone you have
+**attuned**, so the first journey to any place is always made on foot and
+the world still feels walked. And you may **never** recall while inside
+the Wilds: magic will not carry you out of danger you chose to enter. The
+slow road stays open to everyone; the waystone only spares you the
+re-walking of ground you have already earned.
+
+New node type: `waystone`. New player field: `attuned` (array of waystone
+ids, defaults empty). New action: `recall`.
+
 ## 2g. The Wilds (where the law thins)
 
 The northwest quarter's far corner is the **Wilds**: the rectangle
@@ -291,7 +375,13 @@ because the beacon says so; every node watches them pace identically.
 v0.29, `troll` (20 hp, hits up to 3, dwells in the cave, drops bones,
 ore, and rarely a bronze-plate it has no use for); and, from v0.30,
 `bear` (14 hp, hits up to 2, keeps the deep forest, drops bones and
-rarely the hatchet of the last woodcutter who argued).
+rarely the hatchet of the last woodcutter who argued); and, from v0.42,
+the **`skeleton-knight`** (18 hp, defence 6, hits up to 4, respawns 120
+ticks) — a horned, shield-bearing warrior that musters in **warbands** in
+and around the Wilds, seldom alone. Its round shield makes it hard to
+strike; its longsword bites back. A fallen knight gives up **double
+bones** (the frontier's best prayer), sometimes scavenged ore, and rarely
+the horned helm itself.
 Wolves keep to the fringes of the world; the hedgerows are theirs.
 Every mob kind inherits wandering, pinning, home respawn, and
 drops-to-ground from the universal mechanisms; a new creature costs
@@ -362,6 +452,10 @@ v0.1 input types:
   1): you stand before what you work, facing it. Diagonal interaction
   is invalid; diagonal *movement* remains legal.
 - `stop` → cancels current action.
+- `recall` → `{to}` (v0.42); teleport beside waystone `to`. Valid only if
+  you have **attuned** to that waystone (stood beside it) and you are
+  **not** in the Wilds. Instant, free. The slow road remains for those who
+  would walk it.
 - `claim_name` → `{name}`; see §5a.
 - `spawn` → no params; see §5b.
 - `offer_trade` → `{to, giveSlot, wantItem}`; see §5c.
@@ -638,7 +732,7 @@ said; only who said it.
 - **Magic-rock mining floor.** Gathering a magic-rock requires mining
   level 10: the vein refuses an unpracticed pick.
 - **`mend` (magic 20).** The sigil's second use: `cast {spell:"mend"}`
-  consumes one sigil and restores the caster to full HP. 40 magic XP.
+  consumes one sigil and restores 20 HP to the caster (v0.41: a strong heal, not a full reset). 40 magic XP.
   The same three stones, a deeper word.
 - **The Brand.** A citizen who initiates `attackp` against a target not
   currently striking them wears `brandedUntil = tick + 1500`. The state

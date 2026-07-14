@@ -1034,28 +1034,52 @@ function riverXC(y) { // mirror of worldgen's course: for painting banks and bri
   const cx2 = Math.floor(W / 2)
   return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1
 }
+function trailYAtC(x) { // mirror of worldgen's trailYAt (spec 2j): flat at anchors, winds between
+  const cx2 = Math.floor(W / 2)
+  const base = Math.floor(H / 2)
+  const anchors = [6, cx2, W - 10, riverXC(base)]
+  let dist = Infinity
+  for (const ax of anchors) dist = Math.min(dist, Math.abs(x - ax))
+  const FLAT = 9, FADE = 34, AMP = 6
+  const settle = dist <= FLAT ? 1 : dist >= FLAT + FADE ? 0 : 1 - (dist - FLAT) / FADE
+  const wobble = Math.sin(x / 21) * AMP + Math.sin(x / 8 + 3) * 2 + (tileHash(x, 0, 21) % 5 - 2)
+  return base + Math.round(wobble * (1 - settle))
+}
+function hazardClosenessC(x, y) { // mirror of worldgen's hazardCloseness (spec 2j)
+  const rectDist = (x, y, r) => Math.max(
+    x < r.x0 ? r.x0 - x : x > r.x1 ? x - r.x1 : 0,
+    y < r.y0 ? r.y0 - y : y > r.y1 ? y - r.y1 : 0)
+  const closeness = (d, buf) => d >= buf ? 0 : 1 - d / buf
+  return Math.max(
+    closeness(Math.max(0, y - 8), 18),
+    closeness(rectDist(x, y, { x0: 1, x1: 34, y0: 1, y1: 22 }), 16),
+    closeness(rectDist(x, y, { x0: W - 30, x1: W - 10, y0: 5, y1: 16 }), 14))
+}
 function terrainOf(x, y) {
   const ty = trailYOf()
   const cx2 = Math.floor(W / 2)
   const cy0 = 2, cy1 = 10 // city rect y-bounds (engine cityRectOf)
+  const nx0 = 36, nx1 = 50, ny0 = 24, ny1 = 36 // Norwick bounds (engine norwickRectOf)
   if (x >= W - 4) return 'sea'
   if (inWildsC(x, y)) return 'wilds'
   if (x >= W - 30 && x <= W - 10 && y >= 5 && y <= 16) return 'cave'
   if (x >= W - 46 && y <= 26) return 'scree'
   if (y <= 8 && (x < cx2 - 10 || x > cx2 + 10)) return 'mountain'
   if (x >= cx2 - 8 && x <= cx2 + 8 && y >= cy0 && y <= cy1) return 'cobble' // Anchor
+  if (x >= nx0 - 1 && x <= nx1 + 1 && y >= ny0 - 1 && y <= ny1 + 1) return 'cobble' // Norwick
   const lakeX = cx2 - 10, lakeY = H - 16, mbX = W - 22, mbY = H - 14
   if (x >= lakeX + 5 && x <= lakeX + 14 && y >= lakeY - 9 && y <= lakeY - 2) return 'plaza' // Stillwater
   if (Math.abs(x - mbX) <= 6 && Math.abs(y - mbY) <= 6) return 'plaza' // Milbrook
   const road = (Math.abs(x - cx2) <= (tileHash(0, y, 3) % 2) && y > cy1 && y < ty)
     || (Math.abs(x - cx2) <= (tileHash(0, y, 4) % 2) && y > ty && y < lakeY - 4)
-    || Math.abs(y - ty) <= (tileHash(x, 0, 3) % 2)
+    || Math.abs(y - trailYAtC(x)) <= (tileHash(x, 0, 3) % 2)
   if (road) {
     // where the road meets the river, planks: the bridge (spec 2h)
     if (Math.abs(x - riverXC(y)) <= 2 && y >= 6 && y <= lakeY - 4) return 'bridge'
     return 'trail'
   }
   if ((x <= 14 || x >= W - 16) && Math.abs(y - ty) <= 4) return 'plaza'
+  if (hazardClosenessC(x, y) > 0.55) return 'scree' // the ground turns before the mob does (spec 2j)
   return 'meadow'
 }
 function tileShade(x, y) {
@@ -1069,7 +1093,13 @@ function tileShade(x, y) {
   if (t === 'cobble') return ['#7a756b', '#827d73', '#726d63'][tileHash(x, y, 0) % 3]
   if (t === 'trail') return ['#8a7449', '#937d50', '#816c42'][tileHash(x, y, 0) % 3]
   if (t === 'plaza') return ['#6e5f3e', '#75663f', '#665837'][tileHash(x, y, 0) % 3]
-  return ['#3d5a23', '#436327', '#365020', '#40592a', '#3a5726'][tileHash(x, y, 0) % 5]
+  const meadow = ['#3d5a23', '#436327', '#365020', '#40592a', '#3a5726'][tileHash(x, y, 0) % 5]
+  const hz = hazardClosenessC(x, y)
+  if (hz <= 0.15) return meadow // the danger gradient (spec 2j): green fades toward stone as hazard nears
+  const mc = parseInt(meadow.slice(1), 16), mr = (mc >> 16) & 255, mg = (mc >> 8) & 255, mb = mc & 255
+  const sr = 0x5d, sg = 0x5a, sb = 0x52, k = Math.min(1, (hz - 0.15) / 0.4)
+  const r = Math.round(mr + (sr - mr) * k), g = Math.round(mg + (sg - mg) * k), b = Math.round(mb + (sb - mb) * k)
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('')
 }
 
 // pre-render the ground lazily once world dims are known: it never changes
@@ -1590,6 +1620,20 @@ function drawScene(now) {
         poly([[X+33,Y+20],[X+11,Y+20],[X+7,Y+22.5],[X+11,Y+25],[X+33,Y+25]], '#6e5433', '#2c2216')
         cx.fillStyle = '#2c2216'; cx.fillText('WEST', X + 22, Y + 23.6)
       }
+      if (n.type === 'waystone') {
+        shadow(X, Y, 8)
+        // a standing stone, leaning true, mossed at the foot
+        poly([[X+14,Y+32],[X+13,Y+12],[X+18,Y+5],[X+24,Y+7],[X+26,Y+30]], '#7a7770', '#3a3833')
+        poly([[X+16,Y+30],[X+15.5,Y+13],[X+19,Y+8],[X+23,Y+9.5],[X+24,Y+29]], '#8f8c84')
+        cx.fillStyle = '#4e6b3a'; cx.fillRect(X + 13, Y + 30, 14, 2.6) // moss
+        const gl = 0.55 + Math.sin(now / 600 + n.x) * 0.35
+        cx.save(); cx.globalAlpha = gl
+        cx.fillStyle = '#5fb0d9'
+        cx.fillRect(X + 18.6, Y + 13, 1.8, 10)
+        cx.fillRect(X + 15.6, Y + 16, 8, 1.8)
+        poly([[X+19.5,Y+10.5],[X+16,Y+15],[X+23,Y+15]], '#8fd6f2')
+        cx.restore(); cx.globalAlpha = 1
+      }
       if (n.type === 'guard' || n.type === 'smith') {
         shadow(X, Y, 8)
         const bob = Math.sin(now / 900 + n.x) * 0.6
@@ -1807,6 +1851,44 @@ function drawScene(now) {
         poly([[X+tx2,Y+26+lope],[X+tx2-MF*5,Y+22+lope+Math.sin(now/250)*1.5],[X+tx2-MF*2,Y+28]], '#5a5a5e')
         cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 14, 14, 3)
         cx.fillStyle = '#c0392b'; cx.fillRect(X + 13, Y + 14, 14 * (m.hp / 8), 3)
+        return
+      }
+      if (m.type === 'skeleton-knight') {
+        const march = engaged ? Math.abs(Math.sin(now / 150)) * 2 : Math.sin(now / 650 + m.x) * 0.7
+        // legs (bone)
+        cx.fillStyle = '#c9c2ae'; cx.fillRect(X + 16, Y + 27, 3, 7); cx.fillRect(X + 21, Y + 27, 3, 7)
+        cx.fillStyle = '#8a8371'; cx.fillRect(X + 16, Y + 33, 3, 1.4); cx.fillRect(X + 21, Y + 33, 3, 1.4)
+        // torso: ribcage, two-tone with a spine and ribs
+        poly([[X+15,Y+14-march],[X+25,Y+14-march],[X+24,Y+28],[X+16,Y+28]], '#d8d2c0', '#5a5348')
+        poly([[X+17,Y+15-march],[X+23,Y+15-march],[X+22,Y+27],[X+18,Y+27]], '#e6e0d0')
+        cx.fillStyle = '#7a7362'
+        for (let r = 0; r < 3; r++) cx.fillRect(X + 17, Y + 17 - march + r * 3.2, 6, 1.1) // ribs
+        cx.fillStyle = '#5a5348'; cx.fillRect(X + 19.4, Y + 15 - march, 1.2, 12) // spine
+        // the round wooden shield, on the arm away from the sword
+        const shX = MF > 0 ? X + 12 : X + 28
+        cx.fillStyle = '#5c4023'; cx.beginPath(); cx.arc(shX, Y + 21 - march, 6.5, 0, 7); cx.fill()
+        cx.strokeStyle = '#3a2716'; cx.lineWidth = 1.4; cx.stroke()
+        cx.fillStyle = '#6e5433'; cx.beginPath(); cx.arc(shX, Y + 21 - march, 4.4, 0, 7); cx.fill()
+        cx.fillStyle = '#9a9a94'; cx.beginPath(); cx.arc(shX, Y + 21 - march, 1.6, 0, 7); cx.fill() // boss
+        // the skull
+        cx.fillStyle = '#e6e0d0'; cx.beginPath(); cx.arc(X + 20, Y + 9 - march, 5.4, 0, 7); cx.fill()
+        cx.fillStyle = '#c9c2ae'; cx.fillRect(X + 17.5, Y + 11 - march, 5, 3) // jaw
+        cx.fillStyle = '#2b2620'; cx.fillRect(X + 17.6, Y + 8 - march, 2, 2.2); cx.fillRect(X + 20.4, Y + 8 - march, 2, 2.2) // sockets
+        cx.fillStyle = '#e2452e'; cx.fillRect(X + 18.1 + MF * 0.4, Y + 8.4 - march, 1, 1); cx.fillRect(X + 20.9 + MF * 0.4, Y + 8.4 - march, 1, 1) // ember eyes
+        // the horned helm
+        cx.fillStyle = '#6b6660'; cx.fillRect(X + 15.3, Y + 4.4 - march, 9.4, 3.6)
+        poly([[X+15.5,Y+6-march],[X+9,Y+1.5-march],[X+13,Y+7.5-march]], '#d9c9a0', '#3a3226') // left horn
+        poly([[X+24.5,Y+6-march],[X+31,Y+1.5-march],[X+27,Y+7.5-march]], '#d9c9a0', '#3a3226') // right horn
+        // the longsword, raised and swinging when engaged
+        cx.save(); cx.translate(X + (MF > 0 ? 27 : 13), Y + 20 - march)
+        cx.rotate(MF * (engaged ? -0.4 + Math.sin(now / 150) * 0.7 : 0.35))
+        cx.fillStyle = '#6a5433'; cx.fillRect(-1.2, 0, 2.4, 5)   // hilt
+        cx.fillStyle = '#4a3a26'; cx.fillRect(-3.6, -1, 7.2, 2)  // crossguard
+        poly([[-1.6,-1],[1.6,-1],[1.6,-16],[0,-19],[-1.6,-16]], '#cfd2cc', '#7a7d78') // blade
+        cx.restore()
+        // hp bar
+        cx.fillStyle = '#4a1008'; cx.fillRect(X + 11, Y, 18, 3)
+        cx.fillStyle = '#c0392b'; cx.fillRect(X + 11, Y, 18 * (m.hp / 18), 3)
         return
       }
       // the goblin: two-tone body, ears, club
@@ -2605,6 +2687,20 @@ cv.addEventListener('click', (e) => {
         poly([[X+33,Y+20],[X+11,Y+20],[X+7,Y+22.5],[X+11,Y+25],[X+33,Y+25]], '#6e5433', '#2c2216')
         cx.fillStyle = '#2c2216'; cx.fillText('WEST', X + 22, Y + 23.6)
       }
+      if (n.type === 'waystone') {
+        shadow(X, Y, 8)
+        // a standing stone, leaning true, mossed at the foot
+        poly([[X+14,Y+32],[X+13,Y+12],[X+18,Y+5],[X+24,Y+7],[X+26,Y+30]], '#7a7770', '#3a3833')
+        poly([[X+16,Y+30],[X+15.5,Y+13],[X+19,Y+8],[X+23,Y+9.5],[X+24,Y+29]], '#8f8c84')
+        cx.fillStyle = '#4e6b3a'; cx.fillRect(X + 13, Y + 30, 14, 2.6) // moss
+        const gl = 0.55 + Math.sin(now / 600 + n.x) * 0.35
+        cx.save(); cx.globalAlpha = gl
+        cx.fillStyle = '#5fb0d9'
+        cx.fillRect(X + 18.6, Y + 13, 1.8, 10)
+        cx.fillRect(X + 15.6, Y + 16, 8, 1.8)
+        poly([[X+19.5,Y+10.5],[X+16,Y+15],[X+23,Y+15]], '#8fd6f2')
+        cx.restore(); cx.globalAlpha = 1
+      }
       if (n.type === 'guard' || n.type === 'smith') {
         shadow(X, Y, 8)
         const bob = Math.sin(now / 900 + n.x) * 0.6
@@ -2669,7 +2765,7 @@ cv.addEventListener('click', (e) => {
       if (n.type === 'guard') { feed('The guard nods. "The road is watched, citizen."'); return }
       if (n.type === 'smith') { feed('The smith gestures at the anvil. "Ore and logs. The rest is rhythm."'); return }
       if (n.type === 'well') { feed('You peer into the well. Somewhere far below, a tick echoes.'); return }
-      if (n.type === 'signpost') { feed('West: Westhearth. East: Eastmere. North: Anchor.'); return }
+      if (n.type === 'signpost') { feed(n.text || 'West: Westhearth. East: Eastmere. North: Anchor.'); return }
       if (n.type === 'wall') { feed('The wall is old, and it is not going anywhere.'); return }
       if (n.type === 'plot') {
         // tilled rows; then the crop, staged purely by elapsed ticks (spec 6o)
