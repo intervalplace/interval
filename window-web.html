@@ -2526,22 +2526,22 @@ const sunCtx = sunCv.getContext("2d")
 // the level-up banner rides its OWN overlay, appended last so it sits above BOTH
 // the GL layer and the minimap — no more banner trapped behind the map.
 const bannerCv = document.createElement("canvas")
-bannerCv.width = 1120; bannerCv.height = 200
-bannerCv.style.cssText = "position:absolute;left:0;top:0;width:100%;pointer-events:none;image-rendering:pixelated"
+bannerCv.width = 1120; bannerCv.height = 800
+bannerCv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;background:transparent;image-rendering:pixelated"
 cv.parentNode.appendChild(bannerCv)
 const bannerCtx = bannerCv.getContext("2d")
 function drawBanner(now) {
   const g = bannerCtx
-  g.setTransform(2, 0, 0, 2, 0, 0) // 2x supersample: crisp banner text
-  g.clearRect(0, 0, 560, 100)
+  g.setTransform(1, 0, 0, 1, 0, 0)
+  g.clearRect(0, 0, 1120, 800)
   if (!(celebrate && now - celebrate.at < 2400)) return
   const age = (now - celebrate.at) / 2400
-  const bw = 220, bh = 34, bx2 = (560 - bw) / 2, by2 = 9
+  const bw = 440, bh = 68, bx2 = (1120 - bw) / 2, by2 = 18
   g.globalAlpha = age < 0.85 ? 1 : (1 - age) / 0.15
   g.fillStyle = "#494034"; g.fillRect(bx2, by2, bw, bh)
-  g.strokeStyle = "#ffcc33"; g.lineWidth = 2; g.strokeRect(bx2, by2, bw, bh)
-  g.fillStyle = "#ffcc33"; g.font = "bold 14px Verdana"; g.textAlign = "center"
-  g.fillText("\u2728 " + celebrate.text + " \u2728", 280, by2 + 22)
+  g.strokeStyle = "#ffcc33"; g.lineWidth = 4; g.strokeRect(bx2, by2, bw, bh)
+  g.fillStyle = "#ffcc33"; g.font = "bold 28px Verdana"; g.textAlign = "center"
+  g.fillText("\u2728 " + celebrate.text + " \u2728", 560, by2 + 44)
   g.globalAlpha = 1
 }
 let _miniAt = 0
