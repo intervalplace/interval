@@ -2499,64 +2499,60 @@ if (HD) try {
   }
 } catch (e) { GLON = false; if (glCv) glCv.style.display = 'none' }
 
-// ---- the minimap: a square window on the area AROUND you (centred on you,
-// the world scrolling beneath), enemies as dots, framed like the level-up
-// banner. Its own overlay canvas, appended last so it rides above the WebGL.
+// ---- the minimap: a small horizontal rectangle on the area AROUND you,
+// enemies as dots, framed like the level-up banner. Throttled (a map needs no
+// 60fps) and it yields to the level-up banner so the banner reads in front.
 const sunCv = document.createElement("canvas")
 sunCv.style.cssText = "position:absolute;right:8px;top:8px;pointer-events:none"
 cv.parentNode.appendChild(sunCv)
 const sunCtx = sunCv.getContext("2d")
+let _miniAt = 0
 function drawSunMap(s, now) {
   if (!miniReady && W) buildMini()
   if (!miniReady) return
-  const g = sunCtx, MW = 128, SS = 3, C = MW / 2, pad = 4       // square, high-def
-  if (sunCv.width !== MW * SS) { sunCv.width = MW * SS; sunCv.height = MW * SS; sunCv.style.width = MW + "px"; sunCv.style.height = MW + "px" }
+  if (celebrate && now - celebrate.at < 2400) { sunCtx.clearRect(0, 0, sunCv.width, sunCv.height); return } // let the banner win
+  if (now - _miniAt < 66) return   // ~15fps is plenty for a map
+  _miniAt = now
+  const g = sunCtx, MW = 104, MH = 64, SS = 3, pad = 4, CX = MW / 2, CY = MH / 2
+  if (sunCv.width !== MW * SS) { sunCv.width = MW * SS; sunCv.height = MH * SS; sunCv.style.width = MW + "px"; sunCv.style.height = MH + "px" }
   const me = s.players[myId]; if (!me) return
-  const o = prevState?.players[myId], tt = renderT(now)       // smooth scroll
+  const o = prevState?.players[myId], tt = renderT(now)
   const pxr = o ? lerp(o.x, me.x, tt) : me.x
   const pyr = o ? lerp(o.y, me.y, tt) : me.y
-  const rad = 20, scale = (C - pad) / rad                      // ~20 tiles centre-to-edge
+  const scale = (CX - pad) / 16     // ~16 tiles left/right of you
   g.setTransform(SS, 0, 0, SS, 0, 0)
   g.imageSmoothingEnabled = false
-  g.clearRect(0, 0, MW, MW)
-  g.fillStyle = "#494034"; g.fillRect(0, 0, MW, MW)            // banner plate
-  g.save(); g.beginPath(); g.rect(pad, pad, MW - pad * 2, MW - pad * 2); g.clip()
-  g.fillStyle = "#0e120b"; g.fillRect(0, 0, MW, MW)            // void at the world edge
-  g.drawImage(miniCv, C - pxr * scale, C - pyr * scale, W * scale, H * scale)
-  const at = (wx, wy) => [C + (wx - pxr) * scale, C + (wy - pyr) * scale]
+  g.clearRect(0, 0, MW, MH)
+  g.fillStyle = "#494034"; g.fillRect(0, 0, MW, MH)
+  g.save(); g.beginPath(); g.rect(pad, pad, MW - pad * 2, MH - pad * 2); g.clip()
+  g.fillStyle = "#0e120b"; g.fillRect(0, 0, MW, MH)
+  g.drawImage(miniCv, CX - pxr * scale, CY - pyr * scale, W * scale, H * scale)
+  const at = (wx, wy) => [CX + (wx - pxr) * scale, CY + (wy - pyr) * scale]
   for (const m of Object.values(s.mobs)) {
     if (!m || m.hp <= 0) continue
     const [dx, dy] = at(m.x, m.y)
     g.fillStyle = m.type === "skeleton-knight" ? "#e0857a" : "rgba(205,150,120,.85)"
-    g.fillRect(dx - 1, dy - 1, 2.2, 2.2)
+    g.fillRect(dx - 1, dy - 1, 2, 2)
   }
   for (const [pid, p] of Object.entries(s.players)) {
     if (pid === myId) continue
-    const [dx, dy] = at(p.x, p.y); g.fillStyle = "#e8e0d0"; g.fillRect(dx - 1, dy - 1, 2.2, 2.2)
+    const [dx, dy] = at(p.x, p.y); g.fillStyle = "#e8e0d0"; g.fillRect(dx - 1, dy - 1, 2, 2)
   }
-  g.fillStyle = "#ffcc33"; g.fillRect(C - 1.5, C - 1.5, 3, 3)  // YOU, dead centre
+  g.fillStyle = "#ffcc33"; g.fillRect(CX - 1.5, CY - 1.5, 3, 3)  // YOU, centre
   g.restore()
-  // the frame, made prettier: bevel, gold border, inset dark line, corner brackets
-  g.strokeStyle = "rgba(255,255,255,.10)"; g.lineWidth = 1; g.strokeRect(1.5, 1.5, MW - 3, MW - 3)
-  g.strokeStyle = "#ffcc33"; g.lineWidth = 2; g.strokeRect(pad - 1.5, pad - 1.5, MW - (pad - 1.5) * 2, MW - (pad - 1.5) * 2)
-  g.strokeStyle = "rgba(20,16,10,.7)"; g.lineWidth = 1; g.strokeRect(pad + 0.5, pad + 0.5, MW - (pad + 0.5) * 2, MW - (pad + 0.5) * 2)
+  // the frame: bevel, gold border, inset dark line, corner brackets
+  g.strokeStyle = "rgba(255,255,255,.10)"; g.lineWidth = 1; g.strokeRect(1.5, 1.5, MW - 3, MH - 3)
+  g.strokeStyle = "#ffcc33"; g.lineWidth = 2; g.strokeRect(pad - 1.5, pad - 1.5, MW - (pad - 1.5) * 2, MH - (pad - 1.5) * 2)
+  g.strokeStyle = "rgba(20,16,10,.7)"; g.lineWidth = 1; g.strokeRect(pad + 0.5, pad + 0.5, MW - (pad + 0.5) * 2, MH - (pad + 0.5) * 2)
   g.strokeStyle = "#ffe08a"; g.lineWidth = 2; g.lineCap = "round"
-  const cl = 8, cp = pad - 1.5
-  for (const [ax, ay, sxx, syy] of [[cp, cp, 1, 1], [MW - cp, cp, -1, 1], [cp, MW - cp, 1, -1], [MW - cp, MW - cp, -1, -1]]) {
-    g.beginPath(); g.moveTo(ax + sxx * cl, ay); g.lineTo(ax, ay); g.lineTo(ax, ay + syy * cl); g.stroke()
+  const cl = 7, cp = pad - 1.5
+  for (const [ax, ay, sx2, sy2] of [[cp, cp, 1, 1], [MW - cp, cp, -1, 1], [cp, MH - cp, 1, -1], [MW - cp, MH - cp, -1, -1]]) {
+    g.beginPath(); g.moveTo(ax + sx2 * cl, ay); g.lineTo(ax, ay); g.lineTo(ax, ay + sy2 * cl); g.stroke()
   }
 }
 
 function glComposite(now) {
   try {
-    // Match the GL buffer to the actual displayed pixels — no CSS stretch, no
-    // blur. (image-rendering:pixelated only stays crisp at integer scales; on a
-    // phone the fixed 1120x800 was a fractional stretch, hence the softness.)
-    const dpr = Math.min(window.devicePixelRatio || 1, 2.5)
-    const dw = Math.round(glCv.clientWidth * dpr), dh = Math.round(glCv.clientHeight * dpr)
-    if (dw > 0 && (glCv.width !== dw || glCv.height !== dh)) {
-      glCv.width = dw; glCv.height = dh; gl.viewport(0, 0, dw, dh)
-    }
     const La = new Float32Array(24 * 4), Ca = new Float32Array(24 * 3)
     for (let i = 0; i < Math.min(24, glLights.length); i++) {
       const l = glLights[i]
