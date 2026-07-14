@@ -91,6 +91,15 @@
     background: var(--stone-dk); border: 1px solid var(--stone-lt); color: var(--gold);
     font: 14px Verdana; padding: 9px 10px; outline: none; text-align: center;
   }
+  button {
+    background: #3a3126; color: #e8d9a0;
+    border: 1px solid #6e5433; border-radius: 2px;
+    padding: 5px 9px; font-family: inherit; font-size: 11px;
+    cursor: pointer; transition: background .12s, border-color .12s, color .12s;
+  }
+  button:hover { background: #4a3f30; border-color: #8a6c43; color: #ffe08a; }
+  button:active { background: #2c261d; }
+  button:disabled { opacity: .5; cursor: default; }
   #gatebtn {
     width: 100%; padding: 11px; cursor: pointer;
     background: var(--stone-dk); color: var(--gold);
@@ -1207,6 +1216,27 @@ function paintGroundTile(g, x, y) {
     }
 }
 function buildGround() { groundReady = true } // mobile-safe: ground now paints per visible tile each frame
+// ...but painting every tile every frame is expensive in HD (all those grass
+// strokes). So we bake a viewport-sized patch into `ground` and only re-bake it
+// when the camera crosses a tile — blitting the rest of the time. Small canvas
+// (never the whole world), cheap frames.
+let gCacheKey = ''
+function ensureGroundCache() {
+  const M = 2
+  const ox = Math.max(0, Math.floor(cam.x) - M), oy = Math.max(0, Math.floor(cam.y) - M)
+  const cw = Math.ceil(VIEW_W) + M * 2 + 2, ch = Math.ceil(VIEW_H) + M * 2 + 2
+  const key = ox + ':' + oy + ':' + cw + ':' + ch
+  if (key !== gCacheKey) {
+    gCacheKey = key
+    if (ground.width !== cw * TILE) { ground.width = cw * TILE; ground.height = ch * TILE }
+    const gg = ground.getContext('2d')
+    gg.clearRect(0, 0, ground.width, ground.height)
+    gg.save(); gg.translate(-ox * TILE, -oy * TILE)
+    for (let y = oy; y < Math.min(H, oy + ch); y++) for (let x = ox; x < Math.min(W, ox + cw); x++) paintGroundTile(gg, x, y)
+    gg.restore()
+  }
+  return { ox, oy }
+}
 
 const facing = {}  // pid -> -1 left / 1 right
 
@@ -1420,13 +1450,8 @@ function drawScene(now) {
   cx.clearRect(0, 0, cv.width, cv.height)
   cx.save()
   cx.translate(-cam.x * TILE, -cam.y * TILE)
-  // paint the visible ground each frame — only on-screen tiles, so the canvas
-  // can never overflow (the fix for the mobile black screen at 320x200)
-  {
-    const gx0 = Math.max(0, Math.floor(cam.x) - 1), gy0 = Math.max(0, Math.floor(cam.y) - 1)
-    const gx1 = Math.min(W, Math.ceil(cam.x + VIEW_W) + 1), gy1 = Math.min(H, Math.ceil(cam.y + VIEW_H) + 1)
-    for (let gy = gy0; gy < gy1; gy++) for (let gx = gx0; gx < gx1; gx++) paintGroundTile(cx, gx, gy)
-  }
+  // blit the cached ground patch (re-baked only when we cross a tile)
+  { const gc = ensureGroundCache(); cx.drawImage(ground, gc.ox * TILE, gc.oy * TILE) }
 
   // painter's algorithm: everything sorts by its tile row (then a layer
   // priority within the row), so a citizen north of a tree stands BEHIND
@@ -1915,7 +1940,9 @@ function drawScene(now) {
     }})
   }
 
+  const HIDE_AFTER = 144000 // ~24h of ticks: the long-departed stop cluttering spawn
   for (const [pid, p] of (s._playersE ?? Object.entries(s.players))) {
+    if (pid !== myId && p.hp > 0 && s.tick - (p.lastInput ?? 0) > HIDE_AFTER) continue // long gone
     const o = prevState?.players[pid]
     const ix = o ? lerp(o.x, p.x, t) : p.x
     const iy = o ? lerp(o.y, p.y, t) : p.y
@@ -1934,7 +1961,26 @@ function drawScene(now) {
     const bronzeTool = (workNode?.type === 'tree' && wep === 'bronze-hatchet')
                     || (workNode?.type === 'rock' && wep === 'bronze-pickaxe')
     const awake = isAwake(p, s.tick)
+    const dying = p.hp <= 0, deadStart = (p.deadUntil ?? s.tick) - 5
     layer.push({ z: Z(iy, 4), draw: () => {
+      if (dying) {
+        // the fall (spec 6c): the body tips where it fell and fades, and a pale
+        // soul lifts away — the 5 ticks the world holds its breath.
+        const prog = Math.max(0, Math.min(1, (s.tick + t - deadStart) / 5))
+        const fx = px(ix) + 20, fy = py(iy) + 34
+        cx.save()
+        cx.translate(fx, fy); cx.rotate((facing[pid] ?? 1) * prog * 1.45); cx.translate(-fx, -fy)
+        cx.globalAlpha = 1 - prog * 0.75
+        drawCitizen(px(ix), py(iy), { now, pid, face: facing[pid] ?? 1, anim: 'idle', tool,
+          mine: pid === myId, cape: capeOf(p), helm: !!p.equipment?.head, plate: !!p.equipment?.body,
+          starHelm: p.equipment?.head?.item === 'star-helm', starPlate: p.equipment?.body?.item === 'star-plate',
+          wepItem: wep, name: '', hp: 1, maxHp: 1 })
+        cx.restore()
+        cx.globalAlpha = 0.7 * (1 - prog); cx.fillStyle = '#e8e6d2' // the soul
+        cx.beginPath(); cx.arc(px(ix) + 20, py(iy) + 8 - prog * 26, 2.5 + prog * 2.5, 0, 7); cx.fill()
+        cx.globalAlpha = 1
+        return
+      }
       if (!awake) cx.globalAlpha = 0.55
       drawCitizen(px(ix), py(iy), {
         now, pid, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
@@ -2453,9 +2499,9 @@ if (HD) try {
   }
 } catch (e) { GLON = false; if (glCv) glCv.style.display = 'none' }
 
-// ---- the minimap: a plain square in the upper-right, high-def, framed like
-// the level-up banner. Its own overlay canvas, appended last so it rides ABOVE
-// the WebGL layer — the map high detail never had. ----
+// ---- the minimap: a square window on the area AROUND you (centred on you,
+// the world scrolling beneath), enemies as dots, framed like the level-up
+// banner. Its own overlay canvas, appended last so it rides above the WebGL.
 const sunCv = document.createElement("canvas")
 sunCv.style.cssText = "position:absolute;right:8px;top:8px;pointer-events:none"
 cv.parentNode.appendChild(sunCv)
@@ -2463,34 +2509,42 @@ const sunCtx = sunCv.getContext("2d")
 function drawSunMap(s, now) {
   if (!miniReady && W) buildMini()
   if (!miniReady) return
-  const g = sunCtx
-  const MW = 124, MH = Math.max(46, Math.round(MW * H / W)), SS = 3 // supersample: high-def on retina
-  if (sunCv.width !== MW * SS) {
-    sunCv.width = MW * SS; sunCv.height = MH * SS
-    sunCv.style.width = MW + "px"; sunCv.style.height = MH + "px"
-  }
+  const g = sunCtx, MW = 128, SS = 3, C = MW / 2, pad = 4       // square, high-def
+  if (sunCv.width !== MW * SS) { sunCv.width = MW * SS; sunCv.height = MW * SS; sunCv.style.width = MW + "px"; sunCv.style.height = MW + "px" }
+  const me = s.players[myId]; if (!me) return
+  const o = prevState?.players[myId], tt = renderT(now)       // smooth scroll
+  const pxr = o ? lerp(o.x, me.x, tt) : me.x
+  const pyr = o ? lerp(o.y, me.y, tt) : me.y
+  const rad = 20, scale = (C - pad) / rad                      // ~20 tiles centre-to-edge
   g.setTransform(SS, 0, 0, SS, 0, 0)
   g.imageSmoothingEnabled = false
-  g.clearRect(0, 0, MW, MH)
-  // banner-style plate: the same dark fill the level-up banner uses
-  g.fillStyle = "#494034"; g.fillRect(0, 0, MW, MH)
-  const pad = 3, mw = MW - pad * 2, mh = MH - pad * 2
-  g.drawImage(miniCv, pad, pad, mw, mh)
-  const sx = mw / W, sy = mh / H
+  g.clearRect(0, 0, MW, MW)
+  g.fillStyle = "#494034"; g.fillRect(0, 0, MW, MW)            // banner plate
+  g.save(); g.beginPath(); g.rect(pad, pad, MW - pad * 2, MW - pad * 2); g.clip()
+  g.fillStyle = "#0e120b"; g.fillRect(0, 0, MW, MW)            // void at the world edge
+  g.drawImage(miniCv, C - pxr * scale, C - pyr * scale, W * scale, H * scale)
+  const at = (wx, wy) => [C + (wx - pxr) * scale, C + (wy - pyr) * scale]
   for (const m of Object.values(s.mobs)) {
     if (!m || m.hp <= 0) continue
+    const [dx, dy] = at(m.x, m.y)
     g.fillStyle = m.type === "skeleton-knight" ? "#e0857a" : "rgba(205,150,120,.85)"
-    g.fillRect(pad + m.x * sx - 0.6, pad + m.y * sy - 0.6, 1.6, 1.6)
+    g.fillRect(dx - 1, dy - 1, 2.2, 2.2)
   }
   for (const [pid, p] of Object.entries(s.players)) {
-    g.fillStyle = pid === myId ? "#ffcc33" : "#e8e0d0"
-    g.fillRect(pad + p.x * sx - 1, pad + p.y * sy - 1, 2.2, 2.2)
+    if (pid === myId) continue
+    const [dx, dy] = at(p.x, p.y); g.fillStyle = "#e8e0d0"; g.fillRect(dx - 1, dy - 1, 2.2, 2.2)
   }
-  // where you are looking
-  g.strokeStyle = "rgba(255,255,255,.55)"; g.lineWidth = 1
-  g.strokeRect(pad + cam.x * sx, pad + cam.y * sy, VIEW_W * sx, VIEW_H * sy)
-  // the gold border, exactly the level-up banner's
-  g.strokeStyle = "#ffcc33"; g.lineWidth = 2; g.strokeRect(1, 1, MW - 2, MH - 2)
+  g.fillStyle = "#ffcc33"; g.fillRect(C - 1.5, C - 1.5, 3, 3)  // YOU, dead centre
+  g.restore()
+  // the frame, made prettier: bevel, gold border, inset dark line, corner brackets
+  g.strokeStyle = "rgba(255,255,255,.10)"; g.lineWidth = 1; g.strokeRect(1.5, 1.5, MW - 3, MW - 3)
+  g.strokeStyle = "#ffcc33"; g.lineWidth = 2; g.strokeRect(pad - 1.5, pad - 1.5, MW - (pad - 1.5) * 2, MW - (pad - 1.5) * 2)
+  g.strokeStyle = "rgba(20,16,10,.7)"; g.lineWidth = 1; g.strokeRect(pad + 0.5, pad + 0.5, MW - (pad + 0.5) * 2, MW - (pad + 0.5) * 2)
+  g.strokeStyle = "#ffe08a"; g.lineWidth = 2; g.lineCap = "round"
+  const cl = 8, cp = pad - 1.5
+  for (const [ax, ay, sxx, syy] of [[cp, cp, 1, 1], [MW - cp, cp, -1, 1], [cp, MW - cp, 1, -1], [MW - cp, MW - cp, -1, -1]]) {
+    g.beginPath(); g.moveTo(ax + sxx * cl, ay); g.lineTo(ax, ay); g.lineTo(ax, ay + syy * cl); g.stroke()
+  }
 }
 
 function glComposite(now) {
