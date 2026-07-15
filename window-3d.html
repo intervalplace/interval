@@ -394,15 +394,44 @@ for (let i = 0; i < 14; i++) {
   sp.scale.set(26 + (i * 11 % 22), 12 + (i * 7 % 9), 1)
   celestial.add(sp); clouds.push(sp)
 }
-const ridgeMat = new THREE.MeshBasicMaterial({ color: 0x232b3a }) // fog does the painting
+// distant mountains: not the sharp 5-sided pyramids of before, but rounder,
+// jagged, snow-capped peaks in three depth bands that overlap into a range
+const ridgeMat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: true })
 const ridges = []
-for (let i = 0; i < 26; i++) {
-  const a = (i / 26) * Math.PI * 2 + (i % 5) * 0.13
-  const r = 78 + (i * 29 % 20), hgt = 9 + (i * 17 % 12)
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(10 + (i * 13 % 9), hgt, 5), ridgeMat)
-  cone.position.set(Math.cos(a) * r, hgt / 2 - 2.5, Math.sin(a) * r)
-  cone.rotation.y = i
-  celestial.add(cone); ridges.push(cone)
+const rockC = new THREE.Color(0x3a4356), snowC = new THREE.Color(0xd8dee8)
+function mountain(baseR, hgt, sides, seed) {
+  const geo = new THREE.ConeGeometry(baseR, hgt, sides, 4)
+  const pos = geo.attributes.position, col = []
+  const v = new THREE.Vector3()
+  for (let k = 0; k < pos.count; k++) {
+    v.fromBufferAttribute(pos, k)
+    const hf = (v.y + hgt / 2) / hgt                 // 0 at the base, 1 at the peak
+    const ang = Math.atan2(v.z, v.x)
+    // ridges and gullies: layered sines around the axis, deeper up high
+    const n = Math.sin(ang * 3 + seed) * 0.5 + Math.sin(ang * 7 + seed * 2) * 0.3 + Math.sin(v.y * 1.6 + seed) * 0.2
+    if (hf < 0.995) {
+      const jag = n * baseR * 0.2 * (0.35 + hf * 0.65)
+      v.x += Math.cos(ang) * jag; v.z += Math.sin(ang) * jag
+    }
+    pos.setXYZ(k, v.x, v.y, v.z)
+    const snow = Math.max(0, (hf - 0.58) / 0.42)      // snow gathers on the tops
+    const c = rockC.clone().lerp(snowC, snow * snow)
+    col.push(c.r, c.g, c.b)
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
+  return new THREE.Mesh(geo, ridgeMat)
+}
+for (let i = 0; i < 30; i++) {
+  const a = (i / 30) * Math.PI * 2 + (i % 7) * 0.05
+  const band = i % 3
+  const r = [70, 88, 104][band] + (i * 29 % 14)
+  const hgt = [10, 16, 23][band] + (i * 17 % 8)
+  const baseR = [12, 15, 19][band] + (i * 13 % 6)
+  const m = mountain(baseR, hgt, 7 + (i % 3), i * 1.7)
+  m.position.set(Math.cos(a) * r, hgt / 2 - 3, Math.sin(a) * r)
+  m.rotation.y = i * 0.9
+  m.scale.x = 1 + (i % 5) * 0.14        // asymmetric, so peaks lean into ridgelines
+  celestial.add(m); ridges.push(m)
 }
 const meteor = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: 0xdfeaff, transparent: true, opacity: 0, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }))
 meteor.scale.set(3.2, 0.5, 1)
@@ -1540,7 +1569,8 @@ function beingMesh(kind, id, thing) {
   }
   return g
 }
-function syncBeings(s, prev) {
+function syncBeings(s, prev, dt) {
+  dt = dt || 0.016
   const seen = new Set()
   const t2 = Math.min(1, Math.max(0, (performance.now() - clock.at) / TICK_MS))
   const place = (kind, id, thing, old) => {
@@ -1569,7 +1599,7 @@ function syncBeings(s, prev) {
       let dAng = want - m.rotation.y
       while (dAng > Math.PI) dAng -= Math.PI * 2
       while (dAng < -Math.PI) dAng += Math.PI * 2
-      m.rotation.y += dAng * 0.25 // the body TURNS, then walks forward
+      m.rotation.y += dAng * Math.min(1, dt * 12) // the body TURNS smoothly, then walks forward
     }
     if (kind === 'citizen') {
       const nm = thing.name ? thing.name + ' (lvl ' + lvlOf(thing) + ')' : '(unnamed)'
@@ -1581,7 +1611,11 @@ function syncBeings(s, prev) {
       if (m.userData.lvl !== undefined && curLvl > m.userData.lvl) levelBurst(m.position)
       m.userData.lvl = curLvl
       const moving = thing.x !== ox || thing.y !== oy
-      const ph = Math.sin(performance.now() / 140)
+      // eased locomotion: the walk fades in and out instead of snapping on,
+      // and the gait advances on a dt clock so it's smooth at any frame rate
+      const mv = m.userData.mv = (m.userData.mv ?? 0) + ((moving ? 1 : 0) - (m.userData.mv ?? 0)) * Math.min(1, dt * 9)
+      m.userData.gait = (m.userData.gait ?? 0) + dt * (7.5 + mv * 2)
+      const ph = Math.sin(m.userData.gait)
       if (m.userData.rigged) { // clips crossfade; missing clips get body english
         const fighting2 = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
         const working2 = thing.action?.type === 'gather'
@@ -1615,18 +1649,25 @@ function syncBeings(s, prev) {
         const exch = fighting && ((s.tick - (thing.action.since ?? 0)) % 2 === 0
           || thing.equipment?.weapon?.item === 'old-chain')
         const strikeT2 = exch ? Math.max(0, Math.sin(t2 * Math.PI)) : 0
-        m.userData.legs[0].rotation.x = moving ? ph * 0.65 : 0
-        m.userData.legs[1].rotation.x = moving ? -ph * 0.65 : 0
-        m.userData.legs[0].userData.joint.rotation.x = moving ? Math.max(0, -ph) * 0.9 : 0
-        m.userData.legs[1].userData.joint.rotation.x = moving ? Math.max(0, ph) * 0.9 : 0
-        m.userData.arms[0].rotation.x = moving ? -ph * 0.5 : 0.06
-        m.userData.arms[1].rotation.x = fighting ? (exch ? (-2.4 + strikeT2 * 2.4) : -1.1)
-          : working ? (-2.0 + Math.abs(Math.sin(performance.now() / 420)) * 1.5) // the axe rises and falls
-          : (moving ? ph * 0.5 : 0.06)
-        m.userData.arms[0].userData.joint.rotation.x = moving ? -0.3 : -0.12
-        m.userData.arms[1].userData.joint.rotation.x = (fighting || working) ? -0.5 : (moving ? -0.3 : -0.12)
-        m.userData.torso.scale.y = 1 + Math.sin(performance.now() / 900 + m.position.x) * 0.015 // breath
-        if (m.userData.cloak) m.userData.cloak.rotation.x = 0.08 + (moving ? 0.28 + ph * 0.05 : Math.sin(performance.now() / 1100) * 0.03)
+        // legs swing on the eased amplitude: a stride that fades out, not off
+        m.userData.legs[0].rotation.x = ph * 0.65 * mv
+        m.userData.legs[1].rotation.x = -ph * 0.65 * mv
+        m.userData.legs[0].userData.joint.rotation.x = Math.max(0, -ph) * 0.9 * mv
+        m.userData.legs[1].userData.joint.rotation.x = Math.max(0, ph) * 0.9 * mv
+        m.userData.arms[0].rotation.x = -ph * 0.5 * mv + 0.06 * (1 - mv)
+        // the working / fighting arm EASES toward its pose, so the swing and
+        // the recovery read as motion instead of a snap between frames
+        const armTarget = fighting ? (exch ? (-2.4 + strikeT2 * 2.4) : -1.1)
+          : working ? (-2.0 + Math.abs(Math.sin(m.userData.gait * 0.85)) * 1.5) // the axe rises and falls
+          : (ph * 0.5 * mv + 0.06 * (1 - mv))
+        const rArm = m.userData.arms[1]
+        rArm.rotation.x += (armTarget - rArm.rotation.x) * Math.min(1, dt * (fighting ? 20 : 11))
+        m.userData.arms[0].userData.joint.rotation.x = -0.3 * mv - 0.12 * (1 - mv)
+        const elbowTarget = (fighting || working) ? -0.5 : (-0.3 * mv - 0.12 * (1 - mv))
+        const rElbow = m.userData.arms[1].userData.joint
+        rElbow.rotation.x += (elbowTarget - rElbow.rotation.x) * Math.min(1, dt * 11)
+        m.userData.torso.scale.y = 1 + Math.sin(m.userData.gait * 0.34) * 0.012 // breath
+        if (m.userData.cloak) m.userData.cloak.rotation.x = 0.08 + 0.28 * mv + Math.sin(m.userData.gait * 0.5) * 0.035
         // the job puts its tool in the hand
         const nd2 = working ? s.nodes[thing.action.nodeId] : null
         if (m.userData.hatchet) {
@@ -1668,9 +1709,11 @@ function syncBeings(s, prev) {
       if (thing.hp <= 0) m.visible = false; else m.visible = true
     } else {
       const moving = thing.x !== ox || thing.y !== oy
+      const mv = m.userData.mv = (m.userData.mv ?? 0) + ((moving ? 1 : 0) - (m.userData.mv ?? 0)) * Math.min(1, dt * 9)
+      m.userData.gait = (m.userData.gait ?? 0) + dt * (7.7 + mv * 3)
       if (m.userData.legs4) for (let li = 0; li < 4; li++)
-        m.userData.legs4[li].rotation.x = moving ? Math.sin(performance.now() / 130 + li * Math.PI / 2) * 0.6 : 0
-      if (m.userData.hunch) m.userData.hunch.rotation.x = 0.32 + Math.sin(performance.now() / 700 + m.position.x) * 0.04
+        m.userData.legs4[li].rotation.x = Math.sin(m.userData.gait + li * Math.PI / 2) * 0.6 * mv
+      if (m.userData.hunch) m.userData.hunch.rotation.x = 0.32 + Math.sin(m.userData.gait * 0.4 + m.position.x) * 0.04
       if (m.userData.hpbar) {
         m.userData.maxHp = Math.max(m.userData.maxHp ?? thing.hp, thing.hp)
         if (m.userData.lastHp !== undefined && thing.hp < m.userData.lastHp) {
@@ -1947,7 +1990,7 @@ function animate(now) {
   }
   if (!world) return
   const s = world
-  syncBeings(s, prevWorld)
+  syncBeings(s, prevWorld, dt)
   const t2 = Math.min(1, Math.max(0, (now - clock.at) / TICK_MS))
   const cyc = (((s.tick + t2) % DAY) / DAY)
   const bright = (Math.sin(cyc * Math.PI * 2) + 1) / 2
@@ -1986,7 +2029,7 @@ function animate(now) {
   fogCol.copy(NIGHT_HOR).lerp(DAY_HOR, day).lerp(DUSK_HOR, dusk * 0.32)
   scene.fog.color.copy(fogCol)
   renderer.setClearColor(scene.fog.color)
-  ridgeMat.color.setHSL(0.62, 0.22, 0.04 + day * 0.14)
+  ridgeMat.color.setHSL(0.6, 0.10, 0.5 + day * 0.42) // scales the rock-and-snow vertex colors by the hour
 
   // ---- WEATHER: the tick decides the sky, and every window agrees ----
   const tgt = weatherAt(s.tick)
@@ -2152,7 +2195,7 @@ function animate(now) {
     if (hit && hit.distance < len) camDesired.copy(hit.point).addScaledVector(toCam, -0.5)
     camDesired.y = Math.max(camDesired.y, 0.8)
   }
-  camera.position.lerp(camDesired, 0.28)
+  camera.position.lerp(camDesired, Math.min(1, dt * 9))
   camera.lookAt(fx, 0.6, fz)
   // ---- LOD + footstep dust: distant folk shed shadows and nameplates,
   // and a scuff of dust rises where the near ones tread ----
