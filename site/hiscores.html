@@ -6,6 +6,21 @@
   <h1>Hiscores</h1>
   <p class="tagline">Every rank on this page is cryptographically provable. No exceptions, no appeals.</p>
   <div id="board">loading the world…</div>
+
+  <h2>The Sixteen</h2>
+  <p>One race per skill, and each one can only be won once. A race that is
+  over names its winner for as long as the world lasts. A race still running
+  names whoever is closest, and how much of the climb they have behind them.
+  The last level alone is 1,112,977 experience, near a seventh of the whole
+  ascent, so a citizen can sit in sight of mastery for a very long time while
+  everyone watches.</p>
+  <div id="races">loading the races…</div>
+
+  <h2>The Firsts</h2>
+  <p>Twenty-four things can be done first, and each of them only once in the
+  whole life of this world. The ledger has always remembered who did them.
+  This is simply the page that says so.</p>
+  <div id="firsts">loading the record…</div>
   <p style="font-size:11px;color:var(--dim);margin-top:14px">Raw data:
   <code>GET /api/hiscores</code>. Identities are free, so global rank is
   a measure of work done, not of who's "best": real prestige lives in
@@ -28,6 +43,81 @@ async function load() {
     document.getElementById('board').innerHTML = html + '</table>'
   } catch { document.getElementById('board').textContent = 'world unreachable. Is a node running?' }
 }
+// the honour roll. Not a ranking: a record, in the order the world set it down.
+const FIRST_NAMES = {
+  sigil: 'pressed three stones into a sigil',
+  surveyor: 'surveyed the frontier',
+  brewer: 'drew a finished brew',
+  watchfire: 'raised a watchfire',
+  knightslayer: 'felled a skeleton-knight',
+  stargear: 'wore starmetal',
+  wilds: 'walked into the Wilds',
+  totalmaster: 'became Master of Interval',
+}
+const firstLabel = (key) => key.startsWith('master:')
+  ? 'mastered ' + key.slice(7)
+  : (FIRST_NAMES[key] ?? key)
+
+async function loadFirsts() {
+  const el = document.getElementById('firsts')
+  try {
+    const r = await fetch('/api/firsts'); const j = await r.json()
+    const got = j.firsts ?? []
+    if (!got.length) {
+      el.innerHTML = '<p style="color:var(--dim)">Nothing has been done first yet. '
+        + 'Every one of them is still there to be taken.</p>'
+      return
+    }
+    // the plain honours before the masteries, each in the order the world set it
+    const rank = (f) => (f.key.startsWith('master:') ? 1 : 0)
+    got.sort((a, b) => rank(a) - rank(b) || a.key.localeCompare(b.key))
+    let html = '<table><tr><th>Deed</th><th>First citizen</th></tr>'
+    for (const f of got) {
+      const who = f.name
+        ? '<b style="color:var(--gold)">' + f.name + '</b>'
+        : '<span style="color:var(--dim)">' + f.playerId.slice(0, 12) + '\u2026</span>'
+      html += '<tr><td>' + firstLabel(f.key) + '</td><td>' + who + '</td></tr>'
+    }
+    el.innerHTML = html + '</table>'
+      + '<p style="font-size:11px;color:var(--dim);margin-top:10px">'
+      + got.length + ' of 24 claimed. Raw data: <code>GET /api/firsts</code>.</p>'
+  } catch { el.textContent = 'world unreachable. Is a node running?' }
+}
+
+async function loadRaces() {
+  const el = document.getElementById('races')
+  try {
+    const r = await fetch('/api/races'); const j = await r.json()
+    const rs = j.races ?? []
+    if (!rs.length) { el.textContent = 'no skills reported'; return }
+    let html = '<table><tr><th>Skill</th><th>Standing</th><th>Closest</th></tr>'
+    for (const x of rs) {
+      if (x.settled) {
+        html += '<tr><td>' + x.skill + '</td>'
+          + '<td style="color:#ffcc33;font-weight:bold">mastered</td>'
+          + '<td><b style="color:var(--gold)">' + x.name + '</b> was first</td></tr>'
+      } else if (!x.name) {
+        html += '<tr><td>' + x.skill + '</td>'
+          + '<td style="color:var(--dim)">unclaimed</td>'
+          + '<td style="color:var(--dim)">nobody has begun</td></tr>'
+      } else {
+        const bar = '<span style="display:inline-block;width:70px;height:6px;background:#2a2114;'
+          + 'border:1px solid #55462d;vertical-align:1px;margin-right:7px">'
+          + '<span style="display:block;height:6px;width:' + x.pct + '%;background:var(--gold)"></span></span>'
+        html += '<tr><td>' + x.skill + '</td>'
+          + '<td style="color:var(--dim)">unclaimed</td>'
+          + '<td>' + bar + '<b style="color:var(--gold)">' + x.name + '</b> '
+          + '<span style="color:var(--dim)">level ' + x.level
+          + (x.level >= 90 ? ', ' + x.toGo.toLocaleString() + ' to go' : '')
+          + '</span></td></tr>'
+      }
+    }
+    el.innerHTML = html + '</table>'
+  } catch { el.textContent = 'world unreachable. Is a node running?' }
+}
+
 load(); setInterval(load, 3000)
+loadRaces(); setInterval(loadRaces, 5000)
+loadFirsts(); setInterval(loadFirsts, 8000)
 </script>
 </body></html>
