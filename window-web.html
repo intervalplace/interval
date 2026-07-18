@@ -650,9 +650,9 @@ function stepToward(s, me, goal, reach, stampTick) {
   const step = nextStep(s, me, goals)
   if (step === null) { feed("You can't reach that."); intent = null; return }
   if (step === 'arrived') return
-  facing[myId] = step.dx !== 0 ? step.dx : (facing[myId] ?? 1)
   const tk = allocTick()
   if (tk === null) return // the tick line is full; step on the next state
+  facing[myId] = step.dx !== 0 ? step.dx : (facing[myId] ?? 1)
   moveLock = { x: me.x + step.dx, y: me.y + step.dy, tick: tk, until: tk + 2 }
   send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
 }
@@ -778,8 +778,16 @@ function allocTick() {
   // stamping ever-further futures: each impatient click made the world
   // LESS responsive. A saturated allocator drops the duplicate instead:
   // the click already in flight will do the same job.
-  const t = Math.max((world?.tick ?? 0) + 1, lastStamped + 1)
-  if (t > (world?.tick ?? 0) + 2) return null
+  // The stamp only ever climbed, and nothing ever brought it back. If the
+  // world went BACKWARD (reconnecting to an earlier state, or a node restarted
+  // with a fresh one) the allocator was stranded in a future that never
+  // arrived: every step refused, forever, while the citizen still turned to
+  // face the goal. Resync whenever the stamp is outside the window it is
+  // allowed to occupy, in either direction.
+  const cur = world?.tick ?? 0
+  if (lastStamped < cur || lastStamped > cur + 2) lastStamped = cur
+  const t = Math.max(cur + 1, lastStamped + 1)
+  if (t > cur + 2) return null
   lastStamped = t
   return t
 }
@@ -1021,10 +1029,14 @@ function onState(s, worldId) {
 
     // death: computed FIRST, so nothing below can misread it (and nothing
     // above it may reference it: that lesson cost us a frozen panel)
-    const died = me.hp > old.hp
-      && (me.x !== old.x || me.y !== old.y)
-      && old.inventory.some(Boolean) && !me.inventory.some(Boolean)
-    if (died) {
+    // The engine says so itself: deadUntil is set the moment you fall, and
+    // deleted when you wake. Guessing from hp, position and an emptied pack
+    // was wrong for anyone who died carrying nothing, and their resurrection
+    // was announced as a fish.
+    const justFell = (me.deadUntil ?? 0) > (old.deadUntil ?? 0)
+    const justWoke = old.deadUntil !== undefined && me.deadUntil === undefined
+    const died = justFell || justWoke
+    if (justFell) {
       feed('Oh dear, you are dead. You awaken at the crossroads; your bank remembers what your hands forgot.')
       tone(160, 0.5, { type: 'sawtooth', vol: 0.05, glide: 60 })
       tone(110, 0.7, { type: 'sine', vol: 0.06, glide: 50, at: 0.2 })
@@ -1045,7 +1057,15 @@ function onState(s, worldId) {
       }
     }
     if (me.hp < old.hp) { feed('You take ' + (old.hp - me.hp) + ' damage.'); SFX.hit() }
-    if (me.hp > old.hp && !died) { feed('You eat the fish. It heals ' + (me.hp - old.hp) + '.'); SFX.eat() }
+    if (me.hp > old.hp && !died) { // name what actually left the pack
+      const gone = (it) => old.inventory.filter(sl => sl?.item === it).length
+                         > me.inventory.filter(sl => sl?.item === it).length
+      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth'
+                 : gone('ale') ? 'the ale' : null
+      feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.'
+                : 'You recover ' + (me.hp - old.hp) + '.')
+      SFX.eat()
+    }
     // announce what landed in the inventory this tick
     const GAIN = {
   'wooden-bow': 'You whittle the log into a bow.',
