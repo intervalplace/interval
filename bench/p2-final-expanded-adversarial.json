@@ -1,0 +1,370 @@
+{
+  "engine": "../engine.js",
+  "node": "v22.22.2",
+  "profile": "expanded",
+  "workload": "adversarial",
+  "ticks": 30,
+  "when": "2026-07-18T03:44:43.571Z",
+  "results": [
+    {
+      "pop": 100,
+      "profile": "expanded",
+      "workload": "adversarial",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "adv": 100
+      },
+      "inputsPerTick": 100,
+      "stats": {
+        "verify": {
+          "median": 13.997373,
+          "p95": 21.423347,
+          "max": 23.084972
+        },
+        "hash": {
+          "median": 19.411042000000002,
+          "p95": 28.093943,
+          "max": 61.065284000000005
+        },
+        "next": {
+          "median": 45.819751,
+          "p95": 83.642156,
+          "max": 100.984787
+        },
+        "total": {
+          "median": 79.127368,
+          "p95": 124.760633,
+          "max": 185.135043
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 2.06119,
+          "p95": 8.177146,
+          "max": 12.346118
+        },
+        "index_build": {
+          "median": 3.329377,
+          "p95": 11.931438,
+          "max": 15.077721
+        },
+        "pre_tick": {
+          "median": 5.204353,
+          "p95": 14.588358,
+          "max": 14.798849
+        },
+        "input_prep": {
+          "median": 0.041785,
+          "p95": 0.082631,
+          "max": 0.0856
+        },
+        "input_apply": {
+          "median": 2.596575,
+          "p95": 6.006583,
+          "max": 6.369475
+        },
+        "actions": {
+          "median": 0.039596,
+          "p95": 0.065955,
+          "max": 0.083905
+        },
+        "beacon": {
+          "median": 30.725852,
+          "p95": 55.870513,
+          "max": 56.061863
+        },
+        "mastery": {
+          "median": 0.187118,
+          "p95": 1.065543,
+          "max": 1.160614
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 3655,
+        "typeLookups": 8,
+        "adjLookups": 2785,
+        "indexBuilds": 60,
+        "indexUpdates": 100
+      },
+      "replayTps": 11.627480473549577,
+      "replaySpeedup": 6.976488284129745,
+      "finalHash": "6444102bf695f0b34f63033876c538dd98b974f6c7ab81755354bfa069cc76b5"
+    },
+    {
+      "pop": 500,
+      "profile": "expanded",
+      "workload": "adversarial",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "adv": 500
+      },
+      "inputsPerTick": 500,
+      "stats": {
+        "verify": {
+          "median": 53.823035,
+          "p95": 66.986413,
+          "max": 74.593355
+        },
+        "hash": {
+          "median": 32.508430000000004,
+          "p95": 56.829142000000004,
+          "max": 59.107347
+        },
+        "next": {
+          "median": 61.018441,
+          "p95": 122.93387,
+          "max": 123.8465
+        },
+        "total": {
+          "median": 148.460616,
+          "p95": 224.566726,
+          "max": 241.70218
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 3.389734,
+          "p95": 10.522349,
+          "max": 10.553349
+        },
+        "index_build": {
+          "median": 6.118203,
+          "p95": 16.548609,
+          "max": 32.532302
+        },
+        "pre_tick": {
+          "median": 5.638236,
+          "p95": 17.883303,
+          "max": 27.976659
+        },
+        "input_prep": {
+          "median": 0.174454,
+          "p95": 0.24884,
+          "max": 0.35609
+        },
+        "input_apply": {
+          "median": 15.339563,
+          "p95": 29.318748,
+          "max": 30.892202
+        },
+        "actions": {
+          "median": 0.188387,
+          "p95": 0.231239,
+          "max": 0.242663
+        },
+        "beacon": {
+          "median": 30.301125,
+          "p95": 66.704234,
+          "max": 76.186602
+        },
+        "mastery": {
+          "median": 0.946402,
+          "p95": 3.066032,
+          "max": 5.76863
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 11285,
+        "typeLookups": 10,
+        "adjLookups": 13898,
+        "indexBuilds": 60,
+        "indexUpdates": 500
+      },
+      "replayTps": 6.149775469237707,
+      "replaySpeedup": 3.689865281542624,
+      "finalHash": "675e345630ed5d6e34f757ab4ac73f7352baf1e6bcc9abf814849933ff62b7ec"
+    },
+    {
+      "pop": 1000,
+      "profile": "expanded",
+      "workload": "adversarial",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "adv": 1000
+      },
+      "inputsPerTick": 1000,
+      "stats": {
+        "verify": {
+          "median": 135.598659,
+          "p95": 146.125819,
+          "max": 147.536915
+        },
+        "hash": {
+          "median": 44.391487999999995,
+          "p95": 52.846531000000006,
+          "max": 84.60420500000001
+        },
+        "next": {
+          "median": 82.079934,
+          "p95": 106.104238,
+          "max": 120.217535
+        },
+        "total": {
+          "median": 262.272123,
+          "p95": 290.538539,
+          "max": 301.086693
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 5.308759,
+          "p95": 11.029319,
+          "max": 11.326087
+        },
+        "index_build": {
+          "median": 4.355451,
+          "p95": 11.948897,
+          "max": 18.597324
+        },
+        "pre_tick": {
+          "median": 5.36797,
+          "p95": 20.165239,
+          "max": 41.536054
+        },
+        "input_prep": {
+          "median": 0.308037,
+          "p95": 0.45599,
+          "max": 10.790481
+        },
+        "input_apply": {
+          "median": 27.312242,
+          "p95": 44.803311,
+          "max": 49.453418
+        },
+        "actions": {
+          "median": 0.402157,
+          "p95": 0.528245,
+          "max": 3.668791
+        },
+        "beacon": {
+          "median": 31.748322,
+          "p95": 45.175523,
+          "max": 67.73097
+        },
+        "mastery": {
+          "median": 1.159284,
+          "p95": 1.271799,
+          "max": 1.278814
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 20882,
+        "typeLookups": 10,
+        "adjLookups": 27793,
+        "indexBuilds": 60,
+        "indexUpdates": 1000
+      },
+      "replayTps": 3.8111635656726732,
+      "replaySpeedup": 2.2866981394036037,
+      "finalHash": "778233da0dbac06b6f8b73f26f6059a2f9388c994cd1757265424b5ec4c11b31"
+    },
+    {
+      "pop": 2000,
+      "profile": "expanded",
+      "workload": "adversarial",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "adv": 2000
+      },
+      "inputsPerTick": 2000,
+      "stats": {
+        "verify": {
+          "median": 284.282542,
+          "p95": 324.960568,
+          "max": 327.380164
+        },
+        "hash": {
+          "median": 74.590574,
+          "p95": 97.465245,
+          "max": 167.622004
+        },
+        "next": {
+          "median": 125.31083,
+          "p95": 177.279999,
+          "max": 220.091053
+        },
+        "total": {
+          "median": 487.612711,
+          "p95": 563.340824,
+          "max": 605.441236
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 9.722552,
+          "p95": 20.066422,
+          "max": 22.046906
+        },
+        "index_build": {
+          "median": 5.962564,
+          "p95": 15.889088,
+          "max": 16.038414
+        },
+        "pre_tick": {
+          "median": 7.242423,
+          "p95": 18.216581,
+          "max": 24.816236
+        },
+        "input_prep": {
+          "median": 0.643282,
+          "p95": 7.345117,
+          "max": 7.791484
+        },
+        "input_apply": {
+          "median": 58.153191,
+          "p95": 92.864239,
+          "max": 112.117324
+        },
+        "actions": {
+          "median": 0.923705,
+          "p95": 1.188065,
+          "max": 1.242769
+        },
+        "beacon": {
+          "median": 34.22345,
+          "p95": 43.592829,
+          "max": 52.346152
+        },
+        "mastery": {
+          "median": 2.710595,
+          "p95": 13.588456,
+          "max": 15.03141
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 40015,
+        "typeLookups": 16,
+        "adjLookups": 55519,
+        "indexBuilds": 60,
+        "indexUpdates": 2000
+      },
+      "replayTps": 2.009180105574395,
+      "replaySpeedup": 1.2055080633446371,
+      "finalHash": "022e40182a8b5347e2861b97ddde10fe1efab267457377b451441ef762fb6f66"
+    }
+  ]
+}

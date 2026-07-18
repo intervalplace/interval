@@ -1,0 +1,194 @@
+{
+  "engine": "phase1-engine.cjs",
+  "node": "v22.22.2",
+  "profile": "expanded",
+  "workload": "ordinary",
+  "ticks": 15,
+  "when": "2026-07-18T03:41:10.858Z",
+  "results": [
+    {
+      "pop": 100,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 15,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 10,
+        "move": 30,
+        "gather": 10,
+        "bank": 10,
+        "fight": 10,
+        "cook": 10,
+        "farm": 10,
+        "trade": 10
+      },
+      "inputsPerTick": 90,
+      "stats": {
+        "verify": {
+          "median": 12.964245,
+          "p95": 18.685346,
+          "max": 18.685346
+        },
+        "hash": {
+          "median": 17.218172,
+          "p95": 69.452166,
+          "max": 69.452166
+        },
+        "next": {
+          "median": 347.893215,
+          "p95": 468.216829,
+          "max": 468.216829
+        },
+        "total": {
+          "median": 373.599295,
+          "p95": 513.206993,
+          "max": 513.206993
+        }
+      },
+      "sections": {},
+      "counters": null,
+      "replayTps": 2.7744396993502316,
+      "replaySpeedup": 1.6646638196101389,
+      "finalHash": "6b21209ae48e621ec888b106cfa0fefeda48896ea05e0abe9b772f43dcf8c5fd"
+    },
+    {
+      "pop": 500,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 15,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 50,
+        "move": 150,
+        "gather": 50,
+        "bank": 50,
+        "fight": 50,
+        "cook": 50,
+        "farm": 50,
+        "trade": 50
+      },
+      "inputsPerTick": 450,
+      "stats": {
+        "verify": {
+          "median": 50.767016,
+          "p95": 67.802603,
+          "max": 67.802603
+        },
+        "hash": {
+          "median": 25.941464,
+          "p95": 47.935164,
+          "max": 47.935164
+        },
+        "next": {
+          "median": 845.407304,
+          "p95": 1053.078931,
+          "max": 1053.078931
+        },
+        "total": {
+          "median": 925.707658,
+          "p95": 1163.643922,
+          "max": 1163.643922
+        }
+      },
+      "sections": {},
+      "counters": null,
+      "replayTps": 1.035208513395475,
+      "replaySpeedup": 0.6211251080372849,
+      "finalHash": "753f2b9507b11cff4450eba105af52324cdfaac9b53d0eb93b01217493ec133e"
+    },
+    {
+      "pop": 1000,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 15,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 100,
+        "move": 348,
+        "gather": 100,
+        "bank": 52,
+        "fight": 100,
+        "cook": 100,
+        "farm": 100,
+        "trade": 100
+      },
+      "inputsPerTick": 900,
+      "stats": {
+        "verify": {
+          "median": 63.987853,
+          "p95": 103.485257,
+          "max": 103.485257
+        },
+        "hash": {
+          "median": 38.138652,
+          "p95": 60.847767000000005,
+          "max": 60.847767000000005
+        },
+        "next": {
+          "median": 1617.620118,
+          "p95": 1949.405418,
+          "max": 1949.405418
+        },
+        "total": {
+          "median": 1716.435854,
+          "p95": 2055.331207,
+          "max": 2055.331207
+        }
+      },
+      "sections": {},
+      "counters": null,
+      "replayTps": 0.5716837728070268,
+      "replaySpeedup": 0.34301026368421605,
+      "finalHash": "c6f0fd4c3a40671536cd112a119af993c88c715f0fc7f410b1b61cb311331dfb"
+    },
+    {
+      "pop": 2000,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 15,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 200,
+        "move": 835,
+        "gather": 200,
+        "bank": 52,
+        "fight": 200,
+        "cook": 154,
+        "farm": 159,
+        "trade": 200
+      },
+      "inputsPerTick": 1800,
+      "stats": {
+        "verify": {
+          "median": 254.443599,
+          "p95": 301.778567,
+          "max": 301.778567
+        },
+        "hash": {
+          "median": 54.149358,
+          "p95": 117.126945,
+          "max": 117.126945
+        },
+        "next": {
+          "median": 2959.749583,
+          "p95": 3469.376575,
+          "max": 3469.376575
+        },
+        "total": {
+          "median": 3275.535015,
+          "p95": 3739.442789,
+          "max": 3739.442789
+        }
+      },
+      "sections": {},
+      "counters": null,
+      "replayTps": 0.3033561753121341,
+      "replaySpeedup": 0.18201370518728047,
+      "finalHash": "ac939963382b5437447921634e463236c733cb28f137f0f08f183e8c4e02dba5"
+    }
+  ]
+}

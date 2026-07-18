@@ -1,0 +1,398 @@
+{
+  "engine": "../engine.js",
+  "node": "v22.22.2",
+  "profile": "expanded",
+  "workload": "ordinary",
+  "ticks": 30,
+  "when": "2026-07-18T03:43:20.953Z",
+  "results": [
+    {
+      "pop": 100,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 10,
+        "move": 30,
+        "gather": 10,
+        "bank": 10,
+        "fight": 10,
+        "cook": 10,
+        "farm": 10,
+        "trade": 10
+      },
+      "inputsPerTick": 90,
+      "stats": {
+        "verify": {
+          "median": 12.75708,
+          "p95": 18.467637,
+          "max": 24.861879
+        },
+        "hash": {
+          "median": 18.950548,
+          "p95": 39.294828,
+          "max": 64.539778
+        },
+        "next": {
+          "median": 49.076334,
+          "p95": 98.689738,
+          "max": 101.876299
+        },
+        "total": {
+          "median": 82.683505,
+          "p95": 144.477777,
+          "max": 181.697153
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 2.155495,
+          "p95": 6.489477,
+          "max": 7.412013
+        },
+        "index_build": {
+          "median": 3.63026,
+          "p95": 13.114759,
+          "max": 17.280252
+        },
+        "pre_tick": {
+          "median": 4.654709,
+          "p95": 13.092449,
+          "max": 13.23458
+        },
+        "input_prep": {
+          "median": 0.037849,
+          "p95": 0.087557,
+          "max": 0.087976
+        },
+        "input_apply": {
+          "median": 2.745589,
+          "p95": 6.864671,
+          "max": 10.168637
+        },
+        "actions": {
+          "median": 0.083182,
+          "p95": 0.206825,
+          "max": 0.485265
+        },
+        "beacon": {
+          "median": 32.939232,
+          "p95": 58.311604,
+          "max": 63.177218
+        },
+        "mastery": {
+          "median": 0.186016,
+          "p95": 1.018165,
+          "max": 1.190026
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 2578,
+        "typeLookups": 8,
+        "adjLookups": 3336,
+        "indexBuilds": 60,
+        "indexUpdates": 0
+      },
+      "replayTps": 11.289358393569007,
+      "replaySpeedup": 6.773615036141404,
+      "finalHash": "fadc4d168c1c6023f2e70f7c74803ac1f70548b0def152af6a55edc65ab2b38a"
+    },
+    {
+      "pop": 500,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 50,
+        "move": 150,
+        "gather": 50,
+        "bank": 50,
+        "fight": 50,
+        "cook": 50,
+        "farm": 50,
+        "trade": 50
+      },
+      "inputsPerTick": 450,
+      "stats": {
+        "verify": {
+          "median": 51.502673,
+          "p95": 62.641074,
+          "max": 77.688541
+        },
+        "hash": {
+          "median": 27.44888,
+          "p95": 54.84964,
+          "max": 88.53128600000001
+        },
+        "next": {
+          "median": 63.740246,
+          "p95": 121.808319,
+          "max": 136.227267
+        },
+        "total": {
+          "median": 145.191914,
+          "p95": 235.198689,
+          "max": 264.418902
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 3.086453,
+          "p95": 6.07824,
+          "max": 7.135461
+        },
+        "index_build": {
+          "median": 3.680457,
+          "p95": 8.11115,
+          "max": 12.256355
+        },
+        "pre_tick": {
+          "median": 4.522742,
+          "p95": 13.819792,
+          "max": 15.294515
+        },
+        "input_prep": {
+          "median": 0.154172,
+          "p95": 0.201452,
+          "max": 0.242036
+        },
+        "input_apply": {
+          "median": 14.727887,
+          "p95": 34.959431,
+          "max": 38.319202
+        },
+        "actions": {
+          "median": 0.417732,
+          "p95": 0.890028,
+          "max": 4.120823
+        },
+        "beacon": {
+          "median": 34.793249,
+          "p95": 62.690298,
+          "max": 65.336733
+        },
+        "mastery": {
+          "median": 0.765374,
+          "p95": 2.538329,
+          "max": 3.489622
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 6043,
+        "typeLookups": 8,
+        "adjLookups": 16838,
+        "indexBuilds": 60,
+        "indexUpdates": 0
+      },
+      "replayTps": 6.492778717658958,
+      "replaySpeedup": 3.895667230595375,
+      "finalHash": "575033ff8ff8c0b0055a9954a2c2ed8bc1103abda153646dfe802b563a94a5f3"
+    },
+    {
+      "pop": 1000,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 100,
+        "move": 348,
+        "gather": 100,
+        "bank": 52,
+        "fight": 100,
+        "cook": 100,
+        "farm": 100,
+        "trade": 100
+      },
+      "inputsPerTick": 900,
+      "stats": {
+        "verify": {
+          "median": 124.984418,
+          "p95": 136.957252,
+          "max": 147.572196
+        },
+        "hash": {
+          "median": 36.292542,
+          "p95": 66.603545,
+          "max": 87.467259
+        },
+        "next": {
+          "median": 82.303357,
+          "p95": 162.777388,
+          "max": 184.002668
+        },
+        "total": {
+          "median": 245.007527,
+          "p95": 308.672614,
+          "max": 378.042804
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 4.470336,
+          "p95": 13.816267,
+          "max": 22.694359
+        },
+        "index_build": {
+          "median": 3.821689,
+          "p95": 14.52157,
+          "max": 16.832345
+        },
+        "pre_tick": {
+          "median": 4.851397,
+          "p95": 26.221185,
+          "max": 35.028282
+        },
+        "input_prep": {
+          "median": 0.29618,
+          "p95": 0.360769,
+          "max": 1.766885
+        },
+        "input_apply": {
+          "median": 28.553112,
+          "p95": 53.420741,
+          "max": 61.169976
+        },
+        "actions": {
+          "median": 0.807769,
+          "p95": 2.059975,
+          "max": 8.556989
+        },
+        "beacon": {
+          "median": 34.760973,
+          "p95": 64.258449,
+          "max": 70.634621
+        },
+        "mastery": {
+          "median": 1.072629,
+          "p95": 14.037701,
+          "max": 23.884974
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 11866,
+        "typeLookups": 8,
+        "adjLookups": 30792,
+        "indexBuilds": 60,
+        "indexUpdates": 0
+      },
+      "replayTps": 4.0966316018543525,
+      "replaySpeedup": 2.4579789611126115,
+      "finalHash": "0cf85916650e3606194b26461b34c45fb9f3c807ab92e0a8a914e36d0d429f88"
+    },
+    {
+      "pop": 2000,
+      "profile": "expanded",
+      "workload": "ordinary",
+      "ticks": 30,
+      "worldNodes": 3772,
+      "worldMobs": 331,
+      "roles": {
+        "idle": 200,
+        "move": 835,
+        "gather": 200,
+        "bank": 52,
+        "fight": 200,
+        "cook": 154,
+        "farm": 159,
+        "trade": 200
+      },
+      "inputsPerTick": 1800,
+      "stats": {
+        "verify": {
+          "median": 263.36956,
+          "p95": 281.872347,
+          "max": 289.040668
+        },
+        "hash": {
+          "median": 57.468683,
+          "p95": 82.957352,
+          "max": 108.966863
+        },
+        "next": {
+          "median": 122.407896,
+          "p95": 163.746317,
+          "max": 266.88111
+        },
+        "total": {
+          "median": 446.762473,
+          "p95": 494.54696,
+          "max": 603.203815
+        }
+      },
+      "sections": {
+        "clone": {
+          "median": 7.228496,
+          "p95": 16.129177,
+          "max": 17.118701
+        },
+        "index_build": {
+          "median": 3.622519,
+          "p95": 15.153508,
+          "max": 15.37167
+        },
+        "pre_tick": {
+          "median": 6.445502,
+          "p95": 15.041122,
+          "max": 18.565432
+        },
+        "input_prep": {
+          "median": 0.606305,
+          "p95": 1.384912,
+          "max": 10.160445
+        },
+        "input_apply": {
+          "median": 54.760645,
+          "p95": 72.347357,
+          "max": 125.300358
+        },
+        "actions": {
+          "median": 1.618268,
+          "p95": 6.60236,
+          "max": 21.380554
+        },
+        "beacon": {
+          "median": 38.552435,
+          "p95": 76.655802,
+          "max": 77.916134
+        },
+        "mastery": {
+          "median": 2.311544,
+          "p95": 15.522351,
+          "max": 18.972253
+        }
+      },
+      "counters": {
+        "fullNodeScans": 0,
+        "fullPlayerScans": 0,
+        "fullMobScans": 0,
+        "fullGroundScans": 0,
+        "posLookups": 26175,
+        "typeLookups": 8,
+        "adjLookups": 55876,
+        "indexBuilds": 60,
+        "indexUpdates": 0
+      },
+      "replayTps": 2.2053943076132914,
+      "replaySpeedup": 1.3232365845679748,
+      "finalHash": "b711d545f9254b261b73cf259ed1f1fc706b8cfca2943da6024f989e662e4ef9"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "engine": "/home/claude/interval-v0.52/engine.js",
+  "node": "v22.22.2",
+  "when": "2026-07-17T21:01:16.568Z",
+  "results": [
+    {
+      "population": 1000,
+      "ticks": 10,
+      "verify": {
+        "median": 1499.103463,
+        "p95": 1616.041716,
+        "max": 1616.041716
+      },
+      "hash": {
+        "median": 35.831463,
+        "p95": 64.208306,
+        "max": 64.208306
+      },
+      "next": {
+        "median": 2110.89493,
+        "p95": 2298.378869,
+        "max": 2298.378869
+      },
+      "total": {
+        "median": 3631.496976,
+        "p95": 3978.628891,
+        "max": 3978.628891
+      },
+      "ticksPerSec": 0.27192968175276044,
+      "replayTicksPerSec": 0.47954915280007493,
+      "replaySpeedup": 0.28772949168004497,
+      "finalHash": "0b7141da31a6673f5d890b1ccbdb72854a980a915bce1b654bdc10c9eaf0c4c5",
+      "perf": null
+    },
+    {
+      "population": 2000,
+      "ticks": 10,
+      "verify": {
+        "median": 2995.298555,
+        "p95": 3075.278107,
+        "max": 3075.278107
+      },
+      "hash": {
+        "median": 58.22243,
+        "p95": 92.660896,
+        "max": 92.660896
+      },
+      "next": {
+        "median": 4276.334091,
+        "p95": 4452.658753,
+        "max": 4452.658753
+      },
+      "total": {
+        "median": 7347.69476,
+        "p95": 7492.343459,
+        "max": 7492.343459
+      },
+      "ticksPerSec": 0.13730081096588345,
+      "replayTicksPerSec": 0.2409640204791376,
+      "replaySpeedup": 0.14457841228748256,
+      "finalHash": "7d06d1acd93dc8642987cd133b0c17676fddac922356c581cdc2e322e1decabf",
+      "perf": null
+    }
+  ]
+}

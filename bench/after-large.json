@@ -1,0 +1,83 @@
+{
+  "engine": "/home/claude/interval-v0.52/engine.js",
+  "node": "v22.22.2",
+  "when": "2026-07-17T21:16:40.821Z",
+  "results": [
+    {
+      "population": 1000,
+      "ticks": 10,
+      "verify": {
+        "median": 124.664636,
+        "p95": 177.642506,
+        "max": 177.642506
+      },
+      "hash": {
+        "median": 22.679571,
+        "p95": 81.27789299999999,
+        "max": 81.27789299999999
+      },
+      "next": {
+        "median": 604.87157,
+        "p95": 731.830458,
+        "max": 731.830458
+      },
+      "total": {
+        "median": 773.208894,
+        "p95": 988.974035,
+        "max": 988.974035
+      },
+      "ticksPerSec": 1.2759554791802348,
+      "replayTicksPerSec": 1.7964619775039112,
+      "replaySpeedup": 1.0778771865023467,
+      "finalHash": "0b7141da31a6673f5d890b1ccbdb72854a980a915bce1b654bdc10c9eaf0c4c5",
+      "perf": {
+        "backend": "native+fallback",
+        "sigCacheHits": 18144,
+        "sigCacheMisses": 9054,
+        "sigCacheEvictions": 0,
+        "nativeCalls": 9054,
+        "fallbackCalls": 24,
+        "stateHashHits": 10,
+        "stateHashMisses": 12
+      }
+    },
+    {
+      "population": 2000,
+      "ticks": 10,
+      "verify": {
+        "median": 132.033867,
+        "p95": 266.476099,
+        "max": 266.476099
+      },
+      "hash": {
+        "median": 35.966214,
+        "p95": 77.992287,
+        "max": 77.992287
+      },
+      "next": {
+        "median": 1124.97287,
+        "p95": 1186.144522,
+        "max": 1186.144522
+      },
+      "total": {
+        "median": 1298.526731,
+        "p95": 1427.320098,
+        "max": 1427.320098
+      },
+      "ticksPerSec": 0.7653260119248996,
+      "replayTicksPerSec": 0.7266471161838601,
+      "replaySpeedup": 0.43598826971031607,
+      "finalHash": "7d06d1acd93dc8642987cd133b0c17676fddac922356c581cdc2e322e1decabf",
+      "perf": {
+        "backend": "native+fallback",
+        "sigCacheHits": 44492,
+        "sigCacheMisses": 37106,
+        "sigCacheEvictions": 20722,
+        "nativeCalls": 37106,
+        "fallbackCalls": 98,
+        "stateHashHits": 20,
+        "stateHashMisses": 24
+      }
+    }
+  ]
+}
