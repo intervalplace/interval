@@ -47,14 +47,17 @@ let SKILLS = [], VIEW = 'standing', LAST = null
 // A citizen is introduced by their CALLING though, and a calling had no board
 // at all: the best brewer alive had no way to learn that they were.
 // Seventeen equal buttons is a wall. Standing is not a trade and should not
-// look like one, and the sixteen fall into three plain families that a citizen
-// already thinks in: what you take from the land, what you make of it, and
-// what you do when something objects.
+// look like one, and the sixteen already have families: these are the manual's
+// own, copied from its skills table so the site cannot quietly disagree with
+// its own documentation about what kind of thing a skill is.
 const FAMILIES = [
-  ['what you gather', ['woodcutting', 'mining', 'fishing', 'farming', 'exploration']],
-  ['what you make',   ['smithing', 'cooking', 'firemaking', 'brewing', 'fletching']],
-  ['what you fight',  ['attack', 'defence', 'hitpoints', 'ranged', 'magic', 'prayer']],
+  ['gathering',  ['woodcutting', 'mining', 'fishing', 'farming']],
+  ['processing', ['cooking', 'firemaking', 'smithing', 'fletching', 'magic']],
+  ['combat',     ['attack', 'defence', 'hitpoints', 'ranged']],
+  ['profession', ['brewing', 'exploration']],
+  ['mourning',   ['prayer']],
 ]
+
 function drawPicker() {
   const el = document.getElementById('picker')
   if (!SKILLS.length) return
@@ -63,7 +66,7 @@ function drawPicker() {
   const known = new Set(SKILLS)
   let html = '<div class="prow prow-top">'
     + '<button class="stab wide' + (VIEW === 'standing' ? ' on' : '')
-    + '" data-view="standing">the whole world</button></div>'
+    + '" data-view="standing">standing</button></div>'
   for (const [label, group] of FAMILIES) {
     const present = group.filter(x => known.has(x))
     if (!present.length) continue
@@ -86,7 +89,7 @@ function drawBoard(j) {
   if (!j.players.length) { el.textContent = 'No citizens yet. Be first.'; return }
 
   if (VIEW === 'standing') { // every trade at once, for the whole world
-    let html = '<table><tr><th class="rank">Rank</th><th>Name</th><th>Total</th>'
+    let html = '<table><tr><th class="rank">Rank</th><th>Name</th><th>Standing</th>'
       + SKILLS.map(s => '<th>' + s + '</th>').join('') + '</tr>'
     j.players.forEach((p, i) => {
       html += '<tr><td class="rank">' + (i+1) + '</td><td>' + p.name

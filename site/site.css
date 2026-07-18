@@ -176,11 +176,11 @@ h1 {
 /* the trade picker. Three short labelled rows read faster than seventeen equal
    buttons, and the whole-world board sits apart because it is not a trade. */
 #picker { margin: 0 0 16px; }
-.prow { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 4px; }
+.prow { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; margin-bottom: 3px; }
 .prow-top { margin-bottom: 9px; }
 .plab {
   font: italic 10px Georgia, serif; color: var(--dim); letter-spacing: .3px;
-  width: 96px; flex: 0 0 96px; text-align: right; padding-right: 9px;
+  width: 78px; flex: 0 0 78px; text-align: right; padding-right: 9px;
 }
 .stab {
   font: bold 11px Verdana, sans-serif; letter-spacing: .3px; cursor: pointer;
