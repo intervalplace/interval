@@ -163,7 +163,44 @@
      insists — and the offer stands in the state itself for all windows
      to see until it is accepted beside you or withdrawn. Their offers
      arrive the moment the state carries them. The deluxe window now
-     speaks the engine's entire language. -->
+     speaks the engine's entire language.
+
+     Then the sky learned to be weather, and the window learned to be
+     left alone. The dome carries its own clouds now: two warped veils
+     of noise drifting on a wind whose ledger the CPU keeps, silver at
+     the sun's edge, alight at dusk, bruised under storm, black by
+     midnight — the sprites keep their parallax, the dome carries the
+     mood, and the stars go out when the overcast says so. The stars
+     themselves came alive: each one its own size, its own color (white
+     mostly, blue giants, a few old red suns), its own pulse no
+     neighbor shares — and at night they ride the water beside the
+     moon's road. The moon keeps a calendar: the tick turns the phase,
+     a terminator slides across the face, and the halo and the cold key
+     light wax and wane with it. The storm's flash finally has a BODY —
+     a jagged bolt minted fresh per strike, forked twice, flickering
+     for the fifth of a second the light allows. The lens confesses an
+     anamorphic smear through the sun. And forty-five untouched seconds
+     buy the idle cinema: the slowest orbit there is, letterbox bars
+     breathing in, the world as a painting that happens to be true —
+     one touch buys it all back.
+
+     Then the axe learned the difference between rock and wood, the
+     fanfare came home, and the walk stood up straight. Rock is BEATEN —
+     the pick keeps its overhead rise-and-drop — but wood is FELLED: the
+     arm winds out to the side and back on an axis the animator never
+     owned before, the torso coils behind it, and the whole side of the
+     body whips the bit level into the trunk, edge turned to face the
+     cut, hips carrying it through, the off arm counterbalancing the
+     arc. The level-up now sings the reference window's own fanfare,
+     ported note for note — every note its own voice with its own bloom
+     and ring, the high C held over its quiet fifth — enhanced only by
+     a near-silent octave above the crown and a breath of glitter as it
+     opens, timed so the first firework shell pops as the top note
+     lands. And the lean finally leans the right way: the walk-pitch
+     was turning about the WORLD's x-axis (Euler order XYZ), so a
+     citizen walking south leaned backward and one walking east tipped
+     sideways; YXZ pitches the body in its own heading, and every
+     walker now leans INTO the walk, wherever the walk is going. -->
 <html>
 <head>
 <meta charset="utf-8">
@@ -754,7 +791,11 @@ function cloudTex(seed) {
   }
   return new THREE.CanvasTexture(c)
 }
-function moonTex() {
+function moonTex(phase) {
+  // the moon keeps a CALENDAR now: the tick chooses the phase, and a
+  // shadow disc slides across the face — full at the cycle's ends, new
+  // at its heart, crescents between. Redrawn only when the phase bucket
+  // turns, which is to say almost never.
   const c = document.createElement('canvas'); c.width = 128; c.height = 128
   const g2 = c.getContext('2d')
   const gr = g2.createRadialGradient(64, 64, 10, 64, 64, 62)
@@ -764,13 +805,27 @@ function moonTex() {
   for (const [mx, my, mr] of [[46,42,9],[82,70,12],[58,88,7],[88,38,5],[40,72,6],[70,50,4]]) {
     g2.beginPath(); g2.arc(mx, my, mr, 0, 7); g2.fill()
   }
+  if (phase !== undefined) {
+    const cx = 64 + (phase * 2 - 1) * 250 // the shadow's slow transit
+    g2.globalCompositeOperation = 'source-atop'
+    g2.fillStyle = 'rgba(7,9,17,.93)'
+    g2.beginPath(); g2.arc(cx, 58, 118, 0, 7); g2.fill()
+  }
   return new THREE.CanvasTexture(c)
 }
 
-// ---- the sky itself, a shader: sun disc, dusk blush, night fall ----
+// ---- the sky itself, a shader: sun disc, dusk blush, night fall —
+// and now WEATHER IN THE DOME. Two warped veils of value noise drift on
+// the wind, real clouds painted into the sky instead of hung in front
+// of it: silver at the sun's edge, alight at dusk, bruised grey under
+// storm, near-black by midnight, thin at the zenith and piling at the
+// horizon the way distance piles them. The sprites keep their parallax;
+// the dome carries the mood. ----
 const skyMat = new THREE.ShaderMaterial({
   side: THREE.BackSide, depthWrite: false, fog: false,
-  uniforms: { uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uDay: { value: 1 }, uDusk: { value: 0 } },
+  uniforms: { uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uDay: { value: 1 }, uDusk: { value: 0 },
+    uTime: uT, uCloud: { value: 0.3 }, uGloom: { value: 0 },
+    uCloudOff: { value: new THREE.Vector2(0, 0) } }, // accumulated, never derived: wind may change without the sky snapping
   vertexShader: `
     varying vec3 vDir;
     void main() {
@@ -781,7 +836,19 @@ const skyMat = new THREE.ShaderMaterial({
     }`,
   fragmentShader: `
     uniform vec3 uSunDir; uniform float uDay; uniform float uDusk;
+    uniform float uTime; uniform float uCloud; uniform float uGloom; uniform vec2 uCloudOff;
     varying vec3 vDir;
+    float h21(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+    float vn(vec2 p) {
+      vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+      return mix(mix(h21(i), h21(i + vec2(1.0, 0.0)), f.x),
+                 mix(h21(i + vec2(0.0, 1.0)), h21(i + vec2(1.0, 1.0)), f.x), f.y);
+    }
+    float fbm(vec2 p) { // five octaves: enough for cauliflower, cheap enough for phones
+      float v = 0.0; float a = 0.5;
+      for (int i = 0; i < 5; i++) { v += a * vn(p); p = p * 2.17 + vec2(13.7, 9.1); a *= 0.52; }
+      return v;
+    }
     void main() {
       vec3 d = normalize(vDir);
       float h = clamp(d.y * 0.5 + 0.5, 0.0, 1.0);
@@ -796,6 +863,24 @@ const skyMat = new THREE.ShaderMaterial({
       col += vec3(1.0, 0.86, 0.62) * pow(sd, 520.0) * 2.4;                    // the disc: tighter, less blinding
       col += vec3(0.95, 0.85, 0.72) * pow(sd, 140.0) * 0.30 * (0.25 + uDay);  // a modest corona
       col += vec3(1.0, 0.66, 0.36) * pow(sd, 20.0) * (0.04 + 0.16 * uDusk);   // a restrained warm haze
+      if (d.y > 0.015) { // ---- the veils: the sky's own clouds ----
+        vec2 cuv = d.xz / (d.y + 0.22);                       // projected onto the cloud deck
+        cuv = cuv * 0.28 + uCloudOff;                          // the wind owns the drift, the CPU keeps the ledger
+        float n1 = fbm(cuv * 1.5);
+        float n = n1 * 0.75 + fbm(cuv * 4.2 + n1 * 1.7) * 0.45; // the second veil curls through the first
+        float cov = smoothstep(1.06 - uCloud * 0.78, 1.26 - uCloud * 0.62, n);
+        float dens = cov * smoothstep(0.015, 0.16, d.y);      // they dissolve into the horizon haze
+        if (dens > 0.002) {
+          float lining = pow(sd, 6.0);
+          vec3 cDay = mix(vec3(0.99, 1.00, 1.03), vec3(0.70, 0.76, 0.87), cov); // bright hearts, shaded bellies
+          vec3 cNight = mix(vec3(0.085, 0.10, 0.17), vec3(0.038, 0.048, 0.09), cov);
+          vec3 cc = mix(cNight, cDay, uDay);
+          cc = mix(cc, vec3(0.33, 0.35, 0.41), uGloom * 0.75);                       // the storm bruises them
+          cc += vec3(1.0, 0.52, 0.28) * uDusk * (0.30 + lining * 1.15) * (1.0 - uGloom); // dusk sets their bellies alight
+          cc += vec3(1.0, 0.93, 0.76) * lining * 0.28 * uDay * (1.0 - uGloom);           // the silver lining, literal
+          col = mix(col, cc, dens * (0.88 - uGloom * 0.1));
+        }
+      }
       col = mix(col, hor * 1.05, pow(1.0 - h, 6.0) * 0.45 * uDay);            // a milky haze pools at the horizon
       col = min(col, vec3(2.2));                                              // ceiling: nothing nukes the frame
       float dn = fract(sin(dot(d.xy, vec2(12.9898, 78.233))) * 43758.5453);   // dither: gradients without staircases
@@ -995,6 +1080,8 @@ const waterMat = new THREE.ShaderMaterial({
       col += vec3(0.72, 0.84, 1.0) * mspec * 0.75;
       float sparkle = pow(max(sin(vWorld.x * 23.0 + uTime * 3.1) * sin(vWorld.z * 19.0 - uTime * 2.3), 0.0), 16.0) * 0.22 * uSun;
       col += sparkle;
+      float nstar = pow(max(sin(vWorld.x * 47.0 + uTime * 0.6) * sin(vWorld.z * 53.0 - uTime * 0.8), 0.0), 24.0);
+      col += vec3(0.75, 0.85, 1.0) * nstar * uMoon * 0.30; // the stars ride the water too
       col += uShallow * (0.10 - uSun * 0.06); // the night keeps a memory of blue
       gl_FragColor = vec4(col, 0.82 + fres * 0.15);
       #include <fog_fragment>
@@ -1138,6 +1225,10 @@ const SunShaftShader = {
           float d = length(v - gp);
           col += uTint * uFlare * 0.045 * smoothstep(r, r * 0.35, d) / (1.0 + float(k));
         }
+        // the anamorphic smear: one thin blue line drawn through the sun,
+        // the way every beautiful cheap lens has always confessed
+        float sy = v.y - L.y; float sx = v.x - L.x;
+        col += vec3(0.45, 0.66, 1.0) * uFlare * 0.42 * exp(-sy * sy * 1400.0 - sx * sx * 7.0);
       }
       gl_FragColor = vec4(col, base.a);
     }`
@@ -2076,7 +2167,46 @@ function buildGround(s0) {
   motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ color: 0xfff4c0, size: 0.055, map: GLOW_TEX,
     transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }))
   scene.add(motes)
-  // stars: the night has a ceiling, and a river of milk across it
+  // stars: the night has a ceiling, and a river of milk across it.
+  // And now the ceiling LIVES: every star carries its own size, its own
+  // color (most white, some blue giants, a few old red suns), and its
+  // own pulse — a shader twinkle no two stars share. The hour still
+  // owns the master dimmer.
+  const mkStarMat = () => new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, fog: false, blending: THREE.AdditiveBlending,
+    uniforms: { uTime: uT, uOp: { value: 0 } },
+    vertexShader: `
+      attribute float aTw; attribute float aSz; attribute vec3 aCol;
+      varying float vA; varying vec3 vCol; uniform float uTime;
+      void main() {
+        vA = 0.55 + 0.45 * sin(uTime * (0.7 + aTw * 2.6) + aTw * 47.0); // each star keeps its own pulse
+        vCol = aCol;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = aSz * (300.0 / -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      varying float vA; varying vec3 vCol; uniform float uOp;
+      void main() {
+        float dd = length(gl_PointCoord - 0.5);
+        float a = smoothstep(0.5, 0.10, dd);
+        gl_FragColor = vec4(vCol * (0.75 + vA * 0.5), a * vA * uOp);
+      }`
+  })
+  const starDress = (count, salt, szLo, szHi) => {
+    const tw = new Float32Array(count), sz = new Float32Array(count), cl = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      tw[i] = (tileHash(i, salt, 61) % 1000) / 1000
+      const big = (tileHash(i, salt, 62) % 100) < 4 // the great lights: a handful, twice the size
+      sz[i] = (szLo + (tileHash(i, salt, 63) % 1000) / 1000 * (szHi - szLo)) * (big ? 2.1 : 1)
+      const roll = tileHash(i, salt, 64) % 100
+      const c3 = roll < 14 ? [1.0, 0.83, 0.62]      // the old red suns
+        : roll < 36 ? [0.72, 0.83, 1.0]              // the blue giants
+          : [0.90, 0.94, 1.0]                        // and everyone else, white
+      cl[i * 3] = c3[0]; cl[i * 3 + 1] = c3[1]; cl[i * 3 + 2] = c3[2]
+    }
+    return { tw, sz, cl }
+  }
   const starGeo = new THREE.BufferGeometry()
   const starPos = []
   for (let i = 0; i < 700; i++) {
@@ -2085,7 +2215,11 @@ function buildGround(s0) {
     starPos.push(Math.cos(a) * r2, h2, Math.sin(a) * r2)
   }
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3))
-  stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfe0ff, size: 0.35, transparent: true, opacity: 0, fog: false }))
+  { const dNear = starDress(700, 5, 0.45, 1.6)
+    starGeo.setAttribute('aTw', new THREE.BufferAttribute(dNear.tw, 1))
+    starGeo.setAttribute('aSz', new THREE.BufferAttribute(dNear.sz, 1))
+    starGeo.setAttribute('aCol', new THREE.BufferAttribute(dNear.cl, 3)) }
+  stars = new THREE.Points(starGeo, mkStarMat())
   celestial.add(stars)
   const bandGeo = new THREE.BufferGeometry()
   const bandPos = []
@@ -2099,7 +2233,12 @@ function buildGround(s0) {
     bandPos.push(bx, by, bz)
   }
   bandGeo.setAttribute('position', new THREE.Float32BufferAttribute(bandPos, 3))
-  starsFar = new THREE.Points(bandGeo, new THREE.PointsMaterial({ color: 0x9db4e0, size: 0.22, transparent: true, opacity: 0, fog: false }))
+  { const nBand = bandPos.length / 3
+    const dFar = starDress(nBand, 6, 0.28, 0.7)
+    bandGeo.setAttribute('aTw', new THREE.BufferAttribute(dFar.tw, 1))
+    bandGeo.setAttribute('aSz', new THREE.BufferAttribute(dFar.sz, 1))
+    bandGeo.setAttribute('aCol', new THREE.BufferAttribute(dFar.cl, 3)) }
+  starsFar = new THREE.Points(bandGeo, mkStarMat())
   celestial.add(starsFar)
   groundBuilt = true
 }
@@ -3230,6 +3369,12 @@ const mixers = new Map()
 const MOB_LOOK = { goblin: [0x5c8a3a, 0.5], wolf: [0x6b6b62, 0.55], troll: [0x4a6b52, 0.95], bear: [0x5c4023, 0.85] }
 function beingMesh(kind, id, thing) {
   const g = new THREE.Group()
+  // yaw FIRST, then lean: with the default XYZ order the walk-lean in
+  // rotation.x turned about the WORLD's x-axis, so a citizen walking
+  // north leaned forward, walking south leaned BACKWARD, and walking
+  // east or west tipped sideways like a mast. YXZ pitches the body in
+  // its own heading, so the lean is always into the walk.
+  g.rotation.order = 'YXZ'
   if (kind === 'citizen' && USE_RIG && charGltf && THREE.SkeletonUtils) {
     // the rigged body: cloned skeleton, its own animation mixer
     const body = THREE.SkeletonUtils.clone(charGltf)
@@ -3798,14 +3943,36 @@ function syncBeings(s, prev) {
             snd('twang', m.position)
           } else snd('whoosh', m.position)
         }
-        // ---- the chop: rise slowly, drop fast, land with weight the
-        // knees feel. The impact rings exactly when the bit bites. ----
+        // ---- the chop, finally split by its material: rock is BEATEN —
+        // the old overhead rise-and-drop stays for the pick — but wood
+        // is FELLED. The woodsman's swing is a horizontal arc: the arm
+        // winds out to the side and back, the torso coils behind it,
+        // then the whole side of the body whips the bit level into the
+        // trunk and the hips carry it through. The impact still rings
+        // exactly when the edge bites. ----
         const ct = ((nowMs / 840) + an.seed) % 1
-        let chopA = -0.6, imp = 0
+        let chopA = -0.6, chopZ = 0, chopTw = 0, imp = 0
+        const treeWork = working && !fishingW && nd2?.type === 'tree'
         if (working && !fishingW) {
-          if (ct < 0.55) { const u = ct / 0.55, e = u * u * (3 - 2 * u); chopA = -0.6 - e * 1.8 }
-          else if (ct < 0.7) { const u = (ct - 0.55) / 0.15; chopA = -2.4 + u * u * 2.1 }
-          else { const u = (ct - 0.7) / 0.3; chopA = -0.3 - u * u * (3 - 2 * u) * 0.3 }
+          if (treeWork) {
+            if (ct < 0.55) { const u = ct / 0.55, e = u * u * (3 - 2 * u)
+              chopZ = e * 1.3                 // out to the side, and back
+              chopA = -0.55 - e * 0.35        // lifting to shoulder height
+              chopTw = -e * 0.5               // the torso coils
+            } else if (ct < 0.7) { const u = (ct - 0.55) / 0.15
+              chopZ = 1.3 - u * u * 1.55      // the whip: across, and IN
+              chopA = -0.9 - u * u * 0.5      // levelling to the trunk
+              chopTw = -0.5 + u * u * 0.78    // the hips carry it through
+            } else { const u = (ct - 0.7) / 0.3, e = u * u * (3 - 2 * u)
+              chopZ = -0.25 + e * 0.25        // the bit withdraws from the cut
+              chopA = -1.4 + e * 0.85
+              chopTw = 0.28 - e * 0.28
+            }
+          } else {
+            if (ct < 0.55) { const u = ct / 0.55, e = u * u * (3 - 2 * u); chopA = -0.6 - e * 1.8 }
+            else if (ct < 0.7) { const u = (ct - 0.55) / 0.15; chopA = -2.4 + u * u * 2.1 }
+            else { const u = (ct - 0.7) / 0.3; chopA = -0.3 - u * u * (3 - 2 * u) * 0.3 }
+          }
           imp = Math.max(0, 1 - Math.abs(ct - 0.71) * 14)
           if (an.prevT < 0.7 && ct >= 0.7 && !m.userData.rigged) snd('chop', m.position)
           an.prevT = ct
@@ -3876,6 +4043,13 @@ function syncBeings(s, prev) {
           : (working && !fishingW) ? chopA
             : fishingW ? (-1.25 + Math.sin(nowMs / 1300 + an.seed) * 0.06)
               : s5 * 0.5 * mvA + idleSw
+        // the felling swing owns the lateral axis; every other state
+        // hands it back at zero so the arms hang honest
+        m.userData.arms[1].rotation.z = treeWork ? chopZ : 0
+        m.userData.arms[0].rotation.z = treeWork ? -chopZ * 0.22 : 0 // the off arm counterbalances the arc
+        m.userData.torso.rotation.y = treeWork ? chopTw : 0          // and the torso coils, then uncoils
+        if (m.userData.hatchet?.visible) // the bit turns to FACE the trunk: edge-on, as an axe is swung
+          m.userData.hatchet.rotation.y = treeWork ? -1.35 : 0
         m.userData.arms[0].userData.joint.rotation.x = -0.14 - Math.max(0, -s5) * 0.3 * mvA
         m.userData.arms[1].userData.joint.rotation.x = (fighting || working) ? -0.5 : -0.14 - Math.max(0, s5) * 0.3 * mvA
         // ---- the head is its own animal: it finds the foe before the
@@ -4109,13 +4283,31 @@ function snd(kind, pos, flavor) {
       o.frequency.exponentialRampToValueAtTime(60, t0 + 0.9)
       g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 1)
       o.start(t0); o.stop(t0 + 1)
-    } else if (kind === 'level') { // a level won: a small rising fanfare
-      o.type = 'triangle'
-      const seq = [523, 659, 784, 1047]
-      seq.forEach((f, i) => o.frequency.setValueAtTime(f, t0 + i * 0.08))
-      g2.gain.setValueAtTime(0.0001, t0); g2.gain.linearRampToValueAtTime(0.16, t0 + 0.02)
-      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42)
-      o.start(t0); o.stop(t0 + 0.44)
+    } else if (kind === 'level') { // a level won: THE fanfare, the one
+      // the reference window sings — ported note for note. The old
+      // version retuned a single oscillator, so the notes smeared into
+      // one sliding tone; /play gives every note its own voice, its own
+      // eight-millisecond bloom and its own ring, at its own unhurried
+      // pace: C, E, G, then the high C held a third of a second over a
+      // quiet G a fifth below — the dyad that makes it hummable. The
+      // only enhancements, and they whisper: a near-silent octave above
+      // the crown, and a breath of glitter as it opens.
+      const note = (f, dur, vol2, at) => {
+        const o2 = AC3.createOscillator(), ng = AC3.createGain()
+        o2.type = 'triangle'; o2.frequency.setValueAtTime(f, t0 + at)
+        ng.gain.setValueAtTime(0, t0 + at)
+        ng.gain.linearRampToValueAtTime(vol2, t0 + at + 0.008)
+        ng.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur)
+        o2.connect(ng); ng.connect(master)
+        o2.start(t0 + at); o2.stop(t0 + at + dur + 0.02)
+      }
+      note(523, 0.14, 0.09, 0)      // the little fanfare you'll hum later
+      note(659, 0.14, 0.09, 0.13)
+      note(784, 0.16, 0.09, 0.26)
+      note(1047, 0.34, 0.10, 0.40)
+      note(784, 0.30, 0.04, 0.40)   // the fifth under the crown, as always
+      note(2093, 0.30, 0.016, 0.41) // the octave above: barely there, newly there
+      burst(6500, 'highpass', 0.28, 0.045, 0.40) // and the glitter, as it opens
     } else if (kind === 'thunder') { // the storm answers the flash, then ROLLS away
       o.type = 'sawtooth'; o.frequency.setValueAtTime(68, t0)
       o.frequency.exponentialRampToValueAtTime(28, t0 + 1.2)
@@ -4343,6 +4535,20 @@ const pick = (cxp, cyp) => {
 }
 // drag orbits, tap walks: 8 pixels of movement is the border between them
 let camAz = 0, camDist = 11, camPitch = 0.72
+// ---- the idle cinema: leave the window alone for forty-five seconds
+// and it stops being an interface. The camera takes up the slowest
+// orbit there is, the pitch settles toward the horizon, a pair of
+// letterbox bars breathe in — the world as a painting that happens to
+// be true. One touch, one key, one scroll buys it all back. ----
+let lastInputAt = performance.now(), cineAmt = 0, cineBarH = -1
+const cineBars = [0, 1].map((top) => {
+  const d = document.createElement('div')
+  d.style.cssText = 'position:fixed;left:0;right:0;height:0;background:#000;z-index:40;pointer-events:none;'
+    + (top ? 'top:0' : 'bottom:0')
+  document.body.appendChild(d); return d
+})
+const noteInput = () => { lastInputAt = performance.now() }
+for (const ev of ['pointerdown', 'wheel', 'keydown', 'touchstart']) addEventListener(ev, noteInput, { passive: true })
 let pdown = null, dragged = false
 const onDown = (x, y) => { pdown = { x, y, az: camAz, pitch: camPitch }; dragged = false }
 const onMove = (x, y) => {
@@ -4460,6 +4666,38 @@ const fogCol = new THREE.Color()
 const sunDirV = new THREE.Vector3()
 let lastFrame = 0
 let lightAt = -1e9, lastStrikeTick = -1     // the last flash, and its tick
+// ---- the bolt itself: the flash finally gets a BODY. A jagged line is
+// minted fresh for every strike — nine descending segments, two spent
+// forks — white-violet, additive, alive for a fifth of a second and
+// flickering the whole time. The thunder still answers late. ----
+const boltMat = new THREE.LineBasicMaterial({ color: 0xdfe8ff, transparent: true, opacity: 0,
+  blending: THREE.AdditiveBlending, fog: false, depthWrite: false })
+const boltGeo = new THREE.BufferGeometry()
+boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3 * 48), 3))
+boltGeo.setDrawRange(0, 0)
+const boltLine = new THREE.LineSegments(boltGeo, boltMat)
+boltLine.frustumCulled = false
+scene.add(boltLine)
+function mintBolt(cx, cz) {
+  const p = boltGeo.attributes.position.array
+  let n = 0
+  const seg = (x0, y0, z0, x1, y1, z1) => {
+    p[n * 3] = x0; p[n * 3 + 1] = y0; p[n * 3 + 2] = z0; n++
+    p[n * 3] = x1; p[n * 3 + 1] = y1; p[n * 3 + 2] = z1; n++
+  }
+  let x = cx, z = cz, y = 24
+  for (let i = 0; i < 9; i++) {
+    const y2 = Math.max(0, y - 24 / 9)
+    const x2 = x + (Math.random() - 0.5) * 3.4, z2 = z + (Math.random() - 0.5) * 3.4
+    seg(x, y, z, x2, y2, z2)
+    if (i === 3 || i === 6) // a fork, spent halfway down
+      seg(x2, y2, z2, x2 + (Math.random() - 0.5) * 8, y2 - 5 - Math.random() * 4, z2 + (Math.random() - 0.5) * 8)
+    x = x2; z = z2; y = y2
+  }
+  boltGeo.setDrawRange(0, n)
+  boltGeo.attributes.position.needsUpdate = true
+}
+let lastMoonBucket = -1 // the phase turns rarely; the canvas is redrawn rarer still
 let rainMem = 0    // the sky remembers its rain: the rainbow needs the memory
 let snowCover = 0  // and the ground remembers its snow: it settles, then thaws
 let leafAt = 0     // the last leaf shed
@@ -4566,6 +4804,15 @@ function animate(now) {
   hemi.intensity *= (1 - gloom * 0.3)
   skyMat.uniforms.uDay.value *= (1 - gloom * 0.45)
   skyMat.uniforms.uDusk.value *= (1 - gloom * 0.6)
+  // the dome's own clouds: a fair-weather scatter that wanders with the
+  // tick, piling toward overcast as the oracle brews its weather
+  skyMat.uniforms.uCloud.value = clamp01(
+    0.22 + 0.26 * (Math.sin(s.tick / 310 + 1.7) * 0.5 + 0.5)
+    + curW.fog * 0.30 + curW.rain * 0.72 + curW.snow * 0.66 + curW.storm * 0.30)
+  skyMat.uniforms.uGloom.value = gloom
+  { const co = skyMat.uniforms.uCloudOff.value // the ledger of the wind
+    co.x += dt * 0.0045 * (0.6 + curW.wind)
+    co.y += dt * 0.0016 }
   fogCol.lerp(STORM_GREY, gloom * 0.6)
   scene.fog.color.copy(fogCol); renderer.setClearColor(fogCol)
   scene.fog.near = lerp(26, 15, murk * 0.7); scene.fog.far = lerp(120, 66, murk * 0.7)
@@ -4656,12 +4903,16 @@ function animate(now) {
     fb.material.opacity = murk * 0.5 * (0.7 + Math.sin(now / 2600 + fb.position.x) * 0.3)
     fb.material.color.setHSL(0.6, 0.05, 0.55 + day * 0.25)
   }
-  // lightning: struck from the tick, so the whole town flashes together
+  // lightning: struck from the tick, so the whole town flashes together —
+  // and now the strike is SEEN: a fresh bolt minted at a random bearing
   if (s.tick !== lastStrikeTick && curW.storm > 0.2 && (tileHash(s.tick, 0, 91) % 100) < 5) {
     lastStrikeTick = s.tick; lightAt = now
+    const ba = Math.random() * Math.PI * 2, br = 26 + Math.random() * 34
+    mintBolt(fx + Math.cos(ba) * br, fz + Math.sin(ba) * br)
     setTimeout(() => snd('thunder'), 500 + Math.random() * 1600)
   }
   const flash = Math.max(0, 1 - (now - lightAt) / 200)
+  boltMat.opacity = flash > 0 ? flash * (0.45 + Math.random() * 0.55) : 0 // the flicker IS the randomness
   if (flash > 0) {
     ambient.intensity += flash * 1.2; hemi.intensity += flash * 0.8
     fogCol.lerp(new THREE.Color(0xdfe6ff), flash * 0.5)
@@ -4715,8 +4966,21 @@ function animate(now) {
   celestial.rotation.y = now / 600000 // the slowest drift there is
   moonSprite.position.set(-sunDirV.x * 150, Math.max(10, -sunH * 130 + 20), -sunDirV.z * 150)
   moonSprite.material.opacity = night * 0.95
+  { // the calendar turns: one lunar cycle every eight world-days or so
+    const mPhase = ((s.tick / DAY) * 0.125) % 1
+    const mBucket = Math.floor(mPhase * 28)
+    if (mBucket !== lastMoonBucket) {
+      lastMoonBucket = mBucket
+      const old = moonSprite.material.map
+      moonSprite.material.map = moonTex(mPhase)
+      if (old) old.dispose()
+    }
+    // the halo and the moon's light wax and wane with the face that shows
+    const lit = clamp01(Math.abs(mPhase * 2 - 1) * 1.25)
+    moonHalo.material.opacity = night * 0.20 * (1 - gloom) * (0.35 + lit * 0.65)
+    moonLight.intensity = night * 0.30 * (0.35 + lit * 0.65)
+  }
   moonHalo.position.copy(moonSprite.position)
-  moonHalo.material.opacity = night * 0.20 * (1 - gloom)
   for (let ci = 0; ci < clouds.length; ci++) {
     const cl = clouds[ci]
     cl.material.opacity = 0.10 + day * 0.42
@@ -4726,8 +4990,8 @@ function animate(now) {
     if (Math.abs(cl.position.x) > 110) cl.position.x *= -0.95
     if (Math.abs(cl.position.z) > 110) cl.position.z *= -0.95
   }
-  if (stars) stars.material.opacity = Math.min(1, Math.max(0, (0.55 - day)) * 2)
-  if (starsFar) starsFar.material.opacity = Math.min(0.8, Math.max(0, (0.5 - day)) * 1.7)
+  if (stars) stars.material.uniforms.uOp.value = Math.min(1, Math.max(0, (0.55 - day)) * 2) * (1 - murk * 0.9)
+  if (starsFar) starsFar.material.uniforms.uOp.value = Math.min(0.8, Math.max(0, (0.5 - day)) * 1.7) * (1 - murk * 0.9)
   // the northern lights: clear midnights only, and they breathe
   const auroraAmt = curW.aurora * clamp01(night * 1.6 - 0.35) * (1 - murk)
   auroraAmtG = auroraAmt // the ear reads what the eye sees
@@ -4846,6 +5110,19 @@ function animate(now) {
       m.userData.rise.scale.setScalar(0.6 + rp * 2.4)
       m.userData.rise.material.opacity = (1 - rp) * 0.30
     }
+  }
+  // the idle cinema breathes in, or out
+  const wantCine = entered && (now - lastInputAt > 45000) ? 1 : 0
+  cineAmt = lerp(cineAmt, wantCine, 1 - Math.exp(-dt * 0.7))
+  if (cineAmt > 0.002) {
+    camAz += dt * 0.05 * cineAmt                          // the slowest orbit there is
+    camPitch = lerp(camPitch, 0.52, dt * 0.06 * cineAmt)  // settling toward the horizon
+    camDist = lerp(camDist, 13.5, dt * 0.06 * cineAmt)    // and a step back, for the whole view
+  }
+  const barH = cineAmt * 6.5
+  if (Math.abs(barH - cineBarH) > 0.04) {
+    cineBarH = barH
+    for (const cb of cineBars) cb.style.height = barH + 'vh'
   }
   const cy2 = Math.sin(camPitch) * camDist, cr2 = Math.cos(camPitch) * camDist
   camDesired.set(fx + Math.sin(camAz) * cr2, cy2, fz + Math.cos(camAz) * cr2)
