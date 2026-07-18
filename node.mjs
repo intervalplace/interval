@@ -18,6 +18,7 @@ import { identify } from '@libp2p/identify'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import { createHash } from 'crypto'
 import { createRequire } from 'module'
 import E from './engine.js'
 import { throwCoded, ERR, DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
@@ -91,8 +92,33 @@ export function fsyncDir(dir, { strict = false } = {}) {
 // successful connect proves a live holder (refuse); a refused connect
 // (ECONNREFUSED) proves the socket is dead and the path can be unlinked and
 // rebound. An .info file is written for operator visibility only.
-export async function acquireProcessLock(sockPath) {
+// A Unix domain socket path lives in `sun_path`, which the kernel caps at 108
+// bytes on Linux and 104 on macOS. The safety directory layout
+// (witness-safety/<worldId 64hex>/<witnessId 64hex>/) is 145+ bytes before the
+// filename, so binding the socket *inside* it silently TRUNCATED the path: the
+// socket landed at a chopped name, while unlink and existence checks all
+// targeted the full name and quietly did nothing. A restarted witness then
+// found the truncated file still in place, could not remove it, and refused to
+// start forever. So the socket gets a short hashed name of its own, and the
+// full identity is recorded in the neighbouring .info file.
+const LOCK_PATH_MAX = 100 // conservative: under both the Linux and macOS caps
+export function processLockPathFor(safetyDir, worldId, witnessId) {
+  const tag = createHash('sha256').update(worldId + ':' + witnessId).digest('hex').slice(0, 16)
+  return path.join(safetyDir, 'locks', tag + '.sock')
+}
+export async function acquireProcessLock(sockPath, identity = null) {
   const net = await import('net')
+  // Never hand the kernel a path it will truncate: a truncated lock is worse
+  // than no lock, since two identities can share one and neither can clean up.
+  if (Buffer.byteLength(sockPath) > LOCK_PATH_MAX) {
+    const err = new Error(
+      `witness process lock path is ${Buffer.byteLength(sockPath)} bytes, above the ${LOCK_PATH_MAX}-byte limit a Unix `
+      + `domain socket can carry (${sockPath}). The kernel would truncate it, so the lock could neither exclude nor be `
+      + `cleaned up. Use a shorter safety directory.`)
+    err.code = 'ERR_WITNESS_LOCK_PATH_TOO_LONG'
+    throw err
+  }
+  fs.mkdirSync(path.dirname(sockPath), { recursive: true, mode: 0o700 })
   const infoFile = sockPath.replace(/\.sock$/, '') + '.info'
   // §1 Option A: the lock is host-local. If the safety directory sits on a
   // known NETWORK filesystem (NFS/SMB/etc.), the host-local socket cannot
@@ -127,20 +153,50 @@ export async function acquireProcessLock(sockPath) {
     if (e.code !== 'EADDRINUSE') throw e
     // address in use: is the holder actually alive?
     if (await probeLive()) {
-      const err = new Error(`witness process lock ${sockPath} is held by a live process — refusing to start a second witness for this (worldId, witnessId)`)
+      let held = null
+      try { held = JSON.parse(fs.readFileSync(infoFile, 'utf8')) } catch { /* visibility only */ }
+      const who = held?.pid ? ` (held by pid ${held.pid} on ${held.host ?? 'this host'})` : ''
+      // the lock name is a hash: if the holder is a DIFFERENT identity this is
+      // a collision, not a double-start, and the operator must be told which.
+      if (identity && held?.worldId && held?.witnessId
+          && (held.worldId !== identity.worldId || held.witnessId !== identity.witnessId)) {
+        const err = new Error(
+          `witness process lock ${sockPath} is held by a DIFFERENT identity${who}: world ${held.worldId?.slice(0, 12)}… `
+          + `witness ${held.witnessId?.slice(0, 12)}…, while this process is world ${identity.worldId.slice(0, 12)}… `
+          + `witness ${identity.witnessId.slice(0, 12)}…. This is a lock-name collision, not a second start.`)
+        err.code = 'ERR_WITNESS_LOCK_COLLISION'
+        throw err
+      }
+      const err = new Error(`witness process lock ${sockPath} is held by a live process${who} — refusing to start a second witness for this (worldId, witnessId)`)
       err.code = 'ERR_WITNESS_LOCK_HELD'
       throw err
     }
-    // stale socket file from a dead holder: unlink and rebind
-    try { fs.unlinkSync(sockPath) } catch { /* raced */ }
+    // stale socket file from a dead holder: unlink and rebind. An unlink that
+    // fails for any reason other than "already gone" is reported, not
+    // swallowed: silently ignoring it is what turned a stale lock into a
+    // permanent refusal to start.
+    try { fs.unlinkSync(sockPath) }
+    catch (eu) {
+      if (eu.code !== 'ENOENT') {
+        const err = new Error(`witness process lock ${sockPath} is stale but could not be removed (${eu.code}): ${eu.message}`)
+        err.code = 'ERR_WITNESS_LOCK_STUCK'
+        throw err
+      }
+    }
     try { server = await bind() }
     catch (e2) {
-      if (e2.code === 'EADDRINUSE') { const err = new Error(`witness process lock ${sockPath} was reclaimed by another process during startup — refusing`); err.code = 'ERR_WITNESS_LOCK_HELD'; throw err }
+      if (e2.code === 'EADDRINUSE') {
+        const err = new Error(
+          `witness process lock ${sockPath} is in use but nothing is listening on it, and removing it did not free it. `
+          + `Check for a leftover socket file at that exact path and delete it.`)
+        err.code = 'ERR_WITNESS_LOCK_STUCK'
+        throw err
+      }
       throw e2
     }
   }
   server.unref() // the lock must not keep the event loop alive on its own
-  try { fs.writeFileSync(infoFile, JSON.stringify({ pid: process.pid, host: os.hostname(), acquiredAt: Date.now() }) + '\n', { mode: 0o600 }) } catch { /* visibility only */ }
+  try { fs.writeFileSync(infoFile, JSON.stringify({ pid: process.pid, host: os.hostname(), acquiredAt: Date.now(), ...(identity ?? {}) }) + '\n', { mode: 0o600 }) } catch { /* visibility only */ }
   let released = false
   const release = () => {
     if (released) return
@@ -746,7 +802,20 @@ export class IntervalNode {
         // so it can never emit an attestation and race the first into a
         // double-sign. We only record the path here (acquisition is async).
         if (this.witnessKey && opts.exclusiveProcessLock !== false) {
-          this._processLockPath = path.join(safetyBase, 'process.lock.sock')
+          // NOT inside safetyBase: that path is far longer than a Unix socket
+          // can carry, and the kernel would truncate it silently. The lock gets
+          // a short hashed name; safetyBase still holds all the durable state.
+          this._processLockPath = processLockPathFor(opts.safetyDir, this.worldId, this.witnessKey.playerId)
+          this._processLockIdentity = { worldId: this.worldId, witnessId: this.witnessKey.playerId }
+          // best effort: sweep the truncated lock files older builds left behind,
+          // which no unlink could ever match and which blocked every restart.
+          try {
+            const stale = path.join(opts.safetyDir, this.worldId, this.witnessKey.playerId)
+            for (const nm of fs.readdirSync(path.dirname(stale))) {
+              const p2 = path.join(path.dirname(stale), nm)
+              if (nm.length >= 20 && !nm.includes('.') && fs.statSync(p2).isSocket()) fs.unlinkSync(p2)
+            }
+          } catch { /* nothing to sweep */ }
         }
       }
       const lockStore = opts.lockStore
@@ -896,7 +965,7 @@ export class IntervalNode {
     // else — before networking, before the agreement drives — so a duplicate
     // process is rejected before it can touch the network or sign.
     if (this._processLockPath && !this._processLock) {
-      this._processLock = await acquireProcessLock(this._processLockPath)
+      this._processLock = await acquireProcessLock(this._processLockPath, this._processLockIdentity)
     }
     // §2 fail-safe startup: from here on, any failure must release EVERY
     // partially-initialized resource (lock, SQLite, libp2p) so a restart can
