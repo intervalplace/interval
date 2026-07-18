@@ -2738,10 +2738,7 @@ const RECIPES3 = { 'bronze-sword': { ore: 2, logs: 1 }, 'bronze-hatchet': { ore:
   'star-plate': { 'magic-stone': 4, ore: 3 }, 'star-dagger': { 'magic-stone': 2, ore: 1 } }
 const SMITH_REQS3 = { 'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
   'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 } }
-const PRICES3 = { 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
-  'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
-  'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
-  'star-sword': 120, 'star-helm': 60, 'star-plate': 200 }
+const PRICES3 = { 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10, 'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4, 'star-sword': 120, 'star-helm': 60, 'star-plate': 200 } // mirrors engine PRICES
 function nearNodeOf(me2, tt) {
   return Object.values(world?.nodes ?? {}).some((n2) => n2.type === tt && Math.abs(n2.x - me2.x) <= 1 && Math.abs(n2.y - me2.y) <= 1)
 }
@@ -2964,6 +2961,49 @@ function buildSkillsUI() {
     if (!open4 && world && ownKey && world.players[ownKey.pub]) renderCommerce(world)
   })
   document.body.appendChild(gb)
+  // ---- the deeds bar: sigils, spells, the brewhouse, the great fire, the
+  // survey. Only what this citizen can do right now is shown, so the bar
+  // teaches the world instead of listing it.
+  const deeds = document.createElement('div')
+  deeds.id = 'deeds'
+  deeds.style.cssText = 'position:fixed;left:8px;bottom:96px;z-index:21;display:flex;flex-direction:column;gap:5px;align-items:flex-start'
+  document.body.appendChild(deeds)
+  const deedBtn = (id2, label, act) => {
+    const b = document.createElement('button')
+    b.id = id2; b.textContent = label; b.style.display = 'none'
+    b.style.cssText += ';background:linear-gradient(#544936,#3e352a);color:#e2b63e;border:2px solid #7d6c4d;' +
+      'border-radius:6px;padding:6px 11px;font:bold 12px Verdana;cursor:pointer;display:none'
+    b.addEventListener('click', act)
+    deeds.appendChild(b); return b
+  }
+  const bSigil = deedBtn('d-sigil', '\u2726 press a sigil', () => { send({ do: 'invoke' }); feed('you press the stones together') })
+  const bMend  = deedBtn('d-mend', '\u271a mend', () => { send({ do: 'cast', spell: 'mend' }); feed('you spend the sigil on your own wounds') })
+  const bAnchor = deedBtn('d-anchor', '\u21ba anchor home', () => { send({ do: 'cast', spell: 'anchor' }); feed('the world folds you homeward') })
+  const bBrew  = deedBtn('d-brew', '\u2668 raise a brewpot', () => { send({ do: 'build_brewpot' }); feed('you set the pot beside the house') })
+  const bFire  = deedBtn('d-fire', '\u2617 kindle a watchfire', () => { send({ do: 'kindle' }); feed('you build the wood high. the country will see this') })
+  const bSurvey = deedBtn('d-survey', '\u2691 survey this place', () => { send({ do: 'survey' }); feed('you take the measure of the country') })
+  function renderDeeds(s) {
+    const me3 = ownKey && s.players?.[ownKey.pub]
+    if (!me3) { deeds.style.display = 'none'; return }
+    deeds.style.display = 'flex'
+    const inv = me3.inventory ?? []
+    const count = (it) => inv.filter(sl => sl?.item === it).length
+    const lvlOfSkill = (sk) => XP_LVL(me3.skills?.[sk] ?? 0)
+    const show = (b, on) => { b.style.display = on ? 'block' : 'none' }
+    show(bSigil, count('magic-stone') >= 3 && lvlOfSkill('magic') >= 1)
+    const hasSigil = count('sigil') > 0
+    show(bMend, hasSigil && me3.hp < effHp(me3))
+    show(bAnchor, hasSigil)
+    const wt = s.genesis?.watch
+    const owned = Object.values(s.nodes ?? {}).filter(n => n.type === 'watchfire' && n.by === ownKey.pub).length
+    show(bFire, !!wt && lvlOfSkill('firemaking') >= wt.level && count('logs') >= wt.kindleLogs && owned < wt.maxOwned)
+    const bc = s.genesis?.brew
+    const nearHouse = Object.values(s.nodes ?? {}).some(n => n.type === 'house'
+      && Math.abs(n.x - me3.x) + Math.abs(n.y - me3.y) === 1)
+    const pots = Object.values(s.nodes ?? {}).filter(n => n.type === 'brewpot' && n.by === ownKey.pub).length
+    show(bBrew, !!bc && nearHouse && count('logs') >= bc.buildLogs && count('ore') >= bc.buildOre && pots < bc.potCap)
+    show(bSurvey, (s.markers ?? []).some(mk => mk.x === me3.x && mk.y === me3.y))
+  }
   const ap = commercePanel('anvilpanel', 160)
   ap.addEventListener('click', (e) => {
     const sm = e.target.closest('[data-sm]')
@@ -3829,6 +3869,7 @@ function syncBeings(s, prev) {
       else m.visible = true
     }
   }
+  try { renderDeeds(s) } catch { /* the bar is decoration; never let it stop the world */ }
   for (const [id, p] of Object.entries(s.players)) place('citizen', id, p, prev?.players?.[id])
   for (const [id, mb] of Object.entries(s.mobs)) place('mob', id, mb, prev?.mobs?.[id])
   for (const [id, m] of beings) if (!seen.has(id)) { scene.remove(m); beings.delete(id); mixers.delete(id) }
