@@ -249,7 +249,36 @@
      off wherever the run ends. And the town walls face along their run
      — a segment with a north-south neighbour but no east-west one turns
      a quarter, so the short side of a town reads as a wall and not a
-     row of broadside planks. -->
+     row of broadside planks.
+
+     Then the light learned to touch. The sun's net now dances in every
+     shallow — two detuned lattices multiplied into caustics that crawl
+     over the sand, warm by day, and on clear nights the moon leaves a
+     cold ghost of the same net. The air over every near fire BENDS:
+     three columns of screen-space shimmer, paid for only when a fire
+     is close and the governor allows it. At the horizon hours, and
+     after the rain, the meadow breathes a low fog that pools by the
+     water and turns to face whoever looks. The lanterns earned their
+     moths — three small lives each that cannot leave the glass alone,
+     and that shelter when it rains. And two nights in every nine, by
+     the tick's own calendar, a comet hangs low with its tail streaming
+     — every window on earth sees the same visitor on the same
+     evenings, because the tick, as always, decides.
+
+     Then the compass told the truth, and the legs answered the keys.
+     The disc had been turning with the BODY while the eye orbited
+     free — drag the camera and the map lied; and the cardinal ring
+     stood painted to the frame, so N marked north at exactly one
+     heading. The disc turns with the CAMERA now, spun by CSS at frame
+     rate (the canvas paints north-up and never rotates itself), the
+     letters orbit to where the directions actually are — each glyph
+     counter-spun upright — and the center chevron shows which way the
+     body faces within the view. Tap-to-walk undoes the one rotation
+     that now exists. And WASD walks the world: W is wherever the
+     camera looks, intent taken in view space and snapped to the grid
+     the engine speaks, diagonals zigzagging one axis per tick at the
+     tick's own cadence, the first step answering the press itself —
+     and a hand on the keys outranks every standing order. -->
 <html>
 <head>
 <meta charset="utf-8">
@@ -1062,6 +1091,22 @@ const meteor = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color:
 meteor.scale.set(3.2, 0.5, 1)
 celestial.add(meteor)
 let meteorState = { next: 12000, from: new THREE.Vector3(), to: new THREE.Vector3(), start: -1 }
+// ---- a comet, for whoever keeps the calendar: two nights in every
+// nine, the tick hangs a visitor low in the sky — a cold head and a
+// long tail — and because the TICK chooses the nights, every window
+// on earth sees the same comet on the same evenings. ----
+const comet = new THREE.Group()
+const cometHead = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: 0xd8ecff,
+  transparent: true, opacity: 0, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }))
+cometHead.scale.set(2.6, 2.6, 1)
+const cometTail = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: 0x9fc4ef,
+  transparent: true, opacity: 0, fog: false, depthWrite: false, blending: THREE.AdditiveBlending }))
+cometTail.scale.set(10, 1.5, 1)
+cometTail.material.rotation = Math.atan2(1.6, 4.0) // the tail streams up and away
+cometTail.position.set(4.0, 1.6, 0)
+comet.add(cometHead); comet.add(cometTail)
+comet.visible = false
+celestial.add(comet)
 
 // ---- the aurora: on the clear midnights the tick chooses, a curtain of
 // light waves over the northern sky. A shader on an open cylinder band:
@@ -1196,6 +1241,53 @@ const foamMat = new THREE.ShaderMaterial({
       #include <fog_fragment>
     }`
 })
+// ---- caustics: the sun, refracted through the shallows, thrown back
+// onto the sand as a dancing net of light. A second strip rides the
+// same shore edges as the foam, deeper into the water, and its web is
+// pure interference — two detuned lattices multiplied, so the bright
+// knots crawl and split the way real caustics do. By day the sun pays
+// for it; on clear nights the moon leaves a ghost of the same net. ----
+const causticMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  blending: THREE.AdditiveBlending,
+  uniforms: { uTime: uT, uAmt: { value: 0 }, uTint: { value: new THREE.Color(1.0, 0.93, 0.72) } },
+  vertexShader: `
+    varying vec2 vUv; varying vec2 vW;
+    void main() {
+      vUv = uv;
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vW = wp.xz;
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+  fragmentShader: `
+    uniform float uTime; uniform float uAmt; uniform vec3 uTint;
+    varying vec2 vUv; varying vec2 vW;
+    float web(vec2 p, float t) {
+      // two lattices, each warped by the other's axis, multiplied:
+      // the product's ridges are the caustic net
+      float a = sin(p.x * 3.1 + sin(p.y * 2.4 + t * 0.9) * 1.6 + t * 0.6);
+      float b = sin(p.y * 3.4 + sin(p.x * 2.7 - t * 1.1) * 1.6 - t * 0.5);
+      return pow(clamp(a * b * 0.5 + 0.5, 0.0, 1.0), 5.0);
+    }
+    void main() {
+      float t = uTime;
+      float c = web(vW * 1.15, t) * 1.1 + web(vW * 2.3 + 7.31, t * 1.4) * 0.55;
+      float fade = smoothstep(0.03, 0.30, vUv.y) * smoothstep(1.0, 0.55, vUv.y); // shallows only
+      gl_FragColor = vec4(uTint * c * fade * uAmt, 1.0);
+    }`
+})
+let causticMesh = null
+const mists = [] // low fog, pooled by the water at the horizon hours
+const MIST_TEX = (() => { // one soft wide breath, stretched flat
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64
+  const g = c.getContext('2d')
+  g.save(); g.translate(128, 32); g.scale(2.1, 0.52)
+  const gr = g.createRadialGradient(0, 0, 4, 0, 0, 60)
+  gr.addColorStop(0, 'rgba(255,255,255,0.85)'); gr.addColorStop(0.6, 'rgba(255,255,255,0.35)')
+  gr.addColorStop(1, 'rgba(255,255,255,0)')
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 60, 0, 7); g.fill(); g.restore()
+  return new THREE.CanvasTexture(c)
+})()
 let shoreXZ = [] // foam midpoints, kept for the ear: the shore is heard by proximity
 let auroraAmtG = 0 // the sky's felt amount, read by the ambient bed
 let fireNear = null // the nearest living fire, for crackle and pops
@@ -1219,26 +1311,43 @@ let composer = null, bloomPass = null, gradePass = null, fxaaPass = null, shaftP
 const GradeShader = {
   uniforms: { tDiffuse: { value: null }, uSat: { value: 1.14 }, uVig: { value: 0.36 }, uNight: { value: 0 },
     uWarm: { value: 0 }, uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1 / 1920, 1 / 1080) },
-    uSharp: { value: 0.45 } },
+    uSharp: { value: 0.45 },
+    uHeat0: { value: new THREE.Vector3(0, 0, 0) }, uHeat1: { value: new THREE.Vector3(0, 0, 0) },
+    uHeat2: { value: new THREE.Vector3(0, 0, 0) }, uAsp: { value: 1 } },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
   fragmentShader: `
     uniform sampler2D tDiffuse; uniform float uSat; uniform float uVig; uniform float uNight;
     uniform float uWarm; uniform float uTime; uniform vec2 uRes; uniform float uSharp;
+    uniform vec3 uHeat0; uniform vec3 uHeat1; uniform vec3 uHeat2; uniform float uAsp;
     varying vec2 vUv;
+    // the air over a fire refuses to hold still: a narrow rising column
+    // above each flame bends whatever stands behind it. xy is the fire's
+    // place on the screen, z is how much the eye should believe it.
+    vec2 heatOff(vec3 h, vec2 uv, float t) {
+      if (h.z < 0.002) return vec2(0.0);
+      vec2 d = uv - h.xy; d.x *= uAsp;
+      float col = exp(-d.x * d.x * 700.0);
+      float band = smoothstep(-0.015, 0.02, d.y) * (1.0 - smoothstep(0.04, 0.30, d.y));
+      float w = col * band * h.z;
+      float s = sin(uv.y * 150.0 - t * 9.0 + h.x * 43.0) + 0.5 * sin(uv.y * 273.0 - t * 14.0 + h.y * 31.0);
+      return vec2(s * 0.0042, sin(uv.y * 95.0 - t * 7.0) * 0.0018) * w;
+    }
     void main() {
+      vec2 hv = heatOff(uHeat0, vUv, uTime) + heatOff(uHeat1, vUv, uTime) + heatOff(uHeat2, vUv, uTime);
+      vec2 sUv = vUv + hv;
       vec2 q = vUv - 0.5;
       float r2 = dot(q, q);
       vec2 ca = q * r2 * r2 * 0.020;                       // the fringe pulled back: character, not smear
       vec3 c;
-      c.r = texture2D(tDiffuse, vUv + ca).r;
-      c.g = texture2D(tDiffuse, vUv).g;
-      c.b = texture2D(tDiffuse, vUv - ca).b;
+      c.r = texture2D(tDiffuse, sUv + ca).r;
+      c.g = texture2D(tDiffuse, sUv).g;
+      c.b = texture2D(tDiffuse, sUv - ca).b;
       // ---- the unsharp mask: four neighbours make a blur, and the
       // frame is pushed away from it. Edges bite; flats stay flat. ----
-      vec3 nb = texture2D(tDiffuse, vUv + vec2(uRes.x, 0.0)).rgb
-              + texture2D(tDiffuse, vUv - vec2(uRes.x, 0.0)).rgb
-              + texture2D(tDiffuse, vUv + vec2(0.0, uRes.y)).rgb
-              + texture2D(tDiffuse, vUv - vec2(0.0, uRes.y)).rgb;
+      vec3 nb = texture2D(tDiffuse, sUv + vec2(uRes.x, 0.0)).rgb
+              + texture2D(tDiffuse, sUv - vec2(uRes.x, 0.0)).rgb
+              + texture2D(tDiffuse, sUv + vec2(0.0, uRes.y)).rgb
+              + texture2D(tDiffuse, sUv - vec2(0.0, uRes.y)).rgb;
       c = max(c + (c - nb * 0.25) * uSharp, vec3(0.0));
       float l = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(l), c, uSat);
@@ -2059,6 +2168,13 @@ function buildGround(s0) {
       glass.position.copy(cage.position); lg.add(glass)
       const cap2 = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.06, 4), ironM)
       cap2.position.set(0, 1.1, 0.2); cap2.rotation.y = Math.PI / 4; lg.add(cap2)
+      const moths = [] // three small lives that cannot leave the light alone
+      for (let mo2 = 0; mo2 < 3; mo2++) {
+        const ms2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color: 0xd9c79b,
+          transparent: true, opacity: 0, depthWrite: false }))
+        ms2.scale.set(0.05, 0.05, 1); ms2.position.copy(cage.position); lg.add(ms2)
+        moths.push({ s: ms2, a: Math.random() * 6.28, v: 0.7 + Math.random() * 0.9 })
+      }
       let pl2 = null
       if (FINE) { // light without the shadow bill
         pl2 = new THREE.PointLight(0xffb060, 0, 4.5)
@@ -2066,7 +2182,7 @@ function buildGround(s0) {
       }
       lg.position.set(wx(lx2), Math.max(0, groundYAt(lx2, ly2)), wz(ly2))
       scene.add(lg)
-      lanterns.push({ glass, pl: pl2, seed: (tileHash(lx2, ly2, 63) % 628) / 100 })
+      lanterns.push({ glass, pl: pl2, moths, seed: (tileHash(lx2, ly2, 63) % 628) / 100 })
     }
   }
 
@@ -2104,9 +2220,11 @@ function buildGround(s0) {
   {
     const isW = (x2, y2) => x2 < 0 || y2 < 0 || x2 >= W || y2 >= H ? true : waterSet.has(x2 + ',' + y2)
     const vertsF = [], uvsF = [], phF = [], idxF = []
+    const vertsC = [], uvsC = [], idxC = [] // the caustic strip shares the coastline
     shoreXZ = []
-    let vi = 0, segN = 0
+    let vi = 0, segN = 0, vc = 0
     const FW = 0.46 // how far the foam argues into the water
+    const CW = 1.15 // how far the sun's net reaches before the deep swallows it
     for (const key of waterSet) {
       const parts = key.split(',')
       const gx = +parts[0], gy = +parts[1]
@@ -2126,6 +2244,15 @@ function buildGround(s0) {
         phF.push(ph2, ph2, ph2, ph2)
         idxF.push(vi, vi + 1, vi + 2, vi + 1, vi + 3, vi + 2)
         vi += 4
+        const cx4 = -dx2 * CW, cz4 = -dy2 * CW // the caustic strip, past the foam
+        vertsC.push(
+          ex2 - tx4, wy2 + 0.006, ez2 - tz4,
+          ex2 + tx4, wy2 + 0.006, ez2 + tz4,
+          ex2 - tx4 + cx4, wy2 + 0.006, ez2 - tz4 + cz4,
+          ex2 + tx4 + cx4, wy2 + 0.006, ez2 + tz4 + cz4)
+        uvsC.push(0, 0, 1, 0, 0, 1, 1, 1)
+        idxC.push(vc, vc + 1, vc + 2, vc + 1, vc + 3, vc + 2)
+        vc += 4
         if ((segN++ & 1) === 0) shoreXZ.push(ex2 + nx4 * 0.5, ez2 + nz4 * 0.5)
       }
     }
@@ -2137,6 +2264,26 @@ function buildGround(s0) {
     const foam = new THREE.Mesh(fgeo, foamMat)
     foam.renderOrder = 2 // over the water, under nothing
     scene.add(foam)
+    const cgeo = new THREE.BufferGeometry()
+    cgeo.setAttribute('position', new THREE.Float32BufferAttribute(vertsC, 3))
+    cgeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvsC, 2))
+    cgeo.setIndex(idxC)
+    causticMesh = new THREE.Mesh(cgeo, causticMat)
+    causticMesh.renderOrder = 2 // light lands ON the water, additive and weightless
+    scene.add(causticMesh)
+    // ---- the dawn's low fog: it pools where the water is. A handful of
+    // billboards stand off the shore, each with its own breath, and they
+    // only rise at the horizon hours or after rain — the meadow exhaling. ----
+    for (let mi = 0; mi < shoreXZ.length && mists.length < 14; mi += 16) {
+      const mx = shoreXZ[mi], mz = shoreXZ[mi + 1]
+      const mm = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.7),
+        new THREE.MeshBasicMaterial({ map: MIST_TEX, transparent: true, opacity: 0,
+          depthWrite: false, side: THREE.DoubleSide }))
+      mm.position.set(mx, 0.42, mz)
+      mm.visible = false
+      scene.add(mm)
+      mists.push({ m: mm, x0: mx, z0: mz, seed: Math.abs(Math.sin(mx * 12.7 + mz * 3.1)) * 6.28 })
+    }
   }
 
   // ---- the sea proper: one broad sheet off the east edge. If the mirror
@@ -2874,6 +3021,8 @@ const splats = []
 // walk the world. ----
 let miniCv = null, miniCtx = null, miniTerrain = null, miniAt = 0
 let miniAreaEl = null, miniLastArea = ''
+let miniRing = null, miniLastAz = 999 // the ring turns with the camera, letters upright
+const miniRingTexts = []
 const MINI_VW = 48, MINI_VH = 48 // square now: it turns, so it must be round-ish
 function buildMinimap() {
   miniTerrain = document.createElement('canvas'); miniTerrain.width = W; miniTerrain.height = H
@@ -2897,8 +3046,9 @@ function buildMinimap() {
   miniCv.style.cssText = 'position:absolute;inset:11px;width:128px;height:128px;border-radius:50%;'
     + 'border:2px solid #6b5d43;box-shadow:0 2px 10px rgba(0,0,0,.5),inset 0 0 18px rgba(0,0,0,.55);image-rendering:pixelated;background:#0a0c08'
   disc.appendChild(miniCv)
-  // the cardinal ring: N always at the top of the frame, since the MAP
-  // turns, not the letters — the ring is the fixed compass the disc spins under
+  // the cardinal ring: the letters ORBIT with the world now — the disc
+  // turns under the eye, and N stands wherever north actually is,
+  // each glyph counter-spun so it never reads sideways
   const ring = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
   ring.setAttribute('viewBox', '0 0 150 150')
   ring.style.cssText = 'position:absolute;inset:0;width:150px;height:150px;pointer-events:none'
@@ -2910,7 +3060,9 @@ function buildMinimap() {
     t.setAttribute('font-family', 'Verdana'); t.setAttribute('font-size', ch === 'N' ? '15' : '13')
     t.setAttribute('font-weight', 'bold'); t.setAttribute('style', 'text-shadow:0 1px 2px #000')
     t.textContent = ch; ring.appendChild(t)
+    miniRingTexts.push({ el: t, x: cx, y: cy })
   }
+  miniRing = ring
   disc.appendChild(ring)
   wrap.appendChild(disc)
   // the area name, as /play shows it, riding under the disc
@@ -2924,12 +3076,14 @@ function buildMinimap() {
     e.stopPropagation(); e.preventDefault()
     if (!world || !myId || !world.players[myId]) return
     const r = miniCv.getBoundingClientRect()
-    // undo the disc's +heading spin: Rot(-heading) on the screen offset
-    const ux = ((e.clientX - r.left) / r.width - 0.5) * MINI_VW
-    const uy = ((e.clientY - r.top) / r.height - 0.5) * MINI_VH
-    const meM = beings.get(myId); const rot = (meM ? meM.rotation.y : 0) + Math.PI
+    // the disc is CSS-rotated by the camera's azimuth, so the bounding
+    // box inflates as it turns: measure from its center at the fixed
+    // 128px the style declares, then undo the spin: Rot(-camAz)
+    const ux = ((e.clientX - (r.left + r.width / 2)) / 128) * MINI_VW
+    const uy = ((e.clientY - (r.top + r.height / 2)) / 128) * MINI_VH
+    const rot = camAz
     const c = Math.cos(rot), sn = Math.sin(rot)
-    const wxr = ux * c + uy * sn, wyr = -ux * sn + uy * c // Rot(-(heading+π))
+    const wxr = ux * c + uy * sn, wyr = -ux * sn + uy * c // Rot(-camAz)
     const gx = Math.max(0, Math.min(W - 1, Math.round(world.players[myId].x + wxr)))
     const gy = Math.max(0, Math.min(H - 1, Math.round(world.players[myId].y + wyr)))
     walkGoal = { x: gx, y: gy }; huntTarget = null; workTarget = null
@@ -2952,11 +3106,10 @@ function paintMinimap(s, now) {
   miniCtx.clearRect(0, 0, S, S)
   miniCtx.save()
   miniCtx.translate(S / 2, S / 2)
-  // rotation.y = atan2(worldDX, worldDY), so the facing vector is
-  // (sin h, cos h) in world (x,y) with y pointing DOWN on the map.
-  // Rotating the canvas by (h + π) sends that vector to screen-up, so
-  // the way you face is always at the top, under the fixed N.
-  miniCtx.rotate(heading + Math.PI)
+  // the canvas is painted NORTH-UP and never rotated here: the whole
+  // element spins by CSS every frame to match the camera's azimuth, so
+  // the turn is silk at any repaint rate and the tap-math has one
+  // rotation to undo, not two
   miniCtx.imageSmoothingEnabled = false
   // draw the terrain patch centered on the player, scaled to the disc
   const scale = (S / 2) / R
@@ -2975,12 +3128,20 @@ function paintMinimap(s, now) {
   for (const [pid, p] of Object.entries(s.players)) if (pid !== myId && p.hp > 0 && inV(p.x, p.y)) dot(p.x, p.y, '#e8e4d8', 2)
   if (walkGoal && inV(walkGoal.x, walkGoal.y)) { const [dx, dy] = wpx(walkGoal.x, walkGoal.y); miniCtx.strokeStyle = '#ffe83a'; miniCtx.lineWidth = 1.5; miniCtx.strokeRect(dx - 3, dy - 3, 6, 6) }
   miniCtx.restore()
-  if (meP) { // you sit at the center, always pointing UP the disc — a chevron, so facing reads at a glance
+  if (meP) { // you sit at the center; the chevron points the way your BODY
+    // faces on the north-up map — the CSS spin then carries it into view
+    // space, so it reads true however the camera swings around you.
+    // rotation.y = atan2(dx, dy) → facing (sin h, cos h) with map-y down;
+    // rotating an up-chevron by (π − h) lands exactly on that vector.
+    miniCtx.save()
+    miniCtx.translate(S / 2, S / 2)
+    miniCtx.rotate(Math.PI - heading)
     miniCtx.fillStyle = '#ffcc33'
     miniCtx.beginPath()
-    miniCtx.moveTo(S / 2, S / 2 - 6); miniCtx.lineTo(S / 2 - 4, S / 2 + 5); miniCtx.lineTo(S / 2, S / 2 + 2); miniCtx.lineTo(S / 2 + 4, S / 2 + 5)
+    miniCtx.moveTo(0, -6); miniCtx.lineTo(-4, 5); miniCtx.lineTo(0, 2); miniCtx.lineTo(4, 5)
     miniCtx.closePath(); miniCtx.fill()
     miniCtx.strokeStyle = 'rgba(20,16,8,.8)'; miniCtx.lineWidth = 1; miniCtx.stroke()
+    miniCtx.restore()
   }
   // the area name, refreshed only when it changes
   if (miniAreaEl && meP) {
@@ -4854,9 +5015,54 @@ renderer.domElement.addEventListener('touchmove', (e) => { e.preventDefault(); c
 renderer.domElement.addEventListener('touchend', (e) => { e.preventDefault(); const t3 = e.changedTouches[0]; if (t3) onUp(t3.clientX, t3.clientY) }, { passive: false })
 renderer.domElement.addEventListener('touchcancel', () => { pdown = null }, { passive: true })
 addEventListener('wheel', (e) => { camDist = Math.min(20, Math.max(5, camDist + e.deltaY * 0.01)) }, { passive: true })
+// ---- WASD: the walker answers the keyboard. W is wherever the CAMERA
+// looks — the intent is taken in view space, snapped to the grid the
+// engine speaks, and diagonals zigzag honestly, one axis per tick.
+// Every step rides the same signed wire as every other verb. ----
+const keysHeld = new Set()
+let wasdFlip = false, lastManualStepAt = 0
+const KEY_DIR = { w: 'f', arrowup: 'f', s: 'b', arrowdown: 'b', a: 'l', arrowleft: 'l', d: 'r', arrowright: 'r' }
+function manualStep() {
+  if (!world || !myId || !world.players[myId]) return
+  let mv = 0, ms = 0
+  if (keysHeld.has('f')) mv += 1
+  if (keysHeld.has('b')) mv -= 1
+  if (keysHeld.has('r')) ms += 1
+  if (keysHeld.has('l')) ms -= 1
+  if (!mv && !ms) return
+  const nowMs = performance.now()
+  if (nowMs - lastManualStepAt < TICK_MS * 0.85) return // one step per tick: the engine's own cadence
+  lastManualStepAt = nowMs
+  // camera-relative on the tile grid: forward is (-sin az, -cos az),
+  // right is (cos az, -sin az) — the same frame the minimap turns in
+  const ix = -Math.sin(camAz) * mv + Math.cos(camAz) * ms
+  const iy = -Math.cos(camAz) * mv - Math.sin(camAz) * ms
+  const ax = Math.abs(ix), ay = Math.abs(iy)
+  let useX = ax >= ay
+  if (Math.min(ax, ay) > Math.max(ax, ay) * 0.45) { useX = wasdFlip; wasdFlip = !wasdFlip } // the diagonal, zigzagged
+  if (useX && ix) send({ do: 'move', dx: Math.sign(ix), dy: 0 })
+  else if (iy) send({ do: 'move', dx: 0, dy: Math.sign(iy) })
+  else if (ix) send({ do: 'move', dx: Math.sign(ix), dy: 0 })
+}
+addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return // shortcuts keep their letters
+  const tag = e.target && e.target.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return // and the chat bar keeps its own
+  const d = KEY_DIR[e.key.toLowerCase()]
+  if (!d) return
+  e.preventDefault()
+  if (!keysHeld.has(d)) {
+    keysHeld.add(d)
+    walkGoal = null; huntTarget = null; workTarget = null; goalRing.visible = false
+    manualStep() // the first step answers the press, not the next tick
+  }
+})
+addEventListener('keyup', (e) => { const d = KEY_DIR[e.key.toLowerCase()]; if (d) keysHeld.delete(d) })
+addEventListener('blur', () => keysHeld.clear()) // a lost window lets go of the keys
 setInterval(() => { // one greedy step per tick: the deluxe window keeps its legs simple
   if (!world || !myId) return
   const me = world.players[myId]; if (!me) return
+  if (keysHeld.size) { manualStep(); return } // a hand on the keys outranks every standing order
   if (huntTarget) { // the hunt: close to a sword's length, then strike
     const mb = world.mobs[huntTarget]
     if (!mb || mb.hp <= 0) { huntTarget = null; goalRing.visible = false; return }
@@ -4982,6 +5188,8 @@ function mintBolt(cx, cz) {
 }
 let lastMoonBucket = -1 // the phase turns rarely; the canvas is redrawn rarer still
 let rainMem = 0    // the sky remembers its rain: the rainbow needs the memory
+const heatV = new THREE.Vector3() // scratch: the fires' places on the screen
+const MIST_W = new THREE.Color(0xe9eef6) // the mist borrows the fog, then lightens it
 let snowCover = 0  // and the ground remembers its snow: it settles, then thaws
 let leafAt = 0     // the last leaf shed
 const camDesired = new THREE.Vector3(), camRay = new THREE.Raycaster()
@@ -5019,6 +5227,15 @@ function animate(now) {
   const s = world
   syncBeings(s, prevWorld)
   paintMinimap(s, now)
+  if (miniCv && Math.abs(camAz - miniLastAz) > 0.0008) { // the disc turns with the eye, at frame rate
+    miniLastAz = camAz
+    miniCv.style.transform = 'rotate(' + camAz + 'rad)'
+    if (miniRing) {
+      miniRing.style.transform = 'rotate(' + camAz + 'rad)'
+      const deg = (-camAz * 180 / Math.PI).toFixed(2)
+      for (const rt of miniRingTexts) rt.el.setAttribute('transform', 'rotate(' + deg + ' ' + rt.x + ' ' + rt.y + ')')
+    }
+  }
   { const widEl = document.getElementById('wid')
     if (widEl && entered) {
       const stale = performance.now() - lastAdvanceAt > 2600
@@ -5306,6 +5523,18 @@ function animate(now) {
       meteor.material.opacity = Math.sin(mt * Math.PI) * 0.9
     }
   }
+  { // the comet keeps the tick's calendar: two nights in nine, low and patient
+    const wDay = Math.floor(s.tick / DAY)
+    const on = (wDay % 9 === 6 || wDay % 9 === 7) ? 1 : 0
+    const cAmt = on * clamp01(night * 1.5 - 0.2) * (1 - murk)
+    comet.visible = cAmt > 0.01
+    if (comet.visible) {
+      const drift = (s.tick % (DAY * 2)) / (DAY * 2) // it crosses its window over both nights
+      comet.position.set(-64 + drift * 34, 40 + drift * 12, 44)
+      cometHead.material.opacity = cAmt * 0.85
+      cometTail.material.opacity = cAmt * 0.42
+    }
+  }
   // the water knows the hour and the sun
   waterMat.uniforms.uTime.value = now / 1000
   waterMat.uniforms.uSunDir.value.copy(sunDirV)
@@ -5313,6 +5542,12 @@ function animate(now) {
   waterMat.uniforms.uSky.value.copy(scene.fog.color).multiplyScalar(1.15) // the water carries the true sky
   waterMat.uniforms.uMoonDir.value.copy(moonSprite.position).normalize()
   waterMat.uniforms.uMoon.value = night * 0.9 * (1 - gloom) // the moon's road across the sea
+  if (causticMesh) { // the sun's net dances in the shallows; the moon leaves a ghost of it
+    const cAm = (day * 0.85 + night * 0.14) * (1 - gloom) * (1 - curW.fog * 0.8) * (quality > 0.5 ? 1 : 0.55)
+    causticMat.uniforms.uAmt.value = cAm * 0.5
+    causticMat.uniforms.uTint.value.setRGB(0.55 + day * 0.5, 0.72 + day * 0.25, 1.0 - day * 0.22)
+    causticMesh.visible = cAm > 0.02
+  }
   // fires flicker; embers rise; smoke leans; canopies sway
   for (const [, pl] of fireLights) {
     pl.intensity = 1.25 + Math.sin(now / 90 + pl.position.x) * 0.35 + Math.sin(now / 37) * 0.12 + night * 0.9
@@ -5356,6 +5591,13 @@ function animate(now) {
     const amt = clamp01((0.55 - day) * 3)
     ln.glass.material.emissiveIntensity = amt * (1.8 + flick * 4)
     if (ln.pl) ln.pl.intensity = amt * (1.05 + flick)
+    if (ln.moths) for (const mo of ln.moths) { // the moths keep their vigil at the glass
+      const t5 = now / 1000 * mo.v + mo.a
+      mo.s.position.set(Math.sin(t5 * 2.3 + mo.a) * 0.16,
+        1.02 + Math.sin(t5 * 3.1) * 0.10,
+        0.2 + Math.cos(t5 * 1.7 + mo.a * 2) * 0.16)
+      mo.s.material.opacity = amt * (0.30 + 0.30 * Math.abs(Math.sin(t5 * 9))) * (1 - curW.rain) * (1 - curW.snow)
+    }
   }
   if (puddles.mat) { // the rain's memory, standing in the road
     puddles.mat.opacity = clamp01(rainMem * 1.6) * 0.5
@@ -5469,12 +5711,43 @@ function animate(now) {
     motes.material.size = nighty ? 0.075 : 0.055
     motes.material.opacity = (nighty ? 0.55 : 0.35) * (0.8 + Math.sin(now / 700) * 0.2)
   }
+  if (mists.length) { // the meadow breathes: low fog by the water at the horizon hours, and after rain
+    const mAmt = clamp01(dusk * 1.35 + rainMem * 0.55 + night * 0.10) * (1 - gloom * 0.8) * clamp01(1.3 - curW.wind)
+    for (const ms of mists) {
+      const op = mAmt * (0.13 + 0.09 * Math.sin(now / 3100 + ms.seed * 3))
+      ms.m.visible = op > 0.012
+      if (!ms.m.visible) continue
+      ms.m.material.opacity = op
+      ms.m.material.color.copy(scene.fog.color).lerp(MIST_W, 0.45)
+      ms.m.position.set(
+        ms.x0 + Math.sin(now / 11000 + ms.seed) * 1.4,
+        0.42 + Math.sin(now / 5200 + ms.seed * 2) * 0.06,
+        ms.z0 + Math.cos(now / 13000 + ms.seed * 1.7) * 1.2)
+      ms.m.rotation.y = Math.atan2(camera.position.x - ms.m.position.x, camera.position.z - ms.m.position.z)
+    }
+  }
   // the mood in the darkroom: the night blooms harder and cools the grade
   if (bloomPass) bloomPass.strength = 0.28 + night * 0.24 + dusk * 0.08
   if (gradePass) {
     gradePass.uniforms.uNight.value = night
     gradePass.uniforms.uWarm.value = dusk * (1 - gloom) // the golden hour earns its grade
     gradePass.uniforms.uTime.value = now / 1000
+    gradePass.uniforms.uAsp.value = innerWidth / innerHeight
+    // the air over the near fires bends: up to three columns of shimmer,
+    // each paid for only when the fire is close, seen, and the frame can afford it
+    let hn = 0
+    const slots = [gradePass.uniforms.uHeat0, gradePass.uniforms.uHeat1, gradePass.uniforms.uHeat2]
+    if (quality > 0.5) for (const fxr of fireFX) {
+      if (hn >= 3) break
+      if (!fxr.group.visible) continue
+      heatV.setFromMatrixPosition(fxr.group.matrixWorld); heatV.y += 0.55
+      const hd = camera.position.distanceTo(heatV)
+      if (hd > 15) continue
+      heatV.project(camera)
+      if (heatV.z >= 1 || heatV.x < -1.15 || heatV.x > 1.15 || heatV.y < -1.15 || heatV.y > 1.3) continue
+      slots[hn++].value.set(heatV.x * 0.5 + 0.5, heatV.y * 0.5 + 0.5, clamp01(1 - hd / 15))
+    }
+    for (; hn < 3; hn++) slots[hn].value.z = 0
   }
   goalRing.material.opacity = 0.55 + Math.sin(now / 260) * 0.3
   goalRing.scale.setScalar(1 + Math.sin(now / 260) * 0.08)
