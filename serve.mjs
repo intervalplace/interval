@@ -222,9 +222,12 @@ const lvl = E.levelForXp
 function hiscores() {
   return Object.entries(node.state.players).map(([pid, p]) => {
     const levels = Object.fromEntries(Object.entries(p.skills).map(([k, xp]) => [k, lvl(xp)]))
+    // standing and calling come from the ENGINE, never recomputed on the page:
+    // there is one definition of who a citizen is and it lives in the rules
     return { playerId: pid, name: p.name ?? pid.slice(0, 8) + '…',
              levels, skillXp: { ...p.skills },
-             total: Object.values(levels).reduce((a, b) => a + b, 0),
+             calling: E.callingOf(p),
+             total: E.standingOf(p),
              xp: Object.values(p.skills).reduce((a, b) => a + b, 0) }
   }).sort((a, b) => b.total - a.total || b.xp - a.xp)
 }
