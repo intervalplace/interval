@@ -1,6 +1,6 @@
 # Interval 0.23.0 — Phase 1 Freeze
 
-*Release 0.23.0 · protocol spec v0.68 · consensus spec v1.9 · rules hash `9438fd2d07d4c2cd…`. These four move together; a change to any is a new release.*
+*Release 0.24.0 · protocol spec v0.69 · consensus spec v1.9 · rules hash `875de79db259fcf5…`. These four move together; a change to any is a new release.*
 
 A decentralized MMO protocol. The game is a deterministic state machine,
 the spec is the constitution, and the rules are the authority: not a
@@ -40,7 +40,7 @@ evidence run.
 ## The network is real
 
 Two sovereign machines now run this world. A pillar founds it and
-serves the web window; any stranger runs `node join.mjs https://interval.place <name>`
+serves the web window; any stranger runs `node join.mjs <name>`
 and becomes a full peer: their machine fetches the founding record,
 refuses unless its own SPEC.md hashes to the same constitution, syncs a
 checkpoint, and then computes every tick independently, comparing state

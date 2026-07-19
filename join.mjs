@@ -4,7 +4,8 @@
 // action, held locally. No custodian. The pillar can't lie to you,
 // divergence detection judges its hashes like anyone else's.
 //
-//   usage: node join.mjs https://host [name] [--chop]
+//   usage: node join.mjs <world> [name] [--chop]
+//   e.g.   node join.mjs interval.place zezima --chop
 //
 // By default your citizen simply exists: a full peer, verifying every
 // tick. Add --chop for the example executor (trains woodcutting and
@@ -18,12 +19,66 @@ import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
 import { buildWorld } from './worldgen.mjs'
 
-const URL_ = process.argv[2]
-const NAME = (process.argv[3] || '').toLowerCase().replace(/^--.*/, '')
+const ARG = process.argv[2]
 const CHOP = process.argv.includes('--chop')
 const PORT_ARG = process.argv.find(a => a.startsWith('--port='))
 const P2P_PORT = PORT_ARG ? Number(PORT_ARG.split('=')[1]) : 0 // 0 = random; a FIXED port is easier to open in a firewall
-if (!URL_) { console.log('usage: node join.mjs https://host [name] [--chop]'); process.exit(1) }
+
+const usage = () => {
+  console.log('')
+  console.log('  usage: node join.mjs [world] <name> [--chop] [--port=N]')
+  console.log('')
+  console.log('  With no world named, you join interval.place. Name one to go')
+  console.log('  anywhere else: this tool has no home world, only a default.')
+  console.log('')
+  console.log('    node join.mjs zezima                          interval.place')
+  console.log('    node join.mjs zezima --chop                   an example executor')
+  console.log('    node join.mjs localhost:8787 zezima           a world on this machine')
+  console.log('    node join.mjs some.other.place zezima         somebody else\'s world')
+  console.log('')
+  console.log('  INTERVAL_WORLD=host changes the default.')
+  console.log('')
+}
+if (!ARG || ARG === '--help' || ARG === '-h') { usage(); process.exit(ARG ? 0 : 1) }
+
+// "interval.place" and "localhost:8787" are what a person actually types. Only
+// a machine writes the scheme out every time, so fill it in: https for the open
+// internet, http for a world running on this machine.
+function asWorldUrl(a) {
+  let t = String(a).trim().replace(/\/+$/, '')
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(t)) {
+    const local = /^(localhost|127\.\d+\.\d+\.\d+|\[::1\]|0\.0\.0\.0)(:\d+)?$/i.test(t)
+    if (!local && !/^[a-z0-9-]+(\.[a-z0-9-]+)+(:\d+)?$/i.test(t)) return null
+    t = (local ? 'http://' : 'https://') + t
+  }
+  try { new URL(t); return t } catch { return null }
+}
+
+// The world most people mean, so they need not say it. This is a convenience,
+// not an authority: interval.place is one world among any number, and every
+// other one is reachable by naming it. INTERVAL_WORLD overrides, which is what
+// anyone running their own will want.
+const DEFAULT_WORLD = process.env.INTERVAL_WORLD || 'interval.place'
+
+let URL_ = asWorldUrl(ARG)
+let NAME_ARG = process.argv[3]
+if (!URL_) {
+  // a bare word is a NAME, and the world is the one we default to
+  if (/^[a-z0-9_-]{1,12}$/i.test(ARG)) {
+    URL_ = asWorldUrl(DEFAULT_WORLD)
+    NAME_ARG = ARG
+    console.log('no world named, joining ' + DEFAULT_WORLD
+      + ' (name another to go elsewhere)')
+  } else {
+    console.log('')
+    console.log('  "' + ARG + '" is neither a world nor a usable name.')
+    console.log('')
+    console.log('  A name is up to twelve letters, digits, dashes or underscores.')
+    usage()
+    process.exit(1)
+  }
+}
+const NAME = (NAME_ARG || '').toLowerCase().replace(/^--.*/, '')
 
 // 1. fetch the founding record: from the pillar if it lives, from our
 // own cache if it does not. A node that needs the pillar to be BORN
@@ -35,7 +90,19 @@ const LOCAL_OK = ['localhost', '127.0.0.1', '::1'].includes(host)
 const usableDoor = (a) => LOCAL_OK || !(/\/ip4\/127\./.test(a) || /\/ip6\/::1\//.test(a))
 
 // a witness must not die of a wrong number: rude sockets are logged, not fatal
-process.on('uncaughtException', (e) => console.log('[net] a connection died rudely (' + (e.code ?? e.message) + '); the interval continues'))
+// Most nodes sit behind a router and advertise an address nobody outside can
+// dial. Failing to reach one is the ordinary weather of a peer-to-peer world,
+// not a fault, and it should not read like one.
+const UNREACHABLE = new Set(['ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT', 'ECONNRESET'])
+process.on('uncaughtException', (e) => {
+  const code = e?.code ?? e?.message
+  if (UNREACHABLE.has(code)) {
+    console.log('[net] a peer address would not answer (' + code
+      + '). Most nodes are behind a router; the interval continues')
+  } else {
+    console.log('[net] a connection died rudely (' + code + '); the interval continues')
+  }
+})
 process.on('unhandledRejection', (e) => console.log('[net] a promise died rudely (' + (e?.code ?? e?.message ?? e) + '); the interval continues'))
 fs.mkdirSync('identities', { recursive: true })
 const G_CACHE = `identities/genesis-${host}.json`

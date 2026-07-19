@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.68 ("The Constitution")
+# Interval: Protocol Specification v0.69 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -647,17 +647,29 @@ A player need not exist in genesis to join a world.
 Trade is a two-phase atomic swap between adjacent players. Adjacency is
 deliberate: trade requires *being there*.
 
-- `offer_trade {to, giveSlot, wantItem}`: valid iff `to` is another
-  existing player, `giveSlot` holds an item, and `wantItem` is an item
-  string. Sets `player.trade = {to, giveSlot, wantItem}`. A new offer
-  replaces any previous one.
+- `offer_trade {to, giveSlots, wantItem}`: valid iff `to` is another
+  existing player, every slot in `giveSlots` holds an item, and
+  `wantItem` is an item string. `giveSlots` is a non-empty list of
+  distinct slot indexes in ascending order, at most `INV_SLOTS` long:
+  one offer has exactly one serialized form, so two nodes always read
+  the same offer from the same bytes. Sets
+  `player.trade = {to, giveSlots, wantItem}`. A new offer replaces any
+  previous one.
 - `accept_trade {from}`: valid iff `from` has an open offer targeting
-  the acceptor, the two players are adjacent (orthogonally), and the
-  acceptor holds at least one `wantItem`. On success, executed
-  atomically in the same tick: the offerer's `giveSlot` item and the
-  acceptor's first `wantItem` slot are swapped, and the offer clears.
-  If any condition no longer holds at application time (item gone,
-  players moved apart), the accept is ignored: never partially applied.
+  the acceptor, the two players are adjacent (orthogonally), the
+  acceptor holds at least one `wantItem`, and the acceptor has room for
+  every offered item at the moment of the swap. On success, executed
+  atomically in the same tick: all of the offerer's `giveSlots` items
+  pass to the acceptor, the acceptor's first `wantItem` slot passes to
+  the offerer (landing in the first slot the goods vacated), and the
+  offer clears. If any condition no longer holds at application time
+  (an item gone, the players moved apart, no room for the whole
+  parcel), the accept is ignored: never partially applied.
+
+  A trade carries as many slots as the offerer names because hauling is
+  the cost this world charges for moving goods, and pressing accept is
+  not. Twenty logs is twenty slots carried to the meeting either way;
+  it should not also be twenty exchanges.
 - `cancel_trade`: clears the caller's open offer.
 
 There is no partial trade, no negotiation protocol, and no escrow: the

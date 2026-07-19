@@ -7,6 +7,7 @@
 //   usage: node serve.mjs [name]   then open http://localhost:8787
 
 import fs from 'fs'
+import { makeBoard } from './board.mjs'
 import http from 'http'
 import { WebSocketServer } from 'ws'
 import E from './engine.js'
@@ -219,6 +220,22 @@ function identityFor(uid) {
 
 // ---- the readable world: JSON API (hiscores sites are just windows) ----
 const lvl = E.levelForXp
+// The board reads standing from the world and nothing else. It is given a
+// lookup rather than the state itself, so it can be tested without a world and
+// can never reach into one.
+const board = makeBoard({
+  // Keepers are citizen keys, named here and nowhere else. There is no
+  // password: a keeper's instruction carries their signature exactly as their
+  // words would, so this server holds no secret that could be stolen from it.
+  moderators: (process.env.INTERVAL_BOARD_KEEPERS ?? '').split(',')
+    .map(k => k.trim().toLowerCase()).filter(k => /^[0-9a-f]{64}$/.test(k)),
+  lookup: (key) => {
+    const p = node.state.players[key]
+    if (!p) return null
+    return { name: p.name ?? null, standing: E.standingOf(p), calling: E.callingOf(p) }
+  },
+})
+
 function hiscores() {
   return Object.entries(node.state.players).map(([pid, p]) => {
     const levels = Object.fromEntries(Object.entries(p.skills).map(([k, xp]) => [k, lvl(xp)]))
@@ -234,6 +251,7 @@ function hiscores() {
 
 const PAGES = { '/': 'index.html', '/quickstart': 'quickstart.html',
                 '/manual': 'manual.html', '/hiscores': 'hiscores.html',
+                '/board': 'board.html',
                 '/play': 'windows.html', '/windows': 'windows.html' }
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript' }
 
@@ -280,6 +298,57 @@ const server = http.createServer((req, res) => {
       const fresh = Date.now() - 5 * 60 * 1000
       for (const [id2, e2] of announced) if (e2.at < fresh) announced.delete(id2)
       return json({ peers: [...announced.values()].map(e2 => e2.addr), count: announced.size })
+    }
+    // ---- the board: coordination that does not belong inside the world ----
+    // Public chat is for what is happening now, where you are standing. This
+    // is for what is happening later, to someone who is not here. It has no
+    // accounts because the world already gave everyone an identity: a post is
+    // signed with the same key that swings an axe, and the node checks the
+    // signature against the same public key the hiscores rank.
+    //
+    // Spam is answered by the only thing this world has that cannot be forged
+    // in bulk: TIME. Posting requires a standing, which is minutes of real
+    // work per identity, and there is a flat daily allowance above it. Flat,
+    // not scaled: a newcomer with a question needs the board more than a
+    // master does, and rationing speech by rank is how a forum becomes a
+    // hierarchy.
+    if (path === '/api/board') {
+      if (req.method === 'GET') {
+        return json({ posts: board.latest(),
+                      minStanding: board.config.minStanding, perDay: board.config.perDay,
+                      keepers: board.config.moderators })
+      }
+      if (req.method === 'POST') {
+        let body = ''
+        req.on('data', (c) => { body += c; if (body.length > 65536) req.destroy() })
+        req.on('end', async () => {
+          try {
+            const post = JSON.parse(body)
+            const verdict = await board.accept(post)
+            if (verdict.ok) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })) }
+            else { res.writeHead(verdict.code ?? 400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: verdict.why })) }
+          } catch (e) {
+            res.writeHead(400, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'that was not a post' }))
+          }
+        })
+        return
+      }
+    }
+    if (path === '/api/board/moderate' && req.method === 'POST') {
+      let body = ''
+      req.on('data', (c) => { body += c; if (body.length > 8192) req.destroy() })
+      req.on('end', async () => {
+        try {
+          const verdict = await board.moderate(JSON.parse(body))
+          if (verdict.ok) { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true })) }
+          else { res.writeHead(verdict.code ?? 400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: verdict.why })) }
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'that was not an instruction' }))
+        }
+      })
+      return
     }
     if (path === '/api/races') {
       // One row per skill: a race that is over names its winner forever, and a

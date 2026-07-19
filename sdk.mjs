@@ -52,8 +52,14 @@ export class IntervalClient {
   stop() { return this.#send({ type: 'stop' }) }
   claimName(name) { return this.#send({ type: 'claim_name', name }) }
   spawn() { return this.#send({ type: 'spawn' }) }
-  offerTradeForItem(to, giveSlot, wantItem) { return this.#send({ type: 'offer_trade', to, giveSlot, wantItem, wantGold: 0 }) }
-  offerTradeForGold(to, giveSlot, wantGold) { return this.#send({ type: 'offer_trade', to, giveSlot, wantItem: null, wantGold }) }
+  // v0.69: one slot or many. A number is still accepted because one slot is
+  // the common case and a caller should not have to write [3] to mean 3.
+  #slots(v) {
+    const a = Array.isArray(v) ? v.slice() : [v]
+    return [...new Set(a)].sort((x, y) => x - y)
+  }
+  offerTradeForItem(to, giveSlots, wantItem) { return this.#send({ type: 'offer_trade', to, giveSlots: this.#slots(giveSlots), wantItem, wantGold: 0 }) }
+  offerTradeForGold(to, giveSlots, wantGold) { return this.#send({ type: 'offer_trade', to, giveSlots: this.#slots(giveSlots), wantItem: null, wantGold }) }
   acceptTrade(from) { return this.#send({ type: 'accept_trade', from }) }
   cancelTrade() { return this.#send({ type: 'cancel_trade' }) }
   cook(slot) { return this.#send({ type: 'cook', slot }) }

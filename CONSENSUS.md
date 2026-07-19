@@ -1,6 +1,6 @@
 # Interval Consensus Specification v1.9 (Byzantine Safety Upgrade)
 
-*Release 0.23.0 · protocol spec v0.68 · rules hash `9438fd2d07d4c2cd…`*
+*Release 0.24.0 · protocol spec v0.69 · rules hash `875de79db259fcf5…`*
 
 **Certified Interval Bundles — the agreement protocol for authoritative worlds.**
 
@@ -11,7 +11,7 @@ inputs each interval contains and *when* a state is final. Where the code
 and this document disagree, this document is the protocol and the code
 has a bug.
 
-- Implementation release: `package.json` version `0.23.0`
+- Implementation release: `package.json` version `0.24.0`
 - Constitution version: SPEC.md header `v0.47` (rules hash binds it)
 - Consensus specification version: `v1.9` (this document)
 - Wire protocol version: `PROTOCOL_VERSION = 2` (`protocol.mjs`)
@@ -782,3 +782,21 @@ threat is no longer only crashes.
 `node found-witnesses.mjs 3` mints a set and prints the environment each
 machine needs. Every witness must be running before the first tick: a witness
 absent at founding is not a founding witness and can never become one.
+
+## The board (Class C, outside the world)
+
+The board at `/board` is a website, not part of the world: nothing about it is
+hashed into a worldId and no node needs it to compute a tick. It reads standing
+from the world and nothing else.
+
+- `INTERVAL_BOARD_MIN_STANDING` (default 50): the standing a citizen needs
+  before they may post. Standing is minutes of real work per identity, which is
+  the only thing this world has that cannot be forged in bulk.
+- `INTERVAL_BOARD_PER_DAY` (default 10): posts per citizen per day. Flat, not
+  scaled by standing: a newcomer with a question needs the board more than a
+  master does.
+- `INTERVAL_BOARD_KEEPERS`: comma-separated citizen keys who may remove posts
+  and silence keys. Instructions are signed with the keeper's own key, so the
+  server holds no password and there is nothing to steal from it. Every removal
+  is recorded with its author, its reason, and the subject of what was removed;
+  that record outlives the post and is not removable from the board itself.

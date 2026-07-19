@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.68';
+const SPEC_VERSION = '0.69';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // Typed error codes for the CJS engine (mirrors errors.mjs; kept in sync by
@@ -242,6 +242,17 @@ const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
 const T = {
   unit: (v) => [-1, 0, 1].includes(v) || 'must be -1, 0, or 1',
   slot: (v) => (Number.isInteger(v) && v >= 0 && v < INV_SLOTS) || 'must be an inventory slot index',
+  // v0.69: a trade names one or more of the offerer's slots. Ordered, unique,
+  // never empty, never longer than the pack: canonical so two nodes reading
+  // the same offer always read the same offer.
+  slotList: (v) => {
+    if (!Array.isArray(v) || v.length === 0 || v.length > INV_SLOTS) return 'must be 1..' + INV_SLOTS + ' inventory slots';
+    for (let i = 0; i < v.length; i++) {
+      if (!Number.isInteger(v[i]) || v[i] < 0 || v[i] >= INV_SLOTS) return 'must be inventory slot indexes';
+      if (i > 0 && v[i] <= v[i - 1]) return 'slots must be ascending and unique';
+    }
+    return true;
+  },
   nonnegInt: (v) => (Number.isSafeInteger(v) && v >= 0 && v <= 1e12) || 'must be a nonnegative integer',
   id: (v) => (typeof v === 'string' && /^[a-z0-9_-]{1,64}$/i.test(v)) || 'must be an identifier',
   hex64: (v) => (typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)) || 'must be lowercase 64-hex',
@@ -263,7 +274,7 @@ const INPUT_SCHEMAS = {
   // pre-freeze §1: BOTH demand fields, always, explicitly — the canonical
   // item trade carries wantGold: 0; the canonical gold trade carries
   // wantItem: null. Omission is not a representation.
-  offer_trade: { to: T.hex64, giveSlot: T.slot, wantItem: T.itemOrNull, wantGold: T.nonnegInt },
+  offer_trade: { to: T.hex64, giveSlots: T.slotList, wantItem: T.itemOrNull, wantGold: T.nonnegInt },
   accept_trade: { from: T.hex64 },
   smith: { recipe: T.recipe },
   wield: { slot: T.slot }, sell: { slot: T.slot }, plant: { slot: T.slot },
@@ -1101,10 +1112,17 @@ function validateState(state) {
   const validTrade = (t, s2) => {
     if (t === null) return null;
     if (!t || typeof t !== 'object') return 'malformed trade';
-    if (Object.keys(t).sort().join(',') !== 'giveSlot,to,wantGold,wantItem') return 'malformed trade shape';
+    if (Object.keys(t).sort().join(',') !== 'giveSlots,to,wantGold,wantItem') return 'malformed trade shape';
     if (typeof t.to !== 'string' || !HEX64.test(t.to)) return 'malformed trade partner';
     if (!s2.players[t.to]) return 'trade references a missing partner';
-    if (!isInt(t.giveSlot, 0, INV_SLOTS - 1)) return 'malformed trade slot';
+    // v0.69: a stored offer names one or more slots, ascending and unique, so
+    // the same offer is the same bytes on every node
+    if (!Array.isArray(t.giveSlots) || t.giveSlots.length === 0 || t.giveSlots.length > INV_SLOTS)
+      return 'malformed trade slots';
+    for (let i = 0; i < t.giveSlots.length; i++) {
+      if (!isInt(t.giveSlots[i], 0, INV_SLOTS - 1)) return 'malformed trade slot';
+      if (i > 0 && t.giveSlots[i] <= t.giveSlots[i - 1]) return 'trade slots must be ascending and unique';
+    }
     if (t.wantItem !== null && !isItemName(t.wantItem)) return 'malformed trade item';
     if (!isInt(t.wantGold, 0, MAX_QTY)) return 'malformed trade gold';
     // rev7 §1: the SAME XOR invariant as validInput — a persisted trade
@@ -1321,6 +1339,38 @@ function countItem(inv, item) {
   return n;
 }
 
+// Can this trade land whole? Counts the room the ACCEPTOR will have at the
+// moment of the swap: the slot their own payment leaves behind is free by
+// then, and a stackable item needs no slot at all if they already hold some.
+// A trade that cannot land whole must not begin (§5c).
+function tradeFits(offerer, acceptor, trade) {
+  const slots = Array.isArray(trade.giveSlots) ? trade.giveSlots : [];
+  if (!slots.length) return false;
+  const incoming = [];
+  for (const sl of slots) {
+    const it = offerer.inventory[sl];
+    if (!it) return false;                 // the offer no longer holds
+    incoming.push(it);
+  }
+  // a copy of what the acceptor's pack looks like once their payment leaves
+  const inv = acceptor.inventory.slice();
+  if (!trade.wantGold) {
+    const j = inv.findIndex(sl => sl && sl.item === trade.wantItem);
+    if (j === -1) return false;
+    inv[j] = null;                          // their payment is on its way out
+  }
+  let free = 0;
+  for (const sl of inv) if (!sl) free++;
+  const held = new Set(inv.filter(Boolean).map(sl => sl.item));
+  for (const it of incoming) {
+    if (STACKABLE.has(it.item) && held.has(it.item)) continue; // pools, no slot
+    if (free === 0) return false;
+    free--;
+    held.add(it.item);
+  }
+  return true;
+}
+
 function canAddItem(inv, item) {
   if (STACKABLE.has(item) && inv.some(sl => sl?.item === item)) return true;
   return firstFreeSlot(inv) !== -1;
@@ -1421,7 +1471,10 @@ function validInput(state, input, ctx) {
     case 'offer_trade': {
       const t = state.players[input.to];
       if (!t || input.to === input.playerId) return false;
-      if (!Number.isInteger(input.giveSlot) || !p.inventory[input.giveSlot]) return false;
+      // every named slot must actually hold something. An offer that promises
+      // an empty slot is not a smaller offer, it is a malformed one.
+      if (!Array.isArray(input.giveSlots) || input.giveSlots.length === 0) return false;
+      for (const sl of input.giveSlots) if (!p.inventory[sl]) return false;
       // structural canonicality (both demand fields explicit, item XOR
       // positive gold) already passed the shape gate; this case is purely
       // state-dependent now (pre-freeze §4)
@@ -1431,6 +1484,9 @@ function validInput(state, input, ctx) {
       const o = state.players[input.from];
       if (!o || !o.trade || o.trade.to !== input.playerId) return false;
       if (!adjacent(p, o)) return false;
+      // a trade is whole or it does not happen (§5c), so the room must be
+      // there BEFORE anything moves
+      if (!tradeFits(o, p, o.trade)) return false;
       if (o.trade.wantGold) return (p.gold ?? 0) >= o.trade.wantGold;
       return p.inventory.some(s => s && s.item === o.trade.wantItem);
     }
@@ -2032,31 +2088,35 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'offer_trade') {
       // the shape gate guarantees both demand fields, canonically — the
       // persisted trade is the signed trade, verbatim (pre-freeze §12)
-      p.trade = { to: inp.to, giveSlot: inp.giveSlot, wantItem: inp.wantItem, wantGold: inp.wantGold };
+      p.trade = { to: inp.to, giveSlots: inp.giveSlots.slice(), wantItem: inp.wantItem, wantGold: inp.wantGold };
     } else if (inp.type === 'cancel_trade') {
       p.trade = null;
     } else if (inp.type === 'accept_trade') {
-      // re-validate against the NEW state (§5c): all-or-nothing
+      // re-validate against the NEW state (§5c): all-or-nothing. Everything is
+      // checked before anything moves, so a trade that cannot complete leaves
+      // both packs exactly as they were.
       const o = s.players[inp.from];
-      if (o && o.trade && o.trade.to === pid && adjacent(p, o)) {
-        const giveItem = o.inventory[o.trade.giveSlot];
+      if (o && o.trade && o.trade.to === pid && adjacent(p, o) && tradeFits(o, p, o.trade)) {
+        const slots = o.trade.giveSlots;
+        const goods = slots.map(sl => o.inventory[sl]);
         if (o.trade.wantGold) { // v0.41: coin settles like any item
-          if (giveItem && (p.gold ?? 0) >= o.trade.wantGold) {
-            const fs3 = firstFreeSlot(p.inventory);
-            if (fs3 !== -1) {
-              p.gold -= o.trade.wantGold;
-              o.gold = (o.gold ?? 0) + o.trade.wantGold;
-              p.inventory[fs3] = giveItem;
-              o.inventory[o.trade.giveSlot] = null;
-              o.trade = null;
-            }
+          if ((p.gold ?? 0) >= o.trade.wantGold) {
+            p.gold -= o.trade.wantGold;
+            o.gold = (o.gold ?? 0) + o.trade.wantGold;
+            for (const sl of slots) o.inventory[sl] = null;
+            for (const g of goods) addItem(p.inventory, g.item, g.qty ?? 1);
+            o.trade = null;
           }
         } else {
           const j = p.inventory.findIndex(sl => sl && sl.item === o.trade.wantItem);
-          if (giveItem && j !== -1) {
-            const wantSlotItem = p.inventory[j];
-            o.inventory[o.trade.giveSlot] = wantSlotItem;
-            p.inventory[j] = giveItem;
+          if (j !== -1) {
+            const payment = p.inventory[j];
+            p.inventory[j] = null;
+            for (const sl of slots) o.inventory[sl] = null;
+            // the payment lands in the first slot the goods vacated, so a
+            // trade never needs room the offerer did not just make
+            o.inventory[slots[0]] = payment;
+            for (const g of goods) addItem(p.inventory, g.item, g.qty ?? 1);
             o.trade = null;
           }
         }
