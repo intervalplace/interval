@@ -883,6 +883,9 @@ const mats = { // shared PBR skins
   iron: new THREE.MeshStandardMaterial({ color: 0x2c2c31, roughness: 0.5, metalness: 0.7 }),
   gold: new THREE.MeshStandardMaterial({ color: 0xd9a62e, roughness: 0.35, metalness: 0.85 }),
   bone: new THREE.MeshStandardMaterial({ color: 0xd8d4c4, roughness: 0.8 }),
+  plaster: new THREE.MeshStandardMaterial({ color: 0xc9bb9e, roughness: 0.9 }),
+  darkwood: new THREE.MeshStandardMaterial({ color: 0x241708, roughness: 0.9 }),
+  brew: new THREE.MeshStandardMaterial({ color: 0x3f6a22, roughness: 0.35, emissive: 0x2a4a12, emissiveIntensity: 0.5 }),
   flame: new THREE.MeshBasicMaterial({ color: 0xff7a14, transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false }),
   flameCore: new THREE.MeshBasicMaterial({ color: 0xffd980, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }),
   rune: new THREE.MeshBasicMaterial({ color: 0x66aaff }),
@@ -890,6 +893,8 @@ const mats = { // shared PBR skins
 const rockDetail = makeDetail(5, { bump: 3.4, roughBase: 190 })
 mats.stone.map = rockDetail.albedo; mats.stone.normalMap = rockDetail.normal
 mats.stone.roughnessMap = rockDetail.rough
+mats.plaster.map = rockDetail.albedo; mats.plaster.normalMap = rockDetail.normal
+mats.plaster.normalScale = new THREE.Vector2(0.5, 0.5)
 const barkDetail = makeDetail(11, { bump: 3.8, roughBase: 210 })
 barkDetail.albedo.repeat.set(1, 3); barkDetail.normal.repeat.set(1, 3); barkDetail.rough.repeat.set(1, 3)
 for (const bm of [mats.bark, mats.wood, mats.roof]) {
@@ -943,6 +948,15 @@ const smokeTex = (() => {
   return new THREE.CanvasTexture(c)
 })()
 
+// a triangular prism for gabled roofs: ridge along z, base sitting at y=0
+const roofGeo = (rad, depth) => {
+  const g2 = new THREE.CylinderGeometry(rad, rad, depth, 3, 1)
+  g2.rotateX(-Math.PI / 2)
+  g2.rotateZ(Math.PI / 2)
+  g2.translate(0, rad * 0.5, 0)
+  return g2
+}
+
 function nodeBody(n) {
   const g = new THREE.Group()
   const hsh = [...n.id].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) >>> 0, 5381)
@@ -950,20 +964,53 @@ function nodeBody(n) {
   const add = (mesh, x = 0, y = 0, z = 0, shadow = true) => {
     mesh.position.set(x, y, z); mesh.castShadow = shadow; g.add(mesh); return mesh }
   if (n.type === 'tree') {
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.065 * grow, 0.15 * grow, 1.55 * grow, 7), mats.bark), 0, 0.75 * grow)
-    const crown = (m, x, y, z, s) => { const k = add(new THREE.Mesh(craggy(0.62 * s * grow, hsh % 97), m), x * grow, y * grow, z * grow); k.userData.canopy = true; return k }
-    crown(mats.leaf1, 0, 1.75, 0, 1.15)
-    crown(mats.leaf0, 0.4, 1.45, 0.25, 0.8)
-    crown(mats.leaf2, -0.33, 1.55, -0.2, 0.85)
+    if (hsh % 5 < 2) {
+      // a pine: bare trunk, three skirts of needle, narrower as it climbs
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.05 * grow, 0.14 * grow, 1.9 * grow, 7), mats.bark), 0, 0.9 * grow)
+      for (let i = 0; i < 3; i++) {
+        const c = add(new THREE.Mesh(new THREE.ConeGeometry((0.62 - i * 0.16) * grow, 0.8 * grow, 8),
+          [mats.leaf0, mats.leaf1, mats.leaf2][i]), 0, (1.15 + i * 0.48) * grow)
+        c.userData.canopy = true
+      }
+    } else {
+      // a broadleaf: tapered trunk, two boughs reaching, four blown masses
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.07 * grow, 0.17 * grow, 1.5 * grow, 7), mats.bark), 0, 0.72 * grow)
+      const b1 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035 * grow, 0.06 * grow, 0.7 * grow, 5), mats.bark), 0.24 * grow, 1.28 * grow, 0.1 * grow)
+      b1.rotation.z = -0.7
+      const b2 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.03 * grow, 0.05 * grow, 0.6 * grow, 5), mats.bark), -0.2 * grow, 1.22 * grow, -0.12 * grow)
+      b2.rotation.z = 0.8; b2.rotation.x = 0.3
+      const crown = (m, x, y, z, s) => { const k = add(new THREE.Mesh(craggy(0.6 * s * grow, hsh % 97), m), x * grow, y * grow, z * grow); k.userData.canopy = true; return k }
+      crown(mats.leaf1, 0, 1.85, 0, 1.2)
+      crown(mats.leaf0, 0.48, 1.5, 0.28, 0.85)
+      crown(mats.leaf2, -0.4, 1.6, -0.24, 0.9)
+      crown(mats.leaf2, 0.08, 2.3, -0.06, 0.68)
+    }
     g.rotation.y = (hsh % 628) / 100
   } else if (n.type === 'rock' || n.type === 'magic-rock') {
-    add(new THREE.Mesh(craggy(0.5 * grow, hsh % 89), n.type === 'rock' ? mats.stone : mats.magic), 0, 0.26)
-    add(new THREE.Mesh(craggy(0.26 * grow, hsh % 83), mats.stone), 0.34, 0.13, -0.16)
-    if (n.type === 'magic-rock') { const l = new THREE.PointLight(0x8f7dff, 3, 5); add(l, 0, 0.7, 0, false) }
+    add(new THREE.Mesh(craggy(0.5 * grow, hsh % 89), mats.stone), 0, 0.2)
+    add(new THREE.Mesh(craggy(0.28 * grow, hsh % 83), mats.stone), 0.36, 0.1, -0.18)
+    add(new THREE.Mesh(craggy(0.12 * grow, hsh % 79), mats.stone), -0.3, 0.05, 0.24)
+    if (n.type === 'magic-rock') {
+      // the ore declares itself: shards of light grown out of the stone
+      for (let i = 0; i < 3; i++) {
+        const cr = add(new THREE.Mesh(new THREE.OctahedronGeometry(0.13 * grow), mats.magic),
+          Math.cos(i * 2.1 + hsh) * 0.22, 0.42 + (i === 0 ? 0.14 : 0), Math.sin(i * 2.1 + hsh) * 0.22)
+        cr.scale.y = 2.2; cr.rotation.set(0.2 * i, i * 1.3, 0.15)
+      }
+      const l = new THREE.PointLight(0x8f7dff, 3, 5); add(l, 0, 0.7, 0, false)
+    }
+    g.rotation.y = (hsh % 628) / 100
   } else if (n.type === 'fishing-spot') {
     const ring = add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.02, 6, 24),
       new THREE.MeshBasicMaterial({ color: 0x9fd4de, transparent: true, opacity: 0.7 })), 0, -0.12, 0, false)
     ring.rotation.x = -Math.PI / 2; ring.userData.bob = true
+    for (let i = 0; i < 4; i++) { // reeds keep the spot honest from a distance
+      const a = (hsh % 628) / 100 + i * 1.7
+      const r = add(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.55, 4), mats.leaf1),
+        Math.cos(a) * 0.42, 0.1, Math.sin(a) * 0.42)
+      r.rotation.z = Math.cos(a) * 0.16; r.rotation.x = Math.sin(a) * -0.16
+      add(new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.14, 4), mats.bark), Math.cos(a) * 0.46, 0.38, Math.sin(a) * 0.46)
+    }
   } else if (n.type === 'campfire' || n.type === 'fire') {
     for (let i = 0; i < 3; i++) {
       const log = add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 6), mats.wood), 0, 0.07)
@@ -985,33 +1032,89 @@ function nodeBody(n) {
       sp.position.y = 1; g.add(sp); g.userData.smoke.push(sp)
     }
   } else if (n.type === 'bank') {
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.1, 0.9), mats.stone), 0, 0.55)
-    add(new THREE.Mesh(new THREE.BoxGeometry(1, 0.14, 1), mats.gold), 0, 1.17)
+    // a colonnade and a gold cornice: the one building that shows off
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.8, 0.72), mats.stone), 0, 0.4)
+    for (const sx of [-0.36, -0.12, 0.12, 0.36])
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.8, 8), mats.plaster), sx, 0.4, 0.42)
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.06, 0.8), mats.gold), 0, 0.82)
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 0.95), mats.stone), 0, 0.89)
+    add(new THREE.Mesh(roofGeo(0.32, 1.0), mats.stone), 0, 0.93).rotation.y = Math.PI / 2
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.36, 0.03), mats.darkwood), 0, 0.18, 0.37)
   } else if (n.type === 'anvil') {
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.4, 0.3), mats.iron), 0, 0.2)
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.13, 0.3), mats.iron), 0, 0.46)
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.3, 9), mats.wood), 0, 0.15) // the stump
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.16, 0.2), mats.iron), 0, 0.38)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 0.24), mats.iron), 0.02, 0.5)
+    const horn = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.26, 8), mats.iron), 0.37, 0.5)
+    horn.rotation.z = -Math.PI / 2
   } else if (n.type === 'waystone') {
     add(new THREE.Mesh(new THREE.BoxGeometry(0.32, 1.7, 0.32), mats.stone), 0, 0.85).rotation.y = (hsh % 628) / 100
+    const rr = add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.028, 6, 24), mats.rune), 0, 1.32, 0, false)
+    rr.rotation.x = Math.PI / 2
     add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.34), mats.rune), 0, 1.32, 0, false)
     add(new THREE.PointLight(0x5f9dff, 5, 6), 0, 1.7, 0, false)
   } else if (n.type === 'house' || n.type === 'store' || n.type === 'guard' || n.type === 'gatehouse') {
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.2, 0.95), n.type === 'store' ? mats.wood : mats.stone), 0, 0.6)
-    add(new THREE.Mesh(new THREE.ConeGeometry(0.85, 0.62, 4), mats.roof), 0, 1.5).rotation.y = Math.PI / 4
-    const win = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.22, 0.26),
-      new THREE.MeshBasicMaterial({ color: 0xffc46a })), 0.485, 0.62, 0, false)
+    // a building is a wall, a roof, a door, and a lit window after dark.
+    // Guardposts trade the gable for a crenellated slab and a banner.
+    const wallMat = n.type === 'store' ? mats.wood : n.type === 'house' ? mats.plaster : mats.stone
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.78, 0.8), wallMat), 0, 0.39)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.4, 0.04), mats.darkwood), 0.18, 0.2, 0.41)
+    if (n.type === 'guard' || n.type === 'gatehouse') {
+      add(new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 0.9), mats.stone), 0, 0.82)
+      for (const mx of [-0.42, -0.14, 0.14, 0.42]) {
+        add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.12), mats.stone), mx, 0.94, 0.39)
+        add(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.12), mats.stone), mx, 0.94, -0.39)
+      }
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, 0.02), mats.gold), 0, 0.55, 0.415, false)
+    } else {
+      add(new THREE.Mesh(roofGeo(0.42, 1.02), mats.roof), 0, 0.78).rotation.y = Math.PI / 2
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.36, 0.12), mats.stone), -0.3, 1.12, -0.2)
+    }
+    if (n.type === 'store') { // an awning and a crate say 'open for trade'
+      const aw = add(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.03, 0.32), mats.gold), -0.06, 0.62, 0.54)
+      aw.rotation.x = 0.35
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), mats.wood), 0.44, 0.1, 0.56)
+    }
+    const win = add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.03),
+      new THREE.MeshBasicMaterial({ color: 0xffc46a })), -0.22, 0.45, 0.4, false)
     win.userData.window = true
-  } else if (n.type === 'wall' || n.type === 'gate') {
-    add(new THREE.Mesh(new THREE.BoxGeometry(1, 0.9, 1), mats.stone), 0, 0.45)
+    const win2 = add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.2),
+      new THREE.MeshBasicMaterial({ color: 0xffc46a })), 0.465, 0.45, -0.1, false)
+    win2.userData.window = true
+  } else if (n.type === 'wall') {
+    add(new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 0.9), mats.stone), 0, 0.35)
+    for (const mx of [-0.36, 0, 0.36])
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.9), mats.stone), mx, 0.79)
+  } else if (n.type === 'gate') {
+    for (const sx of [-0.42, 0.42])
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 1.1, 8), mats.stone), sx, 0.55)
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.2, 0.5), mats.stone), 0, 1.06)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.86, 0.06), mats.darkwood), 0, 0.43)
   } else if (n.type === 'well') {
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.46, 0.5, 10), mats.stone), 0, 0.25)
-    add(new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.4, 6), mats.roof), 0, 1.1)
+    for (const sx of [-0.4, 0.4])
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.7, 0.07), mats.wood), sx, 0.75)
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.86, 6), mats.bark), 0, 1.02).rotation.z = Math.PI / 2
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.12, 8), mats.iron), 0, 0.74) // the bucket
+    add(new THREE.Mesh(new THREE.ConeGeometry(0.56, 0.4, 6), mats.roof), 0, 1.32)
   } else if (n.type === 'signpost') {
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 6), mats.bark), 0, 0.45)
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 0.05), mats.wood), 0.2, 0.76)
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 1.0, 6), mats.bark), 0, 0.5)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.04), mats.wood), 0.22, 0.84)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.04), mats.wood), -0.18, 0.6).rotation.y = 0.5
   } else if (n.type === 'plot') {
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.07, 0.95), mats.wood), 0, 0.03)
+    add(new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.1, 0.95), mats.darkwood), 0, 0.05)
+    for (const fz of [-0.28, 0, 0.28])
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.14), mats.bark), 0, 0.11, fz)
+    for (let i = 0; i < 5; i++) // something is always coming up
+      add(new THREE.Mesh(new THREE.ConeGeometry(0.035, 0.14, 5), mats.leaf1),
+        ((tileHash(hsh, i, 91) % 70) - 35) / 100, 0.19, [-0.28, 0, 0.28][i % 3])
   } else if (n.type === 'brewpot') {
-    add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.5, 10), mats.iron), 0, 0.25)
+    for (let i = 0; i < 3; i++)
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.22, 6), mats.iron),
+        Math.cos(i * 2.1) * 0.2, 0.11, Math.sin(i * 2.1) * 0.2)
+    const pot = add(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), mats.iron), 0, 0.36)
+    pot.scale.y = 0.8
+    add(new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.035, 8, 20), mats.iron), 0, 0.56).rotation.x = Math.PI / 2
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.02, 16), mats.brew), 0, 0.55, 0, false)
   } else {
     add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.5), mats.wood), 0, 0.3)
   }
@@ -1022,23 +1125,104 @@ function nodeBody(n) {
 
 const MOB_LOOK = { goblin: [0x5c8a3a, 0.55], wolf: [0x6b6b62, 0.55], troll: [0x4a6b52, 0.95],
   bear: [0x5c4023, 0.85], 'skeleton-knight': [0xd8d4c4, 0.8] }
-function bodyOf(color, scale, own = false) {
+// a limb that pivots where it should: a group at the joint, flesh below
+function limb(mat, r, len, s) {
+  const p = new THREE.Group()
+  const m = new THREE.Mesh(new THREE.CapsuleGeometry(r * s, len * s, 3, 6), mat)
+  m.position.y = -(len * s) / 2
+  m.castShadow = true
+  p.add(m)
+  return p
+}
+// the standing peoples: citizens, goblins, trolls, the knight that
+// forgot to stop. Legs pump, arms swing, eyes face the way they walk.
+function bodyOf(color, scale, own = false, kind = '') {
   const g = new THREE.Group()
-  const garb = new THREE.MeshStandardMaterial({ color: own ? 0xbe9427 : color, roughness: 0.8,
-    metalness: own ? 0.35 : 0 })
-  const skin = new THREE.MeshStandardMaterial({ color: 0xc9a480, roughness: 0.85 })
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19 * scale, 0.5 * scale, 4, 10), garb)
-  torso.position.y = 0.56 * scale; torso.castShadow = true; g.add(torso)
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.16 * scale, 12, 10), skin)
-  head.position.y = 1.06 * scale; head.castShadow = true; g.add(head)
-  g.__arms = []
+  const skel = kind === 'skeleton-knight'
+  const garb = new THREE.MeshStandardMaterial({
+    color: own ? 0xbe9427 : skel ? 0x3a3a42 : kind ? new THREE.Color(color).multiplyScalar(0.72) : color,
+    roughness: 0.8, metalness: own ? 0.35 : skel ? 0.4 : 0 })
+  const skin = new THREE.MeshStandardMaterial({ color: skel ? 0xd8d4c4 : kind ? color : 0xc9a480, roughness: 0.85 })
+  g.__legs = []
   for (const s of [-1, 1]) {
-    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.05 * scale, 0.34 * scale, 3, 6), skin)
-    arm.position.set(0, 0.6 * scale, 0.24 * scale * s)
-    arm.rotation.x = 0.16 * s; arm.castShadow = true; g.add(arm)
-    g.__arms.push(arm)
+    const leg = limb(garb, 0.055, 0.3, scale)
+    leg.position.set(0.1 * scale * s, 0.42 * scale, 0)
+    g.add(leg); g.__legs.push(leg)
+  }
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.19 * scale, 0.42 * scale, 4, 10), garb)
+  torso.position.y = 0.72 * scale; torso.castShadow = true; g.add(torso)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.155 * scale, 12, 10), skin)
+  head.position.y = 1.16 * scale; head.castShadow = true; g.add(head)
+  const eye = new THREE.MeshStandardMaterial({ color: kind === 'troll' ? 0xffcf4a : 0x1a1410, roughness: 0.4 })
+  for (const s of [-1, 1]) {
+    const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.024 * scale, 6, 5), eye)
+    e2.position.set(0.06 * scale * s, 1.19 * scale, 0.13 * scale)
+    g.add(e2)
+  }
+  if (kind === 'goblin') for (const s of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.05 * scale, 0.18 * scale, 5), skin)
+    ear.position.set(0.17 * scale * s, 1.2 * scale, 0)
+    ear.rotation.z = s * -Math.PI / 2.4
+    ear.castShadow = true; g.add(ear)
+  }
+  g.__arms = []
+  const armLen = kind === 'troll' ? 0.5 : 0.34
+  for (const s of [-1, 1]) {
+    const arm = limb(skin, 0.05, armLen, scale)
+    arm.position.set(0.235 * scale * s, 0.92 * scale, 0)
+    arm.rotation.z = s * -0.14
+    g.add(arm); g.__arms.push(arm)
+  }
+  if (skel) { // the sword rides the arm, so the swing carries it
+    const sw = new THREE.Mesh(new THREE.BoxGeometry(0.045 * scale, 0.5 * scale, 0.03 * scale), mats.iron)
+    sw.position.set(0, -(armLen + 0.3) * scale, 0.05 * scale)
+    sw.castShadow = true
+    g.__arms[0].add(sw)
+    const helm = new THREE.Mesh(new THREE.ConeGeometry(0.16 * scale, 0.2 * scale, 8), mats.iron)
+    helm.position.y = 1.3 * scale; helm.castShadow = true; g.add(helm)
   }
   g.__mats = [garb, skin]
+  return g
+}
+// the four-footed: a barrel of a body, a snout, ears, a tail, and four
+// legs that pump when the tiles slide by. Front legs double as the
+// 'arms' the theater already knows how to swing.
+function beastBody(color, scale, kind) {
+  const g = new THREE.Group()
+  const fur = new THREE.MeshStandardMaterial({ color, roughness: 0.92 })
+  const bulk = kind === 'bear' ? 1.35 : 1
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16 * scale * bulk, 0.5 * scale, 4, 10), fur)
+  body.rotation.x = Math.PI / 2
+  body.position.y = 0.4 * scale * bulk
+  body.castShadow = true; g.add(body)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14 * scale * bulk, 10, 9), fur)
+  head.position.set(0, 0.52 * scale * bulk, 0.4 * scale)
+  head.castShadow = true; g.add(head)
+  const snout = new THREE.Mesh(new THREE.ConeGeometry(0.06 * scale * bulk, 0.18 * scale, 7), fur)
+  snout.position.set(0, 0.48 * scale * bulk, 0.55 * scale)
+  snout.rotation.x = Math.PI / 2
+  g.add(snout)
+  const eye = new THREE.MeshStandardMaterial({ color: kind === 'wolf' ? 0xd8b24a : 0x14100c, roughness: 0.35 })
+  for (const s of [-1, 1]) {
+    const e2 = new THREE.Mesh(new THREE.SphereGeometry(0.022 * scale, 6, 5), eye)
+    e2.position.set(0.06 * scale * s, 0.57 * scale * bulk, 0.5 * scale)
+    g.add(e2)
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.035 * scale, (kind === 'wolf' ? 0.11 : 0.05) * scale, 5), fur)
+    ear.position.set(0.075 * scale * s, 0.66 * scale * bulk, 0.36 * scale)
+    ear.castShadow = true; g.add(ear)
+  }
+  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.035 * scale, (kind === 'wolf' ? 0.3 : 0.08) * scale, 3, 6), fur)
+  tail.position.set(0, 0.48 * scale * bulk, -0.42 * scale)
+  tail.rotation.x = -0.9
+  g.add(tail)
+  g.__arms = []; g.__legs = []
+  for (const fz of [1, -1]) for (const s of [-1, 1]) {
+    const leg = limb(fur, 0.045 * bulk, 0.24 * bulk, scale)
+    leg.position.set(0.11 * scale * bulk * s, 0.36 * scale * bulk, 0.2 * scale * fz)
+    g.add(leg)
+    ;(fz === 1 ? g.__arms : g.__legs).push(leg)
+  }
+  g.__mats = [fur]
   return g
 }
 
@@ -1120,8 +1304,8 @@ function syncAll(s) {
     let g = vis.mob.get(id)
     if (!g) {
       const [c, sc] = MOB_LOOK[m.type] ?? [0x8a5a5a, 0.7]
-      g = bodyOf(c, sc)
-      g.userData = { kind: 'mob', id, type: m.type, tx: m.x, ty: m.y }
+      g = (m.type === 'wolf' || m.type === 'bear') ? beastBody(c, sc, m.type) : bodyOf(c, sc, false, m.type)
+      g.userData = { kind: 'mob', id, type: m.type, tx: m.x, ty: m.y, fx0: m.x, fy0: m.y, moveAt: 0 }
       g.traverse((o) => { o.userData.kind = 'mob'; o.userData.id = id })
       const lb = label(m.type + ' · ' + m.hp); lb.position.y = 1.6; g.add(lb); g.userData.lb = lb
       g.position.set(wx(m.x), groundYAt(m.x, m.y), wz(m.y))
@@ -1131,6 +1315,9 @@ function syncAll(s) {
     if (g.userData.hp !== m.hp) { g.userData.hp = m.hp
       g.remove(g.userData.lb); g.userData.lb = label(m.type + ' · ' + m.hp)
       g.userData.lb.position.y = 1.6; g.add(g.userData.lb) }
+    if (g.userData.tx !== m.x || g.userData.ty !== m.y) {
+      g.userData.fx0 = g.userData.tx; g.userData.fy0 = g.userData.ty; g.userData.moveAt = clock.at
+    }
     g.userData.tx = m.x; g.userData.ty = m.y
   }
   sweep(vis.mob, liveM)
@@ -1143,7 +1330,7 @@ function syncAll(s) {
     const cap = nm + ' · ' + p.hp
     if (!g) {
       g = bodyOf(0x2c4a86, 0.62, id === ownKey?.pub)
-      g.userData = { kind: 'player', id, tx: p.x, ty: p.y }
+      g.userData = { kind: 'player', id, tx: p.x, ty: p.y, fx0: p.x, fy0: p.y, moveAt: 0 }
       g.traverse((o) => { o.userData.kind = 'player'; o.userData.id = id })
       g.position.set(wx(p.x), groundYAt(p.x, p.y), wz(p.y))
       if (povMode && id === ownKey?.pub) g.visible = false
@@ -1156,6 +1343,9 @@ function syncAll(s) {
     if (g.userData.cap !== cap) { g.userData.cap = cap
       if (g.userData.lb) g.remove(g.userData.lb)
       g.userData.lb = label(cap, id === ownKey?.pub); g.userData.lb.position.y = 1.55; g.add(g.userData.lb) }
+    if (g.userData.tx !== p.x || g.userData.ty !== p.y) {
+      g.userData.fx0 = g.userData.tx; g.userData.fy0 = g.userData.ty; g.userData.moveAt = clock.at
+    }
     g.userData.tx = p.x; g.userData.ty = p.y
   }
   sweep(vis.player, liveP)
@@ -1166,8 +1356,11 @@ function syncAll(s) {
     let g = vis.ground.get(id)
     if (!g) {
       g = new THREE.Group()
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.2), mats.wood)
-      m.position.y = 0.08; m.castShadow = true; g.add(m)
+      const m2 = new THREE.Mesh(new THREE.SphereGeometry(0.13, 9, 8),
+        new THREE.MeshStandardMaterial({ color: 0x9a7a48, roughness: 0.95 }))
+      m2.scale.y = 0.82; m2.position.y = 0.1; m2.castShadow = true; g.add(m2)
+      const knot = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 0.08, 6), mats.bark)
+      knot.position.y = 0.22; g.add(knot)
       g.userData = { kind: 'ground', id }
       g.traverse((o) => { o.userData.kind = 'ground'; o.userData.id = id })
       g.position.set(wx(it.x), groundYAt(it.x, it.y), wz(it.y))
@@ -1551,23 +1744,33 @@ function frame() {
     meteor.sp.material.opacity = Math.min(1, meteor.life * 2.2) * nightAmt
   } else meteor.sp.material.opacity = 0
 
-  // bodies glide between the ticks they were told about
+  // bodies glide between the ticks they were told about: the truth
+  // steps once per interval, but the window draws the stride. Each body
+  // eases from the tile it left toward the tile it was given across
+  // exactly one tick, with a light exponential touch on top so a late
+  // packet reads as a hesitation, never a stumble.
   const glide = (map) => {
     for (const g of map.values()) {
-      const ty2 = g.userData.ty, tx2 = g.userData.tx
-      if (tx2 === undefined) continue
-      const gx2 = wx(tx2), gz2 = wz(ty2), gy2 = groundYAt(tx2, ty2)
-      const k = Math.min(1, dt * 6)
+      const ud = g.userData
+      if (ud.tx === undefined) continue
+      const fx0 = ud.fx0 ?? ud.tx, fy0 = ud.fy0 ?? ud.ty
+      const jump = Math.abs(ud.tx - fx0) + Math.abs(ud.ty - fy0)
+      let p = Math.min(1, (now - (ud.moveAt || clock.at)) / TICK_MS)
+      if (jump > 3) p = 1 // recall and respawn snap; only strides interpolate
+      const e2 = p * p * (3 - 2 * p)
+      const ix = fx0 + (ud.tx - fx0) * e2, iy = fy0 + (ud.ty - fy0) * e2
+      const gx2 = wx(ix), gz2 = wz(iy), gy2 = groundYAt(ix, iy)
+      const k = Math.min(1, dt * 14)
       const px0 = g.position.x, pz0 = g.position.z
       g.position.x += (gx2 - g.position.x) * k
       g.position.z += (gz2 - g.position.z) * k
       g.position.y += (gy2 - g.position.y) * k
       g.__speed = (g.__speed ?? 0) * 0.85 + (Math.hypot(g.position.x - px0, g.position.z - pz0) / Math.max(dt, 1e-4)) * 0.15
-      const ddx = gx2 - g.position.x, ddz = gz2 - g.position.z
-      if (ddx * ddx + ddz * ddz > 0.001) g.rotation.y = Math.atan2(ddx, ddz)
+      if (jump > 0 && jump <= 3 && p < 1)
+        g.rotation.y = Math.atan2(wx(ud.tx) - wx(fx0), wz(ud.ty) - wz(fy0))
 
       // acting bodies face their work and swing at it; walking bodies
-      // pump their arms; hurt bodies remember it in red for a beat
+      // pump their arms and legs; hurt bodies remember it in red for a beat
       const act = g.userData.act
       if (act && g.userData.actTarget && world) {
         const tg = world.nodes?.[g.userData.actTarget] ?? world.mobs?.[g.userData.actTarget] ?? world.players?.[g.userData.actTarget]
@@ -1581,6 +1784,11 @@ function frame() {
           else if (act === 'attack' || act === 'attackp') arm.rotation.x = ai === 0 ? -0.7 + Math.sin(t * 13) * 1 : 0.3 + Math.sin(t * 13 + 2) * 0.4
           else arm.rotation.x = Math.sin(t * 8 + ai * Math.PI) * walkAmp + 0.16 * (ai ? 1 : -1)
         }
+      }
+      if (g.__legs) {
+        const walkAmp2 = Math.min(0.6, (g.__speed ?? 0) * 0.55)
+        for (let li = 0; li < g.__legs.length; li++)
+          g.__legs[li].rotation.x = Math.sin(t * 8 + li * Math.PI + Math.PI) * walkAmp2
       }
       if (g.__lungeAt) {
         const lp = (now - g.__lungeAt) / 220
