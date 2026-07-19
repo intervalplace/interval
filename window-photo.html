@@ -13,8 +13,13 @@
      same rain arrive — wind in the grass and the canopies, drifting
      clouds, thunder, fireflies after dark, pollen in the sunbeams, a
      cratered moon, lens flares, auroras on the lucky nights, shooting
-     stars, and a filmic grade over the whole frame. All of it is
-     rendering, none of it is rules.
+     stars, and a filmic grade over the whole frame. And now the frame
+     leans all the way in: volumetric god rays let down through the
+     canopies, a twinkling milky way with nebular breath, lightning that
+     has a body and not just a flash, rainbows on the sun-shower days,
+     a flock wheeling on the thermals, and a golden-hour split-tone
+     grade that knows what hour it is. All of it is rendering, none of
+     it is rules.
      Zero assets: every texture is synthesized on a canvas at load.
      Optional: ?hdri=<url-to-.hdr> swaps the procedural sky for a real
      captured one (Poly Haven HDRIs are CC0 and work when the host
@@ -438,6 +443,31 @@ scene.fog = new THREE.Fog(0x0a0c12, 30, 150)
 const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.1, 600)
 const composer = new EffectComposer(renderer)
 composer.addPass(new RenderPass(scene, camera))
+// the shafts: screen-space light let down through whatever dares stand
+// in front of the sun. The frame itself is the occluder — a canopy
+// prints its own silhouette into the beam for free, and at golden hour
+// the whole forest becomes a cathedral. The moon gets the same
+// treatment after dark, in silver, at a whisper.
+const raysPass = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uSun: { value: new THREE.Vector2(0.5, 0.5) },
+    uAmt: { value: 0 }, uTint: { value: new THREE.Color(1, 0.9, 0.7) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+  fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform vec2 uSun; uniform float uAmt; uniform vec3 uTint;
+    void main(){
+      vec3 base = texture2D(tDiffuse, vUv).rgb;
+      if (uAmt < .003) { gl_FragColor = vec4(base, 1.); return; }
+      vec2 dir = (uSun - vUv) / ${MOBILE ? '28.' : '44.'};
+      vec2 p = vUv; float w = 1.; vec3 acc = vec3(0.); float tot = 0.;
+      for (int i = 0; i < ${MOBILE ? 28 : 44}; i++) {
+        p += dir;
+        vec3 s = texture2D(tDiffuse, p).rgb;
+        float l = max(0., dot(s, vec3(.299, .587, .114)) - .5);
+        acc += s * l * w; tot += w; w *= .952;
+      }
+      float edge = smoothstep(1.35, .4, distance(vUv, uSun));
+      gl_FragColor = vec4(base + acc / tot * uTint * uAmt * 1.7 * edge, 1.);
+    }` })
+composer.addPass(raysPass)
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.32, 0.55, 0.88)
 composer.addPass(bloom)
 composer.addPass(new OutputPass())
@@ -445,15 +475,20 @@ composer.addPass(new OutputPass())
 // a breath of chromatic fringe at the edges, a nudge of saturation.
 // This is where 'render' becomes 'photograph'.
 const gradePass = new ShaderPass({
-  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAmt: { value: 1 } },
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAmt: { value: 1 }, uWarm: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-  fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uTime, uAmt;
+  fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uTime, uAmt, uWarm;
     void main(){
       vec2 d = vUv - .5; float r2 = dot(d, d);
       vec2 ca = d * r2 * .0045 * uAmt;
       vec3 col = vec3(texture2D(tDiffuse, vUv + ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - ca).b);
       float l = dot(col, vec3(.299, .587, .114));
       col = mix(vec3(l), col, 1.0 + .08 * uAmt);
+      // the golden hour keeps its receipts: shadows lean teal, the
+      // highlights lean amber — the anamorphic lie every epic tells
+      vec3 st = mix(vec3(-.022, .002, .03), vec3(.045, .016, -.03), smoothstep(.15, .8, l));
+      col += st * uWarm * uAmt;
+      col = mix(col, col * col * (3. - 2. * col), .2 * uAmt); // a filmic S over the middle
       col *= 1.0 - smoothstep(.32, .95, sqrt(r2)) * .40 * uAmt;
       float gn = fract(sin(dot(vUv + fract(uTime), vec2(12.9898, 78.233))) * 43758.5453);
       col += (gn - .5) * .028 * uAmt;
@@ -504,14 +539,82 @@ const moon = new THREE.DirectionalLight(0x93a7ff, 0)
 scene.add(moon, moon.target)
 const hemi = new THREE.HemisphereLight(0xbcd3ea, 0x2a2417, 0.25)
 scene.add(hemi)
-// stars: only the night believes in them
-const starGeo = new THREE.BufferGeometry()
-{ const p = []; for (let i = 0; i < 900; i++) {
-    const a = Math.random() * Math.PI * 2, b = Math.acos(Math.random() * 0.98)
-    p.push(340 * Math.sin(b) * Math.cos(a), 340 * Math.cos(b), 340 * Math.sin(b) * Math.sin(a)) }
-  starGeo.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)) }
-const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xcfd8ff, size: 0.7, transparent: true, opacity: 0, fog: false }))
-scene.add(stars)
+// stars: only the night believes in them — and now the night argues
+// back. Every star keeps its own twinkle phase and its own faint
+// color, a second dust of dim suns crowds into a tilted milky way,
+// and a few nebular breaths hang along the band. The whole firmament
+// rides one anchor so it follows the citizen like a ceiling.
+const skyAnchor = new THREE.Group()
+scene.add(skyAnchor)
+const bandAxis = new THREE.Vector3(1, 0, 0)
+const starField = (count, band) => {
+  const p = [], ph = [], cl = []
+  const c = new THREE.Color(), v = new THREE.Vector3()
+  for (let i = 0; i < count; i++) {
+    if (band) { // pulled toward a great circle tilted through the zenith
+      const u = Math.random() * Math.PI * 2
+      const spread = (Math.random() + Math.random() + Math.random() - 1.5) * 0.17
+      v.set(Math.cos(u), spread, Math.sin(u)).normalize().applyAxisAngle(bandAxis, 0.9)
+      if (v.y < 0.02) { i--; continue }
+      p.push(v.x * 332, v.y * 332, v.z * 332)
+    } else {
+      const a = Math.random() * Math.PI * 2, b = Math.acos(Math.random() * 0.98)
+      p.push(340 * Math.sin(b) * Math.cos(a), 340 * Math.cos(b), 340 * Math.sin(b) * Math.sin(a))
+    }
+    ph.push(Math.random() * 6.28)
+    const w = Math.random() // most stars blue-white; a few burn amber and rose
+    c.setHSL(w < 0.1 ? 0.05 : w < 0.26 ? 0.12 : 0.6, w < 0.26 ? 0.55 : 0.3, band ? 0.6 : 0.74)
+    cl.push(c.r, c.g, c.b)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3))
+  g.setAttribute('phase', new THREE.Float32BufferAttribute(ph, 1))
+  g.setAttribute('tint', new THREE.Float32BufferAttribute(cl, 3))
+  return g
+}
+const starUniforms = { uTime: { value: 0 }, uNight: { value: 0 } }
+const starMat = (px, amp, base) => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  uniforms: starUniforms,
+  vertexShader: `attribute float phase; attribute vec3 tint; varying float vA; varying vec3 vC;
+    uniform float uTime, uNight;
+    void main(){
+      float tw = .5 + .5 * sin(uTime * (1.1 + fract(phase * .61) * 2.3) + phase * 17.);
+      vA = uNight * (${base.toFixed(2)} + ${amp.toFixed(2)} * tw * tw);
+      vC = tint;
+      gl_PointSize = ${px.toFixed(1)};
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.);
+    }`,
+  fragmentShader: `varying float vA; varying vec3 vC;
+    void main(){
+      float d = length(gl_PointCoord - .5);
+      gl_FragColor = vec4(vC, smoothstep(.5, .1, d) * vA);
+    }` })
+const stars = new THREE.Points(starField(MOBILE ? 800 : 1200, false), starMat(2.4, 0.6, 0.45))
+const dust = new THREE.Points(starField(MOBILE ? 1400 : 2600, true), starMat(1.3, 0.25, 0.3))
+stars.frustumCulled = false; dust.frustumCulled = false
+skyAnchor.add(stars, dust)
+// the nebulae: soft-color exhalations pinned along the band
+const nebTex = (h, s) => {
+  const N = 64, c = document.createElement('canvas'); c.width = c.height = N
+  const ctx = c.getContext('2d')
+  const g = ctx.createRadialGradient(N / 2, N / 2, 2, N / 2, N / 2, N / 2)
+  g.addColorStop(0, `hsla(${h}, ${s}%, 66%, .5)`); g.addColorStop(0.55, `hsla(${h}, ${s}%, 55%, .16)`)
+  g.addColorStop(1, `hsla(${h}, ${s}%, 50%, 0)`)
+  ctx.fillStyle = g; ctx.fillRect(0, 0, N, N)
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+const nebs = []
+for (const [u, hue, sat, sc] of [[0.3, 268, 55, 88], [1.4, 200, 60, 66], [2.5, 330, 45, 74], [4.4, 168, 50, 58]]) {
+  const v = new THREE.Vector3(Math.cos(u), (Math.sin(u * 3.1) * 0.1), Math.sin(u)).normalize().applyAxisAngle(bandAxis, 0.9)
+  if (v.y < 0.06) continue
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: nebTex(hue, sat), transparent: true,
+    depthWrite: false, fog: false, blending: THREE.AdditiveBlending, opacity: 0 }))
+  sp.position.copy(v).multiplyScalar(326)
+  sp.scale.set(sc, sc * 0.7, 1)
+  skyAnchor.add(sp); nebs.push(sp)
+}
 
 // ---- the wind: one pair of numbers the whole world listens to.
 // Grass bends to it, canopies breathe it, clouds ride it, rain leans
@@ -646,6 +749,84 @@ const meteor = { sp: new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, t
   next: 9, life: 0, vx: 0, vy: 0, vz: 0 }
 meteor.sp.scale.set(2.2, 2.2, 1)
 scene.add(meteor.sp)
+
+// ---- the rainbow: the sun-shower's signature. On the days the
+// weather can't make up its mind, the arc stands opposite the sun and
+// says so — same hash, same day, same bow in every window. ----
+const rainbowMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false,
+  uniforms: { uAlpha: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+  fragmentShader: `varying vec2 vUv; uniform float uAlpha;
+    void main(){
+      float r = length(vec2((vUv.x - .5) * 2., vUv.y));
+      float band = smoothstep(.7, .755, r) * smoothstep(.95, .89, r);
+      float band2 = smoothstep(.97, 1.0, r) * smoothstep(1.09, 1.04, r); // the faint second bow, reversed
+      float h = clamp((r - .72) / .2, 0., 1.);
+      float h2 = clamp((1.07 - r) / .1, 0., 1.);
+      vec3 c1 = clamp(abs(fract((1. - h) * .78 + vec3(0., .6667, .3333)) * 6. - 3.) - 1., 0., 1.);
+      vec3 c2 = clamp(abs(fract((1. - h2) * .78 + vec3(0., .6667, .3333)) * 6. - 3.) - 1., 0., 1.);
+      float a = (band * .5 + band2 * .16) * uAlpha * smoothstep(.02, .22, vUv.y);
+      gl_FragColor = vec4(band > .01 ? c1 : c2, a);
+    }` })
+const rainbow = new THREE.Mesh(new THREE.PlaneGeometry(260, 130), rainbowMat)
+rainbow.geometry.translate(0, 65, 0) // base of the plane sits at its origin
+rainbow.visible = false; rainbow.frustumCulled = false
+scene.add(rainbow)
+
+// ---- the bolt: thunder gets a body. Every clap grows a fresh jag of
+// sky-to-ground light somewhere off in the rain, forked and gone. ----
+const BOLT_SEGS = 26
+const boltMat = new THREE.LineBasicMaterial({ color: 0xe8efff, transparent: true, opacity: 0,
+  blending: THREE.AdditiveBlending, depthWrite: false })
+const boltGeo = new THREE.BufferGeometry()
+boltGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(BOLT_SEGS * 6), 3))
+const bolt = new THREE.LineSegments(boltGeo, boltMat)
+bolt.frustumCulled = false
+scene.add(bolt)
+const boltLight = new THREE.PointLight(0xbcd0ff, 0, 90, 1.2)
+scene.add(boltLight)
+function strikeBolt(cx, cz) {
+  const a = Math.random() * Math.PI * 2, d = 26 + Math.random() * 46
+  let x = cx + Math.cos(a) * d, z = cz + Math.sin(a) * d, y = 55 + Math.random() * 25
+  boltLight.position.set(x, 14, z)
+  const p = boltGeo.attributes.position.array
+  let i = 0
+  for (let s = 0; s < BOLT_SEGS; s++) {
+    const remaining = BOLT_SEGS - s
+    const nx = x + (Math.random() - 0.5) * (s > 3 ? 7 : 3)
+    const nz = z + (Math.random() - 0.5) * (s > 3 ? 7 : 3)
+    const ny = Math.max(0, y - y / remaining - Math.random() * 2)
+    p[i++] = x; p[i++] = y; p[i++] = z
+    p[i++] = nx; p[i++] = ny; p[i++] = nz
+    x = nx; y = ny; z = nz
+  }
+  boltGeo.attributes.position.needsUpdate = true
+}
+
+// ---- the birds: the day's far punctuation. A small flock wheels on
+// the thermals over wherever you are, one wingbeat each, and goes to
+// ground the moment the rain means it. Pure rendering; the truth has
+// never heard of them. ----
+const flock = new THREE.Group()
+const birdMat = new THREE.MeshBasicMaterial({ color: 0x10131a, side: THREE.DoubleSide,
+  transparent: true, opacity: 0 })
+const birdWing = new THREE.BufferGeometry()
+birdWing.setAttribute('position', new THREE.Float32BufferAttribute(
+  [0, 0, 0.05, 0.46, 0.05, 0.2, 0.46, 0.05, -0.2], 3))
+birdWing.computeVertexNormals()
+const birds = []
+for (let i = 0; i < (MOBILE ? 7 : 11); i++) {
+  const b = new THREE.Group()
+  const w1 = new THREE.Mesh(birdWing, birdMat)
+  const w2 = new THREE.Mesh(birdWing, birdMat)
+  w2.scale.x = -1
+  b.add(w1, w2)
+  b.userData = { w1, w2, r: 8 + (i % 4) * 4, h: 19 + (i % 5) * 3.2,
+    sp: (0.22 + (i % 3) * 0.06) * (i % 2 ? 1 : -1), ph: i * 0.83, flap: 2.2 + (i % 3) * 0.7 }
+  flock.add(b); birds.push(b)
+}
+scene.add(flock)
 
 // ---- the ground: the deluxe window's blended heightfield, dressed in
 // synthesized PBR skin. Twice the vertices of the tile grid; biomes
@@ -1534,6 +1715,7 @@ document.getElementById('verbs').addEventListener('click', (e) => {
     return
   }
   if (v === 'fx') { bloom.enabled = !bloom.enabled; gradePass.enabled = bloom.enabled
+    raysPass.enabled = bloom.enabled
     feed(bloom.enabled ? 'the light blooms' : 'the light behaves'); return }
   if (v === 'shot') {
     // photographs deserve more silver: render this one frame at up to
@@ -1608,7 +1790,7 @@ ws.onmessage = (ev) => {
 ws.onclose = () => feed('the wire went quiet; refresh to return')
 
 // ---- the day, the frame ----
-const tmpV = new THREE.Vector3()
+const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3()
 let lastT = performance.now()
 let flashAt = -9999 // the last thunderclap, in wall-clock ms
 function frame() {
@@ -1637,7 +1819,8 @@ function frame() {
   const wthr = wOf(dayIdx) * (1 - wk) + wOf(dayIdx + 1) * wk
   const overcast = THREE.MathUtils.clamp(wthr * 1.4, 0, 1)
   const rainAmt = THREE.MathUtils.clamp((wthr - 0.55) * 2.2, 0, 1)
-  if (rainAmt > 0.6 && Math.random() < dt * 0.07) flashAt = now // thunder keeps its own counsel
+  if (rainAmt > 0.6 && Math.random() < dt * 0.07) { // thunder keeps its own counsel
+    flashAt = now; strikeBolt(camera.position.x, camera.position.z) }
   const flash = Math.max(0, 1 - (now - flashAt) / 260)
 
   // low sun gets its drama from physics: more air in the light's way
@@ -1649,7 +1832,9 @@ function frame() {
   sun.intensity = (0.04 + dayAmt * 4.1) * (1 - overcast * 0.72)
   moon.intensity = nightAmt * 0.38 * (1 - overcast * 0.6)
   hemi.intensity = (0.11 + dayAmt * 0.2) * (1 + overcast * 0.9) + flash * 1.7
-  stars.material.opacity = nightAmt * 0.9 * (1 - overcast)
+  starUniforms.uTime.value = t
+  starUniforms.uNight.value = nightAmt * (1 - overcast)
+  for (const nb of nebs) nb.material.opacity = 0.55 * nightAmt * (1 - overcast)
   renderer.toneMappingExposure = 0.57 + dayAmt * 0.23 - overcast * 0.06 + flash * 0.3
   scene.fog.color.setHSL(0.58, 0.25 - overcast * 0.12, (0.04 + dayAmt * 0.42) * (1 - overcast * 0.3) + flash * 0.25)
   scene.fog.near = (24 + dayAmt * 70) * (1 - overcast * 0.45)
@@ -1661,6 +1846,7 @@ function frame() {
   uWindA.value += ((0.4 + overcast * 0.7 + rainAmt * 0.7) - uWindA.value) * Math.min(1, dt * 1.5)
   uWindT.value += dt * (1 + uWindA.value * 1.2)
   gradePass.uniforms.uTime.value = t % 37
+  gradePass.uniforms.uWarm.value = warm * dayAmt // the grade knows what hour it is
 
   // the camera hangs from its citizen
   const me = world?.players?.[ownKey?.pub]
@@ -1686,7 +1872,21 @@ function frame() {
   sun.target.position.copy(focus)
   moon.position.copy(focus).addScaledVector(sunDir, -60)
   moon.target.position.copy(focus)
-  stars.position.copy(focus)
+  skyAnchor.position.copy(focus)
+
+  // the sun (or the moon, after dark) projected onto the film plane:
+  // the shafts only pour when the light is actually in frame, and they
+  // pour hardest at the golden hour, when there is the most air to
+  // catch them and the most reason to stand still.
+  const sunUp = dayAmt > 0.06
+  tmpV2.copy(focus).addScaledVector(sunDir, sunUp ? 280 : -280).project(camera)
+  const inFrame = tmpV2.z < 1 && Math.abs(tmpV2.x) < 1.35 && Math.abs(tmpV2.y) < 1.35
+  raysPass.uniforms.uSun.value.set(tmpV2.x * 0.5 + 0.5, tmpV2.y * 0.5 + 0.5)
+  const rayTarget = !inFrame ? 0 : sunUp
+    ? (0.16 + warm * 0.55) * dayAmt * (1 - overcast) + flash * 0.25
+    : nightAmt * 0.1 * (1 - overcast * 0.7)
+  raysPass.uniforms.uAmt.value += (rayTarget - raysPass.uniforms.uAmt.value) * Math.min(1, dt * 5)
+  raysPass.uniforms.uTint.value.setHSL(sunUp ? 0.09 - warm * 0.045 : 0.62, sunUp ? 0.55 + warm * 0.2 : 0.35, 0.55)
 
   // ---- the rest of the atmosphere hangs from the same numbers ----
   moonSp.position.copy(focus).addScaledVector(sunDir, -300)
@@ -1743,6 +1943,39 @@ function frame() {
     meteor.sp.position.z += meteor.vz * dt
     meteor.sp.material.opacity = Math.min(1, meteor.life * 2.2) * nightAmt
   } else meteor.sp.material.opacity = 0
+
+  // the sun-shower's arc: strongest on the days the hash hangs the
+  // weather halfway, standing exactly opposite the sun like it must
+  const shower = THREE.MathUtils.clamp(1 - Math.abs(wthr - 0.5) * 4, 0, 1)
+  const rbA = shower * dayAmt * (1 - rainAmt) * (0.5 + warm * 0.4)
+  rainbow.visible = rbA > 0.02
+  if (rainbow.visible) {
+    rainbowMat.uniforms.uAlpha.value = rbA
+    tmpV3.set(-sunDir.x, 0, -sunDir.z).normalize()
+    rainbow.position.set(focus.x + tmpV3.x * 175, focus.y - 2, focus.z + tmpV3.z * 175)
+    rainbow.lookAt(focus.x, focus.y - 2, focus.z)
+  }
+
+  // the bolt flickers out with its own flash; the strike lights the rain
+  bolt.visible = flash > 0.02
+  boltMat.opacity = flash > 0 ? flash * (0.55 + Math.random() * 0.45) : 0
+  boltLight.intensity = flash * 260
+
+  // the flock wheels while the day allows it
+  const birdA = dayAmt * (1 - overcast * 0.55) * (1 - rainAmt)
+  flock.visible = birdA > 0.04
+  if (flock.visible) {
+    birdMat.opacity = 0.8 * birdA
+    flock.position.x += (focus.x + 26 * Math.sin(t * 0.026) - flock.position.x) * Math.min(1, dt * 0.5)
+    flock.position.z += (focus.z + 26 * Math.cos(t * 0.021) - flock.position.z) * Math.min(1, dt * 0.5)
+    for (const b of birds) {
+      const ud = b.userData, ang = t * ud.sp + ud.ph
+      b.position.set(Math.cos(ang) * ud.r, ud.h + Math.sin(t * 0.6 + ud.ph) * 1.4, Math.sin(ang) * ud.r)
+      b.rotation.y = -ang - (ud.sp < 0 ? Math.PI : 0)
+      const fl = Math.sin(t * ud.flap * 3 + ud.ph * 5) * 0.55
+      ud.w1.rotation.z = fl; ud.w2.rotation.z = -fl
+    }
+  }
 
   // bodies glide between the ticks they were told about: the truth
   // steps once per interval, but the window draws the stride. Each body
