@@ -40,8 +40,14 @@
      three points left keeps its own drum while the frame flushes red
      at the edges. Snow falls instead of rain over the high country,
      the canopies shed leaves onto the wind, and CINE clears every
-     scrap of interface for footage. All of it is rendering, none of
-     it is rules.
+     scrap of interface for footage — and now brings the letterbox down
+     with it, deepens the grade to a print, and lets the camera drift.
+     The lens finally admits it's a lens: anamorphic streaks smear
+     anything hotter than white into a cool blue line (the sun at
+     golden hour, a hearth window after dark, the bolt itself), the
+     glass goes soft at its own edges, and a photograph announces
+     itself with one white blink of the shutter. All of it is
+     rendering, none of it is rules.
      Zero assets: every texture is synthesized on a canvas at load.
      Optional: ?hdri=<url-to-.hdr> swaps the procedural sky for a real
      captured one (Poly Haven HDRIs are CC0 and work when the host
@@ -101,6 +107,49 @@
     width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(226,182,62,.5);
     color: var(--gold); background: rgba(12,11,9,.45); display: none; align-items: center;
     justify-content: center; font-size: 15px }
+  /* the letterbox: CINE pulls the frame into widescreen. The bars ease
+     in the way house lights go down — the film is about to start. */
+  .lb { position: fixed; left: 0; right: 0; height: 0; background: #000; z-index: 25;
+    pointer-events: none; transition: height .9s cubic-bezier(.25,.8,.25,1) }
+  #lbT { top: 0 } #lbB { bottom: 0 }
+  body.cine .lb { height: 8vh }
+  /* the shutter: a photograph announces itself with one white blink */
+  #shutter { position: fixed; inset: 0; background: #fff; opacity: 0; z-index: 40;
+    pointer-events: none; transition: opacity .3s ease-out }
+  #shutter.snap { opacity: .85; transition: none }
+  /* the splash learns to breathe: the title is poured gold, the copy
+     arrives in order, and a slow aurora turns behind everything */
+  #splash::before { content: ''; position: absolute; inset: -30%;
+    background: conic-gradient(from 0deg at 50% 42%, transparent, rgba(226,182,62,.07) 12%,
+      transparent 26%, rgba(90,130,190,.06) 48%, transparent 62%, rgba(226,182,62,.05) 82%, transparent);
+    animation: sweep 26s linear infinite; pointer-events: none }
+  #splash::after { content: ''; position: absolute; left: 50%; top: 50%;
+    width: min(72vw, 540px); height: min(72vw, 540px); transform: translate(-50%, -58%);
+    background: radial-gradient(circle, rgba(226,182,62,.14), transparent 62%);
+    animation: breathe 7s ease-in-out infinite; pointer-events: none }
+  #splash h1, #splash p, #splash button, #splash .rule { position: relative; z-index: 1 }
+  #splash h1 { font-size: clamp(26px, 7vw, 40px); letter-spacing: .14em;
+    background: linear-gradient(100deg, #8a6a1c 0%, var(--gold) 30%, #fff3c8 50%, var(--gold) 70%, #8a6a1c 100%);
+    background-size: 220% 100%; -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: var(--gold);
+    animation: pour 5.5s ease-in-out infinite, rise .9s cubic-bezier(.2,.7,.2,1) both;
+    text-shadow: none; filter: drop-shadow(0 0 22px rgba(226,182,62,.35)) }
+  #splash .rule { color: rgba(226,182,62,.55); font-size: 11px; letter-spacing: .6em;
+    text-indent: .6em; animation: rise .9s .15s cubic-bezier(.2,.7,.2,1) both }
+  #splash p { animation: rise .9s cubic-bezier(.2,.7,.2,1) both }
+  #splash p:nth-of-type(1) { animation-delay: .28s }
+  #splash p:nth-of-type(2) { animation-delay: .44s }
+  #splash button { animation: rise .9s .62s cubic-bezier(.2,.7,.2,1) both,
+    beckon 3.4s 1.8s ease-in-out infinite }
+  @keyframes pour { 0%, 100% { background-position: 0% 0 } 50% { background-position: 100% 0 } }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+  @keyframes breathe { 0%, 100% { opacity: .6 } 50% { opacity: 1 } }
+  @keyframes sweep { to { transform: rotate(1turn) } }
+  @keyframes beckon { 0%, 100% { box-shadow: 0 0 0 rgba(226,182,62,0) }
+    50% { box-shadow: 0 0 26px rgba(226,182,62,.3) } }
+  @media (prefers-reduced-motion: reduce) {
+    #splash::before, #splash::after, #splash h1, #splash .rule, #splash p, #splash button
+      { animation: none } .lb { transition: none } }
 </style>
 <script type="importmap">
 { "imports": {
@@ -123,8 +172,11 @@
   </div>
 </div>
 <div id="cinex">&#10005;</div>
+<div id="lbT" class="lb"></div><div id="lbB" class="lb"></div>
+<div id="shutter"></div>
 <div id="splash">
   <h1>THE PHOTO WINDOW</h1>
+  <div class="rule">&#9670;&nbsp;&#9670;&nbsp;&#9670;</div>
   <p>A physically-based view of the same world <code>/play</code> and <code>/deluxe</code> watch.
      One key on this device; one citizen in every window.</p>
   <p>You wake behind your own eyes. Tap the ground to walk; press and HOLD to keep
@@ -500,6 +552,30 @@ const raysPass = new ShaderPass({
       gl_FragColor = vec4(base + acc / tot * uTint * uAmt * 1.9 * edge, 1.);
     }` })
 composer.addPass(raysPass)
+// the anamorphic streak: what a widescreen lens does to anything hot —
+// the sun, a hearth window after dark, the bolt itself — is smear it
+// sideways in a cool blue line. This runs in linear HDR, before bloom,
+// so only light that is genuinely brighter than white gets to streak;
+// the frame underneath stays honest.
+const streakPass = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uAmt: { value: 0 },
+    uTint: { value: new THREE.Color(0.55, 0.72, 1) } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+  fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uAmt; uniform vec3 uTint;
+    void main(){
+      vec3 base = texture2D(tDiffuse, vUv).rgb;
+      if (uAmt < .004) { gl_FragColor = vec4(base, 1.); return; }
+      vec3 acc = vec3(0.); float tot = 0.; float w = 1.;
+      for (int i = 1; i <= ${MOBILE ? 12 : 20}; i++) {
+        vec2 o = vec2(float(i) * ${MOBILE ? '.016' : '.011'}, 0.);
+        acc += (max(texture2D(tDiffuse, vUv + o).rgb - .9, 0.)
+              + max(texture2D(tDiffuse, vUv - o).rgb - .9, 0.)) * w;
+        tot += w * 2.; w *= .86;
+      }
+      vec3 s = acc / tot; s = s / (.6 + s); // the streak is a whisper, never a wall
+      gl_FragColor = vec4(base + s * uTint * uAmt * 1.6, 1.);
+    }` })
+composer.addPass(streakPass)
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.32, 0.55, 0.88)
 composer.addPass(bloom)
 composer.addPass(new OutputPass())
@@ -507,13 +583,24 @@ composer.addPass(new OutputPass())
 // a breath of chromatic fringe at the edges, a nudge of saturation.
 // This is where 'render' becomes 'photograph'.
 const gradePass = new ShaderPass({
-  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAmt: { value: 1 }, uWarm: { value: 0 }, uHurt: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAmt: { value: 1 }, uWarm: { value: 0 }, uHurt: { value: 0 }, uCine: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-  fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uTime, uAmt, uWarm, uHurt;
+  fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uTime, uAmt, uWarm, uHurt, uCine;
     void main(){
       vec2 d = vUv - .5; float r2 = dot(d, d);
       vec2 ca = d * r2 * .0045 * uAmt;
       vec3 col = vec3(texture2D(tDiffuse, vUv + ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - ca).b);
+      // glass has edges: past two-thirds out the lens loses its nerve
+      // and the frame goes soft — the cheapest depth of field there is,
+      // and the one every photograph already taught your eye to expect
+      float soft = smoothstep(.42, 1., sqrt(r2)) * .55 * uAmt;
+      if (soft > .01) {
+        vec2 o = d * (.011 + .006 * uCine);
+        vec3 b = (texture2D(tDiffuse, vUv + o).rgb + texture2D(tDiffuse, vUv - o).rgb
+                + texture2D(tDiffuse, vUv + vec2(o.y, -o.x)).rgb
+                + texture2D(tDiffuse, vUv + vec2(-o.y, o.x)).rgb) * .25;
+        col = mix(col, b, soft);
+      }
       float l = dot(col, vec3(.299, .587, .114));
       col = mix(vec3(l), col, 1.0 + .08 * uAmt);
       // the golden hour keeps its receipts: shadows lean teal, the
@@ -521,6 +608,10 @@ const gradePass = new ShaderPass({
       vec3 st = mix(vec3(-.022, .002, .03), vec3(.045, .016, -.03), smoothstep(.15, .8, l));
       col += st * uWarm * uAmt;
       col = mix(col, col * col * (3. - 2. * col), .2 * uAmt); // a filmic S over the middle
+      // CINE deepens its convictions: more S, blacks that mean it, and
+      // a breath of extra color — the print, not the preview
+      col = mix(col, col * col * (3. - 2. * col), .16 * uCine);
+      col = mix(col, col * vec3(1.02, 1., .985), uCine * .6);
       col *= 1.0 - smoothstep(.32, .95, sqrt(r2)) * .40 * uAmt;
       // pain arrives at the edge of vision first
       col = mix(col, vec3(.5, .03, .03), smoothstep(.3, .95, sqrt(r2)) * uHurt * .8);
@@ -929,7 +1020,7 @@ function initAudio() {
     src.start(t0, Math.random() * 1.5, dur + 0.05)
   }
   audio = {
-    wind, rain, lap, crickets, pad, wet, noiseBuf, pop,
+    master, wind, rain, lap, crickets, pad, wet, noiseBuf, pop,
     step: (hard) => pop(hard ? 620 + Math.random() * 200 : 210 + Math.random() * 140,
       hard ? 0.11 : 0.09, hard ? 0.07 : 0.09),
     crackle: (d, pan) => pop(1100 + Math.random() * 900, 0.16 / (1 + d * d * 0.12),
@@ -1748,6 +1839,895 @@ function burst(x, y3, z, kind) {
   }
 }
 const NODE_FX = { tree: 'chip', rock: 'spark', 'magic-rock': 'spark', 'fishing-spot': 'splash', anvil: 'spark' }
+
+// =====================================================================
+// THE ADVENTURER, PORTED WHOLE FROM THE DEEP WINDOW. The hand-built
+// citizen — dyes, face, hair, cloak, two-segment limbs, a full toolkit
+// in the hand — and the beasts beside it, walking on the deep window's
+// own joint contract under the photo window's physical light. One
+// people, two windows, the same bodies.
+// =====================================================================
+const WEAPON_LOOK = {
+  'bronze-dagger': { every: 2, ranged: false, style: 'quick' },
+  'bronze-sword':  { every: 2, ranged: false, style: 'swing' },
+  'bronze-spear':  { every: 2, ranged: false, style: 'thrust' },
+  'bronze-maul':   { every: 3, ranged: false, style: 'heave' },
+  'star-dagger':   { every: 2, ranged: false, style: 'quick' },
+  'star-sword':    { every: 2, ranged: false, style: 'swing' },
+  'star-spear':    { every: 2, ranged: false, style: 'thrust' },
+  'star-maul':     { every: 3, ranged: false, style: 'heave' },
+  'old-chain':     { every: 1, ranged: false, style: 'whip' },
+  'wooden-bow':    { every: 2, ranged: true,  style: 'draw' },
+  'horn-bow':      { every: 2, ranged: true,  style: 'draw' },
+}
+const lookOf = (it) => WEAPON_LOOK[it] ?? { every: 2, ranged: false, style: 'swing' }
+
+const XP_TABLE = [0,0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2746,3115,3523,3973,4470,5018,5624,6291,7028,7842,8740,9730,10824,12031,13363,14833,16456,18247,20224,22406,24815,27473,30408,33648,37224,41171,45529,50339,55649,61512,67983,75127,83014,91721,101333,111945,123660,136594,150872,166636,184040,203254,224466,247886,273742,302288,333804,368599,407015,449428,496254,547953,605032,668051,737627,814445,899257,992895,1096278,1210421,1336443,1475581,1629200,1798808,1986068,2192818,2421087,2673114,2951373,3258594,3597792,3972294,4385776,4842295,5346332,5902831,6517253,7195629,7944614,8771558,9684577,10692629,11805606,13034431];
+const XP_LVL = (xp) => {
+  let l = 1
+  while (l < 99 && xp >= XP_TABLE[l+1]) l++
+  if (l < 99 || xp < XP_TABLE[99]) return l
+  let points = XP_TABLE[99] * 4
+  while (true) { // beyond mastery: honor without bound (spec 4b)
+    points += xpStepAt(l)
+    if (xp < Math.floor(points / 4)) return l
+    l++
+  }
+}
+// 2^(r/7) scaled by 2^96, as exact integers. ECMA-262 does not require
+// Math.pow to be correctly rounded, so the curve past mastery is computed from
+// these rather than from a float power: two engines that disagreed in the last
+// place would report different standings for the same citizen. (Verified: this
+// reproduces every one of the 98 constitutional thresholds exactly, and V8's
+// own Math.pow already differs from the true value at 15 levels past 267.)
+const POW2_SEVENTHS = [
+  79228162514264337593543950336n, 87474983419643881438334899625n,
+  96580211902419410754522887331n, 106633199189855989094361944303n,
+  117732597035010858756489598210n, 129987325803940059419872279709n,
+  143517643330631577550838571505n]
+function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
+  const q = BigInt(Math.floor(lvl / 7)), r = lvl % 7
+  return lvl + Number((300n * (1n << q) * POW2_SEVENTHS[r]) >> 96n)
+}
+const CALLINGS = {
+  woodcutting: 'forester', mining: 'miner', fishing: 'fisher', cooking: 'cook',
+  smithing: 'smith', firemaking: 'firekeeper', prayer: 'mourner', ranged: 'archer',
+  magic: 'sigilist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
+  defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
+}
+const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
+  'defence', 'hitpoints', 'exploration', 'brewing']
+function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
+  let n = 0
+  for (const sk of SKILL_ORDER) n += XP_LVL(p?.skills?.[sk] ?? 0)
+  return n
+}
+function callingOf(p) { // the trade you have the most experience in, as a word
+  let best = null, bestXp = -1
+  for (const sk of SKILL_ORDER) {
+    if (sk === 'hitpoints') continue
+    const xp = p?.skills?.[sk] ?? 0
+    if (xp > bestXp) { bestXp = xp; best = sk }
+  }
+  if (best === null || XP_LVL(bestXp) <= 1) return 'newcomer'
+  // all sixteen: what the world announces as Master of Interval
+  if (SKILL_ORDER.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])) return 'Master of Interval'
+  // mastery is the milestone the world announces, so the calling says it
+  return (bestXp >= XP_TABLE[99] ? 'master ' : '') + CALLINGS[best]
+}
+// <<< CONSTITUTIONAL IDENTITY BLOCK
+function XP_AT(l) { // xp at the foot of level l, past mastery included
+  if (l <= 99) return XP_TABLE[Math.max(1, l)] ?? 0
+  let points = XP_TABLE[99] * 4
+  for (let k = 99; k < l; k++) points += Math.floor(k + 300 * Math.pow(2, k / 7))
+  return Math.floor(points / 4)
+}
+// ---- commerce: the bank shows its vault and gives back, the store
+// names its prices both ways, and the gear panel undresses. Every verb
+// already blessed by the engine; these are merely its counters. ----
+const ICON_URL = {}
+const iconUrl = (item) => ICON_URL[item] ?? (ICON_URL[item] = itemSprite(item).toDataURL())
+const STORE_SELLS3 = { seeds: 15 } // what the store offers (engine STORE_SELLS)
+const RECIPES3 = { 'bronze-dagger': {"ore": 1}, 'bronze-spear': {"ore": 1, "logs": 1}, 'bronze-maul': {"ore": 2, "logs": 1}, 'star-spear': {"magic-stone": 2, "ore": 1, "logs": 1}, 'star-maul': {"magic-stone": 3, "ore": 2, "logs": 1}, 'bronze-sword': {"ore": 2, "logs": 1}, 'bronze-hatchet': {"ore": 1, "logs": 1}, 'bronze-pickaxe': {"ore": 1, "logs": 1}, 'bronze-helm': {"ore": 1, "logs": 1}, 'bronze-plate': {"ore": 3, "logs": 1}, 'star-sword': {"magic-stone": 3, "ore": 2}, 'star-helm': {"magic-stone": 2, "ore": 1}, 'star-plate': {"magic-stone": 4, "ore": 3}, 'star-dagger': {"magic-stone": 2, "ore": 1} }
+const SMITH_REQS3 = { 'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
+  'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 } }
+const PRICES3 = { 'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22, 'star-spear': 100, 'star-maul': 160, 'horn-bow': 90, 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10, 'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4, 'star-sword': 120, 'star-helm': 60, 'star-plate': 200 } // mirrors engine PRICES
+
+function initAn(g, id) {
+  let hsd = 0
+  const ids = String(id)
+  for (let ci = 0; ci < ids.length; ci++) hsd = (hsd * 31 + ids.charCodeAt(ci)) >>> 0
+  g.userData.an = { seed: (hsd % 6283) / 1000, ph: (hsd % 628) / 100, mv: 0, spd: 0, lean: 0, roll: 0, turn: 0, hYaw: 0, hPit: 0, lastX: 0, lastZ: 0, lastT: performance.now(), prevT: 0 }
+
+}
+function makeAdventurer(id) {
+  const g = new THREE.Group()
+  g.rotation.order = 'YXZ'
+    const hv = parseInt(id.slice(0, 8), 16)
+    // the key becomes a person: worn dyes, a heraldic accent, a cloak,
+    // a skin, a hair, an eye — all derived, none random, all from the key
+    const tunic = new THREE.Color().setHSL((hv % 360) / 360, 0.42, 0.34)
+    const accent = new THREE.Color().setHSL(((hv >> 10) % 360) / 360, 0.55, 0.44) // tabard & trim
+    const accentHi = accent.clone().offsetHSL(0, 0, 0.16)
+    const cloakC = new THREE.Color().setHSL(((hv >> 8) % 360) / 360, 0.30, 0.18)
+    const skinC = [0xe8c9a0, 0xd9a877, 0xc98a5e, 0xa8724a, 0x8a5a3a, 0x6b4428][hv % 6]
+    const hairC = [0x2a2018, 0x4a3420, 0x6b4a2a, 0x8a6a3a, 0x1a1a1a, 0x9e3a1a, 0xb8b0a0][(hv >> 4) % 7]
+    const eyeC = [0x3a2a1a, 0x2a4a6a, 0x3a5a3a, 0x5a4a2a][(hv >> 7) % 4]
+    const M = (c, r = 0.75) => new THREE.MeshStandardMaterial({ color: c, roughness: r })
+    const metal = (c, r = 0.35, m = 0.7) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m })
+    const cast = (m) => { m.castShadow = true; return m }
+    const detail = []; g.userData.detail = detail   // fine parts, hidden at distance
+    const D = (m) => { detail.push(m); return m }
+
+    // ---- torso: a smooth revolved profile, chest tapering to waist ----
+    const prof = [[0.02, -0.34], [0.13, -0.30], [0.145, -0.16], [0.135, -0.04],
+      [0.165, 0.10], [0.155, 0.22], [0.10, 0.30], [0.03, 0.34]].map(p => new THREE.Vector2(p[0], p[1]))
+    const torso = cast(new THREE.Mesh(new THREE.LatheGeometry(prof, 16), M(tunic)))
+    torso.position.y = 0.62; g.add(torso); g.userData.torso = torso; g.userData.tunic = tunic
+    // the surcoat planks came OFF: two flat boards hung fore and aft
+    // read as a strange sign worn around the neck, not cloth. The
+    // heraldic emblem stays — pinned straight to the chest of the tunic.
+    const emblem = D(new THREE.Mesh(new THREE.CircleGeometry(0.05, 4),
+      new THREE.MeshStandardMaterial({ color: accentHi, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide })))
+    emblem.position.set(0, 0.70, 0.168); g.add(emblem)
+    const collar = D(cast(new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.02, 6, 14), M(accent, 0.6))))
+    collar.position.set(0, 0.9, 0); collar.rotation.x = Math.PI / 2; g.add(collar)
+    const belt = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.15, 0.05, 14), M(0x2a1c10, 0.6)))
+    belt.position.y = 0.44; g.add(belt)
+    const buckle = D(cast(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.02), metal(0xc9a24a, 0.3, 0.85))))
+    buckle.position.set(0, 0.44, 0.152); g.add(buckle)
+    const hips = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.14, 12), M(0x2f2820)))
+    hips.position.y = 0.36; g.add(hips)
+    // shoulders carry the dye (they swap to plate); metal caps sit atop
+    const shoulders = cast(new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8), M(tunic)))
+    shoulders.position.y = 0.88; shoulders.scale.set(1.3, 0.5, 0.85); g.add(shoulders)
+    g.userData.shoulders = shoulders
+    for (const sx of [-0.17, 0.17]) {
+      const pauld = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.6), metal(0x767b85, 0.4, 0.6))))
+      pauld.position.set(sx, 0.9, 0); g.add(pauld)
+    }
+    const neck = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.09, 10), M(skinC, 0.6)))
+    neck.position.y = 0.95; g.add(neck)
+
+    // ---- the head: a face worth the name floating over it. It rides a
+    // pivot hinged at the neck, because a head that can turn is half the
+    // difference between a doll and a person. ----
+    const headGrp = new THREE.Group(); headGrp.position.y = 0.98; g.add(headGrp)
+    const headOff = new THREE.Group(); headOff.position.y = -0.98; headGrp.add(headOff)
+    g.userData.headGrp = headGrp
+    const head = cast(new THREE.Mesh(new THREE.SphereGeometry(0.135, 16, 14), M(skinC, 0.5)))
+    head.position.y = 1.08; head.scale.set(0.94, 1.06, 0.96); headOff.add(head)
+    const jaw = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), M(skinC, 0.5))))
+    jaw.position.set(0, 1.02, 0.03); jaw.scale.set(0.9, 0.72, 0.85); headOff.add(jaw)
+    const nose = D(new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 6), M(skinC, 0.5)))
+    nose.position.set(0, 1.06, 0.13); nose.rotation.x = Math.PI * 0.55; headOff.add(nose)
+    for (const ex of [-0.125, 0.125]) {
+      const ear = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), M(skinC, 0.5))))
+      ear.position.set(ex, 1.07, 0); ear.scale.set(0.6, 1, 0.7); headOff.add(ear)
+    }
+    for (const ex of [-0.05, 0.05]) { // eyes: sclera, iris, pupil, and a catchlight of life
+      // the whites were BURIED: the head's front surface sits at z≈0.129
+      // and the sclera centered at 0.107 never broke the skin — only the
+      // pupil's tip showed, a dot lost against the hair. The whole eye
+      // moves forward to sit ON the face, as eyes do.
+      const sclera = D(new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), new THREE.MeshStandardMaterial({ color: 0xf4f0e8, roughness: 0.4 })))
+      sclera.position.set(ex, 1.09, 0.119); sclera.scale.set(1, 0.8, 0.6); headOff.add(sclera)
+      const iris = D(new THREE.Mesh(new THREE.SphereGeometry(0.011, 8, 6), new THREE.MeshStandardMaterial({ color: eyeC, roughness: 0.25 })))
+      iris.position.set(ex, 1.088, 0.130); headOff.add(iris)
+      const pup = D(new THREE.Mesh(new THREE.SphereGeometry(0.005, 6, 5), new THREE.MeshBasicMaterial({ color: 0x080808 })))
+      pup.position.set(ex, 1.088, 0.1365); headOff.add(pup)
+      const brow = D(new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.012, 0.02), new THREE.MeshBasicMaterial({ color: hairC })))
+      brow.position.set(ex, 1.118, 0.124); headOff.add(brow)
+    }
+    // hair as a group so a helm can hide the whole coiffure at once.
+    // The cap was a helmet in disguise: its shell ran 0.62π down PAST
+    // the equator on every side, so the front rim hung over the brow
+    // and the eyes, and the face read as marks painted on hair. The cap
+    // now sits higher, leans back off the brow, and stops sooner — a
+    // hairline above the face, full coverage kept at the sides and back.
+    const hairGroup = new THREE.Group(); headOff.add(hairGroup); g.userData.hair = hairGroup
+    const hairMat = M(hairC, 0.85)
+    const cap = cast(new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.60), hairMat))
+    cap.position.set(0, 1.115, -0.033); cap.scale.set(1, 1, 0.96); hairGroup.add(cap)
+    const style = (hv >> 9) % 3
+    if (style === 1) { // a ponytail
+      const tail = D(cast(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.014, 0.22, 6), hairMat)))
+      tail.position.set(0, 1.02, -0.12); tail.rotation.x = -0.4; hairGroup.add(tail)
+    } else if (style === 2) { // a topknot
+      const bun = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 7), hairMat)))
+      bun.position.set(0, 1.23, -0.01); hairGroup.add(bun)
+    }
+    if ((hv >> 11) % 10 < 4) { // some wear a beard
+      const beard = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.085, 10, 8, 0, Math.PI * 2, Math.PI * 0.5, Math.PI * 0.5), hairMat)))
+      beard.position.set(0, 1.0, 0.03); beard.scale.set(0.95, 0.95, 0.82); hairGroup.add(beard)
+    }
+    const helm = cast(new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), metal(0x9a9fa8, 0.35, 0.7)))
+    helm.position.y = 1.09; helm.visible = false; headOff.add(helm); g.userData.helm = helm
+    const nasal = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.09, 0.02), metal(0x9a9fa8, 0.35, 0.7))
+    nasal.position.set(0, -0.05, 0.14); helm.add(nasal) // the nose-guard hides with the helm
+
+    // ---- two-segment limbs: the joint contract the animator relies on ----
+    const mkLimb2 = (rw, upLen, loLen, upC, loC) => {
+      const hip2 = new THREE.Group()
+      const upper = cast(new THREE.Mesh(new THREE.CylinderGeometry(rw, rw * 0.82, upLen, 10), M(upC)))
+      upper.position.y = -upLen / 2; hip2.add(upper)
+      const joint = new THREE.Group(); joint.position.y = -upLen; hip2.add(joint)
+      const lower = cast(new THREE.Mesh(new THREE.CylinderGeometry(rw * 0.82, rw * 0.66, loLen, 10), M(loC)))
+      lower.position.y = -loLen / 2; joint.add(lower)
+      hip2.userData.joint = joint
+      return hip2
+    }
+    const armL = mkLimb2(0.045, 0.2, 0.2, tunic, skinC), armR = mkLimb2(0.045, 0.2, 0.2, tunic, skinC)
+    armL.position.set(-0.2, 0.86, 0); armR.position.set(0.2, 0.86, 0)
+    g.add(armL); g.add(armR); g.userData.arms = [armL, armR]
+    for (const arm of [armL, armR]) { // hands
+      const mitt = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), M(skinC, 0.6))))
+      mitt.position.y = -0.2; mitt.scale.set(1, 1.2, 0.7); arm.userData.joint.add(mitt)
+    }
+    const legL = mkLimb2(0.058, 0.19, 0.19, 0x2f2820, 0x241d16), legR = mkLimb2(0.058, 0.19, 0.19, 0x2f2820, 0x241d16)
+    legL.position.set(-0.07, 0.36, 0); legR.position.set(0.07, 0.36, 0)
+    g.add(legL); g.add(legR); g.userData.legs = [legL, legR]
+    for (const leg of [legL, legR]) { // boots with a toe
+      const boot = cast(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.12), M(0x1a140e, 0.7)))
+      boot.position.set(0, -0.19, 0.02); leg.userData.joint.add(boot)
+      const toe = D(cast(new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.05, 0.06), M(0x1a140e, 0.7))))
+      toe.position.set(0, -0.2, 0.09); leg.userData.joint.add(toe)
+    }
+    // bracers only here: the pauldrons already live on the shoulders —
+    // a second stacked pair read as strange gray growths
+    for (const arm2 of [armL, armR]) {
+      const brace = D(cast(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.1, 10), metal(0x5a4a30, 0.6, 0.3))))
+      brace.position.y = -0.12; arm2.userData.joint.add(brace)
+    }
+    // a curved cloak that drapes and sways, clasped at the throat
+    const cloakDk = new THREE.Color(cloakC).multiplyScalar(0.62) // fabric, not bodywork
+    const cloak = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.33, 0.6, 14, 1, true, Math.PI * 0.68, Math.PI * 0.64),
+      new THREE.MeshStandardMaterial({ color: cloakDk, roughness: 0.96, side: THREE.DoubleSide })))
+    cloak.position.set(0, 0.6, -0.04); cloak.rotation.x = 0.1; g.add(cloak); g.userData.cloak = cloak
+    const clasp = D(cast(new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), metal(0xc9a24a, 0.3, 0.85))))
+    clasp.position.set(0, 0.9, -0.03); g.add(clasp)
+
+    // ---- the hand knows its work and its weapon (same visibility contract).
+    // The tools got a smithing pass: tapered hafts with leather wraps, a
+    // honed bit on the hatchet, a true two-tined pick, a rod that carries
+    // line and bobber, a fullered sword whose tip shares the blade's very
+    // material (so starlight dyes the whole edge), a recurve bow, a chain
+    // of actual links. ----
+    // Held things were drawn true to a citizen's hand and read as toothpicks at
+    // walking distance, which is the distance you actually watch from. Everything
+    // carried is enlarged by one factor, so proportions between tools are kept.
+    const TOOL_SCALE = 1.45
+    const hand = armR.userData.joint
+    const woodM = M(0x5c4023, 0.85)
+    const wrapM = M(0x33220f, 0.95)
+    const bronzeM = metal(0xb07a34, 0.38, 0.6)
+    const bronzeHiM = metal(0xd8a050, 0.28, 0.75)
+    const hatchet = new THREE.Group()
+    { const hh = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.024, 0.34, 7), woodM))
+      hh.position.y = -0.3; hatchet.add(hh)
+      const wrap = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.021, 0.06, 7), wrapM)
+      wrap.position.y = -0.43; hatchet.add(wrap)
+      const cheek = cast(new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.07, 0.024), bronzeM))
+      cheek.position.set(0.045, -0.44, 0); hatchet.add(cheek)
+      const bit = cast(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.084, 0.026), bronzeHiM))
+      bit.position.set(0.105, -0.44, 0); hatchet.add(bit) // the honed edge catches the light
+      const poll = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.026), bronzeM)
+      poll.position.set(-0.02, -0.44, 0); hatchet.add(poll) }
+    hatchet.scale.setScalar(TOOL_SCALE)
+    hatchet.visible = false; hand.add(hatchet); g.userData.hatchet = hatchet
+    const pick = new THREE.Group()
+    { const ph2 = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.024, 0.36, 7), woodM))
+      ph2.position.y = -0.32; pick.add(ph2)
+      const wrap2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.021, 0.06, 7), wrapM)
+      wrap2.position.y = -0.45; pick.add(wrap2)
+      const eye2 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.032), bronzeM)
+      eye2.position.set(0, -0.49, 0); pick.add(eye2)
+      for (const sx3 of [-1, 1]) { // the head curves out to two true points
+        const tine = cast(new THREE.Mesh(new THREE.ConeGeometry(0.021, 0.15, 5), bronzeM))
+        tine.position.set(sx3 * 0.085, -0.51, 0)
+        tine.rotation.z = -sx3 * (Math.PI / 2 + 0.3)
+        pick.add(tine)
+      } }
+    pick.rotation.y = Math.PI / 2 // the tines ride IN the swing plane: the old pick struck the rock broadside
+    pick.scale.setScalar(TOOL_SCALE)
+    pick.visible = false; hand.add(pick); g.userData.pick = pick
+    const rod = new THREE.Group()
+    { // the rod REBUILT: the old one was held upside down — thin tip at
+      // the fist, butt swinging in the air, line knotted mid-shaft — a
+      // spear with a bead on it. Now the butt sits in the fist, the
+      // shaft tapers AWAY down the cast, and the line group is
+      // counter-rotated so it hangs plumb at the fishing arm's angle,
+      // bobber waiting at its end.
+      const rh = cast(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.005, 0.85, 6), M(0x8a5a2a, 0.7)))
+      rh.position.y = -0.445; rod.add(rh)
+      const grip2 = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.02, 0.14, 6), wrapM)
+      grip2.position.y = -0.09; rod.add(grip2)
+      const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.016, 8), metal(0x8a8a82, 0.4, 0.6))
+      reel.rotation.z = Math.PI / 2; reel.position.set(0, -0.18, 0.035); rod.add(reel)
+      const lineGrp = new THREE.Group()
+      lineGrp.position.set(0, -0.86, 0)  // from the very tip
+      lineGrp.rotation.x = 1.8           // plumb, once the arm is raised to its cast
+      const line = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0018, 0.62, 3), M(0xd9d3c0, 0.4))
+      line.position.y = -0.31; lineGrp.add(line)
+      const bob = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 5), M(0xc0392b, 0.5))
+      bob.position.y = -0.62; lineGrp.add(bob) // and the bobber waits
+      rod.add(lineGrp) }
+    rod.scale.setScalar(TOOL_SCALE)
+    rod.visible = false; hand.add(rod); g.userData.rod = rod
+    // sword: the blade, its tip and its fuller SHARE one material, so the
+    // equipment code's recolor dyes the whole edge in starlight at once
+    const bladeMat = M(0xd8d2c2, 0.25)
+    const sword = cast(new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.38, 0.014), bladeMat))
+    sword.position.set(0, -0.4, 0.06); sword.scale.setScalar(TOOL_SCALE)
+    sword.visible = false; hand.add(sword); g.userData.sword = sword
+    const tip = cast(new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.07, 4), bladeMat))
+    tip.position.set(0, -0.225, 0); tip.rotation.set(0, Math.PI / 4, Math.PI); sword.add(tip)
+    const fuller = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.3, 0.018), bladeMat)
+    fuller.position.set(0, 0.02, 0); sword.add(fuller) // a geometric ridge that catches the sun
+    const guard = cast(new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.026, 0.03), metal(0x8a7038, 0.4, 0.7)))
+    guard.position.set(0, 0.2, 0); sword.add(guard)
+    for (const gx4 of [-0.075, 0.075]) { // quillons end in beads
+      const qn = new THREE.Mesh(new THREE.SphereGeometry(0.016, 6, 5), metal(0x8a7038, 0.4, 0.7))
+      qn.position.set(gx4, 0, 0); guard.add(qn)
+    }
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.1, 6), M(0x3a2a16))
+    grip.position.set(0, 0.25, 0); sword.add(grip)
+    for (const wy of [-0.03, 0, 0.03]) { // the wrap, ring by ring
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.015, 0.004, 4, 8), M(0x241a0e, 0.9))
+      ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.25 + wy, 0); sword.add(ring)
+    }
+    const pommel = cast(new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6), metal(0x8a7038, 0.4, 0.7)))
+    pommel.position.set(0, 0.315, 0); sword.add(pommel)
+    const bow = new THREE.Group()
+    { const limbM = M(0x6b4a2a, 0.7)
+      const arc = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.013, 6, 18, Math.PI), limbM)
+      arc.rotation.z = Math.PI / 2; bow.add(arc)
+      const grip3 = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.07, 6), wrapM)
+      grip3.rotation.z = Math.PI / 2; grip3.position.set(0, 0.2, 0); arc.add(grip3) // the wrapped riser
+      for (const ex2 of [-0.2, 0.2]) { // recurve tips kick back
+        const tip2 = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.05, 5), limbM)
+        tip2.position.set(ex2, -0.02, 0)
+        tip2.rotation.z = ex2 > 0 ? 2.4 : -2.4
+        arc.add(tip2)
+      }
+      const bowstr = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.4, 4), M(0xd9d3c0, 0.5))
+      bowstr.rotation.z = Math.PI / 2; arc.add(bowstr) } // the string rides with the bow
+    bow.position.set(0, -0.24, 0.04); bow.scale.setScalar(TOOL_SCALE)
+    bow.visible = false; hand.add(bow); g.userData.bow = bow
+    const chain = new THREE.Group()
+    { const linkM = metal(0x8a8a82, 0.42, 0.6)
+      for (let li2 = 0; li2 < 5; li2++) { // links, not a pipe
+        const link = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.007, 5, 10), linkM)
+        link.position.set(0, -0.3 - li2 * 0.036, 0.03)
+        link.rotation.y = li2 % 2 ? Math.PI / 2 : 0
+        link.rotation.x = 0.15
+        chain.add(link)
+      } }
+    chain.scale.setScalar(TOOL_SCALE)
+    chain.visible = false; hand.add(chain); g.userData.chain = chain
+    // ---- the other shapes, in hand (v0.66) ----
+    const shapeSteel = (star) => new THREE.MeshStandardMaterial({
+      color: star ? 0xc8f0ff : 0xe4ddc9, roughness: 0.34, metalness: 0.72,
+      emissive: star ? 0x1d5570 : 0x000000, emissiveIntensity: star ? 0.5 : 0 })
+    const shapeWood = new THREE.MeshStandardMaterial({ color: 0x6b4720, roughness: 0.9 })
+    const shapes = {}
+    for (const star of [false, true]) {
+      const tag = star ? 'star' : 'bronze'
+      // dagger: a short blade, close to the fist
+      const dg = new THREE.Group()
+      const dgB = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.34, 0.015), shapeSteel(star))
+      dgB.position.y = 0.2; dg.add(dgB)
+      dg.add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.04), shapeWood))
+      shapes[tag + '-dagger'] = dg
+      // spear: a long haft and a narrow head
+      const sp = new THREE.Group()
+      const hf = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 1.5, 6), shapeWood)
+      hf.position.y = 0.45; sp.add(hf)
+      const hd = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.28, 6), shapeSteel(star))
+      hd.position.y = 1.3; sp.add(hd)
+      shapes[tag + '-spear'] = sp
+      // maul: a great block on a heavy haft
+      const ml = new THREE.Group()
+      const mh = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.85, 6), shapeWood)
+      mh.position.y = 0.3; ml.add(mh)
+      const blk = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.2), shapeSteel(star))
+      blk.position.y = 0.8; ml.add(blk)
+      shapes[tag + '-maul'] = ml
+    }
+    // the horn-bow: recurved, paler at the tips
+    const hb = new THREE.Group()
+    const limb = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.028, 6, 16, Math.PI * 1.1),
+      new THREE.MeshStandardMaterial({ color: 0x6b5238, roughness: 0.75 }))
+    limb.rotation.z = Math.PI / 2; limb.position.y = 0.45; hb.add(limb)
+    const strg = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.82, 4),
+      new THREE.MeshStandardMaterial({ color: 0xefe7cf }))
+    strg.position.set(0.16, 0.45, 0); hb.add(strg)
+    shapes['horn-bow'] = hb
+    for (const [k, mesh] of Object.entries(shapes)) {
+      mesh.scale.setScalar(TOOL_SCALE)
+      mesh.visible = false; hand.add(mesh)
+    }
+    g.userData.shapes = shapes
+    // the swing leaves its light: an arc that flares with the whip
+    const trail = new THREE.Mesh(new THREE.RingGeometry(0.16, 0.46, 12, 1, -0.4, 1.9),
+      new THREE.MeshBasicMaterial({ color: 0xfff2d9, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }))
+    trail.position.set(0.2, 0.75, 0.1); trail.rotation.y = Math.PI / 2
+    g.add(trail); g.userData.trail = trail
+    g.add(g.userData.name)
+
+  g.__adventurer = true
+  initAn(g, id)
+  return g
+}
+function makeBeast(id, type) {
+  const g = new THREE.Group()
+  g.rotation.order = 'YXZ'
+  const thing = { type }
+  {
+    const [col, sz] = MOB_LOOK[thing.type] ?? [0x8a7449, 0.5]
+    const M = (c, r = 0.85) => new THREE.MeshStandardMaterial({ color: c, roughness: r })
+    const cast = (m) => { m.castShadow = true; return m }
+    const biped = thing.type === 'goblin' || thing.type === 'troll' || thing.type === 'skeleton-knight'
+    if (biped) {
+      const troll = thing.type === 'troll'
+      const dcol = new THREE.Color(col).multiplyScalar(troll ? 0.75 : 0.85) // darker hide
+      const hunch = new THREE.Group(); hunch.rotation.x = 0.32; g.add(hunch) // it LOOMS
+      const body = cast(new THREE.Mesh(new THREE.SphereGeometry(sz * 0.42, 10, 8), new THREE.MeshStandardMaterial({ color: dcol, roughness: 1 })))
+      body.position.y = sz * 0.62; body.scale.set(1, 1.2, 0.85); hunch.add(body)
+      g.userData.bod = body // the flash needs a body to run through
+      const head = cast(new THREE.Mesh(new THREE.SphereGeometry(sz * 0.26, 10, 8), new THREE.MeshStandardMaterial({ color: dcol, roughness: 1 })))
+      head.position.set(0, sz * 1.12, sz * 0.16); head.scale.set(1, 0.9, 1.05); hunch.add(head)
+      const jaw = cast(new THREE.Mesh(new THREE.BoxGeometry(sz * 0.34, sz * 0.12, sz * 0.22), new THREE.MeshStandardMaterial({ color: dcol, roughness: 1 })))
+      jaw.position.set(0, sz * 1.0, sz * 0.26); hunch.add(jaw) // the underbite
+      for (const fx2 of [-0.08, 0.08]) { // tusks
+        const tusk = cast(new THREE.Mesh(new THREE.ConeGeometry(sz * 0.03, sz * 0.12, 4), new THREE.MeshStandardMaterial({ color: 0xd9d3c0 })))
+        tusk.position.set(sz * fx2 * 2, sz * 1.08, sz * 0.34); hunch.add(tusk)
+      }
+      const earL = cast(new THREE.Mesh(new THREE.ConeGeometry(sz * 0.07, sz * 0.3, 4), new THREE.MeshStandardMaterial({ color: dcol })))
+      earL.position.set(-sz * 0.26, sz * 1.28, 0); earL.rotation.z = 0.9; hunch.add(earL)
+      const earR = earL.clone(); earR.position.x = sz * 0.26; earR.rotation.z = -0.9; hunch.add(earR)
+      // long arms, knuckles toward the ground
+      for (const sx2 of [-1, 1]) {
+        const arm2 = cast(new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.09, sz * 0.12, sz * 0.75, 6), new THREE.MeshStandardMaterial({ color: dcol, roughness: 1 })))
+        arm2.position.set(sx2 * sz * 0.44, sz * 0.5, sz * 0.1); arm2.rotation.z = sx2 * 0.18; arm2.rotation.x = -0.15; hunch.add(arm2)
+        const fist = cast(new THREE.Mesh(new THREE.SphereGeometry(sz * 0.13, 8, 6), new THREE.MeshStandardMaterial({ color: dcol })))
+        fist.position.set(sx2 * sz * 0.5, sz * 0.12, sz * 0.18); hunch.add(fist)
+      }
+      if (troll) for (let sp2 = 0; sp2 < 4; sp2++) { // a ridge of back spikes
+        const spike = cast(new THREE.Mesh(new THREE.ConeGeometry(sz * 0.06, sz * 0.22, 4), new THREE.MeshStandardMaterial({ color: 0x33402e })))
+        spike.position.set(0, sz * (0.5 + sp2 * 0.22), -sz * 0.36 + sp2 * sz * 0.02)
+        spike.rotation.x = -0.7; hunch.add(spike)
+      }
+      g.userData.legs2 = []
+      for (const sx2 of [-1, 1]) {
+        const leg = cast(new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.11, sz * 0.13, sz * 0.3, 6), new THREE.MeshStandardMaterial({ color: dcol, roughness: 1 })))
+        leg.position.set(sx2 * sz * 0.18, sz * 0.15, 0); g.add(leg); g.userData.legs2.push(leg)
+      }
+      const eyeL = new THREE.Mesh(new THREE.SphereGeometry(sz * 0.05), new THREE.MeshBasicMaterial({ color: troll ? 0xff4422 : 0xd9c93a }))
+      eyeL.position.set(-sz * 0.1, sz * 1.16, sz * 0.36); hunch.add(eyeL)
+      const eyeR = eyeL.clone(); eyeR.position.x = sz * 0.1; hunch.add(eyeR)
+      g.userData.hunch = hunch
+    } else { // quadrupeds: wolf, bear
+      const body = cast(new THREE.Mesh(new THREE.BoxGeometry(sz * 0.9, sz * 0.45, sz * 0.4), M(col)))
+      body.position.y = sz * 0.5; g.add(body); g.userData.qbody = body; g.userData.bod = body
+      const head = cast(new THREE.Mesh(new THREE.BoxGeometry(sz * 0.34, sz * 0.32, sz * 0.3), M(col)))
+      head.position.set(sz * 0.55, sz * 0.62, 0); g.add(head)
+      const snout = cast(new THREE.Mesh(new THREE.BoxGeometry(sz * 0.2, sz * 0.13, sz * 0.15), M(col)))
+      snout.position.set(sz * 0.74, sz * 0.54, 0); g.add(snout)
+      for (const fz of [-0.05, 0.05]) { // fangs
+        const fang = new THREE.Mesh(new THREE.ConeGeometry(sz * 0.02, sz * 0.07, 4), new THREE.MeshBasicMaterial({ color: 0xe8e4d0 }))
+        fang.position.set(sz * 0.8, sz * 0.45, sz * fz); fang.rotation.x = Math.PI; g.add(fang)
+      }
+      if (thing.type === 'bear') { // the hump: mass reads as menace
+        const hump = cast(new THREE.Mesh(new THREE.SphereGeometry(sz * 0.3, 8, 6), M(col)))
+        hump.position.set(-sz * 0.15, sz * 0.72, 0); g.add(hump)
+      }
+      const earL = cast(new THREE.Mesh(new THREE.ConeGeometry(sz * 0.06, sz * 0.15, 4), M(col)))
+      earL.position.set(sz * 0.48, sz * 0.82, -sz * 0.1); g.add(earL)
+      const earR = earL.clone(); earR.position.z = sz * 0.1; g.add(earR)
+      const tail = cast(new THREE.Mesh(new THREE.CylinderGeometry(sz * 0.04, sz * 0.02, sz * 0.35, 4), M(col)))
+      tail.position.set(-sz * 0.5, sz * 0.62, 0); tail.rotation.z = -0.9; g.add(tail); g.userData.tail = tail
+      g.userData.legs4 = []
+      for (const [lx, lz] of [[0.3, 0.14], [0.3, -0.14], [-0.3, 0.14], [-0.3, -0.14]]) {
+        const leg = cast(new THREE.Mesh(new THREE.BoxGeometry(sz * 0.12, sz * 0.32, sz * 0.12), M(col)))
+        leg.position.set(sz * lx, sz * 0.16, sz * lz); g.add(leg); g.userData.legs4.push(leg)
+      }
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(sz * 0.04), new THREE.MeshBasicMaterial({ color: 0x10100c }))
+      eye.position.set(sz * 0.66, sz * 0.68, sz * 0.13); g.add(eye)
+      const eye2 = eye.clone(); eye2.position.z = -sz * 0.13; g.add(eye2)
+      g.rotation.y = Math.PI / 2
+    }
+    g.userData.maxHp = thing.hp
+  }
+  const mats2 = []
+  g.traverse((o) => { if (o.isMesh && o.material && o.material.emissive) mats2.push(o.material) })
+  g.__mats = mats2
+  initAn(g, id)
+  return g
+}
+
+// ---- the celebration: pools, rockets, the banner, the fanfare ----
+function makePool(n, color, blending) {
+  const items = []
+  for (let i = 0; i < n; i++) {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW_TEX, color, transparent: true,
+      opacity: 0, depthWrite: false, blending: blending ?? THREE.NormalBlending }))
+    sp.visible = false; scene.add(sp)
+    items.push({ sp, life: 0, max: 1, vx: 0, vy: 0, vz: 0, g: 0, base: 0.3, grow: 1, op0: 1 })
+  }
+  return {
+    items, cursor: 0,
+    spawn(x, y, z, o) {
+      const it = items[this.cursor]; this.cursor = (this.cursor + 1) % items.length
+      it.life = 0; it.max = o.max ?? 0.6; it.vx = o.vx ?? 0; it.vy = o.vy ?? 0; it.vz = o.vz ?? 0
+      it.g = o.g ?? 0; it.base = o.size ?? 0.3; it.grow = o.grow ?? 1; it.op0 = o.opacity ?? 1
+      it.sp.position.set(x, y, z); it.sp.material.color.set(o.color ?? color)
+      it.sp.material.opacity = it.op0; it.sp.scale.setScalar(it.base); it.sp.visible = true
+      return it
+    },
+    update(dt) {
+      for (const it of items) {
+        if (!it.sp.visible) continue
+        it.life += dt; const f = it.life / it.max
+        if (f >= 1) { it.sp.visible = false; continue }
+        it.vy += it.g * dt
+        it.sp.position.x += it.vx * dt; it.sp.position.y += it.vy * dt; it.sp.position.z += it.vz * dt
+        it.sp.material.opacity = it.op0 * (1 - f * f)
+        it.sp.scale.setScalar(it.base * (1 + f * (it.grow - 1)))
+      }
+    }
+  }
+}
+function showLevelBanner(skill, lvl) {
+  if (!document.getElementById('lvlcss')) {
+    const st = document.createElement('style'); st.id = 'lvlcss'
+    st.textContent = '@keyframes lvlpop{0%{transform:translateX(-50%) scale(.5);opacity:0}12%{transform:translateX(-50%) scale(1.1);opacity:1}20%{transform:translateX(-50%) scale(1)}86%{transform:translateX(-50%) scale(1);opacity:1}100%{transform:translateX(-50%) scale(.96);opacity:0}}'
+    document.head.appendChild(st)
+  }
+  document.getElementById('lvlbanner')?.remove()
+  const d = document.createElement('div')
+  d.id = 'lvlbanner'
+  d.innerHTML = '\u2728 <b style="letter-spacing:1px">' + skill.toUpperCase() + '</b> &nbsp;LEVEL ' + lvl + ' \u2728'
+  d.style.cssText = 'position:fixed;top:74px;left:50%;transform:translateX(-50%);z-index:30;' +
+    'background:linear-gradient(#544936,#2e2820);border:3px double #ffcc33;border-radius:10px;' +
+    'padding:12px 26px;color:#ffe27a;font:bold 18px Verdana;text-shadow:0 0 8px rgba(255,204,51,.7);' +
+    'box-shadow:0 0 26px rgba(255,204,51,.4), inset 0 1px 0 rgba(255,255,255,.12);' +
+    'animation:lvlpop 2.6s ease forwards;pointer-events:none;white-space:nowrap'
+  document.body.appendChild(d)
+  setTimeout(() => d.remove(), 2700)
+}
+function fireworksAt(pos) {
+  const px3 = pos.x, py3 = pos.y, pz3 = pos.z
+  const COLS = [0xffd24a, 0x8ce0ff, 0xff7a5a] // gold, starlight, ember
+  for (let s3 = 0; s3 < 3; s3++) {
+    const dx5 = (Math.random() - 0.5) * 2.6, dz5 = (Math.random() - 0.5) * 2.6
+    const hy3 = 2.6 + Math.random() * 1.3
+    setTimeout(() => {
+      sparkPool.spawn(px3 + dx5, py3 + 0.5, pz3 + dz5, { max: 0.42, size: 0.1, opacity: 1,
+        vx: 0, vy: hy3 / 0.42, vz: 0, g: 0, color: 0xfff2c0 }) // the rocket climbs
+      setTimeout(() => { // and the shell opens: a true sphere of sparks
+        const col = COLS[s3 % 3]
+        flashPool.spawn(px3 + dx5, py3 + 0.5 + hy3, pz3 + dz5, { max: 0.5, size: 1.6, grow: 3.0, opacity: 0.85, color: col })
+        for (let i = 0; i < 26; i++) {
+          const th = Math.random() * 6.283, ph2 = Math.acos(2 * Math.random() - 1)
+          const sp = 1.6 + Math.random() * 1.2
+          sparkPool.spawn(px3 + dx5, py3 + 0.5 + hy3, pz3 + dz5, { max: 0.8 + Math.random() * 0.4, size: 0.11, grow: 0.2, opacity: 1,
+            vx: Math.sin(ph2) * Math.cos(th) * sp, vy: Math.cos(ph2) * sp * 0.8 + 0.4, vz: Math.sin(ph2) * Math.sin(th) * sp,
+            g: -2.2, color: col })
+        }
+        sndX('pop', { x: px3 + dx5, y: py3 + hy3, z: pz3 + dz5 })
+      }, 420)
+    }, s3 * 340)
+  }
+}
+function celebrateLevel(skill, lvl) {
+  feed('\u2728 LEVEL UP! Your ' + skill + ' is now level ' + lvl + '. \u2728')
+  showLevelBanner(skill, lvl)
+  const meM = vis.player.get(ownKey?.pub)
+  if (meM) fireworksAt(meM.position)
+  sndX('level')
+}
+let sparkPool = null, flashPool = null
+function ensurePools() {
+  if (!sparkPool) { sparkPool = makePool(140, 0xffd24a, THREE.AdditiveBlending)
+    flashPool = makePool(24, 0xffffff, THREE.AdditiveBlending) }
+}
+// the effect voice: rides the photo window's own audio bus. The level
+// fanfare is /play's, ported note for note through the deep window.
+function sndX(kind, pos) {
+  if (!AC || !audio) return
+  try {
+    const vol = pos ? Math.max(0, 1 - camera.position.distanceTo(V3TMP.set(pos.x, pos.y, pos.z)) / 30) : 1
+    if (vol <= 0.02) return
+    const t0 = AC.currentTime
+    const master2 = AC.createGain(); master2.gain.value = vol * 0.9; master2.connect(audio.master ?? AC.destination)
+    const burst = (freq, type2, dur, amp, delay = 0) => {
+      const src = AC.createBufferSource(); src.buffer = audio.noiseBuf; src.loop = true
+      src.loopStart = Math.random() * 1.5
+      const f = AC.createBiquadFilter(); f.type = type2; f.frequency.value = freq
+      const ng = AC.createGain()
+      ng.gain.setValueAtTime(0.0001, t0 + delay); ng.gain.linearRampToValueAtTime(amp, t0 + delay + 0.012)
+      ng.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + dur)
+      src.connect(f); f.connect(ng); ng.connect(master2)
+      src.start(t0 + delay, src.loopStart); src.stop(t0 + delay + dur + 0.05)
+    }
+    if (kind === 'level') { // C, E, G, the crown, the fifth beneath: the one you hum later
+      const note = (f, dur, vol2, at) => {
+        const o2 = AC.createOscillator(), ng = AC.createGain()
+        o2.type = 'triangle'; o2.frequency.setValueAtTime(f, t0 + at)
+        ng.gain.setValueAtTime(0, t0 + at)
+        ng.gain.linearRampToValueAtTime(vol2, t0 + at + 0.008)
+        ng.gain.exponentialRampToValueAtTime(0.0001, t0 + at + dur)
+        o2.connect(ng); ng.connect(master2)
+        o2.start(t0 + at); o2.stop(t0 + at + dur + 0.02)
+      }
+      note(523, 0.14, 0.09, 0)
+      note(659, 0.14, 0.09, 0.13)
+      note(784, 0.16, 0.09, 0.26)
+      note(1047, 0.34, 0.10, 0.40)
+      note(784, 0.30, 0.04, 0.40)
+      note(2093, 0.30, 0.016, 0.41)
+      burst(6500, 'highpass', 0.28, 0.045, 0.40)
+    } else if (kind === 'pop') {
+      const o = AC.createOscillator(), g2 = AC.createGain()
+      o.type = 'sine'; o.frequency.setValueAtTime(420, t0)
+      o.frequency.exponentialRampToValueAtTime(180, t0 + 0.03)
+      g2.gain.setValueAtTime(0.2, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.04)
+      o.connect(g2); g2.connect(master2); o.start(t0); o.stop(t0 + 0.05)
+      burst(1800, 'bandpass', 0.22, 0.06)
+    } else if (kind === 'chop') {
+      const o = AC.createOscillator(), g2 = AC.createGain()
+      o.type = 'sine'; o.frequency.setValueAtTime(170, t0)
+      o.frequency.exponentialRampToValueAtTime(60, t0 + 0.08)
+      g2.gain.setValueAtTime(0.16, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.1)
+      o.connect(g2); g2.connect(master2); o.start(t0); o.stop(t0 + 0.12)
+      burst(2600, 'highpass', 0.06, 0.08)
+    } else if (kind === 'whoosh') {
+      burst(900, 'bandpass', 0.14, 0.07)
+    } else if (kind === 'twang') {
+      const o = AC.createOscillator(), g2 = AC.createGain()
+      o.type = 'triangle'; o.frequency.setValueAtTime(300, t0)
+      o.frequency.exponentialRampToValueAtTime(190, t0 + 0.1)
+      g2.gain.setValueAtTime(0.07, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12)
+      o.connect(g2); g2.connect(master2); o.start(t0); o.stop(t0 + 0.13)
+    }
+  } catch {}
+}
+const V3TMP = new THREE.Vector3()
+function spawnArrowX(fx2, fy2, fz2, tx3, ty3, tz3) {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.42, 4),
+    new THREE.MeshBasicMaterial({ color: 0xd9cba0 }))
+  m.position.set(fx2, fy2, fz2)
+  m.lookAt(tx3, ty3, tz3); m.rotateX(Math.PI / 2)
+  scene.add(m)
+  fx.push({ m, life: 0.22, t0: 0.22, kind: 'arrow',
+    vx: (tx3 - fx2) / 0.22, vy: (ty3 - fy2) / 0.22, vz: (tz3 - fz2) / 0.22, mat: m.material })
+}
+
+// ---- the deep window's animator, condensed but honest: the walk in
+// the hips and knees, the strike in three acts, wood FELLED and rock
+// BEATEN, the head with a mind of its own, the job putting its tool in
+// the hand and the wielded thing shown or slung by the same contract ----
+const lerpN = (a, b, k) => a + (b - a) * k
+function animateBeing(g, thing, id, dt, now, t) {
+  const an = g.userData.an
+  if (!an || !thing) return
+  const s = world
+  an.spd = lerpN(an.spd, Math.min(4, g.__speed ?? 0), 0.18)
+  const moving = (g.__speed ?? 0) > 0.12
+  an.mv = lerpN(an.mv, moving ? 1 : 0, 1 - Math.exp(-dt * 9))
+  an.ph += an.spd * dt * 5.4
+  const mvA = an.mv, s5 = Math.sin(an.ph)
+  const t2 = Math.min(1, Math.max(0, (now - clock.at) / TICK_MS))
+
+  // beasts first: fewer bones, same intent
+  if (!g.__adventurer) {
+    if (g.userData.legs4) for (let li = 0; li < 4; li++)
+      g.userData.legs4[li].rotation.x = moving ? Math.sin(now / 130 + li * Math.PI / 2) * 0.6 : 0
+    if (g.userData.hunch) g.userData.hunch.rotation.x = 0.32 + Math.sin(now / 700 + g.position.x) * 0.04
+    if (g.userData.legs && g.userData.legs[0]?.userData?.joint) {
+      g.userData.legs[0].rotation.x = s5 * 0.55 * mvA
+      g.userData.legs[1].rotation.x = -s5 * 0.55 * mvA
+      g.userData.legs[0].userData.joint.rotation.x = (0.04 + Math.max(0, -s5) * 0.9) * mvA
+      g.userData.legs[1].userData.joint.rotation.x = (0.04 + Math.max(0, s5) * 0.9) * mvA
+    }
+    if (g.userData.arms && g.userData.arms[0]?.rotation) {
+      const fighting0 = thing.action?.type === 'attackp' || g.__lungeAt && (now - g.__lungeAt) < 400
+      g.userData.arms[0].rotation.x = fighting0 ? -0.6 + Math.sin(t * 12) * 0.9 : -s5 * 0.45 * mvA
+      g.userData.arms[1].rotation.x = fighting0 ? 0.2 : s5 * 0.45 * mvA
+    }
+    g.position.y += Math.abs(Math.cos(an.ph)) * 0.05 * mvA
+    return
+  }
+
+  const fighting = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
+  const working = thing.action?.type === 'gather'
+  const nd2 = working ? s.nodes?.[thing.action.nodeId] : null
+  const fishingW = nd2?.type === 'fishing-spot'
+  const foe = thing.action?.type === 'attack' ? s.mobs?.[thing.action.mobId]
+    : thing.action?.type === 'attackp' ? s.players?.[thing.action.targetId] : null
+  if (foe) g.userData.foePos = { x: foe.x, y: foe.y }
+  const look0 = lookOf(thing.equipment?.weapon?.item)
+  const exch = fighting && ((s.tick - (thing.action.since ?? 0)) % look0.every === 0)
+
+  // the strike, in three acts (heave / quick / thrust / swing)
+  let strikeA = -1.1, strikeT2 = 0
+  if (exch) {
+    const st = look0.style
+    if (st === 'heave') {
+      if (t2 < 0.55) { const u = t2 / 0.55, e = u * u * (3 - 2 * u); strikeA = -1.1 - e * 1.9 }
+      else if (t2 < 0.7) { const u = (t2 - 0.55) / 0.15; strikeA = -3.0 + u * u * 3.7 }
+      else { const u = (t2 - 0.7) / 0.3; strikeA = 0.7 - u * u * (3 - 2 * u) * 1.8 }
+      strikeT2 = Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - 0.5) / 0.4)) * Math.PI))
+    } else if (st === 'quick') {
+      if (t2 < 0.16) { const u = t2 / 0.16; strikeA = -1.1 - u * 0.5 }
+      else if (t2 < 0.3) { const u = (t2 - 0.16) / 0.14; strikeA = -1.6 + u * u * 1.9 }
+      else { const u = Math.min(1, (t2 - 0.3) / 0.35); strikeA = 0.3 - u * u * (3 - 2 * u) * 1.4 }
+      strikeT2 = Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - 0.14) / 0.3)) * Math.PI))
+    } else if (st === 'thrust') {
+      const u = t2 < 0.4 ? t2 / 0.4 : Math.max(0, 1 - (t2 - 0.4) / 0.45)
+      strikeA = -1.35 + (t2 < 0.4 ? -0.25 * u : 0.5 * (1 - u))
+      g.userData.lunge = t2 >= 0.4 && t2 < 0.62 ? 0.22 : 0
+      strikeT2 = Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - 0.38) / 0.28)) * Math.PI))
+    } else {
+      if (t2 < 0.42) { const u = t2 / 0.42, e = u * u * (3 - 2 * u); strikeA = -1.1 - e * 1.4 }
+      else if (t2 < 0.6) { const u = (t2 - 0.42) / 0.18; strikeA = -2.5 + u * u * 2.9 }
+      else { const u = (t2 - 0.6) / 0.4; strikeA = 0.4 - u * u * (3 - 2 * u) * 1.5 }
+      strikeT2 = Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - 0.3) / 0.5)) * Math.PI))
+    }
+  } else if (g.userData.lunge) g.userData.lunge = 0
+  const wep0 = thing.equipment?.weapon?.item
+  if (g.userData.lunge && g.userData.foePos) {
+    const ax = wx(g.userData.foePos.x) - g.position.x, az = wz(g.userData.foePos.y) - g.position.z
+    const L = Math.hypot(ax, az) || 1
+    g.position.x += (ax / L) * g.userData.lunge
+    g.position.z += (az / L) * g.userData.lunge
+  }
+  if (g.userData.trail) {
+    const lk = look0
+    const win = lk.style === 'heave' ? [0.55, 0.34] : lk.style === 'quick' ? [0.16, 0.24]
+      : lk.style === 'thrust' ? [0.40, 0.20] : [0.42, 0.33]
+    const amp = lk.style === 'heave' ? 0.62 : lk.style === 'quick' ? 0.34
+      : lk.style === 'thrust' ? 0.20 : 0.45
+    const whipK = exch && !lk.ranged
+      ? Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - win[0]) / win[1])) * Math.PI)) : 0
+    g.userData.trail.material.opacity = whipK * amp
+    g.userData.trail.scale.setScalar(lk.style === 'heave' ? 1.35 : lk.style === 'quick' ? 0.7 : 1)
+    g.userData.trail.rotation.x = -0.7 + t2 * 1.5
+  }
+  if (exch && t2 > 0.45 && an.shotTick !== s.tick) {
+    an.shotTick = s.tick
+    if (look0.ranged && g.userData.foePos) {
+      spawnArrowX(g.position.x, g.position.y + 0.85, g.position.z,
+        wx(g.userData.foePos.x), g.position.y + 0.55, wz(g.userData.foePos.y))
+      sndX('twang', g.position)
+    } else sndX('whoosh', g.position)
+  }
+
+  // the chop: wood FELLED in a horizontal arc, rock BEATEN overhead
+  const ct = ((now / 840) + an.seed) % 1
+  let chopA = -0.6, chopZ = 0, chopTw = 0, imp = 0
+  const treeWork = working && !fishingW && nd2?.type === 'tree'
+  if (working && !fishingW) {
+    if (treeWork) {
+      if (ct < 0.55) { const u = ct / 0.55, e = u * u * (3 - 2 * u)
+        chopZ = e * 1.3; chopA = -0.55 - e * 0.35; chopTw = -e * 0.5 }
+      else if (ct < 0.7) { const u = (ct - 0.55) / 0.15
+        chopZ = 1.3 - u * u * 1.55; chopA = -0.9 - u * u * 0.5; chopTw = -0.5 + u * u * 0.78 }
+      else { const u = (ct - 0.7) / 0.3, e = u * u * (3 - 2 * u)
+        chopZ = -0.25 + e * 0.25; chopA = -1.4 + e * 0.85; chopTw = 0.28 - e * 0.28 }
+    } else {
+      if (ct < 0.55) { const u = ct / 0.55, e = u * u * (3 - 2 * u); chopA = -0.6 - e * 1.8 }
+      else if (ct < 0.7) { const u = (ct - 0.55) / 0.15; chopA = -2.4 + u * u * 2.1 }
+      else { const u = (ct - 0.7) / 0.3; chopA = -0.3 - u * u * (3 - 2 * u) * 0.3 }
+    }
+    imp = Math.max(0, 1 - Math.abs(ct - 0.71) * 14)
+    if (an.prevT < 0.7 && ct >= 0.7) sndX('chop', g.position)
+    an.prevT = ct
+  } else an.prevT = 0
+
+  // the body means its movement
+  const leanTgt = mvA * 0.055 + imp * 0.1 + (fighting ? 0.05 + strikeT2 * 0.12 : 0)
+  an.lean = lerpN(an.lean, leanTgt, 1 - Math.exp(-dt * 8))
+  an.roll = lerpN(an.roll, s5 * 0.02 * mvA, 1 - Math.exp(-dt * 8))
+  g.rotation.x = an.lean
+  g.userData.torso.rotation.x = an.lean * 0.6
+  g.userData.torso.rotation.z = an.roll + Math.sin(now / 2600 + an.seed) * 0.015 * (1 - mvA)
+  const hitK = Math.max(0, 1 - (now - (g.__hurtAt ?? -1e9)) / 160)
+  g.userData.torso.material.emissive.setScalar(hitK * 0.55)
+  if (hitK > 0) {
+    const fl2 = hitK * 0.045
+    g.position.x -= Math.sin(g.rotation.y) * fl2
+    g.position.z -= Math.cos(g.rotation.y) * fl2
+    g.rotation.x -= hitK * 0.1
+  }
+  g.position.y += Math.abs(Math.cos(an.ph)) * 0.045 * mvA - imp * 0.03
+
+  // legs and knees on the deep window's joint contract
+  g.userData.legs[0].rotation.x = s5 * 0.62 * mvA - an.lean
+  g.userData.legs[1].rotation.x = -s5 * 0.62 * mvA - an.lean
+  g.userData.legs[0].userData.joint.rotation.x = (0.04 + Math.max(0, -s5) * 1.05) * mvA
+  g.userData.legs[1].userData.joint.rotation.x = (0.04 + Math.max(0, s5) * 1.05) * mvA
+  const sSign = s5 >= 0 ? 1 : -1
+  if (an.lastS !== undefined && sSign !== an.lastS && mvA > 0.45 && id === ownKey?.pub) audio?.step?.(false)
+  an.lastS = sSign
+
+  // arms: counter-swing, the off arm counterbalances the strike
+  const idleSw = Math.sin(now / 1700 + an.seed) * 0.045
+  g.userData.arms[0].rotation.x = fighting ? (-0.55 + strikeT2 * 0.75)
+    : (working && !fishingW) ? (-0.25 - imp * 0.15)
+      : fishingW ? -0.9
+        : -s5 * 0.5 * mvA + idleSw
+  g.userData.arms[1].rotation.x = fighting ? strikeA
+    : (working && !fishingW) ? chopA
+      : fishingW ? (-1.3 + Math.sin(now / 1300 + an.seed) * 0.05)
+        : s5 * 0.5 * mvA + idleSw
+  g.userData.arms[1].rotation.z = treeWork ? chopZ : 0
+  g.userData.arms[0].rotation.z = treeWork ? -chopZ * 0.22 : 0
+  g.userData.torso.rotation.y = treeWork ? chopTw : 0
+  if (g.userData.hatchet?.visible) g.userData.hatchet.rotation.y = treeWork ? -1.35 : 0
+  g.userData.arms[0].userData.joint.rotation.x = -0.14 - Math.max(0, -s5) * 0.3 * mvA
+  g.userData.arms[1].userData.joint.rotation.x = (fighting || working) ? -0.5 : -0.14 - Math.max(0, s5) * 0.3 * mvA
+
+  // the head is its own animal
+  const hg = g.userData.headGrp
+  if (hg) {
+    let faceTarget = null
+    if (foe) faceTarget = Math.atan2(wx(foe.x) - g.position.x, wz(foe.y) - g.position.z)
+    else if (nd2) faceTarget = Math.atan2(wx(nd2.x) - g.position.x, wz(nd2.y) - g.position.z)
+    let hyT = 0, hpT = -an.lean * 1.3
+    if (faceTarget !== null) {
+      let rem = faceTarget - g.rotation.y
+      while (rem > Math.PI) rem -= Math.PI * 2
+      while (rem < -Math.PI) rem += Math.PI * 2
+      hyT = Math.max(-0.75, Math.min(0.75, rem * 0.9))
+    } else if (!moving) {
+      const gl = Math.sin(now / 5300 + an.seed * 2.7)
+      hyT = Math.abs(gl) > 0.88 ? Math.sign(gl) * 0.5 : 0
+    }
+    if (nd2) hpT += nd2.type === 'tree' ? -0.12 : 0.34
+    if (fighting) hpT += 0.08
+    an.hYaw = lerpN(an.hYaw, hyT, 1 - Math.exp(-dt * 6))
+    an.hPit = lerpN(an.hPit, hpT, 1 - Math.exp(-dt * 6))
+    hg.rotation.y = an.hYaw
+    hg.rotation.x = an.hPit + Math.abs(Math.cos(an.ph + 0.5)) * 0.02 * mvA
+  }
+  g.userData.torso.scale.y = 1 + Math.sin(now / 900 + g.position.x) * 0.015
+  if (g.userData.cloak) g.userData.cloak.rotation.x = 0.08 + mvA * (0.26 + Math.sin(an.ph * 2) * 0.05) + Math.sin(now / 1100) * 0.03 * (1 - mvA)
+
+  // the job puts its tool in the hand; the wielded thing obeys the contract
+  g.userData.hatchet.visible = nd2?.type === 'tree'
+  g.userData.pick.visible = nd2?.type === 'rock' || nd2?.type === 'magic-rock'
+  g.userData.rod.visible = nd2?.type === 'fishing-spot'
+  const toolOut = !!(g.userData.hatchet.visible || g.userData.pick.visible || g.userData.rod.visible)
+  const wep = toolOut ? null : thing.equipment?.weapon?.item
+  const bareBlade = fighting && !toolOut && !thing.equipment?.weapon?.item
+  g.userData.sword.visible = wep === 'bronze-sword' || wep === 'star-sword' || bareBlade
+  g.userData.sword.material.color.set(wep === 'star-sword' ? 0x8ce0ff : 0xc9c2b2)
+  g.userData.sword.material.emissive.set(wep === 'star-sword' ? 0x1c6a8e : 0x000000)
+  g.userData.sword.material.emissiveIntensity = wep === 'star-sword' ? 0.9 : 0
+  g.userData.bow.visible = wep === 'wooden-bow'
+  g.userData.chain.visible = wep === 'old-chain'
+  if (g.userData.shapes) for (const [k, mesh] of Object.entries(g.userData.shapes)) mesh.visible = (wep === k)
+  const hd = thing.equipment?.head?.item
+  g.userData.helm.visible = !!hd
+  g.userData.helm.material.color.set(hd === 'star-helm' ? 0x5cb8d9 : 0xa3743a)
+  g.userData.hair.visible = !hd
+  const bd = thing.equipment?.body?.item
+  const plateC = bd === 'star-plate' ? 0x5cb8d9 : bd === 'bronze-plate' ? 0xa3743a : null
+  if (plateC) { g.userData.torso.material.color.set(plateC); g.userData.shoulders.material.color.set(plateC) }
+  else { g.userData.torso.material.color.copy(g.userData.tunic); g.userData.shoulders.material.color.copy(g.userData.tunic) }
+
+  // fine parts step back at distance: the LOD the deep window keeps
+  if ((g.__lodAt ?? 0) < now - 300) {
+    g.__lodAt = now
+    const far2 = camera.position.distanceTo(g.position) > 15
+    if (g.__lodFar !== far2) { g.__lodFar = far2
+      for (const dpart of (g.userData.detail ?? [])) dpart.visible = !far2 }
+  }
+}
+
 function tickTheater(st) {
   for (const [pid, p] of Object.entries(st.players)) {
     const a = p.action; if (!a) continue
@@ -1821,7 +2801,7 @@ function syncAll(s) {
     let g = vis.mob.get(id)
     if (!g) {
       const [c, sc] = MOB_LOOK[m.type] ?? [0x8a5a5a, 0.7]
-      g = (m.type === 'wolf' || m.type === 'bear') ? beastBody(c, sc, m.type) : bodyOf(c, sc, false, m.type)
+      g = makeBeast(id, m.type) // the deep window's beasts, same joints
       g.userData = { kind: 'mob', id, type: m.type, tx: m.x, ty: m.y, fx0: m.x, fy0: m.y, moveAt: 0 }
       g.traverse((o) => { o.userData.kind = 'mob'; o.userData.id = id })
       const lb = label(m.type + ' · ' + m.hp); lb.position.y = 1.6
@@ -1855,8 +2835,7 @@ function syncAll(s) {
     if (!g) {
       // every citizen wears a color spun from their own key — the crowd
       // stops being one blue and starts being a crowd
-      const hue = ([...id].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) >>> 0, 5381) % 360) / 360
-      g = bodyOf(new THREE.Color().setHSL(hue, 0.45, 0.34).getHex(), 0.62, id === ownKey?.pub)
+      g = makeAdventurer(id) // the deep window's people, under this light
       g.userData = { kind: 'player', id, tx: p.x, ty: p.y, fx0: p.x, fy0: p.y, moveAt: 0 }
       g.traverse((o) => { o.userData.kind = 'player'; o.userData.id = id })
       g.position.set(wx(p.x), groundYAt(p.x, p.y), wz(p.y))
@@ -2082,11 +3061,12 @@ function renderPack() {
 // out; the labels hold their breath; the camera drifts like it's being
 // held rather than worn. For screenshots, screen recordings, and
 // standing at a window for its own sake. The ✕ brings the world back.
-let cine = false
+let cine = false, cineAmt = 0
 const setCine = (on) => {
   cine = on
   for (const id of ['top', 'bar', 'feed']) document.getElementById(id).style.display = on ? 'none' : ''
   document.getElementById('cinex').style.display = on ? 'flex' : 'none'
+  document.body.classList.toggle('cine', on) // the letterbox comes down
 }
 document.getElementById('cinex').onclick = () => setCine(false)
 const chatrow = document.getElementById('chatrow')
@@ -2108,7 +3088,7 @@ document.getElementById('verbs').addEventListener('click', (e) => {
   }
   if (v === 'cine') { setCine(true); return }
   if (v === 'fx') { bloom.enabled = !bloom.enabled; gradePass.enabled = bloom.enabled
-    raysPass.enabled = bloom.enabled
+    raysPass.enabled = bloom.enabled; streakPass.enabled = bloom.enabled
     feed(bloom.enabled ? 'the light blooms' : 'the light behaves'); return }
   if (v === 'shot') {
     // photographs deserve more silver: render this one frame at up to
@@ -2124,6 +3104,9 @@ document.getElementById('verbs').addEventListener('click', (e) => {
       a.click()
     })
     renderer.setPixelRatio(pr); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight)
+    const sh = document.getElementById('shutter') // the blink is the receipt
+    sh.classList.add('snap')
+    requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.remove('snap')))
     feed('a photograph, tick ' + (world?.tick ?? 0))
     return
   }
@@ -2173,6 +3156,16 @@ ws.onmessage = (ev) => {
     }
     syncAll(m.state)
     tickTheater(m.state)
+    // a level won is a public holiday of one: banner, rockets, THE fanfare
+    if (ownKey && prevWorld?.players) {
+      const meN = m.state.players[ownKey.pub], meO = prevWorld.players[ownKey.pub]
+      if (meN?.skills && meO?.skills) {
+        for (const k2 of Object.keys(meN.skills)) {
+          const l1 = XP_LVL(meO.skills[k2] ?? 0), l2 = XP_LVL(meN.skills[k2] ?? 0)
+          if (l2 > l1) { ensurePools(); celebrateLevel(k2, l2) }
+        }
+      }
+    }
     renderPack()
     if (world.tick !== lastActed) { lastActed = world.tick; if (entered) actOnTick() }
   }
@@ -2247,6 +3240,15 @@ function frame() {
   uWindT.value += dt * (1 + uWindA.value * 1.2)
   gradePass.uniforms.uTime.value = t % 37
   gradePass.uniforms.uWarm.value = warm * dayAmt // the grade knows what hour it is
+  cineAmt += ((cine ? 1 : 0) - cineAmt) * Math.min(1, dt * 2.2)
+  gradePass.uniforms.uCine.value = cineAmt
+  // the streak keeps golden-hour hours and fire-watching nights: by day
+  // it needs the sun; after dark any hearth or lit window will do, and
+  // a bolt earns the whole frame a flash of blue line
+  const streakTarget = ((0.2 + warm * 0.6) * dayAmt * (1 - overcast * 0.8)
+    + nightAmt * 0.16 + flash * 0.5) * (0.6 + 0.4 * cineAmt)
+  streakPass.uniforms.uAmt.value += (streakTarget - streakPass.uniforms.uAmt.value) * Math.min(1, dt * 4)
+  streakPass.uniforms.uTint.value.setHSL(0.58 - warm * 0.04, 0.5 + warm * 0.15, 0.62)
 
   // the camera hangs from its citizen
   const me = world?.players?.[ownKey?.pub]
@@ -2272,10 +3274,10 @@ function frame() {
     // CINE lets the head drift the way a held camera drifts
     const cy = fpYaw + (cine ? Math.sin(t * 0.11) * 0.035 : 0)
     const cp = fpPitch + (cine ? Math.sin(t * 0.073) * 0.018 : 0)
-    camera.position.set(focus.x, focus.y + 0.72 + bob, focus.z)
+    camera.position.set(focus.x, focus.y + 1.14 + bob, focus.z)
     camera.lookAt(
       focus.x + Math.sin(cy) * Math.cos(cp),
-      focus.y + 0.72 + bob + Math.sin(cp),
+      focus.y + 1.14 + bob + Math.sin(cp),
       focus.z + Math.cos(cy) * Math.cos(cp))
   } else {
     if (cine && !ptr.down) camYaw += dt * 0.032 // the slow orbit of an establishing shot
@@ -2494,7 +3496,9 @@ function frame() {
         const tg = world.nodes?.[g.userData.actTarget] ?? world.mobs?.[g.userData.actTarget] ?? world.players?.[g.userData.actTarget]
         if (tg) g.rotation.y = Math.atan2(wx(tg.x) - g.position.x, wz(tg.y) - g.position.z)
       }
-      if (g.__arms) {
+      if (g.userData.an) {
+        animateBeing(g, world?.players?.[ud.id] ?? world?.mobs?.[ud.id], ud.id, dt, now, t)
+      } else if (g.__arms) {
         const walkAmp = Math.min(0.7, (g.__speed ?? 0) * 0.5)
         for (let ai = 0; ai < g.__arms.length; ai++) {
           const arm = g.__arms[ai]
@@ -2502,18 +3506,18 @@ function frame() {
           else if (act === 'attack' || act === 'attackp') arm.rotation.x = ai === 0 ? -0.7 + Math.sin(t * 13) * 1 : 0.3 + Math.sin(t * 13 + 2) * 0.4
           else arm.rotation.x = Math.sin(t * 8 + ai * Math.PI) * walkAmp + 0.16 * (ai ? 1 : -1)
         }
-      }
-      if (g.__legs) {
-        const walkAmp2 = Math.min(0.6, (g.__speed ?? 0) * 0.55)
-        for (let li = 0; li < g.__legs.length; li++)
-          g.__legs[li].rotation.x = Math.sin(t * 8 + li * Math.PI + Math.PI) * walkAmp2
+        if (g.__legs) {
+          const walkAmp2 = Math.min(0.6, (g.__speed ?? 0) * 0.55)
+          for (let li = 0; li < g.__legs.length; li++)
+            g.__legs[li].rotation.x = Math.sin(t * 8 + li * Math.PI + Math.PI) * walkAmp2
+        }
       }
       if (g.__lungeAt) {
         const lp = (now - g.__lungeAt) / 220
         if (lp < 1) { const env = Math.sin(lp * Math.PI) * 0.2
           g.position.x += (g.__lungeDx ?? 0) * env; g.position.z += (g.__lungeDz ?? 0) * env }
       }
-      if (g.__mats && g.__hurtAt) {
+      if (g.__mats && g.__hurtAt && !g.__adventurer) {
         const hp2 = (now - g.__hurtAt) / 320
         for (const mm of g.__mats) { mm.emissive.setHex(0xa01414)
           mm.emissiveIntensity = hp2 < 1 ? (1 - hp2) * 0.9 : 0 }
@@ -2521,12 +3525,13 @@ function frame() {
       // the small lives: a stride puts a bounce in the step, stillness
       // puts a breath in the chest
       const spd = g.__speed ?? 0
-      g.position.y += Math.abs(Math.sin(t * 8 + g.position.x * 2)) * Math.min(0.045, spd * 0.028)
+      if (!g.userData.an) g.position.y += Math.abs(Math.sin(t * 8 + g.position.x * 2)) * Math.min(0.045, spd * 0.028)
       if (g.__breath) g.__breath.scale.x = g.__breath.scale.z =
         1 + Math.sin(t * 1.7 + g.position.x * 3) * 0.02 * Math.max(0, 1 - spd * 2)
     }
   }
   glide(vis.player); glide(vis.mob)
+  if (sparkPool) { sparkPool.update(dt); flashPool.update(dt) }
 
   // struck trees shudder; the fallen chips obey gravity like anything else
   for (const g of vis.node.values()) {
@@ -2538,7 +3543,10 @@ function frame() {
     const f = fx[i]
     f.life -= dt
     if (f.life <= 0) { scene.remove(f.m); fx.splice(i, 1); continue }
-    if (f.kind === 'splash') {
+    if (f.kind === 'arrow') {
+      f.m.position.x += f.vx * dt; f.m.position.y += f.vy * dt; f.m.position.z += f.vz * dt
+      f.mat.opacity = 1
+    } else if (f.kind === 'splash') {
       const k2 = 1 - f.life / f.t0
       f.m.scale.setScalar(1 + k2 * 4); f.m.material.opacity = 0.85 * (1 - k2)
     } else {
