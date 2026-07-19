@@ -597,24 +597,28 @@ function buildGrass() {
   const blade = new THREE.ConeGeometry(0.022, 0.3, 4)
   blade.translate(0, 0.15, 0)
   const mat = new THREE.MeshStandardMaterial({ color: 0x577a2b, roughness: 0.95 })
-  const count = Math.min(15000, W * H)
+  const count = Math.min(16000, W * H)
   grassMesh = new THREE.InstancedMesh(blade, mat, count)
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
   const col = new THREE.Color()
   let placed = 0
-  for (let i = 0; i < count * 2 && placed < count; i++) {
+  for (let i = 0; i < count && placed < count - 4; i++) {
     const gx = tileHash(i, 7, 40) % W, gy = tileHash(i, 11, 41) % H
     if (!GREEN.has(terrainOf(gx, gy))) continue
-    const ox = ((tileHash(i, 3, 42) % 80) - 40) / 100, oz = ((tileHash(i, 5, 43) % 80) - 40) / 100
-    const s = 0.7 + (tileHash(i, 9, 44) % 60) / 100
-    e.set(((tileHash(i, 13, 45) % 16) - 8) * 0.02, (tileHash(i, 17, 46) % 628) / 100, 0)
-    q.setFromEuler(e)
-    m4.compose(new THREE.Vector3(wx(gx) + ox, groundYAt(gx, gy), wz(gy) + oz), q,
-      new THREE.Vector3(s, s, s))
-    grassMesh.setMatrixAt(placed, m4)
-    col.setHSL(0.24 + (tileHash(i, 19, 47) % 20) / 400, 0.48, 0.3 + (tileHash(i, 23, 48) % 24) / 160)
-    grassMesh.setColorAt(placed, col)
-    placed++
+    const ox = ((tileHash(i, 3, 42) % 70) - 35) / 100, oz = ((tileHash(i, 5, 43) % 70) - 35) / 100
+    const gy0 = groundYAt(gx, gy)
+    for (let b = 0; b < 4 && placed < count; b++) {
+      const bx = ox + ((tileHash(i, 29 + b, 49) % 24) - 12) / 100
+      const bz = oz + ((tileHash(i, 37 + b, 50) % 24) - 12) / 100
+      const s = 0.6 + (tileHash(i, 9 + b, 44) % 70) / 100
+      e.set(((tileHash(i, 13 + b, 45) % 18) - 9) * 0.025, (tileHash(i, 17 + b, 46) % 628) / 100, 0)
+      q.setFromEuler(e)
+      m4.compose(new THREE.Vector3(wx(gx) + bx, gy0, wz(gy) + bz), q, new THREE.Vector3(s, s, s))
+      grassMesh.setMatrixAt(placed, m4)
+      col.setHSL(0.24 + (tileHash(i, 19 + b, 47) % 20) / 400, 0.5, 0.3 + (tileHash(i, 23 + b, 48) % 24) / 160)
+      grassMesh.setColorAt(placed, col)
+      placed++
+    }
   }
   grassMesh.count = placed
   scene.add(grassMesh)
@@ -640,6 +644,12 @@ const mats = { // shared PBR skins
 const rockDetail = makeDetail(5, { bump: 3.4, roughBase: 190 })
 mats.stone.map = rockDetail.albedo; mats.stone.normalMap = rockDetail.normal
 mats.stone.roughnessMap = rockDetail.rough
+const barkDetail = makeDetail(11, { bump: 3.8, roughBase: 210 })
+barkDetail.albedo.repeat.set(1, 3); barkDetail.normal.repeat.set(1, 3); barkDetail.rough.repeat.set(1, 3)
+for (const bm of [mats.bark, mats.wood, mats.roof]) {
+  bm.map = barkDetail.albedo; bm.normalMap = barkDetail.normal
+  bm.roughnessMap = barkDetail.rough; bm.normalScale = new THREE.Vector2(1.1, 1.1)
+}
 const craggy = (radius, seed) => {
   const g = new THREE.IcosahedronGeometry(radius, 1)
   const p = g.attributes.position
@@ -1157,15 +1167,15 @@ function frame() {
   const dayAmt = THREE.MathUtils.clamp(elev * 4, 0, 1)
   const warm = THREE.MathUtils.clamp(1 - Math.abs(elev) * 2.6, 0, 1)
   sun.color.setHSL(0.09 - warm * 0.045, 0.5 + warm * 0.4, 0.72 - warm * 0.16)
-  sun.intensity = 0.04 + dayAmt * 3.4
+  sun.intensity = 0.04 + dayAmt * 4.1
   moon.intensity = (1 - dayAmt) * 0.38
   hemi.intensity = 0.11 + dayAmt * 0.2
   stars.material.opacity = (1 - dayAmt) * 0.9
   renderer.toneMappingExposure = 0.57 + dayAmt * 0.23
   scene.fog.color.setHSL(0.58, 0.25, 0.04 + dayAmt * 0.42)
-  scene.fog.near = 24 + dayAmt * 50
-  scene.fog.far = 110 + dayAmt * 180
-  if (!hdriMode && scene.environment) scene.environmentIntensity = 0.25 + dayAmt * 0.75
+  scene.fog.near = 24 + dayAmt * 70
+  scene.fog.far = 110 + dayAmt * 270
+  if (!hdriMode && scene.environment) scene.environmentIntensity = 0.18 + dayAmt * 0.42
 
   // the camera hangs from its citizen
   const me = world?.players?.[ownKey?.pub]
