@@ -114,6 +114,13 @@
   #gatebtn:disabled { color: var(--dim); cursor: wait; }
   #gatebtn:active { border-top-color: #1c1710; border-left-color: #1c1710;
     border-bottom-color: var(--stone-lt); border-right-color: var(--stone-lt); }
+  #musicbtn {
+    display: inline-block; margin: 10px auto 0; padding: 5px 12px; cursor: pointer;
+    background: #1a1206; border: 1px solid #4a3c24; border-radius: 3px;
+    color: var(--gold); font: bold 11px Verdana, sans-serif; letter-spacing: .4px;
+  }
+  #musicbtn:hover { border-color: var(--gold); color: var(--gold-hi); }
+  #musicbtn[data-on="0"] { color: var(--dim); }
 </style>
 </head>
 <body>
@@ -124,6 +131,7 @@
     <div class="sub">a world that runs on rules, not servers</div>
     <div id="gateinfo">waking the world&hellip;</div>
     <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
+    <div><button id="musicbtn" type="button">music: on</button></div>
     <div id="gatedetail" style="font-size:11px;color:var(--dim);margin:6px 0;user-select:none"></div>
     <button id="gatebtn" disabled>&hellip;</button>
     <div id="gatekey"></div>
@@ -529,6 +537,89 @@ async function signAndSend(a) {
 // sound is rules, like everything else here.
 let AC = null
 let soundOn = localStorage.getItem('interval-sound') !== 'off'
+
+// ---- music, if this world has any ----
+// The node serves whatever is in its audio/ directory and nothing more. A
+// world with none plays none, silently: no missing-file noise in the console,
+// no broken control. Preference order lets one world sound two ways, the flat
+// window and the deep window each with their own arrangement of the same
+// piece, without either being the official one.
+let musicOn = localStorage.getItem('interval-music') !== 'off'
+let MUSIC = null, musicTried = false
+async function startMusic(preferred) {
+  if (MUSIC || musicTried || !musicOn || !soundOn) return
+  musicTried = true
+  let tracks = []
+  try {
+    const r = await fetch('/api/audio')
+    tracks = (await r.json()).tracks ?? []
+  } catch { return }        // no node, no music, no complaint
+  if (!tracks.length) return
+  const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
+  const name = pick(preferred) ?? pick('theme') ?? tracks[0]
+  if (!name) return
+  const a = new Audio('/audio/' + encodeURIComponent(name))
+  // Heard ONCE, on arrival, and then the world is quiet. A piece with a shape
+  // to it gets worse every time round; music written to loop is written
+  // without a destination. This one has somewhere to go, so it is allowed to
+  // get there and stop. Coming back to the world plays it again, which is
+  // what arriving somewhere should feel like.
+  a.loop = false
+  a.volume = 0
+  MUSIC = a
+  a.addEventListener('ended', () => { MUSIC = null }) // the arrival is over
+  try { await a.play() } catch { MUSIC = null; musicTried = false; return } // the browser said no; fine
+  // come in slowly: a world should not start by shouting
+  const target = 0.42
+  const t0 = performance.now()
+  const fade = () => {
+    if (!MUSIC) return
+    const k = Math.min(1, (performance.now() - t0) / 4000)
+    MUSIC.volume = (musicOn && soundOn) ? target * k : 0
+    if (k < 1) requestAnimationFrame(fade)
+  }
+  requestAnimationFrame(fade)
+}
+
+// The threshold. A loading screen's real job is not to fill a wait, it is to
+// be the moment before: you are not in yet, and you know you are about to be.
+// Interval has nothing to load, but it still has a door, and a door is the
+// same moment. So the piece begins at the FIRST touch of this page (browsers
+// permit sound only after one), plays while a citizen picks a name, and
+// carries them in rather than starting once they have already arrived.
+{
+  const mb = document.getElementById('musicbtn')
+  if (mb) {
+    mb.textContent = musicOn ? 'music: on' : 'music: off'
+    mb.dataset.on = musicOn ? '1' : '0'
+    mb.addEventListener('click', (e) => { e.stopPropagation(); setMusic(!musicOn) })
+  }
+}
+for (const ev of ['pointerdown', 'keydown']) {
+  window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })
+}
+function musicFollowsSound() { if (MUSIC) MUSIC.volume = (musicOn && soundOn) ? 0.42 : 0 }
+// Anyone who remembers a certain theme blaring out of a loading screen knows
+// why this control is ON THE DOOR and not three menus inside the world.
+function stopMusic() {
+  if (!MUSIC) return
+  const a = MUSIC; MUSIC = null
+  const v0 = a.volume, t0 = performance.now()
+  const out = () => {
+    const k = Math.min(1, (performance.now() - t0) / 500)
+    a.volume = v0 * (1 - k)
+    if (k < 1) requestAnimationFrame(out); else { try { a.pause() } catch {} }
+  }
+  requestAnimationFrame(out)
+}
+function setMusic(on) {
+  musicOn = on
+  localStorage.setItem('interval-music', on ? 'on' : 'off')
+  if (on) { musicTried = false; startMusic('theme-flat') } else stopMusic()
+  const b = document.getElementById('musicbtn')
+  if (b) { b.textContent = on ? 'music: on' : 'music: off'; b.dataset.on = on ? '1' : '0' }
+}
+
 function wakeAudio() { if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)() } catch {} } }
 function tone(freq, dur, opts = {}) {
   if (!AC || !soundOn) return
@@ -2346,7 +2437,11 @@ function drawScene(now) {
     if (p.action) {
       // you face what you fight (and what you work)
       const tgt = s.nodes[p.action.nodeId] ?? s.mobs[p.action.mobId]
-      if (tgt) facing[pid] = tgt.x !== p.x ? Math.sign(tgt.x - p.x) : 1
+      // A citizen faces what they are working on. When the tree is directly
+      // north or south there is no side to turn to, and this used to snap to
+      // hard right: chopping something above you turned you away from it.
+      // Keep the way you were already facing instead.
+      if (tgt) facing[pid] = tgt.x !== p.x ? Math.sign(tgt.x - p.x) : (facing[pid] ?? 1)
     } else if (o && p.x !== o.x) facing[pid] = Math.sign(p.x - o.x)
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
     const anim = moving ? 'walk' : p.action?.type === 'gather' ? 'gather'
@@ -2863,6 +2958,7 @@ function enterWorld() {
   if (nm && world?.names?.[nm] && world.names[nm] !== myId) return // taken: the button already says so
   if (/^[a-z0-9-]{1,12}$/.test(nm) && !nm.startsWith('-') && !nm.endsWith('-')) loginName = nm
   entered = true
+  startMusic('theme-flat') // usually already playing from the door; a no-op if so
   document.getElementById('gate').style.display = 'none'
   feed('The interval begins.')
 }
@@ -3066,7 +3162,8 @@ sndLabel()
 sndEl.addEventListener('click', () => {
   soundOn = !soundOn
   localStorage.setItem('interval-sound', soundOn ? 'on' : 'off')
-  wakeAudio(); sndLabel(); if (soundOn) SFX.trade()
+  wakeAudio(); sndLabel(); musicFollowsSound()
+  if (soundOn) { startMusic('theme-flat'); SFX.trade() }
 })
 
 document.getElementById('gatebtn').addEventListener('click', enterWorld)

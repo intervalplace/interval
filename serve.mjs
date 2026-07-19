@@ -30,6 +30,7 @@ const P2P_PORT = Number(process.env.INTERVAL_P2P_PORT || 4600)
 // Same rules → resume the same world from checkpoint.
 // Changed rules → found a NEW world whose genesis imports the citizens.
 const KNOWN_ITEMS = E.ITEMS // ONE constitutional item registry (rev5 §4) — engine, validator, and imports all share it
+let AUDIO_WARNED = false
 const announced = new Map() // peerId -> { addr, at }: the mesh directory
 let GENESIS, migrated = 0
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
@@ -51,7 +52,25 @@ const EXTRA_WITNESSES = (process.env.INTERVAL_WITNESSES || '').split(',').map(s 
 // A long sleep no longer rebases anchorMs (that mutated the world's
 // identity in place); it founds a NEW world — new anchor, new worldId —
 // whose genesis imports the citizens.
-const REFOUND_GAP = 3000 // ticks (~30 min): beyond this, empty-tick replay is not worth it
+// How long this world may go unattended before it is abandoned and refounded.
+//
+// It was 3000 ticks (30 min), chosen because replaying empty ticks costs real
+// time. Measured on the Expanse that cost is about 68ms per tick, so catching
+// up takes roughly a NINTH of however long the world was left: half an hour
+// away is three minutes of replay, a whole day is under three hours. And
+// catch-up checkpoints as it goes (node.mjs afterFinalize), so a long replay
+// can be interrupted and resumed rather than started over.
+//
+// Against that: a crash leaves the newest checkpoint up to one interval stale,
+// so at the old numbers a founder had about twenty minutes to notice a crash,
+// diagnose it and fix it before the world refounded itself. That is not a
+// window a person can be expected to hit, especially asleep. A world that
+// claims permanence should not be lost because nobody was awake.
+//
+// The default is now a full day. Refounding is the last resort, not the
+// timeout: it should mean "this world was abandoned", never "the founder was
+// slow to wake up".
+const REFOUND_GAP = Math.max(1, Number(process.env.INTERVAL_REFOUND_GAP) || 144000) // ticks (~24 h)
 const cpTick = Number.isInteger(savedCp?.tick) ? savedCp.tick : 0
 const cpValidFor = (g) => savedCp && savedCp.worldId === E.worldId(g)
   && E.canonical(savedCp.state?.genesis) === E.canonical(g)
@@ -68,7 +87,50 @@ const canResume = saved
 
 if (canResume) {
   GENESIS = saved.genesis
+  const behind = gapOf(GENESIS)
+  if (behind > 600) { // more than ~6 minutes of world time to make up
+    const mins = Math.round(behind * E.TICK_MS / 60000)
+    const eta = Math.round(behind * 68 / 1000) // ~68ms per empty tick, measured
+    console.log('')
+    console.log('This world was left for about ' + mins + ' minutes. Replaying those '
+      + behind.toLocaleString() + ' intervals')
+    console.log('will take roughly ' + (eta < 90 ? eta + ' seconds' : Math.round(eta / 60) + ' minutes')
+      + '. Progress is checkpointed as it goes, so this')
+    console.log('can be interrupted and resumed. The world is not stuck.')
+    console.log('')
+  }
 } else {
+  // Say WHY, here, before the founding record is overwritten by the new one.
+  // A refound is not an error, but it ends a world's continuity, and the
+  // evidence explaining it is destroyed by the very act of refounding. A node
+  // that starts over in silence leaves nobody able to find out what happened.
+  if (saved) {
+    const why = []
+    if (saved.genesis.rulesHash !== RULES_HASH)
+      why.push('the constitution changed (SPEC.md now hashes to ' + RULES_HASH.slice(0, 16)
+        + '\u2026, the saved world was founded under ' + String(saved.genesis.rulesHash).slice(0, 16) + '\u2026)')
+    if (saved.genesis.genesisSeed !== SEED)
+      why.push('the seed changed (' + saved.genesis.genesisSeed + ' -> ' + SEED
+        + '; set INTERVAL_SEED to keep the old one)')
+    if (!Array.isArray(saved.genesis.witnesses))
+      why.push('the saved world predates witnesses')
+    else if (!saved.genesis.witnesses.includes(WITNESS.playerId))
+      why.push('this node\u2019s witness key is not one the saved world named'
+        + ' (identities/witness-pillar.json may have been lost or regenerated)')
+    if (savedCp && !cpValidFor(saved.genesis))
+      why.push('the checkpoint does not belong to the saved world, or is damaged')
+    const g0 = gapOf(saved.genesis)
+    if (g0 > REFOUND_GAP)
+      why.push('nothing ran this world for ' + Math.round(g0 * E.TICK_MS / 60000)
+        + ' minutes (the limit is ' + Math.round(REFOUND_GAP * E.TICK_MS / 60000) + ')')
+    console.warn('')
+    console.warn('REFOUNDING: the saved world ' + String(saved.worldId ?? '').slice(0, 12)
+      + '\u2026 cannot be continued by this build.')
+    for (const w of why) console.warn('  \u00b7 ' + w)
+    console.warn('  Citizens are imported into the new world; the tick count starts again.')
+    console.warn('  The old world is not lost. Run the release it was founded under to continue it.')
+    console.warn('')
+  }
   GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
   // the founding witness set (Milestone 4): immutable for this world; a
   // different witness configuration is a different world (Phase 9)
@@ -123,7 +185,12 @@ try {
     witnessKey: WITNESS,                      // the pillar proposes and attests
     safetyDir: 'witness-safety',              // world-namespaced vote lock + frontier (rev5 §1)
     finalityBackend: process.env.INTERVAL_FINALITY_BACKEND || 'sqlite', // SQLite is the production default (final review §3); set 'flatfile' for the dev/compat backend
-    checkpointInterval: Number(process.env.INTERVAL_CHECKPOINT_INTERVAL) || 1000, // §1: checkpoints accelerate recovery; finality certs record every tick
+    // Every 200 ticks (2 min) rather than 1000 (10 min). A crash skips the
+    // final write, so the newest checkpoint is up to one interval stale, and
+    // that staleness is subtracted from however long the world may then be
+    // left. Writing five times as often costs almost nothing (an atomic
+    // rename of one JSON file) and narrows the loss to two minutes.
+    checkpointInterval: Number(process.env.INTERVAL_CHECKPOINT_INTERVAL) || 200, // §1: checkpoints accelerate recovery; finality certs record every tick
     startupVerifyRecentN: process.env.INTERVAL_STARTUP_VERIFY_RECENT ? Number(process.env.INTERVAL_STARTUP_VERIFY_RECENT) : DEFAULT_STARTUP_VERIFY_RECENT_N, // §2: shared bounded default; env can override (Infinity = full audit)
     listen: `/ip4/0.0.0.0/tcp/${P2P_PORT}`,   // the pillar accepts peers
   }).start()
@@ -276,6 +343,42 @@ const server = http.createServer((req, res) => {
     // The old paths keep working, since links live longer than layouts.
     if (path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
     if (path === '/play/deep' || path === '/deluxe') return sendFile('./window-3d.html', 'text/html')
+    // Music, if the world has any. Nothing here ships with a tune: a node with
+    // an empty audio/ directory simply plays nothing, and the windows fall
+    // silent without complaint. Drop files in and they are found.
+    if (path.startsWith('/audio/')) {
+      const f = path.slice(7).replace(/[^A-Za-z0-9._-]/g, '')
+      const AUDIO_MIME = { mp3: 'audio/mpeg', ogg: 'audio/ogg', m4a: 'audio/mp4',
+                           wav: 'audio/wav', opus: 'audio/opus', flac: 'audio/flac' }
+      const ext = f.split('.').pop().toLowerCase()
+      if (!AUDIO_MIME[ext]) { res.writeHead(404); return res.end('nothing here') }
+      let buf
+      try { buf = fs.readFileSync(new URL('./audio/' + f, import.meta.url)) }
+      catch { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('no such piece') }
+      // music is large and never changes: let it cache, unlike the windows
+      res.writeHead(200, { 'Content-Type': AUDIO_MIME[ext], 'Cache-Control': 'public, max-age=86400' })
+      return res.end(buf)
+    }
+    // what music this node actually has, so a window need not guess at names
+    if (path === '/api/audio') {
+      let names = []
+      try { names = fs.readdirSync(new URL('./audio/', import.meta.url))
+        .filter(n => /\.(mp3|ogg|m4a|wav|opus|flac)$/i.test(n)) } catch {}
+      // A large uncompressed file is a minute of silence at the door on mobile
+      // data, for music whose whole purpose is to be playing already. Say so
+      // once, at startup, rather than letting visitors discover it.
+      if (!AUDIO_WARNED) {
+        AUDIO_WARNED = true
+        for (const n of names) {
+          try {
+            const mb = fs.statSync(new URL('./audio/' + n, import.meta.url)).size / 1048576
+            if (mb > 6) console.warn('[web] audio/' + n + ' is ' + mb.toFixed(0)
+              + 'MB. Visitors download it before they hear anything: see audio/convert.sh')
+          } catch {}
+        }
+      }
+      return json({ tracks: names })
+    }
     if (path.startsWith('/site/')) {
       const f = path.slice(6).replace(/[^a-z0-9.-]/g, '')
       const ext = f.split('.').pop()

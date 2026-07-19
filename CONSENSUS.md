@@ -752,3 +752,33 @@ for constitutional change — **founding a new world**.
 | ≥ 2q − n witnesses double-sign | conflicting certificates possible; honest nodes that see both HALT with proof | detected, halted |
 | certified result ≠ local replay | halt with evidence (H3) | no |
 | oversized / malformed streams and gossip | rejected before allocation | no |
+
+## Choosing the witness set (before founding, once, forever)
+
+The witness set is written into genesis and hashed into the worldId. It cannot
+be added to, rotated, or repaired afterwards. A world founded with one witness
+whose key is later lost has stopped forever: every citizen's work frozen at the
+last signed tick, with no appeal and no fix.
+
+| witnesses | quorum | survives offline | tolerates a liar |
+|-----------|--------|------------------|------------------|
+| 1         | 1      | 0                | 0                |
+| 2         | 2      | 0                | 0                |
+| 3         | 2      | 1                | 0                |
+| 4         | 3      | 1                | 1                |
+| 7         | 5      | 2                | 2                |
+
+**Two is worse than one.** The quorum becomes two, so both must be running: the
+ways to halt have doubled and nothing has been gained.
+
+**Three** is the first honest choice. Any one machine can die, reboot, fill its
+disk or lose the network, and the world keeps its clock. It tolerates crashes,
+not lies, which is the right trade while every witness belongs to one person.
+
+**Four** is the first that survives a witness that lies rather than merely
+stops. This is the number once a key is held by somebody else, because then the
+threat is no longer only crashes.
+
+`node found-witnesses.mjs 3` mints a set and prints the environment each
+machine needs. Every witness must be running before the first tick: a witness
+absent at founding is not a founding witness and can never become one.

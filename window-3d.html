@@ -309,6 +309,14 @@
     text-shadow: 0 1px 2px #000; }
   #feed { position: fixed; bottom: 8px; right: 14px; color: #e8dfc4; font-size: 11px; z-index: 5;
     text-align: right; text-shadow: 0 1px 3px #000; max-width: 40vw; }
+
+  #musicbtn {
+    display: inline-block; margin: 10px auto 0; padding: 5px 12px; cursor: pointer;
+    background: #1a1206; border: 1px solid #4a3c24; border-radius: 3px;
+    color: #c6941e; font: bold 11px Verdana, sans-serif; letter-spacing: .4px;
+  }
+  #musicbtn:hover { border-color: #c6941e; color: #e2b63e; }
+  #musicbtn[data-on="0"] { color: #6e6656; }
 </style>
 </head>
 <body>
@@ -320,6 +328,7 @@
     built in geometry instead of pixels.<br>Same ticks, same citizens, same key. No window is authoritative.<br>
     <span style="color:#6e6656;font-size:10px">the world turns behind this door &mdash; it does not wait for you</span></div>
     <button id="gate3dbtn">enter the world</button>
+    <div><button id="musicbtn" type="button">music: on</button></div>
     <div class="k" id="gate3dkey"></div>
     <div class="ember" style="left:12%;animation-duration:5.2s;animation-delay:0s"></div>
     <div class="ember" style="left:28%;animation-duration:6.8s;animation-delay:1.4s"></div>
@@ -3034,6 +3043,66 @@ const WEAPON_LOOK = {
 }
 const lookOf = (it) => WEAPON_LOOK[it] ?? { every: 2, ranged: false, style: 'swing' }
 
+
+// ---- music, if this world has any (see audio/README.md) ----
+// Heard ONCE, and it begins at the door. A loading screen's real job was never
+// to fill a wait: it was to be the moment before. Interval has nothing to
+// load, but it still has a door, and a door is the same moment. The piece
+// plays while a citizen picks a name and carries them in, then ends, and the
+// world is quiet. A world with no audio directory plays nothing and says
+// nothing about it.
+let soundOn = localStorage.getItem('interval-sound') !== 'off'
+let musicOn = localStorage.getItem('interval-music') !== 'off'
+let MUSIC = null, musicTried = false
+async function startMusic(preferred) {
+  if (MUSIC || musicTried || !musicOn || !soundOn) return
+  musicTried = true
+  let tracks = []
+  try { tracks = ((await (await fetch('/api/audio')).json()).tracks) ?? [] } catch { return }
+  if (!tracks.length) return
+  const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
+  const name = pick(preferred) ?? pick('theme') ?? tracks[0]
+  if (!name) return
+  const a = new Audio('/audio/' + encodeURIComponent(name))
+  a.loop = false // a piece with somewhere to go is allowed to get there and stop
+  a.volume = 0
+  MUSIC = a
+  a.addEventListener('ended', () => { MUSIC = null })
+  try { await a.play() } catch { MUSIC = null; musicTried = false; return }
+  const t0 = performance.now()
+  const fade = () => {
+    if (!MUSIC) return
+    const k = Math.min(1, (performance.now() - t0) / 4000)
+    MUSIC.volume = (musicOn && soundOn) ? 0.42 * k : 0
+    if (k < 1) requestAnimationFrame(fade)
+  }
+  requestAnimationFrame(fade)
+}
+// Anyone who remembers a certain theme blaring out of a loading screen knows
+// why this control is ON THE DOOR and not three menus inside the world.
+function stopMusic() {
+  if (!MUSIC) return
+  const a = MUSIC; MUSIC = null
+  const v0 = a.volume, t0 = performance.now()
+  const out = () => { // half a second, so it is not a click
+    const k = Math.min(1, (performance.now() - t0) / 500)
+    a.volume = v0 * (1 - k)
+    if (k < 1) requestAnimationFrame(out); else { try { a.pause() } catch {} }
+  }
+  requestAnimationFrame(out)
+}
+function setMusic(on, preferred) {
+  musicOn = on
+  localStorage.setItem('interval-music', on ? 'on' : 'off')
+  if (on) { musicTried = false; startMusic(preferred) } else stopMusic()
+  const b = document.getElementById('musicbtn')
+  if (b) { b.textContent = on ? 'music: on' : 'music: off'; b.dataset.on = on ? '1' : '0' }
+}
+
+for (const ev of ['pointerdown', 'keydown']) {
+  window.addEventListener(ev, () => startMusic('theme-deep'), { once: true, passive: true })
+}
+
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) — character for
 // character the same in every window and in engine.js. test/identity.test.mjs
 // extracts this block from each window and compares it against the engine, so
@@ -4563,8 +4632,17 @@ function snd(kind, pos, flavor) {
     }
   } catch {}
 }
+{
+  const mb = document.getElementById('musicbtn')
+  if (mb) {
+    mb.textContent = musicOn ? 'music: on' : 'music: off'
+    mb.dataset.on = musicOn ? '1' : '0'
+    mb.addEventListener('click', (e) => { e.stopPropagation(); setMusic(!musicOn, 'theme-deep') })
+  }
+}
 document.getElementById('gate3dbtn').addEventListener('click', () => {
   entered = true
+  startMusic('theme-deep') // usually already playing from the door; a no-op if so
   try { AC3 = new (window.AudioContext ?? window.webkitAudioContext)(); initAmbient() } catch {}
   if (!ownKey) ownIdentityOnce().then((k) => { // one more knock, on the SAME door
     if (!k) { signBanner(); return }
