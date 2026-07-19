@@ -19,7 +19,7 @@
   names whoever is closest, and how much of the climb they have behind them.
   The last level alone is 1,112,977 experience, near a seventh of the whole
   ascent, so a citizen can sit in sight of mastery for a very long time while
-  everyone watches.</p>
+  everyone watches. The nearest race is at the top.</p>
   <div id="races">loading the races…</div>
 
   <h2>The Firsts</h2>
@@ -356,8 +356,20 @@ async function loadRaces() {
     const j = await readJson('/api/races')
     const rs = j.races ?? []
     if (!rs.length) { el.textContent = 'no skills reported'; return }
+
+    // Ordered by how close the race is to being won, not by the order the
+    // skills happen to be listed in. A race board is a story about who is
+    // nearly there; burying the citizen at level 77 under six people at level
+    // 2 tells it backwards. Settled races sit at the top because they are the
+    // permanent part, then the live races by how far each leader has climbed,
+    // then the ones nobody has started.
+    const rank = (x) => x.settled ? 3 : (x.name ? 2 : 1)
+    const climbed = (x) => (x.pct ?? 0) * 1000 + (x.level ?? 0)
+    const ordered = rs.slice().sort((a, b) =>
+      rank(b) - rank(a) || climbed(b) - climbed(a) || a.skill.localeCompare(b.skill))
+
     let html = '<table><tr><th>Skill</th><th>Standing</th><th>Closest</th></tr>'
-    for (const x of rs) {
+    for (const x of ordered) {
       if (x.settled) {
         html += '<tr><td>' + x.skill + '</td>'
           + '<td style="color:#ffcc33;font-weight:bold">mastered</td>'
