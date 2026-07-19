@@ -278,7 +278,18 @@
      camera looks, intent taken in view space and snapped to the grid
      the engine speaks, diagonals zigzagging one axis per tick at the
      tick's own cadence, the first step answering the press itself —
-     and a hand on the keys outranks every standing order. -->
+     and a hand on the keys outranks every standing order.
+
+     Then the eye learned the elevation the feet already knew. The
+     camera had orbited sea level while every body stood on the actual
+     ground — walk the rampart and the rig sank beneath the world's
+     skin, the floor turning to see-through sky, water adrift, black
+     shadow-blobs, a citizen's nameplate huge against the void. The
+     whole rig rides the walker's TRUE height now: the orbit centers
+     on it, the look-target sits on it, the collision ray starts above
+     it — and beneath everything a hard floor, sampled from the same
+     remembered height-grid the feet trust, so whatever the ray
+     misses, the eye never dips below the ground standing under it. -->
 <html>
 <head>
 <meta charset="utf-8">
@@ -5661,24 +5672,33 @@ function animate(now) {
     for (const cb of cineBars) cb.style.height = barH + 'vh'
   }
   const cy2 = Math.sin(camPitch) * camDist, cr2 = Math.cos(camPitch) * camDist
-  camDesired.set(fx + Math.sin(camAz) * cr2, cy2, fz + Math.cos(camAz) * cr2)
+  // the rig rides the GROUND the feet ride: the orbit, the look, and the
+  // collision ray all start from the elevation under the walker — the
+  // beings stood on the actual ground while the eye orbited sea level,
+  // and on the rampart that put the camera under the world's skin
+  const gY = me ? Math.max(-0.12, groundYAt(mix, miy)) : 0
+  camDesired.set(fx + Math.sin(camAz) * cr2, gY + cy2, fz + Math.cos(camAz) * cr2)
   // camera collision: the eye stays above the hills and out of the ground
   if (groundMesh) {
-    const head = new THREE.Vector3(fx, 1.2, fz)
+    const head = new THREE.Vector3(fx, gY + 1.2, fz)
     const toCam = camDesired.clone().sub(head)
     const len = toCam.length(); toCam.normalize()
     camRay.set(head, toCam); camRay.far = len
     const hit = camRay.intersectObject(groundMesh)[0]
     if (hit && hit.distance < len) camDesired.copy(hit.point).addScaledVector(toCam, -0.5)
-    camDesired.y = Math.max(camDesired.y, 0.8)
   }
+  // and the hard floor: whatever the ray missed, the eye NEVER dips
+  // below the terrain standing under it — sampled from the same
+  // remembered grid the feet trust, in tile coords (the inverse of wx)
+  camDesired.y = Math.max(camDesired.y,
+    Math.max(0, groundYAt(camDesired.x + W / 2 - 0.5, camDesired.z + H / 2 - 0.5)) + 0.55, 0.8)
   camera.position.lerp(camDesired, 0.28)
   if (camShake > 0.002) { // the blow reaches the eye, then lets go
     camera.position.x += (Math.random() - 0.5) * camShake * 0.12
     camera.position.y += (Math.random() - 0.5) * camShake * 0.08
     camShake *= Math.exp(-dt * 9)
   } else camShake = 0
-  camera.lookAt(fx, 0.6, fz)
+  camera.lookAt(fx, gY + 0.6, fz)
   // ---- LOD + footstep dust: distant folk shed shadows and nameplates,
   // and a scuff of dust rises where the near ones tread ----
   for (const [, m] of beings) {
