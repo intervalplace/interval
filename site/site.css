@@ -34,10 +34,9 @@ nav a:hover, nav a.here { background: var(--stone-dk); color: #fff; }
   nav a { padding: 7px 9px; font-size: 11px; letter-spacing: .2px; }
 }
 @media (max-width: 560px) {
-  /* Five short words fit one row on a phone. They are given equal cells so the
-     bar reads as a bar rather than as five things of different lengths, and
-     the padding is horizontal-light: the tap target stays tall. */
-  nav { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; }
+  /* Six short words: two tidy rows of three on a phone, equal cells, so the
+     bar reads as a bar rather than as six things of different lengths. */
+  nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; }
   nav a { padding: 9px 2px; font-size: 10.5px; letter-spacing: 0;
     justify-content: center; text-align: center; }
 }
@@ -323,3 +322,48 @@ tr.mine .nameb { color: var(--gold-hi); font-weight: bold; }
   margin-top: 5px; cursor: help;
 }
 tr.crow-total td { background: #2b2113; border-bottom: 2px solid var(--stone-lt); }
+
+/* the board */
+.boardnote { color: var(--dim); font-size: 11.5px; line-height: 1.6; margin: 0 0 22px; text-align: center; }
+.dimline { color: #6e5f42; }
+/* the writing box is a place, not a gap between paragraphs */
+#compose {
+  border: 1px solid var(--stone-lt); background: #17100a;
+  padding: 12px; margin: 16px 0 8px;
+}
+#bsubject, #bbody {
+  appearance: none; -webkit-appearance: none;
+  display: block; width: 100%; box-sizing: border-box;
+  background: #1d1509; color: var(--parch);
+  border: 1px solid #4a3c24; border-radius: 3px;
+  padding: 8px 10px; margin-bottom: 6px;
+  font: 12px Verdana, sans-serif; line-height: 1.55;
+}
+#bbody { resize: vertical; min-height: 70px; }
+#bsubject::placeholder, #bbody::placeholder { color: #6e5f42; font-style: italic; }
+#bsubject:focus, #bbody:focus { outline: none; border-color: var(--gold); background: #241a0e; }
+.brow { display: flex; align-items: center; gap: 10px; }
+#bnote { color: var(--dim); font-size: 11px; }
+
+.post {
+  border: 1px solid var(--stone-lt); border-left: 3px solid #4a3c24;
+  background: #1a1206; padding: 10px 12px; margin: 0 0 8px;
+}
+.post.mine { border-left-color: var(--gold); }
+.psubject { color: var(--gold-hi); font: bold 13px Verdana, sans-serif; margin-bottom: 3px; }
+.pmeta { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline;
+  font-size: 11px; color: var(--dim); margin-bottom: 7px; }
+.pmeta a { color: var(--parch); }
+.pcall { font-style: italic; color: var(--parch); }
+.pstand { color: var(--gold); }
+.pwhen { margin-left: auto; }
+.pbody { color: var(--parch); font-size: 12.5px; line-height: 1.65; white-space: pre-wrap; }
+.pfoot { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.pkey { color: #4a3c24; font: 10px ui-monospace, Menlo, monospace; cursor: help; }
+.modb {
+  appearance: none; -webkit-appearance: none;
+  background: none; border: 1px solid #4a3c24; border-radius: 3px;
+  color: var(--dim); font: 10px Verdana, sans-serif; padding: 3px 7px; cursor: pointer;
+}
+.modb:hover { border-color: var(--fire); color: var(--fire); }
+.modb:first-of-type { margin-left: auto; }

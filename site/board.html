@@ -8,15 +8,8 @@
   <p class="tagline">For arranging things with people who are not standing next to you.</p>
 
   <p>Chat inside the world is for what is happening now, where you are. This is
-  for what is happening later. Selling four hundred logs. Asking how smithing
-  works. Agreeing to meet at the north bank.</p>
-
-  <p>There are no accounts, because you already have an identity. A post is
-  signed with the same key that swings your axe, and the node checks it against
-  the same public key the hiscores rank. Nobody can post as you, and nobody has
-  to be trusted for that to be true.</p>
-
-  <div id="rules" class="boardnote">reading the board&hellip;</div>
+  for what is happening later: selling four hundred logs, asking how smithing
+  works, agreeing to meet at the north bank.</p>
 
   <div id="compose" style="display:none">
     <input id="bsubject" maxlength="80" placeholder="what is it about">
@@ -27,7 +20,19 @@
     </div>
   </div>
 
+  <p id="rules" class="boardnote">reading the board&hellip;</p>
+
   <div id="posts">loading&hellip;</div>
+
+  <h2>Why it works this way</h2>
+  <p>There are no accounts, because you already have an identity. A post is
+  signed with the same key that swings your axe, and the node checks it against
+  the same public key the hiscores rank. Nobody can post as you, and nobody has
+  to be trusted for that to be true.</p>
+  <p>Spam is answered with time. Standing is minutes of real work per identity,
+  charged at 600 milliseconds an action with no way to hurry it, and the daily
+  allowance above that line is flat rather than scaled: a newcomer with a
+  question needs the board more than a master does.</p>
 </main></div>
 
 <script src="/site/items.js"></script>
@@ -64,15 +69,13 @@ async function load() {
     $('posts').innerHTML = '<p class="boardnote">The board is unreachable. Is a node running?</p>'
     return
   }
-  $('rules').innerHTML = 'Posting asks for a standing of <b>' + j.minStanding
-    + '</b> and allows <b>' + j.perDay + '</b> posts a day, the same number for everyone. '
-    + 'Standing cannot be bought or hurried: it is time spent in the world, '
-    + 'which is the one thing nobody can forge in bulk.'
+  $('rules').innerHTML = 'Signed with the same key that swings your axe. '
+    + 'Standing <b>' + j.minStanding + '</b> to post, <b>' + j.perDay
+    + '</b> posts a day, the same number for everyone.'
   KEEPERS = j.keepers ?? []
   $('compose').style.display = MINE?.pub ? '' : 'none'
   if (!MINE?.pub) {
-    $('rules').innerHTML += ' <span class="dimline">Enter the world once and your key will appear here, '
-      + 'and with it the box to write in.</span>'
+    $('rules').innerHTML += ' <span class="dimline">Enter the world once and the box to write in will appear here.</span>'
   }
 
   if (!j.posts.length) {
@@ -82,9 +85,11 @@ async function load() {
   $('posts').innerHTML = j.posts.map(p => '<article class="post' + (MINE?.pub === p.key ? ' mine' : '') + '">'
     + '<div class="psubject">' + esc(p.subject) + '</div>'
     + '<div class="pmeta">'
-      + '<a href="/hiscores">' + esc(p.name ?? 'unnamed') + '</a>'
+      + '<a href="/hiscores?citizen=' + esc(p.key) + '" title="see this citizen on the hiscores as they are now">'
+        + esc(p.name ?? 'unnamed') + '</a>'
       + (p.calling ? '<span class="pcall">' + esc(p.calling) + '</span>' : '')
-      + '<span class="pstand">standing ' + (p.standing | 0) + '</span>'
+      + '<span class="pstand" title="their standing when this was written; the name links to what it is now">standing '
+        + (p.standing | 0) + '</span>'
       + '<span class="pwhen">' + ago(p.ts) + '</span>'
     + '</div>'
     + '<div class="pbody">' + esc(p.body) + '</div>'

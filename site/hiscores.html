@@ -382,6 +382,13 @@ async function loadRaces() {
   } catch (e) { el.textContent = e.message }
 }
 
+// A link can name a citizen: /hiscores?citizen=<key>. The board uses this, so
+// a reader can check a post's claim against the world as it is NOW rather than
+// as it was when the post was written.
+try {
+  const want = new URLSearchParams(location.search).get('citizen')
+  if (want && /^[0-9a-f]{64}$/.test(want)) PROFILE = want
+} catch {}
 load(); setInterval(load, 3000)
 loadRaces(); setInterval(loadRaces, 5000)
 loadFirsts(); setInterval(loadFirsts, 8000)

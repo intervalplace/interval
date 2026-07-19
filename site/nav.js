@@ -1,6 +1,6 @@
 // Shared header: nav, marking the current page.
 //
-// Five doors, not six, and short words. "New Player Guide" was the widest
+// Six doors, short words. "New Player Guide" was the widest
 // thing on the bar by a distance and the file behind it is called quickstart;
 // Source moved to the foot of every page, where the same link already lived.
 // Six long labels wrapped to three rows on a phone and took a third of the
@@ -13,6 +13,7 @@ document.body.insertAdjacentHTML('afterbegin', `
     <a href="/quickstart">Guide</a>
     <a href="/manual">Manual</a>
     <a href="/hiscores">Hiscores</a>
+    <a href="/board">Board</a>
   </nav>
 </div>`)
 const here = location.pathname.replace(/\/$/, '') || '/'
