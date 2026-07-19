@@ -6,7 +6,7 @@
   <h1>Hiscores</h1>
   <p class="tagline">Every rank on this page is cryptographically provable. No exceptions, no appeals.</p>
   <div id="finder">
-    <input id="find" type="search" placeholder="find a citizen by name…" autocomplete="off" spellcheck="false">
+    <input id="find" type="search" placeholder="find a citizen" autocomplete="off" spellcheck="false">
     <button id="findme" class="stab" title="the window keeps your key in this browser">find me</button>
     <span id="findnote"></span>
   </div>
@@ -25,7 +25,9 @@
   <h2>The Firsts</h2>
   <p>Twenty-four things can be done first, and each of them only once in the
   whole life of this world. The ledger has always remembered who did them.
-  This is simply the page that says so.</p>
+  This is simply the page that says so. A first cannot be taken back or taken
+  over: whoever did it first holds it while this world lasts, however far
+  anyone else surpasses them afterwards.</p>
   <div id="firsts">loading the record…</div>
   <p style="font-size:11px;color:var(--dim);margin-top:14px">Raw data:
   <code>GET /api/hiscores</code>. Identities are free, so global rank is
@@ -47,6 +49,8 @@ async function readJson(url) {
   catch { throw new Error('the node answered ' + url + ' with something that was not JSON.') }
 }
 let SKILLS = [], VIEW = 'standing', LAST = null, FILTER = '', MINE = null
+let PAGE = 0
+const PER_PAGE = 20
 
 // The window keeps your key in this browser, and this page is the same origin,
 // so it can find you without asking who you are. Only the public half is read.
@@ -115,7 +119,7 @@ function drawPicker() {
   wide += '</div>'
 
   el.innerHTML = sel + wide
-  const choose = (v) => { VIEW = v; drawPicker(); if (LAST) drawBoard(LAST) }
+  const choose = (v) => { VIEW = v; PAGE = 0; drawPicker(); if (LAST) drawBoard(LAST) }
   for (const b of el.querySelectorAll('.stab')) b.onclick = () => choose(b.dataset.view)
   const sb = el.querySelector('#pickskill')
   if (sb) sb.onchange = () => choose(sb.value)
@@ -126,18 +130,22 @@ function drawBoard(j) {
   if (!j.players.length) { el.textContent = 'No citizens yet. Be first.'; return }
 
   if (VIEW === 'standing') { // every trade at once, for the whole world
+    // keep each citizen's TRUE rank with them, then filter, then page: a rank
+    // must never mean "position in what you happen to be looking at"
+    const rows = j.players.map((p, i) => ({ p, rank: i + 1 })).filter(x => matches(x.p))
+    if (!rows.length) { el.innerHTML = noneFound(); return }
+    const page = clampPage(rows.length)
     let html = '<table><tr><th class="rank">Rank</th><th>Name</th><th>Standing</th>'
       + SKILLS.map(s => '<th>' + s + '</th>').join('') + '</tr>'
-    let shown = 0
-    j.players.forEach((p, i) => {
-      if (!matches(p)) return // rank is still the TRUE rank, not the filtered one
-      shown++
-      html += '<tr' + (isMine(p) ? ' class="mine"' : '') + '><td class="rank">' + (i+1) + '</td><td>' + p.name
-        + '</td><td><b style="color:var(--gold)">' + p.total + '</b></td>'
+    for (const { p, rank } of rows.slice(page * PER_PAGE, (page + 1) * PER_PAGE)) {
+      html += '<tr' + (isMine(p) ? ' class="mine"' : '') + '><td class="rank">' + rank + '</td>'
+        + '<td>' + nameCell(p) + '</td>'
+        + '<td><b style="color:var(--gold)">' + p.total + '</b></td>'
         + SKILLS.map(s => '<td' + (p.levels[s] >= 99 ? ' style="color:#ffcc33;font-weight:bold"' : '')
           + '>' + p.levels[s] + '</td>').join('') + '</tr>'
-    })
-    el.innerHTML = shown ? html + '</table>' : noneFound()
+    }
+    el.innerHTML = html + '</table>' + pager(rows.length)
+    wireBoard()
     return
   }
 
@@ -152,17 +160,69 @@ function drawBoard(j) {
       + ' yet. The first rank is there to be taken.</p>'
     return
   }
+  const rows = ranked.map((p, i) => ({ p, rank: i + 1 })).filter(x => matches(x.p))
+  if (!rows.length) { el.innerHTML = noneFound(); return }
+  const page = clampPage(rows.length)
   let html = '<table><tr><th class="rank">Rank</th><th>Name</th><th>Level</th><th>Experience</th></tr>'
-  let shown = 0
-  ranked.forEach((p, i) => {
-    if (!matches(p)) return
-    shown++
-    html += '<tr' + (isMine(p) ? ' class="mine"' : '') + '><td class="rank">' + (i + 1) + '</td><td>' + p.name + '</td>'
+  for (const { p, rank } of rows.slice(page * PER_PAGE, (page + 1) * PER_PAGE)) {
+    html += '<tr' + (isMine(p) ? ' class="mine"' : '') + '><td class="rank">' + rank + '</td>'
+      + '<td>' + nameCell(p) + '</td>'
       + '<td' + (p.level >= 99 ? ' style="color:#ffcc33;font-weight:bold"' : ' style="color:var(--gold)"')
       + '>' + p.level + '</td>'
       + '<td style="color:var(--dim)">' + p.xp.toLocaleString() + '</td></tr>'
-  })
-  el.innerHTML = shown ? html + '</table>' : noneFound()
+  }
+  el.innerHTML = html + '</table>' + pager(rows.length)
+  wireBoard()
+}
+
+// A name is the obvious thing to click, so let it be one: it does exactly what
+// typing that name into the box does, because two ways to the same place should
+// not arrive somewhere different.
+const esc = (t) => String(t ?? '').replace(/[<>&"]/g, (c) =>
+  ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]))
+function nameCell(p) {
+  const n = p.name ?? ''
+  return '<button class="nameb" data-name="' + esc(n) + '">' + esc(n) + '</button>'
+}
+
+function clampPage(total) {
+  const last = Math.max(0, Math.ceil(total / PER_PAGE) - 1)
+  if (PAGE > last) PAGE = last
+  if (PAGE < 0) PAGE = 0
+  return PAGE
+}
+
+function pager(total) {
+  const pages = Math.ceil(total / PER_PAGE)
+  if (pages <= 1) return ''
+  const from = PAGE * PER_PAGE + 1
+  const to = Math.min(total, (PAGE + 1) * PER_PAGE)
+  return '<div class="pager">'
+    + '<button class="pgb" data-pg="prev"' + (PAGE === 0 ? ' disabled' : '') + '>previous</button>'
+    + '<span class="pgn">' + from + '\u2013' + to + ' of ' + total + '</span>'
+    + '<button class="pgb" data-pg="next"' + (PAGE >= pages - 1 ? ' disabled' : '') + '>next</button>'
+    + '</div>'
+}
+
+function wireBoard() {
+  const el = document.getElementById('board')
+  for (const b of el.querySelectorAll('.nameb')) {
+    b.onclick = () => {
+      const n = b.dataset.name
+      if (!n) return
+      const box = document.getElementById('find')
+      if (box) box.value = n
+      FILTER = n.toLowerCase(); PAGE = 0
+      if (LAST) drawBoard(LAST)
+    }
+  }
+  for (const b of el.querySelectorAll('.pgb')) {
+    b.onclick = () => {
+      PAGE += (b.dataset.pg === 'next' ? 1 : -1)
+      if (LAST) drawBoard(LAST)
+      document.getElementById('picker')?.scrollIntoView({ block: 'nearest' })
+    }
+  }
 }
 
 // the rank shown is always the citizen's real rank in the world, never their
@@ -179,13 +239,13 @@ function wireFinder() {
   const me = document.getElementById('findme')
   if (!box || box.dataset.wired) return
   box.dataset.wired = '1'
-  box.oninput = () => { FILTER = box.value.trim().toLowerCase(); if (LAST) drawBoard(LAST) }
+  box.oninput = () => { FILTER = box.value.trim().toLowerCase(); PAGE = 0; if (LAST) drawBoard(LAST) }
   if (!MINE) { me.style.display = 'none'; note.textContent = 'no key in this browser yet' }
   else me.onclick = () => {
     const mine = (LAST?.players ?? []).find(p => p.playerId === MINE)
     if (!mine) { note.textContent = 'you are not on the board yet'; return }
     note.textContent = ''
-    box.value = mine.name; FILTER = String(mine.name).toLowerCase()
+    box.value = mine.name; FILTER = String(mine.name).toLowerCase(); PAGE = 0
     drawBoard(LAST)
   }
 }
