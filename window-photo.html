@@ -418,7 +418,20 @@ const feedEl = document.getElementById('feed')
 const feed = (h) => { const d = document.createElement('div'); d.innerHTML = h
   feedEl.appendChild(d); while (feedEl.children.length > 5) feedEl.firstChild.remove()
   setTimeout(() => d.remove(), 9000) }
-addEventListener('error', (e) => feed('[err] ' + (e.message ?? e.type)))
+// the reporter names its line: 'readonly property' in Safari means a
+// const was reassigned, a non-writable property was set, or a property
+// was hung on a primitive — and with the location, the argument is
+// over in one screenshot.
+let lastErrKey = '', lastErrN = 0
+addEventListener('error', (e) => {
+  const key = (e.message ?? e.type) + '@' + (e.lineno ?? 0)
+  if (key === lastErrKey && ++lastErrN > 2) return // three strikes, then silence
+  if (key !== lastErrKey) { lastErrKey = key; lastErrN = 1 }
+  const loc = e.lineno ? ' @' + (e.filename || '').split('/').pop().slice(0, 20) + ':' + e.lineno + ':' + e.colno : ''
+  feed('[err] ' + (e.message ?? e.type) + loc)
+})
+addEventListener('unhandledrejection', (e) =>
+  feed('[err/promise] ' + (e.reason?.message ?? String(e.reason).slice(0, 90))))
 
 // ---- the tuning bench: every number worth arguing about, on a fader.
 // Multipliers over the shipped values (1 = as-tuned-blind), persisted
@@ -4515,7 +4528,7 @@ function syncAll(s) {
     if (g.userData.tx !== m.x || g.userData.ty !== m.y) {
       g.userData.fx0 = g.userData.tx; g.userData.fy0 = g.userData.ty
       // a stride that follows a stride is a walk: remember the chain
-      g.userData.chain = (clock.at - (g.userData.moveAt || -1e9)) < TICK_MS * 1.7 ? (g.userData.chain ?? 0) + 1 : 0
+      g.userData.strideChain = (clock.at - (g.userData.moveAt || -1e9)) < TICK_MS * 1.7 ? (g.userData.strideChain ?? 0) + 1 : 0
       g.userData.moveAt = clock.at
     }
     g.userData.tx = m.x; g.userData.ty = m.y
@@ -4549,7 +4562,7 @@ function syncAll(s) {
       g.add(g.userData.lb) }
     if (g.userData.tx !== p.x || g.userData.ty !== p.y) {
       g.userData.fx0 = g.userData.tx; g.userData.fy0 = g.userData.ty
-      g.userData.chain = (clock.at - (g.userData.moveAt || -1e9)) < TICK_MS * 1.7 ? (g.userData.chain ?? 0) + 1 : 0
+      g.userData.strideChain = (clock.at - (g.userData.moveAt || -1e9)) < TICK_MS * 1.7 ? (g.userData.strideChain ?? 0) + 1 : 0
       g.userData.moveAt = clock.at
     }
     g.userData.tx = p.x; g.userData.ty = p.y
@@ -4888,7 +4901,7 @@ let wetAmt = 0     // how much rain the ground is still wearing
 // with a name; a date card at every dawn, subtitled by the season the
 // constitutional calendar says it is. One soft plucked note under
 // each, from the score that was already playing. ----
-let lastLocale = '', lastDayShown = -1, localeTimer = null
+let lastLocale = '', lastDayShown = -1, localeTimer = null, localePend = '', localePendAt = 0
 function showTitle(over, name) {
   const el2 = document.getElementById('locale')
   el2.innerHTML = '<div class="over"></div><div class="name"></div>'
@@ -5734,10 +5747,10 @@ function frame() {
       // tile after tile, no lurch at the seams. Only the first step out
       // of stillness eases in; the exponential settle below handles the
       // stop. This is what turns 'teleports every tick' into walking.
-      const e2 = (ud.chain ?? 0) > 0 ? p : p * p * (2 - p)
+      const e2 = (ud.strideChain ?? 0) > 0 ? p : p * p * (2 - p)
       const ix = fx0 + (ud.tx - fx0) * e2, iy = fy0 + (ud.ty - fy0) * e2
       const gx2 = wx(ix), gz2 = wz(iy), gy2 = groundYAt(ix, iy)
-      const k = Math.min(1, dt * ((ud.chain ?? 0) > 0 ? 18 : 11))
+      const k = Math.min(1, dt * ((ud.strideChain ?? 0) > 0 ? 18 : 11))
       const px0 = g.position.x, pz0 = g.position.z
       g.position.x += (gx2 - g.position.x) * k
       g.position.z += (gz2 - g.position.z) * k
@@ -5930,7 +5943,12 @@ function frame() {
 
   if (me) {
     const rn = regionNameAt(me.x, me.y)
-    if (rn && rn !== lastLocale && entered) { lastLocale = rn; showTitle('you come to', rn) }
+    // a place earns its card by KEEPING you: crossing a road for two
+    // strides is not arriving anywhere. The name must hold for a beat.
+    if (rn && rn !== lastLocale && entered) {
+      if (rn !== localePend) { localePend = rn; localePendAt = now }
+      else if (now - localePendAt > 2500) { lastLocale = rn; showTitle('you come to', rn) }
+    } else localePend = ''
     const rEl = document.getElementById('region')
     const txt = (rn ? rn + ' · ' : '') + 'hp ' + me.hp + (me.gold ? ' · ' + me.gold + 'g' : '')
       + (me.action ? ' · ' + me.action.type : '')
