@@ -201,6 +201,7 @@ export function spawnDry(g) {
 E.registerTerrain(GENERATOR_ID, {
   blocked: (g, x, y) => isWater(g, x, y) && !fordAt(g, x, y),
   spawn: (g) => spawnDry(g),
+  country: (g, x, y) => biomeAt(g, x, y), // and names its countries, so survey findings know where the dead lie
 })
 
 export function biomeAt(g, x, y) {
