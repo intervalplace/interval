@@ -1137,6 +1137,8 @@ never goes stale.
 
 Most markers are `ord` (ordinary). A minority are `ws` **rumors**,
 minted beside a waystone; surveying one yields that waystone's chart.
+And a minority are **findings** (7f): the traces of those who came
+before, classed at birth and never after.
 
 ### 7b. `survey`
 
@@ -1169,6 +1171,33 @@ only by traversal time: exactly as a finite set of respawning rocks
 supports mining to 99. A bot cartographer pays for it in the same walked
 ticks a human does.
 
+
+### 7f. Survey findings (v0.77): the traces of those who came before
+
+The world does not need an excavation profession; it needs a past. So a
+minority of survey markers are classed as what earlier hands left
+behind — a **burial**, an **old working**, a cold **camp**, a forgotten
+**cache** — and surveying one yields the single item its class names:
+bones, ore, logs, or seeds. One item, always one, and never
+magic-stone: the one scarcity that is constitutional stays
+constitutional.
+
+The class is drawn at the marker's birth, from the same digest that
+placed it, and never changes; no randomness survives to the claim. The
+weighting is the country's: the generator that registered its terrain
+(§2l) also names its countries, and the classer listens — the dead
+outnumber the living out west in the Wilds, the Crags keep old
+workings, the Greenwood cold camps, the fens keep what they take, and
+the settled Heartlands are mostly just ground. A world whose generator
+registered no countries keeps flat, modest odds; cities mint no
+findings because cities mint no markers.
+
+A full pack forfeits the finding and the claim stands, exactly as
+charts have always behaved. Exploration XP is unchanged. Mining's
+primacy over ore is protected structurally, not by tuning: `k` markers,
+their lifetimes, relocation on claim, and the walk itself are the rate
+limit — and Prayer gains what it always lacked, a peaceful source of
+bones: the mourner need not first be a killer.
 ### 7d. Charts: knowledge as a portable capability
 
 A chart is `chart:<waystoneId>`: an ordinary, stackable, **tradeable**
