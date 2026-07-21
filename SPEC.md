@@ -546,7 +546,15 @@ that founds this world — `"interval-classic-v1"` or
 for new foundings — so a founding record can never be ambiguous about
 which world it founds; a node that does not implement the named
 generator refuses to build the world rather than guessing. The genesis schema is EXACT: the seven
-fields above plus the optional trio `witnesses`/`quorum`/`imported`  
+fields above plus the optional fields `witnesses`/`quorum`/`imported`/
+`importedFrom` — `importedFrom = {worldId, stateHash, tick}` names the
+attested state the import list was carried from; the worldId commits
+to it, so a founder cannot later claim a different source, and anyone
+holding that world's certified state can recompute the lived-citizen
+list and check it. An import WITHOUT provenance is the founder's bare
+word, and wears that openly: whether such a founding is "the" world is
+a question for its witnesses and its citizens, never for the protocol —
+a genesis is sovereign, and canonicity is earned, not encoded  
 any other key is refused (a key execution ignores still changes the
 worldId, minting a distinct founding identity with identical behavior),
 and `witnesses` and `quorum` are supplied together or not at all.
