@@ -166,6 +166,43 @@ export function roadTilesOf(g) {
 export const onRoad = (g, x, y) => roadTilesOf(g).has(x + ',' + y)
 
 // ---------- the five countries ----------
+// ---- the fords: where a citizen may cross the water. The road pays
+// for its crossings, and inside a town the MAIN STREET (the gate axes
+// through the settlement's heart) crosses on pilings — which is what
+// the watergate lore was always promising. Everywhere else the water
+// bars the way. ----
+export function fordAt(g, x, y) {
+  if (onRoad(g, x, y)) return true
+  for (const s of settlementsOf(g)) {
+    const r = rectOf(s)
+    if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1
+      && (x === s.x || y === s.y)) return true
+  }
+  return false
+}
+// spawn stands on dry ground: the center if it is dry, else the
+// nearest dry tile by a deterministic ring search — every node walks
+// the same rings in the same order and finds the same shore.
+export function spawnDry(g) {
+  const cx = Math.floor(g.worldW / 2), cy = Math.floor(g.worldH / 2)
+  if (!isWater(g, cx, cy)) return { x: cx, y: cy }
+  for (let r = 1; r < 96; r++)
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+      const x = cx + dx, y = cy + dy
+      if (x < 2 || y < 2 || x >= g.worldW - 2 || y >= g.worldH - 2) continue
+      if (!isWater(g, x, y)) return { x, y }
+    }
+  return { x: cx, y: cy }
+}
+// the country teaches the engine to walk it: registered, not imported —
+// the engine stays generator-agnostic, and a node that loads this
+// module is a node that implements this country.
+E.registerTerrain(GENERATOR_ID, {
+  blocked: (g, x, y) => isWater(g, x, y) && !fordAt(g, x, y),
+  spawn: (g) => spawnDry(g),
+})
+
 export function biomeAt(g, x, y) {
   const W = g.worldW, H = g.worldH
   if (x <= wildsX1(g)) return 'wilds'
