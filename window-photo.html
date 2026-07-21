@@ -5410,6 +5410,38 @@ function renderSkills() {
 // out; the labels hold their breath; the camera drifts like it's being
 // held rather than worn. For screenshots, screen recordings, and
 // standing at a window for its own sake. The ✕ brings the world back.
+// ---- the door music: the threshold has a theme. Begins at the first
+// touch of the page (browsers permit sound only after one), plays while
+// the citizen stands at the door, and CARRIES them in — on ENTER it
+// ducks beneath the world's own ambience rather than stopping, because
+// a piece with a destination is allowed to reach it. Heard once per
+// arrival; arriving again plays it again, which is what arriving
+// somewhere should feel like.
+let DOORMUSIC = null, doorMusicTried = false, doorTarget = 0.42
+async function startDoorMusic() {
+  if (DOORMUSIC || doorMusicTried) return
+  doorMusicTried = true
+  let tracks = []
+  try { tracks = (await (await fetch('/api/audio')).json()).tracks ?? [] } catch { return }
+  const pick = (stem) => tracks.find((n2) => n2.toLowerCase().startsWith(stem))
+  const name = pick('theme-deep') ?? pick('theme') ?? tracks[0]
+  if (!name) return
+  const a2 = new Audio('/audio/' + encodeURIComponent(name))
+  a2.loop = false; a2.volume = 0
+  DOORMUSIC = a2
+  a2.addEventListener('ended', () => { DOORMUSIC = null })
+  try { await a2.play() } catch { DOORMUSIC = null; doorMusicTried = false; return }
+  const t0 = performance.now()
+  const fade = () => {
+    if (!DOORMUSIC) return
+    DOORMUSIC.volume = doorTarget * Math.min(1, (performance.now() - t0) / 4000)
+    requestAnimationFrame(fade)
+  }
+  requestAnimationFrame(fade)
+}
+for (const ev2 of ['pointerdown', 'keydown'])
+  addEventListener(ev2, () => startDoorMusic(), { once: true, passive: true })
+
 let cine = false, cineAmt = 0
 // ---- THE DIRECTOR: CINE stops being a hidden UI and becomes actual
 // cinematography. A director watches the scene — is there a hearth
@@ -5632,6 +5664,8 @@ const chatgo = () => { const inp = document.getElementById('chatinput')
 document.getElementById('chatsend').onclick = chatgo
 document.getElementById('chatinput').addEventListener('keydown', (e) => { if (e.key === 'Enter') chatgo() })
 document.getElementById('enter').onclick = () => {
+  doorTarget = 0.24 // the theme ducks beneath the world and still gets to finish
+  if (DOORMUSIC) DOORMUSIC.volume = Math.min(DOORMUSIC.volume, 0.24)
   entered = true
   initAudio() // the gesture that opens the window opens the ear
   document.getElementById('splash').remove()
