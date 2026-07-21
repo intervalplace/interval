@@ -714,6 +714,17 @@ function biomeAtE(x, y) {
 }
 function terrainOfE(x, y) {
   if (inSeaE(x, y)) return 'sea'
+  // the fords, mirrored from the truth: the road pays for its
+  // crossings, and every town's main street crosses on pilings. These
+  // return 'bridge', so buildBridges erects a real deck over each.
+  if (isWaterE(x, y)) {
+    if (onRoadE(x, y)) return 'bridge'
+    for (const st of ssE()) {
+      const x0 = st.x - (st.w >> 1), x1 = st.x + (st.w >> 1)
+      const y0 = st.y - (st.h >> 1), y1 = st.y + (st.h >> 1)
+      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && (x === st.x || y === st.y)) return 'bridge'
+    }
+  }
   if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return 'river'
   for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
   if (onRoadE(x, y)) return 'trail'
@@ -2020,7 +2031,7 @@ function groundYAt(tx, ty) {
 }
 const noise2 = (x, y) => ((tileHash(Math.floor(x * 2), Math.floor(y * 2), 21) % 100) / 100
   + (tileHash(Math.floor(x * 5), Math.floor(y * 5), 22) % 100) / 200) / 1.5
-let groundMesh = null, water = null, waterSet = null
+let groundMesh = null, groundMat = null, groundChunks = [], water = null, waterSet = null
 const WATERY = new Set(['sea', 'river'])
 function buildGround(s0) {
   waterSet = new Set()
@@ -2052,51 +2063,73 @@ function buildGround(s0) {
   }
   GW2 = W * 2 + 1
   groundHGrid = new Float32Array(GW2 * (H * 2 + 1))
-  const geo = new THREE.PlaneGeometry(W, H, W * 2, H * 2)
-  geo.rotateX(-Math.PI / 2)
-  const pos = geo.attributes.position
-  const colors = []
   const snow = new THREE.Color(0xdfe4ea), sand = new THREE.Color(0x9a8a5e), wetSand = new THREE.Color(0x54462c)
   const cA = new THREE.Color(), cB = new THREE.Color()
-  for (let i = 0; i < pos.count; i++) {
-    const px = pos.getX(i) + W / 2, pz = pos.getZ(i) + H / 2
+  // one sampler for height and color, shared by the height grid and
+  // every chunk, so the world is the same world however it is diced
+  const sampleGround = (px, pz, wantColor) => {
     const gx = Math.min(W - 1, Math.max(0, Math.floor(px)))
     const gy = Math.min(H - 1, Math.max(0, Math.floor(pz)))
     const x0 = Math.min(W - 1, Math.max(0, Math.floor(px - 0.5)))
     const y0 = Math.min(H - 1, Math.max(0, Math.floor(pz - 0.5)))
     const x1 = Math.min(W - 1, x0 + 1), y1 = Math.min(H - 1, y0 + 1)
     const fx2 = Math.min(1, Math.max(0, px - 0.5 - x0)), fy2 = Math.min(1, Math.max(0, pz - 0.5 - y0))
-    cA.set(0, 0, 0)
+    if (wantColor) cA.set(0, 0, 0)
     let h2 = 0, mountainW = 0
     for (const [tx3, ty3, w3] of [[x0, y0, (1 - fx2) * (1 - fy2)], [x1, y0, fx2 * (1 - fy2)], [x0, y1, (1 - fx2) * fy2], [x1, y1, fx2 * fy2]]) {
       const tt = terrainOf(tx3, ty3)
-      cB.set(TERRAIN_COL[tt])
-      cA.r += cB.r * w3; cA.g += cB.g * w3; cA.b += cB.b * w3
+      if (wantColor) { cB.set(TERRAIN_COL[tt]); cA.r += cB.r * w3; cA.g += cB.g * w3; cA.b += cB.b * w3 }
       h2 += tileH(tt, tx3, ty3) * w3
       if (tt === 'mountain') mountainW += w3
     }
     h2 += (noise2(px, pz) - 0.45) * 0.16
-    const shade = 0.82 + (tileHash(Math.round(px * 2), Math.round(pz * 2), 0) % 100) / 260
-    cA.multiplyScalar(shade)
-    if (mountainW > 0 && h2 > 1.4) cA.lerp(snow, Math.min(1, (h2 - 1.4) * 0.9) * mountainW)
-    if (nearWater(gx, gy)) { h2 = Math.min(h2, -0.34); cA.lerp(wetSand, 0.6) }
-    else if (shoreOf(gx, gy)) { h2 = Math.min(h2, -0.08); cA.lerp(sand, 0.4) }
-    pos.setY(i, h2)
-    const hx = Math.round(px * 2), hy = Math.round(pz * 2)
-    if (hx >= 0 && hx < GW2 && hy >= 0 && hy <= H * 2) groundHGrid[hy * GW2 + hx] = h2
-    colors.push(cA.r, cA.g, cA.b)
+    if (wantColor) {
+      const shade = 0.82 + (tileHash(Math.round(px * 2), Math.round(pz * 2), 0) % 100) / 260
+      cA.multiplyScalar(shade)
+      if (mountainW > 0 && h2 > 1.4) cA.lerp(snow, Math.min(1, (h2 - 1.4) * 0.9) * mountainW)
+    }
+    if (nearWater(gx, gy)) { h2 = Math.min(h2, -0.34); if (wantColor) cA.lerp(wetSand, 0.6) }
+    else if (shoreOf(gx, gy)) { h2 = Math.min(h2, -0.08); if (wantColor) cA.lerp(sand, 0.4) }
+    return h2
   }
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-  geo.computeVertexNormals()
+  // the height grid first: groundYAt's ground truth, one pass
+  for (let hy = 0; hy <= H * 2; hy++) for (let hx = 0; hx < GW2; hx++)
+    groundHGrid[hy * GW2 + hx] = sampleGround(hx / 2, hy / 2, false)
+  // then the country in CHUNKS: eighty tiles a side, one draw each,
+  // frustum-culled by three and fog-culled by us. Big worlds drop to
+  // one vertex per tile; the calibrated classics keep their two.
   const det = makeDetail(3, { bump: 2.4, roughBase: 200 })
   det.albedo.repeat.set(W / 2, H / 2); det.normal.repeat.set(W / 2, H / 2); det.rough.repeat.set(W / 2, H / 2)
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true,
+  groundMat = new THREE.MeshStandardMaterial({ vertexColors: true,
     map: det.albedo, normalMap: det.normal, roughnessMap: det.rough,
     normalScale: new THREE.Vector2(0.9, 0.9), roughness: 1, metalness: 0 })
-  cloudShadowize(mat) // the meadow watches the sky's traffic
-  groundMesh = new THREE.Mesh(geo, mat)
-  groundMesh.receiveShadow = true
-  groundMesh.userData.kind = 'terrain'
+  cloudShadowize(groundMat) // the meadow watches the sky's traffic
+  const SUB = (W * H > 110000) ? 1 : 2
+  const CH = 80
+  if (groundMesh) scene.remove(groundMesh)
+  groundMesh = new THREE.Group()
+  groundChunks = []
+  for (let cy0 = 0; cy0 < H; cy0 += CH) for (let cx0 = 0; cx0 < W; cx0 += CH) {
+    const cw = Math.min(CH, W - cx0), chh = Math.min(CH, H - cy0)
+    const geo = new THREE.PlaneGeometry(cw, chh, cw * SUB, chh * SUB)
+    geo.rotateX(-Math.PI / 2)
+    const pos = geo.attributes.position
+    const colors = new Float32Array(pos.count * 3)
+    for (let i = 0; i < pos.count; i++) {
+      const px = pos.getX(i) + cw / 2 + cx0, pz = pos.getZ(i) + chh / 2 + cy0
+      pos.setY(i, sampleGround(px, pz, true))
+      colors[i * 3] = cA.r; colors[i * 3 + 1] = cA.g; colors[i * 3 + 2] = cA.b
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geo.computeVertexNormals()
+    const m = new THREE.Mesh(geo, groundMat)
+    m.position.set(cx0 + cw / 2 - W / 2, 0, cy0 + chh / 2 - H / 2)
+    m.receiveShadow = true
+    m.userData.kind = 'terrain'
+    groundMesh.add(m)
+    groundChunks.push({ m, cx: m.position.x, cz: m.position.z, r: Math.hypot(cw, chh) / 2 + 2 })
+  }
+  if (water) water.userData.kind = 'terrain' // tapping the water aims at its tile — the engine is the judge of crossings
   scene.add(groundMesh)
 
   // one water under everything: lakes, river, sea, and the world's rim.
@@ -2206,34 +2239,75 @@ function buildGrass() {
       #endif`)
   }
   cloudShadowize(mat) // blades dim under the same passing clouds
-  const count = MOBILE ? 14000 : Math.min(30000, W * H * 2)
+  const count = MOBILE ? 14000 : 30000
   grassMesh = new THREE.InstancedMesh(blade, mat, count)
+  grassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
+  grassSlotTiles = new Int32Array(count * 2).fill(-9999)
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler()
   const col = new THREE.Color()
-  const spots = [] // where the small lights live: fireflies and pollen
-  let placed = 0
-  for (let i = 0; i < count && placed < count - 4; i++) {
-    const gx = tileHash(i, 7, 40) % W, gy = tileHash(i, 11, 41) % H
-    if (!GREEN.has(terrainOf(gx, gy))) continue
-    const ox = ((tileHash(i, 3, 42) % 70) - 35) / 100, oz = ((tileHash(i, 5, 43) % 70) - 35) / 100
-    const gy0 = groundYAt(gx, gy)
-    if (spots.length < 420 && (i & 3) === 0) spots.push([wx(gx) + ox, wz(gy) + oz, gy0])
-    for (let b = 0; b < 4 && placed < count; b++) {
-      const bx = ox + ((tileHash(i, 29 + b, 49) % 24) - 12) / 100
-      const bz = oz + ((tileHash(i, 37 + b, 50) % 24) - 12) / 100
-      const s = 0.6 + (tileHash(i, 9 + b, 44) % 70) / 100
-      e.set(((tileHash(i, 13 + b, 45) % 18) - 9) * 0.025, (tileHash(i, 17 + b, 46) % 628) / 100, 0)
-      q.setFromEuler(e)
-      m4.compose(new THREE.Vector3(wx(gx) + bx, gy0, wz(gy) + bz), q, new THREE.Vector3(s, s, s))
-      grassMesh.setMatrixAt(placed, m4)
-      col.setHSL(0.24 + (tileHash(i, 19 + b, 47) % 20) / 400, 0.5, 0.3 + (tileHash(i, 23 + b, 48) % 24) / 160)
-      grassMesh.setColorAt(placed, col)
-      placed++
-    }
+  const HIDE = new THREE.Matrix4().makeScale(0, 0, 0)
+  // one blade, seated: everything about it derives from (tile, slot),
+  // so the same ground regrows the same grass on every return
+  grassSeat = (i, gx, gy) => {
+    grassSlotTiles[i * 2] = gx; grassSlotTiles[i * 2 + 1] = gy
+    if (gx < 0 || !GREEN.has(terrainOf(gx, gy))) { grassMesh.setMatrixAt(i, HIDE); return }
+    const b = i & 3
+    const bx = ((tileHash(gx, gy, 42 + ((i >> 2) & 15)) % 70) - 35) / 100
+      + ((tileHash(gx, gy, 49 + b) % 24) - 12) / 100
+    const bz = ((tileHash(gx, gy, 43 + ((i >> 2) & 15)) % 70) - 35) / 100
+      + ((tileHash(gx, gy, 50 + b) % 24) - 12) / 100
+    const sc = 0.6 + (tileHash(gx, gy, 44 + b + (i & 12)) % 70) / 100
+    e.set(((tileHash(gx, gy, 45 + (i & 7)) % 18) - 9) * 0.025, (tileHash(gx, gy, 46 + (i & 7)) % 628) / 100, 0)
+    q.setFromEuler(e)
+    m4.compose(new THREE.Vector3(wx(gx) + bx, groundYAt(gx, gy), wz(gy) + bz), q, new THREE.Vector3(sc, sc, sc))
+    grassMesh.setMatrixAt(i, m4)
+    col.setHSL(0.24 + (tileHash(gx, gy, 47 + b) % 20) / 400, 0.5, 0.3 + (tileHash(gx, gy, 48 + b) % 24) / 160)
+    grassMesh.setColorAt(i, col)
   }
-  grassMesh.count = placed
+  // the window the blades live in, and how a slot finds a fresh tile
+  grassReseed = (i, fx3, fy3) => {
+    for (let a2 = 0; a2 < 5; a2++) {
+      const gx = fx3 + (tileHash(i, a2 + grassGen * 7, 40) % (GRASS_R * 2 + 1)) - GRASS_R
+      const gy = fy3 + (tileHash(i, a2 + grassGen * 7, 41) % (GRASS_R * 2 + 1)) - GRASS_R
+      if (gx < 1 || gy < 1 || gx >= W - 1 || gy >= H - 1) continue
+      if (GREEN.has(terrainOf(gx, gy))) { grassSeat(i, gx, gy); return }
+    }
+    grassSeat(i, -1, -1)
+  }
   scene.add(grassMesh)
+  // the small lights seed once, near the world's heart
+  const spots = []
+  const cx4 = Math.floor(W / 2), cy4 = Math.floor(H / 2)
+  for (let i = 0; i < 2600 && spots.length < 420; i++) {
+    const gx = cx4 + (tileHash(i, 2, 40) % 90) - 45, gy = cy4 + (tileHash(i, 2, 41) % 90) - 45
+    if (gx < 1 || gy < 1 || gx >= W - 1 || gy >= H - 1 || !GREEN.has(terrainOf(gx, gy))) continue
+    spots.push([wx(gx), wz(gy), groundYAt(gx, gy)])
+  }
   if (spots.length) buildAmbient(spots)
+}
+// the follow itself, spread across frames so a stride never hitches:
+// each pass reseats a quarter of the budget, evicting blades the
+// walker has left behind
+const GRASS_R = 44
+let grassSlotTiles = null, grassSeat = null, grassReseed = null
+let grassGen = 0, grassAnchorX = -9999, grassAnchorY = -9999, grassScan = 0
+function grassFollow(fx3, fy3) {
+  if (!grassMesh || !grassSlotTiles) return
+  const moved = Math.max(Math.abs(fx3 - grassAnchorX), Math.abs(fy3 - grassAnchorY))
+  if (moved > 6 && grassScan === 0) { grassAnchorX = fx3; grassAnchorY = fy3; grassGen++; grassScan = 1 }
+  if (grassScan === 0) return
+  const count = grassMesh.count
+  const q4 = Math.ceil(count / 4)
+  const lo = (grassScan - 1) * q4, hi = Math.min(count, grassScan * q4)
+  for (let i = lo; i < hi; i++) {
+    const gx = grassSlotTiles[i * 2], gy = grassSlotTiles[i * 2 + 1]
+    if (gx < -9000
+      || Math.max(Math.abs(gx - grassAnchorX), Math.abs(gy - grassAnchorY)) > GRASS_R + 5)
+      grassReseed(i, grassAnchorX, grassAnchorY)
+  }
+  grassMesh.instanceMatrix.needsUpdate = true
+  if (grassMesh.instanceColor) grassMesh.instanceColor.needsUpdate = true
+  grassScan = grassScan >= 4 ? 0 : grassScan + 1
 }
 
 // ---- the small lights: one point cloud, two lives. By day it is
@@ -5515,9 +5589,9 @@ function frame() {
       .lerp(tmpC.setRGB(b2.r * 0.55 + 0.3, b2.g * 0.55 + 0.32, b2.b * 0.55 + 0.36), winAmt * 0.8)
       .lerp(tmpC.setRGB(Math.min(1, b2.r + 0.3), b2.g + 0.12, Math.min(1, b2.b + 0.26)), sprAmt * 0.3)
   }
-  if (groundMesh) {
-    if (!seasonBase.ground) seasonBase.ground = groundMesh.material.color.clone()
-    groundMesh.material.color.copy(seasonBase.ground)
+  if (groundMat) {
+    if (!seasonBase.ground) seasonBase.ground = groundMat.color.clone()
+    groundMat.color.copy(seasonBase.ground)
       .lerp(tmpC.setRGB(1.05, 0.99, 0.9), autAmt * 0.5)
       .lerp(tmpC.setRGB(1.16, 1.19, 1.27), winAmt * 0.8) // the frost
   }
@@ -5922,6 +5996,12 @@ function frame() {
 
   // the grass is told where the boots are
   uPlayer.value.copy(focus)
+  if (me) grassFollow(me.x, me.y) // the meadow keeps pace with the walker
+  // the country beyond the fog rests: chunks outside sight skip the GPU
+  for (const ck of groundChunks) {
+    const dcx = ck.cx - camera.position.x, dcz = ck.cz - camera.position.z
+    ck.m.visible = Math.sqrt(dcx * dcx + dcz * dcz) - ck.r < scene.fog.far + 24
+  }
   // the shadow-forms take their rim from whatever light stands behind
   // them: gold at the hours, silver under the moon, white in the bolt
   uRimC.value.setHSL(nightAmt > 0.5 ? 0.6 : 0.085 - warm * 0.03,
@@ -6013,7 +6093,7 @@ function frame() {
   wetAmt += ((rainAmt * (1 - winAmt)) - wetAmt)
     * Math.min(1, dt * (rainAmt > wetAmt ? 0.45 : 0.015 + dayAmt * 0.03))
   if (groundMesh) {
-    const gm = groundMesh.material
+    const gm = groundMat
     const wfx = Math.min(1, wetAmt * TUNE.wet)
     gm.roughness = 1 - wfx * 0.62
     gm.envMapIntensity = 1 + wfx * 1.2
