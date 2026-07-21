@@ -1283,7 +1283,9 @@ for (const [u, hue, sat, sc] of [[0.3, 268, 55, 88], [1.4, 200, 60, 66], [2.5, 3
 // into it. It stiffens when the weather turns. ----
 const uWindT = { value: 0 }, uWindA = { value: 0.45 }
 // where the citizen stands, so the grass can get out of the way
-const uPlayer = { value: new THREE.Vector3(0, -99, 0) }
+const uPlayer = { value: new THREE.Vector3(0, -99, 0) } // slot zero: the boots
+const uPushers = { value: [uPlayer.value, new THREE.Vector3(0, -99, 0),
+  new THREE.Vector3(0, -99, 0), new THREE.Vector3(0, -99, 0)] }
 
 // ---- the cloud shadows: weather you can watch cross the ground. A
 // tiling shadow texture scrolls over every ground-standing surface in
@@ -2119,9 +2121,9 @@ function buildGrass() {
   blade.translate(0, 0.15, 0)
   const mat = new THREE.MeshStandardMaterial({ color: 0x577a2b, roughness: 0.95 })
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uWindT = uWindT; sh.uniforms.uWindA = uWindA; sh.uniforms.uPlayer = uPlayer
+    sh.uniforms.uWindT = uWindT; sh.uniforms.uWindA = uWindA; sh.uniforms.uPushers = uPushers
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uWindT; uniform float uWindA; uniform vec3 uPlayer;')
+      .replace('#include <common>', '#include <common>\nuniform float uWindT; uniform float uWindA; uniform vec3 uPushers[4];')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
       #ifdef USE_INSTANCING
       {
@@ -2130,15 +2132,18 @@ function buildGrass() {
                  + .55 * sin(uWindT * 2.9 + wp0.z * 1.3 + wp0.x * .4);
         float k = smoothstep(0., .3, position.y) * uWindA * .12;
         transformed.x += sw * k; transformed.z += sw * .7 * k;
-        // the meadow acknowledges you: blades within a stride lean away
-        // from the boots and spring back behind them
-        vec2 dp = wp0.xz - uPlayer.xz;
-        float pd = length(dp);
-        float push = smoothstep(.95, .12, pd) * smoothstep(.02, .28, position.y);
-        vec2 dir2 = dp / max(pd, .001);
-        transformed.x += dir2.x * push * .3;
-        transformed.z += dir2.y * push * .3;
-        transformed.y -= push * .1;
+        // the meadow acknowledges every heavy thing that moves through
+        // it: the boots, and up to three near hunters — blades lean
+        // away and spring back behind them
+        for (int pi = 0; pi < 4; pi++) {
+          vec2 dp = wp0.xz - uPushers[pi].xz;
+          float pd = length(dp);
+          float push = smoothstep(.95, .12, pd) * smoothstep(.02, .28, position.y);
+          vec2 dir2 = dp / max(pd, .001);
+          transformed.x += dir2.x * push * .3;
+          transformed.z += dir2.y * push * .3;
+          transformed.y -= push * .1;
+        }
       }
       #endif`)
   }
@@ -3794,6 +3799,62 @@ const lerpN = (a, b, k) => a + (b - a) * k
 // body has no author but arithmetic.
 // =====================================================================
 const SEWN_SKIN = true
+
+// ---- THE SHADOW-FORMS: the mobs stop competing with the world and
+// start haunting it. The truth only says 'wolf, here, 8 hp' — the
+// rendering is agnostic — so this window renders every creature as a
+// matte SILHOUETTE: a near-black form the world's light wraps around
+// but never enters, rimmed by whatever stands behind it (gold at the
+// hours, silver at night, white in the lightning), with LAMP EYES as
+// the one light it owns. A silhouette has no bad topology: the crude
+// geometry becomes the style the moment you stop lighting its
+// interior, and the eye completes a wolf from an outline far more
+// generously than from a shaded toy. The human world stays rendered
+// in light; everything that hunts you is rendered in dark. ----
+const uRimC = { value: new THREE.Color(1, 0.8, 0.6) }
+const uRimA = { value: 1 }
+const EYE_LAMPS = { wolf: 0xffb347, bear: 0xd8862e, goblin: 0x8aff4d,
+  troll: 0xff5030, 'skeleton-knight': 0x7fd4ff }
+function shadowMat() { // one per mob, so the hurt flash stays its own
+  const m = new THREE.MeshStandardMaterial({ color: 0x07080c, roughness: 1, metalness: 0 })
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uRimC = uRimC; sh.uniforms.uRimA = uRimA
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uRimC; uniform float uRimA;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      { float ndv = abs(dot(normalize(vNormal), normalize(vViewPosition)));
+        float rim = pow(1. - ndv, 2.4);
+        totalEmissiveRadiance += uRimC * rim * uRimA; }`)
+  }
+  return m
+}
+function shadowize(g, type) {
+  const sm = shadowMat()
+  const lampC = EYE_LAMPS[type] ?? 0xffc46a
+  const lamp = new THREE.MeshStandardMaterial({ color: 0x0a0a0a,
+    emissive: lampC, emissiveIntensity: 2.6, roughness: 0.4 })
+  g.traverse((o) => {
+    if (!o.isMesh) return
+    if (o.material?.isSpriteMaterial) return
+    const r = o.geometry?.parameters?.radius
+    const isEye = r !== undefined && r <= 0.06
+      && (o.material?.isMeshBasicMaterial || (o.material?.roughness ?? 1) <= 0.35)
+    if (isEye) { o.material = lamp; o.scale.multiplyScalar(1.3) } // lamps read a touch larger
+    else o.material = sm
+  })
+  g.__mats = [sm] // the flash runs through the shadow itself, in red
+  return g
+}
+// the breath: the one warm thing a shadow gives away. Small vapor
+// puffs at the muzzle for near beasts in cool air.
+const breaths = []
+for (let i = 0; i < 12; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true,
+    depthWrite: false, opacity: 0 }))
+  sp.visible = false; sp.userData.noAO = true
+  scene.add(sp); breaths.push(sp)
+}
+let breathIdx = 0, lastBreathAt = 0
 // the skeleton's measure: the deep window's exact joints, so every
 // boot, mitt and hatchet steps across without an offset changing
 const RIG = {
@@ -4539,6 +4600,7 @@ function syncAll(s) {
     if (!g) {
       const [c, sc] = MOB_LOOK[m.type] ?? [0x8a5a5a, 0.7]
       g = SEWN_SKIN ? makeSewnBeast(id, m.type) : makeBeast(id, m.type) // sewn hide, hinged bones for the boneless-by-rights
+      shadowize(g, m.type) // ...and then the dark takes the whole body
       Object.assign(g.userData, { kind: 'mob', id, type: m.type, tx: m.x, ty: m.y, fx0: m.x, fy0: m.y, moveAt: 0 })
       g.traverse((o) => { o.userData.kind = 'mob'; o.userData.id = id })
       const lb = label(m.type + ' · ' + m.hp); lb.position.y = 1.6
@@ -5730,6 +5792,45 @@ function frame() {
 
   // the grass is told where the boots are
   uPlayer.value.copy(focus)
+  // the shadow-forms take their rim from whatever light stands behind
+  // them: gold at the hours, silver under the moon, white in the bolt
+  uRimC.value.setHSL(nightAmt > 0.5 ? 0.6 : 0.085 - warm * 0.03,
+    nightAmt > 0.5 ? 0.25 : 0.5 + warm * 0.3, 0.55 + warm * 0.15)
+  uRimA.value = (0.55 + warm * 1.7 + nightAmt * 0.3 + flash * 2.5) * (1 - overcast * 0.3)
+  // the three nearest hunters press the grass like the boots do
+  { let pi2 = 1
+    for (const gm of vis.mob.values()) {
+      if (pi2 > 3) break
+      if (gm.position.distanceTo(focus) < 14) uPushers.value[pi2++].copy(gm.position)
+    }
+    while (pi2 <= 3) uPushers.value[pi2++].set(0, -99, 0) }
+  // the breath: near beasts give themselves away in cool air
+  if (now - lastBreathAt > 380 && (nightAmt > 0.15 || warm > 0.3 || winAmt > 0.3)) {
+    lastBreathAt = now
+    for (const gm of vis.mob.values()) {
+      const d2b = gm.position.distanceTo(focus)
+      if (d2b > 15 || Math.random() < 0.55) continue
+      const sp = breaths[breathIdx++ % breaths.length]
+      sp.position.set(
+        gm.position.x + Math.sin(gm.rotation.y) * 0.35,
+        gm.position.y + 0.55,
+        gm.position.z + Math.cos(gm.rotation.y) * 0.35)
+      sp.userData.born = now; sp.userData.dx2 = Math.sin(gm.rotation.y) * 0.2
+      sp.userData.dz2 = Math.cos(gm.rotation.y) * 0.2
+      sp.visible = true
+    }
+  }
+  for (const sp of breaths) {
+    if (!sp.visible) continue
+    const a3 = (now - sp.userData.born) / 1100
+    if (a3 >= 1) { sp.visible = false; continue }
+    sp.position.y += dt * 0.28
+    sp.position.x += sp.userData.dx2 * dt
+    sp.position.z += sp.userData.dz2 * dt
+    const sc3 = 0.12 + a3 * 0.3
+    sp.scale.set(sc3, sc3, 1)
+    sp.material.opacity = 0.26 * (1 - a3) * (0.5 + nightAmt * 0.5)
+  }
 
   // the mist pools at the magic hours and drifts on its own errands
   const mistAmt = Math.max(warm * 0.8, nightAmt * 0.4) * (1 - uWindA.value * 0.4) * (1 - rainAmt)
