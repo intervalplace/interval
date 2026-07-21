@@ -1,0 +1,350 @@
+<!doctype html>
+<!-- POCKET — an Interval window for handhelds.
+     640x480, d-pad first, no mouse anywhere. Speaks the pillar's real
+     protocol: auth by uid, act by 'do' verbs, full-state broadcasts.
+     Serve it from the pillar: add to serve.mjs
+       if (path === '/play/pocket') return sendFile('./window-pocket.html', 'text/html')
+     Same interval-uid as window-web: the handheld IS your desktop citizen. -->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>interval · pocket</title>
+<style>
+  html, body { margin:0; padding:0; background:#0d0b08; height:100%; overflow:hidden; }
+  #wrap { display:flex; align-items:center; justify-content:center; height:100%; }
+  canvas { image-rendering: pixelated; background:#0d0b08;
+           width:min(100vw, calc(100vh * 4 / 3)); height:min(100vh, calc(100vw * 3 / 4)); }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="s" width="640" height="480"></canvas></div>
+<script>
+'use strict'
+// ---------- identity & socket (window-web's exact handshake) ----------
+let uid = localStorage.getItem('interval-uid')
+if (!uid) {
+  uid = (crypto.randomUUID ? crypto.randomUUID()
+        : Array.from({length:32}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join(''))
+  localStorage.setItem('interval-uid', uid)
+}
+let ws = null, myId = null, world = null, worldId = '', connected = false, lastStateAt = 0
+const feed = []                        // last few event lines
+const say = (t) => { feed.push(t); if (feed.length > 3) feed.shift() }
+
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
+  ws.onopen = () => { connected = true; ws.send(JSON.stringify({ type:'auth', uid })) }
+  ws.onclose = () => { connected = false; myId = null; setTimeout(connect, 2000) }
+  ws.onerror = () => { try { ws.close() } catch {} }
+  ws.onmessage = (ev) => {
+    let m; try { m = JSON.parse(ev.data) } catch { return }
+    if (m.type === 'hello') { myId = m.playerId; say('key ' + myId.slice(0,10) + '\u2026') }
+    if (m.type === 'state') { onState(m.state); worldId = m.worldId || worldId }
+    if (m.type === 'chat')  { say((m.name || '???') + ': ' + String(m.text).slice(0,50)) }
+  }
+}
+const act = (a) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type:'act', action:a })) }
+connect()
+
+let prevInv = null, prevHp = null, prevGold = null
+function onState(s) {
+  lastStateAt = performance.now()
+  world = s
+  const me = myId && s.players[myId]
+  if (me) {
+    const count = (inv) => (inv||[]).reduce((a,sl)=>((sl&&(a[sl.item]=(a[sl.item]||0)+1)),a),{})
+    if (prevInv) {
+      const now = count(me.inventory), was = prevInv
+      for (const k in now) if ((now[k]||0) > (was[k]||0)) say('+ ' + k)
+    }
+    if (prevHp != null && me.hp < prevHp) say('- ' + (prevHp - me.hp) + ' hp')
+    if (prevGold != null && (me.gold??0) > prevGold) say('+ ' + ((me.gold??0)-prevGold) + ' gold')
+    prevInv = count(me.inventory); prevHp = me.hp; prevGold = me.gold ?? 0
+  }
+  if (heldDir && mode === 'play') act({ do:'move', dx:heldDir[0], dy:heldDir[1] })
+}
+
+// ---------- input: keyboard + gamepad, mapped to GB buttons ----------
+// A = context action · B = cancel/eat · START = menu · SELECT = cycle target
+let heldDir = null, mode = 'play'      // play | menu | name
+const pressed = {}
+function press(btn) {
+  if (mode === 'name')  return nameInput(btn)
+  if (mode === 'menu')  return menuInput(btn)
+  if (btn === 'start') { openMenu(); return }
+  if (btn === 'a')      return contextAction()
+  if (btn === 'b')      { const i = eatableSlot(); if (i >= 0) act({ do:'eat', slot:i }); return }
+  if (btn === 'select') { cycleTarget(); return }
+  const d = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[btn]
+  if (d) { heldDir = d; act({ do:'move', dx:d[0], dy:d[1] }) }
+}
+function release(btn) {
+  const d = { up:[0,-1], down:[0,1], left:[-1,0], right:[1,0] }[btn]
+  if (d && heldDir && d[0]===heldDir[0] && d[1]===heldDir[1]) heldDir = null
+}
+const KEYMAP = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right',
+                 w:'up', s:'down', a:'left', d:'right',
+                 z:'a', Z:'a', x:'b', X:'b', Enter:'start', Shift:'select', ' ':'a' }
+window.addEventListener('keydown', (e) => {
+  const b = KEYMAP[e.key]; if (!b) return
+  e.preventDefault(); if (pressed['k'+b]) return
+  pressed['k'+b] = true; press(b)
+})
+window.addEventListener('keyup', (e) => {
+  const b = KEYMAP[e.key]; if (!b) return
+  pressed['k'+b] = false; release(b)
+})
+// gamepad polling (GPi buttons arrive here if not remapped to keys)
+const GP = { 12:'up', 13:'down', 14:'left', 15:'right', 0:'a', 1:'b', 9:'start', 8:'select' }
+function pollPads() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : []
+  for (const p of pads) {
+    if (!p) continue
+    for (const [idx, btn] of Object.entries(GP)) {
+      const down = p.buttons[idx] && p.buttons[idx].pressed
+      const key = 'g' + p.index + '_' + btn
+      if (down && !pressed[key]) { pressed[key] = true; press(btn) }
+      if (!down && pressed[key]) { pressed[key] = false; release(btn) }
+    }
+    const ax = p.axes[0] ?? 0, ay = p.axes[1] ?? 0
+    const dirs = [['left', ax < -0.5], ['right', ax > 0.5], ['up', ay < -0.5], ['down', ay > 0.5]]
+    for (const [btn, down] of dirs) {
+      const key = 'ga' + p.index + '_' + btn
+      if (down && !pressed[key]) { pressed[key] = true; press(btn) }
+      if (!down && pressed[key]) { pressed[key] = false; release(btn) }
+    }
+  }
+}
+
+// ---------- context: what does A do right now ----------
+const GATHERABLE = new Set(['tree','rock','magic-rock','fishing-spot'])
+const near = (a,b) => Math.abs(a.x-b.x) <= 1 && Math.abs(a.y-b.y) <= 1
+let targetPick = 0
+function interactables() {
+  const me = myId && world && world.players[myId]
+  if (!me) return []
+  const out = []
+  for (const [id,g] of Object.entries(world.ground ?? {})) if (near(me,g)) out.push({ kind:'pickup', id, x:g.x, y:g.y, label:'take ' + g.item })
+  for (const [id,m] of Object.entries(world.mobs ?? {})) if (m.hp > 0 && near(me,m)) out.push({ kind:'attack', id, x:m.x, y:m.y, label:'fight ' + m.type })
+  for (const [id,n] of Object.entries(world.nodes ?? {})) {
+    if (!near(me,n)) continue
+    if (GATHERABLE.has(n.type)) out.push({ kind:'gather', id, x:n.x, y:n.y, label:(n.type==='fishing-spot'?'fish':n.type==='tree'?'chop':'mine') })
+    if (n.type === 'plot') out.push({ kind:'harvest', id, x:n.x, y:n.y, label:'harvest' })
+  }
+  return out
+}
+function contextAction() {
+  const me = myId && world && world.players[myId]
+  if (!me) { act({ do:'spawn' }); say('you wake.'); return }
+  const opts = interactables()
+  if (!opts.length) { say('nothing here') ; return }
+  const o = opts[targetPick % opts.length]
+  if (o.kind === 'pickup')  act({ do:'pickup', groundId:o.id })
+  if (o.kind === 'attack')  act({ do:'attack', mobId:o.id })
+  if (o.kind === 'gather')  act({ do:'gather', nodeId:o.id })
+  if (o.kind === 'harvest') act({ do:'harvest', nodeId:o.id })
+}
+function cycleTarget() { const n = interactables().length; if (n) { targetPick = (targetPick+1) % n; } }
+function eatableSlot() {
+  const me = myId && world && world.players[myId]
+  if (!me) return -1
+  return (me.inventory||[]).findIndex(sl => sl && sl.item === 'cooked-fish')
+}
+
+// ---------- menu (START): inventory + name ----------
+let menuIdx = 0, nameBuf = '', nameChar = 0
+const CHARSET = 'abcdefghijklmnopqrstuvwxyz0123456789-'
+function openMenu() { mode = 'menu'; menuIdx = 0 }
+function menuItems() {
+  const me = myId && world && world.players[myId]
+  const items = []
+  if (me && !me.name) items.push({ t:'claim a name', run:() => { mode='name'; nameBuf=''; nameChar=0 } })
+  const inv = (me && me.inventory) || []
+  inv.forEach((sl, i) => { if (sl) items.push({ t: sl.item, slot: i }) })
+  if (!items.length) items.push({ t:'(satchel empty)', run:()=>{} })
+  items.push({ t:'close', run:() => { mode='play' } })
+  return items
+}
+function menuInput(btn) {
+  const items = menuItems()
+  if (btn === 'up')   menuIdx = (menuIdx + items.length - 1) % items.length
+  if (btn === 'down') menuIdx = (menuIdx + 1) % items.length
+  if (btn === 'b' || btn === 'start') { mode = 'play'; return }
+  if (btn === 'a') {
+    const it = items[menuIdx]
+    if (it.run) { it.run(); return }
+    const i = it.slot, item = it.t
+    if (item === 'cooked-fish')      act({ do:'eat',  slot:i })
+    else if (item === 'raw-fish')    act({ do:'cook', slot:i })
+    else if (item === 'logs')        act({ do:'light', slot:i })
+    else if (item === 'bones')       act({ do:'bury', slot:i })
+    else                             act({ do:'drop', slot:i })
+    mode = 'play'
+  }
+}
+function nameInput(btn) {
+  if (btn === 'up')    nameChar = (nameChar + CHARSET.length - 1) % CHARSET.length
+  if (btn === 'down')  nameChar = (nameChar + 1) % CHARSET.length
+  if (btn === 'right') { if (nameBuf.length < 12) nameBuf += CHARSET[nameChar] }
+  if (btn === 'left')  nameBuf = nameBuf.slice(0, -1)
+  if (btn === 'b')     mode = 'menu'
+  if (btn === 'a' || btn === 'start') {
+    const n = nameBuf
+    if (/^[a-z0-9-]{1,12}$/.test(n) && !n.startsWith('-') && !n.endsWith('-')) {
+      act({ do:'name', name:n }); say('claiming "' + n + '"\u2026'); mode = 'play'
+    } else say('name invalid')
+  }
+}
+
+// ---------- rendering: 20x13 fat tiles, camera on me ----------
+const cv = document.getElementById('s'), cx = cv.getContext('2d')
+cx.imageSmoothingEnabled = false
+const T = 32, VW = 20, VH = 13                 // 640x416 world + 64px chrome
+const HUD_H = 28, FEED_H = 36
+function px(x,y,w,h,c){ cx.fillStyle=c; cx.fillRect(x|0,y|0,w,h) }
+
+function drawNode(n, x, y, now) {
+  const bob = Math.sin(now/400 + n.x + n.y) * 1.5
+  switch (n.type) {
+    case 'tree': px(x+14,y+16,5,14,'#5c4326'); px(x+6,y+4,22,14,'#2f6b2f'); px(x+10,y,14,9,'#3a7d3a'); break
+    case 'rock': px(x+5,y+13,24,14,'#7a7a7a'); px(x+9,y+8,15,9,'#8c8c8c'); px(x+12,y+11,5,3,'#a3a3a3'); break
+    case 'magic-rock': px(x+5,y+13,24,14,'#5a5a7a'); px(x+9,y+8,15,9,'#6e6e94'); px(x+13,y+11+bob,5,4,'#9a7ae0'); break
+    case 'fishing-spot':
+      cx.strokeStyle='#9fd4e8'; cx.lineWidth=2
+      cx.beginPath(); cx.arc(x+16,y+16, 6 + (now/120 % 6), 0, 7); cx.stroke()
+      cx.beginPath(); cx.arc(x+16,y+16, 3, 0, 7); cx.stroke(); break
+    case 'campfire': case 'fire': case 'watchfire':
+      px(x+9,y+22,14,5,'#5c4326')
+      px(x+12,y+10+bob,8,12,'#e2703a'); px(x+14,y+5+bob,5,8,'#f2a33a'); px(x+15,y+2+bob,3,4,'#f8d060'); break
+    case 'bank':  building(x,y,'#6e5335','#d8b13c','B'); break
+    case 'store': building(x,y,'#7a5a6a','#e8c8d8','S'); break
+    case 'smith': building(x,y,'#5a5a5a','#e2703a','F'); break
+    case 'house': building(x,y,'#8a5c34','#e8d8a8','H'); break
+    case 'anvil': px(x+8,y+11,16,6,'#555'); px(x+13,y+17,7,5,'#444'); px(x+10,y+22,13,5,'#333'); break
+    case 'wall':  px(x+1,y+3,30,26,'#6a6a72'); px(x+3,y+5,12,10,'#7a7a84'); px(x+17,y+16,12,10,'#7a7a84'); break
+    case 'waystone': px(x+13,y+4,7,22,'#8c8c9c'); px(x+10,y+2,13,5,'#a3a3b3'); px(x+14,y+10+bob,4,3,'#d8b13c'); break
+    case 'signpost': px(x+15,y+8,3,20,'#7a5c34'); px(x+7,y+8,19,7,'#9a7448'); break
+    case 'well': px(x+7,y+13,18,12,'#6e6e6e'); px(x+11,y+16,11,7,'#1a2a3a'); px(x+7,y+7,19,3,'#7a5c34'); break
+    case 'plot': px(x+3,y+6,26,20,'#5c4326'); for(let i=0;i<3;i++) px(x+6,y+9+i*6,20,2,'#4a3620'); break
+    case 'guard': figure(x,y,'#7a2a2a',now); break
+    case 'brewpot': px(x+9,y+14,14,12,'#3a3a44'); px(x+11,y+10,10,5,'#4a4a56'); px(x+14,y+6+bob,3,4,'#b8e0c8'); break
+    default: px(x+8,y+8,16,16,'#666'); cx.fillStyle='#ddd'; cx.font='12px monospace'; cx.textAlign='center'; cx.fillText(n.type[0], x+16, y+20)
+  }
+}
+function building(x,y,body,win,letter){
+  px(x+2,y+8,28,20,body); px(x,y+4,32,5,'#3a2a1a')
+  px(x+5,y+12,6,5,win); px(x+21,y+12,6,5,win); px(x+13,y+17,7,11,'#2a1c10')
+  cx.fillStyle='#f0dfc0'; cx.font='bold 9px monospace'; cx.textAlign='center'; cx.fillText(letter, x+16, y+7)
+}
+const MOB_SIZE = { goblin:0, wolf:1, bear:2, troll:3 }
+function drawMob(m, x, y, now) {
+  const size = MOB_SIZE[m.type] ?? 1
+  const c = ['#5a7a3a','#8a8a8a','#6a4a2a','#4a5a4a'][size] || '#777'
+  const hop = Math.abs(Math.sin(now/300 + m.x)) * 2
+  const w = 14 + size*4, h = 9 + size*2, bx = x+16-w/2, by = y+26-h-hop
+  px(bx,by,w,h,c); px(bx+w-4,by-5,7,6,c); px(bx+w,by-3,2,2,'#fff')
+  px(bx+2,by+h,3,4,c); px(bx+w-5,by+h,3,4,c)
+  const maxHp = { goblin:5, wolf:8, bear:14, troll:20 }[m.type] ?? m.hp
+  if (m.hp < maxHp) { px(x+4,y,24,3,'#00000088'); px(x+4,y,Math.max(1,24*m.hp/maxHp),3,'#c93a2e') }
+}
+function figure(x,y,coat,now,me){
+  const bob = Math.sin(now/250 + x)*1
+  px(x+12,y+13+bob,9,11,coat); px(x+13,y+6+bob,7,7,'#e8b48a')
+  px(x+11,y+4+bob,11,3,'#5c3a1e')
+  px(x+13,y+24+bob,3,5,'#3a2513'); px(x+17,y+24+bob,3,5,'#3a2513')
+  if (me) px(x+14,y-3+bob,5,2,'#e2703a')
+}
+
+function draw(now) {
+  pollPads()
+  px(0,0,640,480,'#0d0b08')
+  const s = world, me = myId && s && s.players[myId]
+  // top HUD
+  px(0,0,640,HUD_H,'#221610'); px(0,HUD_H-2,640,2,'#4a3323')
+  cx.font='11px monospace'; cx.textAlign='left'; cx.fillStyle='#a8906e'
+  if (!connected) cx.fillText('NO SIGNAL \u2014 the world waits', 8, 18)
+  else if (!s)    cx.fillText('listening for the world\u2026', 8, 18)
+  else {
+    cx.fillStyle='#f0dfc0'
+    cx.fillText((me && me.name) ? me.name : 'unnamed', 8, 18)
+    if (me) {
+      for (let i=0;i<(me.maxHp??10);i++) px(120+i*9, 9, 7, 10, i < me.hp ? '#c93a2e' : '#3a2a24')
+      cx.fillStyle='#e2b63e'; cx.fillText(String(me.gold ?? 0) + 'g', 240, 18)
+    }
+    cx.fillStyle='#a8906e'; cx.textAlign='right'
+    cx.fillText('tick ' + s.tick + ' \u00b7 ' + (worldId||'').slice(0,8), 632, 18)
+    cx.textAlign='left'
+  }
+  // world viewport
+  if (s) {
+    const W = s.genesis?.worldW ?? 320, H = s.genesis?.worldH ?? 200
+    const cxm = me ? me.x : Math.floor(W/2), cym = me ? me.y : Math.floor(H/2)
+    const camX = Math.max(0, Math.min(W - VW, cxm - (VW>>1)))
+    const camY = Math.max(0, Math.min(H - VH, cym - (VH>>1)))
+    const ox = 0, oy = HUD_H
+    for (let vy=0; vy<VH; vy++) for (let vx=0; vx<VW; vx++) {
+      const wx = camX+vx, wy = camY+vy
+      px(ox+vx*T, oy+vy*T, T, T, ['#c99a5f','#c2945a','#cb9d63','#bd8f56'][(wx*7+wy*13)%4])
+      if ((wx*31+wy*17)%11===0) px(ox+vx*T+10, oy+vy*T+20, 4, 2, '#b3854d')
+    }
+    const inView = (e) => e.x>=camX && e.x<camX+VW && e.y>=camY && e.y<camY+VH
+    const sx = (e) => ox+(e.x-camX)*T, sy = (e) => oy+(e.y-camY)*T
+    // target highlight
+    const opts = interactables()
+    if (opts.length && mode==='play') {
+      const o = opts[targetPick % opts.length]
+      if (inView(o)) { cx.strokeStyle='#e2703a'; cx.lineWidth=2; cx.strokeRect(sx(o)+2, sy(o)+2, T-4, T-4) }
+    }
+    for (const g of Object.values(s.ground ?? {})) if (inView(g)) { px(sx(g)+11,sy(g)+17,10,6,'#e8e2cf'); px(sx(g)+14,sy(g)+13,5,5,'#e8e2cf') }
+    for (const n of Object.values(s.nodes ?? {})) if (inView(n)) drawNode(n, sx(n), sy(n), now)
+    for (const m of Object.values(s.mobs ?? {})) if (m.hp>0 && inView(m)) drawMob(m, sx(m), sy(m), now)
+    for (const [pid,p] of Object.entries(s.players ?? {})) {
+      if (!inView(p)) continue
+      if ((p.deadUntil ?? 0) > s.tick) continue
+      figure(sx(p), sy(p), pid===myId ? '#8a3a2a' : '#4a5a7a', now, pid===myId)
+      if (p.name) { cx.font='9px monospace'; cx.textAlign='center'
+        cx.fillStyle='#00000088'; cx.fillText(p.name, sx(p)+17, sy(p)-2)
+        cx.fillStyle = pid===myId ? '#e2703a' : '#f0dfc0'; cx.fillText(p.name, sx(p)+16, sy(p)-3) }
+    }
+    if (me && (me.deadUntil ?? 0) > s.tick) {
+      px(0,HUD_H,640,VH*T,'#000000aa'); cx.fillStyle='#c93a2e'; cx.font='16px monospace'; cx.textAlign='center'
+      cx.fillText('you fell \u2014 waking at tick ' + me.deadUntil, 320, 220)
+    }
+    if (!me && connected && myId) {
+      px(0,HUD_H,640,VH*T,'#00000088'); cx.fillStyle='#f0dfc0'; cx.font='14px monospace'; cx.textAlign='center'
+      cx.fillText('press A to wake in the world', 320, 220)
+    }
+  }
+  // bottom: context hint + feed
+  const by = HUD_H + VH*T
+  px(0,by,640,480-by,'#221610'); px(0,by,640,2,'#4a3323')
+  cx.font='10px monospace'; cx.textAlign='left'
+  const opts2 = (mode==='play' && world) ? interactables() : []
+  cx.fillStyle='#e2703a'
+  cx.fillText(opts2.length ? 'A: ' + opts2[targetPick % opts2.length].label + (opts2.length>1 ? '  (SELECT: next)' : '') : 'A: wake/act \u00b7 B: eat \u00b7 START: satchel', 8, by+14)
+  cx.fillStyle='#a8906e'
+  feed.slice(-2).forEach((t,i) => cx.fillText(t, 8, by+26+i*11))
+  // menu overlay
+  if (mode==='menu' || mode==='name') {
+    px(120,80,400,320,'#221610ee'); cx.strokeStyle='#4a3323'; cx.lineWidth=2; cx.strokeRect(120,80,400,320)
+    cx.font='11px monospace'; cx.textAlign='left'
+    if (mode==='menu') {
+      cx.fillStyle='#a8906e'; cx.fillText('SATCHEL \u2014 A: use \u00b7 B: close', 136, 102)
+      menuItems().forEach((it,i) => {
+        cx.fillStyle = i===menuIdx ? '#e2703a' : '#f0dfc0'
+        cx.fillText((i===menuIdx?'> ':'  ') + it.t, 136, 124 + i*16)
+      })
+    } else {
+      cx.fillStyle='#a8906e'; cx.fillText('CLAIM NAME \u2014 \u2191\u2193 letter \u00b7 \u2192 add \u00b7 \u2190 del \u00b7 A confirm', 136, 102)
+      cx.fillStyle='#f0dfc0'; cx.font='20px monospace'
+      cx.fillText(nameBuf + '[' + CHARSET[nameChar] + ']', 136, 150)
+      cx.font='11px monospace'
+    }
+  }
+  requestAnimationFrame(draw)
+}
+requestAnimationFrame(draw)
+</script>
+</body>
+</html>
