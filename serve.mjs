@@ -14,7 +14,7 @@ import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis } from './worldgen-any.mjs'
 
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // which country the next founding raises: INTERVAL_GEN=interval-expanse-v1
@@ -23,7 +23,11 @@ const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // its genesis forever, because the genesis is the world.
 const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v1' // SPEC §2l: new foundings use the expanse
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
-const WORLD_W = 320, WORLD_H = 200 // epic geography (spec 2b): calibrated travel + Norwick
+// founding dimensions: 0 means 'the generator's own calibrated scale'
+// (expanse 640x400 per SPEC §2l, classic 320x200 per §2j) — override
+// with INTERVAL_W / INTERVAL_H only when you know why
+const WORLD_W = Number(process.env.INTERVAL_W) || 0
+const WORLD_H = Number(process.env.INTERVAL_H) || 0
 const WORLD_FILE = 'checkpoints/world.json'   // the founding record
 const CP_FILE = 'checkpoints/web.json'        // the living state
 
@@ -141,7 +145,7 @@ if (canResume) {
     console.warn('  The old world is not lost. Run the release it was founded under to continue it.')
     console.warn('')
   }
-  GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H, WORLD_GEN)
+  GENESIS = foundGenesis(WORLD_GEN, SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
   console.warn('FOUNDING with generator: ' + WORLD_GEN
     + (WORLD_GEN === 'interval-classic-v1' ? '  (set INTERVAL_GEN=interval-expanse-v1 for the expanse)' : ''))
   // the founding witness set (Milestone 4): immutable for this world; a
@@ -185,8 +189,41 @@ if (canResume) {
       weapon: p.equipment?.weapon && KNOWN_ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
     }))
     migrated = GENESIS.imported.length
+    // provenance: the genesis commits to WHICH attested state carried them
+    if (savedCp?.worldId && savedCp?.stateHash && Number.isInteger(savedCp?.tick))
+      GENESIS.importedFrom = { worldId: savedCp.worldId, stateHash: savedCp.stateHash, tick: savedCp.tick }
+  } else if (Array.isArray(saved?.genesis?.imported) && saved.genesis.imported.length) {
+    // the last world died YOUNG: it never lived to its first checkpoint,
+    // so there is no living state to carry — but its FOUNDING carried
+    // citizens, and founding data does not expire with the world that
+    // held it. They pass through to this founding unchanged. (This is
+    // how a citizen survives two refounds in one evening.)
+    GENESIS.imported = saved.genesis.imported
+    migrated = GENESIS.imported.length
+    // the chain of provenance passes through unchanged: these citizens'
+    // attested source is wherever the PREVIOUS founding said it was
+    if (saved.genesis.importedFrom) GENESIS.importedFrom = saved.genesis.importedFrom
+    console.warn('  (no checkpoint survived; carrying the ' + migrated
+      + ' citizen(s) from the previous FOUNDING record instead)')
+  }
+  // the operator's door: INTERVAL_IMPORT=path.json supplies a founding
+  // import list by hand — for recovering citizens a lost checkpoint (or a
+  // lost deploy) orphaned. Read only when nothing else carried anyone.
+  if (!(GENESIS.imported?.length) && process.env.INTERVAL_IMPORT) {
+    try {
+      const hand = JSON.parse(fs.readFileSync(process.env.INTERVAL_IMPORT))
+      if (Array.isArray(hand) && hand.length) {
+        GENESIS.imported = hand
+        migrated = hand.length
+        console.warn('  (INTERVAL_IMPORT: carrying ' + migrated + ' citizen(s) by the operator\u2019s hand)')
+      }
+    } catch (e) { console.error('INTERVAL_IMPORT unreadable: ' + e.message); process.exit(1) }
   }
   fs.rmSync(CP_FILE, { force: true })
+  if (saved?.genesis) { // the old founding record is history, not debris
+    try { fs.writeFileSync('checkpoints/world-' + String(E.worldId(saved.genesis)).slice(0, 12) + '.json',
+      JSON.stringify({ genesis: saved.genesis })) } catch {}
+  }
   fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
 }
 
