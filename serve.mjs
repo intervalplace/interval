@@ -17,6 +17,11 @@ import { IntervalClient } from './sdk.mjs'
 import { buildWorld } from './worldgen-any.mjs'
 
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
+// which country the next founding raises: INTERVAL_GEN=interval-expanse-v1
+// for the meandering trails, seven settlements, and the great river.
+// Only consulted at FOUNDING — a running world keeps the generator in
+// its genesis forever, because the genesis is the world.
+const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-classic-v1'
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
 const WORLD_W = 320, WORLD_H = 200 // epic geography (spec 2b): calibrated travel + Norwick
 const WORLD_FILE = 'checkpoints/world.json'   // the founding record
@@ -132,7 +137,9 @@ if (canResume) {
     console.warn('  The old world is not lost. Run the release it was founded under to continue it.')
     console.warn('')
   }
-  GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
+  GENESIS = E.makeGenesis(SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H, WORLD_GEN)
+  console.warn('FOUNDING with generator: ' + WORLD_GEN
+    + (WORLD_GEN === 'interval-classic-v1' ? '  (set INTERVAL_GEN=interval-expanse-v1 for the expanse)' : ''))
   // the founding witness set (Milestone 4): immutable for this world; a
   // different witness configuration is a different world (Phase 9)
   GENESIS.witnesses = [WITNESS.playerId, ...EXTRA_WITNESSES.filter(w => w !== WITNESS.playerId)]
