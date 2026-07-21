@@ -3823,12 +3823,47 @@ function shadowMat() { // one per mob, so the hurt flash stays its own
       .replace('#include <common>', '#include <common>\nuniform vec3 uRimC; uniform float uRimA;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       { float ndv = abs(dot(normalize(vNormal), normalize(vViewPosition)));
-        float rim = pow(1. - ndv, 2.4);
+        float rim = pow(1. - ndv, 3.2);
         totalEmissiveRadiance += uRimC * rim * uRimA; }`)
   }
   return m
 }
+function warpShade(g, type) {
+  // the silhouette is the species. The biped mobs ride a human skinned
+  // rig — which is why they read as small dark PEOPLE — so the shadow
+  // pass now re-proportions the bones: a goblin gets a head too big
+  // for its body, knuckles toward the ground, bandy stump legs, a deep
+  // hunch, and EARS the wind could catch; a troll sinks its head into
+  // the mass. The skeleton-knight keeps the man-shape on purpose: the
+  // one humanoid in the dark being a dead man is the point.
+  const head = g.userData.headGrp?.parent
+  const arms = g.userData.arms ?? []
+  const legs = g.userData.legs ?? []
+  if (type === 'goblin') {
+    g.scale.multiplyScalar(0.8)
+    if (head) head.scale.setScalar(1.45)
+    for (const a of arms) a.scale.y = 1.35
+    for (const l of legs) l.scale.y = 0.74
+    if (g.__spineBone) { g.__spineBone.rotation.x += 0.34; g.__spineRest = g.__spineBone.rotation.x }
+    if (head) {
+      const dark = new THREE.MeshStandardMaterial({ color: 0x07080c, roughness: 1 })
+      for (const sx of [-1, 1]) {
+        const ear = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.34, 5), dark)
+        ear.position.set(sx * 0.12, 0.12, -0.03)
+        ear.rotation.z = sx * -1.85; ear.rotation.x = -0.55
+        ear.castShadow = true; head.add(ear)
+      }
+      const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 0.1), dark)
+      jaw.position.set(0, -0.06, 0.08); jaw.castShadow = true; head.add(jaw)
+    }
+  } else if (type === 'troll') {
+    if (head) head.scale.setScalar(0.8)
+    for (const a of arms) a.scale.y = 1.25
+    if (g.__spineBone) { g.__spineBone.rotation.x += 0.2; g.__spineRest = g.__spineBone.rotation.x }
+  }
+}
 function shadowize(g, type) {
+  warpShade(g, type)
   const sm = shadowMat()
   const lampC = EYE_LAMPS[type] ?? 0xffc46a
   const lamp = new THREE.MeshStandardMaterial({ color: 0x0a0a0a,
@@ -3843,8 +3878,27 @@ function shadowize(g, type) {
     else o.material = sm
   })
   g.__mats = [sm] // the flash runs through the shadow itself, in red
+  // the wisp half of the design: the form condenses out of a low dark
+  // haze at its feet and never quite ends there
+  const haze = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true,
+    depthWrite: false, opacity: 0.2, color: 0x141a26 }))
+  haze.position.y = 0.12
+  const hs = type === 'troll' ? 1.6 : type === 'bear' ? 1.3 : 0.9
+  haze.scale.set(hs, hs * 0.42, 1)
+  haze.userData.noAO = true
+  g.add(haze)
   return g
 }
+// the embers: what a shadow sheds instead of fur — tiny motes in the
+// body's own eye-color, rising off the shoulders and going out
+const motes = []
+for (let i = 0; i < 24; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true,
+    depthWrite: false, opacity: 0, blending: THREE.AdditiveBlending }))
+  sp.visible = false; sp.userData.noAO = true
+  scene.add(sp); motes.push(sp)
+}
+let moteIdx = 0
 // the breath: the one warm thing a shadow gives away. Small vapor
 // puffs at the muzzle for near beasts in cool air.
 const breaths = []
@@ -5796,7 +5850,7 @@ function frame() {
   // them: gold at the hours, silver under the moon, white in the bolt
   uRimC.value.setHSL(nightAmt > 0.5 ? 0.6 : 0.085 - warm * 0.03,
     nightAmt > 0.5 ? 0.25 : 0.5 + warm * 0.3, 0.55 + warm * 0.15)
-  uRimA.value = (0.55 + warm * 1.7 + nightAmt * 0.3 + flash * 2.5) * (1 - overcast * 0.3)
+  uRimA.value = (0.5 + warm * 1.7 + nightAmt * 0.16 + flash * 2.5) * (1 - overcast * 0.3)
   // the three nearest hunters press the grass like the boots do
   { let pi2 = 1
     for (const gm of vis.mob.values()) {
@@ -5819,6 +5873,17 @@ function frame() {
       sp.userData.dz2 = Math.cos(gm.rotation.y) * 0.2
       sp.visible = true
     }
+    for (const gm of vis.mob.values()) { // and the embers rise
+      if (gm.position.distanceTo(focus) > 18 || Math.random() < 0.45) continue
+      const mt = motes[moteIdx++ % motes.length]
+      mt.material.color.setHex(EYE_LAMPS[gm.userData.type] ?? 0xffc46a)
+      mt.position.set(
+        gm.position.x + (Math.random() - 0.5) * 0.4,
+        gm.position.y + 0.45 + Math.random() * 0.5,
+        gm.position.z + (Math.random() - 0.5) * 0.4)
+      mt.userData.born = now
+      mt.visible = true
+    }
   }
   for (const sp of breaths) {
     if (!sp.visible) continue
@@ -5830,6 +5895,15 @@ function frame() {
     const sc3 = 0.12 + a3 * 0.3
     sp.scale.set(sc3, sc3, 1)
     sp.material.opacity = 0.26 * (1 - a3) * (0.5 + nightAmt * 0.5)
+  }
+  for (const mt of motes) {
+    if (!mt.visible) continue
+    const a3 = (now - mt.userData.born) / 1500
+    if (a3 >= 1) { mt.visible = false; continue }
+    mt.position.y += dt * 0.35
+    const sc3 = 0.05 + a3 * 0.05
+    mt.scale.set(sc3, sc3, 1)
+    mt.material.opacity = 0.5 * Math.sin(Math.min(1, a3) * Math.PI) * (0.35 + nightAmt * 0.65)
   }
 
   // the mist pools at the magic hours and drifts on its own errands
