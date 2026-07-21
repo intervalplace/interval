@@ -3827,10 +3827,23 @@ function shadowMat() { // one per mob, so the hurt flash stays its own
     // its own edge, re-rolled seven times a second so the boundary
     // never holds still. Discard-based, so depth stays honest.
     sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+      // a precision-safe hash: the classic sin-hash collapses into
+      // stripes on Apple GPUs once its argument grows, which is how
+      // the shades briefly became floating eyes. This one survives.
+      float shadeHash(vec2 p2) {
+        vec3 p3 = fract(vec3(p2.xyx) * .1031);
+        p3 += dot(p3, p3.yzx + 33.33);
+        return fract((p3.x + p3.y) * p3.z);
+      }`)
       .replace('#include <map_fragment>', `#include <map_fragment>
       { float edge2 = pow(1. - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);
-        float n2 = fract(sin(dot(floor(gl_FragCoord.xy * 0.5) + floor(uFrayT * 7.) * 13., vec2(12.9898, 78.233))) * 43758.5453);
-        if (n2 < edge2 * 0.8 - 0.1) discard; }`)
+        // near shades fray at the boundary; far shades hold their
+        // shape — a distant silhouette is ALL grazing angles, and
+        // dissolving it would erase the read
+        float frayAmt = smoothstep(26., 7., length(vViewPosition));
+        float n2 = shadeHash(floor(gl_FragCoord.xy * 0.5) + floor(uFrayT * 7.) * 13.7);
+        if (n2 < (edge2 * 0.72 - 0.12) * frayAmt) discard; }`)
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nuniform vec3 uRimC; uniform float uRimA; uniform vec3 uRimL;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
