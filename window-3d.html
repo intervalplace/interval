@@ -2177,6 +2177,26 @@ const wz = (y) => y - H / 2 + 0.5
 // raises, so feet can stand on the very slope it built — no more beings
 // hovering at zero over the scree or sunk to the shins in a rise
 let groundHGrid = null
+// the terrain cache, hoisted: buildGround and the minimap were EACH
+// scanning all four hundred fifty thousand tiles through the coast
+// octants. One scan now serves every consumer.
+let _tNames = null, _tCodes = null
+function buildTerrainCache() {
+  if (_tCodes) return
+  _tNames = []
+  const tIdx = new Map()
+  _tCodes = new Uint8Array(W * H)
+  for (let ty4 = 0; ty4 < H; ty4++) for (let tx4 = 0; tx4 < W; tx4++) {
+    const tt = terrainOf(tx4, ty4)
+    let ix = tIdx.get(tt)
+    if (ix === undefined) { ix = _tNames.length; _tNames.push(tt); tIdx.set(tt, ix) }
+    _tCodes[ty4 * W + tx4] = ix
+  }
+}
+const terrainC = (x5, y5) => {
+  if (!_tCodes) buildTerrainCache()
+  return _tNames[_tCodes[Math.min(H - 1, Math.max(0, y5)) * W + Math.min(W - 1, Math.max(0, x5))]]
+}
 let nodeWinKeys3 = [], nodeWinCursor3 = 0
 const GW2 = W * 2 + 1
 function groundYAt(tx, ty) {
@@ -2242,16 +2262,7 @@ function buildGround(s0) {
   // meander chains — cheap once, ruinous seven million times. One scan
   // of the founding, then every sampler reads an array. This is the
   // difference between a build and a frozen phone.
-  const tNames = []
-  const tIdx = new Map()
-  const tCodes = new Uint8Array(W * H)
-  for (let ty4 = 0; ty4 < H; ty4++) for (let tx4 = 0; tx4 < W; tx4++) {
-    const tt = terrainOf(tx4, ty4)
-    let ix = tIdx.get(tt)
-    if (ix === undefined) { ix = tNames.length; tNames.push(tt); tIdx.set(tt, ix) }
-    tCodes[ty4 * W + tx4] = ix
-  }
-  const terrainC = (x5, y5) => tNames[tCodes[Math.min(H - 1, Math.max(0, y5)) * W + Math.min(W - 1, Math.max(0, x5))]]
+  buildTerrainCache() // one scan for the whole window: ground, minimap, all of it
   // the height sampler runs TWICE: once over the *2 lattice to fill the
   // grid (groundYAt's ground truth, independent of tessellation), once
   // over however many vertices the tessellation actually has
@@ -3294,7 +3305,7 @@ function buildMinimap() {
   const mg = miniTerrain.getContext('2d')
   const mc = new THREE.Color()
   for (let gy = 0; gy < H; gy++) for (let gx = 0; gx < W; gx++) {
-    mc.set(TERRAIN_COL[terrainOf(gx, gy)] ?? 0x3d5a23)
+    mc.set(TERRAIN_COL[terrainC(gx, gy)] ?? 0x3d5a23)
     mg.fillStyle = '#' + mc.getHexString()
     mg.fillRect(gx, gy, 1, 1)
   }
@@ -4066,7 +4077,9 @@ const ARM_BONE = 'mixamorigRightArm' // most humanoid rigs are Mixamo-boned
 try {
   new THREE.GLTFLoader().load(CHAR_URL, (g2) => {
     charGltf = g2.scene
-    charGltf.traverse((o2) => { if (o2.isMesh) { o2.castShadow = true } })
+    charGltf.traverse((o2) => { if (o2.isMesh) { o2.castShadow = true
+      if (o2.isSkinnedMesh) o2.frustumCulled = false // the bounding sphere is a bind-pose fossil; cull it and the WALKER vanishes
+    } })
     charClips = {}
     for (const [k2, nm2] of Object.entries(CLIP_NAMES))
       if (nm2) charClips[k2] = THREE.AnimationClip.findByName(g2.animations, nm2)
@@ -4096,6 +4109,7 @@ function beingMesh(kind, id, thing) {
       if (o2.isMesh && o2.material) {
         o2.material = o2.material.clone()
         o2.material.color = new THREE.Color().setHSL(hue2, 0.30, 0.62)
+        if (o2.isSkinnedMesh) o2.frustumCulled = false // clones inherit the fossil too
       }
     })
     g.add(body)

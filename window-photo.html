@@ -273,7 +273,7 @@
     background: var(--ink); color: var(--parch); padding: 0 10px; font: 14px ui-monospace, monospace }
   #splash { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 14px;
-    background: radial-gradient(ellipse at center, rgba(22,18,12,.72) 0%, rgba(12,10,6,.96) 78%);
+    background: linear-gradient(180deg, rgba(10,9,6,.28) 0%, rgba(10,9,6,.44) 55%, rgba(8,7,5,.72) 100%);
     text-align: center; padding: 24px }
   /* the unified door: the same stone, the same torchlight, as /play —
      three windows, one building */
@@ -6127,6 +6127,13 @@ function frame() {
       focus.y + Math.sin(camPitchS) * camDistS + Math.sin(t * 0.35) * 0.05,
       focus.z + Math.cos(camYawS) * Math.cos(camPitchS) * camDistS)
     camera.lookAt(focus.x, focus.y + 0.9, focus.z)
+    if (!entered) { // the door camera: a slow dawn aerial over Anchor
+      const t9 = performance.now() * 0.000022
+      const acx = wx(Math.floor(W / 2)), acz = wz(Math.floor(H / 2))
+      const gy9 = groundYAt(Math.floor(W / 2), Math.floor(H / 2))
+      camera.position.set(acx + Math.cos(t9) * 30, gy9 + 15, acz + Math.sin(t9) * 30)
+      camera.lookAt(acx, gy9 + 2, acz)
+    }
   }
   // speed widens the eye a touch; a blow or a close thunderclap shakes it
   const mySpd = Math.min(1.6, meVis?.__speed ?? 0)
