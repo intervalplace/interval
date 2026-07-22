@@ -2228,7 +2228,19 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const pid of order) {
     const inp = seen.get(pid);
     if (inp === 'DUP' || !validInput(state, inp, _ctxPre)) continue;
-    if (inp.type === 'spawn') { const sp = spawnOf(s.genesis); addPlayer(s, pid, sp.x, sp.y); continue; }
+    if (inp.type === 'spawn') {
+      const sp = spawnOf(s.genesis); addPlayer(s, pid, sp.x, sp.y);
+      // the newcomer's quiver (v0.78): every soul wakes with twenty-five
+      // arrows. At ranged 1 with a wooden bow an arrow lands half the
+      // time for 1, so a 5hp goblin costs ~10 expected: the quiver is
+      // two goblins with slack — the ARCHER need not first be a
+      // brawler (§7f's own principle, in combat's house). Spawn is
+      // creation-only (§5b: the only input for unknown ids), so death
+      // never re-fills it, and imported citizens arrive with their own
+      // packs untouched.
+      s.players[pid].inventory[0] = { item: 'arrows', qty: 25 };
+      continue;
+    }
     const p = s.players[pid];
     if (p) p.lastInput = s.tick; // presence (spec 5e)
     if (p) { // spec 2k: attune to a waystone you stand beside — the road remembers who walked it
