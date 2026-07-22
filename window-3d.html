@@ -357,17 +357,28 @@
   }
   #musicbtn:hover { border-color: #c6941e; color: #e2b63e; }
   #musicbtn[data-on="0"] { color: #6e6656; }
+  .torch { position: absolute; top: -26px; width: 12px; height: 26px; z-index: 2;
+    background: radial-gradient(ellipse at 50% 85%, #f4d03f 0%, #e67e22 45%, transparent 72%);
+    filter: drop-shadow(0 0 8px rgba(230,126,34,.6));
+    animation: flick .6s infinite alternate ease-in-out }
+  .torch.l { left: 18px } .torch.r { right: 18px; animation-delay: .27s }
+  .torch::after { content: ''; position: absolute; left: 3px; top: 24px; width: 6px; height: 8px;
+    background: #2e2820; border: 1px solid #55483a; animation: none }
+  @keyframes flick { from { transform: scaleY(1) skewX(-3deg); opacity: .85 }
+    to { transform: scaleY(1.22) skewX(4deg); opacity: 1 } }
 </style>
 </head>
 <body>
 <div id="gate3d">
   <div class="card">
-    <div class="orn">&#9876; &middot; &#10022; &middot; &#9876;</div>
+    <div class="torch l"></div><div class="torch r"></div>
     <h1>INTERVAL</h1>
-    <div class="s">the <b style="color:#d9cfa8">deluxe window</b>: the same world as <a href="/play" style="color:#8a8474">/play</a>,
-    built in geometry instead of pixels.<br>Same ticks, same citizens, same key. No window is authoritative.<br>
-    <span style="color:#6e6656;font-size:10px">the world turns behind this door &mdash; it does not wait for you</span></div>
-    <button id="gate3dbtn">enter the world</button>
+    <div class="s" style="margin-bottom:2px">a world that runs on rules, not servers</div>
+    <div style="color:#6e6656;font-size:10px;letter-spacing:.14em;margin-bottom:16px">the deluxe window</div>
+    <div id="gate3dinfo" style="color:#d9cfa8;font-size:12px;min-height:18px;margin-bottom:14px">waking the world&hellip;</div>
+    <input id="gate3dname" maxlength="12" placeholder="choose a name (optional)" autocomplete="off"
+      style="display:block;width:100%;margin:0 0 10px;box-sizing:border-box;background:#17120b;border:1px solid #55483a;color:#e2b63e;border-radius:4px;font:500 14px ui-monospace,monospace;text-align:center;padding:10px">
+    <button id="gate3dbtn">Enter the world</button>
     <div><button id="musicbtn" type="button">music: on</button></div>
     <div class="k" id="gate3dkey"></div>
     <div class="ember" style="left:12%;animation-duration:5.2s;animation-delay:0s"></div>
@@ -3508,6 +3519,10 @@ function setMusic(on, preferred) {
 
 for (const ev of ['pointerdown', 'keydown']) {
   window.addEventListener(ev, () => startMusic('theme-deep'), { once: true, passive: true })
+// ...and TRY IMMEDIATELY, gesture or no: returning citizens' browsers
+// permit it, and the door has music the moment it opens. A refusal
+// costs nothing — the first touch carries it instead.
+startMusic('theme-deep')
 }
 
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) — character for
@@ -5077,7 +5092,26 @@ function snd(kind, pos, flavor) {
     mb.addEventListener('click', (e) => { e.stopPropagation(); setMusic(!musicOn, 'theme-deep') })
   }
 }
+let pendingName3 = ''
+function updateDoor3(st2, wid2) {
+  if (entered) return
+  const me2 = ownKey ? st2.players?.[ownKey.pub] : null
+  const souls2 = Object.keys(st2.players ?? {}).length
+  const awake2 = Object.values(st2.players ?? {})
+    .filter((p2) => p2.action !== null || st2.tick - (p2.lastInput ?? 0) <= 500).length
+  const di = document.getElementById('gate3dinfo')
+  if (di) di.textContent = 'interval ' + st2.tick.toLocaleString() + ' \u00b7 ' + awake2
+    + ' awake of ' + souls2 + ' soul' + (souls2 === 1 ? '' : 's')
+    + ' \u00b7 world ' + String(wid2 ?? '').slice(0, 12) + '\u2026'
+  const be = document.getElementById('gate3dbtn')
+  if (be) be.textContent = me2
+    ? 'Enter as ' + (me2.name ?? 'citizen ' + ownKey.pub.slice(0, 6) + '\u2026')
+    : 'Enter the world'
+  const nm2 = document.getElementById('gate3dname')
+  if (nm2) nm2.style.display = me2?.name ? 'none' : 'block'
+}
 document.getElementById('gate3dbtn').addEventListener('click', () => {
+  pendingName3 = (document.getElementById('gate3dname')?.value ?? '').trim().slice(0, 12)
   entered = true
   startMusic('theme-deep') // usually already playing from the door; a no-op if so
   try { AC3 = new (window.AudioContext ?? window.webkitAudioContext)(); initAmbient() } catch {}
@@ -5097,6 +5131,11 @@ ws.onmessage = async (ev) => {
     if (m.worldId) curWorldId = m.worldId
     clock = { tick: m.state.tick, at: performance.now() }
     if (m.state.tick !== lastTickN) { lastTickN = m.state.tick; lastAdvanceAt = performance.now() }
+    updateDoor3(m.state, curWorldId) // the door watches the world turn behind it
+    if (entered && pendingName3 && ownKey && m.state.players?.[ownKey.pub]
+      && !m.state.players[ownKey.pub].name) {
+      send({ do: 'name', name: pendingName3 }); pendingName3 = ''
+    }
     if (prevWorld && ownKey) { // each skill watched, exactly as /play watches
       const meN = m.state.players[ownKey.pub], meO = prevWorld.players?.[ownKey.pub]
       if (meN?.skills && meO?.skills) {

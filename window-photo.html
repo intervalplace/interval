@@ -272,8 +272,37 @@
   #chatrow input { flex: 1; min-height: 42px; border-radius: 8px; border: 1px solid rgba(226,182,62,.35);
     background: var(--ink); color: var(--parch); padding: 0 10px; font: 14px ui-monospace, monospace }
   #splash { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 14px; background: radial-gradient(ellipse at 50% 35%, #10141c, #07090c);
+    align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(ellipse at center, rgba(22,18,12,.72) 0%, rgba(12,10,6,.96) 78%);
     text-align: center; padding: 24px }
+  /* the unified door: the same stone, the same torchlight, as /play —
+     three windows, one building */
+  #doorbox { position: relative; width: min(92vw, 380px); padding: 26px 28px; text-align: center;
+    background: linear-gradient(180deg, #241d13, #17120b); border: 1px solid #55483a; border-radius: 6px;
+    box-shadow: 0 0 60px rgba(0,0,0,.8), 0 0 24px rgba(230,126,34,.06) }
+  #doorbox h1 { font-size: 30px; letter-spacing: 4px; margin: 0 0 2px; font-weight: 700;
+    background: linear-gradient(180deg, #f2d574 0%, #c6941e 50%, #855c10 100%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+    filter: drop-shadow(0 0 11px rgba(198,148,30,.4)) drop-shadow(0 1px 0 rgba(0,0,0,.6)) }
+  #doorbox .dsub { color: #8a7a5c; font-size: 11px; margin-bottom: 2px }
+  #doorbox .dwin { color: #6e6656; font-size: 10px; letter-spacing: .14em; margin-bottom: 16px }
+  #doorinfo { color: #d9cfa8; font-size: 12px; min-height: 18px; margin-bottom: 14px }
+  #doorname { display: block; width: 100%; margin: 0 0 10px; box-sizing: border-box;
+    background: #17120b; border: 1px solid #55483a; color: #e2b63e; border-radius: 4px;
+    font: 500 14px ui-monospace, monospace; text-align: center; padding: 10px }
+  #doormusic { min-height: 34px; padding: 6px 16px; margin-bottom: 10px; border-radius: 4px;
+    border: 1px solid #55483a; background: #241d13; color: #e2b63e;
+    font: 600 12px ui-monospace, monospace; letter-spacing: .06em }
+  #doorkey { color: #6e6656; font-size: 10px; margin-top: 14px }
+  .torch { position: absolute; top: -26px; width: 12px; height: 26px; z-index: 2;
+    background: radial-gradient(ellipse at 50% 85%, #f4d03f 0%, #e67e22 45%, transparent 72%);
+    filter: drop-shadow(0 0 8px rgba(230,126,34,.6));
+    animation: flick .6s infinite alternate ease-in-out }
+  .torch.l { left: 18px } .torch.r { right: 18px; animation-delay: .27s }
+  .torch::after { content: ''; position: absolute; left: 3px; top: 24px; width: 6px; height: 8px;
+    background: #2e2820; border: 1px solid #55483a; animation: none }
+  @keyframes flick { from { transform: scaleY(1) skewX(-3deg); opacity: .85 }
+    to { transform: scaleY(1.22) skewX(4deg); opacity: 1 } }
   #splash h1 { margin: 0; font-size: 24px; color: var(--gold); font-weight: 600; letter-spacing: .06em;
     text-shadow: 0 0 26px rgba(226,182,62,.4), 0 0 3px rgba(226,182,62,.5) }
   #splash p { margin: 0; color: var(--dim); max-width: 42ch }
@@ -364,15 +393,17 @@
 <div id="lbT" class="lb"></div><div id="lbB" class="lb"></div>
 <div id="shutter"></div>
 <div id="splash">
-  <h1>THE PHOTO WINDOW</h1>
-  <div class="rule">&#9670;&nbsp;&#9670;&nbsp;&#9670;</div>
-  <p>A physically-based view of the same world <code>/play</code> and <code>/deluxe</code> watch.
-     One key on this device; one citizen in every window.</p>
-  <p>You wake behind your own eyes. Tap the ground to walk; press and HOLD to keep
-     walking the way you look. Tap a tree to work it, a beast to hunt it, litter to
-     fetch it. Drag to look, pinch to breathe. The world has a sound now — the sky
-     keeps its own weather, and the weather keeps its own score.</p>
-  <button id="enter">STEP THROUGH</button>
+  <div id="doorbox">
+    <div class="torch l"></div><div class="torch r"></div>
+    <h1>INTERVAL</h1>
+    <div class="dsub">a world that runs on rules, not servers</div>
+    <div class="dwin">the photo window</div>
+    <div id="doorinfo">waking the world&hellip;</div>
+    <input id="doorname" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
+    <div><button id="doormusic" type="button">music: on</button></div>
+    <button id="enter">Enter the world</button>
+    <div id="doorkey">your key lives in this browser and never leaves it</div>
+  </div>
 </div>
 <script type="module">
 import * as THREE from 'three'
@@ -5431,8 +5462,10 @@ function renderSkills() {
 // arrival; arriving again plays it again, which is what arriving
 // somewhere should feel like.
 let DOORMUSIC = null, doorMusicTried = false, doorTarget = 0.42
+let doorMusicOn = localStorage.getItem('interval-music') !== 'off' // one preference, all windows
+let pendingName = ''
 async function startDoorMusic() {
-  if (DOORMUSIC || doorMusicTried) return
+  if (DOORMUSIC || doorMusicTried || !doorMusicOn) return
   doorMusicTried = true
   let tracks = []
   try { tracks = (await (await fetch('/api/audio')).json()).tracks ?? [] } catch { return }
@@ -5452,8 +5485,45 @@ async function startDoorMusic() {
   }
   requestAnimationFrame(fade)
 }
+{ // the door's own controls: music preference and the live world line
+  const mb = document.getElementById('doormusic')
+  mb.textContent = doorMusicOn ? 'music: on' : 'music: off'
+  mb.addEventListener('click', (e3) => {
+    e3.stopPropagation()
+    doorMusicOn = !doorMusicOn
+    localStorage.setItem('interval-music', doorMusicOn ? 'on' : 'off')
+    mb.textContent = doorMusicOn ? 'music: on' : 'music: off'
+    if (!doorMusicOn && DOORMUSIC) { DOORMUSIC.pause(); DOORMUSIC = null }
+    else if (doorMusicOn) { doorMusicTried = false; startDoorMusic() }
+  })
+}
+function updateDoor(st2, wid2) {
+  if (entered) return
+  const me2 = ownKey ? st2.players?.[ownKey.pub] : null
+  const souls2 = Object.keys(st2.players ?? {}).length
+  const awake2 = Object.values(st2.players ?? {})
+    .filter((p2) => p2.action !== null || st2.tick - (p2.lastInput ?? 0) <= 500).length
+  const di = document.getElementById('doorinfo')
+  if (di) di.textContent = 'interval ' + st2.tick.toLocaleString() + ' \u00b7 ' + awake2
+    + ' awake of ' + souls2 + ' soul' + (souls2 === 1 ? '' : 's')
+    + ' \u00b7 world ' + String(wid2 ?? '').slice(0, 12) + '\u2026'
+  const be = document.getElementById('enter')
+  if (be) be.textContent = me2
+    ? 'Enter as ' + (me2.name ?? 'citizen ' + ownKey.pub.slice(0, 6) + '\u2026')
+    : 'Enter the world'
+  const nm2 = document.getElementById('doorname')
+  if (nm2) nm2.style.display = me2?.name ? 'none' : 'block'
+  const ke = document.getElementById('doorkey')
+  if (ke && ownKey) ke.textContent = 'your key: ' + ownKey.pub.slice(0, 12)
+    + '\u2026 (held by this browser, shared with every window)'
+}
 for (const ev2 of ['pointerdown', 'keydown'])
   addEventListener(ev2, () => startDoorMusic(), { once: true, passive: true })
+// ...and TRY IMMEDIATELY: a browser that trusts this site (any
+// returning citizen) lets the door open with its theme already
+// playing — the login-screen tradition. A refusal costs nothing; the
+// first touch carries it instead.
+startDoorMusic()
 
 let cine = false, cineAmt = 0
 // ---- THE DIRECTOR: CINE stops being a hidden UI and becomes actual
@@ -5677,6 +5747,7 @@ const chatgo = () => { const inp = document.getElementById('chatinput')
 document.getElementById('chatsend').onclick = chatgo
 document.getElementById('chatinput').addEventListener('keydown', (e) => { if (e.key === 'Enter') chatgo() })
 document.getElementById('enter').onclick = () => {
+  pendingName = (document.getElementById('doorname')?.value ?? '').trim().slice(0, 12)
   doorTarget = 0.24 // the theme ducks beneath the world and still gets to finish
   if (DOORMUSIC) DOORMUSIC.volume = Math.min(DOORMUSIC.volume, 0.24)
   entered = true
@@ -5698,6 +5769,11 @@ ws.onmessage = (ev) => {
     prevWorld = world; world = m.state
     if (m.worldId) curWorldId = m.worldId
     clock = { tick: m.state.tick, at: performance.now() }
+    updateDoor(m.state, curWorldId) // the door watches the world turn behind it
+    if (entered && pendingName && ownKey && m.state.players?.[ownKey.pub]
+      && !m.state.players[ownKey.pub].name) {
+      send({ do: 'name', name: pendingName }); pendingName = ''
+    }
     if (entered && ownKey && !m.state.players[ownKey.pub] && m.state.tick % 3 === 0) send({ do: 'spawn' })
     if (!groundBuilt) {
       W = m.state.genesis.worldW; H = m.state.genesis.worldH

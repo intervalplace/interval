@@ -129,6 +129,7 @@
     <div class="torch l"></div><div class="torch r"></div>
     <h1>INTERVAL</h1>
     <div class="sub">a world that runs on rules, not servers</div>
+    <div style="color:#6e6656;font-size:10px;letter-spacing:.14em;margin-bottom:14px;margin-top:-12px">the flat window</div>
     <div id="gateinfo">waking the world&hellip;</div>
     <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
     <div><button id="musicbtn" type="button">music: on</button></div>
@@ -644,6 +645,12 @@ async function startMusic(preferred) {
 for (const ev of ['pointerdown', 'keydown']) {
   window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })
 }
+// ...and TRY IMMEDIATELY, gesture or no: a browser that has learned to
+// trust this site (any returning citizen) permits it, and the door has
+// music the moment it opens — the login-screen tradition. A browser
+// that refuses loses nothing: the attempt resets itself and the first
+// touch carries it instead.
+startMusic('theme-flat')
 function musicFollowsSound() { if (MUSIC) MUSIC.volume = (musicOn && soundOn) ? 0.42 : 0 }
 // Anyone who remembers a certain theme blaring out of a loading screen knows
 // why this control is ON THE DOOR and not three menus inside the world.
