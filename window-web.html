@@ -3485,7 +3485,7 @@ function invClick(i) {
     chooseAction([
       { label: 'read chart (attune to ' + wsName + ')', act: () => {
         send({ do: 'read_chart', slot: +i })
-        feed('You read the chart. The way to ' + wsName + ' opens to you — you may recall there now.')
+        feed('You read the chart. The way to ' + wsName + ' opens to you: you may recall there now.')
         tone(600, 0.25, { type: 'sine', vol: 0.045 }); tone(900, 0.3, { type: 'sine', vol: 0.04, at: 0.08 })
       } },
       { label: 'keep', act: () => feed('A surveyed chart to ' + wsName + '. Worth something to someone who would rather not walk.') },

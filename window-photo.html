@@ -5413,14 +5413,14 @@ function openSheet(slot) {
   const acts = [] // [key, label, enabled]
   if (['cooked-fish', 'ale', 'broth'].includes(it)) acts.push(['eat', 'eat', true])
   if (it === 'raw-fish') { const f = nearNodeEnt(new Set(['campfire', 'fire']))
-    acts.push(['cook', f ? 'cook on the fire' : 'cook — find a fire', !!f]) }
+    acts.push(['cook', f ? 'cook on the fire' : 'cook: find a fire', !!f]) }
   if (it === 'logs') {
     acts.push(['light', 'light a fire', true], ['fletch-bow', 'fletch a bow', true])
     if (nearNodeEnt('watchfire')) acts.push(['stoke', 'stoke the watchfire', true])
   }
   if (it === 'bones') acts.push(['bury', 'bury', true], ['fletch-arrows', 'fletch arrows', true])
   if (it === 'seeds') { const pl = nearNodeEnt('plot', (n) => !n.plantedAt)
-    acts.push(['plant', pl ? 'plant in the plot' : 'plant — find an empty plot', !!pl]) }
+    acts.push(['plant', pl ? 'plant in the plot' : 'plant: find an empty plot', !!pl]) }
   if (/^chart:/i.test(it)) acts.push(['read_chart', 'read the chart', true])
   if (EQUIP_SET.has(it)) acts.push(['wield', 'wield', true])
   if (nearNodeEnt('store')) acts.push(['sell', 'sell at the store', true])
@@ -5746,7 +5746,7 @@ document.getElementById('verbs').addEventListener('click', (e) => {
       })
       document.getElementById('tuneCopy').onclick = () => {
         navigator.clipboard?.writeText(JSON.stringify(TUNE, null, 1))
-        feed('tuning copied — paste it to whoever holds the source')
+        feed('tuning copied: paste it to whoever holds the source')
       }
       document.getElementById('tuneReset').onclick = () => {
         Object.assign(TUNE, TUNE_DEF)
