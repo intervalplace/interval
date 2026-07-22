@@ -5283,7 +5283,10 @@ el.addEventListener('pointerup', (e) => {
         feed('you go to fetch the ' + (it.item ?? 'thing')) }
       return
     }
-    if (h.object === groundMesh) {
+    if (k === 'terrain' || h.object === groundMesh || h.object.parent === groundMesh) {
+      // the ground is a GROUP of chunks now: identity died with the
+      // monolith, so the tap knows terrain by its KIND (which the
+      // water plane carries too — tapping the river aims at its tile)
       const gx = Math.floor(h.point.x + W / 2), gy = Math.floor(h.point.z + H / 2)
       if (gx >= 0 && gx < W && gy >= 0 && gy < H) { walkGoal = { x: gx, y: gy }; huntTarget = null; workTarget = null }
       return

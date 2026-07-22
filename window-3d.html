@@ -5159,7 +5159,14 @@ document.getElementById('gate3dbtn').addEventListener('click', () => {
 })
 ws.onmessage = async (ev) => {
   const m = JSON.parse(ev.data)
-  if (m.type === 'hello') { myId = m.playerId }
+  if (m.type === 'hello') {
+    // the hello names the CONNECTION; the key names the CITIZEN. Once
+    // the key exists, the citizen's name wins — a reconnect's hello
+    // was overwriting myId with the socket id, and every tap died
+    // against players[socketId] while the camera worked fine.
+    if (!ownKey) myId = m.playerId
+    else myId = ownKey.pub
+  }
   if (m.type === 'state') {
     prevWorld = world; world = m.state
     if (m.worldId) curWorldId = m.worldId
