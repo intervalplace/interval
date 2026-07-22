@@ -40,14 +40,14 @@
     "@noble/ed25519": "^3.1.0",
     "@noble/hashes": "^2.2.0",
     "libp2p": "^2.10.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.1"
   },
   "type": "commonjs",
   "release": "phase-1-freeze",
   "protocol": {
     "specVersion": "0.78",
     "consensusVersion": "1.9",
-    "rulesHash": "7f5389d8bbb873ed"
+    "rulesHash": "dce4ff3f63bd213b"
   },
   "engines": {
     "node": ">=22.5.0"

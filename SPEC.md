@@ -791,9 +791,20 @@ A player need not exist in genesis to join a world.
   ONLY input type valid for an unknown playerId.
 - On success the player is created at the **spawn point**: the center
   tile `(floor(worldW/2), floor(worldH/2))`: with
-  empty inventory, no name, no action, level-1 skills.
+  a pack empty but for the newcomer's quiver (below), no name, no
+  action, level-1 skills.
 - Spawning is permanent: there is no despawn in v0.6. Identities are
   free, but each playerId spawns at most once, ever.
+
+**The newcomer's quiver (v0.78).** Every soul wakes with twenty-five
+arrows in the first slot of their pack. The number is arithmetic, not
+generosity: at ranged 1 with a wooden bow, an arrow lands half the time
+for 1 damage, so a goblin costs about ten expected arrows — the quiver
+is two goblins with slack. The archer need not first be a brawler,
+which is §7f's own principle brought home to combat's house. Spawning
+is creation-only, so death never refills the quiver; imported citizens
+arrive with their own packs and receive nothing; and at one gold an
+arrow, the kit is worth less than the walk it saves.
 
 ## 5.4. How many inputs a tick applies
 

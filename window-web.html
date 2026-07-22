@@ -133,7 +133,8 @@
     <div style="color:#6e6656;font-size:10px;letter-spacing:.14em;margin-bottom:14px;margin-top:-12px">the flat window</div>
     <div id="gateinfo">waking the world&hellip;</div>
     <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
-    <div><button id="musicbtn" type="button">music: on</button></div>
+    <div><button id="musicbtn" type="button">music: on</button>
+    <button id="daybtn" type="button">day: cycle</button></div>
     <div id="gatedetail" style="font-size:11px;color:var(--dim);margin:6px 0;user-select:none"></div>
     <button id="gatebtn" disabled>&hellip;</button>
     <div id="gatekey"></div>
@@ -598,6 +599,11 @@ let soundOn = localStorage.getItem('interval-sound') !== 'off'
 // piece, without either being the official one.
 let musicOn = localStorage.getItem('interval-music') !== 'off'
 let MUSIC = null, musicTried = false
+// the daylight lock (v0.78): some citizens want the world bright at all
+// hours. This bends the WINDOW's sky, never the world's clock: ticks,
+// mobs, and every other window keep true time. Purely presentational.
+let DAYLOCK = localStorage.getItem('interval-daylock') === 'on'
+const dayCyc = (c) => DAYLOCK ? 0.25 : c // 0.25 = noon, per the calendar's own comment
 async function startMusic(preferred) {
   if (MUSIC || musicTried || !musicOn || !soundOn) return
   musicTried = true
@@ -646,6 +652,13 @@ async function startMusic(preferred) {
     mb.dataset.on = musicOn ? '1' : '0'
     mb.addEventListener('click', (e) => { e.stopPropagation(); setMusic(!musicOn) })
   }
+}
+{ const db = document.getElementById('daybtn')
+  db.textContent = DAYLOCK ? 'day: bright' : 'day: cycle'
+  db.addEventListener('click', (e) => { e.stopPropagation()
+    DAYLOCK = !DAYLOCK
+    localStorage.setItem('interval-daylock', DAYLOCK ? 'on' : 'off')
+    db.textContent = DAYLOCK ? 'day: bright' : 'day: cycle' })
 }
 for (const ev of ['pointerdown', 'keydown']) {
   window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })
@@ -727,7 +740,7 @@ const SFX = {
 // ambience: birds by day, crickets by night, always sparse
 setInterval(() => {
   if (!AC || !soundOn || !entered || !curState) return
-  const cyc = ((curState.tick % 2400) / 2400)
+  const cyc = dayCyc(((curState.tick % 2400) / 2400))
   const isDay = cyc > 0.03 && cyc < 0.5
   if (Math.random() < (isDay ? 0.45 : 0.6)) return
   if (isDay) { // a bird, somewhere
@@ -2399,7 +2412,7 @@ function drawScene(now) {
         poly([[X+3,Y+18],[X+37,Y+18],[X+20,Y+6]], v ? '#6e5433' : '#7a5c36', '#2c2216')
         cx.fillStyle = '#3a2f22'; cx.fillRect(X + 16.5, Y + 24, 7, 10)
         cx.fillStyle = '#26501a'
-        const cyc2 = (((s.tick + t) % 2400) / 2400)
+        const cyc2 = dayCyc((((s.tick + t) % 2400) / 2400))
         const nightNow = (Math.sin(cyc2 * Math.PI * 2) + 1) / 2 < 0.42
         cx.fillStyle = nightNow ? '#f4d03f' : '#2c2620'
         cx.fillRect(X + 27, Y + 22, 5, 5)
@@ -2908,7 +2921,7 @@ function drawScene(now) {
   // ---- clouds: three soft shadows crossing the land, day only ----
   {
     const dayness = 1 - Math.min(1, (((s.tick + t) % DAY) / DAY < 0.5 ? 0 : 1) + 0)
-    const cyc0 = (((s.tick + t) % DAY) / DAY)
+    const cyc0 = dayCyc((((s.tick + t) % DAY) / DAY))
     const bright0 = (Math.sin(cyc0 * Math.PI * 2) + 1) / 2
     if (bright0 > 0.35) {
       const alpha = (bright0 - 0.35) * 0.11
@@ -2927,7 +2940,7 @@ function drawScene(now) {
   }
 
   // ---- day/night: a pure function of the shared tick ----
-  const cyc = (((s.tick + t) % DAY) / DAY)          // 0 dawn · .25 noon · .5 dusk · .75 midnight
+  const cyc = dayCyc((((s.tick + t) % DAY) / DAY))          // 0 dawn · .25 noon · .5 dusk · .75 midnight
   const brightness = (Math.sin(cyc * Math.PI * 2) + 1) / 2
   const darkness = (1 - brightness) * 0.58
   if (HD) { // the sun writes the shadows: long at the golden hours, gone at noon
@@ -3286,9 +3299,26 @@ if (HD) try {
 // enemies as dots, framed like the level-up banner. Throttled (a map needs no
 // 60fps) and it yields to the level-up banner so the banner reads in front.
 const sunCv = document.createElement("canvas")
-sunCv.style.cssText = "position:absolute;right:8px;top:8px;pointer-events:none"
+sunCv.style.cssText = "position:absolute;right:8px;top:8px;pointer-events:auto;cursor:pointer"
 cv.parentNode.appendChild(sunCv)
 const sunCtx = sunCv.getContext("2d")
+// the minimap walks (v0.78): tap the little map and your citizen goes
+// there — the oldest navigation in the genre, finally wired. The
+// country-name strip beneath is the door to the FULL chart at /map,
+// where your mark breathes on the island itself.
+sunCv.addEventListener('pointerup', (e2) => {
+  const me = curState?.players?.[myId]; if (!me) return
+  const rect = sunCv.getBoundingClientRect()
+  const mx = (e2.clientX - rect.left), my2 = (e2.clientY - rect.top)
+  const MW = 104, MH = 64, CX = MW / 2, CY = MH / 2, pad = 4
+  if (my2 > MH) { window.open('/map', '_blank'); return } // the strip is the door
+  const scale = (CX - pad) / 16
+  const gx = Math.round(me.x + (mx - CX) / scale)
+  const gy = Math.round(me.y + (my2 - CY) / scale)
+  if (gx < 0 || gy < 0 || gx >= W || gy >= H) return
+  intent = { kind: 'walk', x: gx, y: gy }
+  feed('you set out')
+})
 // the level-up banner rides its OWN overlay, appended last so it sits above BOTH
 // the GL layer and the minimap — no more banner trapped behind the map.
 const bannerCv = document.createElement("canvas")
@@ -3525,7 +3555,7 @@ function invClick(i) {
   }
   if (it.item === 'arrows') {
     chooseAction([
-      { label: 'keep (' + it.qty + ' arrows)', act: () => feed('Arrows fly on their own: wield a bow and attack anything within four tiles.') },
+      { label: 'no wielding needed (' + it.qty + ' in the pack)', act: () => feed('Arrows fly on their own: wield a bow and attack anything within four tiles.') },
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the arrows.') } },
     ]); return
   }
@@ -3767,7 +3797,7 @@ cv.addEventListener('click', (e) => {
         poly([[X+3,Y+18],[X+37,Y+18],[X+20,Y+6]], v ? '#6e5433' : '#7a5c36', '#2c2216')
         cx.fillStyle = '#3a2f22'; cx.fillRect(X + 16.5, Y + 24, 7, 10)
         cx.fillStyle = '#26501a'
-        const cyc2 = (((s.tick + t) % 2400) / 2400)
+        const cyc2 = dayCyc((((s.tick + t) % 2400) / 2400))
         const nightNow = (Math.sin(cyc2 * Math.PI * 2) + 1) / 2 < 0.42
         cx.fillStyle = nightNow ? '#f4d03f' : '#2c2620'
         cx.fillRect(X + 27, Y + 22, 5, 5)
