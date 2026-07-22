@@ -432,6 +432,51 @@ function whereIs(x, y) {
     fens: 'the Fens', meadow: 'the Heartlands' }[b] || ''
 }
 requestAnimationFrame(growRows)
+
+// ---- the living mark (v0.78): this chart knows who is reading it.
+// The key in this browser IS a citizen; if that citizen stands in the
+// world right now, their mark breathes on the map, moving tick by
+// tick. Most games cannot do this — a map page and a game session are
+// strangers. Here they share one key and one truth.
+;(() => {
+  let pub = null
+  try { pub = JSON.parse(localStorage.getItem('interval-ownkey') ?? 'null')?.pub ?? null } catch {}
+  if (!pub) return // no key yet: enter any window once and your mark appears
+  let meP = null, meName = null
+  try {
+    const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
+    ws.onmessage = (ev) => {
+      try {
+        const m = JSON.parse(ev.data)
+        if (m.type !== 'state') return
+        const p = m.state.players?.[pub]
+        meP = p ? { x: p.x, y: p.y, hp: p.hp } : null
+        meName = p?.name ?? null
+      } catch {}
+    }
+  } catch { return }
+  const octx = cv.getContext('2d')
+  let t0 = performance.now()
+  const breathe = () => {
+    requestAnimationFrame(breathe)
+    if (!meP) return
+    // repaint the cached chart, then the mark atop it
+    octx.drawImage(buf, 0, 0)
+    const ph = (performance.now() - t0) / 900
+    const r = 2.2 + Math.sin(ph * Math.PI * 2) * 0.9
+    octx.beginPath(); octx.arc(meP.x + 0.5, meP.y + 0.5, r + 2, 0, Math.PI * 2)
+    octx.fillStyle = 'rgba(255,232,58,0.20)'; octx.fill()
+    octx.beginPath(); octx.arc(meP.x + 0.5, meP.y + 0.5, r, 0, Math.PI * 2)
+    octx.fillStyle = '#ffe83a'; octx.fill()
+    octx.strokeStyle = '#2c2216'; octx.lineWidth = 0.8; octx.stroke()
+    octx.font = '7px ui-monospace, monospace'
+    octx.textAlign = 'center'
+    const label = (meName ?? 'you') + (meP.hp <= 0 ? ' (fallen)' : '')
+    octx.fillStyle = '#1c1710'; octx.fillText(label, meP.x + 0.5 + 0.7, meP.y - 4 + 0.7)
+    octx.fillStyle = '#ffe83a'; octx.fillText(label, meP.x + 0.5, meP.y - 4)
+  }
+  breathe()
+})()
 </script>
 </body>
 </html>
