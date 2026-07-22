@@ -2248,6 +2248,19 @@ function buildGround(s0) {
   groundHGrid = new Float32Array(GW2 * (H * 2 + 1))
   const snow = new THREE.Color(0xdfe4ea), sand = new THREE.Color(0x9a8a5e), wetSand = new THREE.Color(0x54462c)
   const cA = new THREE.Color(), cB = new THREE.Color()
+  // the terrain CACHE: one scan of the founding, then array reads —
+  // v3's coast octants and meanders are cheap once, ruinous millions
+  // of times across the grid pass and every chunk
+  const tNames = []
+  const tIdx = new Map()
+  const tCodes = new Uint8Array(W * H)
+  for (let ty4 = 0; ty4 < H; ty4++) for (let tx4 = 0; tx4 < W; tx4++) {
+    const tt = terrainOf(tx4, ty4)
+    let ix = tIdx.get(tt)
+    if (ix === undefined) { ix = tNames.length; tNames.push(tt); tIdx.set(tt, ix) }
+    tCodes[ty4 * W + tx4] = ix
+  }
+  const terrainC = (x5, y5) => tNames[tCodes[Math.min(H - 1, Math.max(0, y5)) * W + Math.min(W - 1, Math.max(0, x5))]]
   // one sampler for height and color, shared by the height grid and
   // every chunk, so the world is the same world however it is diced
   const sampleGround = (px, pz, wantColor) => {
@@ -2260,7 +2273,7 @@ function buildGround(s0) {
     if (wantColor) cA.set(0, 0, 0)
     let h2 = 0, mountainW = 0
     for (const [tx3, ty3, w3] of [[x0, y0, (1 - fx2) * (1 - fy2)], [x1, y0, fx2 * (1 - fy2)], [x0, y1, (1 - fx2) * fy2], [x1, y1, fx2 * fy2]]) {
-      const tt = terrainOf(tx3, ty3)
+      const tt = terrainC(tx3, ty3)
       if (wantColor) { cB.set(TERRAIN_COL[tt]); cA.r += cB.r * w3; cA.g += cB.g * w3; cA.b += cB.b * w3 }
       h2 += tileH(tt, tx3, ty3) * w3
       if (tt === 'mountain') mountainW += w3
