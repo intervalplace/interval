@@ -121,6 +121,7 @@
   }
   #musicbtn:hover { border-color: var(--gold); color: var(--gold-hi); }
   #musicbtn[data-on="0"] { color: var(--dim); }
+.keyrow{margin-top:8px}.keybtn{min-height:30px;padding:4px 12px;margin:0 4px;border-radius:4px;border:1px solid #55483a;background:#17120b;color:#8a7a5c;font:600 10px ui-monospace,monospace;letter-spacing:.06em}
 </style>
 </head>
 <body>
@@ -136,6 +137,10 @@
     <div id="gatedetail" style="font-size:11px;color:var(--dim);margin:6px 0;user-select:none"></div>
     <button id="gatebtn" disabled>&hellip;</button>
     <div id="gatekey"></div>
+    <div class="keyrow">
+      <button type="button" class="keybtn" data-ik="export">export key</button>
+      <button type="button" class="keybtn" data-ik="import">import key</button>
+    </div>
   </div>
 </div>
 <div id="frame">
@@ -3876,6 +3881,51 @@ cv.addEventListener('click', (e) => {
   intent = { kind: 'walk', x, y }
   if (me.action) send({ do: 'stop' })
 })
+</script>
+<script>
+// ---- the key travels (v0.78): the key IS the citizen, and a citizen
+// is not a hostage of one browser. EXPORT copies a self-labeled string
+// (interval-key-v1.<pkcs8>.<pub>); IMPORT verifies the pair by signing
+// a test message before it will replace anything, and warns before
+// replacing a citizen this browser already holds. The string is a
+// BEARER INSTRUMENT: whoever holds it is the citizen — share it only
+// with your own devices.
+const IK_hex = (h) => new Uint8Array(h.match(/../g).map((x) => parseInt(x, 16)))
+async function IK_verify(pk8, pub) {
+  try {
+    const priv = await crypto.subtle.importKey('pkcs8', IK_hex(pk8), { name: 'Ed25519' }, false, ['sign'])
+    const pubk = await crypto.subtle.importKey('raw', IK_hex(pub), { name: 'Ed25519' }, false, ['verify'])
+    const msg = new TextEncoder().encode('interval-key-check')
+    const sig = await crypto.subtle.sign('Ed25519', priv, msg)
+    return await crypto.subtle.verify('Ed25519', pubk, sig, msg)
+  } catch { return false }
+}
+async function exportOwnKey() {
+  const saved = localStorage.getItem('interval-ownkey')
+  if (!saved) { alert('no key in this browser yet: enter the world once first'); return }
+  const { pk8, pub } = JSON.parse(saved)
+  const str = 'interval-key-v1.' + pk8 + '.' + pub
+  try { await navigator.clipboard.writeText(str); alert('key copied. It IS your citizen: paste it only into your own devices.') }
+  catch { prompt('copy your key (it IS your citizen):', str) }
+}
+async function importOwnKey() {
+  const str = (prompt('paste a key (interval-key-v1.\u2026):') ?? '').trim()
+  if (!str) return
+  const m9 = /^interval-key-v1\.([0-9a-f]+)\.([0-9a-f]+)$/.exec(str)
+  if (!m9) { alert('that is not an interval key'); return }
+  if (!(await IK_verify(m9[1], m9[2]))) { alert('this key does not prove itself: the pair does not match'); return }
+  const cur = localStorage.getItem('interval-ownkey')
+  if (cur) {
+    const curPub = JSON.parse(cur).pub ?? ''
+    if (curPub && curPub !== m9[2]
+      && !confirm('this browser already holds citizen ' + curPub.slice(0, 8) + '\u2026 replace with '
+        + m9[2].slice(0, 8) + '\u2026? Export the current key first if it has a life worth keeping.')) return
+  }
+  localStorage.setItem('interval-ownkey', JSON.stringify({ pk8: m9[1], pub: m9[2] }))
+  location.reload()
+}
+for (const b9 of document.querySelectorAll('[data-ik]'))
+  b9.addEventListener('click', (e9) => { e9.stopPropagation(); (b9.dataset.ik === 'export' ? exportOwnKey : importOwnKey)() })
 </script>
 </body>
 </html>
