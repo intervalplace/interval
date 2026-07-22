@@ -6,12 +6,12 @@
   <h1>Hiscores</h1>
   <p class="tagline">Every rank on this page is cryptographically provable. No exceptions, no appeals.</p>
   <div id="finder">
-    <input id="find" type="search" placeholder="find a citizen" autocomplete="off" spellcheck="false">
-    <button id="findme" class="stab" title="the window keeps your key in this browser">find me</button>
+    <input id="find" type="search" placeholder="Find a citizen" autocomplete="off" spellcheck="false">
+    <button id="findme" class="stab" title="The window keeps your key in this browser">Find me</button>
     <span id="findnote"></span>
   </div>
   <div id="picker"></div>
-  <div id="board">loading the world…</div>
+  <div id="board">Loading the world…</div>
 
   <h2>The Sixteen</h2>
   <p>One race per skill, and each one can only be won once. A race that is
@@ -20,7 +20,7 @@
   The last level alone is 1,112,977 experience, near a seventh of the whole
   ascent, so a citizen can sit in sight of mastery for a very long time while
   everyone watches. The nearest race is at the top.</p>
-  <div id="races">loading the races…</div>
+  <div id="races">Loading the races…</div>
 
   <h2>The Firsts</h2>
   <p>Twenty-four things can be done first, and each of them only once in the
@@ -42,13 +42,13 @@
 async function readJson(url) {
   let r
   try { r = await fetch(url) }
-  catch { throw new Error('world unreachable. Is a node running?') }
-  if (r.status === 404) throw new Error('this node does not serve ' + url + ' yet. Update the node to the current release.')
-  if (!r.ok) throw new Error('the node answered ' + r.status + ' for ' + url + '.')
+  catch { throw new Error('World unreachable. Is a node running?') }
+  if (r.status === 404) throw new Error('This node does not serve ' + url + ' yet. Update the node to the current release.')
+  if (!r.ok) throw new Error('The node answered ' + r.status + ' for ' + url + '.')
   try { return await r.json() }
-  catch { throw new Error('the node answered ' + url + ' with something that was not JSON.') }
+  catch { throw new Error('The node answered ' + url + ' with something that was not JSON.') }
 }
-let SKILLS = [], VIEW = 'standing', LAST = null, FILTER = '', MINE = null
+let SKILLS = [], VIEW = 'Standing', LAST = null, FILTER = '', MINE = null
 let PAGE = 0, PROFILE = null
 const PER_PAGE = 20
 
@@ -67,11 +67,11 @@ try {
 // own, copied from its skills table so the site cannot quietly disagree with
 // its own documentation about what kind of thing a skill is.
 const FAMILIES = [
-  ['gathering',  ['woodcutting', 'mining', 'fishing', 'farming']],
-  ['processing', ['cooking', 'firemaking', 'smithing', 'fletching', 'magic']],
-  ['combat',     ['attack', 'defence', 'hitpoints', 'ranged']],
-  ['profession', ['brewing', 'exploration']],
-  ['mourning',   ['prayer']],
+  ['Gathering',  ['Woodcutting', 'Mining', 'Fishing', 'Farming']],
+  ['Processing', ['Cooking', 'Firemaking', 'Smithing', 'Fletching', 'Magic']],
+  ['Combat',     ['Attack', 'Defence', 'Hitpoints', 'Ranged']],
+  ['Profession', ['Brewing', 'Exploration']],
+  ['Mourning',   ['Prayer']],
 ]
 
 // Two controls for one choice. A wall of seventeen buttons pushed the actual
@@ -89,7 +89,7 @@ function drawPicker() {
   // --- the compact one, for phones: one line, native picker ---
   let sel = '<div class="pcompact"><label for="pickskill">showing</label>'
     + '<select id="pickskill"><option value="standing"'
-    + (VIEW === 'standing' ? ' selected' : '') + '>standing (every trade)</option>'
+    + (VIEW === 'standing' ? ' selected' : '') + '>Standing (every trade)</option>'
   for (const [label, group] of FAMILIES) {
     const present = group.filter(x => known.has(x))
     if (!present.length) continue
@@ -289,10 +289,10 @@ function wireFinder() {
   if (!box || box.dataset.wired) return
   box.dataset.wired = '1'
   box.oninput = () => { FILTER = box.value.trim().toLowerCase(); PAGE = 0; PROFILE = null; if (LAST) drawBoard(LAST) }
-  if (!MINE) { me.style.display = 'none'; note.textContent = 'no key in this browser yet' }
+  if (!MINE) { me.style.display = 'none'; note.textContent = 'No key in this browser yet' }
   else me.onclick = () => {
     const mine = (LAST?.players ?? []).find(p => p.playerId === MINE)
-    if (!mine) { note.textContent = 'you are not on the board yet'; return }
+    if (!mine) { note.textContent = 'You are not on the board yet'; return }
     note.textContent = ''
     PROFILE = MINE; PAGE = 0
     drawBoard(LAST)
