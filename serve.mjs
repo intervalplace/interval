@@ -445,7 +445,7 @@ const server = http.createServer((req, res) => {
       if (!hit) { res.writeHead(404, { 'Content-Type': 'application/json' }); return res.end('{"error":"no such citizen"}') }
       return json({ playerId: hit[0], ...hit[1] })
     }
-    const NC = { 'Cache-Control': 'no-cache' } // stale windows caused ghost bugs
+    const NC = { 'Cache-Control': 'no-store, no-cache, must-revalidate', 'Pragma': 'no-cache' } // stale windows caused ghost bugs; iOS honors no-cache loosely, so we say it THREE ways
     // Read the file BEFORE the headers go out. It used to be the other way
     // round: writeHead(200), then readFileSync, so one missing file threw with
     // the response already begun, and the catch below then died trying to send
@@ -574,7 +574,7 @@ function handle(ws, buf) {
       if (!ext?.external) return
       const inp = m.input
       if (!inp || inp.playerId !== ext.playerId || typeof inp.sig !== 'string') return
-      node.submitInput(inp).catch(() => {}) // the engine verifies; forgeries die in gossip
+      node.submitInput(inp).catch((e) => console.error('input refused (' + (inp.type ?? '?') + ' from ' + String(inp.playerId).slice(0, 8) + '): ' + (e?.message ?? e))) // the engine verifies; forgeries die in gossip — and the pillar LOGS the deaths, because a silent catch cost us a day
       return
     }
     if (m.type === 'auth') {
