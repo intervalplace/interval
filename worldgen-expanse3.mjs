@@ -290,6 +290,42 @@ export function blockedAt(g, x, y) {
   arr[i] = b ? 2 : 1
   return b
 }
+// ---- the keepers' names (v0.79): a pure function of town and role,
+// mirrored by every window. No byte of state stores 'Maud': she is
+// COMPUTED, identically, forever. First names of an island. ----
+const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
+  'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
+  'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
+export function keeperName(tag, role) {
+  const h = E.sha256('keeper|' + tag + '|' + role)
+  return KEEPER_NAMES[h[0] % KEEPER_NAMES.length]
+}
+
+// ---- the ground beneath (v0.79): SURFACE KINDS ----
+// The constitution cares only whether ground blocks; the WINDOWS care
+// what it feels like. This function is the canonical answer, mirrored
+// verbatim by every window and the chart: cobble where roads run near
+// towns (civilization paves), gravel on the Ridge passes, trail in the
+// open country, flagstone inside town walls, sand where land meets
+// water. Pure in the genesis; no window may disagree about where the
+// cobbles end.
+export function groundKindAt(g, x, y) {
+  if (isWater(g, x, y)) return null
+  const sts = settlementsOf(g)
+  for (const st of sts) {
+    const r = rectOf(st)
+    if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) return onRoad(g, x, y) ? 'cobble' : 'flag'
+  }
+  if (onRoad(g, x, y)) {
+    for (const st of sts) if (Math.max(Math.abs(x - st.x), Math.abs(y - st.y)) <= 15) return 'cobble'
+    if (onRidge(g, x - 1, y) || onRidge(g, x + 1, y) || onRidge(g, x, y - 1) || onRidge(g, x, y + 1)
+      || biomeAt(g, x, y) === 'crags') return 'gravel'
+    return 'trail'
+  }
+  if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) return 'sand'
+  return null // the biome's own ground
+}
+
 export function spawnDry(g) {
   const cx = Math.floor(g.worldW / 2), cy = Math.floor(g.worldH / 2)
   if (!blockedAt(g, cx, cy) && !isWater(g, cx, cy)) return { x: cx, y: cy }
@@ -389,6 +425,7 @@ export function buildWorld(genesis) {
       }
     }
     placeNear('bank-' + s.tag, 'bank', -3, -2)
+    placeNear('kpr-bank-' + s.tag, 'keeper', -3, -3) // the banker stands at their counter
     placeNear('well-' + s.tag, 'well', 0, 0)
     placeNear('hearth-' + s.tag, 'campfire', 2, -2)
     // The capital's sign carries the island's name: Tallyholm, the tally
@@ -398,6 +435,7 @@ export function buildWorld(genesis) {
     if (s.kind === 'capital') {
       placeNear('anvil-' + s.tag, 'anvil', 3, -2); placeNear('smith-' + s.tag, 'smith', 4, -2)
       placeNear('store-' + s.tag, 'store', -4, 2); placeNear('store2-' + s.tag, 'store', 5, 2)
+      placeNear('kpr-store-' + s.tag, 'keeper', -4, 3); placeNear('kpr-store2-' + s.tag, 'keeper', 5, 3)
       placeNear('anvil2-' + s.tag, 'anvil', -5, -2)
       for (let k = 0; k < 6; k++) place('house-' + s.tag + k, 'house', -6 + k * 2, 4)
       for (let k = 0; k < 4; k++) place('guard-' + s.tag + k, 'guard', -8 + k * 5, -5)
@@ -405,7 +443,10 @@ export function buildWorld(genesis) {
       if (s.kind === 'forge' || s.kind === 'garrison' || s.kind === 'mill') {
         placeNear('anvil-' + s.tag, 'anvil', 3, -2); placeNear('smith-' + s.tag, 'smith', 4, -2)
       }
-      if (s.kind === 'port' || s.kind === 'timber' || s.kind === 'mill') placeNear('store-' + s.tag, 'store', -4, 2)
+      if (s.kind === 'port' || s.kind === 'timber' || s.kind === 'mill') {
+        placeNear('store-' + s.tag, 'store', -4, 2)
+        placeNear('kpr-store-' + s.tag, 'keeper', -4, 3)
+      }
       if (s.kind === 'garrison') for (let k = 0; k < 3; k++) place('guard-' + s.tag + k, 'guard', -4 + k * 4, -4)
       for (let k = 0; k < 4; k++) place('house-' + s.tag + k, 'house', -4 + k * 2, 3)
     }
@@ -435,40 +476,201 @@ export function buildWorld(genesis) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
       if (free(ox + dx, oy + dy) && biomeAt(g, ox + dx, oy + dy) === 'greenwood') { ox += dx; oy += dy; break seek }
     }
-    put('oldoak', 'tree', ox, oy)
+    put('oldoak', 'landmark', ox, oy, { kind: 'old-oak' }) // the Oak is FOREVER; its children (below) feed the axe
     for (const [dx, dy] of [[-3, 1], [3, 1], [0, 3], [-2, -2], [2, -2]]) {
       if (free(ox + dx, oy + dy)) put('oldoak-child-' + dx + '-' + dy, 'tree', ox + dx, oy + dy)
     }
+  }
+  // the Elder Tree (v0.79): one giant in the open heartlands, north-east
+  // of Anchor where the meadow runs widest. It cannot be cut; it was
+  // here before the roads, and the roads bent around it. A world needs
+  // at least one thing that is older than everyone and useful to no one.
+  {
+    let ex = Math.round(W * 0.56), ey = Math.round(H * 0.36)
+    seek2: for (let rad = 0; rad < 24; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (free(ex + dx, ey + dy) && biomeAt(g, ex + dx, ey + dy) === 'heartlands') { ex += dx; ey += dy; break seek2 }
+    }
+    put('eldertree', 'landmark', ex, ey, { kind: 'elder-tree' })
+  }
+  // the Sentinel (v0.79): one pillar of stone on the high Crags,
+  // standing over the passes. Miners swear it moves when nobody climbs.
+  {
+    let sx9 = Math.round(W * 0.86), sy9 = Math.round(H * 0.30)
+    seekS: for (let rad = 0; rad < 30; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (free(sx9 + dx, sy9 + dy) && biomeAt(g, sx9 + dx, sy9 + dy) === 'crags') { sx9 += dx; sy9 += dy; break seekS }
+    }
+    put('sentinel', 'landmark', sx9, sy9, { kind: 'sentinel' })
+  }
+  // the Drowned Bell (v0.79): a bell tower sunk to its shoulders in the
+  // marsh. Nobody remembers the town it called to prayer; on some
+  // mornings, the fenfolk say, the mud still rings.
+  {
+    let bx9 = Math.round(W * 0.58), by9 = Math.round(H * 0.82)
+    seekB: for (let rad = 0; rad < 30; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (free(bx9 + dx, by9 + dy) && biomeAt(g, bx9 + dx, by9 + dy) === 'fens') { bx9 += dx; by9 += dy; break seekB }
+    }
+    put('drownedbell', 'landmark', bx9, by9, { kind: 'drowned-bell' })
+  }
+  // the Wreck (v0.79): a ship broken on the south shore. It implies the
+  // largest thing on the island: a world beyond it, and a sea worth
+  // sailing. It is drawn faithfully and explained never.
+  {
+    let wx9 = Math.round(W * 0.42), wy9 = Math.round(H * 0.90)
+    seekW: for (let rad = 0; rad < 60; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const x9 = wx9 + dx, y9 = wy9 + dy
+      if (free(x9, y9) && groundKindAt(g, x9, y9) === 'sand') { wx9 = x9; wy9 = y9; break seekW }
+    }
+    put('wreck', 'landmark', wx9, wy9, { kind: 'shipwreck' })
   }
   // the Ring: a circle of standing stones in the south heartlands
   {
     const rx0 = Math.round(W * 0.37), ry0 = Math.round(H * 0.655)
     const ring = [[4, 0], [3, 3], [0, 4], [-3, 3], [-4, 0], [-3, -3], [0, -4], [3, -3]]
     let n = 0
-    for (const [dx, dy] of ring) if (free(rx0 + dx, ry0 + dy)) put('ring-' + (n++), 'rock', rx0 + dx, ry0 + dy)
+    for (const [dx, dy] of ring) if (free(rx0 + dx, ry0 + dy)) put('ring-' + (n++), 'landmark', rx0 + dx, ry0 + dy, { kind: 'standing-stone' })
   }
-  // the Ruined Tower: broken masonry in the wilds
+  // the Ruined Tower: broken masonry in the wilds. Its old fixed site
+  // was UNDERWATER on some seeds and the walls silently never stood —
+  // a lie on every chart. The Oak's law applies: a landmark may step
+  // aside from the sea, but it must exist.
   {
-    const tx = Math.round(W * 0.12), ty = Math.round(H * 0.32)
+    let tx = Math.round(W * 0.12), ty = Math.round(H * 0.32)
+    seek3: for (let rad = 0; rad < 40; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (free(tx + dx, ty + dy) && free(tx + dx + 2, ty + dy + 2) && biomeAt(g, tx + dx, ty + dy) === 'wilds') { tx += dx; ty += dy; break seek3 }
+    }
     const stones = [[0, 0], [1, 0], [2, 0], [0, 1], [2, 1], [0, 2], [1, 2]]
     let n = 0
-    for (const [dx, dy] of stones) if (free(tx + dx, ty + dy)) put('ruin-' + (n++), 'wall', tx + dx, ty + dy)
+    for (const [dx, dy] of stones) if (free(tx + dx, ty + dy)) put('ruin-' + (n++), 'landmark', tx + dx, ty + dy, { kind: 'broken-tower' })
   }
   // Shrine Isle: the waystone at the end of the causeway, a ring of stone,
   // a hearth for the pilgrim — walked to once, recalled to forever
   {
     const isle = islesOf(g)[0]
-    const seat = (id, type, dx, dy) => {
+    const seat = (id, type, dx, dy, extra) => {
       for (let rad = 0; rad <= 3; rad++) for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1], [rad, rad], [-rad, -rad]]) {
         const x = isle.x + dx + ox, y = isle.y + dy + oy
-        if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && onIsle(g, x, y)) { put(id, type, x, y); return }
+        if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && onIsle(g, x, y)) { put(id, type, x, y, extra); return }
       }
     }
     seat('waystone-shrine', 'waystone', 0, 0)
     seat('shrine-hearth', 'campfire', 3, 0)
-    for (let k = 0; k < 4; k++) seat('shrine-stone-' + k, 'rock', [-4, 4, 0, 0][k], [0, 2, -4, 4][k])
+    for (let k = 0; k < 4; k++) seat('shrine-stone-' + k, 'landmark', [-4, 4, 0, 0][k], [0, 2, -4, 4][k], { kind: 'standing-stone' })
   }
 
+  // ---- the paddocks (v0.79): fenced fields outside every heartlands
+  // town, each with a gate-gap and a few plots inside. What separates a
+  // real island from a generated one is BOUNDARIES: land somebody
+  // divided, hedgerows somebody laid. Two per town, hash-turned. ----
+  for (const st of settlementsOf(g)) {
+    if (biomeAt(g, st.x, st.y) !== 'heartlands' && st.tag !== 'anchor') continue
+    for (let pk = 0; pk < 2; pk++) {
+      const hp9 = H32('paddock|' + st.tag, pk)
+      const pw = 6 + (hp9.readUInt16BE(0) % 3), ph = 4 + (hp9.readUInt16BE(2) % 2)
+      const side = hp9.readUInt16BE(4) % 4
+      const r = rectOf(st)
+      let ax = side === 0 ? r.x0 - pw - 4 : side === 1 ? r.x1 + 4 : st.x - (pw >> 1)
+      let ay = side === 2 ? r.y0 - ph - 4 : side === 3 ? r.y1 + 4 : st.y - (ph >> 1)
+      if (side < 2) ay = st.y - (ph >> 1)
+      // the whole rectangle must be placeable ground
+      let ok9 = true
+      for (let yy = ay; yy <= ay + ph && ok9; yy++) for (let xx = ax; xx <= ax + pw; xx++)
+        if (!free(xx, yy)) { ok9 = false; break }
+      if (!ok9) continue
+      const mat9 = hp9.readUInt16BE(6) % 2 ? 'hedge' : 'fence'
+      const gate9 = 1 + (hp9.readUInt16BE(8) % (pw - 1)) // a gap on the south side
+      let fi9 = 0
+      for (let xx = ax; xx <= ax + pw; xx++) {
+        put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, xx, ay)
+        if (xx - ax !== gate9) put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, xx, ay + ph)
+      }
+      for (let yy = ay + 1; yy < ay + ph; yy++) {
+        put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, ax, yy)
+        put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, ax + pw, yy)
+      }
+      for (let pi9 = 0; pi9 < 3; pi9++) {
+        const px9 = ax + 1 + (H32('pdkplot|' + st.tag + pk, pi9).readUInt16BE(0) % (pw - 1))
+        const py9 = ay + 1 + (H32('pdkplot|' + st.tag + pk, pi9).readUInt16BE(2) % (ph - 1))
+        if (free(px9, py9)) put('pdkp-' + st.tag + pk + '-' + pi9, 'plot', px9, py9, { plantedAt: 0 })
+      }
+    }
+  }
+  // ---- the worksites (v0.79): between the towns and the wild, the
+  // places where the island's WORK lives. A farm with real fields, a
+  // sawyer's clearing, an open delving, eel sheds on the marsh edge —
+  // each a public hub of its country's trade, each with a keeper who
+  // lives out there and a name on the chart. Built entirely from
+  // existing law: no new node type, just composition. The Wilds get
+  // nothing, which is the point of the Wilds. ----
+  {
+    const siteSeek = (fx, fy, biome, need) => {
+      let x = Math.round(W * fx), y = Math.round(H * fy)
+      seekQ: for (let rad = 0; rad < 40; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        let ok = biomeAt(g, x + dx, y + dy) === biome
+        for (let yy = -need; yy <= need && ok; yy++) for (let xx = -need; xx <= need; xx++)
+          if (!free(x + dx + xx, y + dy + yy)) { ok = false; break }
+        if (ok) { x += dx; y += dy; break seekQ }
+      }
+      return { x, y }
+    }
+    const sput = (id, type, x, y, extra) => { if (free(x, y)) put(id, type, x, y, extra) }
+
+    { // Hollybarrow Farm: the heartlands' working fields
+      const c = siteSeek(0.44, 0.50, 'heartlands', 5)
+      sput('farm-house', 'house', c.x, c.y - 3)
+      sput('farm-well', 'well', c.x + 2, c.y - 3)
+      sput('farm-hearth', 'campfire', c.x - 2, c.y - 3)
+      sput('kpr-farm-hollybarrow', 'keeper', c.x + 1, c.y - 2)
+      let fi = 0
+      for (let xx = -5; xx <= 5; xx++) { // two hedge-bound field rows
+        sput('farm-h-' + (fi++), 'hedge', c.x + xx, c.y - 1)
+        if (xx !== 0) sput('farm-h-' + (fi++), 'hedge', c.x + xx, c.y + 4) // the gate faces the house
+      }
+      for (let yy = 0; yy <= 3; yy++) { sput('farm-h-' + (fi++), 'hedge', c.x - 5, c.y + yy); sput('farm-h-' + (fi++), 'hedge', c.x + 5, c.y + yy) }
+      let pi = 0
+      for (let yy = 0; yy <= 3; yy++) for (let xx = -4; xx <= 4; xx += 2)
+        sput('farm-p-' + (pi++), 'plot', c.x + xx, c.y + yy, { plantedAt: 0 })
+    }
+    { // the Sawyer's Camp: a worked clearing in the deep wood
+      const c = siteSeek(0.50, 0.16, 'greenwood', 4)
+      sput('camp-house', 'house', c.x, c.y)
+      sput('camp-hearth', 'campfire', c.x + 2, c.y)
+      sput('kpr-camp-sawyer', 'keeper', c.x + 1, c.y + 1)
+      const ringT = [[-3, -2], [3, -2], [-4, 1], [4, 1], [-2, 3], [2, 3], [0, -4], [-4, -1], [4, 2], [0, 4]]
+      ringT.forEach(([dx, dy], i) => sput('camp-t-' + i, 'tree', c.x + dx, c.y + dy))
+    }
+    { // the High Delving: an open mine on the Crags
+      const c = siteSeek(0.80, 0.42, 'crags', 4)
+      sput('delve-house', 'house', c.x, c.y - 2)
+      sput('delve-hearth', 'campfire', c.x + 2, c.y - 2)
+      sput('delve-anvil', 'anvil', c.x - 2, c.y - 2)
+      sput('kpr-delve-high', 'keeper', c.x + 1, c.y - 1)
+      const ringR = [[-3, 0], [3, 0], [-2, 2], [2, 2], [0, 3], [-4, 1], [4, 1], [-1, 4], [1, 4]]
+      ringR.forEach(([dx, dy], i) => sput('delve-r-' + i, 'rock', c.x + dx, c.y + dy))
+    }
+    { // the Eel Sheds: fishing gathered at the marsh edge
+      const c = siteSeek(0.50, 0.84, 'fens', 3)
+      sput('sheds-house', 'house', c.x, c.y)
+      sput('sheds-hearth', 'campfire', c.x + 2, c.y) // the smokehouse fire
+      sput('kpr-sheds-eel', 'keeper', c.x + 1, c.y + 1)
+      // fishing spots seek their own water nearby
+      let fs = 0
+      seekF: for (let rad = 1; rad < 14 && fs < 4; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        const x = c.x + dx, y = c.y + dy
+        if (!isWater(g, x, y) && !taken.has(key(x, y))
+          && (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1))) {
+          put('sheds-f-' + (fs++), 'fishing-spot', x, y)
+          if (fs >= 4) break seekF
+        }
+      }
+    }
+  }
   // ---- scattered plots in the heartlands ----
   let pl = 0
   for (let i = 0; i < 1200 && pl < 62; i++) {
