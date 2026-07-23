@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.79';
+const SPEC_VERSION = '0.80';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -144,6 +144,17 @@ const XP_COOK = 30;
 // decoration. Eating mid-fight stays legal, as §6m intends. It simply has a
 // rate now, and that rate is what makes a beast dangerous to the unready.
 const EAT_EVERY = 8;
+// the stilling (v0.80): magic's capstone. The stilled cannot act, and
+// cannot be struck — a truce, enforced, cast to break off a fight and
+// never to end one. Magic is the skill of refusing combat: anchor
+// flees, mend endures, still denies.
+const STILL_LEVEL = 85;
+const STILL_SIGILS = 3;
+const STILL_TICKS = 6;      // both parties walk one tile per interval: six tiles of head start
+const STILL_IMMUNE = 15;    // after it lifts: nobody is chain-stilled
+const STILL_CD = 150;       // the caster's word needs time to regain its weight
+const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
+const STILL_XP = 150;
 const HEAL_FISH = 3;
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
 const HP_START_XP = 1154; // hitpoints level 10
@@ -323,6 +334,7 @@ const T = {
 };
 const INPUT_SCHEMAS = {
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
+  still: { target: T.id },
   move: { dx: T.unit, dy: T.unit },
   gather: { nodeId: T.id }, harvest: { nodeId: T.id },
   attack: { mobId: T.id },
@@ -1178,9 +1190,9 @@ function validateState(state) {
   // exactly what THIS engine writes — nothing missing, nothing extra ----
   const SKILL_SET = SKILLS;                 // shared constitutional tables
   const NODE_TYPE_SET = new Set(NODE_TYPES);
-const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel', 'drowned-bell', 'shipwreck']); // (rev4 §11): defined ONCE, above
+const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel', 'drowned-bell', 'shipwreck', 'tally-half']); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'slain', 'lastSwing', 'lastAte']);
+  const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,64}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -1275,7 +1287,7 @@ const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'brok
         if (state.nodes[w]?.type !== 'waystone') return 'attunement references a missing waystone';
       }
     }
-    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'lastSwing', 'lastAte']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
     for (const ck of ['cooksTried', 'lightsTried']) if (p[ck] !== undefined && !isInt(p[ck], 0, MAX_TIME)) return `${ck} out of bounds`;
     if (p.slain !== undefined) { // the loot tally: bounded by the roster, not by time
       if (typeof p.slain !== 'object' || p.slain === null || Array.isArray(p.slain)) return 'malformed slain tally';
@@ -1291,8 +1303,8 @@ const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'brok
     if (!m || typeof m !== 'object') return 'malformed mob';
     if (typeof m.type !== 'string' || !(m.type in MOB_STATS)) return 'unknown mob type';
     for (const rk of ['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y']) if (!(rk in m)) return 'mob missing ' + rk;
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil'].includes(mk)) return 'non-constitutional mob field ' + mk;
-    for (const tk of ['rootedUntil', 'rootImmuneUntil']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (!isInt(m.x, 0, W - 1) || !isInt(m.y, 0, H - 1)) return 'mob out of bounds';
     if (!isInt(m.hx, 0, W - 1) || !isInt(m.hy, 0, H - 1)) return 'mob home out of bounds';
     if (!Number.isSafeInteger(m.hp) || m.hp < -1000 || m.hp > 100000) return 'mob hp out of bounds';
@@ -1542,6 +1554,8 @@ function validInput(state, input, ctx) {
   if (input.type === 'spawn') return !p; // §5b: the only input for unknown ids
   if (!p) return false;
   if (p.hp <= 0) return false; // the dead act on nothing (v0.41)
+  if ((p.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot act (v0.80)
+  const playerId = input.playerId; // the still case needs to refuse self-casts
   switch (input.type) {
     case 'move': {
       const { dx, dy } = input;
@@ -1630,6 +1644,7 @@ function validInput(state, input, ctx) {
     }
     case 'attack': {
       const m = state.mobs[input.mobId];
+      if (m && (m.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot be struck (v0.80)
       if (!m || m.hp <= 0) return false;
       if (inReach(p, m)) return true;
       // ranged (spec 6j): a drawn bow and a carried arrow reach further
@@ -1638,6 +1653,7 @@ function validInput(state, input, ctx) {
         && p.inventory.some(sl => sl?.item === 'arrows');
     }
     case 'attackp': {
+      if ((state.players[input.targetId]?.stilledUntil ?? 0) > state.tick) return false; // the truce shields (v0.80)
       // 7.1: player state has no playerId field; compare against the input's
       // own id or self-attack slips through as (undefined === target) === false
       const q = state.players[input.targetId];
@@ -1667,6 +1683,19 @@ function validInput(state, input, ctx) {
     case 'invoke': {
       // three stones, any hour (v0.40): the cost is the mining, not the wait
       return p.inventory.filter(sl => sl?.item === 'magic-stone').length >= 3;
+    }
+    case 'still': {
+      if (effLevel(p.skills.magic) < STILL_LEVEL) return false;
+      if (p.inventory.filter(sl => sl?.item === 'sigil').length < STILL_SIGILS) return false;
+      if ((p.stillCdUntil ?? 0) > state.tick) return false;
+      const tm = state.mobs[input.target];
+      if (tm) return tm.hp > 0 && (tm.stillImmuneUntil ?? 0) <= state.tick
+        && Math.max(Math.abs(p.x - tm.x), Math.abs(p.y - tm.y)) <= STILL_RANGE;
+      const tp = state.players[input.target];
+      if (tp) return input.target !== playerId && isAwake(tp, state.tick) && (tp.deadUntil ?? 0) <= state.tick
+        && (tp.stillImmuneUntil ?? 0) <= state.tick
+        && Math.max(Math.abs(p.x - tp.x), Math.abs(p.y - tp.y)) <= STILL_RANGE;
+      return false;
     }
     case 'cast': {
       if (input.spell === 'anchor') return p.inventory.some(sl => sl?.item === 'sigil');
@@ -2196,7 +2225,7 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const p of Object.values(s.players)) if (p.action?.mobId) pinned.add(p.action.mobId);
   for (const mid of Object.keys(s.mobs).sort()) {
     const m = s.mobs[mid];
-    if (m.hp <= 0 || pinned.has(mid) || (m.rootedUntil ?? 0) > s.tick) continue;
+    if (m.hp <= 0 || pinned.has(mid) || (m.rootedUntil ?? 0) > s.tick || (m.stilledUntil ?? 0) > s.tick) continue;
     if (roll(beacon, mid, 'wander') >= 48) continue;
     const [dx, dy] = [[0, -1], [1, 0], [0, 1], [-1, 0]][roll(beacon, mid, 'dir') % 4];
     const nx = m.x + dx, ny = m.y + dy;
@@ -2453,22 +2482,42 @@ function nextState(state, inputs, _legacyBeacon) {
       if (slots.length === 3) {
         for (const i2 of slots) p.inventory[i2] = null;
         p.inventory[slots[0]] = { item: 'sigil', qty: 1 };
-        p.skills.magic += 20;
+        p.skills.magic += 60; // v0.80 parity retune: the chain now pays like a trade
         if (claimFirst(s, 'sigil', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to press three stones into a sigil.');
       }
+    } else if (inp.type === 'still') {
+      // consume three sigils; the truce binds all parties, its speaker first
+      let burned = 0;
+      for (let i2 = 0; i2 < p.inventory.length && burned < 3; i2++)
+        if (p.inventory[i2]?.item === 'sigil') { p.inventory[i2] = null; burned++; }
+      const t9 = s.mobs[inp.target] ?? s.players[inp.target];
+      if (t9) {
+        t9.stilledUntil = s.tick + 6;
+        t9.stillImmuneUntil = s.tick + 6 + 15;
+        if (t9.action !== undefined) t9.action = null; // a player mid-swing is stilled mid-swing
+      }
+      p.stillCdUntil = s.tick + 150;
+      p.action = null; // the speaker is bound first
+      p.skills.magic += 150;
+      if (claimFirst(s, 'still', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the FIRST stilling. The fight simply stops.');
     } else if (inp.type === 'cast') {
       const si = p.inventory.findIndex(sl => sl?.item === 'sigil');
       if (inp.spell === 'mend' && si !== -1) {
         p.inventory[si] = null;
         p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + 20); // v0.41: a strong heal (+20), not a full reset — keeps mend premium without making sigil-stackers unkillable
-        p.skills.magic += 40;
+        p.skills.magic += 55; // v0.80 parity retune
       } else if (inp.spell === 'anchor' && si !== -1) {
         p.inventory[si] = null;
-        const cx2 = Math.floor(s.genesis.worldW / 2);
-        p.x = cx2; p.y = 7; // the plaza beside the well: the fixed point
+        // v0.80: anchor comes HOME. The old target (cx, 7) was the classic
+        // generator's plaza — on Tallyholm, y=7 is open sea off the north
+        // coast, and every cast stranded the caster on the waves. The fixed
+        // point is the REGISTERED spawn: whatever world this is, anchor
+        // returns you to where souls arrive.
+        const sp9 = spawnOf(s.genesis);
+        p.x = sp9.x; p.y = sp9.y;
         p.action = null;
         p.trade = null;
-        p.skills.magic += 30;
+        p.skills.magic += 35; // v0.80 parity retune
       }
     } else if (inp.type === 'survey') {
       const mi = (s.markers ?? []).findIndex(m => m.x === p.x && m.y === p.y);
@@ -2677,6 +2726,7 @@ function nextState(state, inputs, _legacyBeacon) {
 
     if (p.action.type === 'attackp') {
       const q = s.players[p.action.targetId];
+      if (q && ((q.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick)) { p.action = null; continue; } // the truce ends the fight (v0.80)
       const both = q && q.hp > 0 && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y);
       const near = both && (adjacent(p, q)
         || (Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)) <= 4
@@ -2737,6 +2787,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const m = s.mobs[p.action.mobId];
       const stats = m && MOB_STATS[m.type];
       if (!m || m.hp <= 0) { p.action = null; continue; }
+      if ((m.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; } // the truce ends the fight, it does not pause it (v0.80)
       const bowHeld = isRanged(p)
         && Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y)) <= reachOf(p);
       if (!inReach(p, m) && !bowHeld) { p.action = null; continue; }
