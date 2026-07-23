@@ -383,17 +383,46 @@ function drawStones() {
   }
   blit()
 }
+// the labels' truth (v0.79): landmark seats SEEK free ground from
+// nominal fractions, so the nominal is where the search began, not
+// where the monument stands. The nominals below are the pre-state
+// guess; the moment the world's state arrives, TRUE_PLACES replaces
+// them with the actual node coordinates — the chart cannot then
+// disagree with the world, because it is reading the world.
+let TRUE_PLACES = null
+function placesFromState(nodes) {
+  const KINDN = { 'old-oak': 'the Old Oak', 'elder-tree': 'the Elder Tree',
+    'sentinel': 'the Sentinel', 'drowned-bell': 'the Drowned Bell', 'shipwreck': 'the Wreck' }
+  const IDN = { 'farm-house': 'Hollybarrow Farm', 'camp-house': "the Sawyer's Camp",
+    'delve-house': 'the High Delving', 'sheds-house': 'the Eel Sheds' }
+  const out = [], cent = {}
+  for (const [id, n] of Object.entries(nodes)) {
+    if (n.type === 'landmark' && KINDN[n.kind]) out.push({ n: KINDN[n.kind], x: n.x, y: n.y })
+    else if (IDN[id]) out.push({ n: IDN[id], x: n.x, y: n.y })
+    else if (n.type === 'landmark' && n.kind === 'standing-stone' && id.startsWith('ring-')) {
+      (cent.ring ??= []).push(n)
+    } else if (n.type === 'landmark' && n.kind === 'broken-tower') {
+      (cent.tower ??= []).push(n)
+    }
+  }
+  for (const [k2, arr] of Object.entries(cent)) {
+    const cx2 = Math.round(arr.reduce((a, n) => a + n.x, 0) / arr.length)
+    const cy2 = Math.round(arr.reduce((a, n) => a + n.y, 0) / arr.length)
+    out.push({ n: k2 === 'ring' ? 'the Ring' : 'the Ruined Tower', x: cx2, y: cy2 })
+  }
+  return out
+}
 function labelPoints() {
   const s = settlementsE3(), j = junctions3(), isle = isles3()[0]
   return {
     towns: s.map(t => ({ n: t.name, x: t.x, y: t.y })),
-    places: [
+    places: TRUE_PLACES ?? [
       { n: 'Shrine Isle', x: isle.x, y: isle.y },
       { n: 'the Old Oak', x: Math.round(W * 0.62), y: Math.round(H * 0.10) },
       { n: 'the Elder Tree', x: Math.round(W * 0.56), y: Math.round(H * 0.36) },
       { n: 'the Ring', x: Math.round(W * 0.37), y: Math.round(H * 0.655) },
       { n: 'the Ruined Tower', x: Math.round(W * 0.12), y: Math.round(H * 0.32) },
-      { n: 'the Sentinel', x: Math.round(W * 0.86), y: Math.round(H * 0.30) },
+      { n: 'the Sentinel', x: Math.round(W * 0.83), y: Math.round(H * 0.60) },
       { n: 'the Drowned Bell', x: Math.round(W * 0.58), y: Math.round(H * 0.82) },
       { n: 'the Wreck', x: Math.round(W * 0.42), y: Math.round(H * 0.90) },
       { n: 'Hollybarrow Farm', x: Math.round(W * 0.44), y: Math.round(H * 0.50) },
@@ -492,6 +521,16 @@ let ME_MARK = null, ME_NAME = null
         const p2 = m2.state.players?.[pub]
         ME_MARK = p2 ? { x: p2.x, y: p2.y, hp: p2.hp } : null
         ME_NAME = p2?.name ?? null
+        if (!TRUE_PLACES && m2.state.nodes) {
+          const tp = placesFromState(m2.state.nodes)
+          if (tp.length) {
+            // keep the function-derived waypoints (isle, lakes, passes)
+            const keep = ['Shrine Isle', 'Stillwater', 'the Watersmeet', 'North Pass', 'South Pass']
+            const lp0 = labelPoints()
+            TRUE_PLACES = [...lp0.places.filter(q => keep.includes(q.n)), ...tp]
+            blit()
+          }
+        }
       } catch {}
     }
   } catch {}
