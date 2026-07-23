@@ -544,6 +544,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'plant' ? { type: 'plant', slot: a.slot }
   : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
   : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
+  : a.do === 'still' ? { type: 'still', target: a.target }
   : a.do === 'survey' ? { type: 'survey' }
   : a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }
   : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
@@ -1010,6 +1011,7 @@ addEventListener('unhandledrejection', (e) => {
 })
 let xpDrops = []      // { amt, x, y, at }: floating +xp for gathering/cooking
 let arrowShots = []   // { x0, y0, x1, y1, at }: tracers for arrows in flight
+let stillRings = []   // { x, y, at }: the truce, spoken — one expanding white ring
 function updateGate(s, worldId) {
   const me = s.players[myId]
   const souls = Object.keys(s.players).length
@@ -1704,9 +1706,9 @@ const KN = {}
     }
   } catch {}
 })()
-const kName = (tag, role) => KN[tag + '|' + role] ?? 'the keeper'
+const kName = (tag, role) => role === 'wizard' ? 'Oberon' : (KN[tag + '|' + role] ?? 'the keeper')
 const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
-  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn)-(.+)$/.exec(id ?? '')
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn|wizard)-(.+)$/.exec(id ?? '')
   return m ? kName(m[2], m[1]) : 'the keeper'
 }
 const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
@@ -2274,6 +2276,15 @@ function drawScene(now) {
     layer.push({ z: Z(n.y, 2), draw: () => {
       if (n.type === 'keeper') {
         shadow(X, Y, 7)
+        if (id === 'kpr-wizard-oberon') { // the robe, the beard, the hat: the uniform is older than the island
+          cx.fillStyle = '#2c3a5e'; cx.fillRect(X + 11, Y + 2, 11, 17)          // the robe, midnight blue
+          cx.fillStyle = '#a8865c'; cx.fillRect(X + 13, Y - 3, 7, 6)            // face
+          cx.fillStyle = '#cfd2cc'; cx.fillRect(X + 13, Y + 2, 7, 5)            // the beard
+          cx.fillStyle = '#22304e'
+          poly([[X + 10, Y - 4], [X + 23, Y - 4], [X + 17, Y - 14]], '#22304e') // the hat
+          cx.fillStyle = '#e2b63e'; cx.fillRect(X + 15, Y - 8, 2, 2)            // one gold star on it
+          return
+        }
         cx.fillStyle = '#6b4a33'; cx.fillRect(X + 12, Y + 4, 9, 14)
         cx.fillStyle = '#a8865c'; cx.fillRect(X + 13, Y - 3, 7, 7)
         cx.fillStyle = '#3d2f22'; cx.fillRect(X + 12, Y - 5, 9, 3)
@@ -2318,6 +2329,21 @@ function drawScene(now) {
           cx.fillRect(X + 11, Y + 8, 11, 3)
           cx.fillStyle = '#5a7a3e' // the moss keeps the north face
           cx.fillRect(X + 13, Y - 7, 4, 5)
+        } else if (n.kind === 'tally-half') {
+          // half a stick in a stone base: the jagged edge is the proof
+          shadow(X, Y, 8)
+          cx.fillStyle = '#57534d'
+          cx.fillRect(X + 10, Y + 22, 12, 6)                    // the stone base
+          cx.fillStyle = '#8a6f45'
+          cx.fillRect(X + 14, Y - 6, 4, 28)                     // the stave
+          cx.fillStyle = '#6b5433'
+          for (let k9 = 0; k9 < 5; k9++) cx.fillRect(X + 14, Y - 2 + k9 * 5, 4, 1.4) // the notches of the count
+          cx.fillStyle = '#a8895c'                              // the split edge, jagged
+          cx.beginPath()
+          cx.moveTo(X + 18, Y - 6); cx.lineTo(X + 20, Y - 2); cx.lineTo(X + 18, Y + 3)
+          cx.lineTo(X + 20, Y + 8); cx.lineTo(X + 18, Y + 14); cx.lineTo(X + 18, Y - 6)
+          cx.closePath(); cx.fill()
+          return
         } else if (n.kind === 'sentinel') {
           shadow(X, Y, 9)
           cx.fillStyle = '#726d64'
@@ -2717,6 +2743,15 @@ function drawScene(now) {
     if (attacker) mobFacing[id] = attacker.x !== m.x ? Math.sign(attacker.x - m.x) : -1
     else if (mo && m.x !== mo.x) mobFacing[id] = Math.sign(m.x - mo.x)
     const MF = mobFacing[id] ?? 1
+    if ((m.stilledUntil ?? 0) > (s.tick ?? 0)) layer.push({ z: Z(miy, 4), draw: () => { // the truce made visible, above the sprite
+      const X = px(mix), Y = py(miy)
+      cx.fillStyle = 'rgba(215,222,230,.30)'
+      cx.fillRect(X + 4, Y - 6, 24, 36)
+      const ph9 = (now / 600) % 1
+      cx.strokeStyle = 'rgba(240,244,248,' + (0.5 - ph9 * 0.35) + ')'
+      cx.lineWidth = 1.4
+      cx.beginPath(); cx.arc(X + 16, Y + 14, 10 + ph9 * 8, 0, 7); cx.stroke()
+    } })
     layer.push({ z: Z(miy, 3), draw: () => {
       const X = px(mix), Y = py(miy)
       const engaged = meP?.action?.mobId === id
@@ -2851,6 +2886,15 @@ function drawScene(now) {
                     || ((workNode?.type === 'rock' || workNode?.type === 'magic-rock') && wep === 'bronze-pickaxe')
     const awake = isAwake(p, s.tick)
     const dying = p.hp <= 0, deadStart = (p.deadUntil ?? s.tick) - 5
+    if ((p.stilledUntil ?? 0) > s.tick) layer.push({ z: Z(iy, 5), draw: () => { // the truce, over a citizen
+      const X = px(ix), Y = py(iy)
+      cx.fillStyle = 'rgba(215,222,230,.30)'
+      cx.fillRect(X + 4, Y - 6, 24, 40)
+      const ph9 = (now / 600) % 1
+      cx.strokeStyle = 'rgba(240,244,248,' + (0.5 - ph9 * 0.35) + ')'
+      cx.lineWidth = 1.4
+      cx.beginPath(); cx.arc(X + 16, Y + 16, 10 + ph9 * 8, 0, 7); cx.stroke()
+    } })
     layer.push({ z: Z(iy, 4), draw: () => {
       if (dying) {
         // the fall (spec 6c): the body tips where it fell and fades, and a pale
@@ -3041,6 +3085,14 @@ function drawScene(now) {
     cx.strokeStyle = 'rgba(232,228,208,' + (1 - f2 * 0.6) + ')'
     cx.lineWidth = 1.4
     cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(ax, ay); cx.stroke()
+  }
+  // the stilling's ring: everything else adds motion; this removes it
+  stillRings = stillRings.filter(r2 => now - r2.at < 900)
+  for (const r2 of stillRings) {
+    const f2 = (now - r2.at) / 900
+    cx.strokeStyle = 'rgba(235,240,245,' + (0.8 * (1 - f2)) + ')'
+    cx.lineWidth = 2 - f2
+    cx.beginPath(); cx.arc(px(r2.x) + 16, py(r2.y) + 16, 6 + f2 * 46, 0, 7); cx.stroke()
   }
   // floating xp drops (world coords, so drawn before restore)
   xpDrops = xpDrops.filter(d => now - d.at < 1100)
@@ -3727,6 +3779,12 @@ function invClick(i) {
   }
   if (it.item === 'sigil') {
     const opts = []
+    if (lvl('magic') >= 85 && me.inventory.filter(sl => sl?.item === 'sigil').length >= 3
+      && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
+      opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
+        window.__stillArm = true
+        feed('You hold the truce unspoken. Tap whom to still \u2014 beast or citizen, within six tiles.')
+      } })
     if (lvl('magic') >= 20) opts.push({ label: 'cast: mend (heal)', act: () => {
       send({ do: 'cast', spell: 'mend' })
       feed('You spend the sigil to knit yourself whole.')
@@ -3835,6 +3893,18 @@ cv.addEventListener('click', (e) => {
     const ix = o ? lp(o.x, p.x) : p.x, iy = o ? lp(o.y, p.y) : p.y
     const d = Math.hypot(ix + 0.5 - fxT, iy + 0.5 - fyT)
     if (d < 0.8 && (!best || d < best.d)) best = { d, kind: 'citizen', id: pid, p }
+  }
+  if (window.__stillArm && best && (best.kind === 'mob' || best.kind === 'citizen')) {
+    window.__stillArm = false
+    const tid = best.id
+    const tx = best.kind === 'mob' ? best.m.x : best.p.x, ty = best.kind === 'mob' ? best.m.y : best.p.y
+    if (Math.max(Math.abs(me.x - tx), Math.abs(me.y - ty)) > 6) { feed('Too far. The stilling reaches six tiles.'); return }
+    send({ do: 'still', target: tid })
+    feed('You speak the truce. The fight simply stops \u2014 for them, and for you.')
+    stillRings.push({ x: tx, y: ty, at: performance.now() })
+    tone(220, 0.5, { type: 'sine', vol: 0.05 }); tone(110, 0.8, { type: 'sine', vol: 0.04, at: 0.15 }) // a bell, descending into quiet
+    flashClick(tx, ty, false)
+    return
   }
   if (best?.kind === 'mob') {
     const { id, m } = best
@@ -4108,9 +4178,26 @@ cv.addEventListener('click', (e) => {
         return
       }
       if (n.type === 'keeper') {
+        if (id === 'kpr-wizard-oberon') { // the wizard teaches, one line at a time
+          window.__oberon = ((window.__oberon ?? -1) + 1) % 5
+          feed('Oberon: ' + ['\u201cThree stones make a sigil. Three sigils make a silence.\u201d',
+            '\u201cThe stones were here before me. I intend to return the favour.\u201d',
+            '\u201cAnchor flees, mend endures, still denies. You cannot be made to fight.\u201d',
+            '\u201cThe stilled cannot act, and cannot be struck. I said that long before your constitution did.\u201d',
+            '\u201cEvery keeper on this island is named by a hash. I am not. Think about what that costs.\u201d'][window.__oberon])
+          flashClick(n.x, n.y, false)
+          return
+        }
         const nm9 = kFromId(id)
         feed(nm9 + ': ' + ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',
           '\u201cBeen here since the founding, and I\u2019ll be here after you.\u201d'][tileHash(n.x, n.y, 3) % 3])
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'landmark' && n.kind === 'tally-half') {
+        feed(id === 'tally-anchor'
+          ? 'Half of the first tally. Its other half stands across the water, on Shrine Isle, and each proves the other. Along the grain, cut small: 9e18ba7bc57d2373.'
+          : 'Half of the first tally. Its other half stands in Anchor\u2019s plaza, near where souls arrive, and each proves the other.')
         flashClick(n.x, n.y, false)
         return
       }

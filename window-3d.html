@@ -773,6 +773,7 @@ const BRIDGE = (a) =>
   : a.do === 'recall' ? { type: 'recall', to: a.to }
   : a.do === 'invoke' ? { type: 'invoke' }
   : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
+  : a.do === 'still' ? { type: 'still', target: a.target }
   : a.do === 'survey' ? { type: 'survey' }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
   : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
@@ -2157,9 +2158,9 @@ const KN = {}
     }
   } catch {}
 })()
-const kName = (tag, role) => KN[tag + '|' + role] ?? 'the keeper'
+const kName = (tag, role) => role === 'wizard' ? 'Oberon' : (KN[tag + '|' + role] ?? 'the keeper')
 const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
-  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn)-(.+)$/.exec(id ?? '')
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn|wizard)-(.+)$/.exec(id ?? '')
   return m ? kName(m[2], m[1]) : 'the keeper'
 }
 const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
@@ -2802,11 +2803,15 @@ function mkSmoke(parent, x, y0, z, scale, pace, dark) {
 function nodeMesh(n) {
   const g = new THREE.Group()
   if (n.type === 'keeper') {
+    const wiz9 = n.id === 'kpr-wizard-oberon'
     const stdK = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 })
     const aK = (m, x, y, z) => { m.position.set(x ?? 0, y ?? 0, z ?? 0); m.castShadow = true; g.add(m); return m }
-    aK(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.0, 7), stdK(0x6b4a33)), 0, 0.5)
+    aK(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.0, 7), stdK(wiz9 ? 0x2c3a5e : 0x6b4a33)), 0, 0.5)
     aK(new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), stdK(0xa8865c)), 0, 1.18)
-    aK(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.55, 0.07), stdK(0xd9cfa8)), 0, 0.55, 0.27)
+    if (wiz9) {
+      aK(new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 7), stdK(0x22304e)), 0, 1.55)
+      aK(new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), stdK(0xcfd2cc)), 0, 1.0, 0.14)
+    } else aK(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.55, 0.07), stdK(0xd9cfa8)), 0, 0.55, 0.27)
     return g
   }
   if (n.type === 'fence') {
@@ -2833,6 +2838,10 @@ function nodeMesh(n) {
     } else if (n.kind === 'standing-stone') {
       const st9 = add9(new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.6, 0.55), std9(0x6b6760)), 0, 1.3)
       st9.rotation.y = (hv9 % 97) / 15; st9.rotation.z = ((hv9 % 13) - 6) * 0.012
+    } else if (n.kind === 'tally-half') {
+      add9(new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.32, 0.65), std9(0x57534d)), 0, 0.16)
+      const st8 = add9(new THREE.Mesh(new THREE.BoxGeometry(0.13, 1.6, 0.1), std9(0x8a6f45)), 0, 1.0)
+      st8.rotation.z = 0.03
     } else if (n.kind === 'sentinel') {
       const st9 = add9(new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.4, 0.65), std9(0x726d64)), 0, 2.2)
       st9.rotation.y = (hv9 % 97) / 15; st9.rotation.z = 0.04
@@ -3254,7 +3263,7 @@ function syncGround(s) {
 function syncNodes(s) {
   for (const [id, n] of Object.entries(s.nodes)) {
     if (!nodeMeshes.has(id)) {
-      const m = nodeMesh(n); m.userData.nodeId = id; m.userData.nodeType = n.type
+      const m = nodeMesh({ ...n, id }); m.userData.nodeId = id; m.userData.nodeType = n.type
       nodeMeshes.set(id, m); scene.add(m)
       m.updateMatrixWorld(true) // sculpture freezes; sprites and flames stay alive
       m.traverse((o) => {

@@ -560,6 +560,7 @@ const BRIDGE = (a) =>
   : a.do === 'recall' ? { type: 'recall', to: a.to }
   : a.do === 'invoke' ? { type: 'invoke' }
   : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
+  : a.do === 'still' ? { type: 'still', target: a.target }
   : a.do === 'survey' ? { type: 'survey' }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
   : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
@@ -984,9 +985,9 @@ const KN = {}
     }
   } catch {}
 })()
-const kName = (tag, role) => KN[tag + '|' + role] ?? 'the keeper'
+const kName = (tag, role) => role === 'wizard' ? 'Oberon' : (KN[tag + '|' + role] ?? 'the keeper')
 const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
-  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn)-(.+)$/.exec(id ?? '')
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn|wizard)-(.+)$/.exec(id ?? '')
   return m ? kName(m[2], m[1]) : 'the keeper'
 }
 const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
@@ -2792,14 +2793,23 @@ function nodeBody(n) {
   const add = (mesh, x = 0, y = 0, z = 0, shadow = true) => {
     mesh.position.set(x, y, z); mesh.castShadow = shadow; g.add(mesh); return mesh }
   if (n.type === 'keeper') {
+    const wiz9 = n.id === 'kpr-wizard-oberon'
     const body9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.9, 7),
-      new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.9 })), 0, 0.45, 0)
+      new THREE.MeshStandardMaterial({ color: wiz9 ? 0x2c3a5e : 0x6b4a33, roughness: 0.9 })), 0, 0.45, 0)
     body9.castShadow = true
     add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6),
       new THREE.MeshStandardMaterial({ color: 0xa8865c, roughness: 0.8 })), 0, 1.05, 0)
-    const ap9 = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.06),
-      new THREE.MeshStandardMaterial({ color: 0xd9cfa8, roughness: 0.95 })), 0, 0.5, 0.24)
-    ap9.castShadow = true
+    if (wiz9) { // the hat and the beard: the uniform is older than the island
+      const hat9 = add(new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 7),
+        new THREE.MeshStandardMaterial({ color: 0x22304e, roughness: 0.9 })), 0, 1.42, 0)
+      hat9.castShadow = true
+      add(new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5),
+        new THREE.MeshStandardMaterial({ color: 0xcfd2cc, roughness: 0.95 })), 0, 0.92, 0.12)
+    } else {
+      const ap9 = add(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.06),
+        new THREE.MeshStandardMaterial({ color: 0xd9cfa8, roughness: 0.95 })), 0, 0.5, 0.24)
+      ap9.castShadow = true
+    }
     return g
   }
   if (n.type === 'fence') {
@@ -2830,6 +2840,11 @@ function nodeBody(n) {
     } else if (n.kind === 'standing-stone') {
       const st9 = add(new THREE.Mesh(rockGeo(hsh9), mats.stoneBlob), 0, 0.9, 0)
       st9.scale.set(0.45, 1.6, 0.38); st9.rotation.y = (hsh9 % 97) / 15; st9.castShadow = true
+    } else if (n.kind === 'tally-half') {
+      const base9 = add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.6), mats.stoneBlob), 0, 0.15, 0)
+      base9.castShadow = true
+      const stave9 = add(new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.5, 0.09), mats.trunk), 0, 0.95, 0)
+      stave9.rotation.z = 0.03; stave9.castShadow = true
     } else if (n.kind === 'sentinel') {
       const st9 = add(new THREE.Mesh(rockGeo(hsh9), mats.stoneBlob), 0, 1.5, 0)
       st9.scale.set(0.5, 2.6, 0.42); st9.rotation.y = (hsh9 % 97) / 15

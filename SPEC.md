@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.79 ("The Constitution")
+# Interval: Protocol Specification v0.80 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -608,8 +608,8 @@ resource: no verb in this constitution reaches it — it cannot be
 gathered, fought, lit, planted, read, or consumed — and it blocks its
 tile like any node. A landmark bears exactly one extra field, `kind`,
 drawn from a closed set (`elder-tree`, `old-oak`, `standing-stone`,
-`broken-tower`, `sentinel`, `drowned-bell`, `shipwreck`), and only
-landmarks bear it. Landmarks exist so the
+`broken-tower`, `sentinel`, `drowned-bell`, `shipwreck`, `tally-half`),
+and only landmarks bear it. Landmarks exist so the
 map tells the truth: a named place that cannot be founded would be a
 lie on every chart.
 
@@ -716,6 +716,28 @@ reference window renders one cape in the color of the mastered skill,
 gold trim for a second mastery, and a radiant cape for all nine.
 Mastery is proved by the state and verified by every node; the cape is
 simply what proof looks like from a distance.
+
+**The stilling (v0.80).** Magic completes its identity: the skill of
+refusing combat. `anchor` flees, `mend` endures, and `still` denies.
+The stilling is its own input (`still`, one field: `target`, a mob or
+citizen id). It demands magic 85, consumes THREE sigils, reaches 6
+tiles (a spell of sight, not touch), and grants 150 magic experience.
+Its whole law is one sentence: **the stilled cannot act, and cannot be
+struck.** For 6 intervals the target neither moves, works, fights, nor
+suffers any blow — a truce, enforced, binding its speaker first (the
+caster's own action clears on cast). Fights touching the stilled END
+rather than pause. When it lifts, 15 intervals of immunity follow, and
+the caster's word sleeps 150 intervals. Citizens may be stilled but
+never held: there is no still-then-kill, only still-then-leave.
+
+**Magic pays its way (v0.80).** The rates are retuned to parity with
+the gathering trades, simulated against the constitutional curve:
+pressing a sigil grants 60, `mend` 55, `anchor` 35. And `anchor`
+comes home: its fixed point is the REGISTERED spawn of the world's
+own generator — the old constant aimed at the classic plaza, which on
+this island is open sea. Three skills remain pure races by design —
+prayer, exploration, brewing — their levels being the achievement
+itself. Magic now belongs to the trades that do things.
 
 **Melee geometry and occupancy (v0.79).** Movement is cardinal, and a
 reach-1 weapon strikes only along lines the wielder could step: the
