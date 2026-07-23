@@ -394,7 +394,7 @@ function placesFromState(nodes) {
   const KINDN = { 'old-oak': 'the Old Oak', 'elder-tree': 'the Elder Tree',
     'sentinel': 'the Sentinel', 'drowned-bell': 'the Drowned Bell', 'shipwreck': 'the Wreck' }
   const IDN = { 'farm-house': 'Hollybarrow Farm', 'camp-house': "the Sawyer's Camp",
-    'delve-house': 'the High Delving', 'sheds-house': 'the Eel Sheds' }
+    'delve-house': 'the High Delving', 'sheds-house': 'the Eel Sheds', 'inn-house': 'the Lantern (inn)' }
   const out = [], cent = {}
   for (const [id, n] of Object.entries(nodes)) {
     if (n.type === 'landmark' && KINDN[n.kind]) out.push({ n: KINDN[n.kind], x: n.x, y: n.y })
@@ -429,6 +429,7 @@ function labelPoints() {
       { n: "the Sawyer's Camp", x: Math.round(W * 0.50), y: Math.round(H * 0.16) },
       { n: 'the High Delving', x: Math.round(W * 0.80), y: Math.round(H * 0.42) },
       { n: 'the Eel Sheds', x: Math.round(W * 0.50), y: Math.round(H * 0.84) },
+      { n: 'the Lantern (inn)', x: Math.round(W * 0.59), y: Math.round(H * 0.42) },
       { n: 'Stillwater', x: Math.round(W * 0.73), y: Math.round(H * 0.22) },
       { n: 'the Watersmeet', x: j.watersmeet.x, y: j.watersmeet.y },
       { n: 'North Pass', x: j.npass.x, y: j.npass.y },
@@ -456,19 +457,64 @@ function drawMark() {
 function drawLabels() {
   const lp = labelPoints()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  const put = (n, x, y, fill, font) => {
-    const sx = (x - view.x) * view.z, sy = (y - view.y) * view.z - 8
-    if (sx < -80 || sy < -20 || sx > cv.width + 80 || sy > cv.height + 20) return
-    ctx.font = font; ctx.textAlign = 'center'
+  // coast-aware nameplates (v0.79b): a monument may stand at the water's
+  // edge, but its NAME stays over the land it names — hung below the
+  // anchor when the sea lies above, nudged inland when it lies beside.
+  const seaAt = (x, y) => {
+    const xx = Math.max(1, Math.min(W - 2, Math.round(x))), yy = Math.max(1, Math.min(H - 2, Math.round(y)))
+    return inSea3(xx, yy)
+  }
+  // no name covers another (v0.79c): towns claim their ground first;
+  // places then settle into clear space, stepping downward until they
+  // fit. And the sea probe is a band, not a pinprick — glyphs are
+  // taller than one sample, as the Old Oak found out over open water.
+  const claimed = []
+  const collides = (r) => claimed.some(c => r.x < c.x + c.w && r.x + r.w > c.x && r.y < c.y + c.h && r.y + r.h > c.y)
+  const seaAbove = (x, y) => seaAt(x, y - 6) || seaAt(x, y - 10) || seaAt(x, y - 14)
+  const put = (n, x, y, fill, font, mayNudge) => {
+    // a nameplate SEEKS LAND like a monument does (v0.79c): the nominal
+    // fallbacks are guesses made before the state arrives, and on some
+    // seeds a guess lands in open water. Walk the anchor toward the
+    // island's heart until it stands on ground; the true node
+    // coordinates replace all of this the moment the world reports in.
+    for (let t9 = 0; t9 < 30 && seaAt(x, y); t9++) {
+      x += Math.sign(W / 2 - x) * 2 || 0
+      y += Math.sign(H / 2 - y) * 2 || 0
+    }
+    let sy = (y - view.y) * view.z - 8
+    if (seaAbove(x, y)) sy = (y - view.y) * view.z + 14 // the sea above: hang below
+    let sx = (x - view.x) * view.z
+    ctx.font = font
+    const w = ctx.measureText(n).width
+    const half = w / 2 + 2
+    const tilesHalf = half / view.z
+    let align = 'center'
+    if (seaAt(x - tilesHalf, y)) { align = 'left'; sx = (x - view.x) * view.z - 4 }
+    else if (seaAt(x + tilesHalf, y)) { align = 'right'; sx = (x - view.x) * view.z + 4 }
+    if (sx < -120 || sy < -20 || sx > cv.width + 120 || sy > cv.height + 20) return
+    let rx = align === 'left' ? sx : align === 'right' ? sx - w : sx - w / 2
+    let r = { x: rx, y: sy - 10, w, h: 12 }
+    if (mayNudge && collides(r)) { // clear air in EITHER direction: on a
+      // south shore, stepping only down walks the name into the sea
+      const sy0 = sy
+      for (const off of [11, -11, 22, -22, 33]) {
+        sy = sy0 + off; r = { x: rx, y: sy - 10, w, h: 12 }
+        if (!collides(r)) break
+      }
+    }
+    claimed.push(r)
+    ctx.textAlign = align
     ctx.fillStyle = 'rgba(5,3,1,.85)'; ctx.fillText(n, sx + 1, sy + 1)
     ctx.fillStyle = fill; ctx.fillText(n, sx, sy)
+    ctx.textAlign = 'center'
   }
-  for (const p of lp.places) put(p.n, p.x, p.y, '#d6c49c', 'italic 10px Verdana')
-  for (const t of lp.towns) {
+  for (const t of lp.towns) { // towns first: their names own their ground
     const sx = (t.x - view.x) * view.z, sy = (t.y - view.y) * view.z
     ctx.fillStyle = '#e2b63e'; ctx.fillRect(sx - 2, sy - 2, 4, 4)
-    put(t.n, t.x, t.y, '#e2b63e', 'bold 11px Verdana')
+    claimed.push({ x: sx - 4, y: sy - 4, w: 8, h: 8 })
+    put(t.n, t.x, t.y, '#e2b63e', 'bold 11px Verdana', false)
   }
+  for (const p of lp.places) put(p.n, p.x, p.y, '#d6c49c', 'italic 10px Verdana', true)
 }
 // pan and zoom: pointer events cover mouse and touch alike
 let drag = null
