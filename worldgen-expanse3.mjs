@@ -324,7 +324,12 @@ export function makeExpanse3Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     norwick: { x0: nw.x - 8, x1: nw.x + 8, y0: nw.y - 6, y1: nw.y + 6 },
   }
   g.watch = { level: 60, kindleLogs: 10, perLog: 420, cap: 12600, xpPerLog: 200, burnXp: 1, maxOwned: 4, decayTicks: 432000 }
-  g.survey = { k: 16, base: 40, perTile: 7, max: 2600 }
+  // Founded from survey-sim-expanse3 (the SPEC 7c discipline) against the
+  // v0.79 placement rule, on THIS geometry at 896x512: the recall-optimal
+  // solo explorer (all stones attuned, ~163 surveys/hr, mean marker distance
+  // ~162 tiles) reaches 99 in ~117h. max sits at the p99 distance (393 tiles)
+  // so the deep frontier still pays past the cap. NOT a universal curve.
+  g.survey = { k: 16, base: 40, perTile: 4, max: 1600 }
   return g
 }
 
