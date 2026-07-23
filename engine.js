@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.78';
+const SPEC_VERSION = '0.79';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -2055,18 +2055,34 @@ function surveyMarker(s, ctx, index, salt) {
     const ws = s.nodes[wid];
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const x = ws.x + dx, y = ws.y + dy;
-      if (x >= 1 && y >= 1 && x < g.worldW - 1 && y < g.worldH - 1 && !occupied(x, y) && !inCity(g, x, y))
+      if (x >= 1 && y >= 1 && x < g.worldW - 1 && y < g.worldH - 1 && !occupied(x, y) && !inCity(g, x, y)
+        && !terrainBlocked(g, x, y)) // v0.79: a rumor must be standable too
         return { x, y, kind: 'ws', ws: wid, bornAt: s.tick };
     }
   }
-  for (let att = 0; att < 200; att++) { // ordinary: near-biased, avoid city and nodes
+  for (let att = 0; att < 200; att++) { // ordinary: near-biased, avoid city, nodes, and barred ground
     const h = sha256(Buffer.from(s.beacon + '|survey|' + s.tick + '|' + index + '|' + salt + '|' + att));
     const x = 1 + (h.readUInt32BE(0) % (g.worldW - 2)), y = 1 + (h.readUInt32BE(4) % (g.worldH - 2));
-    if (inCity(g, x, y) || occupied(x, y)) continue;
+    // v0.79: a marker is a place a citizen can STAND. The generator's terrain
+    // (sea, ridge, river off the fords) rejects a candidate exactly as a node
+    // does; a world with no registered terrain replays bit-identically, since
+    // terrainBlocked is constant-false there.
+    if (inCity(g, x, y) || occupied(x, y) || terrainBlocked(g, x, y)) continue;
     const d = Math.max(Math.abs(x - anchor.x), Math.abs(y - anchor.y));
     if ((h.readUInt32BE(8) / 0xffffffff) > 1 - 0.6 * (d / maxD)) continue;
     return { x, y, kind: classifyMarker(g, x, y, h), bornAt: s.tick };
   }
+  // fallback (v0.79): the old anchor+5 could itself be barred ground on a
+  // terrain world. Ring-scan outward from the anchor — deterministic, exact,
+  // and the anchor's own walkability is the spawn's guarantee.
+  for (let r = 1; r < Math.max(g.worldW, g.worldH); r++)
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const x = anchor.x + dx, y = anchor.y + dy;
+      if (x < 1 || y < 1 || x >= g.worldW - 1 || y >= g.worldH - 1) continue;
+      if (inCity(g, x, y) || occupied(x, y) || terrainBlocked(g, x, y)) continue;
+      return { x, y, kind: 'ord', bornAt: s.tick };
+    }
   return { x: Math.min(anchor.x + 5, g.worldW - 2), y: anchor.y, kind: 'ord', bornAt: s.tick };
 }
 
