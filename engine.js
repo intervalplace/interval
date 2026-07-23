@@ -2163,6 +2163,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (inCity(s.genesis, nx, ny)) continue; // no mob enters Anchor (spec 2d)
     if (Math.max(Math.abs(nx - m.hx), Math.abs(ny - m.hy)) > 2) continue;
     if (nodeExistsAt(s, _ctx, nx, ny)) continue;
+    if (terrainBlocked(s.genesis, nx, ny)) continue; // v0.78: beasts respect the water like everyone else — a goblin was seen STANDING IN THE RIVER
     m.x = nx; m.y = ny;
   }
   // v0.74: the shelves rot. Every SHELF_DECAY_EVERY intervals a sixteenth of
