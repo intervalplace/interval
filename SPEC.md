@@ -371,7 +371,7 @@ forges, garrisons, and mills keep an anvil and a smith; ports, timber
 towns, and mills keep a store; garrisons muster guards. The settled
 country farms: four plots stand outside every wall.
 
-**The roads.** Every road leads to Anchor — spokes, not a maze — a
+**The roads.** Every road leads to Anchor — spokes, not a maze, but a
 world you can navigate by memory. Each spoke is two tiles wide,
 carries no nodes (it costs the tick nothing), and wanders by
 `meander(g, 90 + i, u, 26, 9)` scaled by the taper
