@@ -87,7 +87,7 @@ function engineThrow(code, message) { const e = new Error(message); e.code = cod
 const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
-const NODE_TYPES = ['tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
+const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
   'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'house', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
@@ -175,7 +175,18 @@ const reachOf = (p) => weaponOf(p)?.reach ?? 1;
 const isRanged = (p) => weaponOf(p)?.ranged === true;
 // a ranged weapon is drawn only at distance; in your face it is a club
 const drawnAt = (p, t) => isRanged(p) && !adjacent(p, t);
-const inReach = (p, t) => Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y)) <= reachOf(p);
+const inReach = (p, t) => {
+  // melee geometry (v0.79): movement is cardinal, so a reach-1 weapon
+  // strikes only along lines you can step — the four faced tiles, the
+  // same law §5 gives the axe and the pick. A long haft (reach 2+) may
+  // thrust past a corner. NOTHING strikes the tile it stands on: two
+  // bodies in one square is not a fight, it is an accident.
+  const r = reachOf(p);
+  const cheb = Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y));
+  if (cheb < 1) return false;
+  if (r <= 1) return Math.abs(p.x - t.x) + Math.abs(p.y - t.y) === 1;
+  return cheb <= r;
+};
 
 const MOB_STATS = {
   goblin: { maxHp: 5, atk: 1, def: 1, maxHit: 1, respawn: 16,
@@ -1166,7 +1177,8 @@ function validateState(state) {
   // ---- constitutional tables (final brief §7): the validator accepts
   // exactly what THIS engine writes — nothing missing, nothing extra ----
   const SKILL_SET = SKILLS;                 // shared constitutional tables
-  const NODE_TYPE_SET = new Set(NODE_TYPES); // (rev4 §11): defined ONCE, above
+  const NODE_TYPE_SET = new Set(NODE_TYPES);
+const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel', 'drowned-bell', 'shipwreck']); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'slain', 'lastSwing', 'lastAte']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,64}$/i.test(v);
@@ -1303,12 +1315,21 @@ function validateState(state) {
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf']);
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,64}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
     if (typeof n.type !== 'string' || !NODE_TYPE_SET.has(n.type)) return 'unknown node type';
     for (const k of Object.keys(n)) if (!NODE_FIELDS.has(k)) return `unknown node field ${k}`;
+    if (n.kind !== undefined) {
+      // a LANDMARK is a place, not a resource (v0.79): it cannot be
+      // worked, fought, lit, or consumed — no verb in the constitution
+      // reaches it. It blocks its tile like any node, and it exists so
+      // that the map tells the truth. The kind names what stands there.
+      if (n.type !== 'landmark') return 'only a landmark bears a kind';
+      if (!LANDMARK_KINDS.has(n.kind)) return `unknown landmark kind ${n.kind}`;
+    }
+    if (n.type === 'landmark' && n.kind === undefined) return 'a landmark must name its kind';
     if (n.shelf !== undefined) {
       if (n.type !== 'store') return 'only a store keeps a shelf';
       if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)) return 'shelf malformed';
@@ -1531,6 +1552,10 @@ function validInput(state, input, ctx) {
       // the water is law where the generator says so (terrain registry):
       // rivers and the sea bar the way, and their fords are law too
       if (terrainBlocked(state.genesis, nx, ny)) return false;
+      // a living beast holds its tile (v0.79): you do not walk THROUGH a
+      // troll, you deal with it — the troll bars the way. (Two bodies in
+      // one square was how a fisher came to fight from inside a troll.)
+      for (const m of Object.values(state.mobs)) if (m.hp > 0 && m.x === nx && m.y === ny) return false;
       // nodes are impassable (§5): you fish beside the water, not in it
       return !blockingNodeAt(state, ctx, nx, ny); // brewpots are walkable — no wall-ins (v0.52)
     }

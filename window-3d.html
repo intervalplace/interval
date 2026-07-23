@@ -2106,10 +2106,22 @@ function terrainOfE3(x, y) {
   if (inSea3(x, y)) return fordE3(x, y) ? 'bridge' : 'sea'
   if (inRiver3(x, y) || inLake3(x, y)) return fordE3(x, y) ? 'bridge' : 'river'
   for (const t2 of settlementsE3()) {
-    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
+    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1))
+      return onRoad3(x, y) ? 'cobble' : 'flag' // paved streets, flagstone yards
   }
-  if (onRidge3(x, y)) return onRoad3(x, y) ? 'trail' : 'mountain'
-  if (onRoad3(x, y)) return 'trail'
+  if (onRidge3(x, y)) return onRoad3(x, y) ? 'gravel' : 'mountain'
+  if (onRoad3(x, y)) {
+    // mirrored from worldgen groundKindAt (v0.79), the canon of surfaces:
+    // civilization paves, the passes crunch, the open country is trail
+    for (const t2 of settlementsE3()) if (Math.max(Math.abs(x - t2.x), Math.abs(y - t2.y)) <= 15) return 'cobble'
+    if (onRidge3(x - 1, y) || onRidge3(x + 1, y) || onRidge3(x, y - 1) || onRidge3(x, y + 1)
+      || biomeAtE3(x, y) === 'crags') return 'gravel'
+    return 'trail'
+  }
+  {
+    const w9 = (x2, y2) => inSea3(x2, y2) || inRiver3(x2, y2) || inLake3(x2, y2)
+    if (w9(x + 1, y) || w9(x - 1, y) || w9(x, y + 1) || w9(x, y - 1)) return 'sand' // the shore
+  }
   const b3 = biomeAtE3(x, y)
   return b3 === 'heartlands' ? 'meadow' : b3 // tile palette keeps its old key
 }
@@ -2124,12 +2136,39 @@ function terrainOfE(x, y) {
 // ---- the countries by their names, mirrored from /play (spec 9d): a
 // region is a pure function of the world, identical in every window, so
 // "meet me at the fens edge" means one place to everyone. ----
+
+// ---- the keepers' names (v0.79): mirrored from worldgen keeperName —
+// same SHA-256, same list, precomputed once at boot, identical in every
+// window. Maud is Maud everywhere, and no byte of state stores her. ----
+const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
+  'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
+  'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
+const KN = {}
+;(async () => {
+  try {
+    const tags = settlementsE3().map(t => t.tag ?? t.name?.toLowerCase())
+    for (const [tag2, role2] of [['hollybarrow', 'farm'], ['sawyer', 'camp'], ['high', 'delve'], ['eel', 'sheds']]) {
+      const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
+      KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
+    }
+    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+      const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
+      KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
+    }
+  } catch {}
+})()
+const kName = (tag, role) => KN[tag + '|' + role] ?? 'the keeper'
+const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds)-(.+)$/.exec(id ?? '')
+  return m ? kName(m[2], m[1]) : 'the keeper'
+}
 const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
   wilds: 'the Wilds', meadow: 'the Heartlands', heartlands: 'the Heartlands' }
 const SETTLEMENT_NAMES = ['Anchor', 'Greenhollow', 'Millbrook', 'Cragfoot', 'Eastmere', 'Fenmarch', 'Norwick']
 const CLASSIC_NAMES = { wilds: 'the Wilds', cave: 'the Deep', scree: 'the Scree',
   mountain: 'the Mountains', sea: 'the Sea', bridge: 'the Bridge',
-  cobble: 'the City', plaza: 'the Market', trail: 'the Road', meadow: 'the Meadows' }
+  cobble: 'the City', plaza: 'the Market', flag: 'the Market', gravel: 'the Pass',
+  sand: 'the Shore', trail: 'the Road', meadow: 'the Meadows' }
 function regionNameAt(x, y) {
   try {
     if (!GEN.startsWith('interval-expanse-')) return CLASSIC_NAMES[terrainOf(x, y)] ?? ''
@@ -2169,6 +2208,7 @@ function terrainOf(x, y) {
   return 'meadow'
 }
 const TERRAIN_COL = { meadow: 0x3d5a23, trail: 0x8a7449, cobble: 0x7a756b, plaza: 0x6e5f3e,
+  flag: 0x847b66, gravel: 0x8d8578, sand: 0xc9b98a,
   scree: 0x5d5a52, cave: 0x22202a, wilds: 0x4a3d2e, sea: 0x1a4a63, mountain: 0x6e6a60, bridge: 0x8a6a3a,
   // the expanse: north is wood, east is stone, south is water
   river: 0x2f6a86, greenwood: 0x26401b, crags: 0x6a6358, fens: 0x43512f }
@@ -2761,6 +2801,57 @@ function mkSmoke(parent, x, y0, z, scale, pace, dark) {
 }
 function nodeMesh(n) {
   const g = new THREE.Group()
+  if (n.type === 'keeper') {
+    const stdK = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 })
+    const aK = (m, x, y, z) => { m.position.set(x ?? 0, y ?? 0, z ?? 0); m.castShadow = true; g.add(m); return m }
+    aK(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.3, 1.0, 7), stdK(0x6b4a33)), 0, 0.5)
+    aK(new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), stdK(0xa8865c)), 0, 1.18)
+    aK(new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.55, 0.07), stdK(0xd9cfa8)), 0, 0.55, 0.27)
+    return g
+  }
+  if (n.type === 'fence') {
+    const wd = new THREE.MeshStandardMaterial({ color: 0x6b5433, roughness: 0.95 })
+    for (const px9 of [-0.4, 0.4]) { const p9 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.9, 0.11), wd); p9.position.set(px9, 0.45, 0); p9.castShadow = true; g.add(p9) }
+    for (const ry9 of [0.32, 0.64]) { const r9 = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 0.08), wd); r9.position.set(0, ry9, 0); g.add(r9) }
+    return g
+  }
+  if (n.type === 'hedge') {
+    const h9 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.62, 1),
+      new THREE.MeshStandardMaterial({ color: 0x2a4218, roughness: 0.95 }))
+    h9.position.y = 0.4; h9.scale.y = 0.72; h9.castShadow = true; g.add(h9)
+    return g
+  }
+  if (n.type === 'landmark') {
+    const std9 = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9 })
+    const add9 = (m, x, y, z) => { m.position.set(x ?? 0, y ?? 0, z ?? 0); m.castShadow = true; g.add(m); return m }
+    const hv9 = tileHash(n.x, n.y, 29)
+    if (n.kind === 'elder-tree' || n.kind === 'old-oak') {
+      add9(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.62, 4.2, 8), std9(0x4a3320)), 0, 2.1)
+      const cr9 = add9(new THREE.Mesh(new THREE.IcosahedronGeometry(2.5, 1), std9(n.kind === 'elder-tree' ? 0x1c3d12 : 0x234517)), 0, 5.1)
+      cr9.scale.y = 0.82; cr9.rotation.y = (hv9 % 97) / 15
+      add9(new THREE.Mesh(new THREE.IcosahedronGeometry(1.2, 1), std9(0x2c5a1e)), 0.9, 3.9, 0.5)
+    } else if (n.kind === 'standing-stone') {
+      const st9 = add9(new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.6, 0.55), std9(0x6b6760)), 0, 1.3)
+      st9.rotation.y = (hv9 % 97) / 15; st9.rotation.z = ((hv9 % 13) - 6) * 0.012
+    } else if (n.kind === 'sentinel') {
+      const st9 = add9(new THREE.Mesh(new THREE.BoxGeometry(0.8, 4.4, 0.65), std9(0x726d64)), 0, 2.2)
+      st9.rotation.y = (hv9 % 97) / 15; st9.rotation.z = 0.04
+    } else if (n.kind === 'drowned-bell') {
+      const tw9 = add9(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.78, 1.8, 6), std9(0x4d4a42)), 0, 0.6)
+      tw9.rotation.z = 0.12
+      add9(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 0.32, 8),
+        new THREE.MeshStandardMaterial({ color: 0x8a7434, roughness: 0.5, metalness: 0.6 })), 0.05, 1.25)
+    } else if (n.kind === 'shipwreck') {
+      const hull9 = add9(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.8, 2.8, 7), std9(0x5a4634)), 0, 0.35)
+      hull9.rotation.z = Math.PI / 2; hull9.rotation.x = 0.28
+      const mast9 = add9(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 2.6, 6), std9(0x4a3a2c)), 0.25, 1.2, 0.1)
+      mast9.rotation.z = -0.5
+    } else {
+      add9(new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.1, 1.4), std9(0x5e5952)), 0, 0.55)
+      add9(new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.8), std9(0x6b665e)), 0.2, 1.5, -0.1)
+    }
+    return g
+  }
   const std = (c, r = 0.9) => new THREE.MeshStandardMaterial({ color: c, roughness: r })
   const metalN = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.35, metalness: 0.7 })
   const cast = (m) => { m.castShadow = true; return m }
@@ -5079,7 +5170,7 @@ function snd(kind, pos, flavor) {
       o.start(t0); o.stop(t0 + 0.05)
       burst(1800, 'bandpass', 0.035, 0.22)
     } else if (kind === 'step') { // a footfall, in the ground's own voice
-      const hard = flavor === 'cobble' || flavor === 'plaza' || flavor === 'road'
+      const hard = flavor === 'cobble' || flavor === 'plaza' || flavor === 'road' || flavor === 'flag' || flavor === 'gravel' // sand and trail stay soft underfoot
       o.type = 'sine'; o.frequency.setValueAtTime(hard ? 260 : 150, t0)
       g2.gain.setValueAtTime(hard ? 0.05 : 0.035, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.05)
       o.start(t0); o.stop(t0 + 0.06)
@@ -5182,6 +5273,17 @@ ws.onmessage = async (ev) => {
     clock = { tick: m.state.tick, at: performance.now() }
     if (m.state.tick !== lastTickN) { lastTickN = m.state.tick; lastAdvanceAt = performance.now() }
     updateDoor3(m.state, curWorldId) // the door watches the world turn behind it
+    if (entered && !window.__arrived3 && ownKey && m.state.players?.[ownKey.pub]) {
+      window.__arrived3 = true
+      const me9 = m.state.players[ownKey.pub]
+      const asleep = m.state.tick - (me9.lastInput ?? m.state.tick)
+      const s9 = Math.round(asleep * 0.6)
+      const t9 = (me9.lastInput ?? 0) === 0 || asleep < 8 ? null
+        : s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day'
+        : s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour'
+        : s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
+      feed(t9 === null ? 'You wake in Tallyholm for the first time.' : 'You wake. You slept for ' + t9 + '; the world did not.')
+    }
     if (entered && pendingName3 && ownKey && m.state.players?.[ownKey.pub]
       && !m.state.players[ownKey.pub].name) {
       send({ do: 'name', name: pendingName3 }); pendingName3 = ''

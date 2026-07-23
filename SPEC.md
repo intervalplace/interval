@@ -593,6 +593,26 @@ Gather yield table: `tree` → `logs` (woodcutting, 25 XP), `rock` →
 
 ### 3.3 Mobs
 
+**Keepers, fences, hedges (v0.79).** A `keeper` is a person-shaped
+fixture: the named face of a town's trade, standing at their counter
+from the founding on. Their NAME is not stored — it is a pure function
+of the town and the role, computed identically by every window, so
+Maud is Maud in every mirror without a byte of state. Keepers hold
+their tile and answer to no verb (yet). `fence` and `hedge` are field
+boundaries: they block like walls and yield nothing — the land bearing
+the marks of being TENDED. All three exist so home looks kept, not
+merely generated.
+
+**Landmarks (v0.79).** A node of type `landmark` is a PLACE, not a
+resource: no verb in this constitution reaches it — it cannot be
+gathered, fought, lit, planted, read, or consumed — and it blocks its
+tile like any node. A landmark bears exactly one extra field, `kind`,
+drawn from a closed set (`elder-tree`, `old-oak`, `standing-stone`,
+`broken-tower`, `sentinel`, `drowned-bell`, `shipwreck`), and only
+landmarks bear it. Landmarks exist so the
+map tells the truth: a named place that cannot be founded would be a
+lie on every chart.
+
 A mob is `{type, x, y, hp, respawnAt}`. Mobs are placed in genesis, do
 not move, and act only when attacked (fully deterministic). A mob with
 `hp <= 0` is dead until `respawnAt`, when its hp resets to max at the
@@ -696,6 +716,14 @@ reference window renders one cape in the color of the mastered skill,
 gold trim for a second mastery, and a radiant cape for all nine.
 Mastery is proved by the state and verified by every node; the cape is
 simply what proof looks like from a distance.
+
+**Melee geometry and occupancy (v0.79).** Movement is cardinal, and a
+reach-1 weapon strikes only along lines the wielder could step: the
+four faced tiles, the same orthogonality §5 gives the axe and the
+pick. A long haft (reach 2 or more) may thrust past a corner. Nothing
+strikes the tile it stands on. And a living beast holds its tile: a
+`move` onto a tile occupied by a mob with `hp > 0` is invalid — the
+troll bars the way.
 
 ## 5. Actions
 

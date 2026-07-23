@@ -904,6 +904,7 @@ function buildMini() {
   miniCv.width = W; miniCv.height = H
   const g = miniCv.getContext('2d')
   const cols = { meadow: '#3d5a23', trail: '#8a7449', cobble: '#7a756b', plaza: '#6e5f3e',
+    flag: '#847b66', gravel: '#8d8578', sand: '#c9b98a',
     scree: '#5d5a52', cave: '#2e2c33', wilds: '#4a3d2e', sea: '#2a5f7d', mountain: '#6e6a60', bridge: '#8a6a3a',
     river: '#2f6a86', greenwood: '#26401b', crags: '#6a6358', fens: '#43512f' }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -1065,6 +1066,7 @@ function onState(s, worldId) {
     }
   }
   if (!entered) updateGate(s, worldId)
+  else tellArrival()
   if (s.genesis && (W !== s.genesis.worldW || !groundReady)) {
     W = s.genesis.worldW; H = s.genesis.worldH
     GEN = s.genesis.worldGenerator ?? GEN; GSEED = s.genesis.genesisSeed ?? ''
@@ -1650,10 +1652,22 @@ function terrainOfE3(x, y) {
   if (inSea3(x, y)) return fordE3(x, y) ? 'bridge' : 'sea'
   if (inRiver3(x, y) || inLake3(x, y)) return fordE3(x, y) ? 'bridge' : 'river'
   for (const t2 of settlementsE3()) {
-    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
+    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1))
+      return onRoad3(x, y) ? 'cobble' : 'flag' // paved streets, flagstone yards
   }
-  if (onRidge3(x, y)) return onRoad3(x, y) ? 'trail' : 'mountain'
-  if (onRoad3(x, y)) return 'trail'
+  if (onRidge3(x, y)) return onRoad3(x, y) ? 'gravel' : 'mountain'
+  if (onRoad3(x, y)) {
+    // mirrored from worldgen groundKindAt (v0.79), the canon of surfaces:
+    // civilization paves, the passes crunch, the open country is trail
+    for (const t2 of settlementsE3()) if (Math.max(Math.abs(x - t2.x), Math.abs(y - t2.y)) <= 15) return 'cobble'
+    if (onRidge3(x - 1, y) || onRidge3(x + 1, y) || onRidge3(x, y - 1) || onRidge3(x, y + 1)
+      || biomeAtE3(x, y) === 'crags') return 'gravel'
+    return 'trail'
+  }
+  {
+    const w9 = (x2, y2) => inSea3(x2, y2) || inRiver3(x2, y2) || inLake3(x2, y2)
+    if (w9(x + 1, y) || w9(x - 1, y) || w9(x, y + 1) || w9(x, y - 1)) return 'sand' // the shore
+  }
   return biomeAtE3(x, y)
 }
 function terrainOfE(x, y) {
@@ -1669,12 +1683,39 @@ function terrainOfE(x, y) {
 // the countries, by their names (spec 9d). A region is not decoration: it is
 // a pure function of the founding record, identical in every window, so that
 // "meet me at the fens edge" means one place to everyone who hears it.
+
+// ---- the keepers' names (v0.79): mirrored from worldgen keeperName —
+// same SHA-256, same list, precomputed once at boot, identical in every
+// window. Maud is Maud everywhere, and no byte of state stores her. ----
+const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
+  'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
+  'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
+const KN = {}
+;(async () => {
+  try {
+    const tags = settlementsE3().map(t => t.tag ?? t.name?.toLowerCase())
+    for (const [tag2, role2] of [['hollybarrow', 'farm'], ['sawyer', 'camp'], ['high', 'delve'], ['eel', 'sheds']]) {
+      const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
+      KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
+    }
+    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+      const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
+      KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
+    }
+  } catch {}
+})()
+const kName = (tag, role) => KN[tag + '|' + role] ?? 'the keeper'
+const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds)-(.+)$/.exec(id ?? '')
+  return m ? kName(m[2], m[1]) : 'the keeper'
+}
 const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
   wilds: 'the Wilds', meadow: 'the Heartlands', heartlands: 'the Heartlands' }
 const SETTLEMENT_NAMES = ['Anchor', 'Greenhollow', 'Millbrook', 'Cragfoot', 'Eastmere', 'Fenmarch', 'Norwick']
 const CLASSIC_NAMES = { wilds: 'the Wilds', cave: 'the Deep', scree: 'the Scree',
   mountain: 'the Mountains', sea: 'the Sea', bridge: 'the Bridge',
-  cobble: 'the City', plaza: 'the Market', trail: 'the Road', meadow: 'the Meadows' }
+  cobble: 'the City', plaza: 'the Market', flag: 'the Market', gravel: 'the Pass',
+  sand: 'the Shore', trail: 'the Road', meadow: 'the Meadows' }
 function regionNameAt(x, y) {
   try {
     if (!GEN.startsWith('interval-expanse-')) {
@@ -2231,6 +2272,98 @@ function drawScene(now) {
       continue
     }
     layer.push({ z: Z(n.y, 2), draw: () => {
+      if (n.type === 'keeper') {
+        shadow(X, Y, 7)
+        cx.fillStyle = '#6b4a33'; cx.fillRect(X + 12, Y + 4, 9, 14)
+        cx.fillStyle = '#a8865c'; cx.fillRect(X + 13, Y - 3, 7, 7)
+        cx.fillStyle = '#3d2f22'; cx.fillRect(X + 12, Y - 5, 9, 3)
+        cx.fillStyle = '#d9cfa8'; cx.fillRect(X + 13, Y + 9, 7, 8)
+        return
+      }
+      if (n.type === 'fence') {
+        cx.fillStyle = '#6b5433'
+        cx.fillRect(X + 4, Y + 8, 3, 14); cx.fillRect(X + 25, Y + 8, 3, 14)
+        cx.fillRect(X + 2, Y + 10, 28, 2.5); cx.fillRect(X + 2, Y + 16, 28, 2.5)
+        return
+      }
+      if (n.type === 'hedge') {
+        shadow(X, Y, 12)
+        cx.fillStyle = '#2a4218'; cx.fillRect(X + 2, Y + 6, 28, 18)
+        cx.fillStyle = '#365222'; cx.fillRect(X + 4, Y + 4, 10, 8); cx.fillRect(X + 17, Y + 5, 11, 7)
+        cx.fillStyle = '#1e3010'; cx.fillRect(X + 6, Y + 18, 20, 5)
+        return
+      }
+      if (n.type === 'landmark') {
+        if (n.kind === 'elder-tree' || n.kind === 'old-oak') {
+          // a GIANT: twice the tree, deeper of leaf, gold at the crown
+          shadow(X, Y, 22)
+          cx.fillStyle = '#3d2817'
+          cx.fillRect(X + 12, Y - 4, 8, 26)
+          cx.fillRect(X + 9, Y + 16, 14, 6)
+          const deep = n.kind === 'elder-tree' ? '#1c3d12' : '#234517'
+          cx.fillStyle = deep
+          cx.beginPath(); cx.arc(X + 16, Y - 14, 19, 0, 7); cx.fill()
+          cx.fillStyle = '#2c5a1e'
+          cx.beginPath(); cx.arc(X + 9, Y - 18, 11, 0, 7); cx.fill()
+          cx.beginPath(); cx.arc(X + 24, Y - 16, 10, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(226,182,62,.25)' // the crown catches whatever light there is
+          cx.beginPath(); cx.arc(X + 14, Y - 24, 7, 0, 7); cx.fill()
+        } else if (n.kind === 'standing-stone') {
+          shadow(X, Y, 10)
+          cx.fillStyle = '#6b6760'
+          cx.beginPath()
+          cx.moveTo(X + 11, Y + 26); cx.lineTo(X + 13, Y - 6); cx.lineTo(X + 19, Y - 8); cx.lineTo(X + 22, Y + 26)
+          cx.closePath(); cx.fill()
+          cx.fillStyle = '#57534d'
+          cx.fillRect(X + 11, Y + 8, 11, 3)
+          cx.fillStyle = '#5a7a3e' // the moss keeps the north face
+          cx.fillRect(X + 13, Y - 7, 4, 5)
+        } else if (n.kind === 'sentinel') {
+          shadow(X, Y, 9)
+          cx.fillStyle = '#726d64'
+          cx.beginPath()
+          cx.moveTo(X + 13, Y + 26); cx.lineTo(X + 12, Y - 16); cx.lineTo(X + 18, Y - 18); cx.lineTo(X + 21, Y + 26)
+          cx.closePath(); cx.fill()
+          cx.fillStyle = '#8b857a'
+          cx.fillRect(X + 12, Y - 18, 7, 4)
+          cx.fillStyle = 'rgba(255,255,255,.14)'
+          cx.fillRect(X + 12, Y - 12, 2, 30)
+        } else if (n.kind === 'drowned-bell') {
+          shadow(X, Y, 12)
+          cx.fillStyle = '#4d4a42'
+          cx.beginPath()
+          cx.moveTo(X + 8, Y + 24); cx.lineTo(X + 10, Y + 2); cx.lineTo(X + 22, Y + 2); cx.lineTo(X + 24, Y + 24)
+          cx.closePath(); cx.fill()
+          cx.fillStyle = '#2c2a24'
+          cx.fillRect(X + 12, Y + 5, 8, 7) // the arch the bell hung in
+          cx.fillStyle = '#7a6a34'
+          cx.beginPath(); cx.arc(X + 16, Y + 9, 2.6, 0, 7); cx.fill() // the bell, still there
+          cx.fillStyle = 'rgba(60,72,48,.55)' // the marsh has it to the shoulders
+          cx.fillRect(X + 4, Y + 18, 26, 8)
+        } else if (n.kind === 'shipwreck') {
+          shadow(X, Y, 14)
+          cx.fillStyle = '#5a4634'
+          cx.beginPath()
+          cx.moveTo(X + 2, Y + 14); cx.quadraticCurveTo(X + 16, Y + 26, X + 30, Y + 12)
+          cx.lineTo(X + 26, Y + 20); cx.quadraticCurveTo(X + 16, Y + 28, X + 6, Y + 20)
+          cx.closePath(); cx.fill()
+          cx.fillStyle = '#4a3a2c'
+          cx.fillRect(X + 14, Y - 6, 3, 20) // the mast, at its angle
+          cx.save(); cx.translate(X + 15, Y + 4); cx.rotate(-0.35)
+          cx.fillStyle = '#6b5a44'; cx.fillRect(0, 0, 12, 2); cx.restore()
+          cx.fillStyle = 'rgba(201,185,138,.5)'
+          cx.fillRect(X + 0, Y + 20, 32, 5) // the sand keeps what it catches
+        } else { // broken-tower: masonry that remembers being taller
+          shadow(X, Y, 12)
+          cx.fillStyle = '#5e5952'
+          cx.fillRect(X + 6, Y + 10, 20, 16)
+          cx.fillStyle = '#6b665e'
+          cx.fillRect(X + 8, Y - 2, 7, 14); cx.fillRect(X + 18, Y + 2, 8, 10)
+          cx.fillStyle = '#4a463f'
+          cx.fillRect(X + 10, Y - 8, 4, 8)
+        }
+        return
+      }
       if (n.type === 'tree' && tileHash(n.x, n.y, 7) % 3 === 0) {
         // the deciduous cousin: round canopy, sun-kissed crown
         if (!dep) shadow(X, Y, 12)
@@ -3214,7 +3347,7 @@ function panel(s) {
     if (b !== undefined) {
       const askB = STORE_SELLS[b] ?? ((PRICES[b] ?? 1) + Math.max(1, Math.floor((PRICES[b] ?? 1) / 10)))
       if ((me.gold ?? 0) < askB) { feed('Not enough coin for that.'); return }
-      send({ do: 'buy', item: b }); feed('The keeper slides it across.')
+      send({ do: 'buy', item: b }); feed(kFromId(Object.entries(world.nodes).find(([, n2]) => n2.type === 'store' && Math.abs(me.x - n2.x) + Math.abs(me.y - n2.y) === 1)?.[0]) + ' slides it across.')
     }
   }
   document.getElementById('status').textContent =
@@ -3267,6 +3400,20 @@ function validateGateName(s) {
 }
 document.getElementById('gatename').addEventListener('input', () => validateGateName(world))
 
+let arrivalTold = false
+function tellArrival() {
+  if (arrivalTold || !curState || !myId) return
+  const me9 = curState.players[myId]
+  if (!me9) return
+  arrivalTold = true
+  const asleep = curState.tick - (me9.lastInput ?? curState.tick)
+  if ((me9.lastInput ?? 0) === 0 || asleep < 8) { feed('You wake in Tallyholm for the first time.'); return }
+  const s9 = Math.round(asleep * 0.6)
+  const t9 = s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day'
+    : s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour'
+    : s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
+  feed('You wake. You slept for ' + t9 + '; the world did not.')
+}
 function enterWorld() {
   if (!myId) return
   wakeAudio()
@@ -3955,6 +4102,26 @@ cv.addEventListener('click', (e) => {
           ]); return
         }
         feed(bc && owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.' : 'A brewpot needs ' + (bc?.buildLogs ?? 4) + ' logs and ' + (bc?.buildOre ?? 2) + ' ore, raised beside a house.')
+        return
+      }
+      if (n.type === 'keeper') {
+        const nm9 = kFromId(id)
+        feed(nm9 + ': ' + ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',
+          '\u201cBeen here since the founding, and I\u2019ll be here after you.\u201d'][tileHash(n.x, n.y, 3) % 3])
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'landmark') {
+        // landmarks answer with their STORY, never their materials
+        feed({ 'elder-tree': 'The Elder Tree. It was here before the roads, and the roads bent around it.',
+               'old-oak': 'The Old Oak. Its children feed the axe; the Oak itself is forever.',
+               'standing-stone': 'A standing stone. Nobody remembers who raised them, and nobody dares quarry them.',
+               'broken-tower': 'The Ruined Tower. Whoever kept watch here kept it long before the towns.',
+               'sentinel': 'The Sentinel. Miners swear it moves when nobody climbs.',
+               'drowned-bell': 'The Drowned Bell. Nobody remembers the town it called to prayer. On some mornings, the mud still rings.',
+               'shipwreck': 'A wreck, broken on the shore. Somewhere there is a sea worth sailing, and this ship sailed it.' }[n.kind]
+          ?? 'It stands. It has always stood.')
+        flashClick(n.x, n.y, false)
         return
       }
       if (!me.inventory.some(sl => sl === null)) {
