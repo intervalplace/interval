@@ -305,10 +305,22 @@ function terrainOfE3(x, y) {
   if (inSea3(x, y)) return fordE3(x, y) ? 'bridge' : 'sea'
   if (inRiver3(x, y) || inLake3(x, y)) return fordE3(x, y) ? 'bridge' : 'river'
   for (const t2 of settlementsE3()) {
-    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
+    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1))
+      return onRoad3(x, y) ? 'cobble' : 'flag' // paved streets, flagstone yards
   }
-  if (onRidge3(x, y)) return onRoad3(x, y) ? 'trail' : 'mountain'
-  if (onRoad3(x, y)) return 'trail'
+  if (onRidge3(x, y)) return onRoad3(x, y) ? 'gravel' : 'mountain'
+  if (onRoad3(x, y)) {
+    // mirrored from worldgen groundKindAt (v0.79), the canon of surfaces:
+    // civilization paves, the passes crunch, the open country is trail
+    for (const t2 of settlementsE3()) if (Math.max(Math.abs(x - t2.x), Math.abs(y - t2.y)) <= 15) return 'cobble'
+    if (onRidge3(x - 1, y) || onRidge3(x + 1, y) || onRidge3(x, y - 1) || onRidge3(x, y + 1)
+      || biomeAtE3(x, y) === 'crags') return 'gravel'
+    return 'trail'
+  }
+  {
+    const w9 = (x2, y2) => inSea3(x2, y2) || inRiver3(x2, y2) || inLake3(x2, y2)
+    if (w9(x + 1, y) || w9(x - 1, y) || w9(x, y + 1) || w9(x, y - 1)) return 'sand' // the shore
+  }
   return biomeAtE3(x, y)
 }
 function terrainOfE(x, y) {
@@ -330,7 +342,7 @@ var W = Math.max(448, parseInt(params.get('w') || '896', 10) || 896)
 var H = Math.max(256, parseInt(params.get('h') || '512', 10) || 512)
 const PAL = {
   sea: '#0a0a10', shoal: '#1e3048', river: '#1e3048', bridge: '#8a6a33',
-  cobble: '#403828', trail: '#7a602a', mountain: '#4a443a',
+  cobble: '#403828', flag: '#3a3226', gravel: '#5c5648', sand: '#8a7a54', trail: '#7a602a', mountain: '#4a443a',
   wilds: '#423221', greenwood: '#2a3a1c', crags: '#484034', fens: '#343e28', meadow: '#4e542e',
 }
 const buf = document.createElement('canvas'); buf.width = W; buf.height = H
@@ -377,6 +389,17 @@ function labelPoints() {
     towns: s.map(t => ({ n: t.name, x: t.x, y: t.y })),
     places: [
       { n: 'Shrine Isle', x: isle.x, y: isle.y },
+      { n: 'the Old Oak', x: Math.round(W * 0.62), y: Math.round(H * 0.10) },
+      { n: 'the Elder Tree', x: Math.round(W * 0.56), y: Math.round(H * 0.36) },
+      { n: 'the Ring', x: Math.round(W * 0.37), y: Math.round(H * 0.655) },
+      { n: 'the Ruined Tower', x: Math.round(W * 0.12), y: Math.round(H * 0.32) },
+      { n: 'the Sentinel', x: Math.round(W * 0.86), y: Math.round(H * 0.30) },
+      { n: 'the Drowned Bell', x: Math.round(W * 0.58), y: Math.round(H * 0.82) },
+      { n: 'the Wreck', x: Math.round(W * 0.42), y: Math.round(H * 0.90) },
+      { n: 'Hollybarrow Farm', x: Math.round(W * 0.44), y: Math.round(H * 0.50) },
+      { n: "the Sawyer's Camp", x: Math.round(W * 0.50), y: Math.round(H * 0.16) },
+      { n: 'the High Delving', x: Math.round(W * 0.80), y: Math.round(H * 0.42) },
+      { n: 'the Eel Sheds', x: Math.round(W * 0.50), y: Math.round(H * 0.84) },
       { n: 'Stillwater', x: Math.round(W * 0.73), y: Math.round(H * 0.22) },
       { n: 'the Watersmeet', x: j.watersmeet.x, y: j.watersmeet.y },
       { n: 'North Pass', x: j.npass.x, y: j.npass.y },
