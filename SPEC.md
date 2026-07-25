@@ -760,6 +760,23 @@ remain committed by name, unaffected. This is the seam that makes an
 implementation in another language checkable: conform to the SPEC and draw
 the committed island, or you are elsewhere.
 
+**The founder's mark (v0.80).** A founding may commit a `founderKey`: the
+founder's full public key, the signature of the world's origin. It is the
+whole key, not a prefix, because a prefix could be ground out (a forger
+brute-forcing a keypair whose public half begins the same way), while a
+whole public key cannot be collided, so the mark on the tally cannot be
+forged. It rides in the genesis, so `worldId` commits to it and every
+client shows the same mark; it cannot drift into a caption a renderer could
+rewrite. The
+generator cuts it into the far half of the First Tally, the half that
+stands across the water on Shrine Isle, so the founder's signature is a
+thing found, not advertised, at the end of the pilgrimage rather than at
+the door. The node that bears the mark MUST carry exactly the key the
+genesis committed, or the state is invalid: the split stick's two halves
+prove each other, and the monument cannot say a different thing than the
+world was founded with. A founding that commits no `founderKey` bears no
+mark, and every prior world (which never had the field) is unaffected.
+
 **Fires are walkable (v0.80).** A fire a citizen lights does not block
 its tile. Nodes are impassable as a rule, but everything a citizen
 MAKES is exempt (brewpot, watchfire, and now fire), because a blocking

@@ -1011,7 +1011,7 @@ function boundedValue(v, depth = 0) {
 
 // Genesis validated independently (brief §9): it is consensus identity.
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash']);
+const GENESIS_OPTIONAL = new Set(['witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -1067,6 +1067,12 @@ function validateGenesis(g) {
     const sv = g.survey;
     if (!sv || typeof sv !== 'object' || Object.keys(sv).sort().join(',') !== 'base,k,max,perTile') return 'non-constitutional genesis.survey';
     for (const sk of ['k', 'base', 'perTile', 'max']) if (!isInt(sv[sk], 0, 1e9)) return `genesis.survey.${sk} out of bounds`;
+  }
+  if (g.founderKey !== undefined) {
+    // the founder's public-key prefix, cut into the First Tally. A committed
+    // fact of the world, so every client shows the same mark and it cannot
+    // drift. A lowercase hex string, 8 to 64 chars (a prefix or a whole key).
+    if (typeof g.founderKey !== 'string' || !/^[0-9a-f]{64}$/.test(g.founderKey)) return 'non-constitutional genesis.founderKey'; // the FULL public key: 64 hex, not a grindable prefix
   }
   if (g.brew !== undefined) {
     const bw = g.brew;
@@ -1355,7 +1361,7 @@ const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'brok
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind']);
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -1370,6 +1376,13 @@ const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'brok
       if (!LANDMARK_KINDS.has(n.kind)) return `unknown landmark kind ${n.kind}`;
     }
     if (n.type === 'landmark' && n.kind === undefined) return 'a landmark must name its kind';
+    if (n.founderKey !== undefined) {
+      // the founder's mark rides only on a tally-half, and must equal the
+      // key committed in the genesis: the monument cannot say a different
+      // thing than the world was founded with (v0.80).
+      if (n.type !== 'landmark' || n.kind !== 'tally-half') return 'only the First Tally bears the founder mark';
+      if (n.founderKey !== state.genesis.founderKey) return 'tally founder mark disagrees with the genesis';
+    }
     if (n.shelf !== undefined) {
       if (n.type !== 'store') return 'only a store keeps a shelf';
       if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)) return 'shelf malformed';

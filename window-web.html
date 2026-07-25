@@ -1111,83 +1111,6 @@ function onState(s, worldId) {
     const has = (x, y) => s._waterTiles.has(x + ',' + y)
     s._waterAdj[n.x + ',' + n.y] = { n: has(n.x, n.y - 1), s: has(n.x, n.y + 1), e: has(n.x + 1, n.y), w: has(n.x - 1, n.y) }
   }
-  // ---- the curtain, as the 3D window learned it (v0.80): a wall was a
-  // flat slab twenty pixels tall, which is SHORTER than every cottage on
-  // the street, and a wall shorter than the houses it guards is a fence.
-  // Two things have to be decided before a stone can be drawn: which
-  // walls are castle at all, and which of those are the turns.
-  //
-  // Castle, not workshop: the old test was a hardcoded rectangle
-  // (rows 2 and 10, columns centre plus or minus 8), which is the starter
-  // town and nowhere else, so a real circuit anywhere in the country
-  // rendered as workshop timber. That rectangle still qualifies, exactly
-  // as before, but so does any wall standing in a RUN of three or more
-  // touching tiles. A stub of one or two stays timber, which is what a
-  // workshop wall actually is.
-  {
-    const wallAt = new Set()
-    for (const n2 of s._nodesV ?? Object.values(s.nodes)) if (n2.type === 'wall') wallAt.add(n2.x + ',' + n2.y)
-    const at = (x, y) => wallAt.has(x + ',' + y)
-    const cxW = Math.floor(W / 2)
-    const runLen = (x, y) => { // how many tiles of wall this one stands in
-      let ew = 1, ns = 1
-      for (let d = 1; at(x + d, y); d++) ew++
-      for (let d = 1; at(x - d, y); d++) ew++
-      for (let d = 1; at(x, y + d); d++) ns++
-      for (let d = 1; at(x, y - d); d++) ns++
-      return Math.max(ew, ns)
-    }
-    const stone = new Set()
-    for (const k of wallAt) {
-      const c = k.indexOf(','), x = +k.slice(0, c), y = +k.slice(c + 1)
-      if (y === 2 || y === 10 || x === cxW - 8 || x === cxW + 8 || runLen(x, y) >= 3) stone.add(k)
-    }
-    const st = (x, y) => stone.has(x + ',' + y)
-    // is this a circuit, scattered markers, or so gappy that capping every
-    // butt-end would give the town more turrets than wall?
-    let linked = 0, punct = 0
-    for (const k of stone) {
-      const c = k.indexOf(','), x = +k.slice(0, c), y = +k.slice(c + 1)
-      const ew = (st(x + 1, y) ? 1 : 0) + (st(x - 1, y) ? 1 : 0)
-      const ns = (st(x, y - 1) ? 1 : 0) + (st(x, y + 1) ? 1 : 0)
-      if (ew || ns) linked++
-      if ((ew && ns) || ew === 1 || ns === 1 || (!ew && !ns)) punct++
-    }
-    const sparse = stone.size > 2 && linked / stone.size < 0.35
-    const plain = !sparse && stone.size > 2 && punct / stone.size > 0.40
-    // a turn beats a butt-end beats the rhythm, and none of them may
-    // stand next to another, or you get drums in a huddle
-    const claim = (x, y) => {
-      if (!st(x, y)) return 0
-      const ew = (st(x + 1, y) ? 1 : 0) + (st(x - 1, y) ? 1 : 0)
-      const ns = (st(x, y - 1) ? 1 : 0) + (st(x, y + 1) ? 1 : 0)
-      if (ew && ns) return 3
-      if (ew === 2 || ns === 2) return ((((x + y) % 9) + 9) % 9) === 0 ? 1 : 0
-      return plain ? 0 : 2
-    }
-    const wkey = (x, y) => (y + 4096) * 8192 + (x + 4096)
-    const ORTHO = [[1, 0], [-1, 0], [0, 1], [0, -1]]
-    s._wallStone = stone
-    s._wallShape = {}
-    for (const k of stone) {
-      const c = k.indexOf(','), x = +k.slice(0, c), y = +k.slice(c + 1)
-      let shape = 'curtain'
-      const mine = sparse ? 0 : claim(x, y)
-      if (mine === 3) {
-        shape = 'tower'
-        for (const [dx, dy] of ORTHO)
-          if (claim(x + dx, y + dy) === 3 && wkey(x + dx, y + dy) < wkey(x, y)) shape = 'curtain'
-      } else if (mine === 2) {
-        shape = 'tower'
-        for (const [dx, dy] of ORTHO) if (claim(x + dx, y + dy) === 3) shape = 'curtain'
-      } else if (mine === 1) {
-        shape = 'tower'
-        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
-          if ((dx || dy) && claim(x + dx, y + dy) >= 2) shape = 'curtain'
-      }
-      s._wallShape[k] = shape
-    }
-  }
   s._pinnedBy = {}
   for (const [pid2, p2] of Object.entries(s.players)) if (p2.action?.mobId) s._pinnedBy[p2.action.mobId] = p2
   // perf: entries computed once per state; sixty frames read them for free
@@ -2659,8 +2582,9 @@ function drawScene(now) {
         cx.globalAlpha = 1
       }
       if (n.type === 'wall') {
-        const shp = s._wallShape?.[n.x + ',' + n.y]
-        if (!shp) { // workshop timber: lighter build, lower profile
+        const cxW = Math.floor(W / 2)
+        const onPerimeter = (n.y === 2 || n.y === 10 || n.x === cxW - 8 || n.x === cxW + 8)
+        if (!onPerimeter) { // workshop timber: lighter build, lower profile
           poly([[X+6,Y+32],[X+34,Y+32],[X+34,Y+18],[X+6,Y+18]], '#5c4a30', '#2c2216')
           cx.fillStyle = 'rgba(0,0,0,.16)'
           cx.fillRect(X + 6, Y + 24.5, 28, 1.4)
@@ -2669,101 +2593,11 @@ function drawScene(now) {
           return
         }
         const v = tileHash(n.x, n.y, 5) % 3
-        const face = ['#6e6a62', '#66625a', '#726e66'][v], edge = '#2c2a26'
-        const dark = '#57534c', lit = 'rgba(255,255,255,.07)'
-        if (shp === 'tower') {
-          // THE DRUM. It has to announce the turn from across the valley,
-          // so it clears the curtain by half again its own height.
-          shadow(X, Y, 15)
-          poly([[X+2,Y+34],[X+38,Y+34],[X+35,Y+26],[X+5,Y+26]], dark, edge)   // the battered foot
-          poly([[X+5,Y+26],[X+35,Y+26],[X+33,Y-4],[X+7,Y-4]], face, edge)     // the shaft
-          cx.fillStyle = 'rgba(0,0,0,.13)'                                     // its round side
-          cx.fillRect(X + 7, Y - 4, 4.5, 30); cx.fillRect(X + 28.5, Y - 4, 4.5, 30)
-          cx.fillStyle = 'rgba(0,0,0,.10)'
-          for (let c2 = 0; c2 < 4; c2++) cx.fillRect(X + 7, Y + 2 + c2 * 7, 26, 1.4)
-          cx.fillStyle = '#191712'                                             // loops, three storeys
-          for (const ly of [2, 11, 20]) { cx.fillRect(X + 19.2, Y + ly, 1.8, 6); cx.fillRect(X + 17, Y + ly + 2, 6.2, 1.6) }
-          poly([[X+3,Y-4],[X+37,Y-4],[X+35,Y-9],[X+5,Y-9]], '#7b776e', edge)   // the corbel it flares on
-          cx.fillStyle = lit; cx.fillRect(X + 5, Y - 9, 30, 1.6)
-          for (let m = 0; m < 4; m++) {                                        // the crown
-            const mx = X + 4.5 + m * 8.2
-            poly([[mx,Y-9],[mx+6,Y-9],[mx+6,Y-17],[mx,Y-17]], face, edge)
-          }
-          if (v === 0) { // some drums fly cloth
-            cx.fillStyle = '#4a4038'; cx.fillRect(X + 19.4, Y - 30, 1.6, 14)
-            const wv = Math.sin(now / 420 + n.x) * 1.6
-            poly([[X+21,Y-30],[X+31+wv,Y-27],[X+21,Y-24]], '#8a3b2c', '#2c2216')
-          }
-          return
-        }
-        // THE CURTAIN: a battered foot, the wall proper, a string course
-        // to carry the walk, and teeth cut on thirds so the gap across a
-        // join matches the gaps within it and a long run reads unbroken.
-        poly([[X-1,Y+34],[X+41,Y+34],[X+38,Y+28],[X+2,Y+28]], dark, edge)
-        poly([[X+2,Y+28],[X+38,Y+28],[X+38,Y+13],[X+2,Y+13]], face, edge)
+        poly([[X+2,Y+34],[X+38,Y+34],[X+38,Y+14],[X+2,Y+14]], ['#6e6a62', '#66625a', '#726e66'][v], '#2c2a26')
         cx.fillStyle = 'rgba(0,0,0,.14)'
-        cx.fillRect(X + 2, Y + 18, 36, 1.5); cx.fillRect(X + 2, Y + 24, 36, 1.5)
-        cx.fillStyle = '#191712'                                    // the cross loop
-        cx.fillRect(X + 19.2, Y + 16, 1.8, 8); cx.fillRect(X + 16.6, Y + 18.5, 7, 1.6)
-        poly([[X,Y+13],[X+40,Y+13],[X+40,Y+10],[X,Y+10]], '#7b776e', edge)
-        cx.fillStyle = lit; cx.fillRect(X, Y + 10, 40, 1.5)
-        for (let m = 0; m < 3; m++) {
-          const mx = X + 2.17 + m * 13.33
-          poly([[mx,Y+10],[mx+9,Y+10],[mx+9,Y+3],[mx,Y+3]], face, edge)
-        }
-        return
-      }
-      if (n.type === 'gate') {
-        // two drums and a road between them: the one part of a wall that
-        // is meant to be looked at
-        shadow(X, Y, 17)
-        const edge = '#2c2a26'
-        poly([[X+0,Y+34],[X+40,Y+34],[X+37,Y+27],[X+3,Y+27]], '#57534c', edge)
-        for (const sx of [X + 1, X + 27]) {                       // the flanking drums
-          poly([[sx,Y+30],[sx+12,Y+30],[sx+11,Y-6],[sx+1,Y-6]], '#6e6a62', edge)
-          cx.fillStyle = 'rgba(0,0,0,.13)'; cx.fillRect(sx, Y - 6, 3, 36)
-          cx.fillStyle = '#191712'; cx.fillRect(sx + 5, Y + 6, 1.6, 6)
-          poly([[sx-1,Y-6],[sx+13,Y-6],[sx+12,Y-11],[sx,Y-11]], '#7b776e', edge)
-          for (let m = 0; m < 2; m++) poly([[sx+1+m*6.5,Y-11],[sx+6+m*6.5,Y-11],[sx+6+m*6.5,Y-18],[sx+1+m*6.5,Y-18]], '#6e6a62', edge)
-        }
-        poly([[X+12,Y+34],[X+28,Y+34],[X+28,Y+14],[X+12,Y+14]], '#1d1a15')   // the passage
-        cx.fillStyle = '#6e6a62'                                              // its arch
-        cx.beginPath(); cx.moveTo(X + 12, Y + 16); cx.quadraticCurveTo(X + 20, Y + 6, X + 28, Y + 16)
-        cx.lineTo(X + 28, Y + 12); cx.quadraticCurveTo(X + 20, Y + 2, X + 12, Y + 12); cx.closePath(); cx.fill()
-        cx.fillStyle = '#3a352c'                                              // the portcullis, half up
-        for (let b = 0; b < 4; b++) cx.fillRect(X + 13.5 + b * 3.8, Y + 14, 1.5, 8)
-        cx.fillRect(X + 13, Y + 16.5, 14, 1.5)
-        poly([[X+8,Y+2],[X+32,Y+2],[X+32,Y-4],[X+8,Y-4]], '#7b776e', edge)   // the machicolated bridge
-        for (let m = 0; m < 3; m++) poly([[X+9+m*8,Y-4],[X+15+m*8,Y-4],[X+15+m*8,Y-11],[X+9+m*8,Y-11]], '#6e6a62', edge)
-        return
-      }
-      if (n.type === 'gatehouse' || n.type === 'keep') {
-        // THE KEEP: the tallest thing a settlement builds, and the thing
-        // you should see first. Corner turrets carry past the parapet.
-        shadow(X, Y, 17)
-        const edge = '#2c2a26', face = '#6e6a62'
-        poly([[X-1,Y+34],[X+41,Y+34],[X+37,Y+27],[X+3,Y+27]], '#57534c', edge)  // the plinth
-        poly([[X+5,Y+28],[X+35,Y+28],[X+35,Y-14],[X+5,Y-14]], face, edge)       // the shaft
-        cx.fillStyle = 'rgba(0,0,0,.12)'
-        for (let c2 = 0; c2 < 6; c2++) cx.fillRect(X + 5, Y + 22 - c2 * 7, 30, 1.4)
-        const nightNow2 = (Math.sin(dayCyc((((s.tick + t) % 2400) / 2400)) * Math.PI * 2) + 1) / 2 < 0.42
-        cx.fillStyle = '#191712'                                                // loops, and light behind them
-        for (const ly of [-6, 4, 14]) {
-          cx.fillRect(X + 13, Y + ly, 2, 7); cx.fillRect(X + 25, Y + ly, 2, 7)
-          if (nightNow2) { cx.fillStyle = '#f4d03f'; cx.fillRect(X + 13, Y + ly + 1, 2, 4); cx.fillRect(X + 25, Y + ly + 1, 2, 4); cx.fillStyle = '#191712' }
-        }
-        poly([[X+16,Y+34],[X+24,Y+34],[X+24,Y+22],[X+16,Y+22]], '#3a2f22', edge) // the door
-        poly([[X+3,Y-14],[X+37,Y-14],[X+35,Y-19],[X+5,Y-19]], '#7b776e', edge)   // the machicolation
-        for (let m = 0; m < 4; m++) poly([[X+4.5+m*8.2,Y-19],[X+10.5+m*8.2,Y-19],[X+10.5+m*8.2,Y-26],[X+4.5+m*8.2,Y-26]], face, edge)
-        for (const tx of [X + 1, X + 31]) {                                      // the corner turrets
-          poly([[tx,Y+28],[tx+8,Y+28],[tx+8,Y-22],[tx,Y-22]], '#767268', edge)
-          poly([[tx-1,Y-22],[tx+9,Y-22],[tx+8,Y-26],[tx+1,Y-26]], '#7b776e', edge)
-          poly([[tx-1,Y-26],[tx+9,Y-26],[tx+4,Y-34]], '#5d5952', edge)           // and their caps
-        }
-        cx.fillStyle = '#4a4038'; cx.fillRect(X + 19.4, Y - 46, 1.6, 13)         // the standard
-        const wv2 = Math.sin(now / 400 + n.x) * 1.8
-        poly([[X+21,Y-46],[X+33+wv2,Y-42],[X+21,Y-38]], '#8a3b2c', '#2c2216')
-        return
+        cx.fillRect(X + 2, Y + 20, 36, 1.6); cx.fillRect(X + 2, Y + 27, 36, 1.6)
+        cx.fillRect(X + 12 + (v * 5), Y + 14, 1.6, 6); cx.fillRect(X + 22 - (v * 3), Y + 21, 1.6, 6)
+        cx.fillStyle = 'rgba(255,255,255,.06)'; cx.fillRect(X + 2, Y + 14, 36, 2)
       }
       if (n.type === 'signpost') {
         shadow(X, Y, 7)
@@ -4306,9 +4140,9 @@ cv.addEventListener('click', (e) => {
         return
       }
       if (n.type === 'landmark' && n.kind === 'tally-half') {
-        feed(id === 'tally-anchor'
-          ? 'Half of the first tally. Its other half stands across the water, on Shrine Isle, and each proves the other. Along the grain, cut small: 9e18ba7bc57d2373.'
-          : 'Half of the first tally. Its other half stands in Anchor\u2019s plaza, near where souls arrive, and each proves the other.')
+        feed(n.founderKey
+          ? 'Half of the first tally. Its other half stands in Anchor\u2019s plaza, near where souls arrive, and each proves the other. Along the grain, the founder\u2019s whole key, cut small: ' + n.founderKey + '.'
+          : 'Half of the first tally. Its other half stands across the water, on Shrine Isle, and each proves the other.')
         flashClick(n.x, n.y, false)
         return
       }
