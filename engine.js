@@ -1054,10 +1054,13 @@ function validateGenesis(g) {
     // the door rather than discovered at tick 1. Generators that declare no
     // hash (the classic family) stay name-committed, and old worlds are
     // untouched.
-    const ours = geographyHashOf(g);
-    if (ours !== null) {
-      if (g.geographyHash === undefined) return `genesis for ${g.worldGenerator} must commit its geography hash`;
-      if (ours !== g.geographyHash) return `geography mismatch: this node draws ${ours.slice(0, 16)} but the founding committed ${g.geographyHash.slice(0, 16)}`;
+    const _t = TERRAINS[g.worldGenerator];
+    if (!(_t && _t._isProbing && _t._isProbing())) { // not mid, self-build
+      const ours = geographyHashOf(g);
+      if (ours !== null) {
+        if (g.geographyHash === undefined) return `genesis for ${g.worldGenerator} must commit its geography hash`;
+        if (ours !== g.geographyHash) return `geography mismatch: this node draws ${ours.slice(0, 16)} but the founding committed ${g.geographyHash.slice(0, 16)}`;
+      }
     }
   }
   if (g.survey !== undefined) {
