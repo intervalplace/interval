@@ -2,9 +2,7 @@
 
 *A world that runs on rules, not servers.*
 
-*Release 0.80.0 · protocol spec v0.80 · consensus spec v1.9 · rules hash `d1a37c706f7d12bd…`. These four move together; a change to any is a new release.*
-
-**CURRENTLY IN PRIVATE TESTING. ONCE IT IS PUBLICLY FOUNDED, THE WORLD WILL STAY THE SAME FOREVER**
+*Release 0.80.0 · protocol spec v0.80 · consensus spec v1.9 · rules hash `f1b7060d09685d91…`. These four move together; a change to any is a new release.*
 
 Interval is a decentralized MMO. The game is a deterministic state
 machine, the spec is the constitution, and the rules are the authority: not a

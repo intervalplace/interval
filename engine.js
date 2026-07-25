@@ -322,7 +322,7 @@ const T = {
     return true;
   },
   nonnegInt: (v) => (Number.isSafeInteger(v) && v >= 0 && v <= 1e12) || 'must be a nonnegative integer',
-  id: (v) => (typeof v === 'string' && /^[a-z0-9_-]{1,64}$/i.test(v)) || 'must be an identifier',
+  id: (v) => (typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v)) || 'must be an identifier', // v0.80: 96 to fit full-64-hex pids in durable node/ground ids
   hex64: (v) => (typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)) || 'must be lowercase 64-hex',
   item: (v) => ITEMS.has(v) || 'must be a constitutional item',
   itemOrNull: (v) => v === null || ITEMS.has(v) || 'must be a constitutional item or null',
@@ -439,6 +439,15 @@ function isAwake(p, tick) {
 // world founded before this shipped replays under.
 const TERRAINS = Object.create(null);
 function registerTerrain(id, t) { TERRAINS[id] = t; }
+// the geography hash the REGISTERED generator computes for its island
+// (v0.80). A generator that draws a different island returns a different
+// hash; a generator that only refactors returns the same one. Absent a
+// declaration (the classic generators predate this), geography stays
+// name-committed as before, so old worlds are unaffected.
+function geographyHashOf(genesis) {
+  const t = TERRAINS[genesis.worldGenerator];
+  return t && t.geographyHash ? t.geographyHash(genesis) : null;
+}
 function terrainBlocked(g, x, y) {
   const t = TERRAINS[g.worldGenerator];
   return t && t.blocked ? !!t.blocked(g, x, y) : false;
@@ -1002,7 +1011,7 @@ function boundedValue(v, depth = 0) {
 
 // Genesis validated independently (brief §9): it is consensus identity.
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo']);
+const GENESIS_OPTIONAL = new Set(['witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -1035,6 +1044,22 @@ function validateGenesis(g) {
   // behavior. One founding record, one representation.
   for (const k of GENESIS_REQUIRED) if (!(k in g)) return `genesis missing ${k}`;
   for (const k of Object.keys(g)) if (!GENESIS_REQUIRED.includes(k) && !GENESIS_OPTIONAL.has(k)) return `unknown genesis field ${k}`;
+  if (g.geographyHash !== undefined && (typeof g.geographyHash !== 'string' || !/^[0-9a-f]{64}$/.test(g.geographyHash))) return 'genesis.geographyHash must be a 64-hex digest';
+  {
+    // constitutional geography (v0.80): a generator that declares a
+    // geography hash makes its island part of the world's identity. If we
+    // implement that generator, the founding record MUST carry the hash and
+    // it MUST match the island we draw. A stranger running different geology
+    // under the same name is a different world by worldId, refused here at
+    // the door rather than discovered at tick 1. Generators that declare no
+    // hash (the classic family) stay name-committed, and old worlds are
+    // untouched.
+    const ours = geographyHashOf(g);
+    if (ours !== null) {
+      if (g.geographyHash === undefined) return `genesis for ${g.worldGenerator} must commit its geography hash`;
+      if (ours !== g.geographyHash) return `geography mismatch: this node draws ${ours.slice(0, 16)} but the founding committed ${g.geographyHash.slice(0, 16)}`;
+    }
+  }
   if (g.survey !== undefined) {
     const sv = g.survey;
     if (!sv || typeof sv !== 'object' || Object.keys(sv).sort().join(',') !== 'base,k,max,perTile') return 'non-constitutional genesis.survey';
@@ -1193,7 +1218,7 @@ function validateState(state) {
 const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel', 'drowned-bell', 'shipwreck', 'tally-half']); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
-  const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,64}$/i.test(v);
+  const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
   // constitutionally permitted. Mobs and players are permanent entries and
@@ -1299,7 +1324,7 @@ const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'brok
 
   // mobs: constitutional type table, exact field set
   for (const [mid, m] of Object.entries(state.mobs)) {
-    if (!/^[a-z0-9_-]{1,64}$/i.test(mid)) return 'malformed mob id';
+    if (!/^[a-z0-9_-]{1,96}$/i.test(mid)) return 'malformed mob id';
     if (!m || typeof m !== 'object') return 'malformed mob';
     if (typeof m.type !== 'string' || !(m.type in MOB_STATS)) return 'unknown mob type';
     for (const rk of ['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y']) if (!(rk in m)) return 'mob missing ' + rk;
@@ -1329,7 +1354,7 @@ const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'brok
   // nodes: constitutional type table, closed field set
   const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind']);
   for (const [nid, n] of Object.entries(state.nodes)) {
-    if (!/^[a-z0-9_-]{1,64}$/i.test(nid)) return 'malformed node id';
+    if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
     if (typeof n.type !== 'string' || !NODE_TYPE_SET.has(n.type)) return 'unknown node type';
     for (const k of Object.keys(n)) if (!NODE_FIELDS.has(k)) return `unknown node field ${k}`;
@@ -1481,7 +1506,11 @@ function tradeFits(offerer, acceptor, trade) {
   if (!trade.wantGold) {
     const j = inv.findIndex(sl => sl && sl.item === trade.wantItem);
     if (j === -1) return false;
-    inv[j] = null;                          // their payment is on its way out
+    // v0.80: only ONE unit leaves. A stack of more than one keeps its slot
+    // (and its remainder), so the slot frees only when the payment was the
+    // last unit. tradeFits must see exactly the room the swap will make.
+    if ((inv[j].qty ?? 1) > 1) inv[j] = { item: inv[j].item, qty: (inv[j].qty ?? 1) - 1 };
+    else inv[j] = null;
   }
   let free = 0;
   for (const sl of inv) if (!sl) free++;
@@ -2037,21 +2066,26 @@ function hasAdjacentNode(state, ctx, p, typeOrSet, pred) {
   return false;
 }
 function findAdjacentNode(state, ctx, p, type, pred) {
-  // reference: FIRST match in Object.values enumeration order
+  // reference: the min-nodeId match (canonical, matching the indexed path)
   if (!ctx) {
     if (_p2on) _p2c.fullNodeScans++;
-    return Object.values(state.nodes).find(n => n.type === type && (!pred || pred(n)) && adjacent(p, n));
+    let best, bestId = null;
+    for (const [id, n] of Object.entries(state.nodes))
+      if (n.type === type && (!pred || pred(n)) && adjacent(p, n) && (bestId === null || id < bestId)) { bestId = id; best = n; }
+    return best;
   }
   if (_p2on) _p2c.adjLookups++;
-  let best, bestSeq = Infinity;
+  let best, bestId = null;
   for (const [dx, dy] of _ORTH) {
     const ta = ctx.byTile.get(_tileKey(p.x + dx, p.y + dy));
     if (!ta) continue;
     for (const id of ta) {
       const n = state.nodes[id];
       if (n.type !== type || (pred && !pred(n))) continue;
-      const sq = ctx.seq.get(id);
-      if (sq < bestSeq) { bestSeq = sq; best = n; }
+      // v0.80: tie-break on nodeId, not enumeration seq. seq mirrors
+      // s.nodes insertion order, which a checkpoint restore can reorder;
+      // nodeId is canonical, so every node picks the SAME adjacent node.
+      if (bestId === null || id < bestId) { bestId = id; best = n; }
     }
   }
   return best;
@@ -2189,7 +2223,7 @@ function nextState(state, inputs, _legacyBeacon) {
   // snapshot who has already mastered what, so the end-of-tick pass can tell who
   // CROSSED a threshold this tick, regardless of which of the 18 XP sites paid it
   const _preMaster = {};
-  for (const _pid in s.players) {
+  for (const _pid of Object.keys(s.players).sort()) { // canonical, matching the mastery pass below
     const _done = new Set();
     for (const _sk of SKILLS) if (s.players[_pid].skills[_sk] >= XP_TABLE[99]) _done.add(_sk);
     _preMaster[_pid] = _done;
@@ -2378,12 +2412,19 @@ function nextState(state, inputs, _legacyBeacon) {
         } else {
           const j = p.inventory.findIndex(sl => sl && sl.item === o.trade.wantItem);
           if (j !== -1) {
-            const payment = p.inventory[j];
-            p.inventory[j] = null;
+            // v0.80: pay ONE unit, never the whole stack. The offer names an
+            // item, not a quantity, so one unit is the only price the
+            // acceptor can see; taking their entire stack of arrows or food
+            // was theft-by-deception. A stackable keeps its remainder.
+            const src = p.inventory[j];
+            const payment = { item: src.item, qty: 1 };
+            if ((src.qty ?? 1) > 1) src.qty -= 1; else p.inventory[j] = null;
             for (const sl of slots) o.inventory[sl] = null;
-            // the payment lands in the first slot the goods vacated, so a
-            // trade never needs room the offerer did not just make
-            o.inventory[slots[0]] = payment;
+            // the payment lands in the first slot the goods vacated (or pools
+            // if the offerer already holds that stackable), so a trade never
+            // needs room the offerer did not just make
+            if (STACKABLE.has(payment.item)) { addItem(o.inventory, payment.item, 1); }
+            else { o.inventory[slots[0]] = payment; }
             for (const g of goods) addItem(p.inventory, g.item, g.qty ?? 1);
             o.trade = null;
           }
@@ -2570,7 +2611,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const owned = brewpotsOwnedBy(s, _ctx, pid);
       if (bc && free && nearHouse && owned < bc.potCap && countItem(p.inventory, 'logs') >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre) {
         consumeItem(p.inventory, 'logs', bc.buildLogs); consumeItem(p.inventory, 'ore', bc.buildOre);
-        addIndexedNode(s, _ctx, 'brewpot-' + pid.slice(0, 8) + '-' + s.tick, { type: 'brewpot', x: p.x, y: p.y, by: pid, lastUsed: s.tick });
+        addIndexedNode(s, _ctx, 'brewpot-' + pid + '-' + s.tick, { type: 'brewpot', x: p.x, y: p.y, by: pid, lastUsed: s.tick });
       }
     } else if (inp.type === 'brew') {
       const bp = s.nodes[inp.nodeId], sl = p.inventory[inp.slot];
@@ -2601,7 +2642,7 @@ function nextState(state, inputs, _legacyBeacon) {
           && !nodeExistsAt(s, _ctx, p.x, p.y) && countOwnedNodes(s, _ctx, 'watchfire', pid) < wt.maxOwned) {
         consumeItem(p.inventory, 'logs', wt.kindleLogs);
         p.skills.firemaking += wt.xpPerLog * wt.kindleLogs; // every log pays, here as at the hearth
-        addIndexedNode(s, _ctx, 'wf' + s.tick + '-' + pid.slice(0, 8),
+        addIndexedNode(s, _ctx, 'wf' + s.tick + '-' + pid,
           { type: 'watchfire', x: p.x, y: p.y, by: pid, fuelUntil: s.tick + wt.perLog * wt.kindleLogs });
         if (claimFirst(s, 'watchfire', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to raise a watchfire.');
       }
@@ -2642,7 +2683,7 @@ function nextState(state, inputs, _legacyBeacon) {
         if (countedSuccess(p.lightsTried, Math.min(64 + 2 * lvl, 240))) {
           p.inventory[inp.slot] = null;
           p.skills.firemaking += XP_FIREMAKING;
-          addIndexedNode(s, _ctx, 'f' + s.tick + '-' + pid.slice(0, 8),
+          addIndexedNode(s, _ctx, 'f' + s.tick + '-' + pid,
             { type: 'fire', x: p.x, y: p.y, depletedUntil: 0, expiresAt: s.tick + FIRE_TICKS });
           // step aside (§6f): west, east, south, north: first free tile
           for (const [mx, my] of [[-1, 0], [1, 0], [0, 1], [0, -1]]) {
@@ -2691,7 +2732,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const it = p.inventory[inp.slot];
       if (it) {
         p.inventory[inp.slot] = null;
-        const gid = 'g' + s.tick + '-' + pid.slice(0, 8) + '-' + inp.slot;
+        const gid = 'g' + s.tick + '-' + pid + '-' + inp.slot;
         // 7.2: the whole slot falls, quantity intact, 17 arrows dropped
         // are 17 arrows on the ground, matching death drops and pickup
         s.ground[gid] = { item: it.item, qty: it.qty ?? 1, x: p.x, y: p.y, expiresAt: s.tick + 100 };
@@ -2950,7 +2991,13 @@ function nextState(state, inputs, _legacyBeacon) {
   _p2mark('mastery');
   // ---- mastery announcements (v0.48): who crossed 99 this tick ----
   const _M = XP_TABLE[99];
-  for (const _pid in s.players) {
+  // v0.80: this loop writes canonical state (s.firsts, s.announce), so it
+  // MUST iterate in playerId order, not insertion order. Insertion order
+  // differs between a genesis-replayed node and a checkpoint-bootstrapped
+  // one, so two citizens crossing 99 on the same tick could be recorded in
+  // a different order on different nodes: a stateHash fork and a
+  // mis-attributed permanent 'first'. Sorting makes the record canonical.
+  for (const _pid of Object.keys(s.players).sort()) {
     const _p = s.players[_pid], _pre = _preMaster[_pid] ?? new Set();
     const _nm = _p.name ?? _pid.slice(0, 6);
     let _newMastery = false;
@@ -2981,7 +3028,7 @@ function nextState(state, inputs, _legacyBeacon) {
 }
 
 module.exports = {
-  registerTerrain, terrainBlocked,
+  registerTerrain, terrainBlocked, geographyHashOf,
   SPEC_VERSION, TICK_MS, INV_SLOTS,
   XP_TABLE, levelForXp,
   canonical, stateHash, sha256, beaconValue, roll,

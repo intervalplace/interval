@@ -717,6 +717,49 @@ gold trim for a second mastery, and a radiant cape for all nine.
 Mastery is proved by the state and verified by every node; the cape is
 simply what proof looks like from a distance.
 
+**Trade pays one unit (v0.80).** A trade offer names a wanted item, never
+a quantity, so its price is exactly one unit of that item. Accepting a
+trade surrenders one unit of the wanted good, not the acceptor's whole
+stack: a citizen who accepts a trade wanting arrows pays one arrow and
+keeps the rest. The offered goods and the single payment move together or
+not at all.
+
+**Durable identifiers are whole (v0.80).** A node or ground record a
+citizen creates (a fire, a watchfire, a brewpot, a dropped stack) is
+identified by the tick, the creator's FULL public key, and where needed
+the slot. A prefix is never enough: two citizens who shared a short prefix
+and acted on the same tick would once have collided, the later destroying
+the earlier's node and its sunk resources. Identifiers admit up to 96
+characters to carry the whole key.
+
+**Canonical iteration (v0.80).** Any per-tick loop that writes canonical
+state iterates in a canonical order, never in map-insertion order.
+Mastery and first-deed announcements walk citizens in playerId order, and
+when several adjacent nodes match a query the one with the least nodeId is
+chosen. Insertion order can differ between a node replaying from genesis
+and one restored from a checkpoint, so an insertion-ordered write would let
+two honest nodes record a different history for the same tick: a fork, or a
+permanently mis-attributed first. Canonical order removes the divergence.
+
+**Constitutional geography (v0.80).** A world's identity is its land, not
+merely the name of the code that draws it. A generator may declare a
+`geographyHash`: the SHA-256 of the island it produces for THIS founding's
+own seed, over every settled node and a terrain raster. It commits to the
+island the world is actually founded on, not a fixed probe, so the played
+geography can never drift from the committed one. That hash is folded into
+the founding record, and `worldId` already commits to the whole record, so
+from here a world's identity commits to its geography itself.
+A node that implements the named generator MUST draw the same island the
+founding committed, or the genesis is refused at validation, at the door,
+not discovered at tick 1. Two implementations therefore either compute the
+same island or compute different `worldId`s and know they are different
+worlds. Any change to what a generator draws changes its hash and founds a
+different world: geography is frozen at founding exactly as the rules are.
+Generators that declare no hash (the classic family, and any legacy world)
+remain committed by name, unaffected. This is the seam that makes an
+implementation in another language checkable: conform to the SPEC and draw
+the committed island, or you are elsewhere.
+
 **Fires are walkable (v0.80).** A fire a citizen lights does not block
 its tile. Nodes are impassable as a rule, but everything a citizen
 MAKES is exempt (brewpot, watchfire, and now fire), because a blocking
