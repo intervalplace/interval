@@ -385,6 +385,7 @@ E.registerTerrain(GENERATOR_ID, {
   spawn: (g) => spawnDry(g),
   country: (g, x, y) => biomeAt(g, x, y),
   geographyHash: (g) => geographyHashE3(g),
+  _isProbing: () => _probing, // the engine skips the geo-gate during our own build
 })
 
 // ---------- the founding ----------
