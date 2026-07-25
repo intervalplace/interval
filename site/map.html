@@ -413,6 +413,22 @@ function placesFromState(nodes) {
   }
   return out
 }
+let _regionLabels = null
+function regionLabels() {
+  if (_regionLabels) return _regionLabels
+  // the five countries, named across their own ground (v0.80). A country is
+  // a place; the chart should say so. Centroid of each biome, sampled coarse.
+  const acc = {}
+  for (let y = 2; y < H - 2; y += 3) for (let x = 2; x < W - 2; x += 3) {
+    const b = biomeAtE3(x, y)
+    if (b === 'sea' || b === 'river' || b === 'lake' || b === 'bridge') continue
+    if (!acc[b]) acc[b] = { sx: 0, sy: 0, n: 0 }
+    acc[b].sx += x; acc[b].sy += y; acc[b].n++
+  }
+  const NAMES = { wilds: 'THE WILDS', greenwood: 'THE GREENWOOD', crags: 'THE CRAGS', heartlands: 'THE HEARTLANDS', fens: 'THE FENS' }
+  _regionLabels = Object.entries(acc).filter(([b]) => NAMES[b]).map(([b, a]) => ({ n: NAMES[b], x: Math.round(a.sx / a.n), y: Math.round(a.sy / a.n) }))
+  return _regionLabels
+}
 function labelPoints() {
   const s = settlementsE3(), j = junctions3(), isle = isles3()[0]
   return {
@@ -475,6 +491,21 @@ function drawMark() {
 function drawLabels() {
   const lp = labelPoints()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
+  // the country names, drawn first and faint so they read as the land itself,
+  // fading in only when zoomed out enough to take in a whole country (v0.80)
+  if (view.z <= 3.2) {
+    const rAlpha = Math.max(0.12, Math.min(0.42, (3.2 - view.z) / 2.4))
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.font = 'bold ' + Math.round(13 + (3.2 - view.z) * 4) + 'px Verdana'
+    for (const rl of regionLabels()) {
+      const sx = (rl.x - view.x) * view.z, sy = (rl.y - view.y) * view.z
+      if (sx < -100 || sy < -30 || sx > cv.width + 100 || sy > cv.height + 30) continue
+      ctx.fillStyle = 'rgba(240,228,200,' + rAlpha + ')'
+      ctx.fillText(rl.n, sx, sy)
+    }
+    ctx.restore()
+  }
   // coast-aware nameplates (v0.79b): a monument may stand at the water's
   // edge, but its NAME stays over the land it names, hung below the
   // anchor when the sea lies above, nudged inland when it lies beside.
