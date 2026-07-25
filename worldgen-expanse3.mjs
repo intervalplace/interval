@@ -388,6 +388,16 @@ E.registerTerrain(GENERATOR_ID, {
   _isProbing: () => _probing, // the engine skips the geo-gate during our own build
 })
 
+// the founding key: the FULL public key of the founder, the signature of this
+// world's origin, cut into the First Tally on Shrine Isle. It is the whole
+// 64-hex Ed25519 public key, not a prefix: a prefix could be ground out (a
+// forger brute-forcing a keypair whose public half begins the same way), but a
+// whole public key cannot be collided, so the mark is unforgeable. The keypair
+// is permanent: this public key belongs to the founder's private key across
+// every refounding, so the mark holds no matter how often the world resets.
+// A founding may override via genesis.founderKey; this is Tallyholm's.
+const FOUNDER_KEY = '9e18ba7bc57d23737fefd36223acf7c173bbd26ffc3355d177f0a5fedfb220af'
+
 // ---------- the founding ----------
 export function makeExpanse3Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 896, H = 512) {
   const g = E.makeGenesis(genesisSeed, rulesHash, anchorMs, W, H)
@@ -404,6 +414,10 @@ export function makeExpanse3Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     norwick: { x0: nw.x - 8, x1: nw.x + 8, y0: nw.y - 6, y1: nw.y + 6 },
   }
   g.watch = { level: 60, kindleLogs: 10, perLog: 420, cap: 12600, xpPerLog: 200, burnXp: 1, maxOwned: 4, decayTicks: 432000 }
+  // the founder's mark (v0.80): the public-key prefix cut into the First Tally,
+  // carried in the genesis so it is committed by worldId and shown identically
+  // by every client. The split stick's proof lives in the world, not a caption.
+  if (g.founderKey === undefined) g.founderKey = FOUNDER_KEY
   // the geography commits itself (v0.80): the placeholder is stamped FIRST,
   // so the reentrant buildWorld inside the hash computation sees a
   // structurally, and geography-, valid genesis (placeholder matches
@@ -441,6 +455,23 @@ export function buildWorld(genesis) {
   })
   const free = (x, y) => inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y)
     && !onRidge(g, x, y) && !onRoad(g, x, y) && !fordAt(g, x, y) && !inAnySettlement(x, y)
+  // the reachable mainland (v0.80): flood from spawn over walkable ground,
+  // computed once up front so no gatherable is placed where no citizen can
+  // ever stand. An offshore islet looked like ordinary land to the scatterer
+  // and got rocks and fishing spots nobody could reach. Nodes placed before
+  // this point (town furniture) don't block the flood; we want the LAND's
+  // connectivity, and town cores are reachable by construction.
+  const _spawn0 = spawnDry(g)
+  const _main = new Set([_spawn0.x + ',' + _spawn0.y])
+  {
+    const walk = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !blockedAt(g, x, y)
+    const mq = [[_spawn0.x, _spawn0.y]]; let mh = 0
+    while (mh < mq.length) { const [x, y] = mq[mh++]; for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx=x+dx, ny=y+dy, kk=nx+','+ny; if (!_main.has(kk) && walk(nx, ny)) { _main.add(kk); mq.push([nx, ny]) } } }
+  }
+  const reachableToGather = (x, y) => {
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (_main.has((x+dx)+','+(y+dy))) return true
+    return false
+  }
 
   const H32 = (tag, i) => E.sha256(Buffer.from(g.genesisSeed + ':' + tag + ':' + i))
 
@@ -480,11 +511,25 @@ export function buildWorld(genesis) {
         if (p.x === sp0.x && p.y === sp0.y) continue
         if (!inB(p.x, p.y) || taken.has(key(p.x, p.y)) || isWater(g, p.x, p.y)) continue
         if (isCrossing(p.x, p.y)) continue // never seat on the town's own bridge
+        let waterSides = 0
+        for (const [wx, wy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (isWater(g, p.x + wx, p.y + wy)) waterSides++
+        if (waterSides >= 2) continue // never seat on a spit: it strands the node
         put(id, type, p.x, p.y, extra); return
       }
     }
     placeNear('bank-' + s.tag, 'bank', -3, -2)
-    placeNear('kpr-bank-' + s.tag, 'keeper', -3, -3) // the banker stands at their counter
+    const bankNode = w.nodes['bank-' + s.tag]
+    const seatBeside = (id, type, host) => {
+      if (!host) return placeNear(id, type, -3, -3)
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const x = host.x + dx, y = host.y + dy
+        if (!inB(x, y) || taken.has(key(x, y)) || isWater(g, x, y) || isCrossing(x, y)) continue
+        if (x <= r.x0 || x >= r.x1 || y <= r.y0 || y >= r.y1) continue
+        put(id, type, x, y); return
+      }
+      placeNear(id, type, -3, -3) // fallback: near the offset, as before
+    }
+    seatBeside('kpr-bank-' + s.tag, 'keeper', bankNode) // the banker stands at their counter
     placeNear('well-' + s.tag, 'well', 0, 0)
     placeNear('hearth-' + s.tag, 'campfire', 2, -2)
     // The capital's sign carries the island's name: Tallyholm, the tally
@@ -494,7 +539,8 @@ export function buildWorld(genesis) {
     if (s.kind === 'capital') {
       placeNear('anvil-' + s.tag, 'anvil', 3, -2); placeNear('smith-' + s.tag, 'smith', 4, -2)
       placeNear('store-' + s.tag, 'store', -4, 2); placeNear('store2-' + s.tag, 'store', 5, 2)
-      placeNear('kpr-store-' + s.tag, 'keeper', -4, 3); placeNear('kpr-store2-' + s.tag, 'keeper', 5, 3)
+      seatBeside('kpr-store-' + s.tag, 'keeper', w.nodes['store-' + s.tag])
+      seatBeside('kpr-store2-' + s.tag, 'keeper', w.nodes['store2-' + s.tag])
       placeNear('anvil2-' + s.tag, 'anvil', -5, -2)
       for (let k = 0; k < 6; k++) place('house-' + s.tag + k, 'house', -6 + k * 2, 4)
       for (let k = 0; k < 4; k++) place('guard-' + s.tag + k, 'guard', -8 + k * 5, -5)
@@ -504,7 +550,7 @@ export function buildWorld(genesis) {
       }
       if (s.kind === 'port' || s.kind === 'timber' || s.kind === 'mill') {
         placeNear('store-' + s.tag, 'store', -4, 2)
-        placeNear('kpr-store-' + s.tag, 'keeper', -4, 3)
+        seatBeside('kpr-store-' + s.tag, 'keeper', w.nodes['store-' + s.tag])
       }
       if (s.kind === 'garrison') for (let k = 0; k < 3; k++) place('guard-' + s.tag + k, 'guard', -4 + k * 4, -4)
       for (let k = 0; k < 4; k++) place('house-' + s.tag + k, 'house', -4 + k * 2, 3)
@@ -652,7 +698,7 @@ export function buildWorld(genesis) {
       }
     }
     seat('waystone-shrine', 'waystone', 0, 0)
-    seat('tally-isle', 'landmark', -2, -2, { kind: 'tally-half' }) // the other half of the first tally
+    seat('tally-isle', 'landmark', -2, -2, { kind: 'tally-half', founderKey: g.founderKey }) // the other half; it bears the founder's mark
     seat('shrine-hearth', 'campfire', 3, 0)
     for (let k = 0; k < 4; k++) seat('shrine-stone-' + k, 'landmark', [-4, 4, 0, 0][k], [0, 2, -4, 4][k], { kind: 'standing-stone' })
   }
@@ -677,8 +723,11 @@ export function buildWorld(genesis) {
       // has room at the first spot, so search outward (in the side's own
       // direction first) for the nearest fit rather than giving up.
       const fits = (ax, ay) => {
-        if (ax < 1 || ay < 1 || ax + pw >= W - 1 || ay + ph >= H - 1) return false
-        for (let yy = ay; yy <= ay + ph; yy++) for (let xx = ax; xx <= ax + pw; xx++)
+        // a one-tile clear margin around the whole field, so a paddock never
+        // packs wall-to-wall with another and never seals its own gate (the
+        // gate is on the south edge; its egress is in that margin) (v0.80).
+        if (ax < 2 || ay < 2 || ax + pw >= W - 2 || ay + ph >= H - 2) return false
+        for (let yy = ay - 1; yy <= ay + ph + 1; yy++) for (let xx = ax - 1; xx <= ax + pw + 1; xx++)
           if (!free(xx, yy) || biomeAt(g, xx, yy) !== 'heartlands') return false
         return true
       }
@@ -689,7 +738,7 @@ export function buildWorld(genesis) {
       }
       if (!placed9) continue
       const mat9 = hp9.readUInt16BE(6) % 2 ? 'hedge' : 'fence'
-      const gate9 = 1 + (hp9.readUInt16BE(8) % (pw - 1)) // a gap on the south side
+      const gate9 = pw >> 1 // the gap aligns with the spine lane, so the gate opens onto open ground (v0.80)
       let fi9 = 0
       for (let xx = ax; xx <= ax + pw; xx++) {
         put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, xx, ay)
@@ -699,13 +748,25 @@ export function buildWorld(genesis) {
         put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, ax, yy)
         put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, ax + pw, yy)
       }
-      // fill the paddock with a tended GRID of plots, every other tile so
-      // a farmer can stand between the rows: a divided field, not three
-      // plots rattling around inside a fence (v0.80).
+      // plot rows joined by a central spine lane (v0.80). A packed plot row
+      // is a wall, so horizontal lanes alone seal; a vertical spine down the
+      // middle connects every lane to the gate below it. Plots sit on
+      // alternating rows, split by the spine column, so each borders a lane.
+      const spine = ax + (pw >> 1) // the open column, aligned with the gate
       let pin9 = 0
-      for (let yy = ay + 1; yy < ay + ph; yy++)
-        for (let xx = ax + 1 + ((yy - ay) % 2); xx < ax + pw; xx += 2)
+      for (let ry = 1; ry < ph; ry += 2) {
+        const yy = ay + ry
+        for (let xx = ax + 1; xx < ax + pw; xx++) {
+          if (xx === spine) continue // the spine stays open, floor to gate
           if (free(xx, yy)) put('pdkp-' + st.tag + pk + '-' + (pin9++), 'plot', xx, yy, { plantedAt: 0 })
+        }
+      }
+      // reserve every interior lane, the spine, and the gate egress as TAKEN
+      // ground, so no later scatter (rocks, trees) drops into the field and
+      // seals a lane. Open by design must mean protected (v0.80).
+      for (let yy = ay; yy <= ay + ph + 1; yy++)
+        for (let xx = ax; xx <= ax + pw; xx++)
+          taken.add(key(xx, yy))
     }
   }
   // ---- the worksites (v0.79): between the towns and the wild, the
@@ -736,14 +797,22 @@ export function buildWorld(genesis) {
       sput('farm-hearth', 'campfire', c.x - 2, c.y - 3)
       sput('kpr-farm-hollybarrow', 'keeper', c.x + 1, c.y - 2)
       let fi = 0
-      for (let xx = -5; xx <= 5; xx++) { // two hedge-bound field rows
+      for (let xx = -5; xx <= 5; xx++) { // hedge border, gate gap at column 0
         sput('farm-h-' + (fi++), 'hedge', c.x + xx, c.y - 1)
-        if (xx !== 0) sput('farm-h-' + (fi++), 'hedge', c.x + xx, c.y + 4) // the gate faces the house
+        if (xx !== 0) sput('farm-h-' + (fi++), 'hedge', c.x + xx, c.y + 4) // gate faces the house
       }
       for (let yy = 0; yy <= 3; yy++) { sput('farm-h-' + (fi++), 'hedge', c.x - 5, c.y + yy); sput('farm-h-' + (fi++), 'hedge', c.x + 5, c.y + yy) }
+      // plots on rows 1 and 3, split by the central spine (column 0, aligned
+      // with the gate). Rows 0 and 2, and the spine, are open lanes. Every
+      // plot borders a lane; every lane reaches the gate (v0.80).
       let pi = 0
-      for (let yy = 0; yy <= 3; yy++) for (let xx = -4; xx <= 4; xx += 2)
-        sput('farm-p-' + (pi++), 'plot', c.x + xx, c.y + yy, { plantedAt: 0 })
+      for (const yy of [1, 3])
+        for (let xx = -4; xx <= 4; xx++) {
+          if (xx === 0) continue // the spine, floor to gate
+          sput('farm-p-' + (pi++), 'plot', c.x + xx, c.y + yy, { plantedAt: 0 })
+        }
+      // reserve the whole farm footprint so nothing scatters into a lane later
+      for (let yy = -1; yy <= 5; yy++) for (let xx = -5; xx <= 5; xx++) taken.add(key(c.x + xx, c.y + yy))
     }
     { // the Sawyer's Camp: a worked clearing in the deep wood
       const c = siteSeek(0.50, 0.16, 'greenwood', 4)
@@ -818,18 +887,60 @@ export function buildWorld(genesis) {
   // Anchor's streets, on the open moor. Farming now lives where it reads:
   // Hollybarrow Farm, and the fenced paddocks outside each heartlands town.
 
-  // ---- fishing: the sampled shore, now with a real coast ----
+  // ---- fishing: the coves (v0.80) ----
+  // fishing gathers where fish gather: a handful of COVES, dense with spots,
+  // rather than a spot on every fifth shore tile. Fishing is the coast's and
+  // the Fens' craft, so the coves cluster there; a few spots dot other banks
+  // so no waterside home is barren. Like the groves and the lodes, a cove is
+  // a place you travel to and meet others casting.
   let fs = 0
   const shoreOf = (x, y) => {
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (isWater(g, x + dx, y + dy)) return true
     return false
   }
-  for (let y = 1; y < H - 1 && fs < 1000; y++) {
-    for (let x = 1; x < W - 1 && fs < 1000; x++) {
-      if (!free(x, y) || !shoreOf(x, y)) continue
-      if (thash(g, x, y, 5) % 5 !== 0) continue
-      put('fish-' + (fs++), 'fishing-spot', x, y)
+  // gather every reachable shore tile, tagged by whether it is prime fishing
+  // country (sea coast or fens) or ordinary bank.
+  const shores = []
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (!free(x, y) || !shoreOf(x, y) || !reachableToGather(x, y)) continue
+    const b = biomeAt(g, x, y)
+    const coastal = b === 'fens' || (() => { // touches the open SEA (not just a river)
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (isWater(g, x + dx, y + dy) && inSea(g, x + dx, y + dy)) return true
+      return false
+    })()
+    shores.push({ x, y, coastal })
+  }
+  // grow coves around seeded centers, biased to prime shore; then a thin
+  // scatter of lone spots on the remaining banks.
+  const shoreKey = (x, y) => x + ',' + y
+  const shoreSet = new Map(shores.map(sh => [shoreKey(sh.x, sh.y), sh]))
+  const usedShore = new Set()
+  const primeShore = shores.filter(sh => sh.coastal)
+  const COVES = 12
+  for (let c = 0; c < COVES; c++) {
+    const pool = primeShore.length > 20 ? primeShore : shores
+    const hc = H32('cove|center', c)
+    let center = null
+    for (let a = 0; a < 300 && !center; a++) {
+      const cand = pool[(hc.readUInt32BE(0) ^ (a * 2654435761)) % pool.length] // deterministic pick, varied per attempt
+      if (cand && !usedShore.has(shoreKey(cand.x, cand.y))) center = cand
     }
+    if (!center) continue
+    // a cove: every reachable shore tile within a radius becomes a spot
+    for (const sh of shores) {
+      if (Math.abs(sh.x - center.x) + Math.abs(sh.y - center.y) > 9) continue
+      const k = shoreKey(sh.x, sh.y)
+      if (usedShore.has(k)) continue
+      usedShore.add(k); put('fish-' + (fs++), 'fishing-spot', sh.x, sh.y)
+    }
+  }
+  // a sparse lone spot on ordinary banks, so no waterside home is barren,
+  // but the coves are plainly where the fishing is (~1 in 40 other shore).
+  for (const sh of shores) {
+    const k = shoreKey(sh.x, sh.y)
+    if (usedShore.has(k)) continue
+    if (thash(g, sh.x, sh.y, 5) % 40 !== 0) continue
+    usedShore.add(k); put('fish-' + (fs++), 'fishing-spot', sh.x, sh.y)
   }
 
   // ---- what the trails go around ----
@@ -874,6 +985,7 @@ export function buildWorld(genesis) {
       const h = H32(tag, i)
       const x = 1 + (h.readUInt16BE(0) % (W - 2)), y = 1 + (h.readUInt16BE(2) % (H - 2))
       if (!free(x, y) || !pred(x, y, h)) continue
+      if (!reachableToGather(x, y)) continue // no citizen could ever reach it
       place(tag + '-' + n, x, y); taken.add(key(x, y)); n++
     }
     return n
@@ -883,20 +995,76 @@ export function buildWorld(genesis) {
   const rock = (id, x, y) => E.addNode(w, id, 'rock', x, y)
   const mrock = (id, x, y) => E.addNode(w, id, 'magic-rock', x, y)
 
+  // clustered scatter (v0.80): grow dense patches around a few seeded centers
+  // rather than dusting evenly. `clumps` centers, each a patch of roughly
+  // `perClump` nodes within `spread` tiles, all on reachable ground in the
+  // target biome. What remains of `want` is thin-scattered by plain scatter,
+  // so nowhere is a dead zone but the country's heartland is where the work is.
+  const clusterScatter = (tag, want, pred, place, clumps, spread) => {
+    let n = 0
+    const perClump = Math.ceil(want / clumps)
+    // spread grows if a clump would be too dense to fit its share of nodes
+    const need = Math.sqrt(perClump) * 1.4
+    const rad = Math.max(spread, Math.ceil(need))
+    for (let c = 0; c < clumps && n < want; c++) {
+      // a cluster center on reachable ground in the target biome, with room
+      let cx = -1, cy = -1
+      for (let a = 0; a < 1200; a++) {
+        const hc = H32(tag + '|center', c * 1200 + a)
+        const x = 1 + (hc.readUInt16BE(0) % (W - 2)), y = 1 + (hc.readUInt16BE(2) % (H - 2))
+        if (free(x, y) && pred(x, y, hc) && reachableToGather(x, y)) { cx = x; cy = y; break }
+      }
+      if (cx < 0) continue
+      // walk the patch in a deterministic spiral, filling every fit tile until
+      // this clump has its share (or the patch runs out)
+      const target = Math.min(want, n + perClump)
+      for (let r = 0; r <= rad && n < target; r++) {
+        for (let dy = -r; dy <= r && n < target; dy++) for (let dx = -r; dx <= r && n < target; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue // ring at radius r
+          const x = cx + dx, y = cy + dy
+          if (!free(x, y) || !pred(x, y) || !reachableToGather(x, y)) continue
+          place(tag + '-' + n, x, y); taken.add(key(x, y)); n++
+        }
+      }
+    }
+    // any shortfall (a clump hit water or a wall early) is made up by a thin
+    // scatter across the whole biome, so the target count is met either way
+    if (n < want) n += scatter(tag + 'x', want - n, pred, place)
+    return n
+  }
+
   const counts = { waymarks: _waymarks, wayrests: _wayrests, brandstones: br }
   // Density anchor: the calibrated 896x512 island. Counts are the v2 founding's
   // proven envelope, carried whole, the island's land area matches the v2
   // rectangle's within a few percent, so density per land tile is unchanged.
   const A = (n) => Math.max(1, Math.round(n * (W * H) / (896 * 512)))
-  counts.greenwoodTrees = scatter('gwtree', A(1500), (x, y) => B(x, y) === 'greenwood', tree)
-  counts.heartTrees     = scatter('httree', A(460), (x, y) => B(x, y) === 'heartlands', tree)
-  counts.fenTrees       = scatter('fntree', A(300), (x, y) => B(x, y) === 'fens', tree)
-  counts.wildTrees      = scatter('wdtree', A(260), (x, y) => B(x, y) === 'wilds', tree)
-  counts.cragRocks      = scatter('cgrock', A(860), (x, y) => B(x, y) === 'crags', rock)
-  counts.wildRocks      = scatter('wdrock', A(280), (x, y) => B(x, y) === 'wilds', rock)
-  counts.heartRocks     = scatter('htrock', A(250), (x, y) => B(x, y) === 'heartlands', rock)
-  counts.magicWilds     = scatter('wdmagic', A(54), (x, y) => B(x, y) === 'wilds', mrock)
-  counts.magicCrags     = scatter('cgmagic', A(34), (x, y) => B(x, y) === 'crags' && x > W * 0.80, mrock)
+  // WOODCUTTING is the Greenwood's craft. The great groves are there, dense
+  // enough to cut without moving; every other country keeps a thin stand so
+  // no home wants for firewood, but the timber country is where you GO to cut
+  // (v0.80). ~80% of the world's trees grow in the Greenwood's groves.
+  counts.greenwoodTrees = clusterScatter('gwtree', A(1900), (x, y) => B(x, y) === 'greenwood', tree, 7, 16)
+  counts.heartTrees     = scatter('httree', A(200), (x, y) => B(x, y) === 'heartlands', tree)
+  counts.fenTrees       = scatter('fntree', A(150), (x, y) => B(x, y) === 'fens', tree)
+  counts.wildTrees      = scatter('wdtree', A(130), (x, y) => B(x, y) === 'wilds', tree)
+  // MINING is the Crags' craft. The lodes run there, deep and clustered; a
+  // little ore turns up elsewhere but the rock country is where you mine in
+  // earnest. ~80% of the world's rock is in the Crags' lodes.
+  counts.cragRocks      = clusterScatter('cgrock', A(1120), (x, y) => B(x, y) === 'crags', rock, 6, 14)
+  counts.wildRocks      = scatter('wdrock', A(150), (x, y) => B(x, y) === 'wilds', rock)
+  counts.heartRocks     = scatter('htrock', A(130), (x, y) => B(x, y) === 'heartlands', rock)
+  // MAGIC stone is the Wilds' alone: the one true exclusive, guarded by the
+  // lawlessness of the place. To gather it you accept the Wilds.
+  // magic stone: the Wilds alone, and deepest in the deep Wilds. A cluster is
+  // only seeded where the ground lies well WEST of the brand-line (the Wilds'
+  // edge), so the veins concentrate in the far, dangerous interior; the
+  // shallow marches near the Heartlands carry almost none. To mine magic you
+  // must go deep into lawless country.
+  const deepWilds = (x, y) => {
+    if (B(x, y) !== 'wilds') return false
+    const edge = brandX(g, y)      // the Wilds' eastern boundary at this row
+    return x < edge - Math.round((edge) * 0.28) // well inside, not on the margin
+  }
+  counts.magicWilds = clusterScatter('wdmagic', A(88), deepWilds, mrock, 5, 11)
 
   // town copses: the chop-and-bank loop works at EVERY home. A handful
   // of trees seeded just past each town's plots, so no settlement
@@ -1000,6 +1168,36 @@ export function buildWorld(genesis) {
     p9.equipment.weapon = c9.weapon ?? null
     for (const [it9, q9] of Object.entries(c9.bank ?? {})) p9.bank[it9] = q9
     if (c9.name != null) { w.names[c9.name] = c9.pid; p9.name = c9.name }
+  }
+
+  // final sweep (v0.80): remove only a GATHERABLE that no citizen could EVER
+  // reach, even by clearing a path. Gathering removes the node, so a dense
+  // grove or lode is fine: you cut the edge, then the tree behind it, working
+  // inward. The right test treats every gatherable tile as eventually
+  // passable and blocks only on TERRAIN and permanent furniture. A tree is
+  // stranded only if no terrain path reaches it at all (an offshore islet, a
+  // pocket walled by water or by permanent nodes). This never touches a
+  // legitimate cluster. Deterministic: same seed, same removals.
+  {
+    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'magic-rock'])
+    // permanent (non-gatherable) nodes block; gatherables do NOT, because
+    // they can be cleared.
+    const solidTile = new Set()
+    for (const n of Object.values(w.nodes)) if (!['brewpot', 'watchfire', 'fire'].includes(n.type) && !GATHER.has(n.type)) solidTile.add(n.x + ',' + n.y)
+    const sp5 = spawnDry(g)
+    // flood over terrain + gatherables-as-passable: this is the ground a
+    // citizen can EVENTUALLY stand on, cutting or mining as they go.
+    const walkThru = (x, y) => x >= 0 && y >= 0 && x < W && y < H && !blockedAt(g, x, y) && !solidTile.has(x + ',' + y)
+    const canReach = new Set([sp5.x + ',' + sp5.y]); const q5 = [[sp5.x, sp5.y]]; let h5 = 0
+    while (h5 < q5.length) { const [x, y] = q5[h5++]; for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx=x+dx, ny=y+dy, kk=nx+','+ny; if (!canReach.has(kk) && walkThru(nx, ny)) { canReach.add(kk); q5.push([nx, ny]) } } }
+    // a gatherable stands on such a tile by definition; it is reachable iff
+    // its own tile is in the eventually-reachable set.
+    let swept = 0
+    for (const [id, n] of Object.entries(w.nodes)) {
+      if (!GATHER.has(n.type)) continue
+      if (!canReach.has(n.x + ',' + n.y)) { delete w.nodes[id]; swept++ }
+    }
+    counts.sweptUnreachable = swept
   }
   return w
 }
