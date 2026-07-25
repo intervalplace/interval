@@ -4,13 +4,13 @@
 // pose routing problems, and a border must be a thing you can stand beside.
 // So in the third founding, **every border is a physical feature**:
 //
-//   the world | nothing     = the COAST — the world is an island with a
+//   the world | nothing     = the COAST, the world is an island with a
 //                             silhouette, ringed by sea instead of an
 //                             invisible wall
-//   wilds     | heartlands  = the BRANDLINE — a scorched march marked by
+//   wilds     | heartlands  = the BRANDLINE, a scorched march marked by
 //                             standing stones, freely crossable: a line you
 //                             step over deliberately
-//   heartland | crags       = the RIDGE — high stone that bars the way,
+//   heartland | crags       = the RIDGE, high stone that bars the way,
 //                             crossed at the North Pass and the South Pass,
 //                             or skirted the long way through the deep wood
 //                             where the ridge sinks beneath the trees
@@ -25,7 +25,7 @@
 // yours forever), and the FARSHORE, which is reached by nothing at all.
 //
 // Roads are a GRAPH of routes through named junctions, with three
-// independent loops — a walk can be a circuit. Settlements SELF-SEAT from
+// independent loops, a walk can be a circuit. Settlements SELF-SEAT from
 // the geography (the port from the bay's shoreline, the river towns from
 // the river) rather than sitting at fractions the terrain could drown.
 //
@@ -297,7 +297,7 @@ const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ff
   'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
   'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
 export function keeperName(tag, role) {
-  if (role === 'wizard') return 'Oberon' // every keeper's name is a hash — except the wizard, who chose his own
+  if (role === 'wizard') return 'Oberon' // every keeper's name is a hash, except the wizard, who chose his own
   const h = E.sha256('keeper|' + tag + '|' + role)
   return KEEPER_NAMES[h[0] % KEEPER_NAMES.length]
 }
@@ -339,10 +339,52 @@ export function spawnDry(g) {
     }
   return { x: cx, y: cy }
 }
+// the geography, made constitutional (v0.80). A generator now declares a
+// canonical HASH of the island it draws, computed on a fixed probe seed,
+// and makeGenesis folds it into every founding record. worldId already
+// hashes the whole genesis, so from here the world's identity commits to
+// its LAND, not merely to the name of the code that drew it. Two
+// implementations either compute the same island or they compute different
+// worldIds and know, at the door, that they are different worlds. Any
+// change to what this generator draws changes the hash: a new world, a
+// fork, by construction. This is the way.
+let _probing = false       // true only while computing the geography hash
+// the geography hash of the ACTUAL island a genesis founds (v0.80). It
+// commits to THIS founding seed's world, not a fixed probe: a probe would
+// verify an island nobody plays on, letting the real one drift unchecked.
+// The genesis passed in still carries its placeholder hash (we are mid,
+// construction), so the world is built with _probing set, which is exactly
+// what suppresses the geography gate during this build. The result is
+// memoized per genesis seed+size, since one founding asks once.
+const _geoMemo = new Map()
+function geographyHashE3(genesisUnderConstruction) {
+  const g0 = genesisUnderConstruction
+  const memoKey = g0.genesisSeed + '|' + g0.worldW + 'x' + g0.worldH
+  if (_geoMemo.has(memoKey)) return _geoMemo.get(memoKey)
+  if (_probing) return '0'.repeat(64) // reentrant during our own build: placeholder
+  _probing = true
+  try {
+    const w = buildWorld(g0) // the founding island itself
+    // every settled node at its exact tile, sorted (order, independent),
+    // plus a terrain raster: the island, made bytes.
+    const nodeSig = Object.entries(w.nodes)
+      .map(([id, n]) => id + ':' + n.type + ':' + (n.kind ?? '') + ':' + n.x + ',' + n.y)
+      .sort().join('|')
+    const terr = []
+    for (let y = 0; y < g0.worldH; y += 4)
+      for (let x = 0; x < g0.worldW; x += 4)
+        terr.push(blockedAt(g0, x, y) ? '#' : biomeAt(g0, x, y)[0])
+    const h = E.sha256(Buffer.from('EXPANSE3-GEO-V1\n' + nodeSig + '\n' + terr.join(''))).toString('hex')
+    _geoMemo.set(memoKey, h)
+    return h
+  } finally { _probing = false }
+}
+
 E.registerTerrain(GENERATOR_ID, {
   blocked: (g, x, y) => blockedAt(g, x, y),
   spawn: (g) => spawnDry(g),
   country: (g, x, y) => biomeAt(g, x, y),
+  geographyHash: (g) => geographyHashE3(g),
 })
 
 // ---------- the founding ----------
@@ -361,6 +403,13 @@ export function makeExpanse3Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     norwick: { x0: nw.x - 8, x1: nw.x + 8, y0: nw.y - 6, y1: nw.y + 6 },
   }
   g.watch = { level: 60, kindleLogs: 10, perLog: 420, cap: 12600, xpPerLog: 200, burnXp: 1, maxOwned: 4, decayTicks: 432000 }
+  // the geography commits itself (v0.80): the placeholder is stamped FIRST,
+  // so the reentrant buildWorld inside the hash computation sees a
+  // structurally, and geography-, valid genesis (placeholder matches
+  // placeholder while _probing). Then the true hash of THIS founding
+  // island overwrites it. While probing, the placeholder simply stays.
+  g.geographyHash = '0'.repeat(64)
+  if (!_probing) g.geographyHash = geographyHashE3(g)
   // Founded from survey-sim-expanse3 (the SPEC 7c discipline) against the
   // v0.79 placement rule, on THIS geometry at 896x512: the recall-optimal
   // solo explorer (all stones attuned, ~163 surveys/hr, mean marker distance
@@ -415,13 +464,21 @@ export function buildWorld(genesis) {
     // citizens wake at the world's center, and were waking INSIDE the
     // well that placeNear seated on that same tile. No furniture may
     // stand where souls arrive; the well slides one ring out.
+    // a tile is a CROSSING if it is walkable only because a ford spans
+    // water, with water on opposite sides: the one path across a river.
+    // Town furniture must never seat there, or the town chokes its own
+    // bridge (Millbrook once planted its bank at the river's foot).
+    const isCrossing = (x, y) =>
+      ((isWater(g, x - 1, y) && isWater(g, x + 1, y)) ||
+       (isWater(g, x, y - 1) && isWater(g, x, y + 1)))
     const placeNear = (id, type, dx, dy, extra) => {
-      for (let rad = 0; rad <= 4; rad++) for (let ody = -rad; ody <= rad; ody++) for (let odx = -rad; odx <= rad; odx++) {
+      for (let rad = 0; rad <= 5; rad++) for (let ody = -rad; ody <= rad; ody++) for (let odx = -rad; odx <= rad; odx++) {
         if (Math.max(Math.abs(odx), Math.abs(ody)) !== rad) continue
         const p = at(dx + odx, dy + ody)
         if (p.x <= r.x0 || p.x >= r.x1 || p.y <= r.y0 || p.y >= r.y1) continue
         if (p.x === sp0.x && p.y === sp0.y) continue
         if (!inB(p.x, p.y) || taken.has(key(p.x, p.y)) || isWater(g, p.x, p.y)) continue
+        if (isCrossing(p.x, p.y)) continue // never seat on the town's own bridge
         put(id, type, p.x, p.y, extra); return
       }
     }
@@ -469,7 +526,7 @@ export function buildWorld(genesis) {
   // ---- the four landmarks: never repeated, each a place ----
   // the Old Oak: one great tree in the deep wood, ringed by its children.
   // The Oak itself seats by ring search: a landmark may step aside from the
-  // sea or a trail, but it must exist — a named place that failed to be
+  // sea or a trail, but it must exist, a named place that failed to be
   // founded would be a lie on every map.
   {
     let ox = Math.round(W * 0.62), oy = Math.round(H * 0.10)
@@ -486,7 +543,7 @@ export function buildWorld(genesis) {
   // from the nominal; if the rings exhaust (the Sentinel once landed in
   // the SEA when no crags lay within thirty tiles of its nominal),
   // raster-scan the whole country for the nearest lawful tile. A
-  // landmark may step far aside — but it stands on land, always.
+  // landmark may step far aside, but it stands on land, always.
   const seatLandmark = (nomX, nomY, biome, maxRad = 60) => {
     let x = nomX, y = nomY
     for (let rad = 0; rad < maxRad; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
@@ -535,7 +592,7 @@ export function buildWorld(genesis) {
     put('wreck', 'landmark', wx9, wy9, { kind: 'shipwreck' })
   }
   // the First Tally (v0.80): the founding instrument, made monument.
-  // A tally is the split stick whose two halves prove each other — so
+  // A tally is the split stick whose two halves prove each other, so
   // the first one stands in two places: one half in Anchor's plaza,
   // near where souls arrive; the other across the water on Shrine
   // Isle. Neither is charted. A tally is found, not advertised.
@@ -570,7 +627,7 @@ export function buildWorld(genesis) {
     }
   }
   // the Ruined Tower: broken masonry in the wilds. Its old fixed site
-  // was UNDERWATER on some seeds and the walls silently never stood —
+  // was UNDERWATER on some seeds and the walls silently never stood ,
   // a lie on every chart. The Oak's law applies: a landmark may step
   // aside from the sea, but it must exist.
   {
@@ -584,7 +641,7 @@ export function buildWorld(genesis) {
     for (const [dx, dy] of stones) if (free(tx + dx, ty + dy)) put('ruin-' + (n++), 'landmark', tx + dx, ty + dy, { kind: 'broken-tower' })
   }
   // Shrine Isle: the waystone at the end of the causeway, a ring of stone,
-  // a hearth for the pilgrim — walked to once, recalled to forever
+  // a hearth for the pilgrim, walked to once, recalled to forever
   {
     const isle = islesOf(g)[0]
     const seat = (id, type, dx, dy, extra) => {
@@ -638,7 +695,7 @@ export function buildWorld(genesis) {
   }
   // ---- the worksites (v0.79): between the towns and the wild, the
   // places where the island's WORK lives. A farm with real fields, a
-  // sawyer's clearing, an open delving, eel sheds on the marsh edge —
+  // sawyer's clearing, an open delving, eel sheds on the marsh edge ,
   // each a public hub of its country's trade, each with a keeper who
   // lives out there and a name on the chart. Built entirely from
   // existing law: no new node type, just composition. The Wilds get
@@ -711,7 +768,7 @@ export function buildWorld(genesis) {
   // ---- the Lantern (v0.79b): a wayside inn on the east road, halfway
   // between Anchor and the passes. Every long road earns one lit window
   // at dusk. The house is a HOUSE in law, which means the brewpot
-  // statute applies: any brewer may raise their pots in the yard — the
+  // statute applies: any brewer may raise their pots in the yard, the
   // inn is built expecting to become a brewhouse, because inns always
   // do. Rest, traveler; the fire is kept.
   {
@@ -817,7 +874,7 @@ export function buildWorld(genesis) {
 
   const counts = { waymarks: _waymarks, wayrests: _wayrests, brandstones: br }
   // Density anchor: the calibrated 896x512 island. Counts are the v2 founding's
-  // proven envelope, carried whole — the island's land area matches the v2
+  // proven envelope, carried whole, the island's land area matches the v2
   // rectangle's within a few percent, so density per land tile is unchanged.
   const A = (n) => Math.max(1, Math.round(n * (W * H) / (896 * 512)))
   counts.greenwoodTrees = scatter('gwtree', A(1500), (x, y) => B(x, y) === 'greenwood', tree)
@@ -850,7 +907,7 @@ export function buildWorld(genesis) {
 
   const mob = (kind) => (id, x, y) => E.addMob(w, id, kind, x, y)
   // the Anchor commons (Lumbridge law): the first goblin is a sight
-  // from the capital's walls in ANY direction — a sparse ring, 18 to 60
+  // from the capital's walls in ANY direction, a sparse ring, 18 to 60
   // tiles out, thinned to a third of band density by the draw's own
   // digest. The budget grows to fund it, so the fens stay as thick as
   // ever; the commons is a petting zoo, the marshes are a war.
@@ -908,18 +965,18 @@ export function buildWorld(genesis) {
   for (const [tag, x, y] of frontier) putWaystone('waystone-' + tag, x, y)
 
   const serr = E.validateState(w)
-  if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') — founding aborted')
+  if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') founding aborted')
   w._composition = counts
 
   // ---- the crossing (restored, v0.78): genesis.imported is FOUNDING
-  // data — the worldId commits to it, the engine validates it, serve
-  // builds it — and this generator was dropping it on the floor. The
+  // data, the worldId commits to it, the engine validates it, serve
+  // builds it, and this generator was dropping it on the floor. The
   // application block was lost in a merge, and a world's worth of
   // veterans arrived at a founding that could not hear them. Every
   // imported soul now wakes at the spawn with everything the genesis
   // swears they carried: skills, name, pack, bank, weapon, wounds.
   // (block restored to the v0.66 canon, rev7 §6: validated data applied
-  // directly — era-known skills only, hp capped at the hitpoints level,
+  // directly, era-known skills only, hp capped at the hitpoints level,
   // the name REGISTRY written alongside the nameplate.)
   for (const c9 of (g.imported ?? [])) {
     if (!/^[0-9a-f]{64}$/.test(c9.pid ?? '')) continue
