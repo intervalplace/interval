@@ -508,10 +508,10 @@ export function buildWorld(genesis) {
       if (s.kind === 'garrison') for (let k = 0; k < 3; k++) place('guard-' + s.tag + k, 'guard', -4 + k * 4, -4)
       for (let k = 0; k < 4; k++) place('house-' + s.tag + k, 'house', -4 + k * 2, 3)
     }
-    for (let k = 0; k < 4; k++) {
-      const p = at(-5 + k * 3, 5)
-      if (inB(p.x, p.y) && !taken.has(key(p.x, p.y)) && !isWater(g, p.x, p.y)) put('plot-' + s.tag + k, 'plot', p.x, p.y, { plantedAt: 0 })
-    }
+    // (v0.80) no loose garden plots in the town core. A row seated at y+5
+    // fell into streets and onto the plaza as often as it made a garden;
+    // farming lives at Hollybarrow and in the fenced paddocks now, where a
+    // plot has a hedge around it and a reason to be there.
   }
 
   // ---- the Brandline: standing stones along the march, every fourteenth row.
@@ -659,22 +659,34 @@ export function buildWorld(genesis) {
   // ---- the paddocks (v0.79): fenced fields outside every heartlands
   // town, each with a gate-gap and a few plots inside. What separates a
   // real island from a generated one is BOUNDARIES: land somebody
-  // divided, hedgerows somebody laid. Two per town, hash-turned. ----
+  // divided, hedgerows somebody laid. Three per town, hash-turned, each a
+  // little larger than the first paddocks (v0.80): the heartlands is the
+  // farming country, so give it fields worth the name. ----
   for (const st of settlementsOf(g)) {
     if (biomeAt(g, st.x, st.y) !== 'heartlands' && st.tag !== 'anchor') continue
-    for (let pk = 0; pk < 2; pk++) {
+    for (let pk = 0; pk < 3; pk++) {
       const hp9 = H32('paddock|' + st.tag, pk)
-      const pw = 6 + (hp9.readUInt16BE(0) % 3), ph = 4 + (hp9.readUInt16BE(2) % 2)
+      const pw = 8 + (hp9.readUInt16BE(0) % 3), ph = 5 + (hp9.readUInt16BE(2) % 2)
       const side = hp9.readUInt16BE(4) % 4
       const r = rectOf(st)
-      let ax = side === 0 ? r.x0 - pw - 4 : side === 1 ? r.x1 + 4 : st.x - (pw >> 1)
-      let ay = side === 2 ? r.y0 - ph - 4 : side === 3 ? r.y1 + 4 : st.y - (ph >> 1)
-      if (side < 2) ay = st.y - (ph >> 1)
-      // the whole rectangle must be placeable ground
-      let ok9 = true
-      for (let yy = ay; yy <= ay + ph && ok9; yy++) for (let xx = ax; xx <= ax + pw; xx++)
-        if (!free(xx, yy)) { ok9 = false; break }
-      if (!ok9) continue
+      let ax0 = side === 0 ? r.x0 - pw - 4 : side === 1 ? r.x1 + 4 : st.x - (pw >> 1)
+      let ay0 = side === 2 ? r.y0 - ph - 4 : side === 3 ? r.y1 + 4 : st.y - (ph >> 1)
+      if (side < 2) ay0 = st.y - (ph >> 1)
+      // the whole rectangle must be clear ground. A dense capital rarely
+      // has room at the first spot, so search outward (in the side's own
+      // direction first) for the nearest fit rather than giving up.
+      const fits = (ax, ay) => {
+        if (ax < 1 || ay < 1 || ax + pw >= W - 1 || ay + ph >= H - 1) return false
+        for (let yy = ay; yy <= ay + ph; yy++) for (let xx = ax; xx <= ax + pw; xx++)
+          if (!free(xx, yy) || biomeAt(g, xx, yy) !== 'heartlands') return false
+        return true
+      }
+      let ax = ax0, ay = ay0, placed9 = false
+      seekPad: for (let rad = 0; rad < 18; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        if (fits(ax0 + dx * 2, ay0 + dy * 2)) { ax = ax0 + dx * 2; ay = ay0 + dy * 2; placed9 = true; break seekPad }
+      }
+      if (!placed9) continue
       const mat9 = hp9.readUInt16BE(6) % 2 ? 'hedge' : 'fence'
       const gate9 = 1 + (hp9.readUInt16BE(8) % (pw - 1)) // a gap on the south side
       let fi9 = 0
@@ -686,11 +698,13 @@ export function buildWorld(genesis) {
         put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, ax, yy)
         put('pdk-' + st.tag + pk + '-' + (fi9++), mat9, ax + pw, yy)
       }
-      for (let pi9 = 0; pi9 < 3; pi9++) {
-        const px9 = ax + 1 + (H32('pdkplot|' + st.tag + pk, pi9).readUInt16BE(0) % (pw - 1))
-        const py9 = ay + 1 + (H32('pdkplot|' + st.tag + pk, pi9).readUInt16BE(2) % (ph - 1))
-        if (free(px9, py9)) put('pdkp-' + st.tag + pk + '-' + pi9, 'plot', px9, py9, { plantedAt: 0 })
-      }
+      // fill the paddock with a tended GRID of plots, every other tile so
+      // a farmer can stand between the rows: a divided field, not three
+      // plots rattling around inside a fence (v0.80).
+      let pin9 = 0
+      for (let yy = ay + 1; yy < ay + ph; yy++)
+        for (let xx = ax + 1 + ((yy - ay) % 2); xx < ax + pw; xx += 2)
+          if (free(xx, yy)) put('pdkp-' + st.tag + pk + '-' + (pin9++), 'plot', xx, yy, { plantedAt: 0 })
     }
   }
   // ---- the worksites (v0.79): between the towns and the wild, the
@@ -798,14 +812,10 @@ export function buildWorld(genesis) {
     // ground, waiting for its first pot (build_brewpot wants a house
     // adjacent, and here one stands)
   }
-  // ---- scattered plots in the heartlands ----
-  let pl = 0
-  for (let i = 0; i < 1200 && pl < 62; i++) {
-    const h = H32('plot', i)
-    const x = 1 + (h.readUInt16BE(0) % (W - 2)), y = 1 + (h.readUInt16BE(2) % (H - 2))
-    if (!free(x, y) || biomeAt(g, x, y) !== 'heartlands') continue
-    put('plotf-' + (pl++), 'plot', x, y, { plantedAt: 0 })
-  }
+  // (v0.80) the scattered heartlands plots are GONE. They predated the
+  // worksites and paddocks and left single furrows in random corners, in
+  // Anchor's streets, on the open moor. Farming now lives where it reads:
+  // Hollybarrow Farm, and the fenced paddocks outside each heartlands town.
 
   // ---- fishing: the sampled shore, now with a real coast ----
   let fs = 0
