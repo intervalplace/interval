@@ -46,12 +46,22 @@ for (const seed of SEEDS.slice(0, N)) {
         if (seen.has((s.x+dx)+','+(s.y+dy))) return false
       return true
     })
-    const banks = Object.values(w.nodes).filter(n => n.type === 'bank').length
+    // Bank COUNT is the wrong assertion: v4 deliberately leaves Millbrook,
+    // Thornbury and Hollybarrow without one, so that Anchor's two and
+    // Oxenford's one are worth walking to. What matters is that no town is
+    // absurdly far from a strong room.
+    const banks = Object.values(w.nodes).filter(n => n.type === 'bank')
+    let worstBank = 0, worstTown = ''
+    for (const s of X.settlementsOf(g)) {
+      let best = Infinity
+      for (const b of banks) best = Math.min(best, Math.round(Math.hypot(b.x - s.x, b.y - s.y)))
+      if (best > worstBank) { worstBank = best; worstTown = s.tag }
+    }
     const probs = []
     if (stranded.length) probs.push(stranded.length + ' stranded')
     if (unreachedTowns.length) probs.push('unreachable: ' + unreachedTowns.map(s => s.tag).join('/'))
-    if (banks < 10) probs.push('only ' + banks + ' banks')
-    line += (probs.length ? 'FAIL  ' + probs.join('; ') : 'ok   ' + Object.keys(w.nodes).length + ' nodes')
+    if (worstBank > 150) probs.push(worstTown + ' is ' + worstBank + ' tiles from a bank')
+    line += (probs.length ? 'FAIL  ' + probs.join('; ') : 'ok   ' + Object.keys(w.nodes).length + ' nodes, ' + banks.length + ' banks, furthest town ' + worstBank + ' from one')
     if (probs.length) bad++
   } catch (e) {
     bad++
