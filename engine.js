@@ -871,7 +871,7 @@ function roll(beacon, playerId, tag) {
 // The canonical generator registry (rev7 §8): a founding record names its
 // generator EXPLICITLY, so two deterministic generators can never be
 // confused about which world a genesis founds.
-const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3']);
+const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4']);
 
 function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH = 200,
                      worldGenerator = 'interval-classic-v1') {

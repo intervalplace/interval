@@ -1791,6 +1791,7 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
+  if (GEN === 'interval-expanse-v4') return settlementsE4()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   return [
     { x: cx, y: cy, w: 24, h: 14 },
@@ -1836,7 +1837,438 @@ function biomeAtE(x, y) {
   if (y >= H * 0.70) return 'fens'
   return 'meadow'
 }
+function angleOf3(dx, dy) {
+  const ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy
+  if (ax === 0 && ay === 0) return 0
+  if (dx > 0 && dy >= 0) return ax >= ay ? (ay / ax) * 45 : 90 - (ax / ay) * 45
+  if (dx <= 0 && dy > 0) return ay > ax ? 90 + (ax / ay) * 45 : 180 - (ay / ax) * 45
+  if (dx < 0 && dy <= 0) return ax >= ay ? 180 + (ay / ax) * 45 : 270 - (ax / ay) * 45
+  return ay > ax ? 270 + (ax / ay) * 45 : 360 - (ay / ax) * 45
+}
+// ---------------------------------------------------------------------
+// An exact mirror of worldgen-expanse4.mjs. The window verifies the world
+// rather than trusting it, so the fourth founding's geography has to exist
+// on this side too: the countries as weighted-Voronoi LOBES, the capes, the
+// Barrow, the scarce crossings, and -- the new one -- roads that are ROUTED
+// rather than drawn. The router is ported whole, packed-integer heap and
+// all, because a road drawn differently here than on the server is a
+// window that quietly lies about where you can walk.
+// ---------------------------------------------------------------------
+const CAPES4 = [
+  { tag: 'wildshead', name: 'the Wilds Head', u: 180, w: 24, amt: +0.30 },
+  { tag: 'stonepoint', name: 'the Stonepoint', u: 3, w: 8, amt: +0.20 },
+  { tag: 'nordhead', name: 'the Nordhead', u: 306, w: 13, amt: +0.15 },
+  { tag: 'sawtooth', name: 'the Sawtooth', u: 258, w: 7, amt: +0.13 },
+]
+const BAYS4 = [[152,11,-0.17],[208,11,-0.17],[38,25,-0.22],[78,14,-0.12],[284,10,-0.11],[330,12,-0.09]]
+function coastR4(u0) {
+  const u = ((u0 % 360) + 360) % 360
+  let r = 0.78 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
+  const bump = (c, w2, amt) => {
+    const d1 = u - c < 0 ? c - u : u - c
+    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    if (d < w2) r += amt * (1 - d / w2)
+  }
+  for (const c of CAPES4) bump(c.u, c.w, c.amt)
+  for (const b of BAYS4) bump(b[0], b[1], b[2])
+  return r
+}
+function inSeaBase4(x, y) {
+  const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
+  const r = Math.sqrt(dx * dx + dy * dy)
+  if (r <= 0.50) return false
+  return r > coastR4(angleOf3(dx, dy))
+}
+function emY4() { return Math.round(H * 0.74) }
+let _shore4 = null
+function bayShoreX4(y) {
+  if (!_shore4) _shore4 = {}
+  if (_shore4[y] !== undefined) return _shore4[y]
+  let sx = null
+  for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase4(x, y)) { sx = x; break }
+  return (_shore4[y] = sx)
+}
+function isles4() {
+  const ey = emY4(), sh = bayShoreX4(ey) ?? Math.round(W * 0.7)
+  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 }]
+}
+function onIsle4(x, y) {
+  for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
+  return false
+}
+const inSea4 = (x, y) => inSeaBase4(x, y) && !onIsle4(x, y)
+const brandX4 = (y) => Math.round(W * 0.225 + meander(310, y, 40, 9))
+
+// the countries, as lobes. Same seeds, same squash, same low-frequency
+// boundary jitter: a high-frequency jitter here would dissolve the borders
+// into speckle exactly as it did on the server's first draft.
+const SEEDS4 = [
+  ['heartlands',0.42,0.40,0.90,420],['heartlands',0.54,0.52,0.74,421],
+  ['greenwood',0.44,0.10,1.02,422],['greenwood',0.66,0.15,0.86,423],
+  ['crags',0.89,0.28,0.90,424],['crags',0.83,0.50,0.70,425],
+  ['downs',0.70,0.68,0.86,426],['downs',0.79,0.78,0.62,430],
+  ['fens',0.49,0.90,0.86,427],['fens',0.33,0.82,0.60,428],
+  ['moor',0.31,0.16,0.84,429],['moor',0.38,0.27,0.58,431],
+]
+const VSQUASH4 = 1.9
+function regionAt4(x, y) {
+  let best = 'heartlands', bd = Infinity
+  for (const s of SEEDS4) {
+    const sx = s[1] * W, sy = s[2] * H, wt = s[3], jt = s[4]
+    const dx = x - sx, dy = (y - sy) * VSQUASH4
+    const j = meander(jt, x + y * 0.6, 150, 26) + meander(jt + 40, x - y * 0.45, 60, 9)
+    const d = (dx * dx + dy * dy) / (wt * wt) + j * 460
+    if (d < bd) { bd = d; best = s[0] }
+  }
+  return best
+}
+// the biome field is queried for every tile drawn, every frame, and each
+// query is twelve weighted seeds with two meanders apiece. Cached once.
+let _bio4 = null
+const BIO4 = ['sea','wilds','heartlands','greenwood','crags','fens','downs','moor']
+function biomeAtE4(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return 'sea'
+  if (!_bio4) _bio4 = new Uint8Array(W * H).fill(255)
+  const i = y * W + x
+  if (_bio4[i] !== 255) return BIO4[_bio4[i]]
+  let b
+  if (inSeaBase4(x, y) && !onIsle4(x, y)) b = 'sea'
+  else if (x <= brandX4(y)) b = 'wilds'
+  else b = regionAt4(x, y)
+  _bio4[i] = BIO4.indexOf(b)
+  return b
+}
+const ridgeX4 = (y) => Math.round(W * 0.695 + meander(311, y, 30, 11))
+const passes4 = () => [Math.round(H * 0.34), Math.round(H * 0.62)]
+function onRidge4(x, y) {
+  const rx = ridgeX4(y), d = x - rx < 0 ? rx - x : x - rx
+  if (d > 2) return false
+  for (const p of passes4()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
+  if (biomeAtE4(x, y) === 'greenwood') return false
+  if (y > H * 0.70) return false      // the ridge dies away before the bay
+  if (inSeaBase4(x, y)) return false
+  return true
+}
+const barrowC4 = () => ({ x: Math.round(W * 0.575), y: Math.round(H * 0.585) })
+function onBarrow4(x, y) {
+  const c = barrowC4(), dx = (x - c.x) / 26, dy = (y - c.y) / 15
+  return dx * dx + dy * dy < 1 + meander(330, x + y, 18, 12) / 190
+}
+function riverX4(y) { return Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6)) }
+const confY4 = () => Math.round(H * 0.63)
+function marchWY4(x) {
+  const cyy = confY4(), reach = riverX4(cyy) - 8 - x
+  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  return cyy + Math.round(meander(25, x, 36, 12) * t)
+}
+function inRiver4(x, y) {
+  const srcY = Math.round(H * 0.105)
+  if (y >= srcY) {
+    const rx = riverX4(y), d = x - rx < 0 ? rx - x : x - rx
+    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    if (y > H * 0.84) {
+      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3))
+      const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      if (d2 <= 1) return true
+    }
+  }
+  if (x < riverX4(confY4()) - 1 && x > brandX4(y) - 16) {
+    const my = marchWY4(x), d3 = y - my < 0 ? my - y : y - my
+    if (d3 <= 1) return true
+  }
+  return false
+}
+function inLake4(x, y) {
+  const cx = Math.round(W * 0.745), cy = Math.round(H * 0.21)
+  const dx = (x - cx) / 24, dy = (y - cy) / 13
+  return dx * dx + dy * dy < 1
+}
+const isWater4 = (x, y) => inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+function bridges4() {
+  const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
+  const out = ys.map((y) => ({ x: riverX4(y), y }))
+  const mx = Math.round(W * 0.30)
+  out.push({ x: mx, y: marchWY4(mx) })
+  return out
+}
+function onBridge4(x, y) {
+  for (const b of bridges4()) if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
+  return false
+}
+// Eastmere's harbour: the same claim geometry the drawing declares, so the
+// window seats the port on the same tile the server did.
+const EM_WET = [[11,-8],[12,-8],[13,-8],[14,-8],[11,-1],[12,-1],[13,-1],[14,-1],[11,6],[12,6],[13,6],[14,6]]
+const EM_DRY = [[-17,-12],[-11,-12],[-5,-12],[1,-12],[-16,-11],[-10,-11],[-4,-11],[2,-11],[-15,-10],[-9,-10],[-3,-10],[3,-10],[-17,-9],[-11,-9],[-5,-9],[1,-9],[-16,-8],[-10,-8],[-4,-8],[2,-8],[-15,-7],[-9,-7],[-3,-7],[3,-7],[-17,-6],[-11,-6],[-5,-6],[1,-6],[-16,-5],[-10,-5],[-4,-5],[2,-5],[-15,-4],[-9,-4],[-3,-4],[3,-4],[-17,-3],[-11,-3],[-5,-3],[1,-3],[-16,-2],[-10,-2],[-4,-2],[2,-2],[-15,-1],[-9,-1],[-3,-1],[3,-1],[-17,0],[-11,0],[-5,0],[1,0],[-16,1],[-10,1],[-4,1],[2,1],[-15,2],[-9,2],[-3,2],[3,2],[-17,3],[-11,3],[-5,3],[1,3],[-16,4],[-10,4],[-4,4],[2,4],[-15,5],[-9,5],[-3,5],[3,5],[-17,6],[-11,6],[-5,6],[1,6],[-16,7],[-10,7],[-4,7],[2,7],[-15,8],[-9,8],[-3,8],[3,8],[-17,9],[-11,9],[-5,9],[1,9],[-16,10],[-10,10],[-4,10],[2,10],[-15,11],[-9,11],[-3,11],[3,11]]
+let _emSeat4 = null
+function eastmereSeat4() {
+  if (_emSeat4) return _emSeat4
+  const ey = emY4(), nomX = (bayShoreX4(ey) ?? Math.round(W * 0.7)) - 14
+  const fits = (cx, cy) => {
+    for (const p of EM_WET) { const x = cx + p[0], y = cy + p[1]; if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1 || !isWater4(x, y)) return false }
+    for (const p of EM_DRY) {
+      const x = cx + p[0], y = cy + p[1]
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false
+      if (isWater4(x, y) || onRidge4(x, y) || onBarrow4(x, y)) return false
+    }
+    return true
+  }
+  for (let rad = 0; rad < 90; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (fits(nomX + dx, ey + dy)) return (_emSeat4 = { x: nomX + dx, y: ey + dy })
+    }
+  return (_emSeat4 = { x: nomX, y: ey })
+}
+function seatTown4(nomX, nomY, tw, th) {
+  const hx = tw >> 1, hy = th >> 1
+  const dry = (cx, cy) => {
+    for (let y = cy - hy; y <= cy + hy; y += 2) for (let x = cx - hx; x <= cx + hx; x += 2) {
+      if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) return false
+      if (inSea4(x, y) || onRidge4(x, y) || onBarrow4(x, y)) return false
+    }
+    return true
+  }
+  for (let rad = 0; rad < 90; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (dry(nomX + dx, nomY + dy)) return { x: nomX + dx, y: nomY + dy }
+    }
+  return { x: nomX, y: nomY }
+}
+// Fenmarch declares four wet corners, the same claim the drawing makes
+const FM_WET = [[-17,-10],[16,-10],[-17,9],[16,9]]
+const FM_DRY = [[-13,-11],[-11,-11],[-9,-11],[-7,-11],[6,-11],[8,-11],[10,-11],[-13,-10],[-11,-10],[-9,-10],[-7,-10],[6,-10],[8,-10],[10,-10],[-13,-9],[-11,-9],[-9,-9],[-7,-9],[6,-9],[8,-9],[10,-9],[-14,-8],[-12,-8],[-10,-8],[-8,-8],[-6,-8],[-4,-8],[1,-8],[3,-8],[5,-8],[7,-8],[9,-8],[11,-8],[13,-8],[-4,-7],[-13,-6],[-11,-6],[-9,-6],[-7,-6],[-5,-6],[-3,-6],[2,-6],[4,-6],[6,-6],[8,-6],[10,-6],[12,-6],[14,-6],[-12,-5],[-10,-5],[-8,-5],[7,-5],[9,-5],[11,-5],[-13,-4],[-11,-4],[-9,-4],[6,-4],[8,-4],[10,-4],[15,-4],[-13,-3],[-11,-3],[-9,-3],[6,-3],[8,-3],[10,-3],[15,-3],[-13,-2],[-11,-2],[-9,-2],[-7,-2],[-5,-2],[-3,-2],[2,-2],[4,-2],[6,-2],[8,-2],[10,-2],[12,-2],[14,-2],[2,-1],[-13,0],[-11,0],[-9,0],[-7,0],[-5,0],[-3,0],[2,0],[4,0],[6,0],[8,0],[10,0],[12,0],[14,0],[-12,1],[-10,1],[-8,1],[5,1],[7,1],[9,1],[11,1],[-13,2],[-11,2],[-9,2],[-7,2],[6,2],[8,2],[10,2],[15,2],[-13,3],[-11,3],[-9,3],[-7,3],[6,3],[8,3],[10,3],[15,3],[-13,4],[-11,4],[-9,4],[-7,4],[-5,4],[-3,4],[2,4],[4,4],[6,4],[8,4],[10,4],[12,4],[14,4],[-14,6],[-12,6],[-10,6],[-8,6],[-6,6],[-4,6],[1,6],[3,6],[5,6],[7,6],[9,6],[11,6],[13,6]]
+let _fmSeat4 = null
+function fenmarchSeat4() {
+  if (_fmSeat4) return _fmSeat4
+  const ny = Math.round(H * 0.83), nx = riverX4(ny) + 9
+  const fits = (cx, cy) => {
+    for (const p of FM_WET) { const x = cx+p[0], y = cy+p[1]
+      if (x<1||y<1||x>=W-1||y>=H-1||!isWater4(x,y)) return false }
+    // the generator checks EVERY dry tile of the drawing, not a sample grid;
+    // a looser mirror seats the town one tile off and the window lies
+    for (const p of FM_DRY) { const x = cx+p[0], y = cy+p[1]
+      if (x<1||y<1||x>=W-1||y>=H-1) return false
+      if (isWater4(x,y)||onRidge4(x,y)||onBarrow4(x,y)) return false }
+    return true
+  }
+  for (let rad=0; rad<80; rad++)
+    for (let dy=-rad; dy<=rad; dy++) for (let dx=-rad; dx<=rad; dx++) {
+      if (Math.max(Math.abs(dx),Math.abs(dy))!==rad) continue
+      if (fits(nx+dx, ny+dy)) return (_fmSeat4 = { x:nx+dx, y:ny+dy }) }
+  return (_fmSeat4 = seatTown4(nx, ny, 34, 24))
+}
+let _ss4 = null
+function settlementsE4() {
+  if (_ss4) return _ss4
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
+  const mby = cy - 62, ey = emY4(), em = eastmereSeat4()
+  _ss4 = [
+    { tag:'anchor', name:'Anchor', x: cx - 16, y: cy, w:44, h:28, ring:'shire' },
+    { tag:'millbrook', name:'Millbrook', x: riverX4(mby) + 16, y: mby, w:28, h:20, ring:'shire' },
+    { tag:'oxenford', name:'Oxenford', x: cx - 74, y: cy + 30, w:28, h:20, ring:'shire' },
+    { tag:'thornbury', name:'Thornbury', x: cx + 78, y: cy - 34, w:26, h:18, ring:'shire' },
+    { tag:'hollybarrow', name:'Hollybarrow', x: cx - 96, y: cy - 52, w:26, h:18, ring:'shire' },
+    // every frontier town is DRAWN now, so each carries its plan's footprint
+    Object.assign({ tag:'greenhollow', name:'Greenhollow', w:32, h:24, ring:'frontier' }, seatTown4(Math.round(W*0.42), Math.round(H*0.12), 32, 24)),
+    Object.assign({ tag:'cragfoot', name:'Cragfoot', w:22, h:30, ring:'frontier' }, seatTown4(Math.round(W*0.87), Math.round(H*0.44), 22, 30)),
+    { tag:'eastmere', name:'Eastmere', x: em.x, y: em.y, w:36, h:26, ring:'frontier' },
+    Object.assign({ tag:'fenmarch', name:'Fenmarch', w:34, h:24, ring:'frontier' }, fenmarchSeat4()),
+    Object.assign({ tag:'norwick', name:'Norwick', w:30, h:22, ring:'frontier' }, seatTown4(brandX4(Math.round(H*0.47)) + 18, Math.round(H*0.47), 30, 22)),
+  ]
+  return _ss4
+}
+// ---- the router, ported whole ----
+const BIOME_COST4 = { heartlands:10, downs:11, greenwood:15, moor:15, wilds:17, fens:20, crags:22 }
+function routeCost4(x, y) {
+  if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return -1
+  const b = biomeAtE4(x, y)
+  if (b === 'sea') return -1
+  if (isWater4(x, y)) return onBridge4(x, y) ? 10 : -1
+  if (onBarrow4(x, y) || onRidge4(x, y)) return -1
+  let c = BIOME_COST4[b] ?? 14
+  if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) c += 6
+  return c
+}
+let _cost4 = null
+function costField4() {
+  if (_cost4) return _cost4
+  const f = new Int16Array(W * H)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) f[y * W + x] = routeCost4(x, y)
+  return (_cost4 = f)
+}
+const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
+function hPush4(h, v) { h.push(v); let i = h.length - 1
+  while (i > 0) { const p = (i-1)>>1; if (h[p] <= h[i]) break; const t = h[p]; h[p] = h[i]; h[i] = t; i = p } }
+function hPop4(h) { const top = h[0], last = h.pop()
+  if (h.length) { h[0] = last; let i = 0
+    for (;;) { const l=i*2+1, r=l+1; let m=i
+      if (l < h.length && h[l] < h[m]) m = l
+      if (r < h.length && h[r] < h[m]) m = r
+      if (m === i) break
+      const t = h[m]; h[m] = h[i]; h[i] = t; i = m } }
+  return top }
+function routePath4(ax, ay, bx, by) {
+  const N = W * H, f = costField4()
+  const dist = new Int32Array(N).fill(0x7fffffff), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N)
+  const si = ay * W + ax, ti = by * W + bx
+  if (f[si] < 0 || f[ti] < 0) return null
+  const hEst = (x, y) => { const dx = x>bx?x-bx:bx-x, dy = y>by?y-by:by-y
+    const lo = dx<dy?dx:dy, hi = dx<dy?dy:dx; return (hi-lo)*10 + lo*14 }
+  const vx = bx-ax, vy = by-ay, L = Math.sqrt(vx*vx+vy*vy)
+  const offLine = (x, y) => { if (L < 1) return 0
+    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*5)) }
+  dist[si] = 0
+  const heap = [hEst(ax,ay) * 1048576 + si]
+  let found = false
+  while (heap.length) {
+    const i = hPop4(heap) % 1048576
+    if (done[i]) continue
+    done[i] = 1
+    if (i === ti) { found = true; break }
+    const x = i % W, y = (i - x) / W, d0 = dist[i]
+    for (const d of DIRS4) {
+      const nx = x + d[0], ny = y + d[1]
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue
+      const ni = ny * W + nx
+      if (done[ni]) continue
+      const c = f[ni]; if (c < 0) continue
+      const step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
+      const nd = d0 + step + offLine(nx, ny)
+      if (nd < dist[ni]) { dist[ni] = nd; prev[ni] = i; hPush4(heap, (nd + hEst(nx,ny)) * 1048576 + ni) }
+    }
+  }
+  if (!found) return null
+  const out = []
+  for (let i = ti; i !== -1; i = prev[i]) { const x = i % W; out.push([x, (i-x)/W]); if (i === si) break }
+  return out.reverse()
+}
+let _roads4 = null
+function roadSet4() {
+  if (_roads4) return _roads4
+  const s = {}; for (const t of settlementsE4()) s[t.tag] = t
+  const wm = { x: riverX4(confY4()) + 4, y: confY4() + 5 }
+  const shrine = isles4()[0]
+  const segs = [
+    [s.anchor,s.millbrook],[s.millbrook,s.hollybarrow],[s.hollybarrow,s.oxenford],
+    [s.oxenford,s.anchor],[s.anchor,s.thornbury],[s.thornbury,s.millbrook],
+    [s.millbrook,s.greenhollow],[s.thornbury,s.cragfoot],[s.anchor,s.eastmere],
+    [s.oxenford,wm],[wm,s.fenmarch],[s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
+    [s.oxenford,s.norwick],[s.hollybarrow,s.norwick],
+  ]
+  const set = new Set()
+  for (const [a, b] of segs) {
+    const p = routePath4(a.x, a.y, b.x, b.y)
+    if (!p) continue
+    for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
+  }
+  // the causeway is drawn, not routed: no router crosses open sea
+  const a = s.eastmere, b = shrine
+  const vx = b.x - a.x, vy = b.y - a.y, L = Math.sqrt(vx*vx + vy*vy)
+  const steps = Math.ceil(L * 2)
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps
+    const px = Math.round(a.x + vx*t), py = Math.round(a.y + vy*t)
+    set.add(px + ',' + py); set.add((px+1) + ',' + py)
+  }
+  return (_roads4 = set)
+}
+const onRoad4 = (x, y) => roadSet4().has(x + ',' + y)
+function fordE4(x, y) {
+  if (onBridge4(x, y)) return true
+  for (const s of settlementsE4())
+    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1) && (x === s.x || y === s.y)) return true
+  // the causeway and the quays are decking: if a road is drawn over water,
+  // it is because something was built there
+  if (isWater4(x, y) && onRoad4(x, y)) return true
+  return false
+}
+function terrainOfE4(x, y) {
+  if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
+  if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
+  for (const t of settlementsE4())
+    if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
+      return onRoad4(x, y) ? 'cobble' : 'flag'
+  if (onRidge4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
+  if (onBarrow4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
+  if (onRoad4(x, y)) {
+    for (const t of settlementsE4()) if (Math.max(Math.abs(x - t.x), Math.abs(y - t.y)) <= 20) return 'cobble'
+    if (onRidge4(x-1,y) || onRidge4(x+1,y) || onBarrow4(x,y)) return 'gravel'
+    // the road takes its country's colour (mirrors groundKindAt)
+    const rb = biomeAtE4(x, y)
+    if (rb === 'crags') return 'gravel'
+    if (rb === 'downs') return 'chalk'
+    if (rb === 'moor')  return 'peat'
+    if (rb === 'fens')  return 'causey'
+    return 'trail'
+  }
+  if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) return 'sand'
+  return biomeAtE4(x, y)
+}
+// ---- the locales: names smaller than a country ----
+const LOCALES4 = [
+  ['Anchor Vale',0.50,0.50,46,30],['Watersmeet',null,null,30,20,'watersmeet'],
+  ['the Barrow',null,null,34,21,'barrow'],['Oxenlea',0.37,0.58,32,22],
+  ['Thornvale',0.62,0.42,30,20],['the Deepwood',0.52,0.07,54,22],
+  ['the Kingswood',0.68,0.14,40,20],['Hollybarrow Chase',0.36,0.16,34,18],
+  ['the High Delving',0.81,0.38,30,20],['the Sentinel Screes',0.86,0.55,30,20],
+  ['Cragfoot Scar',0.90,0.28,28,18],['the Sheepfolds',0.72,0.71,30,18],
+  ['Whitechalk',0.80,0.78,32,18],['Eelmarsh',0.48,0.85,36,18],
+  ['the Fen Mouth',0.58,0.90,30,16],['Bleakfell',0.29,0.15,34,20],
+  ['Ninestone Moor',0.38,0.26,30,18],["Deadman's Reach",0.12,0.30,38,26],
+  ['the Boneyard',0.09,0.62,34,24],
+]
+const COUNTRY_NAMES4 = { sea:'the Sea', wilds:'the Wilds', heartlands:'the Heartlands',
+  greenwood:'the Greenwood', crags:'the Crags', fens:'the Fens', downs:'the Downs', moor:'the Moor' }
+// A locale seats itself ashore, exactly as the generator does: an ellipse
+// centred on a canvas fraction can sit in open water, and five of them did.
+// The mirror has to run the same search or it names places the server does
+// not have -- and a nameplate that disagrees is a window telling a citizen
+// they are somewhere they are not.
+const _loc4 = {}
+function localeCentre4(L) {
+  if (L[5] === 'barrow') return barrowC4()
+  if (L[5] === 'watersmeet') return { x: riverX4(confY4()) + 4, y: confY4() + 5 }
+  if (_loc4[L[0]]) return _loc4[L[0]]
+  const nx = Math.round(L[1] * W), ny = Math.round(L[2] * H), rx = L[3], ry = L[4]
+  const land = (cx, cy) => {
+    let n = 0
+    for (let dy = -ry; dy <= ry; dy += 3) for (let dx = -rx; dx <= rx; dx += 3) {
+      const u = dx / rx, v = dy / ry
+      if (u * u + v * v > 1) continue
+      const x = cx + dx, y = cy + dy
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
+      if (!inSea4(x, y)) n++
+    }
+    return n
+  }
+  let best = { x: nx, y: ny }, bestN = land(nx, ny)
+  for (let rad = 2; rad <= 70 && bestN < 40; rad += 2)
+    for (let dy = -rad; dy <= rad; dy += 2) for (let dx = -rad; dx <= rad; dx += 2) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const n = land(nx + dx, ny + dy)
+      if (n > bestN) { bestN = n; best = { x: nx + dx, y: ny + dy } }
+    }
+  return (_loc4[L[0]] = best)
+}
+function localeAt4(x, y) {
+  let best = null, bestArea = Infinity
+  for (const L of LOCALES4) {
+    const c = localeCentre4(L)
+    const cx = c.x, cy = c.y
+    const dx = (x - cx) / L[3], dy = (y - cy) / L[4]
+    if (dx * dx + dy * dy > 1) continue
+    const a = L[3] * L[4]
+    if (a < bestArea) { bestArea = a; best = L[0] }
+  }
+  return best ?? (COUNTRY_NAMES4[biomeAtE4(x, y)] ?? null)
+}
+
+
+
 function terrainOfE(x, y) {
+  if (GEN === 'interval-expanse-v4') return terrainOfE4(x, y)
   if (inSeaE(x, y)) return 'sea'
   if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return 'river'
   for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
@@ -1859,7 +2291,7 @@ function regionNameAt(x, y) {
     for (let i = 0; i < ss.length; i++) {
       const t = ss[i]
       if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
-        return SETTLEMENT_NAMES[i] ?? 'a settlement'
+        return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
     }
     return REGION_NAMES[biomeAtE(x, y)] ?? ''
   } catch { return '' } // a nameplate must never stop the world drawing
