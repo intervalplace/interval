@@ -429,7 +429,8 @@ export function quayTilesOf(g) {
   // EVERY drawn plan may lay decking, not just Eastmere. Fenmarch is built
   // on stilts over the delta and is nothing but decking; if only the port
   // could deck, the fen town would be a set of buildings in a river.
-  const em = eastmereSeat(g), fm = fenmarchSeat(g)
+  const em = seatDrawnTown(g, 'eastmere', (bayShoreX(g, emY(g)) ?? Math.round(g.worldW*0.7)) - 14, emY(g))
+  const fm = seatDrawnTown(g, 'fenmarch', riverX(g, Math.round(g.worldH*0.83)) + 9, Math.round(g.worldH*0.83))
   const out = new Set([
     ...quayTilesOfPlan('eastmere', PLANS.eastmere, em.x, em.y),
     ...quayTilesOfPlan('fenmarch', PLANS.fenmarch, fm.x, fm.y),
@@ -455,6 +456,64 @@ export function fenmarchSeat(g) {
   }, 80)
   const out = found ?? seatTown(g, nx, ny, 34, 24)
   _fmSeat.set(k, out)
+  return out
+}
+
+// SEAT A DRAWING. Not by arithmetic -- by asking the land.
+//
+// Anchor sat at `cx - 16` because that offset cleared the Great River on the
+// seed I happened to develop against. On eight of the next ten seeds the
+// river ran somewhere else and cut the capital in half. Millbrook at
+// `riverX + 16`, Oxenford at `cx - 74`, Thornbury at `cx + 78`: every one of
+// them was a bet that the water would be where it was last time.
+//
+// So a drawn town searches, in a fixed spiral, for a placement where the
+// whole drawing is dry and standable AND its own connectivity check passes.
+// Trying the check inside the search is the point: a seat that would throw
+// is simply not a seat.
+const _seatMemo = new Map()
+export function seatDrawnTown(g, tag, nomX, nomY) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH + ':' + tag
+  const hit = _seatMemo.get(k)
+  if (hit) return hit
+  const rows = PLANS[tag], d = validatePlan(tag, rows)
+  const pw = d.w, ph = d.h
+  const dryOk = (cx, cy) => {
+    const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
+    for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+      const ch = rows[ry][rx]
+      if (ch === ' ' || ch === '=') continue
+      const x = x0 + rx, y = y0 + ry
+      if (x < 3 || y < 3 || x >= g.worldW - 3 || y >= g.worldH - 3) return false
+      const wet = isWater(g, x, y)
+      if (ch === '~' || ch === 'F') { if (!wet) return false }
+      else if (wet) return false
+      else if (onRidge(g, x, y) || onBarrow(g, x, y)) return false
+    }
+    return true
+  }
+  const ok = (cx, cy) => {
+    if (!dryOk(cx, cy)) return false
+    try { checkPlanConnected(tag, rows, cx, cy, { g, isWater, blockedAt: null }); return true }
+    catch { return false }
+  }
+  let out = null
+  spiral: for (let rad = 0; rad < 110; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (ok(nomX + dx, nomY + dy)) { out = { x: nomX + dx, y: nomY + dy }; break spiral }
+    }
+  // the land refused every seat within reach: fall back to merely dry, and
+  // let the connectivity check speak if that is not enough
+  if (!out) {
+    spiral2: for (let rad = 0; rad < 110; rad++)
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        if (dryOk(nomX + dx, nomY + dy)) { out = { x: nomX + dx, y: nomY + dy }; break spiral2 }
+      }
+  }
+  out = out ?? { x: nomX, y: nomY }
+  _seatMemo.set(k, out)
   return out
 }
 
@@ -513,31 +572,31 @@ export function settlementsOf(g) {
     // latitudes: a drawing cannot know where the water went, so the author
     // places the town clear of it. Spawn (the world's exact centre) still
     // falls inside, by the east gate, with the river beyond.
-    { tag: 'anchor',     name: 'Anchor',     x: cx - 16,            y: cy,      ...P('anchor'),      kind: 'capital', ring: 'shire' },
+    { tag: 'anchor',     name: 'Anchor',     ...seatDrawnTown(g, 'anchor', cx, cy),                              ...P('anchor'),      kind: 'capital', ring: 'shire' },
     // Millbrook stands with the river along its WEST wall, not through its
     // middle: the plan is 28 wide, so seating it at riverX+16 puts the whole
     // drawing east of the water and the mill still looks out on it.
-    { tag: 'millbrook',  name: 'Millbrook',  x: riverX(g, mby) + 16, y: mby,    ...P('millbrook'),   kind: 'mill',    ring: 'shire' },
-    { tag: 'oxenford',   name: 'Oxenford',   x: cx - 74,            y: oxy,     ...P('oxenford'),    kind: 'market',  ring: 'shire' },
-    { tag: 'thornbury',  name: 'Thornbury',  x: cx + 78,            y: cy - 34, ...P('thornbury'),   kind: 'market',  ring: 'shire' },
+    { tag: 'millbrook',  name: 'Millbrook',  ...seatDrawnTown(g, 'millbrook', riverX(g, mby) + 16, mby),          ...P('millbrook'),   kind: 'mill',    ring: 'shire' },
+    { tag: 'oxenford',   name: 'Oxenford',   ...seatDrawnTown(g, 'oxenford', cx - 74, oxy),                       ...P('oxenford'),    kind: 'market',  ring: 'shire' },
+    { tag: 'thornbury',  name: 'Thornbury',  ...seatDrawnTown(g, 'thornbury', cx + 78, cy - 34),                  ...P('thornbury'),   kind: 'market',  ring: 'shire' },
     // Hollybarrow sits a full field west of the river, not in Millbrook's
     // lap: the shire's spacing band is 55 to 90 tiles (33 to 54 seconds),
     // which is RuneScape's Lumbridge-to-Draynor and Draynor-to-Port Sarim.
     // Closer than that and two towns read as one town with a gap in it.
-    { tag: 'hollybarrow',name: 'Hollybarrow',x: cx - 96,            y: cy - 52, ...P('hollybarrow'), kind: 'farm',    ring: 'shire' },
+    { tag: 'hollybarrow',name: 'Hollybarrow',...seatDrawnTown(g, 'hollybarrow', cx - 96, cy - 52),                ...P('hollybarrow'), kind: 'farm',    ring: 'shire' },
     // ---- THE FRONTIER ----
     // Every settlement on the island is DRAWN now. "Slightly generic is
     // correct for a frontier outpost" was a rationalisation for not doing
     // the work: a frontier town is the payoff at the end of a four-minute
     // walk, and a generic place you ARRIVED at is a broken promise.
-    { tag: 'greenhollow',name: 'Greenhollow',...seatTown(g, Math.round(W*0.42), Math.round(H*0.12), P('greenhollow').w, P('greenhollow').h), ...P('greenhollow'), kind: 'timber', ring: 'frontier', drawn: true },
-    { tag: 'cragfoot',   name: 'Cragfoot',   ...seatTown(g, Math.round(W*0.87), Math.round(H*0.44), P('cragfoot').w, P('cragfoot').h), ...P('cragfoot'), kind: 'forge', ring: 'frontier', drawn: true },
+    { tag: 'greenhollow',name: 'Greenhollow',...seatDrawnTown(g, 'greenhollow', Math.round(W*0.42), Math.round(H*0.12)), ...P('greenhollow'), kind: 'timber', ring: 'frontier', drawn: true },
+    { tag: 'cragfoot',   name: 'Cragfoot',   ...seatDrawnTown(g, 'cragfoot', Math.round(W*0.87), Math.round(H*0.44)), ...P('cragfoot'), kind: 'forge', ring: 'frontier', drawn: true },
     // Eastmere is DRAWN (worldgen-shire.mjs) even though it is a frontier
     // town: a port is the most characterful thing on an island and a
     // generated one never will be. It seats itself against the real bay.
-    { tag: 'eastmere',   name: 'Eastmere',   x: eastmereSeat(g).x,  y: eastmereSeat(g).y,  ...P('eastmere'), kind: 'port', ring: 'frontier', drawn: true },
-    { tag: 'fenmarch',   name: 'Fenmarch',   ...fenmarchSeat(g), ...P('fenmarch'), kind: 'port', ring: 'frontier', drawn: true },
-    { tag: 'norwick',    name: 'Norwick',    ...seatTown(g, brandX(g, Math.round(H*0.47)) + 18, Math.round(H*0.47), P('norwick').w, P('norwick').h), ...P('norwick'), kind: 'garrison', ring: 'frontier', drawn: true },
+    { tag: 'eastmere',   name: 'Eastmere',   ...seatDrawnTown(g, 'eastmere', (bayShoreX(g, ey) ?? Math.round(W*0.7)) - 14, ey), ...P('eastmere'), kind: 'port', ring: 'frontier', drawn: true },
+    { tag: 'fenmarch',   name: 'Fenmarch',   ...seatDrawnTown(g, 'fenmarch', riverX(g, Math.round(H*0.83)) + 9, Math.round(H*0.83)), ...P('fenmarch'), kind: 'port', ring: 'frontier', drawn: true },
+    { tag: 'norwick',    name: 'Norwick',    ...seatDrawnTown(g, 'norwick', brandX(g, Math.round(H*0.47)) + 18, Math.round(H*0.47)), ...P('norwick'), kind: 'garrison', ring: 'frontier', drawn: true },
   ]
   _ssMemo.set(_k, S)
   return S
@@ -702,20 +761,43 @@ export function routePath(g, ax, ay, bx, by) {
 }
 
 // ---------- the road graph ----------
+// A junction placed by a fixed OFFSET is a junction that lands in the river
+// on some other seed. Watersmeet was `riverX(confY) + 4`, which clears the
+// water on one seed and sits in it on the next -- and a router asked to
+// reach a tile in a river returns null, which aborts the founding. So every
+// junction is seated: nudged, in a fixed search order, onto ground a road
+// could actually be built on.
+//
+// This is the same mistake as the towns placed by canvas fraction and the
+// locales centred in the sea. Anything positioned by arithmetic rather than
+// by asking the terrain will eventually be asked about a seed where the
+// arithmetic is wrong.
+export function seatPoint(g, x, y) {
+  if (routeCost(g, x, y) > 0) return { x, y }
+  for (let rad = 1; rad < 60; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (routeCost(g, x + dx, y + dy) > 0) return { x: x + dx, y: y + dy }
+    }
+  return { x, y }
+}
+const _juncMemo = new Map()
 export function junctionsOf(g) {
+  const _k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const _hit = _juncMemo.get(_k)
+  if (_hit) return _hit
   const [p1, p2] = passesOf(g)
   const br = bridgesOf(g)
   const b = {}; for (const x of br) b[x.tag] = { x: x.x, y: x.y }
-  return {
+  const out = {
     ...b,
     npass: { x: ridgeX(g, p1), y: p1 },
     spass: { x: ridgeX(g, p2), y: p2 },
-    watersmeet: { x: riverX(g, confY(g)) + 4, y: confY(g) + 5 },
+    watersmeet: seatPoint(g, riverX(g, confY(g)) + 6, confY(g) + 7),
     shrine: (() => { const i = islesOf(g)[0]; return { x: i.x, y: i.y } })(),
-    // the Barrow is walked around, not over: two shoulders to steer by
-    barrowN: (() => { const c = barrowC(g); return { x: c.x - 4, y: c.y - 20 } })(),
-    barrowS: (() => { const c = barrowC(g); return { x: c.x + 2, y: c.y + 21 } })(),
   }
+  _juncMemo.set(_k, out)
+  return out
 }
 export function roadSegsOf(g) {
   const s = {}; for (const t of settlementsOf(g)) s[t.tag] = t
