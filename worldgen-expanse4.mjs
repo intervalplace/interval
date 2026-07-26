@@ -577,7 +577,7 @@ export function settlementsOf(g) {
     // middle: the plan is 28 wide, so seating it at riverX+16 puts the whole
     // drawing east of the water and the mill still looks out on it.
     { tag: 'millbrook',  name: 'Millbrook',  ...seatDrawnTown(g, 'millbrook', riverX(g, mby) + 16, mby),          ...P('millbrook'),   kind: 'mill',    ring: 'shire' },
-    { tag: 'oxenford',   name: 'Oxenford',   ...seatDrawnTown(g, 'oxenford', cx - 74, oxy),                       ...P('oxenford'),    kind: 'market',  ring: 'shire' },
+    { tag: 'oxenford',   name: 'Oxenford',   ...seatDrawnTown(g, 'oxenford', cx - 104, oxy + 10),                       ...P('oxenford'),    kind: 'market',  ring: 'shire' },
     { tag: 'thornbury',  name: 'Thornbury',  ...seatDrawnTown(g, 'thornbury', cx + 78, cy - 34),                  ...P('thornbury'),   kind: 'market',  ring: 'shire' },
     // Hollybarrow sits a full field west of the river, not in Millbrook's
     // lap: the shire's spacing band is 55 to 90 tiles (33 to 54 seconds),
@@ -991,7 +991,38 @@ export function groundKindAt(g, x, y) {
   return null
 }
 
+// WHERE A SOUL ARRIVES.
+//
+// This used to be "the world's centre, or the nearest tile that is not water
+// or rock". That was fine while Anchor sat at a fixed offset from the
+// centre; now the capital seats itself against the terrain, and on
+// solo-world the centre landed inside one of its walls. spawnDry only ever
+// consulted the TERRAIN -- blockedAt and isWater -- and a wall is a node,
+// not terrain, so nothing objected.
+//
+// A citizen should arrive on Anchor's own open ground. The plan already
+// says which tiles those are: '.' and '@' are reserved lanes and plaza, and
+// nothing is ever placed on them. So ask the drawing.
 export function spawnDry(g) {
+  const a = settlementsOf(g).find(s => s.tag === 'anchor')
+  if (a && PLANS.anchor) {
+    const rows = PLANS.anchor, pw = rows[0].length, ph = rows.length
+    const x0 = a.x - (pw >> 1), y0 = a.y - (ph >> 1)
+    const openHere = (x, y) => {
+      const rx = x - x0, ry = y - y0
+      if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) return false
+      const ch = rows[ry][rx]
+      if (ch !== '.' && ch !== '@') return false
+      return !isWater(g, x, y) && !onRidge(g, x, y) && !onBarrow(g, x, y)
+    }
+    for (let rad = 0; rad < Math.max(pw, ph); rad++)
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        if (openHere(a.x + dx, a.y + dy)) return { x: a.x + dx, y: a.y + dy }
+      }
+  }
+  // the capital refused every tile of its own plaza: fall back to the old
+  // rule rather than fail a founding
   const cx = Math.floor(g.worldW / 2), cy = Math.floor(g.worldH / 2)
   if (!blockedAt(g, cx, cy) && !isWater(g, cx, cy)) return { x: cx, y: cy }
   for (let r = 1; r < 128; r++)
@@ -1065,7 +1096,13 @@ export function makeExpanse4Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   const nw = settlementsOf(g).find(s => s.tag === 'norwick')
   g.geo = {
-    city:    { x0: cx - 22, x1: cx + 22, y0: cy - 14, y1: cy + 14 },
+    // Anchor's OWN rect. This was cx +/- 22 -- the canvas centre -- which
+    // stopped being the capital the moment the capital started seating
+    // itself. The city's laws would have applied to a patch of field beside
+    // it, and not to half the city.
+    city:    (() => { const a = settlementsOf(g).find(s => s.tag === 'anchor')
+               return { x0: a.x - (a.w >> 1), x1: a.x + (a.w >> 1),
+                        y0: a.y - (a.h >> 1), y1: a.y + (a.h >> 1) } })(),
     wilds:   { x0: 1, x1: Math.round(W * 0.225) - 10, y0: 1, y1: H - 2 },
     norwick: { x0: nw.x - 12, x1: nw.x + 12, y0: nw.y - 9, y1: nw.y + 9 },
   }
