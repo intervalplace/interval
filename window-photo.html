@@ -1097,86 +1097,347 @@ function onBridge4(x, y) {
   for (const b of bridges4()) if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
   return false
 }
-// Eastmere's harbour: the same claim geometry the drawing declares, so the
-// window seats the port on the same tile the server did.
-const EM_WET = [[11,-8],[12,-8],[13,-8],[14,-8],[11,-1],[12,-1],[13,-1],[14,-1],[11,6],[12,6],[13,6],[14,6]]
-const EM_DRY = [[-17,-12],[-11,-12],[-5,-12],[1,-12],[-16,-11],[-10,-11],[-4,-11],[2,-11],[-15,-10],[-9,-10],[-3,-10],[3,-10],[-17,-9],[-11,-9],[-5,-9],[1,-9],[-16,-8],[-10,-8],[-4,-8],[2,-8],[-15,-7],[-9,-7],[-3,-7],[3,-7],[-17,-6],[-11,-6],[-5,-6],[1,-6],[-16,-5],[-10,-5],[-4,-5],[2,-5],[-15,-4],[-9,-4],[-3,-4],[3,-4],[-17,-3],[-11,-3],[-5,-3],[1,-3],[-16,-2],[-10,-2],[-4,-2],[2,-2],[-15,-1],[-9,-1],[-3,-1],[3,-1],[-17,0],[-11,0],[-5,0],[1,0],[-16,1],[-10,1],[-4,1],[2,1],[-15,2],[-9,2],[-3,2],[3,2],[-17,3],[-11,3],[-5,3],[1,3],[-16,4],[-10,4],[-4,4],[2,4],[-15,5],[-9,5],[-3,5],[3,5],[-17,6],[-11,6],[-5,6],[1,6],[-16,7],[-10,7],[-4,7],[2,7],[-15,8],[-9,8],[-3,8],[3,8],[-17,9],[-11,9],[-5,9],[1,9],[-16,10],[-10,10],[-4,10],[2,10],[-15,11],[-9,11],[-3,11],[3,11]]
-let _emSeat4 = null
-function eastmereSeat4() {
-  if (_emSeat4) return _emSeat4
-  const ey = emY4(), nomX = (bayShoreX4(ey) ?? Math.round(W * 0.7)) - 14
-  const fits = (cx, cy) => {
-    for (const p of EM_WET) { const x = cx + p[0], y = cy + p[1]; if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1 || !isWater4(x, y)) return false }
-    for (const p of EM_DRY) {
-      const x = cx + p[0], y = cy + p[1]
-      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false
-      if (isWater4(x, y) || onRidge4(x, y) || onBarrow4(x, y)) return false
-    }
-    return true
-  }
-  for (let rad = 0; rad < 90; rad++)
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      if (fits(nomX + dx, ey + dy)) return (_emSeat4 = { x: nomX + dx, y: ey + dy })
-    }
-  return (_emSeat4 = { x: nomX, y: ey })
+// The ten drawings, and the logic that seats them. The mirror carries the
+// ART, not a table of coordinates: seats depend on the seed, so a table
+// would be right for one world and wrong for every other. With the plans
+// here the window runs the same spiral the generator does and lands on the
+// same tile for any seed.
+const PLANS4 = {
+  anchor: [
+    "#####################..#####################",
+    "#..........................................#",
+    "#.#######...####.........########..#######.#",
+    "#.#.....#...#h.#.........#......#..#.....#.#",
+    "#.#.Bk..#...#..#.........#..*k..#..#As.A.#.#",
+    "#.#.....#...#.##.........#......#..#.....#.#",
+    "#.###.###................####.###..###.###.#",
+    "#..........................................#",
+    "#.######.....#.##..........................#",
+    "#.#......#...#..#..................####....#",
+    "#.#.Sk.S.#...#h.#..................#h.#....#",
+    "#.########...####........!.........#..#....#",
+    "#..................................####....#",
+    "..................o.......*.................",
+    "............................................",
+    "#..................i.......................#",
+    "#.###.###...#.##.........#####.####..##.##.#",
+    "#.#.....#...#..#.........#...#....#..#...#.#",
+    "#.#.Sk..#...#h.#.........#.G.*.G..#..#Bk.#.#",
+    "#.#.....#...####.........#........#..#...#.#",
+    "#.#######................#........#..#####.#",
+    "#........................#........#........#",
+    "#........................##########........#",
+    "#.#.##.#.##.#.##...........................#",
+    "#.#..#.#..#.#..#..........#.##.#.##.#.##...#",
+    "#.#h.#.#h.#.#h.#..........#h.#.#h.#.#h.#...#",
+    "#.####.####.####..........####.####.####...#",
+    "#####################..#####################",
+  ],
+  millbrook: [
+    "#############..#############",
+    "#..........................#",
+    "#.#######.####...######....#",
+    "#.#.....#.#h.#...#....#....#",
+    "#.#.Bk..#.#..#...#As..#....#",
+    "#.#.....#.#.##...#....#....#",
+    "#.###.###........###.##....#",
+    "#..........................#",
+    "#..........................#",
+    "............o...*...........",
+    ".................G..........",
+    "#...........i..............#",
+    "#..........................#",
+    "#.###.##.........#.##.#.##.#",
+    "#.#....#.........#..#.#..#.#",
+    "#.#Sk..#.........#h.#.#h.#.#",
+    "#.######.........####.####.#",
+    "#..........................#",
+    "#..........................#",
+    "#############..#############",
+  ],
+  oxenford: [
+    "#############..#############",
+    "#..........................#",
+    "#.#######.####....#######..#",
+    "#.#.....#.#h.#....#.....#..#",
+    "#.#.Bk..#.#..#....#Sk.S.#..#",
+    "#.#.....#.#.##....#.....#..#",
+    "#.###.###.........###.###..#",
+    "#..........................#",
+    "#..........................#",
+    "...........o.....*..........",
+    "............................",
+    "#..........i....G..........#",
+    "#..........................#",
+    "#.###.###........#.##.#.##.#",
+    "#.#.....#........#..#.#..#.#",
+    "#.#.Sk..#........#h.#.#h.#.#",
+    "#.#.....#........####.####.#",
+    "#.#######..................#",
+    "#..........................#",
+    "#############..#############",
+  ],
+  thornbury: [
+    "############..############",
+    "#........................#",
+    "#.#######........#######.#",
+    "#.#.....#........#.....#.#",
+    "#.#.Bk..#........#Sk.S.#.#",
+    "#.#.....#........#.....#.#",
+    "#.###.###........###.###.#",
+    "#........................#",
+    "..........o....*..........",
+    "..........................",
+    "#.........i....G.........#",
+    "#........................#",
+    "#.##.##.#.##......##.##..#",
+    "#.#...#.#..#......#...#..#",
+    "#.#h..#.#h.#......#h..#..#",
+    "#.#####.####......#####..#",
+    "#........................#",
+    "############..############",
+  ],
+  eastmere: [
+    "                                    ",
+    " #########..##########..            ",
+    " #....................!.            ",
+    " #.#######.####.######..            ",
+    " #.#.....#.#h.#.#....#..            ",
+    " #.#.Bk..#.#..#...k.*#..=====F~~~   ",
+    " #.#.....#.#.##.#....#..            ",
+    " #.###.###......######..            ",
+    " #..............######..            ",
+    " #.........ffff...S..#..            ",
+    " #..............#....#..            ",
+    " #......o.......######..            ",
+    " .......................=====F~~~   ",
+    " ....................G..            ",
+    " #......i.....*.........            ",
+    " #.###.###......######..            ",
+    " #.#.....#........Sk.#..            ",
+    " #.#h.*k.#......#....#..            ",
+    " #.#.....#......######..            ",
+    " #.#######..............=====F~~~   ",
+    " #.#.##.#.##............            ",
+    " #.#..#.#..#ffff........            ",
+    " #.#h.#.#h.#............            ",
+    " #.####.####............            ",
+    " #########..##########..            ",
+    "                                    ",
+  ],
+  greenhollow: [
+    "                                ",
+    "     T       T       T          ",
+    "  T    T T       T       T      ",
+    "   .........................T   ",
+    "   .#######.........#######..   ",
+    "  T.#.....#.........#.....#..   ",
+    "   .#.Bk..#.........#.Sk..#..   ",
+    "   .#.....#.........#.....#..T  ",
+    " T .###.###.........###.###..   ",
+    "   .......ffff...fff......... T ",
+    "   .......f.*k...T.f.........   ",
+    "   .......................... T ",
+    "T  ..........................   ",
+    "   .......fi......of.........   ",
+    "   .......f.T....T.f.........   ",
+    "   .###.##ffff...fff###.###..T  ",
+    " T .#....#..........#.....#..   ",
+    "   .#h.*.#..........#As...#..   ",
+    " T .#....#..........#.....#..   ",
+    "   .######..........#######.T   ",
+    "  T..........................   ",
+    "         T       T       T      ",
+    "     T       T     T T          ",
+    "                                ",
+  ],
+  cragfoot: [
+    "                      ",
+    "  ##################  ",
+    " #########..#######.# ",
+    " ##......#..#.....#.# ",
+    " ##.As.A.#..#.Sk..#.# ",
+    " ##.A.*A..........#.# ",
+    " ##......#..#.....#.# ",
+    " #########..#######.# ",
+    " #########..######### ",
+    " #..................# ",
+    " #########..#######.# ",
+    " ##......#..#.....#.# ",
+    " ##.Bk...#..#.h.*.#.# ",
+    " ##...............#.# ",
+    " ##......#..#.....#.# ",
+    " #########..#######.# ",
+    " #########..######### ",
+    " #..................# ",
+    " ###.####.##.##.##..# ",
+    " ##...##...#.#...#..# ",
+    " ##h..##h..#.#h..#..# ",
+    " ##...##...#.#...#..# ",
+    " ###########.#####..# ",
+    " #..................# ",
+    " #########..######### ",
+    " #...G......o.......# ",
+    " #......i......*....# ",
+    " #..................# ",
+    "  ########  ########  ",
+    "                      ",
+  ],
+  fenmarch: [
+    "               ===                ",
+    "    #######    ===    #######     ",
+    "    #.Bk..#    ===    #.Sk..#     ",
+    "    #.....#    ===    #.....#     ",
+    "   f###.###ffff===ffff###.###fff  ",
+    "   ==========*==================  ",
+    "   ffff.fffffff===ffffffff.fffff  ",
+    "    ###.##     ===     ###.##     ",
+    "  f #h.*.#     ===     #h...#   f ",
+    "  f #....#     ===     #....#   f ",
+    "   f######fffff===fffff######fff  ",
+    "   ==========o=====i============  ",
+    "   ffff.fffffff===fffffff.ffffff  ",
+    "    ###.###    ===    ###.###     ",
+    "  f #As...#    ===    #.h.*.#   f ",
+    "  f #.....#    ===    #.....#   f ",
+    "   f#######ffff===ffff#######fff  ",
+    "   ================G============  ",
+    "   ffffffffffff===ffffffffffffff  ",
+    "               ===                ",
+    "               ===                ",
+    "               ===                ",
+    "               ===                ",
+    "               ===                ",
+  ],
+  norwick: [
+    "##############..##############",
+    "#.#           ..  #########  #",
+    "#.#.########........S.....#. #",
+    "#.#.#.As.A.#......#########. #",
+    "#.#.#......#......#########. #",
+    "#.#.###.####......#.......#. #",
+    "#.#...............#.Gk*.G.#. #",
+    "#.#.......................#. #",
+    "#.#..G....G.......#.......#. #",
+    "#.#...............#########. #",
+    ".......*....o................#",
+    "........W........i...........#",
+    "#.#......................... #",
+    "#.#..G....G.......####.####. #",
+    "#.#...............#.......#. #",
+    "#.#...............#.Bk....#. #",
+    "#.#.##.##.##.##...#.......#. #",
+    "#.#.#...#.#...#...#.......#. #",
+    "#.#.#h..#.#h..#...#########. #",
+    "#.#.#####.#####............. #",
+    "#.#           ..             #",
+    "##############..##############",
+  ],
+  hollybarrow: [
+    "\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"",
+    "\"........................\"",
+    "\".#######........######..\"",
+    "\".#.....#........#....#..\"",
+    "\".#.Bk..#........#Sk..#..\"",
+    "\".#.....#........###.##..\"",
+    "\".###.###................\"",
+    "\"...T............fffffff.\"",
+    "..........o...*.fpp..ppf..",
+    "................f......f..",
+    "\".........i.....fpp..ppf.\"",
+    "\"...............fff.fff..\"",
+    "\".##.##.#.##.....##.##...\"",
+    "\".#...#.#..#.....#...#...\"",
+    "\".#h..#.#h.#.....#h..#...\"",
+    "\".#####.####.....#####...\"",
+    "\"........................\"",
+    "\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"",
+  ],
 }
-function seatTown4(nomX, nomY, tw, th) {
-  const hx = tw >> 1, hy = th >> 1
-  const dry = (cx, cy) => {
-    for (let y = cy - hy; y <= cy + hy; y += 2) for (let x = cx - hx; x <= cx + hx; x += 2) {
+const OPEN4 = new Set(['.','@'])
+const LEG4 = {"#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+
+// checkPlanConnected + seatDrawnTown, mirrored exactly.
+function planConnected4(rows, cx, cy) {
+  const pw = rows[0].length, ph = rows.length
+  const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
+  const at = (x, y) => { const rx = x - x0, ry = y - y0
+    return (rx < 0 || ry < 0 || rx >= pw || ry >= ph) ? null : rows[ry][rx] }
+  const openAt = (x, y) => { const ch = at(x, y)
+    if (ch === null) return false
+    if (ch === '=') return true            // decking is footing
+    if (isWater4(x, y)) return false
+    return OPEN4.has(ch) || ch === ' ' }
+  let sx = cx, sy = cy
+  if (!openAt(sx, sy)) {
+    outer: for (let r = 1; r < Math.max(pw, ph); r++)
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        if (openAt(cx + dx, cy + dy)) { sx = cx + dx; sy = cy + dy; break outer } }
+  }
+  const seen = new Set([sx + ',' + sy]); const q = [[sx, sy]]; let h = 0
+  while (h < q.length) { const [x, y] = q[h++]
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, ny = y + dy, k = nx + ',' + ny
+      if (seen.has(k) || !openAt(nx, ny)) continue
+      seen.add(k); q.push([nx, ny]) } }
+  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
+  for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+    const ch = rows[ry][rx]
+    if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
+    if (!ESS.has(LEG4[ch])) continue
+    const x = x0 + rx, y = y0 + ry
+    if (isWater4(x, y)) continue
+    if (![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => seen.has((x+dx)+','+(y+dy)))) return false }
+  return true
+}
+const _seat4 = {}
+function seatDrawnTown4(tag, nomX, nomY) {
+  if (_seat4[tag]) return _seat4[tag]
+  const rows = PLANS4[tag], pw = rows[0].length, ph = rows.length
+  const dryOk = (cx, cy) => {
+    const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
+    for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+      const ch = rows[ry][rx]
+      if (ch === ' ' || ch === '=') continue
+      const x = x0 + rx, y = y0 + ry
       if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) return false
-      if (inSea4(x, y) || onRidge4(x, y) || onBarrow4(x, y)) return false
-    }
-    return true
-  }
-  for (let rad = 0; rad < 90; rad++)
+      const wet = isWater4(x, y)
+      if (ch === '~' || ch === 'F') { if (!wet) return false }
+      else if (wet) return false
+      else if (onRidge4(x, y) || onBarrow4(x, y)) return false }
+    return true }
+  let out = null
+  spiral: for (let rad = 0; rad < 110; rad++)
     for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      if (dry(nomX + dx, nomY + dy)) return { x: nomX + dx, y: nomY + dy }
-    }
-  return { x: nomX, y: nomY }
+      const cx = nomX + dx, cy = nomY + dy
+      if (dryOk(cx, cy) && planConnected4(rows, cx, cy)) { out = { x: cx, y: cy }; break spiral } }
+  if (!out) spiral2: for (let rad = 0; rad < 110; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (dryOk(nomX + dx, nomY + dy)) { out = { x: nomX + dx, y: nomY + dy }; break spiral2 } }
+  return (_seat4[tag] = out ?? { x: nomX, y: nomY })
 }
-// Fenmarch declares four wet corners, the same claim the drawing makes
-const FM_WET = [[-17,-10],[16,-10],[-17,9],[16,9]]
-const FM_DRY = [[-13,-11],[-11,-11],[-9,-11],[-7,-11],[6,-11],[8,-11],[10,-11],[-13,-10],[-11,-10],[-9,-10],[-7,-10],[6,-10],[8,-10],[10,-10],[-13,-9],[-11,-9],[-9,-9],[-7,-9],[6,-9],[8,-9],[10,-9],[-14,-8],[-12,-8],[-10,-8],[-8,-8],[-6,-8],[-4,-8],[1,-8],[3,-8],[5,-8],[7,-8],[9,-8],[11,-8],[13,-8],[-4,-7],[-13,-6],[-11,-6],[-9,-6],[-7,-6],[-5,-6],[-3,-6],[2,-6],[4,-6],[6,-6],[8,-6],[10,-6],[12,-6],[14,-6],[-12,-5],[-10,-5],[-8,-5],[7,-5],[9,-5],[11,-5],[-13,-4],[-11,-4],[-9,-4],[6,-4],[8,-4],[10,-4],[15,-4],[-13,-3],[-11,-3],[-9,-3],[6,-3],[8,-3],[10,-3],[15,-3],[-13,-2],[-11,-2],[-9,-2],[-7,-2],[-5,-2],[-3,-2],[2,-2],[4,-2],[6,-2],[8,-2],[10,-2],[12,-2],[14,-2],[2,-1],[-13,0],[-11,0],[-9,0],[-7,0],[-5,0],[-3,0],[2,0],[4,0],[6,0],[8,0],[10,0],[12,0],[14,0],[-12,1],[-10,1],[-8,1],[5,1],[7,1],[9,1],[11,1],[-13,2],[-11,2],[-9,2],[-7,2],[6,2],[8,2],[10,2],[15,2],[-13,3],[-11,3],[-9,3],[-7,3],[6,3],[8,3],[10,3],[15,3],[-13,4],[-11,4],[-9,4],[-7,4],[-5,4],[-3,4],[2,4],[4,4],[6,4],[8,4],[10,4],[12,4],[14,4],[-14,6],[-12,6],[-10,6],[-8,6],[-6,6],[-4,6],[1,6],[3,6],[5,6],[7,6],[9,6],[11,6],[13,6]]
-let _fmSeat4 = null
-function fenmarchSeat4() {
-  if (_fmSeat4) return _fmSeat4
-  const ny = Math.round(H * 0.83), nx = riverX4(ny) + 9
-  const fits = (cx, cy) => {
-    for (const p of FM_WET) { const x = cx+p[0], y = cy+p[1]
-      if (x<1||y<1||x>=W-1||y>=H-1||!isWater4(x,y)) return false }
-    // the generator checks EVERY dry tile of the drawing, not a sample grid;
-    // a looser mirror seats the town one tile off and the window lies
-    for (const p of FM_DRY) { const x = cx+p[0], y = cy+p[1]
-      if (x<1||y<1||x>=W-1||y>=H-1) return false
-      if (isWater4(x,y)||onRidge4(x,y)||onBarrow4(x,y)) return false }
-    return true
-  }
-  for (let rad=0; rad<80; rad++)
-    for (let dy=-rad; dy<=rad; dy++) for (let dx=-rad; dx<=rad; dx++) {
-      if (Math.max(Math.abs(dx),Math.abs(dy))!==rad) continue
-      if (fits(nx+dx, ny+dy)) return (_fmSeat4 = { x:nx+dx, y:ny+dy }) }
-  return (_fmSeat4 = seatTown4(nx, ny, 34, 24))
-}
+
 let _ss4 = null
 function settlementsE4() {
   if (_ss4) return _ss4
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
-  const mby = cy - 62, ey = emY4(), em = eastmereSeat4()
+  const mby = cy - 62, ey = emY4()
+  const P = (t) => ({ w: PLANS4[t][0].length, h: PLANS4[t].length })
+  const S = (t, x, y) => seatDrawnTown4(t, x, y)
   _ss4 = [
-    { tag:'anchor', name:'Anchor', x: cx - 16, y: cy, w:44, h:28, ring:'shire' },
-    { tag:'millbrook', name:'Millbrook', x: riverX4(mby) + 16, y: mby, w:28, h:20, ring:'shire' },
-    { tag:'oxenford', name:'Oxenford', x: cx - 74, y: cy + 30, w:28, h:20, ring:'shire' },
-    { tag:'thornbury', name:'Thornbury', x: cx + 78, y: cy - 34, w:26, h:18, ring:'shire' },
-    { tag:'hollybarrow', name:'Hollybarrow', x: cx - 96, y: cy - 52, w:26, h:18, ring:'shire' },
-    // every frontier town is DRAWN now, so each carries its plan's footprint
-    Object.assign({ tag:'greenhollow', name:'Greenhollow', w:32, h:24, ring:'frontier' }, seatTown4(Math.round(W*0.42), Math.round(H*0.12), 32, 24)),
-    Object.assign({ tag:'cragfoot', name:'Cragfoot', w:22, h:30, ring:'frontier' }, seatTown4(Math.round(W*0.87), Math.round(H*0.44), 22, 30)),
-    { tag:'eastmere', name:'Eastmere', x: em.x, y: em.y, w:36, h:26, ring:'frontier' },
-    Object.assign({ tag:'fenmarch', name:'Fenmarch', w:34, h:24, ring:'frontier' }, fenmarchSeat4()),
-    Object.assign({ tag:'norwick', name:'Norwick', w:30, h:22, ring:'frontier' }, seatTown4(brandX4(Math.round(H*0.47)) + 18, Math.round(H*0.47), 30, 22)),
+    { tag:'anchor',      name:'Anchor',      ...S('anchor', cx, cy),                                        ...P('anchor'),      ring:'shire' },
+    { tag:'millbrook',   name:'Millbrook',   ...S('millbrook', riverX4(mby) + 16, mby),                     ...P('millbrook'),   ring:'shire' },
+    { tag:'oxenford',    name:'Oxenford',    ...S('oxenford', cx - 74, cy + 30),                            ...P('oxenford'),    ring:'shire' },
+    { tag:'thornbury',   name:'Thornbury',   ...S('thornbury', cx + 78, cy - 34),                           ...P('thornbury'),   ring:'shire' },
+    { tag:'hollybarrow', name:'Hollybarrow', ...S('hollybarrow', cx - 96, cy - 52),                         ...P('hollybarrow'), ring:'shire' },
+    { tag:'greenhollow', name:'Greenhollow', ...S('greenhollow', Math.round(W*0.42), Math.round(H*0.12)),   ...P('greenhollow'), ring:'frontier' },
+    { tag:'cragfoot',    name:'Cragfoot',    ...S('cragfoot', Math.round(W*0.87), Math.round(H*0.44)),      ...P('cragfoot'),    ring:'frontier' },
+    { tag:'eastmere',    name:'Eastmere',    ...S('eastmere', (bayShoreX4(ey) ?? Math.round(W*0.7)) - 14, ey), ...P('eastmere'),  ring:'frontier' },
+    { tag:'fenmarch',    name:'Fenmarch',    ...S('fenmarch', riverX4(Math.round(H*0.83)) + 9, Math.round(H*0.83)), ...P('fenmarch'), ring:'frontier' },
+    { tag:'norwick',     name:'Norwick',     ...S('norwick', brandX4(Math.round(H*0.47)) + 18, Math.round(H*0.47)), ...P('norwick'), ring:'frontier' },
   ]
   return _ss4
 }
@@ -1245,11 +1506,22 @@ function routePath4(ax, ay, bx, by) {
   for (let i = ti; i !== -1; i = prev[i]) { const x = i % W; out.push([x, (i-x)/W]); if (i === si) break }
   return out.reverse()
 }
+// A junction placed by fixed offset lands in the river on some other seed.
+// Mirrors worldgen-expanse4.seatPoint exactly.
+function seatPoint4(x, y) {
+  if (routeCost4(x, y) > 0) return { x, y }
+  for (let rad = 1; rad < 60; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (routeCost4(x + dx, y + dy) > 0) return { x: x + dx, y: y + dy }
+    }
+  return { x, y }
+}
 let _roads4 = null
 function roadSet4() {
   if (_roads4) return _roads4
   const s = {}; for (const t of settlementsE4()) s[t.tag] = t
-  const wm = { x: riverX4(confY4()) + 4, y: confY4() + 5 }
+  const wm = seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
   const shrine = isles4()[0]
   const segs = [
     [s.anchor,s.millbrook],[s.millbrook,s.hollybarrow],[s.hollybarrow,s.oxenford],
@@ -1330,7 +1602,11 @@ const COUNTRY_NAMES4 = { sea:'the Sea', wilds:'the Wilds', heartlands:'the Heart
 const _loc4 = {}
 function localeCentre4(L) {
   if (L[5] === 'barrow') return barrowC4()
-  if (L[5] === 'watersmeet') return { x: riverX4(confY4()) + 4, y: confY4() + 5 }
+  // the Watersmeet locale hangs off the JUNCTION, which now seats itself;
+  // leaving the old raw offset here put the name a few tiles from where the
+  // server puts it, and a locale boundary a few tiles out renames a strip
+  // of country
+  if (L[5] === 'watersmeet') return seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
   if (_loc4[L[0]]) return _loc4[L[0]]
   const nx = Math.round(L[1] * W), ny = Math.round(L[2] * H), rx = L[3], ry = L[4]
   const land = (cx, cy) => {
@@ -1365,6 +1641,7 @@ function localeAt4(x, y) {
   }
   return best ?? (COUNTRY_NAMES4[biomeAtE4(x, y)] ?? null)
 }
+
 
 
 
