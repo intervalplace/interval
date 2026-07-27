@@ -5,8 +5,8 @@
 *Release 0.80.0 · protocol spec v0.80 · consensus spec v1.9 · rules hash `f1b7060d09685d91…`. These four move together; a change to any is a new release.*
 
 Interval is a decentralized MMO. The game is a deterministic state
-machine, the spec is the constitution, and the rules are the authority: not a
-server. The world advances in fixed intervals, ticks, and
+machine. The spec is the constitution, and the rules are the authority; not a
+server. The world advances in fixed intervals (ticks) and
 everything that ever happens, happens on one. Any machine that runs the
 same rules computes the same world; machines that disagree have, by
 definition, broken the rules, and are ignored.
