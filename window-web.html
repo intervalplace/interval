@@ -1994,11 +1994,11 @@ const PLANS4 = {
     " ....................*............................. ",
     " .................................................. ",
     "%......i....................G................T.....%",
-    "%.......##.##......................................%",
-    "%......#.....#.o..............%%%%%%%%%..%%%%%%%%%.%",
-    "%.........o...................%..................%.%",
-    "%......#.....#................%.G.......*......G.%.%",
-    "%.......##.##....!............%..###############.%.%",
+    "%..................................................%",
+    "%..............o..............%%%%%%%%%..%%%%%%%%%.%",
+    "%.........U...................%..................%.%",
+    "%.............................%.G.......*......G.%.%",
+    "%................!............%..###############.%.%",
     "%.............................%..#,*h,#,GG,#,Bk#.%.%",
     "%...ff.ff.ff.ff...............%..#,,,,#,,,,#,,,#.%.%",
     "%.............................%..#,,,,#,,,,#,,,#.%.%",
@@ -2050,11 +2050,11 @@ const PLANS4 = {
     " .................................. ",
     " .............!.................... ",
     " ..####,###....!......####,###..... ",
-    " ..#,,,,,,##.##.......#,,,,,,#..... ",
-    " ..#,S,k,#.....#......#,h,k,,#..... ",
-    " ..#,,,,,,..o.........#,,,,,,#..... ",
-    " ..#######.....#......########..... ",
-    " .........##.##.................... ",
+    " ..#,,,,,,#...........#,,,,,,#..... ",
+    " ..#,S,k,,#...........#,h,k,,#..... ",
+    " ..#,,,,,,#.U.........#,,,,,,#..... ",
+    " ..########...........########..... ",
+    " .................................. ",
     " ..###,###............###,###...... ",
     " ..#,,,,,#............#,,,,,#...... ",
     " ..#,h,,,#............#,h,,,#...... ",
@@ -2254,6 +2254,7 @@ const PLANS4 = {
     "                                    ",
   ],
 }
+const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
 const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
@@ -2484,6 +2485,39 @@ function spawnDry4() {
 // and the seats, so it can look the answer up: '%' in a town's drawing is a
 // rampart, '#' is a building wall. Everything outside a plan -- brandstones,
 // the Delving's quarry, a ruin on the moor -- is bare stone.
+// A 'U' in a plan is a well node the window paints as a fountain. Same
+// lookup as the ramparts, same reason: the difference is visual, so it must
+// not touch the state.
+const _fountCache = new Map()
+function isFountain4(x, y) {
+  const k = x + ',' + y
+  const hit = _fountCache.get(k)
+  if (hit !== undefined) return hit
+  let out = false
+  for (const t of settlementsE4()) {
+    const rows = PLANS4[t.tag]; if (!rows) continue
+    const pw = rows[0].length, ph = rows.length
+    const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
+    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
+    out = rows[ry][rx] === 'U'
+    break
+  }
+  _fountCache.set(k, out)
+  return out
+}
+// Where are the walls? Rebuilt only when the tick changes, because the draw
+// loop asks four times per wall and a full node scan per query would be
+// thousands of scans a frame.
+let _wallSet = null, _wallTick = -1
+function wallAt(st, x, y) {
+  if (!st || !st.nodes) return false
+  if (_wallTick !== st.tick || _wallSet === null) {
+    _wallSet = new Set()
+    for (const k in st.nodes) { const q = st.nodes[k]; if (q.type === 'wall') _wallSet.add(q.x + ',' + q.y) }
+    _wallTick = st.tick
+  }
+  return _wallSet.has(x + ',' + y)
+}
 const _rampCache = new Map()
 function isRampart4(x, y) {
   const k = x + ',' + y
@@ -2505,14 +2539,20 @@ function terrainOfE4(x, y) {
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
   for (const t of settlementsE4()) {
-    if (Math.abs(x - t.x) > (t.w >> 1) || Math.abs(y - t.y) > (t.h >> 1)) continue
+    // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
+    // inclusive test claimed the rampart line itself as town ground and
+    // painted seven tiles of trail as cobble.
+    if (Math.abs(x - t.x) >= (t.w >> 1) || Math.abs(y - t.y) >= (t.h >> 1)) continue
     // INDOORS? Ask the drawing, exactly as groundKindAt does. ',' is a room's
     // floor and must not be painted as the street it opens onto.
     const rows = PLANS4[t.tag]
     if (rows) {
       const pw = rows[0].length, ph = rows.length
       const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
-      if (rx >= 0 && ry >= 0 && rx < pw && ry < ph && rows[ry][rx] === ',') return 'floor'
+      // ENCLOSURE, not the character: a counter, a hearth and the clerk all
+      // stand on the same floor as the empty tile beside them
+      for (const [rxx, ryy, rww, rhh] of (PLAN_ROOMS4[t.tag] ?? []))
+        if (rx >= rxx && ry >= ryy && rx < rxx + rww && ry < ryy + rhh) return 'floor'
     }
     return onRoad4(x, y) ? 'cobble' : 'flag'
   }
@@ -3278,6 +3318,53 @@ function drawScene(now) {
         cx.fillStyle = '#1e3010'; cx.fillRect(X + 6, Y + 18, 20, 5)
         return
       }
+      if (n.type === 'well' && isFountain4(n.x, n.y)) {
+        // A FOUNTAIN, drawn nearly two tiles wide from one node. Nothing in
+        // any window clips a sprite to its tile -- the house has always puffed
+        // smoke above its own -- so the only reason ours looked like a fenced
+        // well is that it WAS one: a ring of wall round a well node.
+        // An octagonal kerb, water that catches the light, a spout, and a
+        // ripple that never quite settles.
+        const t2 = now / 1000
+        shadow(X, Y, 22)
+        const k = (a, b) => [X + 20 + a, Y + 24 + b]
+        // the kerb
+        poly([k(-22,0),k(-13,-9),k(13,-9),k(22,0),k(13,9),k(-13,9)], '#6f6656', '#2b2721')
+        // the water
+        poly([k(-17,0),k(-10,-6),k(10,-6),k(17,0),k(10,6),k(-10,6)], '#2f6f92')
+        cx.save()
+        cx.beginPath()
+        cx.moveTo(...k(-17,0)); cx.lineTo(...k(-10,-6)); cx.lineTo(...k(10,-6))
+        cx.lineTo(...k(17,0)); cx.lineTo(...k(10,6)); cx.lineTo(...k(-10,6)); cx.closePath()
+        cx.clip()
+        for (let r = 0; r < 3; r++) {
+          const ph = (t2 * 0.5 + r / 3) % 1
+          cx.strokeStyle = 'rgba(190,225,240,' + (0.30 * (1 - ph)) + ')'
+          cx.lineWidth = 1.2
+          cx.beginPath(); cx.ellipse(X + 20, Y + 24, 3 + ph * 15, 1.5 + ph * 6, 0, 0, 7); cx.stroke()
+        }
+        cx.restore()
+        // the pillar and its bowl
+        poly([k(-4,-2),k(4,-2),k(3,-14),k(-3,-14)], '#7c7263', '#2b2721')
+        poly([k(-8,-14),k(8,-14),k(6,-19),k(-6,-19)], '#8a8072', '#2b2721')
+        // the falling water
+        cx.fillStyle = 'rgba(176,214,232,.65)'
+        for (let d = 0; d < 2; d++) {
+          const fx = d ? 5 : -5
+          cx.beginPath()
+          cx.moveTo(X + 20 + fx, Y + 24 - 18)
+          cx.quadraticCurveTo(X + 20 + fx * 2.1, Y + 24 - 9, X + 20 + fx * 2.4, Y + 24 - 1)
+          cx.lineTo(X + 20 + fx * 1.9, Y + 24 - 1)
+          cx.quadraticCurveTo(X + 20 + fx * 1.6, Y + 24 - 9, X + 20 + fx * 0.6, Y + 24 - 18)
+          cx.closePath(); cx.fill()
+        }
+        const sp = 1 + Math.sin(t2 * 2.2) * 0.25
+        cx.fillStyle = 'rgba(206,236,248,.8)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 24 - 21 - sp * 3, 1.6, 4 * sp, 0, 0, 7); cx.fill()
+        cx.fillStyle = 'rgba(255,255,255,.16)'
+        cx.beginPath(); cx.ellipse(X + 14, Y + 21, 5, 2, -0.3, 0, 7); cx.fill()
+        return
+      }
       if (n.type === 'landmark') {
         if (n.kind === 'elder-tree' || n.kind === 'old-oak') {
           // a GIANT: twice the tree, deeper of leaf, gold at the crown
@@ -3484,25 +3571,54 @@ function drawScene(now) {
         cx.globalAlpha = 1
       }
       if (n.type === 'wall') {
-        // v1's perimeter test was four hardcoded coordinates from the old
-        // city. Under v4 the answer comes from the town's own drawing.
-        const onPerimeter = (GEN === 'interval-expanse-v4')
+        // A WALL KNOWS ITS NEIGHBOURS. Every wall used to draw the same inset
+        // block with its own outline all the way round, so a run of them read
+        // as a row of separate stones rather than one wall -- and a vertical
+        // run worst of all, since the coursing ran the wrong way.
+        //
+        // Now each tile extends to the tile edge on any side that continues,
+        // and keeps its outline and highlight only where the wall actually
+        // ends. Adjacent caps meet with no seam, corners mitre themselves,
+        // and the coursing runs ALONG the wall: joints across a horizontal
+        // run, stacked up a vertical one.
+        const wl = wallAt(s, n.x - 1, n.y), wr = wallAt(s, n.x + 1, n.y)
+        const wu = wallAt(s, n.x, n.y - 1), wd = wallAt(s, n.x, n.y + 1)
+        const horiz = (wl || wr) && !(wu || wd)
+        const ramp = (GEN === 'interval-expanse-v4')
           ? isRampart4(n.x, n.y)
           : (n.y === 2 || n.y === 10 || n.x === Math.floor(W / 2) - 8 || n.x === Math.floor(W / 2) + 8)
-        if (!onPerimeter) { // workshop timber: lighter build, lower profile
-          poly([[X+6,Y+32],[X+34,Y+32],[X+34,Y+18],[X+6,Y+18]], '#5c4a30', '#2c2216')
-          cx.fillStyle = 'rgba(0,0,0,.16)'
-          cx.fillRect(X + 6, Y + 24.5, 28, 1.4)
-          cx.fillRect(X + 13, Y + 18, 1.4, 14); cx.fillRect(X + 26, Y + 18, 1.4, 14)
-          cx.fillStyle = 'rgba(255,255,255,.05)'; cx.fillRect(X + 6, Y + 18, 28, 1.6)
-          return
-        }
+        // a rampart is thick and sits high; a building wall is thinner
+        const inset = ramp ? 2 : 6, top = ramp ? 12 : 17
+        const x0 = wl ? X : X + inset, x1 = wr ? X + 40 : X + 40 - inset
+        const y0 = wu ? Y : Y + top,   y1 = wd ? Y + 40 : Y + 34
         const v = tileHash(n.x, n.y, 5) % 3
-        poly([[X+2,Y+34],[X+38,Y+34],[X+38,Y+14],[X+2,Y+14]], ['#6e6a62', '#66625a', '#726e66'][v], '#2c2a26')
-        cx.fillStyle = 'rgba(0,0,0,.14)'
-        cx.fillRect(X + 2, Y + 20, 36, 1.6); cx.fillRect(X + 2, Y + 27, 36, 1.6)
-        cx.fillRect(X + 12 + (v * 5), Y + 14, 1.6, 6); cx.fillRect(X + 22 - (v * 3), Y + 21, 1.6, 6)
-        cx.fillStyle = 'rgba(255,255,255,.06)'; cx.fillRect(X + 2, Y + 14, 36, 2)
+        const face = ramp ? ['#6e6a62', '#66625a', '#726e66'][v] : ['#5c4a30', '#614f34', '#57462c'][v]
+        cx.fillStyle = face
+        cx.fillRect(x0, y0, x1 - x0, y1 - y0)
+        // the coursing runs along the wall
+        cx.fillStyle = 'rgba(0,0,0,.15)'
+        if (horiz || (!wu && !wd)) {
+          for (let yy = y0 + 7; yy < y1 - 2; yy += 7) cx.fillRect(x0, yy, x1 - x0, 1.5)
+          const off = (v * 6)
+          for (let xx = x0 + 6 + off; xx < x1 - 3; xx += 13) cx.fillRect(xx, y0, 1.5, y1 - y0)
+        } else {
+          for (let xx = x0 + 7; xx < x1 - 2; xx += 7) cx.fillRect(xx, y0, 1.5, y1 - y0)
+          const off = (v * 6)
+          for (let yy = y0 + 6 + off; yy < y1 - 3; yy += 13) cx.fillRect(x0, yy, x1 - x0, 1.5)
+        }
+        // outline and highlight only where the wall really ends
+        cx.strokeStyle = ramp ? '#2c2a26' : '#2c2216'
+        cx.lineWidth = 1.4
+        cx.beginPath()
+        if (!wu) { cx.moveTo(x0, y0); cx.lineTo(x1, y0) }
+        if (!wd) { cx.moveTo(x0, y1); cx.lineTo(x1, y1) }
+        if (!wl) { cx.moveTo(x0, y0); cx.lineTo(x0, y1) }
+        if (!wr) { cx.moveTo(x1, y0); cx.lineTo(x1, y1) }
+        cx.stroke()
+        if (!wu) { cx.fillStyle = 'rgba(255,255,255,' + (ramp ? '.07' : '.05') + ')'
+                   cx.fillRect(x0, y0, x1 - x0, 1.8) }
+        if (!wd) { cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fillRect(x0, y1 - 2.5, x1 - x0, 2.5) }
+        return
       }
       if (n.type === 'signpost') {
         shadow(X, Y, 7)
@@ -3671,25 +3787,6 @@ function drawScene(now) {
           }
         }
         return
-      }
-      if (n.type === 'store') {
-        shadow(X, Y, 14)
-        poly([[X+4,Y+34],[X+36,Y+34],[X+36,Y+16],[X+4,Y+16]], '#5b4a33', '#1c1710')
-        poly([[X+2,Y+16],[X+38,Y+16],[X+20,Y+6]], '#8a4a2a', '#2c1a10')
-        for (let k = 0; k < 4; k++) { cx.fillStyle = k % 2 ? '#c9a86a' : '#8a4a2a'; cx.fillRect(X + 5 + k * 7.6, Y + 14, 7.6, 4) }
-        cx.fillStyle = '#3a2f22'; cx.fillRect(X + 16.5, Y + 24, 7, 10)
-        cx.fillStyle = '#ffe08a'; cx.font = 'bold 5px Verdana'; cx.textAlign = 'center'
-        cx.fillText('STORE', X + 20, Y + 22)
-      }
-      if (n.type === 'bank') {
-        shadow(X, Y, 15)
-        poly([[X+6,Y+34],[X+34,Y+34],[X+34,Y+14],[X+6,Y+14]], '#3d3529', '#1c1710')
-        poly([[X+6,Y+14],[X+34,Y+14],[X+34,Y+34],[X+30,Y+30],[X+30,Y+18],[X+10,Y+18],[X+10,Y+30],[X+6,Y+34]], '#493f30')
-        poly([[X+4,Y+14],[X+36,Y+14],[X+32,Y+8],[X+8,Y+8]], '#55483a', '#1c1710')
-        cx.fillStyle = '#e2b63e'; cx.fillRect(X+17, Y+22, 6, 12)
-        cx.fillStyle = '#8a6d1f'; cx.fillRect(X+21, Y+27, 1.6, 3)
-        cx.fillStyle = '#d9c9a3'; cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
-        cx.fillText('BANK', X+20, Y+13)
       }
       if (n.type === 'anvil') {
         shadow(X, Y, 11)
