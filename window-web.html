@@ -850,6 +850,18 @@ const feed = t => { const now = performance.now()
   const el = document.getElementById('feed')
   el.innerHTML = feedLines.map(x => '<div>' + x + '</div>').join(''); el.scrollTop = 9e9 }
 
+// every node whose chunk overlaps the given tile window, and nothing else
+function nodesNear(s, x0, y0, x1, y1) {
+  if (!s || !s._grid) return s ? Object.entries(s.nodes) : []
+  const out = []
+  const cx0 = (x0 / 16) | 0, cy0 = (y0 / 16) | 0
+  const cx1 = ((x1 + 15) / 16) | 0, cy1 = ((y1 + 15) / 16) | 0
+  for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+    const b = s._grid.get(cx + ',' + cy)
+    if (b) for (const e of b) out.push(e)
+  }
+  return out
+}
 const blockedAt = (s, x, y) => s._nodeTiles ? s._nodeTiles.has(x + ',' + y) : Object.values(s.nodes).some(n => n.x === x && n.y === y)
 const DIRS8 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
 
@@ -1204,6 +1216,22 @@ function onState(s, worldId) {
   s._pinnedBy = {}
   for (const [pid2, p2] of Object.entries(s.players)) if (p2.action?.mobId) s._pinnedBy[p2.action.mobId] = p2
   // perf: entries computed once per state; sixty frames read them for free
+  // A SPATIAL INDEX. The draw loop iterated every node on the island each
+  // frame -- eight thousand of them -- to draw the twenty-odd actually in
+  // view, and three lighting passes did it again. That is thirty-two
+  // thousand visits a frame to place two dozen sprites, and it grew by
+  // sixty-five per cent when the world gained its vocabulary.
+  //
+  // Bucket them once per state instead. Chunks of sixteen tiles: a viewport
+  // touches four or six buckets, and the frame stops caring how big the
+  // island is.
+  s._chunk = 16
+  s._grid = new Map()
+  for (const e of Object.entries(s.nodes)) {
+    const k = ((e[1].x / 16) | 0) + ',' + ((e[1].y / 16) | 0)
+    let b = s._grid.get(k); if (!b) s._grid.set(k, b = [])
+    b.push(e)
+  }
   s._nodesE = Object.entries(s.nodes)
   s._mobsE = Object.entries(s.mobs)
   s._playersE = Object.entries(s.players)
@@ -3329,7 +3357,9 @@ function drawScene(now) {
       cx.beginPath(); cx.moveTo(X + 20, Y + 8 + bob); cx.lineTo(X + 32, Y + 12 + bob); cx.lineTo(X + 20, Y + 16 + bob); cx.closePath(); cx.fill()
     } })
   }
-  for (const [id, n] of (s._nodesE ?? Object.entries(s.nodes))) {
+  // only the chunks the camera can see. This was every node on the island.
+  const _vw = Math.ceil(cv.width / (TILE * ZR)) + 2, _vh = Math.ceil(cv.height / (TILE * ZR)) + 2
+  for (const [id, n] of nodesNear(s, cam.x - 2, cam.y - 2, cam.x + _vw, cam.y + _vh)) {
     const X = px(n.x), Y = py(n.y), dep = n.depletedUntil > s.tick
     if (n.type === 'fishing-spot') {
       // ponds paint flat on the ground, below every standing thing
@@ -4689,7 +4719,11 @@ function drawScene(now) {
       if (u < -0.2 || u > 1.2 || v2 < -0.2 || v2 > 1.2 || glLights.length >= 24) return
       glLights.push({ u, v: v2, r, i: i2, c: c2 })
     }
-    for (const n of (s._nodesV ?? Object.values(s.nodes))) {
+    // lights only matter where the camera is looking: this walked the whole
+    // island three times a frame to find the fires in one screenful
+    for (const [, n] of nodesNear(s, cam.x - 8, cam.y - 8,
+        cam.x + Math.ceil(cv.width / (TILE * ZR)) + 8,
+        cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       if (n.type === 'watchfire' && n.fuelUntil > s.tick) push(n.x, n.y, 0.62, 0.95 + glNight * 0.6, [1, 0.68, 0.3])
       else if (n.type === 'campfire' || (n.type === 'fire' && n.expiresAt > s.tick)) push(n.x, n.y, 0.26, 0.75 + glNight * 0.5, [1, 0.62, 0.24])
       else if (n.type === 'magic-rock' && n.depletedUntil <= s.tick) push(n.x, n.y, 0.13, 0.4, [0.4, 0.85, 1])
@@ -4723,7 +4757,11 @@ function drawScene(now) {
     // light holds back the night: one punch pass, destination-out THROUGHOUT.
     // (A reset mid-loop once turned every later fire into painted darkness.)
     L.globalCompositeOperation = 'destination-out'
-    for (const n of (s._nodesV ?? Object.values(s.nodes))) {
+    // lights only matter where the camera is looking: this walked the whole
+    // island three times a frame to find the fires in one screenful
+    for (const [, n] of nodesNear(s, cam.x - 8, cam.y - 8,
+        cam.x + Math.ceil(cv.width / (TILE * ZR)) + 8,
+        cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       const isWatch = n.type === 'watchfire' && n.fuelUntil > s.tick
       const isFire = n.type === 'campfire' || n.type === 'fire' || isWatch
       const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
@@ -4739,7 +4777,11 @@ function drawScene(now) {
     L.globalCompositeOperation = 'source-over'
     if (!GLON) cx.drawImage(lightCv, 0, 0)
     // colored halos on top of the cut: warm for flame, cool for the stones
-    for (const n of (s._nodesV ?? Object.values(s.nodes))) {
+    // lights only matter where the camera is looking: this walked the whole
+    // island three times a frame to find the fires in one screenful
+    for (const [, n] of nodesNear(s, cam.x - 8, cam.y - 8,
+        cam.x + Math.ceil(cv.width / (TILE * ZR)) + 8,
+        cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       const isFire = n.type === 'campfire' || n.type === 'fire'
       const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
@@ -4786,7 +4828,9 @@ let panelSig = ''
 function panel(s) {
   const me = s.players[myId]; if (!me) return
   // walking changes nothing here; rebuilding anyway stole frames
-  const nearStoreSig = Object.values(s.nodes).some(n => n.type === 'store' && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
+  // 'is a counter beside me' walked the whole island, sixty times a second
+  const nearStoreSig = nodesNear(s, me.x - 2, me.y - 2, me.x + 2, me.y + 2)
+    .some(([, n]) => n.type === 'store' && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
   const sig = JSON.stringify([me.hp, me.name, me.skills, me.inventory, me.equipment, me.gold, nearStoreSig,
     me.bank, me.trade,
     Object.values(s.players).filter(p => p.trade?.to === myId).map(p => [p.trade, p.name])])
@@ -4849,7 +4893,7 @@ function panel(s) {
 
   // the vault: visible while standing at a bank
   const vaultEl = document.getElementById('vault')
-  const atBank = Object.values(s.nodes).some(n => n.type === 'bank'
+  const atBank = nodesNear(s, me.x - 2, me.y - 2, me.x + 2, me.y + 2).some(([, n]) => n.type === 'bank'
     && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
   const vaulted = Object.entries(me.bank ?? {})
   if (atBank) {
