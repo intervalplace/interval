@@ -1224,7 +1224,29 @@ function validateState(state) {
   // exactly what THIS engine writes, nothing missing, nothing extra ----
   const SKILL_SET = SKILLS;                 // shared constitutional tables
   const NODE_TYPE_SET = new Set(NODE_TYPES);
-const LANDMARK_KINDS = new Set(['elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel', 'drowned-bell', 'shipwreck', 'tally-half']); // (rev4 §11): defined ONCE, above
+const LANDMARK_KINDS = new Set([
+  // the eight of the first founding
+  'elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel',
+  'drowned-bell', 'shipwreck', 'tally-half',
+  // ---- and the nouns the world was short of ----
+  //
+  // Seventy per cent of everything a citizen walked past was a wall, a tree
+  // or a rock: the island was DENSE and MONOTONOUS, four to six different
+  // things within twenty tiles anywhere you stood. The answer is not more
+  // trees; it is more KINDS.
+  //
+  // A landmark is the right vehicle and the safe one. No verb in the
+  // constitution reaches it -- it cannot be worked, fought, lit or consumed
+  // -- so a new kind can add texture to the world without adding a rule to
+  // the world. That is why these are kinds and not node types: the verb set
+  // is complete, the vocabulary was not.
+  'table', 'bed', 'shelf', 'barrel', 'crate',      // things inside a room
+  'stump', 'charcoal-clamp', 'log-pile',            // the wood, worked
+  'spoil-heap', 'cut-face',                         // the quarry
+  'bone-pile', 'crude-hearth',                      // what the Wilds leaves
+  'gibbet', 'cart', 'haystack', 'hurdle',           // the road and the farm
+  'eel-rack', 'sunken-wall',                        // the fen
+]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
