@@ -1006,6 +1006,46 @@ let travelMark = null          // { x, y } the far place the citizen is walking 
 // is not, an arrow rides the edge of the view pointing the way, with the
 // walk left in minutes. This is the whole difference between "I am lost"
 // and "I am nine minutes out".
+// A BOARD OVER THE DOOR. Drawn after the nodes so it hangs above the wall,
+// and drawn at all because from ten tiles away a bank and a cottage are the
+// same brown room. Dragon Quest hangs a sign; so does every real shop that
+// ever wanted to be found.
+function drawShopSigns(s) {
+  if (!s || !s.nodes) return
+  const vw = cv.width / (TILE * ZR), vh = cv.height / (TILE * ZR)
+  for (const q of shopSigns4(s)) {
+    const rx = q.x - cam.x, ry = q.y - cam.y
+    if (rx < -1 || ry < -1 || rx > vw + 1 || ry > vh + 1) continue
+    const X = rx * TILE * ZR, Y = ry * TILE * ZR, T = TILE * ZR / 40
+    cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0)
+    const cxp = X + 20 * T, top = Y + 2 * T
+    // the bracket
+    cx.strokeStyle = '#3a2f22'; cx.lineWidth = 1.6 * T
+    cx.beginPath(); cx.moveTo(cxp, top); cx.lineTo(cxp, top + 5 * T); cx.stroke()
+    // the board
+    const bw = 22 * T, bh = 13 * T
+    cx.fillStyle = q.kind === 'bank' ? '#5a4a22' : '#5a3a22'
+    cx.fillRect(cxp - bw / 2, top + 5 * T, bw, bh)
+    cx.strokeStyle = '#241c10'; cx.lineWidth = 1.4 * T
+    cx.strokeRect(cxp - bw / 2, top + 5 * T, bw, bh)
+    cx.fillStyle = 'rgba(255,255,255,.08)'
+    cx.fillRect(cxp - bw / 2, top + 5 * T, bw, 1.6 * T)
+    // the device: a coin for a bank, a sack for a store
+    const my = top + 5 * T + bh / 2
+    if (q.kind === 'bank') {
+      cx.fillStyle = '#e2b63e'
+      cx.beginPath(); cx.arc(cxp, my, 4.2 * T, 0, 7); cx.fill()
+      cx.strokeStyle = '#8a6d1f'; cx.lineWidth = 1.2 * T; cx.stroke()
+      cx.fillStyle = '#8a6d1f'; cx.fillRect(cxp - 0.9 * T, my - 2.4 * T, 1.8 * T, 4.8 * T)
+    } else {
+      cx.fillStyle = '#c9a86a'
+      cx.beginPath(); cx.ellipse(cxp, my + 1 * T, 4.4 * T, 5 * T, 0, 0, 7); cx.fill()
+      cx.strokeStyle = '#7d6236'; cx.lineWidth = 1.2 * T; cx.stroke()
+      cx.fillStyle = '#7d6236'; cx.fillRect(cxp - 2.6 * T, my - 4.4 * T, 5.2 * T, 1.8 * T)
+    }
+    cx.restore()
+  }
+}
 function drawTravel(s) {
   if (!travelMark) return
   const me = s.players[myId]; if (!me) return
@@ -2517,6 +2557,46 @@ function wallAt(st, x, y) {
     _wallTick = st.tick
   }
   return _wallSet.has(x + ',' + y)
+}
+// WHICH DOOR IS THE BANK'S? From outside, a bank and a cottage are both a
+// brown room -- you only learn which is which by standing on the booth. Real
+// shops hang a sign, so: for every room a plan lays, if a bank or a counter
+// stands inside it, find the doorway and mark it.
+//
+// The door is the one tile of the room's wall ring that is not a wall.
+let _signs = null, _signTick = -1
+function shopSigns4(st) {
+  if (!st || !st.nodes) return []
+  if (_signTick === st.tick && _signs) return _signs
+  const out = []
+  for (const t of settlementsE4()) {
+    const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
+    if (!rows || !rects) continue
+    const pw = rows[0].length, ph = rows.length
+    const ox = t.x - (pw >> 1), oy = t.y - (ph >> 1)
+    for (const [rx, ry, rw, rh] of rects) {
+      let kind = null
+      for (const k in st.nodes) {
+        const q = st.nodes[k]
+        if (q.type !== 'bank' && q.type !== 'store') continue
+        const px = q.x - ox, py = q.y - oy
+        if (px >= rx && py >= ry && px < rx + rw && py < ry + rh) { kind = q.type; break }
+      }
+      if (!kind) continue
+      // walk the wall ring; the gap is the way in
+      const ring = []
+      for (let x = rx - 1; x <= rx + rw; x++) { ring.push([x, ry - 1]); ring.push([x, ry + rh]) }
+      for (let y = ry; y < ry + rh; y++) { ring.push([rx - 1, y]); ring.push([rx + rw, y]) }
+      for (const [px, py] of ring) {
+        if (px < 0 || py < 0 || px >= pw || py >= ph) continue
+        if (rows[py][px] === '#') continue
+        out.push({ x: ox + px, y: oy + py, kind })
+        break
+      }
+    }
+  }
+  _signTick = st.tick; _signs = out
+  return out
 }
 const _rampCache = new Map()
 function isRampart4(x, y) {
@@ -4357,6 +4437,7 @@ function drawScene(now) {
   cx.setTransform(1, 0, 0, 1, 0, 0) // the panel world ends; flat space resumes
   if (GLON) glComposite(now)
   drawSunMap(s, now)
+  drawShopSigns(curState ?? world)
   drawTravel(curState ?? world)
   drawBanner(now)
 
@@ -4790,6 +4871,18 @@ function drawSunMap(s, now) {
   g.fillStyle = "#0e120b"; g.fillRect(0, 0, MW, MH)
   g.drawImage(miniCv, CX - pxr * scale, CY - pyr * scale, W * scale, H * scale)
   const at = (wx, wy) => [CX + (wx - pxr) * scale, CY + (wy - pyr) * scale]
+  // the trades, on the radar. The chart shows the shape of a town; this
+  // shows what is IN it, which is what you are actually looking for.
+  for (const k in s.nodes) {
+    const q = s.nodes[k]
+    if (q.type !== 'bank' && q.type !== 'store' && q.type !== 'anvil') continue
+    const [dx, dy] = at(q.x, q.y)
+    if (dx < pad || dy < pad || dx > MW - pad || dy > MH - pad) continue
+    g.fillStyle = q.type === 'bank' ? '#e2b63e' : q.type === 'store' ? '#e08a3c' : '#9aa2b4'
+    g.fillRect(dx - 1.5, dy - 1.5, 3, 3)
+    g.fillStyle = 'rgba(0,0,0,.5)'
+    g.fillRect(dx - 1.5, dy - 1.5, 3, 0.8)
+  }
   for (const m of Object.values(s.mobs)) {
     if (!m || m.hp <= 0) continue
     const [dx, dy] = at(m.x, m.y)
