@@ -45,6 +45,11 @@ export const LEGEND = {
   'o': 'well',        '*': 'campfire',    'i': 'signpost',
   'W': 'waystone',    '!': 'landmark',    'p': 'plot',
   'T': 'tree',        'n': 'rock',        'F': 'fishing-spot',
+  'U': 'well',        // a FOUNTAIN. It is a WELL node -- the engine whitelists
+                      // landmark kinds and a new one would move the rules
+                      // hash for something purely visual. The windows carry
+                      // the plans, so they look up the 'U' and draw a basin
+                      // instead of a windlass. Same trick as the ramparts.
 }
 // ',' is INTERIOR FLOOR. Open ground like '.', reserved so nothing scatters
 // on it, but it carries a different surface: boards, not dirt. Dragon Quest
@@ -61,6 +66,8 @@ export const FLOOR = ','
 // water and the real water agree. A port then finds its own harbour.
 //   '~'  must be open water (places nothing)
 //   '='  a quay: walkable decking over water, whatever the terrain says
+// per-character landmark kinds. '!' is a standing stone unless the plan says
+// otherwise; 'U' is always a fountain.
 export const SEA = '~'
 export const QUAY = '='
 
@@ -101,11 +108,11 @@ export const PLANS = {
     ' ....................*............................. ',
     ' .................................................. ',
     '%......i....................G................T.....%',
-    '%.......##.##......................................%',
-    '%......#.....#.o..............%%%%%%%%%..%%%%%%%%%.%',
-    '%.........o...................%..................%.%',
-    '%......#.....#................%.G.......*......G.%.%',
-    '%.......##.##....!............%..###############.%.%',
+    '%..................................................%',
+    '%..............o..............%%%%%%%%%..%%%%%%%%%.%',
+    '%.........U...................%..................%.%',
+    '%.............................%.G.......*......G.%.%',
+    '%................!............%..###############.%.%',
     '%.............................%..#,*h,#,GG,#,Bk#.%.%',
     '%...ff.ff.ff.ff...............%..#,,,,#,,,,#,,,#.%.%',
     '%.............................%..#,,,,#,,,,#,,,#.%.%',
@@ -159,11 +166,11 @@ export const PLANS = {
     ' .................................. ',
     ' .............!.................... ',
     ' ..####,###....!......####,###..... ',
-    ' ..#,,,,,,##.##.......#,,,,,,#..... ',
-    ' ..#,S,k,#.....#......#,h,k,,#..... ',
-    ' ..#,,,,,,..o.........#,,,,,,#..... ',
-    ' ..#######.....#......########..... ',
-    ' .........##.##.................... ',
+    ' ..#,,,,,,#...........#,,,,,,#..... ',
+    ' ..#,S,k,,#...........#,h,k,,#..... ',
+    ' ..#,,,,,,#.U.........#,,,,,,#..... ',
+    ' ..########...........########..... ',
+    ' .................................. ',
     ' ..###,###............###,###...... ',
     ' ..#,,,,,#............#,,,,,#...... ',
     ' ..#,h,,,#............#,h,,,#...... ',
@@ -441,6 +448,38 @@ export const PLACES = [
 // ---------------------------------------------------------------------
 // THE LOADER
 // ---------------------------------------------------------------------
+// THE ROOMS EACH PLAN LAYS. Every interior rectangle, recorded by the
+// drawing that made it. This is what tells the ground it is a floor -- not
+// the character on the tile, which is a counter or a hearth or the clerk.
+export const PLAN_ROOMS = {
+  anchor: [[4, 4, 10, 5], [4, 12, 7, 3], [4, 29, 5, 3], [13, 29, 5, 3], [16, 12, 6, 3], [19, 4, 6, 4], [21, 29, 4, 3], [30, 4, 8, 4], [30, 12, 7, 3], [34, 25, 13, 6], [43, 4, 5, 3], [43, 11, 5, 3]],
+  millbrook: [[4, 3, 5, 3], [4, 13, 5, 3], [13, 3, 6, 3], [13, 13, 6, 3], [23, 3, 5, 3], [23, 13, 5, 3], [32, 3, 5, 3], [32, 13, 5, 3]],
+  oxenford: [[4, 3, 8, 4], [4, 18, 6, 3], [4, 24, 5, 2], [23, 3, 7, 4], [23, 18, 6, 3], [23, 24, 5, 2]],
+  thornbury: [[4, 18, 6, 3], [4, 24, 6, 3], [7, 4, 21, 6], [22, 18, 7, 3], [22, 24, 6, 3]],
+  hollybarrow: [[4, 4, 7, 4], [4, 16, 6, 3], [23, 16, 6, 3]],
+  eastmere: [[4, 3, 7, 4], [4, 17, 7, 3], [14, 3, 6, 4], [15, 17, 5, 3]],
+  greenhollow: [[4, 5, 7, 3], [4, 15, 6, 3], [20, 5, 6, 3], [20, 15, 7, 3]],
+  cragfoot: [[4, 4, 7, 4], [4, 13, 7, 4], [4, 22, 6, 3], [17, 4, 7, 4], [17, 13, 7, 4], [17, 22, 6, 3]],
+  fenmarch: [[4, 3, 7, 2], [4, 9, 6, 3], [4, 16, 7, 3], [23, 3, 7, 2], [24, 9, 6, 3], [24, 16, 6, 3]],
+  norwick: [[5, 4, 8, 4], [5, 16, 7, 3], [21, 4, 8, 4], [21, 16, 8, 3]],
+}
+
+// IS THIS TILE INDOORS? Not "is the character a floor" -- a counter, a
+// hearth, a keeper all stand on a floor too, and asking the character got
+// them painted as street. Ask ENCLOSURE instead: flood in from outside the
+// drawing through everything except a building wall '#', and whatever the
+// flood never reaches is inside a building.
+//
+// Ramparts '%' are deliberately passable to this flood. A town wall encloses
+// a town, not a room; if it blocked, the whole of Anchor would be indoors.
+export function isIndoor(name, rows, rx, ry) {
+  const rs = PLAN_ROOMS[name]
+  if (!rs) return false
+  for (const [x, y, w, h] of rs)
+    if (rx >= x && ry >= y && rx < x + w && ry < y + h) return true
+  return false
+}
+
 export function validatePlan(name, rows) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error(`plan ${name}: empty`)
   const w = rows[0].length
