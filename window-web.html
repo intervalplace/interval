@@ -1010,42 +1010,6 @@ let travelMark = null          // { x, y } the far place the citizen is walking 
 // and drawn at all because from ten tiles away a bank and a cottage are the
 // same brown room. Dragon Quest hangs a sign; so does every real shop that
 // ever wanted to be found.
-function drawShopSigns(s) {
-  if (!s || !s.nodes) return
-  const vw = cv.width / (TILE * ZR), vh = cv.height / (TILE * ZR)
-  for (const q of shopSigns4(s)) {
-    const rx = q.x - cam.x, ry = q.y - cam.y
-    if (rx < -1 || ry < -1 || rx > vw + 1 || ry > vh + 1) continue
-    const X = rx * TILE * ZR, Y = ry * TILE * ZR, T = TILE * ZR / 40
-    cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0)
-    const cxp = X + 20 * T, top = Y + 2 * T
-    // the bracket
-    cx.strokeStyle = '#3a2f22'; cx.lineWidth = 1.6 * T
-    cx.beginPath(); cx.moveTo(cxp, top); cx.lineTo(cxp, top + 5 * T); cx.stroke()
-    // the board
-    const bw = 22 * T, bh = 13 * T
-    cx.fillStyle = q.kind === 'bank' ? '#5a4a22' : '#5a3a22'
-    cx.fillRect(cxp - bw / 2, top + 5 * T, bw, bh)
-    cx.strokeStyle = '#241c10'; cx.lineWidth = 1.4 * T
-    cx.strokeRect(cxp - bw / 2, top + 5 * T, bw, bh)
-    cx.fillStyle = 'rgba(255,255,255,.08)'
-    cx.fillRect(cxp - bw / 2, top + 5 * T, bw, 1.6 * T)
-    // the device: a coin for a bank, a sack for a store
-    const my = top + 5 * T + bh / 2
-    if (q.kind === 'bank') {
-      cx.fillStyle = '#e2b63e'
-      cx.beginPath(); cx.arc(cxp, my, 4.2 * T, 0, 7); cx.fill()
-      cx.strokeStyle = '#8a6d1f'; cx.lineWidth = 1.2 * T; cx.stroke()
-      cx.fillStyle = '#8a6d1f'; cx.fillRect(cxp - 0.9 * T, my - 2.4 * T, 1.8 * T, 4.8 * T)
-    } else {
-      cx.fillStyle = '#c9a86a'
-      cx.beginPath(); cx.ellipse(cxp, my + 1 * T, 4.4 * T, 5 * T, 0, 0, 7); cx.fill()
-      cx.strokeStyle = '#7d6236'; cx.lineWidth = 1.2 * T; cx.stroke()
-      cx.fillStyle = '#7d6236'; cx.fillRect(cxp - 2.6 * T, my - 4.4 * T, 5.2 * T, 1.8 * T)
-    }
-    cx.restore()
-  }
-}
 function drawTravel(s) {
   if (!travelMark) return
   const me = s.players[myId]; if (!me) return
@@ -2564,39 +2528,78 @@ function wallAt(st, x, y) {
 // stands inside it, find the doorway and mark it.
 //
 // The door is the one tile of the room's wall ring that is not a wall.
+// Built ONCE per tick as a map from the shop tile to its door, rather than
+// scanning every node for every room of every town -- that first version was
+// 367ms a call, which is most of a tick spent deciding where to hang a sign.
 let _signs = null, _signTick = -1
-function shopSigns4(st) {
-  if (!st || !st.nodes) return []
+function shopDoors4(st) {
+  if (!st || !st.nodes) return _signs ?? new Map()
   if (_signTick === st.tick && _signs) return _signs
-  const out = []
+  const out = new Map()
+  // one pass over the nodes, bucketed by town
+  const shops = []
+  for (const k in st.nodes) {
+    const q = st.nodes[k]
+    if (q.type === 'bank' || q.type === 'store') shops.push(q)
+  }
   for (const t of settlementsE4()) {
     const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
     if (!rows || !rects) continue
     const pw = rows[0].length, ph = rows.length
     const ox = t.x - (pw >> 1), oy = t.y - (ph >> 1)
+    const mine = shops.filter(q => Math.abs(q.x - t.x) <= (pw >> 1) && Math.abs(q.y - t.y) <= (ph >> 1))
+    if (!mine.length) continue
     for (const [rx, ry, rw, rh] of rects) {
-      let kind = null
-      for (const k in st.nodes) {
-        const q = st.nodes[k]
-        if (q.type !== 'bank' && q.type !== 'store') continue
+      const inside = mine.filter(q => {
         const px = q.x - ox, py = q.y - oy
-        if (px >= rx && py >= ry && px < rx + rw && py < ry + rh) { kind = q.type; break }
-      }
-      if (!kind) continue
+        return px >= rx && py >= ry && px < rx + rw && py < ry + rh
+      })
+      if (!inside.length) continue
+      const kind = inside[0].type
       // walk the wall ring; the gap is the way in
       const ring = []
       for (let x = rx - 1; x <= rx + rw; x++) { ring.push([x, ry - 1]); ring.push([x, ry + rh]) }
       for (let y = ry; y < ry + rh; y++) { ring.push([rx - 1, y]); ring.push([rx + rw, y]) }
+      let door = null
       for (const [px, py] of ring) {
         if (px < 0 || py < 0 || px >= pw || py >= ph) continue
         if (rows[py][px] === '#') continue
-        out.push({ x: ox + px, y: oy + py, kind })
+        door = { x: ox + px, y: oy + py, kind }
         break
       }
+      if (door) for (const q of inside) out.set(q.x + ',' + q.y, door)
     }
   }
   _signTick = st.tick; _signs = out
   return out
+}
+// A keeper's trade. The id carries it where the generator wrote one; where
+// the plans placed the keeper it has none, so read the room: whatever this
+// person is standing beside is what they do.
+const _roleCache = new Map()
+function keeperRole4(st, id, n) {
+  if (id === 'kpr-wizard-oberon') return 'wizard'
+  if (id.includes('lantern')) return 'inn'
+  if (id.includes('shep') || id.includes('fold')) return 'shep'
+  if (id.includes('sawyer') || id.includes('camp')) return 'forest'
+  if (id.includes('eel') || id.includes('sheds')) return 'fisher'
+  if (id.includes('delve') || id.includes('high')) return 'smith'
+  if (id.includes('bank')) return 'clerk'
+  const ck = _roleCache.get(id)
+  if (ck) return ck
+  let role = 'town'
+  if (st && st.nodes) {
+    const near = {}
+    for (const k in st.nodes) {
+      const q = st.nodes[k]
+      if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
+      near[q.type] = true
+    }
+    role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
+         : near.house ? 'town' : 'town'
+  }
+  _roleCache.set(id, role)
+  return role
 }
 const _rampCache = new Map()
 function isRampart4(x, y) {
@@ -3369,20 +3372,70 @@ function drawScene(now) {
     }
     layer.push({ z: Z(n.y, 2), draw: () => {
       if (n.type === 'keeper') {
-        shadow(X, Y, 7)
-        if (id === 'kpr-wizard-oberon') { // the robe, the beard, the hat: the uniform is older than the island
-          cx.fillStyle = '#2c3a5e'; cx.fillRect(X + 11, Y + 2, 11, 17)          // the robe, midnight blue
-          cx.fillStyle = '#a8865c'; cx.fillRect(X + 13, Y - 3, 7, 6)            // face
-          cx.fillStyle = '#cfd2cc'; cx.fillRect(X + 13, Y + 2, 7, 5)            // the beard
-          cx.fillStyle = '#22304e'
-          poly([[X + 10, Y - 4], [X + 23, Y - 4], [X + 17, Y - 14]], '#22304e') // the hat
-          cx.fillStyle = '#e2b63e'; cx.fillRect(X + 15, Y - 8, 2, 2)            // one gold star on it
+        // WHO IS THIS? Every keeper on the island drew the same brown figure,
+        // and drew it thirteen pixels above its own shadow, which is why they
+        // looked like they were hovering. The guard sits at Y+15..Y+27 with
+        // its shadow at Y+33; this one sat at Y-5..Y+18 and floated.
+        //
+        // The role comes from the id where the generator gave one
+        // (kpr-inn-lantern, kpr-fold-shep) and from what the keeper is
+        // STANDING NEXT TO where it did not -- a plan keeper beside a booth
+        // is a clerk, beside a counter a shopkeeper, beside an anvil a
+        // smith's mate, beside a hearth someone who lives there.
+        const role = keeperRole4(s, id, n)
+        shadow(X, Y, 8)
+        if (role === 'wizard') {
+          cx.fillStyle = '#2c3a5e'; cx.fillRect(X + 14, Y + 14, 12, 16)
+          cx.fillStyle = '#a8865c'; cx.fillRect(X + 15.5, Y + 8, 9, 8)
+          cx.fillStyle = '#cfd2cc'; cx.fillRect(X + 15.5, Y + 14, 9, 6)
+          poly([[X + 12, Y + 8], [X + 28, Y + 8], [X + 20, Y - 4]], '#22304e')
+          cx.fillStyle = '#e2b63e'; cx.fillRect(X + 18, Y + 3, 2.4, 2.4)
           return
         }
-        cx.fillStyle = '#6b4a33'; cx.fillRect(X + 12, Y + 4, 9, 14)
-        cx.fillStyle = '#a8865c'; cx.fillRect(X + 13, Y - 3, 7, 7)
-        cx.fillStyle = '#3d2f22'; cx.fillRect(X + 12, Y - 5, 9, 3)
-        cx.fillStyle = '#d9cfa8'; cx.fillRect(X + 13, Y + 9, 7, 8)
+        const bob = Math.sin(now / 1100 + n.x * 1.7) * 0.5
+        const B = Y + bob
+        // everyone stands on the ground: body Y+15..Y+30, head above it
+        const SKIN = ['#d9b07a', '#c69a68', '#e3c091'][tileHash(n.x, n.y, 9) % 3]
+        let coat = '#6b4a33', trim = '#4a3222', hair = '#3d2f22', hat = null
+        if (role === 'clerk')  { coat = '#3f4a63'; trim = '#2c3548'; hair = '#4a4038' }
+        if (role === 'shop')   { coat = '#6d5a2e'; trim = '#4e4020'; hair = '#3a2f22' }
+        if (role === 'smith')  { coat = '#5a4632'; trim = '#3a2f22'; hair = '#241c14' }
+        if (role === 'inn')    { coat = '#7a4a3a'; trim = '#57332a'; hair = '#57432c' }
+        if (role === 'shep')   { coat = '#8a8272'; trim = '#6b6456'; hat = '#6b5a3c' }
+        if (role === 'forest') { coat = '#3f5a34'; trim = '#2c4024'; hat = '#3a4a2c' }
+        if (role === 'fisher') { coat = '#4a6270'; trim = '#33454f'; hat = '#5a6b74' }
+        cx.fillStyle = coat; cx.fillRect(X + 14, B + 16, 12, 14)
+        cx.fillStyle = trim; cx.fillRect(X + 14, B + 25, 12, 5)      // the skirt of the coat
+        cx.fillStyle = SKIN; cx.fillRect(X + 15.5, B + 8, 9, 9)      // the head
+        cx.fillStyle = hair; cx.fillRect(X + 15, B + 6, 10, 4)       // hair
+        if (hat) { cx.fillStyle = hat; cx.fillRect(X + 13.5, B + 4.5, 13, 3.5)
+                   cx.fillRect(X + 16, B + 1.5, 8, 3.5) }
+        // and what they are holding, which is the whole point of the role
+        if (role === 'clerk') {                                       // a ledger
+          cx.fillStyle = '#d9cfa8'; cx.fillRect(X + 24, B + 19, 7, 6)
+          cx.fillStyle = '#8a6d1f'; cx.fillRect(X + 24, B + 19, 7, 1.4)
+        } else if (role === 'shop') {                                 // an apron
+          cx.fillStyle = '#d9cfa8'; cx.fillRect(X + 15.5, B + 19, 9, 10)
+          cx.fillStyle = '#b9ae88'; cx.fillRect(X + 15.5, B + 19, 9, 1.4)
+        } else if (role === 'smith') {                                // a hammer
+          cx.fillStyle = '#5a4632'; cx.fillRect(X + 26, B + 14, 1.8, 11)
+          cx.fillStyle = '#8a8a92'; cx.fillRect(X + 23.5, B + 12, 7, 4)
+        } else if (role === 'inn') {                                  // a jug
+          cx.fillStyle = '#9a7a52'; cx.fillRect(X + 25, B + 19, 5, 7)
+          cx.fillStyle = '#7d6236'; cx.fillRect(X + 24, B + 21, 2, 3)
+        } else if (role === 'shep') {                                 // a crook
+          cx.strokeStyle = '#7d6236'; cx.lineWidth = 1.8
+          cx.beginPath(); cx.moveTo(X + 27, B + 30); cx.lineTo(X + 27, B + 10)
+          cx.arc(X + 24.5, B + 10, 2.5, 0, Math.PI, true); cx.stroke()
+        } else if (role === 'forest') {                               // an axe
+          cx.fillStyle = '#5a4632'; cx.fillRect(X + 26, B + 13, 1.8, 12)
+          cx.fillStyle = '#9aa2b4'
+          poly([[X + 24, B + 12], [X + 31, B + 12], [X + 29, B + 17], [X + 25, B + 17]], '#9aa2b4')
+        } else if (role === 'fisher') {                               // a net
+          cx.strokeStyle = 'rgba(216,206,170,.75)'; cx.lineWidth = 1
+          for (let i2 = 0; i2 < 4; i2++) { cx.beginPath()
+            cx.moveTo(X + 25 + i2 * 1.6, B + 15); cx.lineTo(X + 24 + i2 * 1.6, B + 25); cx.stroke() }
+        }
         return
       }
       if (n.type === 'fence') {
@@ -3799,6 +3852,32 @@ function drawScene(now) {
           const st = ((now / (2400 + pf * 800)) + pf * 0.5 + n.x * 0.1) % 1
           cx.fillStyle = 'rgba(200,200,195,' + (0.22 * (1 - st)) + ')'
           cx.beginPath(); cx.arc(X + 20 + Math.sin(st * 5 + pf) * 3, Y + 9 - st * 14, 2 + st * 3, 0, 7); cx.fill()
+        }
+      }
+      if (n.type === 'bank' || n.type === 'store') {
+        // THE BOARD OVER THE DOOR, drawn here rather than in a pass of its
+        // own: inside the node loop the transform is whatever the world is
+        // already using, so the sign cannot land in the wrong space.
+        const dr = shopDoors4(s).get(n.x + ',' + n.y)
+        if (dr) {
+          const bx = X + (dr.x - n.x) * 40, by = Y + (dr.y - n.y) * 40
+          cx.strokeStyle = '#2a2016'; cx.lineWidth = 2
+          cx.beginPath(); cx.moveTo(bx + 20, by - 2); cx.lineTo(bx + 20, by + 7); cx.stroke()
+          cx.fillStyle = n.type === 'bank' ? '#6b5820' : '#6b3f20'
+          cx.fillRect(bx + 5, by + 6, 30, 20)
+          cx.strokeStyle = '#241c10'; cx.lineWidth = 2; cx.strokeRect(bx + 5, by + 6, 30, 20)
+          cx.fillStyle = 'rgba(255,255,255,.10)'; cx.fillRect(bx + 5, by + 6, 30, 2.5)
+          if (n.type === 'bank') {
+            cx.fillStyle = '#e2b63e'
+            cx.beginPath(); cx.arc(bx + 20, by + 16, 7, 0, 7); cx.fill()
+            cx.strokeStyle = '#8a6d1f'; cx.lineWidth = 1.6; cx.stroke()
+            cx.fillStyle = '#8a6d1f'; cx.fillRect(bx + 19, by + 12, 2, 8)
+          } else {
+            cx.fillStyle = '#d8b782'
+            cx.beginPath(); cx.ellipse(bx + 20, by + 17, 7, 8, 0, 0, 7); cx.fill()
+            cx.strokeStyle = '#7d6236'; cx.lineWidth = 1.6; cx.stroke()
+            cx.fillStyle = '#7d6236'; cx.fillRect(bx + 16, by + 9, 8, 3)
+          }
         }
       }
       if (n.type === 'bank') {
@@ -4437,7 +4516,6 @@ function drawScene(now) {
   cx.setTransform(1, 0, 0, 1, 0, 0) // the panel world ends; flat space resumes
   if (GLON) glComposite(now)
   drawSunMap(s, now)
-  drawShopSigns(curState ?? world)
   drawTravel(curState ?? world)
   drawBanner(now)
 
