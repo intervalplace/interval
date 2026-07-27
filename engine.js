@@ -1383,7 +1383,7 @@ const LANDMARK_KINDS = new Set([
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey']);
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -1451,6 +1451,21 @@ const LANDMARK_KINDS = new Set([
     if (n.text !== undefined) {
       if (n.type !== 'signpost') return 'text on a non-signpost node';
       if (typeof n.text !== 'string' || n.text.length > 256) return 'malformed node text';
+    }
+    // A KEEPER BEARS A NAME.
+    //
+    // It bore one already -- keeperName() has hashed a name out of every
+    // keeper's place and trade since the first founding -- but the name lived
+    // in a FUNCTION the windows each called for themselves, and never in the
+    // state. So a window that did not know the trick showed "the keeper", and
+    // once the towns were hand-drawn the ids stopped matching the trick at
+    // all: forty-five keepers on the island and not one of them named.
+    //
+    // A name is part of who stands there. It belongs in the world, where the
+    // hash covers it and every window reads the same person.
+    if (n.name !== undefined) {
+      if (n.type !== 'keeper') return 'a name belongs to a keeper';
+      if (typeof n.name !== 'string' || n.name.length < 1 || n.name.length > 32) return 'malformed keeper name';
     }
   }
 
