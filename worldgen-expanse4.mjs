@@ -825,6 +825,12 @@ export function roadSegsOf(g) {
 }
 export const CAUSEWAY_TAG = 113
 const _pathMemo = new Map()
+// The cost field exists to route the roads and for nothing else. Holding a
+// 917KB Int16Array for the life of the process to serve fifteen A* runs that
+// happen once is scaffolding left standing after the building is up.
+export function releaseCostField(g) {
+  _costMemo.delete(g.genesisSeed + ':' + g.worldW + 'x' + g.worldH)
+}
 export function routedPathsOf(g) {
   const key = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
   const hit = _pathMemo.get(key)
@@ -841,6 +847,7 @@ export function routedPathsOf(g) {
     out.push({ tag, path: p })
   }
   _pathMemo.set(key, out)
+  releaseCostField(g)   // the scaffolding comes down
   return out
 }
 const _roadMemo = new Map()
@@ -963,7 +970,17 @@ export function groundKindAt(g, x, y) {
   const sts = settlementsOf(g)
   for (const st of sts) {
     const r = rectOf(st)
-    if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) return onRoad(g, x, y) ? 'cobble' : 'flag'
+    if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) {
+      // INDOORS? The drawing knows. A ',' is a room's floor, and it should
+      // not look like the street it opens onto.
+      const rows = PLANS[st.tag]
+      if (rows) {
+        const pw = rows[0].length, ph = rows.length
+        const rx = x - (st.x - (pw >> 1)), ry = y - (st.y - (ph >> 1))
+        if (rx >= 0 && ry >= 0 && rx < pw && ry < ph && rows[ry][rx] === ',') return 'floor'
+      }
+      return onRoad(g, x, y) ? 'cobble' : 'flag'
+    }
   }
   if (onRoad(g, x, y)) {
     for (const st of sts) if (Math.max(Math.abs(x - st.x), Math.abs(y - st.y)) <= 20) return 'cobble'
@@ -1872,7 +1889,12 @@ export function buildWorld(genesis) {
   // ---- the paddocks, outside the shire towns ----
   for (const st of ss) {
     if (st.ring !== 'shire') continue
-    for (let pk = 0; pk < 3; pk++) {
+    // ONE paddock per town, not three. The engine clones the entire state
+    // every tick, so every node is copied a hundred times a minute; 823
+    // nodes of decorative fencing was the single largest thing in v4 that
+    // nobody would miss. A town with one field beside it reads the same as a
+    // town with three.
+    for (let pk = 0; pk < 1; pk++) {
       const hp = H32('paddock|' + st.tag, pk)
       const pw = 9 + (hp.readUInt16BE(0) % 3), ph = 6 + (hp.readUInt16BE(2) % 2)
       const side = hp.readUInt16BE(4) % 4
@@ -2021,14 +2043,14 @@ export function buildWorld(genesis) {
     if (n < want) n += scatter(tag + 'x', want - n, pred, place)
     return n
   }
-  counts.greenwoodTrees = clusterScatter('gwtree', A(1900), (x, y) => B(x, y) === 'greenwood', tree, 14, 30)
-  counts.heartTrees     = scatter('httree', A(200), (x, y) => B(x, y) === 'heartlands', tree)
+  counts.greenwoodTrees = clusterScatter('gwtree', A(1250), (x, y) => B(x, y) === 'greenwood', tree, 12, 30)
+  counts.heartTrees     = scatter('httree', A(150), (x, y) => B(x, y) === 'heartlands', tree)
   counts.moorTrees      = scatter('mrtree', A(90),  (x, y) => B(x, y) === 'moor', tree)
   counts.fenTrees       = scatter('fntree', A(150), (x, y) => B(x, y) === 'fens', tree)
   counts.wildTrees      = scatter('wdtree', A(130), (x, y) => B(x, y) === 'wilds', tree)
-  counts.cragRocks      = clusterScatter('cgrock', A(1120), (x, y) => B(x, y) === 'crags', rock, 12, 26)
+  counts.cragRocks      = clusterScatter('cgrock', A(780), (x, y) => B(x, y) === 'crags', rock, 10, 26)
   counts.downRocks      = scatter('dwrock', A(160), (x, y) => B(x, y) === 'downs', rock)
-  counts.wildRocks      = scatter('wdrock', A(150), (x, y) => B(x, y) === 'wilds', rock)
+  counts.wildRocks      = scatter('wdrock', A(110), (x, y) => B(x, y) === 'wilds', rock)
   counts.heartRocks     = scatter('htrock', A(130), (x, y) => B(x, y) === 'heartlands', rock)
   const deepWilds = (x, y) => {
     if (B(x, y) !== 'wilds') return false
