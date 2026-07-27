@@ -1207,7 +1207,8 @@ export function buildWorld(genesis) {
   // citizen walks a thousand times, procedure where variety is the point.
   const layDrawnTown = (s) => {
     checkPlanConnected(s.tag, PLANS[s.tag], s.x, s.y, { g, isWater, blockedAt })
-    layPlan(planCtx, s.tag, PLANS[s.tag], s.x, s.y, 'plan-' + s.tag)
+    layPlan(planCtx, s.tag, PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
+      { nameKeeper: (k) => keeperName(k, 'plan') })
     // the sign is the one thing the drawing cannot carry: its text
     const r = rectOf(s)
     for (let rad = 1; rad <= 6 && true; rad++) {
@@ -1367,7 +1368,8 @@ export function buildWorld(genesis) {
           if (fits(nx0 + dx, ny0 + dy)) { sx = nx0 + dx; sy = ny0 + dy; break seekPl }
         }
       if (sx < 0) continue // the land refused it; a place may fail, quietly
-      layPlan(planCtx, pl.tag, pl.art, sx, sy, 'place-' + pl.tag, { landmarkKind: pl.kind })
+      layPlan(planCtx, pl.tag, pl.art, sx, sy, 'place-' + pl.tag,
+        { landmarkKind: pl.kind, nameKeeper: (k) => keeperName(k, 'place') })
       // every named place carries its name, so the chart can print it and
       // a traveller can read where they are
       for (const [dx, dy] of [[0, (d.h >> 1) + 1], [(d.w >> 1) + 1, 0], [0, -(d.h >> 1) - 1], [-(d.w >> 1) - 1, 0]]) {
@@ -1478,8 +1480,36 @@ export function buildWorld(genesis) {
     seekO: for (let rad = 1; rad < 12; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
       if (free(rx0 + dx, ry0 + dy) && free(rx0 + dx + 1, ry0 + dy)) {
-        put('kpr-wizard-oberon', 'keeper', rx0 + dx, ry0 + dy)
+        put('kpr-wizard-oberon', 'keeper', rx0 + dx, ry0 + dy, { name: 'Oberon' })
         put('oberon-hearth', 'campfire', rx0 + dx + 1, ry0 + dy)
+        // WHAT HE TEACHES, CUT INTO THE PLACE HE TEACHES IT.
+        //
+        // These five lines lived in window-web.html and nowhere else: one
+        // HTML file's JavaScript, cycling on click. A window can be replaced;
+        // the world cannot. Words that only one window knows were never part
+        // of the founding at all -- and the last of them is about exactly
+        // that, which made leaving it there worse than an oversight.
+        //
+        // So they stand among the stones. Every window reads them, the hash
+        // covers them, and you learn them by walking the Ring rather than by
+        // clicking the wizard five times.
+        const TEACH = [
+          '\u201cThree stones make a sigil. Three sigils make a silence.\u201d',
+          '\u201cThe stones were here before me. I intend to return the favour.\u201d',
+          '\u201cAnchor flees, mend endures, still denies. You cannot be made to fight.\u201d',
+          '\u201cThe stilled cannot act, and cannot be struck. I said that long before your constitution did.\u201d',
+          '\u201cEvery keeper on this island is named by a hash. I am not. Think about what that costs.\u201d',
+        ]
+        let tn = 0
+        for (const [sx2, sy2] of ring) {
+          if (tn >= TEACH.length) break
+          // set each beside a stone, on the outside of the circle
+          const ox = rx0 + sx2 + (sx2 > 0 ? 1 : sx2 < 0 ? -1 : 0)
+          const oy = ry0 + sy2 + (sy2 > 0 ? 1 : sy2 < 0 ? -1 : 0)
+          if (!free(ox, oy)) continue
+          put('oberon-word-' + tn, 'signpost', ox, oy, { text: TEACH[tn] })
+          tn++
+        }
         break seekO
       }
     }
@@ -1562,7 +1592,7 @@ export function buildWorld(genesis) {
         return true
       case 'kennel': {
         if (!ok(x, y) || !ok(x + 1, y)) return false
-        put('ken-' + tag, 'house', x, y); put('ken-' + tag + 'k', 'keeper', x + 1, y)
+        put('ken-' + tag, 'house', x, y); put('ken-' + tag + 'k', 'keeper', x + 1, y, { name: keeperName(tag, 'kennel') })
         for (let a = -1; a <= 3; a++) if (ok(x + a, y + 2)) put('kenf-' + tag + a, 'fence', x + a, y + 2)
         return true }
       case 'beehives': {
@@ -1795,7 +1825,7 @@ export function buildWorld(genesis) {
   { // the Sawyer's Camp
     const c = siteSeek(0.50, 0.15, 'greenwood', 4)
     sput('camp-house', 'house', c.x, c.y); sput('camp-hearth', 'campfire', c.x + 2, c.y)
-    sput('kpr-camp-sawyer', 'keeper', c.x + 1, c.y + 1)
+    sput('kpr-camp-sawyer', 'keeper', c.x + 1, c.y + 1, { name: keeperName('camp', 'sawyer', { name: keeperName('camp', 'sawyer') }) })
     for (const [i, [dx, dy]] of [[-3,-2],[3,-2],[-4,1],[4,1],[-2,3],[2,3],[0,-4],[0,4]].entries()) sput('camp-t-' + i, 'tree', c.x + dx, c.y + dy)
   }
   { // the High Delving: now a WALLED quarry with one entrance -- a room
@@ -1806,14 +1836,14 @@ export function buildWorld(genesis) {
     }
     for (let b2 = -4; b2 <= 4; b2++) { sput('dlvw-' + (i++), 'wall', c.x - 6, c.y + b2); sput('dlvw-' + (i++), 'wall', c.x + 6, c.y + b2) }
     sput('delve-house', 'house', c.x - 4, c.y - 3); sput('delve-anvil', 'anvil', c.x + 4, c.y - 3)
-    sput('delve-hearth', 'campfire', c.x + 3, c.y - 3); sput('kpr-delve-high', 'keeper', c.x - 3, c.y - 3)
+    sput('delve-hearth', 'campfire', c.x + 3, c.y - 3); sput('kpr-delve-high', 'keeper', c.x - 3, c.y - 3, { name: keeperName('delve', 'high', { name: keeperName('delve', 'high') }) })
     for (const [i2, [dx, dy]] of [[-3,0],[3,0],[-2,2],[2,2],[0,3],[-4,1],[4,1],[-1,3],[1,-1]].entries()) sput('delve-r-' + i2, 'rock', c.x + dx, c.y + dy)
     sput('delve-sign', 'signpost', c.x, c.y - 6, { text: 'the High Delving' })
   }
   { // the Eel Sheds
     const c = siteSeek(0.48, 0.85, 'fens', 3)
     sput('sheds-house', 'house', c.x, c.y); sput('sheds-hearth', 'campfire', c.x + 2, c.y)
-    sput('kpr-sheds-eel', 'keeper', c.x + 1, c.y + 1)
+    sput('kpr-sheds-eel', 'keeper', c.x + 1, c.y + 1, { name: keeperName('sheds', 'eel') })
     let fs2 = 0
     seekF: for (let rad = 1; rad < 16 && fs2 < 4; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
@@ -1831,7 +1861,7 @@ export function buildWorld(genesis) {
     // precisely Al Kharid, whose mine holds nothing unique and is the most
     // worked in the game, and it needs no new item to exist.
     const c = siteSeek(0.72, 0.71, 'downs', 8)
-    sput('fold-house', 'house', c.x, c.y - 4); sput('kpr-fold-shep', 'keeper', c.x + 1, c.y - 4)
+    sput('fold-house', 'house', c.x, c.y - 4); sput('kpr-fold-shep', 'keeper', c.x + 1, c.y - 4, { name: keeperName('fold', 'shep') })
     sput('fold-hearth', 'campfire', c.x - 1, c.y - 4)
     let i = 0
     for (let a = -5; a <= 5; a++) { sput('foldf-' + (i++), 'fence', c.x + a, c.y - 2); if (a !== 0) sput('foldf-' + (i++), 'fence', c.x + a, c.y + 4) }
@@ -1850,7 +1880,7 @@ export function buildWorld(genesis) {
         put('foldbank-w' + (bi++), 'wall', xx, yy)
       }
       put('foldbank', 'bank', bx + 2, by + 2)
-      put('kpr-bank-folds', 'keeper', bx + 3, by + 2)
+      put('kpr-bank-folds', 'keeper', bx + 3, by + 2, { name: keeperName('bank', 'folds') })
       sput('foldbank-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
     }
     // and the stone: ordinary crag rock, close enough to carry
@@ -1886,7 +1916,7 @@ export function buildWorld(genesis) {
       for (let b2 = -2; b2 <= 2; b2++) { put('mw-' + (i++), 'wall', px - 4, py + b2); put('mw-' + (i++), 'wall', px + 4, py + b2) }
       put('moorwatch-fire', 'campfire', px, py)
       put('moorwatch-g1', 'guard', px - 2, py); put('moorwatch-g2', 'guard', px + 2, py)
-      put('kpr-camp-moorwatch', 'keeper', px, py - 1)
+      put('kpr-camp-moorwatch', 'keeper', px, py - 1, { name: keeperName('camp', 'moorwatch') })
       put('moorwatch-house', 'house', px - 2, py - 2)
       sput('moorwatch-sign', 'signpost', px, py + 4, { text: 'the Moorwatch \u00b7 the Brand lies west' })
       putWaystoneEarly('waystone-moorwatch', px + 6, py)
@@ -1903,7 +1933,7 @@ export function buildWorld(genesis) {
       if ([[0,0],[2,0],[-1,1],[1,1],[0,2]].every(([ox, oy]) => free(x+ox, y+oy))) { ix = x; iy = y; break seekI }
     }
     put('inn-house', 'house', ix, iy); put('inn-hearth', 'campfire', ix + 2, iy)
-    put('inn-well', 'well', ix - 1, iy + 1); put('kpr-inn-lantern', 'keeper', ix + 1, iy + 1)
+    put('inn-well', 'well', ix - 1, iy + 1); put('kpr-inn-lantern', 'keeper', ix + 1, iy + 1, { name: keeperName('inn', 'lantern') })
     put('inn-sign', 'signpost', ix, iy + 2, { text: 'the Lantern \u00b7 rest, traveler' })
   }
 
@@ -2259,7 +2289,7 @@ export function buildWorld(genesis) {
       for (const [dx, dy] of [[-3,-1],[0,-2],[3,-1],[-2,2],[2,2]]) L(t+'-cl'+dx+dy, cx+dx, cy+dy, 'charcoal-clamp')
       for (const [dx, dy] of [[-5,1],[5,0],[-4,-3],[4,-3],[1,3]]) L(t+'-st'+dx+dy, cx+dx, cy+dy, 'stump')
       L(t+'-lp', cx - 1, cy - 4, 'log-pile'); L(t+'-lp2', cx + 2, cy - 4, 'log-pile')
-      N(t+'-fire', cx, cy, 'campfire'); N(t+'-k', cx + 1, cy + 1, 'keeper')
+      N(t+'-fire', cx, cy, 'campfire'); N(t+'-k', cx + 1, cy + 1, 'keeper', { name: keeperName(t, 'burner') })
       N(t+'-sign', cx, cy + 4, 'signpost', { text: 'the charcoal camp \u00b7 burnt slow since the founding' })
     })
 
@@ -2279,7 +2309,7 @@ export function buildWorld(genesis) {
       for (let i = 0; i < 7; i++) L(t+'-cf'+i, cx - 4 + i, cy - 3, 'cut-face')
       for (const [dx, dy] of [[-4,1],[-1,2],[2,1],[4,2],[0,3]]) L(t+'-sp'+dx+dy, cx+dx, cy+dy, 'spoil-heap')
       L(t+'-cart', cx + 3, cy + 3, 'cart')
-      N(t+'-k', cx, cy + 1, 'keeper')
+      N(t+'-k', cx, cy + 1, 'keeper', { name: keeperName(t, 'quarryman') })
       N(t+'-sign', cx - 1, cy + 4, 'signpost', { text: 'the quarry \u00b7 mind the face' })
     })
 
@@ -2297,7 +2327,7 @@ export function buildWorld(genesis) {
       for (let i = 0; i < 7; i++) L(t+'-h2'+i, cx - 5 + i, cy + 3, 'hurdle')
       L(t+'-hay', cx + 4, cy, 'haystack'); L(t+'-hay2', cx + 5, cy + 1, 'haystack')
       L(t+'-cart', cx - 6, cy + 1, 'cart')
-      N(t+'-k', cx, cy, 'keeper')
+      N(t+'-k', cx, cy, 'keeper', { name: keeperName(t, 'drover') })
       N(t+'-sign', cx - 1, cy + 5, 'signpost', { text: 'the drove road \u00b7 shut the hurdles behind you' })
     })
 
