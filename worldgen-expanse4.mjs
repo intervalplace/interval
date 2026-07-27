@@ -156,7 +156,20 @@ export const inSea = (g, x, y) => inSeaBase(g, x, y) && !onIsle(g, x, y)
 // The one border that stays a LINE, because the Wilderness ditch is a line
 // and that is exactly why everyone remembers stepping over it. A law's edge
 // should be legible at a glance; a country's edge should not.
-export const brandX = (g, y) => Math.round(g.worldW * 0.225 + meander(g, 310, y, 40, 9))
+// STRAIGHT, and exactly where the law is.
+//
+// I wrote above that this is the one border that stays a line, because the
+// Wilderness ditch is a line and that is why everyone remembers stepping
+// over it -- and then gave it a nine-tile wobble, while the LAW stayed a
+// rectangle. The two disagreed across 2,398 tiles: a citizen who had walked
+// past the stones, with the Wilds all around them, could not attack and
+// could not be attacked, and nothing on the ground explained why.
+//
+// A border you can stand beside has to be the border the law means. So the
+// stones run dead straight down x = 0.215W, and geo.wilds ends on that same
+// line. Cross the stones and the law changes, every time, everywhere.
+export const BRAND_X = (g) => Math.round(g.worldW * 0.215)
+export const brandX = (g, _y) => BRAND_X(g)
 
 // ---------- the countries: lobes ----------
 // A weighted-Voronoi field. Each country owns one or more SEEDS; a tile
@@ -981,6 +994,12 @@ export function groundKindAt(g, x, y) {
         // stand on the same floor as the empty tile beside them
         if (isIndoor(st.tag, rows, rx, ry)) return 'floor'
       }
+      // NOT EVERY TOWN IS PAVED. A farm is not a market: Hollybarrow works
+      // the ground it stands on and Greenhollow is a clearing in a wood, so
+      // outside their buildings the country simply carries on. Paving them
+      // was most of why every town underfoot looked the same.
+      if (st.tag === 'hollybarrow' || st.tag === 'greenhollow')
+        return onRoad(g, x, y) ? 'trail' : null
       return onRoad(g, x, y) ? 'cobble' : 'flag'
     }
   }
@@ -1122,7 +1141,7 @@ export function makeExpanse4Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     city:    (() => { const a = settlementsOf(g).find(s => s.tag === 'anchor')
                return { x0: a.x - (a.w >> 1), x1: a.x + (a.w >> 1),
                         y0: a.y - (a.h >> 1), y1: a.y + (a.h >> 1) } })(),
-    wilds:   { x0: 1, x1: Math.round(W * 0.225) - 10, y0: 1, y1: H - 2 },
+    wilds:   { x0: 1, x1: BRAND_X(g), y0: 1, y1: H - 2 },
     norwick: { x0: nw.x - 12, x1: nw.x + 12, y0: nw.y - 9, y1: nw.y + 9 },
   }
   g.watch = { level: 60, kindleLogs: 10, perLog: 420, cap: 12600, xpPerLog: 200, burnXp: 1, maxOwned: 4, decayTicks: 432000 }
@@ -2045,12 +2064,12 @@ export function buildWorld(genesis) {
     if (n < want) n += scatter(tag + 'x', want - n, pred, place)
     return n
   }
-  counts.greenwoodTrees = clusterScatter('gwtree', A(1250), (x, y) => B(x, y) === 'greenwood', tree, 12, 30)
+  counts.greenwoodTrees = clusterScatter('gwtree', A(980), (x, y) => B(x, y) === 'greenwood', tree, 12, 30)
   counts.heartTrees     = scatter('httree', A(150), (x, y) => B(x, y) === 'heartlands', tree)
   counts.moorTrees      = scatter('mrtree', A(90),  (x, y) => B(x, y) === 'moor', tree)
   counts.fenTrees       = scatter('fntree', A(150), (x, y) => B(x, y) === 'fens', tree)
   counts.wildTrees      = scatter('wdtree', A(130), (x, y) => B(x, y) === 'wilds', tree)
-  counts.cragRocks      = clusterScatter('cgrock', A(780), (x, y) => B(x, y) === 'crags', rock, 10, 26)
+  counts.cragRocks      = clusterScatter('cgrock', A(600), (x, y) => B(x, y) === 'crags', rock, 10, 26)
   counts.downRocks      = scatter('dwrock', A(160), (x, y) => B(x, y) === 'downs', rock)
   counts.wildRocks      = scatter('wdrock', A(110), (x, y) => B(x, y) === 'wilds', rock)
   counts.heartRocks     = scatter('htrock', A(130), (x, y) => B(x, y) === 'heartlands', rock)
@@ -2088,11 +2107,30 @@ export function buildWorld(genesis) {
   counts.wolves = scatter('wolf', A(108), (x, y) => { const b = B(x, y); return b === 'greenwood' || b === 'fens' || b === 'moor' }, mob('wolf'))
   counts.bears  = scatter('bear', A(62), (x, y) => B(x, y) === 'greenwood' && y < H * 0.22, mob('bear'))
   counts.trolls = scatter('troll', A(70), (x, y) => { const b = B(x, y); return b === 'crags' || (b === 'wilds' && x < W * 0.10) }, mob('troll'))
+  // WARBANDS THAT LAND IN THE WILDS.
+  //
+  // The centre of each band used to be drawn from the rectangle x < 0.21W --
+  // but the Wilds is a western CAPE, not a rectangle, and most of that strip
+  // is open sea. Fifty-three of sixty-five knights fell in the water and were
+  // dropped without a word, leaving TWELVE in the most dangerous country on
+  // the island. Nothing measured it, so nothing said so.
+  //
+  // Draw the centre from Wilds land instead: reject and redraw until the
+  // ground agrees, deterministically, on a fixed number of tries.
+  const wildsSeat = (band) => {
+    for (let t = 0; t < 60; t++) {
+      const hb = H32('warband', band * 97 + t)
+      const x = 2 + (hb.readUInt16BE(0) % Math.max(1, Math.round(W * 0.22)))
+      const y = 2 + (hb.readUInt16BE(2) % (H - 4))
+      if (biomeAt(g, x, y) === 'wilds' && !inSea(g, x, y)) return { x, y }
+    }
+    return null
+  }
   let sk = 0
   for (let band = 0; band < A(13); band++) {
-    const hb = H32('warband', band)
-    const bx = 2 + (hb.readUInt16BE(0) % Math.max(1, Math.round(W * 0.21)))
-    const by = 2 + (hb.readUInt16BE(2) % (H - 4))
+    const seat = wildsSeat(band)
+    if (!seat) continue
+    const bx = seat.x, by = seat.y
     for (let k = 0; k < 5; k++) {
       const hh = H32('skel', sk)
       const x = bx + (hh[0] % 7) - 3, y = by + (hh[1] % 7) - 3
@@ -2102,6 +2140,246 @@ export function buildWorld(genesis) {
     }
   }
   counts.knights = sk
+
+  // ---- THE BARROW GIVES UP ITS DEAD ----
+  //
+  // The Barrow is a burial mound in the middle of the Heartlands and until
+  // now it did nothing but make the road bend. Scattered bones were the
+  // obvious answer and the wrong one: ground items expire a hundred ticks
+  // after they are dropped, so a founding-time scatter would be gone inside
+  // a minute.
+  //
+  // So the mound gives up its dead instead. Skeletons walk the ring of open
+  // ground around it -- they drop double bones, the warrior's due -- and
+  // because they respawn on the engine's own timer rather than lying about
+  // waiting to be collected, the prayer that comes off this hill is EARNED.
+  // It is the one place in the safe country where something will fight you.
+  {
+    const c = barrowC(g), rx = 26, ry = 15   // the mound's own radii, from onBarrow
+    let bs = 0
+    for (let i = 0; i < A(46); i++) {
+      const hh = H32('barrowdead', i)
+      const ang = (hh.readUInt16BE(0) / 65536) * Math.PI * 2
+      const rad = 1.04 + (hh[2] / 255) * 0.28              // just outside the mound
+      const x = Math.round(c.x + Math.cos(ang) * rx * rad)
+      const y = Math.round(c.y + Math.sin(ang) * ry * rad)
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      taken.add(key(x, y)); E.addMob(w, 'barrowdead-' + i, 'skeleton-knight', x, y); bs++
+    }
+    counts.barrowDead = bs
+  }
+
+  // ---- THE GOBLIN PEN ----
+  //
+  // The Heartlands is the safe country and safety is dull to walk through.
+  // So: a hedged pound on the Anchor-Oxenford road with a dozen goblins in
+  // it and four guards outside, taken off the Brand and kept for whatever
+  // the city does with them. It is somewhere to stop, it explains why the
+  // guards exist, and it is the only place in the home country where you can
+  // look a goblin in the eye through a fence.
+  {
+    const j = junctionsOf(g)
+    const cx0 = Math.round((settlementsOf(g).find(t => t.tag === 'anchor').x
+                          + settlementsOf(g).find(t => t.tag === 'oxenford').x) / 2)
+    const cy0 = Math.round((settlementsOf(g).find(t => t.tag === 'anchor').y
+                          + settlementsOf(g).find(t => t.tag === 'oxenford').y) / 2) - 14
+    const seat = seatPoint(g, cx0, cy0)
+    let gp = 0
+    const PW = 11, PH = 8
+    for (let dy = 0; dy < PH; dy++) for (let dx = 0; dx < PW; dx++) {
+      const x = seat.x + dx - (PW >> 1), y = seat.y + dy - (PH >> 1)
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      const edge = dx === 0 || dy === 0 || dx === PW - 1 || dy === PH - 1
+      const gate = dy === PH - 1 && dx === (PW >> 1)
+      if (edge && !gate) { taken.add(key(x, y)); put('pen-' + gp, 'fence', x, y); gp++ }
+      else if (!edge && ((dx + dy) % 3 === 0)) {
+        taken.add(key(x, y)); E.addMob(w, 'pengob-' + gp, 'goblin', x, y); gp++
+      }
+    }
+    for (const [gx, gy] of [[-(PW >> 1) - 2, 0], [(PW >> 1) + 2, 0], [0, (PH >> 1) + 2], [-2, (PH >> 1) + 2]]) {
+      const x = seat.x + gx, y = seat.y + gy
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      taken.add(key(x, y)); put('penguard-' + gp, 'guard', x, y); gp++
+    }
+    const sx = seat.x, sy = seat.y + (PH >> 1) + 3
+    if (free(sx, sy) && !blockedAt(g, sx, sy)) {
+      taken.add(key(sx, sy))
+      put('pensign', 'signpost', sx, sy, { text: 'the Goblin Pound  \u00b7  do not feed them' })
+    }
+    counts.goblinPound = gp
+  }
+
+  // ---- PLACES, NOT SCATTER ----
+  //
+  // A citizen walking this island met a wall, a tree or a rock seven times in
+  // ten, and four to six DIFFERENT things within twenty tiles anywhere they
+  // stood. Dense and monotonous: something every five paces and always the
+  // same something.
+  //
+  // The answer is not more trees. It is places -- forty tiles of arrangement
+  // that read as somewhere rather than something, the way the Goblin Pound
+  // does. One or two per country, each built from the nouns that country
+  // actually works.
+  {
+    const L = (id, x, y, kind) => {
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) return false
+      taken.add(key(x, y)); put(id, 'landmark', x, y, { kind }); return true
+    }
+    const N = (id, x, y, type, extra) => {
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) return false
+      taken.add(key(x, y)); put(id, type, x, y, extra); return true
+    }
+    let pl = 0
+    const site = (tag, nomX, nomY, want, build) => {
+      // only build where the country agrees -- a charcoal camp in a field is
+      // not a charcoal camp -- but search for that country rather than
+      // demanding it be exactly where I guessed. The quarry was aimed at
+      // 0.90W and the Crags are nowhere near it, so it simply never built
+      // and nothing said so.
+      let p0 = seatPoint(g, nomX, nomY)
+      if (want && biomeAt(g, p0.x, p0.y) !== want) {
+        let found = null
+        for (let rad = 6; rad <= 150 && !found; rad += 6)
+          for (let a2 = 0; a2 < 360 && !found; a2 += 15) {
+            const x = Math.round(nomX + Math.cos(a2 * Math.PI / 180) * rad)
+            const y = Math.round(nomY + Math.sin(a2 * Math.PI / 180) * rad)
+            if (x < 8 || y < 8 || x >= g.worldW - 8 || y >= g.worldH - 8) continue
+            if (biomeAt(g, x, y) === want && !blockedAt(g, x, y) && !isWater(g, x, y)) found = { x, y }
+          }
+        if (!found) return
+        p0 = seatPoint(g, found.x, found.y)
+        if (biomeAt(g, p0.x, p0.y) !== want) return
+      }
+      build(p0.x, p0.y, tag)
+      pl++
+    }
+
+    // THE CHARCOAL CAMP -- the Greenwood, worked
+    site('coalcamp', Math.round(W * 0.59), Math.round(H * 0.18), 'greenwood', (cx, cy, t) => {
+      for (const [dx, dy] of [[-3,-1],[0,-2],[3,-1],[-2,2],[2,2]]) L(t+'-cl'+dx+dy, cx+dx, cy+dy, 'charcoal-clamp')
+      for (const [dx, dy] of [[-5,1],[5,0],[-4,-3],[4,-3],[1,3]]) L(t+'-st'+dx+dy, cx+dx, cy+dy, 'stump')
+      L(t+'-lp', cx - 1, cy - 4, 'log-pile'); L(t+'-lp2', cx + 2, cy - 4, 'log-pile')
+      N(t+'-fire', cx, cy, 'campfire'); N(t+'-k', cx + 1, cy + 1, 'keeper')
+      N(t+'-sign', cx, cy + 4, 'signpost', { text: 'the charcoal camp \u00b7 burnt slow since the founding' })
+    })
+
+    // THE DROWNED VILLAGE -- the Fens took it back
+    site('drowned', Math.round(W * 0.39), Math.round(H * 0.77), 'fens', (cx, cy, t) => {
+      for (let i = 0; i < 14; i++) {
+        const h2 = H32('drownw', i)
+        L(t+'-w'+i, cx + (h2[0] % 13) - 6, cy + (h2[1] % 9) - 4, 'sunken-wall')
+      }
+      for (const [dx, dy] of [[-5,3],[4,3],[0,4]]) L(t+'-er'+dx, cx+dx, cy+dy, 'eel-rack')
+      L(t+'-bell', cx, cy, 'drowned-bell')
+      N(t+'-sign', cx + 1, cy + 5, 'signpost', { text: 'they called it Merewick \u00b7 the fen calls it nothing' })
+    })
+
+    // THE QUARRY FACE -- the Crags, cut
+    site('quarry', Math.round(W * 0.77), Math.round(H * 0.43), 'crags', (cx, cy, t) => {
+      for (let i = 0; i < 7; i++) L(t+'-cf'+i, cx - 4 + i, cy - 3, 'cut-face')
+      for (const [dx, dy] of [[-4,1],[-1,2],[2,1],[4,2],[0,3]]) L(t+'-sp'+dx+dy, cx+dx, cy+dy, 'spoil-heap')
+      L(t+'-cart', cx + 3, cy + 3, 'cart')
+      N(t+'-k', cx, cy + 1, 'keeper')
+      N(t+'-sign', cx - 1, cy + 4, 'signpost', { text: 'the quarry \u00b7 mind the face' })
+    })
+
+    // THE GIBBET CROSSROADS -- the Moor, and a fire kept against it
+    site('gibbetx', Math.round(W * 0.35), Math.round(H * 0.23), 'moor', (cx, cy, t) => {
+      L(t+'-g1', cx, cy - 2, 'gibbet'); L(t+'-g2', cx + 2, cy - 1, 'gibbet')
+      for (const [dx, dy] of [[-3,1],[3,2]]) L(t+'-bp'+dx, cx+dx, cy+dy, 'bone-pile')
+      N(t+'-fire', cx, cy + 1, 'campfire'); N(t+'-guard', cx + 1, cy + 2, 'guard')
+      N(t+'-sign', cx - 1, cy + 3, 'signpost', { text: 'the gibbet crossing \u00b7 the Brand is west' })
+    })
+
+    // THE SHEEP DRIVE -- the Downs
+    site('drive', Math.round(W * 0.65), Math.round(H * 0.67), 'downs', (cx, cy, t) => {
+      for (let i = 0; i < 9; i++) L(t+'-h'+i, cx - 6 + i, cy - 2, 'hurdle')
+      for (let i = 0; i < 7; i++) L(t+'-h2'+i, cx - 5 + i, cy + 3, 'hurdle')
+      L(t+'-hay', cx + 4, cy, 'haystack'); L(t+'-hay2', cx + 5, cy + 1, 'haystack')
+      L(t+'-cart', cx - 6, cy + 1, 'cart')
+      N(t+'-k', cx, cy, 'keeper')
+      N(t+'-sign', cx - 1, cy + 5, 'signpost', { text: 'the drove road \u00b7 shut the hurdles behind you' })
+    })
+
+    // THE TROLL CAMP -- the Wilds, and nobody keeping it
+    site('trollcamp', Math.round(W * 0.12), Math.round(H * 0.51), 'wilds', (cx, cy, t) => {
+      for (const [dx, dy] of [[-3,-1],[2,-2],[3,1],[-2,3],[0,-3]]) L(t+'-bp'+dx+dy, cx+dx, cy+dy, 'bone-pile')
+      L(t+'-hearth', cx, cy, 'crude-hearth')
+      for (const [dx, dy] of [[-4,2],[4,-1]]) L(t+'-cr'+dx, cx+dx, cy+dy, 'crate')
+      for (let i = 0; i < 3; i++) {
+        const h2 = H32('trollc', i)
+        const x = cx + (h2[0] % 9) - 4, y = cy + (h2[1] % 7) - 3
+        if (free(x, y) && !blockedAt(g, x, y)) { taken.add(key(x, y)); E.addMob(w, 'trollcamp-' + i, 'troll', x, y) }
+      }
+    })
+    counts.places = pl
+  }
+
+  // ---- THE COUNTRY'S OWN TEXTURE ----
+  //
+  // Six places made six spots worth remembering and moved the variety of a
+  // walk by three tenths of one kind, because six sites on a 458,752-tile
+  // island are six sites. What a citizen MEETS is decided by what is spread,
+  // not by what is arranged.
+  //
+  // So the new nouns get scattered through the countries that would actually
+  // have them -- stumps where the wood is felled, spoil where the rock is
+  // cut, bone where the Wilds has eaten -- and they are PAID FOR out of the
+  // trees and rocks, which were forty-two per cent of everything on their
+  // own. The budget does not grow; the vocabulary does.
+  {
+    const lm = (kind) => (id, x, y) => put(id, 'landmark', x, y, { kind })
+    const inC = (c) => (x, y) => B(x, y) === c
+    const t0 = counts
+    t0.stumps   = scatter('stump',   A(150), inC('greenwood'), lm('stump'))
+    t0.logpiles = scatter('logpile', A(55),  inC('greenwood'), lm('log-pile'))
+    t0.clamps   = scatter('clamp',   A(30),  inC('greenwood'), lm('charcoal-clamp'))
+    t0.spoil    = scatter('spoil',   A(120), inC('crags'),     lm('spoil-heap'))
+    t0.cutface  = scatter('cutface', A(50),  inC('crags'),     lm('cut-face'))
+    t0.bones    = scatter('bonep',   A(130), inC('wilds'),     lm('bone-pile'))
+    t0.hearths  = scatter('crudeh',  A(35),  inC('wilds'),     lm('crude-hearth'))
+    t0.hay      = scatter('hay',     A(80),  inC('downs'),     lm('haystack'))
+    t0.hurdles  = scatter('hurdle',  A(95),  inC('downs'),     lm('hurdle'))
+    t0.eelracks = scatter('eelr',    A(70),  inC('fens'),      lm('eel-rack'))
+    t0.sunken   = scatter('sunkw',   A(55),  inC('fens'),      lm('sunken-wall'))
+    t0.gibbets  = scatter('gibb',    A(28),  inC('moor'),      lm('gibbet'))
+    t0.moorbone = scatter('mbone',   A(45),  inC('moor'),      lm('bone-pile'))
+    t0.carts    = scatter('cart',    A(55),  (x, y) => {
+      const b = B(x, y); return (b === 'heartlands' || b === 'downs') && onRoad(g, x, y) === false }, lm('cart'))
+    t0.hayhome  = scatter('hayh',    A(60),  inC('heartlands'), lm('haystack'))
+    // CRATES ON THE QUAYS. Of the eighteen this was the one that only ever
+    // appeared twice, both in a troll camp -- a noun very nearly wasted in a
+    // constitution nobody can edit after founding. It belongs where cargo is
+    // landed, so: the two ports, on the dry ground behind their piers, never
+    // on the decking itself, which has to stay walkable to fish from.
+    {
+      const quay = quayTilesOf(g)
+      const ports = settlementsOf(g).filter(t => t.tag === 'eastmere' || t.tag === 'fenmarch')
+      let cr = 0
+      for (const t of ports) {
+        // reach well past the town walls: the ports are dense inside and the
+        // cargo stands on the shore behind the piers anyway
+        // only about an eighth of the ground near a port is within three
+        // tiles of water, so most samples miss: draw enough of them
+        for (let i = 0; i < A(320); i++) {
+          const h2 = H32('crate' + t.tag, i)
+          const span = 54
+          const x = t.x + (h2.readUInt16BE(0) % span) - (span >> 1)
+          const y = t.y + (h2.readUInt16BE(2) % span) - (span >> 1)
+          // only near the water: a crate in a field is a crate nobody landed
+          let coast = false
+          for (let dy2 = -3; dy2 <= 3 && !coast; dy2++)
+            for (let dx2 = -3; dx2 <= 3; dx2++)
+              if (isWater(g, x + dx2, y + dy2)) { coast = true; break }
+          if (!coast) continue
+          if (quay.has(x + ',' + y)) continue          // never on the decking
+          if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+          taken.add(key(x, y)); put('quaycrate-' + t.tag + '-' + i, 'landmark', x, y, { kind: 'crate' }); cr++
+        }
+      }
+      t0.quaycrates = cr
+    }
+  }
 
   // ---- waystones ----
   const putWaystone = (id, x, y) => {
