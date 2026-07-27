@@ -48,7 +48,7 @@
 import E from './engine.js'
 import { seedNum, meander, thash } from './worldgen-expanse.mjs'
 import { angleOf } from './worldgen-expanse3.mjs'
-import { PLANS, PLACES, layPlan, validatePlan, checkPlanConnected,
+import { PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
          seatCoastalPlan, quayTilesOfPlan } from './worldgen-shire.mjs'
 export { seedNum, meander, thash, angleOf }
 
@@ -977,7 +977,9 @@ export function groundKindAt(g, x, y) {
       if (rows) {
         const pw = rows[0].length, ph = rows.length
         const rx = x - (st.x - (pw >> 1)), ry = y - (st.y - (ph >> 1))
-        if (rx >= 0 && ry >= 0 && rx < pw && ry < ph && rows[ry][rx] === ',') return 'floor'
+        // enclosure, not the character: a booth, a hearth and the clerk all
+        // stand on the same floor as the empty tile beside them
+        if (isIndoor(st.tag, rows, rx, ry)) return 'floor'
       }
       return onRoad(g, x, y) ? 'cobble' : 'flag'
     }
