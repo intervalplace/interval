@@ -1990,7 +1990,7 @@ const PLANS4 = {
     "%..######,#####....................................%",
     "%.........................................#######..%",
     "%..#########...########......#########....#,,,,,#..%",
-    "%..#,SSS,k,#...#,,,,,,#......#,SSS,k,#....,,h,,,#..%",
+    "%..#,fSf,k,#...#,,,,,,#......#,fSf,k,#....,,h,,,#..%",
     "%..#,,,,,,,,...#,h,h,,#......#,,,,,,,#....#,,,,,#..%",
     "%..#,,,,,,,#...#,,,,,,#......#,,,,,,,#....#######..%",
     "%..#########...####,###......####,####.............%",
@@ -2019,7 +2019,7 @@ const PLANS4 = {
     "                                        ",
     " ...................................... ",
     " ..#######..########..#######..#######. ",
-    " ..#,,,,,#..#,SSS,,#..#,,,,,#..#,,,,,#. ",
+    " ..#,,,,,#..#,fSf,,#..#,,,,,#..#,,,,,#. ",
     " ..#,h,k,#..#,,,,k,#..#,h,,,#..#,A,s,#. ",
     " ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ",
     " ..###,###..####,###..###,###..###,###. ",
@@ -2030,7 +2030,7 @@ const PLANS4 = {
     " ...................................... ",
     " ..###,###..####,###..###,###..###,###. ",
     " ..#,,,,,#..#,,,,,,#..#,,,k,#..#,,,,,#. ",
-    " ..#,h,,,#..#,h,h,,#..#,SSS,#..#,h,,,#. ",
+    " ..#,h,,,#..#,h,h,,#..#,fSf,#..#,h,,,#. ",
     " ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ",
     " ..#######..########..#######..#######. ",
     "                                        ",
@@ -2039,7 +2039,7 @@ const PLANS4 = {
     "                                    ",
     " .................................. ",
     " ..##########.........#########.... ",
-    " ..#,BBB,,k,#.........#,SSS,k,#.... ",
+    " ..#,BBB,,k,#.........#,fSf,k,#.... ",
     " ..#,,,,,,,,#.........#,,,,,,,#.... ",
     " ..#,,,,,,,,#.........#,,,,,,,#.... ",
     " ..#,,,,,,,,#.........#,,,,,,,#.... ",
@@ -2600,6 +2600,16 @@ function keeperRole4(st, id, n) {
   }
   _roleCache.set(id, role)
   return role
+}
+// is this fence part of a shop counter? (i.e. is a store beside it)
+function counterSide4(st, x, y) {
+  if (!st || !st.nodes) return false
+  for (const k in st.nodes) {
+    const q = st.nodes[k]
+    if (q.type !== 'store') continue
+    if (Math.abs(q.x - x) <= 1 && q.y === y) return true
+  }
+  return false
 }
 const _rampCache = new Map()
 function isRampart4(x, y) {
@@ -3896,18 +3906,30 @@ function drawScene(now) {
             cx.strokeStyle = '#8a6d1f'; cx.lineWidth = 1.6; cx.stroke()
             cx.fillStyle = '#8a6d1f'; cx.fillRect(bx + 19, by + 12, 2, 8)
           } else {
-            // A BARREL, not a sack. The sack was a pale rounded blob that
-            // read as an egg -- at thirty pixels on a dark board a silhouette
-            // has to be unmistakable, and hoops are unmistakable.
-            cx.fillStyle = '#a87540'
+            // A BARREL that reads as one. The first attempt drew hoops
+            // FIFTEEN pixels wide across a barrel only twelve wide, in a
+            // colour brighter than the barrel itself -- so the hoops were
+            // the sprite and it read as three stripes. Now the body fills
+            // the board, the hoops sit inside it, and they are darker than
+            // the wood rather than lighter.
+            cx.fillStyle = '#b07c42'
             cx.beginPath()
-            cx.moveTo(bx + 14, by + 10); cx.quadraticCurveTo(bx + 12, by + 16, bx + 14, by + 22)
-            cx.lineTo(bx + 26, by + 22); cx.quadraticCurveTo(bx + 28, by + 16, bx + 26, by + 10)
+            cx.moveTo(bx + 13, by + 9)
+            cx.quadraticCurveTo(bx + 9.5, by + 16, bx + 13, by + 23)
+            cx.lineTo(bx + 27, by + 23)
+            cx.quadraticCurveTo(bx + 30.5, by + 16, bx + 27, by + 9)
             cx.closePath(); cx.fill()
-            cx.strokeStyle = '#4a2f16'; cx.lineWidth = 1.6; cx.stroke()
-            cx.fillStyle = '#e0c88a'
-            cx.fillRect(bx + 12.5, by + 13, 15, 2.2); cx.fillRect(bx + 12.5, by + 18, 15, 2.2)
-            cx.fillStyle = 'rgba(255,255,255,.16)'; cx.fillRect(bx + 16, by + 11, 2.4, 10)
+            cx.strokeStyle = '#41290f'; cx.lineWidth = 1.8; cx.stroke()
+            // the lid, seen from a little above
+            cx.fillStyle = '#c9955a'
+            cx.beginPath(); cx.ellipse(bx + 20, by + 9.5, 7, 2.6, 0, 0, 7); cx.fill()
+            cx.strokeStyle = '#41290f'; cx.lineWidth = 1.2; cx.stroke()
+            // hoops: inside the staves, and darker than them
+            cx.fillStyle = '#6b4520'
+            cx.fillRect(bx + 11.5, by + 13.5, 17, 2)
+            cx.fillRect(bx + 11.5, by + 19, 17, 2)
+            // one stave highlight so it is plainly round
+            cx.fillStyle = 'rgba(255,238,200,.18)'; cx.fillRect(bx + 15, by + 10.5, 2.4, 12)
           }
         }
       }
