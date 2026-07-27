@@ -575,6 +575,7 @@ export function checkPlanConnected(name, rows, cx, cy, ctx) {
 // town's edge for us and a drawing never has to know where the water went.
 export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
   const { g, E, w, taken, key, inB, isWater, reserve } = ctx
+  const nameKeeper = opts.nameKeeper
   const { w: pw, h: ph } = validatePlan(name, rows)
   const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
   // '!' is a landmark, and the engine requires every landmark to name its
@@ -597,9 +598,25 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
       if (isWater(g, x, y) && LEGEND[ch] !== 'fishing-spot') continue
       if (taken.has(key(x, y))) continue
       const type = LEGEND[ch]
-      const extra = type === 'plot' ? { plantedAt: 0 }
+      // NAME THE KEEPER. Which trade they follow is decided by what they
+      // stand beside, exactly as the window works it out for the sprite --
+      // so the name is stable, hashed, and the same in every window.
+      let extra = type === 'plot' ? { plantedAt: 0 }
         : type === 'landmark' ? { kind: KIND_FOR[ch] ?? lk }
         : undefined
+      if (type === 'keeper' && nameKeeper) {
+        let trade = 'town'
+        for (const [ddx, ddy] of [[1,0],[-1,0],[0,1],[0,-1],[2,0],[-2,0],[0,2],[0,-2]]) {
+          const rr = ry + ddy, cc = rx + ddx
+          if (rr < 0 || cc < 0 || rr >= rows.length || cc >= rows[0].length) continue
+          const t2 = LEGEND[rows[rr][cc]]
+          if (t2 === 'bank') { trade = 'clerk'; break }
+          if (t2 === 'store') { trade = 'shop'; break }
+          if (t2 === 'anvil') { trade = 'smith'; break }
+          if (t2 === 'house') trade = 'town'
+        }
+        extra = { name: nameKeeper(name + '|' + trade + '|' + rx + ',' + ry) }
+      }
       E.addNode(w, idPrefix + '-' + (i++), type, x, y, extra)
       taken.add(key(x, y))
       n++
