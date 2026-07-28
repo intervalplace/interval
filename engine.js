@@ -209,6 +209,11 @@ function _smtWith(pid, digest, path) {
   return _smtFold(pid, digest === null ? _EMPTY[0] : _smtLeaf(pid, digest), path);
 }
 
+// does this citizen carry the one bow, in pack or in hand?
+function _carriesBow(p) {
+  if (p?.equipment?.weapon?.item === 'dragonbow') return true;
+  return (p?.inventory ?? []).some(sl => sl && sl.item === 'dragonbow');
+}
 function everWasSomebody(p) {
   if (p.name !== null && p.name !== undefined) return true;
   if ((p.gold ?? 0) > 0) return true;
@@ -297,6 +302,7 @@ const NODE_YIELD = {
 const WIELD_REQS = {
   'star-sword': { attack: 20 }, 'star-dagger': { attack: 20 }, 'old-chain': { attack: 30 },
   'star-spear': { attack: 20 }, 'star-maul': { attack: 25 }, 'horn-bow': { ranged: 20 },
+  'dragonbow': { ranged: 40 },   // it will not be drawn by a beginner
   'star-helm': { defence: 15 }, 'star-plate': { defence: 30 },
 };
 const STORE_SELLS = { seeds: 15 }; // the keeper's OWN goods, made from nothing
@@ -365,6 +371,12 @@ const WEAPONS = {
   'old-chain':     { hit: 1, every: 1, reach: 1, acc: 0 },
   'wooden-bow':    { hit: 0, every: 2, reach: 4, acc: 0, ranged: true },
   'horn-bow':      { hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
+  // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
+  // Reach 9 is the whole weapon: nothing else in the world touches past five,
+  // so whoever draws it fights at a distance where almost nothing can answer.
+  // Against a citizen in the Wilds that is not a duel, it is a decision made
+  // before they knew it started.
+  'dragonbow':     { hit: 6, every: 2, reach: 9, acc: 12, ranged: true },
 };
 const weaponOf = (p) => WEAPONS[p?.equipment?.weapon?.item] ?? null;
 const reachOf = (p) => weaponOf(p)?.reach ?? 1;
@@ -404,6 +416,38 @@ const MOB_STATS = {
   // Seldom alone, they muster in warbands in and around the Wilds. The round
   // shield makes them hard to strike (high def); the longsword bites back. And
   // their bones are rich: a fallen knight gives up twice what a lesser thing does.
+  // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
+  // Wilds -- a thing that is there, like the Barrow and the Ring.
+  //
+  // It strikes EVERY tick for eight rather than rarely for a great deal,
+  // because that is what defeats mend: a sigil-stacker heals twenty in a
+  // burst and food gives 0.625 a tick, so sustained pressure beats them and
+  // a big slow swing does not. One citizen cannot outlast it. Several can,
+  // and several in the Wilds is its own problem.
+  //
+  // It is IMMUNE TO RANGED: scales turn arrows. Which means the bow made
+  // from the dragon cannot kill the dragon, and whoever wants it must come
+  // with steel and company.
+  // atk 115 is the whole design. Every other beast here is atk 1-5, and the
+  // accuracy rule is Tm = clamp(128 + 4*(atk - defence), 16, 240): against a
+  // citizen at defence 99 an atk-5 wolf is clamped to sixteen in two hundred
+  // and fifty-six -- it lands one blow in sixteen and a star-clad citizen is
+  // immortal. That is not an oversight, it is what a world where combat is
+  // not the point looks like.
+  //
+  // The dragon is the exception, and it is an exception on the CITIZEN'S
+  // scale: at 115 it out-reaches maxed defence and lands three swings in
+  // four. Measured against maxed citizens in full star gear with broth:
+  //
+  //     one citizen  : dies, every time
+  //     two          : win, and it is a real fight
+  //     four         : win comfortably
+  //
+  // Which is the thing asked for: you cannot do this alone, and the people
+  // you bring are in the Wilds with you.
+  dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 1, rangedImmune: true,
+            respawn: 36000,          // six hours: killing it is an event, not a round
+            drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'ore' }] },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120,
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 12288 },            // scavenged metal
@@ -463,7 +507,7 @@ const RECIPES = {
   'star-plate':     { 'magic-stone': 4, ore: 3 },
   'star-dagger':    { 'magic-stone': 2, ore: 1 },
 };
-const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain']);
+const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow']);
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
 // syntactically pretty identifier that is not in this set is contraband:
@@ -472,6 +516,7 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
   'bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
+  'dragonbow',   // §6w: there is one. No keeper prices it, so it is never bought.
   ...Object.keys(RECIPES),
 ]);
 const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body' }; // default: weapon
@@ -1649,7 +1694,20 @@ const LANDMARK_KINDS = new Set([
       } else if (n.by !== undefined) return 'unplanted plot carries an owner';
     }
     if (n.text !== undefined) {
-      if (n.type !== 'signpost') return 'text on a non-signpost node';
+      // A SIGNPOST BEARS WORDS, AND SO DOES A STANDING STONE.
+      //
+      // Oberon's teaching stood on five signposts set around the Ring, which
+      // is a plaque beside a megalith: the stones were there before him and
+      // he intends to return the favour, and a wooden board is not how that
+      // gets said. A stone is a thing you CARVE. So the words go into the
+      // stones, and the ring is the teaching rather than a place with
+      // notices in it.
+      //
+      // Only a standing stone: a cut-face or a spoil-heap bearing prose
+      // would be somebody's graffiti, not the world's own voice.
+      const carvable = n.type === 'signpost'
+        || (n.type === 'landmark' && n.kind === 'standing-stone');
+      if (!carvable) return 'text on a node that bears none';
       if (typeof n.text !== 'string' || n.text.length > 256) return 'malformed node text';
     }
     // A KEEPER BEARS A NAME.
@@ -1672,6 +1730,8 @@ const LANDMARK_KINDS = new Set([
   // §5g: the archive is ONE HASH. Not a list of who is in it -- the root
   // says nothing about who, only that whoever brings a path is telling the
   // truth. That is the whole reason it costs the tick nothing.
+  // §6w: the world remembers whether the one bow is loose
+  if (state.bowOut !== undefined && typeof state.bowOut !== 'boolean') return 'malformed bowOut';
   if (state.archiveRoot !== undefined) {
     if (typeof state.archiveRoot !== 'string' || !HEX64.test(state.archiveRoot))
       return 'malformed archive root';
@@ -1975,6 +2035,10 @@ function validInput(state, input, ctx) {
       if (m && (m.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot be struck (v0.80)
       if (!m || m.hp <= 0) return false;
       if (inReach(p, m)) return true;
+      // §6w: SCALES TURN ARROWS. A drawn bow does nothing to the dragon at
+      // all -- which is the only reason a citizen must ever close with it,
+      // and the reason the bow made from it cannot be turned on it.
+      if (MOB_STATS[m.type]?.rangedImmune) return false;
       // ranged (spec 6j): a drawn bow and a carried arrow reach further
       const cheb = Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y));
       return cheb <= reachOf(p) && isRanged(p)
@@ -2114,6 +2178,20 @@ function validInput(state, input, ctx) {
     }
     case 'deposit': {
       if (!Number.isInteger(input.slot) || !p.inventory[input.slot]) return false;
+      // §6w: THE BOW CANNOT BE PUT AWAY.
+      //
+      // This world is against hidden power. Names are public, standing is
+      // public, the hiscores are public -- and a unique weapon locked in a
+      // strongroom would be the one thing in it that nobody could see and
+      // nobody could reach. Its holder would carry the status and none of
+      // the risk.
+      //
+      // So the bow lives in a pack or it lies on the ground. Whoever has it
+      // carries it everywhere, into every fight and past the Brand, and can
+      // never set it down somewhere safe and go about their day. That is
+      // what makes being hunted TRUE rather than merely said: you cannot opt
+      // out of it without giving the bow up.
+      if (p.inventory[input.slot].item === 'dragonbow') return false;
       return hasAdjacentNode(state, ctx, p, 'bank');
     }
     case 'withdraw': {
@@ -2607,7 +2685,24 @@ function nextState(state, inputs, _legacyBeacon) {
   }
   // ground decay (spec §3.4): the ground forgets
   for (const [gid, g2] of Object.entries(s.ground)) {
-    if (g2.expiresAt <= s.tick) delete s.ground[gid];
+    if (g2.expiresAt <= s.tick) {
+      // §6w: THE GROUND DOES NOT FORGET THE BOW -- it goes home instead.
+      //
+      // Ground items rot in a hundred ticks. Kill the dragon and die before
+      // you can stoop for it, or drop it and walk away, and the one unique
+      // object in the world would simply stop existing -- with `bowOut` still
+      // saying it was loose, so the dragon would never yield another. The
+      // finest thing here, gone in sixty seconds, and nothing in the world
+      // would know.
+      //
+      // Everywhere else the rule is the same: whoever stops holding the bow
+      // gives it back to the dragon. The ground is no different.
+      if (g2.item === 'dragonbow' && s.bowOut) {
+        s.bowOut = false;
+        announce(s, 'The DRAGONBOW lay unclaimed, and has gone back to the Wilds.');
+      }
+      delete s.ground[gid];
+    }
   }
 
   _p2mark('input_prep');
@@ -2681,6 +2776,9 @@ function nextState(state, inputs, _legacyBeacon) {
       // node on disk; the world keeps only the proof that it was so.
       const subj = s.players[inp.subject];
       if (!subj) continue;
+      // §6w: an archived citizen takes their pack with them, so the bow goes
+      // home rather than out of the world for as long as they stay away
+      if (_carriesBow(subj)) { s.bowOut = false; announce(s, 'The DRAGONBOW has gone back to the Wilds.'); }
       // the slot must be empty under the LIVE root, not the opening one
       const live = s.archiveRoot ?? EMPTY_ROOT;
       if (!_smtProves(live, inp.subject, null, inp.path)) continue;
@@ -3261,6 +3359,24 @@ function nextState(state, inputs, _legacyBeacon) {
           const gid = 'g' + s.tick + '-' + p.action.mobId + '-' + di + '-' + d.item; // di keeps twin drops distinct
           s.ground[gid] = { item: d.item, x: m.x, y: m.y, expiresAt: s.tick + 100 };
         }
+        // §6w: THE BOW GOES WITH WHOEVER TAKES THE DRAGON, IF THE DRAGON
+        // STILL HAS IT.
+        //
+        // There is one dragonbow and there will only ever be one. It is not a
+        // drop that accumulates: it is a THING THE DRAGON HAS, and it changes
+        // hands rather than multiplying. Kill the dragon while it holds the
+        // bow and the bow is yours. Kill it afterwards and you get scales and
+        // bones, because somebody already has it.
+        //
+        // `bowOut` is the world remembering that the bow is loose. Nothing
+        // else needs to track WHO holds it: the item is in somebody's pack
+        // and packs are already the world's record of who has what.
+        if (m.type === 'dragon' && !s.bowOut) {
+          const bid = 'g' + s.tick + '-dragonbow';
+          s.ground[bid] = { item: 'dragonbow', x: m.x, y: m.y, expiresAt: s.tick + 100 };
+          s.bowOut = true;
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' has taken the DRAGONBOW. There is only one.');
+        }
         m.respawnAt = s.tick + stats.respawn;
         p.action = null;
       } else {
@@ -3385,6 +3501,12 @@ function nextState(state, inputs, _legacyBeacon) {
       const away = s.tick - (p.lastInput ?? 0);
       if (away <= FORGET_AFTER) continue;
       if (!everWasSomebody(p)) {           // a key that was never anybody
+        // §6w: THE BOW GOES HOME. A unique thing held by somebody who never
+        // comes back is a unique thing lost, and the best object in the world
+        // sitting in a dead pack forever is worse than no unique object at
+        // all. So if the departing citizen carries it, the dragon has it
+        // again, and the dragon is worth killing again.
+        if (_carriesBow(p)) { s.bowOut = false; announce(s, 'The DRAGONBOW has gone back to the Wilds.'); }
         delete s.players[pid];
         swept++;
       }

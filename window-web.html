@@ -1536,7 +1536,9 @@ function onState(s, worldId) {
     for (const [pid2, pOld] of Object.entries(prev.players)) {
       if (pid2 === myId || !pOld.trade || pOld.trade.to !== myId) continue
       if (s.players[pid2]?.trade) continue // still open: not settled
-      const gi = pOld.inventory[pOld.trade.giveSlot]?.item
+      // giveSlotS, an array: the same singular read that hid every offer
+      const _og = pOld.trade.giveSlots ?? (pOld.trade.giveSlot != null ? [pOld.trade.giveSlot] : [])
+      const gi = _og.map(i => pOld.inventory[i]?.item).find(Boolean)
       if (gi && (b[gi] || 0) > (a[gi] || 0)) {
         tradeItem = gi                  // I accepted; the goods arrived
         SFX.trade()
@@ -2855,7 +2857,20 @@ function tileHash(x, y, k) { // integer avalanche: adjacent tiles decorrelate
   return ((h ^ (h >>> 16)) >>> 0)
 }
 const trailYOf = () => Math.floor(H / 2)
-const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
+// THE LAW, READ FROM THE GENESIS -- not a rectangle remembered from another
+// world. This said `x <= 34 && y <= 22`, which is the v1 island: thirty-four
+// tiles wide. On a world 896 across it is false everywhere a citizen can
+// stand, so the Wilds never applied, and clicking anyone only ever offered
+// trade. Straightening the Brandline was necessary and did nothing on its
+// own, because the window was not asking about the Brandline at all.
+//
+// `geo.wilds` is what the ENGINE uses (inWilds, spec 6d). Reading the same
+// field is the only way this cannot drift again.
+const inWildsC = (x, y) => {
+  const w = (curState ?? world)?.genesis?.geo?.wilds
+  if (!w) return x >= 1 && x <= 34 && y >= 1 && y <= 22   // the classic world
+  return x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1
+}
 function riverXC(y) { // mirror of worldgen's course: for painting banks and bridges
   const cx2 = Math.floor(W / 2)
   return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1
@@ -3775,6 +3790,21 @@ function drawScene(now) {
           cx.fillRect(X + 11, Y + 8, 11, 3)
           cx.fillStyle = '#5a7a3e' // the moss keeps the north face
           cx.fillRect(X + 13, Y - 7, 4, 5)
+          // A CARVED STONE SHOWS IT. Faint lines cut into the face, and a
+          // low glow at night so you can tell from across the ring which of
+          // them bear words. The words themselves live on the node.
+          if (n.text) {
+            cx.strokeStyle = 'rgba(232,222,196,' + (0.20 + 0.10 * Math.sin(now / 900 + n.x)) + ')'
+            cx.lineWidth = 1
+            for (let ci = 0; ci < 4; ci++) {
+              const cy2 = Y + 10 + ci * 5
+              cx.beginPath(); cx.moveTo(X + 13, cy2); cx.lineTo(X + 27 - (ci % 2) * 5, cy2); cx.stroke()
+            }
+            if (night > 0.15) {
+              cx.fillStyle = 'rgba(226,182,62,' + (0.10 * night) + ')'
+              cx.beginPath(); cx.ellipse(X + 20, Y + 18, 13, 16, 0, 0, 7); cx.fill()
+            }
+          }
         } else if (n.kind === 'tally-half') {
           // half a stick in a stone base: the jagged edge is the proof
           shadow(X, Y, 8)
@@ -4321,6 +4351,113 @@ function drawScene(now) {
       const hop = engaged ? Math.abs(Math.sin(now / 160)) * 2 : Math.sin(now / 700 + m.x) * 0.7
       shadow(X, Y, 9)
       if ((m.rootedUntil ?? 0) > s.tick) rootBind(X, Y)
+      if (m.type === 'dragon') {
+        // IT IS BIGGER THAN ITS TILE, and it should be. Everything else in
+        // this world fits inside forty pixels; the one thing that kills a
+        // maxed citizen does not. The sprite overflows deliberately, the way
+        // the cottage smoke does, so that seeing it at the edge of the screen
+        // is itself the warning.
+        const breathe = Math.sin(now / 1100) * 1.5
+        const beat = Math.sin(now / 640)
+        const F = MF < 0 ? -1 : 1          // which way it faces
+        const HX = X + 20 - F * 24, HY = Y - 12 + breathe   // the head
+        cx.fillStyle = 'rgba(0,0,0,.32)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 34, 30, 8, 0, 0, 7); cx.fill()
+
+        // ---- WINGS: a bone arc, then membrane hung between fingers ----
+        for (const side of [-1, 1]) {
+          const sp = 1 + beat * 0.22                    // the beat opens them
+          const tipX = X + 20 + side * 34 * sp, tipY = Y - 6 - beat * 7
+          const elbX = X + 20 + side * 20, elbY = Y - 14 - beat * 5
+          cx.fillStyle = side * F > 0 ? '#3d2430' : '#331e29'   // far wing darker
+          cx.beginPath()
+          cx.moveTo(X + 20, Y + 10 + breathe)
+          cx.quadraticCurveTo(elbX, elbY, tipX, tipY)           // leading edge
+          for (let k = 3; k >= 1; k--) {                        // scalloped trailing edge
+            const fx = X + 20 + (tipX - X - 20) * (k / 4), fy = tipY + (Y + 22 - tipY) * (1 - k / 4)
+            cx.quadraticCurveTo(fx + side * 3, fy + 7, fx, fy + 2)
+          }
+          cx.closePath(); cx.fill()
+          cx.strokeStyle = 'rgba(140,86,104,.55)'; cx.lineWidth = 1.4     // the finger bones
+          for (let k = 1; k <= 3; k++) {
+            const fx = X + 20 + (tipX - X - 20) * (k / 4), fy = tipY + (Y + 22 - tipY) * (1 - k / 4)
+            cx.beginPath(); cx.moveTo(X + 20, Y + 11 + breathe); cx.lineTo(fx, fy + 2); cx.stroke()
+          }
+          cx.strokeStyle = '#5a3444'; cx.lineWidth = 2.2                   // the arm itself
+          cx.beginPath(); cx.moveTo(X + 20, Y + 10 + breathe)
+          cx.quadraticCurveTo(elbX, elbY, tipX, tipY); cx.stroke()
+        }
+
+        // ---- TAIL: out behind, with a spade ----
+        const tw = Math.sin(now / 900) * 6
+        cx.strokeStyle = '#4a2a20'; cx.lineWidth = 7; cx.lineCap = 'round'
+        cx.beginPath(); cx.moveTo(X + 20, Y + 26)
+        cx.quadraticCurveTo(X + 20 + F * 22, Y + 34 + tw * 0.4, X + 20 + F * 34, Y + 14 + tw)
+        cx.stroke(); cx.lineWidth = 3
+        cx.beginPath(); cx.moveTo(X + 20 + F * 34, Y + 14 + tw)
+        cx.lineTo(X + 20 + F * 40, Y + 6 + tw); cx.stroke(); cx.lineCap = 'butt'
+        poly([[X+20+F*40,Y+6+tw],[X+20+F*47,Y+2+tw],[X+20+F*41,Y+12+tw]], '#6b3a2a')
+
+        // ---- BODY: a barrel chest, not a lump ----
+        cx.fillStyle = '#5a3226'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 19 + breathe, 13, 11, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#241009'; cx.lineWidth = 1.4; cx.stroke()
+        cx.fillStyle = '#7a4a34'                                   // lit along the top
+        cx.beginPath(); cx.ellipse(X + 20, Y + 15 + breathe, 10, 6, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#c9a86a'                                   // belly plates
+        for (let r = 0; r < 3; r++) cx.fillRect(X + 15, Y + 22 + r * 3 + breathe, 10 - r * 2, 1.8)
+        // haunch and a foot planted
+        cx.fillStyle = '#4a2a20'
+        cx.beginPath(); cx.ellipse(X + 20 + F * 9, Y + 26 + breathe, 7, 6, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#c9b98a'; cx.lineWidth = 1.6
+        for (const cw of [-3, 0, 3]) { cx.beginPath()
+          cx.moveTo(X + 20 + F * 12 + cw * 0.4, Y + 31); cx.lineTo(X + 20 + F * 14 + cw, Y + 34); cx.stroke() }
+
+        // ---- SPINE: a ridge of plates from shoulder to tail ----
+        cx.fillStyle = '#8a5a3a'
+        for (let r = 0; r < 5; r++) {
+          const sx = X + 20 + F * (r * 4 - 4), sy = Y + 12 + r * 2.4 + breathe
+          poly([[sx - 2.5, sy], [sx, sy - 5 + r * 0.5], [sx + 2.5, sy]], '#8a5a3a')
+        }
+
+        // ---- NECK and HEAD: long, out over the tile edge ----
+        cx.strokeStyle = '#5a3226'; cx.lineWidth = 9; cx.lineCap = 'round'
+        cx.beginPath(); cx.moveTo(X + 20 - F * 4, Y + 14 + breathe)
+        cx.quadraticCurveTo(X + 20 - F * 18, Y + 2 + breathe, HX + F * 4, HY + 4)
+        cx.stroke(); cx.lineCap = 'butt'
+        // skull: a wedge with a snout, not a ball
+        poly([[HX + F * 8, HY - 1], [HX - F * 6, HY - 5], [HX - F * 11, HY + 1],
+              [HX - F * 6, HY + 6], [HX + F * 7, HY + 5]], '#6e4030', '#241009')
+        poly([[HX - F * 6, HY + 2], [HX - F * 12, HY + 2], [HX - F * 6, HY + 6]], '#4a2a20')  // jaw
+        cx.strokeStyle = '#c9b98a'; cx.lineWidth = 2.2                    // horns, swept back
+        for (const hh of [-2.5, 2.5]) {
+          cx.beginPath(); cx.moveTo(HX + F * 4, HY - 3 + hh * 0.6)
+          cx.quadraticCurveTo(HX + F * 11, HY - 8 + hh, HX + F * 15, HY - 5 + hh * 1.4); cx.stroke()
+        }
+        cx.fillStyle = engaged ? '#ff6a1f' : '#e2a63e'                    // the eye
+        cx.beginPath(); cx.ellipse(HX - F * 2, HY - 1, 2.6, 1.8, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#1a0d06'
+        cx.fillRect(HX - F * 2 - 0.5, HY - 2.6, 1, 3.2)                   // a slit pupil
+        cx.fillStyle = 'rgba(255,140,40,' + (engaged ? 0.22 : 0.10) + ')'
+        cx.beginPath(); cx.arc(HX - F * 2, HY - 1, 8, 0, 7); cx.fill()
+
+        // ---- BREATH: smoke always, fire when it is fighting ----
+        for (let k = 0; k < 4; k++) {
+          const t2 = ((now / (1400 + k * 380)) + k * 0.25) % 1
+          const bx = HX - F * (11 + t2 * 16), by = HY + 3 - t2 * 7
+          cx.fillStyle = engaged
+            ? 'rgba(255,' + (90 + k * 34) + ',' + (20 + k * 10) + ',' + (0.55 * (1 - t2)) + ')'
+            : 'rgba(158,148,140,' + (0.20 * (1 - t2)) + ')'
+          cx.beginPath(); cx.arc(bx, by, 1.8 + t2 * (engaged ? 6 : 4.5), 0, 7); cx.fill()
+        }
+
+        cx.fillStyle = '#4a1008'; cx.fillRect(X + 2, Y - 34, 36, 4.4)
+        cx.fillStyle = '#c0392b'; cx.fillRect(X + 2, Y - 34, 36 * Math.max(0, m.hp / 420), 4.4)
+        cx.fillStyle = 'rgba(226,182,62,.9)'
+        cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
+        cx.fillText('THE DRAGON', X + 20, Y - 37); cx.textAlign = 'left'
+        return
+      }
       if (m.type === 'troll') {
         const heave = Math.sin(now / 800 + m.x) * 1
         poly([[X+6,Y+33],[X+8,Y+12+heave],[X+20,Y+6+heave],[X+32,Y+12+heave],[X+34,Y+33]], '#5c6b52', '#2a3324')
@@ -4873,8 +5010,14 @@ function panel(s) {
   const offers = []
   for (const [pid, p] of Object.entries(s.players)) {
     if (pid === myId || p.trade?.to !== myId) continue
-    const giveItem = p.inventory[p.trade.giveSlot]?.item
-    if (!giveItem) continue
+    // the engine stores giveSlotS: an ARRAY. This read `giveSlot`, singular,
+    // which is undefined -- so inventory[undefined] was undefined and every
+    // incoming offer hit the `continue` below and vanished. The offer landed
+    // in the world correctly the whole time; nobody was ever shown it.
+    const gslots = p.trade.giveSlots ?? (p.trade.giveSlot != null ? [p.trade.giveSlot] : [])
+    const giveNames = gslots.map(i => p.inventory[i]?.item).filter(Boolean)
+    if (!giveNames.length) continue
+    const giveItem = giveNames.join(' + ')
     const haveWant = me.inventory.some(sl => sl && sl.item === p.trade.wantItem)
     offers.push('<div class="stone" style="padding:5px 7px;margin-top:4px">'
       + '<b style="color:var(--gold)">' + (p.name ?? pid.slice(0, 6)) + '</b> offers '
@@ -4884,7 +5027,8 @@ function panel(s) {
       + '</div>')
   }
   if (me.trade) {
-    const gi = me.inventory[me.trade.giveSlot]?.item ?? '?'
+    const _gs = me.trade.giveSlots ?? (me.trade.giveSlot != null ? [me.trade.giveSlot] : [])
+    const gi = _gs.map(i => me.inventory[i]?.item).filter(Boolean).join(' + ') || '?'
     offers.push('<div style="padding:4px 7px;margin-top:4px;background:var(--stone-dk)">your offer: '
       + gi.replace('-', ' ') + ' for ' + me.trade.wantItem.replace('-', ' ')
       + ' <button data-cancel="1">cancel</button></div>')
@@ -5250,6 +5394,17 @@ function drawSunMap(s, now) {
   for (const m of Object.values(s.mobs)) {
     if (!m || m.hp <= 0) continue
     const [dx, dy] = at(m.x, m.y)
+    // THE DRAGON IS NOT A DOT. There is one thing on this island that kills a
+    // citizen in full star gear, and somebody who cannot see where it is
+    // cannot decide to avoid it.
+    if (m.type === "dragon") {
+      const pulse = 0.5 + 0.5 * Math.sin(now / 700)
+      g.fillStyle = "rgba(224,80,30," + (0.22 + 0.22 * pulse) + ")"
+      g.beginPath(); g.arc(dx, dy, 4 + pulse * 2.5, 0, 7); g.fill()
+      g.fillStyle = "#ff7a2a"
+      g.beginPath(); g.arc(dx, dy, 2, 0, 7); g.fill()
+      continue
+    }
     g.fillStyle = m.type === "skeleton-knight" ? "#e0857a" : "rgba(205,150,120,.85)"
     g.fillRect(dx - 1, dy - 1, 2, 2)
   }
@@ -5642,6 +5797,9 @@ cv.addEventListener('click', (e) => {
       if (n.type === 'smith') { feed('The smith gestures at the anvil. "Ore and logs. The rest is rhythm."'); return }
       if (n.type === 'well') { feed('You peer into the well. Somewhere far below, a tick echoes.'); return }
       if (n.type === 'signpost') { feed(n.text || 'West: Westhearth. East: Eastmere. North: Anchor.'); return }
+      // a carved stone is read the same way a sign is: the words are in the
+      // world, on the stone, not in this file
+      if (n.type === 'landmark' && n.text) { feed(n.text); flashClick(n.x, n.y, false); return }
       if (n.type === 'wall') { feed('The wall is old, and it is not going anywhere.'); return }
       if (n.type === 'bank') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }

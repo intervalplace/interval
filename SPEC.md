@@ -1143,6 +1143,13 @@ behind. This is the property that makes batching safe, and its absence is
 not loud: an earlier draft archived three citizens into a root that could
 prove none of them, and nothing looked wrong.
 
+**A standing stone bears words.** `text` (up to 256 characters) is valid on a
+`signpost` and on a `landmark` whose kind is `standing-stone` — nothing else.
+The Ring's teaching is CARVED into the stones rather than propped beside them
+on boards: the stones were there first, and a wooden sign is not how that
+gets said. A cut-face or a spoil-heap bearing prose would be somebody's
+graffiti, not the world's own voice.
+
 **An archived citizen keeps their name.** They are absent, not gone, and a
 name paid for with the toll in §5a does not fall vacant because somebody
 took a fortnight off. The registry holds it for whoever proves they own it
@@ -2280,6 +2287,95 @@ trustworthy (§9a's two-peer corroboration remains the rule only for
 optimistic worlds). Catch-up serves finality records, not raw inputs:
 the recovering node verifies each proof and replays each bundle,
 demanding the certified result byte-for-byte.
+
+## 6w. The dragon, and the one bow
+
+There is a dragon. Not a kind of thing that spawns in the Wilds — a thing
+that is there, like the Barrow and the Ring and the Brandline. It sits deep
+in the west, well past the Brand, and the walk is meant to be a decision.
+
+```
+maxHp 420 · atk 115 · def 24 · maxHit 28 · respawn 36,000 ticks (six hours)
+```
+
+**`atk 115` is the whole design.** Every other beast is atk 1–5, and the
+accuracy rule is `Tm = clamp(128 + 4*(atk − defence), 16, 240)`: against a
+citizen at defence 99 an atk-5 wolf is clamped to sixteen in two hundred and
+fifty-six. It lands one blow in sixteen, and a star-clad citizen is
+immortal. That is not an oversight; it is what a world where combat is not
+the point looks like. The dragon is the single exception, and it is an
+exception on the **citizen's** scale.
+
+Measured against maxed citizens in full star gear carrying broth:
+
+| | |
+|---|---|
+| one citizen | **dies**, every time |
+| two | win, and it is a real fight |
+| four | win comfortably |
+
+**Scales turn arrows.** The dragon is immune to ranged attack entirely — a
+drawn bow does nothing to it at any distance. This is the only reason a
+citizen must ever close with anything, and it means the bow made from the
+dragon can never be turned on the dragon.
+
+### The dragonbow
+
+```
+hit 6 · every 2 · reach 9 · acc +12 · requires ranged 40
+```
+
+**Reach nine is the weapon.** Nothing else in the world touches past five, so
+whoever draws it fights at a distance where almost nothing can answer.
+
+**There is one, and there will only ever be one.** It is not a drop that
+accumulates: it is a thing the dragon HAS, and it changes hands rather than
+multiplying.
+
+- the dragon holds it whenever no citizen does
+- kill the dragon while it holds the bow, and the bow is yours
+- kill it afterwards and you get scales and bones, because somebody has it
+- die in the Wilds and your killer takes it, like anything else in a pack
+- **be archived or forgotten while holding it, and it goes home to the
+  dragon** — a unique thing held by somebody who never comes back is a
+  unique thing lost, and the best object in the world sitting in a dead pack
+  forever is worse than no unique object at all
+
+`state.bowOut` is the world remembering that the bow is loose. Nothing needs
+to track WHO holds it: it is in somebody's pack, and packs are already the
+world's record of who has what.
+
+**No keeper prices it**, so it can never be bought — the same rule as
+`old-chain`, and for the same reason. Gold has no top end in this world:
+status here is never purchasable. Names cost standing, the old chain costs
+asking, and the bow costs blood.
+
+**It cannot be banked.** A `deposit` of the dragonbow is refused at any
+strongroom.
+
+This world is against hidden power: names are public, standing is public,
+the hiscores are public. A unique weapon locked in a vault would be the one
+thing in it nobody could see and nobody could reach, and its holder would
+carry the status with none of the risk. So the bow lives in a pack or it
+lies on the ground. Whoever has it carries it everywhere, into every fight
+and past the Brand, and can never set it down somewhere safe and go about
+their day.
+
+That is what makes being hunted TRUE rather than merely said: **you cannot
+opt out of it without giving the bow up.**
+
+And it can be answered. Moving cancels your action (§5), so a bow-holder
+cannot shoot and flee in the same tick: to loose an arrow you must stand
+still, and every arrow costs you ground. Measured, in the open, against
+maxed hunters in star gear:
+
+| | |
+|---|---|
+| one hunter with a maul | the holder falls |
+| two | the holder falls, quickly |
+
+Reach nine is a devastating opening, not an escape. The bow is a burden as
+much as a prize, and that is what keeps it moving without a market.
 
 ## 9g. Two additions to the vocabulary
 
