@@ -667,7 +667,8 @@ function handle(ws, buf) {
 node.onChat = (msg) => {
   const name = node.state.players[msg.playerId]?.name ?? msg.playerId.slice(0, 6)
   const out = JSON.stringify({ type: 'chat', playerId: msg.playerId, name, text: msg.text })
-  for (const ws of sockets.keys()) if (ws.readyState === 1) ws.send(out)
+  for (const ws of sockets.keys())
+    if (ws.readyState === 1 && (ws.bufferedAmount ?? 0) < 2 * 1024 * 1024) ws.send(out)
 }
 
 const worldId = node.worldId // the COMPLETE id: windows sign with it and display a prefix
@@ -679,7 +680,39 @@ node.onTick = (state) => {
   }
   lastTickAt = nowT
   const msg = JSON.stringify({ type: 'state', state, worldId })
-  for (const ws of sockets.keys()) if (ws.readyState === 1) ws.send(msg)
+  // ---- NEVER QUEUE BEHIND A SOCKET THAT IS NOT DRAINING ----
+  //
+  // This was `if (ws.readyState === 1) ws.send(msg)`, and it ran the node out
+  // of memory after three and a half hours: 2 GB of heap, dead.
+  //
+  // readyState 1 means OPEN. It does not mean the far end is reading. A phone
+  // that went into a tunnel, a laptop that slept, a tab that was backgrounded
+  // — all stay OPEN for minutes while `send()` quietly queues into the
+  // socket's buffer. At six hundred kilobytes a tick, ten times a minute, one
+  // stalled client is a third of a gigabyte an hour.
+  //
+  // And the queued frames are worthless anyway. A state broadcast is a
+  // SNAPSHOT, not a stream: if a client has not drained tick 1000 there is no
+  // value in also sending it tick 1001, because 1002 supersedes both. So a
+  // backed-up socket is skipped, and it catches up on the next tick it can
+  // actually receive.
+  //
+  // Past a hard ceiling the client is not slow, it is gone: closed, so the
+  // buffer is released rather than held for a reader that will never come.
+  const SKIP_ABOVE = 2 * 1024 * 1024   // ~3 ticks behind: wait for it to drain
+  const DROP_ABOVE = 16 * 1024 * 1024  // ~25 ticks behind: it is not coming back
+  let skipped = 0, dropped = 0
+  for (const ws of sockets.keys()) {
+    if (ws.readyState !== 1) continue
+    const backlog = ws.bufferedAmount ?? 0
+    if (backlog > DROP_ABOVE) { dropped++; try { ws.terminate ? ws.terminate() : ws.close() } catch {} ; continue }
+    if (backlog > SKIP_ABOVE) { skipped++; continue }
+    ws.send(msg)
+  }
+  if (dropped) console.warn('[backpressure] closed ' + dropped + ' socket(s) more than '
+    + (DROP_ABOVE / 1048576) + 'MB behind at tick ' + state.tick)
+  else if (skipped && state.tick % 100 === 0) console.warn('[backpressure] '
+    + skipped + ' socket(s) behind at tick ' + state.tick + ' — skipping until they drain')
 }
 
 node.startTicking()
