@@ -699,8 +699,22 @@ node.onTick = (state) => {
   //
   // Past a hard ceiling the client is not slow, it is gone: closed, so the
   // buffer is released rather than held for a reader that will never come.
-  const SKIP_ABOVE = 2 * 1024 * 1024   // ~3 ticks behind: wait for it to drain
-  const DROP_ABOVE = 16 * 1024 * 1024  // ~25 ticks behind: it is not coming back
+  // A SKIPPED STATE MUTES THE CITIZEN, so this threshold must never fire for
+  // anyone who is merely busy.
+  //
+  // An input must carry the EXACT current tick (engine §5, `input.tick !==
+  // state.tick`), and the window learns the tick only from the states it
+  // receives. So a client that is skipped goes stale, stamps every input with
+  // a tick that has passed, and has all of them refused -- it walks one step
+  // and stops, and clicking harder does nothing because every click is
+  // stamped with the same dead tick.
+  //
+  // At 2MB against a 0.6MB state that was three messages of headroom: a
+  // browser pausing to render could cross it and fall silent. Twelve is
+  // twenty states behind, which no healthy client reaches and no hiccup
+  // produces. The DROP is what actually bounds memory, and it is unchanged.
+  const SKIP_ABOVE = 12 * 1024 * 1024  // ~20 states behind: genuinely stalled
+  const DROP_ABOVE = 32 * 1024 * 1024  // ~50 states behind: it is not coming back
   let skipped = 0, dropped = 0, worst = 0
   for (const ws of sockets.keys()) {
     if (ws.readyState !== 1) continue
