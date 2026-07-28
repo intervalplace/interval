@@ -66,6 +66,103 @@ const NAME_STANDING = 50;
 // setting: it decides which deeds happen, so it decides state, so it belongs
 // to the constitution.
 const MAX_APPLIED_INPUTS = 4096;
+
+// ---------- THE WORLD FORGETS WHAT NOBODY EVER WAS (spec 5f) ----------
+//
+// Spawn costs one signed input: no gold, no standing, no time. And until now
+// nothing ever removed a player. So a laptop could mint four thousand
+// citizens a tick and fill the world's entire population budget in under
+// five seconds -- permanently, because the constitution is frozen and there
+// is no prune. Every one of those keys would be cloned sixty times a minute
+// for as long as the world lasted, and nobody could ever undo it.
+//
+// The fix is not to make spawning expensive: you cannot charge a newcomer
+// who does not exist yet, and PoW was measured and prices the attacker more
+// cheaply than the visitor (see BRIEF-standing-tiers).
+//
+// So the world forgets, but it forgets carefully. Two conditions, and BOTH
+// must hold:
+//
+//   1. absent a long time -- FORGET_AFTER ticks with no input at all
+//   2. EMPTY-HANDED -- nothing was ever accumulated: no name, no gold, no
+//      bank, no equipment, every skill still at its floor, and nothing in
+//      the pack but the quiver every soul wakes with
+//
+// A citizen who earned one level, banked one coin, or took one name is kept
+// forever, however long they stay away. The founder can leave for a decade
+// and come home. What is forgotten is precisely a key that was created and
+// never used -- which is the only thing an attacker mints in bulk, because
+// giving each bot something to hold costs what giving a real citizen
+// something costs. That is the brief's own insight -- standing is time --
+// applied to permanence rather than to priority.
+//
+// A world that never forgets its citizens is a good promise. A world that
+// must remember every key ever generated is a different promise, and nobody
+// made it deliberately.
+// SIX HOURS, not seventy-two.
+//
+// The emptiness test does the work here: anything at all -- one level, one
+// coin, one name, one item -- and the world keeps you forever. So the timer
+// only ever governs keys that did literally nothing, and nobody needs three
+// days to decide they are not going to play. Six hours is long enough that
+// "I spawned, then dinner happened" survives, and short enough that a flood
+// is gone the same day rather than the same week.
+//
+// And forgetting an empty key costs its owner nothing: they had nothing.
+// They spawn again and are exactly where they were.
+const FORGET_AFTER = 36000;           // 6 hours of ticks at 600ms
+
+// ---------- THE ARCHIVE (spec 5g) ----------
+//
+// Every citizen who ever earned a single xp was kept in `state.players`
+// forever, and the tick clones that map sixty times a minute. At thirty
+// thousand lifetime citizens the tick is 709ms of a 600ms budget: the world
+// stops, not because anyone is playing but because everyone once did. That
+// is not a capacity, it is a countdown.
+//
+// So the ABSENT leave the tick without leaving the world. A citizen who has
+// not acted in ARCHIVE_AFTER ticks is moved out of `players` and into
+// `archived`, which holds not their record but a DIGEST of it:
+//
+//     archived[playerId] = sha256(canonical(record))
+//
+// The record itself is kept by every node on disk -- they all archived the
+// same citizen on the same tick from the same state, so they all have it,
+// and none of them has to be trusted for it. When that citizen returns, the
+// node supplies the record with a `restore` input and the engine rehashes
+// it against the digest. A forged record does not match and is refused.
+// Nothing is lost, nothing is trusted, and the citizen does nothing: their
+// own node hands it back for them.
+//
+// Measured: thirty thousand citizens as full records is 709ms a tick; as
+// digests it is 60ms. Nearly twelve times cheaper, which moves the ceiling
+// from about thirty thousand lifetime citizens to about three hundred and
+// fifty thousand.
+//
+// This is the difference between a world with room for a town and a world
+// with room for a city, and it costs the absent nothing at all.
+const ARCHIVE_AFTER = 1008000;        // 7 days of ticks at 600ms
+
+function everWasSomebody(p) {
+  if (p.name !== null && p.name !== undefined) return true;
+  if ((p.gold ?? 0) > 0) return true;
+  if (p.bank && Object.keys(p.bank).length > 0) return true;
+  if (p.equipment && (p.equipment.weapon || p.equipment.head || p.equipment.body)) return true;
+  if (p.action !== null && p.action !== undefined) return true;
+  if (p.trade !== null && p.trade !== undefined) return true;
+  for (const sk of SKILLS) {
+    const floor = sk === 'hitpoints' ? HP_START_XP : 0;
+    if ((p.skills?.[sk] ?? floor) !== floor) return true;
+  }
+  // the newcomer's quiver is what everyone wakes with; anything else is a deed
+  let slots = 0;
+  for (const it of (p.inventory ?? [])) {
+    if (!it) continue;
+    slots++;
+    if (it.item !== 'arrows' || it.qty > 25) return true;
+  }
+  return slots > 1;
+}
 // v0.76: and a part of that is always kept for people this world has never
 // seen. Serving known citizens first (v0.70) stopped a flood of fresh keys
 // from pushing established citizens out of the tick, but it handed whoever
@@ -75,6 +172,28 @@ const MAX_APPLIED_INPUTS = 4096;
 // world that cannot be entered is a world that ends with the people already
 // in it. This share is not a courtesy; it is the door.
 const STRANGER_SHARE = 256;
+
+// ---------- SPAWNING IS NOT AN ACTION (spec 5h) ----------
+//
+// A spawn used to compete for the same 4,096 slots as a footstep, which
+// meant four thousand souls could be born in six hundred milliseconds. That
+// is not a rate any real world has: even a launch day is a handful a
+// second, and a crowd all arriving at once can wait a tick.
+//
+// It is also what made the world killable. A permanent citizen costs one
+// spawn, ten steps and one gather -- twelve inputs -- so at four thousand
+// spawns a tick an attacker fills three hundred thousand archive slots in
+// NINE MINUTES, and nothing caps the archive.
+//
+// So spawning gets its own budget, small and separate. At one a tick the
+// world still admits a hundred and forty-four THOUSAND new citizens a day,
+// which no world needs, and the same attack now takes fifty hours of
+// uninterrupted flooding instead of nine minutes -- slow, loud, and
+// expensive to sustain.
+//
+// It costs an honest newcomer nothing but a tick or two of waiting on the
+// busiest day this world will ever have.
+const MAX_SPAWNS_PER_TICK = 1;
 // Typed error codes for the CJS engine (mirrors errors.mjs; kept in sync by
 // test/version.test.mjs). Identity corruption is the one safety-critical
 // engine throw that operators classify.
@@ -333,6 +452,9 @@ const T = {
   name: (v) => isValidName(v) || 'must be a constitutional name',
 };
 const INPUT_SCHEMAS = {
+  // §5g: the way back from the archive. It carries the record the world put
+  // away; the digest in the state decides whether it is the true one.
+  restore: { record: (v) => (v !== null && typeof v === 'object' && !Array.isArray(v)) || 'must be a record' },
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
   still: { target: T.id },
   move: { dx: T.unit, dy: T.unit },
@@ -1469,6 +1591,18 @@ const LANDMARK_KINDS = new Set([
     }
   }
 
+  // §5g: the archive -- playerId -> digest of the record the world put away.
+  // Nothing else may live here: it is a commitment, not a store.
+  if (state.archived !== undefined) {
+    if (state.archived === null || typeof state.archived !== 'object' || Array.isArray(state.archived))
+      return 'malformed archive';
+    for (const [pid, d] of Object.entries(state.archived)) {
+      if (!HEX64.test(pid)) return 'archive keyed by a malformed id';
+      if (typeof d !== 'string' || !HEX64.test(d)) return 'malformed archive digest';
+      if (state.players[pid]) return 'a citizen is both present and archived';
+    }
+  }
+
   // ground entries: OBJECTS with a closed field set, { item, qty?, x, y,
   // expiresAt }; qty is absent on mob drops
   for (const [gid, g] of Object.entries(state.ground)) {
@@ -1488,7 +1622,14 @@ const LANDMARK_KINDS = new Set([
     if (!isValidName(name)) return 'non-constitutional registered name';
     if (typeof pid !== 'string' || !HEX64.test(pid)) return 'name registry points at malformed id';
     const p = state.players[pid];
-    if (!p) return 'name registered to a player that does not exist';
+    if (!p) {
+      // §5g: an ARCHIVED citizen keeps their name. They are absent, not
+      // gone, and a name paid for with the toll in §5a does not fall vacant
+      // because somebody took a fortnight off. Nobody may take it while
+      // they are away, and it is waiting when they are restored.
+      if (state.archived && typeof state.archived[pid] === 'string') continue;
+      return 'name registered to a player that does not exist';
+    }
     if (p.name !== name) return 'name registry disagrees with player';
   }
   for (const [pid, p] of Object.entries(state.players)) {
@@ -1634,6 +1775,20 @@ function validInput(state, input, ctx) {
   if (!verifyInputSig(input)) return false;
   const p = state.players[input.playerId];
   if (input.type === 'spawn') return !p; // §5b: the only input for unknown ids
+  // §5g: a `restore` is the other input an unknown id may send -- unknown
+  // because they were archived, which is the whole point. It carries the
+  // record the world put away, and it is checked against the digest the
+  // world kept. A forged record does not match and does nothing.
+  if (input.type === 'restore') {
+    if (p) return false;                                  // already present
+    const digest = state.archived?.[input.playerId];
+    if (typeof digest !== 'string') return false;         // never archived
+    if (input.record === null || typeof input.record !== 'object') return false;
+    let enc;
+    try { enc = canonical(input.record); } catch { return false; }
+    if (sha256(Buffer.from(enc)).toString('hex') !== digest) return false;
+    return true;
+  }
   if (!p) return false;
   if (p.hp <= 0) return false; // the dead act on nothing (v0.41)
   if ((p.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot act (v0.80)
@@ -2385,6 +2540,18 @@ function nextState(state, inputs, _legacyBeacon) {
   // out other NEW arrivals, but can never displace a citizen already standing
   // in the world, and every node discards exactly the same inputs.
   let order = [...seen.keys()].sort();
+  // §5h: spawns are budgeted APART from actions, and the budget is tiny.
+  // Taken in canonical playerId order so every node admits the same souls;
+  // the rest are simply not applied and may try again next tick.
+  {
+    let born = 0;
+    order = order.filter((pid) => {
+      const inp = seen.get(pid);
+      if (inp === 'DUP' || inp?.type !== 'spawn') return true;
+      if (s.players[pid]) return true;          // not actually a birth
+      return ++born <= MAX_SPAWNS_PER_TICK;
+    });
+  }
   if (order.length > MAX_APPLIED_INPUTS) {
     const known = [], strangers = [];
     for (const pid of order) (s.players[pid] ? known : strangers).push(pid);
@@ -2401,6 +2568,16 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const pid of order) {
     const inp = seen.get(pid);
     if (inp === 'DUP' || !validInput(state, inp, _ctxPre)) continue;
+    if (inp.type === 'restore') {
+      // put them back exactly as they left, and mark them present so the
+      // sweep does not turn round and archive them again on the same tick
+      const rec = _deepCloneJson(inp.record);
+      rec.lastInput = s.tick;
+      s.players[inp.playerId] = rec;
+      delete s.archived[inp.playerId];
+      if (Object.keys(s.archived).length === 0) delete s.archived;
+      continue;
+    }
     if (inp.type === 'spawn') {
       const sp = spawnOf(s.genesis); addPlayer(s, pid, sp.x, sp.y);
       // the newcomer's quiver (v0.78): every soul wakes with twenty-five
@@ -3076,6 +3253,40 @@ function nextState(state, inputs, _legacyBeacon) {
       announce(s, _nm + ' is the FIRST to bear star-forged gear.');
   }
   _p2mark(null);
+
+  // ---- the sweep (spec 5f) ----
+  //
+  // Runs once at the end of every tick, over the working state, in canonical
+  // playerId order so that every node removes exactly the same souls at
+  // exactly the same tick. It is a pure function of the state, so it is part
+  // of the hash like everything else.
+  //
+  // It only ever removes a key that was created and never used. See
+  // everWasSomebody: one level, one coin, one name, one item beyond the
+  // starting quiver, and the world keeps you for good.
+  {
+    let swept = 0, archived = 0;
+    for (const pid of Object.keys(s.players).sort()) {
+      const p = s.players[pid];
+      if (!p) continue;
+      const away = s.tick - (p.lastInput ?? 0);
+      if (away <= FORGET_AFTER) continue;
+      if (!everWasSomebody(p)) {           // a key that was never anybody
+        delete s.players[pid];
+        swept++;
+        continue;
+      }
+      // somebody real, long absent: out of the tick, not out of the world
+      if (away > ARCHIVE_AFTER) {
+        if (!s.archived) s.archived = {};
+        s.archived[pid] = sha256(Buffer.from(canonical(p))).toString('hex');
+        delete s.players[pid];
+        archived++;
+      }
+    }
+    if (swept > 0) s.swept = (s.swept ?? 0) + swept;
+    if (archived > 0) s.archivedCount = (s.archivedCount ?? 0) + archived;
+  }
 
   return s;
 }
