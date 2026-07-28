@@ -143,6 +143,72 @@ const FORGET_AFTER = 36000;           // 6 hours of ticks at 600ms
 // with room for a city, and it costs the absent nothing at all.
 const ARCHIVE_AFTER = 1008000;        // 7 days of ticks at 600ms
 
+// ---------- THE ARCHIVE IS A ROOT, NOT A LIST (spec 5g) ----------
+//
+// A map of playerId -> digest is twelve times lighter than the records it
+// replaced, and still LINEAR: three hundred thousand archived souls is
+// 39 MB of state and 315 ms of every tick. Which made filling it an attack
+// -- not because anyone would ever reach that many honestly, but because a
+// patient flood could, and afterwards the world is permanently slower and
+// the constitution is frozen.
+//
+// So the archive becomes ONE HASH. A sparse merkle tree over the whole
+// keyspace, of which almost every leaf is empty; the state carries its root
+// and nothing else. Ten million archived citizens cost the tick exactly what
+// none do. Filling it stops being an attack, because there is nothing to
+// fill.
+//
+// The tree is never held by the engine -- it cannot be, it is a pure
+// function of a state that contains only the root. Whoever wants a citizen
+// archived or restored brings the PATH, and the root judges it. A wrong
+// path proves nothing and does nothing.
+const SMT_DEPTH = 64;                 // 2^64 slots: collision-safe past any world
+const _EMPTY = (() => {               // the hash of an empty subtree at each depth
+  const e = [sha256(Buffer.from('interval:smt:empty')).toString('hex')];
+  for (let d = 1; d <= SMT_DEPTH; d++)
+    e.push(sha256(Buffer.from('interval:smt:node' + e[d - 1] + e[d - 1])).toString('hex'));
+  return e;
+})();
+const EMPTY_ROOT = _EMPTY[SMT_DEPTH];
+const _smtNode = (l, r) => sha256(Buffer.from('interval:smt:node' + l + r)).toString('hex');
+const _smtLeaf = (pid, digest) => sha256(Buffer.from('interval:smt:leaf' + pid + digest)).toString('hex');
+// the slot a citizen occupies: the first 64 bits of their id, which is a
+// public key and therefore already uniform
+const _smtBit = (pid, d) => (parseInt(pid[Math.floor(d / 4)], 16) >> (3 - (d % 4))) & 1;
+
+// Walk from the leaf to the root, folding in one sibling per level. A path
+// is given compressed: a bitmap of which levels have a non-empty sibling,
+// then only those siblings. Almost every level of a sparse tree is empty,
+// so a real proof is a few hundred bytes rather than four kilobytes.
+function _smtFold(pid, leafHash, path) {
+  if (!path || typeof path.bits !== 'string' || !Array.isArray(path.sibs)) return null;
+  if (path.bits.length !== SMT_DEPTH) return null;
+  let h = leafHash, used = 0;
+  for (let d = SMT_DEPTH - 1; d >= 0; d--) {
+    let sib;
+    if (path.bits[d] === '1') {
+      if (used >= path.sibs.length) return null;
+      sib = path.sibs[used++];
+      if (typeof sib !== 'string' || !HEX64.test(sib)) return null;
+    } else {
+      sib = _EMPTY[SMT_DEPTH - 1 - d];
+    }
+    h = _smtBit(pid, d) ? _smtNode(sib, h) : _smtNode(h, sib);
+  }
+  if (used !== path.sibs.length) return null;   // no unused siblings: one form only
+  return h;
+}
+// does this path prove that `pid` holds exactly `digest` (or is empty) under `root`?
+function _smtProves(root, pid, digest, path) {
+  const leaf = digest === null ? _EMPTY[0] : _smtLeaf(pid, digest);
+  const got = _smtFold(pid, leaf, path);
+  return got !== null && got === root;
+}
+// the root that results from putting `digest` (or emptiness) at `pid`
+function _smtWith(pid, digest, path) {
+  return _smtFold(pid, digest === null ? _EMPTY[0] : _smtLeaf(pid, digest), path);
+}
+
 function everWasSomebody(p) {
   if (p.name !== null && p.name !== undefined) return true;
   if ((p.gold ?? 0) > 0) return true;
@@ -454,7 +520,19 @@ const T = {
 const INPUT_SCHEMAS = {
   // §5g: the way back from the archive. It carries the record the world put
   // away; the digest in the state decides whether it is the true one.
-  restore: { record: (v) => (v !== null && typeof v === 'object' && !Array.isArray(v)) || 'must be a record' },
+  // §5g: the way back from the archive. Carries the record the world put
+  // away and the path that proves the root holds it.
+  restore: {
+    record: (v) => (v !== null && typeof v === 'object' && !Array.isArray(v)) || 'must be a record',
+    path: (v) => (v !== null && typeof v === 'object' && typeof v.bits === 'string' && Array.isArray(v.sibs)) || 'must be a path',
+  },
+  // §5g: the way in. Anyone may archive a citizen the world has not seen in
+  // ARCHIVE_AFTER ticks, by bringing the path to their empty slot. It is a
+  // deed anyone can do and nobody owns, like closing a gate behind you.
+  archive: {
+    subject: T.id,
+    path: (v) => (v !== null && typeof v === 'object' && typeof v.bits === 'string' && Array.isArray(v.sibs)) || 'must be a path',
+  },
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
   still: { target: T.id },
   move: { dx: T.unit, dy: T.unit },
@@ -1591,16 +1669,12 @@ const LANDMARK_KINDS = new Set([
     }
   }
 
-  // §5g: the archive -- playerId -> digest of the record the world put away.
-  // Nothing else may live here: it is a commitment, not a store.
-  if (state.archived !== undefined) {
-    if (state.archived === null || typeof state.archived !== 'object' || Array.isArray(state.archived))
-      return 'malformed archive';
-    for (const [pid, d] of Object.entries(state.archived)) {
-      if (!HEX64.test(pid)) return 'archive keyed by a malformed id';
-      if (typeof d !== 'string' || !HEX64.test(d)) return 'malformed archive digest';
-      if (state.players[pid]) return 'a citizen is both present and archived';
-    }
+  // §5g: the archive is ONE HASH. Not a list of who is in it -- the root
+  // says nothing about who, only that whoever brings a path is telling the
+  // truth. That is the whole reason it costs the tick nothing.
+  if (state.archiveRoot !== undefined) {
+    if (typeof state.archiveRoot !== 'string' || !HEX64.test(state.archiveRoot))
+      return 'malformed archive root';
   }
 
   // ground entries: OBJECTS with a closed field set, { item, qty?, x, y,
@@ -1625,10 +1699,10 @@ const LANDMARK_KINDS = new Set([
     if (!p) {
       // §5g: an ARCHIVED citizen keeps their name. They are absent, not
       // gone, and a name paid for with the toll in §5a does not fall vacant
-      // because somebody took a fortnight off. Nobody may take it while
-      // they are away, and it is waiting when they are restored.
-      if (state.archived && typeof state.archived[pid] === 'string') continue;
-      return 'name registered to a player that does not exist';
+      // because somebody took a fortnight off. The archive is a root and
+      // cannot be enumerated, so the registry simply holds the name for
+      // whoever proves they own it when they return.
+      continue;
     }
     if (p.name !== name) return 'name registry disagrees with player';
   }
@@ -1781,13 +1855,28 @@ function validInput(state, input, ctx) {
   // world kept. A forged record does not match and does nothing.
   if (input.type === 'restore') {
     if (p) return false;                                  // already present
-    const digest = state.archived?.[input.playerId];
-    if (typeof digest !== 'string') return false;         // never archived
-    if (input.record === null || typeof input.record !== 'object') return false;
-    let enc;
-    try { enc = canonical(input.record); } catch { return false; }
-    if (sha256(Buffer.from(enc)).toString('hex') !== digest) return false;
+    // NOTE: the path is NOT checked here. validInput judges every input
+    // against the state as it stood when the tick opened -- which is right
+    // for fairness everywhere else, and wrong for a merkle path, because
+    // paths CHAIN: two archives in one tick each move the root, and the
+    // second must answer to the root the first left behind.
+    //
+    // Checking it here let three citizens be archived in one tick into a
+    // root that could prove none of them. They were not lost loudly; they
+    // were lost silently, which is how merkle bugs are lost. The path is
+    // verified at application time, against the live root, below.
+    try { canonical(input.record); } catch { return false; }
     return true;
+  }
+  // §5g: archiving is a deed, not an event. Anyone may do it for a citizen
+  // long absent, and the path they bring is what makes it verifiable by a
+  // node that holds nothing but a root.
+  if (input.type === 'archive') {
+    const subj = state.players[input.subject];
+    if (!subj) return false;                              // not here to archive
+    if (state.tick - (subj.lastInput ?? 0) <= ARCHIVE_AFTER) return false;  // not absent enough
+    if (!everWasSomebody(subj)) return false;             // the sweep forgets these instead
+    return true;   // the path is checked against the LIVE root at application
   }
   if (!p) return false;
   if (p.hp <= 0) return false; // the dead act on nothing (v0.41)
@@ -2569,13 +2658,37 @@ function nextState(state, inputs, _legacyBeacon) {
     const inp = seen.get(pid);
     if (inp === 'DUP' || !validInput(state, inp, _ctxPre)) continue;
     if (inp.type === 'restore') {
-      // put them back exactly as they left, and mark them present so the
-      // sweep does not turn round and archive them again on the same tick
+      // Back exactly as they left, and present, so the sweep does not turn
+      // round and archive them again on the same tick. The slot they came
+      // from is EMPTIED -- which is what stops the same record being
+      // restored twice.
+      // the path must answer to the root AS IT NOW STANDS, after whatever
+      // else this tick has already done to it
+      const live = s.archiveRoot ?? EMPTY_ROOT;
+      const digest = sha256(Buffer.from(canonical(inp.record))).toString('hex');
+      if (!_smtProves(live, inp.playerId, digest, inp.path)) continue;
+      const nr = _smtWith(inp.playerId, null, inp.path);
+      if (nr === null) continue;
       const rec = _deepCloneJson(inp.record);
       rec.lastInput = s.tick;
       s.players[inp.playerId] = rec;
-      delete s.archived[inp.playerId];
-      if (Object.keys(s.archived).length === 0) delete s.archived;
+      s.archiveRoot = nr;
+      if (s.archiveRoot === EMPTY_ROOT) delete s.archiveRoot;
+      continue;
+    }
+    if (inp.type === 'archive') {
+      // out of the tick, into the root. The record itself is kept by every
+      // node on disk; the world keeps only the proof that it was so.
+      const subj = s.players[inp.subject];
+      if (!subj) continue;
+      // the slot must be empty under the LIVE root, not the opening one
+      const live = s.archiveRoot ?? EMPTY_ROOT;
+      if (!_smtProves(live, inp.subject, null, inp.path)) continue;
+      const digest = sha256(Buffer.from(canonical(subj))).toString('hex');
+      const nr = _smtWith(inp.subject, digest, inp.path);
+      if (nr === null) continue;
+      s.archiveRoot = nr;
+      delete s.players[inp.subject];
       continue;
     }
     if (inp.type === 'spawn') {
@@ -3265,7 +3378,7 @@ function nextState(state, inputs, _legacyBeacon) {
   // everWasSomebody: one level, one coin, one name, one item beyond the
   // starting quiver, and the world keeps you for good.
   {
-    let swept = 0, archived = 0;
+    let swept = 0;
     for (const pid of Object.keys(s.players).sort()) {
       const p = s.players[pid];
       if (!p) continue;
@@ -3274,18 +3387,14 @@ function nextState(state, inputs, _legacyBeacon) {
       if (!everWasSomebody(p)) {           // a key that was never anybody
         delete s.players[pid];
         swept++;
-        continue;
       }
-      // somebody real, long absent: out of the tick, not out of the world
-      if (away > ARCHIVE_AFTER) {
-        if (!s.archived) s.archived = {};
-        s.archived[pid] = sha256(Buffer.from(canonical(p))).toString('hex');
-        delete s.players[pid];
-        archived++;
-      }
+      // Somebody real and long absent is NOT archived here. The engine holds
+      // only a root and cannot derive a path from it, so it cannot put
+      // anyone into the tree unaided. Archiving is an `archive` input,
+      // carrying the path -- see §5g. The citizen simply stays present,
+      // costing the tick, until someone closes the gate behind them.
     }
     if (swept > 0) s.swept = (s.swept ?? 0) + swept;
-    if (archived > 0) s.archivedCount = (s.archivedCount ?? 0) + archived;
   }
 
   return s;
@@ -3331,5 +3440,6 @@ module.exports = {
   },
   signPayload, verifyPayload,
   exportIdentity, importIdentity, loadOrCreateIdentity,
+  canonical, EMPTY_ROOT, SMT_DEPTH,
   SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };
