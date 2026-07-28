@@ -385,7 +385,7 @@
   <div id="verbs">
     <button data-v="pack">PACK</button><button data-v="skills">SKILLS</button>
     <button data-v="take">TAKE</button><button data-v="chat">CHAT</button>
-    <button data-v="pov">POV</button><button data-v="fx">FX</button><button data-v="tune">TUNE</button><button data-v="cine">CINE</button><button data-v="shot">&#128247;</button>
+    <button data-v="pov">POV</button><button data-v="q">Q</button><button data-v="fx">FX</button><button data-v="tune">TUNE</button><button data-v="cine">CINE</button><button data-v="shot">&#128247;</button>
   </div>
 </div>
 <div id="sheet"></div>
@@ -707,11 +707,13 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 // oriented by their long axis, and given a plank deck, rails, and
 // posts standing in the current, synthesized wood like everything. ----
 let bridgeGroup = null
-function buildBridges() {
+function* buildBridges() {
   if (bridgeGroup) scene.remove(bridgeGroup)
   bridgeGroup = new THREE.Group()
   const seen = new Set()
-  for (let by2 = 0; by2 < H; by2++) for (let bx2 = 0; bx2 < W; bx2++) {
+  for (let by2 = 0; by2 < H; by2++) {
+   if ((by2 & 63) === 0) yield 'finding the crossings \u00b7 ' + Math.round(by2 / H * 100) + '%'
+   for (let bx2 = 0; bx2 < W; bx2++) {
     if (seen.has(bx2 + ',' + by2) || terrainOf(bx2, by2) !== 'bridge') continue
     const patch = []
     const stack = [[bx2, by2]]
@@ -756,6 +758,7 @@ function buildBridges() {
       }
     }
     bridgeGroup.add(gB)
+   }
   }
   scene.add(bridgeGroup)
 }
@@ -2081,9 +2084,38 @@ function makeDetail(salt, opts = {}) {
 
 // ---- the stage ----
 const MOBILE = innerWidth <= 900
+// ---- the settings dial (v0.81): this window used to open at maximum
+// everything and then spend thirty seconds discovering it could not
+// afford itself. On a 5K panel that is eleven full-screen passes over
+// fifteen megapixels before the first frame is even on screen. Now the
+// window ASKS what it is running on, opens at a tier it can hold, and
+// climbs only if there is air. ?q=ultra|high|balanced|perf|potato
+// overrides, and the choice is remembered.
+const Q_ORDER = ['potato', 'perf', 'balanced', 'high', 'ultra']
+let QNAME = new URLSearchParams(location.search).get('q')
+if (!QNAME) { try { QNAME = localStorage.getItem('interval-photo-q') } catch {} }
+if (!Q_ORDER.includes(QNAME)) {
+  // the honest measure is PIXELS, not the badge on the case: a Mac
+  // Studio driving a 5K display is asked for four times the work a
+  // laptop is, by the same GPU family
+  const px = innerWidth * innerHeight * Math.min(devicePixelRatio || 1, 2) ** 2
+  QNAME = MOBILE ? 'perf' : px > 5.2e6 ? 'balanced' : px > 2.6e6 ? 'high' : 'ultra'
+}
+const QTIER = {
+  //          px cap  msaa  gtao  vol cloud  dof  rays streak  shadow  grass   nodeR
+  potato:   { pr: 0.75, msaa: 0, gtao: 0, vol: 0, cloud: 0, dof: 0, rays: 0, streak: 0, shadow: 1024, grass: 5000, nodeR: 80, pcss: 0 },
+  perf:     { pr: 1,    msaa: 0, gtao: 0, vol: 0, cloud: 0, dof: 0, rays: 1, streak: 0, shadow: 1024, grass: 11000, nodeR: 100, pcss: 0 },
+  balanced: { pr: 1.25, msaa: 2, gtao: 0, vol: 0, cloud: 0, dof: 0, rays: 1, streak: 1, shadow: 2048, grass: 18000, nodeR: 120, pcss: 0 },
+  high:     { pr: 1.5,  msaa: 4, gtao: 1, vol: 0, cloud: 1, dof: 0, rays: 1, streak: 1, shadow: 2048, grass: 24000, nodeR: 145, pcss: 1 },
+  ultra:    { pr: 2,    msaa: 4, gtao: 1, vol: 1, cloud: 1, dof: 1, rays: 1, streak: 1, shadow: 4096, grass: 30000, nodeR: 170, pcss: 1 },
+}[QNAME]
+// the cumulus deck and the raymarched shafts both read their depth from
+// the occlusion pass; without it they have nothing to march against
+if (!QTIER.gtao) { QTIER.vol = 0; QTIER.cloud = 0 }
+const QPR = () => Math.min(devicePixelRatio || 1, QTIER.pr)
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
 renderer.setSize(innerWidth, innerHeight)
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+renderer.setPixelRatio(QPR())
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 // AgX: the tone curve the next generation actually ships. ACES skews
@@ -2102,7 +2134,7 @@ MAX_ANISO = renderer.capabilities.getMaxAnisotropy()
 // occluder distance, the penumbra is sized from it, and a 24-tap
 // rotated disc filters at that width. Injected into the shadow chunk
 // before any program compiles; the phone keeps stock PCF-soft.
-if (!MOBILE) {
+if (!MOBILE && QTIER.pcss) {
   const S = THREE.ShaderChunk.shadowmap_pars_fragment
   const fnAnchor = 'vec2 texture2DDistribution( sampler2D shadow, vec2 uv ) {'
   const retAnchor = '#if defined( SHADOWMAP_TYPE_PCF )'
@@ -2144,7 +2176,7 @@ const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.1, 60
 // every mast against the sun resolves clean. (The mobile window keeps
 // its budget.)
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(
-  innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: MOBILE ? 0 : 4 }))
+  innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: MOBILE ? 0 : QTIER.msaa }))
 composer.addPass(new RenderPass(scene, camera))
 // ambient occlusion: the difference between things standing ON the
 // world and things floating over it. Ground-truth AO computed from the
@@ -2152,7 +2184,7 @@ composer.addPass(new RenderPass(scene, camera))
 // boot, every stone, every wall, in every crease the light can't
 // sneak into. Desktop only; this is where 'render' starts to mean AAA.
 let gtao = null
-if (!MOBILE) {
+if (!MOBILE && QTIER.gtao) {
   gtao = new GTAOPass(scene, camera, innerWidth, innerHeight)
   gtao.output = GTAOPass.OUTPUT.Default
   gtao.blendIntensity = 0.85
@@ -2178,7 +2210,7 @@ if (!MOBILE) {
 // only, early-out under a full deck, the depth ride-shares with the
 // occlusion like everything else here. Desktop only.
 let cloudPass = null
-if (gtao) {
+if (gtao && QTIER.cloud) {
   const cloudNoise = makeDetail(77, { bump: 1 }).albedo
   cloudPass = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, tNoise: { value: cloudNoise },
@@ -2240,7 +2272,7 @@ if (gtao) {
 // works the night shift in silver. Reuses GTAO's depth for free;
 // desktop only, the phone keeps the screen-space shafts below.
 let volPass = null
-if (gtao) {
+if (gtao && QTIER.vol) {
   volPass = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, tDepth: { value: null }, tShadow: { value: null },
       uShadowMat: { value: new THREE.Matrix4() }, uProjInv: { value: new THREE.Matrix4() },
@@ -2346,7 +2378,7 @@ composer.addPass(bloom)
 // very far soften. CINE opens the aperture and the world becomes a
 // subject with a background. Desktop only; the phone keeps its frames.
 let dof = null
-if (!MOBILE) {
+if (!MOBILE && QTIER.dof) {
   dof = new BokehPass(scene, camera, { focus: 12, aperture: 0.00004, maxblur: 0.006 })
   composer.addPass(dof)
 }
@@ -2390,7 +2422,7 @@ composer.addPass(lensPass)
 // This is where 'render' becomes 'photograph'.
 const gradePass = new ShaderPass({
   uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAmt: { value: 1 }, uWarm: { value: 0 }, uHurt: { value: 0 }, uCine: { value: 0 }, uNight: { value: 0 },
-    uRes: { value: new THREE.Vector2(innerWidth * Math.min(devicePixelRatio, 2), innerHeight * Math.min(devicePixelRatio, 2)) }, uSharp: { value: 1 } },
+    uRes: { value: new THREE.Vector2(innerWidth * QPR(), innerHeight * QPR()) }, uSharp: { value: 1 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
   fragmentShader: `varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uTime, uAmt, uWarm, uHurt, uCine, uNight, uSharp; uniform vec2 uRes;
     void main(){
@@ -2447,8 +2479,8 @@ composer.addPass(gradePass)
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix()
   renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight)
-  gradePass.uniforms.uRes.value.set(innerWidth * Math.min(devicePixelRatio, 2),
-    innerHeight * Math.min(devicePixelRatio, 2))
+  gradePass.uniforms.uRes.value.set(innerWidth * renderer.getPixelRatio(),
+    innerHeight * renderer.getPixelRatio())
 })
 
 // ---- the sky: scattered light, and the light of everything else.
@@ -2483,7 +2515,7 @@ sun.castShadow = true
 // 4K shadow atlas on desktop: at this resolution a leaf's shadow has a
 // leaf's silhouette, and the soft-PCF penumbra reads as distance from
 // the occluder instead of as blur
-sun.shadow.mapSize.set(innerWidth > 900 ? 4096 : 2048, innerWidth > 900 ? 4096 : 2048)
+sun.shadow.mapSize.set(QTIER.shadow, QTIER.shadow)
 sun.shadow.camera.left = -30; sun.shadow.camera.right = 30
 sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30
 sun.shadow.camera.far = 120
@@ -3264,11 +3296,19 @@ const noise2 = (x, y) => ((tileHash(Math.floor(x * 2), Math.floor(y * 2), 21) % 
 let groundMesh = null, groundMat = null, groundChunks = []
 let nodeWinKeys = [], nodeWinCursor = 0, water = null, waterSet = null
 const WATERY = new Set(['sea', 'river'])
-function buildGround(s0) {
+// v0.81: a GENERATOR. The ground is 1.8 million height samples and 84
+// chunks of geometry in the fourth expanse -- measured at ~3.2s of pure
+// JS before three.js touches a buffer. Run whole, inside a websocket
+// callback, that is a frozen tab. Run as a job that hands the browser
+// back its thread every few milliseconds, it is a progress bar.
+function* buildGroundJob(s0) {
   waterSet = new Set()
   if (s0) for (const n of Object.values(s0.nodes)) if (n.type === 'fishing-spot') waterSet.add(n.x + ',' + n.y)
-  for (let gy = 0; gy < H; gy++) for (let gx = 0; gx < W; gx++)
-    if (WATERY.has(terrainOf(gx, gy))) waterSet.add(gx + ',' + gy)
+  for (let gy = 0; gy < H; gy++) {
+    for (let gx = 0; gx < W; gx++)
+      if (WATERY.has(terrainOf(gx, gy))) waterSet.add(gx + ',' + gy)
+    if ((gy & 63) === 0) yield 'finding the water \u00b7 ' + Math.round(gy / H * 100) + '%'
+  }
   const nearWater = (gx, gy) => {
     for (let dx2 = -1; dx2 <= 0; dx2++) for (let dy2 = -1; dy2 <= 0; dy2++)
       if (waterSet.has((gx + dx2) + ',' + (gy + dy2))) return true
@@ -3302,11 +3342,13 @@ function buildGround(s0) {
   const tNames = []
   const tIdx = new Map()
   const tCodes = new Uint8Array(W * H)
-  for (let ty4 = 0; ty4 < H; ty4++) for (let tx4 = 0; tx4 < W; tx4++) {
+  for (let ty4 = 0; ty4 < H; ty4++) { if ((ty4 & 63) === 0) yield 'reading the country \u00b7 ' + Math.round(ty4 / H * 100) + '%'
+   for (let tx4 = 0; tx4 < W; tx4++) {
     const tt = terrainOf(tx4, ty4)
     let ix = tIdx.get(tt)
     if (ix === undefined) { ix = tNames.length; tNames.push(tt); tIdx.set(tt, ix) }
     tCodes[ty4 * W + tx4] = ix
+   }
   }
   const terrainC = (x5, y5) => tNames[tCodes[Math.min(H - 1, Math.max(0, y5)) * W + Math.min(W - 1, Math.max(0, x5))]]
   // one sampler for height and color, shared by the height grid and
@@ -3337,8 +3379,11 @@ function buildGround(s0) {
     return h2
   }
   // the height grid first: groundYAt's ground truth, one pass
-  for (let hy = 0; hy <= H * 2; hy++) for (let hx = 0; hx < GW2; hx++)
-    groundHGrid[hy * GW2 + hx] = sampleGround(hx / 2, hy / 2, false)
+  for (let hy = 0; hy <= H * 2; hy++) {
+    for (let hx = 0; hx < GW2; hx++)
+      groundHGrid[hy * GW2 + hx] = sampleGround(hx / 2, hy / 2, false)
+    if ((hy & 3) === 0) yield 'measuring the ground \u00b7 ' + Math.round(hy / (H * 2) * 100) + '%'
+  }
   // then the country in CHUNKS: eighty tiles a side, one draw each,
   // frustum-culled by three and fog-culled by us. Big worlds drop to
   // one vertex per tile; the calibrated classics keep their two.
@@ -3372,6 +3417,8 @@ function buildGround(s0) {
     m.userData.kind = 'terrain'
     groundMesh.add(m)
     groundChunks.push({ m, cx: m.position.x, cz: m.position.z, r: Math.hypot(cw, chh) / 2 + 2 })
+    yield 'raising the country \u00b7 ' + groundChunks.length + ' of '
+      + (Math.ceil(W / CH) * Math.ceil(H / CH))
   }
   if (water) water.userData.kind = 'terrain' // tapping the water aims at its tile, the engine is the judge of crossings
   scene.add(groundMesh)
@@ -3398,6 +3445,7 @@ function buildGround(s0) {
     const isWaterT = (x, y) => { const t2 = terrainOf(x, y); return t2 === 'sea' || t2 === 'river' }
     const distA = new Float32Array(W * H).fill(-1)
     const q = []
+    yield 'reading the shoreline'
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
       if (!isWaterT(x, y)) { distA[y * W + x] = 0; q.push(x, y) }
     for (let qi = 0; qi < q.length; qi += 2) {
@@ -3442,8 +3490,8 @@ function buildGround(s0) {
     wm.needsUpdate = true
   }
   scene.add(water)
+  yield 'sowing the meadow'
   buildGrass()
-  groundBuilt = true
 }
 
 // ---- grass: instanced blades on every green tile, hashed like every
@@ -3487,7 +3535,7 @@ function buildGrass() {
       #endif`)
   }
   cloudShadowize(mat) // blades dim under the same passing clouds
-  const count = MOBILE ? 14000 : 30000
+  const count = QTIER.grass
   grassMesh = new THREE.InstancedMesh(blade, mat, count)
   grassMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
   grassSlotTiles = new Int32Array(count * 2).fill(-9999)
@@ -4078,6 +4126,76 @@ function cottageGeo(kind, v) {
   })
 }
 
+// ---- THE LAMP POOL (v0.81): the single most expensive mistake in this
+// window, and the reason for the "page is not responding" dialog.
+//
+// Every fire, ore-shard and waystone used to carry its own PointLight
+// INSIDE its node group. In the fourth expanse (896x512, 8,170 nodes)
+// that is 167 point lights, and 57 of them -- every campfire -- were
+// created with castShadow = true. A shadow-casting point light renders
+// the entire scene SIX times, once per cube face. Fourteen campfires in
+// view is eighty-four extra scene traversals per frame, on top of the
+// sun's shadow pass and the occlusion pass.
+//
+// Worse than the cost was the CHURN. The node window (see the frame)
+// re-judges an eighth of the nodes every frame and flips group
+// visibility; three.js skips invisible subtrees when it gathers lights,
+// so the VISIBLE light count changed several times a second. That count
+// is baked into three's program cache key, so every change recompiled
+// every material in the world. On macOS that is a multi-second
+// synchronous stall in the GLSL-to-Metal translator, over and over.
+//
+// So lamps are now DECLARED, not added. A fixed cast of pool lights
+// lives in the scene forever -- the count never changes, so nothing
+// ever recompiles -- and each frame the nearest declared lamps are
+// copied into them. The fires still breathe: the frame writes to the
+// declared light exactly as before, and the pool reads it.
+const LAMP_POOL_N = MOBILE ? 2 : 6
+const LAMP_R = 30                       // past this a fire is scenery, not light
+const lampPool = []
+for (let i = 0; i < LAMP_POOL_N; i++) {
+  const l = new THREE.PointLight(0xffffff, 0, 10, 1.6)
+  l.castShadow = false                  // never, at any tier: six passes is six passes
+  scene.add(l)
+  lampPool.push(l)
+}
+const lamps = []
+function regLamp(owner, light, x = 0, y = 0, z = 0) {
+  light.castShadow = false
+  light.position.set(x, y, z)
+  lamps.push({ owner, light, x, y, z, d2: 0 })
+  return light
+}
+function pumpLamps() {
+  if (!lamps.length) return
+  const cx = camera.position.x, cy = camera.position.y, cz = camera.position.z
+  let w = 0
+  for (let i = 0; i < lamps.length; i++) {
+    const e = lamps[i]
+    // a lamp whose node has left the census is gone for good; a lamp
+    // whose node is merely parked out of the scene is only dark
+    if (vis.node.get(e.owner.userData.id) !== e.owner) continue
+    lamps[w++] = e
+    if (!e.owner.parent) { e.d2 = Infinity; continue }
+    const dx = e.owner.position.x + e.x - cx
+    const dy = e.owner.position.y + e.y - cy
+    const dz = e.owner.position.z + e.z - cz
+    e.d2 = dx * dx + dy * dy + dz * dz
+  }
+  lamps.length = w
+  lamps.sort((a, b) => a.d2 - b.d2)
+  const R2 = LAMP_R * LAMP_R
+  for (let i = 0; i < LAMP_POOL_N; i++) {
+    const p = lampPool[i], e = lamps[i]
+    if (!e || e.d2 > R2 || !(e.light.intensity > 0.001)) { p.intensity = 0; continue }
+    p.position.set(e.owner.position.x + e.x, e.owner.position.y + e.y, e.owner.position.z + e.z)
+    p.color.copy(e.light.color)
+    p.intensity = e.light.intensity
+    p.distance = e.light.distance
+    p.decay = e.light.decay
+  }
+}
+
 function nodeBody(n) {
   const g = new THREE.Group()
   const hsh = [...n.id].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) >>> 0, 5381)
@@ -4199,7 +4317,7 @@ function nodeBody(n) {
           Math.cos(i * 2.1 + hsh) * 0.22, 0.42 + (i === 0 ? 0.14 : 0), Math.sin(i * 2.1 + hsh) * 0.22)
         cr.scale.y = 2.2; cr.rotation.set(0.2 * i, i * 1.3, 0.15)
       }
-      const l = new THREE.PointLight(0x8f7dff, 3, 5); add(l, 0, 0.7, 0, false)
+      regLamp(g, new THREE.PointLight(0x8f7dff, 3, 5), 0, 0.7, 0)
     }
     g.rotation.y = (hsh % 628) / 100
   } else if (n.type === 'fishing-spot') {
@@ -4222,8 +4340,8 @@ function nodeBody(n) {
     f.userData.flame = 1
     const f2 = add(new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 8), mats.flameCore), 0, 0.36, 0, false)
     f2.userData.flame = 2
-    const li = new THREE.PointLight(0xff9a3d, 14, 9, 1.6); li.castShadow = innerWidth > 900
-    add(li, 0, 0.7, 0, false); g.userData.fireLight = li
+    const li = new THREE.PointLight(0xff9a3d, 14, 9, 1.6)
+    regLamp(g, li, 0, 0.7, 0); g.userData.fireLight = li
     const embers = new THREE.Points(new THREE.BufferGeometry(),
       new THREE.PointsMaterial({ color: 0xffa040, size: 0.05, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))
     embers.geometry.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(18), 3))
@@ -4256,7 +4374,7 @@ function nodeBody(n) {
     const rr = add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.028, 6, 24), mats.rune), 0, 1.32, 0, false)
     rr.rotation.x = Math.PI / 2
     add(new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.34), mats.rune), 0, 1.32, 0, false)
-    add(new THREE.PointLight(0x5f9dff, 5, 6), 0, 1.7, 0, false)
+    regLamp(g, new THREE.PointLight(0x5f9dff, 5, 6), 0, 1.7, 0)
   } else if (n.type === 'guard' || n.type === 'gatehouse') {
     // THE KEEP. It used to be a cottage wearing a hat: the same box as
     // every other house on the street with four lumps set on the roof,
@@ -4317,7 +4435,7 @@ function nodeBody(n) {
       const bf9 = add(new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.30, 8), mats.flame), 0.62, 0.92, 0.62, false)
       bf9.userData.flame = 1
       const bl9 = new THREE.PointLight(0xff9a3d, 6, 6, 1.6)
-      add(bl9, 0.62, 0.95, 0.62, false)
+      regLamp(g, bl9, 0.62, 0.95, 0.62)
       g.userData.fireLight = bl9; g.userData.fireBase = 6
     }
   } else if (n.type === 'house') {
@@ -4337,7 +4455,7 @@ function nodeBody(n) {
       new THREE.MeshBasicMaterial({ color: 0xf2b03c, transparent: true, opacity: 0.92 })), 0, 0.19, -0.2, false)
     g.userData.flame = fl5
     const hl5 = new THREE.PointLight(0xffb14a, 1.1, 3.4)
-    hl5.position.set(0, 0.3, -0.1); g.add(hl5)
+    regLamp(g, hl5, 0, 0.3, -0.1)
     g.userData.fireLight = hl5; g.userData.fireBase = 1.1
     g.userData.ghostH = 1.2
     for (let i5 = 0; i5 < 2; i5++) {         // the chimney still draws
@@ -6612,6 +6730,67 @@ function ghostOccluders(fx9, fy9, fz9, dt) {
     setGhost(g, g.__ghost)
   }
 }
+// ---- the census, rationed (v0.81): the first packet used to carve a
+// body for EVERY node in the world inside one websocket callback. In
+// the fourth expanse that is 8,170 of them, synchronously, with no
+// yield to the browser -- which is most of the load, and all of the
+// "not responding". Two rules now: a node gets a body only when it is
+// close enough to be worth one, and only a few dozen bodies are carved
+// per visit. The rest arrive over the next handful of frames, which
+// nobody can see happening because they are behind the fog anyway.
+const NODE_BUILD_R = QTIER.nodeR          // carve within this many metres
+const NODE_KEEP_R = QTIER.nodeR + 45      // park the body past this (hysteresis)
+const NODE_BUDGET_PACKET = 35             // bodies per state packet
+const NODE_BUDGET_FRAME = 14              // ...and per catch-up frame
+let nodesPending = false
+function syncNodes(s, budget) {
+  const t = s.tick
+  const camTX = camera.position.x + W / 2 - 0.5, camTY = camera.position.z + H / 2 - 0.5
+  const BR2 = NODE_BUILD_R * NODE_BUILD_R, KR2 = NODE_KEEP_R * NODE_KEEP_R
+  let pending = false
+  for (const id in s.nodes) {
+    const n = s.nodes[id]
+    let g = vis.node.get(id)
+    const dxn = n.x - camTX, dyn = n.y - camTY
+    const d2 = dxn * dxn + dyn * dyn
+    if (d2 > KR2) {                       // the far country keeps its body parked
+      if (g && g.parent) scene.remove(g)
+      continue
+    }
+    if (!g || g.userData.type !== n.type) {
+      if (d2 > BR2) continue              // not yet worth carving
+      if (budget <= 0) { pending = true; continue }
+      budget--
+      if (g) scene.remove(g)
+      g = nodeBody({ ...n, id }); g.userData.type = n.type
+      g.userData.kind = 'node'; g.userData.id = id
+      g.traverse((o) => { o.userData.kind = 'node'; o.userData.id = id
+        // canopies are the one surface that gains nothing and risks
+        // acne: smooth normals on a displaced icosahedron are exactly
+        // where a shadow map self-shadows badly, and leaf-mass is lit
+        // from above anyway. They still CAST.
+        if (o.userData.canopy) o.receiveShadow = false })
+      vis.node.set(id, g); scene.add(g)
+      g.position.set(wx(n.x), groundYAt(n.x, n.y), wz(n.y))
+      g.updateMatrixWorld(true)
+      g.traverse((o) => { // sculpture freezes; fire and smoke stay alive
+        if (!o.isSprite && o.userData.flame === undefined && o.userData.bob === undefined)
+          o.matrixAutoUpdate = false
+      })
+    } else if (!g.parent) scene.add(g)    // walked back into the country
+    if (g.position.x !== wx(n.x) || g.position.z !== wz(n.y)) { // nodes rarely move
+      g.position.set(wx(n.x), groundYAt(n.x, n.y), wz(n.y))
+      g.updateMatrixWorld(true)
+    }
+    const depleted = (n.depletedUntil ?? 0) > t
+    if (depleted !== !!g.userData.depleted) {
+      g.userData.depleted = depleted
+      g.traverse((o) => { if (o.userData.canopy) o.visible = !depleted })
+    }
+  }
+  return pending
+}
+
 function syncAll(s) {
   const t = s.tick
   { // the curtain must know itself before a stone of it is cut: which
@@ -6652,45 +6831,24 @@ function syncAll(s) {
         if (WALLKIND.has(g2.userData.type)) { scene.remove(g2); vis.node.delete(id2) }
     }
   }
-  const liveN = new Set()
-  for (const [id, n] of Object.entries(s.nodes)) {
-    liveN.add(id)
-    let g = vis.node.get(id)
-    if (!g || g.userData.type !== n.type) {
-      if (g) scene.remove(g)
-      g = nodeBody({ ...n, id }); g.userData.type = n.type
-      g.userData.kind = 'node'; g.userData.id = id
-      g.traverse((o) => { o.userData.kind = 'node'; o.userData.id = id
-        // canopies are the one surface that gains nothing and risks
-        // acne: smooth normals on a displaced icosahedron are exactly
-        // where a shadow map self-shadows badly, and leaf-mass is lit
-        // from above anyway. They still CAST.
-        if (o.userData.canopy) o.receiveShadow = false })
-      vis.node.set(id, g); scene.add(g)
-      g.position.set(wx(n.x), groundYAt(n.x, n.y), wz(n.y))
-      g.updateMatrixWorld(true)
-      g.traverse((o) => { // sculpture freezes; fire and smoke stay alive
-        if (!o.isSprite && o.userData.flame === undefined && o.userData.bob === undefined)
-          o.matrixAutoUpdate = false
-      })
-    }
-    if (g.position.x !== wx(n.x) || g.position.z !== wz(n.y)) { // nodes rarely move
-      g.position.set(wx(n.x), groundYAt(n.x, n.y), wz(n.y))
-      g.updateMatrixWorld(true)
-    }
-    const depleted = (n.depletedUntil ?? 0) > t
-    if (depleted !== !!g.userData.depleted) {
-      g.userData.depleted = depleted
-      g.traverse((o) => { if (o.userData.canopy) o.visible = !depleted })
-    }
-  }
+  const liveN = new Set(Object.keys(s.nodes))
+  nodesPending = syncNodes(s, NODE_BUDGET_PACKET)
   sweep(vis.node, liveN)
 
   const liveM = new Set()
+  const camTX = camera.position.x + W / 2 - 0.5, camTY = camera.position.z + H / 2 - 0.5
+  const MOB_R2 = NODE_KEEP_R * NODE_KEEP_R
+  let mobBudget = 12
   for (const [id, m] of Object.entries(s.mobs)) {
     if ((m.hp ?? 0) <= 0) continue
     liveM.add(id)
     let g = vis.mob.get(id)
+    // a beast on the far side of the country is a row in the state, not
+    // a body: sewing 541 of them on the first packet is pure load time,
+    // and even the near ones arrive a dozen at a time rather than all
+    // at once -- a sewn hide is the most expensive body this window makes
+    if (!g && ((m.x - camTX) ** 2 + (m.y - camTY) ** 2) > MOB_R2) continue
+    if (!g && mobBudget-- <= 0) continue
     if (!g) {
       const [c, sc] = MOB_LOOK[m.type] ?? [0x8a5a5a, 0.7]
       g = SEWN_SKIN ? makeSewnBeast(id, m.type) : makeBeast(id, m.type) // sewn hide, hinged bones for the boneless-by-rights
@@ -6771,6 +6929,7 @@ function syncAll(s) {
   for (const [id, it] of Object.entries(s.ground ?? {})) {
     liveG.add(id)
     let g = vis.ground.get(id)
+    if (!g && ((it.x - camTX) ** 2 + (it.y - camTY) ** 2) > MOB_R2) continue
     if (!g) {
       g = new THREE.Group()
       const m2 = new THREE.Mesh(new THREE.SphereGeometry(0.13, 9, 8),
@@ -6830,29 +6989,79 @@ let fpYaw = 0.6, fpPitch = -0.06
 // camera and a head on a neck
 let fpYawS = 0.6, fpPitchS = -0.06, camYawS = -0.8, camPitchS = 0.9, camDistS = 12
 const ray = new THREE.Raycaster()
+// what a finger is allowed to be pointing AT: the named things near
+// enough to touch, plus the water. Never the grass, never the sky.
+const PICK_R2 = 90 * 90
+function pickables() {
+  const out = []
+  const cx = camera.position.x, cz = camera.position.z
+  const near = (g) => {
+    const dx = g.position.x - cx, dz = g.position.z - cz
+    return dx * dx + dz * dz < PICK_R2
+  }
+  for (const m of [vis.mob, vis.node, vis.ground, vis.player])
+    for (const g of m.values()) if (g.visible && g.parent && near(g)) out.push(g)
+  if (water) out.push(water)
+  return out
+}
+// the ground answers by ARITHMETIC, not by triangles: march the ray
+// against the height grid buildGround already measured, then bisect.
+// A few hundred array reads instead of half a million ray-triangle
+// tests, and it works on chunks the fog has culled.
+function rayGround(r) {
+  if (!groundHGrid) return null
+  const o = r.ray.origin, d = r.ray.direction
+  const hAt = (p) => groundYAt(p.x + W / 2 - 0.5, p.z + H / 2 - 0.5)
+  const p = new THREE.Vector3()
+  let t = 0.2, last = 0
+  p.copy(o).addScaledVector(d, t)
+  if (p.y - hAt(p) <= 0) return null // the eye is already underground
+  for (let i = 0; i < 320 && t < 420; i++) {
+    last = t
+    t += 0.25 + t * 0.02 // fine underfoot, coarse at the fog line
+    p.copy(o).addScaledVector(d, t)
+    if (p.y - hAt(p) <= 0) {
+      let lo = last, hi = t
+      for (let b = 0; b < 12; b++) {
+        const mid = (lo + hi) / 2
+        p.copy(o).addScaledVector(d, mid)
+        if (p.y - hAt(p) <= 0) hi = mid; else lo = mid
+      }
+      p.copy(o).addScaledVector(d, hi)
+      const gx = Math.floor(p.x + W / 2), gy = Math.floor(p.z + H / 2)
+      if (gx < 0 || gy < 0 || gx >= W || gy >= H) return null
+      return { gx, gy, dist: hi }
+    }
+  }
+  return null
+}
 let walkGoal = null, huntTarget = null, workTarget = null
 let lastStepPos = '', lastStepAxisX = false
-const ptr = { down: false, moved: false, x: 0, y: 0, pinch: 0 }
+const ptr = { down: false, moved: false, x: 0, y: 0, pinch: 0, at: 0 }
 // the spyglass: in first person, the pinch is a lens. Spread to draw
 // the far world close (down to a 22-degree eye), pinch to let it go.
 let spyZoom = 0
 // hold to walk: keep a finger down without dragging and the citizen
 // walks the way the eyes point, stride after stride, until you let go
-let holdWalk = false, holdTimer = null, holdWas = false
+let holdWalk = false, holdWas = false
+const HOLD_MS = 340
 const el = renderer.domElement
 el.addEventListener('pointerdown', (e) => {
   initAudio() // the ear needs a gesture to wake; any will do
   ptr.down = true; ptr.moved = false; ptr.x = e.clientX; ptr.y = e.clientY
+  // v0.81: e.timeStamp, not a setTimeout. A timer measures when the
+  // main thread got AROUND to the hold; the event stamp measures when
+  // the finger actually landed. On a frame that ran long, every
+  // ordinary click looked like a 340ms hold, so pointerup swallowed it
+  // as 'the hold was the whole intention' and the tap did nothing --
+  // which is exactly what 'inputs don't work' looked like from here.
+  ptr.at = e.timeStamp
   holdWas = false
-  clearTimeout(holdTimer)
-  holdTimer = setTimeout(() => {
-    if (ptr.down && !ptr.moved && povMode && entered) { holdWalk = true; holdWas = true }
-  }, 340)
 })
 el.addEventListener('pointermove', (e) => {
   if (!ptr.down) return
   const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y
-  if (Math.abs(dx) + Math.abs(dy) > 6) { ptr.moved = true; holdWalk = false; clearTimeout(holdTimer) }
+  if (Math.abs(dx) + Math.abs(dy) > 6) { ptr.moved = true; holdWalk = false }
   if (ptr.moved) {
     if (povMode) {
       const zf = 0.25 + 0.75 * (1 - spyZoom) // a telescope needs a soft hand
@@ -6866,15 +7075,24 @@ el.addEventListener('pointermove', (e) => {
   }
 })
 el.addEventListener('pointerup', (e) => {
-  const wasDrag = ptr.moved; ptr.down = false
-  clearTimeout(holdTimer); holdWalk = false
-  if (holdWas) return // the hold was the whole intention; no tap follows it
+  const wasDrag = ptr.moved, held = e.timeStamp - ptr.at
+  ptr.down = false
+  holdWalk = false
+  if (holdWas && held > HOLD_MS) return // the hold was the whole intention; no tap follows it
   if (wasDrag) return
   if (!entered) { feed('you are still at the door: enter the world first'); return } // v0.80: silence here reads exactly like a world that will not let you move
   const m2 = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
   ray.setFromCamera(m2, camera)
-  const hits = ray.intersectObjects(scene.children, true)
+  // v0.81: the tap used to raycast scene.children with recursion on --
+  // every ground chunk (well over half a million triangles), all thirty
+  // thousand grass blades, the sky box, every cloud sprite. Hundreds of
+  // milliseconds per click, on a thread that was already late. Now the
+  // finger asks two much cheaper questions: the small named things by
+  // ray, and the ground by walking the heightfield it already has.
+  const hits = ray.intersectObjects(pickables(), true)
+  const gh = rayGround(ray)
   for (const h of hits) {
+    if (gh && h.distance > gh.dist) break // the ground stands in front of it
     if (povMode && h.object.userData?.id === ownKey?.pub) continue
     const k = h.object.userData?.kind
     if (k === 'mob') { huntTarget = h.object.userData.id; workTarget = null; walkGoal = null
@@ -6898,6 +7116,7 @@ el.addEventListener('pointerup', (e) => {
       return
     }
   }
+  if (gh) { walkGoal = { x: gh.gx, y: gh.gy }; huntTarget = null; workTarget = null; return }
   // nothing under the tap answered to a kind: say so rather than sit there
   feed('nothing to walk to there (' + hits.length + ' surface' + (hits.length === 1 ? '' : 's') + ' under the tap)')
 })
@@ -6919,20 +7138,42 @@ el.addEventListener('touchend', () => { ptr.pinch = 0 }, { passive: true })
 
 // desktop legs: WASD steps the grid relative to where the eyes point.
 // The grid stays the truth; the yaw merely chooses which axis is 'forward'.
-addEventListener('keydown', (e) => {
-  if (!entered || !povMode) return
-  if (['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.key) < 0) return
+// v0.81: the legs are HELD, not hammered. Key repeat used to fire
+// thirty keydowns a second into a wire that accepts two deeds per
+// interval, so a held W spent most of its life being refused, and every
+// refusal wrote a line in the feed. The key now sets a direction; the
+// tick spends it, exactly once, like every other intention here. And a
+// keystroke aimed at the chat box stays in the chat box, instead of
+// walking you across the meadow while you type.
+const MOVEKEYS = new Set(['w', 'a', 's', 'd', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'])
+const keysHeld = new Set()
+const typingIn = (t9) => !!t9 && (t9.tagName === 'INPUT' || t9.tagName === 'TEXTAREA' || t9.isContentEditable)
+function keyStep(immediate) {
+  if (!keysHeld.size || !entered || !povMode) return false
   const f = { x: Math.sin(fpYaw), z: Math.cos(fpYaw) }
   const r = { x: Math.cos(fpYaw), z: -Math.sin(fpYaw) }
   let vx = 0, vz = 0
-  if (e.key === 'w' || e.key === 'ArrowUp') { vx = f.x; vz = f.z }
-  if (e.key === 's' || e.key === 'ArrowDown') { vx = -f.x; vz = -f.z }
-  if (e.key === 'a' || e.key === 'ArrowLeft') { vx = -r.x; vz = -r.z }
-  if (e.key === 'd' || e.key === 'ArrowRight') { vx = r.x; vz = r.z }
+  for (const k of keysHeld) {
+    if (k === 'w' || k === 'ArrowUp') { vx += f.x; vz += f.z }
+    if (k === 's' || k === 'ArrowDown') { vx -= f.x; vz -= f.z }
+    if (k === 'a' || k === 'ArrowLeft') { vx -= r.x; vz -= r.z }
+    if (k === 'd' || k === 'ArrowRight') { vx += r.x; vz += r.z }
+  }
+  if (!vx && !vz) return false
   walkGoal = null; huntTarget = null; workTarget = null
-  if (Math.abs(vx) >= Math.abs(vz)) send({ do: 'move', dx: Math.sign(Math.round(vx * 2)), dy: 0 })
-  else send({ do: 'move', dx: 0, dy: Math.sign(Math.round(vz * 2)) })
+  if (Math.abs(vx) >= Math.abs(vz)) send({ do: 'move', dx: vx > 0 ? 1 : -1, dy: 0 })
+  else send({ do: 'move', dx: 0, dy: vz > 0 ? 1 : -1 })
+  return true
+}
+addEventListener('keydown', (e) => {
+  if (typingIn(e.target)) return
+  if (!MOVEKEYS.has(e.key)) return
+  if (e.repeat) return               // the hardware's opinion is not an intention
+  keysHeld.add(e.key)
+  keyStep(true)                      // the first stride lands at once
 })
+addEventListener('keyup', (e) => keysHeld.delete(e.key))
+addEventListener('blur', () => keysHeld.clear())
 
 // one signed intention per interval, never more: step, work, hunt
 function stepToward(txg, tyg, stopAdjacent) {
@@ -6955,6 +7196,12 @@ function stepToward(txg, tyg, stopAdjacent) {
 let lastActed = -1
 function actOnTick() {
   const me = world?.players?.[ownKey?.pub]; if (!me) return
+  // a finger that has been down a while, has not dragged, and is not
+  // typing, is a walk order -- judged here, on the tick, where a late
+  // frame cannot lie about how long it has been
+  if (ptr.down && !ptr.moved && povMode && entered
+    && performance.now() - ptr.at > HOLD_MS) { holdWalk = true; holdWas = true }
+  if (keyStep()) return
   if (holdWalk && povMode) {
     // the held finger is the compass: one signed stride per interval,
     // in whichever direction the eyes are pointed
@@ -7184,7 +7431,7 @@ function updateDoor(st2, wid2) {
   const awake2 = Object.values(st2.players ?? {})
     .filter((p2) => p2.action !== null || st2.tick - (p2.lastInput ?? 0) <= 500).length
   const di = document.getElementById('doorinfo')
-  if (di) di.textContent = 'interval ' + st2.tick.toLocaleString() + ' \u00b7 ' + awake2
+  if (di && groundBuilt) di.textContent = 'interval ' + st2.tick.toLocaleString() + ' \u00b7 ' + awake2
     + ' awake of ' + souls2 + ' soul' + (souls2 === 1 ? '' : 's')
     + ' \u00b7 world ' + String(wid2 ?? '').slice(0, 12) + '\u2026'
   const be = document.getElementById('enter')
@@ -7384,6 +7631,16 @@ document.getElementById('verbs').addEventListener('click', (e) => {
     tp.style.display = tp.style.display === 'block' ? 'none' : 'block'
     return
   }
+  if (v === 'q') {
+    // the dial, in the open: step the tier, remember it, reload. A
+    // reload is honest here -- the pass chain, the shadow atlas and the
+    // MSAA target are all decided when the stage is built.
+    const i = (Q_ORDER.indexOf(QNAME) + 1) % Q_ORDER.length
+    try { localStorage.setItem('interval-photo-q', Q_ORDER[i]) } catch {}
+    feed('quality: ' + Q_ORDER[i] + ' · reopening the window')
+    setTimeout(() => location.reload(), 500)
+    return
+  }
   if (v === 'cine') { setCine(true); return }
   if (v === 'fx') { bloom.enabled = !bloom.enabled; gradePass.enabled = bloom.enabled
     raysPass.enabled = bloom.enabled; streakPass.enabled = bloom.enabled
@@ -7447,6 +7704,52 @@ document.getElementById('enter').onclick = () => {
   if (ownKey && world && !world.players[ownKey.pub]) send({ do: 'spawn' })
 }
 
+// ---- THE RAISING (v0.81): the world is built in slices, not in one
+// breath. Everything the first packet used to do synchronously inside
+// ws.onmessage -- the height field, eighty-four chunks of geometry, the
+// crossings, the meadow, and eight thousand node bodies -- is now a job
+// that spends a few milliseconds per frame and hands the thread back.
+// The browser never stops answering, so it never offers to kill the
+// page, and the door shows the work instead of a frozen cursor.
+let bootJob = null, groundStarted = false
+function* bootSequence(s0) {
+  yield 'reading the country'
+  yield* buildGroundJob(s0)
+  yield* buildBridges()
+  groundBuilt = true
+  yield 'waking the citizens'
+  if (world) { syncAll(world); tickTheater(world) }
+  // compile every program the near country needs NOW, once, behind this
+  // screen -- rather than one stall at a time as each new roofline
+  // drifts into frame. With the lamp count fixed, these compiles stay
+  // compiled.
+  yield 'setting the light'
+  try { renderer.compile(scene, camera) } catch (e) { __report('compile: ' + (e?.message ?? e)) }
+}
+function startBoot(s0) {
+  bootJob = bootSequence(s0)
+  const be = document.getElementById('enter')
+  if (be) { be.disabled = true; be.style.opacity = '0.55' }
+}
+function showBoot(msg) {
+  const di = document.getElementById('doorinfo')
+  if (di && msg) di.textContent = msg
+}
+function runBoot(ms) {
+  const t0 = performance.now()
+  do {
+    const r = bootJob.next()
+    if (r.done) {
+      bootJob = null
+      showBoot('the world stands')
+      const be = document.getElementById('enter')
+      if (be) { be.disabled = false; be.style.opacity = '' }
+      return
+    }
+    if (r.value) showBoot(r.value)
+  } while (performance.now() - t0 < ms)
+}
+
 // ---- the wire listens ----
 ws.onopen = async () => {
   ownKey = await ownIdentity()
@@ -7479,15 +7782,19 @@ ws.onmessage = (ev) => {
       send({ do: 'name', name: pendingName }); pendingName = ''
     }
     if (entered && ownKey && !m.state.players[ownKey.pub] && m.state.tick % 3 === 0) send({ do: 'spawn' })
-    if (!groundBuilt) {
+    if (!groundStarted) {
+      groundStarted = true
       W = m.state.genesis.worldW; H = m.state.genesis.worldH
       GEN = m.state.genesis.worldGenerator ?? GEN
       GSEED = m.state.genesis.genesisSeed ?? ''
       _seedNumC = null; _ssE = null; _roadSet = null
-      buildGround(m.state)
-      buildBridges() // the crossings stand up with the ground
+      startBoot(m.state)
       document.getElementById('wid').textContent = 'world ' + (m.worldId ?? '').slice(0, 12) + '…'
     }
+    // while the world is being raised the packets still arrive and the
+    // door still counts souls; nothing may touch the scene until the
+    // ground exists to stand on
+    if (!groundBuilt) return
     syncAll(m.state)
     tickTheater(m.state)
     // a level won is a public holiday, and no longer a holiday of one.
@@ -7550,12 +7857,29 @@ ws.onmessage = (ev) => {
 }
 ws.onclose = () => feed('the wire went quiet; refresh to return')
 
+// a handle for the console, and for anyone measuring this window: what
+// is really in the scene, how many lamps are declared, how much is
+// still pending. window.__photo.stat()
+globalThis.__photo = {
+  get scene() { return scene }, get vis() { return vis }, get lamps() { return lamps },
+  stat() {
+    let objs = 0, meshes = 0, lights = 0
+    scene.traverse((o) => { objs++; if (o.isMesh) meshes++; if (o.isLight) lights++ })
+    return { tier: QNAME, pxScale, fxTier, objs, meshes, lights,
+      nodesBuilt: vis.node.size, nodesInScene: [...vis.node.values()].filter((g) => g.parent).length,
+      mobs: vis.mob.size, lampsDeclared: lamps.length, pending: nodesPending,
+      calls: renderer.info.render.calls, fps: +(1000 / perfEMA).toFixed(1) }
+  },
+}
+globalThis.__probe = () => JSON.stringify(globalThis.__photo.stat())
+
 // ---- the day, the frame ----
 const tmpV = new THREE.Vector3(), tmpV2 = new THREE.Vector3(), tmpV3 = new THREE.Vector3()
 let lastT = performance.now()
 let flashAt = -9999 // the last thunderclap, in wall-clock ms
 function frame() {
   requestAnimationFrame(frame)
+  if (bootJob) { runBoot(9); return } // the world is still being raised
   const now = performance.now()
   const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now
   const t = now / 1000
@@ -8253,37 +8577,55 @@ function frame() {
     if (age >= 1) pm.visible = false
   }
 
+  // the fires hand their light to the pool, and the country that has
+  // come within reach since the last packet gets its bodies
+  pumpLamps()
+  if (nodesPending && world) nodesPending = syncNodes(world, NODE_BUDGET_FRAME)
+
   // the budget keeper trades pixels for smoothness and back, and now
   // keeps a furlough list: when the pixel scale bottoms out and the
   // frame is still late, the dearest passes stand down one at a time
   // (depth of field first, then the cloud deck, then the raymarched
   // shafts, which hand back to the screen-space rays, so the light
   // never just vanishes). They're rehired in reverse when air returns.
-  perfEMA += (dt * 1000 - perfEMA) * 0.04
-  if (now - lastPerfAt > 2500) {
+  // v0.81: the old keeper needed about thirty seconds to admit the frame
+  // was late -- a 0.04 EMA behind a 2.5s gate -- and its furlough list
+  // only ever covered the three cheapest things to lose. So the first
+  // half-minute in a new world was spent at maximum quality being
+  // unplayable. It now notices inside a second, and the occlusion pass
+  // and the bloom are on the ladder like everything else.
+  perfEMA += (dt * 1000 - perfEMA) * 0.14
+  if (now - lastPerfAt > 700) {
     lastPerfAt = now
-    const want = perfEMA > 27 ? Math.max(0.62, pxScale - 0.12)
-      : perfEMA < 15.5 ? Math.min(1, pxScale + 0.1) : pxScale
-    if (Math.abs(want - pxScale) > 0.01) {
+    const want = perfEMA > 26 ? Math.max(0.55, pxScale - 0.14)
+      : perfEMA < 14.5 ? Math.min(1, pxScale + 0.06) : pxScale
+    if (Math.abs(want - pxScale) > 0.005) {
       pxScale = want
-      const pr2 = Math.min(devicePixelRatio || 1, 2) * pxScale
+      const pr2 = QPR() * pxScale
       renderer.setPixelRatio(pr2); composer.setPixelRatio(pr2)
       composer.setSize(innerWidth, innerHeight)
+      gradePass.uniforms.uRes.value.set(innerWidth * pr2, innerHeight * pr2)
     }
-    if (pxScale <= 0.63 && perfEMA > 29 && fxTier < 3) fxTier++
-    else if (perfEMA < 14 && pxScale >= 0.99 && fxTier > 0) fxTier--
+    if (pxScale <= 0.56 && perfEMA > 28 && fxTier < 6) fxTier++
+    else if (perfEMA < 13 && pxScale >= 0.99 && fxTier > 0) fxTier--
     if (bloom.enabled) { // only steer while fx are on at all
+      // dearest first, and the depth-borrowers before the pass they
+      // borrow from, so the light never simply vanishes
       if (dof) dof.enabled = fxTier < 1
       if (cloudPass) cloudPass.enabled = fxTier < 2
       if (volPass) volPass.enabled = fxTier < 3
+      if (gtao) gtao.enabled = fxTier < 4
+      streakPass.enabled = fxTier < 5
+      bloom.strength = fxTier < 6 ? 0.32 : 0.18
     }
   }
   // the bench reads the meter it's arguing with
   const tstats = document.getElementById('tunestats')
   if (tstats && now - (tstats.__at ?? 0) > 400) {
     tstats.__at = now
-    tstats.textContent = (1000 / perfEMA).toFixed(0) + ' fps · pixels '
-      + Math.round(pxScale * 100) + '% · furlough tier ' + fxTier
+    tstats.textContent = (1000 / perfEMA).toFixed(0) + ' fps · ' + QNAME + ' · pixels '
+      + Math.round(pxScale * 100) + '% · tier ' + fxTier
+      + ' · ' + renderer.info.render.calls + ' calls'
   }
 
   // bodies glide between the ticks they were told about: the truth
