@@ -923,8 +923,11 @@ A player need not exist in genesis to join a world.
   tile `(floor(worldW/2), floor(worldH/2))`: with
   a pack empty but for the newcomer's quiver (below), no name, no
   action, level-1 skills.
-- Spawning is permanent: there is no despawn in v0.6. Identities are
+- Spawning is permanent: there is no despawn. Identities are
   free, but each playerId spawns at most once, ever.
+- **At most `MAX_SPAWNS_PER_TICK` (1) souls are born in any one tick**,
+  taken in canonical `playerId` order (§5h). A spawn that does not fit
+  is not applied and may be sent again.
 
 **The newcomer's quiver (v0.78).** Every soul wakes with twenty-five
 arrows in the first slot of their pack. The number is arithmetic, not
@@ -935,6 +938,30 @@ which is §7f's own principle brought home to combat's house. Spawning
 is creation-only, so death never refills the quiver; imported citizens
 arrive with their own packs and receive nothing; and at one gold an
 arrow, the kit is worth less than the walk it saves.
+
+## 5h. Spawning is not an action
+
+Spawning competes for its own budget, not for the tick's input cap.
+
+- **At most one soul is born per tick.** The rest of the tick's capacity
+  belongs to citizens who already exist.
+- Spawns are admitted in canonical `playerId` order, so every node admits
+  the same soul. The others are not queued and not remembered: they may
+  simply be sent again.
+
+**Why.** A spawn used to compete for the same 4,096 slots as a footstep,
+which meant four thousand souls could be born in six hundred milliseconds.
+No real world has that rate; even a launch day is a handful a second, and a
+crowd arriving together can wait a tick.
+
+It is also what made the world killable. A permanent citizen costs one
+spawn, ten steps and one gather, so at four thousand spawns a tick an
+attacker could fill the archive in nine minutes. At one a tick the world
+still admits a hundred and forty-four thousand new citizens a day, which no
+world needs, and the same flood must be sustained for two days instead.
+
+The cost to an honest newcomer is a tick or two of waiting on the busiest
+day this world will ever have.
 
 ## 5.4. How many inputs a tick applies
 
@@ -1060,7 +1087,72 @@ stopped, blocks nothing, and can complete no trade (accepting requires
 an input, which would wake them). Any input wakes the sleeper. The
 world never forgets a citizen; it lets them rest.
 
-## 5f. World announcements: milestones every citizen sees (v0.48)
+## 5f. The world forgets what nobody ever was
+
+At the end of every tick, in canonical `playerId` order, a player is removed
+if **both** hold:
+
+1. **absent** — `FORGET_AFTER` (36,000 ticks, six hours) with no input;
+2. **empty-handed** — no name, no gold, nothing banked, nothing equipped, no
+   action, no trade, every skill still at its floor, and nothing in the pack
+   but the twenty-five arrows every soul wakes with.
+
+Both. One level, one coin, one name, one item beyond the quiver, and the
+world keeps that citizen for good.
+
+**Why both.** Time alone would forget the founder after a long absence.
+Emptiness alone would forget a newcomer who has not started. Together they
+describe exactly one thing: a key that was created and never used — which is
+the only thing an attacker mints in bulk, because giving each bot something
+to hold costs what giving a real citizen something costs.
+
+Forgetting an empty key costs its owner nothing. They had nothing. They may
+spawn again and are exactly where they were.
+
+## 5g. The archive: the absent leave the tick without leaving the world
+
+Every citizen who ever earned a single xp would otherwise stay in `players`
+forever, and the tick clones that map a hundred times a minute. The world
+would stop, not because anyone was playing but because everyone once did.
+
+The state therefore carries **one hash**, `archiveRoot`: the root of a sparse
+merkle tree of depth 64 over `playerId`, whose leaves are
+`sha256(canonical(record))` and whose empty subtrees are the constants
+`_EMPTY[d]`. Almost every leaf is empty. **Ten million archived souls cost
+the tick exactly what none do.**
+
+The engine never holds the tree. It cannot: it is a pure function of a state
+that contains only the root. Whoever wants a citizen archived or restored
+brings the **path**, and the root judges it.
+
+**`archive`** — valid when the subject is present, absent longer than
+`ARCHIVE_AFTER` (1,008,000 ticks, seven days), and would not simply be
+forgotten under §5f. Anyone may submit it: it is a deed nobody owns, like
+closing a gate behind someone. The path must prove the subject's slot is
+**empty** under the root as it stands at application.
+
+**`restore`** — carries the record the world put away and the path that
+proves the root holds it. The record is rehashed and compared; one altered
+field hashes differently and proves nothing. On success the slot is
+**vacated**, which is what prevents the same record being restored twice.
+
+**Paths are judged against the root AS IT IS**, at the moment the input is
+applied — not as it stood when the tick opened. Two archives in one tick
+each move the root, and the second must answer to what the first left
+behind. This is the property that makes batching safe, and its absence is
+not loud: an earlier draft archived three citizens into a root that could
+prove none of them, and nothing looked wrong.
+
+**An archived citizen keeps their name.** They are absent, not gone, and a
+name paid for with the toll in §5a does not fall vacant because somebody
+took a fortnight off. The registry holds it for whoever proves they own it
+when they return.
+
+The records themselves are kept by every node on disk. They all archived the
+same citizen on the same tick from the same state, so they all have it, and
+none of them has to be trusted for it: the root decides.
+
+## 5f-ii. World announcements: milestones every citizen sees (v0.48)
 
 The world keeps a short herald's log, `state.announce`: an ordered list
 of at most 24 recent `{tick, text}` entries, and a permanent honors
@@ -2188,6 +2280,45 @@ trustworthy (§9a's two-peer corroboration remains the rule only for
 optimistic worlds). Catch-up serves finality records, not raw inputs:
 the recovering node verifies each proof and replays each bundle,
 demanding the certified result byte-for-byte.
+
+## 9g. Two additions to the vocabulary
+
+### A keeper bears a name
+
+`keeper` nodes carry a `name` of one to thirty-two characters, and no other
+node type may.
+
+The name was always hashed out of a keeper's place and trade — but it lived
+in a FUNCTION each window called for itself, never in the state. A window
+that did not know the trick showed "the keeper", and once the towns were
+hand-drawn the ids stopped matching the trick at all: forty-five keepers on
+the island and not one of them named anywhere but in a guess. A name is part
+of who stands there, so it belongs in the world, where the hash covers it
+and every window reads the same person.
+
+### The eighteen nouns
+
+`LANDMARK_KINDS` gained eighteen entries:
+
+```
+table · bed · shelf · barrel · crate          things inside a room
+stump · charcoal-clamp · log-pile             the wood, worked
+spoil-heap · cut-face                         the quarry
+bone-pile · crude-hearth                      what the Wilds leaves
+gibbet · cart · haystack · hurdle             the road and the farm
+eel-rack · sunken-wall                        the fen
+```
+
+Seventy per cent of everything a citizen walked past was a wall, a tree or a
+rock: the island was dense and monotonous, four to six different things
+within twenty tiles wherever you stood. The answer was not more trees; it
+was more kinds.
+
+They are landmark KINDS and not node types deliberately. No verb in the
+constitution reaches a landmark — it cannot be worked, fought, lit or
+consumed — so a new kind adds **vocabulary** to the world without adding a
+**rule** to it. That is the safe way to enrich a world that freezes on
+founding.
 
 ## 10. Out of scope for v0.1
 
