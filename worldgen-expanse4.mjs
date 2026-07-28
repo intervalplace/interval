@@ -1482,7 +1482,7 @@ export function buildWorld(genesis) {
       if (free(rx0 + dx, ry0 + dy) && free(rx0 + dx + 1, ry0 + dy)) {
         put('kpr-wizard-oberon', 'keeper', rx0 + dx, ry0 + dy, { name: 'Oberon' })
         put('oberon-hearth', 'campfire', rx0 + dx + 1, ry0 + dy)
-        // WHAT HE TEACHES, CUT INTO THE PLACE HE TEACHES IT.
+        // WHAT HE TEACHES, CUT INTO THE STONES THEMSELVES.
         //
         // These five lines lived in window-web.html and nowhere else: one
         // HTML file's JavaScript, cycling on click. A window can be replaced;
@@ -1490,9 +1490,10 @@ export function buildWorld(genesis) {
         // of the founding at all -- and the last of them is about exactly
         // that, which made leaving it there worse than an oversight.
         //
-        // So they stand among the stones. Every window reads them, the hash
-        // covers them, and you learn them by walking the Ring rather than by
-        // clicking the wizard five times.
+        // They were briefly five signposts set around the Ring, which is a
+        // plaque beside a megalith. The stones were here before him and he
+        // intends to return the favour; a wooden board is not how that gets
+        // said. So the teaching is CARVED, and the ring is the teaching.
         const TEACH = [
           '\u201cThree stones make a sigil. Three sigils make a silence.\u201d',
           '\u201cThe stones were here before me. I intend to return the favour.\u201d',
@@ -1500,15 +1501,12 @@ export function buildWorld(genesis) {
           '\u201cThe stilled cannot act, and cannot be struck. I said that long before your constitution did.\u201d',
           '\u201cEvery keeper on this island is named by a hash. I am not. Think about what that costs.\u201d',
         ]
-        let tn = 0
-        for (const [sx2, sy2] of ring) {
-          if (tn >= TEACH.length) break
-          // set each beside a stone, on the outside of the circle
-          const ox = rx0 + sx2 + (sx2 > 0 ? 1 : sx2 < 0 ? -1 : 0)
-          const oy = ry0 + sy2 + (sy2 > 0 ? 1 : sy2 < 0 ? -1 : 0)
-          if (!free(ox, oy)) continue
-          put('oberon-word-' + tn, 'signpost', ox, oy, { text: TEACH[tn] })
-          tn++
+        // the ring was laid above as ring-0..n; carve the first five that
+        // exist, in the order they were set, so every node carves the same
+        for (let tn = 0, cut = 0; tn < ring.length && cut < TEACH.length; tn++) {
+          const st2 = w.nodes['ring-' + tn]
+          if (!st2) continue
+          st2.text = TEACH[cut++]
         }
         break seekO
       }
@@ -2197,6 +2195,51 @@ export function buildWorld(genesis) {
       taken.add(key(x, y)); E.addMob(w, 'barrowdead-' + i, 'skeleton-knight', x, y); bs++
     }
     counts.barrowDead = bs
+  }
+
+  // ---- THE DRAGON ----
+  //
+  // One. Not a kind of thing that spawns in the Wilds -- a thing that is
+  // there, like the Barrow and the Ring and the Brandline.
+  //
+  // It sits deep in the west, as far past the Brand as there is land to put
+  // it on, because the walk is meant to be a decision. Nobody arrives at the
+  // dragon by accident, and nobody who arrives is safe from the people they
+  // brought.
+  {
+    let best = null
+    for (let i = 0; i < 4000; i++) {
+      const hh = H32('thedragon', i)
+      const x = 4 + (hh.readUInt16BE(0) % Math.max(1, Math.round(W * 0.16)))
+      const y = 4 + (hh.readUInt16BE(2) % (H - 8))
+      if (biomeAt(g, x, y) !== 'wilds') continue
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      // room to fight it: a clear ring, or several citizens cannot stand
+      let room = 0
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+        if (!blockedAt(g, x + dx, y + dy) && !isWater(g, x + dx, y + dy)) room++
+      if (room < 22) continue
+      // deep, but not against the wall: the world's edge is not a place, and
+      // a dragon backed into the border cannot be surrounded. Aim for the
+      // western reaches and take the candidate nearest that mark.
+      const want = Math.round(W * 0.055)
+      if (!best || Math.abs(x - want) < Math.abs(best.x - want)) best = { x, y }
+    }
+    if (best) {
+      taken.add(key(best.x, best.y))
+      E.addMob(w, 'the-dragon', 'dragon', best.x, best.y)
+      counts.dragon = 1
+      // a warning at the edge of the country, for anyone who can read
+      for (let r = 6; r < 30; r++) {
+        const sx = best.x + r, sy = best.y
+        if (free(sx, sy) && !blockedAt(g, sx, sy) && !isWater(g, sx, sy)) {
+          taken.add(key(sx, sy))
+          put('dragon-warning', 'signpost', sx, sy,
+            { text: 'no further \u00b7 the scales turn arrows \u00b7 come with company or not at all' })
+          break
+        }
+      }
+    }
   }
 
   // ---- THE GOBLIN PEN ----
