@@ -701,18 +701,24 @@ node.onTick = (state) => {
   // buffer is released rather than held for a reader that will never come.
   const SKIP_ABOVE = 2 * 1024 * 1024   // ~3 ticks behind: wait for it to drain
   const DROP_ABOVE = 16 * 1024 * 1024  // ~25 ticks behind: it is not coming back
-  let skipped = 0, dropped = 0
+  let skipped = 0, dropped = 0, worst = 0
   for (const ws of sockets.keys()) {
     if (ws.readyState !== 1) continue
     const backlog = ws.bufferedAmount ?? 0
+    if (backlog > worst) worst = backlog
     if (backlog > DROP_ABOVE) { dropped++; try { ws.terminate ? ws.terminate() : ws.close() } catch {} ; continue }
     if (backlog > SKIP_ABOVE) { skipped++; continue }
     ws.send(msg)
   }
-  if (dropped) console.warn('[backpressure] closed ' + dropped + ' socket(s) more than '
-    + (DROP_ABOVE / 1048576) + 'MB behind at tick ' + state.tick)
+  // say HOW FAR behind, not just that somebody is. A socket 2MB back is a
+  // client that hiccuped and will catch up on the next tick; one at 15MB is
+  // about to be closed. The old line could not tell you which you had, and
+  // the difference is the difference between fine and losing a citizen.
+  if (dropped) console.warn('[backpressure] closed ' + dropped + ' socket(s) past '
+    + (DROP_ABOVE / 1048576) + 'MB at tick ' + state.tick)
   else if (skipped && state.tick % 100 === 0) console.warn('[backpressure] '
-    + skipped + ' socket(s) behind at tick ' + state.tick + ' — skipping until they drain')
+    + skipped + ' behind at tick ' + state.tick + ', worst ' + (worst / 1048576).toFixed(1)
+    + 'MB of ' + (DROP_ABOVE / 1048576) + 'MB — skipping until they drain')
 }
 
 node.startTicking()
