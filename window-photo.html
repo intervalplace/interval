@@ -3965,6 +3965,76 @@ const NEI8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -
 const wkey = (x, y) => (y + 4096) * 8192 + (x + 4096)
 
 // which stone this tile is: a wall that knows the shape of its own run
+// ---- the parish map: which walls belong to the same building ----
+// A flood fill over wall-ish nodes. A component the size of a room is a
+// HOUSE and gets timber, plaster and a roof; a component the size of a
+// circuit is a CURTAIN and keeps its battlements. Gates and gatehouses
+// conduct (a gate in a curtain must not cut it in two) but keep their
+// own bodies.
+// a guard is a person and a gatehouse is a building; neither is masonry
+// that should fuse two rings into one parish. Only walls and gates conduct.
+const WALLISH = new Set(['wall', 'gate'])
+const GRAND_WALL = 26          // tiles: above this, it rings something
+const ROOM_MAX = 10            // tiles a side: above this, it is not a room
+let _wallComp = null, _wallSig = ''
+function wallComponents(st) {
+  let sig = 0
+  for (const id in st.nodes) if (WALLISH.has(st.nodes[id].type)) sig++
+  if (_wallComp && _wallSig === sig + ':' + W) return _wallComp
+  const tile = new Map()
+  for (const id in st.nodes) {
+    const nd = st.nodes[id]
+    if (WALLISH.has(nd.type)) tile.set(nd.x + ',' + nd.y, id)
+  }
+  const comp = new Map()       // node id -> { grand, anchor, w, d, ox, oz }
+  const seen = new Set()
+  for (const [k0] of tile) {
+    if (seen.has(k0)) continue
+    const members = []
+    const stack = [k0]
+    seen.add(k0)
+    while (stack.length) {
+      const k = stack.pop()
+      const [cx, cy] = k.split(',').map(Number)
+      members.push([cx, cy, tile.get(k)])
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const k2 = (cx + dx) + ',' + (cy + dy)
+        if (tile.has(k2) && !seen.has(k2)) { seen.add(k2); stack.push(k2) }
+      }
+    }
+    let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9
+    for (const [mx, my] of members) {
+      if (mx < x0) x0 = mx; if (mx > x1) x1 = mx
+      if (my < y0) y0 = my; if (my > y1) y1 = my
+    }
+    const bw = x1 - x0 + 1, bd = y1 - y0 + 1
+    const grand = members.length >= GRAND_WALL || bw > ROOM_MAX || bd > ROOM_MAX
+    // a tile or two on its own is nobody's building: it is the low wall
+    // round a yard, and it should be plain stone and knee-high
+    const kind = grand ? 'rampart' : members.length <= 2 ? 'garden' : 'house'
+    // a ROOM is a closed ring, not a blob and not a stub: its tile count
+    // should sit near the perimeter of its own bounding box, give or
+    // take a doorway. Anything else keeps its walls but goes unroofed.
+    const perim = 2 * (bw + bd) - 4
+    const roofable = !grand && bw >= 2 && bd >= 2
+      && members.length >= perim - 3 && members.length <= perim + 2
+    // the anchor carries the roof for the whole room: lowest y, then x,
+    // so every window in the world picks the same stone
+    let anchor = null, best = Infinity
+    for (const [mx, my, mid] of members) {
+      const key = my * 100000 + mx
+      if (key < best) { best = key; anchor = { id: mid, x: mx, y: my } }
+    }
+    for (const [, , mid] of members) comp.set(mid, { kind, roof: null })
+    if (roofable && anchor && kind === 'house') {
+      comp.get(anchor.id).roof = { w: bw, d: bd,
+        ox: (x0 + x1) / 2 - anchor.x, oz: (y0 + y1) / 2 - anchor.y }
+    }
+  }
+  _wallSig = sig + ':' + W
+  return (_wallComp = comp)
+}
+
 function wallShape(n) {
   const at = (dx, dy) => hasWall(n.x + dx, n.y + dy)
   if (WALLS_SPARSE) { // not a circuit: turn each length toward its nearest fellow
@@ -4184,16 +4254,90 @@ function pumpLamps() {
   }
   lamps.length = w
   lamps.sort((a, b) => a.d2 - b.d2)
-  const R2 = LAMP_R * LAMP_R
-  for (let i = 0; i < LAMP_POOL_N; i++) {
-    const p = lampPool[i], e = lamps[i]
-    if (!e || e.d2 > R2 || !(e.light.intensity > 0.001)) { p.intensity = 0; continue }
-    p.position.set(e.owner.position.x + e.x, e.owner.position.y + e.y, e.owner.position.z + e.z)
-    p.color.copy(e.light.color)
-    p.intensity = e.light.intensity
-    p.distance = e.light.distance
-    p.decay = e.light.decay
+  const R2 = LAMP_R * LAMP_R, KEEP2 = (LAMP_R + 8) ** 2
+  // 1. a slot keeps its lamp until that lamp leaves the wider ring. A
+  //    slot that re-aims every time the sort order jitters is a light
+  //    teleporting across a courtyard, and a wall flashing white.
+  const held = new Set()
+  for (const p of lampPool) {
+    if (p.__lamp && (lamps.indexOf(p.__lamp) < 0 || p.__lamp.d2 > KEEP2)) p.__lamp = null
+    if (p.__lamp) held.add(p.__lamp)
   }
+  // 2. empty slots take the nearest unheld lamp inside the tight ring
+  let li = 0
+  for (const p of lampPool) {
+    if (p.__lamp) continue
+    while (li < lamps.length && (held.has(lamps[li]) || lamps[li].d2 > R2)) li++
+    if (li >= lamps.length) break
+    p.__lamp = lamps[li]; held.add(lamps[li]); li++
+    p.__fade = 0            // a lamp arrives dark and comes up
+  }
+  // 3. and the light itself eases in and out, so nothing pops
+  for (const p of lampPool) {
+    const e = p.__lamp
+    const want = e && e.d2 <= KEEP2 ? Math.max(0, e.light.intensity) : 0
+    if (e) {
+      p.position.set(e.owner.position.x + e.x, e.owner.position.y + e.y, e.owner.position.z + e.z)
+      p.color.copy(e.light.color)
+      p.distance = e.light.distance
+      p.decay = e.light.decay
+    }
+    p.__fade = (p.__fade ?? 0) + (want - (p.__fade ?? 0)) * 0.14
+    p.intensity = p.__fade < 0.004 ? 0 : p.__fade
+    if (!want && p.intensity === 0) p.__lamp = null
+  }
+}
+
+// ---- the house wall: close-studded timber over a stone plinth, the
+// way a town builds when it is building rooms and not defences ----
+let _hwStone = null, _hwPanel = null, _hwTimber = null, _hwGlass = null
+const houseStoneG = () => (_hwStone ??= bx(1.03, 0.36, 0.52, 0, 0.18, 0))
+const housePanelG = () => (_hwPanel ??= bx(0.99, 1.34, 0.41, 0, 1.03, 0))
+const houseTimberG = () => (_hwTimber ??= mergeGeometries([
+  bx(0.11, 1.40, 0.45, -0.45, 1.03, 0),   // the corner posts
+  bx(0.11, 1.40, 0.45, 0.45, 1.03, 0),
+  bx(1.05, 0.13, 0.47, 0, 1.77, 0),       // the top plate
+  bx(1.05, 0.11, 0.47, 0, 0.40, 0),       // the sill
+  bx(0.09, 1.30, 0.43, -0.16, 1.03, 0),   // close studding
+  bx(0.09, 1.30, 0.43, 0.16, 1.03, 0),
+], false))
+let _gwA = null, _gwB = null
+const gardenWallG = () => (_gwA ??= bx(1.02, 0.78, 0.42, 0, 0.39, 0))
+const gardenCapG = () => (_gwB ??= bx(1.06, 0.10, 0.50, 0, 0.83, 0))
+const houseGlassG = () => (_hwGlass ??= mergeGeometries([
+  bx(0.30, 0.36, 0.10, 0, 1.24, 0.21),    // a shuttered window, front and back
+  bx(0.30, 0.36, 0.10, 0, 1.24, -0.21),
+], false))
+function makeRoof(wT, dT) {
+  const along = wT >= dT
+  const len = (along ? wT : dT) + 0.34     // the ridge runs the long way
+  const span = (along ? dT : wT) + 0.34    // eave to eave
+  const rise = Math.min(1.75, span * 0.42 + 0.2)
+  const ang = Math.atan2(rise, span / 2)
+  const slope = Math.hypot(span / 2, rise) + 0.1
+  const grp = new THREE.Group()
+  for (const sgn of [-1, 1]) {
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(len, 0.12, slope), mats.roof)
+    slab.position.set(0, rise / 2, sgn * span / 4)
+    slab.rotation.x = sgn * ang
+    slab.castShadow = true; slab.receiveShadow = true
+    grp.add(slab)
+  }
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(len + 0.12, 0.13, 0.17), mats.darkwood)
+  ridge.position.y = rise; ridge.castShadow = true; grp.add(ridge)
+  // the gable ends close the roof off, in the same plaster as the walls
+  const sh = new THREE.Shape()
+  sh.moveTo(-span / 2, 0); sh.lineTo(span / 2, 0); sh.lineTo(0, rise); sh.closePath()
+  const gg = new THREE.ExtrudeGeometry(sh, { depth: 0.14, bevelEnabled: false })
+  for (const sgn of [-1, 1]) {
+    const gab = new THREE.Mesh(gg, mats.plaster)
+    gab.position.set(sgn * (len / 2 - 0.07), 0, 0)
+    gab.rotation.y = Math.PI / 2
+    gab.castShadow = true; grp.add(gab)
+  }
+  if (!along) grp.rotation.y = Math.PI / 2
+  grp.userData.rise = rise
+  return grp
 }
 
 function nodeBody(n) {
@@ -4479,7 +4623,54 @@ function nodeBody(n) {
       sk5.scale.y = 1.25; add(sk5, ss5[0], ss5[1], -0.34)
     }
     add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.12), M5(0xc9a86a)), -0.22, 0.58, -0.02)
-    g.userData.ghostH = 0.7
+    // ...and the market above it: four poles, a striped awning, and the
+    // clutter of a stall that has been trading since dawn
+    const stripeA = M5(0x9d3f34), stripeB = M5(0xd8cbb0)
+    for (const [px5, pz5] of [[-0.46, 0.3], [0.46, 0.3], [-0.46, -0.34], [0.46, -0.34]])
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 1.18, 5), mats.bark), px5, 0.59, pz5)
+    for (let i5 = 0; i5 < 6; i5++) { // the awning, in cloth widths
+      const sl5 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.045, 0.82), i5 % 2 ? stripeA : stripeB)
+      sl5.position.set(-0.45 + i5 * 0.18, 1.19 - Math.abs(i5 - 2.5) * 0.012, -0.02)
+      sl5.rotation.x = 0.16; sl5.castShadow = true; g.add(sl5)
+    }
+    add(new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.05, 0.06), mats.bark), 0, 1.16, 0.38)
+    for (const [cx5, cz5, cs5] of [[-0.36, 0.3, 0.2], [-0.13, 0.34, 0.15]]) // crates
+      add(new THREE.Mesh(new THREE.BoxGeometry(cs5, cs5, cs5), M5(0x6d5733)), cx5, cs5 / 2, cz5)
+    const bar5 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.12, 0.34, 10), M5(0x4f3a1e)), 0.36, 0.17, 0.32)
+    bar5.castShadow = true
+    g.userData.ghostH = 1.3
+  } else if (n.type === 'wall' && n.wallKind === 'garden') {
+    // the low wall round a yard: plain courses and a coping stone, and
+    // not one crenellation anywhere near it
+    const [, rotG] = wallShape(n)
+    const wgG = new THREE.Group(); wgG.rotation.y = rotG; g.add(wgG)
+    const b1 = new THREE.Mesh(gardenWallG(), mats.stone)
+    b1.castShadow = true; b1.receiveShadow = true; wgG.add(b1)
+    const cap = new THREE.Mesh(gardenCapG(), mats.stoneBlob)
+    cap.castShadow = true; wgG.add(cap)
+    g.userData.ghostH = 1.0
+  } else if (n.type === 'wall' && n.wallKind === 'house') {
+    // A ROOM, not a rampart. Battlements on the four sides of a baker's
+    // shop are what made a fortified town read as castles inside a
+    // castle; a building wants timber, plaster and a roof over it.
+    const [, rot] = wallShape(n)
+    const wg = new THREE.Group(); wg.rotation.y = rot; g.add(wg)
+    const put = (geo, mat, shadow = true) => {
+      const m = new THREE.Mesh(geo, mat)
+      m.castShadow = shadow; if (shadow) m.receiveShadow = true
+      wg.add(m); return m
+    }
+    put(houseStoneG(), mats.stone)
+    put(housePanelG(), mats.plaster)
+    put(houseTimberG(), mats.darkwood)
+    put(houseGlassG(), mats.slit, false)
+    g.userData.ghostH = 1.9
+    if (n.roof) { // one wall of the room carries the roof for all of them
+      const rf = makeRoof(n.roof.w, n.roof.d)
+      rf.position.set(n.roof.ox, 1.83, n.roof.oz)
+      g.add(rf)
+      g.userData.ghostH = 1.83 + rf.userData.rise
+    }
   } else if (n.type === 'wall') {
     // the curtain, or the tower that punctuates it: the tile asks its
     // neighbours what it is before it decides how to stand
@@ -6745,6 +6936,7 @@ const NODE_BUDGET_FRAME = 14              // ...and per catch-up frame
 let nodesPending = false
 function syncNodes(s, budget) {
   const t = s.tick
+  const parish = wallComponents(s)
   const camTX = camera.position.x + W / 2 - 0.5, camTY = camera.position.z + H / 2 - 0.5
   const BR2 = NODE_BUILD_R * NODE_BUILD_R, KR2 = NODE_KEEP_R * NODE_KEEP_R
   let pending = false
@@ -6754,15 +6946,26 @@ function syncNodes(s, budget) {
     const dxn = n.x - camTX, dyn = n.y - camTY
     const d2 = dxn * dxn + dyn * dyn
     if (d2 > KR2) {                       // the far country keeps its body parked
-      if (g && g.parent) scene.remove(g)
+      if (g && g.parent) {
+        // it may have been fading out of the eye's way when it left;
+        // it must not come back still wearing the ghost
+        if (g.__ghostNow !== undefined && g.__ghostNow < 0.995) { setGhost(g, 1); g.__ghost = 1 }
+        scene.remove(g)
+      }
       continue
     }
+    // a wall's costume depends on the size of the thing it belongs to,
+    // so a wall built or broken can change its neighbours' minds
+    const par = parish.get(id)
+    const wallKind = par ? par.kind : 'rampart'
+    if (g && g.userData.type === 'wall' && g.userData.wallKind !== wallKind) { scene.remove(g); vis.node.delete(id); g = null }
     if (!g || g.userData.type !== n.type) {
       if (d2 > BR2) continue              // not yet worth carving
       if (budget <= 0) { pending = true; continue }
       budget--
       if (g) scene.remove(g)
-      g = nodeBody({ ...n, id }); g.userData.type = n.type
+      g = nodeBody({ ...n, id, wallKind, roof: par?.roof ?? null })
+      g.userData.type = n.type; g.userData.wallKind = wallKind
       g.userData.kind = 'node'; g.userData.id = id
       g.traverse((o) => { o.userData.kind = 'node'; o.userData.id = id
         // canopies are the one surface that gains nothing and risks
@@ -7176,11 +7379,72 @@ addEventListener('keyup', (e) => keysHeld.delete(e.key))
 addEventListener('blur', () => keysHeld.clear())
 
 // one signed intention per interval, never more: step, work, hunt
+// v0.81: what the ENGINE means by 'blocked'. Mirrored from engine.js
+// blockingNodeAt (§5): every node bars the way except the three a
+// citizen builds and can walk over. A living beast holds its tile. The
+// hedge -- the outer ring -- is law. Keep this in step with the engine
+// or the legs will plan routes the world refuses.
+const WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire'])
+let blockTiles = null, blockTick = -1
+function blockedAt(x, y) {
+  if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return true
+  if (!world) return false
+  if (blockTick !== world.tick) { // one occupancy map per interval, not per step
+    blockTick = world.tick
+    blockTiles = new Set()
+    for (const id in world.nodes) {
+      const nd = world.nodes[id]
+      if (!WALKABLE_BUILT.has(nd.type)) blockTiles.add(nd.x + ',' + nd.y)
+    }
+    for (const id in world.mobs) {
+      const mb = world.mobs[id]
+      if ((mb.hp ?? 0) > 0) blockTiles.add(mb.x + ',' + mb.y)
+    }
+  }
+  if (blockTiles.has(x + ',' + y)) return true
+  const tt = terrainOf(x, y)
+  return tt === 'sea' || tt === 'river'   // bridges and fords read as their own terrain
+}
+// a short breadth-first search over the tiles between here and there.
+// Bounded hard: this runs once per interval, and a citizen who cannot
+// find a way inside a few thousand tiles has no way worth walking.
+const PATH_CAP = 6000
+function firstStep(sx, sy, txg, tyg, stopAdjacent) {
+  const goal = (x, y) => stopAdjacent
+    ? (Math.abs(x - txg) + Math.abs(y - tyg) <= 1)
+    : (x === txg && y === tyg)
+  if (goal(sx, sy)) return null
+  const seen = new Map()          // tile -> the first step that reaches it
+  const q = [[sx, sy, null]]
+  let head = 0
+  seen.set(sx + ',' + sy, null)
+  while (head < q.length && head < PATH_CAP) {
+    const [cx, cy, first] = q[head++]
+    // nearest-first ordering is not worth a heap here: the ring is small
+    for (const [dx, dy] of [[Math.sign(txg - cx), 0], [0, Math.sign(tyg - cy)], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (!dx && !dy) continue
+      const nx = cx + dx, ny = cy + dy, k = nx + ',' + ny
+      if (seen.has(k)) continue
+      // passable FIRST, then goal: a tile beside the campfire may be a
+      // wall, and a step into it is a step the engine will refuse
+      if (blockedAt(nx, ny)) { seen.set(k, null); continue }
+      if (goal(nx, ny)) return first ?? [dx, dy]
+      const f = first ?? [dx, dy]
+      seen.set(k, f)
+      q.push([nx, ny, f])
+    }
+  }
+  return undefined                 // undefined: searched and found nothing
+}
 function stepToward(txg, tyg, stopAdjacent) {
   const me = world?.players?.[ownKey?.pub]; if (!me) return
   const dxT = txg - me.x, dyT = tyg - me.y
   if (stopAdjacent && Math.abs(dxT) + Math.abs(dyT) <= 1) return
   if (!dxT && !dyT) return
+  const st = firstStep(me.x, me.y, txg, tyg, stopAdjacent)
+  if (st) { send({ do: 'move', dx: st[0], dy: st[1] }); lastStepPos = me.x + ',' + me.y; return }
+  if (st === undefined) { walkStuck = 99; return } // no way through: let the tick say so
+  // the greedy fallback, kept for the case where the search declines
   const dx = Math.sign(dxT), dy = Math.sign(dyT)
   const stuck = lastStepPos === me.x + ',' + me.y
   const preferX = Math.abs(dxT) >= Math.abs(dyT)
@@ -7194,8 +7458,25 @@ function stepToward(txg, tyg, stopAdjacent) {
   lastStepPos = me.x + ',' + me.y
 }
 let lastActed = -1
+let walkStuck = 0, walkWasAt = ''
 function actOnTick() {
   const me = world?.players?.[ownKey?.pub]; if (!me) return
+  // v0.81: the engine drops a move it will not allow, and says nothing.
+  // So the window watches its own feet: if an order is standing and the
+  // ground has not changed for several intervals, the order is not
+  // happening, and the citizen deserves to hear that rather than watch
+  // a motionless figure and conclude the controls are broken.
+  const here = me.x + ',' + me.y
+  if (huntTarget || workTarget || walkGoal) {
+    if (here === walkWasAt) walkStuck++; else { walkStuck = 0; walkWasAt = here }
+    if (walkStuck >= 4) {
+      const what = workTarget ? (world.nodes?.[workTarget]?.type ?? 'work')
+        : huntTarget ? (world.mobs?.[huntTarget]?.type ?? 'beast') : 'that place'
+      feed('no way through to the ' + what + ' from here')
+      huntTarget = null; workTarget = null; walkGoal = null; walkStuck = 0
+      return
+    }
+  } else { walkStuck = 0; walkWasAt = here }
   // a finger that has been down a while, has not dragged, and is not
   // typing, is a walk order -- judged here, on the tick, where a late
   // frame cannot lie about how long it has been
