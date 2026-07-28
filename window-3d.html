@@ -741,8 +741,18 @@ function signBanner() { // a spectator should KNOW they are spectating
   document.body.appendChild(d)
 }
 const allocTick = () => {
-  const t2 = Math.max((world?.tick ?? 0) + 1, lastStamped + 1)
-  if (t2 > (world?.tick ?? 0) + 2) return null
+  // at most two ticks of lookahead. The stamp only ever CLIMBED here, and
+  // nothing brought it back: if the world went backward — reconnecting to
+  // an earlier state, or a node refounded with a fresh, lower-tick world —
+  // the allocator was stranded in a future that never arrived, and every
+  // step was refused forever while the citizen still turned to face the
+  // goal (the "ring shows, nothing moves" bug). The reference /play window
+  // resyncs whenever the stamp falls outside its allowed window in EITHER
+  // direction; the deluxe window now does the same.
+  const cur = world?.tick ?? 0
+  if (lastStamped < cur || lastStamped > cur + 2) lastStamped = cur
+  const t2 = Math.max(cur + 1, lastStamped + 1)
+  if (t2 > cur + 2) return null
   lastStamped = t2
   return t2
 }
@@ -817,7 +827,7 @@ renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.outputEncoding = THREE.sRGBEncoding
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 0.92
+renderer.toneMappingExposure = 0.98
 document.body.appendChild(renderer.domElement)
 // a fine pointer and a wide screen: the machine can afford the luxuries
 const FINE = matchMedia && matchMedia('(pointer: fine)').matches && innerWidth > 900
@@ -3946,6 +3956,58 @@ const claim3 = (x, y) => {
 }
 const wkey3 = (x, y) => (y + 4096) * 8192 + (x + 4096)
 const ORTHO3 = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+// ---- the townhouse that stands where an interior wall tile once threw
+// up another battlement. Same medieval carpentry as the shops (stone
+// footing, plastered daub, corner posts, a diagonal brace, a sagging
+// tiled roof), cut small and cheap: an enclosed run of these reads as a
+// crowded quarter of a walled town rather than a keep. One weld per
+// house keeps the draw cost near a curtain tile's. ----
+const _townRoofGeo = (() => {
+  const g = new THREE.ConeGeometry(0.72, 0.5, 4, 2)
+  const rp = g.attributes.position
+  for (let i = 0; i < rp.count; i++) {
+    const vy = rp.getY(i), t = vy / 0.5 + 0.5
+    if (t > 0.05 && t < 0.95) { const k = 1 + (1 - t) * 0.14; rp.setX(i, rp.getX(i) * k); rp.setZ(i, rp.getZ(i) * k) }
+  }
+  g.computeVertexNormals(); g.rotateY(Math.PI / 4); return g
+})()
+const TOWN_WALLC = [0x8f7d5c, 0x9a8862, 0x847049, 0x7d6c47, 0x8a7856]
+const TOWN_ROOFC = [0x9a4a2c, 0x8a3a2a, 0x7a4632, 0x6f5a3a, 0x8a5a2a]
+function townHouse(n, std, metalN, cast) {
+  const g = new THREE.Group()
+  const hv = tileHash(n.x, n.y, 57)
+  const wallC = TOWN_WALLC[hv % TOWN_WALLC.length]
+  const roofC = TOWN_ROOFC[(hv >> 2) % TOWN_ROOFC.length]
+  const beamM = std(0x3a2c1a, 1)
+  const wallH = 0.62 + (hv % 6) / 26 // taller than a shop-front: these are homes packed shoulder to shoulder
+  const body = []
+  body.push(b3(0.94, 0.30, 0.94, 0, 0.15, 0))          // stone footing
+  const foot = cast(new THREE.Mesh(weld3(body), std(0x6b665c))); g.add(foot)
+  const daub = cast(new THREE.Mesh(b3(0.86, wallH, 0.86, 0, 0.30 + wallH / 2, 0), std(wallC))); g.add(daub)
+  const topY = 0.30 + wallH
+  // corner posts + a single face brace: the half-timber signature, cheaply
+  const tim = []
+  for (const [px, pz] of [[-0.41, 0.41], [0.41, 0.41], [-0.41, -0.41], [0.41, -0.41]])
+    tim.push(b3(0.05, topY - 0.28, 0.05, px, 0.30 + (topY - 0.30) / 2, pz))
+  tim.push(b3(0.84, 0.045, 0.03, 0, topY - 0.04, 0.44), b3(0.84, 0.045, 0.03, 0, 0.34, 0.44))
+  const braceG = b3(0.038, wallH * 0.82, 0.026, 0.24, 0.30 + wallH / 2, 0.442); braceG.rotateZ(0.5)
+  tim.push(braceG)
+  g.add(new THREE.Mesh(weld3(tim), beamM))
+  // roof: the shared sagging hip, tinted per-house
+  const roof = cast(new THREE.Mesh(_townRoofGeo, std(roofC, 0.95)))
+  roof.scale.setScalar(1.14); roof.position.y = topY + 0.24; g.add(roof)
+  snowReg.push({ m: roof.material, base: roof.material.color.clone(), amt: 0.8 })
+  // a chimney, sometimes smoking, so the quarter breathes
+  const chx = (hv % 2) ? 0.22 : -0.2
+  const chim = cast(new THREE.Mesh(b3(0.11, 0.32, 0.11, chx, topY + 0.4, -0.16), std(0x5a564e))); g.add(chim)
+  if (hv % 3 === 0) chimneySmokes.push(mkSmoke(g, chx, topY + 0.62, -0.16, 0.3, 0.45, true))
+  // one lit window at night, facing the street side
+  const win = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.03),
+    new THREE.MeshStandardMaterial({ color: 0x2a2418, emissive: 0xffb84d, emissiveIntensity: 0 }))
+  win.position.set(0, 0.30 + wallH * 0.55, 0.44); g.add(win)
+  g.userData.win = win; g.userData.winOff = (hv % 100) / 100
+  return g
+}
 // eight, not four: a gate's drums reach the tile edge, so a drum on the
 // diagonal is touching it too
 const NEI83 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
@@ -3991,6 +4053,39 @@ function wallCensus3(s) {
       }
     }
     SHAPE3[k] = { shape: shape, lie: lie }
+  }
+  // ---- town vs castle, by COMPOUND. The founder lays walls as separate
+  // rectangular enclosures: one great rampart around the whole town, and
+  // dozens of smaller walled compounds inside it — halls, yards, the
+  // market. Rendering every one as fortress stone is what made "a castle
+  // full of smaller castles". So: find the connected components; the
+  // largest (the rampart) keeps its battlements, and every smaller
+  // compound is a BUILDING whose wall tiles become timber-and-stone house
+  // walls with a roof, not another curtain of merlons. ----
+  const _compId = {}
+  {
+    let cid = 0
+    const compSize = []
+    for (const k of WALLS3) {
+      if (_compId[k] !== undefined) continue
+      const stack = [k]; _compId[k] = cid; let sz = 0
+      while (stack.length) {
+        const c = stack.pop(); sz++
+        const ci = c.indexOf(','), cx = +c.slice(0, ci), cy = +c.slice(ci + 1)
+        for (const [dx, dy] of ORTHO3) {
+          const nk = (cx + dx) + ',' + (cy + dy)
+          if (WALLS3.has(nk) && _compId[nk] === undefined) { _compId[nk] = cid; stack.push(nk) }
+        }
+      }
+      compSize[cid] = sz; cid++
+    }
+    // the rampart is the largest component; anything smaller is a building
+    let rampart = 0
+    for (let i = 1; i < compSize.length; i++) if (compSize[i] > compSize[rampart]) rampart = i
+    for (const k of WALLS3) {
+      const isBuilding = _compId[k] !== rampart && compSize[_compId[k]] <= 80
+      SHAPE3[k].building = isBuilding
+    }
   }
   return true
 }
@@ -4375,19 +4470,33 @@ function nodeMesh(n) {
     cap.position.y = 0.92; g.add(cap)
   } else if (n.type === 'wall') {
     const sh3 = SHAPE3[n.x + ',' + n.y]
+    if (sh3 && sh3.building) {
+      // part of an interior walled compound, not the town rampart: raise
+      // a timber-and-stone house here. A block of these reads as the
+      // town's built quarter — halls, homes, the market — instead of a
+      // ring of battlements.
+      return townHouse(n, std, metalN, cast)
+    }
     if (sh3 && sh3.shape === 'tower') {
-      const dm = cast(new THREE.Mesh(drum3(), std(0x7a756b)))
+      const dm = cast(new THREE.Mesh(drum3(), std(0x8a7d68)))
       dm.receiveShadow = true; g.add(dm)
       g.add(new THREE.Mesh(drumSlit3(), std(0x14120f, 1)))
+      // a town gate-tower wears a conical tiled roof, not a bare crown
+      const cap = cast(new THREE.Mesh(new THREE.ConeGeometry(0.66, 0.7, 10), std(0x7a4632, 0.95)))
+      cap.position.y = 3.55; g.add(cap)
+      snowReg.push({ m: cap.material, base: cap.material.color.clone(), amt: 0.8 })
       if (tileHash(n.x, n.y, 61) % 3 === 0) { // some drums fly cloth
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 0.8, 5), metalN(0x5a5148))
-        pole.position.y = 3.7; g.add(pole)
+        pole.position.y = 4.1; g.add(pole)
         const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.24),
           new THREE.MeshStandardMaterial({ color: 0x8a3b2c, roughness: 0.95, side: THREE.DoubleSide }))
-        fl.position.set(0.2, 3.92, 0); fl.rotation.y = (tileHash(n.x, n.y, 62) % 60) / 20; g.add(fl)
+        fl.position.set(0.2, 4.3, 0); fl.rotation.y = (tileHash(n.x, n.y, 62) % 60) / 20; g.add(fl)
       }
     } else {
-      const cu = cast(new THREE.Mesh(curtain3(), std(0x7a756b)))
+      // the town rampart: shortened and warmed from cold white to a sandy
+      // town stone, so the enclosing wall reads as a market town's
+      // defences rather than a palace
+      const cu = cast(new THREE.Mesh(curtain3(), std(0x8a7d68)))
       cu.receiveShadow = true; g.add(cu)
       g.add(new THREE.Mesh(curtainSlit3(), std(0x14120f, 1)))
       g.rotation.y = sh3 ? sh3.lie : 0
@@ -6946,7 +7055,7 @@ setInterval(() => { // one greedy step per tick: the deluxe window keeps its leg
 let lastStep = null
 
 // ---- the frame: sun, moon, clouds, fires, water, bodies, camera ----
-const NIGHT_HOR = new THREE.Color(0x0a1120), DAY_HOR = new THREE.Color(0xa9c2da), DUSK_HOR = new THREE.Color(0xb06238)
+const NIGHT_HOR = new THREE.Color(0x0a1120), DAY_HOR = new THREE.Color(0xbcc6cc), DUSK_HOR = new THREE.Color(0xc87038)
 const STORM_GREY = new THREE.Color(0x3a4048)
 const RIDGE_C = new THREE.Color() // scratch for the ranges' hourly repaint
 const fogCol = new THREE.Color()
@@ -7082,11 +7191,19 @@ function animate(now) {
   // hard box around the player from above: the direct light now yields
   // to the sky as the sun touches the horizon
   const graze = clamp01((sunH - 0.015) / 0.11)
-  sun.intensity = (0.06 + day * 1.15) * (0.25 + graze * 0.75)
-  sun.color.setHSL(0.075 + day * 0.045, 0.55 - day * 0.22, 0.48 + day * 0.34)
-  ambient.intensity = 0.055 + day * 0.30 + dusk * 0.05
-  hemi.intensity = 0.16 + day * 0.42 + dusk * 0.10
-  hemi.color.setHSL(0.6, 0.35, 0.25 + day * 0.45)
+  sun.intensity = (0.06 + day * 1.02) * (0.25 + graze * 0.75)
+  // storybook grade: the sun keeps a golden cast all day instead of
+  // burning to white at noon — warmer hue, and a lightness that tops out
+  // below paper-white so midday reads as a long amber afternoon
+  sun.color.setHSL(0.085 - day * 0.010, 0.62 - day * 0.16, 0.46 + day * 0.24)
+  // the shadow side is warmed too: a hair of amber in the ambient and a
+  // hemisphere that leans to warm stone below, cool sky above, so the
+  // whole town sits in golden-hour light rather than clinical daylight
+  ambient.intensity = 0.06 + day * 0.28 + dusk * 0.08
+  ambient.color.setHSL(0.09, 0.24, 0.34 + day * 0.14)
+  hemi.intensity = 0.16 + day * 0.40 + dusk * 0.12
+  hemi.color.setHSL(0.10, 0.30, 0.26 + day * 0.40)
+  hemi.groundColor.setHSL(0.07, 0.36, 0.16 + day * 0.10)
   fillLight.intensity = 0.05 + day * 0.12
   moonLight.intensity = night * 0.30
   moonLight.position.set(fx - sunDirV.x * 30, 22, fz - sunDirV.z * 30)
@@ -7096,7 +7213,7 @@ function animate(now) {
   skyMat.uniforms.uSunDir.value.copy(sunDirV)
   skyMat.uniforms.uDay.value = day
   skyMat.uniforms.uDusk.value = dusk
-  fogCol.copy(NIGHT_HOR).lerp(DAY_HOR, day).lerp(DUSK_HOR, dusk * 0.32)
+  fogCol.copy(NIGHT_HOR).lerp(DAY_HOR, day).lerp(DUSK_HOR, dusk * 0.45)
   scene.fog.color.copy(fogCol)
   renderer.setClearColor(scene.fog.color)
   // (the ridge tint moved below the weather block: it wants murk)
