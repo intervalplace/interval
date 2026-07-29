@@ -854,6 +854,16 @@ function generateIdentity() {
 const SIG_DOMAINS = {
   input: 'INTERVAL_INPUT_V1|',
   chat:  'INTERVAL_CHAT_V1|',
+  // A photograph is not a deed and never enters the state machine. The
+  // domain is reserved here anyway, beside the others, so that no window
+  // can ever mint a signature that replays as one. Windows sign plates;
+  // the engine only ever reads them back.
+  photo: 'INTERVAL_PHOTO_V1|',
+  // A clip names a RANGE of ticks and a camera. It carries no pixels and
+  // needs none: the world is deterministic, so naming the world, the range
+  // and the eye names the footage exactly, and unlike a video file it
+  // cannot be edited without ceasing to verify.
+  clip:  'INTERVAL_CLIP_V1|',
 };
 
 // The signed payload is the domain prefix + canonical input without its sig field.

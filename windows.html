@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Choose a window: Interval</title>
-<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="/site/site.css">
 <style>
 .doors { display: flex; flex-wrap: wrap; gap: 22px; margin: 26px 0 8px }
 .door { flex: 1 1 300px; background: linear-gradient(#1d1409, #120c06);
@@ -18,12 +18,10 @@
 .enter:hover { background: linear-gradient(#7d6a3e, #544325); border-color: #c6941e; text-decoration: none }
 .samecap { text-align: center; color: #94805a; font-size: 13px; font-style: italic; margin: 4px 0 30px }
 </style></head><body>
-
-<div class="page"><nav class="stone" style="margin-bottom:18px">
-  <a href="#">Interval</a><a href="#" class="here">Play</a><a href="#">New Player Guide</a>
-  <a href="#">The Manual</a><a href="#">Hiscores</a></nav><main class="stone">
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
   <h1>Choose a window</h1>
-  <p class="tagline">Both of these open the same world. Neither of them is it.</p>
+  <p class="tagline">All of these open the same world. None of them is it.</p>
 
   <div class="doors">
     <div class="door">
@@ -85,18 +83,84 @@
         </svg>
       </figure>
       <h3>The deep window</h3>
-      <p class="kind">geometry, from behind the shoulder</p>
-      <p>The same country in three dimensions, with weather, weight and
-      nightfall. It asks more of a machine than the flat window does, and
-      gives back the feeling of standing somewhere.</p>
+      <p class="kind">behind anyone's shoulder, including nobody's</p>
+      <p>The same country in three dimensions, and a theatre: the world is
+      a deterministic machine, so this window will run it backwards. Scrub
+      the last twelve minutes, follow any citizen through them, and sign a
+      clip that anyone can re-derive from the seed. You cannot act in the
+      past. That is rather the point.</p>
       <a class="enter" href="/play/deep">Enter</a>
     </div>
+
+    <div class="door">
+      <figure>
+        <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
+          <!-- the photo window: the same country, with weather in it -->
+          <defs>
+            <linearGradient id="pw-sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#2a3d5c"/><stop offset=".62" stop-color="#8a6a3e"/>
+              <stop offset="1" stop-color="#c6941e"/>
+            </linearGradient>
+            <linearGradient id="pw-water" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#c6941e" stop-opacity=".55"/>
+              <stop offset="1" stop-color="#1d2f3d"/>
+            </linearGradient>
+          </defs>
+          <rect x="12" y="26" width="126" height="74" fill="url(#pw-sky)"/>
+          <circle cx="99" cy="86" r="11" fill="#f2d489" opacity=".85"/>
+          <path d="M12 100 L46 74 L70 100 Z" fill="#2b2416"/>
+          <path d="M58 100 L92 66 L126 100 Z" fill="#3a3020"/>
+          <rect x="12" y="100" width="126" height="42" fill="url(#pw-water)"/>
+          <circle cx="99" cy="118" r="9" fill="#f2d489" opacity=".28"/>
+          <rect x="12" y="106" width="126" height="1.6" fill="#e2b63e" opacity=".35"/>
+          <rect x="12" y="120" width="126" height="1.6" fill="#e2b63e" opacity=".22"/>
+          <rect x="68" y="86" width="7" height="16" fill="#241a0e"/>
+          <circle cx="71.5" cy="82" r="4.4" fill="#241a0e"/>
+        </svg>
+      </figure>
+      <h3>The photo window</h3>
+      <p class="kind">a camera, held at eye height</p>
+      <p>Not a prettier way to play: a way to take something out. You stand
+      behind your own eyes, rack a real lens, and every photograph leaves
+      here signed &mdash; the tick, the ground you stood on and the pixels
+      themselves, sealed with the key that swings your axe, checkable by a
+      stranger. And because the sky is a pure function of the tick, this
+      window can tell you when the light will be worth it.</p>
+      <a class="enter" href="/play/photo">Enter</a>
+    </div>
+
+    <div class="door">
+      <figure>
+        <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
+          <!-- the holo window: the world as a table you stand over -->
+          <ellipse cx="75" cy="132" rx="56" ry="15" fill="#1a1206" stroke="#4a3c24"/>
+          <g opacity=".92">
+            <path d="M75 60 L123 88 L75 116 L27 88 Z" fill="#123038" stroke="#3fd0d8" stroke-width="1.2"/>
+            <path d="M75 68 L107 86 L75 104 L43 86 Z" fill="none" stroke="#3fd0d8" stroke-width=".8" opacity=".6"/>
+            <path d="M51 74 L75 88" stroke="#3fd0d8" stroke-width=".6" opacity=".45"/>
+            <path d="M99 74 L75 88" stroke="#3fd0d8" stroke-width=".6" opacity=".45"/>
+          </g>
+          <rect x="72" y="44" width="6" height="16" fill="#3fd0d8"/>
+          <circle cx="75" cy="40" r="4" fill="#7ff0f6"/>
+          <g opacity=".5" stroke="#3fd0d8" stroke-width=".8">
+            <path d="M27 88 L27 118"/><path d="M123 88 L123 118"/><path d="M75 116 L75 140"/>
+          </g>
+        </svg>
+      </figure>
+      <h3>The holo window</h3>
+      <p class="kind">a diorama on your table</p>
+      <p>The world as a small country placed on a real surface, or at full
+      size around your feet. Built for headsets that pass the room through,
+      and it runs flat in an ordinary browser too. Air-tap a tile to walk to
+      it.</p>
+      <a class="enter" href="/play/holo">Enter</a>
+    </div>
   </div>
-  <p class="samecap">Both open in this browser, on a phone as readily as a
-  desktop. Nothing is installed and nothing is chosen for good: leave by one
-  door, come back through the other, and you are the same citizen in the same
-  place. Standing, calling and inventory are identical in both, because none
-  of that is the window's to decide.</p>
+  <p class="samecap">All of them open in this browser, and nothing is
+  installed. Nothing is chosen for good either: leave by one door, come back
+  through another, and you are the same citizen in the same place. Standing,
+  calling and inventory are identical in every one, because none of that is
+  the window's to decide.</p>
 
   <h2>A window is not the world</h2>
   <p>The world is not in either of these pages. It is a protocol: a rule for
