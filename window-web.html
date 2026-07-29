@@ -427,6 +427,50 @@ function itemSprite(item) {
       g.lineTo(13 + Math.cos(1.35) * 11.5, 16 + Math.sin(1.35) * 11.5); g.stroke()
       g.fillStyle = '#8a6a3a'; g.fillRect(23, 14, 3, 4)            // the grip
       break }
+    case 'dragonbow': {
+      // THE ONE BOW. It should not look like a bow with better numbers.
+      //
+      // A horn-bow is two horn limbs and a string. This is made from the
+      // thing that killed everyone who tried before you: the limbs are
+      // dragon-bone, pale and slightly wrong in shape, and they are bound at
+      // the grip with scale that still catches light. Nothing else in the
+      // pack glows, and this does, faintly, all the time.
+      const glow = 0.5 + 0.5 * Math.sin(Date.now() / 620)
+      // the ember behind it: you can tell which slot it is in without reading
+      g.fillStyle = 'rgba(226,110,30,' + (0.10 + 0.10 * glow) + ')'
+      g.beginPath(); g.arc(15, 16, 15, 0, 7); g.fill()
+      // LIMBS: a deep recurve, bone-pale, thicker at the root
+      for (const dir of [-1, 1]) {
+        g.strokeStyle = '#d8d0b8'; g.lineWidth = 3.6
+        g.beginPath()
+        g.moveTo(15, 16)
+        g.quadraticCurveTo(6 - dir * 1, 16 + dir * 9, 11, 16 + dir * 15)
+        g.stroke()
+        g.strokeStyle = '#8f8874'; g.lineWidth = 1.1
+        g.beginPath()
+        g.moveTo(15, 16)
+        g.quadraticCurveTo(6 - dir * 1, 16 + dir * 9, 11, 16 + dir * 15)
+        g.stroke()
+        // the recurved tip, turning back on itself
+        g.strokeStyle = '#efe7cf'; g.lineWidth = 2.4
+        g.beginPath(); g.moveTo(11, 16 + dir * 15)
+        g.quadraticCurveTo(15, 16 + dir * 17, 17, 16 + dir * 13); g.stroke()
+      }
+      // SCALE binding at the grip, the one part that is dragon and not bone
+      for (let r = 0; r < 4; r++) {
+        g.fillStyle = ['#5a3226', '#6e4030', '#4a2a20', '#7a4a34'][r]
+        g.beginPath(); g.ellipse(15, 10 + r * 4, 3.6, 2.4, 0, 0, 7); g.fill()
+        g.strokeStyle = 'rgba(255,150,60,' + (0.25 * glow) + ')'; g.lineWidth = 0.8; g.stroke()
+      }
+      // THE STRING: drawn taut, and lit
+      g.strokeStyle = 'rgba(255,190,110,' + (0.55 + 0.35 * glow) + ')'; g.lineWidth = 1.2
+      g.beginPath(); g.moveTo(17, 1); g.lineTo(17, 31); g.stroke()
+      g.strokeStyle = '#efe7cf'; g.lineWidth = 0.7
+      g.beginPath(); g.moveTo(17, 1); g.lineTo(17, 31); g.stroke()
+      // a nocked ember where the arrow would sit
+      g.fillStyle = 'rgba(255,160,50,' + (0.6 + 0.4 * glow) + ')'
+      g.beginPath(); g.arc(17, 16, 1.8 + glow * 0.8, 0, 7); g.fill()
+      break }
     case 'old-chain': {
       g.strokeStyle = '#8a8a82'; g.lineWidth = 2
       for (let li = 0; li < 5; li++) {
@@ -457,7 +501,22 @@ function itemSprite(item) {
 const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
   ? '<img src="' + itemSprite(item).toDataURL() + '" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle">'
   : undefined, has: () => true })
-const EQUIPPABLE = new Set(['bronze-sword', 'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate', 'wooden-bow', 'star-sword', 'star-dagger', 'star-helm', 'star-plate', 'old-chain'])
+// EVERYTHING THE ENGINE LETS YOU WIELD, and it is a list the window kept
+// separately and let go stale. Seven items had fallen out of it -- including
+// `star-maul`, the best melee weapon in the world, and both good bows. A
+// citizen who smithed a star-maul and clicked it in their pack did not wield
+// it: the window did not recognise the name, so it DROPPED it on the ground.
+//
+// The engine builds its set as every smithing recipe plus the four things
+// that are not smithed. This is that, spelled out, and it is checked against
+// the engine by check-equip.mjs so it cannot drift again.
+const EQUIPPABLE = new Set([
+  'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-maul',
+  'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
+  'star-sword', 'star-dagger', 'star-spear', 'star-maul',
+  'star-helm', 'star-plate',
+  'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
+])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
 // extracts this block from each window and compares it against the engine, so
@@ -2702,7 +2761,53 @@ function isRampart4(x, y) {
   _rampCache.set(k, out)
   return out
 }
+// THE LANTERN'S FLOOR.
+//
+// groundKindAt learns a room's floor from the town DRAWING, and the wayside
+// inn has no drawing -- it is the one building in this world outside any
+// plan. The generator derives its seat from the genesis; so does this, by
+// the same rule, so the boards under Ulric's feet are the same boards on
+// every node.
+let _innSeat4 = null, _innSeatFor = null
+function innSeat4() {
+  if (_innSeatFor === GSEED && _innSeat4 !== undefined) return _innSeat4
+  _innSeatFor = GSEED; _innSeat4 = null
+  const okTile = (x, y) => !blockedAtE4(x, y) && !isWaterE4(x, y)
+  seekI4: for (let rad = 0; rad < 90; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const x = Math.round(W * 0.55) + dx, y = Math.round(H * 0.44) + dy
+      const b = biomeAtE4(x, y)
+      if (b !== 'heartlands' && b !== 'downs') continue
+      let inTown = false
+      for (const t of settlementsE4()) {
+        const r = rectOfE4(t)
+        if (x > r.x0 - 12 && x < r.x1 + 12 && y > r.y0 - 12 && y < r.y1 + 12) { inTown = true; break }
+      }
+      if (inTown) continue
+      if (onRoad4(x, y)) continue
+      let all = true
+      for (let yy = -1; yy <= 3 && all; yy++) for (let xx = -3; xx <= 3; xx++) {
+        const px = x + xx, py = y + yy
+        if (!okTile(px, py) || onRoad4(px, py)) { all = false; break }
+      }
+      if (!all || !okTile(x, y + 4)) continue
+      let onTheWay = false
+      for (let yy = -3; yy <= 6 && !onTheWay; yy++) for (let xx = -6; xx <= 6; xx++) {
+        if (yy >= -1 && yy <= 3 && xx >= -3 && xx <= 3) continue
+        if (onRoad4(x + xx, y + yy)) { onTheWay = true; break }
+      }
+      if (!onTheWay) continue
+      _innSeat4 = { x, y }; break seekI4
+    }
+  return _innSeat4
+}
 function terrainOfE4(x, y) {
+  // the Lantern's boards: the one room outside any town plan
+  {
+    const si = innSeat4()
+    if (si && x >= si.x - 2 && x <= si.x + 2 && y >= si.y && y <= si.y + 2) return 'floor'
+  }
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
   for (const t of settlementsE4()) {
