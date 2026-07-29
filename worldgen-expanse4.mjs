@@ -1447,14 +1447,38 @@ export function buildWorld(genesis) {
   }
   { const p = seatLandmark(Math.round(W * 0.53), Math.round(H * 0.38), 'heartlands'); put('eldertree', 'landmark', p.x, p.y, { kind: 'elder-tree' }) }
   { const p = seatLandmark(Math.round(W * 0.84), Math.round(H * 0.55), 'crags');      put('sentinel', 'landmark', p.x, p.y, { kind: 'sentinel' }) }
-  { const p = seatLandmark(Math.round(W * 0.56), Math.round(H * 0.86), 'fens');       put('drownedbell', 'landmark', p.x, p.y, { kind: 'drowned-bell' }) }
+  // A BELL THAT DROWNED BELONGS IN THE WATER. seatLandmark only asks which
+  // country a thing is in, so this stood on dry fen -- a drowned bell on a
+  // meadow, which says nothing at all. Walk out from the seat until the
+  // water is within two tiles, and put it there.
+  { let p = seatLandmark(Math.round(W * 0.56), Math.round(H * 0.86), 'fens')
+    const nearWet = (x, y) => { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+      if (isWater(g, x + dx, y + dy)) return true; return false }
+    if (!nearWet(p.x, p.y)) {
+      seekBell: for (let rad = 1; rad < 60; rad++)
+        for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+          const x = p.x + dx, y = p.y + dy
+          if (isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+          if (nearWet(x, y)) { p = { x, y }; break seekBell }
+        }
+    }
+    put('drownedbell', 'landmark', p.x, p.y, { kind: 'drowned-bell' }) }
   { const p = seatLandmark(Math.round(W * 0.74), Math.round(H * 0.72), 'downs');      put('longbarrow', 'landmark', p.x, p.y, { kind: 'standing-stone' }) }
   { const p = seatLandmark(Math.round(W * 0.28), Math.round(H * 0.16), 'moor');       put('moorcairn', 'landmark', p.x, p.y, { kind: 'standing-stone' }) }
   {
     let wx = Math.round(W * 0.40), wy = Math.round(H * 0.90)
     seekW: for (let rad = 0; rad < 60; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      if (free(wx + dx, wy + dy) && groundKindAt(g, wx + dx, wy + dy) === 'sand') { wx += dx; wy += dy; break seekW }
+      // SAND IS NOT THE SEA. This asked only for sand and found it inland:
+      // three shipwrecks sat in the Downs, on a hill, miles from any water.
+      // A wreck needs a shore -- sand AND the sea within two tiles of it.
+      const cx2 = wx + dx, cy2 = wy + dy
+      if (!free(cx2, cy2) || groundKindAt(g, cx2, cy2) !== 'sand') continue
+      let sea = false
+      for (let ay = -2; ay <= 2 && !sea; ay++) for (let ax = -2; ax <= 2; ax++)
+        if (isWater(g, cx2 + ax, cy2 + ay)) { sea = true; break }
+      if (sea) { wx = cx2; wy = cy2; break seekW }
     }
     put('wreck', 'landmark', wx, wy, { kind: 'shipwreck' })
   }
@@ -1570,7 +1594,7 @@ export function buildWorld(genesis) {
         return true }
       case 'cairn':
         if (!ok(x, y)) return false
-        put('cairn-' + tag, 'landmark', x, y, { kind: 'standing-stone' })
+        put('cairn-' + tag, 'landmark', x, y, { kind: 'cairn' })
         if (ok(x + 1, y + 1)) put('cairn-' + tag + 'b', 'landmark', x + 1, y + 1, { kind: 'standing-stone' })
         return true
       case 'shrine':
@@ -1595,7 +1619,7 @@ export function buildWorld(genesis) {
         return true }
       case 'beehives': {
         let n = 0
-        for (const [a, b] of [[0,0],[1,1],[2,0],[3,1]]) if (ok(x+a, y+b)) { put('bee-' + tag + (n++), 'landmark', x+a, y+b, { kind: 'standing-stone' }) }
+        for (const [a, b] of [[0,0],[1,1],[2,0],[3,1]]) if (ok(x+a, y+b)) { put('bee-' + tag + (n++), 'landmark', x+a, y+b, { kind: 'skep' }) }
         return n > 2 }
       default: { // bouldercircle
         let n = 0
@@ -1690,12 +1714,12 @@ export function buildWorld(genesis) {
         return n > 3 }
       case 'boundarystone':
         if (!ok(x, y)) return false
-        put('bound-' + tag, 'landmark', x, y, { kind: 'standing-stone' })
+        put('bound-' + tag, 'landmark', x, y, { kind: 'boundary-stone' })
         if (ok(x + 1, y)) put('bound-' + tag + 's', 'signpost', x + 1, y, { text: 'a boundary stone' })
         return true
       case 'sheepskull':
         if (!ok(x, y)) return false
-        put('skull-' + tag, 'landmark', x, y, { kind: 'standing-stone' })
+        put('skull-' + tag, 'landmark', x, y, { kind: 'skull-pile' })
         return true
       case 'duckboards': { // a plank walk laid over the fen, going nowhere now
         let n = 0
@@ -1703,7 +1727,7 @@ export function buildWorld(genesis) {
         return n > 4 }
       case 'eeltrap': {
         if (!ok(x, y)) return false
-        put('eel-' + tag, 'landmark', x, y, { kind: 'standing-stone' })
+        put('eel-' + tag, 'landmark', x, y, { kind: 'eel-rack' })
         if (ok(x + 1, y + 1)) put('eel-' + tag + 'b', 'fence', x + 1, y + 1)
         return true }
       case 'charcoal': { // a burner's clamp and the ring of stumps around it
@@ -1715,7 +1739,7 @@ export function buildWorld(genesis) {
         return true }
       case 'bonepile':
         if (!ok(x, y)) return false
-        put('bone-' + tag, 'landmark', x, y, { kind: 'standing-stone' })
+        put('bone-' + tag, 'landmark', x, y, { kind: 'bone-pile' })
         if (ok(x + 1, y)) put('bone-' + tag + 'b', 'landmark', x + 1, y, { kind: 'standing-stone' })
         return true
       case 'ruinwall': { // a wall with nothing left on either side of it
@@ -2068,6 +2092,33 @@ export function buildWorld(genesis) {
     }
     return n
   }
+  // SAMPLE FROM THE PLACES THAT QUALIFY, not from the whole island.
+  //
+  // `scatter` draws uniformly over 458,752 tiles and uses the predicate as a
+  // filter, so a NARROW target starves: twenty-two eel-racks asked for at the
+  // fen's waterline, seven placed, because the band is a few thousand tiles
+  // and sixty tries each is not enough to find them. Ask for something rare
+  // and you quietly get a fraction of it.
+  //
+  // This walks the map once, keeps every tile that qualifies, and draws from
+  // that. Exact counts, and a predicate can be as narrow as the world is.
+  const scatterIn = (tag, want, pred, place, step = 1) => {
+    const cand = []
+    for (let y = 1; y < H - 1; y += step) for (let x = 1; x < W - 1; x += step) {
+      if (!free(x, y) || !porous(x, y) || !pred(x, y)) continue
+      cand.push((y << 12) | x)
+    }
+    if (!cand.length) return 0
+    let n = 0
+    for (let i = 0; i < want * 24 && n < want; i++) {
+      const h = H32(tag + '|in', i)
+      const c = cand[h.readUInt32BE(0) % cand.length]
+      const x = c & 0xfff, y = c >> 12
+      if (!free(x, y) || !reachableToGather(x, y)) continue
+      place(tag + '-' + n, x, y); taken.add(key(x, y)); n++
+    }
+    return n
+  }
   const clusterScatter = (tag, want, pred, place, clumps, spread) => {
     let n = 0
     const perClump = Math.ceil(want / clumps)
@@ -2303,7 +2354,9 @@ export function buildWorld(genesis) {
       taken.add(key(x, y)); put(id, type, x, y, extra); return true
     }
     let pl = 0
-    const site = (tag, nomX, nomY, want, build) => {
+    // like site(), but it will not settle anywhere the water cannot be seen
+    const siteWet = (tag, nomX, nomY, want, build) => site(tag, nomX, nomY, want, build, true)
+    const site = (tag, nomX, nomY, want, build, needWater) => {
       // only build where the country agrees -- a charcoal camp in a field is
       // not a charcoal camp -- but search for that country rather than
       // demanding it be exactly where I guessed. The quarry was aimed at
@@ -2323,6 +2376,22 @@ export function buildWorld(genesis) {
         p0 = seatPoint(g, found.x, found.y)
         if (biomeAt(g, p0.x, p0.y) !== want) return
       }
+      if (needWater) {
+        const wetAt = (x, y) => { for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++)
+          if (isWater(g, x + dx, y + dy)) return true; return false }
+        if (!wetAt(p0.x, p0.y)) {
+          let got = null
+          for (let rad = 2; rad <= 70 && !got; rad += 2)
+            for (let a2 = 0; a2 < 360 && !got; a2 += 12) {
+              const x = Math.round(p0.x + Math.cos(a2 * Math.PI / 180) * rad)
+              const y = Math.round(p0.y + Math.sin(a2 * Math.PI / 180) * rad)
+              if (x < 6 || y < 6 || x >= W - 6 || y >= H - 6) continue
+              if (biomeAt(g, x, y) === want && !blockedAt(g, x, y) && !isWater(g, x, y) && wetAt(x, y)) got = { x, y }
+            }
+          if (!got) return
+          p0 = got
+        }
+      }
       build(p0.x, p0.y, tag)
       pl++
     }
@@ -2337,7 +2406,10 @@ export function buildWorld(genesis) {
     })
 
     // THE DROWNED VILLAGE -- the Fens took it back
-    site('drowned', Math.round(W * 0.39), Math.round(H * 0.77), 'fens', (cx, cy, t) => {
+    // Merewick DROWNED: it belongs where the water took it, not on dry fen
+    // Merewick DROWNED: seat it where the water actually is, or it is just a
+    // village with an odd name.
+    siteWet('drowned', Math.round(W * 0.39), Math.round(H * 0.77), 'fens', (cx, cy, t) => {
       for (let i = 0; i < 14; i++) {
         const h2 = H32('drownw', i)
         L(t+'-w'+i, cx + (h2[0] % 13) - 6, cy + (h2[1] % 9) - 4, 'sunken-wall')
@@ -2388,70 +2460,241 @@ export function buildWorld(genesis) {
     counts.places = pl
   }
 
+  // ---- WHERE THE DRAGON HAS BEEN ----
+  //
+  // It respawns every six hours, so most of the time it is not there. Its
+  // EVIDENCE can be. A blackened ring, a tree cracked and carbonised, stone
+  // gone glassy -- so the rarest thing in the world is present even when it
+  // is absent, and the warning is something you read while walking rather
+  // than something that arrives when it is already far too late.
+  //
+  // These are also the only landmarks in this world PLACED BY SOMETHING
+  // rather than founded. Everything else was here at the beginning; this was
+  // done by a living creature, and it is meant to feel different for it.
+  {
+    const d = Object.values(w.mobs).find((m) => m.type === 'dragon')
+    let sc = 0
+    if (d) {
+      for (let i = 0; i < A(26); i++) {
+        const hh = H32('dragonsign', i)
+        // thickest near the dragon, thinning outward: it has been ranging
+        const rad = 6 + (hh[0] % 46)
+        const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
+        const x = Math.round(d.x + Math.cos(ang) * rad)
+        const y = Math.round(d.y + Math.sin(ang) * rad * 0.7)
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        const kind = ['scorched-ring', 'burnt-tree', 'glass-stone', 'burnt-tree'][hh[3] % 4]
+        taken.add(key(x, y)); put('dragonsign-' + i, 'landmark', x, y, { kind }); sc++
+      }
+    }
+    counts.dragonSign = sc
+  }
+
+  // ---- THE MILL ----
+  //
+  // Grain has been in the ledger since the first founding and the economy
+  // has had no face. A mill is that face, and it is TALL: the first thing in
+  // this world genuinely useful for navigation, the way you orient by a
+  // church spire across fields. Two of them, on the corn country.
+  {
+    let mills = 0
+    for (const [tag, fx, fy] of [['downs', 0.65, 0.67], ['heart', 0.44, 0.47]]) {
+      for (let i = 0; i < 600 && mills < 2; i++) {
+        const hh = H32('mill' + tag, i)
+        const x = Math.round(W * fx) + (hh.readUInt16BE(0) % 90) - 45
+        const y = Math.round(H * fy) + (hh.readUInt16BE(2) % 70) - 35
+        const b2 = biomeAt(g, x, y)
+        if (b2 !== 'downs' && b2 !== 'heartlands') continue
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        // it must be SEEN: open ground around it, not tucked in a wood
+        let open = 0
+        for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++)
+          if (!blockedAt(g, x + dx, y + dy) && !isWater(g, x + dx, y + dy)) open++
+        if (open < 44) continue
+        taken.add(key(x, y)); put('mill-' + tag, 'landmark', x, y, { kind: 'mill' })
+        const kx = x + 1, ky = y
+        if (free(kx, ky) && !blockedAt(g, kx, ky)) {
+          taken.add(key(kx, ky)); put('mill-' + tag + '-k', 'keeper', kx, ky, { name: keeperName(tag, 'miller') })
+        }
+        mills++; break
+      }
+    }
+    counts.mills = mills
+  }
+
+  // ---- MILESTONES ----
+  //
+  // The roads are ROUTED -- deliberately, around the Barrow and over the
+  // fords -- and nothing in the world ever showed it. A stone every so often
+  // makes the routing visible, and turns a road from a texture into
+  // something somebody built.
+  //
+  // Sampled from the roadside itself: drawn uniformly over the island it
+  // found three of twenty-two, because roads are a thin thing on a wide map.
+  {
+    const roadside = []
+    for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+      if (onRoad(g, x, y) || !free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      if (onRoad(g, x - 1, y) || onRoad(g, x + 1, y) || onRoad(g, x, y - 1) || onRoad(g, x, y + 1))
+        roadside.push((y << 12) | x)
+    }
+    let ms = 0
+    // spaced along the way rather than clustered: a milestone every so often
+    for (let i = 0; i < A(24) && roadside.length; i++) {
+      const hh = H32('milestone', i)
+      const c = roadside[hh.readUInt32BE(0) % roadside.length]
+      const x = c & 0xfff, y = c >> 12
+      if (!free(x, y)) continue
+      let tooNear = false
+      for (const [ox, oy] of (counts._msAt ?? []))
+        if (Math.abs(ox - x) + Math.abs(oy - y) < 26) { tooNear = true; break }
+      if (tooNear) continue
+      taken.add(key(x, y)); put('milestone-' + ms, 'landmark', x, y, { kind: 'milestone' })
+      ;(counts._msAt ??= []).push([x, y]); ms++
+    }
+    delete counts._msAt
+    counts.milestones = ms
+  }
+
+  // ---- SCARECROWS ----
+  //
+  // A plot on its own is a texture. A plot with something standing over it is
+  // a FARM, and somebody's.
+  {
+    let sc = 0
+    const plots = Object.values(w.nodes).filter((n) => n.type === 'plot')
+    for (let i = 0; i < plots.length && sc < A(12); i++) {
+      const pl = plots[(i * 7) % plots.length]
+      for (const [dx, dy] of [[0, -2], [2, 0], [0, 2], [-2, 0]]) {
+        const x = pl.x + dx, y = pl.y + dy
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        taken.add(key(x, y)); put('scarecrow-' + sc, 'landmark', x, y, { kind: 'scarecrow' }); sc++
+        break
+      }
+    }
+    counts.scarecrows = sc
+  }
+
+  // ---- THE CRAGS: CUT, WORKED, AND DEFENDED ----
+  //
+  // Trolls live here and somebody has clearly tried to do something about
+  // it. Barricades where the ground narrows, a siege engine or two left
+  // where it was dragged, and the mouths of workings going into the rock --
+  // the crags should read as a place with a history of being fought over,
+  // not as a field of identical spoil heaps.
+  {
+    const inCrags = (x, y) => B(x, y) === 'crags'
+    counts.cragBarricades = scatterIn('cragbar', A(14), inCrags, (id, x, y) =>
+      put(id, 'landmark', x, y, { kind: 'barricade' }), 2)
+    counts.siege = scatterIn('siege', A(3), (x, y) => {
+      if (!inCrags(x, y)) return false
+      let open = 0                       // it had to be dragged here
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+        if (!blockedAt(g, x + dx, y + dy) && !isWater(g, x + dx, y + dy)) open++
+      return open >= 20
+    }, (id, x, y) => put(id, 'landmark', x, y, { kind: 'siege-engine' }), 2)
+    // a working goes INTO the rock: the tile must sit against blocked ground
+    counts.caves = scatterIn('cave', A(5), (x, y) => {
+      if (!inCrags(x, y)) return false
+      return blockedAt(g, x + 1, y) || blockedAt(g, x - 1, y)
+          || blockedAt(g, x, y + 1) || blockedAt(g, x, y - 1)
+    }, (id, x, y) => put(id, 'landmark', x, y, { kind: 'cave-mouth' }), 2)
+  }
+
+  // ---- CAIRNS FOR THE ONES WHO DID NOT COME BACK ----
+  //
+  // A cairn is raised by a SURVIVOR. That single fact decides where they can
+  // be: they thin as you go west, because the deeper somebody fell, the less
+  // likely anyone was left to stack stones over them.
+  //
+  // So they crowd the first miles past the Brand -- where a party still had
+  // somebody standing when it went wrong -- and they stop well short of the
+  // dragon, because nothing that dies out there gets buried. Walking west
+  // you watch them thin out, and that is the whole warning: it is not that
+  // the danger rises, it is that the witnesses run out.
+  {
+    const brand = brandX(g, Math.round(H / 2))
+    const dragon = Object.values(w.mobs).find((m) => m.type === 'dragon')
+    let cn = 0
+    for (let i = 0; i < A(320) && cn < A(26); i++) {
+      const hh = H32('lostcairn', i)
+      const x = 3 + (hh.readUInt16BE(0) % Math.max(1, brand - 6))
+      const y = 3 + (hh.readUInt16BE(2) % (H - 6))
+      if (biomeAt(g, x, y) !== 'wilds') continue
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      // thinning westward: near the Brand almost always, deep in almost never
+      const depth = (brand - x) / Math.max(1, brand)          // 0 at the stones, 1 at the far shore
+      if ((hh[3] / 255) > (1 - depth * depth * 1.15)) continue
+      // and never in the dragon's reach: nobody came back from there to build
+      if (dragon && Math.hypot(x - dragon.x, y - dragon.y) < 34) continue
+      taken.add(key(x, y)); put('lostcairn-' + cn, 'landmark', x, y, { kind: 'cairn' }); cn++
+    }
+    counts.lostCairns = cn
+  }
+
+  // ---- THE LINE BEFORE THE WILDS ----
+  //
+  // Norwick is the garrison and the Brandline is the law, and until now
+  // nothing on the ground said anyone had ever tried to hold it. Barricades
+  // along the approach -- scattered, never a wall, because the Brand is a
+  // line you cross and not a door anyone can shut.
+  {
+    const brand = brandX(g, Math.round(H / 2))
+    counts.brandBarricades = scatterIn('brandbar', A(18), (x, y) => {
+      if (x < brand + 2 || x > brand + 26) return false      // east of the stones, in the approach
+      return B(x, y) !== 'sea' && !onRoad(g, x, y)           // never blocking the road itself
+    }, (id, x, y) => put(id, 'landmark', x, y, { kind: 'barricade' }), 2)
+  }
+
   // ---- THE COUNTRY'S OWN TEXTURE ----
   //
-  // Six places made six spots worth remembering and moved the variety of a
-  // walk by three tenths of one kind, because six sites on a 458,752-tile
-  // island are six sites. What a citizen MEETS is decided by what is spread,
-  // not by what is arranged.
+  // The first pass of this scattered eighteen nouns and did too well: a
+  // hundred and fifty-five stumps, a hundred and eighty-two bone-piles, a
+  // hundred and forty-two haystacks. That is not a rich world, it is the
+  // same object over and over, and repetition is exactly what makes a place
+  // read as GENERATED rather than found.
   //
-  // So the new nouns get scattered through the countries that would actually
-  // have them -- stumps where the wood is felled, spoil where the rock is
-  // cut, bone where the Wilds has eaten -- and they are PAID FOR out of the
-  // trees and rocks, which were forty-two per cent of everything on their
-  // own. The budget does not grow; the vocabulary does.
+  // The tick pays per node and nothing for how many kinds there are. So:
+  // FEWER OF EACH, and the surplus spent on more kinds and on places.
+  //
+  // And the water things go in the water. Seventy of seventy-three eel-racks
+  // stood on dry land, three of four shipwrecks were in the DOWNS, and a
+  // wall called sunken sat on a hill. A rack for drying eels needs a river
+  // more than the fens need seventy racks.
   {
     const lm = (kind) => (id, x, y) => put(id, 'landmark', x, y, { kind })
     const inC = (c) => (x, y) => B(x, y) === c
-    const t0 = counts
-    t0.stumps   = scatter('stump',   A(150), inC('greenwood'), lm('stump'))
-    t0.logpiles = scatter('logpile', A(55),  inC('greenwood'), lm('log-pile'))
-    t0.clamps   = scatter('clamp',   A(30),  inC('greenwood'), lm('charcoal-clamp'))
-    t0.spoil    = scatter('spoil',   A(120), inC('crags'),     lm('spoil-heap'))
-    t0.cutface  = scatter('cutface', A(50),  inC('crags'),     lm('cut-face'))
-    t0.bones    = scatter('bonep',   A(130), inC('wilds'),     lm('bone-pile'))
-    t0.hearths  = scatter('crudeh',  A(35),  inC('wilds'),     lm('crude-hearth'))
-    t0.hay      = scatter('hay',     A(80),  inC('downs'),     lm('haystack'))
-    t0.hurdles  = scatter('hurdle',  A(95),  inC('downs'),     lm('hurdle'))
-    t0.eelracks = scatter('eelr',    A(70),  inC('fens'),      lm('eel-rack'))
-    t0.sunken   = scatter('sunkw',   A(55),  inC('fens'),      lm('sunken-wall'))
-    t0.gibbets  = scatter('gibb',    A(28),  inC('moor'),      lm('gibbet'))
-    t0.moorbone = scatter('mbone',   A(45),  inC('moor'),      lm('bone-pile'))
-    t0.carts    = scatter('cart',    A(55),  (x, y) => {
-      const b = B(x, y); return (b === 'heartlands' || b === 'downs') && onRoad(g, x, y) === false }, lm('cart'))
-    t0.hayhome  = scatter('hayh',    A(60),  inC('heartlands'), lm('haystack'))
-    // CRATES ON THE QUAYS. Of the eighteen this was the one that only ever
-    // appeared twice, both in a troll camp -- a noun very nearly wasted in a
-    // constitution nobody can edit after founding. It belongs where cargo is
-    // landed, so: the two ports, on the dry ground behind their piers, never
-    // on the decking itself, which has to stay walkable to fish from.
-    {
-      const quay = quayTilesOf(g)
-      const ports = settlementsOf(g).filter(t => t.tag === 'eastmere' || t.tag === 'fenmarch')
-      let cr = 0
-      for (const t of ports) {
-        // reach well past the town walls: the ports are dense inside and the
-        // cargo stands on the shore behind the piers anyway
-        // only about an eighth of the ground near a port is within three
-        // tiles of water, so most samples miss: draw enough of them
-        for (let i = 0; i < A(320); i++) {
-          const h2 = H32('crate' + t.tag, i)
-          const span = 54
-          const x = t.x + (h2.readUInt16BE(0) % span) - (span >> 1)
-          const y = t.y + (h2.readUInt16BE(2) % span) - (span >> 1)
-          // only near the water: a crate in a field is a crate nobody landed
-          let coast = false
-          for (let dy2 = -3; dy2 <= 3 && !coast; dy2++)
-            for (let dx2 = -3; dx2 <= 3; dx2++)
-              if (isWater(g, x + dx2, y + dy2)) { coast = true; break }
-          if (!coast) continue
-          if (quay.has(x + ',' + y)) continue          // never on the decking
-          if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
-          taken.add(key(x, y)); put('quaycrate-' + t.tag + '-' + i, 'landmark', x, y, { kind: 'crate' }); cr++
-        }
-      }
-      t0.quaycrates = cr
+    const wet = (r) => (x, y) => {
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++)
+        if (isWater(g, x + dx, y + dy)) return true
+      return false
     }
+    const both = (a2, b2) => (x, y) => a2(x, y) && b2(x, y)
+    const t0 = counts
+    // the wood, worked -- thinned to a third
+    t0.stumps   = scatter('stump',   A(46), inC('greenwood'), lm('stump'))
+    t0.logpiles = scatter('logpile', A(18), inC('greenwood'), lm('log-pile'))
+    t0.clamps   = scatter('clamp',   A(11), inC('greenwood'), lm('charcoal-clamp'))
+    // the quarry
+    t0.spoil    = scatter('spoil',   A(38), inC('crags'),     lm('spoil-heap'))
+    t0.cutface  = scatter('cutface', A(16), inC('crags'),     lm('cut-face'))
+    // what the Wilds leaves
+    t0.bones    = scatter('bonep',   A(44), inC('wilds'),     lm('bone-pile'))
+    t0.hearths  = scatter('crudeh',  A(12), inC('wilds'),     lm('crude-hearth'))
+    // the farm country
+    t0.hay      = scatter('hay',     A(26), inC('downs'),     lm('haystack'))
+    t0.hurdles  = scatter('hurdle',  A(30), inC('downs'),     lm('hurdle'))
+    t0.hayhome  = scatter('hayh',    A(18), inC('heartlands'), lm('haystack'))
+    t0.carts    = scatter('cart',    A(16), (x, y) => {
+      const b2 = B(x, y); return (b2 === 'heartlands' || b2 === 'downs') && !onRoad(g, x, y) }, lm('cart'))
+    // the moor
+    t0.gibbets  = scatter('gibb',    A(9),  inC('moor'),      lm('gibbet'))
+    t0.moorbone = scatter('mbone',   A(14), inC('moor'),      lm('bone-pile'))
+    // THE FEN, AT THE WATER'S EDGE and nowhere else
+    t0.eelracks = scatterIn('eelr',  A(22), both(inC('fens'), wet(2)), lm('eel-rack'))
+    t0.sunken   = scatterIn('sunkw', A(20), both(inC('fens'), wet(2)), lm('sunken-wall'))
+    // CRATES ON THE SHORE, wherever cargo is landed
+    t0.crates   = scatterIn('crate', A(30), wet(2), lm('crate'))
   }
 
   // ---- waystones ----
