@@ -1197,8 +1197,30 @@ function updateGate(s, worldId) {
   validateGateName(s)
 }
 
+// A KEY FROM A WORLD THAT NO LONGER EXISTS.
+//
+// `interval-ownkey` is kept in localStorage with no world scope, so a browser
+// that has visited a previous founding still holds that world's key. It signs
+// every input as a citizen this world has never heard of, `validInput` refuses
+// each one, and the citizen simply cannot act -- walks a step, stops, and
+// clicking harder does nothing, because nothing is wrong with the clicking.
+//
+// The signature of it is that INCOGNITO WORKS: no localStorage, fresh key,
+// fine. That cost a long evening to find, so the window says it out loud now.
+let _strangerSince = null
+function warnIfStranger(s) {
+  if (!ownKey || !s?.players) return
+  if (s.players[ownKey.pub]) { _strangerSince = null; return }
+  if (_strangerSince === null) { _strangerSince = s.tick; return }
+  if (s.tick - _strangerSince !== 8) return          // once, after ~5 seconds
+  feed('This browser holds a key from another founding: ' + ownKey.pub.slice(0, 8)
+     + '\u2026 is not a citizen here, so nothing you do will take.')
+  feed('Clear it with:  localStorage.removeItem("interval-ownkey")  then reload.')
+}
+
 function onState(s, worldId) {
   world = s
+  warnIfStranger(s)
   // per-state caches (perf): water adjacency and who pins which mob
   s._waterAdj = {}
   s._waterTiles = new Set()

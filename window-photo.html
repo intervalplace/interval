@@ -3740,16 +3740,30 @@ const craggy = (radius, seed) => {
   return g
 }
 const label = (text, big = false) => {
-  const c = document.createElement('canvas'); c.width = 512; c.height = 96
+  // The caption used to be drawn centred on a fixed 512px canvas and
+  // never measured. Monospace at 36px advances about 21.6px a glyph, so
+  // anything past ~23 characters ran off BOTH ends of the bitmap and a
+  // citizen with a long enough name watched it get shaved at the front
+  // and the back. Measure first, widen the canvas to fit, and carry the
+  // measurement into the sprite's aspect so nothing clips and nothing
+  // stretches either.
+  const str = String(text).slice(0, 40)
+  const size = big ? 44 : 36
+  const probe = document.createElement('canvas').getContext('2d')
+  probe.font = '600 ' + size + 'px ui-monospace, Menlo, monospace'
+  const wTxt = Math.max(64, probe.measureText(str).width) + 28  // room for the shadow
+  const c = document.createElement('canvas')
+  c.width = Math.min(2048, Math.ceil(wTxt / 2) * 2); c.height = 96
   const ctx = c.getContext('2d')
-  ctx.font = '600 ' + (big ? 44 : 36) + 'px ui-monospace, Menlo, monospace'
+  ctx.font = '600 ' + size + 'px ui-monospace, Menlo, monospace'
   ctx.textAlign = 'center'
   ctx.shadowColor = '#000'; ctx.shadowBlur = 8
   ctx.fillStyle = '#e6ddc2'
-  ctx.fillText(text.slice(0, 26), 256, 60)
+  ctx.fillText(str, c.width / 2, 60)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthWrite: false }))
-  sp.scale.set(2.6, 0.49, 1)
+  const h = 0.49 * (big ? 1.1 : 1)
+  sp.scale.set(h * (c.width / c.height), h, 1)   // the glyphs keep their shape
   return sp
 }
 const smokeTex = (() => {
@@ -4351,13 +4365,31 @@ function nodeBody(n) {
     // across the market and went straight THROUGH the stalls.
     if (shadow) mesh.receiveShadow = true
     g.add(mesh); return mesh }
-  if (n.type === 'keeper') {
+  if (n.type === 'keeper' || n.type === 'smith') {
+    // The truth sends `smith` -- it is in LEG4 as 's', the flat window
+    // draws it as a person like the guard -- and this window had no
+    // branch for it, so it fell all the way through to the fallback at
+    // the bottom of nodeBody: a 0.5 x 0.6 x 0.5 box of mats.wood. That
+    // is the "bright object" standing where a person should be. So he
+    // gets built: shorter and broader than a keeper, in a soot-black
+    // leather apron, with a hammer he is not letting go of.
+    const smith9 = n.type === 'smith'
     const wiz9 = n.id === 'kpr-wizard-oberon'
-    const body9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.9, 7),
-      new THREE.MeshStandardMaterial({ color: wiz9 ? 0x2c3a5e : 0x6b4a33, roughness: 0.9 })), 0, 0.45, 0)
+    const body9 = add(new THREE.Mesh(new THREE.CylinderGeometry(smith9 ? 0.26 : 0.22, smith9 ? 0.32 : 0.28, smith9 ? 0.82 : 0.9, 7),
+      new THREE.MeshStandardMaterial({ color: wiz9 ? 0x2c3a5e : smith9 ? 0x4a3a2a : 0x6b4a33, roughness: 0.9 })), 0, smith9 ? 0.41 : 0.45, 0)
     body9.castShadow = true
     add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6),
-      new THREE.MeshStandardMaterial({ color: 0xa8865c, roughness: 0.8 })), 0, 1.05, 0)
+      new THREE.MeshStandardMaterial({ color: smith9 ? 0x9c7a52 : 0xa8865c, roughness: 0.8 })), 0, smith9 ? 0.97 : 1.05, 0)
+    if (smith9) {
+      const apron = add(new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.56, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x2a1d12, roughness: 0.95 })), 0, 0.42, 0.26)
+      apron.castShadow = true
+      const haft9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.44, 6), mats.wood), 0.32, 0.58, 0.12)
+      haft9.rotation.z = -0.5
+      const head9 = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.14, 0.1), mats.iron), 0.42, 0.76, 0.12)
+      head9.rotation.z = -0.5; head9.castShadow = true
+      g.userData.ghostH = 1.2
+    }
     if (wiz9) { // the hat and the beard: the uniform is older than the island
       const hat9 = add(new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 7),
         new THREE.MeshStandardMaterial({ color: 0x22304e, roughness: 0.9 })), 0, 1.42, 0)
@@ -4475,6 +4507,36 @@ function nodeBody(n) {
       r.rotation.z = Math.cos(a) * 0.16; r.rotation.x = Math.sin(a) * -0.16
       add(new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.14, 4), mats.bark), Math.cos(a) * 0.46, 0.38, Math.sin(a) * 0.46)
     }
+  } else if (n.type === 'watchfire') {
+    // Also unbuilt, also a wooden box until now. A watchfire is not a
+    // campfire: a citizen kindles it out of their own logs and it BURNS
+    // DOWN, so the flame answers to n.fuelUntil against the world clock
+    // and gutters in its last three hundred ticks. The cairn holds it
+    // clear of the grass; the stacked wood stays whether it is lit or
+    // long cold, because a dead watchfire is still a watchfire.
+    for (let i = 0; i < 9; i++) {
+      const a9 = (i / 9) * Math.PI * 2, rr9 = 0.44 + (tileHash(n.x, n.y + i, 37) % 9) / 100
+      const st = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 41)), mats.stoneBlob),
+        Math.cos(a9) * rr9, 0.08, Math.sin(a9) * rr9)
+      st.scale.setScalar(0.24); st.rotation.y = a9; st.castShadow = true
+    }
+    for (let i = 0; i < 4; i++) { // the stack, leaned in to meet
+      const log = add(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.95, 6), mats.wood), 0, 0.36, 0)
+      log.rotation.z = 0.34; log.rotation.y = i * (Math.PI / 2) + 0.4; log.castShadow = true
+    }
+    const wf = add(new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.95, 8), mats.flame), 0, 0.72, 0, false)
+    wf.userData.flame = 1
+    const wf2 = add(new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.6, 8), mats.flameCore), 0, 0.6, 0, false)
+    wf2.userData.flame = 2
+    const wl = new THREE.PointLight(0xff9a3d, 22, 15, 1.6)
+    regLamp(g, wl, 0, 1.0, 0); g.userData.fireLight = wl; g.userData.fireBase = 22
+    g.userData.watch = [wf, wf2]
+    g.userData.smoke = []
+    for (let i = 0; i < 3; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false }))
+      sp.position.y = 1.3; g.add(sp); g.userData.smoke.push(sp)
+    }
+    g.userData.ghostH = 1.3
   } else if (n.type === 'campfire' || n.type === 'fire') {
     for (let i = 0; i < 3; i++) {
       const log = add(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.7, 6), mats.wood), 0, 0.07)
@@ -4759,19 +4821,35 @@ function nodeBody(n) {
     add(new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.035, 8, 20), mats.iron), 0, 0.56).rotation.x = Math.PI / 2
     add(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.02, 16), mats.brew), 0, 0.55, 0, false)
   } else {
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.5), mats.wood), 0, 0.3)
+    // Whatever arrives that this window has not learned to build yet
+    // still has to stand somewhere. It used to be a pale wooden crate
+    // at chest height, which under a night meter is a bright box in a
+    // dark field and reads as a bug rather than as a thing. A low dark
+    // cairn is the honest placeholder: present, locatable, and plainly
+    // not finished, without seizing the frame.
+    for (let i = 0; i < 5; i++) {
+      const a8 = (i / 5) * Math.PI * 2
+      const st8 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 53)), mats.stoneBlob),
+        Math.cos(a8) * 0.2, 0.09 + (i % 2) * 0.07, Math.sin(a8) * 0.2)
+      st8.scale.setScalar(0.26); st8.rotation.y = a8
+    }
+    g.userData.ghostH = 0.5
   }
   // a name floats over the thing, not inside it: now that a keep is
   // 4.3 and a curtain 2.2, a fixed 1.9 buried the caption in the stone
   const lb = label(n.type)
   lb.position.y = Math.max(1.9, (g.userData.ghostH ?? 0) + 0.4)
-  lb.scale.set(1.5, 0.28, 1); g.add(lb)
+  // label() now sizes its own canvas to the text, so the caption keeps
+  // its aspect instead of being forced into a fixed 1.5 x 0.28 box --
+  // which, once the canvas width started varying, would have squeezed
+  // short words and stretched long ones
+  lb.scale.multiplyScalar(0.57); g.add(lb)
   g.userData.label = lb
   return g
 }
 
 const MOB_LOOK = { goblin: [0x5c8a3a, 0.55], wolf: [0x6b6b62, 0.55], troll: [0x4a6b52, 0.95],
-  bear: [0x5c4023, 0.85], 'skeleton-knight': [0xd8d4c4, 0.8] }
+  bear: [0x5c4023, 0.85], 'skeleton-knight': [0xd8d4c4, 0.8], dragon: [0x14100e, 1] }
 // a limb that pivots where it should: a group at the joint, flesh below
 function limb(mat, r, len, s) {
   const p = new THREE.Group()
@@ -5618,7 +5696,13 @@ function makeAdventurer(id) {
     // equipment code's recolor dyes the whole edge in starlight at once
     const bladeMat = M(0xd8d2c2, 0.25)
     const sword = cast(new THREE.Mesh(new THREE.BoxGeometry(0.046, 0.38, 0.014), bladeMat))
-    sword.position.set(0, -0.4, 0.06); sword.scale.setScalar(TOOL_SCALE)
+    // at TOOL_SCALE the blade ran 0.83 units, 72% of a 1.15 body, and
+    // buried its point. Unscaled it measures 0.575 pommel to tip, which
+    // is an arming sword at exactly half a man: the geometry was right
+    // all along and only the multiplier was wrong. The grip rides at
+    // the wrist and the blade hangs back off it.
+    sword.position.set(0, -RIG.wristDrop - 0.25, 0.05); sword.scale.setScalar(1)
+    sword.rotation.x = -0.85; sword.userData.carry = -0.85; sword.userData.guard = 0
     sword.visible = false; hand.add(sword); g.userData.sword = sword
     const tip = cast(new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.07, 4), bladeMat))
     tip.position.set(0, -0.225, 0); tip.rotation.set(0, Math.PI / 4, Math.PI); sword.add(tip)
@@ -5703,8 +5787,48 @@ function makeAdventurer(id) {
       new THREE.MeshStandardMaterial({ color: 0xefe7cf }))
     strg.position.set(0.16, 0.45, 0); hb.add(strg)
     shapes['horn-bow'] = hb
+    // ---- THE WIELD CONTRACT ------------------------------------------
+    // Every shape here is modelled along its own +Y with the business
+    // end at the top, and every one of them was hung on the forearm at
+    // TOOL_SCALE with no offset and no rotation -- so they stood
+    // straight up out of the fist at 1.45x. The spear ran 1.74 units of
+    // geometry to 2.52 scaled, on a 1.15-unit body: a head 2.75 above
+    // the ground, more than twice the height of the citizen holding it.
+    // The maul's block sat at 1.96, above its owner's skull. Meanwhile
+    // the sword, modelled the other way up, ran its tip to -0.12, a
+    // hand's width UNDER the sole. Nothing was posed; the two halves of
+    // the armoury simply disagreed about which way was up.
+    //
+    // So: a length for each, taken as a real fraction of a real body
+    // (an arming sword is half a man, a spear is a man and a tenth, a
+    // dagger a fifth), and a carry to go with it. Blades hang point
+    // down. Hafts ride back over the shoulder, which is both how they
+    // are actually carried and the only pose that keeps two units of
+    // spear out of the dirt.
+    const BODY_H = 1.15
+    const WIELD = {
+      // `rot` is the carry, `guard` the pose it comes to when used. A
+      // haft swings down into line with the arm; a reverse-gripped
+      // dagger stays where it is, because flipping it 180 degrees at
+      // the start of every fight would read as the knife spinning in
+      // the fist.
+      dagger: { len: 0.19, ext: [-0.015, 0.37], grip: 0.00, rot: Math.PI, guard: Math.PI },
+      spear:  { len: 1.11, ext: [-0.30, 1.44],  grip: 0.00, rot: 0.85, guard: 0 },
+      maul:   { len: 0.55, ext: [-0.125, 0.90], grip: 0.00, rot: 0.75, guard: 0 },
+    }
     for (const [k, mesh] of Object.entries(shapes)) {
-      mesh.scale.setScalar(TOOL_SCALE)
+      const kind = k.split('-').pop()
+      const w = WIELD[kind]
+      if (w) {
+        const span2 = w.ext[1] - w.ext[0]
+        const sc2 = (w.len * BODY_H) / span2
+        mesh.scale.setScalar(sc2)
+        mesh.rotation.x = w.rot
+        // the grip lands in the hand: the wrist is one elbowDrop below
+        // the forearm bone the tools hang from
+        mesh.position.set(0, -RIG.wristDrop + w.grip * sc2, 0.02)
+        mesh.userData.carry = w.rot; mesh.userData.guard = w.guard ?? w.rot
+      } else { mesh.scale.setScalar(TOOL_SCALE * 0.72); mesh.position.set(0, -RIG.wristDrop, 0.02) }
       mesh.visible = false; hand.add(mesh)
     }
     g.userData.shapes = shapes
@@ -6053,7 +6177,7 @@ const uRimA = { value: 1 }
 const uRimL = { value: new THREE.Vector3(0, 1, 0) } // the light, in the eye's own space
 const uFrayT = { value: 0 } // the boundary's own restless clock
 const EYE_LAMPS = { wolf: 0xffb347, bear: 0xd8862e, goblin: 0x8aff4d,
-  troll: 0xff5030, 'skeleton-knight': 0x7fd4ff }
+  troll: 0xff5030, 'skeleton-knight': 0x7fd4ff, dragon: 0xff8a1e }
 function shadowMat() { // one per mob, so the hurt flash stays its own
   const m = new THREE.MeshStandardMaterial({ color: 0x07080c, roughness: 1, metalness: 0 })
   m.onBeforeCompile = (sh) => {
@@ -6389,7 +6513,143 @@ function buildBeastCore(type) {
     legsQ: [[BI, upFL, loFL], [BI, upFR, loFR], [BI, upBL, loBL], [BI, upBR, loBR]].map(a => [a[1], a[2]]),
     bodyH, wolf }
 }
+// =====================================================================
+// THE DRAGON. It had NO branch anywhere in this file: MOB_LOOK had no
+// entry for it, so it fell to the default [0x8a7449, 0.5] and the one
+// thing on this island that kills a citizen in full star gear rendered
+// as a beige quadruped HALF THE SIZE OF A WOLF. The flat window says
+// what it should be, in capitals: it is bigger than its tile, and it
+// should be, because seeing it at the edge of the screen is itself the
+// warning. One of these exists. It respawns slowly. It gets built.
+//
+// It is a shadow-form like everything else that hunts you -- matte,
+// near-black, the world's light wrapping it but never entering -- with
+// one deliberate exception: the WING MEMBRANE is thin enough to pass
+// light. So when the sun or the moon stands behind it, the span lights
+// up like a held-out hand, and you can read the bones through it. That
+// is the only place in this window where a hunting thing is lit from
+// inside, and it is worth the exception.
+// =====================================================================
+let QUAKE = 0        // what the ground still remembers of the last beat
+function buildDragon(id) {
+  const g = new THREE.Group()
+  g.rotation.order = 'YXZ'
+  const hide = shadowMat()
+  const cast = (m) => { m.castShadow = true; return m }
+  const seg = (r1, r2, len, mat) => cast(new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, 7), mat))
+
+  // ---- the trunk: a long low mass, deepest at the shoulders ----
+  const body = cast(new THREE.Mesh(new THREE.SphereGeometry(0.78, 14, 11), hide))
+  body.scale.set(1.0, 0.86, 2.15); body.position.set(0, 1.28, -0.15); g.add(body)
+  const chest = cast(new THREE.Mesh(new THREE.SphereGeometry(0.66, 12, 10), hide))
+  chest.scale.set(1.08, 1.0, 1.15); chest.position.set(0, 1.30, 1.10); g.add(chest)
+
+  // ---- the neck: five links, each hung off the last, so it can arc ----
+  const neck = []
+  let par = g, ny = 1.62, nz = 1.62
+  for (let i = 0; i < 5; i++) {
+    const j = new THREE.Group()
+    j.position.set(0, i === 0 ? ny : 0, i === 0 ? nz : 0.46)
+    const r = 0.36 - i * 0.045
+    const m = seg(r, r + 0.04, 0.5, hide); m.rotation.x = Math.PI / 2; m.position.z = 0.23
+    j.add(m); par.add(j); par = j; neck.push(j)
+    j.rotation.x = -0.30 + i * 0.055        // the S the neck rests in
+  }
+  // ---- the skull: a wedge, a jaw that opens, horns that sweep back ----
+  const head = new THREE.Group(); head.position.z = 0.44; par.add(head)
+  const skull = cast(new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 9), hide))
+  skull.scale.set(0.82, 0.78, 1.5); skull.position.z = 0.28; head.add(skull)
+  const jaw = new THREE.Group(); jaw.position.set(0, -0.11, 0.06); head.add(jaw)
+  const jawM = cast(new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 7), hide))
+  jawM.scale.set(0.74, 0.42, 1.5); jawM.position.z = 0.3; jaw.add(jawM)
+  for (const hx of [-1, 1]) {
+    const horn = cast(new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.72, 6), hide))
+    horn.position.set(hx * 0.17, 0.2, -0.06); horn.rotation.set(2.5, 0, -hx * 0.32); head.add(horn)
+    const brow = cast(new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.3, 5), hide))
+    brow.position.set(hx * 0.2, 0.12, 0.34); brow.rotation.set(1.9, 0, -hx * 0.5); head.add(brow)
+  }
+  // the lamp eyes, and the furnace behind them
+  const eyeMat = new THREE.MeshBasicMaterial({ color: EYE_LAMPS.dragon })
+  for (const ex of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.062, 8, 6), eyeMat)
+    eye.position.set(ex * 0.16, 0.06, 0.42); head.add(eye)
+  }
+  const furnace = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff7a1e, transparent: true, opacity: 0.9 }))
+  furnace.position.set(0, -0.04, 0.2); jaw.add(furnace)
+  const throat = new THREE.PointLight(0xff6a20, 0, 26, 1.7)
+  throat.position.set(0, -0.02, 0.5); head.add(throat)
+
+  // ---- the tail: seven links, counterweight to all that neck ----
+  const tail = []
+  par = g
+  for (let i = 0; i < 7; i++) {
+    const j = new THREE.Group()
+    j.position.set(0, i === 0 ? 1.34 : 0, i === 0 ? -1.5 : -0.52)
+    const r = 0.34 - i * 0.042
+    const m = seg(r, Math.max(0.02, r - 0.045), 0.56, hide)
+    m.rotation.x = Math.PI / 2; m.position.z = -0.28
+    j.add(m); par.add(j); par = j; tail.push(j)
+  }
+  for (let i = 1; i < 6; i++) {   // the ridge, standing off the spine
+    const f = cast(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 4), hide))
+    f.position.set(0, 0.3, -0.24); f.rotation.x = -0.25; tail[i].add(f)
+  }
+
+  // ---- THE WINGS. Spars, and a membrane thin enough to hold the sun ----
+  const memMat = new THREE.MeshStandardMaterial({ color: 0x21160f, roughness: 0.86,
+    side: THREE.DoubleSide, transparent: true, opacity: 0.93 })
+  const wings = []
+  for (const side of [-1, 1]) {
+    const w = new THREE.Group(); w.position.set(side * 0.5, 1.62, 0.5); g.add(w)
+    const P = [[0, 0, -1.25], [0, 0, 0], [2.35, 0.1, 0.15], [4.05, 0.05, -0.55], [3.25, 0, -1.75], [2.05, 0, -2.5]]
+    const F = [[1, 2, 3], [1, 3, 4], [1, 4, 5], [0, 1, 5]]
+    const pos = [], nrm = []
+    for (const [a, b, c] of F) for (const k of [a, b, c]) {
+      pos.push(P[k][0] * side, P[k][1], P[k][2]); nrm.push(0, 1, 0)
+    }
+    const mg = new THREE.BufferGeometry()
+    mg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    mg.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3))
+    const mem = new THREE.Mesh(mg, memMat); mem.castShadow = true; w.add(mem)
+    const bone = (a, b, r) => {   // a spar laid between two points
+      const A = new THREE.Vector3(P[a][0] * side, P[a][1], P[a][2])
+      const B = new THREE.Vector3(P[b][0] * side, P[b][1], P[b][2])
+      const m = cast(new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.55, A.distanceTo(B), 5), hide))
+      m.position.copy(A).add(B).multiplyScalar(0.5)
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), B.clone().sub(A).normalize())
+      w.add(m)
+    }
+    bone(1, 2, 0.11); bone(2, 3, 0.062); bone(2, 4, 0.055); bone(2, 5, 0.05)
+    wings.push(w)
+  }
+
+  // ---- four legs that carry two tonnes ----
+  const legs = []
+  for (const sx of [-1, 1]) for (const sz of [1, -1]) {
+    const hipJ = new THREE.Group(); hipJ.position.set(sx * 0.62, 1.24, sz * 0.95); g.add(hipJ)
+    const up = seg(0.19, 0.15, 0.66, hide); up.position.y = -0.33; hipJ.add(up)
+    const kneeJ = new THREE.Group(); kneeJ.position.y = -0.66; hipJ.add(kneeJ)
+    const lo = seg(0.14, 0.1, 0.58, hide); lo.position.y = -0.29; kneeJ.add(lo)
+    const foot = cast(new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), hide))
+    foot.scale.set(1, 0.5, 1.35); foot.position.set(0, -0.6, 0.1); kneeJ.add(foot)
+    for (let c = -1; c <= 1; c++) {   // claws
+      const cl = cast(new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.2, 4), hide))
+      cl.position.set(c * 0.11, -0.62, 0.3); cl.rotation.x = 1.9; kneeJ.add(cl)
+    }
+    legs.push([hipJ, kneeJ])
+  }
+
+  g.__dragon = { neck, head, jaw, tail, wings, legs, furnace, throat, body, chest,
+    wing: Math.random() * 6.283, roarAt: -1e9 }
+  g.userData.eyeMat = eyeMat
+  g.scale.setScalar(1.15)
+  initAn(g, id)
+  return g
+}
+
 function makeSewnBeast(id, type) {
+  if (type === 'dragon') return buildDragon(id)
   if (type === 'wolf' || type === 'bear') {
     const g = new THREE.Group()
     g.rotation.order = 'YXZ'
@@ -6461,6 +6721,7 @@ function makeSewnBeast(id, type) {
     core.head.scale.setScalar(troll ? 0.82 : 1.55)
     core.shL.scale.y = core.shR.scale.y = troll ? 1.25 : 1.4
     core.thL.scale.y = core.thR.scale.y = troll ? 1 : 0.7
+    g.__legScale = troll ? 1 : 0.7   // the cadence needs the real leg
     core.shL.userData.joint = core.fkL
     core.shR.userData.joint = core.fkR
     core.thL.userData.joint = core.snL
@@ -6615,15 +6876,16 @@ const BOB_MEAN = 2 / Math.PI // the mean of |cos| over a cycle
 // cannot drift apart the way a hand-picked constant and a hand-picked
 // amplitude always eventually do.
 const STEP_F = 0.58
-// A foot carries weight for 60% of the cycle, not 50%. At 50% exactly
-// one foot is down at every instant, which is the definition of a RUN,
-// and is why a walk at walking speed still read as a jog in place. At
-// 0.6 the two stances overlap by a fifth of the cycle: that overlap is
-// double support, and having it is most of what separates the two
-// gaits. It also changes the arithmetic: a stance now spans 0.6 of a
-// cycle rather than half of one, so the ground covered per cycle is
-// 2/DUTY step-halves and not 4.
-const DUTY = 0.6
+// A foot carries weight for 38% of the cycle, not 60%. The world moves
+// a body one tile per 600ms tick and has NO second speed: at 1.667
+// units per second under a 1.15-unit body that is 1.45 body-heights a
+// second, which is a run, not a walk. A walk is defined by double
+// support, two feet down at once, and a walk played at running speed
+// can only ever read as scurrying. A run is defined by FLIGHT, and
+// flight is what buys the stride: the body covers ground with nothing
+// planted, so the step lengthens without the legs spreading wider, and
+// the cadence falls from 4.6 steps a second to about 3.
+const DUTY = 0.38
 const ANK_H = 0.05                   // the ankle joint, above the sole
 const HEEL_Z = -0.04, TOE_Z = 0.075  // where a boot actually touches, fore and aft
 const stepHalf = (g) => STEP_F * (RIG.kneeDrop + RIG.ankleDrop) * (g.scale?.x || 1)
@@ -6631,9 +6893,15 @@ const stepHalf = (g) => STEP_F * (RIG.kneeDrop + RIG.ankleDrop) * (g.scale?.x ||
 function strideOf(g) {
   if (g.__stride !== undefined) return g.__stride
   const sc = g.scale?.x || 1
-  const s = g.__quad ? 4 * (g.__quad.bodyH ?? 0.45) * Math.sin(0.55) / 1.15 * sc
+  // The quad animator runs its gait at `an.ph * 1.15`, so a full cycle
+  // arrives after ph advances 2*PI/1.15 -- which means the ground it
+  // must cover per cycle is 1.15 TIMES the base figure, not a 1.15th of
+  // it. I had it upside down: wolves and bears were taking 32% too many
+  // steps for the distance, which is the same skate I came here to kill,
+  // introduced by the fix for it.
+  const s = g.__quad ? 4 * (g.__quad.bodyH ?? 0.45) * Math.sin(0.55) * 1.15 * sc
     : g.__adventurer ? (2 / DUTY) * stepHalf(g)
-      : 4 * RIG.thighY * 0.8 * Math.sin(0.55) * sc
+      : 4 * RIG.thighY * (g.__legScale ?? 0.8) * Math.sin(0.55) * sc
   g.__stride = Math.max(0.25, s)
   return g.__stride
 }
@@ -6687,6 +6955,88 @@ function animateBeing(g, thing, id, dt, now, t) {
 
   // beasts first: fewer bones, same intent
   if (!g.__adventurer) {
+    if (g.__dragon) {
+      // Everything it does hangs off ONE clock: the beat of the wings.
+      // The body rises on the downstroke and settles on the up, the
+      // neck lags behind the chest the way a heavy thing on a long
+      // neck does, the tail answers the neck, and the ground remembers
+      // each stroke for about a third of a second.
+      const d = g.__dragon
+      const hunting = thing.action?.type === 'attackp' || thing.action?.type === 'attack'
+      d.wing += dt * (hunting ? 3.9 : moving ? 3.2 : 2.15)
+      const beat = Math.sin(d.wing), down = Math.max(0, -Math.cos(d.wing))
+      for (let wi = 0; wi < 2; wi++) {
+        const sd = wi === 0 ? -1 : 1, w = d.wings[wi]
+        w.rotation.z = -sd * (beat * 0.62 + 0.14)     // the stroke
+        w.rotation.y = sd * (0.12 + down * 0.30)      // and the cup it takes
+        w.rotation.x = beat * 0.16
+      }
+      // the trunk rides its own downwash. On __yOff, so the glide lerp
+      // strips it before the terrain follow and it cannot accumulate.
+      g.__yOff = (beat * 0.5 + 0.5 - 0.5) * 0.34
+      g.position.y += g.__yOff
+      // the neck arcs, each link taking a little less of the wave than
+      // the one before, and the whole of it leads toward what it wants
+      let yawT = 0, pitT = 0
+      const foe0 = thing.action?.type === 'attackp' ? s.players?.[thing.action.targetId] : null
+      if (foe0) {
+        let rem = Math.atan2(wx(foe0.x) - g.position.x, wz(foe0.y) - g.position.z) - g.rotation.y
+        while (rem > Math.PI) rem -= Math.PI * 2
+        while (rem < -Math.PI) rem += Math.PI * 2
+        yawT = Math.max(-0.9, Math.min(0.9, rem)); pitT = 0.34
+      }
+      an.hYaw = lerpN(an.hYaw, yawT, 1 - Math.exp(-dt * 3.4))
+      an.hPit = lerpN(an.hPit, pitT, 1 - Math.exp(-dt * 3.4))
+      for (let i = 0; i < d.neck.length; i++) {
+        const k = 1 - i / d.neck.length
+        d.neck[i].rotation.x = (-0.30 + i * 0.055) + Math.sin(d.wing * 0.5 - i * 0.5) * 0.045 * k + an.hPit * (0.22 + i * 0.06)
+        d.neck[i].rotation.y = an.hYaw * (0.1 + i * 0.055)
+      }
+      for (let i = 0; i < d.tail.length; i++) {
+        const k = (i + 1) / d.tail.length
+        d.tail[i].rotation.y = Math.sin(d.wing * 0.45 - i * 0.42 + an.seed) * 0.16 * k
+        d.tail[i].rotation.x = 0.05 + Math.sin(d.wing * 0.5 - i * 0.3) * 0.05 * k - beat * 0.05 * k
+      }
+      // legs: it is mostly a walking thing, and it walks on the same
+      // distance-driven phase as everything else in this window
+      for (let li = 0; li < d.legs.length; li++) {
+        const sgn = (li === 0 || li === 3) ? 0 : Math.PI
+        const s7 = Math.sin(an.ph * 0.85 + sgn)
+        d.legs[li][0].rotation.x = s7 * 0.34 * mvA
+        d.legs[li][1].rotation.x = -0.18 - Math.max(0, -s7) * 0.5 * mvA
+      }
+      // THE FURNACE. It idles like a banked hearth and it opens when
+      // the thing decides to kill you: the jaw comes down, the throat
+      // throws real light onto real ground, and the eyes come up with it.
+      const roar = hunting && t2 > 0.32 && t2 < 0.78
+      if (roar && now - d.roarAt > TICK_MS * 1.4) {
+        d.roarAt = now; sndX('growl', g.position)
+        burst(g.position.x, g.position.y + 2.6, g.position.z, 'spark')
+        QUAKE = Math.min(1, QUAKE + 0.55)
+      }
+      const fk = lerpN(d.fk ?? 0, roar ? 1 : 0, 1 - Math.exp(-dt * (roar ? 14 : 4)))
+      d.fk = fk
+      const idleGlow = 0.42 + Math.sin(now / 620 + an.seed) * 0.16
+      d.jaw.rotation.x = 0.06 + fk * 0.62
+      d.furnace.scale.setScalar(0.7 + idleGlow * 0.4 + fk * 1.5)
+      d.furnace.material.opacity = 0.55 + fk * 0.45
+      d.throat.intensity = idleGlow * 5 + fk * 62
+      d.throat.distance = 16 + fk * 22
+      if (g.userData.eyeMat) g.userData.eyeMat.color.setHex(fk > 0.4 ? 0xffd08a : EYE_LAMPS.dragon)
+      // and the ground keeps the beat: each downstroke lands on the
+      // world, not just on the animation
+      if (down > 0.985 && now - (d.thumpAt ?? 0) > 260) {
+        d.thumpAt = now
+        const near = camera.position.distanceTo(g.position)
+        if (near < 46) QUAKE = Math.min(1, QUAKE + 0.42 * (1 - near / 46))
+        for (const sx3 of [-1, 1])
+          burst(g.position.x + sx3 * 3.2 * Math.cos(g.rotation.y),
+            g.position.y + 0.1, g.position.z - sx3 * 3.2 * Math.sin(g.rotation.y), 'dust')
+      }
+      const hitK3 = Math.max(0, 1 - (now - (g.__hurtAt ?? -1e9)) / 220)
+      g.rotation.x = -hitK3 * 0.09
+      return
+    }
     if (g.__quad) { // the sewn quadruped: diagonal pairs, a tail of moods
       const q = g.__quad
       const gaitPh = an.ph * 1.15
@@ -6712,9 +7062,24 @@ function animateBeing(g, thing, id, dt, now, t) {
     if (g.__spineRest !== undefined) { // sewn goblin & troll: the hunch breathes
       ;(g.__spineBone).rotation.x = g.__spineRest + Math.sin(now / 800 + an.seed) * 0.03
     }
-    if (g.userData.legs4) for (let li = 0; li < 4; li++)
-      g.userData.legs4[li].rotation.x = moving ? Math.sin(now / 130 + li * Math.PI / 2) * 0.6 : 0
-    if (g.userData.hunch) g.userData.hunch.rotation.x = 0.32 + Math.sin(now / 700 + g.position.x) * 0.04
+    // `now / 130` is a wall clock: a fixed 130ms period whatever the
+    // speed, so these legs skated at every pace but one, snapped on and
+    // off a boolean instead of blending, and -- having no per-creature
+    // seed -- every four-legged thing in the county stepped in perfect
+    // unison. On the shared distance-driven phase, with the diagonal
+    // pairing a trot actually uses, and a seed each.
+    if (g.userData.legs4) {
+      const pairs4 = [0, Math.PI, Math.PI, 0]
+      for (let li = 0; li < 4; li++)
+        g.userData.legs4[li].rotation.x = Math.sin(an.ph * 1.15 + pairs4[li] + an.seed) * 0.6 * mvA
+    }
+    // built, pushed onto the group, and then never touched by anything:
+    // the hinged goblin walked the whole world on frozen legs
+    if (g.userData.legs2) {
+      g.userData.legs2[0].rotation.x = s5 * 0.5 * mvA
+      g.userData.legs2[1].rotation.x = -s5 * 0.5 * mvA
+    }
+    if (g.userData.hunch) g.userData.hunch.rotation.x = 0.32 + Math.sin(now / 700 + an.seed * 3) * 0.04
     if (g.userData.legs && g.userData.legs[0]?.userData?.joint) {
       g.userData.legs[0].rotation.x = s5 * 0.55 * mvA
       g.userData.legs[1].rotation.x = -s5 * 0.55 * mvA
@@ -6723,8 +7088,17 @@ function animateBeing(g, thing, id, dt, now, t) {
     }
     if (g.userData.arms && g.userData.arms[0]?.rotation) {
       const fighting0 = thing.action?.type === 'attackp' || g.__lungeAt && (now - g.__lungeAt) < 400
-      g.userData.arms[0].rotation.x = fighting0 ? -0.6 + Math.sin(t * 12) * 0.9 : -s5 * 0.45 * mvA
-      g.userData.arms[1].rotation.x = fighting0 ? 0.2 : s5 * 0.45 * mvA
+      // `Math.sin(t * 12)` with no seed in it: continuous air-fencing at
+      // twelve radians a second, and every goblin in the county doing it
+      // on the same frame. The citizens were taken off this months ago;
+      // the things hunting them never were. One blow per tick now, on
+      // the beat combat is actually resolved on, wound up and brought
+      // down, with a breath of scatter so a pack is not a metronome.
+      const b0 = Math.min(1, Math.max(0, t2 + Math.sin(an.seed * 7) * 0.05))
+      const sw0 = b0 < 0.5 ? -0.6 - (b0 / 0.5) * 1.5
+        : 0.5 - Math.max(0, 1 - (b0 - 0.5) / 0.35) * 2.6
+      g.userData.arms[0].rotation.x = fighting0 ? sw0 : -s5 * 0.45 * mvA
+      g.userData.arms[1].rotation.x = fighting0 ? (0.2 + Math.max(0, -sw0) * 0.12) : s5 * 0.45 * mvA
     }
     g.__yOff = (Math.abs(Math.cos(an.ph)) - BOB_MEAN) * 0.05 * mvA
     g.position.y += g.__yOff
@@ -6743,12 +7117,32 @@ function animateBeing(g, thing, id, dt, now, t) {
   // appeared (syncAll stamps __hitAt off the hp drop). Between hits
   // the arms hold guard, no more air-fencing at animation speed.
   const hitAgo = g.__hitAt ? (now - g.__hitAt) : 1e9
-  const exch = fighting && hitAgo < TICK_MS
+  // A blow lands every `every` ticks -- the table has said so all along
+  // and the animator never read it, normalising every strike to a flat
+  // TICK_MS. So a maul swung no slower than a dagger flicked and then
+  // stood in guard for the remaining 1200ms of its own cadence. Weight
+  // IS cadence; a heave that finishes in 600ms is not heavy, it is
+  // hurried. Each style now gets the share of its weapon's interval
+  // that suits it: a maul fills nearly all of 1800ms, a dagger spends
+  // half of 1200 and waits out the rest.
+  const STYLE_DUR = { heave: 0.95, swing: 0.80, thrust: 0.70, quick: 0.50, whip: 0.55, draw: 0.90 }
+  const STYLE_HIT = { heave: 0.66, swing: 0.55, thrust: 0.45, quick: 0.28, whip: 0.42, draw: 0.52 }
+  const span = TICK_MS * Math.max(1, look0.every ?? 2) * (STYLE_DUR[look0.style] ?? 0.8)
+  const exch = fighting && hitAgo < span
+  let strikeA = -1.1, strikeT2 = 0, drawK = 0, strikeP = 0
 
-  // the strike, in three acts (heave / quick / thrust / swing)
-  let strikeA = -1.1, strikeT2 = 0
+  // the strike, in six acts (heave / quick / thrust / whip / draw / swing)
   if (exch) {
-    const t2 = Math.min(1, hitAgo / TICK_MS) // the strike keeps its own clock
+    const raw = Math.min(1, hitAgo / span)
+    // A BEAT OF HOLD AT CONTACT. The arc used to pass through the
+    // landing at constant speed, which is most of why it read as waving
+    // rather than hitting. Time now runs at a third pace either side of
+    // the moment of impact and recovers over a sixth of the swing --
+    // monotonic, so nothing pops, and about 90ms of hitstop, which is
+    // the cheapest thing in the whole of game feel.
+    const c = STYLE_HIT[look0.style] ?? 0.55, d = raw - c
+    const t2 = c + d * (0.32 + 0.68 * Math.min(1, Math.abs(d) / 0.16))
+    strikeP = t2
     const st = look0.style
     if (st === 'heave') {
       if (t2 < 0.55) { const u = t2 / 0.55, e = u * u * (3 - 2 * u); strikeA = -1.1 - e * 1.9 }
@@ -6765,6 +7159,23 @@ function animateBeing(g, thing, id, dt, now, t) {
       strikeA = -1.35 + (t2 < 0.4 ? -0.25 * u : 0.5 * (1 - u))
       g.userData.lunge = t2 >= 0.4 && t2 < 0.62 ? 0.22 : 0
       strikeT2 = Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - 0.38) / 0.28)) * Math.PI))
+    } else if (st === 'whip') {
+      // the chain has no edge to land: it is wound over and lashed down,
+      // and it is the only weapon in the table that strikes every tick
+      const a2 = t2 * Math.PI * 2
+      strikeA = -1.1 - Math.sin(a2) * 1.5 - Math.max(0, Math.sin(a2 * 0.5)) * 0.6
+      strikeT2 = Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - 0.3) / 0.32)) * Math.PI))
+    } else if (st === 'draw') {
+      // DRAW AND LOOSE. Both bows fell through to the generic branch,
+      // so an archer performed an overhead sword chop while an arrow
+      // left their chest. The bow hand holds forward and steady; the
+      // other hand takes the string to the cheek and lets it go, and
+      // the release is a snap, not a swing.
+      const k = t2 < 0.52 ? t2 / 0.52 : 0
+      const e = k * k * (3 - 2 * k)
+      strikeA = -1.42 - (t2 < 0.52 ? 0 : Math.max(0, 1 - (t2 - 0.52) / 0.3)) * 0.16
+      drawK = t2 < 0.52 ? e : Math.max(0, 1 - (t2 - 0.52) / 0.22)
+      strikeT2 = 0                                  // a bow leaves no arc
     } else {
       if (t2 < 0.42) { const u = t2 / 0.42, e = u * u * (3 - 2 * u); strikeA = -1.1 - e * 1.4 }
       else if (t2 < 0.6) { const u = (t2 - 0.42) / 0.18; strikeA = -2.5 + u * u * 2.9 }
@@ -6780,18 +7191,25 @@ function animateBeing(g, thing, id, dt, now, t) {
     g.position.z += (az / L) * g.userData.lunge
   }
   if (g.userData.trail) {
+    // THE WRONG CLOCK. The strike keeps its own time in `strikeP`, but
+    // the arc and the loose were both reading `t2` -- the outer one,
+    // the tick interpolator (now - clock.at) / TICK_MS. The swing and
+    // the streak it leaves only agreed when a blow happened to land
+    // exactly on a tick boundary; every other time the light swept
+    // through on a clock of its own. Both read the strike now.
     const lk = look0
     const win = lk.style === 'heave' ? [0.55, 0.34] : lk.style === 'quick' ? [0.16, 0.24]
-      : lk.style === 'thrust' ? [0.40, 0.20] : [0.42, 0.33]
+      : lk.style === 'thrust' ? [0.40, 0.20] : lk.style === 'whip' ? [0.30, 0.32] : [0.42, 0.33]
     const amp = lk.style === 'heave' ? 0.62 : lk.style === 'quick' ? 0.34
-      : lk.style === 'thrust' ? 0.20 : 0.45
+      : lk.style === 'thrust' ? 0.20 : lk.style === 'whip' ? 0.52 : 0.45
     const whipK = exch && !lk.ranged
-      ? Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - win[0]) / win[1])) * Math.PI)) : 0
+      ? Math.max(0, Math.sin(Math.min(1, Math.max(0, (strikeP - win[0]) / win[1])) * Math.PI)) : 0
     g.userData.trail.material.opacity = whipK * amp
-    g.userData.trail.scale.setScalar(lk.style === 'heave' ? 1.35 : lk.style === 'quick' ? 0.7 : 1)
-    g.userData.trail.rotation.x = -0.7 + t2 * 1.5
+    g.userData.trail.scale.setScalar(lk.style === 'heave' ? 1.35 : lk.style === 'quick' ? 0.7
+      : lk.style === 'whip' ? 1.15 : 1)
+    g.userData.trail.rotation.x = -0.7 + strikeP * 1.5
   }
-  if (exch && t2 > 0.45 && an.shotTick !== s.tick) {
+  if (exch && strikeP > (STYLE_HIT[look0.style] ?? 0.55) && an.shotTick !== s.tick) {
     an.shotTick = s.tick
     if (look0.ranged && g.userData.foePos) {
       spawnArrowX(g.position.x, g.position.y + 0.85, g.position.z,
@@ -6898,11 +7316,15 @@ function animateBeing(g, thing, id, dt, now, t) {
       cx = f.ax + fX * pz - fX * rz2; cz = f.az + fZ * pz - fZ * rz2
       cy = f.ay + pyl - ry
     } else {
+      // SWING, relative to its OWN HIP: a step behind to a step ahead.
+      // Lerping between two fixed world points stranded the foot behind
+      // a body moving this fast, and a leg that cannot reach its target
+      // gets clamped by the solve -- which is skating under a new name.
+      // Hip-relative, the reach is bounded by construction.
       if (f.down) { f.down = false; f.ox = f.ax; f.oy = f.ay; f.oz = f.az }
-      const e = u * u * (3 - 2 * u)
-      cx = f.ox + (ax - f.ox) * e; cz = f.oz + (az - f.oz) * e
-      cy = Math.max(gAt(cx, cz) + ANK_H * sc, f.oy + (gAt(ax, az) + ANK_H * sc - f.oy) * e)
-        + Math.sin(u * Math.PI) * 0.07 * sc
+      const e = u * u * (3 - 2 * u), off = stepH * (2 * e - 1)
+      cx = rx + fX * off; cz = rz + fZ * off
+      cy = Math.max(gAt(cx, cz), py) + ANK_H * sc + Math.sin(u * Math.PI) * 0.10 * sc
       f.ax = cx; f.ay = cy; f.az = cz
     }
     // standing still, the gait lets go and the feet come home
@@ -6911,11 +7333,13 @@ function animateBeing(g, thing, id, dt, now, t) {
     ankle2.push([rx + (cx - rx) * mvA, rz + (cz - rz) * mvA, restY + (cy - restY) * mvA])
     pitch2.push(pitch * mvA)
   }
-  // THE PELVIS IS NOT AUTHORED, IT IS DEDUCED. It hangs as high as it
-  // can while both legs still reach their ankles, which makes the bob a
-  // CONSEQUENCE of the stride rather than a sine laid over it: it falls
-  // at every strike because the legs are spread, rises at midstance
-  // because they are stacked, and climbs a hill correctly for free.
+  // THE PELVIS IS NOT AUTHORED, IT IS DEDUCED. It hangs as high as both
+  // legs can still reach their ankles. With the swing hip-relative that
+  // one rule produces the whole vertical of a run on its own: the hips
+  // are pulled down at each strike, when the leg is stretched out in
+  // front, and released through flight, when the swinging foot is lifted
+  // and stops asking for anything. Nobody authored the rise. It is what
+  // is left over when neither boot is touching the ground.
   const maxR = legLen * sc * 0.985
   const standY = py + (RIG.thighY + ANK_H) * sc
   let hipY = standY
@@ -6957,7 +7381,16 @@ function animateBeing(g, thing, id, dt, now, t) {
 
   // arms: counter-swing, the off arm counterbalances the strike
   const idleSw = Math.sin(now / 1700 + an.seed) * 0.045
-  g.userData.arms[0].rotation.x = fighting ? (-0.55 + strikeT2 * 0.75)
+  const drawing = fighting && look0.style === 'draw'
+  // a weapon rides back over the shoulder at rest and comes into line
+  // to be used; the handover is eased so nothing snaps into position
+  an.fightK = lerpN(an.fightK ?? 0, fighting ? 1 : 0, 1 - Math.exp(-dt * 7))
+  for (const it of [g.userData.sword, ...Object.values(g.userData.shapes ?? {})]) {
+    if (it && it.visible && it.userData.carry !== undefined)
+      it.rotation.x = it.userData.carry + (it.userData.guard - it.userData.carry) * an.fightK
+  }
+  g.userData.arms[0].rotation.x = drawing ? (-1.34 + drawK * 0.58)
+    : fighting ? (-0.55 + strikeT2 * 0.75)
     : (working && !fishingW) ? (-0.25 - imp * 0.15)
       : fishingW ? -0.9
         : -s5 * 0.5 * mvA + idleSw
@@ -6974,8 +7407,12 @@ function animateBeing(g, thing, id, dt, now, t) {
   if (g.__hips) g.__hips.rotation.y = -s5 * 0.07 * mvA
   g.userData.torso.rotation.y = treeWork ? chopTw : s5 * 0.05 * mvA
   if (g.userData.hatchet?.visible) g.userData.hatchet.rotation.y = treeWork ? -1.35 : 0
-  g.userData.arms[0].userData.joint.rotation.x = -0.14 - Math.max(0, -s5) * 0.3 * mvA
-  g.userData.arms[1].userData.joint.rotation.x = (fighting || working) ? -0.5 : -0.14 - Math.max(0, s5) * 0.3 * mvA
+  // the string hand takes the nock to the cheek: the elbow does most of
+  // a draw, and the bow arm holds all but straight while it happens
+  g.userData.arms[0].userData.joint.rotation.x = drawing ? (-0.22 - drawK * 1.95)
+    : -0.14 - Math.max(0, -s5) * 0.3 * mvA
+  g.userData.arms[1].userData.joint.rotation.x = drawing ? -0.12
+    : (fighting || working) ? -0.5 : -0.14 - Math.max(0, s5) * 0.3 * mvA
 
   // the head is its own animal
   const hg = g.userData.headGrp
@@ -7016,7 +7453,10 @@ function animateBeing(g, thing, id, dt, now, t) {
     hg.rotation.x = an.hPit + Math.abs(Math.cos(an.ph + 0.5)) * 0.02 * mvA
   }
   ;(g.__spineBone ?? g.userData.torso).scale.y = 1 + Math.sin(now / 900 + g.position.x) * 0.015
-  if (g.userData.cloak) g.userData.cloak.rotation.x = 0.08 + mvA * (0.26 + Math.sin(an.ph * 2) * 0.05) + Math.sin(now / 1100) * 0.03 * (1 - mvA)
+  // the resting sway had no seed either, so every cloak in the world
+  // breathed together; the walking part was already on the gait
+  if (g.userData.cloak) g.userData.cloak.rotation.x = 0.08 + mvA * (0.26 + Math.sin(an.ph * 2) * 0.05)
+    + Math.sin(now / 1100 + an.seed * 2.3) * 0.03 * (1 - mvA)
 
   // the job puts its tool in the hand; the wielded thing obeys the contract
   g.userData.hatchet.visible = nd2?.type === 'tree'
@@ -7024,8 +7464,12 @@ function animateBeing(g, thing, id, dt, now, t) {
   g.userData.rod.visible = nd2?.type === 'fishing-spot'
   const toolOut = !!(g.userData.hatchet.visible || g.userData.pick.visible || g.userData.rod.visible)
   const wep = toolOut ? null : thing.equipment?.weapon?.item
-  const bareBlade = fighting && !toolOut && !thing.equipment?.weapon?.item
-  g.userData.sword.visible = wep === 'bronze-sword' || wep === 'star-sword' || bareBlade
+  // A citizen with no weapon used to sprout one the instant a fight
+  // started: `fighting && !equipment.weapon` made the blade visible.
+  // That is the window granting equipment the truth never gave, which
+  // is the one thing windows.html says a window may not do -- it may
+  // choose its colours, not what is true. The unarmed now fight unarmed.
+  g.userData.sword.visible = wep === 'bronze-sword' || wep === 'star-sword'
   g.userData.sword.material.color.set(wep === 'star-sword' ? 0x8ce0ff : 0xc9c2b2)
   g.userData.sword.material.emissive.set(wep === 'star-sword' ? 0x1c6a8e : 0x000000)
   g.userData.sword.material.emissiveIntensity = wep === 'star-sword' ? 0.9 : 0
@@ -7216,6 +7660,14 @@ function syncNodes(s, budget) {
     if (g.position.x !== wx(n.x) || g.position.z !== wz(n.y)) { // nodes rarely move
       g.position.set(wx(n.x), groundYAt(n.x, n.y), wz(n.y))
       g.updateMatrixWorld(true)
+    }
+    if (g.userData.watch) { // a kindled fire answers to its own fuel
+      const lit = (n.fuelUntil ?? 0) > t
+      const low = lit && (n.fuelUntil - t) < 300     // the last of it, guttering
+      for (const fm of g.userData.watch) { fm.visible = lit; fm.scale.setScalar(low ? 0.55 : 1) }
+      if (g.userData.fireLight) g.userData.fireLight.visible = lit
+      g.userData.fireBase = low ? 9 : 22
+      for (const sp of g.userData.smoke ?? []) sp.visible = lit
     }
     const depleted = (n.depletedUntil ?? 0) > t
     if (depleted !== !!g.userData.depleted) {
@@ -7986,12 +8438,19 @@ function pickShot(nowMs, focusV, fighting, walking, nightish) {
   const mobT = huntTarget ? vis.mob.get(huntTarget) : null
   const az = Math.random() * Math.PI * 2
   const r = Math.random()
-  const type = (fighting && mobT) ? 'arena'
+  // there is ONE of these in the world and it does not come often: when
+  // it is in sight it takes the camera, low and wide, and keeps it
+  let wyrm = null, wd = 1e9
+  for (const gm of vis.mob.values())
+    if (gm.__dragon && gm.visible) { const d3 = gm.position.distanceTo(focusV); if (d3 < wd) { wyrm = gm; wd = d3 } }
+  const type = (wyrm && wd < 40) ? 'wyrm'
+    : (fighting && mobT) ? 'arena'
     : (fire && fd < 11 && r < 0.4) ? 'hearth'
     : (walking && r < 0.55) ? 'lead'
     : (nightish && r < 0.3) ? 'low'
     : r < 0.3 ? 'crane' : r < 0.62 ? 'dolly' : r < 0.86 ? 'long' : 'low'
   const S = { type, t0: nowMs, az, dur: 8000, fov: 36 }
+  if (type === 'wyrm') { S.dur = 11000; S.fov = 26; S.azB = az + (r < 0.5 ? 0.4 : -0.4); S.wyrm = wyrm }
   if (type === 'dolly') { S.dur = 8000; S.fov = 34; S.azB = az + (r < 0.5 ? 0.55 : -0.55) }
   if (type === 'crane') { S.dur = 9000; S.fov = 42 }
   if (type === 'lead') { S.dur = 7000; S.fov = 30 }
@@ -8031,6 +8490,18 @@ function directShot(S, p, focusV, meBody, tSec) {
     camera.position.set(focusV.x + sA * r3, 0, focusV.z + cA * r3)
     camera.position.y = dirGroundY(camera.position.x, camera.position.z) + 0.3
     lx = focusV.x - sA * 9; ly = focusV.y + 5.5; lz = focusV.z - cA * 9 // past the subject, into the sky
+  } else if (S.type === 'wyrm') {
+    // The one shot in this window that is not about you. The lens sits
+    // on the ground at a citizen's own eye height, a long way back, and
+    // looks UP: everything else in the frame gets to be small, which is
+    // the only honest way to photograph the thing that kills people in
+    // full star gear. It drifts in over eleven seconds and never cuts
+    // away early.
+    const wp = S.wyrm?.position ?? focusV
+    const r3 = 20 - p * 6
+    camera.position.set(wp.x + sA * r3, 0, wp.z + cA * r3)
+    camera.position.y = dirGroundY(camera.position.x, camera.position.z) + 0.85
+    lx = wp.x; ly = wp.y + 2.6 + Math.sin(p * Math.PI) * 0.5; lz = wp.z
   } else if (S.type === 'hearth') {
     camera.position.set(S.anchor.x + sA * 3.8, S.anchor.y + 1.5 + Math.sin(p * Math.PI) * 0.7, S.anchor.z + cA * 3.8)
     lx = S.anchor.x * 0.7 + focusV.x * 0.3; ly = S.anchor.y + 0.75; lz = S.anchor.z * 0.7 + focusV.z * 0.3
@@ -8473,7 +8944,7 @@ function frame() {
   sun.intensity = (0.04 + dayAmt * 4.1) * (1 - overcast * 0.72) * dapple
   // the moon works a movie shift: real moonlight is a rumor, but the
   // frame owes you a legible night, day-for-night, the oldest trick
-  moon.intensity = nightAmt * 1.15 * (1 - overcast * 0.45)
+  moon.intensity = nightAmt * 0.92 * (1 - overcast * 0.45)
   hemi.intensity = (0.11 + dayAmt * 0.2 + nightAmt * 0.16) * (1 + overcast * 0.9) + flash * 1.7
   starUniforms.uTime.value = t
   starUniforms.uNight.value = nightAmt * (1 - overcast)
@@ -8491,7 +8962,14 @@ function frame() {
   // understory arrive over a couple of seconds). Lightning bypasses
   // the adaptation entirely, a flash is faster than any eye.
   const skyFill = Math.max(0, tmpV3.y) // tmpV3 still holds the gaze
-  const meterTarget = (0.57 + dayAmt * 0.23 + nightAmt * 0.34 - overcast * 0.06) * iris
+  // Night used to be metered BRIGHTER than day: 0.57+0.34 against
+  // 0.57+0.23. Stack that on a moon running at 1.15 and the brightest
+  // thing in a night frame -- plaster at 0xc9bb9e, a 0.79 albedo -- went
+  // straight through the top of the curve, so villages read as paper
+  // cutouts with bloom smeared round them while the ground beside them
+  // stayed properly dark. Night is still lifted, just no longer past
+  // noon, and the moon gives up the last of its Hollywood.
+  const meterTarget = (0.57 + dayAmt * 0.23 + nightAmt * 0.20 - overcast * 0.06) * iris
     * (1 - skyFill * 0.28 * dayAmt * (1 - overcast * 0.6))
     * (1 + Math.max(0, -tmpV3.y) * 0.16)
   expoState += (meterTarget - expoState) * Math.min(1, dt * (meterTarget < expoState ? 5.5 : 0.9))
@@ -8561,10 +9039,18 @@ function frame() {
     directShot(dirShot, Math.min(1, (now - dirShot.t0) / dirShot.dur), focus, meVis, t)
   } else if (povMode && meVis) {
     const walking = me && (Math.abs(wx(me.x) - meVis.position.x) + Math.abs(wz(me.y) - meVis.position.z)) > 0.03
-    let bob = walking ? Math.sin(t * 8.5) * 0.028 : 0
+    // The head bobbed on `t * 8.5` -- 1.35 a second off a wall clock --
+    // while the body under it now strides on ground covered, near four
+    // and a half steps a second. In first person that is your own head
+    // nodding out of time with your own boots, and the footfall sound
+    // was being timed off the same wrong clock. Both read the gait the
+    // legs are actually walking.
+    const gph = meVis.userData?.an?.ph
+    const bobPh = gph !== undefined ? gph : t * 8.5
+    let bob = walking ? Math.sin(bobPh) * 0.028 : 0
     if (audio && walking) { // every other bob-trough is a footfall,
       // and the ground decides what it sounds like
-      const ph = Math.sin(t * 8.5)
+      const ph = Math.sin(bobPh)
       if ((stepSign >= 0 && ph < 0) || (stepSign <= 0 && ph > 0))
         audio.step(['mountain', 'scree', 'crags', 'cave'].includes(
           terrainOf(Math.min(W - 1, Math.max(0, me.x)), Math.min(H - 1, Math.max(0, me.y)))))
@@ -8611,7 +9097,8 @@ function frame() {
     camera.fov += (fovT - camera.fov) * Math.min(1, dt * 3)
     camera.updateProjectionMatrix()
   }
-  const shake = ownHurt * 0.05 + flash * 0.05 * Math.min(1, rainAmt * 2)
+  QUAKE = Math.max(0, QUAKE - dt * 2.6)
+  const shake = ownHurt * 0.05 + flash * 0.05 * Math.min(1, rainAmt * 2) + QUAKE * 0.055
   if (shake > 0.002) camera.position.add(tmpV3.set(
     (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake * 0.6, (Math.random() - 0.5) * shake))
   // the stone stands aside, now that the camera has settled for the frame
@@ -9202,17 +9689,30 @@ function frame() {
       if (g.userData.an) {
         animateBeing(g, world?.players?.[ud.id] ?? world?.mobs?.[ud.id], ud.id, dt, now, t)
       } else if (g.__arms) {
+        // The rigid bodies kept the oldest version of the bug: limbs on
+        // `Math.sin(t * 8)`, a fixed eight radians a second of GLOBAL
+        // time. Amplitude scaled with speed but frequency never did, so
+        // they skated at every pace but one -- and with no per-body
+        // seed anywhere in the expression, every one of them swung in
+        // exact lockstep, a chorus line crossing the meadow. They ride
+        // the same distance-driven phase as everyone else now, each
+        // with a seed of its own.
+        if (g.__gaitSeed === undefined) g.__gaitSeed = ((g.position.x * 7349 + g.position.z * 9151) % 6.283 + 6.283) % 6.283
+        const strideR = 0.62 * (g.scale?.x || 1)
+        g.__gaitPh = (g.__gaitPh ?? g.__gaitSeed)
+          + (Math.hypot(g.position.x - px0, g.position.z - pz0) / strideR) * Math.PI * 2
+        const gp = g.__gaitPh, gwork = t * 9 + g.__gaitSeed, gfight = t * 13 + g.__gaitSeed
         const walkAmp = Math.min(0.7, (g.__speed ?? 0) * 0.5)
         for (let ai = 0; ai < g.__arms.length; ai++) {
           const arm = g.__arms[ai]
-          if (act === 'gather') arm.rotation.x = ai === 0 ? -0.9 + Math.sin(t * 9) * 0.85 : 0.2
-          else if (act === 'attack' || act === 'attackp') arm.rotation.x = ai === 0 ? -0.7 + Math.sin(t * 13) * 1 : 0.3 + Math.sin(t * 13 + 2) * 0.4
-          else arm.rotation.x = Math.sin(t * 8 + ai * Math.PI) * walkAmp + 0.16 * (ai ? 1 : -1)
+          if (act === 'gather') arm.rotation.x = ai === 0 ? -0.9 + Math.sin(gwork) * 0.85 : 0.2
+          else if (act === 'attack' || act === 'attackp') arm.rotation.x = ai === 0 ? -0.7 + Math.sin(gfight) * 1 : 0.3 + Math.sin(gfight + 2) * 0.4
+          else arm.rotation.x = Math.sin(gp + ai * Math.PI) * walkAmp + 0.16 * (ai ? 1 : -1)
         }
         if (g.__legs) {
           const walkAmp2 = Math.min(0.6, (g.__speed ?? 0) * 0.55)
           for (let li = 0; li < g.__legs.length; li++)
-            g.__legs[li].rotation.x = Math.sin(t * 8 + li * Math.PI + Math.PI) * walkAmp2
+            g.__legs[li].rotation.x = Math.sin(gp + li * Math.PI + Math.PI) * walkAmp2
         }
         // the smaller peoples mean their movement too: a lean with the
         // stride, a bank through the turn, a slow shift of weight when
@@ -9220,7 +9720,7 @@ function frame() {
         const spd3 = Math.min(1, (g.__speed ?? 0) * 0.6)
         g.__leanB = (g.__leanB ?? 0) + ((spd3 * 0.07) - (g.__leanB ?? 0)) * Math.min(1, dt * 7)
         g.rotation.x = g.__leanB
-        g.rotation.z = Math.sin(t * 8) * 0.02 * spd3
+        g.rotation.z = Math.sin(g.__gaitPh ?? 0) * 0.02 * spd3
           - Math.max(-1, Math.min(1, (g.__turn ?? 0) * 0.25)) * 0.1 * spd3
           + Math.sin(t * 0.55 + g.position.x * 2.7) * 0.012 * (1 - spd3)
       }
