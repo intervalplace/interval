@@ -1736,7 +1736,13 @@ function keeperRole4(st, id, n) {
 // the eighteen nouns added at the fourth founding, which have their own art
 const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   'charcoal-clamp','log-pile','spoil-heap','cut-face','bone-pile',
-  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall'])
+  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall',
+  // the thirteen added when the world stopped repeating itself: four that
+  // were always here wearing 'standing-stone' because nothing else had a
+  // name for them, and nine new places
+  'skep','cairn','boundary-stone','skull-pile',
+  'scorched-ring','glass-stone','burnt-tree',
+  'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
 const _rampCache = new Map()
 function isRampart4(x, y) {
   const k = x + ',' + y
@@ -4460,6 +4466,7 @@ function nodeBody(n) {
         const m = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, dp), mat), x, y, z)
         m.rotation.y = ry; m.castShadow = true; return m
       }
+      const add2 = (par, m, x, y, z) => { m.position.set(x, y, z); par.add(m); return m }
       const cyl = (r1, r2, h, mat, x, y, z, rx = 0, rz = 0) => {
         const m = add(new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 7), mat), x, y, z)
         m.rotation.x = rx; m.rotation.z = rz; m.castShadow = true; return m
@@ -4557,13 +4564,236 @@ function nodeBody(n) {
           const e9 = box(0.06, 0.42, 0.1, new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 0.7 }), -0.44 + i * 0.22, 1.0, 0)
           e9.rotation.z = (jt - 0.5) * 0.3
         }
-      } else { // sunken-wall: a course of stone the tide keeps taking back
+      } else if (K === 'sunken-wall') { // a course of stone the tide keeps taking back
         for (let i = 0; i < 6; i++) {
           const b9 = box(0.34, 0.22, 0.3, mats.stone, -0.75 + i * 0.3, 0.09 - (i % 3) * 0.03, (i % 2) * 0.08, (jt + i) * 0.4)
           b9.receiveShadow = true
         }
+
+      // ---- the four that were always here, wearing the wrong name -----
+      } else if (K === 'skep') {
+        const straw = new THREE.MeshStandardMaterial({ color: 0xc2a252, roughness: 1 })
+        for (let i = 0; i < 5; i++) {          // coiled rope, narrowing
+          const r9 = 0.34 - i * 0.055
+          const c9 = add(new THREE.Mesh(new THREE.CylinderGeometry(r9, r9 + 0.035, 0.13, 10), straw), 0, 0.07 + i * 0.12, 0)
+          c9.castShadow = true
+        }
+        add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), straw), 0, 0.68, 0)
+        const mouth = add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.06, 0.04), new THREE.MeshBasicMaterial({ color: 0x120c06 })), 0, 0.12, 0.3, false)
+        mouth.rotation.x = 0.1
+      } else if (K === 'cairn') {
+        // stacked flat, biggest at the bottom, each course turned a little
+        let y9 = 0
+        for (let i = 0; i < 7; i++) {
+          const r9 = 0.34 - i * 0.038, h9 = 0.14 - i * 0.009
+          const c9 = add(new THREE.Mesh(new THREE.CylinderGeometry(r9 * 0.86, r9, h9, 6), mats.stone), (jt - 0.5) * i * 0.035, y9 + h9 / 2, (jt - 0.5) * i * 0.03)
+          c9.rotation.y = jt * 4 + i * 0.7; c9.castShadow = true; c9.receiveShadow = true
+          y9 += h9
+        }
+      } else if (K === 'boundary-stone') {
+        const bs = box(0.34, 0.78, 0.24, mats.stone, 0, 0.33, 0, (jt - 0.5) * 0.5)
+        bs.rotation.z = (jt - 0.5) * 0.13; bs.receiveShadow = true
+        const cut = add(new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.05, 0.02), mats.trodden), 0, 0.5, 0.13, false)
+        cut.rotation.z = (jt - 0.5) * 0.13
+        add(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.02), mats.trodden), 0, 0.4, 0.13, false).rotation.z = (jt - 0.5) * 0.13
+      } else if (K === 'skull-pile') {
+        for (let i = 0; i < 8; i++) {
+          const a9 = (i / 8) * Math.PI * 2 + jt * 3, rr = 0.06 + (i % 3) * 0.13
+          const sk = add(new THREE.Mesh(new THREE.SphereGeometry(0.11, 7, 5), mats.bone),
+            Math.cos(a9) * rr, 0.1 + (i % 3) * 0.14, Math.sin(a9) * rr)
+          sk.scale.set(1, 0.9, 1.2); sk.rotation.set(jt + i, a9, (i % 2) * 0.5); sk.castShadow = true
+          const jw = add(new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.09), mats.bone),
+            Math.cos(a9) * rr, 0.03 + (i % 3) * 0.14, Math.sin(a9) * rr + 0.04)
+          jw.rotation.y = a9
+        }
+
+      // ---- where the dragon has been. The rarest thing in the world is
+      // absent nearly all of the time; this is how it stays present. ----
+      } else if (K === 'scorched-ring') {
+        const char = new THREE.MeshStandardMaterial({ color: 0x14100c, roughness: 1 })
+        const ring = add(new THREE.Mesh(new THREE.RingGeometry(0.55, 1.15, 20), char), 0, 0.015, 0, false)
+        ring.rotation.x = -Math.PI / 2; ring.receiveShadow = true
+        const inner = add(new THREE.Mesh(new THREE.CircleGeometry(0.58, 18),
+          new THREE.MeshStandardMaterial({ color: 0x2a231b, roughness: 1 })), 0, 0.012, 0, false)
+        inner.rotation.x = -Math.PI / 2
+        for (let i = 0; i < 6; i++) {   // stubs the fire left standing
+          const a9 = (i / 6) * Math.PI * 2 + jt * 5
+          const st9 = cyl(0.035, 0.05, 0.2 + (i % 3) * 0.1, char, Math.cos(a9) * 0.8, 0.1, Math.sin(a9) * 0.8)
+          st9.rotation.z = (jt - 0.5) * 0.6
+        }
+      } else if (K === 'glass-stone') {
+        // stone that went to glass and stayed there. The one surface in
+        // the world with a mirror finish, which is exactly why it reads:
+        // in a matte country a specular highlight is an event.
+        const glass = new THREE.MeshStandardMaterial({ color: 0x1b1626, roughness: 0.07, metalness: 0.22 })
+        const lump = add(new THREE.Mesh(rockGeo(hsh9 % 4), glass), 0, 0.3, 0)
+        lump.scale.set(0.62, 0.78, 0.62); lump.castShadow = true; lump.receiveShadow = true
+        for (let i = 0; i < 4; i++) {
+          const a9 = (i / 4) * Math.PI * 2 + jt * 6
+          const sh = add(new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.34, 4), glass), Math.cos(a9) * 0.34, 0.16, Math.sin(a9) * 0.34)
+          sh.rotation.set((jt - 0.5) * 0.7, a9, (jt - 0.5) * 0.9); sh.castShadow = true
+        }
+      } else if (K === 'burnt-tree') {
+        const char = new THREE.MeshStandardMaterial({ color: 0x191410, roughness: 1 })
+        const tr = cyl(0.16, 0.34, 2.9, char, 0, 1.45, 0)
+        tr.rotation.z = (jt - 0.5) * 0.14
+        const snap = add(new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 5), char), 0, 3.05, 0)  // the break
+        snap.rotation.set((jt - 0.5) * 0.5, jt * 6, 0.2); snap.castShadow = true
+        for (let i = 0; i < 4; i++) {   // limbs, still up, still black
+          const a9 = (i / 4) * Math.PI * 2 + jt * 4
+          const br = cyl(0.03, 0.06, 0.85, char, Math.cos(a9) * 0.2, 1.9 + (i % 2) * 0.5, Math.sin(a9) * 0.2)
+          br.rotation.set(Math.sin(a9) * 0.9, 0, -Math.cos(a9) * 0.9)
+        }
+        g.userData.ghostH = 3.3
+
+      // ---- the things that make a place a place ----
+      } else if (K === 'mill') {
+        // TALL, and it breaks its tile on purpose: the first object in
+        // this world you can steer by from outside its own valley.
+        const tower = cyl(0.82, 1.18, 4.1, mats.plaster, 0, 2.05, 0)
+        tower.receiveShadow = true
+        for (let i = 0; i < 3; i++) cyl(1.19 - i * 0.12, 1.19 - i * 0.12, 0.07, mats.darkwood, 0, 0.9 + i * 1.25, 0)
+        const cap = add(new THREE.Mesh(new THREE.ConeGeometry(0.98, 0.95, 10), mats.roof), 0, 4.55, 0)
+        cap.castShadow = true
+        box(0.5, 0.9, 0.09, mats.darkwood, 0, 0.45, 1.08)                       // the door
+        add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.34, 0.06), mats.slit), 0, 2.4, 1.12, false)
+        // the sails, on their own axle, turning
+        const hub = new THREE.Group(); hub.position.set(0, 4.35, 1.02); g.add(hub)
+        cyl(0.11, 0.11, 0.34, mats.darkwood, 0, 4.35, 0.92, Math.PI / 2)
+        for (let b = 0; b < 4; b++) {
+          const arm = new THREE.Group(); arm.rotation.z = b * Math.PI / 2; hub.add(arm)
+          const sp = add2(arm, new THREE.Mesh(new THREE.BoxGeometry(0.09, 2.3, 0.06), mats.darkwood), 0, 1.15, 0)
+          sp.castShadow = true
+          const cloth = add2(arm, new THREE.Mesh(new THREE.BoxGeometry(0.42, 1.5, 0.03),
+            new THREE.MeshStandardMaterial({ color: 0xd6cbb0, roughness: 0.95, side: THREE.DoubleSide })), 0.24, 1.3, 0.03)
+          cloth.castShadow = true
+        }
+        hub.userData.spin = 0.42
+        g.userData.ghostH = 5.1
+      } else if (K === 'milestone') {
+        const ms = box(0.26, 0.62, 0.2, mats.stone, 0, 0.27, 0, (jt - 0.5) * 0.4)
+        ms.rotation.z = (jt - 0.5) * 0.1; ms.receiveShadow = true
+        const top = add(new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), mats.stone), 0, 0.57, 0)
+        top.scale.set(0.95, 0.7, 0.75); top.castShadow = true
+        for (let i = 0; i < 2; i++)   // the chiselled face, worn shallow
+          add(new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.035, 0.015), mats.trodden), 0, 0.36 - i * 0.1, 0.105, false)
+      } else if (K === 'scarecrow') {
+        const straw = new THREE.MeshStandardMaterial({ color: 0xb59a56, roughness: 1 })
+        cyl(0.05, 0.06, 1.65, mats.darkwood, 0, 0.82, 0)
+        const cross = box(1.15, 0.07, 0.07, mats.darkwood, 0, 1.28, 0)
+        cross.rotation.z = 0.06
+        const rags = new THREE.Group(); rags.position.y = 1.24; g.add(rags)
+        const torso = add2(rags, new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.72, 7), straw), 0, -0.3, 0)
+        torso.castShadow = true
+        for (const sx2 of [-1, 1]) {
+          const slv = add2(rags, new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.11, 0.45, 6),
+            new THREE.MeshStandardMaterial({ color: 0x6b5a44, roughness: 1 })), sx2 * 0.44, -0.16, 0)
+          slv.rotation.z = sx2 * 0.35
+        }
+        rags.userData.rag = 1
+        const head = add(new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 6), new THREE.MeshStandardMaterial({ color: 0xb8a273, roughness: 1 })), 0, 1.55, 0)
+        head.scale.y = 1.15; head.castShadow = true
+        const hat = add(new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.3, 8), mats.darkwood), 0, 1.74, 0)
+        hat.rotation.z = 0.18; hat.castShadow = true
+        add(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.02, 9), mats.darkwood), 0, 1.66, 0).rotation.z = 0.18
+        g.userData.ghostH = 2
+      } else if (K === 'barricade') {
+        // the line somebody drew before the Wilds, and did not finish
+        for (let i = 0; i < 7; i++) {
+          const lean = 0.55 + (tileHash(n.x + i, n.y, 73) % 20) / 100
+          const stk = cyl(0.055, 0.085, 1.5, mats.trunk, -0.78 + i * 0.26, 0.5, (i % 2) * 0.12 - 0.06)
+          stk.rotation.x = -lean; stk.rotation.y = (jt - 0.5) * 0.4
+          const tip = add(new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.24, 5), mats.trunk),
+            -0.78 + i * 0.26, 0.5 + Math.cos(lean) * 0.85, (i % 2) * 0.12 - 0.06 + Math.sin(lean) * 0.85)
+          tip.rotation.x = -lean; tip.castShadow = true
+        }
+        const rail = box(1.9, 0.07, 0.07, mats.trunk, 0, 0.62, 0.2)
+        rail.rotation.z = (jt - 0.5) * 0.06
+        for (let i = 0; i < 3; i++)   // lashings
+          add(new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.018, 5, 8), mats.darkwood), -0.5 + i * 0.5, 0.62, 0.2).rotation.y = Math.PI / 2
+        g.userData.ghostH = 1.6
+      } else if (K === 'siege-engine') {
+        // it lost. The arm is down, the counterweight is on the ground,
+        // and nobody came back for it.
+        for (const sx2 of [-1, 1]) {
+          const a1 = cyl(0.07, 0.09, 1.7, mats.trunk, sx2 * 0.45, 0.72, -0.3); a1.rotation.x = 0.42; a1.rotation.z = -sx2 * 0.12
+          const a2 = cyl(0.07, 0.09, 1.7, mats.trunk, sx2 * 0.45, 0.72, 0.3); a2.rotation.x = -0.42; a2.rotation.z = -sx2 * 0.12
+        }
+        box(1.25, 0.11, 0.11, mats.trunk, 0, 1.42, 0)              // the axle beam
+        box(1.5, 0.14, 0.7, mats.darkwood, 0, 0.14, 0)             // the bed
+        const arm = cyl(0.08, 0.11, 2.6, mats.trunk, 0, 0.78, -0.9)
+        arm.rotation.x = 1.16                                       // fallen forward
+        const cw = box(0.5, 0.44, 0.44, mats.stone, 0, 0.22, 1.15, jt)
+        cw.castShadow = true
+        for (const wz2 of [-0.42, 0.42]) {
+          const wh = add(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.09, 9), mats.darkwood), -0.55, 0.3, wz2)
+          wh.rotation.x = Math.PI / 2; wh.rotation.z = jt * 2; wh.castShadow = true
+        }
+        g.userData.ghostH = 2
+      } else if (K === 'cave-mouth') {
+        // the only hole in the world. The dark inside it is a real black
+        // surface, not an absence of geometry, so the fog cannot wash it
+        // out and it stays a hole from every distance.
+        for (let i = 0; i < 9; i++) {
+          const a9 = Math.PI * (0.08 + (i / 8) * 0.84)
+          const r9 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 79)), mats.stoneBlob),
+            Math.cos(a9) * 1.15, Math.sin(a9) * 1.35 + 0.05, -0.15 + (i % 2) * 0.14)
+          r9.scale.setScalar(0.44 + (i % 3) * 0.1); r9.rotation.set(jt * 3, a9, a9)
+          r9.castShadow = true; r9.receiveShadow = true
+        }
+        const voidM = new THREE.MeshBasicMaterial({ color: 0x05060a, fog: false })
+        const hole = add(new THREE.Mesh(new THREE.CircleGeometry(1.0, 16, 0, Math.PI), voidM), 0, 0.02, -0.42, false)
+        const holeB = add(new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.5), voidM), 0, 0.25, -0.42, false)
+        for (let i = 0; i < 3; i++) {   // the cold coming out of it
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true,
+            depthWrite: false, opacity: 0.13, color: 0x8fa8c4 }))
+          sp.position.set(0, 0.2 + i * 0.18, 0.2 + i * 0.3); sp.scale.setScalar(0.9 + i * 0.4); g.add(sp)
+        }
+        g.userData.ghostH = 2.4
+
+      } else {   // a kind the truth knows and this window has not learned
+        for (let i = 0; i < 5; i++) {
+          const a8 = (i / 5) * Math.PI * 2
+          const st8 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 53)), st0), Math.cos(a8) * 0.2, 0.09 + (i % 2) * 0.07, Math.sin(a8) * 0.2)
+          st8.scale.setScalar(0.26); st8.rotation.y = a8
+        }
       }
-      g.userData.ghostH = K === 'gibbet' ? 2.6 : K === 'haystack' ? 1.6 : 0.9
+      if (g.userData.ghostH === undefined)
+        g.userData.ghostH = K === 'gibbet' ? 2.6 : K === 'haystack' ? 1.6 : 0.9
+    } else if (n.kind === 'broken-tower') {
+      // An ORIGINAL kind -- it has sat in LANDMARK_KINDS since the first
+      // seven, between 'standing-stone' and 'sentinel' -- and this window
+      // never had a branch for it, so every ruined tower in the world has
+      // been a shipwreck. Masonry that remembers being taller: the stump
+      // of a round keep, snapped off at a slant, with its own fall lying
+      // at the foot of it.
+      const drum = add(new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.16, 2.5, 11, 1, true), mats.stone), 0, 1.25, 0)
+      drum.castShadow = true; drum.receiveShadow = true
+      const inner = add(new THREE.Mesh(new THREE.CylinderGeometry(0.86, 0.94, 2.4, 10, 1, true),
+        new THREE.MeshStandardMaterial({ color: 0x2b2620, roughness: 1, side: THREE.BackSide })), 0, 1.2, 0)
+      inner.receiveShadow = true
+      // the break: courses that stop at different heights around the rim
+      for (let i = 0; i < 11; i++) {
+        const a9 = (i / 11) * Math.PI * 2
+        const hh9 = 0.12 + ((tileHash(n.x + i, n.y, 83) % 60) / 100) * 0.95
+        const mb = add(new THREE.Mesh(new THREE.BoxGeometry(0.42, hh9, 0.3), mats.stone),
+          Math.cos(a9) * 1.06, 2.5 + hh9 / 2, Math.sin(a9) * 1.06)
+        mb.rotation.y = -a9; mb.castShadow = true; mb.receiveShadow = true
+      }
+      const arch = add(new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.05, 0.5),
+        new THREE.MeshBasicMaterial({ color: 0x0b0a09 })), 0, 0.52, 1.0, false)
+      arch.rotation.y = 0.02
+      const slit9 = add(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.5, 0.06), mats.slit), 0.7, 1.75, 0.82, false)
+      slit9.rotation.y = -0.7
+      for (let i = 0; i < 7; i++) {   // what came down, still where it landed
+        const a9 = (i / 7) * Math.PI * 2 + (hsh9 % 7)
+        const rr = 1.5 + (i % 3) * 0.55
+        const fl = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 89)), mats.stoneBlob),
+          Math.cos(a9) * rr, 0.1 + (i % 2) * 0.08, Math.sin(a9) * rr)
+        fl.scale.setScalar(0.34 + (i % 3) * 0.12); fl.rotation.set(i, a9, 1.1)
+        fl.castShadow = true; fl.receiveShadow = true
+      }
+      g.userData.ghostH = 3.6
     } else { // shipwreck: the hull heels into the sand, the mast keeps its angle
       const hull9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.6, 7), mats.trunk), 0, 0.32, 0)
       hull9.rotation.z = Math.PI / 2; hull9.rotation.x = 0.28; hull9.scale.y = 1.15; hull9.castShadow = true
@@ -7802,7 +8032,8 @@ function syncNodes(s, budget) {
       g.position.set(wx(n.x), groundYAt(n.x, n.y), wz(n.y))
       g.updateMatrixWorld(true)
       g.traverse((o) => { // sculpture freezes; fire and smoke stay alive
-        if (!o.isSprite && o.userData.flame === undefined && o.userData.bob === undefined)
+        if (!o.isSprite && o.userData.flame === undefined && o.userData.bob === undefined
+          && o.userData.spin === undefined && o.userData.rag === undefined)
           o.matrixAutoUpdate = false
       })
     } else if (!g.parent) scene.add(g)    // walked back into the country
@@ -9982,6 +10213,15 @@ function frame() {
       })
     }
     g.traverse((o) => {
+      // the sails take the weather: a mill in a dead calm is a monument,
+      // a mill turning is a working building, and the difference is one
+      // line. It reads uWindA, the same amplitude the grass leans to.
+      if (o.userData.spin) o.rotation.z = t * o.userData.spin * (0.62 + uWindA.value * 0.9)
+      // and the scarecrow's rags move because nothing else in a field does
+      if (o.userData.rag) {
+        o.rotation.z = Math.sin(t * 1.25 + g.position.x) * 0.055 * (0.5 + uWindA.value)
+        o.rotation.x = Math.sin(t * 0.83 + g.position.z) * 0.04 * (0.5 + uWindA.value)
+      }
       if (o.userData.bob) { const ph = (t * 0.55 + g.position.x) % 1
         o.scale.setScalar(0.4 + ph * 1.3); o.material.opacity = 0.7 * (1 - ph) }
       if (o.userData.window) { // someone is home, and the bloom knows it ,
