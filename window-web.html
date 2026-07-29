@@ -20,6 +20,11 @@
   }
   * { box-sizing: border-box; margin: 0; }
   body {
+    /* the page itself should not travel. Focusing the chat box, an on-screen
+       keyboard opening, a stray swipe -- any of them could drag the world
+       off the top of the window, and a citizen who has just spoken should
+       not have to scroll back to find where they were standing. */
+    overscroll-behavior: none;
     background: #14100a; color: var(--gold);
     font: 13px/1.4 Verdana, Geneva, sans-serif;
     display: flex; justify-content: center; align-items: flex-start;
@@ -954,7 +959,35 @@ ws.onmessage = (ev) => {
   if (m.type === 'chat') {
     if (m.playerId !== myId) SFX.chat()
     bubbles[m.playerId] = { text: m.text, at: performance.now() }
-    feed('<span style="color:#fff">' + m.name + ':</span> ' + m.text.replace(/</g, '&lt;'))
+    // WHERE THEY ARE SPEAKING FROM.
+    //
+    // Chat reaches the whole island, which is the one system here that
+    // ignores geography entirely: the Brandline is law where you can see it,
+    // a building is a room you walk into, the dragon sits a hundred and
+    // forty-four tiles past the Brand so that the walk is a decision -- and
+    // then speech crosses all of it instantly.
+    //
+    // A radius would fix that and kill a young world: at twenty citizens, a
+    // twenty-tile range means a tenth of a person hears you. So the reach
+    // stays, and the DISTANCE becomes legible instead. You lose nobody, and
+    // the island gets its size back.
+    //
+    // The place is named the way the world names it -- 'the Boneyard', not
+    // 'wilds' -- because a locale is somewhere and a biome is a category.
+    // `me` is a LOCAL inside the draw functions, not a name that exists
+    // here. Reaching for it would have thrown on every message -- the same
+    // undefined-identifier that turned the screen green an hour ago, in a
+    // handler no sprite check would ever look at.
+    const st9 = curState ?? world
+    const sp = st9?.players?.[m.playerId]
+    const mine = st9?.players?.[myId]
+    const where = sp ? localeAt4(sp.x, sp.y) : null
+    const far = (sp && mine) ? Math.max(Math.abs(sp.x - mine.x), Math.abs(sp.y - mine.y)) > 24 : false
+    feed('<span style="color:#fff">' + m.name + '</span>'
+      + (where ? '<span style="color:' + (far ? '#8a8170' : '#b9a97e') + '"> \u00b7 '
+          + where + '</span>' : '')
+      + '<span style="color:#fff">:</span> '
+      + (far ? '<span style="color:#a89a7c">' : '') + m.text.replace(/</g, '&lt;') + (far ? '</span>' : ''))
   }
 }
 
@@ -3973,8 +4006,19 @@ function drawScene(now) {
               const cy2 = Y + 10 + ci * 5
               cx.beginPath(); cx.moveTo(X + 13, cy2); cx.lineTo(X + 27 - (ci % 2) * 5, cy2); cx.stroke()
             }
-            if (night > 0.15) {
-              cx.fillStyle = 'rgba(226,182,62,' + (0.10 * night) + ')'
+            // `night` did not exist in this scope. It was a ReferenceError on
+            // every frame a carved stone was on screen, and because the draw
+            // loop is one long pass, the throw took the WHOLE FRAME with it:
+            // the canvas kept whatever had been painted last, which was the
+            // ground fill. A green screen, and a reload did not help because
+            // the stone was still there to be drawn again.
+            //
+            // The rest of this file works out the hour the same way, per
+            // sprite, from the tick.
+            const cycS = dayCyc((((s.tick + t) % 2400) / 2400))
+            const nightS = (Math.sin(cycS * Math.PI * 2) + 1) / 2 < 0.42
+            if (nightS) {
+              cx.fillStyle = 'rgba(226,182,62,.12)'
               cx.beginPath(); cx.ellipse(X + 20, Y + 18, 13, 16, 0, 0, 7); cx.fill()
             }
           }
@@ -5701,6 +5745,11 @@ document.getElementById('say').addEventListener('keydown', (e) => {
   e.stopPropagation() // while typing, the world hears nothing
   if (e.key === 'Escape') { e.target.blur(); return }
   if (e.key !== 'Enter') return
+  // Enter must do NOTHING but speak. Without this the browser is still free
+  // to act on the key afterwards, and what it does is scroll the page to
+  // wherever it thinks the focus ought to be -- which yanks the world out
+  // from under you every time you finish a sentence.
+  e.preventDefault()
   const t = e.target.value.trim()
   if (t) send({ do: 'chat', text: t })
   e.target.value = ''
@@ -5723,11 +5772,15 @@ document.addEventListener('keydown', (e) => {
   const el = document.activeElement
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) return
   if (e.ctrlKey || e.metaKey || e.altKey) return         // leave shortcuts alone
-  if (e.key === 'Enter') { e.preventDefault(); say.focus(); return }
+  // focus() SCROLLS the element into view -- that is its documented
+  // behaviour, and with the box at the foot of a tall page it drags the
+  // whole window down. preventScroll gives the box the caret and leaves the
+  // view exactly where the citizen put it.
+  if (e.key === 'Enter') { e.preventDefault(); say.focus({ preventScroll: true }); return }
   if (e.key === 'Escape') { say.value = ''; say.blur(); return }
   if (e.key.length !== 1) return                         // not a printable key
   e.preventDefault()
-  say.focus()
+  say.focus({ preventScroll: true })
   if (say.value.length < say.maxLength) say.value += e.key
 })
 
