@@ -4446,6 +4446,124 @@ function nodeBody(n) {
       const bell9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.3, 8),
         new THREE.MeshStandardMaterial({ color: 0x8a7434, roughness: 0.5, metalness: 0.6 })), 0.05, 1.15, 0)
       bell9.castShadow = true
+    } else if (LM18.has(n.kind)) {
+      // THE EIGHTEEN NOUNS OF THE FOURTH FOUNDING. The flat window
+      // calls them exactly that and gives every one of them its own
+      // art. This window knew six landmark kinds and sent the rest to
+      // the `else` at the bottom of the branch -- which builds a
+      // SHIPWRECK. So every bed, every table, every barrel, haystack
+      // and cart in the world has been standing there as a heeled-over
+      // hull with a mast, indoors and out. In a settlement like Anchor
+      // that is most of what you can see.
+      const w0 = mats.wood, d0 = mats.darkwood, st0 = mats.stoneBlob
+      const box = (w, h, dp, mat, x, y, z, ry = 0) => {
+        const m = add(new THREE.Mesh(new THREE.BoxGeometry(w, h, dp), mat), x, y, z)
+        m.rotation.y = ry; m.castShadow = true; return m
+      }
+      const cyl = (r1, r2, h, mat, x, y, z, rx = 0, rz = 0) => {
+        const m = add(new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, 7), mat), x, y, z)
+        m.rotation.x = rx; m.rotation.z = rz; m.castShadow = true; return m
+      }
+      const jt = (hsh9 % 100) / 100, K = n.kind
+      if (K === 'table') {
+        box(0.86, 0.07, 0.56, w0, 0, 0.56, 0)
+        for (const [lx, lz] of [[-0.36, -0.2], [0.36, -0.2], [-0.36, 0.2], [0.36, 0.2]]) box(0.07, 0.53, 0.07, d0, lx, 0.27, lz)
+      } else if (K === 'bed') {
+        box(0.72, 0.18, 1.5, d0, 0, 0.26, 0)
+        box(0.66, 0.14, 1.32, new THREE.MeshStandardMaterial({ color: 0xb8a884, roughness: 1 }), 0, 0.4, 0.04)
+        box(0.4, 0.11, 0.3, new THREE.MeshStandardMaterial({ color: 0xd8cdb4, roughness: 1 }), 0, 0.5, -0.52)
+        box(0.72, 0.36, 0.08, d0, 0, 0.36, -0.75)
+      } else if (K === 'shelf') {
+        box(0.9, 0.05, 0.28, w0, 0, 0.62, 0); box(0.9, 0.05, 0.28, w0, 0, 1.0, 0)
+        box(0.05, 0.95, 0.28, d0, -0.44, 0.55, 0); box(0.05, 0.95, 0.28, d0, 0.44, 0.55, 0)
+        for (let i = 0; i < 4; i++) box(0.11, 0.19, 0.11, mats.brew, -0.3 + i * 0.2, 0.74, 0)
+      } else if (K === 'barrel' || K === 'crate') {
+        if (K === 'barrel') {
+          cyl(0.3, 0.26, 0.72, w0, 0, 0.36, 0)
+          for (const by of [0.16, 0.56]) cyl(0.305, 0.305, 0.05, mats.iron, 0, by, 0)
+        } else {
+          box(0.56, 0.52, 0.56, w0, 0, 0.26, 0, jt * 0.6)
+          box(0.6, 0.06, 0.06, d0, 0, 0.4, 0, jt * 0.6)
+        }
+      } else if (K === 'stump') {
+        cyl(0.36, 0.44, 0.42, mats.trunk, 0, 0.21, 0)
+        add(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.02, 9), mats.bark), 0, 0.43, 0)
+      } else if (K === 'log-pile') {
+        for (let i = 0; i < 7; i++) {
+          const row = i < 4 ? 0 : 1, ix = i < 4 ? i : i - 4
+          cyl(0.15, 0.15, 1.3, mats.trunk, -0.45 + ix * 0.31 + row * 0.15, 0.16 + row * 0.29, 0, 0, Math.PI / 2)
+        }
+      } else if (K === 'charcoal-clamp') {
+        const dome = add(new THREE.Mesh(new THREE.SphereGeometry(0.72, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+          new THREE.MeshStandardMaterial({ color: 0x2b2620, roughness: 1 })), 0, 0, 0)
+        dome.scale.y = 0.78; dome.castShadow = true
+        cyl(0.09, 0.11, 0.4, d0, 0, 0.62, 0)
+        for (let i = 0; i < 3; i++) {
+          const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0.3 }))
+          sp.position.y = 0.9 + i * 0.3; sp.scale.setScalar(0.7 + i * 0.3); g.add(sp)
+        }
+      } else if (K === 'spoil-heap' || K === 'bone-pile') {
+        const mm = K === 'bone-pile' ? mats.bone : st0
+        for (let i = 0; i < 9; i++) {
+          const a9 = (i / 9) * Math.PI * 2 + jt, rr = 0.1 + (i % 3) * 0.16
+          const p9 = add(new THREE.Mesh(K === 'bone-pile'
+            ? new THREE.CylinderGeometry(0.045, 0.045, 0.4, 5) : rockGeo(tileHash(n.x + i, n.y, 61)), mm),
+            Math.cos(a9) * rr, 0.09 + (i % 4) * 0.07, Math.sin(a9) * rr)
+          p9.rotation.set(jt * 3 + i, a9, 1.3 + (i % 2)); if (K !== 'bone-pile') p9.scale.setScalar(0.3)
+          p9.castShadow = true
+        }
+      } else if (K === 'cut-face') {
+        const face = box(1.5, 1.35, 0.5, mats.stone, 0, 0.6, -0.3)
+        face.receiveShadow = true
+        for (let i = 0; i < 4; i++) {
+          const r9 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 67)), st0), -0.5 + i * 0.34, 0.1, 0.24)
+          r9.scale.setScalar(0.32); r9.castShadow = true
+        }
+      } else if (K === 'crude-hearth') {
+        for (let i = 0; i < 7; i++) {
+          const a9 = (i / 7) * Math.PI * 2
+          const st9 = add(new THREE.Mesh(rockGeo(tileHash(n.x + i, n.y, 71)), st0), Math.cos(a9) * 0.34, 0.06, Math.sin(a9) * 0.34)
+          st9.scale.setScalar(0.22); st9.castShadow = true
+        }
+        for (let i = 0; i < 3; i++) cyl(0.05, 0.06, 0.5, mats.trunk, 0, 0.14, 0, 0.4, i * 1.05)
+        const ash = add(new THREE.Mesh(new THREE.CircleGeometry(0.3, 10), new THREE.MeshStandardMaterial({ color: 0x2e2924, roughness: 1 })), 0, 0.02, 0, false)
+        ash.rotation.x = -Math.PI / 2
+      } else if (K === 'gibbet') {
+        cyl(0.08, 0.1, 2.5, d0, 0, 1.25, 0)
+        box(0.09, 0.09, 0.95, d0, 0, 2.45, 0.42)
+        cyl(0.012, 0.012, 0.45, mats.iron, 0, 2.2, 0.82)
+        const cage = add(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.19, 0.62, 6, 1, true), mats.iron), 0, 1.68, 0.82)
+        cage.castShadow = true
+      } else if (K === 'cart') {
+        box(1.15, 0.16, 0.66, w0, 0, 0.52, 0)
+        box(1.15, 0.3, 0.06, d0, 0, 0.66, -0.33); box(1.15, 0.3, 0.06, d0, 0, 0.66, 0.33)
+        for (const wz2 of [-0.38, 0.38]) {
+          const wh = add(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.07, 10), d0), -0.1, 0.34, wz2)
+          wh.rotation.x = Math.PI / 2; wh.castShadow = true
+        }
+        cyl(0.05, 0.05, 0.9, d0, 0.78, 0.4, 0, 0, 1.15)
+      } else if (K === 'haystack') {
+        const hayM = new THREE.MeshStandardMaterial({ color: 0xb99a4e, roughness: 1 })
+        const hs = add(new THREE.Mesh(new THREE.ConeGeometry(0.78, 1.35, 9), hayM), 0, 0.66, 0)
+        hs.castShadow = true; hs.rotation.y = jt * 3
+        cyl(0.04, 0.04, 0.5, d0, 0, 1.45, 0)
+      } else if (K === 'hurdle') {
+        for (let i = 0; i < 5; i++) cyl(0.035, 0.035, 1.0, w0, -0.5 + i * 0.25, 0.5, 0)
+        for (const hy of [0.28, 0.62, 0.92]) box(1.15, 0.05, 0.05, d0, 0, hy, 0)
+      } else if (K === 'eel-rack') {
+        for (const rx2 of [-0.5, 0.5]) { cyl(0.05, 0.05, 1.3, d0, rx2, 0.65, -0.3, 0.2); cyl(0.05, 0.05, 1.3, d0, rx2, 0.65, 0.3, -0.2) }
+        box(1.2, 0.05, 0.05, d0, 0, 1.25, 0)
+        for (let i = 0; i < 5; i++) {
+          const e9 = box(0.06, 0.42, 0.1, new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 0.7 }), -0.44 + i * 0.22, 1.0, 0)
+          e9.rotation.z = (jt - 0.5) * 0.3
+        }
+      } else { // sunken-wall: a course of stone the tide keeps taking back
+        for (let i = 0; i < 6; i++) {
+          const b9 = box(0.34, 0.22, 0.3, mats.stone, -0.75 + i * 0.3, 0.09 - (i % 3) * 0.03, (i % 2) * 0.08, (jt + i) * 0.4)
+          b9.receiveShadow = true
+        }
+      }
+      g.userData.ghostH = K === 'gibbet' ? 2.6 : K === 'haystack' ? 1.6 : 0.9
     } else { // shipwreck: the hull heels into the sand, the mast keeps its angle
       const hull9 = add(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 2.6, 7), mats.trunk), 0, 0.32, 0)
       hull9.rotation.z = Math.PI / 2; hull9.rotation.x = 0.28; hull9.scale.y = 1.15; hull9.castShadow = true
@@ -4731,6 +4849,8 @@ function nodeBody(n) {
       const rf = makeRoof(n.roof.w, n.roof.d)
       rf.position.set(n.roof.ox, 1.83, n.roof.oz)
       g.add(rf)
+      g.userData.roof = rf          // it has to be liftable to be gone under
+      g.userData.roofR = Math.max(n.roof.w, n.roof.d) * 0.5 + 1.6
       g.userData.ghostH = 1.83 + rf.userData.rise
     }
   } else if (n.type === 'wall') {
@@ -7574,6 +7694,35 @@ function setGhost(g, a) {
     o.__matG.opacity = a
   })
 }
+// A ROOF IS NOT AN OCCLUDER, IT IS A LID. The ghosting pass only fades
+// what stands BETWEEN the lens and the citizen, which is the right rule
+// for a wall and the wrong one for a roof: step inside and the roof is
+// not between you and yourself, it is over you, so the room stayed shut
+// and you could not see the bed you were standing next to. Roofs answer
+// to a rule of their own -- how near the citizen is to the house, not
+// what is in the way -- and they lift off rather than dissolve, because
+// a thatch that fades looks broken and a thatch that rises looks opened.
+function liftRoofs(fx9, fz9, dt) {
+  for (const g of vis.node.values()) {
+    const rf = g.userData.roof
+    if (!rf) continue
+    const d9 = Math.hypot(g.position.x + rf.position.x - fx9, g.position.z + rf.position.z - fz9)
+    const want = Math.min(1, Math.max(0, (d9 - (g.userData.roofR ?? 3)) / 2.2))
+    const was = g.__roofK ?? 1
+    if (Math.abs(was - want) < 0.004) continue
+    const k9 = was + (want - was) * Math.min(1, dt * 6)
+    g.__roofK = k9
+    rf.position.y = 1.83 + (1 - k9) * 2.4      // it rises off the walls
+    rf.visible = k9 > 0.02
+    rf.traverse((o) => {
+      if (!o.material) return
+      if (!o.userData.roofMat) { o.userData.roofMat = true; o.material = o.material.clone() }
+      o.material.transparent = k9 < 0.995
+      o.material.opacity = k9
+      o.material.depthWrite = k9 > 0.6
+    })
+  }
+}
 function ghostOccluders(fx9, fy9, fz9, dt) {
   const cp = camera.position
   const dx = fx9 - cp.x, dy = fy9 - cp.y, dz = fz9 - cp.z
@@ -9103,6 +9252,7 @@ function frame() {
     (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake * 0.6, (Math.random() - 0.5) * shake))
   // the stone stands aside, now that the camera has settled for the frame
   if (entered && !povMode) ghostOccluders(focus.x, focus.y + 0.9, focus.z, dt)
+  if (entered) liftRoofs(focus.x, focus.z, dt)
   sun.position.copy(focus).addScaledVector(sunDir, 60)
   sun.target.position.copy(focus)
   moon.position.copy(focus).addScaledVector(sunDir, -60)
@@ -9665,8 +9815,34 @@ function frame() {
         g.__printSide = -(g.__printSide ?? 1)
         dropPrint(g.position.x, g.position.z, g.rotation.y, g.__printSide)
       }
-      if (jump > 0 && jump <= 3 && p < 1)
-        ud.yawT = Math.atan2(wx(ud.tx) - wx(fx0), wz(ud.ty) - wz(fy0))
+      // THE ZIGZAG. The facing was taken from ONE tick's step, and a
+      // grid path is a staircase: east, north, east, north. So the
+      // body was handed a 90-degree turn every 600ms and spent the
+      // whole walk swinging left, right, left, right while travelling
+      // in a dead straight diagonal. Nothing was wrong with where it
+      // went. It was wrong about where it was looking.
+      //
+      // Three tiles of memory fixes it exactly. Face from where you
+      // were two steps ago to where you are going now: on a staircase
+      // that is a constant 45 degrees, and on a real turn it commits
+      // over two ticks, which is what a body does anyway.
+      if (jump > 0 && jump <= 3) {
+        if (ud.stepKey !== ud.tx + ',' + ud.ty) {
+          ud.stepKey = ud.tx + ',' + ud.ty
+          if (!ud.hist) ud.hist = [[fx0, fy0]]   // primed, so even the first step knows a direction
+          ud.hist.push([ud.tx, ud.ty])
+          if (ud.hist.length > 3) ud.hist.shift()
+        }
+        if (p < 1) {
+          const h = ud.hist ?? [], h0 = h[0], h1 = h[h.length - 1]
+          let ax = wx(ud.tx) - wx(fx0), az = wz(ud.ty) - wz(fy0)
+          if (h0 && h1) {
+            const bx = wx(h1[0]) - wx(h0[0]), bz = wz(h1[1]) - wz(h0[1])
+            if (Math.hypot(bx, bz) > 0.4) { ax = bx; az = bz }  // unless it doubled back
+          }
+          ud.yawT = Math.atan2(ax, az)
+        }
+      } else if (jump > 3) ud.hist = null   // a recall forgets the road
 
       // acting bodies face their work and swing at it; walking bodies
       // pump their arms and legs; hurt bodies remember it in red for a beat
