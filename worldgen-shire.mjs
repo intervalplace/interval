@@ -447,7 +447,11 @@ export const PLACES = [
     art: ['"""""""', '"!.!.!"', '".k..."', '"""."""'],
   },
   {
-    tag: 'drownedcart', name: 'the Drowned Cart', dx: 30, dy: 74, kind: 'shipwreck',
+    // A CART, not a ship. It borrowed 'shipwreck' because there was no word
+    // for a cart when it was written, and the result was three shipwrecks
+    // standing in the Downs, on a hill, miles from any water. There is a
+    // word now.
+    tag: 'drownedcart', name: 'the Drowned Cart', dx: 30, dy: 74, kind: 'cart',
     story: 'A cart in the shallows, up to its axles. Nobody came back for it.',
     art: ['.!.', '!!.'],
   },
