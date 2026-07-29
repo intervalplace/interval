@@ -341,6 +341,7 @@ const PAGES = { '/': 'index.html', '/quickstart': 'quickstart.html',
                 '/play': 'windows.html', '/windows': 'windows.html',
                 '/map': 'map.html', '/marks': 'marks.html' }
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript',
+               mjs: 'text/javascript', // the shared terrain mirror, imported by the windows
                png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp',
                svg: 'image/svg+xml', ico: 'image/x-icon' }
 
@@ -502,6 +503,16 @@ const server = http.createServer((req, res) => {
     }
     // /play is the doorway: a window is a choice, and the choice is shown.
     // The old paths keep working, since links live longer than layouts.
+    // The windows are modules now and import ./sky.mjs and
+    // ./terrain-mirror.mjs. A browser resolves those against the PAGE's
+    // url, and these pages are routes, not files: /play/deep asks for
+    // /play/terrain-mirror.mjs. Serve the shared modules from under
+    // /play/ as well as the root, or the deep window opens to a blank
+    // screen and a 404 nobody sees.
+    if (path === '/play/sky.mjs' || path === '/sky.mjs')
+      return sendFile('./sky.mjs', 'text/javascript')
+    if (path === '/play/terrain-mirror.mjs' || path === '/terrain-mirror.mjs')
+      return sendFile('./terrain-mirror.mjs', 'text/javascript')
     if (path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
     if (path === '/play/deep' || path === '/deluxe') return sendFile('./window-3d.html', 'text/html')
     if (path === '/play/photo' || path === '/photo') return sendFile('./window-photo.html', 'text/html')
