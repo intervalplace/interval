@@ -460,7 +460,50 @@
     </div>
   </div>
 </div>
+<script>
+// ---- the window confesses that it never started ----
+// "errors confess" (v0.78) covers a window that fails to ACT. This is the
+// other failure, and until now it was completely silent: a module that
+// cannot resolve an import does not run AT ALL. No exception in the page,
+// no half-drawn scene, no clue. The door just says "connecting" forever,
+// which looks exactly like a world that will not answer.
+//
+// This is a CLASSIC script on purpose: it is the only thing here still
+// running when the module is dead.
+(function () {
+  var boot = []
+  addEventListener('error', function (e) {
+    var src = e && e.target && (e.target.src || e.target.href)
+    if (src) boot.push('could not load ' + String(src).split('/').pop())
+    else if (e && e.message) boot.push(String(e.message))
+  }, true) // capture: resource errors do not bubble
+  setTimeout(function () {
+    if (window.__windowAlive) return
+    var d = document.createElement('div')
+    d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;'
+      + 'justify-content:center;background:rgba(6,5,3,.97);color:#d6c49c;padding:24px;'
+      + 'font:13px/1.65 ui-monospace,Menlo,monospace'
+    d.innerHTML = '<div style="max-width:560px">'
+      + '<b style="color:#e2b63e;letter-spacing:.08em">THIS WINDOW DID NOT START</b>'
+      + '<p>Its program is a module, and a module that cannot load one of its imports '
+      + 'does not run at all &mdash; which looks exactly like a world that will not answer.</p>'
+      + (boot.length ? '<p style="color:#d2705a">' + boot.join('<br>') + '</p>' : '')
+      + '<p>Almost always one of two deployment things, never the world:</p><ul>'
+      + '<li><code>terrain-mirror.mjs</code> and <code>sky.mjs</code> are not beside this '
+      + 'file. The windows stopped carrying their own copy of the world\u2019s geography; '
+      + 'these three ship together now.</li>'
+      + '<li>The pillar does not serve <code>.mjs</code> as JavaScript. A browser refuses '
+      + 'a module sent as anything else, silently. The <code>serve.mjs</code> that shipped '
+      + 'with this window knows; an older one does not.</li></ul>'
+      + '<p style="color:#94805a">The console has the real error. And check the pillar was '
+      + 'restarted, not just the files copied.</p></div>'
+    document.body.appendChild(d)
+  }, 5000)
+})()
+</script>
 <script type="module">
+window.__windowAlive = true // the watchdog above stands down
+
 import * as THREE from 'three'
 import { Sky } from 'three/addons/objects/Sky.js'
 import { Water } from 'three/addons/objects/Water.js'
