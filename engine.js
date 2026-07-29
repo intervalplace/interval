@@ -1491,6 +1491,33 @@ const LANDMARK_KINDS = new Set([
   'bone-pile', 'crude-hearth',                      // what the Wilds leaves
   'gibbet', 'cart', 'haystack', 'hurdle',           // the road and the farm
   'eel-rack', 'sunken-wall',                        // the fen
+  // ---- and the things that make a place a PLACE ----
+  //
+  // Seventy per cent of what a citizen passed was a wall, a tree or a rock,
+  // so we added eighteen nouns and scattered them -- and made the same
+  // mistake one layer up: a hundred and fifty-five stumps is not richness,
+  // it is the same object a hundred and fifty-five times. A world reads as
+  // GENERATED when it repeats, and as FOUND when it does not.
+  //
+  // The tick pays per NODE and nothing at all for how many kinds there are:
+  // two thousand nodes across fifty kinds costs what two thousand of one
+  // kind costs, measured. So the budget is better spent on more kinds and
+  // fewer of each, and these are that.
+  'scorched-ring', 'glass-stone', 'burnt-tree',     // where the dragon has been
+  'mill',                                           // grain gets a face, and a landmark you steer by
+  'milestone',                                      // the roads were routed; nothing showed it
+  'scarecrow',                                      // a plot becomes a farm
+  'barricade', 'siege-engine', 'cave-mouth',        // the crags, and the line before the Wilds
+  // ---- things that were standing stones because nothing else existed ----
+  //
+  // Two hundred and seventy-four "standing stones" turned out to be EIGHT
+  // DIFFERENT THINGS wearing one kind: beehives, cairns, boundary markers,
+  // skull piles. They were drawn as stones because when they were placed
+  // there was no other word for them, and the result was a world that looked
+  // like it had one idea repeated to the horizon.
+  //
+  // Nothing about them changes except that they are now themselves.
+  'skep', 'cairn', 'boundary-stone', 'skull-pile',
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
