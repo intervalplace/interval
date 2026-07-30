@@ -47,6 +47,13 @@
 </div>
 <script>
 let GEN = 'interval-classic-v1', GSEED = ''
+// v5 CHANGED THE FURNITURE, NOT THE LAND. Its header is explicit: "v4's land
+// is right and stays exactly as it is... Nothing here touches any of it."
+// Every terrain function in this mirror is therefore correct for both, and a
+// check written as `GEN === 'interval-expanse-v4'` would silently fall back
+// to the v3 branch for a v5 world -- a whole island of wrong ground, from one
+// string comparison.
+const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
 let _seedNumC = null
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
@@ -86,7 +93,7 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
-  if (GEN === 'interval-expanse-v4') return settlementsE4()
+  if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   if (GEN === 'interval-expanse-v2') {
@@ -1112,7 +1119,13 @@ function keeperRole4(st, id, n) {
 // the eighteen nouns added at the fourth founding, which have their own art
 const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   'charcoal-clamp','log-pile','spoil-heap','cut-face','bone-pile',
-  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall'])
+  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall',
+  // the thirteen added when the world stopped repeating itself: four that
+  // were always here wearing 'standing-stone' because nothing else had a
+  // name, and nine new places
+  'skep','cairn','boundary-stone','skull-pile',
+  'scorched-ring','glass-stone','burnt-tree',
+  'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
 const _rampCache = new Map()
 function isRampart4(x, y) {
   const k = x + ',' + y
@@ -1130,7 +1143,64 @@ function isRampart4(x, y) {
   _rampCache.set(k, out)
   return out
 }
+// THE LANTERN'S FLOOR.
+//
+// groundKindAt learns a room's floor from the town DRAWING, and the wayside
+// inn has no drawing -- it is the one building in this world outside any
+// plan. The generator derives its seat from the genesis; so does this, by
+// the same rule, so the boards under Ulric's feet are the same boards on
+// every node.
+let _innSeat4 = null, _innSeatFor = null
+function innSeat4() {
+  if (_innSeatFor === GSEED) return _innSeat4
+  _innSeatFor = GSEED; _innSeat4 = null
+  // THE NAMES HAVE TO EXIST.
+  //
+  // The first version of this called blockedAtE4, isWaterE4, rectOfE4 and
+  // onRoadE4 -- four names invented by putting an E4 on the end of what the
+  // GENERATOR calls them. None of the four exists in this file. innSeat4
+  // threw on its first call, terrainOfE4 calls it for every tile, and the
+  // whole terrain pass died: a green screen at spawn, which is the fourth
+  // time this session that a name not in scope has taken a frame with it.
+  //
+  // The real names here are isWater4, onRoad4, and a town's rect is its
+  // centre and half-extent. blockedAt in this file takes a STATE and asks
+  // about nodes -- it is not the terrain test at all.
+  const solid = (x, y) => onRidge4(x, y) || onBarrow4(x, y)
+  const okTile = (x, y) => !solid(x, y) && !isWater4(x, y)
+  seekI4: for (let rad = 0; rad < 90; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const x = Math.round(W * 0.55) + dx, y = Math.round(H * 0.44) + dy
+      const b = biomeAtE4(x, y)
+      if (b !== 'heartlands' && b !== 'downs') continue
+      let inTown = false
+      for (const t of settlementsE4())
+        if (Math.abs(x - t.x) < (t.w >> 1) + 12 && Math.abs(y - t.y) < (t.h >> 1) + 12) { inTown = true; break }
+      if (inTown) continue
+      if (onRoad4(x, y)) continue
+      let all = true
+      for (let yy = -1; yy <= 3 && all; yy++) for (let xx = -3; xx <= 3; xx++) {
+        const px = x + xx, py = y + yy
+        if (!okTile(px, py) || onRoad4(px, py)) { all = false; break }
+      }
+      if (!all || !okTile(x, y + 4)) continue
+      let onTheWay = false
+      for (let yy = -3; yy <= 6 && !onTheWay; yy++) for (let xx = -6; xx <= 6; xx++) {
+        if (yy >= -1 && yy <= 3 && xx >= -3 && xx <= 3) continue
+        if (onRoad4(x + xx, y + yy)) { onTheWay = true; break }
+      }
+      if (!onTheWay) continue
+      _innSeat4 = { x, y }; break seekI4
+    }
+  return _innSeat4
+}
 function terrainOfE4(x, y) {
+  // the Lantern's boards: the one room outside any town plan
+  {
+    const si = innSeat4()
+    if (si && x >= si.x - 2 && x <= si.x + 2 && y >= si.y && y <= si.y + 2) return 'floor'
+  }
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
   for (const t of settlementsE4()) {
@@ -1261,7 +1331,15 @@ function localeAt4(x, y) {
 
 
 
-const V4 = () => GEN === 'interval-expanse-v4'
+
+
+
+
+
+
+
+
+const V4 = () => IS_EXPANSE4()
 // The chart paints rows on a 24ms budget, but the FIRST call to terrainOfE4
 // used to drag in the whole road network -- seat ten towns, raster a cost
 // field over 458,752 tiles, then run fifteen A* searches -- synchronously,
@@ -1283,7 +1361,7 @@ function terrainNoRoads4(x, y) {
   return biomeAtE4(x, y)
 }
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v4') return terrainOfE4(x, y)
+  if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
   if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return fordE(x, y) ? 'bridge' : 'river'
@@ -1415,7 +1493,7 @@ function regionLabels() {
   // a place; the chart should say so. Centroid of each biome, sampled coarse.
   const acc = {}
   for (let y = 2; y < H - 2; y += 3) for (let x = 2; x < W - 2; x += 3) {
-    const b = (GEN === 'interval-expanse-v4') ? biomeAtE4(x, y) : biomeAtE3(x, y)
+    const b = (IS_EXPANSE4()) ? biomeAtE4(x, y) : biomeAtE3(x, y)
     if (b === 'sea' || b === 'river' || b === 'lake' || b === 'bridge') continue
     if (!acc[b]) acc[b] = { sx: 0, sy: 0, n: 0 }
     acc[b].sx += x; acc[b].sy += y; acc[b].n++
@@ -1426,7 +1504,7 @@ function regionLabels() {
   return _regionLabels
 }
 function labelPoints() {
-  if (GEN === 'interval-expanse-v4') {
+  if (IS_EXPANSE4()) {
     const s4 = settlementsE4(), isle = isles4()[0]
     const wm = { x: riverX4(confY4()) + 4, y: confY4() + 5 }
     const pp = passes4(), bs = bridges4()
@@ -1703,7 +1781,7 @@ let FIND_MARK = null, FIND_NAME = null, findCentred = false
             // capes, the locales -- and the old keep list threw all of them
             // away the moment a live node answered
             const lp1 = labelPoints()
-            const keep = (GEN === 'interval-expanse-v4')
+            const keep = (IS_EXPANSE4())
               ? lp1.places.map(q => q.n)
               : ['Shrine Isle', 'Stillwater', 'the Watersmeet', 'North Pass', 'South Pass']
             TRUE_PLACES = [...lp1.places.filter(q => keep.includes(q.n)), ...tp]
