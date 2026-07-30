@@ -666,11 +666,28 @@ function callingOf(p) { // the trade you have the most experience in, as a word
 // type and its current hp and nothing else. These are the real numbers, and
 // test/identity.test.mjs holds them to the engine's.
 const MOB_STATS = {
-  goblin:            { maxHp: 5,  atk: 1, def: 1, maxHit: 1, respawn: 16 },
-  wolf:              { maxHp: 8,  atk: 2, def: 2, maxHit: 2, respawn: 150 },
-  troll:             { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300 },
-  bear:              { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220 },
-  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120 },
+  goblin:            { maxHp: 5,  atk: 1, def: 1, maxHit: 1, respawn: 16,  aggro: 3 },
+  wolf:              { maxHp: 8,  atk: 2, def: 2, maxHit: 2, respawn: 150, aggro: 5 },
+  troll:             { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4 },
+  bear:              { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3 },
+  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5 },
+  'shore-crab':      { maxHp: 90, atk: 8, def: 14, maxHit: 2, respawn: 90, aggro: 4, harmless: true },
+  dragon:            { maxHp: 420, atk: 115, def: 24, maxHit: 28, respawn: 36000,
+                       aggro: 9, breath: 5 },
+}
+// §6aa: THE COUNTRIES WHERE A BEAST WILL START SOMETHING. Character for
+// character from the engine, and it is the difference between a country you
+// can cross with your hands full and one you cannot.
+const HUNTING_COUNTRY = new Set(['wilds', 'crags', 'moor'])
+// A citizen must be able to SEE that something has noticed them. Everything
+// needed is already in the state -- a mob carries `mad`, the id of whoever it
+// is angry at -- so this is a matter of drawing what the world already knows.
+const huntsMe = (m, myId, cx2, cy2) => {
+  const st = MOB_STATS[m.type]
+  if (!st || m.hp <= 0 || st.harmless) return false
+  if (m.mad === myId) return true
+  if (!st.aggro || !HUNTING_COUNTRY.has(biomeAtE4(m.x, m.y))) return false
+  return Math.max(Math.abs(m.x - cx2), Math.abs(m.y - cy2)) <= st.aggro
 }
 const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
@@ -1100,6 +1117,22 @@ ws.onmessage = (ev) => {
     document.getElementById('gatekey').textContent = 'your key: ' + myId.slice(0, 12) + '\u2026'
   }
   if (m.type === 'state') { onState(m.state, m.worldId) }
+  if (m.type === 'refused') {
+    // WHY a thing did not happen. Until now the only observable was the world
+    // simply not changing, which reads exactly like a lost connection -- and
+    // an input is stamped for the tick AFTER the frame it was planned from,
+    // so a perfectly legal move can be refused because a goblin stepped into
+    // the square in between. That is transient and worth retrying; terrain is
+    // not. A citizen who cannot tell them apart learns to distrust the map.
+    //
+    // Non-consensus, like chat: the world does not remember that anyone was
+    // refused.
+    const transient = /occupied|blocked|adjacent|reach|tick/i.test(m.why ?? '')
+    feed('<span style="color:#c98b5a">refused</span> '
+      + (m.of ?? '?') + (m.why ? ': ' + String(m.why).replace(/</g, '&lt;') : '')
+      + (transient ? ' <span style="color:#8a8170">(try again)</span>' : ''))
+    return
+  }
   if (m.type === 'chat') {
     if (m.playerId !== myId) SFX.chat()
     bubbles[m.playerId] = { text: m.text, at: performance.now() }
@@ -1757,6 +1790,13 @@ function poly(pts, fill, stroke) {
 // Integer math only, so this window paints the very tiles the engine placed
 // nodes on. North is wood, east is stone, south is water, west is danger.
 let GEN = 'interval-classic-v1', GSEED = ''
+// v5 CHANGED THE FURNITURE, NOT THE LAND. Its header is explicit: "v4's land
+// is right and stays exactly as it is... Nothing here touches any of it."
+// Every terrain function in this mirror is therefore correct for both, and a
+// check written as `GEN === 'interval-expanse-v4'` would silently fall back
+// to the v3 branch for a v5 world -- a whole island of wrong ground, from one
+// string comparison.
+const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
 let _seedNumC = null
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
@@ -1796,7 +1836,7 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
-  if (GEN === 'interval-expanse-v4') return settlementsE4()
+  if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   if (GEN === 'interval-expanse-v2') {
@@ -3007,7 +3047,7 @@ function localeAt4(x, y) {
 }
 
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v4') return terrainOfE4(x, y)
+  if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
   if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return fordE(x, y) ? 'bridge' : 'river'
@@ -3066,7 +3106,7 @@ function regionNameAt(x, y) {
       if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
         return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
     }
-    if (GEN === 'interval-expanse-v4') {
+    if (IS_EXPANSE4()) {
       // A NAMED CROSSING announces itself. There are five bridges on the
       // whole island and everyone who ever crossed the river crossed at one
       // of them -- that is the entire point of making them scarce, and it is
@@ -4456,7 +4496,7 @@ function drawScene(now) {
         const wl = wallAt(s, n.x - 1, n.y), wr = wallAt(s, n.x + 1, n.y)
         const wu = wallAt(s, n.x, n.y - 1), wd = wallAt(s, n.x, n.y + 1)
         const horiz = (wl || wr) && !(wu || wd)
-        const ramp = (GEN === 'interval-expanse-v4')
+        const ramp = (IS_EXPANSE4())
           ? isRampart4(n.x, n.y)
           : (n.y === 2 || n.y === 10 || n.x === Math.floor(W / 2) - 8 || n.x === Math.floor(W / 2) + 8)
         // a rampart is thick and sits high; a building wall is thinner
@@ -4799,6 +4839,37 @@ function drawScene(now) {
     layer.push({ z: Z(miy, 3), draw: () => {
       const X = px(mix), Y = py(miy)
       const engaged = meP?.action?.mobId === id
+      // §6aa: IT HAS SEEN YOU.
+      //
+      // The world hunts now, and a citizen who cannot tell that something has
+      // noticed them is being asked to guess. Everything needed is already in
+      // the state -- a beast carries `mad`, the id of whoever it is angry at,
+      // and its aggro is a number in a table -- so this is only a matter of
+      // drawing what the world already knows.
+      //
+      // Two marks, and they mean different things. An open eye is a beast
+      // whose country lets it hunt and who is within its range: it is ABOUT to
+      // come. A filled one, with the ring, is a beast that is already coming
+      // for you by name.
+      if (meP && huntsMe(m, myId, meP.x, meP.y)) {
+        const coming = m.mad === myId
+        const beat = 0.5 + 0.5 * Math.sin(now / (coming ? 260 : 520))
+        const ey = Y - (coming ? 14 : 11)
+        if (coming) {
+          cx.strokeStyle = 'rgba(226,90,40,' + (0.35 + 0.4 * beat) + ')'
+          cx.lineWidth = 1.6
+          cx.beginPath(); cx.arc(X + 20, ey, 8 + beat * 2.5, 0, 7); cx.stroke()
+        }
+        // the eye itself: a lid, an iris, and a slit that narrows as it closes
+        cx.fillStyle = coming ? 'rgba(240,120,50,.95)' : 'rgba(226,182,62,' + (0.4 + 0.3 * beat) + ')'
+        cx.beginPath()
+        cx.moveTo(X + 14, ey)
+        cx.quadraticCurveTo(X + 20, ey - 4.4, X + 26, ey)
+        cx.quadraticCurveTo(X + 20, ey + 4.4, X + 14, ey)
+        cx.fill()
+        cx.fillStyle = '#1a0f08'
+        cx.beginPath(); cx.ellipse(X + 20, ey, 1.5, 2.6, 0, 0, 7); cx.fill()
+      }
       cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
       const st = MOB_STATS[m.type]
       const plate = st ? (m.type + '  ' + m.hp + '/' + st.maxHp + ' hp  hits ' + st.maxHit)
@@ -4816,7 +4887,14 @@ function drawScene(now) {
         // is itself the warning.
         const breathe = Math.sin(now / 1100) * 1.5
         const beat = Math.sin(now / 640)
-        const F = MF < 0 ? -1 : 1          // which way it faces
+        // IT TURNS TO WHAT IT IS BURNING.
+        //
+        // `MF` is the facing the caller works out from movement, which is
+        // fine for a beast that is walking and wrong for one that is standing
+        // still and breathing: the fire came out of its tail. A dragon that
+        // has somebody in mind looks at them.
+        const _tgt = m.mad ? s.players?.[m.mad] : null
+        const F = _tgt ? (_tgt.x >= m.x ? -1 : 1) : (MF < 0 ? -1 : 1)
         const HX = X + 20 - F * 24, HY = Y - 12 + breathe   // the head
         cx.fillStyle = 'rgba(0,0,0,.32)'
         cx.beginPath(); cx.ellipse(X + 20, Y + 34, 30, 8, 0, 0, 7); cx.fill()
@@ -4906,6 +4984,58 @@ function drawScene(now) {
             ? 'rgba(255,' + (90 + k * 34) + ',' + (20 + k * 10) + ',' + (0.55 * (1 - t2)) + ')'
             : 'rgba(158,148,140,' + (0.20 * (1 - t2)) + ')'
           cx.beginPath(); cx.arc(bx, by, 1.8 + t2 * (engaged ? 6 : 4.5), 0, 7); cx.fill()
+        }
+
+        // ---- §6w: THE FIRE ----
+        //
+        // It does fourteen through armour from five tiles and there was
+        // nothing on the screen to say so. A citizen crossing that ground was
+        // taking damage from a creature that appeared to be standing still,
+        // which is the worst kind of unfair: not hard, illegible.
+        //
+        // Everything needed is in the state. A beast now carries `lastSwing`,
+        // so the window knows the tick it last struck; `mad` says who it
+        // struck at; and the distance says whether that was a claw or a
+        // breath. No new field, no message -- the world already recorded it.
+        {
+          const meD = s.players?.[myId]
+          const since = s.tick - (m.lastSwing ?? -99)
+          const dist = meD ? Math.max(Math.abs(meD.x - m.x), Math.abs(meD.y - m.y)) : 99
+          // a breath, not a claw: it reached me from further than arm's length
+          if (meD && m.mad === myId && since >= 0 && since <= 3 && dist > 1 && dist <= 5) {
+            const life = 1 - (since + ((now / 600) % 1)) / 4      // fades over its four ticks
+            if (life > 0) {
+              const ang = Math.atan2(meD.y - m.y, meD.x - m.x)
+              const reach = dist * TILE
+              cx.save()
+              cx.translate(HX - F * 6, HY + 2)
+              cx.rotate(ang)
+              // the cone: bright at the mouth, thinning and reddening outward
+              const grad = cx.createLinearGradient(0, 0, reach, 0)
+              grad.addColorStop(0, 'rgba(255,236,170,' + (0.85 * life) + ')')
+              grad.addColorStop(0.25, 'rgba(255,168,50,' + (0.7 * life) + ')')
+              grad.addColorStop(0.7, 'rgba(226,74,26,' + (0.4 * life) + ')')
+              grad.addColorStop(1, 'rgba(120,30,12,0)')
+              cx.fillStyle = grad
+              cx.beginPath()
+              cx.moveTo(0, -3)
+              cx.quadraticCurveTo(reach * 0.5, -10 - life * 6, reach, -14 - life * 8)
+              cx.lineTo(reach, 14 + life * 8)
+              cx.quadraticCurveTo(reach * 0.5, 10 + life * 6, 0, 3)
+              cx.closePath(); cx.fill()
+              // embers riding it outward
+              for (let k = 0; k < 7; k++) {
+                const t3 = ((now / 300 + k * 0.17) % 1)
+                const ex = t3 * reach, ey = Math.sin(k * 2.3 + now / 200) * (4 + t3 * 12)
+                cx.fillStyle = 'rgba(255,' + (190 - k * 14) + ',90,' + (life * (1 - t3) * 0.9) + ')'
+                cx.beginPath(); cx.arc(ex, ey, 1 + (1 - t3) * 2.4, 0, 7); cx.fill()
+              }
+              cx.restore()
+              // and the mouth itself, lit
+              cx.fillStyle = 'rgba(255,220,140,' + (0.9 * life) + ')'
+              cx.beginPath(); cx.arc(HX - F * 6, HY + 2, 3.5 + life * 2, 0, 7); cx.fill()
+            }
+          }
         }
 
         cx.fillStyle = '#4a1008'; cx.fillRect(X + 2, Y - 34, 36, 4.4)
@@ -5770,7 +5900,7 @@ sunCv.addEventListener('pointerup', (e2) => {
   if (gx < 0 || gy < 0 || gx >= W || gy >= H) return
   intent = { kind: 'walk', x: gx, y: gy }
   travelMark = { x: gx, y: gy }
-  const where = (GEN === 'interval-expanse-v4' && typeof localeAt4 === 'function')
+  const where = (IS_EXPANSE4() && typeof localeAt4 === 'function')
     ? (localeAt4(gx, gy) ?? '') : ''
   const mins = Math.hypot(gx - me.x, gy - me.y) * 0.6 / 60
   feed('Setting out' + (where ? ' for ' + where : '')
@@ -6175,7 +6305,7 @@ cv.addEventListener('click', (e) => {
         travelMark = { x: wx, y: wy }
         intent = { kind: 'walk', x: wx, y: wy }
         const d = Math.round(Math.hypot(wx - meM.x, wy - meM.y))
-        const where = (typeof localeAt4 === 'function' && GEN === 'interval-expanse-v4')
+        const where = (typeof localeAt4 === 'function' && IS_EXPANSE4())
           ? (localeAt4(wx, wy) ?? '') : ''
         feed('Setting out' + (where ? ' for ' + where : '') + ' \u2014 about '
           + (d * 0.6 / 60).toFixed(1) + ' minutes\u2019 walk.')

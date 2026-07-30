@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.80 ("The Constitution")
+# Interval: Protocol Specification v0.81 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -181,11 +181,17 @@ lost.
 
 ## 6m. Combat breathes (v0.32)
 
-Every engagement carries `since`, the tick it began. Swings: both the
-attacker's and the defender's retaliation: resolve only on ticks where
-`(tick - since) mod 2 == 0`: one exchange every 1.2 seconds. The first
-swing is immediate; the rhythm follows. This paces citizen and beast
-alike; there is no fast blade in this world, only a patient one.
+A citizen's arm keeps its weapon's rhythm: a swing resolves only once
+`weapon.every` ticks have passed since the last one. There is no fast blade
+in this world, only a patient one.
+
+**A beast keeps its OWN clock (§6aa, v0.81).** This section used to say the
+rhythm paced citizen and beast alike, on a shared `(tick - since) mod 2`.
+That is no longer true and the change it describes was a fault, not a
+feature: because the defender's turn hung off the ATTACKER'S action, a beast
+could only act while being acted upon. Nothing could gang up, a slow weapon
+made you measurably harder to hit, and an archer at four tiles was untouchable
+by construction. Every one of those was a bug wearing the costume of a rule.
 
 **Instant acts do not lower your guard.** `eat` no longer clears a
 combat action: swallowing a fish mid-fight is the veteran's way. All
@@ -1231,12 +1237,11 @@ respawns are processed:
 3. If the mob dies: drops roll on the beacon and go to the killer's
    free inventory slots (full inventory forfeits that drop);
    `respawnAt = tick + respawn`; action ends.
-4. Otherwise the mob retaliates, but only on its own swing intervals
-   and only if it can reach the player. If either is false the mob does
-   nothing and no experience of any kind is earned. On a swing:
-   threshold `clamp(128 + 4*(mobAtk - defenceLvl), 16, 240)`; on hit
-   the player loses `max(1, 1 + (roll(beacon, playerId, "mobdmg") mod
-   mobMaxHit) - soak)` HP; on a miss the player gains 4 defence XP.
+4. **The mob does not answer here.** As of §6aa it acts in its own phase,
+   on its own clock, whether or not anybody is acting on it — see that
+   section for what a beast does and when. Striking one does make it
+   ANGRY (`mob.mad`), which is how a creature that hunts nobody still
+   fights back.
 
    A blow that lands always costs at least one hit point. Armour makes
    a citizen harder to hurt, never impossible to hurt: a full suit of
@@ -1985,6 +1990,70 @@ On a mob's death its drops become **ground items** (§3.4) on the mob's
 tile rather than entering anyone's inventory. The killer has no special
 claim: loot belongs to whoever walks over and takes it.
 
+## 9h. A node must be able to COMPUTE the world, not merely recognise it
+
+`WORLD_GENERATORS` is a static list of names this engine has heard of.
+`TERRAINS` is the registry of generators actually loaded. **They are not the
+same thing, and the difference was a hole underneath every other safety
+check.**
+
+A node with only v3 imported still recognised `interval-expanse-v4`, passed
+`validateGenesis`, and then answered every terrain question with *walkable*:
+
+```
+a v5 world with only v3 loaded, over 40,000 tiles
+  blocked 0 · walkable 40,000
+  of which genuinely impassable: 7,911 (sea, river, ridge, wall)
+```
+
+`terrainBlocked` returned `false` when the generator was absent — a
+validation path that **failed open**, and failed silently. The node believed
+it had a map and did not. The observable was routes being rejected with no
+reason given, which is a very expensive thing to diagnose.
+
+Note the sibling path was already correct: `buildWorld` refuses outright on a
+geography-hash mismatch. But that refusal can only fire once the right
+generator is loaded, so it sat on top of the hole rather than closing it.
+
+Two rules now:
+
+1. **`validateGenesis` refuses a genesis whose generator is not registered on
+   this node.** Recognising a name is not being able to compute a world.
+2. **`terrainBlocked` fails closed.** An unregistered generator means every
+   tile reads as blocked, with one loud warning. The world becomes instantly
+   and obviously unplayable, which is the point.
+
+The one exception is named once, in `TERRAINLESS`: `interval-classic-v1`
+registers nothing because it has no impassable terrain at all. **Putting that
+exception in the door check and forgetting it in `terrainBlocked` blocked
+every tile of every classic world and hung the benchmark suite** — which is
+why it lives in a single named set rather than as two string comparisons.
+
+This changes no hash. For any world that can be built, `terrainBlocked`
+behaves exactly as before; the new branch is reachable only by a genesis the
+door now refuses.
+
+## 9c-ii. Why an input was refused (auxiliary, never consensus)
+
+A refused input used to be observable only as `lastInput` failing to advance,
+which is indistinguishable from the client never having sent anything.
+
+Nodes MAY report a refusal to the submitting client out of band, as
+`{ type: 'refused', of, tick, why }`. Like chat (§9c) this is **not world
+state**, affects no hash, and the world does not remember that anyone was
+refused. An honest client sees its own errors; a hostile one learns nothing
+it could not learn by trying.
+
+This matters because of the tick window. An input is stamped for the tick
+AFTER the frame it was planned from, and mobs move every tick — so a
+perfectly legal move can be refused because something stepped into the square
+in between. Measured at **671 such windows in 600 ticks** with 49 goblins in
+an open field. That is inherent to the protocol, not a fault. But a client
+that cannot tell a transient collision from real terrain will conclude the
+map is wrong and stop trusting its own routing, which is exactly the wrong
+lesson. Clients SHOULD treat a refusal naming occupancy, reach or tick as
+transient and retry; terrain is permanent and should not be retried.
+
 ## 9c. Chat (auxiliary, never consensus)
 
 Chat is NOT part of world state and never affects a state hash. It is a
@@ -2288,6 +2357,96 @@ optimistic worlds). Catch-up serves finality records, not raw inputs:
 the recovering node verifies each proof and replays each bundle,
 demanding the certified result byte-for-byte.
 
+## 6aa. The beasts act (v0.81)
+
+Everything a beast does to a citizen happens in **one phase, on the beast's
+own clock**, whether or not anybody is acting on it.
+
+Before this, retaliation lived inside the attacking citizen's action, against
+the single mob they had targeted. Three consequences, all of them faults
+dressed as rules: nothing could gang up, because a beast had no way to act
+unless acted upon; a slow weapon made you measurably harder to hit, because
+the whole block hung off the citizen's swing timer; and an archer at four
+tiles was untouchable by construction.
+
+### What a beast wants
+
+A beast takes a target for one of two reasons:
+
+- it is **angry** — somebody struck it, and it remembers who (`mob.mad`)
+- it is **hunting** — a citizen came within `aggro` and it hunts by nature
+
+A creature with no `aggro` never starts anything. Striking one makes it
+angry anywhere.
+
+### Where a beast will start something
+
+**Aggression is a property of COUNTRY, not creature.** A goblin in the
+Heartlands is the same goblin as one in the Moor; what differs is whether
+anybody has made the ground safe. That is what a settled country IS.
+
+Beasts hunt in the **Wilds, the Crags and the Moor**. Everywhere else they
+answer a blow and otherwise mind their own business.
+
+```
+country       lvl 1    lvl 20   lvl 50     worst case: beasts able to reach one tile
+heartlands       0        0        0       1
+downs            0        0        0       -
+greenwood        0        0        0       -
+fens             0        0        0       -
+moor          DIED       14        3       2
+wilds         DIED     DIED       32       7
+crags         DIED     DIED        9      15
+```
+
+Every skill remains trainable in safe country — 386 rocks, 1,409 trees, 156
+fishing spots — while the richest ground, 610 rocks in the Crags, now costs
+risk.
+
+### Three at a time
+
+`MAX_ON_ONE = 3`. Density is uneven: one tile in the Crags had **fifteen**
+beasts able to reach it against one in the Heartlands. Fifteen is not a
+fight, it is a wall, and a wall does not make a country dangerous — it makes
+it closed. The rest hang back and take a turn as others fall away.
+
+### A beast comes for what it can perceive
+
+Its reach for an attacker is exactly its `aggro`, and no further. This is
+what makes an archer possible again:
+
+```
+beast (aggro)      sword@1  wooden@4  horn@5  dragon@8
+goblin (3)              46         0       0         0
+wolf (5)                74        69      88         0
+```
+
+Any bow clears a goblin. A wolf outranges the common bows. **Not *hold a bow
+and be safe* but *hold enough bow, and know what is looking at you*.**
+
+### Nothing sets about a sleeping citizen
+
+Death drops everything, and somebody whose connection dropped should not lose
+an hour's gathering to a wolf they never saw. A beast will not set about a
+citizen the world already considers asleep (`isAwake`, §5). It is not
+immunity: the moment they act they are awake and fair game.
+
+### Kiting, which follows from the leash
+
+A beast may chase to `aggro + 8` tiles from where it belongs and no further.
+That tether exists to stop mobs wandering across the island, and an
+unintended consequence is that **an archer can walk one to the end of its
+rope and then shoot freely** — measured at twelve ticks of retreat buying a
+hundred and eighty-eight of free shooting.
+
+This is intended to stand. It costs attention rather than resources, it fails
+in close terrain and against numbers, and it trains no defence.
+
+**It does not work citizen against citizen**, because a citizen has no leash:
+retreat forever and they follow forever, so backing off means never standing
+still long enough to loose. Measured, a kiting archer fired one arrow in two
+hundred ticks and lost a duel they would otherwise have won.
+
 ## 6w. The dragon, and the one bow
 
 There is a dragon. Not a kind of thing that spawns in the Wilds — a thing
@@ -2295,8 +2454,32 @@ that is there, like the Barrow and the Ring and the Brandline. It sits deep
 in the west, well past the Brand, and the walk is meant to be a decision.
 
 ```
-maxHp 420 · atk 115 · def 24 · maxHit 28 · respawn 36,000 ticks (six hours)
+maxHp 420 · atk 115 · def 24 · maxHit 28 · every 4 · respawn 36,000 (six hours)
+meleeOnly · aggro 9 · breath 5 · breathHit 14 · breathEvery 5
 ```
+
+**It breathes before you arrive (v0.81).** It notices at nine tiles and
+breathes from five, so the approach costs and a party arrives already hurt:
+somebody has to survive the walk. Fire goes ROUND armour the way a flail does
+— no soak — while claws at arm's length are soaked normally. And it still
+cannot be answered from out there, because the scales turn arrows: you may
+cross the fire, never trade with it.
+
+**`every 4`, and the reason is worth recording.** Damage was never the
+binding constraint — a pair lost identically at maxHit 28, 22 and 18. What
+decides the fight is TIME: one citizen tanks while the others swing, and a
+lone swinger cannot take 420 points down before the tank runs out of broth.
+The lever is how OFTEN it strikes. Measured over seven attempts, walking in
+from ten tiles in full star with sixteen broth:
+
+| party | wins |
+|---|---|
+| one | 0 of 7 |
+| two | 5 of 7 |
+| three | 7 of 7 |
+
+**Two can take it and two will sometimes fail**, which is a better answer
+than a guaranteed win.
 
 **`atk 115` is the whole design.** Every other beast is atk 1–5, and the
 accuracy rule is `Tm = clamp(128 + 4*(atk − defence), 16, 240)`: against a
@@ -2481,8 +2664,8 @@ Eastmere had **nothing alive within forty-five tiles** — the emptiest named
 place on the island, and a port, which is where people arrive.
 
 ```
-shore-crab  maxHp 45 · atk 8 · def 14 · maxHit 2 · every 3 · respawn 90
-            drops: crab-shell, and sometimes a raw fish
+shore-crab  maxHp 90 · atk 8 · def 14 · maxHit 2 · every 3 · respawn 90
+            aggro 4 · harmless · drops crab-shell, sometimes a raw fish
 ```
 
 A crab rather than anything more exotic because Eastmere is a cold harbour on
@@ -2490,22 +2673,70 @@ downland, and an animal should belong to its place rather than be imported
 into it.
 
 What it is FOR is **training**: a great deal of shell and very little malice.
-It hits for two, every three ticks, and takes a long time to open — the shape
-of a good hour's work and a poor threat. Measured with a bronze sword:
+**It cannot hurt anybody** (§6z, v0.81). It swings and never lands, which
+makes Eastmere the one place you can learn to fight without gambling an
+hour's gathering on it. It keeps its aggro, so a few will come to you at
+once, and it takes a long time to open. Measured with a bronze sword:
 
-| level | ticks | hp lost | attack xp |
+| level | damage taken | attack xp | defence xp |
 |---|---|---|---|
-| 1 | 18 | 10 — **dies** | 8 |
-| 20 | 39 | 4 | 192 |
-| 50 | 21 | 2 | 200 |
+| 1 | **0** | 488 | **0** |
 
-It will kill a beginner, and that is correct: forty-five points of shell is
-not a first fight, and goblins are five. **Mobs are passive** — a citizen can
+And it teaches **no defence**, which is the same rule the archer lives under
+(§6j): defence is paid for in risk and only in risk. Something that cannot
+hurt you cannot teach you to be hurt. Attack and hitpoints, honestly earned. **Mobs do not hunt in settled country** (§6aa) — a citizen can
 stand beside a crab for eighty ticks and take nothing — so nobody is killed
 by one who did not choose to open it.
 
 They are placed **on the shore only**, thickest near the town and thinning
 along the coast. A crab inland is a crab somebody carried.
+
+## 2m. The fifth founding
+
+New foundings use `interval-expanse-v5`. It keeps **every acre of v4's land**
+— the lobed countries, the capes, the Barrow the roads bend around, the four
+named crossings, the shire against its frontier — and changes only how much
+furniture stands on it.
+
+The diagnosis v4 was written to cure was right: *you walk past nothing.* The
+cure overshot. At 966 landmarks over 214,000 land tiles, nothing on the
+island was ever further than 54 tiles from one, and **a landmark is a
+landmark by contrast.** When none of them is ever far, none of them is an
+event.
+
+Three changes and no others:
+
+1. **The floors are halved.** Every country's furniture floor is cut to about
+   half, and the spread between the richest and the barest is widened rather
+   than kept.
+2. **Furniture follows the roads.** A clump may seat itself where a road is
+   near; further off it needs a hash to agree, and further still it almost
+   never does. Things are where people go.
+3. **The quiet quarters.** Six hashed tracts of backcountry, seeded only
+   where no road comes within forty tiles, refuse furniture outright. That is
+   how the island gets somewhere genuinely bare — on purpose and by name,
+   not as an accident of the fill.
+
+Measured against v4, same method, same seed:
+
+```
+             landmarks   median   p90   p99   max   spread(sd)
+v4                 966        9    20    36    54          7.4
+v5                 552       13    30    48    60         10.6
+
+             landmarks within 5 of a road   land within 5 of a road
+v4                              22%                       13%
+v5                              31%                       13%
+```
+
+**A fourth, smaller change.** v4 set a companion stone at a FIXED offset
+beside a cairn, a bone pile and a charcoal clamp, which left 82 pairs at
+exactly (-1,-1) and 63 at (+1,+1). The island was statistically detectable as
+generated — invisible to any citizen, obvious to a nearest-neighbour
+histogram. Companions are now optional and their offset is hashed.
+
+Determinism is v4's, unchanged: `+ - * /` and `sqrt`, comparisons, hashed
+control points, smoothstep. No transcendentals.
 
 ## 9g. Two additions to the vocabulary
 

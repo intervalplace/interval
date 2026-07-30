@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.80';
+const SPEC_VERSION = '0.81';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -454,19 +454,22 @@ const inReach = (p, t) => {
 };
 
 const MOB_STATS = {
-  goblin: { maxHp: 5, atk: 1, def: 1, maxHit: 1, respawn: 16,
+  // §6aa: `aggro` is how many tiles away a beast will notice you and come.
+  // A goblin sees three -- close enough to matter on a road, far enough short
+  // of the eighteen a citizen can see that nothing charges out of the dark.
+  goblin: { maxHp: 5, atk: 1, def: 1, maxHit: 1, respawn: 16, aggro: 3,
             drops: [{ item: 'bones' }, { item: 'ore', chance: 16384 }, { item: 'seeds', chance: 16384 }] },
-  wolf:   { maxHp: 8, atk: 2, def: 2, maxHit: 2, respawn: 150,
+  wolf:   { maxHp: 8, atk: 2, def: 2, maxHit: 2, respawn: 150, aggro: 5,   // a wolf hunts
             drops: [{ item: 'bones' }, { item: 'bones', chance: 24576 }] },
   // v0.75: the old-chain falls at 2/65536, one troll in 32,768, which is some
   // nine days of an executor farming trolls without pause. It is the only item
   // in the world with no price at any store, so it can never be sold to a
   // keeper and only ever passes between citizens. The best weapon here is the
   // one thing gold cannot be turned into except by asking someone who has one.
-  troll:  { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300,
+  troll:  { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4,
             drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'bronze-plate', chance: 6144 },
                     { item: 'old-chain', chance: 2 }] },
-  bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220,
+  bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
             drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'bronze-hatchet', chance: 4096 },
                     { item: 'horn-bow', chance: 66 }] },
   // the skeleton-knight (v0.42): a horned, shield-bearing warrior of the frontier.
@@ -484,7 +487,21 @@ const MOB_STATS = {
   // to open, which is the shape of a good hour's work and a poor threat.
   //
   // It gives up its shell, and a shell is worth something to a smith.
-  'shore-crab': { maxHp: 45, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90,
+  // §6z: THE SHORE-CRAB CANNOT HURT ANYBODY.
+  //
+  // The world got dangerous, so one thing in it should not be. A crab has a
+  // great deal of shell, a slow temper and claws that cannot find a way past
+  // a citizen's guard -- it swings, and it never lands. Which makes Eastmere
+  // the place you go to learn to fight without gambling an hour's gathering
+  // on it, and gives the emptiest named port a reason to exist.
+  //
+  // It KEEPS its aggro, so they come to you and you can gather three at once.
+  //
+  // And it gives NO DEFENCE, which is the same rule that governs the archer:
+  // defence is paid for in risk and only in risk. Something that cannot hurt
+  // you cannot teach you to be hurt. Attack and hitpoints, honestly earned;
+  // defence, not at all.
+  'shore-crab': { maxHp: 90, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90, aggro: 4, harmless: true,
                   drops: [{ item: 'crab-shell' }, { item: 'raw-fish', chance: 8192 }] },
   // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
   // Wilds -- a thing that is there, like the Barrow and the Ring.
@@ -516,10 +533,38 @@ const MOB_STATS = {
   //
   // Which is the thing asked for: you cannot do this alone, and the people
   // you bring are in the Wilds with you.
-  dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 1, meleeOnly: true,
+  // §6w: IT BREATHES BEFORE YOU ARRIVE.
+  //
+  // It could only be struck from a tile beside it and it was PASSIVE, so the
+  // fight began when somebody walked up to the largest creature in the world
+  // and hit it, and it did nothing until then. That is not a dragon, it is a
+  // rock with four hundred and twenty hitpoints.
+  //
+  // Now the approach costs. It notices at nine tiles and breathes from six,
+  // so a party arrives already hurt and somebody has to survive the walk --
+  // which is what 'come with company' should mean, rather than a threshold in
+  // a stat table. Fire goes ROUND armour the way a flail does: no soak. And
+  // it still cannot be answered from out there, because the scales turn
+  // arrows -- you may only cross the fire, never trade with it.
+  // `every: 1` was chosen when retaliation only fired while a citizen was
+  // ACTING on it -- so it meant "every tick of the fight". Now a beast acts
+  // on its own and it means every tick, full stop, which is twice the old
+  // rate and why a pair could not finish it: they spent the fight eating.
+  // Two was not enough either, and the reason is worth writing down: the
+  // binding constraint is not damage. A pair lost identically at maxHit 28,
+  // 22 and 18. It is TIME -- one citizen tanks while the other swings, and a
+  // lone swinger cannot take 420 points down before the tank runs out of
+  // broth. The lever is how OFTEN it strikes.
+  //
+  // Four. Big slow blows, which is what a dragon should throw, and it lines
+  // up with a breath that comes every five. Measured, walking in from ten
+  // tiles in full star with sixteen broth: one falls, two win at 113 ticks
+  // -- sixty-eight seconds, and hard -- three win at 64.
+  dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 4, meleeOnly: true,
+            aggro: 9, breath: 5, breathHit: 14, breathEvery: 5,
             respawn: 36000,          // six hours: killing it is an event, not a round
             drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'ore' }] },
-  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120,
+  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 12288 },            // scavenged metal
                     { item: 'star-helm', chance: 328 }] },    // rare: the horned helm itself
@@ -778,9 +823,45 @@ function geographyHashOf(genesis) {
   const t = TERRAINS[genesis.worldGenerator];
   return t && t.geographyHash ? t.geographyHash(genesis) : null;
 }
+// FAILS CLOSED. This used to return `false` -- WALKABLE -- for every tile of
+// any world whose generator was not registered on this node. Measured on a v5
+// world with only v3 loaded: 0 blocked, 40,000 walkable, and 7,911 tiles of
+// sea, river, ridge and wall reading as open ground.
+//
+// A validation path that fails open is almost never intended, and this one
+// failed SILENTLY: the node believed it had a map and did not. Bots froze on
+// routes the server rejected and there was nothing to read.
+//
+// The distinction that matters: a generator REGISTERED but supplying no
+// `blocked` is legitimate -- interval-classic-v1 has no impassable terrain at
+// all -- while a generator that is not registered means this node cannot
+// compute this world, and every answer it gives about the ground is a guess.
+// So: absent function, trust it. Absent GENERATOR, block everything.
+//
+// Blocking everything makes the world instantly, obviously unplayable, which
+// is the point. The sibling path already refuses outright on a geography-hash
+// mismatch -- but that check can only fire once the right generator is loaded,
+// so this was the hole underneath the working safety net.
+// The one generator that legitimately registers nothing: classic-v1 has no
+// impassable terrain, so it needs no `blocked` and no module. Naming it once
+// here rather than twice is the whole point -- the first version of this fix
+// put the exception in validateGenesis and forgot it here, which blocked every
+// tile of every classic world, froze the mobs, and hung the benchmark suite.
+const TERRAINLESS = new Set(['interval-classic-v1']);
+const _unregWarned = new Set();
 function terrainBlocked(g, x, y) {
   const t = TERRAINS[g.worldGenerator];
-  return t && t.blocked ? !!t.blocked(g, x, y) : false;
+  if (t === undefined) {
+    if (TERRAINLESS.has(g.worldGenerator)) return false;   // nothing to block
+    if (!_unregWarned.has(g.worldGenerator)) {
+      _unregWarned.add(g.worldGenerator);
+      const m = 'worldgen ' + g.worldGenerator + ' is not registered on this node: '
+        + 'ALL terrain reads as blocked. Import its module before building this world.';
+      if (typeof console !== 'undefined' && console.error) console.error('[interval] ' + m);
+    }
+    return true;
+  }
+  return t.blocked ? !!t.blocked(g, x, y) : false;
 }
 const spawnOf = (g) => (TERRAINS[g.worldGenerator] && TERRAINS[g.worldGenerator].spawn
   ? TERRAINS[g.worldGenerator].spawn(g)
@@ -1201,7 +1282,7 @@ function roll(beacon, playerId, tag) {
 // The canonical generator registry (rev7 §8): a founding record names its
 // generator EXPLICITLY, so two deterministic generators can never be
 // confused about which world a genesis founds.
-const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4']);
+const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4', 'interval-expanse-v5']);
 
 function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH = 200,
                      worldGenerator = 'interval-classic-v1') {
@@ -1437,6 +1518,15 @@ function validateGenesis(g) {
   if (!isInt(g.anchorMs, 0, MAX_TIME)) return 'bad anchorMs';
   if (typeof g.worldGenerator !== 'string' || g.worldGenerator.length > 64) return 'malformed world generator';
   if (!supportsWorldGenerator(g.worldGenerator)) return 'unknown world generator';
+  // RECOGNISING a generator is not being able to COMPUTE one. WORLD_GENERATORS
+  // is a static list of names this engine has heard of; TERRAINS is what has
+  // actually been imported. A node with only v3 loaded passed this check for a
+  // v4 world, then answered every terrain question with 'walkable'.
+  //
+  // classic-v1 registers nothing and needs nothing -- it has no impassable
+  // terrain -- so it is the one name allowed through unregistered.
+  if (!TERRAINLESS.has(g.worldGenerator) && TERRAINS[g.worldGenerator] === undefined)
+    return 'worldgen ' + g.worldGenerator + ' is not registered on this node';
   if (!isInt(g.worldW, 1, 100000) || !isInt(g.worldH, 1, 100000)) return 'bad world dimensions';
   if (g.witnesses !== undefined) {
     if (!Array.isArray(g.witnesses) || g.witnesses.length < 1 || g.witnesses.length > 1024) return 'bad witness set';
@@ -1716,8 +1806,13 @@ const LANDMARK_KINDS = new Set([
     if (!m || typeof m !== 'object') return 'malformed mob';
     if (typeof m.type !== 'string' || !(m.type in MOB_STATS)) return 'unknown mob type';
     for (const rk of ['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y']) if (!(rk in m)) return 'mob missing ' + rk;
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil'].includes(mk)) return 'non-constitutional mob field ' + mk;
-    for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
+    // §6aa: a beast that acts on its own needs two things it never needed
+    // while it only ever answered a blow -- a clock of its own, so its swing
+    // rate is its own and not the citizen's, and a memory of who hit it, so a
+    // passive creature still fights back.
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'mad'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
+    if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
     if (!isInt(m.x, 0, W - 1) || !isInt(m.y, 0, H - 1)) return 'mob out of bounds';
     if (!isInt(m.hx, 0, W - 1) || !isInt(m.hy, 0, H - 1)) return 'mob home out of bounds';
     if (!Number.isSafeInteger(m.hp) || m.hp < -1000 || m.hp > 100000) return 'mob hp out of bounds';
@@ -2783,6 +2878,221 @@ function nextState(state, inputs, _legacyBeacon) {
     if (terrainBlocked(s.genesis, nx, ny)) continue; // v0.78: beasts respect the water like everyone else, a goblin was seen STANDING IN THE RIVER
     m.x = nx; m.y = ny;
   }
+  // ---- §6aa: THE BEASTS ACT ----
+  //
+  // Everything a mob does to a citizen happens here, in one phase, on the
+  // mob's own clock. Before this, retaliation lived inside the ATTACKING
+  // CITIZEN'S action -- so a beast could only act while being acted upon,
+  // nothing could ever gang up, and a slow weapon made you harder to hit.
+  //
+  // A beast picks a target for one of two reasons:
+  //   it is ANGRY  -- somebody hit it, and it remembers who (m.mad)
+  //   it is HUNTING -- a citizen came within `aggro` and it hunts by nature
+  // A creature with no `aggro` never starts anything. A shore-crab is a
+  // shore-crab; it answers a blow and otherwise minds its own business.
+  //
+  // Determinism: mobs in sorted id order, citizens in sorted id order,
+  // nearest wins with ties broken by id, every roll from the beacon.
+  {
+    // one pass to bucket the citizens, so a mob asks about its own
+    // neighbourhood rather than about everybody. Without this the cost is
+    // mobs x citizens every tick, which is fine at twenty and ruinous at two
+    // thousand.
+    const CB = 16;
+    const buckets = new Map();
+    const liveIds = [];
+    for (const pid of Object.keys(s.players).sort()) {
+      const p = s.players[pid];
+      if (!p || p.hp <= 0 || p.deadUntil) continue;
+      if (!isAwake(p, s.tick)) continue;   // the world does not hunt the absent
+      liveIds.push(pid);
+      const k = ((p.y / CB) | 0) * 4096 + ((p.x / CB) | 0);
+      let b = buckets.get(k); if (!b) { b = []; buckets.set(k, b); }
+      b.push(pid);
+    }
+    // HOW MANY CAN SET ABOUT ONE PERSON.
+    //
+    // Density decides this if nothing else does, and density is not evenly
+    // spread: measured, one tile in the Crags had FIFTEEN beasts able to
+    // reach it, against one in the Heartlands. Fifteen is not a fight, it is
+    // a wall, and a wall is not what makes a country dangerous -- it is what
+    // makes it closed.
+    //
+    // So three. Enough that a second and third arriving changes the sum, few
+    // enough that the arithmetic stays survivable and a citizen can decide to
+    // back out. The rest hang about and will take a turn as others fall away,
+    // which is also what a pack does.
+    const MAX_ON_ONE = 3;
+    // WHERE A BEAST WILL START SOMETHING.
+    //
+    // This is the whole decision and it deserves to be one line you can read.
+    // Aggression everywhere makes death possible while merely walking, and
+    // death drops everything -- an hour of gathering lost to a wolf you did
+    // not see. Aggression nowhere is the world as it was: sixty skeleton
+    // knights that threaten nobody who does not walk up and swing first.
+    //
+    // So it is a property of COUNTRY, not of creature. A goblin in the
+    // Heartlands is the same goblin as one in the Wilds; what differs is
+    // whether anybody has made the ground safe. That is what a settled
+    // country IS, and now the map says so.
+    //
+    // Measured worst case, beasts able to reach one tile:
+    //   heartlands 1 · moor 2 · wilds 7 · crags 15
+    // NOTHING SETS ABOUT A SLEEPING CITIZEN.
+    //
+    // Death drops everything. A citizen whose client has dropped, or who put
+    // the phone down for a minute, is still standing in the world -- and a
+    // world where you lose an hour's gathering because your train went into a
+    // tunnel is not one anybody should have to play carefully.
+    //
+    // So a beast will not set about somebody the world already considers
+    // asleep. It is not immunity: the moment they act they are awake and fair
+    // game again. It only means the world does not hunt the absent.
+    //
+    // This uses `isAwake`, which the engine already had -- a citizen is awake
+    // while an action is running OR they have acted within SLEEP_AFTER. That
+    // second clause is generous (500 ticks, five minutes) and generous is
+    // right: the cost of being wrong is somebody losing everything they
+    // carried because their train went into a tunnel.
+    const HUNTS_HERE = (x, y) => {
+      const tt = TERRAINS[s.genesis.worldGenerator];
+      const c = tt && tt.country ? tt.country(s.genesis, x, y) : null;
+      return c === 'wilds' || c === 'crags' || c === 'moor';
+    };
+    const setAbout = new Map();
+    if (liveIds.length) for (const mid of Object.keys(s.mobs).sort()) {
+      const m = s.mobs[mid];
+      if (!m || m.hp <= 0) continue;
+      if ((m.stilledUntil ?? 0) > s.tick) continue;   // the truce holds beasts too
+      const st = MOB_STATS[m.type];
+      const range = Math.max(st.aggro ?? 0, 1) + 2;
+      // candidates: this bucket and its neighbours
+      let target = null, tid = null, best = 1e9;
+      const bx = (m.x / CB) | 0, by = (m.y / CB) | 0;
+      const reach2 = Math.max(st.aggro ?? 0, st.breath ?? 0, 1);
+      const span = 1 + ((reach2 / CB) | 0);
+      for (let oy = -span; oy <= span; oy++) for (let ox = -span; ox <= span; ox++) {
+        const b = buckets.get((by + oy) * 4096 + (bx + ox));
+        if (!b) continue;
+        for (const pid of b) {
+          const p = s.players[pid];
+          const d = Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y));
+          // it comes for whoever hit it at any distance it can still see, and
+          // for a stranger only within its own nature
+          // A BEAST COMES FOR WHAT IT CAN PERCEIVE.
+          //
+          // This said `d <= reach2 + 6`, which was a number I picked out of
+          // the air, and it quietly destroyed the archer. A struck troll would
+          // walk ten tiles to find whoever had shot it, so a bow bought no
+          // safety at all: measured, a horn-bow at four tiles took 369 damage
+          // against a sword's 414, and trained the SAME defence. The whole
+          // ranged/melee trade -- safety bought with fragility -- collapsed
+          // into "melee that opens further out".
+          //
+          // A creature's `aggro` is how far it perceives. It should be able to
+          // come for its attacker within that, plus a couple of tiles of
+          // casting about, and no further. Which means an archer who stays
+          // beyond a beast's senses is genuinely safe, and has to KNOW what
+          // those senses are: a troll perceives four, a wolf five. Outranging
+          // a wolf takes a better bow than outranging a troll.
+          //
+          // The bargain is restored and improved: it is no longer "hold a bow
+          // and be safe" but "hold enough bow, and hold your distance".
+          // NO MARGIN. `aggro + 2` sounded like generosity and was a wall: a
+          // goblin perceiving five outranges every bow in the world except the
+          // one there is one of. What a creature perceives is exactly its
+          // `aggro`, which makes a readable ladder out of numbers already in
+          // the table --
+          //
+          //   goblin  3   a wooden bow keeps you clear
+          //   troll   4   a horn-bow does
+          //   wolf    5   you need the best bow, or you accept the risk
+          //   skeleton 5  likewise
+          //
+          // An archer is safe again, and it is a skill rather than a property
+          // of holding a bow: you have to know what is looking at you.
+          const senses = st.aggro ?? 0;
+          const wants = (m.mad === pid && d <= senses)
+            || (st.aggro && d <= st.aggro && HUNTS_HERE(m.x, m.y));
+          if (!wants) continue;
+          if (d < best) { best = d; target = p; tid = pid; }
+        }
+      }
+      if (!target) { if (m.mad !== undefined) delete m.mad; continue; }
+      const already = setAbout.get(tid) ?? 0;
+      if (already >= MAX_ON_ONE) continue;   // the rest wait their turn
+
+      // IN REACH? Claws are adjacent. A breath carries.
+      const canBreathe = (st.breath ?? 0) > 0 && best > 1 && best <= st.breath;
+      const canClaw = best === 1;
+      if (canClaw || canBreathe) {
+        setAbout.set(tid, already + 1);
+        // A BREATH IS NOT A SWING.
+        //
+        // The dragon claws every tick, which is what makes it lethal in
+        // close, and it was breathing every tick too -- so the approach did
+        // as much damage as the fight and a party spent every tick eating
+        // instead of swinging. Two citizens could not finish it at any
+        // breath strength I tried, because the problem was never the
+        // strength. It was the RATE.
+        //
+        // Fire is a big, slow thing. It comes every `breathEvery` ticks and
+        // it hurts when it lands; claws come constantly and are soaked by
+        // armour. The approach is now a gauntlet you can run rather than a
+        // wall you stand in.
+        const every = canBreathe ? (st.breathEvery ?? st.every ?? 2) : (st.every ?? 2);
+        if (s.tick - (m.lastSwing ?? -64) < every) continue;
+        m.lastSwing = s.tick;
+        // §6z: a harmless creature swings and never lands, and teaches no
+        // defence for it. Risk is the only thing that trains that skill.
+        if (st.harmless) continue;
+        const defLvl = effLevel(target.skills.defence);
+        const Tm = clamp(128 + 4 * (st.atk - defLvl), 16, 240);
+        if (roll(beacon, mid, 'mobatk') < Tm) {
+          // §6x: armour turns a blow aside, and a breath goes round it. Fire
+          // does not care how much steel is between it and you.
+          const soak = canBreathe ? 0
+            : (target.equipment.head ? SOAK(target.equipment.head.item) : 0)
+            + (target.equipment.body ? SOAK(target.equipment.body.item) : 0);
+          const hit = canBreathe ? (st.breathHit ?? st.maxHit) : st.maxHit;
+          target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
+          if (target.hp <= 0) {
+            target.hp = 0;
+            target.inventory = Array(INV_SLOTS).fill(null);
+            target.equipment = { weapon: null, head: null, body: null };
+            target.action = null;
+            target.trade = null;
+            target.deadUntil = s.tick + DEATH_TICKS;
+            delete m.mad;
+          }
+        } else {
+          // defence is paid for in RISK and only in risk: it swung, it could
+          // reach you, it missed. A breath counts -- being under fire and
+          // still standing is the definition.
+          target.skills.defence += 4;
+        }
+        continue;
+      }
+
+      // NOT IN REACH: close the distance. A beast on a leash from its home,
+      // so an angry goblin does not follow you across the island -- but a
+      // longer leash than the two tiles it wanders, or it could never catch
+      // anybody at all.
+      if ((m.rootedUntil ?? 0) > s.tick) continue;
+      const dx = Math.sign(target.x - m.x), dy = Math.sign(target.y - m.y);
+      for (const [sx, sy] of [[dx, dy], [dx, 0], [0, dy]]) {
+        if (!sx && !sy) continue;
+        const nx = m.x + sx, ny = m.y + sy;
+        if (nx < 1 || nx >= s.genesis.worldW - 1 || ny < 1 || ny >= s.genesis.worldH - 1) continue;
+        if (inCity(s.genesis, nx, ny)) continue;                 // §2d: not into Anchor
+        if (Math.max(Math.abs(nx - m.hx), Math.abs(ny - m.hy)) > range + 6) continue;
+        if (nodeExistsAt(s, _ctx, nx, ny)) continue;
+        if (terrainBlocked(s.genesis, nx, ny)) continue;
+        m.x = nx; m.y = ny; break;
+      }
+    }
+  }
+
   // v0.74: the shelves rot. Every SHELF_DECAY_EVERY intervals a sixteenth of
   // each stock is lost, rounded up so nothing lingers forever at a count of
   // one. Goods still on a shelf are goods nobody wanted at that price, and a
@@ -3458,13 +3768,15 @@ function nextState(state, inputs, _legacyBeacon) {
       //
       // The citizen's arm and the beast's are now separate clocks. The beast
       // swings on its own cadence whether or not you are ready to swing back.
-      const mobEvery = stats?.every ?? 2;
-      const mobTurn = (s.tick - (p.action.since ?? 0)) % mobEvery === 0;
       const every = weaponOf(p)?.every ?? 2;
       const armReady = s.tick - (p.lastSwing ?? -64) >= every;
       if (armReady) p.lastSwing = s.tick; // the arm is spent, whoever it was spent on
 
       const bowDrawn = drawnAt(p, m);
+      // §6aa: whoever swings at a beast is remembered by it. This is how a
+      // shore-crab -- which hunts nobody -- still answers a blow, and how a
+      // goblin that has taken an arrow starts walking toward the archer.
+      m.mad = pid;
       // the citizen only strikes when their own arm has recovered. This was
       // a `continue` above, which also skipped the beast's turn -- see the
       // note there.
@@ -3560,43 +3872,18 @@ function nextState(state, inputs, _legacyBeacon) {
         m.respawnAt = s.tick + stats.respawn;
         p.action = null;
       } else {
-        // retaliation (spec §6b.4)
-        const defLvl = effLevel(p.skills.defence);
-        const Tm = clamp(128 + 4 * (stats.atk - defLvl), 16, 240);
-        // v0.71: defence is paid for in RISK, and only in risk. The beast has
-        // to actually swing at you, and it has to be able to reach you. Both
-        // conditions used to sit inside the same test as the hit roll, so the
-        // else-branch caught three different things and paid for all of them:
-        // a genuine miss, a beast resting between swings, and a beast four
-        // tiles away that could never touch you. An archer therefore trained
-        // ranged, hitpoints and defence at once in perfect safety, at the same
-        // defence rate as someone standing in the beast's reach. Defence is
-        // the one skill whose whole meaning is being hit at and surviving it.
-        if (mobTurn && !bowDrawn) {
-          if (roll(beacon, pid, 'mobatk') < Tm) {
-            // armor soaks (spec 6i): each worn piece turns aside 1 damage
-            const soak = (p.equipment.head ? SOAK(p.equipment.head.item) : 0) + (p.equipment.body ? SOAK(p.equipment.body.item) : 0);
-            // v0.72: a blow that lands always costs something. Armour makes a
-            // citizen harder to hurt, never impossible to hurt. Under the old
-            // max(0, ...) a full suit of starmetal soaked 4, which is the
-            // hardest hit any beast in this world can throw: a star-clad
-            // citizen took zero from everything, skeleton-knights included,
-            // and the Wilds held no danger for the best-equipped person in it.
-            p.hp -= Math.max(1, 1 + (roll(beacon, pid, 'mobdmg') % stats.maxHit) - soak);
-            if (p.hp <= 0) {
-              p.hp = 0; // never below nought: nextState must not out-run validateState (v0.53)
-              // death (spec §6c, v0.41): the body lies where it fell for
-              // DEATH_TICKS: the world holds its breath, windows may grieve.
-              p.inventory = Array(INV_SLOTS).fill(null);
-              p.equipment = { weapon: null, head: null, body: null }; // the sink spares nothing (§5d)
-              p.action = null;
-              p.trade = null;
-              p.deadUntil = s.tick + DEATH_TICKS;
-            }
-          } else {
-            p.skills.defence += 4; // it swung, it could reach you, it missed
-          }
-        }
+        // §6aa: THE BEAST SWINGS IN ITS OWN PHASE NOW, not inside this one.
+        //
+        // Retaliation used to happen here, inside the attacking citizen's
+        // action, against the single mob they had targeted. That is why
+        // nothing in this world could ever gang up: a beast had no way to act
+        // unless somebody was acting on it. It is also why a slow weapon made
+        // you harder to hit, and why an archer at four tiles trained defence
+        // in perfect safety until v0.71 patched around the symptom.
+        //
+        // All of it now lives in the mob phase below, where a beast has its
+        // own clock, its own reach, and its own reasons.
+        if (bowDrawn) { /* nothing here: the beast answers in its own time */ }
       }
       continue;
     }
