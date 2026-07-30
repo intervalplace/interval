@@ -1141,7 +1141,69 @@ export function keeperName(tag, role) {
   return KEEPER_NAMES[h[0] % KEEPER_NAMES.length]
 }
 
+// THE INN NEEDS ITS WHOLE FOOTPRINT.
+//
+// The old seat checked five tiles and then a seven-by-five room was laid over
+// whatever happened to be there, so walls were skipped wherever a tile was
+// taken and the inn came out with holes in it. Ask for every tile the
+// building will occupy, and one clear tile outside the door.
+const _innSeatCache = new WeakMap()
+export function innSeat(g) {
+  if (_innSeatCache.has(g)) return _innSeatCache.get(g)
+  const W2 = g.worldW, H2 = g.worldH
+  let got = null
+  const okTile = (x, y) => !blockedAt(g, x, y) && !isWater(g, x, y)
+  seekI: for (let rad = 0; rad < 90 && !got; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const x = Math.round(W2 * 0.55) + dx, y = Math.round(H2 * 0.44) + dy
+      const b = biomeAt(g, x, y)
+      if (b !== 'heartlands' && b !== 'downs') continue
+      // A WAYSIDE INN IS NOT IN A TOWN.
+      //
+      // The seat asked only for 'beside a road', and Anchor is full of
+      // roads -- so the Lantern was being built inside the capital, on top
+      // of the plan, where every tile was already taken and not one wall
+      // could be laid. An inn on the road between places is the entire
+      // point of it: you stop there because there is nowhere else.
+      let inTown = false
+      for (const t of settlementsOf(g)) {
+        const r = rectOf(t)
+        if (x > r.x0 - 12 && x < r.x1 + 12 && y > r.y0 - 12 && y < r.y1 + 12) { inTown = true; break }
+      }
+      if (inTown) continue
+      if (onRoad(g, x, y)) continue
+      // the whole footprint must be clear AND clear of the road: a lane
+      // running through the east wall leaves the room with a hole in it,
+      // which is not a room, it is a ruin with a keeper in it
+      let all = true
+      for (let yy = -1; yy <= 3 && all; yy++) for (let xx = -3; xx <= 3; xx++) {
+        const px = x + xx, py = y + yy
+        if (!okTile(px, py) || onRoad(g, px, py)) { all = false; break }
+      }
+      if (!all || !okTile(x, y + 4)) continue
+      // and a road must pass CLOSE BY, just outside the walls. Asking the
+      // centre tile to be beside a road while demanding the footprint be
+      // clear of roads is a contradiction -- the neighbour it wants IS in
+      // the footprint -- and it found no seat at all.
+      let onTheWay = false
+      for (let yy = -3; yy <= 6 && !onTheWay; yy++) for (let xx = -6; xx <= 6; xx++) {
+        if (yy >= -1 && yy <= 3 && xx >= -3 && xx <= 3) continue   // inside: must stay clear
+        if (onRoad(g, x + xx, y + yy)) { onTheWay = true; break }
+      }
+      if (!onTheWay) continue
+      got = { x, y }; break seekI
+    }
+  _innSeatCache.set(g, got)
+  return got
+}
+export function loneRooms(g) {
+  const s = innSeat(g)
+  return s ? [[s.x - 2, s.y, 5, 3]] : []      // the Lantern's interior
+}
 export function groundKindAt(g, x, y) {
+  for (const [rx, ry, rw, rh] of loneRooms(g))
+    if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) return 'floor'
   if (isWater(g, x, y)) return null
   const sts = settlementsOf(g)
   for (const st of sts) {
@@ -2156,18 +2218,50 @@ export function buildWorld(genesis) {
     }
   }
   { // the Lantern: the wayside inn
-    let ix = Math.round(W * 0.55), iy = Math.round(H * 0.44)
-    seekI: for (let rad = 0; rad < 70; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      const x = ix + dx, y = iy + dy
-      if (biomeAt(g, x, y) !== 'heartlands' && biomeAt(g, x, y) !== 'downs') continue
-      if (onRoad(g, x, y)) continue
-      if (!(onRoad(g, x+1, y) || onRoad(g, x-1, y) || onRoad(g, x, y+1) || onRoad(g, x, y-1))) continue
-      if ([[0,0],[2,0],[-1,1],[1,1],[0,2]].every(([ox, oy]) => free(x+ox, y+oy))) { ix = x; iy = y; break seekI }
+    const seat = innSeat(g)
+    if (!seat) { /* no ground for it on this seed */ } else {
+    const ix = seat.x, iy = seat.y
+    // THE LANTERN LOST ITS WALLS.
+    //
+    // It was a `house` node and a campfire, which was a building and a fire
+    // beside it -- until v5 made `house` mean the HEARTH rather than the
+    // cottage, because a building is now the walled room you walk into. Every
+    // town was rebuilt to that rule and this one inn, standing alone out on
+    // the road, was not. The Lantern has been a fireplace in a field with a
+    // well and a man called Ulric next to it ever since, and nothing noticed
+    // because nothing checks that a named place still has a shape.
+    //
+    // So it gets what every other building here has: four walls, one door,
+    // boards underfoot, and its hearth inside where a hearth belongs.
+    const RW = 7, RH = 5                       // outer, so the room inside is 5x3
+    const rx0 = ix - 3, ry0 = iy - 1
+    const door = rx0 + 3                        // the middle of the south wall
+    let laid = 0
+    for (let yy = 0; yy < RH; yy++) for (let xx = 0; xx < RW; xx++) {
+      const x = rx0 + xx, y = ry0 + yy
+      const edge = xx === 0 || yy === 0 || xx === RW - 1 || yy === RH - 1
+      if (!edge) continue
+      if (yy === RH - 1 && x === door) continue          // the way in
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      taken.add(key(x, y)); put('inn-w' + (laid++), 'wall', x, y)
     }
-    put('inn-house', 'house', ix, iy); put('inn-hearth', 'campfire', ix + 2, iy)
-    put('inn-well', 'well', ix - 1, iy + 1); put('kpr-inn-lantern', 'keeper', ix + 1, iy + 1, { name: keeperName('inn', 'lantern') })
-    put('inn-sign', 'signpost', ix, iy + 2, { text: 'the Lantern \u00b7 rest, traveler' })
+    // THE DOORWAY IS RESERVED, and so is the step outside it.
+    //
+    // The walls skip the door, which leaves the tile free -- and free means
+    // the next pass along is welcome to put something in it. On one seed
+    // something did, and Ulric was sealed inside his own inn with no way out
+    // that any citizen could walk. `check-seeds` caught it: one stranded.
+    taken.add(key(door, ry0 + RH - 1))
+    taken.add(key(door, ry0 + RH))
+    // the hearth against the back wall, the keeper beside it, both indoors
+    put('inn-house', 'house', rx0 + 2, ry0 + 1)
+    put('kpr-inn-lantern', 'keeper', rx0 + 4, ry0 + 1, { name: keeperName('inn', 'lantern') })
+    // and the things that belong OUTSIDE an inn: the well, the fire in the
+    // yard, and the sign where a traveler on the road can read it
+    put('inn-well', 'well', rx0 - 2, ry0 + 2)
+    put('inn-hearth', 'campfire', rx0 + RW + 1, ry0 + 2)
+    put('inn-sign', 'signpost', door, ry0 + RH + 1, { text: 'the Lantern \u00b7 rest, traveler' })
+    }
   }
 
   // ---- the paddocks, outside the shire towns ----
@@ -2524,6 +2618,38 @@ export function buildWorld(genesis) {
       taken.add(key(x, y)); E.addMob(w, 'barrowdead-' + i, 'skeleton-knight', x, y); bs++
     }
     counts.barrowDead = bs
+  }
+
+  // ---- THE SHORE-CRABS ----
+  //
+  // Eastmere had nothing alive within forty-five tiles: the emptiest named
+  // place on the island, and a PORT, which is where people arrive. Crabs on
+  // the rocks around it, thickest near the town and thinning along the coast,
+  // because that is where the shallows are and because a citizen who has just
+  // stepped off the quay should find something to do.
+  //
+  // They must be ON the shore. A crab inland is a crab somebody carried.
+  {
+    const em = settlementsOf(g).find((t) => t.tag === 'eastmere')
+    let cr = 0
+    if (em) {
+      const wet = (x, y) => {
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+          if (isWater(g, x + dx, y + dy)) return true
+        return false
+      }
+      for (let i = 0; i < A(700) && cr < A(34); i++) {
+        const hh = H32('shorecrab', i)
+        const rad = 6 + (hh[0] % 52)                      // thinning outward
+        const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
+        const x = Math.round(em.x + Math.cos(ang) * rad)
+        const y = Math.round(em.y + Math.sin(ang) * rad)
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        if (!wet(x, y)) continue                          // the shore, or nowhere
+        taken.add(key(x, y)); E.addMob(w, 'crab-' + i, 'shore-crab', x, y); cr++
+      }
+    }
+    counts.crabs = cr
   }
 
   // ---- THE DRAGON ----
