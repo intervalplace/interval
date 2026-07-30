@@ -2770,9 +2770,22 @@ function isRampart4(x, y) {
 // every node.
 let _innSeat4 = null, _innSeatFor = null
 function innSeat4() {
-  if (_innSeatFor === GSEED && _innSeat4 !== undefined) return _innSeat4
+  if (_innSeatFor === GSEED) return _innSeat4
   _innSeatFor = GSEED; _innSeat4 = null
-  const okTile = (x, y) => !blockedAtE4(x, y) && !isWaterE4(x, y)
+  // THE NAMES HAVE TO EXIST.
+  //
+  // The first version of this called blockedAtE4, isWaterE4, rectOfE4 and
+  // onRoadE4 -- four names invented by putting an E4 on the end of what the
+  // GENERATOR calls them. None of the four exists in this file. innSeat4
+  // threw on its first call, terrainOfE4 calls it for every tile, and the
+  // whole terrain pass died: a green screen at spawn, which is the fourth
+  // time this session that a name not in scope has taken a frame with it.
+  //
+  // The real names here are isWater4, onRoad4, and a town's rect is its
+  // centre and half-extent. blockedAt in this file takes a STATE and asks
+  // about nodes -- it is not the terrain test at all.
+  const solid = (x, y) => onRidge4(x, y) || onBarrow4(x, y)
+  const okTile = (x, y) => !solid(x, y) && !isWater4(x, y)
   seekI4: for (let rad = 0; rad < 90; rad++)
     for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
@@ -2780,10 +2793,8 @@ function innSeat4() {
       const b = biomeAtE4(x, y)
       if (b !== 'heartlands' && b !== 'downs') continue
       let inTown = false
-      for (const t of settlementsE4()) {
-        const r = rectOfE4(t)
-        if (x > r.x0 - 12 && x < r.x1 + 12 && y > r.y0 - 12 && y < r.y1 + 12) { inTown = true; break }
-      }
+      for (const t of settlementsE4())
+        if (Math.abs(x - t.x) < (t.w >> 1) + 12 && Math.abs(y - t.y) < (t.h >> 1) + 12) { inTown = true; break }
       if (inTown) continue
       if (onRoad4(x, y)) continue
       let all = true
