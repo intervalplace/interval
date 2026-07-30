@@ -2349,6 +2349,38 @@ export function buildWorld(genesis) {
     counts.barrowDead = bs
   }
 
+  // ---- THE SHORE-CRABS ----
+  //
+  // Eastmere had nothing alive within forty-five tiles: the emptiest named
+  // place on the island, and a PORT, which is where people arrive. Crabs on
+  // the rocks around it, thickest near the town and thinning along the coast,
+  // because that is where the shallows are and because a citizen who has just
+  // stepped off the quay should find something to do.
+  //
+  // They must be ON the shore. A crab inland is a crab somebody carried.
+  {
+    const em = settlementsOf(g).find((t) => t.tag === 'eastmere')
+    let cr = 0
+    if (em) {
+      const wet = (x, y) => {
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+          if (isWater(g, x + dx, y + dy)) return true
+        return false
+      }
+      for (let i = 0; i < A(700) && cr < A(34); i++) {
+        const hh = H32('shorecrab', i)
+        const rad = 6 + (hh[0] % 52)                      // thinning outward
+        const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
+        const x = Math.round(em.x + Math.cos(ang) * rad)
+        const y = Math.round(em.y + Math.sin(ang) * rad)
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        if (!wet(x, y)) continue                          // the shore, or nowhere
+        taken.add(key(x, y)); E.addMob(w, 'crab-' + i, 'shore-crab', x, y); cr++
+      }
+    }
+    counts.crabs = cr
+  }
+
   // ---- THE DRAGON ----
   //
   // One. Not a kind of thing that spawns in the Wilds -- a thing that is
