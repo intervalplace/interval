@@ -21,7 +21,11 @@ const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // for the meandering trails, seven settlements, and the great river.
 // Only consulted at FOUNDING — a running world keeps the generator in
 // its genesis forever, because the genesis is the world.
-const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v4' // SPEC §2l/§9d: new foundings use the fourth expanse (the shire and the frontier)
+// SPEC §2l/§9d: new foundings use the FIFTH expanse. v5 keeps every acre of
+// v4's land and changes only how much furniture stands on it -- half the
+// landmarks, pulled toward the roads, with six named tracts that refuse them
+// outright, so that a landmark is a landmark by contrast again.
+const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v5'
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
 // founding dimensions: 0 means 'the generator's own calibrated scale'
 // (expanse 640x400 per SPEC §2l, classic 320x200 per §2j) — override
@@ -170,7 +174,7 @@ if (canResume) {
   }
   GENESIS = foundGenesis(WORLD_GEN, SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
   console.warn('FOUNDING with generator: ' + WORLD_GEN
-    + (WORLD_GEN === 'interval-classic-v1' ? '  (set INTERVAL_GEN=interval-expanse-v4 for the expanse)' : ''))
+    + (WORLD_GEN === 'interval-classic-v1' ? '  (set INTERVAL_GEN=interval-expanse-v5 for the expanse)' : ''))
   // the founding witness set (Milestone 4): immutable for this world; a
   // different witness configuration is a different world (Phase 9)
   GENESIS.witnesses = [WITNESS.playerId, ...EXTRA_WITNESSES.filter(w => w !== WITNESS.playerId)]
@@ -341,7 +345,6 @@ const PAGES = { '/': 'index.html', '/quickstart': 'quickstart.html',
                 '/play': 'windows.html', '/windows': 'windows.html',
                 '/map': 'map.html', '/marks': 'marks.html' }
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript',
-               mjs: 'text/javascript', // the shared terrain mirror, imported by the windows
                png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp',
                svg: 'image/svg+xml', ico: 'image/x-icon' }
 
@@ -503,16 +506,6 @@ const server = http.createServer((req, res) => {
     }
     // /play is the doorway: a window is a choice, and the choice is shown.
     // The old paths keep working, since links live longer than layouts.
-    // The windows are modules now and import ./sky.mjs and
-    // ./terrain-mirror.mjs. A browser resolves those against the PAGE's
-    // url, and these pages are routes, not files: /play/deep asks for
-    // /play/terrain-mirror.mjs. Serve the shared modules from under
-    // /play/ as well as the root, or the deep window opens to a blank
-    // screen and a 404 nobody sees.
-    if (path === '/play/sky.mjs' || path === '/sky.mjs')
-      return sendFile('./sky.mjs', 'text/javascript')
-    if (path === '/play/terrain-mirror.mjs' || path === '/terrain-mirror.mjs')
-      return sendFile('./terrain-mirror.mjs', 'text/javascript')
     if (path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
     if (path === '/play/deep' || path === '/deluxe') return sendFile('./window-3d.html', 'text/html')
     if (path === '/play/photo' || path === '/photo') return sendFile('./window-photo.html', 'text/html')
@@ -623,7 +616,35 @@ function handle(ws, buf) {
       if (!ext?.external) return
       const inp = m.input
       if (!inp || inp.playerId !== ext.playerId || typeof inp.sig !== 'string') return
-      node.submitInput(inp).catch((e) => console.error('input refused (' + (inp.type ?? '?') + ' from ' + String(inp.playerId).slice(0, 8) + '): ' + (e?.message ?? e))) // the engine verifies; forgeries die in gossip — and the pillar LOGS the deaths, because a silent catch cost us a day
+      // TELL THE CLIENT WHY.
+      //
+      // A refusal used to be observable only as `p.lastInput` failing to
+      // advance -- which is indistinguishable from the client never having
+      // sent anything. Diagnosing a refused move meant inferring it, and the
+      // wrong inference is available and tempting: a client that cannot tell
+      // a transient collision from real terrain will conclude the map is
+      // wrong and stop trusting its own routing.
+      //
+      // That matters more than it sounds because of the tick window. An input
+      // is stamped for the tick AFTER the frame it was planned from, and mobs
+      // wander every tick, so a legitimate move can be refused through
+      // nobody's fault -- measured at 671 such windows in 600 ticks with 49
+      // goblins in an open field. Those are transient and a client should
+      // simply try again. Terrain is permanent and it should not.
+      //
+      // This is out of band and non-consensus, like chat (§9c): the world
+      // does not record that anyone was refused, and no state hash moves.
+      // Honest clients get to see their own errors; a hostile one learns
+      // nothing it could not learn by trying.
+      node.submitInput(inp).catch((e) => {
+        const why = String(e?.message ?? e).slice(0, 120)
+        console.error('input refused (' + (inp.type ?? '?') + ' from '
+          + String(inp.playerId).slice(0, 8) + '): ' + why)
+        try {
+          if (ws.readyState === 1 && (ws.bufferedAmount ?? 0) < 2 * 1024 * 1024)
+            ws.send(JSON.stringify({ type: 'refused', of: inp.type ?? '?', tick: inp.tick ?? null, why }))
+        } catch {}
+      })
       return
     }
     if (m.type === 'auth') {
