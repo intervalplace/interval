@@ -2315,7 +2315,19 @@ Measured against maxed citizens in full star gear carrying broth:
 | four | win comfortably |
 
 **Scales turn arrows.** The dragon is immune to ranged attack entirely — a
-drawn bow does nothing to it at any distance. This is the only reason a
+drawn bow does nothing to it at any distance, and that is asked BEFORE reach
+is considered. `inReach` measures the weapon's reach, so a dragonbow at nine
+tiles was already "in reach" and returned before the immunity was ever
+tested: the one creature arrows cannot touch could be shot from outside its
+own stride.
+
+**A beast keeps its own clock (§6b.4).** Its swing cadence is `stats.every`,
+not the citizen's. Two faults lived here: the retaliation sat behind a
+`continue` that fired when the CITIZEN's arm was not ready, so a slow weapon
+made you harder to hit — pick up a maul and a troll attacked a third less
+often than if you were barehanded, which is defence by choosing a heavy
+weapon and a rule nobody wrote. And the cadence was hardcoded to every other
+tick, so `every: 1` on the dragon did nothing and it struck like a goblin. This is the only reason a
 citizen must ever close with anything, and it means the bow made from the
 dragon can never be turned on the dragon.
 
@@ -2376,6 +2388,124 @@ maxed hunters in star gear:
 
 Reach nine is a devastating opening, not an escape. The bow is a burden as
 much as a prize, and that is what keeps it moving without a market.
+
+## 6x. The flail, and the crossbow
+
+### A flail goes round the plate
+
+Armour turns aside one point a piece and two for starmetal, and between
+citizens that subtraction floors at **nothing**: a full suit of star soaks
+four, so a sword that rolls low does no harm at all. Correct, and it left the
+Wilds with a single answer to a star-clad citizen — land more blows than the
+armour can absorb.
+
+A flail has a head on a chain. It does not meet the plate square, it comes
+round the edge of it, and `pierces: true` says so: **SOAK does not apply.**
+
+```
+bronze-flail  hit 1 · every 2 · reach 1 · acc -12 · pierces
+star-flail    hit 3 · every 2 · reach 1 · acc -12 · pierces
+```
+
+It pays for it everywhere else. Its base damage is the lowest of any steel,
+so against an unarmoured citizen — which is most of the world — it is simply
+worse. **An answer to one thing, not an upgrade to everything.**
+
+### A crossbow is the maul of the ranged line
+
+Ranged had one feel repeated three times: wooden, horn and dragon all loose
+every two ticks and differ only in how far and how hard. Melee has four — a
+dagger lands often for little, a maul seldom for a lot, a spear keeps its
+distance, a sword asks no questions. Ranged deserved the same choice.
+
+```
+crossbow  hit 5 · every 3 · reach 4 · acc +32 · ranged
+```
+
+Slow to crank, heavy, and the most accurate thing in the world. It reaches
+less far than a horn-bow, because a bow's arc is a bow's arc.
+
+### The sigil-bow: imbued, not made
+
+Arrows are the whole cost of shooting — one per draw, hit or miss — and
+running out ends the action where you stand. Every bow paid that identically.
+This one pays **half**.
+
+```
+sigil-bow   hit 2 · every 2 · reach 5 · acc 0 · ranged · thrift
+```
+
+Identical to the horn-bow it was made from. Imbuing does not make a bow hit
+harder; it makes it thrifty. So it is the third *feel* in the line rather
+than a fourth set of numbers: the bow you carry when you are going somewhere
+you cannot restock, which in the Wilds is the difference between a trip and a
+raid.
+
+The sparing alternates per **draw**, not per tick — a bow with `every: 2`
+only ever looses on ticks of one parity, so a tick test either spares every
+arrow or none.
+
+### Making them, and being allowed to
+
+```
+                 recipe                         smith         wield
+bronze-flail     ore 2 · logs 1                 smithing 8    attack 10
+crossbow         ore 2 · logs 2                 smithing 18   ranged 25
+star-flail       magic-stone 3 · ore 2 · logs 1 smithing 26   attack 25
+                                                magic 14
+sigil-bow        horn-bow 1 · sigil 3           smithing 12   ranged 30
+                                                magic 25      magic 20
+```
+
+Which puts the ranged line behind a smithing bench for the first time, and
+the sigil-bow behind a magician.
+
+**All four shipped with no requirement at all** in their first draft — a
+starmetal flail was wieldable at level one while a star-maul asked for attack
+25, and a crossbow with `acc +32` was free to anybody. Adding a weapon means
+adding two gates, and forgetting them is silent.
+
+### A note on reach and safety
+
+A spear reaches two, and a beast retaliates against a spear at two tiles as
+hard as at one — the retaliation is gated on whether a **bow** is drawn, not
+on distance. Measured: 76 dealt and 92 taken at reach 2. There is no safe
+melee training, and there never was.
+
+A **bow** beyond adjacent takes nothing, which is the archer's bargain and
+paid for in arrows.
+
+## 6z. The shore-crab
+
+Eastmere had **nothing alive within forty-five tiles** — the emptiest named
+place on the island, and a port, which is where people arrive.
+
+```
+shore-crab  maxHp 45 · atk 8 · def 14 · maxHit 2 · every 3 · respawn 90
+            drops: crab-shell, and sometimes a raw fish
+```
+
+A crab rather than anything more exotic because Eastmere is a cold harbour on
+downland, and an animal should belong to its place rather than be imported
+into it.
+
+What it is FOR is **training**: a great deal of shell and very little malice.
+It hits for two, every three ticks, and takes a long time to open — the shape
+of a good hour's work and a poor threat. Measured with a bronze sword:
+
+| level | ticks | hp lost | attack xp |
+|---|---|---|---|
+| 1 | 18 | 10 — **dies** | 8 |
+| 20 | 39 | 4 | 192 |
+| 50 | 21 | 2 | 200 |
+
+It will kill a beginner, and that is correct: forty-five points of shell is
+not a first fight, and goblins are five. **Mobs are passive** — a citizen can
+stand beside a crab for eighty ticks and take nothing — so nobody is killed
+by one who did not choose to open it.
+
+They are placed **on the shore only**, thickest near the town and thinning
+along the coast. A crab inland is a crab somebody carried.
 
 ## 9g. Two additions to the vocabulary
 

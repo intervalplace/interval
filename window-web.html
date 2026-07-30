@@ -471,6 +471,90 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(255,160,50,' + (0.6 + 0.4 * glow) + ')'
       g.beginPath(); g.arc(17, 16, 1.8 + glow * 0.8, 0, 7); g.fill()
       break }
+    case 'bronze-flail': case 'star-flail': {
+      // a head on a CHAIN, and the chain is the whole point: it goes round
+      // the plate rather than through it
+      const st2 = item === 'star-flail'
+      const haft = st2 ? '#5a4f6b' : '#6b5330'
+      const iron = st2 ? '#b9a9d6' : '#8a8078'
+      g.fillStyle = haft; g.fillRect(11, 14, 3.4, 17)          // the haft
+      g.fillStyle = st2 ? '#7d6f96' : '#8a6d3e'; g.fillRect(11, 27, 3.4, 4)
+      g.strokeStyle = iron; g.lineWidth = 1.4                   // three links
+      for (let k = 0; k < 3; k++) {
+        g.beginPath(); g.arc(15 + k * 3.2, 12 - k * 1.6, 1.7, 0, 7); g.stroke()
+      }
+      g.fillStyle = iron                                        // the head
+      g.beginPath(); g.arc(24, 8, 5.2, 0, 7); g.fill()
+      g.strokeStyle = st2 ? '#4a3f5b' : '#4a453e'; g.lineWidth = 1; g.stroke()
+      g.fillStyle = st2 ? '#d8ccf0' : '#a8a09a'                  // the spikes
+      for (let k = 0; k < 6; k++) {
+        const a2 = k / 6 * Math.PI * 2
+        pl([[24 + Math.cos(a2) * 5, 8 + Math.sin(a2) * 5],
+            [24 + Math.cos(a2) * 8.4, 8 + Math.sin(a2) * 8.4],
+            [24 + Math.cos(a2 + 0.34) * 5, 8 + Math.sin(a2 + 0.34) * 5]],
+           st2 ? '#d8ccf0' : '#a8a09a')
+      }
+      if (st2) {
+        g.fillStyle = 'rgba(190,170,240,.30)'
+        g.beginPath(); g.arc(24, 8, 11, 0, 7); g.fill()
+      }
+      break }
+    case 'crossbow': {
+      // a steel prod across a wooden stock, and a string already cranked
+      g.fillStyle = '#6b5330'                                   // the stock
+      pl([[6, 20], [24, 20], [26, 24], [8, 24]], '#6b5330')
+      g.fillStyle = '#54421f'; g.fillRect(6, 20, 18, 1.6)
+      g.fillStyle = '#4a3620'                                   // the tiller
+      pl([[20, 24], [26, 24], [27, 30], [22, 30]], '#4a3620')
+      g.strokeStyle = '#8a8078'; g.lineWidth = 2.8              // the prod
+      g.beginPath()
+      g.moveTo(9, 8); g.quadraticCurveTo(15, 13, 21, 8); g.stroke()
+      g.strokeStyle = '#c9c1b6'; g.lineWidth = 1.1              // the string, cranked
+      g.beginPath(); g.moveTo(9, 8); g.lineTo(15, 19); g.lineTo(21, 8); g.stroke()
+      g.fillStyle = '#a8916a'                                   // a bolt on the rail
+      pl([[15, 12], [15.8, 12], [15.8, 19], [15, 19]], '#a8916a')
+      pl([[14.2, 12], [16.6, 12], [15.4, 9]], '#8a8078')        // its head
+      g.fillStyle = '#3a2c1e'                                   // the trigger
+      g.fillRect(21, 24, 1.6, 3.4)
+      break }
+    case 'sigil-bow': {
+      // a horn-bow with three sigils bound into the limbs. The bow is the
+      // same bow -- what changed is that it does not eat.
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 900)
+      g.strokeStyle = '#6b5330'; g.lineWidth = 3                 // the horn limbs
+      g.beginPath()
+      g.moveTo(12, 3); g.quadraticCurveTo(24, 16, 12, 29); g.stroke()
+      g.strokeStyle = '#8a6d3e'; g.lineWidth = 1.2
+      g.beginPath()
+      g.moveTo(12, 3); g.quadraticCurveTo(24, 16, 12, 29); g.stroke()
+      g.strokeStyle = '#c9c1b6'; g.lineWidth = 1                 // the string
+      g.beginPath(); g.moveTo(12, 3); g.lineTo(12, 29); g.stroke()
+      // THREE SIGILS, bound along the belly of the bow and lit
+      for (let k = 0; k < 3; k++) {
+        const sy = 9 + k * 7
+        const a2 = 0.35 + 0.35 * Math.sin(Date.now() / 700 + k * 2.1)
+        g.fillStyle = 'rgba(150,190,240,' + (0.20 + 0.20 * a2) + ')'
+        g.beginPath(); g.arc(18, sy, 4.6, 0, 7); g.fill()
+        g.strokeStyle = 'rgba(210,230,255,' + (0.55 + 0.35 * a2) + ')'; g.lineWidth = 1.1
+        g.beginPath()                                             // a three-stroke mark
+        g.moveTo(16, sy - 2); g.lineTo(20, sy - 2)
+        g.moveTo(18, sy - 2); g.lineTo(18, sy + 2.4)
+        g.moveTo(16.4, sy + 2.4); g.lineTo(19.6, sy + 2.4); g.stroke()
+      }
+      g.fillStyle = 'rgba(150,190,240,' + (0.06 + 0.06 * pulse) + ')'
+      g.beginPath(); g.arc(16, 16, 14, 0, 7); g.fill()
+      break }
+    case 'crab-shell': {
+      g.fillStyle = '#a34a2c'
+      g.beginPath(); g.ellipse(16, 18, 11, 7.5, 0, 0, 7); g.fill()
+      g.strokeStyle = '#5e2415'; g.lineWidth = 1.2; g.stroke()
+      g.fillStyle = '#c46340'
+      g.beginPath(); g.ellipse(16, 15, 8, 4.4, 0, 0, 7); g.fill()
+      g.fillStyle = 'rgba(94,36,21,.4)'
+      for (const px2 of [-5, 0, 5]) g.fillRect(16 + px2 - 0.6, 12, 1.2, 10)
+      g.fillStyle = 'rgba(255,220,200,.18)'
+      g.beginPath(); g.ellipse(13, 13, 3.4, 1.8, -0.5, 0, 7); g.fill()
+      break }
     case 'old-chain': {
       g.strokeStyle = '#8a8a82'; g.lineWidth = 2
       for (let li = 0; li < 5; li++) {
@@ -515,7 +599,8 @@ const EQUIPPABLE = new Set([
   'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
   'star-sword', 'star-dagger', 'star-spear', 'star-maul',
   'star-helm', 'star-plate',
-  'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
+  'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'old-chain', 'dragonbow',
+  'bronze-flail', 'star-flail',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -4828,6 +4913,53 @@ function drawScene(now) {
         cx.fillStyle = 'rgba(226,182,62,.9)'
         cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
         cx.fillText('THE DRAGON', X + 20, Y - 37); cx.textAlign = 'left'
+        return
+      }
+      if (m.type === 'shore-crab') {
+        // wide, low and armoured: it should read as a thing you have to open
+        // rather than a thing you have to survive
+        const sway = Math.sin(now / 700 + m.x) * 1.4
+        const claw = Math.sin(now / 420 + m.y) * 2.2
+        shadow(X, Y, 13)
+        for (const side of [-1, 1]) {                       // legs, four a side
+          cx.strokeStyle = '#7a3b2a'; cx.lineWidth = 1.8; cx.lineCap = 'round'
+          for (let k = 0; k < 4; k++) {
+            const ly = Y + 19 + k * 3
+            cx.beginPath(); cx.moveTo(X + 20 + side * 7, ly)
+            cx.quadraticCurveTo(X + 20 + side * (13 + k), ly + 2, X + 20 + side * (15 + k * 0.6), ly + 6)
+            cx.stroke()
+          }
+          cx.lineCap = 'butt'
+        }
+        // the shell
+        cx.fillStyle = '#a34a2c'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 20 + sway * 0.4, 13, 9, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#5e2415'; cx.lineWidth = 1.4; cx.stroke()
+        cx.fillStyle = '#c46340'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 17 + sway * 0.4, 10, 5.4, 0, 0, 7); cx.fill()
+        cx.fillStyle = 'rgba(94,36,21,.35)'                  // plates
+        for (const px2 of [-6, 0, 6]) cx.fillRect(X + 20 + px2 - 0.7, Y + 14, 1.4, 12)
+        // eyes on stalks
+        for (const ex of [-4, 4]) {
+          cx.strokeStyle = '#7a3b2a'; cx.lineWidth = 1.4
+          cx.beginPath(); cx.moveTo(X + 20 + ex, Y + 14); cx.lineTo(X + 20 + ex, Y + 9 + sway); cx.stroke()
+          cx.fillStyle = '#1a0f0a'
+          cx.beginPath(); cx.arc(X + 20 + ex, Y + 8 + sway, 1.8, 0, 7); cx.fill()
+        }
+        // the claws, opening and closing
+        for (const side of [-1, 1]) {
+          const cxp = X + 20 + side * 15, cyp = Y + 15
+          cx.fillStyle = '#b3542f'
+          poly([[cxp, cyp], [cxp + side * 7, cyp - 3 - claw * side], [cxp + side * 8, cyp + 1],
+                [cxp + side * 6, cyp + 4]], '#b3542f', '#5e2415')
+          cx.fillStyle = '#8e3d22'
+          poly([[cxp + side * 3, cyp + 1], [cxp + side * 8, cyp + 1],
+                [cxp + side * 7, cyp + 4 + claw * side * 0.4]], '#8e3d22')
+          cx.strokeStyle = '#7a3b2a'; cx.lineWidth = 2
+          cx.beginPath(); cx.moveTo(X + 20 + side * 9, Y + 18); cx.lineTo(cxp, cyp + 1); cx.stroke()
+        }
+        cx.fillStyle = '#4a1008'; cx.fillRect(X + 8, Y + 2, 24, 3)
+        cx.fillStyle = '#c0392b'; cx.fillRect(X + 8, Y + 2, 24 * Math.max(0, m.hp / 45), 3)
         return
       }
       if (m.type === 'troll') {

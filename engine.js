@@ -303,6 +303,15 @@ const WIELD_REQS = {
   'star-sword': { attack: 20 }, 'star-dagger': { attack: 20 }, 'old-chain': { attack: 30 },
   'star-spear': { attack: 20 }, 'star-maul': { attack: 25 }, 'horn-bow': { ranged: 20 },
   'dragonbow': { ranged: 40 },   // it will not be drawn by a beginner
+  // §6x: these shipped with NO requirement at all, which made a starmetal
+  // flail wieldable at level one while a star-maul asked for attack 25. A
+  // crossbow is heavy to hold level and heavier to crank; a flail on a chain
+  // is the least forgiving thing in the world to swing at anything.
+  'crossbow': { ranged: 25 },
+  'bronze-flail': { attack: 10 }, 'star-flail': { attack: 25 },
+  // §6y: sigils bound to the limbs. The draw is half the arrows, and half of
+  // nothing is still nothing, so it asks a real bow-arm first.
+  'sigil-bow': { ranged: 30, magic: 20 },
   'star-helm': { defence: 15 }, 'star-plate': { defence: 30 },
 };
 const STORE_SELLS = { seeds: 15 }; // the keeper's OWN goods, made from nothing
@@ -369,6 +378,54 @@ const WEAPONS = {
   'star-spear':    { hit: 3, every: 2, reach: 2, acc: 0 },
   'star-maul':     { hit: 7, every: 3, reach: 1, acc: -24 },
   'old-chain':     { hit: 1, every: 1, reach: 1, acc: 0 },
+  // THE FLAIL (spec 6x): it goes ROUND the armour, not through it.
+  //
+  // Armour turns aside one point a piece, two for starmetal, and in a fight
+  // between citizens that subtraction can floor a blow at nothing: a full
+  // suit of star soaks four, and a sword that rolls low does literally no
+  // harm. Which is correct, and it left the Wilds with one answer to a
+  // star-clad citizen -- hit them more times than their armour can absorb.
+  //
+  // A flail has a head on a chain. It does not meet the plate square, it
+  // comes round the edge of it, and `pierces` says so: SOAK does not apply.
+  // The price is that it is a poor weapon against anything unarmoured, which
+  // is most of the world -- its base damage is the lowest of any steel.
+  //
+  // So it is not an upgrade, it is an ANSWER, and only to one thing.
+  'bronze-flail':  { hit: 1, every: 2, reach: 1, acc: -12, pierces: true },
+  'star-flail':    { hit: 3, every: 2, reach: 1, acc: -12, pierces: true },
+  // THE CROSSBOW (spec 6x): the maul of the ranged line.
+  //
+  // Ranged had one feel repeated three times -- wooden, horn and dragon all
+  // loose every two ticks and differ only in how far and how hard. Melee has
+  // four feels: a dagger lands often for little, a maul seldom for a lot, a
+  // spear keeps its distance, a sword asks no questions. Ranged deserved the
+  // same choice.
+  //
+  // A crossbow is slow to crank and it does not miss: every three ticks,
+  // heavy, and the most accurate thing in the world. It reaches less far
+  // than a horn-bow, because a bow's arc is a bow's arc.
+  'crossbow':      { hit: 5, every: 3, reach: 4, acc: 32, ranged: true },
+  // THE SIGIL-BOW (spec 6y): the bow that does not eat.
+  //
+  // Arrows are the whole cost of shooting -- one per draw, hit or miss -- and
+  // running out ends the action where you stand. That is ranged's only real
+  // price, and every bow so far paid it identically. This one pays HALF.
+  //
+  // Which makes it the third feel in the line rather than a fourth set of
+  // numbers: a horn-bow is balanced, a crossbow is slow and heavy, and this
+  // is the one you carry when you are going somewhere you cannot restock. In
+  // the Wilds that is the difference between a trip and a raid.
+  //
+  // Its damage sits between horn and dragon, and deliberately no higher: it
+  // buys ENDURANCE, not force.
+  // Identical to the horn-bow it was made from -- hit, speed, reach, accuracy
+  // all the same -- and it spends half the arrows. Imbuing does not make a bow
+  // hit harder; it makes it thrifty. The first numbers here were hit 3, reach
+  // 6, acc +8, which made it strictly better than the bow it consumed: more
+  // damage, further, more accurate AND cheaper to feed. That is not a choice,
+  // it is just the next tier, and the ranged line already had three of those.
+  'sigil-bow':     { hit: 2, every: 2, reach: 5, acc: 0, ranged: true, thrift: true },
   'wooden-bow':    { hit: 0, every: 2, reach: 4, acc: 0, ranged: true },
   'horn-bow':      { hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
   // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
@@ -416,6 +473,19 @@ const MOB_STATS = {
   // Seldom alone, they muster in warbands in and around the Wilds. The round
   // shield makes them hard to strike (high def); the longsword bites back. And
   // their bones are rich: a fallen knight gives up twice what a lesser thing does.
+  // THE SHORE-CRAB (spec 6z). Eastmere had NOTHING living within forty-five
+  // tiles of it -- the emptiest named place on the island, and a port, which
+  // is where people actually arrive.
+  //
+  // A crab rather than anything more exotic because Eastmere is a cold
+  // harbour on downland, and the animal should belong to the place rather
+  // than be imported into it. What it is FOR is training: a great deal of
+  // shell and very little malice. It hits for two and it takes a long time
+  // to open, which is the shape of a good hour's work and a poor threat.
+  //
+  // It gives up its shell, and a shell is worth something to a smith.
+  'shore-crab': { maxHp: 45, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90,
+                  drops: [{ item: 'crab-shell' }, { item: 'raw-fish', chance: 8192 }] },
   // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
   // Wilds -- a thing that is there, like the Barrow and the Ring.
   //
@@ -425,9 +495,10 @@ const MOB_STATS = {
   // a big slow swing does not. One citizen cannot outlast it. Several can,
   // and several in the Wilds is its own problem.
   //
-  // It is IMMUNE TO RANGED: scales turn arrows. Which means the bow made
-  // from the dragon cannot kill the dragon, and whoever wants it must come
-  // with steel and company.
+  // It can only be struck FROM A TILE BESIDE IT. Scales turn arrows, and a
+  // spear thrust from two tiles finds nothing either. Which means the bow
+  // made from the dragon cannot kill the dragon, and whoever wants it must
+  // come with steel and company and stand where it can reach them.
   // atk 115 is the whole design. Every other beast here is atk 1-5, and the
   // accuracy rule is Tm = clamp(128 + 4*(atk - defence), 16, 240): against a
   // citizen at defence 99 an atk-5 wolf is clamped to sixteen in two hundred
@@ -445,7 +516,7 @@ const MOB_STATS = {
   //
   // Which is the thing asked for: you cannot do this alone, and the people
   // you bring are in the Wilds with you.
-  dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 1, rangedImmune: true,
+  dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 1, meleeOnly: true,
             respawn: 36000,          // six hours: killing it is an event, not a round
             drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'ore' }] },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120,
@@ -457,7 +528,7 @@ const MOB_STATS = {
 const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
 const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
-  'star-spear': 100, 'star-maul': 160, 'horn-bow': 90,
+  'star-spear': 100, 'star-maul': 160, 'horn-bow': 90, 'crab-shell': 12,
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -495,6 +566,10 @@ const RECIPES = {
   'bronze-dagger': { ore: 1 },
   'bronze-spear': { ore: 1, logs: 1 },
   'bronze-maul': { ore: 2, logs: 1 },
+  'bronze-flail': { ore: 2, logs: 1 },          // a head, a chain, a haft
+  'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
+  'crossbow': { ore: 2, logs: 2 },              // a steel prod and a wooden stock
+  'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 },
   'bronze-sword':   { ore: 2, logs: 1 },
@@ -517,6 +592,8 @@ const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
   'bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   'dragonbow',   // §6w: there is one. No keeper prices it, so it is never bought.
+  'crab-shell',  // §6z: what a shore-crab gives up
+  'sigil-bow',
   ...Object.keys(RECIPES),
 ]);
 const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body' }; // default: weapon
@@ -524,7 +601,15 @@ const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm':
 const SMITH_REQS = { 'star-sword': { smithing: 20, magic: 10 },
   'star-helm': { smithing: 15, magic: 5 }, 'star-plate': { smithing: 30, magic: 15 },
   'star-dagger': { smithing: 20, magic: 15 },
-  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 } };
+  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
+  // §6x: a crossbow is a steel prod under tension and a lock that must not
+  // slip. The flail is easier iron and harder geometry.
+  'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
+  'star-flail': { smithing: 26, magic: 14 },
+  // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
+  // works and three sigils, and you bind them to the limbs, which is why the
+  // magic asked for is higher than the smithing.
+  'sigil-bow': { smithing: 12, magic: 25 } };
 const SOAK = (item) => item?.startsWith('star-') ? 2 : 1; // starmetal turns aside more
 const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
 const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
@@ -854,16 +939,6 @@ function generateIdentity() {
 const SIG_DOMAINS = {
   input: 'INTERVAL_INPUT_V1|',
   chat:  'INTERVAL_CHAT_V1|',
-  // A photograph is not a deed and never enters the state machine. The
-  // domain is reserved here anyway, beside the others, so that no window
-  // can ever mint a signature that replays as one. Windows sign plates;
-  // the engine only ever reads them back.
-  photo: 'INTERVAL_PHOTO_V1|',
-  // A clip names a RANGE of ticks and a camera. It carries no pixels and
-  // needs none: the world is deterministic, so naming the world, the range
-  // and the eye names the footage exactly, and unlike a video file it
-  // cannot be edited without ceasing to verify.
-  clip:  'INTERVAL_CLIP_V1|',
 };
 
 // The signed payload is the domain prefix + canonical input without its sig field.
@@ -2071,11 +2146,22 @@ function validInput(state, input, ctx) {
       const m = state.mobs[input.mobId];
       if (m && (m.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot be struck (v0.80)
       if (!m || m.hp <= 0) return false;
+      // §6w: SCALES TURN ARROWS -- and this has to be asked FIRST.
+      //
+      // It used to sit after `if (inReach(p, m)) return true`, and inReach
+      // measures the WEAPON's reach: a dragonbow reaches nine, so an archer
+      // nine tiles out was already "in reach", returned true, and never met
+      // the immunity at all. The one creature that arrows cannot touch could
+      // be shot to death from outside its own stride.
+      // §6w: it can only be struck from a tile beside it, by anything.
+      //
+      // This read `&& drawnAt(p, m)`, which asks whether a BOW is drawn --
+      // so a spear at reach 2 could still touch it. A spear is no exploit in
+      // general (the beast retaliates at two tiles as hard as at one, tested)
+      // but a dragon that can be poked from outside its own stride is not
+      // what 'come with steel and company' means. Adjacent, or nothing.
+      if (MOB_STATS[m.type]?.meleeOnly && !adjacent(p, m)) return false;
       if (inReach(p, m)) return true;
-      // §6w: SCALES TURN ARROWS. A drawn bow does nothing to the dragon at
-      // all -- which is the only reason a citizen must ever close with it,
-      // and the reason the bow made from it cannot be turned on it.
-      if (MOB_STATS[m.type]?.rangedImmune) return false;
       // ranged (spec 6j): a drawn bow and a carried arrow reach further
       const cheb = Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y));
       return cheb <= reachOf(p) && isRanged(p)
@@ -3285,8 +3371,16 @@ function nextState(state, inputs, _legacyBeacon) {
         if (bowDrawn2) {
           const aSlot = p.inventory.findIndex(sl => sl?.item === 'arrows');
           if (aSlot === -1) { p.action = null; continue; }
-          p.inventory[aSlot].qty -= 1;
-          if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
+          // alternate per DRAW, not per tick. `s.tick % 2` was in lockstep with the
+        // bow's own `every: 2` cadence -- it only ever loosed on ticks of one
+        // parity, so the test either always spared the arrow or never did. It
+        // spent NOTHING over a hundred ticks of shooting. The swing ordinal is
+        // what alternates.
+        if (!(weaponOf(p)?.thrift === true
+              && Math.floor(s.tick / (weaponOf(p)?.every ?? 2)) % 2 === 1)) {   // §6y
+            p.inventory[aSlot].qty -= 1;
+            if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
+          }
           lvl2 = effLevel(p.skills.ranged); tag2 = 'ranged';
         } else { lvl2 = effLevel(p.skills.attack); tag2 = 'attack'; }
         const defL = effLevel(q.skills.defence);
@@ -3294,7 +3388,21 @@ function nextState(state, inputs, _legacyBeacon) {
         if (roll(beacon, pid, 'atk') < Tp) {
           const maxHit = 1 + Math.floor(lvl2 / (bowDrawn2 ? 12 : 10))
             + (weaponOf(p)?.hit ?? 0);
-          const soak = (q.equipment.head ? SOAK(q.equipment.head.item) : 0) + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
+          // §6x: A FLAIL GOES ROUND THE PLATE, not through it.
+          //
+          // A full suit of starmetal soaks four, and against `max(0, ...)`
+          // that can floor a blow at nothing at all -- which left one answer
+          // to a star-clad citizen in the Wilds: land more blows than the
+          // armour can absorb. The flail is the other answer, and the only
+          // weapon in the world that ignores this subtraction.
+          //
+          // It pays for it everywhere else: its base damage is the lowest of
+          // any steel, so against an unarmoured citizen it is simply worse.
+          // An answer to one thing, not an upgrade to everything.
+          const pierces = weaponOf(p)?.pierces === true;
+          const soak = pierces ? 0
+            : (q.equipment.head ? SOAK(q.equipment.head.item) : 0)
+            + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
           const dmg = Math.max(0, 1 + (roll(beacon, pid, 'dmg') % maxHit) - soak);
           q.hp -= dmg;
           p.skills[tag2] += 4 * dmg;
@@ -3333,19 +3441,53 @@ function nextState(state, inputs, _legacyBeacon) {
       const bowHeld = isRanged(p)
         && Math.max(Math.abs(p.x - m.x), Math.abs(p.y - m.y)) <= reachOf(p);
       if (!inReach(p, m) && !bowHeld) { p.action = null; continue; }
-      // every weapon keeps its own rhythm (6m, 6r): a maul is slow, a chain
-      // never rests, everything else breathes
+      // THE BEAST KEEPS ITS OWN TIME (spec 6b.4).
+      //
+      // Two faults lived in these four lines.
+      //
+      // The `continue` skipped the WHOLE block when the citizen's arm was not
+      // ready -- including the retaliation at the bottom. So the beast only
+      // swung on ticks the citizen also swung, and a slow weapon made you
+      // HARDER TO HIT: pick up a maul (every 3) and a troll attacked a third
+      // less often than it would have if you were barehanded. Defence by
+      // choosing a heavy weapon, which is not a rule anybody wrote.
+      //
+      // And `% 2` was hardcoded, so `every: 1` on the dragon did nothing at
+      // all. It struck on alternate ticks like a goblin, which is most of why
+      // the fight was survivable by one.
+      //
+      // The citizen's arm and the beast's are now separate clocks. The beast
+      // swings on its own cadence whether or not you are ready to swing back.
+      const mobEvery = stats?.every ?? 2;
+      const mobTurn = (s.tick - (p.action.since ?? 0)) % mobEvery === 0;
       const every = weaponOf(p)?.every ?? 2;
-      if (s.tick - (p.lastSwing ?? -64) < every) continue; // 2b-iii: one arm, one speed
-      const mobTurn = (s.tick - (p.action.since ?? 0)) % 2 === 0; // the defender keeps the old rhythm
-      p.lastSwing = s.tick; // the arm is spent, whoever it was spent on
+      const armReady = s.tick - (p.lastSwing ?? -64) >= every;
+      if (armReady) p.lastSwing = s.tick; // the arm is spent, whoever it was spent on
 
       const bowDrawn = drawnAt(p, m);
+      // the citizen only strikes when their own arm has recovered. This was
+      // a `continue` above, which also skipped the beast's turn -- see the
+      // note there.
+      if (armReady) {
       if (bowDrawn) { // ranged (spec 6j): every draw costs an arrow, hit or miss
+        // §6y: THE SIGIL-BOW SPENDS HALF THE ARROWS.
+        //
+        // A quiver must still be in the pack -- you cannot shoot from an
+        // empty one -- but on alternate draws nothing leaves it. The tick
+        // decides which, not the citizen, so it cannot be timed: the Reading
+        // Rule reaches arrows too.
         const aSlot = p.inventory.findIndex(sl => sl?.item === 'arrows');
         if (aSlot === -1) { p.action = null; continue; }
-        p.inventory[aSlot].qty -= 1;
-        if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
+        // alternate per DRAW, not per tick. `s.tick % 2` was in lockstep with the
+        // bow's own `every: 2` cadence -- it only ever loosed on ticks of one
+        // parity, so the test either always spared the arrow or never did. It
+        // spent NOTHING over a hundred ticks of shooting. The swing ordinal is
+        // what alternates.
+        if (!(weaponOf(p)?.thrift === true
+              && Math.floor(s.tick / (weaponOf(p)?.every ?? 2)) % 2 === 1)) {
+          p.inventory[aSlot].qty -= 1;
+          if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
+        }
         const rLvl = effLevel(p.skills.ranged);
         const Tr = clamp(128 + 4 * (rLvl - stats.def) + (weaponOf(p)?.acc ?? 0), 16, 240);
         if (roll(beacon, pid, 'atk') < Tr) {
@@ -3372,6 +3514,7 @@ function nextState(state, inputs, _legacyBeacon) {
         }
       }
       }
+      }   // armReady
 
       if (m.hp <= 0) {
         if (m.type === 'skeleton-knight' && claimFirst(s, 'knightslayer', pid))
