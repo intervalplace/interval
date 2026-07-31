@@ -2652,6 +2652,96 @@ export function buildWorld(genesis) {
     counts.crabs = cr
   }
 
+  // ---- THE SIREN ON THE STRAND ----
+  //
+  // A long shore, far from anywhere, where a citizen arrives alone because
+  // the walk itself is long. She is common rather than rare -- a solo fight
+  // gates ONE person per spawn where a party fight serves three or four, so
+  // six hours would mean four citizens a day could ever attempt her. Twenty
+  // minutes, and anybody who goes finds her.
+  {
+    let seat = null, bestScore = -1
+    const towns = settlementsOf(g)
+    for (let y = 6; y < H - 6; y += 3) for (let x = 6; x < W - 6; x += 3) {
+      if (blockedAt(g, x, y) || isWater(g, x, y) || !free(x, y)) continue
+      if (biomeAt(g, x, y) === 'wilds') continue          // she is not a Wilds thing
+      // it must be SHORE: sand under foot and the sea within three
+      if (groundKindAt(g, x, y) !== 'sand') continue
+      let sea = false
+      for (let dy = -3; dy <= 3 && !sea; dy++) for (let dx = -3; dx <= 3; dx++)
+        if (inSea(g, x + dx, y + dy)) { sea = true; break }
+      if (!sea) continue
+      let near = 1e9
+      for (const t of towns) { const d = Math.hypot(t.x - x, t.y - y); if (d < near) near = d }
+      if (near > bestScore) { bestScore = near; seat = { x, y } }
+    }
+    if (seat) {
+      E.addMob(w, 'the-siren', 'siren', seat.x, seat.y)
+      taken.add(key(seat.x, seat.y))
+      const sy = seat.y + 2
+      if (free(seat.x, sy) && !blockedAt(g, seat.x, sy) && !isWater(g, seat.x, sy)) {
+        taken.add(key(seat.x, sy))
+        put('siren-sign', 'signpost', seat.x, sy, { text: 'the strand sings \u00b7 she takes one at a time' })
+      }
+      counts.siren = Math.round(bestScore)
+    }
+  }
+
+  // ---- THE SPIDER, AND ITS WEB ----
+  //
+  // The far north of the Greenwood, which measured out as the furthest
+  // walkable ground from any town outside the Wilds: two hundred and fifteen
+  // tiles from help, against the dragon's hundred and sixty-six. A longer
+  // journey than the dragon's and a different KIND of journey -- long, but
+  // not lawless. The Greenwood's far end had no reason to be visited at all.
+  //
+  // The web is built as landmarks, because it should be a place you arrive at
+  // rather than a monster standing in a clearing. You see the wood change
+  // before you see what changed it.
+  {
+    let seat = null, bestD = -1
+    const towns = settlementsOf(g)
+    for (let y = 8; y < H - 8; y += 4) for (let x = 8; x < W - 8; x += 4) {
+      if (biomeAt(g, x, y) !== 'greenwood') continue
+      if (blockedAt(g, x, y) || isWater(g, x, y) || !free(x, y)) continue
+      let near = 1e9
+      for (const t of towns) { const d = Math.hypot(t.x - x, t.y - y); if (d < near) near = d }
+      if (near > bestD) { bestD = near; seat = { x, y } }
+    }
+    if (seat) {
+      E.addMob(w, 'the-spider', 'great-spider', seat.x, seat.y)
+      taken.add(key(seat.x, seat.y))
+      // the web: thick at the middle, thinning outward, on the trees
+      let strands = 0
+      for (let i = 0; i < 260 && strands < A(30); i++) {
+        const hh = H32('spiderweb', i)
+        const rad = 2 + (hh[0] % 11)
+        const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
+        const x = Math.round(seat.x + Math.cos(ang) * rad)
+        const y = Math.round(seat.y + Math.sin(ang) * rad * 0.8)
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        taken.add(key(x, y)); put('web-' + i, 'landmark', x, y, { kind: 'web' }); strands++
+      }
+      // and the things caught in it, which is how you know what this is
+      let husks = 0
+      for (let i = 0; i < 90 && husks < A(6); i++) {
+        const hh = H32('spiderhusk', i)
+        const rad = 3 + (hh[0] % 8)
+        const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
+        const x = Math.round(seat.x + Math.cos(ang) * rad)
+        const y = Math.round(seat.y + Math.sin(ang) * rad * 0.8)
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        taken.add(key(x, y)); put('husk-' + i, 'landmark', x, y, { kind: 'bone-pile' }); husks++
+      }
+      const sx = seat.x, sy = seat.y + 12
+      if (free(sx, sy) && !blockedAt(g, sx, sy) && !isWater(g, sx, sy)) {
+        taken.add(key(sx, sy))
+        put('spider-sign', 'signpost', sx, sy, { text: 'the wood ends here \u00b7 go back or go together' })
+      }
+      counts.spiderWeb = strands
+    }
+  }
+
   // ---- THE DRAGON ----
   //
   // One. Not a kind of thing that spawns in the Wilds -- a thing that is
