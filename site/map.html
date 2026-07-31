@@ -1123,7 +1123,7 @@ const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   // the thirteen added when the world stopped repeating itself: four that
   // were always here wearing 'standing-stone' because nothing else had a
   // name, and nine new places
-  'skep','cairn','boundary-stone','skull-pile',
+  'skep','cairn','boundary-stone','skull-pile','web',
   'scorched-ring','glass-stone','burnt-tree',
   'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
 const _rampCache = new Map()
@@ -1302,6 +1302,9 @@ function localeAt4(x, y) {
   }
   return best ?? (COUNTRY_NAMES4[biomeAtE4(x, y)] ?? null)
 }
+
+
+
 
 
 
