@@ -689,7 +689,11 @@ const huntsMe = (m, myId, cx2, cy2) => {
   if (!st.aggro || !HUNTING_COUNTRY.has(biomeAtE4(m.x, m.y))) return false
   return Math.max(Math.abs(m.x - cx2), Math.abs(m.y - cy2)) <= st.aggro
 }
+const poly9 = (cx, pts) => { cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
+  for (const q of pts.slice(1)) cx.lineTo(q[0], q[1]); cx.closePath(); cx.fill() }
 const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
+// anything a citizen draws rather than swings (engine WEAPONS `ranged: true`)
+const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'dragonbow'])
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
@@ -3553,6 +3557,63 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.7, 0, 1.4, 6)
       cx.fillStyle = '#dffaff'; cx.fillRect(-0.35, 0, 0.7, 6)
       cx.fillStyle = '#3a5a6a'; cx.fillRect(-2, -1, 4, 1.4)
+    } else if (o.wepItem === 'bronze-dagger') {
+      cx.fillStyle = '#c9862a'; cx.fillRect(-0.7, 0, 1.4, 5.5)
+      cx.fillStyle = '#5c4023'; cx.fillRect(-1.8, -1, 3.6, 1.4)
+    } else if (o.wepItem === 'star-sword') {
+      cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.9, 0, 1.8, 9)
+      cx.fillStyle = '#dffaff'; cx.fillRect(-0.4, 0, 0.8, 9)
+      cx.fillStyle = '#3a5a6a'; cx.fillRect(-2.4, -1, 4.8, 1.6)
+    } else if (o.wepItem === 'bronze-spear' || o.wepItem === 'star-spear') {
+      // a long haft carried upright: it is taller than the citizen
+      const star9 = o.wepItem === 'star-spear'
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
+      cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
+      poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
+    } else if (o.wepItem === 'bronze-maul' || o.wepItem === 'star-maul') {
+      // a heavy head on a short haft. It should look like it weighs something.
+      const star9 = o.wepItem === 'star-maul'
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
+      cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
+      cx.fillRect(-3.2, -6, 6.4, 4.6)
+      cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
+      cx.fillRect(-3.2, -6, 6.4, 1.4)
+    } else if (o.wepItem === 'bronze-flail' || o.wepItem === 'star-flail') {
+      // haft, chain, spiked head -- the chain is the point of the thing
+      const star9 = o.wepItem === 'star-flail'
+      cx.fillStyle = star9 ? '#5a4f6b' : '#5c4023'; cx.fillRect(-0.8, 0, 1.6, 9)
+      cx.strokeStyle = star9 ? '#b9a9d6' : '#8a8078'; cx.lineWidth = 0.9
+      cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(F > 0 ? 2.6 : -2.6, -4); cx.stroke()
+      cx.fillStyle = star9 ? '#b9a9d6' : '#8a8078'
+      cx.beginPath(); cx.arc(F > 0 ? 3.4 : -3.4, -5.4, 2.2, 0, 7); cx.fill()
+      cx.fillStyle = star9 ? '#d8ccf0' : '#a8a09a'
+      for (let k = 0; k < 4; k++) { const a9 = k / 4 * Math.PI * 2
+        cx.fillRect((F > 0 ? 3.4 : -3.4) + Math.cos(a9) * 2.4 - 0.4, -5.4 + Math.sin(a9) * 2.4 - 0.4, 0.9, 0.9) }
+    } else if (o.wepItem === 'old-chain') {
+      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.1
+      cx.beginPath(); cx.moveTo(0, 0)
+      cx.quadraticCurveTo(F * 3, 4, 0, 8); cx.stroke()
+      cx.fillStyle = '#6e675c'
+      for (const cy9 of [1.5, 4, 6.5]) { cx.beginPath(); cx.arc(F * 1.2, cy9, 1.1, 0, 7); cx.fill() }
+    } else if (o.wepItem === 'crossbow') {
+      // carried flat across the back: a stock and a prod
+      cx.fillStyle = '#6b5330'; cx.fillRect(-1, -1, 2, 9)
+      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.4
+      cx.beginPath(); cx.moveTo(-4, 1); cx.quadraticCurveTo(0, 3.4, 4, 1); cx.stroke()
+      cx.strokeStyle = '#c9c1b6'; cx.lineWidth = 0.7
+      cx.beginPath(); cx.moveTo(-4, 1); cx.lineTo(0, 5); cx.lineTo(4, 1); cx.stroke()
+    } else if (RANGED_ITEMS.has(o.wepItem)) {
+      // a bow slung: horn brown, sigil blue-lit, dragon bone-pale
+      const dbow = o.wepItem === 'dragonbow', sbow = o.wepItem === 'sigil-bow'
+      cx.strokeStyle = dbow ? '#d8d0b8' : sbow ? '#7a6d4a' : '#6b5330'
+      cx.lineWidth = dbow ? 1.8 : 1.4
+      cx.beginPath(); cx.moveTo(-1, -6); cx.quadraticCurveTo(F * 4.4, 1, -1, 8); cx.stroke()
+      cx.strokeStyle = dbow ? 'rgba(255,190,110,.9)' : '#c9c1b6'; cx.lineWidth = 0.6
+      cx.beginPath(); cx.moveTo(-1, -6); cx.lineTo(-1, 8); cx.stroke()
+      if (dbow) { cx.fillStyle = 'rgba(255,150,50,.5)'
+        cx.beginPath(); cx.arc(0, 1, 4.4, 0, 7); cx.fill() }
+      if (sbow) { cx.fillStyle = 'rgba(150,190,240,.55)'
+        for (const sy9 of [-3, 1, 5]) { cx.beginPath(); cx.arc(F * 1.4, sy9, 1.1, 0, 7); cx.fill() } }
     }
     cx.restore()
   }
@@ -5250,8 +5311,12 @@ function drawScene(now) {
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'star-sword',
       cape: capeOf(p),
-      bow: p.equipment?.weapon?.item === 'wooden-bow',
-      shooting: p.equipment?.weapon?.item === 'wooden-bow' && p.action
+      // EVERY BOW IS A BOW. This read `=== 'wooden-bow'`, so a citizen
+      // holding a horn-bow, a crossbow, a sigil-bow or the dragonbow was
+      // drawn empty-handed and never nocked an arrow. The finest weapon in
+      // the world was invisible on the person carrying it.
+      bow: RANGED_ITEMS.has(p.equipment?.weapon?.item),
+      shooting: RANGED_ITEMS.has(p.equipment?.weapon?.item) && p.action
         && (p.action.type === 'attack' || p.action.type === 'attackp')
         && (() => { const t2 = p.action.mobId ? s.mobs[p.action.mobId] : s.players[p.action.targetId]
           return t2 && Math.abs(p.x - t2.x) + Math.abs(p.y - t2.y) > 1 })(),
