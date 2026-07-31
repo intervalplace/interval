@@ -2479,7 +2479,19 @@ from ten tiles in full star with sixteen broth:
 | three | 7 of 7 |
 
 **Two can take it and two will sometimes fail**, which is a better answer
-than a guaranteed win.
+than a guaranteed win — *on broth*. Re-measured after the deep catch (§6ad)
+existed:
+
+| party | on broth (heals 5) | on cooked deep fish (heals 10) |
+|---|---|---|
+| one | 0 of 5 | 0 of 5 |
+| two | 3 of 5 | **5 of 5** |
+| three | 5 of 5 | 5 of 5 |
+
+The floor holds: one citizen cannot, on any food. What mastery buys is
+**reliability** rather than possibility — fishing 90 and cooking 80 turn a
+marginal pair into a dependable one, and that is a fair thing for mastery to
+buy.
 
 **`atk 115` is the whole design.** Every other beast is atk 1–5, and the
 accuracy rule is `Tm = clamp(128 + 4*(atk − defence), 16, 240)`: against a
@@ -2657,6 +2669,214 @@ melee training, and there never was.
 
 A **bow** beyond adjacent takes nothing, which is the archer's bargain and
 paid for in arrows.
+
+## 6ad. What a master brings back (v0.81)
+
+Four skills had exactly one thing to do, forever: woodcutting one log,
+fishing one fish, cooking one meal, fletching a beginner's bow. At ninety,
+the same tree and the same water give something else — **instead of** the
+ordinary yield, not as well as it.
+
+```
+woodcutting 90+   a tree yields heartwood, not logs
+fishing     90+   a spot yields deep-fish, not raw-fish
+```
+
+Replacement rather than addition costs no new node and no new spot, and it
+leaves the cheap end of both markets to the people who still need it: a
+master can no longer supply ordinary logs or ordinary fish. **Specialisation
+by exclusion**, which is the same shape as each town being *for* something.
+
+Heartwood is worth 9 against a log's 2; a deep fish 11 against 3. A master's
+hour should be worth more than a beginner's.
+
+### A log is a log
+
+`isLog(item)` is asked once, and everything that wanted logs by name now
+wants either kind: kindling a campfire, feeding a watchfire, seven smithing
+recipes, the wooden-bow. Written out at each site that would have been nine
+chances to miss one, **and the one you miss is a skill a master can no longer
+train.**
+
+### The deep catch
+
+```
+deep-fish -> cooked-deep-fish   requires cooking 80, or it burns every time
+HEAL_DEEP_FISH = 10             against a broth's 5
+```
+
+Ten is the largest single bite in the world, and it does not outclass broth,
+because **a fish does not stack and a broth does.** A pack of broth is the
+greater total; a cooked deep fish is the greater mouthful. Burst against
+volume — a choice, not a replacement.
+
+### The heartwood bow
+
+```
+heartwood-bow  hit 4 · every 2 · reach 3 · acc +6
+               3 heartwood · fletching 90 · wield ranged 40
+```
+
+**The only good bow anybody can make.** Every other is found (horn-bow),
+imbued (sigil-bow), forged (crossbow) or unique (dragonbow) — fletching
+topped out at a beginner's stick.
+
+It is not a tier above the horn-bow but a choice against it: more damage,
+**less reach than any bow in the world**. Three puts you inside a goblin's
+senses and a troll's, so you cannot stand beyond their perception and shoot
+freely. You trade the kite for the damage — the archer's weapon for somebody
+who means to be in the fight.
+
+## 6aa-ii. Defence is learned in a fight (v0.81)
+
+A swing that misses teaches four, as it always has. But it teaches **only a
+citizen who has swung at something within the last twenty ticks**.
+
+Aggression broke an assumption nothing had needed to state: before it, a
+beast only swung when you were swinging at it, so *being attacked* and
+*fighting* were the same thing. They are not any more, and a citizen could
+stand in a crowd with their hands in their pockets and earn what a real fight
+earns.
+
+```
+defence 50 in star, 200 ticks where many beasts hunt
+  standing idle, no action            0
+  set an attack once, then walked away 0
+  actually playing                  1148
+```
+
+`lastSwing` already existed and is already constitutional. It survives a
+beast wandering out of reach — which is what defeated an earlier attempt to
+gate on `action`, since an action clears the moment its target steps away and
+would have flickered off through every honest fight.
+
+**Two earlier attempts were worse than the fault** and are recorded here so
+they are not tried again: scaling the award by accuracy closed the farm and
+walled defence off at about thirty-two, which no living citizen had passed;
+gating on `action` was correct in principle and unusable in practice.
+
+## 6ac. The siren on the strand (v0.81)
+
+The third thing that cannot be done alone, and the only one that **forbids**
+a party.
+
+```
+siren  maxHp 60 · atk 20 · def 20 · maxHit 6 · every 2
+       aggro 10 · mirrors · respawn 1,200 (twenty minutes)
+```
+
+```
+dragon  you need a party      (you die alone)
+spider  you need a party      (the arithmetic does not close)
+siren   you may not have one
+```
+
+### She takes one at a time
+
+The first blow **binds** her (`mob.bound`). Every other citizen is refused at
+the door rather than merely ignored, so somebody learns it from the world
+instead of from a health bar that will not move. The binding releases when
+its citizen falls, walks more than 24 tiles away, or goes to sleep, so nobody
+can hold her by logging off.
+
+### She mirrors whoever took her
+
+Her accuracy is the citizen's own attack level; her damage is their weapon's
+max hit; her reach is their reach; and her quiver is **the arrows in their
+pack at the moment she took their shape**.
+
+```
+                      her hardest blow    the citizen's maxHit
+bare hands, level 1          1                    1
+star-maul, level 99         17                   17
+dragonbow, level 99         16                   16
+```
+
+The quiver matters more than it looks. Without it a mirrored archer fights
+somebody who never runs out and loses to arithmetic rather than to the fight.
+
+**So the encounter is exactly even, at every level, forever.** It never
+trivialises and it never gates: a citizen at twenty has the same fight as one
+at ninety-nine. What breaks the tie is the one thing she cannot copy —
+**you brought food and she did not.**
+
+### She does not wander
+
+Every other beast drifts a tile or two about its home. That is fine for
+something you hunt and fatal for something you **duel**: she stepped aside
+between the validation and the swing, `inReach` went from true to false
+inside a single tick, and the citizen's action was cleared before it ever
+landed. A siren sits on her strand.
+
+### She gives nothing, and the world marks it once
+
+No drop. A creature that does not want to fight, farmed for parts, would be
+the one outcome that undoes her.
+
+`claimFirst` announces the first citizen ever to walk away from the strand,
+once, in the world's history. After that each citizen's own `slain.siren`
+counts it privately — a tally that already existed for loot, so no new state.
+
+**She is common on purpose.** A solo fight gates ONE citizen per spawn where
+a party fight serves three or four: at six hours only four citizens a day
+could ever attempt her, which on a world of twenty is a five-day queue for a
+fight whose whole premise is that it is yours alone. Scarcity is the wrong
+lever for her — the difficulty is already the fight.
+
+## 6ab. The great spider (v0.81)
+
+The second thing that cannot be done alone, and it cannot be done alone for
+a **different reason** than the dragon.
+
+```
+great-spider  maxHp 300 · atk 26 · def 18 · maxHit 9 · every 3
+              aggro 6 · mends 6 · respawn 36,000 (six hours)
+```
+
+The dragon asks *can you survive long enough*. This asks **are there enough
+of you**, and it asks with arithmetic rather than danger. `mends` is
+hitpoints the web returns each tick while the spider lives, applied before
+anything else in the tick — so a citizen watches their damage being undone
+rather than discovering afterwards that it was.
+
+One maxed citizen in star gear puts out, measured: chain 5.74, sword 3.40,
+dragonbow 3.70, maul 2.98, horn-bow 2.75, crossbow 2.31. Against six a tick:
+
+```
+spider hitpoints, ten ticks apart, star-mauls, everyone kept standing
+1 citizen : 293 -> 300 -> 300 -> 293 -> 294 -> 296     never gains
+2 citizens: 279 -> 288 -> 281 -> 283 -> 279 -> 269     grinding
+3 citizens: 283 -> 291 -> 271 -> 249 -> 215 -> 183     winning
+```
+
+**No level, no gear and no patience substitutes for another person.** The
+dragon can in principle be soloed by somebody good enough with enough broth.
+This cannot be soloed by anybody, ever. Two is possible and absurd — a soft
+wall rather than a hard one, which is better: nobody is told no, they are
+shown the arithmetic.
+
+It is deliberately **not very dangerous**. `atk 26` against a maxed defence
+lands about one swing in sixteen. Somebody must hold it, but the fight is a
+sum and not a gauntlet.
+
+### The web is the rule, made visible
+
+A creature that silently heals is illegible — a citizen concludes their
+weapon is broken. A spider does not heal: **the web mends it.** The healing
+is a thing sitting in the world that you walk into and can see, thirty
+strands thick at the middle and thinning outward, pulsing as it knits.
+
+Six husks hang in it, which is how you know what this is before you meet it,
+and a signpost twelve tiles south reads *the wood ends here · go back or go
+together*.
+
+### Where
+
+The far north of the **Greenwood** — measured as the furthest walkable
+ground from any town outside the Wilds: **215 tiles** from Cragfoot, against
+the dragon's 166 from Norwick. A longer journey than the dragon's and a
+different kind: long, but not lawless. The Greenwood's far end had no reason
+to be visited at all.
 
 ## 6z. The shore-crab
 

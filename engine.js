@@ -312,6 +312,7 @@ const WIELD_REQS = {
   // §6y: sigils bound to the limbs. The draw is half the arrows, and half of
   // nothing is still nothing, so it asks a real bow-arm first.
   'sigil-bow': { ranged: 30, magic: 20 },
+  'heartwood-bow': { ranged: 40 },
   'star-helm': { defence: 15 }, 'star-plate': { defence: 30 },
 };
 const STORE_SELLS = { seeds: 15 }; // the keeper's OWN goods, made from nothing
@@ -356,6 +357,22 @@ const STILL_CD = 150;       // the caster's word needs time to regain its weight
 const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
 const STILL_XP = 150;
 const HEAL_FISH = 3;
+// §6ad: THE DEEP FISH. Ten, against a broth's five -- but a fish does not
+// STACK and a broth does, so a pack of broth is still the greater total and
+// this is the greater single bite. Burst against volume, which is a choice
+// rather than a replacement.
+const HEAL_DEEP_FISH = 10;
+// every edible thing and what it restores, in ONE place. Anything that heals
+// can be eaten; anything that cannot be eaten heals nothing. Two lists that
+// must agree are one list.
+// anything a fire can turn into food, asked once
+const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish';
+const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
+  : item === 'cooked-deep-fish' ? HEAL_DEEP_FISH
+  : item === 'broth' ? HEAL_BROTH
+  : item === 'ale' ? HEAL_ALE : 0;
+const COOK_DEEP_REQ = 80;       // a cook to match the fisher
+const XP_COOK_DEEP = 90;
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
 const HP_START_XP = 1154; // hitpoints level 10
 // ---- weapons (v0.65): the metal is the tier, the shape is the choice ----
@@ -426,6 +443,15 @@ const WEAPONS = {
   // damage, further, more accurate AND cheaper to feed. That is not a choice,
   // it is just the next tier, and the ranged line already had three of those.
   'sigil-bow':     { hit: 2, every: 2, reach: 5, acc: 0, ranged: true, thrift: true },
+  // §6ad: THE HEARTWOOD BOW, and the only good bow anybody can MAKE.
+  //
+  // Every other is found, imbued, forged or unique -- fletching topped out at
+  // a beginner's stick. This one is crafted, and it is not a tier above the
+  // horn-bow but a choice against it: MORE damage, LESS reach than any bow in
+  // the world. Three puts you inside a goblin's senses and a troll's, so you
+  // cannot stand beyond their perception and shoot freely. You trade the kite
+  // for the damage. The archer's weapon for somebody who means to be in it.
+  'heartwood-bow': { hit: 4, every: 2, reach: 3, acc: 6, ranged: true },
   'wooden-bow':    { hit: 0, every: 2, reach: 4, acc: 0, ranged: true },
   'horn-bow':      { hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
   // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
@@ -503,6 +529,45 @@ const MOB_STATS = {
   // defence, not at all.
   'shore-crab': { maxHp: 90, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90, aggro: 4, harmless: true,
                   drops: [{ item: 'crab-shell' }, { item: 'raw-fish', chance: 8192 }] },
+  // THE SIREN (spec 6ac). The third thing, and the only one that FORBIDS a
+  // party. The dragon needs one because you die alone; the spider needs one
+  // because the arithmetic does not close; she will not have one at all.
+  //
+  // She MIRRORS whoever engages her -- their combat levels, their weapon, and
+  // their quiver as it stood at the moment she took their shape. So the fight
+  // is exactly even, at any level, forever: it never trivialises and it never
+  // gates. What breaks the tie is the one thing she cannot copy, which is
+  // that you brought food and she did not.
+  //
+  // `maxHp` and `atk` here are only a floor for an unarmed opponent; almost
+  // everything about her is read from the citizen at `bound` time.
+  //
+  // `aggro` is what a beast can PERCEIVE, and she needs one or she perceives
+  // nothing: senses default to zero, `d <= 0` is never true at any distance,
+  // and she stood on her strand and never once swung back. Ten, because she
+  // is looking out to sea and sees you coming a long way off -- and because a
+  // mirrored archer must be answerable at their own reach, which can be nine.
+  'siren': { maxHp: 60, atk: 20, def: 20, maxHit: 6, every: 2, respawn: 1200,
+             aggro: 10, mirrors: true },
+  // THE SPIDER (spec 6ab). The second thing that cannot be done alone, and
+  // it cannot be done alone for a different reason than the dragon.
+  //
+  // The dragon asks CAN YOU SURVIVE. This asks ARE THERE ENOUGH OF YOU, and
+  // it asks with arithmetic rather than with danger: the web it sits in mends
+  // it faster than one citizen can cut. No level, no gear and no patience
+  // substitutes for another person. The dragon can in principle be soloed by
+  // somebody good enough with enough broth. This cannot be soloed by anybody,
+  // ever, which is a stronger thing for a world to say.
+  //
+  // `mends` is hitpoints the web returns each tick while the spider lives.
+  // Measured, one maxed citizen in star gear puts out: chain 5.74, sword
+  // 3.40, dragonbow 3.70, maul 2.98, horn-bow 2.75, crossbow 2.31. At SIX a
+  // lone citizen cannot win with anything, two struggle, three manage.
+  //
+  // It is not very dangerous and that is deliberate. Somebody must hold it,
+  // but the fight is a sum, not a gauntlet.
+  'great-spider': { maxHp: 300, atk: 26, def: 18, maxHit: 9, every: 3,
+                    respawn: 36000, aggro: 6, mends: 6 },
   // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
   // Wilds -- a thing that is there, like the Barrow and the Ring.
   //
@@ -575,6 +640,10 @@ const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
   'star-spear': 100, 'star-maul': 160, 'horn-bow': 90, 'crab-shell': 12,
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  // heartwood is worth more than logs, and a deep fish more than a shallow
+  // one: a master's hour should be worth more than a beginner's
+  'heartwood': 9, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  'heartwood-bow': 120,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
   'star-sword': 120, 'star-helm': 60, 'star-plate': 200,
@@ -613,6 +682,7 @@ const RECIPES = {
   'bronze-maul': { ore: 2, logs: 1 },
   'bronze-flail': { ore: 2, logs: 1 },          // a head, a chain, a haft
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
+  'heartwood-bow': { heartwood: 3 },            // §6ad: fletched, not forged
   'crossbow': { ore: 2, logs: 2 },              // a steel prod and a wooden stock
   'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
@@ -635,6 +705,8 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 // and imports alike.
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
+  // §6ad: what a master brings back from the same tree and the same water
+  'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'heartwood-bow',
   'bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   'dragonbow',   // §6w: there is one. No keeper prices it, so it is never bought.
   'crab-shell',  // §6z: what a shore-crab gives up
@@ -654,7 +726,30 @@ const SMITH_REQS = { 'star-sword': { smithing: 20, magic: 10 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
   // works and three sigils, and you bind them to the limbs, which is why the
   // magic asked for is higher than the smithing.
-  'sigil-bow': { smithing: 12, magic: 25 } };
+  'sigil-bow': { smithing: 12, magic: 25 },
+  'heartwood-bow': { fletching: 90 } };
+// §6ad: A LOG IS A LOG.
+//
+// At woodcutting 90 a tree gives heartwood instead of logs, which would strand
+// a master woodcutter if anything asked for `logs` by name -- and seventeen
+// places do: kindling a campfire, feeding a watchfire, seven smithing
+// recipes, the wooden-bow. Written out seventeen times that is seventeen
+// chances to miss one, and the one you miss is a skill somebody can no longer
+// train. So it is asked once, here.
+const isLog = (item) => item === 'logs' || item === 'heartwood';
+const consumeLogs = (inv, n) => {           // spends ordinary logs first, heartwood after
+  let left = n;
+  for (const kind of ['logs', 'heartwood'])
+    for (let i = 0; i < inv.length && left > 0; i++) {
+      const sl = inv[i];
+      if (sl?.item !== kind) continue;
+      const take = Math.min(left, sl.qty ?? 1);
+      sl.qty -= take; left -= take;
+      if (sl.qty <= 0) inv[i] = null;
+    }
+  return left === 0;
+};
+const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? (sl.qty ?? 0) : 0), 0);
 const SOAK = (item) => item?.startsWith('star-') ? 2 : 1; // starmetal turns aside more
 const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
 const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
@@ -1693,6 +1788,7 @@ const LANDMARK_KINDS = new Set([
   //
   // Nothing about them changes except that they are now themselves.
   'skep', 'cairn', 'boundary-stone', 'skull-pile',
+  'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
@@ -1810,9 +1906,12 @@ const LANDMARK_KINDS = new Set([
     // while it only ever answered a blow -- a clock of its own, so its swing
     // rate is its own and not the citizen's, and a memory of who hit it, so a
     // passive creature still fights back.
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'mad'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'mad', 'bound', 'quiver'].includes(mk)) return 'non-constitutional mob field ' + mk;
     for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
+    // §6ac: whom she has taken, and the arrows she took with them
+    if (m.bound !== undefined && (typeof m.bound !== 'string' || !/^[0-9a-f]{64}$/.test(m.bound))) return 'malformed siren binding';
+    if (m.quiver !== undefined && !isInt(m.quiver, 0, 100000)) return 'siren quiver out of bounds';
     if (!isInt(m.x, 0, W - 1) || !isInt(m.y, 0, H - 1)) return 'mob out of bounds';
     if (!isInt(m.hx, 0, W - 1) || !isInt(m.hy, 0, H - 1)) return 'mob home out of bounds';
     if (!Number.isSafeInteger(m.hp) || m.hp < -1000 || m.hp > 100000) return 'mob hp out of bounds';
@@ -2174,7 +2273,12 @@ function validInput(state, input, ctx) {
     }
     case 'cook': {
       const slot = p.inventory[input.slot];
-      if (!Number.isInteger(input.slot) || !slot || slot.item !== 'raw-fish') return false;
+      // §6ad: RAW IS RAW. This asked for 'raw-fish' by name, so every attempt
+      // to cook a deep fish was refused at the door -- the apply path had been
+      // taught about it and the validator had not. Two places that must agree
+      // and only one of them was told, which is the same fault as the eat list
+      // that could not hold `cooked-deep-fish`.
+      if (!Number.isInteger(input.slot) || !slot || !isRawFood(slot.item)) return false;
       // beside the flame, or standing in it: walkable fires made the second
       // possible, and a citizen in a fire they cannot cook on is a trap
       return hasAdjacentNode(state, ctx, p, _FIRE_TYPES) || fireOnTile(state, ctx, p.x, p.y);
@@ -2241,6 +2345,13 @@ function validInput(state, input, ctx) {
       const m = state.mobs[input.mobId];
       if (m && (m.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot be struck (v0.80)
       if (!m || m.hp <= 0) return false;
+      // §6ac: SHE TAKES ONE AT A TIME.
+      //
+      // Refused at the door rather than merely ignored, so a citizen learns
+      // it from the world instead of from a health bar that will not move.
+      // The binding releases when its citizen falls, leaves, or stops coming
+      // -- see the mob phase -- so nobody can lock her by logging off.
+      if (MOB_STATS[m.type]?.mirrors && m.bound !== undefined && m.bound !== input.playerId) return false;
       // §6w: SCALES TURN ARROWS -- and this has to be asked FIRST.
       //
       // It used to sit after `if (inReach(p, m)) return true`, and inReach
@@ -2327,13 +2438,13 @@ function validInput(state, input, ctx) {
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       if (!hasAdjacentNode(state, ctx, p, 'house')) return false;
       if (brewpotsOwnedBy(state, ctx, input.playerId) >= bc.potCap) return false;
-      return countItem(p.inventory, 'logs') >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre;
+      return countLogs(p.inventory) >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre;
     }
     case 'brew': {
       const bp = state.nodes[input.nodeId];
       if (!bp || bp.type !== 'brewpot' || bp.by !== input.playerId || bp.readyAt !== undefined || !atOrBeside(p, bp)) return false;
       const sl = p.inventory[input.slot];
-      return !!sl && (sl.item === 'grain' || sl.item === 'raw-fish');
+      return !!sl && (sl.item === 'grain' || isRawFood(sl.item));
     }
     case 'collect': {
       const bp = state.nodes[input.nodeId];
@@ -2348,7 +2459,7 @@ function validInput(state, input, ctx) {
       const wt = state.genesis.watch;
       if (!wt || p.hp <= 0) return false;
       if (effLevel(p.skills.firemaking) < wt.level) return false;
-      if (countItem(p.inventory, 'logs') < wt.kindleLogs) return false;
+      if (countLogs(p.inventory) < wt.kindleLogs) return false;
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       return countOwnedNodes(state, ctx, 'watchfire', input.playerId) < wt.maxOwned;
     }
@@ -2356,12 +2467,12 @@ function validInput(state, input, ctx) {
       const wf = state.nodes[input.nodeId];
       if (!wf || wf.type !== 'watchfire' || !atOrBeside(p, wf) || !state.genesis.watch) return false;
       const sl = p.inventory[input.slot];
-      return !!sl && sl.item === 'logs' && (wf.fuelUntil ?? 0) < state.tick + state.genesis.watch.cap;
+      return !!sl && isLog(sl.item) && (wf.fuelUntil ?? 0) < state.tick + state.genesis.watch.cap;
     }
     case 'fletch': {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl) return false;
-      return (input.make === 'bow' && sl.item === 'logs')
+      return (input.make === 'bow' && isLog(sl.item))
         || (input.make === 'arrows' && sl.item === 'bones');
     }
     case 'smith': {
@@ -2387,7 +2498,7 @@ function validInput(state, input, ctx) {
     }
     case 'light': {
       const sl = p.inventory[input.slot];
-      if (!Number.isInteger(input.slot) || !sl || sl.item !== 'logs') return false;
+      if (!Number.isInteger(input.slot) || !sl || !isLog(sl.item)) return false;
       return !nodeExistsAt(state, ctx, p.x, p.y);
     }
     case 'bury': {
@@ -2431,7 +2542,12 @@ function validInput(state, input, ctx) {
     case 'eat': {
       const slot = p.inventory[input.slot];
       if (state.tick - (p.lastAte ?? -EAT_EVERY) < EAT_EVERY) return false; // §6m: the gullet has a rhythm
-      return Number.isInteger(input.slot) && !!slot && ['cooked-fish', 'ale', 'broth'].includes(slot.item);
+      // §6ad: FOOD IS ASKED ONCE. This was a hardcoded list of three, so
+      // `cooked-deep-fish` -- the best food in the world, gated behind
+      // fishing 90 and cooking 80 -- simply could not be eaten. The same
+      // shape as eleven weapons that drew as empty hands and a `RANGED_ITEMS`
+      // that held one bow: a list that did not grow when the world did.
+      return Number.isInteger(input.slot) && !!slot && healOf(slot.item) > 0;
     }
     default:
       return false;
@@ -2866,6 +2982,15 @@ function nextState(state, inputs, _legacyBeacon) {
   const pinned = new Set();
   for (const p of Object.values(s.players)) if (p.action?.mobId) pinned.add(p.action.mobId);
   for (const mid of Object.keys(s.mobs).sort()) {
+    // §6ac: SHE DOES NOT WANDER. A siren sits on her strand and sings.
+    //
+    // Every other beast drifts a tile or two about its home, which is fine
+    // for something you hunt and fatal for something you DUEL: she stepped
+    // aside between the validation and the swing, `inReach` went from true to
+    // false in the same tick, and the citizen's action was cleared before it
+    // ever landed. Every attempt was refused and nothing said why.
+    if (MOB_STATS[s.mobs[mid]?.type]?.mirrors) continue;
+
     const m = s.mobs[mid];
     if (m.hp <= 0 || pinned.has(mid) || (m.rootedUntil ?? 0) > s.tick || (m.stilledUntil ?? 0) > s.tick) continue;
     if (roll(beacon, mid, 'wander') >= 48) continue;
@@ -2960,6 +3085,18 @@ function nextState(state, inputs, _legacyBeacon) {
       return c === 'wilds' || c === 'crags' || c === 'moor';
     };
     const setAbout = new Map();
+    // §6ab: THE WEB MENDS WHAT SITS IN IT.
+    //
+    // Before anything else, because a citizen should watch their damage being
+    // undone rather than discover afterwards that it was. This is the whole
+    // fight: cut faster than the web knits.
+    for (const mid of Object.keys(s.mobs).sort()) {
+      const m = s.mobs[mid];
+      if (!m || m.hp <= 0) continue;
+      const st = MOB_STATS[m.type];
+      if (!st?.mends) continue;
+      if (m.hp < st.maxHp) m.hp = Math.min(st.maxHp, m.hp + st.mends);
+    }
     if (liveIds.length) for (const mid of Object.keys(s.mobs).sort()) {
       const m = s.mobs[mid];
       if (!m || m.hp <= 0) continue;
@@ -3012,19 +3149,45 @@ function nextState(state, inputs, _legacyBeacon) {
           // An archer is safe again, and it is a skill rather than a property
           // of holding a bow: you have to know what is looking at you.
           const senses = st.aggro ?? 0;
+          // §6ac: she answers her own opponent and nobody else
+          if (st.mirrors) { if (m.bound !== pid) continue; }
           const wants = (m.mad === pid && d <= senses)
             || (st.aggro && d <= st.aggro && HUNTS_HERE(m.x, m.y));
           if (!wants) continue;
           if (d < best) { best = d; target = p; tid = pid; }
         }
       }
-      if (!target) { if (m.mad !== undefined) delete m.mad; continue; }
+      if (!target) {
+        if (m.mad !== undefined) delete m.mad;
+        // §6ac: she lets go of anybody who has fallen, left, or stopped
+        // coming, so nobody can hold her by logging off
+        if (st.mirrors && m.bound !== undefined) {
+          const b = s.players[m.bound];
+          if (!b || b.hp <= 0 || b.deadUntil || !isAwake(b, s.tick)
+              || Math.max(Math.abs(b.x - m.x), Math.abs(b.y - m.y)) > 24) {
+            delete m.bound; delete m.quiver;
+          }
+        }
+        continue;
+      }
       const already = setAbout.get(tid) ?? 0;
       if (already >= MAX_ON_ONE) continue;   // the rest wait their turn
 
       // IN REACH? Claws are adjacent. A breath carries.
+      // §6ac: THE MIRROR. Her reach, her damage and her ammunition are the
+      // citizen's, read fresh each swing, because the fight is meant to be
+      // exactly even and stay that way if they change weapons mid-fight.
+      let mirrorHit = null, mirrorReach = 1;
+      if (st.mirrors && target) {
+        const tw = weaponOf(target);
+        mirrorReach = tw?.reach ?? 1;
+        mirrorHit = 1 + Math.floor(effLevel(target.skills.attack) / 10) + (tw?.hit ?? 0);
+        if (tw?.ranged === true && best > 1) {
+          if ((m.quiver ?? 0) <= 0) mirrorReach = 1;   // she is out, as you would be
+        }
+      }
       const canBreathe = (st.breath ?? 0) > 0 && best > 1 && best <= st.breath;
-      const canClaw = best === 1;
+      const canClaw = st.mirrors ? best <= mirrorReach : best === 1;
       if (canClaw || canBreathe) {
         setAbout.set(tid, already + 1);
         // A BREATH IS NOT A SWING.
@@ -3047,14 +3210,19 @@ function nextState(state, inputs, _legacyBeacon) {
         // defence for it. Risk is the only thing that trains that skill.
         if (st.harmless) continue;
         const defLvl = effLevel(target.skills.defence);
-        const Tm = clamp(128 + 4 * (st.atk - defLvl), 16, 240);
+        // mirrored: her accuracy is the citizen's own attack against their own
+        // defence, which is what makes it a coin flip decided by supplies
+        const useAtk = st.mirrors ? effLevel(target.skills.attack) : st.atk;
+        const Tm = clamp(128 + 4 * (useAtk - defLvl), 16, 240);
+        if (st.mirrors && mirrorReach > 1 && best > 1 && m.quiver !== undefined) m.quiver -= 1;
         if (roll(beacon, mid, 'mobatk') < Tm) {
           // §6x: armour turns a blow aside, and a breath goes round it. Fire
           // does not care how much steel is between it and you.
           const soak = canBreathe ? 0
             : (target.equipment.head ? SOAK(target.equipment.head.item) : 0)
             + (target.equipment.body ? SOAK(target.equipment.body.item) : 0);
-          const hit = canBreathe ? (st.breathHit ?? st.maxHit) : st.maxHit;
+          const hit = canBreathe ? (st.breathHit ?? st.maxHit)
+                    : (mirrorHit !== null ? mirrorHit : st.maxHit);
           target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
           if (target.hp <= 0) {
             target.hp = 0;
@@ -3066,9 +3234,50 @@ function nextState(state, inputs, _legacyBeacon) {
             delete m.mad;
           }
         } else {
-          // defence is paid for in RISK and only in risk: it swung, it could
-          // reach you, it missed. A breath counts -- being under fire and
-          // still standing is the definition.
+          // §6aa: A SWING THAT COULD NEVER HAVE LANDED TEACHES NOTHING.
+          //
+          // Defence is paid for in RISK and only in risk. `Tm` is clamped to
+          // a floor of 16, and a beast sitting on that floor is not missing
+          // you -- it is incapable of touching you, and standing in a crowd
+          // of them was free experience:
+          //
+          //   defence  armour   xp    damage   xp per point of damage
+          //         1  none    540      447                      1.2
+          //        50  star   1136       23                     49.4
+          //
+          // Forty times better for the citizen in no danger, which is exactly
+          // backwards. At the floor there is no lesson, so there is no
+          // experience. The moment something can actually reach you it
+          // teaches again, and a beginner in a goblin pile still learns.
+          //
+          // §6aa: YOU LEARN TO DEFEND WHILE YOU ARE FIGHTING.
+          //
+          // Aggression is new, and it broke an assumption nothing had needed
+          // to state: before it, a beast only swung when you were swinging at
+          // it, so being attacked and fighting were the same thing. Now they
+          // are not, and a citizen could stand in a crowd of goblins with
+          // their hands in their pockets and earn what a real fight earns --
+          // measured, 1136 experience for 23 damage at defence 50, against
+          // 540 for 447 at defence 1. Forty times better for being in no
+          // danger at all.
+          //
+          // Two attempts to fix this were worse than the fault. Scaling by
+          // accuracy walled defence off at about thirty-two, which no living
+          // citizen had passed. Gating on `action` was right in principle and
+          // useless in practice, because an action CLEARS the moment a beast
+          // steps out of reach -- it would have flickered off through every
+          // legitimate fight.
+          //
+          // `lastSwing` is the steady signal, and it already exists: the tick
+          // a citizen last swung at anything. It survives a beast wandering,
+          // it cannot be held by standing still, and it needs no new field.
+          // Twenty ticks is twelve seconds -- longer than any weapon's
+          // cadence, so an honest fight never lapses.
+          if (s.tick - (target.lastSwing ?? -999) > 20) continue;
+          // Restored flat: four for a miss, which is the rule every existing
+          // citizen was built under. The gate above is what closed the farm,
+          // and it did so without touching the arithmetic anybody has already
+          // trained against.
           target.skills.defence += 4;
         }
         continue;
@@ -3483,8 +3692,8 @@ function nextState(state, inputs, _legacyBeacon) {
       const free = !nodeExistsAt(s, _ctx, p.x, p.y);
       const nearHouse = hasAdjacentNode(s, _ctx, p, 'house');
       const owned = brewpotsOwnedBy(s, _ctx, pid);
-      if (bc && free && nearHouse && owned < bc.potCap && countItem(p.inventory, 'logs') >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre) {
-        consumeItem(p.inventory, 'logs', bc.buildLogs); consumeItem(p.inventory, 'ore', bc.buildOre);
+      if (bc && free && nearHouse && owned < bc.potCap && countLogs(p.inventory) >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre) {
+        consumeLogs(p.inventory, bc.buildLogs); consumeItem(p.inventory, 'ore', bc.buildOre);
         addIndexedNode(s, _ctx, 'brewpot-' + pid + '-' + s.tick, { type: 'brewpot', x: p.x, y: p.y, by: pid, lastUsed: s.tick });
       }
     } else if (inp.type === 'brew') {
@@ -3512,9 +3721,9 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'kindle') {
       const wt = s.genesis.watch;
-      if (wt && effLevel(p.skills.firemaking) >= wt.level && countItem(p.inventory, 'logs') >= wt.kindleLogs
+      if (wt && effLevel(p.skills.firemaking) >= wt.level && countLogs(p.inventory) >= wt.kindleLogs
           && !nodeExistsAt(s, _ctx, p.x, p.y) && countOwnedNodes(s, _ctx, 'watchfire', pid) < wt.maxOwned) {
-        consumeItem(p.inventory, 'logs', wt.kindleLogs);
+        consumeLogs(p.inventory, wt.kindleLogs);
         p.skills.firemaking += wt.xpPerLog * wt.kindleLogs; // every log pays, here as at the hearth
         addIndexedNode(s, _ctx, 'wf' + s.tick + '-' + pid,
           { type: 'watchfire', x: p.x, y: p.y, by: pid, fuelUntil: s.tick + wt.perLog * wt.kindleLogs });
@@ -3522,7 +3731,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'stoke') {
       const wf = s.nodes[inp.nodeId], sl = p.inventory[inp.slot], wt = s.genesis.watch;
-      if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && sl.item === 'logs' && wt
+      if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt
           && (wf.fuelUntil ?? 0) < s.tick + wt.cap) {
         removeItem(p.inventory, inp.slot, 1);
         // fuel banks forward from whichever is later: now, or the fire's remaining burn
@@ -3531,7 +3740,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'fletch') {
       const sl = p.inventory[inp.slot];
-      if (sl && inp.make === 'bow' && sl.item === 'logs') {
+      if (sl && inp.make === 'bow' && isLog(sl.item)) {
         p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
         p.skills.fletching += 15;
       } else if (sl && inp.make === 'arrows' && sl.item === 'bones') {
@@ -3551,7 +3760,7 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'light') {
       const sl = p.inventory[inp.slot];
       const clear = !nodeExistsAt(s, _ctx, p.x, p.y);
-      if (sl && sl.item === 'logs' && clear) {
+      if (sl && isLog(sl.item) && clear) {
         const lvl = effLevel(p.skills.firemaking);
         p.lightsTried = (p.lightsTried ?? 0) + 1; // the tally, not the dice
         if (countedSuccess(p.lightsTried, Math.min(64 + 2 * lvl, 240))) {
@@ -3625,7 +3834,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'eat') {
       const slot = p.inventory[inp.slot];
-      const heal = !slot ? 0 : slot.item === 'cooked-fish' ? HEAL_FISH : slot.item === 'broth' ? HEAL_BROTH : slot.item === 'ale' ? HEAL_ALE : 0;
+      const heal = !slot ? 0 : healOf(slot.item);
       if (heal > 0 && s.tick - (p.lastAte ?? -EAT_EVERY) >= EAT_EVERY) {
         p.lastAte = s.tick;
         removeItem(p.inventory, inp.slot, 1); // stackable brews draw from the stack; a fish clears its slot
@@ -3636,14 +3845,18 @@ function nextState(state, inputs, _legacyBeacon) {
       // re-check against new state; instant, same-tick resolution (§6a)
       const slot = p.inventory[inp.slot];
       const nearFire = hasAdjacentNode(s, _ctx, p, _FIRE_TYPES) || fireOnTile(s, _ctx, p.x, p.y); // v0.80: the tile underfoot counts, exactly as the validator says
-      if (slot && slot.item === 'raw-fish' && nearFire) {
+      if (slot && isRawFood(slot.item) && nearFire) {
+        // §6ad: a deep fish asks for a cook to match the fisher who caught it.
+        // Below eighty it burns every time -- not a gamble, a refusal.
+        const deep = slot.item === 'deep-fish';
         const lvl = effLevel(p.skills.cooking);
         p.cooksTried = (p.cooksTried ?? 0) + 1; // the pan counts; it does not gamble
-        if (countedSuccess(p.cooksTried, Math.min(64 + 2 * lvl, 240))) {
-          p.inventory[inp.slot] = { item: 'cooked-fish', qty: 1 };
-          p.skills.cooking += XP_COOK;
+        const able = !deep || lvl >= COOK_DEEP_REQ;
+        if (able && countedSuccess(p.cooksTried, Math.min(64 + 2 * lvl, 240))) {
+          p.inventory[inp.slot] = { item: deep ? 'cooked-deep-fish' : 'cooked-fish', qty: 1 };
+          p.skills.cooking += deep ? XP_COOK_DEEP : XP_COOK;
         } else {
-          p.inventory[inp.slot] = { item: 'burnt-fish', qty: 1 };
+          p.inventory[inp.slot] = { item: deep ? 'burnt-deep-fish' : 'burnt-fish', qty: 1 };
         }
       }
     } else if (inp.type === 'claim_name') {
@@ -3773,6 +3986,15 @@ function nextState(state, inputs, _legacyBeacon) {
       if (armReady) p.lastSwing = s.tick; // the arm is spent, whoever it was spent on
 
       const bowDrawn = drawnAt(p, m);
+      // §6ac: SHE TAKES YOUR SHAPE. The first blow binds her, and she copies
+      // the citizen as they stand at that moment -- levels, weapon, and the
+      // arrows in their pack. The quiver matters more than it looks: without
+      // it a mirrored archer fights a siren who never runs out, and loses to
+      // arithmetic rather than to the fight.
+      if (stats?.mirrors && m.bound === undefined) {
+        m.bound = pid;
+        m.quiver = p.inventory.reduce((a, sl) => a + (sl?.item === 'arrows' ? sl.qty : 0), 0);
+      }
       // §6aa: whoever swings at a beast is remembered by it. This is how a
       // shore-crab -- which hunts nobody -- still answers a blow, and how a
       // goblin that has taken an arrow starts walking toward the archer.
@@ -3831,6 +4053,25 @@ function nextState(state, inputs, _legacyBeacon) {
       if (m.hp <= 0) {
         if (m.type === 'skeleton-knight' && claimFirst(s, 'knightslayer', pid))
           announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to fell a skeleton-knight.');
+        // §6ac: THE STRAND KEEPS SCORE QUIETLY.
+        //
+        // She gives nothing. A creature that does not want to fight, farmed
+        // for parts, would be the one outcome that undoes her -- so the only
+        // reward is that it happened, and the world marks it the way it marks
+        // any first: once, ever, for whoever managed it before anybody else.
+        //
+        // After that it is private. `slain` is a tally the citizen already
+        // carries, so each keeps their own count and nothing is broadcast.
+        // At a twenty-minute respawn an announcement per kill would be a
+        // hundred and twenty a day, and noise devalues exactly the thing the
+        // announcement was for.
+        if (m.type === 'siren') {
+          if (claimFirst(s, 'strandwalker', pid))
+            announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to walk away from the strand.');
+          if (!p.slain) p.slain = {};
+          p.slain.siren = (p.slain.siren ?? 0) + 1;
+          delete m.bound; delete m.quiver;
+        }
         // drops lie where they fall (spec §6e): loot belongs to whoever takes it
         // The Reading Rule (v0.39) reaches loot too (v0.64). A drop judged by
         // the tick's beacon could be TIMED: fight the beast to its last point
@@ -3905,7 +4146,17 @@ function nextState(state, inputs, _legacyBeacon) {
     const r = roll(beacon, pid, 'gather');
 
     if (r < threshold) {
-      p.inventory[slot] = { item: y.item, qty: 1 };
+      // §6ad: THE SAME TREE, THE SAME WATER, A DIFFERENT CATCH.
+      //
+      // At ninety a master takes heartwood from the trees and the deep fish
+      // from the shallows, INSTEAD of the ordinary yield rather than as well
+      // as it. Replacement rather than addition, which costs no new node and
+      // no new spot -- and it leaves the cheap end of both markets to the
+      // people who still need it, because a master can no longer supply it.
+      let got = y.item;
+      if (y.item === 'logs' && lvl >= 90) got = 'heartwood';
+      else if (y.item === 'raw-fish' && lvl >= 90) got = 'deep-fish';
+      p.inventory[slot] = { item: got, qty: 1 };
       p.skills[y.skill] += y.xp;
       n.depletedUntil = s.tick + DEPLETE_TICKS;
     }
@@ -3967,6 +4218,31 @@ function nextState(state, inputs, _legacyBeacon) {
       if (!p) continue;
       const away = s.tick - (p.lastInput ?? 0);
       if (away <= FORGET_AFTER) continue;
+      // §6w: THE BOW COMES HOME WHEN ITS HOLDER STOPS COMING.
+      //
+      // Forgetting requires being empty-handed, and somebody holding the bow
+      // is by definition not — so a citizen could lock the finest thing in
+      // the world forever by simply never logging in again. Measured: a
+      // hundred thousand ticks absent, still holding it, `bowOut` still true.
+      //
+      // The alternative was to make it decay on a timer, and that would have
+      // been worse. The bow's whole power is that WHO HAS IT changes by
+      // blood: if it rots on a clock, nobody needs to hunt the holder, they
+      // just wait. This keeps the question social and answers only the case
+      // that has no answer — an active holder keeps it as long as they can
+      // defend it, and an absent one loses it on the same six hours
+      // everything else in this world is measured by.
+      //
+      // The citizen is NOT forgotten here. They may be somebody, with a name
+      // and a bank and a life; they simply do not get to hold the world's one
+      // unique object while away from it.
+      if (_carriesBow(p) && everWasSomebody(p)) {
+        s.bowOut = false;
+        if (p.equipment?.weapon?.item === 'dragonbow') p.equipment.weapon = null;
+        for (let i = 0; i < p.inventory.length; i++)
+          if (p.inventory[i]?.item === 'dragonbow') p.inventory[i] = null;
+        announce(s, 'The DRAGONBOW has gone back to the Wilds; its bearer did not come back.');
+      }
       if (!everWasSomebody(p)) {           // a key that was never anybody
         // §6w: THE BOW GOES HOME. A unique thing held by somebody who never
         // comes back is a unique thing lost, and the best object in the world

@@ -555,6 +555,42 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(255,220,200,.18)'
       g.beginPath(); g.ellipse(13, 13, 3.4, 1.8, -0.5, 0, 7); g.fill()
       break }
+    case 'heartwood-bow': {
+      // a deep-grained bow, short in the limb: the only good one anybody makes
+      g.strokeStyle = '#7a5230'; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(11, 7); g.quadraticCurveTo(23, 16, 11, 25); g.stroke()
+      g.strokeStyle = '#a3743a'; g.lineWidth = 1.4
+      g.beginPath(); g.moveTo(11, 7); g.quadraticCurveTo(23, 16, 11, 25); g.stroke()
+      g.strokeStyle = 'rgba(60,40,20,.5)'; g.lineWidth = 0.7   // the grain
+      for (const o of [-0.8, 0.8]) { g.beginPath()
+        g.moveTo(11 + o, 8); g.quadraticCurveTo(22 + o, 16, 11 + o, 24); g.stroke() }
+      g.strokeStyle = '#e6dcc4'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(11, 7); g.lineTo(11, 25); g.stroke()
+      g.fillStyle = '#5c4023'; g.fillRect(9.6, 14, 2.8, 4)     // the grip
+      break }
+    case 'heartwood': {
+      g.fillStyle = '#7a5230'
+      g.beginPath(); g.ellipse(16, 17, 12, 5.4, -0.25, 0, 7); g.fill()
+      g.fillStyle = '#a3743a'
+      g.beginPath(); g.ellipse(21, 14, 5, 4.6, -0.25, 0, 7); g.fill()
+      g.strokeStyle = '#5c4023'; g.lineWidth = 0.9
+      for (const r of [1.4, 2.8, 4.2]) { g.beginPath(); g.ellipse(21, 14, r, r * 0.9, -0.25, 0, 7); g.stroke() }
+      g.fillStyle = '#c9a86a'                                   // the pale heart
+      g.beginPath(); g.ellipse(21, 14, 1.2, 1.1, 0, 0, 7); g.fill()
+      break }
+    case 'deep-fish': case 'cooked-deep-fish': case 'burnt-deep-fish': {
+      const ck = item === 'cooked-deep-fish', bt = item === 'burnt-deep-fish'
+      g.fillStyle = bt ? '#3a3128' : ck ? '#c98a4a' : '#4a6f8c'
+      g.beginPath(); g.ellipse(15, 17, 11, 6.4, 0, 0, 7); g.fill()
+      g.fillStyle = bt ? '#2a231c' : ck ? '#a06a34' : '#31506b'
+      g.beginPath(); g.ellipse(15, 19, 10, 3.6, 0, 0, 7); g.fill()
+      pl([[25, 17], [31, 12], [31, 22]], bt ? '#3a3128' : ck ? '#c98a4a' : '#4a6f8c')
+      pl([[13, 11], [19, 11], [16, 7]], bt ? '#2a231c' : ck ? '#a06a34' : '#31506b')   // a tall dorsal
+      g.fillStyle = bt ? '#151210' : '#e8f0f4'
+      g.beginPath(); g.arc(9, 16, 1.7, 0, 7); g.fill()
+      if (!bt) { g.fillStyle = 'rgba(255,255,255,.22)'
+        g.beginPath(); g.ellipse(13, 14, 4.4, 1.6, -0.3, 0, 7); g.fill() }
+      break }
     case 'old-chain': {
       g.strokeStyle = '#8a8a82'; g.lineWidth = 2
       for (let li = 0; li < 5; li++) {
@@ -599,7 +635,8 @@ const EQUIPPABLE = new Set([
   'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
   'star-sword', 'star-dagger', 'star-spear', 'star-maul',
   'star-helm', 'star-plate',
-  'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'old-chain', 'dragonbow',
+  'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow',
+  'old-chain', 'dragonbow',
   'bronze-flail', 'star-flail',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
@@ -671,6 +708,8 @@ const MOB_STATS = {
   troll:             { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4 },
   bear:              { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3 },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5 },
+  'siren':           { maxHp: 60, atk: 20, def: 20, maxHit: 6, respawn: 1200, aggro: 10, mirrors: true },
+  'great-spider':    { maxHp: 300, atk: 26, def: 18, maxHit: 9, respawn: 36000, aggro: 6, mends: 6 },
   'shore-crab':      { maxHp: 90, atk: 8, def: 14, maxHit: 2, respawn: 90, aggro: 4, harmless: true },
   dragon:            { maxHp: 420, atk: 115, def: 24, maxHit: 28, respawn: 36000,
                        aggro: 9, breath: 5 },
@@ -693,7 +732,19 @@ const poly9 = (cx, pts) => { cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
   for (const q of pts.slice(1)) cx.lineTo(q[0], q[1]); cx.closePath(); cx.fill() }
 const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // anything a citizen draws rather than swings (engine WEAPONS `ranged: true`)
-const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'dragonbow'])
+const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow', 'dragonbow'])
+// how far each weapon strikes, character for character from engine WEAPONS.
+// The window needs this to know where to STOP walking: a citizen who has
+// clicked a mob at nine tiles with the dragonbow should loose an arrow, not
+// stroll into its teeth.
+const WEAPON_REACH = {
+  'bronze-dagger': 1, 'bronze-sword': 1, 'bronze-spear': 2, 'bronze-maul': 1,
+  'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
+  'old-chain': 1, 'bronze-flail': 1, 'star-flail': 1,
+  'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
+  'heartwood-bow': 3, 'dragonbow': 9,
+}
+const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
@@ -1462,6 +1513,25 @@ function onState(s, worldId) {
       const o2 = prev.players?.[pid2]
       if (o2 && o2.hp > p2.hp) splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
     }
+    // §6aa: AND THE BLOWS THAT MISSED.
+    //
+    // A beast that swings and misses produced nothing at all on screen, so
+    // three of them taking turns read as one attacking occasionally. The
+    // swing arc on the beast says A SWING HAPPENED; this says WHAT IT DID,
+    // and they are different questions — with three on you the arcs tell you
+    // how much is coming and the splats tell you how much is landing.
+    //
+    // A miss is inferred rather than announced: a beast swung this tick
+    // (`lastSwing` moved) at a citizen whose hitpoints did not fall.
+    const me2 = s.players?.[myId]
+    if (me2 && (prev.players?.[myId]?.hp ?? me2.hp) <= me2.hp) {
+      for (const [mid, m] of Object.entries(s.mobs)) {
+        if (!m || m.hp <= 0 || m.mad !== myId) continue
+        if ((m.lastSwing ?? -9) !== s.tick) continue
+        if ((prev.mobs?.[mid]?.lastSwing ?? -9) === s.tick) continue
+        splats.push({ x: me2.x, y: me2.y, amount: 0, at: performance.now() })
+      }
+    }
   }
   if (!entered) updateGate(s, worldId)
   else tellArrival()
@@ -1559,10 +1629,20 @@ function onState(s, worldId) {
       }
       // custodial windows cannot stamp ticks: they walk one settled step at a time
     }
+    // EVERY BOW, AT ITS OWN REACH.
+    //
+    // This read `=== 'wooden-bow'` and `<= 4`, both hardcoded. So a citizen
+    // holding a horn-bow, a crossbow, a sigil-bow or the dragonbow fell
+    // through to the melee branch and WALKED ALL THE WAY IN -- past nine
+    // tiles of perfectly good shooting, in the dragonbow's case, to punch
+    // something with a bow in their hands. The only way to shoot was to stand
+    // at the right distance first and then click, which is not a command
+    // anybody should have to compose.
     else if (intent.kind === 'attack'
-             && me.equipment?.weapon?.item === 'wooden-bow'
+             && RANGED_ITEMS.has(me.equipment?.weapon?.item)
              && me.inventory.some(sl => sl?.item === 'arrows')
-             && Math.max(Math.abs(me.x - goal.x), Math.abs(me.y - goal.y)) <= 4) {
+             && Math.max(Math.abs(me.x - goal.x), Math.abs(me.y - goal.y))
+                <= reachOfItem(me.equipment?.weapon?.item)) {
       send({ do: 'attack', mobId: intent.id })
       if (!intent.announced) { feed('You draw your bow at the ' + (s.mobs[intent.id]?.type ?? 'creature') + '!'); intent.announced = true }
     }
@@ -2870,7 +2950,7 @@ const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   // the thirteen added when the world stopped repeating itself: four that
   // were always here wearing 'standing-stone' because nothing else had a
   // name, and nine new places
-  'skep','cairn','boundary-stone','skull-pile',
+  'skep','cairn','boundary-stone','skull-pile','web',
   'scorched-ring','glass-stone','burnt-tree',
   'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
 const _rampCache = new Map()
@@ -4104,6 +4184,31 @@ function drawScene(now) {
           cx.fillStyle = 'rgba(70,110,70,.4)'
           cx.beginPath(); cx.ellipse(X+13, Y+24, 5, 2.4, 0, 0, 7); cx.fill()
 
+        } else if (K === 'web') {
+          // §6ab: THE WEB MENDS WHAT SITS IN IT, and a citizen has to be able
+          // to see that. This is the reason their damage keeps coming back,
+          // and a fight whose central rule is invisible is the same failure
+          // as the dragon's undrawn fire.
+          const pull = 0.5 + 0.5 * Math.sin(now / 900 + n.x * 0.7)
+          cx.strokeStyle = 'rgba(226,232,240,' + (0.13 + 0.10 * pull) + ')'
+          cx.lineWidth = 0.8
+          for (let r = 0; r < 5; r++) {          // radials, anchored off-tile
+            const a2 = (r / 5) * Math.PI * 2 + n.y * 0.3
+            cx.beginPath(); cx.moveTo(X + 20, Y + 20)
+            cx.lineTo(X + 20 + Math.cos(a2) * 22, Y + 20 + Math.sin(a2) * 20); cx.stroke()
+          }
+          for (let ring = 1; ring <= 3; ring++) { // and the spiral between them
+            cx.beginPath()
+            for (let k = 0; k <= 5; k++) {
+              const a2 = (k / 5) * Math.PI * 2 + n.y * 0.3
+              const rr = ring * 6 + pull * 1.6
+              const px2 = X + 20 + Math.cos(a2) * rr, py2 = Y + 20 + Math.sin(a2) * rr * 0.9
+              if (k === 0) cx.moveTo(px2, py2); else cx.lineTo(px2, py2)
+            }
+            cx.closePath(); cx.stroke()
+          }
+          cx.fillStyle = 'rgba(240,246,255,' + (0.10 + 0.14 * pull) + ')'
+          cx.beginPath(); cx.arc(X + 20, Y + 20, 2.2, 0, 7); cx.fill()
         } else if (K === 'skep') {
           // a coiled straw hive: rings of rope, a dark mouth, and bees
           cx.fillStyle = ['#c9a044','#bf963c','#d3aa4e'][v]
@@ -4900,6 +5005,26 @@ function drawScene(now) {
     layer.push({ z: Z(miy, 3), draw: () => {
       const X = px(mix), Y = py(miy)
       const engaged = meP?.action?.mobId === id
+      // §6aa: A SWING THAT MISSES IS STILL A SWING.
+      //
+      // Three beasts set about a citizen at once and they swing every other
+      // tick each -- measured, thirty swings apiece over sixty ticks. But a
+      // MISS produces nothing on screen: no splat, no number, no motion. So a
+      // pile of skeletons taking turns reads as "one of them attacks
+      // occasionally, irregularly", and the citizen concludes the world is
+      // broken rather than that their armour is working.
+      //
+      // `lastSwing` is in the state. Draw the arc whether or not it landed.
+      if ((m.lastSwing ?? -9) >= s.tick - 1 && m.hp > 0) {
+        const sw = 1 - ((s.tick - m.lastSwing) + ((now / 600) % 1)) / 2
+        if (sw > 0) {
+          cx.strokeStyle = 'rgba(255,226,180,' + (0.55 * sw) + ')'
+          cx.lineWidth = 2.2
+          cx.beginPath()
+          cx.arc(X + 20, Y + 18, 15 - sw * 4, -0.9, 0.9)
+          cx.stroke()
+        }
+      }
       // §6aa: IT HAS SEEN YOU.
       //
       // The world hunts now, and a citizen who cannot tell that something has
@@ -5104,6 +5229,135 @@ function drawScene(now) {
         cx.fillStyle = 'rgba(226,182,62,.9)'
         cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
         cx.fillText('THE DRAGON', X + 20, Y - 37); cx.textAlign = 'left'
+        return
+      }
+      if (m.type === 'siren') {
+        // SHE WEARS THE FACE OF WHOEVER TOOK HER.
+        //
+        // Every other creature here looks like itself. She looks like a
+        // citizen — the same silhouette, the same proportions — and that is
+        // the whole idea, so it has to be the first thing you see. When she
+        // is bound she takes that citizen's colours; unbound she is the
+        // colour of the water she came out of.
+        const mine2 = m.bound && m.bound === myId
+        const taken = m.bound && m.bound !== myId
+        const boundP = m.bound ? s.players?.[m.bound] : null
+        const sway = Math.sin(now / 1100 + m.x) * 1.4
+        const shimmer = 0.5 + 0.5 * Math.sin(now / 700)
+        // the water at her feet never quite settles
+        for (let r = 0; r < 3; r++) {
+          const t3 = ((now / 1600) + r * 0.33) % 1
+          cx.strokeStyle = 'rgba(150,200,220,' + (0.22 * (1 - t3)) + ')'
+          cx.lineWidth = 1
+          cx.beginPath(); cx.ellipse(X + 20, Y + 32, 6 + t3 * 16, 2 + t3 * 5, 0, 0, 7); cx.stroke()
+        }
+        const dim = taken ? 0.34 : 1     // already taken: she is not for you
+        const body = boundP ? (capeOf(boundP) ? '#6a5a86' : '#3f5f8a') : '#4a7a8c'
+        const skinC = '#cfe4ea'
+        // the shape of a citizen, and deliberately the same proportions
+        cx.globalAlpha = dim
+        cx.fillStyle = body
+        cx.fillRect(X + 15 + sway * 0.3, Y + 16, 10, 15)
+        cx.fillStyle = skinC
+        cx.beginPath(); cx.arc(X + 20 + sway * 0.4, Y + 11, 5.2, 0, 7); cx.fill()
+        // hair, which is the part that is wrong: it moves like water
+        cx.strokeStyle = 'rgba(120,180,200,' + (0.55 + 0.25 * shimmer) + ')'
+        cx.lineWidth = 1.6
+        for (let k = 0; k < 6; k++) {
+          const off = (k - 2.5) * 1.9
+          cx.beginPath()
+          cx.moveTo(X + 20 + off + sway * 0.4, Y + 7)
+          cx.quadraticCurveTo(X + 20 + off * 1.7 + Math.sin(now / 500 + k) * 3, Y + 17,
+                              X + 20 + off * 2.1 + Math.sin(now / 430 + k) * 4, Y + 27)
+          cx.stroke()
+        }
+        // no face. Two lights where eyes would be.
+        cx.fillStyle = 'rgba(226,246,255,' + (0.7 + 0.3 * shimmer) + ')'
+        for (const ex of [-1.9, 1.9]) {
+          cx.beginPath(); cx.arc(X + 20 + ex + sway * 0.4, Y + 10.5, 1.1, 0, 7); cx.fill()
+        }
+        cx.globalAlpha = 1
+        // and what she is holding, if she has taken somebody's shape
+        if (boundP?.equipment?.weapon?.item) {
+          cx.globalAlpha = dim
+          cx.save(); cx.translate(X + 27, Y + 24); cx.rotate(0.7)
+          const wi = boundP.equipment.weapon.item
+          cx.strokeStyle = 'rgba(190,225,240,.8)'; cx.lineWidth = 1.6
+          if (RANGED_ITEMS.has(wi)) {
+            cx.beginPath(); cx.moveTo(-1, -6); cx.quadraticCurveTo(4.4, 1, -1, 8); cx.stroke()
+          } else {
+            cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(0, 9); cx.stroke()
+          }
+          cx.restore(); cx.globalAlpha = 1
+        }
+        if (taken) {                       // somebody else's fight
+          cx.fillStyle = 'rgba(150,200,220,.75)'
+          cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
+          cx.fillText('taken', X + 20, Y - 4); cx.textAlign = 'left'
+        }
+        cx.fillStyle = '#1c3038'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
+        cx.fillStyle = mine2 ? '#7fd4e8' : '#4a8a9c'
+        cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 60), 3.4)
+        return
+      }
+      if (m.type === 'great-spider') {
+        // wide, low, and eight-legged. It should read as a thing that has been
+        // sitting here a long time.
+        const twitch = Math.sin(now / 380 + m.x) * 1.6
+        const breathe = Math.sin(now / 1300) * 1.2
+        shadow(X, Y, 16)
+        // LEGS: four a side, jointed, reaching well past the tile
+        for (const side of [-1, 1]) {
+          cx.strokeStyle = '#2e2028'; cx.lineWidth = 2.2; cx.lineCap = 'round'
+          for (let k = 0; k < 4; k++) {
+            const lift = Math.sin(now / 300 + k * 1.7 + (side > 0 ? 0 : 2.4)) * 1.8
+            const spread = 12 + k * 4
+            const kneeY = Y + 12 + k * 3 - 5 - lift
+            cx.beginPath()
+            cx.moveTo(X + 20 + side * 5, Y + 18 + k * 2.2)
+            cx.quadraticCurveTo(X + 20 + side * (spread * 0.6), kneeY,
+                                X + 20 + side * spread, Y + 26 + k * 2 + lift)
+            cx.stroke()
+          }
+          cx.lineCap = 'butt'
+        }
+        // ABDOMEN, the big part, behind
+        cx.fillStyle = '#3d2b34'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 24 + breathe, 12, 10, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#1e1418'; cx.lineWidth = 1.3; cx.stroke()
+        cx.fillStyle = '#5a3f4c'                       // the pale mark on its back
+        cx.beginPath(); cx.ellipse(X + 20, Y + 21 + breathe, 6, 5, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#c9b08a'
+        poly([[X + 20, Y + 17 + breathe], [X + 23, Y + 24 + breathe],
+              [X + 20, Y + 22 + breathe], [X + 17, Y + 24 + breathe]], '#c9b08a')
+        // CEPHALOTHORAX and the eyes
+        cx.fillStyle = '#4a3540'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 13 + twitch * 0.3, 8, 6.5, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#1e1418'; cx.lineWidth = 1.1; cx.stroke()
+        cx.fillStyle = '#0f0a0c'                       // eight eyes, in two rows
+        for (const [ex, ey, r] of [[-4,-2,1.5],[-1.4,-3,1.9],[1.4,-3,1.9],[4,-2,1.5],
+                                   [-2.6,0.6,1.1],[-0.9,1.2,1.3],[0.9,1.2,1.3],[2.6,0.6,1.1]]) {
+          cx.beginPath(); cx.arc(X + 20 + ex, Y + 13 + ey + twitch * 0.3, r, 0, 7); cx.fill()
+        }
+        cx.fillStyle = 'rgba(226,90,110,.55)'
+        for (const [ex, ey] of [[-1.4,-3],[1.4,-3]]) {
+          cx.beginPath(); cx.arc(X + 20 + ex, Y + 13 + ey + twitch * 0.3, 0.8, 0, 7); cx.fill()
+        }
+        // fangs
+        cx.strokeStyle = '#c9b08a'; cx.lineWidth = 1.6; cx.lineCap = 'round'
+        for (const fx of [-2.6, 2.6]) {
+          cx.beginPath(); cx.moveTo(X + 20 + fx, Y + 18)
+          cx.lineTo(X + 20 + fx * 0.6, Y + 22 + twitch * 0.4); cx.stroke()
+        }
+        cx.lineCap = 'butt'
+        // and the strand it hangs from, going up out of the tile
+        cx.strokeStyle = 'rgba(226,232,240,.22)'; cx.lineWidth = 1
+        cx.beginPath(); cx.moveTo(X + 20, Y + 7); cx.lineTo(X + 20, Y - 20); cx.stroke()
+        cx.fillStyle = '#2b1a20'; cx.fillRect(X + 2, Y - 8, 36, 4.4)
+        cx.fillStyle = '#a8446a'; cx.fillRect(X + 2, Y - 8, 36 * Math.max(0, m.hp / 300), 4.4)
+        cx.fillStyle = 'rgba(226,182,62,.9)'
+        cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
+        cx.fillText('THE SPIDER', X + 20, Y - 11); cx.textAlign = 'left'
         return
       }
       if (m.type === 'shore-crab') {
@@ -5362,13 +5616,55 @@ function drawScene(now) {
   layer.sort((a, b) => a.z - b.z)
   for (const item of layer) item.draw()
 
-  // hit splats: the red star of damage, 700ms
+  // hit splats: the red star of damage, 700ms — and a pale nought for a blow
+  // that found nothing, which is the difference between armour working and
+  // the world being broken
+  // SPLATS THAT ARRIVE TOGETHER MUST NOT SIT ON TOP OF EACH OTHER.
+  //
+  // Three beasts can set about one citizen, and with the miss nought there
+  // are now up to three marks landing on the same tile in the same tick.
+  // Drawn at the same point they are one mark, and the citizen sees a single
+  // hit where three things happened — which is the same illegibility the
+  // arcs and noughts were added to cure.
+  //
+  // Fanned at draw time rather than at push time, so it works however many
+  // arrive and needs nothing remembered.
+  {
+    const cluster = new Map()
+    for (const sp of splats) {
+      const k = sp.x + ',' + sp.y
+      let c = cluster.get(k); if (!c) { c = []; cluster.set(k, c) }
+      c.push(sp)
+    }
+    for (const c of cluster.values()) {
+      c.sort((a, b) => a.at - b.at)
+      c.forEach((sp, i) => {
+        sp._n = i; sp._of = c.length
+      })
+    }
+  }
   for (let i = splats.length - 1; i >= 0; i--) {
     const sp = splats[i]
     const age = now - sp.at
     if (age > 700) { splats.splice(i, 1); continue }
-    const SX = px(sp.x) + 20, SY = py(sp.y) + 18 - age / 90
+    // spread them along an arc: one sits centred, several open out, and the
+    // order is the order they landed
+    const n = sp._n ?? 0, of = sp._of ?? 1
+    const spread = of > 1 ? ((n - (of - 1) / 2) * 13) : 0
+    const lift = of > 1 ? Math.abs(n - (of - 1) / 2) * 4 : 0
+    const SX = px(sp.x) + 20 + spread, SY = py(sp.y) + 18 - lift - age / 90
     cx.globalAlpha = age > 500 ? (700 - age) / 200 : 1
+    // a MISS is a pale ring, not a red star: the shape says at a glance
+    // whether anything got through, without reading the number
+    if (sp.amount === 0) {
+      cx.strokeStyle = 'rgba(190,205,220,.75)'; cx.lineWidth = 1.6
+      cx.beginPath(); cx.arc(SX, SY, 7, 0, 7); cx.stroke()
+      cx.fillStyle = 'rgba(220,232,244,.9)'
+      cx.font = 'bold 9px Verdana'; cx.textAlign = 'center'
+      cx.fillText('0', SX, SY + 3.2); cx.textAlign = 'left'
+      cx.globalAlpha = 1
+      continue
+    }
     cx.fillStyle = '#a11212'
     cx.beginPath()
     for (let k = 0; k < 8; k++) {
