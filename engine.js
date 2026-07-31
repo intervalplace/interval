@@ -780,6 +780,12 @@ const T = {
   id: (v) => (typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v)) || 'must be an identifier', // v0.80: 96 to fit full-64-hex pids in durable node/ground ids
   hex64: (v) => (typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)) || 'must be lowercase 64-hex',
   item: (v) => ITEMS.has(v) || 'must be a constitutional item',
+  // §6t: a chart is a thing a citizen can hold, so it is a thing they can
+  // take back out of a bank. `deposit` takes a SLOT and `isItemName` accepts
+  // charts, so one banked fine and `withdraw` -- which takes a name and
+  // checked ITEMS only -- could never return it. Silent, permanent loss of a
+  // survey reward, from two gates disagreeing about what an item is.
+  bankable: (v) => isItemName(v) || 'must be a constitutional item or a chart',
   itemOrNull: (v) => v === null || ITEMS.has(v) || 'must be a constitutional item or null',
   recipe: (v) => (typeof v === 'string' && v in RECIPES) || 'must be a constitutional recipe',
   gear: (v) => EQUIP_SLOTS.includes(v) || 'must be an equipment slot name',
@@ -820,7 +826,7 @@ const INPUT_SCHEMAS = {
   light: { slot: T.slot }, bury: { slot: T.slot }, deposit: { slot: T.slot },
   drop: { slot: T.slot }, eat: { slot: T.slot }, cook: { slot: T.slot },
   unwield: { gear: T.gear },
-  buy: { item: T.item }, withdraw: { item: T.item },
+  buy: { item: T.item }, withdraw: { item: T.bankable },
   cast: { spell: T.spell },
   fletch: { slot: T.slot, make: T.make },
   pickup: { groundId: T.id },
@@ -892,6 +898,15 @@ function normalizeInput(fields) {
   return out;
 }
 const XP_SMITH_PER_ORE = 30;
+// what a recipe teaches when it is not made of ore. A bow bound at the forge
+// is bench work rather than smelting, so it pays less than the metal would.
+const XP_SMITH_FLAT = { 'sigil-bow': 40, 'heartwood-bow': 40 };
+function XP_SMITH_FOR(recipe, r) {
+  const flat = XP_SMITH_FLAT[recipe];
+  if (flat !== undefined) return flat;
+  const ore = r && Number.isFinite(r.ore) ? r.ore : 0;
+  return XP_SMITH_PER_ORE * ore;
+}
 const XP_FIREMAKING = 40;
 const XP_BURY = 25;
 const FIRE_TICKS = 100;
@@ -1818,7 +1833,7 @@ const LANDMARK_KINDS = new Set([
   const validTrade = (t, s2) => {
     if (t === null) return null;
     if (!t || typeof t !== 'object') return 'malformed trade';
-    if (Object.keys(t).sort().join(',') !== 'giveSlots,to,wantGold,wantItem') return 'malformed trade shape';
+    if (Object.keys(t).sort().join(',') !== 'giveItems,giveSlots,to,wantGold,wantItem') return 'malformed trade shape';
     if (typeof t.to !== 'string' || !HEX64.test(t.to)) return 'malformed trade partner';
     if (!s2.players[t.to]) return 'trade references a missing partner';
     // v0.69: a stored offer names one or more slots, ascending and unique, so
@@ -1828,6 +1843,15 @@ const LANDMARK_KINDS = new Set([
     for (let i = 0; i < t.giveSlots.length; i++) {
       if (!isInt(t.giveSlots[i], 0, INV_SLOTS - 1)) return 'malformed trade slot';
       if (i > 0 && t.giveSlots[i] <= t.giveSlots[i - 1]) return 'trade slots must be ascending and unique';
+    }
+    // the advertised goods, one per named slot, in the same order
+    if (!Array.isArray(t.giveItems) || t.giveItems.length !== t.giveSlots.length)
+      return 'malformed trade goods';
+    for (const gi of t.giveItems) {
+      if (!gi || typeof gi !== 'object' || Array.isArray(gi)) return 'malformed trade good';
+      if (Object.keys(gi).sort().join(',') !== 'item,qty') return 'malformed trade good shape';
+      if (!isItemName(gi.item)) return 'malformed trade good item';
+      if (!isInt(gi.qty, 1, MAX_QTY)) return 'malformed trade good qty';
     }
     if (t.wantItem !== null && !isItemName(t.wantItem)) return 'malformed trade item';
     if (!isInt(t.wantGold, 0, MAX_QTY)) return 'malformed trade gold';
@@ -2130,9 +2154,15 @@ function tradeFits(offerer, acceptor, trade) {
   const slots = Array.isArray(trade.giveSlots) ? trade.giveSlots : [];
   if (!slots.length) return false;
   const incoming = [];
-  for (const sl of slots) {
-    const it = offerer.inventory[sl];
+  const advertised = Array.isArray(trade.giveItems) ? trade.giveItems : null;
+  if (!advertised || advertised.length !== slots.length) return false;
+  for (let i = 0; i < slots.length; i++) {
+    const it = offerer.inventory[slots[i]];
     if (!it) return false;                 // the offer no longer holds
+    // §6q: and it must still be WHAT WAS ADVERTISED. Emptiness was already
+    // guarded; substitution was not, which is the whole of the bait-and-
+    // switch: the buyer paid for a star-sword and received a bronze-dagger.
+    if (it.item !== advertised[i].item || (it.qty ?? 1) !== advertised[i].qty) return false;
     incoming.push(it);
   }
   // a copy of what the acceptor's pack looks like once their payment leaves
@@ -2419,7 +2449,22 @@ function validInput(state, input, ctx) {
       return false;
     }
     case 'cast': {
-      if (input.spell === 'anchor') return p.inventory.some(sl => sl?.item === 'sigil');
+      if (input.spell === 'anchor') {
+        // §2k and §6v: ANCHOR IS A RECALL, and answers to both rules.
+        //
+        // It checked only that the caster held a sigil, so for three
+        // magic-stones you got the escape `recall` explicitly forbids -- out
+        // of the Wilds, mid-fight -- and it cancelled a star-dagger root,
+        // which is that weapon's only advantage over the star-sword and sits
+        // behind a 120-tick cooldown.
+        //
+        // §2k names `recall`, but the sentence gives the reason: magic will
+        // not carry you out of danger you chose to enter. Anchor is magic and
+        // the Wilds is that danger.
+        if (p.hp <= 0 || inWilds(state.genesis, p.x, p.y)) return false;
+        if ((p.rootedUntil ?? 0) > state.tick) return false;   // §6v: they cannot move
+        return p.inventory.some((sl) => sl?.item === 'sigil');
+      }
       if (input.spell === 'mend') // v0.41: the same sigil, a deeper use
         return effLevel(p.skills.magic) >= 20 && p.inventory.some(sl => sl?.item === 'sigil');
       return false;
@@ -2524,6 +2569,9 @@ function validInput(state, input, ctx) {
       return hasAdjacentNode(state, ctx, p, 'bank');
     }
     case 'withdraw': {
+      // a CHART banks fine (isItemName accepts it) and could never be taken
+      // out again, because withdraw's shape check is ITEMS-only. Silent,
+      // permanent loss of a survey reward. Two gates that must agree.
       if (typeof input.item !== 'string' || !(p.bank[input.item] > 0)) return false;
       if (firstFreeSlot(p.inventory) === -1) return false;
       return hasAdjacentNode(state, ctx, p, 'bank');
@@ -2815,7 +2863,13 @@ function adjacentNodeIdsInOrder(state, ctx, p, type) {
     if (!ta) continue;
     for (const id of ta) if (state.nodes[id].type === type) found.push(id);
   }
-  found.sort((a, b) => ctx.seq.get(a) - ctx.seq.get(b));
+  // v0.81: by nodeId, not by enumeration order. `seq` mirrors s.nodes
+  // insertion order, which a checkpoint restore reorders -- and this
+  // function's only caller APPENDS to `p.attuned`, an ordered array in
+  // canonical state. Two nodes disagreeing about the order of two adjacent
+  // waystones is a state-hash fork. `findAdjacentNode` was given this fix in
+  // v0.80 and this sibling was missed.
+  found.sort();
   return found;
 }
 function waystoneIdsSorted(state, ctx) {
@@ -2912,6 +2966,27 @@ function claimFirst(s, key, pid) { // true the first time `key` is ever achieved
   return false;
 }
 
+// NO NON-FINITE NUMBER MAY ENTER THE STATE.
+//
+// The smithing NaN was one arithmetic slip away from killing a world, and it
+// got all the way to consensus because nothing looked. `canonical()` throwing
+// mid-attestation is a terrible failure mode whatever caused it: the world
+// keeps running and stops being able to describe itself. This turns that
+// class of fault into a skill that stopped rising, which is a bug report
+// rather than an ending.
+function scrubSkills(s) {
+  for (const pid of Object.keys(s.players)) {
+    const p = s.players[pid];
+    if (!p || !p.skills) continue;
+    for (const sk of SKILLS) {
+      const v = p.skills[sk];
+      if (!Number.isFinite(v)) p.skills[sk] = sk === 'hitpoints' ? HP_START_XP : 0;
+      else if (v < 0) p.skills[sk] = 0;
+      else if (v > MAX_XP) p.skills[sk] = MAX_XP;
+      else if (!Number.isInteger(v)) p.skills[sk] = Math.floor(v);
+    }
+  }
+}
 function nextState(state, inputs, _legacyBeacon) {
   if (_p2on) { _p2sections = {}; _p2cur = null; }
   _p2mark('clone');
@@ -3225,6 +3300,23 @@ function nextState(state, inputs, _legacyBeacon) {
                     : (mirrorHit !== null ? mirrorHit : st.maxHit);
           target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
           if (target.hp <= 0) {
+            // §6w: THE BOW SURVIVES ITS BEARER.
+            //
+            // Every other route by which the bow leaves a citizen resets
+            // `bowOut` -- it rots off the ground, it goes home when they are
+            // swept or archived, it spills to the ground when they fall in
+            // PvP. Only this one, death to a beast, annihilated the pack
+            // WITHOUT resetting the flag: the one unique object in the world
+            // ceased to exist and the world still believed one was loose, so
+            // the dragon would never drop another.
+            //
+            // And this is the LIKELY death, not the edge case: taking the bow
+            // means standing next to a maxHit 28 dragon. The bow was one bad
+            // fight from being gone forever, silently.
+            if (_carriesBow(target)) {
+              s.bowOut = false;
+              announce(s, 'The DRAGONBOW has gone back to the Wilds; its bearer fell.');
+            }
             target.hp = 0;
             target.inventory = Array(INV_SLOTS).fill(null);
             target.equipment = { weapon: null, head: null, body: null };
@@ -3473,7 +3565,25 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'offer_trade') {
       // the shape gate guarantees both demand fields, canonically, the
       // persisted trade is the signed trade, verbatim (pre-freeze §12)
-      p.trade = { to: inp.to, giveSlots: inp.giveSlots.slice(), wantItem: inp.wantItem, wantGold: inp.wantGold };
+      // §6q: AN OFFER NAMES WHAT IT GIVES, not merely where it sits.
+      //
+      // A stored offer was {to, giveSlots, wantItem, wantGold} -- addresses
+      // with no commitment to their contents. Inputs apply in canonical
+      // playerId order, so an offerer whose id sorts first could WIELD the
+      // advertised slot in the settling tick: `wield` swaps the equipped item
+      // into that slot, so they keep the sword, take the gold, and hand over
+      // whatever was on their hip. The acceptance guard checked only that the
+      // slot was not empty.
+      //
+      // That is not a gamble either. Ordering is fixed and public per pair,
+      // so an attacker knows before they start which victims are exploitable,
+      // and can mint keys until they sort low.
+      p.trade = { to: inp.to, giveSlots: inp.giveSlots.slice(),
+                  giveItems: inp.giveSlots.map((sl) => {
+                    const it = p.inventory[sl];
+                    return { item: it.item, qty: it.qty ?? 1 };
+                  }),
+                  wantItem: inp.wantItem, wantGold: inp.wantGold };
     } else if (inp.type === 'cancel_trade') {
       p.trade = null;
     } else if (inp.type === 'accept_trade') {
@@ -3530,7 +3640,21 @@ function nextState(state, inputs, _legacyBeacon) {
         }
         const slot = firstFreeSlot(p.inventory);
         if (slot !== -1) p.inventory[slot] = { item: inp.recipe, qty: 1 };
-        p.skills.smithing += XP_SMITH_PER_ORE * r.ore;
+        // §6ad: A RECIPE WITHOUT ORE STILL TEACHES SOMETHING.
+        //
+        // This read `XP_SMITH_PER_ORE * r.ore`, and two recipes have no ore
+        // at all -- `sigil-bow` (a horn-bow and three sigils) and
+        // `heartwood-bow` (three heartwood), both added after this line was
+        // written. `30 * undefined` is NaN.
+        //
+        // NaN is not merely wrong, it is FATAL: nextState succeeds, so the
+        // poisoned skill is committed to consensus state, and `canonical()`
+        // refuses non-finite numbers -- so from that tick on no node can
+        // compute a stateHash. No attestation, no checkpoint, no quorum, and
+        // no re-import either, because validateState rejects it too. One
+        // citizen, one ordinary input, and the world can never again prove
+        // anything about itself while continuing to tick.
+        p.skills.smithing += XP_SMITH_FOR(inp.recipe, r);
       }
     } else if (inp.type === 'wield') {
       const sl = p.inventory[inp.slot];
@@ -3698,7 +3822,14 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'brew') {
       const bp = s.nodes[inp.nodeId], sl = p.inventory[inp.slot];
-      if (bp && bp.type === 'brewpot' && bp.by === pid && bp.readyAt === undefined && atOrBeside(p, bp) && sl && (sl.item === 'grain' || sl.item === 'raw-fish')) {
+      // §6ad: `isRawFood`, matching the validator. This read `raw-fish` by
+      // name while the validator said yes to a deep fish too, so brewing with
+      // one was ACCEPTED and then did nothing -- the citizen's whole input for
+      // that tick spent on silence. The same validator/executor drift as the
+      // cook gate and the eat list, and the third time from one predicate not
+      // being carried to every site.
+      if (bp && bp.type === 'brewpot' && bp.by === pid && bp.readyAt === undefined
+          && atOrBeside(p, bp) && sl && (sl.item === 'grain' || isRawFood(sl.item))) {
         removeItem(p.inventory, inp.slot, 1);
         bp.brewKind = sl.item === 'grain' ? 'ale' : 'broth';
         bp.readyAt = s.tick + s.genesis.brew.ferment; bp.lastUsed = s.tick; // the world does the waiting (spec 8)
@@ -3879,10 +4010,21 @@ function nextState(state, inputs, _legacyBeacon) {
       const q = s.players[p.action.targetId];
       if (q && ((q.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick)) { p.action = null; continue; } // the truce ends the fight (v0.80)
       const both = q && q.hp > 0 && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y);
-      const near = both && (adjacent(p, q)
-        || (Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)) <= 4
-            && p.equipment.weapon?.item === 'wooden-bow'
-            && p.inventory.some(sl => sl?.item === 'arrows')));
+      // §6b: PVP USES THE SAME GEOMETRY AS EVERYTHING ELSE.
+      //
+      // This was hardcoded to `wooden-bow` and a literal reach of 4, so every
+      // other ranged weapon and every reach-2 spear was accepted by the
+      // validator and then CANCELLED in the same tick -- silently, with no
+      // arrow spent and no error, indistinguishable from lag. The dragonbow's
+      // entire stated design did nothing against a citizen, which is the one
+      // place §6w says it matters most.
+      //
+      // The mob path eighty lines below already had the right form. This is
+      // that, against a citizen: a weapon reaches as far as it reaches.
+      const bowHeld = isRanged(p)
+        && Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)) <= reachOf(p)
+        && p.inventory.some((sl) => sl?.item === 'arrows');
+      const near = both && (inReach(p, q) || bowHeld);
       if (!near) { p.action = null; }
       else if (s.tick - (p.lastSwing ?? -64) < (weaponOf(p)?.every ?? 2)) {
         /* combat breathes (6m, 2b-iii): the arm has not recovered, and turning
@@ -4262,6 +4404,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (swept > 0) s.swept = (s.swept ?? 0) + swept;
   }
 
+  scrubSkills(s);   // nothing non-finite leaves a tick
   return s;
 }
 
