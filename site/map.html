@@ -1408,15 +1408,44 @@ function blit() {
 }
 // the island grows row by row, so the seed is seen doing its work
 let row = 0
+// PIXELS, NOT RECTANGLES.
+//
+// This drew the island with one `fillRect(x, row, 1, 1)` per tile: four
+// hundred and fifty-eight THOUSAND canvas operations, each with its own
+// state change for `fillStyle`. On a retina display, where the backing store
+// is twice the size again, a single row could overrun the 24ms frame budget
+// on its own -- so the loop managed one row per frame and the island took
+// minutes to appear, or looked like it had hung entirely.
+//
+// The same work written straight into an ImageData buffer is one operation
+// per FRAME instead of one per tile. The colours are resolved once into a
+// small integer table rather than parsed from a hex string half a million
+// times.
+let _img = null, _pix = null
+const _rgba = new Map()
+function packColour(css) {
+  let v = _rgba.get(css)
+  if (v !== undefined) return v
+  const t = (css || '#f0f').replace('#', '')
+  const n = t.length === 3
+    ? parseInt(t[0] + t[0] + t[1] + t[1] + t[2] + t[2], 16)
+    : parseInt(t.slice(0, 6), 16)
+  // little-endian RGBA packed into one 32-bit word
+  v = (255 << 24) | ((n & 0xff) << 16) | ((n >> 8 & 0xff) << 8) | (n >> 16 & 0xff)
+  _rgba.set(css, v)
+  return v
+}
 function growRows() {
+  if (!_img) { _img = bctx.createImageData(W, H); _pix = new Uint32Array(_img.data.buffer) }
   const t0 = performance.now()
+  const noRoads = V4() && !ROADS_READY
   while (row < H && performance.now() - t0 < 24) {
-    for (let x = 0; x < W; x++) {
-      bctx.fillStyle = PAL[(V4() && !ROADS_READY) ? terrainNoRoads4(x, row) : terrainOfE(x, row)] || '#f0f'
-      bctx.fillRect(x, row, 1, 1)
-    }
+    const base = row * W
+    for (let x = 0; x < W; x++)
+      _pix[base + x] = packColour(PAL[noRoads ? terrainNoRoads4(x, row) : terrainOfE(x, row)])
     row++
   }
+  bctx.putImageData(_img, 0, 0)
   blit()
   if (row < H) requestAnimationFrame(growRows)
   else { document.getElementById('growing').remove(); drawStones(); if (V4()) requestAnimationFrame(growRoads) }
@@ -1428,15 +1457,18 @@ function growRoads(now) {
   if (!ROADS_READY) { roadSet4(); ROADS_READY = true }   // one hit, after the land is visible
   const t0 = performance.now()
   while (roadRow < H && performance.now() - t0 < 24) {
+    // the same pixel buffer the land was drawn into, so a road is a word
+    // written over the map rather than four hundred more canvas operations
+    const base = roadRow * W
     for (let x = 0; x < W; x++) {
       const t = terrainOfE(x, roadRow)
       if (t === 'trail' || t === 'cobble' || t === 'gravel' || t === 'chalk'
-          || t === 'peat' || t === 'causey' || t === 'bridge') {
-        bctx.fillStyle = PAL[t] || '#f0f'; bctx.fillRect(x, roadRow, 1, 1)
-      }
+          || t === 'peat' || t === 'causey' || t === 'bridge')
+        _pix[base + x] = packColour(PAL[t])
     }
     roadRow++
   }
+  if (_img) bctx.putImageData(_img, 0, 0)
   blit()
   if (roadRow < H) requestAnimationFrame(growRoads)
 }
