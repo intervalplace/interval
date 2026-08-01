@@ -341,7 +341,17 @@ const STORE_SELLS = { seeds: 15 }; // the keeper's OWN goods, made from nothing
 // nothing ever unmade it. A flat tenth would have rounded to zero on the nine
 // cheapest goods, which are the ones that actually move, so the cut is never
 // less than a single coin.
-const SHELF_CAP = 1000;        // per item, per store: consensus state is forever
+const SHELF_CAP = 8000;        // per item, per store.
+// v0.83: was 1000, when there were thirteen stores. The two numbers were
+// always independent and got confused for one: state cost is the number of
+// (store, item) PAIRS -- twenty-five items times however many shops -- and
+// NOT the integer in each. A shelf holding eight thousand is the same few
+// bytes as one holding a thousand. So cutting to six markets and raising the
+// cap gives forty-eight thousand units of shelf against the old thirteen
+// thousand: fewer, deeper markets AND more headroom, not a trade between
+// them. The decay sink is unharmed, being proportional -- a deep shelf still
+// sheds a sixteenth a cycle. What stops happening is the max(1) floor eating
+// small piles alive, which is what fragmentation actually cost.
 const SHELF_DECAY_EVERY = 1500; // 15 minutes
 const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted // farming no longer waits on goblin luck
 const MAGIC_ROCK_MINING = 10; // the vein refuses an unpracticed pick
