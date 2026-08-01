@@ -2558,6 +2558,42 @@ export function buildWorld(genesis) {
   counts.trolls = clusterScatter('troll', A(150),
     (x, y) => { const b = B(x, y); return b === 'crags' || (b === 'wilds' && x < W * 0.10) },
     mob('troll'), 10, 10)
+  // ---- THE FLOCKS ----
+  //
+  // The Downs measured out at twenty-two thousand tiles carrying twenty-eight
+  // living things -- twelve per ten thousand, against the Fens' sixty-one --
+  // and it is the country this world named THE SHEEPFOLDS. Downland is sheep
+  // country in the plainest sense; the map said so from the fourth founding
+  // and there were never any sheep on it.
+  //
+  // In flocks, because that is how sheep stand, and because the same
+  // clusterScatter that musters the knights and the trolls already does it.
+  // Forty takes the Downs to about thirty per ten thousand: below the Crags
+  // at thirty-five, well below the Fens. The emptiest country stops being
+  // empty without becoming busy.
+  counts.sheep = clusterScatter('sheep', A(28), (x, y) => B(x, y) === 'downs',
+    mob('sheep'), 5, 7)
+  // AND A FLOCK IN THE FOLDS THEMSELVES.
+  //
+  // A named place should hold the thing it is named for, rather than hoping
+  // the hashed clumps happen to land on it -- the same reason a port seats
+  // its own coves above instead of waiting for one of the twelve to arrive.
+  {
+    const fold = localesOf(g).find((L) => L.tag === 'sheepfolds')
+    let f = 0
+    if (fold) for (let i = 0; i < 400 && f < A(12); i++) {
+      const hh = H32('sheepfold', i)
+      const rad = 2 + (hh[0] % 16)
+      const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
+      const x = Math.round(fold.x + Math.cos(ang) * rad)
+      const y = Math.round(fold.y + Math.sin(ang) * rad * 0.7)
+      if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+      if (biomeAt(g, x, y) !== 'downs') continue
+      taken.add(key(x, y)); E.addMob(w, 'fold-' + i, 'sheep', x, y); f++
+    }
+    counts.foldSheep = f
+  }
+
   // WARBANDS THAT LAND IN THE WILDS.
   //
   // The centre of each band used to be drawn from the rectangle x < 0.21W --
