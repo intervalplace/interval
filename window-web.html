@@ -1144,26 +1144,130 @@ function stepToward(s, me, goal, reach, stampTick) {
   send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
 }
 
-function smithBest(me) {
-  const have = (item) => me.inventory.filter(sl => sl && sl.item === item).length
-  const lvl = (sk) => XP_TO_LVL(me.skills[sk])
-  if (have('magic-stone') >= 4 && have('ore') >= 3 && lvl('smithing') >= 30 && lvl('magic') >= 15) {
-    send({ do: 'smith', recipe: 'star-plate' }); feed('The stones sing under the hammer\u2026 a starmetal plate takes shape.') }
-  else if (have('magic-stone') >= 3 && have('ore') >= 2 && lvl('smithing') >= 20 && lvl('magic') >= 10) {
-    send({ do: 'smith', recipe: 'star-sword' }); feed('The stones sing under the hammer\u2026 a starmetal sword takes shape.') }
-  else if (have('magic-stone') >= 2 && have('ore') >= 1 && lvl('smithing') >= 15 && lvl('magic') >= 5) {
-    send({ do: 'smith', recipe: 'star-helm' }); feed('The stones sing under the hammer\u2026 a starmetal helm takes shape.') }
-  else if (have('magic-stone') >= 2 && have('ore') >= 1) {
-    feed('The stones wait for a worthier hand. (Helm: smithing 15 + magic 5. Sword: 20/10. Plate: 30/15.)')
-    if (have('ore') >= 2 && have('logs') >= 1) { send({ do: 'smith', recipe: 'bronze-sword' }) }
-  }
-  else if (have('ore') >= 2 && have('logs') >= 1) { send({ do: 'smith', recipe: 'bronze-sword' }); feed('You hammer at the anvil\u2026 a bronze sword takes shape.') }
-  else if (have('ore') >= 1 && have('logs') >= 1) {
-    const recipe = XP_TO_LVL(me.skills.woodcutting) <= XP_TO_LVL(me.skills.mining) ? 'bronze-hatchet' : 'bronze-pickaxe'
-    send({ do: 'smith', recipe }); feed('You hammer at the anvil\u2026 a ' + recipe.replace('-', ' ') + ' takes shape.')
-  }
-  else feed('You need ore and logs to smith. (Sword: 2 ore. Tools: 1 ore.)')
+// §6ad: THE FORGE MENU.
+//
+// This used to GUESS. A cascade of if-elses picked one recipe from your pack
+// and made it — which was right when the anvil offered a tool or a bronze
+// sword, and is not right now that it offers eighteen. Six were reachable at
+// all, and there was no way to ask for a particular one: a citizen with ore,
+// logs and magic-stone got a star-plate whether or not that is what they
+// wanted.
+//
+// So: every recipe, always shown, grouped by material. And the important part
+// is not the list, it is WHY a row is closed to you. There are five different
+// reasons, and a row that simply greys out teaches none of them:
+//
+//     materials · smithing level · MAGIC level (seven star recipes want both)
+//     a full pack · and the sigil-bow, whose input is itself a crafted item
+//
+// A row that says `smithing 28 (you have 22)` teaches the whole progression,
+// which is most of the value of building this at all. The failing clause is
+// coloured, not the whole row.
+const FORGE = {
+  'bronze-dagger':  { ore: 1 },
+  'bronze-hatchet': { ore: 1, logs: 1 },
+  'bronze-pickaxe': { ore: 1, logs: 1 },
+  'bronze-spear':   { ore: 1, logs: 1 },
+  'bronze-helm':    { ore: 1, logs: 1 },
+  'bronze-sword':   { ore: 2, logs: 1 },
+  'bronze-maul':    { ore: 2, logs: 1 },
+  'bronze-flail':   { ore: 2, logs: 1 },
+  'bronze-plate':   { ore: 3, logs: 1 },
+  'crossbow':       { ore: 2, logs: 2 },
+  'sigil-bow':      { 'horn-bow': 1, sigil: 3 },
+  'star-helm':      { 'magic-stone': 2, ore: 1 },
+  'star-spear':     { 'magic-stone': 2, ore: 1, logs: 1 },
+  'star-dagger':    { 'magic-stone': 2, ore: 1 },
+  'star-sword':     { 'magic-stone': 3, ore: 2 },
+  'star-maul':      { 'magic-stone': 3, ore: 2, logs: 1 },
+  'star-flail':     { 'magic-stone': 3, ore: 2, logs: 1 },
+  'star-plate':     { 'magic-stone': 4, ore: 3 },
 }
+// character for character from engine SMITH_REQS
+const FORGE_REQ = {
+  'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
+  'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 },
+  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
+  'star-flail': { smithing: 26, magic: 14 },
+  'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
+  'sigil-bow': { smithing: 12, magic: 25 },
+}
+// a log is a log (§6ad), so heartwood pays for anything logs pay for
+function forgeHave(me, item) {
+  return me.inventory.reduce((a, sl) => {
+    if (!sl) return a
+    if (sl.item === item) return a + (sl.qty ?? 1)
+    if (item === 'logs' && sl.item === 'heartwood') return a + (sl.qty ?? 1)
+    return a
+  }, 0)
+}
+// every reason this recipe is closed, in the order a citizen would meet them
+function forgeBlockers(me, recipe) {
+  const out = []
+  for (const [item, n] of Object.entries(FORGE[recipe] ?? {})) {
+    const has = forgeHave(me, item)
+    if (has < n) out.push({ kind: 'need', text: n + ' ' + item.replace(/-/g, ' ') + ' (you have ' + has + ')' })
+  }
+  for (const [sk, n] of Object.entries(FORGE_REQ[recipe] ?? {})) {
+    const lv = XP_TO_LVL(me.skills[sk] ?? 0)
+    if (lv < n) out.push({ kind: 'skill', text: sk + ' ' + n + ' (you have ' + lv + ')' })
+  }
+  if (!me.inventory.some((sl) => !sl)) out.push({ kind: 'room', text: 'your pack is full' })
+  return out
+}
+let forgeOpen = false
+function closeForge() {
+  forgeOpen = false
+  const el = document.getElementById('forge')
+  if (el) el.remove()
+}
+function openForge(me) {
+  closeForge()
+  forgeOpen = true
+  const box = document.createElement('div')
+  box.id = 'forge'
+  box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);'
+    + 'z-index:60;background:#241f18;border:3px solid #8a6f45;padding:10px 12px;'
+    + 'max-height:78%;overflow-y:auto;min-width:330px;font:12px Verdana;color:#e2d6b8'
+  const groups = [['bronze', Object.keys(FORGE).filter((k) => k.startsWith('bronze-'))],
+                  ['starmetal', Object.keys(FORGE).filter((k) => k.startsWith('star-'))],
+                  ['and the rest', ['crossbow', 'sigil-bow']]]
+  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<b style="color:#e2b63e">THE ANVIL</b>'
+    + '<span id="forgex" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
+  for (const [label, keys] of groups) {
+    html += '<div style="color:#8a7f68;margin:8px 0 4px;letter-spacing:1px">' + label.toUpperCase() + '</div>'
+    for (const k of keys) {
+      const bl = forgeBlockers(me, k)
+      const ok = bl.length === 0
+      const cost = Object.entries(FORGE[k]).map(([i, n]) => n + ' ' + i.replace(/-/g, ' ')).join(' + ')
+      html += '<div class="frow" data-recipe="' + k + '" style="padding:5px 6px;margin:2px 0;'
+        + 'border:1px solid ' + (ok ? '#6b8a45' : '#4a4238') + ';background:' + (ok ? '#2e3524' : '#2a251e')
+        + ';cursor:' + (ok ? 'pointer' : 'default') + '">'
+        + '<span style="color:' + (ok ? '#e2d6b8' : '#8a8078') + '">' + k.replace(/-/g, ' ') + '</span>'
+        + '<span style="float:right;color:#8a7f68">' + cost + '</span>'
+      // and WHY not, clause by clause
+      if (!ok) html += '<div style="clear:both;font-size:10px;margin-top:3px">'
+        + bl.map((b) => '<span style="color:' + (b.kind === 'skill' ? '#c98b5a' : b.kind === 'room' ? '#a8446a' : '#8a8078')
+          + '">' + b.text + '</span>').join('<span style="color:#5a5348"> \u00b7 </span>') + '</div>'
+      html += '<div style="clear:both"></div></div>'
+    }
+  }
+  box.innerHTML = html
+  cv.parentNode.appendChild(box)
+  box.addEventListener('click', (e) => {
+    if (e.target.id === 'forgex') { closeForge(); return }
+    const row = e.target.closest('.frow')
+    if (!row) return
+    const recipe = row.dataset.recipe
+    const meNow = world?.players?.[myId]
+    if (!meNow || forgeBlockers(meNow, recipe).length) return   // closed rows do nothing
+    send({ do: 'smith', recipe })
+    feed('You hammer at the anvil\u2026 a ' + recipe.replace(/-/g, ' ') + ' takes shape.')
+    closeForge()
+  })
+}
+function smithBest(me) { openForge(me) }
 
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
@@ -6296,18 +6400,28 @@ const _skIco = new Map()
 function skillIcon(name) {
   if (_skIco.has(name)) return _skIco.get(name)
   let out = null
+  // the sheet is `display:none`, and a <symbol> is never rendered in any
+  // case, so this reads the rects as DATA rather than as laid-out geometry.
+  // getAttribute works on an unrendered element; getBBox and getComputedStyle
+  // do not, which is the trap here.
   const sym = document.getElementById('sk-' + name)
   if (sym) {
     const S = 4                                   // 10x10 glyph at 4x
     const c = document.createElement('canvas')
     c.width = 40; c.height = 40
     const g2 = c.getContext('2d')
+    let painted = 0
     for (const r of sym.querySelectorAll('rect')) {
       g2.fillStyle = r.getAttribute('fill') || '#fff'
       g2.fillRect(+r.getAttribute('x') * S, +r.getAttribute('y') * S,
                   +r.getAttribute('width') * S, +r.getAttribute('height') * S)
+      painted++
     }
-    out = c
+    // if the sheet was not there, or held no rects, keep null rather than
+    // caching a blank canvas -- a blank icon drawn every frame is harder to
+    // notice than no icon at all
+    out = painted > 0 ? c : null
+    if (!painted) console.warn('[interval] no glyph rects for sk-' + name)
   }
   _skIco.set(name, out)
   return out

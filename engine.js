@@ -682,7 +682,8 @@ const RECIPES = {
   'bronze-maul': { ore: 2, logs: 1 },
   'bronze-flail': { ore: 2, logs: 1 },          // a head, a chain, a haft
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
-  'heartwood-bow': { heartwood: 3 },            // §6ad: fletched, not forged
+  // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
+  // fletch input, because a bow made by a fletcher belongs to fletching.
   'crossbow': { ore: 2, logs: 2 },              // a steel prod and a wooden stock
   'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
@@ -697,7 +698,11 @@ const RECIPES = {
   'star-plate':     { 'magic-stone': 4, ore: 3 },
   'star-dagger':    { 'magic-stone': 2, ore: 1 },
 };
-const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow']);
+// §6ad:  is listed here BY NAME because it is no longer in
+// RECIPES -- it is fletched, not forged. EQUIPPABLE was built from the recipe
+// keys plus the four things nobody makes, so moving a weapon between crafts
+// silently made it unwieldable.
+const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow', 'heartwood-bow']);
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
 // syntactically pretty identifier that is not in this set is contraband:
@@ -727,7 +732,7 @@ const SMITH_REQS = { 'star-sword': { smithing: 20, magic: 10 },
   // works and three sigils, and you bind them to the limbs, which is why the
   // magic asked for is higher than the smithing.
   'sigil-bow': { smithing: 12, magic: 25 },
-  'heartwood-bow': { fletching: 90 } };
+  };
 // §6ad: A LOG IS A LOG.
 //
 // At woodcutting 90 a tree gives heartwood instead of logs, which would strand
@@ -790,7 +795,7 @@ const T = {
   recipe: (v) => (typeof v === 'string' && v in RECIPES) || 'must be a constitutional recipe',
   gear: (v) => EQUIP_SLOTS.includes(v) || 'must be an equipment slot name',
   spell: (v) => ['anchor', 'mend'].includes(v) || 'must be a constitutional spell',
-  make: (v) => ['bow', 'arrows'].includes(v) || 'must be bow or arrows',
+  make: (v) => ['bow', 'arrows', 'heartwood-bow'].includes(v) || 'must be bow, arrows or heartwood-bow',
   name: (v) => isValidName(v) || 'must be a constitutional name',
 };
 const INPUT_SCHEMAS = {
@@ -2569,6 +2574,17 @@ function validInput(state, input, ctx) {
     case 'fletch': {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl) return false;
+      // §6ad: THE HEARTWOOD BOW IS FLETCHED, NOT FORGED.
+      //
+      // It was in RECIPES with a `fletching: 90` gate, which made it a bow
+      // you MAKE AT AN ANVIL while fletching heartwood by hand still gave a
+      // beginner's wooden bow. The one crafted bow in the world, forged. Its
+      // whole point is that fletching finally has a summit, so it belongs at
+      // the bench with the rest of the fletcher's work.
+      if (input.make === 'heartwood-bow') {
+        if (effLevel(p.skills.fletching) < 90) return false;
+        return countItem(p.inventory, 'heartwood') >= 3;
+      }
       return (input.make === 'bow' && isLog(sl.item))
         || (input.make === 'arrows' && sl.item === 'bones');
     }
@@ -3923,7 +3939,13 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'fletch') {
       const sl = p.inventory[inp.slot];
-      if (sl && inp.make === 'bow' && isLog(sl.item)) {
+      if (inp.make === 'heartwood-bow' && effLevel(p.skills.fletching) >= 90
+          && countItem(p.inventory, 'heartwood') >= 3) {
+        consumeItem(p.inventory, 'heartwood', 3);
+        const sl2 = firstFreeSlot(p.inventory);
+        if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-bow', qty: 1 };
+        p.skills.fletching += 120;
+      } else if (sl && inp.make === 'bow' && isLog(sl.item)) {
         p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
         p.skills.fletching += 15;
       } else if (sl && inp.make === 'arrows' && sl.item === 'bones') {
