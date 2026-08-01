@@ -547,6 +547,19 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(150,190,240,' + (0.06 + 0.06 * pulse) + ')'
       g.beginPath(); g.arc(16, 16, 14, 0, 7); g.fill()
       break }
+    case 'wool': {
+      // a bundle off the fleece: soft edges, no shape of its own
+      g.fillStyle = '#e8e4d8'
+      for (const [wx, wy, wr] of [[-5, -2, 6], [4, -3, 6.4], [0, 4, 6.6], [-6, 4, 4.4], [7, 4, 4.4]]) {
+        g.beginPath(); g.arc(16 + wx, 17 + wy, wr, 0, 7); g.fill()
+      }
+      g.strokeStyle = '#b8b2a2'; g.lineWidth = 1
+      for (const [wx, wy, wr] of [[-5, -2, 6], [4, -3, 6.4], [0, 4, 6.6]]) {
+        g.beginPath(); g.arc(16 + wx, 17 + wy, wr, 0, 7); g.stroke()
+      }
+      g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 1.4   // a curl of it
+      g.beginPath(); g.arc(13, 13, 3, 2.4, 5.2); g.stroke()
+      break }
     case 'crab-shell': {
       g.fillStyle = '#a34a2c'
       g.beginPath(); g.ellipse(16, 18, 11, 7.5, 0, 0, 7); g.fill()
@@ -714,6 +727,7 @@ const MOB_STATS = {
   'siren':           { maxHp: 60, atk: 20, def: 20, maxHit: 6, respawn: 1200, aggro: 10, mirrors: true },
   'great-spider':    { maxHp: 300, atk: 26, def: 18, maxHit: 9, respawn: 36000, aggro: 6, mends: 6 },
   'shore-crab':      { maxHp: 90, atk: 8, def: 14, maxHit: 2, respawn: 90, aggro: 4, harmless: true },
+  sheep:             { maxHp: 40, atk: 2, def: 8, maxHit: 1, respawn: 120, harmless: true },
   dragon:            { maxHp: 420, atk: 115, def: 24, maxHit: 28, respawn: 36000,
                        aggro: 9, breath: 5 },
 }
@@ -5495,6 +5509,34 @@ function drawScene(now) {
         cx.fillStyle = 'rgba(226,182,62,.9)'
         cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
         cx.fillText('THE SPIDER', X + 20, Y - 11); cx.textAlign = 'left'
+        return
+      }
+      if (m.type === 'sheep') {
+        // a low woolly bundle with a dark face: it should read at a glance as
+        // the one thing out here that is not going to do anything to you
+        const graze = Math.sin(now / 1300 + m.x * 0.7) * 1.6      // the head dips
+        const drift = Math.sin(now / 1900 + m.y * 0.5) * 0.8
+        shadow(X, Y, 11)
+        cx.strokeStyle = '#6b6355'; cx.lineWidth = 1.6           // four legs
+        for (const lx of [-6, -2, 3, 7]) {
+          cx.beginPath(); cx.moveTo(X + 20 + lx, Y + 24); cx.lineTo(X + 20 + lx, Y + 30); cx.stroke()
+        }
+        cx.fillStyle = '#e8e4d8'                                  // the fleece
+        cx.beginPath(); cx.ellipse(X + 19 + drift, Y + 20, 12, 8.5, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#d4cfc0'                                  // clumps of it
+        for (const [wx, wy, wr] of [[-7, -4, 4], [0, -6, 4.6], [7, -3, 4], [-4, 3, 3.6], [5, 3, 3.6]]) {
+          cx.beginPath(); cx.arc(X + 19 + drift + wx, Y + 20 + wy, wr, 0, 7); cx.fill()
+        }
+        cx.strokeStyle = '#b8b2a2'; cx.lineWidth = 1
+        cx.beginPath(); cx.ellipse(X + 19 + drift, Y + 20, 12, 8.5, 0, 0, 7); cx.stroke()
+        cx.fillStyle = '#3a352e'                                  // the face, dipped to the grass
+        cx.beginPath(); cx.ellipse(X + 31 + drift, Y + 20 + graze, 4.4, 3.6, 0.3, 0, 7); cx.fill()
+        cx.fillStyle = '#2a251f'                                  // ears
+        for (const ey of [-3, 3]) {
+          cx.beginPath(); cx.ellipse(X + 29 + drift, Y + 18 + graze + ey, 2.2, 1.2, 0.4, 0, 7); cx.fill()
+        }
+        cx.fillStyle = '#f0ece0'                                  // one eye
+        cx.beginPath(); cx.arc(X + 32 + drift, Y + 19 + graze, 0.9, 0, 7); cx.fill()
         return
       }
       if (m.type === 'shore-crab') {

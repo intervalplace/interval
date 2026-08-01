@@ -565,6 +565,25 @@ const MOB_STATS = {
   // defence, not at all.
   'shore-crab': { maxHp: 90, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90, aggro: 4, harmless: true,
                   drops: [{ item: 'crab-shell' }, { item: 'raw-fish', chance: 8192 }] },
+  // THE SHEEP (spec 6ag). The Downs is downland: twenty-two thousand tiles
+  // of it, twenty-eight living things on it, and a locale in the middle
+  // called the Sheepfolds. The map has been promising sheep since the fourth
+  // founding and the world never delivered any.
+  //
+  // NO `aggro` AT ALL, which is the difference between this and the crab. A
+  // crab keeps its aggro on purpose -- it walks at you so you can gather
+  // three at once. A sheep that walked at you would not be a sheep. With no
+  // aggro it never starts anything, and `harmless` means that if you start
+  // it, it swings and never lands and teaches no defence for it.
+  //
+  // The hitpoints are the whole balance and they are not decoration. Safe
+  // country plus a quick kill is a training dummy, and this world's position
+  // is that standing is paid for in time: a five-hitpoint sheep in the
+  // safest country on the island would be the cheapest attack experience in
+  // the world. Forty, at defence eight, makes a sheep about a minute's work
+  // -- livestock, not a dummy -- which is the same reason the crab is ninety.
+  sheep: { maxHp: 40, atk: 2, def: 8, maxHit: 1, every: 4, respawn: 120, harmless: true,
+           drops: [{ item: 'wool' }, { item: 'wool', chance: 16384 }] },
   // THE SIREN (spec 6ac). The third thing, and the only one that FORBIDS a
   // party. The dragon needs one because you die alone; the spider needs one
   // because the arithmetic does not close; she will not have one at all.
@@ -675,6 +694,7 @@ const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
 const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
   'star-spear': 100, 'star-maul': 160, 'horn-bow': 90, 'crab-shell': 12,
+  'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
   // heartwood is worth more than logs, and a deep fish more than a shallow
   // one: a master's hour should be worth more than a beginner's
@@ -750,6 +770,9 @@ const ITEMS = new Set([
   'bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   'dragonbow',   // §6w: there is one. No keeper prices it, so it is never bought.
   'crab-shell',  // §6z: what a shore-crab gives up
+  'wool',        // §6ag: what a sheep gives up. Worth money and nothing else,
+                 // which is exactly what crab-shell is: this world does not
+                 // need every drop to be an input to something.
   'sigil-bow',
   ...Object.keys(RECIPES),
 ]);

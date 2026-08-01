@@ -2984,6 +2984,42 @@ There is **no mining gate**, and there is none anywhere in this world.
 Everything is a success *rate*, which is the same *standing is time* thesis:
 nothing is forbidden, some things are slow.
 
+## 6ag. The sheep (v0.82)
+
+The Downs is twenty-two thousand tiles carrying **twenty-eight living
+things** — twelve per ten thousand, against the Fens' sixty-one — and it
+holds a locale named **the Sheepfolds**. The map had been promising sheep
+since the fourth founding and the world never put any there.
+
+```
+sheep  maxHp 40 · atk 2 · def 8 · maxHit 1 · every 4 · respawn 120
+       harmless · NO aggro · drops wool, sometimes a second
+```
+
+**No `aggro` at all**, which is what separates this from the crab. A crab
+keeps its aggro deliberately, so it walks to you and you gather three at
+once. A sheep that walked at you would not be a sheep. With no aggro it
+never starts anything; `harmless` means that if *you* start it, it swings,
+never lands, and teaches no defence for it.
+
+The forty hitpoints are the balance, not decoration. Safe country plus a
+quick kill is a training dummy, and standing here is paid for in time — a
+five-hitpoint sheep in the safest country on the island would be the
+cheapest attack experience in the world. Forty at defence eight is about a
+minute's work. It is the same reason the crab is ninety.
+
+**Wool is worth money and nothing else**, exactly as `crab-shell` is. Not
+every drop has to be an input to something. Clothing was considered and
+rejected: armour in this world only soaks and never penalises ranged, so an
+archer's tunic would be a star-plate that soaks less, and giving it a niche
+would mean nerfing every archer who already earned their gear.
+
+Forty sheep, in flocks, with one flock seated in the Folds themselves — a
+named place should hold the thing it is named for rather than hope the
+hashed clumps land on it. That takes the Downs to about thirty per ten
+thousand: below the Crags at thirty-five, well below the Fens. The emptiest
+country stops being empty without becoming busy.
+
 ## 6z. The shore-crab
 
 Eastmere had **nothing alive within forty-five tiles** — the emptiest named
