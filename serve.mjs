@@ -27,6 +27,12 @@ const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // outright, so that a landmark is a landmark by contrast again.
 const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v5'
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §2n: and the engine names itself. `rulesHash` binds the constitution, which
+// is prose ABOUT the rules; this binds the rules. A node running a different
+// engine is running a different world, and without this it would not find out
+// until somebody happened to exercise the difference -- which is the worst
+// possible moment, because by then both sides have a history they believe in.
+const ENGINE_HASH = E.declareEngine(fs.readFileSync(new URL('./engine.js', import.meta.url), 'utf8'))
 // founding dimensions: 0 means 'the generator's own calibrated scale'
 // (expanse 640x400 per SPEC §2l, classic 320x200 per §2j) — override
 // with INTERVAL_W / INTERVAL_H only when you know why
@@ -144,6 +150,9 @@ if (canResume) {
   // that starts over in silence leaves nobody able to find out what happened.
   if (saved) {
     const why = []
+    if (saved.genesis.engineHash !== undefined && saved.genesis.engineHash !== ENGINE_HASH)
+      why.push('the engine changed (engine.js now hashes to ' + ENGINE_HASH.slice(0, 16)
+        + '\u2026, the saved world was founded under ' + String(saved.genesis.engineHash).slice(0, 16) + '\u2026)')
     if (saved.genesis.rulesHash !== RULES_HASH)
       why.push('the constitution changed (SPEC.md now hashes to ' + RULES_HASH.slice(0, 16)
         + '\u2026, the saved world was founded under ' + String(saved.genesis.rulesHash).slice(0, 16) + '\u2026)')
