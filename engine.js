@@ -690,6 +690,22 @@ const MOB_STATS = {
                     { item: 'star-helm', chance: 328 }] },    // rare: the horned helm itself
 };
 // the store's ledger (spec 6l)
+// §6v: mend heals twenty in a burst, which is four cooked deep fish and the
+// single largest restoration in the world. At magic 20 it arrived before most
+// of what it saves you from. Fifty, alongside the starmetal it is worn with.
+const MEND_REQ = 50;
+// §6o: A CROP LEFT IN THE GROUND GOES TO SEED.
+//
+// A plot was released in exactly one place -- the harvest branch -- so a
+// citizen who planted and never came back held that ground FOREVER. One
+// person with a hundred and ninety seeds could end farming for the world,
+// permanently, and nothing in the engine would notice.
+//
+// The world's own idiom answers it: ground items rot, fires burn out, stores
+// restock, the ledger forgets. A crop is no different. Twice its ripening
+// again and it has gone over -- long enough that nobody loses a harvest they
+// meant to collect, short enough that the ground comes back.
+const CROP_ROTS_AFTER = 3600;
 const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
 const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
@@ -2614,7 +2630,7 @@ function validInput(state, input, ctx) {
         return p.inventory.some((sl) => sl?.item === 'sigil');
       }
       if (input.spell === 'mend') // v0.41: the same sigil, a deeper use
-        return effLevel(p.skills.magic) >= 20 && p.inventory.some(sl => sl?.item === 'sigil');
+        return effLevel(p.skills.magic) >= MEND_REQ && p.inventory.some(sl => sl?.item === 'sigil');
       return false;
     }
     case 'survey': { // stand on a marker to survey it (v0.50)
@@ -3587,6 +3603,13 @@ function nextState(state, inputs, _legacyBeacon) {
   // player-made fires burn out (spec §6f)
   for (const [nid, n2] of Object.entries(s.nodes)) {
     if (n2.expiresAt && n2.expiresAt <= s.tick) deleteIndexedNode(s, _ctx, nid);
+  }
+  // §6o: crops go over, and the ground comes back to whoever wants it
+  for (const n2 of Object.values(s.nodes)) {
+    if (n2.type !== 'plot' || !(n2.plantedAt > 0)) continue;
+    if (s.tick - n2.plantedAt <= CROP_ROTS_AFTER) continue;
+    n2.plantedAt = 0;
+    if (n2.by !== undefined) delete n2.by;
   }
   // ground decay (spec §3.4): the ground forgets
   for (const [gid, g2] of Object.entries(s.ground)) {
