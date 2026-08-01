@@ -2911,6 +2911,64 @@ by one who did not choose to open it.
 They are placed **on the shore only**, thickest near the town and thinning
 along the coast. A crab inland is a crab somebody carried.
 
+## 2n. The engine is part of the constitution (v0.81)
+
+`rulesHash` binds `SPEC.md`, which is prose **about** the rules. This binds
+the rules.
+
+A genesis MAY carry `engineHash`. Where it does, a node whose own engine
+hashes differently MUST refuse the world: it is not the same world, it only
+looks like one until somebody exercises the difference.
+
+### Why this is not optional in spirit
+
+Two nodes running different engines are running different worlds whatever
+else they agree on. Refusing to check does not prevent that fork — it delays
+the discovery from the handshake to whenever somebody happens to hit the
+divergence, which is the worst possible moment, because by then both sides
+have a history they believe in.
+
+Measured, on the day this was added: the same signed input, one tick, gave
+smithing experience of 40 on one build and `NaN` on another — while both
+agreed on `rulesHash`, `genesisSeed`, `geographyHash` and every other check
+they made.
+
+And "it is only an optimisation" is a claim nobody verifies. The only way to
+establish that a change preserves behaviour is to compare state hashes across
+it, which is precisely the mechanism being waived.
+
+**The cost, stated plainly: after founding, an engine bug is a world bug,
+permanently.** That is the deal `SPEC.md` already makes; this stops the
+implementation from quietly exempting itself. It means an audit must be clean
+BEFORE a founding, not after.
+
+### Normalisation
+
+The hash is taken over a normalised form, not the raw file:
+
+1. remove block comments (`/* … */`)
+2. remove from `//` to end of line, **wherever it appears**
+3. collapse every run of whitespace to a single space
+4. trim
+
+Step 2 is wrong as a parser — it strips inside string literals too — and
+correct as a hash. The normalised text is never executed, only hashed, so the
+only property required is that every node computing it over the same bytes
+arrives at the same answer.
+
+Hashing the raw file instead would mean **a typo fixed in a comment forks the
+world**. That is absurd enough that people would work around it, and a
+worked-around rule is worse than no rule at all. Documentation must be free
+to improve; the rules must not.
+
+```
+a trailing comment edit    same hash
+a whole-line comment edit  same hash
+extra blank lines          same hash
+a rule change              DIFFERENT
+a threshold change         DIFFERENT
+```
+
 ## 2m. The fifth founding
 
 New foundings use `interval-expanse-v5`. It keeps **every acre of v4's land**

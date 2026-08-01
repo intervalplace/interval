@@ -1406,7 +1406,11 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
   // default predated the classic generator and misled (it is below the
   // generator's floor). Every field defaulted: a genesis with an
   // undefined member is not canonically encodable (see canonical()).
+  // §2n: a founding names the engine that made it, if this node has declared
+  // one. `declareEngine` is called by whoever loads the engine's own source.
+  const _eh = engineHash();
   return { specVersion: SPEC_VERSION, rulesHash, genesisSeed, anchorMs, worldW, worldH,
+    ...(_eh ? { engineHash: _eh } : {}),
            worldGenerator,
            // exploration (v0.50): calibrated for THIS world's geometry by its own
            // survey-sim. NOT a universal curve. A larger world founds its own.
@@ -1531,8 +1535,46 @@ function boundedValue(v, depth = 0) {
 }
 
 // Genesis validated independently (brief §9): it is consensus identity.
+// ---- §2n: THE ENGINE IS PART OF THE CONSTITUTION ----
+//
+// `rulesHash` binds SPEC.md, which is prose ABOUT the rules. This binds the
+// rules. Two nodes running different engines are running different worlds
+// whatever any other hash says, and refusing to check it does not prevent
+// that fork -- it only delays the discovery from the handshake to whenever
+// somebody happens to exercise the difference. Measured: the same signed
+// input, one tick, produced smithing xp 40 on one build and NaN on another,
+// with both agreeing on every other hash they check.
+//
+// NORMALISATION. Hashing the raw file would mean a typo fixed in a COMMENT
+// forks the world, which is absurd enough that people work around it, and a
+// worked-around rule is worse than no rule. So comments and runs of
+// whitespace are removed first.
+//
+// It strips from `//` to end of line WHEREVER it appears, including inside
+// string literals. That is wrong as a parser and correct as a hash: the only
+// property required is that every node computing it over the same bytes gets
+// the same answer.
+//
+// This does not need to preserve meaning -- it is never executed, only
+// hashed. It needs only to be DETERMINISTIC, so that every node computing it
+// over the same bytes gets the same answer. A `//` inside a string literal
+// being treated as a comment is harmless: it is treated that way everywhere.
+// set once at startup by whoever loads the engine's own source; null until
+// then, so a node that never declares its build simply is not checked
+let _ENGINE_HASH = null;
+function declareEngine(src) { _ENGINE_HASH = engineHashOf(src); return _ENGINE_HASH; }
+function engineHash() { return _ENGINE_HASH; }
+function normaliseSource(src) {
+  return String(src)
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')      // block comments
+    .replace(/\/\/[^\n]*/g, ' ')              // line comments, wherever they start
+    .replace(/\s+/g, ' ')                    // every run of space is one space
+    .trim();
+}
+function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'utf8')).toString('hex'); }
+
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey']);
+const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -1624,6 +1666,16 @@ function validateGenesis(g) {
     return 'witnesses, quorum, and byzantineTolerance must be supplied together';
   if (typeof g.specVersion !== 'string' || g.specVersion.length > 16) return 'bad specVersion';
   if (typeof g.rulesHash !== 'string' || !HEX64.test(g.rulesHash)) return 'bad rulesHash';
+  // §2n: if the founding named an engine, this must BE that engine. A world
+  // founded under one implementation cannot be continued under another --
+  // that is not the same world, it only looks like one until somebody
+  // exercises the difference.
+  if (g.engineHash !== undefined) {
+    if (typeof g.engineHash !== 'string' || !HEX64.test(g.engineHash)) return 'bad engineHash';
+    if (_ENGINE_HASH !== null && g.engineHash !== _ENGINE_HASH)
+      return 'engine mismatch: this world was founded under ' + g.engineHash.slice(0, 16)
+        + '\u2026 and this node runs ' + _ENGINE_HASH.slice(0, 16) + '\u2026';
+  }
   if (typeof g.genesisSeed !== 'string' || g.genesisSeed.length < 1 || g.genesisSeed.length > 128) return 'bad genesisSeed';
   if (!isInt(g.anchorMs, 0, MAX_TIME)) return 'bad anchorMs';
   if (typeof g.worldGenerator !== 'string' || g.worldGenerator.length > 64) return 'malformed world generator';
@@ -4449,5 +4501,6 @@ module.exports = {
   signPayload, verifyPayload,
   exportIdentity, importIdentity, loadOrCreateIdentity,
   canonical, EMPTY_ROOT, SMT_DEPTH,
+  normaliseSource, engineHashOf, declareEngine, engineHash,
   SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };
