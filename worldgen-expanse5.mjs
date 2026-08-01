@@ -3049,6 +3049,56 @@ export function buildWorld(genesis) {
         mills++; break
       }
     }
+    // ---- AND THE MILLS AT MILLBROOK ----
+    //
+    // The town has been called Millbrook since the fourth founding and has
+    // never had a mill. Both of the world's stood elsewhere -- mill-heart
+    // forty-three tiles from Hollybarrow, mill-downs sixty-five from
+    // Eastmere -- so the one settlement whose name is a mill and a brook had
+    // the brook and not the mill. Same fault as the Sheepfolds with no
+    // sheep, and the same cure: put the named thing where it is named.
+    //
+    // THREE, not one. A single mill is a landmark; a race of them is an
+    // industry, and milling is this town's whole reason for standing. The
+    // brook runs down its western wall for nineteen tiles, which is exactly
+    // what a mill race looks like -- so they are strung along the water in
+    // the order the water reaches them, upstream to down, the way a real
+    // one would be built.
+    {
+      const mb = ss.find((st) => st.tag === 'millbrook')
+      let n = 0
+      if (mb) {
+        const r = rectOf(mb)
+        const wants = []
+        for (let y = r.y0; y <= r.y1; y++) {
+          for (let x = r.x0 - 9; x < r.x0; x++) {
+            if (isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            // it must stand ON the bank: water within two tiles, or it is
+            // not a watermill, it is a shed
+            let wet = false
+            for (let dy = -2; dy <= 2 && !wet; dy++) for (let dx = -2; dx <= 2; dx++)
+              if (isWater(g, x + dx, y + dy)) { wet = true; break }
+            if (!wet) continue
+            wants.push([y, x])
+          }
+        }
+        wants.sort((a, b) => a[0] - b[0] || a[1] - b[1])   // upstream first
+        let lastY = -99
+        for (const [y, x] of wants) {
+          if (n >= 3) break
+          if (y - lastY < 6) continue                       // a race, not a row of sheds
+          taken.add(key(x, y))
+          put('mill-brook-' + n, 'landmark', x, y, { kind: 'mill' })
+          const kx = x - 1
+          if (free(kx, y) && !blockedAt(g, kx, y) && !isWater(g, kx, y)) {
+            taken.add(key(kx, y))
+            put('mill-brook-' + n + '-k', 'keeper', kx, y, { name: keeperName('brook' + n, 'miller') })
+          }
+          lastY = y; n++
+        }
+      }
+      counts.brookMills = n
+    }
     counts.mills = mills
   }
 
