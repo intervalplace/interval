@@ -300,20 +300,34 @@ const NODE_YIELD = {
 // v0.41: strength must be earned before it is worn. Smithing gated the
 // forge; nothing gated the arm. Bronze stays free: the door is open.
 const WIELD_REQS = {
-  'star-sword': { attack: 20 }, 'star-dagger': { attack: 20 }, 'old-chain': { attack: 30 },
-  'star-spear': { attack: 20 }, 'star-maul': { attack: 25 }, 'horn-bow': { ranged: 20 },
+  // §6ae: STARMETAL IS A LATE THING, not a slightly better shirt.
+  //
+  // It was wieldable at attack 20 and defence 15-30 -- a fifth of the way up
+  // a ninety-nine scale -- so bronze was what newcomers wore for an hour and
+  // star was what everybody wore forever. With only two tiers in the world,
+  // the second one has to mean something.
+  //
+  // Fifty. Past the point where a citizen has decided what they are, and
+  // reachable on common beasts, which teach defence at any level (the flat
+  // four-per-miss of 6aa-ii).
+  'star-sword': { attack: 50 }, 'star-dagger': { attack: 50 }, 'old-chain': { attack: 30 },
+  'star-spear': { attack: 50 }, 'star-maul': { attack: 55 }, 'horn-bow': { ranged: 20 },
   'dragonbow': { ranged: 40 },   // it will not be drawn by a beginner
   // §6x: these shipped with NO requirement at all, which made a starmetal
   // flail wieldable at level one while a star-maul asked for attack 25. A
   // crossbow is heavy to hold level and heavier to crank; a flail on a chain
   // is the least forgiving thing in the world to swing at anything.
   'crossbow': { ranged: 25 },
-  'bronze-flail': { attack: 10 }, 'star-flail': { attack: 25 },
+  // §6x: THE FLAIL IS STARMETAL ONLY. `pierces` ignores an entire defensive
+  // system, and on a starter weapon that meant a level-ten citizen with two
+  // ore beat a star-clad one more efficiently than a star-sword does. It is
+  // the answer to armour, and it belongs to people who have earned armour.
+  'star-flail': { attack: 55 },
   // §6y: sigils bound to the limbs. The draw is half the arrows, and half of
   // nothing is still nothing, so it asks a real bow-arm first.
   'sigil-bow': { ranged: 30, magic: 20 },
   'heartwood-bow': { ranged: 40 },
-  'star-helm': { defence: 15 }, 'star-plate': { defence: 30 },
+  'star-helm': { defence: 45 }, 'star-plate': { defence: 50 },
 };
 const STORE_SELLS = { seeds: 15 }; // the keeper's OWN goods, made from nothing
 // v0.74: the keeper's shelf. What a citizen sells is no longer annihilated: it
@@ -385,15 +399,38 @@ const HP_START_XP = 1154; // hitpoints level 10
 //   acc   added to the odds of landing at all
 // A dagger lands often for little; a maul lands seldom for a lot; a spear
 // keeps its distance; a sword asks no questions. The chain is the chain.
+// §6af: THE SPECIAL BLOW.
+//
+// Three of them, and each is ONE legible thing you could describe in a
+// sentence — not a number tuned for a burst meta:
+//
+//   'twice'  star-dagger  two blows land in one tick
+//   'now'    star-maul    it swings whatever your arm says
+//   'true'   horn-bow     the shot cannot miss
+//
+// THE COST IS THE ARM. A special spends the next cycle as well as this one,
+// which is what makes it a decision rather than a button. And the arithmetic
+// of that cost is the whole design: a special that hits twice and costs two
+// cycles is EXACTLY damage-neutral over the exchange --
+//
+//     weapon        normal/tick   after a special
+//     star-maul          3.00          3.00
+//     star-sword         3.75          3.75
+//
+// -- so against four hundred and twenty points of dragon it buys nothing at
+// all, and against a citizen at fifteen hitpoints it ends the fight, because
+// they do not get a later. It needs no rule confining it to PvP: the cost
+// confines it, and a mechanic that selects its own domain is worth more than
+// an exception clause that says the same thing arbitrarily.
 const WEAPONS = {
   'bronze-dagger': { hit: 0, every: 2, reach: 1, acc: 24 },
   'bronze-sword':  { hit: 2, every: 2, reach: 1, acc: 0 },
   'bronze-spear':  { hit: 1, every: 2, reach: 2, acc: 0 },
   'bronze-maul':   { hit: 4, every: 3, reach: 1, acc: -24 },
-  'star-dagger':   { hit: 2, every: 2, reach: 1, acc: 24 },
+  'star-dagger':   { spec: 'twice', hit: 2, every: 2, reach: 1, acc: 24 },
   'star-sword':    { hit: 4, every: 2, reach: 1, acc: 0 },
   'star-spear':    { hit: 3, every: 2, reach: 2, acc: 0 },
-  'star-maul':     { hit: 7, every: 3, reach: 1, acc: -24 },
+  'star-maul':     { spec: 'now', hit: 7, every: 3, reach: 1, acc: -24 },
   'old-chain':     { hit: 1, every: 1, reach: 1, acc: 0 },
   // THE FLAIL (spec 6x): it goes ROUND the armour, not through it.
   //
@@ -409,7 +446,6 @@ const WEAPONS = {
   // is most of the world -- its base damage is the lowest of any steel.
   //
   // So it is not an upgrade, it is an ANSWER, and only to one thing.
-  'bronze-flail':  { hit: 1, every: 2, reach: 1, acc: -12, pierces: true },
   'star-flail':    { hit: 3, every: 2, reach: 1, acc: -12, pierces: true },
   // THE CROSSBOW (spec 6x): the maul of the ranged line.
   //
@@ -453,7 +489,7 @@ const WEAPONS = {
   // for the damage. The archer's weapon for somebody who means to be in it.
   'heartwood-bow': { hit: 4, every: 2, reach: 3, acc: 6, ranged: true },
   'wooden-bow':    { hit: 0, every: 2, reach: 4, acc: 0, ranged: true },
-  'horn-bow':      { hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
+  'horn-bow':      { spec: 'true', hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
   // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
   // Reach 9 is the whole weapon: nothing else in the world touches past five,
   // so whoever draws it fights at a distance where almost nothing can answer.
@@ -680,7 +716,6 @@ const RECIPES = {
   'bronze-dagger': { ore: 1 },
   'bronze-spear': { ore: 1, logs: 1 },
   'bronze-maul': { ore: 2, logs: 1 },
-  'bronze-flail': { ore: 2, logs: 1 },          // a head, a chain, a haft
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
   // fletch input, because a bow made by a fletcher belongs to fletching.
@@ -720,14 +755,19 @@ const ITEMS = new Set([
 ]);
 const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body' }; // default: weapon
 // the first level requirements (spec 6q): an unearned hammer strikes nothing
-const SMITH_REQS = { 'star-sword': { smithing: 20, magic: 10 },
-  'star-helm': { smithing: 15, magic: 5 }, 'star-plate': { smithing: 30, magic: 15 },
-  'star-dagger': { smithing: 20, magic: 15 },
-  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
+// §6ae: THE FORGE AGREES WITH THE ARM.
+//
+// These disagreed with themselves: star-plate was forgeable at smithing 30
+// and wearable at defence 50, so a citizen could fill a bank with gear they
+// could not put on. A tier should be one wall, not two at different heights.
+const SMITH_REQS = { 'star-sword': { smithing: 45, magic: 25 },
+  'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
+  'star-dagger': { smithing: 45, magic: 28 },
+  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
   // §6x: a crossbow is a steel prod under tension and a lock that must not
   // slip. The flail is easier iron and harder geometry.
-  'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
-  'star-flail': { smithing: 26, magic: 14 },
+  'crossbow': { smithing: 18 },
+  'star-flail': { smithing: 50, magic: 29 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
   // works and three sigils, and you bind them to the limbs, which is why the
   // magic asked for is higher than the smithing.
@@ -820,6 +860,7 @@ const INPUT_SCHEMAS = {
   gather: { nodeId: T.id }, harvest: { nodeId: T.id },
   attack: { mobId: T.id },
   attackp: { targetId: T.hex64 },
+  special: { targetId: T.hex64 },   // §6af: the same reach, a different blow
   recall: { to: T.id },
   // pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
   // item trade carries wantGold: 0; the canonical gold trade carries
@@ -2460,6 +2501,33 @@ function validInput(state, input, ctx) {
       return cheb <= reachOf(p) && isRanged(p)
         && p.inventory.some(sl => sl?.item === 'arrows');
     }
+    case 'special': {
+      // §6af: everything `attackp` asks, plus a weapon that has a special and
+      // an arm that has recovered. It is deliberately NOT confined to PvP --
+      // see the note on WEAPONS: the cost confines it.
+      const w9 = WEAPONS[p.equipment?.weapon?.item];
+      if (!w9?.spec) return false;
+      // §6af: 'now' interrupts your own rhythm ONCE — it does not exempt you
+      // from the cost. This read `spec !== 'now'`, which skipped the arm check
+      // entirely and let the maul special EVERY TICK forever: seven to
+      // seventeen a tick against a normal three, and the damage-neutrality
+      // the whole design rests on simply did not hold for it.
+      //
+      // So: 'now' may be used while the arm is merely recovering from an
+      // ordinary swing, but never while it is already spent INTO THE FUTURE
+      // by a special. One interruption, then the full price.
+      if (w9.spec === 'now') {
+        if ((p.lastSwing ?? -64) > state.tick) return false;
+      } else if (state.tick - (p.lastSwing ?? -64) < (w9.every ?? 2)) return false;
+      const q9 = state.players[input.targetId];
+      if (!q9 || q9.hp <= 0 || input.targetId === input.playerId) return false;
+      if ((q9.stilledUntil ?? 0) > state.tick || (p.stilledUntil ?? 0) > state.tick) return false;
+      if (!inWilds(state.genesis, p.x, p.y) || !inWilds(state.genesis, q9.x, q9.y)) return false;
+      if (inReach(p, q9)) return true;
+      return isRanged(p)
+        && Math.max(Math.abs(p.x - q9.x), Math.abs(p.y - q9.y)) <= reachOf(p)
+        && p.inventory.some((sl) => sl?.item === 'arrows');
+    }
     case 'attackp': {
       if ((state.players[input.targetId]?.stilledUntil ?? 0) > state.tick) return false; // the truce shields (v0.80)
       // 7.1: player state has no playerId field; compare against the input's
@@ -3361,9 +3429,21 @@ function nextState(state, inputs, _legacyBeacon) {
         if (roll(beacon, mid, 'mobatk') < Tm) {
           // §6x: armour turns a blow aside, and a breath goes round it. Fire
           // does not care how much steel is between it and you.
-          const soak = canBreathe ? 0
-            : (target.equipment.head ? SOAK(target.equipment.head.item) : 0)
-            + (target.equipment.body ? SOAK(target.equipment.body.item) : 0);
+          // §6ae: STARMETAL TURNS FIRE. Bronze does not.
+          //
+          // Fire ignores armour the way a flail does -- except starmetal,
+          // which is why it is worth reaching fifty for. This is the property
+          // that makes the second tier a TIER rather than a slightly better
+          // shirt: a full star suit is the thing you wear to the one fight
+          // that matters, and bronze is simply not admitted to it.
+          //
+          // Half soak against fire, not full: it turns the flame, it does not
+          // pretend the flame is not there.
+          const headM = target.equipment.head?.item, bodyM = target.equipment.body?.item;
+          const starSoak = (headM?.startsWith('star-') ? SOAK(headM) : 0)
+                         + (bodyM?.startsWith('star-') ? SOAK(bodyM) : 0);
+          const soak = canBreathe ? Math.floor(starSoak / 2)
+            : (headM ? SOAK(headM) : 0) + (bodyM ? SOAK(bodyM) : 0);
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : st.maxHit);
           target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
@@ -3751,6 +3831,52 @@ function nextState(state, inputs, _legacyBeacon) {
             if (Object.keys(st.shelf).length === 0) delete st.shelf;
           }
         }
+      }
+    } else if (inp.type === 'special') {
+      // §6af: THE SPECIAL BLOW. Resolved here and now rather than becoming an
+      // action, because its whole nature is that it happens off the rhythm.
+      const q = s.players[inp.targetId];
+      const w9 = WEAPONS[p.equipment?.weapon?.item];
+      if (q && q.hp > 0 && w9?.spec && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y)) {
+        const drawn9 = drawnAt(p, q);
+        if (drawn9) {                       // a drawn shot still costs its arrow
+          const aS = p.inventory.findIndex((sl) => sl?.item === 'arrows');
+          if (aS === -1) { p.action = null; continue; }
+          p.inventory[aS].qty -= 1;
+          if (p.inventory[aS].qty <= 0) p.inventory[aS] = null;
+        }
+        const lvl9 = effLevel(drawn9 ? p.skills.ranged : p.skills.attack);
+        const defL9 = effLevel(q.skills.defence);
+        const maxHit9 = 1 + Math.floor(lvl9 / 10) + (w9.hit ?? 0);
+        const acc9 = clamp(128 + 4 * (lvl9 - defL9) + (w9.acc ?? 0), 16, 240);
+        const blows = w9.spec === 'twice' ? 2 : 1;
+        for (let b9 = 0; b9 < blows; b9++) {
+          // 'true' cannot miss; the others roll as any blow does
+          if (w9.spec !== 'true' && roll(beacon, pid, 'spec' + b9) >= acc9) continue;
+          const soak9 = drawn9 ? 0
+            : (q.equipment.head ? SOAK(q.equipment.head.item) : 0)
+            + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
+          const dmg9 = Math.max(0, 1 + (roll(beacon, pid, 'specd' + b9) % maxHit9)
+            - (weaponOf(p)?.pierces === true ? 0 : soak9));
+          q.hp -= dmg9;
+          p.skills[drawn9 ? 'ranged' : 'attack'] += 4 * dmg9;
+          p.skills.hitpoints += dmg9;
+          if (q.hp <= 0) {
+            q.hp = 0;
+            // §2g: the pack spills where they fall, exactly as any PvP death
+            for (const sl of q.inventory) if (sl) {
+              s.ground['g' + s.tick + '-' + Object.keys(s.ground).length] =
+                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
+            }
+            q.inventory = q.inventory.map(() => null);
+            q.equipment = { weapon: null, head: null, body: null };
+            q.action = null; q.trade = null; q.deadUntil = s.tick + DEATH_TICKS;
+            break;
+          }
+        }
+        // THE COST: the arm is spent for this cycle AND the next
+        p.lastSwing = s.tick + (w9.every ?? 2);
+        p.action = null;
       }
     } else if (inp.type === 'attackp') {
       const q = s.players[inp.targetId];

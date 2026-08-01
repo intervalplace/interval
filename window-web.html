@@ -219,6 +219,9 @@
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
   <div id="equip" style="font-size:12px;padding:4px 6px;background:var(--stone-dk);cursor:pointer"></div>
+    <div id="specbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
+      background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
+      color:var(--gold);letter-spacing:1px"></div>
   <div id="trade" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
   <div id="offers" style="font-size:12px"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
@@ -637,7 +640,7 @@ const EQUIPPABLE = new Set([
   'star-helm', 'star-plate',
   'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow',
   'old-chain', 'dragonbow',
-  'bronze-flail', 'star-flail',
+  'star-flail',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -1171,7 +1174,6 @@ const FORGE = {
   'bronze-helm':    { ore: 1, logs: 1 },
   'bronze-sword':   { ore: 2, logs: 1 },
   'bronze-maul':    { ore: 2, logs: 1 },
-  'bronze-flail':   { ore: 2, logs: 1 },
   'bronze-plate':   { ore: 3, logs: 1 },
   'crossbow':       { ore: 2, logs: 2 },
   'sigil-bow':      { 'horn-bow': 1, sigil: 3 },
@@ -1337,6 +1339,15 @@ let celebrate = null  // { text, at }: level-up banner + sparks
 let announceShow = null, announceQueue = [], _lastAnnounceTick = null // global milestone cries
 const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
+// §6af: which weapons can strike off the rhythm, and what each one does.
+// Character for character from engine WEAPONS.
+const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true' }
+const SPEC_SAYS = { twice: 'two blows in one tick', now: 'swings whatever your arm says',
+                    'true': 'the shot cannot miss' }
+// ARMED, not fired. A special is a decision, so it is taken in two steps:
+// arm it, then choose who. That also means one control works for a mouse and
+// a thumb alike, and you cannot spend your arm by misclicking.
+let specArmed = false
 const splats = []     // { x, y, amount, at } damage made visible
 const effects = []    // { kind, x, y, at } rites and works made visible
 const layerArr = []   // reused render layer (perf)
@@ -1616,6 +1627,17 @@ function onState(s, worldId) {
     for (const [pid2, p2] of Object.entries(s.players)) {
       const o2 = prev.players?.[pid2]
       if (o2 && o2.hp > p2.hp) splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
+    }
+    // §6af: A SPECIAL LOOKS LIKE ONE.
+    //
+    // It resolves off the rhythm and produces damage, so without a mark it is
+    // an ordinary hit. Nothing new is needed in the state: a citizen whose
+    // `lastSwing` jumped PAST this tick has spent their arm on a special,
+    // because no ordinary swing ever does that.
+    for (const [pid2, p2] of Object.entries(s.players)) {
+      const was9 = prev.players?.[pid2]?.lastSwing ?? -9
+      if ((p2.lastSwing ?? -9) > s.tick && (p2.lastSwing ?? -9) !== was9)
+        effects.push({ kind: 'special', x: p2.x, y: p2.y, at: performance.now() })
     }
     // §6aa: AND THE BLOWS THAT MISSED.
     //
@@ -5794,6 +5816,26 @@ function drawScene(now) {
 
   // rites: brief particle truths
   for (let i = effects.length - 1; i >= 0; i--) {
+    if (effects[i].kind === 'special') {
+      const ef = effects[i], ag = now - ef.at
+      if (ag > 620) { effects.splice(i, 1); continue }
+      const t9 = ag / 620
+      const EX = px(ef.x) + 20, EY = py(ef.y) + 18
+      // a ring thrown outward, and three marks struck through it
+      cx.strokeStyle = 'rgba(255,190,90,' + (0.8 * (1 - t9)) + ')'
+      cx.lineWidth = 2.4 * (1 - t9) + 0.6
+      cx.beginPath(); cx.arc(EX, EY, 6 + t9 * 22, 0, 7); cx.stroke()
+      cx.strokeStyle = 'rgba(255,236,170,' + (0.9 * (1 - t9)) + ')'
+      cx.lineWidth = 2
+      for (let k = 0; k < 3; k++) {
+        const a9 = -0.9 + k * 0.9
+        cx.beginPath()
+        cx.moveTo(EX + Math.cos(a9) * (4 + t9 * 10), EY + Math.sin(a9) * (4 + t9 * 10))
+        cx.lineTo(EX + Math.cos(a9) * (13 + t9 * 16), EY + Math.sin(a9) * (13 + t9 * 16))
+        cx.stroke()
+      }
+      continue
+    }
     const ef = effects[i]
     const life = ef.kind === 'arrowshot' ? 380 : ef.kind === 'click' ? 420 : 800
     const age = now - ef.at
@@ -6167,6 +6209,18 @@ function panel(s) {
   if (hd || bd) gearLine += '<br>' + [hd && ('Head: ' + hd.item.replace(/-/g, ' ')),
     bd && ('Body: ' + bd.item.replace(/-/g, ' '))].filter(Boolean).join(' \u00b7 ')
   document.getElementById('equip').innerHTML = gearLine
+  // §6af: the control appears only when the weapon in hand HAS a special, and
+  // says what it does — a button labelled 'special' teaches nothing.
+  {
+    const sb = document.getElementById('specbtn')
+    const kind = SPEC_OF[me.equipment?.weapon?.item]
+    if (!kind) { sb.style.display = 'none'; specArmed = false }
+    else {
+      sb.style.display = 'block'
+      sb.style.background = specArmed ? '#4a2e18' : 'var(--stone-dk)'
+      sb.textContent = (specArmed ? '\u25b8 ARMED \u00b7 choose a target' : 'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
+    }
+  }
     + '<br>Gold: <b style="color:#e2b63e">' + (me.gold ?? 0) + '</b> ' + ICONS['gold-coin']
   const PRICES_C = PRICES // the constitutional ledger, not a copy of part of it
   const nearStore = Object.values(s.nodes).some(n => n.type === 'store' && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
@@ -6216,6 +6270,12 @@ function panel(s) {
     me.action ? 'busy: ' + me.action.type : 'idle: click the world'
 }
 
+document.getElementById('specbtn').addEventListener('click', (e) => {
+  e.stopPropagation()
+  const me9 = world?.players?.[myId]
+  if (!me9 || !SPEC_OF[me9.equipment?.weapon?.item]) return
+  specArmed = !specArmed
+})
 document.getElementById('equip').addEventListener('click', () => {
   if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
 })
@@ -6896,6 +6956,12 @@ cv.addEventListener('click', (e) => {
   }
   if (best?.kind === 'citizen') {
     const { id: pid, p } = best
+    if (specArmed && SPEC_OF[me.equipment?.weapon?.item]) {
+      specArmed = false
+      send({ do: 'special', targetId: pid })
+      feed('You strike off the rhythm.')
+      return
+    }
     flashClick(p.x, p.y, true)
     if (inWildsC(me.x, me.y) && inWildsC(p.x, p.y)) {
       const nm = p.name ?? pid.slice(0, 6)

@@ -2878,6 +2878,112 @@ the dragon's 166 from Norwick. A longer journey than the dragon's and a
 different kind: long, but not lawless. The Greenwood's far end had no reason
 to be visited at all.
 
+## 6af. The special blow (v0.81)
+
+Three weapons can strike off the rhythm. Each does **one thing you can say in
+a sentence**:
+
+```
+star-dagger   'twice'   two blows land in one tick
+star-maul     'now'     it swings whatever your arm says
+horn-bow      'true'    the shot cannot miss
+```
+
+**The cost is the arm.** A special spends this cycle and the next
+(`lastSwing = tick + every`). There is no second resource, no charge bar and
+no cooldown of its own: the arm is the cooldown, and it is a decision rather
+than a button.
+
+**`'now'` interrupts your own rhythm ONCE.** It may be used while the arm is
+merely recovering from an ordinary swing, but never while the arm is already
+spent *into the future* by a special. Without that second clause the maul
+could special every tick forever — seven to seventeen damage a tick against a
+normal three — and the neutrality this whole design rests on did not hold for
+it. With it, chaining maul specials yields about 2.25 a tick against 3.00 for
+simply attacking: still a choice about the moment, never a rotation.
+
+**It does not touch the tick.** A special resolves inside the tick that
+carries it, the tick advances by exactly one, and replaying the same state and
+input gives the same state hash. `lastSwing` may sit in the future; it is an
+ordinary bounded integer field and always was. Two identical specials
+submitted in one tick do not double — the one-input-per-key-per-tick rule
+already refuses them.
+
+### Why it needs no rule confining it to PvP
+
+The cost makes it damage-neutral over the exchange:
+
+```
+weapon        normal/tick   after a special
+star-maul          3.00          3.00
+star-sword         3.75          3.75
+
+horn-bow, target defence 99   normal over 4 ticks 6.50 · special 6.50
+horn-bow, target defence 50   normal over 4 ticks 12.22 · special 6.50
+```
+
+Against four hundred and twenty points of dragon it buys nothing at all.
+Against a citizen at fifteen hitpoints it ends the fight, because they do not
+get a later. A shot that cannot miss is neutral against an even opponent and
+**worse** against a weak one — it buys certainty, not damage.
+
+So the mechanic selects its own domain. A rule saying *specials do not work
+on beasts* would have had no reason behind it except that the bosses were
+already tuned, and one arbitrary rule teaches a world to expect more of them.
+
+### It does not stack with the root
+
+The star-dagger's root (§6v) fires on a **normal** landed hit and nothing
+else. The special is an alternative to it, not an addition: two blows now, or
+one blow that may pin them for three ticks on a hundred-and-twenty-tick
+cooldown. Both are the dagger being a dagger.
+
+### And the world must show it
+
+A special resolves off the rhythm and produces damage, so without a mark of
+its own it is indistinguishable from an ordinary hit — the same illegibility
+as the dragon's undrawn fire (§6w) and a swing that missed (§6aa).
+
+## 6ae. Starmetal is a late thing (v0.81)
+
+```
+             wield          forge
+star-sword   attack 50      smithing 45, magic 25
+star-maul    attack 55      smithing 52, magic 30
+star-flail   attack 55      smithing 50, magic 29
+star-helm    defence 45     smithing 40, magic 20
+star-plate   defence 50     smithing 50, magic 30
+```
+
+The two halves must agree. Before this, star-plate was forgeable at smithing
+30 and wearable at defence 50, so a citizen could fill a bank with gear they
+could not put on. **A tier is one wall, not two at different heights.**
+
+**Starmetal turns fire.** The dragon's breath ignores armour the way a flail
+does — except starmetal, which halves it:
+
+```
+60 ticks in the fire, four tiles out
+  bare            48 damage
+  full BRONZE     48 damage
+  full STARMETAL  36 damage
+```
+
+That is what makes the second tier a tier. Star is only 15-20% better than
+bronze by the numbers, so a harder gate alone would have meant working harder
+for a thing barely better; the property is the reason to reach fifty.
+
+**The flail is starmetal only.** `pierces` ignores an entire defensive
+system, and on a starter weapon it meant a level-ten citizen with two ore
+beat a star-clad opponent more efficiently than a star-sword does.
+
+**`magic-rock` teaches 40**, against ordinary rock's 35. It taught 30: the
+rarer stone taught less than a common one.
+
+There is **no mining gate**, and there is none anywhere in this world.
+Everything is a success *rate*, which is the same *standing is time* thesis:
+nothing is forbidden, some things are slow.
+
 ## 6z. The shore-crab
 
 Eastmere had **nothing alive within forty-five tiles** — the emptiest named

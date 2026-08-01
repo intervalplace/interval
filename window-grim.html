@@ -239,6 +239,9 @@
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
   <div id="equip" style="font-size:12px;padding:4px 6px;background:var(--stone-dk);cursor:pointer"></div>
+    <div id="specbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
+      background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
+      color:var(--gold);letter-spacing:1px"></div>
   <div id="trade" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
   <div id="offers" style="font-size:12px"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
@@ -288,6 +291,64 @@ function itemSprite(item) {
     pl([[26,14],[31,9],[31,23],[26,18]], back)
     g.fillStyle = '#10100c'; g.fillRect(9, 14, 2, 2)
   }
+  // ---- THE GRIM FORGE: one material system, not eighteen recolours ----
+  //
+  // A Diablo item does not read as "a sword, in blue". It reads as a thing
+  // hammered out of a particular metal, lit from one direction, sitting in
+  // its own shadow. Three rules do almost all of that work, and they are
+  // rules rather than paint, so every item gets them for free:
+  //
+  //   1. ONE LIGHT. Always upper-left. Every edge facing it takes a bright
+  //      rim, every edge away takes a dark one. That single convention is
+  //      most of what makes a flat shape look forged.
+  //   2. THE METAL DECIDES THE PALETTE. Not the item. Bronze is warm and
+  //      dirty; iron is cold and grey; starmetal is pale blue and glows;
+  //      dragonbone is bleached; heartwood is deep red-brown.
+  //   3. EVERYTHING SITS IN A PIT. A soft dark ellipse under each item, so
+  //      nothing floats on the slot background.
+  //
+  // The uniques break the rules on purpose -- an aura, an ember, a light of
+  // their own -- because in this genre the eye should catch them from across
+  // an inventory without reading a word.
+  const MAT = {
+    bronze:     { dk: '#4a2f14', mid: '#8a5a2a', hi: '#c9862a', rim: '#e8b45a' },
+    iron:       { dk: '#2a2a2e', mid: '#5a5a62', hi: '#8a8a94', rim: '#c2c2cc' },
+    star:       { dk: '#1a4a5e', mid: '#2a7d9e', hi: '#5cb8d9', rim: '#a8eaff' },
+    bone:       { dk: '#6a6350', mid: '#a89e80', hi: '#d8d0b8', rim: '#f4eeda' },
+    wood:       { dk: '#33220f', mid: '#5c4023', hi: '#8a5a2a', rim: '#b9843f' },
+    heartwood:  { dk: '#3a1410', mid: '#6b2318', hi: '#9c3a24', rim: '#c95a34' },
+    leather:    { dk: '#2a1a10', mid: '#4a2f1c', hi: '#6b4527', rim: '#8a5f36' },
+    blood:      { dk: '#3a0a0c', mid: '#6e1518', hi: '#a31f18', rim: '#e0483a' },
+  }
+  // a forged shape: fill, dark underside, lit rim on the upper-left
+  const forged = (pts, m, glow) => {
+    if (glow) {                       // uniques carry their own light
+      g.save(); g.shadowColor = glow; g.shadowBlur = 9
+    }
+    pl(pts, m.mid, m.dk)
+    if (glow) g.restore()
+    g.strokeStyle = m.rim; g.lineWidth = 1
+    g.beginPath()
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i], b = pts[(i + 1) % pts.length]
+      // an edge is lit if it faces up-left: its outward normal points that way
+      const nx = b[1] - a[1], ny = a[0] - b[0]
+      if (nx + ny < 0) { g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]) }
+    }
+    g.stroke()
+  }
+  const pit = (cx2, cy2, rx, ry) => {
+    const grd = g.createRadialGradient(cx2, cy2, 0, cx2, cy2, Math.max(rx, ry))
+    grd.addColorStop(0, 'rgba(0,0,0,.55)'); grd.addColorStop(1, 'rgba(0,0,0,0)')
+    g.fillStyle = grd
+    g.beginPath(); g.ellipse(cx2, cy2, rx, ry, 0, 0, 7); g.fill()
+  }
+  // the whetted edge of a blade: a pale sliver along the cutting side
+  const edge = (x1, y1, x2, y2, w) => {
+    g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = w ?? 1.2
+    g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke()
+  }
+  pit(16, 27, 13, 4)
   switch (item) {
     case 'logs':
       pl([[4,20],[26,12],[29,17],[7,25]], '#8a5a2a', '#4a2f14')
@@ -371,72 +432,167 @@ function itemSprite(item) {
         g.beginPath(); g.moveTo(gx3 + 2, 5 + off); g.lineTo(gx3 + 2, 13 + off); g.stroke()
       }
       break
-    case 'star-sword':
-      pl([[16,3],[20,7],[11,20],[8,17]], '#8ce0ff', '#2a7d9e')
-      g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(14.4, 6.5, 1.6, 6)
-      g.fillStyle = '#8a5a2a'; g.fillRect(6, 19, 9, 3.4)
-      pl([[8,21],[4,27],[7,29],[12,24]], '#5c4023', '#33220f'); break
-    case 'star-helm':
-      pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#5cb8d9', '#2a7d9e')
-      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(9, 9.5, 14, 2)
-      g.fillStyle = '#2a7d9e'; g.fillRect(7, 20, 18, 2.6); break
-    case 'star-plate':
-      pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#5cb8d9', '#2a7d9e')
-      g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
-      g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(9, 7.5, 14, 1.6); break
-    // ---- the shapes (v0.66): each reads as itself at a glance ----
-    case 'bronze-dagger': case 'star-dagger': {
-      const star = item.startsWith('star-')
-      const blade = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
-      pl([[15,26],[17,26],[18,12],[16,5],[14,12]], blade, edge)   // short leaf blade
-      g.fillStyle = '#5c4023'; g.fillRect(13.5, 25.5, 5, 2.4)      // guard
-      g.fillStyle = '#3b2a16'; g.fillRect(15, 27.6, 2, 3.4)        // stub grip
-      if (star) { g.fillStyle = 'rgba(120,220,255,.35)'; g.fillRect(15.4, 8, 1.2, 16) }
+    // ---- BLADES ----
+    case 'bronze-sword': case 'star-sword': {
+      const m = item[0] === 's' ? MAT.star : MAT.bronze
+      // a broad leaf blade, fullered down the middle, with a heavy crossguard
+      forged([[16,2],[19.5,8],[18,19],[16,22],[14,19],[12.5,8]], m, item[0]==='s' ? 'rgba(120,220,255,.5)' : null)
+      g.fillStyle = 'rgba(0,0,0,.30)'; g.fillRect(15.2, 6, 1.6, 13)      // the fuller
+      edge(16, 2.5, 18.6, 18)
+      forged([[7,19],[25,19],[25,22],[7,22]], MAT.iron)                  // the guard
+      forged([[14.4,22],[17.6,22],[17.6,29],[14.4,29]], MAT.leather)     // the grip
+      g.fillStyle = m.hi; g.beginPath(); g.arc(16, 30, 2.2, 0, 7); g.fill()   // the pommel
       break }
+    case 'bronze-dagger': case 'star-dagger': {
+      const m = item[0] === 's' ? MAT.star : MAT.bronze
+      forged([[16,6],[19,11],[17.6,19],[16,21],[14.4,19],[13,11]], m, item[0]==='s' ? 'rgba(120,220,255,.55)' : null)
+      edge(16, 6.5, 17.8, 18)
+      forged([[10,19],[22,19],[22,21.6],[10,21.6]], MAT.iron)
+      forged([[14.6,21.6],[17.4,21.6],[17.4,27],[14.6,27]], MAT.leather)
+      break }
+    // ---- HAFTED ----
     case 'bronze-spear': case 'star-spear': {
-      const star = item.startsWith('star-')
-      const head = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
-      g.strokeStyle = '#7a5124'; g.lineWidth = 2.6                 // the long haft
-      g.beginPath(); g.moveTo(9, 30); g.lineTo(21, 8); g.stroke()
-      g.strokeStyle = '#5c3d1b'; g.lineWidth = 1
-      g.beginPath(); g.moveTo(9, 30); g.lineTo(21, 8); g.stroke()
-      pl([[21,8],[24,1],[26,9],[22,11]], head, edge)               // narrow point
-      g.fillStyle = '#4a4a52'; g.fillRect(18.5, 10.5, 4.6, 2.2)    // collar
-      if (star) { g.fillStyle = 'rgba(120,220,255,.4)'; g.fillRect(22.6, 3, 1, 6) }
+      const m = item[0] === 's' ? MAT.star : MAT.bronze
+      forged([[15.2,4],[16.8,4],[16.8,30],[15.2,30]], MAT.wood)          // the haft, full height
+      forged([[16,1],[20,9],[16,13],[12,9]], m, item[0]==='s' ? 'rgba(120,220,255,.5)' : null)
+      edge(16, 1.5, 19.4, 8.6)
+      g.strokeStyle = MAT.leather.mid; g.lineWidth = 1.4                 // the binding
+      g.beginPath(); g.moveTo(13.6, 14); g.lineTo(18.4, 15.4); g.stroke()
       break }
     case 'bronze-maul': case 'star-maul': {
-      const star = item.startsWith('star-')
-      const head = star ? '#bfe6f5' : '#d8d1bc', edge = star ? '#4c98bb' : '#8b846f'
-      g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
-      g.beginPath(); g.moveTo(11, 30); g.lineTo(18, 14); g.stroke()
-      pl([[9,15],[20,9],[25,15],[23,20],[12,21]], head, edge)      // the great block
-      g.fillStyle = edge; g.fillRect(12.5, 12.5, 3, 7)             // banded face
-      if (star) { g.fillStyle = 'rgba(140,225,255,.4)'; g.fillRect(19, 11, 2, 8) }
-      g.fillStyle = '#3b2a16'; g.fillRect(9.5, 28, 3.4, 3.4)       // butt
+      const m = item[0] === 's' ? MAT.star : MAT.bronze
+      forged([[15,8],[17,8],[17,30],[15,30]], MAT.wood)
+      forged([[8,5],[24,5],[25,11],[24,17],[8,17],[7,11]], m, item[0]==='s' ? 'rgba(120,220,255,.5)' : null)
+      g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(8, 10, 16, 2)          // the band
+      g.fillStyle = m.rim; g.fillRect(8, 5.6, 16, 1.2)                   // lit top face
       break }
-    case 'horn-bow': {
-      g.strokeStyle = '#6b5238'; g.lineWidth = 3.4                 // recurved horn limbs
-      g.beginPath(); g.arc(13, 16, 11.5, -1.35, 1.35); g.stroke()
-      g.strokeStyle = '#3f3020'; g.lineWidth = 1.2
-      g.beginPath(); g.arc(13, 16, 11.5, -1.35, 1.35); g.stroke()
-      g.strokeStyle = '#c9a86a'; g.lineWidth = 2.4                 // horn tips, paler
-      for (const a of [-1.35, 1.35]) {
-        g.beginPath(); g.arc(13, 16, 11.5, a - 0.28, a); g.stroke()
+    case 'bronze-flail': case 'star-flail': {
+      const m = item[0] === 's' ? MAT.star : MAT.iron
+      forged([[12,15],[14,15],[14,30],[12,30]], MAT.leather)             // the haft
+      g.strokeStyle = MAT.iron.hi; g.lineWidth = 1.4                     // the chain
+      g.beginPath(); g.moveTo(13, 15); g.lineTo(17, 10); g.lineTo(21, 8); g.stroke()
+      for (const [lx, ly] of [[15,12.6],[19,9]]) {
+        g.strokeStyle = MAT.iron.rim; g.lineWidth = 1
+        g.beginPath(); g.arc(lx, ly, 1.5, 0, 7); g.stroke()
       }
-      g.strokeStyle = '#efe7cf'; g.lineWidth = 1                   // the string
-      g.beginPath(); g.moveTo(13 + Math.cos(-1.35) * 11.5, 16 + Math.sin(-1.35) * 11.5)
-      g.lineTo(13 + Math.cos(1.35) * 11.5, 16 + Math.sin(1.35) * 11.5); g.stroke()
-      g.fillStyle = '#8a6a3a'; g.fillRect(23, 14, 3, 4)            // the grip
+      const spikes = []                                                   // a morningstar head
+      for (let k = 0; k < 8; k++) {
+        const a2 = k / 8 * Math.PI * 2
+        spikes.push([22 + Math.cos(a2) * 8, 8 + Math.sin(a2) * 8])
+        spikes.push([22 + Math.cos(a2 + 0.4) * 4.6, 8 + Math.sin(a2 + 0.4) * 4.6])
+      }
+      forged(spikes, m, item[0]==='s' ? 'rgba(150,120,255,.55)' : null)
       break }
     case 'old-chain': {
-      g.strokeStyle = '#8a8a82'; g.lineWidth = 2
-      for (let li = 0; li < 5; li++) {
-        const lx = 8 + li * 4.2, ly = 24 - li * 4.2
-        g.beginPath(); g.ellipse(lx, ly, 2.6, 3.4, -0.78, 0, 7); g.stroke()
+      g.strokeStyle = MAT.iron.mid; g.lineWidth = 2.6
+      g.beginPath(); g.moveTo(6, 6); g.quadraticCurveTo(20, 14, 10, 27); g.stroke()
+      g.strokeStyle = MAT.iron.rim; g.lineWidth = 1
+      g.beginPath(); g.moveTo(6, 6); g.quadraticCurveTo(20, 14, 10, 27); g.stroke()
+      // each link takes the light on its upper-left arc, like everything else
+      for (const [lx, ly] of [[8.6,9],[14,13],[16.4,19],[11.6,24]]) {
+        g.strokeStyle = MAT.iron.hi; g.lineWidth = 1.6
+        g.beginPath(); g.ellipse(lx, ly, 2.4, 1.7, 0.6, 0, 7); g.stroke()
+        g.strokeStyle = MAT.iron.rim; g.lineWidth = 1
+        g.beginPath(); g.ellipse(lx, ly, 2.4, 1.7, 0.6, Math.PI * 0.75, Math.PI * 1.75); g.stroke()
       }
-      g.strokeStyle = '#6b6b62'; g.lineWidth = 1
-      g.beginPath(); g.ellipse(8, 24, 2.6, 3.4, -0.78, 0, 7); g.stroke()
+      forged([[20,24],[27,22],[28,27],[21,29]], MAT.iron)                 // the weight at the end
       break }
+    // ---- THE DRAWN ----
+    case 'wooden-bow': case 'horn-bow': case 'heartwood-bow': {
+      const m = item === 'heartwood-bow' ? MAT.heartwood : item === 'horn-bow' ? MAT.bone : MAT.wood
+      g.strokeStyle = m.mid; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(11, 4); g.quadraticCurveTo(25, 16, 11, 28); g.stroke()
+      g.strokeStyle = m.rim; g.lineWidth = 1.1                            // the lit belly
+      g.beginPath(); g.moveTo(11, 4); g.quadraticCurveTo(25, 16, 11, 28); g.stroke()
+      g.strokeStyle = '#d8cdb4'; g.lineWidth = 1                          // the string
+      g.beginPath(); g.moveTo(11, 4); g.lineTo(11, 28); g.stroke()
+      forged([[9.4,13],[12.6,13],[12.6,19],[9.4,19]], MAT.leather)        // the grip
+      if (item === 'heartwood-bow') {                                     // the grain of it
+        g.strokeStyle = 'rgba(20,6,4,.5)'; g.lineWidth = 0.7
+        g.beginPath(); g.moveTo(12, 6); g.quadraticCurveTo(24, 16, 12, 26); g.stroke()
+      }
+      break }
+    case 'crossbow': {
+      forged([[8,17],[24,17],[26,21],[10,21]], MAT.wood)                  // the stock
+      forged([[20,21],[26,21],[27,29],[21,29]], MAT.wood)                 // the tiller
+      g.strokeStyle = MAT.iron.mid; g.lineWidth = 3                       // the prod
+      g.beginPath(); g.moveTo(5, 9); g.quadraticCurveTo(16, 15, 27, 9); g.stroke()
+      g.strokeStyle = MAT.iron.rim; g.lineWidth = 1
+      g.beginPath(); g.moveTo(5, 9); g.quadraticCurveTo(16, 15, 27, 9); g.stroke()
+      g.strokeStyle = '#d8cdb4'; g.lineWidth = 1                          // cranked
+      g.beginPath(); g.moveTo(5, 9); g.lineTo(16, 17); g.lineTo(27, 9); g.stroke()
+      forged([[15,11],[17,11],[17,17],[15,17]], MAT.bone)                 // a bolt on the rail
+      break }
+    case 'sigil-bow': {
+      // a horn bow, bound. The sigils are the only thing that is not horn.
+      g.strokeStyle = MAT.bone.mid; g.lineWidth = 3.2
+      g.beginPath(); g.moveTo(11, 4); g.quadraticCurveTo(24, 16, 11, 28); g.stroke()
+      g.strokeStyle = MAT.bone.rim; g.lineWidth = 1
+      g.beginPath(); g.moveTo(11, 4); g.quadraticCurveTo(24, 16, 11, 28); g.stroke()
+      g.strokeStyle = 'rgba(150,190,240,.85)'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(11, 4); g.lineTo(11, 28); g.stroke()
+      for (const sy of [9, 16, 23]) {
+        g.save(); g.shadowColor = 'rgba(120,180,255,.9)'; g.shadowBlur = 7
+        g.fillStyle = 'rgba(180,215,255,.9)'
+        g.beginPath(); g.arc(17, sy, 2.2, 0, 7); g.fill()
+        g.restore()
+      }
+      break }
+    case 'dragonbow': {
+      // THE ONE BOW. It is the only item in the pack that is lit from inside.
+      g.save(); g.shadowColor = 'rgba(255,140,40,.9)'; g.shadowBlur = 12
+      g.strokeStyle = MAT.bone.hi; g.lineWidth = 4
+      g.beginPath(); g.moveTo(10, 3); g.quadraticCurveTo(19, 9, 15, 16)
+      g.quadraticCurveTo(19, 23, 10, 29); g.stroke()                      // a deep recurve
+      g.restore()
+      g.strokeStyle = MAT.bone.rim; g.lineWidth = 1.2
+      g.beginPath(); g.moveTo(10, 3); g.quadraticCurveTo(19, 9, 15, 16)
+      g.quadraticCurveTo(19, 23, 10, 29); g.stroke()
+      for (let k = 0; k < 4; k++) {                                       // scale at the grip
+        g.fillStyle = ['#5a3226','#6e4030','#4a2a20','#7a4a34'][k]
+        g.beginPath(); g.ellipse(13, 10 + k * 4, 3.4, 2.2, 0, 0, 7); g.fill()
+      }
+      g.strokeStyle = 'rgba(255,190,110,.95)'; g.lineWidth = 1.4          // the lit string
+      g.beginPath(); g.moveTo(10, 3); g.lineTo(10, 29); g.stroke()
+      g.save(); g.shadowColor = 'rgba(255,160,50,1)'; g.shadowBlur = 8
+      g.fillStyle = '#ffd08a'; g.beginPath(); g.arc(10, 16, 2, 0, 7); g.fill()
+      g.restore()
+      break }
+    // ---- TOOLS ----
+    case 'bronze-hatchet': {
+      forged([[15,10],[17,10],[17,30],[15,30]], MAT.wood)
+      forged([[17,6],[26,8],[27,15],[17,17]], MAT.bronze)
+      edge(26, 8.4, 26.8, 14.6)
+      break }
+    case 'bronze-pickaxe': {
+      forged([[15,10],[17,10],[17,30],[15,30]], MAT.wood)
+      g.strokeStyle = MAT.bronze.mid; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(5, 12); g.quadraticCurveTo(16, 5, 27, 12); g.stroke()
+      g.strokeStyle = MAT.bronze.rim; g.lineWidth = 1
+      g.beginPath(); g.moveTo(5, 12); g.quadraticCurveTo(16, 5, 27, 12); g.stroke()
+      forged([[14,7],[18,7],[18,12],[14,12]], MAT.iron)
+      break }
+    // ---- HARNESS ----
+    case 'bronze-helm': case 'star-helm': {
+      const m = item[0] === 's' ? MAT.star : MAT.bronze
+      // a great helm: a slit, a nasal, and a cheek line
+      forged([[8,20],[8,12],[11,6],[21,6],[24,12],[24,20],[20,23],[12,23]], m,
+             item[0]==='s' ? 'rgba(120,220,255,.45)' : null)
+      g.fillStyle = '#07040a'; g.fillRect(10.5, 12.6, 11, 2.4)            // the eye slit
+      g.fillStyle = m.dk; g.fillRect(15.2, 10, 1.6, 9)                    // the nasal
+      g.fillStyle = m.rim; g.fillRect(11, 6.6, 10, 1)                     // lit crown
+      break }
+    case 'bronze-plate': case 'star-plate': {
+      const m = item[0] === 's' ? MAT.star : MAT.bronze
+      forged([[10,7],[22,7],[26,12],[24,27],[8,27],[6,12]], m,
+             item[0]==='s' ? 'rgba(120,220,255,.45)' : null)
+      forged([[4,8],[11,6],[12,12],[5,14]], m)                            // pauldrons
+      forged([[21,6],[28,8],[27,14],[20,12]], m)
+      g.fillStyle = 'rgba(0,0,0,.30)'                                     // the ribs
+      for (const ry of [16, 20, 24]) g.fillRect(9, ry, 14, 1.6)
+      g.fillStyle = m.rim; g.fillRect(10, 7.6, 12, 1)
+      break }
+
     case 'gold-coin':
       g.fillStyle = '#8a6415'; g.beginPath(); g.arc(16, 17.4, 10, 0, 7); g.fill()
       g.fillStyle = '#e8b53a'; g.beginPath(); g.arc(16, 16, 10, 0, 7); g.fill()
@@ -458,7 +614,16 @@ function itemSprite(item) {
 const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
   ? '<img src="' + itemSprite(item).toDataURL() + '" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle">'
   : undefined, has: () => true })
-const EQUIPPABLE = new Set(['bronze-sword', 'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate', 'wooden-bow', 'star-sword', 'star-dagger', 'star-helm', 'star-plate', 'old-chain'])
+const EQUIPPABLE = new Set([
+  // kept in step with the engine by check-equip.mjs.
+  'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-maul',
+  'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
+  'star-sword', 'star-dagger', 'star-spear', 'star-maul',
+  'star-helm', 'star-plate',
+  'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow',
+  'old-chain', 'dragonbow',
+  'star-flail',
+])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) — character for
 // character the same in every window and in engine.js. test/identity.test.mjs
 // extracts this block from each window and compares it against the engine, so
@@ -844,26 +1009,121 @@ function stepToward(s, me, goal, reach, stampTick) {
   send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
 }
 
-function smithBest(me) {
-  const have = (item) => me.inventory.filter(sl => sl && sl.item === item).length
-  const lvl = (sk) => XP_TO_LVL(me.skills[sk])
-  if (have('magic-stone') >= 4 && have('ore') >= 3 && lvl('smithing') >= 30 && lvl('magic') >= 15) {
-    send({ do: 'smith', recipe: 'star-plate' }); feed('The stones sing under the hammer\u2026 a starmetal plate takes shape.') }
-  else if (have('magic-stone') >= 3 && have('ore') >= 2 && lvl('smithing') >= 20 && lvl('magic') >= 10) {
-    send({ do: 'smith', recipe: 'star-sword' }); feed('The stones sing under the hammer\u2026 a starmetal sword takes shape.') }
-  else if (have('magic-stone') >= 2 && have('ore') >= 1 && lvl('smithing') >= 15 && lvl('magic') >= 5) {
-    send({ do: 'smith', recipe: 'star-helm' }); feed('The stones sing under the hammer\u2026 a starmetal helm takes shape.') }
-  else if (have('magic-stone') >= 2 && have('ore') >= 1) {
-    feed('The stones wait for a worthier hand. (Helm: smithing 15 + magic 5. Sword: 20/10. Plate: 30/15.)')
-    if (have('ore') >= 2 && have('logs') >= 1) { send({ do: 'smith', recipe: 'bronze-sword' }) }
-  }
-  else if (have('ore') >= 2 && have('logs') >= 1) { send({ do: 'smith', recipe: 'bronze-sword' }); feed('You hammer at the anvil\u2026 a bronze sword takes shape.') }
-  else if (have('ore') >= 1 && have('logs') >= 1) {
-    const recipe = XP_TO_LVL(me.skills.woodcutting) <= XP_TO_LVL(me.skills.mining) ? 'bronze-hatchet' : 'bronze-pickaxe'
-    send({ do: 'smith', recipe }); feed('You hammer at the anvil\u2026 a ' + recipe.replace('-', ' ') + ' takes shape.')
-  }
-  else feed('You need ore and logs to smith. (Sword: 2 ore. Tools: 1 ore.)')
+// ---- THE ANVIL, in this light ----
+//
+// The old smithBest GUESSED: a cascade of if-elses picked one recipe from
+// your pack. Right when the anvil offered a tool or a bronze sword, wrong now
+// it offers eighteen. Six were reachable at all.
+//
+// The same menu as the flat window, in the grim frame — Cinzel, the gold
+// rule, stone panels lit from the upper left. Not a port with the colours
+// changed: a panel that belongs to this program.
+const FORGE = {
+  'bronze-dagger':  { ore: 1 },
+  'bronze-hatchet': { ore: 1, logs: 1 },
+  'bronze-pickaxe': { ore: 1, logs: 1 },
+  'bronze-spear':   { ore: 1, logs: 1 },
+  'bronze-helm':    { ore: 1, logs: 1 },
+  'bronze-sword':   { ore: 2, logs: 1 },
+  'bronze-maul':    { ore: 2, logs: 1 },
+  'bronze-plate':   { ore: 3, logs: 1 },
+  'crossbow':       { ore: 2, logs: 2 },
+  'sigil-bow':      { 'horn-bow': 1, sigil: 3 },
+  'star-helm':      { 'magic-stone': 2, ore: 1 },
+  'star-spear':     { 'magic-stone': 2, ore: 1, logs: 1 },
+  'star-dagger':    { 'magic-stone': 2, ore: 1 },
+  'star-sword':     { 'magic-stone': 3, ore: 2 },
+  'star-maul':      { 'magic-stone': 3, ore: 2, logs: 1 },
+  'star-flail':     { 'magic-stone': 3, ore: 2, logs: 1 },
+  'star-plate':     { 'magic-stone': 4, ore: 3 },
 }
+const FORGE_REQ = {
+  'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
+  'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 },
+  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
+  'star-flail': { smithing: 26, magic: 14 },
+  'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
+  'sigil-bow': { smithing: 12, magic: 25 },
+}
+function forgeHave(me, item) {
+  return me.inventory.reduce((a, sl) => {
+    if (!sl) return a
+    if (sl.item === item) return a + (sl.qty ?? 1)
+    if (item === 'logs' && sl.item === 'heartwood') return a + (sl.qty ?? 1)  // §6ad
+    return a
+  }, 0)
+}
+function forgeBlockers(me, recipe) {
+  const out = []
+  for (const [item, n] of Object.entries(FORGE[recipe] ?? {})) {
+    const has = forgeHave(me, item)
+    if (has < n) out.push({ kind: 'need', text: n + ' ' + item.replace(/-/g, ' ') + ' (you have ' + has + ')' })
+  }
+  for (const [sk, n] of Object.entries(FORGE_REQ[recipe] ?? {})) {
+    const lv = XP_TO_LVL(me.skills[sk] ?? 0)
+    if (lv < n) out.push({ kind: 'skill', text: sk + ' ' + n + ' (you have ' + lv + ')' })
+  }
+  if (!me.inventory.some((sl) => !sl)) out.push({ kind: 'room', text: 'your pack is full' })
+  return out
+}
+function closeForge() {
+  const el = document.getElementById('forge')
+  if (el) el.remove()
+}
+function openForge(me) {
+  closeForge()
+  const box = document.createElement('div')
+  box.id = 'forge'
+  box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);'
+    + 'z-index:60;background:linear-gradient(180deg,#1b1216,#100a0d);'
+    + 'border:2px solid #4a2e18;box-shadow:0 0 0 1px #0a0608, 0 18px 50px rgba(0,0,0,.8);'
+    + 'padding:14px 16px;max-height:80%;overflow-y:auto;min-width:340px;'
+    + 'font:12px Georgia,serif;color:#cbb794'
+  const groups = [['bronze', Object.keys(FORGE).filter((k) => k.startsWith('bronze-'))],
+                  ['starmetal', Object.keys(FORGE).filter((k) => k.startsWith('star-'))],
+                  ['and the rest', ['crossbow', 'sigil-bow']]]
+  let html = '<div style="display:flex;justify-content:space-between;align-items:baseline">'
+    + '<span style="font:700 13px Cinzel,Georgia,serif;letter-spacing:3px;color:#c79b3b">THE ANVIL</span>'
+    + '<span id="forgex" style="cursor:pointer;color:#8a7358;font-size:11px;letter-spacing:1px">CLOSE</span></div>'
+    + '<div style="height:1px;margin:8px 0 4px;background:linear-gradient(90deg,transparent,rgba(199,155,59,.5),transparent)"></div>'
+  for (const [label, keys] of groups) {
+    html += '<div style="font:700 10px Cinzel,Georgia,serif;letter-spacing:2px;color:#6b5842;margin:10px 0 5px">'
+      + label.toUpperCase() + '</div>'
+    for (const k of keys) {
+      const bl = forgeBlockers(me, k)
+      const ok = bl.length === 0
+      const cost = Object.entries(FORGE[k]).map(([i, n]) => n + ' ' + i.replace(/-/g, ' ')).join(' + ')
+      // lit from the upper left, like everything else in this world
+      html += '<div class="frow" data-recipe="' + k + '" style="padding:6px 8px;margin:3px 0;'
+        + 'border-top:1px solid ' + (ok ? '#5a4a2a' : '#2a2420') + ';'
+        + 'border-left:1px solid ' + (ok ? '#5a4a2a' : '#2a2420') + ';'
+        + 'border-right:1px solid #0a0608;border-bottom:1px solid #0a0608;'
+        + 'background:' + (ok ? '#241a14' : '#150f12') + ';cursor:' + (ok ? 'pointer' : 'default') + '">'
+        + '<span style="font:700 12px Cinzel,Georgia,serif;letter-spacing:.5px;color:'
+        + (ok ? '#e8d9b8' : '#5f5548') + '">' + k.replace(/-/g, ' ') + '</span>'
+        + '<span style="float:right;color:#6b5842;font-size:11px">' + cost + '</span>'
+      if (!ok) html += '<div style="clear:both;font-size:10px;margin-top:4px">'
+        + bl.map((b) => '<span style="color:' + (b.kind === 'skill' ? '#a31f18'
+          : b.kind === 'room' ? '#8c1f1f' : '#6b5842') + '">' + b.text + '</span>')
+          .join('<span style="color:#3a2a1c"> \u00b7 </span>') + '</div>'
+      html += '<div style="clear:both"></div></div>'
+    }
+  }
+  box.innerHTML = html
+  cv.parentNode.appendChild(box)
+  box.addEventListener('click', (e) => {
+    if (e.target.id === 'forgex') { closeForge(); return }
+    const row = e.target.closest('.frow')
+    if (!row) return
+    const recipe = row.dataset.recipe
+    const meNow = world?.players?.[myId]
+    if (!meNow || forgeBlockers(meNow, recipe).length) return
+    send({ do: 'smith', recipe })
+    feed('The hammer falls\u2026 a ' + recipe.replace(/-/g, ' ') + ' takes shape.')
+    closeForge()
+  })
+}
+function smithBest(me) { openForge(me) }
 
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
@@ -889,7 +1149,65 @@ let celebrate = null  // { text, at }: level-up banner + sparks
 let announceShow = null, announceQueue = [], _lastAnnounceTick = null // global milestone cries
 const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
-const MOB_LEVEL = { goblin: 2, wolf: 5, troll: 9, bear: 7, 'skeleton-knight': 10 } // derived from their stats rows (skeleton: highest atk/def/hit, above the troll)
+// §6ad: the same material system the inventory uses, in world scope. The
+// MAT table inside the icon switch is local to it; this is the world's copy,
+// and the two must not drift — a cairn in the pack and a cairn on the ground
+// should be cut from the same stone.
+const GMAT = {
+  stone:   { dk: '#1a1a1e', mid: '#3a3a40', hi: '#5a5a62', rim: '#8a8a94' },
+  wood:    { dk: '#241608', mid: '#4a2f14', hi: '#6b4520', rim: '#8a5a2a' },
+  bone:    { dk: '#4a4638', mid: '#8a8270', hi: '#b8b09a', rim: '#d8d0b8' },
+  iron:    { dk: '#2a2a2e', mid: '#5a5a62', hi: '#8a8a94', rim: '#c2c2cc' },
+  leather: { dk: '#1a1008', mid: '#3a2414', hi: '#5a3a20', rim: '#7a5230' },
+  straw:   { dk: '#3a2c10', mid: '#6b5320', hi: '#9c7c30', rim: '#c9a84a' },
+  char:    { dk: '#0f0a0c', mid: '#241a1e', hi: '#3a2a2e', rim: '#4a3438' },
+  glass:   { dk: '#12202a', mid: '#22384a', hi: '#3a5a72', rim: '#6a9ab8' },
+}
+// one light, upper-left — the same rule as the forge, so the world and the
+// pack are lit by the same sun
+function forgedAt(pts, m) {
+  poly(pts, m.mid, m.dk)
+  cx.strokeStyle = m.rim; cx.lineWidth = 1
+  cx.beginPath()
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length]
+    if ((b[1] - a[1]) + (a[0] - b[0]) < 0) { cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]) }
+  }
+  cx.stroke()
+}
+function pitAt(cx2, cy2, rx, ry) {
+  const grd = cx.createRadialGradient(cx2, cy2, 0, cx2, cy2, Math.max(rx, ry))
+  grd.addColorStop(0, 'rgba(0,0,0,.5)'); grd.addColorStop(1, 'rgba(0,0,0,0)')
+  cx.fillStyle = grd
+  cx.beginPath(); cx.ellipse(cx2, cy2, rx, ry, 0, 0, 7); cx.fill()
+}
+const MOB_LEVEL = { goblin: 2, wolf: 5, troll: 9, bear: 7, 'skeleton-knight': 10,
+  'shore-crab': 12, 'great-spider': 40, siren: 30, dragon: 99 }
+// §6aa: what a beast can perceive, and where it will start something.
+// Character for character from engine MOB_STATS; the window needs them to
+// show a citizen that something has noticed them.
+const MOB_AGGRO = { goblin: 3, wolf: 5, troll: 4, bear: 3, 'skeleton-knight': 5,
+  'shore-crab': 4, 'great-spider': 6, siren: 10, dragon: 9 }
+const MOB_HARMLESS = new Set(['shore-crab'])
+const HUNTING_COUNTRY = new Set(['wilds', 'crags', 'moor'])
+const MOB_MAXHP = { goblin: 5, wolf: 8, troll: 20, bear: 14, 'skeleton-knight': 18,
+  'shore-crab': 90, 'great-spider': 300, siren: 60, dragon: 420 }
+const huntsMe = (m, myId2, cx2, cy2) => {
+  const a = MOB_AGGRO[m.type]
+  if (!a || m.hp <= 0 || MOB_HARMLESS.has(m.type)) return false
+  if (m.mad === myId2) return true
+  if (!HUNTING_COUNTRY.has(biomeAtE4(m.x, m.y))) return false
+  return Math.max(Math.abs(m.x - cx2), Math.abs(m.y - cy2)) <= a
+} // derived from their stats rows (skeleton: highest atk/def/hit, above the troll)
+// §6af: which weapons can strike off the rhythm, and what each one does.
+// Character for character from engine WEAPONS.
+const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true' }
+const SPEC_SAYS = { twice: 'two blows in one tick', now: 'swings whatever your arm says',
+                    'true': 'the shot cannot miss' }
+// ARMED, not fired. A special is a decision, so it is taken in two steps:
+// arm it, then choose who. That also means one control works for a mouse and
+// a thumb alike, and you cannot spend your arm by misclicking.
+let specArmed = false
 const splats = []     // { x, y, amount, at } damage made visible
 const effects = []    // { kind, x, y, at } rites and works made visible
 const layerArr = []   // reused render layer (perf)
@@ -1072,6 +1390,40 @@ function onState(s, worldId) {
     for (const [pid2, p2] of Object.entries(s.players)) {
       const o2 = prev.players?.[pid2]
       if (o2 && o2.hp > p2.hp) splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
+    }
+    // §6af: A SPECIAL LOOKS LIKE ONE.
+    //
+    // It resolves off the rhythm and produces damage, so without a mark it is
+    // an ordinary hit — the same illegibility as the undrawn fire. Nothing new
+    // is needed in the state: a citizen whose `lastSwing` jumped PAST this
+    // tick has spent their arm on a special, because no ordinary swing ever
+    // does that.
+    for (const [pid2, p2] of Object.entries(s.players)) {
+      const was = prev.players?.[pid2]?.lastSwing ?? -9
+      if ((p2.lastSwing ?? -9) > s.tick && (p2.lastSwing ?? -9) !== was)
+        effects.push({ kind: 'special', x: p2.x, y: p2.y, at: performance.now() })
+    }
+    // §6af: A SPECIAL LOOKS LIKE ONE.
+    //
+    // It resolves off the rhythm and produces damage, so without a mark it is
+    // an ordinary hit. Nothing new is needed in the state: a citizen whose
+    // `lastSwing` jumped PAST this tick has spent their arm on a special,
+    // because no ordinary swing ever does that.
+    for (const [pid2, p2] of Object.entries(s.players)) {
+      const was9 = prev.players?.[pid2]?.lastSwing ?? -9
+      if ((p2.lastSwing ?? -9) > s.tick && (p2.lastSwing ?? -9) !== was9)
+        effects.push({ kind: 'special', x: p2.x, y: p2.y, at: performance.now() })
+    }
+    // §6aa: and the blows that MISSED, inferred from a beast whose lastSwing
+    // moved this tick against a citizen whose hitpoints did not fall
+    const me2 = s.players?.[myId]
+    if (me2 && (prev.players?.[myId]?.hp ?? me2.hp) <= me2.hp) {
+      for (const [mid, m] of Object.entries(s.mobs)) {
+        if (!m || m.hp <= 0 || m.mad !== myId) continue
+        if ((m.lastSwing ?? -9) !== s.tick) continue
+        if ((prev.mobs?.[mid]?.lastSwing ?? -9) === s.tick) continue
+        splats.push({ x: me2.x, y: me2.y, amount: 0, at: performance.now() })
+      }
     }
   }
   if (!entered) updateGate(s, worldId)
@@ -3053,6 +3405,218 @@ function drawScene(now) {
         } })
         chooseAction(opts); return
       }
+      // ---- §6ad: THE LANDMARKS, IN THIS LIGHT ----
+      //
+      // Grim drew NONE of them. Nine hundred and sixty-six things on the
+      // island — every skep, cairn, mill, barricade, gibbet, the dragon's
+      // burn, the spider's web — rendered as nothing at all, so this window
+      // showed an emptier world than the one it was connected to.
+      //
+      // Drawn here through the same material system as the inventory: one
+      // light upper-left, MAT palettes, and a pit under everything. Grouped
+      // by what they are made of rather than by what they mean, because in
+      // this idiom the material IS the meaning.
+      if (n.type === 'landmark') {
+        const K = n.kind
+        const v = tileHash(n.x, n.y, 11) % 3
+        const lean = ((tileHash(n.x, n.y, 17) % 5) - 2) * 0.5
+        pitAt(X + 20, Y + 30, 11, 4)
+        // --- STONE: cairns, stones, milestones, the glassed rock ---
+        if (K === 'cairn' || K === 'standing-stone' || K === 'boundary-stone'
+            || K === 'milestone' || K === 'spoil-heap' || K === 'cut-face') {
+          const tall = K === 'standing-stone' || K === 'boundary-stone'
+          const small = K === 'milestone'
+          if (K === 'cairn' || K === 'spoil-heap') {
+            const w2 = [12, 9.5, 7, 4.5, 3]
+            for (let r = 0; r < (K === 'cairn' ? 5 : 3); r++) {
+              forgedAt([[X + 20 - w2[r], Y + 30 - r * 5], [X + 20 + w2[r], Y + 30 - r * 5],
+                        [X + 20 + w2[r] * 0.8, Y + 25 - r * 5], [X + 20 - w2[r] * 0.8, Y + 25 - r * 5]],
+                       GMAT.stone)
+            }
+          } else {
+            const h2 = small ? 12 : tall ? 22 : 16, w3 = small ? 4 : 6
+            forgedAt([[X + 20 - w3, Y + 30], [X + 20 - w3 + 1, Y + 30 - h2],
+                      [X + 20, Y + 32 - h2 - 2], [X + 20 + w3 - 1, Y + 30 - h2],
+                      [X + 20 + w3, Y + 30]], GMAT.stone)
+            if (n.text) {                       // §5g: a carved stone shows it
+              cx.strokeStyle = 'rgba(199,155,59,.55)'; cx.lineWidth = 1
+              for (let r = 0; r < 3; r++) {
+                cx.beginPath(); cx.moveTo(X + 17, Y + 22 - r * 4)
+                cx.lineTo(X + 23, Y + 22 - r * 4); cx.stroke()
+              }
+            }
+          }
+          return
+        }
+        // --- BONE: what the Wilds leaves ---
+        if (K === 'bone-pile' || K === 'skull-pile') {
+          for (const [sx, sy, r] of [[14, 28, 4.4], [26, 28, 4.4], [20, 25, 4.8], [20, 18, 5.2]]) {
+            cx.fillStyle = GMAT.bone.mid
+            cx.beginPath(); cx.ellipse(X + sx, Y + sy, r, r * 0.86, 0, 0, 7); cx.fill()
+            cx.strokeStyle = GMAT.bone.rim; cx.lineWidth = 0.9
+            cx.beginPath(); cx.ellipse(X + sx, Y + sy, r, r * 0.86, 0, Math.PI * 0.8, Math.PI * 1.8); cx.stroke()
+            cx.fillStyle = '#0a0608'
+            cx.beginPath(); cx.ellipse(X + sx - 1.8, Y + sy - 0.6, 1.3, 1.6, 0, 0, 7); cx.fill()
+            cx.beginPath(); cx.ellipse(X + sx + 1.8, Y + sy - 0.6, 1.3, 1.6, 0, 0, 7); cx.fill()
+          }
+          return
+        }
+        // --- TIMBER: hurdles, barricades, log piles, carts, gibbets ---
+        if (K === 'barricade') {
+          cx.strokeStyle = GMAT.wood.mid; cx.lineWidth = 4; cx.lineCap = 'round'
+          cx.beginPath(); cx.moveTo(X + 8, Y + 30); cx.lineTo(X + 30, Y + 12)
+          cx.moveTo(X + 30, Y + 30); cx.lineTo(X + 8, Y + 12); cx.stroke()
+          cx.strokeStyle = GMAT.wood.rim; cx.lineWidth = 1
+          cx.beginPath(); cx.moveTo(X + 8, Y + 30); cx.lineTo(X + 30, Y + 12); cx.stroke()
+          cx.lineCap = 'butt'
+          cx.fillStyle = GMAT.iron.hi
+          poly([[X + 30, Y + 12], [X + 34, Y + 7], [X + 32, Y + 13]], GMAT.iron.hi)
+          poly([[X + 8, Y + 12], [X + 4, Y + 7], [X + 6, Y + 13]], GMAT.iron.hi)
+          return
+        }
+        if (K === 'hurdle' || K === 'log-pile' || K === 'stump' || K === 'crate' || K === 'barrel') {
+          if (K === 'stump') {
+            forgedAt([[X + 13, Y + 30], [X + 14, Y + 22], [X + 26, Y + 22], [X + 27, Y + 30]], GMAT.wood)
+            cx.strokeStyle = GMAT.wood.dk; cx.lineWidth = 0.8
+            for (const r of [2.5, 4.5]) { cx.beginPath(); cx.ellipse(X + 20, Y + 22, r, r * 0.5, 0, 0, 7); cx.stroke() }
+          } else if (K === 'log-pile') {
+            for (let r = 0; r < 3; r++)
+              forgedAt([[X + 9 + r, Y + 30 - r * 5], [X + 31 - r, Y + 30 - r * 5],
+                        [X + 31 - r, Y + 25 - r * 5], [X + 9 + r, Y + 25 - r * 5]], GMAT.wood)
+          } else if (K === 'hurdle') {
+            for (const hx of [10, 16, 22, 28]) forgedAt([[X + hx, Y + 30], [X + hx + 2, Y + 30],
+              [X + hx + 2, Y + 16], [X + hx, Y + 16]], GMAT.wood)
+            cx.fillStyle = GMAT.wood.hi; cx.fillRect(X + 9, Y + 20, 22, 2)
+          } else {
+            forgedAt([[X + 10, Y + 30], [X + 30, Y + 30], [X + 30, Y + 16], [X + 10, Y + 16]],
+                     K === 'barrel' ? GMAT.wood : GMAT.leather)
+            cx.fillStyle = 'rgba(0,0,0,.3)'; cx.fillRect(X + 10, Y + 22, 20, 1.6)
+          }
+          return
+        }
+        if (K === 'gibbet' || K === 'scarecrow') {
+          forgedAt([[X + 18, Y + 30], [X + 21, Y + 30], [X + 21, Y + 6], [X + 18, Y + 6]], GMAT.wood)
+          cx.fillStyle = GMAT.wood.mid; cx.fillRect(X + 10, Y + 6, 18, 2.4)
+          if (K === 'gibbet') {
+            cx.strokeStyle = GMAT.iron.mid; cx.lineWidth = 1
+            cx.beginPath(); cx.moveTo(X + 12, Y + 8); cx.lineTo(X + 12, Y + 14); cx.stroke()
+            cx.fillStyle = GMAT.bone.mid
+            cx.beginPath(); cx.arc(X + 12, Y + 17, 3.4, 0, 7); cx.fill()
+          } else {
+            cx.fillStyle = GMAT.leather.mid
+            poly([[X + 14, Y + 8], [X + 26, Y + 8], [X + 24, Y + 20], [X + 16, Y + 20]], GMAT.leather.mid)
+            cx.fillStyle = GMAT.bone.mid
+            cx.beginPath(); cx.arc(X + 20, Y + 5, 4.2, 0, 7); cx.fill()
+          }
+          return
+        }
+        // --- FIRE AND ITS LEAVINGS ---
+        if (K === 'crude-hearth' || K === 'charcoal-clamp' || K === 'scorched-ring') {
+          cx.fillStyle = 'rgba(10,4,6,.75)'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 24, K === 'scorched-ring' ? 16 : 10, 6, 0, 0, 7); cx.fill()
+          if (K !== 'scorched-ring') {
+            for (const [sx, sy] of [[15, 22], [20, 20], [25, 22]])
+              forgedAt([[X + sx - 2, Y + sy + 3], [X + sx + 2, Y + sy + 3],
+                        [X + sx + 1, Y + sy - 2], [X + sx - 1, Y + sy - 2]], GMAT.stone)
+          }
+          const em = 0.4 + 0.4 * Math.sin(now / 500 + n.x)
+          cx.save(); cx.shadowColor = 'rgba(232,114,42,.8)'; cx.shadowBlur = 6
+          cx.fillStyle = 'rgba(232,114,42,' + (0.5 * em) + ')'
+          cx.beginPath(); cx.arc(X + 20, Y + 23, 3, 0, 7); cx.fill()
+          cx.restore()
+          return
+        }
+        if (K === 'burnt-tree') {
+          cx.save(); cx.translate(X + 20, Y + 30); cx.rotate(lean * 0.06); cx.translate(-X - 20, -Y - 30)
+          forgedAt([[X + 17, Y + 32], [X + 18.5, Y + 10], [X + 22, Y + 9], [X + 23, Y + 32]], GMAT.char)
+          cx.strokeStyle = GMAT.char.mid; cx.lineWidth = 2.2; cx.lineCap = 'round'
+          for (const [ex, ey] of [[-12, -8], [11, -5], [-9, -14], [8, -13]]) {
+            cx.beginPath(); cx.moveTo(X + 20, Y + 14)
+            cx.lineTo(X + 20 + ex, Y + 14 + ey); cx.stroke()
+          }
+          cx.lineCap = 'butt'
+          cx.strokeStyle = 'rgba(232,114,42,.35)'; cx.lineWidth = 1     // still warm
+          cx.beginPath(); cx.moveTo(X + 19.5, Y + 30); cx.lineTo(X + 18.5, Y + 12); cx.stroke()
+          cx.restore()
+          return
+        }
+        if (K === 'glass-stone') {
+          forgedAt([[X + 11, Y + 30], [X + 14, Y + 13], [X + 22, Y + 9],
+                    [X + 29, Y + 16], [X + 28, Y + 30]], GMAT.glass)
+          cx.save(); cx.shadowColor = 'rgba(140,200,230,.7)'; cx.shadowBlur = 7
+          cx.fillStyle = 'rgba(200,235,255,' + (0.35 + 0.2 * Math.sin(now / 800 + n.x)) + ')'
+          poly([[X + 18, Y + 13], [X + 20, Y + 14], [X + 17, Y + 23]], 'rgba(200,235,255,.5)')
+          cx.restore()
+          return
+        }
+        // --- THE WEB, which is the spider's rule made visible ---
+        if (K === 'web') {
+          const pull = 0.5 + 0.5 * Math.sin(now / 900 + n.x * 0.7)
+          cx.strokeStyle = 'rgba(203,183,148,' + (0.10 + 0.09 * pull) + ')'
+          cx.lineWidth = 0.8
+          for (let r = 0; r < 5; r++) {
+            const a2 = (r / 5) * Math.PI * 2 + n.y * 0.3
+            cx.beginPath(); cx.moveTo(X + 20, Y + 20)
+            cx.lineTo(X + 20 + Math.cos(a2) * 22, Y + 20 + Math.sin(a2) * 20); cx.stroke()
+          }
+          for (let ring = 1; ring <= 3; ring++) {
+            cx.beginPath()
+            for (let k = 0; k <= 5; k++) {
+              const a2 = (k / 5) * Math.PI * 2 + n.y * 0.3, rr = ring * 6 + pull * 1.6
+              const px2 = X + 20 + Math.cos(a2) * rr, py2 = Y + 20 + Math.sin(a2) * rr * 0.9
+              if (k === 0) cx.moveTo(px2, py2); else cx.lineTo(px2, py2)
+            }
+            cx.closePath(); cx.stroke()
+          }
+          return
+        }
+        // --- and the rest: honest small shapes rather than a magenta box ---
+        if (K === 'skep') {
+          cx.fillStyle = GMAT.straw.mid
+          cx.beginPath(); cx.moveTo(X + 10, Y + 30)
+          cx.quadraticCurveTo(X + 11, Y + 12, X + 20, Y + 10)
+          cx.quadraticCurveTo(X + 29, Y + 12, X + 30, Y + 30); cx.closePath(); cx.fill()
+          cx.strokeStyle = GMAT.straw.dk; cx.lineWidth = 1
+          for (let r = 0; r < 4; r++) {
+            cx.beginPath(); cx.ellipse(X + 20, Y + 14 + r * 4.4, 10 - (3 - r) * 1.6, 2.4, 0, 0, 7); cx.stroke()
+          }
+          cx.fillStyle = '#0a0608'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 28, 3, 2.2, 0, 0, 7); cx.fill()
+          return
+        }
+        if (K === 'mill') {
+          forgedAt([[X + 11, Y + 34], [X + 14, Y - 2], [X + 26, Y - 2], [X + 29, Y + 34]], GMAT.stone)
+          poly([[X + 12, Y - 2], [X + 28, Y - 2], [X + 20, Y - 12]], GMAT.wood.mid, GMAT.wood.dk)
+          const spin = now / 2600
+          cx.strokeStyle = GMAT.wood.mid; cx.lineWidth = 2.4
+          for (let b2 = 0; b2 < 4; b2++) {
+            const a2 = spin + b2 * Math.PI / 2
+            cx.beginPath(); cx.moveTo(X + 20, Y - 7)
+            cx.lineTo(X + 20 + Math.cos(a2) * 16, Y - 7 + Math.sin(a2) * 16); cx.stroke()
+          }
+          cx.fillStyle = '#0a0608'; cx.fillRect(X + 17, Y + 24, 6, 10)
+          return
+        }
+        if (K === 'cave-mouth') {
+          forgedAt([[X + 4, Y + 34], [X + 6, Y + 14], [X + 14, Y + 6],
+                    [X + 27, Y + 6], [X + 35, Y + 15], [X + 36, Y + 34]], GMAT.stone)
+          cx.fillStyle = '#000'
+          cx.beginPath(); cx.moveTo(X + 13, Y + 34)
+          cx.quadraticCurveTo(X + 13, Y + 15, X + 20, Y + 13)
+          cx.quadraticCurveTo(X + 27, Y + 15, X + 27, Y + 34); cx.closePath(); cx.fill()
+          return
+        }
+        if (K === 'eel-rack' || K === 'sunken-wall' || K === 'siege-engine' || K === 'cart'
+            || K === 'haystack' || K === 'table' || K === 'bed' || K === 'shelf') {
+          const m2 = (K === 'haystack') ? GMAT.straw : (K === 'sunken-wall') ? GMAT.stone : GMAT.wood
+          forgedAt([[X + 9, Y + 30], [X + 31, Y + 30], [X + 29, Y + 17], [X + 11, Y + 17]], m2)
+          cx.fillStyle = 'rgba(0,0,0,.3)'; cx.fillRect(X + 11, Y + 23, 18, 1.6)
+          return
+        }
+        // anything not yet given a shape: a dark shape, not a hole
+        forgedAt([[X + 13, Y + 30], [X + 27, Y + 30], [X + 25, Y + 19], [X + 15, Y + 19]], GMAT.stone)
+        return
+      }
       if (n.type === 'brewpot') {
         shadow(X, Y, 10)
         const fermenting = n.readyAt !== undefined && (world?.tick ?? 0) < n.readyAt
@@ -3130,6 +3694,44 @@ function drawScene(now) {
     layer.push({ z: Z(miy, 3), draw: () => {
       const X = px(mix), Y = py(miy)
       const engaged = meP?.action?.mobId === id
+      // §6aa: A SWING THAT MISSES IS STILL A SWING. Three beasts taking turns
+      // read as one attacking occasionally, because a miss drew nothing.
+      // Here it is a cut of dull red rather than the flat window's pale arc:
+      // in this register the world does not flash, it bleeds.
+      if ((m.lastSwing ?? -9) >= s.tick - 1 && m.hp > 0) {
+        const sw = 1 - ((s.tick - m.lastSwing) + ((now / 600) % 1)) / 2
+        if (sw > 0) {
+          cx.strokeStyle = 'rgba(163,31,24,' + (0.65 * sw) + ')'
+          cx.lineWidth = 2.6
+          cx.beginPath(); cx.arc(X + 20, Y + 18, 15 - sw * 4, -0.9, 0.9); cx.stroke()
+          cx.strokeStyle = 'rgba(232,114,42,' + (0.4 * sw) + ')'
+          cx.lineWidth = 1
+          cx.beginPath(); cx.arc(X + 20, Y + 18, 15 - sw * 4, -0.9, 0.9); cx.stroke()
+        }
+      }
+      // §6aa: IT HAS SEEN YOU. Not an eye here but a MARK — a rune of notice
+      // that burns above whatever has taken an interest, brighter and beating
+      // faster when it is coming for you by name.
+      if (meP && huntsMe(m, myId, meP.x, meP.y)) {
+        const coming = m.mad === myId
+        const beat = 0.5 + 0.5 * Math.sin(now / (coming ? 240 : 520))
+        const my2 = Y - (coming ? 15 : 12)
+        cx.save()
+        cx.shadowColor = coming ? 'rgba(232,72,58,.9)' : 'rgba(199,155,59,.5)'
+        cx.shadowBlur = coming ? 10 : 5
+        cx.strokeStyle = coming ? 'rgba(232,72,58,' + (0.6 + 0.4 * beat) + ')'
+                                : 'rgba(199,155,59,' + (0.35 + 0.25 * beat) + ')'
+        cx.lineWidth = coming ? 2 : 1.4
+        cx.beginPath()                                   // a downward chevron: it is above you
+        cx.moveTo(X + 13, my2 - 4); cx.lineTo(X + 20, my2 + 3); cx.lineTo(X + 27, my2 - 4)
+        cx.stroke()
+        if (coming) {
+          cx.beginPath()
+          cx.moveTo(X + 15, my2 - 8); cx.lineTo(X + 20, my2 - 3); cx.lineTo(X + 25, my2 - 8)
+          cx.stroke()
+        }
+        cx.restore()
+      }
       cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
       const plate = m.type + ' (lvl ' + (MOB_LEVEL[m.type] ?? '?') + ')'
       cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillText(plate, X + 20.7, Y - 2.3)
@@ -3137,6 +3739,218 @@ function drawScene(now) {
       const hop = engaged ? Math.abs(Math.sin(now / 160)) * 2 : Math.sin(now / 700 + m.x) * 0.7
       shadow(X, Y, 9)
       if ((m.rootedUntil ?? 0) > s.tick) rootBind(X, Y)
+      if (m.type === 'dragon') {
+        // In this register it is not a beast with a health bar. It is a thing
+        // the dark has not finished hiding: mostly silhouette, two coals for
+        // eyes, and the fire the only real colour on the screen.
+        const breathe = Math.sin(now / 1100) * 1.5
+        const beat = Math.sin(now / 640)
+        const tgt = m.mad ? s.players?.[m.mad] : null
+        const F = tgt ? (tgt.x >= m.x ? -1 : 1) : (MF < 0 ? -1 : 1)
+        const HX = X + 20 - F * 24, HY = Y - 12 + breathe
+        cx.fillStyle = 'rgba(0,0,0,.5)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 34, 32, 9, 0, 0, 7); cx.fill()
+        for (const side of [-1, 1]) {                       // wings, near black
+          const sp = 1 + beat * 0.22
+          cx.fillStyle = side * F > 0 ? '#1a0f14' : '#120a0e'
+          cx.beginPath()
+          cx.moveTo(X + 20, Y + 10 + breathe)
+          cx.quadraticCurveTo(X + 20 + side * 20, Y - 14 - beat * 5,
+                              X + 20 + side * 34 * sp, Y - 6 - beat * 7)
+          cx.quadraticCurveTo(X + 20 + side * 18, Y + 14, X + 20, Y + 20 + breathe)
+          cx.closePath(); cx.fill()
+          cx.strokeStyle = 'rgba(110,21,24,.5)'; cx.lineWidth = 1
+          for (let k = 1; k <= 3; k++) {
+            cx.beginPath(); cx.moveTo(X + 20, Y + 11 + breathe)
+            cx.lineTo(X + 20 + side * (10 + k * 8), Y - 2 - beat * 4); cx.stroke()
+          }
+        }
+        cx.strokeStyle = '#241016'; cx.lineWidth = 7; cx.lineCap = 'round'
+        cx.beginPath(); cx.moveTo(X + 20, Y + 26)
+        cx.quadraticCurveTo(X + 20 + F * 24, Y + 34, X + 20 + F * 36, Y + 14); cx.stroke()
+        cx.fillStyle = '#2a1218'                            // the body
+        cx.beginPath(); cx.ellipse(X + 20, Y + 19 + breathe, 13, 11, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#3a1a20'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 15 + breathe, 10, 6, 0, 0, 7); cx.fill()
+        cx.fillStyle = 'rgba(232,114,42,.20)'               // heat through the plates
+        for (let r = 0; r < 3; r++) cx.fillRect(X + 15, Y + 22 + r * 3 + breathe, 10 - r * 2, 1.4)
+        cx.strokeStyle = '#241016'; cx.lineWidth = 9
+        cx.beginPath(); cx.moveTo(X + 20 - F * 4, Y + 14 + breathe)
+        cx.quadraticCurveTo(X + 20 - F * 18, Y + 2 + breathe, HX + F * 4, HY + 4); cx.stroke()
+        cx.lineCap = 'butt'
+        poly([[HX + F * 8, HY - 1], [HX - F * 6, HY - 5], [HX - F * 11, HY + 1],
+              [HX - F * 6, HY + 6], [HX + F * 7, HY + 5]], '#3a1a20', '#0f0609')
+        cx.strokeStyle = '#6a5f4a'; cx.lineWidth = 2         // horns
+        for (const hh of [-2.5, 2.5]) {
+          cx.beginPath(); cx.moveTo(HX + F * 4, HY - 3 + hh * 0.6)
+          cx.quadraticCurveTo(HX + F * 11, HY - 8 + hh, HX + F * 15, HY - 5 + hh * 1.4); cx.stroke()
+        }
+        cx.save(); cx.shadowColor = 'rgba(255,120,40,1)'; cx.shadowBlur = 10
+        cx.fillStyle = engaged ? '#ff8a2a' : '#c4561a'      // two coals
+        cx.beginPath(); cx.arc(HX - F * 2, HY - 1, 2.4, 0, 7); cx.fill()
+        cx.restore()
+        // THE FIRE — the only real colour here
+        {
+          const meD = s.players?.[myId]
+          const since = s.tick - (m.lastSwing ?? -99)
+          const dist = meD ? Math.max(Math.abs(meD.x - m.x), Math.abs(meD.y - m.y)) : 99
+          if (meD && m.mad === myId && since >= 0 && since <= 3 && dist > 1 && dist <= 5) {
+            const life = 1 - (since + ((now / 600) % 1)) / 4
+            if (life > 0) {
+              const ang = Math.atan2(meD.y - m.y, meD.x - m.x), reach = dist * 40
+              cx.save(); cx.translate(HX - F * 6, HY + 2); cx.rotate(ang)
+              const grd = cx.createLinearGradient(0, 0, reach, 0)
+              grd.addColorStop(0, 'rgba(255,236,170,' + (0.9 * life) + ')')
+              grd.addColorStop(0.3, 'rgba(232,114,42,' + (0.7 * life) + ')')
+              grd.addColorStop(1, 'rgba(110,21,24,0)')
+              cx.fillStyle = grd
+              cx.beginPath(); cx.moveTo(0, -3)
+              cx.quadraticCurveTo(reach * 0.5, -10 - life * 6, reach, -14 - life * 8)
+              cx.lineTo(reach, 14 + life * 8)
+              cx.quadraticCurveTo(reach * 0.5, 10 + life * 6, 0, 3)
+              cx.closePath(); cx.fill(); cx.restore()
+              cx.save(); cx.shadowColor = 'rgba(255,180,60,1)'; cx.shadowBlur = 12
+              cx.fillStyle = 'rgba(255,220,140,' + (0.9 * life) + ')'
+              cx.beginPath(); cx.arc(HX - F * 6, HY + 2, 3.5 + life * 2, 0, 7); cx.fill()
+              cx.restore()
+            }
+          }
+        }
+        cx.fillStyle = '#2a0a0d'; cx.fillRect(X + 2, Y - 34, 36, 4.4)
+        cx.fillStyle = '#a31f18'; cx.fillRect(X + 2, Y - 34, 36 * Math.max(0, m.hp / 420), 4.4)
+        cx.fillStyle = '#c79b3b'
+        cx.font = '700 8px Cinzel,serif'; cx.textAlign = 'center'
+        cx.fillText('THE DRAGON', X + 20, Y - 37); cx.textAlign = 'left'
+        return
+      }
+      if (m.type === 'great-spider') {
+        const twitch = Math.sin(now / 380 + m.x) * 1.6
+        const breathe = Math.sin(now / 1300) * 1.2
+        cx.fillStyle = 'rgba(0,0,0,.5)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 33, 17, 5, 0, 0, 7); cx.fill()
+        for (const side of [-1, 1]) {                       // eight legs, jointed
+          cx.strokeStyle = '#120a10'; cx.lineWidth = 2.4; cx.lineCap = 'round'
+          for (let k = 0; k < 4; k++) {
+            const lift = Math.sin(now / 300 + k * 1.7 + (side > 0 ? 0 : 2.4)) * 1.8
+            const spread = 12 + k * 4
+            cx.beginPath(); cx.moveTo(X + 20 + side * 5, Y + 18 + k * 2.2)
+            cx.quadraticCurveTo(X + 20 + side * spread * 0.6, Y + 7 + k * 3 - lift,
+                                X + 20 + side * spread, Y + 26 + k * 2 + lift)
+            cx.stroke()
+          }
+          cx.lineCap = 'butt'
+        }
+        cx.fillStyle = '#241018'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 24 + breathe, 12, 10, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#0f0609'; cx.lineWidth = 1.3; cx.stroke()
+        cx.fillStyle = '#6e1518'                             // the mark on its back
+        poly([[X + 20, Y + 17 + breathe], [X + 23.5, Y + 25 + breathe],
+              [X + 20, Y + 22 + breathe], [X + 16.5, Y + 25 + breathe]], '#6e1518')
+        cx.fillStyle = '#2e1620'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 13 + twitch * 0.3, 8, 6.5, 0, 0, 7); cx.fill()
+        cx.save(); cx.shadowColor = 'rgba(232,72,58,.8)'; cx.shadowBlur = 6
+        cx.fillStyle = '#e0483a'                             // eight eyes, all lit
+        for (const [ex, ey, r] of [[-4,-2,1.3],[-1.4,-3,1.7],[1.4,-3,1.7],[4,-2,1.3],
+                                   [-2.6,0.6,1],[-0.9,1.2,1.1],[0.9,1.2,1.1],[2.6,0.6,1]])
+          { cx.beginPath(); cx.arc(X + 20 + ex, Y + 13 + ey + twitch * 0.3, r, 0, 7); cx.fill() }
+        cx.restore()
+        cx.strokeStyle = '#a89e80'; cx.lineWidth = 1.6; cx.lineCap = 'round'
+        for (const fx of [-2.6, 2.6]) {
+          cx.beginPath(); cx.moveTo(X + 20 + fx, Y + 18)
+          cx.lineTo(X + 20 + fx * 0.6, Y + 22 + twitch * 0.4); cx.stroke()
+        }
+        cx.lineCap = 'butt'
+        cx.strokeStyle = 'rgba(203,183,148,.20)'; cx.lineWidth = 1
+        cx.beginPath(); cx.moveTo(X + 20, Y + 7); cx.lineTo(X + 20, Y - 20); cx.stroke()
+        cx.fillStyle = '#2a0a0d'; cx.fillRect(X + 2, Y - 8, 36, 4.4)
+        cx.fillStyle = '#8c1f1f'; cx.fillRect(X + 2, Y - 8, 36 * Math.max(0, m.hp / 300), 4.4)
+        cx.fillStyle = '#c79b3b'; cx.font = '700 8px Cinzel,serif'; cx.textAlign = 'center'
+        cx.fillText('THE SPIDER', X + 20, Y - 11); cx.textAlign = 'left'
+        return
+      }
+      if (m.type === 'siren') {
+        // she wears the shape of whoever took her, and in this light that is
+        // a silhouette with two cold points where a face should be
+        const mine2 = m.bound && m.bound === myId
+        const taken = m.bound && m.bound !== myId
+        const boundP = m.bound ? s.players?.[m.bound] : null
+        const sway = Math.sin(now / 1100 + m.x) * 1.4
+        const shimmer = 0.5 + 0.5 * Math.sin(now / 700)
+        for (let r = 0; r < 3; r++) {
+          const t3 = ((now / 1600) + r * 0.33) % 1
+          cx.strokeStyle = 'rgba(90,130,150,' + (0.20 * (1 - t3)) + ')'
+          cx.lineWidth = 1
+          cx.beginPath(); cx.ellipse(X + 20, Y + 32, 6 + t3 * 16, 2 + t3 * 5, 0, 0, 7); cx.stroke()
+        }
+        cx.globalAlpha = taken ? 0.3 : 1
+        cx.fillStyle = boundP ? '#1a2230' : '#16202a'
+        cx.fillRect(X + 15 + sway * 0.3, Y + 16, 10, 15)
+        cx.fillStyle = '#26323e'
+        cx.beginPath(); cx.arc(X + 20 + sway * 0.4, Y + 11, 5.2, 0, 7); cx.fill()
+        cx.strokeStyle = 'rgba(120,170,190,' + (0.4 + 0.2 * shimmer) + ')'
+        cx.lineWidth = 1.5
+        for (let k = 0; k < 6; k++) {
+          const off = (k - 2.5) * 1.9
+          cx.beginPath(); cx.moveTo(X + 20 + off + sway * 0.4, Y + 7)
+          cx.quadraticCurveTo(X + 20 + off * 1.7 + Math.sin(now / 500 + k) * 3, Y + 17,
+                              X + 20 + off * 2.1 + Math.sin(now / 430 + k) * 4, Y + 27)
+          cx.stroke()
+        }
+        cx.save(); cx.shadowColor = 'rgba(150,220,255,.9)'; cx.shadowBlur = 7
+        cx.fillStyle = 'rgba(200,240,255,' + (0.75 + 0.25 * shimmer) + ')'
+        for (const ex of [-1.9, 1.9]) {
+          cx.beginPath(); cx.arc(X + 20 + ex + sway * 0.4, Y + 10.5, 1.1, 0, 7); cx.fill()
+        }
+        cx.restore()
+        cx.globalAlpha = 1
+        if (taken) {
+          cx.fillStyle = 'rgba(120,160,180,.7)'
+          cx.font = '600 7px Cinzel,serif'; cx.textAlign = 'center'
+          cx.fillText('taken', X + 20, Y - 4); cx.textAlign = 'left'
+        }
+        cx.fillStyle = '#101a22'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
+        cx.fillStyle = mine2 ? '#6ec0d8' : '#3a7086'
+        cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 60), 3.4)
+        return
+      }
+      if (m.type === 'shore-crab') {
+        const sway = Math.sin(now / 700 + m.x) * 1.4
+        const claw = Math.sin(now / 420 + m.y) * 2.2
+        shadow(X, Y, 13)
+        for (const side of [-1, 1]) {
+          cx.strokeStyle = '#4a1a12'; cx.lineWidth = 1.8; cx.lineCap = 'round'
+          for (let k = 0; k < 4; k++) {
+            const ly = Y + 19 + k * 3
+            cx.beginPath(); cx.moveTo(X + 20 + side * 7, ly)
+            cx.quadraticCurveTo(X + 20 + side * (13 + k), ly + 2, X + 20 + side * (15 + k * 0.6), ly + 6)
+            cx.stroke()
+          }
+          cx.lineCap = 'butt'
+        }
+        cx.fillStyle = '#6e2418'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 20 + sway * 0.4, 13, 9, 0, 0, 7); cx.fill()
+        cx.strokeStyle = '#2a0d08'; cx.lineWidth = 1.4; cx.stroke()
+        cx.fillStyle = '#8c3420'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 17 + sway * 0.4, 10, 5.4, 0, 0, 7); cx.fill()
+        cx.fillStyle = 'rgba(20,6,4,.4)'
+        for (const px2 of [-6, 0, 6]) cx.fillRect(X + 20 + px2 - 0.7, Y + 14, 1.4, 12)
+        for (const ex of [-4, 4]) {
+          cx.strokeStyle = '#4a1a12'; cx.lineWidth = 1.4
+          cx.beginPath(); cx.moveTo(X + 20 + ex, Y + 14); cx.lineTo(X + 20 + ex, Y + 9 + sway); cx.stroke()
+          cx.fillStyle = '#0f0609'
+          cx.beginPath(); cx.arc(X + 20 + ex, Y + 8 + sway, 1.8, 0, 7); cx.fill()
+        }
+        for (const side of [-1, 1]) {
+          const cxp = X + 20 + side * 15, cyp = Y + 15
+          poly([[cxp, cyp], [cxp + side * 7, cyp - 3 - claw * side], [cxp + side * 8, cyp + 1],
+                [cxp + side * 6, cyp + 4]], '#7a2c1a', '#2a0d08')
+          cx.strokeStyle = '#4a1a12'; cx.lineWidth = 2
+          cx.beginPath(); cx.moveTo(X + 20 + side * 9, Y + 18); cx.lineTo(cxp, cyp + 1); cx.stroke()
+        }
+        cx.fillStyle = '#2a0a0d'; cx.fillRect(X + 8, Y + 2, 24, 3)
+        cx.fillStyle = '#8c1f1f'; cx.fillRect(X + 8, Y + 2, 24 * Math.max(0, m.hp / 90), 3)
+        return
+      }
       if (m.type === 'troll') {
         const heave = Math.sin(now / 800 + m.x) * 1
         poly([[X+6,Y+33],[X+8,Y+12+heave],[X+20,Y+6+heave],[X+32,Y+12+heave],[X+34,Y+33]], '#5c6b52', '#2a3324')
@@ -3334,12 +4148,40 @@ function drawScene(now) {
   for (const item of layer) item.draw()
 
   // hit splats: the red star of damage, 700ms
+  // several marks can land on one tile in one tick — three beasts, or two
+  // and a miss. Drawn at the same point they are one mark, so they fan.
+  {
+    const cluster = new Map()
+    for (const sp of splats) {
+      const k = sp.x + ',' + sp.y
+      let c = cluster.get(k); if (!c) { c = []; cluster.set(k, c) }
+      c.push(sp)
+    }
+    for (const c of cluster.values()) {
+      c.sort((a, b) => a.at - b.at)
+      c.forEach((sp, i) => { sp._n = i; sp._of = c.length })
+    }
+  }
   for (let i = splats.length - 1; i >= 0; i--) {
     const sp = splats[i]
     const age = now - sp.at
     if (age > 700) { splats.splice(i, 1); continue }
-    const SX = px(sp.x) + 20, SY = py(sp.y) + 18 - age / 90
+    const n9 = sp._n ?? 0, of9 = sp._of ?? 1
+    const spread9 = of9 > 1 ? ((n9 - (of9 - 1) / 2) * 13) : 0
+    const lift9 = of9 > 1 ? Math.abs(n9 - (of9 - 1) / 2) * 4 : 0
+    const SX = px(sp.x) + 20 + spread9, SY = py(sp.y) + 18 - lift9 - age / 90
     cx.globalAlpha = age > 500 ? (700 - age) / 200 : 1
+    // a turned blow is a dull iron ring, not a red star: the shape says
+    // whether anything got through before you read the number
+    if (sp.amount === 0) {
+      cx.strokeStyle = 'rgba(138,138,148,.7)'; cx.lineWidth = 1.6
+      cx.beginPath(); cx.arc(SX, SY, 7, 0, 7); cx.stroke()
+      cx.fillStyle = 'rgba(194,194,204,.85)'
+      cx.font = 'bold 9px Verdana'; cx.textAlign = 'center'
+      cx.fillText('0', SX, SY + 3.2); cx.textAlign = 'left'
+      cx.globalAlpha = 1
+      continue
+    }
     cx.fillStyle = '#a11212'
     cx.beginPath()
     for (let k = 0; k < 8; k++) {
@@ -3354,6 +4196,26 @@ function drawScene(now) {
 
   // rites: brief particle truths
   for (let i = effects.length - 1; i >= 0; i--) {
+    if (effects[i].kind === 'special') {
+      const ef = effects[i], ag = now - ef.at
+      if (ag > 620) { effects.splice(i, 1); continue }
+      const t9 = ag / 620
+      const EX = px(ef.x) + 20, EY = py(ef.y) + 18
+      // a ring thrown outward, and three marks struck through it
+      cx.strokeStyle = 'rgba(199,155,59,' + (0.8 * (1 - t9)) + ')'
+      cx.lineWidth = 2.4 * (1 - t9) + 0.6
+      cx.beginPath(); cx.arc(EX, EY, 6 + t9 * 22, 0, 7); cx.stroke()
+      cx.strokeStyle = 'rgba(240,207,122,' + (0.9 * (1 - t9)) + ')'
+      cx.lineWidth = 2
+      for (let k = 0; k < 3; k++) {
+        const a9 = -0.9 + k * 0.9
+        cx.beginPath()
+        cx.moveTo(EX + Math.cos(a9) * (4 + t9 * 10), EY + Math.sin(a9) * (4 + t9 * 10))
+        cx.lineTo(EX + Math.cos(a9) * (13 + t9 * 16), EY + Math.sin(a9) * (13 + t9 * 16))
+        cx.stroke()
+      }
+      continue
+    }
     const ef = effects[i]
     const life = ef.kind === 'arrowshot' ? 380 : ef.kind === 'click' ? 420 : 800
     const age = now - ef.at
@@ -3689,6 +4551,18 @@ function panel(s) {
   if (hd || bd) gearLine += '<br>' + [hd && ('Head: ' + hd.item.replace(/-/g, ' ')),
     bd && ('Body: ' + bd.item.replace(/-/g, ' '))].filter(Boolean).join(' \u00b7 ')
   document.getElementById('equip').innerHTML = gearLine
+  // §6af: the control appears only when the weapon in hand HAS a special, and
+  // says what it does — a button labelled 'special' teaches nothing.
+  {
+    const sb = document.getElementById('specbtn')
+    const kind = SPEC_OF[me.equipment?.weapon?.item]
+    if (!kind) { sb.style.display = 'none'; specArmed = false }
+    else {
+      sb.style.display = 'block'
+      sb.style.background = specArmed ? '#4a2e18' : 'var(--stone-dk)'
+      sb.textContent = (specArmed ? '\u25b8 ARMED \u00b7 choose a target' : 'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
+    }
+  }
     + '<br>Gold: <b style="color:#e2b63e">' + (me.gold ?? 0) + '</b> ' + ICONS['gold-coin']
   const PRICES_C = { 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
     'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
@@ -3713,6 +4587,12 @@ function panel(s) {
     me.action ? 'busy: ' + me.action.type : 'idle: click the world'
 }
 
+document.getElementById('specbtn').addEventListener('click', (e) => {
+  e.stopPropagation()
+  const me9 = world?.players?.[myId]
+  if (!me9 || !SPEC_OF[me9.equipment?.weapon?.item]) return
+  specArmed = !specArmed
+})
 document.getElementById('equip').addEventListener('click', () => {
   if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
 })
@@ -4166,6 +5046,12 @@ cv.addEventListener('click', (e) => {
   }
   if (best?.kind === 'citizen') {
     const { id: pid, p } = best
+    if (specArmed && SPEC_OF[me.equipment?.weapon?.item]) {
+      specArmed = false
+      send({ do: 'special', targetId: pid })
+      feed('You strike off the rhythm.')
+      return
+    }
     flashClick(p.x, p.y, true)
     if (inWildsC(me.x, me.y) && inWildsC(p.x, p.y)) {
       const nm = p.name ?? pid.slice(0, 6)
