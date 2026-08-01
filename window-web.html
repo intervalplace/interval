@@ -1545,7 +1545,18 @@ function onState(s, worldId) {
   // queue any milestone cries that happened since we last looked, but never
   // replay history from before we joined (first state sets the watermark)
   if (_lastAnnounceTick === null) _lastAnnounceTick = s.tick
-  for (const a of s.announce ?? []) if (a.tick > _lastAnnounceTick && a.tick <= s.tick) announceQueue.push(a.text)
+  // §9f: a global cry that names a skill carries its mark. The world writes
+  // 'X is the FIRST to master woodcutting' and the banner should show the axe
+  // beside it, exactly as a personal level-up does.
+  for (const a of s.announce ?? []) if (a.tick > _lastAnnounceTick && a.tick <= s.tick) {
+    // ANCHORED on the mastery phrasing, not a loose substring. 'attack'
+    // appears in 'attacked', 'mining' in 'the mining camp is lost' — a naive
+    // `includes` would put a pickaxe on an announcement about a camp. The
+    // world names a skill in exactly one sentence shape, so match that.
+    const m9 = /\bmaster(?:ed|s|y of)?\s+([a-z]+)/i.exec(a.text)
+    const named = m9 && SKILLS.includes(m9[1].toLowerCase()) ? m9[1].toLowerCase() : null
+    announceQueue.push({ text: a.text, skill: named })
+  }
   _lastAnnounceTick = Math.max(_lastAnnounceTick, s.tick)
   // exploration: standing on a survey marker claims it (instant, per spec 7b)
   const meMk = s.players[myId]
@@ -1715,7 +1726,7 @@ function onState(s, worldId) {
       if (l2 > l1) {
         feed('<svg class="skico" width="16" height="16" viewBox="0 0 10 10" style="vertical-align:-3px;margin-right:4px">'
           + '<use href="#sk-' + k + '"/></svg>\u2728 LEVEL UP! Your ' + k + ' is now level ' + l2 + '. \u2728')
-        celebrate = { text: k.toUpperCase() + ' LEVEL ' + l2, at: performance.now() }
+        celebrate = { text: k.toUpperCase() + ' LEVEL ' + l2, skill: k, at: performance.now() }
         SFX.levelup()
       }
     }
@@ -6274,12 +6285,43 @@ bannerCv.width = 1120; bannerCv.height = 800
 bannerCv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;background:transparent;image-rendering:pixelated"
 cv.parentNode.appendChild(bannerCv)
 const bannerCtx = bannerCv.getContext("2d")
+// §9f: THE MARK OF THE SKILL, ON THE BANNER.
+//
+// The skill panel already draws sixteen pixel glyphs, as <symbol id="sk-*">
+// in an inline SVG sheet. The banner is a canvas and cannot <use> them
+// directly — so each is rasterised ONCE into a small offscreen canvas, by
+// reading the symbol's own <rect> elements. No new art, no second source of
+// truth: if the panel's axe changes, the banner's axe changes with it.
+const _skIco = new Map()
+function skillIcon(name) {
+  if (_skIco.has(name)) return _skIco.get(name)
+  let out = null
+  const sym = document.getElementById('sk-' + name)
+  if (sym) {
+    const S = 4                                   // 10x10 glyph at 4x
+    const c = document.createElement('canvas')
+    c.width = 40; c.height = 40
+    const g2 = c.getContext('2d')
+    for (const r of sym.querySelectorAll('rect')) {
+      g2.fillStyle = r.getAttribute('fill') || '#fff'
+      g2.fillRect(+r.getAttribute('x') * S, +r.getAttribute('y') * S,
+                  +r.getAttribute('width') * S, +r.getAttribute('height') * S)
+    }
+    out = c
+  }
+  _skIco.set(name, out)
+  return out
+}
 function drawBanner(now) {
   const g = bannerCtx
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.clearRect(0, 0, 1120, 800)
   // global milestone cries take the stage first, they outrank a personal level-up
-  if (!announceShow && announceQueue.length) announceShow = { text: announceQueue.shift(), at: now }
+  if (!announceShow && announceQueue.length) {
+    const nx = announceQueue.shift()
+    announceShow = typeof nx === 'string' ? { text: nx, skill: null, at: now }
+                                          : { text: nx.text, skill: nx.skill, at: now }
+  }
   if (announceShow && now - announceShow.at >= 4800) announceShow = null
   if (announceShow) {
     const a = (now - announceShow.at) / 4800
@@ -6294,7 +6336,13 @@ function drawBanner(now) {
     }
     g.fillStyle = grand ? "#ffe08a" : "#e2b63e"
     g.font = "bold " + (grand ? 30 : 24) + "px Verdana"; g.textAlign = "center"
-    g.fillText("\u2728 " + announceShow.text + " \u2728", 560, by2 + 50)
+    const ico = announceShow.skill ? skillIcon(announceShow.skill) : null
+    const shift = ico ? 22 : 0                    // make room, keep it centred
+    g.fillText("\u2728 " + announceShow.text + " \u2728", 560 + shift, by2 + 50)
+    if (ico) {
+      const tw = g.measureText("\u2728 " + announceShow.text + " \u2728").width
+      g.drawImage(ico, 560 + shift - tw / 2 - 44, by2 + 50 - 30, 36, 36)
+    }
     g.globalAlpha = 1
     return
   }
@@ -6306,7 +6354,14 @@ function drawBanner(now) {
   g.fillStyle = "#494034"; g.fillRect(bx2, by2, bw, bh)
   g.strokeStyle = "#e2b63e"; g.lineWidth = 4; g.strokeRect(bx2, by2, bw, bh)
   g.fillStyle = "#e2b63e"; g.font = "bold 28px Verdana"; g.textAlign = "center"
-  g.fillText("\u2728 " + celebrate.text + " \u2728", 560, by2 + 44)
+  // and the mark of the skill that rose, beside its name
+  const cIco = celebrate.skill ? skillIcon(celebrate.skill) : null
+  const cShift = cIco ? 20 : 0
+  g.fillText("\u2728 " + celebrate.text + " \u2728", 560 + cShift, by2 + 44)
+  if (cIco) {
+    const tw2 = g.measureText("\u2728 " + celebrate.text + " \u2728").width
+    g.drawImage(cIco, 560 + cShift - tw2 / 2 - 40, by2 + 44 - 26, 32, 32)
+  }
   g.globalAlpha = 1
 }
 let _miniAt = 0
