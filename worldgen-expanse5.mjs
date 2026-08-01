@@ -88,7 +88,7 @@
 import E from './engine.js'
 import { seedNum, meander, thash } from './worldgen-expanse.mjs'
 import { angleOf } from './worldgen-expanse3.mjs'
-import { PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
+import { PLANS5 as PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
          seatCoastalPlan, quayTilesOfPlan } from './worldgen-shire.mjs'
 export { seedNum, meander, thash, angleOf }
 
@@ -1424,7 +1424,7 @@ export function buildWorld(genesis) {
   // the loader's view of the world, so a drawing can place nodes without
   // knowing anything about how this generator keeps its books
   const planCtx = {
-    g, E, w, taken, key, inB, isWater,
+    g, E, w, taken, key, inB, isWater, onRoad,
     reserve: (x, y) => { if (inB(x, y)) taken.add(key(x, y)) },
   }
   // A SHIRE town is a drawing (worldgen-shire.mjs). The frontier is
@@ -1836,8 +1836,15 @@ export function buildWorld(genesis) {
         if (![[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2]].every(([a,b]) => ok(x+a, y+b))) return false
         let i = 0
         for (const [a, b] of [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[2,2]]) put('croft-' + tag + (i++), 'wall', x+a, y+b)
-        put('croft-' + tag + '-p', 'plot', x + 4, y + 1, { plantedAt: 0 })
-        put('croft-' + tag + '-s', 'signpost', x + 1, y + 3, { text: 'an empty croft' })
+        // The walls were checked and the PLOT AND SIGN WERE NOT. They sit
+        // outside the three-by-three the test covers -- (x+4,y+1) and
+        // (x+1,y+3) -- so a croft raised beside a skull pile or a peat
+        // marker dropped its plot straight on top of one, and two nodes
+        // held the same tile. Nothing complained: addNode does not ask, and
+        // validateState does not either. Check the ground you actually
+        // build on; a croft with no sign is still a croft.
+        if (ok(x + 4, y + 1)) put('croft-' + tag + '-p', 'plot', x + 4, y + 1, { plantedAt: 0 })
+        if (ok(x + 1, y + 3)) put('croft-' + tag + '-s', 'signpost', x + 1, y + 3, { text: 'an empty croft' })
         return true }
       case 'cairn': {
         if (!ok(x, y)) return false
