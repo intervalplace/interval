@@ -2055,7 +2055,7 @@ const GROUND = {
   plaza:      { c: [62, 57, 49], grain: 'paving', lift: 1 },
   trail:      { c: [58, 49, 37], grain: 'track',  lift: 0 },
   causey:     { c: [61, 54, 43], grain: 'track',  lift: 2 },
-  bridge:     { c: [56, 44, 29], grain: 'plank',  lift: 3 },
+  bridge:     { c: [56, 44, 29], grain: 'plank',  lift: 13 },
   floor:      { c: [50, 41, 31], grain: 'plank',  lift: 1 },
   inn:        { c: [52, 42, 31], grain: 'plank',  lift: 1 },
   smith:      { c: [40, 36, 32], grain: 'paving', lift: 1 },
@@ -2720,6 +2720,127 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     g.fillStyle = m[0]; g.beginPath(); g.arc(tx + dx * 8 * s, ty + dy * 8 * s + 4 * s, 4 * s, 0, 7); g.fill()
     g.fillStyle = m[1]; g.beginPath(); g.arc(tx + dx * 7 * s, ty + dy * 8 * s + 2.6 * s, 1.6 * s, 0, 7); g.fill()
   }
+}
+
+// ---------------------------------------------------------------------------
+// THE BRIDGES
+// ---------------------------------------------------------------------------
+// A bridge was a plank-textured floor tile sitting three pixels proud of the
+// river, which is a ford at best and a painted rectangle at worst. This island
+// has a hundred and thirty of them, in spans of up to nine, and every one of
+// them touches BOTH water and land -- so a bridge tile knows, from its own
+// neighbours, which of its four sides are open water and which carry the road
+// on. That is enough to build a real one:
+//
+//     a deck standing thirteen pixels clear of the water,
+//     a parapet on every side that faces water and none where the road runs,
+//     piles going down into the river under each open side,
+//     an abutment where it meets the bank,
+//     and its own shadow on the water beneath it.
+//
+// Sixteen possible neighbour patterns, cached like everything else.
+const BRIDGE_LIFT = 13, BRIDGE_TOP = 20
+const _bridgeArt = new Map()
+function bridgeArt(mask, v) {
+  const key = mask + ':' + v
+  const hit = _bridgeArt.get(key); if (hit) return hit
+  const c = mkc(TW, TH + SKIRT + BRIDGE_TOP), g = c.getContext('2d')
+  const R = rng(mask * 7919 + v * 104729 + 31)
+  const O = BRIDGE_TOP
+  // the four corners of the deck
+  const T = [HW, O], Rt = [TW, O + HH], B = [HW, O + TH], L = [0, O + HH]
+  // which side is open water: bit 1 = +x, 2 = -x, 4 = +y, 8 = -y
+  const openX1 = !!(mask & 1), openX2 = !!(mask & 2), openY1 = !!(mask & 4), openY2 = !!(mask & 8)
+
+  // ---- the shadow it throws on the water it crosses ----------------------
+  g.fillStyle = 'rgba(0,0,0,.42)'
+  diamond(g, 0, O + BRIDGE_LIFT + 5, -2); g.fill()
+
+  // ---- piles, driven into the riverbed under every open side -------------
+  const pile = (px2, py2) => {
+    g.fillStyle = '#191309'
+    g.fillRect(px2 - 2.6, py2, 5.2, BRIDGE_LIFT + 11)
+    g.fillStyle = '#2c2113'
+    g.fillRect(px2 - 2.6, py2, 2, BRIDGE_LIFT + 11)
+    g.fillStyle = 'rgba(120,150,160,.18)'          // where it enters the water
+    g.beginPath(); g.ellipse(px2, py2 + BRIDGE_LIFT + 6, 5.4, 2.2, 0, 0, 7); g.fill()
+  }
+  if (openX1 || openY2) pile(HW + 15, O + HH + 7)
+  if (openX2 || openY1) pile(HW - 15, O + HH + 7)
+  if (openX1 || openY1) pile(HW, O + TH - 1)
+
+  // ---- the deck ----------------------------------------------------------
+  const deck = ['#4a3a22', '#63502e', '#2a1f11']
+  g.save(); diamond(g, 0, O, -1); g.clip()
+  g.fillStyle = deck[1]; g.fillRect(0, O, TW, TH)
+  // boards laid ACROSS the span, so a run of tiles reads as one carriageway
+  const along = (openY1 || openY2) && !(openX1 || openX2)   // road runs east-west
+  for (let i = 0; i <= 7; i++) {
+    const t2 = i / 7
+    g.strokeStyle = i % 2 ? 'rgba(0,0,0,.30)' : 'rgba(255,236,196,.09)'
+    g.lineWidth = 1.4
+    g.beginPath()
+    if (along) { g.moveTo(t2 * TW, O + t2 * HH); g.lineTo(t2 * TW + HW, O + t2 * HH + HH) }
+    else { g.moveTo(TW - t2 * TW, O + t2 * HH); g.lineTo(TW - t2 * TW - HW, O + t2 * HH + HH) }
+    g.stroke()
+  }
+  for (let i = 0; i < 22; i++) {                    // wear, and a knot or two
+    g.fillStyle = R() > .5 ? 'rgba(255,238,206,.07)' : 'rgba(0,0,0,.16)'
+    g.fillRect(R() * TW, O + R() * TH, 2, 1)
+  }
+  g.restore()
+  // the lit lip along the two far edges of the deck
+  g.strokeStyle = 'rgba(255,240,214,.16)'; g.lineWidth = 1.6
+  g.beginPath(); g.moveTo(L[0], L[1]); g.lineTo(T[0], T[1]); g.lineTo(Rt[0], Rt[1]); g.stroke()
+  // and the thickness of it, seen from below on the near edges
+  g.fillStyle = '#231a0e'
+  poly(g, [L, B, [B[0], B[1] + 5], [L[0], L[1] + 5]], '#231a0e')
+  poly(g, [B, Rt, [Rt[0], Rt[1] + 5], [B[0], B[1] + 5]], '#1a130a')
+
+  // ---- a parapet on every side that faces water --------------------------
+  const rail = (a, b2, lit) => {
+    const H2 = 13
+    poly(g, [a, b2, [b2[0], b2[1] - H2], [a[0], a[1] - H2]], lit ? '#5b4a2c' : '#33280f')
+    poly(g, [[a[0], a[1] - H2], [b2[0], b2[1] - H2], [b2[0], b2[1] - H2 - 3], [a[0], a[1] - H2 - 3]],
+      lit ? '#7a6238' : '#4a3a20')
+    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1
+    g.beginPath(); g.moveTo(a[0], a[1] - H2); g.lineTo(b2[0], b2[1] - H2); g.stroke()
+    for (let i = 0; i <= 3; i++) {                  // posts
+      const t2 = i / 3
+      const px2 = a[0] + (b2[0] - a[0]) * t2, py2 = a[1] + (b2[1] - a[1]) * t2
+      g.fillStyle = lit ? '#4a3a20' : '#2a2110'
+      g.fillRect(px2 - 1.6, py2 - H2 - 3, 3.2, H2 + 4)
+    }
+  }
+  if (openX1) rail(Rt, B, false)        // lower right
+  if (openX2) rail(L, T, true)          // upper left
+  if (openY1) rail(B, L, false)         // lower left
+  if (openY2) rail(T, Rt, true)         // upper right
+
+  // ---- an abutment where it meets the bank -------------------------------
+  const abut = (a, b2) => {
+    g.fillStyle = '#3a352e'
+    poly(g, [a, b2, [b2[0], b2[1] + 7], [a[0], a[1] + 7]], '#3a352e')
+    g.fillStyle = 'rgba(255,240,214,.10)'
+    poly(g, [a, b2, [b2[0], b2[1] + 2], [a[0], a[1] + 2]], 'rgba(255,240,214,.10)')
+  }
+  if (!openX1) abut(Rt, B)
+  if (!openY1) abut(B, L)
+
+  _bridgeArt.set(key, c)
+  return c
+}
+// a bridge continues into anything you can walk on; everything else is water
+const BRIDGE_CONTINUES = new Set(['bridge', 'trail', 'causey', 'cobble', 'plaza',
+  'flag', 'floor', 'sand', 'chalk', 'gravel', 'meadow', 'heartlands', 'downs',
+  'greenwood', 'forest', 'moor', 'fens', 'peat', 'wilds', 'scree', 'crags'])
+function bridgeMask(x, y) {
+  let m = 0
+  if (!BRIDGE_CONTINUES.has(terrainOf(x + 1, y))) m |= 1
+  if (!BRIDGE_CONTINUES.has(terrainOf(x - 1, y))) m |= 2
+  if (!BRIDGE_CONTINUES.has(terrainOf(x, y + 1))) m |= 4
+  if (!BRIDGE_CONTINUES.has(terrainOf(x, y - 1))) m |= 8
+  return m
 }
 // ===========================================================================
 // THE BESTIARY, AND THE PACK
@@ -4316,6 +4437,7 @@ const DAY = 2400
 // GROUND PASS
 // ---------------------------------------------------------------------------
 let waterTiles = []
+let bridgeQueue = []
 let _mottle = null
 function mottle() {
   if (_mottle) return _mottle
@@ -4351,6 +4473,7 @@ function drawGround(g, s, t) {
   const y0 = Math.max(0, Math.min(c0.y, c1.y, c2.y, c3.y) - 1)
   const y1 = Math.min(H - 1, Math.max(c0.y, c1.y, c2.y, c3.y) + 1)
   waterTiles.length = 0
+  bridgeQueue.length = 0
   if (x1 < x0 || y1 < y0) return
   const oxB = VW / 2 - isoX(camX, camY) - HW
   const oyB = VH / 2 - CAM_LIFT - isoY(camX, camY) - HH
@@ -4363,6 +4486,15 @@ function drawGround(g, s, t) {
       const G = groundOf(kind)
       const v = tileHash(x, y, 91) & 3
       const ox = oxB + isoX(x, y), oy = oyB + isoY(x, y) - G.lift
+      if (kind === 'bridge') {
+        // A BRIDGE IS NOT A FLOOR, so it cannot be drawn as one. Its piles and
+        // its shadow hang BELOW its own diamond, over the tile in front -- and
+        // that tile comes later in the diagonal walk and would paint straight
+        // over them. So bridges are held back and laid down after all the
+        // ground is finished, still in depth order among themselves.
+        bridgeQueue.push(x, y, ox, oy)
+        continue
+      }
       if (G.grain !== 'water') {
         g.fillStyle = groundColorAt(x, y)
         diamond(g, ox, oy, -1.2)          // a shade oversized, so there is no seam
@@ -4372,6 +4504,13 @@ function drawGround(g, s, t) {
       if (G.grain === 'water') waterTiles.push(ox, oy)
     }
   }
+  // and now the bridges, over the water they cross
+  for (let i = 0; i < bridgeQueue.length; i += 4) {
+    const bx = bridgeQueue[i], by = bridgeQueue[i + 1]
+    g.drawImage(bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
+      bridgeQueue[i + 2], bridgeQueue[i + 3] - BRIDGE_TOP)
+  }
+
   // MOTTLE. Ground varies at scales larger than a tile as well as smaller, and
   // without something at the larger scale a blended field just looks airbrushed.
   // Anchored to the world, so it sits still while the camera moves over it.
