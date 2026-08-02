@@ -1768,6 +1768,44 @@ const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'fishing-spot':
 // the life orb read `18 / 10` -- over-full, and wrong in the one place a
 // citizen looks when it matters.
 const maxHpOf = (p) => Math.max(1, XP_TO_LVL(p?.skills?.hitpoints ?? 0))
+
+// ---------------------------------------------------------------------------
+// THE MASTERY CAPE (spec 4c)
+// ---------------------------------------------------------------------------
+// "The mastery cape is not an item. It cannot be bought, traded, dropped, or
+// lost to death, because it is not a thing: it is a fact about a citizen's XP,
+// and windows are invited to paint that fact as cloth."
+//
+// So there is nothing to look up in the state and nothing that can be faked:
+// the cape is derived, here, from the same XP every node already agrees on.
+// NOT THE REFERENCE WINDOW'S COLOURS, and it is not obliged to be: no window is
+// authoritative, and those values were mixed for a bright top-down view. Run
+// #2f7d2f woodcutting green through this window's cool multiply, its vignette
+// and a torch falloff and it lands as mud. A cape exists to be read across a
+// dark field, so these keep the reference HUE -- a mastered forester is still
+// recognisably green, and "the green cape by the well" still means the same
+// thing to someone in the flat window -- and lift chroma and value until the
+// cloth survives the grade. Sharing the hue is a courtesy to citizens who talk
+// to each other, not a rule; the constitution says only that mastery is a fact
+// about XP and windows are invited to paint it.
+const CAPE_COLORS = {
+  woodcutting: '#4fc247', mining: '#93aac6', fishing: '#3fa8e0',
+  cooking: '#d44a86', smithing: '#e8963a', firemaking: '#f4603a',
+  prayer: '#f6f0d8', magic: '#4fd0e0', ranged: '#9ec44a', farming: '#b8d84a',
+  fletching: '#d8b04a', attack: '#f0503e', defence: '#5f8fe0', hitpoints: '#d0d04a',
+  exploration: '#e0a860', brewing: '#a878e0',
+}
+function capeOf(p) {
+  const mastered = SKILL_ORDER.filter(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])
+  if (!mastered.length) return null
+  return {
+    colour: CAPE_COLORS[mastered[0]] ?? '#8a7340',
+    skill: mastered[0],
+    count: mastered.length,
+    trim: mastered.length >= 2,                 // gold trim for a second mastery
+    radiant: mastered.length >= SKILL_ORDER.length,   // and all sixteen
+  }
+}
 // ===========================================================================
 // THE WIRE
 // ---------------------------------------------------------------------------
@@ -1955,6 +1993,10 @@ function allocTick() {
 
 async function send(a) {
   if (!ws || ws.readyState !== 1) { say('Not connected to the world.', 'warn'); return }
+  // the window sent it, so the window knows what it was: everything except a
+  // footstep gets a gesture and a mark (52-scene). Local, presentational, and
+  // it makes no claim the engine has to honour.
+  if (a.do !== 'move') { try { noteDeed(a.do) } catch {} }
   if (usingRelay) { ws.send(JSON.stringify({ type: 'act', action: a })); return }
   const f = BRIDGE_TO_INPUT(a)
   if (!f) { say('This window has no wiring for "' + a.do + '" yet.', 'warn'); return }
@@ -2459,9 +2501,16 @@ function humanoid(g, cx, base, o) {
   const lean = o.lean ?? 0, step = o.step ?? 0, swing = o.swing ?? 0
   const bob = Math.sin(step) * 1.6 * s
     + (o.breath ? Math.sin(o.breath) * .55 * s : 0)
-  const hunch = bulk * 2.6 * s
-  const hipY = base - 20 * s + bob, shY = base - 32 * s + bob - bulk * 1.5 * s
-  const headY = base - 40 * s + bob - bulk * 1.2 * s
+  // A POSE, for the deeds that are over in a tick. `crouch` drops the whole
+  // body and pitches it forward, which is most of what kneeling, planting,
+  // lighting and burying look like from this angle; `pitch` leans without
+  // dropping. Both are zero for an ordinary citizen and cost nothing.
+  const crouch = (o.crouch ?? 0) * 9 * s
+  const pitch = (o.pitch ?? 0) * 4 * s
+  const hunch = bulk * 2.6 * s + (o.pitch ?? 0) * 5 * s
+  const hipY = base - 20 * s + bob + crouch * .55
+  const shY = base - 32 * s + bob - bulk * 1.5 * s + crouch
+  const headY = base - 40 * s + bob - bulk * 1.2 * s + crouch + pitch * .6
   // legs
   const la = Math.sin(step) * 4.5 * s, lb = -la
   g.strokeStyle = o.boots ?? '#241d16'; g.lineWidth = 4.2 * s; g.lineCap = 'round'
@@ -2497,6 +2546,63 @@ function humanoid(g, cx, base, o) {
     g.fillStyle = 'rgba(0,0,0,.28)'
     poly(g, [[cx + 1 * s, shY - 2 * s], [cx + 7.5 * s, shY - 2 * s],
              [cx + 9 * s + lean, base - 3 * s], [cx + 2 * s + lean, base - 3 * s]], 'rgba(0,0,0,.30)')
+  }
+  if (o.cape) {
+    // THE CAPE. Longer and wider than a cloak, because it is not weather-gear:
+    // it is the one thing a citizen wears that cannot be taken, bought or lost,
+    // and it should be readable from across a field.
+    const K = o.cape, sway = Math.sin(step - 1.1) * 2.4 * s + lean
+    const hem = base + 1 * s, top = shY - 3 * s
+    const pts = []
+    const N = 7
+    for (let i = 0; i <= N; i++) {
+      const t2 = i / N
+      const wTop = (-9 + t2 * 18) * s
+      const wHem = (-13 + t2 * 26) * s
+      pts.push([cx + wTop, top, cx + wHem + sway, hem + Math.sin(t2 * 3.14) * 2 * s])
+    }
+    for (let i = 0; i < N; i++) {
+      const a = pts[i], b2 = pts[i + 1]
+      const shade = i < N / 2 ? 1 : .74            // light from the upper left
+      g.fillStyle = shade === 1 ? K.colour : 'rgba(0,0,0,.30)'
+      poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]],
+        shade === 1 ? K.colour : K.colour)
+      if (shade !== 1) { g.fillStyle = 'rgba(0,0,0,.26)'
+        poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]], 'rgba(0,0,0,.26)') }
+      // the folds
+      g.strokeStyle = 'rgba(0,0,0,.22)'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(a[2], a[3]); g.stroke()
+    }
+    if (K.trim) {                                  // gold, for a second mastery
+      g.strokeStyle = '#d8b463'; g.lineWidth = 2 * s
+      g.beginPath()
+      g.moveTo(pts[0][2], pts[0][3])
+      for (let i = 1; i <= N; i++) g.lineTo(pts[i][2], pts[i][3])
+      g.stroke()
+      g.strokeStyle = '#8a6524'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[0][2], pts[0][3]); g.stroke()
+      g.beginPath(); g.moveTo(pts[N][0], pts[N][1]); g.lineTo(pts[N][2], pts[N][3]); g.stroke()
+    }
+    if (K.radiant) {                               // and all sixteen
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const gr = g.createLinearGradient(cx, top, cx, hem)
+      gr.addColorStop(0, 'rgba(255,246,214,.30)')
+      gr.addColorStop(.5, 'rgba(255,206,110,.18)')
+      gr.addColorStop(1, 'rgba(255,246,214,.26)')
+      g.fillStyle = gr
+      poly(g, [[cx - 9 * s, top], [cx + 9 * s, top],
+               [cx + 13 * s + sway, hem], [cx - 13 * s + sway, hem]], null)
+      g.fill()
+      for (let i = 0; i < 5; i++) {                // motes coming off it
+        const ph = (o.breath ?? 0) * .6 + i * 1.7
+        g.fillStyle = 'rgba(255,236,180,' + (.35 + Math.sin(ph) * .25).toFixed(2) + ')'
+        g.fillRect(cx + Math.sin(ph * .8) * 12 * s, hem - ((ph * 9) % 44) * s * .6, 1.8 * s, 1.8 * s)
+      }
+      g.restore()
+    }
+    // the clasp at the throat
+    g.fillStyle = K.trim ? '#e8d199' : '#6a6252'
+    g.beginPath(); g.arc(cx, top + 1 * s, 2.2 * s, 0, 7); g.fill()
   }
   // arms; the weapon arm swings
   g.strokeStyle = skin; g.lineWidth = (3.2 + bulk * 1.2) * s
@@ -3754,6 +3860,214 @@ function itemIcon(item) {
     g.fillStyle = '#6e6250'; g.font = '700 13px Cinzel, Georgia, serif'
     g.textAlign = 'center'; g.textBaseline = 'middle'
     g.fillText(String(item)[0].toUpperCase(), cx, cy + 1)
+  })
+}
+// ===========================================================================
+// THE SIXTEEN MARKS
+// ---------------------------------------------------------------------------
+// Not ported from the reference window. Those are coloured pixel art tuned to
+// sit on parchment in a bright top-down view; dropped in here they would read
+// as stickers laid on the furniture. These are ENGRAVED: one silhouette, no
+// interior detail, cut into the stone with a dark bevel under it and a gold
+// gradient over, the same way the panel's rivets and filigree are cut. They
+// have to survive at ten pixels, so every one is a shape and nothing else.
+//
+// Each painter draws paths ONLY -- it never sets a colour. The caller sets the
+// style and runs it twice, once for the cut and once for the metal, which is
+// what makes it look struck rather than drawn.
+const GLYPH = {
+  woodcutting: (g, S) => {                       // an axe
+    g.beginPath()
+    g.moveTo(S * .30, S * .88); g.lineTo(S * .46, S * .30)
+    g.lineTo(S * .58, S * .34); g.lineTo(S * .42, S * .92); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .46, S * .30); g.lineTo(S * .62, S * .06)
+    g.quadraticCurveTo(S * .95, S * .18, S * .82, S * .48)
+    g.lineTo(S * .58, S * .34); g.closePath(); g.fill()
+  },
+  mining: (g, S) => {                            // a pick
+    g.beginPath()
+    g.moveTo(S * .40, S * .34); g.lineTo(S * .56, S * .30)
+    g.lineTo(S * .62, S * .92); g.lineTo(S * .46, S * .94); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .06, S * .40)
+    g.quadraticCurveTo(S * .50, S * .06, S * .94, S * .40)
+    g.quadraticCurveTo(S * .50, S * .24, S * .06, S * .52); g.closePath(); g.fill()
+  },
+  fishing: (g, S) => {                           // a fish
+    g.beginPath()
+    g.ellipse(S * .44, S * .50, S * .32, S * .20, 0, 0, 7); g.fill()
+    g.beginPath()
+    g.moveTo(S * .74, S * .50); g.lineTo(S * .98, S * .26)
+    g.lineTo(S * .98, S * .74); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .34, S * .30); g.lineTo(S * .54, S * .30)
+    g.lineTo(S * .44, S * .08); g.closePath(); g.fill()
+  },
+  cooking: (g, S) => {                           // a pot on its legs
+    g.beginPath()
+    g.moveTo(S * .14, S * .42); g.lineTo(S * .86, S * .42)
+    g.quadraticCurveTo(S * .78, S * .90, S * .50, S * .90)
+    g.quadraticCurveTo(S * .22, S * .90, S * .14, S * .42); g.closePath(); g.fill()
+    g.beginPath(); g.ellipse(S * .50, S * .40, S * .40, S * .10, 0, 0, 7); g.fill()
+    g.beginPath()
+    g.moveTo(S * .42, S * .30); g.quadraticCurveTo(S * .34, S * .14, S * .50, S * .04)
+    g.quadraticCurveTo(S * .60, S * .18, S * .56, S * .30); g.closePath(); g.fill()
+  },
+  smithing: (g, S) => {                          // a hammer
+    g.beginPath()
+    g.moveTo(S * .40, S * .38); g.lineTo(S * .56, S * .38)
+    g.lineTo(S * .58, S * .94); g.lineTo(S * .42, S * .94); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .10, S * .16); g.lineTo(S * .90, S * .10)
+    g.lineTo(S * .92, S * .38); g.lineTo(S * .12, S * .40); g.closePath(); g.fill()
+  },
+  firemaking: (g, S) => {                        // a flame
+    g.beginPath()
+    g.moveTo(S * .50, S * .02)
+    g.quadraticCurveTo(S * .90, S * .38, S * .74, S * .68)
+    g.quadraticCurveTo(S * .68, S * .96, S * .44, S * .96)
+    g.quadraticCurveTo(S * .12, S * .92, S * .20, S * .58)
+    g.quadraticCurveTo(S * .30, S * .40, S * .38, S * .50)
+    g.quadraticCurveTo(S * .34, S * .22, S * .50, S * .02); g.closePath(); g.fill()
+  },
+  prayer: (g, S) => {                            // the mourner's mark
+    g.beginPath()
+    g.moveTo(S * .43, S * .22); g.lineTo(S * .57, S * .22)
+    g.lineTo(S * .57, S * .96); g.lineTo(S * .43, S * .96); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .12, S * .36); g.lineTo(S * .88, S * .36)
+    g.lineTo(S * .88, S * .50); g.lineTo(S * .12, S * .50); g.closePath(); g.fill()
+    g.beginPath(); g.arc(S * .50, S * .16, S * .15, 0, 7); g.fill()
+  },
+  ranged: (g, S) => {                            // an arrow, nocked
+    g.beginPath()
+    g.moveTo(S * .50, S * .02); g.lineTo(S * .72, S * .34)
+    g.lineTo(S * .56, S * .34); g.lineTo(S * .56, S * .98)
+    g.lineTo(S * .44, S * .98); g.lineTo(S * .44, S * .34)
+    g.lineTo(S * .28, S * .34); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .44, S * .70); g.lineTo(S * .18, S * .90)
+    g.lineTo(S * .24, S * .62); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .56, S * .70); g.lineTo(S * .82, S * .90)
+    g.lineTo(S * .76, S * .62); g.closePath(); g.fill()
+  },
+  magic: (g, S) => {                             // a sigil-star
+    g.beginPath()
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * 6.283 - 1.5708
+      const r = i % 2 ? S * .16 : S * .48
+      const x = S * .5 + Math.cos(a) * r, y = S * .5 + Math.sin(a) * r
+      i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)
+    }
+    g.closePath(); g.fill()
+  },
+  farming: (g, S) => {                           // a sheaf
+    for (const off of [-.22, 0, .22]) {
+      g.beginPath()
+      g.moveTo(S * (.50 + off), S * .96)
+      g.quadraticCurveTo(S * (.50 + off * 1.5), S * .40, S * (.50 + off * 2.1), S * .06)
+      g.quadraticCurveTo(S * (.50 + off * 0.6), S * .34, S * (.50 + off * .7), S * .96)
+      g.closePath(); g.fill()
+    }
+    g.beginPath()
+    g.moveTo(S * .22, S * .66); g.lineTo(S * .78, S * .66)
+    g.lineTo(S * .78, S * .78); g.lineTo(S * .22, S * .78); g.closePath(); g.fill()
+  },
+  fletching: (g, S) => {                         // a feather
+    g.beginPath()
+    g.moveTo(S * .84, S * .06)
+    g.quadraticCurveTo(S * .30, S * .18, S * .16, S * .82)
+    g.quadraticCurveTo(S * .62, S * .70, S * .84, S * .06); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .84, S * .06); g.lineTo(S * .10, S * .96)
+    g.lineTo(S * .20, S * .98); g.lineTo(S * .90, S * .10); g.closePath(); g.fill()
+  },
+  attack: (g, S) => {                            // a sword
+    g.beginPath()
+    g.moveTo(S * .50, S * .02); g.lineTo(S * .60, S * .16)
+    g.lineTo(S * .58, S * .62); g.lineTo(S * .42, S * .62)
+    g.lineTo(S * .40, S * .16); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .14, S * .60); g.lineTo(S * .86, S * .60)
+    g.lineTo(S * .86, S * .72); g.lineTo(S * .14, S * .72); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .44, S * .72); g.lineTo(S * .56, S * .72)
+    g.lineTo(S * .56, S * .92); g.lineTo(S * .44, S * .92); g.closePath(); g.fill()
+    g.beginPath(); g.arc(S * .50, S * .95, S * .08, 0, 7); g.fill()
+  },
+  defence: (g, S) => {                           // a shield
+    g.beginPath()
+    g.moveTo(S * .08, S * .10); g.lineTo(S * .92, S * .10)
+    g.lineTo(S * .92, S * .46)
+    g.quadraticCurveTo(S * .90, S * .84, S * .50, S * .98)
+    g.quadraticCurveTo(S * .10, S * .84, S * .08, S * .46)
+    g.closePath(); g.fill()
+  },
+  hitpoints: (g, S) => {                         // a heart
+    g.beginPath()
+    g.moveTo(S * .50, S * .96)
+    g.quadraticCurveTo(S * -.06, S * .56, S * .16, S * .22)
+    g.quadraticCurveTo(S * .40, S * .00, S * .50, S * .30)
+    g.quadraticCurveTo(S * .60, S * .00, S * .84, S * .22)
+    g.quadraticCurveTo(S * 1.06, S * .56, S * .50, S * .96)
+    g.closePath(); g.fill()
+  },
+  exploration: (g, S) => {                       // a compass rose
+    g.beginPath()
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * 6.283 - 1.5708
+      const b = a + .7854
+      g.moveTo(S * .5, S * .5)
+      g.lineTo(S * .5 + Math.cos(a) * S * .48, S * .5 + Math.sin(a) * S * .48)
+      g.lineTo(S * .5 + Math.cos(b) * S * .16, S * .5 + Math.sin(b) * S * .16)
+      g.closePath()
+    }
+    g.fill()
+    g.beginPath(); g.arc(S * .5, S * .5, S * .10, 0, 7); g.fill()
+  },
+  brewing: (g, S) => {                           // a tankard
+    g.beginPath()
+    g.moveTo(S * .14, S * .28); g.lineTo(S * .62, S * .28)
+    g.lineTo(S * .56, S * .96); g.lineTo(S * .20, S * .96); g.closePath(); g.fill()
+    g.beginPath()
+    g.moveTo(S * .62, S * .40)
+    g.quadraticCurveTo(S * .98, S * .44, S * .82, S * .70)
+    g.quadraticCurveTo(S * .74, S * .74, S * .74, S * .66)
+    g.quadraticCurveTo(S * .84, S * .54, S * .60, S * .54); g.closePath(); g.fill()
+    g.beginPath()
+    g.ellipse(S * .38, S * .24, S * .26, S * .12, 0, 0, 7); g.fill()
+    g.beginPath()
+    g.ellipse(S * .24, S * .16, S * .12, S * .09, 0, 0, 7); g.fill()
+    g.beginPath()
+    g.ellipse(S * .52, S * .14, S * .13, S * .10, 0, 0, 7); g.fill()
+  },
+}
+
+// struck once, then blitted: sixteen glyphs at three sizes is forty-eight
+// little canvases for the life of the page
+function skillGlyph(skill, S, tone) {
+  return sprite('gly:' + skill + ':' + S + ':' + (tone ?? 'gold'), S + 2, S + 2, (g) => {
+    const paint = GLYPH[skill]; if (!paint) return
+    // the cut: the shape pressed a pixel down and to the right, in shadow
+    g.save(); g.translate(1.2, 1.4)
+    g.fillStyle = 'rgba(0,0,0,.75)'
+    paint(g, S); g.restore()
+    // and the metal standing in it
+    const grd = g.createLinearGradient(0, 0, 0, S)
+    if (tone === 'dim') { grd.addColorStop(0, '#8f8267'); grd.addColorStop(1, '#5d5342') }
+    else if (tone === 'bright') { grd.addColorStop(0, '#fdf3d2'); grd.addColorStop(.55, '#f0d089'); grd.addColorStop(1, '#a8802e') }
+    else { grd.addColorStop(0, '#f2dda2'); grd.addColorStop(.5, '#c39a44'); grd.addColorStop(1, '#7a5a1e') }
+    g.fillStyle = grd
+    paint(g, S)
+    // one highlight along the top of the shape, which is what sells the relief
+    g.save()
+    g.globalCompositeOperation = 'source-atop'
+    const hi = g.createLinearGradient(0, 0, 0, S * .45)
+    hi.addColorStop(0, 'rgba(255,250,230,.55)'); hi.addColorStop(1, 'rgba(255,250,230,0)')
+    g.fillStyle = hi; g.fillRect(0, 0, S + 2, S * .45)
+    g.restore()
   })
 }
 // ===========================================================================
@@ -5274,10 +5588,31 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   }
   else if (moving) swingVal = -0.45 + Math.sin(t * 6.5) * .22
   else swingVal = -0.5
+  // and a one-tick deed overrides all of it, for as long as it takes to do
+  let crouch = 0, pitch = 0
+  if (isMe && myDeed) {
+    const dk = (performance.now() - myDeed.at) / myDeed.dur
+    if (dk >= 1) myDeed = null
+    else {
+      const e = Math.sin(dk * Math.PI)          // in and back out
+      switch (myDeed.pose) {
+        case 'kneel':   crouch = e; pitch = e * .7; swingVal = -0.5 + e * 1.35; break
+        case 'lean':    pitch = e; swingVal = -0.5 + e * .8; break
+        case 'strike':  swingVal = dk < .45 ? -0.5 - (dk / .45) * .95
+                                 : -1.45 + ((dk - .45) / .55) * 2.5; pitch = e * .4; break
+        case 'whittle': crouch = e * .35; swingVal = -0.6 + Math.sin(dk * 18) * .35; break
+        case 'drink':   swingVal = -1.25 - e * .45; break
+        case 'offer':   swingVal = -0.5 + e * .95; pitch = e * .3; break
+        case 'raise':   swingVal = -1.55 - e * .5; crouch = -e * .35; break
+      }
+    }
+  }
   const body = p.equipment?.body?.item, head = p.equipment?.head?.item
   const star = body?.startsWith('star-')
   humanoid(g, sx, sy, {
     scale: sc ?? 1, bulk: 1,
+    cape: capeOf(p),
+    crouch, pitch,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
     plate: star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
@@ -5351,6 +5686,30 @@ function speechBubble(g, sx, sy, text) {
 // ===========================================================================
 
 let hover = null            // { kind, id, e, x, y } under the cursor right now
+// where the thing you ordered something done to is, right now -- it may be a
+// beast that has since walked off, so this follows it rather than remembering
+// where it stood when you clicked
+function intentTargetPos(s, t) {
+  if (!intent || !s) return null
+  const id = intent.id
+  if (intent.kind === 'attack') {
+    const m = s.mobs?.[id]; if (!m || m.hp <= 0) return null
+    const [ix, iy] = lerpPos('m' + id, m.x, m.y, t)
+    return { x: ix, y: iy, box: 24 * (BEAST[m.type]?.s ?? 1) }
+  }
+  if (intent.kind === 'attackp' || intent.kind === 'greet') {
+    const q = s.players?.[id]; if (!q) return null
+    const [ix, iy] = lerpPos('p' + id, q.x, q.y, t)
+    return { x: ix, y: iy, box: 22 }
+  }
+  if (intent.kind === 'pickup') {
+    const gi = s.ground?.[id]; if (!gi) return null
+    return { x: gi.x, y: gi.y, box: 18 }
+  }
+  const n = s.nodes?.[id]
+  if (!n) return null
+  return { x: n.x, y: n.y, box: BUILDING_KINDS[n.type] ? 44 : n.type === 'tree' ? 30 : 26 }
+}
 let altHeld = false, showChart = false
 let lastLevels = null, lastHp = null, lastGold = null, lastXpSkill = null
 
@@ -5387,6 +5746,54 @@ const hitFlash = new Map()  // id -> when it was last struck
 const dust = []             // motes in the air, in screen coordinates
 const fx = []               // blows in flight, in world coordinates
 const specialAnim = new Map()   // playerId -> { kind, at, dur } while a special plays
+
+// ---------------------------------------------------------------------------
+// A DEED THAT IS OVER IN ONE TICK STILL HAPPENED
+// ---------------------------------------------------------------------------
+// Gathering has an ongoing action in the state, so the window can animate it
+// for as long as it lasts. Burying a bone does not: it is valid, it resolves,
+// and the only trace was a line of text. Twenty-two of this constitution's
+// verbs were like that -- you pressed something, a number changed somewhere,
+// and your citizen stood perfectly still through all of it.
+//
+// The window cannot ask the state what you just did (it carries `lastInput`,
+// a tick, and not which input). But the window SENT it, so it knows. This is
+// purely local and purely presentational: the deed is already gone to the
+// engine and judged there; what follows is only the window admitting that a
+// person moved.
+const DEED_POSE = {
+  bury: 'kneel', plant: 'kneel', harvest: 'kneel', collect: 'kneel',
+  light: 'kneel', kindle: 'kneel', stoke: 'kneel', dismantle: 'kneel',
+  brew: 'kneel', build_brewpot: 'kneel', cook: 'lean',
+  smith: 'strike', fletch: 'whittle', eat: 'drink',
+  deposit: 'offer', withdraw: 'offer', buy: 'offer', sell: 'offer', offer: 'offer',
+  accept: 'offer', read_chart: 'offer',
+  survey: 'raise', cast: 'raise', invoke: 'raise', still: 'raise', recall: 'raise',
+  name: 'raise', wield: 'offer', unwield: 'offer', drop: 'kneel', pickup: 'kneel',
+  // waking is the one deed nobody performs twice, and it should look like
+  // something. gather, attack, attackp and special are absent on purpose: they
+  // are ongoing or already driven by lastSwing. stop and cancel are the absence
+  // of a deed, and a gesture for stopping is a gesture for nothing.
+  spawn: 'raise',
+}
+const DEED_MS = { strike: 620, whittle: 700, kneel: 620, lean: 560, drink: 460, offer: 520, raise: 700 }
+let myDeed = null              // { verb, pose, at, dur }
+function noteDeed(verb) {
+  const pose = DEED_POSE[verb]
+  if (!pose) return
+  myDeed = { verb, pose, at: performance.now(), dur: DEED_MS[pose] ?? 560 }
+  const me = myId && curState?.players?.[myId]
+  if (!me) return
+  // and the mark it leaves, which is what reads from across the room
+  const K = {
+    bury: 'dig', drop: 'dig', pickup: 'dig',
+    plant: 'sow', harvest: 'sow', collect: 'sow',
+    smith: 'spark', fletch: 'shavings',
+    light: 'flare', kindle: 'flare', stoke: 'flare', brew: 'flare', build_brewpot: 'flare',
+    survey: 'survey', cast: 'survey', invoke: 'survey', recall: 'survey', spawn: 'flare',
+  }[verb]
+  addFx(K ?? 'act', me.x, me.y, me.x, me.y, K === 'survey' ? 900 : 620, K ? 120 : 0)
+}
 
 // ---------------------------------------------------------------------------
 // THE BLOW ITSELF
@@ -5467,6 +5874,77 @@ function drawFx(g, now) {
         g.beginPath(); g.arc(0, 0, 22, -1.05 + kk * .9, .35 + kk * .9); g.stroke()
         g.restore()
       }
+    } else if (f.kind === 'dig') {
+      // earth turned over: a low spray of clods and a darker patch left behind
+      g.fillStyle = 'rgba(28,20,12,' + (.5 * (1 - k * .4)) + ')'
+      g.beginPath(); g.ellipse(B.x, by2 + 24, 13 * Math.min(1, k * 3), 6 * Math.min(1, k * 3), 0, 0, 7); g.fill()
+      for (let q = 0; q < 7; q++) {
+        const a = -0.4 - q * 0.36, sp = 18 * k
+        g.fillStyle = 'rgba(74,58,38,' + (1 - k) + ')'
+        g.fillRect(B.x + Math.cos(a) * sp, by2 + 22 + Math.sin(a) * sp * .5 - Math.sin(k * 3.14) * 9,
+          2.6, 2.2)
+      }
+    } else if (f.kind === 'sow') {
+      // seed thrown wide, and something answering it
+      for (let q = 0; q < 9; q++) {
+        const a = (q / 9) * 6.283, sp = 20 * k
+        g.fillStyle = 'rgba(150,170,80,' + (1 - k) + ')'
+        g.fillRect(B.x + Math.cos(a) * sp, by2 + 22 + Math.sin(a) * sp * .45 - Math.sin(k * 3.14) * 7, 2, 2)
+      }
+      g.save(); g.globalCompositeOperation = 'lighter'
+      g.strokeStyle = 'rgba(140,210,110,' + (.5 * (1 - k)) + ')'; g.lineWidth = 2
+      g.beginPath(); g.ellipse(B.x, by2 + 22, 8 + k * 18, (8 + k * 18) * .45, 0, 0, 7); g.stroke()
+      g.restore()
+    } else if (f.kind === 'spark') {
+      // the anvil answering the hammer
+      g.save(); g.globalCompositeOperation = 'lighter'
+      for (let q = 0; q < 14; q++) {
+        const a = -2.9 + (q / 14) * 2.4, sp = 26 * k
+        g.fillStyle = 'rgba(255,' + (200 - q * 6) + ',80,' + (1 - k) + ')'
+        g.fillRect(B.x + Math.cos(a) * sp, by2 - 6 + Math.sin(a) * sp * .6 + k * k * 22, 2.2, 2.2)
+      }
+      const gr = g.createRadialGradient(B.x, by2 - 6, 0, B.x, by2 - 6, 26 * (1 - k))
+      gr.addColorStop(0, 'rgba(255,190,90,' + (.5 * (1 - k)) + ')')
+      gr.addColorStop(1, 'rgba(255,190,90,0)')
+      g.fillStyle = gr; g.beginPath(); g.arc(B.x, by2 - 6, 26 * (1 - k), 0, 7); g.fill()
+      g.restore()
+    } else if (f.kind === 'shavings') {
+      // curls of wood coming off the knife
+      for (let q = 0; q < 8; q++) {
+        const a = 0.3 + q * 0.5, sp = 14 * k
+        g.strokeStyle = 'rgba(180,150,96,' + (1 - k) + ')'; g.lineWidth = 1.6
+        const px3 = B.x + Math.cos(a) * sp, py3 = by2 - 4 + Math.sin(a) * sp * .5 + k * k * 26
+        g.beginPath(); g.arc(px3, py3, 3, 0, 3.6); g.stroke()
+      }
+    } else if (f.kind === 'flare') {
+      // something caught
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const r = 10 + k * 34
+      const gr = g.createRadialGradient(B.x, by2 + 6, 0, B.x, by2 + 6, r)
+      gr.addColorStop(0, 'rgba(255,206,120,' + (.55 * (1 - k)) + ')')
+      gr.addColorStop(1, 'rgba(255,140,40,0)')
+      g.fillStyle = gr; g.beginPath(); g.arc(B.x, by2 + 6, r, 0, 7); g.fill()
+      for (let q = 0; q < 6; q++) {
+        g.fillStyle = 'rgba(255,190,90,' + (1 - k) + ')'
+        g.fillRect(B.x + Math.sin(q * 2.1 + k * 4) * 12, by2 + 6 - k * 34 - q * 3, 2, 2)
+      }
+      g.restore()
+    } else if (f.kind === 'survey') {
+      // taking the measure of a place: rings going out, and the land noted
+      g.save(); g.globalCompositeOperation = 'lighter'
+      for (let q = 0; q < 3; q++) {
+        const kk = k - q * .18; if (kk < 0) continue
+        g.strokeStyle = 'rgba(180,214,255,' + (.42 * (1 - kk)) + ')'; g.lineWidth = 1.6
+        g.beginPath(); g.ellipse(B.x, by2 + 20, 10 + kk * 74, (10 + kk * 74) * .45, 0, 0, 7); g.stroke()
+      }
+      g.restore()
+    } else if (f.kind === 'act') {
+      // the catch-all: a deed with no natural gesture still leaves a ring, so
+      // that pressing something always looks like it did something
+      g.save(); g.globalCompositeOperation = 'lighter'
+      g.strokeStyle = 'rgba(232,209,153,' + (.55 * (1 - k)) + ')'; g.lineWidth = 2 * (1 - k) + .6
+      g.beginPath(); g.ellipse(B.x, by2 + 22, 6 + k * 22, (6 + k * 22) * .45, 0, 0, 7); g.stroke()
+      g.restore()
     } else if (f.kind === 'still') {
       // the truce: a ring of sigil-light closing over whatever it binds
       g.globalCompositeOperation = 'lighter'
@@ -5662,12 +6140,82 @@ function drawScene(now) {
     g.fillRect(m.x, m.y, m.size, m.size)
   }
 
+  // =========================================================================
+  // WHAT YOU JUST ORDERED
+  // =========================================================================
+  // Every click drew the same gold diamond, so clicking a tree and misclicking
+  // the grass beside it looked identical -- and since the citizen walks either
+  // way, there was no way to know you had missed until you arrived and nothing
+  // happened. Two marks fix it: a ONE-SHOT flourish at the moment of the click
+  // that names the verb, and a RETICLE that stays on the target for as long as
+  // the order stands, following it if it moves.
+  const VERB_TINT = {
+    attack: '#e0452a', attackp: '#e0452a',
+    gather: '#e8a23a', harvest: '#e8a23a', collect: '#e8a23a', cook: '#e8a23a', stair: '#e8a23a',
+    pickup: '#bcd8f0',
+    greet: '#8fb8e8', bank: '#f0d9a4', store: '#f0d9a4', forge: '#f0d9a4',
+    attune: '#8fa8e8', look: '#cdbb99', walk: '#e8d199',
+  }
   if (travelMark) {
     const p = screenOf(travelMark.x, travelMark.y)
-    const k = clamp((now - travelMark.at) / 700, 0, 1)
-    g.strokeStyle = 'rgba(255,206,132,' + (.75 * (1 - k)) + ')'; g.lineWidth = 2
-    diamond(g, p.x - 32, p.y - liftAt(travelMark.x, travelMark.y) - 16, 6 + k * 12); g.stroke()
-    if (k >= 1 && !intent) travelMark = null
+    const lf = liftAt(travelMark.x, travelMark.y)
+    const k = clamp((now - travelMark.at) / 620, 0, 1)
+    const tint = VERB_TINT[travelMark.verb] ?? '#e8d199'
+    if (travelMark.fail) {
+      // A REFUSAL LOOKS DIFFERENT. Nothing else in the window says "that click
+      // went nowhere", and a citizen who cannot tell a miss from a long walk
+      // learns to distrust their own aim.
+      g.save(); g.globalAlpha = 1 - k
+      g.strokeStyle = '#e0452a'; g.lineWidth = 3; g.lineCap = 'round'
+      const r2 = 11 + (1 - k) * 5
+      g.beginPath()
+      g.moveTo(p.x - r2, p.y - lf - r2 * .5); g.lineTo(p.x + r2, p.y - lf + r2 * .5)
+      g.moveTo(p.x + r2, p.y - lf - r2 * .5); g.lineTo(p.x - r2, p.y - lf + r2 * .5)
+      g.stroke(); g.restore()
+    } else {
+      g.save(); g.globalAlpha = 1 - k
+      g.strokeStyle = tint; g.lineWidth = 2.4 * (1 - k) + .8
+      diamond(g, p.x - 32, p.y - lf - 16, 6 + k * 16); g.stroke()
+      if (travelMark.verb && travelMark.verb !== 'walk') {
+        // the word, so the order is unambiguous even if the target is offscreen
+        g.font = '700 11px Cinzel, Georgia, serif'
+        g.textAlign = 'center'; g.textBaseline = 'alphabetic'
+        g.save(); g.letterSpacing = '2px'
+        const label = (VERB_WORD[travelMark.verb] ?? travelMark.verb).toUpperCase()
+        g.lineWidth = 3; g.strokeStyle = 'rgba(4,3,6,.85)'
+        g.strokeText(label, p.x, p.y - lf - 26 - k * 14)
+        g.fillStyle = tint
+        g.fillText(label, p.x, p.y - lf - 26 - k * 14)
+        g.restore()
+      }
+      g.restore()
+    }
+    if (k >= 1) travelMark = null
+  }
+  // the standing order, drawn on whatever it is standing on
+  if (intent && intent.kind !== 'walk') {
+    const tp = intentTargetPos(s, t)
+    if (tp) {
+      const p = screenOf(tp.x, tp.y)
+      const lf = liftAt(Math.round(tp.x), Math.round(tp.y))
+      const tint = VERB_TINT[intent.kind] ?? '#e8d199'
+      const puls = .55 + Math.sin(now / 260) * .3
+      g.save()
+      g.strokeStyle = hexA(tint, .5 * puls); g.lineWidth = 2
+      diamond(g, p.x - 32, p.y - lf - 16, 8); g.stroke()
+      // corner brackets, which is what makes it read as TARGETED rather than
+      // merely lit: four short arcs that do not close
+      const bl = tp.box ?? 26
+      g.strokeStyle = hexA(tint, .85 * puls); g.lineWidth = 2.2; g.lineCap = 'round'
+      for (let q = 0; q < 4; q++) {
+        const sx2 = q % 2 ? 1 : -1, sy2 = q < 2 ? -1 : 1
+        const bx = p.x + sx2 * bl, by = p.y - lf - 16 + sy2 * bl * .62
+        g.beginPath()
+        g.moveTo(bx - sx2 * 7, by); g.lineTo(bx, by); g.lineTo(bx, by + sy2 * 6)
+        g.stroke()
+      }
+      g.restore()
+    }
   }
 
   // =========================================================================
@@ -5953,17 +6501,60 @@ function drawChart(g, now) {
 const wordy = (item) => typeof item === 'string' && item.startsWith('chart:')
   ? 'chart of ' + item.slice(6).replace(/-/g, ' ')
   : String(item ?? '').replace(/-/g, ' ')
-// Items are not graded in this constitution -- no affixes, no rarity roll --
-// so colour says what a thing IS, not what it rolled. Borrowing the palette
-// without borrowing the lie.
+// RARITY IS REAL HERE. I had this wrong and flattened it.
+//
+// There are no affixes and no rarity roll, so nothing is graded at the moment
+// it drops -- but scarcity is not the same as rolled rarity, and this
+// constitution has a very steep one. DROP_DEN is 65,536, and the tables read:
+//
+//     old-chain     2/65536   from a troll        one in 32,768
+//     horn-bow     66/65536   from a bear         one in 993
+//     star-helm   328/65536   from a knight       one in 200
+//     bronze-hatchet 4096/65536                   one in 16
+//     bronze-plate   6144/65536                   one in 11
+//
+// So colour can say what a thing COSTS to obtain without inventing a property
+// the engine does not have. The tiers below are the real ladder: what almost
+// nobody has, what a long campaign earns, what starmetal and magic buy, and
+// what any smith can make in an afternoon.
+const RARITY = {
+  legendary: '#d0722a',   // effectively never handed to you
+  rare:      '#e8d34a',
+  magic:     '#6f8ce8',
+  common:    '#d8cdb4',
+  useful:    '#8fb07a',   // food and drink
+  material:  '#a89e88',   // what things are made of
+  coin:      '#e8b53a',
+}
+// where a thing comes from, when it comes from a body. Straight off engine.js
+// MOB_STATS drops; the odds are worth telling a citizen who is deciding
+// whether to keep hunting.
+const DROP_ODDS = {
+  'old-chain':      { from: 'a troll', n: 2 },
+  'horn-bow':       { from: 'a bear', n: 66 },
+  'star-helm':      { from: 'a skeleton-knight', n: 328 },
+  'bronze-plate':   { from: 'a troll', n: 6144 },
+  'bronze-hatchet': { from: 'a bear', n: 4096 },
+}
+const DROP_DEN = 65536
+const oddsLine = (item) => {
+  const d = DROP_ODDS[item]; if (!d) return null
+  const one = Math.round(DROP_DEN / d.n)
+  return 'one in ' + one.toLocaleString() + ' from ' + d.from
+}
 function rarityOf(item) {
-  if (item === 'gold-coin') return '#e8b53a'
-  if (typeof item === 'string' && item.startsWith('chart:')) return '#5f8fe0'
-  if (/^star-|sigil|dragonbow|heartwood/.test(item)) return '#7f9ee8'
-  if (/^bronze-|crossbow|old-chain|bow$/.test(item)) return '#d8cdb4'
-  if (/fish|ale|broth|grain|seeds/.test(item)) return '#8fb07a'
-  if (/bones|crab-shell|wool/.test(item)) return '#a89e88'
-  return '#b6ab95'
+  if (item === 'gold-coin') return RARITY.coin
+  if (typeof item === 'string' && item.startsWith('chart:')) return RARITY.magic
+  // the four things this island barely gives up
+  if (/^(old-chain|dragonbow|heartwood-bow|sigil-bow)$/.test(item)) return RARITY.legendary
+  // starmetal war-gear and the horn-bow: a campaign, not an afternoon
+  if (/^(star-sword|star-maul|star-plate|star-flail|star-helm|horn-bow)$/.test(item)) return RARITY.rare
+  // starmetal's lighter arms, and what magic is made of
+  if (/^star-|^(magic-stone|sigil|crossbow|bronze-plate)$/.test(item)) return RARITY.magic
+  if (/^bronze-|^(wooden-bow|arrows)$/.test(item)) return RARITY.common
+  if (/fish|ale|broth|grain|seeds/.test(item)) return RARITY.useful
+  if (/bones|crab-shell|wool|logs|ore|heartwood/.test(item)) return RARITY.material
+  return RARITY.common
 }
 // ===========================================================================
 // THE PANEL
@@ -6379,6 +6970,8 @@ function orb(g, ox, oy, r, frac, col, now, label, value) {
   g.save(); g.letterSpacing = '2px'
   g.fillText(label.toUpperCase(), ox, oy - r + 12); g.restore()
   if (col.under) {
+    const G2 = 15
+    g.drawImage(skillGlyph(col.under, G2, 'bright'), ox - G2 / 2, oy - r - G2 - 1)
     g.font = '700 9px Cinzel, Georgia, serif'
     g.fillStyle = col.text
     g.save(); g.letterSpacing = '1px'
@@ -6481,7 +7074,7 @@ function drawPanel(g, now) {
     if (i2 >= 0 && beltMap.length < 4) beltMap.push({ slot: i2, item: want, qty: inv[i2].qty ?? 1 })
   }
   const gap = Math.max(4, Math.round(BS * .16))
-  const bx0 = midX + (midW - (BS * 4 + gap * 3)) / 2
+  const bx0 = midX + (midW - (BS * 5 + gap * 4)) / 2
   for (let i2 = 0; i2 < 4; i2++) {
     const bx = bx0 + i2 * (BS + gap)
     const hot = inRect(mouse, bx, beltY, BS, BS)
@@ -6502,6 +7095,49 @@ function drawPanel(g, now) {
     g.font = '600 8px Cinzel, Georgia, serif'; g.textAlign = 'left'
     g.fillStyle = 'rgba(141,125,99,.7)'
     g.fillText(String(i2 + 1), bx + 3, beltY + 10)
+  }
+
+  // ---- THE SPECIAL, next to the belt where a skill belongs -----------------
+  // §6af puts three conditions on it and a menu buried them: the weapon must
+  // have one, the target must be a citizen, and both of you must be standing in
+  // the Wilds. So the button states the missing condition rather than greying
+  // out silently, which is the only way anyone learns the rule.
+  {
+    const wep = me?.equipment?.weapon?.item
+    const kind = SPEC_OF[wep]
+    const tgt = me?.action?.type === 'attackp' ? me.action.targetId : null
+    const q = tgt && s?.players?.[tgt]
+    const wilds = me && q && inWilds(me.x, me.y) && inWilds(q.x, q.y)
+    const ready = !!(kind && q && wilds)
+    const why = !kind ? (wep ? 'no special on this weapon' : 'bare hands')
+      : !q ? 'no citizen targeted' : !wilds ? 'only in the Wilds' : kind
+    const sx2 = bx0 + 4 * (BS + gap) + gap, sy2 = beltY
+    const hot = inRect(mouse, sx2, sy2, BS, BS)
+    slotFrame(g, sx2, sy2, BS, hot && ready)
+    g.save()
+    g.globalAlpha = ready ? 1 : .38
+    // a struck anvil-spark glyph: the arm spent twice over
+    const c2 = sx2 + BS / 2, cy3 = sy2 + BS / 2
+    g.strokeStyle = ready ? '#f2dda2' : '#8a7f68'; g.lineWidth = 2.2
+    g.beginPath(); g.moveTo(c2 - 9, cy3 + 8); g.lineTo(c2 + 7, cy3 - 8); g.stroke()
+    g.beginPath(); g.moveTo(c2 - 3, cy3 + 9); g.lineTo(c2 + 10, cy3 - 4); g.stroke()
+    g.strokeStyle = ready ? '#fff6d6' : '#6a6252'; g.lineWidth = 1
+    g.beginPath(); g.moveTo(c2 - 9, cy3 + 8); g.lineTo(c2 + 7, cy3 - 8); g.stroke()
+    if (ready) {
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const gg2 = g.createRadialGradient(c2, cy3, 0, c2, cy3, BS * .6)
+      gg2.addColorStop(0, 'rgba(255,206,110,' + (.22 + Math.sin(now / 300) * .12).toFixed(2) + ')')
+      gg2.addColorStop(1, 'rgba(255,206,110,0)')
+      g.fillStyle = gg2; g.beginPath(); g.arc(c2, cy3, BS * .6, 0, 7); g.fill(); g.restore()
+    }
+    g.restore()
+    g.font = '600 8px Cinzel, Georgia, serif'; g.textAlign = 'left'
+    g.fillStyle = 'rgba(141,125,99,.7)'
+    g.fillText('5', sx2 + 3, sy2 + 10)
+    regions.push({ x: sx2, y: sy2, w: BS, h: BS, act: { t: 'special' },
+                   tip: { title: 'Special attack' + (kind ? ' \u00b7 ' + kind : ''),
+                          sub: ready ? 'Key 5 \u00b7 spends the next swing as well as this one' : why,
+                          col: ready ? '#f2dda2' : '#c98b5a' } })
   }
 
   // ---- the buttons --------------------------------------------------------
@@ -6621,7 +7257,7 @@ function drawCitizen(g, now) {
   g.save(); g.translate(0, 0)
   const bItem = me.equipment?.body?.item, bStar = bItem?.startsWith('star-')
   humanoid(g, x + PANE_W / 2 - 4, dy + dh, {
-    scale: 1.25, bulk: 1, cloak: '#6e1f19', coat: '#4a1512',
+    scale: 1.25, bulk: 1, cloak: '#6e1f19', coat: '#4a1512', cape: capeOf(me),
     plate: bStar ? ['#9db4cc', '#4a5a70'] : bItem ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
     tunic: bItem ? (bStar ? '#7d90a8' : '#6a5230') : '#3a3226',
     boots: '#241d16', hair: '#2e2418',
@@ -6642,17 +7278,18 @@ function drawCitizen(g, now) {
     const xp = me.skills?.[sk] ?? 0, lv = XP_TO_LVL(xp)
     const a = XP_TABLE[Math.min(99, lv)] ?? 0, b = XP_TABLE[Math.min(99, lv + 1)] ?? (a + 1)
     const f = lv >= 99 ? 1 : clamp((xp - a) / Math.max(1, b - a), 0, 1)
+    g.drawImage(skillGlyph(sk, 13, lv >= 99 ? 'bright' : 'gold'), sx2, sy2 - 3)
     g.font = '10.5px Georgia, serif'
     g.fillStyle = lv >= 99 ? '#e8d199' : '#a2957c'
-    g.fillText(sk, sx2, sy2 + 8)
+    g.fillText(sk, sx2 + 18, sy2 + 8)
     g.textAlign = 'right'
     g.font = '700 11px Cinzel, Georgia, serif'
     g.fillStyle = lv >= 99 ? '#e8d199' : '#cdbb99'
     g.fillText(String(lv), sx2 + colW - 12, sy2 + 8)
     g.textAlign = 'left'
-    g.fillStyle = 'rgba(6,5,5,.85)'; g.fillRect(sx2, sy2 + 12, colW - 12, 3)
+    g.fillStyle = 'rgba(6,5,5,.85)'; g.fillRect(sx2 + 18, sy2 + 12, colW - 30, 3)
     g.fillStyle = lv >= 99 ? '#b0913f' : '#4a6f8c'
-    g.fillRect(sx2, sy2 + 12, (colW - 12) * f, 3)
+    g.fillRect(sx2 + 18, sy2 + 12, (colW - 30) * f, 3)
     regions.push({ x: sx2, y: sy2 - 4, w: colW - 12, h: 22, act: { t: 'noop' },
                    tip: { title: sk + ' \u00b7 level ' + lv,
                           sub: lv >= 99 ? 'mastered' : (b - xp) + ' xp to ' + (lv + 1) } })
@@ -6854,6 +7491,8 @@ function drawLevelBanner(g, now) {
   g.lineWidth = 3; g.strokeStyle = 'rgba(4,3,6,.85)'
   g.strokeText('LEVEL UP', cx2, cy2 - 44)
   g.fillStyle = '#e8d199'; g.fillText('LEVEL UP', cx2, cy2 - 44)
+  { const G3 = Math.round(30 * pop)
+    g.drawImage(skillGlyph(levelBanner.skill, G3, 'bright'), cx2 - G3 / 2, cy2 - 44 - G3 - 6) }
   g.font = '900 ' + (34 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
   const tg = g.createLinearGradient(0, cy2 - 20, 0, cy2 + 18)
   tg.addColorStop(0, '#fbeec4'); tg.addColorStop(.55, '#e2b63e'); tg.addColorStop(1, '#8a6524')
@@ -7068,9 +7707,17 @@ function stepToward(me, goal, reach) {
       if (!blockedAt(gx, gy)) goals.add(gx + ',' + gy)
     }
   } else goals.add(goal.x + ',' + goal.y)
-  if (!goals.size) { say("There is no room to stand there.", 'warn'); intent = null; return 'no' }
+  if (!goals.size) {
+    say('There is no room to stand there.', 'warn')
+    travelMark = { x: goal.x, y: goal.y, at: performance.now(), fail: true }
+    intent = null; SFX.pane(); return 'no'
+  }
   const step = nextStep(me, goals)
-  if (step === null) { say("You can't reach that.", 'warn'); intent = null; travelMark = null; return 'no' }
+  if (step === null) {
+    say("You can't reach that.", 'warn')
+    travelMark = { x: goal.x, y: goal.y, at: performance.now(), fail: true }
+    intent = null; SFX.pane(); return 'no'
+  }
   if (step === 'arrived') return 'here'
   const tk = allocTick()
   if (tk === null) return 'wait'
@@ -7149,7 +7796,9 @@ function buildMenu(px2, py2, target) {
   if (!me) return null
   const items = [], w = worldOf(px2, py2)
   const go = (kind, id, x, y) => () => {
-    intent = { kind, id, x, y }; travelMark = { x, y, at: performance.now() }; pumpIntent()
+    intent = { kind, id, x, y }
+    travelMark = { x, y, at: performance.now(), verb: kind }
+    pumpIntent()
   }
   let title = 'here'
 
@@ -7376,13 +8025,13 @@ function primaryClick(p, isRight) {
   if (!tgt) {
     const w = worldOf(p.x, p.y)
     intent = { kind: 'walk', x: w.x, y: w.y }
-    travelMark = { x: w.x, y: w.y, at: performance.now() }
+    travelMark = { x: w.x, y: w.y, at: performance.now(), verb: 'walk' }
     pumpIntent(); SFX.click()
     return
   }
   const verb = verbFor(tgt.kind, tgt.e)
   intent = { kind: verb, id: tgt.id, x: tgt.x, y: tgt.y }
-  travelMark = { x: tgt.x, y: tgt.y, at: performance.now() }
+  travelMark = { x: tgt.x, y: tgt.y, at: performance.now(), verb }
   SFX.click()
   pumpIntent()
 }
@@ -7398,6 +8047,13 @@ function runRegion(r, isRight) {
     if (a.id === 'door') { location.href = '/windows'; return }
     togglePane(a.id)
     return
+  }
+  if (a.t === 'special') {
+    const me2 = myId && curState?.players?.[myId]
+    const t2 = me2?.action?.type === 'attackp' ? me2.action.targetId : null
+    const q2 = t2 && curState?.players?.[t2]
+    if (!q2) { say('Target a citizen first \u2014 the special is theirs alone.', 'warn'); return }
+    fireSpecial(t2, q2.x, q2.y); return
   }
   if (a.t === 'belt') {
     const b = beltMap[a.i]; if (!b) return
@@ -7742,6 +8398,13 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'Enter') { openSay(); e.preventDefault() }
   else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('Offer withdrawn.', 'dim') } else if (menu) menu = null; else if (paneModal) paneModal = null; else if (anyPaneOpen()) { paneLeft = paneRight = null } else if (showChart) showChart = false; else intent = null }
   else if (k === ' ') { paneLeft = paneRight = paneModal = null; showChart = false; e.preventDefault() }
+  else if (k === '5') {
+    const me2 = myId && curState?.players?.[myId]
+    const t2 = me2?.action?.type === 'attackp' ? me2.action.targetId : null
+    const q2 = t2 && curState?.players?.[t2]
+    if (q2) fireSpecial(t2, q2.x, q2.y)
+    else say('Target a citizen first \u2014 the special is theirs alone.', 'warn')
+  }
   else if (k >= '1' && k <= '4') {
     const b = beltMap[+k - 1]
     if (b) { send({ do: 'eat', slot: b.slot }); SFX.quaff() }
