@@ -49,6 +49,17 @@ export function configure(opts = {}) {
 }
 export const dims = () => ({ W, H, GEN, GSEED })
 
+// V5 CHANGED THE FURNITURE, NOT THE LAND.
+//
+// worldgen-expanse5's own header says it: v4's land is right and stays exactly
+// as it is, and nothing in v5 touches any of it. Every terrain function below
+// is therefore correct for both -- but a check written `GEN === 'interval-
+// expanse-v4'` silently falls through to the v3 branch for a v5 world, which
+// is a whole island of wrong ground from one string comparison. window-web
+// learned this and fixed it locally; this module did not, and since the module
+// exists precisely so the windows cannot drift apart, the fix belongs here.
+const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
+
 export const tileHash = (x, y, salt) => {
   let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
   h = (h ^ (h >> 13)) >>> 0; h = (h * 1274126177) >>> 0
@@ -94,7 +105,7 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
-  if (GEN === 'interval-expanse-v4') return settlementsE4()
+  if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   if (GEN === 'interval-expanse-v2') {
@@ -1276,7 +1287,7 @@ function localeAt4(x, y) {
 
 
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v4') return terrainOfE4(x, y)
+  if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
   // the fords, mirrored from the truth: the road pays for its
@@ -1346,7 +1357,7 @@ function regionNameAt(x, y) {
       if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
         return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
     }
-    if (GEN === 'interval-expanse-v4') return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
+    if (IS_EXPANSE4()) return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
     return REGION_NAMES[biomeAtE(x, y)] ?? ''
   } catch { return '' } // a nameplate must never stop the world drawing
 }
@@ -1355,7 +1366,13 @@ const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
 function riverXC(y) { const cx2 = Math.floor(W / 2)
   return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
 function terrainOf(x, y) {
-  if (GEN === 'interval-expanse-v1') return terrainOfE(x, y)
+  // EVERY expanse founding goes to the expanse, not just the first one.
+  // This read `GEN === 'interval-expanse-v1'`, so a v2, v3, v4 or v5 world --
+  // which is every world founded since -- fell through to the classic
+  // generator below and got a completely different island. terrainOfE is
+  // itself a dispatcher over the four later foundings, so one prefix test is
+  // the whole of the correct answer.
+  if (GEN.startsWith('interval-expanse-')) return terrainOfE(x, y)
   const ty = Math.floor(H / 2), cx2 = Math.floor(W / 2), cy0 = 2, cy1 = 10
   if (x >= W - 4) return 'sea'
   if (inWildsC(x, y)) return 'wilds'
