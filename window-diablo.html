@@ -2613,6 +2613,8 @@ function paintRock(g, W, H, R, style) {
 // the entire justification: in a turned camera at this distance you know who
 // is a citizen and who is scenery from the shoulders alone.
 function humanoid(g, cx, base, o) {
+  // one fixed grain per body, so the weave does not crawl between frames
+  const R2 = rng((o.seed ?? 1) * 2654435761 % 2147483647)
   const s = o.scale ?? 1
   const bulk = o.bulk ?? 0
   const cloak = o.cloak, tunic = o.tunic, skin = o.skin ?? '#8d6a4a'
@@ -2651,6 +2653,40 @@ function humanoid(g, cx, base, o) {
              [cx - flare * .4 + sway, hem + 1 * s], [cx - flare + sway, hem - 1 * s]], coat)
     poly(g, [[cx + 1 * s, hipY - 1 * s], [cx + 6 * s, hipY - 1 * s],
              [cx + flare + sway, hem], [cx + 2 * s + sway, hem + 1.5 * s]], 'rgba(0,0,0,.32)')
+    // CLOTH, NOT MOULDED PLASTIC.
+    //
+    // The coat was two flat polygons -- a colour and a shadow half -- and at
+    // this size that is indistinguishable from an injection-moulded shell. The
+    // beasts read better precisely because they are built from many small
+    // overlapping shapes with edges. What a garment needs is FOLDS: vertical
+    // creases that spread as they fall, each with a dark side and a lit one,
+    // and a hem line so the cloth ends rather than fading into the boot.
+    for (let i2 = 0; i2 < 4; i2++) {
+      const t2 = (i2 + .5) / 4
+      const xTop = cx + (-5 + t2 * 10) * s
+      const xHem = cx + (-flare * .82 + t2 * flare * 1.64) + sway
+      const lit = Math.cos((t2 - .3) * 2.6) > .25
+      g.strokeStyle = lit ? 'rgba(255,244,220,.10)' : 'rgba(0,0,0,.26)'
+      g.lineWidth = 1.1 * s
+      g.beginPath(); g.moveTo(xTop, hipY - .5 * s); g.lineTo(xHem, hem - .5 * s); g.stroke()
+    }
+    // the weave: a faint broken grain, which is what stops a fill reading as
+    // a surface with a gloss on it
+    g.save(); g.globalAlpha = .12
+    for (let i2 = 0; i2 < 14; i2++) {
+      const t2 = R2() , u = R2()
+      const px3 = cx + (-flare * .7 + t2 * flare * 1.4) * (0.45 + u * .55) + sway * u
+      const py3 = hipY + (hem - hipY) * u
+      g.fillStyle = u > .5 ? '#000' : '#fff6e0'
+      g.fillRect(px3, py3, 1.6 * s, 1 * s)
+    }
+    g.restore()
+    // the hem, drawn dark so the coat has an edge
+    g.strokeStyle = 'rgba(0,0,0,.42)'; g.lineWidth = 1.4 * s
+    g.beginPath()
+    g.moveTo(cx - flare + sway, hem - 1 * s)
+    g.quadraticCurveTo(cx + sway, hem + 2.2 * s, cx + flare + sway, hem)
+    g.stroke()
     // a belt, because the coat needs somewhere to hang from
     g.fillStyle = '#241a12'
     g.fillRect(cx - 6.4 * s, hipY - 3 * s, 12.8 * s, 3.4 * s)
@@ -3152,6 +3188,56 @@ function bridgeMask(x, y) {
 // tiles across. It was wrong: this world's bridges are fords, and the reference
 // window paints every one of them as timber planks whatever their width. The
 // window does not get to promote a wide crossing to masonry.)
+
+// ---------------------------------------------------------------------------
+// WHERE THE BRIDGE MEETS THE BANK
+// ---------------------------------------------------------------------------
+// The dry end of a span. No piles, because there is nothing to stand in; no
+// parapet, because you are on the ground. Just the road running onto boards,
+// with the sill where the two meet and the earth packed up against it.
+const _abut = new Map()
+function abutmentArt(mask, v) {
+  const key = mask + ':' + v
+  const hit = _abut.get(key); if (hit) return hit
+  const c = mkc(TW, TH + SKIRT + BRIDGE_TOP), g = c.getContext('2d')
+  const R = rng(mask * 3571 + v * 7919 + 5)
+  const O = BRIDGE_TOP
+  // the packed earth the boards sit on, filling the lift so nothing floats
+  g.fillStyle = '#2a2118'
+  g.beginPath()
+  g.moveTo(0, O + HH); g.lineTo(HW, O + TH); g.lineTo(TW, O + HH)
+  g.lineTo(TW, O + HH + BRIDGE_LIFT); g.lineTo(HW, O + TH + BRIDGE_LIFT)
+  g.lineTo(0, O + HH + BRIDGE_LIFT); g.closePath(); g.fill()
+  g.fillStyle = '#1d1710'
+  g.beginPath()
+  g.moveTo(HW, O + TH); g.lineTo(TW, O + HH); g.lineTo(TW, O + HH + BRIDGE_LIFT)
+  g.lineTo(HW, O + TH + BRIDGE_LIFT); g.closePath(); g.fill()
+  // boards
+  g.save(); diamond(g, 0, O, -1); g.clip()
+  g.fillStyle = '#5e4b2c'; g.fillRect(0, O, TW, TH)
+  const along = (mask & 4) || (mask & 8)
+  for (let i = 0; i <= 7; i++) {
+    const t2 = i / 7
+    g.strokeStyle = i % 2 ? 'rgba(0,0,0,.26)' : 'rgba(255,236,196,.07)'
+    g.lineWidth = 1.4
+    g.beginPath()
+    if (along) { g.moveTo(t2 * TW, O + t2 * HH); g.lineTo(t2 * TW + HW, O + t2 * HH + HH) }
+    else { g.moveTo(TW - t2 * TW, O + t2 * HH); g.lineTo(TW - t2 * TW - HW, O + t2 * HH + HH) }
+    g.stroke()
+  }
+  for (let i = 0; i < 20; i++) {                 // grit tracked onto the boards
+    g.fillStyle = R() > .5 ? 'rgba(120,104,76,.30)' : 'rgba(0,0,0,.18)'
+    g.fillRect(R() * TW, O + R() * TH, 2.4, 1.4)
+  }
+  g.restore()
+  // the sill: one heavy timber across the join, lit along its top
+  g.strokeStyle = '#2a2114'; g.lineWidth = 3
+  g.beginPath(); g.moveTo(0, O + HH); g.lineTo(HW, O + TH); g.lineTo(TW, O + HH); g.stroke()
+  g.strokeStyle = 'rgba(255,240,214,.13)'; g.lineWidth = 1.2
+  g.beginPath(); g.moveTo(0, O + HH - 1.5); g.lineTo(HW, O + TH - 1.5); g.lineTo(TW, O + HH - 1.5); g.stroke()
+  _abut.set(key, c)
+  return c
+}
 // ===========================================================================
 // THE BESTIARY, AND THE PACK
 // ---------------------------------------------------------------------------
@@ -4145,7 +4231,7 @@ const LM_SIZE = {           // how much canvas each noun needs above its tile
   'broken-tower': 150, 'mill': 160, 'sentinel': 130, 'standing-stone': 110,
   'siege-engine': 120, 'gibbet': 120, 'shipwreck': 110, 'drowned-bell': 130,
   'scarecrow': 118, 'web': 118, 'cave-mouth': 110, 'eel-rack': 110,
-  'shelf': 110, 'haystack': 106, 'cart': 100, 'barricade': 100,
+  'shelf': 74, 'haystack': 106, 'cart': 100, 'barricade': 100,
 }
 const lmHeight = (kind) => LM_SIZE[kind] ?? 88
 
@@ -4205,20 +4291,35 @@ const LM_ART = {
     poly(g, [[cx + 4, b - 26], [cx + 16, b - 34], [cx + 16, b - 30], [cx + 4, b - 22]], OLDWOOD[1])
   },
   shelf: (g, W, H, R, cx, b) => {
-    groundShadow(g, cx + 3, b + 1, 18, 8, .5)
-    isoBox(g, cx, b, 15, 10, 52, OLDWOOD)
-    for (let i = 0; i < 3; i++) {
-      const y = b - 14 - i * 15
-      poly(g, [[cx - 15, y - 7.5], [cx, y], [cx + 10, y - 5], [cx - 5, y - 12.5]], OLDWOOD[1])
-      g.fillStyle = 'rgba(0,0,0,.45)'
-      poly(g, [[cx - 14, y - 8], [cx - 1, y - 1], [cx - 1, y + 3], [cx - 14, y - 4]], 'rgba(0,0,0,.45)')
-      for (let q = 0; q < 3; q++) {                       // what is on it
-        const px2 = cx - 11 + q * 7, py2 = y - 9 + q * 3
-        g.fillStyle = q % 2 ? '#5a4a34' : '#43506a'
-        g.fillRect(px2, py2 - 7, 4, 7)
-        g.fillStyle = 'rgba(255,236,196,.14)'; g.fillRect(px2, py2 - 7, 1.4, 7)
-      }
+    // A DRESSER, NOT A LADDER.
+    //
+    // This was a fifty-two pixel carcass with three shelves stacked up it, and
+    // twenty-three of them stand inside the rooms of this island. At world
+    // scale a tall thin frame with evenly spaced rungs does not read as
+    // shelving, it reads as a LADDER -- so every dwelling looked like it was
+    // being decorated, and the eye went to the furniture instead of the people.
+    // Low and wide is both truer to the room and quieter in it.
+    groundShadow(g, cx + 4, b + 1, 20, 9, .5)
+    isoBox(g, cx, b, 17, 11, 24, OLDWOOD)
+    // two shelves, and a lit top the pots stand on
+    for (let i = 0; i < 2; i++) {
+      const y = b - 9 - i * 11
+      poly(g, [[cx - 17, y - 8.5], [cx, y], [cx + 12, y - 6], [cx - 5, y - 14.5]], OLDWOOD[1])
+      poly(g, [[cx - 16, y - 9], [cx - 1, y - 1.5], [cx - 1, y + 1.5], [cx - 16, y - 6]],
+        'rgba(0,0,0,.42)')
     }
+    g.fillStyle = 'rgba(255,240,214,.10)'
+    poly(g, [[cx - 17, b - 20.5], [cx, b - 12], [cx + 12, b - 18], [cx - 5, b - 26.5]],
+      'rgba(255,240,214,.10)')
+    // pots and a folded cloth, small enough to stay furniture
+    for (let q = 0; q < 4; q++) {
+      const px2 = cx - 12 + q * 6.5, py2 = b - 21 + q * 2.6
+      g.fillStyle = q % 2 ? '#5a4a34' : '#43506a'
+      g.fillRect(px2, py2 - 5, 3.4, 5)
+      g.fillStyle = 'rgba(255,236,196,.14)'; g.fillRect(px2, py2 - 5, 1.2, 5)
+    }
+    g.fillStyle = '#6a4a3a'
+    g.fillRect(cx + 2, b - 15, 7, 3)
   },
   barrel: (g, W, H, R, cx, b) => {
     groundShadow(g, cx + 3, b + 1, 15, 7, .55)
@@ -5019,19 +5120,27 @@ function drawGround(g, s, t) {
         g.fill()
       }
       g.drawImage(tileArt(kind, v), ox, oy)
-      if (G.grain === 'water') waterTiles.push(ox, oy)
+      if (G.grain === 'water') waterTiles.push(ox, oy, x, y)
     }
   }
   // and now the bridges, over the water they cross
   for (let i = 0; i < bridgeQueue.length; i += 4) {
     const bx = bridgeQueue[i], by = bridgeQueue[i + 1]
-    // TIMBER, ALWAYS. I invented the stone causeway to explain the wide
-    // crossings, and it contradicts the world: the reference window paints
-    // every bridge tile as planks, and the terrain itself is defined as a FORD
-    // -- `inSea(x,y) ? (ford(x,y) ? 'bridge' : 'sea')`. The Millbrook Bridge is
-    // a plank road however many tiles across it happens to be, and a window
-    // does not get to decide the crossing is masonry because it looked wide.
-    g.drawImage(bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
+    // A BRIDGE IS ONLY A BRIDGE WHERE THERE IS WATER UNDER IT.
+    //
+    // A span carries two tiles of abutment onto each bank so that the deck
+    // meets the road -- and those tiles are DRY. They were being drawn as a
+    // deck standing thirteen pixels up on piles, so every crossing had a
+    // trestle bridge marooned on grass at each end, complete with posts going
+    // down into soil. That is the thing that made no sense.
+    //
+    // The terrain says `bridge` for the whole span, so the window cannot tell
+    // the two apart from that alone -- but it carries the same geography the
+    // generator does, and can simply ask whether the tile is wet underneath.
+    const wet = isWater4(bx, by)
+    g.drawImage(wet
+      ? bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1)
+      : abutmentArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
       bridgeQueue[i + 2], bridgeQueue[i + 3] - BRIDGE_TOP)
   }
 
@@ -5048,17 +5157,50 @@ function drawGround(g, s, t) {
     g.restore()
   }
 
-  // one moving highlight over every water tile: still water is a blue floor
+  // WATER IS NOT A COLOUR, IT IS A SURFACE WITH THINGS HAPPENING ON IT.
+  //
+  // One drifting highlight over a flat blue tile is a swimming pool. Three
+  // things fix it and none of them cost much: SWELL running across the whole
+  // body at a scale far larger than a tile, so it reads as one sheet of water
+  // rather than a grid of them; a bright RIM where it meets land, because a
+  // shoreline is the brightest line in any real body of water; and GLINTS,
+  // small and sparse and brief, which is what the eye actually reads as wet.
   if (waterTiles.length) {
+    const tt = t / 1000
     g.save(); g.globalCompositeOperation = 'lighter'
-    for (let i = 0; i < waterTiles.length; i += 2) {
+    for (let i = 0; i < waterTiles.length; i += 4) {
       const ox = waterTiles[i], oy = waterTiles[i + 1]
-      const p = (Math.sin((ox * .01 + oy * .03) + t * .0011) + 1) / 2
-      g.fillStyle = 'rgba(120,168,196,' + (.05 + p * .09) + ')'
-      diamond(g, ox, oy, 6 + p * 6); g.fill()
+      const wx = waterTiles[i + 2], wy = waterTiles[i + 3]
+      const sw = Math.sin((wx + wy) * .55 - tt * 1.15) * .5
+              + Math.sin((wx - wy) * .31 + tt * .77) * .5
+      if (sw > .2) {
+        g.fillStyle = 'rgba(150,196,214,' + ((sw - .2) * .15).toFixed(3) + ')'
+        diamond(g, ox, oy, -2); g.fill()
+      }
+      const ph = (tileHash(wx, wy, 19) % 100) / 100
+      const gl = Math.sin(tt * .9 + ph * 6.283)
+      if (gl > .93) {
+        g.fillStyle = 'rgba(226,244,255,' + ((gl - .93) * 4.5).toFixed(2) + ')'
+        g.fillRect(ox + 22 + ((tileHash(wx, wy, 23) % 20) - 10), oy + 14, 5, 1.6)
+      }
     }
     g.restore()
+    // the shoreline, where the sheet ends
+    const wet = (a, b) => { const k2 = terrainOf(a, b); return k2 === 'sea' || k2 === 'river' }
+    g.save(); g.strokeStyle = 'rgba(200,230,240,.22)'; g.lineWidth = 1.4
+    g.beginPath()
+    for (let i = 0; i < waterTiles.length; i += 4) {
+      const ox = waterTiles[i], oy = waterTiles[i + 1]
+      const wx = waterTiles[i + 2], wy = waterTiles[i + 3]
+      if (!wet(wx, wy - 1)) { g.moveTo(ox, oy + HH); g.lineTo(ox + HW, oy) }
+      if (!wet(wx + 1, wy)) { g.moveTo(ox + HW, oy); g.lineTo(ox + TW, oy + HH) }
+      if (!wet(wx, wy + 1)) { g.moveTo(ox + TW, oy + HH); g.lineTo(ox + HW, oy + TH) }
+      if (!wet(wx - 1, wy)) { g.moveTo(ox + HW, oy + TH); g.lineTo(ox, oy + HH) }
+    }
+    g.stroke(); g.restore()
   }
+
+
 }
 
 // ---------------------------------------------------------------------------
@@ -5069,6 +5211,108 @@ function drawGround(g, s, t) {
 // drawing itself out of order and will look wrong the moment it overlaps.
 const NODE_LIFT = { river: -6, sea: -7, fens: -2, peat: -2, crags: 26, mountain: 40, scree: 9, cobble: 1, plaza: 1, causey: 2, bridge: 3, floor: 1, inn: 1, smith: 1, fisher: 1, shep: 1, clerk: 1, wizard: 1 }
 const liftAt = (x, y) => NODE_LIFT[terrainOf(x, y)] ?? 0
+// anything that fences a thing in joins to anything else that does
+const BARRIERS = new Set(['fence', 'hedge', 'hurdle', 'barricade', 'wall', 'rampart'])
+function barrierMask(x, y) {
+  let m = 0
+  if (BARRIERS.has(nodeKindAt.get((x + 1) + ',' + y))) m |= 1
+  if (BARRIERS.has(nodeKindAt.get((x - 1) + ',' + y))) m |= 2
+  if (BARRIERS.has(nodeKindAt.get(x + ',' + (y + 1)))) m |= 4
+  if (BARRIERS.has(nodeKindAt.get(x + ',' + (y - 1)))) m |= 8
+  return m
+}
+const _barrier = new Map()
+function barrierArt(kind, mask, v) {
+  const key = kind + ':' + mask + ':' + v
+  const hit = _barrier.get(key); if (hit) return hit
+  const c = mkc(80, 72), g = c.getContext('2d')
+  const R = rng(mask * 6247 + v * 911 + kind.length * 37)
+  const cx2 = 40, b = 52
+  // the four half-edges, in screen space: +x is down-right, -x up-left,
+  // +y down-left, -y up-right
+  const DIR = [[1, HW, HH], [2, -HW, -HH], [4, -HW, HH], [8, HW, -HH]]
+  const legs = DIR.filter(d => mask & d[0])
+  groundShadow(g, cx2 + 2, b + 1, legs.length ? 24 : 14, 9, .4)
+  const post = (px2, py2, h2) => {
+    g.fillStyle = '#241c12'; g.fillRect(px2 - 1.8, py2 - h2, 3.6, h2 + 2)
+    g.fillStyle = '#42341f'; g.fillRect(px2 - 1.8, py2 - h2, 1.4, h2 + 2)
+  }
+  if (kind === 'hedge') {
+    const blob = (px2, py2, r) => {
+      g.fillStyle = '#1e2718'
+      g.beginPath(); g.arc(px2, py2, r, 0, 7); g.fill()
+      g.fillStyle = '#2c3a22'
+      g.beginPath(); g.arc(px2 - r * .3, py2 - r * .4, r * .55, 0, 7); g.fill()
+      g.fillStyle = 'rgba(120,150,80,.22)'
+      g.beginPath(); g.arc(px2 - r * .4, py2 - r * .55, r * .3, 0, 7); g.fill()
+    }
+    if (!legs.length) { blob(cx2, b - 10, 10); blob(cx2 - 4, b - 6, 7); blob(cx2 + 5, b - 7, 7) }
+    for (const [, dx, dy] of legs)
+      for (let t = 0; t <= 1.001; t += .25)
+        blob(cx2 + dx * t * .5, b - 11 + dy * t * .5, 9 - t * 1.5 + R() * 2)
+    blob(cx2, b - 12, 10)
+  } else {
+    const H2 = kind === 'barricade' ? 20 : 13
+    if (!legs.length) {                       // a single length, standing alone
+      post(cx2 - 9, b, H2); post(cx2 + 9, b, H2)
+      g.strokeStyle = '#3a2d1c'; g.lineWidth = 2.4
+      for (const yy of [H2 * .8, H2 * .35]) {
+        g.beginPath(); g.moveTo(cx2 - 9, b - yy); g.lineTo(cx2 + 9, b - yy); g.stroke()
+      }
+    }
+    for (const [, dx, dy] of legs) {
+      const ex = cx2 + dx * .5, ey = b - 1 + dy * .5
+      g.strokeStyle = '#3a2d1c'; g.lineWidth = kind === 'barricade' ? 2 : 2.6
+      for (const yy of [H2 * .82, H2 * .34]) {
+        g.beginPath(); g.moveTo(cx2, b - yy); g.lineTo(ex, ey - yy); g.stroke()
+      }
+      g.strokeStyle = 'rgba(255,236,196,.10)'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(cx2, b - H2 * .82 - 1); g.lineTo(ex, ey - H2 * .82 - 1); g.stroke()
+      post(ex, ey, H2)
+      if (kind === 'barricade') {             // stakes, pointing outward
+        for (let t = .25; t < 1; t += .3) {
+          const px2 = cx2 + (ex - cx2) * t, py2 = b - 1 + (ey - b + 1) * t
+          g.strokeStyle = '#2e2519'; g.lineWidth = 2
+          g.beginPath(); g.moveTo(px2, py2); g.lineTo(px2 + dy * .12, py2 - H2 - 5); g.stroke()
+        }
+      }
+    }
+    post(cx2, b, H2 + (legs.length > 2 ? 4 : 0))
+  }
+  _barrier.set(key, c)
+  return c
+}
+// Is there an anvil next to this tile? Asked once per smith and then
+// remembered: nodes do not move, and scanning eight thousand of them every
+// frame to decide whether one man is swinging would be a poor trade.
+const _anvilNear = new Map()
+// which way is the nearest citizen? A guard turns his shoulders toward
+// whoever is closest within a dozen tiles, and squares up again when the road
+// is empty. Purely a lean -- he never leaves the tile the world put him on.
+function watchLean(x, y) {
+  const s2 = curState; if (!s2) return 0
+  let best = null, bd = 145
+  for (const p of Object.values(s2.players ?? {})) {
+    const d = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y)
+    if (d < bd) { bd = d; best = p }
+  }
+  if (!best) return 0
+  // screen-space direction, softened: a shoulder turn, not a swivel
+  const dxs = (best.x - x) - (best.y - y)
+  return clamp(dxs * .5, -2.6, 2.6)
+}
+function anvilBeside(x, y) {
+  const k = x + ',' + y
+  const hit = _anvilNear.get(k); if (hit !== undefined) return hit
+  const s2 = curState; if (!s2) return false
+  let out = false
+  for (const n of Object.values(s2.nodes ?? {})) {
+    if (n.type !== 'anvil') continue
+    if (Math.abs(n.x - x) <= 1 && Math.abs(n.y - y) <= 1) { out = true; break }
+  }
+  _anvilNear.set(k, out)
+  return out
+}
 // A room, in the world's own terms: the generator paints `floor` (and the
 // trade-floors) inside the walls it raises. Anything standing on one of these
 // is INDOORS, and several things are drawn differently once they are.
@@ -5387,30 +5631,24 @@ function drawNode(g, n, sx, sy, t, hot) {
           gg.beginPath(); gg.moveTo(xx, yy - (xx - c2 + 32) / 64 * 16 + 8); gg.lineTo(xx, yy - (xx - c2 + 32) / 64 * 16 + 16); gg.stroke()
         }
       }), sx - 40, sy - 78 + 22); return
-    case 'fence': case 'hedge': case 'hurdle': case 'barricade':
-      g.drawImage(sprite(n.type + (hs & 3), 76, 46, (gg, W2, H2, R) => {
-        const c2 = W2 / 2, b = H2 - 6
-        groundShadow(gg, c2 + 2, b - 2, 22, 9, .4)
-        if (n.type === 'hedge') {
-          for (let i = 0; i < 9; i++) {
-            const tt = i / 8, px2 = c2 - 30 + tt * 60, py2 = b - 15 * (1 - Math.abs(tt - .5) * .6) - (tt - .5) * 16
-            gg.fillStyle = i % 2 ? '#1e2718' : '#263021'
-            gg.beginPath(); gg.arc(px2, py2, 8 + R() * 3, 0, 7); gg.fill()
-            gg.fillStyle = '#33401f'
-            gg.beginPath(); gg.arc(px2 - 2, py2 - 3, 4, 0, 7); gg.fill()
-          }
-        } else {
-          gg.strokeStyle = '#2e2519'; gg.lineWidth = 3
-          for (let i = 0; i < 4; i++) {
-            const px2 = c2 - 26 + i * 17
-            gg.beginPath(); gg.moveTo(px2, b - (px2 - c2) * .5); gg.lineTo(px2, b - 18 - (px2 - c2) * .5); gg.stroke()
-          }
-          gg.strokeStyle = '#3e3323'; gg.lineWidth = 2.6
-          for (const h2 of [7, 15]) {
-            gg.beginPath(); gg.moveTo(c2 - 30, b + 15 - h2); gg.lineTo(c2 + 30, b - 15 - h2); gg.stroke()
-          }
-        }
-      }), sx - 38, sy - 46 + 14); return
+    case 'fence': case 'hedge': case 'hurdle': case 'barricade': {
+      // A FENCE THAT DOES NOT KNOW ITS NEIGHBOURS IS NOT AN ENCLOSURE.
+      //
+      // These drew a fixed diagonal run keyed only by a hash, so a line of them
+      // was a row of unrelated segments -- half of them lying across the run
+      // rather than along it, none of them meeting at the corners. A fence is
+      // defined entirely by what it joins; it is the one piece of furniture in
+      // the world that has no shape of its own.
+      //
+      // So it asks. Each of the four neighbours is either another barrier or it
+      // is not, and the sprite is built from the answers: a rail out toward
+      // every side that continues, a post where they meet, and where nothing
+      // continues at all, a short stub with a post at each end -- which is what
+      // a single length of fence in a field actually looks like.
+      const m2 = barrierMask(n.x, n.y)
+      g.drawImage(barrierArt(n.type, m2, hs & 1), sx - 40, sy - 52)
+      return
+    }
     case 'well':
       g.drawImage(sprite('well', 76, 82, (gg, W2, H2) => {
         const c2 = W2 / 2, b = H2 - 6
@@ -5506,12 +5744,36 @@ function drawNode(g, n, sx, sy, t, hot) {
         tunic: role === 'smith' ? '#332b22' : role === 'guard' ? '#3d2523' : '#3a3226',
         boots: '#241d16', hair: '#2e2418',
         helm: role === 'guard' ? '#5a5246' : null,
-        step: Math.sin(t2 * .6) * .2,
-        swing: role === 'smith'
+        seed: hs & 0xffff,
+        step: role === 'guard'
+          ? Math.sin(t2 * .33 + hs) * .10 + Math.sin(t2 * .11) * .06   // weight, shifted
+          : Math.sin(t2 * .6) * .2,
+        lean: role === 'guard' ? watchLean(n.x, n.y) : 0,
+        // A SMITH WITH NO ANVIL IS JUST A MAN HOLDING A HAMMER.
+        //
+        // This struck on the beat unconditionally, and on this island NOT ONE
+        // of the seven smiths stands within a tile of an anvil -- measured. So
+        // every one of them was hammering the air, forever, in the middle of a
+        // room. The engine agrees about which of the two matters: smithing
+        // requires an adjacent `anvil` and has never cared whether a `smith`
+        // node is anywhere near. So he works if there is an anvil beside him
+        // and otherwise stands at rest with the hammer down, which is what
+        // anyone does between jobs.
+        swing: (role === 'smith' && anvilBeside(n.x, n.y))
           ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5      // striking, on the beat
+          : role === 'smith' ? -0.15 + Math.sin(t2 * .5) * .06
           : -0.4 + Math.sin(t2 * .9) * .12,
         weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'bronze-spear')
-              // A SMITH HOLDS A HAMMER. This handed them a woodcutter's hatchet,
+              // A GUARD DOES NOT WANDER, BUT HE IS NOT A BOLLARD EITHER.
+        //
+        // Wandering would be a lie: a node's tile is consensus state, and a
+        // window that drew him strolling would be showing you a place he is
+        // not -- you still could not walk through the tile he appeared to have
+        // left. What IS honest is life in place. He turns to watch whoever
+        // comes near, shifts his weight while nobody does, and plants the
+        // spear butt and lifts it again. Same tile, same truth, a person
+        // rather than furniture.
+        // A SMITH HOLDS A HAMMER. This handed them a woodcutter's hatchet,
               // which is why a smith standing beside a citizen at a tree read as
               // ONE figure with two arms -- a sword in one and an axe swinging in
               // the other. Two overlapping sprites, and the wrong tool in one of
@@ -5661,7 +5923,7 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const body = p.equipment?.body?.item, head = p.equipment?.head?.item
   const star = body?.startsWith('star-')
   humanoid(g, sx, sy, {
-    scale: sc ?? 1, bulk: 1,
+    scale: sc ?? 1, bulk: 1, seed: hash32(String(id ?? 'x')) & 0xffff,
     cape: capeOf(p),
     crouch, pitch,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
@@ -8115,9 +8377,13 @@ let giveTo = null      // a citizen awaiting an offer; the next pack click is it
 // ---- what can be stood on -------------------------------------------------
 let nodeTiles = new Set()
 let mobTiles = new Set()
+// what KIND of thing stands on a tile, so a fence can ask whether its
+// neighbour is another fence and turn to meet it
+let nodeKindAt = new Map()
 function indexNodes(s) {
   nodeTiles = new Set()
   mobTiles = new Set()
+  nodeKindAt = new Map()
   // "you do not walk THROUGH a troll, you deal with it" -- engine, on move
   // validity. The planner routed straight through beasts, every such step was
   // refused, and the citizen stood there re-choosing the same blocked path.
@@ -8126,6 +8392,7 @@ function indexNodes(s) {
   _roomMemo.clear()
   for (const n of Object.values(s.nodes ?? {})) {
     nodeTiles.add(n.x + ',' + n.y)
+    nodeKindAt.set(n.x + ',' + n.y, n.type)
     if (n.type === 'wall' || n.type === 'rampart') wallTiles.add(n.x + ',' + n.y)
   }
 }
@@ -8801,6 +9068,7 @@ function onState(s, worldId) {
     configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
     _tileArt.clear()
     _gcol.clear()
+    _anvilNear.clear()
     say('The world names itself: ' + (worldId || '').slice(0, 8) + '\u2026', 'dim')
   }
 
@@ -9088,22 +9356,48 @@ function drawLedger(g, title, rows, empty) {
     g.font = 'italic 12.5px Georgia, serif'; g.fillStyle = '#6f6250'
     g.fillText(empty, x + 24, y + 62); return
   }
-  let ry = y + 48
-  for (const r of rows) {
-    if (ry > y + H2 - 30) break
-    const hot = inRect(mouse, x + 16, ry, W2 - 32, 26)
-    g.fillStyle = hot ? 'rgba(70,58,26,.85)' : 'rgba(24,20,16,.7)'
-    g.fillRect(x + 16, ry, W2 - 32, 26)
-    g.strokeStyle = hot ? '#e8d199' : '#4a3c20'; g.lineWidth = 1
-    g.strokeRect(x + 16.5, ry + .5, W2 - 33, 25)
-    g.drawImage(itemIcon(r.item), x + 20, ry + 2, 22, 22)
-    g.font = '12.5px Georgia, serif'; g.fillStyle = '#cdbb99'
-    g.fillText(wordy(r.item) + (r.qty > 1 ? '  \u00d7' + r.qty : ''), x + 48, ry + 17)
-    g.textAlign = 'right'; g.font = '11.5px Georgia, serif'; g.fillStyle = '#8a7340'
-    g.fillText(r.right, x + W2 - 24, ry + 17); g.textAlign = 'left'
-    regions.push({ x: x + 16, y: ry, w: W2 - 32, h: 26, act: r.act })
-    ry += 29
+  // TWO COLUMNS, BECAUSE ONE COLUMN LOST THINGS.
+  //
+  // Rows ran down a single list and simply stopped at the bottom edge: a
+  // citizen with a full pack got twenty-eight deposit rows and then nothing,
+  // and every withdraw row fell off the sheet unseen and unclickable. The
+  // vault has two sides and always did -- what you carry and what you keep --
+  // so it is laid out as two, and each side scrolls to what fits.
+  const left = rows.filter(r => r.act.t === 'deposit' || r.act.t === 'sell')
+  const right = rows.filter(r => r.act.t === 'withdraw' || r.act.t === 'buy')
+  const colW = (W2 - 40) / 2
+  const heads = [left.length ? (left[0].act.t === 'sell' ? 'YOUR PACK' : 'YOUR PACK') : '',
+                 right.length ? (right[0].act.t === 'buy' ? 'FOR SALE' : 'THE VAULT') : '']
+  g.font = '600 9.5px Cinzel, Georgia, serif'; g.textAlign = 'left'
+  g.save(); g.letterSpacing = '1.5px'; g.fillStyle = 'rgba(141,125,99,.8)'
+  if (heads[0]) g.fillText(heads[0], x + 16, y + 46)
+  if (heads[1]) g.fillText(heads[1], x + 24 + colW, y + 46)
+  g.restore()
+  const drawCol = (list, cx2) => {
+    let ry = y + 56
+    for (const r of list) {
+      if (ry > y + H2 - 30) {
+        g.font = 'italic 11px Georgia, serif'; g.fillStyle = '#6f6250'
+        g.fillText('\u2026 and ' + (list.length - list.indexOf(r)) + ' more', cx2 + 4, ry + 12)
+        break
+      }
+      const hot = inRect(mouse, cx2, ry, colW, 26)
+      g.fillStyle = hot ? 'rgba(70,58,26,.85)' : 'rgba(24,20,16,.7)'
+      g.fillRect(cx2, ry, colW, 26)
+      g.strokeStyle = hot ? '#e8d199' : '#4a3c20'; g.lineWidth = 1
+      g.strokeRect(cx2 + .5, ry + .5, colW - 1, 25)
+      g.drawImage(itemIcon(r.item), cx2 + 3, ry + 2, 22, 22)
+      g.font = '12px Georgia, serif'; g.fillStyle = '#cdbb99'
+      g.textAlign = 'left'
+      g.fillText(wordy(r.item) + (r.qty > 1 ? ' \u00d7' + r.qty : ''), cx2 + 29, ry + 17, colW - 34)
+      regions.push({ x: cx2, y: ry, w: colW, h: 26, act: r.act,
+                     tip: { title: wordy(r.item), sub: r.right, col: rarityOf(r.item) } })
+      ry += 29
+    }
   }
+  drawCol(left, x + 16)
+  drawCol(right, x + 24 + colW)
+  g.textAlign = 'left'
 }
 function drawVault(g) {
   const me = myId && curState?.players?.[myId]
@@ -9214,6 +9508,13 @@ function frame(now) {
     if (paneModal === 'forge') drawForge(cx, now)
     else if (paneModal === 'bank') drawVault(cx)
     else if (paneModal === 'store') drawCounter(cx)
+    // THE LOG GOES LAST, OVER EVERYTHING.
+    //
+    // It was drawn before the panes, and the vault is a five-hundred-pixel
+    // sheet in the middle of the screen -- so a refusal arriving while the
+    // vault was open was painted and then immediately covered. "Nothing happens
+    // when I click withdraw" is what a refused input looks like when the
+    // sentence explaining it is underneath the thing you clicked.
     drawLog(cx, now)
     drawPanel(cx, now)
     drawBeastBar(cx)
