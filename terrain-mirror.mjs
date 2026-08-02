@@ -495,7 +495,34 @@ function bridges4() {
   return out
 }
 function onBridge4(x, y) {
-  for (const b of bridges4()) if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
+  // A BRIDGE IS A SPAN, NOT A RECTANGLE.
+  //
+  // This stamped a nine-by-five block of deck at each crossing, so wherever a
+  // diagonal river passed through that block the walkable water came out as a
+  // ragged diagonal patch. It read as neither a bridge nor a ford -- just an
+  // oddly-shaped hole in the river -- and no amount of plank texture in a
+  // window could fix a shape that was wrong in the world.
+  //
+  // A bridge crosses the water and stops: two tiles wide, spanning exactly as
+  // far as the water runs on that line, with two tiles of abutment on each
+  // bank. The four river crossings span east-west; the Oxenford crosses the
+  // march, which itself runs east-west, so that one is spanned north-south.
+  for (const b of bridges4()) {
+    if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
+    if (b.tag !== 'brm') {
+      if (y - b.y > 1 || b.y - y > 1) continue
+      let w = b.x, e = b.x
+      while (w > 3 && isWater4(w - 1, y)) w--
+      while (e < W - 4 && isWater4(e + 1, y)) e++
+      if (x >= w - 2 && x <= e + 2) return true
+    } else {
+      if (x - b.x > 1 || b.x - x > 1) continue
+      let n = b.y, s2 = b.y
+      while (n > 3 && isWater4(x, n - 1)) n--
+      while (s2 < H - 4 && isWater4(x, s2 + 1)) s2++
+      if (y >= n - 2 && y <= s2 + 2) return true
+    }
+  }
   return false
 }
 // The ten drawings, and the logic that seats them. The mirror carries the
@@ -787,7 +814,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -1123,7 +1150,7 @@ function keeperRole4(st, id, n) {
       near[q.type] = true
     }
     role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.house ? 'town' : 'town'
+         : near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
   return role
