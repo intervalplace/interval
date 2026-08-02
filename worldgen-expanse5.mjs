@@ -52,7 +52,7 @@
 //      tiles, uniformly. A world you remember has a tight home cluster you
 //      learn in a week and a frontier that stays a journey for a year.
 //   3. Its towns are HAMLETS. The capital is 24x14 with 23 things in it,
-//      six of which are single-tile "house". You cannot get lost in Anchor,
+//      six of which are single-tile "hearth". You cannot get lost in Anchor,
 //      and a place you cannot get lost in once is never a place you know.
 //   4. Its roads pass NOTHING. Mean distance from a land tile to any built
 //      thing: 36 tiles. Half a minute of walking, repeatedly, past grass.
@@ -673,8 +673,33 @@ export function bridgesOf(g) {
   return out
 }
 export function onBridge(g, x, y) {
+  // A BRIDGE IS A SPAN, NOT A RECTANGLE.
+  //
+  // This stamped a nine-by-five block of deck at each crossing, so wherever a
+  // diagonal river passed through that block the walkable water came out as a
+  // ragged diagonal patch. It read as neither a bridge nor a ford -- just an
+  // oddly-shaped hole in the river -- and no amount of plank texture in a
+  // window could fix a shape that was wrong in the world.
+  //
+  // A bridge crosses the water and stops: two tiles wide, spanning exactly as
+  // far as the water runs on that line, with two tiles of abutment on each
+  // bank. The four river crossings span east-west; the Oxenford crosses the
+  // march, which itself runs east-west, so that one is spanned north-south.
   for (const b of bridgesOf(g)) {
-    if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
+    if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
+    if (b.tag !== 'brm') {
+      if (y - b.y > 1 || b.y - y > 1) continue
+      let w = b.x, e = b.x
+      while (w > 3 && isWater(g, w - 1, y)) w--
+      while (e < g.worldW - 4 && isWater(g, e + 1, y)) e++
+      if (x >= w - 2 && x <= e + 2) return true
+    } else {
+      if (x - b.x > 1 || b.x - x > 1) continue
+      let n = b.y, s2 = b.y
+      while (n > 3 && isWater(g, x, n - 1)) n--
+      while (s2 < g.worldH - 4 && isWater(g, x, s2 + 1)) s2++
+      if (y >= n - 2 && y <= s2 + 2) return true
+    }
   }
   return false
 }
@@ -1417,7 +1442,7 @@ export function buildWorld(genesis) {
   // ================= TOWNS THAT ARE LAID OUT =================
   // A town is: a wall with a named gate, two street lanes crossing at a
   // plaza, and BUILDINGS -- rectangles of wall with a door -- rather than
-  // single-tile "house" pixels. You can stand in a doorway. You can walk a
+  // single-tile "hearth" pixels. You can stand in a doorway. You can walk a
   // back lane. That is the whole difference between a settlement and a
   // place, and it costs no new node type and no engine change.
   let bldN = 0
@@ -1541,8 +1566,8 @@ export function buildWorld(genesis) {
       seatBuilding(-16, 4, 6, 5, 'n', [[0, 0, 'store'], [1, 0, 'keeper']])
       // the keep: the biggest room on the island
       seatBuilding(-4, 6, 9, 7, 'n', [[1, 1, 'campfire'], [3, 1, 'guard'], [5, 1, 'guard']])
-      for (let k = 0; k < 5; k++) seatBuilding(-18 + k * 8, 10, 4, 4, 'n', [[0, 0, 'house']])
-      for (let k = 0; k < 4; k++) seatBuilding(-18 + k * 9, -12, 4, 4, 's', [[0, 0, 'house']])
+      for (let k = 0; k < 5; k++) seatBuilding(-18 + k * 8, 10, 4, 4, 'n', [[0, 0, 'hearth']])
+      for (let k = 0; k < 4; k++) seatBuilding(-18 + k * 9, -12, 4, 4, 's', [[0, 0, 'hearth']])
     } else {
       seatBuilding(-7, -5, 6, 5, 's', bankFill())
       if (s.kind === 'forge' || s.kind === 'garrison' || s.kind === 'mill')
@@ -1550,8 +1575,8 @@ export function buildWorld(genesis) {
       if (s.kind === 'port' || s.kind === 'timber' || s.kind === 'market' || s.kind === 'mill' || s.kind === 'farm')
         seatBuilding(4, 4, 6, 5, 'n', [[0, 0, 'store'], [1, 0, 'keeper']])
       if (s.kind === 'garrison') seatBuilding(-8, 4, 7, 6, 'n', [[1, 1, 'guard'], [3, 1, 'guard'], [2, 2, 'campfire']])
-      for (let k = 0; k < 3; k++) seatBuilding(-9 + k * 7, 6, 4, 4, 'n', [[0, 0, 'house']])
-      for (let k = 0; k < 2; k++) seatBuilding(-5 + k * 8, -8, 4, 4, 's', [[0, 0, 'house']])
+      for (let k = 0; k < 3; k++) seatBuilding(-9 + k * 7, 6, 4, 4, 'n', [[0, 0, 'hearth']])
+      for (let k = 0; k < 2; k++) seatBuilding(-5 + k * 8, -8, 4, 4, 's', [[0, 0, 'hearth']])
     }
     // the streets are RESERVED: no later scatter may seal a lane
     for (const k of street) taken.add(k)
@@ -1873,7 +1898,7 @@ export function buildWorld(genesis) {
         return true
       case 'kennel': {
         if (!ok(x, y) || !ok(x + 1, y)) return false
-        put('ken-' + tag, 'house', x, y); put('ken-' + tag + 'k', 'keeper', x + 1, y, { name: keeperName(tag, 'kennel') })
+        put('ken-' + tag, 'hearth', x, y); put('ken-' + tag + 'k', 'keeper', x + 1, y, { name: keeperName(tag, 'kennel') })
         for (let a = -1; a <= 3; a++) if (ok(x + a, y + 2)) put('kenf-' + tag + a, 'fence', x + a, y + 2)
         return true }
       case 'beehives': {
@@ -2126,7 +2151,7 @@ export function buildWorld(genesis) {
   }
   { // the Sawyer's Camp
     const c = siteSeek(0.50, 0.15, 'greenwood', 4)
-    sput('camp-house', 'house', c.x, c.y); sput('camp-hearth', 'campfire', c.x + 2, c.y)
+    sput('camp-house', 'hearth', c.x, c.y); sput('camp-hearth', 'campfire', c.x + 2, c.y)
     sput('kpr-camp-sawyer', 'keeper', c.x + 1, c.y + 1, { name: keeperName('camp', 'sawyer', { name: keeperName('camp', 'sawyer') }) })
     for (const [i, [dx, dy]] of [[-3,-2],[3,-2],[-4,1],[4,1],[-2,3],[2,3],[0,-4],[0,4]].entries()) sput('camp-t-' + i, 'tree', c.x + dx, c.y + dy)
   }
@@ -2137,14 +2162,14 @@ export function buildWorld(genesis) {
       if (a !== 0) { sput('dlvw-' + (i++), 'wall', c.x + a, c.y - 5); sput('dlvw-' + (i++), 'wall', c.x + a, c.y + 5) }
     }
     for (let b2 = -4; b2 <= 4; b2++) { sput('dlvw-' + (i++), 'wall', c.x - 6, c.y + b2); sput('dlvw-' + (i++), 'wall', c.x + 6, c.y + b2) }
-    sput('delve-house', 'house', c.x - 4, c.y - 3); sput('delve-anvil', 'anvil', c.x + 4, c.y - 3)
+    sput('delve-house', 'hearth', c.x - 4, c.y - 3); sput('delve-anvil', 'anvil', c.x + 4, c.y - 3)
     sput('delve-hearth', 'campfire', c.x + 3, c.y - 3); sput('kpr-delve-high', 'keeper', c.x - 3, c.y - 3, { name: keeperName('delve', 'high', { name: keeperName('delve', 'high') }) })
     for (const [i2, [dx, dy]] of [[-3,0],[3,0],[-2,2],[2,2],[0,3],[-4,1],[4,1],[-1,3],[1,-1]].entries()) sput('delve-r-' + i2, 'rock', c.x + dx, c.y + dy)
     sput('delve-sign', 'signpost', c.x, c.y - 6, { text: 'the High Delving' })
   }
   { // the Eel Sheds
     const c = siteSeek(0.48, 0.85, 'fens', 3)
-    sput('sheds-house', 'house', c.x, c.y); sput('sheds-hearth', 'campfire', c.x + 2, c.y)
+    sput('sheds-house', 'hearth', c.x, c.y); sput('sheds-hearth', 'campfire', c.x + 2, c.y)
     sput('kpr-sheds-eel', 'keeper', c.x + 1, c.y + 1, { name: keeperName('sheds', 'eel') })
     let fs2 = 0
     seekF: for (let rad = 1; rad < 16 && fs2 < 4; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
@@ -2163,7 +2188,7 @@ export function buildWorld(genesis) {
     // precisely Al Kharid, whose mine holds nothing unique and is the most
     // worked in the game, and it needs no new item to exist.
     const c = siteSeek(0.72, 0.71, 'downs', 8)
-    sput('fold-house', 'house', c.x, c.y - 4); sput('kpr-fold-shep', 'keeper', c.x + 1, c.y - 4, { name: keeperName('fold', 'shep') })
+    sput('fold-house', 'hearth', c.x, c.y - 4); sput('kpr-fold-shep', 'keeper', c.x + 1, c.y - 4, { name: keeperName('fold', 'shep') })
     sput('fold-hearth', 'campfire', c.x - 1, c.y - 4)
     let i = 0
     for (let a = -5; a <= 5; a++) { sput('foldf-' + (i++), 'fence', c.x + a, c.y - 2); if (a !== 0) sput('foldf-' + (i++), 'fence', c.x + a, c.y + 4) }
@@ -2219,7 +2244,7 @@ export function buildWorld(genesis) {
       put('moorwatch-fire', 'campfire', px, py)
       put('moorwatch-g1', 'guard', px - 2, py); put('moorwatch-g2', 'guard', px + 2, py)
       put('kpr-camp-moorwatch', 'keeper', px, py - 1, { name: keeperName('camp', 'moorwatch') })
-      put('moorwatch-house', 'house', px - 2, py - 2)
+      put('moorwatch-house', 'hearth', px - 2, py - 2)
       sput('moorwatch-sign', 'signpost', px, py + 4, { text: 'the Moorwatch \u00b7 the Brand lies west' })
       putWaystoneEarly('waystone-moorwatch', px + 6, py)
     }
@@ -2261,7 +2286,7 @@ export function buildWorld(genesis) {
     taken.add(key(door, ry0 + RH - 1))
     taken.add(key(door, ry0 + RH))
     // the hearth against the back wall, the keeper beside it, both indoors
-    put('inn-house', 'house', rx0 + 2, ry0 + 1)
+    put('inn-house', 'hearth', rx0 + 2, ry0 + 1)
     put('kpr-inn-lantern', 'keeper', rx0 + 4, ry0 + 1, { name: keeperName('inn', 'lantern') })
     // and the things that belong OUTSIDE an inn: the well, the fire in the
     // yard, and the sign where a traveler on the road can read it
@@ -2703,8 +2728,24 @@ export function buildWorld(genesis) {
   // six hours would mean four citizens a day could ever attempt her. Twenty
   // minutes, and anybody who goes finds her.
   {
+    // THE STRAND BELOW EASTMERE.
+    //
+    // She used to be seated at the shore FURTHEST from any town, which sounds
+    // lonely and was in fact a collision: the spider is placed at the furthest
+    // walkable ground from any town outside the Wilds, and on this island shape
+    // the same north-eastern corner wins both. Measured across five seeds they
+    // came out 17, 14, 3, 2 and 20 tiles apart -- on the seed named `tallyholm`
+    // the solo duel and the party fight were three tiles from each other, which
+    // makes nonsense of both. "She takes one at a time" means nothing if a war
+    // band is standing on the next dune.
+    //
+    // So she is given a home instead of an extremity: the shore nearest
+    // Eastmere, far enough out of the town that the walk is still a walk. A
+    // named place a citizen can be told to go to, and half an island from the
+    // Greenwood.
     let seat = null, bestScore = -1
     const towns = settlementsOf(g)
+    const eastmere = towns.find(t => t.tag === 'eastmere') || towns[towns.length - 1] || null
     for (let y = 6; y < H - 6; y += 3) for (let x = 6; x < W - 6; x += 3) {
       if (blockedAt(g, x, y) || isWater(g, x, y) || !free(x, y)) continue
       if (biomeAt(g, x, y) === 'wilds') continue          // she is not a Wilds thing
@@ -2716,7 +2757,10 @@ export function buildWorld(genesis) {
       if (!sea) continue
       let near = 1e9
       for (const t of towns) { const d = Math.hypot(t.x - x, t.y - y); if (d < near) near = d }
-      if (near > bestScore) { bestScore = near; seat = { x, y } }
+      if (near < 16) continue                             // not on anybody's doorstep
+      // nearest Eastmere wins; without an Eastmere, fall back to the old rule
+      const score = eastmere ? -Math.hypot(eastmere.x - x, eastmere.y - y) : near
+      if (score > bestScore || bestScore === -1) { bestScore = score; seat = { x, y } }
     }
     if (seat) {
       E.addMob(w, 'the-siren', 'siren', seat.x, seat.y)
@@ -2726,7 +2770,7 @@ export function buildWorld(genesis) {
         taken.add(key(seat.x, sy))
         put('siren-sign', 'signpost', seat.x, sy, { text: 'the strand sings \u00b7 she takes one at a time' })
       }
-      counts.siren = Math.round(bestScore)
+      counts.siren = Math.round(Math.abs(bestScore))
     }
   }
 
@@ -2744,9 +2788,15 @@ export function buildWorld(genesis) {
   {
     let seat = null, bestD = -1
     const towns = settlementsOf(g)
+    // AND NOT WHEREVER SHE IS. Both of these maximise distance from towns, so
+    // without this they converge on the same corner of the island -- which is
+    // exactly what happened, on every seed measured. A hundred and twenty tiles
+    // of separation is belt and braces now that she has a home of her own.
+    const sirenSeat = Object.values(w.mobs).find(m => m.type === 'siren')
     for (let y = 8; y < H - 8; y += 4) for (let x = 8; x < W - 8; x += 4) {
       if (biomeAt(g, x, y) !== 'greenwood') continue
       if (blockedAt(g, x, y) || isWater(g, x, y) || !free(x, y)) continue
+      if (sirenSeat && Math.hypot(sirenSeat.x - x, sirenSeat.y - y) < 120) continue
       let near = 1e9
       for (const t of towns) { const d = Math.hypot(t.x - x, t.y - y); if (d < near) near = d }
       if (near > bestD) { bestD = near; seat = { x, y } }
