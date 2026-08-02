@@ -1953,7 +1953,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
+  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -2059,6 +2059,27 @@ const LANDMARK_KINDS = new Set([
     }
     for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
     for (const ck of ['cooksTried', 'lightsTried']) if (p[ck] !== undefined && !isInt(p[ck], 0, MAX_TIME)) return `${ck} out of bounds`;
+    // §6o: A CROP BELONGS TO THE CITIZEN, NOT TO THE GROUND.
+    //
+    // What is sown was recorded on the PLOT — one `plantedAt`, one `by` — so
+    // a plot was a thing exactly one person could use, and a citizen who
+    // planted and never returned held that ground until it went over. With a
+    // hundred and ninety plots and any number of citizens, farming was a
+    // queue.
+    //
+    // It is recorded on the citizen now, in the same shape `attuned` already
+    // uses: a bounded map from node id to the tick it was sown. Everyone can
+    // work the same plot at the same time, each tending their own row, and
+    // nobody can hold ground against anybody.
+    if (p.crops !== undefined) {
+      if (typeof p.crops !== 'object' || p.crops === null || Array.isArray(p.crops)) return 'malformed crops';
+      const ck = Object.keys(p.crops);
+      if (ck.length > 32) return 'too many crops';           // bounded, like attuned
+      for (const k of ck) {
+        if (!isId(k)) return 'malformed crop plot';
+        if (!isInt(p.crops[k], 0, MAX_TIME)) return `crop ${k} out of bounds`;
+      }
+    }
     if (p.slain !== undefined) { // the loot tally: bounded by the roster, not by time
       if (typeof p.slain !== 'object' || p.slain === null || Array.isArray(p.slain)) return 'malformed slain tally';
       const keys = Object.keys(p.slain);
@@ -2592,12 +2613,16 @@ function validInput(state, input, ctx) {
     case 'plant': {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || sl?.item !== 'seeds') return false;
-      return hasAdjacentNode(state, ctx, p, 'plot', n => !n.plantedAt);
+      // §6o: a plot is free to YOU unless you have already sown it. Whether
+      // anybody else has is not your business.
+      if (Object.keys(p.crops ?? {}).length >= 32) return false;
+      return freePlotFor(state, ctx, p) !== null;
     }
     case 'harvest': {
       const n = state.nodes[input.nodeId];
-      return !!n && n.type === 'plot' && n.plantedAt > 0 && n.by === input.playerId
-        && (state.tick - n.plantedAt) >= GROW_TICKS_RIPE && adjacent(p, n)
+      const sown = p.crops?.[input.nodeId] ?? 0;
+      return !!n && n.type === 'plot' && sown > 0
+        && (state.tick - sown) >= GROW_TICKS_RIPE && adjacent(p, n)
         && firstFreeSlot(p.inventory) !== -1;
     }
     case 'sell': {
@@ -3006,6 +3031,19 @@ function hasAdjacentNode(state, ctx, p, typeOrSet, pred) {
     for (const id of ta) { const n = state.nodes[id]; if (match(n.type) && (!pred || pred(n))) return true; }
   }
   return false;
+}
+// §6o: the adjacent plot this citizen has NOT already sown, by canonical
+// node id. Its own function because the shared finder's predicate never sees
+// the id, and per-citizen crops are keyed by it. Min-id order, exactly as
+// findAdjacentNode does, so every node picks the same plot.
+function freePlotFor(state, ctx, p) {
+  let bestId = null;
+  for (const [id, n] of Object.entries(state.nodes)) {
+    if (n.type !== 'plot' || !adjacent(p, n)) continue;
+    if ((p.crops?.[id] ?? 0) > 0) continue;
+    if (bestId === null || id < bestId) bestId = id;
+  }
+  return bestId;
 }
 function findAdjacentNode(state, ctx, p, type, pred) {
   // reference: the min-nodeId match (canonical, matching the indexed path)
@@ -3614,12 +3652,15 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const [nid, n2] of Object.entries(s.nodes)) {
     if (n2.expiresAt && n2.expiresAt <= s.tick) deleteIndexedNode(s, _ctx, nid);
   }
-  // §6o: crops go over, and the ground comes back to whoever wants it
-  for (const n2 of Object.values(s.nodes)) {
-    if (n2.type !== 'plot' || !(n2.plantedAt > 0)) continue;
-    if (s.tick - n2.plantedAt <= CROP_ROTS_AFTER) continue;
-    n2.plantedAt = 0;
-    if (n2.by !== undefined) delete n2.by;
+  // §6o: a crop left too long goes over. It no longer blocks anybody -- a row
+  // is the citizen's own -- but it must still clear, or a citizen who plants
+  // and forgets fills their own thirty-two and can never sow again.
+  for (const pid2 of Object.keys(s.players)) {
+    const p2 = s.players[pid2];
+    if (!p2?.crops) continue;
+    for (const k of Object.keys(p2.crops))
+      if (s.tick - p2.crops[k] > CROP_ROTS_AFTER) delete p2.crops[k];
+    if (Object.keys(p2.crops).length === 0) delete p2.crops;
   }
   // ground decay (spec §3.4): the ground forgets
   for (const [gid, g2] of Object.entries(s.ground)) {
@@ -3950,25 +3991,26 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'plant') {
       const sl = p.inventory[inp.slot];
-      const plot = findAdjacentNode(s, _ctx, p, 'plot', n => !n.plantedAt);
-      if (sl?.item === 'seeds' && plot) {
+      const plotId = freePlotFor(s, _ctx, p);
+      if (sl?.item === 'seeds' && plotId !== null && Object.keys(p.crops ?? {}).length < 32) {
         sl.qty = (sl.qty ?? 1) - 1;
         if (sl.qty <= 0) p.inventory[inp.slot] = null;
-        plot.plantedAt = s.tick;
-        plot.by = pid;
+        // §6o: the row is the CITIZEN'S. The ground is nobody's.
+        if (!p.crops) p.crops = {};
+        p.crops[plotId] = s.tick;
         p.skills.farming += 10;
       }
     } else if (inp.type === 'harvest') {
       const n = s.nodes[inp.nodeId];
-      if (n?.type === 'plot' && n.plantedAt > 0 && n.by === pid
-        && (s.tick - n.plantedAt) >= GROW_TICKS_RIPE && adjacent(p, n)) {
+      const sown9 = p.crops?.[inp.nodeId] ?? 0;
+      if (n?.type === 'plot' && sown9 > 0
+        && (s.tick - sown9) >= GROW_TICKS_RIPE && adjacent(p, n)) {
         const ex = p.inventory.findIndex(s2 => s2?.item === 'grain');
         const slot = firstFreeSlot(p.inventory);
         if (ex !== -1) p.inventory[ex].qty += 2;
         else if (slot !== -1) p.inventory[slot] = { item: 'grain', qty: 2 };
         else { continue; }
-        n.plantedAt = 0;
-        delete n.by;
+        delete p.crops[inp.nodeId];      // §6o: your row, cleared
         p.skills.farming += 40;
       }
     } else if (inp.type === 'sell') {

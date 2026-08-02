@@ -145,29 +145,57 @@ only the honest way: by loosing arrows at something that objects.
 
 ## 6o. Farming (v0.34): the thirteenth skill
 
-Growth is state transition made visible: nothing in this world was
-ever more constitutional than a seed.
+Tilled plots stand in the farm country. A citizen adjacent to one may `plant`
+a seed; **1,200 ticks** later — twelve minutes — it is ripe and may be
+`harvest`ed for two grain.
 
-**Plots** are nodes, tilled and waiting near every settlement.
-**Seeds** drop from goblins (sometimes; they hoard them and forget
-why). `plant {slot}` is valid beside an empty plot with seeds in the
-slot: one seed is consumed, the plot records `plantedAt` (the tick)
-and `by` (the sower), and grants 10 farming xp.
+### A crop belongs to the citizen, not to the ground (v0.81)
 
-Growth is a pure function of elapsed ticks: no timers, no watering,
-no randomness. Stages derive as sprout (< 400 ticks), growing
-(< 800), flowering (< 1200), ripe (>= 1200): twelve minutes from
-seed to harvest, identical on every node of the mesh.
+What is sown is recorded on the **citizen**, as `p.crops`: a bounded map from
+plot node id to the tick it was sown. The plot node itself carries nothing.
 
-`harvest {nodeId}` is valid beside a ripe plot for its sower alone:
-**the harvest belongs to whoever sowed**. It yields 2 `grain`
-(stackable, like arrows), grants 40 farming xp, and the plot returns
-to bare earth. Grain sells for 4 gold; what else grain becomes is
-reserved (the oven is patient).
+This was not so. A crop was recorded on the plot — one `plantedAt`, one `by` —
+which made a plot a thing exactly one person could use at a time, and had two
+consequences neither of them intended:
 
-A plot's crop survives checkpoints, restarts, and migrations, because
-it is nothing but numbers in the founding's arithmetic: sow before
-sleep, and the interval farms while you dream.
+- with a hundred and ninety plots and any number of citizens, **farming was a
+  queue**;
+- and because a plot was released in exactly one place — its own planter
+  harvesting it — **a citizen who planted and never returned held that ground
+  forever.** One person with a hundred and ninety seeds could end farming for
+  the world, permanently, and nothing in the engine would notice.
+
+So: everyone may work the same ground at the same time, each tending their own
+row, and nobody can hold a plot against anybody. Somebody else's wheat is not
+your wheat; the same tilled square is bare to you and ripe to them.
+
+```
+three citizens plant the same tick of ground
+  each has a row      the plot node is untouched
+  all three harvest   two grain apiece
+```
+
+**Bounded at 32 rows per citizen**, in the same shape and for the same reason
+`attuned` is bounded at 64.
+
+**A crop still goes over.** `CROP_ROTS_AFTER` is 3,600 ticks — three times its
+ripening, leaving twenty-four minutes to collect after it is ripe. It no
+longer frees ground, since a row blocks nobody; it clears so that a citizen
+who plants and forgets does not fill their own thirty-two and lose the skill.
+
+### Determinism
+
+The shared `findAdjacentNode` never passes a node id to its predicate, and a
+per-citizen crop is keyed by id. Planting therefore uses `freePlotFor`, which
+walks in **minimum node-id order** exactly as the shared finder does, so every
+node chooses the same plot for the same citizen.
+
+### What kind of resource this is
+
+A tree or a rock depletes and recovers: two citizens working one take turns.
+A plot is now closer to the ground itself — **there is enough for everybody
+because using it does not use it up.** It is the first thing in this world
+that is shared without being contested.
 
 ## 6n. The quiver (v0.33)
 

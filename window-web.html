@@ -5038,8 +5038,15 @@ function drawScene(now) {
         cx.fillStyle = '#4a3520'; cx.fillRect(X + 4, Y + 6, 32, 28)
         cx.fillStyle = '#3a2a18'
         for (let r2 = 0; r2 < 4; r2++) cx.fillRect(X + 5, Y + 9 + r2 * 7, 30, 2.2)
-        if (n.plantedAt > 0) {
-          const el2 = s.tick - n.plantedAt
+        // §6o: A ROW IS THE CITIZEN'S OWN.
+        //
+        // This read `n.plantedAt` — the plot's. A crop now belongs to whoever
+        // sowed it, so the ground carries nothing and every citizen sees only
+        // what THEY put in it. Somebody else's wheat is not your wheat, and
+        // the same tilled square is empty to you and ripe to them.
+        const _sown = (s.players?.[myId]?.crops ?? {})[id] ?? 0
+        if (_sown > 0) {
+          const el2 = s.tick - _sown
           const stage = el2 >= 1200 ? 3 : el2 >= 800 ? 2 : el2 >= 400 ? 1 : 0
           for (let c2 = 0; c2 < 4; c2++) {
             const gx = X + 8 + c2 * 8, gy = Y + 10 + (c2 % 2) * 14
@@ -7030,14 +7037,16 @@ cv.addEventListener('click', (e) => {
   for (const [id, n] of Object.entries(world.nodes))
     if (n.type === 'plot' && n.x === x && n.y === y) {
       flashClick(x, y, true)
-      const el2 = world.tick - (n.plantedAt || 0)
-      if (!n.plantedAt) {
+      // §6o: your row, not the plot's. Everyone may work the same ground.
+      const sown = (me.crops ?? {})[id] ?? 0
+      const el2 = world.tick - sown
+      if (!sown) {
         const sSlot = me.inventory.findIndex(sl => sl?.item === 'seeds')
         if (sSlot === -1) { feed('Bare, tilled earth. It waits for seeds. (Goblins hoard them.)'); return }
+        if (Object.keys(me.crops ?? {}).length >= 32) { feed('You have all the rows you can tend.'); return }
         intent = { kind: 'plant', id, slot: sSlot }
       } else if (el2 >= 1200) {
-        if (n.by === myId) intent = { kind: 'harvest', id }
-        else { feed('A ripe crop: but the harvest belongs to whoever sowed.'); return }
+        intent = { kind: 'harvest', id }
       } else {
         feed(el2 < 400 ? 'A sprout. The interval provides, slowly.'
           : el2 < 800 ? 'Green rows, knee-high. Patience.'
