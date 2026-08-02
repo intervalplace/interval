@@ -41,7 +41,7 @@ export const LEGEND = {
   '#': 'wall',        // building: timber and plaster, domestic
   '"': 'hedge',       'f': 'fence',
   'B': 'bank',        'S': 'store',       'A': 'anvil',   's': 'smith',
-  'k': 'keeper',      'G': 'guard',       'h': 'house',
+  'k': 'keeper',      'G': 'guard',       'h': 'hearth',
   'o': 'well',        '*': 'campfire',    'i': 'signpost',
   'W': 'waystone',    '!': 'landmark',    'p': 'plot',
   'T': 'tree',        'n': 'rock',        'F': 'fishing-spot',
@@ -949,7 +949,7 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
           if (t2 === 'bank') { trade = 'clerk'; break }
           if (t2 === 'store') { trade = 'shop'; break }
           if (t2 === 'anvil') { trade = 'smith'; break }
-          if (t2 === 'house') trade = 'town'
+          if (t2 === 'hearth') trade = 'town'
         }
         extra = { name: nameKeeper(name + '|' + trade + '|' + rx + ',' + ry) }
       }
