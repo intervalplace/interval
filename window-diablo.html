@@ -1806,6 +1806,32 @@ function capeOf(p) {
     radiant: mastered.length >= SKILL_ORDER.length,   // and all sixteen
   }
 }
+
+// ---------------------------------------------------------------------------
+// PROGRESS PAST MASTERY (spec 4b)
+// ---------------------------------------------------------------------------
+// "beyond mastery: honor without bound". XP_TO_LVL above already returns 100,
+// 140, whatever the XP says -- the constitution has no ceiling, only a
+// milestone at 99. This window did have a ceiling: it computed every progress
+// bar as `lv >= 99 ? 1 : ...`, so a citizen at firemaking 99 read 100% forever
+// and a citizen at 104 read 100% too, with no way to see the next level coming.
+// A cap in the window where the constitution has none is a lie about the world.
+//
+// These replay exactly the accumulation XP_TO_LVL performs, so the boundary
+// they report is the boundary the engine will cross.
+function xpAtLevel(L) {
+  if (L <= 99) return XP_TABLE[Math.max(1, L)] ?? 0
+  let points = XP_TABLE[99] * 4
+  for (let l = 99; l < L; l++) points += xpStepAt(l)
+  return Math.floor(points / 4)
+}
+function progressAt(xp) {
+  const lv = XP_TO_LVL(xp ?? 0)
+  const a = xpAtLevel(lv), b = xpAtLevel(lv + 1)
+  const span = Math.max(1, b - a)
+  return { lv, frac: Math.max(0, Math.min(1, ((xp ?? 0) - a) / span)), toNext: Math.max(0, b - (xp ?? 0)),
+           mastered: (xp ?? 0) >= XP_TABLE[99] }
+}
 // ===========================================================================
 // THE WIRE
 // ---------------------------------------------------------------------------
@@ -2548,36 +2574,52 @@ function humanoid(g, cx, base, o) {
              [cx + 9 * s + lean, base - 3 * s], [cx + 2 * s + lean, base - 3 * s]], 'rgba(0,0,0,.30)')
   }
   if (o.cape) {
-    // THE CAPE. Longer and wider than a cloak, because it is not weather-gear:
-    // it is the one thing a citizen wears that cannot be taken, bought or lost,
-    // and it should be readable from across a field.
-    const K = o.cape, sway = Math.sin(step - 1.1) * 2.4 * s + lean
-    const hem = base + 1 * s, top = shY - 3 * s
+    // THE CAPE, RESHAPED. The first pass hung a twenty-six pixel hem off a
+    // thirteen pixel body and shaded it in two flat halves, so a mastered
+    // citizen came out as a cone with a head on it -- the legs vanished and
+    // there were no folds to read at world scale. Narrower, stopping above the
+    // boots, and lit as a cylinder rather than a pair of halves: the panels are
+    // shaded on a cosine across the width, so it turns.
+    const K = o.cape, sway = Math.sin(step - 1.1) * 2.2 * s + lean
+    const hem = base - 4 * s, top = shY - 3 * s
+    const N = 9
     const pts = []
-    const N = 7
-    for (let i = 0; i <= N; i++) {
-      const t2 = i / N
-      const wTop = (-9 + t2 * 18) * s
-      const wHem = (-13 + t2 * 26) * s
-      pts.push([cx + wTop, top, cx + wHem + sway, hem + Math.sin(t2 * 3.14) * 2 * s])
+    for (let i2 = 0; i2 <= N; i2++) {
+      const t2 = i2 / N
+      const wTop = (-7.5 + t2 * 15) * s
+      const wHem = (-9.5 + t2 * 19) * s
+      pts.push([cx + wTop, top, cx + wHem + sway, hem + Math.sin(t2 * 3.14) * 2.4 * s])
     }
-    for (let i = 0; i < N; i++) {
-      const a = pts[i], b2 = pts[i + 1]
-      const shade = i < N / 2 ? 1 : .74            // light from the upper left
-      g.fillStyle = shade === 1 ? K.colour : 'rgba(0,0,0,.30)'
-      poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]],
-        shade === 1 ? K.colour : K.colour)
-      if (shade !== 1) { g.fillStyle = 'rgba(0,0,0,.26)'
-        poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]], 'rgba(0,0,0,.26)') }
-      // the folds
-      g.strokeStyle = 'rgba(0,0,0,.22)'; g.lineWidth = 1
+    const base3 = K.colour
+    for (let i2 = 0; i2 < N; i2++) {
+      const a = pts[i2], b2 = pts[i2 + 1]
+      // light from the upper left, falling off as the cloth turns away
+      const t2 = (i2 + .5) / N
+      const lamb = Math.cos((t2 - .28) * 2.1)
+      poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]], base3)
+      const shade = lamb > 0 ? null : 'rgba(0,0,0,' + (Math.min(.42, -lamb * .55)).toFixed(2) + ')'
+      if (shade) poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]], shade)
+      else poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]],
+        'rgba(255,246,220,' + (lamb * .20).toFixed(2) + ')')
+      // the fold between panels: a dark crease with a lit lip on its light side
+      g.strokeStyle = 'rgba(0,0,0,.30)'; g.lineWidth = 1
       g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(a[2], a[3]); g.stroke()
+      if (lamb > .15) {
+        g.strokeStyle = 'rgba(255,250,230,.16)'; g.lineWidth = 1
+        g.beginPath(); g.moveTo(a[0] + 1, a[1]); g.lineTo(a[2] + 1, a[3]); g.stroke()
+      }
     }
+    // the hem, drawn as a line so the cloth ends rather than fading out
+    g.strokeStyle = 'rgba(0,0,0,.38)'; g.lineWidth = 1.4
+    g.beginPath()
+    g.moveTo(pts[0][2], pts[0][3])
+    for (let i2 = 1; i2 <= N; i2++) g.lineTo(pts[i2][2], pts[i2][3])
+    g.stroke()
     if (K.trim) {                                  // gold, for a second mastery
-      g.strokeStyle = '#d8b463'; g.lineWidth = 2 * s
+      g.strokeStyle = '#d8b463'; g.lineWidth = 1.8 * s
       g.beginPath()
       g.moveTo(pts[0][2], pts[0][3])
-      for (let i = 1; i <= N; i++) g.lineTo(pts[i][2], pts[i][3])
+      for (let i2 = 1; i2 <= N; i2++) g.lineTo(pts[i2][2], pts[i2][3])
       g.stroke()
       g.strokeStyle = '#8a6524'; g.lineWidth = 1
       g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[0][2], pts[0][3]); g.stroke()
@@ -2586,17 +2628,17 @@ function humanoid(g, cx, base, o) {
     if (K.radiant) {                               // and all sixteen
       g.save(); g.globalCompositeOperation = 'lighter'
       const gr = g.createLinearGradient(cx, top, cx, hem)
-      gr.addColorStop(0, 'rgba(255,246,214,.30)')
-      gr.addColorStop(.5, 'rgba(255,206,110,.18)')
-      gr.addColorStop(1, 'rgba(255,246,214,.26)')
+      gr.addColorStop(0, 'rgba(255,246,214,.26)')
+      gr.addColorStop(.5, 'rgba(255,206,110,.15)')
+      gr.addColorStop(1, 'rgba(255,246,214,.22)')
       g.fillStyle = gr
-      poly(g, [[cx - 9 * s, top], [cx + 9 * s, top],
-               [cx + 13 * s + sway, hem], [cx - 13 * s + sway, hem]], null)
+      poly(g, [[cx - 7.5 * s, top], [cx + 7.5 * s, top],
+               [cx + 9.5 * s + sway, hem], [cx - 9.5 * s + sway, hem]], null)
       g.fill()
-      for (let i = 0; i < 5; i++) {                // motes coming off it
-        const ph = (o.breath ?? 0) * .6 + i * 1.7
+      for (let i2 = 0; i2 < 5; i2++) {
+        const ph = (o.breath ?? 0) * .6 + i2 * 1.7
         g.fillStyle = 'rgba(255,236,180,' + (.35 + Math.sin(ph) * .25).toFixed(2) + ')'
-        g.fillRect(cx + Math.sin(ph * .8) * 12 * s, hem - ((ph * 9) % 44) * s * .6, 1.8 * s, 1.8 * s)
+        g.fillRect(cx + Math.sin(ph * .8) * 10 * s, hem - ((ph * 9) % 40) * s * .6, 1.8 * s, 1.8 * s)
       }
       g.restore()
     }
@@ -2651,9 +2693,16 @@ function humanoid(g, cx, base, o) {
       g.beginPath(); g.ellipse(px2, py2, (7 + bulk * 2.4) * s, (5.6 + bulk * 1.8) * s, side * .34, 0, 7); g.stroke()
       g.fillStyle = 'rgba(255,240,214,.20)'
       g.beginPath(); g.ellipse(px2 - 1.6 * s, py2 - 2.2 * s, 3 * s, 1.8 * s, side * .34, 0, 7); g.fill()
-      poly(g, [[px2 + side * 6 * s, py2 - 3 * s],
-               [px2 + side * 12 * s, py2 - 11 * s],
-               [px2 + side * 8 * s, py2 - 1 * s]], pc[0])
+      // A RIDGE, NOT A SPIKE. This was a long thin triangle standing off the
+      // shoulder in bronze, and at world scale it read as a short blade held in
+      // a second hand -- which is what someone saw a citizen chopping with.
+      // Armour should never be mistakeable for a weapon.
+      poly(g, [[px2 + side * 4 * s, py2 - 4.4 * s],
+               [px2 + side * 7.5 * s, py2 - 6.6 * s],
+               [px2 + side * 8 * s, py2 - 2.6 * s],
+               [px2 + side * 5 * s, py2 - 1 * s]], pc[0])
+      g.fillStyle = 'rgba(255,240,214,.18)'
+      g.beginPath(); g.ellipse(px2 + side * 5.6 * s, py2 - 4.8 * s, 1.6 * s, 1 * s, 0, 0, 7); g.fill()
     }
   }
   // the sweep the hand has just cut through the air
@@ -2825,6 +2874,16 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     const rp = (ph * .45) % 1                      // rings going out from it
     g.strokeStyle = 'rgba(160,206,224,' + (.4 * (1 - rp)).toFixed(2) + ')'; g.lineWidth = 1.2
     g.beginPath(); g.ellipse(fx2, fy2 + 2 * s, (3 + rp * 13) * s, (3 + rp * 13) * .42 * s, 0, 0, 7); g.stroke()
+  } else if (item === 'hammer') {               // a smith's hammer, not an axe
+    const m2 = METAL.iron
+    g.strokeStyle = METAL.wood[0]; g.lineWidth = 2.6 * s
+    g.beginPath(); g.moveTo(hx - dx * 4 * s, hy - dy * 4 * s); g.lineTo(tx, ty); g.stroke()
+    poly(g, [[tx - dy * 5 * s, ty + dx * 5 * s], [tx + dy * 5 * s, ty - dx * 5 * s],
+             [tx + dy * 5 * s + dx * 6 * s, ty - dx * 5 * s + dy * 6 * s],
+             [tx - dy * 5 * s + dx * 6 * s, ty + dx * 5 * s + dy * 6 * s]], m2[0])
+    poly(g, [[tx - dy * 5 * s, ty + dx * 5 * s], [tx + dy * 2 * s, ty - dx * 2 * s],
+             [tx + dy * 2 * s + dx * 6 * s, ty - dx * 2 * s + dy * 6 * s],
+             [tx - dy * 5 * s + dx * 6 * s, ty + dx * 5 * s + dy * 6 * s]], m2[1])
   } else if (item === 'axe' || item === 'pick') {   // the crude version of a tool
     const m2 = METAL.iron
     poly(g, [[tx, ty], [tx + dy * 5 * s - dx * 2 * s, ty - dx * 5 * s - dy * 2 * s],
@@ -5039,18 +5098,36 @@ const INDOOR_TERRAIN = new Set(['floor', 'inn', 'smith', 'fisher', 'shep', 'cler
 // frame and the answer cannot change inside a tick.
 let wallTiles = new Set()
 const _roomMemo = new Map()
+// INDOORS MEANS YOU CANNOT WALK OUT.
+//
+// Counting walls within four tiles on each side was a guess, and it missed
+// every room bigger than nine tiles across -- which is why cottages kept their
+// roofs inside the larger halls. The real question is topological: flood out
+// from the tile through everything that is not a wall, and if you cannot get
+// clear of the building before running out of room, you are inside it. Answers
+// for the whole component at once, so a hall costs one walk however many
+// things stand in it.
 function walledIn(x, y) {
-  const k = x + ',' + y
-  const hit = _roomMemo.get(k); if (hit !== undefined) return hit
-  let sides = 0
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    for (let i = 1; i <= 4; i++) {
-      if (wallTiles.has((x + dx * i) + ',' + (y + dy * i))) { sides++; break }
+  const k0 = x + ',' + y
+  const hit = _roomMemo.get(k0); if (hit !== undefined) return hit
+  const CAP = 700, REACH = 26
+  const seen = new Set([k0]), q = [[x, y]]
+  const cell = []
+  let escaped = false
+  while (q.length && cell.length < CAP) {
+    const [cx2, cy2] = q.pop()
+    cell.push([cx2, cy2])
+    if (Math.abs(cx2 - x) > REACH || Math.abs(cy2 - y) > REACH) { escaped = true; break }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx2 + dx, ny = cy2 + dy, kk = nx + ',' + ny
+      if (seen.has(kk) || wallTiles.has(kk)) continue
+      seen.add(kk); q.push([nx, ny])
     }
   }
-  const out = sides === 4
-  _roomMemo.set(k, out)
-  return out
+  const inside = !escaped && cell.length < CAP
+  for (const [a, b] of cell) _roomMemo.set(a + ',' + b, inside)
+  _roomMemo.set(k0, inside)
+  return inside
 }
 const indoors = (x, y) => INDOOR_TERRAIN.has(terrainOf(x, y)) || walledIn(x, y)
 
@@ -5482,9 +5559,17 @@ function drawNode(g, n, sx, sy, t, hot) {
         tunic: role === 'smith' ? '#332b22' : role === 'guard' ? '#3d2523' : '#3a3226',
         boots: '#241d16', hair: '#2e2418',
         helm: role === 'guard' ? '#5a5246' : null,
-        step: Math.sin(t2 * .6) * .2, swing: -0.4 + Math.sin(t2 * .9) * .12,
+        step: Math.sin(t2 * .6) * .2,
+        swing: role === 'smith'
+          ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5      // striking, on the beat
+          : -0.4 + Math.sin(t2 * .9) * .12,
         weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'bronze-spear')
-              : role === 'smith' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'bronze-hatchet') : null,
+              // A SMITH HOLDS A HAMMER. This handed them a woodcutter's hatchet,
+              // which is why a smith standing beside a citizen at a tree read as
+              // ONE figure with two arms -- a sword in one and an axe swinging in
+              // the other. Two overlapping sprites, and the wrong tool in one of
+              // them made the overlap legible as a single impossible body.
+              : role === 'smith' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'hammer') : null,
       })
       return
     }
@@ -5665,6 +5750,33 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
 }
 
 // ---- names, and the things people say -------------------------------------
+// WHO THAT IS, IN FULL.
+//
+// A bare name says least about a citizen at exactly the moment you most want to
+// know: whether the person walking toward you in the Wilds has spent four
+// hundred levels on it. Name, calling, standing -- all three are already in the
+// state and derived by the constitution's own functions, so the plate can be
+// honest without asking the pillar anything.
+const titleCase = (s2) => String(s2 ?? '').replace(/\b[a-z]/g, (c) => c.toUpperCase())
+function citizenPlate(g, sx, sy, p, id, isMe) {
+  const name = p.name || (id ? id.slice(0, 6) : 'unnamed')
+  const rest = ', ' + titleCase(callingOf(p)) + ' (' + standingOf(p) + ')'
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic'
+  g.font = '700 11px Cinzel, Georgia, serif'
+  const wn = g.measureText(name).width
+  g.font = '10px Georgia, serif'
+  const wr = g.measureText(rest).width
+  const w = wn + wr, x0 = sx - w / 2
+  g.fillStyle = 'rgba(4,3,5,.74)'
+  g.fillRect(x0 - 6, sy - 11, w + 12, 15)
+  g.font = '700 11px Cinzel, Georgia, serif'
+  g.fillStyle = isMe ? '#f0d9a4' : '#9fb0c4'
+  g.fillText(name, x0, sy)
+  g.font = '10px Georgia, serif'
+  g.fillStyle = 'rgba(180,166,140,.85)'
+  g.fillText(rest, x0 + wn, sy)
+  g.textAlign = 'center'
+}
 function nameplate(g, sx, sy, text, col, small) {
   g.font = (small ? '600 10px ' : '700 11px ') + 'Cinzel, Georgia, serif'
   g.textAlign = 'center'; g.textBaseline = 'alphabetic'
@@ -6135,9 +6247,7 @@ function drawScene(now) {
     const p = screenOf(it.x, it.y), lift = liftAt(Math.round(it.x), Math.round(it.y))
     const b = bubbles[it.id]
     if (b && now - b.at < 6000) speechBubble(g, p.x, p.y - lift - 62, b.text)
-    else if (it.e.name || it.id === myId)
-      nameplate(g, p.x, p.y - lift - 52, it.e.name || 'unnamed',
-        it.id === myId ? '#f0d9a4' : '#9fb0c4', true)
+    else citizenPlate(g, p.x, p.y - lift - 52, it.e, it.id, it.id === myId)
   }
 
   if (altHeld) {
@@ -7258,9 +7368,8 @@ function drawPanel(g, now) {
   const midX = px0 + gut, midW = PANEL_W - gut * 2
   const sk = lastXpSkill ?? 'woodcutting'
   const xp = me?.skills?.[sk] ?? 0
-  const lv = XP_TO_LVL(xp)
-  const a0 = XP_TABLE[Math.min(99, lv)] ?? 0, b0 = XP_TABLE[Math.min(99, lv + 1)] ?? (a0 + 1)
-  const frac = lv >= 99 ? 1 : clamp((xp - a0) / Math.max(1, b0 - a0), 0, 1)
+  const prog = progressAt(xp)
+  const lv = prog.lv, frac = prog.frac
 
   // ---- the experience rule, across the top --------------------------------
   g.fillStyle = 'rgba(6,5,5,.9)'; g.fillRect(midX, py0 + 9, midW, 7)
@@ -7300,8 +7409,9 @@ function drawPanel(g, now) {
                  tip: { title: 'Life  ' + hp + ' / ' + maxHp,
                         sub: 'Max life is your hitpoints level' } })
   regions.push({ x: px0 + PANEL_W - R * 2 - 13, y: oy - R, w: R * 2, h: R * 2, act: { t: 'noop' },
-                 tip: { title: 'Training ' + sk + ' \u00b7 level ' + lv,
-                        sub: lv >= 99 ? 'mastered' : (b0 - xp) + ' xp to ' + (lv + 1)
+                 tip: { title: 'Training ' + sk + ' \u00b7 level ' + lv
+                          + (prog.mastered ? '  \u00b7  mastered' : ''),
+                        sub: prog.toNext.toLocaleString() + ' xp to ' + (lv + 1)
                              + '  \u00b7  it follows whatever you last worked at' } })
 
   // ---- belt and buttons, measured up from the bottom edge ------------------
@@ -7534,24 +7644,23 @@ function drawCitizen(g, now) {
   SKILL_ORDER.forEach((sk, i) => {
     const col = i % 2, row = (i / 2) | 0
     const sx2 = x + 22 + col * colW, sy2 = ly + row * 24
-    const xp = me.skills?.[sk] ?? 0, lv = XP_TO_LVL(xp)
-    const a = XP_TABLE[Math.min(99, lv)] ?? 0, b = XP_TABLE[Math.min(99, lv + 1)] ?? (a + 1)
-    const f = lv >= 99 ? 1 : clamp((xp - a) / Math.max(1, b - a), 0, 1)
-    g.drawImage(skillGlyph(sk, 13, lv >= 99 ? 'bright' : 'gold'), sx2, sy2 - 3)
+    const xp = me.skills?.[sk] ?? 0
+    const pr = progressAt(xp), lv = pr.lv, f = pr.frac
+    g.drawImage(skillGlyph(sk, 13, pr.mastered ? 'bright' : 'gold'), sx2, sy2 - 3)
     g.font = '10.5px Georgia, serif'
-    g.fillStyle = lv >= 99 ? '#e8d199' : '#a2957c'
+    g.fillStyle = pr.mastered ? '#e8d199' : '#a2957c'
     g.fillText(sk, sx2 + 18, sy2 + 8)
     g.textAlign = 'right'
     g.font = '700 11px Cinzel, Georgia, serif'
-    g.fillStyle = lv >= 99 ? '#e8d199' : '#cdbb99'
+    g.fillStyle = pr.mastered ? '#e8d199' : '#cdbb99'
     g.fillText(String(lv), sx2 + colW - 12, sy2 + 8)
     g.textAlign = 'left'
     g.fillStyle = 'rgba(6,5,5,.85)'; g.fillRect(sx2 + 18, sy2 + 12, colW - 30, 3)
-    g.fillStyle = lv >= 99 ? '#b0913f' : '#4a6f8c'
+    g.fillStyle = pr.mastered ? '#b0913f' : '#4a6f8c'
     g.fillRect(sx2 + 18, sy2 + 12, (colW - 30) * f, 3)
     regions.push({ x: sx2, y: sy2 - 4, w: colW - 12, h: 22, act: { t: 'noop' },
-                   tip: { title: sk + ' \u00b7 level ' + lv,
-                          sub: lv >= 99 ? 'mastered' : (b - xp) + ' xp to ' + (lv + 1) } })
+                   tip: { title: sk + ' \u00b7 level ' + lv + (pr.mastered ? '  \u00b7  mastered' : ''),
+                          sub: pr.toNext.toLocaleString() + ' xp to ' + (lv + 1) } })
   })
 }
 
@@ -7889,14 +7998,32 @@ function drawPlaceBanner(g, now) {
 const mouse = { x: -999, y: -999, down: false, downAt: 0, moved: false }
 let intent = null            // { kind, id, x, y } -- a standing order, re-run every tick
 let travelMark = null
-let moveLock = null
+// WHERE THE MOVES ALREADY SENT WILL LEAVE YOU.
+//
+// allocTick permits two ticks of lookahead, and stepToward was recomputing the
+// FIRST step of the path every time -- from the same stale position. So any
+// second call inside one tick (a re-broadcast state, a hold-walk racing the
+// click, anything) sent the same step twice and walked one tile past the goal.
+// Overshooting a goal you are standing next to is precisely walking back and
+// forth beside it forever.
+//
+// The fix is to plan from the projected position instead, which also makes the
+// lookahead do what it always claimed to: send the first two steps of a path,
+// not the first step twice.
+let planned = null
 let shiftHeld = false
 let giveTo = null      // a citizen awaiting an offer; the next pack click is it
 
 // ---- what can be stood on -------------------------------------------------
 let nodeTiles = new Set()
+let mobTiles = new Set()
 function indexNodes(s) {
   nodeTiles = new Set()
+  mobTiles = new Set()
+  // "you do not walk THROUGH a troll, you deal with it" -- engine, on move
+  // validity. The planner routed straight through beasts, every such step was
+  // refused, and the citizen stood there re-choosing the same blocked path.
+  for (const m of Object.values(s.mobs ?? {})) if (m.hp > 0) mobTiles.add(m.x + ',' + m.y)
   wallTiles = new Set()
   _roomMemo.clear()
   for (const n of Object.values(s.nodes ?? {})) {
@@ -7916,8 +8043,16 @@ const WEAPON_EVERY = {
 }
 const IMPASSABLE_TERRAIN = new Set(['sea', 'river', 'mountain'])
 function blockedAt(x, y) {
-  if (nodeTiles.has(x + ',' + y)) return true
+  const k = x + ',' + y
+  if (nodeTiles.has(k) || mobTiles.has(k)) return true
   return IMPASSABLE_TERRAIN.has(terrainOf(x, y))
+}
+// ...except the beast you are walking over to hit, which you are allowed to
+// path toward even though you may not stand on it
+function blockedExcept(x, y, freeKey) {
+  const k = x + ',' + y
+  if (k === freeKey) return false
+  return blockedAt(x, y)
 }
 
 // BFS to the first step of a shortest path. Eight directions, because the
@@ -7952,7 +8087,7 @@ function nextStep(me, goals, limit) {
   }
   return null
 }
-function stepToward(me, goal, reach) {
+function stepToward(from, goal, reach) {
   const goals = new Set()
   if (reach === 'adjacent') {
     for (const [mx, my] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -7971,7 +8106,7 @@ function stepToward(me, goal, reach) {
     travelMark = { x: goal.x, y: goal.y, at: performance.now(), fail: true }
     intent = null; SFX.pane(); return 'no'
   }
-  const step = nextStep(me, goals)
+  const step = nextStep(from, goals)
   if (step === null) {
     say("You can't reach that.", 'warn')
     travelMark = { x: goal.x, y: goal.y, at: performance.now(), fail: true }
@@ -7981,7 +8116,7 @@ function stepToward(me, goal, reach) {
   const tk = allocTick()
   if (tk === null) return 'wait'
   facing.set('p' + myId, [step.dx, step.dy])
-  moveLock = { x: me.x + step.dx, y: me.y + step.dy, until: tk + 2 }
+  planned = { x: from.x + step.dx, y: from.y + step.dy, tick: tk }
   send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
   return 'moved'
 }
@@ -8354,10 +8489,19 @@ function runRegion(r, isRight) {
 function pumpIntent() {
   const s = curState; if (!s || !intent) return
   const me = myId && s.players[myId]; if (!me) return
+  // PROJECTION IS FOR PLANNING, NEVER FOR VALIDITY.
+  //
+  // `from` is where the moves already in flight will leave us, and it is the
+  // right place to plan the NEXT step from. It is the wrong place to judge
+  // whether we may act: letting it satisfy adjacency sent a gather from three
+  // tiles away, which the engine refuses and which the citizen experiences as
+  // pressing a thing that does nothing. What the engine judges, `me` answers.
+  const from = (planned && planned.tick > (s.tick ?? 0))
+    ? { x: planned.x, y: planned.y } : me
   const near = (e) => Math.abs(me.x - e.x) + Math.abs(me.y - e.y) === 1
   switch (intent.kind) {
     case 'walk': {
-      const r = stepToward(me, intent, 'exact')
+      const r = stepToward(from, intent, 'exact')
       if (r === 'here') { intent = null; travelMark = null }
       return
     }
@@ -8372,7 +8516,7 @@ function pumpIntent() {
         return
       }
       if (shiftHeld) { say('Too far to strike from here.', 'warn'); intent = null; return }
-      stepToward(me, m, reach > 1 ? reach : 'adjacent')
+      stepToward(from, m, reach > 1 ? reach : 'adjacent')
       return
     }
     case 'greet': {
@@ -8382,13 +8526,13 @@ function pumpIntent() {
         say((pl.name || intent.id.slice(0, 6)) + ' \u00b7 ' + callingOf(pl) + ' \u00b7 standing ' + standingOf(pl), 'chat')
         intent = null; return
       }
-      stepToward(me, pl, 'adjacent'); return
+      stepToward(from, pl, 'adjacent'); return
     }
     case 'pickup': {
       const gi = s.ground?.[intent.id]
       if (!gi) { intent = null; return }
       if (me.x === gi.x && me.y === gi.y) { send({ do: 'pickup', groundId: intent.id }); intent = null; return }
-      stepToward(me, gi, 'exact'); return
+      stepToward(from, gi, 'exact'); return
     }
     case 'gather': {
       const n = s.nodes?.[intent.id]
@@ -8398,17 +8542,17 @@ function pumpIntent() {
         if (me.action?.type !== 'gather' || me.action.nodeId !== intent.id) send({ do: 'gather', nodeId: intent.id })
         return
       }
-      stepToward(me, n, 'adjacent'); return
+      stepToward(from, n, 'adjacent'); return
     }
     case 'harvest': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) { send({ do: 'harvest', nodeId: intent.id }); intent = null; return }
-      stepToward(me, n, 'adjacent'); return
+      stepToward(from, n, 'adjacent'); return
     }
     case 'collect': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) { send({ do: 'collect', nodeId: intent.id }); intent = null; return }
-      stepToward(me, n, 'adjacent'); return
+      stepToward(from, n, 'adjacent'); return
     }
     case 'cook': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
@@ -8418,7 +8562,7 @@ function pumpIntent() {
         else send({ do: 'cook', slot: i })
         intent = null; return
       }
-      stepToward(me, n, 'adjacent'); return
+      stepToward(from, n, 'adjacent'); return
     }
     case 'stair': { intent = null; say('Stairs, going up. Nothing above but the roof.', 'dim'); return }
     case 'forge': case 'bank': case 'store': case 'attune': case 'look': {
@@ -8431,7 +8575,7 @@ function pumpIntent() {
         else say(wordy(n.kind ?? n.type) + '.', 'dim')
         intent = null; return
       }
-      stepToward(me, n, 'adjacent'); return
+      stepToward(from, n, 'adjacent'); return
     }
   }
 }
@@ -8491,7 +8635,7 @@ function onState(s, worldId) {
       else if (n?.type === 'rock' || n?.type === 'magic-rock') SFX.mine()
       else if (n?.type === 'fishing-spot') SFX.fish()
     }
-    if (moveLock && (me.x !== moveLock.x || me.y !== moveLock.y) && s.tick > moveLock.until) moveLock = null
+    if (planned && s.tick >= planned.tick) planned = null
     // WHERE YOU HAVE JUST ARRIVED. A locale is a pure function of the seed, so
     // the window always knew this and simply never said it out loud.
     try {
