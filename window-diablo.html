@@ -2069,6 +2069,33 @@ const GROUND = {
 const GROUND_DEFAULT = { c: [44, 42, 36], grain: 'turf', lift: 0 }
 const groundOf = (k) => GROUND[k] ?? GROUND_DEFAULT
 
+// THE COLOUR OF A PATCH OF GROUND, not of a tile.
+//
+// A tile's colour is now more than half its neighbours', so where two countries
+// meet the change happens over three tiles instead of along one hard diamond
+// edge -- and a low-frequency drift on top means a wide meadow is never one
+// flat value. The engine's grid is untouched and still decides everything;
+// this only stops the window drawing the grid ON it. Cached forever, because
+// geography does not move.
+const _gcol = new Map()
+function groundColorAt(x, y) {
+  const k = x + ',' + y
+  const hit = _gcol.get(k); if (hit) return hit
+  const own = groundOf(terrainOf(x, y)).c
+  let r = own[0] * .52, g2 = own[1] * .52, b2 = own[2] * .52
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const n = groundOf(terrainOf(x + dx, y + dy)).c
+    r += n[0] * .12; g2 += n[1] * .12; b2 += n[2] * .12
+  }
+  const drift = Math.sin(x * .21) * 2.6 + Math.sin(y * .17) * 2.6 + Math.sin((x + y) * .075) * 3.4
+  const out = 'rgb(' + Math.round(clamp(r + drift, 0, 255)) + ','
+    + Math.round(clamp(g2 + drift, 0, 255)) + ','
+    + Math.round(clamp(b2 + drift, 0, 255)) + ')'
+  if (_gcol.size > 240000) _gcol.clear()
+  _gcol.set(k, out)
+  return out
+}
+
 // the diamond, as a path, offset however you like
 function diamond(g, ox, oy, inset) {
   const i = inset ?? 0
@@ -2107,25 +2134,36 @@ function tileArt(kind, v) {
     }
   }
 
-  g.save(); diamond(g, 0, 0); g.clip()
-  g.fillStyle = sh(base, 1); g.fillRect(0, 0, TW, TH)
+  g.save(); diamond(g, 0, 0, -1); g.clip()
+  // water keeps a real colour of its own: it is a surface, not ground
+  if (G.grain === 'water') { g.fillStyle = sh(base, 1); g.fillRect(0, 0, TW, TH) }
 
+  // GRAIN, NOT COLOUR.
+  //
+  // Every mark below used to be mixed from this tile's own base colour, so each
+  // tile carried its colour with it and the seam between two kinds was a hard
+  // edge: a visible diamond lattice over the whole island. Grain is now pure
+  // light and shadow with no hue of its own, which lets the colour underneath
+  // be blended across neighbours -- and the lattice stops existing.
+  const grn = (k, a) => k >= 1
+    ? 'rgba(255,238,206,' + clamp((k - 1) * .85 * (a ?? 1), 0, 1).toFixed(3) + ')'
+    : 'rgba(0,0,0,' + clamp((1 - k) * .95 * (a ?? 1), 0, 1).toFixed(3) + ')'
   const speck = (n, kk, aa, sz) => {
     for (let i = 0; i < n; i++) {
       const x = R() * TW, y = R() * TH
-      g.fillStyle = sh(base, kk + (R() - .5) * .3, aa)
+      g.fillStyle = grn(kk + (R() - .5) * .3, aa)
       g.fillRect(x, y, sz ?? 1, sz ?? 1)
     }
   }
   switch (G.grain) {
     case 'turf':                              // clumped, tufted, uneven
       for (let i = 0; i < 16; i++) {
-        g.fillStyle = sh(base, .74 + R() * .5, .5)
+        g.fillStyle = grn(.74 + R() * .5, .5)
         g.beginPath(); g.ellipse(R() * TW, R() * TH, 3 + R() * 7, 1.4 + R() * 2.4, R() * 3, 0, 7); g.fill()
       }
       for (let i = 0; i < 22; i++) {          // blades catching the light
         const x = R() * TW, y = R() * TH
-        g.strokeStyle = sh(base, 1.5, .28); g.lineWidth = 1
+        g.strokeStyle = grn(1.5, .28); g.lineWidth = 1
         g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - .5) * 2, y - 2 - R() * 2); g.stroke()
       }
       break
@@ -2145,8 +2183,8 @@ function tileArt(kind, v) {
     case 'rubble':
       for (let i = 0; i < 16; i++) {          // loose stones, each with a lit top
         const x = 6 + R() * 52, y = 6 + R() * 20, w = 2 + R() * 5
-        g.fillStyle = sh(base, .55); g.fillRect(x, y, w, 2.5)
-        g.fillStyle = sh(base, 1.35); g.fillRect(x, y, w, 1)
+        g.fillStyle = grn(.55); g.fillRect(x, y, w, 2.5)
+        g.fillStyle = grn(1.35); g.fillRect(x, y, w, 1)
       }
       break
     case 'rock':                              // fractured bedrock, angular
@@ -2164,13 +2202,13 @@ function tileArt(kind, v) {
         g.beginPath(); g.moveTo(i * 16, HH - i * 8 + (i % 2 ? 0 : 0)); g.lineTo(i * 16 + HW, HH + HW / 2 - i * 8); g.stroke()
         g.beginPath(); g.moveTo(TW - i * 16, HH - i * 8); g.lineTo(TW - i * 16 - HW, HH + HW / 2 - i * 8); g.stroke()
       }
-      g.strokeStyle = sh(base, 1.4, .22)
+      g.strokeStyle = grn(1.4, .22)
       for (let i = 1; i < 4; i++) {
         g.beginPath(); g.moveTo(i * 16, HH - i * 8 + 1); g.lineTo(i * 16 + HW, HH + HW / 2 - i * 8 + 1); g.stroke()
       }
       speck(24, .8, .3); break }
     case 'track': {                           // packed earth, wheel-scored
-      g.strokeStyle = sh(base, .66, .5); g.lineWidth = 2.4
+      g.strokeStyle = grn(.66, .5); g.lineWidth = 2.4
       g.beginPath(); g.moveTo(2, HH - 5); g.lineTo(TW - 2, HH - 5); g.stroke()
       g.beginPath(); g.moveTo(2, HH + 5); g.lineTo(TW - 2, HH + 5); g.stroke()
       speck(46, 1.3, .26); speck(26, .7, .3, 2); break }
@@ -2179,23 +2217,21 @@ function tileArt(kind, v) {
         const t = i / 5
         g.strokeStyle = rgb(0, 0, 0, .34); g.lineWidth = 1
         g.beginPath(); g.moveTo(t * TW, t * HH); g.lineTo(t * TW + HW, t * HH + HH); g.stroke()
-        g.strokeStyle = sh(base, 1.3, .2)
+        g.strokeStyle = grn(1.3, .2)
         g.beginPath(); g.moveTo(t * TW, t * HH + 1); g.lineTo(t * TW + HW, t * HH + HH + 1); g.stroke()
       }
       speck(20, .8, .3); break }
     case 'water': {                           // depth, not a blue tile
       const gr = g.createLinearGradient(0, 0, 0, TH)
-      gr.addColorStop(0, sh(base, 1.5)); gr.addColorStop(1, sh(base, .55))
+      gr.addColorStop(0, 'rgba(255,255,255,.10)'); gr.addColorStop(1, 'rgba(0,0,0,.34)')
       g.fillStyle = gr; g.fillRect(0, 0, TW, TH)
       break }
   }
-  // the far edges catch light, the near edges fall away: this is what makes a
-  // field of diamonds read as ground rather than as wallpaper
-  const gr = g.createLinearGradient(0, 0, 0, TH)
-  gr.addColorStop(0, 'rgba(255,240,214,.055)')
-  gr.addColorStop(.55, 'rgba(0,0,0,0)')
-  gr.addColorStop(1, 'rgba(0,0,0,.30)')
-  g.fillStyle = gr; g.fillRect(0, 0, TW, TH)
+  // NO EDGE SHADING. A light-to-dark ramp inside every diamond is exactly what
+  // draws the diamond: repeat it across a field and you have painted a grid.
+  // Real ground has variation at scales both smaller and LARGER than a tile,
+  // never at exactly one tile, which is what the blend and the drift below
+  // provide instead.
   g.restore()
   _tileArt.set(key, c)
   return c
@@ -2422,6 +2458,7 @@ function humanoid(g, cx, base, o) {
   const cloak = o.cloak, tunic = o.tunic, skin = o.skin ?? '#8d6a4a'
   const lean = o.lean ?? 0, step = o.step ?? 0, swing = o.swing ?? 0
   const bob = Math.sin(step) * 1.6 * s
+    + (o.breath ? Math.sin(o.breath) * .55 * s : 0)
   const hunch = bulk * 2.6 * s
   const hipY = base - 20 * s + bob, shY = base - 32 * s + bob - bulk * 1.5 * s
   const headY = base - 40 * s + bob - bulk * 1.2 * s
@@ -2463,14 +2500,38 @@ function humanoid(g, cx, base, o) {
   }
   // arms; the weapon arm swings
   g.strokeStyle = skin; g.lineWidth = (3.2 + bulk * 1.2) * s
+  const offX = cx - (8 + bulk * 3) * s - Math.sin(step) * 2 * s, offY = hipY + 2 * s
   g.beginPath(); g.moveTo(cx - shW * .85 + hunch, shY + 3 * s)
-  g.lineTo(cx - (8 + bulk * 3) * s - Math.sin(step) * 2 * s, hipY + 2 * s); g.stroke()
+  g.lineTo(offX, offY); g.stroke()
+  if (o.lantern) {
+    // THE LANTERN. This window is named for it and the citizen was not carrying
+    // it: the pool of light simply hung around them from nowhere. It swings a
+    // beat behind the walk, which is the only reason a light source reads as
+    // being CARRIED rather than as an effect.
+    const sw2 = Math.sin(step - .8) * 3.2 * s
+    const lx = offX + sw2, ly = offY + 8 * s
+    g.strokeStyle = '#2a2118'; g.lineWidth = 1.2 * s
+    g.beginPath(); g.moveTo(offX, offY); g.lineTo(lx, ly - 5 * s); g.stroke()
+    g.strokeStyle = '#8a7340'; g.lineWidth = 1.1 * s
+    g.beginPath(); g.arc(lx, ly - 5.4 * s, 2.4 * s, Math.PI, 0); g.stroke()
+    poly(g, [[lx - 3.4 * s, ly - 5 * s], [lx + 3.4 * s, ly - 5 * s],
+             [lx + 2.6 * s, ly + 4 * s], [lx - 2.6 * s, ly + 4 * s]], '#3a2f1e')
+    g.fillStyle = 'rgba(255,206,120,.95)'
+    g.fillRect(lx - 2.2 * s, ly - 4 * s, 4.4 * s, 7 * s)
+    g.fillStyle = 'rgba(255,246,214,1)'
+    g.fillRect(lx - 1 * s, ly - 2.6 * s, 2 * s, 3.4 * s)
+    g.fillStyle = '#241c12'
+    g.fillRect(lx - 3.8 * s, ly + 3.4 * s, 7.6 * s, 2 * s)
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const lg = g.createRadialGradient(lx, ly, 0, lx, ly, 26 * s)
+    lg.addColorStop(0, 'rgba(255,190,90,.45)'); lg.addColorStop(1, 'rgba(255,190,90,0)')
+    g.fillStyle = lg; g.beginPath(); g.arc(lx, ly, 26 * s, 0, 7); g.fill(); g.restore()
+  }
   const wa = -0.5 + swing
   const reach = (9 + bulk * 2) * s
   const hx = cx + shW * .9 + hunch + Math.cos(wa) * reach
   const hy = shY + 3 * s + Math.sin(wa) * reach
   g.beginPath(); g.moveTo(cx + shW * .85 + hunch, shY + 3 * s); g.lineTo(hx, hy); g.stroke()
-  if (o.weapon) o.weapon(g, hx, hy, wa, s * (1 + bulk * .45))
   if (bulk > 0) {
     // PAULDRONS. Nothing else in this file buys as much silhouette per line.
     for (const side of [-1, 1]) {
@@ -2489,6 +2550,8 @@ function humanoid(g, cx, base, o) {
                [px2 + side * 8 * s, py2 - 1 * s]], pc[0])
     }
   }
+  // the hand, and whatever is in it, over the shoulder plate rather than under
+  if (o.weapon) o.weapon(g, hx, hy, wa, s * (1 + bulk * .45))
   // head, hood or helm
   if (o.hood) {
     poly(g, [[cx - 6 * s, headY + 8 * s], [cx, headY - 6 * s], [cx + 6 * s, headY + 8 * s]], o.hood)
@@ -2544,19 +2607,45 @@ const metalOf = (item) => item?.startsWith('star-') ? METAL.star
   : item === 'old-chain' ? METAL.iron
   : METAL.wood
 
-function drawWeapon(g, hx, hy, a, s, item) {
+function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   if (!item) return
   const m = metalOf(item)
-  const long = /sword|spear|maul|flail/.test(item) ? (item.includes('spear') ? 26 : 20) : 13
-  const dx = Math.cos(a - 1.35), dy = Math.sin(a - 1.35)
-  if (/bow/.test(item)) {                      // held across the body, string taut
-    g.strokeStyle = m[0]; g.lineWidth = 2.2 * s
-    g.beginPath(); g.arc(hx, hy, 11 * s, a - 1.1, a + 1.1); g.stroke()
-    g.strokeStyle = 'rgba(220,208,180,.6)'; g.lineWidth = 1
-    g.beginPath()
-    g.moveTo(hx + Math.cos(a - 1.1) * 11 * s, hy + Math.sin(a - 1.1) * 11 * s)
-    g.lineTo(hx + Math.cos(a + 1.1) * 11 * s, hy + Math.sin(a + 1.1) * 11 * s)
-    g.stroke(); return
+  const long = /sword|spear|maul|flail/.test(item) ? (item.includes('spear') ? 26 : 20)
+             : /axe|pick|rod/.test(item) ? 18 : 13
+  // ALONG THE ARM, NOT ACROSS IT. This was `a - 1.35`, which is seventy-seven
+  // degrees off the forearm: at rest the blade pointed up and BACK over the
+  // shoulder, into the torso, and the pauldron drawn afterwards finished the
+  // job. A citizen with a sword appeared to be carrying nothing.
+  const dx = Math.cos(a), dy = Math.sin(a)
+  if (/bow/.test(item)) {
+    // NOCK, DRAW, LOOSE. A bow with a permanently taut string is a prop. The
+    // string is pulled back by however far the citizen has drawn it, an arrow
+    // appears on it once there is anything to hold, and the limbs bend with it.
+    const d = clamp(drawAmt ?? 0, 0, 1)
+    const R2 = (11 - d * 1.6) * s
+    const t1 = a - 1.05 - d * .12, t2 = a + 1.05 + d * .12
+    g.strokeStyle = m[0]; g.lineWidth = 2.6 * s
+    g.beginPath(); g.arc(hx, hy, R2, t1, t2); g.stroke()
+    g.strokeStyle = m[1]; g.lineWidth = 1 * s
+    g.beginPath(); g.arc(hx, hy, R2, t1 + .1, t2 - .1); g.stroke()
+    const ax = hx + Math.cos(t1) * R2, ay = hy + Math.sin(t1) * R2
+    const bx = hx + Math.cos(t2) * R2, by = hy + Math.sin(t2) * R2
+    // the nocking point, dragged back along the arm as the draw deepens
+    const nx = hx - Math.cos(a) * (1 + d * 11) * s, ny = hy - Math.sin(a) * (1 + d * 11) * s
+    g.strokeStyle = 'rgba(226,216,190,.72)'; g.lineWidth = 1.1
+    g.beginPath(); g.moveTo(ax, ay); g.lineTo(nx, ny); g.lineTo(bx, by); g.stroke()
+    if (d > .06) {                             // and the shaft on it
+      const tipX = nx + Math.cos(a) * 26 * s, tipY = ny + Math.sin(a) * 26 * s
+      g.strokeStyle = METAL.wood[0]; g.lineWidth = 1.5 * s
+      g.beginPath(); g.moveTo(nx, ny); g.lineTo(tipX, tipY); g.stroke()
+      poly(g, [[tipX + Math.cos(a) * 4 * s, tipY + Math.sin(a) * 4 * s],
+               [tipX - Math.sin(a) * 2 * s, tipY + Math.cos(a) * 2 * s],
+               [tipX + Math.sin(a) * 2 * s, tipY - Math.cos(a) * 2 * s]], '#b9c0c8')
+      g.strokeStyle = '#c8bfa4'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(nx, ny); g.lineTo(nx - Math.sin(a) * 3 * s + Math.cos(a) * 4 * s,
+        ny + Math.cos(a) * 3 * s + Math.sin(a) * 4 * s); g.stroke()
+    }
+    return
   }
   // haft
   g.strokeStyle = item.includes('maul') || item.includes('spear') || item.includes('hatchet') || item.includes('pickaxe')
@@ -2584,6 +2673,21 @@ function drawWeapon(g, hx, hy, a, s, item) {
   } else if (item.includes('pickaxe')) {
     g.strokeStyle = m[1]; g.lineWidth = 2.4 * s
     g.beginPath(); g.moveTo(tx - dy * 8 * s, ty + dx * 8 * s); g.lineTo(tx + dy * 8 * s, ty - dx * 8 * s); g.stroke()
+  } else if (item === 'rod') {                  // a line, and something on the end
+    g.strokeStyle = METAL.wood[0]; g.lineWidth = 2
+    g.beginPath(); g.moveTo(hx - dx * 4 * s, hy - dy * 4 * s); g.lineTo(tx, ty); g.stroke()
+    g.strokeStyle = 'rgba(220,214,190,.55)'; g.lineWidth = 1
+    g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx + 6 * s, ty + 10 * s, tx + 3 * s, ty + 20 * s); g.stroke()
+    g.fillStyle = '#8a8272'
+    g.beginPath(); g.arc(tx + 3 * s, ty + 20 * s, 1.6 * s, 0, 7); g.fill()
+  } else if (item === 'axe' || item === 'pick') {   // the crude version of a tool
+    const m2 = METAL.iron
+    poly(g, [[tx, ty], [tx + dy * 5 * s - dx * 2 * s, ty - dx * 5 * s - dy * 2 * s],
+             [tx + dy * 6 * s + dx * 4 * s, ty - dx * 6 * s + dy * 4 * s],
+             [tx + dx * 3 * s, ty + dy * 3 * s]], m2[0])
+    if (item === 'pick') poly(g, [[tx, ty], [tx - dy * 5 * s - dx * 2 * s, ty + dx * 5 * s - dy * 2 * s],
+             [tx - dy * 6 * s + dx * 4 * s, ty + dx * 6 * s + dy * 4 * s],
+             [tx + dx * 3 * s, ty + dy * 3 * s]], m2[1])
   } else if (item.includes('flail') || item === 'old-chain') {
     g.strokeStyle = METAL.iron[0]; g.lineWidth = 1.4 * s
     g.beginPath(); g.moveTo(tx, ty); g.lineTo(tx + dx * 8 * s, ty + dy * 8 * s + 4 * s); g.stroke()
@@ -3353,6 +3457,679 @@ function itemIcon(item) {
   })
 }
 // ===========================================================================
+// THE FORTY PLACES
+// ---------------------------------------------------------------------------
+// A landmark answers to no verb in this constitution. It cannot be gathered,
+// fought, lit, read or consumed; it blocks its tile and it is otherwise inert.
+// Which means the only thing it has to do is BE SOMEWHERE, and the only way it
+// can fail is by being indistinguishable from something else.
+//
+// This used to be six painters covering thirty-eight nouns, so a bed, a table,
+// a barrel, a cart and a scarecrow were all the same little crate -- and `web`,
+// of which this island has thirty, had no entry at all and came out as a
+// standing stone. Forty nouns, forty painters. The map tells the truth or it
+// is a lie on every chart.
+//
+// Each painter is handed a context, the sprite size, a seeded generator, and
+// (cx, base) where base is the CENTRE OF THE TILE. Everything is drawn upward
+// from there.
+// ===========================================================================
+
+const LM_SIZE = {           // how much canvas each noun needs above its tile
+  'old-oak': 168, 'elder-tree': 168, 'burnt-tree': 140,
+  'broken-tower': 150, 'mill': 160, 'sentinel': 130, 'standing-stone': 110,
+  'siege-engine': 120, 'gibbet': 120, 'shipwreck': 110, 'drowned-bell': 130,
+  'scarecrow': 118, 'web': 118, 'cave-mouth': 110, 'eel-rack': 110,
+  'shelf': 110, 'haystack': 106, 'cart': 100, 'barricade': 100,
+}
+const lmHeight = (kind) => LM_SIZE[kind] ?? 88
+
+// shared vocabulary ---------------------------------------------------------
+const WOOD = ['#4a3a22', '#67512f', '#291e10']
+const OLDWOOD = ['#3d3527', '#564b38', '#221c14']
+const ROCK = ['#3a352e', '#4e473d', '#231f1b']
+const BONE = ['#b0a890', '#e0d9c0', '#5a5344']
+const STRAW = ['#6a5a2e', '#8f7a3c', '#3e3418']
+function plank(g, x, y, w, h, c, lit) {
+  poly(g, [[x, y], [x + w, y - w * .5], [x + w, y - w * .5 - h], [x, y - h]], c)
+  if (lit) { g.fillStyle = 'rgba(255,236,196,.12)'; g.fillRect(x, y - h, w * .4, 2) }
+}
+// an iso box: three faces, lit top-left
+function isoBox(g, cx, base, hw, hd, h, c) {
+  poly(g, [[cx - hw, base - hw * .5], [cx, base], [cx, base - h], [cx - hw, base - hw * .5 - h]], c[0])
+  poly(g, [[cx, base], [cx + hd, base - hd * .5], [cx + hd, base - hd * .5 - h], [cx, base - h]], c[2])
+  poly(g, [[cx - hw, base - hw * .5 - h], [cx, base - h], [cx + hd, base - hd * .5 - h],
+           [cx + hd - hw, base - hw * .5 - hd * .5 - h]], c[1])
+}
+function stoneSlab(g, cx, base, w, h, lean) {
+  const l = lean ?? 0
+  poly(g, [[cx - w, base], [cx + w, base], [cx + w * .8 + l, base - h], [cx - w * .85 + l, base - h]], ROCK[0])
+  poly(g, [[cx - w, base], [cx - w * .2, base], [cx - w * .2 + l, base - h], [cx - w * .85 + l, base - h]], ROCK[1])
+  g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1
+  for (let i = 1; i < 4; i++) {
+    g.beginPath(); g.moveTo(cx - w * .9 + l * i / 4, base - h * i / 4)
+    g.lineTo(cx + w * .9 + l * i / 4, base - h * i / 4 + 2); g.stroke()
+  }
+}
+
+const LM_ART = {
+  // ---- things in a room --------------------------------------------------
+  table: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 2, 24, 10, .5)
+    for (const [ox, oy] of [[-18, -1], [4, 10], [16, -6], [-6, 5]]) {
+      g.strokeStyle = WOOD[2]; g.lineWidth = 3
+      g.beginPath(); g.moveTo(cx + ox, b + oy); g.lineTo(cx + ox, b + oy - 14); g.stroke()
+    }
+    poly(g, [[cx - 24, b - 14], [cx, b - 26], [cx + 24, b - 14], [cx, b - 2]], WOOD[1])
+    poly(g, [[cx - 24, b - 14], [cx, b - 2], [cx + 24, b - 14], [cx + 24, b - 11], [cx, b + 1], [cx - 24, b - 11]], WOOD[2])
+    g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1
+    for (let i = 1; i < 4; i++) { g.beginPath(); g.moveTo(cx - 24 + i * 12, b - 14 + i * 6); g.lineTo(cx + i * 12, b - 2 + i * 6 - 12); g.stroke() }
+    g.fillStyle = '#5a4a34'; g.beginPath(); g.ellipse(cx - 5, b - 17, 4, 2.2, 0, 0, 7); g.fill()
+    g.fillStyle = '#7a6848'; g.fillRect(cx - 6.5, b - 22, 3, 5)
+  },
+  bed: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 2, 26, 11, .5)
+    isoBox(g, cx, b + 4, 22, 14, 8, OLDWOOD)
+    poly(g, [[cx - 22, b - 15], [cx, b - 26], [cx + 14, b - 19], [cx - 8, b - 8]], '#5e4a3c')  // mattress
+    poly(g, [[cx - 22, b - 15], [cx - 4, b - 24], [cx + 6, b - 19], [cx - 12, b - 10]], '#7a2a24') // blanket
+    g.fillStyle = '#c8bfa8'                                                                    // pillow
+    g.beginPath(); g.ellipse(cx + 6, b - 22, 8, 4.4, -.45, 0, 7); g.fill()
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 3                                                // headboard
+    g.beginPath(); g.moveTo(cx + 16, b - 15); g.lineTo(cx + 16, b - 34); g.stroke()
+    g.beginPath(); g.moveTo(cx + 4, b - 9); g.lineTo(cx + 4, b - 26); g.stroke()
+    poly(g, [[cx + 4, b - 26], [cx + 16, b - 34], [cx + 16, b - 30], [cx + 4, b - 22]], OLDWOOD[1])
+  },
+  shelf: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 18, 8, .5)
+    isoBox(g, cx, b, 15, 10, 52, OLDWOOD)
+    for (let i = 0; i < 3; i++) {
+      const y = b - 14 - i * 15
+      poly(g, [[cx - 15, y - 7.5], [cx, y], [cx + 10, y - 5], [cx - 5, y - 12.5]], OLDWOOD[1])
+      g.fillStyle = 'rgba(0,0,0,.45)'
+      poly(g, [[cx - 14, y - 8], [cx - 1, y - 1], [cx - 1, y + 3], [cx - 14, y - 4]], 'rgba(0,0,0,.45)')
+      for (let q = 0; q < 3; q++) {                       // what is on it
+        const px2 = cx - 11 + q * 7, py2 = y - 9 + q * 3
+        g.fillStyle = q % 2 ? '#5a4a34' : '#43506a'
+        g.fillRect(px2, py2 - 7, 4, 7)
+        g.fillStyle = 'rgba(255,236,196,.14)'; g.fillRect(px2, py2 - 7, 1.4, 7)
+      }
+    }
+  },
+  barrel: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 15, 7, .55)
+    const h = 30
+    poly(g, [[cx - 11, b - 3], [cx - 13, b - h + 6], [cx - 11, b - h], [cx + 11, b - h],
+             [cx + 13, b - h + 6], [cx + 11, b - 3]], WOOD[0])
+    poly(g, [[cx - 11, b - 3], [cx - 13, b - h + 6], [cx - 11, b - h], [cx - 3, b - h], [cx - 3, b - 3]], WOOD[1])
+    g.strokeStyle = '#2a2620'; g.lineWidth = 2.4
+    for (const y of [b - 8, b - h + 6]) { g.beginPath(); g.moveTo(cx - 12.6, y); g.lineTo(cx + 12.6, y); g.stroke() }
+    g.strokeStyle = WOOD[2]; g.lineWidth = 1
+    for (let i = -2; i <= 2; i++) { g.beginPath(); g.moveTo(cx + i * 5, b - 3); g.lineTo(cx + i * 5, b - h); g.stroke() }
+    g.fillStyle = WOOD[1]; g.beginPath(); g.ellipse(cx, b - h, 11, 5, 0, 0, 7); g.fill()
+    g.fillStyle = WOOD[2]; g.beginPath(); g.ellipse(cx, b - h, 7, 3.2, 0, 0, 7); g.fill()
+  },
+  crate: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 16, 7, .55)
+    isoBox(g, cx, b, 14, 14, 22, WOOD)
+    g.strokeStyle = WOOD[2]; g.lineWidth = 1.6
+    g.beginPath(); g.moveTo(cx - 14, b - 7 - 22); g.lineTo(cx, b - 22 + 11); g.stroke()
+    g.beginPath(); g.moveTo(cx - 14, b - 7); g.lineTo(cx, b - 22); g.stroke()
+    g.beginPath(); g.moveTo(cx, b); g.lineTo(cx + 14, b - 7 - 22); g.stroke()
+  },
+  stump: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 18, 8, .5)
+    poly(g, [[cx - 10, b], [cx - 8, b - 15], [cx + 8, b - 15], [cx + 10, b]], WOOD[0])
+    poly(g, [[cx - 10, b], [cx - 3, b], [cx - 3, b - 15], [cx - 8, b - 15]], WOOD[1])
+    g.fillStyle = '#6b5836'; g.beginPath(); g.ellipse(cx, b - 15, 8.4, 4, 0, 0, 7); g.fill()
+    g.strokeStyle = '#4a3c22'; g.lineWidth = 1
+    for (let i = 1; i < 4; i++) { g.beginPath(); g.ellipse(cx, b - 15, i * 2.4, i * 1.1, 0, 0, 7); g.stroke() }
+    for (let i = 0; i < 4; i++) {                          // roots breaking the outline
+      const a = R() * 6.28
+      g.strokeStyle = WOOD[2]; g.lineWidth = 2.6
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * 7, b - 2)
+      g.lineTo(cx + Math.cos(a) * 16, b + Math.sin(a) * 4); g.stroke()
+    }
+  },
+  'crude-hearth': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 2, b, 18, 8, .45)
+    g.fillStyle = '#241d18'; g.beginPath(); g.ellipse(cx, b - 2, 13, 6.4, 0, 0, 7); g.fill()
+    g.fillStyle = '#4a4038'; g.beginPath(); g.ellipse(cx, b - 3, 8, 3.6, 0, 0, 7); g.fill()
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * 6.28
+      g.fillStyle = i % 2 ? ROCK[0] : ROCK[1]
+      g.beginPath(); g.ellipse(cx + Math.cos(a) * 14, b - 2 + Math.sin(a) * 7, 4.4, 3.2, a, 0, 7); g.fill()
+    }
+    g.strokeStyle = '#1a1512'; g.lineWidth = 2.4                       // spent fuel
+    g.beginPath(); g.moveTo(cx - 6, b - 4); g.lineTo(cx + 5, b - 1); g.stroke()
+  },
+  skep: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 2, b + 1, 15, 7, .5)
+    for (let i = 0; i < 6; i++) {                          // coiled straw, narrowing
+      const y = b - i * 5, w = 15 - i * 2.2
+      g.fillStyle = i % 2 ? STRAW[1] : STRAW[0]
+      g.beginPath(); g.ellipse(cx, y, w, w * .45, 0, 0, 7); g.fill()
+      g.strokeStyle = STRAW[2]; g.lineWidth = .8
+      g.beginPath(); g.ellipse(cx, y, w, w * .45, 0, 0, 7); g.stroke()
+    }
+    g.fillStyle = '#1a1510'; g.beginPath(); g.ellipse(cx - 2, b - 3, 3.4, 2.2, 0, 0, 7); g.fill()
+    for (let i = 0; i < 4; i++) {                          // bees
+      g.fillStyle = '#d8b03a'
+      g.fillRect(cx + (R() - .5) * 34, b - 12 - R() * 22, 1.6, 1.2)
+    }
+  },
+  hurdle: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 2, b + 1, 24, 8, .4)
+    for (let i = 0; i < 4; i++) {                          // uprights
+      const px2 = cx - 24 + i * 16
+      g.strokeStyle = OLDWOOD[2]; g.lineWidth = 2.6
+      g.beginPath(); g.moveTo(px2, b - (px2 - cx) * .5); g.lineTo(px2, b - 24 - (px2 - cx) * .5); g.stroke()
+    }
+    for (let i = 0; i < 5; i++) {                          // wattle woven through
+      const y = b - 4 - i * 4.4
+      g.strokeStyle = i % 2 ? OLDWOOD[1] : OLDWOOD[0]; g.lineWidth = 2
+      g.beginPath()
+      for (let q = 0; q <= 6; q++) {
+        const px2 = cx - 26 + q * 9
+        const py2 = y - (px2 - cx) * .5 + (q % 2 ? -1.6 : 1.6)
+        q === 0 ? g.moveTo(px2, py2) : g.lineTo(px2, py2)
+      }
+      g.stroke()
+    }
+  },
+  'eel-rack': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 22, 9, .45)
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 3
+    for (const s2 of [-1, 1]) {
+      g.beginPath(); g.moveTo(cx + s2 * 20, b - s2 * 10); g.lineTo(cx + s2 * 6, b - 44); g.stroke()
+    }
+    g.beginPath(); g.moveTo(cx - 6, b - 44); g.lineTo(cx + 6, b - 44); g.stroke()
+    for (let i = 0; i < 6; i++) {                          // the catch, hung to dry
+      const px2 = cx - 8 + i * 3.4, ln = 16 + (i % 3) * 6
+      g.strokeStyle = '#4a5a52'; g.lineWidth = 2.4
+      g.beginPath(); g.moveTo(px2, b - 42)
+      g.quadraticCurveTo(px2 + 3, b - 42 + ln * .6, px2 - 1, b - 42 + ln); g.stroke()
+      g.fillStyle = '#5e7068'
+      g.beginPath(); g.arc(px2, b - 42, 1.8, 0, 7); g.fill()
+    }
+  },
+
+  // ---- stone -------------------------------------------------------------
+  'standing-stone': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 1, 20, 9, .6)
+    stoneSlab(g, cx, b, 12, 56, 3)
+    g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 1.4                // carved marks
+    for (let i = 0; i < 4; i++) {
+      const y = b - 14 - i * 11
+      g.beginPath(); g.moveTo(cx - 5, y); g.lineTo(cx + 4, y - 4); g.stroke()
+    }
+  },
+  cairn: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 20, 9, .55)
+    for (let i = 0; i < 6; i++) {
+      const w = 14 - i * 1.9, y = b - i * 8
+      g.fillStyle = i % 2 ? ROCK[0] : ROCK[1]
+      g.beginPath(); g.ellipse(cx + (R() - .5) * 4, y, w, w * .52, 0, 0, 7); g.fill()
+      g.fillStyle = 'rgba(255,240,214,.10)'
+      g.beginPath(); g.ellipse(cx - 2, y - 2, w * .5, w * .22, 0, 0, 7); g.fill()
+    }
+  },
+  'boundary-stone': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 2, b + 1, 12, 6, .5)
+    stoneSlab(g, cx, b, 7, 20, 0)
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(cx - 3, b - 14, 6, 1.8); g.fillRect(cx - 2, b - 10, 4, 1.8)
+  },
+  milestone: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 2, b + 1, 13, 6, .5)
+    poly(g, [[cx - 8, b], [cx + 8, b], [cx + 7, b - 22], [cx - 7, b - 22]], ROCK[0])
+    poly(g, [[cx - 8, b], [cx - 1, b], [cx - 1, b - 22], [cx - 7, b - 22]], ROCK[1])
+    g.fillStyle = ROCK[1]; g.beginPath(); g.ellipse(cx, b - 22, 7.4, 3.4, 0, Math.PI, 0); g.fill()
+    g.fillStyle = 'rgba(0,0,0,.5)'
+    g.fillRect(cx - 4, b - 17, 8, 1.6); g.fillRect(cx - 3, b - 13, 6, 1.6); g.fillRect(cx - 4, b - 9, 8, 1.6)
+  },
+  sentinel: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 5, b + 1, 22, 10, .62)
+    stoneSlab(g, cx, b, 10, 84, -5)
+    g.fillStyle = 'rgba(0,0,0,.55)'                                     // a face, almost
+    g.beginPath(); g.ellipse(cx - 5, b - 66, 2.4, 3.4, 0, 0, 7); g.fill()
+    g.beginPath(); g.ellipse(cx + 1, b - 68, 2.4, 3.4, 0, 0, 7); g.fill()
+    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1.6
+    g.beginPath(); g.moveTo(cx - 6, b - 56); g.lineTo(cx + 3, b - 58); g.stroke()
+  },
+  'glass-stone': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 16, 8, .5)
+    poly(g, [[cx - 10, b], [cx + 10, b], [cx + 6, b - 40], [cx - 4, b - 46], [cx - 9, b - 30]], '#1e3040')
+    poly(g, [[cx - 10, b], [cx - 1, b], [cx - 2, b - 38], [cx - 4, b - 46], [cx - 9, b - 30]], '#35576e')
+    g.save(); g.globalCompositeOperation = 'lighter'
+    g.fillStyle = 'rgba(130,210,235,.28)'
+    poly(g, [[cx - 4, b - 46], [cx + 6, b - 40], [cx + 2, b - 20], [cx - 3, b - 24]], 'rgba(130,210,235,.28)')
+    g.restore()
+    g.fillStyle = 'rgba(220,250,255,.6)'; g.fillRect(cx - 5, b - 40, 2, 16)
+  },
+  'cut-face': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 1, 26, 10, .55)
+    for (let i = 0; i < 4; i++) {                          // a worked quarry step
+      const y = b - i * 11, w = 26 - i * 3
+      poly(g, [[cx - w, y - w * .5], [cx, y], [cx + w, y - w * .5], [cx, y - w], ], i % 2 ? ROCK[1] : ROCK[0])
+      poly(g, [[cx - w, y - w * .5], [cx, y], [cx, y - 11], [cx - w, y - w * .5 - 11]], ROCK[2])
+    }
+    g.strokeStyle = 'rgba(255,240,214,.14)'; g.lineWidth = 1.4
+    g.beginPath(); g.moveTo(cx - 16, b - 41); g.lineTo(cx, b - 33); g.stroke()
+  },
+
+  // ---- ruin --------------------------------------------------------------
+  'broken-tower': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 6, b + 2, 30, 13, .6)
+    const h = 96
+    poly(g, [[cx - 20, b - 8], [cx, b + 3], [cx, b - h + 14], [cx - 20, b - h]], ROCK[0])
+    poly(g, [[cx, b + 3], [cx + 20, b - 8], [cx + 20, b - h + 26], [cx, b - h + 14]], ROCK[2])
+    g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 1
+    for (let i = 1; i < 9; i++) {
+      const y = b - (h - 10) * i / 9
+      g.beginPath(); g.moveTo(cx - 20, y - 8); g.lineTo(cx, y + 2); g.lineTo(cx + 20, y - 8); g.stroke()
+    }
+    for (let i = 0; i < 6; i++) {                          // the broken crown
+      g.fillStyle = '#0b0908'
+      g.fillRect(cx - 20 + i * 7, b - h + (i % 2 ? 0 : 9), 8, 12)
+    }
+    poly(g, [[cx - 7, b - 22], [cx + 1, b - 18], [cx + 1, b - 2], [cx - 7, b - 6]], '#080606')  // doorway
+  },
+  'sunken-wall': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 24, 9, .45)
+    for (let i = 0; i < 4; i++) {
+      const px2 = cx - 22 + i * 15, hgt = 8 + (i % 2) * 7 + R() * 5
+      isoBox(g, px2, b - (px2 - cx) * .5, 7, 7, hgt, ROCK)
+    }
+    g.fillStyle = 'rgba(40,50,44,.5)'                       // the ground taking it back
+    g.beginPath(); g.ellipse(cx, b + 2, 26, 11, 0, 0, 7); g.fill()
+  },
+  'drowned-bell': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 2, 24, 11, .5)
+    g.fillStyle = 'rgba(20,42,54,.65)'                      // the water it stands in
+    g.beginPath(); g.ellipse(cx, b + 3, 30, 13, 0, 0, 7); g.fill()
+    poly(g, [[cx - 15, b - 6], [cx, b + 2], [cx, b - 62], [cx - 15, b - 68]], ROCK[0])
+    poly(g, [[cx, b + 2], [cx + 15, b - 6], [cx + 15, b - 68], [cx, b - 62]], ROCK[2])
+    poly(g, [[cx - 15, b - 68], [cx, b - 62], [cx + 15, b - 68], [cx, b - 74]], ROCK[1])
+    poly(g, [[cx - 9, b - 30], [cx - 1, b - 26], [cx - 1, b - 46], [cx - 9, b - 50]], '#080a0c')  // the opening
+    g.fillStyle = '#6a5a2a'                                 // and the bell inside it
+    g.beginPath(); g.moveTo(cx - 8, b - 34); g.quadraticCurveTo(cx - 5, b - 46, cx - 1, b - 44)
+    g.lineTo(cx - 1, b - 32); g.closePath(); g.fill()
+    g.fillStyle = '#8f7a3c'; g.fillRect(cx - 8, b - 34, 7, 2)
+    for (let i = 0; i < 3; i++) {
+      const p2 = (i / 3)
+      g.strokeStyle = 'rgba(140,190,210,' + (.2 - p2 * .12) + ')'; g.lineWidth = 1.2
+      g.beginPath(); g.ellipse(cx, b + 3, 14 + i * 9, (14 + i * 9) * .42, 0, 0, 7); g.stroke()
+    }
+  },
+  shipwreck: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 5, b + 2, 34, 12, .5)
+    for (let i = 0; i < 7; i++) {                           // ribs out of the sand
+      const t2 = i / 6, px2 = cx - 30 + t2 * 60
+      const hgt = 34 * Math.sin(t2 * Math.PI) + 6
+      g.strokeStyle = i % 2 ? OLDWOOD[0] : OLDWOOD[1]; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(px2, b - (px2 - cx) * .5 + 4)
+      g.quadraticCurveTo(px2 + 5, b - (px2 - cx) * .5 - hgt * .7, px2 + 2, b - (px2 - cx) * .5 - hgt)
+      g.stroke()
+    }
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 4              // the keel
+    g.beginPath(); g.moveTo(cx - 32, b + 12); g.lineTo(cx + 30, b - 18); g.stroke()
+    poly(g, [[cx - 10, b - 26], [cx + 6, b - 34], [cx + 8, b - 28], [cx - 8, b - 20]], OLDWOOD[1])
+  },
+  'siege-engine': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 5, b + 2, 28, 12, .55)
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 4
+    for (const s2 of [-1, 1]) {
+      g.beginPath(); g.moveTo(cx + s2 * 18, b - s2 * 9); g.lineTo(cx, b - 52); g.stroke()
+    }
+    g.beginPath(); g.moveTo(cx - 20, b + 6); g.lineTo(cx + 20, b - 14); g.stroke()
+    g.strokeStyle = OLDWOOD[0]; g.lineWidth = 5              // the throwing arm, still cocked
+    g.beginPath(); g.moveTo(cx + 2, b - 50); g.lineTo(cx - 26, b - 22); g.stroke()
+    g.fillStyle = '#4a443b'; g.beginPath(); g.arc(cx - 28, b - 20, 5, 0, 7); g.fill()
+    for (const [wx, wy] of [[-16, 4], [14, -10]]) {          // wheels
+      g.strokeStyle = OLDWOOD[1]; g.lineWidth = 2.6
+      g.beginPath(); g.arc(cx + wx, b + wy, 8, 0, 7); g.stroke()
+      g.beginPath(); g.moveTo(cx + wx - 8, b + wy); g.lineTo(cx + wx + 8, b + wy); g.stroke()
+    }
+  },
+  'cave-mouth': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 2, 30, 12, .5)
+    poly(g, [[cx - 30, b + 4], [cx + 30, b + 4], [cx + 24, b - 44], [cx - 2, b - 62], [cx - 26, b - 40]], ROCK[0])
+    poly(g, [[cx - 30, b + 4], [cx - 4, b + 4], [cx - 2, b - 62], [cx - 26, b - 40]], ROCK[1])
+    g.fillStyle = '#050405'
+    g.beginPath(); g.moveTo(cx - 15, b + 2)
+    g.quadraticCurveTo(cx - 13, b - 36, cx + 1, b - 38)
+    g.quadraticCurveTo(cx + 15, b - 34, cx + 15, b + 2); g.closePath(); g.fill()
+    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1.4
+    for (let i = 0; i < 5; i++) {
+      g.beginPath(); g.moveTo(cx - 26 + i * 5, b - 34 + i * 4); g.lineTo(cx - 20 + i * 6, b - 20 + i * 5); g.stroke()
+    }
+  },
+  mill: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 6, b + 2, 28, 12, .58)
+    poly(g, [[cx - 18, b - 8], [cx, b + 2], [cx, b - 62], [cx - 15, b - 70]], '#463a2a')
+    poly(g, [[cx, b + 2], [cx + 18, b - 8], [cx + 15, b - 70], [cx, b - 62]], '#2e2519')
+    poly(g, [[cx - 15, b - 70], [cx, b - 62], [cx + 15, b - 70], [cx, b - 86]], '#3d2c1c')
+    g.strokeStyle = 'rgba(0,0,0,.3)'; g.lineWidth = 1
+    for (let i = 1; i < 6; i++) {
+      const y = b - 10 * i
+      g.beginPath(); g.moveTo(cx - 17, y - 8); g.lineTo(cx, y); g.lineTo(cx + 17, y - 8); g.stroke()
+    }
+    const hx2 = cx - 8, hy2 = b - 56                          // the sails
+    g.strokeStyle = OLDWOOD[1]; g.lineWidth = 3
+    for (let i = 0; i < 4; i++) {
+      const a = i * 1.5708 + .4
+      g.beginPath(); g.moveTo(hx2, hy2); g.lineTo(hx2 + Math.cos(a) * 30, hy2 + Math.sin(a) * 30); g.stroke()
+      g.fillStyle = 'rgba(200,190,160,.20)'
+      poly(g, [[hx2 + Math.cos(a) * 9, hy2 + Math.sin(a) * 9],
+               [hx2 + Math.cos(a) * 29, hy2 + Math.sin(a) * 29],
+               [hx2 + Math.cos(a + .34) * 27, hy2 + Math.sin(a + .34) * 27],
+               [hx2 + Math.cos(a + .34) * 8, hy2 + Math.sin(a + .34) * 8]], 'rgba(200,190,160,.20)')
+    }
+    g.fillStyle = '#241c12'; g.beginPath(); g.arc(hx2, hy2, 3.4, 0, 7); g.fill()
+  },
+
+  // ---- bone and dark -----------------------------------------------------
+  'bone-pile': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 20, 9, .5)
+    for (let i = 0; i < 11; i++) {
+      const x = cx + (R() - .5) * 38, y = b - R() * 12
+      g.strokeStyle = i % 3 ? BONE[0] : BONE[1]; g.lineWidth = 3.2; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - .5) * 18, y - R() * 9); g.stroke()
+    }
+    g.fillStyle = BONE[1]; g.beginPath(); g.arc(cx + 5, b - 11, 6.4, 0, 7); g.fill()
+    g.fillStyle = '#14100c'
+    g.beginPath(); g.arc(cx + 3, b - 12, 1.8, 0, 7); g.fill()
+    g.beginPath(); g.arc(cx + 7.6, b - 12, 1.8, 0, 7); g.fill()
+  },
+  'skull-pile': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 20, 9, .55)
+    const rows = [[-14, 0], [-5, 0], [4, 0], [13, 0], [-9, -9], [0, -9], [9, -9], [-4, -18], [5, -18], [0, -26]]
+    for (const [ox, oy] of rows) {
+      const x = cx + ox, y = b + oy - 6
+      g.fillStyle = BONE[0]; g.beginPath(); g.arc(x, y, 5.4, 0, 7); g.fill()
+      g.fillStyle = BONE[1]; g.beginPath(); g.arc(x - 1.2, y - 1.4, 3.6, 0, 7); g.fill()
+      g.fillStyle = '#100c0a'
+      g.beginPath(); g.arc(x - 2, y - .4, 1.5, 0, 7); g.fill()
+      g.beginPath(); g.arc(x + 2, y - .4, 1.5, 0, 7); g.fill()
+      g.fillRect(x - 1.6, y + 2.6, 3.2, 2)
+    }
+  },
+  gibbet: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 16, 8, .55)
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 4
+    g.beginPath(); g.moveTo(cx - 10, b); g.lineTo(cx - 10, b - 70); g.lineTo(cx + 16, b - 70); g.stroke()
+    g.strokeStyle = OLDWOOD[0]; g.lineWidth = 2
+    g.beginPath(); g.moveTo(cx - 10, b - 58); g.lineTo(cx + 2, b - 70); g.stroke()
+    g.strokeStyle = '#4a4438'; g.lineWidth = 1.4              // the cage
+    g.beginPath(); g.moveTo(cx + 16, b - 70); g.lineTo(cx + 16, b - 54); g.stroke()
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 4) * Math.PI - Math.PI / 2
+      g.beginPath()
+      g.moveTo(cx + 16 + Math.cos(a) * 8, b - 52)
+      g.lineTo(cx + 16 + Math.cos(a) * 8, b - 30); g.stroke()
+    }
+    g.beginPath(); g.ellipse(cx + 16, b - 52, 8, 3.4, 0, 0, 7); g.stroke()
+    g.beginPath(); g.ellipse(cx + 16, b - 30, 8, 3.4, 0, 0, 7); g.stroke()
+    g.fillStyle = BONE[0]; g.beginPath(); g.arc(cx + 16, b - 44, 5.4, 0, 7); g.fill()
+    g.fillStyle = '#100c0a'
+    g.beginPath(); g.arc(cx + 14, b - 45, 1.5, 0, 7); g.fill()
+    g.beginPath(); g.arc(cx + 18, b - 45, 1.5, 0, 7); g.fill()
+  },
+  'tally-half': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 2, b + 1, 12, 6, .5)
+    poly(g, [[cx - 5, b], [cx + 5, b], [cx + 4, b - 40], [cx - 3, b - 44]], '#6b5836')
+    poly(g, [[cx - 5, b], [cx - 1, b], [cx - 1, b - 42], [cx - 3, b - 44]], '#8a7248')
+    g.strokeStyle = '#2e2418'; g.lineWidth = 1.6              // the notches of the debt
+    for (let i = 0; i < 7; i++) {
+      const y = b - 8 - i * 4.6
+      g.beginPath(); g.moveTo(cx - 4, y); g.lineTo(cx + 4, y - 1); g.stroke()
+    }
+    g.strokeStyle = '#1a140e'; g.lineWidth = 2                // and the split down it
+    g.beginPath(); g.moveTo(cx + 1, b); g.lineTo(cx + 1, b - 42); g.stroke()
+  },
+  web: (g, W, H, R, cx, b) => {
+    // THIRTY OF THESE, and until now every one drew as a standing stone.
+    groundShadow(g, cx + 2, b + 1, 12, 6, .3)
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 2.6
+    g.beginPath(); g.moveTo(cx - 24, b + 2); g.lineTo(cx - 22, b - 56); g.stroke()
+    g.beginPath(); g.moveTo(cx + 24, b - 10); g.lineTo(cx + 22, b - 64); g.stroke()
+    const wx = cx, wy = b - 40
+    g.strokeStyle = 'rgba(214,220,224,.42)'; g.lineWidth = 1
+    for (let i = 0; i < 9; i++) {                             // radials
+      const a = (i / 9) * 6.283
+      g.beginPath(); g.moveTo(wx, wy)
+      g.lineTo(wx + Math.cos(a) * 25, wy + Math.sin(a) * 22); g.stroke()
+    }
+    for (let r = 1; r <= 4; r++) {                            // and the spiral between them
+      g.beginPath()
+      for (let i = 0; i <= 9; i++) {
+        const a = (i / 9) * 6.283
+        const rr = r * 6
+        const px2 = wx + Math.cos(a) * rr, py2 = wy + Math.sin(a) * rr * .88
+        i === 0 ? g.moveTo(px2, py2) : g.lineTo(px2, py2)
+      }
+      g.closePath(); g.stroke()
+    }
+    g.fillStyle = 'rgba(240,244,248,.30)'
+    for (let i = 0; i < 5; i++) {                             // caught, and left
+      g.fillRect(wx + (R() - .5) * 36, wy + (R() - .5) * 32, 2.4, 2.4)
+    }
+  },
+
+  // ---- work and weather --------------------------------------------------
+  'log-pile': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 22, 9, .5)
+    for (let row = 0; row < 3; row++) {
+      for (let i = 0; i < 4 - row; i++) {
+        const x = cx - 18 + row * 7 + i * 12, y = b - 4 - row * 9
+        g.fillStyle = row % 2 ? WOOD[0] : WOOD[1]
+        g.beginPath(); g.ellipse(x, y, 6.4, 5, 0, 0, 7); g.fill()
+        g.fillStyle = '#6b5836'; g.beginPath(); g.ellipse(x - 1, y - 1, 4, 3.2, 0, 0, 7); g.fill()
+        g.strokeStyle = '#4a3c22'; g.lineWidth = .8
+        g.beginPath(); g.ellipse(x - 1, y - 1, 2.2, 1.7, 0, 0, 7); g.stroke()
+      }
+    }
+  },
+  'spoil-heap': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 24, 10, .5)
+    for (let i = 0; i < 22; i++) {
+      const a = R() * 6.283, rr = R() * 24
+      g.fillStyle = i % 3 ? '#3f3a33' : '#4e4740'
+      g.beginPath()
+      g.ellipse(cx + Math.cos(a) * rr, b - 2 + Math.sin(a) * rr * .42 - (1 - rr / 24) * 12,
+        3 + R() * 4, 2 + R() * 2.4, R() * 3, 0, 7); g.fill()
+    }
+    for (let i = 0; i < 5; i++) {                             // ore that was not worth it
+      g.fillStyle = '#7a5c2a'
+      g.beginPath(); g.arc(cx + (R() - .5) * 30, b - 4 - R() * 10, 1.4, 0, 7); g.fill()
+    }
+  },
+  haystack: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 1, 22, 10, .55)
+    for (let i = 0; i < 5; i++) {
+      const y = b - i * 11, w = 22 - i * 3.6
+      g.fillStyle = i % 2 ? STRAW[0] : STRAW[1]
+      g.beginPath(); g.ellipse(cx, y, w, w * .5, 0, 0, 7); g.fill()
+    }
+    poly(g, [[cx - 8, b - 50], [cx + 8, b - 50], [cx, b - 66]], STRAW[1])
+    g.strokeStyle = STRAW[2]; g.lineWidth = 1
+    for (let i = 0; i < 26; i++) {
+      const a = R() * 6.283, rr = 8 + R() * 15
+      g.beginPath()
+      g.moveTo(cx + Math.cos(a) * rr, b - R() * 46)
+      g.lineTo(cx + Math.cos(a) * rr + (R() - .5) * 5, b - R() * 46 - 4); g.stroke()
+    }
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 2.4
+    g.beginPath(); g.moveTo(cx + 20, b + 4); g.lineTo(cx + 12, b - 34); g.stroke()
+  },
+  'charcoal-clamp': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 24, 10, .5)
+    for (let i = 0; i < 4; i++) {
+      const y = b - i * 8, w = 24 - i * 5
+      g.fillStyle = i % 2 ? '#231e1a' : '#2f2823'
+      g.beginPath(); g.ellipse(cx, y, w, w * .48, 0, 0, 7); g.fill()
+    }
+    g.fillStyle = '#151210'; g.beginPath(); g.ellipse(cx, b - 30, 4.4, 2.2, 0, 0, 7); g.fill()
+    g.save(); g.globalCompositeOperation = 'lighter'          // it is still working
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = 'rgba(170,160,150,' + (.10 - i * .02) + ')'
+      g.beginPath(); g.ellipse(cx + (R() - .5) * 8, b - 36 - i * 9, 5 + i * 3, 3 + i * 2, 0, 0, 7); g.fill()
+    }
+    g.restore()
+  },
+  'scorched-ring': (g, W, H, R, cx, b) => {              // flat: a mark, not an object
+    g.fillStyle = 'rgba(14,11,10,.72)'
+    g.beginPath(); g.ellipse(cx, b, 26, 12, 0, 0, 7); g.fill()
+    g.fillStyle = 'rgba(40,32,26,.55)'
+    g.beginPath(); g.ellipse(cx, b, 18, 8, 0, 0, 7); g.fill()
+    g.strokeStyle = 'rgba(90,70,50,.4)'; g.lineWidth = 1.6
+    g.beginPath(); g.ellipse(cx, b, 26, 12, 0, 0, 7); g.stroke()
+    for (let i = 0; i < 8; i++) {
+      g.fillStyle = '#1a1512'
+      g.beginPath(); g.ellipse(cx + (R() - .5) * 40, b + (R() - .5) * 16, 2.4, 1.4, R() * 3, 0, 7); g.fill()
+    }
+  },
+  'burnt-tree': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 1, 20, 9, .5)
+    const h = 74
+    poly(g, [[cx - 6, b], [cx - 3, b - h], [cx + 2, b - h], [cx + 7, b]], '#1a1614')
+    poly(g, [[cx - 6, b], [cx - 2, b], [cx - 2, b - h], [cx - 3, b - h]], '#2e2724')
+    g.strokeStyle = '#151110'; g.lineCap = 'round'
+    for (let i = 0; i < 7; i++) {
+      const a = -0.4 - R() * 2.3, len = 14 + R() * 26
+      const by2 = b - h * (0.35 + R() * 0.6)
+      g.lineWidth = 3.4 - i * .35
+      g.beginPath(); g.moveTo(cx, by2)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .6, by2 + Math.sin(a) * len * .5,
+        cx + Math.cos(a - .3) * len, by2 + Math.sin(a - .3) * len); g.stroke()
+    }
+    g.fillStyle = 'rgba(10,8,8,.5)'
+    g.beginPath(); g.ellipse(cx, b + 1, 20, 8, 0, 0, 7); g.fill()
+  },
+  cart: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 4, b + 2, 24, 10, .5)
+    poly(g, [[cx - 22, b - 13], [cx + 2, b - 1], [cx + 20, b - 10], [cx - 4, b - 22]], WOOD[1])
+    poly(g, [[cx - 22, b - 13], [cx + 2, b - 1], [cx + 2, b - 9], [cx - 22, b - 21]], WOOD[0])
+    poly(g, [[cx + 2, b - 1], [cx + 20, b - 10], [cx + 20, b - 18], [cx + 2, b - 9]], WOOD[2])
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 2.6
+    g.beginPath(); g.moveTo(cx - 20, b - 20); g.lineTo(cx - 34, b - 30); g.stroke()
+    for (const [wx, wy] of [[-12, 2], [8, -8]]) {
+      g.strokeStyle = '#2e2519'; g.lineWidth = 2.6
+      g.beginPath(); g.arc(cx + wx, b + wy, 9, 0, 7); g.stroke()
+      g.lineWidth = 1.4
+      for (let i = 0; i < 4; i++) {
+        const a = i * .785
+        g.beginPath(); g.moveTo(cx + wx - Math.cos(a) * 9, b + wy - Math.sin(a) * 9)
+        g.lineTo(cx + wx + Math.cos(a) * 9, b + wy + Math.sin(a) * 9); g.stroke()
+      }
+    }
+  },
+  scarecrow: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 14, 7, .5)
+    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 3.4
+    g.beginPath(); g.moveTo(cx, b); g.lineTo(cx, b - 62); g.stroke()
+    g.beginPath(); g.moveTo(cx - 22, b - 46); g.lineTo(cx + 22, b - 50); g.stroke()
+    poly(g, [[cx - 10, b - 48], [cx + 10, b - 50], [cx + 8, b - 22], [cx - 8, b - 20]], '#4a3f2c')
+    for (let i = 0; i < 10; i++) {                            // straw out of the cuffs and hem
+      g.strokeStyle = STRAW[1]; g.lineWidth = 1
+      const x = cx - 8 + R() * 16
+      g.beginPath(); g.moveTo(x, b - 21); g.lineTo(x + (R() - .5) * 5, b - 13); g.stroke()
+    }
+    g.fillStyle = STRAW[0]; g.beginPath(); g.arc(cx, b - 56, 8, 0, 7); g.fill()
+    g.fillStyle = STRAW[1]; g.beginPath(); g.arc(cx - 1.6, b - 57.6, 5.4, 0, 7); g.fill()
+    g.fillStyle = '#1a1510'
+    g.beginPath(); g.arc(cx - 2.6, b - 58, 1.4, 0, 7); g.fill()
+    g.beginPath(); g.arc(cx + 2, b - 57.6, 1.4, 0, 7); g.fill()
+    poly(g, [[cx - 11, b - 61], [cx + 11, b - 61], [cx + 6, b - 70], [cx - 6, b - 70]], '#3d3323')
+  },
+  barricade: (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 3, b + 1, 24, 9, .5)
+    for (const s2 of [-1, 1]) {                               // crossed stakes, points out
+      g.strokeStyle = OLDWOOD[0]; g.lineWidth = 4
+      g.beginPath(); g.moveTo(cx + s2 * 24, b + s2 * 6); g.lineTo(cx - s2 * 16, b - 40); g.stroke()
+      poly(g, [[cx - s2 * 16, b - 40], [cx - s2 * 13, b - 34], [cx - s2 * 20, b - 36]], '#8f8272')
+    }
+    g.strokeStyle = OLDWOOD[1]; g.lineWidth = 3
+    g.beginPath(); g.moveTo(cx - 22, b - 8); g.lineTo(cx + 22, b - 20); g.stroke()
+    g.beginPath(); g.moveTo(cx - 20, b - 20); g.lineTo(cx + 20, b - 32); g.stroke()
+    g.strokeStyle = '#2a2620'; g.lineWidth = 1.6              // lashings
+    g.beginPath(); g.arc(cx, b - 22, 4, 0, 7); g.stroke()
+  },
+
+  // ---- the two that are older than the towns -----------------------------
+  'old-oak': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 6, b + 2, 40, 17, .6)
+    const h = 78
+    poly(g, [[cx - 17, b + 2], [cx - 8, b - h], [cx + 8, b - h], [cx + 17, b + 2]], '#2c241a')
+    poly(g, [[cx - 17, b + 2], [cx - 5, b + 2], [cx - 3, b - h], [cx - 8, b - h]], '#463829')
+    g.strokeStyle = '#181109'; g.lineWidth = 1.6
+    for (let i = 0; i < 8; i++) {
+      const t2 = R()
+      g.beginPath(); g.moveTo(cx - 14 + t2 * 28, b); g.lineTo(cx - 7 + t2 * 15, b - h + 6); g.stroke()
+    }
+    for (let i = 0; i < 6; i++) {                             // roots
+      const a = R() * 6.28
+      g.strokeStyle = '#2c241a'; g.lineWidth = 5
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * 10, b)
+      g.lineTo(cx + Math.cos(a) * 30, b + Math.sin(a) * 8); g.stroke()
+    }
+    g.strokeStyle = '#2c241a'; g.lineCap = 'round'
+    for (let i = 0; i < 7; i++) {
+      const a = -0.3 - R() * 2.5, len = 26 + R() * 26
+      g.lineWidth = 6 - i * .5
+      g.beginPath(); g.moveTo(cx, b - h + 8)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .5, b - h - 6 + Math.sin(a) * len * .4,
+        cx + Math.cos(a - .2) * len, b - h - 4 + Math.sin(a - .2) * len); g.stroke()
+    }
+    const cy2 = b - h - 34
+    const blobs = []
+    for (let i = 0; i < 11; i++) blobs.push([cx + (R() - .5) * 76, cy2 + (R() - .5) * 40, 18 + R() * 16])
+    for (const [bx, by, br] of blobs) { g.fillStyle = '#17200f'; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill() }
+    for (const [bx, by, br] of blobs) { g.fillStyle = '#243014'; g.beginPath(); g.arc(bx - br * .12, by - br * .16, br * .76, 0, 7); g.fill() }
+    for (const [bx, by, br] of blobs) { g.fillStyle = '#3b4a1e'; g.beginPath(); g.arc(bx - br * .3, by - br * .34, br * .36, 0, 7); g.fill() }
+  },
+  'elder-tree': (g, W, H, R, cx, b) => {
+    groundShadow(g, cx + 6, b + 2, 36, 15, .55)
+    const h = 84
+    poly(g, [[cx - 13, b + 2], [cx - 6, b - h], [cx + 6, b - h], [cx + 13, b + 2]], '#54534a')
+    poly(g, [[cx - 13, b + 2], [cx - 3, b + 2], [cx - 2, b - h], [cx - 6, b - h]], '#77756a')
+    g.strokeStyle = '#3e3d36'; g.lineWidth = 1.2
+    for (let i = 0; i < 7; i++) {
+      const t2 = R()
+      g.beginPath(); g.moveTo(cx - 11 + t2 * 22, b); g.lineTo(cx - 5 + t2 * 11, b - h + 6); g.stroke()
+    }
+    g.strokeStyle = '#5e5c52'; g.lineCap = 'round'
+    for (let i = 0; i < 8; i++) {
+      const a = -0.25 - R() * 2.6, len = 24 + R() * 24
+      g.lineWidth = 5 - i * .4
+      g.beginPath(); g.moveTo(cx, b - h + 6)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .5, b - h - 4 + Math.sin(a) * len * .4,
+        cx + Math.cos(a - .2) * len, b - h - 2 + Math.sin(a - .2) * len); g.stroke()
+    }
+    const cy2 = b - h - 30
+    for (let i = 0; i < 10; i++) {
+      const bx = cx + (R() - .5) * 70, by = cy2 + (R() - .5) * 36, br = 16 + R() * 14
+      g.fillStyle = '#2a3a34'; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill()
+      g.fillStyle = '#3d5750'; g.beginPath(); g.arc(bx - br * .2, by - br * .24, br * .6, 0, 7); g.fill()
+    }
+    g.save(); g.globalCompositeOperation = 'lighter'          // it is not quite an ordinary tree
+    const gg2 = g.createRadialGradient(cx, cy2, 0, cx, cy2, 70)
+    gg2.addColorStop(0, 'rgba(150,220,200,.10)'); gg2.addColorStop(1, 'rgba(150,220,200,0)')
+    g.fillStyle = gg2; g.beginPath(); g.arc(cx, cy2, 70, 0, 7); g.fill(); g.restore()
+  },
+}
+
+// Anything the constitution adds after this file was written still gets a
+// shape rather than a blank: a nameless cairn, which is what an unrecorded
+// place looks like on any real chart.
+function lmFallback(g, W, H, R, cx, b) {
+  groundShadow(g, cx + 3, b + 1, 16, 7, .5)
+  for (let i = 0; i < 4; i++) {
+    const w = 12 - i * 2.2, y = b - i * 7
+    g.fillStyle = i % 2 ? ROCK[0] : ROCK[1]
+    g.beginPath(); g.ellipse(cx + (R() - .5) * 3, y, w, w * .52, 0, 0, 7); g.fill()
+  }
+}
+// ===========================================================================
 // THE RENDERER
 // ---------------------------------------------------------------------------
 // Three passes and a composite:
@@ -3404,7 +4181,16 @@ function screenOf(wx, wy) {
            y: VH / 2 - CAM_LIFT + isoY(wx, wy) - isoY(camX, camY) }
 }
 function worldOf(px2, py2) {
-  return unIso(px2 - VW / 2 + isoX(camX, camY) + HW,
+  // THE INVERSE OF screenOf, AND IT HAD A HALF-TILE IN IT.
+  //
+  // The `+ HW` shifted the answer by (+0.5, -0.5) before unIso floored it,
+  // which resolves to the WRONG TILE for every tile on the island -- measured,
+  // 396 of 396. A click landed one square behind where you aimed; you set off
+  // for it, and if the button was held even a moment the camera carried the
+  // target away from you as you walked. That is the walking in circles. It also
+  // quietly broke the tile-exactness rule meant to stop tall trees stealing
+  // each other's clicks, because that rule was comparing against the wrong tile.
+  return unIso(px2 - VW / 2 + isoX(camX, camY),
                py2 - VH / 2 + CAM_LIFT + isoY(camX, camY))
 }
 
@@ -3415,6 +4201,14 @@ function worldOf(px2, py2) {
 let prevPos = new Map(), curPos = new Map()
 const facing = new Map()                     // last direction each body moved
 let prevHp = new Map()
+// THE ARM IS IN THE STATE. engine.js writes `p.lastSwing = s.tick` on the tick
+// a blow actually lands, and WEAPONS.every says how long the arm then takes to
+// come back. So a swing is a discrete event with a known moment, and animating
+// it as a continuous 90ms wobble -- which is what this did -- was not a fast
+// swing, it was a blur that never started or stopped. Beasts keep the same
+// field, so they get the same treatment.
+let prevSwing = new Map()
+const swingAt = new Map()   // id -> when its last blow landed, in wall time
 function notePositions(s) {
   prevPos = curPos; curPos = new Map()
   for (const [id, p] of Object.entries(s.players ?? {})) curPos.set('p' + id, [p.x, p.y])
@@ -3429,6 +4223,15 @@ function notePositions(s) {
   // stream -- so a blow is only ever visible as a difference between two
   // ticks. Diffing them here is what buys the flash, the number and the blood,
   // and it costs one pass over the mobs the camera can already see.
+  // who just swung
+  const nowMs = performance.now()
+  for (const [id, e] of [...Object.entries(s.players ?? {}).map(([k, v]) => ['p' + k, v]),
+                         ...Object.entries(s.mobs ?? {}).map(([k, v]) => ['m' + k, v])]) {
+    const ls = e.lastSwing
+    if (ls === undefined) continue
+    if (ls > (prevSwing.get(id) ?? -1)) swingAt.set(id, nowMs)
+    prevSwing.set(id, ls)
+  }
   const hpNow = new Map()
   const mine = myId && s.players?.[myId]
   const myTarget = mine?.action?.type === 'attack' ? mine.action.mobId : null
@@ -3487,6 +4290,31 @@ const DAY = 2400
 // GROUND PASS
 // ---------------------------------------------------------------------------
 let waterTiles = []
+let _mottle = null
+function mottle() {
+  if (_mottle) return _mottle
+  const c = mkc(256, 256), g = c.getContext('2d')
+  const R = rng(90210)
+  g.fillStyle = '#808080'; g.fillRect(0, 0, 256, 256)
+  for (let i = 0; i < 240; i++) {
+    const x = R() * 256, y = R() * 256, r = 14 + R() * 60
+    const gr = g.createRadialGradient(x, y, 0, x, y, r)
+    const v = R() > .5 ? 255 : 0
+    gr.addColorStop(0, 'rgba(' + v + ',' + v + ',' + v + ',' + (.05 + R() * .07) + ')')
+    gr.addColorStop(1, 'rgba(' + v + ',' + v + ',' + v + ',0)')
+    g.fillStyle = gr
+    g.beginPath(); g.arc(x, y, r, 0, 7); g.fill()
+    // wrap, so the tile has no seam of its own
+    for (const [ox, oy] of [[-256, 0], [256, 0], [0, -256], [0, 256]]) {
+      g.beginPath(); g.arc(x + ox, y + oy, r, 0, 7)
+      const g2 = g.createRadialGradient(x + ox, y + oy, 0, x + ox, y + oy, r)
+      g2.addColorStop(0, 'rgba(' + v + ',' + v + ',' + v + ',' + (.05 + R() * .07) + ')')
+      g2.addColorStop(1, 'rgba(' + v + ',' + v + ',' + v + ',0)')
+      g.fillStyle = g2; g.fill()
+    }
+  }
+  return (_mottle = c)
+}
 function drawGround(g, s, t) {
   // which tiles can the screen see? invert the four corners and take the box
   const c0 = worldOf(-TW, -TH), c1 = worldOf(VW + TW, -TH)
@@ -3509,10 +4337,28 @@ function drawGround(g, s, t) {
       const G = groundOf(kind)
       const v = tileHash(x, y, 91) & 3
       const ox = oxB + isoX(x, y), oy = oyB + isoY(x, y) - G.lift
+      if (G.grain !== 'water') {
+        g.fillStyle = groundColorAt(x, y)
+        diamond(g, ox, oy, -1.2)          // a shade oversized, so there is no seam
+        g.fill()
+      }
       g.drawImage(tileArt(kind, v), ox, oy)
       if (G.grain === 'water') waterTiles.push(ox, oy)
     }
   }
+  // MOTTLE. Ground varies at scales larger than a tile as well as smaller, and
+  // without something at the larger scale a blended field just looks airbrushed.
+  // Anchored to the world, so it sits still while the camera moves over it.
+  if (hiq()) {
+    const M = mottle()
+    const mx = -((isoX(camX, camY) - VW / 2) % 256 + 256) % 256
+    const my = -((isoY(camX, camY) - VH / 2 + CAM_LIFT) % 256 + 256) % 256
+    g.save(); g.globalCompositeOperation = 'overlay'; g.globalAlpha = .5
+    for (let ty = my - 256; ty < VH + 256; ty += 256)
+      for (let tx = mx - 256; tx < VW + 256; tx += 256) g.drawImage(M, tx, ty)
+    g.restore()
+  }
+
   // one moving highlight over every water tile: still water is a blue floor
   if (waterTiles.length) {
     g.save(); g.globalCompositeOperation = 'lighter'
@@ -3538,7 +4384,29 @@ const liftAt = (x, y) => NODE_LIFT[terrainOf(x, y)] ?? 0
 // trade-floors) inside the walls it raises. Anything standing on one of these
 // is INDOORS, and several things are drawn differently once they are.
 const INDOOR_TERRAIN = new Set(['floor', 'inn', 'smith', 'fisher', 'shep', 'clerk', 'wizard'])
-const indoors = (x, y) => INDOOR_TERRAIN.has(terrainOf(x, y))
+// TERRAIN WAS NOT THE WHOLE ANSWER. The generator paints `floor` under some
+// rooms and leaves the town's own paving (`flag`) under others, so a third of
+// the cottages still had a gabled roof on them inside somebody's four walls.
+// A room is a room because it is WALLED, not because of what the floor is made
+// of: walls within four tiles on all four sides, which no open yard satisfies
+// and no room fails. Memoised per state, because it is asked once per node per
+// frame and the answer cannot change inside a tick.
+let wallTiles = new Set()
+const _roomMemo = new Map()
+function walledIn(x, y) {
+  const k = x + ',' + y
+  const hit = _roomMemo.get(k); if (hit !== undefined) return hit
+  let sides = 0
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (let i = 1; i <= 4; i++) {
+      if (wallTiles.has((x + dx * i) + ',' + (y + dy * i))) { sides++; break }
+    }
+  }
+  const out = sides === 4
+  _roomMemo.set(k, out)
+  return out
+}
+const indoors = (x, y) => INDOOR_TERRAIN.has(terrainOf(x, y)) || walledIn(x, y)
 
 const bubbles = {}
 const motes = []                             // blood, sparks, cinders
@@ -3987,112 +4855,13 @@ function drawNode(g, n, sx, sy, t, hot) {
 }
 
 // ---- the places that are only places --------------------------------------
-// Thirty-odd nouns, five families. A landmark answers to no verb in the
-// constitution, so all any of these has to do is be unmistakably somewhere.
-const LM_FAMILY = {
-  'old-oak': 'greattree', 'elder-tree': 'greattree', 'burnt-tree': 'greattree',
-  'standing-stone': 'stone', 'cairn': 'stone', 'glass-stone': 'stone',
-  'boundary-stone': 'stone', 'milestone': 'stone', 'sentinel': 'stone',
-  'broken-tower': 'ruin', 'sunken-wall': 'ruin', 'drowned-bell': 'ruin',
-  'shipwreck': 'ruin', 'siege-engine': 'ruin', 'cave-mouth': 'ruin', 'mill': 'ruin',
-  'bone-pile': 'bones', 'skull-pile': 'bones', 'gibbet': 'bones', 'tally-half': 'bones',
-  'log-pile': 'heap', 'spoil-heap': 'heap', 'haystack': 'heap', 'charcoal-clamp': 'heap',
-  'cut-face': 'heap', 'scorched-ring': 'heap', 'crude-hearth': 'heap', 'skep': 'heap',
-  'barrel': 'crate', 'crate': 'crate', 'cart': 'crate', 'table': 'crate',
-  'bed': 'crate', 'shelf': 'crate', 'stump': 'crate', 'eel-rack': 'crate',
-  'hurdle': 'crate', 'scarecrow': 'crate',
-}
+// Forty nouns, forty painters, in 48-landmarks.js. The dispatch is this:
 function drawLandmark(g, n, sx, sy, t, hs) {
   const kind = n.kind ?? 'standing-stone'
-  const fam = LM_FAMILY[kind] ?? 'stone'
-  const key = 'lm:' + kind + (hs & 3)
-  const h2 = fam === 'greattree' ? 150 : fam === 'ruin' ? 120 : 66
-  g.drawImage(sprite(key, 130, h2, (gg, W2, H2, R) => {
-    const c2 = W2 / 2, b = H2 - 6
-    switch (fam) {
-      case 'greattree':
-        paintTree(gg, W2, H2, R, kind === 'burnt-tree' ? 'burnt' : 'leafy')
-        break
-      case 'stone': {
-        groundShadow(gg, c2 + 3, b - 1, 20, 9, .55)
-        const nst = kind === 'cairn' ? 5 : 1
-        for (let i = 0; i < nst; i++) {
-          const w2 = 13 - i * 2, hh = nst === 1 ? 44 : 8
-          const yy = b - i * 8
-          poly(gg, [[c2 - w2, yy], [c2 + w2, yy], [c2 + w2 * .8, yy - hh], [c2 - w2 * .85, yy - hh]],
-            i % 2 ? '#3a352e' : '#443e37')
-          poly(gg, [[c2 - w2, yy], [c2 - 1, yy], [c2 - 1, yy - hh], [c2 - w2 * .85, yy - hh]], '#524b42')
-        }
-        if (kind === 'glass-stone') {
-          gg.fillStyle = 'rgba(150,210,255,.25)'
-          poly(gg, [[c2 - 11, b], [c2 + 11, b], [c2 + 9, b - 44], [c2 - 10, b - 44]], 'rgba(150,210,255,.22)')
-        }
-        break }
-      case 'ruin': {
-        groundShadow(gg, c2 + 4, b - 2, 28, 12, .55)
-        const hgt = kind === 'broken-tower' ? 74 : 30
-        poly(gg, [[c2 - 22, b - 8], [c2, b + 3], [c2, b - hgt], [c2 - 22, b - hgt - 6]], '#332e28')
-        poly(gg, [[c2, b + 3], [c2 + 22, b - 8], [c2 + 22, b - hgt + 10], [c2, b - hgt]], '#221d19')
-        gg.strokeStyle = 'rgba(0,0,0,.34)'; gg.lineWidth = 1
-        for (let i = 1; i < 7; i++) {
-          const yy = b - hgt * i / 7
-          gg.beginPath(); gg.moveTo(c2 - 22, yy - 6); gg.lineTo(c2, yy + 2); gg.lineTo(c2 + 22, yy - 6); gg.stroke()
-        }
-        for (let i = 0; i < 5; i++) {                 // the top, broken away
-          gg.fillStyle = '#0d0b09'
-          gg.fillRect(c2 - 22 + i * 9, b - hgt - 6 + (i % 2) * 5, 9, 8)
-        }
-        break }
-      case 'bones': {
-        groundShadow(gg, c2 + 2, b - 1, 18, 8, .5)
-        if (kind === 'gibbet') {
-          gg.strokeStyle = '#2b2318'; gg.lineWidth = 3.4
-          gg.beginPath(); gg.moveTo(c2 - 8, b); gg.lineTo(c2 - 8, b - 46); gg.lineTo(c2 + 12, b - 46); gg.stroke()
-          gg.strokeStyle = '#4a4034'; gg.lineWidth = 1.4
-          gg.beginPath(); gg.moveTo(c2 + 12, b - 46); gg.lineTo(c2 + 12, b - 33); gg.stroke()
-          gg.fillStyle = '#8d876f'
-          gg.beginPath(); gg.arc(c2 + 12, b - 27, 6, 0, 7); gg.fill()
-          gg.fillStyle = '#14100c'
-          gg.beginPath(); gg.arc(c2 + 10, b - 28, 1.6, 0, 7); gg.fill()
-          gg.beginPath(); gg.arc(c2 + 14.4, b - 28, 1.6, 0, 7); gg.fill()
-        } else {
-          for (let i = 0; i < 9; i++) {
-            const x2 = c2 + (R() - .5) * 34, y2 = b - R() * 12
-            gg.strokeStyle = i % 3 ? '#8d876f' : '#a8a189'; gg.lineWidth = 3
-            gg.beginPath(); gg.moveTo(x2, y2); gg.lineTo(x2 + (R() - .5) * 16, y2 - R() * 8); gg.stroke()
-          }
-          gg.fillStyle = '#b0a98f'
-          gg.beginPath(); gg.arc(c2 + 4, b - 10, 6.4, 0, 7); gg.fill()
-          gg.fillStyle = '#14100c'
-          gg.beginPath(); gg.arc(c2 + 2, b - 11, 1.8, 0, 7); gg.fill()
-          gg.beginPath(); gg.arc(c2 + 6.6, b - 11, 1.8, 0, 7); gg.fill()
-        }
-        break }
-      case 'heap': {
-        groundShadow(gg, c2 + 3, b - 1, 22, 10, .5)
-        const c3 = kind === 'haystack' ? ['#5e5028', '#7c6a34'] : kind === 'log-pile' ? ['#3f3320', '#5c4a2c']
-          : kind === 'charcoal-clamp' || kind === 'scorched-ring' ? ['#1a1614', '#2c2622'] : ['#3a352e', '#4c463d']
-        for (let i = 0; i < 12; i++) {
-          const x2 = c2 + (R() - .5) * 34, y2 = b - R() * 20
-          gg.fillStyle = i % 3 ? c3[0] : c3[1]
-          gg.beginPath(); gg.ellipse(x2, y2, 5 + R() * 5, 3.4 + R() * 2.6, R() * 3, 0, 7); gg.fill()
-        }
-        break }
-      case 'crate': {
-        groundShadow(gg, c2 + 3, b - 1, 17, 8, .5)
-        const w2 = 13, hgt = kind === 'cart' ? 22 : 16
-        poly(gg, [[c2 - w2, b - 6], [c2, b], [c2, b - hgt], [c2 - w2, b - hgt - 6]], '#3c3222')
-        poly(gg, [[c2, b], [c2 + w2, b - 6], [c2 + w2, b - hgt - 6], [c2, b - hgt]], '#251e14')
-        poly(gg, [[c2 - w2, b - hgt - 6], [c2, b - hgt], [c2 + w2, b - hgt - 6], [c2, b - hgt - 12]], '#4e412c')
-        gg.strokeStyle = '#1a1409'; gg.lineWidth = 1.4
-        gg.beginPath(); gg.moveTo(c2 - w2, b - hgt / 2 - 6); gg.lineTo(c2, b - hgt / 2); gg.lineTo(c2 + w2, b - hgt / 2 - 6); gg.stroke()
-        if (kind === 'cart') {
-          gg.strokeStyle = '#2b2318'; gg.lineWidth = 2.6
-          gg.beginPath(); gg.arc(c2 - 6, b + 2, 7, 0, 7); gg.stroke()
-        }
-        break }
-    }
-  }), sx - 65, sy - h2 + (fam === 'greattree' ? 24 : fam === 'ruin' ? 18 : 14))
+  const paint = LM_ART[kind] ?? lmFallback
+  const h2 = lmHeight(kind)
+  g.drawImage(sprite('lm:' + kind + (hs & 3), 150, h2, (gg, W2, H2, R) =>
+    paint(gg, W2, H2, R, W2 / 2, H2 - 26)), sx - 75, sy - h2 + 26)
 }
 
 // ---- a dropped thing lying on the ground ----------------------------------
@@ -4116,12 +4885,37 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const moving = prevPos.get('p' + id) && (prevPos.get('p' + id)[0] !== p.x || prevPos.get('p' + id)[1] !== p.y)
   const act = p.action?.type
   const swinging = act === 'attack' || act === 'attackp' || act === 'gather'
-  const wep = p.equipment?.weapon?.item ?? null
+  // WHAT IS IN THE HAND. A citizen mining with a sword out looked like a citizen
+  // punching a rock. Interval needs no tool to gather -- that is the
+  // constitution's choice, not the window's -- so this shows the best tool the
+  // citizen is actually carrying, and a crude one if they carry none, because
+  // the swing has to be legible as mining rather than as fighting.
+  const held = p.equipment?.weapon?.item ?? null
+  let wep = held
+  if (act === 'gather') {
+    const n2 = curState?.nodes?.[p.action?.nodeId]
+    const carries = (it) => held === it || (p.inventory ?? []).some(sl => sl?.item === it)
+    if (n2?.type === 'tree') wep = carries('bronze-hatchet') ? 'bronze-hatchet' : 'axe'
+    else if (n2?.type === 'rock' || n2?.type === 'magic-rock') wep = carries('bronze-pickaxe') ? 'bronze-pickaxe' : 'pick'
+    else if (n2?.type === 'fishing-spot') wep = 'rod'
+  }
   // A SPECIAL IS A DIFFERENT MOVE, not a louder one. The ordinary swing is a
   // sine; these three are not, and the arm is the only place a citizen can
   // read which of them they just spent their next cycle on.
   const sp = specialAnim.get(id)
   const spK = sp ? (performance.now() - sp.at) / sp.dur : 2
+  // (held/wep are computed just above; the swing depends on which it is)
+  // One arc: wind up, strike, recover, rest. `SWING_MS` is deliberately a hair
+  // under one tick so the arm is visibly still between blows -- the pause is
+  // what makes a slow weapon read as slow.
+  const SWING_MS = 420
+  const ranged = RANGED_ITEMS.has(held ?? '')
+  let bowDraw = 0
+  const swAt = swingAt.get('p' + id)
+  const swK = swAt ? (performance.now() - swAt) / SWING_MS : 2
+  const arc = (k) => k < .30 ? -0.45 - (k / .30) * 0.95          // back
+             : k < .56 ? -1.40 + ((k - .30) / .26) * 2.15        // through
+             : 0.75 - ((k - .56) / .44) * 1.20                   // and down to rest
   let swingVal
   if (spK <= 1) {
     if (sp.kind === 'twice') {
@@ -4136,9 +4930,20 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
       // the shot that cannot miss: draw, hold, loose
       swingVal = spK < .55 ? -0.4 - (spK / .55) * .5 : -0.9 + ((spK - .55) / .45) * 1.1
     }
-  } else if (swinging) swingVal = -0.4 + Math.sin(performance.now() / 90) * 1.05
-  else if (moving) swingVal = -0.4 + Math.sin(t * 6.5) * .3
-  else swingVal = -0.45
+  } else if (ranged && swK <= 1) {
+    // AN ARCHER DOES NOT SWING. The bow arm stays level and steady; what moves
+    // is the string. Reusing the melee arc for a bow made a citizen appear to
+    // be beating a goblin to death with it.
+    swingVal = -0.62 + Math.sin(swK * Math.PI) * .10
+    bowDraw = swK < .62 ? swK / .62 : 0          // drawn, then loosed
+  } else if (swK <= 1) swingVal = arc(swK)
+  else if (act === 'gather') {
+    // gathering has no lastSwing, so the tick itself is the rhythm: one stroke
+    // per interval, which is exactly what the world is doing anyway
+    swingVal = arc(clamp(renderT(performance.now()) / .8, 0, 1))
+  }
+  else if (moving) swingVal = -0.45 + Math.sin(t * 6.5) * .22
+  else swingVal = -0.5
   const body = p.equipment?.body?.item, head = p.equipment?.head?.item
   const star = body?.startsWith('star-')
   humanoid(g, sx, sy, {
@@ -4153,7 +4958,9 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     hood: null, skin: away ? '#6e5238' : '#8d6a4a',
     step: moving ? t * 6.5 + id.charCodeAt(0) : 0,
     swing: swingVal,
-    weapon: wep ? (gg, hx, hy, a, sc) => drawWeapon(gg, hx, hy, a, sc, wep) : null,
+    weapon: wep ? (gg, hx, hy, a, sc) => drawWeapon(gg, hx, hy, a, sc, wep, bowDraw) : null,
+    lantern: true,
+    breath: t * 1.6 + (id.charCodeAt(1) || 0),
   })
   if (isMe) {                                          // the lantern's own halo, so you never lose yourself
     g.save(); g.globalCompositeOperation = 'lighter'
@@ -4436,8 +5243,10 @@ function drawScene(now) {
       const mad = m.mad === myId
       const wasHere = prevPos.get('m' + it.id)
       const moving = wasHere && (wasHere[0] !== m.x || wasHere[1] !== m.y)
+      const mSw = swingAt.get('m' + it.id)
+      const mSwing = mSw ? (now - mSw) < 420 : false
       flashed(g, 'm' + it.id, sx, sy, (gg, ax, ay, sc) =>
-        drawBeast(gg, ax, ay, m.type, now / 1000, { mad, moving, swinging: mad, scale: sc }))
+        drawBeast(gg, ax, ay, m.type, now / 1000, { mad, moving, swinging: mSwing, scale: sc }))
       const st = MOB_STATS[m.type]
       if (st && m.hp < st.maxHp) {
         const w = 32
@@ -4703,24 +5512,66 @@ function drawChart(g, now) {
   const W = world?.genesis?.worldW ?? dims().W, H = world?.genesis?.worldH ?? dims().H
   const me = myId && s.players[myId]
   const cxT = me ? me.x : Math.floor(W / 2), cyT = me ? me.y : Math.floor(H / 2)
-  const R = 46
+  const R = 58
+  // EVERY TERRAIN GETS A COLOUR.
+  //
+  // This table used to hold fifteen of the twenty-three kinds this island can
+  // produce, and skipped the rest -- which meant heartlands, greenwood, downs,
+  // moor, flag and floor all drew as nothing. Those are most of the map, so the
+  // chart came out as a black field with a road across it: legible as a
+  // diagram, useless as a map. A chart that omits the ground is not a chart.
   const CHART = {
-    sea: '#1d4a6e', river: '#1d4a6e', fens: '#2e4a4a', peat: '#3a3a2a',
-    mountain: '#6a6258', crags: '#5e564c', scree: '#4e4840', cave: '#3a2a2a',
-    trail: '#8a7040', causey: '#8a7040', bridge: '#a58840', cobble: '#7a6f5a',
-    plaza: '#7a6f5a', wilds: '#5e2a3a', sand: '#7a6a44', chalk: '#6e6a5c',
+    sea: '#123a56', river: '#1c5478', fens: '#2b4a44', peat: '#3c3628',
+    mountain: '#867c70', crags: '#6a6055', scree: '#5a5344', gravel: '#524b42',
+    cave: '#302624', sand: '#94815a', chalk: '#867f6d', downs: '#74805a',
+    moor: '#5e5e46', meadow: '#4e6038', heartlands: '#636e44', greenwood: '#334830',
+    forest: '#2c3d29', wilds: '#63303e', trail: '#a5854c', causey: '#a5854c',
+    bridge: '#c9a458', cobble: '#8e8474', plaza: '#8e8474', flag: '#847a6a',
+    floor: '#6e5e48', inn: '#7e6440', smith: '#5e564a', fisher: '#63705e',
+    shep: '#6e6e4e', clerk: '#6e6656', wizard: '#524e6a',
   }
+  const UNKNOWN = '#3a3a34'
   g.lineWidth = 1
   for (let y = cyT - R; y <= cyT + R; y++) {
     for (let x = cxT - R; x <= cxT + R; x++) {
       if (x < 0 || y < 0 || x >= W || y >= H) continue
-      const k = terrainOf(x, y)
-      const c = CHART[k]
-      if (!c) continue
       const p = screenOf(x, y)
       if (p.x < -TW || p.x > VW + TW || p.y < -TH || p.y > VH + TH) continue
-      g.fillStyle = c + '55'
-      diamond(g, p.x - HW, p.y - HH, 2); g.fill()
+      // fade with distance so the chart has a horizon rather than a hard edge
+      const d = Math.max(Math.abs(x - cxT), Math.abs(y - cyT)) / R
+      const a = clamp(1.15 - d * d * 1.1, 0, 1)
+      if (a < .04) continue
+      g.globalAlpha = a
+      g.fillStyle = CHART[terrainOf(x, y)] ?? UNKNOWN
+      diamond(g, p.x - HW, p.y - HH, 1); g.fill()
+      g.globalAlpha = 1
+    }
+  }
+  // walls, so the towns read as buildings instead of as paving
+  for (const n of Object.values(s.nodes ?? {})) {
+    if (n.type !== 'wall' && n.type !== 'rampart' && n.type !== 'house') continue
+    if (Math.abs(n.x - cxT) > R || Math.abs(n.y - cyT) > R) continue
+    const p = screenOf(n.x, n.y)
+    if (p.x < -TW || p.x > VW + TW || p.y < -TH || p.y > VH + TH) continue
+    g.fillStyle = n.type === 'house' ? 'rgba(60,44,28,.95)' : 'rgba(28,24,22,.9)'
+    diamond(g, p.x - HW, p.y - HH, 1); g.fill()
+    g.strokeStyle = 'rgba(150,132,100,.35)'; g.lineWidth = 1
+    diamond(g, p.x - HW, p.y - HH, 1); g.stroke()
+  }
+  // and the water gets an edge, because a coastline is what you navigate by
+  g.strokeStyle = 'rgba(150,208,240,.30)'; g.lineWidth = 1.4
+  for (let y = cyT - R; y <= cyT + R; y++) {
+    for (let x = cxT - R; x <= cxT + R; x++) {
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
+      const k = terrainOf(x, y)
+      if (k !== 'sea' && k !== 'river') continue
+      const dry = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
+        const t2 = terrainOf(x + dx, y + dy); return t2 !== 'sea' && t2 !== 'river'
+      })
+      if (!dry) continue
+      const p = screenOf(x, y)
+      if (p.x < -TW || p.x > VW + TW || p.y < -TH || p.y > VH + TH) continue
+      diamond(g, p.x - HW, p.y - HH, 2); g.stroke()
     }
   }
   const pin = (x, y, col, r) => {
@@ -4810,7 +5661,25 @@ function layoutPanel() {
   PANE_W = Math.min(352, VW - 20)
   PANE_H = Math.min(462, Math.max(200, VH - PANEL_H - 24))
 }
-let openPane = null                   // 'pack' | 'citizen' | 'forge' | 'bank' | 'store' | null
+// The citizen goes on the left, the pack on the right, and a counter or an
+// anvil is a modal in the middle. They do not compete for one slot: reading
+// your levels while deciding what to wield is the ordinary case, and making it
+// a toggle was an arbitrary restriction imposed by a single variable.
+let paneLeft = null                   // 'citizen' | null
+let paneRight = null                  // 'pack' | null
+let paneModal = null                  // 'forge' | 'bank' | 'store' | null
+const paneOpen = (id) => paneLeft === id || paneRight === id || paneModal === id
+function togglePane(id) {
+  if (id === 'citizen') paneLeft = paneLeft ? null : 'citizen'
+  else if (id === 'pack') paneRight = paneRight ? null : 'pack'
+  else paneModal = paneModal === id ? null : id
+}
+function closePane(id) {
+  if (id === 'citizen' || id === 'left') paneLeft = null
+  else if (id === 'pack' || id === 'right') paneRight = null
+  else paneModal = null
+}
+const anyPaneOpen = () => !!(paneLeft || paneRight || paneModal)
 let regions = []                      // rebuilt every frame; the only hit-test there is
 let logLines = []
 let tipAt = null                      // { x, y, item, sub } while the cursor rests on something
@@ -5303,7 +6172,7 @@ function drawPanel(g, now) {
   let bxx = midX + (midW - bw) / 2
   for (const [id, key, title] of PANEL_BTNS) {
     const ccx = bxx + BR, ccy = btnY
-    const on = openPane === id || (id === 'chart' && showChart)
+    const on = paneOpen(id) || (id === 'chart' && showChart)
     const hot = Math.hypot(mouse.x - ccx, mouse.y - ccy) < BR + 2
     const bg = g.createRadialGradient(ccx, ccy - BR * .4, 1, ccx, ccy, BR)
     bg.addColorStop(0, on ? '#5a4620' : hot ? '#3a2f1c' : '#231c16')
@@ -5334,7 +6203,7 @@ function drawPack(g, now) {
   regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
   carve(g, x, y, PANE_W, PANE_H)
   plate(g, x + 14, y + 14, PANE_W - 28, giveTo ? 'Choose an offer' : 'The Pack')
-  regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
+  regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'right' } })
   g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = inRect(mouse, x + PANE_W - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
   g.fillText('\u2715', x + PANE_W - 22, y + 25)
@@ -5378,7 +6247,7 @@ function drawCitizen(g, now) {
   const x = 14, y = Math.max(12, VH - PANEL_H - PANE_H - 8)
   carve(g, x, y, PANE_W, PANE_H)
   plate(g, x + 14, y + 14, PANE_W - 28, 'The Citizen')
-  regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
+  regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'left' } })
   g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = inRect(mouse, x + PANE_W - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
   g.fillText('\u2715', x + PANE_W - 22, y + 25)
@@ -5419,7 +6288,7 @@ function drawCitizen(g, now) {
     tunic: bItem ? (bStar ? '#7d90a8' : '#6a5230') : '#3a3226',
     boots: '#241d16', hair: '#2e2418',
     helm: me.equipment?.head?.item ? (me.equipment.head.item.startsWith('star-') ? '#9db4cc' : '#8a6a34') : null,
-    step: 0, swing: -0.55,
+    step: 0, swing: -0.55, lantern: true, breath: performance.now() / 700,
     weapon: me.equipment?.weapon?.item
       ? (gg, hx, hy, a, sc) => drawWeapon(gg, hx, hy, a, sc, me.equipment.weapon.item) : null,
   })
@@ -5497,7 +6366,7 @@ function drawForge(g, now) {
   regions.push({ x, y, w: W2, h: H2, act: { t: 'panebg' } })
   carve(g, x, y, W2, H2)
   plate(g, x + 14, y + 14, W2 - 28, 'The Anvil')
-  regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
+  regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'modal' } })
   g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = inRect(mouse, x + W2 - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
   g.fillText('\u2715', x + W2 - 22, y + 25)
@@ -5697,6 +6566,14 @@ function drawMenu(g) {
   g.restore()
   g.strokeStyle = 'rgba(106,82,32,.55)'; g.lineWidth = 1
   g.beginPath(); g.moveTo(x + 6, y + headH); g.lineTo(x + w - 6, y + headH); g.stroke()
+  // THE BACKDROP GOES DOWN FIRST.
+  //
+  // hitRegion walks `regions` BACKWARDS, so the last thing pushed is the first
+  // thing found. This backdrop used to be pushed after the rows, which meant it
+  // won every hit test and swallowed every click on the menu -- walk here,
+  // light a fire, fletch a bow, all of it, silently. One line in the wrong
+  // order took out seventeen verbs.
+  regions.push({ x, y, w, h, act: { t: 'menubg' } })
   g.textAlign = 'left'
   menu.items.forEach((it, i) => {
     const ry = y + headH + i * rowH
@@ -5711,7 +6588,58 @@ function drawMenu(g) {
     g.fillText(it.label, x + 13, ry + rowH / 2 + 1)
     if (!it.dim) regions.push({ x, y: ry, w, h: rowH, act: { t: 'menu', i } })
   })
-  regions.push({ x, y, w, h, act: { t: 'menubg' } })
+  g.textBaseline = 'alphabetic'
+}
+
+// ---------------------------------------------------------------------------
+// WHERE YOU ARE
+// ---------------------------------------------------------------------------
+// A locale is a pure function of the seed, so the window always knew the answer
+// and simply never volunteered it. Crossing into somewhere named is the single
+// most orienting thing that happens on a walk, and it costs one comparison a
+// tick to say so.
+let placeBanner = null       // { locale, region, at }
+function drawPlaceBanner(g, now) {
+  if (!placeBanner) return
+  const age = (now - placeBanner.at) / 4200
+  if (age > 1) { placeBanner = null; return }
+  const inK = clamp(age / .10, 0, 1)
+  const outK = age > .74 ? 1 - (age - .74) / .26 : 1
+  const cx2 = VW / 2, cy2 = 78
+  g.save()
+  g.globalAlpha = outK
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  // a rule that draws itself outward from the middle
+  const halfW = 210 * inK
+  const rg = g.createLinearGradient(cx2 - halfW, 0, cx2 + halfW, 0)
+  rg.addColorStop(0, 'rgba(176,145,63,0)')
+  rg.addColorStop(.5, 'rgba(232,209,153,.55)')
+  rg.addColorStop(1, 'rgba(176,145,63,0)')
+  g.fillStyle = rg
+  g.fillRect(cx2 - halfW, cy2 + 20, halfW * 2, 1)
+  g.fillRect(cx2 - halfW, cy2 - 26, halfW * 2, 1)
+  g.font = '600 9px Cinzel, Georgia, serif'
+  g.save(); g.letterSpacing = '4px'
+  g.fillStyle = 'rgba(141,125,99,.9)'
+  g.fillText('ENTERING', cx2, cy2 - 15)
+  g.restore()
+  g.font = '900 ' + (26 * (1 + (1 - inK) * .25)).toFixed(1) + 'px Cinzel, Georgia, serif'
+  g.save(); g.letterSpacing = '3px'
+  g.lineWidth = 4; g.strokeStyle = 'rgba(4,3,6,.85)'
+  g.strokeText(placeBanner.locale.toUpperCase(), cx2, cy2 + 4)
+  const tg = g.createLinearGradient(0, cy2 - 10, 0, cy2 + 16)
+  tg.addColorStop(0, '#fbeec4'); tg.addColorStop(.6, '#d8b463'); tg.addColorStop(1, '#8a6524')
+  g.fillStyle = tg
+  g.fillText(placeBanner.locale.toUpperCase(), cx2, cy2 + 4)
+  g.restore()
+  if (placeBanner.region && placeBanner.region !== placeBanner.locale) {
+    g.font = '600 9px Cinzel, Georgia, serif'
+    g.save(); g.letterSpacing = '3px'
+    g.fillStyle = 'rgba(141,125,99,.85)'
+    g.fillText(placeBanner.region.toUpperCase(), cx2, cy2 + 32)
+    g.restore()
+  }
+  g.restore()
   g.textBaseline = 'alphabetic'
 }
 // ===========================================================================
@@ -5733,7 +6661,12 @@ let giveTo = null      // a citizen awaiting an offer; the next pack click is it
 let nodeTiles = new Set()
 function indexNodes(s) {
   nodeTiles = new Set()
-  for (const n of Object.values(s.nodes ?? {})) nodeTiles.add(n.x + ',' + n.y)
+  wallTiles = new Set()
+  _roomMemo.clear()
+  for (const n of Object.values(s.nodes ?? {})) {
+    nodeTiles.add(n.x + ',' + n.y)
+    if (n.type === 'wall' || n.type === 'rampart') wallTiles.add(n.x + ',' + n.y)
+  }
 }
 const IMPASSABLE_TERRAIN = new Set(['sea', 'river', 'mountain'])
 function blockedAt(x, y) {
@@ -5944,7 +6877,7 @@ function buildMenu(px2, py2, target) {
     // TRADE. Choosing what to give needs the pack open, so the menu arms the
     // pack rather than guessing: the next slot you click is the offer.
     items.push({ label: 'Offer them something', run: () => {
-      giveTo = target.id; openPane = 'pack'
+      giveTo = target.id; paneRight = 'pack'
       say('Choose what to offer ' + (q.name || 'them') + ' \u2014 or press Escape.', 'dim')
     } })
     items.push({ label: 'Accept their offer', run: () => send({ do: 'accept', from: target.id }) })
@@ -5966,12 +6899,22 @@ function buildSlotMenu(px2, py2, i) {
   if (EQUIPPABLE.has(it)) items.push({ label: 'Wield it', run: () => useSlot(i) })
   if (/^(cooked-fish|cooked-deep-fish|ale|broth)$/.test(it)) items.push({ label: 'Eat it', run: () => useSlot(i) })
   if (it === 'raw-fish' || it === 'deep-fish') items.push({ label: 'Cook it', run: () => send({ do: 'cook', slot: i }) })
-  if (it === 'bones') items.push({ label: 'Bury it', run: () => send({ do: 'bury', slot: i }) })
+  if (it === 'bones') {
+    items.push({ label: 'Bury it', run: () => send({ do: 'bury', slot: i }) })
+    // the engine is explicit: `make === 'arrows' && sl.item === 'bones'`
+    items.push({ label: 'Fletch arrows', run: () => send({ do: 'fletch', slot: i, make: 'arrows' }) })
+  }
   if (it === 'seeds') items.push({ label: 'Plant it', run: () => send({ do: 'plant', slot: i }) })
   if (it === 'logs' || it === 'heartwood') {
     items.push({ label: 'Light a fire', run: () => send({ do: 'light', slot: i }) })
     items.push({ label: 'Fletch a bow', run: () => send({ do: 'fletch', slot: i, make: 'bow' }) })
-    items.push({ label: 'Fletch arrows', run: () => send({ do: 'fletch', slot: i, make: 'arrows' }) })
+  }
+  if (it === 'heartwood') {
+    const fl = XP_TO_LVL(me.skills?.fletching ?? 0)
+    const n3 = (me.inventory ?? []).reduce((a, sl2) => a + (sl2?.item === 'heartwood' ? (sl2.qty ?? 1) : 0), 0)
+    items.push({ label: fl >= 90 ? 'Fletch a heartwood bow' : 'Heartwood bow (fletching 90)',
+                 dim: fl < 90 || n3 < 3,
+                 run: () => send({ do: 'fletch', slot: i, make: 'heartwood-bow' }) })
   }
   if (typeof it === 'string' && it.startsWith('chart:')) items.push({ label: 'Read it', run: () => send({ do: 'read_chart', slot: i }) })
   if (near('bank')) items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
@@ -6044,8 +6987,21 @@ function pickWorld(p) {
     test('node', id, n, n.x, n.y, big)
   }
   if (!cands.length) return null
-  cands.sort((a, b) => b.d - a.d)             // nearest the camera wins
-  return cands[0]
+  // THE TILE UNDER THE CURSOR WINS FIRST.
+  //
+  // Sorting purely by depth was right for two things overlapping at the same
+  // spot and wrong for anything TALL. A tree is 122 pixels of canopy hanging
+  // over the eight tiles in front of it, so clicking the leaves of the tree you
+  // meant selected whichever nearer tree also had a box there -- and the
+  // citizen walked off to a tree somewhere else, arrived, and walked off again.
+  // Rocks are half the height, which is exactly why mining never showed it.
+  //
+  // So: if something's own tile is the tile you clicked, it is what you clicked.
+  const w = worldOf(p.x, p.y)
+  const exact = cands.filter(c => c.x === w.x && c.y === w.y)
+  const pool = exact.length ? exact : cands
+  pool.sort((a, b) => b.d - a.d)              // then nearest the camera
+  return pool[0]
 }
 
 // ---------------------------------------------------------------------------
@@ -6087,12 +7043,12 @@ function runRegion(r, isRight) {
   const a = r.act
   if (a.t === 'noop') return
   SFX.pane()
-  if (a.t === 'close') { openPane = null; return }
+  if (a.t === 'close') { closePane(a.which); return }
   if (a.t === 'btn') {
     if (a.id === 'chart') { showChart = !showChart; return }
     if (a.id === 'speak') { openSay(); return }
     if (a.id === 'door') { location.href = '/windows'; return }
-    openPane = openPane === a.id ? null : a.id
+    togglePane(a.id)
     return
   }
   if (a.t === 'belt') {
@@ -6103,7 +7059,7 @@ function runRegion(r, isRight) {
     if (giveTo) {
       const me2 = myId && curState?.players?.[myId]
       const sl = me2?.inventory?.[a.i]
-      const to = giveTo; giveTo = null; openPane = null
+      const to = giveTo; giveTo = null; paneRight = null
       if (!sl) { say('Nothing in that slot.', 'warn'); return }
       const ask = window.prompt('Ask how much gold for the ' + wordy(sl.item) + '?  (0 is a gift)', '0')
       if (ask === null) { say('Offer withdrawn.', 'dim'); return }
@@ -6119,7 +7075,7 @@ function runRegion(r, isRight) {
   if (a.t === 'unequip') { send({ do: 'unwield', gear: a.slot }); return }
   if (a.t === 'smith') {
     send({ do: 'smith', recipe: a.recipe })
-    say('You hammer at the anvil\u2026', 'good'); SFX.hit(); openPane = null; return
+    say('You hammer at the anvil\u2026', 'good'); SFX.hit(); paneModal = null; return
   }
 }
 
@@ -6200,9 +7156,9 @@ function pumpIntent() {
     case 'forge': case 'bank': case 'store': case 'attune': case 'look': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) {
-        if (intent.kind === 'forge') { openPane = 'forge'; say('The anvil is cold, and yours.', 'dim') }
-        else if (intent.kind === 'bank') { openPane = 'bank'; say('The vault opens.', 'dim') }
-        else if (intent.kind === 'store') { openPane = 'store'; say('The keeper looks up.', 'dim') }
+        if (intent.kind === 'forge') { paneModal = 'forge'; say('The anvil is cold, and yours.', 'dim') }
+        else if (intent.kind === 'bank') { paneModal = 'bank'; say('The vault opens.', 'dim') }
+        else if (intent.kind === 'store') { paneModal = 'store'; say('The keeper looks up.', 'dim') }
         else if (intent.kind === 'attune') say('You are attuned to this waystone.', 'good')
         else say(wordy(n.kind ?? n.type) + '.', 'dim')
         intent = null; return
@@ -6215,7 +7171,7 @@ function pumpIntent() {
 // ---------------------------------------------------------------------------
 // STATE
 // ---------------------------------------------------------------------------
-let prevMe = null, worldConfigured = ''
+let prevMe = null, worldConfigured = '', lastPlace = null
 function onState(s, worldId) {
   const now = performance.now()
   if (stateAt) statePeriod = clamp(now - stateAt, 300, 1200)
@@ -6231,6 +7187,7 @@ function onState(s, worldId) {
     worldConfigured = sig
     configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
     _tileArt.clear()
+    _gcol.clear()
     say('The world names itself: ' + (worldId || '').slice(0, 8) + '\u2026', 'dim')
   }
 
@@ -6265,6 +7222,20 @@ function onState(s, worldId) {
       else if (n?.type === 'fishing-spot') SFX.fish()
     }
     if (moveLock && (me.x !== moveLock.x || me.y !== moveLock.y) && s.tick > moveLock.until) moveLock = null
+    // WHERE YOU HAVE JUST ARRIVED. A locale is a pure function of the seed, so
+    // the window always knew this and simply never said it out loud.
+    try {
+      const here = localeAt4(me.x, me.y) || null
+      if (here && here !== lastPlace) {
+        const first = lastPlace === null
+        lastPlace = here
+        if (!first) {
+          placeBanner = { locale: here, region: regionNameAt(me.x, me.y) || null, at: performance.now() }
+          say('Entering ' + here + '.', 'good')
+          SFX.pane()
+        }
+      }
+    } catch {}
     reconcile(prevMe, me, s)
     prevMe = JSON.parse(JSON.stringify({
       hp: me.hp, gold: me.gold ?? 0, skills: me.skills,
@@ -6369,7 +7340,13 @@ cv.addEventListener('pointerdown', (e) => {
   }, 420)
   primaryClick(p, false)
 })
-window.addEventListener('pointerup', () => { mouse.down = false; clearTimeout(pressTimer) })
+// EVERY WAY A BUTTON CAN COME UP. A pointerup that never arrives -- cancelled
+// by the browser, captured elsewhere, lost when the window blurs -- used to
+// leave `mouse.down` true forever, and hold-to-walk then chased a receding
+// cursor until the end of time. That is the other half of walking in circles.
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture'])
+  window.addEventListener(ev, () => { mouse.down = false; clearTimeout(pressTimer) })
+document.addEventListener('visibilitychange', () => { mouse.down = false })
 cv.addEventListener('contextmenu', (e) => e.preventDefault())
 cv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
 
@@ -6396,13 +7373,13 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Alt') { altHeld = true; e.preventDefault() }
   if (e.key === 'Shift') shiftHeld = true
   const k = e.key.toLowerCase()
-  if (k === 'i') { openPane = openPane === 'pack' ? null : 'pack'; SFX.pane() }
-  else if (k === 'c') { openPane = openPane === 'citizen' ? null : 'citizen'; SFX.pane() }
-  else if (k === 'f') { openPane = openPane === 'forge' ? null : 'forge'; SFX.pane() }
+  if (k === 'i') { togglePane('pack'); SFX.pane() }
+  else if (k === 'c') { togglePane('citizen'); SFX.pane() }
+  else if (k === 'f') { togglePane('forge'); SFX.pane() }
   else if (e.key === 'Tab') { showChart = !showChart; e.preventDefault() }
   else if (e.key === 'Enter') { openSay(); e.preventDefault() }
-  else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('Offer withdrawn.', 'dim') } else if (menu) menu = null; else if (openPane) openPane = null; else if (showChart) showChart = false; else intent = null }
-  else if (k === ' ') { openPane = null; showChart = false; e.preventDefault() }
+  else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('Offer withdrawn.', 'dim') } else if (menu) menu = null; else if (paneModal) paneModal = null; else if (anyPaneOpen()) { paneLeft = paneRight = null } else if (showChart) showChart = false; else intent = null }
+  else if (k === ' ') { paneLeft = paneRight = paneModal = null; showChart = false; e.preventDefault() }
   else if (k >= '1' && k <= '4') {
     const b = beltMap[+k - 1]
     if (b) { send({ do: 'eat', slot: b.slot }); SFX.quaff() }
@@ -6420,7 +7397,7 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'Alt') altHeld = false
   if (e.key === 'Shift') shiftHeld = false
 })
-window.addEventListener('blur', () => { altHeld = false; shiftHeld = false; mouse.down = false })
+window.addEventListener('blur', () => { altHeld = false; shiftHeld = false; mouse.down = false; clearTimeout(pressTimer) })
 // ===========================================================================
 // THE VAULT AND THE COUNTER
 // ---------------------------------------------------------------------------
@@ -6523,10 +7500,17 @@ function frame(now) {
   // ---- hold the button down and keep walking ------------------------------
   const onChrome = !!hitRegion(mouse) || !!menu
     || (mouse.y > PANEL_Y && mouse.x > PANEL_X && mouse.x < PANEL_X + PANEL_W)
+  // HOLD TO KEEP WALKING -- but only while the button is genuinely held, and
+  // only while the cursor is somewhere else. The camera is centred on you, so
+  // the tile under a screen-fixed cursor RECEDES as you walk toward it; that is
+  // the right behaviour for a held button and a trap for a slightly long click.
+  // Stopping once the cursor is within a tile is what makes it terminate.
   if (mouse.down && entered && me && !onChrome && !showChart
-      && now - mouse.downAt > 220 && (!intent || intent.kind === 'walk')) {
+      && now - mouse.downAt > 260 && (!intent || intent.kind === 'walk')) {
     const w = worldOf(mouse.x, mouse.y)
-    if (!intent || intent.x !== w.x || intent.y !== w.y) {
+    const far = Math.max(Math.abs(w.x - me.x), Math.abs(w.y - me.y)) >= 2
+    if (!far) { if (intent?.kind === 'walk') { intent = null; travelMark = null } }
+    else if (!intent || intent.x !== w.x || intent.y !== w.y) {
       intent = { kind: 'walk', x: w.x, y: w.y }
       pumpIntent()
     }
@@ -6557,11 +7541,11 @@ function frame(now) {
 
   // ---- the panes, then the panel, then the tip, then the hand -------------
   if (entered) {
-    if (openPane === 'pack') drawPack(cx, now)
-    else if (openPane === 'citizen') drawCitizen(cx, now)
-    else if (openPane === 'forge') drawForge(cx, now)
-    else if (openPane === 'bank') drawVault(cx)
-    else if (openPane === 'store') drawCounter(cx)
+    if (paneLeft === 'citizen') drawCitizen(cx, now)
+    if (paneRight === 'pack') drawPack(cx, now)
+    if (paneModal === 'forge') drawForge(cx, now)
+    else if (paneModal === 'bank') drawVault(cx)
+    else if (paneModal === 'store') drawCounter(cx)
     drawPanel(cx, now)
     drawBeastBar(cx)
     drawMenu(cx)
@@ -6578,6 +7562,7 @@ function frame(now) {
       tipAt = { title: hover.e.name || hover.id.slice(0, 8), sub: callingOf(hover.e), col: '#9fb0c4' }
     }
     if (!menu) drawTip(cx)
+    drawPlaceBanner(cx, now)
     drawLevelBanner(cx, now)
 
     // ---- the state of the wire, small, top right --------------------------
