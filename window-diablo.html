@@ -1800,7 +1800,7 @@ function capeOf(p) {
   if (!mastered.length) return null
   return {
     colour: CAPE_COLORS[mastered[0]] ?? '#8a7340',
-    skill: mastered[0],
+    skill: mastered[0],          // the mark struck on the pennant
     count: mastered.length,
     trim: mastered.length >= 2,                 // gold trim for a second mastery
     radiant: mastered.length >= SKILL_ORDER.length,   // and all sixteen
@@ -2574,77 +2574,96 @@ function humanoid(g, cx, base, o) {
              [cx + 9 * s + lean, base - 3 * s], [cx + 2 * s + lean, base - 3 * s]], 'rgba(0,0,0,.30)')
   }
   if (o.cape) {
-    // THE CAPE, RESHAPED. The first pass hung a twenty-six pixel hem off a
-    // thirteen pixel body and shaded it in two flat halves, so a mastered
-    // citizen came out as a cone with a head on it -- the legs vanished and
-    // there were no folds to read at world scale. Narrower, stopping above the
-    // boots, and lit as a cylinder rather than a pair of halves: the panels are
-    // shaded on a cosine across the width, so it turns.
-    const K = o.cape, sway = Math.sin(step - 1.1) * 2.2 * s + lean
-    const hem = base - 4 * s, top = shY - 3 * s
-    const N = 9
-    const pts = []
-    for (let i2 = 0; i2 <= N; i2++) {
-      const t2 = i2 / N
-      const wTop = (-7.5 + t2 * 15) * s
-      const wHem = (-9.5 + t2 * 19) * s
-      pts.push([cx + wTop, top, cx + wHem + sway, hem + Math.sin(t2 * 3.14) * 2.4 * s])
-    }
-    const base3 = K.colour
-    for (let i2 = 0; i2 < N; i2++) {
-      const a = pts[i2], b2 = pts[i2 + 1]
-      // light from the upper left, falling off as the cloth turns away
-      const t2 = (i2 + .5) / N
-      const lamb = Math.cos((t2 - .28) * 2.1)
-      poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]], base3)
-      const shade = lamb > 0 ? null : 'rgba(0,0,0,' + (Math.min(.42, -lamb * .55)).toFixed(2) + ')'
-      if (shade) poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]], shade)
-      else poly(g, [[a[0], a[1]], [b2[0], b2[1]], [b2[2], b2[3]], [a[2], a[3]]],
-        'rgba(255,246,220,' + (lamb * .20).toFixed(2) + ')')
-      // the fold between panels: a dark crease with a lit lip on its light side
-      g.strokeStyle = 'rgba(0,0,0,.30)'; g.lineWidth = 1
-      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(a[2], a[3]); g.stroke()
-      if (lamb > .15) {
-        g.strokeStyle = 'rgba(255,250,230,.16)'; g.lineWidth = 1
-        g.beginPath(); g.moveTo(a[0] + 1, a[1]); g.lineTo(a[2] + 1, a[3]); g.stroke()
+    // NOT A CAPE. Or rather: not ONLY a cape, and mostly not.
+    //
+    // Spec 4c invites a window to paint mastery as cloth, and the first two
+    // attempts took that literally -- a full-length cape, which at forty pixels
+    // either swallowed the legs or, once narrowed, creased into a lampshade.
+    // Nine folds across nineteen pixels is a stripe every two.
+    //
+    // But the invitation is to paint the FACT, and the fact is that this person
+    // is the best in the world at something. What says that across a dark field
+    // is not fabric, it is a STANDARD: a staff over the shoulder with the mark
+    // of the trade struck on the pennant. It breaks the silhouette, it is
+    // legible at distance because a pennant is a flat plane facing the camera,
+    // and it carries the same engraved glyph the panel and the orb use -- so a
+    // mastered forester wears the woodcutting axe, and everyone can read it.
+    //
+    // The cloth stays, shortened to a mantle over the shoulders, where it can
+    // hold the colour without hiding the body or pretending to have folds it is
+    // too small to show.
+    const K = o.cape
+    const sway = Math.sin(step - 1.1) * 1.6 * s + lean
+    // ---- the mantle: five panels, ending at the belt -----------------------
+    const mTop = shY - 3 * s, mHem = hipY - 1 * s
+    const MN = 5
+    for (let i2 = 0; i2 < MN; i2++) {
+      const t0 = i2 / MN, t1 = (i2 + 1) / MN
+      const xa = cx + (-8.5 + t0 * 17) * s, xb = cx + (-8.5 + t1 * 17) * s
+      const ha = cx + (-10.5 + t0 * 21) * s + sway, hb = cx + (-10.5 + t1 * 21) * s + sway
+      const lamb = Math.cos(((t0 + t1) / 2 - .3) * 2.2)
+      poly(g, [[xa, mTop], [xb, mTop], [hb, mHem], [ha, mHem]], K.colour)
+      poly(g, [[xa, mTop], [xb, mTop], [hb, mHem], [ha, mHem]],
+        lamb > 0 ? 'rgba(255,246,220,' + (lamb * .18).toFixed(2) + ')'
+                 : 'rgba(0,0,0,' + Math.min(.40, -lamb * .5).toFixed(2) + ')')
+      if (i2 === 1 || i2 === 3) {                 // cloth does not crease evenly
+        g.strokeStyle = 'rgba(0,0,0,.26)'; g.lineWidth = 1
+        g.beginPath(); g.moveTo(xa, mTop); g.lineTo(ha, mHem); g.stroke()
       }
     }
-    // the hem, drawn as a line so the cloth ends rather than fading out
-    g.strokeStyle = 'rgba(0,0,0,.38)'; g.lineWidth = 1.4
+    g.strokeStyle = K.trim ? '#d8b463' : 'rgba(0,0,0,.34)'
+    g.lineWidth = K.trim ? 1.6 * s : 1.2
     g.beginPath()
-    g.moveTo(pts[0][2], pts[0][3])
-    for (let i2 = 1; i2 <= N; i2++) g.lineTo(pts[i2][2], pts[i2][3])
-    g.stroke()
-    if (K.trim) {                                  // gold, for a second mastery
-      g.strokeStyle = '#d8b463'; g.lineWidth = 1.8 * s
-      g.beginPath()
-      g.moveTo(pts[0][2], pts[0][3])
-      for (let i2 = 1; i2 <= N; i2++) g.lineTo(pts[i2][2], pts[i2][3])
-      g.stroke()
-      g.strokeStyle = '#8a6524'; g.lineWidth = 1
-      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[0][2], pts[0][3]); g.stroke()
-      g.beginPath(); g.moveTo(pts[N][0], pts[N][1]); g.lineTo(pts[N][2], pts[N][3]); g.stroke()
+    g.moveTo(cx - 10.5 * s + sway, mHem); g.lineTo(cx + 10.5 * s + sway, mHem); g.stroke()
+
+    // ---- the standard ------------------------------------------------------
+    const px3 = cx + 6 * s + hunch, py3 = shY + 1 * s
+    const tipX = px3 + 4 * s + sway * .4, tipY = py3 - 34 * s
+    g.strokeStyle = '#2e2417'; g.lineWidth = 2 * s; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(px3 - 2 * s, py3 + 9 * s); g.lineTo(tipX, tipY); g.stroke()
+    g.strokeStyle = K.trim ? '#e8d199' : '#8a7340'; g.lineWidth = 1 * s
+    g.beginPath(); g.moveTo(px3 - 2 * s, py3 + 9 * s); g.lineTo(tipX, tipY); g.stroke()
+    g.fillStyle = K.trim ? '#f2dda2' : '#a8894a'
+    g.beginPath(); g.arc(tipX, tipY - 1.4 * s, 1.8 * s, 0, 7); g.fill()
+    // the pennant: a swallow-tail hanging from the staff, facing the camera
+    const pw = 16 * s, ph2 = 21 * s
+    const flap = Math.sin((o.breath ?? 0) * 1.6 + step) * 1.2 * s
+    const ax = tipX - 1 * s, ay = tipY + 2 * s
+    poly(g, [[ax, ay], [ax + pw, ay + 2 * s + flap],
+             [ax + pw, ay + ph2 + flap], [ax + pw * .55, ay + ph2 - 5 * s + flap * .6],
+             [ax, ay + ph2 - 1 * s]], K.colour)
+    poly(g, [[ax, ay], [ax + pw * .35, ay + .8 * s],
+             [ax + pw * .35, ay + ph2 - 2 * s], [ax, ay + ph2 - 1 * s]],
+      'rgba(255,246,220,.16)')
+    poly(g, [[ax + pw * .7, ay + 1.4 * s], [ax + pw, ay + 2 * s + flap],
+             [ax + pw, ay + ph2 + flap], [ax + pw * .7, ay + ph2 - 3 * s]],
+      'rgba(0,0,0,.24)')
+    g.strokeStyle = K.trim ? '#e8d199' : 'rgba(0,0,0,.35)'
+    g.lineWidth = K.trim ? 1.4 * s : 1
+    poly(g, [[ax, ay], [ax + pw, ay + 2 * s + flap],
+             [ax + pw, ay + ph2 + flap], [ax + pw * .55, ay + ph2 - 5 * s + flap * .6],
+             [ax, ay + ph2 - 1 * s]], null, g.strokeStyle, g.lineWidth)
+    // THE MARK OF THE TRADE, struck on the cloth
+    if (K.skill) {
+      const G4 = Math.round(11 * s)
+      const gl = skillGlyph(K.skill, G4, K.radiant ? 'bright' : 'gold')
+      g.drawImage(gl, ax + pw * .5 - G4 / 2, ay + ph2 * .45 - G4 / 2 + flap * .5)
     }
-    if (K.radiant) {                               // and all sixteen
+    if (K.radiant) {                              // all sixteen: it burns
       g.save(); g.globalCompositeOperation = 'lighter'
-      const gr = g.createLinearGradient(cx, top, cx, hem)
-      gr.addColorStop(0, 'rgba(255,246,214,.26)')
-      gr.addColorStop(.5, 'rgba(255,206,110,.15)')
-      gr.addColorStop(1, 'rgba(255,246,214,.22)')
+      const gr = g.createRadialGradient(ax + pw * .5, ay + ph2 * .5, 0, ax + pw * .5, ay + ph2 * .5, 26 * s)
+      gr.addColorStop(0, 'rgba(255,226,150,.34)'); gr.addColorStop(1, 'rgba(255,226,150,0)')
       g.fillStyle = gr
-      poly(g, [[cx - 7.5 * s, top], [cx + 7.5 * s, top],
-               [cx + 9.5 * s + sway, hem], [cx - 9.5 * s + sway, hem]], null)
-      g.fill()
+      g.beginPath(); g.arc(ax + pw * .5, ay + ph2 * .5, 26 * s, 0, 7); g.fill()
       for (let i2 = 0; i2 < 5; i2++) {
-        const ph = (o.breath ?? 0) * .6 + i2 * 1.7
-        g.fillStyle = 'rgba(255,236,180,' + (.35 + Math.sin(ph) * .25).toFixed(2) + ')'
-        g.fillRect(cx + Math.sin(ph * .8) * 10 * s, hem - ((ph * 9) % 40) * s * .6, 1.8 * s, 1.8 * s)
+        const ph3 = (o.breath ?? 0) * .7 + i2 * 1.7
+        g.fillStyle = 'rgba(255,238,186,' + (.4 + Math.sin(ph3) * .25).toFixed(2) + ')'
+        g.fillRect(ax + pw * .5 + Math.sin(ph3 * .8) * 9 * s,
+          ay + ph2 - ((ph3 * 8) % 34) * s * .6, 1.8 * s, 1.8 * s)
       }
       g.restore()
     }
-    // the clasp at the throat
-    g.fillStyle = K.trim ? '#e8d199' : '#6a6252'
-    g.beginPath(); g.arc(cx, top + 1 * s, 2.2 * s, 0, 7); g.fill()
+
   }
   // arms; the weapon arm swings
   g.strokeStyle = skin; g.lineWidth = (3.2 + bulk * 1.2) * s
@@ -5750,32 +5769,56 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
 }
 
 // ---- names, and the things people say -------------------------------------
-// WHO THAT IS, IN FULL.
-//
-// A bare name says least about a citizen at exactly the moment you most want to
-// know: whether the person walking toward you in the Wilds has spent four
-// hundred levels on it. Name, calling, standing -- all three are already in the
-// state and derived by the constitution's own functions, so the plate can be
-// honest without asking the pillar anything.
+// WHO THAT IS, IN FULL. A bare name says least about a citizen at exactly the
+// moment you most want to know: whether the person walking toward you in the
+// Wilds has spent four hundred levels on it. All three are in the state and
+// derived by the constitution's own functions.
 const titleCase = (s2) => String(s2 ?? '').replace(/\b[a-z]/g, (c) => c.toUpperCase())
-function citizenPlate(g, sx, sy, p, id, isMe) {
+// A PLATE HAS TO FIT, AND IT HAS TO NOT SIT ON ANOTHER ONE.
+//
+// Adding the calling and the standing made these three times wider, and two
+// citizens standing near each other now overlap constantly -- the screenshot
+// showed `...ester (27)` with `1)` printed through it, both half off the edge.
+// So: measure first, clamp into the viewport, and if the box would land on one
+// already placed, drop the trailing detail and try again as a bare name. A
+// name that survives is worth more than a full title that cannot be read.
+function citizenPlate(g, sx, sy, p, id, isMe, placed) {
   const name = p.name || (id ? id.slice(0, 6) : 'unnamed')
   const rest = ', ' + titleCase(callingOf(p)) + ' (' + standingOf(p) + ')'
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'
-  g.font = '700 11px Cinzel, Georgia, serif'
-  const wn = g.measureText(name).width
-  g.font = '10px Georgia, serif'
-  const wr = g.measureText(rest).width
-  const w = wn + wr, x0 = sx - w / 2
+  const measure = (full) => {
+    g.font = '700 11px Cinzel, Georgia, serif'
+    const wn = g.measureText(name).width
+    if (!full) return { wn, wr: 0, w: wn }
+    g.font = '10px Georgia, serif'
+    const wr = g.measureText(rest).width
+    return { wn, wr, w: wn + wr }
+  }
+  const hits = (box) => (placed ?? []).some(b =>
+    box.x < b.x + b.w && box.x + box.w > b.x && box.y < b.y + b.h && box.y + box.h > b.y)
+  let full = true
+  let m = measure(true)
+  let x0 = clamp(sx - m.w / 2, 8, Math.max(8, VW - m.w - 8))
+  let box = { x: x0 - 6, y: sy - 11, w: m.w + 12, h: 15 }
+  if (hits(box)) {
+    full = false
+    m = measure(false)
+    x0 = clamp(sx - m.w / 2, 8, Math.max(8, VW - m.w - 8))
+    box = { x: x0 - 6, y: sy - 11, w: m.w + 12, h: 15 }
+    if (hits(box)) { g.textAlign = 'center'; return null }   // three deep: say nothing
+  }
   g.fillStyle = 'rgba(4,3,5,.74)'
-  g.fillRect(x0 - 6, sy - 11, w + 12, 15)
+  g.fillRect(box.x, box.y, box.w, box.h)
   g.font = '700 11px Cinzel, Georgia, serif'
   g.fillStyle = isMe ? '#f0d9a4' : '#9fb0c4'
   g.fillText(name, x0, sy)
-  g.font = '10px Georgia, serif'
-  g.fillStyle = 'rgba(180,166,140,.85)'
-  g.fillText(rest, x0 + wn, sy)
+  if (full) {
+    g.font = '10px Georgia, serif'
+    g.fillStyle = 'rgba(180,166,140,.85)'
+    g.fillText(rest, x0 + m.wn, sy)
+  }
   g.textAlign = 'center'
+  return box
 }
 function nameplate(g, sx, sy, text, col, small) {
   g.font = (small ? '600 10px ' : '700 11px ') + 'Cinzel, Georgia, serif'
@@ -6242,12 +6285,17 @@ function drawScene(now) {
   drawFx(g, now)
 
   // ---- names over heads ---------------------------------------------------
-  for (const it of list) {
+  // Placed nearest-first, so when two collide the one further away is the one
+  // that loses its title -- you can always read the citizen beside you.
+  const plates = []
+  for (let i2 = list.length - 1; i2 >= 0; i2--) {
+    const it = list[i2]
     if (it.kind !== 'player') continue
     const p = screenOf(it.x, it.y), lift = liftAt(Math.round(it.x), Math.round(it.y))
     const b = bubbles[it.id]
-    if (b && now - b.at < 6000) speechBubble(g, p.x, p.y - lift - 62, b.text)
-    else citizenPlate(g, p.x, p.y - lift - 52, it.e, it.id, it.id === myId)
+    if (b && now - b.at < 6000) { speechBubble(g, p.x, p.y - lift - 62, b.text); continue }
+    const box = citizenPlate(g, p.x, p.y - lift - 52, it.e, it.id, it.id === myId, plates)
+    if (box) plates.push(box)
   }
 
   if (altHeld) {
@@ -7327,24 +7375,77 @@ function orb(g, ox, oy, r, frac, col, now, label, value) {
       g.beginPath(); g.arc(dx + 1.3, oy + r * .82 + len, 2, 0, 7); g.fill()
     }
   }
-  g.font = '700 11px Cinzel, Georgia, serif'
+  // the reading, on its own darker plate: it sits on the fluid as well
+  g.font = '700 ' + Math.round(clamp(r * .22, 9, 12)) + 'px Cinzel, Georgia, serif'
   g.textAlign = 'center'; g.textBaseline = 'middle'
-  g.fillStyle = 'rgba(4,3,5,.8)'
   const wv = g.measureText(value).width
-  g.fillRect(ox - wv / 2 - 6, oy + r - 18, wv + 12, 15)
+  const vh = Math.round(clamp(r * .30, 13, 17))
+  rrect(g, ox - wv / 2 - 8, oy + r - vh - 4, wv + 16, vh, vh * .45)
+  g.fillStyle = 'rgba(3,3,5,.86)'; g.fill()
+  g.strokeStyle = 'rgba(232,209,153,.28)'; g.lineWidth = 1; g.stroke()
   g.fillStyle = col.text
-  g.fillText(value, ox, oy + r - 10)
-  g.font = '600 8px Cinzel, Georgia, serif'
-  g.fillStyle = 'rgba(141,125,99,.85)'
-  g.save(); g.letterSpacing = '2px'
-  g.fillText(label.toUpperCase(), ox, oy - r + 12); g.restore()
+  g.fillText(value, ox, oy + r - vh / 2 - 4)
+  // ---- the label, on a plaque instead of inside the glass ----------------
+  //
+  // LIFE and TRAINING were drawn in a dim warm grey at the top of the fluid --
+  // over bright red, over bright blue, and directly across the specular
+  // highlight. There is no colour that reads there, because the background is
+  // three different colours in the space of eight pixels and one of them is
+  // nearly white. So the label comes OUT of the glass and onto a riveted
+  // plaque straddling the bezel: a dark field of known value, gold caps, and
+  // the trade's own mark struck beside it where there is one.
+  {
+    const txt = label.toUpperCase()
+    const G2 = col.under ? Math.round(clamp(r * .26, 9, 13)) : 0
+    g.font = '700 ' + Math.round(clamp(r * .19, 8, 10)) + 'px Cinzel, Georgia, serif'
+    g.save(); g.letterSpacing = '1.6px'
+    const tw = g.measureText(txt).width
+    g.restore()
+    // A PLAQUE IS WIDER THAN THE ORB IT SITS ON. "TRAINING" plus a mark is
+    // eighty pixels against a forty-eight pixel globe, so on a phone it hangs
+    // off the end of the slab. Drop the mark first (the trade is named under
+    // the glass anyway), then clamp what is left inside the stone.
+    let useGlyph = G2
+    let pw = tw + 16 + (useGlyph ? useGlyph + 3 : 0)
+    const room = PANEL_W / 2 - 10
+    if (pw > room && useGlyph) { useGlyph = 0; pw = tw + 16 }
+    const ph = Math.round(clamp(r * .30, 12, 17))
+    const px2 = clamp(ox - pw / 2, PANEL_X + 6, PANEL_X + PANEL_W - pw - 6)
+    const py2 = oy - r - ph * .45
+    rrect(g, px2, py2, pw, ph, ph * .45)
+    const bg = g.createLinearGradient(0, py2, 0, py2 + ph)
+    bg.addColorStop(0, '#1c1611'); bg.addColorStop(1, '#0a0707')
+    g.fillStyle = bg; g.fill()
+    rrect(g, px2 + .5, py2 + .5, pw - 1, ph - 1, ph * .45)
+    const bd = g.createLinearGradient(px2, 0, px2 + pw, 0)
+    bd.addColorStop(0, '#6a5220'); bd.addColorStop(.5, '#e0bd6a'); bd.addColorStop(1, '#6a5220')
+    g.strokeStyle = bd; g.lineWidth = 1.2; g.stroke()
+    let tx2 = px2 + 8
+    if (useGlyph) { g.drawImage(skillGlyph(col.under, useGlyph, 'bright'), tx2 - 1, py2 + (ph - useGlyph) / 2); tx2 += useGlyph + 3 }
+    g.textAlign = 'left'; g.textBaseline = 'middle'
+    g.font = '700 ' + Math.round(clamp(r * .19, 8, 10)) + 'px Cinzel, Georgia, serif'
+    g.save(); g.letterSpacing = '1.6px'
+    g.fillStyle = 'rgba(2,2,3,.85)'
+    g.fillText(txt, tx2, py2 + ph / 2 + 1.2)
+    const tg2 = g.createLinearGradient(0, py2 + 2, 0, py2 + ph - 2)
+    tg2.addColorStop(0, '#fbeec4'); tg2.addColorStop(1, '#c39a44')
+    g.fillStyle = tg2
+    g.fillText(txt, tx2, py2 + ph / 2)
+    g.restore()
+    g.textAlign = 'center'
+    boss(g, px2 + 4, py2 + ph / 2, 2)
+    boss(g, px2 + pw - 4, py2 + ph / 2, 2)
+  }
   if (col.under) {
-    const G2 = 15
-    g.drawImage(skillGlyph(col.under, G2, 'bright'), ox - G2 / 2, oy - r - G2 - 1)
-    g.font = '700 9px Cinzel, Georgia, serif'
+    // the trade's name below the glass, on the stone where it reads plainly
+    g.font = '700 ' + Math.round(clamp(r * .19, 8, 10)) + 'px Cinzel, Georgia, serif'
+    g.textAlign = 'center'; g.textBaseline = 'alphabetic'
+    g.save(); g.letterSpacing = '1.5px'
+    g.fillStyle = 'rgba(2,2,3,.9)'
+    g.fillText(col.under.toUpperCase(), ox + 1, oy + r + 13)
     g.fillStyle = col.text
-    g.save(); g.letterSpacing = '1px'
-    g.fillText(col.under.toUpperCase(), ox, oy + r + 12); g.restore()
+    g.fillText(col.under.toUpperCase(), ox, oy + r + 12)
+    g.restore()
   }
 }
 
