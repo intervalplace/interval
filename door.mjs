@@ -74,9 +74,9 @@ function asWorldUrl(a) {
   try { new URL(t) } catch { return null }
   return t
 }
-const URL_ = asWorldUrl(RAW)
+let URL_ = asWorldUrl(RAW)
 if (!URL_) { console.log('  "' + RAW + '" is not a world. Try: node door.mjs interval.place'); process.exit(1) }
-const host = new URL(URL_).hostname
+let host = new URL(URL_).hostname
 
 // a peer that dies of a wrong number is no peer at all
 const UNREACHABLE = new Set(['ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETIMEDOUT', 'ECONNRESET'])
@@ -91,11 +91,35 @@ process.on('unhandledRejection', (e) =>
 
 // ---- 1. the founding record, from the world or from our own cache ---------
 fs.mkdirSync('identities', { recursive: true })
-const G_CACHE = `identities/genesis-${host}.json`
-const P_BOOK = `identities/peers-${host}.json`
+let G_CACHE = `identities/genesis-${host}.json`
+let P_BOOK = `identities/peers-${host}.json`
+// LOOPBACK IS TWO ADDRESSES AND NODE PICKS ONE.
+//
+// A pillar listens on 0.0.0.0, which is IPv4 only. Node's fetch resolves
+// `localhost` through the system resolver and may try ::1 first, get nothing,
+// and report the world unreachable -- intermittently, depending on how the
+// machine feels about IPv6 that day. Some sandboxes are the other way round.
+// curl tries every address a name resolves to; so do we, rather than betting.
+async function reachGenesis() {
+  const alts = [URL_]
+  const h = new URL(URL_).hostname
+  if (h === 'localhost') alts.push(URL_.replace('//localhost', '//127.0.0.1'))
+  else if (h === '127.0.0.1') alts.push(URL_.replace('//127.0.0.1', '//localhost'))
+  let last = null
+  for (const u of alts) {
+    try {
+      const got = JSON.parse(await (await fetch(u + '/api/genesis')).text())
+      URL_ = u; host = new URL(u).hostname
+      return got
+    } catch (e) { last = e }
+  }
+  throw last
+}
 let info
 try {
-  info = JSON.parse(await (await fetch(URL_ + '/api/genesis')).text())
+  info = await reachGenesis()
+  G_CACHE = `identities/genesis-${host}.json`
+  P_BOOK = `identities/peers-${host}.json`
   fs.writeFileSync(G_CACHE, JSON.stringify(info))
 } catch {
   try {
