@@ -2842,6 +2842,159 @@ function bridgeMask(x, y) {
   if (!BRIDGE_CONTINUES.has(terrainOf(x, y - 1))) m |= 8
   return m
 }
+
+// ---------------------------------------------------------------------------
+// TWO KINDS OF CROSSING
+// ---------------------------------------------------------------------------
+// Tallyholm has eight of them, and only one is a footbridge. The rest are broad
+// -- fourteen tiles by thirteen in one case -- where several roads converge
+// over water. Those are not bridges in the timber-and-parapet sense; they are
+// CAUSEWAYS: solid dressed masonry standing in the river with arches let into
+// the sides, a low kerb rather than a rail, and no piles because there is
+// nothing to prop up.
+//
+// The generator is not wrong about this and must not be touched: a generator
+// name means one landscape forever (spec 9c), so editing it would not improve
+// Tallyholm, it would replace it. Which idiom a tile wears is the WINDOW's
+// choice, and the window can work it out from geography alone -- how wide the
+// crossing is at that point, which is the shorter of its horizontal and
+// vertical runs.
+const _bspan = new Map()
+function bridgeWidth(x, y) {
+  const k = x + ',' + y
+  const hit = _bspan.get(k); if (hit !== undefined) return hit
+  const isB = (a, b) => terrainOf(a, b) === 'bridge'
+  let rx = 1, ry = 1
+  for (let i = 1; i < 24 && isB(x + i, y); i++) rx++
+  for (let i = 1; i < 24 && isB(x - i, y); i++) rx++
+  for (let i = 1; i < 24 && isB(x, y + i); i++) ry++
+  for (let i = 1; i < 24 && isB(x, y - i); i++) ry++
+  const out = Math.min(rx, ry)
+  if (_bspan.size > 40000) _bspan.clear()
+  _bspan.set(k, out)
+  return out
+}
+// A CROSSING WEARS ONE IDIOM, END TO END.
+//
+// Deciding per tile put a timber parapet on the narrow arms of a crossing and
+// stone arches in its middle -- six of Tallyholm's eight came out mixed, which
+// is not how anything gets built. So the whole connected crossing is walked
+// once, and if ANY part of it is more than two tiles across then the entire
+// thing is masonry. A footbridge that widens into a wharf is a wharf.
+//
+// Flood-filled on first ask and memoised for every tile in the component, so
+// the eight crossings cost eight walks for the life of the world.
+const _cross = new Map()
+function isCauseway(x, y) {
+  const k0 = x + ',' + y
+  const hit = _cross.get(k0); if (hit !== undefined) return hit
+  const isB = (a, b) => terrainOf(a, b) === 'bridge'
+  if (!isB(x, y)) { _cross.set(k0, false); return false }
+  const cell = [], seen = new Set([k0]), q = [[x, y]]
+  while (q.length && cell.length < 900) {
+    const [cx2, cy2] = q.pop()
+    cell.push([cx2, cy2])
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = cx2 + dx, ny = cy2 + dy, kk = nx + ',' + ny
+      if (!seen.has(kk) && isB(nx, ny)) { seen.add(kk); q.push([nx, ny]) }
+    }
+  }
+  const broad = cell.some(([a, b]) => bridgeWidth(a, b) > 2)
+  for (const [a, b] of cell) _cross.set(a + ',' + b, broad)
+  return broad
+}
+
+const _causewayArt = new Map()
+function causewayArt(mask, v) {
+  const key = mask + ':' + v
+  const hit = _causewayArt.get(key); if (hit) return hit
+  const c = mkc(TW, TH + SKIRT + BRIDGE_TOP), g = c.getContext('2d')
+  const R = rng(mask * 6151 + v * 39916801 + 17)
+  const O = BRIDGE_TOP
+  const T = [HW, O], Rt = [TW, O + HH], B = [HW, O + TH], L = [0, O + HH]
+  const openX1 = !!(mask & 1), openX2 = !!(mask & 2), openY1 = !!(mask & 4), openY2 = !!(mask & 8)
+  const DEEP = BRIDGE_LIFT + 12          // masonry, all the way to the riverbed
+
+  g.fillStyle = 'rgba(0,0,0,.40)'        // its own shadow on the water
+  diamond(g, 0, O + BRIDGE_LIFT + 6, -3); g.fill()
+
+  // ---- the masonry mass, on every side that stands in water --------------
+  const face = (a, b2, lit) => {
+    poly(g, [a, b2, [b2[0], b2[1] + DEEP], [a[0], a[1] + DEEP]], lit ? '#4a443b' : '#2e2925')
+    // courses
+    g.strokeStyle = 'rgba(0,0,0,.34)'; g.lineWidth = 1
+    for (let i = 1; i < 6; i++) {
+      const yy = i * DEEP / 6
+      g.beginPath(); g.moveTo(a[0], a[1] + yy); g.lineTo(b2[0], b2[1] + yy); g.stroke()
+    }
+    g.strokeStyle = lit ? 'rgba(255,240,214,.13)' : 'rgba(255,240,214,.05)'
+    for (let i = 1; i < 6; i++) {
+      const yy = i * DEEP / 6 + 1
+      g.beginPath(); g.moveTo(a[0], a[1] + yy); g.lineTo(b2[0], b2[1] + yy); g.stroke()
+    }
+    // AN ARCH, which is the whole reason a causeway reads as built rather than
+    // as a wall someone dropped in the river
+    const mx = (a[0] + b2[0]) / 2, my = (a[1] + b2[1]) / 2
+    g.fillStyle = '#0a0c0e'
+    g.beginPath()
+    g.moveTo(mx - 11, my + DEEP)
+    g.lineTo(mx - 11, my + DEEP - 9)
+    g.quadraticCurveTo(mx, my + DEEP - 24, mx + 11, my + DEEP - 9)
+    g.lineTo(mx + 11, my + DEEP)
+    g.closePath(); g.fill()
+    g.strokeStyle = lit ? 'rgba(255,240,214,.16)' : 'rgba(255,240,214,.07)'
+    g.lineWidth = 1.6
+    g.beginPath()
+    g.moveTo(mx - 11, my + DEEP - 9)
+    g.quadraticCurveTo(mx, my + DEEP - 24, mx + 11, my + DEEP - 9); g.stroke()
+    g.fillStyle = 'rgba(140,180,200,.13)'   // the water going through it
+    g.beginPath(); g.ellipse(mx, my + DEEP - 1, 11, 2.6, 0, 0, 7); g.fill()
+  }
+  if (openX1) face(Rt, B, false)
+  if (openY1) face(B, L, false)
+  if (openX2) face(L, T, true)
+  if (openY2) face(T, Rt, true)
+
+  // ---- the roadway on top ------------------------------------------------
+  g.save(); diamond(g, 0, O, -1); g.clip()
+  g.fillStyle = '#57503f'; g.fillRect(0, O, TW, TH)
+  // dressed slabs, laid in courses with the diamond
+  g.strokeStyle = 'rgba(0,0,0,.30)'; g.lineWidth = 1
+  for (let i = 1; i < 4; i++) {
+    g.beginPath(); g.moveTo(i * 16, O + HH - i * 8); g.lineTo(i * 16 + HW, O + HH + HW / 2 - i * 8); g.stroke()
+    g.beginPath(); g.moveTo(TW - i * 16, O + HH - i * 8); g.lineTo(TW - i * 16 - HW, O + HH + HW / 2 - i * 8); g.stroke()
+  }
+  g.strokeStyle = 'rgba(255,240,214,.10)'
+  for (let i = 1; i < 4; i++) {
+    g.beginPath(); g.moveTo(i * 16, O + HH - i * 8 + 1); g.lineTo(i * 16 + HW, O + HH + HW / 2 - i * 8 + 1); g.stroke()
+  }
+  for (let i = 0; i < 26; i++) {
+    g.fillStyle = R() > .5 ? 'rgba(255,238,206,.06)' : 'rgba(0,0,0,.14)'
+    g.fillRect(R() * TW, O + R() * TH, 2, 1)
+  }
+  g.restore()
+
+  // ---- a kerb, not a parapet ---------------------------------------------
+  const kerb = (a, b2, lit) => {
+    const K = 5
+    poly(g, [a, b2, [b2[0], b2[1] - K], [a[0], a[1] - K]], lit ? '#6a6252' : '#413a32')
+    poly(g, [[a[0], a[1] - K], [b2[0], b2[1] - K], [b2[0], b2[1] - K - 2], [a[0], a[1] - K - 2]],
+      lit ? '#867d69' : '#565045')
+    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1
+    for (let i = 1; i < 4; i++) {
+      const t2 = i / 4
+      const px2 = a[0] + (b2[0] - a[0]) * t2, py2 = a[1] + (b2[1] - a[1]) * t2
+      g.beginPath(); g.moveTo(px2, py2 - K - 2); g.lineTo(px2, py2); g.stroke()
+    }
+  }
+  if (openX1) kerb(Rt, B, false)
+  if (openY1) kerb(B, L, false)
+  if (openX2) kerb(L, T, true)
+  if (openY2) kerb(T, Rt, true)
+
+  _causewayArt.set(key, c)
+  return c
+}
 // ===========================================================================
 // THE BESTIARY, AND THE PACK
 // ---------------------------------------------------------------------------
@@ -4507,7 +4660,8 @@ function drawGround(g, s, t) {
   // and now the bridges, over the water they cross
   for (let i = 0; i < bridgeQueue.length; i += 4) {
     const bx = bridgeQueue[i], by = bridgeQueue[i + 1]
-    g.drawImage(bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
+    const art = isCauseway(bx, by) ? causewayArt : bridgeArt
+    g.drawImage(art(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
       bridgeQueue[i + 2], bridgeQueue[i + 3] - BRIDGE_TOP)
   }
 
@@ -7382,6 +7536,8 @@ function onState(s, worldId) {
     configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
     _tileArt.clear()
     _gcol.clear()
+    _bspan.clear()
+    _cross.clear()
     say('The world names itself: ' + (worldId || '').slice(0, 8) + '\u2026', 'dim')
   }
 
