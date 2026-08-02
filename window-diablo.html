@@ -2805,13 +2805,26 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   } else if (item.includes('pickaxe')) {
     g.strokeStyle = m[1]; g.lineWidth = 2.4 * s
     g.beginPath(); g.moveTo(tx - dy * 8 * s, ty + dx * 8 * s); g.lineTo(tx + dy * 8 * s, ty - dx * 8 * s); g.stroke()
-  } else if (item === 'rod') {                  // a line, and something on the end
-    g.strokeStyle = METAL.wood[0]; g.lineWidth = 2
-    g.beginPath(); g.moveTo(hx - dx * 4 * s, hy - dy * 4 * s); g.lineTo(tx, ty); g.stroke()
-    g.strokeStyle = 'rgba(220,214,190,.55)'; g.lineWidth = 1
-    g.beginPath(); g.moveTo(tx, ty); g.quadraticCurveTo(tx + 6 * s, ty + 10 * s, tx + 3 * s, ty + 20 * s); g.stroke()
-    g.fillStyle = '#8a8272'
-    g.beginPath(); g.arc(tx + 3 * s, ty + 20 * s, 1.6 * s, 0, 7); g.fill()
+  } else if (item === 'rod') {
+    // A ROD IS NOT A CLUB. The line is cast well out in front, and there is
+    // something floating on the end of it that bobs -- which is the only part
+    // of fishing anybody actually watches. `drawAmt` carries the time here
+    // rather than a draw depth; a rod has nothing to draw.
+    const ph = drawAmt ?? 0
+    g.strokeStyle = METAL.wood[0]; g.lineWidth = 2.4 * s
+    g.beginPath(); g.moveTo(hx - dx * 5 * s, hy - dy * 5 * s)
+    g.quadraticCurveTo(hx + dx * 9 * s, hy + dy * 9 * s - 3 * s, tx, ty - 4 * s); g.stroke()
+    const fx2 = tx + 26 * s, fy2 = ty + 22 * s + Math.sin(ph * 2.1) * 2.2 * s
+    g.strokeStyle = 'rgba(226,220,198,.5)'; g.lineWidth = 1
+    g.beginPath(); g.moveTo(tx, ty - 4 * s)
+    g.quadraticCurveTo(tx + 16 * s, ty + 2 * s, fx2, fy2); g.stroke()
+    g.fillStyle = '#c4402a'                        // the float, red over the water
+    g.beginPath(); g.arc(fx2, fy2, 2.4 * s, 0, 7); g.fill()
+    g.fillStyle = '#e8e2d0'
+    g.beginPath(); g.arc(fx2, fy2 - 1 * s, 1.4 * s, 0, 7); g.fill()
+    const rp = (ph * .45) % 1                      // rings going out from it
+    g.strokeStyle = 'rgba(160,206,224,' + (.4 * (1 - rp)).toFixed(2) + ')'; g.lineWidth = 1.2
+    g.beginPath(); g.ellipse(fx2, fy2 + 2 * s, (3 + rp * 13) * s, (3 + rp * 13) * .42 * s, 0, 0, 7); g.stroke()
   } else if (item === 'axe' || item === 'pick') {   // the crude version of a tool
     const m2 = METAL.iron
     poly(g, [[tx, ty], [tx + dy * 5 * s - dx * 2 * s, ty - dx * 5 * s - dy * 2 * s],
@@ -5583,8 +5596,14 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   }
   else if (act === 'gather') {
     // gathering has no lastSwing, so the tick itself is the rhythm: one stroke
-    // per interval, which is exactly what the world is doing anyway
-    swingVal = arc(clamp(renderT(performance.now()) / .8, 0, 1))
+    // per interval, which is exactly what the world is doing anyway. Except
+    // fishing, which is not a stroke at all -- the rod goes out once and then
+    // the citizen waits, which is the whole character of the trade.
+    const gn = curState?.nodes?.[p.action?.nodeId]
+    const ph = clamp(renderT(performance.now()), 0, 1)
+    if (gn?.type === 'fishing-spot') {
+      swingVal = ph < .30 ? -1.05 + (ph / .30) * .78 : -0.27 + Math.sin((ph - .30) * 7) * .05
+    } else swingVal = arc(clamp(ph / .8, 0, 1))
   }
   else if (moving) swingVal = -0.45 + Math.sin(t * 6.5) * .22
   else swingVal = -0.5
@@ -5628,10 +5647,12 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     // why the swing still read as nothing. What reads is the TRAIL: a bright
     // sweep left behind the hand, and it works identically whether the citizen
     // is holding a star-sword or nothing at all.
-    trail: (!ranged && (swK <= 1 || act === 'attack' || act === 'attackp' || act === 'gather'))
+    trail: (!ranged && wep !== 'rod' &&
+            (swK <= 1 || act === 'attack' || act === 'attackp' || act === 'gather'))
       ? { at: swingVal, kind: act === 'gather' ? 'work' : 'strike' } : null,
     fist: !wep,
-    weapon: wep ? (gg, hx, hy, a, sc) => drawWeapon(gg, hx, hy, a, sc, wep, bowDraw) : null,
+    weapon: wep ? (gg, hx, hy, a, sc) =>
+      drawWeapon(gg, hx, hy, a, sc, wep, wep === 'rod' ? t : bowDraw) : null,
     lantern: true,
     breath: t * 1.6 + (id.charCodeAt(1) || 0),
   })
@@ -8245,7 +8266,7 @@ function onState(s, worldId) {
     reconcile(prevMe, me, s)
     prevMe = JSON.parse(JSON.stringify({
       hp: me.hp, gold: me.gold ?? 0, skills: me.skills,
-      inv: (me.inventory ?? []).map(sl => sl ? sl.item + ':' + (sl.qty ?? 1) : ''),
+      inv: (me.inventory ?? []).map(sl => sl ? sl.item + '\u0000' + (sl.qty ?? 1) : ''),
       dead: me.deadUntil ?? 0,
     }))
   }
@@ -8277,13 +8298,30 @@ function reconcile(was, me, s) {
     say('+' + (gold - was.gold) + ' gold', 'gain'); SFX.gold()
     popNumber(me.x, me.y, '+' + (gold - was.gold) + 'g', '#e8b53a', false)
   }
-  const nowInv = (me.inventory ?? []).map(sl => sl ? sl.item + ':' + (sl.qty ?? 1) : '')
-  const cnt = (arr) => arr.reduce((a, v) => { if (!v) return a
-    const [it, q] = v.split(':'); a[it] = (a[it] ?? 0) + (+q); return a }, {})
+  // TWO BUGS LIVED IN THESE FOUR LINES.
+  //
+  // The guard read `(b[k] ?? 0) > (a[k] ?? 0)` and then the arithmetic read
+  // `b[k] - a[k]` without the same defaults -- so the FIRST of anything you
+  // ever picked up had no previous entry, and `1 - undefined` is NaN. Every
+  // citizen's first log, first ore, first fish announced itself as "You gather
+  // NaN logs", and every one after that was fine, which is exactly why it
+  // survived: it is invisible unless you watch someone start.
+  //
+  // And the separator was a colon, which is a character that appears IN an item
+  // name: `chart:anchor` split into ['chart','anchor'] and counted a chart as
+  // NaN of something called "chart". A null byte cannot occur in a noun.
+  const SEP = '\u0000'
+  const nowInv = (me.inventory ?? []).map(sl => sl ? sl.item + SEP + (sl.qty ?? 1) : '')
+  const cnt = (arr) => arr.reduce((acc, v) => { if (!v) return acc
+    const i2 = v.lastIndexOf(SEP)
+    const it = v.slice(0, i2), q = Number(v.slice(i2 + 1)) || 0
+    acc[it] = (acc[it] ?? 0) + q; return acc }, {})
   const a = cnt(was.inv), b = cnt(nowInv)
-  for (const k in b) if ((b[k] ?? 0) > (a[k] ?? 0)) {
-    say('You gather ' + (b[k] - a[k]) + ' ' + wordy(k) + '.', 'gain'); SFX.pick()
-    popNumber(me.x, me.y, '+' + (b[k] - a[k]) + ' ' + wordy(k), rarityOf(k), false)
+  for (const k in b) {
+    const got = (b[k] ?? 0) - (a[k] ?? 0)
+    if (got <= 0) continue
+    say('You gather ' + got + ' ' + wordy(k) + '.', 'gain'); SFX.pick()
+    popNumber(me.x, me.y, '+' + got + ' ' + wordy(k), rarityOf(k), false)
   }
   for (const sk of SKILL_ORDER) {
     const xw = was.skills?.[sk] ?? 0, xn = me.skills?.[sk] ?? 0
