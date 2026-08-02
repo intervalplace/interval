@@ -6410,113 +6410,8 @@ function drawScene(now) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// THE CHART (TAB)
-// ---------------------------------------------------------------------------
-function drawChart(g, now) {
-  const s = curState; if (!s) return
-  g.fillStyle = 'rgba(4,5,10,.66)'; g.fillRect(0, 0, VW, VH)
-  const W = world?.genesis?.worldW ?? dims().W, H = world?.genesis?.worldH ?? dims().H
-  const me = myId && s.players[myId]
-  const cxT = me ? me.x : Math.floor(W / 2), cyT = me ? me.y : Math.floor(H / 2)
-  const R = 58
-  // EVERY TERRAIN GETS A COLOUR.
-  //
-  // This table used to hold fifteen of the twenty-three kinds this island can
-  // produce, and skipped the rest -- which meant heartlands, greenwood, downs,
-  // moor, flag and floor all drew as nothing. Those are most of the map, so the
-  // chart came out as a black field with a road across it: legible as a
-  // diagram, useless as a map. A chart that omits the ground is not a chart.
-  const CHART = {
-    sea: '#123a56', river: '#1c5478', fens: '#2b4a44', peat: '#3c3628',
-    mountain: '#867c70', crags: '#6a6055', scree: '#5a5344', gravel: '#524b42',
-    cave: '#302624', sand: '#94815a', chalk: '#867f6d', downs: '#74805a',
-    moor: '#5e5e46', meadow: '#4e6038', heartlands: '#636e44', greenwood: '#334830',
-    forest: '#2c3d29', wilds: '#63303e', trail: '#a5854c', causey: '#a5854c',
-    bridge: '#c9a458', cobble: '#8e8474', plaza: '#8e8474', flag: '#847a6a',
-    floor: '#6e5e48', inn: '#7e6440', smith: '#5e564a', fisher: '#63705e',
-    shep: '#6e6e4e', clerk: '#6e6656', wizard: '#524e6a',
-  }
-  const UNKNOWN = '#3a3a34'
-  g.lineWidth = 1
-  for (let y = cyT - R; y <= cyT + R; y++) {
-    for (let x = cxT - R; x <= cxT + R; x++) {
-      if (x < 0 || y < 0 || x >= W || y >= H) continue
-      const p = screenOf(x, y)
-      if (p.x < -TW || p.x > VW + TW || p.y < -TH || p.y > VH + TH) continue
-      // fade with distance so the chart has a horizon rather than a hard edge
-      const d = Math.max(Math.abs(x - cxT), Math.abs(y - cyT)) / R
-      const a = clamp(1.15 - d * d * 1.1, 0, 1)
-      if (a < .04) continue
-      g.globalAlpha = a
-      g.fillStyle = CHART[terrainOf(x, y)] ?? UNKNOWN
-      diamond(g, p.x - HW, p.y - HH, 1); g.fill()
-      g.globalAlpha = 1
-    }
-  }
-  // walls, so the towns read as buildings instead of as paving
-  for (const n of Object.values(s.nodes ?? {})) {
-    if (n.type !== 'wall' && n.type !== 'rampart' && n.type !== 'house') continue
-    if (Math.abs(n.x - cxT) > R || Math.abs(n.y - cyT) > R) continue
-    const p = screenOf(n.x, n.y)
-    if (p.x < -TW || p.x > VW + TW || p.y < -TH || p.y > VH + TH) continue
-    g.fillStyle = n.type === 'house' ? 'rgba(60,44,28,.95)' : 'rgba(28,24,22,.9)'
-    diamond(g, p.x - HW, p.y - HH, 1); g.fill()
-    g.strokeStyle = 'rgba(150,132,100,.35)'; g.lineWidth = 1
-    diamond(g, p.x - HW, p.y - HH, 1); g.stroke()
-  }
-  // and the water gets an edge, because a coastline is what you navigate by
-  g.strokeStyle = 'rgba(150,208,240,.30)'; g.lineWidth = 1.4
-  for (let y = cyT - R; y <= cyT + R; y++) {
-    for (let x = cxT - R; x <= cxT + R; x++) {
-      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
-      const k = terrainOf(x, y)
-      if (k !== 'sea' && k !== 'river') continue
-      const dry = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
-        const t2 = terrainOf(x + dx, y + dy); return t2 !== 'sea' && t2 !== 'river'
-      })
-      if (!dry) continue
-      const p = screenOf(x, y)
-      if (p.x < -TW || p.x > VW + TW || p.y < -TH || p.y > VH + TH) continue
-      diamond(g, p.x - HW, p.y - HH, 2); g.stroke()
-    }
-  }
-  const pin = (x, y, col, r) => {
-    const p = screenOf(x, y)
-    if (p.x < -20 || p.x > VW + 20 || p.y < -20 || p.y > VH + 20) return
-    g.fillStyle = col; g.beginPath(); g.arc(p.x, p.y, r, 0, 7); g.fill()
-  }
-  for (const n of Object.values(s.nodes ?? {})) {
-    if (Math.abs(n.x - cxT) > R || Math.abs(n.y - cyT) > R) continue
-    if (n.type === 'bank') pin(n.x, n.y, '#f0d9a4', 4)
-    else if (n.type === 'store') pin(n.x, n.y, '#c9a06a', 4)
-    else if (n.type === 'anvil') pin(n.x, n.y, '#9fb0c4', 3.4)
-    else if (n.type === 'waystone') pin(n.x, n.y, '#7fa8e0', 3.4)
-    else if (n.type === 'landmark') pin(n.x, n.y, '#8d7d63', 2.6)
-    else if (n.type === 'campfire' || n.type === 'watchfire') pin(n.x, n.y, '#e07526', 3)
-  }
-  for (const m of Object.values(s.mobs ?? {})) {
-    if (m.hp <= 0 || Math.abs(m.x - cxT) > R || Math.abs(m.y - cyT) > R) continue
-    pin(m.x, m.y, MOB_STATS[m.type]?.harmless ? '#6e7a5a' : '#c4341f', 3)
-  }
-  for (const [id, p] of Object.entries(s.players ?? {})) {
-    if (Math.abs(p.x - cxT) > R || Math.abs(p.y - cyT) > R) continue
-    pin(p.x, p.y, id === myId ? '#f6e6b4' : '#5f8fe0', id === myId ? 5 : 3.4)
-  }
-  const where = localeAt4(cxT, cyT), region = regionNameAt(cxT, cyT)
-  g.textAlign = 'center'
-  g.font = '900 26px Cinzel, Georgia, serif'
-  g.fillStyle = 'rgba(240,217,164,.94)'
-  g.fillText(String(where ?? region ?? 'the island').toUpperCase(), VW / 2, 66)
-  if (region && where && region !== where) {
-    g.font = '600 11px Cinzel, Georgia, serif'
-    g.fillStyle = 'rgba(141,125,99,.9)'
-    g.fillText(String(region).toUpperCase(), VW / 2, 86)
-  }
-  g.font = '600 10px Cinzel, Georgia, serif'
-  g.fillStyle = 'rgba(141,125,99,.75)'
-  g.fillText(cxT + ' \u00b7 ' + cyT + '   \u2014   TICK ' + s.tick, VW / 2, VH - 172)
-}
+// The chart used to live here, drawn in the world's own projection at the
+// world's own zoom. It is now a document rather than a view: 55-chart.js.
 
 // ---- words for things -----------------------------------------------------
 const wordy = (item) => typeof item === 'string' && item.startsWith('chart:')
@@ -6576,6 +6471,349 @@ function rarityOf(item) {
   if (/fish|ale|broth|grain|seeds/.test(item)) return RARITY.useful
   if (/bones|crab-shell|wool|logs|ore|heartwood/.test(item)) return RARITY.material
   return RARITY.common
+}
+// ===========================================================================
+// THE CHART
+// ---------------------------------------------------------------------------
+// The old one was drawn in the world's own projection at the world's own zoom,
+// which meant it showed about fifty tiles as enormous translucent diamonds and
+// was, correctly, described as unusable. Two things were wrong and only one of
+// them was the zoom.
+//
+// The other is that a chart is not a view. It is a DOCUMENT -- a thing someone
+// drew, on paper, from memory and pacing, and every convention of cartography
+// exists because a document has to say more with less than a window does.
+// Hatching parallel to a coast, a dashed line for a road, bumps for hills, a
+// scatter of little trees for a wood: none of that is decoration, it is how
+// you fit a country onto a sheet.
+//
+// So: top-down, because plans are drawn flat; on paper, because it is paper;
+// zoomable and draggable, because a sheet is something you move around under
+// your hands. Everything on it is still a pure function of the seed, so this
+// chart cannot disagree with the ground it describes.
+//
+// Rendered once into its own surface and re-rendered only when the sheet moves.
+// Thirty thousand tiles is nothing once; it is everything sixty times a second.
+// ===========================================================================
+
+const chartCv = mkc(8, 8)
+let chartZoom = 0, chartPanX = 0, chartPanY = 0, chartKey = ''
+let chartDragging = false
+
+const PAPER = {
+  base: '#ddcaa2', warm: '#cbb78a', edge: '#a88b5c',
+  ink: '#463520', inkSoft: 'rgba(70,53,32,.45)',
+  sea: '#b7c6c3', seaHatch: 'rgba(72,104,104,.30)',
+  road: '#9c7742', river: '#6f97a8', red: '#8e2b1e',
+}
+const CHART_LAND = {
+  meadow: '#cdc596', heartlands: '#d0c795', downs: '#d4cb9b', moor: '#c6bf94',
+  greenwood: '#b4c08c', forest: '#adba86', wilds: '#c6ae9a', fens: '#bcc3a1',
+  peat: '#b8ae8c', sand: '#e4d6a9', chalk: '#e0d7b4', gravel: '#cdc4a4',
+  scree: '#c8bda0', crags: '#c3b79a', mountain: '#bdb094', cave: '#a89a80',
+  cobble: '#cbb78e', plaza: '#cbb78e', flag: '#c7b489', floor: '#c2ac80',
+  inn: '#c2ac80', smith: '#bdb096', fisher: '#c3b493', shep: '#c8bc90',
+  clerk: '#c5b590', wizard: '#bdb0a8',
+  trail: '#a8834e', causey: '#a8834e', bridge: '#8a6a3c',
+  river: '#7fa3b4', sea: '#b7c6c3',
+}
+
+function chartFit() {
+  // a sheet wants to show a COUNTRY, not a street: roughly two hundred tiles
+  // across, clamped so it stays legible on a phone and does not go silly on a
+  // wall-sized display
+  return clamp(Math.min(VW, VH) / 170, 1.6, 5.5)
+}
+function chartRecentre() {
+  const me = myId && curState?.players?.[myId]
+  chartPanX = me ? me.x : (world?.genesis?.worldW ?? 320) / 2
+  chartPanY = me ? me.y : (world?.genesis?.worldH ?? 200) / 2
+  chartKey = ''
+}
+
+// ---- one hand-drawn sheet -------------------------------------------------
+function renderChart() {
+  const W = world?.genesis?.worldW ?? dims().W, H = world?.genesis?.worldH ?? dims().H
+  const cw = Math.max(1, Math.round(VW * DPR)), ch = Math.max(1, Math.round(VH * DPR))
+  if (chartCv.width !== cw || chartCv.height !== ch) { chartCv.width = cw; chartCv.height = ch }
+  const g = chartCv.getContext('2d')
+  g.setTransform(DPR, 0, 0, DPR, 0, 0)
+  g.clearRect(0, 0, VW, VH)
+  const z = chartZoom
+  const M = Math.round(Math.min(VW, VH) * .035)      // the margin of the sheet
+  const bw = VW - M * 2, bh = VH - M * 2 - PANEL_H * .55
+  const ox = M, oy = M
+  const tileToX = (x) => ox + bw / 2 + (x - chartPanX) * z
+  const tileToY = (y) => oy + bh / 2 + (y - chartPanY) * z
+
+  // ---- the paper ---------------------------------------------------------
+  const pg = g.createLinearGradient(0, oy, 0, oy + bh)
+  pg.addColorStop(0, PAPER.base); pg.addColorStop(.5, '#e2d0a8'); pg.addColorStop(1, '#d2bd93')
+  g.fillStyle = pg; g.fillRect(ox, oy, bw, bh)
+  const R = rng(0x5EED)
+  g.save(); g.beginPath(); g.rect(ox, oy, bw, bh); g.clip()
+  for (let i = 0; i < 260; i++) {                    // foxing, and the grain of it
+    const x = ox + R() * bw, y = oy + R() * bh, r = 2 + R() * 22
+    const fg = g.createRadialGradient(x, y, 0, x, y, r)
+    fg.addColorStop(0, 'rgba(140,104,58,' + (.03 + R() * .05) + ')')
+    fg.addColorStop(1, 'rgba(140,104,58,0)')
+    g.fillStyle = fg; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill()
+  }
+
+  // ---- the land ----------------------------------------------------------
+  const x0 = Math.max(0, Math.floor(chartPanX - (bw / 2) / z) - 1)
+  const x1 = Math.min(W - 1, Math.ceil(chartPanX + (bw / 2) / z) + 1)
+  const y0 = Math.max(0, Math.floor(chartPanY - (bh / 2) / z) - 1)
+  const y1 = Math.min(H - 1, Math.ceil(chartPanY + (bh / 2) / z) + 1)
+  const step = z < 2.4 ? 1 : 1
+  const cell = Math.ceil(z) + .6
+  for (let y = y0; y <= y1; y += step) {
+    for (let x = x0; x <= x1; x += step) {
+      const k = terrainOf(x, y)
+      g.fillStyle = CHART_LAND[k] ?? '#cbc094'
+      g.fillRect(tileToX(x), tileToY(y), cell, cell)
+    }
+  }
+
+  // ---- the sea, hatched the way a sea is hatched -------------------------
+  g.save()
+  g.strokeStyle = PAPER.seaHatch; g.lineWidth = Math.max(.6, z * .16)
+  for (let y = y0; y <= y1; y++) {
+    if (y % 3) continue
+    let run = null
+    for (let x = x0; x <= x1 + 1; x++) {
+      const wet = x <= x1 && (terrainOf(x, y) === 'sea')
+      if (wet && run === null) run = x
+      else if (!wet && run !== null) {
+        g.beginPath()
+        g.moveTo(tileToX(run) + z * .5, tileToY(y) + z * .5)
+        g.lineTo(tileToX(x - 1) + z * .5, tileToY(y) + z * .5)
+        g.stroke(); run = null
+      }
+    }
+  }
+  g.restore()
+
+  // ---- the coastline, and the banks of every river ------------------------
+  const isWet = (x, y) => { const k = terrainOf(x, y); return k === 'sea' || k === 'river' }
+  g.strokeStyle = PAPER.ink; g.lineWidth = Math.max(.8, z * .26)
+  g.beginPath()
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (!isWet(x, y)) continue
+      const px2 = tileToX(x), py2 = tileToY(y)
+      if (!isWet(x + 1, y)) { g.moveTo(px2 + z, py2); g.lineTo(px2 + z, py2 + z) }
+      if (!isWet(x - 1, y)) { g.moveTo(px2, py2); g.lineTo(px2, py2 + z) }
+      if (!isWet(x, y + 1)) { g.moveTo(px2, py2 + z); g.lineTo(px2 + z, py2 + z) }
+      if (!isWet(x, y - 1)) { g.moveTo(px2, py2); g.lineTo(px2 + z, py2) }
+    }
+  }
+  g.stroke()
+
+  // ---- woods as trees, high ground as bumps ------------------------------
+  // Drawn sparsely and by hand, because a wood on a chart is not a green area,
+  // it is somebody's shorthand for "there are trees here".
+  if (z > 1.9) {
+    g.strokeStyle = 'rgba(56,72,40,.62)'; g.lineWidth = Math.max(.7, z * .17)
+    g.fillStyle = 'rgba(72,92,52,.5)'
+    for (let y = y0; y <= y1; y += 3) for (let x = x0; x <= x1; x += 3) {
+      const k = terrainOf(x, y)
+      if (k !== 'greenwood' && k !== 'forest') continue
+      if ((tileHash(x, y, 41) & 3) !== 0) continue
+      const px2 = tileToX(x) + z * .5, py2 = tileToY(y) + z * .5, r = z * .9
+      g.beginPath(); g.moveTo(px2, py2 + r); g.lineTo(px2, py2 - r * .3); g.stroke()
+      g.beginPath(); g.arc(px2, py2 - r * .6, r * .78, 0, 7); g.fill()
+    }
+    g.strokeStyle = 'rgba(70,54,34,.62)'; g.lineWidth = Math.max(.7, z * .18)
+    for (let y = y0; y <= y1; y += 3) for (let x = x0; x <= x1; x += 3) {
+      const k = terrainOf(x, y)
+      if (k !== 'crags' && k !== 'mountain' && k !== 'scree') continue
+      if ((tileHash(x, y, 43) & 3) !== 0) continue
+      const px2 = tileToX(x), py2 = tileToY(y) + z
+      const w2 = z * 2.2
+      g.beginPath()
+      g.moveTo(px2 - w2 * .5, py2)
+      g.quadraticCurveTo(px2, py2 - w2 * (k === 'mountain' ? 1.1 : .7), px2 + w2 * .5, py2)
+      g.stroke()
+    }
+    // the Fens get tussocks, because a marsh drawn as a colour is a lake
+    g.strokeStyle = 'rgba(72,86,60,.5)'; g.lineWidth = Math.max(.6, z * .14)
+    for (let y = y0; y <= y1; y += 4) for (let x = x0; x <= x1; x += 4) {
+      if (terrainOf(x, y) !== 'fens') continue
+      const px2 = tileToX(x), py2 = tileToY(y)
+      for (let q = 0; q < 3; q++) {
+        g.beginPath(); g.moveTo(px2 + q * z * .8, py2 + z * .6)
+        g.lineTo(px2 + q * z * .8, py2 - z * .2); g.stroke()
+      }
+    }
+  }
+
+  // ---- the towns ---------------------------------------------------------
+  // Settlements are shaped differently in each founding -- v3's carry no tag
+  // and v1's no name -- and a chart that throws is worse than a chart that is
+  // vague. Everything below is defended.
+  let towns = []
+  try { towns = (settlementsE() ?? []).filter(t => t && Number.isFinite(t.x) && Number.isFinite(t.y)) } catch {}
+  for (const t of towns) {
+    const tx = tileToX(t.x), ty = tileToY(t.y)
+    if (tx < ox - 80 || tx > ox + bw + 80 || ty < oy - 60 || ty > oy + bh + 60) continue
+    // a scatter of little blocks, the way a plan of a town is drawn
+    const RT = rng(hash32(String(t.tag ?? t.name ?? (t.x + ':' + t.y))))
+    const n = t.ring === 'shire' ? 9 : 6
+    const tw = t.w ?? 20, th = t.h ?? 16
+    g.fillStyle = 'rgba(70,53,32,.82)'
+    for (let i = 0; i < n; i++) {
+      const a = RT() * 6.283, r = RT() * Math.min(tw, th) * .3 * z
+      const s2 = Math.max(1.6, z * .8)
+      g.fillRect(tx + Math.cos(a) * r, ty + Math.sin(a) * r * .8, s2, s2 * .8)
+    }
+    g.strokeStyle = 'rgba(70,53,32,.5)'; g.lineWidth = 1
+    g.beginPath(); g.ellipse(tx, ty, tw * .5 * z, th * .5 * z, 0, 0, 7); g.stroke()
+  }
+
+  // ---- the names ---------------------------------------------------------
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  // countries first, large and faint, the way a chart lets a region breathe
+  const LOCALES = [
+    ['the Heartlands', 373, 235], ['the Wilds', 109, 257], ['the Fens', 337, 397],
+    ['the Downs', 580, 339], ['the Greenwood', 531, 116], ['the Crags', 716, 238],
+    ['the Moor', 289, 130], ['the Deepwood', 465, 53], ["Deadman's Reach", 108, 154],
+    ['the Boneyard', 81, 316], ['the Kingswood', 611, 75], ['the Barrow', 515, 300],
+  ]
+  for (const [name, lx, ly] of LOCALES) {
+    const px2 = tileToX(lx), py2 = tileToY(ly)
+    if (px2 < ox || px2 > ox + bw || py2 < oy || py2 > oy + bh) continue
+    g.font = '600 ' + Math.round(clamp(z * 4.4, 11, 26)) + 'px Cinzel, Georgia, serif'
+    g.save(); g.letterSpacing = Math.round(clamp(z * 1.6, 3, 9)) + 'px'
+    g.fillStyle = 'rgba(70,53,32,.30)'
+    g.fillText(name.toUpperCase(), px2, py2); g.restore()
+  }
+  for (const t of towns) {
+    if (!t.name) continue
+    const tx = tileToX(t.x), ty = tileToY(t.y + (t.h ?? 16) * .5)
+    if (tx < ox || tx > ox + bw || ty < oy || ty > oy + bh) continue
+    g.font = 'italic ' + Math.round(clamp(z * 3.4, 10, 17)) + 'px Georgia, serif'
+    g.fillStyle = 'rgba(252,242,216,.75)'
+    g.fillText(t.name, tx + 1, ty + 9)
+    g.fillStyle = PAPER.ink
+    g.fillText(t.name, tx, ty + 8)
+  }
+  g.restore()
+
+  // ---- the furniture of a sheet ------------------------------------------
+  g.strokeStyle = PAPER.ink; g.lineWidth = 2
+  g.strokeRect(ox + .5, oy + .5, bw - 1, bh - 1)
+  g.strokeStyle = 'rgba(70,53,32,.55)'; g.lineWidth = 1
+  g.strokeRect(ox + 5.5, oy + 5.5, bw - 11, bh - 11)
+  // ticks along the border, like a surveyed sheet
+  g.strokeStyle = 'rgba(70,53,32,.5)'
+  for (let i = 0; i < bw; i += 16) {
+    g.beginPath(); g.moveTo(ox + i, oy); g.lineTo(ox + i, oy + 5); g.stroke()
+    g.beginPath(); g.moveTo(ox + i, oy + bh); g.lineTo(ox + i, oy + bh - 5); g.stroke()
+  }
+  for (let i = 0; i < bh; i += 16) {
+    g.beginPath(); g.moveTo(ox, oy + i); g.lineTo(ox + 5, oy + i); g.stroke()
+    g.beginPath(); g.moveTo(ox + bw, oy + i); g.lineTo(ox + bw - 5, oy + i); g.stroke()
+  }
+  // a compass, and a scale
+  const crx = ox + bw - 46, cry = oy + 48
+  g.strokeStyle = PAPER.ink; g.lineWidth = 1.4
+  g.beginPath(); g.arc(crx, cry, 22, 0, 7); g.stroke()
+  g.fillStyle = PAPER.ink
+  for (let i = 0; i < 4; i++) {
+    const a = i * 1.5708 - 1.5708
+    g.beginPath()
+    g.moveTo(crx + Math.cos(a) * 21, cry + Math.sin(a) * 21)
+    g.lineTo(crx + Math.cos(a + 2.4) * 5, cry + Math.sin(a + 2.4) * 5)
+    g.lineTo(crx + Math.cos(a - 2.4) * 5, cry + Math.sin(a - 2.4) * 5)
+    g.closePath(); g.fill()
+  }
+  g.font = '700 10px Cinzel, Georgia, serif'
+  g.fillText('N', crx, cry - 30)
+  const sbW = Math.round(50 * z), sbTiles = 50
+  g.lineWidth = 2
+  g.beginPath(); g.moveTo(ox + 24, oy + bh - 26); g.lineTo(ox + 24 + sbW, oy + bh - 26); g.stroke()
+  g.beginPath(); g.moveTo(ox + 24, oy + bh - 30); g.lineTo(ox + 24, oy + bh - 22); g.stroke()
+  g.beginPath(); g.moveTo(ox + 24 + sbW, oy + bh - 30); g.lineTo(ox + 24 + sbW, oy + bh - 22); g.stroke()
+  g.font = 'italic 11px Georgia, serif'; g.textAlign = 'left'
+  g.fillText(sbTiles + ' paces', ox + 26, oy + bh - 36)
+  return { ox, oy, bw, bh, tileToX, tileToY }
+}
+
+let chartBox = null
+function drawChart(g, now) {
+  const s = curState; if (!s) return
+  if (!chartZoom) { chartZoom = chartFit(); chartRecentre() }
+  const sig = [VW, VH, DPR, chartZoom.toFixed(3), chartPanX | 0, chartPanY | 0, worldConfigured].join('|')
+  if (sig !== chartKey) { chartBox = renderChart(); chartKey = sig }
+
+  g.fillStyle = 'rgba(6,5,8,.86)'; g.fillRect(0, 0, VW, VH)
+  g.setTransform(1, 0, 0, 1, 0, 0)
+  g.drawImage(chartCv, 0, 0)
+  g.setTransform(DPR, 0, 0, DPR, 0, 0)
+  if (!chartBox) return
+  const { ox, oy, bw, bh, tileToX, tileToY } = chartBox
+
+  g.save(); g.beginPath(); g.rect(ox, oy, bw, bh); g.clip()
+  // ---- everyone who is out there right now -------------------------------
+  for (const [id, p] of Object.entries(s.players ?? {})) {
+    if (id === myId) continue
+    const px2 = tileToX(p.x), py2 = tileToY(p.y)
+    g.fillStyle = 'rgba(70,53,32,.7)'
+    g.beginPath(); g.arc(px2, py2, 2.6, 0, 7); g.fill()
+  }
+  // ---- and the two things worth marking on a chart -----------------------
+  for (const m of Object.values(s.mobs ?? {})) {
+    if (m.hp <= 0) continue
+    if (m.type !== 'dragon' && m.type !== 'great-spider') continue
+    const px2 = tileToX(m.x), py2 = tileToY(m.y)
+    g.save(); g.translate(px2, py2)
+    g.strokeStyle = PAPER.red; g.lineWidth = 1.6; g.lineCap = 'round'
+    if (m.type === 'dragon') {                       // here be one, and only one
+      g.beginPath(); g.moveTo(-9, 2); g.quadraticCurveTo(0, -6, 9, 2); g.stroke()
+      g.beginPath(); g.moveTo(-5, 1); g.quadraticCurveTo(-2, -9, 2, -2); g.stroke()
+      g.beginPath(); g.moveTo(5, 1); g.quadraticCurveTo(8, -9, 11, -3); g.stroke()
+    } else {
+      g.beginPath(); g.arc(0, 0, 4, 0, 7); g.stroke()
+      for (let q = 0; q < 8; q++) {
+        const a = (q / 8) * 6.283
+        g.beginPath(); g.moveTo(Math.cos(a) * 4, Math.sin(a) * 4)
+        g.lineTo(Math.cos(a) * 10, Math.sin(a) * 10); g.stroke()
+      }
+    }
+    g.restore()
+  }
+  // ---- you --------------------------------------------------------------
+  const me = myId && s.players[myId]
+  if (me) {
+    const px2 = tileToX(me.x), py2 = tileToY(me.y)
+    const puls = .6 + Math.sin(now / 340) * .35
+    g.strokeStyle = 'rgba(142,43,30,' + puls.toFixed(2) + ')'; g.lineWidth = 1.4
+    g.beginPath(); g.arc(px2, py2, 8 + puls * 5, 0, 7); g.stroke()
+    g.strokeStyle = PAPER.red; g.lineWidth = 2.6; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(px2 - 6, py2 - 6); g.lineTo(px2 + 6, py2 + 6)
+    g.moveTo(px2 + 6, py2 - 6); g.lineTo(px2 - 6, py2 + 6); g.stroke()
+    g.font = 'italic 12px Georgia, serif'; g.textAlign = 'center'
+    g.fillStyle = PAPER.red
+    g.fillText(me.name || 'you are here', px2, py2 - 14)
+  }
+  g.restore()
+
+  // ---- the title, written on the sheet -----------------------------------
+  const where = me ? (localeAt4(me.x, me.y) || regionNameAt(me.x, me.y) || 'the island') : 'the island'
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic'
+  g.font = '900 ' + Math.round(clamp(VW * .026, 15, 30)) + 'px Cinzel, Georgia, serif'
+  g.save(); g.letterSpacing = '4px'
+  g.fillStyle = 'rgba(252,242,216,.5)'
+  g.fillText(String(where).toUpperCase(), VW / 2 + 1, oy + 34)
+  g.fillStyle = PAPER.ink
+  g.fillText(String(where).toUpperCase(), VW / 2, oy + 33)
+  g.restore()
+  g.font = 'italic 11.5px Georgia, serif'
+  g.fillStyle = 'rgba(70,53,32,.6)'
+  g.fillText((me ? me.x + ' \u00b7 ' + me.y + '   \u2014   ' : '') + 'tick ' + s.tick
+    + '   \u2014   drag to move the sheet, scroll to zoom, R to find yourself',
+    VW / 2, oy + bh - 10)
 }
 // ===========================================================================
 // THE PANEL
@@ -8035,7 +8273,12 @@ function primaryClick(p, isRight) {
   if (r) { runRegion(r, isRight); return }
   // the slab itself swallows clicks, even where no control sits
   if (p.y > PANEL_Y && p.x > PANEL_X && p.x < PANEL_X + PANEL_W) return
-  if (showChart) { showChart = false; return }
+  if (showChart) {
+    // dragging the sheet is not a click; only a still press closes it
+    if (!chartDragging) { showChart = false }
+    chartDragging = false
+    return
+  }
 
   const tgt = pickWorld(p)
   if (isRight) {                              // right click asks the thing what it offers
@@ -8063,7 +8306,7 @@ function runRegion(r, isRight) {
   SFX.pane()
   if (a.t === 'close') { closePane(a.which); return }
   if (a.t === 'btn') {
-    if (a.id === 'chart') { showChart = !showChart; return }
+    if (a.id === 'chart') { showChart = !showChart; if (showChart) chartRecentre(); return }
     if (a.id === 'speak') { openSay(); return }
     if (a.id === 'door') { location.href = '/windows'; return }
     togglePane(a.id)
@@ -8373,7 +8616,17 @@ cv.addEventListener('pointermove', (e) => {
   // easily 300ms. So: a press that never travels more than eight pixels is a
   // CLICK, and a click walks to one tile and stops.
   if (mouse.down && pressFrom && Math.hypot(p.x - pressFrom.x, p.y - pressFrom.y) > 8) mouse.moved = true
+  if (showChart && mouse.down && chartZoom) {
+    chartPanX -= (p.x - (chartLast?.x ?? p.x)) / chartZoom
+    chartPanY -= (p.y - (chartLast?.y ?? p.y)) / chartZoom
+    const W2 = world?.genesis?.worldW ?? dims().W, H2 = world?.genesis?.worldH ?? dims().H
+    chartPanX = clamp(chartPanX, 0, W2); chartPanY = clamp(chartPanY, 0, H2)
+    chartKey = ''
+    chartDragging = true
+  }
+  chartLast = { x: p.x, y: p.y }
 })
+let chartLast = null
 let pressTimer = null, pressFrom = null
 cv.addEventListener('pointerdown', (e) => {
   cv.setPointerCapture?.(e.pointerId)
@@ -8404,7 +8657,14 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapt
   })
 document.addEventListener('visibilitychange', () => { mouse.down = false; mouse.moved = false })
 cv.addEventListener('contextmenu', (e) => e.preventDefault())
-cv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
+cv.addEventListener('wheel', (e) => {
+  e.preventDefault()
+  if (!showChart) return
+  // a sheet is something you move under your hands
+  const k = e.deltaY > 0 ? 1 / 1.14 : 1.14
+  chartZoom = clamp(chartZoom * k, .55, 14)
+  chartKey = ''
+}, { passive: false })
 
 // ---- the keyboard, with the bindings these games taught everyone ----------
 const sayBox = document.getElementById('say')
@@ -8432,7 +8692,7 @@ window.addEventListener('keydown', (e) => {
   if (k === 'i') { togglePane('pack'); SFX.pane() }
   else if (k === 'c') { togglePane('citizen'); SFX.pane() }
   else if (k === 'f') { togglePane('forge'); SFX.pane() }
-  else if (e.key === 'Tab') { showChart = !showChart; e.preventDefault() }
+  else if (e.key === 'Tab') { showChart = !showChart; if (showChart) chartRecentre(); e.preventDefault() }
   else if (e.key === 'Enter') { openSay(); e.preventDefault() }
   else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('Offer withdrawn.', 'dim') } else if (menu) menu = null; else if (paneModal) paneModal = null; else if (anyPaneOpen()) { paneLeft = paneRight = null } else if (showChart) showChart = false; else intent = null }
   else if (k === ' ') { paneLeft = paneRight = paneModal = null; showChart = false; e.preventDefault() }
@@ -8449,6 +8709,7 @@ window.addEventListener('keydown', (e) => {
     else say('Nothing on that belt loop.', 'dim')
   }
   else if (k === 's') { send({ do: 'stop' }); intent = null; say('You stand still.', 'dim') }
+  else if (k === 'r' && showChart) { chartRecentre() }
   else if (k === 'v') { send({ do: 'survey' }); say('You take the measure of it.', 'dim') }
   else if (k === 'q') {
     QUALITY = hiq() ? 'low' : 'high'
