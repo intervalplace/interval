@@ -210,10 +210,10 @@
 <script>
 'use strict'
 // ============================ GEOGRAPHY IS LAW ============================
-// What follows first is an inlined copy of terrain-mirror.mjs -- exports
-// stripped, byte for byte identical otherwise. Every window carries this so
-// that no two citizens can disagree about where the Fens end. If this copy
-// drifts from the module, this window is in breach and should be refused.
+// An inlined copy of terrain-mirror.mjs, exports stripped, byte for byte
+// identical otherwise. Every window carries this so that no two citizens can
+// disagree about where the Fens end. If this copy drifts, this window is in
+// breach and should be refused at the door.
 // ==========================================================================
 // terrain-mirror.js — the window's copy of the world's own geography.
 //
@@ -1858,6 +1858,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
+  : a.do === 'special' ? { type: 'special', targetId: a.targetId }   // §6af
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
   : a.do === 'drop' ? { type: 'drop', slot: a.slot }
   : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId }
@@ -3446,7 +3447,7 @@ function notePositions(s) {
       mote(p.x + (Math.random() - .5) * 14, p.y - 22,
         (Math.random() - .5) * 3.4, -1.4 - Math.random() * 2.4,
         .55 + Math.random() * .45, 'rgba(168,22,14,%a)', 2 + Math.random() * 2)
-    if (m.hp <= 0) { bleedAt(m.x, m.y, 10); shake = Math.max(shake, 3) }
+    if (m.hp <= 0) { bleedAt(m.x, m.y, 10); shake = Math.max(shake, 3); if (byMe) SFX.slain() }
   }
   for (const [id, p] of Object.entries(s.players ?? {})) {
     hpNow.set('p' + id, p.hp)
@@ -3782,6 +3783,48 @@ function drawNode(g, n, sx, sy, t, hot) {
       return
     }
     case 'house': case 'inn': {
+      if (n.type === 'house' && indoors(n.x, n.y)) {
+        // A HOUSE INSIDE A HOUSE, AGAIN.
+        //
+        // Thirty-three of this island's seventy houses stand on `floor`, inside
+        // walls, in a room already furnished with a table, a bed, a shelf and a
+        // barrel. Whatever the constitution means by `house` there, it is not a
+        // cottage -- it is one impassable tile in somebody's front room, and a
+        // gabled roof on it was the same mistake as the store.
+        //
+        // Drawn as the STAIR: interior timber going up to a loft. It answers
+        // the only question the tile actually raises, which is why you cannot
+        // walk through it, and it duplicates none of the furniture the world
+        // has already placed around it.
+        g.drawImage(sprite('stair' + (hs & 3), 84, 86, (gg, W2, H2, R) => {
+          const c2 = W2 / 2, b = H2 - 26
+          groundShadow(gg, c2 + 4, b + 4, 28, 12, .5)
+          const STEP = 6, N = 6
+          for (let i = 0; i < N; i++) {
+            const y0 = b - i * STEP
+            const x0 = c2 - 30 + i * 5, x1 = c2 + 2 + i * 5
+            // tread, then the riser under it
+            poly(gg, [[x0, y0], [x0 + 16, y0 + 8], [x1 + 16, y0 - 8 + 8], [x1, y0 - 8]],
+              i % 2 ? '#5b4a2c' : '#655231')
+            poly(gg, [[x0, y0], [x0 + 16, y0 + 8], [x0 + 16, y0 + 8 + STEP], [x0, y0 + STEP]], '#2e2417')
+            gg.strokeStyle = 'rgba(255,236,196,.13)'; gg.lineWidth = 1
+            gg.beginPath(); gg.moveTo(x0, y0); gg.lineTo(x1, y0 - 8); gg.stroke()
+          }
+          // the rail, and its posts
+          gg.strokeStyle = '#3f331f'; gg.lineWidth = 2.6
+          gg.beginPath(); gg.moveTo(c2 - 28, b - 12); gg.lineTo(c2 + 4, b - 12 - N * STEP + 4); gg.stroke()
+          for (let i = 0; i < 4; i++) {
+            const t2 = i / 3
+            const px2 = c2 - 28 + t2 * 32, py2 = b - t2 * (N * STEP - 4)
+            gg.strokeStyle = '#4a3c24'; gg.lineWidth = 2
+            gg.beginPath(); gg.moveTo(px2, py2); gg.lineTo(px2, py2 - 13); gg.stroke()
+          }
+          // the dark of the loft it climbs into
+          poly(gg, [[c2 + 2, b - N * STEP - 2], [c2 + 20, b - N * STEP + 7],
+                    [c2 + 20, b - N * STEP - 9], [c2 + 2, b - N * STEP - 18]], '#0a0807')
+        }), sx - 42, sy - 86 + 26)
+        return
+      }
       const K = BUILDING_KINDS[n.type] ?? BUILDING_KINDS.house
       g.drawImage(sprite('bld' + n.type + (hs & 3), 160, 150, (gg, W2, H2, R) =>
         paintBuilding(gg, W2, H2, { ...K, R })), sx - 80, sy - 150 + 26)
@@ -4074,6 +4117,28 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const act = p.action?.type
   const swinging = act === 'attack' || act === 'attackp' || act === 'gather'
   const wep = p.equipment?.weapon?.item ?? null
+  // A SPECIAL IS A DIFFERENT MOVE, not a louder one. The ordinary swing is a
+  // sine; these three are not, and the arm is the only place a citizen can
+  // read which of them they just spent their next cycle on.
+  const sp = specialAnim.get(id)
+  const spK = sp ? (performance.now() - sp.at) / sp.dur : 2
+  let swingVal
+  if (spK <= 1) {
+    if (sp.kind === 'twice') {
+      // two strikes inside one tick: down, back, down again, faster each time
+      const a1 = clamp(spK / .38, 0, 1), a2 = clamp((spK - .42) / .38, 0, 1)
+      swingVal = -0.4 + Math.sin(a1 * Math.PI) * 1.35 + Math.sin(a2 * Math.PI) * 1.35
+    } else if (sp.kind === 'now') {
+      // a maul: three quarters of the animation is the wind-up
+      swingVal = spK < .62 ? -0.4 - (spK / .62) * 1.5
+               : -1.9 + ((spK - .62) / .38) * 3.6
+    } else {
+      // the shot that cannot miss: draw, hold, loose
+      swingVal = spK < .55 ? -0.4 - (spK / .55) * .5 : -0.9 + ((spK - .55) / .45) * 1.1
+    }
+  } else if (swinging) swingVal = -0.4 + Math.sin(performance.now() / 90) * 1.05
+  else if (moving) swingVal = -0.4 + Math.sin(t * 6.5) * .3
+  else swingVal = -0.45
   const body = p.equipment?.body?.item, head = p.equipment?.head?.item
   const star = body?.startsWith('star-')
   humanoid(g, sx, sy, {
@@ -4087,7 +4152,7 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     helm: head ? (head.startsWith('star-') ? '#9db4cc' : '#8a6a34') : null,
     hood: null, skin: away ? '#6e5238' : '#8d6a4a',
     step: moving ? t * 6.5 + id.charCodeAt(0) : 0,
-    swing: swinging ? -0.4 + Math.sin(performance.now() / 90) * 1.05 : (moving ? -0.4 + Math.sin(t * 6.5) * .3 : -0.45),
+    swing: swingVal,
     weapon: wep ? (gg, hx, hy, a, sc) => drawWeapon(gg, hx, hy, a, sc, wep) : null,
   })
   if (isMe) {                                          // the lantern's own halo, so you never lose yourself
@@ -4175,6 +4240,105 @@ const decals = []           // blood on the floor, in world coordinates
 const dmgNums = []          // numbers leaving a body
 const hitFlash = new Map()  // id -> when it was last struck
 const dust = []             // motes in the air, in screen coordinates
+const fx = []               // blows in flight, in world coordinates
+const specialAnim = new Map()   // playerId -> { kind, at, dur } while a special plays
+
+// ---------------------------------------------------------------------------
+// THE BLOW ITSELF
+// ---------------------------------------------------------------------------
+// The state carries hp and an action and nothing else, so a strike is only ever
+// visible as a difference. That is enough for damage, but not for a SHAPE: an
+// arrow that never crosses the ground between two bodies is not a shot, and
+// three specials that all play the ordinary swing are three names for one move.
+//
+// §6af gives each special its own single sentence, and each one animates as
+// what that sentence says:
+//
+//     'twice'  star-dagger   two blows land in one tick   -> two slashes
+//     'now'    star-maul     it swings whatever your arm says -> a shockwave
+//     'true'   horn-bow      the shot cannot miss         -> a golden tracer
+const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true' }
+// A blow that lands late carries its own delay rather than living in a
+// setTimeout: a throttled tab drops the timer and the impact never plays, and a
+// value on the effect can be tested where a timer cannot.
+function addFx(kind, ax, ay, bx, by, life, delay) {
+  if (fx.length > 60) fx.shift()
+  fx.push({ kind, ax, ay, bx: bx ?? ax, by: by ?? ay,
+            at: performance.now() + (delay ?? 0), life: life ?? 260 })
+}
+function drawFx(g, now) {
+  for (let i = fx.length - 1; i >= 0; i--) {
+    const f = fx[i]
+    const k = (now - f.at) / f.life
+    if (k > 1) { fx.splice(i, 1); continue }
+    if (k < 0) continue                        // still winding up
+    const A = screenOf(f.ax, f.ay), B = screenOf(f.bx, f.by)
+    const ay2 = A.y - liftAt(Math.round(f.ax), Math.round(f.ay)) - 24
+    const by2 = B.y - liftAt(Math.round(f.bx), Math.round(f.by)) - 24
+    g.save()
+    if (f.kind === 'arrow' || f.kind === 'true') {
+      const gold = f.kind === 'true'
+      const px2 = A.x + (B.x - A.x) * k, py2 = ay2 + (by2 - ay2) * k - Math.sin(k * Math.PI) * 16
+      const tk = Math.max(0, k - .22)
+      const tx = A.x + (B.x - A.x) * tk, ty = ay2 + (by2 - ay2) * tk - Math.sin(tk * Math.PI) * 16
+      g.globalCompositeOperation = 'lighter'
+      g.strokeStyle = gold ? 'rgba(255,214,120,.9)' : 'rgba(226,214,180,.75)'
+      g.lineWidth = gold ? 2.6 : 1.8; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(tx, ty); g.lineTo(px2, py2); g.stroke()
+      const gr = g.createRadialGradient(px2, py2, 0, px2, py2, gold ? 16 : 8)
+      gr.addColorStop(0, gold ? 'rgba(255,206,110,.7)' : 'rgba(226,214,180,.4)')
+      gr.addColorStop(1, 'rgba(0,0,0,0)')
+      g.fillStyle = gr; g.beginPath(); g.arc(px2, py2, gold ? 16 : 8, 0, 7); g.fill()
+    } else if (f.kind === 'now') {
+      // the maul lands: a ring going out along the ground, and dust with it
+      g.globalCompositeOperation = 'lighter'
+      const r = 8 + k * 54
+      g.strokeStyle = 'rgba(255,196,110,' + (.75 * (1 - k)) + ')'
+      g.lineWidth = 4 * (1 - k) + 1
+      g.beginPath(); g.ellipse(B.x, by2 + 22, r, r * .42, 0, 0, 7); g.stroke()
+      g.strokeStyle = 'rgba(255,150,60,' + (.4 * (1 - k)) + ')'
+      g.lineWidth = 2
+      g.beginPath(); g.ellipse(B.x, by2 + 22, r * .62, r * .26, 0, 0, 7); g.stroke()
+      g.globalCompositeOperation = 'source-over'
+      for (let q = 0; q < 8; q++) {
+        const a = (q / 8) * 6.283
+        g.fillStyle = 'rgba(90,78,62,' + (.5 * (1 - k)) + ')'
+        g.beginPath()
+        g.ellipse(B.x + Math.cos(a) * r, by2 + 22 + Math.sin(a) * r * .42,
+          4 * (1 - k) + 1, 2.4 * (1 - k) + 1, 0, 0, 7); g.fill()
+      }
+    } else if (f.kind === 'twice') {
+      // two slashes, the second a beat behind the first and crossed against it
+      g.globalCompositeOperation = 'lighter'
+      for (const [off, ang] of [[0, -.7], [.34, .7]]) {
+        const kk = (k - off) / (1 - off)
+        if (kk < 0 || kk > 1) continue
+        g.save(); g.translate(B.x, by2); g.rotate(ang)
+        g.strokeStyle = 'rgba(200,232,255,' + (.85 * (1 - kk)) + ')'
+        g.lineWidth = 5 * (1 - kk) + 1
+        g.beginPath(); g.arc(0, 0, 22, -1.05 + kk * .9, .35 + kk * .9); g.stroke()
+        g.strokeStyle = 'rgba(255,255,255,' + (.6 * (1 - kk)) + ')'
+        g.lineWidth = 1.6
+        g.beginPath(); g.arc(0, 0, 22, -1.05 + kk * .9, .35 + kk * .9); g.stroke()
+        g.restore()
+      }
+    } else if (f.kind === 'still') {
+      // the truce: a ring of sigil-light closing over whatever it binds
+      g.globalCompositeOperation = 'lighter'
+      const r = 46 * (1 - k) + 8
+      g.strokeStyle = 'rgba(140,240,240,' + (.8 * (1 - k)) + ')'
+      g.lineWidth = 2.4
+      g.beginPath(); g.ellipse(B.x, by2 + 20, r, r * .45, 0, 0, 7); g.stroke()
+      for (let q = 0; q < 6; q++) {
+        const a = (q / 6) * 6.283 + k * 2
+        g.fillStyle = 'rgba(190,255,255,' + (.8 * (1 - k)) + ')'
+        g.fillRect(B.x + Math.cos(a) * r - 1.5, by2 + 20 + Math.sin(a) * r * .45 - 1.5, 3, 3)
+      }
+    }
+    g.restore()
+  }
+  g.globalCompositeOperation = 'source-over'
+}
 
 function bleedAt(wx, wy, amount) {
   if (decals.length > (hiq() ? 90 : 30)) decals.shift()
@@ -4316,6 +4480,8 @@ function drawScene(now) {
     g.beginPath(); g.arc(bx, by, 26, 0, 7); g.fill(); g.restore()
   }
   g.restore()
+
+  drawFx(g, now)
 
   // ---- names over heads ---------------------------------------------------
   for (const it of list) {
@@ -4649,6 +4815,8 @@ let regions = []                      // rebuilt every frame; the only hit-test 
 let logLines = []
 let tipAt = null                      // { x, y, item, sub } while the cursor rests on something
 let beltMap = []                      // which inventory slot each belt key eats
+let levelBanner = null                // { skill, lv, at }
+let menu = null                       // { x, y, items:[{label,sub,run,dim}] }
 
 function say(text, kind) {
   const last = logLines[logLines.length - 1]
@@ -4659,10 +4827,25 @@ function say(text, kind) {
 const LOGCOL = { plain: '#cdbb99', good: '#9fc47a', warn: '#c98b5a', chat: '#e8d199', dim: '#8d7d63', gain: '#e8b53a' }
 
 // ---- sound: rules, not files ----------------------------------------------
-let AC = null
+let AC = null, MASTER = null
 let soundOn = localStorage.getItem('interval-sound') !== 'off'
 const SFX = {
-  ctx() { if (!AC && soundOn) { try { AC = new (window.AudioContext || window.webkitAudioContext)() } catch {} } return AC },
+  ctx() {
+    if (!soundOn) return null
+    if (!AC) {
+      try {
+        AC = new (window.AudioContext || window.webkitAudioContext)()
+        MASTER = AC.createGain(); MASTER.gain.value = .85; MASTER.connect(AC.destination)
+      } catch { return null }
+    }
+    // AN AUDIO CONTEXT IS BORN SUSPENDED, and on iOS it goes back to sleep
+    // whenever the tab does. Creating it inside a click handler is not enough;
+    // it has to be RESUMED, and resumed again every time it lapses. This is why
+    // the window was silent on a phone while working on a desktop.
+    if (AC.state !== 'running') { try { AC.resume() } catch {} }
+    return AC
+  },
+  out() { return MASTER ?? AC?.destination },
   tone(f, d, type, vol, slide) {
     const a = this.ctx(); if (!a || !soundOn) return
     const o = a.createOscillator(), g = a.createGain()
@@ -4670,7 +4853,7 @@ const SFX = {
     if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, slide), a.currentTime + d)
     g.gain.setValueAtTime(vol ?? .12, a.currentTime)
     g.gain.exponentialRampToValueAtTime(.0001, a.currentTime + d)
-    o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + d + .02)
+    o.connect(g); g.connect(this.out()); o.start(); o.stop(a.currentTime + d + .02)
   },
   noise(d, vol, hp) {
     const a = this.ctx(); if (!a || !soundOn) return
@@ -4679,7 +4862,7 @@ const SFX = {
     const src = a.createBufferSource(); src.buffer = buf
     const f = a.createBiquadFilter(); f.type = hp ? 'highpass' : 'lowpass'; f.frequency.value = hp ?? 900
     const g = a.createGain(); g.gain.value = vol ?? .1
-    src.connect(f); f.connect(g); g.connect(a.destination); src.start()
+    src.connect(f); f.connect(g); g.connect(this.out()); src.start()
   },
   click() { this.tone(420, .05, 'square', .05, 300) },
   hit() { this.noise(.14, .16, 220); this.tone(90, .12, 'sawtooth', .1, 50) },
@@ -4691,6 +4874,57 @@ const SFX = {
   pane() { this.noise(.09, .09, 1400) },
   chat() { this.tone(880, .05, 'sine', .04) },
   die() { [300, 240, 180, 110].forEach((f, i) => setTimeout(() => this.tone(f, .7, 'sawtooth', .11), i * 150)) },
+  step(i) { this.noise(.05, .028, 2600 + (i % 2) * 700) },       // boots on stone
+  chop()  { this.noise(.10, .10, 500); this.tone(150, .09, 'triangle', .06, 90) },
+  mine()  { this.noise(.07, .11, 2400); this.tone(320, .06, 'square', .05, 180) },
+  fish()  { this.noise(.16, .05, 900) },
+  crackle() { this.noise(.05 + Math.random() * .05, .022 + Math.random() * .02, 1400 + Math.random() * 1800) },
+  slain() { this.tone(120, .3, 'sawtooth', .1, 45); this.noise(.22, .09, 300) },
+  beam()  { this.tone(1320, .12, 'sine', .04, 1760) },
+  loose() { this.noise(.06, .05, 1800); this.tone(760, .05, 'triangle', .03, 420) },
+  still() { [660, 880, 1320].forEach((f, i) => setTimeout(() => this.tone(f, .8, 'sine', .05), i * 70)) },
+  special(kind) {
+    if (kind === 'twice') {                     // two blows, audibly two
+      this.noise(.07, .13, 3200); this.tone(880, .06, 'square', .05, 520)
+      setTimeout(() => { this.noise(.07, .13, 3200); this.tone(990, .06, 'square', .05, 560) }, 140)
+    } else if (kind === 'now') {                // the wind-up, then the floor
+      this.tone(200, .30, 'sine', .05, 70)
+      setTimeout(() => { this.noise(.30, .22, 180); this.tone(62, .45, 'sawtooth', .16, 34) }, 320)
+    } else {                                    // a shot that will not miss
+      this.tone(300, .12, 'triangle', .06, 1200)
+      setTimeout(() => { this.noise(.08, .07, 2200); this.tone(1480, .2, 'sine', .06, 2400) }, 150)
+    }
+  },
+}
+// ---- ambience: the room tone of wherever you are standing -----------------
+// Not a loop and not a file. A fire within earshot spits every so often, and
+// the rate falls off with distance, so a watchfire on the next street is a
+// presence before it is a sight.
+let _lastCrack = 0
+function ambience(now) {
+  if (!soundOn || !AC || AC.state !== 'running') return
+  const s = curState, me = myId && s?.players?.[myId]
+  if (!me) return
+  let best = 99
+  for (const n of Object.values(s.nodes ?? {})) {
+    if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'watchfire') continue
+    if ((n.type === 'fire' && n.expiresAt <= s.tick) ||
+        (n.type === 'watchfire' && (n.fuelUntil ?? 0) <= s.tick)) continue
+    const d = Math.max(Math.abs(n.x - me.x), Math.abs(n.y - me.y))
+    if (d < best) best = d
+  }
+  if (best > 9) return
+  const near = 1 - best / 9
+  if (now - _lastCrack > 90 + Math.random() * 700 / Math.max(.15, near)) {
+    _lastCrack = now
+    const a = SFX.ctx(); if (!a) return
+    const g = a.createGain(); g.gain.value = .35 * near * near
+    const n2 = a.sampleRate * .05, buf = a.createBuffer(1, n2, a.sampleRate), ch = buf.getChannelData(0)
+    for (let i = 0; i < n2; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n2)
+    const src = a.createBufferSource(); src.buffer = buf
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900 + Math.random() * 2200
+    src.connect(f); f.connect(g); g.connect(SFX.out()); src.start()
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -4937,6 +5171,12 @@ function orb(g, ox, oy, r, frac, col, now, label, value) {
   g.fillStyle = 'rgba(141,125,99,.85)'
   g.save(); g.letterSpacing = '2px'
   g.fillText(label.toUpperCase(), ox, oy - r + 12); g.restore()
+  if (col.under) {
+    g.font = '700 9px Cinzel, Georgia, serif'
+    g.fillStyle = col.text
+    g.save(); g.letterSpacing = '1px'
+    g.fillText(col.under.toUpperCase(), ox, oy + r + 12); g.restore()
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -4994,8 +5234,16 @@ function drawPanel(g, now) {
   orb(g, px0 + PANEL_W - R - 13, oy, R, frac, {
     well: '#050a16', lo: '#0d1c3e', mid: '#1d3470', hi: '#4f8de6',
     skin: 'rgba(150,200,255,.5)', caustic: 'rgba(90,150,255,.16)',
-    text: '#a8c8f0', bleeds: false, glow: 'rgba(60,120,240,.14)',
-  }, now, sk.slice(0, 9), Math.round(frac * 100) + '%')
+    text: '#a8c8f0', bleeds: false, glow: 'rgba(60,120,240,.14)', under: sk,
+  }, now, 'training', lv + '  \u00b7  ' + Math.round(frac * 100) + '%')
+  // both orbs answer when asked
+  regions.push({ x: px0 + 13, y: oy - R, w: R * 2, h: R * 2, act: { t: 'noop' },
+                 tip: { title: 'Life  ' + hp + ' / ' + maxHp,
+                        sub: 'Max life is your hitpoints level' } })
+  regions.push({ x: px0 + PANEL_W - R * 2 - 13, y: oy - R, w: R * 2, h: R * 2, act: { t: 'noop' },
+                 tip: { title: 'Training ' + sk + ' \u00b7 level ' + lv,
+                        sub: lv >= 99 ? 'mastered' : (b0 - xp) + ' xp to ' + (lv + 1)
+                             + '  \u00b7  it follows whatever you last worked at' } })
 
   // ---- belt and buttons, measured up from the bottom edge ------------------
   const BS = Math.round(clamp(PANEL_H * .29, 22, 44))
@@ -5038,9 +5286,12 @@ function drawPanel(g, now) {
         g.font = '700 9px Cinzel, Georgia, serif'; g.textAlign = 'right'
         g.fillStyle = '#f2dda2'; g.fillText(String(b.qty), bx + BS - 3, beltY + BS - 3)
       }
-      regions.push({ x: bx, y: beltY, w: BS, h: BS, act: { t: 'belt', i: i2 },
-                     tip: { title: wordy(b.item), sub: 'Key ' + (i2 + 1) + ' \u00b7 restores health' } })
     }
+    // EVERY loop gets a tip, full or empty. Four numbered boxes with nothing in
+    // them and no explanation is a puzzle, not an interface.
+    regions.push({ x: bx, y: beltY, w: BS, h: BS, act: { t: 'belt', i: i2 },
+                   tip: b ? { title: wordy(b.item), sub: 'Press ' + (i2 + 1) + ' to eat it \u00b7 restores health' }
+                          : { title: 'Belt loop ' + (i2 + 1), sub: 'Cooked fish, ale and broth land here on their own' } })
     g.font = '600 8px Cinzel, Georgia, serif'; g.textAlign = 'left'
     g.fillStyle = 'rgba(141,125,99,.7)'
     g.fillText(String(i2 + 1), bx + 3, beltY + 10)
@@ -5082,7 +5333,7 @@ function drawPack(g, now) {
   regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
   regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
   carve(g, x, y, PANE_W, PANE_H)
-  plate(g, x + 14, y + 14, PANE_W - 28, 'The Pack')
+  plate(g, x + 14, y + 14, PANE_W - 28, giveTo ? 'Choose an offer' : 'The Pack')
   regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
   g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = inRect(mouse, x + PANE_W - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
@@ -5108,8 +5359,9 @@ function drawPack(g, now) {
   // the sentence under the grid: what the buttons do, in the window's voice
   const fy = gy + 4 * (S + GAP) + 12
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'
-  g.font = '11.5px Georgia, serif'; g.fillStyle = '#8d7d63'
-  g.fillText('Left click to use. Right click to drop.', x + 20, fy + 12)
+  g.font = '11.5px Georgia, serif'; g.fillStyle = giveTo ? '#e8d199' : '#8d7d63'
+  g.fillText(giveTo ? 'Click what you will offer. Escape to withdraw.'
+                    : 'Left click to use. Right click for everything else.', x + 20, fy + 12)
   const free = 28 - (me.inventory ?? []).filter(Boolean).length
   g.fillStyle = free ? '#8d7d63' : '#c98b5a'
   g.fillText(free + ' slot' + (free === 1 ? '' : 's') + ' free', x + 20, fy + 30)
@@ -5354,6 +5606,114 @@ function drawCursor(g) {
 }
 
 const inRect = (p, x, y, w, h) => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
+
+// ---------------------------------------------------------------------------
+// THE LEVEL
+// ---------------------------------------------------------------------------
+// A level is the largest thing that happens to a citizen in an ordinary hour,
+// and it used to be a grey line in the log. It gets the middle of the screen:
+// a burst of rays, the trade in full caps, the number, and then it goes away
+// on its own without asking to be dismissed.
+function drawLevelBanner(g, now) {
+  if (!levelBanner) return
+  const age = (now - levelBanner.at) / 3400
+  if (age > 1) { levelBanner = null; return }
+  const inK = clamp(age / .12, 0, 1)                 // snap in
+  const outK = age > .78 ? 1 - (age - .78) / .22 : 1 // drift out
+  const cx2 = VW / 2, cy2 = VH * .34
+  g.save()
+  g.globalAlpha = outK
+  // rays, turning slowly
+  g.save(); g.globalCompositeOperation = 'lighter'
+  g.translate(cx2, cy2); g.rotate(age * .5)
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * 6.283
+    const len = (120 + Math.sin(i * 2.3) * 46) * inK
+    g.fillStyle = 'rgba(255,206,110,' + (.10 + (i % 2) * .05) + ')'
+    poly(g, [[0, 0], [Math.cos(a - .05) * len, Math.sin(a - .05) * len * .5],
+             [Math.cos(a + .05) * len, Math.sin(a + .05) * len * .5]], 'rgba(255,206,110,.09)')
+  }
+  g.restore()
+  const gl = g.createRadialGradient(cx2, cy2, 0, cx2, cy2, 190 * inK)
+  gl.addColorStop(0, 'rgba(255,196,80,.28)'); gl.addColorStop(1, 'rgba(255,196,80,0)')
+  g.save(); g.globalCompositeOperation = 'lighter'
+  g.fillStyle = gl
+  g.beginPath(); g.ellipse(cx2, cy2, 190 * inK, 95 * inK, 0, 0, 7); g.fill(); g.restore()
+
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  const pop = 1 + (1 - inK) * .5
+  g.save(); g.letterSpacing = '6px'
+  g.font = '700 ' + (13 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
+  g.lineWidth = 3; g.strokeStyle = 'rgba(4,3,6,.85)'
+  g.strokeText('LEVEL UP', cx2, cy2 - 44)
+  g.fillStyle = '#e8d199'; g.fillText('LEVEL UP', cx2, cy2 - 44)
+  g.font = '900 ' + (34 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
+  const tg = g.createLinearGradient(0, cy2 - 20, 0, cy2 + 18)
+  tg.addColorStop(0, '#fbeec4'); tg.addColorStop(.55, '#e2b63e'); tg.addColorStop(1, '#8a6524')
+  g.lineWidth = 5; g.strokeStyle = 'rgba(4,3,6,.9)'
+  g.strokeText(levelBanner.skill.toUpperCase(), cx2, cy2)
+  g.fillStyle = tg; g.fillText(levelBanner.skill.toUpperCase(), cx2, cy2)
+  g.restore()
+  g.font = '900 ' + (46 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
+  g.lineWidth = 5; g.strokeStyle = 'rgba(4,3,6,.9)'
+  g.strokeText(String(levelBanner.lv), cx2, cy2 + 44)
+  g.fillStyle = '#fbeec4'; g.fillText(String(levelBanner.lv), cx2, cy2 + 44)
+  if (levelBanner.note) {
+    g.font = '600 11px Cinzel, Georgia, serif'
+    g.save(); g.letterSpacing = '2px'
+    g.fillStyle = 'rgba(226,182,62,.9)'
+    g.fillText(levelBanner.note.toUpperCase(), cx2, cy2 + 78); g.restore()
+  }
+  g.restore()
+  g.textBaseline = 'alphabetic'
+}
+
+// ---------------------------------------------------------------------------
+// THE MENU
+// ---------------------------------------------------------------------------
+// Seventeen of this constitution's forty verbs had no way in. A left click can
+// only ever mean the obvious thing, so everything else needs somewhere to
+// live, and the lineage this window comes from already solved it: right click
+// the thing and it tells you what it will do for you. On a phone, hold.
+function drawMenu(g) {
+  if (!menu) return
+  g.font = '12.5px Georgia, serif'
+  let w = 96
+  for (const it of menu.items) w = Math.max(w, g.measureText(it.label).width + 30)
+  const rowH = 24, headH = 20
+  const h = headH + menu.items.length * rowH + 6
+  const x = clamp(menu.x, 4, VW - w - 4), y = clamp(menu.y, 4, VH - h - 4)
+  menu.rect = { x, y, w, h }
+  g.fillStyle = 'rgba(5,4,7,.96)'; g.fillRect(x, y, w, h)
+  g.strokeStyle = 'rgba(0,0,0,.9)'; g.lineWidth = 2; g.strokeRect(x - 1, y - 1, w + 2, h + 2)
+  const bd = g.createLinearGradient(x, y, x + w, y + h)
+  bd.addColorStop(0, '#d8b463'); bd.addColorStop(.5, '#6a5220'); bd.addColorStop(1, '#c39a44')
+  g.strokeStyle = bd; g.lineWidth = 1.6; g.strokeRect(x + .8, y + .8, w - 1.6, h - 1.6)
+  g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.font = '700 9px Cinzel, Georgia, serif'
+  g.save(); g.letterSpacing = '2px'
+  g.fillStyle = 'rgba(141,125,99,.95)'
+  g.fillText((menu.title || 'choose').toUpperCase(), x + w / 2, y + headH / 2 + 2)
+  g.restore()
+  g.strokeStyle = 'rgba(106,82,32,.55)'; g.lineWidth = 1
+  g.beginPath(); g.moveTo(x + 6, y + headH); g.lineTo(x + w - 6, y + headH); g.stroke()
+  g.textAlign = 'left'
+  menu.items.forEach((it, i) => {
+    const ry = y + headH + i * rowH
+    const hot = !it.dim && inRect(mouse, x, ry, w, rowH)
+    if (hot) {
+      const hg = g.createLinearGradient(x, ry, x + w, ry)
+      hg.addColorStop(0, 'rgba(106,82,32,.65)'); hg.addColorStop(1, 'rgba(106,82,32,.15)')
+      g.fillStyle = hg; g.fillRect(x + 3, ry, w - 6, rowH)
+    }
+    g.font = '12.5px Georgia, serif'
+    g.fillStyle = it.dim ? '#5f574a' : hot ? '#fbeec4' : '#cdbb99'
+    g.fillText(it.label, x + 13, ry + rowH / 2 + 1)
+    if (!it.dim) regions.push({ x, y: ry, w, h: rowH, act: { t: 'menu', i } })
+  })
+  regions.push({ x, y, w, h, act: { t: 'menubg' } })
+  g.textBaseline = 'alphabetic'
+}
 // ===========================================================================
 // THE HAND ON THE MOUSE
 // ---------------------------------------------------------------------------
@@ -5367,6 +5727,7 @@ let intent = null            // { kind, id, x, y } -- a standing order, re-run e
 let travelMark = null
 let moveLock = null
 let shiftHeld = false
+let giveTo = null      // a citizen awaiting an offer; the next pack click is it
 
 // ---- what can be stood on -------------------------------------------------
 let nodeTiles = new Set()
@@ -5451,6 +5812,7 @@ function verbFor(kind, e) {
   if (e.type === 'bank') return 'bank'
   if (e.type === 'store') return 'store'
   if (e.type === 'campfire' || e.type === 'fire') return 'cook'
+  if (e.type === 'house' && indoors(e.x, e.y)) return 'stair'
   if (e.type === 'brewpot') return 'collect'
   if (e.type === 'waystone') return 'attune'
   return 'look'
@@ -5458,7 +5820,7 @@ function verbFor(kind, e) {
 const VERB_WORD = {
   attack: 'Strike', pickup: 'Take', gather: 'Work', harvest: 'Harvest', forge: 'The anvil',
   bank: 'The vault', store: 'The counter', cook: 'Cook', collect: 'Collect',
-  attune: 'Waystone', greet: 'Hail', look: 'Look', walk: 'Walk',
+  attune: 'Waystone', greet: 'Hail', look: 'Look', walk: 'Walk', stair: 'It goes up',
 }
 
 // ---- what a thing in the pack does when you click it ----------------------
@@ -5489,6 +5851,151 @@ function useSlot(i) {
   if (it === 'seeds') { send({ do: 'plant', slot: i }); return }
   if (typeof it === 'string' && it.startsWith('chart:')) { send({ do: 'read_chart', slot: i }); return }
   say('Nothing to do with ' + wordy(it) + ' but carry it, sell it, or drop it.', 'dim')
+}
+
+// ---------------------------------------------------------------------------
+// EVERY OTHER VERB
+// ---------------------------------------------------------------------------
+// A left click can only ever mean the obvious thing. Everything the
+// constitution allows that is NOT obvious lives here, built fresh for whatever
+// is under the cursor, so a verb is discovered by asking the world rather than
+// by reading a key list.
+const slotOf = (me, item) => (me?.inventory ?? []).findIndex(sl => sl && sl.item === item)
+const inWilds = (x, y) => { try { return biomeAtE4(x, y) === 'wilds' } catch { return false } }
+
+function buildMenu(px2, py2, target) {
+  const s2 = curState, me = myId && s2?.players?.[myId]
+  if (!me) return null
+  const items = [], w = worldOf(px2, py2)
+  const go = (kind, id, x, y) => () => {
+    intent = { kind, id, x, y }; travelMark = { x, y, at: performance.now() }; pumpIntent()
+  }
+  let title = 'here'
+
+  if (!target) {
+    title = localeAt4(w.x, w.y) || 'here'
+    items.push({ label: 'Walk here', run: go('walk', null, w.x, w.y) })
+    items.push({ label: 'Survey this place', run: () => { send({ do: 'survey' }); say('You take the measure of it.', 'dim') } })
+    items.push({ label: 'Kindle a watchfire', run: () => send({ do: 'kindle' }) })
+    items.push({ label: 'Build a brewpot', run: () => send({ do: 'build_brewpot' }) })
+    items.push({ label: 'Cast anchor', run: () => send({ do: 'cast', spell: 'anchor' }) })
+    items.push({ label: 'Invoke', run: () => send({ do: 'invoke' }) })
+  } else if (target.kind === 'node') {
+    const n = target.e
+    title = wordy(n.kind ?? n.type)
+    const near = Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1
+    if (GATHERABLE.has(n.type)) items.push({ label: n.type === 'fishing-spot' ? 'Fish here' : n.type === 'tree' ? 'Chop it' : 'Mine it', run: go('gather', target.id, n.x, n.y) })
+    if (n.type === 'plot') {
+      items.push({ label: 'Harvest', run: go('harvest', target.id, n.x, n.y) })
+      const sd = slotOf(me, 'seeds')
+      items.push({ label: 'Plant seeds', dim: sd < 0, run: () => send({ do: 'plant', slot: sd }) })
+    }
+    if (n.type === 'waystone') {
+      items.push({ label: 'Attune to it', run: go('attune', target.id, n.x, n.y) })
+      items.push({ label: 'Recall here', run: () => { send({ do: 'recall', to: target.id }); say('The road folds.', 'good') } })
+    }
+    if (n.type === 'watchfire') {
+      const lg = slotOf(me, 'logs')
+      items.push({ label: 'Stoke it with logs', dim: lg < 0, run: () => send({ do: 'stoke', nodeId: target.id, slot: lg }) })
+    }
+    if (n.type === 'brewpot') {
+      const gr = slotOf(me, 'grain')
+      items.push({ label: 'Brew with grain', dim: gr < 0, run: () => send({ do: 'brew', nodeId: target.id, slot: gr }) })
+      items.push({ label: 'Collect what is ready', run: go('collect', target.id, n.x, n.y) })
+      items.push({ label: 'Take it apart', run: () => send({ do: 'dismantle', nodeId: target.id }) })
+    }
+    if (n.type === 'campfire' || n.type === 'fire') {
+      items.push({ label: 'Cook here', run: go('cook', target.id, n.x, n.y) })
+    }
+    if (n.type === 'anvil') items.push({ label: 'The anvil', run: go('forge', target.id, n.x, n.y) })
+    if (n.type === 'bank') items.push({ label: 'The vault', run: go('bank', target.id, n.x, n.y) })
+    if (n.type === 'store') items.push({ label: 'The counter', run: go('store', target.id, n.x, n.y) })
+    items.push({ label: 'Walk to it', run: go('walk', null, n.x, n.y) })
+  } else if (target.kind === 'mob') {
+    const st = MOB_STATS[target.e.type]
+    title = wordy(target.e.type)
+    items.push({ label: 'Strike it', run: go('attack', target.id, target.e.x, target.e.y) })
+    { // \u00a76k: three sigils and the magic for it, and the fight simply stops
+      const sig = (me.inventory ?? []).filter(sl => sl?.item === 'sigil').length
+      const lv2 = XP_TO_LVL(me.skills?.magic ?? 0)
+      items.push({ label: sig >= 3 ? 'Still it' : 'Still it (needs 3 sigils)',
+                   dim: sig < 3 || lv2 < 2, run: () => {
+                     send({ do: 'still', target: target.id })
+                     addFx('still', target.e.x, target.e.y, target.e.x, target.e.y, 700)
+                     SFX.still(); say('You speak the truce.', 'good') } })
+    }
+    items.push({ label: 'Look at it', run: () => say(wordy(target.e.type) + ' \u00b7 ' + target.e.hp + '/' + (st?.maxHp ?? '?') + ' hp \u00b7 hits ' + (st?.maxHit ?? '?') + ' \u00b7 defence ' + (st?.def ?? '?'), 'chat') })
+  } else if (target.kind === 'player') {
+    const q = target.e
+    title = q.name || target.id.slice(0, 8)
+    const wilds = inWilds(me.x, me.y) && inWilds(q.x, q.y)
+    const spec = ['star-dagger', 'star-maul', 'horn-bow'].includes(me.equipment?.weapon?.item)
+    items.push({ label: 'Hail them', run: go('greet', target.id, q.x, q.y) })
+    // §6af: the Wilds is where the law thins, and both feet must be in it
+    items.push({ label: wilds ? 'Attack them' : 'Attack them (only in the Wilds)', dim: !wilds,
+                 run: () => send({ do: 'attackp', targetId: target.id }) })
+    items.push({ label: spec ? 'Special attack' : 'Special attack (needs a weapon with one)',
+                 dim: !wilds || !spec, run: () => { send({ do: 'special', targetId: target.id }); SFX.slain() } })
+    { const sig = (me.inventory ?? []).filter(sl => sl?.item === 'sigil').length
+      items.push({ label: sig >= 3 ? 'Still them' : 'Still them (needs 3 sigils)',
+                   dim: sig < 3, run: () => {
+                     send({ do: 'still', target: target.id })
+                     addFx('still', q.x, q.y, q.x, q.y, 700); SFX.still() } }) }
+    // TRADE. Choosing what to give needs the pack open, so the menu arms the
+    // pack rather than guessing: the next slot you click is the offer.
+    items.push({ label: 'Offer them something', run: () => {
+      giveTo = target.id; openPane = 'pack'
+      say('Choose what to offer ' + (q.name || 'them') + ' \u2014 or press Escape.', 'dim')
+    } })
+    items.push({ label: 'Accept their offer', run: () => send({ do: 'accept', from: target.id }) })
+    items.push({ label: 'Withdraw my offer', dim: !me.trade, run: () => send({ do: 'cancel' }) })
+  } else if (target.kind === 'ground') {
+    title = wordy(target.e.item)
+    items.push({ label: 'Take it', run: go('pickup', target.id, target.e.x, target.e.y) })
+  }
+  return items.length ? { x: px2 + 4, y: py2 + 4, title, items } : null
+}
+
+// and the same idea for a thing in the pack
+function buildSlotMenu(px2, py2, i) {
+  const me = myId && curState?.players?.[myId]
+  const sl = me?.inventory?.[i]; if (!sl) return null
+  const it = sl.item, items = []
+  const near = (t) => Object.values(curState.nodes ?? {}).some(n => n.type === t
+    && Math.abs(n.x - me.x) + Math.abs(n.y - me.y) === 1)
+  if (EQUIPPABLE.has(it)) items.push({ label: 'Wield it', run: () => useSlot(i) })
+  if (/^(cooked-fish|cooked-deep-fish|ale|broth)$/.test(it)) items.push({ label: 'Eat it', run: () => useSlot(i) })
+  if (it === 'raw-fish' || it === 'deep-fish') items.push({ label: 'Cook it', run: () => send({ do: 'cook', slot: i }) })
+  if (it === 'bones') items.push({ label: 'Bury it', run: () => send({ do: 'bury', slot: i }) })
+  if (it === 'seeds') items.push({ label: 'Plant it', run: () => send({ do: 'plant', slot: i }) })
+  if (it === 'logs' || it === 'heartwood') {
+    items.push({ label: 'Light a fire', run: () => send({ do: 'light', slot: i }) })
+    items.push({ label: 'Fletch a bow', run: () => send({ do: 'fletch', slot: i, make: 'bow' }) })
+    items.push({ label: 'Fletch arrows', run: () => send({ do: 'fletch', slot: i, make: 'arrows' }) })
+  }
+  if (typeof it === 'string' && it.startsWith('chart:')) items.push({ label: 'Read it', run: () => send({ do: 'read_chart', slot: i }) })
+  if (near('bank')) items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
+  if (near('store') && PRICES[it]) items.push({ label: 'Sell it \u00b7 ' + (PRICES[it] * (sl.qty ?? 1)) + 'g', run: () => send({ do: 'sell', slot: i }) })
+  items.push({ label: 'Drop it', run: () => { send({ do: 'drop', slot: i }); say('You drop it.', 'dim') } })
+  return { x: px2 + 4, y: py2 + 4, title: wordy(it), items }
+}
+
+// ---- the special, and what it looks like ----------------------------------
+function fireSpecial(targetId, tx, ty) {
+  const me = myId && curState?.players?.[myId]
+  const kind = SPEC_OF[me?.equipment?.weapon?.item]
+  if (!kind) { say('This weapon has no special.', 'warn'); return }
+  send({ do: 'special', targetId })
+  const dur = kind === 'twice' ? 420 : kind === 'now' ? 520 : 380
+  specialAnim.set(myId, { kind, at: performance.now(), dur })
+  addFx(kind, me.x, me.y, tx, ty,
+        kind === 'true' ? 300 : kind === 'now' ? 520 : 420,
+        kind === 'true' ? 0 : kind === 'now' ? 320 : 90)
+  SFX.special(kind)
+  if (kind === 'now') shake = Math.max(shake, 7)
+  // \u00a76af: the arm is spent into the NEXT cycle as well as this one, and a
+  // citizen should be told, because that is the entire cost of the move
+  say('You spend the arm. The next swing waits.', 'warn')
 }
 
 // ---------------------------------------------------------------------------
@@ -5550,17 +6057,16 @@ function primaryClick(p, isRight) {
   if (!me) { send({ do: 'spawn' }); say('You wake at the well.', 'good'); return }
 
   const r = hitRegion(p)
+  if (menu && !(r && (r.act.t === 'menu' || r.act.t === 'menubg'))) { menu = null; if (!r) return }
   if (r) { runRegion(r, isRight); return }
   // the slab itself swallows clicks, even where no control sits
   if (p.y > PANEL_Y && p.x > PANEL_X && p.x < PANEL_X + PANEL_W) return
   if (showChart) { showChart = false; return }
 
   const tgt = pickWorld(p)
-  if (isRight) {                              // right click walks, and never swings
-    const w = worldOf(p.x, p.y)
-    intent = { kind: 'walk', x: w.x, y: w.y }
-    travelMark = { x: w.x, y: w.y, at: performance.now() }
-    pumpIntent()
+  if (isRight) {                              // right click asks the thing what it offers
+    menu = buildMenu(p.x, p.y, tgt)
+    SFX.pane()
     return
   }
   if (!tgt) {
@@ -5594,9 +6100,22 @@ function runRegion(r, isRight) {
     send({ do: 'eat', slot: b.slot }); SFX.quaff(); return
   }
   if (a.t === 'slot') {
-    if (isRight) { send({ do: 'drop', slot: a.i }); say('You drop it.', 'dim'); return }
+    if (giveTo) {
+      const me2 = myId && curState?.players?.[myId]
+      const sl = me2?.inventory?.[a.i]
+      const to = giveTo; giveTo = null; openPane = null
+      if (!sl) { say('Nothing in that slot.', 'warn'); return }
+      const ask = window.prompt('Ask how much gold for the ' + wordy(sl.item) + '?  (0 is a gift)', '0')
+      if (ask === null) { say('Offer withdrawn.', 'dim'); return }
+      send({ do: 'offer', to, giveSlots: [a.i], wantItem: null, wantGold: Math.max(0, parseInt(ask, 10) || 0) })
+      say('Offered: ' + wordy(sl.item) + '.', 'good')
+      return
+    }
+    if (isRight) { menu = buildSlotMenu(mouse.x, mouse.y, a.i); return }
     useSlot(a.i); return
   }
+  if (a.t === 'menubg') return
+  if (a.t === 'menu') { const it = menu?.items?.[a.i]; menu = null; it?.run(); return }
   if (a.t === 'unequip') { send({ do: 'unwield', gear: a.slot }); return }
   if (a.t === 'smith') {
     send({ do: 'smith', recipe: a.recipe })
@@ -5677,6 +6196,7 @@ function pumpIntent() {
       }
       stepToward(me, n, 'adjacent'); return
     }
+    case 'stair': { intent = null; say('Stairs, going up. Nothing above but the roof.', 'dim'); return }
     case 'forge': case 'bank': case 'store': case 'attune': case 'look': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) {
@@ -5720,6 +6240,30 @@ function onState(s, worldId) {
   const me = myId && s.players[myId]
   if (me) {
     if (!camReady) { camX = me.x; camY = me.y; camReady = true }
+    // boots, and the sound of whatever you are doing with your hands
+    const wasHere = prevPos.get('p' + myId)
+    if (wasHere && (wasHere[0] !== me.x || wasHere[1] !== me.y)) SFX.step(s.tick)
+    // ARROWS, for everyone. Derivable from the state alone: an ongoing attack,
+    // a ranged weapon in hand, and a target more than a tile away. Without this
+    // an archer and a swordsman looked identical and nothing crossed the ground
+    // between them.
+    for (const [pid, pl] of Object.entries(s.players ?? {})) {
+      const a2 = pl.action
+      if (a2?.type !== 'attack' && a2?.type !== 'attackp') continue
+      const w2 = pl.equipment?.weapon?.item
+      if (!w2 || !RANGED_ITEMS.has(w2)) continue
+      const tgt2 = a2.type === 'attack' ? s.mobs?.[a2.mobId] : s.players?.[a2.targetId]
+      if (!tgt2 || (tgt2.hp ?? 1) <= 0) continue
+      if (Math.max(Math.abs(pl.x - tgt2.x), Math.abs(pl.y - tgt2.y)) < 2) continue
+      addFx('arrow', pl.x, pl.y, tgt2.x, tgt2.y, 240)
+      if (pid === myId) SFX.loose()
+    }
+    if (me.action?.type === 'gather') {
+      const n = s.nodes?.[me.action.nodeId]
+      if (n?.type === 'tree') SFX.chop()
+      else if (n?.type === 'rock' || n?.type === 'magic-rock') SFX.mine()
+      else if (n?.type === 'fishing-spot') SFX.fish()
+    }
     if (moveLock && (me.x !== moveLock.x || me.y !== moveLock.y) && s.tick > moveLock.until) moveLock = null
     reconcile(prevMe, me, s)
     prevMe = JSON.parse(JSON.stringify({
@@ -5766,11 +6310,20 @@ function reconcile(was, me, s) {
   }
   for (const sk of SKILL_ORDER) {
     const xw = was.skills?.[sk] ?? 0, xn = me.skills?.[sk] ?? 0
-    if (xn > xw) lastXpSkill = sk
+    if (xn > xw && lastXpSkill !== sk) {
+      lastXpSkill = sk
+      // the work orb follows your hands, and should say so when it moves
+      say('Now training ' + sk + '.', 'dim')
+    } else if (xn > xw) lastXpSkill = sk
     if (XP_TO_LVL(xn) > XP_TO_LVL(xw)) {
-      say(sk.toUpperCase() + ' \u2014 level ' + XP_TO_LVL(xn) + '.', 'good')
-      popNumber(me.x, me.y, 'LEVEL ' + XP_TO_LVL(xn), '#ffe9a8', true)
+      const nl = XP_TO_LVL(xn)
+      say(sk.toUpperCase() + ' \u2014 level ' + nl + '.', 'good')
+      popNumber(me.x, me.y, 'LEVEL ' + nl, '#ffe9a8', true)
+      levelBanner = { skill: sk, lv: nl, at: performance.now(),
+                      note: nl >= 99 ? 'mastered \u00b7 the world will hear of it'
+                          : nl === 50 ? 'halfway to mastery' : null }
       SFX.level(); flashGold = 1
+      shake = Math.max(shake, 2)
     }
   }
   if ((me.deadUntil ?? 0) > s.tick && was.dead <= s.tick) {
@@ -5797,14 +6350,26 @@ cv.addEventListener('pointermove', (e) => {
   const p = rel(e)
   mouse.x = p.x; mouse.y = p.y
 })
+let pressTimer = null, pressFrom = null
 cv.addEventListener('pointerdown', (e) => {
   cv.setPointerCapture?.(e.pointerId)
   const p = rel(e); mouse.x = p.x; mouse.y = p.y
   if (e.button === 2) { primaryClick(p, true); return }
   mouse.down = true; mouse.downAt = performance.now()
+  // A phone has no right button, so it has a HOLD instead. 420ms without
+  // moving opens the same menu; anything shorter is an ordinary click.
+  pressFrom = { x: p.x, y: p.y }
+  clearTimeout(pressTimer)
+  if (e.pointerType !== 'mouse') pressTimer = setTimeout(() => {
+    if (!mouse.down) return
+    if (Math.hypot(mouse.x - pressFrom.x, mouse.y - pressFrom.y) > 12) return
+    mouse.down = false
+    intent = null
+    primaryClick({ x: mouse.x, y: mouse.y }, true)
+  }, 420)
   primaryClick(p, false)
 })
-window.addEventListener('pointerup', () => { mouse.down = false })
+window.addEventListener('pointerup', () => { mouse.down = false; clearTimeout(pressTimer) })
 cv.addEventListener('contextmenu', (e) => e.preventDefault())
 cv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
 
@@ -5836,7 +6401,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'f') { openPane = openPane === 'forge' ? null : 'forge'; SFX.pane() }
   else if (e.key === 'Tab') { showChart = !showChart; e.preventDefault() }
   else if (e.key === 'Enter') { openSay(); e.preventDefault() }
-  else if (e.key === 'Escape') { if (openPane) openPane = null; else if (showChart) showChart = false; else intent = null }
+  else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('Offer withdrawn.', 'dim') } else if (menu) menu = null; else if (openPane) openPane = null; else if (showChart) showChart = false; else intent = null }
   else if (k === ' ') { openPane = null; showChart = false; e.preventDefault() }
   else if (k >= '1' && k <= '4') {
     const b = beltMap[+k - 1]
@@ -5844,6 +6409,7 @@ window.addEventListener('keydown', (e) => {
     else say('Nothing on that belt loop.', 'dim')
   }
   else if (k === 's') { send({ do: 'stop' }); intent = null; say('You stand still.', 'dim') }
+  else if (k === 'v') { send({ do: 'survey' }); say('You take the measure of it.', 'dim') }
   else if (k === 'q') {
     QUALITY = hiq() ? 'low' : 'high'
     localStorage.setItem('interval-quality', QUALITY)
@@ -5949,12 +6515,13 @@ function frame(now) {
     camX += (tx - camX) * k; camY += (ty - camY) * k
   }
 
+  ambience(now)
   flashRed = Math.max(0, flashRed - dt / 700)
   flashGold = Math.max(0, flashGold - dt / 900)
   shake = Math.max(0, shake - dt / 60)
 
   // ---- hold the button down and keep walking ------------------------------
-  const onChrome = !!hitRegion(mouse)
+  const onChrome = !!hitRegion(mouse) || !!menu
     || (mouse.y > PANEL_Y && mouse.x > PANEL_X && mouse.x < PANEL_X + PANEL_W)
   if (mouse.down && entered && me && !onChrome && !showChart
       && now - mouse.downAt > 220 && (!intent || intent.kind === 'walk')) {
@@ -5997,17 +6564,21 @@ function frame(now) {
     else if (openPane === 'store') drawCounter(cx)
     drawPanel(cx, now)
     drawBeastBar(cx)
+    drawMenu(cx)
 
     // the region under the cursor may want to say something
     const r = hitRegion(mouse)
     if (r && r.tip) tipAt = r.tip
     else if (hover && hover.kind === 'node') {
       const v = verbFor('node', hover.e)
-      tipAt = { title: wordy(hover.e.kind ?? hover.e.type), sub: VERB_WORD[v] ?? null }
+      // the window names what it DREW, which for an indoor house is a stair
+      const noun = v === 'stair' ? 'stair' : wordy(hover.e.kind ?? hover.e.type)
+      tipAt = { title: noun, sub: VERB_WORD[v] ?? null }
     } else if (hover && hover.kind === 'player') {
       tipAt = { title: hover.e.name || hover.id.slice(0, 8), sub: callingOf(hover.e), col: '#9fb0c4' }
     }
-    drawTip(cx)
+    if (!menu) drawTip(cx)
+    drawLevelBanner(cx, now)
 
     // ---- the state of the wire, small, top right --------------------------
     cx.textAlign = 'right'; cx.textBaseline = 'alphabetic'
@@ -6026,6 +6597,42 @@ function frame(now) {
 }
 
 // ===========================================================================
+// MUSIC, IF THIS WORLD HAS ANY
+// ---------------------------------------------------------------------------
+// The pillar serves whatever sits in its audio/ directory and nothing more. A
+// world with no music plays none, silently: no missing-file noise, no broken
+// control. This window asks for the deep arrangement first, because it is the
+// one standing at the bottom of the light.
+//
+// Heard ONCE, on arrival, and then the world is quiet. A piece with a shape to
+// it gets worse every time round.
+let musicOn = localStorage.getItem('interval-music') !== 'off'
+let MUSIC = null, musicTried = false
+async function startMusic() {
+  if (MUSIC || musicTried || !musicOn || !soundOn) return
+  musicTried = true
+  let tracks = []
+  try { tracks = (await (await fetch('/api/audio')).json()).tracks ?? [] } catch { return }
+  if (!tracks.length) return
+  const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
+  const name = pick('theme-deep') ?? pick('theme') ?? tracks[0]
+  if (!name) return
+  const a = new Audio('/audio/' + encodeURIComponent(name))
+  a.loop = false; a.volume = 0
+  MUSIC = a
+  a.addEventListener('ended', () => { MUSIC = null })
+  try { await a.play() } catch { MUSIC = null; musicTried = false; return }
+  const t0 = performance.now()
+  const fade = () => {
+    if (!MUSIC) return
+    const k = Math.min(1, (performance.now() - t0) / 4000)
+    MUSIC.volume = (musicOn && soundOn) ? .34 * k : 0
+    if (k < 1) requestAnimationFrame(fade)
+  }
+  requestAnimationFrame(fade)
+}
+
+// ===========================================================================
 // THE DOOR
 // ===========================================================================
 const gate = document.getElementById('gate')
@@ -6033,11 +6640,22 @@ const gName = document.getElementById('gname')
 const gWhy = document.getElementById('gwhy')
 const gEnter = document.getElementById('genter')
 
-document.getElementById('gsound').addEventListener('click', (e) => {
-  soundOn = !soundOn
-  localStorage.setItem('interval-sound', soundOn ? 'on' : 'off')
-  e.target.textContent = 'Sound: ' + (soundOn ? 'on' : 'off')
-})
+{ const sb = document.getElementById('gsound')
+  sb.textContent = 'Sound: ' + (soundOn ? 'on' : 'off')
+  sb.addEventListener('click', () => {
+    soundOn = !soundOn
+    localStorage.setItem('interval-sound', soundOn ? 'on' : 'off')
+    sb.textContent = 'Sound: ' + (soundOn ? 'on' : 'off')
+    if (MUSIC) MUSIC.volume = (soundOn && musicOn) ? .34 : 0
+    if (soundOn) SFX.ctx()
+  })
+}
+// A browser suspends its audio whenever the tab loses focus, and iOS suspends
+// it more or less whenever it feels like it. Every gesture is a chance to wake
+// it up again; this costs nothing when it is already awake.
+for (const ev of ['pointerdown', 'keydown', 'touchstart'])
+  window.addEventListener(ev, () => { if (soundOn) SFX.ctx() }, { passive: true })
+document.addEventListener('visibilitychange', () => { if (!document.hidden && soundOn) SFX.ctx() })
 { const qb = document.getElementById('gquality')
   const label = () => { qb.textContent = 'Bloom: ' + (hiq() ? 'on' : 'off') }
   label()
@@ -6069,6 +6687,7 @@ function enterWorld() {
   entered = true
   gate.classList.add('gone')
   SFX.ctx()
+  startMusic()
   say('You wake in Interval.', 'good')
   if (curState && myId && !curState.players[myId]) send({ do: 'spawn' })
   if (n) setTimeout(() => send({ do: 'name', name: n }), 1400)
