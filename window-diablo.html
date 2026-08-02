@@ -2550,7 +2550,33 @@ function humanoid(g, cx, base, o) {
                [px2 + side * 8 * s, py2 - 1 * s]], pc[0])
     }
   }
+  // the sweep the hand has just cut through the air
+  if (o.trail && wa > -1.15) {
+    const k = clamp((wa + 1.15) / 1.9, 0, 1)          // 0 at the top of the wind-up
+    const strong = Math.sin(k * Math.PI)
+    if (strong > .05) {
+      const R2 = (10 + bulk * 2) * s
+      const cx2 = cx + shW * .85 + hunch, cy2 = shY + 3 * s
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const cols = o.trail.kind === 'work'
+        ? ['rgba(255,226,160,', 'rgba(255,246,214,']
+        : ['rgba(196,226,255,', 'rgba(255,255,255,']
+      g.strokeStyle = cols[0] + (.42 * strong).toFixed(2) + ')'
+      g.lineWidth = (7 + bulk * 3) * s * strong
+      g.beginPath(); g.arc(cx2, cy2, R2 * 1.55, wa - 1.15, wa); g.stroke()
+      g.strokeStyle = cols[1] + (.5 * strong).toFixed(2) + ')'
+      g.lineWidth = 1.6 * s
+      g.beginPath(); g.arc(cx2, cy2, R2 * 1.55, wa - .95, wa); g.stroke()
+      g.restore()
+    }
+  }
   // the hand, and whatever is in it, over the shoulder plate rather than under
+  if (o.fist) {                                        // empty hands are still hands
+    g.fillStyle = skin
+    g.beginPath(); g.arc(hx, hy, 3.4 * s, 0, 7); g.fill()
+    g.fillStyle = 'rgba(0,0,0,.3)'
+    g.beginPath(); g.arc(hx + 1 * s, hy + 1 * s, 2.2 * s, 0, 7); g.fill()
+  }
   if (o.weapon) o.weapon(g, hx, hy, wa, s * (1 + bulk * .45))
   // head, hood or helm
   if (o.hood) {
@@ -4937,6 +4963,17 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     swingVal = -0.62 + Math.sin(swK * Math.PI) * .10
     bowDraw = swK < .62 ? swK / .62 : 0          // drawn, then loosed
   } else if (swK <= 1) swingVal = arc(swK)
+  else if (act === 'attack' || act === 'attackp') {
+    // NO lastSwing, STILL A SWING. That field only appears on a player once
+    // they have landed a blow, so a citizen's first fight -- and every fight
+    // for anyone whose node predates it -- animated as a statue. The weapon's
+    // own cadence plus the tick is enough to keep time until the real stamp
+    // arrives, and once it does the branch above takes over and is exact.
+    const every = WEAPON_EVERY[held] ?? 2
+    const ph = (((curState?.tick ?? 0) % every) + renderT(performance.now())) / every
+    swingVal = ranged ? -0.62 + Math.sin(clamp(ph, 0, 1) * Math.PI) * .10 : arc(clamp(ph * 1.35, 0, 1))
+    if (ranged) bowDraw = ph < .62 ? ph / .62 : 0
+  }
   else if (act === 'gather') {
     // gathering has no lastSwing, so the tick itself is the rhythm: one stroke
     // per interval, which is exactly what the world is doing anyway
@@ -4958,6 +4995,14 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     hood: null, skin: away ? '#6e5238' : '#8d6a4a',
     step: moving ? t * 6.5 + id.charCodeAt(0) : 0,
     swing: swingVal,
+    // THE ARC OF THE BLOW. A thin dark blade on a 40-pixel body against a black
+    // floor is nearly invisible no matter how correctly it is drawn -- which is
+    // why the swing still read as nothing. What reads is the TRAIL: a bright
+    // sweep left behind the hand, and it works identically whether the citizen
+    // is holding a star-sword or nothing at all.
+    trail: (!ranged && (swK <= 1 || act === 'attack' || act === 'attackp' || act === 'gather'))
+      ? { at: swingVal, kind: act === 'gather' ? 'work' : 'strike' } : null,
+    fist: !wep,
     weapon: wep ? (gg, hx, hy, a, sc) => drawWeapon(gg, hx, hy, a, sc, wep, bowDraw) : null,
     lantern: true,
     breath: t * 1.6 + (id.charCodeAt(1) || 0),
@@ -6650,7 +6695,7 @@ function drawPlaceBanner(g, now) {
 // before you commit. Holding the button keeps walking.
 // ===========================================================================
 
-const mouse = { x: -999, y: -999, down: false, downAt: 0, moved: 0 }
+const mouse = { x: -999, y: -999, down: false, downAt: 0, moved: false }
 let intent = null            // { kind, id, x, y } -- a standing order, re-run every tick
 let travelMark = null
 let moveLock = null
@@ -6667,6 +6712,16 @@ function indexNodes(s) {
     nodeTiles.add(n.x + ',' + n.y)
     if (n.type === 'wall' || n.type === 'rampart') wallTiles.add(n.x + ',' + n.y)
   }
+}
+// engine WEAPONS.every, character for character. The window needs it only to
+// keep time when a citizen has not swung yet and `lastSwing` is therefore
+// absent from the state entirely -- which is every citizen's first fight.
+const WEAPON_EVERY = {
+  'bronze-dagger': 2, 'bronze-sword': 2, 'bronze-spear': 2, 'bronze-maul': 3,
+  'star-dagger': 2, 'star-sword': 2, 'star-spear': 2, 'star-maul': 3,
+  'old-chain': 1, 'bronze-flail': 2, 'star-flail': 2,
+  'wooden-bow': 2, 'horn-bow': 2, 'crossbow': 3, 'sigil-bow': 2,
+  'heartwood-bow': 2, 'dragonbow': 3,
 }
 const IMPASSABLE_TERRAIN = new Set(['sea', 'river', 'mountain'])
 function blockedAt(x, y) {
@@ -7320,13 +7375,22 @@ const rel = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX
 cv.addEventListener('pointermove', (e) => {
   const p = rel(e)
   mouse.x = p.x; mouse.y = p.y
+  // WHETHER THE POINTER HAS ACTUALLY MOVED SINCE IT WENT DOWN.
+  //
+  // This is the whole fix for walking in circles. Hold-to-walk chases the tile
+  // under the cursor, and because the camera is centred on you that tile keeps
+  // its distance no matter how far you walk -- correct for a held-and-dragged
+  // button, a trap for a click that merely lasted a moment. A trackpad press is
+  // easily 300ms. So: a press that never travels more than eight pixels is a
+  // CLICK, and a click walks to one tile and stops.
+  if (mouse.down && pressFrom && Math.hypot(p.x - pressFrom.x, p.y - pressFrom.y) > 8) mouse.moved = true
 })
 let pressTimer = null, pressFrom = null
 cv.addEventListener('pointerdown', (e) => {
   cv.setPointerCapture?.(e.pointerId)
   const p = rel(e); mouse.x = p.x; mouse.y = p.y
   if (e.button === 2) { primaryClick(p, true); return }
-  mouse.down = true; mouse.downAt = performance.now()
+  mouse.down = true; mouse.downAt = performance.now(); mouse.moved = false
   // A phone has no right button, so it has a HOLD instead. 420ms without
   // moving opens the same menu; anything shorter is an ordinary click.
   pressFrom = { x: p.x, y: p.y }
@@ -7345,8 +7409,11 @@ cv.addEventListener('pointerdown', (e) => {
 // leave `mouse.down` true forever, and hold-to-walk then chased a receding
 // cursor until the end of time. That is the other half of walking in circles.
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture'])
-  window.addEventListener(ev, () => { mouse.down = false; clearTimeout(pressTimer) })
-document.addEventListener('visibilitychange', () => { mouse.down = false })
+  window.addEventListener(ev, () => {
+    mouse.down = false; mouse.moved = false; clearTimeout(pressTimer)
+    if (intent?.hold) { intent = null; travelMark = null }   // the button was the order
+  })
+document.addEventListener('visibilitychange', () => { mouse.down = false; mouse.moved = false })
 cv.addEventListener('contextmenu', (e) => e.preventDefault())
 cv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
 
@@ -7505,13 +7572,13 @@ function frame(now) {
   // the tile under a screen-fixed cursor RECEDES as you walk toward it; that is
   // the right behaviour for a held button and a trap for a slightly long click.
   // Stopping once the cursor is within a tile is what makes it terminate.
-  if (mouse.down && entered && me && !onChrome && !showChart
+  if (mouse.down && mouse.moved && entered && me && !onChrome && !showChart
       && now - mouse.downAt > 260 && (!intent || intent.kind === 'walk')) {
     const w = worldOf(mouse.x, mouse.y)
     const far = Math.max(Math.abs(w.x - me.x), Math.abs(w.y - me.y)) >= 2
-    if (!far) { if (intent?.kind === 'walk') { intent = null; travelMark = null } }
+    if (!far) { if (intent?.hold) { intent = null; travelMark = null } }
     else if (!intent || intent.x !== w.x || intent.y !== w.y) {
-      intent = { kind: 'walk', x: w.x, y: w.y }
+      intent = { kind: 'walk', x: w.x, y: w.y, hold: true }
       pumpIntent()
     }
   }
