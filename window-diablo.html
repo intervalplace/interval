@@ -3152,10 +3152,13 @@ function drawFlame(g, cx, base, t, size, seed) {
     const w = (5 + (i % 4) * 2.4) * size * (1 - p * .55)
     const x = cx + Math.sin((t * 2.6 + i * 1.7)) * 3.4 * size * p
     const y = base - p * 26 * size
-    g.fillStyle = p < .3 ? 'rgba(255,236,168,' + (.85 - p) + ')'
-      : p < .62 ? 'rgba(240,146,42,' + (.72 - p * .6) + ')'
-      : 'rgba(150,50,16,' + (.5 - p * .4) + ')'
-    g.beginPath(); g.ellipse(x, y, w * .55, w, 0, 0, 7); g.fill()
+    // Wider than it is tall at the base, and the pale core kept small: a
+    // narrow column of near-white is a plasma jet, not a fire, and bloom
+    // exaggerates whatever it is given.
+    g.fillStyle = p < .18 ? 'rgba(255,226,150,' + (.7 - p) + ')'
+      : p < .58 ? 'rgba(244,138,34,' + (.74 - p * .55) + ')'
+      : 'rgba(158,46,12,' + (.46 - p * .38) + ')'
+    g.beginPath(); g.ellipse(x, y, w * .70, w * .80, 0, 0, 7); g.fill()
   }
   for (let i = 0; i < 4; i++) {              // cinders leaving
     const p = (t * .55 + i * .27 + seed) % 1
@@ -3530,6 +3533,11 @@ function drawGround(g, s, t) {
 // drawing itself out of order and will look wrong the moment it overlaps.
 const NODE_LIFT = { river: -6, sea: -7, fens: -2, peat: -2, crags: 10, mountain: 14, scree: 4, cobble: 1, plaza: 1, causey: 2, bridge: 3, floor: 1, inn: 1, smith: 1, fisher: 1, shep: 1, clerk: 1, wizard: 1 }
 const liftAt = (x, y) => NODE_LIFT[terrainOf(x, y)] ?? 0
+// A room, in the world's own terms: the generator paints `floor` (and the
+// trade-floors) inside the walls it raises. Anything standing on one of these
+// is INDOORS, and several things are drawn differently once they are.
+const INDOOR_TERRAIN = new Set(['floor', 'inn', 'smith', 'fisher', 'shep', 'clerk', 'wizard'])
+const indoors = (x, y) => INDOOR_TERRAIN.has(terrainOf(x, y))
 
 const bubbles = {}
 const motes = []                             // blood, sparks, cinders
@@ -3566,9 +3574,10 @@ function collectStanding(s, t, list) {
 }
 
 // ---- one node, whatever it happens to be ----------------------------------
+// Only things that ARE buildings. A bank and a store used to be in this table
+// and that was the whole bug: they are counters standing inside buildings the
+// world has already raised out of wall nodes.
 const BUILDING_KINDS = {
-  bank:  { wall: { lit: '#3d3226', dark: '#251d15' }, roof: { lit: '#3a2c1c', dark: '#211809' }, glow: '#e8a23a', sign: { t: 'B', c: '#d8b13c' }, bw: 42, bd: 42, bh: 36 },
-  store: { wall: { lit: '#3a3128', dark: '#231c16' }, roof: { lit: '#432c22', dark: '#26160f' }, glow: '#e8a23a', sign: { t: 'S', c: '#c9a06a' }, bw: 40, bd: 40, bh: 34 },
   house: { wall: { lit: '#372e24', dark: '#211a14' }, roof: { lit: '#33291c', dark: '#1c1409' }, glow: '#d8863a', bw: 34, bd: 34, bh: 28 },
   inn:   { wall: { lit: '#3e3325', dark: '#261e14' }, roof: { lit: '#3d2a18', dark: '#22150a' }, glow: '#f0b04a', sign: { t: 'I', c: '#e0b060' }, bw: 46, bd: 46, bh: 38 },
 }
@@ -3624,6 +3633,50 @@ function drawNode(g, n, sx, sy, t, hot) {
       const size = n.type === 'watchfire' ? 1.9 : n.type === 'campfire' ? 1.1 : .9
       const dying = n.type === 'fire' && (n.expiresAt - (s?.tick ?? 0)) < 20
       const cold = n.type === 'watchfire' && (n.fuelUntil ?? 0) <= (s?.tick ?? 0)
+      if (n.type !== 'watchfire' && indoors(n.x, n.y)) {
+        // A HEARTH, NOT A CAMPFIRE.
+        //
+        // Four of this island's fires burn on a floor, inside walls, and a ring
+        // of loose stones with logs balanced across it is not what is in
+        // somebody's front room. A hearth is built INTO the back of the tile:
+        // a chimney breast, a lintel, a swept stone floor, and a fire that sits
+        // in the opening rather than in the middle of the rug.
+        g.drawImage(sprite('hearthstone', 84, 90, (gg, W2, H2) => {
+          const c2 = W2 / 2, b = H2 - 30
+          // the breast, rising off the two back edges of the diamond
+          const HH2 = 42
+          poly(gg, [[c2 - 32, b], [c2, b - 16], [c2, b - 16 - HH2], [c2 - 32, b - HH2]], '#3d3730')
+          poly(gg, [[c2, b - 16], [c2 + 32, b], [c2 + 32, b - HH2], [c2, b - 16 - HH2]], '#2a2622')
+          poly(gg, [[c2 - 32, b - HH2], [c2, b - 16 - HH2], [c2 + 32, b - HH2],
+                    [c2, b - HH2 + 16]], '#4a443b')
+          gg.strokeStyle = 'rgba(0,0,0,.34)'; gg.lineWidth = 1
+          for (let i = 1; i < 4; i++) {            // courses of stone
+            gg.beginPath(); gg.moveTo(c2 - 32, b - HH2 * i / 4)
+            gg.lineTo(c2, b - 16 - HH2 * i / 4); gg.lineTo(c2 + 32, b - HH2 * i / 4); gg.stroke()
+          }
+          // the opening, and a heavy lintel over it
+          poly(gg, [[c2 - 17, b - 6], [c2, b - 14], [c2 + 17, b - 6],
+                    [c2 + 17, b - 30], [c2, b - 38], [c2 - 17, b - 30]], '#080606')
+          poly(gg, [[c2 - 19, b - 29], [c2, b - 38], [c2 + 19, b - 29],
+                    [c2 + 19, b - 34], [c2, b - 43], [c2 - 19, b - 34]], '#564e42')
+          gg.fillStyle = 'rgba(255,236,196,.14)'
+          poly(gg, [[c2 - 19, b - 34], [c2, b - 43], [c2 + 19, b - 34],
+                    [c2, b - 39.5]], 'rgba(255,236,196,.14)')
+          // the swept stone in front of it
+          gg.fillStyle = '#332e28'
+          poly(gg, [[c2 - 22, b - 2], [c2, b + 9], [c2 + 22, b - 2], [c2, b - 12]], '#332e28')
+          gg.fillStyle = '#1d1a16'
+          poly(gg, [[c2 - 12, b - 2], [c2, b + 3], [c2 + 12, b - 2], [c2, b - 7]], '#1d1a16')
+          gg.strokeStyle = '#241c12'; gg.lineWidth = 3       // one log, laid in
+          gg.beginPath(); gg.moveTo(c2 - 8, b - 9); gg.lineTo(c2 + 8, b - 5); gg.stroke()
+        }), sx - 42, sy - 90 + 30)
+        if (!cold) {
+          g.save(); g.globalCompositeOperation = 'lighter'
+          drawFlame(g, sx, sy - 8, t / 1000, .78, hs % 100 / 100)
+          g.restore()
+        }
+        return
+      }
       g.drawImage(sprite('hearth' + n.type, 70, 44, (gg, W2, H2, R) => {
         groundShadow(gg, W2 / 2 + 2, H2 - 5, 20 * size, 9 * size, .5)
         for (let i = 0; i < 8; i++) {                  // a ring of stones
@@ -3655,7 +3708,80 @@ function drawNode(g, n, sx, sy, t, hot) {
         poly(gg, [[c2 - 15, b - 17], [c2 - 24, b - 20], [c2 - 15, b - 23], [c2 - 11, b - 23]], '#3f3a34')
         gg.fillStyle = 'rgba(255,240,214,.20)'; gg.fillRect(c2 - 11, b - 23, 22, 2)
       }), sx - 30, sy - 46 + 14); return
-    case 'bank': case 'store': case 'house': case 'inn': {
+    case 'bank': case 'store': {
+      // A COUNTER, NOT A BUILDING.
+      //
+      // This drew a whole gabled house, and it was wrong twice over. The world
+      // has already built the shop: the terrain under a store is `floor`, the
+      // tile is ringed by `wall` nodes, a `keeper` stands beside it and
+      // `landmark` furniture fills the room. Dropping a cottage on the counter
+      // put a house inside a house. Worse, a bank is a COUNTER RUN -- up to
+      // three adjacent bank tiles -- so the vault was three houses overlapping
+      // in a row.
+      //
+      // So: a bench that fills its own diamond exactly, which means a run of
+      // them abuts into one long counter with no seam and no thought.
+      const isBank = n.type === 'bank'
+      g.drawImage(sprite('counter' + n.type + (hs & 3), 84, 74, (gg, W2, H2, R) => {
+        const c2 = W2 / 2, b = H2 - 22            // b is the tile centre
+        const HGT = 15
+        const wood = isBank ? ['#4a3a22', '#63502e', '#2a1f11'] : ['#513f26', '#6e5834', '#2c2013']
+        groundShadow(gg, c2 + 3, b + 6, 30, 13, .5)
+        // the two faces that catch the eye, then the top
+        poly(gg, [[c2 - 32, b], [c2, b + 16], [c2, b + 16 - HGT], [c2 - 32, b - HGT]], wood[0])
+        poly(gg, [[c2, b + 16], [c2 + 32, b], [c2 + 32, b - HGT], [c2, b + 16 - HGT]], wood[2])
+        poly(gg, [[c2, b - 16 - HGT], [c2 + 32, b - HGT], [c2, b + 16 - HGT], [c2 - 32, b - HGT]], wood[1])
+        // plank joints across the top, running with the diamond
+        gg.strokeStyle = 'rgba(0,0,0,.30)'; gg.lineWidth = 1
+        for (let i = 1; i < 4; i++) {
+          const t2 = i / 4
+          gg.beginPath()
+          gg.moveTo(c2 - 32 + t2 * 32, b - HGT + t2 * -16)
+          gg.lineTo(c2 + t2 * 32, b + 16 - HGT + t2 * -16); gg.stroke()
+        }
+        gg.strokeStyle = 'rgba(255,236,196,.16)'; gg.lineWidth = 1.4
+        gg.beginPath(); gg.moveTo(c2 - 32, b - HGT); gg.lineTo(c2, b - 16 - HGT)
+        gg.lineTo(c2 + 32, b - HGT); gg.stroke()
+        // the front panel, and a kick rail
+        gg.strokeStyle = wood[2]; gg.lineWidth = 2
+        gg.beginPath(); gg.moveTo(c2 - 30, b + 1); gg.lineTo(c2, b + 15); gg.lineTo(c2 + 30, b + 1); gg.stroke()
+        // what is on it
+        const top = b - HGT - 4
+        if (isBank) {
+          // a strongbox, banded, and a ledger
+          poly(gg, [[c2 - 4, top - 3], [c2 + 8, top + 3], [c2 + 8, top + 11], [c2 - 4, top + 5]], '#2e2419')
+          poly(gg, [[c2 - 4, top - 3], [c2 - 16, top + 3], [c2 - 16, top + 11], [c2 - 4, top + 5]], '#3f3323')
+          poly(gg, [[c2 - 4, top - 3], [c2 + 8, top + 3], [c2 - 4, top + 9], [c2 - 16, top + 3]], '#4e4029')
+          gg.strokeStyle = '#8a7340'; gg.lineWidth = 1.6
+          gg.beginPath(); gg.moveTo(c2 - 10, top + 0); gg.lineTo(c2 - 10, top + 8); gg.stroke()
+          gg.beginPath(); gg.moveTo(c2 + 2, top + 0); gg.lineTo(c2 + 2, top + 8); gg.stroke()
+          gg.fillStyle = '#b0913f'
+          gg.beginPath(); gg.arc(c2 - 4, top + 4, 1.8, 0, 7); gg.fill()
+          for (let i = 0; i < 3; i++) {         // a small stack of coin
+            gg.fillStyle = i % 2 ? '#c9a04a' : '#e8b53a'
+            gg.beginPath(); gg.ellipse(c2 + 16, top + 7 - i * 1.8, 3.6, 1.9, 0, 0, 7); gg.fill()
+          }
+        } else {
+          // sacks, a jar, and a pair of scales
+          gg.fillStyle = '#5e5136'
+          gg.beginPath(); gg.ellipse(c2 - 13, top + 5, 6, 5, 0, 0, 7); gg.fill()
+          gg.fillStyle = '#75663f'
+          gg.beginPath(); gg.ellipse(c2 - 14, top + 3, 4.4, 3, 0, 0, 7); gg.fill()
+          gg.fillStyle = '#8a9a48'
+          gg.beginPath(); gg.ellipse(c2 - 13, top, 2.6, 1.6, 0, 0, 7); gg.fill()
+          poly(gg, [[c2 + 3, top + 8], [c2 + 11, top + 8], [c2 + 10, top - 2], [c2 + 4, top - 2]], '#3a4a44')
+          gg.fillStyle = '#56706a'
+          gg.beginPath(); gg.ellipse(c2 + 7, top - 2, 3.2, 1.6, 0, 0, 7); gg.fill()
+          gg.strokeStyle = '#8a8272'; gg.lineWidth = 1.2
+          gg.beginPath(); gg.moveTo(c2 + 19, top + 8); gg.lineTo(c2 + 19, top - 6); gg.stroke()
+          gg.beginPath(); gg.moveTo(c2 + 14, top - 5); gg.lineTo(c2 + 24, top - 5); gg.stroke()
+          gg.beginPath(); gg.ellipse(c2 + 14, top - 2, 2.6, 1.2, 0, 0, 7); gg.stroke()
+          gg.beginPath(); gg.ellipse(c2 + 24, top - 2, 2.6, 1.2, 0, 0, 7); gg.stroke()
+        }
+      }), sx - 42, sy - 74 + 22)
+      return
+    }
+    case 'house': case 'inn': {
       const K = BUILDING_KINDS[n.type] ?? BUILDING_KINDS.house
       g.drawImage(sprite('bld' + n.type + (hs & 3), 160, 150, (gg, W2, H2, R) =>
         paintBuilding(gg, W2, H2, { ...K, R })), sx - 80, sy - 150 + 26)
@@ -4137,6 +4263,7 @@ function drawScene(now) {
       else if (n.type === 'magic-rock' && (n.depletedUntil ?? 0) <= s.tick) lights.push([sx, sy - 16, 82, .5, 0])
       else if (n.type === 'waystone') lights.push([sx, sy - 44, 92, .48, 0])
       else if (BUILDING_KINDS[n.type]) lights.push([sx - 14, sy - 34, 104, .5, 1])
+      else if (n.type === 'bank' || n.type === 'store') lights.push([sx, sy - 20, 66, .38, 1])
     } else if (it.kind === 'ground') {
       drawGroundItem(g, it.e, sx, sy, now)
       beams.push([sx, sy, rarityOf(it.e.item)])
@@ -4302,6 +4429,28 @@ function drawScene(now) {
     g.globalCompositeOperation = 'source-over'
   }
 
+  // ORDER MATTERS, AND IT WAS WRONG.
+  //
+  // The cool multiply used to run AFTER the bloom, which meant the one thing
+  // in the frame that must stay warm -- the glow around a fire -- was the last
+  // thing to be cooled. Every flame came out a pale blue-white pillar. Grade
+  // the world first; bloom the fire over the top of the graded world.
+  // =========================================================================
+  // GRADE
+  // =========================================================================
+  // Cool the shadows without cooling the fire. A blue `multiply` over the whole
+  // frame would drag the flames down with everything else, so the cool goes on
+  // first and a broad warm wash goes back over the top of it.
+  g.globalCompositeOperation = 'multiply'
+  const cg = g.createLinearGradient(0, 0, 0, VH)
+  cg.addColorStop(0, 'rgb(178,190,224)')
+  cg.addColorStop(1, 'rgb(206,206,222)')
+  g.fillStyle = cg; g.fillRect(0, 0, VW, VH)
+  g.globalCompositeOperation = 'lighter'
+  g.fillStyle = 'rgba(70,34,10,.16)'
+  g.fillRect(0, 0, VW, VH)
+  g.globalCompositeOperation = 'source-over'
+
   // =========================================================================
   // BLOOM
   // =========================================================================
@@ -4334,22 +4483,6 @@ function drawScene(now) {
     g.globalCompositeOperation = 'source-over'
     g.setTransform(DPR, 0, 0, DPR, 0, 0)
   }
-
-  // =========================================================================
-  // GRADE
-  // =========================================================================
-  // Cool the shadows without cooling the fire. A blue `multiply` over the whole
-  // frame would drag the flames down with everything else, so the cool goes on
-  // first and a broad warm wash goes back over the top of it.
-  g.globalCompositeOperation = 'multiply'
-  const cg = g.createLinearGradient(0, 0, 0, VH)
-  cg.addColorStop(0, 'rgb(178,190,224)')
-  cg.addColorStop(1, 'rgb(206,206,222)')
-  g.fillStyle = cg; g.fillRect(0, 0, VW, VH)
-  g.globalCompositeOperation = 'lighter'
-  g.fillStyle = 'rgba(70,34,10,.16)'
-  g.fillRect(0, 0, VW, VH)
-  g.globalCompositeOperation = 'source-over'
 
   // ---- numbers leaving bodies ---------------------------------------------
   g.textAlign = 'center'; g.textBaseline = 'alphabetic'
@@ -4491,8 +4624,26 @@ function rarityOf(item) {
 // which is exactly when you need to.
 // ===========================================================================
 
-const PANEL_W = 680, PANEL_H = 150
-const PANE_W = 352, PANE_H = 462
+// THE PANEL IS A FIXED SLAB, BUT NOT A FIXED SIZE.
+//
+// 680 x 150 is right on a laptop and absurd on a phone: at 430 CSS pixels wide
+// both orbs hung off the edges of the screen and the belt overlapped the
+// buttons. So the slab is measured every frame from the viewport, and every
+// distance inside it is derived from two numbers -- its width and the orb
+// radius -- rather than written down. Text stays at real pixel sizes and is
+// never scaled down, because a legible orb with a small label beats a
+// perfectly proportioned panel nobody can read.
+let PANEL_W = 680, PANEL_H = 150, PANEL_X = 0, PANEL_Y = 0, ORB_R = 52
+let PANE_W = 352, PANE_H = 462
+function layoutPanel() {
+  PANEL_W = Math.min(680, VW - 8)
+  ORB_R = Math.round(clamp(PANEL_W * 0.077, 24, 52))
+  PANEL_H = ORB_R * 2 + 46
+  PANEL_X = Math.round((VW - PANEL_W) / 2)
+  PANEL_Y = VH - PANEL_H
+  PANE_W = Math.min(352, VW - 20)
+  PANE_H = Math.min(462, Math.max(200, VH - PANEL_H - 24))
+}
 let openPane = null                   // 'pack' | 'citizen' | 'forge' | 'bank' | 'store' | null
 let regions = []                      // rebuilt every frame; the only hit-test there is
 let logLines = []
@@ -4799,122 +4950,123 @@ const PANEL_BTNS = [
 
 function drawPanel(g, now) {
   const s = curState
-  const px0 = Math.round((VW - PANEL_W) / 2), py0 = VH - PANEL_H
+  const px0 = PANEL_X, py0 = PANEL_Y, R = ORB_R
   carve(g, px0, py0, PANEL_W, PANEL_H)
   const me = myId && s?.players?.[myId]
 
+  // the middle begins where the orbs end
+  const gut = R * 2 + 22
+  const midX = px0 + gut, midW = PANEL_W - gut * 2
+  const sk = lastXpSkill ?? 'woodcutting'
+  const xp = me?.skills?.[sk] ?? 0
+  const lv = XP_TO_LVL(xp)
+  const a0 = XP_TABLE[Math.min(99, lv)] ?? 0, b0 = XP_TABLE[Math.min(99, lv + 1)] ?? (a0 + 1)
+  const frac = lv >= 99 ? 1 : clamp((xp - a0) / Math.max(1, b0 - a0), 0, 1)
+
   // ---- the experience rule, across the top --------------------------------
-  const midX = px0 + 128, midW = PANEL_W - 256
-  {
-    const sk = lastXpSkill ?? 'woodcutting'
-    const xp = me?.skills?.[sk] ?? 0
-    const lv = XP_TO_LVL(xp)
-    const a = XP_TABLE[Math.min(99, lv)] ?? 0, b = XP_TABLE[Math.min(99, lv + 1)] ?? (a + 1)
-    const f = lv >= 99 ? 1 : clamp((xp - a) / Math.max(1, b - a), 0, 1)
-    g.fillStyle = 'rgba(6,5,5,.9)'; g.fillRect(midX, py0 + 13, midW, 7)
-    const xg = g.createLinearGradient(midX, 0, midX + midW, 0)
-    xg.addColorStop(0, '#6a5220'); xg.addColorStop(1, '#e8d199')
-    g.fillStyle = xg; g.fillRect(midX + 1, py0 + 14, (midW - 2) * f, 5)
-    g.strokeStyle = 'rgba(106,82,32,.7)'; g.lineWidth = 1
-    g.strokeRect(midX + .5, py0 + 13.5, midW - 1, 6)
-    g.font = '600 8px Cinzel, Georgia, serif'
-    g.textAlign = 'left'; g.textBaseline = 'middle'
-    g.fillStyle = 'rgba(141,125,99,.9)'
-    g.save(); g.letterSpacing = '1.5px'
-    g.fillText((sk + '  ' + lv).toUpperCase(), midX + 2, py0 + 27); g.restore()
-  }
+  g.fillStyle = 'rgba(6,5,5,.9)'; g.fillRect(midX, py0 + 9, midW, 7)
+  const xg = g.createLinearGradient(midX, 0, midX + midW, 0)
+  xg.addColorStop(0, '#6a5220'); xg.addColorStop(1, '#f2dda2')
+  g.fillStyle = xg; g.fillRect(midX + 1, py0 + 10, (midW - 2) * frac, 5)
+  g.strokeStyle = 'rgba(106,82,32,.7)'; g.lineWidth = 1
+  g.strokeRect(midX + .5, py0 + 9.5, midW - 1, 6)
+  g.font = '600 8px Cinzel, Georgia, serif'
+  g.textAlign = 'left'; g.textBaseline = 'middle'
+  g.fillStyle = 'rgba(141,125,99,.9)'
+  g.save(); g.letterSpacing = '1.5px'
+  g.fillText((sk + '  ' + lv).toUpperCase(), midX + 2, py0 + 24); g.restore()
+  g.textAlign = 'right'; g.font = '700 11px Cinzel, Georgia, serif'
+  g.fillStyle = '#e8b53a'
+  g.fillText((me?.gold ?? 0) + 'g', midX + midW - 2, py0 + 24)
 
   // ---- the two orbs -------------------------------------------------------
+  const oy = py0 + PANEL_H / 2 + 3
   const hp = me?.hp ?? 0, maxHp = me ? maxHpOf(me) : 10
-  orb(g, px0 + 66, py0 + 78, 52, hp / Math.max(1, maxHp), {
+  orb(g, px0 + R + 13, oy, R, hp / Math.max(1, maxHp), {
     well: '#180505', lo: '#4a0806', mid: '#8f1d15', hi: '#cf2a18',
     skin: 'rgba(240,120,80,.55)', caustic: 'rgba(255,90,50,.16)',
     text: '#f0b8a0', bleeds: true, glow: 'rgba(200,40,20,.16)',
   }, now, 'life', hp + ' / ' + maxHp)
+  // The right orb is not mana: this constitution has none. It is the WORK orb,
+  // how far into your current trade's next level you are, which is the number
+  // a citizen here actually watches -- and it fills as you swing rather than
+  // draining as you cast.
+  orb(g, px0 + PANEL_W - R - 13, oy, R, frac, {
+    well: '#050a16', lo: '#0d1c3e', mid: '#1d3470', hi: '#4f8de6',
+    skin: 'rgba(150,200,255,.5)', caustic: 'rgba(90,150,255,.16)',
+    text: '#a8c8f0', bleeds: false, glow: 'rgba(60,120,240,.14)',
+  }, now, sk.slice(0, 9), Math.round(frac * 100) + '%')
 
-  {
-    // The right orb is not mana: this constitution has none. It is the WORK
-    // orb -- how far through your current trade's next level you are -- which
-    // is the number a citizen here actually watches, and it fills as you swing
-    // rather than draining as you cast.
-    const sk = lastXpSkill ?? 'woodcutting'
-    const xp = me?.skills?.[sk] ?? 0, lv = XP_TO_LVL(xp)
-    const a = XP_TABLE[Math.min(99, lv)] ?? 0, b = XP_TABLE[Math.min(99, lv + 1)] ?? (a + 1)
-    const f = lv >= 99 ? 1 : clamp((xp - a) / Math.max(1, b - a), 0, 1)
-    orb(g, px0 + PANEL_W - 66, py0 + 78, 52, f, {
-      well: '#050a16', lo: '#0d1c3e', mid: '#1d3470', hi: '#4f8de6',
-      skin: 'rgba(150,200,255,.5)', caustic: 'rgba(90,150,255,.16)',
-      text: '#a8c8f0', bleeds: false, glow: 'rgba(60,120,240,.14)',
-    }, now, sk.slice(0, 9), Math.round(f * 100) + '%')
-  }
+  // ---- belt and buttons, measured up from the bottom edge ------------------
+  const BS = Math.round(clamp(PANEL_H * .29, 22, 44))
+  const beltY = py0 + PANEL_H - 34 - BS
+  const BR = Math.round(clamp(PANEL_H * .105, 9, 15))
+  const btnY = py0 + PANEL_H - 15
 
   // ---- what the world has been saying -------------------------------------
+  const logTop = py0 + 34
+  const rows = Math.max(1, Math.min(3, Math.floor((beltY - 4 - logTop) / 14)))
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'
   g.font = '12px Georgia, serif'
-  const recent = logLines.slice(-3)
-  recent.forEach((l, i) => {
+  logLines.slice(-rows).forEach((l, i2) => {
     const age = (now - l.at) / 1000
     g.globalAlpha = clamp(1.4 - age / 22, .25, 1)
     g.fillStyle = LOGCOL[l.kind] ?? LOGCOL.plain
-    g.fillText(l.text + (l.n > 1 ? '  \u00d7' + l.n : ''), midX + 2, py0 + 44 + i * 15, midW - 4)
+    g.fillText(l.text + (l.n > 1 ? '  \u00d7' + l.n : ''), midX + 2, logTop + i2 * 14, midW - 4)
   })
   g.globalAlpha = 1
 
   // ---- the belt -----------------------------------------------------------
   // Four things you can swallow without stopping what you are doing, filled
-  // automatically from the pack because nobody has ever enjoyed loading a belt.
+  // from the pack automatically because nobody has ever enjoyed loading a belt.
   beltMap = []
   const inv = me?.inventory ?? []
-  const EDIBLE = ['ale', 'broth', 'cooked-fish', 'cooked-deep-fish']
-  for (const want of EDIBLE) {
-    const i = inv.findIndex((sl, ix) => sl && sl.item === want && !beltMap.some(b => b.slot === ix))
-    if (i >= 0 && beltMap.length < 4) beltMap.push({ slot: i, item: want, qty: inv[i].qty ?? 1 })
+  for (const want of ['ale', 'broth', 'cooked-fish', 'cooked-deep-fish']) {
+    const i2 = inv.findIndex((sl, ix) => sl && sl.item === want && !beltMap.some(b => b.slot === ix))
+    if (i2 >= 0 && beltMap.length < 4) beltMap.push({ slot: i2, item: want, qty: inv[i2].qty ?? 1 })
   }
-  const BS = 44, bx0 = midX + (midW - (BS * 4 + 24)) / 2, by0 = py0 + 90
-  for (let i = 0; i < 4; i++) {
-    const bx = bx0 + i * (BS + 8)
-    const hot = inRect(mouse, bx, by0, BS, BS)
-    slotFrame(g, bx, by0, BS, hot)
-    const b = beltMap[i]
+  const gap = Math.max(4, Math.round(BS * .16))
+  const bx0 = midX + (midW - (BS * 4 + gap * 3)) / 2
+  for (let i2 = 0; i2 < 4; i2++) {
+    const bx = bx0 + i2 * (BS + gap)
+    const hot = inRect(mouse, bx, beltY, BS, BS)
+    slotFrame(g, bx, beltY, BS, hot)
+    const b = beltMap[i2]
     if (b) {
-      g.drawImage(itemIcon(b.item), bx + 5, by0 + 5, BS - 10, BS - 10)
+      g.drawImage(itemIcon(b.item), bx + 4, beltY + 4, BS - 8, BS - 8)
       if (b.qty > 1) {
         g.font = '700 9px Cinzel, Georgia, serif'; g.textAlign = 'right'
-        g.fillStyle = '#e8d199'; g.fillText(String(b.qty), bx + BS - 4, by0 + BS - 4)
+        g.fillStyle = '#f2dda2'; g.fillText(String(b.qty), bx + BS - 3, beltY + BS - 3)
       }
-      regions.push({ x: bx, y: by0, w: BS, h: BS, act: { t: 'belt', i },
-                     tip: { title: wordy(b.item), sub: 'Key ' + (i + 1) + ' \u00b7 restores health' } })
+      regions.push({ x: bx, y: beltY, w: BS, h: BS, act: { t: 'belt', i: i2 },
+                     tip: { title: wordy(b.item), sub: 'Key ' + (i2 + 1) + ' \u00b7 restores health' } })
     }
     g.font = '600 8px Cinzel, Georgia, serif'; g.textAlign = 'left'
     g.fillStyle = 'rgba(141,125,99,.7)'
-    g.fillText(String(i + 1), bx + 3, by0 + 10)
+    g.fillText(String(i2 + 1), bx + 3, beltY + 10)
   }
 
-  // ---- gold, above the belt ----------------------------------------------
-  g.textAlign = 'right'; g.font = '700 12px Cinzel, Georgia, serif'
-  g.fillStyle = '#e8b53a'
-  g.fillText((me?.gold ?? 0) + 'g', midX + midW - 2, py0 + 86)
-
   // ---- the buttons --------------------------------------------------------
-  const BR = 15, bw = PANEL_BTNS.length * (BR * 2 + 10) - 10
+  const bgap = Math.max(4, Math.round(BR * .55))
+  const bw = PANEL_BTNS.length * (BR * 2 + bgap) - bgap
   let bxx = midX + (midW - bw) / 2
   for (const [id, key, title] of PANEL_BTNS) {
-    const ccx = bxx + BR, ccy = py0 + PANEL_H - 22
+    const ccx = bxx + BR, ccy = btnY
     const on = openPane === id || (id === 'chart' && showChart)
     const hot = Math.hypot(mouse.x - ccx, mouse.y - ccy) < BR + 2
     const bg = g.createRadialGradient(ccx, ccy - BR * .4, 1, ccx, ccy, BR)
     bg.addColorStop(0, on ? '#5a4620' : hot ? '#3a2f1c' : '#231c16')
     bg.addColorStop(1, '#0c0908')
     g.fillStyle = bg; g.beginPath(); g.arc(ccx, ccy, BR, 0, 7); g.fill()
-    g.strokeStyle = on ? '#e8d199' : hot ? '#b0913f' : '#6a5220'; g.lineWidth = 1.4
+    g.strokeStyle = on ? '#f2dda2' : hot ? '#b0913f' : '#6a5220'; g.lineWidth = 1.4
     g.beginPath(); g.arc(ccx, ccy, BR, 0, 7); g.stroke()
-    g.font = '700 12px Cinzel, Georgia, serif'
+    g.font = '700 ' + Math.max(9, Math.round(BR * .8)) + 'px Cinzel, Georgia, serif'
     g.textAlign = 'center'; g.textBaseline = 'middle'
-    g.fillStyle = on ? '#f6e6b4' : '#b0913f'
+    g.fillStyle = on ? '#fbeec4' : '#b0913f'
     g.fillText(key, ccx, ccy + .5)
     regions.push({ x: ccx - BR, y: ccy - BR, w: BR * 2, h: BR * 2, act: { t: 'btn', id },
                    tip: { title, sub: null } })
-    bxx += BR * 2 + 10
+    bxx += BR * 2 + bgap
   }
   g.textBaseline = 'alphabetic'
 }
@@ -4927,6 +5079,8 @@ function drawPanel(g, now) {
 function drawPack(g, now) {
   const s = curState, me = myId && s?.players?.[myId]
   const x = VW - PANE_W - 14, y = Math.max(12, VH - PANEL_H - PANE_H - 8)
+  regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
+  regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
   carve(g, x, y, PANE_W, PANE_H)
   plate(g, x + 14, y + 14, PANE_W - 28, 'The Pack')
   regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
@@ -5088,6 +5242,7 @@ function drawForge(g, now) {
   const me = myId && curState?.players?.[myId]
   const W2 = 420, H2 = Math.min(VH - PANEL_H - 40, 520)
   const x = Math.round((VW - W2) / 2), y = Math.max(12, (VH - PANEL_H - H2) / 2)
+  regions.push({ x, y, w: W2, h: H2, act: { t: 'panebg' } })
   carve(g, x, y, W2, H2)
   plate(g, x + 14, y + 14, W2 - 28, 'The Anvil')
   regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
@@ -5375,6 +5530,7 @@ function pickWorld(p) {
   }
   for (const [id, n] of Object.entries(s.nodes ?? {})) {
     const big = BUILDING_KINDS[n.type] ? [-60, 60, -110, 20]
+      : (n.type === 'bank' || n.type === 'store') ? [-32, 32, -34, 18]
       : n.type === 'tree' ? [-30, 30, -80, 16]
       : n.type === 'fishing-spot' ? [-30, 30, -14, 14]
       : [-28, 28, -56, 14]
@@ -5396,7 +5552,7 @@ function primaryClick(p, isRight) {
   const r = hitRegion(p)
   if (r) { runRegion(r, isRight); return }
   // the slab itself swallows clicks, even where no control sits
-  if (p.y > VH - PANEL_H && Math.abs(p.x - VW / 2) < PANEL_W / 2) return
+  if (p.y > PANEL_Y && p.x > PANEL_X && p.x < PANEL_X + PANEL_W) return
   if (showChart) { showChart = false; return }
 
   const tgt = pickWorld(p)
@@ -5656,9 +5812,10 @@ cv.addEventListener('wheel', (e) => e.preventDefault(), { passive: false })
 const sayBox = document.getElementById('say')
 function openSay() {
   sayBox.classList.add('on')
-  sayBox.style.left = Math.round((VW - 420) / 2) + 'px'
+  const w = Math.min(420, VW - 24)
+  sayBox.style.left = Math.round((VW - w) / 2) + 'px'
   sayBox.style.top = (VH - PANEL_H - 44) + 'px'
-  sayBox.style.width = '420px'
+  sayBox.style.width = w + 'px'
   sayBox.focus()
 }
 function closeSay() { sayBox.classList.remove('on'); sayBox.value = ''; sayBox.blur() }
@@ -5706,8 +5863,9 @@ window.addEventListener('blur', () => { altHeld = false; shiftHeld = false; mous
 // ===========================================================================
 
 function drawLedger(g, title, rows, empty) {
-  const W2 = 430, H2 = Math.min(VH - PANEL_H - 40, 500)
+  const W2 = Math.min(430, VW - 16), H2 = Math.min(Math.max(220, VH - PANEL_H - 40), 500)
   const x = Math.round((VW - W2) / 2), y = Math.max(12, (VH - PANEL_H - H2) / 2)
+  regions.push({ x, y, w: W2, h: H2, act: { t: 'panebg' } })
   carve(g, x, y, W2, H2)
   plate(g, x + 14, y + 14, W2 - 28, title)
   regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close' } })
@@ -5762,6 +5920,7 @@ function drawCounter(g) {
 const _runRegion = runRegion
 runRegion = function (r, isRight) {
   const a = r.act
+  if (a.t === 'panebg') return          // the panel itself absorbs the click
   if (a.t === 'deposit') { send({ do: 'deposit', slot: a.slot }); SFX.pane(); return }
   if (a.t === 'withdraw') { send({ do: 'withdraw', item: a.item }); SFX.pane(); return }
   if (a.t === 'buy') { send({ do: 'buy', item: a.item }); SFX.gold(); return }
@@ -5774,9 +5933,11 @@ runRegion = function (r, isRight) {
 // ===========================================================================
 let lastFrame = performance.now()
 
+let lastRegions = []
 function frame(now) {
   const dt = Math.min(64, now - lastFrame); lastFrame = now
   const s = curState
+  layoutPanel()                          // the slab is measured from the viewport
 
   // ---- the camera eases toward the citizen --------------------------------
   const me = myId && s?.players?.[myId]
@@ -5793,8 +5954,9 @@ function frame(now) {
   shake = Math.max(0, shake - dt / 60)
 
   // ---- hold the button down and keep walking ------------------------------
-  if (mouse.down && entered && me && !hitRegion(mouse) && !showChart
-      && !(mouse.y > VH - PANEL_H && Math.abs(mouse.x - VW / 2) < PANEL_W / 2)
+  const onChrome = !!hitRegion(mouse)
+    || (mouse.y > PANEL_Y && mouse.x > PANEL_X && mouse.x < PANEL_X + PANEL_W)
+  if (mouse.down && entered && me && !onChrome && !showChart
       && now - mouse.downAt > 220 && (!intent || intent.kind === 'walk')) {
     const w = worldOf(mouse.x, mouse.y)
     if (!intent || intent.x !== w.x || intent.y !== w.y) {
@@ -5804,13 +5966,14 @@ function frame(now) {
   }
 
   // ---- what is under the cursor -------------------------------------------
-  // Chrome wins over world: a beast standing behind the control panel is not
-  // something you can reach, and offering the crosshair for it is a lie.
-  const overChrome = !!hitRegion(mouse) || (mouse.y > VH - PANEL_H
-    && Math.abs(mouse.x - VW / 2) < PANEL_W / 2)
+  // Chrome wins over world. A beast standing behind the control panel -- or
+  // behind an open pane -- is not something you can reach, and offering the
+  // crosshair for it is a lie. Every pane pushes its own background as a
+  // region, so this one test covers all of them.
+  lastRegions = regions
   regions = []
   tipAt = null
-  hover = (entered && !showChart && !overChrome) ? pickWorld(mouse) : null
+  hover = (entered && !showChart && !onChrome) ? pickWorld(mouse) : null
 
   cx.setTransform(DPR, 0, 0, DPR, 0, 0)
   cx.clearRect(0, 0, VW, VH)
