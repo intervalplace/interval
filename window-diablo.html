@@ -712,7 +712,34 @@ function bridges4() {
   return out
 }
 function onBridge4(x, y) {
-  for (const b of bridges4()) if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
+  // A BRIDGE IS A SPAN, NOT A RECTANGLE.
+  //
+  // This stamped a nine-by-five block of deck at each crossing, so wherever a
+  // diagonal river passed through that block the walkable water came out as a
+  // ragged diagonal patch. It read as neither a bridge nor a ford -- just an
+  // oddly-shaped hole in the river -- and no amount of plank texture in a
+  // window could fix a shape that was wrong in the world.
+  //
+  // A bridge crosses the water and stops: two tiles wide, spanning exactly as
+  // far as the water runs on that line, with two tiles of abutment on each
+  // bank. The four river crossings span east-west; the Oxenford crosses the
+  // march, which itself runs east-west, so that one is spanned north-south.
+  for (const b of bridges4()) {
+    if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
+    if (b.tag !== 'brm') {
+      if (y - b.y > 1 || b.y - y > 1) continue
+      let w = b.x, e = b.x
+      while (w > 3 && isWater4(w - 1, y)) w--
+      while (e < W - 4 && isWater4(e + 1, y)) e++
+      if (x >= w - 2 && x <= e + 2) return true
+    } else {
+      if (x - b.x > 1 || b.x - x > 1) continue
+      let n = b.y, s2 = b.y
+      while (n > 3 && isWater4(x, n - 1)) n--
+      while (s2 < H - 4 && isWater4(x, s2 + 1)) s2++
+      if (y >= n - 2 && y <= s2 + 2) return true
+    }
+  }
   return false
 }
 // The ten drawings, and the logic that seats them. The mirror carries the
@@ -1004,7 +1031,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -1340,7 +1367,7 @@ function keeperRole4(st, id, n) {
       near[q.type] = true
     }
     role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.house ? 'town' : 'town'
+         : near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
   return role
@@ -1852,6 +1879,13 @@ function progressAt(xp) {
 let myId = null, world = null, curState = null, curWorldId = ''
 let connected = false, stateAt = 0, statePeriod = 600, tickOffset = null
 let lastStamped = -1, ownKey = null, usingRelay = false
+// deeds that arrived while the tick line was full, waiting for a tick of their
+// own. Drained two per state, which is exactly what the window can stamp.
+const outbox = []
+function drainOutbox() {
+  if (!outbox.length) return
+  for (const a of outbox.splice(0, 2)) send(a)
+}
 let entered = false, pendingName = ''
 
 let uid = localStorage.getItem('interval-uid')
@@ -1984,6 +2018,9 @@ function connect() {
       // fault -- the input is stamped for the tick AFTER the frame it was
       // planned from, and beasts wander every tick -- so the transient ones say
       // so, and a citizen learns which refusals to argue with.
+      // attribute the refusal to whatever order is standing, so a bounded
+      // give-up can report how many the world turned down
+      if (typeof intent === 'object' && intent) intent.refused = (intent.refused ?? 0) + 1
       const transient = /occupied|blocked|adjacent|reach|tick/i.test(m.why ?? '')
       say('Refused: ' + (m.of ?? '?') + (m.why ? ' \u2014 ' + m.why : '')
         + (transient ? ' (try again)' : ''), 'warn')
@@ -2031,7 +2068,21 @@ async function send(a) {
   // open socket before the key exists. That used to throw here and swallow the deed.
   if (!ownKey) { say('Still finding your key\u2026', 'dim'); return }
   const tk = a._tick ?? allocTick()
-  if (tk === null) return          // the tick line is full; the click in flight will do the job
+  if (tk === null) {
+    // THE TICK LINE IS FULL, AND THAT IS NOT THE SAME AS "NEVER MIND".
+    //
+    // This used to `return` on every kind of deed, with a comment claiming the
+    // click in flight would do the job. True for a footstep -- a walk re-plans
+    // itself every tick and loses nothing. Utterly false for a deposit: you
+    // walk to the vault (two moves stamped, the window full), the pane opens,
+    // you click, and the input is dropped in silence. "Nothing happens at all"
+    // is exactly what that looks like from the outside.
+    //
+    // A one-shot deed waits its turn instead.
+    if (a.do === 'move') return
+    if (outbox.length < 8) outbox.push(a)
+    return
+  }
   const input = { worldId: curWorldId, tick: tk, playerId: ownKey.pub, ...f }
   try {
     const sig = toHex(await crypto.subtle.sign('Ed25519', ownKey.priv,
@@ -2115,9 +2166,9 @@ const GROUND = {
   sand:       { c: [66, 58, 43], grain: 'grit',   lift: 0 },
   chalk:      { c: [67, 65, 56], grain: 'grit',   lift: 0 },
   gravel:     { c: [54, 50, 44], grain: 'grit',   lift: 0 },
-  scree:      { c: [50, 47, 42], grain: 'rubble', lift: 4 },
-  crags:      { c: [48, 44, 41], grain: 'rock',   lift: 10 },
-  mountain:   { c: [44, 41, 39], grain: 'rock',   lift: 14 },
+  scree:      { c: [50, 47, 42], grain: 'rubble', lift: 9 },
+  crags:      { c: [48, 44, 41], grain: 'rock',   lift: 26 },
+  mountain:   { c: [44, 41, 39], grain: 'rock',   lift: 40 },
   cave:       { c: [24, 21, 19], grain: 'rock',   lift: 0 },
   cobble:     { c: [58, 54, 47], grain: 'paving', lift: 1 },
   plaza:      { c: [62, 57, 49], grain: 'paving', lift: 1 },
@@ -2178,7 +2229,13 @@ function diamond(g, ox, oy, inset) {
 // One tile of ground, painted four ways so a meadow is not a repeating stamp.
 // The canvas is TW wide and TH + SKIRT tall: the diamond lives at the top and
 // the rock face below it, so a lifted tile can be drawn in one blit.
-const SKIRT = 22
+// THE ROCK HAS TO BE TALL ENOUGH TO STOP YOU.
+//
+// The Crags are a mountain country and they were reading as a kerb -- ten
+// pixels of lift and an eight-pixel skirt, which from this angle is a step
+// somebody could walk up. It is impassable ground and it should look it. The
+// skirt is the drop below a raised tile, and it now has room for a real cliff.
+const SKIRT = 56
 const _tileArt = new Map()
 function tileArt(kind, v) {
   const key = kind + v
@@ -2191,14 +2248,49 @@ function tileArt(kind, v) {
   // the face of the shelf this tile sits on, when it sits on one
   if (G.lift > 0) {
     const dep = G.lift + 8
-    g.fillStyle = sh(base, 0.44)
+    const tall = G.lift > 14                 // a cliff, rather than a shelf
+    // the two faces below the tile, lit from the upper left
+    g.fillStyle = sh(base, tall ? 0.38 : 0.44)
     g.beginPath(); g.moveTo(0, HH); g.lineTo(HW, TH); g.lineTo(HW, TH + dep); g.lineTo(0, HH + dep); g.closePath(); g.fill()
-    g.fillStyle = sh(base, 0.30)
+    g.fillStyle = sh(base, tall ? 0.22 : 0.30)
     g.beginPath(); g.moveTo(HW, TH); g.lineTo(TW, HH); g.lineTo(TW, HH + dep); g.lineTo(HW, TH + dep); g.closePath(); g.fill()
-    for (let i = 0; i < 14; i++) {          // strata in the rock face
-      const t = R(), yy = TH + t * dep, xx = R() * TW
-      g.fillStyle = rgb(0, 0, 0, .18 + R() * .18)
-      g.fillRect(xx, yy - HH * Math.abs(xx - HW) / TW, 3 + R() * 9, 1)
+    if (tall) {
+      // BEDDING PLANES. Rock this size is layered, and the layers are what
+      // give a cliff its scale -- without them a tall face is just a tall
+      // flat shape and reads as a wall someone built.
+      const beds = 4 + (R() * 3 | 0)
+      for (let i = 1; i < beds; i++) {
+        const yy = TH + (dep * i) / beds + (R() - .5) * 4
+        g.strokeStyle = rgb(0, 0, 0, .30 + R() * .2); g.lineWidth = 1.4
+        g.beginPath(); g.moveTo(0, yy - HH); g.lineTo(HW, yy); g.lineTo(TW, yy - HH); g.stroke()
+        g.strokeStyle = 'rgba(255,240,214,.09)'; g.lineWidth = 1
+        g.beginPath(); g.moveTo(0, yy - HH + 1.6); g.lineTo(HW, yy + 1.6); g.lineTo(TW, yy - HH + 1.6); g.stroke()
+      }
+      // fracture lines running down the face
+      for (let i = 0; i < 9; i++) {
+        const xx = R() * TW, y0 = TH + R() * dep * .3
+        g.strokeStyle = rgb(0, 0, 0, .22 + R() * .22); g.lineWidth = 1
+        g.beginPath()
+        g.moveTo(xx, y0 - HH * Math.abs(xx - HW) / TW)
+        g.lineTo(xx + (R() - .5) * 7, y0 - HH * Math.abs(xx - HW) / TW + dep * (.4 + R() * .5))
+        g.stroke()
+      }
+      // scree gathering at the foot, where a cliff sheds itself
+      for (let i = 0; i < 18; i++) {
+        const xx = R() * TW
+        const yy = TH + dep - R() * R() * 12 - HH * Math.abs(xx - HW) / TW
+        g.fillStyle = sh(base, .5 + R() * .5)
+        g.fillRect(xx, yy, 1 + R() * 3, 1 + R() * 2)
+      }
+      // and the lip catches the sky
+      g.strokeStyle = 'rgba(255,244,220,.20)'; g.lineWidth = 1.6
+      g.beginPath(); g.moveTo(0, HH); g.lineTo(HW, TH); g.lineTo(TW, HH); g.stroke()
+    } else {
+      for (let i = 0; i < 14; i++) {
+        const t = R(), yy = TH + t * dep, xx = R() * TW
+        g.fillStyle = rgb(0, 0, 0, .18 + R() * .18)
+        g.fillRect(xx, yy - HH * Math.abs(xx - HW) / TW, 3 + R() * 9, 1)
+      }
     }
   }
 
@@ -3056,142 +3148,10 @@ function bridgeMask(x, y) {
 // choice, and the window can work it out from geography alone -- how wide the
 // crossing is at that point, which is the shorter of its horizontal and
 // vertical runs.
-const _bspan = new Map()
-function bridgeWidth(x, y) {
-  const k = x + ',' + y
-  const hit = _bspan.get(k); if (hit !== undefined) return hit
-  const isB = (a, b) => terrainOf(a, b) === 'bridge'
-  let rx = 1, ry = 1
-  for (let i = 1; i < 24 && isB(x + i, y); i++) rx++
-  for (let i = 1; i < 24 && isB(x - i, y); i++) rx++
-  for (let i = 1; i < 24 && isB(x, y + i); i++) ry++
-  for (let i = 1; i < 24 && isB(x, y - i); i++) ry++
-  const out = Math.min(rx, ry)
-  if (_bspan.size > 40000) _bspan.clear()
-  _bspan.set(k, out)
-  return out
-}
-// A CROSSING WEARS ONE IDIOM, END TO END.
-//
-// Deciding per tile put a timber parapet on the narrow arms of a crossing and
-// stone arches in its middle -- six of Tallyholm's eight came out mixed, which
-// is not how anything gets built. So the whole connected crossing is walked
-// once, and if ANY part of it is more than two tiles across then the entire
-// thing is masonry. A footbridge that widens into a wharf is a wharf.
-//
-// Flood-filled on first ask and memoised for every tile in the component, so
-// the eight crossings cost eight walks for the life of the world.
-const _cross = new Map()
-function isCauseway(x, y) {
-  const k0 = x + ',' + y
-  const hit = _cross.get(k0); if (hit !== undefined) return hit
-  const isB = (a, b) => terrainOf(a, b) === 'bridge'
-  if (!isB(x, y)) { _cross.set(k0, false); return false }
-  const cell = [], seen = new Set([k0]), q = [[x, y]]
-  while (q.length && cell.length < 900) {
-    const [cx2, cy2] = q.pop()
-    cell.push([cx2, cy2])
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const nx = cx2 + dx, ny = cy2 + dy, kk = nx + ',' + ny
-      if (!seen.has(kk) && isB(nx, ny)) { seen.add(kk); q.push([nx, ny]) }
-    }
-  }
-  const broad = cell.some(([a, b]) => bridgeWidth(a, b) > 2)
-  for (const [a, b] of cell) _cross.set(a + ',' + b, broad)
-  return broad
-}
-
-const _causewayArt = new Map()
-function causewayArt(mask, v) {
-  const key = mask + ':' + v
-  const hit = _causewayArt.get(key); if (hit) return hit
-  const c = mkc(TW, TH + SKIRT + BRIDGE_TOP), g = c.getContext('2d')
-  const R = rng(mask * 6151 + v * 39916801 + 17)
-  const O = BRIDGE_TOP
-  const T = [HW, O], Rt = [TW, O + HH], B = [HW, O + TH], L = [0, O + HH]
-  const openX1 = !!(mask & 1), openX2 = !!(mask & 2), openY1 = !!(mask & 4), openY2 = !!(mask & 8)
-  const DEEP = BRIDGE_LIFT + 12          // masonry, all the way to the riverbed
-
-  g.fillStyle = 'rgba(0,0,0,.40)'        // its own shadow on the water
-  diamond(g, 0, O + BRIDGE_LIFT + 6, -3); g.fill()
-
-  // ---- the masonry mass, on every side that stands in water --------------
-  const face = (a, b2, lit) => {
-    poly(g, [a, b2, [b2[0], b2[1] + DEEP], [a[0], a[1] + DEEP]], lit ? '#4a443b' : '#2e2925')
-    // courses
-    g.strokeStyle = 'rgba(0,0,0,.34)'; g.lineWidth = 1
-    for (let i = 1; i < 6; i++) {
-      const yy = i * DEEP / 6
-      g.beginPath(); g.moveTo(a[0], a[1] + yy); g.lineTo(b2[0], b2[1] + yy); g.stroke()
-    }
-    g.strokeStyle = lit ? 'rgba(255,240,214,.13)' : 'rgba(255,240,214,.05)'
-    for (let i = 1; i < 6; i++) {
-      const yy = i * DEEP / 6 + 1
-      g.beginPath(); g.moveTo(a[0], a[1] + yy); g.lineTo(b2[0], b2[1] + yy); g.stroke()
-    }
-    // AN ARCH, which is the whole reason a causeway reads as built rather than
-    // as a wall someone dropped in the river
-    const mx = (a[0] + b2[0]) / 2, my = (a[1] + b2[1]) / 2
-    g.fillStyle = '#0a0c0e'
-    g.beginPath()
-    g.moveTo(mx - 11, my + DEEP)
-    g.lineTo(mx - 11, my + DEEP - 9)
-    g.quadraticCurveTo(mx, my + DEEP - 24, mx + 11, my + DEEP - 9)
-    g.lineTo(mx + 11, my + DEEP)
-    g.closePath(); g.fill()
-    g.strokeStyle = lit ? 'rgba(255,240,214,.16)' : 'rgba(255,240,214,.07)'
-    g.lineWidth = 1.6
-    g.beginPath()
-    g.moveTo(mx - 11, my + DEEP - 9)
-    g.quadraticCurveTo(mx, my + DEEP - 24, mx + 11, my + DEEP - 9); g.stroke()
-    g.fillStyle = 'rgba(140,180,200,.13)'   // the water going through it
-    g.beginPath(); g.ellipse(mx, my + DEEP - 1, 11, 2.6, 0, 0, 7); g.fill()
-  }
-  if (openX1) face(Rt, B, false)
-  if (openY1) face(B, L, false)
-  if (openX2) face(L, T, true)
-  if (openY2) face(T, Rt, true)
-
-  // ---- the roadway on top ------------------------------------------------
-  g.save(); diamond(g, 0, O, -1); g.clip()
-  g.fillStyle = '#57503f'; g.fillRect(0, O, TW, TH)
-  // dressed slabs, laid in courses with the diamond
-  g.strokeStyle = 'rgba(0,0,0,.30)'; g.lineWidth = 1
-  for (let i = 1; i < 4; i++) {
-    g.beginPath(); g.moveTo(i * 16, O + HH - i * 8); g.lineTo(i * 16 + HW, O + HH + HW / 2 - i * 8); g.stroke()
-    g.beginPath(); g.moveTo(TW - i * 16, O + HH - i * 8); g.lineTo(TW - i * 16 - HW, O + HH + HW / 2 - i * 8); g.stroke()
-  }
-  g.strokeStyle = 'rgba(255,240,214,.10)'
-  for (let i = 1; i < 4; i++) {
-    g.beginPath(); g.moveTo(i * 16, O + HH - i * 8 + 1); g.lineTo(i * 16 + HW, O + HH + HW / 2 - i * 8 + 1); g.stroke()
-  }
-  for (let i = 0; i < 26; i++) {
-    g.fillStyle = R() > .5 ? 'rgba(255,238,206,.06)' : 'rgba(0,0,0,.14)'
-    g.fillRect(R() * TW, O + R() * TH, 2, 1)
-  }
-  g.restore()
-
-  // ---- a kerb, not a parapet ---------------------------------------------
-  const kerb = (a, b2, lit) => {
-    const K = 5
-    poly(g, [a, b2, [b2[0], b2[1] - K], [a[0], a[1] - K]], lit ? '#6a6252' : '#413a32')
-    poly(g, [[a[0], a[1] - K], [b2[0], b2[1] - K], [b2[0], b2[1] - K - 2], [a[0], a[1] - K - 2]],
-      lit ? '#867d69' : '#565045')
-    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1
-    for (let i = 1; i < 4; i++) {
-      const t2 = i / 4
-      const px2 = a[0] + (b2[0] - a[0]) * t2, py2 = a[1] + (b2[1] - a[1]) * t2
-      g.beginPath(); g.moveTo(px2, py2 - K - 2); g.lineTo(px2, py2); g.stroke()
-    }
-  }
-  if (openX1) kerb(Rt, B, false)
-  if (openY1) kerb(B, L, false)
-  if (openX2) kerb(L, T, true)
-  if (openY2) kerb(T, Rt, true)
-
-  _causewayArt.set(key, c)
-  return c
-}
+// (A stone-causeway idiom lived here, chosen when a crossing was more than two
+// tiles across. It was wrong: this world's bridges are fords, and the reference
+// window paints every one of them as timber planks whatever their width. The
+// window does not get to promote a wide crossing to masonry.)
 // ===========================================================================
 // THE BESTIARY, AND THE PACK
 // ---------------------------------------------------------------------------
@@ -5065,8 +5025,13 @@ function drawGround(g, s, t) {
   // and now the bridges, over the water they cross
   for (let i = 0; i < bridgeQueue.length; i += 4) {
     const bx = bridgeQueue[i], by = bridgeQueue[i + 1]
-    const art = isCauseway(bx, by) ? causewayArt : bridgeArt
-    g.drawImage(art(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
+    // TIMBER, ALWAYS. I invented the stone causeway to explain the wide
+    // crossings, and it contradicts the world: the reference window paints
+    // every bridge tile as planks, and the terrain itself is defined as a FORD
+    // -- `inSea(x,y) ? (ford(x,y) ? 'bridge' : 'sea')`. The Millbrook Bridge is
+    // a plank road however many tiles across it happens to be, and a window
+    // does not get to decide the crossing is masonry because it looked wide.
+    g.drawImage(bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
       bridgeQueue[i + 2], bridgeQueue[i + 3] - BRIDGE_TOP)
   }
 
@@ -5102,7 +5067,7 @@ function drawGround(g, s, t) {
 // Every node, beast, citizen and dropped thing becomes one entry with a depth,
 // and then the list is sorted once. Anything drawn outside this list is
 // drawing itself out of order and will look wrong the moment it overlaps.
-const NODE_LIFT = { river: -6, sea: -7, fens: -2, peat: -2, crags: 10, mountain: 14, scree: 4, cobble: 1, plaza: 1, causey: 2, bridge: 3, floor: 1, inn: 1, smith: 1, fisher: 1, shep: 1, clerk: 1, wizard: 1 }
+const NODE_LIFT = { river: -6, sea: -7, fens: -2, peat: -2, crags: 26, mountain: 40, scree: 9, cobble: 1, plaza: 1, causey: 2, bridge: 3, floor: 1, inn: 1, smith: 1, fisher: 1, shep: 1, clerk: 1, wizard: 1 }
 const liftAt = (x, y) => NODE_LIFT[terrainOf(x, y)] ?? 0
 // A room, in the world's own terms: the generator paints `floor` (and the
 // trade-floors) inside the walls it raises. Anything standing on one of these
@@ -5188,10 +5153,13 @@ function collectStanding(s, t, list) {
 // Only things that ARE buildings. A bank and a store used to be in this table
 // and that was the whole bug: they are counters standing inside buildings the
 // world has already raised out of wall nodes.
-const BUILDING_KINDS = {
-  house: { wall: { lit: '#372e24', dark: '#211a14' }, roof: { lit: '#33291c', dark: '#1c1409' }, glow: '#d8863a', bw: 34, bd: 34, bh: 28 },
-  inn:   { wall: { lit: '#3e3325', dark: '#261e14' }, roof: { lit: '#3d2a18', dark: '#22150a' }, glow: '#f0b04a', sign: { t: 'I', c: '#e0b060' }, bw: 46, bd: 46, bh: 38 },
-}
+// NOTHING IN THIS FOUNDING IS DRAWN AS A BUILDING. Banks and stores are
+// counters, hearths are hearths, and the buildings themselves are made of wall
+// nodes standing on floor terrain -- the world builds its own architecture and
+// the window's job is to furnish it. The table is kept, empty, because the
+// next founding may bring something that IS a building and this is where it
+// would go.
+const BUILDING_KINDS = {}
 
 function drawNode(g, n, sx, sy, t, hot) {
   const s = curState
@@ -5244,50 +5212,11 @@ function drawNode(g, n, sx, sy, t, hot) {
       const size = n.type === 'watchfire' ? 1.9 : n.type === 'campfire' ? 1.1 : .9
       const dying = n.type === 'fire' && (n.expiresAt - (s?.tick ?? 0)) < 20
       const cold = n.type === 'watchfire' && (n.fuelUntil ?? 0) <= (s?.tick ?? 0)
-      if (n.type !== 'watchfire' && indoors(n.x, n.y)) {
-        // A HEARTH, NOT A CAMPFIRE.
-        //
-        // Four of this island's fires burn on a floor, inside walls, and a ring
-        // of loose stones with logs balanced across it is not what is in
-        // somebody's front room. A hearth is built INTO the back of the tile:
-        // a chimney breast, a lintel, a swept stone floor, and a fire that sits
-        // in the opening rather than in the middle of the rug.
-        g.drawImage(sprite('hearthstone', 84, 90, (gg, W2, H2) => {
-          const c2 = W2 / 2, b = H2 - 30
-          // the breast, rising off the two back edges of the diamond
-          const HH2 = 42
-          poly(gg, [[c2 - 32, b], [c2, b - 16], [c2, b - 16 - HH2], [c2 - 32, b - HH2]], '#3d3730')
-          poly(gg, [[c2, b - 16], [c2 + 32, b], [c2 + 32, b - HH2], [c2, b - 16 - HH2]], '#2a2622')
-          poly(gg, [[c2 - 32, b - HH2], [c2, b - 16 - HH2], [c2 + 32, b - HH2],
-                    [c2, b - HH2 + 16]], '#4a443b')
-          gg.strokeStyle = 'rgba(0,0,0,.34)'; gg.lineWidth = 1
-          for (let i = 1; i < 4; i++) {            // courses of stone
-            gg.beginPath(); gg.moveTo(c2 - 32, b - HH2 * i / 4)
-            gg.lineTo(c2, b - 16 - HH2 * i / 4); gg.lineTo(c2 + 32, b - HH2 * i / 4); gg.stroke()
-          }
-          // the opening, and a heavy lintel over it
-          poly(gg, [[c2 - 17, b - 6], [c2, b - 14], [c2 + 17, b - 6],
-                    [c2 + 17, b - 30], [c2, b - 38], [c2 - 17, b - 30]], '#080606')
-          poly(gg, [[c2 - 19, b - 29], [c2, b - 38], [c2 + 19, b - 29],
-                    [c2 + 19, b - 34], [c2, b - 43], [c2 - 19, b - 34]], '#564e42')
-          gg.fillStyle = 'rgba(255,236,196,.14)'
-          poly(gg, [[c2 - 19, b - 34], [c2, b - 43], [c2 + 19, b - 34],
-                    [c2, b - 39.5]], 'rgba(255,236,196,.14)')
-          // the swept stone in front of it
-          gg.fillStyle = '#332e28'
-          poly(gg, [[c2 - 22, b - 2], [c2, b + 9], [c2 + 22, b - 2], [c2, b - 12]], '#332e28')
-          gg.fillStyle = '#1d1a16'
-          poly(gg, [[c2 - 12, b - 2], [c2, b + 3], [c2 + 12, b - 2], [c2, b - 7]], '#1d1a16')
-          gg.strokeStyle = '#241c12'; gg.lineWidth = 3       // one log, laid in
-          gg.beginPath(); gg.moveTo(c2 - 8, b - 9); gg.lineTo(c2 + 8, b - 5); gg.stroke()
-        }), sx - 42, sy - 90 + 30)
-        if (!cold) {
-          g.save(); g.globalCompositeOperation = 'lighter'
-          drawFlame(g, sx, sy - 8, t / 1000, .78, hs % 100 / 100)
-          g.restore()
-        }
-        return
-      }
+      // A FIRE IS A FIRE WHEREVER IT IS LIT. This used to swap a campfire for a
+      // built-in hearth when it stood on a floor, which was the same mistake in
+      // the other direction: the world already HAS a node for the fire that is
+      // built into a dwelling, and it is `hearth`. A campfire on somebody's
+      // floor is a campfire on somebody's floor.
       g.drawImage(sprite('hearth' + n.type, 70, 44, (gg, W2, H2, R) => {
         groundShadow(gg, W2 / 2 + 2, H2 - 5, 20 * size, 9 * size, .5)
         for (let i = 0; i < 8; i++) {                  // a ring of stones
@@ -5392,52 +5321,51 @@ function drawNode(g, n, sx, sy, t, hot) {
       }), sx - 42, sy - 74 + 22)
       return
     }
-    case 'house': case 'inn': {
-      if (n.type === 'house' && indoors(n.x, n.y)) {
-        // A HOUSE INSIDE A HOUSE, AGAIN.
-        //
-        // Thirty-three of this island's seventy houses stand on `floor`, inside
-        // walls, in a room already furnished with a table, a bed, a shelf and a
-        // barrel. Whatever the constitution means by `house` there, it is not a
-        // cottage -- it is one impassable tile in somebody's front room, and a
-        // gabled roof on it was the same mistake as the store.
-        //
-        // Drawn as the STAIR: interior timber going up to a loft. It answers
-        // the only question the tile actually raises, which is why you cannot
-        // walk through it, and it duplicates none of the furniture the world
-        // has already placed around it.
-        g.drawImage(sprite('stair' + (hs & 3), 84, 86, (gg, W2, H2, R) => {
-          const c2 = W2 / 2, b = H2 - 26
-          groundShadow(gg, c2 + 4, b + 4, 28, 12, .5)
-          const STEP = 6, N = 6
-          for (let i = 0; i < N; i++) {
-            const y0 = b - i * STEP
-            const x0 = c2 - 30 + i * 5, x1 = c2 + 2 + i * 5
-            // tread, then the riser under it
-            poly(gg, [[x0, y0], [x0 + 16, y0 + 8], [x1 + 16, y0 - 8 + 8], [x1, y0 - 8]],
-              i % 2 ? '#5b4a2c' : '#655231')
-            poly(gg, [[x0, y0], [x0 + 16, y0 + 8], [x0 + 16, y0 + 8 + STEP], [x0, y0 + STEP]], '#2e2417')
-            gg.strokeStyle = 'rgba(255,236,196,.13)'; gg.lineWidth = 1
-            gg.beginPath(); gg.moveTo(x0, y0); gg.lineTo(x1, y0 - 8); gg.stroke()
-          }
-          // the rail, and its posts
-          gg.strokeStyle = '#3f331f'; gg.lineWidth = 2.6
-          gg.beginPath(); gg.moveTo(c2 - 28, b - 12); gg.lineTo(c2 + 4, b - 12 - N * STEP + 4); gg.stroke()
-          for (let i = 0; i < 4; i++) {
-            const t2 = i / 3
-            const px2 = c2 - 28 + t2 * 32, py2 = b - t2 * (N * STEP - 4)
-            gg.strokeStyle = '#4a3c24'; gg.lineWidth = 2
-            gg.beginPath(); gg.moveTo(px2, py2); gg.lineTo(px2, py2 - 13); gg.stroke()
-          }
-          // the dark of the loft it climbs into
-          poly(gg, [[c2 + 2, b - N * STEP - 2], [c2 + 20, b - N * STEP + 7],
-                    [c2 + 20, b - N * STEP - 9], [c2 + 2, b - N * STEP - 18]], '#0a0807')
-        }), sx - 42, sy - 86 + 26)
-        return
-      }
-      const K = BUILDING_KINDS[n.type] ?? BUILDING_KINDS.house
-      g.drawImage(sprite('bld' + n.type + (hs & 3), 160, 150, (gg, W2, H2, R) =>
-        paintBuilding(gg, W2, H2, { ...K, R })), sx - 80, sy - 150 + 26)
+    case 'hearth': case 'inn': {
+      // THE HEARTH. The building is the ROOM you walk into, made of wall nodes
+      // standing on floor terrain; what stands inside it is its fire.
+      //
+      // This node was called `house` until the fourth founding, and the name
+      // taught every window the wrong thing -- two of them drew a cottage in
+      // the middle of a hall before anyone noticed. It is named for what it is
+      // now, and the brewpot rule reads properly for the first time: "you may
+      // brew beside a hearth" has always meant "brew at home".
+      const v = hs % 2
+      g.drawImage(sprite('hearth-node' + v, 84, 92, (gg, W2, H2) => {
+        const c2 = W2 / 2, b = H2 - 28
+        groundShadow(gg, c2 + 3, b + 6, 26, 11, .55)
+        const HH2 = 44
+        // the chimney breast, built off the two back edges of the tile
+        poly(gg, [[c2 - 32, b], [c2, b - 16], [c2, b - 16 - HH2], [c2 - 32, b - HH2]],
+          v ? '#413a33' : '#3b352e')
+        poly(gg, [[c2, b - 16], [c2 + 32, b], [c2 + 32, b - HH2], [c2, b - 16 - HH2]],
+          v ? '#2c2723' : '#282320')
+        poly(gg, [[c2 - 32, b - HH2], [c2, b - 16 - HH2], [c2 + 32, b - HH2],
+                  [c2, b - HH2 + 16]], v ? '#524a41' : '#4c453d')
+        gg.strokeStyle = 'rgba(0,0,0,.32)'; gg.lineWidth = 1
+        for (let i2 = 1; i2 < 5; i2++) {
+          const yy = b - HH2 * i2 / 5
+          gg.beginPath(); gg.moveTo(c2 - 32, yy); gg.lineTo(c2, yy - 16)
+          gg.lineTo(c2 + 32, yy); gg.stroke()
+        }
+        // the opening, and the mantel over it
+        poly(gg, [[c2 - 16, b - 4], [c2, b - 12], [c2 + 16, b - 4],
+                  [c2 + 16, b - 26], [c2, b - 34], [c2 - 16, b - 26]], '#0a0806')
+        poly(gg, [[c2 - 20, b - 25], [c2, b - 34], [c2 + 20, b - 25],
+                  [c2 + 20, b - 31], [c2, b - 40], [c2 - 20, b - 31]], v ? '#6b5f52' : '#665a4e')
+        gg.fillStyle = 'rgba(255,244,214,.13)'
+        poly(gg, [[c2 - 20, b - 31], [c2, b - 40], [c2 + 20, b - 31], [c2, b - 35.5]],
+          'rgba(255,244,214,.13)')
+        // the swept stone in front, and one log laid in
+        poly(gg, [[c2 - 20, b], [c2, b + 10], [c2 + 20, b], [c2, b - 10]], '#332e28')
+        gg.strokeStyle = '#241c12'; gg.lineWidth = 3
+        gg.beginPath(); gg.moveTo(c2 - 7, b - 9); gg.lineTo(c2 + 7, b - 5); gg.stroke()
+      }), sx - 42, sy - 92 + 28)
+      // banked by day, a real flame after dark -- except this window has no
+      // day, so it simply burns, low and steady, the way a house fire does
+      g.save(); g.globalCompositeOperation = 'lighter'
+      drawFlame(g, sx, sy - 6, t / 1000, .62, hs % 100 / 100)
+      g.restore()
       return
     }
     case 'wall': case 'rampart':
@@ -6147,8 +6075,20 @@ function bleedAt(wx, wy, amount) {
 // cheapest good feedback in the file: how much, from what, right now.
 function popNumber(wx, wy, text, col, big) {
   if (dmgNums.length > 40) dmgNums.shift()
-  dmgNums.push({ x: wx, y: wy, text, col, big: !!big, at: performance.now(),
-                 vx: (Math.random() - .5) * 26 })
+  const now = performance.now()
+  // FOUR GOBLINS HITTING YOU IS FOUR NUMBERS, NOT ONE.
+  //
+  // Every number rose from the same point with a small random drift, so
+  // simultaneous hits stacked into a single illegible smear -- which is
+  // precisely the moment a citizen most needs to know how much is landing and
+  // from how many directions. Numbers arriving at the same place within a
+  // fifth of a second now FAN: each takes the next slot, spreading outward and
+  // stepping upward, and each pops a beat after the one before so the eye
+  // reads them as a sequence of blows rather than one event.
+  const slot = dmgNums.filter(d => d.x === wx && d.y === wy && now - d.at < 260).length
+  dmgNums.push({ x: wx, y: wy, text, col, big: !!big, at: now, slot,
+                 delay: Math.min(slot, 5) * 85,
+                 vx: (Math.random() - .5) * 10 })
 }
 
 // White-hot on impact, drawn through a scratch surface so the flash follows
@@ -6265,13 +6205,23 @@ function drawScene(now) {
   g.save(); g.globalCompositeOperation = 'lighter'
   for (const [bx, by, col] of beams) {
     const puls = .72 + Math.sin(now / 420 + bx) * .2
-    const bg = g.createLinearGradient(0, by - 108, 0, by + 4)
+    // AS TALL AS IT IS CLICKABLE, AND NO TALLER.
+    //
+    // The beam stood a hundred and eight pixels up -- nearly three tiles in
+    // this projection -- and the item's hit box reached fifty-four. So the top
+    // half of the most eye-catching thing on the floor did nothing when you
+    // aimed at it. Extending the box was the wrong repair: a pillar reaching
+    // three tiles up would start taking clicks meant for whatever stands
+    // behind it. The affordance was the thing that was lying, so the beam is
+    // now the height it can honour.
+    const BEAM = 62
+    const bg = g.createLinearGradient(0, by - BEAM, 0, by + 4)
     bg.addColorStop(0, hexA(col, 0))
-    bg.addColorStop(.45, hexA(col, .16 * puls))
-    bg.addColorStop(1, hexA(col, .34 * puls))
+    bg.addColorStop(.45, hexA(col, .18 * puls))
+    bg.addColorStop(1, hexA(col, .36 * puls))
     g.fillStyle = bg
     g.beginPath()
-    g.moveTo(bx - 5, by - 108); g.lineTo(bx + 5, by - 108)
+    g.moveTo(bx - 4, by - BEAM); g.lineTo(bx + 4, by - BEAM)
     g.lineTo(bx + 15, by + 2); g.lineTo(bx - 15, by + 2)
     g.closePath(); g.fill()
     const rg = g.createRadialGradient(bx, by, 0, bx, by, 26)
@@ -6528,18 +6478,25 @@ function drawScene(now) {
   g.textAlign = 'center'; g.textBaseline = 'alphabetic'
   for (let i = dmgNums.length - 1; i >= 0; i--) {
     const d = dmgNums[i]
-    const age = (now - d.at) / 1150
+    const age = (now - d.at - (d.delay ?? 0)) / 1150
     if (age > 1) { dmgNums.splice(i, 1); continue }
+    if (age < 0) continue                       // its turn has not come yet
     const p = screenOf(d.x, d.y)
     const rise = 34 * (1 - Math.pow(1 - age, 2.2))
     const pop = age < .16 ? 1 + (1 - age / .16) * .55 : 1
     const size = (d.big ? 25 : 18) * pop
+    // the fan: alternate sides, widening, and step each one higher than the last
+    const k = d.slot ?? 0
+    const side = k % 2 ? 1 : -1
+    const fanX = k === 0 ? 0 : side * (12 + ((k - 1) >> 1) * 15)
+    const fanY = k * 9
     g.globalAlpha = age > .68 ? (1 - age) / .32 : 1
     g.font = '900 ' + size.toFixed(1) + 'px Cinzel, Georgia, serif'
     g.lineWidth = 3.4; g.strokeStyle = 'rgba(4,3,6,.9)'
-    g.strokeText(d.text, p.x + d.vx * age, p.y - 44 - rise)
+    const tx = p.x + fanX + d.vx * age, ty = p.y - 44 - fanY - rise
+    g.strokeText(d.text, tx, ty)
     g.fillStyle = d.col
-    g.fillText(d.text, p.x + d.vx * age, p.y - 44 - rise)
+    g.fillText(d.text, tx, ty)
     g.globalAlpha = 1
   }
 
@@ -7521,18 +7478,10 @@ function drawPanel(g, now) {
   const BR = Math.round(clamp(PANEL_H * .105, 9, 15))
   const btnY = py0 + PANEL_H - 15
 
-  // ---- what the world has been saying -------------------------------------
-  const logTop = py0 + 34
-  const rows = Math.max(1, Math.min(3, Math.floor((beltY - 4 - logTop) / 14)))
-  g.textAlign = 'left'; g.textBaseline = 'alphabetic'
-  g.font = '12px Georgia, serif'
-  logLines.slice(-rows).forEach((l, i2) => {
-    const age = (now - l.at) / 1000
-    g.globalAlpha = clamp(1.4 - age / 22, .25, 1)
-    g.fillStyle = LOGCOL[l.kind] ?? LOGCOL.plain
-    g.fillText(l.text + (l.n > 1 ? '  \u00d7' + l.n : ''), midX + 2, logTop + i2 * 14, midW - 4)
-  })
-  g.globalAlpha = 1
+  // The log used to live in this strip, ten pixels under the experience rule
+  // and directly on top of the belt. Four things were competing for forty
+  // pixels. It is drawn ABOVE the slab now (drawLog), where it has the whole
+  // width of the screen and nothing to collide with.
 
   // ---- the belt -----------------------------------------------------------
   // Four things you can swallow without stopping what you are doing, filled
@@ -8088,6 +8037,39 @@ function drawPlaceBanner(g, now) {
   g.restore()
   g.textBaseline = 'alphabetic'
 }
+
+// ---------------------------------------------------------------------------
+// THE LOG, ABOVE THE SLAB
+// ---------------------------------------------------------------------------
+// Out of the panel entirely. Inside it, the trained skill, the gold, the log
+// and the belt were all fighting for the same forty pixels -- the screenshot
+// shows "RANGED 75" and "Entering Anchor Vale." practically touching. Here it
+// has the full width, room for four lines, and a soft gradient under it so the
+// words hold against whatever the world happens to be doing behind them.
+function drawLog(g, now) {
+  const rows = logLines.slice(-4)
+  if (!rows.length) return
+  const lh = 16
+  const bottom = PANEL_Y - 10
+  const top = bottom - rows.length * lh
+  const w = Math.min(VW - 40, 720), x = (VW - w) / 2
+  const gr = g.createLinearGradient(0, top - 10, 0, bottom + 4)
+  gr.addColorStop(0, 'rgba(4,3,6,0)'); gr.addColorStop(.45, 'rgba(4,3,6,.52)')
+  gr.addColorStop(1, 'rgba(4,3,6,.62)')
+  g.fillStyle = gr; g.fillRect(x, top - 10, w, rows.length * lh + 14)
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic'
+  g.font = '13px Georgia, serif'
+  rows.forEach((l, i) => {
+    const age = (now - l.at) / 1000
+    g.globalAlpha = clamp(1.5 - age / 26, .28, 1)
+    const txt = l.text + (l.n > 1 ? '  \u00d7' + l.n : '')
+    g.lineWidth = 3; g.strokeStyle = 'rgba(3,2,5,.8)'
+    g.strokeText(txt, VW / 2, top + i * lh + 12, w - 20)
+    g.fillStyle = LOGCOL[l.kind] ?? LOGCOL.plain
+    g.fillText(txt, VW / 2, top + i * lh + 12, w - 20)
+  })
+  g.globalAlpha = 1
+}
 // ===========================================================================
 // THE HAND ON THE MOUSE
 // ---------------------------------------------------------------------------
@@ -8114,6 +8096,21 @@ let travelMark = null
 let planned = null
 let shiftHeld = false
 let giveTo = null      // a citizen awaiting an offer; the next pack click is it
+
+// STANDING YOUR GROUND IS NOT THIS WINDOW'S BUSINESS.
+//
+// A retaliation loop lived here: it watched for a beast that had turned on the
+// citizen and answered it. It worked, and it was in the wrong place. Reflexes
+// are a fact about a body, not a preference about a view -- and the
+// constitution had said exactly that since v0.36 for citizens (spec 2g)
+// without ever saying it of beasts. So the rule went where it belonged, spec
+// 2g now says it of both, and every window inherits it whether or not anybody
+// writes this code again.
+//
+// It is also why the window's version had a bug the engine's does not: the
+// constitution ends the engagement the moment you move, and mine re-engaged
+// every tick, dragging a fleeing citizen back into a fight they were running
+// from.
 
 // ---- what can be stood on -------------------------------------------------
 let nodeTiles = new Set()
@@ -8235,7 +8232,7 @@ function verbFor(kind, e) {
   if (e.type === 'bank') return 'bank'
   if (e.type === 'store') return 'store'
   if (e.type === 'campfire' || e.type === 'fire') return 'cook'
-  if (e.type === 'house' && indoors(e.x, e.y)) return 'stair'
+  if (e.type === 'hearth') return 'hearth'
   if (e.type === 'brewpot') return 'collect'
   if (e.type === 'waystone') return 'attune'
   return 'look'
@@ -8243,7 +8240,7 @@ function verbFor(kind, e) {
 const VERB_WORD = {
   attack: 'Strike', pickup: 'Take', gather: 'Work', harvest: 'Harvest', forge: 'The anvil',
   bank: 'The vault', store: 'The counter', cook: 'Cook', collect: 'Collect',
-  attune: 'Waystone', greet: 'Hail', look: 'Look', walk: 'Walk', stair: 'It goes up',
+  attune: 'Waystone', greet: 'Hail', look: 'Look', walk: 'Walk', hearth: 'The hearth',
 }
 
 // ---- what a thing in the pack does when you click it ----------------------
@@ -8274,6 +8271,65 @@ function useSlot(i) {
   if (it === 'seeds') { send({ do: 'plant', slot: i }); return }
   if (typeof it === 'string' && it.startsWith('chart:')) { send({ do: 'read_chart', slot: i }); return }
   say('Nothing to do with ' + wordy(it) + ' but carry it, sell it, or drop it.', 'dim')
+}
+
+// WHAT A THING SAYS WHEN YOU LOOK AT IT.
+//
+// Clicking a signpost printed the word "signpost", which is the one fact you
+// could already see. The world puts real text on some of these -- a signpost
+// carries `n.text`, and the siren's board reads "the strand sings, she takes
+// one at a time" -- and it was being thrown away. Everything else gets a line
+// of its own, because a landmark answers to no verb and the only thing it can
+// ever give a citizen is a sentence.
+const LOOK = {
+  'standing-stone': 'A stone set upright by somebody, a long time ago, for a reason nobody wrote down.',
+  cairn: 'Stones piled by passing hands. You could add one.',
+  'boundary-stone': 'A boundary stone. On one side of it you are somewhere else.',
+  milestone: 'A milestone, its figures worn to shadows.',
+  sentinel: 'It has the shape of a watching thing, and it has been watching a long while.',
+  'glass-stone': 'The stone is glassy where something very hot touched it.',
+  'cut-face': 'A quarried face, stepped where the stone was taken away.',
+  'broken-tower': 'A tower, broken off at the height somebody stopped caring.',
+  'sunken-wall': 'A wall going down into the ground, or the ground coming up over a wall.',
+  'drowned-bell': 'A bell tower standing in water. The bell is still in it.',
+  shipwreck: 'Ribs of a hull in the sand. Whatever it carried is long gone.',
+  'siege-engine': 'A siege engine, still cocked. Nobody has dared unwind it.',
+  'cave-mouth': 'A dark opening. Air moves out of it, which means it goes somewhere.',
+  mill: 'A mill. The sails turn whether or not there is anything to grind.',
+  'bone-pile': 'Bones, picked clean and left where they fell.',
+  'skull-pile': 'Skulls, stacked. Stacking takes time and somebody took it.',
+  gibbet: 'A gibbet, with its cage still occupied.',
+  'tally-half': 'One half of a split tally stick. Somebody holds the other, and remembers.',
+  web: 'A web strung between two posts, and not by anything small.',
+  'log-pile': 'Cut logs, stacked to season.',
+  'spoil-heap': 'Spoil from a working. What was worth taking was taken.',
+  haystack: 'A haystack, forked up and left to the weather.',
+  'charcoal-clamp': 'An earthed clamp, burning slow. It will be charcoal in a week.',
+  'scorched-ring': 'Scorched ground in a ring. Nothing grows in it.',
+  'burnt-tree': 'A tree burnt to charcoal and still standing.',
+  cart: 'A cart with a wheel off, going nowhere.',
+  scarecrow: 'Straw and old cloth on a cross. The birds are used to it.',
+  barricade: 'Stakes driven point-out. Somebody expected company.',
+  'old-oak': 'An oak that was old before the towns were.',
+  'elder-tree': 'Pale-barked and quiet. The air around it is a little colder.',
+  table: 'A table.', bed: 'A bed, made up.', shelf: 'A shelf of pots and oddments.',
+  barrel: 'A barrel, headed and full of something.',
+  crate: 'A crate, nailed shut.', stump: 'A stump, cut clean.',
+  'crude-hearth': 'A ring of stones with cold ash in it.',
+  skep: 'A straw hive. The bees are working.',
+  hurdle: 'A woven hurdle, for penning things in.',
+  'eel-rack': 'Eels hung to dry on a rack.',
+}
+function lookAt(n) {
+  if (n.text) return n.text                       // the world wrote this itself
+  const k = n.kind ?? n.type
+  if (LOOK[k]) return LOOK[k]
+  if (n.type === 'waystone') return 'A waystone. The road remembers it, and so will you.'
+  if (n.type === 'well') return 'A well. The water is cold and very deep.'
+  if (n.type === 'wall') return 'A wall. Somebody built this, course by course.'
+  if (n.type === 'hedge') return 'A hedge, laid and grown thick.'
+  if (n.type === 'fence') return 'A fence, of split rails.'
+  return wordy(k) + '.'
 }
 
 // ---------------------------------------------------------------------------
@@ -8458,7 +8514,21 @@ function pickWorld(p) {
     if (dx > box[0] && dx < box[1] && dy > box[2] && dy < box[3])
       cands.push({ kind, id, e, x: Math.round(ix), y: Math.round(iy), d: ix + iy })
   }
-  for (const [id, gi] of Object.entries(s.ground ?? {})) test('ground', id, gi, gi.x, gi.y, [-18, 18, -30, 8])
+  // A DROPPED THING IS SMALL AND ITS TARGET MUST NOT BE.
+  //
+  // The box stopped thirty pixels above the tile, and the item is drawn
+  // twenty-four up with a bobbing thirty-four-pixel icon, a glow above that, a
+  // name plate at thirty-four, and a hundred-pixel PILLAR OF LIGHT standing
+  // over the whole thing. Aim at any of the parts that actually catch the eye
+  // and the click fell through to bare ground -- so the citizen walked over the
+  // item and kept going, which is exactly what it looked like.
+  //
+  // The box now covers exactly what is drawn: the icon, its label, and the
+  // full sixty-two pixels of beam (52-scene shortened it to this so that the
+  // two agree). Anything an item draws, you can click; anything above that
+  // belongs to whatever stands behind it, and the tile-exactness rule settles
+  // the overlap.
+  for (const [id, gi] of Object.entries(s.ground ?? {})) test('ground', id, gi, gi.x, gi.y, [-22, 22, -66, 14])
   for (const [id, m] of Object.entries(s.mobs ?? {})) {
     if (m.hp <= 0) continue
     const [ix, iy] = lerpPos('m' + id, m.x, m.y, t)
@@ -8587,8 +8657,38 @@ function runRegion(r, isRight) {
 // This is what makes one click enough. The intent survives until it is
 // satisfied or refused; the walking is a consequence of it, not a separate
 // thing you have to do first.
+// AN ORDER THAT NEVER LANDS MUST SAY WHY, AND THEN STOP.
+//
+// Sixty simulated approaches through a cluttered town all settle, so whatever
+// is left happens in conditions the simulation does not reproduce -- the real
+// engine refusing a move for a reason the window did not predict, most likely.
+// Rather than guess a fourth time, the window now watches its own orders: if
+// one has been alive for twelve ticks without being satisfied it gives up,
+// marks the spot, and reports the distance and how many refusals it saw. The
+// dance is bounded, and the next report will say what it is.
 function pumpIntent() {
   const s = curState; if (!s || !intent) return
+  const me1 = myId && s.players[myId]
+  if (intent.since === undefined) {
+    // THE BUDGET IS THE DISTANCE, not a flat number. A walk across a town is
+    // legitimately thirty steps and must not be cut off as a failure; a walk
+    // to the tile beside you that has taken thirty is the dance. Twice the
+    // straight-line distance plus ten covers every detour the router can
+    // reasonably need, including going the long way round a wall.
+    intent.since = s.tick ?? 0
+    const d0 = (me1 && intent.x !== undefined)
+      ? Math.max(Math.abs(me1.x - intent.x), Math.abs(me1.y - intent.y)) : 8
+    intent.budget = Math.round(clamp(d0 * 2 + 10, 14, 90))
+  }
+  if ((s.tick ?? 0) - intent.since > intent.budget) {
+    const d = (me1 && intent.x !== undefined)
+      ? Math.max(Math.abs(me1.x - intent.x), Math.abs(me1.y - intent.y)) : '?'
+    say('Gave up \u2014 ' + intent.budget + ' steps and still ' + d + ' away'
+      + (intent.refused ? ', ' + intent.refused + ' refused' : '') + '.', 'warn')
+    travelMark = { x: intent.x, y: intent.y, at: performance.now(), fail: true }
+    intent = null
+    return
+  }
   const me = myId && s.players[myId]; if (!me) return
   // PROJECTION IS FOR PLANNING, NEVER FOR VALIDITY.
   //
@@ -8665,7 +8765,7 @@ function pumpIntent() {
       }
       stepToward(from, n, 'adjacent'); return
     }
-    case 'stair': { intent = null; say('Stairs, going up. Nothing above but the roof.', 'dim'); return }
+    case 'hearth': { intent = null; say('A hearth. Somebody lives here.', 'dim'); return }
     case 'forge': case 'bank': case 'store': case 'attune': case 'look': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) {
@@ -8673,7 +8773,7 @@ function pumpIntent() {
         else if (intent.kind === 'bank') { paneModal = 'bank'; say('The vault opens.', 'dim') }
         else if (intent.kind === 'store') { paneModal = 'store'; say('The keeper looks up.', 'dim') }
         else if (intent.kind === 'attune') say('You are attuned to this waystone.', 'good')
-        else say(wordy(n.kind ?? n.type) + '.', 'dim')
+        else say(lookAt(n), 'dim')
         intent = null; return
       }
       stepToward(from, n, 'adjacent'); return
@@ -8701,11 +8801,10 @@ function onState(s, worldId) {
     configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
     _tileArt.clear()
     _gcol.clear()
-    _bspan.clear()
-    _cross.clear()
     say('The world names itself: ' + (worldId || '').slice(0, 8) + '\u2026', 'dim')
   }
 
+  drainOutbox()          // anything that could not get a tick last time
   indexNodes(s)
   notePositions(s)
 
@@ -9115,6 +9214,7 @@ function frame(now) {
     if (paneModal === 'forge') drawForge(cx, now)
     else if (paneModal === 'bank') drawVault(cx)
     else if (paneModal === 'store') drawCounter(cx)
+    drawLog(cx, now)
     drawPanel(cx, now)
     drawBeastBar(cx)
     drawMenu(cx)
@@ -9124,8 +9224,8 @@ function frame(now) {
     if (r && r.tip) tipAt = r.tip
     else if (hover && hover.kind === 'node') {
       const v = verbFor('node', hover.e)
-      // the window names what it DREW, which for an indoor house is a stair
-      const noun = v === 'stair' ? 'stair' : wordy(hover.e.kind ?? hover.e.type)
+      // the window names what it DREW: a `house` node is a fireplace
+      const noun = v === 'hearth' ? 'hearth' : wordy(hover.e.kind ?? hover.e.type)
       tipAt = { title: noun, sub: VERB_WORD[v] ?? null }
     } else if (hover && hover.kind === 'player') {
       tipAt = { title: hover.e.name || hover.id.slice(0, 8), sub: callingOf(hover.e), col: '#9fb0c4' }

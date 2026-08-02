@@ -67,7 +67,7 @@ bounds are the rectangle `x in [cx-8, cx+8], y in [2, 10]` where
 perimeter, broken by a three-tile gate in the south wall at
 `x in [cx-1, cx+1]`, flanked by guards. **No mob may enter the city
 bounds**: the wander rule refuses any step into them. Inside stand a
-bank, a walled smithy with its anvil and smith, houses, a well, and a
+bank, a walled smithy with its anvil and smith, hearths, a well, and a
 hearth. Inert citizen-shaped nodes (`guard`, `smith`) are furniture
 with faces: impassable, unattackable, and reassuring.
 
@@ -91,7 +91,7 @@ The founding grows to town scale. Along the great east-west road:
 **bear**. South down the lake road lies **Stillwater**, a fishing
 village on the shore of the great lake, keeping the world's first
 **general store**. Southeast sits **Milbrook**, a quiet town of
-houses, bank, anvil, and well. Roads are painted by windows; every
+hearths, bank, anvil, and well. Roads are painted by windows; every
 building, water tile, and creature stands where the founding says.
 
 ## 6l. The store and gold (the first coin)
@@ -242,6 +242,16 @@ no combat action of their own is hit by another citizen, they
 automatically engage their attacker. Flight remains possible: any
 move breaks the engagement, and the boundary still protects.
 
+The same is true of beasts, anywhere. A citizen with no combat action
+of their own who is struck by a beast engages that beast, and keeps
+engaging it until it falls or they move. This was written of citizens
+alone for four foundings and left out of the beasts for no recorded
+reason, so a person fought back on reflex against a person and stood
+still while a wolf ate them. It is one rule, and it belongs to
+everyone: a window that supplies it for its own users is deciding a
+citizen's reflexes by which window they chose, and that is not a
+window's to decide.
+
 ## 2h. The real world (v0.36): the river, the sea, the mountains
 
 The founding grows to 192 x 96, and gains geography that ROUTES:
@@ -265,14 +275,14 @@ garrison town, smaller and grimmer than Anchor, built for one reason:
 holding the line against the lawless quarter at its back. Walls
 trace its perimeter, broken by a gate in the south wall flanked by
 guards; **no mob may enter its bounds**, the same law that protects
-Anchor. Inside stand a bank, an anvil, houses, a well, a hearth, and
+Anchor. Inside stand a bank, an anvil, hearths, a well, and
 farming plots. Outside its walls, on the side facing away from the
 Wilds, a small quarry supplies the ore a garrison spends on itself.
 Norwick is reached by leaving the king's road on foot; no path is
 drawn in state, as ever, only the town itself is law.
 
 New inert node type: none (Norwick reuses `wall`, `guard`, `bank`,
-`anvil`, `well`, `house`, `signpost`, `rock`, `plot`). New founding
+`anvil`, `well`, `hearth`, `signpost`, `rock`, `plot`). New founding
 constant: a second mob-forbidden rectangle, checked alongside
 Anchor's wherever the wander rule applies.
 
@@ -297,7 +307,7 @@ modest bank-and-anvil founding. Eastmere trades its anvil for a
 store and two dockside fishing spots: a port, not a second
 Westhearth. Anchor gains a second forge and its own store: the
 capital both smiths and trades. Milbrook keeps no forge at all: bank,
-well, houses, plots, nothing else: a farming town and only that.
+well, hearths, plots, nothing else: a farming town and only that.
 
 **Danger now shows before it bites.** Approaching the mountains, the
 Wilds, or the cave, trees thin probabilistically the closer a tile
@@ -400,7 +410,7 @@ Every town is walled with a gate at the middle of each face, so no
 town is sealed; a wall stops at the water's edge, and where the river
 enters a town there is a **watergate** rather than masonry. Every town
 keeps a bank, a well, a hearth, and a signpost bearing its name; the
-capital adds smiths, anvils, two stores, six houses, and a guard line;
+capital adds smiths, anvils, two stores, six hearths, and a guard line;
 forges, garrisons, and mills keep an anvil and a smith; ports, timber
 towns, and mills keep a store; garrisons muster guards. The settled
 country farms: four plots stand outside every wall.
@@ -619,7 +629,12 @@ A node is `{type, x, y, depletedUntil}`. Types: `tree`, `rock`,
 §6a); `fire` (player-made via firemaking §6f, carries `expiresAt` and
 vanishes at the start of that tick; enables cooking like a campfire);
 `anvil` (enables smithing, §6d); `bank` (enables banking, §6g); and
-`house` (inert and impassable: the shelter of the hamlets, §2b). A node with `depletedUntil > tick` yields nothing and
+`hearth` (inert and impassable: the fire a dwelling is built around, §2b).
+Renamed from `house` at the fourth founding: the building is the ROOM you walk
+into, made of `wall` nodes on floor terrain, and what stands inside it is its
+fire. A node called `house` that draws as a fireplace taught every window the
+wrong thing, and two of them drew a cottage inside a hall before anyone caught
+it. A node with `depletedUntil > tick` yields nothing and
 cannot be targeted.
 
 Gather yield table: `tree` → `logs` (woodcutting, 25 XP), `rock` →
@@ -1521,9 +1536,9 @@ itself), so a bot earns nothing it did not first gather.
 A brewpot is an owned, placed node (`type: 'brewpot'`, fields `by`, and
 while fermenting `readyAt` + `brewKind`). `build_brewpot` raises one on a
 free tile beside the founder, consuming `brew.buildLogs` logs and
-`brew.buildOre` ore: **but only adjacent to a `house`.** The protocol
+`brew.buildOre` ore: **but only adjacent to a `hearth`.** The protocol
 knows nothing of taverns; it knows only "a brewpot must stand by a
-roof." A brewhouse: a house ringed with brewpots and the people who
+roof." A brewhouse: a hearth ringed with brewpots and the people who
 gather there: is a meaning *players* assign, the way they made trade
 routes of waystones. A citizen may own at most `brew.potCap` brewpots.
 The cap is flat: capacity is bought, not leveled: running four pots is

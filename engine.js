@@ -278,7 +278,7 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
-  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'house', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire'];
+  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -2680,7 +2680,7 @@ function validInput(state, input, ctx) {
       if (p.hp <= 0 || !state.genesis.brew) return false;
       const bc = state.genesis.brew;
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
-      if (!hasAdjacentNode(state, ctx, p, 'house')) return false;
+      if (!hasAdjacentNode(state, ctx, p, 'hearth')) return false;
       if (brewpotsOwnedBy(state, ctx, input.playerId) >= bc.potCap) return false;
       return countLogs(p.inventory) >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre;
     }
@@ -3534,6 +3534,30 @@ function nextState(state, inputs, _legacyBeacon) {
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : st.maxHit);
           target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
+          // §2g EXTENDED TO THE BEASTS: A STRUCK CITIZEN STRIKES BACK.
+          //
+          // The constitution has said this since v0.36, and said it only of
+          // citizens: "when a citizen with no combat action of their own is
+          // hit by another citizen, they automatically engage their
+          // attacker. Flight remains possible: any move breaks the
+          // engagement." Every word of that is as true of a goblin, and it
+          // was left out for no reason anyone recorded -- so a citizen with
+          // four wolves on them stood and took it unless they clicked, while
+          // the same citizen fought back on reflex against a person.
+          //
+          // A window can imitate this, and one of them did. That was wrong:
+          // it made a citizen's reflexes depend on which window they were
+          // looking through, which is the one thing this world does not let a
+          // window decide. It belongs here, where it applies to everyone.
+          //
+          // The two conditions are the same as the PvP rule's, and both
+          // matter. NO COMBAT ACTION OF THEIR OWN, so a deliberate fight with
+          // something else is never hijacked. And flight still works: moving
+          // clears the action, exactly as it does above.
+          if (target.hp > 0 && target.action?.type !== 'attack'
+              && target.action?.type !== 'attackp') {
+            target.action = { type: 'attack', mobId: mid, since: s.tick + 1 };
+          }
           if (target.hp <= 0) {
             // §6w: THE BOW SURVIVES ITS BEARER.
             //
@@ -4106,9 +4130,9 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'build_brewpot') {
       const bc = s.genesis.brew;
       const free = !nodeExistsAt(s, _ctx, p.x, p.y);
-      const nearHouse = hasAdjacentNode(s, _ctx, p, 'house');
+      const nearHearth = hasAdjacentNode(s, _ctx, p, 'hearth');
       const owned = brewpotsOwnedBy(s, _ctx, pid);
-      if (bc && free && nearHouse && owned < bc.potCap && countLogs(p.inventory) >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre) {
+      if (bc && free && nearHearth && owned < bc.potCap && countLogs(p.inventory) >= bc.buildLogs && countItem(p.inventory, 'ore') >= bc.buildOre) {
         consumeLogs(p.inventory, bc.buildLogs); consumeItem(p.inventory, 'ore', bc.buildOre);
         addIndexedNode(s, _ctx, 'brewpot-' + pid + '-' + s.tick, { type: 'brewpot', x: p.x, y: p.y, by: pid, lastUsed: s.tick });
       }
