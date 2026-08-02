@@ -17,7 +17,14 @@ import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld } from './worldgen.mjs'
+// JOIN COULD NOT ENTER AN EXPANSE WORLD.
+// This imported worldgen.mjs, which registers `interval-classic-v1` and
+// nothing else, so every terrain read as blocked and the founding failed
+// validation: `worldgen interval-expanse-v5 is not registered on this
+// node`. Every world founded since the first expanse -- which is every
+// world anyone is playing -- was unreachable to the one tool whose entire
+// purpose is reaching them. serve.mjs has always imported worldgen-any.
+import { buildWorld } from './worldgen-any.mjs'
 
 const ARG = process.argv[2]
 const CHOP = process.argv.includes('--chop')
