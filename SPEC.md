@@ -237,6 +237,19 @@ while leaving it merely expensive to a veteran. It also gives the three
 restoratives distinct worth, at 0.625, 0.5 and 0.375 HP per tick
 sustained, which is the brewer's market made real.
 
+**A citizen may choose their own face.** A player carries an optional
+`look`: a single integer, 0-255, set by the `set_look` input, free and
+changeable at will. The engine never reads it and no rule depends on
+it. It is a SEED, not a description -- deliberately not a set of named
+features, because a window told "hair: brown" is being told in some
+other window's vocabulary, and the windows of this world do not share
+one. A terminal has a letter where a lit window has a coat. So the
+world records only WHICH person this is, and every window says it in
+its own language. Absent, a citizen's appearance derives from their
+key, as it always has. This is 5a's own argument applied to a face:
+what everyone can see about a person belongs where everyone can read
+it, and not in one browser's local storage.
+
 **A struck citizen strikes back.** In the Wilds, when a citizen with
 no combat action of their own is hit by another citizen, they
 automatically engage their attacker. Flight remains possible: any

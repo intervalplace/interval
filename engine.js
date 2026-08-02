@@ -1953,7 +1953,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte']);
+  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -2015,6 +2015,17 @@ const LANDMARK_KINDS = new Set([
     for (const k of Object.keys(p))
       if (!PLAYER_REQUIRED.includes(k) && !PLAYER_OPTIONAL.has(k)) return `unknown player field ${k}`;
     if (!isInt(p.x, 0, W - 1) || !isInt(p.y, 0, H - 1)) return 'player out of bounds';
+    // A LOOK IS A SEED, NOT A DESCRIPTION.
+    //
+    // One integer, and deliberately not a set of named features. A window that
+    // had to be told "hair: brown" would be told in the lantern window's own
+    // vocabulary -- and the holo window has no hair, the flat window has twelve
+    // pixels, a terminal has a letter. So the world carries only WHICH person
+    // this is, and every window says it in its own language. The engine never
+    // reads it and nothing in the rules depends on it; it is here for the same
+    // reason a name is: so that everyone looking at a citizen sees the same
+    // citizen (spec 5a's own argument, applied to a face).
+    if (p.look !== undefined && !isInt(p.look, 0, 255)) return 'look out of bounds';
     if (!isInt(p.hp, 0, 100000)) return 'player hp out of bounds';
     // skills: the COMPLETE constitutional set, exactly, a missing skill is
     // as hostile as an unknown one (both change transition behavior)
@@ -2490,6 +2501,12 @@ function validInput(state, input, ctx) {
       const ws = state.nodes[input.to];
       if (!ws || ws.type !== 'waystone') return false;
       return (p.attuned ?? []).includes(input.to);
+    }
+    case 'set_look': {
+      // free, and changeable: a look is not a claim on anything. A name costs
+      // fifty standing because names are scarce and permanent; there is only
+      // one of each. Faces are not scarce.
+      return isInt(input.look, 0, 255);
     }
     case 'claim_name': {
       // spec §5a: lowercase a-z0-9- (no leading/trailing -), 1-12 chars,
@@ -4312,6 +4329,8 @@ function nextState(state, inputs, _legacyBeacon) {
           p.inventory[inp.slot] = { item: deep ? 'burnt-deep-fish' : 'burnt-fish', qty: 1 };
         }
       }
+    } else if (inp.type === 'set_look') {
+      p.look = inp.look;
     } else if (inp.type === 'claim_name') {
       // re-check against the NEW state: two claims for the same name in
       // one tick resolve by canonical playerId order (first applier wins)

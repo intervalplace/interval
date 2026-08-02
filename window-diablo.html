@@ -161,6 +161,22 @@
   .dbtn:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px }
   .dbtn[disabled] { opacity: .45; cursor: default }
 
+  #gate .face { margin: 16px 0 4px; display: flex; flex-direction: column; align-items: center }
+  #gate .face canvas {
+    width: 132px; height: 176px; image-rendering: auto;
+    border: 1px solid #33291a; border-radius: 6px;
+    background: radial-gradient(ellipse at 50% 62%, #241d16 0%, #100c0a 72%);
+    box-shadow: inset 0 0 26px rgba(0,0,0,.7);
+  }
+  #gate .facebtns { display: flex; align-items: center; gap: 14px; margin-top: 8px }
+  #gate .facebtns span { font-size: 11.5px; color: #6f6250; min-width: 74px; text-align: center;
+    font-style: italic }
+  #gate .facebtns button {
+    background: linear-gradient(#2a2119, #17120d); border: 1px solid #4a3c20;
+    color: var(--gold); border-radius: 5px; width: 34px; height: 26px; font-size: 15px;
+    cursor: pointer; line-height: 1;
+  }
+  #gate .facebtns button:hover { border-color: var(--gold); background: linear-gradient(#3a2e20, #221a12) }
   #gate .minor { display: flex; gap: 18px; justify-content: center; margin-top: 22px; flex-wrap: wrap }
   #gate .minor button {
     background: none; border: none; cursor: pointer; color: #6f6250;
@@ -194,11 +210,20 @@
     <label for="gname">Name yourself</label>
     <input id="gname" maxlength="12" placeholder="unnamed" autocomplete="off" spellcheck="false">
     <div class="why" id="gwhy">A name costs 50 standing. You may walk in without one.</div>
+    <div class="face">
+      <canvas id="gface" width="132" height="176"></canvas>
+      <div class="facebtns">
+        <button id="gprev" title="Previous">&lsaquo;</button>
+        <span id="glook">—</span>
+        <button id="gnext" title="Next">&rsaquo;</button>
+      </div>
+    </div>
     <button class="dbtn" id="genter">Enter the world</button>
     <div class="minor">
       <button id="gkey">Your key</button>
       <button id="gimport">Bring a key</button>
       <button id="gsound">Sound: on</button>
+      <button id="gmusic">Theme: on</button>
       <button id="gquality">Bloom: on</button>
     </div>
   </div>
@@ -1859,6 +1884,33 @@ function progressAt(xp) {
   return { lv, frac: Math.max(0, Math.min(1, ((xp ?? 0) - a) / span)), toNext: Math.max(0, b - (xp ?? 0)),
            mastered: (xp ?? 0) >= XP_TABLE[99] }
 }
+
+// ---------------------------------------------------------------------------
+// THE LOOK (spec 2g)
+// ---------------------------------------------------------------------------
+// One integer, 0-255, and this window's reading of it. Every window is free to
+// read the same number differently -- that is the point of storing a seed
+// rather than a description -- but within THIS window the mapping is fixed, so
+// the same citizen is the same person in every session and on every machine.
+//
+// Absent a look, the key stands in for it, which is what the window always did.
+const SKINS = ['#e6b98f', '#d6a074', '#b9825a', '#8f5f3d', '#6b452b', '#4a2f1e', '#f0cfa8', '#c99168']
+const HAIRS = ['#2a1f16', '#4a3524', '#6b4a2a', '#8a6a34', '#b08a4a', '#8a8a8a', '#c8c0b0', '#5a2a1a']
+const COATS = ['#6e1f19', '#2f4a6e', '#3a5a34', '#5a3a6e', '#6e5220', '#2f2f38', '#7a4020', '#245a5a']
+function lookOf(p, id) {
+  const n = Number.isInteger(p?.look) ? p.look : (hash32(String(id ?? 'x')) & 255)
+  return {
+    n,
+    skin: SKINS[n & 7],
+    hair: HAIRS[(n >> 3) & 7],
+    hairStyle: (n >> 6) & 3,
+    beard: ((n >> 5) & 1) === 1,
+    coat: COATS[(n >> 2) & 7],
+    bulkish: ((n >> 7) & 1) ? 1.12 : 0.94,
+    seed: n * 2654435761 % 65536,
+  }
+}
+const LOOK_COUNT = 256
 // ===========================================================================
 // THE WIRE
 // ---------------------------------------------------------------------------
@@ -1970,6 +2022,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
   : a.do === 'sell' ? { type: 'sell', slot: a.slot }
@@ -2295,8 +2348,14 @@ function tileArt(kind, v) {
   }
 
   g.save(); diamond(g, 0, 0, -1); g.clip()
-  // water keeps a real colour of its own: it is a surface, not ground
-  if (G.grain === 'water') { g.fillStyle = sh(base, 1); g.fillRect(0, 0, TW, TH) }
+  // WATER GETS THE BLENDED FIELD TOO.
+  //
+  // I took the per-tile light-to-dark ramp out of the land because repeating it
+  // across a field paints a grid -- and then left it in for water, which is the
+  // one surface where a grid is most obviously wrong. A sea is a single sheet.
+  // It now takes its colour from the same neighbour-blended field the ground
+  // does, and everything that varies on it (swell, glints, the shoreline)
+  // varies at a scale that has nothing to do with tiles.
 
   // GRAIN, NOT COLOUR.
   //
@@ -2381,10 +2440,14 @@ function tileArt(kind, v) {
         g.beginPath(); g.moveTo(t * TW, t * HH + 1); g.lineTo(t * TW + HW, t * HH + HH + 1); g.stroke()
       }
       speck(20, .8, .3); break }
-    case 'water': {                           // depth, not a blue tile
-      const gr = g.createLinearGradient(0, 0, 0, TH)
-      gr.addColorStop(0, 'rgba(255,255,255,.10)'); gr.addColorStop(1, 'rgba(0,0,0,.34)')
-      g.fillStyle = gr; g.fillRect(0, 0, TW, TH)
+    case 'water': {
+      // no per-tile ramp: only a little hueless mottle, at a scale that does
+      // not line up with the diamond it happens to be drawn inside
+      for (let i = 0; i < 5; i++) {
+        const x = R() * TW, y = R() * TH
+        g.fillStyle = R() > .5 ? 'rgba(255,255,255,.03)' : 'rgba(0,0,0,.05)'
+        g.beginPath(); g.ellipse(x, y, 6 + R() * 12, 3 + R() * 5, 0, 0, 7); g.fill()
+      }
       break }
   }
   // NO EDGE SHADING. A light-to-dark ramp inside every diamond is exactly what
@@ -2612,6 +2675,12 @@ function paintRock(g, W, H, R, style) {
 // past anything a body could actually swing. It reads at forty tiles, which is
 // the entire justification: in a turned camera at this distance you know who
 // is a citizen and who is scenery from the shoulders alone.
+const shade = (hex, k) => {
+  const n = parseInt(String(hex).slice(1), 16)
+  const r = Math.round(((n >> 16) & 255) * k), g2 = Math.round(((n >> 8) & 255) * k)
+  const b = Math.round((n & 255) * k)
+  return 'rgb(' + r + ',' + g2 + ',' + b + ')'
+}
 function humanoid(g, cx, base, o) {
   // one fixed grain per body, so the weave does not crawl between frames
   const R2 = rng((o.seed ?? 1) * 2654435761 % 2147483647)
@@ -2891,12 +2960,92 @@ function humanoid(g, cx, base, o) {
       g.fillRect(cx + 1 * s, headY + 2 * s, 1.7 * s, 1.5 * s)
     }
   } else {
+    // A HEAD, NOT A BEAN.
+    //
+    // This was one skin-coloured ellipse with a darker ellipse on top of it and
+    // a third for hair, and at forty pixels that is a legume with a wig. What
+    // reads at this size is not detail, it is STRUCTURE: a jaw narrower than
+    // the skull, a brow that casts, a neck that the head sits on rather than
+    // floats above, and hair with an actual outline instead of a blob centred
+    // on nothing. Five hair shapes and a beard, chosen by the citizen's own
+    // seed, which is what finally makes a crowd read as people.
+    const hw = 4.5 * s, hh = 5.4 * s
+    // the neck, so the head has somewhere to be
+    g.fillStyle = shade(skin, .74)
+    g.fillRect(cx - 1.9 * s, headY + hh - 2 * s, 3.8 * s, 4 * s)
+    // the skull: wider above, tapering to a jaw
     g.fillStyle = skin
-    g.beginPath(); g.ellipse(cx, headY + 2 * s, 4.6 * s, 5.2 * s, 0, 0, 7); g.fill()
-    g.fillStyle = 'rgba(0,0,0,.28)'
-    g.beginPath(); g.ellipse(cx + 2 * s, headY + 2 * s, 2.6 * s, 5 * s, 0, 0, 7); g.fill()
-    if (o.hair) { g.fillStyle = o.hair
-      g.beginPath(); g.ellipse(cx, headY - 1 * s, 4.8 * s, 3.4 * s, 0, 0, 7); g.fill() }
+    g.beginPath()
+    g.moveTo(cx - hw, headY + 1.2 * s)
+    g.quadraticCurveTo(cx - hw, headY - hh * .8, cx, headY - hh * .85)
+    g.quadraticCurveTo(cx + hw, headY - hh * .8, cx + hw, headY + 1.2 * s)
+    g.quadraticCurveTo(cx + hw * .82, headY + hh, cx, headY + hh * 1.06)
+    g.quadraticCurveTo(cx - hw * .82, headY + hh, cx - hw, headY + 1.2 * s)
+    g.fill()
+    // light from the upper left: the shadow side, and the brow
+    g.fillStyle = 'rgba(0,0,0,.26)'
+    g.beginPath()
+    g.moveTo(cx + .6 * s, headY - hh * .85)
+    g.quadraticCurveTo(cx + hw, headY - hh * .7, cx + hw, headY + 1.2 * s)
+    g.quadraticCurveTo(cx + hw * .82, headY + hh, cx + .6 * s, headY + hh * 1.06)
+    g.fill()
+    g.fillStyle = 'rgba(0,0,0,.20)'
+    g.beginPath(); g.ellipse(cx, headY - 1.2 * s, hw * .86, 1.5 * s, 0, 0, 7); g.fill()
+    if (o.hair) {
+      const st = (o.hairStyle ?? 0) % 5
+      g.fillStyle = o.hair
+      g.beginPath()
+      if (st === 0) {                            // cropped
+        g.moveTo(cx - hw - .4 * s, headY + .4 * s)
+        g.quadraticCurveTo(cx - hw, headY - hh, cx, headY - hh * 1.02)
+        g.quadraticCurveTo(cx + hw, headY - hh, cx + hw + .4 * s, headY + .4 * s)
+        g.quadraticCurveTo(cx + hw * .4, headY - hh * .3, cx, headY - hh * .34)
+        g.quadraticCurveTo(cx - hw * .4, headY - hh * .3, cx - hw - .4 * s, headY + .4 * s)
+      } else if (st === 1) {                     // long, falling past the jaw
+        g.moveTo(cx - hw - 1 * s, headY + hh * .9)
+        g.quadraticCurveTo(cx - hw - 1.4 * s, headY - hh, cx, headY - hh * 1.05)
+        g.quadraticCurveTo(cx + hw + 1.4 * s, headY - hh, cx + hw + 1 * s, headY + hh * .9)
+        g.quadraticCurveTo(cx + hw * .7, headY + hh * .2, cx + hw * .55, headY - hh * .3)
+        g.quadraticCurveTo(cx, headY - hh * .55, cx - hw * .55, headY - hh * .3)
+        g.quadraticCurveTo(cx - hw * .7, headY + hh * .2, cx - hw - 1 * s, headY + hh * .9)
+      } else if (st === 2) {                     // swept to one side
+        g.moveTo(cx - hw - .6 * s, headY + .8 * s)
+        g.quadraticCurveTo(cx - hw, headY - hh, cx + hw * .3, headY - hh * 1.05)
+        g.quadraticCurveTo(cx + hw + 2 * s, headY - hh * .7, cx + hw + .3 * s, headY - hh * .1)
+        g.quadraticCurveTo(cx, headY - hh * .5, cx - hw - .6 * s, headY + .8 * s)
+      } else if (st === 3) {                     // tied back, with a tail
+        g.moveTo(cx - hw - .3 * s, headY + .2 * s)
+        g.quadraticCurveTo(cx - hw, headY - hh, cx, headY - hh * 1.02)
+        g.quadraticCurveTo(cx + hw, headY - hh, cx + hw + .3 * s, headY + .2 * s)
+        g.quadraticCurveTo(cx + hw * .3, headY - hh * .45, cx - hw * .3, headY - hh * .45)
+      } else {                                   // bald on top, sides only
+        g.moveTo(cx - hw - .4 * s, headY + hh * .5)
+        g.quadraticCurveTo(cx - hw - .5 * s, headY - hh * .4, cx - hw * .55, headY - hh * .62)
+        g.quadraticCurveTo(cx - hw * .5, headY + hh * .1, cx - hw * .3, headY + hh * .55)
+        g.moveTo(cx + hw + .4 * s, headY + hh * .5)
+        g.quadraticCurveTo(cx + hw + .5 * s, headY - hh * .4, cx + hw * .55, headY - hh * .62)
+        g.quadraticCurveTo(cx + hw * .5, headY + hh * .1, cx + hw * .3, headY + hh * .55)
+      }
+      g.fill()
+      if (st === 3) {                            // the tail itself
+        g.fillStyle = o.hair
+        g.beginPath()
+        g.ellipse(cx + 4.6 * s, headY + 1.6 * s, 1.7 * s, 3.4 * s, .4, 0, 7); g.fill()
+      }
+      g.fillStyle = 'rgba(255,246,220,.13)'      // one lit strand
+      g.beginPath(); g.ellipse(cx - hw * .45, headY - hh * .55, hw * .38, 1.1 * s, -.35, 0, 7); g.fill()
+    }
+    if (o.beard) {
+      g.fillStyle = o.hair ?? '#3a2c1e'
+      g.beginPath()
+      g.moveTo(cx - hw * .92, headY + hh * .12)
+      g.quadraticCurveTo(cx - hw * .8, headY + hh * 1.5, cx, headY + hh * 1.6)
+      g.quadraticCurveTo(cx + hw * .8, headY + hh * 1.5, cx + hw * .92, headY + hh * .12)
+      g.quadraticCurveTo(cx, headY + hh * .62, cx - hw * .92, headY + hh * .12)
+      g.fill()
+      g.fillStyle = 'rgba(0,0,0,.2)'
+      g.beginPath(); g.ellipse(cx + hw * .4, headY + hh * .8, hw * .4, hh * .5, 0, 0, 7); g.fill()
+    }
     if (o.helm) {
       g.fillStyle = o.helm
       g.beginPath(); g.ellipse(cx, headY, 5.4 * s, 4.4 * s, 0, Math.PI, 0); g.fill()
@@ -5114,11 +5263,9 @@ function drawGround(g, s, t) {
         bridgeQueue.push(x, y, ox, oy)
         continue
       }
-      if (G.grain !== 'water') {
-        g.fillStyle = groundColorAt(x, y)
-        diamond(g, ox, oy, -1.2)          // a shade oversized, so there is no seam
-        g.fill()
-      }
+      g.fillStyle = groundColorAt(x, y)
+      diamond(g, ox, oy, -1.2)            // a shade oversized, so there is no seam
+      g.fill()
       g.drawImage(tileArt(kind, v), ox, oy)
       if (G.grain === 'water') waterTiles.push(ox, oy, x, y)
     }
@@ -5171,11 +5318,14 @@ function drawGround(g, s, t) {
     for (let i = 0; i < waterTiles.length; i += 4) {
       const ox = waterTiles[i], oy = waterTiles[i + 1]
       const wx = waterTiles[i + 2], wy = waterTiles[i + 3]
-      const sw = Math.sin((wx + wy) * .55 - tt * 1.15) * .5
-              + Math.sin((wx - wy) * .31 + tt * .77) * .5
-      if (sw > .2) {
-        g.fillStyle = 'rgba(150,196,214,' + ((sw - .2) * .15).toFixed(3) + ')'
-        diamond(g, ox, oy, -2); g.fill()
+      // SLOWLY. At .55 radians per tile the wave changed sign between
+      // neighbours and painted a diamond lattice of its own -- the very thing
+      // it was added to hide. A swell is tens of tiles long.
+      const sw = Math.sin((wx + wy) * .085 - tt * .55) * .5
+              + Math.sin((wx - wy) * .052 + tt * .37) * .5
+      if (sw > .05) {
+        g.fillStyle = 'rgba(150,196,214,' + ((sw - .05) * .10).toFixed(3) + ')'
+        diamond(g, ox, oy, -1.2); g.fill()
       }
       const ph = (tileHash(wx, wy, 19) % 100) / 100
       const gl = Math.sin(tt * .9 + ph * 6.283)
@@ -5820,6 +5970,7 @@ function drawGroundItem(g, gi, sx, sy, t) {
 // THE CITIZEN
 // ---------------------------------------------------------------------------
 function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
+  const L = lookOf(p, id)
   const f = facing.get('p' + id) ?? [1, 0]
   const away = (f[0] + f[1]) < 0                       // walking up-screen: back turned
   const moving = prevPos.get('p' + id) && (prevPos.get('p' + id)[0] !== p.x || prevPos.get('p' + id)[1] !== p.y)
@@ -5923,7 +6074,12 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const body = p.equipment?.body?.item, head = p.equipment?.head?.item
   const star = body?.startsWith('star-')
   humanoid(g, sx, sy, {
-    scale: sc ?? 1, bulk: 1, seed: hash32(String(id ?? 'x')) & 0xffff,
+    // WHOEVER THIS CITIZEN SAYS THEY ARE. `look` is a seed in the state, so
+    // every window agrees who is standing there; absent one, their key stands
+    // in, exactly as it always did.
+    scale: sc ?? 1, bulk: L.bulkish, seed: L.seed,
+    skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, beard: L.beard,
+    coat: L.coat,
     cape: capeOf(p),
     crouch, pitch,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
@@ -9073,6 +9229,7 @@ function onState(s, worldId) {
   }
 
   drainOutbox()          // anything that could not get a tick last time
+  try { refreshGate() } catch {}   // the door greets whoever is already there
   indexNodes(s)
   notePositions(s)
 
@@ -9442,6 +9599,8 @@ let lastRegions = []
 function frame(now) {
   const dt = Math.min(64, now - lastFrame); lastFrame = now
   const s = curState
+  // the portrait at the door turns while you decide
+  if (!entered) { try { drawFace() } catch {} }
   layoutPanel()                          // the slab is measured from the viewport
 
   // ---- the camera eases toward the citizen --------------------------------
@@ -9562,21 +9721,36 @@ function frame(now) {
 // Heard ONCE, on arrival, and then the world is quiet. A piece with a shape to
 // it gets worse every time round.
 let musicOn = localStorage.getItem('interval-music') !== 'off'
-let MUSIC = null, musicTried = false
+let MUSIC = null, musicStarting = false
+// THE THEME NEVER PLAYED AT THE DOOR, AND OFTEN NEVER PLAYED AT ALL.
+//
+// Three faults, compounding. It was only ever started by enterWorld, so the
+// gate -- the one moment a theme is actually for -- was silent by
+// construction. `musicTried` latched on the FIRST attempt and was only
+// cleared when play() itself was rejected, so a failed fetch (or a slow one
+// during boot) disabled music permanently for the session. And nothing ever
+// called it again: the sound button adjusted the volume of a track that did
+// not exist, which is why toggling it did nothing at all.
+//
+// A browser will not start audio without a gesture, so the honest place to
+// begin is the first gesture, wherever it lands -- including the click that
+// opens the gate.
 async function startMusic() {
-  if (MUSIC || musicTried || !musicOn || !soundOn) return
-  musicTried = true
+  if (MUSIC || musicStarting || !musicOn || !soundOn) return
+  musicStarting = true
   let tracks = []
-  try { tracks = (await (await fetch('/api/audio')).json()).tracks ?? [] } catch { return }
-  if (!tracks.length) return
+  try { tracks = (await (await fetch('/api/audio')).json()).tracks ?? [] }
+  catch { musicStarting = false; return }      // a failed fetch is not a verdict
+  if (!tracks.length) { musicStarting = false; return }
   const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
   const name = pick('theme-deep') ?? pick('theme') ?? tracks[0]
-  if (!name) return
+  if (!name) { musicStarting = false; return }
   const a = new Audio('/audio/' + encodeURIComponent(name))
   a.loop = false; a.volume = 0
   MUSIC = a
-  a.addEventListener('ended', () => { MUSIC = null })
-  try { await a.play() } catch { MUSIC = null; musicTried = false; return }
+  a.addEventListener('ended', () => { MUSIC = null })   // a theme plays once
+  try { await a.play() } catch { MUSIC = null; musicStarting = false; return }
+  musicStarting = false
   const t0 = performance.now()
   const fade = () => {
     if (!MUSIC) return
@@ -9602,15 +9776,26 @@ const gEnter = document.getElementById('genter')
     localStorage.setItem('interval-sound', soundOn ? 'on' : 'off')
     sb.textContent = 'Sound: ' + (soundOn ? 'on' : 'off')
     if (MUSIC) MUSIC.volume = (soundOn && musicOn) ? .34 : 0
-    if (soundOn) SFX.ctx()
+    if (soundOn) { SFX.ctx(); startMusic() }
   })
 }
 // A browser suspends its audio whenever the tab loses focus, and iOS suspends
 // it more or less whenever it feels like it. Every gesture is a chance to wake
 // it up again; this costs nothing when it is already awake.
 for (const ev of ['pointerdown', 'keydown', 'touchstart'])
-  window.addEventListener(ev, () => { if (soundOn) SFX.ctx() }, { passive: true })
+  window.addEventListener(ev, () => { if (soundOn) { SFX.ctx(); startMusic() } }, { passive: true })
 document.addEventListener('visibilitychange', () => { if (!document.hidden && soundOn) SFX.ctx() })
+{ const mb = document.getElementById('gmusic')
+  const label = () => { mb.textContent = 'Theme: ' + (musicOn ? 'on' : 'off') }
+  label()
+  mb.addEventListener('click', () => {
+    musicOn = !musicOn
+    localStorage.setItem('interval-music', musicOn ? 'on' : 'off')
+    label()
+    if (!musicOn) { if (MUSIC) { try { MUSIC.pause() } catch {} ; MUSIC = null } }
+    else startMusic()
+  })
+}
 { const qb = document.getElementById('gquality')
   const label = () => { qb.textContent = 'Bloom: ' + (hiq() ? 'on' : 'off') }
   label()
@@ -9634,6 +9819,87 @@ document.getElementById('gimport').addEventListener('click', async () => {
   if (!err) setTimeout(() => location.reload(), 700)
 })
 
+// WHO IS ALREADY STANDING THERE.
+//
+// The gate said "Name yourself" and offered "unnamed" to everybody -- including
+// a citizen who claimed a name three hundred levels ago and whose key is
+// sitting in this browser. The state arrives over the socket before anyone
+// presses anything, so the door has known the answer all along and simply
+// never asked. A door that greets you by name is not a flourish; being told
+// you are unnamed when you are not is the window contradicting the world.
+let gateShown = ''
+function refreshGate() {
+  if (entered || !gate || gate.classList.contains('gone')) return
+  const me = myId && curState?.players?.[myId]
+  const label = document.querySelector('#gate label')
+  const sig = me ? (me.name ?? '') + ':' + standingOf(me) : 'new'
+  if (sig === gateShown) return
+  gateShown = sig
+  if (me?.name) {
+    // known, and named: there is nothing to ask
+    label.textContent = 'You are known here'
+    gName.style.display = 'none'
+    gEnter.textContent = 'Enter as ' + me.name
+    gWhy.textContent = titleCase(callingOf(me)) + ' \u00b7 standing ' + standingOf(me)
+  } else if (me) {
+    // known, but never claimed a name
+    label.textContent = 'Name yourself'
+    gName.style.display = ''
+    gEnter.textContent = 'Enter as ' + myId.slice(0, 6)
+    const st = standingOf(me)
+    gWhy.textContent = st >= 50
+      ? 'You have standing ' + st + ' \u2014 enough to claim a name, once and forever.'
+      : 'You have walked here before. A name asks for 50 standing; you have ' + st + '.'
+  } else {
+    label.textContent = 'Name yourself'
+    gName.style.display = ''
+    gEnter.textContent = 'Enter the world'
+    gWhy.textContent = 'A name costs 50 standing. You may walk in without one.'
+  }
+}
+
+// CHOOSING A FACE.
+//
+// The citizen turns on the spot while you scrub through, because a portrait
+// that does not move tells you nothing about how they will read in the world --
+// and the world is where you will be looking at them. It is the same painter
+// the world uses, at the same scale rules, so what you pick is what you get.
+const gFace = document.getElementById('gface')
+let pickLook = Number(localStorage.getItem('interval-look'))
+if (!Number.isInteger(pickLook) || pickLook < 0 || pickLook > 255) pickLook = null
+let faceTurn = 0
+function drawFace() {
+  if (!gFace) return
+  const fg = gFace.getContext('2d')
+  const me = myId && curState?.players?.[myId]
+  const n = pickLook ?? (Number.isInteger(me?.look) ? me.look
+    : (hash32(String(myId ?? 'x')) & 255))
+  const L = lookOf({ look: n }, myId)
+  fg.setTransform(1, 0, 0, 1, 0, 0)
+  fg.clearRect(0, 0, gFace.width, gFace.height)
+  faceTurn += .012
+  humanoid(fg, gFace.width / 2, gFace.height - 18, {
+    scale: 2.5, bulk: L.bulkish, seed: L.seed,
+    skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, beard: L.beard,
+    coat: L.coat, tunic: L.coat,
+    step: Math.sin(faceTurn) * .5, breath: faceTurn * 2,
+    lean: Math.sin(faceTurn) * 2.2, swing: -0.5 + Math.sin(faceTurn * .7) * .12,
+    lantern: true,
+  })
+  const gl = document.getElementById('glook')
+  if (gl) gl.textContent = 'face ' + (n + 1) + ' of ' + LOOK_COUNT
+}
+function nudgeLook(d) {
+  const me = myId && curState?.players?.[myId]
+  const cur = pickLook ?? (Number.isInteger(me?.look) ? me.look
+    : (hash32(String(myId ?? 'x')) & 255))
+  pickLook = (cur + d + LOOK_COUNT) % LOOK_COUNT
+  localStorage.setItem('interval-look', String(pickLook))
+  drawFace()
+}
+document.getElementById('gprev')?.addEventListener('click', () => nudgeLook(-1))
+document.getElementById('gnext')?.addEventListener('click', () => nudgeLook(1))
+
 function enterWorld() {
   const n = gName.value.trim().toLowerCase()
   if (n && !/^[a-z0-9-]{1,12}$/.test(n)) { gWhy.textContent = 'Names are 1\u201312 of a\u2013z, 0\u20139 and the hyphen.'; return }
@@ -9645,7 +9911,12 @@ function enterWorld() {
   startMusic()
   say('You wake in Interval.', 'good')
   if (curState && myId && !curState.players[myId]) send({ do: 'spawn' })
-  if (n) setTimeout(() => send({ do: 'name', name: n }), 1400)
+  const already = myId && curState?.players?.[myId]?.name
+  if (n && !already) setTimeout(() => send({ do: 'name', name: n }), 1400)
+  // and the face, if it is not the one the world already has
+  const meNow = myId && curState?.players?.[myId]
+  if (pickLook !== null && meNow?.look !== pickLook)
+    setTimeout(() => send({ do: 'look', look: pickLook }), 900)
 }
 gEnter.addEventListener('click', enterWorld)
 gName.addEventListener('keydown', (e) => { if (e.key === 'Enter') enterWorld() })
