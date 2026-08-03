@@ -1584,6 +1584,44 @@ export function buildWorld(genesis) {
   for (const s of ss) {
     if ((s.ring === 'shire' || s.drawn) && PLANS[s.tag]) layDrawnTown(s)
     else layTown(s)
+    // -- THE ARMS, ON THE APPROACHES --
+    //
+    // A world in which towns simply BEGIN is a world of rooms. You should be
+    // able to tell one is coming, and WHICH one, before the paving starts --
+    // so a banner stands beside every road where it crosses the bound, bearing
+    // the town's tag and nothing else. (The arms are derived from the tag by
+    // each window; spec 2g.)
+    //
+    // Beside the road, never on it: a banner is impassable, and a gate you
+    // cannot walk through is a wall with a flag on it.
+    //
+    // This sits OUTSIDE both town-laying paths on purpose. Every settlement in
+    // this founding turns out to be hand-drawn, so anything placed inside
+    // layTown is dead code -- which is exactly where I put it the first time.
+    {
+      const rr = rectOf(s)
+      let bi = 0
+      const ROADY = new Set(['trail', 'causey', 'cobble', 'plaza', 'flag', 'bridge'])
+      const edges = []
+      for (let x = rr.x0 - 1; x <= rr.x1 + 1; x++) edges.push([x, rr.y0 - 1], [x, rr.y1 + 1])
+      for (let y = rr.y0 - 1; y <= rr.y1 + 1; y++) edges.push([rr.x0 - 1, y], [rr.x1 + 1, y])
+      const seated = []
+      for (const [ex, ey] of edges) {
+        if (bi >= 4) break
+        if (!ROADY.has(groundKindAt(g, ex, ey))) continue
+        if (seated.some(([px, py]) => Math.hypot(px - ex, py - ey) < 10)) continue
+        for (const [ox, oy] of [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, 1], [-1, 1], [1, -1]]) {
+          const bx = ex + ox, by = ey + oy
+          if (!inB(bx, by) || isWater(g, bx, by)) continue
+          if (ROADY.has(groundKindAt(g, bx, by))) continue      // keep the way open
+          if (taken.has(key(bx, by)) || blockedAt(g, bx, by)) continue
+          E.addNode(w, 'banner-' + s.tag + (bi++), 'banner', bx, by, { tag: s.tag })
+          taken.add(key(bx, by))
+          seated.push([ex, ey])
+          break
+        }
+      }
+    }
   }
 
   // ---- the shire's named places: authored, not derived ----
