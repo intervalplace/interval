@@ -2087,8 +2087,13 @@ function connect() {
       // hash is part of the founding, so an older world does not have the verb
       // and never will.
       if (m.of === 'set_look') {
-        say('This world will not take an appearance \u2014 it was founded before '
-          + 'the rule existed. A world founded from this SPEC.md will.', 'warn')
+        // and say WHICH refusal it was. The first version of this asserted the
+        // world was too old, which was one possible cause presented as the
+        // only one -- and it was wrong: the real cause was a race with spawn.
+        // A guess in the voice of a diagnosis sends somebody looking in the
+        // wrong place, which is worse than saying nothing.
+        say('The world would not take that appearance: ' + (m.why ?? 'no reason given')
+          + '. (If it says the verb is unknown, the world was founded before the rule.)', 'warn')
       }
       const transient = /occupied|blocked|adjacent|reach|tick/i.test(m.why ?? '')
       say('Refused: ' + (m.of ?? '?') + (m.why ? ' \u2014 ' + m.why : '')
@@ -9245,6 +9250,7 @@ function onState(s, worldId) {
   }
 
   drainOutbox()          // anything that could not get a tick last time
+  reconcileLook(s)       // and the appearance, until the world agrees
   try { refreshGate() } catch {}   // the door greets whoever is already there
   indexNodes(s)
   notePositions(s)
@@ -9972,6 +9978,30 @@ function drawFace() {
   const gl = document.getElementById('glook')
   if (gl) gl.textContent = 'appearance ' + (n + 1) + ' of ' + LOOK_COUNT
 }
+// AN APPEARANCE IS RECONCILED, NOT ANNOUNCED.
+//
+// This used to be `setTimeout(() => send(look), 900)` from enterWorld, which
+// is a race and lost it: every input is judged against the state at its tick,
+// and the first thing a new citizen does is `spawn`. `if (!p) return false` --
+// the player must exist. Nine hundred milliseconds after the click is one and
+// a half ticks, so the look was routinely judged against a world the citizen
+// had not appeared in yet, refused once, and never tried again. It looked
+// exactly like the verb not existing.
+//
+// So it is not an announcement. It is a standing difference between what the
+// citizen wants and what the world records, and the window keeps closing it
+// until they agree. Every tick, cheaply, and it stops the moment it lands.
+let lookSentAt = -99
+function reconcileLook(s) {
+  if (pickLook === null || !entered || !myId) return
+  const me = s?.players?.[myId]
+  if (!me) return                       // not spawned yet: there is nobody to dress
+  if (me.look === pickLook) return      // agreed
+  if ((s.tick ?? 0) - lookSentAt < 3) return
+  lookSentAt = s.tick ?? 0
+  send({ do: 'look', look: pickLook })
+}
+
 function nudgeLook(d) {
   const me = myId && curState?.players?.[myId]
   const cur = pickLook ?? (Number.isInteger(me?.look) ? me.look
@@ -9996,10 +10026,8 @@ function enterWorld() {
   if (curState && myId && !curState.players[myId]) send({ do: 'spawn' })
   const already = myId && curState?.players?.[myId]?.name
   if (n && !already) setTimeout(() => send({ do: 'name', name: n }), 1400)
-  // and the face, if it is not the one the world already has
-  const meNow = myId && curState?.players?.[myId]
-  if (pickLook !== null && meNow?.look !== pickLook)
-    setTimeout(() => send({ do: 'look', look: pickLook }), 900)
+  // The appearance is NOT sent from here. See reconcileLook: a timer racing
+  // the spawn is exactly how this failed.
 }
 gEnter.addEventListener('click', enterWorld)
 gName.addEventListener('keydown', (e) => { if (e.key === 'Enter') enterWorld() })
