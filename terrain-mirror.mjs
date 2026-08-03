@@ -902,6 +902,162 @@ function settlementsE4() {
 }
 // ---- the router, ported whole ----
 const BIOME_COST4 = { heartlands:10, downs:11, greenwood:15, moor:15, wilds:17, fens:20, crags:22 }
+
+// ---------------------------------------------------------------------------
+// THE GOING
+// ---------------------------------------------------------------------------
+// A road runs dead straight because there is nothing for it to bend around.
+// Cost is uniform WITHIN a biome, so across the Heartlands or the Downs every
+// tile is worth the same and the cheapest path is the shortest one -- and the
+// straight-line pull below then finishes the job. The result is a ruler line
+// across a country, which is a surveyor's road, and this generator's own
+// comment says it does not want one.
+//
+// So the ground gets texture at a scale smaller than a country: patches of
+// easier and harder going, eight tiles across, the way real ground is boggy
+// here and firm there. A road that costs a little more through a soft patch
+// goes round it, and the bends come from the land rather than from a wobble
+// laid over the top.
+//
+// INTEGERS ONLY, and no Math.sin. This value feeds the router's frontier, and
+// the router's contract (spec 9b) is that two nodes computing the same world
+// get the same road to the tile. Trigonometry is not bit-identical across
+// engines; a 32-bit integer hash is.
+
+// ---------------------------------------------------------------------------
+// THE LIE OF THE LAND
+// ---------------------------------------------------------------------------
+// The going alone was not enough, and the render says so: several roads came
+// out exactly as long as the straight line between their ends. Patches of soft
+// ground eight tiles across average out over two hundred tiles, so the router
+// walked through them and stayed on its ruler.
+//
+// What makes a real road wander is not soft ground, it is HEIGHT. A road would
+// rather go a long way round than climb, which is why they follow valleys and
+// contour along hillsides and arrive at a pass rather than at a summit. So the
+// land is given a height, and a step is charged for what it climbs.
+//
+// The field is smooth -- bilinear between lattice points thirty-two tiles
+// apart -- because a road follows a slope, and a slope needs somewhere to run
+// downhill TO. A blocky field gives cliffs and cliffs give staircases.
+//
+// Integers throughout, and no trigonometry: this decides where the roads are,
+// and spec 9b says two nodes computing the same world must get the same road.
+const ELEV_SHIFT = 5;                                    // 32 tiles per lattice step
+function elevHash(salt, gx, gy) {
+  let h = (Math.imul(gx, 1597334677) + Math.imul(gy, 3812015801) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) | 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489917) | 0;
+  return (h ^ (h >>> 16)) & 255;
+}
+function elevAt(salt, x, y) {
+  // TWO OCTAVES. One lattice at thirty-two tiles gives a landscape of broad
+  // hills -- and between them, flats, where a road has nothing to respond to
+  // and runs dead straight for sixty tiles. Sixty tiles is nearly forty
+  // seconds of walking with the world unchanging, which is the exact stretch
+  // that feels drawn rather than travelled.
+  //
+  // So a finer octave over the top: eight-tile undulations at a third of the
+  // weight. Not hills -- rises and dips, the scale of a field. A road answers
+  // them with small corrections all the way along, and a road that is always
+  // correcting is a road that was walked.
+  return Math.floor((octave(salt, x, y, 5) * 5 + octave(salt ^ 0x51ed, x, y, 3) * 3) / 8);
+}
+function octave(salt, x, y, shift) {
+  const S = 1 << shift, MASK = S - 1;
+  const gx = x >> shift, gy = y >> shift;
+  const fx = x & MASK, fy = y & MASK;
+  const a = elevHash(salt, gx, gy), b = elevHash(salt, gx + 1, gy);
+  const c = elevHash(salt, gx, gy + 1), d = elevHash(salt, gx + 1, gy + 1);
+  const sm = (f) => Math.floor((3 * f * f * S - 2 * f * f * f) / (S * S));
+  const u = sm(fx), v = sm(fy);
+  const top = a * (S - u) + b * u;
+  const bot = c * (S - u) + d * u;
+  return Math.floor((top * (S - v) + bot * v) / (S * S));
+}
+
+// ---------------------------------------------------------------------------
+// THE PLACED THINGS
+// ---------------------------------------------------------------------------
+// Everything else on this island is computed. These are CHOSEN.
+//
+// A generator can make a plausible country but it cannot make a memorable one,
+// because memory attaches to particulars: the copse you always skirt, the mire
+// the road bends around, the scree fan below the pass. Those are the things a
+// citizen still knows the shape of years later, and they exist here because
+// somebody put them there and wrote down why.
+//
+// Each was placed at the middle of a measured dead-straight run -- the longest
+// stretches on the island, where a citizen walked twenty or thirty seconds
+// with nothing changing. A road that meets one of these has to choose a side,
+// and choosing a side is what makes a road look walked.
+//
+// This table is LAW in the same way the coastline is: identical in the
+// generator and in every window, forever. Add to it thoughtfully. Nothing here
+// may ever be removed once a world is founded on it -- the roads bend around
+// these, so deleting one moves every road that answers it.
+const HANDMADE = [
+  // --- the long north-south run beside the river, above Anchor ---
+  { name: 'the Vale Copse',      x: 484, y: 259, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Sallows',         x: 486, y: 291, rx: 7,  ry: 8,  kind: 'mire' },
+  // --- the run east of Anchor, on the way up to the North Pass ---
+  { name: 'the Thornvale Spinney', x: 571, y: 197, rx: 9, ry: 6, kind: 'copse' },
+  // --- the long straight through the Crags below the pass ---
+  { name: 'the Fallen Scree',    x: 666, y: 180, rx: 10, ry: 5,  kind: 'scree' },
+  { name: 'the Sentinel Slip',   x: 717, y: 287, rx: 7,  ry: 6,  kind: 'scree' },
+  // --- the Hollybarrow-Norwick road, west of the crossing ---
+  { name: 'the Oxen Copse',      x: 335, y: 214, rx: 8,  ry: 5,  kind: 'copse' },
+  { name: 'the Long Holt',       x: 255, y: 221, rx: 7,  ry: 5,  kind: 'copse' },
+  // --- Watersmeet, where the road runs down the river meadow ---
+  { name: 'the Meadow Mire',     x: 476, y: 342, rx: 6,  ry: 8,  kind: 'mire' },
+  // --- the Downs road out of Eastmere ---
+  { name: 'the Sheepfold Thorns', x: 520, y: 381, rx: 8, ry: 5,  kind: 'copse' },
+  // --- the Fens, where the road runs dead south ---
+  { name: 'the Drowned Holt',    x: 485, y: 378, rx: 6,  ry: 7,  kind: 'mire' },
+  // --- second pass: the straights that surfaced once the first ten were in ---
+  //
+  // Placing a thing moves the road that answers it, and a moved road finds new
+  // level ground to run straight across. That is not a fault in the method, it
+  // is the method: each pass measures, places, and measures again. Sixteen long
+  // runs became nine; these are aimed at those nine.
+  { name: 'the Hollybarrow Hedge', x: 316, y: 204, rx: 9,  ry: 5,  kind: 'copse' },
+  { name: 'the Anchor Withies',    x: 394, y: 340, rx: 7,  ry: 6,  kind: 'mire' },
+  { name: 'the Oxenlea Copse',     x: 320, y: 300, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Lea Marsh',         x: 305, y: 332, rx: 6,  ry: 7,  kind: 'mire' },
+  { name: 'the Barrow Thorns',     x: 347, y: 229, rx: 6,  ry: 6,  kind: 'copse' },
+  // --- third pass: nine became four, and these are the four ---
+  { name: 'the Vale Alders',    x: 432, y: 237, rx: 7,  ry: 5,  kind: 'copse' },
+  { name: 'the Millbrook Osiers', x: 497, y: 212, rx: 6, ry: 5,  kind: 'mire' },
+  { name: 'the Thornvale Holt', x: 523, y: 249, rx: 6,  ry: 6,  kind: 'copse' },
+  { name: 'the High Delving Scree', x: 711, y: 206, rx: 8, ry: 5, kind: 'scree' },
+  { name: 'the Nordhead Slip',  x: 704, y: 212, rx: 7,  ry: 5,  kind: 'scree' },
+];
+// which placed thing is here, if any. An ellipse, because nothing in a
+// landscape has corners.
+function handmadeAt(x, y) {
+  for (const f of HANDMADE) {
+    const dx = (x - f.x) / f.rx, dy = (y - f.y) / f.ry;
+    if (dx * dx + dy * dy <= 1) return f;
+  }
+  return null;
+}
+// what it costs a road to go through one rather than round it. Passable --
+// a citizen may always walk in -- but dear enough that a road will not.
+const HANDMADE_COST = { copse: 46, mire: 58, scree: 40 };
+const GOING_SCALE = 3;                 // 1 << 3 = eight tiles to a patch
+function goingSalt(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function goingAt(salt, x, y) {
+  const gx = x >> GOING_SCALE, gy = y >> GOING_SCALE;
+  let h = (Math.imul(gx, 374761393) + Math.imul(gy, 668265263) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  // 0..6 of extra effort, and a quarter of the ground is as easy as it was
+  return h % 7;
+}
 function routeCost4(x, y) {
   if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return -1
   const b = biomeAtE4(x, y)
@@ -909,6 +1065,9 @@ function routeCost4(x, y) {
   if (isWater4(x, y)) return onBridge4(x, y) ? 10 : -1
   if (onBarrow4(x, y) || onRidge4(x, y)) return -1
   let c = BIOME_COST4[b] ?? 14
+  const hm = handmadeAt(x, y)                       // and the things somebody put here
+  if (hm) c += HANDMADE_COST[hm.kind] ?? 40
+  c += goingAt(goingSalt(GSEED), x, y)              // the going, patch by patch
   if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) c += 6
   return c
 }
@@ -930,7 +1089,7 @@ function hPop4(h) { const top = h[0], last = h.pop()
       if (m === i) break
       const t = h[m]; h[m] = h[i]; h[i] = t; i = m } }
   return top }
-function routePath4(ax, ay, bx, by) {
+function routePath4(ax, ay, bx, by, laid) {
   const N = W * H, f = costField4()
   const dist = new Int32Array(N).fill(0x7fffffff), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N)
   const si = ay * W + ax, ti = by * W + bx
@@ -938,8 +1097,9 @@ function routePath4(ax, ay, bx, by) {
   const hEst = (x, y) => { const dx = x>bx?x-bx:bx-x, dy = y>by?y-by:by-y
     const lo = dx<dy?dx:dy, hi = dx<dy?dy:dx; return (hi-lo)*10 + lo*14 }
   const vx = bx-ax, vy = by-ay, L = Math.sqrt(vx*vx+vy*vy)
+  const esalt = goingSalt(GSEED) ^ 0x9e37
   const offLine = (x, y) => { if (L < 1) return 0
-    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*5)) }
+    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*14)) }
   dist[si] = 0
   const heap = [hEst(ax,ay) * 1048576 + si]
   let found = false
@@ -955,8 +1115,16 @@ function routePath4(ax, ay, bx, by) {
       const ni = ny * W + nx
       if (done[ni]) continue
       const c = f[ni]; if (c < 0) continue
-      const step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
-      const nd = d0 + step + offLine(nx, ny)
+      // A ROAD WOULD RATHER GO ROUND THAN UP. Six per unit climbed, nothing
+      // for level or downhill. Identical to the generator's rule: if these two
+      // ever differ the windows draw roads the engine does not have.
+      let step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
+      const up = elevAt(esalt, nx, ny) - elevAt(esalt, x, y)
+      const climb = up > 0 ? up * 6 : 0
+      // ROADS BRAID: two fifths of the cost on ground already road. Identical
+      // to the generator, including the order the segments are laid in.
+      if (laid && laid.has(nx + ',' + ny)) step = Math.round(step * 0.68)
+      const nd = d0 + step + climb + offLine(nx, ny)
       if (nd < dist[ni]) { dist[ni] = nd; prev[ni] = i; hPush4(heap, (nd + hEst(nx,ny)) * 1048576 + ni) }
     }
   }
@@ -977,22 +1145,74 @@ function seatPoint4(x, y) {
   return { x, y }
 }
 let _roads4 = null
+
+// A LANE THAT GOES NOWHERE. Identical to the generator's, including the salt
+// and the order: the lanes are laid last, after the whole network, so they
+// hang off it rather than becoming part of anyone's route.
+function laneSeatsOf4(towns, salt) {
+  const out = []
+  for (let i = 0; i < towns.length; i++) {
+    const t = towns[i]
+    let h = (Math.imul(i + 1, 2654435761) + salt) | 0
+    h = Math.imul(h ^ (h >>> 15), 2246822519) | 0
+    h = (h ^ (h >>> 13)) >>> 0
+    const n = (h & 1) + 1
+    for (let k = 0; k < n; k++) {
+      const hk = (Math.imul(h + k * 40503, 1597334677)) >>> 0
+      const ang = (hk % 3600) / 3600 * Math.PI * 2
+      const len = 16 + (hk >>> 12) % 26
+      out.push({ from: t, x: Math.round(t.x + Math.cos(ang) * len), y: Math.round(t.y + Math.sin(ang) * len) })
+    }
+  }
+  return out
+}
 function roadSet4() {
   if (_roads4) return _roads4
   const s = {}; for (const t of settlementsE4()) s[t.tag] = t
   const wm = seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
+  // bridges4 returns the crossings untagged, but in the generator's own order:
+  // Highford, the Millbrook Bridge, the Watersmeet Bridge, Fenford, the
+  // Oxenford. Index is the tag here, and a comment is the only thing keeping
+  // them in step -- if bridgesOf ever reorders, this reorders with it.
+  const bs = bridges4()
+  const br0 = bs[0], br2 = bs[2]
+  const [pa, pb] = passes4()
+  const npass = { x: ridgeX4(pa), y: pa }, spass = { x: ridgeX4(pb), y: pb }
   const shrine = isles4()[0]
   const segs = [
     [s.anchor,s.millbrook],[s.millbrook,s.hollybarrow],[s.hollybarrow,s.oxenford],
     [s.oxenford,s.anchor],[s.anchor,s.thornbury],[s.thornbury,s.millbrook],
-    [s.millbrook,s.greenhollow],[s.thornbury,s.cragfoot],[s.anchor,s.eastmere],
-    [s.oxenford,wm],[wm,s.fenmarch],[s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
+    // THROUGH THE PASS, NOT PAST IT -- and in exactly the generator's order,
+    // because the braid discount makes the order part of the answer.
+    // EACH ROAD CROSSES AT ITS OWN CROSSING -- Highford for Greenhollow, the
+    // Watersmeet Bridge for Watersmeet. Same order as the generator, because
+    // the braid discount makes the order part of the answer.
+    [s.millbrook,br0],[br0,s.greenhollow],
+    [s.thornbury,npass],[npass,s.cragfoot],
+    [s.anchor,spass],[spass,s.eastmere],
+    [s.oxenford,br2],[br2,wm],[wm,s.fenmarch],
+    [s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
     [s.oxenford,s.norwick],[s.hollybarrow,s.norwick],
   ]
   const set = new Set()
   for (const [a, b] of segs) {
-    const p = routePath4(a.x, a.y, b.x, b.y)
+    const p = routePath4(a.x, a.y, b.x, b.y, set)
     if (!p) continue
+    for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
+  }
+  // and the lanes that join nothing
+  for (const L2 of laneSeatsOf4(settlementsE4(), goingSalt(GSEED) ^ 0x5a17)) {
+    const seat = seatPoint4(L2.x, L2.y)
+    if (!seat) continue
+    const p = routePath4(L2.from.x, L2.from.y, seat.x, seat.y, set)
+    // A LANE IS SHORT BY DEFINITION. seatPoint snaps a destination to the
+    // nearest walkable ground, and if the chosen point lands in water or on
+    // the Ridge that snap can be a long way off -- one lane came out at a
+    // hundred and sixty-two tiles, which is not a lane, it is a road to
+    // somewhere with nothing at the end. Twice the intended length or it is
+    // not laid at all.
+    const want = Math.round(Math.hypot(L2.x - L2.from.x, L2.y - L2.from.y))
+    if (!p || p.length < 8 || p.length > want * 2 + 10) continue
     for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
   }
   // the causeway is drawn, not routed: no router crosses open sea
@@ -1185,6 +1405,19 @@ function isRampart4(x, y) {
 function terrainOfE4(x, y) {
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
+  // A ROAD MUST NOT BEND AROUND NOTHING. The placed things are ground you can
+  // see and stand in -- a copse, a mire, a scree fan -- and not an invisible
+  // cost that makes a road look drunk. Water and town paving still win: a
+  // copse does not grow in the river, and nobody planted one in a market.
+  {
+    const hm = handmadeAt(x, y)
+    if (hm && !onRoad4(x, y)) {
+      const inTown = settlementsE4().some((t) =>
+        Math.abs(x - t.x) < (t.w >> 1) && Math.abs(y - t.y) < (t.h >> 1))
+      if (!inTown) return hm.kind === 'copse' ? 'forest'
+                        : hm.kind === 'mire' ? 'fens' : 'scree'
+    }
+  }
   for (const t of settlementsE4()) {
     // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
     // inclusive test claimed the rampart line itself as town ground and
