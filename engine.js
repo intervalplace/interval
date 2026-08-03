@@ -540,7 +540,7 @@ const MOB_STATS = {
   // one thing gold cannot be turned into except by asking someone who has one.
   troll:  { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4,
             drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'bronze-plate', chance: 6144 },
-                    { item: 'old-chain', chance: 2 }] },
+                    { item: 'old-chain', chance: 65536 }] },
   bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
             drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'bronze-hatchet', chance: 4096 },
                     { item: 'horn-bow', chance: 66 }] },
