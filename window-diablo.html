@@ -1915,6 +1915,36 @@ function lookOf(p, id) {
   }
 }
 const LOOK_COUNT = 256
+
+// ---------------------------------------------------------------------------
+// THE ARMS OF A TOWN (spec 2g)
+// ---------------------------------------------------------------------------
+// A banner carries a tag and nothing else. What that tag LOOKS like is each
+// window's business -- but within a window it must be fixed, so that a citizen
+// who learns Anchor's colours keeps knowing them.
+//
+// The tinctures are the real ones and the rule of tincture is kept: a colour
+// is never laid on a colour, nor a metal on a metal, which is why real heraldry
+// reads at a distance and invented heraldry usually does not.
+const TINCTURES = {
+  gules: '#9d2222', azure: '#24467f', sable: '#231f22',
+  vert: '#2c5c30', purpure: '#5b2a63', tenne: '#8a4a1e',
+}
+const METALS = { or: '#d8ab3e', argent: '#dcd8cc' }
+const CHARGES = ['pale', 'fess', 'cross', 'saltire', 'chevron', 'lozenge', 'roundel', 'bend']
+function armsOf(tag) {
+  const h = hash32(String(tag ?? 'x'))
+  const cols = Object.values(TINCTURES), mets = Object.values(METALS)
+  const flip = ((h >> 11) & 1) === 1        // metal field with a colour charge
+  const colour = cols[h % cols.length]
+  const metal = mets[(h >> 5) % mets.length]
+  return {
+    field: flip ? metal : colour,
+    charge: flip ? colour : metal,
+    kind: CHARGES[(h >> 7) % CHARGES.length],
+    tail: ((h >> 13) & 1) === 1,            // swallow-tailed, or square
+  }
+}
 // ===========================================================================
 // THE WIRE
 // ---------------------------------------------------------------------------
@@ -2026,6 +2056,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  : a.do === 'drink' ? { type: 'drink' }
   : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
@@ -2226,6 +2257,17 @@ const sh = (c, k, a) => rgb(clamp(c[0] * k, 0, 255), clamp(c[1] * k, 0, 255), cl
 // Each terrain the mirror can name gets a base colour, a grain, and a lift.
 // Lift is what stops the island reading as a tilted chessboard: crags stand
 // up out of their neighbours and carry a rock face, water sits down in its bed.
+// A ROAD THAT BECOMES A TOWN SHOULD LOOK LIKE IT.
+//
+// The world already says this -- the road turns from `trail` to `cobble` at
+// every settlement, which is the oldest approach cue there is. This window was
+// throwing it away: trail was [58,49,37] and cobble [58,54,47], eleven units
+// apart out of two hundred and fifty-five. Invisible before the light touched
+// it, and this window's light is a lantern.
+//
+// Stone is cool and lighter; earth is warm and darker. Separating them on BOTH
+// axes is what makes the change read at night, where a hue difference alone
+// does not survive a torch falloff.
 const GROUND = {
   meadow:     { c: [46, 52, 38], grain: 'turf',   lift: 0 },
   heartlands: { c: [52, 54, 38], grain: 'turf',   lift: 0 },
@@ -2233,7 +2275,7 @@ const GROUND = {
   forest:     { c: [32, 40, 29], grain: 'turf',   lift: 0 },
   moor:       { c: [44, 42, 34], grain: 'turf',   lift: 0 },
   downs:      { c: [56, 56, 44], grain: 'turf',   lift: 2 },
-  flag:       { c: [60, 58, 52], grain: 'paving', lift: 1 },
+  flag:       { c: [74, 74, 71], grain: 'paving', lift: 1 },
   wilds:      { c: [40, 32, 36], grain: 'ash',    lift: 0 },
   fens:       { c: [36, 39, 33], grain: 'bog',    lift: -2 },
   peat:       { c: [33, 29, 24], grain: 'bog',    lift: -2 },
@@ -2244,10 +2286,10 @@ const GROUND = {
   crags:      { c: [48, 44, 41], grain: 'rock',   lift: 26 },
   mountain:   { c: [44, 41, 39], grain: 'rock',   lift: 40 },
   cave:       { c: [24, 21, 19], grain: 'rock',   lift: 0 },
-  cobble:     { c: [58, 54, 47], grain: 'paving', lift: 1 },
-  plaza:      { c: [62, 57, 49], grain: 'paving', lift: 1 },
-  trail:      { c: [58, 49, 37], grain: 'track',  lift: 0 },
-  causey:     { c: [61, 54, 43], grain: 'track',  lift: 2 },
+  cobble:     { c: [72, 72, 70], grain: 'paving', lift: 1 },
+  plaza:      { c: [80, 79, 76], grain: 'paving', lift: 1 },
+  trail:      { c: [61, 50, 35], grain: 'track',  lift: 0 },
+  causey:     { c: [66, 58, 45], grain: 'track',  lift: 2 },
   bridge:     { c: [56, 44, 29], grain: 'plank',  lift: 13 },
   floor:      { c: [50, 41, 31], grain: 'plank',  lift: 1 },
   inn:        { c: [52, 42, 31], grain: 'plank',  lift: 1 },
@@ -3235,6 +3277,45 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
 //
 // Sixteen possible neighbour patterns, cached like everything else.
 const BRIDGE_LIFT = 13, BRIDGE_TOP = 20
+
+// A BRIDGE RISES. That is the whole difference between a bridge and a plank.
+//
+// Every deck tile stood at the same height, which is a jetty: a flat board laid
+// across a gap. A real span arches -- for strength first and beauty second, and
+// the two are the same thing here -- so it climbs from each bank to the middle
+// and comes down again, and the trestles under it grow with it.
+//
+// The rise is a pure function of where a tile sits along its own span, so every
+// window that reads it gets the same bridge, and the citizen walking over it
+// stands ON the deck rather than ten pixels inside it (NODE_LIFT used to say 3
+// while the deck was drawn at 13; nobody noticed because the planks hid them).
+const _bspan2 = new Map()
+function bridgeSpan(x, y) {
+  const k = x + ',' + y
+  const hit = _bspan2.get(k); if (hit) return hit
+  const isB = (a, b) => terrainOf(a, b) === 'bridge'
+  if (!isB(x, y)) return { t: 0, len: 0 }
+  // walk the longer of the two axes: that is the direction the span runs
+  let w = 0, e = 0, n = 0, s2 = 0
+  while (w < 30 && isB(x - w - 1, y)) w++
+  while (e < 30 && isB(x + e + 1, y)) e++
+  while (n < 30 && isB(x, y - n - 1)) n++
+  while (s2 < 30 && isB(x, y + s2 + 1)) s2++
+  const alongX = (w + e) >= (n + s2)
+  const before = alongX ? w : n, len = (alongX ? w + e : n + s2) + 1
+  const t = len <= 1 ? .5 : (before + .5) / len
+  const out = { t, len, alongX }
+  if (_bspan2.size > 40000) _bspan2.clear()
+  _bspan2.set(k, out)
+  return out
+}
+// the arch itself: short crossings stay nearly flat, long ones climb
+function bridgeRise(x, y) {
+  const sp = bridgeSpan(x, y)
+  if (!sp.len) return 0
+  const peak = Math.min(14, Math.max(0, (sp.len - 2) * 1.6))
+  return Math.sin(sp.t * Math.PI) * peak
+}
 const _bridgeArt = new Map()
 function bridgeArt(mask, v) {
   const key = mask + ':' + v
@@ -3247,22 +3328,10 @@ function bridgeArt(mask, v) {
   // which side is open water: bit 1 = +x, 2 = -x, 4 = +y, 8 = -y
   const openX1 = !!(mask & 1), openX2 = !!(mask & 2), openY1 = !!(mask & 4), openY2 = !!(mask & 8)
 
-  // ---- the shadow it throws on the water it crosses ----------------------
-  g.fillStyle = 'rgba(0,0,0,.42)'
-  diamond(g, 0, O + BRIDGE_LIFT + 5, -2); g.fill()
 
-  // ---- piles, driven into the riverbed under every open side -------------
-  const pile = (px2, py2) => {
-    g.fillStyle = '#191309'
-    g.fillRect(px2 - 2.6, py2, 5.2, BRIDGE_LIFT + 11)
-    g.fillStyle = '#2c2113'
-    g.fillRect(px2 - 2.6, py2, 2, BRIDGE_LIFT + 11)
-    g.fillStyle = 'rgba(120,150,160,.18)'          // where it enters the water
-    g.beginPath(); g.ellipse(px2, py2 + BRIDGE_LIFT + 6, 5.4, 2.2, 0, 0, 7); g.fill()
-  }
-  if (openX1 || openY2) pile(HW + 15, O + HH + 7)
-  if (openX2 || openY1) pile(HW - 15, O + HH + 7)
-  if (openX1 || openY1) pile(HW, O + TH - 1)
+  // The trestle is NOT in this sprite. It has to grow with the arch, and the
+  // arch is a property of the tile rather than of the neighbour pattern, so
+  // the renderer builds it underneath (drawTrestle).
 
   // ---- the deck ----------------------------------------------------------
   const deck = ['#4a3a22', '#63502e', '#2a1f11']
@@ -3293,19 +3362,25 @@ function bridgeArt(mask, v) {
   poly(g, [B, Rt, [Rt[0], Rt[1] + 5], [B[0], B[1] + 5]], '#1a130a')
 
   // ---- a parapet on every side that faces water --------------------------
+  // A HANDRAIL, NOT A HOARDING. A solid parapet hides the water, which is the
+  // one thing worth seeing from a bridge. Posts, a top rail, a mid rail, and
+  // daylight between them.
   const rail = (a, b2, lit) => {
-    const H2 = 13
-    poly(g, [a, b2, [b2[0], b2[1] - H2], [a[0], a[1] - H2]], lit ? '#5b4a2c' : '#33280f')
-    poly(g, [[a[0], a[1] - H2], [b2[0], b2[1] - H2], [b2[0], b2[1] - H2 - 3], [a[0], a[1] - H2 - 3]],
-      lit ? '#7a6238' : '#4a3a20')
-    g.strokeStyle = 'rgba(0,0,0,.4)'; g.lineWidth = 1
-    g.beginPath(); g.moveTo(a[0], a[1] - H2); g.lineTo(b2[0], b2[1] - H2); g.stroke()
-    for (let i = 0; i <= 3; i++) {                  // posts
-      const t2 = i / 3
+    const H2 = 15
+    const post = (t2) => {
       const px2 = a[0] + (b2[0] - a[0]) * t2, py2 = a[1] + (b2[1] - a[1]) * t2
       g.fillStyle = lit ? '#4a3a20' : '#2a2110'
-      g.fillRect(px2 - 1.6, py2 - H2 - 3, 3.2, H2 + 4)
+      g.fillRect(px2 - 1.7, py2 - H2 - 2, 3.4, H2 + 3)
+      g.fillStyle = lit ? '#6a5430' : '#3a2e18'
+      g.fillRect(px2 - 1.7, py2 - H2 - 2, 1.3, H2 + 3)
     }
+    for (const [dy, w2] of [[H2, 2.6], [H2 * .5, 1.8]]) {
+      g.strokeStyle = lit ? '#5b4a2c' : '#33280f'; g.lineWidth = w2
+      g.beginPath(); g.moveTo(a[0], a[1] - dy); g.lineTo(b2[0], b2[1] - dy); g.stroke()
+      g.strokeStyle = lit ? 'rgba(255,240,214,.16)' : 'rgba(255,240,214,.06)'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(a[0], a[1] - dy - 1); g.lineTo(b2[0], b2[1] - dy - 1); g.stroke()
+    }
+    post(0); post(.5); post(1)
   }
   if (openX1) rail(Rt, B, false)        // lower right
   if (openX2) rail(L, T, true)          // upper left
@@ -3407,6 +3482,50 @@ function abutmentArt(mask, v) {
   g.beginPath(); g.moveTo(0, O + HH - 1.5); g.lineTo(HW, O + TH - 1.5); g.lineTo(TW, O + HH - 1.5); g.stroke()
   _abut.set(key, c)
   return c
+}
+
+// ---------------------------------------------------------------------------
+// WHAT HOLDS A BRIDGE UP
+// ---------------------------------------------------------------------------
+// A trestle: two raking legs, a cross-brace between them, a sill in the water
+// and a cap under the deck. Drawn per tile rather than baked into the sprite,
+// because its height follows the arch -- tallest in the middle of the span,
+// which is exactly where a real one is.
+function drawTrestle(g, ox, oy, h, wet) {
+  const cx = ox + HW, top = oy + TH * .5
+  const foot = top + h
+  const spread = 13 + h * .12
+  g.lineCap = 'round'
+  // the legs, raking outward as they go down
+  for (const side of [-1, 1]) {
+    g.strokeStyle = '#191309'; g.lineWidth = 5
+    g.beginPath(); g.moveTo(cx + side * 8, top); g.lineTo(cx + side * spread, foot); g.stroke()
+    g.strokeStyle = '#33260f'; g.lineWidth = 1.6
+    g.beginPath(); g.moveTo(cx + side * 8 - 1.4, top); g.lineTo(cx + side * spread - 1.4, foot); g.stroke()
+  }
+  // the cross-brace, and a second one on a tall trestle
+  const braces = h > 26 ? [.42, .74] : [.55]
+  for (const k of braces) {
+    const y = top + h * k, w2 = 8 + (spread - 8) * k
+    g.strokeStyle = '#241a0d'; g.lineWidth = 3
+    g.beginPath(); g.moveTo(cx - w2, y); g.lineTo(cx + w2, y); g.stroke()
+    g.strokeStyle = '#241a0d'; g.lineWidth = 2
+    g.beginPath(); g.moveTo(cx - w2, y - h * .16); g.lineTo(cx + w2, y + h * .16); g.stroke()
+    g.beginPath(); g.moveTo(cx + w2, y - h * .16); g.lineTo(cx - w2, y + h * .16); g.stroke()
+  }
+  // the cap the deck sits on
+  g.fillStyle = '#2c2113'
+  g.fillRect(cx - 12, top - 2, 24, 4)
+  g.fillStyle = '#4a3a22'; g.fillRect(cx - 12, top - 2, 24, 1.4)
+  if (wet) {
+    // where the legs enter the water, and the disturbance around them
+    g.save(); g.globalCompositeOperation = 'lighter'
+    for (const side of [-1, 1]) {
+      g.fillStyle = 'rgba(150,196,214,.20)'
+      g.beginPath(); g.ellipse(cx + side * spread, foot, 6.5, 2.6, 0, 0, 7); g.fill()
+    }
+    g.restore()
+  }
 }
 // ===========================================================================
 // THE BESTIARY, AND THE PACK
@@ -4397,9 +4516,15 @@ function skillGlyph(skill, S, tone) {
 // ===========================================================================
 
 const LM_SIZE = {           // how much canvas each noun needs above its tile
-  'old-oak': 168, 'elder-tree': 168, 'burnt-tree': 140,
+  // THE RARE ONES GET THE ROOM THEY DESERVE.
+  //
+  // There are fifty-nine tables on this island and ONE elder tree. They were
+  // being drawn to the same budget, which is backwards: a thing you will see
+  // once is the thing worth stopping for, and it should be able to be seen
+  // from far enough away to be walked toward.
+  'old-oak': 250, 'elder-tree': 250, 'burnt-tree': 140,
   'broken-tower': 150, 'mill': 160, 'sentinel': 130, 'standing-stone': 110,
-  'siege-engine': 120, 'gibbet': 120, 'shipwreck': 110, 'drowned-bell': 130,
+  'siege-engine': 120, 'gibbet': 120, 'shipwreck': 150, 'drowned-bell': 160,
   'scarecrow': 118, 'web': 118, 'cave-mouth': 110, 'eel-rack': 110,
   'shelf': 74, 'haystack': 106, 'cart': 100, 'barricade': 100,
 }
@@ -4682,6 +4807,14 @@ const LM_ART = {
     groundShadow(g, cx + 4, b + 2, 24, 11, .5)
     g.fillStyle = 'rgba(20,42,54,.65)'                      // the water it stands in
     g.beginPath(); g.ellipse(cx, b + 3, 30, 13, 0, 0, 7); g.fill()
+    // TWO IN THE WORLD. A tower standing in water with its bell still in it --
+    // taller, so it reads as a tower rather than a post, and the bell itself
+    // catches what light there is, because that is the whole point of it.
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const bg2 = g.createRadialGradient(cx - 5, b - 40, 0, cx - 5, b - 40, 44)
+    bg2.addColorStop(0, 'rgba(196,170,92,.13)'); bg2.addColorStop(1, 'rgba(196,170,92,0)')
+    g.fillStyle = bg2; g.beginPath(); g.arc(cx - 5, b - 40, 44, 0, 7); g.fill()
+    g.restore()
     poly(g, [[cx - 15, b - 6], [cx, b + 2], [cx, b - 62], [cx - 15, b - 68]], ROCK[0])
     poly(g, [[cx, b + 2], [cx + 15, b - 6], [cx + 15, b - 68], [cx, b - 62]], ROCK[2])
     poly(g, [[cx - 15, b - 68], [cx, b - 62], [cx + 15, b - 68], [cx, b - 74]], ROCK[1])
@@ -4697,19 +4830,51 @@ const LM_ART = {
     }
   },
   shipwreck: (g, W, H, R, cx, b) => {
-    groundShadow(g, cx + 5, b + 2, 34, 12, .5)
-    for (let i = 0; i < 7; i++) {                           // ribs out of the sand
-      const t2 = i / 6, px2 = cx - 30 + t2 * 60
-      const hgt = 34 * Math.sin(t2 * Math.PI) + 6
-      g.strokeStyle = i % 2 ? OLDWOOD[0] : OLDWOOD[1]; g.lineWidth = 3.4
-      g.beginPath(); g.moveTo(px2, b - (px2 - cx) * .5 + 4)
-      g.quadraticCurveTo(px2 + 5, b - (px2 - cx) * .5 - hgt * .7, px2 + 2, b - (px2 - cx) * .5 - hgt)
+    // ONE. Ribs of a hull in the sand, and a hull is big -- this was a handful
+    // of curved lines at the scale of a cart. A ship that carried people should
+    // be large enough that you walk along it rather than past it.
+    groundShadow(g, cx + 8, b + 3, 62, 22, .5)
+    g.fillStyle = 'rgba(198,180,140,.10)'                  // sand banked against it
+    g.beginPath(); g.ellipse(cx, b + 4, 58, 20, 0, 0, 7); g.fill()
+    // the keel, running away from the eye
+    g.strokeStyle = '#2a2118'; g.lineWidth = 6; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(cx - 46, b + 8); g.quadraticCurveTo(cx, b - 4, cx + 44, b - 12); g.stroke()
+    // ribs, tallest amidships, broken shorter toward the stern
+    for (let i2 = 0; i2 < 11; i2++) {
+      const t2 = i2 / 10
+      const x = cx - 46 + t2 * 90, y = b + 8 - t2 * 20
+      const tall = Math.sin(t2 * 3.14) * 46 + 10 - R() * 9
+      g.strokeStyle = i2 % 2 ? '#3d3527' : '#4a4030'; g.lineWidth = 4.6 - t2 * 1.4
+      g.beginPath(); g.moveTo(x, y)
+      g.quadraticCurveTo(x - 7 - t2 * 4, y - tall * .7, x - 3 - t2 * 8, y - tall)
+      g.stroke()
+      g.strokeStyle = 'rgba(214,196,152,.13)'; g.lineWidth = 1.2
+      g.beginPath(); g.moveTo(x, y)
+      g.quadraticCurveTo(x - 8 - t2 * 4, y - tall * .7, x - 4 - t2 * 8, y - tall)
       g.stroke()
     }
-    g.strokeStyle = OLDWOOD[2]; g.lineWidth = 4              // the keel
-    g.beginPath(); g.moveTo(cx - 32, b + 12); g.lineTo(cx + 30, b - 18); g.stroke()
-    poly(g, [[cx - 10, b - 26], [cx + 6, b - 34], [cx + 8, b - 28], [cx - 8, b - 20]], OLDWOOD[1])
+    // a few planks still on the ribs, and the stem post standing
+    g.strokeStyle = '#332b1e'; g.lineWidth = 3
+    for (const off of [14, 26]) {
+      g.beginPath(); g.moveTo(cx - 40, b + 4 - off * .5)
+      g.quadraticCurveTo(cx - 6, b - 10 - off, cx + 26, b - 16 - off * .7); g.stroke()
+    }
+    g.strokeStyle = '#3d3527'; g.lineWidth = 5.5
+    g.beginPath(); g.moveTo(cx - 46, b + 8); g.quadraticCurveTo(cx - 54, b - 26, cx - 44, b - 52)
+    g.stroke()
+    g.strokeStyle = 'rgba(214,196,152,.16)'; g.lineWidth = 1.4
+    g.beginPath(); g.moveTo(cx - 46, b + 8); g.quadraticCurveTo(cx - 55, b - 26, cx - 45, b - 52)
+    g.stroke()
+    // weed on the windward side, and one iron ring gone orange
+    g.fillStyle = 'rgba(48,66,48,.5)'
+    for (let i2 = 0; i2 < 7; i2++) {
+      const t2 = R()
+      g.beginPath(); g.ellipse(cx - 40 + t2 * 84, b + 6 - t2 * 18, 6 + R() * 5, 3, 0, 0, 7); g.fill()
+    }
+    g.strokeStyle = '#6a3a1e'; g.lineWidth = 2
+    g.beginPath(); g.arc(cx - 42, b - 46, 4.5, 0, 7); g.stroke()
   },
+
   'siege-engine': (g, W, H, R, cx, b) => {
     groundShadow(g, cx + 5, b + 2, 28, 12, .55)
     g.strokeStyle = OLDWOOD[2]; g.lineWidth = 4
@@ -4811,17 +4976,47 @@ const LM_ART = {
     g.beginPath(); g.arc(cx + 18, b - 45, 1.5, 0, 7); g.fill()
   },
   'tally-half': (g, W, H, R, cx, b) => {
-    groundShadow(g, cx + 2, b + 1, 12, 6, .5)
-    poly(g, [[cx - 5, b], [cx + 5, b], [cx + 4, b - 40], [cx - 3, b - 44]], '#6b5836')
-    poly(g, [[cx - 5, b], [cx - 1, b], [cx - 1, b - 42], [cx - 3, b - 44]], '#8a7248')
-    g.strokeStyle = '#2e2418'; g.lineWidth = 1.6              // the notches of the debt
-    for (let i = 0; i < 7; i++) {
-      const y = b - 8 - i * 4.6
-      g.beginPath(); g.moveTo(cx - 4, y); g.lineTo(cx + 4, y - 1); g.stroke()
+    // TWO IN THE WORLD, AND IT IS SMALL. Rarity does not mean big -- a tally
+    // stick is a hand-sized thing carrying an enormous story: a debt split in
+    // two, so that neither half can be altered without the other disagreeing.
+    // What it gets is not scale, it is CARE: the split face pale where it was
+    // riven, notches cut rather than drawn, a thong to carry it by, and the
+    // grain running the length of the wood.
+    groundShadow(g, cx + 3, b + 1, 14, 7, .5)
+    // driven into the ground at a slight angle, as a marker is
+    const lean = 3
+    poly(g, [[cx - 5, b], [cx + 5, b], [cx + 4 + lean, b - 40], [cx - 3 + lean, b - 44]], '#6b5836')
+    // the riven face: pale, because that split is fresh compared to the bark
+    poly(g, [[cx - 5, b], [cx - 1, b], [cx - 1 + lean, b - 42], [cx - 3 + lean, b - 44]], '#b39a68')
+    poly(g, [[cx + 2, b], [cx + 5, b], [cx + 4 + lean, b - 40], [cx + 2 + lean, b - 41]], '#4a3c23')
+    // grain, running the length
+    g.strokeStyle = 'rgba(60,46,26,.4)'; g.lineWidth = .9
+    for (let i2 = 0; i2 < 5; i2++) {
+      const t2 = (i2 + .5) / 5
+      g.beginPath(); g.moveTo(cx - 5 + t2 * 10, b)
+      g.lineTo(cx - 3 + lean + t2 * 7, b - 42); g.stroke()
     }
-    g.strokeStyle = '#1a140e'; g.lineWidth = 2                // and the split down it
-    g.beginPath(); g.moveTo(cx + 1, b); g.lineTo(cx + 1, b - 42); g.stroke()
+    // the notches: each one a cut, with a lit lower lip
+    for (let i2 = 0; i2 < 9; i2++) {
+      const y = b - 6 - i2 * 4.1
+      const w2 = i2 % 3 === 2 ? 9 : 6                 // every third is a larger sum
+      g.strokeStyle = '#241c10'; g.lineWidth = 1.8
+      g.beginPath(); g.moveTo(cx - 4 + lean * (1 - (b - y) / 44), y)
+      g.lineTo(cx - 4 + w2 + lean * (1 - (b - y) / 44), y - 1.4); g.stroke()
+      g.strokeStyle = 'rgba(226,206,158,.28)'; g.lineWidth = .8
+      g.beginPath(); g.moveTo(cx - 4 + lean * (1 - (b - y) / 44), y + 1)
+      g.lineTo(cx - 4 + w2 + lean * (1 - (b - y) / 44), y - .4); g.stroke()
+    }
+    // the split itself, all the way down
+    g.strokeStyle = '#1a140e'; g.lineWidth = 1.6
+    g.beginPath(); g.moveTo(cx + 1, b); g.lineTo(cx + 1 + lean, b - 42); g.stroke()
+    // a leather thong through the head, for the half somebody carried away
+    g.strokeStyle = '#3b2a19'; g.lineWidth = 1.6
+    g.beginPath(); g.arc(cx + 1 + lean, b - 44, 3.2, .4, 3.6); g.stroke()
+    g.fillStyle = '#2a1f12'
+    g.beginPath(); g.arc(cx + 1 + lean, b - 44, 1.1, 0, 7); g.fill()
   },
+
   web: (g, W, H, R, cx, b) => {
     // THIRTY OF THESE, and until now every one drew as a standing stone.
     groundShadow(g, cx + 2, b + 1, 12, 6, .3)
@@ -4993,65 +5188,136 @@ const LM_ART = {
 
   // ---- the two that are older than the towns -----------------------------
   'old-oak': (g, W, H, R, cx, b) => {
-    groundShadow(g, cx + 6, b + 2, 40, 17, .6)
-    const h = 78
-    poly(g, [[cx - 17, b + 2], [cx - 8, b - h], [cx + 8, b - h], [cx + 17, b + 2]], '#2c241a')
-    poly(g, [[cx - 17, b + 2], [cx - 5, b + 2], [cx - 3, b - h], [cx - 8, b - h]], '#463829')
-    g.strokeStyle = '#181109'; g.lineWidth = 1.6
-    for (let i = 0; i < 8; i++) {
+    // TWO OF THESE EXIST. An oak that was old before the towns were, and it
+    // should look like the towns grew up around it: a bole you could not get
+    // your arms around, roots that have lifted the ground, and a crown wide
+    // enough to stand a village under.
+    groundShadow(g, cx + 10, b + 3, 64, 26, .62)
+    const h = 118
+    // roots, first, so the trunk sits into them
+    for (let i2 = 0; i2 < 9; i2++) {
+      const a = (i2 / 9) * 6.283 + .3, len = 16 + R() * 16
+      g.strokeStyle = '#241d14'; g.lineWidth = 7 - (i2 % 3)
+      g.lineCap = 'round'
+      g.beginPath(); g.moveTo(cx + Math.cos(a) * 6, b - 4)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .7, b + 2,
+                         cx + Math.cos(a) * len, b + 3 + Math.abs(Math.sin(a)) * 5)
+      g.stroke()
+    }
+    // the bole: fat at the foot, and not straight
+    poly(g, [[cx - 26, b + 3], [cx - 13, b - h * .62], [cx - 9, b - h],
+             [cx + 10, b - h], [cx + 15, b - h * .6], [cx + 26, b + 3]], '#2c241a')
+    poly(g, [[cx - 26, b + 3], [cx - 10, b + 3], [cx - 6, b - h * .62],
+             [cx - 13, b - h * .62]], '#4d3d2b')
+    poly(g, [[cx + 12, b + 3], [cx + 26, b + 3], [cx + 15, b - h * .6],
+             [cx + 8, b - h * .6]], '#1c1610')
+    // bark: long vertical ridges, which is what says OAK at any size
+    for (let i2 = 0; i2 < 16; i2++) {
       const t2 = R()
-      g.beginPath(); g.moveTo(cx - 14 + t2 * 28, b); g.lineTo(cx - 7 + t2 * 15, b - h + 6); g.stroke()
+      g.strokeStyle = i2 % 3 ? 'rgba(12,9,5,.55)' : 'rgba(150,126,86,.13)'
+      g.lineWidth = 1.4 + R()
+      g.beginPath(); g.moveTo(cx - 22 + t2 * 46, b)
+      g.quadraticCurveTo(cx - 16 + t2 * 34, b - h * .5, cx - 9 + t2 * 20, b - h + 8)
+      g.stroke()
     }
-    for (let i = 0; i < 6; i++) {                             // roots
-      const a = R() * 6.28
-      g.strokeStyle = '#2c241a'; g.lineWidth = 5
-      g.beginPath(); g.moveTo(cx + Math.cos(a) * 10, b)
-      g.lineTo(cx + Math.cos(a) * 30, b + Math.sin(a) * 8); g.stroke()
+    // a hollow, low down, where a branch came off long ago
+    g.fillStyle = '#0d0a06'
+    g.beginPath(); g.ellipse(cx - 9, b - 34, 6, 9, .2, 0, 7); g.fill()
+    g.strokeStyle = 'rgba(150,126,86,.2)'; g.lineWidth = 1.4
+    g.beginPath(); g.ellipse(cx - 9, b - 34, 7, 10, .2, 0, 7); g.stroke()
+    // limbs
+    for (let i2 = 0; i2 < 7; i2++) {
+      const a = -0.5 - (i2 / 7) * 2.2, len = 34 + R() * 26
+      g.strokeStyle = '#2c241a'; g.lineWidth = 8 - i2 * .7
+      g.beginPath(); g.moveTo(cx, b - h + 12)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .6, b - h - 8,
+                         cx + Math.cos(a) * len, b - h - 18 - Math.abs(Math.sin(a)) * 16)
+      g.stroke()
     }
-    g.strokeStyle = '#2c241a'; g.lineCap = 'round'
-    for (let i = 0; i < 7; i++) {
-      const a = -0.3 - R() * 2.5, len = 26 + R() * 26
-      g.lineWidth = 6 - i * .5
-      g.beginPath(); g.moveTo(cx, b - h + 8)
-      g.quadraticCurveTo(cx + Math.cos(a) * len * .5, b - h - 6 + Math.sin(a) * len * .4,
-        cx + Math.cos(a - .2) * len, b - h - 4 + Math.sin(a - .2) * len); g.stroke()
+    // and the crown: many overlapping masses, lit from the upper left
+    const leaf = ['#20301a', '#2b4022', '#37502b', '#44612f']
+    for (let i2 = 0; i2 < 26; i2++) {
+      const a = R() * 6.283, r = R() * 52
+      const x = cx + Math.cos(a) * r, y = b - h - 22 + Math.sin(a) * r * .52
+      const lit = (x - cx) < -6 && (y - (b - h - 22)) < 4
+      g.fillStyle = leaf[lit ? 3 : (i2 % 3)]
+      g.beginPath(); g.arc(x, y, 13 + R() * 11, 0, 7); g.fill()
     }
-    const cy2 = b - h - 34
-    const blobs = []
-    for (let i = 0; i < 11; i++) blobs.push([cx + (R() - .5) * 76, cy2 + (R() - .5) * 40, 18 + R() * 16])
-    for (const [bx, by, br] of blobs) { g.fillStyle = '#17200f'; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill() }
-    for (const [bx, by, br] of blobs) { g.fillStyle = '#243014'; g.beginPath(); g.arc(bx - br * .12, by - br * .16, br * .76, 0, 7); g.fill() }
-    for (const [bx, by, br] of blobs) { g.fillStyle = '#3b4a1e'; g.beginPath(); g.arc(bx - br * .3, by - br * .34, br * .36, 0, 7); g.fill() }
+    g.fillStyle = 'rgba(0,0,0,.24)'
+    for (let i2 = 0; i2 < 8; i2++) {
+      const a = R() * 3.14, r = 18 + R() * 30
+      g.beginPath(); g.arc(cx + Math.cos(a) * r + 12, b - h - 12 + Math.sin(a) * r * .4,
+        11 + R() * 8, 0, 7); g.fill()
+    }
   },
+
   'elder-tree': (g, W, H, R, cx, b) => {
-    groundShadow(g, cx + 6, b + 2, 36, 15, .55)
-    const h = 84
-    poly(g, [[cx - 13, b + 2], [cx - 6, b - h], [cx + 6, b - h], [cx + 13, b + 2]], '#54534a')
-    poly(g, [[cx - 13, b + 2], [cx - 3, b + 2], [cx - 2, b - h], [cx - 6, b - h]], '#77756a')
-    g.strokeStyle = '#3e3d36'; g.lineWidth = 1.2
-    for (let i = 0; i < 7; i++) {
-      const t2 = R()
-      g.beginPath(); g.moveTo(cx - 11 + t2 * 22, b); g.lineTo(cx - 5 + t2 * 11, b - h + 6); g.stroke()
+    // THERE IS ONE OF THESE. One, in the whole world, and a citizen may go a
+    // year without finding it. So it is the one thing on this island that is
+    // allowed to be uncanny: pale bark that takes the light from further off
+    // than anything else, a cold cast to the air around it, nothing growing
+    // underneath, and motes going up that are not embers.
+    const h = 152
+    // the ground beneath is bare and pale, in a ring
+    g.fillStyle = 'rgba(176,186,180,.10)'
+    g.beginPath(); g.ellipse(cx, b + 2, 46, 19, 0, 0, 7); g.fill()
+    groundShadow(g, cx + 6, b + 2, 30, 13, .4)
+    // the cold halo, baked into the sprite so it reads at distance
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const hal = g.createRadialGradient(cx, b - h * .62, 0, cx, b - h * .62, 96)
+    hal.addColorStop(0, 'rgba(150,196,190,.16)')
+    hal.addColorStop(.5, 'rgba(120,170,180,.07)')
+    hal.addColorStop(1, 'rgba(120,170,180,0)')
+    g.fillStyle = hal
+    g.beginPath(); g.arc(cx, b - h * .62, 96, 0, 7); g.fill()
+    g.restore()
+    // the bole: pale, smooth, slightly leaning
+    poly(g, [[cx - 15, b + 2], [cx - 9, b - h * .55], [cx - 6, b - h],
+             [cx + 5, b - h], [cx + 10, b - h * .55], [cx + 16, b + 2]], '#6e6d62')
+    poly(g, [[cx - 15, b + 2], [cx - 5, b + 2], [cx - 2, b - h * .55],
+             [cx - 9, b - h * .55]], '#9d9c8e')
+    poly(g, [[cx + 7, b + 2], [cx + 16, b + 2], [cx + 10, b - h * .55],
+             [cx + 5, b - h * .55]], '#4d4c45')
+    // horizontal lenticels, the way a birch or an elder is marked
+    for (let i2 = 0; i2 < 22; i2++) {
+      const t2 = R(), y = b - 6 - t2 * (h - 14)
+      const wdt = 3 + R() * 7
+      g.fillStyle = R() > .35 ? 'rgba(30,32,30,.5)' : 'rgba(232,236,228,.20)'
+      g.fillRect(cx - 8 + R() * 12, y, wdt, 1.3)
     }
-    g.strokeStyle = '#5e5c52'; g.lineCap = 'round'
-    for (let i = 0; i < 8; i++) {
-      const a = -0.25 - R() * 2.6, len = 24 + R() * 24
-      g.lineWidth = 5 - i * .4
-      g.beginPath(); g.moveTo(cx, b - h + 6)
-      g.quadraticCurveTo(cx + Math.cos(a) * len * .5, b - h - 4 + Math.sin(a) * len * .4,
-        cx + Math.cos(a - .2) * len, b - h - 2 + Math.sin(a - .2) * len); g.stroke()
+    // limbs: thin, high, reaching up rather than out
+    g.lineCap = 'round'
+    for (let i2 = 0; i2 < 11; i2++) {
+      const a = -0.35 - (i2 / 11) * 2.4, len = 26 + R() * 30
+      g.strokeStyle = '#7d7c70'; g.lineWidth = 4.4 - i2 * .3
+      g.beginPath(); g.moveTo(cx, b - h + 16)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .5, b - h - 14,
+                         cx + Math.cos(a) * len, b - h - 34 - Math.abs(Math.sin(a)) * 20)
+      g.stroke()
+      g.strokeStyle = 'rgba(236,240,230,.18)'; g.lineWidth = 1.2
+      g.beginPath(); g.moveTo(cx, b - h + 16)
+      g.quadraticCurveTo(cx + Math.cos(a) * len * .5, b - h - 15,
+                         cx + Math.cos(a) * len, b - h - 35 - Math.abs(Math.sin(a)) * 20)
+      g.stroke()
     }
-    const cy2 = b - h - 30
-    for (let i = 0; i < 10; i++) {
-      const bx = cx + (R() - .5) * 70, by = cy2 + (R() - .5) * 36, br = 16 + R() * 14
-      g.fillStyle = '#2a3a34'; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill()
-      g.fillStyle = '#3d5750'; g.beginPath(); g.arc(bx - br * .2, by - br * .24, br * .6, 0, 7); g.fill()
+    // a thin, cold foliage: not a canopy, a haze of pale leaves
+    for (let i2 = 0; i2 < 30; i2++) {
+      const a = R() * 6.283, r = R() * 46
+      const x = cx + Math.cos(a) * r, y = b - h - 26 + Math.sin(a) * r * .5
+      g.fillStyle = ['rgba(140,164,150,.30)', 'rgba(176,196,180,.24)',
+                     'rgba(112,138,132,.30)'][i2 % 3]
+      g.beginPath(); g.arc(x, y, 7 + R() * 9, 0, 7); g.fill()
     }
-    g.save(); g.globalCompositeOperation = 'lighter'          // it is not quite an ordinary tree
-    const gg2 = g.createRadialGradient(cx, cy2, 0, cx, cy2, 70)
-    gg2.addColorStop(0, 'rgba(150,220,200,.10)'); gg2.addColorStop(1, 'rgba(150,220,200,0)')
-    g.fillStyle = gg2; g.beginPath(); g.arc(cx, cy2, 70, 0, 7); g.fill(); g.restore()
+    // and the motes, going up
+    g.save(); g.globalCompositeOperation = 'lighter'
+    for (let i2 = 0; i2 < 9; i2++) {
+      const x = cx + (R() - .5) * 60, y = b - 10 - R() * (h + 30)
+      g.fillStyle = 'rgba(206,232,224,' + (.18 + R() * .3).toFixed(2) + ')'
+      g.fillRect(x, y, 1.8, 1.8)
+    }
+    g.restore()
   },
+
 }
 
 // Anything the constitution adds after this file was written still gets a
@@ -5306,10 +5572,19 @@ function drawGround(g, s, t) {
     // the two apart from that alone -- but it carries the same geography the
     // generator does, and can simply ask whether the tile is wet underneath.
     const wet = isWater4(bx, by)
-    g.drawImage(wet
-      ? bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1)
-      : abutmentArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
-      bridgeQueue[i + 2], bridgeQueue[i + 3] - BRIDGE_TOP)
+    const ox = bridgeQueue[i + 2], oy = bridgeQueue[i + 3]
+    if (!wet) {
+      // the dry ends sit on packed earth and do not arch
+      g.drawImage(abutmentArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1), ox, oy - BRIDGE_TOP)
+      continue
+    }
+    // the arch, and what holds it up
+    const rise = bridgeRise(bx, by)
+    g.fillStyle = 'rgba(0,0,0,.40)'                 // its shadow, on the water
+    diamond(g, ox, oy + BRIDGE_LIFT + 4, -2); g.fill()
+    drawTrestle(g, ox, oy - rise, BRIDGE_LIFT + rise + 10, true)
+    g.drawImage(bridgeArt(bridgeMask(bx, by), tileHash(bx, by, 77) & 1),
+      ox, oy - BRIDGE_TOP - rise)
   }
 
   // MOTTLE. Ground varies at scales larger than a tile as well as smaller, and
@@ -5380,8 +5655,16 @@ function drawGround(g, s, t) {
 // Every node, beast, citizen and dropped thing becomes one entry with a depth,
 // and then the list is sorted once. Anything drawn outside this list is
 // drawing itself out of order and will look wrong the moment it overlaps.
-const NODE_LIFT = { river: -6, sea: -7, fens: -2, peat: -2, crags: 26, mountain: 40, scree: 9, cobble: 1, plaza: 1, causey: 2, bridge: 3, floor: 1, inn: 1, smith: 1, fisher: 1, shep: 1, clerk: 1, wizard: 1 }
-const liftAt = (x, y) => NODE_LIFT[terrainOf(x, y)] ?? 0
+const NODE_LIFT = { river: -6, sea: -7, fens: -2, peat: -2, crags: 26, mountain: 40, scree: 9, cobble: 1, plaza: 1, causey: 2, floor: 1, inn: 1, smith: 1, fisher: 1, shep: 1, clerk: 1, wizard: 1 }
+// A CITIZEN STANDS ON THE DECK, NOT INSIDE IT. NODE_LIFT said a bridge lifts
+// you three pixels while the deck was drawn at thirteen -- so anyone crossing
+// sank ten pixels into the planks, and the planks hid it. It follows the arch
+// now, so walking over a span looks like walking over a span.
+const liftAt = (x, y) => {
+  const k = terrainOf(x, y)
+  if (k === 'bridge') return isWater4(x, y) ? BRIDGE_LIFT + bridgeRise(x, y) : BRIDGE_LIFT
+  return NODE_LIFT[k] ?? 0
+}
 // anything that fences a thing in joins to anything else that does
 const BARRIERS = new Set(['fence', 'hedge', 'hurdle', 'barricade', 'wall', 'rampart'])
 function barrierMask(x, y) {
@@ -5820,43 +6103,128 @@ function drawNode(g, n, sx, sy, t, hot) {
       g.drawImage(barrierArt(n.type, m2, hs & 1), sx - 40, sy - 52)
       return
     }
-    case 'well':
-      g.drawImage(sprite('well', 76, 82, (gg, W2, H2) => {
+    case 'banner': {
+      // THE ARMS OF A TOWN, ON ITS APPROACH.
+      //
+      // The node carries only which town it speaks for; the device is derived
+      // (armsOf). A gonfalon rather than a flag on a mast -- a banner that
+      // hangs from a crossbar reads as a device at any distance, where one
+      // that flies edge-on is a smear half the time.
+      const A = armsOf(n.tag)
+      const sway = Math.sin(t / 900 + hs) * .12
+      g.drawImage(sprite('banner:' + (n.tag ?? '') + ':' + (hs & 1), 76, 150, (gg, W2, H2) => {
+        const c2 = W2 / 2, b = H2 - 8
+        groundShadow(gg, c2 + 3, b, 14, 7, .55)
+        // a stone foot, because a pole in soft ground falls over
+        poly(gg, [[c2 - 9, b], [c2 + 9, b], [c2 + 6, b - 7], [c2 - 6, b - 7]], '#3a352e')
+        poly(gg, [[c2 - 6, b - 7], [c2 + 6, b - 7], [c2 + 5, b - 9], [c2 - 5, b - 9]], '#4c463c')
+        // the pole
+        gg.fillStyle = '#2e2519'; gg.fillRect(c2 - 2.4, b - 116, 4.8, 110)
+        gg.fillStyle = '#4a3a22'; gg.fillRect(c2 - 2.4, b - 116, 1.8, 110)
+        // the crossbar it hangs from, with a finial
+        gg.fillStyle = '#2e2519'; gg.fillRect(c2 - 15, b - 118, 30, 3.6)
+        gg.fillStyle = '#6a5a34'
+        gg.beginPath(); gg.arc(c2 - 15, b - 116.2, 2, 0, 7); gg.fill()
+        gg.beginPath(); gg.arc(c2 + 15, b - 116.2, 2, 0, 7); gg.fill()
+        gg.fillStyle = '#d8ab3e'
+        gg.beginPath(); gg.moveTo(c2, b - 128); gg.lineTo(c2 + 3, b - 120)
+        gg.lineTo(c2, b - 117); gg.lineTo(c2 - 3, b - 120); gg.closePath(); gg.fill()
+        // the cloth
+        const bw = 26, bh = 62, x0 = c2 - bw / 2, y0 = b - 114
+        const tailY = y0 + bh
+        const cloth = () => {
+          gg.beginPath()
+          gg.moveTo(x0, y0); gg.lineTo(x0 + bw, y0)
+          gg.lineTo(x0 + bw, tailY)
+          if (A.tail) { gg.lineTo(c2 + bw * .18, tailY - 11); gg.lineTo(c2, tailY - 1)
+                        gg.lineTo(c2 - bw * .18, tailY - 11) }
+          gg.lineTo(x0, tailY)
+          gg.closePath()
+        }
+        cloth(); gg.fillStyle = A.field; gg.fill()
+        // the charge
+        gg.save(); cloth(); gg.clip()
+        gg.fillStyle = A.charge
+        const cy2 = y0 + bh * .44
+        if (A.kind === 'pale') gg.fillRect(c2 - 4.5, y0, 9, bh)
+        else if (A.kind === 'fess') gg.fillRect(x0, cy2 - 5, bw, 10)
+        else if (A.kind === 'cross') { gg.fillRect(c2 - 4.5, y0, 9, bh); gg.fillRect(x0, cy2 - 4.5, bw, 9) }
+        else if (A.kind === 'saltire') {
+          gg.save(); gg.translate(c2, cy2); gg.rotate(.72)
+          gg.fillRect(-4, -46, 8, 92); gg.rotate(-1.44); gg.fillRect(-4, -46, 8, 92); gg.restore()
+        } else if (A.kind === 'chevron') {
+          gg.beginPath(); gg.moveTo(x0, cy2 + 9); gg.lineTo(c2, cy2 - 8); gg.lineTo(x0 + bw, cy2 + 9)
+          gg.lineTo(x0 + bw, cy2 + 17); gg.lineTo(c2, cy2); gg.lineTo(x0, cy2 + 17); gg.closePath(); gg.fill()
+        } else if (A.kind === 'lozenge') {
+          gg.beginPath(); gg.moveTo(c2, cy2 - 13); gg.lineTo(c2 + 9, cy2)
+          gg.lineTo(c2, cy2 + 13); gg.lineTo(c2 - 9, cy2); gg.closePath(); gg.fill()
+        } else if (A.kind === 'roundel') {
+          gg.beginPath(); gg.arc(c2, cy2, 8.5, 0, 7); gg.fill()
+        } else {                                     // bend
+          gg.save(); gg.translate(c2, cy2); gg.rotate(.72); gg.fillRect(-5, -46, 10, 92); gg.restore()
+        }
+        gg.restore()
+        // the fold of hanging cloth, and a hem
+        const sh2 = gg.createLinearGradient(x0, 0, x0 + bw, 0)
+        sh2.addColorStop(0, 'rgba(255,246,220,.14)')
+        sh2.addColorStop(.45, 'rgba(0,0,0,0)')
+        sh2.addColorStop(1, 'rgba(0,0,0,.30)')
+        gg.save(); cloth(); gg.clip(); gg.fillStyle = sh2; gg.fillRect(x0, y0, bw, bh); gg.restore()
+        gg.strokeStyle = 'rgba(0,0,0,.35)'; gg.lineWidth = 1.2; cloth(); gg.stroke()
+      }), sx - 38 + sway * 8, sy - 150 + 30)
+      return
+    }
+    case 'well': {
+      // A WELL THAT MEANS SOMETHING NOW. It restores a citizen to full, so it
+      // should not look like a bucket on a rope: the water itself is the point.
+      // Wet stone, a lit surface with rings still going out on it, and a soft
+      // cold glow that makes it findable across a dark square -- because the
+      // whole value of the thing is knowing where it is before you need it.
+      const wob = t / 1000
+      g.drawImage(sprite('well', 92, 100, (gg, W2, H2) => {
         const c2 = W2 / 2, b = H2 - 6
-        groundShadow(gg, c2 + 3, b - 3, 22, 10, .55)
-        gg.fillStyle = '#0a0d10'; gg.beginPath(); gg.ellipse(c2, b - 12, 17, 8.5, 0, 0, 7); gg.fill()
-        gg.fillStyle = '#3a352e'
-        gg.beginPath(); gg.ellipse(c2, b - 8, 20, 10, 0, 0, 7); gg.fill()
-        gg.fillStyle = '#4a443b'
-        gg.beginPath(); gg.ellipse(c2, b - 12, 20, 10, 0, 0, 7); gg.fill()
-        gg.fillStyle = '#12181e'; gg.beginPath(); gg.ellipse(c2, b - 12, 13, 6.4, 0, 0, 7); gg.fill()
+        groundShadow(gg, c2 + 3, b - 3, 26, 12, .55)
+        // the apron of wet flags around the foot
+        gg.fillStyle = 'rgba(96,120,124,.16)'
+        gg.beginPath(); gg.ellipse(c2, b - 4, 30, 14, 0, 0, 7); gg.fill()
+        // the drum, coursed stone
+        gg.fillStyle = '#2f2b26'; gg.beginPath(); gg.ellipse(c2, b - 6, 22, 11, 0, 0, 7); gg.fill()
+        gg.fillStyle = '#453f36'; gg.beginPath(); gg.ellipse(c2, b - 13, 22, 11, 0, 0, 7); gg.fill()
+        gg.strokeStyle = 'rgba(0,0,0,.35)'; gg.lineWidth = 1
+        for (let i2 = 0; i2 < 9; i2++) {
+          const a = (i2 / 9) * 6.283
+          gg.beginPath(); gg.moveTo(c2 + Math.cos(a) * 22, b - 13 + Math.sin(a) * 11)
+          gg.lineTo(c2 + Math.cos(a) * 22, b - 6 + Math.sin(a) * 11); gg.stroke()
+        }
+        gg.fillStyle = 'rgba(255,240,214,.10)'
+        gg.beginPath(); gg.ellipse(c2, b - 14.5, 22, 11, 0, 0, 7); gg.fill()
+        gg.fillStyle = '#20262a'; gg.beginPath(); gg.ellipse(c2, b - 13, 16, 8, 0, 0, 7); gg.fill()
+        // the posts and the roof, kept small so the water leads
         gg.strokeStyle = '#2e2519'; gg.lineWidth = 3.4
-        gg.beginPath(); gg.moveTo(c2 - 15, b - 16); gg.lineTo(c2 - 15, b - 44); gg.stroke()
-        gg.beginPath(); gg.moveTo(c2 + 15, b - 16); gg.lineTo(c2 + 15, b - 44); gg.stroke()
-        poly(gg, [[c2 - 22, b - 44], [c2 + 22, b - 44], [c2, b - 60]], '#33291c')
-        poly(gg, [[c2 - 22, b - 44], [c2, b - 60], [c2, b - 44]], '#443626')
-        gg.strokeStyle = '#3a3630'; gg.lineWidth = 1.6
-        gg.beginPath(); gg.moveTo(c2, b - 44); gg.lineTo(c2, b - 28); gg.stroke()
-        poly(gg, [[c2 - 5, b - 28], [c2 + 5, b - 28], [c2 + 4, b - 20], [c2 - 4, b - 20]], '#2e2519')
-      }), sx - 38, sy - 82 + 20); return
-    case 'plot': {
+        gg.beginPath(); gg.moveTo(c2 - 16, b - 18); gg.lineTo(c2 - 16, b - 48); gg.stroke()
+        gg.beginPath(); gg.moveTo(c2 + 16, b - 18); gg.lineTo(c2 + 16, b - 48); gg.stroke()
+        poly(gg, [[c2 - 24, b - 48], [c2 + 24, b - 48], [c2, b - 66]], '#33291c')
+        poly(gg, [[c2 - 24, b - 48], [c2, b - 66], [c2, b - 48]], '#443626')
+        gg.strokeStyle = '#5a4a2c'; gg.lineWidth = 2.6
+        gg.beginPath(); gg.moveTo(c2 - 17, b - 44); gg.lineTo(c2 + 17, b - 44); gg.stroke()
+      }), sx - 46, sy - 100 + 22)
+      // the water: lit, and moving
+      const wx = sx, wy = sy - 100 + 22 + 100 - 6 - 13
       g.save()
-      g.fillStyle = 'rgba(38,28,18,.85)'; diamond(g, sx - 32, sy - 16, 4); g.fill()
-      g.strokeStyle = 'rgba(20,14,8,.7)'; g.lineWidth = 2
-      for (let i = 1; i < 5; i++) {
-        g.beginPath(); g.moveTo(sx - 26 + i * 10, sy - 10 + i * 5); g.lineTo(sx + 6 + i * 10 - 32 + 26, sy + 6); g.stroke()
+      g.globalCompositeOperation = 'lighter'
+      const wg = g.createRadialGradient(wx, wy, 0, wx, wy, 30)
+      wg.addColorStop(0, 'rgba(150,206,214,' + (.22 + Math.sin(wob * 1.3) * .05).toFixed(3) + ')')
+      wg.addColorStop(1, 'rgba(120,180,200,0)')
+      g.fillStyle = wg
+      g.beginPath(); g.ellipse(wx, wy, 30, 15, 0, 0, 7); g.fill()
+      // two rings, going out and fading, as if something just went in
+      for (let i2 = 0; i2 < 2; i2++) {
+        const k = ((wob * .45) + i2 * .5) % 1
+        g.strokeStyle = 'rgba(196,232,238,' + (.30 * (1 - k)).toFixed(2) + ')'
+        g.lineWidth = 1.3
+        g.beginPath(); g.ellipse(wx, wy, 3 + k * 13, (3 + k * 13) * .5, 0, 0, 7); g.stroke()
       }
       g.restore()
-      if (n.crop) {                                   // something is growing
-        const grown = (n.readyAt ?? 0) <= (s?.tick ?? 0)
-        for (let i = 0; i < 5; i++) {
-          const ox = ((tileHash(n.x, n.y, i + 30) % 40) - 20), oy = ((tileHash(n.x, n.y, i + 40) % 20) - 10)
-          g.strokeStyle = grown ? '#8a9a3a' : '#4a5a2a'; g.lineWidth = 2
-          g.beginPath(); g.moveTo(sx + ox, sy + oy); g.lineTo(sx + ox, sy + oy - (grown ? 13 : 6)); g.stroke()
-          if (grown) { g.fillStyle = '#c9a552'
-            g.beginPath(); g.ellipse(sx + ox, sy + oy - 15, 2.4, 4, 0, 0, 7); g.fill() }
-        }
-      }
       return
     }
     case 'brewpot':
@@ -7524,6 +7892,7 @@ function ambience(now) {
     const d = Math.max(Math.abs(n.x - me.x), Math.abs(n.y - me.y))
     if (d < best) best = d
   }
+  townTone(now, s, me)
   if (best > 9) return
   const near = 1 - best / 9
   if (now - _lastCrack > 90 + Math.random() * 700 / Math.max(.15, near)) {
@@ -8509,6 +8878,108 @@ function drawLog(g, now) {
   })
   g.globalAlpha = 1
 }
+
+// ---------------------------------------------------------------------------
+// THE ROOM TONE OF A TOWN
+// ---------------------------------------------------------------------------
+// Until now the ear was told nothing about where you were standing. The only
+// ambience was fire, at whatever distance -- the same crackle in Anchor's
+// square as alone in the Boneyard. A town read as calm purely because it was
+// LIT and nothing attacked you.
+//
+// So a town gets a bed: not music, and deliberately not a melody. A place with
+// people in it makes a low continuous hum, and over it the particular sounds
+// of somebody else's ordinary day -- a well rope running, a hammer on an anvil
+// three streets away, birds, a door. Each one is placed a little off-centre
+// and none of them repeat on a fixed beat, because a rhythm is the fastest way
+// to turn a place back into a loop.
+//
+// The wild gets nothing added. The contrast is made by the town rising, not by
+// the outside getting louder, so arriving reads as relief rather than noise.
+let _townHum = null, _townGain = null, _lastTownSound = 0, _townK = 0
+function townTone(now, s, me) {
+  const a = SFX.ctx(); if (!a) return
+  // how much of a town is around you: the paving underfoot answers it without
+  // asking anybody. A square is plaza and cobble; a lane is flag; the road out
+  // is trail, and the fields beyond are not paved at all.
+  let paved = 0
+  for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+    const k = terrainOf(me.x + dx, me.y + dy)
+    if (k === 'plaza' || k === 'cobble' || k === 'flag' || k === 'floor') paved++
+  }
+  const want = clamp(paved / 34, 0, 1)
+  _townK += (want - _townK) * .035        // a slow crossfade, so the edge is a walk
+  if (!_townHum) {
+    // the hum: two detuned low voices through a soft filter. Barely a note.
+    const g = a.createGain(); g.gain.value = 0
+    const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 320; f.Q.value = .6
+    for (const hz of [58, 87, 116]) {
+      const o = a.createOscillator(); o.type = 'triangle'; o.frequency.value = hz
+      const og = a.createGain(); og.gain.value = hz === 58 ? .5 : .18
+      o.connect(og); og.connect(f); o.start()
+    }
+    f.connect(g); g.connect(SFX.out())
+    _townHum = f; _townGain = g
+  }
+  try { _townGain.gain.value = .028 * _townK * _townK } catch {}
+  if (_townK < .18) return
+  // and the ordinary day over the top of it
+  if (now - _lastTownSound < 1400 + Math.random() * 5200 / _townK) return
+  _lastTownSound = now
+  const pick = Math.random()
+  const out = SFX.out()
+  const at = a.currentTime
+  const pan = (Math.random() - .5) * 1.4
+  const dest = (() => {
+    if (!a.createStereoPanner) return out
+    const p2 = a.createStereoPanner(); p2.pan.value = clamp(pan, -1, 1); p2.connect(out); return p2
+  })()
+  const vol = .10 * _townK
+  if (pick < .3) {
+    // a hammer, three streets away: two strikes, the second softer
+    for (const [d, v] of [[0, 1], [.19, .55]]) {
+      const g = a.createGain(); g.gain.setValueAtTime(0, at + d)
+      g.gain.linearRampToValueAtTime(vol * v, at + d + .004)
+      g.gain.exponentialRampToValueAtTime(.0001, at + d + .34)
+      const o = a.createOscillator(); o.type = 'square'
+      o.frequency.setValueAtTime(1180, at + d)
+      o.frequency.exponentialRampToValueAtTime(420, at + d + .3)
+      const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400
+      o.connect(f); f.connect(g); g.connect(dest); o.start(at + d); o.stop(at + d + .36)
+    }
+  } else if (pick < .55) {
+    // a bird, two notes, up
+    for (const [d, hz] of [[0, 2100], [.13, 2680]]) {
+      const g = a.createGain(); g.gain.setValueAtTime(0, at + d)
+      g.gain.linearRampToValueAtTime(vol * .5, at + d + .02)
+      g.gain.exponentialRampToValueAtTime(.0001, at + d + .16)
+      const o = a.createOscillator(); o.type = 'sine'
+      o.frequency.setValueAtTime(hz * .94, at + d)
+      o.frequency.linearRampToValueAtTime(hz, at + d + .08)
+      o.connect(g); g.connect(dest); o.start(at + d); o.stop(at + d + .18)
+    }
+  } else if (pick < .78) {
+    // a rope over a well head, running out: filtered noise, falling
+    const n2 = Math.floor(a.sampleRate * .5)
+    const buf = a.createBuffer(1, n2, a.sampleRate), ch = buf.getChannelData(0)
+    for (let i = 0; i < n2; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / n2)
+    const src = a.createBufferSource(); src.buffer = buf
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 3
+    f.frequency.setValueAtTime(1500, at)
+    f.frequency.exponentialRampToValueAtTime(420, at + .45)
+    const g = a.createGain(); g.gain.value = vol * .7
+    src.connect(f); f.connect(g); g.connect(dest); src.start(at)
+  } else {
+    // a door, somewhere: one soft knock of wood
+    const g = a.createGain(); g.gain.setValueAtTime(0, at)
+    g.gain.linearRampToValueAtTime(vol * .8, at + .006)
+    g.gain.exponentialRampToValueAtTime(.0001, at + .22)
+    const o = a.createOscillator(); o.type = 'triangle'
+    o.frequency.setValueAtTime(180, at)
+    o.frequency.exponentialRampToValueAtTime(90, at + .2)
+    o.connect(g); g.connect(dest); o.start(at); o.stop(at + .24)
+  }
+}
 // ===========================================================================
 // THE HAND ON THE MOUSE
 // ---------------------------------------------------------------------------
@@ -8676,6 +9147,7 @@ function verbFor(kind, e) {
   if (e.type === 'bank') return 'bank'
   if (e.type === 'store') return 'store'
   if (e.type === 'campfire' || e.type === 'fire') return 'cook'
+  if (e.type === 'well') return 'drink'
   if (e.type === 'hearth') return 'hearth'
   if (e.type === 'brewpot') return 'collect'
   if (e.type === 'waystone') return 'attune'
@@ -8685,6 +9157,7 @@ const VERB_WORD = {
   attack: 'Strike', pickup: 'Take', gather: 'Work', harvest: 'Harvest', forge: 'The anvil',
   bank: 'The vault', store: 'The counter', cook: 'Cook', collect: 'Collect',
   attune: 'Waystone', greet: 'Hail', look: 'Look', walk: 'Walk', hearth: 'The hearth',
+  drink: 'Drink',
 }
 
 // ---- what a thing in the pack does when you click it ----------------------
@@ -8769,7 +9242,11 @@ function lookAt(n) {
   const k = n.kind ?? n.type
   if (LOOK[k]) return LOOK[k]
   if (n.type === 'waystone') return 'A waystone. The road remembers it, and so will you.'
-  if (n.type === 'well') return 'A well. The water is cold and very deep.'
+  if (n.type === 'banner') {
+    const nm = String(n.tag ?? 'this place').replace(/^./, (c) => c.toUpperCase())
+    return 'The arms of ' + nm + '. The town is close.'
+  }
+  if (n.type === 'well') return 'A well. Cold, and deep enough that drinking from it sets you right.'
   if (n.type === 'wall') return 'A wall. Somebody built this, course by course.'
   if (n.type === 'hedge') return 'A hedge, laid and grown thick.'
   if (n.type === 'fence') return 'A fence, of split rails.'
@@ -8817,6 +9294,9 @@ function buildMenu(px2, py2, target) {
     }
     if (n.type === 'waystone') {
       items.push({ label: 'Attune to it', run: go('attune', target.id, n.x, n.y) })
+    }
+    if (n.type === 'well') {
+      items.push({ label: 'Drink', run: go('drink', target.id, n.x, n.y) })
       items.push({ label: 'Recall here', run: () => { send({ do: 'recall', to: target.id }); say('The road folds.', 'good') } })
     }
     if (n.type === 'watchfire') {
@@ -9209,6 +9689,13 @@ function pumpIntent() {
       }
       stepToward(from, n, 'adjacent'); return
     }
+    case 'drink': {
+      // walk to it, then drink. The engine asks only for adjacency -- no
+      // cooldown, no cost; the walk was the price and it is already paid.
+      const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
+      if (near(n)) { send({ do: 'drink' }); SFX.pick(); intent = null; return }
+      stepToward(from, n, 'adjacent'); return
+    }
     case 'hearth': { intent = null; say('A hearth. Somebody lives here.', 'dim'); return }
     case 'forge': case 'bank': case 'store': case 'attune': case 'look': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
@@ -9245,6 +9732,7 @@ function onState(s, worldId) {
     configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
     _tileArt.clear()
     _gcol.clear()
+    _bspan2.clear()
     _anvilNear.clear()
     say('The world names itself: ' + (worldId || '').slice(0, 8) + '\u2026', 'dim')
   }
@@ -9765,18 +10253,37 @@ let MUSIC = null, musicStarting = false
 // otherwise the first gesture, which at a gate is usually the face arrows or
 // the name box -- and it fades out over a couple of seconds when the gate
 // opens rather than striking up.
+// EVERY THEME EVER STARTED, not just the one we are holding.
+//
+// `MUSIC` is a handle on the CURRENT track, and the fade only knew about that
+// one. But more than one can exist: the attempt made at load has a play()
+// promise that does not reject everywhere -- some browsers leave it pending
+// and resolve it the moment you make a gesture, which starts a track that
+// nothing holds a reference to. `MUSIC` has moved on by then, so the fade
+// silenced the handle and the ghost played on, forever, with no way to stop
+// it. Keep the list. Silence the list.
+const THEMES = []
 function fadeMusicOut(ms) {
   themeSpent = true
-  const a = MUSIC; if (!a) return
   MUSIC = null
-  const v0 = a.volume, t0 = performance.now()
-  const step = () => {
+  const doomed = THEMES.splice(0)
+  if (!doomed.length) return
+  // A TIMER, NOT A FRAME. requestAnimationFrame stops when the tab is hidden,
+  // so a fade begun and then tabbed away from would freeze half-done and the
+  // theme would play on until you came back -- which is the same complaint
+  // arriving by a different road. A fade is a fact about time, not about
+  // painting, and it must finish whether or not anyone is looking.
+  const t0 = performance.now()
+  const v0 = doomed.map(a => { try { return a.volume } catch { return .34 } })
+  const silence = () => { for (const a of doomed) { try { a.pause(); a.src = '' } catch {} } }
+  const timer = setInterval(() => {
     const k = (performance.now() - t0) / ms
-    if (k >= 1) { try { a.pause() } catch {} ; return }
-    try { a.volume = v0 * (1 - k) } catch {}
-    requestAnimationFrame(step)
-  }
-  step()
+    if (k >= 1) { clearInterval(timer); silence(); return }
+    doomed.forEach((a, i) => { try { a.volume = v0[i] * (1 - k) } catch {} })
+  }, 40)
+  // and a hard stop, in case the timer is throttled to nothing in a background
+  // tab: whatever else happens, these are silent when the fade should be over
+  setTimeout(() => { clearInterval(timer); silence() }, ms + 250)
 }
 // THE THEME NEVER PLAYED AT THE DOOR, AND OFTEN NEVER PLAYED AT ALL.
 //
@@ -9816,8 +10323,28 @@ async function startMusic() {
   const a = new Audio('/audio/' + encodeURIComponent(name))
   a.loop = false; a.volume = 0
   MUSIC = a
-  a.addEventListener('ended', () => { MUSIC = null })   // a theme plays once
-  try { await a.play() } catch { MUSIC = null; musicStarting = false; return }
+  THEMES.push(a)
+  a.addEventListener('ended', () => { if (MUSIC === a) MUSIC = null })   // a theme plays once
+  try { await a.play() }
+  catch {
+    // a refused start must clean up after itself, or it sits in the list as a
+    // silent element that a browser may decide to honour later
+    try { a.pause(); a.src = '' } catch {}
+    const i = THEMES.indexOf(a); if (i >= 0) THEMES.splice(i, 1)
+    if (MUSIC === a) MUSIC = null
+    musicStarting = false
+    return
+  }
+  // and if the door opened while we were waiting on that promise, this track
+  // was never wanted: some browsers resolve play() only once a gesture lands,
+  // which can be the very click that enters the world
+  if (themeSpent || entered) {
+    try { a.pause(); a.src = '' } catch {}
+    const i = THEMES.indexOf(a); if (i >= 0) THEMES.splice(i, 1)
+    if (MUSIC === a) MUSIC = null
+    musicStarting = false
+    return
+  }
   musicStarting = false
   const t0 = performance.now()
   const fade = () => {
@@ -9873,7 +10400,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && so
       SFX.ctx()
     }
     label()
-    if (!musicOn) { if (MUSIC) { try { MUSIC.pause() } catch {} ; MUSIC = null } }
+    if (!musicOn) { for (const a of THEMES.splice(0)) { try { a.pause(); a.src = '' } catch {} } ; MUSIC = null }
     else startMusic()
   })
 }

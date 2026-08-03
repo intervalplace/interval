@@ -278,7 +278,7 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
-  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire'];
+  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -2137,7 +2137,7 @@ const LANDMARK_KINDS = new Set([
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name']);
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -2201,6 +2201,21 @@ const LANDMARK_KINDS = new Set([
         if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'planted plot without an owner';
         if (!state.players[n.by]) return 'plot owner does not exist';
       } else if (n.by !== undefined) return 'unplanted plot carries an owner';
+    }
+    if (n.tag !== undefined) {
+      // A BANNER BEARS A TOWN, AND NOTHING ELSE DOES.
+      //
+      // It carries which town it speaks for, and NOT what it looks like. The
+      // arms are derived from the tag -- field, tincture, charge -- by whatever
+      // rule each window keeps, exactly as an appearance is derived from a
+      // look. Putting heraldry in the state would be writing one window's
+      // vocabulary into the constitution, and a terminal has no tincture.
+      //
+      // What matters is that every window derives the SAME arms from the same
+      // tag, so a citizen who learns Anchor's colours in one window still
+      // knows them in another.
+      if (n.type !== 'banner') return 'a tag on a node that bears none';
+      if (typeof n.tag !== 'string' || !/^[a-z0-9-]{1,24}$/.test(n.tag)) return 'malformed banner tag';
     }
     if (n.text !== undefined) {
       // A SIGNPOST BEARS WORDS, AND SO DOES A STANDING STONE.
@@ -2501,6 +2516,24 @@ function validInput(state, input, ctx) {
       const ws = state.nodes[input.to];
       if (!ws || ws.type !== 'waystone') return false;
       return (p.attuned ?? []).includes(input.to);
+    }
+    case 'drink': {
+      // THE WELL. Every settlement has one and none of them did anything: it
+      // was in NODE_TYPES and nowhere else in this file, decorative furniture
+      // like `guard` and `smith`.
+      //
+      // It restores a citizen to full, and it has NO COOLDOWN, deliberately.
+      // The cost is already in the world: a well stands in a town, a town is
+      // tens of tiles from anywhere worth hunting, and movement is one tile per
+      // interval. Walking home mid-fight is a minute of travel against food
+      // that heals three to ten while you stand still. Nobody will ever choose
+      // the walk. Guarding a behaviour nobody will exhibit costs a field in
+      // every hash forever, and buys nothing.
+      //
+      // What it changes is not combat. It is that a town becomes somewhere you
+      // RETURN to -- drink, restock, go out again -- instead of the place the
+      // bank happens to be.
+      return hasAdjacentNode(state, ctx, p, 'well');
     }
     case 'set_look': {
       // free, and changeable: a look is not a claim on anything. A name costs
@@ -4329,6 +4362,8 @@ function nextState(state, inputs, _legacyBeacon) {
           p.inventory[inp.slot] = { item: deep ? 'burnt-deep-fish' : 'burnt-fish', qty: 1 };
         }
       }
+    } else if (inp.type === 'drink') {
+      p.hp = effLevel(p.skills.hitpoints);
     } else if (inp.type === 'set_look') {
       p.look = inp.look;
     } else if (inp.type === 'claim_name') {

@@ -237,6 +237,38 @@ while leaving it merely expensive to a veteran. It also gives the three
 restoratives distinct worth, at 0.625, 0.5 and 0.375 HP per tick
 sustained, which is the brewer's market made real.
 
+**Every town flies its own arms.** A `banner` node stands where a road
+crosses into a settlement, and bears a `tag`: which town it speaks
+for. It bears nothing else. The arms themselves -- field, tincture,
+charge -- are DERIVED from the tag by each window, not recorded here,
+for the same reason a `look` is a seed and not a description: a
+terminal has no tincture, and writing one window's heraldry into the
+constitution would make every other window wrong. What the world
+guarantees is that the tag is the same everywhere, so a citizen who
+learns Anchor's colours in one window still knows them in another.
+
+A banner is inert and impassable, like a wall. Its purpose is to be
+seen from outside: a road that begins to be paved and a device on a
+pole are how a place announces itself at a distance, and a world in
+which towns simply BEGIN, with no approach, is a world of rooms.
+
+**The well restores.** A citizen standing adjacent to a `well` may
+`drink`, and is restored to full hitpoints. There is no cooldown and
+no cost. The price is already paid in geography: wells stand in
+settlements, settlements are tens of tiles from anywhere worth
+hunting, and a citizen moves one tile per interval. Against food that
+restores three to ten while you stand where you are, walking home is
+never the better trade -- so the well is not a combat tool and cannot
+be made into one. What it is instead is a reason for a town to be
+somewhere a citizen RETURNS to: drink, restock, go out again. Before
+this, home was only where the bank was.
+
+A note on what is NOT here. No cooldown field guards this, and that is
+deliberate. A rule that guards against a behaviour geography already
+prevents costs a field in every hash, in every validator and in every
+window's idea of a citizen, forever, and buys nothing. If it ever
+proves otherwise, a later founding may add one.
+
 **A citizen may choose their own face.** A player carries an optional
 `look`: a single integer, 0-255, set by the `set_look` input, free and
 changeable at will. The engine never reads it and no rule depends on
