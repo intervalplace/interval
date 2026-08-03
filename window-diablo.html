@@ -2078,6 +2078,18 @@ function connect() {
       // attribute the refusal to whatever order is standing, so a bounded
       // give-up can report how many the world turned down
       if (typeof intent === 'object' && intent) intent.refused = (intent.refused ?? 0) + 1
+      // A REFUSED APPEARANCE IS THE ONE REFUSAL A CITIZEN CANNOT SEE.
+      //
+      // Everything else that gets turned down leaves a mark -- you do not move,
+      // the item stays in the vault. A look that is refused looks exactly like
+      // a look that was never sent, so it has to name itself. The commonest
+      // cause by far is a world founded before `set_look` existed: the rules
+      // hash is part of the founding, so an older world does not have the verb
+      // and never will.
+      if (m.of === 'set_look') {
+        say('This world will not take an appearance \u2014 it was founded before '
+          + 'the rule existed. A world founded from this SPEC.md will.', 'warn')
+      }
       const transient = /occupied|blocked|adjacent|reach|tick/i.test(m.why ?? '')
       say('Refused: ' + (m.of ?? '?') + (m.why ? ' \u2014 ' + m.why : '')
         + (transient ? ' (try again)' : ''), 'warn')
@@ -9748,6 +9760,7 @@ let MUSIC = null, musicStarting = false
 // the name box -- and it fades out over a couple of seconds when the gate
 // opens rather than striking up.
 function fadeMusicOut(ms) {
+  themeSpent = true
   const a = MUSIC; if (!a) return
   MUSIC = null
   const v0 = a.volume, t0 = performance.now()
@@ -9772,7 +9785,19 @@ function fadeMusicOut(ms) {
 // A browser will not start audio without a gesture, so the honest place to
 // begin is the first gesture, wherever it lands -- including the click that
 // opens the gate.
+let themeSpent = false
 async function startMusic() {
+  // THE THEME IS SPENT ONCE YOU ARE THROUGH THE DOOR.
+  //
+  // fadeMusicOut sets MUSIC to null so the fade can own the element -- and the
+  // gesture listener starts the theme whenever MUSIC is null and somebody
+  // clicks. So the fade ran correctly, and then the first click INSIDE the
+  // world started the theme over. Every click after that did it again, which
+  // is why it never stopped: it was not still playing, it was starting again,
+  // repeatedly, on the walk.
+  //
+  // A theme belongs to the door. Past the door there is only the place.
+  if (themeSpent || entered) return
   if (MUSIC || musicStarting || !musicOn || !soundOn) return
   musicStarting = true
   let tracks = []
@@ -9823,11 +9848,24 @@ for (const ev of ['pointerdown', 'keydown', 'touchstart'])
   window.addEventListener(ev, () => { if (soundOn) { SFX.ctx(); startMusic() } }, { passive: true })
 document.addEventListener('visibilitychange', () => { if (!document.hidden && soundOn) SFX.ctx() })
 { const mb = document.getElementById('gmusic')
-  const label = () => { mb.textContent = 'Theme: ' + (musicOn ? 'on' : 'off') }
+  const label = () => { mb.textContent = 'Theme: ' + (musicOn ? (soundOn ? 'on' : 'on (sound off)') : 'off') }
   label()
   mb.addEventListener('click', () => {
     musicOn = !musicOn
     localStorage.setItem('interval-music', musicOn ? 'on' : 'off')
+    // TURNING THE THEME ON MEANS TURNING IT ON.
+    //
+    // startMusic() also requires `soundOn`, so with sound off the theme button
+    // was a switch wired to nothing -- which is exactly what happened: both
+    // read "off", the theme never played, and so there was nothing to fade
+    // when the gate opened. Asking for the theme now asks for sound too.
+    if (musicOn && !soundOn) {
+      soundOn = true
+      localStorage.setItem('interval-sound', 'on')
+      const sb = document.getElementById('gsound')
+      if (sb) sb.textContent = 'Sound: on'
+      SFX.ctx()
+    }
     label()
     if (!musicOn) { if (MUSIC) { try { MUSIC.pause() } catch {} ; MUSIC = null } }
     else startMusic()
@@ -9895,7 +9933,8 @@ function refreshGate() {
   }
 }
 
-// CHOOSING A FACE.
+// CHOOSING AN APPEARANCE. Not a face: the portrait is a whole person, and
+// what the seed picks is build, skin, hair, beard and coat together.
 //
 // The citizen turns on the spot while you scrub through, because a portrait
 // that does not move tells you nothing about how they will read in the world --
@@ -9915,16 +9954,23 @@ function drawFace() {
   fg.setTransform(1, 0, 0, 1, 0, 0)
   fg.clearRect(0, 0, gFace.width, gFace.height)
   faceTurn += .012
+  // THE SAME OPTIONS THE WORLD WILL USE, or the portrait is a promise the
+  // world does not keep. It was passing `tunic` where drawPlayer passes gear,
+  // and no equipment at all, so the figure at the door wore pauldrons the
+  // citizen does not own and a coat colour the world would never show.
+  const me2 = myId && curState?.players?.[myId]
   humanoid(fg, gFace.width / 2, gFace.height - 18, {
     scale: 2.5, bulk: L.bulkish, seed: L.seed,
     skin: L.skin, hair: L.hair, hairStyle: L.hairStyle, beard: L.beard,
-    coat: L.coat, tunic: L.coat,
+    coat: L.coat,
+    cloak: me2?.equipment?.body?.item ? undefined : undefined,
+    cape: me2 ? capeOf(me2) : null,
     step: Math.sin(faceTurn) * .5, breath: faceTurn * 2,
     lean: Math.sin(faceTurn) * 2.2, swing: -0.5 + Math.sin(faceTurn * .7) * .12,
     lantern: true,
   })
   const gl = document.getElementById('glook')
-  if (gl) gl.textContent = 'face ' + (n + 1) + ' of ' + LOOK_COUNT
+  if (gl) gl.textContent = 'appearance ' + (n + 1) + ' of ' + LOOK_COUNT
 }
 function nudgeLook(d) {
   const me = myId && curState?.players?.[myId]
