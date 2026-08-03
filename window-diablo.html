@@ -99,6 +99,10 @@
       radial-gradient(ellipse 90% 70% at 50% -14%, rgba(38,20,30,.75), transparent 72%),
       #060406;
     text-align: center; padding: 24px;
+    /* a gate must never be taller than it can show: with a portrait in it
+       the plate can outgrow a laptop, and a centred flex column clips at
+       BOTH ends with no way to reach either */
+    overflow-y: auto;
   }
   #gate.gone { display: none; }
   #gate .emberwash {                /* the fire outside the frame, breathing */
@@ -9600,7 +9604,19 @@ function frame(now) {
   const dt = Math.min(64, now - lastFrame); lastFrame = now
   const s = curState
   // the portrait at the door turns while you decide
-  if (!entered) { try { drawFace() } catch {} }
+  // NO SILENT CATCH HERE. This was `try { drawFace() } catch {}`, which is a
+  // fine way to keep a frame loop alive and a terrible way to find out why a
+  // picker never appeared for somebody: it failed invisibly, and the report
+  // that came back was "there was no picker" with nothing to go on. It reports
+  // itself once and then stops trying.
+  if (!entered && !faceBroken) {
+    try { drawFace() }
+    catch (e) {
+      faceBroken = true
+      say('The portrait would not draw: ' + (e?.message ?? e), 'warn')
+      console.error('drawFace:', e)
+    }
+  }
   layoutPanel()                          // the slab is measured from the viewport
 
   // ---- the camera eases toward the citizen --------------------------------
@@ -9722,6 +9738,27 @@ function frame(now) {
 // it gets worse every time round.
 let musicOn = localStorage.getItem('interval-music') !== 'off'
 let MUSIC = null, musicStarting = false
+// THE THEME IS THE DOOR'S, NOT THE WORLD'S.
+//
+// It used to start when you entered, which is backwards: a theme is what plays
+// while you are deciding, and the moment you walk in is the moment it should
+// give way to the sound of the place. So it starts as early as a browser will
+// permit -- an attempt on load for anyone the browser already trusts, and
+// otherwise the first gesture, which at a gate is usually the face arrows or
+// the name box -- and it fades out over a couple of seconds when the gate
+// opens rather than striking up.
+function fadeMusicOut(ms) {
+  const a = MUSIC; if (!a) return
+  MUSIC = null
+  const v0 = a.volume, t0 = performance.now()
+  const step = () => {
+    const k = (performance.now() - t0) / ms
+    if (k >= 1) { try { a.pause() } catch {} ; return }
+    try { a.volume = v0 * (1 - k) } catch {}
+    requestAnimationFrame(step)
+  }
+  step()
+}
 // THE THEME NEVER PLAYED AT THE DOOR, AND OFTEN NEVER PLAYED AT ALL.
 //
 // Three faults, compounding. It was only ever started by enterWorld, so the
@@ -9867,7 +9904,7 @@ function refreshGate() {
 const gFace = document.getElementById('gface')
 let pickLook = Number(localStorage.getItem('interval-look'))
 if (!Number.isInteger(pickLook) || pickLook < 0 || pickLook > 255) pickLook = null
-let faceTurn = 0
+let faceTurn = 0, faceBroken = false
 function drawFace() {
   if (!gFace) return
   const fg = gFace.getContext('2d')
@@ -9908,7 +9945,7 @@ function enterWorld() {
   entered = true
   gate.classList.add('gone')
   SFX.ctx()
-  startMusic()
+  fadeMusicOut(2200)
   say('You wake in Interval.', 'good')
   if (curState && myId && !curState.players[myId]) send({ do: 'spawn' })
   const already = myId && curState?.players?.[myId]?.name
@@ -9928,6 +9965,7 @@ resize()
 configure({ worldW: 320, worldH: 200, generator: 'interval-expanse-v3', seed: '' })
 say('Listening for the world\u2026', 'dim')
 connect()
+startMusic()          // some browsers allow this outright; the rest wait for a gesture
 requestAnimationFrame(frame)
 </script>
 </body>
