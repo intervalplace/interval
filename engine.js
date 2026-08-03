@@ -278,7 +278,7 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
-  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner'];
+  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -329,7 +329,56 @@ const WIELD_REQS = {
   'heartwood-bow': { ranged: 40 },
   'star-helm': { defence: 45 }, 'star-plate': { defence: 50 },
 };
-const STORE_SELLS = { seeds: 15 }; // the keeper's OWN goods, made from nothing
+// THE STORE MAKES NOTHING. It was `{ seeds: 15 }` -- the one good in the world
+// conjured by an institution rather than by a person -- and with the stalls in
+// place that is the odd one out. A general store is now purely a MARKET: every
+// item on its shelf was carried in by a citizen and priced by what another
+// citizen was paid for it. Nothing appears there from nowhere.
+//
+// Seeds moved to the seedsman at Hollybarrow, which is the farm town, and that
+// is the point of the change: farming now BEGINS somewhere. A citizen who
+// wants to grow anything makes the walk to Hollybarrow first, and afterwards
+// knows where Hollybarrow is for the rest of their life.
+const STORE_SELLS = {};
+
+// ---------------------------------------------------------------------------
+// THE STALLS
+// ---------------------------------------------------------------------------
+// A town has a bank, a store and an anvil, and everything else is a house. The
+// houses are not a failure -- a town needs to be somewhere people live -- but
+// it does mean a citizen learns three buildings and stops looking.
+//
+// A stall is a building worth knowing. It sells ONE trade's basic gear, from
+// nothing, at roughly twice what the same thing costs anywhere else. That is
+// not a mistake in the pricing. A stall is not competing with the market; it
+// is competing with WALKING, and it wins because it is always there and it is
+// always the same. "The axe man in Greenhollow" becomes a fact a citizen
+// knows, and a fact you know is worth more than the coin it costs.
+//
+// Deliberately narrow, and deliberately humble. Bronze only -- no star gear,
+// nothing rare, nothing a citizen will still be buying in a month. The point
+// is not to be useful forever. The point is to be somewhere.
+//
+// And they do NOT buy. A stall is where a thing comes FROM. Selling stays the
+// general store's business, which keeps the store the heart of a town's
+// economy and the stall a place with one job.
+const STALL_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed'];
+const STALL_SELLS = {
+  lumber: { 'bronze-hatchet': 20 },
+  delve:  { 'bronze-pickaxe': 20 },
+  arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
+  armour: { 'bronze-helm': 24 },
+  // A BOW AND NO ARROWS, on purpose. Arrows are meant to be hard to come by,
+  // and a stall selling them from nothing at any price undoes that in an
+  // afternoon: there is no stock to run out and no cooldown that would not be
+  // one more field in every hash forever. So the fletcher sells the bow and a
+  // citizen makes their own shafts, which is what fletching is for.
+  bows:   { 'wooden-bow': 16 },
+  // THE ONLY SOURCE OF SEED IN THE WORLD, and deliberately one place. Dearer
+  // than the store ever charged, because everything at a stall is -- and
+  // because a thing you had to travel for should cost something.
+  seed:   { seeds: 22 },
+}; // the keeper's OWN goods, made from nothing
 // v0.74: the keeper's shelf. What a citizen sells is no longer annihilated: it
 // sits in that store until somebody buys it. Two stores keep two shelves, so
 // Anchor and Milbrook develop separate strengths and carrying goods between
@@ -929,6 +978,16 @@ const INPUT_SCHEMAS = {
   survey: {}, read_chart: { slot: T.slot },
   build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
   kindle: {}, stoke: { nodeId: T.id, slot: T.slot },
+  // EVERY VERB MUST BE DECLARED HERE, AND TWICE I FORGOT.
+  //
+  // A verb needs three things to exist: a shape in this table, a rule in
+  // validate(), and an effect in apply(). `drink` and `set_look` were given
+  // the last two and not the first, so normalizeInput rejected them before
+  // any rule was ever consulted -- with an error about an unknown TYPE, which
+  // is precisely the message you get from a world too old to have the verb.
+  // I read that symptom and diagnosed the wrong thing twice.
+  drink: {},
+  set_look: { look: (v) => (Number.isInteger(v) && v >= 0 && v <= 255) || 'must be 0-255' },
 };
 const INPUT_BASE = { worldId: T.hex64, playerId: T.hex64,
   tick: (v) => (Number.isSafeInteger(v) && v >= 0) || 'must be a nonnegative tick',
@@ -2148,8 +2207,19 @@ const LANDMARK_KINDS = new Set([
       // worked, fought, lit, or consumed, no verb in the constitution
       // reaches it. It blocks its tile like any node, and it exists so
       // that the map tells the truth. The kind names what stands there.
-      if (n.type !== 'landmark') return 'only a landmark bears a kind';
-      if (!LANDMARK_KINDS.has(n.kind)) return `unknown landmark kind ${n.kind}`;
+      // A STALL BEARS ONE TOO, and means something different by it: a
+      // landmark's kind is what stands there, a stall's is what it sells.
+      if (n.type === 'stall' || n.type === 'keeper') {
+        // A STALL'S KIND IS WHAT IT SELLS; A KEEPER'S IS WHAT THEY KEEP.
+        //
+        // The keeper behind a counter is not generic furniture -- they are the
+        // armourer, or the seedsman, and a window should be able to dress them
+        // for it without guessing from what happens to stand next to them.
+        if (!STALL_KINDS.includes(n.kind)) return 'unknown trade';
+      } else {
+        if (n.type !== 'landmark') return 'only a landmark or a stall bears a kind';
+        if (!LANDMARK_KINDS.has(n.kind)) return `unknown landmark kind ${n.kind}`;
+      }
     }
     if (n.type === 'landmark' && n.kind === undefined) return 'a landmark must name its kind';
     if (n.founderKey !== undefined) {
@@ -2202,6 +2272,7 @@ const LANDMARK_KINDS = new Set([
         if (!state.players[n.by]) return 'plot owner does not exist';
       } else if (n.by !== undefined) return 'unplanted plot carries an owner';
     }
+    if (n.type === 'stall' && typeof n.kind !== 'string') return 'a stall must say what it sells';
     if (n.tag !== undefined) {
       // A BANNER BEARS A TOWN, AND NOTHING ELSE DOES.
       //
@@ -2577,6 +2648,20 @@ function validInput(state, input, ctx) {
       // v0.74: two things are for sale at a store. The keeper's own goods,
       // conjured from nothing (STORE_SELLS), and whatever citizens have sold
       // to THIS store and nobody has yet carried off.
+      // A STALL FIRST, if you are stood at one AND it stocks the thing.
+      //
+      // The first version returned false when the stall did not stock it,
+      // which meant a citizen standing between the seedsman and the store
+      // could buy nothing from the store at all: the stall answered for both.
+      // A trader who does not sell what you asked for does not stop you asking
+      // the man next door.
+      const sl = findAdjacentNode(state, ctx, p, 'stall');
+      const stock = sl ? (STALL_SELLS[sl.kind] ?? {}) : null;
+      if (sl && (input.item in stock)) {
+        if ((p.gold ?? 0) < stock[input.item]) return false;
+        if (!STACKABLE.has(input.item) && firstFreeSlot(p.inventory) === -1) return false;
+        return true;
+      }
       const st = findAdjacentNode(state, ctx, p, 'store');
       if (!st) return false;
       const onShelf = (st.shelf?.[input.item] ?? 0) > 0;
@@ -3987,6 +4072,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // v0.74: the keeper's own goods are made from nothing and priced by the
       // constitution. Everything else on the shelf was put there by a citizen,
       // and costs the ask: what its seller was paid, plus the keeper's cut.
+      // A STALL SELLS ITS OWN NARROW STOCK, made from nothing like the
+      // keeper's seeds, and takes no shelf and keeps no change.
+      const sl = findAdjacentNode(s, _ctx, p, 'stall');
+      const stallPrice = sl ? ((STALL_SELLS[sl.kind] ?? {})[inp.item] ?? 0) : 0;
+      if (stallPrice) {
+        if ((p.gold ?? 0) >= stallPrice && addItem(p.inventory, inp.item, 1)) p.gold -= stallPrice;
+      } else {
       const st = findAdjacentNode(s, _ctx, p, 'store');
       const own = inp.item in STORE_SELLS;
       const onShelf = (st?.shelf?.[inp.item] ?? 0) > 0;
@@ -4002,6 +4094,7 @@ function nextState(state, inputs, _legacyBeacon) {
             if (Object.keys(st.shelf).length === 0) delete st.shelf;
           }
         }
+      }
       }
     } else if (inp.type === 'special') {
       // §6af: THE SPECIAL BLOW. Resolved here and now rather than becoming an

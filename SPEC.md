@@ -252,6 +252,41 @@ seen from outside: a road that begins to be paved and a device on a
 pole are how a place announces itself at a distance, and a world in
 which towns simply BEGIN, with no approach, is a world of rooms.
 
+**The store makes nothing.** A general store's shelf holds only what
+citizens have carried in and sold; nothing appears there from nowhere.
+The keeper's own goods are gone -- seeds were the last of them, and
+they now belong to the seedsman at Hollybarrow. A store is a MARKET,
+and its keeper's cut remains what it always was: the spread between
+what a seller is paid and what the next buyer pays, which is this
+world's oldest gold sink.
+
+What follows from this is the point of it. Farming now BEGINS
+somewhere. A citizen who wants to grow anything walks to Hollybarrow
+first, and afterwards knows for the rest of their life what
+Hollybarrow is for. Nothing in the rules compels anyone to gather
+there; the geography does it, which is the better way.
+
+**A town has stalls, and they are dear.** A `stall` node bears a
+`kind` -- `lumber`, `delve`, `arms`, `armour` or `bows` -- and sells
+that trade's basic bronze gear from nothing, adjacent, at roughly
+twice what the same thing costs elsewhere. It buys nothing: selling
+remains the general store's business, and a stall is where a thing
+comes FROM.
+
+The premium is not an oversight. A stall does not compete with the
+market, it competes with WALKING, and it wins by always being there
+and always being the same. What it sells a citizen will stop needing
+within a month; that is intended. Its purpose is to make a building
+worth knowing, so that "the axe man in Greenhollow" becomes a fact
+somebody carries around, and a fact you carry is worth more than the
+coin it costs.
+
+Nothing rare is sold at a stall, ever: no star gear, no bow-strings of
+heartwood, and no ARROWS. Arrows are meant to be hard to come by, and
+a stall selling them from nothing undoes that in an afternoon -- there
+is no stock to run out. The fletcher sells the bow; a citizen makes
+their own shafts, which is what fletching is for.
+
 **The well restores.** A citizen standing adjacent to a `well` may
 `drink`, and is restored to full hitpoints. There is no cooldown and
 no cost. The price is already paid in geography: wells stand in
