@@ -1403,6 +1403,21 @@ export function makeExpanse5Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
 }
 
 // ---------- the founding ----------
+// What each town has to say for itself, beyond its own name.
+const SIGN_TEXT = {
+  anchor: 'Anchor, on Tallyholm',
+  greenhollow: 'Greenhollow. We fell timber and post no guard. '
+    + 'The wood was here first and keeps its own hours \u2014 go armed or go home.',
+  norwick: 'Norwick, the garrison. West of here the road ends and the law with it.',
+  hollybarrow: 'Hollybarrow. Plots, a well, and nothing worth stealing.',
+  cragfoot: 'Cragfoot. Two anvils and a hard country. Bring ore or bring coin.',
+  eastmere: 'Eastmere, on the water. Listen along the strand before you walk it.',
+  fenmarch: 'Fenmarch. The ground is not where it looks.',
+  oxenford: 'Oxenford. The market keeps the peace here; nobody else does.',
+  millbrook: 'Millbrook. The mill turns whether or not there is grain.',
+  thornbury: 'Thornbury, of the market.',
+}
+
 export function buildWorld(genesis) {
   const gerr = E.validateGenesis(genesis)
   if (gerr) throw new Error('refusing to build a world from an invalid genesis: ' + gerr)
@@ -1455,6 +1470,7 @@ export function buildWorld(genesis) {
   // A SHIRE town is a drawing (worldgen-shire.mjs). The frontier is
   // generated. That split is the whole thesis: hand-work where every
   // citizen walks a thousand times, procedure where variety is the point.
+  const signPlaced = (tag) => !!w.nodes['sign-' + tag]
   const layDrawnTown = (s) => {
     checkPlanConnected(s.tag, PLANS[s.tag], s.x, s.y, { g, isWater, blockedAt })
     layPlan(planCtx, s.tag, PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
@@ -1468,11 +1484,42 @@ export function buildWorld(genesis) {
         const x = s.x + dx, y = s.y + 3 + dy
         if (!inB(x, y) || taken.has(key(x, y)) || isWater(g, x, y)) continue
         if (x <= r.x0 || x >= r.x1 || y <= r.y0 || y >= r.y1) continue
-        put('sign-' + s.tag, 'signpost', x, y,
-          { text: s.kind === 'capital' ? 'Anchor, on Tallyholm' : s.name })
+        // A TOWN THAT SAYS SOMETHING ABOUT ITSELF.
+        //
+        // Every sign read only the town's own name, which is the one fact the
+        // banner and the paving have already given you. A signpost is the
+        // world's own voice -- the text is on the node, in the hashed state,
+        // so every window reads the same words and will still read them in a
+        // year -- and the thing worth saying is whatever a citizen would
+        // otherwise have to guess at.
+        //
+        // Greenhollow is the case that prompted this: twenty beasts within
+        // forty-five tiles and not one guard, on the edge of the wood the
+        // great spider lives in. Left silent that reads as an oversight.
+        // Said out loud it is a choice the town has made, which is a
+        // different place entirely.
+        put('sign-' + s.tag, 'signpost', x, y, { text: SIGN_TEXT[s.tag] ?? s.name })
         done = true; break
       }
       if (done) break
+    }
+    // A DRAWING USUALLY HAS NO ROOM FOR ONE MORE POST.
+    //
+    // The loop above only succeeds where the plan happens to have left a gap,
+    // which is three towns in ten -- the other seven had no sign at all, and
+    // nobody had noticed because a town with no sign looks exactly like a town
+    // whose sign says its name. But the drawings DO place signposts of their
+    // own; they simply carry no words. So if there was no room, give the words
+    // to the post that is already standing nearest the middle.
+    if (!signPlaced(s.tag)) {
+      let best = null, bd = 1e9
+      for (const [id, n] of Object.entries(w.nodes)) {
+        if (n.type !== 'signpost' || n.text !== undefined) continue
+        if (n.x <= r.x0 || n.x >= r.x1 || n.y <= r.y0 || n.y >= r.y1) continue
+        const d = Math.hypot(n.x - s.x, n.y - s.y)
+        if (d < bd) { bd = d; best = n }
+      }
+      if (best) best.text = SIGN_TEXT[s.tag] ?? s.name
     }
   }
   const layTown = (s) => {
@@ -1605,6 +1652,16 @@ export function buildWorld(genesis) {
       const edges = []
       for (let x = rr.x0 - 1; x <= rr.x1 + 1; x++) edges.push([x, rr.y0 - 1], [x, rr.y1 + 1])
       for (let y = rr.y0 - 1; y <= rr.y1 + 1; y++) edges.push([rr.x0 - 1, y], [rr.x1 + 1, y])
+      // ONE PER APPROACH, not four along one wall.
+      //
+      // Spacing them ten tiles apart was not enough: Oxenford came out with
+      // three of its four banners in a row along the north edge and none at
+      // its other gates, because the north side simply had the most road on
+      // it. A banner answers the question "which way did I come in", so there
+      // should be at most one per side and it should stand where that side's
+      // road actually crosses.
+      const sides = new Set()
+      const sideOf = (x, y) => y <= rr.y0 ? 'N' : y >= rr.y1 ? 'S' : x <= rr.x0 ? 'W' : 'E'
       const seated = []
       for (const [ex, ey] of edges) {
         if (bi >= 4) break
@@ -1615,8 +1672,13 @@ export function buildWorld(genesis) {
           if (!inB(bx, by) || isWater(g, bx, by)) continue
           if (ROADY.has(groundKindAt(g, bx, by))) continue      // keep the way open
           if (taken.has(key(bx, by)) || blockedAt(g, bx, by)) continue
+          // classify the SEAT, not the road tile it answers: the seat is one
+          // tile off, and at a corner that is enough to land on another side
+          const side = sideOf(bx, by)
+          if (sides.has(side)) continue
           E.addNode(w, 'banner-' + s.tag + (bi++), 'banner', bx, by, { tag: s.tag })
           taken.add(key(bx, by))
+          sides.add(side)
           seated.push([ex, ey])
           break
         }
@@ -2625,9 +2687,26 @@ export function buildWorld(genesis) {
   //
   // Doubled, and clustered the way the knights are: a troll is a thing you
   // find several of under one crag.
+  // TROLLS BELONG TO THE MIDDLE DISTANCE, AND ACROSS IT.
+  //
+  // The old rule was `wilds && x < W * 0.10` -- longitude again -- which put
+  // every troll in one narrow strip and produced a single spike at a hundred
+  // and twenty-five tiles out with nothing either side of it. A troll is what
+  // you meet on the way in; it should line the whole approach, not stand in a
+  // ring at one radius. So the predicate asks how far from a town the tile is
+  // rather than how far west, and takes the whole belt from ninety out.
+  const depthOf = (x, y) => {
+    let d = 1e9
+    for (const t of settlementsOf(g)) { const q = Math.hypot(t.x - x, t.y - y); if (q < d) d = q }
+    return d
+  }
   counts.trolls = clusterScatter('troll', A(150),
-    (x, y) => { const b = B(x, y); return b === 'crags' || (b === 'wilds' && x < W * 0.10) },
-    mob('troll'), 10, 10)
+    (x, y) => {
+      const b = B(x, y)
+      if (b === 'crags') return true
+      return b === 'wilds' && depthOf(x, y) > 88
+    },
+    mob('troll'), 14, 10)
   // ---- THE FLOCKS ----
   //
   // The Downs measured out at twenty-two thousand tiles carrying twenty-eight
@@ -2675,13 +2754,38 @@ export function buildWorld(genesis) {
   // Draw the centre from Wilds land instead: reject and redraw until the
   // ground agrees, deterministically, on a fixed number of tries.
   const wildsSeat = (band) => {
-    for (let t = 0; t < 60; t++) {
+    // DEPTH, NOT LONGITUDE.
+    //
+    // This picked a seat uniformly across the western fifth of the map, which
+    // says nothing about how far anyone has actually walked. Measured, the
+    // result was a gradient that rose tenfold from the boundary to a hundred
+    // and fifty tiles out -- and then COLLAPSED: the deepest country, the most
+    // committing walk in the world, was emptier than the middle of the Wilds
+    // and emptier than the ground near Cragfoot.
+    //
+    // That is backwards, and it is the one thing this world was missing that
+    // an ARPG has by construction: a reason to decide how far in to go. Each
+    // warband is now given a DEPTH to aim for, spread evenly from the boundary
+    // to the far edge. Because there is less land the deeper you go, evenly
+    // spread warbands make a density that rises the whole way out -- the
+    // gradient comes out of the geography rather than being imposed on it.
+    const bands = Math.max(1, A(13))
+    const wantDepth = 35 + (band / bands) * 155
+    let best = null, bestErr = 1e9
+    for (let t = 0; t < 260; t++) {
       const hb = H32('warband', band * 97 + t)
-      const x = 2 + (hb.readUInt16BE(0) % Math.max(1, Math.round(W * 0.22)))
+      const x = 2 + (hb.readUInt16BE(0) % Math.max(1, Math.round(W * 0.30)))
       const y = 2 + (hb.readUInt16BE(2) % (H - 4))
-      if (biomeAt(g, x, y) === 'wilds' && !inSea(g, x, y)) return { x, y }
+      if (biomeAt(g, x, y) !== 'wilds' || inSea(g, x, y)) continue
+      let near = 1e9
+      for (const t2 of settlementsOf(g)) {
+        const d = Math.hypot(t2.x - x, t2.y - y); if (d < near) near = d
+      }
+      const err = Math.abs(near - wantDepth)
+      if (err < bestErr) { bestErr = err; best = { x, y } }
+      if (err < 8) return { x, y }        // close enough; take it and stop
     }
-    return null
+    return best
   }
   let sk = 0
   for (let band = 0; band < A(13); band++) {
