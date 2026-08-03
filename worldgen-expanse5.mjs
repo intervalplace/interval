@@ -89,7 +89,7 @@ import E from './engine.js'
 import { seedNum, meander, thash } from './worldgen-expanse.mjs'
 import { angleOf } from './worldgen-expanse3.mjs'
 import { PLANS5 as PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
-         seatCoastalPlan, quayTilesOfPlan } from './worldgen-shire.mjs'
+         seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS } from './worldgen-shire.mjs'
 export { seedNum, meander, thash, angleOf }
 
 export const GENERATOR_ID = 'interval-expanse-v5'
@@ -724,6 +724,162 @@ export function onBridge(g, x, y) {
 //   3. Neighbours are visited in a fixed listed order.
 // Nothing here calls blockedAt or fordAt: those consult onRoad, and asking
 // them from inside the router would tie a knot.
+
+// ---------------------------------------------------------------------------
+// THE GOING
+// ---------------------------------------------------------------------------
+// A road runs dead straight because there is nothing for it to bend around.
+// Cost is uniform WITHIN a biome, so across the Heartlands or the Downs every
+// tile is worth the same and the cheapest path is the shortest one -- and the
+// straight-line pull below then finishes the job. The result is a ruler line
+// across a country, which is a surveyor's road, and this generator's own
+// comment says it does not want one.
+//
+// So the ground gets texture at a scale smaller than a country: patches of
+// easier and harder going, eight tiles across, the way real ground is boggy
+// here and firm there. A road that costs a little more through a soft patch
+// goes round it, and the bends come from the land rather than from a wobble
+// laid over the top.
+//
+// INTEGERS ONLY, and no Math.sin. This value feeds the router's frontier, and
+// the router's contract (spec 9b) is that two nodes computing the same world
+// get the same road to the tile. Trigonometry is not bit-identical across
+// engines; a 32-bit integer hash is.
+
+// ---------------------------------------------------------------------------
+// THE LIE OF THE LAND
+// ---------------------------------------------------------------------------
+// The going alone was not enough, and the render says so: several roads came
+// out exactly as long as the straight line between their ends. Patches of soft
+// ground eight tiles across average out over two hundred tiles, so the router
+// walked through them and stayed on its ruler.
+//
+// What makes a real road wander is not soft ground, it is HEIGHT. A road would
+// rather go a long way round than climb, which is why they follow valleys and
+// contour along hillsides and arrive at a pass rather than at a summit. So the
+// land is given a height, and a step is charged for what it climbs.
+//
+// The field is smooth -- bilinear between lattice points thirty-two tiles
+// apart -- because a road follows a slope, and a slope needs somewhere to run
+// downhill TO. A blocky field gives cliffs and cliffs give staircases.
+//
+// Integers throughout, and no trigonometry: this decides where the roads are,
+// and spec 9b says two nodes computing the same world must get the same road.
+const ELEV_SHIFT = 5;                                    // 32 tiles per lattice step
+function elevHash(salt, gx, gy) {
+  let h = (Math.imul(gx, 1597334677) + Math.imul(gy, 3812015801) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) | 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489917) | 0;
+  return (h ^ (h >>> 16)) & 255;
+}
+function elevAt(salt, x, y) {
+  // TWO OCTAVES. One lattice at thirty-two tiles gives a landscape of broad
+  // hills -- and between them, flats, where a road has nothing to respond to
+  // and runs dead straight for sixty tiles. Sixty tiles is nearly forty
+  // seconds of walking with the world unchanging, which is the exact stretch
+  // that feels drawn rather than travelled.
+  //
+  // So a finer octave over the top: eight-tile undulations at a third of the
+  // weight. Not hills -- rises and dips, the scale of a field. A road answers
+  // them with small corrections all the way along, and a road that is always
+  // correcting is a road that was walked.
+  return Math.floor((octave(salt, x, y, 5) * 5 + octave(salt ^ 0x51ed, x, y, 3) * 3) / 8);
+}
+function octave(salt, x, y, shift) {
+  const S = 1 << shift, MASK = S - 1;
+  const gx = x >> shift, gy = y >> shift;
+  const fx = x & MASK, fy = y & MASK;
+  const a = elevHash(salt, gx, gy), b = elevHash(salt, gx + 1, gy);
+  const c = elevHash(salt, gx, gy + 1), d = elevHash(salt, gx + 1, gy + 1);
+  const sm = (f) => Math.floor((3 * f * f * S - 2 * f * f * f) / (S * S));
+  const u = sm(fx), v = sm(fy);
+  const top = a * (S - u) + b * u;
+  const bot = c * (S - u) + d * u;
+  return Math.floor((top * (S - v) + bot * v) / (S * S));
+}
+
+// ---------------------------------------------------------------------------
+// THE PLACED THINGS
+// ---------------------------------------------------------------------------
+// Everything else on this island is computed. These are CHOSEN.
+//
+// A generator can make a plausible country but it cannot make a memorable one,
+// because memory attaches to particulars: the copse you always skirt, the mire
+// the road bends around, the scree fan below the pass. Those are the things a
+// citizen still knows the shape of years later, and they exist here because
+// somebody put them there and wrote down why.
+//
+// Each was placed at the middle of a measured dead-straight run -- the longest
+// stretches on the island, where a citizen walked twenty or thirty seconds
+// with nothing changing. A road that meets one of these has to choose a side,
+// and choosing a side is what makes a road look walked.
+//
+// This table is LAW in the same way the coastline is: identical in the
+// generator and in every window, forever. Add to it thoughtfully. Nothing here
+// may ever be removed once a world is founded on it -- the roads bend around
+// these, so deleting one moves every road that answers it.
+const HANDMADE = [
+  // --- the long north-south run beside the river, above Anchor ---
+  { name: 'the Vale Copse',      x: 484, y: 259, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Sallows',         x: 486, y: 291, rx: 7,  ry: 8,  kind: 'mire' },
+  // --- the run east of Anchor, on the way up to the North Pass ---
+  { name: 'the Thornvale Spinney', x: 571, y: 197, rx: 9, ry: 6, kind: 'copse' },
+  // --- the long straight through the Crags below the pass ---
+  { name: 'the Fallen Scree',    x: 666, y: 180, rx: 10, ry: 5,  kind: 'scree' },
+  { name: 'the Sentinel Slip',   x: 717, y: 287, rx: 7,  ry: 6,  kind: 'scree' },
+  // --- the Hollybarrow-Norwick road, west of the crossing ---
+  { name: 'the Oxen Copse',      x: 335, y: 214, rx: 8,  ry: 5,  kind: 'copse' },
+  { name: 'the Long Holt',       x: 255, y: 221, rx: 7,  ry: 5,  kind: 'copse' },
+  // --- Watersmeet, where the road runs down the river meadow ---
+  { name: 'the Meadow Mire',     x: 476, y: 342, rx: 6,  ry: 8,  kind: 'mire' },
+  // --- the Downs road out of Eastmere ---
+  { name: 'the Sheepfold Thorns', x: 520, y: 381, rx: 8, ry: 5,  kind: 'copse' },
+  // --- the Fens, where the road runs dead south ---
+  { name: 'the Drowned Holt',    x: 485, y: 378, rx: 6,  ry: 7,  kind: 'mire' },
+  // --- second pass: the straights that surfaced once the first ten were in ---
+  //
+  // Placing a thing moves the road that answers it, and a moved road finds new
+  // level ground to run straight across. That is not a fault in the method, it
+  // is the method: each pass measures, places, and measures again. Sixteen long
+  // runs became nine; these are aimed at those nine.
+  { name: 'the Hollybarrow Hedge', x: 316, y: 204, rx: 9,  ry: 5,  kind: 'copse' },
+  { name: 'the Anchor Withies',    x: 394, y: 340, rx: 7,  ry: 6,  kind: 'mire' },
+  { name: 'the Oxenlea Copse',     x: 320, y: 300, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Lea Marsh',         x: 305, y: 332, rx: 6,  ry: 7,  kind: 'mire' },
+  { name: 'the Barrow Thorns',     x: 347, y: 229, rx: 6,  ry: 6,  kind: 'copse' },
+  // --- third pass: nine became four, and these are the four ---
+  { name: 'the Vale Alders',    x: 432, y: 237, rx: 7,  ry: 5,  kind: 'copse' },
+  { name: 'the Millbrook Osiers', x: 497, y: 212, rx: 6, ry: 5,  kind: 'mire' },
+  { name: 'the Thornvale Holt', x: 523, y: 249, rx: 6,  ry: 6,  kind: 'copse' },
+  { name: 'the High Delving Scree', x: 711, y: 206, rx: 8, ry: 5, kind: 'scree' },
+  { name: 'the Nordhead Slip',  x: 704, y: 212, rx: 7,  ry: 5,  kind: 'scree' },
+];
+// which placed thing is here, if any. An ellipse, because nothing in a
+// landscape has corners.
+function handmadeAt(x, y) {
+  for (const f of HANDMADE) {
+    const dx = (x - f.x) / f.rx, dy = (y - f.y) / f.ry;
+    if (dx * dx + dy * dy <= 1) return f;
+  }
+  return null;
+}
+// what it costs a road to go through one rather than round it. Passable --
+// a citizen may always walk in -- but dear enough that a road will not.
+const HANDMADE_COST = { copse: 46, mire: 58, scree: 40 };
+const GOING_SCALE = 3;                 // 1 << 3 = eight tiles to a patch
+function goingSalt(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function goingAt(salt, x, y) {
+  const gx = x >> GOING_SCALE, gy = y >> GOING_SCALE;
+  let h = (Math.imul(gx, 374761393) + Math.imul(gy, 668265263) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  // 0..6 of extra effort, and a quarter of the ground is as easy as it was
+  return h % 7;
+}
 const BIOME_COST = { heartlands: 10, downs: 11, greenwood: 15, moor: 15, wilds: 17, fens: 20, crags: 22 }
 const IMPASSABLE = -1
 export function routeCost(g, x, y) {
@@ -734,6 +890,9 @@ export function routeCost(g, x, y) {
   if (onBarrow(g, x, y)) return IMPASSABLE
   if (onRidge(g, x, y)) return IMPASSABLE
   let c = BIOME_COST[b] ?? 14
+  const hm = handmadeAt(x, y)                      // and the things somebody put here
+  if (hm) c += HANDMADE_COST[hm.kind] ?? 40
+  c += goingAt(goingSalt(g.genesisSeed), x, y)     // the going, patch by patch
   // a road would rather not run along the lip of the water
   if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) c += 6
   return c
@@ -781,7 +940,7 @@ function heapPop(h) {
   return top
 }
 const MINCOST = 10
-export function routePath(g, ax, ay, bx, by) {
+export function routePath(g, ax, ay, bx, by, laid) {
   const W = g.worldW, H = g.worldH, N = W * H
   const f = costFieldOf(g)
   const dist = new Int32Array(N).fill(0x7fffffff)
@@ -797,16 +956,19 @@ export function routePath(g, ax, ay, bx, by) {
     const lo = dx < dy ? dx : dy, hi = dx < dy ? dy : dx
     return (hi - lo) * MINCOST + lo * 14
   }
-  // a gentle pull toward the straight line, so a road on flat ground runs
-  // straight instead of staircasing wherever the tie-break happens to lean.
-  // It bends for terrain, and for nothing else.
+  // A pull toward the straight line, so a road on even going runs straight
+  // instead of staircasing wherever the tie-break happens to lean. It was
+  // divided by five, which on a two-hundred-tile road is a pull no terrain can
+  // argue with -- the reason every long road came out as a ruled diagonal. At
+  // fourteen it still settles the ties and the going decides the route.
+  const esalt = goingSalt(g.genesisSeed) ^ 0x9e37
   const vx = bx - ax, vy = by - ay
   const L = Math.sqrt(vx * vx + vy * vy)
   const offLine = (x, y) => {
     if (L < 1) return 0
     const cr = (x - ax) * vy - (y - ay) * vx
     const a = cr < 0 ? -cr : cr
-    return Math.floor(a / (L * 5))
+    return Math.floor(a / (L * 14))
   }
   dist[si] = 0
   const pack = (d, i) => d * 1048576 + i
@@ -826,8 +988,35 @@ export function routePath(g, ax, ay, bx, by) {
       if (done[ni]) continue
       const c = f[ni]
       if (c < 0) continue
-      const step = (dx && dy) ? Math.round(c * 1.4) : c
-      const nd = d0 + step + offLine(nx, ny)
+      // A ROAD WOULD RATHER GO ROUND THAN UP.
+      //
+      // Six for every unit climbed, and nothing for going down or along. That
+      // one term is what turns a shortest path into a route: it makes the
+      // router prefer a contour to a gradient, so roads arrive at passes,
+      // follow valley floors and swing wide of high ground -- which is what
+      // every real road does and why none of them are straight.
+      let step = (dx && dy) ? Math.round(c * 1.4) : c
+      const up = elevAt(esalt, nx, ny) - elevAt(esalt, x, y)
+      const climb = up > 0 ? up * 6 : 0
+      // ROADS BRAID. A road already exists: use it.
+      //
+      // Every route was found on virgin ground, ignoring the fourteen roads
+      // already laid, so the network came out as fourteen independent lines
+      // that happened to share endpoints. Real road networks are not like
+      // that -- they have TRUNKS, because the second road to be built joins
+      // the first rather than running parallel to it a mile away, and the
+      // tenth is mostly other people's roads with a spur at the end.
+      //
+      // TWO THIRDS of the cost on ground that is already road -- not two
+      // fifths, which was the first number and was far too generous. A
+      // discount of 0.4 means a road will travel two and a half times as far
+      // to stay on somebody else's, and it showed: Oxenford to the Watersmeet
+      // Bridge went three hundred and nine tiles round by Millbrook rather
+      // than a hundred and thirty straight across, because 309 x 0.4 is less
+      // than 130. At 0.68 a road will go about half again as far for company,
+      // which is roughly what a real one does and no more.
+      if (laid && laid.has(nx + ',' + ny)) step = Math.round(step * 0.68)
+      const nd = d0 + step + climb + offLine(nx, ny)
       if (nd < dist[ni]) { dist[ni] = nd; prev[ni] = i; heapPush(heap, pack(nd + hEst(nx, ny), ni)) }
     }
   }
@@ -877,6 +1066,39 @@ export function junctionsOf(g) {
   _juncMemo.set(_k, out)
   return out
 }
+
+// A LANE THAT GOES NOWHERE.
+//
+// Every road in this world joins two places, which is efficient and is not how
+// a country looks. Real ones are full of lanes that stop: a track to a quarry
+// that closed, a way up to a lookout, a farm road ending at a gate. Walking one
+// to its end and finding nothing is not wasted time -- it is the thing that
+// makes a map worth having, because it means the map was not a menu.
+//
+// The destinations are computed from the SETTLEMENTS and a hash, so a window
+// derives exactly the ones the generator laid. Each lane runs out from a town
+// in a fixed direction for a fixed distance and stops whereever it stops.
+function laneSeatsOf(towns, salt) {
+  const out = []
+  for (let i = 0; i < towns.length; i++) {
+    const t = towns[i]
+    let h = (Math.imul(i + 1, 2654435761) + salt) | 0
+    h = Math.imul(h ^ (h >>> 15), 2246822519) | 0
+    h = (h ^ (h >>> 13)) >>> 0
+    const n = (h & 1) + 1                                // one lane, sometimes two
+    for (let k = 0; k < n; k++) {
+      const hk = (Math.imul(h + k * 40503, 1597334677)) >>> 0
+      const ang = (hk % 3600) / 3600 * Math.PI * 2
+      const len = 16 + (hk >>> 12) % 26                  // sixteen to forty-two tiles
+      out.push({
+        from: t,
+        x: Math.round(t.x + Math.cos(ang) * len),
+        y: Math.round(t.y + Math.sin(ang) * len),
+      })
+    }
+  }
+  return out
+}
 export function roadSegsOf(g) {
   const s = {}; for (const t of settlementsOf(g)) s[t.tag] = t
   const j = junctionsOf(g)
@@ -890,10 +1112,36 @@ export function roadSegsOf(g) {
     [s.hollybarrow, s.oxenford, 93], [s.oxenford, s.anchor, 94],
     [s.anchor, s.thornbury, 95], [s.thornbury, s.millbrook, 96],
     // --- radials to the frontier ---
-    [s.millbrook, s.greenhollow, 98],
-    [s.thornbury, s.cragfoot, 100],   // finds the North Pass by itself
-    [s.anchor, s.eastmere, 103],      // finds its way around the Barrow
-    [s.oxenford, j.watersmeet, 104], [j.watersmeet, s.fenmarch, 107],
+    // EACH ROAD CROSSES AT ITS OWN CROSSING.
+    //
+    // Left to itself the router picked whichever crossing the braid discount
+    // had made cheapest, and that is not how a country works. The road to
+    // Greenhollow went south to the Millbrook Bridge and back north again; the
+    // road to WATERSMEET -- a place named for its bridge -- ran three hundred
+    // and thirteen tiles to cross at Millbrook, when the Watersmeet Bridge is
+    // a few tiles from its far end.
+    //
+    // A crossing is the most fixed thing in a landscape. Naming which one a
+    // road uses is not steering the router; it is stating the fact the router
+    // was getting wrong because a cheap road elsewhere outvoted the geography.
+    [s.millbrook, j.br0, 97], [j.br0, s.greenhollow, 98],   // by Highford
+    // THROUGH THE PASS, NOT PAST IT.
+    //
+    // The router finds the North Pass unaided -- that was v4's lesson and it
+    // still holds. But finding it and going THROUGH it as a named place are
+    // different things: routed end to end, the road treats the pass as an
+    // inconvenience on a line from Thornbury to Cragfoot, and comes out of it
+    // straightened. Split at the gap and it becomes two shorter roads, each
+    // free to answer its own country, meeting where a road really would.
+    //
+    // This is a waypoint, and v4 was right to delete the ones it deleted --
+    // those were hints compensating for a router that could not find the way.
+    // This one is a statement about the world: the road to the Crags goes
+    // through the North Pass, because there is nowhere else it could go.
+    [s.thornbury, j.npass, 100], [j.npass, s.cragfoot, 101],
+    [s.anchor, j.spass, 103], [j.spass, s.eastmere, 106],
+    [s.oxenford, j.br2, 102], [j.br2, j.watersmeet, 104],   // by the Watersmeet Bridge
+    [j.watersmeet, s.fenmarch, 107],
     [s.eastmere, s.fenmarch, 108],
     [s.cragfoot, s.eastmere, 109],
     [s.oxenford, s.norwick, 111],     // finds the Oxenford crossing
@@ -914,15 +1162,39 @@ export function routedPathsOf(g) {
   const hit = _pathMemo.get(key)
   if (hit) return hit
   const out = []
+  // THE ORDER MATTERS NOW, so it is fixed and shared with the mirror: the
+  // shire ring first, then the radials outward. That is also the order they
+  // would have been built in.
+  const laid = new Set()
   for (const [a, b, tag] of roadSegsOf(g)) {
     if (tag === CAUSEWAY_TAG) continue
-    const p = routePath(g, a.x, a.y, b.x, b.y)
+    const p = routePath(g, a.x, a.y, b.x, b.y, laid)
     // a route that cannot be found is a world that cannot be walked. Better
     // to fail the founding loudly than to publish an island with a town
     // nobody can reach.
     if (!p) throw new Error(`no route from (${a.x},${a.y}) to (${b.x},${b.y}) [seg ${tag}]: `
       + `the crossings or the passes have sealed a settlement off`)
     out.push({ tag, path: p })
+    for (const [px, py] of p) { laid.add(px + ',' + py); laid.add((px + 1) + ',' + py) }
+  }
+  // and then the lanes, which join nothing. They are laid LAST so they hang
+  // off the finished network rather than becoming part of anyone's route.
+  const lanes = laneSeatsOf(settlementsOf(g), goingSalt(g.genesisSeed) ^ 0x5a17)
+  let li = 0
+  for (const L2 of lanes) {
+    const seat = seatPoint(g, L2.x, L2.y)
+    if (!seat) continue
+    const p = routePath(g, L2.from.x, L2.from.y, seat.x, seat.y, laid)
+    // A LANE IS SHORT BY DEFINITION. seatPoint snaps a destination to the
+    // nearest walkable ground, and if the chosen point lands in water or on
+    // the Ridge that snap can be a long way off -- one lane came out at a
+    // hundred and sixty-two tiles, which is not a lane, it is a road to
+    // somewhere with nothing at the end. Twice the intended length or it is
+    // not laid at all.
+    const want = Math.round(Math.hypot(L2.x - L2.from.x, L2.y - L2.from.y))
+    if (!p || p.length < 8 || p.length > want * 2 + 10) continue
+    out.push({ tag: 200 + (li++), path: p, lane: true })
+    for (const [px, py] of p) { laid.add(px + ',' + py); laid.add((px + 1) + ',' + py) }
   }
   _pathMemo.set(key, out)
   releaseCostField(g)   // the scaffolding comes down
@@ -1631,6 +1903,136 @@ export function buildWorld(genesis) {
   for (const s of ss) {
     if ((s.ring === 'shire' || s.drawn) && PLANS[s.tag]) layDrawnTown(s)
     else layTown(s)
+    // -- THE STALLS: one trade per town, matching what the town IS --
+    //
+    // Not scattered evenly. A timber town has the axe man; the forge town has
+    // the armourer and the arms-master; the port that watches the wood has the
+    // fletcher. A citizen who knows what a town is for can guess what it
+    // sells, and being right about that is the small pleasure this is for.
+    //
+    // Placed just outside the wall like the gate guards, because the drawings
+    // have no room left inside and a stall wants to be on the street anyway.
+    {
+      const STALLS = {
+        anchor:      ['arms', 'armour'],   // the capital has both, dearly
+        greenhollow: ['lumber'],           // timber
+        cragfoot:    ['armour', 'delve'],  // the forge, and the Crags below it
+        millbrook:   ['delve'],            // the mill under the hills
+        thornbury:   ['arms'],             // a market that has always sold iron
+        eastmere:    ['bows'],             // the port that looks at the wood
+        oxenford:    ['lumber'],           // the market on the crossing
+        // THE SEEDSMAN, and he is the only one in the world. Hollybarrow's
+        // own sign already says what it is -- plots, a well, and nothing worth
+        // stealing -- and now that is where every crop on the island starts.
+        hollybarrow: ['seed'],
+        norwick:     ['arms'],             // the garrison
+        fenmarch:    ['delve'],            // peat and the Fens
+      }
+      // A SHOP IS A BUILDING, NOT A TABLE IN THE ROAD.
+      //
+      // The first version stood every stall outside the wall, which is honest
+      // enough -- markets really did set up at gates -- but it left the towns
+      // exactly as they were: three buildings that do something and a dozen
+      // that are scenery. A citizen learns the bank, the store and the anvil
+      // and stops looking at the rest.
+      //
+      // So a stall takes a HOUSE. The drawings mark their rooms, and a room
+      // with nothing in it but a bed and a hearth is a room doing nothing that
+      // a shop cannot do better. The building keeps its walls, its door and
+      // its eaves; what changes is that there is now a reason to walk through
+      // the door. Nothing is demolished -- the hearth stays, because somebody
+      // still lives above the shop, which is how every trade in a town like
+      // this actually worked.
+      const roomsOf = PLAN_ROOMS[s.tag] ?? []
+      const plan = PLANS[s.tag]
+      const shopRoom = (() => {
+        if (!plan) return null
+        const pw = plan[0].length, ph = plan.length
+        const ox = s.x - (pw >> 1), oy = s.y - (ph >> 1)
+        // a room is a HOUSE if it holds no fixture a citizen already walks to
+        const busy = new Set(['B', 'S', 'A', 's', 'k', 'W', 'o', 'U'])
+        const houses = []
+        for (const [rx, ry, rw, rh] of roomsOf) {
+          let has = false
+          for (let yy = ry; yy < ry + rh; yy++) for (let xx = rx; xx < rx + rw; xx++)
+            if (busy.has(plan[yy]?.[xx])) has = true
+          if (!has) houses.push([rx, ry, rw, rh])
+        }
+        return houses.length ? houses : null
+      })()
+      // A RING ROUND THE WALL, kept as the fallback for a town whose drawing
+      // has no spare house -- better a stall in the road than no stall.
+      //
+      // Six hand-picked offsets found nowhere to stand in three towns and only
+      // one of Anchor's two -- a drawing that fills its own plot leaves those
+      // exact tiles taken. So the search walks outward from the town edge and
+      // takes the first free ground it finds, which is what a trader would do.
+      const rr2 = rectOf(s)
+      let si = 0
+      let hi = 0
+      for (const kind of (STALLS[s.tag] ?? [])) {
+        let seated = false
+        // indoors first: a spare house, if the drawing left one
+        const house = shopRoom && shopRoom[hi % shopRoom.length]
+        if (house) {
+          hi++
+          const pw = plan[0].length, ph = plan.length
+          const ox = s.x - (pw >> 1), oy = s.y - (ph >> 1)
+          const [rx, ry, rw, rh] = house
+          for (let yy = ry; yy < ry + rh && !seated; yy++) {
+            for (let xx = rx; xx < rx + rw; xx++) {
+              if (plan[yy]?.[xx] !== ',') continue        // bare floor only
+              const x = ox + xx, y = oy + yy
+              // `taken` covers the WHOLE building -- layPlan reserves every
+              // tile of a drawing so no later pass drops a tree in somebody's
+              // parlour. That is right, and it is exactly the floor this wants,
+              // so the test here is whether a NODE already stands on the tile.
+              if (!inB(x, y) || blockedAt(g, x, y)) continue
+              if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+              E.addNode(w, 'stall-' + s.tag + '-' + kind, 'stall', x, y, { kind })
+              taken.add(key(x, y))
+              // and whoever keeps it, stood behind the counter
+              for (const [dx2, dy2] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
+                const kx = x + dx2, ky = y + dy2
+                if (!inB(kx, ky) || blockedAt(g, kx, ky)) continue
+                if (plan[yy + dy2]?.[xx + dx2] !== ',') continue
+                if (Object.values(w.nodes).some((q) => q.x === kx && q.y === ky)) continue
+                E.addNode(w, 'keeper-' + s.tag + '-' + kind, 'keeper', kx, ky, { kind })
+                taken.add(key(kx, ky))
+                break
+              }
+              seated = true; break
+            }
+          }
+        }
+        for (let rad = 1; rad <= 5 && !seated; rad++) {
+          // south face first (the road side), then east, west, north
+          const ring = []
+          for (let x = rr2.x0; x <= rr2.x1; x++) ring.push([x, rr2.y1 + rad], [x, rr2.y0 - rad])
+          for (let y = rr2.y0; y <= rr2.y1; y++) ring.push([rr2.x1 + rad, y], [rr2.x0 - rad, y])
+          // deterministic order: nearest the town's own centre line first
+          ring.sort((a, b) => (Math.abs(a[0] - s.x) + Math.abs(a[1] - s.y))
+                            - (Math.abs(b[0] - s.x) + Math.abs(b[1] - s.y)))
+          for (const [x, y] of ring) {
+            if (!inB(x, y) || taken.has(key(x, y)) || isWater(g, x, y) || blockedAt(g, x, y)) continue
+            if (onRoad(g, x, y)) continue                 // never in the roadway
+            // BESIDE A STREET, NOT ON A MOOR. The first version took the first
+            // free ground on the ring, which put the axe man at Greenhollow
+            // out on open moorland and the delver at Fenmarch in the fens. A
+            // stall is somebody's pitch on a thoroughfare; if there is no
+            // thoroughfare it is a man standing in a bog with a table.
+            let byRoad = false
+            for (let ddy = -2; ddy <= 2 && !byRoad; ddy++)
+              for (let ddx = -2; ddx <= 2; ddx++)
+                if (onRoad(g, x + ddx, y + ddy)) { byRoad = true; break }
+            if (!byRoad && rad < 5) continue
+            E.addNode(w, 'stall-' + s.tag + '-' + kind, 'stall', x, y, { kind })
+            taken.add(key(x, y)); si++; seated = true
+            break
+          }
+        }
+      }
+    }
     // -- THE ARMS, ON THE APPROACHES --
     //
     // A world in which towns simply BEGIN is a world of rooms. You should be
@@ -2707,6 +3109,31 @@ export function buildWorld(genesis) {
       return b === 'wilds' && depthOf(x, y) > 88
     },
     mob('troll'), 14, 10)
+  // ---- THE PLACED COPSES GET THEIR TREES ----
+  //
+  // The table makes a copse expensive to route through and paints the ground
+  // as woodland. Without this it would be woodland with nothing growing in it:
+  // a road bending around a colour. These are real trees -- they can be felled
+  // and they come back on the engine's own timer -- so a citizen who walks in
+  // finds a reason to have come.
+  {
+    let ct = 0
+    for (const f of HANDMADE) {
+      if (f.kind !== 'copse') continue
+      for (let i = 0; i < 60; i++) {
+        const hh = H32('copse|' + f.name, i)
+        const a = (hh.readUInt16BE(0) / 65536) * Math.PI * 2
+        const r = Math.sqrt(hh[2] / 255)
+        const x = Math.round(f.x + Math.cos(a) * f.rx * r)
+        const y = Math.round(f.y + Math.sin(a) * f.ry * r)
+        if (!inB(x, y) || !free(x, y) || isWater(g, x, y) || blockedAt(g, x, y)) continue
+        if (onRoad(g, x, y)) continue                 // the road came first
+        taken.add(key(x, y)); E.addNode(w, 'copse-' + ct, 'tree', x, y); ct++
+      }
+    }
+    counts.copseTrees = ct
+  }
+
   // ---- THE FLOCKS ----
   //
   // The Downs measured out at twenty-two thousand tiles carrying twenty-eight
@@ -3497,7 +3924,20 @@ export function buildWorld(genesis) {
     }
     return false
   }
-  for (const s of ss) putWaystone('waystone-' + s.tag, s.x, rectOf(s).y1 + 4)
+  // ONE WAYSTONE PER TOWN, NOT TWO.
+  //
+  // Some of the drawings place a waystone of their own, and this loop added
+  // another just outside the wall regardless -- so Millbrook and Norwick each
+  // had two, twenty tiles apart, doing the same job. A waystone is a place you
+  // learn and come back to; two of them in one town is one of them wasted and
+  // a citizen wondering which is which.
+  for (const s of ss) {
+    const r2 = rectOf(s)
+    const already = Object.values(w.nodes).some(n => n.type === 'waystone'
+      && n.x > r2.x0 - 8 && n.x < r2.x1 + 8 && n.y > r2.y0 - 8 && n.y < r2.y1 + 8)
+    if (already) continue
+    putWaystone('waystone-' + s.tag, s.x, r2.y1 + 4)
+  }
   const j = junctionsOf(g)
   putWaystone('waystone-watersmeet', j.watersmeet.x + 4, j.watersmeet.y + 4)
   putWaystone('waystone-npass', j.npass.x + 5, j.npass.y)
