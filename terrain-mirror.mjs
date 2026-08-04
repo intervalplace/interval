@@ -32,6 +32,8 @@ export function configure(opts = {}) {
   GEN = opts.generator ?? opts.gen ?? GEN
   GSEED = opts.seed ?? opts.genesisSeed ?? GSEED
   // a new world means every memo is about the old one
+  _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
+  _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
   _ssE = null
   _roadSet = null
@@ -396,7 +398,25 @@ function onIsle4(x, y) {
   for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
   return false
 }
-const inSea4 = (x, y) => inSeaBase4(x, y) && !onIsle4(x, y)
+// THE COAST AND THE RIVER, REMEMBERED TOO.
+//
+// Caching isWater4 alone took a tile from thirty-eight microseconds to
+// fourteen, and the rest is these two being asked directly: a Voronoi coast
+// and a meandering river, recomputed per call. One byte each, same lifetime as
+// the water cache. The island goes from seventeen seconds to under two.
+let _sea4 = null, _riv4 = null, _seaFor = null
+const _wetKey = () => GSEED + ':' + W + 'x' + H
+const inSea4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return inSeaBase4(x, y) && !onIsle4(x, y)
+  const k = _wetKey()
+  if (_seaFor !== k) { _seaFor = k; _sea4 = new Uint8Array(W * H); _riv4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _sea4[i]
+  if (hit) return hit === 2
+  const v = inSeaBase4(x, y) && !onIsle4(x, y)
+  _sea4[i] = v ? 2 : 1
+  return v
+}
 // STRAIGHT, and exactly where the law is. Mirrors worldgen-expanse4.brandX:
 // the stones and geo.wilds must be the same line, or a citizen stands past
 // the Brand with the Wilds all round them and cannot attack anyone.
@@ -464,7 +484,21 @@ function marchWY4(x) {
   const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
   return cyy + Math.round(meander(25, x, 36, 12) * t)
 }
+// THE RIVER, REMEMBERED. Two meanders and a march branch, recomputed on every
+// call and asked for every tile -- eleven microseconds each, and the last of
+// the four costs that made painting the island take a quarter of a minute.
 function inRiver4(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return _inRiver4raw(x, y)
+  const k = _wetKey()
+  if (_seaFor !== k) { _seaFor = k; _sea4 = new Uint8Array(W * H); _riv4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _riv4[i]
+  if (hit) return hit === 2
+  const v = _inRiver4raw(x, y)
+  _riv4[i] = v ? 2 : 1
+  return v
+}
+function _inRiver4raw(x, y) {
   const srcY = Math.round(H * 0.105)
   if (y >= srcY) {
     const rx = riverX4(y), d = x - rx < 0 ? rx - x : x - rx
@@ -486,7 +520,29 @@ function inLake4(x, y) {
   const dx = (x - cx) / 24, dy = (y - cy) / 13
   return dx * dx + dy * dy < 1
 }
-const isWater4 = (x, y) => inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+// WATER IS ASKED ABOUT MORE THAN ANYTHING ELSE, so it is remembered.
+//
+// isWater4 costs about ten microseconds -- a Voronoi coast, a meandering river
+// and two lakes, recomputed from scratch every time -- and the shoreline test
+// alone asks it FOUR times for every tile. Painting the island cost the site's
+// chart thirty-eight microseconds a tile, seventeen seconds for the land and
+// twenty-nine more for the roads. It did load; nobody waits three quarters of
+// a minute, so it read as broken.
+//
+// One byte a tile, thrown away whenever the world changes. Nothing about the
+// answer changes -- only how often it is worked out.
+let _wet4 = null, _wetFor = null
+const isWater4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  const k = GSEED + ':' + W + 'x' + H
+  if (_wetFor !== k) { _wetFor = k; _wet4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _wet4[i]
+  if (hit) return hit === 2
+  const w = inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  _wet4[i] = w ? 2 : 1
+  return w
+}
 function bridges4() {
   const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
   const out = ys.map((y) => ({ x: riverX4(y), y }))
@@ -1226,7 +1282,31 @@ function roadSet4() {
   }
   return (_roads4 = set)
 }
-const onRoad4 = (x, y) => roadSet4().has(x + ',' + y)
+// THE ROADS, AS A BITMAP.
+//
+// roadSet4 is a Set of "x,y" strings, so every road test built a string and
+// hashed it -- and terrainOfE4 asks four times a tile. Twenty-five
+// microseconds a tile, eleven seconds to lay the roads over the island.
+//
+// The Set stays: it is what the router fills and what everything else reads.
+// This is only a second view of it, one byte a tile, built once the first time
+// anyone asks and thrown away with the world.
+let _roadBmp = null, _roadBmpFor = null
+const onRoad4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return roadSet4().has(x + ',' + y)
+  const k = GSEED + ':' + W + 'x' + H
+  if (_roadBmpFor !== k) {
+    const set = roadSet4()
+    _roadBmp = new Uint8Array(W * H)
+    for (const key of set) {
+      const c = key.indexOf(',')
+      const rx = +key.slice(0, c), ry = +key.slice(c + 1)
+      if (rx >= 0 && ry >= 0 && rx < W && ry < H) _roadBmp[ry * W + rx] = 1
+    }
+    _roadBmpFor = k
+  }
+  return _roadBmp[y * W + x] === 1
+}
 function fordE4(x, y) {
   if (onBridge4(x, y)) return true
   for (const s of settlementsE4())
@@ -1402,6 +1482,18 @@ function isRampart4(x, y) {
   _rampCache.set(k, out)
   return out
 }
+
+// A TOWN IS ITS DRAWING, NOT ITS PLOT -- identical to groundKindAt's rule.
+// Only Anchor and Norwick are drawn as closed rings; the other eight are
+// clusters, and paving their whole rect put a flagstone box round each.
+const _TOWN_OPEN4 = new Set([' ', '.'])
+function townPaved4(rows, rx, ry) {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const c = rows[ry + dy]?.[rx + dx]
+    if (c !== undefined && !_TOWN_OPEN4.has(c)) return true
+  }
+  return false
+}
 function terrainOfE4(x, y) {
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
@@ -1433,6 +1525,8 @@ function terrainOfE4(x, y) {
       // stand on the same floor as the empty tile beside them
       for (const [rxx, ryy, rww, rhh] of (PLAN_ROOMS4[t.tag] ?? []))
         if (rx >= rxx && ry >= ryy && rx < rxx + rww && ry < ryy + rhh) return 'floor'
+      // and the paving reaches only as far as the town does
+      if (!townPaved4(rows, rx, ry)) return onRoad4(x, y) ? 'trail' : biomeAtE4(x, y)
     }
     // NOT EVERY TOWN IS PAVED: a farm and a clearing keep their own ground
     if (t.tag === 'hollybarrow' || t.tag === 'greenhollow')
