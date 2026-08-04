@@ -1956,7 +1956,7 @@ function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
 const CALLINGS = {
   woodcutting: 'forester', mining: 'miner', fishing: 'fisher', cooking: 'cook',
   smithing: 'smith', firemaking: 'firekeeper', prayer: 'mourner', ranged: 'archer',
-  magic: 'sigilist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
+  magic: 'alchemist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
 }
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
@@ -2033,13 +2033,29 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
 // dagger, spear and maul. A window that copies a table copies it at a moment
 // in time; test/identity.test.mjs holds this one to the engine's.
+// PRICED GOODS, copied from the engine's own table.
+//
+// The window's copy had drifted: seven goods the engine prices were missing
+// here -- crab-shell, wool, heartwood, both deep fish, the burnt one and the
+// heartwood bow -- so the counter would not offer to sell them and alchemy
+// would not offer to melt them, while the engine was perfectly willing to do
+// both. A window that under-reports what the world will accept is a window
+// that quietly hides half a trade route.
+//
+// It also carried `seeds`, which the engine does not price at all.
 const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
-  'star-spear': 100, 'star-maul': 160, 'horn-bow': 90,
+  'horn-bow': 400, 'crab-shell': 12,
+  'wool': 9,
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
-  'star-sword': 120, 'star-helm': 60, 'star-plate': 200,
+  'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
+  'star-spear': 450, 'star-maul': 720,
+  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495,
+  'seeds': 10, 'ale': 8, 'broth': 10,
 }
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
 // it is the whole of the store's stock: the world sells seeds and nothing
@@ -2183,6 +2199,22 @@ function armsOf(tag) {
     tail: ((h >> 13) & 1) === 1,            // swallow-tailed, or square
   }
 }
+
+// ALCHEMY (spec 2g): three quarters of the price, floor of one coin. The
+// window computes this only to SHOW it -- the engine decides what is paid.
+const ALCH_REQ = 1
+const ALCH_EVERY_BARE = 4, ALCH_EVERY_STAFF = 3, ALCH_EVERY_HEART = 2
+const alchEveryFor = (p) => p?.equipment?.weapon?.item === 'heartwood-staff' ? ALCH_EVERY_HEART
+  : p?.equipment?.weapon?.item === 'staff' ? ALCH_EVERY_STAFF : ALCH_EVERY_BARE
+// four coins, whatever it was (spec 2g). It was three quarters of the price,
+// which made alchemy the one uncapped mint in a world that had just given its
+// keepers a bounded purse.
+const ALCH_PAYS = 4
+const alchValue = (item) => (PRICES[item] ?? 0) ? ALCH_PAYS : 0
+
+// mastery yields, for the window's own labelling (spec 2g). The engine decides;
+// this only lets the pack say what a bone will give before you fletch it.
+const ARROWS_PER_BONE = 5, ARROWS_MASTER = 8, ARROW_MASTER = 80
 // ===========================================================================
 // THE WIRE
 // ---------------------------------------------------------------------------
@@ -2294,6 +2326,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'drink' ? { type: 'drink' }
   : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
@@ -3459,23 +3492,78 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   // shoulder, into the torso, and the pauldron drawn afterwards finished the
   // job. A citizen with a sword appeared to be carrying nothing.
   const dx = Math.cos(a), dy = Math.sin(a)
+  if (/staff/.test(item)) {
+    // A STAVE, HELD LOW AND UPRIGHT. Not a wand and not a weapon: a tall
+    // shaped shaft a citizen leans on between casts, bound at the grip, with
+    // the top swollen where the knot was left in. What marks it as an
+    // alchemist's is that the head holds a little light -- the same gold as
+    // the motes that come off a thing being unmade.
+    const heart = /heartwood/.test(item)
+    const H2 = 40 * s
+    const topX = hx - Math.sin(a) * 2 * s, topY = hy - H2
+    g.strokeStyle = heart ? METAL.heartwood[0] : '#4a3a22'
+    g.lineWidth = 3.2 * s; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(hx, hy + 6 * s)
+    g.quadraticCurveTo(hx + 2 * s, hy - H2 * .5, topX, topY); g.stroke()
+    g.strokeStyle = heart ? METAL.heartwood[1] : '#6a5430'
+    g.lineWidth = 1.2 * s
+    g.beginPath(); g.moveTo(hx - .8 * s, hy + 6 * s)
+    g.quadraticCurveTo(hx + 1.2 * s, hy - H2 * .5, topX - .8 * s, topY); g.stroke()
+    // the binding at the grip
+    g.strokeStyle = '#2a2114'; g.lineWidth = 3.8 * s
+    g.beginPath(); g.moveTo(hx + .6 * s, hy + 2 * s); g.lineTo(hx + 1.4 * s, hy - 4 * s); g.stroke()
+    // the knot at the head, and the light it keeps
+    g.fillStyle = heart ? METAL.heartwood[0] : '#5a4626'
+    g.beginPath(); g.ellipse(topX, topY, 3.4 * s, 4.2 * s, .2, 0, 7); g.fill()
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const gl = g.createRadialGradient(topX, topY, 0, topX, topY, 11 * s)
+    gl.addColorStop(0, heart ? 'rgba(240,214,140,.42)' : 'rgba(232,204,120,.28)')
+    gl.addColorStop(1, 'rgba(232,204,120,0)')
+    g.fillStyle = gl
+    g.beginPath(); g.arc(topX, topY, 11 * s, 0, 7); g.fill()
+    g.restore()
+    return
+  }
   if (/bow/.test(item)) {
-    // NOCK, DRAW, LOOSE. A bow with a permanently taut string is a prop. The
-    // string is pulled back by however far the citizen has drawn it, an arrow
-    // appears on it once there is anything to hold, and the limbs bend with it.
+    // A BOW IS HELD BY THE GRIP.
+    //
+    // This drew an arc CENTRED ON THE HAND, which puts the hand at the centre
+    // of the bow's curvature -- a radius away from the wood, holding nothing --
+    // and ran the string through the palm, so a citizen appeared to be gripping
+    // the string. At eleven pixels of radius it was also the length of a
+    // crossbow, which is what it looked like.
+    //
+    // The real geometry: the hand is ON the grip, at the middle of the belly.
+    // The limbs run out perpendicular to the aim, the whole stave bows FORWARD
+    // away from the archer, and the string joins tip to tip behind it. Drawing
+    // pulls the nocking point back toward the shoulder and straightens the
+    // limbs as it goes, which is the whole visible drama of a bow.
     const d = clamp(drawAmt ?? 0, 0, 1)
-    const R2 = (11 - d * 1.6) * s
-    const t1 = a - 1.05 - d * .12, t2 = a + 1.05 + d * .12
-    g.strokeStyle = m[0]; g.lineWidth = 2.6 * s
-    g.beginPath(); g.arc(hx, hy, R2, t1, t2); g.stroke()
-    g.strokeStyle = m[1]; g.lineWidth = 1 * s
-    g.beginPath(); g.arc(hx, hy, R2, t1 + .1, t2 - .1); g.stroke()
-    const ax = hx + Math.cos(t1) * R2, ay = hy + Math.sin(t1) * R2
-    const bx = hx + Math.cos(t2) * R2, by = hy + Math.sin(t2) * R2
-    // the nocking point, dragged back along the arm as the draw deepens
-    const nx = hx - Math.cos(a) * (1 + d * 11) * s, ny = hy - Math.sin(a) * (1 + d * 11) * s
+    const px = -Math.sin(a), py = Math.cos(a)          // across the aim
+    // a longbow is a tall thing: two thirds of a body, not a hand's width
+    const L = (21 + d * 1.5) * s                       // half the stave
+    const fwd = (8 - d * 5) * s                        // how far the belly bows out
+    const back = 3 * s                                 // the tips sit behind the grip
+    const tAx = hx + px * L - Math.cos(a) * back, tAy = hy + py * L - Math.sin(a) * back
+    const tBx = hx - px * L - Math.cos(a) * back, tBy = hy - py * L - Math.sin(a) * back
+    const cx2 = hx + Math.cos(a) * fwd, cy2 = hy + Math.sin(a) * fwd
+    // the stave: one curve through the grip, thicker at the middle
+    g.strokeStyle = m[0]; g.lineWidth = 2.8 * s; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(tAx, tAy)
+    g.quadraticCurveTo(cx2 + (cx2 - hx), cy2 + (cy2 - hy), tBx, tBy); g.stroke()
+    g.strokeStyle = m[1]; g.lineWidth = 1.1 * s
+    g.beginPath(); g.moveTo(tAx, tAy)
+    g.quadraticCurveTo(cx2 + (cx2 - hx) * .92, cy2 + (cy2 - hy) * .92, tBx, tBy); g.stroke()
+    // the grip itself, bound where the hand closes on it
+    g.strokeStyle = '#3a2c1b'; g.lineWidth = 3.6 * s
+    g.beginPath()
+    g.moveTo(hx + px * 3 * s + Math.cos(a) * fwd * .9, hy + py * 3 * s + Math.sin(a) * fwd * .9)
+    g.lineTo(hx - px * 3 * s + Math.cos(a) * fwd * .9, hy - py * 3 * s + Math.sin(a) * fwd * .9)
+    g.stroke()
+    // the string, tip to tip, dragged back at the nock as the draw deepens
+    const nx = hx - Math.cos(a) * (back + d * 13 * s), ny = hy - Math.sin(a) * (back + d * 13 * s)
     g.strokeStyle = 'rgba(226,216,190,.72)'; g.lineWidth = 1.1
-    g.beginPath(); g.moveTo(ax, ay); g.lineTo(nx, ny); g.lineTo(bx, by); g.stroke()
+    g.beginPath(); g.moveTo(tAx, tAy); g.lineTo(nx, ny); g.lineTo(tBx, tBy); g.stroke()
     if (d > .06) {                             // and the shaft on it
       const tipX = nx + Math.cos(a) * 26 * s, tipY = ny + Math.sin(a) * 26 * s
       g.strokeStyle = METAL.wood[0]; g.lineWidth = 1.5 * s
@@ -4670,11 +4758,39 @@ function itemIcon(item) {
         g.beginPath(); g.moveTo(cx - 8 + Math.cos(a) * 5, cy - 10 + Math.sin(a) * 5)
         g.lineTo(cx - 8 + Math.cos(a) * 9, cy - 10 + Math.sin(a) * 9); g.stroke() }
       return }
-    if (item === 'bronze-hatchet') {
+    // MATCH THE TOOL, NOT THE METAL. These were `item === 'bronze-hatchet'`,
+    // so a star hatchet had no icon at all -- an empty square in the pack.
+    // metalOf already colours it; only the shape belongs here.
+    if (item === 'forage') {
+      // whatever grew where it fell: two berries and a leaf. Not a pack item,
+      // so this is only ever seen lying on the ground.
+      g.fillStyle = '#8c2f3a'
+      g.beginPath(); g.arc(cx - 3, cy + 2, 4.2, 0, 7); g.fill()
+      g.beginPath(); g.arc(cx + 3, cy + 4, 3.4, 0, 7); g.fill()
+      g.fillStyle = 'rgba(255,230,220,.5)'
+      g.beginPath(); g.arc(cx - 4.4, cy + .6, 1.3, 0, 7); g.fill()
+      g.fillStyle = '#3f6a2e'
+      g.beginPath(); g.ellipse(cx + 1, cy - 4, 5, 2.4, -.5, 0, 7); g.fill()
+      g.strokeStyle = '#2a4a1e'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(cx - 3, cy - 2); g.lineTo(cx + 5, cy - 6); g.stroke()
+      return }
+    if (/staff/.test(item)) {
+      const heart = /heartwood/.test(item)
+      g.strokeStyle = heart ? METAL.heartwood[0] : '#4a3a22'; g.lineWidth = 2.6
+      g.beginPath(); g.moveTo(cx - 5, cy + 11); g.quadraticCurveTo(cx + 1, cy, cx + 3, cy - 11); g.stroke()
+      g.strokeStyle = '#2a2114'; g.lineWidth = 3
+      g.beginPath(); g.moveTo(cx - 2, cy + 3); g.lineTo(cx - 1, cy - 1); g.stroke()
+      g.fillStyle = heart ? METAL.heartwood[0] : '#5a4626'
+      g.beginPath(); g.ellipse(cx + 3, cy - 11, 2.6, 3.2, .2, 0, 7); g.fill()
+      g.save(); g.globalCompositeOperation = 'lighter'
+      g.fillStyle = 'rgba(232,204,120,.4)'
+      g.beginPath(); g.arc(cx + 3, cy - 11, 5, 0, 7); g.fill(); g.restore()
+      return }
+    if (/hatchet/.test(item)) {
       haft(cy - 9)
       poly(g, [[cx - 4, cy - 11], [cx + 5, cy - 14], [cx + 7, cy - 4], [cx - 3, cy - 4]], m[0])
       poly(g, [[cx + 5, cy - 14], [cx + 7, cy - 4], [cx + 9, cy - 6], [cx + 8, cy - 13]], m[1]); return }
-    if (item === 'bronze-pickaxe') {
+    if (/pickaxe/.test(item)) {
       haft(cy - 9)
       g.strokeStyle = m[0]; g.lineWidth = 3.4
       g.beginPath(); g.moveTo(cx - 13, cy - 6); g.quadraticCurveTo(cx - 4, cy - 15, cx + 6, cy - 9); g.stroke()
@@ -5042,7 +5158,7 @@ const STALL_STOCK = {
   delve:  { 'bronze-pickaxe': 20 },
   arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
   armour: { 'bronze-helm': 24 },
-  bows:   { 'wooden-bow': 16 },
+  bows:   { 'wooden-bow': 16, 'staff': 12 },
   seed:   { seeds: 22 },
 }
 
@@ -7568,6 +7684,7 @@ const DEED_POSE = {
   // number. Every channel silent at once, which is indistinguishable from a
   // click that did nothing.
   drink: 'lean',
+  alch: 'cast',
   bury: 'kneel', plant: 'kneel', harvest: 'kneel', collect: 'kneel',
   light: 'kneel', kindle: 'kneel', stoke: 'kneel', dismantle: 'kneel',
   brew: 'kneel', build_brewpot: 'kneel', cook: 'lean',
@@ -7598,6 +7715,7 @@ function noteDeed(verb) {
     light: 'flare', kindle: 'flare', stoke: 'flare', brew: 'flare', build_brewpot: 'flare',
     survey: 'survey', cast: 'survey', invoke: 'survey', recall: 'survey', spawn: 'flare',
     drink: 'ripple',
+    alch: 'unmake',
   }[verb]
   addFx(K ?? 'act', me.x, me.y, me.x, me.y, K === 'survey' ? 900 : 620, K ? 120 : 0)
 }
@@ -7744,6 +7862,21 @@ function drawFx(g, now) {
         g.strokeStyle = 'rgba(180,214,255,' + (.42 * (1 - kk)) + ')'; g.lineWidth = 1.6
         g.beginPath(); g.ellipse(B.x, by2 + 20, 10 + kk * 74, (10 + kk * 74) * .45, 0, 0, 7); g.stroke()
       }
+      g.restore()
+    } else if (f.kind === 'unmake') {
+      // a thing coming apart into coin: motes drawn upward and inward, gold
+      g.save(); g.globalCompositeOperation = 'lighter'
+      for (let q = 0; q < 9; q++) {
+        const a = (q / 9) * 6.283 + k * 2
+        const r = 22 * (1 - k)
+        g.fillStyle = 'rgba(232,204,120,' + (.7 * (1 - k)).toFixed(2) + ')'
+        g.fillRect(B.x + Math.cos(a) * r, by2 - 12 - k * 22 + Math.sin(a) * r * .5, 2.2, 2.2)
+      }
+      const gr = g.createRadialGradient(B.x, by2 - 14, 0, B.x, by2 - 14, 26 * (1 - k) + 6)
+      gr.addColorStop(0, 'rgba(240,214,140,' + (.36 * (1 - k)).toFixed(2) + ')')
+      gr.addColorStop(1, 'rgba(240,214,140,0)')
+      g.fillStyle = gr
+      g.beginPath(); g.arc(B.x, by2 - 14, 26 * (1 - k) + 6, 0, 7); g.fill()
       g.restore()
     } else if (f.kind === 'ripple') {
       // the water answering: rings going out, and cold
@@ -9123,9 +9256,19 @@ function orb(g, ox, oy, r, frac, col, now, label, value) {
 // ---------------------------------------------------------------------------
 // THE CONTROL PANEL
 // ---------------------------------------------------------------------------
+// EVERY PANE NEEDS A BUTTON, because a key is not a control on a telephone.
+//
+// The Ways had one way in on a desktop -- the R key -- and one on a mouse: a
+// right-click on open ground. A phone has neither. So a citizen on a phone
+// could attune to sixty-four waystones and never reach the list, which is the
+// same as the feature not existing for them.
+//
+// Any pane that can be opened at all must be openable HERE, in the row of
+// buttons that is always on screen and always the same size as a thumb.
 const PANEL_BTNS = [
   ['citizen', 'C', 'The citizen'], ['pack', 'I', 'The pack'],
-  ['chart', 'M', 'The chart'], ['speak', 'T', 'Speak'],
+  ['chart', 'M', 'The chart'], ['ways', 'W', 'The ways'],
+  ['speak', 'T', 'Speak'],
   ['forge', 'F', 'The anvil'], ['door', 'X', 'The door'],
 ]
 
@@ -9274,26 +9417,43 @@ function drawPanel(g, now) {
   }
 
   // ---- the buttons --------------------------------------------------------
-  const bgap = Math.max(4, Math.round(BR * .55))
-  const bw = PANEL_BTNS.length * (BR * 2 + bgap) - bgap
+  // THE ROW MUST FIT THE SLAB, whatever is in it.
+  //
+  // The gap was a fixed fraction of the button radius, so adding a seventh
+  // button simply made the row wider than the space between the two orbs and
+  // it ran off the edge -- on a narrow phone, the last two would have been
+  // under the mana orb. The gap now closes up as far as it needs to, and only
+  // then do the buttons themselves shrink. Adding an eighth will not break it
+  // either, which is the point.
+  let bgap = Math.max(4, Math.round(BR * .55))
+  let br = BR
+  let bw = PANEL_BTNS.length * (br * 2 + bgap) - bgap
+  if (bw > midW) {                                  // close the gaps first
+    bgap = Math.max(2, Math.floor((midW - PANEL_BTNS.length * br * 2) / (PANEL_BTNS.length - 1)))
+    bw = PANEL_BTNS.length * (br * 2 + bgap) - bgap
+  }
+  if (bw > midW) {                                  // and then the buttons
+    br = Math.max(9, Math.floor((midW - bgap * (PANEL_BTNS.length - 1)) / (PANEL_BTNS.length * 2)))
+    bw = PANEL_BTNS.length * (br * 2 + bgap) - bgap
+  }
   let bxx = midX + (midW - bw) / 2
   for (const [id, key, title] of PANEL_BTNS) {
-    const ccx = bxx + BR, ccy = btnY
+    const ccx = bxx + br, ccy = btnY
     const on = paneOpen(id) || (id === 'chart' && showChart)
-    const hot = Math.hypot(mouse.x - ccx, mouse.y - ccy) < BR + 2
-    const bg = g.createRadialGradient(ccx, ccy - BR * .4, 1, ccx, ccy, BR)
+    const hot = Math.hypot(mouse.x - ccx, mouse.y - ccy) < br + 2
+    const bg = g.createRadialGradient(ccx, ccy - br * .4, 1, ccx, ccy, br)
     bg.addColorStop(0, on ? '#5a4620' : hot ? '#3a2f1c' : '#231c16')
     bg.addColorStop(1, '#0c0908')
-    g.fillStyle = bg; g.beginPath(); g.arc(ccx, ccy, BR, 0, 7); g.fill()
+    g.fillStyle = bg; g.beginPath(); g.arc(ccx, ccy, br, 0, 7); g.fill()
     g.strokeStyle = on ? '#f2dda2' : hot ? '#b0913f' : '#6a5220'; g.lineWidth = 1.4
-    g.beginPath(); g.arc(ccx, ccy, BR, 0, 7); g.stroke()
-    g.font = '700 ' + Math.max(9, Math.round(BR * .8)) + 'px Cinzel, Georgia, serif'
+    g.beginPath(); g.arc(ccx, ccy, br, 0, 7); g.stroke()
+    g.font = '700 ' + Math.max(9, Math.round(br * .8)) + 'px Cinzel, Georgia, serif'
     g.textAlign = 'center'; g.textBaseline = 'middle'
     g.fillStyle = on ? '#fbeec4' : '#b0913f'
     g.fillText(key, ccx, ccy + .5)
-    regions.push({ x: ccx - BR, y: ccy - BR, w: BR * 2, h: BR * 2, act: { t: 'btn', id },
+    regions.push({ x: ccx - br, y: ccy - br, w: br * 2, h: br * 2, act: { t: 'btn', id },
                    tip: { title, sub: null } })
-    bxx += BR * 2 + bgap
+    bxx += br * 2 + bgap
   }
   g.textBaseline = 'alphabetic'
 }
@@ -9434,22 +9594,38 @@ function drawCitizen(g, now) {
 // Every recipe, always shown, and the important part is not the list but WHY a
 // row is shut to you. A row that greys out teaches nothing; a row that says
 // `smithing 28 (you have 22)` teaches the whole progression.
+// THE ANVIL'S OWN TABLE, copied from the engine.
+//
+// This had drifted badly: it said a star-sword asked smithing 34 where the
+// engine asks 45 AND magic 25, and it checked no magic requirement at all --
+// so the pane offered work the world would refuse, with no explanation of
+// why. A window that promises what the engine will not do is worse than a
+// window that says nothing.
 const FORGE = {
   'bronze-dagger': { ore: 1 }, 'bronze-hatchet': { ore: 1, logs: 1 },
   'bronze-pickaxe': { ore: 1, logs: 1 }, 'bronze-spear': { ore: 1, logs: 1 },
   'bronze-helm': { ore: 1, logs: 1 }, 'bronze-sword': { ore: 2, logs: 1 },
   'bronze-maul': { ore: 2, logs: 1 }, 'bronze-plate': { ore: 3, logs: 1 },
   'crossbow': { ore: 2, logs: 2 }, 'sigil-bow': { 'horn-bow': 1, sigil: 3 },
+  'star-hatchet': { 'magic-stone': 2, ore: 1, logs: 1 },
+  'star-pickaxe': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-helm': { 'magic-stone': 2, ore: 1 }, 'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-dagger': { 'magic-stone': 2, ore: 1 }, 'star-sword': { 'magic-stone': 3, ore: 2 },
   'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 }, 'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-plate': { 'magic-stone': 4, ore: 3 },
 }
-const FORGE_LVL = {
-  'bronze-dagger': 1, 'bronze-hatchet': 1, 'bronze-pickaxe': 1, 'bronze-spear': 5,
-  'bronze-helm': 7, 'bronze-sword': 10, 'bronze-maul': 14, 'bronze-plate': 20,
-  'crossbow': 24, 'sigil-bow': 40, 'star-helm': 28, 'star-spear': 30, 'star-dagger': 28,
-  'star-sword': 34, 'star-maul': 38, 'star-flail': 38, 'star-plate': 42,
+// smithing AND magic, exactly as SMITH_REQS has them
+const FORGE_REQ = {
+  'bronze-dagger': { smithing: 1 }, 'bronze-hatchet': { smithing: 1 },
+  'bronze-pickaxe': { smithing: 1 }, 'bronze-spear': { smithing: 5 },
+  'bronze-helm': { smithing: 7 }, 'bronze-sword': { smithing: 10 },
+  'bronze-maul': { smithing: 14 }, 'bronze-plate': { smithing: 20 },
+  'crossbow': { smithing: 18 }, 'sigil-bow': { smithing: 12, magic: 25 },
+  'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
+  'star-helm': { smithing: 40, magic: 20 }, 'star-spear': { smithing: 46, magic: 26 },
+  'star-dagger': { smithing: 45, magic: 28 }, 'star-sword': { smithing: 45, magic: 25 },
+  'star-maul': { smithing: 52, magic: 30 }, 'star-flail': { smithing: 50, magic: 29 },
+  'star-plate': { smithing: 50, magic: 30 },
 }
 function have(me, item) {
   return (me?.inventory ?? []).reduce((a, sl) =>
@@ -9461,8 +9637,10 @@ function forgeBlockers(me, recipe) {
     const got = have(me, it)
     if (got < n) out.push({ kind: 'mat', text: n + ' ' + wordy(it) + ' (you have ' + got + ')' })
   }
-  const need = FORGE_LVL[recipe] ?? 1, lv = XP_TO_LVL(me?.skills?.smithing ?? 0)
-  if (lv < need) out.push({ kind: 'skill', text: 'smithing ' + need + ' (you have ' + lv + ')' })
+  for (const [sk, need] of Object.entries(FORGE_REQ[recipe] ?? { smithing: 1 })) {
+    const lv = XP_TO_LVL(me?.skills?.[sk] ?? 0)
+    if (lv < need) out.push({ kind: 'skill', text: sk + ' ' + need + ' (you have ' + lv + ')' })
+  }
   if (!(me?.inventory ?? []).some(sl => !sl)) out.push({ kind: 'room', text: 'your pack is full' })
   return out
 }
@@ -10273,7 +10451,8 @@ function buildMenu(px2, py2, target) {
     items.push({ label: 'Withdraw my offer', dim: !me.trade, run: () => send({ do: 'cancel' }) })
   } else if (target.kind === 'ground') {
     title = wordy(target.e.item)
-    items.push({ label: 'Take it', run: go('pickup', target.id, target.e.x, target.e.y) })
+    items.push({ label: target.e.item === 'forage' ? 'Eat it where it lies' : 'Take it',
+                 run: go('pickup', target.id, target.e.x, target.e.y) })
   }
   return items.length ? { x: px2 + 4, y: py2 + 4, title, items } : null
 }
@@ -10291,12 +10470,17 @@ function buildSlotMenu(px2, py2, i) {
   if (it === 'bones') {
     items.push({ label: 'Bury it', run: () => send({ do: 'bury', slot: i }) })
     // the engine is explicit: `make === 'arrows' && sl.item === 'bones'`
-    items.push({ label: 'Fletch arrows', run: () => send({ do: 'fletch', slot: i, make: 'arrows' }) })
+    // say what the bone will actually give: a fletcher of eighty gets eight
+    const fl2 = XP_TO_LVL(me.skills?.fletching ?? 0)
+    const per2 = fl2 >= ARROW_MASTER ? ARROWS_MASTER : ARROWS_PER_BONE
+    items.push({ label: 'Fletch arrows \u00b7 ' + per2,
+                 run: () => send({ do: 'fletch', slot: i, make: 'arrows' }) })
   }
   if (it === 'seeds') items.push({ label: 'Plant it', run: () => send({ do: 'plant', slot: i }) })
   if (it === 'logs' || it === 'heartwood') {
     items.push({ label: 'Light a fire', run: () => send({ do: 'light', slot: i }) })
     items.push({ label: 'Fletch a bow', run: () => send({ do: 'fletch', slot: i, make: 'bow' }) })
+    items.push({ label: 'Fletch a staff', run: () => send({ do: 'fletch', slot: i, make: 'staff' }) })
   }
   if (it === 'heartwood') {
     const fl = XP_TO_LVL(me.skills?.fletching ?? 0)
@@ -10304,10 +10488,30 @@ function buildSlotMenu(px2, py2, i) {
     items.push({ label: fl >= 90 ? 'Fletch a heartwood bow' : 'Heartwood bow (fletching 90)',
                  dim: fl < 90 || n3 < 3,
                  run: () => send({ do: 'fletch', slot: i, make: 'heartwood-bow' }) })
+    items.push({ label: fl >= 90 ? 'Fletch a heartwood staff' : 'Heartwood staff (fletching 90)',
+                 dim: fl < 90 || n3 < 2,
+                 run: () => send({ do: 'fletch', slot: i, make: 'heartwood-staff' }) })
   }
   if (typeof it === 'string' && it.startsWith('chart:')) items.push({ label: 'Read it', run: () => send({ do: 'read_chart', slot: i }) })
   if (near('bank')) items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
   if (near('store') && PRICES[it]) items.push({ label: 'Sell it \u00b7 ' + (PRICES[it] * (sl.qty ?? 1)) + 'g', run: () => send({ do: 'sell', slot: i }) })
+  // ALCHEMY, anywhere -- including where there is no store to walk to, which
+  // is the point of it. Always shown when the item has a price, dimmed with
+  // the reason when the citizen cannot yet cast it, so a citizen learns the
+  // spell exists long before they can use it.
+  if (alchValue(it)) {
+    const ml = XP_TO_LVL(me.skills?.magic ?? 0)
+    const paid = alchValue(it)     // one from the stack, never the stack
+    items.push({
+      label: ml >= ALCH_REQ ? 'Alch it \u00b7 ' + paid + 'g' : 'Alch it (magic ' + ALCH_REQ + ')',
+      dim: ml < ALCH_REQ,
+      run: () => {
+        const since = (curState?.tick ?? 0) - (me.lastAlch ?? -99)
+        if (since < alchEveryFor(me)) { say('Not yet \u2014 the last one is still coming apart.', 'dim'); return }
+        send({ do: 'alch', slot: i }); SFX.pane()
+      },
+    })
+  }
   items.push({ label: 'Drop it', run: () => { send({ do: 'drop', slot: i }); say('You drop it.', 'dim') } })
   return { x: px2 + 4, y: py2 + 4, title: wordy(it), items }
 }
@@ -11099,6 +11303,7 @@ function drawCounter(g) {
   // keeper still conjured seeds; the moment a store made nothing, the counter
   // went blank and the bug had nowhere left to hide.
   const st = adjacentNodeOfType('store')
+  const purse = st?.coin ?? 1200
   const ask = (it) => (PRICES[it] ?? 0) + Math.max(1, Math.floor((PRICES[it] ?? 0) / 10))
   for (const [it, q] of Object.entries(st?.shelf ?? {})) {
     if (!(q > 0)) continue
@@ -11106,10 +11311,14 @@ function drawCounter(g) {
   }
   for (const [i, sl] of (me?.inventory ?? []).entries()) {
     if (!sl || !PRICES[sl.item]) continue
+    // A KEEPER WHO CANNOT PAY SHOULD SAY SO, not refuse a click in silence.
+    const owed = PRICES[sl.item] * (sl.qty ?? 1)
     rows.push({ item: sl.item, qty: sl.qty ?? 1,
-      right: 'sell \u00b7 ' + (PRICES[sl.item] * (sl.qty ?? 1)) + 'g', act: { t: 'sell', slot: i } })
+      right: owed > purse ? 'the purse is short' : 'sell \u00b7 ' + owed + 'g',
+      dim: owed > purse,
+      act: owed > purse ? { t: 'nope' } : { t: 'sell', slot: i } })
   }
-  drawLedger(g, 'The Counter', rows,
+  drawLedger(g, 'The Counter \u00b7 purse ' + purse + 'g', rows,
     'The shelf is empty. A store holds only what citizens bring in \u2014 sell '
     + 'something here, or find a stall for goods made new.')
 }

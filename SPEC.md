@@ -252,6 +252,160 @@ seen from outside: a road that begins to be paved and a device on a
 pole are how a place announces itself at a distance, and a world in
 which towns simply BEGIN, with no approach, is a world of rooms.
 
+**A mourner of seventy carries one thing through.** Prayer is trained
+by burying the dead and, until now, changed nothing that ever happened
+to a citizen. At prayer seventy the most valuable PRICED item a
+citizen holds -- in the pack or in their hands -- survives their
+death; everything else is lost exactly as before.
+
+Priced is the whole of the rule. A store's list is the ordinary goods:
+ore, a bronze sword, a cooked fish, a plate. The things that make this
+world worth a decade are not on it -- the old chain, a dragonbow, a
+sigil, a chart -- because they are traded between citizens and priced
+by nobody. Those stay exactly as losable at prayer ninety-nine as at
+prayer one. A mourner's working gear comes home; the Wilds keep every
+tooth that matters.
+
+**A tool is worth carrying, and a vein refuses a beginner.** The
+chance of taking a yield from a tree, a rock or the water rises with
+the skill and with the tool in hand, and is capped where only a master
+holding the better tool will reach it. Star tools exist for the two
+trades that use one all day -- a hatchet and a pickaxe -- and ask
+sixty in the skill they serve rather than a sword arm. `magic-rock`
+asks mining seventy: mining is the one gathering skill whose second
+ore was open in its first hour, and a skill with nothing at the end of
+its road has no road.
+
+**A master gets more from the same hour, never a shorter one.** Where
+a skill rewards mastery it does so by raising what an action is WORTH,
+and never by raising the experience it pays. A woodcutter of ninety
+takes heartwood from a tree instead of logs; a fisher of ninety takes
+the deep fish instead of the shallow; a fletcher of eighty gets eight
+arrows from a bone instead of five; a farmer of ninety takes three
+sheaves from a row instead of two. The road to ninety-nine is the
+same length for everybody.
+
+This is the only kind of reward that does not make the grind cheaper.
+Faster experience shortens the road and devalues everyone already on
+it; a better yield leaves the road exactly as long and makes the
+country at the end of it worth reaching.
+
+Where it can be a REPLACEMENT it should be, as heartwood and the deep
+fish are: a master can no longer take the ordinary yield at all, which
+leaves the cheap end of the market to the citizens who still need it.
+Where there is nothing to replace -- an arrow is an arrow -- more from
+the same material is the honest form.
+
+**A staff is the tool of the alchemist.** Woodcutting has a hatchet
+and mining a pickaxe; alchemy is the working half of magic and had
+nothing in the hand. A `staff` is fletched from a log, and a
+`heartwood-staff` from two heartwood at fletching ninety. Bare-handed
+alchemy takes four intervals, a stave three, a heartwood stave two --
+so each is a real reason to take the next, and the experience per cast
+never moves. A staff buys more work in an hour and never a shorter
+road. The fletcher's stall sells the plain stave, so a citizen who has
+not trained fletching may still buy the tool of a trade they have.
+
+Its cost is the hand it fills. A staff is wielded, so a citizen
+carrying one carries no sword -- an alchemist crossing the Wilds with
+a full pack chooses between converting faster and being able to fight,
+which is the same choice a pickaxe already asks of a miner. Nothing
+else was needed to price it.
+
+**Alchemy pays less than a store, and pays it anywhere.** Any citizen
+may `alch` a slot: ONE of the item is destroyed -- never the stack -- and they are
+paid FOUR COINS, whatever it was, and twenty-five magic
+experience, once every three intervals -- the SAME twenty-five whatever was melted, which is what
+a log is worth to a woodcutter and a set of bones to a priest. It requires nothing but the item.
+
+One at a time is deliberate. A citizen holding twenty ale who cast
+once and lost all twenty would have been trapped rather than served,
+and trading already knows better: an offer of arrows moves one arrow.
+It also makes a stack worth carrying -- twenty ale is twenty casts in
+one slot, an afternoon of alchemy a brewer can walk out with.
+
+The flat experience is deliberate. Tied to value, a star-plate would
+teach seventy-five times what a log teaches, and the efficient way to
+learn magic would be to acquire and destroy the most valuable gear in
+the world -- a fighter's path, for the one skill in this world that is
+not about fighting. Flat, the two questions come apart: what is worth
+alching is about price and distance, and what is worth alching for
+PRACTICE is whatever a citizen can gather most of. A woodcutter can
+learn magic from logs, and nobody burns a star-plate to learn a
+spell.
+
+The flat pittance is the design, and it is what keeps a keeper's purse
+meaning anything. Alchemy has no purse -- there is no keeper in the
+Wilds -- so a payment that followed the item's price would be the one
+uncapped mint in the world, and one that grew with what it was fed:
+an alchemist unmaking star plates would coin three hundred and
+thirty-eight an interval against the island's whole supply of twenty.
+Four coins cannot outrun anything.
+
+What a citizen buys with the difference is not having to walk, which
+was always the rule; it is simply now true of a star plate as well as
+a log. Valuable things deserve the walk, and nobody will unmake good
+gear for four coins -- they will carry it home through the Wilds,
+which is the risk that made the Wilds worth having.
+
+Alchemy is ungated because magic had no beginning without it. Every
+other use of the skill -- pressing a sigil, `still`, `mend`, `anchor`
+-- needs magic-stone, and magic-stone lies only in the Wilds. Reaching
+magic 30 by the routes open below magic 30 costs six hundred and
+sixty-nine of them. That is not a gate but a wall, and it meant a
+citizen could not cast their first spell until they had survived the
+most dangerous country in the world several hundred times. Alchemy is
+where magic begins, on the first log a citizen picks up; the sigil
+spells are what it becomes.
+
+It works IN THE WILDS, deliberately. Gold is the one thing death does
+not take, so out there alchemy turns what a citizen could lose into
+what they cannot -- and that would erase the Wilds if it were free.
+It is not free: a citizen submits one input per interval, so a full
+pack is twenty-odd intervals stood still in open country. Nothing in
+the rules prices this; the tick does. Carry it out, or stand and
+convert.
+
+**Forage is eaten where it lies.** A goblin, a wolf or a bear may
+leave `forage` when it falls -- about a third of the time. A troll, a
+skeleton-knight and the dragon never do, and that is a rule and not an
+oversight: those three are the Wilds, and everything about the Wilds
+is that it does not help you. No recall out of it, no keeper, no well,
+and nothing growing where a thing dies. The settled country feeds a
+citizen at four hitpoints; the Wilds do not. It cannot be picked up, banked, sold, traded or priced: taking
+it restores six hitpoints on the spot, needs no free slot and no
+gullet cooldown, and it rots in fifty intervals -- half of what
+anything else on the ground lasts.
+
+It is the only thing in this world that is not inventory. Everything
+else a citizen touches is a number moving between a pack, a vault, a
+shelf and the ground; this exists on a tile and only for a moment. A
+fight therefore has geography: the ground where a beast fell is worth
+something and the ground ahead is not, and a citizen at four
+hitpoints has a reason to look at where they are standing rather than
+at what they are carrying. Its worth is TIMING, never throughput --
+which is why it heals a fixed six and why nothing can be stockpiled.
+
+**A keeper's purse is finite, and the world's money supply is this
+sentence.** A `store` holds `coin`, at most twelve hundred, recovering
+two an interval. Selling spends it; buying off the shelf returns it. A
+keeper who cannot pay in full refuses the sale rather than paying
+part, and the citizen still has their goods and the road to the next
+town.
+
+Before this a store conjured what it paid, so gold entered the world
+at whatever rate a citizen could gather -- seventeen hundred an hour
+for a beginner and twenty-eight thousand for a master -- and left it
+only through a tenth on resale. That is a money supply with a source
+and no ceiling, in a world that will never be amended. Now the whole
+island mints at most ten towns times two coin an interval, and that
+number is fixed here forever.
+
+What it costs a citizen is a walk, and what it buys is that the ten
+towns finally differ: a keeper who has been bought out is a fact about
+a place, and carrying goods to a town that can still pay is the first
+trade this world has had that is not simply gathering.
+
 **The store makes nothing.** A general store's shelf holds only what
 citizens have carried in and sold; nothing appears there from nowhere.
 The keeper's own goods are gone -- seeds were the last of them, and
@@ -1737,7 +1891,7 @@ home does not rank its people by their capacity for violence.
 
 **Calling** is the trade a citizen has the most **experience** in,
 rendered as a word: forester, miner, fisher, cook, smith, firekeeper,
-mourner, archer, sigilist, farmer, fletcher, fighter, warden,
+mourner, archer, alchemist, farmer, fletcher, fighter, warden,
 cartographer, brewer.
 
 Experience, not level, is what decides it. Levels are a step function of
