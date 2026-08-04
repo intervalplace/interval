@@ -108,7 +108,10 @@ async function reachGenesis() {
   let last = null
   for (const u of alts) {
     try {
-      const got = JSON.parse(await (await fetch(u + '/api/genesis')).text())
+      // AbortSignal.timeout: a pillar that accepts the TCP connection but never
+      // answers must not hang the boot before we even have the founding.
+      const res = await fetch(u + '/api/genesis', { signal: AbortSignal.timeout(10000) })
+      const got = JSON.parse(await res.text())
       URL_ = u; host = new URL(u).hostname
       return got
     } catch (e) { last = e }
@@ -176,24 +179,39 @@ const remember = (a) => {
   try { fs.writeFileSync(P_BOOK, JSON.stringify(book)) } catch {}
 }
 const proto = /^\d+\.\d+\.\d+\.\d+$/.test(host) ? 'ip4' : 'dns4'
-try { await node.dial(multiaddr(`/${proto}/${host}/tcp/${info.p2pPort}/p2p/${info.peerId}`)) }
-catch { console.log('[door] that world\'s door is not answering; the book remembers ' + book.length + ' other(s)') }
-for (const a of book) { try { await node.dial(multiaddr(a)) } catch {} }
+// ---- hardening: no network await may gate the boot ----
+// Sequential awaited dials let one silent peer (dropping SYNs behind a router)
+// hold the boot open for a full TCP timeout. Race every network await against a
+// timer; fire gossip dials in the background so a dead peer can't stall startup.
+const withTimeout = (p, ms, label) => Promise.race([
+  Promise.resolve(p),
+  new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ' + ms + 'ms (' + label + ')')), ms)),
+])
+const pillarAddr0 = multiaddr(`/${proto}/${host}/tcp/${info.p2pPort}/p2p/${info.peerId}`)
+let pillarUp = true
+try { await withTimeout(node.dial(pillarAddr0), 8000, 'pillar') }
+catch { pillarUp = false; console.log('[door] that world\'s door did not answer in time; the book remembers ' + book.length + ' other(s)') }
+for (const a of book) {   // background — book peers are redundancy, not a boot dependency
+  withTimeout(node.dial(multiaddr(a)), 8000, 'book').then(() => {}).catch(() => {})
+}
 
 const dialed = new Set([node.peerId()])
 async function meshUp() {
   const port = node.listenPort(); if (!port) return
-  try { await fetch(URL_ + '/api/announce', { method: 'POST', body: JSON.stringify({ peerId: node.peerId(), port }) }) } catch {}
+  try { await withTimeout(fetch(URL_ + '/api/announce', { method: 'POST', body: JSON.stringify({ peerId: node.peerId(), port }) }), 8000, 'announce') } catch {}
   let peers = []
-  try { peers = (await (await fetch(URL_ + '/api/peers')).json()).peers ?? [] } catch { return }
+  try { peers = (await (await withTimeout(fetch(URL_ + '/api/peers'), 8000, 'peers')).json()).peers ?? [] } catch { return }
   for (const a of peers) {
     const pid = /\/p2p\/(.+)$/.exec(a)?.[1]
     if (!pid || dialed.has(pid) || !usableDoor(a)) continue
     dialed.add(pid)
-    try { await node.dial(multiaddr(a)); console.log('[mesh] peer connected: ' + a); remember(a) } catch {}
+    // background dial: a dead entry must not stall the sweep
+    withTimeout(node.dial(multiaddr(a)), 8000, 'peer')
+      .then(() => { console.log('[mesh] peer connected: ' + a); remember(a) })
+      .catch(() => { dialed.delete(pid) })
   }
 }
-await meshUp(); setInterval(meshUp, 20000)
+meshUp(); setInterval(meshUp, 20000)   // don't await the first sweep
 
 // ---- 4b. SYNC BEFORE TICKING ---------------------------------------------
 // A node that starts ticking from genesis while the world is at tick 60,000 is
@@ -202,14 +220,27 @@ await meshUp(); setInterval(meshUp, 20000)
 // alive first (a dead pillar's address must not crash the resurrection it
 // exists to enable), and afterwards keep a certified catch-up on a timer, so a
 // stall or a missed proposal is repaired by replay rather than by drift.
-const pillarAddr = multiaddr(`/${proto}/${host}/tcp/${info.p2pPort}/p2p/${info.peerId}`)
-const syncSources = [pillarAddr].concat(book.map(a => multiaddr(a)))
-try {
-  await node.syncFromPeers(syncSources, { allowSingle: true })
+const pillarAddr = pillarAddr0
+// Sync from the LIVE pillar alone first (allowSingle), timeout-guarded so a
+// stale book address fed to syncFromPeers — which dials sources sequentially —
+// cannot hang the boot. Fall back to book sources one at a time.
+let synced = false
+if (pillarUp) {
+  try { await withTimeout(node.syncFromPeers([pillarAddr], { allowSingle: true }), 20000, 'sync/pillar'); synced = true }
+  catch (e) { console.log('[door] pillar checkpoint not adopted (' + e.message + ')') }
+}
+if (!synced) for (const a of book) {
+  try { await withTimeout(node.syncFromPeers([multiaddr(a)], { allowSingle: true }), 12000, 'sync/book'); synced = true; break }
+  catch {}
+}
+if (synced) {
   console.log('[door] ' + (node.log[node.log.length - 1] ?? 'synced'))
-} catch (e) {
-  console.log('[door] could not sync a checkpoint (' + (e?.message ?? e) + ').')
+} else {
+  // A SERVING door must not publish a divergent view, so unlike join.mjs it
+  // refuses to tick from an empty island rather than catch up live.
+  console.log('[door] could not sync a checkpoint from the pillar or the book.')
   console.log('[door] refusing to tick forward from an empty island: nothing would agree with you.')
+  console.log('[door] retry once the world\'s pillar (or a known peer) is reachable.')
   process.exit(1)
 }
 if (node.agreement) setInterval(async () => {
