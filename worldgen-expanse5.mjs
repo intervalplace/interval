@@ -1979,6 +1979,25 @@ export function buildWorld(genesis) {
           const pw = plan[0].length, ph = plan.length
           const ox = s.x - (pw >> 1), oy = s.y - (ph >> 1)
           const [rx, ry, rw, rh] = house
+          // A COUNTER NEEDS A SIDE TO BE SERVED FROM.
+          //
+          // The first version took the first bare floor tile in the room and
+          // put the keeper next to it, and never asked whether anything was
+          // left for a CUSTOMER. Six of twelve stalls came out with no free
+          // orthogonal tile at all: a shop sealed inside its own building,
+          // which a citizen finds by walking to it and being told it cannot be
+          // reached. So a seat needs two free sides -- one for the keeper to
+          // stand behind and one for whoever came to buy.
+          const freeSides = (x, y) => {
+            let n2 = 0
+            for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              const ax = x + ddx, ay = y + ddy
+              if (!inB(ax, ay) || blockedAt(g, ax, ay)) continue
+              if (Object.values(w.nodes).some((q) => q.x === ax && q.y === ay)) continue
+              n2++
+            }
+            return n2
+          }
           for (let yy = ry; yy < ry + rh && !seated; yy++) {
             for (let xx = rx; xx < rx + rw; xx++) {
               if (plan[yy]?.[xx] !== ',') continue        // bare floor only
@@ -1989,6 +2008,7 @@ export function buildWorld(genesis) {
               // so the test here is whether a NODE already stands on the tile.
               if (!inB(x, y) || blockedAt(g, x, y)) continue
               if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+              if (freeSides(x, y) < 2) continue           // room for a keeper AND a customer
               E.addNode(w, 'stall-' + s.tag + '-' + kind, 'stall', x, y, { kind })
               taken.add(key(x, y))
               // and whoever keeps it, stood behind the counter
@@ -1997,6 +2017,9 @@ export function buildWorld(genesis) {
                 if (!inB(kx, ky) || blockedAt(g, kx, ky)) continue
                 if (plan[yy + dy2]?.[xx + dx2] !== ',') continue
                 if (Object.values(w.nodes).some((q) => q.x === kx && q.y === ky)) continue
+                // and the keeper does not take the last side: after they are
+                // stood there the counter must still have somewhere to serve from
+                if (freeSides(x, y) < 2) continue
                 E.addNode(w, 'keeper-' + s.tag + '-' + kind, 'keeper', kx, ky, { kind })
                 taken.add(key(kx, ky))
                 break
