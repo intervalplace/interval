@@ -123,7 +123,7 @@ const G_CACHE = `identities/genesis-${host}.json`
 const P_BOOK = `identities/peers-${host}.json`
 let info
 try {
-  const res = await fetch(URL_.replace(/\/$/, '') + '/api/genesis')
+  const res = await fetch(URL_.replace(/\/$/, '') + '/api/genesis', { signal: AbortSignal.timeout(10000) })
   info = JSON.parse(await res.text()) // an HTML error page is not a founding
   fs.writeFileSync(G_CACHE, JSON.stringify(info))
 } catch {
@@ -193,14 +193,30 @@ const remember = (a) => {
   if (!usableDoor(a)) return
   if (!book.includes(a)) { book.push(a); book = book.slice(-20); fs.writeFileSync(P_BOOK, JSON.stringify(book)) }
 }
+// ---- hardening: no network await may gate the boot ----
+// A silent peer (behind a router, dropping SYNs) can hold a dial open for the
+// full TCP timeout. Awaiting dials sequentially means ONE such peer stalls the
+// whole boot and startTicking() is never reached. So: every network await
+// races a timer, gossip dials fire in the background, and only the checkpoint
+// sync sits on the critical path — and even that falls through rather than hang.
+const withTimeout = (p, ms, label) => Promise.race([
+  Promise.resolve(p),
+  new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ' + ms + 'ms (' + label + ')')), ms)),
+])
+const bgDial = (addr, tag) => {
+  const ma = typeof addr === 'string' ? multiaddr(addr) : addr
+  withTimeout(node.dial(ma), 8000, tag)
+    .then(() => { if (tag === 'book') console.log('[mesh] reconnected from the book: ' + addr) })
+    .catch(() => {})   // unreachable peers are ordinary p2p weather: not fatal, not gating
+}
+
 let pillarUp = true
-try { await node.dial(pillarAddr) } catch {
+try { await withTimeout(node.dial(pillarAddr), 8000, 'pillar') } catch {
   pillarUp = false
-  console.log('[join] the pillar is not answering; the book remembers ' + book.length + ' door(s)')
+  console.log('[join] the pillar did not answer in time; the book remembers ' + book.length + ' door(s)')
 }
-for (const a of book) {
-  try { await node.dial(multiaddr(a)); console.log('[mesh] reconnected from the book: ' + a) } catch {}
-}
+// book peers are gossip redundancy, not a boot dependency — dial in the background
+for (const a of book) bgDial(a, 'book')
 
 // ---- the mesh, not the star: dial every peer the pillar knows, and keep
 // looking. If the pillar dies, the world keeps talking around the hole.
@@ -219,9 +235,9 @@ async function meshUp() {
   // 1. announce our own door: our listening port, paired server-side with the
   //    address the pillar observes us calling from
   try {
-    const r = await fetch(URL_ + '/api/announce', {
+    const r = await withTimeout(fetch(URL_ + '/api/announce', {
       method: 'POST', body: JSON.stringify({ peerId: node.peerId(), port }),
-    })
+    }), 8000, 'announce')
     if (r.status === 404) {
       sayOnce('ann404', '[mesh] this pillar does not keep a peer directory (no /api/announce).'
         + ' It is running an older node, so nobody here can find anybody else.'
@@ -239,7 +255,7 @@ async function meshUp() {
   // 2. dial every announced door we have not yet knocked on
   let peers = []
   try {
-    const res = await fetch(URL_ + '/api/peers')
+    const res = await withTimeout(fetch(URL_ + '/api/peers'), 8000, 'peers')
     if (res.status === 404) {
       sayOnce('px404', '[mesh] this pillar publishes no peer list (no /api/peers)')
       return
@@ -260,24 +276,34 @@ async function meshUp() {
   for (const a of fresh) {
     const pid2 = /\/p2p\/(.+)$/.exec(a)[1]
     dialedPeers.add(pid2)
-    try {
-      await node.dial(multiaddr(a))
-      console.log('[mesh] peer connected: ' + a)
-      remember(a)
-    } catch (e) {
-      dialedPeers.delete(pid2) // try again next sweep
-      sayOnce('dial:' + pid2, '[mesh] could not reach ' + a + ' (' + (e.code ?? 'no answer')
-        + '). Their port must be open inbound; most nodes are behind a router.')
-    }
+    // background dial: a dead entry in the peer list must not stall the sweep
+    withTimeout(node.dial(multiaddr(a)), 8000, 'peer')
+      .then(() => { console.log('[mesh] peer connected: ' + a); remember(a) })
+      .catch((e) => {
+        dialedPeers.delete(pid2) // try again next sweep
+        sayOnce('dial:' + pid2, '[mesh] could not reach ' + a + ' (' + (e.code ?? 'no answer')
+          + '). Their port must be open inbound; most nodes are behind a router.')
+      })
   }
 }
-await meshUp()
+// don't await the first sweep — it only needs to have STARTED; the interval repeats it
+meshUp()
 setInterval(meshUp, 60000)
-// sync from whoever is actually alive: a dead pillar's address in the
-// list must not crash the resurrection it exists to enable
-const syncSources = (pillarUp ? [pillarAddr] : []).concat(book.map(a => multiaddr(a)))
-await node.syncFromPeers(syncSources, { allowSingle: true })
-console.log(node.log[node.log.length - 1])
+// sync from the LIVE pillar alone (allowSingle), timeout-guarded so a stale book
+// address fed to syncFromPeers — which dials its sources sequentially — cannot
+// hang the boot. Fall back to book sources one at a time; if nothing corroborates
+// in time, rise from the founding and let certified catch-up pull us forward.
+let synced = false
+if (pillarUp) {
+  try { await withTimeout(node.syncFromPeers([pillarAddr], { allowSingle: true }), 20000, 'sync/pillar'); synced = true }
+  catch (e) { console.log('[sync] pillar checkpoint not adopted (' + e.message + ')') }
+}
+if (!synced) for (const a of book) {
+  try { await withTimeout(node.syncFromPeers([multiaddr(a)], { allowSingle: true }), 12000, 'sync/book'); synced = true; break }
+  catch {}
+}
+if (synced) console.log(node.log[node.log.length - 1])
+else console.log('[sync] no checkpoint adopted; rising from the founding and catching up by certified replay')
 node.startTicking()
 
 // Milestone 5: if we drift behind the finalized frontier (stall, missed
