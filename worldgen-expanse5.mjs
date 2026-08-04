@@ -2298,6 +2298,18 @@ export function buildWorld(genesis) {
           '\u201cAnchor flees, mend endures, still denies. You cannot be made to fight.\u201d',
           '\u201cThe stilled cannot act, and cannot be struck. I said that long before your constitution did.\u201d',
           '\u201cEvery keeper on this island is named by a hash. I am not. Think about what that costs.\u201d',
+          // THE WIZARD LEARNS ALCHEMY.
+          //
+          // His five sayings were all sigils -- anchor, mend, still, the price
+          // of a name. Every one of them is about magic a citizen cannot reach
+          // until they have crossed the Wilds. Then alchemy arrived and became
+          // the FIRST magic anybody meets and the whole of how the skill is
+          // trained, and the wizard of the Ring had nothing to say about it.
+          //
+          // Three stones stood empty, which is exactly enough.
+          '\u201cUnmaking is the first magic and the last one you will still be doing. Everything else here is an emergency.\u201d',
+          '\u201cA keeper will always pay you more than the air will. The air is always closer.\u201d',
+          '\u201cThe log teaches what the crown teaches. What differs is what you are left holding.\u201d',
         ]
         // the ring was laid above as ring-0..n; carve the first five that
         // exist, in the order they were set, so every node carves the same
