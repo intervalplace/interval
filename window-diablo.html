@@ -278,6 +278,8 @@ function configure(opts = {}) {
   GEN = opts.generator ?? opts.gen ?? GEN
   GSEED = opts.seed ?? opts.genesisSeed ?? GSEED
   // a new world means every memo is about the old one
+  _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
+  _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
   _ssE = null
   _roadSet = null
@@ -642,7 +644,25 @@ function onIsle4(x, y) {
   for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
   return false
 }
-const inSea4 = (x, y) => inSeaBase4(x, y) && !onIsle4(x, y)
+// THE COAST AND THE RIVER, REMEMBERED TOO.
+//
+// Caching isWater4 alone took a tile from thirty-eight microseconds to
+// fourteen, and the rest is these two being asked directly: a Voronoi coast
+// and a meandering river, recomputed per call. One byte each, same lifetime as
+// the water cache. The island goes from seventeen seconds to under two.
+let _sea4 = null, _riv4 = null, _seaFor = null
+const _wetKey = () => GSEED + ':' + W + 'x' + H
+const inSea4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return inSeaBase4(x, y) && !onIsle4(x, y)
+  const k = _wetKey()
+  if (_seaFor !== k) { _seaFor = k; _sea4 = new Uint8Array(W * H); _riv4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _sea4[i]
+  if (hit) return hit === 2
+  const v = inSeaBase4(x, y) && !onIsle4(x, y)
+  _sea4[i] = v ? 2 : 1
+  return v
+}
 // STRAIGHT, and exactly where the law is. Mirrors worldgen-expanse4.brandX:
 // the stones and geo.wilds must be the same line, or a citizen stands past
 // the Brand with the Wilds all round them and cannot attack anyone.
@@ -710,7 +730,21 @@ function marchWY4(x) {
   const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
   return cyy + Math.round(meander(25, x, 36, 12) * t)
 }
+// THE RIVER, REMEMBERED. Two meanders and a march branch, recomputed on every
+// call and asked for every tile -- eleven microseconds each, and the last of
+// the four costs that made painting the island take a quarter of a minute.
 function inRiver4(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return _inRiver4raw(x, y)
+  const k = _wetKey()
+  if (_seaFor !== k) { _seaFor = k; _sea4 = new Uint8Array(W * H); _riv4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _riv4[i]
+  if (hit) return hit === 2
+  const v = _inRiver4raw(x, y)
+  _riv4[i] = v ? 2 : 1
+  return v
+}
+function _inRiver4raw(x, y) {
   const srcY = Math.round(H * 0.105)
   if (y >= srcY) {
     const rx = riverX4(y), d = x - rx < 0 ? rx - x : x - rx
@@ -732,7 +766,29 @@ function inLake4(x, y) {
   const dx = (x - cx) / 24, dy = (y - cy) / 13
   return dx * dx + dy * dy < 1
 }
-const isWater4 = (x, y) => inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+// WATER IS ASKED ABOUT MORE THAN ANYTHING ELSE, so it is remembered.
+//
+// isWater4 costs about ten microseconds -- a Voronoi coast, a meandering river
+// and two lakes, recomputed from scratch every time -- and the shoreline test
+// alone asks it FOUR times for every tile. Painting the island cost the site's
+// chart thirty-eight microseconds a tile, seventeen seconds for the land and
+// twenty-nine more for the roads. It did load; nobody waits three quarters of
+// a minute, so it read as broken.
+//
+// One byte a tile, thrown away whenever the world changes. Nothing about the
+// answer changes -- only how often it is worked out.
+let _wet4 = null, _wetFor = null
+const isWater4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  const k = GSEED + ':' + W + 'x' + H
+  if (_wetFor !== k) { _wetFor = k; _wet4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _wet4[i]
+  if (hit) return hit === 2
+  const w = inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  _wet4[i] = w ? 2 : 1
+  return w
+}
 function bridges4() {
   const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
   const out = ys.map((y) => ({ x: riverX4(y), y }))
@@ -1472,7 +1528,31 @@ function roadSet4() {
   }
   return (_roads4 = set)
 }
-const onRoad4 = (x, y) => roadSet4().has(x + ',' + y)
+// THE ROADS, AS A BITMAP.
+//
+// roadSet4 is a Set of "x,y" strings, so every road test built a string and
+// hashed it -- and terrainOfE4 asks four times a tile. Twenty-five
+// microseconds a tile, eleven seconds to lay the roads over the island.
+//
+// The Set stays: it is what the router fills and what everything else reads.
+// This is only a second view of it, one byte a tile, built once the first time
+// anyone asks and thrown away with the world.
+let _roadBmp = null, _roadBmpFor = null
+const onRoad4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return roadSet4().has(x + ',' + y)
+  const k = GSEED + ':' + W + 'x' + H
+  if (_roadBmpFor !== k) {
+    const set = roadSet4()
+    _roadBmp = new Uint8Array(W * H)
+    for (const key of set) {
+      const c = key.indexOf(',')
+      const rx = +key.slice(0, c), ry = +key.slice(c + 1)
+      if (rx >= 0 && ry >= 0 && rx < W && ry < H) _roadBmp[ry * W + rx] = 1
+    }
+    _roadBmpFor = k
+  }
+  return _roadBmp[y * W + x] === 1
+}
 function fordE4(x, y) {
   if (onBridge4(x, y)) return true
   for (const s of settlementsE4())
@@ -1648,6 +1728,18 @@ function isRampart4(x, y) {
   _rampCache.set(k, out)
   return out
 }
+
+// A TOWN IS ITS DRAWING, NOT ITS PLOT -- identical to groundKindAt's rule.
+// Only Anchor and Norwick are drawn as closed rings; the other eight are
+// clusters, and paving their whole rect put a flagstone box round each.
+const _TOWN_OPEN4 = new Set([' ', '.'])
+function townPaved4(rows, rx, ry) {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const c = rows[ry + dy]?.[rx + dx]
+    if (c !== undefined && !_TOWN_OPEN4.has(c)) return true
+  }
+  return false
+}
 function terrainOfE4(x, y) {
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
@@ -1679,6 +1771,8 @@ function terrainOfE4(x, y) {
       // stand on the same floor as the empty tile beside them
       for (const [rxx, ryy, rww, rhh] of (PLAN_ROOMS4[t.tag] ?? []))
         if (rx >= rxx && ry >= ryy && rx < rxx + rww && ry < ryy + rhh) return 'floor'
+      // and the paving reaches only as far as the town does
+      if (!townPaved4(rows, rx, ry)) return onRoad4(x, y) ? 'trail' : biomeAtE4(x, y)
     }
     // NOT EVERY TOWN IS PAVED: a farm and a clearing keep their own ground
     if (t.tag === 'hollybarrow' || t.tag === 'greenhollow')
@@ -2054,7 +2148,7 @@ const PRICES = {
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
   'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
   'star-spear': 450, 'star-maul': 720,
-  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495,
+  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   'seeds': 10, 'ale': 8, 'broth': 10,
 }
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
@@ -2209,8 +2303,14 @@ const alchEveryFor = (p) => p?.equipment?.weapon?.item === 'heartwood-staff' ? A
 // four coins, whatever it was (spec 2g). It was three quarters of the price,
 // which made alchemy the one uncapped mint in a world that had just given its
 // keepers a bounded purse.
+// the lesser of four coins and a coin under the keeper's price (spec 2g), so
+// alchemy is never the better deal -- a flat four beat a keeper on every cheap
+// good in the world, which is precisely the ones a beginner gathers
 const ALCH_PAYS = 4
-const alchValue = (item) => (PRICES[item] ?? 0) ? ALCH_PAYS : 0
+const alchValue = (item) => {
+  const p = PRICES[item] ?? 0
+  return p ? Math.min(ALCH_PAYS, Math.max(0, p - 1)) : 0
+}
 
 // mastery yields, for the window's own labelling (spec 2g). The engine decides;
 // this only lets the pack say what a bone will give before you fletch it.
@@ -2326,6 +2426,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  : a.do === 'mendp' ? { type: 'mendp', target: a.target }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'drink' ? { type: 'drink' }
   : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
@@ -3498,6 +3599,26 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   // shoulder, into the torso, and the pauldron drawn afterwards finished the
   // job. A citizen with a sword appeared to be carrying nothing.
   const dx = Math.cos(a), dy = Math.sin(a)
+  if (item === 'wand') {
+    // SHORT, AND HELD LIKE A THING YOU MIGHT NEED SUDDENLY. A staff is leaned
+    // on; a wand is carried. Bound at the grip, tapering to a pale tip that
+    // keeps a little of the same cold light a sigil does.
+    const L = 16 * s
+    const tx2 = hx + dx * L, ty2 = hy + dy * L
+    g.strokeStyle = '#4a3a22'; g.lineWidth = 2.4 * s; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(hx - dx * 3 * s, hy - dy * 3 * s); g.lineTo(tx2, ty2); g.stroke()
+    g.strokeStyle = '#6a5430'; g.lineWidth = .9 * s
+    g.beginPath(); g.moveTo(hx - dx * 3 * s, hy - dy * 3 * s - .7 * s); g.lineTo(tx2, ty2 - .7 * s); g.stroke()
+    g.strokeStyle = '#2a2114'; g.lineWidth = 3.4 * s
+    g.beginPath(); g.moveTo(hx + dx * 1 * s, hy + dy * 1 * s); g.lineTo(hx + dx * 4 * s, hy + dy * 4 * s); g.stroke()
+    g.fillStyle = '#cfe2e6'
+    g.beginPath(); g.arc(tx2, ty2, 2 * s, 0, 7); g.fill()
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const wg = g.createRadialGradient(tx2, ty2, 0, tx2, ty2, 8 * s)
+    wg.addColorStop(0, 'rgba(160,206,224,.34)'); wg.addColorStop(1, 'rgba(160,206,224,0)')
+    g.fillStyle = wg; g.beginPath(); g.arc(tx2, ty2, 8 * s, 0, 7); g.fill(); g.restore()
+    return
+  }
   if (/staff/.test(item)) {
     // A STAVE, HELD LOW AND UPRIGHT. Not a wand and not a weapon: a tall
     // shaped shaft a citizen leans on between casts, bound at the grip, with
@@ -4780,6 +4901,18 @@ function itemIcon(item) {
       g.strokeStyle = '#2a4a1e'; g.lineWidth = 1
       g.beginPath(); g.moveTo(cx - 3, cy - 2); g.lineTo(cx + 5, cy - 6); g.stroke()
       return }
+    if (item === 'wand') {
+      // short, bound, with a pale tip -- the same thing the hand holds, small
+      g.strokeStyle = '#4a3a22'; g.lineWidth = 2.4
+      g.beginPath(); g.moveTo(cx - 7, cy + 8); g.lineTo(cx + 6, cy - 8); g.stroke()
+      g.strokeStyle = '#2a2114'; g.lineWidth = 3.2
+      g.beginPath(); g.moveTo(cx - 5, cy + 5); g.lineTo(cx - 1, cy); g.stroke()
+      g.fillStyle = '#cfe2e6'
+      g.beginPath(); g.arc(cx + 6, cy - 8, 2.4, 0, 7); g.fill()
+      g.save(); g.globalCompositeOperation = 'lighter'
+      g.fillStyle = 'rgba(160,206,224,.45)'
+      g.beginPath(); g.arc(cx + 6, cy - 8, 5.5, 0, 7); g.fill(); g.restore()
+      return }
     if (/staff/.test(item)) {
       const heart = /heartwood/.test(item)
       g.strokeStyle = heart ? METAL.heartwood[0] : '#4a3a22'; g.lineWidth = 2.6
@@ -5164,7 +5297,7 @@ const STALL_STOCK = {
   delve:  { 'bronze-pickaxe': 20 },
   arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
   armour: { 'bronze-helm': 24 },
-  bows:   { 'wooden-bow': 16, 'staff': 12 },
+  bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
   seed:   { seeds: 22 },
 }
 
@@ -6738,6 +6871,18 @@ function collectStanding(s, t, list) {
 // would go.
 const BUILDING_KINDS = {}
 
+// the Brandline's stones, by where they stand: a painter is handed a node,
+// not its id, so the set is built once per state
+let _brandAt = new Set(), _brandFor = null
+function brandstoneAt(x, y) {
+  const s2 = curState
+  if (_brandFor !== s2) {
+    _brandFor = s2; _brandAt = new Set()
+    for (const [id, n] of Object.entries(s2?.nodes ?? {}))
+      if (id.startsWith('brandstone-')) _brandAt.add(n.x + ',' + n.y)
+  }
+  return _brandAt.has(x + ',' + y)
+}
 function drawNode(g, n, sx, sy, t, hot) {
   const s = curState
   const dep = (n.depletedUntil ?? 0) > (s?.tick ?? 0)
@@ -6946,6 +7091,35 @@ function drawNode(g, n, sx, sy, t, hot) {
       return
     }
     case 'wall': case 'rampart':
+      // A BRANDSTONE IS NOT MASONRY. Nine of them stand along the hundred and
+      // forty walkable tiles of the Brandline, and they are `wall` nodes
+      // because a wall is what the engine had to hand -- so the one border in
+      // this world meant to be "stepped over deliberately, never a gate" drew
+      // as a stretch of ruined town wall.
+      //
+      // A rough standing stone instead: leaning, weathered, older than the
+      // rule it marks, with the scorch of the march at its foot.
+      if (brandstoneAt(n.x, n.y)) {
+        g.drawImage(sprite('brandstone' + ((n.x * 7 + n.y) & 3), 60, 96, (gg, W2, H2) => {
+          const c2 = W2 / 2, b = H2 - 10
+          const lean = (((n.x * 13 + n.y * 7) & 3) - 1.5) * .06
+          groundShadow(gg, c2 + 4, b - 2, 17, 7, .55)
+          gg.fillStyle = 'rgba(26,20,16,.5)'
+          gg.beginPath(); gg.ellipse(c2, b - 1, 20, 8, 0, 0, 7); gg.fill()
+          gg.save(); gg.translate(c2, b); gg.rotate(lean)
+          const HH = 56, WW = 13
+          poly(gg, [[-WW, 0], [-WW + 2, -HH], [WW - 4, -HH + 5], [WW, 0]], '#6b6459')
+          poly(gg, [[-WW, 0], [-WW + 2, -HH], [-WW + 6, -HH + 2], [-WW + 4, 0]], '#837c6f')
+          poly(gg, [[WW - 4, -HH + 5], [WW, 0], [WW - 5, 0], [WW - 7, -HH + 4]], '#4a453d')
+          gg.strokeStyle = 'rgba(30,26,22,.45)'; gg.lineWidth = 1.4
+          gg.beginPath(); gg.moveTo(-6, -12); gg.lineTo(-2, -34); gg.stroke()
+          gg.beginPath(); gg.moveTo(4, -8); gg.lineTo(6, -26); gg.stroke()
+          gg.fillStyle = 'rgba(255,240,214,.10)'
+          gg.fillRect(-WW + 3, -HH + 8, 3, HH - 14)
+          gg.restore()
+        }), sx - 30, sy - 96 + 26)
+        return
+      }
       drawEaves(g, n.x, n.y, sx - 40 + 40 - HW, sy)
       g.drawImage(sprite('wall' + (hs & 3), 80, 78, (gg, W2, H2, R) => {
         const c2 = W2 / 2, b = H2 - 6
@@ -7597,7 +7771,19 @@ function citizenPlate(g, sx, sy, p, id, isMe, placed) {
   g.fillStyle = 'rgba(4,3,5,.74)'
   g.fillRect(box.x, box.y, box.w, box.h)
   g.font = '700 11px Cinzel, Georgia, serif'
-  g.fillStyle = isMe ? '#f0d9a4' : '#9fb0c4'
+  // THE BRAND, WHICH THIS WINDOW HAS NEVER SHOWN.
+  //
+  // Strike an unprovoked citizen in the Wilds and the engine brands you for
+  // fifteen minutes. The constitution is plain about what that is for: "the
+  // record simply makes the deed legible, and the rest of the world decides
+  // what it means. Reputation, not punishment, enforced by daylight."
+  //
+  // This window read `brandedUntil` nowhere at all, so the daylight never
+  // came. A rule whose whole mechanism is other people seeing it does not
+  // work when the window keeps it dark -- it is not a soft penalty then, it
+  // is no penalty, and worse, an honest citizen cannot tell who to avoid.
+  const branded = (p.brandedUntil ?? 0) > (curState?.tick ?? 0)
+  g.fillStyle = branded ? '#e0533a' : isMe ? '#f0d9a4' : '#9fb0c4'
   g.fillText(name, x0, sy)
   if (full) {
     g.font = '10px Georgia, serif'
@@ -7708,6 +7894,10 @@ const dmgNums = []          // numbers leaving a body
 const hitFlash = new Map()  // id -> when it was last struck
 const dust = []             // motes in the air, in screen coordinates
 const fx = []               // blows in flight, in world coordinates
+// who was mended by somebody else, and when. A mending sent to another citizen
+// is only visible as their hitpoints moving; this is what lets the window show
+// it landing on them.
+const mendedAt = new Map()
 const specialAnim = new Map()   // playerId -> { kind, at, dur } while a special plays
 
 // ---------------------------------------------------------------------------
@@ -7765,6 +7955,7 @@ function noteDeed(verb) {
     light: 'flare', kindle: 'flare', stoke: 'flare', brew: 'flare', build_brewpot: 'flare',
     survey: 'survey', cast: 'survey', invoke: 'survey', recall: 'survey', spawn: 'flare',
     drink: 'ripple',
+    mendp: 'sent',
     alch: 'unmake',
   }[verb]
   addFx(K ?? 'act', me.x, me.y, me.x, me.y, K === 'survey' ? 900 : 620, K ? 120 : 0)
@@ -7911,6 +8102,16 @@ function drawFx(g, now) {
         const kk = k - q * .18; if (kk < 0) continue
         g.strokeStyle = 'rgba(180,214,255,' + (.42 * (1 - kk)) + ')'; g.lineWidth = 1.6
         g.beginPath(); g.ellipse(B.x, by2 + 20, 10 + kk * 74, (10 + kk * 74) * .45, 0, 0, 7); g.stroke()
+      }
+      g.restore()
+    } else if (f.kind === 'sent') {
+      // something leaving the hand, going somewhere else
+      g.save(); g.globalCompositeOperation = 'lighter'
+      for (let q = 0; q < 5; q++) {
+        const t2 = clamp(k * 1.3 - q * .07, 0, 1)
+        if (t2 <= 0) continue
+        g.fillStyle = 'rgba(170,222,236,' + (.55 * (1 - t2)).toFixed(2) + ')'
+        g.beginPath(); g.arc(B.x, by2 - 16 - t2 * 26, 2.6 * (1 - t2 * .5), 0, 7); g.fill()
       }
       g.restore()
     } else if (f.kind === 'unmake') {
@@ -8192,6 +8393,86 @@ function drawScene(now) {
       if (it.e.equipment?.head?.item === 'star-helm' || it.e.equipment?.body?.item === 'star-plate')
         lights.push([sx, sy - 24, 62, .34, 0])
       if (it.id === myId) lights.push([sx, sy - 22, LANTERN_R, 1, 1, true])
+      // THE HOT-IRON MARK, riding above a branded citizen. Not a badge: a
+      // thing still cooling, so it breathes, and it is the one red in this
+      // window that is not blood.
+      if ((it.e.brandedUntil ?? 0) > (curState?.tick ?? 0)) {
+        const bt = now / 1000
+        const glow = .62 + Math.sin(bt * 2.1 + sx) * .18
+        const by9 = sy - 62 + Math.sin(bt * 1.3) * 1.6
+        g.save()
+        g.globalCompositeOperation = 'lighter'
+        const bg9 = g.createRadialGradient(sx, by9, 0, sx, by9, 16)
+        bg9.addColorStop(0, 'rgba(224,83,58,' + (.34 * glow).toFixed(3) + ')')
+        bg9.addColorStop(1, 'rgba(224,83,58,0)')
+        g.fillStyle = bg9
+        g.beginPath(); g.arc(sx, by9, 16, 0, 7); g.fill()
+        g.restore()
+        // the iron itself: a short bar with a cross-stroke, struck into the air
+        g.strokeStyle = 'rgba(255,150,110,' + glow.toFixed(2) + ')'
+        g.lineWidth = 2.4; g.lineCap = 'round'
+        g.beginPath(); g.moveTo(sx, by9 - 6); g.lineTo(sx, by9 + 6); g.stroke()
+        g.beginPath(); g.moveTo(sx - 4.5, by9 - 2.5); g.lineTo(sx + 4.5, by9 - 2.5); g.stroke()
+        g.strokeStyle = 'rgba(120,26,16,.85)'; g.lineWidth = .9
+        g.beginPath(); g.moveTo(sx, by9 - 6); g.lineTo(sx, by9 + 6); g.stroke()
+        lights.push([sx, by9, 30, .3 * glow, 0])
+      }
+      // A MENDING ARRIVING. The caster's gesture says a thing was sent; this
+      // says it was RECEIVED, on the citizen it was sent to. Without it the
+      // person being helped sees only their own hitpoints move and never
+      // learns that somebody across the clearing did it for them.
+      const mnd = mendedAt.get(it.id)
+      if (mnd !== undefined) {
+        const k9 = (now - mnd) / 900
+        if (k9 >= 1) mendedAt.delete(it.id)
+        else {
+          g.save(); g.globalCompositeOperation = 'lighter'
+          // it settles onto them: a ring drawn IN, and warm rather than cold
+          const R9 = 34 * (1 - k9) + 6
+          g.strokeStyle = 'rgba(150,226,170,' + (.5 * (1 - k9)).toFixed(2) + ')'
+          g.lineWidth = 2
+          g.beginPath(); g.ellipse(sx, sy - 22, R9, R9 * .5, 0, 0, 7); g.stroke()
+          for (let q = 0; q < 6; q++) {
+            const a9 = (q / 6) * 6.283 + k9 * 2
+            g.fillStyle = 'rgba(196,244,206,' + (.7 * (1 - k9)).toFixed(2) + ')'
+            g.fillRect(sx + Math.cos(a9) * R9 - 1.4, sy - 22 + Math.sin(a9) * R9 * .5 - 1.4, 2.8, 2.8)
+          }
+          const gg9 = g.createRadialGradient(sx, sy - 22, 0, sx, sy - 22, 24)
+          gg9.addColorStop(0, 'rgba(160,236,180,' + (.22 * (1 - k9)).toFixed(3) + ')')
+          gg9.addColorStop(1, 'rgba(160,236,180,0)')
+          g.fillStyle = gg9
+          g.beginPath(); g.arc(sx, sy - 22, 24, 0, 7); g.fill()
+          g.restore()
+        }
+      }
+      // A STILLING ON ITS WAY, over whoever it is travelling toward.
+      //
+      // The sent stilling lands three intervals after it is cast, and until now
+      // nothing said so: the target simply froze out of a clear sky. A spell
+      // you cannot see coming is not a mechanic, it is an accident. So a ring
+      // closes over them, one turn of it per interval, and the last turn is
+      // the one that lands.
+      const sAt = it.e.stillAt
+      if (sAt !== undefined && curState) {
+        const left = sAt - (curState.tick ?? 0) - renderT(now)
+        const k9 = clamp(1 - left / 3, 0, 1)
+        g.save(); g.globalCompositeOperation = 'lighter'
+        const R9 = 30 * (1 - k9) + 9
+        g.strokeStyle = 'rgba(150,206,224,' + (.35 + k9 * .5).toFixed(2) + ')'
+        g.lineWidth = 1.6 + k9 * 1.6
+        g.beginPath(); g.ellipse(sx, sy - 22, R9, R9 * .5, 0, 0, 7); g.stroke()
+        // three marks that close in as it arrives
+        for (let q = 0; q < 3; q++) {
+          const a9 = (q / 3) * 6.283 - k9 * 3.2
+          g.fillStyle = 'rgba(198,236,248,' + (.5 + k9 * .5).toFixed(2) + ')'
+          g.fillRect(sx + Math.cos(a9) * R9 - 1.6, sy - 22 + Math.sin(a9) * R9 * .5 - 1.6, 3.2, 3.2)
+        }
+        if (k9 > .9) {
+          g.fillStyle = 'rgba(214,244,255,' + ((k9 - .9) * 4).toFixed(2) + ')'
+          g.beginPath(); g.arc(sx, sy - 22, 16, 0, 7); g.fill()
+        }
+        g.restore()
+      }
     }
     if (isHot) g.restore()
   }
@@ -10634,6 +10915,18 @@ function buildMenu(px2, py2, target) {
                  run: () => send({ do: 'attackp', targetId: target.id }) })
     items.push({ label: spec ? 'Special attack' : 'Special attack (needs a weapon with one)',
                  dim: !wilds || !spec, run: () => { send({ do: 'special', targetId: target.id }); SFX.slain() } })
+    // A WAND SENDS A MENDING. Offered on any citizen, anywhere -- helping
+    // somebody is not a thing the Wilds should gate.
+    {
+      const wand = me.equipment?.weapon?.item === 'wand'
+      const sig = (me.inventory ?? []).some(sl => sl?.item === 'sigil')
+      const near4 = Math.max(Math.abs(me.x - q.x), Math.abs(me.y - q.y)) <= 4
+      const lv = XP_TO_LVL(me.skills?.magic ?? 0)
+      const why = !wand ? 'needs a wand' : lv < 50 ? 'magic 50' : !sig ? 'needs a sigil' : !near4 ? 'too far' : null
+      items.push({ label: why ? 'Mend them (' + why + ')' : 'Mend them',
+                   dim: !!why,
+                   run: () => { if (!why) { send({ do: 'mendp', target: target.id }); SFX.pane() } } })
+    }
     { const sig = (me.inventory ?? []).filter(sl => sl?.item === 'sigil').length
       items.push({ label: sig >= 3 ? 'Still them' : 'Still them (needs 3 sigils)',
                    dim: sig < 3, run: () => {
@@ -10679,6 +10972,7 @@ function buildSlotMenu(px2, py2, i) {
     items.push({ label: 'Light a fire', run: () => send({ do: 'light', slot: i }) })
     items.push({ label: 'Fletch a bow', run: () => send({ do: 'fletch', slot: i, make: 'bow' }) })
     items.push({ label: 'Fletch a staff', run: () => send({ do: 'fletch', slot: i, make: 'staff' }) })
+    items.push({ label: 'Fletch a wand', run: () => send({ do: 'fletch', slot: i, make: 'wand' }) })
   }
   if (it === 'heartwood') {
     const fl = XP_TO_LVL(me.skills?.fletching ?? 0)
@@ -10694,14 +10988,19 @@ function buildSlotMenu(px2, py2, i) {
   if (near('bank')) items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
   if (near('store') && PRICES[it]) items.push({ label: 'Sell it \u00b7 ' + (PRICES[it] * (sl.qty ?? 1)) + 'g', run: () => send({ do: 'sell', slot: i }) })
   // ALCHEMY, anywhere -- including where there is no store to walk to, which
-  // is the point of it. Always shown when the item has a price, dimmed with
-  // the reason when the citizen cannot yet cast it, so a citizen learns the
-  // spell exists long before they can use it.
+  // is the point of it.
+  //
+  // TRANSMUTE, not "alch". Citizens will say alch, the way they say every
+  // short form, but a world does not name its own verbs in the players'
+  // shorthand: the engine calls the input `alch` because that is a wire
+  // format, and the thing a citizen does is transmute one thing into
+  // another. It is also simply the right word -- it is what alchemy has
+  // always meant.
   if (alchValue(it)) {
     const ml = XP_TO_LVL(me.skills?.magic ?? 0)
     const paid = alchValue(it)     // one from the stack, never the stack
     items.push({
-      label: ml >= ALCH_REQ ? 'Alch it \u00b7 ' + paid + 'g' : 'Alch it (magic ' + ALCH_REQ + ')',
+      label: ml >= ALCH_REQ ? 'Transmute (' + paid + ' gold)' : 'Transmute (magic ' + ALCH_REQ + ')',
       dim: ml < ALCH_REQ,
       run: () => {
         const since = (curState?.tick ?? 0) - (me.lastAlch ?? -99)
@@ -11104,6 +11403,9 @@ function pumpIntent() {
 // STATE
 // ---------------------------------------------------------------------------
 let prevMe = null, worldConfigured = '', lastPlace = null
+// EVERY citizen's last-seen hitpoints, not just our own. A mending sent to
+// somebody else is only visible as their hp moving, and nothing was watching.
+let prevPlayers = null
 function onState(s, worldId) {
   const now = performance.now()
   if (stateAt) statePeriod = clamp(now - stateAt, 300, 1200)
@@ -11199,6 +11501,10 @@ function onState(s, worldId) {
       inv: (me.inventory ?? []).map(sl => sl ? sl.item + '\u0000' + (sl.qty ?? 1) : ''),
       dead: me.deadUntil ?? 0,
     }))
+    // and every other citizen's hitpoints, so a mending sent to somebody is
+    // visible to everyone who can see them
+    prevPlayers = {}
+    for (const [pid2, q2] of Object.entries(s.players ?? {})) prevPlayers[pid2] = { hp: q2.hp }
   }
   pumpIntent()
 }
@@ -11227,7 +11533,15 @@ function reconcile(was, me, s) {
       mote(p.x + (Math.random() - .5) * 12, p.y - 24,
         (Math.random() - .5) * 3, -1 - Math.random() * 2.5, .7 + Math.random() * .5,
         'rgba(150,18,12,%a)', 2 + Math.random() * 2)
-  } else if (me.hp > was.hp) {
+  }
+  // A MENDING LANDING ON SOMEBODY ELSE. Every other citizen's hitpoints are in
+  // the state too, so a heal nobody's own deed explains is one that was sent.
+  for (const [pid2, q2] of Object.entries(s.players ?? {})) {
+    const before = prevPlayers?.[pid2]
+    if (!before || pid2 === myId) continue
+    if ((q2.hp ?? 0) > (before.hp ?? 0) + 4) mendedAt.set(pid2, performance.now())
+  }
+  if (me.hp > was.hp) {
     popNumber(me.x, me.y, '+' + (me.hp - was.hp), '#6ad86a', false)
     if ((s.tick ?? 0) - drankAt <= 3) {
       say('You drink. The water is very cold. (+' + (me.hp - was.hp) + ')', 'good')

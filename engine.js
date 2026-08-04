@@ -380,7 +380,7 @@ const STALL_SELLS = {
   // the fletcher sells the stave as well as the bow. Both are shaped wood, and
   // a citizen who has not yet trained fletching should still be able to buy the
   // tool of a trade they HAVE trained -- that is what a stall is for.
-  bows:   { 'wooden-bow': 16, 'staff': 12 },
+  bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
   // THE ONLY SOURCE OF SEED IN THE WORLD, and deliberately one place. Dearer
   // than the store ever charged, because everything at a stall is -- and
   // because a thing you had to travel for should cost something.
@@ -517,7 +517,21 @@ const EAT_EVERY = 8;
 // flees, mend endures, still denies.
 const STILL_LEVEL = 85;
 const STILL_SIGILS = 3;
-const STILL_TICKS = 6;      // both parties walk one tile per interval: six tiles of head start
+const STILL_TICKS = 6;
+// THE WAND: A SPELL THAT LANDS LATER AND HOLDS LONGER.
+//
+// A still cast bare takes hold at once and lasts six. With a wand it takes
+// three intervals to arrive and then holds ten -- so you cannot panic-still,
+// you have to cast BEFORE you need it, and you keep acting while it travels.
+//
+// That is the whole of it, and it is what a tick-based world is for: the
+// interval is the unit of skill, so a spell that lands on a chosen future
+// interval is a decision no other kind of world can offer. Three ticks is
+// three deeds -- swing, step, swing -- and the freeze arrives on top of them.
+//
+// It costs one optional field on whoever it is travelling toward.
+const STILL_WAND_DELAY = 3;
+const STILL_WAND_TICKS = 10;      // both parties walk one tile per interval: six tiles of head start
 const STILL_IMMUNE = 15;    // after it lifts: nobody is chain-stilled
 const STILL_CD = 150;       // the caster's word needs time to regain its weight
 const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
@@ -586,6 +600,10 @@ const WEAPONS = {
   'star-spear':    { hit: 3, every: 2, reach: 2, acc: 0 },
   'star-maul':     { spec: 'now', hit: 7, every: 3, reach: 1, acc: -24 },
   'old-chain':     { hit: 1, every: 1, reach: 1, acc: 0 },
+  // A WAND IS A BAD WEAPON ON PURPOSE. Magic is the anti-combat skill, so the
+  // fullest expression of it is a thing you hold INSTEAD of a weapon: you have
+  // given up fighting to be better at not fighting.
+  'wand':          { hit: 0, every: 3, reach: 1, acc: -40 },
   // THE FLAIL (spec 6x): it goes ROUND the armour, not through it.
   //
   // Armour turns aside one point a piece, two for starmetal, and in a fight
@@ -849,6 +867,7 @@ const MOB_STATS = {
 // single largest restoration in the world. At magic 20 it arrived before most
 // of what it saves you from. Fifty, alongside the starmetal it is worn with.
 const MEND_REQ = 50;
+const MENDP_RANGE = 4;      // near enough to see who you are helping
 
 // ---------------------------------------------------------------------------
 // ALCHEMY
@@ -970,7 +989,23 @@ const ALCH_SHARE = 3, ALCH_OF = 4;   // three quarters, in integers
 // will carry it home through the Wilds, which is exactly the risk that made
 // the Wilds worth having.
 const ALCH_PAYS = 4;
-const alchValue = (item) => (PRICES[item] ?? 0) ? ALCH_PAYS : 0;
+// NEVER MORE THAN A KEEPER, WHICH A FLAT FOUR WAS NOT.
+//
+// Four coins is a pittance beside a star plate and a windfall beside a log.
+// Measured: arrows sell for one and burnt fish for one, logs and bones for
+// two, raw fish for three -- so alchemy paid two to four times what a keeper
+// paid for the six commonest goods in the world, needing no keeper, no purse
+// and no walk. The whole design is that a store is ALWAYS the better price,
+// and for the things a beginner actually gathers it was the worse one.
+//
+// The lesser of four coins and a coin under the keeper's price. A star plate
+// still pays four; a log pays one; an arrow pays nothing at all and is
+// unmade for the practice, which is the honest value of unmaking an arrow.
+const alchValue = (item) => {
+  const p = PRICES[item] ?? 0;
+  if (!p) return 0;
+  return Math.min(ALCH_PAYS, Math.max(0, p - 1));
+};
 // §6o: A CROP LEFT IN THE GROUND GOES TO SEED.
 //
 // A plot was released in exactly one place -- the harvest branch -- so a
@@ -1020,7 +1055,7 @@ const PRICES = {
   // ratios between the star goods are untouched -- they were already sound.
   'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
   'star-spear': 450, 'star-maul': 720,
-  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495,
+  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
   // though every one of them is made by a citizen's work. Seeds at ten so the
   // seedsman's twenty-two is the usual double; ale and broth by what they
@@ -1086,7 +1121,7 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
   'heartwood-bow',
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
-  'staff', 'heartwood-staff']);
+  'staff', 'heartwood-staff', 'wand']);
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
 // syntactically pretty identifier that is not in this set is contraband:
@@ -1098,7 +1133,7 @@ const ITEMS = new Set([
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'heartwood-bow',
   'bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
-  'staff', 'heartwood-staff',
+  'staff', 'heartwood-staff', 'wand',
   // §2g: FORAGE. It exists only on the ground and only for a little while.
   // No pack ever holds it, no keeper prices it, no vault will take it.
   'forage',
@@ -1210,8 +1245,8 @@ const T = {
   recipe: (v) => (typeof v === 'string' && v in RECIPES) || 'must be a constitutional recipe',
   gear: (v) => EQUIP_SLOTS.includes(v) || 'must be an equipment slot name',
   spell: (v) => ['anchor', 'mend'].includes(v) || 'must be a constitutional spell',
-  make: (v) => ['bow', 'arrows', 'heartwood-bow', 'staff', 'heartwood-staff'].includes(v)
-    || 'must be bow, arrows, staff or a heartwood one',
+  make: (v) => ['bow', 'arrows', 'heartwood-bow', 'staff', 'heartwood-staff', 'wand'].includes(v)
+    || 'must be bow, arrows, staff, wand or a heartwood one',
   name: (v) => isValidName(v) || 'must be a constitutional name',
 };
 const INPUT_SCHEMAS = {
@@ -1250,6 +1285,11 @@ const INPUT_SCHEMAS = {
   unwield: { gear: T.gear },
   buy: { item: T.item }, withdraw: { item: T.bankable },
   cast: { spell: T.spell },
+  // A MENDING, SENT. Its own verb rather than a target on `cast`, because
+  // every field in a schema here is required and anchor has nobody to aim at
+  // -- and because the constitution already does exactly this: `attack` and
+  // `attackp` are two verbs for one act against two kinds of thing.
+  mendp: { target: T.hex64 },
   fletch: { slot: T.slot, make: T.make },
   pickup: { groundId: T.id },
   claim_name: { name: T.name },
@@ -2298,7 +2338,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch']);
+  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -2454,7 +2494,7 @@ const LANDMARK_KINDS = new Set([
     // while it only ever answered a blow -- a clock of its own, so its swing
     // rate is its own and not the citizen's, and a memory of who hit it, so a
     // passive creature still fights back.
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'mad', 'bound', 'quiver'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'bound', 'quiver'].includes(mk)) return 'non-constitutional mob field ' + mk;
     for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
     // §6ac: whom she has taken, and the arrows she took with them
@@ -3063,6 +3103,25 @@ function validInput(state, input, ctx) {
       // three stones, any hour (v0.40): the cost is the mining, not the wait
       return p.inventory.filter(sl => sl?.item === 'magic-stone').length >= 3;
     }
+    case 'mendp': {
+      // A WAND SENDS WHAT A BARE HAND KEEPS.
+      //
+      // That is the whole of the wand, and it is one rule wearing two coats: a
+      // stilling sent at an enemy, and a mending sent to somebody else. It is
+      // also what stops the wand being an item nobody can use until magic 85 --
+      // still is a late spell, mend is not, so the wand has a job from fifty.
+      //
+      // And it gives this world something it has never had: a citizen whose
+      // whole part in a fight is keeping somebody else standing. Which is the
+      // most anti-combat thing magic could possibly do.
+      if (p.equipment?.weapon?.item !== 'wand') return false;
+      if (effLevel(p.skills.magic) < MEND_REQ) return false;
+      if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
+      const t = state.players[input.target];
+      if (!t || input.target === playerId) return false;
+      if (t.hp <= 0 || (t.deadUntil ?? 0) > state.tick) return false;
+      return Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y)) <= MENDP_RANGE;
+    }
     case 'still': {
       if (effLevel(p.skills.magic) < STILL_LEVEL) return false;
       if (p.inventory.filter(sl => sl?.item === 'sigil').length < STILL_SIGILS) return false;
@@ -3179,6 +3238,7 @@ function validInput(state, input, ctx) {
       return (input.make === 'bow' && isLog(sl.item))
         || (input.make === 'arrows' && sl.item === 'bones')
         || (input.make === 'staff' && sl.item === 'logs')
+        || (input.make === 'wand' && sl.item === 'logs')
         || (input.make === 'heartwood-staff' && sl.item === 'heartwood'
             && effLevel(p.skills.fletching) >= 90 && countItem(p.inventory, 'heartwood') >= 2);
     }
@@ -3919,8 +3979,19 @@ function nextState(state, inputs, _legacyBeacon) {
           const senses = st.aggro ?? 0;
           // §6ac: she answers her own opponent and nobody else
           if (st.mirrors) { if (m.bound !== pid) continue; }
+          // HUNTS_HERE KEEPS THE SETTLED COUNTRY SAFE, and a harmless thing is
+          // not a danger to be kept from anybody. A shore-crab has aggro 4 and
+          // stands on the tideline, which is downland -- so its aggro could
+          // never fire, and the one creature in this world written to bustle
+          // at a citizen and swing and never land stood as still as a sheep.
+          //
+          // Harmless beasts hunt wherever they live. Nothing can come of it:
+          // §6z already says a harmless creature swings and never lands, and
+          // teaches no combat for the trouble. What it costs a citizen is
+          // being followed about by a crab, which is the entire point of it.
+          const mayStart = st.harmless || HUNTS_HERE(m.x, m.y);
           const wants = (m.mad === pid && d <= senses)
-            || (st.aggro && d <= st.aggro && HUNTS_HERE(m.x, m.y));
+            || (st.aggro && d <= st.aggro && mayStart);
           if (!wants) continue;
           if (d < best) { best = d; target = p; tid = pid; }
         }
@@ -4303,7 +4374,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // a stack is many casts, so a brewer can walk out with an afternoon of
         // alchemy in one slot instead of one cast in one slot.
         p.lastAlch = s.tick;
-        p.gold = (p.gold ?? 0) + ALCH_PAYS;
+        p.gold = (p.gold ?? 0) + worth;
         const left = (slot.qty ?? 1) - 1;
         p.inventory[inp.slot] = left > 0 ? { item: slot.item, qty: left } : null;
         // THE EXPERIENCE IS FLAT, AND THIS IS THE POINT.
@@ -4322,6 +4393,15 @@ function nextState(state, inputs, _legacyBeacon) {
         // woodcutter can learn magic from logs. Nobody burns a star-plate to
         // learn a spell.
         p.skills.magic += XP_ALCH;
+      }
+    } else if (inp.type === 'mendp') {
+      const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
+      const t = s.players[inp.target];
+      if (si !== -1 && t && t.hp > 0) {
+        p.inventory[si] = null;
+        t.hp = Math.min(effLevel(t.skills.hitpoints), t.hp + 20);
+        p.skills.magic += 55;
+        if (claimFirst(s, 'mendp', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to mend somebody who was not themselves.');
       }
     } else if (inp.type === 'recall') {
       // spec 2k: step out of the world beside one waystone and in beside another
@@ -4607,9 +4687,16 @@ function nextState(state, inputs, _legacyBeacon) {
         if (p.inventory[i2]?.item === 'sigil') { p.inventory[i2] = null; burned++; }
       const t9 = s.mobs[inp.target] ?? s.players[inp.target];
       if (t9) {
-        t9.stilledUntil = s.tick + 6;
-        t9.stillImmuneUntil = s.tick + 6 + 15;
-        if (t9.action !== undefined) t9.action = null; // a player mid-swing is stilled mid-swing
+        // WITH A WAND IT IS SENT, NOT STRUCK. It arrives three intervals from
+        // now and holds ten; bare-handed it takes hold at once and holds six.
+        if (p.equipment?.weapon?.item === 'wand') {
+          t9.stillAt = s.tick + STILL_WAND_DELAY;
+          t9.stillImmuneUntil = s.tick + STILL_WAND_DELAY + STILL_WAND_TICKS + 15;
+        } else {
+          t9.stilledUntil = s.tick + STILL_TICKS;
+          t9.stillImmuneUntil = s.tick + STILL_TICKS + 15;
+          if (t9.action !== undefined) t9.action = null; // a player mid-swing is stilled mid-swing
+        }
       }
       p.stillCdUntil = s.tick + 150;
       p.action = null; // the speaker is bound first
@@ -4732,6 +4819,9 @@ function nextState(state, inputs, _legacyBeacon) {
       } else if (sl && inp.make === 'bow' && isLog(sl.item)) {
         p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
         p.skills.fletching += 15;
+      } else if (sl && inp.make === 'wand' && sl.item === 'logs') {
+        p.inventory[inp.slot] = { item: 'wand', qty: 1 };
+        p.skills.fletching += 12;
       } else if (sl && inp.make === 'staff' && sl.item === 'logs') {
         // A stave, shaped and bound. Ordinary logs only -- heartwood makes the
         // other one, and a fletcher who has heartwood should not waste it here.
@@ -5232,6 +5322,30 @@ function nextState(state, inputs, _legacyBeacon) {
       p.skills[y.skill] += y.xp;
       n.depletedUntil = s.tick + DEPLETE_TICKS;
     }
+  }
+
+  // ---- and what was sent arrives ----------------------------------------
+  //
+  // A stilling cast with a wand travels. It lands here, on its own interval,
+  // in id order like everything else that writes canonical state -- and it
+  // lands whether or not the caster is still alive, still holding the wand, or
+  // still in the world. A thing let go of is let go of.
+  for (const pid of Object.keys(s.players).sort()) {
+    const q = s.players[pid];
+    if (q.stillAt === undefined) continue;
+    if (s.tick < q.stillAt) continue;
+    delete q.stillAt;
+    if ((q.deadUntil ?? 0) > s.tick) continue;
+    q.stilledUntil = s.tick + STILL_WAND_TICKS;
+    if (q.action !== undefined) q.action = null;
+  }
+  for (const mid of Object.keys(s.mobs).sort()) {
+    const m2 = s.mobs[mid];
+    if (m2.stillAt === undefined) continue;
+    if (s.tick < m2.stillAt) continue;
+    delete m2.stillAt;
+    if (m2.hp <= 0) continue;
+    m2.stilledUntil = s.tick + STILL_WAND_TICKS;
   }
 
   // ---- the keepers count their takings ----------------------------------

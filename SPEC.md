@@ -296,6 +296,37 @@ leaves the cheap end of the market to the citizens who still need it.
 Where there is nothing to replace -- an arrow is an arrow -- more from
 the same material is the honest form.
 
+**A wand sends a stilling instead of striking with it.** A `wand` is
+fletched from a log and held in the weapon hand, and it is a poor
+weapon on purpose: magic is the anti-combat skill, so the fullest
+expression of it is a thing carried INSTEAD of a weapon -- you have
+given up fighting to be better at not fighting.
+
+What it changes is `still`. Cast bare-handed a stilling takes hold at
+once and holds six intervals. Cast with a wand it is SENT: it arrives
+three intervals later and then holds ten. You cannot panic-still with
+a wand; you have to cast before you need it, and you keep acting while
+it travels.
+
+That is what a world made of intervals is for. The interval is the
+unit of skill here, so a spell that lands on a chosen future interval
+is a decision no other kind of world can offer: three intervals is
+three deeds -- swing, step, swing -- and the stillness arrives on top
+of them. It lands whether or not the caster is still alive, still
+holding the wand, or still in the world. A thing let go of is let go
+of.
+
+**A wand sends a mending too.** `mendp` spends a sigil to heal
+another citizen within four tiles by twenty, and it requires a wand:
+what a bare hand keeps, a wand sends. It is the same rule as the sent
+stilling wearing a different coat, and it is what stops the wand being
+an item nobody can use before magic 85 -- still is a late spell and
+mend is not, so a wand has a job from fifty.
+
+It also gives this world something it has never had: a citizen whose
+whole part in a fight is keeping somebody else standing. Which is the
+most anti-combat thing magic could be asked to do.
+
 **A staff is the tool of the alchemist.** Woodcutting has a hatchet
 and mining a pickaxe; alchemy is the working half of magic and had
 nothing in the hand. A `staff` is fletched from a log, and a
@@ -314,7 +345,8 @@ else was needed to price it.
 
 **Alchemy pays less than a store, and pays it anywhere.** Any citizen
 may `alch` a slot: ONE of the item is destroyed -- never the stack -- and they are
-paid FOUR COINS, whatever it was, and twenty-five magic
+paid the lesser of FOUR COINS and a coin under what a keeper would
+give, and twenty-five magic
 experience, once every three intervals -- the SAME twenty-five whatever was melted, which is what
 a log is worth to a woodcutter and a set of bones to a priest. It requires nothing but the item.
 
@@ -334,8 +366,14 @@ PRACTICE is whatever a citizen can gather most of. A woodcutter can
 learn magic from logs, and nobody burns a star-plate to learn a
 spell.
 
-The flat pittance is the design, and it is what keeps a keeper's purse
-meaning anything. Alchemy has no purse -- there is no keeper in the
+The pittance is the design, and it is what keeps a keeper's purse
+meaning anything. It is capped at four so that unmaking a star plate
+is never worth doing, and held under the keeper's price so that
+unmaking a log is never worth doing either: a flat four paid twice
+what a keeper paid for logs and bones and four times what it paid for
+arrows, which inverted the whole rule for exactly the goods a beginner
+gathers. An arrow now pays nothing at all and is unmade for the
+practice, which is the honest worth of unmaking an arrow. Alchemy has no purse -- there is no keeper in the
 Wilds -- so a payment that followed the item's price would be the one
 uncapped mint in the world, and one that grew with what it was fed:
 an alchemist unmaking star plates would coin three hundred and
@@ -365,6 +403,15 @@ It is not free: a citizen submits one input per interval, so a full
 pack is twenty-odd intervals stood still in open country. Nothing in
 the rules prices this; the tick does. Carry it out, or stand and
 convert.
+
+**A harmless creature may still come at you.** Beasts only set about a
+citizen in the Wilds, the Crags and the Moor -- the settled country
+does not hunt anybody. That rule exists to keep people safe, so it
+does not bind a creature that cannot hurt them: a `harmless` beast
+follows its aggro wherever it lives. A shore-crab will bustle across
+the sand at a citizen and swing at them and never once land a blow,
+and teaches nothing for the trouble. It costs a citizen nothing but
+company.
 
 **Forage is eaten where it lies.** A goblin, a wolf or a bear may
 leave `forage` when it falls -- about a third of the time. A troll, a
@@ -2194,11 +2241,22 @@ never `atan2`, which ECMA-262 leaves implementation-defined. The west
 reaches out in the Wilds cape past a pinched neck; the southeast is
 bitten by the bay; the fens meet the sea in an estuary.
 
-**The borders that are features.** The wilds end at the **Brandline**, a
-scorched march marked by standing stones and freely crossable, a line
-stepped over deliberately, never a gate. The legal wilds rectangle
-(`genesis.geo.wilds`) sits strictly *inside* the visual march: the land
-warns before the law binds. The crags begin at the **Ridge**, high stone
+**The borders that are features.** The wilds end at the **Brandline**,
+marked by standing stones and freely crossable, a line stepped over
+deliberately and never a gate. The law and the look are the SAME line:
+`genesis.geo.wilds` ends where the ground turns, so a citizen who can
+see they are in the Wilds is in them, and one who can see they are not
+is not.
+
+An earlier draft of this promised a margin -- "the legal rectangle
+sits strictly inside the visual march: the land warns before the law
+binds" -- and no such margin was ever built. It should not be. A
+warning band is a ditch, and a ditch turns a border into a ceremony:
+something you stop at, confirm, and step across on purpose. What is
+lost is everything that depends on a line being crossable without
+meaning to -- the misstep, the pursuit that carries you over, the
+argument afterwards about who crossed first. The stones say where it
+is. Reading them is the citizen's business. The crags begin at the **Ridge**, high stone
 that blocks like water and is crossed at the **North Pass** and the
 **South Pass**, or skirted the long way through the deep wood, where
 the ridge sinks beneath the trees. The treeline and fenline meander.
