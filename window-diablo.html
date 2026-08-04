@@ -2380,6 +2380,12 @@ function connect() {
       // attribute the refusal to whatever order is standing, so a bounded
       // give-up can report how many the world turned down
       if (typeof intent === 'object' && intent) intent.refused = (intent.refused ?? 0) + 1
+      // A REFUSED MOVE IS THE ENGINE TELLING THE WINDOW IT IS WRONG ABOUT THE
+      // GROUND. Remember the tile it refused and never plan through it again.
+      if (m.of === 'move' && planned) {
+        refusedTiles.add(planned.x + ',' + planned.y)
+        planned = null
+      }
       // A REFUSED APPEARANCE IS THE ONE REFUSAL A CITIZEN CANNOT SEE.
       //
       // Everything else that gets turned down leaves a mark -- you do not move,
@@ -6704,7 +6710,16 @@ function collectStanding(s, t, list) {
     list.push({ d: ix + iy + .2, x: ix, y: iy, kind: 'mob', id, e: m })
   }
   for (const [id, p] of Object.entries(s.players ?? {})) {
-    if ((p.deadUntil ?? 0) > s.tick || !near(p)) continue
+    // THE DEAD ARE DRAWN. The constitution holds a citizen down for five
+    // intervals and says why: "the world holds its breath; windows may
+    // grieve". This window skipped them entirely -- a citizen blinked out of
+    // existence and blinked back somewhere else -- so the three seconds the
+    // rules set aside for a death were spent showing nothing at all.
+    if (!near(p)) continue
+    if ((p.deadUntil ?? 0) > s.tick) {
+      list.push({ d: p.x + p.y + .25, x: p.x, y: p.y, kind: 'fallen', id, e: p })
+      continue
+    }
     const [ix, iy] = lerpPos('p' + id, p.x, p.y, t)
     list.push({ d: ix + iy + .3, x: ix, y: iy, kind: 'player', id, e: p })
   }
@@ -7315,7 +7330,31 @@ function drawGroundItem(g, gi, sx, sy, t) {
 // ---------------------------------------------------------------------------
 function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const L = lookOf(p, id)
-  const f = facing.get('p' + id) ?? [1, 0]
+  // FACE WHAT YOU ARE DOING.
+  //
+  // Facing was set by MOVEMENT and by nothing else, so a citizen who walked
+  // past a tree and turned to chop it kept facing the way they had been
+  // walking -- swinging at the air with their back to the work, and in a
+  // fight, with their back to the beast. The engine has always known what the
+  // citizen is doing and to what; the window simply never asked.
+  //
+  // An action outranks the last step taken, for as long as it lasts.
+  const act9 = p.action
+  let f = facing.get('p' + id) ?? [1, 0]
+  if (act9) {
+    let tgt = null
+    if (act9.type === 'gather' && act9.nodeId) tgt = curState?.nodes?.[act9.nodeId]
+    else if (act9.type === 'harvest' && act9.nodeId) tgt = curState?.nodes?.[act9.nodeId]
+    else if (act9.type === 'attack' && act9.mobId) tgt = curState?.mobs?.[act9.mobId]
+    else if (act9.type === 'attackp' && act9.targetId) tgt = curState?.players?.[act9.targetId]
+    if (tgt) {
+      const dx9 = tgt.x - p.x, dy9 = tgt.y - p.y
+      // written BACK, not just used: when the work ends a citizen should still
+      // be facing what they were doing, not snap round to whichever way they
+      // happened to be walking when they arrived
+      if (dx9 || dy9) { f = [Math.sign(dx9), Math.sign(dy9)]; facing.set('p' + id, f) }
+    }
+  }
   const away = (f[0] + f[1]) < 0                       // walking up-screen: back turned
   const moving = prevPos.get('p' + id) && (prevPos.get('p' + id)[0] !== p.x || prevPos.get('p' + id)[1] !== p.y)
   const act = p.action?.type
@@ -7449,6 +7488,14 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
                                  : -1.45 + ((dk - .45) / .55) * 2.5; pitch = e * .4; break
         case 'whittle': crouch = e * .35; swingVal = -0.6 + Math.sin(dk * 18) * .35; break
         case 'drink':   swingVal = -1.25 - e * .45; break
+        case 'cast':
+          // UP, HELD, AND DOWN. A cast that only lifted the arm looked like a
+          // wave. The staff goes up over the whole first third, is held while
+          // the thing burns, and comes down as the coin falls.
+          swingVal = e < .34 ? -0.5 - (e / .34) * 1.35
+            : e < .62 ? -1.85 + Math.sin((e - .34) * 22) * .07
+            : -1.85 + ((e - .62) / .38) * 1.35
+          break
         case 'offer':   swingVal = -0.5 + e * .95; pitch = e * .3; break
         case 'raise':   swingVal = -1.55 - e * .5; crouch = -e * .35; break
       }
@@ -7699,7 +7746,10 @@ const DEED_POSE = {
   // of a deed, and a gesture for stopping is a gesture for nothing.
   spawn: 'raise',
 }
-const DEED_MS = { strike: 620, whittle: 700, kneel: 620, lean: 560, drink: 460, offer: 520, raise: 700 }
+// ALCHEMY IS THE LONGEST GESTURE HERE, because it is the only one that
+// destroys something. A cast at 560ms was over before the eye found it.
+const DEED_MS = { strike: 620, whittle: 700, kneel: 620, lean: 560, drink: 460, offer: 520,
+                  raise: 700, cast: 1500 }
 let myDeed = null              // { verb, pose, at, dur }
 function noteDeed(verb) {
   const pose = DEED_POSE[verb]
@@ -7864,19 +7914,66 @@ function drawFx(g, now) {
       }
       g.restore()
     } else if (f.kind === 'unmake') {
-      // a thing coming apart into coin: motes drawn upward and inward, gold
+      // A THING COMING APART, in three acts over a second and a half.
+      //
+      // The first version was nine motes drifting up and a glow, done in half
+      // a second -- which is a spark, not a transmutation. What is actually
+      // happening is that an object is being unmade, so it should be SEEN to
+      // come apart: it lifts, it burns at the edges, and what is left of it
+      // falls as coin.
       g.save(); g.globalCompositeOperation = 'lighter'
-      for (let q = 0; q < 9; q++) {
-        const a = (q / 9) * 6.283 + k * 2
-        const r = 22 * (1 - k)
-        g.fillStyle = 'rgba(232,204,120,' + (.7 * (1 - k)).toFixed(2) + ')'
-        g.fillRect(B.x + Math.cos(a) * r, by2 - 12 - k * 22 + Math.sin(a) * r * .5, 2.2, 2.2)
+      const lift = by2 - 10 - k * 30
+      // ACT ONE -- it rises and turns, still whole, growing bright
+      if (k < .42) {
+        const q = k / .42
+        const spin = q * 5
+        g.globalAlpha = 1
+        for (let i2 = 0; i2 < 5; i2++) {
+          const a = spin + i2 * 1.257
+          const r = 7 * (1 - q * .3)
+          g.fillStyle = 'rgba(244,222,158,' + (.5 - q * .2).toFixed(2) + ')'
+          g.fillRect(B.x + Math.cos(a) * r - 1.5, lift + Math.sin(a) * r * .45 - 1.5, 3, 3)
+        }
+        const gr = g.createRadialGradient(B.x, lift, 0, B.x, lift, 10 + q * 16)
+        gr.addColorStop(0, 'rgba(255,238,190,' + (.30 + q * .34).toFixed(2) + ')')
+        gr.addColorStop(1, 'rgba(255,214,120,0)')
+        g.fillStyle = gr
+        g.beginPath(); g.arc(B.x, lift, 10 + q * 16, 0, 7); g.fill()
       }
-      const gr = g.createRadialGradient(B.x, by2 - 14, 0, B.x, by2 - 14, 26 * (1 - k) + 6)
-      gr.addColorStop(0, 'rgba(240,214,140,' + (.36 * (1 - k)).toFixed(2) + ')')
-      gr.addColorStop(1, 'rgba(240,214,140,0)')
-      g.fillStyle = gr
-      g.beginPath(); g.arc(B.x, by2 - 14, 26 * (1 - k) + 6, 0, 7); g.fill()
+      // ACT TWO -- the edges let go: motes thrown outward, fast
+      if (k > .30 && k < .72) {
+        const q = (k - .30) / .42
+        for (let i2 = 0; i2 < 16; i2++) {
+          const a = (i2 / 16) * 6.283 + i2 * .7
+          const r = q * (16 + (i2 % 5) * 7)
+          g.fillStyle = 'rgba(255,' + (210 - i2 * 4) + ',' + (140 - i2 * 5) + ',' + (.8 * (1 - q)).toFixed(2) + ')'
+          const sz = 2.4 * (1 - q * .5)
+          g.fillRect(B.x + Math.cos(a) * r - sz / 2, lift + Math.sin(a) * r * .5 - sz / 2, sz, sz)
+        }
+        // the flash at the moment it gives
+        if (q < .22) {
+          const f2 = 1 - q / .22
+          g.fillStyle = 'rgba(255,246,214,' + (.5 * f2).toFixed(2) + ')'
+          g.beginPath(); g.arc(B.x, lift, 26 * f2 + 6, 0, 7); g.fill()
+        }
+      }
+      // ACT THREE -- what it was worth falls back as coin
+      if (k > .52) {
+        const q = (k - .52) / .48
+        for (let i2 = 0; i2 < 4; i2++) {
+          const off = (i2 - 1.5) * 7
+          const t2 = clamp(q * 1.4 - i2 * .1, 0, 1)
+          if (t2 <= 0) continue
+          const cy3 = lift + t2 * t2 * 34
+          const wob = Math.abs(Math.cos(t2 * 9 + i2))
+          g.fillStyle = 'rgba(240,206,110,' + (.9 * (1 - t2 * .5)).toFixed(2) + ')'
+          g.beginPath()
+          g.ellipse(B.x + off * (1 - t2 * .3), cy3, 2.8 * wob + .8, 2.8, 0, 0, 7)
+          g.fill()
+          g.strokeStyle = 'rgba(255,246,214,.5)'; g.lineWidth = .7
+          g.stroke()
+        }
+      }
       g.restore()
     } else if (f.kind === 'ripple') {
       // the water answering: rings going out, and cold
@@ -8034,6 +8131,61 @@ function drawScene(now) {
         g.fillStyle = hg; g.fillRect(sx - w / 2, sy - 51, w * clamp(m.hp / st.maxHp, 0, 1), 4)
       }
       if (mad) poly(g, [[sx, sy - 60], [sx - 5, sy - 68], [sx + 5, sy - 68]], 'rgba(212,58,36,.9)')
+    } else if (it.kind === 'fallen') {
+      // A CITIZEN FALLS, AND THE WORLD WAITS.
+      //
+      // Five intervals -- three seconds -- and the constitution says plainly
+      // what they are for: "the world holds its breath; windows may grieve."
+      // This one spent them showing an empty tile.
+      //
+      // So the body goes down over the first second: the knees give, the
+      // trunk pitches, the lantern drops and rolls, and the light it was
+      // carrying gutters out. Then the ground keeps a mark and a little dust
+      // hangs where they were.
+      const left = ((it.e.deadUntil ?? 0) - (curState?.tick ?? 0))
+      const k = clamp(1 - (left - renderT(now)) / 5, 0, 1)     // 0 at the blow, 1 at rising
+      const fall = Math.min(1, k / .30)
+      const ease = 1 - Math.pow(1 - fall, 2.4)
+      // the shadow spreads as the body comes down
+      g.save()
+      g.globalAlpha = .5 * (1 - k * .5)
+      g.fillStyle = '#000'
+      g.beginPath(); g.ellipse(sx, sy, 12 + ease * 12, 5 + ease * 4, 0, 0, 7); g.fill()
+      g.restore()
+      // the body: rotated over onto the ground, sinking as it goes
+      g.save()
+      g.translate(sx, sy)
+      g.rotate(ease * 1.32)
+      g.translate(0, ease * 4)
+      g.globalAlpha = 1 - Math.max(0, (k - .72) / .28)
+      drawPlayer(g, it.id, { ...it.e, action: null }, 0, 0, now / 1000, false, 1)
+      g.restore()
+      // the lantern it was carrying, dropped and guttering
+      if (k < .86) {
+        const lx = sx + ease * 15, ly = sy - 4 + ease * 5
+        const flick = (1 - k) * (0.45 + Math.sin(now / 55) * 0.3)
+        g.save(); g.globalCompositeOperation = 'lighter'
+        const lg = g.createRadialGradient(lx, ly, 0, lx, ly, 34 * (1 - k))
+        lg.addColorStop(0, 'rgba(255,196,96,' + (0.5 * flick).toFixed(3) + ')')
+        lg.addColorStop(1, 'rgba(255,196,96,0)')
+        g.fillStyle = lg
+        g.beginPath(); g.arc(lx, ly, 34 * (1 - k), 0, 7); g.fill()
+        g.restore()
+        g.fillStyle = 'rgba(40,32,20,' + (1 - k).toFixed(2) + ')'
+        g.fillRect(lx - 3, ly - 4, 6, 8)
+        lights.push([lx, ly, 70 * (1 - k), 0.8 * flick, 0])
+      }
+      // and the dust, hanging
+      if (k < .5) {
+        g.save(); g.globalAlpha = (0.5 - k) * .8
+        g.fillStyle = 'rgba(150,132,104,.5)'
+        for (let q = 0; q < 7; q++) {
+          const a = (q / 7) * 6.283 + k * 3
+          const r = 8 + k * 26
+          g.fillRect(sx + Math.cos(a) * r, sy - 2 + Math.sin(a) * r * .4 - k * 10, 2, 2)
+        }
+        g.restore()
+      }
     } else if (it.kind === 'player') {
       flashed(g, 'p' + it.id, sx, sy, (gg, ax, ay, sc) =>
         drawPlayer(gg, it.id, it.e, ax, ay, now / 1000, it.id === myId, sc))
@@ -9772,56 +9924,82 @@ function drawLevelBanner(g, now) {
   if (!levelBanner) return
   const age = (now - levelBanner.at) / 3400
   if (age > 1) { levelBanner = null; return }
-  const inK = clamp(age / .12, 0, 1)                 // snap in
-  const outK = age > .78 ? 1 - (age - .78) / .22 : 1 // drift out
-  const cx2 = VW / 2, cy2 = VH * .34
+  // A PLAQUE, NOT A FIREWORK.
+  //
+  // This was sixteen rotating sunburst rays and a two-hundred-pixel bloom with
+  // LEVEL UP in the middle of it -- a mobile-game reward screen dropped into a
+  // world lit by one lantern. Everything else here is carved, hung or struck:
+  // the panel is a slab, the gate is a plate, a stall's mark is engraved. A
+  // level should arrive the same way.
+  //
+  // So: a plaque slides in from the dark, holds, and withdraws. Cut edges,
+  // the trade's own engraved glyph, and one line of light passing across the
+  // metal as it settles. No rays, no rotation, nothing that glows for its own
+  // sake.
+  const inK = clamp(age / .18, 0, 1)
+  const outK = age > .80 ? 1 - (age - .80) / .20 : 1
+  const ease = (k) => 1 - Math.pow(1 - k, 3)
+  const cx2 = VW / 2
+  const cy2 = VH * .30 + (1 - ease(inK)) * -18 + (1 - outK) * 10
+  const W2 = Math.min(420, VW - 60), H2 = 96
+  const x = cx2 - W2 / 2, y = cy2 - H2 / 2
   g.save()
-  g.globalAlpha = outK
-  // rays, turning slowly
-  g.save(); g.globalCompositeOperation = 'lighter'
-  g.translate(cx2, cy2); g.rotate(age * .5)
-  for (let i = 0; i < 16; i++) {
-    const a = (i / 16) * 6.283
-    const len = (120 + Math.sin(i * 2.3) * 46) * inK
-    g.fillStyle = 'rgba(255,206,110,' + (.10 + (i % 2) * .05) + ')'
-    poly(g, [[0, 0], [Math.cos(a - .05) * len, Math.sin(a - .05) * len * .5],
-             [Math.cos(a + .05) * len, Math.sin(a + .05) * len * .5]], 'rgba(255,206,110,.09)')
-  }
-  g.restore()
-  const gl = g.createRadialGradient(cx2, cy2, 0, cx2, cy2, 190 * inK)
-  gl.addColorStop(0, 'rgba(255,196,80,.28)'); gl.addColorStop(1, 'rgba(255,196,80,0)')
-  g.save(); g.globalCompositeOperation = 'lighter'
-  g.fillStyle = gl
-  g.beginPath(); g.ellipse(cx2, cy2, 190 * inK, 95 * inK, 0, 0, 7); g.fill(); g.restore()
+  g.globalAlpha = outK * ease(inK)
 
-  g.textAlign = 'center'; g.textBaseline = 'middle'
-  const pop = 1 + (1 - inK) * .5
-  g.save(); g.letterSpacing = '6px'
-  g.font = '700 ' + (13 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
-  g.lineWidth = 3; g.strokeStyle = 'rgba(4,3,6,.85)'
-  g.strokeText('LEVEL UP', cx2, cy2 - 44)
-  g.fillStyle = '#e8d199'; g.fillText('LEVEL UP', cx2, cy2 - 44)
-  { const G3 = Math.round(30 * pop)
-    g.drawImage(skillGlyph(levelBanner.skill, G3, 'bright'), cx2 - G3 / 2, cy2 - 44 - G3 - 6) }
-  g.font = '900 ' + (34 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
-  const tg = g.createLinearGradient(0, cy2 - 20, 0, cy2 + 18)
-  tg.addColorStop(0, '#fbeec4'); tg.addColorStop(.55, '#e2b63e'); tg.addColorStop(1, '#8a6524')
-  g.lineWidth = 5; g.strokeStyle = 'rgba(4,3,6,.9)'
-  g.strokeText(levelBanner.skill.toUpperCase(), cx2, cy2)
-  g.fillStyle = tg; g.fillText(levelBanner.skill.toUpperCase(), cx2, cy2)
+  // the slab, carved out of the dark the way every other pane here is
+  const bg = g.createLinearGradient(0, y, 0, y + H2)
+  bg.addColorStop(0, 'rgba(28,22,16,.96)'); bg.addColorStop(1, 'rgba(12,9,8,.96)')
+  g.fillStyle = bg; g.fillRect(x, y, W2, H2)
+  g.strokeStyle = 'rgba(0,0,0,.9)'; g.lineWidth = 3; g.strokeRect(x - 1.5, y - 1.5, W2 + 3, H2 + 3)
+  g.strokeStyle = '#7a6330'; g.lineWidth = 1; g.strokeRect(x + .5, y + .5, W2 - 1, H2 - 1)
+  g.strokeStyle = 'rgba(255,240,214,.10)'; g.lineWidth = 1
+  g.beginPath(); g.moveTo(x + 1, y + 1.5); g.lineTo(x + W2 - 1, y + 1.5); g.stroke()
+  // a nail in each corner, like the gate's plate
+  g.fillStyle = '#5a4620'
+  for (const [nx, ny] of [[x + 9, y + 9], [x + W2 - 9, y + 9], [x + 9, y + H2 - 9], [x + W2 - 9, y + H2 - 9]]) {
+    g.beginPath(); g.arc(nx, ny, 2.6, 0, 7); g.fill()
+  }
+  // one line of light crossing the metal as it settles, and then gone
+  if (age < .55) {
+    const sweep = age / .55
+    g.save()
+    g.beginPath(); g.rect(x, y, W2, H2); g.clip()
+    g.globalCompositeOperation = 'lighter'
+    const lx = x - 120 + sweep * (W2 + 240)
+    const lg = g.createLinearGradient(lx - 60, 0, lx + 60, 0)
+    lg.addColorStop(0, 'rgba(255,236,190,0)')
+    lg.addColorStop(.5, 'rgba(255,236,190,' + (.16 * (1 - sweep)).toFixed(3) + ')')
+    lg.addColorStop(1, 'rgba(255,236,190,0)')
+    g.fillStyle = lg; g.fillRect(x, y, W2, H2)
+    g.restore()
+  }
+
+  g.textAlign = 'left'; g.textBaseline = 'middle'
+  // the trade's mark, engraved, at the left where a seal would be
+  const G3 = 40
+  g.drawImage(skillGlyph(levelBanner.skill, G3, 'bright'), x + 20, y + (H2 - G3) / 2)
+  // and the words, set like an inscription rather than shouted
+  g.save(); g.letterSpacing = '3.5px'
+  g.font = '600 10px Cinzel, Georgia, serif'
+  g.fillStyle = '#8a7340'
+  g.fillText(levelBanner.skill.toUpperCase(), x + 76, y + 30)
   g.restore()
-  g.font = '900 ' + (46 * pop).toFixed(1) + 'px Cinzel, Georgia, serif'
-  g.lineWidth = 5; g.strokeStyle = 'rgba(4,3,6,.9)'
-  g.strokeText(String(levelBanner.lv), cx2, cy2 + 44)
-  g.fillStyle = '#fbeec4'; g.fillText(String(levelBanner.lv), cx2, cy2 + 44)
+  g.font = '900 30px Cinzel, Georgia, serif'
+  const tg = g.createLinearGradient(0, y + 40, 0, y + 70)
+  tg.addColorStop(0, '#fbeec4'); tg.addColorStop(.55, '#e2b63e'); tg.addColorStop(1, '#8a6524')
+  g.lineWidth = 3.5; g.strokeStyle = 'rgba(4,3,6,.9)'
+  g.strokeText('LEVEL ' + levelBanner.lv, x + 76, y + 58)
+  g.fillStyle = tg; g.fillText('LEVEL ' + levelBanner.lv, x + 76, y + 58)
   if (levelBanner.note) {
-    g.font = '600 11px Cinzel, Georgia, serif'
+    g.textAlign = 'right'
     g.save(); g.letterSpacing = '2px'
-    g.fillStyle = 'rgba(226,182,62,.9)'
-    g.fillText(levelBanner.note.toUpperCase(), cx2, cy2 + 78); g.restore()
+    g.font = '600 10px Cinzel, Georgia, serif'
+    g.fillStyle = 'rgba(226,182,62,.85)'
+    g.fillText(levelBanner.note.toUpperCase(), x + W2 - 20, y + 30)
+    g.restore()
   }
   g.restore()
-  g.textBaseline = 'alphabetic'
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic'
 }
 
 // ---------------------------------------------------------------------------
@@ -10124,8 +10302,9 @@ function indexNodes(s) {
   for (const m of Object.values(s.mobs ?? {})) if (m.hp > 0) mobTiles.add(m.x + ',' + m.y)
   wallTiles = new Set()
   _roomMemo.clear()
+  const WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire'])
   for (const n of Object.values(s.nodes ?? {})) {
-    nodeTiles.add(n.x + ',' + n.y)
+    if (!WALKABLE_BUILT.has(n.type)) nodeTiles.add(n.x + ',' + n.y)
     nodeKindAt.set(n.x + ',' + n.y, n.type)
     if (n.type === 'wall' || n.type === 'rampart') wallTiles.add(n.x + ',' + n.y)
   }
@@ -10141,9 +10320,28 @@ const WEAPON_EVERY = {
   'heartwood-bow': 2, 'dragonbow': 3,
 }
 const IMPASSABLE_TERRAIN = new Set(['sea', 'river', 'mountain'])
+// WHAT THE ENGINE ACTUALLY REFUSED, remembered.
+//
+// The window decides where it can walk from the MIRROR's terrain; the engine
+// asks the generator. Measured across the island they disagree about
+// sixty-seven tiles -- sixty-three of which the mirror draws as bridge deck
+// and the generator calls open water. A citizen crossing there has the move
+// refused, does not move, and the planner cheerfully chooses the same tile
+// again: two steps and a dead stop, forever.
+//
+// Chasing each tile is the wrong fix, because any future drift in the mirror
+// reopens it. The engine is the authority on where a body may stand, so the
+// window LISTENS: a refused move marks that tile, the planner routes around it
+// from then on, and the disagreement heals itself after one attempt. It is
+// cleared when the world changes, because it is knowledge about this world.
+const refusedTiles = new Set()
 function blockedAt(x, y) {
   const k = x + ',' + y
-  if (nodeTiles.has(k) || mobTiles.has(k)) return true
+  if (nodeTiles.has(k) || mobTiles.has(k) || refusedTiles.has(k)) return true
+  // brewpot, watchfire and fire are walkable to the ENGINE (a citizen's fire
+  // must never wall anyone in), so the planner should not detour around them
+  const kind = nodeKindAt.get(k)
+  if (kind && !(kind === 'brewpot' || kind === 'watchfire' || kind === 'fire')) return true
   return IMPASSABLE_TERRAIN.has(terrainOf(x, y))
 }
 // ...except the beast you are walking over to hit, which you are allowed to
@@ -10820,8 +11018,24 @@ function pumpIntent() {
     }
     case 'pickup': {
       const gi = s.ground?.[intent.id]
+      // THE ITEM IS GONE, so the intent is done -- and that is the ONLY thing
+      // that ends it. This used to clear the intent the moment the pickup was
+      // SENT, which assumes the deed lands. It need not: a pickup is judged at
+      // the tick it is stamped for, and if a stamped move carries the citizen
+      // off the tile first the engine sees a body standing somewhere else and
+      // refuses. The gesture played, the citizen walked on, and nothing was
+      // ever picked up -- with no intent left to try again.
       if (!gi) { intent = null; return }
-      if (me.x === gi.x && me.y === gi.y) { send({ do: 'pickup', groundId: intent.id }); intent = null; return }
+      if (me.x === gi.x && me.y === gi.y) {
+        // do not stamp a pickup for a tick a move is already stamped for: the
+        // move applies first and takes the body away from the item
+        if (planned && planned.tick > s.tick) return
+        if ((s.tick ?? 0) - (intent.tried ?? -99) >= 2) {
+          intent.tried = s.tick ?? 0
+          send({ do: 'pickup', groundId: intent.id })
+        }
+        return
+      }
       stepToward(from, gi, 'exact'); return
     }
     case 'gather': {
@@ -10925,6 +11139,7 @@ function onState(s, worldId) {
     _tileArt.clear()
     _gcol.clear()
     _bspan2.clear()
+    refusedTiles.clear()
     _anvilNear.clear()
     _door.clear()
     say('The world names itself: ' + (worldId || '').slice(0, 8) + '\u2026', 'dim')
