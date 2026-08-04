@@ -46,15 +46,90 @@
 </main>
 </div>
 <script>
+// ---------------------------------------------------------------------
+// GEOGRAPHY IS LAW, AND A MAP IS A WINDOW.
+//
+// This page carried its own hand-ported copy of the mirror -- the whole of
+// it, the third founding and the fourth -- and it had fallen behind: no
+// going, no elevation, no braided roads, no lanes that end nowhere, none of
+// the twenty placed copses and mires, and fords computed by a rule the
+// generator does not use. It was drawing a different island from the one
+// the world has, which is worse than drawing none, because a map is
+// believed.
+//
+// It now carries terrain-mirror.mjs itself, exports stripped and otherwise
+// byte for byte, exactly as every window does. If this copy drifts, this
+// page is in breach on the same terms they are.
+// ---------------------------------------------------------------------
+// terrain-mirror.js — the window's copy of the world's own geography.
+//
+// This file used to exist THREE TIMES: once inside window-web.html, once
+// inside window-3d.html, once inside window-photo.html, ~1,300 lines each,
+// pasted. The copies had not yet disagreed about a single tile — 210,432
+// were checked — but they had already drifted in two places that simply
+// had not bitten yet:
+//
+//   * window-photo's copy had a RENDERING function (buildBridges, which
+//     touches THREE and the scene graph) wedged inside the terrain block,
+//     so the "pure functions" were not pure.
+//   * window-3d's copy of the landmark registry was thirteen nouns behind,
+//     and nothing noticed because nothing in that window ever read it.
+//
+// The reason this matters more here than in an ordinary codebase: geography
+// is law. Two citizens whose windows disagree about where the Fens end
+// cannot arrange to meet there. A copy that drifts is a window in breach of
+// the constitution, and the previous arrangement had no way to find out.
+// Now there is one file, and test/mirror.test.mjs checks it against the
+// engine tile for tile.
+//
+// Everything here is a PURE FUNCTION of (generator, seed, size). No state,
+// no tick, no player. Call configure() once when the world announces
+// itself; call it again and every cache is dropped.
+
+let W = 192, H = 96
 let GEN = 'interval-classic-v1', GSEED = ''
-// v5 CHANGED THE FURNITURE, NOT THE LAND. Its header is explicit: "v4's land
-// is right and stays exactly as it is... Nothing here touches any of it."
-// Every terrain function in this mirror is therefore correct for both, and a
-// check written as `GEN === 'interval-expanse-v4'` would silently fall back
-// to the v3 branch for a v5 world -- a whole island of wrong ground, from one
-// string comparison.
+
+function configure(opts = {}) {
+  W = opts.worldW ?? opts.W ?? W
+  H = opts.worldH ?? opts.H ?? H
+  GEN = opts.generator ?? opts.gen ?? GEN
+  GSEED = opts.seed ?? opts.genesisSeed ?? GSEED
+  // a new world means every memo is about the old one
+  _seedNumC = null
+  _ssE = null
+  _roadSet = null
+  _ss3 = null
+  _roads3 = null
+  _shore4 = null
+  _bio4 = null
+  _ss4 = null
+  _cost4 = null
+  _roads4 = null
+  _wallSet = null
+  _signs = null
+  _wallTick = -1; _signTick = -1
+  return { W, H, GEN, GSEED }
+}
+const dims = () => ({ W, H, GEN, GSEED })
+
+// V5 CHANGED THE FURNITURE, NOT THE LAND.
+//
+// worldgen-expanse5's own header says it: v4's land is right and stays exactly
+// as it is, and nothing in v5 touches any of it. Every terrain function below
+// is therefore correct for both -- but a check written `GEN === 'interval-
+// expanse-v4'` silently falls through to the v3 branch for a v5 world, which
+// is a whole island of wrong ground from one string comparison. window-web
+// learned this and fixed it locally; this module did not, and since the module
+// exists precisely so the windows cannot drift apart, the fix belongs here.
 const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
-let _seedNumC = null
+
+const tileHash = (x, y, salt) => {
+  let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
+  h = (h ^ (h >> 13)) >>> 0; h = (h * 1274126177) >>> 0
+  return (h ^ (h >> 16)) >>> 0
+}
+
+let _seedNumC = null, _ssE = null
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
   let h = 0
@@ -121,7 +196,6 @@ function settlementsE() {
     { x: Math.round(W * 0.26), y: Math.round(H * 0.46), w: 16, h: 12 },
   ]
 }
-let _ssE = null
 const ssE = () => (_ssE ??= settlementsE())
 let _roadSet = null
 function roadTilesE() {
@@ -259,7 +333,7 @@ function biomeAtE3(x, y) {
   if (x >= ridgeX3(y) && y >= treeY3(x) - 8) return 'crags'
   if (y <= treeY3(x)) return 'greenwood'
   if (y >= fenY3(x)) return 'fens'
-  return 'meadow'
+  return 'heartlands' // the truth's own word for it (v3 vocabulary)
 }
 let _ss3 = null
 function settlementsE3() {
@@ -330,7 +404,8 @@ function terrainOfE3(x, y) {
     const w9 = (x2, y2) => inSea3(x2, y2) || inRiver3(x2, y2) || inLake3(x2, y2)
     if (w9(x + 1, y) || w9(x - 1, y) || w9(x, y + 1) || w9(x, y - 1)) return 'sand' // the shore
   }
-  return biomeAtE3(x, y)
+  const b3 = biomeAtE3(x, y)
+  return b3 === 'heartlands' ? 'meadow' : b3 // tile palette keeps its old key
 }
 // ---------------------------------------------------------------------
 // An exact mirror of worldgen-expanse4.mjs. The window verifies the world
@@ -483,7 +558,34 @@ function bridges4() {
   return out
 }
 function onBridge4(x, y) {
-  for (const b of bridges4()) if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
+  // A BRIDGE IS A SPAN, NOT A RECTANGLE.
+  //
+  // This stamped a nine-by-five block of deck at each crossing, so wherever a
+  // diagonal river passed through that block the walkable water came out as a
+  // ragged diagonal patch. It read as neither a bridge nor a ford -- just an
+  // oddly-shaped hole in the river -- and no amount of plank texture in a
+  // window could fix a shape that was wrong in the world.
+  //
+  // A bridge crosses the water and stops: two tiles wide, spanning exactly as
+  // far as the water runs on that line, with two tiles of abutment on each
+  // bank. The four river crossings span east-west; the Oxenford crosses the
+  // march, which itself runs east-west, so that one is spanned north-south.
+  for (const b of bridges4()) {
+    if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
+    if (b.tag !== 'brm') {
+      if (y - b.y > 1 || b.y - y > 1) continue
+      let w = b.x, e = b.x
+      while (w > 3 && isWater4(w - 1, y)) w--
+      while (e < W - 4 && isWater4(e + 1, y)) e++
+      if (x >= w - 2 && x <= e + 2) return true
+    } else {
+      if (x - b.x > 1 || b.x - x > 1) continue
+      let n = b.y, s2 = b.y
+      while (n > 3 && isWater4(x, n - 1)) n--
+      while (s2 < H - 4 && isWater4(x, s2 + 1)) s2++
+      if (y >= n - 2 && y <= s2 + 2) return true
+    }
+  }
   return false
 }
 // The ten drawings, and the logic that seats them. The mirror carries the
@@ -775,7 +877,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -863,6 +965,162 @@ function settlementsE4() {
 }
 // ---- the router, ported whole ----
 const BIOME_COST4 = { heartlands:10, downs:11, greenwood:15, moor:15, wilds:17, fens:20, crags:22 }
+
+// ---------------------------------------------------------------------------
+// THE GOING
+// ---------------------------------------------------------------------------
+// A road runs dead straight because there is nothing for it to bend around.
+// Cost is uniform WITHIN a biome, so across the Heartlands or the Downs every
+// tile is worth the same and the cheapest path is the shortest one -- and the
+// straight-line pull below then finishes the job. The result is a ruler line
+// across a country, which is a surveyor's road, and this generator's own
+// comment says it does not want one.
+//
+// So the ground gets texture at a scale smaller than a country: patches of
+// easier and harder going, eight tiles across, the way real ground is boggy
+// here and firm there. A road that costs a little more through a soft patch
+// goes round it, and the bends come from the land rather than from a wobble
+// laid over the top.
+//
+// INTEGERS ONLY, and no Math.sin. This value feeds the router's frontier, and
+// the router's contract (spec 9b) is that two nodes computing the same world
+// get the same road to the tile. Trigonometry is not bit-identical across
+// engines; a 32-bit integer hash is.
+
+// ---------------------------------------------------------------------------
+// THE LIE OF THE LAND
+// ---------------------------------------------------------------------------
+// The going alone was not enough, and the render says so: several roads came
+// out exactly as long as the straight line between their ends. Patches of soft
+// ground eight tiles across average out over two hundred tiles, so the router
+// walked through them and stayed on its ruler.
+//
+// What makes a real road wander is not soft ground, it is HEIGHT. A road would
+// rather go a long way round than climb, which is why they follow valleys and
+// contour along hillsides and arrive at a pass rather than at a summit. So the
+// land is given a height, and a step is charged for what it climbs.
+//
+// The field is smooth -- bilinear between lattice points thirty-two tiles
+// apart -- because a road follows a slope, and a slope needs somewhere to run
+// downhill TO. A blocky field gives cliffs and cliffs give staircases.
+//
+// Integers throughout, and no trigonometry: this decides where the roads are,
+// and spec 9b says two nodes computing the same world must get the same road.
+const ELEV_SHIFT = 5;                                    // 32 tiles per lattice step
+function elevHash(salt, gx, gy) {
+  let h = (Math.imul(gx, 1597334677) + Math.imul(gy, 3812015801) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) | 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489917) | 0;
+  return (h ^ (h >>> 16)) & 255;
+}
+function elevAt(salt, x, y) {
+  // TWO OCTAVES. One lattice at thirty-two tiles gives a landscape of broad
+  // hills -- and between them, flats, where a road has nothing to respond to
+  // and runs dead straight for sixty tiles. Sixty tiles is nearly forty
+  // seconds of walking with the world unchanging, which is the exact stretch
+  // that feels drawn rather than travelled.
+  //
+  // So a finer octave over the top: eight-tile undulations at a third of the
+  // weight. Not hills -- rises and dips, the scale of a field. A road answers
+  // them with small corrections all the way along, and a road that is always
+  // correcting is a road that was walked.
+  return Math.floor((octave(salt, x, y, 5) * 5 + octave(salt ^ 0x51ed, x, y, 3) * 3) / 8);
+}
+function octave(salt, x, y, shift) {
+  const S = 1 << shift, MASK = S - 1;
+  const gx = x >> shift, gy = y >> shift;
+  const fx = x & MASK, fy = y & MASK;
+  const a = elevHash(salt, gx, gy), b = elevHash(salt, gx + 1, gy);
+  const c = elevHash(salt, gx, gy + 1), d = elevHash(salt, gx + 1, gy + 1);
+  const sm = (f) => Math.floor((3 * f * f * S - 2 * f * f * f) / (S * S));
+  const u = sm(fx), v = sm(fy);
+  const top = a * (S - u) + b * u;
+  const bot = c * (S - u) + d * u;
+  return Math.floor((top * (S - v) + bot * v) / (S * S));
+}
+
+// ---------------------------------------------------------------------------
+// THE PLACED THINGS
+// ---------------------------------------------------------------------------
+// Everything else on this island is computed. These are CHOSEN.
+//
+// A generator can make a plausible country but it cannot make a memorable one,
+// because memory attaches to particulars: the copse you always skirt, the mire
+// the road bends around, the scree fan below the pass. Those are the things a
+// citizen still knows the shape of years later, and they exist here because
+// somebody put them there and wrote down why.
+//
+// Each was placed at the middle of a measured dead-straight run -- the longest
+// stretches on the island, where a citizen walked twenty or thirty seconds
+// with nothing changing. A road that meets one of these has to choose a side,
+// and choosing a side is what makes a road look walked.
+//
+// This table is LAW in the same way the coastline is: identical in the
+// generator and in every window, forever. Add to it thoughtfully. Nothing here
+// may ever be removed once a world is founded on it -- the roads bend around
+// these, so deleting one moves every road that answers it.
+const HANDMADE = [
+  // --- the long north-south run beside the river, above Anchor ---
+  { name: 'the Vale Copse',      x: 484, y: 259, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Sallows',         x: 486, y: 291, rx: 7,  ry: 8,  kind: 'mire' },
+  // --- the run east of Anchor, on the way up to the North Pass ---
+  { name: 'the Thornvale Spinney', x: 571, y: 197, rx: 9, ry: 6, kind: 'copse' },
+  // --- the long straight through the Crags below the pass ---
+  { name: 'the Fallen Scree',    x: 666, y: 180, rx: 10, ry: 5,  kind: 'scree' },
+  { name: 'the Sentinel Slip',   x: 717, y: 287, rx: 7,  ry: 6,  kind: 'scree' },
+  // --- the Hollybarrow-Norwick road, west of the crossing ---
+  { name: 'the Oxen Copse',      x: 335, y: 214, rx: 8,  ry: 5,  kind: 'copse' },
+  { name: 'the Long Holt',       x: 255, y: 221, rx: 7,  ry: 5,  kind: 'copse' },
+  // --- Watersmeet, where the road runs down the river meadow ---
+  { name: 'the Meadow Mire',     x: 476, y: 342, rx: 6,  ry: 8,  kind: 'mire' },
+  // --- the Downs road out of Eastmere ---
+  { name: 'the Sheepfold Thorns', x: 520, y: 381, rx: 8, ry: 5,  kind: 'copse' },
+  // --- the Fens, where the road runs dead south ---
+  { name: 'the Drowned Holt',    x: 485, y: 378, rx: 6,  ry: 7,  kind: 'mire' },
+  // --- second pass: the straights that surfaced once the first ten were in ---
+  //
+  // Placing a thing moves the road that answers it, and a moved road finds new
+  // level ground to run straight across. That is not a fault in the method, it
+  // is the method: each pass measures, places, and measures again. Sixteen long
+  // runs became nine; these are aimed at those nine.
+  { name: 'the Hollybarrow Hedge', x: 316, y: 204, rx: 9,  ry: 5,  kind: 'copse' },
+  { name: 'the Anchor Withies',    x: 394, y: 340, rx: 7,  ry: 6,  kind: 'mire' },
+  { name: 'the Oxenlea Copse',     x: 320, y: 300, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Lea Marsh',         x: 305, y: 332, rx: 6,  ry: 7,  kind: 'mire' },
+  { name: 'the Barrow Thorns',     x: 347, y: 229, rx: 6,  ry: 6,  kind: 'copse' },
+  // --- third pass: nine became four, and these are the four ---
+  { name: 'the Vale Alders',    x: 432, y: 237, rx: 7,  ry: 5,  kind: 'copse' },
+  { name: 'the Millbrook Osiers', x: 497, y: 212, rx: 6, ry: 5,  kind: 'mire' },
+  { name: 'the Thornvale Holt', x: 523, y: 249, rx: 6,  ry: 6,  kind: 'copse' },
+  { name: 'the High Delving Scree', x: 711, y: 206, rx: 8, ry: 5, kind: 'scree' },
+  { name: 'the Nordhead Slip',  x: 704, y: 212, rx: 7,  ry: 5,  kind: 'scree' },
+];
+// which placed thing is here, if any. An ellipse, because nothing in a
+// landscape has corners.
+function handmadeAt(x, y) {
+  for (const f of HANDMADE) {
+    const dx = (x - f.x) / f.rx, dy = (y - f.y) / f.ry;
+    if (dx * dx + dy * dy <= 1) return f;
+  }
+  return null;
+}
+// what it costs a road to go through one rather than round it. Passable --
+// a citizen may always walk in -- but dear enough that a road will not.
+const HANDMADE_COST = { copse: 46, mire: 58, scree: 40 };
+const GOING_SCALE = 3;                 // 1 << 3 = eight tiles to a patch
+function goingSalt(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function goingAt(salt, x, y) {
+  const gx = x >> GOING_SCALE, gy = y >> GOING_SCALE;
+  let h = (Math.imul(gx, 374761393) + Math.imul(gy, 668265263) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  // 0..6 of extra effort, and a quarter of the ground is as easy as it was
+  return h % 7;
+}
 function routeCost4(x, y) {
   if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return -1
   const b = biomeAtE4(x, y)
@@ -870,6 +1128,9 @@ function routeCost4(x, y) {
   if (isWater4(x, y)) return onBridge4(x, y) ? 10 : -1
   if (onBarrow4(x, y) || onRidge4(x, y)) return -1
   let c = BIOME_COST4[b] ?? 14
+  const hm = handmadeAt(x, y)                       // and the things somebody put here
+  if (hm) c += HANDMADE_COST[hm.kind] ?? 40
+  c += goingAt(goingSalt(GSEED), x, y)              // the going, patch by patch
   if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) c += 6
   return c
 }
@@ -891,7 +1152,7 @@ function hPop4(h) { const top = h[0], last = h.pop()
       if (m === i) break
       const t = h[m]; h[m] = h[i]; h[i] = t; i = m } }
   return top }
-function routePath4(ax, ay, bx, by) {
+function routePath4(ax, ay, bx, by, laid) {
   const N = W * H, f = costField4()
   const dist = new Int32Array(N).fill(0x7fffffff), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N)
   const si = ay * W + ax, ti = by * W + bx
@@ -899,8 +1160,9 @@ function routePath4(ax, ay, bx, by) {
   const hEst = (x, y) => { const dx = x>bx?x-bx:bx-x, dy = y>by?y-by:by-y
     const lo = dx<dy?dx:dy, hi = dx<dy?dy:dx; return (hi-lo)*10 + lo*14 }
   const vx = bx-ax, vy = by-ay, L = Math.sqrt(vx*vx+vy*vy)
+  const esalt = goingSalt(GSEED) ^ 0x9e37
   const offLine = (x, y) => { if (L < 1) return 0
-    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*5)) }
+    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*14)) }
   dist[si] = 0
   const heap = [hEst(ax,ay) * 1048576 + si]
   let found = false
@@ -916,8 +1178,16 @@ function routePath4(ax, ay, bx, by) {
       const ni = ny * W + nx
       if (done[ni]) continue
       const c = f[ni]; if (c < 0) continue
-      const step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
-      const nd = d0 + step + offLine(nx, ny)
+      // A ROAD WOULD RATHER GO ROUND THAN UP. Six per unit climbed, nothing
+      // for level or downhill. Identical to the generator's rule: if these two
+      // ever differ the windows draw roads the engine does not have.
+      let step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
+      const up = elevAt(esalt, nx, ny) - elevAt(esalt, x, y)
+      const climb = up > 0 ? up * 6 : 0
+      // ROADS BRAID: two fifths of the cost on ground already road. Identical
+      // to the generator, including the order the segments are laid in.
+      if (laid && laid.has(nx + ',' + ny)) step = Math.round(step * 0.68)
+      const nd = d0 + step + climb + offLine(nx, ny)
       if (nd < dist[ni]) { dist[ni] = nd; prev[ni] = i; hPush4(heap, (nd + hEst(nx,ny)) * 1048576 + ni) }
     }
   }
@@ -938,22 +1208,74 @@ function seatPoint4(x, y) {
   return { x, y }
 }
 let _roads4 = null
+
+// A LANE THAT GOES NOWHERE. Identical to the generator's, including the salt
+// and the order: the lanes are laid last, after the whole network, so they
+// hang off it rather than becoming part of anyone's route.
+function laneSeatsOf4(towns, salt) {
+  const out = []
+  for (let i = 0; i < towns.length; i++) {
+    const t = towns[i]
+    let h = (Math.imul(i + 1, 2654435761) + salt) | 0
+    h = Math.imul(h ^ (h >>> 15), 2246822519) | 0
+    h = (h ^ (h >>> 13)) >>> 0
+    const n = (h & 1) + 1
+    for (let k = 0; k < n; k++) {
+      const hk = (Math.imul(h + k * 40503, 1597334677)) >>> 0
+      const ang = (hk % 3600) / 3600 * Math.PI * 2
+      const len = 16 + (hk >>> 12) % 26
+      out.push({ from: t, x: Math.round(t.x + Math.cos(ang) * len), y: Math.round(t.y + Math.sin(ang) * len) })
+    }
+  }
+  return out
+}
 function roadSet4() {
   if (_roads4) return _roads4
   const s = {}; for (const t of settlementsE4()) s[t.tag] = t
   const wm = seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
+  // bridges4 returns the crossings untagged, but in the generator's own order:
+  // Highford, the Millbrook Bridge, the Watersmeet Bridge, Fenford, the
+  // Oxenford. Index is the tag here, and a comment is the only thing keeping
+  // them in step -- if bridgesOf ever reorders, this reorders with it.
+  const bs = bridges4()
+  const br0 = bs[0], br2 = bs[2]
+  const [pa, pb] = passes4()
+  const npass = { x: ridgeX4(pa), y: pa }, spass = { x: ridgeX4(pb), y: pb }
   const shrine = isles4()[0]
   const segs = [
     [s.anchor,s.millbrook],[s.millbrook,s.hollybarrow],[s.hollybarrow,s.oxenford],
     [s.oxenford,s.anchor],[s.anchor,s.thornbury],[s.thornbury,s.millbrook],
-    [s.millbrook,s.greenhollow],[s.thornbury,s.cragfoot],[s.anchor,s.eastmere],
-    [s.oxenford,wm],[wm,s.fenmarch],[s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
+    // THROUGH THE PASS, NOT PAST IT -- and in exactly the generator's order,
+    // because the braid discount makes the order part of the answer.
+    // EACH ROAD CROSSES AT ITS OWN CROSSING -- Highford for Greenhollow, the
+    // Watersmeet Bridge for Watersmeet. Same order as the generator, because
+    // the braid discount makes the order part of the answer.
+    [s.millbrook,br0],[br0,s.greenhollow],
+    [s.thornbury,npass],[npass,s.cragfoot],
+    [s.anchor,spass],[spass,s.eastmere],
+    [s.oxenford,br2],[br2,wm],[wm,s.fenmarch],
+    [s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
     [s.oxenford,s.norwick],[s.hollybarrow,s.norwick],
   ]
   const set = new Set()
   for (const [a, b] of segs) {
-    const p = routePath4(a.x, a.y, b.x, b.y)
+    const p = routePath4(a.x, a.y, b.x, b.y, set)
     if (!p) continue
+    for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
+  }
+  // and the lanes that join nothing
+  for (const L2 of laneSeatsOf4(settlementsE4(), goingSalt(GSEED) ^ 0x5a17)) {
+    const seat = seatPoint4(L2.x, L2.y)
+    if (!seat) continue
+    const p = routePath4(L2.from.x, L2.from.y, seat.x, seat.y, set)
+    // A LANE IS SHORT BY DEFINITION. seatPoint snaps a destination to the
+    // nearest walkable ground, and if the chosen point lands in water or on
+    // the Ridge that snap can be a long way off -- one lane came out at a
+    // hundred and sixty-two tiles, which is not a lane, it is a road to
+    // somewhere with nothing at the end. Twice the intended length or it is
+    // not laid at all.
+    const want = Math.round(Math.hypot(L2.x - L2.from.x, L2.y - L2.from.y))
+    if (!p || p.length < 8 || p.length > want * 2 + 10) continue
     for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
   }
   // the causeway is drawn, not routed: no router crosses open sea
@@ -1111,7 +1433,7 @@ function keeperRole4(st, id, n) {
       near[q.type] = true
     }
     role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.house ? 'town' : 'town'
+         : near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
   return role
@@ -1122,8 +1444,8 @@ const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall',
   // the thirteen added when the world stopped repeating itself: four that
   // were always here wearing 'standing-stone' because nothing else had a
-  // name, and nine new places
-  'skep','cairn','boundary-stone','skull-pile','web',
+  // name for them, and nine new places
+  'skep','cairn','boundary-stone','skull-pile',
   'scorched-ring','glass-stone','burnt-tree',
   'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
 const _rampCache = new Map()
@@ -1143,66 +1465,22 @@ function isRampart4(x, y) {
   _rampCache.set(k, out)
   return out
 }
-// THE LANTERN'S FLOOR.
-//
-// groundKindAt learns a room's floor from the town DRAWING, and the wayside
-// inn has no drawing -- it is the one building in this world outside any
-// plan. The generator derives its seat from the genesis; so does this, by
-// the same rule, so the boards under Ulric's feet are the same boards on
-// every node.
-let _innSeat4 = null, _innSeatFor = null
-function innSeat4() {
-  if (_innSeatFor === GSEED) return _innSeat4
-  _innSeatFor = GSEED; _innSeat4 = null
-  // THE NAMES HAVE TO EXIST.
-  //
-  // The first version of this called blockedAtE4, isWaterE4, rectOfE4 and
-  // onRoadE4 -- four names invented by putting an E4 on the end of what the
-  // GENERATOR calls them. None of the four exists in this file. innSeat4
-  // threw on its first call, terrainOfE4 calls it for every tile, and the
-  // whole terrain pass died: a green screen at spawn, which is the fourth
-  // time this session that a name not in scope has taken a frame with it.
-  //
-  // The real names here are isWater4, onRoad4, and a town's rect is its
-  // centre and half-extent. blockedAt in this file takes a STATE and asks
-  // about nodes -- it is not the terrain test at all.
-  const solid = (x, y) => onRidge4(x, y) || onBarrow4(x, y)
-  const okTile = (x, y) => !solid(x, y) && !isWater4(x, y)
-  seekI4: for (let rad = 0; rad < 90; rad++)
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      const x = Math.round(W * 0.55) + dx, y = Math.round(H * 0.44) + dy
-      const b = biomeAtE4(x, y)
-      if (b !== 'heartlands' && b !== 'downs') continue
-      let inTown = false
-      for (const t of settlementsE4())
-        if (Math.abs(x - t.x) < (t.w >> 1) + 12 && Math.abs(y - t.y) < (t.h >> 1) + 12) { inTown = true; break }
-      if (inTown) continue
-      if (onRoad4(x, y)) continue
-      let all = true
-      for (let yy = -1; yy <= 3 && all; yy++) for (let xx = -3; xx <= 3; xx++) {
-        const px = x + xx, py = y + yy
-        if (!okTile(px, py) || onRoad4(px, py)) { all = false; break }
-      }
-      if (!all || !okTile(x, y + 4)) continue
-      let onTheWay = false
-      for (let yy = -3; yy <= 6 && !onTheWay; yy++) for (let xx = -6; xx <= 6; xx++) {
-        if (yy >= -1 && yy <= 3 && xx >= -3 && xx <= 3) continue
-        if (onRoad4(x + xx, y + yy)) { onTheWay = true; break }
-      }
-      if (!onTheWay) continue
-      _innSeat4 = { x, y }; break seekI4
-    }
-  return _innSeat4
-}
 function terrainOfE4(x, y) {
-  // the Lantern's boards: the one room outside any town plan
-  {
-    const si = innSeat4()
-    if (si && x >= si.x - 2 && x <= si.x + 2 && y >= si.y && y <= si.y + 2) return 'floor'
-  }
   if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
+  // A ROAD MUST NOT BEND AROUND NOTHING. The placed things are ground you can
+  // see and stand in -- a copse, a mire, a scree fan -- and not an invisible
+  // cost that makes a road look drunk. Water and town paving still win: a
+  // copse does not grow in the river, and nobody planted one in a market.
+  {
+    const hm = handmadeAt(x, y)
+    if (hm && !onRoad4(x, y)) {
+      const inTown = settlementsE4().some((t) =>
+        Math.abs(x - t.x) < (t.w >> 1) && Math.abs(y - t.y) < (t.h >> 1))
+      if (!inTown) return hm.kind === 'copse' ? 'forest'
+                        : hm.kind === 'mire' ? 'fens' : 'scree'
+    }
+  }
   for (const t of settlementsE4()) {
     // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
     // inclusive test claimed the rampart line itself as town ground and
@@ -1331,17 +1609,168 @@ function localeAt4(x, y) {
 
 
 
+function terrainOfE(x, y) {
+  if (IS_EXPANSE4()) return terrainOfE4(x, y)
+  if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
+  if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
+  // the fords, mirrored from the truth: the road pays for its
+  // crossings, and every town's main street crosses on pilings. These
+  // return 'bridge', so buildBridges erects a real deck over each.
+  if (isWaterE(x, y)) {
+    if (onRoadE(x, y)) return 'bridge'
+    for (const st of ssE()) {
+      const x0 = st.x - (st.w >> 1), x1 = st.x + (st.w >> 1)
+      const y0 = st.y - (st.h >> 1), y1 = st.y + (st.h >> 1)
+      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && (x === st.x || y === st.y)) return 'bridge'
+    }
+  }
+  if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return 'river'
+  for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
+  if (onRoadE(x, y)) return 'trail'
+  return biomeAtE(x, y)
+}
+// ---- the countries by their names, mirrored from /play (spec 9d): a
+// region is a pure function of the world, identical in every window, so
+// "meet me at the fens edge" means one place to everyone. ----
+
+// ---- the keepers' names (v0.79): mirrored from worldgen keeperName ,
+// same SHA-256, same list, precomputed once at boot, identical in every
+// window. Maud is Maud everywhere, and no byte of state stores her. ----
+const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
+  'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
+  'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
+const KN = {}
+;(async () => {
+  try {
+    const tags = settlementsE3().map(t => t.tag ?? t.name?.toLowerCase())
+    for (const [tag2, role2] of [['hollybarrow', 'farm'], ['sawyer', 'camp'], ['high', 'delve'], ['eel', 'sheds'], ['lantern', 'inn']]) {
+      const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
+      KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
+    }
+    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+      const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
+      KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
+    }
+  } catch {}
+})()
+const kName = (tag, role) => role === 'wizard' ? 'Oberon' : (KN[tag + '|' + role] ?? 'the keeper')
+// THE WORLD NAMES THEM NOW. This table mirrored worldgen's keeperName() and
+// stopped matching the moment the towns were hand-drawn -- forty-five
+// keepers, every one of them "the keeper". A name is part of who stands
+// there, so it lives on the node and the window only reads it. kFromId
+// remains as the fallback for a world founded before names existed.
+const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn|wizard)-(.+)$/.exec(id ?? '')
+  return m ? kName(m[2], m[1]) : 'the keeper'
+}
+const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
+  wilds: 'the Wilds', meadow: 'the Heartlands', heartlands: 'the Heartlands',
+  downs: 'the Downs', moor: 'the Moor' }
+const SETTLEMENT_NAMES = ['Anchor', 'Greenhollow', 'Millbrook', 'Cragfoot', 'Eastmere', 'Fenmarch', 'Norwick']
+const CLASSIC_NAMES = { wilds: 'the Wilds', cave: 'the Deep', scree: 'the Scree',
+  mountain: 'the Mountains', sea: 'the Sea', bridge: 'the Bridge',
+  cobble: 'the City', plaza: 'the Market', flag: 'the Market', gravel: 'the Pass',
+  sand: 'the Shore', trail: 'the Road', meadow: 'the Meadows' }
+function regionNameAt(x, y) {
+  try {
+    if (!GEN.startsWith('interval-expanse-')) return CLASSIC_NAMES[terrainOf(x, y)] ?? ''
+    const ss = ssE()
+    for (let i = 0; i < ss.length; i++) {
+      const t = ss[i]
+      if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
+        return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
+    }
+    if (IS_EXPANSE4()) return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
+    return REGION_NAMES[biomeAtE(x, y)] ?? ''
+  } catch { return '' } // a nameplate must never stop the world drawing
+}
+// <<< EXPANSE TERRAIN MIRROR
+const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
+function riverXC(y) { const cx2 = Math.floor(W / 2)
+  return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
+function terrainOf(x, y) {
+  // EVERY expanse founding goes to the expanse, not just the first one.
+  // This read `GEN === 'interval-expanse-v1'`, so a v2, v3, v4 or v5 world --
+  // which is every world founded since -- fell through to the classic
+  // generator below and got a completely different island. terrainOfE is
+  // itself a dispatcher over the four later foundings, so one prefix test is
+  // the whole of the correct answer.
+  if (GEN.startsWith('interval-expanse-')) return terrainOfE(x, y)
+  const ty = Math.floor(H / 2), cx2 = Math.floor(W / 2), cy0 = 2, cy1 = 10
+  if (x >= W - 4) return 'sea'
+  if (inWildsC(x, y)) return 'wilds'
+  if (x >= W - 30 && x <= W - 10 && y >= 5 && y <= 16) return 'cave'
+  if (x >= W - 46 && y <= 26) return 'scree'
+  if (y <= 8 && (x < cx2 - 10 || x > cx2 + 10)) return 'mountain'
+  if (x >= cx2 - 8 && x <= cx2 + 8 && y >= cy0 && y <= cy1) return 'cobble'
+  const lakeX = cx2 - 10, lakeY = H - 16, mbX = W - 22, mbY = H - 14
+  if (x >= lakeX + 5 && x <= lakeX + 14 && y >= lakeY - 9 && y <= lakeY - 2) return 'plaza'
+  if (Math.abs(x - mbX) <= 6 && Math.abs(y - mbY) <= 6) return 'plaza'
+  const road = (Math.abs(x - cx2) <= (tileHash(0, y, 3) % 2) && y > cy1 && y < ty)
+    || (Math.abs(x - cx2) <= (tileHash(0, y, 4) % 2) && y > ty && y < lakeY - 4)
+    || Math.abs(y - ty) <= (tileHash(x, 0, 3) % 2)
+  if (road) {
+    if (Math.abs(x - riverXC(y)) <= 2 && y >= 6 && y <= lakeY - 4) return 'bridge'
+    return 'trail'
+  }
+  if ((x <= 14 || x >= W - 16) && Math.abs(y - ty) <= 4) return 'plaza'
+  return 'meadow'
+}
+
+// The surface every window is allowed to ask about. Anything not here is
+// this file's own business and may change without a window noticing.
 
 
 
-
-
-
-
-
-
-
-
+// ---- the Lantern's boards -------------------------------------------
+// The one room the mirror does not know about: an inn outside any town
+// plan, which this page has always drawn. Kept across the swap, because
+// losing it would have been a silent subtraction.
+let _innSeat4 = null, _innSeatFor = null
+function innSeat4() {
+  if (_innSeatFor === GSEED) return _innSeat4
+  _innSeatFor = GSEED; _innSeat4 = null
+  // THE NAMES HAVE TO EXIST.
+  //
+  // The first version of this called blockedAtE4, isWaterE4, rectOfE4 and
+  // onRoadE4 -- four names invented by putting an E4 on the end of what the
+  // GENERATOR calls them. None of the four exists in this file. innSeat4
+  // threw on its first call, terrainOfE4 calls it for every tile, and the
+  // whole terrain pass died: a green screen at spawn, which is the fourth
+  // time this session that a name not in scope has taken a frame with it.
+  //
+  // The real names here are isWater4, onRoad4, and a town's rect is its
+  // centre and half-extent. blockedAt in this file takes a STATE and asks
+  // about nodes -- it is not the terrain test at all.
+  const solid = (x, y) => onRidge4(x, y) || onBarrow4(x, y)
+  const okTile = (x, y) => !solid(x, y) && !isWater4(x, y)
+  seekI4: for (let rad = 0; rad < 90; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const x = Math.round(W * 0.55) + dx, y = Math.round(H * 0.44) + dy
+      const b = biomeAtE4(x, y)
+      if (b !== 'heartlands' && b !== 'downs') continue
+      let inTown = false
+      for (const t of settlementsE4())
+        if (Math.abs(x - t.x) < (t.w >> 1) + 12 && Math.abs(y - t.y) < (t.h >> 1) + 12) { inTown = true; break }
+      if (inTown) continue
+      if (onRoad4(x, y)) continue
+      let all = true
+      for (let yy = -1; yy <= 3 && all; yy++) for (let xx = -3; xx <= 3; xx++) {
+        const px = x + xx, py = y + yy
+        if (!okTile(px, py) || onRoad4(px, py)) { all = false; break }
+      }
+      if (!all || !okTile(x, y + 4)) continue
+      let onTheWay = false
+      for (let yy = -3; yy <= 6 && !onTheWay; yy++) for (let xx = -6; xx <= 6; xx++) {
+        if (yy >= -1 && yy <= 3 && xx >= -3 && xx <= 3) continue
+        if (onRoad4(x + xx, y + yy)) { onTheWay = true; break }
+      }
+      if (!onTheWay) continue
+      _innSeat4 = { x, y }; break seekI4
+    }
+  return _innSeat4
+}
 const V4 = () => IS_EXPANSE4()
 // The chart paints rows on a 24ms budget, but the FIRST call to terrainOfE4
 // used to drag in the whole road network -- seat ten towns, raster a cost
@@ -1377,10 +1806,16 @@ function terrainOfE(x, y) {
 
 // ---- the painter: the site's palette, the engine's tiles ----
 const params = new URLSearchParams(location.search)
-GEN = params.get('gen') || 'interval-expanse-v4'
-GSEED = params.get('seed') || 'tallyholm'
-var W = Math.max(448, parseInt(params.get('w') || '896', 10) || 896)
-var H = Math.max(256, parseInt(params.get('h') || '512', 10) || 512)
+// THE MIRROR OWNS W, H, GEN AND GSEED, and configure() is how a window sets
+// them -- the same call every other window makes. The page used to declare its
+// own W and H beside the mirror's, which is exactly the kind of second copy
+// that lets a map drift from the world it draws.
+configure({
+  generator: params.get('gen') || 'interval-expanse-v5',
+  seed: params.get('seed') || 'tallyholm',
+  worldW: Math.max(448, parseInt(params.get('w') || '896', 10) || 896),
+  worldH: Math.max(256, parseInt(params.get('h') || '512', 10) || 512),
+})
 const PAL = {
   sea: '#0a0a10', shoal: '#1e3048', river: '#1e3048', bridge: '#8a6a33',
   cobble: '#403828', flag: '#3a3226', gravel: '#5c5648', sand: '#8a7a54', trail: '#7a602a', mountain: '#4a443a',
@@ -1524,8 +1959,10 @@ function placesFromState(nodes) {
 let _regionLabels = null
 function regionLabels() {
   if (_regionLabels) return _regionLabels
-  // the five countries, named across their own ground (v0.80). A country is
-  // a place; the chart should say so. Centroid of each biome, sampled coarse.
+  // the SEVEN countries, named across their own ground. A country is a place;
+  // the chart should say so. Centroid of each biome, sampled coarse. (It said
+  // five, which was true of the third founding: the Moor and the Downs arrived
+  // with the fourth and the comment did not.)
   const acc = {}
   for (let y = 2; y < H - 2; y += 3) for (let x = 2; x < W - 2; x += 3) {
     const b = (IS_EXPANSE4()) ? biomeAtE4(x, y) : biomeAtE3(x, y)
