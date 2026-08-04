@@ -97,6 +97,22 @@ export class IntervalClient {
   wield(slot) { return this.#send({ type: 'wield', slot }) }
   buy(item) { return this.#send({ type: 'buy', item }) }
   recall(to) { return this.#send({ type: 'recall', to }) }
+  // v0.82: THE VERBS THAT ARRIVED WITHOUT AN SDK.
+  //
+  // A bot is a citizen here -- an executor runs a full node and its deeds feed
+  // the beacon -- so a verb the SDK cannot express is a verb half the
+  // population cannot use. `drink`, `alch` and `set_look` all shipped into the
+  // engine without one, which quietly made them window-only features in a
+  // world that does not have window-only features.
+  drink() { return this.#send({ type: 'drink' }) }
+  alch(slot) { return this.#send({ type: 'alch', slot }) }
+  setLook(look) { return this.#send({ type: 'set_look', look }) }
+  // and the four the SDK never spoke, which an audit turned up alongside
+  // them. `restore` and `archive` are a node's business rather than a
+  // citizen's, but `still` and `special` are things a citizen DOES, and a bot
+  // that cannot root an opponent or spend a special is fighting with one hand.
+  still(target) { return this.#send({ type: 'still', target }) }
+  special(targetId) { return this.#send({ type: 'special', targetId }) }
   chat(text) { return this.node.publishChat(this.identity, text) }
   onChat(cb) { this.node.onChat = cb }
 
