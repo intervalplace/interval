@@ -1498,6 +1498,30 @@ export function loneRooms(g) {
   const s = innSeat(g)
   return s ? [[s.x - 2, s.y, 5, 3]] : []      // the Lantern's interior
 }
+
+// ---------------------------------------------------------------------------
+// A TOWN IS ITS DRAWING, NOT ITS PLOT
+// ---------------------------------------------------------------------------
+// Ground inside a settlement's rect was paved wholesale, so every town was a
+// perfect rectangle of flagstone whatever it had been drawn as. Measured: only
+// TWO of the ten are actually drawn as closed rings -- Anchor, a capital, and
+// Norwick, a garrison, both 95% enclosed and both of which should read as a
+// hard edge. The other eight are 0% closed. They are loose clusters of
+// buildings in open country, and the terrain was putting a paved box round
+// each of them.
+//
+// So paving follows the BUILT FORM: a tile is town ground if the drawing puts
+// something there or something stands beside it. Between the buildings the
+// country simply carries on, which is what a village looks like from above and
+// what these eight were drawn as in the first place.
+const _TOWN_OPEN = new Set([' ', '.']);
+function townPaved(rows, rx, ry) {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const c = rows[ry + dy]?.[rx + dx];
+    if (c !== undefined && !_TOWN_OPEN.has(c)) return true;
+  }
+  return false;
+}
 export function groundKindAt(g, x, y) {
   for (const [rx, ry, rw, rh] of loneRooms(g))
     if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) return 'floor'
@@ -1515,6 +1539,8 @@ export function groundKindAt(g, x, y) {
         // enclosure, not the character: a booth, a hearth and the clerk all
         // stand on the same floor as the empty tile beside them
         if (isIndoor(st.tag, rows, rx, ry)) return 'floor'
+        // and the paving reaches only as far as the town does
+        if (!townPaved(rows, rx, ry)) return onRoad(g, x, y) ? 'trail' : null
       }
       // NOT EVERY TOWN IS PAVED. A farm is not a market: Hollybarrow works
       // the ground it stands on and Greenhollow is a clearing in a wood, so
