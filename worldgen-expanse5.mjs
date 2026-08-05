@@ -1717,6 +1717,8 @@ const SIGN_TEXT = {
 }
 
 export function buildWorld(genesis) {
+  // stalls are seated at the end, once every town's counters exist
+  const _stallWork = []
   const gerr = E.validateGenesis(genesis)
   if (gerr) throw new Error('refusing to build a world from an invalid genesis: ' + gerr)
   if (genesis.worldGenerator !== GENERATOR_ID)
@@ -1996,106 +1998,13 @@ export function buildWorld(genesis) {
       const rr2 = rectOf(s)
       let si = 0
       let hi = 0
-      for (const kind of (STALLS[s.tag] ?? [])) {
-        let seated = false
-        // indoors first: a spare house, if the drawing left one
-        const house = shopRoom && shopRoom[hi % shopRoom.length]
-        if (house) {
-          hi++
-          const pw = plan[0].length, ph = plan.length
-          const ox = s.x - (pw >> 1), oy = s.y - (ph >> 1)
-          const [rx, ry, rw, rh] = house
-          // A COUNTER NEEDS A SIDE TO BE SERVED FROM.
-          //
-          // The first version took the first bare floor tile in the room and
-          // put the keeper next to it, and never asked whether anything was
-          // left for a CUSTOMER. Six of twelve stalls came out with no free
-          // orthogonal tile at all: a shop sealed inside its own building,
-          // which a citizen finds by walking to it and being told it cannot be
-          // reached. So a seat needs two free sides -- one for the keeper to
-          // stand behind and one for whoever came to buy.
-          const freeSides = (x, y) => {
-            let n2 = 0
-            for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-              const ax = x + ddx, ay = y + ddy
-              if (!inB(ax, ay) || blockedAt(g, ax, ay)) continue
-              if (Object.values(w.nodes).some((q) => q.x === ax && q.y === ay)) continue
-              n2++
-            }
-            return n2
-          }
-          for (let yy = ry; yy < ry + rh && !seated; yy++) {
-            for (let xx = rx; xx < rx + rw; xx++) {
-              if (plan[yy]?.[xx] !== ',') continue        // bare floor only
-              const x = ox + xx, y = oy + yy
-              // `taken` covers the WHOLE building -- layPlan reserves every
-              // tile of a drawing so no later pass drops a tree in somebody's
-              // parlour. That is right, and it is exactly the floor this wants,
-              // so the test here is whether a NODE already stands on the tile.
-              if (!inB(x, y) || blockedAt(g, x, y)) continue
-              if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
-              if (freeSides(x, y) < 2) continue           // room for a keeper AND a customer
-              // AND NOT IN SOMEBODY ELSE'S SHOP.
-              //
-              // The room test read the DRAWING -- was there a B or an S inside
-              // this rect -- and Anchor's bank sits a tile outside the rect the
-              // arms-master was seated in, so the arms stall went up inside the
-              // bank. The drawing is the wrong thing to ask. Ask the WORLD:
-              // is there a counter of any kind near this tile?
-              if (Object.values(w.nodes).some((q) =>
-                (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
-                && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 3)) continue
-              E.addNode(w, 'stall-' + s.tag + '-' + kind, 'stall', x, y, { kind })
-              taken.add(key(x, y))
-              // and whoever keeps it, stood behind the counter
-              for (const [dx2, dy2] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
-                const kx = x + dx2, ky = y + dy2
-                if (!inB(kx, ky) || blockedAt(g, kx, ky)) continue
-                if (plan[yy + dy2]?.[xx + dx2] !== ',') continue
-                if (Object.values(w.nodes).some((q) => q.x === kx && q.y === ky)) continue
-                // and the keeper does not take the last side: after they are
-                // stood there the counter must still have somewhere to serve from
-                if (freeSides(x, y) < 2) continue
-                // AND A NAME, from the world's own stock. These were placed
-                // without one, so a citizen walked into a shop and met "?" --
-                // every other person on the island has been named since the
-                // fourth founding and the twelve I added were not.
-                E.addNode(w, 'keeper-' + s.tag + '-' + kind, 'keeper', kx, ky,
-                  { kind, name: keeperName(s.tag, kind) })
-                taken.add(key(kx, ky))
-                break
-              }
-              seated = true; break
-            }
-          }
-        }
-        for (let rad = 1; rad <= 5 && !seated; rad++) {
-          // south face first (the road side), then east, west, north
-          const ring = []
-          for (let x = rr2.x0; x <= rr2.x1; x++) ring.push([x, rr2.y1 + rad], [x, rr2.y0 - rad])
-          for (let y = rr2.y0; y <= rr2.y1; y++) ring.push([rr2.x1 + rad, y], [rr2.x0 - rad, y])
-          // deterministic order: nearest the town's own centre line first
-          ring.sort((a, b) => (Math.abs(a[0] - s.x) + Math.abs(a[1] - s.y))
-                            - (Math.abs(b[0] - s.x) + Math.abs(b[1] - s.y)))
-          for (const [x, y] of ring) {
-            if (!inB(x, y) || taken.has(key(x, y)) || isWater(g, x, y) || blockedAt(g, x, y)) continue
-            if (onRoad(g, x, y)) continue                 // never in the roadway
-            // BESIDE A STREET, NOT ON A MOOR. The first version took the first
-            // free ground on the ring, which put the axe man at Greenhollow
-            // out on open moorland and the delver at Fenmarch in the fens. A
-            // stall is somebody's pitch on a thoroughfare; if there is no
-            // thoroughfare it is a man standing in a bog with a table.
-            let byRoad = false
-            for (let ddy = -2; ddy <= 2 && !byRoad; ddy++)
-              for (let ddx = -2; ddx <= 2; ddx++)
-                if (onRoad(g, x + ddx, y + ddy)) { byRoad = true; break }
-            if (!byRoad && rad < 5) continue
-            E.addNode(w, 'stall-' + s.tag + '-' + kind, 'stall', x, y, { kind })
-            taken.add(key(x, y)); si++; seated = true
-            break
-          }
-        }
-      }
+      // DEFERRED. See the pass at the end of the founding: seating a stall
+      // here meant checking it against a world only half built, so a counter
+      // laid by a LATER town -- or later in this one -- was invisible to the
+      // test and the stall sat down beside it anyway. Anchor's arms-master
+      // ended up five tiles from an anvil that did not exist yet.
+      _stallWork.push({ s, shopRoom, rr2, taken, plan, kinds: STALLS[s.tag] ?? [] })
+
     }
     // -- THE ARMS, ON THE APPROACHES --
     //
@@ -4105,6 +4014,143 @@ export function buildWorld(genesis) {
     counts.quietSwept = swept
   }
 
+
+  // ---- THE STALLS, once every town exists --------------------------------
+  //
+  // A stall must not sit in another trade's room, and that cannot be decided
+  // while the towns are still going up: the check only sees what has been
+  // placed so far. So each town leaves its work here and the seating happens
+  // when the island is finished, exactly as the callings do.
+  for (const job of _stallWork) {
+    const { s: st, shopRoom, rr2, taken, plan, kinds } = job
+    // a counter needs a side for the keeper and a side for the customer
+    const freeSides = (x, y) => {
+      let n2 = 0
+      for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ax = x + ddx, ay = y + ddy
+        if (!inB(ax, ay) || blockedAt(g, ax, ay)) continue
+        if (Object.values(w.nodes).some((q) => q.x === ax && q.y === ay)) continue
+        n2++
+      }
+      return n2
+    }
+    let hi = 0, si = 0
+    for (const kind of kinds) {
+      let seated = false
+      // indoors first: a spare house, if the drawing left one
+      const house = shopRoom && shopRoom[hi % shopRoom.length]
+      if (house) {
+        hi++
+        const pw = plan[0].length, ph = plan.length
+        const ox = st.x - (pw >> 1), oy = st.y - (ph >> 1)
+        const [rx, ry, rw, rh] = house
+        // A COUNTER NEEDS A SIDE TO BE SERVED FROM.
+        //
+        // The first version took the first bare floor tile in the room and
+        // put the keeper next to it, and never asked whether anything was
+        // left for a CUSTOMER. Six of twelve stalls came out with no free
+        // orthogonal tile at all: a shop sealed inside its own building,
+        // which a citizen finds by walking to it and being told it cannot be
+        // reached. So a seat needs two free sides -- one for the keeper to
+        // stand behind and one for whoever came to buy.
+        const freeSides = (x, y) => {
+          let n2 = 0
+          for (const [ddx, ddy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const ax = x + ddx, ay = y + ddy
+            if (!inB(ax, ay) || blockedAt(g, ax, ay)) continue
+            if (Object.values(w.nodes).some((q) => q.x === ax && q.y === ay)) continue
+            n2++
+          }
+          return n2
+        }
+        for (let yy = ry; yy < ry + rh && !seated; yy++) {
+          for (let xx = rx; xx < rx + rw; xx++) {
+            if (plan[yy]?.[xx] !== ',') continue        // bare floor only
+            const x = ox + xx, y = oy + yy
+            // `taken` covers the WHOLE building -- layPlan reserves every
+            // tile of a drawing so no later pass drops a tree in somebody's
+            // parlour. That is right, and it is exactly the floor this wants,
+            // so the test here is whether a NODE already stands on the tile.
+            if (!inB(x, y) || blockedAt(g, x, y)) continue
+            if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+            if (freeSides(x, y) < 2) continue           // room for a keeper AND a customer
+            // AND NOT IN SOMEBODY ELSE'S SHOP.
+            //
+            // The room test read the DRAWING -- was there a B or an S inside
+            // this rect -- and Anchor's bank sits a tile outside the rect the
+            // arms-master was seated in, so the arms stall went up inside the
+            // bank. The drawing is the wrong thing to ask. Ask the WORLD:
+            // is there a counter of any kind near this tile?
+            // Eight tiles, not three. Anchor's nearest bank counter stands
+            // FOUR tiles from where the arms stall was seated -- just outside
+            // a radius of three -- with a banker at two, so the two trades
+            // shared a hall and a citizen saw an arms stall inside the bank.
+            // A room in these drawings is bigger than three tiles.
+            if (Object.values(w.nodes).some((q) =>
+              (q.type === 'bank' || q.type === 'store' || q.type === 'anvil'
+               || (q.type === 'keeper' && q.kind && q.kind !== kind))
+              && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
+            E.addNode(w, 'stall-' + st.tag + '-' + kind, 'stall', x, y, { kind })
+            taken.add(key(x, y))
+            // and whoever keeps it, stood behind the counter
+            for (const [dx2, dy2] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
+              const kx = x + dx2, ky = y + dy2
+              if (!inB(kx, ky) || blockedAt(g, kx, ky)) continue
+              if (plan[yy + dy2]?.[xx + dx2] !== ',') continue
+              if (Object.values(w.nodes).some((q) => q.x === kx && q.y === ky)) continue
+              // and the keeper does not take the last side: after they are
+              // stood there the counter must still have somewhere to serve from
+              if (freeSides(x, y) < 2) continue
+              // AND A NAME, from the world's own stock. These were placed
+              // without one, so a citizen walked into a shop and met "?" --
+              // every other person on the island has been named since the
+              // fourth founding and the twelve I added were not.
+              E.addNode(w, 'keeper-' + st.tag + '-' + kind, 'keeper', kx, ky,
+                { kind, name: keeperName(st.tag, kind) })
+              taken.add(key(kx, ky))
+              break
+            }
+            seated = true; break
+          }
+        }
+      }
+      for (let rad = 1; rad <= 5 && !seated; rad++) {
+        // south face first (the road side), then east, west, north
+        const ring = []
+        for (let x = rr2.x0; x <= rr2.x1; x++) ring.push([x, rr2.y1 + rad], [x, rr2.y0 - rad])
+        for (let y = rr2.y0; y <= rr2.y1; y++) ring.push([rr2.x1 + rad, y], [rr2.x0 - rad, y])
+        // deterministic order: nearest the town's own centre line first
+        ring.sort((a, b) => (Math.abs(a[0] - st.x) + Math.abs(a[1] - st.y))
+                          - (Math.abs(b[0] - st.x) + Math.abs(b[1] - st.y)))
+        for (const [x, y] of ring) {
+          if (!inB(x, y) || taken.has(key(x, y)) || isWater(g, x, y) || blockedAt(g, x, y)) continue
+          if (onRoad(g, x, y)) continue                 // never in the roadway
+          // AND THE SAME RULE AS INDOORS. This fallback had no counter test at
+          // all, so a stall that could not find a house simply pitched wherever
+          // the ring allowed -- five tiles from Anchor's anvil, six from
+          // Fenmarch's store. A stall outside a wall is still a stall, and it
+          // still must not set up in another trade's doorway.
+          if (Object.values(w.nodes).some((q) =>
+            (q.type === 'bank' || q.type === 'store' || q.type === 'anvil'
+             || (q.type === 'keeper' && q.kind && q.kind !== kind))
+            && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
+          // BESIDE A STREET, NOT ON A MOOR. The first version took the first
+          // free ground on the ring, which put the axe man at Greenhollow
+          // out on open moorland and the delver at Fenmarch in the fens. A
+          // stall is somebody's pitch on a thoroughfare; if there is no
+          // thoroughfare it is a man standing in a bog with a table.
+          let byRoad = false
+          for (let ddy = -2; ddy <= 2 && !byRoad; ddy++)
+            for (let ddx = -2; ddx <= 2; ddx++)
+              if (onRoad(g, x + ddx, y + ddy)) { byRoad = true; break }
+          if (!byRoad && rad < 5) continue
+          E.addNode(w, 'stall-' + st.tag + '-' + kind, 'stall', x, y, { kind })
+          taken.add(key(x, y)); si++; seated = true
+          break
+        }
+      }
+      }
+  }
 
   // ---- WHAT EACH OF THEM ACTUALLY DOES -----------------------------------
   //
