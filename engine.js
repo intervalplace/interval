@@ -278,7 +278,24 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
-  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall'];
+  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall',
+  // §2g: A RAMPART IS NOT A HOUSE WALL.
+  //
+  // The town drawings have always distinguished them -- '%' is a town's outer
+  // work, '#' is a building -- and the legend flattened both to `wall`, so
+  // five hundred tiles of curtain across four fortified towns drew as domestic
+  // masonry. Anchor's wall looked like a very long shed.
+  //
+  // It blocks exactly as a wall does and is not walkable-built, so nothing
+  // about movement changes. What changes is that a citizen can tell a wall
+  // they live behind from a wall they shelter behind.
+  // §2g: THE OSSUARY. The bone-house of the monastery, and the one place on
+  // the island where burying is worth more than burying in a field.
+  //
+  // Prayer was the only skill with nowhere to go. A woodcutter has the
+  // Greenwood, a miner the Wilds, a fisher the water; a mourner had a verb and
+  // no destination, and buried wherever their feet happened to be.
+  'rampart', 'ossuary'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -366,6 +383,31 @@ const STORE_SELLS = {};
 // And they do NOT buy. A stall is where a thing comes FROM. Selling stays the
 // general store's business, which keeps the store the heart of a town's
 // economy and the stall a place with one job.
+// WHAT A PERSON IN THIS WORLD MAY BE. The six trades a stall keeps, plus every
+// other calling somebody was already doing under the name "keeper".
+const KEEPER_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed',
+  'banker', 'merchant', 'sawyer', 'shepherd', 'delver', 'miller', 'quarrier',
+  'watchman', 'wizard', 'fisher', 'brewer', 'mourner',
+  'innkeeper', 'collier', 'drover', 'beekeeper'];
+// AND WHAT EACH IS CALLED. A display string in a rules file looks out of
+// place until you remember what happened without one: the calling lived in a
+// single window's own table, so that window said "Rosamund, the banker" and
+// every other window said "Keeper". A citizen's name for a thing should not
+// depend on which door they came in by.
+//
+// The engine does not draw anything. It says what the words ARE, once, and a
+// window that renders different ones is wrong in the same way a window that
+// draws the Fens in the wrong place is wrong.
+const CALLING_NAMES = {
+  lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
+  armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
+  banker: 'the banker', merchant: 'the merchant', sawyer: 'the sawyer',
+  shepherd: 'the shepherd', delver: 'the delver', miller: 'the miller',
+  quarrier: 'the quarrier', watchman: 'the watchman', wizard: 'the wizard',
+  fisher: 'the fisher', brewer: 'the brewer', mourner: 'the mourner',
+  innkeeper: 'the innkeeper', collier: 'the collier', drover: 'the drover',
+  beekeeper: 'the beekeeper',
+};
 const STALL_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed'];
 const STALL_SELLS = {
   lumber: { 'bronze-hatchet': 20 },
@@ -498,6 +540,11 @@ const DEATH_TICKS = 5; // the world holds its breath; windows may grieve
 // keep every tooth that matters. A citizen carrying the old chain into the
 // dark is taking the same risk at prayer ninety-nine as at prayer one.
 const PRAYER_KEEP = 70;
+// AND AT NINETY-NINE, TWO. The same rule deeper rather than a new power: a
+// mourner who has made their peace with dying packs accordingly. It is still
+// only PRICED things, so the old chain, a dragonbow, a sigil and a chart are
+// exactly as losable at ninety-nine as at one.
+const PRAYER_KEEP_TWO = 99;
 const BRAND_TICKS = 1500; // strike first in the Wilds, wear it 15 minutes
 // the star-dagger's root (v0.49): rare and expensive by design, a 3-tick
 // freeze on a 120-tick leash, and a 10-tick immunity after so no one is
@@ -667,7 +714,20 @@ const WEAPONS = {
   // so whoever draws it fights at a distance where almost nothing can answer.
   // Against a citizen in the Wilds that is not a duel, it is a decision made
   // before they knew it started.
-  'dragonbow':     { hit: 6, every: 2, reach: 9, acc: 12, ranged: true },
+  // §6w: THE LONG SHOT. The dragonbow reaches nine, further than anything
+  // else in the world by four tiles, and had no special at all -- so its one
+  // distinction was a number in a table.
+  //
+  // It is not another 'twice'. This world already has three specials and they
+  // are three different KINDS: two blows, off the rhythm, cannot miss. A
+  // fourth should be a fourth kind, and the obvious one for this weapon is the
+  // thing it alone can do.
+  //
+  // 'far' scales the blow with the distance it crossed. At arm's length it is
+  // feeble -- worse than a dagger -- and at nine tiles it is the hardest blow
+  // in the world. The bow's reach stops being a number and becomes the skill:
+  // the shot you should not have been able to make is the one that kills.
+  'dragonbow':     { spec: 'far', hit: 6, every: 2, reach: 9, acc: 12, ranged: true },
 };
 const weaponOf = (p) => WEAPONS[p?.equipment?.weapon?.item] ?? null;
 const reachOf = (p) => weaponOf(p)?.reach ?? 1;
@@ -855,7 +915,15 @@ const MOB_STATS = {
   // -- sixty-eight seconds, and hard -- three win at 64.
   dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 4, meleeOnly: true,
             aggro: 9, breath: 5, breathHit: 14, breathEvery: 5,
-            respawn: 36000,          // six hours: killing it is an event, not a round
+            // TWELVE HOURS, because the bow now lives exactly as long as the
+            // dragon is dead. At six it changed hands fourteen hundred times a
+            // year, which is a great deal of turnover for a thing whose rule
+            // is that there is one. At twelve a tenure is long enough to plan
+            // something with and short enough that two citizens a day get the
+            // chance -- and the clock runs from the KILL, not a fixed hour, so
+            // tenures drift across the day by themselves and no timezone ends
+            // up owning the dragon.
+            respawn: 72000,
             drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'ore' }] },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
@@ -1101,11 +1169,21 @@ const RECIPES = {
   'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 },
-  'bronze-sword':   { ore: 2, logs: 1 },
+  // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
+  //
+  // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
+  // weight on a handle; a crossbow has a stock. Take the wood away and there
+  // is nothing to hold. But a helm and a plate are beaten out of sheet and a
+  // sword is a blade with a tang -- there is no timber in any of them, and
+  // asking for a log to make a breastplate was carpentry.
+  //
+  // It also settles a disagreement between the metals that had no reason to
+  // exist: a star sword needed no wood while a bronze one did.
+  'bronze-sword':   { ore: 2 },
   'bronze-hatchet': { ore: 1, logs: 1 },
   'bronze-pickaxe': { ore: 1, logs: 1 },
-  'bronze-helm':    { ore: 1, logs: 1 },
-  'bronze-plate':   { ore: 3, logs: 1 },
+  'bronze-helm':    { ore: 1 },
+  'bronze-plate':   { ore: 3 },
   'star-sword':     { 'magic-stone': 3, ore: 2 },
   'star-helm':      { 'magic-stone': 2, ore: 1 },
   'star-plate':     { 'magic-stone': 4, ore: 3 },
@@ -1153,6 +1231,27 @@ const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm':
 // and wearable at defence 50, so a citizen could fill a bank with gear they
 // could not put on. A tier should be one wall, not two at different heights.
 const SMITH_REQS = {
+  // THE BRONZE LADDER, which this table did not have.
+  //
+  // Star has one -- helm 40, tools 42, sword 45, spear 46, plate 50, maul 52 --
+  // and bronze had nothing at all, so a citizen of smithing 1 could beat out a
+  // bronze plate on their first afternoon. Worse, a window had quietly invented
+  // a ladder of its own and been greying out work the world would have done.
+  //
+  // Built on what star is built on: the material it eats and the shaping it
+  // needs. A dagger is one ore and the simplest thing that cuts; a hatchet is a
+  // head and an eye; a spear is a socket and a shaft; a helm is raised from
+  // sheet, which is real work; a sword wants an edge and a fuller; a maul is a
+  // heavy head to haft true; a plate is the most metal and the most shaping in
+  // the range.
+  //
+  // The orders differ between the metals and that is right: in each, the entry
+  // is whatever is CHEAPEST to make, and in star that is the helm while in
+  // bronze it is the dagger.
+  'bronze-dagger': { smithing: 1 }, 'bronze-hatchet': { smithing: 1 },
+  'bronze-pickaxe': { smithing: 1 }, 'bronze-spear': { smithing: 5 },
+  'bronze-helm': { smithing: 7 }, 'bronze-sword': { smithing: 10 },
+  'bronze-maul': { smithing: 14 }, 'bronze-plate': { smithing: 20 },
   // THE TOOLS A CITIZEN ACTUALLY USES, in the metal everything else comes in.
   //
   // Every other star thing exists and the two a working citizen holds all day
@@ -1374,14 +1473,41 @@ const XP_SMITH_PER_ORE = 30;
 // what a recipe teaches when it is not made of ore. A bow bound at the forge
 // is bench work rather than smelting, so it pays less than the metal would.
 const XP_SMITH_FLAT = { 'sigil-bow': 40, 'heartwood-bow': 40 };
+// AND WHAT MAGIC-STONE TEACHES, which was nothing at all.
+//
+// Experience counted ore and only ore, so a star helm -- smithing 40, magic
+// 20, two stones carried out of the Wilds -- paid THIRTY, exactly what a
+// bronze dagger pays at smithing 1. The hardest, rarest, most gated work in
+// the world taught the same as the easiest.
+//
+// A stone is worth twice an ore at the anvil: it is the harder metal, it is
+// mined at seventy where ore is mined at one, and it comes from the only
+// country that kills people.
+const XP_SMITH_PER_STONE = 60;
 function XP_SMITH_FOR(recipe, r) {
   const flat = XP_SMITH_FLAT[recipe];
   if (flat !== undefined) return flat;
   const ore = r && Number.isFinite(r.ore) ? r.ore : 0;
-  return XP_SMITH_PER_ORE * ore;
+  const stone = r && Number.isFinite(r['magic-stone']) ? r['magic-stone'] : 0;
+  return XP_SMITH_PER_ORE * ore + XP_SMITH_PER_STONE * stone;
 }
 const XP_FIREMAKING = 40;
 const XP_BURY = 25;
+// AND WHAT CONSECRATED GROUND PAYS. A quarter more, and the number is chosen
+// so that the monastery stays a DECISION.
+//
+// Prayer is bone-bound, not tick-bound: burying is one input an interval, so
+// what limits it is that bones only exist where beasts die -- perhaps sixteen
+// intervals of hunting for each. Against that the walk to a monastery is
+// small, twenty-four bones to a pack and two walks a trip. Which means a
+// generous bonus would be worth making from anywhere on the island, and the
+// monastery would stop being a choice and become a chore everybody performs.
+//
+// At thirty-one the walk pays for itself out to about fifty tiles. Hunt the
+// Downs and it is worth carrying your bones in; hunt the Wilds and it is not.
+// Where you hunt stays the question, which is the kind of question this world
+// is good at.
+const XP_BURY_CONSECRATED = 31;
 const FIRE_TICKS = 100;
 const SLEEP_AFTER = 500;
 function isAwake(p, tick) {
@@ -2535,13 +2661,18 @@ const LANDMARK_KINDS = new Set([
       // that the map tells the truth. The kind names what stands there.
       // A STALL BEARS ONE TOO, and means something different by it: a
       // landmark's kind is what stands there, a stall's is what it sells.
-      if (n.type === 'stall' || n.type === 'keeper') {
-        // A STALL'S KIND IS WHAT IT SELLS; A KEEPER'S IS WHAT THEY KEEP.
-        //
-        // The keeper behind a counter is not generic furniture -- they are the
-        // armourer, or the seedsman, and a window should be able to dress them
-        // for it without guessing from what happens to stand next to them.
+      if (n.type === 'stall') {
         if (!STALL_KINDS.includes(n.kind)) return 'unknown trade';
+      } else if (n.type === 'keeper') {
+        // A KEEPER'S KIND IS WHAT THEY DO, and "keeper" is not a thing anybody
+        // does. Fifty-nine of them stood about this island under one word --
+        // beside the bank, beside the counter, in the delving, at the sheepfolds
+        // -- and a window could say nothing better than "Keeper." Which is how
+        // a hand-drawn world comes to read as a generated one.
+        //
+        // The roles are not invented here: they are read off what each already
+        // stands next to and what their own id already called them.
+        if (!KEEPER_KINDS.includes(n.kind)) return 'unknown calling';
       } else {
         if (n.type !== 'landmark') return 'only a landmark or a stall bears a kind';
         if (!LANDMARK_KINDS.has(n.kind)) return `unknown landmark kind ${n.kind}`;
@@ -3151,7 +3282,15 @@ function validInput(state, input, ctx) {
       if (p.hp <= 0) return false;
       if (effLevel(p.skills.magic) < ALCH_REQ) return false;
       const slot = p.inventory?.[input.slot];
-      if (!slot || !alchValue(slot.item)) return false;
+      // A PRICED GOOD, NOT A PAYING ONE.
+      //
+      // This asked `alchValue(...)` and took nought for no -- so the two goods
+      // that pay nothing, an arrow and a burnt fish, could not be transmuted at
+      // all. The constitution says the opposite in as many words: an arrow "is
+      // unmade for the practice, which is the honest worth of unmaking an
+      // arrow". Whether a thing has a price is the question; what that price
+      // comes to is the answer.
+      if (!slot || !(slot.item in PRICES)) return false;
       if (state.tick - (p.lastAlch ?? -99) < alchEveryFor(p)) return false;
       return true;
     }
@@ -3520,16 +3659,20 @@ function countOwnedNodes(state, ctx, type, owner) { // how many of `type` this c
 // they held, in the pack or in their hands. Unpriced things -- the old chain,
 // a dragonbow, a sigil, a chart -- are never kept, at any level.
 function prayerKeeps(p) {
-  if (!p || effLevel(p.skills?.prayer ?? 0) < PRAYER_KEEP) return null;
-  let best = null, bestVal = 0;
+  const lv = effLevel(p?.skills?.prayer ?? 0);
+  if (!p || lv < PRAYER_KEEP) return [];
+  const want = lv >= PRAYER_KEEP_TWO ? 2 : 1;
+  const all = [];
   const consider = (sl) => {
     if (!sl) return;
     const v = PRICES[sl.item] ?? 0;
-    if (v > bestVal) { bestVal = v; best = { item: sl.item, qty: sl.qty ?? 1 }; }
+    if (v > 0) all.push({ v, item: sl.item, qty: sl.qty ?? 1 });
   };
   for (const sl of p.inventory ?? []) consider(sl);
   for (const g of ['weapon', 'head', 'body']) consider(p.equipment?.[g]);
-  return best;
+  // dearest first, and ties broken by name so every node keeps the same things
+  all.sort((a, b) => b.v - a.v || (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
+  return all.slice(0, want).map(({ item, qty }) => ({ item, qty }));
 }
 function blockingNodeAt(state, ctx, x, y) { // movement rule: player-built nodes are walkable
   if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.values(state.nodes).some(n => n.x === x && n.y === y && !_WALKABLE_BUILT.has(n.type)); }
@@ -3804,6 +3947,41 @@ function nextState(state, inputs, _legacyBeacon) {
     if (m.hp <= 0 && m.respawnAt <= s.tick) {
       m.hp = MOB_STATS[m.type].maxHp;
       m.x = m.hx; m.y = m.hy; // the dead come back where they belong
+      // §6w: A DRAGON COMES BACK WITH ITS BOW.
+      //
+      // The bow used to be kept for as long as its bearer kept logging in, and
+      // taken away only if they were absent six hours. Two things were wrong
+      // with that. It punished sleep -- a citizen went to bed holding the
+      // finest thing in the world and woke without it, which reads as a bug
+      // however correct it is. And it was a clock anyway, just a clock that
+      // only some people were on.
+      //
+      // Now the bow lives exactly as long as the dragon is dead. It falls when
+      // the dragon falls and goes home when the dragon rises, six hours later,
+      // wherever it is and whoever holds it.
+      //
+      // This answers the objection the old rule was written against -- "if it
+      // rots on a clock, nobody needs to hunt the holder, they just wait."
+      // Waiting does not get you the bow. It gets you a four-hundred-and-
+      // twenty hitpoint dragon that hits for twenty-eight, standing between
+      // you and the bow exactly as it did the first time. The clock hands it
+      // back to the DRAGON, never to the patient.
+      //
+      // And it makes the six hours a possession rather than a punishment: it
+      // is yours, it is running out, use it.
+      if (m.type === 'dragon' && s.bowOut) {
+        s.bowOut = false;
+        let taken = false;
+        for (const pid2 of Object.keys(s.players).sort()) {
+          const q = s.players[pid2];
+          if (q.equipment?.weapon?.item === 'dragonbow') { q.equipment.weapon = null; taken = true; }
+          for (let i = 0; i < (q.inventory?.length ?? 0); i++)
+            if (q.inventory[i]?.item === 'dragonbow') { q.inventory[i] = null; taken = true; }
+        }
+        for (const gid2 of Object.keys(s.ground).sort())
+          if (s.ground[gid2].item === 'dragonbow') { delete s.ground[gid2]; taken = true; }
+        if (taken) announce(s, 'The DRAGON has risen, and taken back its BOW.');
+      }
     }
   }
   // wandering (spec §3.3): the beacon paces the goblins, identically everywhere
@@ -4121,7 +4299,7 @@ function nextState(state, inputs, _legacyBeacon) {
             const kept9 = prayerKeeps(target);
             target.inventory = Array(INV_SLOTS).fill(null);
             target.equipment = { weapon: null, head: null, body: null };
-            if (kept9) target.inventory[0] = kept9;
+            kept9.forEach((k, i) => { target.inventory[i] = k; });
             target.action = null;
             target.trade = null;
             target.deadUntil = s.tick + DEATH_TICKS;
@@ -4322,9 +4500,24 @@ function nextState(state, inputs, _legacyBeacon) {
       // node on disk; the world keeps only the proof that it was so.
       const subj = s.players[inp.subject];
       if (!subj) continue;
-      // §6w: an archived citizen takes their pack with them, so the bow goes
-      // home rather than out of the world for as long as they stay away
-      if (_carriesBow(subj)) { s.bowOut = false; announce(s, 'The DRAGONBOW has gone back to the Wilds.'); }
+      // §6w: THE BOW DOES NOT GO ON THE SHELF WITH THEM.
+      //
+      // This cleared `bowOut` and archived the citizen UNCHANGED, so their
+      // stored record still held the bow. The dragon was then free to drop
+      // another, somebody took it -- and when the first citizen restored, they
+      // came back carrying theirs. Two dragonbows, in a world whose whole
+      // rule about the thing is that there is one.
+      //
+      // It is the same fault the sweep already fixed for absence and the same
+      // fix: take it off the record before the record is sealed. The
+      // announcement was always true; the code simply did not do it.
+      if (_carriesBow(subj)) {
+        s.bowOut = false;
+        if (subj.equipment?.weapon?.item === 'dragonbow') subj.equipment.weapon = null;
+        for (let i = 0; i < subj.inventory.length; i++)
+          if (subj.inventory[i]?.item === 'dragonbow') subj.inventory[i] = null;
+        announce(s, 'The DRAGONBOW has gone back to the Wilds.');
+      }
       // the slot must be empty under the LIVE root, not the opening one
       const live = s.archiveRoot ?? EMPTY_ROOT;
       if (!_smtProves(live, inp.subject, null, inp.path)) continue;
@@ -4362,7 +4555,8 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'alch') {
       const slot = p.inventory?.[inp.slot];
       const worth = slot ? alchValue(slot.item) : 0;
-      if (worth && (s.tick - (p.lastAlch ?? -99) >= alchEveryFor(p))) {
+      const priced = slot ? (slot.item in PRICES) : false;
+      if (priced && (s.tick - (p.lastAlch ?? -99) >= alchEveryFor(p))) {
         // ONE FROM THE STACK, NEVER THE STACK.
         //
         // This melted the whole slot: a citizen with twenty ale clicked once
@@ -4570,7 +4764,28 @@ function nextState(state, inputs, _legacyBeacon) {
         }
         const lvl9 = effLevel(drawn9 ? p.skills.ranged : p.skills.attack);
         const defL9 = effLevel(q.skills.defence);
-        const maxHit9 = 1 + Math.floor(lvl9 / 10) + (w9.hit ?? 0);
+        // 'far' pays for the distance it crossed: nothing at touching range,
+        // and its whole weight at the end of its reach
+        // 'far' takes the DISTANCE INSTEAD OF the weapon's weight, not as well
+        // as it: at touching range the shot is worse than a dagger, and at the
+        // end of nine tiles it is the hardest blow in the world. Adding the
+        // bow's own hit on top made it strong everywhere, which is the
+        // opposite of the point.
+        const far9 = w9.spec === 'far'
+          ? Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y)) : 0;
+        // AND IT MUST BE DAMAGE-NEUTRAL AT ITS BEST, which is the rule every
+        // other special in this world obeys. A special spends the arm for this
+        // cycle AND the next, so it costs TWO ordinary blows; 'twice' pays two
+        // blows back, 'true' pays certainty, 'now' pays timing. At three
+        // halves the first draft paid twenty where two ordinary shots pay
+        // twenty-eight, so the shot was strictly worse than not using it.
+        //
+        // Five halves: at nine tiles it is worth exactly the two shots it cost,
+        // delivered as ONE blow, and at every distance closer it is a loss.
+        // What an archer buys is not more damage. It is all of it at once, from
+        // further away than anyone can answer.
+        const maxHit9 = 1 + Math.floor(lvl9 / 10)
+          + (w9.spec === 'far' ? Math.floor(Math.max(0, far9 - 1) * 5 / 2) : (w9.hit ?? 0));
         const acc9 = clamp(128 + 4 * (lvl9 - defL9) + (w9.acc ?? 0), 16, 240);
         const blows = w9.spec === 'twice' ? 2 : 1;
         for (let b9 = 0; b9 < blows; b9++) {
@@ -4588,15 +4803,19 @@ function nextState(state, inputs, _legacyBeacon) {
             q.hp = 0;
             // what a mourner carries through, decided BEFORE the pack spills
             const keptQ = prayerKeeps(q);
-            // §2g: the pack spills where they fall, exactly as any PvP death
+            // §2g: the pack spills where they fall, exactly as any PvP death --
+            // except whatever a mourner carries through, which is taken out of
+            // the spill exactly once each
+            const held = keptQ.map((k) => ({ ...k, taken: false }));
             for (const sl of q.inventory) if (sl) {
-              if (keptQ && sl.item === keptQ.item && sl.qty === keptQ.qty) { keptQ.taken = true; continue; }
+              const m9 = held.find((k) => !k.taken && k.item === sl.item && k.qty === (sl.qty ?? 1));
+              if (m9) { m9.taken = true; continue; }
               s.ground['g' + s.tick + '-' + Object.keys(s.ground).length] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
             }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
-            if (keptQ) { delete keptQ.taken; q.inventory[0] = keptQ; }
+            keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null; q.deadUntil = s.tick + DEATH_TICKS;
             break;
           }
@@ -4902,7 +5121,8 @@ function nextState(state, inputs, _legacyBeacon) {
       const sl = p.inventory[inp.slot];
       if (sl && sl.item === 'bones') {
         p.inventory[inp.slot] = null;
-        p.skills.prayer += XP_BURY;
+        p.skills.prayer += hasAdjacentNode(s, _ctx, p, 'ossuary')
+          ? XP_BURY_CONSECRATED : XP_BURY;
       }
     } else if (inp.type === 'deposit') {
       const sl = p.inventory[inp.slot];
@@ -4947,6 +5167,14 @@ function nextState(state, inputs, _legacyBeacon) {
       } else if (onTile && slot !== -1) {
         p.inventory[slot] = { item: g2.item, qty: g2.qty ?? 1 }; // the whole stack, not one of it
         delete s.ground[inp.groundId];
+        // §6w: AND THE WORLD IS TOLD, every time, not only the first.
+        //
+        // The one announcement about the bow fired when the DRAGON fell, which
+        // named the killer while the bow was still lying in the grass. Anyone
+        // else who walked over and took it, and anyone who took it off a body
+        // in the Wilds, changed the world's most important object in silence.
+        if (g2.item === 'dragonbow')
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' has taken up the DRAGONBOW. There is only one.');
       }
     } else if (inp.type === 'eat') {
       const slot = p.inventory[inp.slot];
@@ -5074,14 +5302,18 @@ function nextState(state, inputs, _legacyBeacon) {
             q.hp = 0; // a killing blow that overshoots still leaves a body at nought (v0.53)
             // slain in the Wilds (spec 2g): the pack spills where they fall,
             // and the body lies beside it awhile (v0.41)
+            // what a mourner carries through, decided BEFORE the pack spills
+            const keptQ = prayerKeeps(q);
+            const held = keptQ.map((k) => ({ ...k, taken: false }));
             for (const sl of q.inventory) if (sl) {
+              const m9 = held.find((k) => !k.taken && k.item === sl.item && k.qty === (sl.qty ?? 1));
+              if (m9) { m9.taken = true; continue; }
               s.ground['g' + s.tick + '-' + Object.keys(s.ground).length] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
             }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
-            const keptQ = prayerKeeps(q0snapshot ?? null);
-            if (keptQ) q.inventory[0] = keptQ;
+            keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null;
             q.deadUntil = s.tick + DEATH_TICKS;
           }
@@ -5244,7 +5476,7 @@ function nextState(state, inputs, _legacyBeacon) {
           const bid = 'g' + s.tick + '-dragonbow';
           s.ground[bid] = { item: 'dragonbow', x: m.x, y: m.y, expiresAt: s.tick + 100 };
           s.bowOut = true;
-          announce(s, (p.name ?? pid.slice(0, 6)) + ' has taken the DRAGONBOW. There is only one.');
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' has felled the DRAGON. Its bow lies loose.');
         }
         m.respawnAt = s.tick + stats.respawn;
         p.action = null;
@@ -5437,6 +5669,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // The citizen is NOT forgotten here. They may be somebody, with a name
       // and a bank and a life; they simply do not get to hold the world's one
       // unique object while away from it.
+      // §6w: KEPT, though the dragon's own clock now does most of this work.
+      //
+      // The bow goes home when the dragon rises, six hours after it fell, so
+      // nobody can hold it longer than that whether they are here or not. This
+      // remains for the narrower case the dragon cannot cover: a citizen who
+      // stops coming while the dragon is still down. Without it the bow would
+      // sit in an absent pack for the rest of the window.
       if (_carriesBow(p) && everWasSomebody(p)) {
         s.bowOut = false;
         if (p.equipment?.weapon?.item === 'dragonbow') p.equipment.weapon = null;
@@ -5508,6 +5747,7 @@ module.exports = {
   signPayload, verifyPayload,
   exportIdentity, importIdentity, loadOrCreateIdentity,
   canonical, EMPTY_ROOT, SMT_DEPTH,
+  CALLING_NAMES, KEEPER_KINDS,
   normaliseSource, engineHashOf, declareEngine, engineHash,
   SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

@@ -404,6 +404,168 @@ pack is twenty-odd intervals stood still in open country. Nothing in
 the rules prices this; the tick does. Carry it out, or stand and
 convert.
 
+**There is one dragonbow, and every road out of a citizen's hands
+takes it off them.** Whoever stops holding it gives it back to the
+dragon: they fall to a beast, they fall to a citizen and it spills,
+they drop it and it rots, they are absent six hours, they are swept,
+or they are archived. In every one of those the item is removed as
+well as the flag -- the archive route cleared the flag and sealed the
+record UNCHANGED, so a restored citizen came back carrying a bow the
+dragon had already replaced, and there were two.
+
+**The bow lives exactly as long as the dragon is dead.** It falls when
+the dragon falls and goes home when the dragon rises six hours later,
+wherever it is and whoever holds it. Six hours is a possession, not a
+punishment: it is yours, it is running out, use it.
+
+An earlier rule kept it for as long as its bearer kept logging in and
+took it away only after six hours ABSENT, which punished sleep -- a
+citizen went to bed holding the finest thing in the world and woke
+without it. It was a clock anyway; only some people were on it.
+
+The objection that rule was written against was that a clock lets
+people wait instead of hunt. It does not. Waiting gets you a
+four-hundred-and-twenty hitpoint dragon that hits for twenty-eight,
+standing between you and the bow exactly as it did the first time. The
+clock hands the bow back to the DRAGON, never to the patient -- and
+inside those six hours the only way to take it from a citizen is still
+to take it from a citizen.
+
+**The bow's special is the shot nobody should have made.** The
+dragonbow reaches nine tiles, four further than anything else, and its
+special blow takes the DISTANCE it crossed instead of the weapon's own
+weight. At touching range it is worse than a dagger; at the end of
+nine tiles it is the hardest blow in the world. The reach stops being
+a number in a table and becomes the skill.
+
+It is deliberately a fourth KIND of special and not a fourth copy of
+one: this world's others are two blows (`twice`), off the rhythm
+(`now`) and cannot miss (`true`).
+
+And like all of them it is DAMAGE-NEUTRAL at its best and a loss
+everywhere else. A special spends the arm for this cycle and the next,
+so it costs two ordinary blows; at nine tiles the shot is worth
+exactly the two it cost, and at eight it is already worse. What an
+archer buys is not more damage but all of it at once, from further
+away than anyone can answer.
+
+**The dragon sleeps twelve hours.** Its respawn is the bow's whole
+life, so the number is the one that decides how often the finest thing
+in the world changes hands: twice a day rather than four times. The
+clock runs from the kill and not from a fixed hour, so tenures drift
+across the day by themselves and no timezone owns the dragon.
+
+**Every taking is announced, not only the first.** The world is told
+when the dragon falls, when anyone takes the bow up off the ground or
+off a body, and by which of the six roads it went home.
+
+**Wood only where the wood holds it together, and the hard metal
+teaches.** A hatchet is a head and a haft, a spear a point and a
+shaft, a maul weight on a handle, a crossbow a lock on a stock: take
+the timber away and there is nothing to hold. A helm and a plate are
+beaten out of sheet and a sword is a blade with a tang, so none of the
+three asks for a log -- asking for one to make a breastplate was
+carpentry, and it also made the metals disagree with each other for no
+reason, a star sword needing no wood while a bronze one did.
+
+And smithing experience counts magic-stone at twice an ore. It counted
+ore alone, so a star helm -- smithing forty, magic twenty, two stones
+carried out of the Wilds -- taught THIRTY, exactly what a bronze
+dagger teaches at smithing one. A stone is the harder metal, mined at
+seventy where ore is mined at one, and it comes from the only country
+that kills people.
+
+**Every forged thing asks for a smith.** Both metals have a ladder,
+and both are built on the same two things: the material a piece eats
+and the shaping it needs. Bronze runs dagger and tools 1, spear 5,
+helm 7, sword 10, maul 14, plate 20; star runs helm 40, tools 42,
+sword and dagger 45, spear 46, plate 50, maul 52, and asks magic as
+well. The orders differ between the metals because the entry to each
+is whatever is CHEAPEST to make, and in star that is the helm while in
+bronze it is the dagger.
+
+Bronze had no ladder at all until now -- a citizen of smithing 1 could
+beat out a plate on their first afternoon -- while a window had
+invented one and been refusing work the world would have done.
+
+**Nobody is "a keeper".** A `keeper` node may carry a `kind`, and it
+is what that person does: banker, merchant, sawyer, shepherd, delver,
+miller, quarrier, watchman, wizard, fisher, brewer, innkeeper,
+collier, drover, beekeeper, mourner, or one of the six trades a stall
+keeps. Fifty-nine people stood about this island under one word, and a
+window could say nothing better than "Keeper" about any of them --
+which is how a world made by hand comes to read as one made by a
+machine.
+
+None of them was invented. A calling is read off what a person already
+stands beside and off what their own id already called them: the bank
+has bankers because there is a bank there, and `kpr-fold-shep` was
+always a shepherd, in a name somebody chose years ago and then threw
+away at the door.
+
+A keeper may also carry NO calling, and fifteen do. They live in a
+house, and a house is not a job.
+
+**The monastery, and consecrated ground.** Prayer was the only skill
+with nowhere to go: a woodcutter has the Greenwood, a miner the Wilds,
+a fisher the water, and a mourner had a verb and buried wherever their
+feet happened to be. There is an `ossuary` on the Downs, in a walled
+precinct with a hearth, a well, a mourner and standing stones outside
+it. Bones buried beside it pay THIRTY-ONE where a field pays
+twenty-five.
+
+The quarter is chosen so the place stays a decision. Prayer is
+bone-bound, not tick-bound -- burying is one input an interval, so
+what limits it is that bones exist only where beasts die, perhaps
+sixteen intervals of hunting each -- and against that a walk is small.
+A generous bonus would be worth making from anywhere on the island and
+the monastery would stop being a choice and become a chore everybody
+performs. At thirty-one the walk pays for itself out to about fifty
+tiles: hunt the Downs and it is worth carrying your bones in, hunt the
+Wilds and it is not.
+
+It stands FORTY-TWO TILES FROM THE NEAREST BANK, and that is a rule
+about siting rather than an accident. Bones do not stack, so a bank
+beside the ossuary would make the walk a one-time cost and the bonus a
+flat multiplier, and the decision would vanish.
+
+**And at prayer ninety-nine, TWO things survive.** The same rule
+deeper rather than a new power: at seventy the dearest priced thing a
+citizen carries comes home, at ninety-nine the two dearest do. Still
+only priced things, so the old chain, a dragonbow, a sigil and a chart
+are exactly as losable at ninety-nine as at one.
+
+**A brewhouse is not world furniture.** `brewpot` carries `by`, the
+citizen who raised it, so the generator cannot place one and does not
+try: brewing is the single trade whose premises a CITIZEN builds, in a
+house they have made their own. The Lantern has a hearth and an
+innkeeper; whether it ever has a pot is somebody's business and not
+the generator's. The world holding none is the rule working, not a
+thing left undone.
+
+**Every keeper carries a name, and every window says the same words.**
+A citizen looking at somebody reads `Name, the calling` -- "Rosamund,
+the banker", "Oberon, the wizard" -- and for somebody with no calling,
+the name alone. The names have been on the nodes since the fourth
+founding; no window looked at them, and each said "Keeper" instead.
+
+The wording of a calling is fixed HERE, in `CALLING_NAMES`, and not in
+any window's private table. It is not a rule about the world in the
+way a price is, but it is a rule about the world's NAME for a thing,
+and a citizen's name for their neighbour should not depend on which
+door they came in by. A window that renders different words is wrong
+on the same terms as one that draws the Fens in the wrong place.
+
+**A rampart is not a house wall.** `rampart` is the node a fortified
+town is built of: it blocks exactly as a `wall` does, nothing is
+walkable about it, and it carries no roof. The town drawings have
+always told the two apart -- `%` for a town's outer work, `#` for a
+building -- and the legend flattened both, so four hundred and
+seventy-eight tiles of curtain across Anchor, Norwick, Thornbury and
+Cragfoot stood as domestic masonry. Nothing about movement changes.
+What changes is that a citizen can tell a wall they live behind from a
+wall they shelter behind.
+
 **A harmless creature may still come at you.** Beasts only set about a
 citizen in the Wilds, the Crags and the Moor -- the settled country
 does not hunt anybody. That rule exists to keep people safe, so it

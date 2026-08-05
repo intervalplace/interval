@@ -2006,14 +2006,21 @@ function terrainOf(x, y) {
 // The engine builds its set as every smithing recipe plus the four things
 // that are not smithed. This is that, spelled out, and it is checked against
 // the engine by check-equip.mjs so it cannot drift again.
+// WHAT MAY BE TAKEN UP. The engine builds this from RECIPES plus the things
+// that are fletched rather than forged; a window has no RECIPES, so it must
+// carry the list -- and a hand-kept second copy of an engine table drifts.
+// This one had: the staff, the heartwood staff, the wand and BOTH star tools
+// could be made and then not held, so a citizen fletched a staff and the pack
+// offered them nothing but Drop it and Transmute.
+//
+// Checked against the engine at build time, the same way PRICES is.
 const EQUIPPABLE = new Set([
-  'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-maul',
-  'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
-  'star-sword', 'star-dagger', 'star-spear', 'star-maul',
-  'star-helm', 'star-plate',
-  'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow',
-  'old-chain', 'dragonbow',
-  'star-flail',
+  'bronze-dagger', 'bronze-hatchet', 'bronze-helm', 'bronze-maul',
+  'bronze-pickaxe', 'bronze-plate', 'bronze-spear', 'bronze-sword',
+  'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
+  'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
+  'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
+  'star-spear', 'star-sword', 'wand', 'wooden-bow',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -3651,6 +3658,81 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     g.restore()
     return
   }
+  if (item === 'dragonbow') {
+    // THE ONE BOW. It drew as any other bow in a different colour, which is a
+    // poor showing for the only unique object in the world and the longest
+    // reach in it by four tiles.
+    //
+    // A great recurve: half again the stave of a longbow, limbs that turn back
+    // on themselves at the tips the way a horn bow does, a grip bound in wire,
+    // and an ember in the belly that has never gone out. The recurve is not
+    // decoration -- it is WHY it reaches nine, and it should be visible that
+    // this is a different machine from a cut sapling.
+    const d = clamp(drawAmt ?? 0, 0, 1)
+    const px = -Math.sin(a), py = Math.cos(a)
+    const L = (30 + d * 2) * s                    // a great bow: half again a longbow
+    const fwd = (11 - d * 7) * s
+    const back = 4 * s
+    const tip = (sgn) => {
+      const bx = hx + px * L * sgn - Math.cos(a) * back
+      const by = hy + py * L * sgn - Math.sin(a) * back
+      return [bx, by]
+    }
+    const [tAx, tAy] = tip(1), [tBx, tBy] = tip(-1)
+    const cx2 = hx + Math.cos(a) * fwd, cy2 = hy + Math.sin(a) * fwd
+    // the recurve: each limb sweeps forward, then the last of it turns back
+    const limb = (tx, ty, sgn, w, col) => {
+      g.strokeStyle = col; g.lineWidth = w; g.lineCap = 'round'
+      g.beginPath()
+      g.moveTo(hx, hy)
+      g.quadraticCurveTo(cx2 + px * L * .55 * sgn, cy2 + py * L * .55 * sgn, tx, ty)
+      g.stroke()
+      // the turned-back tip
+      g.beginPath()
+      g.moveTo(tx, ty)
+      g.quadraticCurveTo(tx - Math.cos(a) * 5 * s, ty - Math.sin(a) * 5 * s,
+        tx - Math.cos(a) * 3 * s + px * 4 * s * sgn, ty - Math.sin(a) * 3 * s + py * 4 * s * sgn)
+      g.stroke()
+    }
+    limb(tAx, tAy, 1, 3.4 * s, m[0]); limb(tBx, tBy, -1, 3.4 * s, m[0])
+    limb(tAx, tAy, 1, 1.3 * s, m[1]); limb(tBx, tBy, -1, 1.3 * s, m[1])
+    // the ember in the belly, breathing
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const pulse = .5 + Math.sin(performance.now() / 620) * .22
+    const eg = g.createRadialGradient(cx2, cy2, 0, cx2, cy2, 13 * s)
+    eg.addColorStop(0, 'rgba(255,138,74,' + (.4 * pulse).toFixed(3) + ')')
+    eg.addColorStop(1, 'rgba(255,138,74,0)')
+    g.fillStyle = eg
+    g.beginPath(); g.arc(cx2, cy2, 13 * s, 0, 7); g.fill(); g.restore()
+    // the grip, bound in wire
+    g.strokeStyle = '#2a2018'; g.lineWidth = 4.4 * s
+    g.beginPath()
+    g.moveTo(hx + px * 4 * s + Math.cos(a) * fwd * .82, hy + py * 4 * s + Math.sin(a) * fwd * .82)
+    g.lineTo(hx - px * 4 * s + Math.cos(a) * fwd * .82, hy - py * 4 * s + Math.sin(a) * fwd * .82)
+    g.stroke()
+    g.strokeStyle = 'rgba(214,182,120,.5)'; g.lineWidth = .8 * s
+    for (let i2 = -3; i2 <= 3; i2 += 2) {
+      g.beginPath()
+      g.moveTo(hx + px * i2 * s + Math.cos(a) * (fwd * .82 - 2 * s),
+        hy + py * i2 * s + Math.sin(a) * (fwd * .82 - 2 * s))
+      g.lineTo(hx + px * (i2 + 1) * s + Math.cos(a) * (fwd * .82 + 2 * s),
+        hy + py * (i2 + 1) * s + Math.sin(a) * (fwd * .82 + 2 * s))
+      g.stroke()
+    }
+    // the string, tip to tip, and the shaft on it
+    const nx = hx - Math.cos(a) * (back + d * 16 * s), ny = hy - Math.sin(a) * (back + d * 16 * s)
+    g.strokeStyle = 'rgba(244,226,196,.8)'; g.lineWidth = 1.2
+    g.beginPath(); g.moveTo(tAx, tAy); g.lineTo(nx, ny); g.lineTo(tBx, tBy); g.stroke()
+    if (d > .06) {
+      const sx2 = nx + Math.cos(a) * 34 * s, sy2 = ny + Math.sin(a) * 34 * s
+      g.strokeStyle = '#2e2418'; g.lineWidth = 1.7 * s
+      g.beginPath(); g.moveTo(nx, ny); g.lineTo(sx2, sy2); g.stroke()
+      poly(g, [[sx2 + Math.cos(a) * 6 * s, sy2 + Math.sin(a) * 6 * s],
+               [sx2 - Math.sin(a) * 2.6 * s, sy2 + Math.cos(a) * 2.6 * s],
+               [sx2 + Math.sin(a) * 2.6 * s, sy2 - Math.cos(a) * 2.6 * s]], m[1])
+    }
+    return
+  }
   if (/bow/.test(item)) {
     // A BOW IS HELD BY THE GRIP.
     //
@@ -4901,6 +4983,23 @@ function itemIcon(item) {
       g.strokeStyle = '#2a4a1e'; g.lineWidth = 1
       g.beginPath(); g.moveTo(cx - 3, cy - 2); g.lineTo(cx + 5, cy - 6); g.stroke()
       return }
+    if (item === 'dragonbow') {
+      // the same machine, small: a recurve and the ember
+      g.strokeStyle = METAL.dragon[0]; g.lineWidth = 2.6; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(cx - 2, cy - 12)
+      g.quadraticCurveTo(cx + 8, cy, cx - 2, cy + 12); g.stroke()
+      g.strokeStyle = METAL.dragon[1]; g.lineWidth = 1
+      g.beginPath(); g.moveTo(cx - 2, cy - 12)
+      g.quadraticCurveTo(cx + 7, cy, cx - 2, cy + 12); g.stroke()
+      g.strokeStyle = METAL.dragon[0]; g.lineWidth = 2
+      g.beginPath(); g.moveTo(cx - 2, cy - 12); g.quadraticCurveTo(cx - 6, cy - 13, cx - 5, cy - 9); g.stroke()
+      g.beginPath(); g.moveTo(cx - 2, cy + 12); g.quadraticCurveTo(cx - 6, cy + 13, cx - 5, cy + 9); g.stroke()
+      g.strokeStyle = 'rgba(244,226,196,.75)'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(cx - 2, cy - 12); g.lineTo(cx - 2, cy + 12); g.stroke()
+      g.save(); g.globalCompositeOperation = 'lighter'
+      g.fillStyle = 'rgba(255,138,74,.45)'
+      g.beginPath(); g.arc(cx + 5, cy, 5, 0, 7); g.fill(); g.restore()
+      return }
     if (item === 'wand') {
       // short, bound, with a pale tip -- the same thing the hand holds, small
       g.strokeStyle = '#4a3a22'; g.lineWidth = 2.4
@@ -5303,6 +5402,42 @@ const STALL_STOCK = {
 
 // WHAT EACH TRADE WEARS. An apron in the trade's own stuff, the tool they use
 // all day in their hand, and hair that has been in that work a long time.
+// WHAT EACH CALLING WEARS, and what it is CALLED.
+//
+// The wording is not this window's to choose: it is CALLING_NAMES in the
+// engine, copied here byte for byte the way PRICES is, because a citizen's
+// name for their neighbour must not depend on which door they came in by.
+// audit-tables.mjs compares the strings, not merely the keys.
+//
+// The dress IS this window's: a banker in a clerk's dark coat, a merchant in
+// good cloth, a miller white with flour, a collier black with charcoal.
+const CALLING_NAME = {
+  lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
+  armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
+  banker: 'the banker', merchant: 'the merchant', sawyer: 'the sawyer',
+  shepherd: 'the shepherd', delver: 'the delver', miller: 'the miller',
+  quarrier: 'the quarrier', watchman: 'the watchman', wizard: 'the wizard',
+  fisher: 'the fisher', brewer: 'the brewer', mourner: 'the mourner',
+  innkeeper: 'the innkeeper', collier: 'the collier', drover: 'the drover',
+  beekeeper: 'the beekeeper',
+}
+const CALLING_LINE = {
+  banker: 'She keeps the ledger, and the vault behind it.',
+  merchant: 'He buys what you carry in and sells it to whoever wants it next.',
+  sawyer: 'He turns standing timber into boards, and the pile grows all day.',
+  shepherd: 'She counts them twice, and is right the second time.',
+  delver: 'He has been down there since before the road came.',
+  miller: 'The stones turn whether or not there is anything to grind.',
+  quarrier: 'He knows which way the rock wants to break.',
+  watchman: 'He watches the road west, which is the one that matters.',
+  wizard: 'He was here before the stones were, and says so often.',
+  fisher: 'She sets the eel traps at dusk and lifts them before light.',
+  brewer: 'The mash is on. It is always on.',
+  innkeeper: 'She has a room, and an opinion about the road you came in on.',
+  collier: 'He burns the stack slow, and sleeps beside it so it stays slow.',
+  drover: 'He walks them down the old road twice a year and knows every gate.',
+  beekeeper: 'He works bare-handed and has not been stung since he was young.',
+}
 const TRADE_DRESS = {
   lumber: { tunic: '#3d4a2e', apron: '#5a4a2c', hair: '#4a3524', tool: 'bronze-hatchet' },
   delve:  { tunic: '#3a3a42', apron: '#4a4a52', hair: '#2a1f16', tool: 'bronze-pickaxe' },
@@ -5310,6 +5445,52 @@ const TRADE_DRESS = {
   armour: { tunic: '#3a3228', apron: '#57493a', hair: '#6b4a2a', tool: null },
   bows:   { tunic: '#44412a', apron: '#5a4a22', hair: '#8a6a34', tool: 'wooden-bow' },
   seed:   { tunic: '#4a4428', apron: '#7a6a38', hair: '#b08a4a', tool: null },
+  banker:    { tunic: '#23262e', apron: null,      hair: '#2a2018', tool: null },
+  merchant:  { tunic: '#3a2a40', apron: null,      hair: '#4a3524', tool: null },
+  sawyer:    { tunic: '#3d4a2e', apron: '#6a5a34', hair: '#6b4a2a', tool: 'bronze-hatchet' },
+  shepherd:  { tunic: '#4a4636', apron: null,      hair: '#8a6a34', tool: 'staff' },
+  delver:    { tunic: '#3a3a42', apron: '#4a4a52', hair: '#2a1f16', tool: 'bronze-pickaxe' },
+  miller:    { tunic: '#5a5648', apron: '#b8b2a0', hair: '#7a6a4a', tool: null },
+  quarrier:  { tunic: '#46443e', apron: '#57544a', hair: '#2a1f16', tool: 'bronze-pickaxe' },
+  watchman:  { tunic: '#33323a', apron: null,      hair: '#3a2c1e', tool: 'bronze-spear' },
+  wizard:    { tunic: '#2c2a44', apron: null,      hair: '#b9b4a8', tool: 'staff' },
+  fisher:    { tunic: '#2e3e42', apron: '#4a5a4e', hair: '#4a3524', tool: null },
+  brewer:    { tunic: '#4a3a2a', apron: '#6a5a42', hair: '#6b4a2a', tool: null },
+  innkeeper: { tunic: '#4a3436', apron: '#7a6a58', hair: '#5a3a24', tool: null },
+  collier:   { tunic: '#26242a', apron: '#33313a', hair: '#1e1a16', tool: null },
+  drover:    { tunic: '#443a2c', apron: null,      hair: '#5a4630', tool: 'staff' },
+  beekeeper: { tunic: '#6a6250', apron: '#cfc8b4', hair: '#5a4630', tool: null },
+  // the mourner: nobody in the world is placed as one yet, but the calling is
+  // legal, and a calling the engine will accept must be one this window can
+  // dress -- a name with no clothes is how the next person's world breaks
+  mourner:   { tunic: '#2a2a30', apron: null,      hair: '#8a8478', tool: null },
+}
+
+// A NAME FOR SOMEBODY WHO IS JUST SOMEBODY.
+//
+// Fifteen people live in houses and do no particular job, and the window used
+// to call each of them "Keeper" -- which is worse than calling them nothing,
+// because it says the world ran out of ideas. They are not keepers. They live
+// there.
+//
+// The name is drawn deterministically from where they stand, so every window
+// agrees and the same neighbour is the same neighbour forever. The syllables
+// are English village stock on purpose: nobody in Tallyholm should be called
+// something a generator would pick.
+const _RN_A = ['Ald', 'Bram', 'Cob', 'Dun', 'Ed', 'Far', 'Gil', 'Hal', 'Ing',
+               'Jos', 'Ket', 'Lem', 'Mar', 'Ned', 'Orm', 'Pen', 'Quen', 'Rid',
+               'Sam', 'Tam', 'Ulf', 'Ver', 'Wen', 'Yar']
+const _RN_B = ['', '', 'a', 'e', 'wy', 'i', 'ou', 'y']
+const _RN_C = ['bury', 'den', 'ett', 'ford', 'gar', 'ham', 'kin', 'ley', 'mer',
+               'nell', 'ott', 'ric', 'sey', 'ton', 'ward', 'wick']
+function residentName(n) {
+  // >>> throughout: a signed shift on anything past two-to-the-thirty-first
+  // comes back negative, and a negative index reads `undefined`, so half the
+  // island was called Samundefinedundefined.
+  const u = (((n.x | 0) * 73856093) ^ ((n.y | 0) * 19349663)) >>> 0
+  return _RN_A[u % _RN_A.length]
+    + _RN_B[(u >>> 5) % _RN_B.length]
+    + _RN_C[(u >>> 9) % _RN_C.length]
 }
 // ===========================================================================
 // THE FORTY PLACES
@@ -6711,7 +6892,9 @@ function doorSwing(key, want, t) {
 // everybody sees one.
 function roofHint(x, y) {
   const k = nodeKindAt.get(x + ',' + y)
-  if (k !== 'wall' && k !== 'rampart') return 0
+  // NOTHING LIVES BEHIND A CURTAIN WALL, so it oversails nothing. Eaves on a
+  // rampart would put a roofline on a battlement.
+  if (k !== 'wall') return 0
   // which way is the inside? the side with floor on it
   let inside = 0
   const fl = (a, b) => { const t2 = terrainOf(a, b); return t2 === 'floor' || t2 === 'inn'
@@ -7090,7 +7273,77 @@ function drawNode(g, n, sx, sy, t, hot) {
       g.restore()
       return
     }
-    case 'wall': case 'rampart':
+    case 'ossuary': {
+      // THE BONE-HOUSE. A low stone chest under a slab, older than the
+      // precinct round it, with the names of the mourned cut into the lid
+      // where the weather has been getting at them for a long time.
+      g.drawImage(sprite('ossuary' + (hs & 1), 92, 88, (gg, W2, H2) => {
+        const c2 = W2 / 2, b = H2 - 10
+        groundShadow(gg, c2 + 5, b - 2, 30, 12, .55)
+        // the chest
+        poly(gg, [[c2 - 28, b - 10], [c2, b - 23], [c2 + 28, b - 10], [c2, b + 3]], '#6d675b')
+        poly(gg, [[c2 - 28, b - 10], [c2, b + 3], [c2, b + 12], [c2 - 28, b - 1]], '#43403a')
+        poly(gg, [[c2, b + 3], [c2 + 28, b - 10], [c2 + 28, b - 1], [c2, b + 12]], '#332f2b')
+        // the slab over it, oversailing a little
+        poly(gg, [[c2 - 31, b - 13], [c2, b - 27], [c2 + 31, b - 13], [c2, b + 1]], '#7d776a')
+        poly(gg, [[c2 - 31, b - 13], [c2, b + 1], [c2, b + 4], [c2 - 31, b - 10]], '#54504a')
+        poly(gg, [[c2, b + 1], [c2 + 31, b - 13], [c2 + 31, b - 10], [c2, b + 4]], '#413d38')
+        // names cut into the lid, weathered to nearly nothing
+        gg.strokeStyle = 'rgba(30,26,22,.34)'; gg.lineWidth = 1
+        for (let i2 = 0; i2 < 5; i2++) {
+          const t2 = (i2 + 1) / 6
+          gg.beginPath()
+          gg.moveTo(c2 - 31 + t2 * 31 + 5, b - 13 - t2 * 14 + 3)
+          gg.lineTo(c2 + t2 * 31 - 5, b + 1 - t2 * 14 + 3); gg.stroke()
+        }
+        // and the cold coming off it
+        gg.save(); gg.globalCompositeOperation = 'lighter'
+        const og = gg.createRadialGradient(c2, b - 14, 0, c2, b - 14, 30)
+        og.addColorStop(0, 'rgba(150,170,190,.10)'); og.addColorStop(1, 'rgba(150,170,190,0)')
+        gg.fillStyle = og
+        gg.beginPath(); gg.arc(c2, b - 14, 30, 0, 7); gg.fill(); gg.restore()
+      }), sx - 46, sy - 88 + 26)
+      return
+    }
+    case 'rampart': {
+      // A CURTAIN WALL, and it should read as one from across a field.
+      //
+      // Half again the height of a house wall, dressed stone in courses rather
+      // than timber and plaster, battlemented along the top, and battered --
+      // thicker at the foot than at the head, the way anything built to be
+      // shoved against is. No eaves: nothing lives behind it.
+      const rs = (n.x * 31 + n.y * 17) & 3
+      g.drawImage(sprite('rampart' + rs, 84, 104, (gg, W2, H2) => {
+        const c2 = W2 / 2, b = H2 - 6
+        groundShadow(gg, c2 + 5, b - 4, 30, 13, .58)
+        const hgt = 46, HW2 = 30, batter = 4
+        // the two faces, battered: the foot stands proud of the head
+        poly(gg, [[c2 - HW2 - batter, b], [c2, b - 15 - batter * .5],
+                  [c2 - HW2, b - hgt], [c2 - HW2, b - 4]], '#5f5a50')
+        poly(gg, [[c2 + HW2 + batter, b], [c2, b - 15 - batter * .5],
+                  [c2 + HW2, b - hgt], [c2 + HW2, b - 4]], '#494540')
+        // the wall-walk, catching the light
+        poly(gg, [[c2 - HW2, b - hgt], [c2, b - hgt - 15],
+                  [c2 + HW2, b - hgt], [c2, b - hgt + 15]], '#6e6960')
+        // courses -- dressed stone, not plaster
+        gg.strokeStyle = 'rgba(24,21,18,.30)'; gg.lineWidth = 1
+        for (let i2 = 1; i2 < 6; i2++) {
+          const yy = b - 4 - (hgt - 4) * (i2 / 6)
+          gg.beginPath()
+          gg.moveTo(c2 - HW2 - batter * (1 - i2 / 6), yy)
+          gg.lineTo(c2, yy + 15); gg.lineTo(c2 + HW2 + batter * (1 - i2 / 6), yy); gg.stroke()
+        }
+        // and the battlements: merlon, gap, merlon
+        for (let i2 = -1; i2 <= 1; i2++) {
+          const mx = c2 + i2 * 17, my = b - hgt - i2 * 8.5
+          poly(gg, [[mx - 7, my - 3.5], [mx, my - 7], [mx + 7, my - 3.5], [mx, my]], '#78736a')
+          poly(gg, [[mx - 7, my - 3.5], [mx, my], [mx, my + 9], [mx - 7, my + 5.5]], '#565149')
+          poly(gg, [[mx, my], [mx + 7, my - 3.5], [mx + 7, my + 5.5], [mx, my + 9]], '#403c36')
+        }
+      }), sx - 42, sy - 104 + 30)
+      return
+    }
+    case 'wall':
       // A BRANDSTONE IS NOT MASONRY. Nine of them stand along the hundred and
       // forty walkable tiles of the Brandline, and they are `wall` nodes
       // because a wall is what the engine had to hand -- so the one border in
@@ -7415,6 +7668,10 @@ function drawNode(g, n, sx, sy, t, hot) {
       // one on a shopkeeper would spend a rare thing to decorate a common one.
       // The badge is the same engraved glyph the cape carries, which ties the
       // two together without borrowing from it.
+      // A CALLING IS WORN. The dress table used to hold only the six stall
+      // trades; everyone else -- banker, miller, collier, wizard -- came out in
+      // the same brown tunic, which is the visual half of everybody being
+      // called "keeper".
       const trade = n.kind && TRADE_DRESS[n.kind] ? n.kind : null
       const dress = trade ? TRADE_DRESS[trade] : null
       humanoid(g, sx, sy, {
@@ -7975,7 +8232,12 @@ function noteDeed(verb) {
 //     'twice'  star-dagger   two blows land in one tick   -> two slashes
 //     'now'    star-maul     it swings whatever your arm says -> a shockwave
 //     'true'   horn-bow      the shot cannot miss         -> a golden tracer
-const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true' }
+// which weapons have a special, mirroring WEAPONS[].spec in the engine. This
+// is a sixth hand-kept copy: the dragonbow's 'far' had to be added here as
+// well or the window would have offered no special on the one weapon in the
+// world whose special is the interesting one.
+const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true',
+                  'dragonbow': 'far' }
 // A blow that lands late carries its own delay rather than living in a
 // setTimeout: a throttled tab drops the timer and the impact never plays, and a
 // value on the effect can be tested where a timer cannot.
@@ -9341,6 +9603,10 @@ const SFX = {
     } else if (kind === 'now') {                // the wind-up, then the floor
       this.tone(200, .30, 'sine', .05, 70)
       setTimeout(() => { this.noise(.30, .22, 180); this.tone(62, .45, 'sawtooth', .16, 34) }, 320)
+    } else if (kind === 'far') {                // a long draw, and a long flight
+      this.tone(140, .34, 'sawtooth', .035, 260)   // the stave bending
+      setTimeout(() => { this.noise(.05, .04, 2600); this.tone(1100, .05, 'triangle', .05, 620) }, 340)
+      setTimeout(() => { this.noise(.10, .16, 900); this.tone(240, .18, 'sine', .07, 90) }, 700)
     } else {                                    // a shot that will not miss
       this.tone(300, .12, 'triangle', .06, 1200)
       setTimeout(() => { this.noise(.08, .07, 2200); this.tone(1480, .2, 'sine', .06, 2400) }, 150)
@@ -9818,8 +10084,13 @@ function drawPanel(g, now) {
     const q = tgt && s?.players?.[tgt]
     const wilds = me && q && inWilds(me.x, me.y) && inWilds(q.x, q.y)
     const ready = !!(kind && q && wilds)
+    // 'far' is the one special whose worth changes tile by tile, so the button
+    // says the distance rather than the name -- there is no point telling an
+    // archer they have a long shot without telling them how long it is.
+    const far = kind === 'far' && q ? Math.max(Math.abs(me.x - q.x), Math.abs(me.y - q.y)) : 0
     const why = !kind ? (wep ? 'no special on this weapon' : 'bare hands')
-      : !q ? 'no citizen targeted' : !wilds ? 'only in the Wilds' : kind
+      : !q ? 'no citizen targeted' : !wilds ? 'only in the Wilds'
+      : kind === 'far' ? (far <= 2 ? 'too close to matter' : far + ' tiles') : kind
     const sx2 = bx0 + 4 * (BS + gap) + gap, sy2 = beltY
     const hot = inRect(mouse, sx2, sy2, BS, BS)
     slotFrame(g, sx2, sy2, BS, hot && ready)
@@ -10037,8 +10308,8 @@ function drawCitizen(g, now) {
 const FORGE = {
   'bronze-dagger': { ore: 1 }, 'bronze-hatchet': { ore: 1, logs: 1 },
   'bronze-pickaxe': { ore: 1, logs: 1 }, 'bronze-spear': { ore: 1, logs: 1 },
-  'bronze-helm': { ore: 1, logs: 1 }, 'bronze-sword': { ore: 2, logs: 1 },
-  'bronze-maul': { ore: 2, logs: 1 }, 'bronze-plate': { ore: 3, logs: 1 },
+  'bronze-helm': { ore: 1 }, 'bronze-sword': { ore: 2 },
+  'bronze-maul': { ore: 2, logs: 1 }, 'bronze-plate': { ore: 3 },
   'crossbow': { ore: 2, logs: 2 }, 'sigil-bow': { 'horn-bow': 1, sigil: 3 },
   'star-hatchet': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-pickaxe': { 'magic-stone': 2, ore: 1, logs: 1 },
@@ -10047,7 +10318,11 @@ const FORGE = {
   'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 }, 'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-plate': { 'magic-stone': 4, ore: 3 },
 }
-// smithing AND magic, exactly as SMITH_REQS has them
+// smithing AND magic, exactly as SMITH_REQS has them -- and no more and no
+// less. This once carried a bronze ladder the engine did not have, so the
+// anvil greyed out work the world would have done; the answer was not to
+// delete the ladder but to put it where a rule belongs. A window may not
+// legislate, but it must report.
 const FORGE_REQ = {
   'bronze-dagger': { smithing: 1 }, 'bronze-hatchet': { smithing: 1 },
   'bronze-pickaxe': { smithing: 1 }, 'bronze-spear': { smithing: 5 },
@@ -10817,8 +11092,29 @@ function lookAt(n) {
     const nm = String(n.tag ?? 'this place').replace(/^./, (c) => c.toUpperCase())
     return 'The arms of ' + nm + '. The town is close.'
   }
+  // NOBODY IS "A KEEPER". They fell through to wordy(type), so a banker, a
+  // shepherd, a wizard and somebody's neighbour all said the same word.
+  if (n.type === 'keeper') {
+    // THEY ALREADY HAD NAMES. Every keeper on this island carries one -- Oberon,
+    // Rosamund, Peronel, Ysolt, Lettice, Wat -- chosen by hand and set on the
+    // node years ago, and this window read `n.type` and said "Keeper." The
+    // names were there the whole time and nothing ever looked at them.
+    //
+    // So: the name first, then what they do. residentName is kept only for a
+    // node that somehow has none, because a person with no name is worse than
+    // a person with a made-up one.
+    const who = n.name || residentName(n)
+    const call = n.kind && CALLING_NAME[n.kind]
+    if (call) {
+      const line = CALLING_LINE[n.kind]
+      return who + ', ' + call + '.' + (line ? ' ' + line : '')
+    }
+    return who + '. They live here.'
+  }
+  if (n.type === 'ossuary') return 'The ossuary. Bones laid here are worth more than bones laid in a field.'
   if (n.type === 'well') return 'A well. Cold, and deep enough that drinking from it sets you right.'
   if (n.type === 'wall') return 'A wall. Somebody built this, course by course.'
+  if (n.type === 'rampart') return 'A curtain wall. Dressed stone, battered at the foot, and old.'
   if (n.type === 'hedge') return 'A hedge, laid and grown thick.'
   if (n.type === 'fence') return 'A fence, of split rails.'
   return wordy(k) + '.'
@@ -10996,11 +11292,15 @@ function buildSlotMenu(px2, py2, i) {
   // format, and the thing a citizen does is transmute one thing into
   // another. It is also simply the right word -- it is what alchemy has
   // always meant.
-  if (alchValue(it)) {
+  // A PRICED GOOD, NOT A PAYING ONE -- the same fault the engine had. Asking
+  // `alchValue(it)` hid the row for the two things that pay nothing, so an
+  // arrow could not be transmuted even for the practice.
+  if (it in PRICES) {
     const ml = XP_TO_LVL(me.skills?.magic ?? 0)
     const paid = alchValue(it)     // one from the stack, never the stack
     items.push({
-      label: ml >= ALCH_REQ ? 'Transmute (' + paid + ' gold)' : 'Transmute (magic ' + ALCH_REQ + ')',
+      label: ml < ALCH_REQ ? 'Transmute (magic ' + ALCH_REQ + ')'
+        : paid > 0 ? 'Transmute (' + paid + ' gold)' : 'Transmute (for the practice)',
       dim: ml < ALCH_REQ,
       run: () => {
         const since = (curState?.tick ?? 0) - (me.lastAlch ?? -99)
