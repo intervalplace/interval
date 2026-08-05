@@ -2158,17 +2158,56 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
-  'wool': 9,
+  'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  // heartwood is worth more than logs, and a deep fish more than a shallow
+  // one: a master's hour should be worth more than a beginner's
+  // HEARTWOOD AT FIFTEEN, not nine.
+  //
+  // Every other trade downstream of a mastery takes about a double: a cook of
+  // eighty turns an eleven-gold deep fish into twenty-two, a smith of fifty
+  // turns ninety-five in materials into two hundred. The fletcher took FOUR
+  // AND A HALF -- three heartwood at nine became a bow worth a hundred and
+  // twenty -- so the value of woodcutting ninety, the longest road in the
+  // world, was being collected by somebody else's trade.
+  //
+  // At fifteen the bow is 120 against 45 of timber, which is a fletcher's
+  // margin rather than a fletcher's windfall, and the woodcutter who spent
+  // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
+  // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
+  //
+  // A star plate was two hundred, which is seven minutes of a beginner's
+  // chopping -- the best armour on the island, needing smithing fifty, magic
+  // thirty and four stones carried out of the Wilds, priced at seven minutes.
+  // The purse fixes what a coin is worth; it does nothing about what a plate
+  // is worth in LOGS, and two hundred was a hundred logs.
+  //
+  // Four and a half times, on everything a master makes. A star plate is now
+  // most of an hour of ordinary work rather than a coffee break, and the
+  // ratios between the star goods are untouched -- they were already sound.
   'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
   'star-spear': 450, 'star-maul': 720,
   'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
+  // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
+  // though every one of them is made by a citizen's work. Seeds at ten so the
+  // seedsman's twenty-two is the usual double; ale and broth by what they
+  // mend, at about two coins a hitpoint, which is where the cooked fish sit.
   'seeds': 10, 'ale': 8, 'broth': 10,
+  // a keeper will take dragon-bones and pays what a curiosity is worth to
+  // somebody who will never see the beast. THREE thousand ordinary bones fetch
+  // six thousand, so five hundred is far under what the thing does: a keeper is
+  // the worst buyer in the world for it and a mourner the best, which is how
+  // every Wilds good in this table is priced.
+  'dragon-bones': 500,
 }
+
+
+
+
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
 // it is the whole of the store's stock: the world sells seeds and nothing
 // else, because everything else is meant to be made or found. A window that
@@ -2333,6 +2372,143 @@ const alchValue = (item) => {
 // mastery yields, for the window's own labelling (spec 2g). The engine decides;
 // this only lets the pack say what a bone will give before you fletch it.
 const ARROWS_PER_BONE = 5, ARROWS_MASTER = 8, ARROW_MASTER = 80
+
+// WHAT A LEVEL BUYS, copied from the engine's skillUnlocks(). Derived there
+// from SMITH_REQS, WIELD_REQS and every named threshold, so a new recipe
+// appears in the guide the day it appears in the world. Checked by
+// audit-window.mjs, because a guide that lies is worse than none.
+const SKILL_UNLOCKS = {
+  woodcutting: [
+    { level: 60, text: "take up the star hatchet" },
+    { level: 90, text: "heartwood from a tree, instead of logs" },
+  ],
+  fishing: [
+    { level: 90, text: "the deep fish, instead of the shallow" },
+  ],
+  mining: [
+    { level: 60, text: "take up the star pickaxe" },
+    { level: 70, text: "the magic-rocks of the Wilds open to your pick" },
+  ],
+  farming: [
+    { level: 90, text: "3 sheaves from a row, instead of 2" },
+  ],
+  cooking: [
+    { level: 80, text: "you may cook the deep fish" },
+  ],
+  fletching: [
+    { level: 80, text: "8 arrows from a bone, instead of 5" },
+    { level: 90, text: "the heartwood bow and the heartwood staff" },
+  ],
+  magic: [
+    { level: 1, text: "transmute: unmake a thing into coin and practice" },
+    { level: 20, text: "forge the star helm" },
+    { level: 20, text: "take up the sigil bow" },
+    { level: 22, text: "forge the star hatchet" },
+    { level: 22, text: "forge the star pickaxe" },
+    { level: 25, text: "forge the sigil bow" },
+    { level: 25, text: "forge the star sword" },
+    { level: 26, text: "forge the star spear" },
+    { level: 28, text: "forge the star dagger" },
+    { level: 29, text: "forge the star flail" },
+    { level: 30, text: "forge the star maul" },
+    { level: 30, text: "forge the star plate" },
+    { level: 50, text: "mend, and a wand may send it to somebody else" },
+    { level: 70, text: "take up the heartwood staff" },
+    { level: 85, text: "still: a fight simply stops" },
+  ],
+  prayer: [
+    { level: 70, text: "the dearest priced thing you carry survives your death" },
+    { level: 99, text: "the two dearest do" },
+  ],
+  smithing: [
+    { level: 1, text: "forge the bronze dagger" },
+    { level: 1, text: "forge the bronze hatchet" },
+    { level: 1, text: "forge the bronze pickaxe" },
+    { level: 5, text: "forge the bronze spear" },
+    { level: 7, text: "forge the bronze helm" },
+    { level: 10, text: "forge the bronze sword" },
+    { level: 12, text: "forge the sigil bow (magic 25)" },
+    { level: 14, text: "forge the bronze maul" },
+    { level: 18, text: "forge the crossbow" },
+    { level: 20, text: "forge the bronze plate" },
+    { level: 40, text: "forge the star helm (magic 20)" },
+    { level: 42, text: "forge the star hatchet (magic 22)" },
+    { level: 42, text: "forge the star pickaxe (magic 22)" },
+    { level: 45, text: "forge the star dagger (magic 28)" },
+    { level: 45, text: "forge the star sword (magic 25)" },
+    { level: 46, text: "forge the star spear (magic 26)" },
+    { level: 50, text: "forge the star flail (magic 29)" },
+    { level: 50, text: "forge the star plate (magic 30)" },
+    { level: 52, text: "forge the star maul (magic 30)" },
+  ],
+  firemaking: [
+    { level: 80, text: "kindle a watchfire, which the whole country can see" },
+  ],
+  brewing: [
+    { level: 90, text: "2 draughts from a pot, instead of 1" },
+  ],
+  exploration: [
+    { level: 90, text: "any rumour yields a chart, to sell to those who would rather not walk" },
+  ],
+  attack: [
+    { level: 30, text: "take up the old chain" },
+    { level: 50, text: "take up the star dagger" },
+    { level: 50, text: "take up the star spear" },
+    { level: 50, text: "take up the star sword" },
+    { level: 55, text: "take up the star flail" },
+    { level: 55, text: "take up the star maul" },
+  ],
+  ranged: [
+    { level: 20, text: "take up the horn bow" },
+    { level: 25, text: "take up the crossbow" },
+    { level: 30, text: "take up the sigil bow" },
+    { level: 40, text: "take up the dragonbow" },
+    { level: 40, text: "take up the heartwood bow" },
+  ],
+  defence: [
+    { level: 45, text: "take up the star helm" },
+    { level: 50, text: "take up the star plate" },
+  ],
+}
+
+// WHAT A THING ASKS BEFORE IT MAY BE HELD, read back out of the guide.
+//
+// This window had no wield table at all: it offered "Wield it" on anything
+// equippable and the engine refused in silence, so a citizen of magic one
+// clicked a heartwood staff and nothing happened, forever, with no word about
+// why. Rather than keep an eighth hand-copied table, the gates are recovered
+// from SKILL_UNLOCKS -- which is already checked against the engine entry by
+// entry -- so they cannot disagree.
+const WIELD_NEEDS = (() => {
+  const out = {}
+  for (const [skill, list] of Object.entries(SKILL_UNLOCKS))
+    for (const u of list) {
+      const m = /^take up the (.+)$/.exec(u.text)
+      if (!m) continue
+      const item = m[1].replace(/ /g, '-')
+      ;(out[item] ??= []).push({ skill, level: u.level })
+    }
+  return out
+})()
+function wieldBlockers(p, item) {
+  return (WIELD_NEEDS[item] ?? []).filter((r) => XP_TO_LVL(p?.skills?.[r.skill] ?? 0) < r.level)
+}
+
+// WHAT A THING IS WORTH FOR SORTING A PILE.
+//
+// PRICES[item] ?? 0 put the DRAGONBOW, the old chain, a sigil and a chart at
+// the BOTTOM of a spilled pack, under a handful of bones -- the four rarest
+// objects in the world, ranked below the commonest, because a keeper does not
+// price them. Unpriced does not mean worthless; for these it means the
+// opposite, which is exactly why no keeper will touch them.
+//
+// Forage is the one unpriced thing that really is worth nothing: it rots in
+// fifty intervals and cannot be carried.
+const WORTHLESS = new Set(['forage'])
+function worthRank(item) {
+  if (WORTHLESS.has(item)) return -1
+  return PRICES[item] ?? 100000
+}
 // ===========================================================================
 // THE WIRE
 // ---------------------------------------------------------------------------
@@ -2446,6 +2622,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
+  : a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }
   : a.do === 'drink' ? { type: 'drink' }
   : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
@@ -3165,7 +3342,7 @@ function humanoid(g, cx, base, o) {
   const cloak = o.cloak, tunic = o.tunic, skin = o.skin ?? '#8d6a4a'
   const lean = o.lean ?? 0, step = o.step ?? 0, swing = o.swing ?? 0
   const bob = Math.sin(step) * 1.6 * s
-    + (o.breath ? Math.sin(o.breath) * .55 * s : 0)
+    + (o.breath ? Math.sin(o.breath) * .55 * (o.breathDeep ?? 1) * s : 0)
   // A POSE, for the deeds that are over in a tick. `crouch` drops the whole
   // body and pitches it forward, which is most of what kneeling, planting,
   // lighting and burying look like from this angle; `pitch` leans without
@@ -3391,10 +3568,17 @@ function humanoid(g, cx, base, o) {
     g.beginPath(); g.arc(lx, ly - 5.4 * s, 2.4 * s, Math.PI, 0); g.stroke()
     poly(g, [[lx - 3.4 * s, ly - 5 * s], [lx + 3.4 * s, ly - 5 * s],
              [lx + 2.6 * s, ly + 4 * s], [lx - 2.6 * s, ly + 4 * s]], '#3a2f1e')
-    g.fillStyle = 'rgba(255,206,120,.95)'
-    g.fillRect(lx - 2.2 * s, ly - 4 * s, 4.4 * s, 7 * s)
-    g.fillStyle = 'rgba(255,246,214,1)'
-    g.fillRect(lx - 1 * s, ly - 2.6 * s, 2 * s, 3.4 * s)
+    // A SLEEPER'S LANTERN BURNS LOW. It is not out -- they will wake -- but the
+    // flame is down to an ember and the white heart of it has gone. In this
+    // window that is the whole tell: no letter over the head, just a light
+    // that has stopped doing any work.
+    const low = o.lanternLow === true
+    g.fillStyle = low ? 'rgba(196,124,52,.55)' : 'rgba(255,206,120,.95)'
+    g.fillRect(lx - 2.2 * s, ly - (low ? 1.6 : 4) * s, 4.4 * s, (low ? 4.4 : 7) * s)
+    if (!low) {
+      g.fillStyle = 'rgba(255,246,214,1)'
+      g.fillRect(lx - 1 * s, ly - 2.6 * s, 2 * s, 3.4 * s)
+    }
     g.fillStyle = '#241c12'
     g.fillRect(lx - 3.8 * s, ly + 3.4 * s, 7.6 * s, 2 * s)
     g.save(); g.globalCompositeOperation = 'lighter'
@@ -5018,6 +5202,19 @@ function itemIcon(item) {
       g.beginPath(); g.ellipse(cx + 1, cy - 4, 5, 2.4, -.5, 0, 7); g.fill()
       g.strokeStyle = '#2a4a1e'; g.lineWidth = 1
       g.beginPath(); g.moveTo(cx - 3, cy - 2); g.lineTo(cx + 5, cy - 6); g.stroke()
+      return }
+    if (item === 'dragon-bones') {
+      // heavier than a goblin's, and darker: a long bone and a great fang
+      g.strokeStyle = '#cfc6ae'; g.lineWidth = 3.2; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(cx - 8, cy + 7); g.lineTo(cx + 7, cy - 6); g.stroke()
+      g.fillStyle = '#e2dac2'
+      for (const [ox, oy] of [[-8, 7], [7, -6]]) {
+        g.beginPath(); g.arc(cx + ox - 1.5, cy + oy, 2.4, 0, 7); g.fill()
+        g.beginPath(); g.arc(cx + ox + 1.5, cy + oy, 2.4, 0, 7); g.fill()
+      }
+      g.fillStyle = '#b9ad90'
+      g.beginPath(); g.moveTo(cx - 2, cy + 9); g.lineTo(cx + 3, cy + 2)
+      g.lineTo(cx + 6, cy + 10); g.closePath(); g.fill()
       return }
     if (item === 'dragonbow') {
       // the same machine, small: a recurve and the ember
@@ -7795,6 +7992,15 @@ function drawGroundItem(g, gi, sx, sy, t) {
 // ---------------------------------------------------------------------------
 // THE CITIZEN
 // ---------------------------------------------------------------------------
+// WHO IS AWAKE. The engine's own test, byte for byte: an action running, or a
+// word from them inside five hundred intervals. Five minutes.
+//
+// This window had no notion of it at all. A citizen who went to bed stood in
+// the road exactly as if they were about to swing, so half of what looked like
+// a busy town was people who had gone to make tea in March.
+const SLEEP_AFTER = 500
+const isAwake = (q, tick) => q.action !== null || tick - (q.lastInput ?? 0) <= SLEEP_AFTER
+
 function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const L = lookOf(p, id)
   // FACE WHAT YOU ARE DOING.
@@ -7947,6 +8153,15 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   // something leans BACK as it lifts, is still while it burns, and comes
   // forward over it as the coin falls -- three beats, matching the three the
   // mark itself is drawn in.
+  // ASLEEP: they sit down where they are, and the lantern burns low.
+  //
+  // A tent would be gear nobody carries and a chair would want a room; sitting
+  // is true anywhere, which matters in a world where people fall asleep in the
+  // Wilds as readily as in an inn. The tell is the LANTERN -- in this window a
+  // citizen is their light, so a low one says more than a letter over the head.
+  const sleeping = !isMe && curState && !isAwake(p, curState.tick) && p.hp > 0
+  const dozeDip = sleeping ? 1.15 : 0
+  const dozeLean = sleeping ? .18 : 0
   const castE = (myDeed?.pose === 'cast' && isMe) ? clamp((performance.now() - myDeed.at) / myDeed.dur, 0, 1) : 0
   const castLean = castE === 0 ? 0
     : castE < .34 ? -(castE / .34) * .40
@@ -8004,7 +8219,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     // blow lands and comes back up on the recovery, and the weight shifts
     // forward. Small numbers -- two or three pixels -- but it is the
     // difference between a body working and an arm attached to a post.
-    crouch: crouch + workDip + biteDip + castDip, pitch: pitch + workLean + biteDip * .4 + castLean,
+    crouch: crouch + workDip + biteDip + castDip + dozeDip,
+    pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
     plate: star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
@@ -8028,8 +8244,10 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     weapon: wep ? (gg, hx, hy, a, sc) =>
       drawWeapon(gg, hx, hy, a, sc, wep,
         wep === 'rod' ? t : wep === 'old-chain' ? chainLash : bowDraw) : null,
-    lantern: true,
-    breath: t * 1.6 + (id.charCodeAt(1) || 0),
+    lantern: true, lanternLow: sleeping,
+    // a sleeper breathes slower, and deeper
+    breath: (sleeping ? t * .55 : t * 1.6) + (id.charCodeAt(1) || 0),
+    breathDeep: sleeping ? 1.9 : 1,
   })
   if (isMe) {                                          // the lantern's own halo, so you never lose yourself
     g.save(); g.globalCompositeOperation = 'lighter'
@@ -8055,7 +8273,17 @@ const titleCase = (s2) => String(s2 ?? '').replace(/\b[a-z]/g, (c) => c.toUpperC
 // name that survives is worth more than a full title that cannot be read.
 function citizenPlate(g, sx, sy, p, id, isMe, placed) {
   const name = p.name || (id ? id.slice(0, 6) : 'unnamed')
-  const rest = ', ' + titleCase(callingOf(p)) + ' (' + standingOf(p) + ')'
+  // and a sleeper's plate is dimmed and says so, because from across a street
+  // the pose alone is not enough to tell a sitting citizen from a resting one
+  // A SLEEPER'S PLATE SWAPS THE CALLING, rather than appending a field.
+  //
+  // "Rosamund, Banker (412) . asleep" reads as a spreadsheet -- three columns
+  // and a separator. What somebody is doing right now IS the second thing you
+  // want after their name, and just now they are not banking. So the word
+  // takes the calling's place and the shape never changes.
+  const dozing = curState && !isAwake(p, curState.tick) && p.hp > 0
+  const rest = ', ' + (dozing ? 'asleep' : titleCase(callingOf(p)))
+    + ' (' + standingOf(p) + ')'
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'
   const measure = (full) => {
     g.font = '700 11px Cinzel, Georgia, serif'
@@ -8218,15 +8446,28 @@ const mendedAt = new Map()
 // the writing and drawFx has never heard of either, which would have been a
 // silent no-op for eating -- the one deed the whole change is for.
 const DEED_MARK = {
-  alch: 'unmake', mendp: 'sent', invoke: 'sent', cast: 'sent', still: 'sent',
+  alch: 'unmake', unmake: 'unmake', mendp: 'sent', invoke: 'sent', cast: 'sent', still: 'sent',
   eat: 'act', forage: 'act', drink: 'ripple', bury: 'dig',
   kindle: 'spark', light: 'spark', plant: 'sow', harvest: 'sow',
   fletch: 'shavings',
 }
+// THROUGH addFx, WHICH IS THE ONLY WAY TO MAKE ONE.
+//
+// This pushed a bare `{kind, x, y, at}` straight onto the list. drawFx reads
+// `f.life` and `f.ax/f.ay`, so every one of these had life undefined -- and
+// `(now - at) / undefined` is NaN, which is never greater than one, so the
+// effect NEVER EXPIRED. Each deed anybody nearby performed added a permanent
+// entry drawn at NaN coordinates, forever. That is the window going black.
+//
+// addFx also caps the list at sixty, which would have stopped it on its own.
+// The lesson is the ordinary one: there is a constructor, and reaching past it
+// loses everything the constructor knows.
+const DEED_LIFE = { unmake: 1500, sent: 900, ripple: 700, act: 500,
+                    dig: 600, sow: 600, spark: 500, shavings: 500 }
 function deedSeen(pid, q) {
   const kind = DEED_MARK[q.deed]
   if (!kind) return
-  fx.push({ kind, x: q.x, y: q.y, at: performance.now() })
+  addFx(kind, q.x, q.y, q.x, q.y, DEED_LIFE[kind] ?? 600, 0)
 }
 
 // A NOTE ON DEEDS WITH NO DURATION.
@@ -9608,6 +9849,7 @@ function closePane(id) {
   else paneModal = null
 }
 const anyPaneOpen = () => !!(paneLeft || paneRight || paneModal)
+let guideSkill = 'magic'
 let regions = []                      // rebuilt every frame; the only hit-test there is
 let logLines = []
 let tipAt = null                      // { x, y, item, sub } while the cursor rests on something
@@ -10370,10 +10612,59 @@ function drawCitizen(g, now) {
     g.fillStyle = 'rgba(6,5,5,.85)'; g.fillRect(sx2 + 18, sy2 + 12, colW - 30, 3)
     g.fillStyle = pr.mastered ? '#b0913f' : '#4a6f8c'
     g.fillRect(sx2 + 18, sy2 + 12, (colW - 30) * f, 3)
-    regions.push({ x: sx2, y: sy2 - 4, w: colW - 12, h: 22, act: { t: 'noop' },
+    // A SKILL ROW OPENS ITS GUIDE. It was `noop` -- the one thing in the pane
+    // that looked clickable and did nothing.
+    const has = (SKILL_UNLOCKS[sk] ?? []).length
+    regions.push({ x: sx2, y: sy2 - 4, w: colW - 12, h: 22,
+                   act: has ? { t: 'guide', skill: sk } : { t: 'noop' },
                    tip: { title: sk + ' \u00b7 level ' + lv + (pr.mastered ? '  \u00b7  mastered' : ''),
-                          sub: pr.toNext.toLocaleString() + ' xp to ' + (lv + 1) } })
+                          sub: has ? 'click to see what it buys'
+                             : pr.toNext.toLocaleString() + ' xp to ' + (lv + 1) } })
   })
+}
+
+// ---------------------------------------------------------------------------
+// WHAT A LEVEL BUYS
+// ---------------------------------------------------------------------------
+// The thresholds are scattered through the rules by nature -- a vein here, a
+// recipe there -- and a citizen had no way to learn any of them except by
+// arriving at one. The engine gathers them; this shows them, with what you
+// have already passed marked off.
+function drawGuide(g) {
+  const s = curState, me = myId && s?.players?.[myId]
+  const sk = guideSkill
+  const list = SKILL_UNLOCKS[sk] ?? []
+  const W2 = 460, H2 = Math.min(VH - PANEL_H - 40, 96 + list.length * 20)
+  const x = Math.round((VW - W2) / 2), y = Math.max(12, (VH - PANEL_H - H2) / 2)
+  regions.push({ x, y, w: W2, h: H2, act: { t: 'panebg' } })
+  carve(g, x, y, W2, H2)
+  plate(g, x + 14, y + 14, W2 - 28, titleCase(sk))
+  regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'modal' } })
+  g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillStyle = inRect(mouse, x + W2 - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
+  g.fillText('\u2715', x + W2 - 22, y + 25)
+  const lv = XP_TO_LVL(me?.skills?.[sk] ?? 0)
+  g.textAlign = 'center'
+  g.font = 'italic 11px Georgia, serif'; g.fillStyle = '#8a7d68'
+  g.fillText('you are level ' + lv, x + W2 / 2, y + 46)
+  g.textAlign = 'left'
+  let ry = y + 66
+  for (const u of list) {
+    if (ry > y + H2 - 16) break
+    const past = lv >= u.level
+    g.font = '700 12px Cinzel, Georgia, serif'
+    g.fillStyle = past ? '#b0913f' : '#6a6152'
+    g.fillText(String(u.level), x + 26, ry)
+    g.font = '11.5px Georgia, serif'
+    g.fillStyle = past ? '#cdbb99' : '#7a7263'
+    g.fillText(u.text, x + 64, ry)
+    if (past) {                              // a small mark against what you have
+      g.strokeStyle = '#4a6f4a'; g.lineWidth = 1.6; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(x + 46, ry); g.lineTo(x + 49, ry + 3.5)
+      g.lineTo(x + 54, ry - 4); g.stroke()
+    }
+    ry += 20
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -11251,7 +11542,14 @@ function buildMenu(px2, py2, target) {
     }
     if (n.type === 'well') {
       items.push({ label: 'Drink', run: go('drink', target.id, n.x, n.y) })
-      items.push({ label: 'Recall here', run: () => { send({ do: 'recall', to: target.id }); say('The road folds.', 'good') } })
+      // THE MARK CLOSES THE ROADS. Say so, rather than letting the citizen
+      // click a stone that will not answer.
+      const meR = curState?.players?.[myId]
+      const marked = (meR?.brandedUntil ?? 0) > (curState?.tick ?? 0)
+      items.push(marked
+        ? { label: 'Recall here (marked)',
+            run: () => say('The stone will not take you while the mark is on you.', 'warn') }
+        : { label: 'Recall here', run: () => { send({ do: 'recall', to: target.id }); say('The road folds.', 'good') } })
     }
     if (n.type === 'watchfire') {
       const lg = slotOf(me, 'logs')
@@ -11290,8 +11588,15 @@ function buildMenu(px2, py2, target) {
     const wilds = inWilds(me.x, me.y) && inWilds(q.x, q.y)
     const spec = ['star-dagger', 'star-maul', 'horn-bow'].includes(me.equipment?.weapon?.item)
     items.push({ label: 'Hail them', run: go('greet', target.id, q.x, q.y) })
-    // §6af: the Wilds is where the law thins, and both feet must be in it
-    items.push({ label: wilds ? 'Attack them' : 'Attack them (only in the Wilds)', dim: !wilds,
+    // §6af: the Wilds is where the law thins, and both feet must be in it.
+    // And §2b: somebody already wearing the mark may be struck for nothing --
+    // the menu should say so, because a citizen deciding whether to chase a
+    // raider is deciding exactly this and cannot see the rule.
+    const theyAreMarked = (q.brandedUntil ?? 0) > (curState?.tick ?? 0)
+    items.push({ label: !wilds ? 'Attack them (only in the Wilds)'
+                   : theyAreMarked ? 'Attack them (marked \u2014 no Brand, and prayer will not save them)'
+                   : 'Attack them (this will mark you: no keeper, no stone, no prayer)',
+                 dim: !wilds,
                  run: () => send({ do: 'attackp', targetId: target.id }) })
     items.push({ label: spec ? 'Special attack' : 'Special attack (needs a weapon with one)',
                  dim: !wilds || !spec, run: () => { send({ do: 'special', targetId: target.id }); SFX.slain() } })
@@ -11321,9 +11626,49 @@ function buildMenu(px2, py2, target) {
     items.push({ label: 'Accept their offer', run: () => send({ do: 'accept', from: target.id }) })
     items.push({ label: 'Withdraw my offer', dim: !me.trade, run: () => send({ do: 'cancel' }) })
   } else if (target.kind === 'ground') {
-    title = wordy(target.e.item)
-    items.push({ label: target.e.item === 'forage' ? 'Eat it where it lies' : 'Take it',
-                 run: go('pickup', target.id, target.e.x, target.e.y) })
+    // A PILE IS NOT ONE THING.
+    //
+    // A spilled pack is up to twenty-four items on ONE tile, and every one of
+    // them sits at the same depth, so the click always found whichever
+    // happened to spill first. You could empty a pile, but only in the order
+    // it fell -- so a citizen with three free slots standing over somebody's
+    // star-plate took three ores and left the plate.
+    //
+    // The menu lists what is actually there, DEAREST FIRST, because that is
+    // the order anybody wants it in when there is a fight going on.
+    const s9 = curState
+    const here = Object.entries(s9?.ground ?? {})
+      .filter(([, gi]) => gi.x === target.e.x && gi.y === target.e.y)
+      .sort((A, B) => worthRank(B[1].item) - worthRank(A[1].item)
+        || (A[0] < B[0] ? -1 : 1))
+    title = here.length > 1 ? here.length + ' things here' : wordy(target.e.item)
+    const SHOW = 8
+    for (const [gid, gi] of here.slice(0, SHOW)) {
+      items.push({ label: gi.item === 'forage' ? 'Eat the forage where it lies'
+                     : (here.length > 1 ? 'Take the ' + wordy(gi.item).toLowerCase() : 'Take it')
+                       + ((gi.qty ?? 1) > 1 ? ' (' + gi.qty + ')' : ''),
+                   run: go('pickup', gid, gi.x, gi.y) })
+    }
+    if (here.length > SHOW)
+      items.push({ label: '\u2026and ' + (here.length - SHOW) + ' more beneath', dim: true, run: () => {} })
+    // §6aj: and the other thing a citizen may do to a pile they cannot reach.
+    // Offered only when it would actually work, and it names its price: the
+    // sigil is three magic-stone and nobody should spend one by accident.
+    const meU = curState?.players?.[myId]
+    const hasStaff = meU?.equipment?.weapon?.item === 'heartwood-staff'
+    const hasSigil = (meU?.inventory ?? []).some((sl) => sl?.item === 'sigil')
+    const near = meU && Math.max(Math.abs(target.e.x - meU.x), Math.abs(target.e.y - meU.y)) <= 5
+    if (hasStaff && near && here.length) {
+      // the dearest thing on the tile, which is the one worth a sigil
+      const [dgid, dgi] = here[0]
+      const what = wordy(dgi.item).toLowerCase()
+      items.push(hasSigil
+        ? { label: 'Unmake the ' + what + ' (a sigil)',
+            run: () => { send({ do: 'unmake', groundId: dgid })
+              say('You unmake the ' + what + ' where it lies. Nobody will have it now.', 'good') } }
+        : { label: 'Unmake the ' + what + ' (needs a sigil)', dim: true,
+            run: () => say('You have no sigil to spend.', 'dim') })
+    }
   }
   return items.length ? { x: px2 + 4, y: py2 + 4, title, items } : null
 }
@@ -11335,7 +11680,14 @@ function buildSlotMenu(px2, py2, i) {
   const it = sl.item, items = []
   const near = (t) => Object.values(curState.nodes ?? {}).some(n => n.type === t
     && Math.abs(n.x - me.x) + Math.abs(n.y - me.y) === 1)
-  if (EQUIPPABLE.has(it)) items.push({ label: 'Wield it', run: () => useSlot(i) })
+  if (EQUIPPABLE.has(it)) {
+    // and it says what it wants, rather than being clicked into silence
+    const need = wieldBlockers(me, it)
+    items.push(need.length
+      ? { label: 'Wield it (' + need.map((r) => r.skill + ' ' + r.level).join(', ') + ')',
+          run: () => say('You have not the ' + need[0].skill + ' for it yet.', 'dim') }
+      : { label: 'Wield it', run: () => useSlot(i) })
+  }
   if (/^(cooked-fish|cooked-deep-fish|ale|broth)$/.test(it)) items.push({ label: 'Eat it', run: () => useSlot(i) })
   if (it === 'raw-fish' || it === 'deep-fish') items.push({ label: 'Cook it', run: () => send({ do: 'cook', slot: i }) })
   if (it === 'bones') {
@@ -11537,7 +11889,23 @@ function primaryClick(p, isRight) {
     return
   }
 
-  const tgt = pickWorld(p)
+  let tgt = pickWorld(p)
+  // A LEFT CLICK ON A PILE TAKES THE DEAREST THING IN IT.
+  //
+  // pickWorld returns whichever ground entry happened to be first, and every
+  // item on a tile sits at the same depth, so a plain click on somebody's
+  // spilled pack took whatever fell first -- usually an ore. The right-click
+  // menu was fixed to list the pile dearest-first; the plain click should
+  // agree with it, because a citizen who clicks a heap in the middle of a
+  // fight means the thing worth having.
+  if (tgt && tgt.kind === 'ground' && curState) {
+    let best = tgt
+    for (const [gid, gi] of Object.entries(curState.ground ?? {})) {
+      if (gi.x !== tgt.e.x || gi.y !== tgt.e.y) continue
+      if (worthRank(gi.item) > worthRank(best.e.item)) best = { ...tgt, id: gid, e: gi }
+    }
+    tgt = best
+  }
   if (isRight) {                              // right click asks the thing what it offers
     menu = buildMenu(p.x, p.y, tgt)
     SFX.pane()
@@ -11580,6 +11948,7 @@ function runRegion(r, isRight) {
   const a = r.act
   if (a.t === 'noop') return
   SFX.pane()
+  if (a.t === 'guide') { guideSkill = a.skill; paneModal = 'guide'; SFX.pane(); return }
   if (a.t === 'close') { closePane(a.which); return }
   if (a.t === 'btn') {
     if (a.id === 'chart') { showChart = !showChart; if (showChart) chartRecentre(); return }
@@ -11774,7 +12143,14 @@ function pumpIntent() {
       if (near(n)) {
         if (intent.kind === 'forge') { paneModal = 'forge'; say('The anvil is cold, and yours.', 'dim') }
         else if (intent.kind === 'bank') { paneModal = 'bank'; say('The vault opens.', 'dim') }
-        else if (intent.kind === 'store') { paneModal = 'store'; say('The keeper looks up.', 'dim') }
+        else if (intent.kind === 'store') {
+          // and if they will not deal, the citizen should hear why rather than
+          // click a dead counter
+          const meB = curState?.players?.[myId]
+          if ((meB?.brandedUntil ?? 0) > (curState?.tick ?? 0)) {
+            say('The keeper looks at the mark on you, and looks away.', 'warn')
+          } else { paneModal = 'store'; say('The keeper looks up.', 'dim') }
+        }
         else if (intent.kind === 'attune') say('You are attuned to this waystone.', 'good')
         else say(lookAt(n), 'dim')
         intent = null; return
@@ -12273,6 +12649,12 @@ runRegion = function (r, isRight) {
   if (a.t === 'withdraw') { send({ do: 'withdraw', item: a.item }); SFX.pane(); return }
   if (a.t === 'buystall') { send({ do: 'buy', item: a.item }); SFX.pane(); return }
   if (a.t === 'recallto') {
+    {
+      const meR = curState?.players?.[myId]
+      if ((meR?.brandedUntil ?? 0) > (curState?.tick ?? 0)) {
+        say('The stone will not take you while the mark is on you.', 'warn'); return
+      }
+    }
     send({ do: 'recall', to: a.id }); SFX.pane(); paneModal = null; intent = null; return
   }
   if (a.t === 'buy') { send({ do: 'buy', item: a.item }); SFX.gold(); return }
@@ -12366,6 +12748,7 @@ function frame(now) {
   if (entered) {
     if (paneLeft === 'citizen') drawCitizen(cx, now)
     if (paneRight === 'pack') drawPack(cx, now)
+    if (paneModal === 'guide') drawGuide(cx)
     if (paneModal === 'forge') drawForge(cx, now)
     else if (paneModal === 'bank') drawVault(cx)
     else if (paneModal === 'store') drawCounter(cx)

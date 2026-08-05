@@ -467,6 +467,23 @@ across the day by themselves and no timezone owns the dragon.
 when the dragon falls, when anyone takes the bow up off the ground or
 off a body, and by which of the six roads it went home.
 
+**A tree does not end at one log.** A node gave one thing and slept,
+so two citizens at one tree was a RACE: the first took the log and the
+second found it asleep. A resource nobody can share is a resource that
+pushes people apart, in a world whose best moments are the ones where
+they meet.
+
+It also made gathering mostly walking. The nearest other tree is 2.8
+tiles off, so at woodcutting fifty-seven with a bronze axe a log was
+2.3 intervals of cutting and 2.8 of shuffling to the next trunk:
+fifty-five per cent of the work was travel between things that are
+identical, which is not the same as the walk being the content.
+
+A node now yields until a roll retires it -- one success in four --
+which needs no new field on the node and is decided by the same beacon
+as every other chance here. A tree gives four logs on average,
+sometimes one, sometimes nine, which is how a tree behaves.
+
 **Wood only where the wood holds it together, and the hard metal
 teaches.** A hatchet is a head and a haft, a spear a point and a
 shaft, a maul weight on a handle, a crossbow a lock on a stock: take
@@ -543,6 +560,199 @@ citizen carries comes home, at ninety-nine the two dearest do. Still
 only priced things, so the old chain, a dragonbow, a sigil and a chart
 are exactly as losable at ninety-nine as at one.
 
+**A survey's cap follows the world.** A survey is paid in distance --
+forty, and ten a tile from where souls arrive -- and then capped. The
+cap was eighteen hundred, which the sum reaches at a hundred and
+seventy-six tiles: exactly right for a world of 320 by 200, whose far
+corner sat a hundred and eighty-nine tiles out. Tallyholm is 896 by
+512 and its furthest walkable tile is four hundred and forty-seven
+away, so for four foundings MORE THAN HALF THE ISLAND paid what a
+middling walk paid, and nothing said so.
+
+The cap is derived from the world now -- souls arrive at the middle,
+so the furthest anywhere can be is half the longer side -- and it
+cannot go stale again whatever size the next world is.
+
+**A sigil in the binding.** Fletching's endgame -- the finest bow and
+the finest stave in the world -- was made from heartwood alone, by
+somebody who never left the safe country. Everything else of that rank
+costs the Wilds: star gear eats magic-stone and every spell eats
+sigils, which ARE magic-stone. The heartwood line ate nothing, so the
+peaceful trades and the dangerous ones never had to meet. Both now
+take one sigil, which is three stones mined at seventy in the one
+place that kills people.
+
+**A dragon is worth something to the people who killed it.** Four
+hundred and twenty hitpoints and twenty-eight a blow, and it dropped
+two bones and an ore -- less than a skeleton knight. It is not a fight
+one citizen wins, and everything it gave was a bow that ONE of them
+could carry and which goes home in twelve hours; there was nothing for
+the others to divide.
+
+It drops six magic-stone and a set of DRAGON-BONES. The stones are the
+Wilds' own currency, so a party splits something every trade in the
+world wants. It drops THREE sets, so a party has something to divide: one set among
+four citizens is an argument, not a reward.
+
+**Dragon-bones teach a thousand times a goblin's, because bones do not
+stack.** Prayer is 521,377 ordinary bones to ninety-nine and a pack
+holds twenty-four, so buying the road is twenty-one thousand separate
+trades: impossible rather than expensive. A rich citizen could not
+spend their way to ninety-nine however much gold they had, which makes
+gold worth less and makes the longest road in the world unbuyable
+instead of dear.
+
+Dragon-bones are the compressed form -- what noted items would have
+been, without inventing notes.
+
+The number is set from the DRAGON'S CLOCK rather than from the bones.
+One dragon is worth a little under two per cent of the longest road in
+the world, which puts a whole ninety-nine at fifty-eight dragons:
+twenty-nine days if every one of them falls on time and every set goes
+to a single buyer, and nobody's world works like that. Call it a
+season of outbidding every other mourner on the island. A route that
+cannot be completed is not a market, it is scenery.
+
+A keeper pays five hundred, far under what the thing does -- three
+thousand ordinary bones fetch six thousand. The keeper is the worst
+buyer in the world for it and another citizen the best, which is how
+every good out of the Wilds is priced here. The longest road in the world stays
+long; it simply now has a reason to pass through the most dangerous
+ground.
+
+**A tool that good is worked toward, not given.** The heartwood bow is
+fletched at ninety and drawn at ranged forty. The heartwood staff was
+fletched at ninety and held by ANYBODY -- and it halves the cadence of
+a transmuting, so one handed to a citizen of magic one halved their
+whole road from the first interval, three hundred and forty-eight
+hours to a hundred and seventy-four. It asks for magic seventy now.
+
+The number is a signal rather than a pacing lever, and that is worth
+saying plainly so nobody later mistakes it for balance. Experience is
+exponential, so a gate low down covers almost none of the road: at
+forty the staff opens after 0.29% of the way to ninety-nine and the
+journey is 174 hours, which is exactly what NO gate gives. Seventy is
+5.66% of the way and costs ten hours in a hundred and eighty-four.
+Only eighty-five would truly pace it, and eighty-five is where the
+stilling lives; a second thing there would dilute the one capstone
+magic has. What keeps this staff rare is that somebody must reach
+fletching ninety and spend two heartwood on it -- the level only has
+to say what kind of thing it is.
+
+The plain staff and the wand stay open to anyone: the staff is a
+modest thing cut from one log, and what a wand does is gated by the
+spells themselves, which want fifty and eighty-five.
+
+**A beacon is a public work, not a ladder.** A watchfire paid two
+hundred a log: EIGHT TIMES what those same logs pay in woodcutting and
+five times an ordinary fire, thirty-seven hours to ninety-nine against
+two hundred and ninety-five for the axe that fed it. It was not a way
+of doing firemaking, it was the only way, and it broke the rule the
+rest of this world keeps -- a master gets more from an hour, never a
+shorter road.
+
+Sixty a log now: half again an ordinary fire, a fair premium for
+tending a thing the whole country can see and which costs ten logs to
+raise. About a hundred and twenty hours to ninety-nine, in line with
+everything else. The gate moves to EIGHTY: at sixty it opened after
+four hours of ordinary fires, so almost the whole skill was watchfire;
+at eighty it takes about twenty-eight, and the beacon is what a
+practised firekeeper graduates to.
+
+A log fed to a full fire is still fed. The stoke was refused outright
+once the fire was at its cap, which spent the citizen's whole interval
+on silence. The work was done and the log was cut; the fire simply
+cannot hold more burn, so it takes the log and the firekeeper earns.
+
+**A master surveyor comes home with something.** Not the lifted cap:
+that was a stale constant, and a bug is fixed for everybody rather
+than sold back at ninety. From ninety, ANY rumour yields a chart, where an
+ordinary surveyor gets one only from the rare rumour that is about a
+waystone -- and NOT merely a waystone the surveyor lacks. Reaching
+ninety takes about two thousand surveys against twenty waystones, a
+hundred apiece, so a master learned the last of them long ago; a
+mastery that only filled gaps would have been worth nothing at all.
+A chart is not for the person who drew it. It gives the one skill with no output an output, and one
+that is already tradeable: a chart is worth something to somebody who
+would rather not walk.
+
+**A master brewer draws two.** Brewing was the one skill whose levels
+bought nothing at all -- no gate on raising a pot, none on brewing,
+none on collecting -- so it rose and the world never changed. At
+ninety a pot gives two draughts instead of one, which is the shape
+every other mastery here takes: eight arrows from a bone instead of
+five, three sheaves from a row instead of two, heartwood instead of
+logs. Not a faster ferment. The world does the waiting, and a master
+should get MORE from the wait rather than a shorter one.
+
+It suits what brewing is for. A cooked fish is six healing and does
+not stack; ale is four and does, so a brewer's whole advantage is what
+a pack slot can carry, and doubling the pot doubles exactly that.
+
+**A citizen's stall sells while they sleep.** Every economic rule here
+ends the same way: the only sensible buyer is another citizen.
+Magic-stone at twenty when a plate wants seven. Dragon-bones at five
+hundred when they are worth six thousand. A keeper's purse holding
+twelve hundred against a master smith's thirty-five million. The world
+is built to force citizens to trade with each other, and until now
+that required both of them awake at the same moment.
+
+Sixteen logs and eight ore -- twenty-four of a pack of twenty-eight,
+so it costs most of a pack and cannot be carried with much else. It is
+RAISED as an action, twenty intervals of standing at the spot, so
+moving or swinging cancels it: that is why nobody can raise one
+mid-fight, and why raising one in the Wilds is twenty intervals
+motionless with two dozen items on you. One stall to a citizen. It
+never blocks a tile, so no row of stalls can wall anybody in or out.
+
+**Stock is one-way.** You may put things in; the only ways out are a
+SALE or a SPILL, never a withdrawal. That single rule is what keeps it
+a shop: without it a stall in the Wilds is a BANK in the Wilds -- mine
+twenty-eight stones, walk five tiles, empty the pack, mine
+twenty-eight more -- and the six thousand journeys out of the Wilds
+that the whole star economy rests on would evaporate.
+
+**Anything but the bow.** A stall takes any known good, including the
+ones no keeper will price: the old chain, a sigil, a chart. A keeper
+declining to price a thing is not the world forbidding its sale, it is
+the world declining to have an opinion -- which is the whole reason a
+citizen's stall exists.
+
+The DRAGONBOW is refused, for exactly the reason a bank refuses it: a
+citizen cannot opt out of being hunted without giving the bow up, and
+a stall is somewhere safe. It is also somewhere the dragon cannot
+reach -- the reclaim at its rising searches citizens and the ground,
+not shelves -- so a stalled bow would outlive the dragon that dropped
+it and clear the flag as well. There would be two.
+
+**The price is not the world's business.** There is no cap on the ask.
+What a thing is worth between two citizens is the one number here that
+no rule should touch; a ceiling would be the constitution having an
+opinion about a market it exists to make possible.
+
+**An empty stall stands, unbound and unpriced.** It falls on its
+OWNER'S clock -- three days from their last attention -- not on the
+shelf's, so selling out does not knock it down. It is free to be
+restocked with anything: a stall is not married to the good it sold
+first.
+
+But the ask does not outlive the stock. Sell two hundred logs at two,
+restock with magic-stone, forget, and the stones would go for two
+apiece in silence -- so emptying the shelf clears the price, and the
+owner must name one for the thing actually on it. An unpriced stall
+sells NOTHING, which is also what a stall raised and stocked but never
+priced does: it would otherwise hand its stock out for free, which is
+the opposite of what somebody who spent a pack on it intended.
+
+Only the owner collects the takings, alive or dead -- a stall is the
+one thing in this world that death does not reach. Three days
+untouched and it falls, and its shelf spills where it stood on the
+ordinary hundred-interval clock: two citizens standing over it for the
+whole minute could save two hundred, one could save half. The state is
+public, so everybody can read the clock on somebody else's stall. An
+abandoned one is an appointment, and in the Wilds it is an appointment
+where the other guests may kill you.
+
 **A brewhouse is not world furniture.** `brewpot` carries `by`, the
 citizen who raised it, so the generator cannot place one and does not
 try: brewing is the single trade whose premises a CITIZEN builds, in a
@@ -582,6 +792,86 @@ follows its aggro wherever it lives. A shore-crab will bustle across
 the sand at a citizen and swing at them and never once land a blow,
 and teaches nothing for the trouble. It costs a citizen nothing but
 company.
+
+**Unmaking at range, which is denial and not theft.** A citizen falls
+and their pack spills; the one who felled them walks over to take it.
+Five tiles off, an alchemist with a heartwood stave burns a sigil and
+the pile is simply GONE -- the plate, the sword, the stones. Nobody
+gets them, the caster least of all: no coin comes of it, because the
+thing was unmade rather than sold, and unmaking somebody else's spoil
+must never be a living. What the caster gets is the practice, twenty-
+five, and whatever they wanted from denying it. It is not announced:
+a spell cast on every spilled pack would be a drumbeat nobody could
+read past.
+
+With ONE exception. The dragonbow cannot be unmade -- there is one and
+there will only ever be one -- so it goes back to the Wilds instead,
+by the sixth road home, and the island is told. Somebody spent three
+magic-stone to deny a dragonbow; everyone should hear about that.
+
+A sigil is three magic-stone out of the Wilds -- sixty gold of
+materials no keeper will sell -- against the seven gold a beginner's
+goblin drops. It costs nine times what it would deny them, so it
+cannot be used to torment newcomers; against a star-plate lying in the
+grass it is very much worth doing, which is the fight where it
+belongs. The stave is the instrument because the stave is what alchemy
+is done with, and because it is already the rarest thing a fletcher
+makes.
+
+**A keeper will not deal with the branded.** Strike first in the Wilds
+and the mark rides on you for fifteen minutes -- and until it cools,
+no keeper in any town will take your money or your goods. **And the waystones will not take them.** You may still bank, still
+fight, still trade with another citizen. What you may not do is turn
+what you took into anything, or leave quickly.
+
+A keeper's refusal punishes somebody who needs a keeper, and a citizen
+of any standing does not -- they sell to each other, and a purse holds
+only twelve hundred anyway -- so the mark cost the people it was
+written for the least. The stones cost everybody the same thing:
+strike first and you WALK home, for fifteen minutes, carrying whatever
+you took, through exactly the window in which the person you struck
+and their friends might like a word. The Brand makes you catchable,
+which is the social enforcement it always meant and never had.
+
+**And a marked citizen is already provocation.** Striking somebody who
+wears the Brand does not brand you. The rule marked you unless your
+target was ALREADY swinging at you by name, so chasing a raider marked
+the posse exactly as it marked the raider: the law punished justice
+and crime alike, and the only safe answer to being robbed was to let
+it go, which is the opposite of what the mark is for.
+
+**And prayer does not cover the marked.** This is the one that
+matters. A citizen who struck first walked away with the two dearest
+things in their pack -- often the very things they had just taken off
+the person they struck. The victim lost everything; the raider was
+insured, by a skill about making peace with dying. For fifteen minutes
+prayer holds nothing back, whatever level it has reached.
+
+The keeper's refusal is an errand and the closed stones are a walk;
+this is the danger. You carry what you took with nothing protected,
+and anybody may take it from you at no cost to themselves. The Brand
+does not punish. It withdraws a protection and lets the world do the
+rest.
+
+So for fifteen minutes a raider may be hunted, in the Wilds, by
+anybody, at no cost. That is the danger the mark never had, and it
+costs the world nothing outside the one country where blood is already
+legal. Nothing follows them into a town: no guard draws on them and no
+citizen may strike them on a road. The Wilds judge what happened in
+the Wilds.
+
+Trade between citizens stays open, deliberately. A keeper refusing is
+the town's judgement; whether another citizen deals with you is
+theirs, and taking that decision away would remove the very thing the
+mark exists to provoke.
+
+The Brand was evidence and nothing else: a mark that existed only if a
+window chose to paint one, and for four foundings not one of them did.
+A rule a window may quietly decline to enforce is not a rule; it is a
+suggestion the engine makes about art. Now it costs exactly the thing
+a raider wants, and it costs it in public. Its purpose is unchanged --
+a raiding party still marks itself and cannot deny having been one --
+but the marking no longer depends on anybody's goodwill to exist.
 
 **A deed is done where people can see it.** An `action` is something a
 citizen is in the middle of, and has always sat in the state for every

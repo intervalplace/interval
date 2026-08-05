@@ -3309,6 +3309,28 @@ const SPEC_SAYS = { twice: 'two blows in one tick', now: 'swings whatever your a
 let specArmed = false
 const splats = []     // { x, y, amount, at } damage made visible
 const effects = []    // { kind, x, y, at } rites and works made visible
+// what each deed looks like from across a clearing. Only kinds this window can
+// actually draw: inventing one here is a silent no-op, and the deeds people
+// most want to see are the ordinary ones.
+// what each stall keeps, copied from the engine's STALL_SELLS
+const STALL_SELLS = {
+  lumber: { 'bronze-hatchet': 20 },
+  delve:  { 'bronze-pickaxe': 20 },
+  arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
+  armour: { 'bronze-helm': 24 },
+  bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
+  seed:   { seeds: 22 },
+}
+const STALL_NAME = {
+  lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
+  armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
+}
+const DEED_FX = {
+  alch: 'unmake', drink: 'drink', bury: 'bury', invoke: 'invoke',
+  mendp: 'mend', cast: 'cast', fletch: 'fletch', eat: 'eat', forage: 'eat',
+  plant: 'plant', harvest: 'harvest',
+}
+const _lastDeed = {}
 const layerArr = []   // reused render layer (perf)
 function flashClick(tx, ty, isAct) {
   effects.push({ kind: 'click', x: tx, y: ty, act: isAct, at: performance.now() })
@@ -3914,14 +3936,25 @@ function onState(s, worldId) {
       }
     }
 
-    // rites and works leave visible traces
-    if (me.skills.prayer > old.skills.prayer) effects.push({ kind: 'bury', x: me.x, y: me.y, at: performance.now() })
-    if (me.skills.magic === old.skills.magic + 20) effects.push({ kind: 'invoke', x: me.x, y: me.y, at: performance.now() })
-    if (me.skills.magic === old.skills.magic + 40) effects.push({ kind: 'mend', x: me.x, y: me.y, at: performance.now() })
-    if (me.skills.magic === old.skills.magic + 30)
-      effects.push({ kind: 'cast', x: me.x, y: me.y, at: performance.now() })
-    if ((me.skills.ranged === old.skills.ranged + 15 || me.skills.ranged === old.skills.ranged + 5) && !me.action)
-      effects.push({ kind: 'fletch', x: me.x, y: me.y, at: performance.now() })
+    // RITES AND WORKS LEAVE VISIBLE TRACES -- AND THE WORLD SAYS WHICH.
+    //
+    // This inferred them from skill deltas on YOUR OWN citizen: prayer went up,
+    // so you buried something; magic went up by twenty, so you pressed a sigil.
+    // Two things were wrong with it. The numbers had gone stale -- pressing a
+    // sigil pays sixty now, mending fifty-five, anchor thirty-five, so none of
+    // those three had fired in a long time. And it only ever watched YOU, so
+    // every other citizen in the world worked in silence.
+    //
+    // `deed` is one word in the state, set on the interval an accepted input
+    // lands. Read it for everybody.
+    for (const [pid2, q2] of Object.entries(s.players ?? {})) {
+      const was = _lastDeed[pid2]
+      if (q2.deed && q2.deed !== was) {
+        const mark = DEED_FX[q2.deed]
+        if (mark) effects.push({ kind: mark, x: q2.x, y: q2.y, at: performance.now() })
+      }
+      _lastDeed[pid2] = q2.deed
+    }
 
     // firemaking talks back, briefly: a runaway retry loop once ate the
     // one-input-per-tick and made walking lose coin-flips against it
@@ -6766,6 +6799,50 @@ function drawScene(now) {
         cx.lineTo(CX2 + dx2 * (sh - 5), CY2 + dy2 * sh)
       }
       cx.stroke()
+    } else if (ef.kind === 'unmake') {
+      // A THING COMING APART: it lifts and turns, the edges let go, and what
+      // it was worth falls back as coin.
+      if (p2 < .45) {
+        const q = p2 / .45
+        for (let k = 0; k < 5; k++) {
+          const a2 = q * 5 + k * 1.257, r2 = 7 * (1 - q * .3)
+          cx.fillStyle = 'rgba(244,222,158,' + (.6 - q * .25).toFixed(2) + ')'
+          cx.fillRect(EX + Math.cos(a2) * r2 - 1.5, EY - 14 - q * 12 + Math.sin(a2) * r2 * .45, 3, 3)
+        }
+      }
+      if (p2 > .3 && p2 < .72) {
+        const q = (p2 - .3) / .42
+        for (let k = 0; k < 14; k++) {
+          const a2 = (k / 14) * 6.283 + k * .7, r2 = q * (14 + (k % 5) * 6)
+          cx.fillStyle = 'rgba(255,' + (210 - k * 5) + ',120,' + (.8 * (1 - q)).toFixed(2) + ')'
+          cx.fillRect(EX + Math.cos(a2) * r2 - 1, EY - 20 + Math.sin(a2) * r2 * .5 - 1, 2.2, 2.2)
+        }
+      }
+      if (p2 > .5) {
+        const q = (p2 - .5) / .5
+        for (let k = 0; k < 4; k++) {
+          const t2 = Math.max(0, q * 1.4 - k * .1)
+          if (t2 <= 0) continue
+          cx.fillStyle = 'rgba(240,206,110,' + (.9 * (1 - t2 * .5)).toFixed(2) + ')'
+          cx.beginPath()
+          cx.ellipse(EX + (k - 1.5) * 6 * (1 - t2 * .3), EY - 20 + t2 * t2 * 26,
+            2.4 * Math.abs(Math.cos(t2 * 9 + k)) + .8, 2.4, 0, 0, 7)
+          cx.fill()
+        }
+      }
+    } else if (ef.kind === 'drink') {
+      // rings on the water, and the cold of it going down
+      cx.strokeStyle = 'rgba(150,206,224,' + (1 - p2).toFixed(2) + ')'
+      cx.lineWidth = 1.6
+      for (let k = 0; k < 3; k++) {
+        const r2 = (p2 * 22) + k * 6
+        cx.beginPath(); cx.ellipse(EX, EY + 6, r2, r2 * .42, 0, 0, 7); cx.stroke()
+      }
+    } else if (ef.kind === 'eat') {
+      // a small warmth, and crumbs
+      cx.fillStyle = 'rgba(226,182,62,' + (.7 * (1 - p2)).toFixed(2) + ')'
+      for (let k = 0; k < 4; k++)
+        cx.fillRect(EX - 6 + k * 4, EY - 8 - p2 * 12 + Math.sin(p2 * 5 + k) * 2, 1.8, 1.8)
     } else if (ef.kind === 'bury') {
       cx.fillStyle = '#e8e4d0'
       for (let k = 0; k < 5; k++) cx.fillRect(EX - 10 + k * 5 + Math.sin(p2 * 6 + k) * 2, EY + 8 - p2 * 22 - k * 2, 1.8, 1.8)
@@ -7153,6 +7230,22 @@ function panel(s) {
   // hand anything back, so a citizen at a store could not buy here at all.
   // The stock is the constitution's, not a guess: the world sells seeds and
   // nothing else, because everything else is meant to be made or found.
+  // A STALL IS A COUNTER TOO, and this window could not use one at all: you
+  // could walk to the seedsman and stand there. The stock is the engine's own
+  // STALL_SELLS -- fixed goods, made from nothing, dearer than a store and
+  // always there -- so a stall is bought from exactly as a shelf is.
+  const stallN = Object.values(s.nodes).find(n => n.type === 'stall'
+    && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
+  if (stallN) {
+    const stock = STALL_SELLS[stallN.kind] ?? {}
+    const who = STALL_NAME[stallN.kind] ?? 'the trader'
+    sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">'
+      + who.toUpperCase() + ' SELLS:</div>'
+      + Object.entries(stock).map(([it, pr]) => '<button data-buy="' + it + '" style="margin:1px;'
+        + 'background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;padding:3px 6px;font-family:inherit;'
+        + 'font-size:10px;cursor:pointer' + ((me.gold ?? 0) < pr ? ';opacity:.4' : '') + '">'
+        + it.replace(/-/g, ' ') + ' \u2190 ' + pr + 'g</button>').join('')
+  }
   if (nearStore) {
     // the keeper's SHELF (v0.74) finally reaches this window: what
     // citizens sold and nobody carried off is for sale beside the
@@ -7175,7 +7268,13 @@ function panel(s) {
     if (i !== undefined) { send({ do: 'sell', slot: +i }); feed('The keeper counts out your coin.') }
     const b = e.target?.dataset?.buy
     if (b !== undefined) {
-      const askB = STORE_SELLS[b] ?? ((PRICES[b] ?? 1) + Math.max(1, Math.floor((PRICES[b] ?? 1) / 10)))
+      // a stall's price is its own: it is not the store's ask, and buying at a
+      // stall you are stood beside must not be quoted at the shelf's rate
+      const stallB = Object.values(world.nodes).find(n => n.type === 'stall'
+        && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
+      const stallPr = stallB ? (STALL_SELLS[stallB.kind] ?? {})[b] : undefined
+      const askB = stallPr ?? STORE_SELLS[b]
+        ?? ((PRICES[b] ?? 1) + Math.max(1, Math.floor((PRICES[b] ?? 1) / 10)))
       if ((me.gold ?? 0) < askB) { feed('Not enough coin for that.'); return }
       send({ do: 'buy', item: b }); feed(kFromId(Object.entries(world.nodes).find(([, n2]) => n2.type === 'store' && Math.abs(me.x - n2.x) + Math.abs(me.y - n2.y) === 1)?.[0]) + ' slides it across.')
     }
