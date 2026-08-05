@@ -2035,6 +2035,16 @@ export function buildWorld(genesis) {
               if (!inB(x, y) || blockedAt(g, x, y)) continue
               if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
               if (freeSides(x, y) < 2) continue           // room for a keeper AND a customer
+              // AND NOT IN SOMEBODY ELSE'S SHOP.
+              //
+              // The room test read the DRAWING -- was there a B or an S inside
+              // this rect -- and Anchor's bank sits a tile outside the rect the
+              // arms-master was seated in, so the arms stall went up inside the
+              // bank. The drawing is the wrong thing to ask. Ask the WORLD:
+              // is there a counter of any kind near this tile?
+              if (Object.values(w.nodes).some((q) =>
+                (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
+                && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 3)) continue
               E.addNode(w, 'stall-' + s.tag + '-' + kind, 'stall', x, y, { kind })
               taken.add(key(x, y))
               // and whoever keeps it, stood behind the counter
