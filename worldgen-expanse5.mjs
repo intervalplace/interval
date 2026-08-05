@@ -2046,7 +2046,12 @@ export function buildWorld(genesis) {
                 // and the keeper does not take the last side: after they are
                 // stood there the counter must still have somewhere to serve from
                 if (freeSides(x, y) < 2) continue
-                E.addNode(w, 'keeper-' + s.tag + '-' + kind, 'keeper', kx, ky, { kind })
+                // AND A NAME, from the world's own stock. These were placed
+                // without one, so a citizen walked into a shop and met "?" --
+                // every other person on the island has been named since the
+                // fourth founding and the twelve I added were not.
+                E.addNode(w, 'keeper-' + s.tag + '-' + kind, 'keeper', kx, ky,
+                  { kind, name: keeperName(s.tag, kind) })
                 taken.add(key(kx, ky))
                 break
               }
@@ -2744,6 +2749,40 @@ export function buildWorld(genesis) {
       }
     }
   }
+  { // THE MONASTERY. Prayer was the only skill in this world with nowhere to
+    // go, so it is given a place rather than a power.
+    //
+    // On the Downs and WELL AWAY FROM A BANK, deliberately. Bones do not
+    // stack, so a bank beside the ossuary would make the walk a one-time cost
+    // and the bonus a flat multiplier -- the decision would vanish and every
+    // citizen would simply always come here. Out in the country the walk pays
+    // for itself out to about fifty tiles, so hunting the Downs makes it worth
+    // carrying your bones in and hunting the Wilds does not.
+    //
+    // It is a place and not a room in a town, because every other destination
+    // here announces itself: the Ring, the Barrow, the Wreck, the standing
+    // stones. A monastery folded into a street would be another door.
+    const c = siteSeek(0.66, 0.79, 'downs', 10)
+    // a small precinct: a wall about it, a door south, and quiet inside
+    let i2 = 0
+    for (let a = -5; a <= 5; a++) {
+      sput('mon-w-' + (i2++), 'wall', c.x + a, c.y - 4)
+      if (a !== 0) sput('mon-w-' + (i2++), 'wall', c.x + a, c.y + 4)
+    }
+    for (let b = -3; b <= 3; b++) {
+      sput('mon-w-' + (i2++), 'wall', c.x - 5, c.y + b)
+      sput('mon-w-' + (i2++), 'wall', c.x + 5, c.y + b)
+    }
+    sput('mon-ossuary', 'ossuary', c.x, c.y)
+    sput('mon-hearth', 'hearth', c.x - 3, c.y - 3)
+    sput('kpr-mon-mourner', 'keeper', c.x + 2, c.y - 1,
+      { name: keeperName('monastery', 'mourner'), kind: 'mourner' })
+    sput('mon-well', 'well', c.x - 7, c.y + 1)
+    sput('mon-sign', 'signpost', c.x, c.y + 6)
+    // and the stones outside it, because a burying-place has them
+    for (let a = -3; a <= 3; a += 3) sput('mon-stone-' + (i2++), 'landmark', c.x + a, c.y + 6, { kind: 'standing-stone' })
+  }
+
   { // The Sheepfolds. The Downs get a BANK, and a tight ring of ordinary
     // stone around it -- not a new tier, not a better rock, the same rock
     // the Crags have. What the Downs sell is LOGISTICS: the only place on
@@ -2850,7 +2889,21 @@ export function buildWorld(genesis) {
     taken.add(key(door, ry0 + RH))
     // the hearth against the back wall, the keeper beside it, both indoors
     put('inn-house', 'hearth', rx0 + 2, ry0 + 1)
-    put('kpr-inn-lantern', 'keeper', rx0 + 4, ry0 + 1, { name: keeperName('inn', 'lantern') })
+    put('kpr-inn-lantern', 'keeper', rx0 + 4, ry0 + 1,
+      { name: keeperName('inn', 'lantern'), kind: 'innkeeper' })
+    // NO BREWPOT HERE, AND THAT IS THE RULE RATHER THAN AN OVERSIGHT.
+    //
+    // A brewpot looked like the one building this world had designed and
+    // forgotten to build: a node type, a skill, a calling and a section of the
+    // manual, and not one standing anywhere. Putting one in the Lantern failed
+    // the founding outright -- "brewpot without an owner" -- because §2 says a
+    // brewpot carries `by`, the citizen who raised it.
+    //
+    // Which means brewing is not world furniture at all. It is the one trade
+    // whose premises a CITIZEN builds, in a house they have made their own,
+    // and the world is right to hold none. The Lantern has a hearth and an
+    // innkeeper; whether it ever has a pot is somebody's business, not the
+    // generator's.
     // and the things that belong OUTSIDE an inn: the well, the fire in the
     // yard, and the sign where a traveler on the road can read it
     put('inn-well', 'well', rx0 - 2, ry0 + 2)
@@ -4040,6 +4093,59 @@ export function buildWorld(genesis) {
     }
     counts.quietQuarters = quarters.length
     counts.quietSwept = swept
+  }
+
+
+  // ---- WHAT EACH OF THEM ACTUALLY DOES -----------------------------------
+  //
+  // Fifty-nine people stood about this island called "keeper", which is not a
+  // thing anybody does. Nobody is invented here: a calling is read off what a
+  // person already stands beside and off what their own id already called
+  // them, which in most cases was a real word somebody chose years ago and
+  // then threw away at the door.
+  //
+  // It runs LAST, after every hand-placed person exists. Run earlier it saw
+  // only the town drawings, and matched `mill` against Millbrook.
+  //
+  // A keeper with no calling keeps none, deliberately: they live in a house,
+  // and a house is not a job. A window gives them a name instead.
+  {
+    const BY_ID = [
+      // 'bank' is tested BEFORE 'fold': kpr-bank-folds is the counter at the
+      // Sheepfolds, not a shepherd, and read the other way round it came out
+      // as one
+      ['bank', 'banker'],
+      ['wizard', 'wizard'], ['sawyer', 'sawyer'], ['shep', 'shepherd'],
+      ['fold', 'shepherd'], ['eel', 'fisher'], ['sheds', 'fisher'],
+      ['delve', 'delver'], ['quarry', 'quarrier'], ['mill', 'miller'],
+      ['moorwatch', 'watchman'], ['brew', 'brewer'], ['inn', 'innkeeper'],
+      ['coalcamp', 'collier'], ['drive', 'drover'], ['apiary', 'beekeeper'],
+    ]
+    const near = new Map()
+    for (const n of Object.values(w.nodes)) {
+      if (n.type === 'keeper') continue
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const k = (n.x + dx) + ',' + (n.y + dy)
+        if (!near.has(k)) near.set(k, new Set())
+        near.get(k).add(n.type)
+      }
+    }
+    for (const id of Object.keys(w.nodes).sort()) {
+      const n = w.nodes[id]
+      if (n.type !== 'keeper' || n.kind !== undefined) continue
+      let call = null
+      // the id speaks only for people placed BY HAND; a town drawing's ids are
+      // its own name repeated, and 'plan-millbrook-104' is not a miller
+      if (!id.startsWith('plan-')) {
+        for (const [frag, role] of BY_ID) if (id.includes(frag)) { call = role; break }
+      }
+      if (!call) {
+        const around = near.get(n.x + ',' + n.y) ?? new Set()
+        if (around.has('bank')) call = 'banker'
+        else if (around.has('store')) call = 'merchant'
+      }
+      if (call) n.kind = call
+    }
   }
 
   const serr = E.validateState(w)
