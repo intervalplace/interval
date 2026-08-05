@@ -69,8 +69,14 @@
     #topnav { gap: 10px; font-size: 11px; padding: 4px 8px; }
     #topnav .nwin { display: none; }
   }
-  canvas { display: block; background: #253a17; image-rendering: pixelated; cursor: crosshair;
+  /* THE WORLD CANVAS IS 1:1 NOW, so `pixelated` has nothing left to do for it
+     -- it was there to keep a 560-wide buffer honest while the browser blew it
+     up three times. The chunky look never came from that blow-up; it comes
+     from the shapes, the palette and the forty-pixel tile, all of which stay.
+     What goes is the mush. */
+  canvas { display: block; background: #253a17; cursor: crosshair;
            width: 100%; height: auto; }
+  #lookcv { image-rendering: pixelated; }
   /* the classic stone bevel: light top-left, dark bottom-right */
   .stone {
     background-color: var(--stone);
@@ -184,6 +190,12 @@
     <div style="color:#6e6656;font-size:10px;letter-spacing:.14em;margin-bottom:14px;margin-top:-12px">the flat window</div>
     <div id="gateinfo">waking the world&hellip;</div>
     <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
+    <div id="gatelook" style="margin:8px 0;user-select:none">
+      <button id="lookprev" type="button">&lsaquo;</button>
+      <canvas id="lookcv" width="48" height="64" style="vertical-align:middle;image-rendering:pixelated"></canvas>
+      <button id="looknext" type="button">&rsaquo;</button>
+      <div style="font-size:10px;color:var(--dim);margin-top:2px" id="looknum">appearance 1 of 256</div>
+    </div>
     <div><button id="musicbtn" type="button">music: on</button>
     <button id="daybtn" type="button">day: cycle</button></div>
     <div id="gatedetail" style="font-size:11px;color:var(--dim);margin:6px 0;user-select:none"></div>
@@ -245,7 +257,18 @@
 const HD = true
 let GLON = false, gl = null, glCv = null, glU = {}, glLights = []
 let glNight = 0, glWarm = 0
-const RES = 1 // the shader supersamples now; the painter stays cheap
+// THE BACKING STORE MUST MATCH THE SCREEN.
+//
+// The world canvas was born 560x400 and CSS stretched it to whatever the
+// window was -- on a desktop that is a three- or four-fold blow-up of every
+// pixel, and an eight-pixel name drawn into a 560-wide buffer arrives as mush.
+// It read as "the flat window is blurry", and it was not the art: it was the
+// canvas being a third the size of the hole it was shown through.
+//
+// RES is now the device's own pixel ratio, and the drawing transform is scaled
+// by it, so cv.width / (TILE * ZR) is unchanged: the SAME number of tiles is
+// visible, drawn at the resolution the screen actually has.
+let RES = 1
 // THE VIEW. 1.17 showed a twelve-by-eight window, which was right for a
 // world you stood around in and wrong for one you cross. The island is now
 // 896x512 with five-minute journeys and something to look at every twenty
@@ -268,13 +291,1811 @@ function setZoom(ix) {
 try { const z = parseInt(localStorage.getItem('interval.zoom') ?? '', 10)
       if (Number.isInteger(z)) { zoomIx = Math.max(0, Math.min(ZOOM_STEPS.length - 1, z))
         ZOOM = ZOOM_STEPS[zoomIx]; ZR = ZOOM * RES; VIEW_W = 14 / ZOOM; VIEW_H = 10 / ZOOM } } catch {}
-let W = 14, H = 8            // world dims: set from genesis on first state
+// ---------------------------------------------------------------------
+// GEOGRAPHY IS LAW, AND THIS WINDOW WAS IN BREACH.
+//
+// It carried its own hand-ported mirror -- a hundred and thirty-one
+// declarations spread through a thousand lines, with the page's own code
+// threaded between them -- and it had fallen a founding behind: no going,
+// no elevation, no braided roads, no lanes, none of the placed copses, and
+// paving that squared off every town.
+//
+// It now carries terrain-mirror.mjs itself, exports stripped and otherwise
+// byte for byte, exactly as every other window does. If this copy drifts,
+// this window is in breach on the same terms they are.
+// ---------------------------------------------------------------------
+// terrain-mirror.js — the window's copy of the world's own geography.
+//
+// This file used to exist THREE TIMES: once inside window-web.html, once
+// inside window-3d.html, once inside window-photo.html, ~1,300 lines each,
+// pasted. The copies had not yet disagreed about a single tile — 210,432
+// were checked — but they had already drifted in two places that simply
+// had not bitten yet:
+//
+//   * window-photo's copy had a RENDERING function (buildBridges, which
+//     touches THREE and the scene graph) wedged inside the terrain block,
+//     so the "pure functions" were not pure.
+//   * window-3d's copy of the landmark registry was thirteen nouns behind,
+//     and nothing noticed because nothing in that window ever read it.
+//
+// The reason this matters more here than in an ordinary codebase: geography
+// is law. Two citizens whose windows disagree about where the Fens end
+// cannot arrange to meet there. A copy that drifts is a window in breach of
+// the constitution, and the previous arrangement had no way to find out.
+// Now there is one file, and test/mirror.test.mjs checks it against the
+// engine tile for tile.
+//
+// Everything here is a PURE FUNCTION of (generator, seed, size). No state,
+// no tick, no player. Call configure() once when the world announces
+// itself; call it again and every cache is dropped.
+
+let W = 192, H = 96
+let GEN = 'interval-classic-v1', GSEED = ''
+
+function configure(opts = {}) {
+  W = opts.worldW ?? opts.W ?? W
+  H = opts.worldH ?? opts.H ?? H
+  GEN = opts.generator ?? opts.gen ?? GEN
+  GSEED = opts.seed ?? opts.genesisSeed ?? GSEED
+  // a new world means every memo is about the old one
+  _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
+  _roadBmp = null; _roadBmpFor = null
+  _seedNumC = null
+  _ssE = null
+  _roadSet = null
+  _ss3 = null
+  _roads3 = null
+  _shore4 = null
+  _bio4 = null
+  _ss4 = null
+  _cost4 = null
+  _roads4 = null
+  _wallSet = null
+  _signs = null
+  _wallTick = -1; _signTick = -1
+  return { W, H, GEN, GSEED }
+}
+const dims = () => ({ W, H, GEN, GSEED })
+
+// V5 CHANGED THE FURNITURE, NOT THE LAND.
+//
+// worldgen-expanse5's own header says it: v4's land is right and stays exactly
+// as it is, and nothing in v5 touches any of it. Every terrain function below
+// is therefore correct for both -- but a check written `GEN === 'interval-
+// expanse-v4'` silently falls through to the v3 branch for a v5 world, which
+// is a whole island of wrong ground from one string comparison. window-web
+// learned this and fixed it locally; this module did not, and since the module
+// exists precisely so the windows cannot drift apart, the fix belongs here.
+const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
+
+const tileHash = (x, y, salt) => {
+  let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
+  h = (h ^ (h >> 13)) >>> 0; h = (h * 1274126177) >>> 0
+  return (h ^ (h >> 16)) >>> 0
+}
+
+let _seedNumC = null, _ssE = null
+function seedNumC() {
+  if (_seedNumC !== null) return _seedNumC
+  let h = 0
+  for (let i = 0; i < GSEED.length; i++) h = Math.imul(h ^ GSEED.charCodeAt(i), 2654435761) | 0
+  return (_seedNumC = h >>> 0)
+}
+function thashE(x, y, k) {
+  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(k | 0, 2246822519) + seedNumC()) | 0
+  h = Math.imul(h ^ (h >>> 13), 1274126177)
+  return (h ^ (h >>> 16)) >>> 0
+}
+function meander(tag, u, seg, amp) {
+  const k = Math.floor(u / seg)
+  const f = (u - k * seg) / seg
+  const a = (thashE(k, 0, tag) % (2 * amp + 1)) - amp
+  const b = (thashE(k + 1, 0, tag) % (2 * amp + 1)) - amp
+  const sf = f * f * (3 - 2 * f)
+  return a + (b - a) * sf
+}
+function riverXE(y) {
+  const cx = Math.floor(W / 2)
+  return cx + Math.round(meander(21, y, 46, 26) + meander(22, y, 14, 5))
+}
+function inSeaE(x, y) {
+  const bx = W * 0.80, by = H * 0.74
+  if (x < bx || y < by) return false
+  return (x - bx) / (W - bx) + (y - by) / (H - by) > 0.55
+}
+function inPoolE(x, y) {
+  if (y < H * 0.66) return false
+  const bx = Math.floor(x / 7), by = Math.floor(y / 7)
+  const h = thashE(bx, by, 7)
+  if ((h & 255) > 34) return false
+  const px = bx * 7 + ((h >>> 8) % 5), py = by * 7 + ((h >>> 16) % 5)
+  return Math.abs(x - px) + Math.abs(y - py) <= 2
+}
+const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
+function settlementsE() {
+  if (IS_EXPANSE4()) return settlementsE4()
+  if (GEN === 'interval-expanse-v3') return settlementsE3()
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
+  if (GEN === 'interval-expanse-v2') {
+    // v2: the water towns stand on their water. Millbrook and Fenmarch on
+    // the river's east bank, Eastmere opening on the bay. Mirror of
+    // worldgen-expanse2.mjs settlementsOf, tile for tile.
+    const mby = Math.round(H * 0.24), fmy = Math.round(H * 0.84)
+    return [
+      { x: cx, y: cy, w: 24, h: 14 },
+      { x: Math.round(W * 0.46), y: Math.round(H * 0.14), w: 14, h: 10 },
+      { x: riverXE(mby) + 6, y: mby, w: 14, h: 10 },
+      { x: Math.round(W * 0.86), y: Math.round(H * 0.50), w: 14, h: 10 },
+      { x: Math.round(W * 0.85), y: Math.round(H * 0.80), w: 14, h: 10 },
+      { x: riverXE(fmy) + 6, y: fmy, w: 14, h: 10 },
+      { x: Math.round(W * 0.26), y: Math.round(H * 0.46), w: 16, h: 12 },
+    ]
+  }
+  return [
+    { x: cx, y: cy, w: 24, h: 14 },
+    { x: Math.round(W * 0.46), y: Math.round(H * 0.14), w: 14, h: 10 },
+    { x: Math.round(W * 0.72), y: Math.round(H * 0.24), w: 14, h: 10 },
+    { x: Math.round(W * 0.86), y: Math.round(H * 0.50), w: 14, h: 10 },
+    { x: Math.round(W * 0.74), y: Math.round(H * 0.70), w: 14, h: 10 },
+    { x: Math.round(W * 0.44), y: Math.round(H * 0.84), w: 14, h: 10 },
+    { x: Math.round(W * 0.26), y: Math.round(H * 0.46), w: 16, h: 12 },
+  ]
+}
+const ssE = () => (_ssE ??= settlementsE())
+let _roadSet = null
+function roadTilesE() {
+  if (_roadSet) return _roadSet
+  const ss = ssE(), a = ss[0]
+  const set = new Set()
+  for (let i = 1; i < ss.length; i++) {
+    const s = ss[i]
+    const vx = s.x - a.x, vy = s.y - a.y
+    const L = Math.sqrt(vx * vx + vy * vy)
+    const nx = -vy / L, ny = vx / L
+    const steps = Math.ceil(L * 2)
+    for (let stp = 0; stp <= steps; stp++) {
+      const t = stp / steps
+      const taper = Math.min(1, Math.min(t, 1 - t) * 6)
+      const o = meander(90 + i, t * L, 26, 9) * taper
+      const px = Math.round(a.x + vx * t + nx * o)
+      const py = Math.round(a.y + vy * t + ny * o)
+      set.add(px + ',' + py); set.add((px + 1) + ',' + py)
+    }
+  }
+  return (_roadSet = set)
+}
+const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
+function biomeAtE(x, y) {
+  if (x <= Math.round(W * 0.19)) return 'wilds'
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
+  const dx = (x - cx) / W, dy = (y - cy) / H
+  if (dx * dx + dy * dy < 0.019) return 'meadow'
+  if (y <= H * 0.32) return 'greenwood'
+  if (x >= W * 0.70) return 'crags'
+  if (y >= H * 0.70) return 'fens'
+  return 'meadow'
+}
+function fordE(x, y) { // mirror of fordAt: the road crosses, and every main street crosses
+  if (onRoadE(x, y)) return true
+  for (const s of ssE()) {
+    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1)
+      && (x === s.x || y === s.y)) return true
+  }
+  return false
+}
+// ---- the third expanse (interval-expanse-v3): the island, mirrored ----
+// An exact mirror of worldgen-expanse3.mjs: the coast by octant arithmetic
+// (no atan2. ECMA-262 leaves it implementation-defined), the borders that
+// are features, the road graph, and the fords painted as bridges.
+function angleOf3(dx, dy) {
+  const ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy
+  if (ax === 0 && ay === 0) return 0
+  if (dx > 0 && dy >= 0) return ax >= ay ? (ay / ax) * 45 : 90 - (ax / ay) * 45
+  if (dx <= 0 && dy > 0) return ay > ax ? 90 + (ax / ay) * 45 : 180 - (ay / ax) * 45
+  if (dx < 0 && dy <= 0) return ax >= ay ? 180 + (ay / ax) * 45 : 270 - (ax / ay) * 45
+  return ay > ax ? 270 + (ax / ay) * 45 : 360 - (ay / ax) * 45
+}
+function coastR3(u0) {
+  const u = ((u0 % 360) + 360) % 360
+  let r = 0.80 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
+  const bump = (c, w2, amt) => {
+    const d1 = u - c < 0 ? c - u : u - c
+    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    if (d < w2) r += amt * (1 - d / w2)
+  }
+  bump(180, 28, +0.18); bump(150, 12, -0.09); bump(210, 12, -0.09)
+  bump(38, 22, -0.12); bump(78, 16, -0.07); bump(0, 14, +0.07); bump(305, 18, +0.06)
+  return r
+}
+function inSeaBase3(x, y) {
+  const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
+  const r = Math.sqrt(dx * dx + dy * dy)
+  if (r <= 0.52) return false
+  return r > coastR3(angleOf3(dx, dy))
+}
+const emY3 = () => Math.round(H * 0.75)
+const _shore3 = new Map()
+function bayShoreX3(y) {
+  if (_shore3.has(y)) return _shore3.get(y)
+  let sx = null
+  for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase3(x, y)) { sx = x; break }
+  _shore3.set(y, sx); return sx
+}
+function isles3() {
+  const ey = emY3(), sh = bayShoreX3(ey) ?? Math.round(W * 0.7)
+  return [{ x: sh + 22, y: ey + 26, rx: 10, ry: 7 }, { x: Math.round(W * 0.185), y: Math.round(H * 0.10), rx: 8, ry: 5 }]
+}
+function onIsle3(x, y) {
+  for (const i of isles3()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
+  return false
+}
+const inSea3 = (x, y) => inSeaBase3(x, y) && !onIsle3(x, y)
+const brandX3 = (y) => Math.round(W * 0.235 + meander(310, y, 34, 7))
+const ridgeX3 = (y) => Math.round(W * 0.685 + meander(311, y, 30, 9))
+const treeY3 = (x) => Math.round(H * 0.30 + meander(312, x, 44, 11))
+const fenY3 = (x) => Math.round(H * 0.71 + meander(313, x, 44, 9))
+const passes3 = () => [Math.round(H * 0.37), Math.round(H * 0.655)]
+function onRidge3(x, y) {
+  const rx = ridgeX3(y); const d = x - rx < 0 ? rx - x : x - rx
+  if (d > 2) return false
+  for (const p of passes3()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
+  if (y < treeY3(x) - 8) return false
+  if (inSeaBase3(x, y)) return false
+  return true
+}
+const riverX3 = (y) => Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6))
+const confY3 = () => Math.round(H * 0.63)
+function marchWY3(x) {
+  const cyy = confY3(); const reach = riverX3(cyy) - 8 - x
+  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  return cyy + Math.round(meander(25, x, 36, 12) * t)
+}
+function inRiver3(x, y) {
+  const srcY = Math.round(H * 0.115)
+  if (y >= srcY) {
+    const rx = riverX3(y); const d = x - rx < 0 ? rx - x : x - rx
+    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    if (y > H * 0.84) {
+      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3)); const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      if (d2 <= 1) return true
+    }
+  }
+  if (x < riverX3(confY3()) - 1 && x > brandX3(y) - 16) {
+    const my = marchWY3(x); const d3 = y - my < 0 ? my - y : y - my
+    if (d3 <= 1) return true
+  }
+  return false
+}
+function inLake3(x, y) {
+  const lx = Math.round(W * 0.73), ly = Math.round(H * 0.22)
+  const dx = (x - lx) / 24, dy = (y - ly) / 13
+  return dx * dx + dy * dy < 1
+}
+const isWater3 = (x, y) => inSea3(x, y) || inRiver3(x, y) || inLake3(x, y)
+function biomeAtE3(x, y) {
+  if (inSeaBase3(x, y) && !onIsle3(x, y)) return 'sea'
+  if (x <= brandX3(y)) return 'wilds'
+  if (x >= ridgeX3(y) && y >= treeY3(x) - 8) return 'crags'
+  if (y <= treeY3(x)) return 'greenwood'
+  if (y >= fenY3(x)) return 'fens'
+  return 'heartlands' // the truth's own word for it (v3 vocabulary)
+}
+let _ss3 = null
+function settlementsE3() {
+  if (_ss3) return _ss3
+  const cx3 = Math.floor(W / 2), cy3 = Math.floor(H / 2)
+  const mby = Math.round(H * 0.305), fmy = Math.round(H * 0.825), ey = emY3()
+  const shore = bayShoreX3(ey) ?? Math.round(W * 0.7)
+  return (_ss3 = [
+    { x: cx3, y: cy3, w: 24, h: 14, name: 'Anchor' },
+    { x: Math.round(W * 0.40), y: Math.round(H * 0.16), w: 14, h: 10, name: 'Greenhollow' },
+    { x: riverX3(mby) + 6, y: mby, w: 14, h: 10, name: 'Millbrook' },
+    { x: Math.round(W * 0.87), y: Math.round(H * 0.49), w: 14, h: 10, name: 'Cragfoot' },
+    { x: shore - 5, y: ey, w: 14, h: 10, name: 'Eastmere' },
+    { x: riverX3(fmy) + 6, y: fmy, w: 14, h: 10, name: 'Fenmarch' },
+    { x: Math.round(W * 0.235) + 20, y: Math.round(H * 0.49), w: 16, h: 12, name: 'Norwick' },
+  ])
+}
+function junctions3() {
+  const [p1, p2] = passes3(); const i = isles3()[0]
+  return { watersmeet: { x: riverX3(confY3()) + 3, y: confY3() + 3 }, npass: { x: ridgeX3(p1), y: p1 },
+    spass: { x: ridgeX3(p2), y: p2 }, shrine: { x: i.x, y: i.y } }
+}
+let _roads3 = null
+function roadTiles3() {
+  if (_roads3) return _roads3
+  const s = settlementsE3(), j = junctions3()
+  const segs = [[s[0], s[2], 91], [s[2], s[1], 92], [s[1], s[6], 93], [s[0], s[6], 94], [s[0], j.npass, 95], [j.npass, s[3], 96],
+    [s[0], j.watersmeet, 97], [j.watersmeet, j.spass, 98], [j.spass, s[4], 99], [j.watersmeet, s[5], 100], [s[4], s[5], 101], [s[3], s[4], 102], [s[4], j.shrine, 103]]
+  const set = new Set()
+  for (const [a, b, tag] of segs) {
+    const vx = b.x - a.x, vy = b.y - a.y, L = Math.sqrt(vx * vx + vy * vy), nx = -vy / L, ny = vx / L
+    const steps = Math.ceil(L * 2)
+    for (let stp = 0; stp <= steps; stp++) {
+      const t = stp / steps, taper = Math.min(1, Math.min(t, 1 - t) * 6)
+      const o = meander(tag, t * L, 26, 8) * taper
+      const px = Math.round(a.x + vx * t + nx * o), py = Math.round(a.y + vy * t + ny * o)
+      set.add(px + ',' + py); set.add((px + 1) + ',' + py)
+    }
+  }
+  return (_roads3 = set)
+}
+const onRoad3 = (x, y) => roadTiles3().has(x + ',' + y)
+function fordE3(x, y) {
+  if (onRoad3(x, y)) return true
+  for (const s of settlementsE3()) {
+    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1)
+      && (x === s.x || y === s.y)) return true
+  }
+  return false
+}
+function terrainOfE3(x, y) {
+  if (inSea3(x, y)) return fordE3(x, y) ? 'bridge' : 'sea'
+  if (inRiver3(x, y) || inLake3(x, y)) return fordE3(x, y) ? 'bridge' : 'river'
+  for (const t2 of settlementsE3()) {
+    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1))
+      return onRoad3(x, y) ? 'cobble' : 'flag' // paved streets, flagstone yards
+  }
+  if (onRidge3(x, y)) return onRoad3(x, y) ? 'gravel' : 'mountain'
+  if (onRoad3(x, y)) {
+    // mirrored from worldgen groundKindAt (v0.79), the canon of surfaces:
+    // civilization paves, the passes crunch, the open country is trail
+    for (const t2 of settlementsE3()) if (Math.max(Math.abs(x - t2.x), Math.abs(y - t2.y)) <= 15) return 'cobble'
+    if (onRidge3(x - 1, y) || onRidge3(x + 1, y) || onRidge3(x, y - 1) || onRidge3(x, y + 1)
+      || biomeAtE3(x, y) === 'crags') return 'gravel'
+    return 'trail'
+  }
+  {
+    const w9 = (x2, y2) => inSea3(x2, y2) || inRiver3(x2, y2) || inLake3(x2, y2)
+    if (w9(x + 1, y) || w9(x - 1, y) || w9(x, y + 1) || w9(x, y - 1)) return 'sand' // the shore
+  }
+  const b3 = biomeAtE3(x, y)
+  return b3 === 'heartlands' ? 'meadow' : b3 // tile palette keeps its old key
+}
+// ---------------------------------------------------------------------
+// An exact mirror of worldgen-expanse4.mjs. The window verifies the world
+// rather than trusting it, so the fourth founding's geography has to exist
+// on this side too: the countries as weighted-Voronoi LOBES, the capes, the
+// Barrow, the scarce crossings, and -- the new one -- roads that are ROUTED
+// rather than drawn. The router is ported whole, packed-integer heap and
+// all, because a road drawn differently here than on the server is a
+// window that quietly lies about where you can walk.
+// ---------------------------------------------------------------------
+const CAPES4 = [
+  { tag: 'wildshead', name: 'the Wilds Head', u: 180, w: 24, amt: +0.30 },
+  { tag: 'stonepoint', name: 'the Stonepoint', u: 3, w: 8, amt: +0.20 },
+  { tag: 'nordhead', name: 'the Nordhead', u: 306, w: 13, amt: +0.15 },
+  { tag: 'sawtooth', name: 'the Sawtooth', u: 258, w: 7, amt: +0.13 },
+]
+const BAYS4 = [[152,11,-0.17],[208,11,-0.17],[38,25,-0.22],[78,14,-0.12],[284,10,-0.11],[330,12,-0.09]]
+function coastR4(u0) {
+  const u = ((u0 % 360) + 360) % 360
+  let r = 0.78 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
+  const bump = (c, w2, amt) => {
+    const d1 = u - c < 0 ? c - u : u - c
+    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    if (d < w2) r += amt * (1 - d / w2)
+  }
+  for (const c of CAPES4) bump(c.u, c.w, c.amt)
+  for (const b of BAYS4) bump(b[0], b[1], b[2])
+  return r
+}
+function inSeaBase4(x, y) {
+  const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
+  const r = Math.sqrt(dx * dx + dy * dy)
+  if (r <= 0.50) return false
+  return r > coastR4(angleOf3(dx, dy))
+}
+function emY4() { return Math.round(H * 0.74) }
+let _shore4 = null
+function bayShoreX4(y) {
+  if (!_shore4) _shore4 = {}
+  if (_shore4[y] !== undefined) return _shore4[y]
+  let sx = null
+  for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase4(x, y)) { sx = x; break }
+  return (_shore4[y] = sx)
+}
+function isles4() {
+  const ey = emY4(), sh = bayShoreX4(ey) ?? Math.round(W * 0.7)
+  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 }]
+}
+function onIsle4(x, y) {
+  for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
+  return false
+}
+// THE COAST AND THE RIVER, REMEMBERED TOO.
+//
+// Caching isWater4 alone took a tile from thirty-eight microseconds to
+// fourteen, and the rest is these two being asked directly: a Voronoi coast
+// and a meandering river, recomputed per call. One byte each, same lifetime as
+// the water cache. The island goes from seventeen seconds to under two.
+let _sea4 = null, _riv4 = null, _seaFor = null
+const _wetKey = () => GSEED + ':' + W + 'x' + H
+const inSea4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return inSeaBase4(x, y) && !onIsle4(x, y)
+  const k = _wetKey()
+  if (_seaFor !== k) { _seaFor = k; _sea4 = new Uint8Array(W * H); _riv4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _sea4[i]
+  if (hit) return hit === 2
+  const v = inSeaBase4(x, y) && !onIsle4(x, y)
+  _sea4[i] = v ? 2 : 1
+  return v
+}
+// STRAIGHT, and exactly where the law is. Mirrors worldgen-expanse4.brandX:
+// the stones and geo.wilds must be the same line, or a citizen stands past
+// the Brand with the Wilds all round them and cannot attack anyone.
+const brandX4 = (_y) => Math.round(W * 0.215)
+
+// the countries, as lobes. Same seeds, same squash, same low-frequency
+// boundary jitter: a high-frequency jitter here would dissolve the borders
+// into speckle exactly as it did on the server's first draft.
+const SEEDS4 = [
+  ['heartlands',0.42,0.40,0.90,420],['heartlands',0.54,0.52,0.74,421],
+  ['greenwood',0.44,0.10,1.02,422],['greenwood',0.66,0.15,0.86,423],
+  ['crags',0.89,0.28,0.90,424],['crags',0.83,0.50,0.70,425],
+  ['downs',0.70,0.68,0.86,426],['downs',0.79,0.78,0.62,430],
+  ['fens',0.49,0.90,0.86,427],['fens',0.33,0.82,0.60,428],
+  ['moor',0.31,0.16,0.84,429],['moor',0.38,0.27,0.58,431],
+]
+const VSQUASH4 = 1.9
+function regionAt4(x, y) {
+  let best = 'heartlands', bd = Infinity
+  for (const s of SEEDS4) {
+    const sx = s[1] * W, sy = s[2] * H, wt = s[3], jt = s[4]
+    const dx = x - sx, dy = (y - sy) * VSQUASH4
+    const j = meander(jt, x + y * 0.6, 150, 26) + meander(jt + 40, x - y * 0.45, 60, 9)
+    const d = (dx * dx + dy * dy) / (wt * wt) + j * 460
+    if (d < bd) { bd = d; best = s[0] }
+  }
+  return best
+}
+// the biome field is queried for every tile drawn, every frame, and each
+// query is twelve weighted seeds with two meanders apiece. Cached once.
+let _bio4 = null
+const BIO4 = ['sea','wilds','heartlands','greenwood','crags','fens','downs','moor']
+function biomeAtE4(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return 'sea'
+  if (!_bio4) _bio4 = new Uint8Array(W * H).fill(255)
+  const i = y * W + x
+  if (_bio4[i] !== 255) return BIO4[_bio4[i]]
+  let b
+  if (inSeaBase4(x, y) && !onIsle4(x, y)) b = 'sea'
+  else if (x <= brandX4(y)) b = 'wilds'
+  else b = regionAt4(x, y)
+  _bio4[i] = BIO4.indexOf(b)
+  return b
+}
+const ridgeX4 = (y) => Math.round(W * 0.695 + meander(311, y, 30, 11))
+const passes4 = () => [Math.round(H * 0.34), Math.round(H * 0.62)]
+function onRidge4(x, y) {
+  const rx = ridgeX4(y), d = x - rx < 0 ? rx - x : x - rx
+  if (d > 2) return false
+  for (const p of passes4()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
+  if (biomeAtE4(x, y) === 'greenwood') return false
+  if (y > H * 0.70) return false      // the ridge dies away before the bay
+  if (inSeaBase4(x, y)) return false
+  return true
+}
+const barrowC4 = () => ({ x: Math.round(W * 0.575), y: Math.round(H * 0.585) })
+function onBarrow4(x, y) {
+  const c = barrowC4(), dx = (x - c.x) / 26, dy = (y - c.y) / 15
+  return dx * dx + dy * dy < 1 + meander(330, x + y, 18, 12) / 190
+}
+function riverX4(y) { return Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6)) }
+const confY4 = () => Math.round(H * 0.63)
+function marchWY4(x) {
+  const cyy = confY4(), reach = riverX4(cyy) - 8 - x
+  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  return cyy + Math.round(meander(25, x, 36, 12) * t)
+}
+// THE RIVER, REMEMBERED. Two meanders and a march branch, recomputed on every
+// call and asked for every tile -- eleven microseconds each, and the last of
+// the four costs that made painting the island take a quarter of a minute.
+function inRiver4(x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return _inRiver4raw(x, y)
+  const k = _wetKey()
+  if (_seaFor !== k) { _seaFor = k; _sea4 = new Uint8Array(W * H); _riv4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _riv4[i]
+  if (hit) return hit === 2
+  const v = _inRiver4raw(x, y)
+  _riv4[i] = v ? 2 : 1
+  return v
+}
+function _inRiver4raw(x, y) {
+  const srcY = Math.round(H * 0.105)
+  if (y >= srcY) {
+    const rx = riverX4(y), d = x - rx < 0 ? rx - x : x - rx
+    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    if (y > H * 0.84) {
+      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3))
+      const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      if (d2 <= 1) return true
+    }
+  }
+  if (x < riverX4(confY4()) - 1 && x > brandX4(y) - 16) {
+    const my = marchWY4(x), d3 = y - my < 0 ? my - y : y - my
+    if (d3 <= 1) return true
+  }
+  return false
+}
+function inLake4(x, y) {
+  const cx = Math.round(W * 0.745), cy = Math.round(H * 0.21)
+  const dx = (x - cx) / 24, dy = (y - cy) / 13
+  return dx * dx + dy * dy < 1
+}
+// WATER IS ASKED ABOUT MORE THAN ANYTHING ELSE, so it is remembered.
+//
+// isWater4 costs about ten microseconds -- a Voronoi coast, a meandering river
+// and two lakes, recomputed from scratch every time -- and the shoreline test
+// alone asks it FOUR times for every tile. Painting the island cost the site's
+// chart thirty-eight microseconds a tile, seventeen seconds for the land and
+// twenty-nine more for the roads. It did load; nobody waits three quarters of
+// a minute, so it read as broken.
+//
+// One byte a tile, thrown away whenever the world changes. Nothing about the
+// answer changes -- only how often it is worked out.
+let _wet4 = null, _wetFor = null
+const isWater4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  const k = GSEED + ':' + W + 'x' + H
+  if (_wetFor !== k) { _wetFor = k; _wet4 = new Uint8Array(W * H) }
+  const i = y * W + x
+  const hit = _wet4[i]
+  if (hit) return hit === 2
+  const w = inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  _wet4[i] = w ? 2 : 1
+  return w
+}
+function bridges4() {
+  const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
+  const out = ys.map((y) => ({ x: riverX4(y), y }))
+  const mx = Math.round(W * 0.30)
+  out.push({ x: mx, y: marchWY4(mx) })
+  return out
+}
+function onBridge4(x, y) {
+  // A BRIDGE IS A SPAN, NOT A RECTANGLE.
+  //
+  // This stamped a nine-by-five block of deck at each crossing, so wherever a
+  // diagonal river passed through that block the walkable water came out as a
+  // ragged diagonal patch. It read as neither a bridge nor a ford -- just an
+  // oddly-shaped hole in the river -- and no amount of plank texture in a
+  // window could fix a shape that was wrong in the world.
+  //
+  // A bridge crosses the water and stops: two tiles wide, spanning exactly as
+  // far as the water runs on that line, with two tiles of abutment on each
+  // bank. The four river crossings span east-west; the Oxenford crosses the
+  // march, which itself runs east-west, so that one is spanned north-south.
+  for (const b of bridges4()) {
+    if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
+    if (b.tag !== 'brm') {
+      if (y - b.y > 1 || b.y - y > 1) continue
+      let w = b.x, e = b.x
+      while (w > 3 && isWater4(w - 1, y)) w--
+      while (e < W - 4 && isWater4(e + 1, y)) e++
+      if (x >= w - 2 && x <= e + 2) return true
+    } else {
+      if (x - b.x > 1 || b.x - x > 1) continue
+      let n = b.y, s2 = b.y
+      while (n > 3 && isWater4(x, n - 1)) n--
+      while (s2 < H - 4 && isWater4(x, s2 + 1)) s2++
+      if (y >= n - 2 && y <= s2 + 2) return true
+    }
+  }
+  return false
+}
+// The ten drawings, and the logic that seats them. The mirror carries the
+// ART, not a table of coordinates: seats depend on the seed, so a table
+// would be right for one world and wrong for every other. With the plans
+// here the window runs the same spiral the generator does and lands on the
+// same tile for any seed.
+const PLANS4 = {
+  anchor: [
+    "%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%",
+    "%..................................................%",
+    "%..................................................%",
+    "%..############...########...##########...#######..%",
+    "%..#qBBB,,,kv,#...#,,,,v,#...#,,,,,,v,#...#,,ed,#..%",
+    "%..#,,,,,,,,,,#...#,,*k,,#...#,A,s,A,,#...#,h,k,#..%",
+    "%..#,,,,,,,,,,#...#,!,,,,#...#,,,,,,*,#...#,,,,,#..%",
+    "%..#,,,,,,,,*,#...#,,,,,,#...#,,,,,,,,#...###,###..%",
+    "%..#,,,,,,,,,,#.T.####,###...#####,####............%",
+    "%..######,#####....................................%",
+    "%.........................................#######..%",
+    "%..#########...########......#########....#,,,d,#..%",
+    "%..#v,S,qk,#...#,,,ed,#......#v,S,qk,#....,,he,,#..%",
+    "%..#,,,,,,,,...#,h,h,,#......#,,,,,,,#....#,,,,,#..%",
+    "%..#,,,,,,,#...#,,,,,,#......#,,,,,,,#....#######..%",
+    "%..#########...####,###......####,####.............%",
+    "%..................................................%",
+    " ....................*............................. ",
+    " .................................................. ",
+    "%......i....................G................T.....%",
+    "%..................................................%",
+    "%..............o..............%%%%%%%%%..%%%%%%%%%.%",
+    "%.........U...................%..................%.%",
+    "%.............................%.G.......*......G.%.%",
+    "%................!............%..###############.%.%",
+    "%.............................%..#,*h,#,GG,#,Bk#.%.%",
+    "%...ff.ff.ff.ff...............%..#,,,,#,,,,#,,,#.%.%",
+    "%.............................%..#,,,,#,,,,#,,,#.%.%",
+    "%..###,###..###,###.###,##....%..#,,,,#,,,,#,,,#.%.%",
+    "%..#e,,d,#..#e,,d,#.#de,,#....%..#,,,,#,,,,#,,,#.%.%",
+    "%..#,h,k,#..#,h,,,#.#,h,,#....%..#,,,,,,,,,,,,,#.%.%",
+    "%..#,,,,,#..#,,,,,#.#,,,,#....%..#######,#######.%.%",
+    "%..#######..#######.######....%..................%.%",
+    "%.............................%%%%%%%%%%%%%%%%%%%%.%",
+    "%..................................................%",
+    "%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%",
+  ],
+  millbrook: [
+    "                                        ",
+    " ...................................... ",
+    " ..#######..########..#######..#######. ",
+    " ..#,,ed,#..#,,Sqv,#..#,,ed,#..#,,,v,#. ",
+    " ..#,h,k,#..#,,,,k,#..#,h,,,#..#,A,s,#. ",
+    " ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ",
+    " ..###,###..####,###..###,###..###,###. ",
+    " ...................................... ",
+    " ...................................... ",
+    " ..............o.........*...........W. ",
+    " .T.................i.................. ",
+    " ...................................... ",
+    " ..###,###..####,###..###,###..###,###. ",
+    " ..#e,,d,#..#e,,,d,#..#vq,k,#..#e,,d,#. ",
+    " ..#,h,,,#..#,h,h,,#..#,,S,,#..#,h,,,#. ",
+    " ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ",
+    " ..#######..########..#######..#######. ",
+    "                                        ",
+  ],
+  oxenford: [
+    "                                    ",
+    " .................................. ",
+    " ..##########.........#########.... ",
+    " ..#vBBB,qk,#.........#v,S,qk,#.... ",
+    " ..#,,,,,,,,#.........#,,,,,,,#.... ",
+    " ..#,,,,,,,,#.........#,,,,,,,#.... ",
+    " ..#,,,,,,,,#.........#,,,,,,,#.... ",
+    " ..#####,####.........####,####.... ",
+    " .................................. ",
+    " .................................. ",
+    " ...ff.ff.ff.ff......ff.ff.ff.ff... ",
+    " ............i..................... ",
+    " .................................. ",
+    " ...................o.....*........ ",
+    " .................................. ",
+    " .................................. ",
+    " .............!.................... ",
+    " ..####,###....!......####,###..... ",
+    " ..#,q,,v,#...........#e,,,d,#..... ",
+    " ..#,S,k,,#...........#,h,k,,#..... ",
+    " ..#,,,,,,#.U.........#,,,,,,#..... ",
+    " ..########...........########..... ",
+    " .................................. ",
+    " ..###,###............###,###...... ",
+    " ..#,e,d,#............#,e,d,#...... ",
+    " ..#,h,,,#............#,h,,,#...... ",
+    " ..#######............#######...... ",
+    "                                    ",
+  ],
+  thornbury: [
+    "                                  ",
+    " ................................ ",
+    " ..%%%%%%%%%%%%%%%%%%%%%%%%%%%%.. ",
+    " ..%..#######################.%.. ",
+    " ..%..#,*k,,,#,,hh,,,#,,Sk,,#.%.. ",
+    " ..%.G#,,,,,,#,,,,,,,#,,,,,,#G%.. ",
+    " ..%..#,,,,,,#,,,,,,,#,,,,,,#.%.. ",
+    " ..%..#,,,,,,#,,,,,,,#,,,,,,#.%.. ",
+    " ..%..#,,,,,,#,,,,,,,#,,,,,,#.%.. ",
+    " ..%..#,,,,,,,,,,,,,,,,,,,,,#.%.. ",
+    " ..%..###########,###########.%.. ",
+    " ..%..........................%.. ",
+    " ..%!.........................o.. ",
+    " ..%..........................%.. ",
+    " ..%%%%%%%%%%%%%..%%%%%%%%%%%%%.. ",
+    " ................................ ",
+    " ................................ ",
+    " ..########..........#########... ",
+    " ..#,,,ed,#..........#,,,e,d,#... ",
+    " ..#,h,h,,,..........,,h,k,,,#... ",
+    " ..#,,,,,,#..o......*#,,,,,,,#.T. ",
+    " ..########..........#########... ",
+    " ................................ ",
+    " ..####,###..........####,###.... ",
+    " ..#,,,,v,#..........#e,,,d,#.... ",
+    " ..#,A,s,,#..........#,h,,,,#.... ",
+    " ..#,,,,,,#..i.......#,,,,,,#.... ",
+    " ..########..........########.... ",
+    " ................................ ",
+    "                                  ",
+  ],
+  eastmere: [
+    "                               ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ..#########.########......    ~~~~~~~",
+    " ..#,,,,qv,#.#,,,qv,#...!..    ~~~~~~~",
+    " ..#,B,k,B,#.#,S,k,,#......    ~~~~~~~",
+    " ..#,,,,,,,#.#,,,,,,#.....=======F~~~~",
+    " ..#,,,,,,,#.#,,,,,,#......    ~~~~~~~",
+    " ..####,####.####,###......    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ...................o.....=======F~~~~",
+    " ............G.............    ~~~~~~~",
+    " ..................i.......    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ..####,####..###,###......    ~~~~~~~",
+    " ..#e,,,,d,#..#,q,v,#...*..    ~~~~~~~",
+    " ..#,h,h,,,#..#,S,k,#......    ~~~~~~~",
+    " ..#,,,,,,,#..#,,,,,#.....=======F~~~~",
+    " ..#########..#######......    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    " ..........................    ~~~~~~~",
+    "                               ~~~~~~~",
+  ],
+  greenhollow: [
+    "      T           T             ",
+    " T          T           T       ",
+    "  .....T.................T....  ",
+    "  ............................T ",
+    "  .#########.......########...  ",
+    "  T#,,,,qv,#.......#,,,qv,#...  ",
+    "  .#,B,k,,,#.......#,S,k,,#...  ",
+    "  .#,,,,,,,#.......#,,,,,,#...  ",
+    "  .####,####.......####,###...  ",
+    "  ............................ T",
+    "T ............................  ",
+    "  ..........o......*..........  ",
+    "  ............................  ",
+    "  .........i..................  ",
+    "  .####,###........####,####..  ",
+    "  .#e,,,d,#........#e,,,,d,#..  ",
+    "  .#,h,h,,#........#,A,s,h,#..T ",
+    " T.#,,,,,,#........#,,,,,,,#..  ",
+    "  .########........#########..  ",
+    "  ............................  ",
+    "            T           T       ",
+    "      T           T             ",
+  ],
+  cragfoot: [
+    "                            ",
+    "                            ",
+    "  ........................  ",
+    "  .#########....#########.  ",
+    "  .#,,,,,d,#....#,,,,,v,#.  ",
+    "  .#,S,k,h,#....#,A,s,A,#.  ",
+    "  .#,,,e,,,,....,,,,,,,,#.  ",
+    "  .#,,,,,,,#....#,,,,,,,#.  ",
+    "  .#########....#########.  ",
+    "  ........................  ",
+    "  %%%%%%%%%%%..%%%%%%%%%%%  ",
+    "  ........................  ",
+    "  .#########....#########.  ",
+    "  .#,,,,qv,#....#,,,,,d,#.  ",
+    "  .#,B,k,,,#....#,h,h,,,#.  ",
+    "  .#,,,,,,,,....,,,,e,,,#.  ",
+    "  .#,,,,,,,#....#,,,,,,,#.  ",
+    "  .#########....#########.  ",
+    "  ........................  ",
+    "  %%%%%%%%%%%..%%%%%%%%%%%  ",
+    "  ..........o.............  ",
+    "  .####,###.....####,###..  ",
+    "  .#e,,,d,#.....#e,,,d,#..  ",
+    "  .#,h,,,,#.....#,h,k,,#..  ",
+    "  .#,,,,,,#.....#,,,,,,#..  ",
+    "  .########.....########..  ",
+    "  ........................  ",
+    "  %%%%%%%%%%%..%%%%%%%%%%%  ",
+    "  ..........*....i........  ",
+    "  .....G.............!....  ",
+    "                            ",
+    "                            ",
+  ],
+  fenmarch: [
+    "                ===                 ",
+    "                ===                 ",
+    "  .#########....===...#########...  ",
+    "  .#vB,kqB,#....===...#,qS,kv,#...  ",
+    "  .#,,,,,,,#....===...#,,,,,,,#...  ",
+    "  .####,####....===...####,####...  ",
+    "  .==============================.  ",
+    "  ............o.===.*.............  ",
+    "  .####,###.....===....####,###...  ",
+    "  f#e,,,d,#.....===....#e,,,d,#...f ",
+    "  f#,h,h,,#.....===....#,h,,,,#...f ",
+    "  .#,,,,,,#.....===....#,,,,,,#...  ",
+    "  .########.....===....########...  ",
+    "  .==============================.  ",
+    "  ............i.===.G.............  ",
+    "  .####,####....===....####,###...  ",
+    "  f#,,,,,v,#....===....#e,,,d,#...f ",
+    "  f#,A,s,,,#....===....#,h,k,,#...f ",
+    "  .#,,,,,,,#....===....#,,,,,,#...  ",
+    "  .#########....===....########...  ",
+    "                ===                 ",
+    "                ===                 ",
+  ],
+  norwick: [
+    "%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%",
+    "%.%..............................%",
+    "%.%......................!.......%",
+    "%.%.##########......##########...%",
+    "%.%.#,,,,,qv,#......#,,,,,,d,#...%",
+    "%.%.#,,B,k,,,#......#,A,s,h,,#...%",
+    "%.%.#,,,,,,,,#......#,e,,,,,,#...%",
+    "%.%.#,,,,,,,,#......#,,,,,,,,#...%",
+    "%.%.#####,####......#####,####...%",
+    "%.%..............................%",
+    "%.%.G.........G..............G...%",
+    ".................................%",
+    "..............o......*...........%",
+    "%.%.G.W.......G..............G...%",
+    "%.%...........i..................%",
+    "%.%.####,####.......#####,####...%",
+    "%.%.#e,,,,d,#.......#e,,,,,d,#...%",
+    "%.%.#,h,h,,,#.......#,h,h,k,,#...%",
+    "%.%.#,,,,,,,#.......#,,,,,,,,#...%",
+    "%.%.#########.......##########...%",
+    "%.%....G....G.......G............%",
+    "%.%......G.............G..G......%",
+    "%.%..............................%",
+    "%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%",
+  ],
+  hollybarrow: [
+    "                                    ",
+    " \"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\" ",
+    " \"................................\" ",
+    " \".#########......................\" ",
+    " \".#,,,,qv,#........T.TTT.T.TTT...\" ",
+    " \".#,,S,k,,#......................\" ",
+    " \".#,,,,,,,#........T.TTT.T.TTT...\" ",
+    " \".#,,,,,,,#......................\" ",
+    " \".####,####..........T.T.T.T.T...\" ",
+    " \".................p.p.p.p.p.p.p..\" ",
+    " \"...T.............p.p.p.p.p.p.p..\" ",
+    " \"................................\" ",
+    " \"............o.....*.............\" ",
+    " \"................................\" ",
+    " \"............i...................\" ",
+    " \".####,###...........####,###....\" ",
+    " \".#e,,,d,#...........#e,,,d,#....\" ",
+    " \".#,h,h,,#...........#,h,,,,#....\" ",
+    " \".#,,,,,,#...........#,,,,,,#....\" ",
+    " \".########...........########....\" ",
+    " \"................................\" ",
+    " \".p.....p.p.p......p.p.p.p.p.p...\" ",
+    " \"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\" ",
+    "                                    ",
+  ],
+}
+const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
+const OPEN4 = new Set(['.','@',','])
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+
+// checkPlanConnected + seatDrawnTown, mirrored exactly.
+function planConnected4(rows, cx, cy) {
+  const pw = rows[0].length, ph = rows.length
+  const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
+  const at = (x, y) => { const rx = x - x0, ry = y - y0
+    return (rx < 0 || ry < 0 || rx >= pw || ry >= ph) ? null : rows[ry][rx] }
+  const openAt = (x, y) => { const ch = at(x, y)
+    if (ch === null) return false
+    if (ch === '=') return true            // decking is footing
+    if (isWater4(x, y)) return false
+    return OPEN4.has(ch) || ch === ' ' }
+  let sx = cx, sy = cy
+  if (!openAt(sx, sy)) {
+    outer: for (let r = 1; r < Math.max(pw, ph); r++)
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        if (openAt(cx + dx, cy + dy)) { sx = cx + dx; sy = cy + dy; break outer } }
+  }
+  const seen = new Set([sx + ',' + sy]); const q = [[sx, sy]]; let h = 0
+  while (h < q.length) { const [x, y] = q[h++]
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, ny = y + dy, k = nx + ',' + ny
+      if (seen.has(k) || !openAt(nx, ny)) continue
+      seen.add(k); q.push([nx, ny]) } }
+  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
+  for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+    const ch = rows[ry][rx]
+    if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
+    if (!ESS.has(LEG4[ch])) continue
+    const x = x0 + rx, y = y0 + ry
+    if (isWater4(x, y)) continue
+    if (![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => seen.has((x+dx)+','+(y+dy)))) return false }
+  return true
+}
+const _seat4 = {}
+function seatDrawnTown4(tag, nomX, nomY) {
+  if (_seat4[tag]) return _seat4[tag]
+  const rows = PLANS4[tag], pw = rows[0].length, ph = rows.length
+  const dryOk = (cx, cy) => {
+    const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
+    for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+      const ch = rows[ry][rx]
+      if (ch === ' ' || ch === '=') continue
+      const x = x0 + rx, y = y0 + ry
+      if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) return false
+      const wet = isWater4(x, y)
+      if (ch === '~' || ch === 'F') { if (!wet) return false }
+      else if (wet) return false
+      else if (onRidge4(x, y) || onBarrow4(x, y)) return false }
+    return true }
+  let out = null
+  spiral: for (let rad = 0; rad < 110; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const cx = nomX + dx, cy = nomY + dy
+      if (dryOk(cx, cy) && planConnected4(rows, cx, cy)) { out = { x: cx, y: cy }; break spiral } }
+  if (!out) spiral2: for (let rad = 0; rad < 110; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (dryOk(nomX + dx, nomY + dy)) { out = { x: nomX + dx, y: nomY + dy }; break spiral2 } }
+  return (_seat4[tag] = out ?? { x: nomX, y: nomY })
+}
+
+let _ss4 = null
+function settlementsE4() {
+  if (_ss4) return _ss4
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
+  const mby = cy - 62, ey = emY4()
+  const P = (t) => ({ w: PLANS4[t][0].length, h: PLANS4[t].length })
+  const S = (t, x, y) => seatDrawnTown4(t, x, y)
+  _ss4 = [
+    { tag:'anchor',      name:'Anchor',      ...S('anchor', cx, cy),                                        ...P('anchor'),      ring:'shire' },
+    { tag:'millbrook',   name:'Millbrook',   ...S('millbrook', riverX4(mby) + 16, mby),                     ...P('millbrook'),   ring:'shire' },
+    { tag:'oxenford',    name:'Oxenford',    ...S('oxenford', cx - 104, cy + 40),                            ...P('oxenford'),    ring:'shire' },
+    { tag:'thornbury',   name:'Thornbury',   ...S('thornbury', cx + 78, cy - 34),                           ...P('thornbury'),   ring:'shire' },
+    { tag:'hollybarrow', name:'Hollybarrow', ...S('hollybarrow', cx - 96, cy - 52),                         ...P('hollybarrow'), ring:'shire' },
+    { tag:'greenhollow', name:'Greenhollow', ...S('greenhollow', Math.round(W*0.42), Math.round(H*0.12)),   ...P('greenhollow'), ring:'frontier' },
+    { tag:'cragfoot',    name:'Cragfoot',    ...S('cragfoot', Math.round(W*0.87), Math.round(H*0.44)),      ...P('cragfoot'),    ring:'frontier' },
+    { tag:'eastmere',    name:'Eastmere',    ...S('eastmere', (bayShoreX4(ey) ?? Math.round(W*0.7)) - 14, ey), ...P('eastmere'),  ring:'frontier' },
+    { tag:'fenmarch',    name:'Fenmarch',    ...S('fenmarch', riverX4(Math.round(H*0.83)) + 9, Math.round(H*0.83)), ...P('fenmarch'), ring:'frontier' },
+    { tag:'norwick',     name:'Norwick',     ...S('norwick', brandX4(Math.round(H*0.47)) + 18, Math.round(H*0.47)), ...P('norwick'), ring:'frontier' },
+  ]
+  return _ss4
+}
+// ---- the router, ported whole ----
+const BIOME_COST4 = { heartlands:10, downs:11, greenwood:15, moor:15, wilds:17, fens:20, crags:22 }
+
+// ---------------------------------------------------------------------------
+// THE GOING
+// ---------------------------------------------------------------------------
+// A road runs dead straight because there is nothing for it to bend around.
+// Cost is uniform WITHIN a biome, so across the Heartlands or the Downs every
+// tile is worth the same and the cheapest path is the shortest one -- and the
+// straight-line pull below then finishes the job. The result is a ruler line
+// across a country, which is a surveyor's road, and this generator's own
+// comment says it does not want one.
+//
+// So the ground gets texture at a scale smaller than a country: patches of
+// easier and harder going, eight tiles across, the way real ground is boggy
+// here and firm there. A road that costs a little more through a soft patch
+// goes round it, and the bends come from the land rather than from a wobble
+// laid over the top.
+//
+// INTEGERS ONLY, and no Math.sin. This value feeds the router's frontier, and
+// the router's contract (spec 9b) is that two nodes computing the same world
+// get the same road to the tile. Trigonometry is not bit-identical across
+// engines; a 32-bit integer hash is.
+
+// ---------------------------------------------------------------------------
+// THE LIE OF THE LAND
+// ---------------------------------------------------------------------------
+// The going alone was not enough, and the render says so: several roads came
+// out exactly as long as the straight line between their ends. Patches of soft
+// ground eight tiles across average out over two hundred tiles, so the router
+// walked through them and stayed on its ruler.
+//
+// What makes a real road wander is not soft ground, it is HEIGHT. A road would
+// rather go a long way round than climb, which is why they follow valleys and
+// contour along hillsides and arrive at a pass rather than at a summit. So the
+// land is given a height, and a step is charged for what it climbs.
+//
+// The field is smooth -- bilinear between lattice points thirty-two tiles
+// apart -- because a road follows a slope, and a slope needs somewhere to run
+// downhill TO. A blocky field gives cliffs and cliffs give staircases.
+//
+// Integers throughout, and no trigonometry: this decides where the roads are,
+// and spec 9b says two nodes computing the same world must get the same road.
+const ELEV_SHIFT = 5;                                    // 32 tiles per lattice step
+function elevHash(salt, gx, gy) {
+  let h = (Math.imul(gx, 1597334677) + Math.imul(gy, 3812015801) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) | 0;
+  h = Math.imul(h ^ (h >>> 13), 3266489917) | 0;
+  return (h ^ (h >>> 16)) & 255;
+}
+function elevAt(salt, x, y) {
+  // TWO OCTAVES. One lattice at thirty-two tiles gives a landscape of broad
+  // hills -- and between them, flats, where a road has nothing to respond to
+  // and runs dead straight for sixty tiles. Sixty tiles is nearly forty
+  // seconds of walking with the world unchanging, which is the exact stretch
+  // that feels drawn rather than travelled.
+  //
+  // So a finer octave over the top: eight-tile undulations at a third of the
+  // weight. Not hills -- rises and dips, the scale of a field. A road answers
+  // them with small corrections all the way along, and a road that is always
+  // correcting is a road that was walked.
+  return Math.floor((octave(salt, x, y, 5) * 5 + octave(salt ^ 0x51ed, x, y, 3) * 3) / 8);
+}
+function octave(salt, x, y, shift) {
+  const S = 1 << shift, MASK = S - 1;
+  const gx = x >> shift, gy = y >> shift;
+  const fx = x & MASK, fy = y & MASK;
+  const a = elevHash(salt, gx, gy), b = elevHash(salt, gx + 1, gy);
+  const c = elevHash(salt, gx, gy + 1), d = elevHash(salt, gx + 1, gy + 1);
+  const sm = (f) => Math.floor((3 * f * f * S - 2 * f * f * f) / (S * S));
+  const u = sm(fx), v = sm(fy);
+  const top = a * (S - u) + b * u;
+  const bot = c * (S - u) + d * u;
+  return Math.floor((top * (S - v) + bot * v) / (S * S));
+}
+
+// ---------------------------------------------------------------------------
+// THE PLACED THINGS
+// ---------------------------------------------------------------------------
+// Everything else on this island is computed. These are CHOSEN.
+//
+// A generator can make a plausible country but it cannot make a memorable one,
+// because memory attaches to particulars: the copse you always skirt, the mire
+// the road bends around, the scree fan below the pass. Those are the things a
+// citizen still knows the shape of years later, and they exist here because
+// somebody put them there and wrote down why.
+//
+// Each was placed at the middle of a measured dead-straight run -- the longest
+// stretches on the island, where a citizen walked twenty or thirty seconds
+// with nothing changing. A road that meets one of these has to choose a side,
+// and choosing a side is what makes a road look walked.
+//
+// This table is LAW in the same way the coastline is: identical in the
+// generator and in every window, forever. Add to it thoughtfully. Nothing here
+// may ever be removed once a world is founded on it -- the roads bend around
+// these, so deleting one moves every road that answers it.
+const HANDMADE = [
+  // --- the long north-south run beside the river, above Anchor ---
+  { name: 'the Vale Copse',      x: 484, y: 259, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Sallows',         x: 486, y: 291, rx: 7,  ry: 8,  kind: 'mire' },
+  // --- the run east of Anchor, on the way up to the North Pass ---
+  { name: 'the Thornvale Spinney', x: 571, y: 197, rx: 9, ry: 6, kind: 'copse' },
+  // --- the long straight through the Crags below the pass ---
+  { name: 'the Fallen Scree',    x: 666, y: 180, rx: 10, ry: 5,  kind: 'scree' },
+  { name: 'the Sentinel Slip',   x: 717, y: 287, rx: 7,  ry: 6,  kind: 'scree' },
+  // --- the Hollybarrow-Norwick road, west of the crossing ---
+  { name: 'the Oxen Copse',      x: 335, y: 214, rx: 8,  ry: 5,  kind: 'copse' },
+  { name: 'the Long Holt',       x: 255, y: 221, rx: 7,  ry: 5,  kind: 'copse' },
+  // --- Watersmeet, where the road runs down the river meadow ---
+  { name: 'the Meadow Mire',     x: 476, y: 342, rx: 6,  ry: 8,  kind: 'mire' },
+  // --- the Downs road out of Eastmere ---
+  { name: 'the Sheepfold Thorns', x: 520, y: 381, rx: 8, ry: 5,  kind: 'copse' },
+  // --- the Fens, where the road runs dead south ---
+  { name: 'the Drowned Holt',    x: 485, y: 378, rx: 6,  ry: 7,  kind: 'mire' },
+  // --- second pass: the straights that surfaced once the first ten were in ---
+  //
+  // Placing a thing moves the road that answers it, and a moved road finds new
+  // level ground to run straight across. That is not a fault in the method, it
+  // is the method: each pass measures, places, and measures again. Sixteen long
+  // runs became nine; these are aimed at those nine.
+  { name: 'the Hollybarrow Hedge', x: 316, y: 204, rx: 9,  ry: 5,  kind: 'copse' },
+  { name: 'the Anchor Withies',    x: 394, y: 340, rx: 7,  ry: 6,  kind: 'mire' },
+  { name: 'the Oxenlea Copse',     x: 320, y: 300, rx: 8,  ry: 6,  kind: 'copse' },
+  { name: 'the Lea Marsh',         x: 305, y: 332, rx: 6,  ry: 7,  kind: 'mire' },
+  { name: 'the Barrow Thorns',     x: 347, y: 229, rx: 6,  ry: 6,  kind: 'copse' },
+  // --- third pass: nine became four, and these are the four ---
+  { name: 'the Vale Alders',    x: 432, y: 237, rx: 7,  ry: 5,  kind: 'copse' },
+  { name: 'the Millbrook Osiers', x: 497, y: 212, rx: 6, ry: 5,  kind: 'mire' },
+  { name: 'the Thornvale Holt', x: 523, y: 249, rx: 6,  ry: 6,  kind: 'copse' },
+  { name: 'the High Delving Scree', x: 711, y: 206, rx: 8, ry: 5, kind: 'scree' },
+  { name: 'the Nordhead Slip',  x: 704, y: 212, rx: 7,  ry: 5,  kind: 'scree' },
+];
+// which placed thing is here, if any. An ellipse, because nothing in a
+// landscape has corners.
+function handmadeAt(x, y) {
+  for (const f of HANDMADE) {
+    const dx = (x - f.x) / f.rx, dy = (y - f.y) / f.ry;
+    if (dx * dx + dy * dy <= 1) return f;
+  }
+  return null;
+}
+// what it costs a road to go through one rather than round it. Passable --
+// a citizen may always walk in -- but dear enough that a road will not.
+const HANDMADE_COST = { copse: 46, mire: 58, scree: 40 };
+const GOING_SCALE = 3;                 // 1 << 3 = eight tiles to a patch
+function goingSalt(seed) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function goingAt(salt, x, y) {
+  const gx = x >> GOING_SCALE, gy = y >> GOING_SCALE;
+  let h = (Math.imul(gx, 374761393) + Math.imul(gy, 668265263) + salt) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) | 0;
+  h = (h ^ (h >>> 16)) >>> 0;
+  // 0..6 of extra effort, and a quarter of the ground is as easy as it was
+  return h % 7;
+}
+function routeCost4(x, y) {
+  if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return -1
+  const b = biomeAtE4(x, y)
+  if (b === 'sea') return -1
+  if (isWater4(x, y)) return onBridge4(x, y) ? 10 : -1
+  if (onBarrow4(x, y) || onRidge4(x, y)) return -1
+  let c = BIOME_COST4[b] ?? 14
+  const hm = handmadeAt(x, y)                       // and the things somebody put here
+  if (hm) c += HANDMADE_COST[hm.kind] ?? 40
+  c += goingAt(goingSalt(GSEED), x, y)              // the going, patch by patch
+  if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) c += 6
+  return c
+}
+let _cost4 = null
+function costField4() {
+  if (_cost4) return _cost4
+  const f = new Int16Array(W * H)
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) f[y * W + x] = routeCost4(x, y)
+  return (_cost4 = f)
+}
+const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
+function hPush4(h, v) { h.push(v); let i = h.length - 1
+  while (i > 0) { const p = (i-1)>>1; if (h[p] <= h[i]) break; const t = h[p]; h[p] = h[i]; h[i] = t; i = p } }
+function hPop4(h) { const top = h[0], last = h.pop()
+  if (h.length) { h[0] = last; let i = 0
+    for (;;) { const l=i*2+1, r=l+1; let m=i
+      if (l < h.length && h[l] < h[m]) m = l
+      if (r < h.length && h[r] < h[m]) m = r
+      if (m === i) break
+      const t = h[m]; h[m] = h[i]; h[i] = t; i = m } }
+  return top }
+function routePath4(ax, ay, bx, by, laid) {
+  const N = W * H, f = costField4()
+  const dist = new Int32Array(N).fill(0x7fffffff), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N)
+  const si = ay * W + ax, ti = by * W + bx
+  if (f[si] < 0 || f[ti] < 0) return null
+  const hEst = (x, y) => { const dx = x>bx?x-bx:bx-x, dy = y>by?y-by:by-y
+    const lo = dx<dy?dx:dy, hi = dx<dy?dy:dx; return (hi-lo)*10 + lo*14 }
+  const vx = bx-ax, vy = by-ay, L = Math.sqrt(vx*vx+vy*vy)
+  const esalt = goingSalt(GSEED) ^ 0x9e37
+  const offLine = (x, y) => { if (L < 1) return 0
+    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*14)) }
+  dist[si] = 0
+  const heap = [hEst(ax,ay) * 1048576 + si]
+  let found = false
+  while (heap.length) {
+    const i = hPop4(heap) % 1048576
+    if (done[i]) continue
+    done[i] = 1
+    if (i === ti) { found = true; break }
+    const x = i % W, y = (i - x) / W, d0 = dist[i]
+    for (const d of DIRS4) {
+      const nx = x + d[0], ny = y + d[1]
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue
+      const ni = ny * W + nx
+      if (done[ni]) continue
+      const c = f[ni]; if (c < 0) continue
+      // A ROAD WOULD RATHER GO ROUND THAN UP. Six per unit climbed, nothing
+      // for level or downhill. Identical to the generator's rule: if these two
+      // ever differ the windows draw roads the engine does not have.
+      let step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
+      const up = elevAt(esalt, nx, ny) - elevAt(esalt, x, y)
+      const climb = up > 0 ? up * 6 : 0
+      // ROADS BRAID: two fifths of the cost on ground already road. Identical
+      // to the generator, including the order the segments are laid in.
+      if (laid && laid.has(nx + ',' + ny)) step = Math.round(step * 0.68)
+      const nd = d0 + step + climb + offLine(nx, ny)
+      if (nd < dist[ni]) { dist[ni] = nd; prev[ni] = i; hPush4(heap, (nd + hEst(nx,ny)) * 1048576 + ni) }
+    }
+  }
+  if (!found) return null
+  const out = []
+  for (let i = ti; i !== -1; i = prev[i]) { const x = i % W; out.push([x, (i-x)/W]); if (i === si) break }
+  return out.reverse()
+}
+// A junction placed by fixed offset lands in the river on some other seed.
+// Mirrors worldgen-expanse4.seatPoint exactly.
+function seatPoint4(x, y) {
+  if (routeCost4(x, y) > 0) return { x, y }
+  for (let rad = 1; rad < 60; rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (routeCost4(x + dx, y + dy) > 0) return { x: x + dx, y: y + dy }
+    }
+  return { x, y }
+}
+let _roads4 = null
+
+// A LANE THAT GOES NOWHERE. Identical to the generator's, including the salt
+// and the order: the lanes are laid last, after the whole network, so they
+// hang off it rather than becoming part of anyone's route.
+function laneSeatsOf4(towns, salt) {
+  const out = []
+  for (let i = 0; i < towns.length; i++) {
+    const t = towns[i]
+    let h = (Math.imul(i + 1, 2654435761) + salt) | 0
+    h = Math.imul(h ^ (h >>> 15), 2246822519) | 0
+    h = (h ^ (h >>> 13)) >>> 0
+    const n = (h & 1) + 1
+    for (let k = 0; k < n; k++) {
+      const hk = (Math.imul(h + k * 40503, 1597334677)) >>> 0
+      const ang = (hk % 3600) / 3600 * Math.PI * 2
+      const len = 16 + (hk >>> 12) % 26
+      out.push({ from: t, x: Math.round(t.x + Math.cos(ang) * len), y: Math.round(t.y + Math.sin(ang) * len) })
+    }
+  }
+  return out
+}
+function roadSet4() {
+  if (_roads4) return _roads4
+  const s = {}; for (const t of settlementsE4()) s[t.tag] = t
+  const wm = seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
+  // bridges4 returns the crossings untagged, but in the generator's own order:
+  // Highford, the Millbrook Bridge, the Watersmeet Bridge, Fenford, the
+  // Oxenford. Index is the tag here, and a comment is the only thing keeping
+  // them in step -- if bridgesOf ever reorders, this reorders with it.
+  const bs = bridges4()
+  const br0 = bs[0], br2 = bs[2]
+  const [pa, pb] = passes4()
+  const npass = { x: ridgeX4(pa), y: pa }, spass = { x: ridgeX4(pb), y: pb }
+  const shrine = isles4()[0]
+  const segs = [
+    [s.anchor,s.millbrook],[s.millbrook,s.hollybarrow],[s.hollybarrow,s.oxenford],
+    [s.oxenford,s.anchor],[s.anchor,s.thornbury],[s.thornbury,s.millbrook],
+    // THROUGH THE PASS, NOT PAST IT -- and in exactly the generator's order,
+    // because the braid discount makes the order part of the answer.
+    // EACH ROAD CROSSES AT ITS OWN CROSSING -- Highford for Greenhollow, the
+    // Watersmeet Bridge for Watersmeet. Same order as the generator, because
+    // the braid discount makes the order part of the answer.
+    [s.millbrook,br0],[br0,s.greenhollow],
+    [s.thornbury,npass],[npass,s.cragfoot],
+    [s.anchor,spass],[spass,s.eastmere],
+    [s.oxenford,br2],[br2,wm],[wm,s.fenmarch],
+    [s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
+    [s.oxenford,s.norwick],[s.hollybarrow,s.norwick],
+  ]
+  const set = new Set()
+  for (const [a, b] of segs) {
+    const p = routePath4(a.x, a.y, b.x, b.y, set)
+    if (!p) continue
+    for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
+  }
+  // and the lanes that join nothing
+  for (const L2 of laneSeatsOf4(settlementsE4(), goingSalt(GSEED) ^ 0x5a17)) {
+    const seat = seatPoint4(L2.x, L2.y)
+    if (!seat) continue
+    const p = routePath4(L2.from.x, L2.from.y, seat.x, seat.y, set)
+    // A LANE IS SHORT BY DEFINITION. seatPoint snaps a destination to the
+    // nearest walkable ground, and if the chosen point lands in water or on
+    // the Ridge that snap can be a long way off -- one lane came out at a
+    // hundred and sixty-two tiles, which is not a lane, it is a road to
+    // somewhere with nothing at the end. Twice the intended length or it is
+    // not laid at all.
+    const want = Math.round(Math.hypot(L2.x - L2.from.x, L2.y - L2.from.y))
+    if (!p || p.length < 8 || p.length > want * 2 + 10) continue
+    for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
+  }
+  // the causeway is drawn, not routed: no router crosses open sea
+  const a = s.eastmere, b = shrine
+  const vx = b.x - a.x, vy = b.y - a.y, L = Math.sqrt(vx*vx + vy*vy)
+  const steps = Math.ceil(L * 2)
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps
+    const px = Math.round(a.x + vx*t), py = Math.round(a.y + vy*t)
+    set.add(px + ',' + py); set.add((px+1) + ',' + py)
+  }
+  return (_roads4 = set)
+}
+// THE ROADS, AS A BITMAP.
+//
+// roadSet4 is a Set of "x,y" strings, so every road test built a string and
+// hashed it -- and terrainOfE4 asks four times a tile. Twenty-five
+// microseconds a tile, eleven seconds to lay the roads over the island.
+//
+// The Set stays: it is what the router fills and what everything else reads.
+// This is only a second view of it, one byte a tile, built once the first time
+// anyone asks and thrown away with the world.
+let _roadBmp = null, _roadBmpFor = null
+const onRoad4 = (x, y) => {
+  if (x < 0 || y < 0 || x >= W || y >= H) return roadSet4().has(x + ',' + y)
+  const k = GSEED + ':' + W + 'x' + H
+  if (_roadBmpFor !== k) {
+    const set = roadSet4()
+    _roadBmp = new Uint8Array(W * H)
+    for (const key of set) {
+      const c = key.indexOf(',')
+      const rx = +key.slice(0, c), ry = +key.slice(c + 1)
+      if (rx >= 0 && ry >= 0 && rx < W && ry < H) _roadBmp[ry * W + rx] = 1
+    }
+    _roadBmpFor = k
+  }
+  return _roadBmp[y * W + x] === 1
+}
+function fordE4(x, y) {
+  if (onBridge4(x, y)) return true
+  for (const s of settlementsE4())
+    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1) && (x === s.x || y === s.y)) return true
+  // the causeway and the quays are decking: if a road is drawn over water,
+  // it is because something was built there
+  if (isWater4(x, y) && onRoad4(x, y)) return true
+  return false
+}
+// Anchor's plaza, mirroring worldgen-expanse4.spawnDry. The window draws
+// the arrival point, so it has to agree about where it is.
+function spawnDry4() {
+  const a = settlementsE4().find(s => s.tag === 'anchor')
+  const rows = PLANS4.anchor, pw = rows[0].length, ph = rows.length
+  const x0 = a.x - (pw >> 1), y0 = a.y - (ph >> 1)
+  const openHere = (x, y) => {
+    const rx = x - x0, ry = y - y0
+    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) return false
+    const ch = rows[ry][rx]
+    if (ch !== '.' && ch !== '@') return false
+    return !isWater4(x, y) && !onRidge4(x, y) && !onBarrow4(x, y)
+  }
+  for (let rad = 0; rad < Math.max(pw, ph); rad++)
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      if (openHere(a.x + dx, a.y + dy)) return { x: a.x + dx, y: a.y + dy }
+    }
+  return { x: a.x, y: a.y }
+}
+
+// RAMPART OR BUILDING? The state cannot say -- the engine allows a kind only
+// on a landmark, and rightly, since the difference is purely visual and the
+// geography hash should not care about it. But the window carries the plans
+// and the seats, so it can look the answer up: '%' in a town's drawing is a
+// rampart, '#' is a building wall. Everything outside a plan -- brandstones,
+// the Delving's quarry, a ruin on the moor -- is bare stone.
+// A 'U' in a plan is a well node the window paints as a fountain. Same
+// lookup as the ramparts, same reason: the difference is visual, so it must
+// not touch the state.
+const _fountCache = new Map()
+function isFountain4(x, y) {
+  const k = x + ',' + y
+  const hit = _fountCache.get(k)
+  if (hit !== undefined) return hit
+  let out = false
+  for (const t of settlementsE4()) {
+    const rows = PLANS4[t.tag]; if (!rows) continue
+    const pw = rows[0].length, ph = rows.length
+    const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
+    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
+    out = rows[ry][rx] === 'U'
+    break
+  }
+  _fountCache.set(k, out)
+  return out
+}
+// Where are the walls? Rebuilt only when the tick changes, because the draw
+// loop asks four times per wall and a full node scan per query would be
+// thousands of scans a frame.
+let _wallSet = null, _wallTick = -1
+function wallAt(st, x, y) {
+  if (!st || !st.nodes) return false
+  if (_wallTick !== st.tick || _wallSet === null) {
+    _wallSet = new Set()
+    // A RAMPART COUNTS AS A WALL for this: the set decides how a stretch
+    // COURSES -- which sides get an outline and which run on into the next
+    // stone -- and a curtain wall that did not count broke the coursing at
+    // every junction with a building.
+    for (const k in st.nodes) { const q = st.nodes[k]
+      if (q.type === 'wall' || q.type === 'rampart') _wallSet.add(q.x + ',' + q.y) }
+    _wallTick = st.tick
+  }
+  return _wallSet.has(x + ',' + y)
+}
+// WHICH DOOR IS THE BANK'S? From outside, a bank and a cottage are both a
+// brown room -- you only learn which is which by standing on the booth. Real
+// shops hang a sign, so: for every room a plan lays, if a bank or a counter
+// stands inside it, find the doorway and mark it.
+//
+// The door is the one tile of the room's wall ring that is not a wall.
+// Built ONCE per tick as a map from the shop tile to its door, rather than
+// scanning every node for every room of every town -- that first version was
+// 367ms a call, which is most of a tick spent deciding where to hang a sign.
+let _signs = null, _signTick = -1
+function shopDoors4(st) {
+  if (!st || !st.nodes) return _signs ?? new Map()
+  if (_signTick === st.tick && _signs) return _signs
+  const out = new Map()
+  // one pass over the nodes, bucketed by town
+  const shops = []
+  for (const k in st.nodes) {
+    const q = st.nodes[k]
+    if (q.type === 'bank' || q.type === 'store') shops.push(q)
+  }
+  for (const t of settlementsE4()) {
+    const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
+    if (!rows || !rects) continue
+    const pw = rows[0].length, ph = rows.length
+    const ox = t.x - (pw >> 1), oy = t.y - (ph >> 1)
+    const mine = shops.filter(q => Math.abs(q.x - t.x) <= (pw >> 1) && Math.abs(q.y - t.y) <= (ph >> 1))
+    if (!mine.length) continue
+    for (const [rx, ry, rw, rh] of rects) {
+      const inside = mine.filter(q => {
+        const px = q.x - ox, py = q.y - oy
+        return px >= rx && py >= ry && px < rx + rw && py < ry + rh
+      })
+      if (!inside.length) continue
+      const kind = inside[0].type
+      // walk the wall ring; the gap is the way in
+      const ring = []
+      for (let x = rx - 1; x <= rx + rw; x++) { ring.push([x, ry - 1]); ring.push([x, ry + rh]) }
+      for (let y = ry; y < ry + rh; y++) { ring.push([rx - 1, y]); ring.push([rx + rw, y]) }
+      let door = null
+      for (const [px, py] of ring) {
+        if (px < 0 || py < 0 || px >= pw || py >= ph) continue
+        if (rows[py][px] === '#') continue
+        door = { x: ox + px, y: oy + py, kind }
+        break
+      }
+      if (door) for (const q of inside) out.set(q.x + ',' + q.y, door)
+    }
+  }
+  _signTick = st.tick; _signs = out
+  return out
+}
+// A keeper's trade. The id carries it where the generator wrote one; where
+// the plans placed the keeper it has none, so read the room: whatever this
+// person is standing beside is what they do.
+const _roleCache = new Map()
+function keeperRole4(st, id, n) {
+  if (id === 'kpr-wizard-oberon') return 'wizard'
+  if (id.includes('lantern')) return 'inn'
+  if (id.includes('shep') || id.includes('fold')) return 'shep'
+  if (id.includes('sawyer') || id.includes('camp')) return 'forest'
+  if (id.includes('eel') || id.includes('sheds')) return 'fisher'
+  if (id.includes('delve') || id.includes('high')) return 'smith'
+  if (id.includes('bank')) return 'clerk'
+  const ck = _roleCache.get(id)
+  if (ck) return ck
+  let role = 'town'
+  if (st && st.nodes) {
+    const near = {}
+    for (const k in st.nodes) {
+      const q = st.nodes[k]
+      if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
+      near[q.type] = true
+    }
+    role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
+         : near.hearth ? 'town' : 'town'
+  }
+  _roleCache.set(id, role)
+  return role
+}
+// the eighteen nouns added at the fourth founding, which have their own art
+const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
+  'charcoal-clamp','log-pile','spoil-heap','cut-face','bone-pile',
+  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall',
+  // the thirteen added when the world stopped repeating itself: four that
+  // were always here wearing 'standing-stone' because nothing else had a
+  // name for them, and nine new places
+  'skep','cairn','boundary-stone','skull-pile',
+  'scorched-ring','glass-stone','burnt-tree',
+  'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
+const _rampCache = new Map()
+function isRampart4(x, y) {
+  const k = x + ',' + y
+  const hit = _rampCache.get(k)
+  if (hit !== undefined) return hit
+  let out = false
+  for (const t of settlementsE4()) {
+    const rows = PLANS4[t.tag]; if (!rows) continue
+    const pw = rows[0].length, ph = rows.length
+    const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
+    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
+    out = rows[ry][rx] === '%'
+    break
+  }
+  _rampCache.set(k, out)
+  return out
+}
+
+// A TOWN IS ITS DRAWING, NOT ITS PLOT -- identical to groundKindAt's rule.
+// Only Anchor and Norwick are drawn as closed rings; the other eight are
+// clusters, and paving their whole rect put a flagstone box round each.
+const _TOWN_OPEN4 = new Set([' ', '.'])
+function townPaved4(rows, rx, ry) {
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const c = rows[ry + dy]?.[rx + dx]
+    if (c !== undefined && !_TOWN_OPEN4.has(c)) return true
+  }
+  return false
+}
+function terrainOfE4(x, y) {
+  if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
+  if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
+  // A ROAD MUST NOT BEND AROUND NOTHING. The placed things are ground you can
+  // see and stand in -- a copse, a mire, a scree fan -- and not an invisible
+  // cost that makes a road look drunk. Water and town paving still win: a
+  // copse does not grow in the river, and nobody planted one in a market.
+  {
+    const hm = handmadeAt(x, y)
+    if (hm && !onRoad4(x, y)) {
+      const inTown = settlementsE4().some((t) =>
+        Math.abs(x - t.x) < (t.w >> 1) && Math.abs(y - t.y) < (t.h >> 1))
+      if (!inTown) return hm.kind === 'copse' ? 'forest'
+                        : hm.kind === 'mire' ? 'fens' : 'scree'
+    }
+  }
+  for (const t of settlementsE4()) {
+    // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
+    // inclusive test claimed the rampart line itself as town ground and
+    // painted seven tiles of trail as cobble.
+    if (Math.abs(x - t.x) >= (t.w >> 1) || Math.abs(y - t.y) >= (t.h >> 1)) continue
+    // INDOORS? Ask the drawing, exactly as groundKindAt does. ',' is a room's
+    // floor and must not be painted as the street it opens onto.
+    const rows = PLANS4[t.tag]
+    if (rows) {
+      const pw = rows[0].length, ph = rows.length
+      const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
+      // ENCLOSURE, not the character: a counter, a hearth and the clerk all
+      // stand on the same floor as the empty tile beside them
+      for (const [rxx, ryy, rww, rhh] of (PLAN_ROOMS4[t.tag] ?? []))
+        if (rx >= rxx && ry >= ryy && rx < rxx + rww && ry < ryy + rhh) return 'floor'
+      // and the paving reaches only as far as the town does
+      if (!townPaved4(rows, rx, ry)) return onRoad4(x, y) ? 'trail' : biomeAtE4(x, y)
+    }
+    // NOT EVERY TOWN IS PAVED: a farm and a clearing keep their own ground
+    if (t.tag === 'hollybarrow' || t.tag === 'greenhollow')
+      return onRoad4(x, y) ? 'trail' : biomeAtE4(x, y)
+    return onRoad4(x, y) ? 'cobble' : 'flag'
+  }
+  if (onRidge4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
+  if (onBarrow4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
+  if (onRoad4(x, y)) {
+    for (const t of settlementsE4()) if (Math.max(Math.abs(x - t.x), Math.abs(y - t.y)) <= 20) return 'cobble'
+    if (onRidge4(x-1,y) || onRidge4(x+1,y) || onBarrow4(x,y)) return 'gravel'
+    // the road takes its country's colour (mirrors groundKindAt)
+    const rb = biomeAtE4(x, y)
+    if (rb === 'crags') return 'gravel'
+    if (rb === 'downs') return 'chalk'
+    if (rb === 'moor')  return 'peat'
+    if (rb === 'fens')  return 'causey'
+    return 'trail'
+  }
+  if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) return 'sand'
+  return biomeAtE4(x, y)
+}
+// ---- the locales: names smaller than a country ----
+const LOCALES4 = [
+  ['Anchor Vale',0.50,0.50,46,30],['Watersmeet',null,null,30,20,'watersmeet'],
+  ['the Barrow',null,null,34,21,'barrow'],['Oxenlea',0.37,0.58,32,22],
+  ['Thornvale',0.62,0.42,30,20],['the Deepwood',0.52,0.07,54,22],
+  ['the Kingswood',0.68,0.14,40,20],['Hollybarrow Chase',0.36,0.16,34,18],
+  ['the High Delving',0.81,0.38,30,20],['the Sentinel Screes',0.86,0.55,30,20],
+  ['Cragfoot Scar',0.90,0.28,28,18],['the Sheepfolds',0.72,0.71,30,18],
+  ['Whitechalk',0.80,0.78,32,18],['Eelmarsh',0.48,0.85,36,18],
+  ['the Fen Mouth',0.58,0.90,30,16],['Bleakfell',0.29,0.15,34,20],
+  ['Ninestone Moor',0.38,0.26,30,18],["Deadman's Reach",0.12,0.30,38,26],
+  ['the Boneyard',0.09,0.62,34,24],
+]
+const COUNTRY_NAMES4 = { sea:'the Sea', wilds:'the Wilds', heartlands:'the Heartlands',
+  greenwood:'the Greenwood', crags:'the Crags', fens:'the Fens', downs:'the Downs', moor:'the Moor' }
+// A locale seats itself ashore, exactly as the generator does: an ellipse
+// centred on a canvas fraction can sit in open water, and five of them did.
+// The mirror has to run the same search or it names places the server does
+// not have -- and a nameplate that disagrees is a window telling a citizen
+// they are somewhere they are not.
+const _loc4 = {}
+function localeCentre4(L) {
+  if (L[5] === 'barrow') return barrowC4()
+  // the Watersmeet locale hangs off the JUNCTION, which now seats itself;
+  // leaving the old raw offset here put the name a few tiles from where the
+  // server puts it, and a locale boundary a few tiles out renames a strip
+  // of country
+  if (L[5] === 'watersmeet') return seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
+  if (_loc4[L[0]]) return _loc4[L[0]]
+  const nx = Math.round(L[1] * W), ny = Math.round(L[2] * H), rx = L[3], ry = L[4]
+  const land = (cx, cy) => {
+    let n = 0
+    for (let dy = -ry; dy <= ry; dy += 3) for (let dx = -rx; dx <= rx; dx += 3) {
+      const u = dx / rx, v = dy / ry
+      if (u * u + v * v > 1) continue
+      const x = cx + dx, y = cy + dy
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
+      if (!inSea4(x, y)) n++
+    }
+    return n
+  }
+  let best = { x: nx, y: ny }, bestN = land(nx, ny)
+  for (let rad = 2; rad <= 70 && bestN < 40; rad += 2)
+    for (let dy = -rad; dy <= rad; dy += 2) for (let dx = -rad; dx <= rad; dx += 2) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const n = land(nx + dx, ny + dy)
+      if (n > bestN) { bestN = n; best = { x: nx + dx, y: ny + dy } }
+    }
+  return (_loc4[L[0]] = best)
+}
+function localeAt4(x, y) {
+  let best = null, bestArea = Infinity
+  for (const L of LOCALES4) {
+    const c = localeCentre4(L)
+    const cx = c.x, cy = c.y
+    const dx = (x - cx) / L[3], dy = (y - cy) / L[4]
+    if (dx * dx + dy * dy > 1) continue
+    const a = L[3] * L[4]
+    if (a < bestArea) { bestArea = a; best = L[0] }
+  }
+  return best ?? (COUNTRY_NAMES4[biomeAtE4(x, y)] ?? null)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function terrainOfE(x, y) {
+  if (IS_EXPANSE4()) return terrainOfE4(x, y)
+  if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
+  if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
+  // the fords, mirrored from the truth: the road pays for its
+  // crossings, and every town's main street crosses on pilings. These
+  // return 'bridge', so buildBridges erects a real deck over each.
+  if (isWaterE(x, y)) {
+    if (onRoadE(x, y)) return 'bridge'
+    for (const st of ssE()) {
+      const x0 = st.x - (st.w >> 1), x1 = st.x + (st.w >> 1)
+      const y0 = st.y - (st.h >> 1), y1 = st.y + (st.h >> 1)
+      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && (x === st.x || y === st.y)) return 'bridge'
+    }
+  }
+  if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return 'river'
+  for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
+  if (onRoadE(x, y)) return 'trail'
+  return biomeAtE(x, y)
+}
+// ---- the countries by their names, mirrored from /play (spec 9d): a
+// region is a pure function of the world, identical in every window, so
+// "meet me at the fens edge" means one place to everyone. ----
+
+// ---- the keepers' names (v0.79): mirrored from worldgen keeperName ,
+// same SHA-256, same list, precomputed once at boot, identical in every
+// window. Maud is Maud everywhere, and no byte of state stores her. ----
+const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
+  'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
+  'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
+const KN = {}
+;(async () => {
+  try {
+    const tags = settlementsE3().map(t => t.tag ?? t.name?.toLowerCase())
+    for (const [tag2, role2] of [['hollybarrow', 'farm'], ['sawyer', 'camp'], ['high', 'delve'], ['eel', 'sheds'], ['lantern', 'inn']]) {
+      const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
+      KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
+    }
+    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+      const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
+      KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
+    }
+  } catch {}
+})()
+const kName = (tag, role) => role === 'wizard' ? 'Oberon' : (KN[tag + '|' + role] ?? 'the keeper')
+// THE WORLD NAMES THEM NOW. This table mirrored worldgen's keeperName() and
+// stopped matching the moment the towns were hand-drawn -- forty-five
+// keepers, every one of them "the keeper". A name is part of who stands
+// there, so it lives on the node and the window only reads it. kFromId
+// remains as the fallback for a world founded before names existed.
+const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
+  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn|wizard)-(.+)$/.exec(id ?? '')
+  return m ? kName(m[2], m[1]) : 'the keeper'
+}
+const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
+  wilds: 'the Wilds', meadow: 'the Heartlands', heartlands: 'the Heartlands',
+  downs: 'the Downs', moor: 'the Moor' }
+const SETTLEMENT_NAMES = ['Anchor', 'Greenhollow', 'Millbrook', 'Cragfoot', 'Eastmere', 'Fenmarch', 'Norwick']
+const CLASSIC_NAMES = { wilds: 'the Wilds', cave: 'the Deep', scree: 'the Scree',
+  mountain: 'the Mountains', sea: 'the Sea', bridge: 'the Bridge',
+  cobble: 'the City', plaza: 'the Market', flag: 'the Market', gravel: 'the Pass',
+  sand: 'the Shore', trail: 'the Road', meadow: 'the Meadows' }
+function regionNameAt(x, y) {
+  try {
+    if (!GEN.startsWith('interval-expanse-')) return CLASSIC_NAMES[terrainOf(x, y)] ?? ''
+    const ss = ssE()
+    for (let i = 0; i < ss.length; i++) {
+      const t = ss[i]
+      if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
+        return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
+    }
+    if (IS_EXPANSE4()) return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
+    return REGION_NAMES[biomeAtE(x, y)] ?? ''
+  } catch { return '' } // a nameplate must never stop the world drawing
+}
+// <<< EXPANSE TERRAIN MIRROR
+const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
+function riverXC(y) { const cx2 = Math.floor(W / 2)
+  return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
+function terrainOf(x, y) {
+  // EVERY expanse founding goes to the expanse, not just the first one.
+  // This read `GEN === 'interval-expanse-v1'`, so a v2, v3, v4 or v5 world --
+  // which is every world founded since -- fell through to the classic
+  // generator below and got a completely different island. terrainOfE is
+  // itself a dispatcher over the four later foundings, so one prefix test is
+  // the whole of the correct answer.
+  if (GEN.startsWith('interval-expanse-')) return terrainOfE(x, y)
+  const ty = Math.floor(H / 2), cx2 = Math.floor(W / 2), cy0 = 2, cy1 = 10
+  if (x >= W - 4) return 'sea'
+  if (inWildsC(x, y)) return 'wilds'
+  if (x >= W - 30 && x <= W - 10 && y >= 5 && y <= 16) return 'cave'
+  if (x >= W - 46 && y <= 26) return 'scree'
+  if (y <= 8 && (x < cx2 - 10 || x > cx2 + 10)) return 'mountain'
+  if (x >= cx2 - 8 && x <= cx2 + 8 && y >= cy0 && y <= cy1) return 'cobble'
+  const lakeX = cx2 - 10, lakeY = H - 16, mbX = W - 22, mbY = H - 14
+  if (x >= lakeX + 5 && x <= lakeX + 14 && y >= lakeY - 9 && y <= lakeY - 2) return 'plaza'
+  if (Math.abs(x - mbX) <= 6 && Math.abs(y - mbY) <= 6) return 'plaza'
+  const road = (Math.abs(x - cx2) <= (tileHash(0, y, 3) % 2) && y > cy1 && y < ty)
+    || (Math.abs(x - cx2) <= (tileHash(0, y, 4) % 2) && y > ty && y < lakeY - 4)
+    || Math.abs(y - ty) <= (tileHash(x, 0, 3) % 2)
+  if (road) {
+    if (Math.abs(x - riverXC(y)) <= 2 && y >= 6 && y <= lakeY - 4) return 'bridge'
+    return 'trail'
+  }
+  if ((x <= 14 || x >= W - 16) && Math.abs(y - ty) <= 4) return 'plaza'
+  return 'meadow'
+}
+
+// The surface every window is allowed to ask about. Anything not here is
+// this file's own business and may change without a window noticing.
+
+
 let cam = { x: 0, y: 0 }      // top-left tile of the viewport
 const DAY = 2400              // ticks per day: a full day every 24 minutes
 // the sky is derived from the tick: shared by every window, stored by none
 const lightCv = document.createElement('canvas')
 let vignette = null
 const cv = document.getElementById('world'), cx = cv.getContext('2d')
+// keep the canvas the size it is shown at, times the device ratio
+const BASE_W = 560   // the keyhole: what this window has always shown
+function fitCanvas() {
+  const dpr = Math.min(3, window.devicePixelRatio || 1)
+  const cssW = cv.clientWidth || BASE_W
+  const cssH = Math.round(cssW * 400 / BASE_W)       // the window's own shape
+  let w = Math.max(1, Math.round(cssW * dpr)), h = Math.max(1, Math.round(cssH * dpr))
+  // a ceiling, so a very large display does not ask for a canvas nobody can paint
+  const CAP = 2600
+  if (w > CAP) { h = Math.round(h * CAP / w); w = CAP }
+  // RES ABSORBS THE WHOLE BLOW-UP, not merely the device ratio.
+  //
+  // The first go at this set RES to the pixel ratio alone, which fixed the
+  // sharpness and quietly widened the view: eighteen tiles became fifty-one on
+  // a large window, and a citizen on a big screen could see half the country.
+  // The keyhole is the design -- "through a keyhole that reads as walking down
+  // a corridor" -- so the scale has to take up all of it, and cv.width /
+  // (TILE * ZR) stays exactly what it was.
+  const res = w / BASE_W
+  if (cv.width === w && cv.height === h && RES === res) return false
+  cv.width = w; cv.height = h
+  cv.style.height = cssH + 'px'
+  RES = res
+  ZR = ZOOM * RES
+  return true
+}
+window.addEventListener('resize', () => { fitCanvas() })
 // items drawn by the same hand as the world: no emoji speaks this dialect
 const ICON_CV = {}
 function itemSprite(item) {
@@ -330,6 +2151,46 @@ function itemSprite(item) {
     case 'bronze-pickaxe':
       g.fillStyle = '#5c4023'; g.save(); g.translate(16, 17); g.rotate(0.6); g.fillRect(-1.8, -4, 3.6, 17); g.restore()
       pl([[6,10],[16,4],[26,10],[24,13],[16,8],[8,13]], '#c9862a', '#6b4515'); break
+    // v0.82: the things this window did not know how to draw. Six items a
+    // citizen can make or find, every one of which came out as the fallback.
+    case 'staff': case 'heartwood-staff': {
+      const heart = item === 'heartwood-staff'
+      g.strokeStyle = heart ? '#7a5a2a' : '#4a3a22'; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(9, 29); g.quadraticCurveTo(15, 16, 19, 4); g.stroke()
+      g.strokeStyle = '#2a2114'; g.lineWidth = 4
+      g.beginPath(); g.moveTo(11, 24); g.lineTo(13, 19); g.stroke()
+      g.fillStyle = heart ? '#8a6a34' : '#5a4626'
+      g.beginPath(); g.ellipse(19, 4, 3.4, 4.2, .2, 0, 7); g.fill()
+      g.fillStyle = 'rgba(232,204,120,.45)'
+      g.beginPath(); g.arc(19, 4, 6, 0, 7); g.fill(); break
+    }
+    case 'wand':
+      g.strokeStyle = '#4a3a22'; g.lineWidth = 2.6
+      g.beginPath(); g.moveTo(7, 25); g.lineTo(23, 8); g.stroke()
+      g.strokeStyle = '#2a2114'; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(10, 22); g.lineTo(14, 18); g.stroke()
+      g.fillStyle = '#cfe2e6'; g.beginPath(); g.arc(23, 8, 2.6, 0, 7); g.fill()
+      g.fillStyle = 'rgba(160,206,224,.45)'; g.beginPath(); g.arc(23, 8, 6, 0, 7); g.fill(); break
+    case 'star-hatchet': case 'star-pickaxe': {
+      const pick = item === 'star-pickaxe'
+      g.strokeStyle = '#5a4630'; g.lineWidth = 3
+      g.beginPath(); g.moveTo(10, 28); g.lineTo(20, 8); g.stroke()
+      g.fillStyle = '#8fa8c4'
+      if (pick) { pl([[10,7],[30,11],[28,15],[12,12]], '#8fa8c4', '#3d4c60') }
+      else { pl([[18,5],[30,10],[28,18],[17,13]], '#8fa8c4', '#3d4c60') }
+      g.fillStyle = 'rgba(190,220,255,.5)'
+      g.beginPath(); g.arc(24, 11, 4, 0, 7); g.fill(); break
+    }
+    case 'forage':
+      // it never sits in a pack -- only on the ground -- but a window that
+      // cannot draw it shows an empty tile where the thing is
+      g.fillStyle = '#8c2f3a'
+      g.beginPath(); g.arc(13, 20, 5, 0, 7); g.fill()
+      g.beginPath(); g.arc(20, 23, 4, 0, 7); g.fill()
+      g.fillStyle = '#3f6a2e'
+      g.beginPath(); g.ellipse(17, 12, 6, 3, -.5, 0, 7); g.fill()
+      g.strokeStyle = '#2a4a1e'; g.lineWidth = 1.2
+      g.beginPath(); g.moveTo(13, 16); g.lineTo(22, 10); g.stroke(); break
     case 'wooden-bow':
       g.strokeStyle = '#8a5a2a'; g.lineWidth = 3
       g.beginPath(); g.arc(12, 16, 11, -1.25, 1.25); g.stroke()
@@ -646,14 +2507,15 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
 // The engine builds its set as every smithing recipe plus the four things
 // that are not smithed. This is that, spelled out, and it is checked against
 // the engine by check-equip.mjs so it cannot drift again.
+// WHAT MAY BE TAKEN UP. Five things could be made and then not held: the
+// staff, the heartwood staff, the wand and both star tools.
 const EQUIPPABLE = new Set([
-  'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-maul',
-  'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
-  'star-sword', 'star-dagger', 'star-spear', 'star-maul',
-  'star-helm', 'star-plate',
-  'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow',
-  'old-chain', 'dragonbow',
-  'star-flail',
+  'bronze-dagger', 'bronze-hatchet', 'bronze-helm', 'bronze-maul',
+  'bronze-pickaxe', 'bronze-plate', 'bronze-spear', 'bronze-sword',
+  'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
+  'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
+  'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
+  'star-spear', 'star-sword', 'wand', 'wooden-bow',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -767,14 +2629,54 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
 // dagger, spear and maul. A window that copies a table copies it at a moment
 // in time; test/identity.test.mjs holds this one to the engine's.
+// PRICED GOODS, copied from the engine's own table. Twenty-one of these had
+// drifted or were simply absent -- the whole star range, the heartwood goods,
+// both deep fish, wool, crab-shell -- so this window would not offer to sell
+// them and could not price them.
 const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
-  'star-spear': 100, 'star-maul': 160, 'horn-bow': 90,
+  'horn-bow': 400, 'crab-shell': 12,
+  'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  // heartwood is worth more than logs, and a deep fish more than a shallow
+  // one: a master's hour should be worth more than a beginner's
+  // HEARTWOOD AT FIFTEEN, not nine.
+  //
+  // Every other trade downstream of a mastery takes about a double: a cook of
+  // eighty turns an eleven-gold deep fish into twenty-two, a smith of fifty
+  // turns ninety-five in materials into two hundred. The fletcher took FOUR
+  // AND A HALF -- three heartwood at nine became a bow worth a hundred and
+  // twenty -- so the value of woodcutting ninety, the longest road in the
+  // world, was being collected by somebody else's trade.
+  //
+  // At fifteen the bow is 120 against 45 of timber, which is a fletcher's
+  // margin rather than a fletcher's windfall, and the woodcutter who spent
+  // five hundred thousand logs getting there is paid for it.
+  'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
-  'star-sword': 120, 'star-helm': 60, 'star-plate': 200,
+  // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
+  //
+  // A star plate was two hundred, which is seven minutes of a beginner's
+  // chopping -- the best armour on the island, needing smithing fifty, magic
+  // thirty and four stones carried out of the Wilds, priced at seven minutes.
+  // The purse fixes what a coin is worth; it does nothing about what a plate
+  // is worth in LOGS, and two hundred was a hundred logs.
+  //
+  // Four and a half times, on everything a master makes. A star plate is now
+  // most of an hour of ordinary work rather than a coffee break, and the
+  // ratios between the star goods are untouched -- they were already sound.
+  'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
+  'star-spear': 450, 'star-maul': 720,
+  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
+  // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
+  // though every one of them is made by a citizen's work. Seeds at ten so the
+  // seedsman's twenty-two is the usual double; ale and broth by what they
+  // mend, at about two coins a hitpoint, which is where the cooked fish sit.
+  'seeds': 10, 'ale': 8, 'broth': 10,
 }
+
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
 // it is the whole of the store's stock: the world sells seeds and nothing
 // else, because everything else is meant to be made or found. A window that
@@ -833,6 +2735,14 @@ async function ownIdentity() {
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
   : a.do === 'spawn' ? { type: 'spawn' }
+  // v0.82: the four verbs this window could not send. A window that cannot
+  // express a verb is a window whose citizens cannot do that thing at all --
+  // they could not drink at a well, transmute anything, choose their own face,
+  // or send a mending to somebody who needed it.
+  : a.do === 'drink' ? { type: 'drink' }
+  : a.do === 'alch' ? { type: 'alch', slot: a.slot }
+  : a.do === 'set_look' ? { type: 'set_look', look: a.look }
+  : a.do === 'mendp' ? { type: 'mendp', target: a.target }
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
@@ -1355,7 +3265,32 @@ const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
 // §6af: which weapons can strike off the rhythm, and what each one does.
 // Character for character from engine WEAPONS.
-const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true' }
+// WHAT EACH CALLING IS CALLED, copied from the engine's CALLING_NAMES. Not
+// this window's to word: a citizen's name for their neighbour must not depend
+// on which door they came in by. This window read `n.name` already and said
+// "Rosamund: 'Fine day for it.'" -- the name without the job.
+const CALLING_NAMES = {
+  lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
+  armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
+  banker: 'the banker', merchant: 'the merchant', sawyer: 'the sawyer',
+  shepherd: 'the shepherd', delver: 'the delver', miller: 'the miller',
+  quarrier: 'the quarrier', watchman: 'the watchman', wizard: 'the wizard',
+  fisher: 'the fisher', brewer: 'the brewer', mourner: 'the mourner',
+  innkeeper: 'the innkeeper', collier: 'the collier', drover: 'the drover',
+  beekeeper: 'the beekeeper',
+}
+const CALLING_LINE_W = {
+  banker: 'She keeps the ledger, and the vault behind it.',
+  merchant: 'He buys what you carry in and sells it on.',
+  miller: 'The stones turn whether or not there is anything to grind.',
+  shepherd: 'She counts them twice, and is right the second time.',
+  mourner: 'He has laid down more of us than he can name.',
+  innkeeper: 'She has a room, and an opinion about the road you came in on.',
+  collier: 'He burns the stack slow, and sleeps beside it so it stays slow.',
+  wizard: 'He was here before the stones were, and says so often.',
+}
+const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true',
+                  'dragonbow': 'far' }
 const SPEC_SAYS = { twice: 'two blows in one tick', now: 'swings whatever your arm says',
                     'true': 'the shot cannot miss' }
 // ARMED, not fired. A special is a decision, so it is taken in two steps:
@@ -1572,6 +3507,34 @@ addEventListener('unhandledrejection', (e) => {
 let xpDrops = []      // { amt, x, y, at }: floating +xp for gathering/cooking
 let arrowShots = []   // { x0, y0, x1, y1, at }: tracers for arrows in flight
 let stillRings = []   // { x, y, at }: the truce, spoken, one expanding white ring
+// A CITIZEN CHOOSES THEIR OWN FACE.
+//
+// `set_look` has been a verb since v0.81 and this window could not send it, so
+// everybody who came in by this door wore appearance zero: two hundred and
+// fifty-six citizens and one face between them. It costs nothing and can be
+// changed later; what it buys is that the person beside you is not you.
+let pickLook = 0, lookSent = -1
+function drawLookPreview() {
+  const c = document.getElementById('lookcv'); if (!c) return
+  const g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height)
+  const L = pickLook & 255
+  const SKIN = ['#c9a07a','#b98a63','#a2724c','#8a5c3a','#6f462a','#d8b894','#e3c9a8','#5a3620']
+  const HAIR = ['#2e2418','#4a3524','#6b4a2a','#8a6a34','#b08a4a','#3a2c1e','#1e1a16','#c9b48a']
+  const COAT = ['#3a3226','#4a3a2a','#2e3a2e','#3a2e3a','#2a3440','#463a2a','#3a2a2a','#2e2e34']
+  const skin = SKIN[L & 7], hair = HAIR[(L >>> 3) & 7], coat = COAT[(L >>> 7) & 7]
+  const beard = (L >>> 6) & 1, build = (L >>> 10) & 1
+  const cx2 = 24, w = build ? 13 : 11
+  g.fillStyle = coat
+  g.fillRect(cx2 - w / 2, 26, w, 26)
+  g.fillStyle = skin
+  g.fillRect(cx2 - 5, 12, 10, 12)
+  g.fillStyle = hair
+  g.fillRect(cx2 - 6, 9, 12, 6)
+  if (beard) { g.fillStyle = hair; g.fillRect(cx2 - 4, 21, 8, 4) }
+  g.fillStyle = '#241d16'; g.fillRect(cx2 - w / 2, 52, w, 6)
+  const n = document.getElementById('looknum')
+  if (n) n.textContent = 'appearance ' + ((L & 255) + 1) + ' of 256'
+}
 function updateGate(s, worldId) {
   const me = s.players[myId]
   const souls = Object.keys(s.players).length
@@ -1593,6 +3556,11 @@ function updateGate(s, worldId) {
 
 function onState(s, worldId) {
   world = s
+  // RECONCILE THE FACE. A set_look sent in the same interval as a spawn can
+  // arrive first and be dropped, so this keeps asking until the world agrees.
+  const meL = s.players?.[myId]
+  if (entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
+      && (s.tick % 5) === 0) { send({ do: 'set_look', look: pickLook }) }
   // per-state caches (perf): water adjacency and who pins which mob
   s._waterAdj = {}
   s._waterTiles = new Set()
@@ -2024,292 +3992,16 @@ function poly(pts, fill, stroke) {
 // ---- the expanse (interval-expanse-v1): an exact mirror of worldgen-expanse.mjs ----
 // Integer math only, so this window paints the very tiles the engine placed
 // nodes on. North is wood, east is stone, south is water, west is danger.
-let GEN = 'interval-classic-v1', GSEED = ''
 // v5 CHANGED THE FURNITURE, NOT THE LAND. Its header is explicit: "v4's land
 // is right and stays exactly as it is... Nothing here touches any of it."
 // Every terrain function in this mirror is therefore correct for both, and a
 // check written as `GEN === 'interval-expanse-v4'` would silently fall back
 // to the v3 branch for a v5 world -- a whole island of wrong ground, from one
 // string comparison.
-const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
-let _seedNumC = null
-function seedNumC() {
-  if (_seedNumC !== null) return _seedNumC
-  let h = 0
-  for (let i = 0; i < GSEED.length; i++) h = Math.imul(h ^ GSEED.charCodeAt(i), 2654435761) | 0
-  return (_seedNumC = h >>> 0)
-}
-function thashE(x, y, k) {
-  let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(k | 0, 2246822519) + seedNumC()) | 0
-  h = Math.imul(h ^ (h >>> 13), 1274126177)
-  return (h ^ (h >>> 16)) >>> 0
-}
-function meander(tag, u, seg, amp) {
-  const k = Math.floor(u / seg)
-  const f = (u - k * seg) / seg
-  const a = (thashE(k, 0, tag) % (2 * amp + 1)) - amp
-  const b = (thashE(k + 1, 0, tag) % (2 * amp + 1)) - amp
-  const sf = f * f * (3 - 2 * f)
-  return a + (b - a) * sf
-}
-function riverXE(y) {
-  const cx = Math.floor(W / 2)
-  return cx + Math.round(meander(21, y, 46, 26) + meander(22, y, 14, 5))
-}
-function inSeaE(x, y) {
-  const bx = W * 0.80, by = H * 0.74
-  if (x < bx || y < by) return false
-  return (x - bx) / (W - bx) + (y - by) / (H - by) > 0.55
-}
-function inPoolE(x, y) {
-  if (y < H * 0.66) return false
-  const bx = Math.floor(x / 7), by = Math.floor(y / 7)
-  const h = thashE(bx, by, 7)
-  if ((h & 255) > 34) return false
-  const px = bx * 7 + ((h >>> 8) % 5), py = by * 7 + ((h >>> 16) % 5)
-  return Math.abs(x - px) + Math.abs(y - py) <= 2
-}
-const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
-function settlementsE() {
-  if (IS_EXPANSE4()) return settlementsE4()
-  if (GEN === 'interval-expanse-v3') return settlementsE3()
-  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
-  if (GEN === 'interval-expanse-v2') {
-    // v2: the water towns stand on their water. Millbrook and Fenmarch on
-    // the river's east bank, Eastmere opening on the bay. Mirror of
-    // worldgen-expanse2.mjs settlementsOf, tile for tile.
-    const mby = Math.round(H * 0.24), fmy = Math.round(H * 0.84)
-    return [
-      { x: cx, y: cy, w: 24, h: 14 },
-      { x: Math.round(W * 0.46), y: Math.round(H * 0.14), w: 14, h: 10 },
-      { x: riverXE(mby) + 6, y: mby, w: 14, h: 10 },
-      { x: Math.round(W * 0.86), y: Math.round(H * 0.50), w: 14, h: 10 },
-      { x: Math.round(W * 0.85), y: Math.round(H * 0.80), w: 14, h: 10 },
-      { x: riverXE(fmy) + 6, y: fmy, w: 14, h: 10 },
-      { x: Math.round(W * 0.26), y: Math.round(H * 0.46), w: 16, h: 12 },
-    ]
-  }
-  return [
-    { x: cx, y: cy, w: 24, h: 14 },
-    { x: Math.round(W * 0.46), y: Math.round(H * 0.14), w: 14, h: 10 },
-    { x: Math.round(W * 0.72), y: Math.round(H * 0.24), w: 14, h: 10 },
-    { x: Math.round(W * 0.86), y: Math.round(H * 0.50), w: 14, h: 10 },
-    { x: Math.round(W * 0.74), y: Math.round(H * 0.70), w: 14, h: 10 },
-    { x: Math.round(W * 0.44), y: Math.round(H * 0.84), w: 14, h: 10 },
-    { x: Math.round(W * 0.26), y: Math.round(H * 0.46), w: 16, h: 12 },
-  ]
-}
-let _ssE = null
-const ssE = () => (_ssE ??= settlementsE())
-let _roadSet = null
-function roadTilesE() {
-  if (_roadSet) return _roadSet
-  const ss = ssE(), a = ss[0]
-  const set = new Set()
-  for (let i = 1; i < ss.length; i++) {
-    const s = ss[i]
-    const vx = s.x - a.x, vy = s.y - a.y
-    const L = Math.sqrt(vx * vx + vy * vy)
-    const nx = -vy / L, ny = vx / L
-    const steps = Math.ceil(L * 2)
-    for (let stp = 0; stp <= steps; stp++) {
-      const t = stp / steps
-      const taper = Math.min(1, Math.min(t, 1 - t) * 6)
-      const o = meander(90 + i, t * L, 26, 9) * taper
-      const px = Math.round(a.x + vx * t + nx * o)
-      const py = Math.round(a.y + vy * t + ny * o)
-      set.add(px + ',' + py); set.add((px + 1) + ',' + py)
-    }
-  }
-  return (_roadSet = set)
-}
-const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
-function biomeAtE(x, y) {
-  if (x <= Math.round(W * 0.19)) return 'wilds'
-  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
-  const dx = (x - cx) / W, dy = (y - cy) / H
-  if (dx * dx + dy * dy < 0.019) return 'meadow'
-  if (y <= H * 0.32) return 'greenwood'
-  if (x >= W * 0.70) return 'crags'
-  if (y >= H * 0.70) return 'fens'
-  return 'meadow'
-}
-function fordE(x, y) { // mirror of fordAt: the road crosses, and every main street crosses
-  if (onRoadE(x, y)) return true
-  for (const s of ssE()) {
-    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1)
-      && (x === s.x || y === s.y)) return true
-  }
-  return false
-}
 // ---- the third expanse (interval-expanse-v3): the island, mirrored ----
 // An exact mirror of worldgen-expanse3.mjs: the coast by octant arithmetic
 // (no atan2. ECMA-262 leaves it implementation-defined), the borders that
 // are features, the road graph, and the fords painted as bridges.
-function angleOf3(dx, dy) {
-  const ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy
-  if (ax === 0 && ay === 0) return 0
-  if (dx > 0 && dy >= 0) return ax >= ay ? (ay / ax) * 45 : 90 - (ax / ay) * 45
-  if (dx <= 0 && dy > 0) return ay > ax ? 90 + (ax / ay) * 45 : 180 - (ay / ax) * 45
-  if (dx < 0 && dy <= 0) return ax >= ay ? 180 + (ay / ax) * 45 : 270 - (ax / ay) * 45
-  return ay > ax ? 270 + (ax / ay) * 45 : 360 - (ay / ax) * 45
-}
-function coastR3(u0) {
-  const u = ((u0 % 360) + 360) % 360
-  let r = 0.80 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
-  const bump = (c, w2, amt) => {
-    const d1 = u - c < 0 ? c - u : u - c
-    const d = d1 < 360 - d1 ? d1 : 360 - d1
-    if (d < w2) r += amt * (1 - d / w2)
-  }
-  bump(180, 28, +0.18); bump(150, 12, -0.09); bump(210, 12, -0.09)
-  bump(38, 22, -0.12); bump(78, 16, -0.07); bump(0, 14, +0.07); bump(305, 18, +0.06)
-  return r
-}
-function inSeaBase3(x, y) {
-  const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
-  const r = Math.sqrt(dx * dx + dy * dy)
-  if (r <= 0.52) return false
-  return r > coastR3(angleOf3(dx, dy))
-}
-const emY3 = () => Math.round(H * 0.75)
-const _shore3 = new Map()
-function bayShoreX3(y) {
-  if (_shore3.has(y)) return _shore3.get(y)
-  let sx = null
-  for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase3(x, y)) { sx = x; break }
-  _shore3.set(y, sx); return sx
-}
-function isles3() {
-  const ey = emY3(), sh = bayShoreX3(ey) ?? Math.round(W * 0.7)
-  return [{ x: sh + 22, y: ey + 26, rx: 10, ry: 7 }, { x: Math.round(W * 0.185), y: Math.round(H * 0.10), rx: 8, ry: 5 }]
-}
-function onIsle3(x, y) {
-  for (const i of isles3()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
-  return false
-}
-const inSea3 = (x, y) => inSeaBase3(x, y) && !onIsle3(x, y)
-const brandX3 = (y) => Math.round(W * 0.235 + meander(310, y, 34, 7))
-const ridgeX3 = (y) => Math.round(W * 0.685 + meander(311, y, 30, 9))
-const treeY3 = (x) => Math.round(H * 0.30 + meander(312, x, 44, 11))
-const fenY3 = (x) => Math.round(H * 0.71 + meander(313, x, 44, 9))
-const passes3 = () => [Math.round(H * 0.37), Math.round(H * 0.655)]
-function onRidge3(x, y) {
-  const rx = ridgeX3(y); const d = x - rx < 0 ? rx - x : x - rx
-  if (d > 2) return false
-  for (const p of passes3()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
-  if (y < treeY3(x) - 8) return false
-  if (inSeaBase3(x, y)) return false
-  return true
-}
-const riverX3 = (y) => Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6))
-const confY3 = () => Math.round(H * 0.63)
-function marchWY3(x) {
-  const cyy = confY3(); const reach = riverX3(cyy) - 8 - x
-  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
-  return cyy + Math.round(meander(25, x, 36, 12) * t)
-}
-function inRiver3(x, y) {
-  const srcY = Math.round(H * 0.115)
-  if (y >= srcY) {
-    const rx = riverX3(y); const d = x - rx < 0 ? rx - x : x - rx
-    if (d <= (y > H * 0.82 ? 2 : 1)) return true
-    if (y > H * 0.84) {
-      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3)); const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
-      if (d2 <= 1) return true
-    }
-  }
-  if (x < riverX3(confY3()) - 1 && x > brandX3(y) - 16) {
-    const my = marchWY3(x); const d3 = y - my < 0 ? my - y : y - my
-    if (d3 <= 1) return true
-  }
-  return false
-}
-function inLake3(x, y) {
-  const lx = Math.round(W * 0.73), ly = Math.round(H * 0.22)
-  const dx = (x - lx) / 24, dy = (y - ly) / 13
-  return dx * dx + dy * dy < 1
-}
-const isWater3 = (x, y) => inSea3(x, y) || inRiver3(x, y) || inLake3(x, y)
-function biomeAtE3(x, y) {
-  if (inSeaBase3(x, y) && !onIsle3(x, y)) return 'sea'
-  if (x <= brandX3(y)) return 'wilds'
-  if (x >= ridgeX3(y) && y >= treeY3(x) - 8) return 'crags'
-  if (y <= treeY3(x)) return 'greenwood'
-  if (y >= fenY3(x)) return 'fens'
-  return 'meadow'
-}
-let _ss3 = null
-function settlementsE3() {
-  if (_ss3) return _ss3
-  const cx3 = Math.floor(W / 2), cy3 = Math.floor(H / 2)
-  const mby = Math.round(H * 0.305), fmy = Math.round(H * 0.825), ey = emY3()
-  const shore = bayShoreX3(ey) ?? Math.round(W * 0.7)
-  return (_ss3 = [
-    { x: cx3, y: cy3, w: 24, h: 14, name: 'Anchor' },
-    { x: Math.round(W * 0.40), y: Math.round(H * 0.16), w: 14, h: 10, name: 'Greenhollow' },
-    { x: riverX3(mby) + 6, y: mby, w: 14, h: 10, name: 'Millbrook' },
-    { x: Math.round(W * 0.87), y: Math.round(H * 0.49), w: 14, h: 10, name: 'Cragfoot' },
-    { x: shore - 5, y: ey, w: 14, h: 10, name: 'Eastmere' },
-    { x: riverX3(fmy) + 6, y: fmy, w: 14, h: 10, name: 'Fenmarch' },
-    { x: Math.round(W * 0.235) + 20, y: Math.round(H * 0.49), w: 16, h: 12, name: 'Norwick' },
-  ])
-}
-function junctions3() {
-  const [p1, p2] = passes3(); const i = isles3()[0]
-  return { watersmeet: { x: riverX3(confY3()) + 3, y: confY3() + 3 }, npass: { x: ridgeX3(p1), y: p1 },
-    spass: { x: ridgeX3(p2), y: p2 }, shrine: { x: i.x, y: i.y } }
-}
-let _roads3 = null
-function roadTiles3() {
-  if (_roads3) return _roads3
-  const s = settlementsE3(), j = junctions3()
-  const segs = [[s[0], s[2], 91], [s[2], s[1], 92], [s[1], s[6], 93], [s[0], s[6], 94], [s[0], j.npass, 95], [j.npass, s[3], 96],
-    [s[0], j.watersmeet, 97], [j.watersmeet, j.spass, 98], [j.spass, s[4], 99], [j.watersmeet, s[5], 100], [s[4], s[5], 101], [s[3], s[4], 102], [s[4], j.shrine, 103]]
-  const set = new Set()
-  for (const [a, b, tag] of segs) {
-    const vx = b.x - a.x, vy = b.y - a.y, L = Math.sqrt(vx * vx + vy * vy), nx = -vy / L, ny = vx / L
-    const steps = Math.ceil(L * 2)
-    for (let stp = 0; stp <= steps; stp++) {
-      const t = stp / steps, taper = Math.min(1, Math.min(t, 1 - t) * 6)
-      const o = meander(tag, t * L, 26, 8) * taper
-      const px = Math.round(a.x + vx * t + nx * o), py = Math.round(a.y + vy * t + ny * o)
-      set.add(px + ',' + py); set.add((px + 1) + ',' + py)
-    }
-  }
-  return (_roads3 = set)
-}
-const onRoad3 = (x, y) => roadTiles3().has(x + ',' + y)
-function fordE3(x, y) {
-  if (onRoad3(x, y)) return true
-  for (const s of settlementsE3()) {
-    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1)
-      && (x === s.x || y === s.y)) return true
-  }
-  return false
-}
-function terrainOfE3(x, y) {
-  if (inSea3(x, y)) return fordE3(x, y) ? 'bridge' : 'sea'
-  if (inRiver3(x, y) || inLake3(x, y)) return fordE3(x, y) ? 'bridge' : 'river'
-  for (const t2 of settlementsE3()) {
-    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1))
-      return onRoad3(x, y) ? 'cobble' : 'flag' // paved streets, flagstone yards
-  }
-  if (onRidge3(x, y)) return onRoad3(x, y) ? 'gravel' : 'mountain'
-  if (onRoad3(x, y)) {
-    // mirrored from worldgen groundKindAt (v0.79), the canon of surfaces:
-    // civilization paves, the passes crunch, the open country is trail
-    for (const t2 of settlementsE3()) if (Math.max(Math.abs(x - t2.x), Math.abs(y - t2.y)) <= 15) return 'cobble'
-    if (onRidge3(x - 1, y) || onRidge3(x + 1, y) || onRidge3(x, y - 1) || onRidge3(x, y + 1)
-      || biomeAtE3(x, y) === 'crags') return 'gravel'
-    return 'trail'
-  }
-  {
-    const w9 = (x2, y2) => inSea3(x2, y2) || inRiver3(x2, y2) || inLake3(x2, y2)
-    if (w9(x + 1, y) || w9(x - 1, y) || w9(x, y + 1) || w9(x, y - 1)) return 'sand' // the shore
-  }
-  return biomeAtE3(x, y)
-}
 // ---------------------------------------------------------------------
 // An exact mirror of worldgen-expanse4.mjs. The window verifies the world
 // rather than trusting it, so the fourth founding's geography has to exist
@@ -2319,662 +4011,28 @@ function terrainOfE3(x, y) {
 // all, because a road drawn differently here than on the server is a
 // window that quietly lies about where you can walk.
 // ---------------------------------------------------------------------
-const CAPES4 = [
-  { tag: 'wildshead', name: 'the Wilds Head', u: 180, w: 24, amt: +0.30 },
-  { tag: 'stonepoint', name: 'the Stonepoint', u: 3, w: 8, amt: +0.20 },
-  { tag: 'nordhead', name: 'the Nordhead', u: 306, w: 13, amt: +0.15 },
-  { tag: 'sawtooth', name: 'the Sawtooth', u: 258, w: 7, amt: +0.13 },
-]
-const BAYS4 = [[152,11,-0.17],[208,11,-0.17],[38,25,-0.22],[78,14,-0.12],[284,10,-0.11],[330,12,-0.09]]
-function coastR4(u0) {
-  const u = ((u0 % 360) + 360) % 360
-  let r = 0.78 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
-  const bump = (c, w2, amt) => {
-    const d1 = u - c < 0 ? c - u : u - c
-    const d = d1 < 360 - d1 ? d1 : 360 - d1
-    if (d < w2) r += amt * (1 - d / w2)
-  }
-  for (const c of CAPES4) bump(c.u, c.w, c.amt)
-  for (const b of BAYS4) bump(b[0], b[1], b[2])
-  return r
-}
-function inSeaBase4(x, y) {
-  const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
-  const r = Math.sqrt(dx * dx + dy * dy)
-  if (r <= 0.50) return false
-  return r > coastR4(angleOf3(dx, dy))
-}
-function emY4() { return Math.round(H * 0.74) }
-let _shore4 = null
-function bayShoreX4(y) {
-  if (!_shore4) _shore4 = {}
-  if (_shore4[y] !== undefined) return _shore4[y]
-  let sx = null
-  for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase4(x, y)) { sx = x; break }
-  return (_shore4[y] = sx)
-}
-function isles4() {
-  const ey = emY4(), sh = bayShoreX4(ey) ?? Math.round(W * 0.7)
-  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
-          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 }]
-}
-function onIsle4(x, y) {
-  for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
-  return false
-}
-const inSea4 = (x, y) => inSeaBase4(x, y) && !onIsle4(x, y)
 // STRAIGHT, and exactly where the law is. Mirrors worldgen-expanse4.brandX:
 // the stones and geo.wilds must be the same line, or a citizen stands past
 // the Brand with the Wilds all round them and cannot attack anyone.
-const brandX4 = (_y) => Math.round(W * 0.215)
 
 // the countries, as lobes. Same seeds, same squash, same low-frequency
 // boundary jitter: a high-frequency jitter here would dissolve the borders
 // into speckle exactly as it did on the server's first draft.
-const SEEDS4 = [
-  ['heartlands',0.42,0.40,0.90,420],['heartlands',0.54,0.52,0.74,421],
-  ['greenwood',0.44,0.10,1.02,422],['greenwood',0.66,0.15,0.86,423],
-  ['crags',0.89,0.28,0.90,424],['crags',0.83,0.50,0.70,425],
-  ['downs',0.70,0.68,0.86,426],['downs',0.79,0.78,0.62,430],
-  ['fens',0.49,0.90,0.86,427],['fens',0.33,0.82,0.60,428],
-  ['moor',0.31,0.16,0.84,429],['moor',0.38,0.27,0.58,431],
-]
-const VSQUASH4 = 1.9
-function regionAt4(x, y) {
-  let best = 'heartlands', bd = Infinity
-  for (const s of SEEDS4) {
-    const sx = s[1] * W, sy = s[2] * H, wt = s[3], jt = s[4]
-    const dx = x - sx, dy = (y - sy) * VSQUASH4
-    const j = meander(jt, x + y * 0.6, 150, 26) + meander(jt + 40, x - y * 0.45, 60, 9)
-    const d = (dx * dx + dy * dy) / (wt * wt) + j * 460
-    if (d < bd) { bd = d; best = s[0] }
-  }
-  return best
-}
 // the biome field is queried for every tile drawn, every frame, and each
 // query is twelve weighted seeds with two meanders apiece. Cached once.
-let _bio4 = null
-const BIO4 = ['sea','wilds','heartlands','greenwood','crags','fens','downs','moor']
-function biomeAtE4(x, y) {
-  if (x < 0 || y < 0 || x >= W || y >= H) return 'sea'
-  if (!_bio4) _bio4 = new Uint8Array(W * H).fill(255)
-  const i = y * W + x
-  if (_bio4[i] !== 255) return BIO4[_bio4[i]]
-  let b
-  if (inSeaBase4(x, y) && !onIsle4(x, y)) b = 'sea'
-  else if (x <= brandX4(y)) b = 'wilds'
-  else b = regionAt4(x, y)
-  _bio4[i] = BIO4.indexOf(b)
-  return b
-}
-const ridgeX4 = (y) => Math.round(W * 0.695 + meander(311, y, 30, 11))
-const passes4 = () => [Math.round(H * 0.34), Math.round(H * 0.62)]
-function onRidge4(x, y) {
-  const rx = ridgeX4(y), d = x - rx < 0 ? rx - x : x - rx
-  if (d > 2) return false
-  for (const p of passes4()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
-  if (biomeAtE4(x, y) === 'greenwood') return false
-  if (y > H * 0.70) return false      // the ridge dies away before the bay
-  if (inSeaBase4(x, y)) return false
-  return true
-}
-const barrowC4 = () => ({ x: Math.round(W * 0.575), y: Math.round(H * 0.585) })
-function onBarrow4(x, y) {
-  const c = barrowC4(), dx = (x - c.x) / 26, dy = (y - c.y) / 15
-  return dx * dx + dy * dy < 1 + meander(330, x + y, 18, 12) / 190
-}
-function riverX4(y) { return Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6)) }
-const confY4 = () => Math.round(H * 0.63)
-function marchWY4(x) {
-  const cyy = confY4(), reach = riverX4(cyy) - 8 - x
-  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
-  return cyy + Math.round(meander(25, x, 36, 12) * t)
-}
-function inRiver4(x, y) {
-  const srcY = Math.round(H * 0.105)
-  if (y >= srcY) {
-    const rx = riverX4(y), d = x - rx < 0 ? rx - x : x - rx
-    if (d <= (y > H * 0.82 ? 2 : 1)) return true
-    if (y > H * 0.84) {
-      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3))
-      const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
-      if (d2 <= 1) return true
-    }
-  }
-  if (x < riverX4(confY4()) - 1 && x > brandX4(y) - 16) {
-    const my = marchWY4(x), d3 = y - my < 0 ? my - y : y - my
-    if (d3 <= 1) return true
-  }
-  return false
-}
-function inLake4(x, y) {
-  const cx = Math.round(W * 0.745), cy = Math.round(H * 0.21)
-  const dx = (x - cx) / 24, dy = (y - cy) / 13
-  return dx * dx + dy * dy < 1
-}
-const isWater4 = (x, y) => inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
-function bridges4() {
-  const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
-  const out = ys.map((y) => ({ x: riverX4(y), y }))
-  const mx = Math.round(W * 0.30)
-  out.push({ x: mx, y: marchWY4(mx) })
-  return out
-}
-function onBridge4(x, y) {
-  for (const b of bridges4()) if (Math.abs(x - b.x) <= 4 && Math.abs(y - b.y) <= 2) return true
-  return false
-}
 // The ten drawings, and the logic that seats them. The mirror carries the
 // ART, not a table of coordinates: seats depend on the seed, so a table
 // would be right for one world and wrong for every other. With the plans
 // here the window runs the same spiral the generator does and lands on the
 // same tile for any seed.
-const PLANS4 = {
-  anchor: [
-    "%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%",
-    "%..................................................%",
-    "%..................................................%",
-    "%..############...########...##########...#######..%",
-    "%..#qBBB,,,kv,#...#,,,,v,#...#,,,,,,v,#...#,,ed,#..%",
-    "%..#,,,,,,,,,,#...#,,*k,,#...#,A,s,A,,#...#,h,k,#..%",
-    "%..#,,,,,,,,,,#...#,!,,,,#...#,,,,,,*,#...#,,,,,#..%",
-    "%..#,,,,,,,,*,#...#,,,,,,#...#,,,,,,,,#...###,###..%",
-    "%..#,,,,,,,,,,#.T.####,###...#####,####............%",
-    "%..######,#####....................................%",
-    "%.........................................#######..%",
-    "%..#########...########......#########....#,,,d,#..%",
-    "%..#v,S,qk,#...#,,,ed,#......#v,S,qk,#....,,he,,#..%",
-    "%..#,,,,,,,,...#,h,h,,#......#,,,,,,,#....#,,,,,#..%",
-    "%..#,,,,,,,#...#,,,,,,#......#,,,,,,,#....#######..%",
-    "%..#########...####,###......####,####.............%",
-    "%..................................................%",
-    " ....................*............................. ",
-    " .................................................. ",
-    "%......i....................G................T.....%",
-    "%..................................................%",
-    "%..............o..............%%%%%%%%%..%%%%%%%%%.%",
-    "%.........U...................%..................%.%",
-    "%.............................%.G.......*......G.%.%",
-    "%................!............%..###############.%.%",
-    "%.............................%..#,*h,#,GG,#,Bk#.%.%",
-    "%...ff.ff.ff.ff...............%..#,,,,#,,,,#,,,#.%.%",
-    "%.............................%..#,,,,#,,,,#,,,#.%.%",
-    "%..###,###..###,###.###,##....%..#,,,,#,,,,#,,,#.%.%",
-    "%..#e,,d,#..#e,,d,#.#de,,#....%..#,,,,#,,,,#,,,#.%.%",
-    "%..#,h,k,#..#,h,,,#.#,h,,#....%..#,,,,,,,,,,,,,#.%.%",
-    "%..#,,,,,#..#,,,,,#.#,,,,#....%..#######,#######.%.%",
-    "%..#######..#######.######....%..................%.%",
-    "%.............................%%%%%%%%%%%%%%%%%%%%.%",
-    "%..................................................%",
-    "%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%",
-  ],
-  millbrook: [
-    "                                        ",
-    " ...................................... ",
-    " ..#######..########..#######..#######. ",
-    " ..#,,ed,#..#,,Sqv,#..#,,ed,#..#,,,v,#. ",
-    " ..#,h,k,#..#,,,,k,#..#,h,,,#..#,A,s,#. ",
-    " ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ",
-    " ..###,###..####,###..###,###..###,###. ",
-    " ...................................... ",
-    " ...................................... ",
-    " ..............o.........*...........W. ",
-    " .T.................i.................. ",
-    " ...................................... ",
-    " ..###,###..####,###..###,###..###,###. ",
-    " ..#e,,d,#..#e,,,d,#..#vq,k,#..#e,,d,#. ",
-    " ..#,h,,,#..#,h,h,,#..#,,S,,#..#,h,,,#. ",
-    " ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ",
-    " ..#######..########..#######..#######. ",
-    "                                        ",
-  ],
-  oxenford: [
-    "                                    ",
-    " .................................. ",
-    " ..##########.........#########.... ",
-    " ..#vBBB,qk,#.........#v,S,qk,#.... ",
-    " ..#,,,,,,,,#.........#,,,,,,,#.... ",
-    " ..#,,,,,,,,#.........#,,,,,,,#.... ",
-    " ..#,,,,,,,,#.........#,,,,,,,#.... ",
-    " ..#####,####.........####,####.... ",
-    " .................................. ",
-    " .................................. ",
-    " ...ff.ff.ff.ff......ff.ff.ff.ff... ",
-    " ............i..................... ",
-    " .................................. ",
-    " ...................o.....*........ ",
-    " .................................. ",
-    " .................................. ",
-    " .............!.................... ",
-    " ..####,###....!......####,###..... ",
-    " ..#,q,,v,#...........#e,,,d,#..... ",
-    " ..#,S,k,,#...........#,h,k,,#..... ",
-    " ..#,,,,,,#.U.........#,,,,,,#..... ",
-    " ..########...........########..... ",
-    " .................................. ",
-    " ..###,###............###,###...... ",
-    " ..#,e,d,#............#,e,d,#...... ",
-    " ..#,h,,,#............#,h,,,#...... ",
-    " ..#######............#######...... ",
-    "                                    ",
-  ],
-  thornbury: [
-    "                                  ",
-    " ................................ ",
-    " ..%%%%%%%%%%%%%%%%%%%%%%%%%%%%.. ",
-    " ..%..#######################.%.. ",
-    " ..%..#,*k,,,#,,hh,,,#,,Sk,,#.%.. ",
-    " ..%.G#,,,,,,#,,,,,,,#,,,,,,#G%.. ",
-    " ..%..#,,,,,,#,,,,,,,#,,,,,,#.%.. ",
-    " ..%..#,,,,,,#,,,,,,,#,,,,,,#.%.. ",
-    " ..%..#,,,,,,#,,,,,,,#,,,,,,#.%.. ",
-    " ..%..#,,,,,,,,,,,,,,,,,,,,,#.%.. ",
-    " ..%..###########,###########.%.. ",
-    " ..%..........................%.. ",
-    " ..%!.........................o.. ",
-    " ..%..........................%.. ",
-    " ..%%%%%%%%%%%%%..%%%%%%%%%%%%%.. ",
-    " ................................ ",
-    " ................................ ",
-    " ..########..........#########... ",
-    " ..#,,,ed,#..........#,,,e,d,#... ",
-    " ..#,h,h,,,..........,,h,k,,,#... ",
-    " ..#,,,,,,#..o......*#,,,,,,,#.T. ",
-    " ..########..........#########... ",
-    " ................................ ",
-    " ..####,###..........####,###.... ",
-    " ..#,,,,v,#..........#e,,,d,#.... ",
-    " ..#,A,s,,#..........#,h,,,,#.... ",
-    " ..#,,,,,,#..i.......#,,,,,,#.... ",
-    " ..########..........########.... ",
-    " ................................ ",
-    "                                  ",
-  ],
-  eastmere: [
-    "                               ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ..#########.########......    ~~~~~~~",
-    " ..#,,,,qv,#.#,,,qv,#...!..    ~~~~~~~",
-    " ..#,B,k,B,#.#,S,k,,#......    ~~~~~~~",
-    " ..#,,,,,,,#.#,,,,,,#.....=======F~~~~",
-    " ..#,,,,,,,#.#,,,,,,#......    ~~~~~~~",
-    " ..####,####.####,###......    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ...................o.....=======F~~~~",
-    " ............G.............    ~~~~~~~",
-    " ..................i.......    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ..####,####..###,###......    ~~~~~~~",
-    " ..#e,,,,d,#..#,q,v,#...*..    ~~~~~~~",
-    " ..#,h,h,,,#..#,S,k,#......    ~~~~~~~",
-    " ..#,,,,,,,#..#,,,,,#.....=======F~~~~",
-    " ..#########..#######......    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    " ..........................    ~~~~~~~",
-    "                               ~~~~~~~",
-  ],
-  greenhollow: [
-    "      T           T             ",
-    " T          T           T       ",
-    "  .....T.................T....  ",
-    "  ............................T ",
-    "  .#########.......########...  ",
-    "  T#,,,,qv,#.......#,,,qv,#...  ",
-    "  .#,B,k,,,#.......#,S,k,,#...  ",
-    "  .#,,,,,,,#.......#,,,,,,#...  ",
-    "  .####,####.......####,###...  ",
-    "  ............................ T",
-    "T ............................  ",
-    "  ..........o......*..........  ",
-    "  ............................  ",
-    "  .........i..................  ",
-    "  .####,###........####,####..  ",
-    "  .#e,,,d,#........#e,,,,d,#..  ",
-    "  .#,h,h,,#........#,A,s,h,#..T ",
-    " T.#,,,,,,#........#,,,,,,,#..  ",
-    "  .########........#########..  ",
-    "  ............................  ",
-    "            T           T       ",
-    "      T           T             ",
-  ],
-  cragfoot: [
-    "                            ",
-    "                            ",
-    "  ........................  ",
-    "  .#########....#########.  ",
-    "  .#,,,,,d,#....#,,,,,v,#.  ",
-    "  .#,S,k,h,#....#,A,s,A,#.  ",
-    "  .#,,,e,,,,....,,,,,,,,#.  ",
-    "  .#,,,,,,,#....#,,,,,,,#.  ",
-    "  .#########....#########.  ",
-    "  ........................  ",
-    "  %%%%%%%%%%%..%%%%%%%%%%%  ",
-    "  ........................  ",
-    "  .#########....#########.  ",
-    "  .#,,,,qv,#....#,,,,,d,#.  ",
-    "  .#,B,k,,,#....#,h,h,,,#.  ",
-    "  .#,,,,,,,,....,,,,e,,,#.  ",
-    "  .#,,,,,,,#....#,,,,,,,#.  ",
-    "  .#########....#########.  ",
-    "  ........................  ",
-    "  %%%%%%%%%%%..%%%%%%%%%%%  ",
-    "  ..........o.............  ",
-    "  .####,###.....####,###..  ",
-    "  .#e,,,d,#.....#e,,,d,#..  ",
-    "  .#,h,,,,#.....#,h,k,,#..  ",
-    "  .#,,,,,,#.....#,,,,,,#..  ",
-    "  .########.....########..  ",
-    "  ........................  ",
-    "  %%%%%%%%%%%..%%%%%%%%%%%  ",
-    "  ..........*....i........  ",
-    "  .....G.............!....  ",
-    "                            ",
-    "                            ",
-  ],
-  fenmarch: [
-    "                ===                 ",
-    "                ===                 ",
-    "  .#########....===...#########...  ",
-    "  .#vB,kqB,#....===...#,qS,kv,#...  ",
-    "  .#,,,,,,,#....===...#,,,,,,,#...  ",
-    "  .####,####....===...####,####...  ",
-    "  .==============================.  ",
-    "  ............o.===.*.............  ",
-    "  .####,###.....===....####,###...  ",
-    "  f#e,,,d,#.....===....#e,,,d,#...f ",
-    "  f#,h,h,,#.....===....#,h,,,,#...f ",
-    "  .#,,,,,,#.....===....#,,,,,,#...  ",
-    "  .########.....===....########...  ",
-    "  .==============================.  ",
-    "  ............i.===.G.............  ",
-    "  .####,####....===....####,###...  ",
-    "  f#,,,,,v,#....===....#e,,,d,#...f ",
-    "  f#,A,s,,,#....===....#,h,k,,#...f ",
-    "  .#,,,,,,,#....===....#,,,,,,#...  ",
-    "  .#########....===....########...  ",
-    "                ===                 ",
-    "                ===                 ",
-  ],
-  norwick: [
-    "%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%",
-    "%.%..............................%",
-    "%.%......................!.......%",
-    "%.%.##########......##########...%",
-    "%.%.#,,,,,qv,#......#,,,,,,d,#...%",
-    "%.%.#,,B,k,,,#......#,A,s,h,,#...%",
-    "%.%.#,,,,,,,,#......#,e,,,,,,#...%",
-    "%.%.#,,,,,,,,#......#,,,,,,,,#...%",
-    "%.%.#####,####......#####,####...%",
-    "%.%..............................%",
-    "%.%.G.........G..............G...%",
-    ".................................%",
-    "..............o......*...........%",
-    "%.%.G.W.......G..............G...%",
-    "%.%...........i..................%",
-    "%.%.####,####.......#####,####...%",
-    "%.%.#e,,,,d,#.......#e,,,,,d,#...%",
-    "%.%.#,h,h,,,#.......#,h,h,k,,#...%",
-    "%.%.#,,,,,,,#.......#,,,,,,,,#...%",
-    "%.%.#########.......##########...%",
-    "%.%....G....G.......G............%",
-    "%.%......G.............G..G......%",
-    "%.%..............................%",
-    "%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%",
-  ],
-  hollybarrow: [
-    "                                    ",
-    " \"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\" ",
-    " \"................................\" ",
-    " \".#########......................\" ",
-    " \".#,,,,qv,#........T.TTT.T.TTT...\" ",
-    " \".#,,S,k,,#......................\" ",
-    " \".#,,,,,,,#........T.TTT.T.TTT...\" ",
-    " \".#,,,,,,,#......................\" ",
-    " \".####,####..........T.T.T.T.T...\" ",
-    " \".................p.p.p.p.p.p.p..\" ",
-    " \"...T.............p.p.p.p.p.p.p..\" ",
-    " \"................................\" ",
-    " \"............o.....*.............\" ",
-    " \"................................\" ",
-    " \"............i...................\" ",
-    " \".####,###...........####,###....\" ",
-    " \".#e,,,d,#...........#e,,,d,#....\" ",
-    " \".#,h,h,,#...........#,h,,,,#....\" ",
-    " \".#,,,,,,#...........#,,,,,,#....\" ",
-    " \".########...........########....\" ",
-    " \"................................\" ",
-    " \".p.....p.p.p......p.p.p.p.p.p...\" ",
-    " \"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\" ",
-    "                                    ",
-  ],
-}
-const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
-const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
-function planConnected4(rows, cx, cy) {
-  const pw = rows[0].length, ph = rows.length
-  const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
-  const at = (x, y) => { const rx = x - x0, ry = y - y0
-    return (rx < 0 || ry < 0 || rx >= pw || ry >= ph) ? null : rows[ry][rx] }
-  const openAt = (x, y) => { const ch = at(x, y)
-    if (ch === null) return false
-    if (ch === '=') return true            // decking is footing
-    if (isWater4(x, y)) return false
-    return OPEN4.has(ch) || ch === ' ' }
-  let sx = cx, sy = cy
-  if (!openAt(sx, sy)) {
-    outer: for (let r = 1; r < Math.max(pw, ph); r++)
-      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
-        if (openAt(cx + dx, cy + dy)) { sx = cx + dx; sy = cy + dy; break outer } }
-  }
-  const seen = new Set([sx + ',' + sy]); const q = [[sx, sy]]; let h = 0
-  while (h < q.length) { const [x, y] = q[h++]
-    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
-      const nx = x + dx, ny = y + dy, k = nx + ',' + ny
-      if (seen.has(k) || !openAt(nx, ny)) continue
-      seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
-  for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
-    const ch = rows[ry][rx]
-    if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
-    if (!ESS.has(LEG4[ch])) continue
-    const x = x0 + rx, y = y0 + ry
-    if (isWater4(x, y)) continue
-    if (![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => seen.has((x+dx)+','+(y+dy)))) return false }
-  return true
-}
-const _seat4 = {}
-function seatDrawnTown4(tag, nomX, nomY) {
-  if (_seat4[tag]) return _seat4[tag]
-  const rows = PLANS4[tag], pw = rows[0].length, ph = rows.length
-  const dryOk = (cx, cy) => {
-    const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
-    for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
-      const ch = rows[ry][rx]
-      if (ch === ' ' || ch === '=') continue
-      const x = x0 + rx, y = y0 + ry
-      if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) return false
-      const wet = isWater4(x, y)
-      if (ch === '~' || ch === 'F') { if (!wet) return false }
-      else if (wet) return false
-      else if (onRidge4(x, y) || onBarrow4(x, y)) return false }
-    return true }
-  let out = null
-  spiral: for (let rad = 0; rad < 110; rad++)
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      const cx = nomX + dx, cy = nomY + dy
-      if (dryOk(cx, cy) && planConnected4(rows, cx, cy)) { out = { x: cx, y: cy }; break spiral } }
-  if (!out) spiral2: for (let rad = 0; rad < 110; rad++)
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      if (dryOk(nomX + dx, nomY + dy)) { out = { x: nomX + dx, y: nomY + dy }; break spiral2 } }
-  return (_seat4[tag] = out ?? { x: nomX, y: nomY })
-}
 
-let _ss4 = null
-function settlementsE4() {
-  if (_ss4) return _ss4
-  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
-  const mby = cy - 62, ey = emY4()
-  const P = (t) => ({ w: PLANS4[t][0].length, h: PLANS4[t].length })
-  const S = (t, x, y) => seatDrawnTown4(t, x, y)
-  _ss4 = [
-    { tag:'anchor',      name:'Anchor',      ...S('anchor', cx, cy),                                        ...P('anchor'),      ring:'shire' },
-    { tag:'millbrook',   name:'Millbrook',   ...S('millbrook', riverX4(mby) + 16, mby),                     ...P('millbrook'),   ring:'shire' },
-    { tag:'oxenford',    name:'Oxenford',    ...S('oxenford', cx - 104, cy + 40),                            ...P('oxenford'),    ring:'shire' },
-    { tag:'thornbury',   name:'Thornbury',   ...S('thornbury', cx + 78, cy - 34),                           ...P('thornbury'),   ring:'shire' },
-    { tag:'hollybarrow', name:'Hollybarrow', ...S('hollybarrow', cx - 96, cy - 52),                         ...P('hollybarrow'), ring:'shire' },
-    { tag:'greenhollow', name:'Greenhollow', ...S('greenhollow', Math.round(W*0.42), Math.round(H*0.12)),   ...P('greenhollow'), ring:'frontier' },
-    { tag:'cragfoot',    name:'Cragfoot',    ...S('cragfoot', Math.round(W*0.87), Math.round(H*0.44)),      ...P('cragfoot'),    ring:'frontier' },
-    { tag:'eastmere',    name:'Eastmere',    ...S('eastmere', (bayShoreX4(ey) ?? Math.round(W*0.7)) - 14, ey), ...P('eastmere'),  ring:'frontier' },
-    { tag:'fenmarch',    name:'Fenmarch',    ...S('fenmarch', riverX4(Math.round(H*0.83)) + 9, Math.round(H*0.83)), ...P('fenmarch'), ring:'frontier' },
-    { tag:'norwick',     name:'Norwick',     ...S('norwick', brandX4(Math.round(H*0.47)) + 18, Math.round(H*0.47)), ...P('norwick'), ring:'frontier' },
-  ]
-  return _ss4
-}
 // ---- the router, ported whole ----
-const BIOME_COST4 = { heartlands:10, downs:11, greenwood:15, moor:15, wilds:17, fens:20, crags:22 }
-function routeCost4(x, y) {
-  if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return -1
-  const b = biomeAtE4(x, y)
-  if (b === 'sea') return -1
-  if (isWater4(x, y)) return onBridge4(x, y) ? 10 : -1
-  if (onBarrow4(x, y) || onRidge4(x, y)) return -1
-  let c = BIOME_COST4[b] ?? 14
-  if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) c += 6
-  return c
-}
-let _cost4 = null
-function costField4() {
-  if (_cost4) return _cost4
-  const f = new Int16Array(W * H)
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) f[y * W + x] = routeCost4(x, y)
-  return (_cost4 = f)
-}
-const DIRS4 = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]
-function hPush4(h, v) { h.push(v); let i = h.length - 1
-  while (i > 0) { const p = (i-1)>>1; if (h[p] <= h[i]) break; const t = h[p]; h[p] = h[i]; h[i] = t; i = p } }
-function hPop4(h) { const top = h[0], last = h.pop()
-  if (h.length) { h[0] = last; let i = 0
-    for (;;) { const l=i*2+1, r=l+1; let m=i
-      if (l < h.length && h[l] < h[m]) m = l
-      if (r < h.length && h[r] < h[m]) m = r
-      if (m === i) break
-      const t = h[m]; h[m] = h[i]; h[i] = t; i = m } }
-  return top }
-function routePath4(ax, ay, bx, by) {
-  const N = W * H, f = costField4()
-  const dist = new Int32Array(N).fill(0x7fffffff), prev = new Int32Array(N).fill(-1), done = new Uint8Array(N)
-  const si = ay * W + ax, ti = by * W + bx
-  if (f[si] < 0 || f[ti] < 0) return null
-  const hEst = (x, y) => { const dx = x>bx?x-bx:bx-x, dy = y>by?y-by:by-y
-    const lo = dx<dy?dx:dy, hi = dx<dy?dy:dx; return (hi-lo)*10 + lo*14 }
-  const vx = bx-ax, vy = by-ay, L = Math.sqrt(vx*vx+vy*vy)
-  const offLine = (x, y) => { if (L < 1) return 0
-    const cr = (x-ax)*vy - (y-ay)*vx; const a = cr<0?-cr:cr; return Math.floor(a/(L*5)) }
-  dist[si] = 0
-  const heap = [hEst(ax,ay) * 1048576 + si]
-  let found = false
-  while (heap.length) {
-    const i = hPop4(heap) % 1048576
-    if (done[i]) continue
-    done[i] = 1
-    if (i === ti) { found = true; break }
-    const x = i % W, y = (i - x) / W, d0 = dist[i]
-    for (const d of DIRS4) {
-      const nx = x + d[0], ny = y + d[1]
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue
-      const ni = ny * W + nx
-      if (done[ni]) continue
-      const c = f[ni]; if (c < 0) continue
-      const step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
-      const nd = d0 + step + offLine(nx, ny)
-      if (nd < dist[ni]) { dist[ni] = nd; prev[ni] = i; hPush4(heap, (nd + hEst(nx,ny)) * 1048576 + ni) }
-    }
-  }
-  if (!found) return null
-  const out = []
-  for (let i = ti; i !== -1; i = prev[i]) { const x = i % W; out.push([x, (i-x)/W]); if (i === si) break }
-  return out.reverse()
-}
 // A junction placed by fixed offset lands in the river on some other seed.
 // Mirrors worldgen-expanse4.seatPoint exactly.
-function seatPoint4(x, y) {
-  if (routeCost4(x, y) > 0) return { x, y }
-  for (let rad = 1; rad < 60; rad++)
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      if (routeCost4(x + dx, y + dy) > 0) return { x: x + dx, y: y + dy }
-    }
-  return { x, y }
-}
-let _roads4 = null
-function roadSet4() {
-  if (_roads4) return _roads4
-  const s = {}; for (const t of settlementsE4()) s[t.tag] = t
-  const wm = seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
-  const shrine = isles4()[0]
-  const segs = [
-    [s.anchor,s.millbrook],[s.millbrook,s.hollybarrow],[s.hollybarrow,s.oxenford],
-    [s.oxenford,s.anchor],[s.anchor,s.thornbury],[s.thornbury,s.millbrook],
-    [s.millbrook,s.greenhollow],[s.thornbury,s.cragfoot],[s.anchor,s.eastmere],
-    [s.oxenford,wm],[wm,s.fenmarch],[s.eastmere,s.fenmarch],[s.cragfoot,s.eastmere],
-    [s.oxenford,s.norwick],[s.hollybarrow,s.norwick],
-  ]
-  const set = new Set()
-  for (const [a, b] of segs) {
-    const p = routePath4(a.x, a.y, b.x, b.y)
-    if (!p) continue
-    for (const t of p) { set.add(t[0] + ',' + t[1]); set.add((t[0]+1) + ',' + t[1]) }
-  }
-  // the causeway is drawn, not routed: no router crosses open sea
-  const a = s.eastmere, b = shrine
-  const vx = b.x - a.x, vy = b.y - a.y, L = Math.sqrt(vx*vx + vy*vy)
-  const steps = Math.ceil(L * 2)
-  for (let k = 0; k <= steps; k++) {
-    const t = k / steps
-    const px = Math.round(a.x + vx*t), py = Math.round(a.y + vy*t)
-    set.add(px + ',' + py); set.add((px+1) + ',' + py)
-  }
-  return (_roads4 = set)
-}
-const onRoad4 = (x, y) => roadSet4().has(x + ',' + y)
-function fordE4(x, y) {
-  if (onBridge4(x, y)) return true
-  for (const s of settlementsE4())
-    if (Math.abs(x - s.x) <= (s.w >> 1) && Math.abs(y - s.y) <= (s.h >> 1) && (x === s.x || y === s.y)) return true
-  // the causeway and the quays are decking: if a road is drawn over water,
-  // it is because something was built there
-  if (isWater4(x, y) && onRoad4(x, y)) return true
-  return false
-}
 // Anchor's plaza, mirroring worldgen-expanse4.spawnDry. The window draws
 // the arrival point, so it has to agree about where it is.
-function spawnDry4() {
-  const a = settlementsE4().find(s => s.tag === 'anchor')
-  const rows = PLANS4.anchor, pw = rows[0].length, ph = rows.length
-  const x0 = a.x - (pw >> 1), y0 = a.y - (ph >> 1)
-  const openHere = (x, y) => {
-    const rx = x - x0, ry = y - y0
-    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) return false
-    const ch = rows[ry][rx]
-    if (ch !== '.' && ch !== '@') return false
-    return !isWater4(x, y) && !onRidge4(x, y) && !onBarrow4(x, y)
-  }
-  for (let rad = 0; rad < Math.max(pw, ph); rad++)
-    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      if (openHere(a.x + dx, a.y + dy)) return { x: a.x + dx, y: a.y + dy }
-    }
-  return { x: a.x, y: a.y }
-}
 
 // RAMPART OR BUILDING? The state cannot say -- the engine allows a kind only
 // on a landmark, and rightly, since the difference is purely visual and the
@@ -2985,36 +4043,9 @@ function spawnDry4() {
 // A 'U' in a plan is a well node the window paints as a fountain. Same
 // lookup as the ramparts, same reason: the difference is visual, so it must
 // not touch the state.
-const _fountCache = new Map()
-function isFountain4(x, y) {
-  const k = x + ',' + y
-  const hit = _fountCache.get(k)
-  if (hit !== undefined) return hit
-  let out = false
-  for (const t of settlementsE4()) {
-    const rows = PLANS4[t.tag]; if (!rows) continue
-    const pw = rows[0].length, ph = rows.length
-    const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
-    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
-    out = rows[ry][rx] === 'U'
-    break
-  }
-  _fountCache.set(k, out)
-  return out
-}
 // Where are the walls? Rebuilt only when the tick changes, because the draw
 // loop asks four times per wall and a full node scan per query would be
 // thousands of scans a frame.
-let _wallSet = null, _wallTick = -1
-function wallAt(st, x, y) {
-  if (!st || !st.nodes) return false
-  if (_wallTick !== st.tick || _wallSet === null) {
-    _wallSet = new Set()
-    for (const k in st.nodes) { const q = st.nodes[k]; if (q.type === 'wall') _wallSet.add(q.x + ',' + q.y) }
-    _wallTick = st.tick
-  }
-  return _wallSet.has(x + ',' + y)
-}
 // WHICH DOOR IS THE BANK'S? From outside, a bank and a cottage are both a
 // brown room -- you only learn which is which by standing on the booth. Real
 // shops hang a sign, so: for every room a plan lays, if a bank or a counter
@@ -3024,103 +4055,10 @@ function wallAt(st, x, y) {
 // Built ONCE per tick as a map from the shop tile to its door, rather than
 // scanning every node for every room of every town -- that first version was
 // 367ms a call, which is most of a tick spent deciding where to hang a sign.
-let _signs = null, _signTick = -1
-function shopDoors4(st) {
-  if (!st || !st.nodes) return _signs ?? new Map()
-  if (_signTick === st.tick && _signs) return _signs
-  const out = new Map()
-  // one pass over the nodes, bucketed by town
-  const shops = []
-  for (const k in st.nodes) {
-    const q = st.nodes[k]
-    if (q.type === 'bank' || q.type === 'store') shops.push(q)
-  }
-  for (const t of settlementsE4()) {
-    const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
-    if (!rows || !rects) continue
-    const pw = rows[0].length, ph = rows.length
-    const ox = t.x - (pw >> 1), oy = t.y - (ph >> 1)
-    const mine = shops.filter(q => Math.abs(q.x - t.x) <= (pw >> 1) && Math.abs(q.y - t.y) <= (ph >> 1))
-    if (!mine.length) continue
-    for (const [rx, ry, rw, rh] of rects) {
-      const inside = mine.filter(q => {
-        const px = q.x - ox, py = q.y - oy
-        return px >= rx && py >= ry && px < rx + rw && py < ry + rh
-      })
-      if (!inside.length) continue
-      const kind = inside[0].type
-      // walk the wall ring; the gap is the way in
-      const ring = []
-      for (let x = rx - 1; x <= rx + rw; x++) { ring.push([x, ry - 1]); ring.push([x, ry + rh]) }
-      for (let y = ry; y < ry + rh; y++) { ring.push([rx - 1, y]); ring.push([rx + rw, y]) }
-      let door = null
-      for (const [px, py] of ring) {
-        if (px < 0 || py < 0 || px >= pw || py >= ph) continue
-        if (rows[py][px] === '#') continue
-        door = { x: ox + px, y: oy + py, kind }
-        break
-      }
-      if (door) for (const q of inside) out.set(q.x + ',' + q.y, door)
-    }
-  }
-  _signTick = st.tick; _signs = out
-  return out
-}
 // A keeper's trade. The id carries it where the generator wrote one; where
 // the plans placed the keeper it has none, so read the room: whatever this
 // person is standing beside is what they do.
-const _roleCache = new Map()
-function keeperRole4(st, id, n) {
-  if (id === 'kpr-wizard-oberon') return 'wizard'
-  if (id.includes('lantern')) return 'inn'
-  if (id.includes('shep') || id.includes('fold')) return 'shep'
-  if (id.includes('sawyer') || id.includes('camp')) return 'forest'
-  if (id.includes('eel') || id.includes('sheds')) return 'fisher'
-  if (id.includes('delve') || id.includes('high')) return 'smith'
-  if (id.includes('bank')) return 'clerk'
-  const ck = _roleCache.get(id)
-  if (ck) return ck
-  let role = 'town'
-  if (st && st.nodes) {
-    const near = {}
-    for (const k in st.nodes) {
-      const q = st.nodes[k]
-      if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
-      near[q.type] = true
-    }
-    role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.house ? 'town' : 'town'
-  }
-  _roleCache.set(id, role)
-  return role
-}
 // the eighteen nouns added at the fourth founding, which have their own art
-const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
-  'charcoal-clamp','log-pile','spoil-heap','cut-face','bone-pile',
-  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall',
-  // the thirteen added when the world stopped repeating itself: four that
-  // were always here wearing 'standing-stone' because nothing else had a
-  // name, and nine new places
-  'skep','cairn','boundary-stone','skull-pile','web',
-  'scorched-ring','glass-stone','burnt-tree',
-  'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
-const _rampCache = new Map()
-function isRampart4(x, y) {
-  const k = x + ',' + y
-  const hit = _rampCache.get(k)
-  if (hit !== undefined) return hit
-  let out = false
-  for (const t of settlementsE4()) {
-    const rows = PLANS4[t.tag]; if (!rows) continue
-    const pw = rows[0].length, ph = rows.length
-    const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
-    if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
-    out = rows[ry][rx] === '%'
-    break
-  }
-  _rampCache.set(k, out)
-  return out
-}
 // THE LANTERN'S FLOOR.
 //
 // groundKindAt learns a room's floor from the town DRAWING, and the wayside
@@ -3173,125 +4111,13 @@ function innSeat4() {
     }
   return _innSeat4
 }
-function terrainOfE4(x, y) {
-  // the Lantern's boards: the one room outside any town plan
-  {
-    const si = innSeat4()
-    if (si && x >= si.x - 2 && x <= si.x + 2 && y >= si.y && y <= si.y + 2) return 'floor'
-  }
-  if (inSea4(x, y)) return fordE4(x, y) ? 'bridge' : 'sea'
-  if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
-  for (const t of settlementsE4()) {
-    // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
-    // inclusive test claimed the rampart line itself as town ground and
-    // painted seven tiles of trail as cobble.
-    if (Math.abs(x - t.x) >= (t.w >> 1) || Math.abs(y - t.y) >= (t.h >> 1)) continue
-    // INDOORS? Ask the drawing, exactly as groundKindAt does. ',' is a room's
-    // floor and must not be painted as the street it opens onto.
-    const rows = PLANS4[t.tag]
-    if (rows) {
-      const pw = rows[0].length, ph = rows.length
-      const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
-      // ENCLOSURE, not the character: a counter, a hearth and the clerk all
-      // stand on the same floor as the empty tile beside them
-      for (const [rxx, ryy, rww, rhh] of (PLAN_ROOMS4[t.tag] ?? []))
-        if (rx >= rxx && ry >= ryy && rx < rxx + rww && ry < ryy + rhh) return 'floor'
-    }
-    // NOT EVERY TOWN IS PAVED: a farm and a clearing keep their own ground
-    if (t.tag === 'hollybarrow' || t.tag === 'greenhollow')
-      return onRoad4(x, y) ? 'trail' : biomeAtE4(x, y)
-    return onRoad4(x, y) ? 'cobble' : 'flag'
-  }
-  if (onRidge4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
-  if (onBarrow4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
-  if (onRoad4(x, y)) {
-    for (const t of settlementsE4()) if (Math.max(Math.abs(x - t.x), Math.abs(y - t.y)) <= 20) return 'cobble'
-    if (onRidge4(x-1,y) || onRidge4(x+1,y) || onBarrow4(x,y)) return 'gravel'
-    // the road takes its country's colour (mirrors groundKindAt)
-    const rb = biomeAtE4(x, y)
-    if (rb === 'crags') return 'gravel'
-    if (rb === 'downs') return 'chalk'
-    if (rb === 'moor')  return 'peat'
-    if (rb === 'fens')  return 'causey'
-    return 'trail'
-  }
-  if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) return 'sand'
-  return biomeAtE4(x, y)
-}
 // ---- the locales: names smaller than a country ----
-const LOCALES4 = [
-  ['Anchor Vale',0.50,0.50,46,30],['Watersmeet',null,null,30,20,'watersmeet'],
-  ['the Barrow',null,null,34,21,'barrow'],['Oxenlea',0.37,0.58,32,22],
-  ['Thornvale',0.62,0.42,30,20],['the Deepwood',0.52,0.07,54,22],
-  ['the Kingswood',0.68,0.14,40,20],['Hollybarrow Chase',0.36,0.16,34,18],
-  ['the High Delving',0.81,0.38,30,20],['the Sentinel Screes',0.86,0.55,30,20],
-  ['Cragfoot Scar',0.90,0.28,28,18],['the Sheepfolds',0.72,0.71,30,18],
-  ['Whitechalk',0.80,0.78,32,18],['Eelmarsh',0.48,0.85,36,18],
-  ['the Fen Mouth',0.58,0.90,30,16],['Bleakfell',0.29,0.15,34,20],
-  ['Ninestone Moor',0.38,0.26,30,18],["Deadman's Reach",0.12,0.30,38,26],
-  ['the Boneyard',0.09,0.62,34,24],
-]
-const COUNTRY_NAMES4 = { sea:'the Sea', wilds:'the Wilds', heartlands:'the Heartlands',
-  greenwood:'the Greenwood', crags:'the Crags', fens:'the Fens', downs:'the Downs', moor:'the Moor' }
 // A locale seats itself ashore, exactly as the generator does: an ellipse
 // centred on a canvas fraction can sit in open water, and five of them did.
 // The mirror has to run the same search or it names places the server does
 // not have -- and a nameplate that disagrees is a window telling a citizen
 // they are somewhere they are not.
-const _loc4 = {}
-function localeCentre4(L) {
-  if (L[5] === 'barrow') return barrowC4()
-  // the Watersmeet locale hangs off the JUNCTION, which now seats itself;
-  // leaving the old raw offset here put the name a few tiles from where the
-  // server puts it, and a locale boundary a few tiles out renames a strip
-  // of country
-  if (L[5] === 'watersmeet') return seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
-  if (_loc4[L[0]]) return _loc4[L[0]]
-  const nx = Math.round(L[1] * W), ny = Math.round(L[2] * H), rx = L[3], ry = L[4]
-  const land = (cx, cy) => {
-    let n = 0
-    for (let dy = -ry; dy <= ry; dy += 3) for (let dx = -rx; dx <= rx; dx += 3) {
-      const u = dx / rx, v = dy / ry
-      if (u * u + v * v > 1) continue
-      const x = cx + dx, y = cy + dy
-      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) continue
-      if (!inSea4(x, y)) n++
-    }
-    return n
-  }
-  let best = { x: nx, y: ny }, bestN = land(nx, ny)
-  for (let rad = 2; rad <= 70 && bestN < 40; rad += 2)
-    for (let dy = -rad; dy <= rad; dy += 2) for (let dx = -rad; dx <= rad; dx += 2) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-      const n = land(nx + dx, ny + dy)
-      if (n > bestN) { bestN = n; best = { x: nx + dx, y: ny + dy } }
-    }
-  return (_loc4[L[0]] = best)
-}
-function localeAt4(x, y) {
-  let best = null, bestArea = Infinity
-  for (const L of LOCALES4) {
-    const c = localeCentre4(L)
-    const cx = c.x, cy = c.y
-    const dx = (x - cx) / L[3], dy = (y - cy) / L[4]
-    if (dx * dx + dy * dy > 1) continue
-    const a = L[3] * L[4]
-    if (a < bestArea) { bestArea = a; best = L[0] }
-  }
-  return best ?? (COUNTRY_NAMES4[biomeAtE4(x, y)] ?? null)
-}
 
-function terrainOfE(x, y) {
-  if (IS_EXPANSE4()) return terrainOfE4(x, y)
-  if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
-  if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
-  if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return fordE(x, y) ? 'bridge' : 'river'
-  for (const t2 of ssE()) {
-    if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
-  }
-  if (onRoadE(x, y)) return 'trail'
-  return biomeAtE(x, y)
-}
 // the countries, by their names (spec 9d). A region is not decoration: it is
 // a pure function of the founding record, identical in every window, so that
 // "meet me at the fens edge" means one place to everyone who hears it.
@@ -3299,10 +4125,6 @@ function terrainOfE(x, y) {
 // ---- the keepers' names (v0.79): mirrored from worldgen keeperName ,
 // same SHA-256, same list, precomputed once at boot, identical in every
 // window. Maud is Maud everywhere, and no byte of state stores her. ----
-const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
-  'Hild', 'Ivo', 'Joan', 'Kemp', 'Lettice', 'Miles', 'Nell', 'Osric', 'Peronel', 'Quill',
-  'Rosamund', 'Sim', 'Tilda', 'Ulric', 'Verity', 'Wat', 'Ysolt', 'Zachary']
-const KN = {}
 ;(async () => {
   try {
     const tags = settlementsE3().map(t => t.tag ?? t.name?.toLowerCase())
@@ -3316,61 +4138,7 @@ const KN = {}
     }
   } catch {}
 })()
-const kName = (tag, role) => role === 'wizard' ? 'Oberon' : (KN[tag + '|' + role] ?? 'the keeper')
-const kFromId = (id) => { // 'kpr-store2-anchor' / 'store-anchor' / 'bank-anchor'
-  const m = /^(?:kpr-)?(bank|store2|store|farm|camp|delve|sheds|inn|wizard)-(.+)$/.exec(id ?? '')
-  return m ? kName(m[2], m[1]) : 'the keeper'
-}
-const REGION_NAMES = { sea: 'the Sea', greenwood: 'the Greenwood', crags: 'the Crags', fens: 'the Fens',
-  wilds: 'the Wilds', meadow: 'the Heartlands', heartlands: 'the Heartlands',
-  downs: 'the Downs', moor: 'the Moor' }
-const SETTLEMENT_NAMES = ['Anchor', 'Greenhollow', 'Millbrook', 'Cragfoot', 'Eastmere', 'Fenmarch', 'Norwick']
-const CLASSIC_NAMES = { wilds: 'the Wilds', cave: 'the Deep', scree: 'the Scree',
-  mountain: 'the Mountains', sea: 'the Sea', bridge: 'the Bridge',
-  cobble: 'the City', plaza: 'the Market', flag: 'the Market', gravel: 'the Pass',
-  sand: 'the Shore', trail: 'the Road', meadow: 'the Meadows' }
-function regionNameAt(x, y) {
-  try {
-    if (!GEN.startsWith('interval-expanse-')) {
-      // the founding world has countries too; they were simply never named
-      return CLASSIC_NAMES[terrainOf(x, y)] ?? ''
-    }
-    const ss = ssE()
-    for (let i = 0; i < ss.length; i++) {
-      const t = ss[i]
-      if (Math.abs(x - t.x) <= (t.w >> 1) && Math.abs(y - t.y) <= (t.h >> 1))
-        return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
-    }
-    if (IS_EXPANSE4()) {
-      // A NAMED CROSSING announces itself. There are five bridges on the
-      // whole island and everyone who ever crossed the river crossed at one
-      // of them -- that is the entire point of making them scarce, and it is
-      // wasted if the strip says "the Heartlands" while you are standing on
-      // the Millbrook Bridge.
-      const BR = ['Highford', 'the Millbrook Bridge', 'the Watersmeet Bridge', 'Fenford', 'the Oxenford']
-      const bs = bridges4()
-      for (let i = 0; i < bs.length; i++)
-        if (Math.abs(x - bs[i].x) <= 4 && Math.abs(y - bs[i].y) <= 2) return BR[i]
-      const pp = passes4()
-      if (Math.abs(x - ridgeX4(pp[0])) <= 4 && Math.abs(y - pp[0]) <= 4) return 'North Pass'
-      if (Math.abs(x - ridgeX4(pp[1])) <= 4 && Math.abs(y - pp[1]) <= 4) return 'South Pass'
-      // A country is too coarse a thing to navigate by. "The Heartlands" is
-      // a third of the island; "Bleakfell" is somewhere you have been. The
-      // nameplate answers with the tightest locale that contains you and
-      // falls back to the country only where no locale does.
-      const loc = localeAt4(x, y)
-      if (loc) return loc
-      return REGION_NAMES[biomeAtE4(x, y)] ?? ''
-    }
-    return REGION_NAMES[biomeAtE(x, y)] ?? ''
-  } catch { return '' } // a nameplate must never be able to stop the world drawing
-}
 
-function tileHash(x, y, k) { // integer avalanche: adjacent tiles decorrelate
-  let h = (x * 374761393 + y * 668265263 + (k ?? 0) * 2246822519) | 0
-  h = Math.imul(h ^ (h >>> 13), 1274126177)
-  return ((h ^ (h >>> 16)) >>> 0)
-}
 const trailYOf = () => Math.floor(H / 2)
 // THE LAW, READ FROM THE GENESIS -- not a rectangle remembered from another
 // world. This said `x <= 34 && y <= 22`, which is the v1 island: thirty-four
@@ -3381,15 +4149,6 @@ const trailYOf = () => Math.floor(H / 2)
 //
 // `geo.wilds` is what the ENGINE uses (inWilds, spec 6d). Reading the same
 // field is the only way this cannot drift again.
-const inWildsC = (x, y) => {
-  const w = (curState ?? world)?.genesis?.geo?.wilds
-  if (!w) return x >= 1 && x <= 34 && y >= 1 && y <= 22   // the classic world
-  return x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1
-}
-function riverXC(y) { // mirror of worldgen's course: for painting banks and bridges
-  const cx2 = Math.floor(W / 2)
-  return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1
-}
 function trailYAtC(x) { // mirror of worldgen's trailYAt (spec 2j): flat at anchors, winds between
   const cx2 = Math.floor(W / 2)
   const base = Math.floor(H / 2)
@@ -3437,9 +4196,6 @@ function terrainOfClassic(x, y) {
   if ((x <= 14 || x >= W - 16) && Math.abs(y - ty) <= 4) return 'plaza'
   if (hazardClosenessC(x, y) > 0.55) return 'scree' // the ground turns before the mob does (spec 2j)
   return 'meadow'
-}
-function terrainOf(x, y) {
-  return GEN.startsWith('interval-expanse-') ? terrainOfE(x, y) : terrainOfClassic(x, y)
 }
 function tileShade(x, y) {
   const t = terrainOf(x, y)
@@ -4799,7 +5555,48 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
-      if (n.type === 'wall') {
+      if (n.type === 'ossuary') {
+        // THE BONE-HOUSE: a low stone chest under an oversailing slab, with
+        // names cut into the lid and weathered to nearly nothing.
+        shadow(X, Y, 13)
+        poly([[X+6,Y+18],[X+20,Y+11],[X+34,Y+18],[X+20,Y+25]], '#6d675b', '#33302b')
+        cx.fillStyle = '#43403a'; cx.fillRect(X + 6, Y + 18, 14, 7)
+        cx.fillStyle = '#332f2b'; cx.fillRect(X + 20, Y + 18, 14, 7)
+        poly([[X+3,Y+15],[X+20,Y+7],[X+37,Y+15],[X+20,Y+23]], '#7d776a', '#3a3630')
+        cx.strokeStyle = 'rgba(30,26,22,.34)'; cx.lineWidth = 1
+        for (let i2 = 1; i2 < 5; i2++) {
+          const t2 = i2 / 5
+          cx.beginPath()
+          cx.moveTo(X + 3 + t2 * 17 + 3, Y + 15 - t2 * 8 + 2)
+          cx.lineTo(X + 20 + t2 * 17 - 3, Y + 23 - t2 * 8 + 2); cx.stroke()
+        }
+        return
+      }
+      if (n.type === 'banner') {
+        // a gonfalon on a pole, in the trade colours of the town it names
+        shadow(X, Y, 6)
+        cx.fillStyle = '#3a2f1e'; cx.fillRect(X + 19, Y + 4, 2.6, 24)
+        cx.fillStyle = '#7a2f2f'
+        poly([[X+21,Y+6],[X+33,Y+6],[X+33,Y+18],[X+27,Y+15],[X+21,Y+18]], '#7a2f2f', '#3a1616')
+        cx.fillStyle = 'rgba(255,240,214,.16)'; cx.fillRect(X + 21, Y + 6, 4, 12)
+        cx.fillStyle = '#c6941e'
+        cx.beginPath(); cx.arc(X + 20.3, Y + 4, 2.2, 0, 7); cx.fill()
+        return
+      }
+      if (n.type === 'stall') {
+        // a counter with a rack behind it, indoors, in the trade's own cloth
+        shadow(X, Y, 11)
+        poly([[X+5,Y+20],[X+20,Y+13],[X+35,Y+20],[X+20,Y+27]], '#5b4629', '#2a2013')
+        cx.fillStyle = '#33270f'; cx.fillRect(X + 5, Y + 20, 15, 6)
+        cx.fillStyle = '#221a0c'; cx.fillRect(X + 20, Y + 20, 15, 6)
+        cx.fillStyle = '#2e2519'; cx.fillRect(X + 9, Y + 2, 2.4, 14); cx.fillRect(X + 29, Y + 2, 2.4, 14)
+        cx.fillStyle = ({ lumber:'#3d4a2e', delve:'#3a3a42', arms:'#4a2622',
+                          armour:'#3a3228', bows:'#44412a', seed:'#4a4428' })[n.kind] ?? '#5a4a22'
+        cx.fillRect(X + 10, Y + 4, 20, 9)
+        cx.fillStyle = 'rgba(0,0,0,.24)'; cx.fillRect(X + 21, Y + 4, 9, 9)
+        return
+      }
+      if (n.type === 'wall' || n.type === 'rampart') {
         // A WALL KNOWS ITS NEIGHBOURS. Every wall used to draw the same inset
         // block with its own outline all the way round, so a run of them read
         // as a row of separate stones rather than one wall -- and a vertical
@@ -4813,9 +5610,16 @@ function drawScene(now) {
         const wl = wallAt(s, n.x - 1, n.y), wr = wallAt(s, n.x + 1, n.y)
         const wu = wallAt(s, n.x, n.y - 1), wd = wallAt(s, n.x, n.y + 1)
         const horiz = (wl || wr) && !(wu || wd)
-        const ramp = (IS_EXPANSE4())
-          ? isRampart4(n.x, n.y)
-          : (n.y === 2 || n.y === 10 || n.x === Math.floor(W / 2) - 8 || n.x === Math.floor(W / 2) + 8)
+        // A RAMPART IS A NODE NOW, not a guess. This asked isRampart4 -- a
+        // geometric test against where a town's outline ought to be -- because
+        // the world had no way to say so. It does now: '%' in a drawing is a
+        // rampart and '#' is a building wall, and four hundred and seventy-eight
+        // tiles across four towns say which they are.
+        //
+        // Worse, the branch above only admitted `wall`, so every one of those
+        // rampart nodes fell through and drew NOTHING: Anchor and Norwick had
+        // invisible curtain walls.
+        const ramp = n.type === 'rampart'
         // a rampart is thick and sits high; a building wall is thinner
         const inset = ramp ? 2 : 6, top = ramp ? 12 : 17
         const x0 = wl ? X : X + inset, x1 = wr ? X + 40 : X + 40 - inset
@@ -6153,8 +6957,11 @@ function drawScene(now) {
   cx.fillStyle = 'rgba(217,201,163,.75)'; cx.font = '10px Verdana'; cx.textAlign = 'left'
   cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + '  \u00b7  tick ' + s.tick + '  \u00b7  ' + phase + '  \u00b7  ' + BUILD + meterText, 6, cv.height - 6)
 }
+fitCanvas()
 requestAnimationFrame(function frame(now) {
   if (document.hidden) { requestAnimationFrame(frame); return }
+  // cheap: it returns immediately unless the window or the device ratio moved
+  fitCanvas()
   if (lastFrameAt) worstFrame = Math.max(worstFrame, now - lastFrameAt)
   lastFrameAt = now
   if (now - meterAt > 2000) { // meter: worst frame gap + broadcast jitter, 2s window
@@ -6743,6 +7550,17 @@ function fadeMusicOut(ms) { // the theme belongs to the DOOR: it bows out at the
   }
   step()
 }
+// the face buttons, and the face itself sent on the way in
+for (const [id, d] of [['lookprev', -1], ['looknext', 1]]) {
+  const b = document.getElementById(id)
+  if (b) b.addEventListener('click', () => { pickLook = (pickLook + d + 256) & 255; drawLookPreview() })
+}
+drawLookPreview()
+document.getElementById('gatebtn').addEventListener('click', () => {
+  // sent on entering, and again from onState until the world agrees: a spawn
+  // and a set_look race, and the loser is silent
+  if (lookSent !== pickLook) { send({ do: 'set_look', look: pickLook }); lookSent = pickLook }
+})
 document.getElementById('gatebtn').addEventListener('click', () => fadeMusicOut(2000))
 document.getElementById('gatebtn').addEventListener('click', enterWorld)
 document.getElementById('gatename').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterWorld() })
@@ -6820,6 +7638,15 @@ function invClick(i) {
   const hasMenu = MENU_ITEMS.has(it.item) || isChart(it.item) // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
   if (nearBank && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
   const bankOpt = nearBank ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.') } }] : []
+  // TRANSMUTE: any priced good, anywhere, from the first log. The question is
+  // whether a thing HAS a price, not what that price comes to -- an arrow pays
+  // nothing and is still unmade, for the practice.
+  const alchPay = (PRICES[it.item] ?? 0) ? Math.min(4, Math.max(0, PRICES[it.item] - 1)) : null
+  const alchOpt = alchPay === null ? [] : [{
+    label: alchPay > 0 ? 'transmute (' + alchPay + ' gold)' : 'transmute (for the practice)',
+    act: () => { send({ do: 'alch', slot: +i })
+      feed('It comes apart' + (alchPay > 0 ? ' for ' + alchPay + ' gold.' : '.') + ' A keeper would have paid more.') },
+  }]
   if (it.item === 'magic-stone') {
     const count = me.inventory.filter(sl => sl?.item === 'magic-stone').length
     chooseAction([
@@ -6828,6 +7655,7 @@ function invClick(i) {
         send({ do: 'invoke' })
         feed('You press the stones together. They remember being one.')
       } },
+      ...alchOpt,
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the magic stone.') } },
     ]); return
   }
@@ -6866,14 +7694,20 @@ function invClick(i) {
   if (it.item === 'arrows') {
     chooseAction([
       { label: 'no wielding needed (' + it.qty + ' in the pack)', act: () => feed('Arrows fly on their own: wield a bow and attack anything within four tiles.') },
-      ...bankOpt,
+      ...bankOpt, ...alchOpt,
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the arrows.') } },
     ]); return
   }
   if (it.item === 'bones') {
     chooseAction([
-      { label: 'bury', act: () => { send({ do: 'bury', slot: +i }); feed('You bury the bones. The earth accepts them.') } },
+      { label: 'bury', act: () => { send({ do: 'bury', slot: +i })
+        // consecrated ground pays a quarter more, and says so
+        const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
+          && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
+        feed(oss ? 'You lay the bones in the ossuary. The ground here is consecrated.'
+                 : 'You bury the bones. The earth accepts them.') } },
       { label: 'fletch arrows', act: () => send({ do: 'fletch', slot: +i, make: 'arrows' }) },
+      ...bankOpt, ...alchOpt,
     ]); return
   }
   if (it.item === 'logs' && !window.__logsChoice) {
@@ -6885,7 +7719,9 @@ function invClick(i) {
         finally { window.__logsChoice = false }
         pendingLight = { slot: +i, tick: world?.tick ?? 0 } } },
       { label: 'fletch bow', act: () => send({ do: 'fletch', slot: +i, make: 'bow' }) },
-      ...bankOpt,
+      { label: 'fletch staff', act: () => send({ do: 'fletch', slot: +i, make: 'staff' }) },
+      { label: 'fletch wand', act: () => send({ do: 'fletch', slot: +i, make: 'wand' }) },
+      ...bankOpt, ...alchOpt,
     ]); return
   }
   if (it.item === 'logs') {
@@ -6917,7 +7753,22 @@ function invClick(i) {
     else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.' : 'You sip the broth. Warmth returns.')
   }
   else if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
-  else if (it) { send({ do: 'drop', slot: +i }); feed('You drop the ' + it.item.replace('-', ' ') + '.') }
+  else if (it) {
+    // THE FALLBACK WAS A DROP, WHICH IS A STRANGE THING TO DO ON ONE CLICK.
+    //
+    // Everything with no other use landed here -- ore, wool, crab-shell,
+    // grain, heartwood, the deep fish -- and a single click threw it on the
+    // floor. It is also exactly the set of goods a citizen would transmute,
+    // and transmute was reachable on four items out of thirty-eight.
+    //
+    // A menu instead: unmake it, bank it if a bank is at your elbow, or drop
+    // it on purpose.
+    chooseAction([
+      ...alchOpt, ...bankOpt,
+      { label: 'drop', act: () => { send({ do: 'drop', slot: +i })
+        feed('You drop the ' + it.item.replace('-', ' ') + '.') } },
+    ])
+  }
 }
 document.getElementById('inv').addEventListener('click', (e) => {
   const slotEl = e.target.closest('.slot')
@@ -7012,15 +7863,40 @@ cv.addEventListener('click', (e) => {
       return
     }
     flashClick(p.x, p.y, true)
+    // A MENDING, SENT. A wand sends what a bare hand keeps: a sigil spent to
+    // heal somebody four tiles off. Offered everywhere, because helping
+    // somebody is not a thing the Wilds should gate -- and this window could
+    // not do it at all, so an alchemist here had a wand and no use for it.
+    const mendOpt = (() => {
+      const wand = me.equipment?.weapon?.item === 'wand'
+      const sig = (me.inventory ?? []).some(sl => sl?.item === 'sigil')
+      const near = Math.max(Math.abs(me.x - p.x), Math.abs(me.y - p.y)) <= 4
+      if (!wand || !sig || !near) return []
+      const nm2 = p.name ?? pid.slice(0, 6)
+      return [{ label: 'mend ' + nm2, act: () => {
+        send({ do: 'mendp', target: pid })
+        feed('You send a mending to ' + nm2 + '. The sigil goes with it.')
+      } }]
+    })()
     if (inWildsC(me.x, me.y) && inWildsC(p.x, p.y)) {
       const nm = p.name ?? pid.slice(0, 6)
       chooseAction([
+        ...mendOpt,
         { label: 'attack ' + nm, act: () => {
           const q2 = world.players[pid]
           if (q2 && Math.abs(me.x - q2.x) + Math.abs(me.y - q2.y) <= 1) { send({ do: 'attackp', targetId: pid }); feed('You turn on ' + nm + '. The Wilds allow it.') }
           else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. The Wilds allow it.') }
         } },
         { label: 'trade', act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
+      ]); return
+    }
+    if (mendOpt.length) {
+      const nm3 = p.name ?? pid.slice(0, 6)
+      chooseAction([
+        ...mendOpt,
+        { label: 'trade with ' + nm3, act: () => {
+          if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
+          else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm3 + '.') } } },
       ]); return
     }
     if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
@@ -7085,7 +7961,24 @@ cv.addEventListener('click', (e) => {
       }
       if (n.type === 'guard') { feed('The guard nods. "The road is watched, citizen."'); return }
       if (n.type === 'smith') { feed('The smith gestures at the anvil. "Ore and logs. The rest is rhythm."'); return }
-      if (n.type === 'well') { feed('You peer into the well. Somewhere far below, a tick echoes.'); return }
+      if (n.type === 'well') {
+        // A WELL IS FOR DRINKING, and this window only ever peered into one.
+        // Free, no waiting, restores you to full: the cost was paid in
+        // geography long before you got here, because a well stands in a town
+        // and a town is tens of tiles from anywhere worth hunting.
+        const meW = world.players[myId]
+        const adj = Math.abs(meW.x - n.x) + Math.abs(meW.y - n.y) === 1
+        if (!adj) { feed('You peer into the well. Somewhere far below, a tick echoes.'); return }
+        send({ do: 'drink' })
+        feed('You drink. The cold of it goes all the way down, and you are whole.')
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'ossuary') {
+        feed('The ossuary. Bones laid here are worth more than bones laid in a field.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'rampart') { feed('A curtain wall. Dressed stone, battered at the foot, and old.'); return }
       if (n.type === 'signpost') { feed(n.text || 'West: Westhearth. East: Eastmere. North: Anchor.'); return }
       // a carved stone is read the same way a sign is: the words are in the
       // world, on the stone, not in this file
@@ -7161,9 +8054,16 @@ cv.addEventListener('click', (e) => {
           return
         }
         // the world names them now; the window only reads
+        // NAME AND CALLING. The name was here already; the job was not, so a
+        // banker, a shepherd and somebody's neighbour all sounded alike.
         const nm9 = n.name ?? kFromId(id)
-        feed(nm9 + ': ' + ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',
-          '\u201cBeen here since the founding, and I\u2019ll be here after you.\u201d'][tileHash(n.x, n.y, 3) % 3])
+        const call9 = n.kind && CALLING_NAMES[n.kind]
+        const who9 = call9 ? nm9 + ', ' + call9 : nm9
+        const line9 = (n.kind && CALLING_LINE_W[n.kind])
+          ? CALLING_LINE_W[n.kind]
+          : ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',
+             '\u201cBeen here since the founding, and I\u2019ll be here after you.\u201d'][tileHash(n.x, n.y, 3) % 3]
+        feed(who9 + ': ' + line9)
         flashClick(n.x, n.y, false)
         return
       }
