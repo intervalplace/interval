@@ -278,7 +278,7 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
-  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall',
+  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
   // §2g: A RAMPART IS NOT A HOUSE WALL.
   //
   // The town drawings have always distinguished them -- '%' is a town's outer
@@ -304,6 +304,23 @@ function isValidName(name) {
     && !name.startsWith('-') && !name.endsWith('-');
 }
 const DEPLETE_TICKS = 8;
+// §6ak: A TREE DOES NOT END AT ONE LOG.
+//
+// A node gave one thing and slept, so two citizens at one tree was a RACE:
+// the first took the log and the second found it asleep. A resource nobody can
+// share is a resource that pushes people apart, in a world whose best moments
+// are the ones where they meet.
+//
+// And it made gathering mostly walking. The nearest other tree is 2.8 tiles
+// off, so at woodcutting 57 with a bronze axe a log was 2.3 intervals of
+// cutting and 2.8 of shuffling to the next trunk -- fifty-five per cent of the
+// work was travel between things that are identical.
+//
+// So a node yields until a roll retires it: one success in four. No new field
+// on the node, nothing to migrate, and the same beacon that decides every
+// other chance in this world decides this one. A tree gives four logs on
+// average, sometimes one, sometimes nine -- which is how a tree behaves.
+const DEPLETE_ONE_IN = 4;
 const NODE_YIELD = {
   'tree':         { item: 'logs',        skill: 'woodcutting', xp: 25 },
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
@@ -348,6 +365,27 @@ const WIELD_REQS = {
   // nothing is still nothing, so it asks a real bow-arm first.
   'sigil-bow': { ranged: 30, magic: 20 },
   'heartwood-bow': { ranged: 40 },
+  // §6ae AGAIN, AND IT WAS MISSED. The heartwood bow is fletched at ninety and
+  // drawn at ranged forty; the heartwood staff was fletched at ninety and held
+  // by ANYBODY. It halves the cadence of a transmuting, so handing one to a
+  // citizen of magic one halved their whole road from the first interval --
+  // three hundred and forty-eight hours to a hundred and seventy-four.
+  //
+  // Seventy -- and the number is a SIGNAL, not a pacing lever, which is worth
+  // saying plainly so nobody later mistakes it for balance and tunes it.
+  //
+  // Experience is exponential, so a gate low down covers almost none of the
+  // road: at forty the staff opens after 0.29% of the way to ninety-nine and
+  // the total is 174 hours, exactly what no gate at all gives. Seventy is
+  // 5.66% and costs ten hours in 184. Only eighty-five would truly pace it,
+  // and eighty-five is where the stilling lives; a second thing there would
+  // dilute the one capstone magic has.
+  //
+  // What actually keeps this staff rare is that somebody must reach fletching
+  // ninety and spend two heartwood on it. The level only has to say what kind
+  // of thing it is, and seventy says "a serious tool" where forty said "not
+  // quite a beginner".
+  'heartwood-staff': { magic: 70 },
   'star-helm': { defence: 45 }, 'star-plate': { defence: 50 },
 };
 // THE STORE MAKES NOTHING. It was `{ seeds: 15 }` -- the one good in the world
@@ -398,6 +436,68 @@ const KEEPER_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed',
 // The engine does not draw anything. It says what the words ARE, once, and a
 // window that renders different ones is wrong in the same way a window that
 // draws the Fens in the wrong place is wrong.
+// ---------------------------------------------------------------------------
+// WHAT A LEVEL BUYS
+// ---------------------------------------------------------------------------
+// Every threshold in this file, gathered into one place a citizen can read.
+//
+// It is DERIVED, never typed out: each entry names the constant it came from,
+// so the guide cannot say mining seventy while the vein asks for something
+// else. The forge ladder and the wielding requirements are read straight out
+// of SMITH_REQS and WIELD_REQS, so a new recipe appears in the guide the day
+// it appears in the world and nobody has to remember.
+//
+// The engine draws nothing. It says WHAT IS TRUE, once, and a window that
+// shows a citizen something different is wrong on the same terms as one that
+// draws the Fens in the wrong place.
+// MEMOISED AND LAZY, because it reads constants declared further down this
+// file. Called at load it threw on the first line: "Cannot access
+// MASTER_YIELD before initialization". Nothing about a derived table should
+// depend on where in a file it happens to sit.
+let _unlocksMemo = null;
+function skillUnlocks() {
+  if (_unlocksMemo) return _unlocksMemo;
+  const out = {};
+  const add = (skill, level, text) => {
+    (out[skill] ??= []).push({ level, text });
+  };
+  // the gathering masteries
+  add('woodcutting', MASTER_YIELD, 'heartwood from a tree, instead of logs');
+  add('fishing', MASTER_YIELD, 'the deep fish, instead of the shallow');
+  add('mining', MAGIC_ROCK_MINING, 'the magic-rocks of the Wilds open to your pick');
+  add('farming', FARM_MASTER, GRAIN_MASTER + ' sheaves from a row, instead of ' + GRAIN_PER_PLOT);
+  add('cooking', COOK_DEEP_REQ, 'you may cook the deep fish');
+  add('fletching', ARROW_MASTER, ARROWS_MASTER + ' arrows from a bone, instead of ' + ARROWS_PER_BONE);
+  add('fletching', HEARTWOOD_FLETCH, 'the heartwood bow and the heartwood staff');
+  // magic, from its first spell to its last
+  add('magic', ALCH_REQ, 'transmute: unmake a thing into coin and practice');
+  add('magic', MEND_REQ, 'mend, and a wand may send it to somebody else');
+  add('magic', STILL_LEVEL, 'still: a fight simply stops');
+  // prayer, which does one thing and then does it twice
+  add('prayer', PRAYER_KEEP, 'the dearest priced thing you carry survives your death');
+  add('prayer', PRAYER_KEEP_TWO, 'the two dearest do');
+  // and the tables, so a new recipe needs no new line here
+  for (const [item, req] of Object.entries(SMITH_REQS)) {
+    const words = Object.entries(req).filter(([k]) => k !== 'smithing')
+      .map(([k, v]) => k + ' ' + v);
+    add('smithing', req.smithing ?? 1,
+      'forge the ' + item.replace(/-/g, ' ') + (words.length ? ' (' + words.join(', ') + ')' : ''));
+    for (const [k, v] of Object.entries(req)) if (k !== 'smithing') add(k, v, 'forge the ' + item.replace(/-/g, ' '));
+  }
+  // firemaking's one threshold lives in the genesis rather than a constant,
+  // because a founding chooses it; the default is the one every world so far
+  // has used, and a window with a genesis to hand may say the real number.
+  add('firemaking', 80, 'kindle a watchfire, which the whole country can see');
+  add('brewing', BREW_MASTER, DRAUGHTS_MASTER + ' draughts from a pot, instead of ' + DRAUGHTS_PER_POT);
+  add('exploration', EXPLORE_MASTER, 'any rumour yields a chart, to sell to those who would rather not walk');
+  for (const [item, req] of Object.entries(WIELD_REQS))
+    for (const [skill, lv] of Object.entries(req))
+      add(skill, lv, 'take up the ' + item.replace(/-/g, ' '));
+  for (const k of Object.keys(out))
+    out[k].sort((a, b) => a.level - b.level || (a.text < b.text ? -1 : 1));
+  return (_unlocksMemo = out);
+}
+
 const CALLING_NAMES = {
   lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
   armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
@@ -491,6 +591,36 @@ const STALL_SELLS = {
 const FORAGE_HEAL = 6;
 const FORAGE_ROTS = 50;
 
+// ---------------------------------------------------------------------------
+// A CITIZEN'S STALL
+// ---------------------------------------------------------------------------
+// Every economic rule in this constitution ends the same way: the only
+// sensible buyer is another citizen. Magic-stone at twenty when a plate wants
+// seven. Dragon-bones at five hundred when they are worth six thousand. A
+// keeper's purse holding twelve hundred against a master smith's thirty-five
+// million. The world is built to force citizens to trade with each other --
+// and until now that required both of them awake at the same moment.
+//
+// A stall a citizen raises sells while they sleep.
+//
+// STOCK IS ONE-WAY, and that single rule is what keeps it a shop. You may put
+// things in; the only ways out are a SALE or a SPILL. Never a withdrawal.
+// Without it a stall in the Wilds is a bank in the Wilds -- mine twenty-eight
+// stones, walk five tiles, empty the pack, mine twenty-eight more -- and the
+// six thousand trips out of the Wilds that the whole star economy rests on
+// would simply evaporate.
+//
+// THE PRICE IS NOT THE WORLD'S BUSINESS. There is no cap on the ask. What a
+// thing is worth between two citizens is the one number in this world that no
+// rule should touch; a ceiling would be the constitution having an opinion
+// about a market it exists to make possible.
+//
+// It never blocks a tile, so no run of stalls can wall anybody in or out.
+const MARKET_LOGS = 16, MARKET_ORE = 8;   // twenty-four of a pack of twenty-eight
+const MARKET_RAISE = 20;                  // intervals of standing still
+const MARKET_STOCK = 200;                 // one good, this many of it
+const MARKET_OWNED = 1;                   // one each, like the seedsman
+const MARKET_DECAY = 432000;              // three days untouched, then it falls
 const PURSE_CAP = 1200;         // what a keeper can have saved up
 const PURSE_PER_TICK = 2;       // and how fast an empty one recovers
 const SHELF_CAP = 8000;        // per item, per store.
@@ -535,7 +665,7 @@ const MAGIC_ROCK_MINING = 70;
 // cleared at the top of the next. Fourteen bytes, on the interval they act,
 // against a citizen record of six hundred. Every window reads it; no window
 // has to be clever enough to infer it from a skill going up.
-const DEEDS = ['alch', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
+const DEEDS = ['alch', 'unmake', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
   'cast', 'recall', 'pickup', 'drop', 'buy', 'sell', 'deposit', 'withdraw'];
 const DEED_SET = new Set(DEEDS);
@@ -624,8 +754,42 @@ const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
 const COOK_DEEP_REQ = 80;       // a cook to match the fisher
 const ARROWS_PER_BONE = 5, ARROWS_MASTER = 8, ARROW_MASTER = 80;
 const GRAIN_PER_PLOT = 2, GRAIN_MASTER = 3, FARM_MASTER = 90;
+// the two mastery yields that had no name of their own: heartwood from a tree
+// and the deep fish from the shallows, both at ninety, and the two heartwood
+// things a fletcher of ninety may make
+const MASTER_YIELD = 90, HEARTWOOD_FLETCH = 90;
 const XP_COOK_DEEP = 90;
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
+// AND WHAT A MASTER BREWER GETS, which was nothing at all.
+//
+// Brewing was the one skill in the world whose levels bought NOTHING: no gate
+// on raising a pot, none on brewing, none on collecting. It rose and the world
+// never changed.
+//
+// Two draughts from a pot at ninety, which is the shape every other mastery
+// here takes -- eight arrows from a bone instead of five, three sheaves from a
+// row instead of two, heartwood from a tree instead of logs. Not a faster
+// ferment: the world does the waiting, and a master should get MORE from the
+// wait rather than a shorter one.
+//
+// It suits what brewing is FOR. A cooked fish is six healing and does not
+// stack; ale is four and does, so a brewer's whole advantage is what a pack
+// slot can carry. Doubling the pot doubles exactly that.
+const BREW_MASTER = 90, DRAUGHTS_MASTER = 2, DRAUGHTS_PER_POT = 1;
+// AND WHAT A MASTER SURVEYOR GETS.
+//
+// NOT the lifted cap. That was first written as a mastery and it was the wrong
+// shape: the cap had simply gone stale when the world grew, so selling it back
+// at ninety would have left every ordinary surveyor paying for an oversight.
+// A bug is fixed for everybody; a mastery has to be something new.
+//
+// A surveyor of ninety brings back a CHART -- the way to a waystone they have
+// not yet learned -- from any rumour, not only from the rare rumour that is
+// about a waystone. It gives the one skill with no output an output, and one
+// that is already tradeable: a chart is worth something to somebody who would
+// rather not walk. Nothing is inflated; a master simply comes home with
+// something in their hands.
+const EXPLORE_MASTER = 90;
 const HP_START_XP = 1154; // hitpoints level 10
 // ---- weapons (v0.65): the metal is the tier, the shape is the choice ----
 // No new materials. The same ore and star-stone, worked into different answers
@@ -947,7 +1111,26 @@ const MOB_STATS = {
             // tenures drift across the day by themselves and no timezone ends
             // up owning the dragon.
             respawn: 72000,
-            drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'ore' }] },
+            // §6ai: WHAT A DRAGON IS WORTH TO THE PEOPLE WHO KILLED IT.
+            //
+            // Four hundred and twenty hitpoints, twenty-eight a blow, and it
+            // dropped two bones and an ore -- less than a skeleton knight. It
+            // is not a fight one citizen wins, and everything it gave was a
+            // bow that ONE of them could carry and that goes home in twelve
+            // hours. There was nothing for the others to divide.
+            //
+            // Six magic-stone and a set of dragon-bones. The stones are the
+            // Wilds' own currency, so a party splits something every trade in
+            // the world wants; the bones are the only ones worth more than a
+            // goblin's, which gives the longest road in the world -- prayer,
+            // fourteen hundred hours -- a reason to come here.
+            drops: [{ item: 'bones' }, { item: 'bones' },
+                    // three sets, so a party has something to DIVIDE. One set
+                    // among four citizens is an argument, not a reward.
+                    { item: 'dragon-bones' }, { item: 'dragon-bones' }, { item: 'dragon-bones' },
+                    { item: 'magic-stone' }, { item: 'magic-stone' }, { item: 'magic-stone' },
+                    { item: 'magic-stone' }, { item: 'magic-stone' }, { item: 'magic-stone' },
+                    { item: 'ore' }] },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 12288 },            // scavenged metal
@@ -958,7 +1141,25 @@ const MOB_STATS = {
 // single largest restoration in the world. At magic 20 it arrived before most
 // of what it saves you from. Fifty, alongside the starmetal it is worn with.
 const MEND_REQ = 50;
-const MENDP_RANGE = 4;      // near enough to see who you are helping
+const MENDP_RANGE = 4;
+// §6aj: UNMAKING AT RANGE, which is denial and not theft.
+//
+// A citizen falls and their pack spills; the one who felled them walks over to
+// take it. Five tiles away, an alchemist with a heartwood stave burns a sigil
+// and the pile is simply GONE -- the plate, the sword, the stones. Nobody gets
+// them. The caster least of all: no coin comes of it, because the thing was
+// unmade rather than sold, and unmaking somebody else's spoil should never be
+// a living.
+//
+// A sigil is three magic-stone out of the Wilds, sixty gold of materials that
+// no keeper will sell, against the seven gold a beginner's goblin drops. It
+// costs nine times what it would deny them, so it cannot be used to torment
+// newcomers -- and against a star-plate on the ground it is very much worth
+// doing, which is the fight where it belongs.
+//
+// The stave is the instrument because the stave is what alchemy is done with,
+// and it is already the rarest thing a fletcher makes.
+const UNMAKE_RANGE = 5;      // near enough to see who you are helping
 
 // ---------------------------------------------------------------------------
 // ALCHEMY
@@ -1152,6 +1353,12 @@ const PRICES = {
   // seedsman's twenty-two is the usual double; ale and broth by what they
   // mend, at about two coins a hitpoint, which is where the cooked fish sit.
   'seeds': 10, 'ale': 8, 'broth': 10,
+  // a keeper will take dragon-bones and pays what a curiosity is worth to
+  // somebody who will never see the beast. THREE thousand ordinary bones fetch
+  // six thousand, so five hundred is far under what the thing does: a keeper is
+  // the worst buyer in the world for it and a mourner the best, which is how
+  // every Wilds good in this table is priced.
+  'dragon-bones': 500,
 };
 const storeAsk = (item) => PRICES[item] + Math.max(1, Math.floor(PRICES[item] / 10));
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
@@ -1232,7 +1439,7 @@ const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
   // §6ad: what a master brings back from the same tree and the same water
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'heartwood-bow',
-  'bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
+  'bones', 'dragon-bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
   'staff', 'heartwood-staff', 'wand',
   // §2g: FORAGE. It exists only on the ground and only for a little while.
@@ -1418,6 +1625,9 @@ const INPUT_SCHEMAS = {
   survey: {}, read_chart: { slot: T.slot },
   build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
   kindle: {}, stoke: { nodeId: T.id, slot: T.slot },
+  unmake: { groundId: T.id },
+  raise_market: {}, dismantle_market: {},
+  stock_market: { slot: T.slot }, price_market: { ask: T.nonnegInt }, take_market: {},
   // EVERY VERB MUST BE DECLARED HERE, AND TWICE I FORGOT.
   //
   // A verb needs three things to exist: a shape in this table, a rule in
@@ -1516,6 +1726,38 @@ function XP_SMITH_FOR(recipe, r) {
 }
 const XP_FIREMAKING = 40;
 const XP_BURY = 25;
+// AND WHAT A DRAGON'S BONES TEACH.
+//
+// A hundred times a goblin's, and that is safe to say because THE SUPPLY IS
+// CAPPED BY THE RESPAWN. Twelve hours means at most two dragons a day and
+// seven hundred and thirty sets a year for the whole world, however many
+// people hunt it -- so no number here can be a shortcut. What the number
+// decides is only whether anybody would PAY for a set.
+//
+// A THOUSAND times a goblin's, and the reason is that BONES DO NOT STACK.
+//
+// Prayer is 521,377 ordinary bones to ninety-nine, and a pack holds
+// twenty-four, so buying the road is twenty-one thousand separate trades:
+// impossible, not expensive. A rich citizen could not spend their way to
+// ninety-nine however much gold they had, which makes gold worth less and
+// makes the longest road in the world unbuyable rather than dear.
+//
+// Dragon-bones are the compressed form -- what noted items would have been,
+// without inventing notes.
+//
+// The number is set from the DRAGON'S CLOCK rather than from the bones. One
+// dragon should be worth a little under two per cent of the longest road in
+// the world, which puts a whole ninety-nine at fifty-eight dragons: twenty-nine
+// days if every one of them falls on time and every set goes to one buyer,
+// and nobody's world works like that -- call it a season of outbidding every
+// other mourner on the island.
+//
+// At twenty-five thousand it was a hundred and seventy-four dragons, three
+// months of PERFECT supply, which is another way of saying not actually
+// purchasable. A route nobody can complete is not a market; it is scenery.
+// A full pack is now 1.8 million prayer, about a seventh of a ninety-nine,
+// and it costs a fortune and the world's whole attention to assemble.
+const XP_BURY_DRAGON = 75000;
 // AND WHAT CONSECRATED GROUND PAYS. A quarter more, and the number is chosen
 // so that the monastery stays a DECISION.
 //
@@ -2043,12 +2285,43 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
            worldGenerator,
            // exploration (v0.50): calibrated for THIS world's geometry by its own
            // survey-sim. NOT a universal curve. A larger world founds its own.
-           survey: { k: 8, base: 40, perTile: 10, max: 1800 },
+           // DERIVED FROM THE WORLD, so it cannot go stale again. The note
+           // above was right and was not followed: 1800 was calibrated for a
+           // world of 320 x 200, whose far corner sat 189 tiles from spawn --
+           // and the cap bit at 176, which just covered it. Tallyholm is
+           // 896 x 512 and its furthest walkable tile is 447 tiles out, so
+           // for four foundings more than half the island paid what a
+           // middling walk paid, and nobody noticed because nothing said so.
+           //
+           // Souls arrive at the middle, so the furthest anywhere can be is
+           // half the longer side. The cap is now exactly what that walk is
+           // worth, whatever size the next world is.
+           survey: { k: 8, base: 40, perTile: 10,
+                     max: 40 + 10 * Math.ceil(Math.max(worldW, worldH) / 2) },
            // brewing (v0.51): a profession rate-limited by fermentation; constants
            // are THIS world's, in the founding record, a larger world tunes its own.
            brew: { ferment: 4500, potCap: 4, xpPerBatch: 13500, buildLogs: 4, buildOre: 2, decayTicks: 432000 },
            // watchfires (v0.53): high-tier Firemaking as public infrastructure.
-           watch: { level: 60, kindleLogs: 10, perLog: 300, cap: 6000, xpPerLog: 200, burnXp: 1, maxOwned: 2, decayTicks: 432000 } };
+           // A BEACON IS A PUBLIC WORK, NOT A LADDER.
+           //
+           // At two hundred a log the watchfire paid EIGHT TIMES what the very
+           // logs it eats pay in woodcutting, and five times an ordinary fire:
+           // thirty-seven hours to ninety-nine against two hundred and
+           // ninety-five for the axe that fed it. It was not a way of doing
+           // firemaking, it was the only way, and it broke the rule the rest of
+           // this world keeps -- a master gets MORE from an hour, never a
+           // shorter road.
+           //
+           // Sixty a log: half again an ordinary fire, which is a fair premium
+           // for tending a thing the whole country can see and which costs ten
+           // logs to raise. About a hundred and twenty hours to ninety-nine,
+           // in line with everything else here.
+           //
+           // And the gate moves to eighty. At sixty it opened after four hours
+           // of ordinary fires, so almost the whole skill was watchfire. At
+           // eighty it takes about twenty-eight, and the beacon is what a
+           // practised firekeeper graduates to rather than what everyone does.
+           watch: { level: 80, kindleLogs: 10, perLog: 300, cap: 6000, xpPerLog: 60, burnXp: 1, maxOwned: 2, decayTicks: 432000 } };
 }
 
 // Fix brief §2.1: the world identifier is the hash of the COMPLETE
@@ -2507,6 +2780,13 @@ const LANDMARK_KINDS = new Set([
     } else if (a.type === 'attackp') {
       if (keys.join(',') !== 'since,targetId,type' || !HEX64.test(a.targetId ?? '') || !isInt(a.since, 0, MAX_TIME)) return 'malformed attackp action';
       if (!s2.players[a.targetId]) return 'attackp action references a missing player';
+    } else if (a.type === 'raise') {
+      // §6al: RAISING A STALL IS WORK, NOT A CLICK. It is an action so that
+      // moving, swinging or being made to move cancels it -- which gives
+      // "you cannot build one mid-fight" for free, and makes raising one in
+      // the Wilds twenty intervals of standing still with two dozen items on
+      // you, where anybody may arrive.
+      if (keys.join(',') !== 'since,type' || !isInt(a.since, 0, MAX_TIME)) return 'malformed raise action';
     } else return 'unknown action type';
     return null;
   };
@@ -2671,7 +2951,7 @@ const LANDMARK_KINDS = new Set([
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin']);
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin', 'ask']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -2710,7 +2990,8 @@ const LANDMARK_KINDS = new Set([
       if (n.founderKey !== state.genesis.founderKey) return 'tally founder mark disagrees with the genesis';
     }
     if (n.shelf !== undefined) {
-      if (n.type !== 'store') return 'only a store keeps a shelf';
+      // §6al: and a stall a citizen raised, which keeps ONE good
+      if (n.type !== 'store' && n.type !== 'market') return 'only a store or a stall keeps a shelf';
       if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)) return 'shelf malformed';
       for (const [it, q] of Object.entries(n.shelf)) {
         if (!ITEMS.has(it)) return `shelf holds a thing that is not an item: ${it}`;
@@ -2740,10 +3021,27 @@ const LANDMARK_KINDS = new Set([
       if (!state.players[n.by]) return 'watchfire keeper does not exist';
       if (!isInt(n.fuelUntil ?? 0, 0, MAX_TIME)) return 'watchfire fuelUntil out of bounds';
       if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined) return 'watchfire carries foreign metadata';
+    } else if (n.type === 'market') { // §6al: a stall a citizen raised
+      if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'a stall without a keeper';
+      if (!state.players[n.by]) return 'stall keeper does not exist';
+      if (!isInt(n.ask ?? 0, 0, 1e12)) return 'stall ask out of bounds';
+      if (!isInt(n.coin ?? 0, 0, 1e12)) return 'stall takings out of bounds';
+      if (n.shelf !== undefined) {
+        if (Object.keys(n.shelf).length > 1) return 'a stall sells one good';
+        for (const [it, q] of Object.entries(n.shelf)) {
+          if (!ITEMS.has(it)) return 'unknown good on a stall';
+          if (!isInt(q, 1, MARKET_STOCK)) return 'stall stock out of bounds';
+        }
+      }
+      if (n.plantedAt !== undefined || n.readyAt !== undefined
+          || n.brewKind !== undefined || n.fuelUntil !== undefined)
+        return 'a stall carries foreign metadata';
     } else if (n.fuelUntil !== undefined) {
       return 'fuel on a non-watchfire node';
     } else if (n.readyAt !== undefined || n.brewKind !== undefined) {
       return 'brew metadata on a non-brewpot node';
+    } else if (n.ask !== undefined) {
+      return 'an ask on a node that is not a stall';
     } else if (n.plantedAt !== undefined || n.by !== undefined) {
       if (n.type !== 'plot') return 'ownership metadata on a non-plot node';
       if (n.plantedAt !== undefined && !isInt(n.plantedAt, 0, MAX_TIME)) return 'node planting out of bounds';
@@ -2754,7 +3052,7 @@ const LANDMARK_KINDS = new Set([
     }
     if (n.type === 'stall' && typeof n.kind !== 'string') return 'a stall must say what it sells';
     if (n.coin !== undefined) {
-      if (n.type !== 'store') return 'only a keeper carries a purse';
+      if (n.type !== 'store' && n.type !== 'market') return 'only a keeper carries a purse';
       if (!isInt(n.coin, 0, PURSE_CAP)) return 'malformed purse';
     }
     if (n.tag !== undefined) {
@@ -3068,6 +3366,24 @@ function validInput(state, input, ctx) {
       // spec 2k: recall to any waystone you have walked to. Never from the Wilds ,
       // magic will not carry you out of danger you chose to enter.
       if (p.hp <= 0 || inWilds(state.genesis, p.x, p.y)) return false;
+      // §2b: AND THE STONES WILL NOT TAKE THE BRANDED.
+      //
+      // A keeper's refusal is a fine punishment for somebody who needs a
+      // keeper, and a citizen of any standing does not: they sell to each
+      // other, and the purse only holds twelve hundred anyway. So the mark
+      // cost the people it was written for the least.
+      //
+      // This costs everybody the same thing. Strike first and you walk home,
+      // for fifteen minutes, carrying whatever you took -- which is exactly
+      // the window in which the person you struck, and their friends, might
+      // like a word. The Brand makes you CATCHABLE, which is the social
+      // enforcement the rule always meant and never had.
+      //
+      // Trade between citizens stays open, deliberately. A keeper refusing is
+      // the town's judgement; whether another citizen deals with you is
+      // theirs, and taking that decision away would remove the very thing the
+      // mark exists to provoke.
+      if ((p.brandedUntil ?? 0) > state.tick) return false;
       const ws = state.nodes[input.to];
       if (!ws || ws.type !== 'waystone') return false;
       return (p.attuned ?? []).includes(input.to);
@@ -3129,6 +3445,36 @@ function validInput(state, input, ctx) {
     case 'cancel_trade':
       return p.trade !== null;
     case 'buy': {
+      // §6al: A CITIZEN'S STALL FIRST, if you are stood at one and it has the
+      // thing. It sells at whatever its owner asked -- no cap, because what a
+      // thing is worth between two citizens is not the constitution's business
+      // -- and the coin goes into the stall for the owner to collect.
+      {
+        const mk = findAdjacentNode(state, ctx, p, 'market');
+        if (mk && (mk.shelf?.[input.item] ?? 0) > 0) {
+          if (mk.by === input.playerId) return false;   // no buying from yourself
+          // AN UNPRICED STALL SELLS NOTHING. `ask ?? 0` meant a stall raised
+          // and stocked but never priced handed its stock out for free, which
+          // is the opposite of what a citizen who spent a pack on it intended.
+          if (!((mk.ask ?? 0) > 0)) return false;
+          return (p.gold ?? 0) >= mk.ask && canAddItem(p.inventory, input.item);
+        }
+      }
+      // §2b: A KEEPER WILL NOT DEAL WITH THE BRANDED.
+      //
+      // The Brand was evidence and nothing else -- fifteen minutes of a mark
+      // that only existed if a window chose to paint one, and for four
+      // foundings not one of them did. A rule that a window may quietly
+      // decline to enforce is not a rule; it is a suggestion the engine makes
+      // about art.
+      //
+      // So it costs exactly the thing a raider wants: an honest keeper in a
+      // safe town knows what you did on the other side of the Brandline, and
+      // will not take your money or your goods until the mark cools. You may
+      // still bank, still walk, still fight. You simply cannot turn what you
+      // took into anything, for fifteen minutes, in the daylight where
+      // everybody can see you being refused.
+      if ((p.brandedUntil ?? 0) > state.tick) return false;
       // v0.74: two things are for sale at a store. The keeper's own goods,
       // conjured from nothing (STORE_SELLS), and whatever citizens have sold
       // to THIS store and nobody has yet carried off.
@@ -3245,6 +3591,21 @@ function validInput(state, input, ctx) {
         && firstFreeSlot(p.inventory) !== -1;
     }
     case 'sell': {
+      // §2b: A KEEPER WILL NOT DEAL WITH THE BRANDED.
+      //
+      // The Brand was evidence and nothing else -- fifteen minutes of a mark
+      // that only existed if a window chose to paint one, and for four
+      // foundings not one of them did. A rule that a window may quietly
+      // decline to enforce is not a rule; it is a suggestion the engine makes
+      // about art.
+      //
+      // So it costs exactly the thing a raider wants: an honest keeper in a
+      // safe town knows what you did on the other side of the Brandline, and
+      // will not take your money or your goods until the mark cools. You may
+      // still bank, still walk, still fight. You simply cannot turn what you
+      // took into anything, for fifteen minutes, in the daylight where
+      // everybody can see you being refused.
+      if ((p.brandedUntil ?? 0) > state.tick) return false;
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl || !(sl.item in PRICES)) return false;
       const st = findAdjacentNode(state, ctx, p, 'store');
@@ -3288,6 +3649,54 @@ function validInput(state, input, ctx) {
         && (tp.stillImmuneUntil ?? 0) <= state.tick
         && Math.max(Math.abs(p.x - tp.x), Math.abs(p.y - tp.y)) <= STILL_RANGE;
       return false;
+    }
+    case 'raise_market': {
+      if (p.hp <= 0) return false;
+      if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
+      if (marketsOwnedBy(state, ctx, input.playerId) >= MARKET_OWNED) return false;
+      return countLogs(p.inventory) >= MARKET_LOGS
+          && countItem(p.inventory, 'ore') >= MARKET_ORE;
+    }
+    case 'stock_market': {
+      const mk = myMarketBeside(state, ctx, p, input.playerId);
+      const sl = p.inventory[input.slot];
+      if (!mk || !sl) return false;
+      // §6w: NOT THE BOW, for exactly the reason a bank will not take it.
+      // "You cannot opt out of being hunted without giving the bow up" -- and
+      // a stall is somewhere safe. It is also somewhere the DRAGON cannot
+      // reach: the reclaim at its rising scans citizens and the ground, not
+      // shelves, so a stalled bow would outlive the dragon that dropped it and
+      // clear the flag besides. There would be two.
+      //
+      // Everything else unpriced may be stalled -- the old chain, a sigil, a
+      // chart. A keeper refusing to price a thing is not the world forbidding
+      // its sale; it is the world declining to have an opinion about it, which
+      // is the whole reason a citizen's stall exists.
+      if (sl.item === 'dragonbow') return false;
+      // one good to a stall: the first thing stocked decides what it sells
+      const kinds = Object.keys(mk.shelf ?? {});
+      if (kinds.length && kinds[0] !== sl.item) return false;
+      return ((mk.shelf?.[sl.item] ?? 0) + (sl.qty ?? 1)) <= MARKET_STOCK;
+    }
+    case 'price_market': {
+      return !!myMarketBeside(state, ctx, p, input.playerId);
+    }
+    case 'take_market': {
+      const mk = myMarketBeside(state, ctx, p, input.playerId);
+      return !!mk && (mk.coin ?? 0) > 0;
+    }
+    case 'dismantle_market': {
+      return !!myMarketBeside(state, ctx, p, input.playerId);
+    }
+    case 'unmake': {
+      // §6aj: a heartwood stave in the hand, a sigil to spend, and a pile of
+      // somebody's spoil within five tiles.
+      if (p.hp <= 0) return false;
+      if (p.equipment?.weapon?.item !== 'heartwood-staff') return false;
+      if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
+      const gr = state.ground?.[input.groundId];
+      if (!gr) return false;
+      return Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= UNMAKE_RANGE;
     }
     case 'alch': {
       // THE ITEM IS THE COST. Not a sigil -- a sigil is three magic-stones and
@@ -3381,7 +3790,11 @@ function validInput(state, input, ctx) {
       const wf = state.nodes[input.nodeId];
       if (!wf || wf.type !== 'watchfire' || !atOrBeside(p, wf) || !state.genesis.watch) return false;
       const sl = p.inventory[input.slot];
-      return !!sl && isLog(sl.item) && (wf.fuelUntil ?? 0) < state.tick + state.genesis.watch.cap;
+      // AND THE VALIDATOR MUST AGREE. Relaxing only the executor would have
+      // left the input refused at the gate and the change invisible: the same
+      // validator/executor drift this file has been bitten by three times.
+      // A full fire still takes the log; it simply gains no burn from it.
+      return !!sl && isLog(sl.item);
     }
     case 'fletch': {
       const sl = p.inventory[input.slot];
@@ -3395,14 +3808,20 @@ function validInput(state, input, ctx) {
       // the bench with the rest of the fletcher's work.
       if (input.make === 'heartwood-bow') {
         if (effLevel(p.skills.fletching) < 90) return false;
-        return countItem(p.inventory, 'heartwood') >= 3;
+        // §6ah: and a sigil in the binding. Relaxing the executor alone
+        // would leave the fletch refused here and the change invisible --
+        // the validator/executor pairing this file has been bitten by before.
+        return countItem(p.inventory, 'heartwood') >= 3
+            && countItem(p.inventory, 'sigil') >= 1;
       }
       return (input.make === 'bow' && isLog(sl.item))
         || (input.make === 'arrows' && sl.item === 'bones')
         || (input.make === 'staff' && sl.item === 'logs')
         || (input.make === 'wand' && sl.item === 'logs')
         || (input.make === 'heartwood-staff' && sl.item === 'heartwood'
-            && effLevel(p.skills.fletching) >= 90 && countItem(p.inventory, 'heartwood') >= 2);
+            && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
+            && countItem(p.inventory, 'heartwood') >= 2
+            && countItem(p.inventory, 'sigil') >= 1);
     }
     case 'smith': {
       const r = RECIPES[input.recipe];
@@ -3432,7 +3851,11 @@ function validInput(state, input, ctx) {
     }
     case 'bury': {
       const sl = p.inventory[input.slot];
-      return Number.isInteger(input.slot) && !!sl && sl.item === 'bones';
+      // §6ai: a dragon's bones are bones. The validator named the item
+      // directly, so the new ones could be carried and never laid down --
+      // the validator/executor pairing, a fifth time.
+      return Number.isInteger(input.slot) && !!sl
+        && (sl.item === 'bones' || sl.item === 'dragon-bones');
     }
     case 'deposit': {
       if (!Number.isInteger(input.slot) || !p.inventory[input.slot]) return false;
@@ -3665,7 +4088,7 @@ function nodeExistsAt(state, ctx, x, y) { // any node occupies the tile
   const ta = ctx.byTile.get(_tileKey(x, y));
   return !!ta && ta.length > 0;
 }
-const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
+const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire', 'market']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
 // v0.80: the citizen's fire joins them. A fire is the only blocking node a
 // citizen could CREATE, and movement is cardinal, so four logs boxed a
 // stranger in and one log closed a ford for as long as it burned. The
@@ -3681,9 +4104,22 @@ function countOwnedNodes(state, ctx, type, owner) { // how many of `type` this c
 // The one thing a mourner of seventy carries through: the dearest PRICED item
 // they held, in the pack or in their hands. Unpriced things -- the old chain,
 // a dragonbow, a sigil, a chart -- are never kept, at any level.
-function prayerKeeps(p) {
+function prayerKeeps(p, tick) {
+  // §2b: AND PRAYER DOES NOT COVER THE MARKED.
+  //
+  // Here was the real fault. A citizen who struck first walked away with the
+  // two dearest things in their pack -- often the very things they had just
+  // taken off the person they struck. The victim lost everything and the
+  // raider was insured, by a skill about making peace with dying.
+  //
+  // The keeper's refusal was an errand and the closed stones were a walk. This
+  // is the danger: for fifteen minutes you carry what you took with nothing
+  // held back, and anybody may take it from you at no cost to themselves. The
+  // Brand does not punish. It withdraws a protection, and lets the world do
+  // the rest.
   const lv = effLevel(p?.skills?.prayer ?? 0);
   if (!p || lv < PRAYER_KEEP) return [];
+  if (Number.isInteger(tick) && (p.brandedUntil ?? 0) > tick) return [];
   const want = lv >= PRAYER_KEEP_TWO ? 2 : 1;
   const all = [];
   const consider = (sl) => {
@@ -3796,6 +4232,45 @@ function waystoneIdsSorted(state, ctx) {
   if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.keys(state.nodes).filter(id => state.nodes[id].type === 'waystone').sort(); }
   if (_p2on) _p2c.typeLookups++;
   return [...(ctx.byType.get('waystone') ?? [])].sort();
+}
+// how many stalls this citizen has standing, and the one at their elbow
+// WHAT A SHELF DOES WHEN THE STALL GOES. It spills where it stood, on the
+// ordinary hundred-interval clock -- so two citizens standing over it for the
+// whole minute could save two hundred, and one could save half. A stall
+// abandoned with a fortune in it is mostly a fortune destroyed, in public,
+// with everyone able to read the clock.
+function spillShelf(s2, mk) {
+  const shelf = mk.shelf ?? {};
+  let n = 0;
+  for (const it of Object.keys(shelf).sort()) {
+    for (let k = 0; k < shelf[it]; k++) {
+      s2.ground['m' + s2.tick + '-' + (n++)] =
+        { item: it, qty: 1, x: mk.x, y: mk.y, expiresAt: s2.tick + 100 };
+    }
+  }
+  delete mk.shelf;
+}
+function marketsOwnedBy(state, ctx, pid) {
+  let n = 0;
+  for (const k of Object.keys(state.nodes)) {
+    const q = state.nodes[k];
+    if (q.type === 'market' && q.by === pid) n++;
+  }
+  return n;
+}
+function myMarketBeside(state, ctx, p, pid) {
+  for (const k of Object.keys(state.nodes).sort()) {
+    const q = state.nodes[k];
+    if (q.type === 'market' && q.by === pid && atOrBeside(p, q)) return q;
+  }
+  return null;
+}
+function myMarketIdBeside(s2, p, pid) {
+  for (const k of Object.keys(s2.nodes).sort()) {
+    const q = s2.nodes[k];
+    if (q.type === 'market' && q.by === pid && atOrBeside(p, q)) return k;
+  }
+  return null;
 }
 function brewpotsOwnedBy(state, ctx, pid) {
   if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.values(state.nodes).filter(n => n.type === 'brewpot' && n.by === pid).length; }
@@ -3947,6 +4422,19 @@ function nextState(state, inputs, _legacyBeacon) {
   const _K = s.genesis.survey?.k ?? 0;
   for (let _i = 0; _i < s.markers.length; _i++)
     if (s.tick - (s.markers[_i].bornAt ?? s.tick) > MARKER_LIFE) s.markers[_i] = surveyMarker(s, _ctx, _i, 'life');
+  // §6al: A STALL NOBODY TENDS FALLS DOWN, and its shelf spills where it
+  // stood. Three days. The state is public, so everybody can read the clock
+  // on somebody else's stall -- an abandoned one with a fortune in it becomes
+  // an appointment, and if it stands in the Wilds, an appointment where the
+  // other guests may kill you.
+  for (const mid of Object.keys(s.nodes).sort()) {
+    const mk = s.nodes[mid];
+    if (mk.type !== 'market') continue;
+    if (s.tick - (mk.lastUsed ?? 0) < MARKET_DECAY) continue;
+    spillShelf(s, mk);
+    announce(s, 'A stall has fallen, and what was on it lies in the grass.');
+    deleteIndexedNode(s, _ctx, mid);
+  }
   while (s.markers.length < _K) s.markers.push(surveyMarker(s, _ctx, s.markers.length, 'fill'));
   // brewpots abandoned past the decay window crumble, returning their tile to the
   // commons, the world stays open to newcomers; active pots reset the clock (v0.52)
@@ -4325,7 +4813,7 @@ function nextState(state, inputs, _legacyBeacon) {
               announce(s, 'The DRAGONBOW has gone back to the Wilds; its bearer fell.');
             }
             target.hp = 0;
-            const kept9 = prayerKeeps(target);
+            const kept9 = prayerKeeps(target, s.tick);
             target.inventory = Array(INV_SLOTS).fill(null);
             target.equipment = { weapon: null, head: null, body: null };
             kept9.forEach((k, i) => { target.inventory[i] = k; });
@@ -4587,6 +5075,71 @@ function nextState(state, inputs, _legacyBeacon) {
     if (inp.type === 'move') {
       if ((p.rootedUntil ?? 0) <= s.tick) { p.x += inp.dx; p.y += inp.dy; } // rooted: held in place by the star-dagger
       p.action = null;
+    } else if (inp.type === 'raise_market') {
+      // the work begins; the world will finish it if nobody interrupts
+      p.action = { type: 'raise', since: s.tick };
+    } else if (inp.type === 'stock_market') {
+      const mid = myMarketIdBeside(s, p, pid);
+      const sl = p.inventory[inp.slot];
+      const mk = mid ? s.nodes[mid] : null;
+      if (mk && sl && sl.item !== 'dragonbow') {
+        const kinds = Object.keys(mk.shelf ?? {});
+        if ((!kinds.length || kinds[0] === sl.item)
+            && ((mk.shelf?.[sl.item] ?? 0) + (sl.qty ?? 1)) <= MARKET_STOCK) {
+          mk.shelf = mk.shelf ?? {};
+          mk.shelf[sl.item] = (mk.shelf[sl.item] ?? 0) + (sl.qty ?? 1);
+          p.inventory[inp.slot] = null;
+          mk.lastUsed = s.tick;
+        }
+      }
+    } else if (inp.type === 'price_market') {
+      const mid = myMarketIdBeside(s, p, pid);
+      if (mid) { s.nodes[mid].ask = inp.ask; s.nodes[mid].lastUsed = s.tick; }
+    } else if (inp.type === 'take_market') {
+      const mid = myMarketIdBeside(s, p, pid);
+      const mk = mid ? s.nodes[mid] : null;
+      if (mk && (mk.coin ?? 0) > 0) {
+        p.gold = (p.gold ?? 0) + mk.coin;
+        delete mk.coin;
+        mk.lastUsed = s.tick;
+      }
+    } else if (inp.type === 'dismantle_market') {
+      // the timber comes back; WHATEVER IS ON THE SHELF SPILLS, which is what
+      // stops a stall being storage that can be closed at leisure
+      const mid = myMarketIdBeside(s, p, pid);
+      const mk = mid ? s.nodes[mid] : null;
+      if (mk) {
+        spillShelf(s, mk);
+        if ((mk.coin ?? 0) > 0) p.gold = (p.gold ?? 0) + mk.coin;
+        for (let i2 = 0; i2 < MARKET_LOGS; i2++) addItem(p.inventory, 'logs', 1);
+        for (let i2 = 0; i2 < MARKET_ORE; i2++) addItem(p.inventory, 'ore', 1);
+        deleteIndexedNode(s, _ctx, mid);
+      }
+    } else if (inp.type === 'unmake') {
+      const gr = s.ground?.[inp.groundId];
+      const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
+      if (gr && si !== -1 && p.equipment?.weapon?.item === 'heartwood-staff'
+          && Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= UNMAKE_RANGE) {
+        p.inventory[si] = null;                 // the sigil goes with it
+        // §6w: BUT THE BOW CANNOT BE UNMADE. There is one, and there will only
+        // ever be one, so deleting the pile would have taken it out of the
+        // world for good AND left `bowOut` true, meaning the dragon would never
+        // drop another. The sixth road home, and it nearly was not one: every
+        // other route sets the flag and removes the item together.
+        //
+        // It goes back to the Wilds, and THAT is worth announcing -- somebody
+        // spent three magic-stone to deny a dragonbow, which the whole island
+        // should hear about.
+        if (gr.item === 'dragonbow' && s.bowOut) {
+          s.bowOut = false;
+          announce(s, (p.name ?? pid.slice(0, 6))
+            + ' unmade the DRAGONBOW where it lay. It has gone back to the Wilds.');
+        }
+        // and no announcement for anything else: a spell cast on every spilled
+        // pack would be a drumbeat nobody could read past
+        delete s.ground[inp.groundId];          // and so does the pile
+        p.skills.magic += XP_ALCH;              // the practice, and nothing else
+      }
     } else if (inp.type === 'alch') {
       const slot = p.inventory?.[inp.slot];
       const worth = slot ? alchValue(slot.item) : 0;
@@ -4749,6 +5302,34 @@ function nextState(state, inputs, _legacyBeacon) {
         p.equipment[g] = sl;
         p.inventory[inp.slot] = cur;
       }
+    } else if (inp.type === 'buy'
+               && (() => { const mk = findAdjacentNode(s, _ctx, p, 'market');
+                           return mk && (mk.shelf?.[inp.item] ?? 0) > 0 && mk.by !== pid; })()) {
+      // §6al: bought from a citizen, at their price, while they sleep
+      const mk = findAdjacentNode(s, _ctx, p, 'market');
+      const ask = mk.ask ?? 0;
+      if (ask > 0 && (p.gold ?? 0) >= ask && canAddItem(p.inventory, inp.item)) {
+        p.gold -= ask;
+        mk.coin = (mk.coin ?? 0) + ask;
+        mk.shelf[inp.item] -= 1;
+        if (mk.shelf[inp.item] <= 0) delete mk.shelf[inp.item];
+        if (Object.keys(mk.shelf).length === 0) {
+          // THE ASK DOES NOT OUTLIVE THE STOCK.
+          //
+          // An empty stall stands -- it falls on its OWNER's clock, three days
+          // from their last attention, not on the shelf's -- and it is free to
+          // be restocked with anything. But the price must be set again. Sell
+          // two hundred logs at two, restock with magic-stone, forget, and the
+          // stones go for two apiece in silence. Clearing it means the owner
+          // always names the price for the thing actually on the shelf.
+          delete mk.shelf;
+          delete mk.ask;
+        }
+        addItem(p.inventory, inp.item, 1);
+        // NOT lastUsed: a sale is the customer's doing, not the owner's, and
+        // a stall must not stay up for ever because strangers keep buying
+        // from a shelf its keeper abandoned.
+      }
     } else if (inp.type === 'buy') {
       // v0.74: the keeper's own goods are made from nothing and priced by the
       // constitution. Everything else on the shelf was put there by a citizen,
@@ -4863,7 +5444,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (q.hp <= 0) {
             q.hp = 0;
             // what a mourner carries through, decided BEFORE the pack spills
-            const keptQ = prayerKeeps(q);
+            const keptQ = prayerKeeps(q, s.tick);
             // §2g: the pack spills where they fall, exactly as any PvP death --
             // except whatever a mourner carries through, which is taken out of
             // the spill exactly once each
@@ -4893,10 +5474,26 @@ function nextState(state, inputs, _legacyBeacon) {
         p.action = (p.action?.type === 'attackp' && p.action.targetId === inp.targetId)
           ? p.action
           : { type: 'attackp', targetId: inp.targetId, since: s.tick };
-        // the Brand (v0.41): striking one who was not striking you is
-        // worn openly. Windows paint it as they wish; the state is law.
+        // the Brand (v0.41): striking one who was not striking you is worn
+        // openly, and the state enforces it -- no keeper deals with you and no
+        // stone carries you while it burns.
+        //
+        // §2b: BUT A MARKED CITIZEN IS ALREADY PROVOCATION.
+        //
+        // This branded you unless the target was ALREADY swinging at you by
+        // name, so chasing a raider marked the posse exactly as it marked the
+        // raider: the law punished justice and crime alike, and the only safe
+        // response to being robbed was to let it go. That is the opposite of
+        // what the mark is for.
+        //
+        // Strike somebody who is wearing it and you wear nothing. For fifteen
+        // minutes a raider may be hunted, in the Wilds, by anybody, at no cost
+        // -- which is the danger the mark never had, and it costs the world
+        // nothing outside the one country where blood is already legal.
         const q3 = s.players[inp.targetId];
-        if (q3 && !(q3.action?.type === 'attackp' && q3.action.targetId === pid))
+        const alreadyMarked = (q3?.brandedUntil ?? 0) > s.tick;
+        const swingingBack = q3?.action?.type === 'attackp' && q3.action.targetId === pid;
+        if (q3 && !swingingBack && !alreadyMarked)
           p.brandedUntil = s.tick + BRAND_TICKS;
       }
     } else if (inp.type === 'plant') {
@@ -5007,6 +5604,32 @@ function nextState(state, inputs, _legacyBeacon) {
         const m = s.markers[mi], anchor = spawnOf(s.genesis), sv = s.genesis.survey;
         const d = Math.max(Math.abs(m.x - anchor.x), Math.abs(m.y - anchor.y));
         p.skills.exploration += Math.min(sv.max, sv.base + sv.perTile * d); // paid in distance
+        // §6ag: A MASTER COMES HOME WITH SOMETHING. From ninety, ANY rumour
+        // yields the way to a waystone this citizen has not yet learned --
+        // the nearest such, in id order so every node agrees -- where an
+        // ordinary surveyor gets one only from the rare waystone rumour.
+        if (effLevel(p.skills.exploration) >= EXPLORE_MASTER && m.kind !== 'ws') {
+          // NOT ONE THEY LACK -- one they can SELL.
+          //
+          // The first draft skipped any waystone the surveyor was already
+          // attuned to, which made the mastery worth precisely nothing:
+          // reaching ninety takes about two thousand surveys against twenty
+          // waystones, a hundred apiece, so a master learned the last of them
+          // long ago. A chart is not for the person who drew it. It is worth
+          // something to somebody who would rather not walk, and a master
+          // surveyor is where charts COME FROM.
+          const want = Object.keys(s.nodes).sort()
+            .filter((nid) => s.nodes[nid].type === 'waystone'
+              && !p.inventory.some((x) => x?.item === CHART_PREFIX + nid))
+            .sort((A, B) => {
+              const a2 = s.nodes[A], b2 = s.nodes[B];
+              const da = Math.max(Math.abs(a2.x - p.x), Math.abs(a2.y - p.y));
+              const db = Math.max(Math.abs(b2.x - p.x), Math.abs(b2.y - p.y));
+              return da - db || (A < B ? -1 : 1);
+            })[0];
+          const free2 = want ? p.inventory.findIndex((x) => x === null) : -1;
+          if (want && free2 !== -1) p.inventory[free2] = { item: CHART_PREFIX + want, qty: 1 };
+        }
         if (m.kind === 'ws' && m.ws && s.nodes[m.ws]?.type === 'waystone') { // a rumor: hand over the chart
           const chart = CHART_PREFIX + m.ws, free = p.inventory.findIndex(x => x === null);
           if (free !== -1 && !(p.attuned ?? []).includes(m.ws) && !p.inventory.some(x => x?.item === chart))
@@ -5056,7 +5679,9 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'collect') {
       const bp = s.nodes[inp.nodeId];
       if (bp && bp.type === 'brewpot' && bp.by === pid && atOrBeside(p, bp) && bp.readyAt !== undefined && s.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind)) {
-        addItem(p.inventory, bp.brewKind, 1);
+        const draughts = effLevel(p.skills.brewing) >= BREW_MASTER
+          ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
+        addItem(p.inventory, bp.brewKind, draughts);
         p.skills.brewing += s.genesis.brew.xpPerBatch; // XP lands on the completed batch
         if (claimFirst(s, 'brewer', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to draw a finished brew.');
         delete bp.readyAt; delete bp.brewKind; bp.lastUsed = s.tick;
@@ -5081,8 +5706,14 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'stoke') {
       const wf = s.nodes[inp.nodeId], sl = p.inventory[inp.slot], wt = s.genesis.watch;
-      if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt
-          && (wf.fuelUntil ?? 0) < s.tick + wt.cap) {
+      // A LOG FED TO A FULL FIRE IS STILL FED.
+      //
+      // This refused the stoke outright once the fire was at its cap, which
+      // spent the citizen's whole interval on silence -- the same fault as the
+      // cook gate and the brew gate, a third time. The work was done and the
+      // log was cut; the fire simply cannot hold more burn. So the log goes on
+      // it and the firekeeper earns, and the fuel stays where it was.
+      if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt) {
         removeItem(p.inventory, inp.slot, 1);
         // fuel banks forward from whichever is later: now, or the fire's remaining burn
         wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + wt.perLog, s.tick + wt.cap);
@@ -5090,9 +5721,11 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'fletch') {
       const sl = p.inventory[inp.slot];
-      if (inp.make === 'heartwood-bow' && effLevel(p.skills.fletching) >= 90
-          && countItem(p.inventory, 'heartwood') >= 3) {
+      if (inp.make === 'heartwood-bow' && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
+          && countItem(p.inventory, 'heartwood') >= 3
+          && countItem(p.inventory, 'sigil') >= 1) {   // §6ah: a sigil in the binding
         consumeItem(p.inventory, 'heartwood', 3);
+        consumeItem(p.inventory, 'sigil', 1);
         const sl2 = firstFreeSlot(p.inventory);
         if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-bow', qty: 1 };
         p.skills.fletching += 120;
@@ -5107,9 +5740,24 @@ function nextState(state, inputs, _legacyBeacon) {
         // other one, and a fletcher who has heartwood should not waste it here.
         p.inventory[inp.slot] = { item: 'staff', qty: 1 };
         p.skills.fletching += 12;
+
+      // §6ah: AND A SIGIL IN THE BINDING.
+      //
+      // Fletching's endgame -- the finest bow and the finest stave in the world
+      // -- was made from two logs by somebody who never left the safe country.
+      // Every other thing of that rank costs the Wilds: star gear eats stones,
+      // and every spell eats sigils, which ARE stones. The heartwood line ate
+      // nothing, so the peaceful trades and the dangerous ones never had to
+      // meet.
+      //
+      // One sigil is three magic-stone, mined at seventy in the one place that
+      // kills people. A fletcher who wants to sell staves must now buy from
+      // somebody who goes in -- which is the whole point.
       } else if (sl && inp.make === 'heartwood-staff' && sl.item === 'heartwood'
-                 && effLevel(p.skills.fletching) >= 90
-                 && countItem(p.inventory, 'heartwood') >= 2) {
+                 && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
+                 && countItem(p.inventory, 'heartwood') >= 2
+                 && countItem(p.inventory, 'sigil') >= 1) {
+        consumeItem(p.inventory, 'sigil', 1);
         // §6ad: the master's stave, the same ninety the heartwood bow asks.
         // It is not faster than the plain one -- there is no third cadence --
         // it is simply worth a great deal more, which is what mastery buys.
@@ -5180,10 +5828,14 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'bury') {
       const sl = p.inventory[inp.slot];
-      if (sl && sl.item === 'bones') {
+      // BOTH KINDS. The line below tested `=== 'bones'` and the line after it
+      // asked whether the item was dragon-bones -- which could never be true.
+      // Written in the same minute, contradicting each other.
+      if (sl && (sl.item === 'bones' || sl.item === 'dragon-bones')) {
         p.inventory[inp.slot] = null;
+        const holy = sl.item === 'dragon-bones' ? XP_BURY_DRAGON : XP_BURY;
         p.skills.prayer += hasAdjacentNode(s, _ctx, p, 'ossuary')
-          ? XP_BURY_CONSECRATED : XP_BURY;
+          ? Math.round(holy * XP_BURY_CONSECRATED / XP_BURY) : holy;
       }
     } else if (inp.type === 'deposit') {
       const sl = p.inventory[inp.slot];
@@ -5364,7 +6016,7 @@ function nextState(state, inputs, _legacyBeacon) {
             // slain in the Wilds (spec 2g): the pack spills where they fall,
             // and the body lies beside it awhile (v0.41)
             // what a mourner carries through, decided BEFORE the pack spills
-            const keptQ = prayerKeeps(q);
+            const keptQ = prayerKeeps(q, s.tick);
             const held = keptQ.map((k) => ({ ...k, taken: false }));
             for (const sl of q.inventory) if (sl) {
               const m9 = held.find((k) => !k.taken && k.item === sl.item && k.qty === (sl.qty ?? 1));
@@ -5558,6 +6210,24 @@ function nextState(state, inputs, _legacyBeacon) {
       continue;
     }
 
+    if (p.action.type === 'raise') {
+      // §6al: twenty intervals of standing at it. The action clears if they
+      // move or swing, so nothing else needs to know about fighting.
+      if (s.tick - p.action.since < MARKET_RAISE) continue;
+      const enough = countLogs(p.inventory) >= MARKET_LOGS
+        && countItem(p.inventory, 'ore') >= MARKET_ORE;
+      const room = !nodeExistsAt(s, _ctx, p.x, p.y);
+      const spare = marketsOwnedBy(s, _ctx, pid) < MARKET_OWNED;
+      if (enough && room && spare) {
+        consumeLogs(p.inventory, MARKET_LOGS);
+        consumeItem(p.inventory, 'ore', MARKET_ORE);
+        addIndexedNode(s, _ctx, 'market-' + pid + '-' + s.tick,
+          { type: 'market', x: p.x, y: p.y, by: pid, lastUsed: s.tick, ask: 1 });
+        announce(s, (p.name ?? pid.slice(0, 6)) + ' has raised a stall.');
+      }
+      p.action = null;
+      continue;
+    }
     if (p.action.type !== 'gather') continue;
     const n = s.nodes[p.action.nodeId];
 
@@ -5609,11 +6279,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // no new spot -- and it leaves the cheap end of both markets to the
       // people who still need it, because a master can no longer supply it.
       let got = y.item;
-      if (y.item === 'logs' && lvl >= 90) got = 'heartwood';
-      else if (y.item === 'raw-fish' && lvl >= 90) got = 'deep-fish';
+      if (y.item === 'logs' && lvl >= MASTER_YIELD) got = 'heartwood';
+      else if (y.item === 'raw-fish' && lvl >= MASTER_YIELD) got = 'deep-fish';
       p.inventory[slot] = { item: got, qty: 1 };
       p.skills[y.skill] += y.xp;
-      n.depletedUntil = s.tick + DEPLETE_TICKS;
+      // and the node stands until the roll retires it
+      if (roll(beacon, pid, 'deplete') % DEPLETE_ONE_IN === 0)
+        n.depletedUntil = s.tick + DEPLETE_TICKS;
     }
   }
 
@@ -5808,7 +6480,7 @@ module.exports = {
   signPayload, verifyPayload,
   exportIdentity, importIdentity, loadOrCreateIdentity,
   canonical, EMPTY_ROOT, SMT_DEPTH,
-  CALLING_NAMES, KEEPER_KINDS,
+  CALLING_NAMES, KEEPER_KINDS, skillUnlocks,
   normaliseSource, engineHashOf, declareEngine, engineHash,
   SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };
