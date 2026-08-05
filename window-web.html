@@ -4585,6 +4585,27 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.9, 0, 1.8, 9)
       cx.fillStyle = '#dffaff'; cx.fillRect(-0.4, 0, 0.8, 9)
       cx.fillStyle = '#3a5a6a'; cx.fillRect(-2.4, -1, 4.8, 1.6)
+    } else if (o.wepItem === 'staff' || o.wepItem === 'heartwood-staff') {
+      // A STAVE IS LEANED ON. It runs BELOW the hand to the ground and above
+      // it to about the shoulder -- a walking stick, not a flagpole. There was
+      // no branch for it at all, so an alchemist carried an invisible staff.
+      const heart9 = o.wepItem === 'heartwood-staff'
+      cx.fillStyle = heart9 ? '#7a5a2a' : '#4a3a22'
+      cx.fillRect(-0.8, -11, 1.6, 23)
+      cx.fillStyle = '#2a2114'; cx.fillRect(-1.1, -2, 2.2, 3)     // the binding
+      cx.fillStyle = '#3a352c'; cx.fillRect(-1, 10, 2, 2)          // the ferrule
+      cx.fillStyle = heart9 ? '#8a6a34' : '#5a4626'
+      cx.beginPath(); cx.ellipse(0, -12, 1.8, 2.2, 0, 0, 7); cx.fill()
+      cx.fillStyle = 'rgba(232,204,120,.45)'
+      cx.beginPath(); cx.arc(0, -12, 3.4, 0, 7); cx.fill()
+    } else if (o.wepItem === 'wand') {
+      // short, carried, tipped pale
+      cx.fillStyle = '#4a3a22'; cx.fillRect(-0.7, -3, 1.4, 10)
+      cx.fillStyle = '#2a2114'; cx.fillRect(-1, 2, 2, 2.6)
+      cx.fillStyle = '#cfe2e6'
+      cx.beginPath(); cx.arc(0, -3.5, 1.5, 0, 7); cx.fill()
+      cx.fillStyle = 'rgba(160,206,224,.45)'
+      cx.beginPath(); cx.arc(0, -3.5, 3, 0, 7); cx.fill()
     } else if (o.wepItem === 'bronze-spear' || o.wepItem === 'star-spear') {
       // a long haft carried upright: it is taller than the citizen
       const star9 = o.wepItem === 'star-spear'

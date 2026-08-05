@@ -583,6 +583,23 @@ the sand at a citizen and swing at them and never once land a blow,
 and teaches nothing for the trouble. It costs a citizen nothing but
 company.
 
+**A deed is done where people can see it.** An `action` is something a
+citizen is in the middle of, and has always sat in the state for every
+window to draw. A deed that finishes inside ONE interval left no trace
+at all -- eating, drinking, burying, transmuting, pressing a sigil --
+so they were invisible to everyone but the doer.
+
+A citizen carries `deed`, one word, set on the interval an accepted
+input lands and cleared at the top of the next. Fourteen bytes on the
+interval they act, against a citizen record of six hundred.
+
+It matters more than its size. Watching somebody eat mid-fight is how
+you know they are in trouble; watching somebody stand at the Brandline
+and unmake a haul is a thing people gather to see. A world whose deeds
+are private is a world of people standing still and quietly getting
+richer -- and every window reads it, so no window has to be clever
+enough to infer a deed from a skill going up.
+
 **Forage is eaten where it lies.** A goblin, a wolf or a bear may
 leave `forage` when it falls -- about a third of the time. A troll, a
 skeleton-knight and the dragon never do, and that is a rule and not an

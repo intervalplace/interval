@@ -3643,20 +3643,33 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     // the top swollen where the knot was left in. What marks it as an
     // alchemist's is that the head holds a little light -- the same gold as
     // the motes that come off a thing being unmade.
+    // HELD LIKE A WALKING STICK, WHICH IS WHAT IT IS.
+    //
+    // The hand was six pixels from the butt of a forty-six pixel stave, so a
+    // citizen carried it like a flagpole: the whole shaft standing straight up
+    // out of a fist at hip height, with nothing below the grip at all. A stave
+    // is leaned on. The hand takes it a little above the middle and the rest
+    // of it goes down to the GROUND, which is the only reason a stave is a
+    // sensible thing to carry across a country.
     const heart = /heartwood/.test(item)
-    const H2 = 40 * s
-    const topX = hx - Math.sin(a) * 2 * s, topY = hy - H2
+    const UP = 26 * s, DOWN = 22 * s
+    const topX = hx - Math.sin(a) * 3 * s, topY = hy - UP
+    const botX = hx + Math.sin(a) * 1.5 * s, botY = hy + DOWN
     g.strokeStyle = heart ? METAL.heartwood[0] : '#4a3a22'
     g.lineWidth = 3.2 * s; g.lineCap = 'round'
-    g.beginPath(); g.moveTo(hx, hy + 6 * s)
-    g.quadraticCurveTo(hx + 2 * s, hy - H2 * .5, topX, topY); g.stroke()
+    g.beginPath(); g.moveTo(botX, botY)
+    g.quadraticCurveTo(hx + 2 * s, hy - UP * .5, topX, topY); g.stroke()
     g.strokeStyle = heart ? METAL.heartwood[1] : '#6a5430'
     g.lineWidth = 1.2 * s
-    g.beginPath(); g.moveTo(hx - .8 * s, hy + 6 * s)
-    g.quadraticCurveTo(hx + 1.2 * s, hy - H2 * .5, topX - .8 * s, topY); g.stroke()
+    g.beginPath(); g.moveTo(botX - .8 * s, botY)
+    g.quadraticCurveTo(hx + 1.2 * s, hy - UP * .5, topX - .8 * s, topY); g.stroke()
+    // the ferrule, where it has been meeting the road for years
+    g.strokeStyle = '#3a352c'; g.lineWidth = 3.6 * s
+    g.beginPath(); g.moveTo(botX, botY - 3 * s); g.lineTo(botX, botY); g.stroke()
     // the binding at the grip
+    // the binding is where the hand actually closes on it
     g.strokeStyle = '#2a2114'; g.lineWidth = 3.8 * s
-    g.beginPath(); g.moveTo(hx + .6 * s, hy + 2 * s); g.lineTo(hx + 1.4 * s, hy - 4 * s); g.stroke()
+    g.beginPath(); g.moveTo(hx + .6 * s, hy + 3 * s); g.lineTo(hx + 1.2 * s, hy - 5 * s); g.stroke()
     // the knot at the head, and the light it keeps
     g.fillStyle = heart ? METAL.heartwood[0] : '#5a4626'
     g.beginPath(); g.ellipse(topX, topY, 3.4 * s, 4.2 * s, .2, 0, 7); g.fill()
@@ -3860,8 +3873,20 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   // haft
   g.strokeStyle = item.includes('maul') || item.includes('spear') || item.includes('hatchet') || item.includes('pickaxe')
     ? METAL.wood[0] : m[2]
+  // WHERE THE HAND SITS ON THE SHAFT.
+  //
+  // Everything was gripped four pixels from the butt, which is right for a
+  // sword -- a sword IS held at its end -- and wrong for anything with a
+  // shaft. A spear ran twenty-six ahead of the hand and four behind it, so a
+  // citizen carried it like a very long sword rather than a spear, and a maul
+  // had no haft behind the fist at all.
+  //
+  // A spear is taken about a third from the butt: that is where it balances,
+  // and it is why a spear can be couched and a sword cannot. A maul and a
+  // flail want a hand's width of haft behind the grip to swing on.
+  const butt = /spear/.test(item) ? 10 : /maul|flail/.test(item) ? 7 : 4
   g.lineWidth = 2.6 * s
-  g.beginPath(); g.moveTo(hx - dx * 4 * s, hy - dy * 4 * s); g.lineTo(hx + dx * long * s, hy + dy * long * s); g.stroke()
+  g.beginPath(); g.moveTo(hx - dx * butt * s, hy - dy * butt * s); g.lineTo(hx + dx * long * s, hy + dy * long * s); g.stroke()
   const tx = hx + dx * long * s, ty = hy + dy * long * s
   if (/sword|dagger/.test(item)) {
     g.strokeStyle = m[1]; g.lineWidth = 2.8 * s
@@ -7915,6 +7940,19 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const effort = working ? clamp((swingVal + 1.5) / 2.4, 0, 1) : 0
   const workLean = working ? Math.sin(effort * Math.PI) * .55 + effort * .25 : 0
   const workDip = working ? Math.sin(effort * Math.PI) * .30 : 0
+  // A CAST IS MADE WITH THE WHOLE BODY.
+  //
+  // The cast moved the arm through a third of a turn and nothing else moved at
+  // all, which reads as a wave whatever the arm does. A citizen unmaking
+  // something leans BACK as it lifts, is still while it burns, and comes
+  // forward over it as the coin falls -- three beats, matching the three the
+  // mark itself is drawn in.
+  const castE = (myDeed?.pose === 'cast' && isMe) ? clamp((performance.now() - myDeed.at) / myDeed.dur, 0, 1) : 0
+  const castLean = castE === 0 ? 0
+    : castE < .34 ? -(castE / .34) * .40
+    : castE < .62 ? -.40 + Math.sin((castE - .34) * 18) * .04
+    : -.40 + ((castE - .62) / .38) * .78
+  const castDip = castE === 0 ? 0 : Math.sin(clamp((castE - .55) / .45, 0, 1) * Math.PI) * .34
   // a pick is driven with the back and the knees, not the arm: while the head
   // is buried the citizen is bent over it
   const biteDip = pickBite ? .55 : 0
@@ -7931,9 +7969,13 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
         case 'whittle': crouch = e * .35; swingVal = -0.6 + Math.sin(dk * 18) * .35; break
         case 'drink':   swingVal = -1.25 - e * .45; break
         case 'cast':
-          // UP, HELD, AND DOWN. A cast that only lifted the arm looked like a
-          // wave. The staff goes up over the whole first third, is held while
-          // the thing burns, and comes down as the coin falls.
+          // UP, HELD, AND DOWN -- AND THE WHOLE BODY GOES WITH IT.
+          //
+          // An arm on its own still reads as a wave however far it travels.
+          // A person unmaking something leans back as it lifts, holds, and
+          // comes forward over it as it falls; the lean and the dip below do
+          // that, and they are what makes it look like effort rather than
+          // gesture.
           swingVal = e < .34 ? -0.5 - (e / .34) * 1.35
             : e < .62 ? -1.85 + Math.sin((e - .34) * 22) * .07
             : -1.85 + ((e - .62) / .38) * 1.35
@@ -7962,7 +8004,7 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     // blow lands and comes back up on the recovery, and the weight shifts
     // forward. Small numbers -- two or three pixels -- but it is the
     // difference between a body working and an arm attached to a post.
-    crouch: crouch + workDip + biteDip, pitch: pitch + workLean + biteDip * .4,
+    crouch: crouch + workDip + biteDip + castDip, pitch: pitch + workLean + biteDip * .4 + castLean,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
     plate: star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
@@ -8166,6 +8208,37 @@ const fx = []               // blows in flight, in world coordinates
 // is only visible as their hitpoints moving; this is what lets the window show
 // it landing on them.
 const mendedAt = new Map()
+
+// WHAT A DEED LOOKS LIKE FROM ACROSS A CLEARING.
+//
+// The engine records one word on the interval a deed lands, so a window draws
+// it instead of inferring it. Not every deed wants a mark -- a deposit is a
+// person leaning on a counter -- but the ones that read as an ACT do.
+// Only kinds this window can actually draw: 'bite' and 'dust' were invented in
+// the writing and drawFx has never heard of either, which would have been a
+// silent no-op for eating -- the one deed the whole change is for.
+const DEED_MARK = {
+  alch: 'unmake', mendp: 'sent', invoke: 'sent', cast: 'sent', still: 'sent',
+  eat: 'act', forage: 'act', drink: 'ripple', bury: 'dig',
+  kindle: 'spark', light: 'spark', plant: 'sow', harvest: 'sow',
+  fletch: 'shavings',
+}
+function deedSeen(pid, q) {
+  const kind = DEED_MARK[q.deed]
+  if (!kind) return
+  fx.push({ kind, x: q.x, y: q.y, at: performance.now() })
+}
+
+// A NOTE ON DEEDS WITH NO DURATION.
+//
+// Transmuting leaves no trace in the state -- there is no `action` for it,
+// because it is over in the interval it happened -- so a window has nothing to
+// read and other citizens did it in complete silence. Everyone was watching a
+// person stand still and get richer.
+//
+// What DOES change is their magic: twenty-five, exactly, and no other source
+// in the world pays that. onState watches for it and makes the mark once, the
+// same way it watches hitpoints for a mending.
 const specialAnim = new Map()   // playerId -> { kind, at, dur } while a special plays
 
 // ---------------------------------------------------------------------------
@@ -11737,9 +11810,25 @@ function onState(s, worldId) {
   // a checkpoint) still snaps, and ordinary jitter is absorbed over a second
   // or so, which is far below what the eye reads as motion.
   {
+    // ...BUT AT A RATE THAT SUITS THE ERROR.
+    //
+    // A flat five per cent absorbs ordinary jitter beautifully and a real
+    // drift terribly: a third of a second of slip takes fourteen states --
+    // eight seconds -- to work out, and for every one of them renderT is
+    // wrong and the body steps unevenly. That is the "it stutters for a few
+    // seconds and then settles" that follows any hitch: a tab coming back, a
+    // long frame, a slow packet.
+    //
+    // The correction is now proportional. Small error, gentle -- five per cent,
+    // as before, so jitter is still ignored. Large error, brisk, up to half in
+    // one state, which clears a third of a second in about three.
     const want = now - s.tick * 600
     if (tickOffset === null || Math.abs(want - tickOffset) > 1500) tickOffset = want
-    else tickOffset += (want - tickOffset) * 0.05
+    else {
+      const err = want - tickOffset
+      const rate = Math.min(0.5, Math.max(0.05, Math.abs(err) / 600))
+      tickOffset += err * rate
+    }
   }
   curState = s; world = s
   if (worldId) curWorldId = worldId
@@ -11816,7 +11905,8 @@ function onState(s, worldId) {
     // and every other citizen's hitpoints, so a mending sent to somebody is
     // visible to everyone who can see them
     prevPlayers = {}
-    for (const [pid2, q2] of Object.entries(s.players ?? {})) prevPlayers[pid2] = { hp: q2.hp }
+    for (const [pid2, q2] of Object.entries(s.players ?? {}))
+      prevPlayers[pid2] = { hp: q2.hp, magic: q2.skills?.magic ?? 0, deed: q2.deed }
   }
   pumpIntent()
 }
@@ -11852,6 +11942,16 @@ function reconcile(was, me, s) {
     const before = prevPlayers?.[pid2]
     if (!before || pid2 === myId) continue
     if ((q2.hp ?? 0) > (before.hp ?? 0) + 4) mendedAt.set(pid2, performance.now())
+    // and exactly twenty-five magic, which is a transmuting and nothing else:
+    // every other source of magic experience is 35, 55, 60 or 150
+    // THE WORLD SAYS SO NOW, so the window does not have to guess.
+    //
+    // This inferred a transmuting from magic rising by exactly twenty-five,
+    // which worked and was a trick: every window would have had to know that
+    // twenty-five is the number, and any window that did not showed people
+    // standing still getting richer. `deed` is in the state, so the mark is
+    // made from what the world says happened.
+    if (q2.deed && q2.deed !== before.deed) deedSeen(pid2, q2)
   }
   if (me.hp > was.hp) {
     popNumber(me.x, me.y, '+' + (me.hp - was.hp), '#6ad86a', false)
@@ -12288,9 +12388,26 @@ function frame(now) {
     if (r && r.tip) tipAt = r.tip
     else if (hover && hover.kind === 'node') {
       const v = verbFor('node', hover.e)
-      // the window names what it DREW: a `house` node is a fireplace
-      const noun = v === 'hearth' ? 'hearth' : wordy(hover.e.kind ?? hover.e.type)
-      tipAt = { title: noun, sub: VERB_WORD[v] ?? null }
+      // A PERSON IS A NAME, NOT A TYPE.
+      //
+      // This showed `wordy(kind ?? type)`, so hovering the arms-master said
+      // "ARMS" and hovering a neighbour said "KEEPER" -- their names have been
+      // on the nodes since the fourth founding and the tip never looked. You
+      // had to walk over and click somebody to find out who they were.
+      //
+      // A name over a calling, or a name alone for somebody who lives in a
+      // house and does no particular job.
+      if (hover.e.type === 'keeper' || hover.e.type === 'smith' || hover.e.type === 'guard') {
+        const who = hover.e.name || residentName(hover.e)
+        const call = hover.e.kind ? CALLING_NAME[hover.e.kind]
+          : hover.e.type === 'smith' ? 'the smith'
+          : hover.e.type === 'guard' ? 'the guard' : null
+        tipAt = { title: who, sub: call ? titleCase(call.replace(/^the /, '')) : null, col: '#d9c9a0' }
+      } else {
+        // the window names what it DREW: a `house` node is a fireplace
+        const noun = v === 'hearth' ? 'hearth' : wordy(hover.e.kind ?? hover.e.type)
+        tipAt = { title: noun, sub: VERB_WORD[v] ?? null }
+      }
     } else if (hover && hover.kind === 'player') {
       tipAt = { title: hover.e.name || hover.id.slice(0, 8), sub: callingOf(hover.e), col: '#9fb0c4' }
     }

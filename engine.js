@@ -517,6 +517,29 @@ const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted //
 // raised so that MINING has a country at the end of its road, the way
 // woodcutting has heartwood and fishing has the deep water.
 const MAGIC_ROCK_MINING = 70;
+// ---------------------------------------------------------------------------
+// A DEED IS DONE WHERE PEOPLE CAN SEE IT
+// ---------------------------------------------------------------------------
+// An `action` is something a citizen is IN THE MIDDLE OF -- gathering,
+// fighting -- and it sits in the state for as long as it lasts, so every
+// window can draw it. A deed that finishes inside one interval left no trace
+// at all: eating, drinking, burying, transmuting, pressing a sigil. They were
+// invisible to everyone but the doer.
+//
+// That is not a small thing. Watching somebody eat mid-fight is how you know
+// they are in trouble; watching somebody stand at the Brandline and unmake
+// their haul is a thing people gather to see. A world where deeds are private
+// is a world of people standing still and quietly getting richer.
+//
+// One optional word on a citizen, set on the interval the deed lands and
+// cleared at the top of the next. Fourteen bytes, on the interval they act,
+// against a citizen record of six hundred. Every window reads it; no window
+// has to be clever enough to infer it from a skill going up.
+const DEEDS = ['alch', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
+  'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
+  'cast', 'recall', 'pickup', 'drop', 'buy', 'sell', 'deposit', 'withdraw'];
+const DEED_SET = new Set(DEEDS);
+
 const DEATH_TICKS = 5; // the world holds its breath; windows may grieve
 
 // ---------------------------------------------------------------------------
@@ -2464,7 +2487,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt']);
+  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -3895,6 +3918,12 @@ function nextState(state, inputs, _legacyBeacon) {
   const _ctx = buildTickContext(s);
   _p2mark('pre_tick');
   s.tick = state.tick + 1;
+  // LAST INTERVAL'S DEEDS ARE OVER. A deed is a thing that happened on ONE
+  // interval, so it is cleared at the top of the next -- in id order, because
+  // this writes canonical state.
+  for (const pid of Object.keys(s.players).sort()) {
+    if (s.players[pid].deed !== undefined) delete s.players[pid].deed;
+  }
   // the beacon rides IN the state now (v0.38). A pre-0.38 state migrates
   // itself: seeded once from the old formula, then history takes over.
   if (!s.beacon) s.beacon = beaconValue(state.genesis.genesisSeed, state.tick).toString('hex');
@@ -4476,6 +4505,12 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const pid of order) {
     const inp = seen.get(pid);
     if (inp === 'DUP' || !validInput(state, inp, _ctxPre)) continue;
+    // AND THE WORLD SEES IT. Set before the deed is carried out, in ONE place,
+    // so no branch can quietly forget: validInput has already accepted it, so
+    // the citizen is doing this thing on this interval whatever comes of it.
+    // A deed that takes longer than an interval sets `action` instead, and
+    // always did.
+    if (DEED_SET.has(inp.type) && s.players[pid]) s.players[pid].deed = inp.type;
     if (inp.type === 'restore') {
       // Back exactly as they left, and present, so the sweep does not turn
       // round and archive them again on the same tick. The slot they came
