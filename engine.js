@@ -4784,18 +4784,44 @@ function nextState(state, inputs, _legacyBeacon) {
         // delivered as ONE blow, and at every distance closer it is a loss.
         // What an archer buys is not more damage. It is all of it at once, from
         // further away than anyone can answer.
-        const maxHit9 = 1 + Math.floor(lvl9 / 10)
-          + (w9.spec === 'far' ? Math.floor(Math.max(0, far9 - 1) * 5 / 2) : (w9.hit ?? 0));
+        // NEUTRAL AT EVERY LEVEL, not only at ninety-nine.
+        //
+        // This added a FLAT distance bonus to a base of lvl/10, and a drawn bow
+        // is scored on lvl/12 -- so the special quietly ignored the bow's own
+        // divisor and the flat twenty swamped the level term. Measured against
+        // the two ordinary shots it costs: at ranged 40 it paid 25 where two
+        // shots paid 20, at 70 it paid 28 against 24, and only at ninety-nine
+        // did it come out even. Below the cap the answer was always "special",
+        // which is the one thing this weapon must not be -- the whole of it is
+        // choosing the moment, and a blow that is simply better has no moment.
+        //
+        // So the special is a MULTIPLE of the ordinary blow at the same level:
+        // one of it at touching range, two of it at the end of nine tiles.
+        // Neutral at full stretch whatever your ranged is, a loss everywhere
+        // nearer, and it scales with the skill the way the ordinary shot does.
+        const ord9 = 1 + Math.floor(lvl9 / (drawn9 ? 12 : 10)) + (w9.hit ?? 0);
+        const maxHit9 = w9.spec === 'far'
+          ? Math.max(1, Math.floor(ord9 * (8 + Math.max(0, far9 - 1)) / 8))
+          : 1 + Math.floor(lvl9 / 10) + (w9.hit ?? 0);
         const acc9 = clamp(128 + 4 * (lvl9 - defL9) + (w9.acc ?? 0), 16, 240);
         const blows = w9.spec === 'twice' ? 2 : 1;
         for (let b9 = 0; b9 < blows; b9++) {
           // 'true' cannot miss; the others roll as any blow does
           if (w9.spec !== 'true' && roll(beacon, pid, 'spec' + b9) >= acc9) continue;
-          const soak9 = drawn9 ? 0
+          // ARMOUR SOAKS AN ARROW, on a special exactly as on any other shot.
+          //
+          // This read `drawn9 ? 0`, so a drawn bow ignored armour entirely --
+          // but only on the special. A star-clad citizen soaked four off every
+          // arrow all day and nothing off the one that hit for thirty, which
+          // made the special strictly better again and undid the timing the
+          // weapon exists for. It also quietly took the flail's one privilege:
+          // §6x says it is "the only weapon in the world that ignores this
+          // subtraction", and pays for it with the lowest base damage of any
+          // steel. Two weapons cannot both be the only one.
+          const soak9 = (weaponOf(p)?.pierces === true) ? 0
             : (q.equipment.head ? SOAK(q.equipment.head.item) : 0)
             + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
-          const dmg9 = Math.max(0, 1 + (roll(beacon, pid, 'specd' + b9) % maxHit9)
-            - (weaponOf(p)?.pierces === true ? 0 : soak9));
+          const dmg9 = Math.max(0, 1 + (roll(beacon, pid, 'specd' + b9) % maxHit9) - soak9);
           q.hp -= dmg9;
           p.skills[drawn9 ? 'ranged' : 'attack'] += 4 * dmg9;
           p.skills.hitpoints += dmg9;

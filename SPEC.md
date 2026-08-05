@@ -444,10 +444,18 @@ one: this world's others are two blows (`twice`), off the rhythm
 
 And like all of them it is DAMAGE-NEUTRAL at its best and a loss
 everywhere else. A special spends the arm for this cycle and the next,
-so it costs two ordinary blows; at nine tiles the shot is worth
-exactly the two it cost, and at eight it is already worse. What an
-archer buys is not more damage but all of it at once, from further
-away than anyone can answer.
+so it costs two ordinary blows; the shot is worth exactly ONE ordinary
+blow at touching range and exactly TWO at the end of nine tiles, and
+the scale is taken from the ordinary blow at the same level -- so it
+is neutral at ranged forty and at ranged ninety-nine alike. An earlier
+draft added a flat distance bonus to a base the bow's own divisor did
+not apply to, which made the special better than two shots at every
+level below the cap: the answer was always "special", and a blow that
+is simply better has no moment to choose.
+
+Armour soaks it, as it soaks any other arrow. What an archer buys is
+not more damage but all of it at once, from further away than anyone
+can answer.
 
 **The dragon sleeps twelve hours.** Its respawn is the bow's whole
 life, so the number is the one that decides how often the finest thing
