@@ -2494,20 +2494,17 @@ function wieldBlockers(p, item) {
   return (WIELD_NEEDS[item] ?? []).filter((r) => XP_TO_LVL(p?.skills?.[r.skill] ?? 0) < r.level)
 }
 
-// WHAT A THING IS WORTH FOR SORTING A PILE.
+// WHAT A THING IS WORTH, FOR PUTTING A PILE IN ORDER.
 //
-// PRICES[item] ?? 0 put the DRAGONBOW, the old chain, a sigil and a chart at
-// the BOTTOM of a spilled pack, under a handful of bones -- the four rarest
-// objects in the world, ranked below the commonest, because a keeper does not
-// price them. Unpriced does not mean worthless; for these it means the
-// opposite, which is exactly why no keeper will touch them.
-//
-// Forage is the one unpriced thing that really is worth nothing: it rots in
-// fifty intervals and cannot be carried.
-const WORTHLESS = new Set(['forage'])
+// Copied from the engine's worthRank. The engine does not choose what a
+// citizen picks up -- that is the citizen's -- but the ORDER a window offers a
+// heap in is not neutral: in a race for a spilled pack, a window that reaches
+// for the plate beats one that reaches for whatever fell first. Checked by
+// audit-window.mjs for exactly that reason.
+const WORTH_UNPRICED = 100000
 function worthRank(item) {
-  if (WORTHLESS.has(item)) return -1
-  return PRICES[item] ?? 100000
+  if (item === 'forage') return -1
+  return PRICES[item] ?? WORTH_UNPRICED
 }
 // ===========================================================================
 // THE WIRE
@@ -2623,6 +2620,11 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }
+  : a.do === 'raise_market' ? { type: 'raise_market' }
+  : a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }
+  : a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }
+  : a.do === 'take_market' ? { type: 'take_market' }
+  : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
   : a.do === 'drink' ? { type: 'drink' }
   : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
@@ -7506,6 +7508,44 @@ function drawNode(g, n, sx, sy, t, hot) {
       g.restore()
       return
     }
+    case 'market': {
+      // A CITIZEN'S STALL. Not the keeper's indoor counter -- this one is
+      // raised wherever somebody chose, out of sixteen logs and eight ore, and
+      // it must read as somebody's rather than the world's: rough trestles,
+      // a cloth over them, a post with the owner's mark, and whatever is
+      // actually on the shelf standing on top where a buyer can see it.
+      g.drawImage(sprite('market' + (hs & 1), 92, 96, (gg, W2, H2) => {
+        const c2 = W2 / 2, b = H2 - 12
+        groundShadow(gg, c2 + 5, b - 2, 30, 12, .5)
+        // trestle legs
+        gg.strokeStyle = '#4a3a24'; gg.lineWidth = 3
+        for (const ox of [-22, 22]) {
+          gg.beginPath(); gg.moveTo(c2 + ox, b); gg.lineTo(c2 + ox * .7, b - 14); gg.stroke()
+        }
+        // the board
+        poly(gg, [[c2 - 30, b - 14], [c2, b - 24], [c2 + 30, b - 14], [c2, b - 4]], '#7a6038')
+        poly(gg, [[c2 - 30, b - 14], [c2, b - 4], [c2, b], [c2 - 30, b - 10]], '#4a3a20')
+        poly(gg, [[c2, b - 4], [c2 + 30, b - 14], [c2 + 30, b - 10], [c2, b]], '#3a2c18')
+        // a cloth thrown over one end
+        poly(gg, [[c2 - 30, b - 14], [c2 - 8, b - 21], [c2 - 6, b - 10], [c2 - 28, b - 4]], '#6a3030')
+        gg.fillStyle = 'rgba(255,240,214,.10)'
+        gg.fillRect(c2 - 26, b - 17, 10, 3)
+        // the post and the owner's mark
+        gg.strokeStyle = '#3a2f1e'; gg.lineWidth = 3
+        gg.beginPath(); gg.moveTo(c2 + 26, b - 12); gg.lineTo(c2 + 26, b - 44); gg.stroke()
+        poly(gg, [[c2 + 26, b - 44], [c2 + 42, b - 41], [c2 + 42, b - 30], [c2 + 26, b - 33]], '#8a6a2a')
+        gg.fillStyle = 'rgba(30,24,16,.5)'
+        gg.fillRect(c2 + 30, b - 39, 8, 2); gg.fillRect(c2 + 30, b - 35, 5, 2)
+      }), sx - 46, sy - 96 + 34)
+      // and what is on it, drawn small on the board so a buyer can see
+      const shelf9 = n.shelf ? Object.keys(n.shelf)[0] : null
+      if (shelf9) {
+        g.save(); g.translate(sx - 6, sy - 30); g.scale(.62, .62)
+        try { g.drawImage(itemIcon(shelf9), 0, 0) } catch {}
+        g.restore()
+      }
+      return
+    }
     case 'ossuary': {
       // THE BONE-HOUSE. A low stone chest under a slab, older than the
       // precinct round it, with the names of the mourned cut into the lid
@@ -8142,8 +8182,19 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   // and a one-tick deed overrides all of it, for as long as it takes to do
   let crouch = 0, pitch = 0
   // how much of the strike is happening, 0 at rest and 1 at the blow
-  const working = (act === 'gather' || act === 'attack' || act === 'attackp' || swK <= 1)
-  const effort = working ? clamp((swingVal + 1.5) / 2.4, 0, 1) : 0
+  // RAISING A STALL IS WORK, and the body should say so for the whole twenty
+  // intervals. Without 'raise' here a citizen building one stood perfectly
+  // still, which is indistinguishable from being asleep -- and a bystander
+  // could not tell that interrupting them would cost them anything.
+  const working = (act === 'gather' || act === 'attack' || act === 'attackp'
+                   || act === 'raise' || swK <= 1)
+  // a builder's rhythm is slower than an axe's: lifting and setting, not
+  // swinging. Driven by the tick rather than the swing clock, since raising
+  // has no blow to land.
+  const raiseE = act === 'raise'
+    ? (Math.sin((curState?.tick ?? 0) * 0.7 + t * 1.2) + 1) / 2 : 0
+  const effort = act === 'raise' ? raiseE
+    : working ? clamp((swingVal + 1.5) / 2.4, 0, 1) : 0
   const workLean = working ? Math.sin(effort * Math.PI) * .55 + effort * .25 : 0
   const workDip = working ? Math.sin(effort * Math.PI) * .30 : 0
   // A CAST IS MADE WITH THE WHOLE BODY.
@@ -9850,6 +9901,12 @@ function closePane(id) {
 }
 const anyPaneOpen = () => !!(paneLeft || paneRight || paneModal)
 let guideSkill = 'magic'
+// NOT `stallNode` -- 80-boot already uses that for the KEEPER'S stall pane,
+// and one name for two different counters is how a citizen ends up pricing
+// the armourer's goods.
+let pileFrom = 0          // which eight of a heap the menu is showing
+let myStallId = null
+let askDraft = 0          // the price they are typing
 let regions = []                      // rebuilt every frame; the only hit-test there is
 let logLines = []
 let tipAt = null                      // { x, y, item, sub } while the cursor rests on something
@@ -10624,6 +10681,79 @@ function drawCitizen(g, now) {
 }
 
 // ---------------------------------------------------------------------------
+// A CITIZEN'S OWN STALL
+// ---------------------------------------------------------------------------
+// Stocking, pricing, collecting and pulling it down. Stock is ONE WAY -- there
+// is no button to take it back, because there is no verb to take it back, and
+// a pane that implied otherwise would be lying about the rules.
+function drawMyStall(g) {
+  const s = curState, me = myId && s?.players?.[myId]
+  const mk = myStallId && s?.nodes?.[myStallId]
+  if (!mk) { paneModal = null; return }
+  const good = mk.shelf ? Object.keys(mk.shelf)[0] : null
+  const qty = good ? mk.shelf[good] : 0
+  const W2 = 420, H2 = 300
+  const x = Math.round((VW - W2) / 2), y = Math.max(12, (VH - PANEL_H - H2) / 2)
+  regions.push({ x, y, w: W2, h: H2, act: { t: 'panebg' } })
+  carve(g, x, y, W2, H2)
+  plate(g, x + 14, y + 14, W2 - 28, 'Your Stall')
+  regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'modal' } })
+  g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
+  g.fillStyle = inRect(mouse, x + W2 - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
+  g.fillText('\u2715', x + W2 - 22, y + 25)
+
+  g.textAlign = 'left'
+  g.font = '12px Georgia, serif'; g.fillStyle = '#cdbb99'
+  g.fillText(good ? qty + ' \u00d7 ' + wordy(good) : 'Nothing on the shelf', x + 26, y + 56)
+  g.fillStyle = mk.ask > 0 ? '#b0913f' : '#7a6a52'
+  g.fillText(mk.ask > 0 ? 'asking ' + mk.ask + ' gold each'
+    : 'unpriced \u2014 nothing is for sale until you name a price', x + 26, y + 76)
+  g.fillStyle = '#8a7d68'
+  g.fillText('taken so far: ' + (mk.coin ?? 0) + ' gold', x + 26, y + 96)
+
+  // stocking: every slot that may go on this shelf
+  g.font = 'italic 11px Georgia, serif'; g.fillStyle = '#7a7263'
+  g.fillText(good ? 'add more ' + wordy(good).toLowerCase() + ':' : 'put something on it:', x + 26, y + 124)
+  let bx = x + 26, by = y + 138, put = 0
+  for (let i = 0; i < (me?.inventory?.length ?? 0) && put < 12; i++) {
+    const sl = me.inventory[i]
+    if (!sl || sl.item === 'dragonbow') continue
+    if (good && sl.item !== good) continue
+    if (qty + (sl.qty ?? 1) > 200) continue
+    regions.push({ x: bx, y: by, w: 30, h: 30, act: { t: 'stall_put', slot: i },
+                   tip: { title: wordy(sl.item), sub: 'onto the shelf' } })
+    g.drawImage(itemIcon(sl.item), bx - 2, by - 2)
+    bx += 34; put++
+    if (bx > x + W2 - 60) { bx = x + 26; by += 34 }
+  }
+  if (!put) { g.fillStyle = '#6a6152'; g.fillText(good ? 'nothing of that kind in your pack' : 'your pack is empty', x + 26, y + 150) }
+
+  // the price, the takings, and pulling it down
+  const btn = (bx2, by2, w2, label, act, on) => {
+    regions.push({ x: bx2, y: by2, w: w2, h: 26, act })
+    const hot = inRect(mouse, bx2, by2, w2, 26)
+    g.fillStyle = on ? (hot ? '#3a3020' : '#2a2418') : '#211c14'
+    g.fillRect(bx2, by2, w2, 26)
+    g.strokeStyle = on ? '#6a5220' : '#3a3226'; g.lineWidth = 1
+    g.strokeRect(bx2 + .5, by2 + .5, w2 - 1, 25)
+    g.font = '700 11px Cinzel, Georgia, serif'; g.textAlign = 'center'
+    g.fillStyle = on ? (hot ? '#e8d199' : '#b0913f') : '#5a5346'
+    g.fillText(label, bx2 + w2 / 2, by2 + 14)
+    g.textAlign = 'left'
+  }
+  const ry = y + H2 - 96
+  g.font = '11px Georgia, serif'; g.fillStyle = '#8a7d68'
+  g.fillText('price:', x + 26, ry + 13)
+  for (const [dx2, d] of [[70, -100], [122, -10], [174, -1], [226, 1], [278, 10], [330, 100]])
+    btn(x + dx2, ry, 46, (d > 0 ? '+' : '') + d, { t: 'stall_ask', by: d }, true)
+  g.font = '700 13px Cinzel, Georgia, serif'; g.fillStyle = '#e8d199'
+  g.fillText('\u2192 ' + askDraft + ' gold', x + 26, ry + 40)
+  btn(x + 160, ry + 28, 110, 'SET THE PRICE', { t: 'stall_price' }, askDraft !== (mk.ask ?? 0))
+  btn(x + 26, ry + 62, 170, 'TAKE ' + (mk.coin ?? 0) + ' GOLD', { t: 'stall_take' }, (mk.coin ?? 0) > 0)
+  btn(x + 210, ry + 62, 184, 'PULL IT DOWN (stock spills)', { t: 'stall_down' }, true)
+}
+
+// ---------------------------------------------------------------------------
 // WHAT A LEVEL BUYS
 // ---------------------------------------------------------------------------
 // The thresholds are scattered through the rules by nature -- a vein here, a
@@ -11392,6 +11522,23 @@ function useSlot(i) {
   const me = myId && curState?.players?.[myId]
   const sl = me?.inventory?.[i]; if (!sl) return
   const it = sl.item
+  // §6al: RAISING A STALL, offered from the timber it is made of. There is no
+  // menu for bare ground in this window, and the makings are the natural place
+  // to ask: a citizen looking at sixteen logs is the citizen deciding.
+  if (it === 'logs' || it === 'heartwood') {
+    const meR2 = curState?.players?.[myId]
+    const logs2 = (meR2?.inventory ?? []).filter((x) => x && (x.item === 'logs' || x.item === 'heartwood')).length
+    const ore2 = (meR2?.inventory ?? []).filter((x) => x?.item === 'ore').length
+    const already = Object.values(curState?.nodes ?? {}).some((q) => q.type === 'market' && q.by === myId)
+    if (already) items.push({ label: 'Raise a stall (you have one)', dim: true, run: () => {} })
+    else if (logs2 >= 16 && ore2 >= 8)
+      items.push({ label: 'Raise a stall here (16 logs, 8 ore)',
+                   run: () => { send({ do: 'raise_market' })
+                     say('You begin raising a stall. Twenty intervals, and do not move.', 'good') } })
+    else
+      items.push({ label: 'Raise a stall (needs 16 logs, 8 ore)', dim: true,
+                   run: () => say('You have ' + logs2 + ' logs and ' + ore2 + ' ore.', 'dim') })
+  }
   if (EQUIPPABLE.has(it)) {
     const gear = /helm/.test(it) ? 'head' : /plate/.test(it) ? 'body' : 'weapon'
     if (me.equipment?.[gear]?.item === it) { send({ do: 'unwield', gear }); say('You take off the ' + wordy(it) + '.') }
@@ -11486,6 +11633,15 @@ function lookAt(n) {
     }
     return who + '. They live here.'
   }
+  if (n.type === 'market') {
+    const owner = n.by === myId
+    const good = n.shelf ? Object.keys(n.shelf)[0] : null
+    const qty = good ? n.shelf[good] : 0
+    if (!good) return owner ? 'Your stall. Empty, and waiting for something to sell.'
+                            : 'A stall, and nothing on it.'
+    return (owner ? 'Your stall: ' : 'A stall: ') + qty + ' ' + wordy(good).toLowerCase()
+      + (n.ask > 0 ? ' at ' + n.ask + ' gold each.' : ', unpriced, so nothing is for sale.')
+  }
   if (n.type === 'ossuary') return 'The ossuary. Bones laid here are worth more than bones laid in a field.'
   if (n.type === 'well') return 'A well. Cold, and deep enough that drinking from it sets you right.'
   if (n.type === 'wall') return 'A wall. Somebody built this, course by course.'
@@ -11567,6 +11723,21 @@ function buildMenu(px2, py2, target) {
     if (n.type === 'anvil') items.push({ label: 'The anvil', run: go('forge', target.id, n.x, n.y) })
     if (n.type === 'bank') items.push({ label: 'The vault', run: go('bank', target.id, n.x, n.y) })
     if (n.type === 'store') items.push({ label: 'The counter', run: go('store', target.id, n.x, n.y) })
+    // §6al: a citizen's stall -- theirs to tend, anybody else's to buy from
+    if (n.type === 'market') {
+      const meM = curState?.players?.[myId]
+      const mine = n.by === myId
+      const good = n.shelf ? Object.keys(n.shelf)[0] : null
+      if (mine) {
+        items.push({ label: 'Tend the stall', run: go('mystall', target.id, n.x, n.y) })
+      } else if (good && n.ask > 0) {
+        items.push({ label: 'Buy the ' + wordy(good).toLowerCase() + ' (' + n.ask + ' gold)',
+                     run: () => { send({ do: 'buy', item: good })
+                       say('You buy the ' + wordy(good).toLowerCase() + '.', 'good') } })
+      } else {
+        items.push({ label: good ? 'Nothing priced here' : 'Nothing on it', dim: true, run: () => {} })
+      }
+    }
     items.push({ label: 'Walk to it', run: go('walk', null, n.x, n.y) })
   } else if (target.kind === 'mob') {
     const st = MOB_STATS[target.e.type]
@@ -11642,15 +11813,27 @@ function buildMenu(px2, py2, target) {
       .sort((A, B) => worthRank(B[1].item) - worthRank(A[1].item)
         || (A[0] < B[0] ? -1 : 1))
     title = here.length > 1 ? here.length + ' things here' : wordy(target.e.item)
+    // A SCRIPT MAY NAME ANY OF THEM, SO A PERSON MUST BE ABLE TO REACH ANY OF
+    // THEM. `pickup` takes a groundId, so an automated citizen can lift the
+    // twenty-seventh thing in a heap; this menu showed eight and ended with a
+    // dead label reading "...and 20 more beneath", which is a window telling a
+    // person about an advantage it will not give them.
+    //
+    // The overflow row PAGES now. Eight at a time, dearest first, round and
+    // round -- so everything in a spilled pack is reachable by hand, without a
+    // menu twenty-eight rows tall on a telephone.
     const SHOW = 8
-    for (const [gid, gi] of here.slice(0, SHOW)) {
+    const page = pileFrom % Math.max(1, Math.ceil(here.length / SHOW))
+    const shown = here.slice(page * SHOW, page * SHOW + SHOW)
+    for (const [gid, gi] of shown) {
       items.push({ label: gi.item === 'forage' ? 'Eat the forage where it lies'
                      : (here.length > 1 ? 'Take the ' + wordy(gi.item).toLowerCase() : 'Take it')
                        + ((gi.qty ?? 1) > 1 ? ' (' + gi.qty + ')' : ''),
                    run: go('pickup', gid, gi.x, gi.y) })
     }
     if (here.length > SHOW)
-      items.push({ label: '\u2026and ' + (here.length - SHOW) + ' more beneath', dim: true, run: () => {} })
+      items.push({ label: '\u2026' + (here.length - shown.length) + ' more beneath (show them)',
+                   run: () => { pileFrom++; menu = buildMenu(px2, py2, target) } })
     // §6aj: and the other thing a citizen may do to a pile they cannot reach.
     // Offered only when it would actually work, and it names its price: the
     // sigil is three magic-stone and nobody should spend one by accident.
@@ -11660,7 +11843,7 @@ function buildMenu(px2, py2, target) {
     const near = meU && Math.max(Math.abs(target.e.x - meU.x), Math.abs(target.e.y - meU.y)) <= 5
     if (hasStaff && near && here.length) {
       // the dearest thing on the tile, which is the one worth a sigil
-      const [dgid, dgi] = here[0]
+      const [dgid, dgi] = shown[0] ?? here[0]
       const what = wordy(dgi.item).toLowerCase()
       items.push(hasSigil
         ? { label: 'Unmake the ' + what + ' (a sigil)',
@@ -11680,6 +11863,23 @@ function buildSlotMenu(px2, py2, i) {
   const it = sl.item, items = []
   const near = (t) => Object.values(curState.nodes ?? {}).some(n => n.type === t
     && Math.abs(n.x - me.x) + Math.abs(n.y - me.y) === 1)
+  // §6al: RAISING A STALL, offered from the timber it is made of. There is no
+  // menu for bare ground in this window, and the makings are the natural place
+  // to ask: a citizen looking at sixteen logs is the citizen deciding.
+  if (it === 'logs' || it === 'heartwood') {
+    const meR2 = curState?.players?.[myId]
+    const logs2 = (meR2?.inventory ?? []).filter((x) => x && (x.item === 'logs' || x.item === 'heartwood')).length
+    const ore2 = (meR2?.inventory ?? []).filter((x) => x?.item === 'ore').length
+    const already = Object.values(curState?.nodes ?? {}).some((q) => q.type === 'market' && q.by === myId)
+    if (already) items.push({ label: 'Raise a stall (you have one)', dim: true, run: () => {} })
+    else if (logs2 >= 16 && ore2 >= 8)
+      items.push({ label: 'Raise a stall here (16 logs, 8 ore)',
+                   run: () => { send({ do: 'raise_market' })
+                     say('You begin raising a stall. Twenty intervals, and do not move.', 'good') } })
+    else
+      items.push({ label: 'Raise a stall (needs 16 logs, 8 ore)', dim: true,
+                   run: () => say('You have ' + logs2 + ' logs and ' + ore2 + ' ore.', 'dim') })
+  }
   if (EQUIPPABLE.has(it)) {
     // and it says what it wants, rather than being clicked into silence
     const need = wieldBlockers(me, it)
@@ -11948,6 +12148,14 @@ function runRegion(r, isRight) {
   const a = r.act
   if (a.t === 'noop') return
   SFX.pane()
+  if (a.t === 'stall_put') { send({ do: 'stock_market', slot: a.slot }); SFX.pick(); return }
+  if (a.t === 'stall_ask') { askDraft = Math.max(0, askDraft + a.by); return }
+  if (a.t === 'stall_price') { send({ do: 'price_market', ask: askDraft })
+    say('You ask ' + askDraft + ' gold.', 'good'); return }
+  if (a.t === 'stall_take') { send({ do: 'take_market' }); say('You take the day\u2019s takings.', 'good'); return }
+  if (a.t === 'stall_down') { send({ do: 'dismantle_market' })
+    say('You pull the stall down. What was on it lies in the grass.', 'warn')
+    paneModal = null; return }
   if (a.t === 'guide') { guideSkill = a.skill; paneModal = 'guide'; SFX.pane(); return }
   if (a.t === 'close') { closePane(a.which); return }
   if (a.t === 'btn') {
@@ -12143,6 +12351,10 @@ function pumpIntent() {
       if (near(n)) {
         if (intent.kind === 'forge') { paneModal = 'forge'; say('The anvil is cold, and yours.', 'dim') }
         else if (intent.kind === 'bank') { paneModal = 'bank'; say('The vault opens.', 'dim') }
+        else if (intent.kind === 'mystall') {
+          const mk9 = curState?.nodes?.[intent.id]
+          if (mk9) { myStallId = intent.id; askDraft = mk9.ask ?? 0; paneModal = 'mystall'; SFX.pane() }
+        }
         else if (intent.kind === 'store') {
           // and if they will not deal, the citizen should hear why rather than
           // click a dead counter
@@ -12749,6 +12961,7 @@ function frame(now) {
     if (paneLeft === 'citizen') drawCitizen(cx, now)
     if (paneRight === 'pack') drawPack(cx, now)
     if (paneModal === 'guide') drawGuide(cx)
+    if (paneModal === 'mystall') drawMyStall(cx)
     if (paneModal === 'forge') drawForge(cx, now)
     else if (paneModal === 'bank') drawVault(cx)
     else if (paneModal === 'store') drawCounter(cx)

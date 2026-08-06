@@ -2685,7 +2685,14 @@ const PRICES = {
   // seedsman's twenty-two is the usual double; ale and broth by what they
   // mend, at about two coins a hitpoint, which is where the cooked fish sit.
   'seeds': 10, 'ale': 8, 'broth': 10,
+  // a keeper will take dragon-bones and pays what a curiosity is worth to
+  // somebody who will never see the beast. THREE thousand ordinary bones fetch
+  // six thousand, so five hundred is far under what the thing does: a keeper is
+  // the worst buyer in the world for it and a mourner the best, which is how
+  // every Wilds good in this table is priced.
+  'dragon-bones': 500,
 }
+
 
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
 // it is the whole of the store's stock: the world sells seeds and nothing
@@ -2753,6 +2760,12 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'set_look' ? { type: 'set_look', look: a.look }
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
+  : a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }
+  : a.do === 'raise_market' ? { type: 'raise_market' }
+  : a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }
+  : a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }
+  : a.do === 'take_market' ? { type: 'take_market' }
+  : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
@@ -3326,11 +3339,25 @@ const STALL_NAME = {
   armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
 }
 const DEED_FX = {
-  alch: 'unmake', drink: 'drink', bury: 'bury', invoke: 'invoke',
+  alch: 'unmake', unmake: 'unmake', drink: 'drink', bury: 'bury', invoke: 'invoke',
   mendp: 'mend', cast: 'cast', fletch: 'fletch', eat: 'eat', forage: 'eat',
   plant: 'plant', harvest: 'harvest',
 }
 const _lastDeed = {}
+// WHAT A THING IS WORTH, FOR PUTTING A PILE IN ORDER.
+//
+// Copied from the engine's worthRank. The order a window offers a heap in is
+// not neutral: in a race for a spilled pack, a window that reaches for the
+// plate beats one that reaches for whatever fell first. Checked by
+// audit-window.mjs.
+const WORTH_UNPRICED = 100000
+function worthRank(item) {
+  if (item === 'forage') return -1
+  return PRICES[item] ?? WORTH_UNPRICED
+}
+const BTN = 'margin:1px;background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;'
+  + 'padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer'
+let askDraft = 0        // the price the owner is dialling in
 const layerArr = []   // reused render layer (perf)
 function flashClick(tx, ty, isAct) {
   effects.push({ kind: 'click', x: tx, y: ty, act: isAct, at: performance.now() })
@@ -5643,6 +5670,22 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
+      if (n.type === 'market') {
+        // A CITIZEN'S STALL: trestles, a cloth, a post with their mark, and
+        // whatever is actually on the shelf standing on the board.
+        shadow(X, Y, 11)
+        cx.fillStyle = '#4a3a24'
+        cx.fillRect(X + 7, Y + 20, 2.4, 8); cx.fillRect(X + 30, Y + 20, 2.4, 8)
+        poly([[X+4,Y+20],[X+20,Y+13],[X+36,Y+20],[X+20,Y+27]], '#7a6038', '#2e2414')
+        cx.fillStyle = '#4a3a20'; cx.fillRect(X + 4, Y + 20, 16, 5)
+        cx.fillStyle = '#3a2c18'; cx.fillRect(X + 20, Y + 20, 16, 5)
+        poly([[X+4,Y+20],[X+12,Y+16],[X+13,Y+23],[X+5,Y+26]], '#6a3030', '#331414')
+        cx.fillStyle = '#3a2f1e'; cx.fillRect(X + 32, Y + 2, 2.2, 18)
+        poly([[X+34,Y+2],[X+42,Y+4],[X+42,Y+10],[X+34,Y+8]], '#8a6a2a', '#3a2c12')
+        const g9 = n.shelf ? Object.keys(n.shelf)[0] : null
+        if (g9) { try { cx.drawImage(itemSprite(g9), X + 13, Y + 6, 16, 16) } catch {} }
+        return
+      }
       if (n.type === 'ossuary') {
         // THE BONE-HOUSE: a low stone chest under an oversailing slab, with
         // names cut into the lid and weathered to nearly nothing.
@@ -6597,7 +6640,10 @@ function drawScene(now) {
       if (tgt) facing[pid] = tgt.x !== p.x ? Math.sign(tgt.x - p.x) : (facing[pid] ?? 1)
     } else if (o && p.x !== o.x) facing[pid] = Math.sign(p.x - o.x)
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
-    const anim = moving ? 'walk' : p.action?.type === 'gather' ? 'gather'
+    // raising a stall reads as work, not as standing still: a builder who
+      // looked idle would be indistinguishable from somebody asleep
+      const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
+        : p.action?.type === 'gather' ? 'gather'
                : p.action?.type === 'attack' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
     const tool = workNode?.type === 'fishing-spot' ? 'rod'
@@ -7234,6 +7280,29 @@ function panel(s) {
   // could walk to the seedsman and stand there. The stock is the engine's own
   // STALL_SELLS -- fixed goods, made from nothing, dearer than a store and
   // always there -- so a stall is bought from exactly as a shelf is.
+  // §6al: YOUR OWN STALL, tended from the bar. Stock is ONE WAY: there is no
+  // button to take it back because there is no verb to take it back, and a
+  // pane that implied otherwise would be lying about the rules.
+  const mineN = Object.entries(s.nodes).find(([, n]) => n.type === 'market' && n.by === myId
+    && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) <= 1)
+  if (mineN) {
+    const [, mk] = mineN
+    const good = mk.shelf ? Object.keys(mk.shelf)[0] : null
+    const qty = good ? mk.shelf[good] : 0
+    const canPut = (me.inventory ?? []).some(sl => sl && sl.item !== 'dragonbow'
+      && (!good || sl.item === good) && qty < 200)
+    sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">YOUR STALL: '
+      + (good ? qty + ' \u00d7 ' + good.replace(/-/g, ' ') : 'empty')
+      + (mk.ask > 0 ? ' at ' + mk.ask + 'g' : ' \u2014 UNPRICED, nothing sells')
+      + ' \u00b7 taken ' + (mk.coin ?? 0) + 'g</div>'
+      + (canPut ? '<button data-stallput="1" style="' + BTN + '">put something on it</button>' : '')
+      + '<button data-stallask="-10" style="' + BTN + '">price -10</button>'
+      + '<button data-stallask="-1" style="' + BTN + '">-1</button>'
+      + '<button data-stallask="1" style="' + BTN + '">+1</button>'
+      + '<button data-stallask="10" style="' + BTN + '">+10</button>'
+      + '<button data-stalltake="1" style="' + BTN + '">take ' + (mk.coin ?? 0) + 'g</button>'
+      + '<button data-stalldown="1" style="' + BTN + '">pull it down</button>'
+  }
   const stallN = Object.values(s.nodes).find(n => n.type === 'stall'
     && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
   if (stallN) {
@@ -7264,6 +7333,33 @@ function panel(s) {
         + (storeN?.shelf?.[it] ? ' (\u00d7' + storeN.shelf[it] + ')' : '') + '</button>').join('')
   }
   sellBar.onclick = (e) => {
+    // §6al: the citizen's own stall
+    const mkE = Object.entries(world.nodes).find(([, n]) => n.type === 'market' && n.by === myId
+      && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) <= 1)
+    if (e.target?.dataset?.stallput !== undefined && mkE) {
+      const good0 = mkE[1].shelf ? Object.keys(mkE[1].shelf)[0] : null
+      const slot = (me.inventory ?? []).findIndex(sl => sl && sl.item !== 'dragonbow'
+        && (!good0 || sl.item === good0))
+      if (slot === -1) { feed('Nothing in your pack belongs on that shelf.'); return }
+      send({ do: 'stock_market', slot })
+      feed('You set it on the shelf. It can only leave by being sold.')
+      return
+    }
+    const dAsk = e.target?.dataset?.stallask
+    if (dAsk !== undefined && mkE) {
+      askDraft = Math.max(0, (mkE[1].ask ?? 0) + (+dAsk))
+      send({ do: 'price_market', ask: askDraft })
+      feed('You ask ' + askDraft + ' gold.')
+      return
+    }
+    if (e.target?.dataset?.stalltake !== undefined && mkE) {
+      send({ do: 'take_market' }); feed('You take the takings.'); return
+    }
+    if (e.target?.dataset?.stalldown !== undefined && mkE) {
+      send({ do: 'dismantle_market' })
+      feed('You pull the stall down. What was on it lies in the grass.')
+      return
+    }
     const i = e.target?.dataset?.sell
     if (i !== undefined) { send({ do: 'sell', slot: +i }); feed('The keeper counts out your coin.') }
     const b = e.target?.dataset?.buy
@@ -7877,6 +7973,18 @@ function invClick(i) {
         pendingLight = { slot: +i, tick: world?.tick ?? 0 } } },
       { label: 'fletch bow', act: () => send({ do: 'fletch', slot: +i, make: 'bow' }) },
       { label: 'fletch staff', act: () => send({ do: 'fletch', slot: +i, make: 'staff' }) },
+      ...(() => {
+        // §6al: raising a stall, asked of the timber it is made of
+        const logs2 = (me.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
+        const ore2 = (me.inventory ?? []).filter(x => x?.item === 'ore').length
+        const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
+        if (already) return [{ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') }]
+        if (logs2 < 16 || ore2 < 8)
+          return [{ label: 'raise a stall (needs 16 logs, 8 ore)',
+                    act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') }]
+        return [{ label: 'raise a stall here (16 logs, 8 ore)', act: () => { send({ do: 'raise_market' })
+          feed('You begin raising a stall. Twenty intervals, and do not move.') } }]
+      })(),
       { label: 'fletch wand', act: () => send({ do: 'fletch', slot: +i, make: 'wand' }) },
       ...bankOpt, ...alchOpt,
     ]); return
@@ -8061,11 +8169,54 @@ cv.addEventListener('click', (e) => {
     return
   }
 
-  for (const [gid, g2] of Object.entries(world.ground ?? {}))
-    if (g2.x === x && g2.y === y) {
+  {
+    // A PILE IS NOT ONE THING, and the dearest is what anybody wants first.
+    // This took whichever entry the object happened to hold first, so a
+    // citizen standing over a spilled pack got an ore and left the plate.
+    const here = Object.entries(world.ground ?? {})
+      .filter(([, g2]) => g2.x === x && g2.y === y)
+      .sort((A, B) => worthRank(B[1].item) - worthRank(A[1].item) || (A[0] < B[0] ? -1 : 1))
+    if (here.length > 1) {
+      // A SCRIPT MAY NAME ANY OF THEM, SO A PERSON MUST BE ABLE TO REACH ANY
+      // OF THEM. This took here[0] and nothing else -- the dearest thing, with
+      // no way to choose -- while an automated citizen could lift the
+      // twenty-seventh item in a heap by naming its id. A window that offers
+      // less than the rules allow is a window that disadvantages the person
+      // using it.
+      const meP = world.players[myId]
+      const wep9 = meP.equipment?.weapon?.item
+      const canUnmake = wep9 === 'heartwood-staff'
+        && (meP.inventory ?? []).some(sl => sl?.item === 'sigil')
+        && Math.max(Math.abs(meP.x - x), Math.abs(meP.y - y)) <= 5
+      chooseAction([
+        ...here.slice(0, 10).map(([gid2, g3]) => ({
+          label: 'take the ' + g3.item.replace(/-/g, ' ') + ((g3.qty ?? 1) > 1 ? ' (' + g3.qty + ')' : ''),
+          act: () => {
+            if (!meP.inventory.some(sl => sl === null)) { feed('Your pack is full.'); return }
+            intent = { kind: 'pickup', id: gid2 }
+          } })),
+        ...(canUnmake ? [{ label: 'unmake the ' + here[0][1].item.replace(/-/g, ' ') + ' (a sigil)',
+          act: () => { send({ do: 'unmake', groundId: here[0][0] })
+            feed('You unmake it where it lies. Nobody will have it now.') } }] : []),
+      ])
+      return
+    }
+    if (here.length) {
+      const [gid, g2] = here[0]
+      // §6aj: a heartwood stave and a sigil unmake it where it lies, five
+      // tiles off -- denial, not theft, and nobody gets it
+      const wep9 = me.equipment?.weapon?.item
+      const near9 = Math.max(Math.abs(me.x - x), Math.abs(me.y - y)) <= 5
+      if (wep9 === 'heartwood-staff' && near9
+          && (me.inventory ?? []).some(sl => sl?.item === 'sigil')) {
+        send({ do: 'unmake', groundId: gid })
+        feed('You unmake the ' + g2.item.replace(/-/g, ' ') + ' where it lies. Nobody will have it now.')
+        return
+      }
       if (!me.inventory.some(sl => sl === null)) { feed('Your pack is full: no room to pick that up.'); return }
       intent = { kind: 'pickup', id: gid }; return
     }
+  }
 
   for (const [id, n] of Object.entries(world.nodes))
     if (n.type === 'plot' && n.x === x && n.y === y) {
@@ -8129,6 +8280,38 @@ cv.addEventListener('click', (e) => {
         send({ do: 'drink' })
         feed('You drink. The cold of it goes all the way down, and you are whole.')
         flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'market') {
+        // A CITIZEN'S STALL: trestles, a cloth, a post with their mark, and
+        // whatever is actually on the shelf standing on the board.
+        shadow(X, Y, 11)
+        cx.fillStyle = '#4a3a24'
+        cx.fillRect(X + 7, Y + 20, 2.4, 8); cx.fillRect(X + 30, Y + 20, 2.4, 8)
+        poly([[X+4,Y+20],[X+20,Y+13],[X+36,Y+20],[X+20,Y+27]], '#7a6038', '#2e2414')
+        cx.fillStyle = '#4a3a20'; cx.fillRect(X + 4, Y + 20, 16, 5)
+        cx.fillStyle = '#3a2c18'; cx.fillRect(X + 20, Y + 20, 16, 5)
+        poly([[X+4,Y+20],[X+12,Y+16],[X+13,Y+23],[X+5,Y+26]], '#6a3030', '#331414')
+        cx.fillStyle = '#3a2f1e'; cx.fillRect(X + 32, Y + 2, 2.2, 18)
+        poly([[X+34,Y+2],[X+42,Y+4],[X+42,Y+10],[X+34,Y+8]], '#8a6a2a', '#3a2c12')
+        const g9 = n.shelf ? Object.keys(n.shelf)[0] : null
+        if (g9) { try { cx.drawImage(itemSprite(g9), X + 13, Y + 6, 16, 16) } catch {} }
+        return
+      }
+      if (n.type === 'market') {
+        const meS = world.players[myId]
+        const good = n.shelf ? Object.keys(n.shelf)[0] : null
+        const qty = good ? n.shelf[good] : 0
+        const adj = Math.abs(meS.x - n.x) + Math.abs(meS.y - n.y) <= 1
+        if (n.by === myId) {
+          if (!adj) { feed('Your stall: ' + (good ? qty + ' ' + good.replace(/-/g, ' ') : 'empty') + '. Walk to it to tend it.'); return }
+          openMyStall(id); return
+        }
+        if (!good) { feed('A stall, and nothing on it.'); return }
+        if (!(n.ask > 0)) { feed('A stall of ' + qty + ' ' + good.replace(/-/g,' ') + ', unpriced. Nothing is for sale.'); return }
+        if (!adj) { feed(qty + ' ' + good.replace(/-/g,' ') + ' at ' + n.ask + ' gold. Walk to it to buy.'); return }
+        send({ do: 'buy', item: good })
+        feed('You buy the ' + good.replace(/-/g, ' ') + ' for ' + n.ask + ' gold.')
         return
       }
       if (n.type === 'ossuary') {

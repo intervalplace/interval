@@ -712,6 +712,28 @@ twenty-eight stones, walk five tiles, empty the pack, mine
 twenty-eight more -- and the six thousand journeys out of the Wilds
 that the whole star economy rests on would evaporate.
 
+**The order of a pile is the world's; the choice is the citizen's.**
+`pickup` names a groundId, and it should -- taking the ore instead of
+the plate is a decision somebody may want to make. But every window
+needs a DEFAULT for a plain click on a heap, and a default is not
+neutral: in a race for a spilled pack the window reaching for the
+plate beats the window reaching for whatever fell first, which is the
+same unfairness as two windows disagreeing about where the Fens are.
+
+**And a window must offer what a script can reach.** `pickup` names a
+groundId, so an automated citizen may lift the twenty-seventh thing in
+a heap. A window that shows eight and ends with a dead label reading
+"and twenty more beneath" is telling a person about an advantage it
+will not give them; one that offers only the dearest is worse. Every
+window must let a citizen reach anything in a pile, by paging or
+otherwise. What may be done by a script may be done by hand.
+
+So `worthRank` lives here. Unpriced does not mean worthless -- the
+dragonbow, the old chain, a sigil and a chart are the four rarest
+things in the world and no keeper prices any of them, so ranking by
+price alone put them BELOW a handful of bones. Forage is the one
+unpriced thing that really is worth nothing.
+
 **Anything but the bow.** A stall takes any known good, including the
 ones no keeper will price: the old chain, a sigil, a chart. A keeper
 declining to price a thing is not the world forbidding its sale, it is
