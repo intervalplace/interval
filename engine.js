@@ -275,7 +275,21 @@ function engineThrow(code, message) { const e = new Error(message); e.code = cod
 // copy of the constitution eventually disagrees with the engine (it
 // happened: signpost text), so neither may define these locally.
 const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'defence', 'hitpoints', 'exploration', 'brewing'];
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength', 'defence', 'hitpoints', 'exploration', 'brewing'];
+// §6as: STRENGTH IS ITS OWN SKILL (v0.86).
+//
+// One skill drove both how often you land and how hard, so there was no build
+// space at all: every fighter in this world was the same fighter, further
+// along. A separate strength is what makes ninety-nine strength at
+// seventy-five attack a genuinely different citizen from the reverse, and it
+// is the thing that lets somebody choose what kind of fighter to be.
+//
+// It is a constitutional change -- a new skill, a new rules hash, a new
+// founding -- which is why it comes last of the combat work and not first.
+//
+// ATTACK decides the roll. STRENGTH decides the blow. Ranged keeps both, for
+// itself, because a bow's draw is the same muscle as its aim; splitting it
+// would need a second ranged skill nobody asked for.
 const EQUIP_SLOTS = ['weapon', 'head', 'body'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
   'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
@@ -489,6 +503,7 @@ function skillUnlocks() {
   // has used, and a window with a genesis to hand may say the real number.
   add('firemaking', 80, 'kindle a watchfire, which the whole country can see');
   add('brewing', BREW_MASTER, DRAUGHTS_MASTER + ' draughts from a pot, instead of ' + DRAUGHTS_PER_POT);
+  add('brewing', DEEP_BROTH_BREW, 'a deep fish makes a DEEP BROTH, which heals ' + HEAL_DEEP_BROTH + ' and stacks');
   add('exploration', EXPLORE_MASTER, 'any rumour yields a chart, to sell to those who would rather not walk');
   for (const [item, req] of Object.entries(WIELD_REQS))
     for (const [skill, lv] of Object.entries(req))
@@ -593,7 +608,8 @@ const STALL_SELLS = {
 // hitpoints has a reason to look at where they are standing rather than what
 // they are carrying.
 //
-// It is deliberately NOT better food. A fixed six, no gullet cooldown, and it
+// It is deliberately NOT better food. A fixed six -- the same as a cooked fish
+// now that the gullet is repealed -- and it
 // rots in fifty intervals -- half of what anything else on the ground lasts --
 // so its worth is TIMING and never throughput. Nobody farms it; there is
 // nothing to farm.
@@ -692,6 +708,50 @@ const DEEDS = ['alch', 'unmake', 'drink', 'eat', 'bury', 'forage', 'mendp', 'inv
   'cast', 'recall', 'pickup', 'drop', 'buy', 'sell', 'deposit', 'withdraw'];
 const DEED_SET = new Set(DEEDS);
 
+// §6am: YOU CANNOT BE PAID TWICE FOR ONE INTERVAL.
+//
+// A gather is an ACTION: it runs on by itself, interval after interval, and
+// costs no input once given. An instant deed costs the input. So a citizen who
+// set a pickaxe going and then transmuted, fletched, smithed, cooked, buried,
+// or pressed a sigil was earning TWO skills at full rate from one interval,
+// for as long as the rock lasted -- and every one of these left the action
+// running. Only drinking, mending and the stilling stopped it, and those three
+// are the ones that teach nothing.
+//
+// The line is what a deed TEACHES. A deed that pays experience ends whatever
+// else the citizen had going; eating, drinking, picking a thing up, banking
+// and trading do not, because they pay nothing and a citizen should be able to
+// eat without losing their tree.
+// §2b-iv: THE MARK AND THE ANSWER, IN ONE PLACE.
+//
+// `brandedUntil` was assigned in exactly one line of this engine, inside
+// `attackp`. The `special` handler deals damage, kills, spills packs and ends
+// fights -- and never branded, and carried no copy of the retaliation that
+// makes a struck citizen strike back. Measured: identical kill speed, no mark,
+// and no damage taken, because the victim never answered.
+//
+// Every §2b enforcement hung off that one line, so a band that only ever sent
+// `special` was invisible to the law: no keeper refused them, no stone was
+// closed, prayer still covered them, and nobody was licensed to hunt them.
+// "A raiding party marks itself in public and cannot deny having been one" was
+// true of one verb out of two.
+//
+// So the mark and the answer live here, and BOTH paths call it. A future third
+// way of hurting somebody will call it too, or it will be obvious in review
+// that it did not.
+function strikeConsequences(s, pid, p, target, targetId) {
+  if (!target) return;
+  const already = (target.brandedUntil ?? 0) > s.tick;
+  const swingingBack = target.action?.type === 'attackp' && target.action.targetId === pid;
+  if (!swingingBack && !already) p.brandedUntil = s.tick + BRAND_TICKS;
+  if (target.hp > 0 && target.action?.type !== 'attackp' && target.action?.type !== 'attack')
+    target.action = { type: 'attackp', targetId: pid, since: s.tick + 1 };
+}
+
+const TEACHES = new Set(['alch', 'unmake', 'bury', 'fletch', 'smith', 'cook',
+  'invoke', 'stoke', 'plant', 'harvest', 'light', 'kindle', 'brew', 'collect',
+  'survey', 'build_brewpot', 'raise_market']);
+
 const DEATH_TICKS = 5; // the world holds its breath; windows may grieve
 
 // ---------------------------------------------------------------------------
@@ -732,6 +792,22 @@ const XP_COOK = 30;
 // nobody carrying brews could die, so death, the Wilds and the brand were all
 // decoration. Eating mid-fight stays legal, as §6m intends. It simply has a
 // rate now, and that rate is what makes a beast dangerous to the unready.
+// §6m-iii: THE GULLET RHYTHM IS REPEALED.
+//
+// It was written in v0.41 because nothing in this world could kill anybody,
+// and a citizen with brews ate every interval and was immortal. That reason is
+// long gone. What it was defended with afterwards -- that food would otherwise
+// out-heal damage -- does not survive arithmetic: the old chain lands up to
+// eleven EVERY interval, a maul special seventeen, the long shot thirty, and a
+// fish heals six. Nothing about eating has ever made a citizen unkillable
+// against anything that could really hurt them.
+//
+// What is left is the cost that actually bites, and it arrived tonight: a meal
+// SPENDS THE ARM. Eat every interval if you like -- you will heal six and deal
+// nothing, and anybody serious will kill you anyway or simply walk off. The
+// brake is that eating is not fighting, which needs no constant at all.
+//
+// The value stays for old states, which carry `lastAte`, and for nothing else.
 const EAT_EVERY = 8;
 // the stilling (v0.80): magic's capstone. The stilled cannot act, and
 // cannot be struck, a truce, enforced, cast to break off a fight and
@@ -771,6 +847,7 @@ const HEAL_DEEP_FISH = 10;
 const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish';
 const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
   : item === 'cooked-deep-fish' ? HEAL_DEEP_FISH
+  : item === 'deep-broth' ? HEAL_DEEP_BROTH
   : item === 'broth' ? HEAL_BROTH
   : item === 'ale' ? HEAL_ALE : 0;
 const COOK_DEEP_REQ = 80;       // a cook to match the fisher
@@ -782,6 +859,23 @@ const GRAIN_PER_PLOT = 2, GRAIN_MASTER = 3, FARM_MASTER = 90;
 const MASTER_YIELD = 90, HEARTWOOD_FLETCH = 90;
 const XP_COOK_DEEP = 90;
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
+// §6an: THE DEEP BROTH, and why it is eight rather than ten.
+//
+// A deep fish already brewed -- into ordinary broth, five, the same as any
+// fish out of the shallows, so a master fisher's catch was worth no more in a
+// pot than a beginner's. This is the same shape as woodcutting ninety giving
+// heartwood where a lesser axe gives logs.
+//
+// EIGHT, and not ten, because the cooked deep fish must stay worth cooking:
+// ten in one slot against eight that stacks is a real choice, and ten against
+// ten is not. The ladder stays evenly spaced -- ale four, broth five, a cooked
+// fish six, a deep broth eight, a cooked deep fish ten -- with no gap wide
+// enough to make the rungs beneath it pointless.
+//
+// AND IT IS NOT DOUBLED. A brewer of ninety draws two draughts from a pot, and
+// two eights would be sixteen against the cooked fish's ten, which would end
+// cooking as a trade. A deep fish makes ONE draught; there is no second in it.
+const HEAL_DEEP_BROTH = 8, DEEP_BROTH_BREW = 90;
 // AND WHAT A MASTER BREWER GETS, which was nothing at all.
 //
 // Brewing was the one skill in the world whose levels bought NOTHING: no gate
@@ -1163,6 +1257,21 @@ const MOB_STATS = {
 // single largest restoration in the world. At magic 20 it arrived before most
 // of what it saves you from. Fifty, alongside the starmetal it is worn with.
 const MEND_REQ = 50;
+// §6ao: A MENDING HAS A RHYTHM.
+//
+// It healed twenty, cost a sigil, and had no rate at all -- one cast an
+// interval, for as many sigils as the pack held. Twenty-seven sigils is five
+// hundred and forty extra hitpoints; measured against the best weapon in the
+// world, survival went from thirty intervals to a hundred and eighty-four.
+//
+// A mender cannot WIN, because casting spends the arm. But two prepared
+// citizens could not resolve a fight at all, and that -- rather than any
+// damage number -- was the binding constraint on the top of this world.
+//
+// Twenty-five intervals: fifteen seconds. Slower than the gullet ever was,
+// because a mending is four times a fish and made of three magic-stone out of
+// the Wilds. It is the emergency, not the diet.
+const MEND_EVERY = 25;
 const MENDP_RANGE = 4;
 // §6aj: UNMAKING AT RANGE, which is denial and not theft.
 //
@@ -1353,6 +1462,7 @@ const PRICES = {
   // margin rather than a fletcher's windfall, and the woodcutter who spent
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -1460,7 +1570,7 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
   // §6ad: what a master brings back from the same tree and the same water
-  'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'heartwood-bow',
+  'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'deep-broth', 'heartwood-bow',
   'bones', 'dragon-bones', 'arrows', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
   'staff', 'heartwood-staff', 'wand',
@@ -1547,7 +1657,103 @@ const consumeLogs = (inv, n) => {           // spends ordinary logs first, heart
   return left === 0;
 };
 const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? (sl.qty ?? 0) : 0), 0);
-const SOAK = (item) => item?.startsWith('star-') ? 2 : 1; // starmetal turns aside more
+// §6ap: ARMOUR IS NOT A SUBTRACTION.
+//
+// SOAK took a flat two a piece off every blow, against a maxHit that never
+// passes about fourteen. That halved damage at ninety-nine and approached
+// immunity below it, and it made a star-clad duel a minute of uninterrupted
+// swinging for single-digit hits: "2, 2, 2". A miss is dramatic; a two is not.
+//
+// Armour now makes you HARDER TO HIT rather than harder to hurt. The same
+// duel lasts about as long -- sixty seconds against the sixty-six it took
+// before -- but it reads as "miss, miss, THIRTEEN", which is a fight.
+//
+// It also repairs the maul without touching the maul: its whole problem was
+// that low accuracy was punished twice, once in the roll and again by a soak
+// its slow cadence could not out-pace.
+const ARMOUR = { 'bronze-helm': 8, 'bronze-plate': 12, 'star-helm': 16, 'star-plate': 24 };
+const armourOf = (q) => (ARMOUR[q?.equipment?.head?.item] ?? 0)
+                      + (ARMOUR[q?.equipment?.body?.item] ?? 0);
+
+// §6aq: AND STEEL IS HEAVY.
+//
+// Armour that only helps is not a choice, it is a checklist -- everybody wears
+// the best they own and going without is a handicap rather than a build. A
+// substantial suit adds ONE INTERVAL to the weapon's cadence, so a naked
+// citizen genuinely swings faster than a clad one.
+//
+// Measured at ninety-nine with star swords: the naked citizen deals 0.99 a
+// tick against a full suit, the clad citizen 1.07 against bare skin. Nine per
+// cent -- a real choice rather than an obvious one. At +2 speed would simply
+// win, which would be the same mistake pointing the other way.
+//
+// Twenty is the threshold: a full bronze suit or any single starmetal piece.
+// A lone bronze helm is not enough to slow anybody down, which is right; it is
+// barely armour.
+const ARMOUR_SLOW = 20;
+
+// §6ar (REPEALED, v0.86): VIGOUR IS NOT NEEDED, AND NEVER WAS.
+//
+// A review found specials damage-NEGATIVE -- 1.47 a tick against 1.84 for
+// simply swinging -- and concluded that no burst was possible in this world
+// and that a regenerating pool was the only way to create one. A pool was
+// built on that finding.
+//
+// The finding was an artefact of defect 1.3. The arm was being spent for
+// `every + 1` instead of `every`, because the handler wrote `s.tick + every`
+// after `s.tick` had already advanced. With that single off-by-one corrected,
+// the original design is exactly what it claimed:
+//
+//   a star-dagger at ninety-nine, average blow 3.22
+//   ordinary:  one blow every two intervals   = 1.612 a tick
+//   special:   TWO blows, then four idle      = 1.612 a tick
+//
+// Neutral over time, and two blows landing in ONE interval. That is a burst.
+// It was always there; it was hidden behind a tick.
+//
+// The pool is gone. It made a special damage-POSITIVE when banked, which is
+// the one property this design exists to refuse, and once chaining was closed
+// it produced exactly the rhythm the arm already produced -- a resource that
+// changed nothing but the number of things to track.
+//
+// The lesson is worth more than the mechanic: a measurement taken over a
+// defect will recommend a feature to fix the defect. Repair first, then
+// measure, then design.
+const cadenceOf = (q, every) => every + (armourOf(q) >= ARMOUR_SLOW ? 1 : 0);
+
+// §6ap: AND THE ACCURACY IS A RATIO, NOT A CLAMP.
+//
+// `clamp(128 + 4*(atk - def) + acc, 16, 240)` saturated at a twenty-eight
+// level gap, so against a ninety-nine attacker DEFENCE 1 THROUGH 71 WERE
+// LITERALLY IDENTICAL: seventy levels bought nothing. It was symmetric --
+// attack 50, 60 and 71 all sat at 6.3% against a defence-99 target -- and
+// against a low-defence target everything clamped to the ceiling, so weapon
+// accuracy stopped existing and the whole table collapsed to maxHit/every.
+//
+// Ratios asymptote instead of clamping, so every level keeps buying
+// something and no two builds are the same character. Integer arithmetic
+// throughout: this decides fights, and every node must agree to the bit.
+// §6x-ii: AND `pierces` NOW MEANS THE ARMOUR IS NOT THERE.
+//
+// The flail's whole identity was that it ignored SOAK -- "the only weapon in
+// the world that ignores this subtraction", paid for with the lowest base
+// damage of any steel. Moving armour out of the damage and into the roll
+// deleted that identity in one line: `pierces` had nothing left to ignore, and
+// the flail became simply a weak sword.
+//
+// The translation is exact rather than approximate. Armour used to subtract
+// from the blow and the flail went round it; armour now subtracts from the
+// CHANCE, and the flail goes round that. A citizen in a full star suit is as
+// easy to hit with a flail as a naked one -- which is what the weapon has
+// always meant, expressed in the new currency.
+function hitChance256(atkLvl, defLvl, weaponAcc, armour) {
+  const A = (atkLvl + 8) * (weaponAcc + 64);
+  const D = (defLvl + 8) * (armour + 64);
+  if (A <= 0 || D <= 0) return 16;
+  const raw = A > D ? 256 - Math.floor((128 * (D + 2)) / (A + 1))
+                    : Math.floor((128 * A) / (D + 1));
+  return Math.max(8, Math.min(250, raw));
+}
 const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
 // WHAT COUNTS AS THE RIGHT TOOL, and what it is worth.
 //
@@ -2782,7 +2988,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed']);
+  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -3035,7 +3241,11 @@ const LANDMARK_KINDS = new Set([
       if (!state.players[n.by]) return 'brewpot owner does not exist';
       if ((n.readyAt !== undefined) !== (n.brewKind !== undefined)) return 'brewpot half-fermenting';
       if (n.readyAt !== undefined && !isInt(n.readyAt, 0, MAX_TIME)) return 'brewpot readyAt out of bounds';
-      if (n.brewKind !== undefined && n.brewKind !== 'ale' && n.brewKind !== 'broth') return 'bad brewKind';
+      // §6an: and the deep broth. A pot may hold any of the three; leaving it
+      // out here would have let a master brew one and then found the world
+      // unconstitutional the moment it did.
+      if (n.brewKind !== undefined && n.brewKind !== 'ale' && n.brewKind !== 'broth'
+          && n.brewKind !== 'deep-broth') return 'bad brewKind';
       if (n.lastUsed !== undefined && !isInt(n.lastUsed, 0, MAX_TIME)) return 'brewpot lastUsed out of bounds';
       if (n.plantedAt !== undefined) return 'brewpot carries plot metadata';
     } else if (n.type === 'watchfire') { // owned public light, fed by logs (v0.53)
@@ -3207,7 +3417,7 @@ function firstFreeSlot(inv) {
 // ---------- shared inventory helpers (fix brief 7.5) ----------
 // One vocabulary for every stack mutation. All deterministic; all mutate
 // only through explicit calls. STACKABLE names the items that pool.
-const STACKABLE = new Set(['arrows', 'grain', 'seeds', 'ale', 'broth']);
+const STACKABLE = new Set(['arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth']);
 
 function countItem(inv, item) {
   let n = 0;
@@ -3564,6 +3774,7 @@ function validInput(state, input, ctx) {
       // see the note on WEAPONS: the cost confines it.
       const w9 = WEAPONS[p.equipment?.weapon?.item];
       if (!w9?.spec) return false;
+
       // §6af: 'now' interrupts your own rhythm ONCE — it does not exempt you
       // from the cost. This read `spec !== 'now'`, which skipped the arm check
       // entirely and let the maul special EVERY TICK forever: seven to
@@ -3575,7 +3786,7 @@ function validInput(state, input, ctx) {
       // by a special. One interruption, then the full price.
       if (w9.spec === 'now') {
         if ((p.lastSwing ?? -64) > state.tick) return false;
-      } else if (state.tick - (p.lastSwing ?? -64) < (w9.every ?? 2)) return false;
+      } else if (state.tick - (p.lastSwing ?? -64) < cadenceOf(p, w9.every ?? 2)) return false; // §6aq
       const q9 = state.players[input.targetId];
       if (!q9 || q9.hp <= 0 || input.targetId === input.playerId) return false;
       if ((q9.stilledUntil ?? 0) > state.tick || (p.stilledUntil ?? 0) > state.tick) return false;
@@ -3766,7 +3977,12 @@ function validInput(state, input, ctx) {
         return p.inventory.some((sl) => sl?.item === 'sigil');
       }
       if (input.spell === 'mend') // v0.41: the same sigil, a deeper use
-        return effLevel(p.skills.magic) >= MEND_REQ && p.inventory.some(sl => sl?.item === 'sigil');
+        // §6ao: the rhythm is checked HERE too. Accepting the input and then
+        // doing nothing spends the citizen's whole interval on silence -- the
+        // validator/executor drift this file has been bitten by five times.
+        return effLevel(p.skills.magic) >= MEND_REQ
+          && p.inventory.some(sl => sl?.item === 'sigil')
+          && state.tick - (p.lastMend ?? -MEND_EVERY) >= MEND_EVERY;
       return false;
     }
     case 'survey': { // stand on a marker to survey it (v0.50)
@@ -3921,7 +4137,7 @@ function validInput(state, input, ctx) {
     }
     case 'eat': {
       const slot = p.inventory[input.slot];
-      if (state.tick - (p.lastAte ?? -EAT_EVERY) < EAT_EVERY) return false; // §6m: the gullet has a rhythm
+      // §6m-iii: no gullet rhythm. A meal costs a swing, and that is the whole cost.
       // §6ad: FOOD IS ASKED ONCE. This was a hardcoded list of three, so
       // `cooked-deep-fish` -- the best food in the world, gated behind
       // fishing 90 and cooking 80 -- simply could not be eaten. The same
@@ -4769,9 +4985,14 @@ function nextState(state, inputs, _legacyBeacon) {
         // mirrored: her accuracy is the citizen's own attack against their own
         // defence, which is what makes it a coin flip decided by supplies
         const useAtk = st.mirrors ? effLevel(target.skills.attack) : st.atk;
-        const Tm = clamp(128 + 4 * (useAtk - defLvl), 16, 240);
+        // §6ap: the beasts roll on the same ratio as everybody else, and
+        // armour enters HERE for them too. Leaving them on the old clamp with
+        // a subtraction would have made steel work one way against a citizen
+        // and another way against a wolf, which is the sort of split nobody
+        // can hold in their head.
+        const Tm = hitChance256(useAtk, defLvl, 0, armourOf(target));
         if (st.mirrors && mirrorReach > 1 && best > 1 && m.quiver !== undefined) m.quiver -= 1;
-        if (roll(beacon, mid, 'mobatk') < Tm) {
+        if (canBreathe || roll(beacon, mid, 'mobatk') < Tm) {   // §6x: a breath cannot be dodged
           // §6x: armour turns a blow aside, and a breath goes round it. Fire
           // does not care how much steel is between it and you.
           // §6ae: STARMETAL TURNS FIRE. Bronze does not.
@@ -4784,11 +5005,11 @@ function nextState(state, inputs, _legacyBeacon) {
           //
           // Half soak against fire, not full: it turns the flame, it does not
           // pretend the flame is not there.
-          const headM = target.equipment.head?.item, bodyM = target.equipment.body?.item;
-          const starSoak = (headM?.startsWith('star-') ? SOAK(headM) : 0)
-                         + (bodyM?.startsWith('star-') ? SOAK(bodyM) : 0);
-          const soak = canBreathe ? Math.floor(starSoak / 2)
-            : (headM ? SOAK(headM) : 0) + (bodyM ? SOAK(bodyM) : 0);
+          // §6ap: and nothing is subtracted -- except that FIRE STILL GOES
+          // ROUND STEEL. A breath ignores the armour in the roll above by
+          // being unmissable; that is now the whole of its privilege, and it
+          // is a bigger one than the half-soak it replaces.
+          const soak = 0;
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : st.maxHit);
           target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
@@ -5021,6 +5242,10 @@ function nextState(state, inputs, _legacyBeacon) {
     // A deed that takes longer than an interval sets `action` instead, and
     // always did.
     if (DEED_SET.has(inp.type) && s.players[pid]) s.players[pid].deed = inp.type;
+    // §6am: and a deed that teaches ends whatever else was running, in ONE
+    // place so no future verb can quietly forget. Set BEFORE the branch, so a
+    // branch that starts its own action (raising a stall) overwrites it.
+    if (TEACHES.has(inp.type) && s.players[pid]) s.players[pid].action = null;
     if (inp.type === 'restore') {
       // Back exactly as they left, and present, so the sweep does not turn
       // round and archive them again on the same tick. The slot they came
@@ -5393,6 +5618,11 @@ function nextState(state, inputs, _legacyBeacon) {
       const q = s.players[inp.targetId];
       const w9 = WEAPONS[p.equipment?.weapon?.item];
       if (q && q.hp > 0 && w9?.spec && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y)) {
+        // §2b-iv: the mark and the answer, BEFORE the blow -- so a special that
+        // kills outright still brands, and the victim's own answer is set even
+        // if they do not live to swing it. Hitting somebody is hitting somebody
+        // whichever verb carried it.
+        strikeConsequences(s, pid, p, q, inp.targetId);
         const drawn9 = drawnAt(p, q);
         if (drawn9) {                       // a drawn shot still costs its arrow
           const aS = p.inventory.findIndex((sl) => sl?.item === 'arrows');
@@ -5437,11 +5667,14 @@ function nextState(state, inputs, _legacyBeacon) {
         // one of it at touching range, two of it at the end of nine tiles.
         // Neutral at full stretch whatever your ranged is, a loss everywhere
         // nearer, and it scales with the skill the way the ordinary shot does.
-        const ord9 = 1 + Math.floor(lvl9 / (drawn9 ? 12 : 10)) + (w9.hit ?? 0);
+        // §6as: a special's blow is strength's too, and its roll is attack's
+        const pow9 = drawn9 ? lvl9 : effLevel(p.skills.strength);
+        const ord9 = 1 + Math.floor(pow9 / (drawn9 ? 12 : 10)) + (w9.hit ?? 0);
         const maxHit9 = w9.spec === 'far'
           ? Math.max(1, Math.floor(ord9 * (8 + Math.max(0, far9 - 1)) / 8))
-          : 1 + Math.floor(lvl9 / 10) + (w9.hit ?? 0);
-        const acc9 = clamp(128 + 4 * (lvl9 - defL9) + (w9.acc ?? 0), 16, 240);
+          : 1 + Math.floor(pow9 / 10) + (w9.hit ?? 0);
+        const acc9 = hitChance256(lvl9, defL9, w9.acc ?? 0,
+          w9.pierces === true ? 0 : armourOf(q)); // §6x-ii: a flail ignores steel
         const blows = w9.spec === 'twice' ? 2 : 1;
         for (let b9 = 0; b9 < blows; b9++) {
           // 'true' cannot miss; the others roll as any blow does
@@ -5456,9 +5689,9 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6x says it is "the only weapon in the world that ignores this
           // subtraction", and pays for it with the lowest base damage of any
           // steel. Two weapons cannot both be the only one.
-          const soak9 = (weaponOf(p)?.pierces === true) ? 0
-            : (q.equipment.head ? SOAK(q.equipment.head.item) : 0)
-            + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
+          // §6ap: armour is in the ROLL now, not in the damage. It subtracts
+          // nothing, so a blow that lands lands whole.
+          const soak9 = 0;
           const dmg9 = Math.max(0, 1 + (roll(beacon, pid, 'specd' + b9) % maxHit9) - soak9);
           q.hp -= dmg9;
           p.skills[drawn9 ? 'ranged' : 'attack'] += 4 * dmg9;
@@ -5471,12 +5704,28 @@ function nextState(state, inputs, _legacyBeacon) {
             // except whatever a mourner carries through, which is taken out of
             // the spill exactly once each
             const held = keptQ.map((k) => ({ ...k, taken: false }));
-            for (const sl of q.inventory) if (sl) {
+            const qid9 = inp?.targetId ?? q.id ?? 'v';
+            let sl9 = -1;
+            for (const sl of q.inventory) { sl9++; if (!sl) continue; {
               const m9 = held.find((k) => !k.taken && k.item === sl.item && k.qty === (sl.qty ?? 1));
               if (m9) { m9.taken = true; continue; }
-              s.ground['g' + s.tick + '-' + Object.keys(s.ground).length] =
+              // §2b-v: CONTENT-ADDRESSED, like every other ground key here.
+              //
+              // This was `g{tick}-{ground.length}` -- the only positional key
+              // in the engine, where `drop` uses g{tick}-{pid}-{slot} and mob
+              // drops use g{tick}-{mobId}-{i}-{item}. If the ground SHRANK
+              // between two spills in one interval, the second reused the
+              // first's key and destroyed it. Reproducible: a special kills
+              // one citizen, somebody picks up an unrelated pile, an attackp
+              // kills a second in the action phase, and the first citizen's
+              // pack is simply gone.
+              //
+              // Griefable, not merely wrong: inputs apply in sorted playerId
+              // order, so a patient griefer can grind a key that sorts after a
+              // killer's and delete other people's kills on purpose.
+              s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
-            }
+            } }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
@@ -5485,7 +5734,23 @@ function nextState(state, inputs, _legacyBeacon) {
           }
         }
         // THE COST: the arm is spent for this cycle AND the next
-        p.lastSwing = s.tick + (w9.every ?? 2);
+        // §6af-ii: THE COST, and it must be the cost the VALIDATOR quoted.
+        //
+        // The validator checks the arm against `state.tick`; this runs after
+        // `s.tick = state.tick + 1`, so writing `s.tick + every` charged
+        // every + 1. A special quietly cost an interval more than the rule
+        // said, and the extra interval refused a legitimate second blow in a
+        // way indistinguishable from lag -- exactly the failure §6b names for
+        // the old hardcoded bow reach.
+        // §6af: THE COST -- this cycle and the next, which is what makes the
+        // special exactly neutral over time and a burst in the moment. Written
+        // against the validator's tick, not the advanced one (defect 1.3).
+        //
+        // It is also what stops `now` chaining: the arm is spent INTO THE
+        // FUTURE, so a second special cannot follow. One interruption, then
+        // the full price -- which is what §6af always said and what the pool
+        // quietly undid.
+        p.lastSwing = (s.tick - 1) + (w9.every ?? 2);
         p.action = null;
       }
     } else if (inp.type === 'attackp') {
@@ -5512,11 +5777,8 @@ function nextState(state, inputs, _legacyBeacon) {
         // minutes a raider may be hunted, in the Wilds, by anybody, at no cost
         // -- which is the danger the mark never had, and it costs the world
         // nothing outside the one country where blood is already legal.
-        const q3 = s.players[inp.targetId];
-        const alreadyMarked = (q3?.brandedUntil ?? 0) > s.tick;
-        const swingingBack = q3?.action?.type === 'attackp' && q3.action.targetId === pid;
-        if (q3 && !swingingBack && !alreadyMarked)
-          p.brandedUntil = s.tick + BRAND_TICKS;
+        // §2b-iv: one helper, called from here AND from `special`
+        strikeConsequences(s, pid, p, s.players[inp.targetId], inp.targetId);
       }
     } else if (inp.type === 'plant') {
       const sl = p.inventory[inp.slot];
@@ -5603,9 +5865,21 @@ function nextState(state, inputs, _legacyBeacon) {
       if (claimFirst(s, 'still', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the FIRST stilling. The fight simply stops.');
     } else if (inp.type === 'cast') {
       const si = p.inventory.findIndex(sl => sl?.item === 'sigil');
-      if (inp.spell === 'mend' && si !== -1) {
+      if (inp.spell === 'mend' && si !== -1 && s.tick - (p.lastMend ?? -MEND_EVERY) >= MEND_EVERY) {
+        p.lastMend = s.tick;
         p.inventory[si] = null;
         p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + 20); // v0.41: a strong heal (+20), not a full reset, keeps mend premium without making sigil-stackers unkillable
+        // §6m-iv: AND IT SPENDS THE ARM, as a meal does.
+        //
+        // A cooked fish restores six and costs a swing. A mending restored
+        // TWENTY and cost nothing at all -- the `p.action = null` above belongs
+        // to the stilling, not to this. So the best heal in the world was also
+        // the only free one, which is backwards.
+        //
+        // One rule covers both: whatever restores YOUR OWN hitpoints spends
+        // your arm. Being mended by somebody else stays free to the wounded,
+        // and that asymmetry is the whole reason to fight in a pair.
+        p.lastSwing = Math.max(p.lastSwing ?? 0, s.tick);
         p.skills.magic += 55; // v0.80 parity retune
       } else if (inp.spell === 'anchor' && si !== -1) {
         p.inventory[si] = null;
@@ -5695,13 +5969,18 @@ function nextState(state, inputs, _legacyBeacon) {
       if (bp && bp.type === 'brewpot' && bp.by === pid && bp.readyAt === undefined
           && atOrBeside(p, bp) && sl && (sl.item === 'grain' || isRawFood(sl.item))) {
         removeItem(p.inventory, inp.slot, 1);
-        bp.brewKind = sl.item === 'grain' ? 'ale' : 'broth';
+        // §6an: a deep fish in the hands of a master brewer is a deep broth
+        bp.brewKind = sl.item === 'grain' ? 'ale'
+          : (sl.item === 'deep-fish' && effLevel(p.skills.brewing) >= DEEP_BROTH_BREW)
+            ? 'deep-broth' : 'broth';
         bp.readyAt = s.tick + s.genesis.brew.ferment; bp.lastUsed = s.tick; // the world does the waiting (spec 8)
       }
     } else if (inp.type === 'collect') {
       const bp = s.nodes[inp.nodeId];
       if (bp && bp.type === 'brewpot' && bp.by === pid && atOrBeside(p, bp) && bp.readyAt !== undefined && s.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind)) {
-        const draughts = effLevel(p.skills.brewing) >= BREW_MASTER
+        // §6an: the deep broth is never doubled -- one fish, one draught
+        const draughts = (bp.brewKind !== 'deep-broth'
+          && effLevel(p.skills.brewing) >= BREW_MASTER)
           ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
         addItem(p.inventory, bp.brewKind, draughts);
         p.skills.brewing += s.genesis.brew.xpPerBatch; // XP lands on the completed batch
@@ -5914,11 +6193,32 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'eat') {
       const slot = p.inventory[inp.slot];
       const heal = !slot ? 0 : healOf(slot.item);
-      if (heal > 0 && s.tick - (p.lastAte ?? -EAT_EVERY) >= EAT_EVERY) {
-        p.lastAte = s.tick;
+      if (heal > 0) {
         removeItem(p.inventory, inp.slot, 1); // stackable brews draw from the stack; a fish clears its slot
         p.hp = Math.min(p.hp + heal, effLevel(p.skills.hitpoints));
-        // v0.32 (spec 6m): eating does not lower your guard; the fight holds
+        // §6m-ii: AND IT COSTS A SWING.
+        //
+        // v0.32 said eating does not lower your guard, and the fight still
+        // holds -- the ACTION is untouched, so nobody has to give an order
+        // again. But swallowing something cost nothing at all: full healing
+        // and a blow in the same interval, so a fight was decided by who
+        // brought more food and never by when they ate it.
+        //
+        // The arm is spent, exactly as a special spends it, so the next blow
+        // comes a cycle later. One swing in eight -- the gullet allows no more
+        // than that -- so it is a tempo cost and not a survivability one.
+        //
+        // The RATE stays, and its reason has changed. It was written when
+        // nothing in this world could kill anybody; now it is the only thing
+        // stopping food from out-healing damage. Without it a citizen eating
+        // every other interval restores three a tick against the two a sword
+        // at ninety-nine lands, and fights become a question of who empties
+        // their pack first.
+        //
+        // A MENDING FROM SOMEBODY ELSE COSTS THE WOUNDED NOTHING, and that is
+        // deliberate: twenty hitpoints and they never break rhythm. Fighting
+        // in a pair should be worth something that fighting alone is not.
+        p.lastSwing = Math.max(p.lastSwing ?? -EAT_EVERY, s.tick);
       }
     } else if (inp.type === 'cook') {
       // re-check against new state; instant, same-tick resolution (§6a)
@@ -5978,7 +6278,7 @@ function nextState(state, inputs, _legacyBeacon) {
         && p.inventory.some((sl) => sl?.item === 'arrows');
       const near = both && (inReach(p, q) || bowHeld);
       if (!near) { p.action = null; }
-      else if (s.tick - (p.lastSwing ?? -64) < (weaponOf(p)?.every ?? 2)) {
+      else if (s.tick - (p.lastSwing ?? -64) < cadenceOf(p, weaponOf(p)?.every ?? 2)) { // §6aq
         /* combat breathes (6m, 2b-iii): the arm has not recovered, and turning
            to a different foe does not give it back. The chain never rests (6r). */ }
       else {
@@ -5994,16 +6294,20 @@ function nextState(state, inputs, _legacyBeacon) {
         // spent NOTHING over a hundred ticks of shooting. The swing ordinal is
         // what alternates.
         if (!(weaponOf(p)?.thrift === true
-              && Math.floor(s.tick / (weaponOf(p)?.every ?? 2)) % 2 === 1)) {   // §6y
+              && Math.floor(s.tick / cadenceOf(p, weaponOf(p)?.every ?? 2)) % 2 === 1)) {   // §6y, §6aq
             p.inventory[aSlot].qty -= 1;
             if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
           }
           lvl2 = effLevel(p.skills.ranged); tag2 = 'ranged';
         } else { lvl2 = effLevel(p.skills.attack); tag2 = 'attack'; }
         const defL = effLevel(q.skills.defence);
-        const Tp = clamp(128 + 4 * (lvl2 - defL) + (weaponOf(p)?.acc ?? 0), 16, 240);
+        const Tp = hitChance256(lvl2, defL, weaponOf(p)?.acc ?? 0,
+          weaponOf(p)?.pierces === true ? 0 : armourOf(q)); // §6x-ii
         if (roll(beacon, pid, 'atk') < Tp) {
-          const maxHit = 1 + Math.floor(lvl2 / (bowDrawn2 ? 12 : 10))
+          // §6as: the BLOW is strength's, the roll is attack's -- except for a
+          // bow, where the same draw does both and lvl2 is ranged.
+          const powLvl = bowDrawn2 ? lvl2 : effLevel(p.skills.strength);
+          const maxHit = 1 + Math.floor(powLvl / (bowDrawn2 ? 12 : 10))
             + (weaponOf(p)?.hit ?? 0);
           // §6x: A FLAIL GOES ROUND THE PLATE, not through it.
           //
@@ -6016,13 +6320,18 @@ function nextState(state, inputs, _legacyBeacon) {
           // It pays for it everywhere else: its base damage is the lowest of
           // any steel, so against an unarmoured citizen it is simply worse.
           // An answer to one thing, not an upgrade to everything.
-          const pierces = weaponOf(p)?.pierces === true;
-          const soak = pierces ? 0
-            : (q.equipment.head ? SOAK(q.equipment.head.item) : 0)
-            + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
+          // §6ap: armour is in the roll, not the damage
+          const soak = 0;
           const dmg = Math.max(0, 1 + (roll(beacon, pid, 'dmg') % maxHit) - soak);
           q.hp -= dmg;
-          p.skills[tag2] += 4 * dmg;
+          // §6as: a landed blow teaches BOTH -- the aim that found them and the
+          // arm that hurt them -- split evenly, so a fighter's two numbers rise
+          // together unless they deliberately train one alone.
+          if (bowDrawn2) p.skills[tag2] += 4 * dmg;
+          else {
+            p.skills.attack += 2 * dmg;
+            p.skills.strength += 2 * dmg;
+          }
           p.skills.hitpoints += dmg;
           if (q.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
               && (p.rootCdUntil ?? 0) <= s.tick && (q.rootedUntil ?? 0) <= s.tick && (q.rootImmuneUntil ?? 0) <= s.tick) {
@@ -6040,12 +6349,28 @@ function nextState(state, inputs, _legacyBeacon) {
             // what a mourner carries through, decided BEFORE the pack spills
             const keptQ = prayerKeeps(q, s.tick);
             const held = keptQ.map((k) => ({ ...k, taken: false }));
-            for (const sl of q.inventory) if (sl) {
+            const qid9 = p.action.targetId;   // the victim, named
+            let sl9 = -1;
+            for (const sl of q.inventory) { sl9++; if (!sl) continue; {
               const m9 = held.find((k) => !k.taken && k.item === sl.item && k.qty === (sl.qty ?? 1));
               if (m9) { m9.taken = true; continue; }
-              s.ground['g' + s.tick + '-' + Object.keys(s.ground).length] =
+              // §2b-v: CONTENT-ADDRESSED, like every other ground key here.
+              //
+              // This was `g{tick}-{ground.length}` -- the only positional key
+              // in the engine, where `drop` uses g{tick}-{pid}-{slot} and mob
+              // drops use g{tick}-{mobId}-{i}-{item}. If the ground SHRANK
+              // between two spills in one interval, the second reused the
+              // first's key and destroyed it. Reproducible: a special kills
+              // one citizen, somebody picks up an unrelated pile, an attackp
+              // kills a second in the action phase, and the first citizen's
+              // pack is simply gone.
+              //
+              // Griefable, not merely wrong: inputs apply in sorted playerId
+              // order, so a patient griefer can grind a key that sorts after a
+              // killer's and delete other people's kills on purpose.
+              s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
-            }
+            } }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
@@ -6081,7 +6406,7 @@ function nextState(state, inputs, _legacyBeacon) {
       //
       // The citizen's arm and the beast's are now separate clocks. The beast
       // swings on its own cadence whether or not you are ready to swing back.
-      const every = weaponOf(p)?.every ?? 2;
+      const every = cadenceOf(p, weaponOf(p)?.every ?? 2); // §6aq: steel is heavy
       const armReady = s.tick - (p.lastSwing ?? -64) >= every;
       if (armReady) p.lastSwing = s.tick; // the arm is spent, whoever it was spent on
 
@@ -6118,7 +6443,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // spent NOTHING over a hundred ticks of shooting. The swing ordinal is
         // what alternates.
         if (!(weaponOf(p)?.thrift === true
-              && Math.floor(s.tick / (weaponOf(p)?.every ?? 2)) % 2 === 1)) {
+              && Math.floor(s.tick / cadenceOf(p, weaponOf(p)?.every ?? 2)) % 2 === 1)) {
           p.inventory[aSlot].qty -= 1;
           if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
         }
