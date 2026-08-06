@@ -135,6 +135,14 @@ export class IntervalClient {
 
   // ---- the rest of what the engine will hear ----
   unmake(groundId) { return this.#send({ type: 'unmake', groundId }) }
+
+  // ---- what a pot will take ----
+  // brew() is unchanged: grain makes ale, a raw fish makes broth, and a DEEP
+  // fish makes a deep broth once brewing is ninety. The verb never needed to
+  // know -- the world decides from what you put in and what you have learned,
+  // which is why a new brew took no new SDK call at all. Named here so a
+  // script author does not go looking for one.
+  static BREWS = { grain: 'ale', 'raw-fish': 'broth', 'deep-fish': 'broth or deep-broth (brewing 90)' }
   buildBrewpot() { return this.#send({ type: 'build_brewpot' }) }
   readChart(slot) { return this.#send({ type: 'read_chart', slot }) }
 
