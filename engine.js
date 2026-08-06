@@ -498,6 +498,28 @@ function skillUnlocks() {
   return (_unlocksMemo = out);
 }
 
+// WHAT A THING IS WORTH, FOR PUTTING A PILE IN ORDER.
+//
+// The engine does not choose what a citizen picks up -- `pickup` names a
+// groundId, and it should, because taking the ore instead of the plate is a
+// decision somebody may want to make. But every window needs a DEFAULT for a
+// plain click on a heap, and a default is not neutral: in a race for a spilled
+// pack the window that reaches for the plate beats the window that reaches for
+// whatever fell first. That is the same unfairness as two windows disagreeing
+// about where the Fens are, so the ORDER is the world's even though the choice
+// is the citizen's.
+//
+// Unpriced does not mean worthless. The dragonbow, the old chain, a sigil and
+// a chart are the four rarest objects here and no keeper will price any of
+// them -- ranking them by PRICES alone put them BELOW a handful of bones.
+// Forage is the one unpriced thing that really is worth nothing: it rots in
+// fifty intervals and cannot be carried.
+const WORTH_UNPRICED = 100000;
+function worthRank(item) {
+  if (item === 'forage') return -1;
+  return PRICES[item] ?? WORTH_UNPRICED;
+}
+
 const CALLING_NAMES = {
   lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
   armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
@@ -6480,7 +6502,7 @@ module.exports = {
   signPayload, verifyPayload,
   exportIdentity, importIdentity, loadOrCreateIdentity,
   canonical, EMPTY_ROOT, SMT_DEPTH,
-  CALLING_NAMES, KEEPER_KINDS, skillUnlocks,
+  CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
   SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };
