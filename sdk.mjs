@@ -113,6 +113,31 @@ export class IntervalClient {
   // that cannot root an opponent or spend a special is fighting with one hand.
   still(target) { return this.#send({ type: 'still', target }) }
   special(targetId) { return this.#send({ type: 'special', targetId }) }
+  mendp(target) { return this.#send({ type: 'mendp', target }) }
+  // ---- trading with another citizen ----
+  // The SDK could not do this at all: a script could buy from a keeper and
+  // never from a person, in a world whose whole economy insists the only
+  // sensible buyer is another citizen.
+  offer(to, giveSlots, { item = null, gold = 0 } = {}) {
+    return this.#send({ type: 'offer_trade', to, giveSlots, wantItem: item, wantGold: gold })
+  }
+  accept(from) { return this.#send({ type: 'accept_trade', from }) }
+  cancelTrade() { return this.#send({ type: 'cancel_trade' }) }
+
+  // ---- a citizen's own stall ----
+  // raise() begins twenty intervals of standing still; moving or swinging
+  // cancels it, so a script must wait rather than issue the next order.
+  raiseStall() { return this.#send({ type: 'raise_market' }) }
+  stockStall(slot) { return this.#send({ type: 'stock_market', slot }) }
+  priceStall(ask) { return this.#send({ type: 'price_market', ask }) }
+  takeStall() { return this.#send({ type: 'take_market' }) }
+  dismantleStall() { return this.#send({ type: 'dismantle_market' }) }
+
+  // ---- the rest of what the engine will hear ----
+  unmake(groundId) { return this.#send({ type: 'unmake', groundId }) }
+  buildBrewpot() { return this.#send({ type: 'build_brewpot' }) }
+  readChart(slot) { return this.#send({ type: 'read_chart', slot }) }
+
   chat(text) { return this.node.publishChat(this.identity, text) }
   onChat(cb) { this.node.onChat = cb }
 
