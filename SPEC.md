@@ -221,21 +221,52 @@ could only act while being acted upon. Nothing could gang up, a slow weapon
 made you measurably harder to hit, and an archer at four tiles was untouchable
 by construction. Every one of those was a bug wearing the costume of a rule.
 
-**Instant acts do not lower your guard.** `eat` no longer clears a
-combat action: swallowing a fish mid-fight is the veteran's way. All
-other inputs still interrupt as before.
+**Instant acts do not lower your guard, but a meal costs a swing.**
+`eat` does not clear a combat action -- swallowing a fish mid-fight is
+the veteran's way and nobody has to give the order again. But it spends
+the ARM, exactly as a special does, so the next blow comes a cycle
+later. Before this, eating cost nothing at all: full healing and a blow
+in the same interval, so a fight was decided by who brought more food
+and never by when they ate it.
 
-**One gullet, one speed.** A citizen may eat at most once every **8
-ticks**; an `eat` inside that span is invalid. The arm has a rhythm and
-so does the throat. Without one, a citizen ate every tick while the
-fight held, and broth restores 5 against the 2 HP per tick a
-skeleton-knight can manage at its absolute ceiling: nobody carrying
-brews could be killed by anything in this world, which made death, the
-Wilds and the brand ornamental. Eating mid-fight remains legal. It has
-a rate, and that rate is what makes a beast dangerous to the unready
-while leaving it merely expensive to a veteran. It also gives the three
-restoratives distinct worth, at 0.625, 0.5 and 0.375 HP per tick
-sustained, which is the brewer's market made real.
+It is a tempo cost and not a survivability one -- the gullet allows one
+meal in eight intervals, so it is at most one swing in eight.
+
+A MENDING FROM SOMEBODY ELSE COSTS THE WOUNDED NOTHING: twenty
+hitpoints and they never break rhythm. Fighting in a pair should be
+worth something that fighting alone is not.
+
+**The gullet rhythm is repealed (v0.85).** A citizen may eat every
+interval. The rate was written in v0.41 because nothing in this world
+could kill anybody, and somebody with brews ate every tick and was
+immortal; that reason has been gone for a long time.
+
+It was defended afterwards on the grounds that food would otherwise
+out-heal damage, and that does not survive arithmetic. The old chain
+lands up to ELEVEN every interval, a maul's special seventeen, the
+long shot thirty -- and a fish heals six. Nothing about eating has
+ever made a citizen unkillable against anything that could really hurt
+them. The difference the rate actually bought was between a four
+minute fight and a seventy-two minute one, which is not a distinction
+anybody will ever feel.
+
+**And a mending spends it too.** A cooked fish restores six and costs
+a swing; a mending restored TWENTY and cost nothing at all, so the
+best heal in the world was also the only free one. One rule covers
+both: whatever restores YOUR OWN hitpoints spends your arm. Being
+mended by somebody else stays free to the wounded, and that asymmetry
+is the whole reason to fight in a pair.
+
+What remains is the cost that bites: **a meal spends the arm.** Eat
+every interval if you like -- you will heal six and deal nothing, and
+anybody serious will kill you anyway or simply walk away. The brake is
+that eating is not fighting, and it needs no constant at all.
+
+The restoratives keep their order, now per meal rather than per
+interval: a deep fish ten, a cooked fish and forage six, broth five,
+ale four. Forage keeps what always mattered about it -- no slot, eaten
+where it lies, rotting in fifty intervals -- and loses only the
+exemption from a rule that no longer exists.
 
 **Every town flies its own arms.** A `banner` node stands where a road
 crosses into a settlement, and bears a `tag`: which town it speaks
@@ -676,6 +707,22 @@ A chart is not for the person who drew it. It gives the one skill with no output
 that is already tradeable: a chart is worth something to somebody who
 would rather not walk.
 
+**The deep broth (v0.85).** A deep fish already brewed -- into
+ordinary broth, five, the same as any fish out of the shallows, so a
+master fisher's catch was worth no more in a pot than a beginner's. At
+brewing NINETY it makes a deep broth instead, which heals eight and
+stacks. The same shape as woodcutting ninety giving heartwood where a
+lesser axe gives logs.
+
+Eight and not ten, so the cooked deep fish stays worth cooking: ten in
+one slot against eight that stacks is a real choice, and ten against
+ten is not. The ladder stays evenly spaced -- four, five, six, eight,
+ten -- with no gap wide enough to make the rungs beneath it pointless.
+
+And it is NOT doubled by the ninety mastery. Two eights would be
+sixteen against a cooked fish's ten, which would end cooking as a
+trade. A deep fish makes one draught; there is no second in it.
+
 **A master brewer draws two.** Brewing was the one skill whose levels
 bought nothing at all -- no gate on raising a pot, none on brewing,
 none on collecting -- so it rose and the world never changed. At
@@ -894,6 +941,140 @@ suggestion the engine makes about art. Now it costs exactly the thing
 a raider wants, and it costs it in public. Its purpose is unchanged --
 a raiding party still marks itself and cannot deny having been one --
 but the marking no longer depends on anybody's goodwill to exist.
+
+**You cannot be paid twice for one interval.** A gather is an ACTION:
+it runs on by itself and costs no input once given. An instant deed
+costs the input. So a citizen who set a pickaxe going and then
+transmuted, fletched, smithed, cooked, buried or pressed a sigil was
+earning TWO skills at full rate from one interval, for as long as the
+rock lasted -- and every one of those left the action running. Only
+drinking, mending and the stilling stopped it, and those three are the
+ones that teach nothing.
+
+The line is what a deed TEACHES. A deed that pays experience ends
+whatever else was running; eating, drinking, picking a thing up,
+banking and trading do not, because they pay nothing and a citizen
+should be able to eat without losing their tree.
+
+**The mark and the answer live in one place (v0.86).** `brandedUntil`
+was assigned in exactly one line of the engine, inside `attackp`. The
+`special` handler dealt damage, killed, spilled packs and ended
+fights, and never branded -- and carried no copy of the retaliation
+that makes a struck citizen strike back. Measured: identical kill
+speed, no mark, and no damage taken, because the victim never
+answered. Every §2b enforcement hung off that one line, so a band that
+only ever sent `special` was invisible to the law. Both paths now call
+one helper, and a third way of hurting somebody will call it too.
+
+**A pack spills to a key nobody else can take.** Both PvP spill sites
+keyed ground piles by `g{tick}-{count of the ground}` -- the only
+positional key in the engine, where dropping uses
+`g{tick}-{pid}-{slot}`. If the ground SHRANK between two spills in one
+interval, the second reused the first's key and destroyed it: a
+special kills one citizen, somebody picks up an unrelated pile, an
+attackp kills a second, and the first pack is gone. Griefable, since
+inputs apply in sorted playerId order and a patient griefer can grind
+a key that sorts after a killer's. Content-addressed now, like
+everything else on the ground.
+
+**Accuracy is a ratio, and armour is in the roll.** The old
+`clamp(128 + 4*(atk - def) + acc, 16, 240)` saturated at a
+twenty-eight level gap, so against a ninety-nine attacker DEFENCE ONE
+THROUGH SEVENTY-ONE WERE IDENTICAL -- seventy levels bought nothing --
+and it was symmetric, attack fifty through seventy-one all sitting at
+6.3% against a master. Against a weak target everything clamped to the
+ceiling, so weapon accuracy stopped existing and the table collapsed
+to maxHit over cadence.
+
+Ratios asymptote instead of clamping, so every level keeps buying
+something. And armour makes a citizen HARDER TO HIT rather than harder
+to hurt: the flat two-a-piece soak against a maxHit that never passes
+fourteen made a star-clad duel a minute of swinging for single-digit
+hits. A miss is dramatic; a two is not. The same duel now lasts about
+as long and reads as "miss, miss, THIRTEEN".
+
+It repairs the maul without touching the maul, whose whole problem was
+that low accuracy was punished twice -- once in the roll and again by
+a soak its slow cadence could not out-pace. The beasts roll on the
+same ratio, so steel does not work one way against a citizen and
+another against a wolf. Fire is the exception it always was: a breath
+cannot be dodged, and that is now the whole of its privilege.
+
+**Steel is heavy.** A substantial suit -- a full bronze one, or any
+single starmetal piece -- adds ONE interval to a weapon's cadence.
+Armour that only helps is not a choice but a checklist; everybody
+wears the best they own and going without is a handicap rather than a
+build. Measured at ninety-nine with star swords: the naked citizen
+deals 0.99 a tick against a full suit, the clad citizen 1.07 against
+bare skin. Nine per cent, which is a real choice rather than an
+obvious one.
+
+**A special is neutral over time and a burst in the moment.** It
+spends the arm for this cycle and the next, so it costs two swings and
+delivers two: a star-dagger at ninety-nine lands 1.612 a tick either
+way. What changes is WHEN -- twelve blows spread evenly across
+twenty-four intervals, or the same twelve delivered in six pairs.
+
+A review found specials damage-NEGATIVE at 1.47 against 1.84 and
+concluded that no burst was possible in this world, recommending a
+regenerating pool as the only way to create one. A pool was built on
+that finding, and the finding was an artefact of defect 1.3: the arm
+was spent for `every + 1` because the handler wrote `s.tick + every`
+after `s.tick` had advanced. One off-by-one, and a design that worked
+looked like one that could not.
+
+The pool is repealed. It made a special damage-POSITIVE when banked --
+the one property this design exists to refuse -- and once chaining was
+closed it produced exactly the rhythm the arm already produced. The
+lesson is worth more than the mechanic: A MEASUREMENT TAKEN OVER A
+DEFECT WILL RECOMMEND A FEATURE TO FIX THE DEFECT. Repair first, then
+measure, then design.
+
+Spending the arm into the future is also what stops `now` chaining. It
+may interrupt the recovery from an ordinary SWING -- that is what it
+is for -- but never a second special. One interruption, then the full
+price.
+
+**And no special may follow another.** Spending only the swing it
+replaces is right for the ordinary rhythm and it silently unlocked
+CHAINING for `now`, whose whole nature is ignoring a recovering arm:
+from a full bar that was six maul specials in six intervals, about a
+hundred damage, which is not a burst window but a deletion. A special
+has its own clock -- one per cadence, whatever the arm is doing. The
+interruption `now` exists for still works; a second special on top of
+it does not.
+Two can be banked over a minute and unloaded together. The sustained
+rate is unchanged, since regen allows one special per thirty-five
+intervals; what it buys is a MOMENT, and a moment is what makes a
+fight a story.
+
+**Strength is its own skill.** One skill drove both how often you land
+and how hard, so every fighter in this world was the same fighter
+further along. Attack decides the ROLL and strength decides the BLOW,
+and a landed blow teaches both, split evenly. Ranged keeps both for
+itself: a bow's draw is the same muscle as its aim.
+
+This is what makes ninety-nine strength at seventy-five attack a
+different citizen from the reverse, and with the ratio and the cadence
+above it is what finally makes a low-defence build expressible rather
+than merely worse. There is still deliberately no combat level; what
+the constitution owes a pure is not matchmaking but VIABILITY.
+
+**A flail goes round the roll.** Its whole identity was ignoring the
+soak -- "the only weapon in the world that ignores this subtraction",
+paid for with the lowest base damage of any steel. Moving armour into
+the roll deleted that in one line. The translation is exact: armour
+used to subtract from the blow and the flail went round it; armour now
+subtracts from the CHANCE, and the flail goes round that. A citizen in
+full starmetal is as easy to hit with a flail as a naked one.
+
+**A mending has a rhythm.** It healed twenty, cost a sigil and had no
+rate at all: twenty-seven sigils is five hundred and forty extra
+hitpoints, and survival against the best weapon in the world went from
+thirty intervals to a hundred and eighty-four. A mender cannot win,
+because casting spends the arm -- but two prepared citizens could not
+resolve a fight at all, and that was the binding constraint on the top
+of this world. Twenty-five intervals between mendings.
 
 **A deed is done where people can see it.** An `action` is something a
 citizen is in the middle of, and has always sat in the state for every
