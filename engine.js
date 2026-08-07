@@ -339,7 +339,7 @@ const NODE_YIELD = {
   'tree':         { item: 'logs',        skill: 'woodcutting', xp: 25 },
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
   'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 30 },
-  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 30 },
+  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 50 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
