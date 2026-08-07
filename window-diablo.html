@@ -203,6 +203,10 @@
 </head>
 <body>
 <div id="stage"><canvas id="cv"></canvas></div>
+<!-- §6as-iii: how you swing. Kept out of the ring menu on purpose: it is a
+     standing choice, not a thing you pick per blow. -->
+<div id="stylebar" title="how you swing: 1 aim, 2 even, 3 force"
+  style="position:fixed;left:10px;bottom:10px;z-index:25;font:10px Verdana"></div>
 <input id="say" maxlength="80" autocomplete="off" spellcheck="false">
 
 <div id="gate">
@@ -2031,7 +2035,7 @@ const EQUIPPABLE = new Set([
   'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
   'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
-  'star-spear', 'star-sword', 'wand', 'wooden-bow',
+  'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -2072,7 +2076,7 @@ const CALLINGS = {
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
 }
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength',
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
   'defence', 'hitpoints', 'exploration', 'brewing']
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
@@ -2137,7 +2141,7 @@ const WEAPON_REACH = {
   'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
   'old-chain': 1, 'bronze-flail': 1, 'star-flail': 1,
   'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
-  'heartwood-bow': 3, 'dragonbow': 9,
+  'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
 }
 const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
@@ -2159,7 +2163,7 @@ const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
-  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
   // heartwood is worth more than logs, and a deep fish more than a shallow
   // one: a master's hour should be worth more than a beginner's
   // HEARTWOOD AT FIFTEEN, not nine.
@@ -2175,7 +2179,6 @@ const PRICES = {
   // margin rather than a fletcher's windfall, and the woodcutter who spent
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
-  'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -2205,7 +2208,6 @@ const PRICES = {
   // every Wilds good in this table is priced.
   'dragon-bones': 500,
 }
-
 
 
 
@@ -2448,7 +2450,6 @@ const SKILL_UNLOCKS = {
   ],
   brewing: [
     { level: 90, text: "2 draughts from a pot, instead of 1" },
-    { level: 90, text: "a deep fish makes a DEEP BROTH, which heals 8 and stacks" },
   ],
   exploration: [
     { level: 90, text: "any rumour yields a chart, to sell to those who would rather not walk" },
@@ -2600,13 +2601,62 @@ const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|', DOMAIN_CHAT = 'INTERVAL_CHAT_V1|'
 // One canonical form per verb, exactly as engine.js names them. A guessed
 // translation here is a deed that leaves the window and is never applied, and
 // it looks from the inside exactly like a dropped connection.
+
+// ---------------------------------------------------------------------------
+// THE STYLE OF A BLOW (§6as-iii, §6as-iv)
+// ---------------------------------------------------------------------------
+// One choice, two consequences, and the window has to show both or it shows
+// neither: `style` decides where the LESSON goes -- attack, strength, or split
+// -- and it shapes the BLOW, narrow and dependable against wild and swingy.
+// The mean is identical, so no style is stronger and none is a trap; they are
+// differently useful, and the difference is worth about twenty points of
+// execute threshold on a two-blow special and nothing at all on a six.
+//
+// It is read here rather than passed at every call site because a citizen
+// chooses it once and then forgets it, the way they choose which way to face.
+let combatStyle = 'even'
+const STYLE_TEXT = {
+  even:  ['Even',  'splits the lesson; a middling spread'],
+  aim:   ['Aim',   'teaches attack; narrow and dependable'],
+  force: ['Force', 'teaches strength; wild, and the bigger ceiling'],
+}
+function setCombatStyle(s) {
+  combatStyle = s
+  try { localStorage.setItem('interval.style', s) } catch (e) {}
+  drawStyleBar()
+  if (typeof feed === 'function') feed('You will swing ' + STYLE_TEXT[s][0].toLowerCase() + ': ' + STYLE_TEXT[s][1] + '.')
+}
+function drawStyleBar() {
+  const el = document.getElementById('stylebar'); if (!el) return
+  el.innerHTML = ''
+  for (const k of ['aim', 'even', 'force']) {
+    const b = document.createElement('span')
+    b.textContent = STYLE_TEXT[k][0]
+    b.title = STYLE_TEXT[k][1]
+    b.style.cssText = 'display:inline-block;padding:3px 7px;margin-right:3px;cursor:pointer;'
+      + 'border:1px solid ' + (combatStyle === k ? 'var(--gold,#c8a24a)' : 'rgba(255,255,255,.14)') + ';'
+      + 'color:' + (combatStyle === k ? 'var(--gold,#c8a24a)' : 'rgba(255,255,255,.45)') + ';'
+      + 'letter-spacing:1px;font-size:10px;user-select:none'
+    b.onclick = () => setCombatStyle(k)
+    el.appendChild(b)
+  }
+}
+try { const s0 = localStorage.getItem('interval.style'); if (STYLE_TEXT[s0]) combatStyle = s0 } catch (e) {}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', drawStyleBar)
+else drawStyleBar()
+window.addEventListener('keydown', (e) => {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return
+  if (e.key === '1') setCombatStyle('aim')
+  else if (e.key === '2') setCombatStyle('even')
+  else if (e.key === '3') setCombatStyle('force')
+})
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
   : a.do === 'spawn' ? { type: 'spawn' }
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
-  : a.do === 'special' ? { type: 'special', targetId: a.targetId }   // §6af
+  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
+  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
+  : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }   // §6af
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
   : a.do === 'drop' ? { type: 'drop', slot: a.slot }
   : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId }
@@ -5208,18 +5258,6 @@ function itemIcon(item) {
       g.strokeStyle = '#2a4a1e'; g.lineWidth = 1
       g.beginPath(); g.moveTo(cx - 3, cy - 2); g.lineTo(cx + 5, cy - 6); g.stroke()
       return }
-    if (item === 'deep-broth') {
-      // a deeper, colder brew than the shallows give: the same horn cup, but
-      // what is in it catches the light differently
-      g.fillStyle = '#6a5230'
-      poly(g, [[cx-6,cy-7],[cx+6,cy-7],[cx+4,cy+9],[cx-4,cy+9]], '#6a5230', '#3a2c18')
-      g.fillStyle = '#2f6f86'
-      poly(g, [[cx-5,cy-5],[cx+5,cy-5],[cx+4,cy+2],[cx-4,cy+2]], '#2f6f86')
-      g.fillStyle = 'rgba(150,214,236,.5)'
-      g.fillRect(cx - 4, cy - 5, 8, 1.6)
-      g.strokeStyle = '#6a5230'; g.lineWidth = 1.6
-      g.beginPath(); g.arc(cx + 8, cy, 3.4, -1.1, 1.1); g.stroke()
-      return }
     if (item === 'dragon-bones') {
       // heavier than a goblin's, and darker: a long bone and a great fang
       g.strokeStyle = '#cfc6ae'; g.lineWidth = 3.2; g.lineCap = 'round'
@@ -5317,6 +5355,21 @@ function itemIcon(item) {
       g.beginPath(); g.arc(cx + 6, cy - 4, 10, -.4, 2.2); g.stroke()
       g.strokeStyle = 'rgba(220,208,180,.6)'; g.lineWidth = 1
       g.beginPath(); g.moveTo(cx - 3, cy - 10); g.lineTo(cx + 12, cy + 3); g.stroke(); return }
+    if (item === 'handgonne') {
+      g.strokeStyle = METAL.wood[0]; g.lineWidth = 3.4
+      g.beginPath(); g.moveTo(cx - 9, cy + 12); g.lineTo(cx, cy + 1); g.stroke()
+      poly(g, [[cx-1,cy+2],[cx+9,cy-8],[cx+12,cy-5],[cx+2,cy+5]], '#5a616b', '#31363d')
+      g.fillStyle = '#181c21'; g.beginPath(); g.arc(cx + 10.2, cy - 6.6, 2.5, 0, 6.3); g.fill()
+      g.fillStyle = '#8a939d'; g.fillRect(cx + 1.4, cy - 0.4, 3, 1.7)
+      g.fillStyle = 'rgba(255,170,70,.55)'; g.beginPath(); g.arc(cx + 3.4, cy - 1.4, 1.6, 0, 6.3); g.fill()
+      return }
+    if (item === 'shot') {
+      for (const [ox, oy] of [[-6,3],[1,1],[-2,8],[6,7]]) {
+        g.fillStyle = '#464b53'; g.beginPath(); g.arc(cx + ox, cy + oy, 3.3, 0, 6.3); g.fill()
+        g.fillStyle = 'rgba(255,255,255,.32)'; g.beginPath(); g.arc(cx + ox - 1.1, cy + oy - 1.2, 1.1, 0, 6.3); g.fill()
+      }
+      g.strokeStyle = METAL.wood[0]; g.lineWidth = 1.7
+      g.beginPath(); g.arc(cx, cy + 4, 9.5, 2.5, 6.9); g.stroke(); return }
     if (item === 'arrows') {
       for (let i = 0; i < 3; i++) {
         const ox = cx - 7 + i * 7
@@ -8194,9 +8247,6 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   }
   else if (moving) swingVal = -0.45 + Math.sin(t * 6.5) * .22
   else swingVal = -0.5
-  // and the hand comes UP to the mouth for a meal, whoever is eating
-  if (p.deed === 'eat' || p.deed === 'forage' || p.deed === 'drink')
-    swingVal = -0.5 - Math.sin(clamp((t % 1) * 1.6, 0, 1) * Math.PI) * 1.5
   // and a one-tick deed overrides all of it, for as long as it takes to do
   let crouch = 0, pitch = 0
   // how much of the strike is happening, 0 at rest and 1 at the blow
@@ -8231,20 +8281,6 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const sleeping = !isMe && curState && !isAwake(p, curState.tick) && p.hp > 0
   const dozeDip = sleeping ? 1.15 : 0
   const dozeLean = sleeping ? .18 : 0
-  // A DEED IS DONE WHERE PEOPLE CAN SEE IT -- INCLUDING THE BODY.
-  //
-  // Poses were driven by `myDeed`, which only ever exists for YOU, so a
-  // citizen watched themselves raise a fish to their mouth and watched
-  // everybody else swallow one by standing perfectly still with a ring around
-  // their feet. `deed` is in the state now: one word, set on the interval it
-  // happens, cleared at the top of the next. So the body can read it, for
-  // anybody, and a bystander can see that somebody in a fight just ate.
-  //
-  // It lasts one interval, which at six hundred milliseconds is exactly long
-  // enough to read and too short to be mistaken for an action.
-  const eatE = (p.deed === 'eat' || p.deed === 'forage' || p.deed === 'drink')
-    ? clamp((t % 1) * 1.6, 0, 1) : 0
-  const eatLift = eatE ? Math.sin(eatE * Math.PI) : 0
   const castE = (myDeed?.pose === 'cast' && isMe) ? clamp((performance.now() - myDeed.at) / myDeed.dur, 0, 1) : 0
   const castLean = castE === 0 ? 0
     : castE < .34 ? -(castE / .34) * .40
@@ -8302,8 +8338,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     // blow lands and comes back up on the recovery, and the weight shifts
     // forward. Small numbers -- two or three pixels -- but it is the
     // difference between a body working and an arm attached to a post.
-    crouch: crouch + workDip + biteDip + castDip + dozeDip - eatLift * .18,
-    pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean - eatLift * .30,
+    crouch: crouch + workDip + biteDip + castDip + dozeDip,
+    pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
     plate: star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
@@ -8644,8 +8680,10 @@ function noteDeed(verb) {
 // is a sixth hand-kept copy: the dragonbow's 'far' had to be added here as
 // well or the window would have offered no special on the one weapon in the
 // world whose special is the interesting one.
-const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true',
-                  'dragonbow': 'far' }
+// 'twice' became 'flurry' when it stopped being two blows, and 'true' became
+// 'volley' when certainty proved impossible to price -- see §6af.
+const SPEC_OF = { 'star-dagger': 'flurry', 'star-maul': 'now', 'horn-bow': 'volley',
+                  'dragonbow': 'far', 'handgonne': 'flurry' }
 // A blow that lands late carries its own delay rather than living in a
 // setTimeout: a throttled tab drops the timer and the impact never plays, and a
 // value on the effect can be tested where a timer cannot.
@@ -10459,10 +10497,7 @@ function drawPanel(g, now) {
   // from the pack automatically because nobody has ever enjoyed loading a belt.
   beltMap = []
   const inv = me?.inventory ?? []
-  // §6an: the deep broth belongs here too. A hand-kept list of what counts as
-  // food is exactly the thing a new restorative falls out of -- a citizen with
-  // a pack of deep broth would have found the belt empty.
-  for (const want of ['ale', 'broth', 'deep-broth', 'cooked-fish', 'cooked-deep-fish']) {
+  for (const want of ['ale', 'broth', 'cooked-fish', 'cooked-deep-fish']) {
     const i2 = inv.findIndex((sl, ix) => sl && sl.item === want && !beltMap.some(b => b.slot === ix))
     if (i2 >= 0 && beltMap.length < 4) beltMap.push({ slot: i2, item: want, qty: inv[i2].qty ?? 1 })
   }
@@ -10857,6 +10892,7 @@ const FORGE = {
   'star-dagger': { 'magic-stone': 2, ore: 1 }, 'star-sword': { 'magic-stone': 3, ore: 2 },
   'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 }, 'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-plate': { 'magic-stone': 4, ore: 3 },
+  'handgonne': { 'magic-stone': 4, ore: 3, logs: 1 }, 'shot': { ore: 1 },
 }
 // smithing AND magic, exactly as SMITH_REQS has them -- and no more and no
 // less. This once carried a bronze ladder the engine did not have, so the
@@ -10874,6 +10910,7 @@ const FORGE_REQ = {
   'star-dagger': { smithing: 45, magic: 28 }, 'star-sword': { smithing: 45, magic: 25 },
   'star-maul': { smithing: 52, magic: 30 }, 'star-flail': { smithing: 50, magic: 29 },
   'star-plate': { smithing: 50, magic: 30 },
+  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
 }
 function have(me, item) {
   return (me?.inventory ?? []).reduce((a, sl) =>

@@ -234,6 +234,7 @@
     <div id="specbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
       color:var(--gold);letter-spacing:1px"></div>
+    <div id="stylebar" style="margin-top:3px" title="how you swing: 1 aim, 2 even, 3 force"></div>
   <div id="trade" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
   <div id="offers" style="font-size:12px"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
@@ -2140,12 +2141,6 @@ function itemSprite(item) {
       g.fillStyle = '#f2ead2'; g.fillRect(12, 12, 10, 3)   // foam
       g.strokeStyle = '#4a3f28'; g.lineWidth = 2; g.strokeRect(11, 12, 12, 15)
       g.fillStyle = '#6b5a3a'; g.fillRect(23, 15, 3, 8); break // handle
-    case 'deep-broth':
-      // the same bowl, but what is in it came out of deep water
-      g.fillStyle = '#5a5048'; g.beginPath(); g.ellipse(17, 20, 8, 5, 0, 0, 7); g.fill()
-      g.fillStyle = '#2f6f86'; g.beginPath(); g.ellipse(17, 18, 6.5, 3, 0, 0, 7); g.fill()
-      g.fillStyle = 'rgba(150,214,236,.55)'; g.beginPath(); g.ellipse(15, 17, 2.4, 1.1, 0, 0, 7); g.fill()
-      break
     case 'broth':
       g.fillStyle = '#5a5048'; g.beginPath(); g.ellipse(17, 20, 8, 5, 0, 0, 7); g.fill() // bowl
       g.fillStyle = '#b9843a'; g.beginPath(); g.ellipse(17, 18, 6.5, 3, 0, 0, 7); g.fill() // broth
@@ -2221,6 +2216,21 @@ function itemSprite(item) {
         g.fillStyle = '#e8e4d0'; g.fillRect(5 + off, 24 - off, 3, 3)
       }
       break
+    case 'shot':
+      for (const [sx, sy] of [[11,20],[18,19],[14,25],[21,25]]) {
+        g.fillStyle = '#4a4f57'; g.beginPath(); g.arc(sx, sy, 3.2, 0, 6.3); g.fill()
+        g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(sx-1, sy-1.1, 1.1, 0, 6.3); g.fill()
+      }
+      g.strokeStyle = '#6b5330'; g.lineWidth = 1.6
+      g.beginPath(); g.arc(16, 22, 9, 2.5, 6.9); g.stroke(); break
+    case 'handgonne': {
+      g.strokeStyle = '#6b4a24'; g.lineWidth = 3.4                  // the haft
+      g.beginPath(); g.moveTo(8, 28); g.lineTo(17, 17); g.stroke()
+      pl([[16,18],[26,8],[29,11],[19,21]], '#5a616b', '#31363d')     // the tube
+      g.fillStyle = '#20242a'; g.beginPath(); g.arc(27.2, 9.4, 2.4, 0, 6.3); g.fill()  // the muzzle
+      g.fillStyle = '#8a939d'; g.fillRect(18.4, 16.6, 3, 1.6)        // the band
+      g.fillStyle = 'rgba(255,180,90,.5)'; g.beginPath(); g.arc(20.4, 15.6, 1.5, 0, 6.3); g.fill()
+      break }
     case 'bronze-helm':
       pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#c9862a', '#6b4515')
       g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(9, 9.5, 14, 2)
@@ -2531,7 +2541,7 @@ const EQUIPPABLE = new Set([
   'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
   'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
-  'star-spear', 'star-sword', 'wand', 'wooden-bow',
+  'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -2572,7 +2582,7 @@ const CALLINGS = {
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
 }
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength',
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
   'defence', 'hitpoints', 'exploration', 'brewing']
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
@@ -2637,7 +2647,7 @@ const WEAPON_REACH = {
   'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
   'old-chain': 1, 'bronze-flail': 1, 'star-flail': 1,
   'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
-  'heartwood-bow': 3, 'dragonbow': 9,
+  'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
 }
 const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
@@ -2653,7 +2663,7 @@ const PRICES = {
   'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
-  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
+  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
   // heartwood is worth more than logs, and a deep fish more than a shallow
   // one: a master's hour should be worth more than a beginner's
   // HEARTWOOD AT FIFTEEN, not nine.
@@ -2669,7 +2679,6 @@ const PRICES = {
   // margin rather than a fletcher's windfall, and the woodcutter who spent
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
-  'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -2699,7 +2708,6 @@ const PRICES = {
   // every Wilds good in this table is priced.
   'dragon-bones': 500,
 }
-
 
 
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
@@ -2757,6 +2765,55 @@ async function ownIdentity() {
   } catch { return null } // no Ed25519 here: the pillar will hold a key instead
 }
 
+
+// ---------------------------------------------------------------------------
+// THE STYLE OF A BLOW (§6as-iii, §6as-iv)
+// ---------------------------------------------------------------------------
+// One choice, two consequences, and the window has to show both or it shows
+// neither: `style` decides where the LESSON goes -- attack, strength, or split
+// -- and it shapes the BLOW, narrow and dependable against wild and swingy.
+// The mean is identical, so no style is stronger and none is a trap; they are
+// differently useful, and the difference is worth about twenty points of
+// execute threshold on a two-blow special and nothing at all on a six.
+//
+// It is read here rather than passed at every call site because a citizen
+// chooses it once and then forgets it, the way they choose which way to face.
+let combatStyle = 'even'
+const STYLE_TEXT = {
+  even:  ['Even',  'splits the lesson; a middling spread'],
+  aim:   ['Aim',   'teaches attack; narrow and dependable'],
+  force: ['Force', 'teaches strength; wild, and the bigger ceiling'],
+}
+function setCombatStyle(s) {
+  combatStyle = s
+  try { localStorage.setItem('interval.style', s) } catch (e) {}
+  drawStyleBar()
+  if (typeof feed === 'function') feed('You will swing ' + STYLE_TEXT[s][0].toLowerCase() + ': ' + STYLE_TEXT[s][1] + '.')
+}
+function drawStyleBar() {
+  const el = document.getElementById('stylebar'); if (!el) return
+  el.innerHTML = ''
+  for (const k of ['aim', 'even', 'force']) {
+    const b = document.createElement('span')
+    b.textContent = STYLE_TEXT[k][0]
+    b.title = STYLE_TEXT[k][1]
+    b.style.cssText = 'display:inline-block;padding:3px 7px;margin-right:3px;cursor:pointer;'
+      + 'border:1px solid ' + (combatStyle === k ? 'var(--gold,#c8a24a)' : 'rgba(255,255,255,.14)') + ';'
+      + 'color:' + (combatStyle === k ? 'var(--gold,#c8a24a)' : 'rgba(255,255,255,.45)') + ';'
+      + 'letter-spacing:1px;font-size:10px;user-select:none'
+    b.onclick = () => setCombatStyle(k)
+    el.appendChild(b)
+  }
+}
+try { const s0 = localStorage.getItem('interval.style'); if (STYLE_TEXT[s0]) combatStyle = s0 } catch (e) {}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', drawStyleBar)
+else drawStyleBar()
+window.addEventListener('keydown', (e) => {
+  if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return
+  if (e.key === '1') setCombatStyle('aim')
+  else if (e.key === '2') setCombatStyle('even')
+  else if (e.key === '3') setCombatStyle('force')
+})
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
   : a.do === 'spawn' ? { type: 'spawn' }
@@ -2775,7 +2832,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'take_market' ? { type: 'take_market' }
   : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
+  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
   : a.do === 'drop' ? { type: 'drop', slot: a.slot }
   : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId }
@@ -2800,7 +2857,11 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'bury' ? { type: 'bury', slot: a.slot }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
   : a.do === 'invoke' ? { type: 'invoke' }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
+  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
+  // §6af: the window sent `special` from the ring menu and the bridge had no
+  // line for it, so it answered 'no wiring for special yet' and swallowed the
+  // only interesting decision in a fight.
+  : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }
   : a.do === 'sell' ? { type: 'sell', slot: a.slot }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
   : a.do === 'plant' ? { type: 'plant', slot: a.slot }
@@ -3139,6 +3200,8 @@ const FORGE = {
   'star-maul':      { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-flail':     { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-plate':     { 'magic-stone': 4, ore: 3 },
+  'handgonne':      { 'magic-stone': 4, ore: 3, logs: 1 },
+  'shot':           { ore: 1 },   // §6av: five to the ore
 }
 // character for character from engine SMITH_REQS
 const FORGE_REQ = {
@@ -3148,6 +3211,7 @@ const FORGE_REQ = {
   'star-flail': { smithing: 26, magic: 14 },
   'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
   'sigil-bow': { smithing: 12, magic: 25 },
+  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
 }
 // a log is a log (§6ad), so heartwood pays for anything logs pay for
 function forgeHave(me, item) {
@@ -3916,7 +3980,7 @@ function onState(s, worldId) {
     if (me.hp > old.hp && !died) { // name what actually left the pack
       const gone = (it) => old.inventory.filter(sl => sl?.item === it).length
                          > me.inventory.filter(sl => sl?.item === it).length
-      const food = gone('cooked-fish') ? 'the fish' : gone('deep-broth') ? 'the deep broth' : gone('broth') ? 'the broth'
+      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth'
                  : gone('ale') ? 'the ale' : null
       feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.'
                 : 'You recover ' + (me.hp - old.hp) + '.')
@@ -6029,8 +6093,7 @@ function drawScene(now) {
         cx.fillStyle = '#4a423a'; cx.beginPath(); cx.ellipse(X+20, Y+24, 9, 7, 0, 0, 7); cx.fill()
         cx.fillStyle = '#2f2a24'; cx.beginPath(); cx.ellipse(X+20, Y+19, 8, 3, 0, 0, 7); cx.fill()
         if (fermenting || ready) { // the brew within
-          cx.fillStyle = n.brewKind === 'broth' ? '#b9843a'
-            : n.brewKind === 'deep-broth' ? '#2f6f86' : '#caa23e'
+          cx.fillStyle = n.brewKind === 'broth' ? '#b9843a' : '#caa23e'
           cx.beginPath(); cx.ellipse(X+20, Y+19, 6.5, 2.2, 0, 0, 7); cx.fill()
         }
         if (fermenting) { // bubbles rising
@@ -6651,10 +6714,7 @@ function drawScene(now) {
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
     // raising a stall reads as work, not as standing still: a builder who
       // looked idle would be indistinguishable from somebody asleep
-      // a meal is seen: `deed` is one word in the state, so the body can read
-      // it for ANYBODY rather than only for the citizen holding the mouse
-      const anim = (p.deed === 'eat' || p.deed === 'forage' || p.deed === 'drink') ? 'gather'
-        : moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
+      const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
         : p.action?.type === 'gather' ? 'gather'
                : p.action?.type === 'attack' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
@@ -7085,18 +7145,6 @@ function drawScene(now) {
       lightCv.width = cv.width; lightCv.height = cv.height
     }
     const L = lightCv.getContext('2d')
-    // THE LIGHT MUST BE DRAWN IN THE SAME UNITS AS THE WORLD.
-    //
-    // px() and py() give TILE pixels, and the world is painted through
-    // setTransform(ZR, ...), so every lamp was placed at world coordinates
-    // divided by ZR. While the canvas was a fixed 560 wide, ZR was 0.78 and
-    // the error was twenty-odd per cent -- wrong, but close enough to read as
-    // "the glow sits a bit off". Once the backing store started matching the
-    // screen, ZR became about 1.7 and the citizen's own light went and stood
-    // somewhere else entirely.
-    //
-    // The same transform, so a lamp is where the thing holding it is.
-    L.setTransform(1, 0, 0, 1, 0, 0)
     L.globalCompositeOperation = 'source-over'
     L.clearRect(0, 0, cv.width, cv.height)
     L.fillStyle = 'rgba(8,12,38,' + darkness + ')'
@@ -7113,13 +7161,10 @@ function drawScene(now) {
       const isFire = n.type === 'campfire' || n.type === 'fire' || isWatch
       const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
-      const fx = (px(n.x - cam.x) + 20) * ZR, fy = (py(n.y - cam.y) + (isFire ? 24 : 20)) * ZR
+      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
-      // and the RADIUS too, or a lamp lights the right spot at the wrong size
-      const r = (isWatch ? 232 + Math.sin(now / 140 + n.x) * 10
-        : isFire ? 96 + Math.sin(now / 140 + n.x) * 5
-        : 42 + Math.sin(now / 600 + n.x) * 4) * ZR
-      const grad = L.createRadialGradient(fx, fy, (isFire ? 8 : 4) * ZR, fx, fy, r)
+      const r = isWatch ? 232 + Math.sin(now / 140 + n.x) * 10 : isFire ? 96 + Math.sin(now / 140 + n.x) * 5 : 42 + Math.sin(now / 600 + n.x) * 4
+      const grad = L.createRadialGradient(fx, fy, isFire ? 8 : 4, fx, fy, r)
       grad.addColorStop(0, 'rgba(0,0,0,' + (isFire ? 1 : 0.6) + ')')
       grad.addColorStop(1, 'rgba(0,0,0,0)')
       L.fillStyle = grad; L.beginPath(); L.arc(fx, fy, r, 0, 7); L.fill()
@@ -7135,9 +7180,6 @@ function drawScene(now) {
       const isFire = n.type === 'campfire' || n.type === 'fire'
       const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
-      // NOT scaled: this pass draws on cx, which is still inside the world
-      // transform. The light canvas above has none, which is why it needs ZR
-      // and this does not -- the same two lines with different homes.
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
       const R = isFire ? 60 : 40
@@ -7931,9 +7973,7 @@ function invClick(i) {
       feed('It comes apart' + (alchPay > 0 ? ' for ' + alchPay + ' gold.' : '.') + ' A keeper would have paid more.') },
   }]
   if (it.item === 'magic-stone') {
-    // meNow, not me: `const me` is declared two thirds of the way down this
-    // function, so reaching for it up here THROWS and the click does nothing.
-    const count = meNow.inventory.filter(sl => sl?.item === 'magic-stone').length
+    const count = me.inventory.filter(sl => sl?.item === 'magic-stone').length
     chooseAction([
       { label: 'invoke sigil (' + count + '/3 stones)', act: () => {
         if (count < 3) { feed('Three stones make a sigil. You carry ' + count + '.'); return }
@@ -7957,7 +7997,7 @@ function invClick(i) {
   }
   if (it.item === 'sigil') {
     const opts = []
-    if (lvl('magic') >= 85 && meNow.inventory.filter(sl => sl?.item === 'sigil').length >= 3
+    if (lvl('magic') >= 85 && me.inventory.filter(sl => sl?.item === 'sigil').length >= 3
       && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
       opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
         window.__stillArm = true
@@ -8007,17 +8047,8 @@ function invClick(i) {
       { label: 'fletch staff', act: () => send({ do: 'fletch', slot: +i, make: 'staff' }) },
       ...(() => {
         // §6al: raising a stall, asked of the timber it is made of
-        // A TEMPORAL DEAD ZONE, AND IT ATE THE WHOLE CLICK.
-        //
-        // invClick declares `const me` two thirds of the way down itself. This
-        // block sits above that, so reaching for `me` here is not reading a
-        // stale value -- it throws a ReferenceError, and clicking a log did
-        // NOTHING AT ALL: not a wrong menu, no menu, no message.
-        //
-        // `meNow` is the citizen this function fetched at the top, and is what
-        // every other branch above the declaration uses.
-        const logs2 = (meNow.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
-        const ore2 = (meNow.inventory ?? []).filter(x => x?.item === 'ore').length
+        const logs2 = (me.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
+        const ore2 = (me.inventory ?? []).filter(x => x?.item === 'ore').length
         const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
         if (already) return [{ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') }]
         if (logs2 < 16 || ore2 < 8)
@@ -8052,26 +8083,13 @@ function invClick(i) {
     if (foe) { intent = { kind: 'attack', id: foe }; feed('You wolf it down and raise your sword again.') }
     else feed('You eat the fish.')
   }
-  else if (it?.item === 'ale' || it?.item === 'broth' || it?.item === 'deep-broth') {
+  else if (it?.item === 'ale' || it?.item === 'broth') {
     const foe = meNow.action?.type === 'attack' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
     if (foe) { intent = { kind: 'attack', id: foe }; feed('You down it and fight on.') }
-    else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.'
-      : it.item === 'deep-broth' ? 'You drink the deep broth. It is colder than it looks, and stronger.'
-      : 'You sip the broth. Warmth returns.')
+    else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.' : 'You sip the broth. Warmth returns.')
   }
-  else if (it?.item === 'raw-fish') {
-    // A RAW FISH IS NOT ONLY FOOD. This one-clicked to cook and said "you
-    // attempt to cook..." -- which, standing nowhere near a fire, is a citizen
-    // clicking a thing and watching nothing happen. It is also brewable into
-    // broth, transmutable, bankable and droppable, and none of that was
-    // reachable.
-    chooseAction([
-      { label: 'cook it', act: () => { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') } },
-      ...bankOpt, ...alchOpt,
-      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the raw fish.') } },
-    ])
-  }
+  else if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
   else if (it) {
     // THE FALLBACK WAS A DROP, WHICH IS A STRANGE THING TO DO ON ONE CLICK.
     //
