@@ -8680,9 +8680,11 @@ function noteDeed(verb) {
 // is a sixth hand-kept copy: the dragonbow's 'far' had to be added here as
 // well or the window would have offered no special on the one weapon in the
 // world whose special is the interesting one.
-// 'twice' became 'flurry' when it stopped being two blows, and 'true' became
-// 'volley' when certainty proved impossible to price -- see §6af.
-const SPEC_OF = { 'star-dagger': 'flurry', 'star-maul': 'now', 'horn-bow': 'volley',
+// 'twice' became 'flurry' when it stopped being two blows, and the horn-bow's
+// 'true' became a plain flurry when certainty proved impossible to price: its
+// worth scales inversely with the target's hit rate, so no fixed recovery is
+// neutral across armour. Three mechanics, three words -- see §6af.
+const SPEC_OF = { 'star-dagger': 'flurry', 'star-maul': 'now', 'horn-bow': 'flurry',
                   'dragonbow': 'far', 'handgonne': 'flurry' }
 // A blow that lands late carries its own delay rather than living in a
 // setTimeout: a throttled tab drops the timer and the impact never plays, and a
@@ -11552,6 +11554,12 @@ function stepToward(from, goal, reach) {
 }
 
 // ---- the verb a thing answers to ------------------------------------------
+// §6: A MAGIC-ROCK ASKS FOR MINING 70, and neither window knew it. A citizen
+// walked to the glowing rock, clicked it, and NOTHING happened -- the engine
+// refused the gather at the door and the refusal is silent, so the rock simply
+// did not break and no reason was given. The window has to carry the number to
+// say the sentence; there is no message on the wire that carries it back.
+const MAGIC_ROCK_MINING = 70
 const GATHERABLE = new Set(['tree', 'rock', 'magic-rock', 'fishing-spot'])
 function verbFor(kind, e) {
   if (kind === 'mob') return MOB_STATS[e.type]?.harmless ? 'attack' : 'attack'
@@ -12208,6 +12216,15 @@ function primaryClick(p, isRight) {
     travelMark = { x: w.x, y: w.y, at: performance.now(), verb: 'walk' }
     pumpIntent(); SFX.click()
     return
+  }
+  if (tgt.kind === 'node' && tgt.e?.type === 'magic-rock') {
+    const me9 = myId && curState?.players?.[myId]
+    const lv9 = me9 ? XP_TO_LVL(me9.skills?.mining ?? 0) : 0
+    if (lv9 < MAGIC_ROCK_MINING) {
+      say('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
+          + ' opens the magic-rocks of the Wilds \u2014 you have ' + lv9 + '.')
+      return
+    }
   }
   const verb = verbFor(tgt.kind, tgt.e)
   intent = { kind: verb, id: tgt.id, x: tgt.x, y: tgt.y }

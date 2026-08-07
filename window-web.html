@@ -2716,7 +2716,14 @@ const PRICES = {
 // guesses at this offers a citizen things they cannot buy.
 const STORE_SELLS = { seeds: 15 }
 // <<< CONSTITUTIONAL IDENTITY BLOCK
-const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'fishing-spot': 'fishing' }
+const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'magic-rock': 'mining', 'fishing-spot': 'fishing' }
+// §6: A MAGIC-ROCK ASKS FOR MINING 70, and neither window knew it. A citizen
+// walked to the glowing rock, clicked it, and NOTHING happened -- the engine
+// refused the gather at the door and the refusal is silent, so the rock simply
+// did not break and no reason was given. The window has to carry the number to
+// say the sentence; there is no message on the wire that carries it back.
+const MAGIC_ROCK_MINING = 70
+
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
 let _lastSurveyTick = -1
@@ -8317,6 +8324,7 @@ cv.addEventListener('click', (e) => {
       if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'bank' && n.type !== 'anvil' && n.depletedUntil > world.tick) {
         feed({ 'tree': 'The tree is felled. It will regrow.',
                'rock': 'The rock is mined out. Give it a moment.',
+               'magic-rock': 'The hum has gone out of it. It will come back.',
                'fishing-spot': "The fish aren't biting here yet." }[n.type] ?? 'Nothing left here.')
         return
       }
@@ -8502,6 +8510,15 @@ cv.addEventListener('click', (e) => {
       if (!me.inventory.some(sl => sl === null)) {
         feed('Your pack is full: bank it, drop it, or use it.')
         return
+      }
+      if (n.type === 'magic-rock') {
+        const lv = XP_TO_LVL(me.skills?.mining ?? 0)
+        if (lv < MAGIC_ROCK_MINING) {
+          feed('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
+               + ' opens the magic-rocks of the Wilds \u2014 you have ' + lv + '.')
+          flashClick(n.x, n.y, false)
+          return
+        }
       }
       const msg = { 'tree': 'You swing your axe at the tree.',
                     'rock': 'You take a swing at the rock.',
