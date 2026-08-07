@@ -339,7 +339,7 @@ const NODE_YIELD = {
   'tree':         { item: 'logs',        skill: 'woodcutting', xp: 25 },
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
   'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 30 },
-  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 50 },
+  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 30 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
@@ -401,7 +401,7 @@ const WIELD_REQS = {
   // quite a beginner".
   'heartwood-staff': { magic: 70 },
   'star-helm': { defence: 45 }, 'star-plate': { defence: 50 },
-  'handgonne': { ranged: 1 },   // §6av
+  'handgonne': { ranged: 90 },   // §6av
 };
 // THE STORE MAKES NOTHING. It was `{ seeds: 15 }` -- the one good in the world
 // conjured by an institution rather than by a person -- and with the stalls in
@@ -685,7 +685,7 @@ const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted //
 // since magic-stone is priced at twenty and any citizen may buy it. It is
 // raised so that MINING has a country at the end of its road, the way
 // woodcutting has heartwood and fishing has the deep water.
-const MAGIC_ROCK_MINING = 1;
+const MAGIC_ROCK_MINING = 70;
 // ---------------------------------------------------------------------------
 // A DEED IS DONE WHERE PEOPLE CAN SEE IT
 // ---------------------------------------------------------------------------
@@ -969,8 +969,12 @@ const HP_START_XP = 1154; // hitpoints level 10
 // Three of them, and each is ONE legible thing you could describe in a
 // sentence — not a number tuned for a burst meta:
 //
-//   'flurry' star-dagger  several blows land in one tick (was 'twice',
-//                              which stopped being true at six)
+//   'flurry' star-dagger, horn-bow, handgonne -- several blows land in one
+//            tick. Was 'twice' until it stopped being two, and the horn-bow
+//            briefly had 'volley', which was the same mechanic under a second
+//            name. One behaviour, one word.
+//   'now'    star-maul -- gated on a SPENT arm, so it interrupts
+//   'far'    dragonbow -- the blow grows with the range it crossed
 //   'now'    star-maul    it swings whatever your arm says
 //   'true'   horn-bow     the shot cannot miss
 //
@@ -1077,7 +1081,7 @@ const WEAPONS = {
   // for the damage. The archer's weapon for somebody who means to be in it.
   'heartwood-bow': { hit: 4, every: 2, reach: 3, acc: 3, ranged: true },
   'wooden-bow':    { hit: 0, every: 2, reach: 4, acc: 0, ranged: true },
-  'horn-bow':      { spec: 'volley', blows: 6, rec: 13, hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
+  'horn-bow':      { spec: 'flurry', blows: 6, rec: 13, hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
   // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
   // Reach 9 is the whole weapon: nothing else in the world touches past five,
   // so whoever draws it fights at a distance where almost nothing can answer.
@@ -1783,12 +1787,12 @@ const SMITH_REQS = {
   'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
   'star-sword': { smithing: 45, magic: 25 },
   'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
-  'star-dagger': { smithing: 1, magic: 1 },
-  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 1, magic: 1 },
+  'star-dagger': { smithing: 45, magic: 28 },
+  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
   // §6av: smithing reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
   // not end with the first one.
-  'handgonne': { smithing: 1, magic: 1 }, 'shot': { smithing: 1 },
+  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
   // §6x: a crossbow is a steel prod under tension and a lock that must not
   // slip. The flail is easier iron and harder geometry.
   'crossbow': { smithing: 18 },
@@ -5913,7 +5917,13 @@ function nextState(state, inputs, _legacyBeacon) {
         const blows = w9.blows ?? (w9.spec === 'flurry' ? 2 : 1);
         for (let b9 = 0; b9 < blows; b9++) {
           // 'true' cannot miss; the others roll as any blow does
-          if (w9.spec !== 'true' && roll(beacon, pid, 'spec' + b9) >= acc9) continue;
+          // Every blow is rolled. This once read `spec !== 'true'`, sparing the
+          // roll for a horn-bow's certainty -- but certainty cannot be priced
+          // (its worth scales inversely with the target's hit rate, so no fixed
+          // recovery is neutral across armour), and 'true' was retired. The
+          // clause outlived the name and was a trap: anything later called
+          // 'true' would have quietly become unmissable.
+          if (roll(beacon, pid, 'spec' + b9) >= acc9) continue;
           // ARMOUR SOAKS AN ARROW, on a special exactly as on any other shot.
           //
           // This read `drawn9 ? 0`, so a drawn bow ignored armour entirely --
