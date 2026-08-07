@@ -2072,7 +2072,7 @@ const CALLINGS = {
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
 }
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength',
   'defence', 'hitpoints', 'exploration', 'brewing']
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
@@ -2175,6 +2175,7 @@ const PRICES = {
   // margin rather than a fletcher's windfall, and the woodcutter who spent
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -2204,6 +2205,7 @@ const PRICES = {
   // every Wilds good in this table is priced.
   'dragon-bones': 500,
 }
+
 
 
 
@@ -2446,6 +2448,7 @@ const SKILL_UNLOCKS = {
   ],
   brewing: [
     { level: 90, text: "2 draughts from a pot, instead of 1" },
+    { level: 90, text: "a deep fish makes a DEEP BROTH, which heals 8 and stacks" },
   ],
   exploration: [
     { level: 90, text: "any rumour yields a chart, to sell to those who would rather not walk" },
@@ -5204,6 +5207,18 @@ function itemIcon(item) {
       g.beginPath(); g.ellipse(cx + 1, cy - 4, 5, 2.4, -.5, 0, 7); g.fill()
       g.strokeStyle = '#2a4a1e'; g.lineWidth = 1
       g.beginPath(); g.moveTo(cx - 3, cy - 2); g.lineTo(cx + 5, cy - 6); g.stroke()
+      return }
+    if (item === 'deep-broth') {
+      // a deeper, colder brew than the shallows give: the same horn cup, but
+      // what is in it catches the light differently
+      g.fillStyle = '#6a5230'
+      poly(g, [[cx-6,cy-7],[cx+6,cy-7],[cx+4,cy+9],[cx-4,cy+9]], '#6a5230', '#3a2c18')
+      g.fillStyle = '#2f6f86'
+      poly(g, [[cx-5,cy-5],[cx+5,cy-5],[cx+4,cy+2],[cx-4,cy+2]], '#2f6f86')
+      g.fillStyle = 'rgba(150,214,236,.5)'
+      g.fillRect(cx - 4, cy - 5, 8, 1.6)
+      g.strokeStyle = '#6a5230'; g.lineWidth = 1.6
+      g.beginPath(); g.arc(cx + 8, cy, 3.4, -1.1, 1.1); g.stroke()
       return }
     if (item === 'dragon-bones') {
       // heavier than a goblin's, and darker: a long bone and a great fang
@@ -8179,6 +8194,9 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   }
   else if (moving) swingVal = -0.45 + Math.sin(t * 6.5) * .22
   else swingVal = -0.5
+  // and the hand comes UP to the mouth for a meal, whoever is eating
+  if (p.deed === 'eat' || p.deed === 'forage' || p.deed === 'drink')
+    swingVal = -0.5 - Math.sin(clamp((t % 1) * 1.6, 0, 1) * Math.PI) * 1.5
   // and a one-tick deed overrides all of it, for as long as it takes to do
   let crouch = 0, pitch = 0
   // how much of the strike is happening, 0 at rest and 1 at the blow
@@ -8213,6 +8231,20 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const sleeping = !isMe && curState && !isAwake(p, curState.tick) && p.hp > 0
   const dozeDip = sleeping ? 1.15 : 0
   const dozeLean = sleeping ? .18 : 0
+  // A DEED IS DONE WHERE PEOPLE CAN SEE IT -- INCLUDING THE BODY.
+  //
+  // Poses were driven by `myDeed`, which only ever exists for YOU, so a
+  // citizen watched themselves raise a fish to their mouth and watched
+  // everybody else swallow one by standing perfectly still with a ring around
+  // their feet. `deed` is in the state now: one word, set on the interval it
+  // happens, cleared at the top of the next. So the body can read it, for
+  // anybody, and a bystander can see that somebody in a fight just ate.
+  //
+  // It lasts one interval, which at six hundred milliseconds is exactly long
+  // enough to read and too short to be mistaken for an action.
+  const eatE = (p.deed === 'eat' || p.deed === 'forage' || p.deed === 'drink')
+    ? clamp((t % 1) * 1.6, 0, 1) : 0
+  const eatLift = eatE ? Math.sin(eatE * Math.PI) : 0
   const castE = (myDeed?.pose === 'cast' && isMe) ? clamp((performance.now() - myDeed.at) / myDeed.dur, 0, 1) : 0
   const castLean = castE === 0 ? 0
     : castE < .34 ? -(castE / .34) * .40
@@ -8270,8 +8302,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     // blow lands and comes back up on the recovery, and the weight shifts
     // forward. Small numbers -- two or three pixels -- but it is the
     // difference between a body working and an arm attached to a post.
-    crouch: crouch + workDip + biteDip + castDip + dozeDip,
-    pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean,
+    crouch: crouch + workDip + biteDip + castDip + dozeDip - eatLift * .18,
+    pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean - eatLift * .30,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
     plate: star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
@@ -10427,7 +10459,10 @@ function drawPanel(g, now) {
   // from the pack automatically because nobody has ever enjoyed loading a belt.
   beltMap = []
   const inv = me?.inventory ?? []
-  for (const want of ['ale', 'broth', 'cooked-fish', 'cooked-deep-fish']) {
+  // §6an: the deep broth belongs here too. A hand-kept list of what counts as
+  // food is exactly the thing a new restorative falls out of -- a citizen with
+  // a pack of deep broth would have found the belt empty.
+  for (const want of ['ale', 'broth', 'deep-broth', 'cooked-fish', 'cooked-deep-fish']) {
     const i2 = inv.findIndex((sl, ix) => sl && sl.item === want && !beltMap.some(b => b.slot === ix))
     if (i2 >= 0 && beltMap.length < 4) beltMap.push({ slot: i2, item: want, qty: inv[i2].qty ?? 1 })
   }

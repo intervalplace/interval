@@ -2140,6 +2140,12 @@ function itemSprite(item) {
       g.fillStyle = '#f2ead2'; g.fillRect(12, 12, 10, 3)   // foam
       g.strokeStyle = '#4a3f28'; g.lineWidth = 2; g.strokeRect(11, 12, 12, 15)
       g.fillStyle = '#6b5a3a'; g.fillRect(23, 15, 3, 8); break // handle
+    case 'deep-broth':
+      // the same bowl, but what is in it came out of deep water
+      g.fillStyle = '#5a5048'; g.beginPath(); g.ellipse(17, 20, 8, 5, 0, 0, 7); g.fill()
+      g.fillStyle = '#2f6f86'; g.beginPath(); g.ellipse(17, 18, 6.5, 3, 0, 0, 7); g.fill()
+      g.fillStyle = 'rgba(150,214,236,.55)'; g.beginPath(); g.ellipse(15, 17, 2.4, 1.1, 0, 0, 7); g.fill()
+      break
     case 'broth':
       g.fillStyle = '#5a5048'; g.beginPath(); g.ellipse(17, 20, 8, 5, 0, 0, 7); g.fill() // bowl
       g.fillStyle = '#b9843a'; g.beginPath(); g.ellipse(17, 18, 6.5, 3, 0, 0, 7); g.fill() // broth
@@ -2566,7 +2572,7 @@ const CALLINGS = {
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
 }
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength',
   'defence', 'hitpoints', 'exploration', 'brewing']
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
@@ -2663,6 +2669,7 @@ const PRICES = {
   // margin rather than a fletcher's windfall, and the woodcutter who spent
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -2692,6 +2699,7 @@ const PRICES = {
   // every Wilds good in this table is priced.
   'dragon-bones': 500,
 }
+
 
 
 // what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
@@ -3908,7 +3916,7 @@ function onState(s, worldId) {
     if (me.hp > old.hp && !died) { // name what actually left the pack
       const gone = (it) => old.inventory.filter(sl => sl?.item === it).length
                          > me.inventory.filter(sl => sl?.item === it).length
-      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth'
+      const food = gone('cooked-fish') ? 'the fish' : gone('deep-broth') ? 'the deep broth' : gone('broth') ? 'the broth'
                  : gone('ale') ? 'the ale' : null
       feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.'
                 : 'You recover ' + (me.hp - old.hp) + '.')
@@ -6021,7 +6029,8 @@ function drawScene(now) {
         cx.fillStyle = '#4a423a'; cx.beginPath(); cx.ellipse(X+20, Y+24, 9, 7, 0, 0, 7); cx.fill()
         cx.fillStyle = '#2f2a24'; cx.beginPath(); cx.ellipse(X+20, Y+19, 8, 3, 0, 0, 7); cx.fill()
         if (fermenting || ready) { // the brew within
-          cx.fillStyle = n.brewKind === 'broth' ? '#b9843a' : '#caa23e'
+          cx.fillStyle = n.brewKind === 'broth' ? '#b9843a'
+            : n.brewKind === 'deep-broth' ? '#2f6f86' : '#caa23e'
           cx.beginPath(); cx.ellipse(X+20, Y+19, 6.5, 2.2, 0, 0, 7); cx.fill()
         }
         if (fermenting) { // bubbles rising
@@ -6642,7 +6651,10 @@ function drawScene(now) {
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
     // raising a stall reads as work, not as standing still: a builder who
       // looked idle would be indistinguishable from somebody asleep
-      const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
+      // a meal is seen: `deed` is one word in the state, so the body can read
+      // it for ANYBODY rather than only for the citizen holding the mouse
+      const anim = (p.deed === 'eat' || p.deed === 'forage' || p.deed === 'drink') ? 'gather'
+        : moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
         : p.action?.type === 'gather' ? 'gather'
                : p.action?.type === 'attack' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
@@ -7073,6 +7085,18 @@ function drawScene(now) {
       lightCv.width = cv.width; lightCv.height = cv.height
     }
     const L = lightCv.getContext('2d')
+    // THE LIGHT MUST BE DRAWN IN THE SAME UNITS AS THE WORLD.
+    //
+    // px() and py() give TILE pixels, and the world is painted through
+    // setTransform(ZR, ...), so every lamp was placed at world coordinates
+    // divided by ZR. While the canvas was a fixed 560 wide, ZR was 0.78 and
+    // the error was twenty-odd per cent -- wrong, but close enough to read as
+    // "the glow sits a bit off". Once the backing store started matching the
+    // screen, ZR became about 1.7 and the citizen's own light went and stood
+    // somewhere else entirely.
+    //
+    // The same transform, so a lamp is where the thing holding it is.
+    L.setTransform(1, 0, 0, 1, 0, 0)
     L.globalCompositeOperation = 'source-over'
     L.clearRect(0, 0, cv.width, cv.height)
     L.fillStyle = 'rgba(8,12,38,' + darkness + ')'
@@ -7089,10 +7113,13 @@ function drawScene(now) {
       const isFire = n.type === 'campfire' || n.type === 'fire' || isWatch
       const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
-      const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
+      const fx = (px(n.x - cam.x) + 20) * ZR, fy = (py(n.y - cam.y) + (isFire ? 24 : 20)) * ZR
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
-      const r = isWatch ? 232 + Math.sin(now / 140 + n.x) * 10 : isFire ? 96 + Math.sin(now / 140 + n.x) * 5 : 42 + Math.sin(now / 600 + n.x) * 4
-      const grad = L.createRadialGradient(fx, fy, isFire ? 8 : 4, fx, fy, r)
+      // and the RADIUS too, or a lamp lights the right spot at the wrong size
+      const r = (isWatch ? 232 + Math.sin(now / 140 + n.x) * 10
+        : isFire ? 96 + Math.sin(now / 140 + n.x) * 5
+        : 42 + Math.sin(now / 600 + n.x) * 4) * ZR
+      const grad = L.createRadialGradient(fx, fy, (isFire ? 8 : 4) * ZR, fx, fy, r)
       grad.addColorStop(0, 'rgba(0,0,0,' + (isFire ? 1 : 0.6) + ')')
       grad.addColorStop(1, 'rgba(0,0,0,0)')
       L.fillStyle = grad; L.beginPath(); L.arc(fx, fy, r, 0, 7); L.fill()
@@ -7108,6 +7135,9 @@ function drawScene(now) {
       const isFire = n.type === 'campfire' || n.type === 'fire'
       const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
+      // NOT scaled: this pass draws on cx, which is still inside the world
+      // transform. The light canvas above has none, which is why it needs ZR
+      // and this does not -- the same two lines with different homes.
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
       const R = isFire ? 60 : 40
@@ -7901,7 +7931,9 @@ function invClick(i) {
       feed('It comes apart' + (alchPay > 0 ? ' for ' + alchPay + ' gold.' : '.') + ' A keeper would have paid more.') },
   }]
   if (it.item === 'magic-stone') {
-    const count = me.inventory.filter(sl => sl?.item === 'magic-stone').length
+    // meNow, not me: `const me` is declared two thirds of the way down this
+    // function, so reaching for it up here THROWS and the click does nothing.
+    const count = meNow.inventory.filter(sl => sl?.item === 'magic-stone').length
     chooseAction([
       { label: 'invoke sigil (' + count + '/3 stones)', act: () => {
         if (count < 3) { feed('Three stones make a sigil. You carry ' + count + '.'); return }
@@ -7925,7 +7957,7 @@ function invClick(i) {
   }
   if (it.item === 'sigil') {
     const opts = []
-    if (lvl('magic') >= 85 && me.inventory.filter(sl => sl?.item === 'sigil').length >= 3
+    if (lvl('magic') >= 85 && meNow.inventory.filter(sl => sl?.item === 'sigil').length >= 3
       && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
       opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
         window.__stillArm = true
@@ -7975,8 +8007,17 @@ function invClick(i) {
       { label: 'fletch staff', act: () => send({ do: 'fletch', slot: +i, make: 'staff' }) },
       ...(() => {
         // §6al: raising a stall, asked of the timber it is made of
-        const logs2 = (me.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
-        const ore2 = (me.inventory ?? []).filter(x => x?.item === 'ore').length
+        // A TEMPORAL DEAD ZONE, AND IT ATE THE WHOLE CLICK.
+        //
+        // invClick declares `const me` two thirds of the way down itself. This
+        // block sits above that, so reaching for `me` here is not reading a
+        // stale value -- it throws a ReferenceError, and clicking a log did
+        // NOTHING AT ALL: not a wrong menu, no menu, no message.
+        //
+        // `meNow` is the citizen this function fetched at the top, and is what
+        // every other branch above the declaration uses.
+        const logs2 = (meNow.inventory ?? []).filter(x => x && (x.item === 'logs' || x.item === 'heartwood')).length
+        const ore2 = (meNow.inventory ?? []).filter(x => x?.item === 'ore').length
         const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
         if (already) return [{ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') }]
         if (logs2 < 16 || ore2 < 8)
@@ -8011,13 +8052,26 @@ function invClick(i) {
     if (foe) { intent = { kind: 'attack', id: foe }; feed('You wolf it down and raise your sword again.') }
     else feed('You eat the fish.')
   }
-  else if (it?.item === 'ale' || it?.item === 'broth') {
+  else if (it?.item === 'ale' || it?.item === 'broth' || it?.item === 'deep-broth') {
     const foe = meNow.action?.type === 'attack' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
     if (foe) { intent = { kind: 'attack', id: foe }; feed('You down it and fight on.') }
-    else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.' : 'You sip the broth. Warmth returns.')
+    else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.'
+      : it.item === 'deep-broth' ? 'You drink the deep broth. It is colder than it looks, and stronger.'
+      : 'You sip the broth. Warmth returns.')
   }
-  else if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
+  else if (it?.item === 'raw-fish') {
+    // A RAW FISH IS NOT ONLY FOOD. This one-clicked to cook and said "you
+    // attempt to cook..." -- which, standing nowhere near a fire, is a citizen
+    // clicking a thing and watching nothing happen. It is also brewable into
+    // broth, transmutable, bankable and droppable, and none of that was
+    // reachable.
+    chooseAction([
+      { label: 'cook it', act: () => { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') } },
+      ...bankOpt, ...alchOpt,
+      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the raw fish.') } },
+    ])
+  }
   else if (it) {
     // THE FALLBACK WAS A DROP, WHICH IS A STRANGE THING TO DO ON ONE CLICK.
     //
