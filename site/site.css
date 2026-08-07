@@ -379,3 +379,31 @@ tr.crow-total td { background: #2b2113; border-bottom: 2px solid var(--stone-lt)
 }
 .modb:hover { border-color: var(--fire); color: var(--fire); }
 .modb:first-of-type { margin-left: auto; }
+
+/* ---------------------------------------------------------------------------
+   THE PLAY BUTTON
+   ---------------------------------------------------------------------------
+   Deliberately the largest thing on the page after the title. A visitor's
+   first question is whether they can play this, and the honest answer is
+   "yes, now, here" -- so the answer should not be a link in a paragraph. */
+.playbox { text-align: center; margin: 26px 0 30px }
+.playbtn {
+  display: inline-block; padding: 18px 46px;
+  font-family: 'Cinzel', Georgia, serif; font-weight: 700;
+  font-size: 26px; letter-spacing: .10em; text-decoration: none;
+  color: #f2e2ae; background: linear-gradient(#5a4423, #3a2b14);
+  border: 2px solid var(--gold, #b0913f);
+  border-top-color: #d8bd6e; border-left-color: #d8bd6e;
+  box-shadow: 0 3px 0 #1a1409, 0 6px 18px rgba(0,0,0,.55);
+  text-shadow: 0 2px 0 #1a1409;
+}
+.playbtn:hover { background: linear-gradient(#6d5329, #48351a); color: #fff3cd }
+.playbtn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1a1409 }
+.playsub { margin-top: 10px; font-size: 12px; color: var(--dim, #8a7d68) }
+.nowrap { white-space: nowrap }
+
+/* the window cards: a name, a line, and what it asks of a machine */
+.spec { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #8a7d68 }
+.spec b { color: #b0913f; font-weight: 700 }
+.shot { width: 100%; height: auto; display: block; image-rendering: pixelated;
+        border: 1px solid var(--stone-dk, #2a2419) }

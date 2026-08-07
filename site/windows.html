@@ -23,7 +23,18 @@
   <h1>Choose a window</h1>
   <p class="tagline">All of these open the same world. None of them is it.</p>
 
-  <div class="doors">
+  <!-- WHY THE NUMBERS ARE THERE.
+     A visitor who has met a modern game expects a download, an account and a
+     machine that can cope. Every one of those expectations is wrong here, and
+     the fastest way to say so is a file size next to a name. -->
+<p class="spec" style="text-align:center;max-width:46em;margin:0 auto 18px;font-size:12px">
+  There is no server to connect to, so there is nothing between you and the
+  world but the page itself. A window is <b>one HTML file</b>: it holds the
+  rules, the map and the art, computes every interval on your own machine, and
+  needs about <b>120 KB</b> of world state to know where everybody is.
+  Nothing is installed and nothing is stored anywhere but here.
+</p>
+<div class="doors">
     <div class="door">
       <figure>
         <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
@@ -47,10 +58,11 @@
         </svg>
       </figure>
       <h3>The flat window</h3>
-      <p class="kind">tiles, from above</p>
-      <p>Every tile plain and legible, the whole neighbourhood at a glance.
-      It asks very little of a machine and reads well on a small screen.
-      If you are not sure, start here.</p>
+      <p class="kind">tiles, from above &mdash; start here if unsure</p>
+      <p class="spec">
+        <b>467 KB</b>, one page &middot; 2D canvas &middot; any browser since 2015<br>
+        works on a phone &middot; no download, no account, no payment
+      </p>
       <a class="enter" href="/play/flat">Enter</a>
     </div>
     <div class="door">
@@ -103,13 +115,10 @@
       </figure>
       <h3>The lantern window</h3>
       <p class="kind">forty-five degrees, and one light</p>
-      <p>The same island with the camera turned, so that things stand in front
-      of other things: you walk behind the oak and in front of the wall, and a
-      building has two sides to it. Warm light, cool shadow, and no morning.
-     The world&rsquo;s clock still turns and every other window will
-      show you the sunrise, but this one keeps its lantern lit and declines to
-      look. Anything lying on the floor stands in a pillar of light, and
-      everything that lands says how much.</p>
+      <p class="spec">
+        <b>694 KB</b>, one page &middot; 2D canvas &middot; any browser since 2015<br>
+        heavier to draw &mdash; a laptop is happier with it than a phone
+      </p>
       <a class="enter" href="/play/lantern">Enter</a>
     </div>
     <div class="door">
@@ -132,10 +141,10 @@
       </figure>
       <h3>The holo window</h3>
       <p class="kind">a diorama on your table &middot; <em>experimental</em></p>
-      <p>The world as a small country placed on a real surface, or at full
-      size around your feet. Built for headsets that pass the room through,
-      and it runs flat in an ordinary browser too. Air-tap a tile to walk to
-      it.</p>
+      <p class="spec">
+        <b>133 KB</b>, one page &middot; wants a headset or a recent phone<br>
+        the smallest of the three, and the fussiest about hardware
+      </p>
       <a class="enter" href="/play/holo">Enter</a>
     </div>
   </div>
