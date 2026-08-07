@@ -685,7 +685,7 @@ const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted //
 // since magic-stone is priced at twenty and any citizen may buy it. It is
 // raised so that MINING has a country at the end of its road, the way
 // woodcutting has heartwood and fishing has the deep water.
-const MAGIC_ROCK_MINING = 70;
+const MAGIC_ROCK_MINING = 1;
 // ---------------------------------------------------------------------------
 // A DEED IS DONE WHERE PEOPLE CAN SEE IT
 // ---------------------------------------------------------------------------
