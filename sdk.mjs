@@ -63,14 +63,15 @@ export class IntervalClient {
   acceptTrade(from) { return this.#send({ type: 'accept_trade', from }) }
   cancelTrade() { return this.#send({ type: 'cancel_trade' }) }
   cook(slot) { return this.#send({ type: 'cook', slot }) }
-  attack(mobId) { return this.#send({ type: 'attack', mobId }) }
+  // §6as-iii: style is 'even' (the split), 'aim' (attack) or 'force' (strength)
+  attack(mobId, style = 'even') { return this.#send({ type: 'attack', mobId, style }) }
   eat(slot) { return this.#send({ type: 'eat', slot }) }
   drop(slot) { return this.#send({ type: 'drop', slot }) }
   pickup(groundId) { return this.#send({ type: 'pickup', groundId }) }
   light(slot) { return this.#send({ type: 'light', slot }) }
   bury(slot) { return this.#send({ type: 'bury', slot }) }
   fletch(slot, make) { return this.#send({ type: 'fletch', slot, make }) }
-  attackp(targetId) { return this.#send({ type: 'attackp', targetId }) }
+  attackp(targetId, style = 'even') { return this.#send({ type: 'attackp', targetId, style }) }
   plant(slot) { return this.#send({ type: 'plant', slot }) }
   harvest(nodeId) { return this.#send({ type: 'harvest', nodeId }) }
   sell(slot) { return this.#send({ type: 'sell', slot }) }
@@ -112,7 +113,7 @@ export class IntervalClient {
   // citizen's, but `still` and `special` are things a citizen DOES, and a bot
   // that cannot root an opponent or spend a special is fighting with one hand.
   still(target) { return this.#send({ type: 'still', target }) }
-  special(targetId) { return this.#send({ type: 'special', targetId }) }
+  special(targetId, style = 'even') { return this.#send({ type: 'special', targetId, style }) }
   mendp(target) { return this.#send({ type: 'mendp', target }) }
   // ---- trading with another citizen ----
   // The SDK could not do this at all: a script could buy from a keeper and
