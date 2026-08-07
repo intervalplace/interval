@@ -401,7 +401,7 @@ const WIELD_REQS = {
   // quite a beginner".
   'heartwood-staff': { magic: 70 },
   'star-helm': { defence: 45 }, 'star-plate': { defence: 50 },
-  'handgonne': { ranged: 90 },   // §6av
+  'handgonne': { ranged: 1 },   // §6av
 };
 // THE STORE MAKES NOTHING. It was `{ seeds: 15 }` -- the one good in the world
 // conjured by an institution rather than by a person -- and with the stalls in
@@ -1783,12 +1783,12 @@ const SMITH_REQS = {
   'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
   'star-sword': { smithing: 45, magic: 25 },
   'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
-  'star-dagger': { smithing: 45, magic: 28 },
-  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
+  'star-dagger': { smithing: 1, magic: 1 },
+  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 1, magic: 1 },
   // §6av: smithing reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
   // not end with the first one.
-  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
+  'handgonne': { smithing: 1, magic: 1 }, 'shot': { smithing: 1 },
   // §6x: a crossbow is a steel prod under tension and a lock that must not
   // slip. The flail is easier iron and harder geometry.
   'crossbow': { smithing: 18 },
