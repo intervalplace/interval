@@ -2722,7 +2722,7 @@ const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'magic-rock': '
 // refused the gather at the door and the refusal is silent, so the rock simply
 // did not break and no reason was given. The window has to carry the number to
 // say the sentence; there is no message on the wire that carries it back.
-const MAGIC_ROCK_MINING = 1
+const MAGIC_ROCK_MINING = 70
 
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
@@ -3213,12 +3213,12 @@ const FORGE = {
 // character for character from engine SMITH_REQS
 const FORGE_REQ = {
   'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
-  'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 1, magic: 1 },
-  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 1, magic: 1 },
+  'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 },
+  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
   'star-flail': { smithing: 26, magic: 14 },
   'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
   'sigil-bow': { smithing: 12, magic: 25 },
-  'handgonne': { smithing: 1, magic: 1 }, 'shot': { smithing: 1 },
+  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
 }
 // a log is a log (§6ad), so heartwood pays for anything logs pay for
 function forgeHave(me, item) {
