@@ -1732,7 +1732,12 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // percent), so durability's higher availability nets NO economic or
   // progression change. Durability governs sharing; the rate governs speed;
   // they are separate layers and stay that way.
-  g.gather = { depleteOneIn: 12, depleteTicks: 4, rateMul: 0.84, magicDepleteTicks: 40 }
+  // 6bc: rateMul 0.25, not 0.84. Under the flat-experience curve (base 60,
+  // two fifths of a level, four tools worth 12-36) this is the only value that
+  // puts a mastery at 879 hours -- thirty-seven days of an executor that never
+  // stops, which is what "a long time" has to mean in a world where nobody
+  // sleeps. At 0.84 the same road is 290 hours.
+  g.gather = { depleteOneIn: 12, depleteTicks: 4, rateMul: 0.36, magicDepleteTicks: 40 }
   // §6ao (v6): citizen stalls must line the roads; alchemy is a town-and-Wilds
   // deed (never at the spawn) done with a staff in hand. Both are founding
   // choices; a world may omit either.
@@ -3263,6 +3268,36 @@ export function buildWorld(genesis) {
     return x > W * 0.60
   }
   counts.heartGrove = clusterScatter('hwtree', 6, deepEastGreenwood, hwtree, 1, 8)
+  // 6bc/6bd: THE THIRD RUNG AND THE WILDS RUNG.
+  //
+  // Ironbark stands in the northern greenwood, well clear of both the mid oaks
+  // (west) and the heartwood (far east), so the three woods are three journeys
+  // and not three names for one walk.
+  const ironbarkStand = (x, y) => {
+    if (B(x, y) !== 'greenwood') return false
+    return y < H * 0.34 && x > W * 0.30 && x < W * 0.55
+  }
+  counts.ironbark = clusterScatter('ibtree', 6, ironbarkStand, (id, x, y) => E.addNode(w, id, 'ironbark-tree', x, y), 1, 8)
+  // The gallows-oaks and the mother lode are the same stand and the same seam
+  // as the deep Greenwood and the magic-rocks -- only in the Wilds, and paying
+  // two to a strike. They are not a better rate; they are a wager.
+  const deepWildsSeams = (x, y) => {
+    if (B(x, y) !== 'wilds') return false
+    const wr = g.geo.wilds
+    return x > wr.x0 + (wr.x1 - wr.x0) * 0.45 && x < wr.x1 - 4
+  }
+  counts.gallows = clusterScatter('gallow', 5, deepWildsSeams, (id, x, y) => E.addNode(w, id, 'gallows-oak', x, y), 1, 8)
+  counts.motherLode = clusterScatter('mlode', 5, deepWildsSeams, (id, x, y) => E.addNode(w, id, 'mother-lode', x, y), 1, 8)
+  // 6bb: THE GOLD SEAM. Remote but SAFE, and deliberately not the Wilds: the
+  // magic-rocks are dangerous wealth and gold is patient wealth, and a world
+  // with two of the first and none of the second only has one kind of rich
+  // person in it. Far south in the crags, a long walk from anywhere, where the
+  // only thing it costs you is the mastery you are not earning while you wait.
+  const goldCountry = (x, y) => {
+    if (B(x, y) !== 'crags') return false
+    return y > H * 0.68
+  }
+  counts.goldSeam = clusterScatter('gseam', 4, goldCountry, (id, x, y) => E.addNode(w, id, 'gold-rock', x, y), 1, 8)
   // deep-fish: the northern Moor/Wilds water pocket, placed at the DEEP end
   // (~15t into the Wilds) so fishing there is a real commitment, not a step-out.
   {
@@ -3291,6 +3326,31 @@ export function buildWorld(genesis) {
       }
     }
     counts.deepFish = placed
+    // 6be: THE DROWNED SHOAL, deeper again. The same water, the same walk and
+    // then some, giving two deep fish to a cast -- fishing's gallows-oak. It
+    // sits beyond the deep-fish band (>20 tiles in) so a fisher who wants it
+    // has to pass the ordinary deep water and keep going.
+    const shoal = []
+    for (let y = 100; y <= 148; y++) for (let x = 150; x < 195; x++) {
+      if (!isWater(g, x, y)) continue
+      let land = false
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]])
+        if (!isWater(g, x + dx, y + dy) && !blockedAt(g, x + dx, y + dy) && B(x + dx, y + dy) === 'wilds') land = true
+      if (!land) continue
+      const depth = Math.round(W * 0.215) - x
+      if (depth > 20) shoal.push({ x, y, depth })
+    }
+    shoal.sort((a, b) => b.depth - a.depth)
+    let sPlaced = 0
+    if (shoal.length) {
+      const anchor = shoal[0]
+      const near = shoal.filter(p => Math.abs(p.x - anchor.x) + Math.abs(p.y - anchor.y) <= 6)
+      for (const p of near) {
+        if (sPlaced >= 4) break
+        if (!taken.has(key(p.x, p.y))) { E.addNode(w, 'shoal-' + sPlaced, 'gibbet-shoal', p.x, p.y); taken.add(key(p.x, p.y)); sPlaced++ }
+      }
+    }
+    counts.drownedShoal = sPlaced
   }
 
   // §6ao (v6): the doorstep copses are GONE -- the low-level Draynor in every
