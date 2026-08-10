@@ -330,7 +330,16 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // that founds itself on a generator which never seats them is unchanged: no
   // v1-v5 world contains one, so the yield, the gate and the tool below are
   // never reached in it.
-  'oak-tree', 'coal-rock', 'eel-spot', 'iron-rock', 'heartwood-tree', 'deep-fish-spot'];
+  'oak-tree', 'coal-rock', 'eel-spot', 'iron-rock', 'heartwood-tree', 'deep-fish-spot',
+  // 6bb: THE GOLD SEAM. Not a tier of mining -- a lottery inside it.
+  'gold-rock',
+  // 6bc: the woodcutting ladder. Ironbark is a wood; the gallows-oak is a
+  // PLACE -- the same heartwood, twice a strike, in the country that kills.
+  'ironbark-tree', 'gallows-oak',
+  // 6bd: mining's own gallows-oak -- the same stone, twice a strike, deeper in
+  'mother-lode',
+  // 6be: fishing's Wilds rung -- the drowned shoal below the gibbet
+  'gibbet-shoal'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -357,26 +366,46 @@ const DEPLETE_TICKS = 8;
 // average, sometimes one, sometimes nine -- which is how a tree behaves.
 const DEPLETE_ONE_IN = 4;
 const NODE_YIELD = {
-  'tree':         { item: 'logs',        skill: 'woodcutting', xp: 25 },
+  'tree':         { item: 'logs',        skill: 'woodcutting', xp: 20 },
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
-  'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 30 },
-  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 30 },
+  'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 20 },
+  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 20 },
+  // 6bd: THE MOTHER LODE, the exact sibling of the gallows-oak. Two stones to a
+  // strike, deeper in the Wilds, and not one point more experience for it.
+  'mother-lode':  { item: 'magic-stone', skill: 'mining',      xp: 20, qty: 2 },
   // §6am (v6): the middle tier. Higher xp than baseline, lower than the
   // capstones, and the item is its own thing -- oak-logs, coal, eel --
   // that the mid gear (steel) is forged and fletched from.
-  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 45 },
-  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 55 },
-  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 50 },
+  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 20 },
+  // 6bc: ironbark, the long-burning wood. Its job is the watchfire, which is
+  // the one public work in this world, and the haft of the last axe.
+  'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 20 },
+  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 20 },
+  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 20 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
   // still (bronze is iron worked simply here), and STEEL is iron quenched with
   // coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
-  'iron-rock': { item: 'iron',     skill: 'mining',      xp: 35 },
+  'iron-rock': { item: 'iron',     skill: 'mining',      xp: 20 },
   // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
   // Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
   // mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
-  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 65 },
-  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 60 },
+  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 20 },
+  // 6bc: THE GALLOWS-OAK. Not a new wood -- a new PLACE for the same one, in
+  // the Wilds, giving two heartwood to a strike instead of one. This is the
+  // lever that replaced price (a keeper's purse is 2 gold a tick and caps
+  // everything): yield per action is uncapped, costs the experience curve
+  // nothing, and the price of it is that anybody may kill you while you work.
+  'gallows-oak':    { item: 'heartwood', skill: 'woodcutting', xp: 20, qty: 2 },
+  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 20 },
+  // 6be: THE DROWNED SHOAL. Two deep fish to a cast, under the gibbet, in the
+  // water only the Wilds touches -- fishing's gallows-oak, and the third of
+  // the three. Every trade now has one place where the good is doubled and
+  // the price of standing there is that somebody may kill you for it.
+  'gibbet-shoal':   { item: 'deep-fish', skill: 'fishing',     xp: 20, qty: 2 },
+  // 6bb: the gold seam yields like any other seam and pays like any other
+  // seam. What differs is only how often, and that is decided by roll16.
+  'gold-rock':      { item: 'gold-ore',  skill: 'mining',      xp: 20 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
@@ -400,8 +429,18 @@ const WIELD_REQS = {
   // and well short of the ninety that buys heartwood and the deep fish.
   // §6am (v6): a mid tool asks for the middle of its trade, the way a star
   // tool asks for sixty. Thirty-five: the gate of the seam it is made to work.
-  'steel-hatchet': { woodcutting: 35 }, 'steel-pickaxe': { mining: 35 }, 'oak-rod': { fishing: 35 },
-  'star-hatchet': { woodcutting: 60 }, 'star-pickaxe': { mining: 60 },
+  // 6bc: THE AXE LADDER, on the HUMAN clock. Because experience is flat and
+  // exponential, level 20 is half an hour in, 40 is three and a half, 70 is
+  // fifty. So the whole tool ladder is earned in the first days -- which is the
+  // only part of this skill a person will ever cut by hand before handing it to
+  // an executor. A tool nobody living ever forges is a tool for nobody.
+  'steel-hatchet': { woodcutting: 10 }, 'steel-pickaxe': { mining: 10 }, 'oak-rod': { fishing: 10 }, 'ironbark-rod': { fishing: 30 }, 'heartwood-rod': { fishing: 70 },
+  'star-hatchet': { woodcutting: 30 }, 'star-pickaxe': { mining: 30 },
+  // 6bc: the felling axe -- a starmetal head on an ironbark haft, and the last
+  // thing woodcutting asks for. It needs the Wilds (the head) and the deep
+  // Greenwood (the haft), so the peaceful half of the trade and the dangerous
+  // half have to meet, exactly as the heartwood bow makes them.
+  'great-hatchet': { woodcutting: 70 }, 'great-pickaxe': { mining: 70 },
   'star-sword': { attack: 50 }, 'star-dagger': { attack: 50 }, 'old-chain': { attack: 30 },
   'star-spear': { attack: 50 }, 'star-maul': { attack: 55 }, 'horn-bow': { ranged: 20 },
   'dragonbow': { ranged: 40 },   // it will not be drawn by a beginner
@@ -441,6 +480,10 @@ const WIELD_REQS = {
   // quite a beginner".
   'heartwood-staff': { magic: 70 },
   'star-helm': { defence: 45 }, 'star-plate': { defence: 50 }, 'king-shroud': { defence: 40 },
+  // 6bb: it defends exactly as starmetal does. NOT better -- better would make
+  // it mandatory, and a thing everybody must own says nothing about anybody.
+  // Equal means wearing it is a statement rather than a build.
+  'gold-helm': { defence: 45 }, 'gold-plate': { defence: 50 },
   // §6am (v6): the mid arms and armour, worn at the middle of the fighting
   // road -- past a beginner, short of the fifty that straps on starmetal.
   'steel-sword': { attack: 35 }, 'steel-dagger': { attack: 35 }, 'steel-spear': { attack: 35 },
@@ -521,13 +564,23 @@ function skillUnlocks() {
     (out[skill] ??= []).push({ level, text });
   };
   // the gathering masteries
-  add('woodcutting', MASTER_YIELD, 'heartwood from a tree, instead of logs');
-  add('fishing', MASTER_YIELD, 'the deep fish, instead of the shallow');
-  add('mining', MAGIC_ROCK_MINING, 'the magic-rocks of the Wilds open to your pick');
+  // 6bc: every gathering gate reads from NODE_GATE, so a new seam appears in
+  // the guide the interval it appears in the world.
+  const _gateWords = {
+    'oak-tree': 'the oak groves open to your axe', 'ironbark-tree': 'the ironbark, which burns all night',
+    'heartwood-tree': 'the heartwood of the deep Greenwood', 'gallows-oak': 'the gallows-oaks of the Wilds: two heartwood to a strike',
+    'coal-rock': 'the coal seams open to your pick', 'magic-rock': 'the magic-rocks of the Wilds open to your pick',
+    'gold-rock': 'the gold seam will answer you, about once in three hours',
+    'mother-lode': 'the mother lode, deep in the Wilds: two stones to a strike',
+    'eel-spot': 'the eel runs', 'deep-fish-spot': 'the deep fish of the Wilds water',
+    'gibbet-shoal': 'the drowned shoal under the gibbet: two deep fish to a cast',
+  };
+  for (const [nt, g] of Object.entries(NODE_GATE)) if (_gateWords[nt]) add(g.skill, g.level, _gateWords[nt]);
   add('farming', FARM_MASTER, GRAIN_MASTER + ' sheaves from a row, instead of ' + GRAIN_PER_PLOT);
   add('cooking', COOK_DEEP_REQ, 'you may cook the deep fish');
   add('fletching', ARROW_MASTER, ARROWS_MASTER + ' arrows from a bone, instead of ' + ARROWS_PER_BONE);
   add('fletching', HEARTWOOD_FLETCH, 'the heartwood bow and the heartwood staff');
+  for (const [rd, lv] of Object.entries(ROD_FLETCH_REQ)) add('fletching', lv, 'shape the ' + rd.replace(/-/g, ' '));
   // magic, from its first spell to its last
   add('magic', ALCH_REQ, 'transmute: unmake a thing into coin and practice');
   add('magic', MEND_REQ, 'mend, and a wand may send it to somebody else');
@@ -592,10 +645,10 @@ const CALLING_NAMES = {
 };
 const STALL_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed'];
 const STALL_SELLS = {
-  lumber: { 'bronze-hatchet': 20 },
-  delve:  { 'bronze-pickaxe': 20 },
-  arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
-  armour: { 'bronze-helm': 24 },
+  lumber: { 'iron-hatchet': 20 },
+  delve:  { 'iron-pickaxe': 20 },
+  arms:   { 'iron-dagger': 16, 'iron-sword': 30, 'iron-spear': 28 },
+  armour: { 'iron-helm': 24 },
   // A BOW AND NO ARROWS, on purpose. Arrows are meant to be hard to come by,
   // and a stall selling them from nothing at any price undoes that in an
   // afternoon: there is no stock to run out and no cooldown that would not be
@@ -609,6 +662,9 @@ const STALL_SELLS = {
   // than the store ever charged, because everything at a stall is -- and
   // because a thing you had to travel for should cost something.
   seed:   { seeds: 22 },
+  // 6be: and the fisher, who was the one trade with a keeper's NAME in
+  // KEEPER_KINDS and no stall to stand in. A rod for the price of an axe.
+  fisher: { rod: 20 },
 }; // the keeper's OWN goods, made from nothing
 // v0.74: the keeper's shelf. What a citizen sells is no longer annihilated: it
 // sits in that store until somebody buys it. Two stores keep two shelves, so
@@ -729,12 +785,102 @@ const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted //
 // since magic-stone is priced at twenty and any citizen may buy it. It is
 // raised so that MINING has a country at the end of its road, the way
 // woodcutting has heartwood and fishing has the deep water.
-const MAGIC_ROCK_MINING = 70;
+const MAGIC_ROCK_MINING = 78;  // 6bd: the heartwood's number, for the heartwood's place in the road
 // §6am (v6): the mid seams open at the middle of the road -- past the point a
 // citizen has decided what they are, well short of the ninety that takes
 // heartwood and the deep fish and the magic-rock. One number for all three
 // skills: the middle is the middle. A founding tunes its own; this is the
 // default the first v6 world uses.
+// 6bb: THE GOLD SEAM, AND WHY EIGHTY-FIVE AND NOT NINETY-NINE.
+//
+// Gold pays the SAME experience a successful strike anywhere pays, and it pays
+// it one time in sixteen thousand three hundred and eighty-four -- about two
+// and three quarter hours. So an hour at the seam is not an hour spent, it is
+// an hour of MASTERY FORGONE, and that is the entire price of gold: the only
+// currency in this world nobody can inflate.
+//
+// Which is exactly why the gate cannot be ninety-nine. A master has nothing
+// left to forgo, so at ninety-nine the price is ZERO and gold becomes a
+// post-mastery errand -- the one shape this world has avoided everywhere else.
+// At eighty-five a miner is a hundred and ninety hours in with six hundred and
+// ninety-five still ahead, and a full set of plate costs them thirty-nine per
+// cent of the road they have left. That is a decision. Ninety-nine is a queue.
+//
+// It also keeps gold BUYABLE. A gate at the top would mean only masters could
+// ever produce it, and the interesting thing about a gold plate is not that
+// one person was patient -- it is that they could command the patience of
+// twenty others.
+const GOLD_MINING = 85;
+const GOLD_ONE_IN = 16384;      // one strike in this many intervals: 2h44m
+// and the lot itself, out of roll16's 65,536. 65536/16384 = 4.
+const GOLD_THRESHOLD = 65536 / GOLD_ONE_IN;
+const GOLD_DEPLETE_TICKS = 0;   // a seam that yields this seldom never sleeps
+const GOLD_ORE_PER_BAR = 5;     // and what the anvil makes of them
+// 6bc: THE GATHERING CURVE, AND WHY IT IS NEARLY FLAT.
+//
+// It was `min(32 + lvl + tool, 176)`: a master with a star axe struck seven
+// times as often as a newcomer, and on top of that the higher trees paid two
+// and a half times the experience. Thirteen and a half times, newcomer to
+// master, which made a TIER A SHORTCUT -- the exact opposite of the rule this
+// world states everywhere else, that mastery buys more from an hour and never
+// a shorter road. Cutting the whole way on starter trees took two hundred and
+// fifty-one hours; the ladder took eighty-five.
+//
+// So: the experience is FLAT at every tier (see NODE_YIELD), and the curve is
+// shallow. Base sixty, two fifths of a level, four axes worth twelve to
+// thirty-six. A log is 8.7 seconds at level one and 4.7 at ninety-nine -- a
+// master is twice as fast, and forty times as rich, and that is the whole
+// difference. What a level buys is ACCESS, and what access buys is a better
+// good, not a faster road.
+//
+// Integer arithmetic only (2m): floor(2*lvl/5), never a fraction.
+// 6bi: THE RATE LIVES IN THE TOOL. THE LEVEL BUYS ACCESS.
+//
+// The first cut of this curve put the throughput in the LEVEL and left the
+// axes worth about nine per cent each -- a reward nobody can feel, for work
+// that costs the Wilds. The cause was arithmetic, not judgement: a threshold
+// is an integer out of 256 and the useful band was 18 to 36, so a citizen's
+// WHOLE progression had sixteen integer steps to share, and a tool step
+// rounded down to two of them.
+//
+// Two changes. The threshold is drawn against roll16 -- the same two bytes the
+// gold seam reads -- so there are sixteen thousand steps where there were
+// sixteen, and a bonus is never eaten by rounding. And the weight moves off
+// the level onto the tool: base thirty, a tenth of a level, four tools worth
+// twenty-four to fifty-four.
+//
+// The identity that forced it, because it is not obvious: A NEWCOMER'S SPEED
+// IS THE MASTER'S SPEED TIMES THE SPAN. Hours-to-ninety-nine fixes what a
+// master's interval is worth (about five seconds a log); every other rate in
+// the skill is that number times how much better a master is. So "a fast
+// newcomer", "tools that matter" and "mastery takes a month" are three
+// constraints on two numbers -- unless the span is bought with tools, which a
+// newcomer can go and HOLD, rather than levels, which they cannot.
+//
+// A citizen of ten with a steel axe now out-cuts a citizen of sixty with an
+// iron one, and that is the right answer: they went and got the better axe.
+const GATHER_BASE = 30, GATHER_SLOPE_DEN = 10, GATHER_CAP = 130;
+// 6bc: ONE TABLE FOR EVERY GATE, so a skill can be tuned without touching its
+// neighbours. This replaced three separate mechanisms -- a shared MID_TIER
+// constant, a shared MASTER_YIELD, and two hand-written ifs -- which is how
+// woodcutting's middle and fishing's middle came to be the same number for no
+// reason anybody chose.
+const NODE_GATE = {
+  'oak-tree':        { skill: 'woodcutting', level: 20 },
+  'ironbark-tree':   { skill: 'woodcutting', level: 45 },
+  'heartwood-tree':  { skill: 'woodcutting', level: 78 },
+  'gallows-oak':     { skill: 'woodcutting', level: 92 },
+  // 6bd: mining, matched rung for rung to woodcutting. Coal is the SAFE middle
+  // and holds the road from thirty to seventy-eight, because a skill whose only
+  // way up ran through the Wilds would be a fighting skill wearing a pick.
+  'coal-rock':       { skill: 'mining',      level: 20 },
+  'magic-rock':      { skill: 'mining',      level: MAGIC_ROCK_MINING },
+  'mother-lode':     { skill: 'mining',      level: 92 },
+  'gold-rock':       { skill: 'mining',      level: GOLD_MINING },
+  'eel-spot':        { skill: 'fishing',     level: 20 },
+  'deep-fish-spot':  { skill: 'fishing',     level: 78 },
+  'gibbet-shoal':    { skill: 'fishing',     level: 92 },
+};
 const MID_TIER_GATE = 35;
 const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 'eel-spot': 'fishing' };
 // ---------------------------------------------------------------------------
@@ -837,7 +983,20 @@ const BRAND_TICKS = 1500; // strike first in the Wilds, wear it 15 minutes
 // freeze on a 120-tick leash, and a 10-tick immunity after so no one is
 // chain-frozen. Landing it is a decision, not a rhythm.
 const ROOT_TICKS = 3, ROOT_IMMUNE = 10, ROOT_CD = 120;
-const XP_COOK = 30;
+// 6bf: TWENTY, LIKE EVERY OTHER ACT IN THIS WORLD.
+//
+// A cook was thirty and a deep fish ninety, so cooking a master's catch taught
+// three times what cooking a beginner's did -- the tier-as-shortcut fault the
+// gathering skills have just been cured of, alive in the skill that eats their
+// output. It is flat now, at every rung.
+//
+// Which makes the pairing exact, and it is worth writing down because it was
+// not designed, it fell out: gathering is an ACTION and cooking is an INPUT,
+// so a fisher beside a fire does both in the same intervals for free. Over the
+// 886 hours that take fishing to ninety-nine, a fisher who cooks everything
+// they land arrives at about ninety-eight cooking. The two trades are one
+// trade for anybody who wants them to be, and neither is a tax on the other.
+const XP_COOK = 20;
 // v0.73: the gullet has its own rhythm, as the arm does (§6b, lastSwing).
 // Without one, a citizen ate every interval while the fight held, and broth
 // heals 5 against a skeleton-knight's 2 hp per interval at absolute maximum:
@@ -931,7 +1090,16 @@ const STILL_IMMUNE = 15;    // after it lifts: nobody is chain-stilled
 const STILL_CD = 150;       // the caster's word needs time to regain its weight
 const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
 const STILL_XP = 150;
-const HEAL_FISH = 3;
+// 6be: SIX, WHICH IS WHAT THE LADDER ALWAYS SAID IT WAS.
+//
+// This was THREE, while the 6an note four lines below states the rungs as
+// "ale four, broth five, a cooked fish six, a deep broth eight, a cooked deep
+// fish ten -- with no gap wide enough to make the rungs beneath it pointless."
+// At three a cooked fish was the WORST food in the world: under ale, and under
+// the broth brewed from the very same raw fish. Cooking a fish destroyed value
+// against brewing it, and the one rung the argument was written about was the
+// pointless one.
+const HEAL_FISH = 6;
 // §6ad: THE DEEP FISH. Ten, against a broth's five -- but a fish does not
 // STACK and a broth does, so a pack of broth is still the greater total and
 // this is the greater single bite. Burst against volume, which is a choice
@@ -941,7 +1109,10 @@ const HEAL_DEEP_FISH = 10;
 // can be eaten; anything that cannot be eaten heals nothing. Two lists that
 // must agree are one list.
 // anything a fire can turn into food, asked once
-const HEAL_MID_FISH = 6; // §6am (v6): the mid catch heals between the raw and the deep
+const HEAL_MID_FISH = 7; // 6be: SEVEN now that a cooked fish is six. At six the
+                         // eel healed exactly what the shallow catch does, so the
+                         // whole middle tier of fishing fed nobody anything new.
+                         // The ladder is 4, 5, 6, 7, 8, 10 -- no rung a tie, none skippable.
 const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish' || item === 'eel';
 const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
   : item === 'cooked-eel' ? HEAL_MID_FISH
@@ -949,15 +1120,34 @@ const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
   : item === 'deep-broth' ? HEAL_DEEP_BROTH
   : item === 'broth' ? HEAL_BROTH
   : item === 'ale' ? HEAL_ALE : 0;
-const COOK_DEEP_REQ = 80;       // a cook to match the fisher
+const COOK_DEEP_REQ = 78;       // 6be: a cook to match the fisher -- the same number the deep water asks
+// 6bf: THE BURN CURVE, FLATTENED, AND A REASON TO COOK SOMEWHERE.
+//
+// It was `min(64 + 2*lvl, 240)`: a newcomer burnt SEVENTY-FOUR PER CENT of
+// everything they touched. Not a cost -- a wall, and one paid in the fish
+// somebody had to catch. At 150 + lvl a beginner wastes two in five and a
+// master one in sixteen, so the master still plainly wastes less (which is the
+// only reward this world gives for a level) without the first hour being an
+// exercise in destroying food.
+//
+// AND A HEARTH IS BETTER THAN A CAMPFIRE. Cooking had no equipment and no
+// geography: a fire scratched in a field did exactly what a town's hearth did.
+// Sixteen is worth about six levels, so it is a reason to carry the catch home
+// without being a reason you must.
+const COOK_BASE = 150, COOK_CAP = 240, COOK_HEARTH_BONUS = 16;
 const ARROWS_PER_BONE = 5, ARROWS_MASTER = 8, ARROW_MASTER = 80;
 const SHOT_PER_ORE = 5;   // §6av
 const GRAIN_PER_PLOT = 2, GRAIN_MASTER = 3, FARM_MASTER = 90;
 // the two mastery yields that had no name of their own: heartwood from a tree
 // and the deep fish from the shallows, both at ninety, and the two heartwood
 // things a fletcher of ninety may make
-const MASTER_YIELD = 90, HEARTWOOD_FLETCH = 90;
-const XP_COOK_DEEP = 90;
+// 6be: MASTER_YIELD IS GONE. It gated heartwood and the deep fish at one
+// number, which is exactly how woodcutting's mastery and fishing's mastery
+// came to be the same level for no reason anybody chose. NODE_GATE took both
+// jobs; the constant survived, naming nothing, which is how a reader two
+// months from now comes to believe the deep water asks for ninety.
+const HEARTWOOD_FLETCH = 90;
+const XP_COOK_DEEP = 20;   // 6bf: flat. A deep fish is worth more; it does not TEACH more.
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
 // §6an: THE DEEP BROTH, and why it is eight rather than ten.
 //
@@ -975,7 +1165,7 @@ const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
 // AND IT IS NOT DOUBLED. A brewer of ninety draws two draughts from a pot, and
 // two eights would be sixteen against the cooked fish's ten, which would end
 // cooking as a trade. A deep fish makes ONE draught; there is no second in it.
-const HEAL_DEEP_BROTH = 8, DEEP_BROTH_BREW = 90;
+const HEAL_DEEP_BROTH = 8, DEEP_BROTH_BREW = 78;  // 6be: likewise, the brewer meets the fisher
 // AND WHAT A MASTER BREWER GETS, which was nothing at all.
 //
 // Brewing was the one skill in the world whose levels bought NOTHING: no gate
@@ -1046,9 +1236,9 @@ const HP_START_XP = 1154; // hitpoints level 10
 // confines it, and a mechanic that selects its own domain is worth more than
 // an exception clause that says the same thing arbitrarily.
 const WEAPONS = {
-  'bronze-dagger': { hit: 0, every: 2, reach: 1, acc: 14 },
-  'bronze-sword':  { hit: 2, every: 2, reach: 1, acc: 0 },
-  'bronze-spear':  { hit: 1, every: 2, reach: 2, acc: 0 },
+  'iron-dagger': { hit: 0, every: 2, reach: 1, acc: 14 },
+  'iron-sword':  { hit: 2, every: 2, reach: 1, acc: 0 },
+  'iron-spear':  { hit: 1, every: 2, reach: 2, acc: 0 },
   // §6au: A MAUL SWINGS AT THE SAME SPEED AS EVERYTHING ELSE.
   //
   // `every: 3` was flavour the arithmetic could not pay for. A blow is
@@ -1067,7 +1257,7 @@ const WEAPONS = {
   // weapon, not the slow one. The alternative -- `hit: 16` to make `every: 3`
   // pay -- was measured too, and it hands a level-forty citizen 1.69 a tick
   // where the honest build gets 1.22. A flat number is a low-level number.
-  'bronze-maul':   { hit: 4, every: 2, reach: 1, acc: -12 },
+  'iron-maul':   { hit: 4, every: 2, reach: 1, acc: -12 },
   // §6am (v6): the mid weapons, one notch of `hit` above bronze and one below
   // star, no special -- the special is a starmetal thing, earned with the
   // metal. A citizen who has reached the middle swings a touch harder than a
@@ -1272,10 +1462,10 @@ const MOB_STATS = {
   // keeper and only ever passes between citizens. The best weapon here is the
   // one thing gold cannot be turned into except by asking someone who has one.
   troll:  { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4,
-            drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'bronze-plate', chance: 6144 },
+            drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'iron-plate', chance: 6144 },
                     { item: 'old-chain', chance: 2 }] },
   bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
-            drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'bronze-hatchet', chance: 4096 },
+            drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'iron-hatchet', chance: 4096 },
                     { item: 'horn-bow', chance: 66 }, { item: 'forage', chance: 22938 }] },
   // the skeleton-knight (v0.42): a horned, shield-bearing warrior of the frontier.
   // Seldom alone, they muster in warbands in and around the Wilds. The round
@@ -1682,10 +1872,15 @@ const alchValue = (item) => {
 const CROP_ROTS_AFTER = 3600;
 const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
 const PRICES = {
-  'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
-  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,   // §6av: five to the ore, so a double
+  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
+  // 6bb: a keeper values a nugget at what a keeper can value anything -- badly.
+  // Gold is not sold to shops; it is worn, or it is sold to a person.
+  'gold-ore': 60, 'gold-bar': 320, 'gold-helm': 2800, 'gold-plate': 4200,
+  'ironbark': 9, 'great-hatchet': 520, 'great-pickaxe': 520,
+  'rod': 10, 'ironbark-rod': 120, 'heartwood-rod': 300,   // §6av: five to the ore, so a double
   // heartwood is worth more than logs, and a deep fish more than a shallow
   // one: a master's hour should be worth more than a beginner's
   // HEARTWOOD AT FIFTEEN, not nine.
@@ -1708,8 +1903,8 @@ const PRICES = {
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
-  'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
-  'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
+  'magic-stone': 20, 'iron-sword': 15, 'iron-hatchet': 10, 'iron-pickaxe': 10,
+  'iron-helm': 12, 'iron-plate': 30, 'wooden-bow': 8, 'grain': 4,
   // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
   //
   // A star plate was two hundred, which is seven minutes of a beginner's
@@ -1765,20 +1960,20 @@ const inCity = (g, x, y) => {
       || (x >= n.x0 && x <= n.x1 && y >= n.y0 && y <= n.y1);
 };
 const RECIPES = {
-  'bronze-dagger': { iron: 1 },
-  'bronze-spear': { iron: 1, logs: 1 },
-  'bronze-maul': { iron: 2, logs: 1 },
+  'iron-dagger': { iron: 1 },
+  'iron-spear': { iron: 1, logs: 1 },
+  'iron-maul': { iron: 2, logs: 1 },
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
   // fletch input, because a bow made by a fletcher belongs to fletching.
-  'crossbow': { ore: 2, logs: 2 },              // a steel prod and a wooden stock
-  'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
+  'crossbow': { 'iron': 2, logs: 2 },              // a steel prod and a wooden stock
+  'star-flail': { 'magic-stone': 3, 'iron': 2, logs: 1 },
   // §6av: starmetal, because that is where the scarcity already lives -- a
   // magic-stone is mined in the WILDS, so every one has survived a trip
   // somebody could have died on. Against citizens who automate, effort is not
   // a limit and risk is: a level gate is paid overnight and a failed roll is
   // only a throughput multiplier, but a pack dropped in the Wilds is gone.
-  'handgonne': { 'magic-stone': 4, ore: 3, logs: 1 },
+  'handgonne': { 'magic-stone': 4, 'iron': 3, logs: 1 },
   // §6av: ORE ALONE, AND FIVE AT A TIME. A magic-stone apiece put twenty-five
   // gold of materials in every shot -- six hundred over a gonne's life against
   // ninety-five for the gonne itself, so the ammunition cost six times the
@@ -1788,9 +1983,9 @@ const RECIPES = {
   // Five to the ore, exactly as a bone gives five arrows, and it hands ore a
   // sink it did not have: a master smith makes gonnes, and the mid-level smiths
   // who cannot yet make one keep them fed.
-  'shot': { ore: 1 },
-  'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
-  'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 },
+  'shot': { 'iron': 1 },
+  'star-spear': { 'magic-stone': 2, 'iron': 1, logs: 1 },
+  'star-maul': { 'magic-stone': 3, 'iron': 2, logs: 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
   //
   // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
@@ -1801,17 +1996,17 @@ const RECIPES = {
   //
   // It also settles a disagreement between the metals that had no reason to
   // exist: a star sword needed no wood while a bronze one did.
-  'bronze-sword':   { iron: 2 },
-  'bronze-hatchet': { iron: 1, logs: 1 },
-  'bronze-pickaxe': { iron: 1, logs: 1 },
-  'bronze-helm':    { iron: 1 },
-  'bronze-plate':   { iron: 3 },
-  'star-sword':     { 'magic-stone': 3, ore: 2 },
-  'star-helm':      { 'magic-stone': 2, ore: 1 },
-  'star-plate':     { 'magic-stone': 4, ore: 3 },
-  'star-dagger':    { 'magic-stone': 2, ore: 1 },
-  'star-hatchet':   { 'magic-stone': 2, ore: 1, logs: 1 },
-  'star-pickaxe':   { 'magic-stone': 2, ore: 1, logs: 1 },
+  'iron-sword':   { iron: 2 },
+  'iron-hatchet': { iron: 1, logs: 1 },
+  'iron-pickaxe': { iron: 1, logs: 1 },
+  'iron-helm':    { iron: 1 },
+  'iron-plate':   { iron: 3 },
+  'star-sword':     { 'magic-stone': 3, 'iron': 2 },
+  'star-helm':      { 'magic-stone': 2, 'iron': 1 },
+  'star-plate':     { 'magic-stone': 4, 'iron': 3 },
+  'star-dagger':    { 'magic-stone': 2, 'iron': 1 },
+  'star-hatchet':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
+  'star-pickaxe':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
   // §6am (v6): THE MIDDLE TIER, forged and fletched from what the mid seams
   // give. It stands to star exactly as bronze stands to it: the same shapes,
   // a rung down, made of mid-ore and mid-wood instead of magic-stone and
@@ -1825,18 +2020,28 @@ const RECIPES = {
   // tools; the rod is an oak shaft and a line.
   'steel-hatchet':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
   'steel-pickaxe':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
-  'oak-rod':        { 'oak-logs': 2 },
   'steel-sword':    { 'iron': 1, 'coal': 1 },
   'steel-helm':     { 'iron': 1, 'coal': 1 },
   'steel-plate':    { 'iron': 2, 'coal': 1 },
   'steel-dagger':   { 'iron': 1, 'coal': 1 },
   'steel-spear':    { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  // 6bb: THE GOLD LADDER. Five nuggets to a bar because thirty-five loose
+  // nuggets will not fit in a pack of twenty-eight -- the bar is compression,
+  // not currency, and there is no mint anywhere in it. Eight bars to a helm
+  // and twelve to a plate: forty nuggets and sixty, a hundred for the set,
+  // which is two hundred and seventy-three hours of seam.
+  'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2 },
+  'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'coal': 2 },
+  'gold-bar':       { 'gold-ore': GOLD_ORE_PER_BAR },
+  'gold-helm':      { 'gold-bar': 8 },
+  'gold-plate':     { 'gold-bar': 12 },
 };
 // §6ad:  is listed here BY NAME because it is no longer in
 // RECIPES -- it is fletched, not forged. EQUIPPABLE was built from the recipe
 // keys plus the four things nobody makes, so moving a weapon between crafts
 // silently made it unwieldable.
 const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
+  'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',   // 6bk: fletched, not forged
   'heartwood-bow', 'king-shroud',
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
@@ -1851,6 +2056,13 @@ const ITEMS = new Set([
   // §6am (v6): the mid-tier raw goods, gathered from the mid seams. Like logs
   // and ore they are not made, so they are named here rather than by a recipe.
   'oak-logs', 'coal', 'eel', 'cooked-eel', 'burnt-eel', 'iron', 'steel',
+  // 6bb: dug one strike in 16,384, smelted five to a bar, worn where it shows
+  'gold-ore',
+  // 6bc: the third wood. Burns long; hafts the last axe.
+  'ironbark',
+  // 6bk: the rods are FLETCHED, not forged, so they are named here rather than
+  // arriving free as keys of RECIPES.
+  'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',
   // §6ad: what a master brings back from the same tree and the same water
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'deep-broth', 'heartwood-bow',
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
@@ -1868,8 +2080,9 @@ const ITEMS = new Set([
   'sigil-bow',
   ...Object.keys(RECIPES),
 ]);
-const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body', 'king-shroud': 'body',
-                     'steel-helm': 'head', 'steel-plate': 'body' }; // default: weapon  (§6am v6: the mid armour)
+const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'head', 'star-plate': 'body', 'king-shroud': 'body',
+                     'steel-helm': 'head', 'steel-plate': 'body',
+                     'gold-helm': 'head', 'gold-plate': 'body' }; // default: weapon  (§6am v6: the mid armour)
 // §6ax: a hood is worn on the HEAD and defends nothing. That is the cost and
 // it is the whole cost: to be seen wearing one is to walk the country in no
 // helmet. Nothing else in this world asks a citizen to choose between being
@@ -1899,10 +2112,10 @@ const SMITH_REQS = {
   // The orders differ between the metals and that is right: in each, the entry
   // is whatever is CHEAPEST to make, and in star that is the helm while in
   // bronze it is the dagger.
-  'bronze-dagger': { smithing: 1 }, 'bronze-hatchet': { smithing: 1 },
-  'bronze-pickaxe': { smithing: 1 }, 'bronze-spear': { smithing: 5 },
-  'bronze-helm': { smithing: 7 }, 'bronze-sword': { smithing: 10 },
-  'bronze-maul': { smithing: 14 }, 'bronze-plate': { smithing: 20 },
+  'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
+  'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
+  'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
+  'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
   // THE TOOLS A CITIZEN ACTUALLY USES, in the metal everything else comes in.
   //
   // Every other star thing exists and the two a working citizen holds all day
@@ -1920,7 +2133,7 @@ const SMITH_REQS = {
   // far enough, where starmetal wants a transmuter's hand. Same order of entry
   // as bronze: the dagger and the tools are cheapest, the plate the most work.
   'steel-dagger': { smithing: 25 }, 'steel-hatchet': { smithing: 26 }, 'steel-pickaxe': { smithing: 26 },
-  'oak-rod': { smithing: 24 }, 'steel-spear': { smithing: 28 },
+  'steel-spear': { smithing: 28 },
   'steel-helm': { smithing: 30 }, 'steel-sword': { smithing: 32 }, 'steel-plate': { smithing: 38 },
   // §6av: smithing reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
@@ -1928,6 +2141,10 @@ const SMITH_REQS = {
   'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
   // §6x: a crossbow is a steel prod under tension and a lock that must not
   // slip. The flail is easier iron and harder geometry.
+  // 6bb: gold is soft and the work is fine, so the bar asks little and the
+  // finished piece asks a great deal. The plate is the last thing a smith
+  // learns that is not a weapon.
+  'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
   'crossbow': { smithing: 18 },
   'star-flail': { smithing: 50, magic: 29 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
@@ -1943,10 +2160,17 @@ const SMITH_REQS = {
 // recipes, the wooden-bow. Written out seventeen times that is seventeen
 // chances to miss one, and the one you miss is a skill somebody can no longer
 // train. So it is asked once, here.
-const isLog = (item) => item === 'logs' || item === 'heartwood';
+// 6bc: A WOOD IS A WOOD. This read `logs || heartwood`, so oak-logs -- gathered
+// since v6 -- could not light a fire, feed a watchfire, raise a brewpot or a
+// stall. A whole tier of the trade produced something the world had no verb
+// for. Order matters: the cheapest is spent first, so nobody burns their
+// heartwood by accident.
+const LOG_KINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood'];
+const BURN_MULT = { 'ironbark': 3 };   // 6bc: three logs' worth of night, from one
+const isLog = (item) => LOG_KINDS.includes(item);
 const consumeLogs = (inv, n) => {           // spends ordinary logs first, heartwood after
   let left = n;
-  for (const kind of ['logs', 'heartwood'])
+  for (const kind of LOG_KINDS)
     for (let i = 0; i < inv.length && left > 0; i++) {
       const sl = inv[i];
       if (sl?.item !== kind) continue;
@@ -1971,7 +2195,8 @@ const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? 
 // It also repairs the maul without touching the maul: its whole problem was
 // that low accuracy was punished twice, once in the roll and again by a soak
 // its slow cadence could not out-pace.
-const ARMOUR = { 'bronze-helm': 8, 'bronze-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22 };  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
+const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22,
+                 'gold-helm': 16, 'gold-plate': 24 };  // 6bb: starmetal's equal, at two hundred times the labour  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
 const armourOf = (q) => (ARMOUR[q?.equipment?.head?.item] ?? 0)
                       + (ARMOUR[q?.equipment?.body?.item] ?? 0);
 
@@ -2051,34 +2276,51 @@ const slotOf = (item) => isHood(item) ? 'head' : (EQUIP_SLOT[item] ?? 'weapon');
 // thing you carried because the tooltip said so. With the ceiling lowered the
 // bonus decides real minutes, and with two metals in the world it is worth
 // carrying the better one.
-const TOOL_FOR = { tree: ['bronze-hatchet', 'steel-hatchet', 'star-hatchet'], rock: ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],
-                   'magic-rock': ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],
+const AXES = ['iron-hatchet', 'steel-hatchet', 'star-hatchet', 'great-hatchet'];
+const PICKS = ['iron-pickaxe', 'steel-pickaxe', 'star-pickaxe', 'great-pickaxe'];
+// 6be: THE RODS, AND THE DEADLOCK THEY FIX.
+//
+// `GATHER_TOOLS.fishing` asked for a `rod`, and `rod` was not in ITEMS. It did
+// not exist, could not exist, and no keeper sold it. The only real rod was the
+// oak-rod, which asks fishing 35 to hold and smithing 24 to forge -- so in a
+// tool-gated founding a newcomer could never take their FIRST FISH, and every
+// road out of that was blocked by the skill it was blocking. Fishing was
+// simply shut.
+//
+// Four rods, all of them wood, because a rod is a shaft and a line and always
+// was. They give ironbark and heartwood a second trade to feed, and the plain
+// one is sold at a stall for the price of an axe.
+const RODS = ['rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod'];
+const TOOL_FOR = { tree: AXES, rock: PICKS,
+                   'magic-rock': PICKS,
                    // §6am (v6): the mid nodes take the same three tools their
                    // baseline kin do -- a better tool is always welcome at a
                    // richer seam. Fishing was ever barehanded; the mid-rod is
                    // a bonus at both shoals, never a toll on either.
-                   'oak-tree': ['bronze-hatchet', 'steel-hatchet', 'star-hatchet'],
-                   'coal-rock': ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],
-                   'iron-rock': ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],  // §6ao (v6): baseline iron
-                   'heartwood-tree': ['bronze-hatchet', 'steel-hatchet', 'star-hatchet'],
-                   'deep-fish-spot': ['oak-rod'],
-                   'fishing-spot': ['oak-rod'], 'eel-spot': ['oak-rod'] };
+                   'oak-tree': AXES, 'ironbark-tree': AXES, 'gallows-oak': AXES,
+                   'coal-rock': PICKS,
+                   'iron-rock': PICKS,
+                   'gold-rock': PICKS, 'mother-lode': PICKS,  // §6ao (v6): baseline iron
+                   'heartwood-tree': AXES,
+                   'deep-fish-spot': RODS, 'gibbet-shoal': RODS,
+                   'fishing-spot': RODS, 'eel-spot': RODS };
 // §6ao (v6): which tools satisfy the tool-gate for each gathering skill. Any
 // tier of the right tool opens the door; a better one only works faster. The
 // baseline fishing tool is the plain `rod` (shaped from logs, sold at market);
 // woodcutting and mining take the bronze tool a newcomer buys with their coin.
 const GATHER_TOOLS = {
-  woodcutting: new Set(['bronze-hatchet', 'steel-hatchet', 'star-hatchet']),
-  mining: new Set(['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe']),
-  fishing: new Set(['rod', 'oak-rod']),
+  woodcutting: new Set(AXES),
+  mining: new Set(PICKS),
+  fishing: new Set(RODS),
 };
-const TOOL_BONUS = { 'bronze-hatchet': 24, 'bronze-pickaxe': 24,
+const TOOL_BONUS = { 'iron-hatchet': 24, 'iron-pickaxe': 24,
                      // §6am (v6): the mid tool sits between the two it stands
                      // between -- better than bronze, short of star -- so a
                      // citizen who has reached the middle has a tool to reach
                      // for, and star is still the thing worth the whole road.
-                     'steel-hatchet': 38, 'steel-pickaxe': 38, 'oak-rod': 38,
-                     'star-hatchet': 52, 'star-pickaxe': 52 };
+                     'steel-hatchet': 34, 'steel-pickaxe': 34, 'rod': 24, 'oak-rod': 34, 'ironbark-rod': 44, 'heartwood-rod': 54,
+                     'star-hatchet': 44, 'star-pickaxe': 44,
+                     'great-hatchet': 54, 'great-pickaxe': 54 };  // 6bi: 24 / 34 / 44 / 54, in every trade
 
 // Canonical signed-input schemas (pre-freeze §1–§4): every semantic
 // action has EXACTLY one accepted signed representation. The shape
@@ -2116,7 +2358,9 @@ const T = {
   recipe: (v) => (typeof v === 'string' && v in RECIPES) || 'must be a constitutional recipe',
   gear: (v) => EQUIP_SLOTS.includes(v) || 'must be an equipment slot name',
   spell: (v) => ['anchor', 'mend'].includes(v) || 'must be a constitutional spell',
-  make: (v) => ['bow', 'arrows', 'heartwood-bow', 'staff', 'heartwood-staff', 'wand'].includes(v)
+  make: (v) => ['bow', 'arrows', 'heartwood-bow', 'staff', 'heartwood-staff', 'wand',
+                'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod'].includes(v)   // 6bk: a rod is shaped wood
+    
     || 'must be bow, arrows, staff, wand or a heartwood one',
   name: (v) => isValidName(v) || 'must be a constitutional name',
   // §6as-iii: WHERE THE LESSON GOES IS THE CITIZEN'S CHOICE, NOT THE WEAPON'S.
@@ -2268,39 +2512,68 @@ function normalizeInput(fields) {
     throw new Error('normalizeInput: trade must want exactly one of item or gold');
   return out;
 }
-const XP_SMITH_PER_ORE = 30;
-// what a recipe teaches when it is not made of ore. A bow bound at the forge
-// is bench work rather than smelting, so it pays less than the metal would.
-const XP_SMITH_FLAT = { 'sigil-bow': 40, 'heartwood-bow': 40 };
-// AND WHAT MAGIC-STONE TEACHES, which was nothing at all.
+// 6bh: TWENTY A UNIT, AND NO TABLE AT ALL.
 //
-// Experience counted ore and only ore, so a star helm -- smithing 40, magic
-// 20, two stones carried out of the Wilds -- paid THIRTY, exactly what a
-// bronze dagger pays at smithing 1. The hardest, rarest, most gated work in
-// the world taught the same as the easiest.
+// What was here counted `ore` and `magic-stone` and nothing else -- and the
+// bronze and steel ladders were WRITTEN IN `iron` AND `coal`, which the table
+// had never heard of. So in the world as shipped, an iron plate, a steel
+// plate, a steel sword, every tool a citizen actually uses and the whole
+// middle of the trade taught NOTHING. Thirty levels of recipes paying zero,
+// and the only way to learn smithing at all was starmetal out of the Wilds.
+// Renaming ore to iron (so that v6's star ladder could be forged from metal
+// v6 actually mines) extended the same silence to star.
 //
-// A stone is worth twice an ore at the anvil: it is the harder metal, it is
-// mined at seventy where ore is mined at one, and it comes from the only
-// country that kills people.
-const XP_SMITH_PER_STONE = 60;
-// §6as-iii: every melee lesson goes through here, so no verb can route it
-// differently by accident. A bow is untouched: the same draw aims and pulls,
-// so ranged has nothing to split.
-function teachMelee(p, dmg, style) {
-  if (style === 'aim') p.skills.attack += 4 * dmg;
-  else if (style === 'force') p.skills.strength += 4 * dmg;
-  else { p.skills.attack += 2 * dmg; p.skills.strength += 2 * dmg; }
-}
-
+// The fix is to stop naming materials. EVERY unit consumed teaches twenty --
+// the same twenty a strike at a seam teaches, the same twenty a fish in a pan
+// teaches. It cannot go stale, because a recipe invented tomorrow is counted
+// by the same line, and it needs no maintenance when a material is added.
+//
+// And it balances ITSELF, which is the part worth noticing. Nearly every
+// material in this world costs about eight intervals to gather, so twenty a
+// unit puts every honest route within a hundred hours of every other: an iron
+// dagger 962 hours, a star plate 1,054, a rod 909. Nobody is punished for
+// working in the metal they happen to have. The uniform cost of gathering is
+// what makes uniform teaching correct -- and the two exceptions prove it, since
+// a magic-stone costs eleven intervals (so star is a little slower, as the
+// Wilds should be) and a gold nugget costs sixteen thousand (so nobody will
+// ever learn this trade at the gold seam, which is right: gold is for wearing).
+const XP_SMITH_PER_UNIT = 20;
+// 6bk: AND THE SAME TWENTY AT THE BENCH. Fletching had its own private scale --
+// five for arrows, twelve for a wand, fifteen for a bow, a hundred and twenty
+// for the heartwood pair -- so the same skill paid its worst route a
+// twenty-fourth of its best. Arrows at five were the slowest experience
+// anywhere in this world by an order of magnitude, and nothing told anybody.
+// One unit of wood or bone, twenty, wherever it is worked.
+const XP_FLETCH_PER_UNIT = 20;
+// 6bk: which wood each rod is drawn from, and what a fletcher must be to draw
+// it. The gates match the rod's own wielding gate in fishing, so the fisher who
+// can hold it is the fletcher who can make it.
+const ROD_OF = { 'rod': 'logs', 'oak-rod': 'oak-logs', 'ironbark-rod': 'ironbark', 'heartwood-rod': 'heartwood' };
+const ROD_FLETCH_REQ = { 'rod': 1, 'oak-rod': 10, 'ironbark-rod': 30, 'heartwood-rod': 70 };
 function XP_SMITH_FOR(recipe, r) {
-  const flat = XP_SMITH_FLAT[recipe];
-  if (flat !== undefined) return flat;
-  const ore = r && Number.isFinite(r.ore) ? r.ore : 0;
-  const stone = r && Number.isFinite(r['magic-stone']) ? r['magic-stone'] : 0;
-  return XP_SMITH_PER_ORE * ore + XP_SMITH_PER_STONE * stone;
+  if (!r || typeof r !== 'object') return 0;
+  let units = 0;
+  for (const n of Object.values(r)) if (Number.isFinite(n)) units += n;
+  return XP_SMITH_PER_UNIT * units;
 }
-const XP_FIREMAKING = 40;
-const XP_BURY = 25;
+// 6bg: TWENTY. A log is a log, and lighting one is one act.
+//
+// At forty, and with the watchfire's 60-a-log on top of 300 ticks of burn, a
+// log fed to a beacon was worth THREE HUNDRED AND SIXTY experience against a
+// field fire's forty -- nine times, for the same wood. The nerf from 200 to 60
+// fixed a tenth of it, because the money was never in the stoke: it was in the
+// burn, which pays a xp an interval for six thousand intervals and asks
+// nothing of anybody.
+const XP_FIREMAKING = 20;
+// 6bj: TWENTY, like a strike at a seam and a fish in a pan.
+//
+// Prayer is the free rider on fighting, exactly as cooking is on fishing, and
+// that is the correct shape rather than a leak: a bone is a byproduct, and a
+// citizen who kills for eight hundred hours should come out of it a mourner as
+// well as a fighter. What it must NOT be is a shortcut -- at twenty-five it
+// was, because a bone costs two intervals (take it up, put it down) where a
+// log costs eight.
+const XP_BURY = 20;
 // AND WHAT A DRAGON'S BONES TEACH.
 //
 // A hundred times a goblin's, and that is safe to say because THE SUPPLY IS
@@ -2332,7 +2605,7 @@ const XP_BURY = 25;
 // purchasable. A route nobody can complete is not a market; it is scenery.
 // A full pack is now 1.8 million prayer, about a seventh of a ninety-nine,
 // and it costs a fortune and the world's whole attention to assemble.
-const XP_BURY_DRAGON = 75000;
+const XP_BURY_DRAGON = 60000;     // 6bj: rescaled with the rest -- still 3,000 ordinary bones, still not a road anybody walks
 // AND WHAT CONSECRATED GROUND PAYS. A quarter more, and the number is chosen
 // so that the monastery stays a DECISION.
 //
@@ -2347,8 +2620,9 @@ const XP_BURY_DRAGON = 75000;
 // Downs and it is worth carrying your bones in; hunt the Wilds and it is not.
 // Where you hunt stays the question, which is the kind of question this world
 // is good at.
-const XP_BURY_CONSECRATED = 31;
+const XP_BURY_CONSECRATED = 25;   // 6bj: a quarter again, the hearth's premium, for the one place built to receive them
 const FIRE_TICKS = 100;
+const WATCH_TEND_RANGE = 8;   // 6bg: near enough to be warmed by it, and to be seen at it
 const SLEEP_AFTER = 500;
 function isAwake(p, tick) {
   return p.action !== null || tick - (p.lastInput ?? 0) <= SLEEP_AFTER;
@@ -2936,6 +3210,32 @@ function roll(beacon, playerId, tag) {
   ]))[0]; // uniform integer in [0, 255]
 }
 
+// §6bb: A WIDER LOT, BECAUSE ONE BYTE CANNOT SAY 'RARE'.
+//
+// `roll` reads a single byte, so the rarest a per-interval event can be is one
+// in two hundred and fifty-six -- about two and a half minutes. Everything in
+// this world that is genuinely scarce is scarce by DROP CHANCE out of 65,536
+// (the old-chain is two), and a gathered thing had no way to be.
+//
+// Two bytes of the same hash, BIG-ENDIAN, which is written here in words as
+// well as in code because it is the whole of the compatibility surface: a
+// second implementation that reads them the other way round agrees with this
+// one on nothing. High byte first, low byte second, no arithmetic but a shift
+// and an or -- integers only, per 2m, and nothing a floating point unit could
+// disagree about.
+//
+// `roll` is untouched. Every existing lot in this world draws the same byte it
+// has always drawn, from the same hash; this reads one more byte of it under a
+// different tag.
+function roll16(beacon, playerId, tag) {
+  const h = sha256(Buffer.concat([
+    beacon,
+    Buffer.from(playerId),
+    Buffer.from(tag),
+  ]));
+  return (h[0] << 8) | h[1]; // uniform integer in [0, 65535]
+}
+
 // ---------- genesis & world (spec §9) ----------
 // Two peers are in the same world iff their genesis objects match.
 
@@ -3009,8 +3309,8 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
            haul: { perTileSlot: 23, legMin: 1, legMax: 3,
                    mult: { logs: 100, 'raw-fish': 100, bones: 100, arrows: 100, seeds: 100,
                            grain: 123, ore: 130, 'cooked-fish': 130, ale: 140, broth: 145,
-                           'bronze-hatchet': 155, 'bronze-pickaxe': 155, 'wooden-bow': 150,
-                           'bronze-sword': 165, 'bronze-helm': 160, 'bronze-plate': 180,
+                           'iron-hatchet': 155, 'iron-pickaxe': 155, 'wooden-bow': 150,
+                           'iron-sword': 165, 'iron-helm': 160, 'iron-plate': 180,
                            'magic-stone': 175, 'deep-broth': 150, heartwood: 210,
                            'heartwood-bow': 250, 'horn-bow': 245, 'dragon-bones': 285,
                            'star-helm': 261, 'star-dagger': 250, 'star-spear': 270,
@@ -3035,7 +3335,11 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
            // of ordinary fires, so almost the whole skill was watchfire. At
            // eighty it takes about twenty-eight, and the beacon is what a
            // practised firekeeper graduates to rather than what everyone does.
-           watch: { level: 80, kindleLogs: 10, perLog: 300, cap: 6000, xpPerLog: 60, burnXp: 1, maxOwned: 2, decayTicks: 432000 } };
+           // 6bg: xpPerLog 20, the same twenty a log pays anywhere. The beacon
+           // is a PLACE, not a rate -- what it gives that a field fire cannot
+           // is that the whole country can see it, and that somebody has to be
+           // standing there.
+           watch: { level: 80, kindleLogs: 10, perLog: 300, cap: 6000, xpPerLog: 20, burnXp: 1, maxOwned: 2, decayTicks: 432000 } };
 }
 
 // Fix brief §2.1: the world identifier is the hash of the COMPLETE
@@ -3645,7 +3949,21 @@ const LANDMARK_KINDS = new Set([
       }
     }
     for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
-    for (const ck of ['cooksTried', 'lightsTried']) if (p[ck] !== undefined && !isInt(p[ck], 0, MAX_TIME)) return `${ck} out of bounds`;
+    // 6bg: these are now a tally PER ITEM (see the pan and the hearth), so the
+    // validator has to know that too. A shape rule that lags the executor by
+    // one revision is exactly how a state that runs becomes a state that will
+    // not import -- and the keys are item names, checked, because a tally
+    // against contraband is contraband.
+    for (const ck of ['cooksTried', 'lightsTried']) {
+      const tally = p[ck];
+      if (tally === undefined) continue;
+      if (typeof tally !== 'object' || tally === null || Array.isArray(tally)
+        || Object.getPrototypeOf(tally) !== Object.prototype) return `${ck} must be a tally per item`;
+      for (const [it, n] of Object.entries(tally)) {
+        if (!ITEMS.has(it)) return `${ck} counts a non-constitutional item`;
+        if (!isInt(n, 0, MAX_TIME)) return `${ck} out of bounds`;
+      }
+    }
     // §6o: A CROP BELONGS TO THE CITIZEN, NOT TO THE GROUND.
     //
     // What is sown was recorded on the PLOT — one `plantedAt`, one `by` — so
@@ -3994,7 +4312,7 @@ function tradeFits(offerer, acceptor, trade) {
     if (!it) return false;                 // the offer no longer holds
     // §6q: and it must still be WHAT WAS ADVERTISED. Emptiness was already
     // guarded; substitution was not, which is the whole of the bait-and-
-    // switch: the buyer paid for a star-sword and received a bronze-dagger.
+    // switch: the buyer paid for a star-sword and received a iron-dagger.
     if (it.item !== advertised[i].item || (it.qty ?? 1) !== advertised[i].qty) return false;
     incoming.push(it);
   }
@@ -4131,12 +4449,9 @@ function validInput(state, input, ctx) {
     case 'gather': {
       const n = state.nodes[input.nodeId];
       if (!n || !(n.type in NODE_YIELD) || n.depletedUntil > state.tick || !adjacent(p, n)) return false;
-      if (n.type === 'magic-rock' && effLevel(p.skills.mining) < MAGIC_ROCK_MINING) return false;
-      // §6ao (v6): the mastery seams open at the mastery level, each on its own skill.
-      if (n.type === 'heartwood-tree' && effLevel(p.skills.woodcutting) < MASTER_YIELD) return false;
-      if (n.type === 'deep-fish-spot' && effLevel(p.skills.fishing) < MASTER_YIELD) return false;
-      // §6am (v6): the mid seams gate on the middle of their own skill.
-      if (n.type in MID_TIER_GATE_SKILL && effLevel(p.skills[MID_TIER_GATE_SKILL[n.type]]) < MID_TIER_GATE) return false;
+      // 6bc: every gate, from ONE table. See NODE_GATE.
+      const _g = NODE_GATE[n.type];
+      if (_g && effLevel(p.skills[_g.skill]) < _g.level) return false;
       // §6ao (v6): A TOOL IN HAND. A founding may require the right tool to work
       // a node -- an axe for wood, a pickaxe for stone, a rod for fish -- so no
       // one gathers bare-handed and a newcomer's first act is to go buy one.
@@ -4145,8 +4460,16 @@ function validInput(state, input, ctx) {
       // asks for the rod too. A world that omits `toolGated` gathers as v1-v5 do.
       if (state.genesis.toolGated) {
         const y = NODE_YIELD[n.type];
+        // 6bd: IN THE HAND, NOT IN THE PACK. The gate asked only that the axe
+        // be CARRIED while the bonus asked that it be WIELDED, so a tool-gated
+        // citizen could satisfy the law with an axe in the bottom of their bag
+        // and cut at the bare-handed rate forever. Two rules about one tool
+        // disagreeing about what holding it means.
+        //
+        // Wielded settles it, and it costs what a pickaxe already costs an
+        // alchemist: a citizen working a seam is carrying no sword.
         const need = GATHER_TOOLS[y.skill];
-        if (need && !p.inventory.some(sl => sl && need.has(sl.item))) return false;
+        if (need && !need.has(p.equipment?.weapon?.item)) return false;
       }
       return true;
     }
@@ -5049,7 +5372,11 @@ function fireOnTile(state, ctx, x, y) { // a fire you are standing IN is a fire 
   for (const id of ta) if (_FIRE_TYPES.has(state.nodes[id].type)) return true;
   return false;
 }
-const _FIRE_TYPES = new Set(['campfire', 'fire']);
+// 6bf: A HEARTH IS A FIRE. It was not in this set, so the one permanent
+// fireplace in every town -- the thing a hearth IS -- could not cook a fish,
+// while a stick lit in a field could. Its only job in the whole engine was
+// standing next to brewpots. Now a town is somewhere a cook goes.
+const _FIRE_TYPES = new Set(['campfire', 'fire', 'hearth']);
 // ---------------------------------------------------------------------------
 // §11: HAULING. The consignment, the drawn route, and what weight over distance
 // is worth. Every value here is a pure function of the state and the beacon.
@@ -5528,7 +5855,33 @@ function nextState(state, inputs, _legacyBeacon) {
   // the beacon rides IN the state now (v0.38). A pre-0.38 state migrates
   // itself: seeded once from the old formula, then history takes over.
   if (!s.beacon) s.beacon = beaconValue(state.genesis.genesisSeed, state.tick).toString('hex');
-  const beacon = Buffer.from(s.beacon, 'hex');
+  // §6ba: THE LOTS ARE DRAWN FROM THIS TICK'S DEEDS, NOT THE LAST ONE'S.
+  //
+  // v0.38 folded the input digest into the beacon and left it in the state for
+  // the NEXT tick. That closed long-range prediction and left a one-tick hole
+  // open: a citizen who has applied tick T-1 holds `s.beacon` before signing
+  // for tick T, so `roll(beacon, pid, tag)` for tick T is knowable at the
+  // moment the input is chosen.
+  //
+  // An executor -- and this world expects executors -- reads that byte and
+  // acts only on the ticks that win. It skips the gathers that would deplete
+  // its node, so a tree never sleeps; and with a gold seam it would stand
+  // between two rocks and strike the gold one on precisely the ticks the gold
+  // one pays, keeping full ordinary mining experience AND every nugget. The
+  // entire cost of gold -- an hour forgone -- would evaporate.
+  //
+  // So the chain advances at the TOP of the tick and everything resolves
+  // against the new value. The digest covers every input applied this tick,
+  // including other citizens', so the lots a citizen is trying to read are
+  // reshuffled by the very deed they are reading them for -- which is exactly
+  // what the v0.38 note claimed and the ordering quietly did not deliver.
+  //
+  // Nothing is stored that was not stored before and no message changes: the
+  // same value that used to be written at the end of tick T-1 is now written
+  // at the start of tick T. It is the same chain, advanced in a different
+  // place, and only a founding may change where.
+  const beacon = delayChain(Buffer.from(s.beacon, 'hex'), inputsDigest(inputs));
+  s.beacon = beacon.toString('hex');
 
   // snapshot who has already mastered what, so the end-of-tick pass can tell who
   // CROSSED a threshold this tick, regardless of which of the 18 XP sites paid it
@@ -5572,7 +5925,22 @@ function nextState(state, inputs, _legacyBeacon) {
   const _wt = s.genesis.watch;
   if (_wt) for (const [_nid, _n] of Object.entries(s.nodes)) {
     if (_n.type !== 'watchfire') continue;
-    if (s.tick < (_n.fuelUntil ?? 0)) { const _k = s.players[_n.by]; if (_k && _k.hp > 0) _k.skills.firemaking += _wt.burnXp; }
+    // 6bg: THE KEEPER MUST BE AT THE FIRE.
+    //
+    // This paid the owner every interval the beacon burned, anywhere in the
+    // world, asleep, in another country -- twelve thousand experience a cycle
+    // for having once lit something. It was ninety-four per cent of the skill
+    // and none of it was work.
+    //
+    // Presence turns it into what the note always claimed it was: pay for
+    // ATTENDANCE, like the bloom. A watchfire becomes somewhere a firekeeper
+    // SITS, which is the only version of this that puts a person in a place.
+    // Owning two is still allowed; nobody can sit at both.
+    if (s.tick < (_n.fuelUntil ?? 0)) {
+      const _k = s.players[_n.by];
+      if (_k && _k.hp > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE)
+        _k.skills.firemaking += _wt.burnXp;
+    }
     else if (s.tick - (_n.fuelUntil ?? 0) > _wt.decayTicks) deleteIndexedNode(s, _ctx, _nid);
   }
 
@@ -7132,7 +7500,12 @@ function nextState(state, inputs, _legacyBeacon) {
       if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt) {
         removeItem(p.inventory, inp.slot, 1);
         // fuel banks forward from whichever is later: now, or the fire's remaining burn
-        wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + wt.perLog, s.tick + wt.cap);
+        // 6bc: AND IRONBARK BURNS LONGER. This is ironbark's whole job -- the
+        // watchfire is the one public work in the world, and a wood whose only
+        // virtue is that it feeds it is a wood people fetch FOR somebody else.
+        // The experience is unchanged (a log pays a log); what changes is how
+        // long the country can see the fire.
+        wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + wt.perLog * (BURN_MULT[sl.item] ?? 1), s.tick + wt.cap);
         p.skills.firemaking += wt.xpPerLog; // the feeder earns, even at another's fire
       }
     } else if (inp.type === 'fletch') {
@@ -7144,18 +7517,18 @@ function nextState(state, inputs, _legacyBeacon) {
         consumeItem(p.inventory, 'sigil', 1);
         const sl2 = firstFreeSlot(p.inventory);
         if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-bow', qty: 1 };
-        p.skills.fletching += 120;
+        p.skills.fletching += XP_FLETCH_PER_UNIT * 4;   // 6bk: 3 heartwood + a sigil
       } else if (sl && inp.make === 'bow' && isLog(sl.item)) {
         p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
-        p.skills.fletching += 15;
+        p.skills.fletching += XP_FLETCH_PER_UNIT;
       } else if (sl && inp.make === 'wand' && sl.item === 'logs') {
         p.inventory[inp.slot] = { item: 'wand', qty: 1 };
-        p.skills.fletching += 12;
+        p.skills.fletching += XP_FLETCH_PER_UNIT;
       } else if (sl && inp.make === 'staff' && sl.item === 'logs') {
         // A stave, shaped and bound. Ordinary logs only -- heartwood makes the
         // other one, and a fletcher who has heartwood should not waste it here.
         p.inventory[inp.slot] = { item: 'staff', qty: 1 };
-        p.skills.fletching += 12;
+        p.skills.fletching += XP_FLETCH_PER_UNIT;
 
       // §6ah: AND A SIGIL IN THE BINDING.
       //
@@ -7182,7 +7555,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (p.inventory[i2]?.item === 'heartwood') { p.inventory[i2] = null; took++; }
         const sl2 = firstFreeSlot(p.inventory);
         if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-staff', qty: 1 };
-        p.skills.fletching += 120;
+        p.skills.fletching += XP_FLETCH_PER_UNIT * 3;   // 6bk: 2 heartwood + a sigil
       } else if (sl && inp.make === 'arrows' && sl.item === 'bones') {
         // §6ad, EXTENDED TO THE SHAFT. Mastery in this world buys VALUE PER
         // ACTION, never speed: a woodcutter of ninety takes heartwood instead
@@ -7203,7 +7576,21 @@ function nextState(state, inputs, _legacyBeacon) {
         p.inventory[inp.slot] = null;
         if (ex !== -1) p.inventory[ex].qty += per;                  // the quiver (6n)
         else p.inventory[inp.slot] = { item: 'arrows', qty: per };
-        p.skills.fletching += 5;
+        p.skills.fletching += XP_FLETCH_PER_UNIT;   // 6bk: one bone in, one lesson
+      } else if (sl && ROD_OF[inp.make] && isLog(sl.item) && sl.item === ROD_OF[inp.make]
+                 && effLevel(p.skills.fletching) >= ROD_FLETCH_REQ[inp.make]
+                 && countItem(p.inventory, sl.item) >= 2) {
+        // 6bk: THE RODS COME TO THE BENCH.
+        //
+        // They were forged at an ANVIL, which is carpentry done by a smith: a
+        // rod is a shaft and a line and has no metal in it anywhere. It also
+        // left fletching -- the wood trade -- with four things to make while
+        // the metal trade had thirty, and made the one tool a fisher needs
+        // wait on a skill they have no other reason to train.
+        consumeItem(p.inventory, sl.item, 2);
+        const rs = firstFreeSlot(p.inventory);
+        if (rs !== -1) p.inventory[rs] = { item: inp.make, qty: 1 };
+        p.skills.fletching += XP_FLETCH_PER_UNIT * 2;
       }
     } else if (inp.type === 'unwield') {
       const g = ['weapon', 'head', 'body'].includes(inp.gear) ? inp.gear : 'weapon';
@@ -7217,8 +7604,12 @@ function nextState(state, inputs, _legacyBeacon) {
       const clear = !nodeExistsAt(s, _ctx, p.x, p.y);
       if (sl && isLog(sl.item) && clear) {
         const lvl = effLevel(p.skills.firemaking);
-        p.lightsTried = (p.lightsTried ?? 0) + 1; // the tally, not the dice
-        if (countedSuccess(p.lightsTried, Math.min(64 + 2 * lvl, 240))) {
+        // 6bg: per wood, for the reason at the pan -- ironbark and heartwood
+        // are not logs any more, and one tally would let a firekeeper spend
+        // the failures on the cheap stuff.
+        if (!p.lightsTried || typeof p.lightsTried !== 'object') p.lightsTried = {};
+        p.lightsTried[sl.item] = (p.lightsTried[sl.item] ?? 0) + 1;
+        if (countedSuccess(p.lightsTried[sl.item], Math.min(COOK_BASE + lvl, COOK_CAP))) {  // 6bg: the pan's curve, for the same reason
           p.inventory[inp.slot] = null;
           p.skills.firemaking += XP_FIREMAKING;
           addIndexedNode(s, _ctx, 'f' + s.tick + '-' + pid,
@@ -7356,11 +7747,26 @@ function nextState(state, inputs, _legacyBeacon) {
         const deep = slot.item === 'deep-fish';
         const mid = slot.item === 'eel';   // §6am (v6): the middle catch
         const lvl = effLevel(p.skills.cooking);
-        p.cooksTried = (p.cooksTried ?? 0) + 1; // the pan counts; it does not gamble
+        // 6bg: A COUNTER FOR EACH THING, because ONE counter is a menu.
+        //
+        // countedSuccess is Bresenham and therefore PERFECTLY PREDICTABLE --
+        // which is the point (the pan counts; it does not gamble) and was
+        // harmless while every fish was a fish. It is not harmless now: with
+        // one shared tally a cook reads which attempt is the doomed one, feeds
+        // it a two-gold raw fish, and puts the deep fish only on the tallies
+        // that cannot fail. Nothing valuable ever burns again.
+        //
+        // Per item, the tally cannot be advanced with something cheaper: each
+        // kind burns its own even share and the determinism stays a promise
+        // rather than a schedule. Same fault, same fix, at the hearth below.
+        if (!p.cooksTried || typeof p.cooksTried !== 'object') p.cooksTried = {};
+        p.cooksTried[slot.item] = (p.cooksTried[slot.item] ?? 0) + 1;
         const able = !deep || lvl >= COOK_DEEP_REQ;
+        // 6bf: a proper hearth forgives a cook what a field fire does not
+        const atHearth = hasAdjacentNode(s, _ctx, p, 'hearth');
         const cooked = deep ? 'cooked-deep-fish' : mid ? 'cooked-eel' : 'cooked-fish';
         const burnt  = deep ? 'burnt-deep-fish'  : mid ? 'burnt-eel'  : 'burnt-fish';
-        if (able && countedSuccess(p.cooksTried, Math.min(64 + 2 * lvl, 240))) {
+        if (able && countedSuccess(p.cooksTried[slot.item], Math.min(COOK_BASE + lvl + (atHearth ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
           p.inventory[inp.slot] = { item: cooked, qty: 1 };
           p.skills.cooking += deep ? XP_COOK_DEEP : XP_COOK;
         } else {
@@ -7805,8 +8211,25 @@ function nextState(state, inputs, _legacyBeacon) {
     // changes ONLY how many can share the node (congregation), with zero economic
     // or progression footprint. Gather speed and durability, cleanly separate.
     const rateMul = (s.genesis.gather && s.genesis.gather.rateMul) ?? 1;
-    const threshold = Math.round(Math.min(32 + lvl + toolBonus, 176) * rateMul);
-    const r = roll(beacon, pid, 'gather');
+    // 6bb: THE SEAM THAT PAYS ONCE IN SIXTEEN THOUSAND.
+    //
+    // Gold does not read the level, the tool or the founding's rate at all. A
+    // master with a starmetal pick strikes it exactly as often as the citizen
+    // who has just crossed eighty-five, because the point of gold is that it
+    // CANNOT be optimised -- no level shortens it, no tool sharpens it, no
+    // founding tunes it. It is the same lot for everybody, and the only thing
+    // that buys more of it is more hours of not becoming a master.
+    //
+    // Its own tag, and this matters: sharing 'gather' would mean gold and ore
+    // read the same byte, so a gold strike would imply an ordinary one and the
+    // two lotteries would be the same lottery.
+    const isGold = n.type === 'gold-rock';
+    // 6bi: both lots are drawn out of 65,536 now -- gold at a fixed four, and
+    // everything else at a threshold with room in it for a tool to matter.
+    const threshold = isGold ? GOLD_THRESHOLD
+      : Math.round(Math.min(GATHER_BASE
+          + Math.floor(lvl / GATHER_SLOPE_DEN) + toolBonus, GATHER_CAP) * rateMul * 256);
+    const r = roll16(beacon, pid, isGold ? 'gold' : 'gather');
 
     if (r < threshold) {
       // §6ad: THE SAME TREE, THE SAME WATER, A DIFFERENT CATCH.
@@ -7825,7 +8248,18 @@ function nextState(state, inputs, _legacyBeacon) {
       // mastery (magic-stone) always had the Wilds. The node yields what it
       // yields; no upgrade sleight-of-hand.
       let got = y.item;
+      // 6bc: A RICHER PLACE GIVES MORE PER STRIKE, not more experience for it.
+      // Yield is the one lever a keeper's purse cannot cap and the experience
+      // curve does not feel: the gallows-oak pays two heartwood where the deep
+      // Greenwood pays one, and charges the Wilds for the difference. Whatever
+      // will not fit is simply not taken -- a pack is a pack.
       p.inventory[slot] = { item: got, qty: 1 };
+      for (let _extra = 1; _extra < (y.qty ?? 1); _extra++) {
+        if (STACKABLE.has(got)) { p.inventory[slot].qty += 1; continue; }
+        const _s2 = firstFreeSlot(p.inventory);
+        if (_s2 === -1) break;
+        p.inventory[_s2] = { item: got, qty: 1 };
+      }
       // §6ao (v6): full XP per successful gather (v5's value). Under Option A the
       // success RATE already compensates for durability, so XP-per-gather need
       // not change -- progression matches v5 exactly.
@@ -7843,9 +8277,14 @@ function nextState(state, inputs, _legacyBeacon) {
       // its few nodes are genuinely contested, and the risk of the Wilds is met
       // by a reward you sometimes have to wait and fight for. A founding sets
       // the length; the shape (this one node depletes longer) is the rule.
-      if (n.type === 'magic-rock' && s.genesis.gather && s.genesis.gather.magicDepleteTicks)
+      if ((n.type === 'magic-rock' || n.type === 'mother-lode') && s.genesis.gather && s.genesis.gather.magicDepleteTicks)
         depTicks = s.genesis.gather.magicDepleteTicks;
-      if (roll(beacon, pid, 'deplete') % depOneIn === 0)
+      // 6bb: and a seam that yields once in two and three quarter hours does
+      // not then go dark. Depletion exists to move a crowd off a tree; there
+      // is no crowd on a thing that pays this seldom, and a dark seam would
+      // only add variance to a wait that is already all variance.
+      if (isGold) depTicks = GOLD_DEPLETE_TICKS;
+      if (depTicks > 0 && roll(beacon, pid, 'deplete') % depOneIn === 0)
         n.depletedUntil = s.tick + depTicks;
     }
   }
@@ -7890,8 +8329,8 @@ function nextState(state, inputs, _legacyBeacon) {
   }
 
   _p2mark('beacon');
-  // tomorrow's lots, drawn from today's deeds (spec 7, v0.38)
-  s.beacon = delayChain(beacon, inputsDigest(inputs)).toString('hex');
+  // §6ba: the chain now advances at the TOP of the tick (see above). Nothing
+  // to do here; the value in the state is already this tick's.
   _p2mark('mastery');
   // ---- mastery announcements (v0.48): who crossed 99 this tick ----
   const _M = XP_TABLE[99];
