@@ -3515,7 +3515,7 @@ export function buildWorld(genesis) {
     }
     return best
   }
-  let sk = 0
+  let sk = 0, placed = 0
   for (let band = 0; band < A(13); band++) {
     const seat = wildsSeat(band)
     if (!seat) continue
@@ -3523,12 +3523,18 @@ export function buildWorld(genesis) {
     for (let k = 0; k < 5; k++) {
       const hh = H32('skel', sk)
       const x = bx + (hh[0] % 7) - 3, y = by + (hh[1] % 7) - 3
-      sk++
+      const seat = sk++
       if (!free(x, y) || B(x, y) !== 'wilds') continue
-      taken.add(key(x, y)); E.addMob(w, 'skel-' + sk, 'skeleton-knight', x, y)
+      // counts.knights must report what was PLACED, not what was attempted:
+      // `sk` is the seat counter (it must advance on rejection so the hash
+      // stream stays aligned), `placed` is the census. The old line reported
+      // sk and so overstated the muster by every knight that fell on bad
+      // ground -- the same silence that once dropped 53 of 65 into the water.
+      placed++
+      taken.add(key(x, y)); E.addMob(w, 'skel-' + seat, 'skeleton-knight', x, y)
     }
   }
-  counts.knights = sk
+  counts.knights = placed
 
   // ---- THE BARROW GIVES UP ITS DEAD ----
   //
