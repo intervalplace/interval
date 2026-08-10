@@ -309,7 +309,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // Prayer was the only skill with nowhere to go. A woodcutter has the
   // Greenwood, a miner the Wilds, a fisher the water; a mourner had a verb and
   // no destination, and buried wherever their feet happened to be.
-  'rampart', 'ossuary',
+  'rampart', 'ossuary', 'house',
   // §6am (v6): THE MIDDLE OF THE ROAD GETS A GROUND OF ITS OWN.
   //
   // Two tiers only -- bronze at one, star and the master yields at the far end
@@ -1865,6 +1865,11 @@ const ITEMS = new Set([
 ]);
 const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body', 'king-shroud': 'body',
                      'steel-helm': 'head', 'steel-plate': 'body' }; // default: weapon  (§6am v6: the mid armour)
+// §6ax: a hood is worn on the HEAD and defends nothing. That is the cost and
+// it is the whole cost: to be seen wearing one is to walk the country in no
+// helmet. Nothing else in this world asks a citizen to choose between being
+// legible and being protected, and a mark that costs nothing says nothing.
+// (the single reader is `slotOf`, below)
 // the first level requirements (spec 6q): an unearned hammer strikes nothing
 // §6ae: THE FORGE AGREES WITH THE ARM.
 //
@@ -2033,7 +2038,8 @@ function reqOverride(genesis, kind, item) {
   if (!g || !g[kind]) return undefined;
   return g[kind][item];
 }
-const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
+const isEquippable = (item) => EQUIPPABLE.has(item) || isHood(item);
+const slotOf = (item) => isHood(item) ? 'head' : (EQUIP_SLOT[item] ?? 'weapon');
 // WHAT COUNTS AS THE RIGHT TOOL, and what it is worth.
 //
 // One tool per node, in one metal, and a flat bonus -- so a pickaxe was a
@@ -2440,6 +2446,80 @@ const effLevel = (xp) => Math.min(levelForXp(xp), 99);
 // STANDING is the sum of every skill's TRUE level, levelForXp, not effLevel,
 // because mastery at 99 is a milestone and not a ceiling. A citizen who keeps
 // going past mastery keeps rising, and standing has no maximum to hardcode.
+// §6ax: HOOD_STANDING, and why it is this number and not a rounder one.
+//
+// A mastery is 13,034,431 experience. Because the curve is exponential,
+// BREADTH is far cheaper than DEPTH -- standing 1200 spread across all
+// seventeen trades is 13,469,999, within a few percent of a single ninety-
+// nine, where reaching it by ten masteries would cost 130 million. So a
+// hood costs what a cape costs, spent wide instead of deep. The cape says
+// you went far in one thing; the hood says you went everywhere. They are
+// peers, not a ladder, and neither of us chose that -- the curve did.
+//
+// It is not a filter. In a world that expects executors, every citizen who
+// is maintained long enough crosses any line drawn here; the threshold buys
+// a sybil toll and a pace, nothing more. That is sufficient, because the
+// hood's scarcity was never meant to come from the threshold. It comes from
+// each one being a different object.
+const HOOD_STANDING = 1200;
+
+// Once, at the interval a citizen's standing first reaches the mark, and
+// never again -- `hooded` records the tick so the id can be recomputed by
+// anyone from state alone. It goes to the pack if there is room and to the
+// ground at their feet if there is not, because a founding gift that
+// silently evaporates against a full pack is a founding gift nobody can
+// rely on.
+function grantHoods(s) {
+  for (const [pid, p] of Object.entries(s.players)) {
+    if (p.hooded !== undefined || standingOf(p) < HOOD_STANDING) continue;
+    p.hooded = s.tick;
+    const item = hoodFor(pid, s.tick);
+    const slot = firstFreeSlot(p.inventory);
+    if (slot !== -1) p.inventory[slot] = { item, qty: 1 };
+    else s.ground['g' + s.tick + '-' + pid + '-hood'] =
+      { item, qty: 1, x: p.x, y: p.y, expiresAt: MAX_TIME };
+    // The citizen is the actor, not the recipient: nothing GIVES this, because
+    // the authority that would give it dissolved at the founding. And it says
+    // WALKED rather than mastered -- 1200 is seventy-odd in all seventeen, a
+    // long way into every trade and the end of none. The tick is carried here
+    // as well as in the id, so the number enters the record at the moment it
+    // is minted, where a reader years later would go looking for it.
+    announce(s, (p.name ?? pid.slice(0, 6))
+      + ' has walked every trade, and wears a wayfarer\u2019s hood (' + s.tick + ').');
+  }
+}
+
+// §6ax: A HOOD OUTLIVES ITS BEARER.
+//
+// Death is the deepest sink in this world and stays so: every death still
+// annihilates a pack, or spills one that rots in a hundred ticks. A hood is
+// the single exception, and it is an exception because it is the only object
+// whose worth is a fact about the past. Burning one deletes a piece of the
+// world's record, permanently, with no rule anywhere able to mint another --
+// and it would be deleted most often by an ordinary accident on an ordinary
+// evening, which is the worst possible way to lose a thing like that.
+//
+// So it falls where its bearer fell, and it does NOT expire (§2b-v gives
+// ground a hundred ticks; MAX_TIME is that rule declining to apply). What
+// this buys is not preservation but a GRAVE MARKER: a hood lying in the deep
+// Wilds years later says whose it was and how far they got, and nobody wrote
+// it there. It is the only record in the world placed by history rather than
+// by a generator.
+//
+// Anyone may take it. That is deliberate: a hood is never destroyed, only
+// TRANSFERRED, and since a citizen crosses the mark once they can never have
+// another. Your name walks away on somebody else's head. The whole penalty
+// sits in the register the object was made for, and costs no power at all.
+function spillHoods(s, q, qid) {
+  let n = 0;
+  const put = (item) => {
+    s.ground['g' + s.tick + '-' + qid + '-hood' + (n++)] =
+      { item, qty: 1, x: q.x, y: q.y, expiresAt: MAX_TIME };
+  };
+  for (const sl of q.inventory) if (sl && isHood(sl.item)) put(sl.item);
+  for (const k of EQUIP_SLOTS) { const w = q.equipment?.[k]; if (w && isHood(w.item)) put(w.item); }
+}
+
 function standingOf(p) {
   let n = 0;
   for (const sk of SKILLS) n += levelForXp(p?.skills?.[sk] ?? 0);
@@ -2484,6 +2564,12 @@ const CALLINGS = {
   // reached it without ever pressing a sigil in their lives. A calling names
   // what somebody DOES; this one had come to name a thing they had not done.
   magic: 'alchemist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
+  // §6as (v0.86) split strength from attack and left it wordless: a citizen
+  // whose highest xp was strength rendered as the string "undefined" in every
+  // window and on the hiscores. 'force' style trains strength alone, so this
+  // was reachable by design, not by accident. BERSERKER names the arm the way
+  // FIGHTER names the aim and WARDEN the guard -- a style, not a trade.
+  strength: 'berserker',
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
 };
 // Chosen by EXPERIENCE, not by level. Levels are a step function of xp, so the
@@ -2989,7 +3075,29 @@ const HEX64 = /^[0-9a-f]{64}$/;
 const isInt = (v, lo, hi) => Number.isSafeInteger(v) && v >= lo && v <= hi;
 const CHART_PREFIX = 'chart:';
 const isChart = (v) => typeof v === 'string' && /^chart:[a-z0-9_-]{1,64}$/i.test(v); // a portable waystone attunement
-const isItemName = (v) => typeof v === 'string' && (ITEMS.has(v) || isChart(v)); // membership, not just shape (rev5 §4)
+// §6ax: THE WAYFARER'S HOOD, and why it is a family rather than an item.
+//
+// Every other object in this world is fungible: one log is any log. A hood is
+// not. It carries the id of the citizen it was given to and the tick it was
+// given on, forever, through every trade and every death, and that is the
+// whole of what it is worth -- it has no defence, no keeper price, and no use.
+//
+// This is the answer to a problem the architecture cannot otherwise solve.
+// There is no operator to end a supply and no forgetting to thin one, so any
+// fungible rare accumulates without bound and is hoarded from the day its
+// rule is read. A thing that is not fungible does not care: there is no market
+// in "a hood", only N markets of one, and nobody can corner what nobody can
+// substitute. Value is decided years after issue, by whose name is on it,
+// which is a fact about history and cannot be front-run.
+//
+// The id stores the KEY, never the name. Names are claimed later and windows
+// resolve them at read time (§5a keeps a name forever, even for the archived),
+// so a citizen who takes a name in year three is retroactively legible on
+// every hood they ever earned -- including the ones they traded away.
+const isHood = (v) => typeof v === 'string' && /^hood:[0-9a-f]{64}:[0-9]{1,15}$/.test(v);
+const hoodOf = (v) => { const m = /^hood:([0-9a-f]{64}):([0-9]{1,15})$/.exec(v || ''); return m ? { pid: m[1], tick: +m[2] } : null; };
+const hoodFor = (pid, tick) => 'hood:' + pid + ':' + tick;
+const isItemName = (v) => typeof v === 'string' && (ITEMS.has(v) || isChart(v) || isHood(v)); // membership, not just shape (rev5 §4)
 const isSlot = (s) => s === null || (s && typeof s === 'object'
   && isItemName(s.item) && isInt(s.qty, 1, MAX_QTY));
 
@@ -3263,7 +3371,7 @@ function validateImports(imported) {
     }
     if (imp.weapon !== undefined && imp.weapon !== null) {
       if (!isSlot(imp.weapon)) return 'malformed imported weapon';
-      if (!EQUIPPABLE.has(imp.weapon.item)) return 'imported weapon is not equippable';
+      if (!isEquippable(imp.weapon.item)) return 'imported weapon is not equippable';
       if (slotOf(imp.weapon.item) !== 'weapon') return 'imported weapon belongs in a different slot';
     }
   }
@@ -3341,7 +3449,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired']);
+  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -3447,7 +3555,7 @@ const LANDMARK_KINDS = new Set([
       if (worn !== null) {
         // rev7 §2: the SHARED slotOf() decides where an item belongs ,
         // a helm in the weapon slot is as malformed as an unknown item
-        if (!EQUIPPABLE.has(worn.item)) return 'equipped item is not equippable';
+        if (!isEquippable(worn.item)) return 'equipped item is not equippable';
         if (slotOf(worn.item) !== eq) return `equipped item in the wrong slot (${worn.item} belongs in ${slotOf(worn.item)})`;
       }
     }
@@ -4497,7 +4605,7 @@ function validInput(state, input, ctx) {
     }
     case 'wield': {
       const sl = p.inventory[input.slot];
-      if (!Number.isInteger(input.slot) || !sl || !EQUIPPABLE.has(sl.item)) return false;
+      if (!Number.isInteger(input.slot) || !sl || !isEquippable(sl.item)) return false;
       const req = reqOverride(state.genesis, 'wield', sl.item) ?? WIELD_REQS[sl.item];
       if (req) for (const [sk, lv] of Object.entries(req))
         if (effLevel(p.skills[sk]) < lv) return false; // earned, then worn (v0.41)
@@ -5652,6 +5760,7 @@ function nextState(state, inputs, _legacyBeacon) {
               announce(s, 'The DRAGONBOW has gone back to the Wilds; its bearer fell.');
             }
             target.hp = 0;
+            spillHoods(s, target, tid ?? 'v');   // §6ax: before the pack goes
             const kept9 = prayerKeeps(target, s.tick);
             target.inventory = Array(INV_SLOTS).fill(null);
             target.equipment = { weapon: null, head: null, body: null };
@@ -5936,7 +6045,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const mid = myMarketIdBeside(s, p, pid);
       const sl = p.inventory[inp.slot];
       const mk = mid ? s.nodes[mid] : null;
-      if (mk && sl && sl.item !== 'dragonbow') {
+      if (mk && sl && sl.item !== 'dragonbow' && !isHood(sl.item)) {   // §6ax: nor will a shelf hold one
         const kinds = Object.keys(mk.shelf ?? {});
         if ((!kinds.length || kinds[0] === sl.item)
             && ((mk.shelf?.[sl.item] ?? 0) + (sl.qty ?? 1)) <= MARKET_STOCK) {
@@ -6157,7 +6266,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'wield') {
       const sl = p.inventory[inp.slot];
-      if (sl && EQUIPPABLE.has(sl.item)) {
+      if (sl && isEquippable(sl.item)) {
         const g = slotOf(sl.item);
         const cur = p.equipment[g];
         p.equipment[g] = sl;
@@ -6397,6 +6506,7 @@ function nextState(state, inputs, _legacyBeacon) {
               s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
             } }
+            spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
@@ -6823,7 +6933,17 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'deposit') {
       const sl = p.inventory[inp.slot];
       const nearBank = hasAdjacentNode(s, _ctx, p, 'bank');
-      if (sl && nearBank) {
+      // §6ax: A VAULT WILL NOT TAKE A HOOD.
+      //
+      // Not to stop hoarding -- it cannot; a sleeping citizen in a town is a
+      // twenty-eight slot vault that costs nothing. It is to force the CHOICE.
+      // A hood that can be banked is a hood nobody ever risks, and one that is
+      // never worn is one nobody ever sees, which is the entire point of it.
+      // Owning one has to be a decision renewed every time you leave a town.
+      // This is the dragonbow's rule, and its reason inverted: the bow is
+      // refused so its bearer cannot opt out of being hunted; the hood is
+      // refused so its bearer cannot opt out of being seen.
+      if (sl && nearBank && !isHood(sl.item)) {
         // 7.3: one item per interval (spec) means ONE unit leaves the slot;
         // the old path banked 1 and vaporized the rest of the stack
         p.bank[sl.item] = (p.bank[sl.item] ?? 0) + 1;
@@ -7063,6 +7183,7 @@ function nextState(state, inputs, _legacyBeacon) {
               s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
             } }
+            spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
@@ -7545,6 +7666,7 @@ function nextState(state, inputs, _legacyBeacon) {
   }
 
   scrubSkills(s);   // nothing non-finite leaves a tick
+  grantHoods(s);    // §6ax: whoever crossed this interval
   stepEvents(s, beacon);   // §6ao (v6): the bloom and the incursion, if this world founds them
   return s;
 }
