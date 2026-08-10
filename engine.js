@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.81';
+const SPEC_VERSION = '0.87';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -275,7 +275,12 @@ function engineThrow(code, message) { const e = new Error(message); e.code = cod
 // copy of the constitution eventually disagrees with the engine (it
 // happened: signpost text), so neither may define these locally.
 const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength', 'defence', 'hitpoints', 'exploration', 'brewing'];
+  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength', 'defence', 'hitpoints', 'exploration', 'brewing', 'hauling'];
+// §11: HAULING IS THE EIGHTEENTH SKILL (v0.87).
+//
+// It grants no power -- like prayer, exploration and brewing, the level IS the
+// achievement. What it adds is a REASON to be on the road carrying something
+// worth taking, and a rule saying who may take it. See §11.
 // §6as: STRENGTH IS ITS OWN SKILL (v0.86).
 //
 // One skill drove both how often you land and how hard, so there was no build
@@ -2190,6 +2195,13 @@ const INPUT_SCHEMAS = {
   // is precisely the message you get from a world too old to have the verb.
   // I read that symptom and diagnosed the wrong thing twice.
   drink: {},
+  // §11b: the container. `consign` names the slots that go into it, `release`
+  // gives them back, `deliver` sells one of them at the route's end.
+  consign: { slots: (v) => (Array.isArray(v) && v.length >= 1 && v.length <= INV_SLOTS
+    && v.every((n) => Number.isInteger(n) && n >= 0 && n < INV_SLOTS)
+    && new Set(v).size === v.length) || 'must be 1-28 distinct slot indices' },
+  release: {},
+  deliver: { slot: T.slot },
   alch: { slot: T.slot },
   set_look: { look: (v) => (Number.isInteger(v) && v >= 0 && v <= 255) || 'must be 0-255' },
 };
@@ -2968,6 +2980,41 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
            // brewing (v0.51): a profession rate-limited by fermentation; constants
            // are THIS world's, in the founding record, a larger world tunes its own.
            brew: { ferment: 4500, potCap: 4, xpPerBatch: 13500, buildLogs: 4, buildOre: 2, decayTicks: 432000 },
+           // hauling (v0.87 §11): weight over distance. DERIVED FROM THIS
+           // WORLD'S GEOMETRY by haultune.mjs, exactly as survey's constants
+           // are, and not a universal curve: a world half this size founds a
+           // different `perTileSlot` from its own simulation.
+           //
+           // On the fifth expanse six stores make 510 drawn routes of one to
+           // three legs, mean 641 tiles chebyshev, and a trip is that plus
+           // about thirty intervals in town. 23 puts the FASTEST possible
+           // line -- a full pack at the 3.00 cap -- at 118 hours, in line with
+           // exploration and brewing, and leaves a hauler of logs at 354.
+           //
+           // THE MULTIPLIER IS A TABLE OF INTEGERS IN HUNDREDTHS, and it is a
+           // table because §2m binds this world to + - * / and sqrt. The
+           // shape it approximates is logarithmic in price, so the middle of
+           // the ladder is alive rather than a choice between grain and
+           // plates -- but a logarithm cannot be computed identically by two
+           // implementations, and XP is an integer (§3.1). A table can.
+           //
+           // The CAP is the whole argument. Linear in price puts grain at
+           // 0.01x and deletes bulk hauling; uncapped, it becomes the trap
+           // §6k already names, where the efficient path to a skill is to
+           // acquire the most valuable thing in the world. Three is enough to
+           // make a plate caravan worth running and not enough to make it the
+           // only thing worth running -- and production very nearly cancels
+           // it anyway, since a pack of plates is a thousand intervals of
+           // mining before it is a step of walking.
+           haul: { perTileSlot: 23, legMin: 1, legMax: 3,
+                   mult: { logs: 100, 'raw-fish': 100, bones: 100, arrows: 100, seeds: 100,
+                           grain: 123, ore: 130, 'cooked-fish': 130, ale: 140, broth: 145,
+                           'bronze-hatchet': 155, 'bronze-pickaxe': 155, 'wooden-bow': 150,
+                           'bronze-sword': 165, 'bronze-helm': 160, 'bronze-plate': 180,
+                           'magic-stone': 175, 'deep-broth': 150, heartwood: 210,
+                           'heartwood-bow': 250, 'horn-bow': 245, 'dragon-bones': 285,
+                           'star-helm': 261, 'star-dagger': 250, 'star-spear': 270,
+                           'star-sword': 283, 'star-maul': 290, 'star-plate': 300 } },
            // watchfires (v0.53): high-tier Firemaking as public infrastructure.
            // A BEACON IS A PUBLIC WORK, NOT A LADDER.
            //
@@ -3165,7 +3212,7 @@ function normaliseSource(src) {
 function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'utf8')).toString('hex'); }
 
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape']);
+const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -3449,7 +3496,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired']);
+  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -3528,6 +3575,32 @@ const LANDMARK_KINDS = new Set([
     // reads it and nothing in the rules depends on it; it is here for the same
     // reason a name is: so that everyone looking at a citizen sees the same
     // citizen (spec 5a's own argument, applied to a face).
+    // §11a: THE CONSIGNMENT IS STATE, so the validator must know its shape as
+    // exactly as it knows a pack's. A container of twenty-eight slots per
+    // citizen is real bytes in every checkpoint and every hash.
+    if (p.consignment !== undefined && p.consignment !== null) {
+      const c = p.consignment;
+      if (!c || typeof c !== 'object') return 'malformed consignment';
+      if (Object.keys(c).sort().join(',') !== 'from,items,leg,route') return 'malformed consignment';
+      if (!isId(c.from)) return 'malformed consignment origin';
+      if (!Array.isArray(c.route) || c.route.length < 1 || c.route.length > 8
+        || !c.route.every(isId) || new Set(c.route).size !== c.route.length)
+        return 'malformed consignment route';
+      if (!isInt(c.leg, 0, c.route.length)) return 'consignment leg out of bounds';
+      if (!Array.isArray(c.items) || c.items.length !== INV_SLOTS) return 'malformed consignment items';
+      let filled = 0;
+      for (const sl of c.items) {
+        if (sl === null) continue;
+        if (!sl || typeof sl !== 'object') return 'malformed consignment slot';
+        if (Object.keys(sl).sort().join(',') !== 'item,qty') return 'malformed consignment slot';
+        if (!isItemName(sl.item)) return 'contraband in a consignment';
+        if (!isInt(sl.qty, 1, MAX_QTY)) return 'consignment qty out of bounds';
+        filled++;
+      }
+      // §11b: an empty one cannot persist -- it would be attack-capability at
+      // no cost, and §11d rests on that being impossible.
+      if (filled === 0) return 'an empty consignment cannot stand';
+    }
     if (p.look !== undefined && !isInt(p.look, 0, 255)) return 'look out of bounds';
     if (!isInt(p.hp, 0, 100000)) return 'player hp out of bounds';
     // skills: the COMPLETE constitutional set, exactly, a missing skill is
@@ -3875,6 +3948,7 @@ function addPlayer(state, playerId, x, y) {
     // them penniless, as v1-v5 do.
     gold: state.genesis?.newcomerGold ?? 0,
     inventory: Array(INV_SLOTS).fill(null),
+    consignment: null,   // §11a: the second container, which the bank cannot reach
     action: null,
     name: null,
     trade: null,
@@ -4094,6 +4168,8 @@ function validInput(state, input, ctx) {
       // spec 2k: recall to any waystone you have walked to. Never from the Wilds ,
       // magic will not carry you out of danger you chose to enter.
       if (p.hp <= 0 || inWilds(state.genesis, p.x, p.y)) return false;
+      // §11d: THE ROAD WILL NOT BE SKIPPED by anyone who profits from its length.
+      if (p.consignment) return false;
       // §2b: AND THE STONES WILL NOT TAKE THE BRANDED.
       //
       // A keeper's refusal is a fine punishment for somebody who needs a
@@ -4286,7 +4362,7 @@ function validInput(state, input, ctx) {
       const q9 = state.players[input.targetId];
       if (!q9 || q9.hp <= 0 || input.targetId === input.playerId) return false;
       if ((q9.stilledUntil ?? 0) > state.tick || (p.stilledUntil ?? 0) > state.tick) return false;
-      if (!inWilds(state.genesis, p.x, p.y) || !inWilds(state.genesis, q9.x, q9.y)) return false;
+      if (!mayStrike(state, p, q9)) return false;   // §11d: the Wilds, or two consignments
       if (inReach(p, q9)) return true;
       return isRanged(p)
         && Math.max(Math.abs(p.x - q9.x), Math.abs(p.y - q9.y)) <= reachOf(p)
@@ -4298,7 +4374,12 @@ function validInput(state, input, ctx) {
       // own id or self-attack slips through as (undefined === target) === false
       const q = state.players[input.targetId];
       if (!q || q.hp <= 0 || input.targetId === input.playerId) return false;
-      if (!inWilds(state.genesis, p.x, p.y) || !inWilds(state.genesis, q.x, q.y)) return false;
+      // §11d: THE WILDS, OR TWO CONSIGNMENTS. The Wilds is a rectangle where
+      // the law thins (§2g); a consignment is that same thinning carried on a
+      // body, by consent, and it reaches wherever that body goes. BOTH must
+      // bear one -- which is what makes a thief a hauler with different
+      // intentions, and why there is no thieving skill.
+      if (!mayStrike(state, p, q)) return false;
       if (inReach(p, q)) return true;
       const cheb = Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
       return cheb <= reachOf(p) && isRanged(p)
@@ -4383,6 +4464,11 @@ function validInput(state, input, ctx) {
       if (p.hp <= 0) return false;
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       if (marketsOwnedBy(state, ctx, input.playerId) >= MARKET_OWNED) return false;
+      // §6ao (v6): A STALL LINES THE ROAD -- and it must be REFUSED here, not
+      // silently at completion. The check lived only in the resolver, so a
+      // citizen stood twenty intervals in the wrong place and got nothing,
+      // with no refusal to read. Two gates that must agree.
+      if (!stallGroundOk(state, p.x, p.y)) return false;
       return countLogs(p.inventory) >= MARKET_LOGS
           && countItem(p.inventory, 'ore') >= MARKET_ORE;
     }
@@ -4426,6 +4512,29 @@ function validInput(state, input, ctx) {
       const gr = state.ground?.[input.groundId];
       if (!gr) return false;
       return Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= UNMAKE_RANGE;
+    }
+    case 'consign': {
+      // §11b: BESIDE A STORE, WHICH IS THE ENTIRE DISCIPLINE. Stores stand
+      // inside walled towns, so a consignment may be taken up or put down only
+      // somewhere safe. On the road the choice has already been made.
+      if (p.hp <= 0 || p.consignment) return false;
+      if (!haulTownIdAt(state, ctx, p)) return false;
+      return input.slots.every((i) => !!p.inventory[i]);
+    }
+    case 'release': {
+      if (p.hp <= 0 || !p.consignment) return false;
+      return !!haulTownIdAt(state, ctx, p);
+    }
+    case 'deliver': {
+      // sells ONE slot of the container, at the last town of the drawn route.
+      if (p.hp <= 0 || !p.consignment) return false;
+      if ((p.brandedUntil ?? 0) > state.tick) return false;   // §2b: nor for a hauler
+      if (!haulAtEnd(p.consignment)) return false;
+      const sl = p.consignment.items[input.slot];
+      if (!Number.isInteger(input.slot) || !sl || !(sl.item in PRICES)) return false;
+      const st = findAdjacentNode(state, ctx, p, 'store');
+      if (!st) return false;
+      return (st.coin ?? PURSE_CAP) >= (PRICES[sl.item] ?? 0) * (sl.qty ?? 1);
     }
     case 'alch': {
       // THE ITEM IS THE COST. Not a sigil -- a sigil is three magic-stones and
@@ -4630,6 +4739,13 @@ function validInput(state, input, ctx) {
     }
     case 'deposit': {
       if (!Number.isInteger(input.slot) || !p.inventory[input.slot]) return false;
+      // §11d: THE BANK IS CLOSED TO A HAULER, both ways. `player.bank` is one
+      // map per citizen reachable at any bank node (§6g), which makes it a
+      // teleport for GOODS exactly as recall is one for the body. Banning
+      // deposit alone leaves the route open: consign at Cragfoot, walk to
+      // Anchor carrying nothing, draw the plates out of the vault THERE and
+      // sell them, having risked nothing at all.
+      if (p.consignment) return false;
       // §6w: THE BOW CANNOT BE PUT AWAY.
       //
       // This world is against hidden power. Names are public, standing is
@@ -4651,6 +4767,7 @@ function validInput(state, input, ctx) {
       // out again, because withdraw's shape check is ITEMS-only. Silent,
       // permanent loss of a survey reward. Two gates that must agree.
       if (typeof input.item !== 'string' || !(p.bank[input.item] > 0)) return false;
+      if (p.consignment) return false;   // §11d, and see `deposit` for why both
       if (firstFreeSlot(p.inventory) === -1) return false;
       return hasAdjacentNode(state, ctx, p, 'bank');
     }
@@ -4933,6 +5050,122 @@ function fireOnTile(state, ctx, x, y) { // a fire you are standing IN is a fire 
   return false;
 }
 const _FIRE_TYPES = new Set(['campfire', 'fire']);
+// ---------------------------------------------------------------------------
+// §11: HAULING. The consignment, the drawn route, and what weight over distance
+// is worth. Every value here is a pure function of the state and the beacon.
+
+// The towns that can END a route are the towns that hold a store: a keeper with
+// a purse is what a consignment is sold into. Sorted by nodeId so two nodes
+// enumerate them in the same order, always.
+function haulTownsSorted(s2, ctx2) {
+  const out = [];
+  for (const nid of Object.keys(s2.nodes).sort()) {
+    const n = s2.nodes[nid];
+    if (n && n.type === 'store') out.push({ id: nid, x: n.x, y: n.y });
+  }
+  return out;
+}
+function haulTownIdAt(s2, ctx2, p2) {
+  const st2 = findAdjacentNode(s2, ctx2, p2, 'store');
+  if (!st2) return null;
+  for (const nid of Object.keys(s2.nodes).sort()) {
+    const n = s2.nodes[nid];
+    if (n && n.type === 'store' && n.x === st2.x && n.y === st2.y) return nid;
+  }
+  return null;
+}
+// §11c: THE ROUTE IS DRAWN, NOT CHOSEN. A citizen who picks their own
+// destination picks the nearest one forever, which collapses the whole
+// profession into a forty-second shuttle. Drawn by the same lots that place a
+// survey marker (§7 v0.38).
+function haulDrawRoute(s2, ctx2, pid, from) {
+  const towns = haulTownsSorted(s2, ctx2).filter((t) => t.id !== from);
+  if (!towns.length) return [];
+  const g2 = s2.genesis;
+  const lo = g2.haul?.legMin ?? 1, hi = g2.haul?.legMax ?? 3;
+  const h0 = sha256(Buffer.from(s2.beacon + '|haul|' + s2.tick + '|' + pid + '|legs'));
+  const legs = Math.min(towns.length, lo + (h0.readUInt32BE(0) % Math.max(1, hi - lo + 1)));
+  const pool = towns.slice(), route = [];
+  for (let i = 0; i < legs && pool.length; i++) {
+    const h = sha256(Buffer.from(s2.beacon + '|haul|' + s2.tick + '|' + pid + '|' + i));
+    route.push(pool.splice(h.readUInt32BE(0) % pool.length, 1)[0].id);
+  }
+  return route;
+}
+// §11e: TILES. Chebyshev between store tiles, exactly as survey XP is paid by
+// chebyshev to the anchor (§7c). A walk graph would be truer and cannot be
+// computed every interval by every node; this can.
+function haulRouteTiles(s2, from, route) {
+  let cur = s2.nodes[from], tot = 0;
+  if (!cur) return 0;
+  for (const tid of route) {
+    const n = s2.nodes[tid];
+    if (!n) continue;
+    tot += Math.max(Math.abs(n.x - cur.x), Math.abs(n.y - cur.y));
+    cur = n;
+  }
+  return tot;
+}
+function haulSlotsFilled(c) {
+  let n = 0;
+  for (const sl of (c?.items ?? [])) if (sl) n++;
+  return n;
+}
+// §11e: the multiplier is a TABLE OF INTEGERS in hundredths, not a logarithm.
+// §2m binds this world to + - * / and sqrt; a log cannot be computed
+// identically by two implementations, and XP is an integer (§3.1).
+function haulMultFor(g2, item) {
+  const t = g2.haul?.mult;
+  if (t && Number.isInteger(t[item])) return t[item];
+  return 100;
+}
+function haulXpFor(s2, c) {
+  const g2 = s2.genesis;
+  const per = g2.haul?.perTileSlot ?? 0;
+  if (!per) return 0;
+  const tiles = haulRouteTiles(s2, c.from, c.route);
+  let xp = 0;
+  for (const sl of (c.items ?? [])) {
+    if (!sl) continue;
+    xp += Math.floor((tiles * per * haulMultFor(g2, sl.item)) / 10000);
+  }
+  return xp;
+}
+function haulAtEnd(c) { return !!c && c.leg >= c.route.length; }
+// §11d: WHERE ONE CITIZEN MAY STRIKE ANOTHER. Two ways, and only two: both
+// stand in the Wilds (§2g), or both bear a consignment (§11d) -- the same
+// thinning of the law, carried on a body instead of drawn on the map.
+//
+// This is ONE function because the rule lives in four places: validate(), the
+// attackp resolver, the special blow, and the swing itself. It was written out
+// longhand in each, and adding the consignment to validate() alone let a blow
+// be accepted and then silently dropped by the resolver -- valid to the gate,
+// invisible to the world. A rule spelled out four times is four rules.
+function mayStrike(s2, p2, q2) {
+  if (!p2 || !q2) return false;
+  if (!!p2.consignment && !!q2.consignment) return true;
+  return inWilds(s2.genesis, p2.x, p2.y) && inWilds(s2.genesis, q2.x, q2.y);
+}
+// §11b: AN EMPTY CONSIGNMENT LIFTS ITSELF. Not tidiness: a citizen bearing an
+// empty one would be attack-capable at no cost at all, and the honesty of §11d
+// rests on nobody becoming dangerous without becoming worth robbing.
+function haulSweep(p2) {
+  if (p2.consignment && haulSlotsFilled(p2.consignment) === 0) p2.consignment = null;
+}
+
+// §6ao (v6): A STALL LINES THE ROAD -- raised on ground ORTHOGONALLY ADJACENT
+// to a road, beside it and not on it, so every stall sits where wanderers pass
+// and none is pitched in an empty corner. A world that omits the flag (v1-v5)
+// lets a stall stand anywhere. One predicate, so validate() and the resolver
+// can never disagree about it.
+function stallGroundOk(s2, x, y) {
+  if (!s2.genesis.stallsLineRoads) return true;
+  const tt = TERRAINS[s2.genesis.worldGenerator];
+  if (!tt || !tt.road) return false;
+  const isRoad = (a, b) => tt.road(s2.genesis, a, b);
+  return !isRoad(x, y) && (isRoad(x + 1, y) || isRoad(x - 1, y) || isRoad(x, y + 1) || isRoad(x, y - 1));
+}
+
 function hasAdjacentNode(state, ctx, p, typeOrSet, pred) {
   const match = typeof typeOrSet === 'string' ? (t) => t === typeOrSet : (t) => typeOrSet.has(t);
   if (!ctx) {
@@ -5765,6 +5998,21 @@ function nextState(state, inputs, _legacyBeacon) {
             target.inventory = Array(INV_SLOTS).fill(null);
             target.equipment = { weapon: null, head: null, body: null };
             kept9.forEach((k, i) => { target.inventory[i] = k; });
+            // §11d: THE CONSIGNMENT SPILLS EVEN WHEN THE PACK BURNS. A beast
+            // kills like any other death here -- the pack is annihilated -- but
+            // what was consigned lies where it fell, on the ordinary hundred-
+            // interval clock. The rule says WHERE THEY FALL, not "where a
+            // citizen felled them": a caravan lost to wolves is still a
+            // caravan on the ground, and whoever comes down the road next may
+            // have it.
+            if (target.consignment) {
+              let sc = -1;
+              for (const cs of target.consignment.items) { sc++; if (!cs) continue;
+                s.ground['g' + s.tick + '-' + (tid ?? 'v') + '-c' + sc] =
+                  { item: cs.item, qty: cs.qty ?? 1, x: target.x, y: target.y, expiresAt: s.tick + 100 };
+              }
+              target.consignment = null;
+            }
             target.action = null;
             target.trade = null;
             target.deadUntil = s.tick + DEATH_TICKS;
@@ -6033,6 +6281,13 @@ function nextState(state, inputs, _legacyBeacon) {
         // attunes freely, as v1-v5 do.
         if (s.genesis.waystoneStandingReq && standingOf(p) < waystoneStandingFor(nid, s.genesis)) continue;
         if (!p.attuned.includes(nid)) p.attuned.push(nid);
+      }
+    }
+    if (p && p.consignment) { // §11c: a leg is reached by STANDING beside its store
+      const c = p.consignment;
+      if (c.leg < c.route.length) {
+        const want = s.nodes[c.route[c.leg]];
+        if (want && adjacent(p, want)) c.leg++;
       }
     }
     if (inp.type === 'move') {
@@ -6340,7 +6595,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // action, because its whole nature is that it happens off the rhythm.
       const q = s.players[inp.targetId];
       const w9 = WEAPONS[p.equipment?.weapon?.item];
-      if (q && q.hp > 0 && w9?.spec && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y)) {
+      if (q && q.hp > 0 && w9?.spec && mayStrike(s, p, q)) {   // §11d
         // §2b-iv: the mark and the answer, BEFORE the blow -- so a special that
         // kills outright still brands, and the victim's own answer is set even
         // if they do not live to swing it. Hitting somebody is hitting somebody
@@ -6506,6 +6761,19 @@ function nextState(state, inputs, _legacyBeacon) {
               s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
             } }
+            // §11d: AND THE CONSIGNMENT SPILLS WITH IT, wherever they fell --
+            // not only in the Wilds. Without this, killing a hauler destroys
+            // the cargo and there is nothing to steal, only somebody to ruin.
+            // A mourner's prayer does not reach it: what is consigned was
+            // committed to the road.
+            if (q.consignment) {
+              let sc = -1;
+              for (const cs of q.consignment.items) { sc++; if (!cs) continue;
+                s.ground['g' + s.tick + '-' + qid9 + '-c' + sc] =
+                  { item: cs.item, qty: cs.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
+              }
+              q.consignment = null;
+            }
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
@@ -6543,7 +6811,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'attackp') {
       const q = s.players[inp.targetId];
-      if (q && q.hp > 0 && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y)) {
+      if (q && q.hp > 0 && mayStrike(s, p, q)) {   // §11d
         // repeating an order you are already carrying out changes nothing:
         // the rhythm belongs to the fight, not to how often you ask for it
         p.action = (p.action?.type === 'attackp' && p.action.targetId === inp.targetId
@@ -6600,6 +6868,61 @@ function nextState(state, inputs, _legacyBeacon) {
         else { continue; }
         delete p.crops[inp.nodeId];      // §6o: your row, cleared
         p.skills.farming += 40;
+      }
+    } else if (inp.type === 'consign') {
+      // §11a: the named slots leave the pack and enter a container the bank
+      // cannot reach. Then the route is drawn, once, and never redrawn.
+      const from = haulTownIdAt(s, _ctx, p);
+      if (from && !p.consignment) {
+        const items = Array(INV_SLOTS).fill(null);
+        let k = 0;
+        for (const i2 of inp.slots.slice().sort((a, b) => a - b)) {
+          if (p.inventory[i2]) { items[k++] = p.inventory[i2]; p.inventory[i2] = null; }
+        }
+        if (k > 0) {
+          p.consignment = { from, route: haulDrawRoute(s, _ctx, pid, from), leg: 0, items };
+          if (!p.consignment.route.length) {   // a world with one store: nothing to draw
+            for (let i2 = 0; i2 < INV_SLOTS; i2++) {
+              if (!items[i2]) continue;
+              const f2 = firstFreeSlot(p.inventory);
+              if (f2 !== -1) p.inventory[f2] = items[i2];
+            }
+            p.consignment = null;
+          }
+        }
+      }
+    } else if (inp.type === 'release') {
+      // as many slots as will fit come home; what does not fit stays, and the
+      // consignment stands. A citizen is never made to destroy their own cargo.
+      if (p.consignment && haulTownIdAt(s, _ctx, p)) {
+        const c = p.consignment;
+        for (let i2 = 0; i2 < c.items.length; i2++) {
+          if (!c.items[i2]) continue;
+          const f2 = firstFreeSlot(p.inventory);
+          if (f2 === -1) break;
+          p.inventory[f2] = c.items[i2]; c.items[i2] = null;
+        }
+        haulSweep(p);
+      }
+    } else if (inp.type === 'deliver') {
+      const c = p.consignment;
+      const sl = c ? c.items[inp.slot] : null;
+      const st0 = findAdjacentNode(s, _ctx, p, 'store');
+      const owed = sl ? (PRICES[sl.item] ?? 0) * (sl.qty ?? 1) : 0;
+      if (c && haulAtEnd(c) && sl && owed && st0 && (st0.coin ?? PURSE_CAP) >= owed) {
+        st0.coin = (st0.coin ?? PURSE_CAP) - owed;
+        p.gold = (p.gold ?? 0) + owed;
+        if (!st0.shelf) st0.shelf = {};
+        st0.shelf[sl.item] = Math.min(SHELF_CAP, (st0.shelf[sl.item] ?? 0) + (sl.qty ?? 1));
+        // §11e: WEIGHT OVER DISTANCE. Paid per slot as it lands, so a partial
+        // delivery pays for exactly what arrived.
+        const per = s.genesis.haul?.perTileSlot ?? 0;
+        if (per) {
+          const tiles = haulRouteTiles(s, c.from, c.route);
+          p.skills.hauling += Math.floor((tiles * per * haulMultFor(s.genesis, sl.item)) / 10000);
+        }
+        c.items[inp.slot] = null;
+        haulSweep(p);
       }
     } else if (inp.type === 'sell') {
       const sl = p.inventory[inp.slot];
@@ -7075,7 +7398,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (p.action.type === 'attackp') {
       const q = s.players[p.action.targetId];
       if (q && ((q.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick)) { p.action = null; continue; } // the truce ends the fight (v0.80)
-      const both = q && q.hp > 0 && inWilds(s.genesis, p.x, p.y) && inWilds(s.genesis, q.x, q.y);
+      const both = q && q.hp > 0 && mayStrike(s, p, q);   // §11d
       // §6b: PVP USES THE SAME GEOMETRY AS EVERYTHING ELSE.
       //
       // This was hardcoded to `wooden-bow` and a literal reach of 4, so every
@@ -7183,6 +7506,19 @@ function nextState(state, inputs, _legacyBeacon) {
               s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
                 { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
             } }
+            // §11d: AND THE CONSIGNMENT SPILLS WITH IT, wherever they fell --
+            // not only in the Wilds. Without this, killing a hauler destroys
+            // the cargo and there is nothing to steal, only somebody to ruin.
+            // A mourner's prayer does not reach it: what is consigned was
+            // committed to the road.
+            if (q.consignment) {
+              let sc = -1;
+              for (const cs of q.consignment.items) { sc++; if (!cs) continue;
+                s.ground['g' + s.tick + '-' + qid9 + '-c' + sc] =
+                  { item: cs.item, qty: cs.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
+              }
+              q.consignment = null;
+            }
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null };
@@ -7400,12 +7736,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // on it -- so every stall sits where wanderers pass and none is pitched off
       // in an empty corner where no one will ever see it. The road is the market's
       // street. A world that omits this (v1-v5) lets a stall stand anywhere.
-      let byRoad = true;
-      if (s.genesis.stallsLineRoads) {
-        const _tt = TERRAINS[s.genesis.worldGenerator];
-        const isRoad = _tt && _tt.road ? (x, y) => _tt.road(s.genesis, x, y) : () => false;
-        byRoad = !isRoad(p.x, p.y) && (isRoad(p.x + 1, p.y) || isRoad(p.x - 1, p.y) || isRoad(p.x, p.y + 1) || isRoad(p.x, p.y - 1));
-      }
+      const byRoad = stallGroundOk(s, p.x, p.y);
       if (enough && room && spare && byRoad) {
         consumeLogs(p.inventory, MARKET_LOGS);
         consumeItem(p.inventory, 'ore', MARKET_ORE);
