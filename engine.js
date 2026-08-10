@@ -309,7 +309,23 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // Prayer was the only skill with nowhere to go. A woodcutter has the
   // Greenwood, a miner the Wilds, a fisher the water; a mourner had a verb and
   // no destination, and buried wherever their feet happened to be.
-  'rampart', 'ossuary'];
+  'rampart', 'ossuary',
+  // §6am (v6): THE MIDDLE OF THE ROAD GETS A GROUND OF ITS OWN.
+  //
+  // Two tiers only -- bronze at one, star and the master yields at the far end
+  // -- left the whole middle of every gathering skill as featureless slope: a
+  // place a citizen passed through in an afternoon and never stood in. The
+  // fix is not a better log from the same trunk (that has no PLACE); it is a
+  // new stand of trees, a new seam, a new shoal, set deeper in each country
+  // than the baseline, so the middle of the game is somewhere you WALK TO.
+  //
+  // These are the exact sibling of `magic-rock`: their own node, their own
+  // item, gated by a level and rewarded by a tool -- only the level is the
+  // middle (thirty-five) where the magic-rock's is the end (seventy). A world
+  // that founds itself on a generator which never seats them is unchanged: no
+  // v1-v5 world contains one, so the yield, the gate and the tool below are
+  // never reached in it.
+  'oak-tree', 'coal-rock', 'eel-spot', 'iron-rock', 'heartwood-tree', 'deep-fish-spot'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -340,6 +356,22 @@ const NODE_YIELD = {
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
   'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 30 },
   'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 30 },
+  // §6am (v6): the middle tier. Higher xp than baseline, lower than the
+  // capstones, and the item is its own thing -- oak-logs, coal, eel --
+  // that the mid gear (steel) is forged and fletched from.
+  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 45 },
+  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 55 },
+  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 50 },
+  // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
+  // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
+  // still (bronze is iron worked simply here), and STEEL is iron quenched with
+  // coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
+  'iron-rock': { item: 'iron',     skill: 'mining',      xp: 35 },
+  // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
+  // Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
+  // mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
+  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 65 },
+  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 60 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
@@ -361,6 +393,9 @@ const WIELD_REQS = {
   // A STAR TOOL ASKS FOR THE TRADE, NOT FOR A SWORD ARM. Sixty in the skill it
   // serves: past the middle of the road, so it is something to work toward,
   // and well short of the ninety that buys heartwood and the deep fish.
+  // §6am (v6): a mid tool asks for the middle of its trade, the way a star
+  // tool asks for sixty. Thirty-five: the gate of the seam it is made to work.
+  'steel-hatchet': { woodcutting: 35 }, 'steel-pickaxe': { mining: 35 }, 'oak-rod': { fishing: 35 },
   'star-hatchet': { woodcutting: 60 }, 'star-pickaxe': { mining: 60 },
   'star-sword': { attack: 50 }, 'star-dagger': { attack: 50 }, 'old-chain': { attack: 30 },
   'star-spear': { attack: 50 }, 'star-maul': { attack: 55 }, 'horn-bow': { ranged: 20 },
@@ -400,7 +435,11 @@ const WIELD_REQS = {
   // of thing it is, and seventy says "a serious tool" where forty said "not
   // quite a beginner".
   'heartwood-staff': { magic: 70 },
-  'star-helm': { defence: 45 }, 'star-plate': { defence: 50 },
+  'star-helm': { defence: 45 }, 'star-plate': { defence: 50 }, 'king-shroud': { defence: 40 },
+  // §6am (v6): the mid arms and armour, worn at the middle of the fighting
+  // road -- past a beginner, short of the fifty that straps on starmetal.
+  'steel-sword': { attack: 35 }, 'steel-dagger': { attack: 35 }, 'steel-spear': { attack: 35 },
+  'steel-helm': { defence: 32 }, 'steel-plate': { defence: 38 },
   'handgonne': { ranged: 90 },   // §6av
 };
 // THE STORE MAKES NOTHING. It was `{ seeds: 15 }` -- the one good in the world
@@ -686,6 +725,13 @@ const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted //
 // raised so that MINING has a country at the end of its road, the way
 // woodcutting has heartwood and fishing has the deep water.
 const MAGIC_ROCK_MINING = 70;
+// §6am (v6): the mid seams open at the middle of the road -- past the point a
+// citizen has decided what they are, well short of the ninety that takes
+// heartwood and the deep fish and the magic-rock. One number for all three
+// skills: the middle is the middle. A founding tunes its own; this is the
+// default the first v6 world uses.
+const MID_TIER_GATE = 35;
+const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 'eel-spot': 'fishing' };
 // ---------------------------------------------------------------------------
 // A DEED IS DONE WHERE PEOPLE CAN SEE IT
 // ---------------------------------------------------------------------------
@@ -890,8 +936,10 @@ const HEAL_DEEP_FISH = 10;
 // can be eaten; anything that cannot be eaten heals nothing. Two lists that
 // must agree are one list.
 // anything a fire can turn into food, asked once
-const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish';
+const HEAL_MID_FISH = 6; // §6am (v6): the mid catch heals between the raw and the deep
+const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish' || item === 'eel';
 const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
+  : item === 'cooked-eel' ? HEAL_MID_FISH
   : item === 'cooked-deep-fish' ? HEAL_DEEP_FISH
   : item === 'deep-broth' ? HEAL_DEEP_BROTH
   : item === 'broth' ? HEAL_BROTH
@@ -1015,6 +1063,13 @@ const WEAPONS = {
   // pay -- was measured too, and it hands a level-forty citizen 1.69 a tick
   // where the honest build gets 1.22. A flat number is a low-level number.
   'bronze-maul':   { hit: 4, every: 2, reach: 1, acc: -12 },
+  // §6am (v6): the mid weapons, one notch of `hit` above bronze and one below
+  // star, no special -- the special is a starmetal thing, earned with the
+  // metal. A citizen who has reached the middle swings a touch harder than a
+  // beginner and a touch softer than a master, which is exactly the middle.
+  'steel-dagger':    { hit: 1, every: 2, reach: 1, acc: 14 },
+  'steel-sword':     { hit: 3, every: 2, reach: 1, acc: 0 },
+  'steel-spear':     { hit: 2, every: 2, reach: 2, acc: 0 },
   'star-dagger':   { spec: 'flurry', blows: 6, rec: 12, hit: 2, every: 2, reach: 1, acc: 14 },
   'star-sword':    { hit: 4, every: 2, reach: 1, acc: 0 },
   'star-spear':    { hit: 3, every: 2, reach: 2, acc: 0 },
@@ -1398,6 +1453,38 @@ const MOB_STATS = {
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 12288 },            // scavenged metal
                     { item: 'star-helm', chance: 328 }] },    // rare: the horned helm itself
+  // §6ao (v6): THE INCURSION. A thing that walks out of the dark, fixes on ONE
+  // citizen, and takes a while to put down -- long enough that the neighbours
+  // notice and come, which is the whole point. It hits SOFTLY (maxHit stays
+  // low even scaled) so that anyone may safely turn and help; the danger was
+  // never the point, the gathering is. High HP so the fight LASTS; a leash so
+  // it can be led toward help or lost; and it despawns on a timer so an
+  // unanswered one is a story ("it came, none came, it left") and never a
+  // permanent fixture. Its maxHp and def are SCALED to the target at spawn by
+  // the event step; these are the floor a level-one target would face.
+  'incursion': { maxHp: 120, atk: 6, def: 8, maxHit: 3, respawn: 0, aggro: 6,
+            drops: [{ item: 'bones' }] },
+  // §6ao (v6): THE RISEN, and THE GIBBET KING. The Moor was dead space -- goblins
+  // and wolves already found in three other countries, and nothing of its own.
+  // Now it is his: the bleak crossing to the master fishing, where the dead walk
+  // because someone raises them. The RISEN are what he calls up -- weak alone,
+  // dangerous as a wave, and they exist ONLY while he does. They are not placed;
+  // he makes them (see the mob step), aggro'd at whoever came, so a citizen
+  // fights THROUGH them to reach him. When he falls or the citizen leaves, the
+  // risen he called crumble back into the moor.
+  'risen': { maxHp: 12, atk: 4, def: 3, maxHit: 2, respawn: 0, aggro: 6, summoned: true,
+             drops: [{ item: 'bones' }] },
+  // THE GIBBET KING (spec 6ao). One of him, like the dragon -- a thing that IS
+  // in the Moor, not a kind that spawns. He does not chase and he barely strikes;
+  // his threat is the dead he raises and sends. To kill him you must cut through
+  // the wave faster than he renews it (capped, so it is a hard solo, not a wall).
+  // He is stationary at his gibbet. Defeating him quiets the Moor until he rises
+  // again. His drop is worth the crossing: the shroud, a rare ranged-magic piece,
+  // and always the bones of a king.
+  'gibbet-king': { maxHp: 200, atk: 8, def: 16, maxHit: 4, every: 2, respawn: 9000,
+             aggro: 8, raises: true, raiseEvery: 5, raiseCap: 4, meleeOnly: true,
+             drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'magic-stone', chance: 8192 },
+                     { item: 'king-shroud', chance: 400 }] },
 };
 // the store's ledger (spec 6l)
 // §6v: mend heals twenty in a burst, which is four cooked deep fish and the
@@ -1609,6 +1696,11 @@ const PRICES = {
   // margin rather than a fletcher's windfall, and the woodcutter who spent
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
+  // §6am (v6): the mid goods, priced between the baseline and the mastery --
+  // a mid seam's hour worth more than a doorstep's, less than a master's.
+  'oak-logs': 6, 'coal': 12, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
+  'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
+  'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
   'heartwood-bow': 540,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
@@ -1624,7 +1716,7 @@ const PRICES = {
   // Four and a half times, on everything a master makes. A star plate is now
   // most of an hour of ordinary work rather than a coffee break, and the
   // ratios between the star goods are untouched -- they were already sound.
-  'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
+  'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
   'star-spear': 450, 'star-maul': 720,
   'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
@@ -1668,9 +1760,9 @@ const inCity = (g, x, y) => {
       || (x >= n.x0 && x <= n.x1 && y >= n.y0 && y <= n.y1);
 };
 const RECIPES = {
-  'bronze-dagger': { ore: 1 },
-  'bronze-spear': { ore: 1, logs: 1 },
-  'bronze-maul': { ore: 2, logs: 1 },
+  'bronze-dagger': { iron: 1 },
+  'bronze-spear': { iron: 1, logs: 1 },
+  'bronze-maul': { iron: 2, logs: 1 },
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
   // fletch input, because a bow made by a fletcher belongs to fletching.
@@ -1704,24 +1796,43 @@ const RECIPES = {
   //
   // It also settles a disagreement between the metals that had no reason to
   // exist: a star sword needed no wood while a bronze one did.
-  'bronze-sword':   { ore: 2 },
-  'bronze-hatchet': { ore: 1, logs: 1 },
-  'bronze-pickaxe': { ore: 1, logs: 1 },
-  'bronze-helm':    { ore: 1 },
-  'bronze-plate':   { ore: 3 },
+  'bronze-sword':   { iron: 2 },
+  'bronze-hatchet': { iron: 1, logs: 1 },
+  'bronze-pickaxe': { iron: 1, logs: 1 },
+  'bronze-helm':    { iron: 1 },
+  'bronze-plate':   { iron: 3 },
   'star-sword':     { 'magic-stone': 3, ore: 2 },
   'star-helm':      { 'magic-stone': 2, ore: 1 },
   'star-plate':     { 'magic-stone': 4, ore: 3 },
   'star-dagger':    { 'magic-stone': 2, ore: 1 },
   'star-hatchet':   { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-pickaxe':   { 'magic-stone': 2, ore: 1, logs: 1 },
+  // §6am (v6): THE MIDDLE TIER, forged and fletched from what the mid seams
+  // give. It stands to star exactly as bronze stands to it: the same shapes,
+  // a rung down, made of mid-ore and mid-wood instead of magic-stone and
+  // starmetal. Wood only where wood is structural, the same rule as above --
+  // a haft, a shaft, a handle, a stock; never a breastplate. The tools take
+  // mid-wood for their hafts; the fishing-rod is a shaft of it and a line.
+  // §6ao (v6): THE STEEL LADDER, quenched from IRON and COAL together -- so a
+  // mid smith must work BOTH seams, the baseline iron at Cragfoot and the coal
+  // deeper in the Crags, keeping the baseline mine alive into the mid-game and
+  // making two mining Schelling points that need each other. Oak hafts the
+  // tools; the rod is an oak shaft and a line.
+  'steel-hatchet':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  'steel-pickaxe':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  'oak-rod':        { 'oak-logs': 2 },
+  'steel-sword':    { 'iron': 1, 'coal': 1 },
+  'steel-helm':     { 'iron': 1, 'coal': 1 },
+  'steel-plate':    { 'iron': 2, 'coal': 1 },
+  'steel-dagger':   { 'iron': 1, 'coal': 1 },
+  'steel-spear':    { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
 };
 // §6ad:  is listed here BY NAME because it is no longer in
 // RECIPES -- it is fletched, not forged. EQUIPPABLE was built from the recipe
 // keys plus the four things nobody makes, so moving a weapon between crafts
 // silently made it unwieldable.
 const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
-  'heartwood-bow',
+  'heartwood-bow', 'king-shroud',
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
   'staff', 'heartwood-staff', 'wand']);
@@ -1732,6 +1843,9 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 // and imports alike.
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
+  // §6am (v6): the mid-tier raw goods, gathered from the mid seams. Like logs
+  // and ore they are not made, so they are named here rather than by a recipe.
+  'oak-logs', 'coal', 'eel', 'cooked-eel', 'burnt-eel', 'iron', 'steel',
   // §6ad: what a master brings back from the same tree and the same water
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'deep-broth', 'heartwood-bow',
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
@@ -1742,13 +1856,15 @@ const ITEMS = new Set([
   'forage',
   'dragonbow',   // §6w: there is one. No keeper prices it, so it is never bought.
   'crab-shell',  // §6z: what a shore-crab gives up
+  'king-shroud', // §6ao (v6): the Gibbet King's mantle -- drop-only, worn on the body
   'wool',        // §6ag: what a sheep gives up. Worth money and nothing else,
                  // which is exactly what crab-shell is: this world does not
                  // need every drop to be an input to something.
   'sigil-bow',
   ...Object.keys(RECIPES),
 ]);
-const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body' }; // default: weapon
+const EQUIP_SLOT = { 'bronze-helm': 'head', 'bronze-plate': 'body', 'star-helm': 'head', 'star-plate': 'body', 'king-shroud': 'body',
+                     'steel-helm': 'head', 'steel-plate': 'body' }; // default: weapon  (§6am v6: the mid armour)
 // the first level requirements (spec 6q): an unearned hammer strikes nothing
 // §6ae: THE FORGE AGREES WITH THE ARM.
 //
@@ -1789,6 +1905,13 @@ const SMITH_REQS = {
   'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
   'star-dagger': { smithing: 45, magic: 28 },
   'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
+  // §6am (v6): THE MIDDLE LADDER, between the bronze ladder and the star one,
+  // and needing no magic -- mid-ore is worked cold by any smith who has come
+  // far enough, where starmetal wants a transmuter's hand. Same order of entry
+  // as bronze: the dagger and the tools are cheapest, the plate the most work.
+  'steel-dagger': { smithing: 25 }, 'steel-hatchet': { smithing: 26 }, 'steel-pickaxe': { smithing: 26 },
+  'oak-rod': { smithing: 24 }, 'steel-spear': { smithing: 28 },
+  'steel-helm': { smithing: 30 }, 'steel-sword': { smithing: 32 }, 'steel-plate': { smithing: 38 },
   // §6av: smithing reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
   // not end with the first one.
@@ -1838,7 +1961,7 @@ const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? 
 // It also repairs the maul without touching the maul: its whole problem was
 // that low accuracy was punished twice, once in the roll and again by a soak
 // its slow cadence could not out-pace.
-const ARMOUR = { 'bronze-helm': 8, 'bronze-plate': 12, 'star-helm': 16, 'star-plate': 24 };
+const ARMOUR = { 'bronze-helm': 8, 'bronze-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22 };  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
 const armourOf = (q) => (ARMOUR[q?.equipment?.head?.item] ?? 0)
                       + (ARMOUR[q?.equipment?.body?.item] ?? 0);
 
@@ -1899,6 +2022,17 @@ function hitChance256(atkLvl, defLvl, weaponAcc, armour) {
                     : Math.floor((128 * A) / (D + 1));
   return Math.max(8, Math.min(250, raw));
 }
+// §6am (v6): a founding may LIFT a tier. The shape -- what is forged, worn, and
+// in what order -- is constitutional; the LEVELS a world guards them behind are
+// that world's own, exactly as firemaking's watchfire threshold and brewing's
+// ferment already are. `genesis.gearReqs = { wield:{item:{skill:lv}}, smith:{...} }`
+// overrides the static ladder for the named items only. A genesis that names none
+// (every world v1-v5) gets the static tables to the byte.
+function reqOverride(genesis, kind, item) {
+  const g = genesis && genesis.gearReqs;
+  if (!g || !g[kind]) return undefined;
+  return g[kind][item];
+}
 const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
 // WHAT COUNTS AS THE RIGHT TOOL, and what it is worth.
 //
@@ -1906,9 +2040,33 @@ const slotOf = (item) => EQUIP_SLOT[item] ?? 'weapon';
 // thing you carried because the tooltip said so. With the ceiling lowered the
 // bonus decides real minutes, and with two metals in the world it is worth
 // carrying the better one.
-const TOOL_FOR = { tree: ['bronze-hatchet', 'star-hatchet'], rock: ['bronze-pickaxe', 'star-pickaxe'],
-                   'magic-rock': ['bronze-pickaxe', 'star-pickaxe'] };
+const TOOL_FOR = { tree: ['bronze-hatchet', 'steel-hatchet', 'star-hatchet'], rock: ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],
+                   'magic-rock': ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],
+                   // §6am (v6): the mid nodes take the same three tools their
+                   // baseline kin do -- a better tool is always welcome at a
+                   // richer seam. Fishing was ever barehanded; the mid-rod is
+                   // a bonus at both shoals, never a toll on either.
+                   'oak-tree': ['bronze-hatchet', 'steel-hatchet', 'star-hatchet'],
+                   'coal-rock': ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],
+                   'iron-rock': ['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe'],  // §6ao (v6): baseline iron
+                   'heartwood-tree': ['bronze-hatchet', 'steel-hatchet', 'star-hatchet'],
+                   'deep-fish-spot': ['oak-rod'],
+                   'fishing-spot': ['oak-rod'], 'eel-spot': ['oak-rod'] };
+// §6ao (v6): which tools satisfy the tool-gate for each gathering skill. Any
+// tier of the right tool opens the door; a better one only works faster. The
+// baseline fishing tool is the plain `rod` (shaped from logs, sold at market);
+// woodcutting and mining take the bronze tool a newcomer buys with their coin.
+const GATHER_TOOLS = {
+  woodcutting: new Set(['bronze-hatchet', 'steel-hatchet', 'star-hatchet']),
+  mining: new Set(['bronze-pickaxe', 'steel-pickaxe', 'star-pickaxe']),
+  fishing: new Set(['rod', 'oak-rod']),
+};
 const TOOL_BONUS = { 'bronze-hatchet': 24, 'bronze-pickaxe': 24,
+                     // §6am (v6): the mid tool sits between the two it stands
+                     // between -- better than bronze, short of star -- so a
+                     // citizen who has reached the middle has a tool to reach
+                     // for, and star is still the thing worth the whole road.
+                     'steel-hatchet': 38, 'steel-pickaxe': 38, 'oak-rod': 38,
                      'star-hatchet': 52, 'star-pickaxe': 52 };
 
 // Canonical signed-input schemas (pre-freeze §1–§4): every semantic
@@ -2287,6 +2445,30 @@ function standingOf(p) {
   for (const sk of SKILLS) n += levelForXp(p?.skills?.[sk] ?? 0);
   return n;
 }
+// §6ao (v6): what standing a waystone asks before a citizen may attune to it.
+// Standing is the sum of true skill levels -- a newcomer is ~24, a settled
+// citizen a few hundred, a veteran past a thousand. The home cluster opens to
+// anyone who has found their feet; the specialist towns ask more; the garrison
+// and the two frontier stones ask a great deal, so quick passage to the deep
+// Wilds and high Crags is the mark of a citizen who has truly arrived. A
+// founding tunes the tiers; this is the default the first v6 world uses.
+const WAYSTONE_TIER = {
+  // home cluster -- the road a known face already walks
+  anchor: 60, millbrook: 60, oxenford: 80, hollybarrow: 80,
+  // the specialist towns, further out
+  greenhollow: 160, thornbury: 160, eastmere: 200, fenmarch: 220,
+  // the frontier
+  cragfoot: 300, norwick: 360,
+  // the two deep stones -- earned, not given
+  wildsdeep: 700, cragshigh: 600,
+};
+function waystoneStandingFor(nid, genesis) {
+  const req = genesis && genesis.waystoneStandingReq;
+  if (!req) return 0;
+  const tag = typeof nid === 'string' && nid.startsWith('waystone-') ? nid.slice('waystone-'.length) : nid;
+  const tiers = (req && typeof req === 'object') ? req : WAYSTONE_TIER;
+  return tiers[tag] ?? WAYSTONE_TIER[tag] ?? 100;
+}
 // CALLING is the profession a citizen is best at, as a word. Hitpoints is
 // excluded: it is a consequence of fighting rather than a trade, and it starts
 // at 10, so without this every citizen would be born a fighter. Ties fall to
@@ -2662,7 +2844,7 @@ function roll(beacon, playerId, tag) {
 // The canonical generator registry (rev7 §8): a founding record names its
 // generator EXPLICITLY, so two deterministic generators can never be
 // confused about which world a genesis founds.
-const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4', 'interval-expanse-v5']);
+const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4', 'interval-expanse-v5', 'interval-expanse-v6']);
 
 function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH = 200,
                      worldGenerator = 'interval-classic-v1') {
@@ -2875,7 +3057,7 @@ function normaliseSource(src) {
 function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'utf8')).toString('hex'); }
 
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey']);
+const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -3322,7 +3504,19 @@ const LANDMARK_KINDS = new Set([
     // while it only ever answered a blow -- a clock of its own, so its swing
     // rate is its own and not the citizen's, and a memory of who hit it, so a
     // passive creature still fights back.
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'bound', 'quiver'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'bound', 'quiver',
+      // §6ao (v6): the incursion carries a scaled body and its bounds -- a
+      // maxHp and def scaled to its target, the tick it must be gone by, its
+      // leash and the tile it came from. Only an 'incursion' may bear them.
+      'maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face',
+      // §6ao (v6): the Gibbet King's clock (lastRaise) and the mark a risen
+      // carries back to the King who called it (raisedBy).
+      'lastRaise', 'raisedBy'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const ik of ['maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face']) if (m[ik] !== undefined && m.type !== 'incursion') return 'only an incursion bears ' + ik;
+    if (m.lastRaise !== undefined && m.type !== 'gibbet-king') return 'only the Gibbet King raises';
+    if (m.raisedBy !== undefined && m.type !== 'risen') return 'only a risen is raised';
+    for (const ik of ['goneBy']) if (m[ik] !== undefined && !isInt(m[ik], 0, MAX_TIME)) return 'incursion ' + ik + ' out of bounds';
+    for (const ik of ['maxHp', 'def', 'leash', 'spawnX', 'spawnY']) if (m[ik] !== undefined && !isInt(m[ik], 0, 200000)) return 'incursion ' + ik + ' out of bounds';
     for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
     // §6ac: whom she has taken, and the arrows she took with them
@@ -3564,7 +3758,14 @@ function addPlayer(state, playerId, x, y) {
     equipment: { weapon: null, head: null, body: null },
     bank: {},
     lastInput: state.tick,
-    gold: 0,
+    // §6ao (v6): a newcomer wakes with just enough coin for ONE tool at the
+    // market -- a bronze axe, a rod, or a pickaxe -- and nothing over. So the
+    // first thing a citizen does is walk to Millbrook, CHOOSE a trade, buy the
+    // tool, and start; and to buy the second tool they must gather and SELL the
+    // first. It turns the empty-handed tree-hug outside the spawn into an
+    // errand with a choice at the end of it. A world that omits this wakes
+    // them penniless, as v1-v5 do.
+    gold: state.genesis?.newcomerGold ?? 0,
     inventory: Array(INV_SLOTS).fill(null),
     action: null,
     name: null,
@@ -3749,6 +3950,22 @@ function validInput(state, input, ctx) {
       const n = state.nodes[input.nodeId];
       if (!n || !(n.type in NODE_YIELD) || n.depletedUntil > state.tick || !adjacent(p, n)) return false;
       if (n.type === 'magic-rock' && effLevel(p.skills.mining) < MAGIC_ROCK_MINING) return false;
+      // §6ao (v6): the mastery seams open at the mastery level, each on its own skill.
+      if (n.type === 'heartwood-tree' && effLevel(p.skills.woodcutting) < MASTER_YIELD) return false;
+      if (n.type === 'deep-fish-spot' && effLevel(p.skills.fishing) < MASTER_YIELD) return false;
+      // §6am (v6): the mid seams gate on the middle of their own skill.
+      if (n.type in MID_TIER_GATE_SKILL && effLevel(p.skills[MID_TIER_GATE_SKILL[n.type]]) < MID_TIER_GATE) return false;
+      // §6ao (v6): A TOOL IN HAND. A founding may require the right tool to work
+      // a node -- an axe for wood, a pickaxe for stone, a rod for fish -- so no
+      // one gathers bare-handed and a newcomer's first act is to go buy one.
+      // The tool may be HELD in the pack (not necessarily wielded); fishing has
+      // always been possible barehanded elsewhere, but a tool-gated founding
+      // asks for the rod too. A world that omits `toolGated` gathers as v1-v5 do.
+      if (state.genesis.toolGated) {
+        const y = NODE_YIELD[n.type];
+        const need = GATHER_TOOLS[y.skill];
+        if (need && !p.inventory.some(sl => sl && need.has(sl.item))) return false;
+      }
       return true;
     }
     case 'cook': {
@@ -4117,6 +4334,29 @@ function validInput(state, input, ctx) {
       // standing still in dangerous country is a real thing to choose.
       if (p.hp <= 0) return false;
       if (effLevel(p.skills.magic) < ALCH_REQ) return false;
+      // §6ao (v6): WHERE, AND WITH WHAT. A founding may say alchemy is a thing
+      // done in TOWNS (but not at the spawn, so a newcomer must step out into
+      // the world to do it) and in the WILDS (low-effort work to do while you
+      // watch a fight and stand at risk) -- and only with a STAFF IN HAND, the
+      // instrument alchemy is done with. A world that omits `alchWhere` alchs
+      // anywhere, staffless, as v1-v5 do.
+      if (state.genesis.alchWhere) {
+        const c = cityRectOf(state.genesis);
+        const inAnchor = p.x >= c.x0 && p.x <= c.x1 && p.y >= c.y0 && p.y <= c.y1;
+        const inWild = inWilds(state.genesis, p.x, p.y);
+        // "in a town" = a bank stands within 16 tiles (every town has its
+        // counting house); Anchor is excluded even though it has one.
+        let inTown = false;
+        if (!inAnchor) {
+          for (const nid in state.nodes) {
+            const nn = state.nodes[nid];
+            if (nn.type === 'bank' && Math.abs(nn.x - p.x) <= 16 && Math.abs(nn.y - p.y) <= 16) { inTown = true; break; }
+          }
+        }
+        if (!inWild && !inTown) return false;
+        const held = p.equipment?.weapon?.item;
+        if (held !== 'staff' && held !== 'wand' && held !== 'heartwood-staff') return false;
+      }
       const slot = p.inventory?.[input.slot];
       // A PRICED GOOD, NOT A PAYING ONE.
       //
@@ -4143,8 +4383,22 @@ function validInput(state, input, ctx) {
         // §2k names `recall`, but the sentence gives the reason: magic will
         // not carry you out of danger you chose to enter. Anchor is magic and
         // the Wilds is that danger.
-        if (p.hp <= 0 || inWilds(state.genesis, p.x, p.y)) return false;
-        if ((p.rootedUntil ?? 0) > state.tick) return false;   // §6v: they cannot move
+        // §6ao (v6): ANCHOR IS THE WILDS ESCAPE. With waystones carrying normal
+        // town-to-town travel, the anchor-recall has one purpose left, and it is
+        // the one magic was first for -- getting OUT of a fight you have chosen
+        // to enter. So a v6 founding REVERSES the old rule: anchor may be cast
+        // ONLY in the Wilds, to flee to the capital, at the risk of being cut
+        // down mid-cast. Elsewhere it is redundant with the waystones and
+        // refused. (A world without `alchWhere`/v6 flags keeps the old §2k rule:
+        // no recall out of the Wilds.)
+        if (p.hp <= 0) return false;
+        if ((p.rootedUntil ?? 0) > state.tick) return false;   // §6v: they cannot move, even to flee
+        if (state.genesis.anchorIsWildsEscape) {
+          if (!inWilds(state.genesis, p.x, p.y)) return false;  // only from the danger it answers
+          return p.inventory.some((sl) => sl?.item === 'sigil');
+        }
+        // legacy rule (v1-v5): no recall OUT of the Wilds
+        if (inWilds(state.genesis, p.x, p.y)) return false;
         return p.inventory.some((sl) => sl?.item === 'sigil');
       }
       if (input.spell === 'mend') // v0.41: the same sigil, a deeper use
@@ -4236,7 +4490,7 @@ function validInput(state, input, ctx) {
       const r = RECIPES[input.recipe];
       if (!r) return false;
       if (!hasAdjacentNode(state, ctx, p, 'anvil')) return false;
-      const req = SMITH_REQS[input.recipe];
+      const req = reqOverride(state.genesis, 'smith', input.recipe) ?? SMITH_REQS[input.recipe];
       if (req && !Object.entries(req).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
       const have = (item) => p.inventory.filter(sl => sl && sl.item === item).length;
       return Object.entries(r).every(([item, qty]) => have(item) >= qty);
@@ -4244,7 +4498,7 @@ function validInput(state, input, ctx) {
     case 'wield': {
       const sl = p.inventory[input.slot];
       if (!Number.isInteger(input.slot) || !sl || !EQUIPPABLE.has(sl.item)) return false;
-      const req = WIELD_REQS[sl.item];
+      const req = reqOverride(state.genesis, 'wield', sl.item) ?? WIELD_REQS[sl.item];
       if (req) for (const [sk, lv] of Object.entries(req))
         if (effLevel(p.skills[sk]) < lv) return false; // earned, then worn (v0.41)
       return true;
@@ -4802,6 +5056,116 @@ function scrubSkills(s) {
     }
   }
 }
+// §6ao (v6): THE EVENT STEP. Two deterministic functions of the beacon and the
+// tick, run once per interval, that turn a fixed world into one where history
+// happens: the BLOOM (a roaming rich spot, an opportunity) and the INCURSION
+// (a roaming shared fight, a threat). Both are gated on genesis.events, so a
+// world that founds without it (every v1-v5 world) runs this as a no-op and is
+// byte-identical. The shape is the constitution's; the numbers are the world's.
+function eventRoll(beacon, tag) {
+  return sha256(Buffer.from(beacon.toString('hex') + '|event|' + tag)).readUInt32BE(0);
+}
+function stepEvents(s, beacon) {
+  const ev = s.genesis && s.genesis.events;
+  if (!ev) return;   // a world that did not found events runs no events
+
+  // ---- 1. despawn expired incursions (bounded in TIME) ------------------
+  for (const mid of Object.keys(s.mobs).sort()) {
+    const m = s.mobs[mid];
+    if (m.type !== 'incursion') continue;
+    if (m.hp <= 0 || (m.goneBy !== undefined && s.tick >= m.goneBy)) delete s.mobs[mid];
+  }
+
+  // ---- 2. the incursion (a shared fight) --------------------------------
+  const present = Object.keys(s.players).sort().filter(pid => {
+    const p = s.players[pid];
+    return p && p.hp > 0 && !p.deadUntil && isAwake(p, s.tick);
+  });
+  const liveIncursions = Object.values(s.mobs).filter(m => m.type === 'incursion' && m.hp > 0).length;
+  if (present.length > 0 && liveIncursions < (ev.maxAtOnce ?? 1)) {
+    const denom = Math.max(1, ev.oneInPerCitizen ?? 200000);
+    const chance = Math.min(0xffffffff, Math.floor((0xffffffff / denom) * present.length));
+    if (eventRoll(beacon, 'incursion-spawn') < chance) {
+      const pick = eventRoll(beacon, 'incursion-target') % present.length;
+      const tid = present[pick];
+      const t = s.players[tid];
+      const base = MOB_STATS['incursion'];
+      const combat = Math.max(1, effLevel(t.skills.attack) + effLevel(t.skills.defence)
+        + effLevel(t.skills.ranged) + effLevel(t.skills.magic));
+      const scaleHp = Math.round(base.maxHp + combat * (ev.hpPerCombat ?? 6));
+      const scaleDef = Math.round(base.def + combat * (ev.defPerCombat ?? 0.4));
+      let sx = t.x, sy = t.y, seated = false;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1],[2,0],[-2,0],[0,2],[0,-2]]) {
+        const nx = t.x + dx, ny = t.y + dy;
+        if (nx < 1 || ny < 1 || nx >= s.genesis.worldW - 1 || ny >= s.genesis.worldH - 1) continue;
+        if (terrainBlocked(s.genesis, nx, ny)) continue;
+        if (Object.values(s.mobs).some(m => m.hp > 0 && m.x === nx && m.y === ny)) continue;
+        sx = nx; sy = ny; seated = true; break;
+      }
+      if (seated) {
+        const iid = 'incursion-' + s.tick;
+        addMob(s, iid, 'incursion', sx, sy);
+        const m = s.mobs[iid];
+        m.maxHp = scaleHp; m.hp = scaleHp; m.def = scaleDef;
+        m.mad = tid;
+        // §6ao (v6): THE LIFETIME MUST OUTLAST A SOLO KILL. The despawn is for
+        // the ABANDONED case (nobody came), never to end a fight in progress. A
+        // committed lone citizen should finish it before it leaves, so the
+        // window is set against the scaled HP with a wide margin; a crowd only
+        // makes it faster.
+        const soloKillTicks = Math.ceil(scaleHp / 2) + 60;
+        m.goneBy = s.tick + Math.max(ev.lifetimeTicks ?? 600, soloKillTicks);
+        m.leash = ev.leashTiles ?? 40;
+        m.spawnX = sx; m.spawnY = sy;
+        // §6ao (v6): CONTEXTUAL. The incursion wears a face chosen by what the
+        // target was DOING -- a fen-thing when you fish, a woodwraith when you
+        // chop, a rock-thing when you mine -- so the world feels like it noticed
+        // you, the way the old random events did. No active gathering? the BIOME
+        // decides. (The face is flavour; the body is one scaled incursion.)
+        let face = null;
+        const act = t.action;
+        if (act && act.type === 'gather') {
+          const gn = s.nodes[act.nodeId];
+          const sk = gn && NODE_YIELD[gn.type] && NODE_YIELD[gn.type].skill;
+          face = sk === 'woodcutting' ? 'woodwraith'
+            : sk === 'mining' ? 'rock-thing'
+            : sk === 'fishing' ? 'fen-thing' : null;
+        }
+        if (!face) {
+          const _tt = TERRAINS[s.genesis.worldGenerator];
+          const b = _tt && _tt.country ? _tt.country(s.genesis, sx, sy) : null;
+          face = b === 'fens' ? 'fen-thing' : b === 'greenwood' ? 'woodwraith'
+            : b === 'crags' ? 'rock-thing' : b === 'wilds' ? 'wilds-shade' : 'incursion';
+        }
+        m.face = face;
+        announce(s, 'A ' + face.replace('-', ' ') + ' has come for ' + (t.name ?? tid.slice(0, 6)) + '.');
+      }
+    }
+  }
+
+  // ---- 3. the bloom (a shared opportunity) ------------------------------
+  const period = Math.max(1, ev.bloomPeriod ?? 3600);
+  const window = Math.max(1, ev.bloomWindow ?? 1200);
+  const phase = s.tick % period;
+  if (phase < window) {
+    if (!s.bloom || s.bloom.until <= s.tick) {
+      const gatherables = Object.keys(s.nodes).sort().filter(nid => {
+        const n = s.nodes[nid];
+        return n && (n.type === 'tree' || n.type === 'rock' || n.type === 'fishing-spot'
+          || n.type === 'oak-tree' || n.type === 'coal-rock' || n.type === 'eel-spot');
+      });
+      if (gatherables.length) {
+        const pickB = eventRoll(beacon, 'bloom-where|' + Math.floor(s.tick / period)) % gatherables.length;
+        const nid = gatherables[pickB];
+        const n = s.nodes[nid];
+        s.bloom = { nodeId: nid, x: n.x, y: n.y, until: s.tick - phase + window };
+      }
+    }
+  } else if (s.bloom) {
+    delete s.bloom;
+  }
+}
+
 function nextState(state, inputs, _legacyBeacon) {
   if (_p2on) { _p2sections = {}; _p2cur = null; }
   _p2mark('clone');
@@ -4881,8 +5245,23 @@ function nextState(state, inputs, _legacyBeacon) {
     }
   }
   // mob respawns (spec §3.3): processed at tick start
+  // §6ao (v6): THE RISEN CRUMBLE WITH THEIR KING. A risen exists only while the
+  // one who raised it lives and is present. If the King is dead (or somehow gone),
+  // his dead fall still -- so killing him clears the Moor, and the world never
+  // fills with permanent summoned dead. Their bones do not drop from crumbling;
+  // only a risen you actually put down leaves anything.
+  for (const rid of Object.keys(s.mobs)) {
+    const r = s.mobs[rid];
+    if (!r || r.type !== 'risen') continue;
+    if (r.hp <= 0) { delete s.mobs[rid]; continue; }   // a risen put down is gone
+    const king = r.raisedBy ? s.mobs[r.raisedBy] : null;
+    if (!king || king.hp <= 0) { delete s.mobs[rid]; }
+  }
   for (const m of Object.values(s.mobs)) {
     if (m.hp <= 0 && m.respawnAt <= s.tick) {
+      // §6ao (v6): a summoned risen does not come back on its own -- only the
+      // King raises more. (It is cleaned up by the crumble pass / stays dead.)
+      if (MOB_STATS[m.type]?.summoned) continue;
       m.hp = MOB_STATS[m.type].maxHp;
       m.x = m.hx; m.y = m.hy; // the dead come back where they belong
       // §6w: A DRAGON COMES BACK WITH ITS BOW.
@@ -5092,7 +5471,9 @@ function nextState(state, inputs, _legacyBeacon) {
           //
           // An archer is safe again, and it is a skill rather than a property
           // of holding a bow: you have to know what is looking at you.
-          const senses = st.aggro ?? 0;
+          const senses = m.type === 'incursion' && m.mad === pid
+            ? (m.leash ?? st.aggro ?? 0)   // §6ao (v6): an incursion never loses the scent of the one it came for, out to its leash
+            : (st.aggro ?? 0);
           // §6ac: she answers her own opponent and nobody else
           if (st.mirrors) { if (m.bound !== pid) continue; }
           // HUNTS_HERE KEEPS THE SETTLED COUNTRY SAFE, and a harmless thing is
@@ -5130,7 +5511,37 @@ function nextState(state, inputs, _legacyBeacon) {
       const already = setAbout.get(tid) ?? 0;
       if (already >= MAX_ON_ONE) continue;   // the rest wait their turn
 
-      // IN REACH? Claws are adjacent. A breath carries.
+      // §6ao (v6): THE GIBBET KING RAISES THE DEAD. Instead of hunting, he calls
+      // up risen and sends them at whoever came. He does it on his own clock
+      // (raiseEvery), up to a cap of living risen he has raised (raiseCap) -- so
+      // the fight is cutting through the wave faster than he renews it, not a
+      // DPS check on him directly. The risen are his: tagged with m.raisedBy so
+      // they crumble when he falls. He still stands his ground and claws anyone
+      // who reaches him (the melee below), but the dead are the real threat.
+      if (st.raises && target) {
+        const alive = [];
+        for (const oid of Object.keys(s.mobs)) {
+          const o = s.mobs[oid];
+          if (o && o.hp > 0 && o.type === 'risen' && o.raisedBy === mid) alive.push(oid);
+        }
+        if (alive.length < (st.raiseCap ?? 4) && (s.tick - (m.lastRaise ?? -999)) >= (st.raiseEvery ?? 5)) {
+          // seat a risen on a free tile beside the King, aggro'd at the target
+          for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]) {
+            const rx = m.x + dx, ry = m.y + dy;
+            if (rx < 1 || ry < 1 || rx >= s.genesis.worldW - 1 || ry >= s.genesis.worldH - 1) continue;
+            if (terrainBlocked(s.genesis, rx, ry) || nodeExistsAt(s, _ctx, rx, ry)) continue;
+            if (Object.values(s.mobs).some(o => o.hp > 0 && o.x === rx && o.y === ry)) continue;
+            const rid = 'risen-' + mid + '-' + s.tick;
+            addMob(s, rid, 'risen', rx, ry);
+            s.mobs[rid].raisedBy = mid;
+            s.mobs[rid].mad = tid;            // it comes for whoever the King saw
+            s.mobs[rid].hx = rx; s.mobs[rid].hy = ry;
+            m.lastRaise = s.tick;
+            break;
+          }
+        }
+      }
+
       // §6ac: THE MIRROR. Her reach, her damage and her ammunition are the
       // citizen's, read fresh each swing, because the fight is meant to be
       // exactly even and stay that way if they change weapons mid-fight.
@@ -5311,7 +5722,12 @@ function nextState(state, inputs, _legacyBeacon) {
         const nx = m.x + sx, ny = m.y + sy;
         if (nx < 1 || nx >= s.genesis.worldW - 1 || ny < 1 || ny >= s.genesis.worldH - 1) continue;
         if (inCity(s.genesis, nx, ny)) continue;                 // §2d: not into Anchor
-        if (Math.max(Math.abs(nx - m.hx), Math.abs(ny - m.hy)) > range + 6) continue;
+        // §6ao (v6): the incursion carries its OWN leash (set at spawn), longer
+        // than an ordinary beast's, so it can be LED toward help across a
+        // country before it gives up -- but still bounded, so it is lost if you
+        // outrun it. Ordinary beasts keep the home-range leash unchanged.
+        const leashLimit = m.leash !== undefined ? m.leash : range + 6;
+        if (Math.max(Math.abs(nx - m.hx), Math.abs(ny - m.hy)) > leashLimit) continue;
         if (nodeExistsAt(s, _ctx, nx, ny)) continue;
         if (terrainBlocked(s.genesis, nx, ny)) continue;
         m.x = nx; m.y = ny; break;
@@ -5501,6 +5917,12 @@ function nextState(state, inputs, _legacyBeacon) {
     if (p) { // spec 2k: attune to a waystone you stand beside, the road remembers who walked it
       for (const nid of adjacentNodeIdsInOrder(s, _ctx, p, 'waystone')) {
         if (!p.attuned) p.attuned = [];
+        // §6ao (v6): a waystone is ATTUNED only by a citizen of standing enough
+        // for it. The home network opens early (a known face); the frontier
+        // stones ask a high standing, so fast passage to the deep Wilds and high
+        // Crags is earned, not given. A world that omits waystoneStandingReq
+        // attunes freely, as v1-v5 do.
+        if (s.genesis.waystoneStandingReq && standingOf(p) < waystoneStandingFor(nid, s.genesis)) continue;
         if (!p.attuned.includes(nid)) p.attuned.push(nid);
       }
     }
@@ -6202,7 +6624,10 @@ function nextState(state, inputs, _legacyBeacon) {
         const wid = sl.item.slice(CHART_PREFIX.length);
         if (s.nodes[wid]?.type === 'waystone') { // the chart's knowledge becomes YOUR attunement
           if (!p.attuned) p.attuned = [];
-          if (!p.attuned.includes(wid)) p.attuned.push(wid);
+          // §6ao (v6): a chart carries the knowledge, but the frontier still asks
+          // standing of whoever would walk out of it. The gate holds here too.
+          if (!(s.genesis.waystoneStandingReq && standingOf(p) < waystoneStandingFor(wid, s.genesis)))
+            if (!p.attuned.includes(wid)) p.attuned.push(wid);
         }
         p.inventory[inp.slot] = null; // spent
       }
@@ -6486,14 +6911,17 @@ function nextState(state, inputs, _legacyBeacon) {
         // §6ad: a deep fish asks for a cook to match the fisher who caught it.
         // Below eighty it burns every time -- not a gamble, a refusal.
         const deep = slot.item === 'deep-fish';
+        const mid = slot.item === 'eel';   // §6am (v6): the middle catch
         const lvl = effLevel(p.skills.cooking);
         p.cooksTried = (p.cooksTried ?? 0) + 1; // the pan counts; it does not gamble
         const able = !deep || lvl >= COOK_DEEP_REQ;
+        const cooked = deep ? 'cooked-deep-fish' : mid ? 'cooked-eel' : 'cooked-fish';
+        const burnt  = deep ? 'burnt-deep-fish'  : mid ? 'burnt-eel'  : 'burnt-fish';
         if (able && countedSuccess(p.cooksTried, Math.min(64 + 2 * lvl, 240))) {
-          p.inventory[inp.slot] = { item: deep ? 'cooked-deep-fish' : 'cooked-fish', qty: 1 };
+          p.inventory[inp.slot] = { item: cooked, qty: 1 };
           p.skills.cooking += deep ? XP_COOK_DEEP : XP_COOK;
         } else {
-          p.inventory[inp.slot] = { item: deep ? 'burnt-deep-fish' : 'burnt-fish', qty: 1 };
+          p.inventory[inp.slot] = { item: burnt, qty: 1 };
         }
       }
     } else if (inp.type === 'drink') {
@@ -6647,7 +7075,8 @@ function nextState(state, inputs, _legacyBeacon) {
     }
     if (p.action.type === 'attack') {
       const m = s.mobs[p.action.mobId];
-      const stats = m && MOB_STATS[m.type];
+      const stats0 = m && MOB_STATS[m.type];
+      const stats = (stats0 && m.def !== undefined) ? { ...stats0, def: m.def } : stats0;   // §6ao (v6): incursion carries a scaled def
       if (!m || m.hp <= 0) { p.action = null; continue; }
       if ((m.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; } // the truce ends the fight, it does not pause it (v0.80)
       const bowHeld = isRanged(p)
@@ -6845,7 +7274,18 @@ function nextState(state, inputs, _legacyBeacon) {
         && countItem(p.inventory, 'ore') >= MARKET_ORE;
       const room = !nodeExistsAt(s, _ctx, p.x, p.y);
       const spare = marketsOwnedBy(s, _ctx, pid) < MARKET_OWNED;
-      if (enough && room && spare) {
+      // §6ao (v6): A STALL LINES THE ROAD. A founding may require citizen stalls
+      // to be raised on ground ORTHOGONALLY ADJACENT to a road -- beside it, not
+      // on it -- so every stall sits where wanderers pass and none is pitched off
+      // in an empty corner where no one will ever see it. The road is the market's
+      // street. A world that omits this (v1-v5) lets a stall stand anywhere.
+      let byRoad = true;
+      if (s.genesis.stallsLineRoads) {
+        const _tt = TERRAINS[s.genesis.worldGenerator];
+        const isRoad = _tt && _tt.road ? (x, y) => _tt.road(s.genesis, x, y) : () => false;
+        byRoad = !isRoad(p.x, p.y) && (isRoad(p.x + 1, p.y) || isRoad(p.x - 1, p.y) || isRoad(p.x, p.y + 1) || isRoad(p.x, p.y - 1));
+      }
+      if (enough && room && spare && byRoad) {
         consumeLogs(p.inventory, MARKET_LOGS);
         consumeItem(p.inventory, 'ore', MARKET_ORE);
         addIndexedNode(s, _ctx, 'market-' + pid + '-' + s.tick,
@@ -6894,7 +7334,26 @@ function nextState(state, inputs, _legacyBeacon) {
     // right place for it: bare-handed 7.8 days to ninety-nine, bronze 6.5,
     // star 5.4 -- so the tool is worth sixteen per cent of a week's work, and
     // worth smithing.
-    const threshold = Math.min(32 + lvl + toolBonus, 176);
+    // §6ao (v6): THE BLOOM pays for ATTENDANCE, like a watchfire. Every tick a
+    // citizen is working the bloomed node -- whether or not this tick's gather
+    // lands -- they earn a little bonus XP in that skill. It is a reason to
+    // COMPUTE where the bloom is and go stand there with whoever else has, and
+    // rewarding presence (not the gather-roll) is what makes it a place people
+    // gather rather than a jackpot they chase. Continuous, steady, shared.
+    if (s.bloom && s.bloom.nodeId === p.action.nodeId) {
+      const bxp = (s.genesis.events && s.genesis.events.bloomXpPerTick) || 4;
+      p.skills[y.skill] += bxp;
+    }
+    // §6ao (v6): DURABILITY IS A SOCIAL KNOB ONLY. A durable node is AVAILABLE
+    // far more of the time, which would triple a citizen's real gathers-per-hour
+    // if nothing else changed -- flooding the economy and speeding mastery. So
+    // the success RATE is scaled down by the same factor the availability rose:
+    // a citizen at a durable node succeeds LESS often per tick, netting the SAME
+    // resources-per-hour and the SAME XP-per-hour as a v5 world. Durability then
+    // changes ONLY how many can share the node (congregation), with zero economic
+    // or progression footprint. Gather speed and durability, cleanly separate.
+    const rateMul = (s.genesis.gather && s.genesis.gather.rateMul) ?? 1;
+    const threshold = Math.round(Math.min(32 + lvl + toolBonus, 176) * rateMul);
     const r = roll(beacon, pid, 'gather');
 
     if (r < threshold) {
@@ -6905,14 +7364,37 @@ function nextState(state, inputs, _legacyBeacon) {
       // as it. Replacement rather than addition, which costs no new node and
       // no new spot -- and it leaves the cheap end of both markets to the
       // people who still need it, because a master can no longer supply it.
+      // §6ao (v6): MASTERY HAS ITS OWN PLACE. The old rule upgraded the item in
+      // the hand at the BASELINE node -- a master chopping the starter grove got
+      // heartwood from the same tree a newcomer got logs from, so the master
+      // tier had no destination of its own. Now heartwood comes from a heartwood
+      // tree (the deep Greenwood) and deep-fish from a deep-fish spot (the Wilds
+      // water at the gibbet), each its own remembered place, the way mining's
+      // mastery (magic-stone) always had the Wilds. The node yields what it
+      // yields; no upgrade sleight-of-hand.
       let got = y.item;
-      if (y.item === 'logs' && lvl >= MASTER_YIELD) got = 'heartwood';
-      else if (y.item === 'raw-fish' && lvl >= MASTER_YIELD) got = 'deep-fish';
       p.inventory[slot] = { item: got, qty: 1 };
+      // §6ao (v6): full XP per successful gather (v5's value). Under Option A the
+      // success RATE already compensates for durability, so XP-per-gather need
+      // not change -- progression matches v5 exactly.
       p.skills[y.skill] += y.xp;
-      // and the node stands until the roll retires it
-      if (roll(beacon, pid, 'deplete') % DEPLETE_ONE_IN === 0)
-        n.depletedUntil = s.tick + DEPLETE_TICKS;
+      // and the node stands until the roll retires it.
+      // §6ao (v6): DURABILITY IS A FOUNDING'S CHOICE. In one shared world a
+      // Schelling point must hold any crowd from a FIXED few nodes, so v6
+      // founds durable nodes (rarer depletion, shorter downtime) -- the same
+      // six tiles serve ten citizens or ten thousand, busier but never barren.
+      // A world that omits these keeps the constitutional 1-in-4 / 8 ticks.
+      const depOneIn = (s.genesis.gather && s.genesis.gather.depleteOneIn) || DEPLETE_ONE_IN;
+      let depTicks = (s.genesis.gather && s.genesis.gather.depleteTicks) || DEPLETE_TICKS;
+      // §6ao (v6): MAGIC-ROCK IS RUNE ORE. The endgame stone of the Wilds keeps
+      // a long dark once struck -- the way runite ore did -- so it stays scarce,
+      // its few nodes are genuinely contested, and the risk of the Wilds is met
+      // by a reward you sometimes have to wait and fight for. A founding sets
+      // the length; the shape (this one node depletes longer) is the rule.
+      if (n.type === 'magic-rock' && s.genesis.gather && s.genesis.gather.magicDepleteTicks)
+        depTicks = s.genesis.gather.magicDepleteTicks;
+      if (roll(beacon, pid, 'deplete') % depOneIn === 0)
+        n.depletedUntil = s.tick + depTicks;
     }
   }
 
@@ -7063,6 +7545,7 @@ function nextState(state, inputs, _legacyBeacon) {
   }
 
   scrubSkills(s);   // nothing non-finite leaves a tick
+  stepEvents(s, beacon);   // §6ao (v6): the bloom and the incursion, if this world founds them
   return s;
 }
 
