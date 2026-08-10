@@ -1723,7 +1723,7 @@ The mastery cape is not an item. It cannot be bought, traded, dropped,
 or lost to death, because it is not a thing: it is a fact about a
 citizen's XP, and windows are invited to paint that fact as cloth. The
 reference window renders one cape in the color of the mastered skill,
-gold trim for a second mastery, and a radiant cape for all nine.
+gold trim for a second mastery, and a radiant cape for all seventeen.
 Mastery is proved by the state and verified by every node; the cape is
 simply what proof looks like from a distance.
 
