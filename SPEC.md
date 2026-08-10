@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.81 ("The Constitution")
+# Interval: Protocol Specification v0.87 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -1582,6 +1582,16 @@ omission is not a representation).
 | `trade`     | Offer or null   | Open trade offer (see §5c)             |
 | `equipment` | {weapon}        | Wielded item or null (see §5d)         |
 | `bank`      | map item→qty    | Vaulted goods (see §6g)                |
+| `consignment` | Consignment or null | Goods committed to the road (§11) |
+
+A **Consignment** is `{from, route, leg, items}`: the town it was sealed
+in, the drawn list of one to three towns it must reach, how many have
+been reached, and a container of exactly `INV_SLOTS` slots holding
+`{item, qty}` or null. It is a SECOND container and not more pockets:
+the pack is still twenty-eight and is untouched by any of it. A citizen
+carrying one carries two sets of goods under two different laws, and the
+whole of §11 is the difference between them. An empty one cannot stand:
+persisted state holding a consignment with nothing in it is refused.
 
 ### 3.2 Resource nodes
 
@@ -1879,6 +1889,15 @@ v0.1 input types:
   expiring 100 ticks later (§3.4).
 - `pickup` → `{groundId}`; valid iff the item exists, the player stands
   on its tile, and a free inventory slot exists.
+- `consign` → `{slots}` (v0.87); an array of one to twenty-eight distinct
+  slot indices. Valid beside a `store` when the citizen bears no
+  consignment. The named slots leave the pack, enter the container, and
+  the route is drawn. See §11b.
+- `release` → no params (v0.87); valid beside a `store` while bearing one.
+  Returns as many slots as will fit; what does not fit stays, and the
+  consignment stands. A citizen is never made to destroy their own cargo.
+- `deliver` → `{slot}` (v0.87); sells one slot of the container at the
+  route's LAST town, and pays Hauling XP. See §11e.
 - `eat` → `{slot}`; slot must hold `cooked-fish`, `ale` or `broth`.
   Consumes one, heals 3, 4 or 5 HP respectively (capped at max HP).
   It does **not** clear the player's current action: swallowing a fish
@@ -4211,6 +4230,296 @@ constitution reaches a landmark — it cannot be worked, fought, lit or
 consumed — so a new kind adds **vocabulary** to the world without adding a
 **rule** to it. That is the safe way to enrich a world that freezes on
 founding.
+
+## 11. Hauling: the eighteenth skill (v0.87)
+
+The eighteenth skill. Its verb is `consign`; its XP is paid in **weight over
+distance**; its goods are whatever a citizen puts in the container. Like
+prayer, exploration and brewing it grants no power at all — the level is the
+achievement, and a hauler at ninety-nine swings no harder than one at one.
+
+What it adds to the world is not a reward. It is a **reason to be on the road
+carrying something worth taking**, and a rule that says who may take it.
+
+### 11a. The consignment
+
+`player.consignment` is null, or:
+
+```
+{ from, route, leg, items }
+```
+
+`from` is the tag of the town where it was sealed. `route` is an ordered list
+of one to three town tags, drawn at consign and never redrawn. `leg` counts
+how many of them have been reached. `items` is the cargo: an array of at most
+`INV_SLOTS` slots, holding `{item, qty}` or null, exactly as the pack does.
+
+It is **a second container, not more pockets**. The pack is still twenty-eight
+and is untouched by any of this. A citizen carrying a consignment carries two
+sets of goods under two different laws, and the difference between them is the
+whole design:
+
+**Nothing in a consignment may enter the bank.** Not by `deposit`, not by any
+other verb, not ever. The bank is `player.bank`, one map per citizen reachable
+at any `bank` node in the world (§6g), which makes it a teleport for goods
+exactly as `recall` is a teleport for the body. Every earlier draft of this
+section failed on that one fact: as long as the cargo could be banked at one
+end and withdrawn at the other, no rule could make the walk mandatory, and
+without a mandatory walk there is nothing on the road to rob. The container is
+the answer, and it is the only answer that worked.
+
+Goods enter it exactly one way — `consign`, standing beside a store. Goods
+leave it exactly two ways: **sold at a store in the route's last town**, or
+**spilled where the bearer falls**.
+
+### 11b. `consign`, `release`, `deliver`
+
+`consign` and `release` are valid only beside a `store` node, which is the entire discipline.
+Stores stand inside walled towns, so a citizen may take up a consignment or
+put one down only somewhere safe. On the road, between the gates, the choice
+has already been made and cannot be unmade.
+
+`consign → {slots}` is valid when the citizen bears no consignment, stands
+beside a store, and names at least one occupied slot. The named slots move
+from the pack into the container. Then the route is drawn.
+
+`release` is valid when the citizen bears a consignment and stands beside a
+store, and returns the cargo to the pack, as many slots as will fit. What does
+not fit stays in the container and the consignment stands. A citizen is never
+made to destroy their own cargo to put it down.
+
+`deliver → {slot}` sells one slot of the container, and is valid only beside a
+store in the route's LAST town. It is a separate verb from `sell` rather than a
+flag on it, because a container is not a pack and the two must never be
+addressable by the same index: `sell {3}` and `deliver {3}` name different
+goods, and a world where they could be confused would sell the wrong thing.
+
+**An empty consignment lifts itself.** The moment the last slot empties — by
+sale, by spill, by release — the container is null. This is not tidiness. A
+citizen bearing an empty consignment would be attack-capable at no cost
+whatsoever (§11d), and the entire honesty of this section rests on nobody
+being able to become dangerous without also becoming worth robbing.
+
+### 11c. The route is drawn, not chosen
+
+```
+route = draw( H(beacon(T) || playerId || "route"), towns \ {from} )
+```
+
+One, two or three towns, ordered, the origin excluded, by the drawing of lots
+(§7 v0.38) exactly as survey markers are placed. The citizen does not pick
+where they are going. Progress advances by standing beside the store of
+`route[leg]`; at the last of them, and only there, the cargo may be sold.
+
+**Why drawn and not chosen.** A citizen who picks their own destination picks
+the nearest one, forever. On the fifth expanse's geometry the shortest pair of
+stores is seventy-four tiles apart and the longest four hundred and forty, so
+a free choice collapses the entire profession into a forty-four-second shuttle
+between Anchor and Oxenford, which is neither a journey nor a risk. Drawn
+routes span seventy-four to twelve hundred tiles, median five hundred and
+seventy-five: three-quarters of an hour of walking at the far end.
+
+**Re-consigning redraws, and that is left alone deliberately.** A citizen may
+`release` and `consign` again and take a different route, and there is no fee,
+no cooldown and no lock. It is not worth their time: because XP is linear in
+distance and so is the walking, the rate is nearly flat across the whole
+distribution — 0.97× at the first quartile, 1.03× at the longest hundredth.
+The only spread comes from the fixed thirty intervals spent in town, and it
+points the wrong way for a rerolling citizen: the shortest routes pay that
+overhead most often and sit at 0.75×, the worst rate on the board. A merchant
+rerolling for long routes gains at most two and a half per cent. The exploit
+costs more than it returns, so the constitution does not need a rule against
+it, and does not have one.
+
+**The route is public**, because everything is. State is consensus state and
+every window reads all of it; there is no such thing as a secret in this
+world. A thief can see where a caravan is bound. This is correct and not a
+concession — under the Flight Rule (§2b-i) an ambusher must already be
+standing still when their mark walks past, and nobody can stand in the right
+place without knowing where the road goes.
+
+### 11d. What the container costs
+
+While a citizen bears one:
+
+1. **`attack_player` is valid against them anywhere, by any citizen who also
+   bears one.** Not only in the Wilds. The Wilds is a rectangle where the law
+   thins (§2g); a consignment is the same thinning, carried on a body, by
+   consent, and it reaches wherever that body goes.
+2. **On death the container spills where they fall** rather than burning, on
+   the ordinary hundred-interval ground clock (§3.4). Without this, killing a
+   hauler destroys the cargo and there is nothing to steal, only somebody to
+   ruin.
+3. **`recall` is invalid.** The road will not be skipped by anyone who profits
+   from its length.
+4. **The bank is closed** — `deposit` and `withdraw` both, not merely
+   `deposit`. A hauler who could withdraw at the far end would consign at
+   Cragfoot, walk to Anchor carrying nothing, draw twenty-eight plates out of
+   the vault there and sell them, having risked nothing at all.
+5. **The container itself is never bankable**, per §11a.
+
+The first clause is what makes a thief. There is **no thieving skill and there
+will not be one**: it could only be trained on other citizens, so on a quiet
+night or in a thin year it would be untrainable, and the citizens who founded
+early would hold a standing advantage nobody after them could ever close.
+Killing already pays attack, strength, defence and hitpoints; the cargo is the
+prize; and §10 refuses to rank citizens by their capacity for violence, which
+a calling word reading *thief* would undo in the one place a citizen's name is
+shown.
+
+**So a thief is a hauler with different intentions.** To be able to attack a
+caravan you must be carrying one, which means buying cargo, sealing it, and
+standing at a chokepoint as the most attackable thing on the island. Predation
+costs capital and exposure. There is no way to be dangerous here without being
+worth robbing, and the world never asks which of the two you meant to be —
+consistent with §8, which does not ask whether a citizen is human either.
+
+### 11e. XP: weight over distance
+
+```
+xp = floor( tiles * slots * haul.perTileSlot * haul.mult[item] / 10000 )
+```
+
+`tiles` is the drawn route's total length, store to store, measured as
+**chebyshev distance between store tiles** — exactly as survey XP is paid by
+chebyshev to the anchor (§7c). A walk graph would be truer and cannot be
+computed by every node every interval; this can, and the constant derived from
+it came out the same to the digit either way. `slots` is how many of the container's slots held
+goods at the moment of sale. `haul.perTileSlot` is in hundredths;
+`haul.mult[item]` is in hundredths, one entry per known good.
+
+All integer. **No transcendental appears anywhere in this section**, by the
+same rule that binds terrain (§2m): `+ - * /` and `sqrt`, nothing else. An
+earlier draft scaled the multiplier as `1 + log₂(price/base)`, which reads
+beautifully and cannot be computed identically by two implementations. A table
+of integers can. It is also more honest about what it is — a founding
+decision, not a law of nature.
+
+**The multiplier is capped at 3.00, and the cap is the point.** A citizen
+hauling star-plates should have a reason to, and a citizen hauling grain
+should still have a profession. Linear-in-price fails both ways: normalised to
+the dearest good it puts grain at 0.01× and ore at 0.02×, which deletes bulk
+hauling entirely, and normalised any other way it invites the trap §6k already
+names — that the efficient path to a skill becomes acquiring and destroying
+the most valuable gear in the world.
+
+A worked table, at `perTileSlot = 23` on the fifth expanse, where six stores
+make 510 drawn routes of one to three legs, mean 641 tiles, and a trip is that
+plus about thirty intervals in town:
+
+```
+good           price   mult   xp/trip (full)   trips to 99   hours
+logs               2   1.00            4,116         3,167   353.9
+grain              4   1.23            5,068         2,572   287.4
+ore                5   1.30            5,348         2,437   272.4
+magic-stone       20   1.75            7,196         1,811   202.4
+star-helm        270   2.61           10,752         1,212   135.5
+star-sword       540   2.83           11,648         1,119   125.1
+star-plate       900   3.00           12,376         1,053   117.7
+```
+
+**Those hours are for a citizen who BUYS their cargo.** One who gathers and
+smiths it themselves pays for it twice: a pack of twenty-eight plates is a
+thousand and thirty-six intervals of mining before it is a single step of
+walking, which puts the self-sufficient plate hauler back at about three
+hundred and twenty-five hours — beside the grain hauler at three hundred and
+thirty. Production very nearly cancels the multiplier. A self-sufficient
+citizen runs at between 1.00× and 1.35× a grain hauler whatever they carry,
+and the peak is star-helm, mid-ladder, because helms are cheap to make against
+what they pay.
+
+So what the multiplier actually prices is **buying your cargo instead of
+making it**. It is the first thing in this world that gold buys, and what it
+buys is time, not power — which is the only kind of purchase §6s and §4c leave
+room for.
+
+**Half-empty containers pay half.** A seven-slot consignment is nearly ten
+times slower than a full one. Capacity is the thing worth protecting, which is
+what puts a caravan on the road with something on it.
+
+### 11f. The constants live in the genesis
+
+`genesis.haul = { perTileSlot, mult, legMin, legMax }`, following §7c exactly:
+the *form* of the reward is constitutional, the *numbers* are a property of
+the founded world. The fifth expanse founds itself with `perTileSlot: 23` and
+`legMin: 1, legMax: 3`, derived from a haul-simulation of its own geometry — a
+world half the size or twice it is expected to found itself with different
+ones, from its own simulation, not from this table.
+
+**This amends the genesis schema, which §3 declares EXACT.** A world carrying
+`haul` is not the same founding as one without it, and cannot be: the key
+changes the worldId, as §3 says any key does. This is a founding-level change
+and wears it openly.
+
+### 11g. What this does not do
+
+- **It pays no gold.** Every draft that did died the same way. A store's purse
+  holds twelve hundred and recovers two an interval (§6l), so the island mints
+  a fixed sum per hour no matter how many citizens haul. Simulation put a lone
+  merchant at 43,666 coin an hour and sixteen merchants at 2,974 each — below
+  what a citizen earns *standing at a store selling nothing but what the purse
+  refills*. A reward drawn from a rationed pool dilutes to nothing at exactly
+  the population where the profession would otherwise come alive. XP is not
+  rationed. Mine does not reduce yours.
+- **It does not touch prices, purses, or the money supply.** Keepers,
+  alchemy, stalls and beginners are all exactly as they were.
+- **It adds no hunter or escort role.** One may arise — a caravan carrying a
+  thousand intervals of somebody's mining is the moment a guard is worth
+  hiring — but it needs no rule. Two citizens can arrange it on the board and
+  settle in goods.
+- **It gates nothing on the clock.** §8 holds: a bot's patience is infinite,
+  so patience is never the tax. A hauling bot pays in the same walked ticks a
+  human does, and that is the whole cost either way.
+
+### 11h. What the building of it found
+
+**A rule spelled out five times is five rules.** Where one citizen may strike
+another lived, longhand, in `attackp`'s validity and the `special`'s, in the
+`attackp` resolver, in the special blow, and in the swing itself. Adding the
+consignment to the first of them alone produced the worst kind of failure this
+world can have: a blow accepted by the gate and then silently dropped by the
+resolver, valid and invisible at once, with nothing anywhere to read. Fixing
+four of the five left the mirror of the same bug in the fifth -- the special
+was refused at its gate while its resolver would have allowed it -- and that
+one was found only because somebody asked whether specials reach a hauler.
+It is now ONE predicate, `mayStrike`, and the five sites call it. Any future
+condition on PvP goes there and nowhere else.
+
+**The same disease was already in the stalls.** §6ao's rule that a stall lines
+the road (`stallsLineRoads`) was enforced only where the raising COMPLETES, and
+not in `raise_market`'s validity — so a citizen stood twenty intervals in the
+wrong place, was refused nothing, and got nothing. One predicate,
+`stallGroundOk`, now answers for both gates. Two gates that must agree.
+
+**A container is state, so the validator must know its shape.** `consignment`
+was added to the Player and to nothing else, and twelve unrelated tests fell
+over at once on `unknown player field`. `validateState` holds an allowlist and
+a shape check for every field a citizen has, deliberately, and a new one is not
+finished until it is in both.
+
+**The multiplier could not be a logarithm.** The shape wanted is logarithmic in
+price — it keeps the middle of the ladder alive instead of leaving a choice
+between grain and plates. §2m binds this world to `+ - * /` and `sqrt`, and
+§3.1 requires XP to be an integer. So it is a table of thirty integers in
+hundredths, which is exact, and which is also more honest about being a
+founding decision rather than a law of nature.
+
+### 11i. What is still open
+
+1. **`worthRank` and the spilled container.** A consignment spills as ground
+   items on the hundred-interval clock. Twenty-eight star-plates landing at
+   once is the largest single heap this world can produce, and §5b-ii's default
+   pickup order was written for smaller piles.
+2. **The four storeless towns.** Millbrook, Thornbury, Hollybarrow and Norwick
+   hold no `store` node, so no route can end there and the drawing has six
+   destinations rather than ten. Thornbury's `kind` is literally `market`.
+   Giving them stores would raise the island's mint from twelve coin an
+   interval to twenty — which is what §6l already claims it is.
+3. **The standing ceiling.** An eighteenth skill changes the maximum standing
+   in §10 and every threshold derived from it, including
+   `waystoneStandingReq`.
+4. **A hauler's calling.** §10 has no word for this trade yet. *Hauler* is the
+   obvious one and costs nothing, being display-only.
 
 ## 10. Out of scope for v0.1
 
