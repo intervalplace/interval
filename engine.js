@@ -3167,6 +3167,19 @@ const CALLINGS = {
   // FIGHTER names the aim and WARDEN the guard -- a style, not a trade.
   strength: 'berserker',
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
+  // 6cd: RUNNER, and the same hole the note above describes, still open.
+  //
+  // §6as caught that strength had no word and rendered as the string
+  // "undefined" wherever a calling was shown. Hauling has had none SINCE IT WAS
+  // WRITTEN: it is the twelfth skill in the constitution and never reached this
+  // table, so any citizen whose deepest trade is the road has been nameless in
+  // every window and on the hiscores from the day the skill existed.
+  //
+  // RUNNER, not carter or porter. A carter has a cart and a porter works a
+  // quay; this citizen walks the roads with what somebody paid them to walk it
+  // with, under the one law in the world that lets anybody strike them for it
+  // (§11d). The word should say the running, not the load.
+  hauling: 'runner',
 };
 // Chosen by EXPERIENCE, not by level. Levels are a step function of xp, so the
 // skill with the most experience always holds the highest level too: comparing
