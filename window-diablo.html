@@ -1131,7 +1131,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -1157,7 +1157,7 @@ function planConnected4(rows, cx, cy) {
       const nx = x + dx, ny = y + dy, k = nx + ',' + ny
       if (seen.has(k) || !openAt(nx, ny)) continue
       seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
+  const ESS = new Set(['bank','store','anvil','smith','keeper','well'])   // 6ch
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
     if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
@@ -2091,7 +2091,7 @@ function callingOf(p) { // the trade you have the most experience in, as a word
     if (xp > bestXp) { bestXp = xp; best = sk }
   }
   if (best === null || XP_TO_LVL(bestXp) <= 1) return 'newcomer'
-  // all sixteen: what the world announces as Master of Interval
+  // all eighteen: what the world announces as Master of Interval
   if (SKILL_ORDER.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])) return 'Master of Interval'
   // mastery is the milestone the world announces, so the calling says it
   return (bestXp >= XP_TABLE[99] ? 'master ' : '') + CALLINGS[best]
@@ -2349,7 +2349,7 @@ function capeOf(p) {
     skill: mastered[0],          // the mark struck on the pennant
     count: mastered.length,
     trim: mastered.length >= 2,                 // gold trim for a second mastery
-    radiant: mastered.length >= SKILL_ORDER.length,   // and all sixteen
+    radiant: mastered.length >= SKILL_ORDER.length,   // and all eighteen
   }
 }
 
@@ -2764,12 +2764,10 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
   : a.do === 'sell' ? { type: 'sell', slot: a.slot }
-  : a.do === 'recall' ? { type: 'recall', to: a.to }
   : a.do === 'name' ? { type: 'claim_name', name: a.name }
   : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
   : a.do === 'invoke' ? { type: 'invoke' }
   : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }
   : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
   : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
   : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
@@ -3684,7 +3682,7 @@ function humanoid(g, cx, base, o) {
       const gl = skillGlyph(K.skill, G4, K.radiant ? 'bright' : 'gold')
       g.drawImage(gl, ax + pw * .5 - G4 / 2, ay + ph2 * .45 - G4 / 2 + flap * .5)
     }
-    if (K.radiant) {                              // all sixteen: it burns
+    if (K.radiant) {                              // all eighteen: it burns
       g.save(); g.globalCompositeOperation = 'lighter'
       const gr = g.createRadialGradient(ax + pw * .5, ay + ph2 * .5, 0, ax + pw * .5, ay + ph2 * .5, 26 * s)
       gr.addColorStop(0, 'rgba(255,226,150,.34)'); gr.addColorStop(1, 'rgba(255,226,150,0)')
@@ -5566,7 +5564,7 @@ function itemIcon(item) {
       for (let i = 0; i < 4; i++) { g.beginPath()
         g.moveTo(cx - 9 + i * 6, cy + 1); g.lineTo(cx - 7 + i * 6, cy - 7); g.stroke() }
       return }
-    if (typeof item === 'string' && item.startsWith('chart:')) {
+    if (item === 'chart') {   // 6ci: the surveyor's good, drawn as a rolled map
       poly(g, [[cx - 11, cy - 9], [cx + 11, cy - 11], [cx + 10, cy + 11], [cx - 10, cy + 9]], '#b9a87e')
       poly(g, [[cx - 11, cy - 9], [cx + 11, cy - 11], [cx + 10, cy - 6], [cx - 10, cy - 4]], '#d4c69c')
       g.strokeStyle = '#6a5836'; g.lineWidth = 1
@@ -8060,50 +8058,7 @@ function drawNode(g, n, sx, sy, t, hot) {
           gg.fillStyle = 'rgba(0,0,0,.4)'; gg.fillRect(c2 - 3, b - 15, 6, 1.6)
         }
       }), sx - 30, sy - 62 + 16); return
-    case 'waystone': {
-      // A STONE YOU HAVE STOOD ON LOOKS BACK.
-      //
-      // Attunement is the one relationship in this world between a citizen and
-      // a place, and it was invisible: an attuned stone and a stranger's stone
-      // were the same grey rock. Now the marks on it are lit and it breathes,
-      // so from across a valley you can tell the one that will take you home.
-      const mine = !!(curState?.players?.[myId]?.attuned ?? []).includes(n.id)
-      const pul = mine ? .55 + Math.sin(t / 620 + hs) * .3 : 0
-      g.drawImage(sprite('waystone' + (mine ? '-lit' : '') + (hs & 1), 60, 84, (gg, W2, H2) => {
-        const c2 = W2 / 2, b = H2 - 8
-        groundShadow(gg, c2 + 3, b, 16, 8, .55)
-        poly(gg, [[c2 - 10, b], [c2 + 10, b], [c2 + 7, b - 44], [c2 - 6, b - 48]], ROCK[0])
-        poly(gg, [[c2 - 10, b], [c2 - 2, b], [c2 - 1, b - 46], [c2 - 6, b - 48]], ROCK[1])
-        poly(gg, [[c2 + 3, b], [c2 + 10, b], [c2 + 7, b - 44], [c2 + 2, b - 45]], ROCK[2])
-        // the marks cut into it
-        gg.strokeStyle = mine ? 'rgba(150,206,224,.85)' : 'rgba(0,0,0,.42)'
-        gg.lineWidth = mine ? 2 : 1.6
-        for (let i2 = 0; i2 < 3; i2++) {
-          const y = b - 12 - i2 * 12
-          gg.beginPath(); gg.moveTo(c2 - 4, y); gg.lineTo(c2 + 3, y - 5); gg.stroke()
-          gg.beginPath(); gg.moveTo(c2 + 3, y - 5); gg.lineTo(c2 - 2, y - 9); gg.stroke()
-        }
-        if (mine) {                      // the cuts hold light
-          gg.save(); gg.globalCompositeOperation = 'lighter'
-          gg.strokeStyle = 'rgba(180,226,240,.5)'; gg.lineWidth = 4
-          for (let i2 = 0; i2 < 3; i2++) {
-            const y = b - 12 - i2 * 12
-            gg.beginPath(); gg.moveTo(c2 - 4, y); gg.lineTo(c2 + 3, y - 5); gg.stroke()
-            gg.beginPath(); gg.moveTo(c2 + 3, y - 5); gg.lineTo(c2 - 2, y - 9); gg.stroke()
-          }
-          gg.restore()
-        }
-      }), sx - 30, sy - 84 + 20)
-      if (mine) {
-        g.save(); g.globalCompositeOperation = 'lighter'
-        const gr = g.createRadialGradient(sx, sy - 26, 0, sx, sy - 26, 40)
-        gr.addColorStop(0, 'rgba(150,206,224,' + (.16 * pul).toFixed(3) + ')')
-        gr.addColorStop(1, 'rgba(150,206,224,0)')
-        g.fillStyle = gr; g.beginPath(); g.arc(sx, sy - 26, 40, 0, 7); g.fill()
-        g.restore()
-      }
-      return
-    }
+      // 6ch: no stone to draw.
     case 'keeper': case 'guard': case 'smith': {
       const role = n.type
       const t2 = t / 1000 + hs
@@ -8743,8 +8698,8 @@ const DEED_POSE = {
   brew: 'kneel', build_brewpot: 'kneel', cook: 'lean',
   smith: 'strike', fletch: 'whittle', eat: 'drink',
   deposit: 'offer', withdraw: 'offer', buy: 'offer', sell: 'offer', offer: 'offer',
-  accept: 'offer', read_chart: 'offer',
-  survey: 'raise', cast: 'raise', invoke: 'raise', still: 'raise', recall: 'raise',
+  accept: 'offer',   // 6ch
+  survey: 'raise', cast: 'raise', invoke: 'raise', still: 'raise',
   name: 'raise', wield: 'offer', unwield: 'offer', drop: 'kneel', pickup: 'kneel',
   // waking is the one deed nobody performs twice, and it should look like
   // something. gather, attack, attackp and special are absent on purpose: they
@@ -8769,7 +8724,7 @@ function noteDeed(verb) {
     plant: 'sow', harvest: 'sow', collect: 'sow',
     smith: 'spark', fletch: 'shavings',
     light: 'flare', kindle: 'flare', stoke: 'flare', brew: 'flare', build_brewpot: 'flare',
-    survey: 'survey', cast: 'survey', invoke: 'survey', recall: 'survey', spawn: 'flare',
+    survey: 'survey', cast: 'survey', invoke: 'survey', spawn: 'flare',
     drink: 'ripple',
     mendp: 'sent',
     alch: 'unmake',
@@ -9133,7 +9088,6 @@ function drawScene(now) {
       else if (n.type === 'campfire') lights.push([sx, sy - 10, 172, .95, 1])
       else if (n.type === 'fire' && n.expiresAt > s.tick) lights.push([sx, sy - 10, 140, .9, 1])
       else if (famOf(n.type) === 'magic-rock' && (n.depletedUntil ?? 0) <= s.tick) lights.push([sx, sy - 16, 82, .5, 0])
-      else if (n.type === 'waystone') lights.push([sx, sy - 44, 92, .48, 0])
       else if (BUILDING_KINDS[n.type]) lights.push([sx - 14, sy - 34, 104, .5, 1])
       else if (n.type === 'bank' || n.type === 'store') lights.push([sx, sy - 20, 66, .38, 1])
     } else if (it.kind === 'ground') {
@@ -9633,7 +9587,7 @@ function drawScene(now) {
 // world's own zoom. It is now a document rather than a view: 55-chart.js.
 
 // ---- words for things -----------------------------------------------------
-const wordy = (item) => typeof item === 'string' && item.startsWith('chart:')
+const wordy = (item) => item === 'chart'   // 6ci
   ? 'chart of ' + item.slice(6).replace(/-/g, ' ')
   : String(item ?? '').replace(/-/g, ' ')
 // RARITY IS REAL HERE. I had this wrong and flattened it.
@@ -9679,7 +9633,7 @@ const oddsLine = (item) => {
 }
 function rarityOf(item) {
   if (item === 'gold-coin') return RARITY.coin
-  if (typeof item === 'string' && item.startsWith('chart:')) return RARITY.magic
+  if (item === 'chart') return RARITY.magic   // 6ci
   // the four things this island barely gives up
   if (/^(old-chain|dragonbow|heartwood-bow|sigil-bow)$/.test(item)) return RARITY.legendary
   // starmetal war-gear and the horn-bow: a campaign, not an afternoon
@@ -10522,21 +10476,12 @@ function orb(g, ox, oy, r, frac, col, now, label, value) {
   }
 }
 
-// ---------------------------------------------------------------------------
-// THE CONTROL PANEL
-// ---------------------------------------------------------------------------
-// EVERY PANE NEEDS A BUTTON, because a key is not a control on a telephone.
-//
-// The Ways had one way in on a desktop -- the R key -- and one on a mouse: a
-// right-click on open ground. A phone has neither. So a citizen on a phone
-// could attune to sixty-four waystones and never reach the list, which is the
-// same as the feature not existing for them.
-//
-// Any pane that can be opened at all must be openable HERE, in the row of
-// buttons that is always on screen and always the same size as a thumb.
+// 6ch: the note that stood here explained why the ways pane scrolled -- a
+// citizen could attune to sixty-four stones and never reach the end of the
+// list. There are no stones and no list.
 const PANEL_BTNS = [
   ['citizen', 'C', 'The citizen'], ['pack', 'I', 'The pack'],
-  ['chart', 'M', 'The chart'], ['ways', 'W', 'The ways'],
+  ['chart', 'M', 'The chart'],   // 6ch: 'the ways' is gone
   ['speak', 'T', 'Speak'],
   ['forge', 'F', 'The anvil'], ['door', 'X', 'The door'],
 ]
@@ -11691,7 +11636,6 @@ function verbFor(kind, e) {
   if (e.type === 'well') return 'drink'
   if (e.type === 'hearth') return 'hearth'
   if (e.type === 'brewpot') return 'collect'
-  if (e.type === 'waystone') return 'attune'
   return 'look'
 }
 const VERB_WORD = {
@@ -11710,7 +11654,7 @@ function useVerbLabel(item, me) {
   if (item === 'logs' || item === 'heartwood') return 'Click to light a fire'
   if (item === 'bones') return 'Click to bury'
   if (item === 'seeds') return 'Click to plant'
-  if (typeof item === 'string' && item.startsWith('chart:')) return 'Click to read'
+  if (item === 'chart') return 'Worth something to somebody who would rather not walk it'   // 6ci
   return 'Right click to drop'
 }
 function useSlot(i) {
@@ -11745,7 +11689,6 @@ function useSlot(i) {
   if (it === 'logs' || it === 'heartwood') { send({ do: 'light', slot: i }); return }
   if (it === 'bones') { send({ do: 'bury', slot: i }); return }
   if (it === 'seeds') { send({ do: 'plant', slot: i }); return }
-  if (typeof it === 'string' && it.startsWith('chart:')) { send({ do: 'read_chart', slot: i }); return }
   say('Nothing to do with ' + wordy(it) + ' but carry it, sell it, or drop it.', 'dim')
 }
 
@@ -11800,7 +11743,6 @@ function lookAt(n) {
   if (n.text) return n.text                       // the world wrote this itself
   const k = n.kind ?? n.type
   if (LOOK[k]) return LOOK[k]
-  if (n.type === 'waystone') return 'A waystone. The road remembers it, and so will you.'
   if (n.type === 'stall') {
     const nm = STALL_NAME[n.kind] ?? 'a trader'
     return 'A stall: ' + nm + '. Dearer than the store, and always here.'
@@ -11885,22 +11827,15 @@ function buildMenu(px2, py2, target) {
       const sd = slotOf(me, 'seeds')
       items.push({ label: 'Plant seeds', dim: sd < 0, run: () => send({ do: 'plant', slot: sd }) })
     }
-    if (n.type === 'waystone') {
-      items.push({ label: 'Attune to it', run: go('attune', target.id, n.x, n.y) })
-    }
+      // 6ch: no stone to attune to.
     if (n.type === 'stall') {
       items.push({ label: 'Look over the goods', run: go('stall', target.id, n.x, n.y) })
     }
     if (n.type === 'well') {
       items.push({ label: 'Drink', run: go('drink', target.id, n.x, n.y) })
-      // THE MARK CLOSES THE ROADS. Say so, rather than letting the citizen
-      // click a stone that will not answer.
-      const meR = curState?.players?.[myId]
-      const marked = (meR?.brandedUntil ?? 0) > (curState?.tick ?? 0)
-      items.push(marked
-        ? { label: 'Recall here (marked)',
-            run: () => say('The stone will not take you while the mark is on you.', 'warn') }
-        : { label: 'Recall here', run: () => { send({ do: 'recall', to: target.id }); say('The road folds.', 'good') } })
+      // 6ch: the recall items that stood here were nested inside the WELL
+      // block by an old merge -- a well offered 'Recall here' -- and are gone
+      // with the stones either way.
     }
     if (n.type === 'watchfire') {
       const lg = slotOf(me, 'logs')
@@ -12111,7 +12046,6 @@ function buildSlotMenu(px2, py2, i) {
                  dim: fl < 90 || n3 < 2,
                  run: () => send({ do: 'fletch', slot: i, make: 'heartwood-staff' }) })
   }
-  if (typeof it === 'string' && it.startsWith('chart:')) items.push({ label: 'Read it', run: () => send({ do: 'read_chart', slot: i }) })
   if (near('bank')) items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
   if (near('store') && PRICES[it]) items.push({ label: 'Sell it \u00b7 ' + (PRICES[it] * (sl.qty ?? 1)) + 'g', run: () => send({ do: 'sell', slot: i }) })
   // ALCHEMY, anywhere -- including where there is no store to walk to, which
@@ -12268,7 +12202,7 @@ function primaryClick(p, isRight) {
   // millimetres of glass -- a citizen is trapped in a pane with no exit but
   // reloading the page. That is what happened at the armourer.
   if (paneModal && !(r && (r.act.t === 'panebg' || r.act.t === 'close'
-      || r.act.t === 'buystall' || r.act.t === 'recallto' || r.act.t === 'buy'
+      || r.act.t === 'buystall' || r.act.t === 'buy'
       || r.act.t === 'sell' || r.act.t === 'deposit' || r.act.t === 'withdraw'))) {
     paneModal = null
     return
@@ -12567,7 +12501,6 @@ function pumpIntent() {
             say('The keeper looks at the mark on you, and looks away.', 'warn')
           } else { paneModal = 'store'; say('The keeper looks up.', 'dim') }
         }
-        else if (intent.kind === 'attune') say('You are attuned to this waystone.', 'good')
         else say(lookAt(n), 'dim')
         intent = null; return
       }
@@ -12928,7 +12861,6 @@ window.addEventListener('keydown', (e) => {
   else if (k === 's') { send({ do: 'stop' }); intent = null; say('You stand still.', 'dim') }
   else if (k === 'r' && showChart) { chartRecentre() }
   else if (k === 'v') { send({ do: 'survey' }); say('You take the measure of it.', 'dim') }
-  else if (k === 'r') { togglePane('ways'); SFX.pane() }
   else if (k === 'q') {
     QUALITY = hiq() ? 'low' : 'high'
     localStorage.setItem('interval-quality', QUALITY)
@@ -13064,15 +12996,7 @@ runRegion = function (r, isRight) {
   if (a.t === 'deposit') { send({ do: 'deposit', slot: a.slot }); SFX.pane(); return }
   if (a.t === 'withdraw') { send({ do: 'withdraw', item: a.item }); SFX.pane(); return }
   if (a.t === 'buystall') { send({ do: 'buy', item: a.item }); SFX.pane(); return }
-  if (a.t === 'recallto') {
-    {
-      const meR = curState?.players?.[myId]
-      if ((meR?.brandedUntil ?? 0) > (curState?.tick ?? 0)) {
-        say('The stone will not take you while the mark is on you.', 'warn'); return
-      }
-    }
-    send({ do: 'recall', to: a.id }); SFX.pane(); paneModal = null; intent = null; return
-  }
+  // 6ch: there is no recall.
   if (a.t === 'buy') { send({ do: 'buy', item: a.item }); SFX.gold(); return }
   if (a.t === 'sell') { send({ do: 'sell', slot: a.slot }); SFX.gold(); return }
   return _runRegion(r, isRight)
@@ -13169,7 +13093,6 @@ function frame(now) {
     if (paneModal === 'forge') drawForge(cx, now)
     else if (paneModal === 'bank') drawVault(cx)
     else if (paneModal === 'store') drawCounter(cx)
-    else if (paneModal === 'ways') drawWays(cx)
     else if (paneModal === 'stall') drawStall(cx)
     // THE LOG GOES LAST, OVER EVERYTHING.
     //
@@ -13579,67 +13502,10 @@ requestAnimationFrame(frame)
 // So: every stone you have stood on, by the name of the country it stands in,
 // with how far away it is. It is not a map and not a menu of powers; it is the
 // set of places this citizen has been and can get back to.
-function drawWays(g) {
-  const s = curState; if (!s) return
-  const me = myId && s.players[myId]
-  const list = (me?.attuned ?? []).map((id) => {
-    const n = s.nodes?.[id]
-    if (!n) return null
-    return { id, n,
-      where: localeAt4(n.x, n.y) || regionNameAt(n.x, n.y) || 'somewhere',
-      far: Math.round(Math.hypot(n.x - me.x, n.y - me.y)) }
-  }).filter(Boolean).sort((a, b) => a.far - b.far)
-  const W2 = Math.min(360, VW - 40)
-  const H2 = Math.min(Math.max(180, 92 + list.length * 30), VH - PANEL_H - 40)
-  const x = (VW - W2) / 2, y = Math.max(12, (VH - PANEL_H - H2) / 2)
-  regions.push({ x, y, w: W2, h: H2, act: { t: 'panebg' } })
-  carve(g, x, y, W2, H2)
-  g.textAlign = 'center'; g.font = '700 13px Cinzel, Georgia, serif'
-  g.save(); g.letterSpacing = '3px'; g.fillStyle = '#e8d199'
-  g.fillText('THE WAYS', x + W2 / 2, y + 26); g.restore()
-  regions.push({ x: x + W2 - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'modal' } })
-  g.font = '700 13px Cinzel, Georgia, serif'; g.textBaseline = 'middle'
-  g.fillStyle = inRect(mouse, x + W2 - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
-  g.fillText('\u2715', x + W2 - 22, y + 25)
-  g.textBaseline = 'alphabetic'
-  const wilds = me && regionNameAt(me.x, me.y) === 'the Wilds'
-  if (!list.length || wilds) {
-    g.textAlign = 'center'; g.font = 'italic 12px Georgia, serif'; g.fillStyle = '#8a7f68'
-    g.fillText(wilds
-      ? 'Not from the Wilds. Magic will not carry you out of'
-      : 'You have stood on no waystone yet. Walk to one and', x + W2 / 2, y + H2 / 2 - 8)
-    g.fillText(wilds ? 'danger you chose to enter.' : 'attune to it; it will remember you.',
-      x + W2 / 2, y + H2 / 2 + 10)
-    g.textAlign = 'left'
-    return
-  }
-  g.textAlign = 'left'
-  let ry = y + 44
-  for (const r of list) {
-    if (ry > y + H2 - 30) {
-      g.font = 'italic 11px Georgia, serif'; g.fillStyle = '#6f6250'
-      g.fillText('\u2026 and ' + (list.length - list.indexOf(r)) + ' more', x + 20, ry + 12)
-      break
-    }
-    const hot = inRect(mouse, x + 14, ry, W2 - 28, 26)
-    g.fillStyle = hot ? 'rgba(70,58,26,.85)' : 'rgba(24,20,16,.7)'
-    g.fillRect(x + 14, ry, W2 - 28, 26)
-    g.strokeStyle = hot ? '#e8d199' : '#4a3c20'; g.lineWidth = 1
-    g.strokeRect(x + 14.5, ry + .5, W2 - 29, 25)
-    // a little lit stone, so the row and the thing in the world agree
-    g.fillStyle = '#4a4740'
-    g.fillRect(x + 21, ry + 6, 5, 15)
-    g.strokeStyle = 'rgba(150,206,224,.85)'; g.lineWidth = 1.4
-    g.beginPath(); g.moveTo(x + 20, ry + 13); g.lineTo(x + 27, ry + 10); g.stroke()
-    g.font = '12.5px Georgia, serif'; g.fillStyle = '#cdbb99'
-    g.fillText(r.where, x + 36, ry + 17)
-    g.textAlign = 'right'; g.font = '11px Georgia, serif'; g.fillStyle = '#8a7340'
-    g.fillText(r.far + ' paces', x + W2 - 24, ry + 17); g.textAlign = 'left'
-    regions.push({ x: x + 14, y: ry, w: W2 - 28, h: 26, act: { t: 'recallto', id: r.id },
-                   tip: { title: r.where, sub: 'Recall \u00b7 ' + r.n.x + ',' + r.n.y } })
-    ry += 30
-  }
-}
+// 6ch: THE WAYS pane is gone with the ways. A drawer listing the stones a
+// citizen had attuned to, and offering to fold the road, describes nothing
+// that exists: there are no stones and there is no recall. The key that
+// opened it and the tab that named it go with it.
 
 // ---------------------------------------------------------------------------
 // THE STALL

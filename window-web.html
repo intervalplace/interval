@@ -1188,7 +1188,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -1214,7 +1214,7 @@ function planConnected4(rows, cx, cy) {
       const nx = x + dx, ny = y + dy, k = nx + ',' + ny
       if (seen.has(k) || !openAt(nx, ny)) continue
       seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
+  const ESS = new Set(['bank','store','anvil','smith','keeper','well'])   // 6ch
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
     if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
@@ -2806,7 +2806,7 @@ const MAGIC_ROCK_MINING = 70
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
 let _lastSurveyTick = -1
-const isChart = (item) => typeof item === 'string' && item.startsWith('chart:')
+// 6ci: a chart is one plain item now, not a 'chart:<stone>' key.
 let lastFeed = { text: '', at: 0 }
 let uid = localStorage.getItem('interval-uid')
 if (!uid) {
@@ -2932,7 +2932,6 @@ const BRIDGE_TO_INPUT = (a) =>
                          wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }
   : a.do === 'accept' ? { type: 'accept_trade', from: a.from }
   : a.do === 'cancel' ? { type: 'cancel_trade' }
-  : a.do === 'recall' ? { type: 'recall', to: a.to } // v0.80: the law reads input.to; this bridge said waystoneId, so every recall was malformed before it left the window
   : a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
   : a.do === 'offer' ? { type: 'offer', to: a.to, slot: a.slot }
   : a.do === 'accept' ? { type: 'accept', from: a.from, slot: a.slot }
@@ -2955,7 +2954,6 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
   : a.do === 'still' ? { type: 'still', target: a.target }
   : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }
   : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
   : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
   : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
@@ -5986,20 +5984,7 @@ function drawScene(now) {
         poly([[X+33,Y+20],[X+11,Y+20],[X+7,Y+22.5],[X+11,Y+25],[X+33,Y+25]], '#6e5433', '#2c2216')
         cx.fillStyle = '#2c2216'; cx.fillText('WEST', X + 22, Y + 23.6)
       }
-      if (n.type === 'waystone') {
-        shadow(X, Y, 8)
-        // a standing stone, leaning true, mossed at the foot
-        poly([[X+14,Y+32],[X+13,Y+12],[X+18,Y+5],[X+24,Y+7],[X+26,Y+30]], '#7a7770', '#3a3833')
-        poly([[X+16,Y+30],[X+15.5,Y+13],[X+19,Y+8],[X+23,Y+9.5],[X+24,Y+29]], '#8f8c84')
-        cx.fillStyle = '#4e6b3a'; cx.fillRect(X + 13, Y + 30, 14, 2.6) // moss
-        const gl = 0.55 + Math.sin(now / 600 + n.x) * 0.35
-        cx.save(); cx.globalAlpha = gl
-        cx.fillStyle = '#5fb0d9'
-        cx.fillRect(X + 18.6, Y + 13, 1.8, 10)
-        cx.fillRect(X + 15.6, Y + 16, 8, 1.8)
-        poly([[X+19.5,Y+10.5],[X+16,Y+15],[X+23,Y+15]], '#8fd6f2')
-        cx.restore(); cx.globalAlpha = 1
-      }
+      // 6ch: the standing stone, and the recall it offered, are gone.
       if (n.type === 'guard' || n.type === 'smith') {
         shadow(X, Y, 8)
         const bob = Math.sin(now / 900 + n.x) * 0.6
@@ -8086,7 +8071,7 @@ function invClick(i) {
   // Their menus gain a deposit option instead; plain goods still
   // deposit in one click, the banker's old convenience.
   const MENU_ITEMS = new Set(['logs', 'bones', 'sigil', 'magic-stone', 'arrows', 'ale'])
-  const hasMenu = MENU_ITEMS.has(it.item) || isChart(it.item) // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
+  const hasMenu = MENU_ITEMS.has(it.item) || it.item === 'chart' // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
   if (nearBank && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
   const bankOpt = nearBank ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.') } }] : []
   // TRANSMUTE: any priced good, anywhere, from the first log. The question is
@@ -8110,15 +8095,13 @@ function invClick(i) {
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the magic stone.') } },
     ]); return
   }
-  if (isChart(it.item)) {
-    const wsName = it.item.slice(6).replace('waystone-', '')
+  if (it.item === 'chart') {
+    // 6ci: a chart is a GOOD now, not a key. It attunes nothing and opens no
+    // stone -- the stones are gone (6ch). It is what a master surveyor brings
+    // home to sell, and the only thing in this world made by walking.
     chooseAction([
-      { label: 'read chart (attune to ' + wsName + ')', act: () => {
-        send({ do: 'read_chart', slot: +i })
-        feed('You read the chart. The way to ' + wsName + ' opens to you: you may recall there now.')
-        tone(600, 0.25, { type: 'sine', vol: 0.045 }); tone(900, 0.3, { type: 'sine', vol: 0.04, at: 0.08 })
-      } },
-      { label: 'keep', act: () => feed('A surveyed chart to ' + wsName + '. Worth something to someone who would rather not walk.') },
+      { label: 'keep', act: () => feed('A surveyed chart. Worth something to somebody who would rather not walk it themselves.') },
+      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You let the chart go.') } },
     ]); return
   }
   if (it.item === 'sigil') {
@@ -8451,21 +8434,7 @@ cv.addEventListener('click', (e) => {
         if (!adj(n)) { intent = { kind: 'anvilgo', id }; feed('You head to the anvil.'); return }
         smithBest(me); return
       }
-      if (n.type === 'waystone') {
-        const wsn = id.replace(/^waystone-/, '')
-        if ((me.attuned ?? []).includes(id)) {
-          chooseAction([
-            { label: 'recall to ' + wsn, act: () => {
-              send({ do: 'recall', to: id })
-              feed('You speak the way. The stone answers.')
-              tone(600, 0.3, { type: 'sine', vol: 0.05 }); tone(900, 0.35, { type: 'sine', vol: 0.04, at: 0.1 })
-            } },
-            { label: 'never mind', act: () => {} },
-          ]); return
-        }
-        feed('The stone of ' + wsn + ' hums, but not for you: read its chart to learn the way.')
-        return
-      }
+      // 6ch: the standing stone, and the recall it offered, are gone.
       if (n.type === 'guard') { feed('The guard nods. "The road is watched, citizen."'); return }
       if (n.type === 'smith') { feed('The smith gestures at the anvil. "Ore and logs. The rest is rhythm."'); return }
       if (n.type === 'well') {
