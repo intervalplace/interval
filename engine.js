@@ -303,7 +303,19 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
 // empty ones; see the migration below.
 const EQUIP_SLOTS = ['weapon', 'head', 'body', 'offhand', 'legs'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
-  'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
+  // 6ch: THE WAYSTONES ARE GONE, AND WITH THEM EVERY TELEPORT IN THIS WORLD.
+  //
+  // A world whose whole shape is DISTANCE -- a gold seam an hour into the high
+  // crags, a fishery a port is built around, a hauler who may be struck on any
+  // road because the road IS the job, a Wilds you decide to enter and decide
+  // again to leave -- cannot also have a network of doors. Every hour of that
+  // geography was answered by an attunement and a keystroke.
+  //
+  // Gone with them: `recall`, attunement, and the waystone rumour. What STAYS
+  // is the chart, as a GOOD rather than a key (6ci): 6ag was right that a
+  // master surveyor should come home with something to sell. It had simply
+  // spent that idea on a door.
+  'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
   // §2g: A RAMPART IS NOT A HOUSE WALL.
   //
   // The town drawings have always distinguished them -- '%' is a town's outer
@@ -2073,7 +2085,7 @@ const PRICES = {
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
   // 6bb: a keeper values a nugget at what a keeper can value anything -- badly.
   // Gold is not sold to shops; it is worn, or it is sold to a person.
-  'iron-shield': 34, 'steel-shield': 120, 'star-shield': 640, 'gold-legs': 3400, 'star-ingot': 420, 'gold-ore': 60, 'gold-bar': 320, 'gold-helm': 2800, 'gold-plate': 4200,
+  'chart': 180, 'iron-shield': 34, 'steel-shield': 120, 'star-shield': 640, 'gold-legs': 3400, 'star-ingot': 420, 'gold-ore': 60, 'gold-bar': 320, 'gold-helm': 2800, 'gold-plate': 4200,
   'ironbark': 9, 'great-hatchet': 520, 'great-pickaxe': 520,
   'rod': 10, 'ironbark-rod': 120, 'heartwood-rod': 300,   // §6av: five to the ore, so a double
   // heartwood is worth more than logs, and a deep fish more than a shallow
@@ -2310,6 +2322,8 @@ const ITEMS = new Set([
   // 6bk: the rods are FLETCHED, not forged, so they are named here rather than
   // arriving free as keys of RECIPES.
   'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',
+  // 6ci: what a master surveyor brings home. Worth money; opens nothing.
+  'chart',
   // §6ad: what a master brings back from the same tree and the same water
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'deep-broth', 'heartwood-bow',
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
@@ -3152,13 +3166,7 @@ const WAYSTONE_TIER = {
   // the two deep stones -- earned, not given
   wildsdeep: 700, cragshigh: 600,
 };
-function waystoneStandingFor(nid, genesis) {
-  const req = genesis && genesis.waystoneStandingReq;
-  if (!req) return 0;
-  const tag = typeof nid === 'string' && nid.startsWith('waystone-') ? nid.slice('waystone-'.length) : nid;
-  const tiers = (req && typeof req === 'object') ? req : WAYSTONE_TIER;
-  return tiers[tag] ?? WAYSTONE_TIER[tag] ?? 100;
-}
+// 6ch: waystoneStandingFor removed with the stones.
 // CALLING is the profession a citizen is best at, as a word. Hitpoints is
 // excluded: it is a consequence of fighting rather than a trade, and it starts
 // at 10, so without this every citizen would be born a fighter. Ties fall to
@@ -3208,7 +3216,12 @@ function callingOf(p) {
     if (xp > bestXp) { bestXp = xp; best = sk; }
   }
   if (best === null || levelForXp(bestXp) <= 1) return 'newcomer';
-  // all sixteen: the same condition the world announces as Master of Interval.
+  // 6cg: ALL EIGHTEEN -- this said 'all sixteen', written when it was true and
+  // never touched again as strength and hauling joined the constitution. The
+  // CODE was always right (it reads SKILLS, so the race has always counted
+  // every skill there is); only the sentence beside it was two behind, which
+  // is the more dangerous of the two states -- a wrong comment is believed.
+  // The same condition the world announces as Master of Interval.
   // Written now, while nobody is near it, because every rule change is a fork
   // and the day someone approaches this is the worst possible day to need one.
   if (SKILLS.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])) return 'Master of Interval';
@@ -4304,10 +4317,11 @@ const LANDMARK_KINDS = new Set([
     const aerr = validAction(p.action, state); if (aerr) return aerr;
     const terr = validTrade(p.trade, state); if (terr) return terr;
     if (p.attuned !== undefined) {
+      // 6ch: kept as a SHAPE so a citizen carried in from a world that had
+      // stones still validates. It names nothing now and nothing reads it.
       if (!Array.isArray(p.attuned) || p.attuned.length > 64) return 'malformed attunements';
       for (const w of p.attuned) {
         if (!isId(w)) return 'malformed attunement';
-        if (state.nodes[w]?.type !== 'waystone') return 'attunement references a missing waystone';
       }
     }
     for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
@@ -4398,8 +4412,8 @@ const LANDMARK_KINDS = new Set([
       if (!isInt(m.x, 0, W - 1) || !isInt(m.y, 0, H - 1)) return 'marker out of bounds';
       if (!MARKER_KINDS.has(m.kind)) return 'bad marker kind';
       if (m.bornAt !== undefined && !isInt(m.bornAt, 0, MAX_TIME)) return 'marker bornAt out of bounds';
-      if (m.kind === 'ws' && (typeof m.ws !== 'string' || state.nodes[m.ws]?.type !== 'waystone')) return 'marker names no waystone';
-      const allowed = m.kind === 'ws' ? 'bornAt,kind,ws,x,y' : 'bornAt,kind,x,y';
+      if (m.kind === 'ws') return 'waystone rumours no longer exist';   // 6ch
+      const allowed = 'bornAt,kind,x,y';
       if (Object.keys(m).sort().join(',') !== allowed) return 'non-constitutional marker fields';
     }
   }
@@ -4849,34 +4863,11 @@ function validInput(state, input, ctx) {
     }
     case 'stop':
       return true;
-    case 'recall': {
-      // spec 2k: recall to any waystone you have walked to. Never from the Wilds ,
-      // magic will not carry you out of danger you chose to enter.
-      if (p.hp <= 0 || inWilds(state.genesis, p.x, p.y)) return false;
-      // §11d: THE ROAD WILL NOT BE SKIPPED by anyone who profits from its length.
-      if (p.consignment) return false;
-      // §2b: AND THE STONES WILL NOT TAKE THE BRANDED.
-      //
-      // A keeper's refusal is a fine punishment for somebody who needs a
-      // keeper, and a citizen of any standing does not: they sell to each
-      // other, and the purse only holds twelve hundred anyway. So the mark
-      // cost the people it was written for the least.
-      //
-      // This costs everybody the same thing. Strike first and you walk home,
-      // for fifteen minutes, carrying whatever you took -- which is exactly
-      // the window in which the person you struck, and their friends, might
-      // like a word. The Brand makes you CATCHABLE, which is the social
-      // enforcement the rule always meant and never had.
-      //
-      // Trade between citizens stays open, deliberately. A keeper refusing is
-      // the town's judgement; whether another citizen deals with you is
-      // theirs, and taking that decision away would remove the very thing the
-      // mark exists to provoke.
-      if ((p.brandedUntil ?? 0) > state.tick) return false;
-      const ws = state.nodes[input.to];
-      if (!ws || ws.type !== 'waystone') return false;
-      return (p.attuned ?? []).includes(input.to);
-    }
+    // 6ch: THERE IS NO RECALL. The stones are gone; see the note over
+    // NODE_TYPES. The case survives so an old client that still sends the
+    // input is REFUSED rather than desynced -- a removed action must answer,
+    // not vanish.
+    case 'recall': return false;
     case 'drink': {
       // THE WELL. Every settlement has one and none of them did anything: it
       // was in NODE_TYPES and nowhere else in this file, decorative furniture
@@ -5295,11 +5286,19 @@ function validInput(state, input, ctx) {
         // no recall out of the Wilds.)
         if (p.hp <= 0) return false;
         if ((p.rootedUntil ?? 0) > state.tick) return false;   // §6v: they cannot move, even to flee
-        if (state.genesis.anchorIsWildsEscape) {
-          if (!inWilds(state.genesis, p.x, p.y)) return false;  // only from the danger it answers
-          return p.inventory.some((sl) => sl?.item === 'sigil');
-        }
-        // legacy rule (v1-v5): no recall OUT of the Wilds
+        // 6ch: NOT OUT OF THE WILDS. EVER.
+        //
+        // `anchorIsWildsEscape` INVERTED this rule: with it set the anchor
+        // worked ONLY from the Wilds, so the one country where anybody may
+        // strike you was also the one country you could leave instantly, for
+        // the price of a sigil you were already carrying in order to fight.
+        // Every consequence the Wilds exists to impose -- the walk in, the
+        // walk out, the decision whether to keep going with a full pack --
+        // was answered by a keystroke.
+        //
+        // The flag is still accepted from an older founding so such a genesis
+        // still parses; it now decides nothing. The rule underneath was always
+        // the right one.
         if (inWilds(state.genesis, p.x, p.y)) return false;
         return p.inventory.some((sl) => sl?.item === 'sigil');
       }
@@ -5316,10 +5315,8 @@ function validInput(state, input, ctx) {
       if (p.hp <= 0) return false;
       return (state.markers ?? []).some(m => m.x === p.x && m.y === p.y);
     }
-    case 'read_chart': {
-      const sl = p.inventory[input.slot];
-      return !!sl && isChart(sl.item);
-    }
+    // 6ci: a chart opens nothing; it is sold, not spent.
+    case 'read_chart': return false;
     case 'build_brewpot': {
       if (p.hp <= 0 || !state.genesis.brew) return false;
       const bc = state.genesis.brew;
@@ -5961,12 +5958,7 @@ function adjacentNodeIdsInOrder(state, ctx, p, type) {
   found.sort();
   return found;
 }
-function waystoneIdsSorted(state, ctx) {
-  // reference: Object.keys(...).filter(waystone).sort() sorted, so order-safe
-  if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.keys(state.nodes).filter(id => state.nodes[id].type === 'waystone').sort(); }
-  if (_p2on) _p2c.typeLookups++;
-  return [...(ctx.byType.get('waystone') ?? [])].sort();
-}
+// 6ch: waystoneIdsSorted removed with the stones.
 // how many stalls this citizen has standing, and the one at their elbow
 // WHAT A SHELF DOES WHEN THE STALL GOES. It spills where it stood, on the
 // ordinary hundred-interval clock -- so two citizens standing over it for the
@@ -6042,18 +6034,7 @@ function surveyMarker(s, ctx, index, salt) {
   const g = s.genesis, anchor = spawnOf(g);
   const maxD = Math.max(anchor.x, g.worldW - anchor.x, anchor.y, g.worldH - anchor.y) || 1;
   const occupied = (x, y) => nodeExistsAt(s, ctx, x, y);
-  const wsIds = waystoneIdsSorted(s, ctx);
-  const rr = sha256(Buffer.from(s.beacon + '|rumor|' + s.tick + '|' + index + '|' + salt)).readUInt32BE(0) / 0xffffffff;
-  if (wsIds.length && rr < 0.15) { // a rumor: sits beside a waystone, charts it when surveyed
-    const wid = wsIds[Math.min(wsIds.length - 1, Math.floor((rr / 0.15) * wsIds.length))];
-    const ws = s.nodes[wid];
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const x = ws.x + dx, y = ws.y + dy;
-      if (x >= 1 && y >= 1 && x < g.worldW - 1 && y < g.worldH - 1 && !occupied(x, y) && !inCity(g, x, y)
-        && !terrainBlocked(g, x, y)) // v0.79: a rumor must be standable too
-        return { x, y, kind: 'ws', ws: wid, bornAt: s.tick };
-    }
-  }
+  // 6ch: the waystone rumour is gone with the stones; every marker is ordinary.
   for (let att = 0; att < 200; att++) { // ordinary: near-biased, avoid city, nodes, and barred ground
     const h = sha256(Buffer.from(s.beacon + '|survey|' + s.tick + '|' + index + '|' + salt + '|' + att));
     const x = 1 + (h.readUInt32BE(0) % (g.worldW - 2)), y = 1 + (h.readUInt32BE(4) % (g.worldH - 2));
@@ -7063,18 +7044,8 @@ function nextState(state, inputs, _legacyBeacon) {
     }
     const p = s.players[pid];
     if (p) p.lastInput = s.tick; // presence (spec 5e)
-    if (p) { // spec 2k: attune to a waystone you stand beside, the road remembers who walked it
-      for (const nid of adjacentNodeIdsInOrder(s, _ctx, p, 'waystone')) {
-        if (!p.attuned) p.attuned = [];
-        // §6ao (v6): a waystone is ATTUNED only by a citizen of standing enough
-        // for it. The home network opens early (a known face); the frontier
-        // stones ask a high standing, so fast passage to the deep Wilds and high
-        // Crags is earned, not given. A world that omits waystoneStandingReq
-        // attunes freely, as v1-v5 do.
-        if (s.genesis.waystoneStandingReq && standingOf(p) < waystoneStandingFor(nid, s.genesis)) continue;
-        if (!p.attuned.includes(nid)) p.attuned.push(nid);
-      }
-    }
+    // 6ch: attunement is gone with the stones; standing beside one taught
+    // the road nothing, because there is no road to teach.
     if (p && p.consignment) { // §11c: a leg is reached by STANDING beside its store
       const c = p.consignment;
       if (c.leg < c.route.length) {
@@ -7829,32 +7800,22 @@ function nextState(state, inputs, _legacyBeacon) {
         // yields the way to a waystone this citizen has not yet learned --
         // the nearest such, in id order so every node agrees -- where an
         // ordinary surveyor gets one only from the rare waystone rumour.
-        if (effLevel(p.skills.exploration) >= EXPLORE_MASTER && m.kind !== 'ws') {
-          // NOT ONE THEY LACK -- one they can SELL.
-          //
-          // The first draft skipped any waystone the surveyor was already
-          // attuned to, which made the mastery worth precisely nothing:
-          // reaching ninety takes about two thousand surveys against twenty
-          // waystones, a hundred apiece, so a master learned the last of them
-          // long ago. A chart is not for the person who drew it. It is worth
-          // something to somebody who would rather not walk, and a master
-          // surveyor is where charts COME FROM.
-          const want = Object.keys(s.nodes).sort()
-            .filter((nid) => s.nodes[nid].type === 'waystone'
-              && !p.inventory.some((x) => x?.item === CHART_PREFIX + nid))
-            .sort((A, B) => {
-              const a2 = s.nodes[A], b2 = s.nodes[B];
-              const da = Math.max(Math.abs(a2.x - p.x), Math.abs(a2.y - p.y));
-              const db = Math.max(Math.abs(b2.x - p.x), Math.abs(b2.y - p.y));
-              return da - db || (A < B ? -1 : 1);
-            })[0];
-          const free2 = want ? p.inventory.findIndex((x) => x === null) : -1;
-          if (want && free2 !== -1) p.inventory[free2] = { item: CHART_PREFIX + want, qty: 1 };
-        }
-        if (m.kind === 'ws' && m.ws && s.nodes[m.ws]?.type === 'waystone') { // a rumor: hand over the chart
-          const chart = CHART_PREFIX + m.ws, free = p.inventory.findIndex(x => x === null);
-          if (free !== -1 && !(p.attuned ?? []).includes(m.ws) && !p.inventory.some(x => x?.item === chart))
-            p.inventory[free] = { item: chart, qty: 1 };
+        // 6ci: THE CHART IS A GOOD NOW, NOT A KEY.
+        //
+        // 6ag gave a master surveyor the way to a waystone they had not yet
+        // learned, and its own note says the point was that it be something
+        // they can SELL -- reaching ninety is some two thousand markers, and a
+        // reward you had already earned by walking there is no reward. The
+        // stones are gone (6ch) and the argument survives them intact: from
+        // ninety, any marker yields a CHART, one item, worth what a keeper will
+        // pay for knowing where somewhere is.
+        //
+        // It opens no doors. Nobody travels by it. It is the export of a trade
+        // whose whole product was previously experience, and the only thing in
+        // this world a citizen makes by walking.
+        if (effLevel(p.skills.exploration) >= EXPLORE_MASTER) {
+          const free2 = p.inventory.findIndex((x) => x === null);
+          if (free2 !== -1) p.inventory[free2] = { item: 'chart', qty: 1 };
         }
         const find = MARKER_FINDS[m.kind]; // the traces of those who came before
         if (find) {
@@ -7865,18 +7826,8 @@ function nextState(state, inputs, _legacyBeacon) {
         s.markers[mi] = surveyMarker(s, _ctx, mi, 'claim:' + pid); // the point relocates
       }
     } else if (inp.type === 'read_chart') {
-      const sl = p.inventory[inp.slot];
-      if (sl && isChart(sl.item)) {
-        const wid = sl.item.slice(CHART_PREFIX.length);
-        if (s.nodes[wid]?.type === 'waystone') { // the chart's knowledge becomes YOUR attunement
-          if (!p.attuned) p.attuned = [];
-          // §6ao (v6): a chart carries the knowledge, but the frontier still asks
-          // standing of whoever would walk out of it. The gate holds here too.
-          if (!(s.genesis.waystoneStandingReq && standingOf(p) < waystoneStandingFor(wid, s.genesis)))
-            if (!p.attuned.includes(wid)) p.attuned.push(wid);
-        }
-        p.inventory[inp.slot] = null; // spent
-      }
+      // 6ci: a chart is read by a buyer, not by its holder. Nothing to apply.
+
     } else if (inp.type === 'build_brewpot') {
       const bc = s.genesis.brew;
       const free = !nodeExistsAt(s, _ctx, p.x, p.y);
@@ -8939,7 +8890,7 @@ module.exports = {
     cloneStateForTick, buildTickContext,
     addIndexedNode, deleteIndexedNode,
     nodeExistsAt, blockingNodeAt, hasAdjacentNode, findAdjacentNode, prayerKeeps,
-    adjacentNodeIdsInOrder, waystoneIdsSorted, brewpotsOwnedBy,
+    adjacentNodeIdsInOrder, brewpotsOwnedBy,
     validInput,
   },
   signPayload, verifyPayload,
