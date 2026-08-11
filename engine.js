@@ -218,7 +218,7 @@ function everWasSomebody(p) {
   if (p.name !== null && p.name !== undefined) return true;
   if ((p.gold ?? 0) > 0) return true;
   if (p.bank && Object.keys(p.bank).length > 0) return true;
-  if (p.equipment && (p.equipment.weapon || p.equipment.head || p.equipment.body)) return true;
+  if (p.equipment && EQUIP_SLOTS.some((k) => p.equipment[k])) return true;   // 6bz: not three hard-coded names
   if (p.action !== null && p.action !== undefined) return true;
   if (p.trade !== null && p.trade !== undefined) return true;
   for (const sk of SKILLS) {
@@ -295,7 +295,13 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
 // ATTACK decides the roll. STRENGTH decides the blow. Ranged keeps both, for
 // itself, because a bow's draw is the same muscle as its aim; splitting it
 // would need a second ranged skill nobody asked for.
-const EQUIP_SLOTS = ['weapon', 'head', 'body'];
+// 6bz/6ca: FIVE SLOTS. `offhand` for a shield, `legs` for gold and nothing
+// else. Every layer reads this one list -- the wield validator, the state shape
+// check at 4242 which demands the keys match EXACTLY, and the hood sweep -- so
+// adding a slot anywhere but here would make a state that runs and will not
+// import. A citizen founded before this rule has three keys and must gain two
+// empty ones; see the migration below.
+const EQUIP_SLOTS = ['weapon', 'head', 'body', 'offhand', 'legs'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
   'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
   // §2g: A RAMPART IS NOT A HOUSE WALL.
@@ -366,22 +372,39 @@ const DEPLETE_TICKS = 8;
 // average, sometimes one, sometimes nine -- which is how a tree behaves.
 const DEPLETE_ONE_IN = 4;
 const NODE_YIELD = {
+  // 6bx: A GRADIENT OF ONE, WHICH IS ALL SOFTWARE NEEDS.
+  //
+  // Flat experience cured the tier-as-shortcut fault and introduced a quieter
+  // one: with every rung paying the same, an executor has NO REASON TO WALK.
+  // It stands in the starter grove for eight hundred and eighty hours and the
+  // whole ladder -- five places, four tools, three countries -- is content it
+  // will never see. A citizen who wants goods still climbs; a citizen who
+  // wants levels never does, and most of them are programs that want levels.
+  //
+  // One experience a rung. Five per cent, which is nothing to a person and
+  // decisive to a bot: software moves for any positive gradient at all. The
+  // CROWDING then does the sorting, because a rung with four citizens on it
+  // has already lost more than five per cent to darkness -- so they spread
+  // themselves across the tiers instead of stacking on the best one.
+  //
+  // It costs 14% off the road (879 hours to 754), which rateMul takes back.
+  // The old shape was 25/45/65 and a 13.8x shortcut; this is 1.2x.
   'tree':         { item: 'logs',        skill: 'woodcutting', xp: 20 },
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
   'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 20 },
-  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 20 },
+  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 23 },
   // 6bd: THE MOTHER LODE, the exact sibling of the gallows-oak. Two stones to a
   // strike, deeper in the Wilds, and not one point more experience for it.
-  'mother-lode':  { item: 'magic-stone', skill: 'mining',      xp: 20, qty: 2 },
+  'mother-lode':  { item: 'magic-stone', skill: 'mining',      xp: 24, qty: 2 },
   // §6am (v6): the middle tier. Higher xp than baseline, lower than the
   // capstones, and the item is its own thing -- oak-logs, coal, eel --
   // that the mid gear (steel) is forged and fletched from.
-  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 20 },
+  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 21 },
   // 6bc: ironbark, the long-burning wood. Its job is the watchfire, which is
   // the one public work in this world, and the haft of the last axe.
-  'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 20 },
-  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 20 },
-  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 20 },
+  'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 22 },
+  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 21 },
+  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 21 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
   // still (bronze is iron worked simply here), and STEEL is iron quenched with
@@ -390,22 +413,22 @@ const NODE_YIELD = {
   // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
   // Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
   // mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
-  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 20 },
+  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 23 },
   // 6bc: THE GALLOWS-OAK. Not a new wood -- a new PLACE for the same one, in
   // the Wilds, giving two heartwood to a strike instead of one. This is the
   // lever that replaced price (a keeper's purse is 2 gold a tick and caps
   // everything): yield per action is uncapped, costs the experience curve
   // nothing, and the price of it is that anybody may kill you while you work.
-  'gallows-oak':    { item: 'heartwood', skill: 'woodcutting', xp: 20, qty: 2 },
-  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 20 },
+  'gallows-oak':    { item: 'heartwood', skill: 'woodcutting', xp: 24, qty: 2 },
+  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 23 },
   // 6be: THE DROWNED SHOAL. Two deep fish to a cast, under the gibbet, in the
   // water only the Wilds touches -- fishing's gallows-oak, and the third of
   // the three. Every trade now has one place where the good is doubled and
   // the price of standing there is that somebody may kill you for it.
-  'gibbet-shoal':   { item: 'deep-fish', skill: 'fishing',     xp: 20, qty: 2 },
+  'gibbet-shoal':   { item: 'deep-fish', skill: 'fishing',     xp: 24, qty: 2 },
   // 6bb: the gold seam yields like any other seam and pays like any other
   // seam. What differs is only how often, and that is decided by roll16.
-  'gold-rock':      { item: 'gold-ore',  skill: 'mining',      xp: 20 },
+  'gold-rock':      { item: 'gold-ore',  skill: 'mining',      xp: 23 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
@@ -483,7 +506,8 @@ const WIELD_REQS = {
   // 6bb: it defends exactly as starmetal does. NOT better -- better would make
   // it mandatory, and a thing everybody must own says nothing about anybody.
   // Equal means wearing it is a statement rather than a build.
-  'gold-helm': { defence: 45 }, 'gold-plate': { defence: 50 },
+  'gold-helm': { defence: 45 }, 'gold-plate': { defence: 50 }, 'gold-legs': { defence: 45 },
+  'iron-shield': { defence: 1 }, 'steel-shield': { defence: 30 }, 'star-shield': { defence: 48 },
   // §6am (v6): the mid arms and armour, worn at the middle of the fighting
   // road -- past a beginner, short of the fifty that straps on starmetal.
   'steel-sword': { attack: 35 }, 'steel-dagger': { attack: 35 }, 'steel-spear': { attack: 35 },
@@ -1326,7 +1350,7 @@ const HP_START_XP = 1154; // hitpoints level 10
 const WEAPONS = {
   'iron-dagger': { hit: 0, every: 2, reach: 1, acc: 14 },
   'iron-sword':  { hit: 2, every: 2, reach: 1, acc: 0 },
-  'iron-spear':  { hit: 1, every: 2, reach: 2, acc: 0 },
+  'iron-spear':  { hit: 7, every: 2, reach: 2, acc: 0 },
   // §6au: A MAUL SWINGS AT THE SAME SPEED AS EVERYTHING ELSE.
   //
   // `every: 3` was flavour the arithmetic could not pay for. A blow is
@@ -1345,18 +1369,23 @@ const WEAPONS = {
   // weapon, not the slow one. The alternative -- `hit: 16` to make `every: 3`
   // pay -- was measured too, and it hands a level-forty citizen 1.69 a tick
   // where the honest build gets 1.22. A flat number is a low-level number.
-  'iron-maul':   { hit: 4, every: 2, reach: 1, acc: -12 },
+  'iron-maul':   { hit: 10, every: 2, reach: 1, acc: -12 },
   // §6am (v6): the mid weapons, one notch of `hit` above bronze and one below
   // star, no special -- the special is a starmetal thing, earned with the
   // metal. A citizen who has reached the middle swings a touch harder than a
   // beginner and a touch softer than a master, which is exactly the middle.
   'steel-dagger':    { hit: 1, every: 2, reach: 1, acc: 14 },
   'steel-sword':     { hit: 3, every: 2, reach: 1, acc: 0 },
-  'steel-spear':     { hit: 2, every: 2, reach: 2, acc: 0 },
+  'steel-spear':     { hit: 8, every: 2, reach: 2, acc: 0 },
   'star-dagger':   { spec: 'flurry', blows: 6, rec: 12, hit: 2, every: 2, reach: 1, acc: 14 },
   'star-sword':    { hit: 4, every: 2, reach: 1, acc: 0 },
-  'star-spear':    { hit: 3, every: 2, reach: 2, acc: 0 },
-  'star-maul':     { spec: 'now', blows: 2, bite: 2, rec: 8, hit: 7, every: 2, reach: 1, acc: -12 },
+  'star-spear':    { hit: 9, every: 2, reach: 2, acc: 0 },
+  'star-maul':     { spec: 'now', blows: 2, bite: 2, rec: 8, hit: 13, every: 2, reach: 1, acc: -12 },
+  // 6bz: THE CHAIN KEEPS ITS OLD BLOW. Two-handed arms gained six to pay for
+  // the shield, but a weapon that swings EVERY interval banks that six twice
+  // as often as anything else: at hit 7 it killed a shielded swordsman in 46
+  // intervals against their 87. It is two-handed -- no shield beside it -- and
+  // that, with its rarity, is the whole of what it pays for being fast.
   'old-chain':     { hit: 1, every: 1, reach: 1, acc: 0 },
   // A WAND IS A BAD WEAPON ON PURPOSE. Magic is the anti-combat skill, so the
   // fullest expression of it is a thing you hold INSTEAD of a weapon: you have
@@ -1376,7 +1405,7 @@ const WEAPONS = {
   // is most of the world -- its base damage is the lowest of any steel.
   //
   // So it is not an upgrade, it is an ANSWER, and only to one thing.
-  'star-flail':    { hit: 3, every: 2, reach: 1, acc: -6, pierces: true },
+  'star-flail':    { hit: 9, every: 2, reach: 1, acc: -6, pierces: true },
   // THE CROSSBOW (spec 6x): the maul of the ranged line.
   //
   // Ranged had one feel repeated three times -- wooden, horn and dragon all
@@ -1388,7 +1417,7 @@ const WEAPONS = {
   // A crossbow is slow to crank and it does not miss: every three ticks,
   // heavy, and the most accurate thing in the world. It reaches less far
   // than a horn-bow, because a bow's arc is a bow's arc.
-  'crossbow':      { hit: 5, every: 3, reach: 4, acc: 21, ranged: true },
+  'crossbow':      { hit: 11, every: 3, reach: 4, acc: 21, ranged: true },
   // THE SIGIL-BOW (spec 6y): the bow that does not eat.
   //
   // Arrows are the whole cost of shooting -- one per draw, hit or miss -- and
@@ -1408,7 +1437,7 @@ const WEAPONS = {
   // 6, acc +8, which made it strictly better than the bow it consumed: more
   // damage, further, more accurate AND cheaper to feed. That is not a choice,
   // it is just the next tier, and the ranged line already had three of those.
-  'sigil-bow':     { hit: 2, every: 2, reach: 5, acc: 0, ranged: true, thrift: true },
+  'sigil-bow':     { hit: 8, every: 2, reach: 5, acc: 0, ranged: true, thrift: true },
   // §6ad: THE HEARTWOOD BOW, and the only good bow anybody can MAKE.
   //
   // Every other is found, imbued, forged or unique -- fletching topped out at
@@ -1417,9 +1446,9 @@ const WEAPONS = {
   // the world. Three puts you inside a goblin's senses and a troll's, so you
   // cannot stand beyond their perception and shoot freely. You trade the kite
   // for the damage. The archer's weapon for somebody who means to be in it.
-  'heartwood-bow': { hit: 4, every: 2, reach: 3, acc: 3, ranged: true },
-  'wooden-bow':    { hit: 0, every: 2, reach: 4, acc: 0, ranged: true },
-  'horn-bow':      { spec: 'flurry', blows: 6, rec: 13, hit: 2, every: 2, reach: 5, acc: 0, ranged: true },
+  'heartwood-bow': { hit: 10, every: 2, reach: 3, acc: 3, ranged: true },
+  'wooden-bow':    { hit: 6, every: 2, reach: 4, acc: 0, ranged: true },
+  'horn-bow':      { spec: 'flurry', blows: 6, rec: 13, hit: 8, every: 2, reach: 5, acc: 0, ranged: true },
   // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
   // Reach 9 is the whole weapon: nothing else in the world touches past five,
   // so whoever draws it fights at a distance where almost nothing can answer.
@@ -1451,9 +1480,9 @@ const WEAPONS = {
   // survived walking killed a fleeing citizen thirty-three times in sixty and
   // repealed §2b-i doing it. The mechanism was never the interesting part. It
   // was `hit: 30`.
-  'handgonne':     { spec: 'flurry', blows: 2, rec: 8, hit: 30, every: 4, reach: 4,
+  'handgonne':     { spec: 'flurry', blows: 2, rec: 8, hit: 36, every: 4, reach: 4,
                      acc: -20, ranged: true, powder: true },
-  'dragonbow':     { spec: 'far', blows: 1, rec: 4, hit: 6, every: 2, reach: 9, acc: 6, ranged: true },
+  'dragonbow':     { spec: 'far', blows: 1, rec: 4, hit: 12, every: 2, reach: 9, acc: 6, ranged: true },
 };
 const weaponOf = (p) => WEAPONS[p?.equipment?.weapon?.item] ?? null;
 const reachOf = (p) => weaponOf(p)?.reach ?? 1;
@@ -1535,6 +1564,33 @@ const inReach = (p, t) => {
   return cheb <= r;
 };
 
+// 6by: WHAT THE WORLD CAN STILL DO TO A MASTER.
+//
+// Mob attack was written when twelve was a large number and never grew with
+// the ceiling a citizen can reach. A defender's chance of being hit is
+// hitChance256(mob.atk, defence, 0, armour), and against attack values in the
+// single digits a citizen in star plate reaches the 8/256 FLOOR by about level
+// fifty. Everything after that -- thirty more levels, better armour, any
+// shield anybody ever forges -- buys precisely nothing in the field.
+//
+// So the Gibbet King, a two-hundred-hitpoint boss on a ninety-minute respawn
+// guarding the only king-shroud in the world, dealt 0.027 damage an interval.
+// It needed SIXTY-ONE MINUTES to kill anybody, and could not have killed a
+// citizen who walked away to make tea. The great-spider was little better at
+// six minutes. Only the dragon, at attack 115, was ever a fight -- it kills a
+// master in seventy-eight intervals, and it is the number the rest are now
+// measured against.
+//
+// The ordinary beasts are LEFT ALONE deliberately. Goblins, wolves, bears,
+// trolls and skeleton-knights are a RESOURCE -- bones, ore, hides, a road to
+// prayer -- and a resource that can kill you is a tax on gathering, not a
+// fight. What changed is the four things that were supposed to be dangerous
+// and were not: the King, the spider, the risen the King calls up, and an
+// incursion. They now kill a master in two to seven minutes, which is long
+// enough to eat, mend or run, and short enough to mean it.
+//
+// This is also why defence keeps mattering past fifty, and why a shield would
+// be worth carrying: there is finally something in the world whose blows land.
 const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
@@ -1642,7 +1698,7 @@ const MOB_STATS = {
   //
   // It is not very dangerous and that is deliberate. Somebody must hold it,
   // but the fight is a sum, not a gauntlet.
-  'great-spider': { maxHp: 300, atk: 26, def: 18, maxHit: 9, every: 3,
+  'great-spider': { maxHp: 300, atk: 48, def: 18, maxHit: 18, every: 3,
                     respawn: 36000, aggro: 6, mends: 6 },
   // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
   // Wilds -- a thing that is there, like the Barrow and the Ring.
@@ -1745,7 +1801,7 @@ const MOB_STATS = {
   // unanswered one is a story ("it came, none came, it left") and never a
   // permanent fixture. Its maxHp and def are SCALED to the target at spawn by
   // the event step; these are the floor a level-one target would face.
-  'incursion': { maxHp: 120, atk: 6, def: 8, maxHit: 3, respawn: 0, aggro: 6,
+  'incursion': { maxHp: 120, atk: 30, def: 8, maxHit: 8, respawn: 0, aggro: 6,
             drops: [{ item: 'bones' }] },
   // §6ao (v6): THE RISEN, and THE GIBBET KING. The Moor was dead space -- goblins
   // and wolves already found in three other countries, and nothing of its own.
@@ -1755,7 +1811,7 @@ const MOB_STATS = {
   // he makes them (see the mob step), aggro'd at whoever came, so a citizen
   // fights THROUGH them to reach him. When he falls or the citizen leaves, the
   // risen he called crumble back into the moor.
-  'risen': { maxHp: 12, atk: 4, def: 3, maxHit: 2, respawn: 0, aggro: 6, summoned: true,
+  'risen': { maxHp: 12, atk: 22, def: 3, maxHit: 5, respawn: 0, aggro: 6, summoned: true,
              drops: [{ item: 'bones' }] },
   // THE GIBBET KING (spec 6ao). One of him, like the dragon -- a thing that IS
   // in the Moor, not a kind that spawns. He does not chase and he barely strikes;
@@ -1764,7 +1820,7 @@ const MOB_STATS = {
   // He is stationary at his gibbet. Defeating him quiets the Moor until he rises
   // again. His drop is worth the crossing: the shroud, a rare ranged-magic piece,
   // and always the bones of a king.
-  'gibbet-king': { maxHp: 200, atk: 8, def: 16, maxHit: 4, every: 4, respawn: 9000,
+  'gibbet-king': { maxHp: 200, atk: 55, def: 16, maxHit: 22, every: 4, respawn: 9000,
              aggro: 8, raises: true, raiseEvery: 5, raiseCap: 4, meleeOnly: true,
              drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'magic-stone', chance: 8192 },
                      { item: 'king-shroud', chance: 400 }] },
@@ -2003,7 +2059,7 @@ const PRICES = {
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
   // 6bb: a keeper values a nugget at what a keeper can value anything -- badly.
   // Gold is not sold to shops; it is worn, or it is sold to a person.
-  'gold-ore': 60, 'gold-bar': 320, 'gold-helm': 2800, 'gold-plate': 4200,
+  'iron-shield': 34, 'steel-shield': 120, 'star-shield': 640, 'gold-legs': 3400, 'star-ingot': 420, 'gold-ore': 60, 'gold-bar': 320, 'gold-helm': 2800, 'gold-plate': 4200,
   'ironbark': 9, 'great-hatchet': 520, 'great-pickaxe': 520,
   'rod': 10, 'ironbark-rod': 120, 'heartwood-rod': 300,   // §6av: five to the ore, so a double
   // heartwood is worth more than logs, and a deep fish more than a shallow
@@ -2110,7 +2166,7 @@ const RECIPES = {
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
   // fletch input, because a bow made by a fletcher belongs to fletching.
   'crossbow': { 'iron': 2, logs: 2 },              // a steel prod and a wooden stock
-  'star-flail': { 'magic-stone': 3, 'iron': 2, logs: 1 },
+  'star-flail': { 'star-ingot': 15, 'ironbark': 1 },
   // §6av: starmetal, because that is where the scarcity already lives -- a
   // magic-stone is mined in the WILDS, so every one has survived a trip
   // somebody could have died on. Against citizens who automate, effort is not
@@ -2127,8 +2183,8 @@ const RECIPES = {
   // sink it did not have: a master smith makes gonnes, and the mid-level smiths
   // who cannot yet make one keep them fed.
   'shot': { 'iron': 1 },
-  'star-spear': { 'magic-stone': 2, 'iron': 1, logs: 1 },
-  'star-maul': { 'magic-stone': 3, 'iron': 2, logs: 1 },
+  'star-spear': { 'star-ingot': 12, 'ironbark': 1 },
+  'star-maul': { 'star-ingot': 18, 'ironbark': 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
   //
   // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
@@ -2144,10 +2200,44 @@ const RECIPES = {
   'iron-pickaxe': { iron: 1, logs: 1 },
   'iron-helm':    { iron: 1 },
   'iron-plate':   { iron: 3 },
-  'star-sword':     { 'magic-stone': 3, 'iron': 2 },
-  'star-helm':      { 'magic-stone': 2, 'iron': 1 },
-  'star-plate':     { 'magic-stone': 4, 'iron': 3 },
-  'star-dagger':    { 'magic-stone': 2, 'iron': 1 },
+  // 6bw: STARMETAL IS SMELTED NOW, AND A SET IS AN HOUR OF THE WILDS.
+  //
+  // A full set was FIFTY-NINE SECONDS of mining -- six magic-stone and four
+  // iron. The eighteen seams on this island hold about twenty-nine miners and
+  // turn out ten thousand stone an hour, so the world could make FORTY-TWO
+  // THOUSAND SETS A DAY of its own best armour. One smith supplied every
+  // fighter alive twice over. The levels gated WHO could make it and nothing
+  // at all gated HOW MUCH, which is why a star plate was worth nothing.
+  //
+  // The stone stays cheap, deliberately: magic is trained on it and the road
+  // to ninety-nine eats near half a million, so a rarer seam would delete a
+  // skill. What changes is the GEAR. Twenty stone and four coal to an ingot,
+  // and the smith works ingots.
+  //
+  // TWENTY-EIGHT IS THE CEILING ON EVERY LINE BELOW. A recipe is checked by
+  // SLOTS -- `have()` counts slots, not quantities -- and neither magic-stone
+  // nor coal stacks, so no recipe may ever name more than a pack. (Nor may a
+  // future one lean on stacking: a stack of fifty arrows would count as ONE.)
+  // 20 + 4 for the ingot and 20 ingots for the plate both sit under it.
+  //
+  // A set is 600 stone, about an hour of dedicated mining, and the island now
+  // turns out roughly a hundred and forty sets a day instead of forty-two
+  // thousand. The hafted arms take ironbark rather than plain logs -- a haft
+  // for a starmetal head should not be the cheapest wood in the world.
+  'iron-shield':    { 'iron': 4, 'oak-logs': 1 },
+  'steel-shield':   { 'iron': 3, 'coal': 3, 'ironbark': 1 },
+  'star-shield':    { 'star-ingot': 14, 'ironbark': 1 },
+  // 6ca: six, eight, sixteen -- thirty bars for the set, priced by how much
+  // of a citizen each piece covers. The helm is the least and the way in;
+  // the plate is the most of it and the capstone. Somebody buys legs first
+  // because every other set looks unfinished without them, and then wants
+  // the rest -- so the cheapest piece should not be the one they came for.
+  'gold-legs':      { 'gold-bar': 8 },
+  'star-ingot':     { 'magic-stone': 20, 'coal': 4 },
+  'star-sword':     { 'star-ingot': 12 },
+  'star-helm':      { 'star-ingot': 10 },
+  'star-plate':     { 'star-ingot': 20 },
+  'star-dagger':    { 'star-ingot': 8 },
   'star-hatchet':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
   'star-pickaxe':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
   // §6am (v6): THE MIDDLE TIER, forged and fletched from what the mid seams
@@ -2176,8 +2266,8 @@ const RECIPES = {
   'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2 },
   'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'coal': 2 },
   'gold-bar':       { 'gold-ore': GOLD_ORE_PER_BAR },
-  'gold-helm':      { 'gold-bar': 8 },
-  'gold-plate':     { 'gold-bar': 12 },
+  'gold-helm':      { 'gold-bar': 6 },
+  'gold-plate':     { 'gold-bar': 16 },
 };
 // §6ad:  is listed here BY NAME because it is no longer in
 // RECIPES -- it is fletched, not forged. EQUIPPABLE was built from the recipe
@@ -2225,7 +2315,18 @@ const ITEMS = new Set([
 ]);
 const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'head', 'star-plate': 'body', 'king-shroud': 'body',
                      'steel-helm': 'head', 'steel-plate': 'body',
-                     'gold-helm': 'head', 'gold-plate': 'body' }; // default: weapon  (§6am v6: the mid armour)
+                     'gold-helm': 'head', 'gold-plate': 'body',
+                     'iron-shield': 'offhand', 'steel-shield': 'offhand', 'star-shield': 'offhand',
+                     // 6ca: GOLD LEGS DEFEND NOTHING, and that is the point. A
+                     // slot no other thing in the world can fill, holding a
+                     // thing with no stat on it. The hood taught this already:
+                     // a status item must COST to be worth seeing, and gold's
+                     // cost was paid at the seam -- two hundred and seventy-
+                     // three hours for a set that fights no better than
+                     // starmetal. Legs finish the silhouette and add nothing,
+                     // so a gold-clad citizen is exactly as killable as anyone
+                     // and simply more obviously worth killing.
+                     'gold-legs': 'legs' }; // default: weapon  (§6am v6: the mid armour)
 // §6ax: a hood is worn on the HEAD and defends nothing. That is the cost and
 // it is the whole cost: to be seen wearing one is to walk the country in no
 // helmet. Nothing else in this world asks a citizen to choose between being
@@ -2287,7 +2388,8 @@ const SMITH_REQS = {
   // 6bb: gold is soft and the work is fine, so the bar asks little and the
   // finished piece asks a great deal. The plate is the last thing a smith
   // learns that is not a weapon.
-  'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
+  'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'iron-shield': { smithing: 12 }, 'steel-shield': { smithing: 34 }, 'star-shield': { smithing: 48 },
+  'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
   'crossbow': { smithing: 18 },
   'star-flail': { smithing: 50, magic: 29 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
@@ -2339,7 +2441,37 @@ const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? 
 // that low accuracy was punished twice, once in the roll and again by a soak
 // its slow cadence could not out-pace.
 const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22,
-                 'gold-helm': 16, 'gold-plate': 24 };  // 6bb: starmetal's equal, at two hundred times the labour  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
+                 'gold-helm': 16, 'gold-plate': 24 };   // 6bz/6ca: no shield and no legs here  // 6bb: starmetal's equal, at two hundred times the labour  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
+// 6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
+//
+// The star-sword and the star-maul sit in the same wield band, and measured
+// against an ARMOURED citizen they were already 87 intervals against 89 -- the
+// maul's -12 accuracy costing exactly what its +5 damage buys. That balance
+// was not designed and it is remarkably tight, so anything added here has to
+// preserve it.
+//
+// A shield alone does not: any shield at all tips a coin-flip duel decisively
+// to the one-handed line. So the two arrive together. Two-handed arms gain six
+// to their blow; one-handed arms may carry a shield, which DIVIDES what lands.
+// At a star shield's three-quarters the duel returns to 87 against 86.
+//
+// A DIVISOR, NOT A BLOCK AND NOT MORE ARMOUR. More armour feeds the same
+// hitChance curve that already saturates, so a shield would be a number nobody
+// could feel. A block would need its own roll and would raise the question of
+// whether a blocked blow is a MISS -- which is what teaches defence, so it
+// would quietly retune a skill. A divisor touches neither the roll nor the
+// miss: what a defender learns and what an attacker learns are exactly what
+// they were, and the shield only changes what arrives.
+const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'iron-maul', 'star-maul',
+  'star-flail', 'old-chain', 'wooden-bow', 'horn-bow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
+  'crossbow', 'handgonne', 'staff', 'heartwood-staff']);
+const SHIELD_DIV = { 'iron-shield': [7, 8], 'steel-shield': [4, 5], 'star-shield': [3, 4] };
+// what a blow becomes once it has met an off-hand shield. Integers only, and a
+// blow never falls below one: a shield turns a blow aside, it does not erase it.
+function afterShield(q, dmg) {
+  const d = SHIELD_DIV[q?.equipment?.offhand?.item];
+  return d ? Math.max(1, Math.ceil((dmg * d[0]) / d[1])) : dmg;
+}
 const armourOf = (q) => (ARMOUR[q?.equipment?.head?.item] ?? 0)
                       + (ARMOUR[q?.equipment?.body?.item] ?? 0);
 
@@ -2413,6 +2545,13 @@ function reqOverride(genesis, kind, item) {
 }
 const isEquippable = (item) => EQUIPPABLE.has(item) || isHood(item);
 const slotOf = (item) => isHood(item) ? 'head' : (EQUIP_SLOT[item] ?? 'weapon');
+// 6bz: and a hand may not hold a shield while both are on the haft.
+const twoHandedOn = (q) => TWO_HANDED.has(q?.equipment?.weapon?.item);
+// 6bz: the two rules that make the choice a choice. They are stated once and
+// read by both the validator and the executor, because a wield that one accepts
+// and the other refuses is a fork.
+const shieldRefused = (q, item) => slotOf(item) === 'offhand' && twoHandedOn(q);
+const haftRefused   = (q, item) => TWO_HANDED.has(item) && !!q?.equipment?.offhand;
 // WHAT COUNTS AS THE RIGHT TOOL, and what it is worth.
 //
 // One tool per node, in one metal, and a flat bonus -- so a pickaxe was a
@@ -4450,7 +4589,7 @@ function addPlayer(state, playerId, x, y) {
     x, y,
     skills: Object.fromEntries(SKILLS.map(sk => [sk, sk === 'hitpoints' ? HP_START_XP : 0])),
     hp: 10,
-    equipment: { weapon: null, head: null, body: null },
+    equipment: Object.fromEntries(EQUIP_SLOTS.map((k) => [k, null])),   // 6bz: from the one list
     bank: {},
     lastInput: state.tick,
     // §6ao (v6): a newcomer wakes with just enough coin for ONE tool at the
@@ -5237,10 +5376,15 @@ function validInput(state, input, ctx) {
       const req = reqOverride(state.genesis, 'wield', sl.item) ?? WIELD_REQS[sl.item];
       if (req) for (const [sk, lv] of Object.entries(req))
         if (effLevel(p.skills[sk]) < lv) return false; // earned, then worn (v0.41)
+      // 6bz: one pair of hands. A shield cannot be raised beside a haft, and a
+      // haft cannot be taken up beside a shield. Refusing rather than silently
+      // displacing: a citizen who meant to swap should say so in two inputs,
+      // and an executor that guessed wrong should be told, not quietly disarmed.
+      if (shieldRefused(p, sl.item) || haftRefused(p, sl.item)) return false;
       return true;
     }
     case 'unwield': {
-      const g = ['weapon', 'head', 'body'].includes(input.gear) ? input.gear : 'weapon';
+      const g = EQUIP_SLOTS.includes(input.gear) ? input.gear : 'weapon';   // 6bz: the one list, again
       return p.equipment[g] !== null && firstFreeSlot(p.inventory) !== -1;
     }
     case 'light': {
@@ -5547,7 +5691,7 @@ function prayerKeeps(p, tick) {
     if (v > 0) all.push({ v, item: sl.item, qty: sl.qty ?? 1 });
   };
   for (const sl of p.inventory ?? []) consider(sl);
-  for (const g of ['weapon', 'head', 'body']) consider(p.equipment?.[g]);
+  for (const g of EQUIP_SLOTS) consider(p.equipment?.[g]);   // 6bz: prayer weighs the shield and the legs too
   // dearest first, and ties broken by name so every node keeps the same things
   all.sort((a, b) => b.v - a.v || (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
   return all.slice(0, want).map(({ item, qty }) => ({ item, qty }));
@@ -6559,7 +6703,7 @@ function nextState(state, inputs, _legacyBeacon) {
           const soak = 0;
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : st.maxHit);
-          target.hp -= Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak);
+          target.hp -= afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak));   // 6bz
           // §2g EXTENDED TO THE BEASTS: A STRUCK CITIZEN STRIKES BACK.
           //
           // The constitution has said this since v0.36, and said it only of
@@ -7347,7 +7491,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // nothing, so a blow that lands lands whole.
           const soak9 = 0;
           const dmg9 = Math.max(0, styleRoll(roll(beacon, pid, 'specd' + b9), maxHit9, inp.style ?? 'even') - soak9);
-          q.hp -= dmg9;
+          q.hp -= afterShield(q, dmg9);   // 6bz
           // §6as-ii: split exactly as an ordinary melee blow splits. A special
           // taught attack alone, so a fighter who favoured it never raised the
           // number their own special scores from.
@@ -7867,7 +8011,7 @@ function nextState(state, inputs, _legacyBeacon) {
         p.skills.fletching += XP_FLETCH_PER_UNIT * 2;
       }
     } else if (inp.type === 'unwield') {
-      const g = ['weapon', 'head', 'body'].includes(inp.gear) ? inp.gear : 'weapon';
+      const g = EQUIP_SLOTS.includes(inp.gear) ? inp.gear : 'weapon';   // 6bz
       const slot = firstFreeSlot(p.inventory);
       if (p.equipment[g] && slot !== -1) {
         p.inventory[slot] = p.equipment[g];
@@ -8141,7 +8285,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6ap: armour is in the roll, not the damage
           const soak = 0;
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'dmg'), maxHit, p.action.style) - soak);
-          q.hp -= dmg;
+          q.hp -= afterShield(q, dmg);   // 6bz
           // §6as: a landed blow teaches BOTH -- the aim that found them and the
           // arm that hurt them -- split evenly, so a fighter's two numbers rise
           // together unless they deliberately train one alone.
