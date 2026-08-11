@@ -4574,6 +4574,16 @@ export function buildWorld(genesis) {
     }
   }
 
+  // 6ch (v6): waystones are GONE as a type -- the travel network was removed so
+  // the road stays content and hauling has a job. But the town drawings still
+  // carry a 'W' glyph here and there (the shared shire art is frozen), which
+  // seats a waystone node. Convert any that slipped through into the standing
+  // stones they now are, so no dead type reaches validation.
+  for (const id of Object.keys(w.nodes)) {
+    const n = w.nodes[id]
+    if (n.type === 'waystone') { n.type = 'landmark'; n.kind = 'standing-stone' }
+  }
+
   const serr = E.validateState(w)
   if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') founding aborted')
   w._composition = counts
