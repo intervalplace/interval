@@ -1311,6 +1311,18 @@ re-walking of ground you have already earned.
 New node type: `waystone`. New player field: `attuned` (array of waystone
 ids, defaults empty). New action: `recall`.
 
+**Amended (v6): the sixth expanse has no waystones.** Tallyholm removes the
+travel network entirely — no `waystone` nodes, no `recall`, no attunement.
+The reasoning is the whole thesis of §2o: this world is built on the walk —
+the ore hauled to the anvil, the market walked to, the seam reached — and
+hauling (§11) is an entire trade built on the length of the road. A network
+that let a citizen skip the road would dissolve the gathering it exists to
+create, and would pay a hauler for a journey nobody took. The road IS the
+content. Earlier worlds (v0.42–v5) keep their waystones forever, because the
+genesis is the world; v6 simply seats none, and any stray `waystone` a frozen
+town-drawing would place is converted to a standing-stone landmark before the
+world is sealed.
+
 ## 2l. The Expanse (v0.76): every direction means something
 
 The classic world says "a safe town, then danger", a radial gradient,
@@ -1416,6 +1428,68 @@ survey for a wider, darker country. `interval-classic-v1` remains
 lawful: a world keeps the generator named in its genesis forever,
 because the genesis is the world. **New foundings use the third
 expanse (§9d).**
+
+## 2o. The gathering world (v6): scarce, clustered, and thrice-deep
+
+The sixth expanse (`interval-expanse-v6`, world **Tallyholm**, 896 x 512, ten
+towns, seven countries) keeps v5's terrain but rebuilds what grows on it. The
+governing idea is **manufactured congregation**: a citizen cannot be counted,
+and the tuning cannot be redone after founding, so the world must gather people
+by its shape, at every scale, without knowing how many there are.
+
+**Commit to scarce.** RuneScape held four thousand trees and congregation still
+happened — at its few scarce willows, while the abundance did nothing. It
+stumbled into the pattern without seeing it; v6 does it deliberately. There are
+about **fifty gatherable nodes in the whole world**. Every tree in a town
+garden, every rock in a copse, every decorative shoal — the thousands that once
+scattered the population across the map — is now a **landmark**: it stands where
+it stood, as texture, but it grows nothing and cannot be worked. The only places
+to gather are the seams the founding placed. A newcomer walks to the grove to
+chop, the way they walk to the mine to mine.
+
+**Nine places: three skills, three rungs each, each a real destination.** Every
+gathering skill is a journey across the map, not a number that climbs in one
+spot. The mid and master rungs are their OWN nodes in their OWN places — the old
+trick of upgrading the baseline node's yield at the mastery level is gone,
+because a tier with no place of its own is not a destination.
+
+```
+woodcutting:  logs (Greenhollow grove) → oak-logs (the oak grove) → heartwood (the deep eastern Greenwood)
+mining:        iron (Cragfoot) → coal (the deep Crags) → magic-stone (the Wilds)
+fishing:       raw-fish (the ports) → eel (the eel shoals) → deep-fish (the Wilds water at the gibbet)
+```
+
+The baseline is a **nursery**: a citizen reaches the mid gate in roughly eighty
+minutes, so the crowd at the first grove is always turning over — a shared
+starting place everyone passes through, not a cattle-car. The master rung's
+placement follows its economic weight: **heartwood** (few need it — a bow, a
+staff) sits remote but SAFE in the deep wood, drawn by the length of the walk;
+**deep-fish** (food, which everyone in a fight needs) sits IN the Wilds, drawn
+by the crowd that dangerous food pulls; **magic-stone** (the late economy's
+whole spine) sits deepest of all, the serious expedition.
+
+**The doubled seams: the same good, twice, in the Wilds, priced in blood.** Each
+gathering skill also has a Wilds rung that yields the master good **doubled** —
+`gallows-oak` (two heartwood), `mother-lode` (two magic-stone), `gibbet-shoal`
+(two deep-fish) — for the same experience and the same action. Yield-per-action
+is uncapped and costs the experience curve nothing; the only price is that
+**anybody may kill you while you work there**. This is the one lever that ties
+the peaceful half of a trade to the dangerous half: the gatherer who wants twice
+the good and the raider who wants the gatherer are forced into the same water.
+
+**Gold: the patient wealth.** Magic-stone is dangerous wealth; the world needed
+a slow kind too, or it has only one sort of rich citizen. Far south in the Crags,
+a long walk from anywhere, the `gold-rock` seam is a **lottery inside mining** —
+capped at level eighty-five, not ninety-nine — and the only thing it costs is the
+mastery you are not earning while you wait on it.
+
+**Tools that make two countries meet.** The gathering tool now carries the RATE
+and the level buys ACCESS. Above the steel tools sit the great tools:
+`great-hatchet` and `great-pickaxe`, forged from a **starmetal head** (the Wilds)
+and an **ironbark haft** (the deep Greenwood) — so the fastest tools cannot be
+made by a citizen who keeps to one half of the world. The same rule that gives
+the heartwood bow its two ingredients gives the great tools theirs: the peaceful
+and dangerous halves of the world are made to need each other.
 
 ## 2g. The Wilds (where the law thins)
 
@@ -1549,7 +1623,7 @@ The genesis object is
 worldGenerator}`. `worldGenerator` names the deterministic generator
 that founds this world, `"interval-classic-v1"` or
 `"interval-expanse-v1"` (§2l), `"interval-expanse-v2"` (§9b), or
-`"interval-expanse-v3"` (§9d), the third expanse being the canonical
+`"interval-expanse-v3"` (§9d), (§9d), or `"interval-expanse-v6"` (§2o), the sixth expanse being the canonical
 choice for new foundings, so a founding record can never be ambiguous about
 which world it founds; a node that does not implement the named
 generator refuses to build the world rather than guessing. The genesis schema is EXACT: the seven
@@ -3788,6 +3862,102 @@ would have flickered off through every honest fight.
 they are not tried again: scaling the award by accuracy closed the farm and
 walled defence off at about thirty-two, which no living citizen had passed;
 gating on `action` was correct in principle and unusable in practice.
+
+## 6cx. The Gibbet King, the risen, and the shroud (v6)
+
+There is a Gibbet King. Like the dragon, not a kind of thing that spawns —
+a thing that **is** there, one of him, standing at the gibbet in the middle
+of the **Moor**. Before him the Moor was dead country: goblins and wolves
+already found in three other lands, and nothing of its own. It is his now.
+The Moor keeps no goblins and no wolves; it is undead ground, quiet until a
+citizen comes near.
+
+```
+gibbet-king · maxHp 200 · atk 55 · def 16 · maxHit 22 · every 4 · respawn 9,000 (ninety minutes)
+meleeOnly · aggro 8 · raises · raiseEvery 5 · raiseCap 4
+drops: 2×bones always · magic-stone 1/8 · king-shroud 1/164
+```
+
+**He does not hunt. He raises.** His threat is not his arm — it is the dead
+he calls up and sends. When a citizen comes within his reach he raises a
+**risen** every `raiseEvery` ticks, up to `raiseCap` alive at once, each one
+maddened at whoever came. To reach the King a citizen must cut through the
+wave faster than he renews it. The cap is what makes it a hard solo rather
+than a wall: four at a time is survivable, but they come again while you
+close the distance.
+
+```
+risen · maxHp 12 · atk 4 · def 3 · maxHit 2 · aggro 6 · summoned · drops: bones
+```
+
+**The risen exist only while he does.** A risen is his: it carries the mark
+of the King who raised it, and when he falls — or when the citizen leaves and
+he stops raising — the risen he called **crumble** back into the moor. A
+risen you actually put down leaves its bones; one that crumbles leaves
+nothing. The world never fills with permanent summoned dead. Killing the King
+quiets the Moor until, ninety minutes on, he rises again.
+
+**The king-shroud is his, and it is authority over the dead.** One in a
+hundred and sixty-four kills yields the **king-shroud**: a hooded mantle, worn
+on the body (armour 22, requires 40 defence), never smithed — the only way to
+it is through him. It is not merely armour. Worn, it does three things, each an
+expression of one idea — *mastery over death*:
+
+1. **The dead do not rise against a wearer.** In the Wilds, the risen and the
+   skeleton-knights will not START on someone in the shroud — the dead do not
+   see the mantle of the one who commanded them as prey. They still retaliate
+   if struck; the living care nothing for it.
+
+2. **The King himself raises at half rate against a wearer.** His own mantle
+   slows him: against a citizen wearing the shroud, `raiseEvery` doubles. Not
+   stilled — he can still call his dead — but slower, so the one who took the
+   shroud from him has an easier road back to him.
+
+3. **The wearer carries more of themselves through death — but not everywhere.**
+   The shroud is death's own cloth, and where you die decides whether it spares
+   you:
+   - **Outside the Wilds**, the shroud is kept on its own account, separate from
+     what prayer holds (§6c) — it does not compete by price, so it never falls
+     out to a dearer item and never wastes a low-mourner's single slot. In the
+     settled world it is not a fragile trinket.
+   - **Inside the Wilds**, it earns no such grace. It drops into the same
+     value-sorted pool as everything else you carry and must win a keep-slot on
+     price like any loot — so it CAN be lost. Wearing it into the Wilds to still
+     the dead is itself a wager on the shroud: the thing that makes that country
+     safer from the dead is staked on your surviving it.
+   - **Branded** (§2b), the wearer keeps nothing at all, shroud included. That is
+     forfeiture, the raider's price, and a different thing entirely from the
+     Wilds' risk. The shroud shelters those who FACE death and is lost by those
+     who DEAL it — and so it circulates, from every raider who dies marked and
+     every citizen who carried something dearer into the Wilds and did not come
+     back.
+
+## 6cy. The two events (v6): the incursion and the bloom
+
+The sixth expanse founds with `genesis.events`. A world without it (every
+v1–v5 world) runs the event step as a **no-op** and stays byte-identical; the
+shape of the events is the constitution's, their numbers are the world's. Both
+are seeded from the beacon (`sha256(beacon | "event" | tag)`), so they are as
+deterministic as everything else — the same world computes the same events on
+every node.
+
+**The incursion — a roaming shared fight.** A thing walks out of the dark, fixes
+on **one** citizen, and takes a while to put down — two to seven minutes for a
+master. Its body is **scaled to its target at spawn** (an incursion carries its
+own `maxHp`, `def`, `goneBy`, `leash`, and origin tile — the only mob permitted
+those fields). It hits softly relative to its bulk, so anyone may safely turn and
+help; the danger is not the point, the **gathering** is. It never loses the scent
+of the one it came for, out to its leash, and it is bounded in time — it must be
+gone by `goneBy` — so it is a shared fight that flares and passes, not a fixture.
+Its face is contextual: the dark takes the shape of the country and the skill it
+interrupts.
+
+**The bloom — a roaming rich spot.** Where the incursion is a threat that gathers
+people to fight, the bloom is an **opportunity** that gathers them to work: a
+transient rich place that pays continuous experience to whoever attends it while
+it lasts, in the manner of a watchfire. It roams, it blooms, it fades — an
+invitation to be somewhere at a certain time, which is the same congregation the
+whole world is built to make, arriving by chance instead of by geography.
 
 ## 6ac. The siren on the strand (v0.81)
 
