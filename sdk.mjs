@@ -1,4 +1,4 @@
-// Interval SDK v0.5 — Layer 2: the window-maker.
+// Interval SDK v0.6 — Layer 2: the window-maker.
 // A clean client library between the node (layer 1: constitution +
 // consensus) and any renderer (layer 3: terminal, web, spreadsheet…).
 // The SDK knows nothing about pixels; renderers know nothing about
@@ -77,11 +77,15 @@ export class IntervalClient {
   sell(slot) { return this.#send({ type: 'sell', slot }) }
   invoke() { return this.#send({ type: 'invoke' }) }
   cast(spell) { return this.#send({ type: 'cast', spell }) }
+  // 6cj: FIVE SLOTS, not three. `offhand` and `legs` joined the constitution
+  // with shields and gold legs; a script that only knew 'weapon', 'head' and
+  // 'body' could put a shield on and never take it off again. The list is read
+  // from the engine rather than written here, so the next slot needs no edit.
+  static SLOTS = E.EQUIP_SLOTS ?? ['weapon', 'head', 'body', 'offhand', 'legs']
   unequip(gear) { return this.#send({ type: 'unwield', gear }) }
 
   // ---- exploration ----
   survey() { return this.#send({ type: 'survey' }) }
-  readChart(slot) { return this.#send({ type: 'read_chart', slot }) }
 
   // ---- brewing ----
   buildBrewpot() { return this.#send({ type: 'build_brewpot' }) }
@@ -97,7 +101,6 @@ export class IntervalClient {
   smith(recipe) { return this.#send({ type: 'smith', recipe }) }
   wield(slot) { return this.#send({ type: 'wield', slot }) }
   buy(item) { return this.#send({ type: 'buy', item }) }
-  recall(to) { return this.#send({ type: 'recall', to }) }
   // v0.82: THE VERBS THAT ARRIVED WITHOUT AN SDK.
   //
   // A bot is a citizen here -- an executor runs a full node and its deeds feed
@@ -134,6 +137,42 @@ export class IntervalClient {
   takeStall() { return this.#send({ type: 'take_market' }) }
   dismantleStall() { return this.#send({ type: 'dismantle_market' }) }
 
+  // ---- hauling: the road ----
+  //
+  // 6cj: THE SDK COULD NOT HAUL AT ALL.
+  //
+  // `consign`, `deliver` and `release` never reached this file, so a script
+  // written against the SDK could not take a consignment, could not walk a leg
+  // and could not put one down -- which is to say a bot could not train one of
+  // the eighteen skills, in a world whose whole premise is that a bot IS a
+  // citizen. It is exactly the fault the v0.82 note above describes, and it had
+  // been sitting beside it the whole time.
+  //
+  // The shape is a citizen's rather than a machine's: take() names the slots
+  // you are carrying for somebody, the legs are walked with move() like any
+  // other journey, and deliver() is called ONCE PER SLOT at each store on the
+  // route -- the engine pays per slot per leg and refuses the lot if you are
+  // not beside the right counter. releaseConsignment() abandons the load
+  // where you stand.
+  //
+  // One thing a script author will otherwise learn the hard way, so it is
+  // written down: a consignment makes you STRIKEABLE ANYWHERE by any other
+  // citizen also bearing one (11d). Hauling is the only trade in this world
+  // that thins the law around the person doing it.
+  take(slots) { return this.#send({ type: 'consign', slots: this.#slots(slots) }) }
+  deliver(slot) { return this.#send({ type: 'deliver', slot }) }
+  releaseConsignment() { return this.#send({ type: 'release' }) }
+  get consignment() { return this.me?.consignment ?? null }
+
+  // ---- a node's business, not a citizen's ----
+  //
+  // 6cj: both want a merkle path, which a citizen cannot produce by hand and a
+  // node produces as a matter of course. A script that needs these is a node
+  // operator's script; they are here so the SDK can express everything the
+  // engine will hear, which is the only test this file has to pass.
+  restore(record, path) { return this.#send({ type: 'restore', record, path }) }
+  archive(subject, path) { return this.#send({ type: 'archive', subject, path }) }
+
   // ---- the rest of what the engine will hear ----
   unmake(groundId) { return this.#send({ type: 'unmake', groundId }) }
 
@@ -143,9 +182,17 @@ export class IntervalClient {
   // know -- the world decides from what you put in and what you have learned,
   // which is why a new brew took no new SDK call at all. Named here so a
   // script author does not go looking for one.
-  static BREWS = { grain: 'ale', 'raw-fish': 'broth', 'deep-fish': 'broth or deep-broth (brewing 90)' }
+  static BREWS = { grain: 'ale', 'raw-fish': 'broth', 'deep-fish': 'broth, or deep-broth at brewing 78' }   // 6cj: 78, not 90
   buildBrewpot() { return this.#send({ type: 'build_brewpot' }) }
-  readChart(slot) { return this.#send({ type: 'read_chart', slot }) }
+
+  // 6cj: WHAT THIS FILE DELIBERATELY DOES NOT OFFER.
+  //
+  // `recall` and `read_chart` are still in the engine's schemas so that an old
+  // client is REFUSED rather than desynced -- but both always fail now: the
+  // waystones are gone (6ch) and a chart is a good rather than a key (6ci).
+  // An SDK method that can only ever return a rejection is a trap dressed as a
+  // feature, so there is none. If a diff of engine schemas against this file
+  // ever lists those two again, that is correct and expected.
 
   chat(text) { return this.node.publishChat(this.identity, text) }
   onChat(cb) { this.node.onChat = cb }
