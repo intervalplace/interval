@@ -2122,6 +2122,8 @@ function itemSprite(item) {
     pl([[26,14],[31,9],[31,23],[26,18]], back)
     g.fillStyle = '#10100c'; g.fillRect(9, 14, 2, 2)
   }
+  // 6cc: an unknown item borrows its family's drawing
+  const _tint = iconTintOf(item); item = iconAliasOf(item)
   switch (item) {
     case 'logs':
       pl([[4,20],[26,12],[29,17],[7,25]], '#8a5a2a', '#4a2f14')
@@ -2152,14 +2154,14 @@ function itemSprite(item) {
       g.fillStyle = '#e8e4d0'
       for (const [bx, by] of [[7,20],[11,24],[21,8],[25,12]]) { g.beginPath(); g.arc(bx, by, 3.2, 0, 7); g.fill() }
       break
-    case 'bronze-sword':
+    case 'iron-sword':
       pl([[16,3],[20,7],[11,20],[8,17]], '#c9c2b2', '#6b6558')
       g.fillStyle = '#8a5a2a'; g.fillRect(6, 19, 9, 3.4)
       pl([[8,21],[4,27],[7,29],[12,24]], '#5c4023', '#33220f'); break
-    case 'bronze-hatchet':
+    case 'iron-hatchet':
       g.fillStyle = '#5c4023'; g.save(); g.translate(16, 16); g.rotate(0.7); g.fillRect(-1.8, -3, 3.6, 17); g.restore()
       pl([[16,4],[25,7],[24,15],[14,12]], '#c9862a', '#6b4515'); break
-    case 'bronze-pickaxe':
+    case 'iron-pickaxe':
       g.fillStyle = '#5c4023'; g.save(); g.translate(16, 17); g.rotate(0.6); g.fillRect(-1.8, -4, 3.6, 17); g.restore()
       pl([[6,10],[16,4],[26,10],[24,13],[16,8],[8,13]], '#c9862a', '#6b4515'); break
     // v0.82: the things this window did not know how to draw. Six items a
@@ -2231,11 +2233,11 @@ function itemSprite(item) {
       g.fillStyle = '#8a939d'; g.fillRect(18.4, 16.6, 3, 1.6)        // the band
       g.fillStyle = 'rgba(255,180,90,.5)'; g.beginPath(); g.arc(20.4, 15.6, 1.5, 0, 6.3); g.fill()
       break }
-    case 'bronze-helm':
+    case 'iron-helm':
       pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#c9862a', '#6b4515')
       g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(9, 9.5, 14, 2)
       g.fillStyle = '#6b4515'; g.fillRect(7, 20, 18, 2.6); break
-    case 'bronze-plate':
+    case 'iron-plate':
       pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#c9862a', '#6b4515')
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
       g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(9, 7.5, 14, 1.6); break
@@ -2274,7 +2276,7 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
       g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(9, 7.5, 14, 1.6); break
     // ---- the shapes (v0.66): each reads as itself at a glance ----
-    case 'bronze-dagger': case 'star-dagger': {
+    case 'iron-dagger': case 'star-dagger': {
       const star = item.startsWith('star-')
       const blade = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
       pl([[15,26],[17,26],[18,12],[16,5],[14,12]], blade, edge)   // short leaf blade
@@ -2282,7 +2284,7 @@ function itemSprite(item) {
       g.fillStyle = '#3b2a16'; g.fillRect(15, 27.6, 2, 3.4)        // stub grip
       if (star) { g.fillStyle = 'rgba(120,220,255,.35)'; g.fillRect(15.4, 8, 1.2, 16) }
       break }
-    case 'bronze-spear': case 'star-spear': {
+    case 'iron-spear': case 'star-spear': {
       const star = item.startsWith('star-')
       const head = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
       g.strokeStyle = '#7a5124'; g.lineWidth = 2.6                 // the long haft
@@ -2293,7 +2295,7 @@ function itemSprite(item) {
       g.fillStyle = '#4a4a52'; g.fillRect(18.5, 10.5, 4.6, 2.2)    // collar
       if (star) { g.fillStyle = 'rgba(120,220,255,.4)'; g.fillRect(22.6, 3, 1, 6) }
       break }
-    case 'bronze-maul': case 'star-maul': {
+    case 'iron-maul': case 'star-maul': {
       const star = item.startsWith('star-')
       const head = star ? '#bfe6f5' : '#d8d1bc', edge = star ? '#4c98bb' : '#8b846f'
       g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
@@ -2361,7 +2363,7 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(255,160,50,' + (0.6 + 0.4 * glow) + ')'
       g.beginPath(); g.arc(17, 16, 1.8 + glow * 0.8, 0, 7); g.fill()
       break }
-    case 'bronze-flail': case 'star-flail': {
+    case 'iron-flail': case 'star-flail': {
       // a head on a CHAIN, and the chain is the whole point: it goes round
       // the plate rather than through it
       const st2 = item === 'star-flail'
@@ -2536,8 +2538,8 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
 // WHAT MAY BE TAKEN UP. Five things could be made and then not held: the
 // staff, the heartwood staff, the wand and both star tools.
 const EQUIPPABLE = new Set([
-  'bronze-dagger', 'bronze-hatchet', 'bronze-helm', 'bronze-maul',
-  'bronze-pickaxe', 'bronze-plate', 'bronze-spear', 'bronze-sword',
+  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-maul',
+  'iron-pickaxe', 'iron-plate', 'iron-spear', 'iron-sword',
   'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
   'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
@@ -2643,9 +2645,9 @@ const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow',
 // clicked a mob at nine tiles with the dragonbow should loose an arrow, not
 // stroll into its teeth.
 const WEAPON_REACH = {
-  'bronze-dagger': 1, 'bronze-sword': 1, 'bronze-spear': 2, 'bronze-maul': 1,
+  'iron-dagger': 1, 'iron-sword': 1, 'iron-spear': 2, 'iron-maul': 1,
   'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
-  'old-chain': 1, 'bronze-flail': 1, 'star-flail': 1,
+  'old-chain': 1, 'iron-flail': 1, 'star-flail': 1,
   'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
   'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
 }
@@ -2660,7 +2662,7 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // both deep fish, wool, crab-shell -- so this window would not offer to sell
 // them and could not price them.
 const PRICES = {
-  'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
@@ -2680,8 +2682,8 @@ const PRICES = {
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   'heartwood-bow': 540,
-  'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
-  'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
+  'magic-stone': 20, 'iron-sword': 15, 'iron-hatchet': 10, 'iron-pickaxe': 10,
+  'iron-helm': 12, 'iron-plate': 30, 'wooden-bow': 8, 'grain': 4,
   // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
   //
   // A star plate was two hundred, which is seven minutes of a beginner's
@@ -2716,6 +2718,83 @@ const PRICES = {
 // guesses at this offers a citizen things they cannot buy.
 const STORE_SELLS = { seeds: 15 }
 // <<< CONSTITUTIONAL IDENTITY BLOCK
+// ---- v6 NODE FAMILIES ------------------------------------------------------
+// Every drawing routine below asks `famOf(n.type) === 'tree'` or `'rock'` and so on.
+// The founding has seated `oak-tree`, `iron-rock`, `eel-spot` and the rest
+// since v6, and `ironbark-tree`, `gallows-oak`, `mother-lode`, `gold-rock` and
+// `gibbet-shoal` since the balance pass -- none of which any window had ever
+// heard of, so ELEVEN OF THE FOURTEEN GATHERING NODES IN THE WORLD DREW
+// NOTHING AT ALL. A citizen stood at an invisible oak.
+//
+// Rather than eleven more routines: a family, and a tint. `famOf` folds a type
+// onto the shape a window already knows how to paint, and `tintOf` says what
+// colour that shape should be. A node type invented tomorrow draws as its
+// family the day it is seated, which is the only way a client keeps up with a
+// constitution it does not control.
+// ---- v6 ITEM FAMILIES ------------------------------------------------------
+// The icon switch below names items one at a time, and the constitution has
+// grown past it: oak-logs and ironbark and heartwood-rod and every shield and
+// the whole gold ladder had no case, so they drew as the blank fallback -- a
+// citizen's pack full of grey squares. Rather than thirty more hand-drawn
+// icons, each unknown item borrows the drawing of the thing it IS and says so
+// in its colour. `iconAliasOf` runs before the switch; `iconTintOf` is applied
+// over the result.
+const ICON_ALIAS = {
+  'oak-logs': 'logs', 'ironbark': 'logs', 'heartwood': 'logs',
+  'iron': 'ore', 'coal': 'ore', 'magic-stone': 'ore', 'gold-ore': 'ore',
+  'steel': 'ore', 'star-ingot': 'ore', 'gold-bar': 'ore',
+  'eel': 'raw-fish', 'deep-fish': 'raw-fish',
+  'cooked-eel': 'cooked-fish', 'cooked-deep-fish': 'cooked-fish',
+  'burnt-eel': 'burnt-fish', 'burnt-deep-fish': 'burnt-fish',
+  'deep-broth': 'broth',
+  'rod': 'staff', 'oak-rod': 'staff', 'ironbark-rod': 'staff', 'heartwood-rod': 'staff',
+  'iron-shield': 'iron-helm', 'steel-shield': 'steel-helm', 'star-shield': 'star-helm',
+  'gold-helm': 'star-helm', 'gold-plate': 'star-plate', 'gold-legs': 'star-plate',
+  'king-shroud': 'star-plate',
+  'great-hatchet': 'star-hatchet', 'great-pickaxe': 'star-pickaxe',
+  'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
+  'steel-sword': 'iron-sword', 'steel-plate': 'iron-plate',
+  'steel-dagger': 'iron-dagger', 'steel-spear': 'iron-spear',
+}
+const ICON_TINT = {
+  'oak-logs': '#6b4a22', 'ironbark': '#3f5a3a', 'heartwood': '#b08a3e',
+  'coal': '#2c2c2e', 'magic-stone': '#8ce0ff', 'gold-ore': '#ffd23f',
+  'gold-bar': '#ffd23f', 'star-ingot': '#8ce0ff', 'steel': '#b9c0c8',
+  'eel': '#4a6b3a', 'deep-fish': '#2f4f7a',
+  'cooked-eel': '#7a6b3a', 'cooked-deep-fish': '#8a6f45',
+  'deep-broth': '#3a5a6b',
+  'oak-rod': '#6b4a22', 'ironbark-rod': '#3f5a3a', 'heartwood-rod': '#b08a3e',
+  'gold-helm': '#ffd23f', 'gold-plate': '#ffd23f', 'gold-legs': '#ffd23f',
+  'king-shroud': '#5a3340',
+  'steel-hatchet': '#b9c0c8', 'steel-pickaxe': '#b9c0c8', 'steel-sword': '#b9c0c8',
+  'steel-plate': '#b9c0c8', 'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
+  'steel-helm': '#b9c0c8', 'iron-shield': '#8a8a82', 'steel-shield': '#b9c0c8',
+}
+const iconAliasOf = (it) => ICON_ALIAS[it] ?? it
+const iconTintOf  = (it) => ICON_TINT[it] ?? null
+const NODE_FAMILY = {
+  'tree': 'tree', 'oak-tree': 'tree', 'ironbark-tree': 'tree',
+  'heartwood-tree': 'tree', 'gallows-oak': 'tree',
+  'rock': 'rock', 'iron-rock': 'rock', 'coal-rock': 'rock', 'gold-rock': 'rock',
+  'magic-rock': 'magic-rock', 'mother-lode': 'magic-rock',
+  'fishing-spot': 'fishing-spot', 'eel-spot': 'fishing-spot',
+  'deep-fish-spot': 'fishing-spot', 'gibbet-shoal': 'fishing-spot',
+}
+const NODE_TINT = {
+  'oak-tree':       { leaf: '#3f6b25', dark: '#244014', lit: '#6f9a3e' },
+  'ironbark-tree':  { leaf: '#2f5a3a', dark: '#183324', lit: '#4f8257' },
+  'heartwood-tree': { leaf: '#7a5a24', dark: '#3d2c10', lit: '#b08a3e' },
+  'gallows-oak':    { leaf: '#5a3340', dark: '#2c1820', lit: '#8c5060' },
+  'iron-rock':      { body: '#7a7a72', edge: '#4a4a44' },
+  'coal-rock':      { body: '#3c3c3e', edge: '#1e1e20' },
+  'gold-rock':      { body: '#8a7c4a', edge: '#4d4527', ore: '#ffd23f' },
+  'mother-lode':    { body: '#5a4a6c', edge: '#2a2030' },
+  'eel-spot':       { water: '#2f5d7a' },
+  'deep-fish-spot': { water: '#1f3f66' },
+  'gibbet-shoal':   { water: '#3a2a4a' },
+}
+const famOf  = (t) => NODE_FAMILY[t] ?? t
+const tintOf = (t) => NODE_TINT[t] ?? null
 const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'magic-rock': 'mining', 'fishing-spot': 'fishing' }
 // §6: A MAGIC-ROCK ASKS FOR MINING 70, and neither window knew it. A citizen
 // walked to the glowing rock, clicked it, and NOTHING happened -- the engine
@@ -3173,7 +3252,7 @@ function stepToward(s, me, goal, reach, stampTick) {
 // §6ad: THE FORGE MENU.
 //
 // This used to GUESS. A cascade of if-elses picked one recipe from your pack
-// and made it — which was right when the anvil offered a tool or a bronze
+// and made it — which was right when the anvil offered a tool or a iron
 // sword, and is not right now that it offers eighteen. Six were reachable at
 // all, and there was no way to ask for a particular one: a citizen with ore,
 // logs and magic-stone got a star-plate whether or not that is what they
@@ -3190,14 +3269,14 @@ function stepToward(s, me, goal, reach, stampTick) {
 // which is most of the value of building this at all. The failing clause is
 // coloured, not the whole row.
 const FORGE = {
-  'bronze-dagger':  { ore: 1 },
-  'bronze-hatchet': { ore: 1, logs: 1 },
-  'bronze-pickaxe': { ore: 1, logs: 1 },
-  'bronze-spear':   { ore: 1, logs: 1 },
-  'bronze-helm':    { ore: 1, logs: 1 },
-  'bronze-sword':   { ore: 2, logs: 1 },
-  'bronze-maul':    { ore: 2, logs: 1 },
-  'bronze-plate':   { ore: 3, logs: 1 },
+  'iron-dagger':  { ore: 1 },
+  'iron-hatchet': { ore: 1, logs: 1 },
+  'iron-pickaxe': { ore: 1, logs: 1 },
+  'iron-spear':   { ore: 1, logs: 1 },
+  'iron-helm':    { ore: 1, logs: 1 },
+  'iron-sword':   { ore: 2, logs: 1 },
+  'iron-maul':    { ore: 2, logs: 1 },
+  'iron-plate':   { ore: 3, logs: 1 },
   'crossbow':       { ore: 2, logs: 2 },
   'sigil-bow':      { 'horn-bow': 1, sigil: 3 },
   'star-helm':      { 'magic-stone': 2, ore: 1 },
@@ -3216,7 +3295,7 @@ const FORGE_REQ = {
   'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 },
   'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
   'star-flail': { smithing: 26, magic: 14 },
-  'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
+  'crossbow': { smithing: 18 }, 'iron-flail': { smithing: 8 },
   'sigil-bow': { smithing: 12, magic: 25 },
   'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
 }
@@ -3257,7 +3336,7 @@ function openForge(me) {
   box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);'
     + 'z-index:60;background:#241f18;border:3px solid #8a6f45;padding:10px 12px;'
     + 'max-height:78%;overflow-y:auto;min-width:330px;font:12px Verdana;color:#e2d6b8'
-  const groups = [['bronze', Object.keys(FORGE).filter((k) => k.startsWith('bronze-'))],
+  const groups = [['iron', Object.keys(FORGE).filter((k) => k.startsWith('iron-'))],
                   ['starmetal', Object.keys(FORGE).filter((k) => k.startsWith('star-'))],
                   ['and the rest', ['crossbow', 'sigil-bow']]]
   let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
@@ -3406,10 +3485,10 @@ const effects = []    // { kind, x, y, at } rites and works made visible
 // most want to see are the ordinary ones.
 // what each stall keeps, copied from the engine's STALL_SELLS
 const STALL_SELLS = {
-  lumber: { 'bronze-hatchet': 20 },
-  delve:  { 'bronze-pickaxe': 20 },
-  arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
-  armour: { 'bronze-helm': 24 },
+  lumber: { 'iron-hatchet': 20 },
+  delve:  { 'iron-pickaxe': 20 },
+  arms:   { 'iron-dagger': 16, 'iron-sword': 30, 'iron-spear': 28 },
+  armour: { 'iron-helm': 24 },
   bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
   seed:   { seeds: 22 },
 }
@@ -3542,7 +3621,7 @@ function drawMini(s) {
   cx.drawImage(miniCv, mx, my, MW, MH)
   const sx2 = MW / W, sy2 = MH / H
   cx.fillStyle = 'rgba(42,95,125,.9)'
-  for (const n of (s._nodesV ?? [])) if (n.type === 'fishing-spot') cx.fillRect(mx + n.x * sx2, my + n.y * sy2, 1.4, 1.4)
+  for (const n of (s._nodesV ?? [])) if (famOf(n.type) === 'fishing-spot') cx.fillRect(mx + n.x * sx2, my + n.y * sy2, 1.4, 1.4)
   cx.strokeStyle = 'rgba(255,255,255,.5)'; cx.lineWidth = 1
   cx.strokeRect(mx + cam.x * sx2, my + cam.y * sy2, (cv.width / TILE) * sx2, (cv.height / TILE) * sy2)
   const meP2 = s.players[myId]
@@ -3997,8 +4076,8 @@ function onState(s, worldId) {
     const GAIN = {
   'wooden-bow': 'You whittle the log into a bow.',
   'arrows': 'You knap the bones into arrowheads. Five arrows.',
-  'bronze-helm': 'You hammer out a bronze helm.',
-  'bronze-plate': 'You hammer out a bronze platebody.', 'logs': 'You get some logs.', 'ore': 'You manage to mine some ore.',
+  'iron-helm': 'You hammer out a iron helm.',
+  'iron-plate': 'You hammer out a iron platebody.', 'logs': 'You get some logs.', 'ore': 'You manage to mine some ore.',
                    'raw-fish': 'You catch a fish!', 'cooked-fish': 'Nicely cooked.',
                    'burnt-fish': 'You accidentally burn the fish.' }
     const cnt = inv => inv.reduce((m, sl) => (sl && (m[sl.item] = (m[sl.item] || 0) + 1), m), {})
@@ -4663,25 +4742,58 @@ function drawCitizen(X, Y, o) {
   cx.fillStyle = '#4a3a26'
   cx.fillRect(X + 16 + step * 1.5, Y + 28, 3.4, 7 - Math.abs(step))
   cx.fillRect(X + 21 - step * 1.5, Y + 28, 3.4, 7 - Math.abs(step))
+  // 6ce: GOLD LEGS. Painted over the breeches and under the tunic hem, so the
+  // silhouette reads as a citizen in greaves rather than a citizen in trousers
+  // the wrong colour. They defend nothing -- the whole of what they do is be
+  // seen, so this routine IS the item, and a window that skipped it would have
+  // made four hundred hours of the gold seam buy an invisible thing.
+  if (o.legs) {
+    cx.fillStyle = '#e8b93a'
+    cx.fillRect(X + 15 + step * 1.5, Y + 28, 3.6, 7 - Math.abs(step))
+    cx.fillRect(X + 20.9 - step * 1.5, Y + 28, 3.6, 7 - Math.abs(step))
+    cx.fillStyle = 'rgba(255,244,190,.55)'
+    cx.fillRect(X + 15 + step * 1.5, Y + 28, 3.6, 1.3)
+    cx.fillRect(X + 20.9 - step * 1.5, Y + 28, 3.6, 1.3)
+    cx.fillStyle = 'rgba(90,60,0,.30)'
+    cx.fillRect(X + 15 + step * 1.5, Y + 31.5, 3.6, 0.9)
+    cx.fillRect(X + 20.9 - step * 1.5, Y + 31.5, 3.6, 0.9)
+  }
   // tunic (trapezoid, slight lean while working)
   const lean = swing * 1.5 * F
   poly([[X+14+lean, Y+16], [X+26+lean, Y+16], [X+27, Y+29], [X+13, Y+29]], tunic, tunicDk)
   if (o.plate) { // metal across the chest: the tunic peeks at the shoulders
-    cx.fillStyle = o.starPlate ? '#5cb8d9' : '#a3743a'; cx.fillRect(X + 13.5, Y + 16.5, 13, 6.5)
-    cx.fillStyle = o.starPlate ? 'rgba(224,246,255,.45)' : 'rgba(255,255,255,.18)'; cx.fillRect(X + 13.5, Y + 16.5, 13, 1.4)
+    cx.fillStyle = o.goldPlate ? '#e8b93a' : o.starPlate ? '#5cb8d9' : '#a3743a'; cx.fillRect(X + 13.5, Y + 16.5, 13, 6.5)
+    cx.fillStyle = o.goldPlate ? 'rgba(255,244,190,.60)' : o.starPlate ? 'rgba(224,246,255,.45)' : 'rgba(255,255,255,.18)'; cx.fillRect(X + 13.5, Y + 16.5, 13, 1.4)
     cx.fillStyle = 'rgba(0,0,0,.18)'; cx.fillRect(X + 19.6, Y + 16.5, 0.9, 6.5)
   }
   cx.fillStyle = tunicDk; cx.fillRect(X + 13, Y + 22, 14, 1.6) // belt
   // rear arm
   cx.fillStyle = skin
   cx.fillRect(X + (F > 0 ? 12 : 25), Y + 17, 3, 8 + swing * 2)
+  // 6ce: THE SHIELD, ON THE OFF ARM. Drawn on the REAR side and before the
+  // tool arm, so it reads as held behind the body and can never cover the axe,
+  // the bow or the blow -- which is the one thing a window must not do to a
+  // fight anybody is reading. A two-hander empties this slot in the engine, so
+  // nothing here has to know about hands: if it is there, it is legal.
+  if (o.shield) {
+    const sx = X + (F > 0 ? 9.5 : 27.5), sy = Y + 17.5 + swing
+    const face = o.shield === 'star-shield' ? '#5cb8d9'
+               : o.shield === 'steel-shield' ? '#9aa3ac' : '#8a6a3e'
+    const rim  = o.shield === 'star-shield' ? '#2b6d86'
+               : o.shield === 'steel-shield' ? '#5d646b' : '#4d3a1e'
+    poly([[sx, sy], [sx + 6, sy - 1.4], [sx + 6, sy + 7], [sx + 3, sy + 10.5], [sx, sy + 7]], face, rim)
+    cx.fillStyle = 'rgba(255,255,255,.22)'
+    cx.fillRect(sx + 1, sy + 0.6, 1.6, 6.4)
+    cx.fillStyle = rim
+    cx.fillRect(sx + 0.4, sy + 3.4, 5.4, 1.1)
+  }
   // tool arm + tool
   const ax = X + (F > 0 ? 25 : 12), ay = Y + 17
   cx.save()
   cx.translate(ax + 1.5, ay + 1)
   cx.rotate(F * (o.anim === 'gather' ? -0.6 + swing * 0.9 : (o.anim === 'fight' && !o.shooting) ? -0.3 + swing * 1.1 : 0.15))
   cx.fillStyle = skin; cx.fillRect(-1.5, 0, 3, 9)
-  const metal = o.starSword && o.anim === 'fight' ? '#8ce0ff' : o.bronzeTool ? '#c9862a' : '#8a8a82'
+  const metal = o.starSword && o.anim === 'fight' ? '#8ce0ff' : o.ironTool ? '#c9862a' : '#8a8a82'
   if (o.anim === 'gather' && o.tool === 'rod') { // fishing rod: long, thin, line down
     cx.rotate(F * -0.5)
     cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, 6, 1.6, 15)
@@ -4694,22 +4806,22 @@ function drawCitizen(X, Y, o) {
   } else if (o.anim === 'gather') { // hatchet
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 9)
     cx.fillStyle = metal; cx.fillRect(F > 0 ? 1 : -6, 14, 5, 4)
-  } else if (o.anim === 'fight') { // sword: bronze gleams if forged
+  } else if (o.anim === 'fight') { // sword: iron gleams if forged
     cx.fillStyle = o.sword ? '#c9862a' : '#b8b8b0'; cx.fillRect(-1, 8, 2, o.sword ? 14 : 12)
     cx.fillStyle = '#5c4023'; cx.fillRect(-3, 8, 6, 2)
   }
   cx.restore()
-  if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.bronzeTool)) {
+  if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.ironTool)) {
     // whatever you wield rides at the hip, for all to see
     cx.save(); cx.translate(X + (F > 0 ? 13 : 27), Y + 24); cx.rotate(F * 0.7)
-    if (o.wepItem === 'bronze-sword') {
+    if (o.wepItem === 'iron-sword') {
       cx.fillStyle = '#c9862a'; cx.fillRect(-0.8, 0, 1.6, 8)
       cx.fillStyle = '#5c4023'; cx.fillRect(-2.2, -1, 4.4, 1.6)
-    } else if (o.wepItem === 'bronze-pickaxe') {
+    } else if (o.wepItem === 'iron-pickaxe') {
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
       cx.strokeStyle = '#c9862a'; cx.lineWidth = 2
       cx.beginPath(); cx.arc(0, 0, 3.4, 3.4, 6.1); cx.stroke()
-    } else if (o.wepItem === 'bronze-hatchet') {
+    } else if (o.wepItem === 'iron-hatchet') {
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
       cx.fillStyle = '#c9862a'; cx.fillRect(F > 0 ? 0.5 : -4.5, -1, 4, 3.4)
     } else if (o.wepItem === 'star-dagger') {
@@ -4717,7 +4829,7 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.7, 0, 1.4, 6)
       cx.fillStyle = '#dffaff'; cx.fillRect(-0.35, 0, 0.7, 6)
       cx.fillStyle = '#3a5a6a'; cx.fillRect(-2, -1, 4, 1.4)
-    } else if (o.wepItem === 'bronze-dagger') {
+    } else if (o.wepItem === 'iron-dagger') {
       cx.fillStyle = '#c9862a'; cx.fillRect(-0.7, 0, 1.4, 5.5)
       cx.fillStyle = '#5c4023'; cx.fillRect(-1.8, -1, 3.6, 1.4)
     } else if (o.wepItem === 'star-sword') {
@@ -4745,13 +4857,13 @@ function drawCitizen(X, Y, o) {
       cx.beginPath(); cx.arc(0, -3.5, 1.5, 0, 7); cx.fill()
       cx.fillStyle = 'rgba(160,206,224,.45)'
       cx.beginPath(); cx.arc(0, -3.5, 3, 0, 7); cx.fill()
-    } else if (o.wepItem === 'bronze-spear' || o.wepItem === 'star-spear') {
+    } else if (o.wepItem === 'iron-spear' || o.wepItem === 'star-spear') {
       // a long haft carried upright: it is taller than the citizen
       const star9 = o.wepItem === 'star-spear'
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
-    } else if (o.wepItem === 'bronze-maul' || o.wepItem === 'star-maul') {
+    } else if (o.wepItem === 'iron-maul' || o.wepItem === 'star-maul') {
       // a heavy head on a short haft. It should look like it weighs something.
       const star9 = o.wepItem === 'star-maul'
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
@@ -4759,7 +4871,7 @@ function drawCitizen(X, Y, o) {
       cx.fillRect(-3.2, -6, 6.4, 4.6)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       cx.fillRect(-3.2, -6, 6.4, 1.4)
-    } else if (o.wepItem === 'bronze-flail' || o.wepItem === 'star-flail') {
+    } else if (o.wepItem === 'iron-flail' || o.wepItem === 'star-flail') {
       // haft, chain, spiked head -- the chain is the point of the thing
       const star9 = o.wepItem === 'star-flail'
       cx.fillStyle = star9 ? '#5a4f6b' : '#5c4023'; cx.fillRect(-0.8, 0, 1.6, 9)
@@ -4801,9 +4913,9 @@ function drawCitizen(X, Y, o) {
   // head: skin, hair cap, eye toward facing
   cx.fillStyle = skin; cx.fillRect(X + 15.5, Y + 7, 9, 9)
   if (o.helm) { // metal over the brow; the barber weeps
-    cx.fillStyle = o.starHelm ? '#5cb8d9' : '#a3743a'
+    cx.fillStyle = o.goldHelm ? '#e8b93a' : o.starHelm ? '#5cb8d9' : '#a3743a'
     cx.fillRect(X + 14.5, Y + 5, 11, 4.6)
-    cx.fillStyle = o.starHelm ? 'rgba(224,246,255,.5)' : 'rgba(255,255,255,.2)'
+    cx.fillStyle = o.goldHelm ? 'rgba(255,244,190,.65)' : o.starHelm ? 'rgba(224,246,255,.5)' : 'rgba(255,255,255,.2)'
     cx.fillRect(X + 14.5, Y + 5, 11, 1.2)
   } else {
     cx.fillStyle = flash ? '#ffffff' : look.hair
@@ -4898,7 +5010,7 @@ function drawScene(now) {
   const _vw = Math.ceil(cv.width / (TILE * ZR)) + 2, _vh = Math.ceil(cv.height / (TILE * ZR)) + 2
   for (const [id, n] of nodesNear(s, cam.x - 2, cam.y - 2, cam.x + _vw, cam.y + _vh)) {
     const X = px(n.x), Y = py(n.y), dep = n.depletedUntil > s.tick
-    if (n.type === 'fishing-spot') {
+    if (famOf(n.type) === 'fishing-spot') {
       // ponds paint flat on the ground, below every standing thing
       layer.push({ z: Z(n.y, 0), draw: () => {
         // one body of water, organic banks: exposed corners round off with
@@ -5591,7 +5703,7 @@ function drawScene(now) {
         }
         return
       }
-      if (n.type === 'tree' && tileHash(n.x, n.y, 7) % 3 === 0) {
+      if (famOf(n.type) === 'tree' && tileHash(n.x, n.y, 7) % 3 === 0) {
         // the deciduous cousin: round canopy, sun-kissed crown
         if (!dep) shadow(X, Y, 12)
         cx.fillStyle = '#4a3319'; cx.fillRect(X + 17.5, Y + 22, 5, 12)
@@ -5603,7 +5715,7 @@ function drawScene(now) {
           cx.fillStyle = '#4f9433'; cx.beginPath(); cx.arc(X + 16 + sway2, Y + 11, 5, 0, 7); cx.fill()
         } else { shadow(X, Y, 7); poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319') }
       }
-      else if (n.type === 'tree' && HD && tileHash(n.x, n.y, 13) % 4 === 0 && (() => {
+      else if (famOf(n.type) === 'tree' && HD && tileHash(n.x, n.y, 13) % 4 === 0 && (() => {
         const lt = ((now / 5200) + (n.x * 7 + n.y * 13) % 10 / 10) % 1
         if (lt < 0.55) {
           cx.fillStyle = 'rgba(110,160,60,' + (0.9 - lt) + ')'
@@ -5612,7 +5724,7 @@ function drawScene(now) {
         }
         return false
       })()) {}
-      else if (n.type === 'tree' && biomeAtE4(n.x, n.y) === 'wilds') {
+      else if (famOf(n.type) === 'tree' && biomeAtE4(n.x, n.y) === 'wilds') {
         // A TREE IN THE WILDS IS A DEAD TREE.
         //
         // There are a hundred and thirty-four of them out there and they were
@@ -5651,7 +5763,7 @@ function drawScene(now) {
         cx.restore()
         return
       }
-      else if (n.type === 'tree') {
+      else if (famOf(n.type) === 'tree') {
         const v = tileHash(n.x, n.y, 9) % 3
         const dk = ['#26571a', '#225122', '#2b5a14'][v]
         const g1 = ['#2f6b1e', '#2a6329', '#356f18'][v]
@@ -5670,7 +5782,7 @@ function drawScene(now) {
           poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319')
         }
       }
-      if (n.type === 'magic-rock') {
+      if (famOf(n.type) === 'magic-rock') {
         shadow(X, Y, 10)
         const pulse = (Math.sin(now / 600 + n.x) + 1) / 2
         poly([[X+8,Y+30],[X+14,Y+18],[X+24,Y+15],[X+32,Y+22],[X+29,Y+31],[X+11,Y+32]], dep ? '#3a3a44' : '#4a4a5c', '#1c1c26')
@@ -5682,7 +5794,7 @@ function drawScene(now) {
           cx.beginPath(); cx.arc(X + 21, Y + 18, 16 + pulse * 4, 0, 7); cx.fill()
         }
       }
-      if (n.type === 'rock') {
+      if (famOf(n.type) === 'rock') {
         const v = tileHash(n.x, n.y, 8) % 3
         const c = dep ? '#3a3a3a' : ['#7a7a72', '#83786a', '#6f7478'][v]
         const cd = dep ? '#2e2e2e' : ['#5c5c55', '#645a4e', '#53575c'][v]
@@ -6138,7 +6250,7 @@ function drawScene(now) {
       } else if (g2.item === 'bones') {
         cx.fillStyle = '#efe9d8'; cx.fillRect(X + 4, Y + 31, 12, 2.6)
         cx.fillStyle = '#fffdf2'; cx.fillRect(X + 3, Y + 29, 3.4, 7); cx.fillRect(X + 14, Y + 29, 3.4, 7)
-      } else if (g2.item?.startsWith('bronze-')) {
+      } else if (g2.item?.startsWith('iron-')) {
         cx.fillStyle = '#c9862a'; cx.fillRect(X + 5, Y + 30, 11, 3)
         cx.fillStyle = '#8a5c1a'; cx.fillRect(X + 5, Y + 33, 11, 1.4)
       } else {
@@ -6725,11 +6837,11 @@ function drawScene(now) {
         : p.action?.type === 'gather' ? 'gather'
                : p.action?.type === 'attack' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
-    const tool = workNode?.type === 'fishing-spot' ? 'rod'
-               : (workNode?.type === 'rock' || workNode?.type === 'magic-rock') ? 'pick' : 'axe'
+    const tool = famOf(workNode?.type) === 'fishing-spot' ? 'rod'
+               : (famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'magic-rock') ? 'pick' : 'axe'
     const wep = p.equipment?.weapon?.item
-    const bronzeTool = (workNode?.type === 'tree' && wep === 'bronze-hatchet')
-                    || ((workNode?.type === 'rock' || workNode?.type === 'magic-rock') && wep === 'bronze-pickaxe')
+    const ironTool = (famOf(workNode?.type) === 'tree' && wep === 'iron-hatchet')
+                    || ((famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'magic-rock') && wep === 'iron-pickaxe')
     const awake = isAwake(p, s.tick)
     const dying = p.hp <= 0, deadStart = (p.deadUntil ?? s.tick) - 5
     if ((p.stilledUntil ?? 0) > s.tick) layer.push({ z: Z(iy, 5), draw: () => { // the truce, over a citizen
@@ -6753,6 +6865,8 @@ function drawScene(now) {
         drawCitizen(px(ix), py(iy), { now, pid, player: p, face: facing[pid] ?? 1, anim: 'idle', tool,
           mine: pid === myId, cape: capeOf(p), helm: !!p.equipment?.head, plate: !!p.equipment?.body,
           starHelm: p.equipment?.head?.item === 'star-helm', starPlate: p.equipment?.body?.item === 'star-plate',
+          shield: p.equipment?.offhand?.item ?? null, legs: p.equipment?.legs?.item ?? null,
+          goldHelm: p.equipment?.head?.item === 'gold-helm', goldPlate: p.equipment?.body?.item === 'gold-plate',
           wepItem: wep, name: '', hp: 1, maxHp: 1 })
         cx.restore()
         cx.globalAlpha = 0.7 * (1 - prog); cx.fillStyle = '#e8e6d2' // the soul
@@ -6780,7 +6894,12 @@ function drawScene(now) {
       helm: !!p.equipment?.head, plate: !!p.equipment?.body,
       starHelm: p.equipment?.head?.item === 'star-helm',
       starPlate: p.equipment?.body?.item === 'star-plate',
-        sword: wep === 'bronze-sword', wepItem: wep, bronzeTool,
+      // 6ce: the off hand and the legs
+      shield: p.equipment?.offhand?.item ?? null,
+      legs: p.equipment?.legs?.item ?? null,
+      goldHelm: p.equipment?.head?.item === 'gold-helm',
+      goldPlate: p.equipment?.body?.item === 'gold-plate',
+        sword: wep === 'iron-sword', wepItem: wep, ironTool,
         // A COMMA, NOT AN INTERPUNCT. "Rosamund, banker (412)" is a person
         // with a job; "Rosamund . banker (412)" is two fields in a table. The
         // lantern window has always used the comma; this one had not.
@@ -7128,7 +7247,7 @@ function drawScene(now) {
         cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       if (n.type === 'watchfire' && n.fuelUntil > s.tick) push(n.x, n.y, 0.62, 0.95 + glNight * 0.6, [1, 0.68, 0.3])
       else if (n.type === 'campfire' || (n.type === 'fire' && n.expiresAt > s.tick)) push(n.x, n.y, 0.26, 0.75 + glNight * 0.5, [1, 0.62, 0.24])
-      else if (n.type === 'magic-rock' && n.depletedUntil <= s.tick) push(n.x, n.y, 0.13, 0.4, [0.4, 0.85, 1])
+      else if (famOf(n.type) === 'magic-rock' && n.depletedUntil <= s.tick) push(n.x, n.y, 0.13, 0.4, [0.4, 0.85, 1])
     }
     for (const p of Object.values(s.players)) {
       if (p.equipment?.head?.item === 'star-helm' || p.equipment?.body?.item === 'star-plate' || p.equipment?.weapon?.item === 'star-sword')
@@ -7166,7 +7285,7 @@ function drawScene(now) {
         cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       const isWatch = n.type === 'watchfire' && n.fuelUntil > s.tick
       const isFire = n.type === 'campfire' || n.type === 'fire' || isWatch
-      const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
+      const isGlow = famOf(n.type) === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
@@ -7185,7 +7304,7 @@ function drawScene(now) {
         cam.x + Math.ceil(cv.width / (TILE * ZR)) + 8,
         cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       const isFire = n.type === 'campfire' || n.type === 'fire'
-      const isGlow = n.type === 'magic-rock' && n.depletedUntil <= s.tick
+      const isGlow = famOf(n.type) === 'magic-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
@@ -8511,7 +8630,7 @@ cv.addEventListener('click', (e) => {
         feed('Your pack is full: bank it, drop it, or use it.')
         return
       }
-      if (n.type === 'magic-rock') {
+      if (famOf(n.type) === 'magic-rock') {
         const lv = XP_TO_LVL(me.skills?.mining ?? 0)
         if (lv < MAGIC_ROCK_MINING) {
           feed('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING

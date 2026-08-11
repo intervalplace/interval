@@ -2030,8 +2030,8 @@ function terrainOf(x, y) {
 //
 // Checked against the engine at build time, the same way PRICES is.
 const EQUIPPABLE = new Set([
-  'bronze-dagger', 'bronze-hatchet', 'bronze-helm', 'bronze-maul',
-  'bronze-pickaxe', 'bronze-plate', 'bronze-spear', 'bronze-sword',
+  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-maul',
+  'iron-pickaxe', 'iron-plate', 'iron-spear', 'iron-sword',
   'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
   'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
@@ -2137,9 +2137,9 @@ const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow',
 // clicked a mob at nine tiles with the dragonbow should loose an arrow, not
 // stroll into its teeth.
 const WEAPON_REACH = {
-  'bronze-dagger': 1, 'bronze-sword': 1, 'bronze-spear': 2, 'bronze-maul': 1,
+  'iron-dagger': 1, 'iron-sword': 1, 'iron-spear': 2, 'iron-maul': 1,
   'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
-  'old-chain': 1, 'bronze-flail': 1, 'star-flail': 1,
+  'old-chain': 1, 'iron-flail': 1, 'star-flail': 1,
   'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
   'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
 }
@@ -2160,7 +2160,7 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 //
 // It also carried `seeds`, which the engine does not price at all.
 const PRICES = {
-  'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
@@ -2180,8 +2180,8 @@ const PRICES = {
   // five hundred thousand logs getting there is paid for it.
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   'heartwood-bow': 540,
-  'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
-  'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
+  'magic-stone': 20, 'iron-sword': 15, 'iron-hatchet': 10, 'iron-pickaxe': 10,
+  'iron-helm': 12, 'iron-plate': 30, 'wooden-bow': 8, 'grain': 4,
   // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
   //
   // A star plate was two hundred, which is seven minutes of a beginner's
@@ -2223,6 +2223,87 @@ const PRICES = {
 // founding may give a keeper something of their own again.
 const STORE_SELLS = {}
 // <<< CONSTITUTIONAL IDENTITY BLOCK
+// ---- v6 NODE FAMILIES ------------------------------------------------------
+// Every drawing routine below asks `famOf(n.type) === 'tree'` or `'rock'` and so on.
+// The founding has seated `oak-tree`, `iron-rock`, `eel-spot` and the rest
+// since v6, and `ironbark-tree`, `gallows-oak`, `mother-lode`, `gold-rock` and
+// `gibbet-shoal` since the balance pass -- none of which any window had ever
+// heard of, so ELEVEN OF THE FOURTEEN GATHERING NODES IN THE WORLD DREW
+// NOTHING AT ALL. A citizen stood at an invisible oak.
+//
+// Rather than eleven more routines: a family, and a tint. `famOf` folds a type
+// onto the shape a window already knows how to paint, and `tintOf` says what
+// colour that shape should be. A node type invented tomorrow draws as its
+// family the day it is seated, which is the only way a client keeps up with a
+// constitution it does not control.
+// ---- v6 ITEM FAMILIES ------------------------------------------------------
+// The icon switch below names items one at a time, and the constitution has
+// grown past it: oak-logs and ironbark and heartwood-rod and every shield and
+// the whole gold ladder had no case, so they drew as the blank fallback -- a
+// citizen's pack full of grey squares. Rather than thirty more hand-drawn
+// icons, each unknown item borrows the drawing of the thing it IS and says so
+// in its colour. `iconAliasOf` runs before the switch; `iconTintOf` is applied
+// over the result.
+const ICON_ALIAS = {
+  'oak-logs': 'logs', 'ironbark': 'logs', 'heartwood': 'logs',
+  'iron': 'ore', 'coal': 'ore', 'magic-stone': 'ore', 'gold-ore': 'ore',
+  'steel': 'ore', 'star-ingot': 'ore', 'gold-bar': 'ore',
+  'eel': 'raw-fish', 'deep-fish': 'raw-fish',
+  'cooked-eel': 'cooked-fish', 'cooked-deep-fish': 'cooked-fish',
+  'burnt-eel': 'burnt-fish', 'burnt-deep-fish': 'burnt-fish',
+  'deep-broth': 'broth',
+  'rod': 'staff', 'oak-rod': 'staff', 'ironbark-rod': 'staff', 'heartwood-rod': 'staff',
+  'iron-shield': 'iron-helm', 'steel-shield': 'steel-helm', 'star-shield': 'star-helm',
+  'gold-helm': 'star-helm', 'gold-plate': 'star-plate', 'gold-legs': 'star-plate',
+  'king-shroud': 'star-plate',
+  'great-hatchet': 'star-hatchet', 'great-pickaxe': 'star-pickaxe',
+  'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
+  'steel-sword': 'iron-sword', 'steel-plate': 'iron-plate',
+  'steel-dagger': 'iron-dagger', 'steel-spear': 'iron-spear',
+}
+const ICON_TINT = {
+  'oak-logs': '#6b4a22', 'ironbark': '#3f5a3a', 'heartwood': '#b08a3e',
+  'coal': '#2c2c2e', 'magic-stone': '#8ce0ff', 'gold-ore': '#ffd23f',
+  'gold-bar': '#ffd23f', 'star-ingot': '#8ce0ff', 'steel': '#b9c0c8',
+  'eel': '#4a6b3a', 'deep-fish': '#2f4f7a',
+  'cooked-eel': '#7a6b3a', 'cooked-deep-fish': '#8a6f45',
+  'deep-broth': '#3a5a6b',
+  'oak-rod': '#6b4a22', 'ironbark-rod': '#3f5a3a', 'heartwood-rod': '#b08a3e',
+  'gold-helm': '#ffd23f', 'gold-plate': '#ffd23f', 'gold-legs': '#ffd23f',
+  'king-shroud': '#5a3340',
+  'steel-hatchet': '#b9c0c8', 'steel-pickaxe': '#b9c0c8', 'steel-sword': '#b9c0c8',
+  'steel-plate': '#b9c0c8', 'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
+  'steel-helm': '#b9c0c8', 'iron-shield': '#8a8a82', 'steel-shield': '#b9c0c8',
+}
+const SHIELD_PAINT = {   // 6ce: face and rim, by tier
+  'iron-shield': ['#8a6a3e', '#4d3a1e'], 'steel-shield': ['#9aa3ac', '#5d646b'],
+  'star-shield': ['#5cb8d9', '#2b6d86'],
+}
+const iconAliasOf = (it) => ICON_ALIAS[it] ?? it
+const iconTintOf  = (it) => ICON_TINT[it] ?? null
+const NODE_FAMILY = {
+  'tree': 'tree', 'oak-tree': 'tree', 'ironbark-tree': 'tree',
+  'heartwood-tree': 'tree', 'gallows-oak': 'tree',
+  'rock': 'rock', 'iron-rock': 'rock', 'coal-rock': 'rock', 'gold-rock': 'rock',
+  'magic-rock': 'magic-rock', 'mother-lode': 'magic-rock',
+  'fishing-spot': 'fishing-spot', 'eel-spot': 'fishing-spot',
+  'deep-fish-spot': 'fishing-spot', 'gibbet-shoal': 'fishing-spot',
+}
+const NODE_TINT = {
+  'oak-tree':       { leaf: '#3f6b25', dark: '#244014', lit: '#6f9a3e' },
+  'ironbark-tree':  { leaf: '#2f5a3a', dark: '#183324', lit: '#4f8257' },
+  'heartwood-tree': { leaf: '#7a5a24', dark: '#3d2c10', lit: '#b08a3e' },
+  'gallows-oak':    { leaf: '#5a3340', dark: '#2c1820', lit: '#8c5060' },
+  'iron-rock':      { body: '#7a7a72', edge: '#4a4a44' },
+  'coal-rock':      { body: '#3c3c3e', edge: '#1e1e20' },
+  'gold-rock':      { body: '#8a7c4a', edge: '#4d4527', ore: '#ffd23f' },
+  'mother-lode':    { body: '#5a4a6c', edge: '#2a2030' },
+  'eel-spot':       { water: '#2f5d7a' },
+  'deep-fish-spot': { water: '#1f3f66' },
+  'gibbet-shoal':   { water: '#3a2a4a' },
+}
+const famOf  = (t) => NODE_FAMILY[t] ?? t
+const tintOf = (t) => NODE_TINT[t] ?? null
 const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'fishing-spot': 'fishing' }
 
 // MAX HP IS NOT A FIELD. Spec 4, under Skills: "Max HP equals the hitpoints
@@ -2425,16 +2506,16 @@ const SKILL_UNLOCKS = {
     { level: 99, text: "the two dearest do" },
   ],
   smithing: [
-    { level: 1, text: "forge the bronze dagger" },
-    { level: 1, text: "forge the bronze hatchet" },
-    { level: 1, text: "forge the bronze pickaxe" },
-    { level: 5, text: "forge the bronze spear" },
-    { level: 7, text: "forge the bronze helm" },
-    { level: 10, text: "forge the bronze sword" },
+    { level: 1, text: "forge the iron dagger" },
+    { level: 1, text: "forge the iron hatchet" },
+    { level: 1, text: "forge the iron pickaxe" },
+    { level: 5, text: "forge the iron spear" },
+    { level: 7, text: "forge the iron helm" },
+    { level: 10, text: "forge the iron sword" },
     { level: 12, text: "forge the sigil bow (magic 25)" },
-    { level: 14, text: "forge the bronze maul" },
+    { level: 14, text: "forge the iron maul" },
     { level: 18, text: "forge the crossbow" },
-    { level: 20, text: "forge the bronze plate" },
+    { level: 20, text: "forge the iron plate" },
     { level: 40, text: "forge the star helm (magic 20)" },
     { level: 42, text: "forge the star hatchet (magic 22)" },
     { level: 42, text: "forge the star pickaxe (magic 22)" },
@@ -3413,6 +3494,20 @@ function humanoid(g, cx, base, o) {
   g.strokeStyle = o.boots ?? '#241d16'; g.lineWidth = 4.2 * s; g.lineCap = 'round'
   g.beginPath(); g.moveTo(cx - 2 * s, hipY); g.lineTo(cx - 2 * s + la, base); g.stroke()
   g.beginPath(); g.moveTo(cx + 2 * s, hipY); g.lineTo(cx + 2 * s + lb, base); g.stroke()
+  // 6ce: GREAVES, over the boot and short of the ankle, so the leg still reads
+  // as a leg that walks. Gold defends nothing -- being seen IS the item -- so a
+  // window that skipped this would have made four hundred hours at the seam buy
+  // an invisible thing. Stroked over the limb rather than drawn beside it,
+  // because this window builds a body out of strokes and a rectangle would sit
+  // on it like a sticker.
+  if (o.greaves) {
+    g.strokeStyle = o.greaves; g.lineWidth = 5 * s
+    g.beginPath(); g.moveTo(cx - 2 * s, hipY + 1 * s); g.lineTo(cx - 2 * s + la * .62, base - 4 * s); g.stroke()
+    g.beginPath(); g.moveTo(cx + 2 * s, hipY + 1 * s); g.lineTo(cx + 2 * s + lb * .62, base - 4 * s); g.stroke()
+    g.strokeStyle = 'rgba(255,244,190,.38)'; g.lineWidth = 1.6 * s
+    g.beginPath(); g.moveTo(cx - 3 * s, hipY + 2 * s); g.lineTo(cx - 3 * s + la * .5, base - 5 * s); g.stroke()
+    g.beginPath(); g.moveTo(cx + 1 * s, hipY + 2 * s); g.lineTo(cx + 1 * s + lb * .5, base - 5 * s); g.stroke()
+  }
   // body: broader at the shoulder the more of an adventurer this is
   const shW = (6.5 + bulk * 3.5) * s
   poly(g, [[cx - shW + hunch, shY], [cx + shW + hunch, shY],
@@ -3610,6 +3705,22 @@ function humanoid(g, cx, base, o) {
   const offX = cx - (8 + bulk * 3) * s - Math.sin(step) * 2 * s, offY = hipY + 2 * s
   g.beginPath(); g.moveTo(cx - shW * .85 + hunch, shY + 3 * s)
   g.lineTo(offX, offY); g.stroke()
+  // 6ce: THE SHIELD, on the off hand and drawn before the lantern and the
+  // weapon so it can never cover the blow -- the one thing this window must not
+  // do to a fight somebody is reading. The engine empties this slot when a
+  // two-hander is taken up, so if it is here it is legal and nothing on this
+  // side needs to know about hands.
+  if (o.shield) {
+    const kite = [[offX - 3.4 * s, offY - 5 * s], [offX + 3.4 * s, offY - 5 * s],
+                  [offX + 3.4 * s, offY + 3 * s], [offX, offY + 7.5 * s], [offX - 3.4 * s, offY + 3 * s]]
+    poly(g, kite, o.shield[0])
+    g.strokeStyle = o.shield[1]; g.lineWidth = 1.2 * s
+    g.beginPath(); g.moveTo(kite[0][0], kite[0][1])
+    for (const k of kite.slice(1)) g.lineTo(k[0], k[1])
+    g.closePath(); g.stroke()
+    g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1.4 * s
+    g.beginPath(); g.moveTo(offX - 1.6 * s, offY - 4 * s); g.lineTo(offX - 1.6 * s, offY + 2 * s); g.stroke()
+  }
   if (o.lantern) {
     // THE LANTERN. This window is named for it and the citizen was not carrying
     // it: the pool of light simply hung around them from nowhere. It swings a
@@ -3660,7 +3771,7 @@ function humanoid(g, cx, base, o) {
       g.fillStyle = 'rgba(255,240,214,.20)'
       g.beginPath(); g.ellipse(px2 - 1.6 * s, py2 - 2.2 * s, 3 * s, 1.8 * s, side * .34, 0, 7); g.fill()
       // A RIDGE, NOT A SPIKE. This was a long thin triangle standing off the
-      // shoulder in bronze, and at world scale it read as a short blade held in
+      // shoulder in iron, and at world scale it read as a short blade held in
       // a second hand -- which is what someone saw a citizen chopping with.
       // Armour should never be mistakeable for a weapon.
       poly(g, [[px2 + side * 4 * s, py2 - 4.4 * s],
@@ -3700,7 +3811,7 @@ function humanoid(g, cx, base, o) {
   }
   if (o.weapon) o.weapon(g, hx, hy, wa, s * (1 + bulk * .45))
   // THE TRADE BADGE, at the shoulder: the same engraved mark the mastery cape
-  // carries, in a small bronze roundel. It says which trade without claiming
+  // carries, in a small iron roundel. It says which trade without claiming
   // the mastery -- a keeper wears the sign of the work, a citizen who reached
   // ninety-nine wears the cape.
   if (o.badge) {
@@ -3832,7 +3943,7 @@ function humanoid(g, cx, base, o) {
 
 // ---- the weapon in the hand ------------------------------------------------
 const METAL = {
-  bronze:    ['#8a6a34', '#c49a4e', '#4c3a1c'],
+  iron:    ['#8a6a34', '#c49a4e', '#4c3a1c'],
   star:      ['#8fa8c4', '#d6e6f4', '#4a5a70'],
   iron:      ['#6e6e68', '#a8a8a0', '#3a3a36'],
   wood:      ['#6a4f2c', '#96733f', '#3a2a16'],
@@ -3840,7 +3951,7 @@ const METAL = {
   dragon:    ['#7a2018', '#c4462a', '#3a0e0a'],
 }
 const metalOf = (item) => item?.startsWith('star-') ? METAL.star
-  : item?.startsWith('bronze-') ? METAL.bronze
+  : item?.startsWith('iron-') ? METAL.iron
   : item === 'dragonbow' ? METAL.dragon
   : item?.includes('heartwood') ? METAL.heartwood
   : item === 'old-chain' ? METAL.iron
@@ -4904,7 +5015,7 @@ function drawBeast(g, cx, base, type, t, opt) {
       const hx5 = cx + 10 * s + lean + Math.cos(sw) * 6 * s
       const hy5 = shY + 6 * s + Math.sin(sw) * 6 * s
       limb(g, cx + 7 * s + lean, shY + 3 * s, hx5, hy5, 2.4 * s, 1.8 * s, h[0])
-      drawWeapon(g, hx5, hy5, sw, s * 1.1, 'bronze-sword')
+      drawWeapon(g, hx5, hy5, sw, s * 1.1, 'iron-sword')
       // the helm
       const hy6 = shY - 8 * s
       g.fillStyle = '#5e564a'
@@ -5184,8 +5295,8 @@ function drawFlame(g, cx, base, t, size, seed) {
 // THE PACK: one icon per noun
 // ---------------------------------------------------------------------------
 // 34 pixels square, because that is what a slot is. Weapons share a shape
-// vocabulary with the things drawn in hands out in the world, so a bronze
-// sword in the pack and a bronze sword in a fist are recognisably the same
+// vocabulary with the things drawn in hands out in the world, so a iron
+// sword in the pack and a iron sword in a fist are recognisably the same
 // object, which is the entire job of an inventory icon.
 function itemIcon(item) {
   return sprite('i:' + item, 34, 34, (g, W, H, R) => {
@@ -5203,13 +5314,13 @@ function itemIcon(item) {
     const haft = (top) => { g.strokeStyle = METAL.wood[0]; g.lineWidth = 3
       g.beginPath(); g.moveTo(cx + 6, cy + 14); g.lineTo(cx - 4, top); g.stroke() }
 
-    if (/^(bronze|star)-(sword)$/.test(item)) { blade(13, 4.4); return }
-    if (/^(bronze|star)-(dagger)$/.test(item)) { blade(8, 3.6); return }
-    if (/^(bronze|star)-(spear)$/.test(item)) {
+    if (/^(iron|star)-(sword)$/.test(item)) { blade(13, 4.4); return }
+    if (/^(iron|star)-(dagger)$/.test(item)) { blade(8, 3.6); return }
+    if (/^(iron|star)-(spear)$/.test(item)) {
       haft(cy - 8)
       poly(g, [[cx - 4, cy - 6], [cx - 6, cy - 15], [cx, cy - 9]], m[1])
       poly(g, [[cx - 4, cy - 6], [cx - 6, cy - 15], [cx - 8, cy - 6]], m[0]); return }
-    if (/^(bronze|star)-(maul)$/.test(item)) {
+    if (/^(iron|star)-(maul)$/.test(item)) {
       haft(cy - 6)
       poly(g, [[cx - 12, cy - 12], [cx + 2, cy - 14], [cx + 3, cy - 5], [cx - 11, cy - 3]], m[0])
       poly(g, [[cx - 12, cy - 12], [cx + 2, cy - 14], [cx + 2, cy - 10], [cx - 12, cy - 8]], m[1]); return }
@@ -5242,7 +5353,7 @@ function itemIcon(item) {
         g.beginPath(); g.moveTo(cx - 8 + Math.cos(a) * 5, cy - 10 + Math.sin(a) * 5)
         g.lineTo(cx - 8 + Math.cos(a) * 9, cy - 10 + Math.sin(a) * 9); g.stroke() }
       return }
-    // MATCH THE TOOL, NOT THE METAL. These were `item === 'bronze-hatchet'`,
+    // MATCH THE TOOL, NOT THE METAL. These were `item === 'iron-hatchet'`,
     // so a star hatchet had no icon at all -- an empty square in the pack.
     // metalOf already colours it; only the shape belongs here.
     if (item === 'forage') {
@@ -5695,10 +5806,10 @@ const STALL_NAME = {
   seed: 'the seedsman',
 }
 const STALL_STOCK = {
-  lumber: { 'bronze-hatchet': 20 },
-  delve:  { 'bronze-pickaxe': 20 },
-  arms:   { 'bronze-dagger': 16, 'bronze-sword': 30, 'bronze-spear': 28 },
-  armour: { 'bronze-helm': 24 },
+  lumber: { 'iron-hatchet': 20 },
+  delve:  { 'iron-pickaxe': 20 },
+  arms:   { 'iron-dagger': 16, 'iron-sword': 30, 'iron-spear': 28 },
+  armour: { 'iron-helm': 24 },
   bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
   seed:   { seeds: 22 },
 }
@@ -5742,20 +5853,20 @@ const CALLING_LINE = {
   beekeeper: 'He works bare-handed and has not been stung since he was young.',
 }
 const TRADE_DRESS = {
-  lumber: { tunic: '#3d4a2e', apron: '#5a4a2c', hair: '#4a3524', tool: 'bronze-hatchet' },
-  delve:  { tunic: '#3a3a42', apron: '#4a4a52', hair: '#2a1f16', tool: 'bronze-pickaxe' },
-  arms:   { tunic: '#4a2622', apron: '#5e3a30', hair: '#2a1f16', tool: 'bronze-sword' },
+  lumber: { tunic: '#3d4a2e', apron: '#5a4a2c', hair: '#4a3524', tool: 'iron-hatchet' },
+  delve:  { tunic: '#3a3a42', apron: '#4a4a52', hair: '#2a1f16', tool: 'iron-pickaxe' },
+  arms:   { tunic: '#4a2622', apron: '#5e3a30', hair: '#2a1f16', tool: 'iron-sword' },
   armour: { tunic: '#3a3228', apron: '#57493a', hair: '#6b4a2a', tool: null },
   bows:   { tunic: '#44412a', apron: '#5a4a22', hair: '#8a6a34', tool: 'wooden-bow' },
   seed:   { tunic: '#4a4428', apron: '#7a6a38', hair: '#b08a4a', tool: null },
   banker:    { tunic: '#23262e', apron: null,      hair: '#2a2018', tool: null },
   merchant:  { tunic: '#3a2a40', apron: null,      hair: '#4a3524', tool: null },
-  sawyer:    { tunic: '#3d4a2e', apron: '#6a5a34', hair: '#6b4a2a', tool: 'bronze-hatchet' },
+  sawyer:    { tunic: '#3d4a2e', apron: '#6a5a34', hair: '#6b4a2a', tool: 'iron-hatchet' },
   shepherd:  { tunic: '#4a4636', apron: null,      hair: '#8a6a34', tool: 'staff' },
-  delver:    { tunic: '#3a3a42', apron: '#4a4a52', hair: '#2a1f16', tool: 'bronze-pickaxe' },
+  delver:    { tunic: '#3a3a42', apron: '#4a4a52', hair: '#2a1f16', tool: 'iron-pickaxe' },
   miller:    { tunic: '#5a5648', apron: '#b8b2a0', hair: '#7a6a4a', tool: null },
-  quarrier:  { tunic: '#46443e', apron: '#57544a', hair: '#2a1f16', tool: 'bronze-pickaxe' },
-  watchman:  { tunic: '#33323a', apron: null,      hair: '#3a2c1e', tool: 'bronze-spear' },
+  quarrier:  { tunic: '#46443e', apron: '#57544a', hair: '#2a1f16', tool: 'iron-pickaxe' },
+  watchman:  { tunic: '#33323a', apron: null,      hair: '#3a2c1e', tool: 'iron-spear' },
   wizard:    { tunic: '#2c2a44', apron: null,      hair: '#b9b4a8', tool: 'staff' },
   fisher:    { tunic: '#2e3e42', apron: '#4a5a4e', hair: '#4a3524', tool: null },
   brewer:    { tunic: '#4a3a2a', apron: '#6a5a42', hair: '#6b4a2a', tool: null },
@@ -7392,10 +7503,10 @@ function drawNode(g, n, sx, sy, t, hot) {
       return
     }
     case 'rock': case 'magic-rock': {
-      const style = n.type === 'magic-rock' ? 'magic' : (dep ? 'dark' : 'ore')
+      const style = famOf(n.type) === 'magic-rock' ? 'magic' : (dep ? 'dark' : 'ore')
       g.drawImage(sprite('rock' + style + (hs % 5), 76, 56, (gg, W2, H2, R) => paintRock(gg, W2, H2, R, style)),
         sx - 38, sy - 56 + 18)
-      if (n.type === 'magic-rock' && !dep) {           // the vein answers the tick
+      if (famOf(n.type) === 'magic-rock' && !dep) {           // the vein answers the tick
         const p = (Math.sin(t / 420 + hs) + 1) / 2
         g.save(); g.globalCompositeOperation = 'lighter'
         const gr = g.createRadialGradient(sx, sy - 16, 0, sx, sy - 16, 26)
@@ -8044,7 +8155,7 @@ function drawNode(g, n, sx, sy, t, hot) {
           ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5      // striking, on the beat
           : role === 'smith' ? -0.15 + Math.sin(t2 * .5) * .06
           : -0.4 + Math.sin(t2 * .9) * .12,
-        weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'bronze-spear')
+        weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'iron-spear')
               // A GUARD DOES NOT WANDER, BUT HE IS NOT A BOLLARD EITHER.
         //
         // Wandering would be a lie: a node's tile is consensus state, and a
@@ -8150,8 +8261,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   if (act === 'gather') {
     const n2 = curState?.nodes?.[p.action?.nodeId]
     const carries = (it) => held === it || (p.inventory ?? []).some(sl => sl?.item === it)
-    if (n2?.type === 'tree') wep = carries('bronze-hatchet') ? 'bronze-hatchet' : 'axe'
-    else if (n2?.type === 'rock' || n2?.type === 'magic-rock') wep = carries('bronze-pickaxe') ? 'bronze-pickaxe' : 'pick'
+    if (n2?.type === 'tree') wep = carries('iron-hatchet') ? 'iron-hatchet' : 'axe'
+    else if (n2?.type === 'rock' || n2?.type === 'magic-rock') wep = carries('iron-pickaxe') ? 'iron-pickaxe' : 'pick'
     else if (n2?.type === 'fishing-spot') wep = 'rod'
   }
   // A SPECIAL IS A DIFFERENT MOVE, not a louder one. The ordinary swing is a
@@ -8342,11 +8453,15 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
-    plate: star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
+    plate: body === 'gold-plate' ? ['#e8b93a', '#7a5a10']
+         : star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
     tunic: body ? (star ? '#7d90a8' : '#6a5230') : '#3a3226',
     tunicLit: 'rgba(255,240,214,.12)',
     boots: '#241d16', hair: away ? '#241a10' : '#2e2418',
-    helm: head ? (head.startsWith('star-') ? '#9db4cc' : '#8a6a34') : null,
+    helm: head ? (head === 'gold-helm' ? '#e8b93a' : head.startsWith('star-') ? '#9db4cc' : '#8a6a34') : null,
+    // 6ce: the off hand and the legs
+    shield: SHIELD_PAINT[p.equipment?.offhand?.item] ?? null,
+    greaves: p.equipment?.legs?.item === 'gold-legs' ? '#e8b93a' : null,
     hood: null, skin: away ? '#6e5238' : '#8d6a4a',
     step: moving ? t * 6.5 + id.charCodeAt(0) : 0,
     swing: swingVal,
@@ -8514,7 +8629,7 @@ function intentTargetPos(s, t) {
   }
   const n = s.nodes?.[id]
   if (!n) return null
-  return { x: n.x, y: n.y, box: BUILDING_KINDS[n.type] ? 44 : n.type === 'tree' ? 30 : 26 }
+  return { x: n.x, y: n.y, box: BUILDING_KINDS[n.type] ? 44 : famOf(n.type) === 'tree' ? 30 : 26 }
 }
 let altHeld = false, showChart = false
 let lastLevels = null, lastHp = null, lastGold = null, lastXpSkill = null
@@ -9017,7 +9132,7 @@ function drawScene(now) {
       if (n.type === 'watchfire' && (n.fuelUntil ?? 0) > s.tick) lights.push([sx, sy - 14, 330, 1.05, 1])
       else if (n.type === 'campfire') lights.push([sx, sy - 10, 172, .95, 1])
       else if (n.type === 'fire' && n.expiresAt > s.tick) lights.push([sx, sy - 10, 140, .9, 1])
-      else if (n.type === 'magic-rock' && (n.depletedUntil ?? 0) <= s.tick) lights.push([sx, sy - 16, 82, .5, 0])
+      else if (famOf(n.type) === 'magic-rock' && (n.depletedUntil ?? 0) <= s.tick) lights.push([sx, sy - 16, 82, .5, 0])
       else if (n.type === 'waystone') lights.push([sx, sy - 44, 92, .48, 0])
       else if (BUILDING_KINDS[n.type]) lights.push([sx - 14, sy - 34, 104, .5, 1])
       else if (n.type === 'bank' || n.type === 'store') lights.push([sx, sy - 20, 66, .38, 1])
@@ -9530,8 +9645,8 @@ const wordy = (item) => typeof item === 'string' && item.startsWith('chart:')
 //     old-chain     2/65536   from a troll        one in 32,768
 //     horn-bow     66/65536   from a bear         one in 993
 //     star-helm   328/65536   from a knight       one in 200
-//     bronze-hatchet 4096/65536                   one in 16
-//     bronze-plate   6144/65536                   one in 11
+//     iron-hatchet 4096/65536                   one in 16
+//     iron-plate   6144/65536                   one in 11
 //
 // So colour can say what a thing COSTS to obtain without inventing a property
 // the engine does not have. The tiers below are the real ladder: what almost
@@ -9553,8 +9668,8 @@ const DROP_ODDS = {
   'old-chain':      { from: 'a troll', n: 2 },
   'horn-bow':       { from: 'a bear', n: 66 },
   'star-helm':      { from: 'a skeleton-knight', n: 328 },
-  'bronze-plate':   { from: 'a troll', n: 6144 },
-  'bronze-hatchet': { from: 'a bear', n: 4096 },
+  'iron-plate':   { from: 'a troll', n: 6144 },
+  'iron-hatchet': { from: 'a bear', n: 4096 },
 }
 const DROP_DEN = 65536
 const oddsLine = (item) => {
@@ -9570,8 +9685,8 @@ function rarityOf(item) {
   // starmetal war-gear and the horn-bow: a campaign, not an afternoon
   if (/^(star-sword|star-maul|star-plate|star-flail|star-helm|horn-bow)$/.test(item)) return RARITY.rare
   // starmetal's lighter arms, and what magic is made of
-  if (/^star-|^(magic-stone|sigil|crossbow|bronze-plate)$/.test(item)) return RARITY.magic
-  if (/^bronze-|^(wooden-bow|arrows)$/.test(item)) return RARITY.common
+  if (/^star-|^(magic-stone|sigil|crossbow|iron-plate)$/.test(item)) return RARITY.magic
+  if (/^iron-|^(wooden-bow|arrows)$/.test(item)) return RARITY.common
   if (/fish|ale|broth|grain|seeds/.test(item)) return RARITY.useful
   if (/bones|crab-shell|wool|logs|ore|heartwood/.test(item)) return RARITY.material
   return RARITY.common
@@ -10883,10 +10998,10 @@ function drawGuide(g) {
 // why. A window that promises what the engine will not do is worse than a
 // window that says nothing.
 const FORGE = {
-  'bronze-dagger': { ore: 1 }, 'bronze-hatchet': { ore: 1, logs: 1 },
-  'bronze-pickaxe': { ore: 1, logs: 1 }, 'bronze-spear': { ore: 1, logs: 1 },
-  'bronze-helm': { ore: 1 }, 'bronze-sword': { ore: 2 },
-  'bronze-maul': { ore: 2, logs: 1 }, 'bronze-plate': { ore: 3 },
+  'iron-dagger': { ore: 1 }, 'iron-hatchet': { ore: 1, logs: 1 },
+  'iron-pickaxe': { ore: 1, logs: 1 }, 'iron-spear': { ore: 1, logs: 1 },
+  'iron-helm': { ore: 1 }, 'iron-sword': { ore: 2 },
+  'iron-maul': { ore: 2, logs: 1 }, 'iron-plate': { ore: 3 },
   'crossbow': { ore: 2, logs: 2 }, 'sigil-bow': { 'horn-bow': 1, sigil: 3 },
   'star-hatchet': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-pickaxe': { 'magic-stone': 2, ore: 1, logs: 1 },
@@ -10897,15 +11012,15 @@ const FORGE = {
   'handgonne': { 'magic-stone': 4, ore: 3, logs: 1 }, 'shot': { ore: 1 },
 }
 // smithing AND magic, exactly as SMITH_REQS has them -- and no more and no
-// less. This once carried a bronze ladder the engine did not have, so the
+// less. This once carried a iron ladder the engine did not have, so the
 // anvil greyed out work the world would have done; the answer was not to
 // delete the ladder but to put it where a rule belongs. A window may not
 // legislate, but it must report.
 const FORGE_REQ = {
-  'bronze-dagger': { smithing: 1 }, 'bronze-hatchet': { smithing: 1 },
-  'bronze-pickaxe': { smithing: 1 }, 'bronze-spear': { smithing: 5 },
-  'bronze-helm': { smithing: 7 }, 'bronze-sword': { smithing: 10 },
-  'bronze-maul': { smithing: 14 }, 'bronze-plate': { smithing: 20 },
+  'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
+  'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
+  'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
+  'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
   'crossbow': { smithing: 18 }, 'sigil-bow': { smithing: 12, magic: 25 },
   'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
   'star-helm': { smithing: 40, magic: 20 }, 'star-spear': { smithing: 46, magic: 26 },
@@ -11448,9 +11563,9 @@ function indexNodes(s) {
 // keep time when a citizen has not swung yet and `lastSwing` is therefore
 // absent from the state entirely -- which is every citizen's first fight.
 const WEAPON_EVERY = {
-  'bronze-dagger': 2, 'bronze-sword': 2, 'bronze-spear': 2, 'bronze-maul': 3,
+  'iron-dagger': 2, 'iron-sword': 2, 'iron-spear': 2, 'iron-maul': 3,
   'star-dagger': 2, 'star-sword': 2, 'star-spear': 2, 'star-maul': 3,
-  'old-chain': 1, 'bronze-flail': 2, 'star-flail': 2,
+  'old-chain': 1, 'iron-flail': 2, 'star-flail': 2,
   'wooden-bow': 2, 'horn-bow': 2, 'crossbow': 3, 'sigil-bow': 2,
   'heartwood-bow': 2, 'dragonbow': 3,
 }
@@ -11764,7 +11879,7 @@ function buildMenu(px2, py2, target) {
     const n = target.e
     title = wordy(n.kind ?? n.type)
     const near = Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1
-    if (GATHERABLE.has(n.type)) items.push({ label: n.type === 'fishing-spot' ? 'Fish here' : n.type === 'tree' ? 'Chop it' : 'Mine it', run: go('gather', target.id, n.x, n.y) })
+    if (GATHERABLE.has(n.type)) items.push({ label: famOf(n.type) === 'fishing-spot' ? 'Fish here' : famOf(n.type) === 'tree' ? 'Chop it' : 'Mine it', run: go('gather', target.id, n.x, n.y) })
     if (n.type === 'plot') {
       items.push({ label: 'Harvest', run: go('harvest', target.id, n.x, n.y) })
       const sd = slotOf(me, 'seeds')
@@ -12114,8 +12229,8 @@ function pickWorld(p) {
     if (SCENERY.has(n.type)) continue
     const big = BUILDING_KINDS[n.type] ? [-60, 60, -110, 20]
       : (n.type === 'bank' || n.type === 'store') ? [-32, 32, -34, 18]
-      : n.type === 'tree' ? [-30, 30, -80, 16]
-      : n.type === 'fishing-spot' ? [-30, 30, -14, 14]
+      : famOf(n.type) === 'tree' ? [-30, 30, -80, 16]
+      : famOf(n.type) === 'fishing-spot' ? [-30, 30, -14, 14]
       : [-28, 28, -56, 14]
     test('node', id, n, n.x, n.y, big)
   }
