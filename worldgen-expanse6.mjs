@@ -1737,7 +1737,7 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // puts a mastery at 879 hours -- thirty-seven days of an executor that never
   // stops, which is what "a long time" has to mean in a world where nobody
   // sleeps. At 0.84 the same road is 290 hours.
-  g.gather = { depleteOneIn: 12, depleteTicks: 4, rateMul: 0.36, magicDepleteTicks: 40 }
+  g.gather = { depleteOneIn: 12, depleteTicks: 4, rateMul: 0.31, magicDepleteTicks: 40 }
   // §6ao (v6): citizen stalls must line the roads; alchemy is a town-and-Wilds
   // deed (never at the spawn) done with a staff in hand. Both are founding
   // choices; a world may omit either.
@@ -3033,12 +3033,27 @@ export function buildWorld(genesis) {
     if (st.kind !== 'port') continue
     const nearsh = shores.filter(sh => Math.abs(sh.x - st.x) + Math.abs(sh.y - st.y) <= 34)
       .sort((a, b) => (Math.abs(a.x - st.x) + Math.abs(a.y - st.y)) - (Math.abs(b.x - st.x) + Math.abs(b.y - st.y)))
+    // 6cb: A STRETCH OF SHORE, NOT A PUDDLE.
+    //
+    // This took the four shore tiles NEAREST the port, and the four nearest
+    // tiles of a coastline are four tiles in a row: Eastmere's whole fishery
+    // was 611-612 by 397-400, a blob three tiles across. Everything else that
+    // wants a beach then landed on top of it, because it was the only piece of
+    // shore anybody had marked.
+    //
+    // Six spots, no two within eight tiles, so a port's fishery is a walk along
+    // the water instead of a bucket. It also nearly doubles the world's starter
+    // fishing, which was SEVEN SPOTS across two ports -- the tightest rung on
+    // any ladder in this game, and the one every newcomer begins on.
     let laid = 0
+    const mine = []
     for (const sh of nearsh) {
-      if (laid >= 4) break
+      if (laid >= 6) break
       const k = sh.x + ',' + sh.y
       if (usedShore.has(k) || taken.has(k)) continue
-      usedShore.add(k); put('fish-' + st.tag + '-' + (fs++), 'fishing-spot', sh.x, sh.y); laid++
+      if (mine.some((m) => Math.max(Math.abs(m.x - sh.x), Math.abs(m.y - sh.y)) < 8)) continue
+      usedShore.add(k); mine.push(sh)
+      put('fish-' + st.tag + '-' + (fs++), 'fishing-spot', sh.x, sh.y); laid++
     }
   }
 
@@ -3713,7 +3728,23 @@ export function buildWorld(genesis) {
       if (!sea) continue
       let near = 1e9
       for (const t of towns) { const d = Math.hypot(t.x - x, t.y - y); if (d < near) near = d }
-      if (near < 16) continue                             // not on anybody's doorstep
+      if (near < 24) continue                             // 6cb: not on anybody's doorstep
+      // 6cb: NOR ON ANYBODY'S FISHING BEACH.
+      //
+      // She was scored purely by nearness to Eastmere, so she sat SEVEN TILES
+      // from that port's fishery -- the one mirroring thing in the world, which
+      // fights with the attack level of whoever it faces, parked beside the
+      // water every newcomer in the east is standing in. Her own signpost says
+      // she takes one at a time; it should not be one at a time from a queue of
+      // people who came to fish.
+      //
+      // Thirty tiles of empty strand between her and any rod. She still wants
+      // Eastmere's coast -- that is her stretch of the world and the sign is
+      // written for it -- but she wants the lonely end of it.
+      let rod = 1e9
+      for (const n2 of Object.values(w.nodes))
+        if (n2.type === 'fishing-spot') rod = Math.min(rod, Math.hypot(n2.x - x, n2.y - y))
+      if (rod < 30) continue
       // nearest Eastmere wins; without an Eastmere, fall back to the old rule
       const score = eastmere ? -Math.hypot(eastmere.x - x, eastmere.y - y) : near
       if (score > bestScore || bestScore === -1) { bestScore = score; seat = { x, y } }
