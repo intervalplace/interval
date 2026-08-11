@@ -1754,8 +1754,9 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // deal), and the anchor-recall is now the Wilds escape -- the one thing magic
   // was first for -- castable only from the danger it answers. `true` uses the
   // engine's default standing tiers; a founding may pass its own table instead.
-  g.waystoneStandingReq = true
-  g.anchorIsWildsEscape = true
+  // 6ch: the anchor is no longer a way OUT of the Wilds. The flag is gone
+  // from this founding rather than set false, because a founding should say
+  // what the world IS, not carry the ghost of a rule it no longer keeps.
   // §6ao (v6): THE EVENTS. The four tuning dials named in the design, as this
   // world's founding numbers. The SHAPE (a population-scaled incursion, a
   // time-scaled bloom, both deterministic from the beacon) is constitutional;
@@ -2056,6 +2057,20 @@ export function buildWorld(genesis) {
         // the Seedsman is the only one in the world, and he belongs where every
         // crop starts -- Hollybarrow, the farm. (Buying seed is farming's door.)
         hollybarrow: ['seed'],
+        // 6cf: THE FISHER STANDS AT A PORT, NOT AT THE MARKET.
+        //
+        // The engine has had a fisher's shelf since 6be and this list decided
+        // no town wanted one, so the rod stayed unbuyable and a tool-gated
+        // founding still could not put a rod in a newcomer's hand. A shelf in
+        // the rules with no counter in the world is a shop that does not exist.
+        //
+        // Eastmere and not Millbrook, against the rule above and on purpose:
+        // Eastmere is the port, its dock is the fishery every newcomer in the
+        // east walks to, and a rod bought two hundred tiles inland is a rod
+        // carried two hundred tiles. The market keeps everything a citizen
+        // CHOOSES between; the water keeps the one thing you cannot fish
+        // without.
+        eastmere:    ['fisher'],
         // Anchor keeps no specialist stall: only the plain general store the
         // capital already seats, so a newcomer can bootstrap and no more.
       }
@@ -2416,7 +2431,6 @@ export function buildWorld(genesis) {
         if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && onIsle(g, x, y)) { put(id, type, x, y, extra); return }
       }
     }
-    seat('waystone-shrine', 'waystone', 0, 0)
     seat('tally-isle', 'landmark', -2, -2, { kind: 'tally-half', founderKey: g.founderKey })
     seat('shrine-hearth', 'campfire', 3, 0)
     for (let k = 0; k < 4; k++) seat('shrine-stone-' + k, 'landmark', [-4, 4, 0, 0][k], [0, 2, -4, 4][k], { kind: 'standing-stone' })
@@ -2747,11 +2761,7 @@ export function buildWorld(genesis) {
     return { x, y }
   }
   const sput = (id, type, x, y, extra) => { if (free(x, y)) put(id, type, x, y, extra) }
-  const putWaystoneEarly = (id, x, y) => {
-    for (let rad = 0; rad < 12; rad++) for (const [dx, dy] of [[0,rad],[rad,0],[0,-rad],[-rad,0],[rad,rad],[-rad,-rad]])
-      if (free(x + dx, y + dy)) { put(id, 'waystone', x + dx, y + dy); return true }
-    return false
-  }
+  // 6ch: putWaystoneEarly is gone with the stones.
   { // the Sawyer's Camp
     const c = siteSeek(0.50, 0.15, 'greenwood', 4)
     sput('camp-house', 'hearth', c.x, c.y); sput('camp-hearth', 'campfire', c.x + 2, c.y)
@@ -3033,29 +3043,31 @@ export function buildWorld(genesis) {
     if (st.kind !== 'port') continue
     const nearsh = shores.filter(sh => Math.abs(sh.x - st.x) + Math.abs(sh.y - st.y) <= 34)
       .sort((a, b) => (Math.abs(a.x - st.x) + Math.abs(a.y - st.y)) - (Math.abs(b.x - st.x) + Math.abs(b.y - st.y)))
-    // 6cb: A STRETCH OF SHORE, NOT A PUDDLE.
+    // 6cb: ONE DOCK, AND MORE OF IT.
     //
-    // This took the four shore tiles NEAREST the port, and the four nearest
-    // tiles of a coastline are four tiles in a row: Eastmere's whole fishery
-    // was 611-612 by 397-400, a blob three tiles across. Everything else that
-    // wants a beach then landed on top of it, because it was the only piece of
-    // shore anybody had marked.
+    // A revision of this note spread these eight tiles apart, reading the blob
+    // as an accident. It is not: the nearest shore tiles to a port are four in
+    // a row on purpose, and a fishery everyone can see from a fishery is where
+    // people MEET. Six durable spots on one dock hold the same crowd as six
+    // strung along a coast -- a node's capacity is its own darkness, not its
+    // elbow room -- so scattering them bought nothing and cost the only
+    // gathering place in the east where two citizens are certain to see each
+    // other.
     //
-    // Six spots, no two within eight tiles, so a port's fishery is a walk along
-    // the water instead of a bucket. It also nearly doubles the world's starter
-    // fishing, which was SEVEN SPOTS across two ports -- the tightest rung on
-    // any ladder in this game, and the one every newcomer begins on.
+    // What DID need fixing was everything else that had been drawn to the same
+    // beach because it was the only marked shore in the world. The siren has
+    // been moved off it (see her seat rule below); the dock stays.
+    //
+    // Four became six only because starter fishing was SEVEN SPOTS in the whole
+    // world across two ports -- the tightest rung on any ladder here, and the
+    // one every newcomer begins on with no tier to fall back to.
     let laid = 0
-    const mine = []
     for (const sh of nearsh) {
       if (laid >= 6) break
       const k = sh.x + ',' + sh.y
       if (usedShore.has(k) || taken.has(k)) continue
-      if (mine.some((m) => Math.max(Math.abs(m.x - sh.x), Math.abs(m.y - sh.y)) < 8)) continue
-      usedShore.add(k); mine.push(sh)
-      put('fish-' + st.tag + '-' + (fs++), 'fishing-spot', sh.x, sh.y); laid++
-    }
-  }
+      usedShore.add(k); put('fish-' + st.tag + '-' + (fs++), 'fishing-spot', sh.x, sh.y); laid++
+    }  }
 
   // ---- the country's resources ----
   const counts = { waymarks: wm, wayrests: wr, brandstones: br, waysides: wayN, milestones: mileN, buildings: bldN, shirePlaces: placeN, capes: capeN, locales: locN, countryFurniture: furnN }
@@ -4333,34 +4345,18 @@ export function buildWorld(genesis) {
     t0.crates   = scatterIn('crate', AH(30), both(q0(() => true), wet(2)), lm('crate'))
   }
 
-  // ---- waystones ----
-  const putWaystone = (id, x, y) => {
-    for (let rad = 0; rad < 10; rad++) for (const [dx, dy] of [[0,rad],[rad,0],[0,-rad],[-rad,0],[rad,rad],[-rad,-rad]]) {
-      const nx = x + dx, ny = y + dy
-      if (inB(nx, ny) && !taken.has(key(nx, ny)) && !isWater(g, nx, ny) && !onRidge(g, nx, ny)
-        && !onBarrow(g, nx, ny) && biomeAt(g, nx, ny) !== 'sea') { put(id, 'waystone', nx, ny); return true }
-    }
-    return false
-  }
-  // §6ao (v6): WAYSTONES ARE EARNED, AND FEW. This world is built on the walk
-  // -- the ore hauled to the anvil, the market visited, the seam reached -- and
-  // a dense fast-travel net would dissolve all of it. So the junction and
-  // wilderness waystones that merely let a citizen skip the map are gone; what
-  // remains is ONE per town (the travel network a known citizen unlocks by
-  // standing) and TWO deep-frontier stones that ask a HIGH standing to attune,
-  // so reaching the far Wilds and high Crags quickly is an achievement, not a
-  // convenience. Attunement thresholds live on the stone (see waystoneStanding).
-  for (const s of ss) {
-    const r2 = rectOf(s)
-    const already = Object.values(w.nodes).some(n => n.type === 'waystone'
-      && n.x > r2.x0 - 8 && n.x < r2.x1 + 8 && n.y > r2.y0 - 8 && n.y < r2.y1 + 8)
-    if (already) continue
-    putWaystone('waystone-' + s.tag, s.x, r2.y1 + 4)
-  }
-  // two frontier stones only -- the deep Wilds and the high Crags, each a long
-  // journey out, each gated behind a high standing.
-  putWaystone('waystone-wildsdeep', Math.round(W * 0.05), Math.round(H * 0.48))
-  putWaystone('waystone-cragshigh', Math.round(W * 0.83), Math.round(H * 0.40))
+  // ---- waystones: NONE ----
+  //
+  // 6ch: The §6ao note that used to stand here argued this world "is built on
+  // the walk -- the ore hauled to the anvil, the market visited, the seam
+  // reached -- and a dense fast-travel net would dissolve all of it", and then
+  // seated a stone at every town anyway, plus two on the frontier. It was
+  // right the first time. There is no travel network now: the ore is carried,
+  // the market is walked to, and the Wilds is a decision made twice.
+  //
+  // Nothing replaces them. The road IS the content -- hauling is an entire
+  // trade built on the length of it, and a hauler who could skip the road
+  // would be paid for a journey nobody took.
 
   // ---- the quiet quarters, enforced ----
   // Gating every pass individually was tried and leaked: waysides clipped a
@@ -4644,7 +4640,7 @@ export function buildWorld(genesis) {
     // whatever stands between it and open ground. Deterministic -- fixed
     // neighbour order, and it takes the shortest way out, ties broken by
     // the order tiles are reached.
-    const ESSENTIAL = new Set(['bank','store','anvil','smith','well','waystone','keeper','signpost','landmark'])
+    const ESSENTIAL = new Set(['bank','store','anvil','smith','well','keeper','signpost','landmark'])
     const nodeAt = new Map()
     for (const [id, n] of Object.entries(w.nodes)) nodeAt.set(n.x + ',' + n.y, id)
     let felled = 0, opened = 0
