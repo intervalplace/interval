@@ -1779,7 +1779,19 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   if (g.founderKey === undefined) g.founderKey = FOUNDER_KEY
   g.geographyHash = '0'.repeat(64)
   if (!_probing) g.geographyHash = geographyHashE6(g)
-  g.survey = { k: 16, base: 40, perTile: 4, max: 1600 }
+  // 6bo: base 20, perTile 1, cap derived from the world's own half-span.
+  //
+  // Measured on this island: sixteen markers alive sit a median of 44 tiles
+  // apart (mean 60), so a marker costs about sixty intervals of walking and
+  // one to survey. At base 40 / perTile 4 the median marker paid 616 -- ten
+  // experience an interval, 215 hours to ninety-nine, the second-fastest
+  // mastery in the world. At 20/1 the median pays 164 and the road is 808
+  // hours, beside every other trade.
+  //
+  // The SHAPE is untouched and it is the good part: exploration is the one
+  // skill whose balance lever is the map itself, and it still pays for how far
+  // OUT a rumour lies, so the frontier is worth more than the doorstep.
+  g.survey = { k: 16, base: 20, perTile: 1, max: 20 + 1 * Math.ceil(Math.max(896, 512) / 2) }
   return g
 }
 
@@ -3273,9 +3285,12 @@ export function buildWorld(genesis) {
   // Ironbark stands in the northern greenwood, well clear of both the mid oaks
   // (west) and the heartwood (far east), so the three woods are three journeys
   // and not three names for one walk.
+  // (measured: greenwood runs x 279-690, y 31-187; the starter grove sits near
+  // 435,75 and the oaks near 356,56, so the ironbark goes north-EAST of both
+  // and well short of the heartwood at 628,145 -- three woods, three journeys.)
   const ironbarkStand = (x, y) => {
     if (B(x, y) !== 'greenwood') return false
-    return y < H * 0.34 && x > W * 0.30 && x < W * 0.55
+    return y < 110 && x > 500 && x < 605
   }
   counts.ironbark = clusterScatter('ibtree', 6, ironbarkStand, (id, x, y) => E.addNode(w, id, 'ironbark-tree', x, y), 1, 8)
   // The gallows-oaks and the mother lode are the same stand and the same seam
@@ -3293,9 +3308,14 @@ export function buildWorld(genesis) {
   // with two of the first and none of the second only has one kind of rich
   // person in it. Far south in the crags, a long walk from anywhere, where the
   // only thing it costs you is the mastery you are not earning while you wait.
+  // (measured: the crags run y 105-316 and NOTHING lies below y 320, so the
+  // first draft's `y > 0.68H` seated no gold at all. The iron and the coal sit
+  // in the southern crags near 785,291 and 751,270; the gold goes to the HIGH
+  // crags in the north, which is the emptiest quarter of that country and the
+  // longest walk to it from anywhere anyone lives.)
   const goldCountry = (x, y) => {
     if (B(x, y) !== 'crags') return false
-    return y > H * 0.68
+    return y < 168 && x > 600
   }
   counts.goldSeam = clusterScatter('gseam', 4, goldCountry, (id, x, y) => E.addNode(w, id, 'gold-rock', x, y), 1, 8)
   // deep-fish: the northern Moor/Wilds water pocket, placed at the DEEP end
@@ -3331,14 +3351,14 @@ export function buildWorld(genesis) {
     // sits beyond the deep-fish band (>20 tiles in) so a fisher who wants it
     // has to pass the ordinary deep water and keep going.
     const shoal = []
-    for (let y = 100; y <= 148; y++) for (let x = 150; x < 195; x++) {
+    for (let y = 42; y <= 389; y++) for (let x = 29; x < 195; x++) {   // the whole Wilds coast, not one pocket
       if (!isWater(g, x, y)) continue
       let land = false
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]])
         if (!isWater(g, x + dx, y + dy) && !blockedAt(g, x + dx, y + dy) && B(x + dx, y + dy) === 'wilds') land = true
       if (!land) continue
       const depth = Math.round(W * 0.215) - x
-      if (depth > 20) shoal.push({ x, y, depth })
+      if (depth >= 24) shoal.push({ x, y, depth })   // measured: 20 tiles at 20-27, 347 beyond
     }
     shoal.sort((a, b) => b.depth - a.depth)
     let sPlaced = 0
