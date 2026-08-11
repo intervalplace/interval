@@ -686,7 +686,17 @@ const CALLING_NAMES = {
   innkeeper: 'the innkeeper', collier: 'the collier', drover: 'the drover',
   beekeeper: 'the beekeeper',
 };
-const STALL_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed'];
+// 6cf: THE FISHER IS A KIND, NOT JUST A SHELF.
+//
+// 6be added `fisher: { rod: 20 }` to STALL_SELLS and stopped there, and a
+// stall is only ever SEATED if its kind is in this list -- so no fisher stall
+// was ever built, the rod stayed unbuyable, and the deadlock that note claims
+// to have fixed was still shut. A table of goods with nobody standing behind
+// it is a shop that does not exist.
+//
+// Two lists for one fact was the fault. They are checked against each other in
+// the founding sweep now, so a shelf without a keeper cannot ship again.
+const STALL_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed', 'fisher'];
 const STALL_SELLS = {
   lumber: { 'iron-hatchet': 20 },
   delve:  { 'iron-pickaxe': 20 },
@@ -708,7 +718,11 @@ const STALL_SELLS = {
   // 6be: and the fisher, who was the one trade with a keeper's NAME in
   // KEEPER_KINDS and no stall to stand in. A rod for the price of an axe.
   fisher: { rod: 20 },
-}; // the keeper's OWN goods, made from nothing
+};
+// 6cf: the two lists must name the same trades, or a shop exists on paper only.
+for (const k of STALL_KINDS) if (!STALL_SELLS[k]) throw new Error('stall kind with nothing to sell: ' + k);
+for (const k of Object.keys(STALL_SELLS)) if (!STALL_KINDS.includes(k)) throw new Error('stall shelf nobody stands behind: ' + k);
+ // the keeper's OWN goods, made from nothing
 // v0.74: the keeper's shelf. What a citizen sells is no longer annihilated: it
 // sits in that store until somebody buys it. Two stores keep two shelves, so
 // Anchor and Milbrook develop separate strengths and carrying goods between
