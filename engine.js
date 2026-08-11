@@ -5691,7 +5691,7 @@ function countOwnedNodes(state, ctx, type, owner) { // how many of `type` this c
 // The one thing a mourner of seventy carries through: the dearest PRICED item
 // they held, in the pack or in their hands. Unpriced things -- the old chain,
 // a dragonbow, a sigil, a chart -- are never kept, at any level.
-function prayerKeeps(p, tick) {
+function prayerKeeps(p, tick, genesis) {
   // §2b: AND PRAYER DOES NOT COVER THE MARKED.
   //
   // Here was the real fault. A citizen who struck first walked away with the
@@ -5705,12 +5705,45 @@ function prayerKeeps(p, tick) {
   // Brand does not punish. It withdraws a protection, and lets the world do
   // the rest.
   const lv = effLevel(p?.skills?.prayer ?? 0);
-  if (!p || lv < PRAYER_KEEP) return [];
-  if (Number.isInteger(tick) && (p.brandedUntil ?? 0) > tick) return [];
-  const want = lv >= PRAYER_KEEP_TWO ? 2 : 1;
+  if (!p) return [];
+  // §6cx (v6): the king-shroud is death's own mantle. Two ways it carries you:
+  //  1. IT KEEPS ITSELF. Worn, the shroud survives your death and returns to
+  //     your pack -- SEPARATELY from the priced keeps below, so it never falls
+  //     out because a star-plate was worth more, and never eats the one slot a
+  //     low-prayer citizen bought it for. Without this it was a cruel trinket:
+  //     the item that grants "keep more" could itself be the thing you lost.
+  //  2. IT KEEPS ONE MORE. It adds one to what prayer would hold, and holds
+  //     that one even for a citizen who never learned to mourn (below the gate).
+  // BUT THE BRAND STRIPS BOTH. A wearer who struck first in the Wilds keeps
+  // nothing -- not even the shroud -- so death's mantle is lost by those who
+  // DEAL death and kept by those who merely FACE it, and it circulates from the
+  // hand of every raider who dies marked. It is authority over your own dying,
+  // never a predator's insurance.
+  const wearsShroud = p.equipment?.body?.item === 'king-shroud';
+  const branded = Number.isInteger(tick) && (p.brandedUntil ?? 0) > tick;
+  if (branded) return [];                                    // marked: lose everything, shroud included
+  // §6cx (v6): WHERE YOU DIE DECIDES WHETHER THE SHROUD IS SPARED. Outside the
+  // Wilds the mantle is kept on its own account (it is not a fragile trinket in
+  // the settled world). But the Wilds is the one country whose whole nature is
+  // that you might not come back -- so there the shroud takes its chances like
+  // everything else you carry: it drops into the value-sorted pool below and
+  // CAN be lost if you were carrying dearer things. Wearing it into the Wilds to
+  // still the dead is itself a wager on the shroud. (Branded is a different
+  // thing entirely, handled above: that is forfeiture, not risk.)
+  const inTheWilds = genesis ? inWilds(genesis, p.x, p.y) : false;
+  const shroudSpared = wearsShroud && !inTheWilds;
+  // outside the Wilds a worn shroud is kept on its own account, so even a
+  // citizen below the mourner's gate carries it through. In the Wilds it earns
+  // no such grace -- it is priced loot like the rest, and a low-prayer citizen
+  // there keeps nothing, exactly as before the shroud existed.
+  if (lv < PRAYER_KEEP && !shroudSpared) return [];
+  const want = lv >= PRAYER_KEEP_TWO ? 2 : lv >= PRAYER_KEEP ? 1 : 0;
   const all = [];
   const consider = (sl) => {
     if (!sl) return;
+    // the shroud is normally kept on its own account (added at the end); but
+    // IN THE WILDS it is an ordinary priced item and must compete for a slot.
+    if (sl.item === 'king-shroud' && shroudSpared) return;
     const v = PRICES[sl.item] ?? 0;
     if (v > 0) all.push({ v, item: sl.item, qty: sl.qty ?? 1 });
   };
@@ -5718,7 +5751,9 @@ function prayerKeeps(p, tick) {
   for (const g of EQUIP_SLOTS) consider(p.equipment?.[g]);   // 6bz: prayer weighs the shield and the legs too
   // dearest first, and ties broken by name so every node keeps the same things
   all.sort((a, b) => b.v - a.v || (a.item < b.item ? -1 : a.item > b.item ? 1 : 0));
-  return all.slice(0, want).map(({ item, qty }) => ({ item, qty }));
+  const kept = all.slice(0, want).map(({ item, qty }) => ({ item, qty }));
+  if (shroudSpared) kept.push({ item: 'king-shroud', qty: 1 });  // outside the Wilds, the mantle comes home
+  return kept;
 }
 function blockingNodeAt(state, ctx, x, y) { // movement rule: player-built nodes are walkable
   if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.values(state.nodes).some(n => n.x === x && n.y === y && !_WALKABLE_BUILT.has(n.type)); }
@@ -6590,10 +6625,19 @@ function nextState(state, inputs, _legacyBeacon) {
           // teaches no combat for the trouble. What it costs a citizen is
           // being followed about by a crab, which is the entire point of it.
           const mayStart = st.harmless || HUNTS_HERE(m.x, m.y);
+          // §6cx (v6): THE KING-SHROUD IS AUTHORITY OVER THE DEAD. A citizen who
+          // wears the mantle of the one who raised them is not seen as prey: the
+          // dead -- the risen and the skeleton-knights of the Wilds -- will not
+          // START on a wearer. They still RETALIATE if struck (m.mad below is
+          // untouched), and the living care nothing for the shroud. It is the
+          // Wilds and the Moor turned quiet for the one who took it from the King.
+          const wearsShroud = p.equipment?.body?.item === 'king-shroud';
+          const isDead = m.type === 'risen' || m.type === 'skeleton-knight';
+          const shroudStills = wearsShroud && isDead && m.mad !== pid;
           // §6av: a beast maddened by a gunshot comes from further off than it
           // could have SEEN you -- that is what the noise is for.
-          const wants = (m.mad === pid && d <= Math.max(senses, GUN_NOISE))
-            || (st.aggro && d <= st.aggro && mayStart);
+          const wants = !shroudStills && ((m.mad === pid && d <= Math.max(senses, GUN_NOISE))
+            || (st.aggro && d <= st.aggro && mayStart));
           if (!wants) continue;
           if (d < best) { best = d; target = p; tid = pid; }
         }
@@ -6627,7 +6671,15 @@ function nextState(state, inputs, _legacyBeacon) {
           const o = s.mobs[oid];
           if (o && o.hp > 0 && o.type === 'risen' && o.raisedBy === mid) alive.push(oid);
         }
-        if (alive.length < (st.raiseCap ?? 4) && (s.tick - (m.lastRaise ?? -999)) >= (st.raiseEvery ?? 5)) {
+        // §6cx (v6): the mantle slows him. Against a citizen who wears his own
+        // shroud, the Gibbet King raises the dead at HALF his rate -- the
+        // authority in the cloth works even on the one who forged it. (Total
+        // stilling is for the wandering dead of the Wilds; his OWN risen he can
+        // still call, only slower.)
+        const _tgt = s.players[tid];
+        const _wearsShroud = _tgt?.equipment?.body?.item === 'king-shroud';
+        const _every = (st.raiseEvery ?? 5) * (_wearsShroud ? 2 : 1);
+        if (alive.length < (st.raiseCap ?? 4) && (s.tick - (m.lastRaise ?? -999)) >= _every) {
           // seat a risen on a free tile beside the King, aggro'd at the target
           for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]) {
             const rx = m.x + dx, ry = m.y + dy;
@@ -6756,7 +6808,7 @@ function nextState(state, inputs, _legacyBeacon) {
             }
             target.hp = 0;
             spillHoods(s, target, tid ?? 'v');   // §6ax: before the pack goes
-            const kept9 = prayerKeeps(target, s.tick);
+            const kept9 = prayerKeeps(target, s.tick, s.genesis);
             target.inventory = Array(INV_SLOTS).fill(null);
             target.equipment = { weapon: null, head: null, body: null };
             kept9.forEach((k, i) => { target.inventory[i] = k; });
@@ -7499,7 +7551,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (q.hp <= 0) {
             q.hp = 0;
             // what a mourner carries through, decided BEFORE the pack spills
-            const keptQ = prayerKeeps(q, s.tick);
+            const keptQ = prayerKeeps(q, s.tick, s.genesis);
             // §2g: the pack spills where they fall, exactly as any PvP death --
             // except whatever a mourner carries through, which is taken out of
             // the spill exactly once each
@@ -8284,7 +8336,7 @@ function nextState(state, inputs, _legacyBeacon) {
             // slain in the Wilds (spec 2g): the pack spills where they fall,
             // and the body lies beside it awhile (v0.41)
             // what a mourner carries through, decided BEFORE the pack spills
-            const keptQ = prayerKeeps(q, s.tick);
+            const keptQ = prayerKeeps(q, s.tick, s.genesis);
             const held = keptQ.map((k) => ({ ...k, taken: false }));
             const qid9 = p.action.targetId;   // the victim, named
             let sl9 = -1;
