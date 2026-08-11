@@ -2271,6 +2271,23 @@ function itemSprite(item) {
       pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#5cb8d9', '#2a7d9e')
       g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(9, 9.5, 14, 2)
       g.fillStyle = '#2a7d9e'; g.fillRect(7, 20, 18, 2.6); break
+    case 'king-shroud': {
+      // the Gibbet King's mantle: a hooded cowl over a ragged, draping shroud.
+      // death-purple cloth with a bone-ash trim -- reads as cloth, not plate,
+      // so its silhouette is unlike every helm and cuirass in the world.
+      const cloth = '#5a3340', clothLo = '#3f2530', bone = '#cdbfa6'
+      // the draping body of the shroud (tattered hem)
+      pl([[8,12],[16,9],[24,12],[25,20],[23,27],[19,24],[16,28],[13,24],[9,27],[7,20]], cloth, clothLo)
+      // the hood/cowl rising to a peak
+      pl([[11,12],[16,3],[21,12],[16,10]], cloth, clothLo)
+      // the dark hollow where a face would be
+      pl([[13.5,10],[16,7],[18.5,10],[16,13]], '#140a10')
+      // bone trim along the shoulders
+      g.fillStyle = bone; g.fillRect(9, 12, 14, 1.3)
+      // a pale seam down the centre, and a shadow fold
+      g.fillStyle = 'rgba(205,191,166,.25)'; g.fillRect(15.4, 12, 1.2, 14)
+      g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(19, 13, 1.6, 12)
+      break }
     case 'star-plate':
       pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#5cb8d9', '#2a7d9e')
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
@@ -2750,7 +2767,7 @@ const ICON_ALIAS = {
   'rod': 'staff', 'oak-rod': 'staff', 'ironbark-rod': 'staff', 'heartwood-rod': 'staff',
   'iron-shield': 'iron-helm', 'steel-shield': 'steel-helm', 'star-shield': 'star-helm',
   'gold-helm': 'star-helm', 'gold-plate': 'star-plate', 'gold-legs': 'star-plate',
-  'king-shroud': 'star-plate',
+  // king-shroud now has its own sprite (a hooded mantle); no longer aliased.
   'great-hatchet': 'star-hatchet', 'great-pickaxe': 'star-pickaxe',
   'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
   'steel-sword': 'iron-sword', 'steel-plate': 'iron-plate',

@@ -2255,7 +2255,7 @@ const ICON_ALIAS = {
   'rod': 'staff', 'oak-rod': 'staff', 'ironbark-rod': 'staff', 'heartwood-rod': 'staff',
   'iron-shield': 'iron-helm', 'steel-shield': 'steel-helm', 'star-shield': 'star-helm',
   'gold-helm': 'star-helm', 'gold-plate': 'star-plate', 'gold-legs': 'star-plate',
-  'king-shroud': 'star-plate',
+  // king-shroud has its own hooded-mantle icon now; not aliased to plate.
   'great-hatchet': 'star-hatchet', 'great-pickaxe': 'star-pickaxe',
   'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
   'steel-sword': 'iron-sword', 'steel-plate': 'iron-plate',
@@ -5439,6 +5439,26 @@ function itemIcon(item) {
       if (item === 'star-helm') { g.strokeStyle = m[1]; g.lineWidth = 2
         g.beginPath(); g.moveTo(cx - 9, cy - 2); g.quadraticCurveTo(cx - 15, cy - 8, cx - 12, cy - 13); g.stroke()
         g.beginPath(); g.moveTo(cx + 9, cy - 2); g.quadraticCurveTo(cx + 15, cy - 8, cx + 12, cy - 13); g.stroke() }
+      return }
+    if (item === 'king-shroud') {
+      // the Gibbet King's mantle -- a hooded shroud, cloth not plate. Silhouette
+      // first: a peaked cowl over a ragged drape, death-purple against the dark,
+      // a hollow where the face should be and a bone trim at the shoulders.
+      const cloth = '#5a3340', clothLo = '#3b2430', bone = '#c9bba2'
+      // ragged draping body
+      poly(g, [[cx - 9, cy - 4], [cx, cy - 7], [cx + 9, cy - 4], [cx + 10, cy + 6],
+               [cx + 6, cy + 13], [cx + 3, cy + 9], [cx, cy + 14], [cx - 3, cy + 9],
+               [cx - 6, cy + 13], [cx - 10, cy + 6]], cloth, clothLo, 1)
+      // the shadowed right half, for form
+      poly(g, [[cx, cy - 7], [cx + 9, cy - 4], [cx + 10, cy + 6], [cx + 6, cy + 13],
+               [cx + 3, cy + 9], [cx, cy + 14]], clothLo)
+      // the hood rising to a peak
+      poly(g, [[cx - 6, cy - 4], [cx, cy - 15], [cx + 6, cy - 4], [cx, cy - 6]], cloth, clothLo, 1)
+      // the hollow where a face would be
+      poly(g, [[cx - 2.5, cy - 6], [cx, cy - 10], [cx + 2.5, cy - 6], [cx, cy - 2]], '#0c0710')
+      // bone trim across the shoulders
+      g.strokeStyle = bone; g.lineWidth = 1.4
+      g.beginPath(); g.moveTo(cx - 9, cy - 4); g.lineTo(cx + 9, cy - 4); g.stroke()
       return }
     if (/plate/.test(item)) {
       poly(g, [[cx - 10, cy - 10], [cx + 10, cy - 10], [cx + 8, cy + 12], [cx - 8, cy + 12]], m[0])
