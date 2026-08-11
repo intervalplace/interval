@@ -357,6 +357,7 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
+  if (GEN === 'interval-expanse-v6') return settlementsE6()
   if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
@@ -1901,7 +1902,205 @@ function localeAt4(x, y) {
 
 
 
+// ---- the sixth expanse (interval-expanse-v6): Tallyholm, mirrored ----
+// A faithful copy of worldgen-expanse6.mjs's terrain geometry. The generator's
+// functions take (g, ...); here W/H/GSEED are module state and meander() is the
+// 4-arg mirror form, which is byte-identical to the generator's given the same
+// seed. Verified tile-for-tile against the exported generator functions.
+const CAPES6 = [
+  { tag: 'wildshead',  u: 180, w: 24, amt: +0.12 },
+  { tag: 'stonepoint', u: 3,   w: 8,  amt: +0.20 },
+  { tag: 'nordhead',   u: 306, w: 13, amt: +0.15 },
+  { tag: 'sawtooth',   u: 258, w: 7,  amt: +0.13 },
+]
+const BAYS6 = [
+  [152, 11, -0.17], [208, 11, -0.17],
+  [38,  25, -0.22],
+  [78,  14, -0.12],
+  [284, 10, -0.11],
+  [330, 12, -0.09],
+]
+function angleOf6(dx, dy) {
+  // mirror of worldgen-expanse3.mjs angleOf (v6 imports it): degrees, atan2-free
+  // is not required — the generator uses Math.atan2 here? verify: it uses angleOf
+  // from expanse3, which the mirror already has as angleOf3.
+  return angleOf3(dx, dy)
+}
+function coastR6(u0) {
+  const u = ((u0 % 360) + 360) % 360
+  let r = 0.78 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
+  const bump = (c, w, amt) => {
+    const d1 = u - c < 0 ? c - u : u - c
+    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    if (d < w) r += amt * (1 - d / w)
+  }
+  for (const c of CAPES6) bump(c.u, c.w, c.amt)
+  for (const [c, w, a] of BAYS6) bump(c, w, a)
+  return r
+}
+function inSeaBase6(x, y) {
+  const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
+  const r = Math.sqrt(dx * dx + dy * dy)
+  if (r <= 0.50) return false
+  return r > coastR6(angleOf6(dx, dy))
+}
+function emY6() { return Math.round(H * 0.74) }
+let _bayShore6 = null
+function bayShoreX6(y) {
+  if (!_bayShore6) _bayShore6 = new Map()
+  const hit = _bayShore6.get(y); if (hit !== undefined) return hit
+  let sx = null
+  for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase6(x, y)) { sx = x; break }
+  _bayShore6.set(y, sx); return sx
+}
+function islesOf6() {
+  const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
+  return [
+    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
+  ]
+}
+function onIsle6(x, y) {
+  for (const i of islesOf6()) {
+    const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry
+    if (dx * dx + dy * dy < 1) return true
+  }
+  return false
+}
+const inSea6 = (x, y) => inSeaBase6(x, y) && !onIsle6(x, y)
+const BRAND_X6 = () => Math.round(W * 0.215)
+const brandX6 = (_y) => BRAND_X6()
+const SEEDS6 = [
+  ['heartlands', 0.42, 0.40, 0.90, 420],
+  ['heartlands', 0.54, 0.52, 0.74, 421],
+  ['greenwood',  0.44, 0.10, 1.02, 422],
+  ['greenwood',  0.66, 0.15, 0.86, 423],
+  ['crags',      0.89, 0.28, 0.90, 424],
+  ['crags',      0.83, 0.50, 0.70, 425],
+  ['downs',      0.70, 0.68, 0.86, 426],
+  ['downs',      0.79, 0.78, 0.62, 430],
+  ['fens',       0.49, 0.90, 0.86, 427],
+  ['fens',       0.33, 0.82, 0.60, 428],
+  ['moor',       0.31, 0.16, 0.84, 429],
+  ['moor',       0.38, 0.27, 0.58, 431],
+]
+const VSQUASH6 = 1.9
+function regionAt6(x, y) {
+  let best = 'heartlands', bd = Infinity
+  for (const [tag, fx, fy, wt, jt] of SEEDS6) {
+    const sx = fx * W, sy = fy * H
+    const dx = x - sx, dy = (y - sy) * VSQUASH6
+    const j = meander(jt, x + y * 0.6, 150, 26) + meander(jt + 40, x - y * 0.45, 60, 9)
+    const d = (dx * dx + dy * dy) / (wt * wt) + j * 460
+    if (d < bd) { bd = d; best = tag }
+  }
+  return best
+}
+function biomeAt6(x, y) {
+  if (inSeaBase6(x, y) && !onIsle6(x, y)) return 'sea'
+  if (x <= brandX6(y)) return 'wilds'
+  return regionAt6(x, y)
+}
+const SRC_YF6 = 0.105
+function riverX6(y) {
+  return Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6))
+}
+const confY6 = () => Math.round(H * 0.63)
+function marchWY6(x) {
+  const cyy = confY6()
+  const reach = riverX6(cyy) - 8 - x
+  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  return cyy + Math.round(meander(25, x, 36, 12) * t)
+}
+function inRiver6(x, y) {
+  const srcY = Math.round(H * SRC_YF6)
+  if (y >= srcY) {
+    const rx = riverX6(y)
+    const d = x - rx < 0 ? rx - x : x - rx
+    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    if (y > H * 0.84) {
+      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3))
+      const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      if (d2 <= 1) return true
+    }
+  }
+  if (x < riverX6(confY6()) - 1 && x > brandX6(y) - 16) {
+    const my = marchWY6(x)
+    const d3 = y - my < 0 ? my - y : y - my
+    if (d3 <= 1) return true
+  }
+  return false
+}
+function lakeC6() { return { x: Math.round(W * 0.745), y: Math.round(H * 0.21) } }
+function inLake6(x, y) {
+  const c = lakeC6(), dx = (x - c.x) / 24, dy = (y - c.y) / 13
+  return dx * dx + dy * dy < 1
+}
+const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y)
+
+// v6 settlements: nominal centres from worldgen-expanse6 settlementsOf, each
+// nudged off water by a light dry-spiral (the generator's seatDrawnTown clears
+// Anchor ~29t east of the Great River; the rest barely move). Sizes are the
+// hand-drawn plan footprints. Only used for cobble tint and bridge decks --
+// the walls and buildings come from node data.
+let _ss6 = null
+function settlementsE6() {
+  if (_ss6) return _ss6
+  const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
+  const mby = cy - 62, oxy = cy + 30
+  const noms = [
+    ['anchor',      cx,                       cy,                        52, 36],
+    ['millbrook',   riverX6(mby) + 16,        mby,                       40, 18],
+    ['oxenford',    cx - 104,                 oxy + 10,                  36, 28],
+    ['thornbury',   cx + 78,                  cy - 34,                   34, 30],
+    ['hollybarrow', cx - 96,                  cy - 52,                   36, 24],
+    ['greenhollow', Math.round(W * 0.42),     Math.round(H * 0.12),      32, 22],
+    ['cragfoot',    Math.round(W * 0.86),     Math.round(H * 0.46),      28, 32],
+    ['eastmere',    (bayShoreX6(emY6()) ?? Math.round(W * 0.7)) - 14, emY6(), 38, 24],
+    ['fenmarch',    riverX6(Math.round(H * 0.83)) + 9, Math.round(H * 0.83), 36, 22],
+    ['norwick',     Math.round(W * 0.24),     Math.round(H * 0.46),      34, 24],
+  ]
+  // nudge each centre off water (mirrors seatDrawnTown's dry-spiral, simplified
+  // to the water test, which is what moves Anchor clear of the river)
+  const dryOk = (px, py, w, h) => {
+    for (let ry = -(h >> 1); ry <= (h >> 1); ry++) for (let rx = -(w >> 1); rx <= (w >> 1); rx++) {
+      const x = px + rx, y = py + ry
+      if (x < 3 || y < 3 || x >= W - 3 || y >= H - 3) return false
+      if (isWater6(x, y)) return false
+    }
+    return true
+  }
+  _ss6 = noms.map(([tag, nx, ny, w, h]) => {
+    let sx = nx, sy = ny, seated = false
+    spiral: for (let rad = 0; rad < 60 && !seated; rad++)
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        if (dryOk(nx + dx, ny + dy, w, h)) { sx = nx + dx; sy = ny + dy; seated = true; break spiral }
+      }
+    return { tag, name: tag[0].toUpperCase() + tag.slice(1), x: sx, y: sy, w, h }
+  })
+  return _ss6
+}
+
+function terrainOfE6(x, y) {
+  if (inSea6(x, y)) return 'sea'
+  if (isWater6(x, y)) {
+    if (onRoadE(x, y)) return 'bridge'
+    for (const st of ssE()) {
+      const x0 = st.x - (st.w >> 1), x1 = st.x + (st.w >> 1)
+      const y0 = st.y - (st.h >> 1), y1 = st.y + (st.h >> 1)
+      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && (x === st.x || y === st.y)) return 'bridge'
+    }
+    return 'river'
+  }
+  for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
+  if (onRoadE(x, y)) return 'trail'
+  return biomeAt6(x, y)
+}
+
+
 function terrainOfE(x, y) {
+  if (GEN === 'interval-expanse-v6') return terrainOfE6(x, y)
   if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
