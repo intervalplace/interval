@@ -8,10 +8,21 @@
 // overrides only PLANS5, under the name PLANS5_V6, so no earlier world moves a
 // tile.
 export {
-  LEGEND, OPEN, FLOOR, KIND_FOR, SEA, QUAY, PLANS, PLACES, PLAN_ROOMS,
+  LEGEND, OPEN, FLOOR, KIND_FOR, SEA, QUAY, PLANS, PLACES,
   isIndoor, validatePlan, checkPlanConnected, layPlan, seatCoastalPlan,
   quayTilesOfPlan, shireBoundsOf,
 } from './worldgen-shire.mjs'
+import { PLAN_ROOMS as PLAN_ROOMS_BASE } from './worldgen-shire.mjs'
+
+// §6cz (v6): MILLBROOK'S ROOMS MOVED WHEN ITS DRAWING GREW. PLAN_ROOMS tells the
+// stall-seater which interiors are shop-rooms; the frozen file's Millbrook rooms
+// belong to the old four-a-side plan. v6 redraws Millbrook bigger (above), so it
+// carries its own room list -- the six clean shop-fronts along the market street
+// -- and re-exports every other town's rooms unchanged.
+export const PLAN_ROOMS = {
+  ...PLAN_ROOMS_BASE,
+  millbrook: [[4,13,4,2],[12,13,4,2],[20,13,4,2],[28,13,4,2],[36,13,4,2],[44,13,4,2]],
+}
 
 export const PLANS5_V6 = {
   // ANCHOR. Every building is a ROOM with a door. The rampart and the keep
@@ -55,26 +66,34 @@ export const PLANS5_V6 = {
     '%.........................G........................%',
     '%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%',
   ],
-  // MILLBROOK: one street, four doors either side of it.
+  // MILLBROOK: THE MARKET. A market street with the well, the sign and the
+  // market cross, homes and the bank along the top, and a full row of SIX clean
+  // shop-fronts below -- one for each specialist stall the market keeps, with a
+  // room to spare. Redrawn bigger in v6 (the old four-a-side plan could not seat
+  // five stalls indoors, so one always pitched abandoned on the verge).
   millbrook: [
-    '                                        ',
-    ' ...................................... ',
-    ' ..#######..########..#######..#######. ',
-    ' ..#,,ed,#..#,,Bqv,#..#,,ed,#..#,,,v,#. ',
-    ' ..#,h,k,#..#,,,,k,#..#,h,,,#..#,,,s,#. ',
-    ' ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ',
-    ' ..###,###..####,###..###,###..###,###. ',
-    ' ...................................... ',
-    ' ...................................... ',
-    ' ..............o.........*...........W. ',
-    ' .T.................i.................. ',
-    ' ...................................... ',
-    ' ..###,###..####,###..###,###..###,###. ',
-    ' ..#e,,d,#..#e,,,d,#..#vq,k,#..#e,,d,#. ',
-    ' ..#,h,,,#..#,h,,,,#..#,,q,,#..#,h,,,#. ',
-    ' ..#,,,,,#..#,,,,,,#..#,,,,,#..#,,,,,#. ',
-    ' ..#######..########..#######..#######. ',
-    '                                        ',
+    '                                                    ',
+    ' .................................................. ',
+    ' ..#####.#####.######.#######..#####.######........ ',
+    ' ..#h,,#.#h,,#.#h,,,#.#B,,,,#..#h,,#.#h,,,#........ ',
+    ' ..#,,,#.#,,,#.#,,,,#.#,,,,,#..#,,,#.#,,,,#........ ',
+    ' ..#,,d#.#,,d#.#,,,d#.#,,,q,#..#,,d#.#,,,d#........ ',
+    ' ..##,##.##,##.###,##.###,###..##,##.###,##........ ',
+    ' .................................................. ',
+    ' .................................................. ',
+    ' ....o..........i.........*..................T..... ',
+    ' .................................................. ',
+    ' .................................................. ',
+    ' ..###,##..###,##..###,##..###,##..###,##..###,##.. ',
+    ' ..#,,,,#..#,,,,#..#,,,,#..#,,,,#..#,,,,#..#,,,,#.. ',
+    ' ..#,,,,#..#,,,,#..#,,,,#..#,,,,#..#,,,,#..#,,,,#.. ',
+    ' ..######..######..######..######..######..######.. ',
+    ' .................................................. ',
+    ' ..###,##.......................................... ',
+    ' ..#S,,,#.......................................... ',
+    ' ..#,,,,#.......................................... ',
+    ' ..######.......................................... ',
+    '                                                    ',
   ],
   // OXENFORD: the market square open to the sky, its rooms around the edge.
   oxenford: [
