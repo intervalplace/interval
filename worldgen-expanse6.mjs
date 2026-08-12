@@ -1808,7 +1808,7 @@ const SIGN_TEXT = {
   eastmere: 'Eastmere, on the water. Listen along the strand before you walk it.',
   fenmarch: 'Fenmarch. The ground is not where it looks.',
   oxenford: 'Oxenford, on the ford. The road west runs from here; keep the peace yourself.',
-  millbrook: 'Millbrook, the market. Every stall on the island keeps here \u2014 buy before you go on.',
+  millbrook: 'Millbrook, the market. The arms, the armour, the bows and the axe \u2014 near everything keeps here. For a rod ask the port; for seed, the farm.',
   thornbury: 'Thornbury, the forge. The one anvil on Tallyholm; bring ore and bring patience.',
 }
 
@@ -2459,7 +2459,7 @@ export function buildWorld(genesis) {
   let wayN = 0, mileN = 0
   const waysideKinds = ['croft', 'cairn', 'shrine', 'orchard', 'gibbet', 'kennel', 'beehives', 'bouldercircle']
   const buildWayside = (x, y, kind, tag) => {
-    const ok = (ax, ay) => free(ax, ay)
+    const ok = (ax, ay) => free(ax, ay) && !onRoad(g, ax, ay)  // §6cz: never build decor on the road
     switch (kind) {
       case 'croft': { // an abandoned smallholding: four walls, a door, a dead plot
         if (![[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2]].every(([a,b]) => ok(x+a, y+b))) return false
@@ -2603,7 +2603,7 @@ export function buildWorld(genesis) {
     wilds:     ['bonepile', 'ruinwall', 'cairn'],
   }
   const buildCountryThing = (x, y, kind, tag) => {
-    const ok = (ax, ay) => free(ax, ay)
+    const ok = (ax, ay) => free(ax, ay) && !onRoad(g, ax, ay)  // §6cz: never build decor on the road
     switch (kind) {
       case 'peatcutting': { // a worked peat bank: turves lifted, water beneath
         let n = 0
@@ -4522,6 +4522,69 @@ export function buildWorld(genesis) {
       }
   }
 
+  // §6cz (v6): NO STALL MAY BE SEALED OFF. Walking the founded world showed
+  // keepers stood in the one gap of a shop's wall -- the doorway -- so a buyer
+  // reached the counter, was told "you can't reach that", and left. The seating
+  // heuristics try to leave a customer side, but a keeper taking the only tile
+  // that joins the counter to the street defeats them. So, once every stall and
+  // keeper exists, prove each stall is reachable from open ground; where it is
+  // not, the keeper standing in the way steps aside (is removed). A shop with no
+  // visible keeper still trades; a shop no one can reach does not.
+  {
+    const BLOCK = new Set(['wall', 'fence', 'hedge', 'tree', 'rock', 'iron-rock', 'coal-rock',
+      'magic-rock', 'gold-rock', 'oak-tree', 'heartwood-tree', 'stall', 'anvil', 'bank', 'store',
+      'well', 'hearth', 'plot', 'keeper', 'guard', 'signpost', 'banner', 'campfire'])
+    const nodeAt = new Map()
+    for (const n of Object.values(w.nodes)) nodeAt.set(n.x + ',' + n.y, n)
+    const walkable = (x, y) => {
+      if (x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false
+      if (isWater(g, x, y) || blockedAt(g, x, y)) return false
+      const n = nodeAt.get(x + ',' + y)
+      return !n || !BLOCK.has(n.type)
+    }
+    // an "open" tile a buyer can come from: a road/plaza tile, or plain ground
+    const openStart = (x, y) => walkable(x, y) && (onRoad(g, x, y) || !nodeAt.get(x + ',' + y))
+    const reachableFromOpen = (sx, sy) => {
+      // BFS from the stall's free neighbours outward; success = we touch a road
+      // tile (the street) within a bounded radius.
+      const seen = new Set(); const q = []
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const ax = sx + dx, ay = sy + dy
+        if (walkable(ax, ay)) { q.push([ax, ay]); seen.add(ax + ',' + ay) }
+      }
+      let steps = 0
+      while (q.length && steps < 4000) {
+        steps++
+        const [x, y] = q.shift()
+        if (onRoad(g, x, y)) return true            // reached the street
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const ax = x + dx, ay = y + dy, k = ax + ',' + ay
+          if (seen.has(k)) continue
+          if (Math.abs(ax - sx) > 18 || Math.abs(ay - sy) > 18) continue
+          if (walkable(ax, ay)) { seen.add(k); q.push([ax, ay]) }
+        }
+      }
+      return false
+    }
+    let freed = 0
+    for (const n of Object.values(w.nodes)) {
+      if (n.type !== 'stall') continue
+      if (reachableFromOpen(n.x, n.y)) continue
+      // sealed: remove the nearest keeper (the one blocking) and re-test
+      let removed = false
+      for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1], [-1, -1], [1, 1], [-1, 1], [1, -1]]) {
+        const k = nodeAt.get((n.x + dx) + ',' + (n.y + dy))
+        if (k && k.type === 'keeper') {
+          const kid = Object.keys(w.nodes).find((id) => w.nodes[id] === k)
+          if (kid) { delete w.nodes[kid]; nodeAt.delete((n.x + dx) + ',' + (n.y + dy)); removed = true; freed++; break }
+        }
+      }
+      // if still unreachable after freeing the keeper, leave it -- the wall, not
+      // a person, is the obstacle, and that is a drawing fix, not this pass's.
+    }
+    counts.stallsFreed = freed
+  }
+
   // ---- WHAT EACH OF THEM ACTUALLY DOES -----------------------------------
   //
   // Fifty-nine people stood about this island called "keeper", which is not a
@@ -4582,6 +4645,61 @@ export function buildWorld(genesis) {
   for (const id of Object.keys(w.nodes)) {
     const n = w.nodes[id]
     if (n.type === 'waystone') { n.type = 'landmark'; n.kind = 'standing-stone' }
+  }
+
+  // §6cz (v6): ONE SMITH ON THE ISLAND. The anvil was pulled to Thornbury, but
+  // every town drawing still seats a smith at a forge that is no longer there --
+  // so six smiths stand at nothing, telling a newcomer they can smith where they
+  // cannot. Thornbury keeps its smith: he works the one real anvil and has
+  // earned the title. The rest become CRIERS: the same person, still in the
+  // building, but now they say what the town is FOR -- the town's own SIGN_TEXT
+  // line, carried in state so every window speaks it the same. A dead trade
+  // becomes the world's own voice at the door.
+  {
+    const ss3 = settlementsOf(g)
+    const townOfNode = (n) => {
+      let best = null, bd = Infinity
+      for (const s of ss3) { const d = Math.abs(n.x - s.x) + Math.abs(n.y - s.y); if (d < bd) { bd = d; best = s } }
+      return best
+    }
+    let criers = 0
+    for (const id of Object.keys(w.nodes)) {
+      const n = w.nodes[id]
+      if (n.type !== 'smith') continue
+      const town = townOfNode(n)
+      if (town && town.tag === 'thornbury') continue   // the one true smith stays
+      const line = (town && SIGN_TEXT[town.tag]) || (town ? town.name : 'a town on Tallyholm')
+      n.type = 'crier'
+      n.text = line
+      n.name = town ? ('the ' + town.name + ' crier') : 'the town crier'
+      delete n.kind
+      criers++
+    }
+    counts.criers = criers
+  }
+
+  // §6cz (v6): NOTHING LOOSE BLOCKS THE ROAD. The router lays its paths before
+  // the towns are drawn, and decorations (crofts, peat, a stray landmark or
+  // campfire) can land on a road tile -- an obstacle on the one surface that
+  // must stay clear. Sweep the road: any movement-blocking node that is NOT a
+  // town's own fixture is removed. Town fabric (the perimeter wall a road ends
+  // at, the well in the square a road passes) is left -- a road meeting a town
+  // wall is a gate, and every gate was checked to stay reachable; but a plot or
+  // a peat-stack sitting in the open road is just wrong, and goes.
+  {
+    const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market'])
+    // things that belong to a town/among buildings -- left where they are
+    const FIXTURE = new Set(['wall', 'hedge', 'fence', 'well', 'hearth', 'bank', 'store',
+      'anvil', 'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire'])
+    let cleared = 0
+    for (const id of Object.keys(w.nodes)) {
+      const n = w.nodes[id]
+      if (WALKABLE.has(n.type) || FIXTURE.has(n.type)) continue
+      if (!onRoad(g, n.x, n.y)) continue
+      // a loose blocker on the open road: plot, landmark, tree, rock, etc.
+      delete w.nodes[id]; cleared++
+    }
+    counts.roadDecorCleared = cleared
   }
 
   const serr = E.validateState(w)
