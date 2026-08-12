@@ -414,6 +414,14 @@ tr.crow-total td { background: #2b2113; border-bottom: 2px solid var(--stone-lt)
 }
 .tenets .tenet:last-child { margin-bottom: 8px; }
 
+/* The two paragraphs that used to carry headings. A heading announced the
+   section like a narrator; instead each opens on a bolded line in the world's
+   own voice and flows straight into itself. The eye still gets a place to land
+   and the block still stands apart, but nothing is being explained at you. */
+.lede { margin: 0 0 20px; }
+.lede b { color: var(--gold); }
+main.stone > .lede:first-of-type { margin-top: 8px; }
+
 /* Sections get room to breathe: a heading is a place to land, and the eye
    needs a beat of empty before the next one so the page has a rhythm instead
    of one unbroken column. */
