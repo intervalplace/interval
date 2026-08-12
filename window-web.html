@@ -4078,6 +4078,7 @@ function onState(s, worldId) {
     W = s.genesis.worldW; H = s.genesis.worldH
     GEN = s.genesis.worldGenerator ?? GEN; GSEED = s.genesis.genesisSeed ?? ''
     _seedNumC = null; _ssE = null; _roadSet = null
+    miniReady = false   // the minimap must redraw for the new world, not keep the old one
     buildGround()
     // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
     // node actually laid; the moment they arrive, rebuild the ground so every
@@ -4086,7 +4087,8 @@ function onState(s, worldId) {
     fetch('/api/roads', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
       if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
         _roadSet = new Set(rd.tiles)
-        buildGround()   // repaint with the true roads
+        buildGround()   // repaint the ground with the true roads
+        miniReady = false   // and the minimap, which cached the placeholder before the roads arrived
       }
     }).catch(() => { /* offline: the placeholder stands */ })
   }
