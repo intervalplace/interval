@@ -2366,6 +2366,19 @@ export function buildWorld(genesis) {
     const ring = [[4, 0], [3, 3], [0, 4], [-3, 3], [-4, 0], [-3, -3], [0, -4], [3, -3]]
     let n = 0
     for (const [dx, dy] of ring) if (free(rx0 + dx, ry0 + dy)) put('ring-' + (n++), 'landmark', rx0 + dx, ry0 + dy, { kind: 'standing-stone' })
+    // §6bp: THE FIRST DEDICATION STONE, at the middle of the Ring.
+    //
+    // Three of these exist on the island and no more. Scarcity is the whole
+    // mechanism: a stone nobody else wants is a donation box, and a stone
+    // four hundred citizens want is a running argument that costs a fortune.
+    // Three is few enough to be contested and enough that the contest is not
+    // one clan's private property.
+    //
+    // It goes HERE because the Ring is where Oberon teaches, which is to say
+    // the one place on this island people already come to read words cut into
+    // rock. A stone bearing a citizen's name belongs among stones bearing the
+    // world's.
+    if (free(rx0, ry0)) put('ded-ring', 'dedication', rx0, ry0, { tag: 'ring' })
     seekO: for (let rad = 1; rad < 12; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
       if (free(rx0 + dx, ry0 + dy) && free(rx0 + dx + 1, ry0 + dy)) {
@@ -2433,6 +2446,9 @@ export function buildWorld(genesis) {
     }
     seat('tally-isle', 'landmark', -2, -2, { kind: 'tally-half', founderKey: g.founderKey })
     seat('shrine-hearth', 'campfire', 3, 0)
+    // §6bp: the third, on Shrine Isle -- across water, which means the dearest
+    // name in the world is also the least convenient one to go and read.
+    seat('ded-shrine', 'dedication', 0, 2, { tag: 'shrine' })
     for (let k = 0; k < 4; k++) seat('shrine-stone-' + k, 'landmark', [-4, 4, 0, 0][k], [0, 2, -4, 4][k], { kind: 'standing-stone' })
   }
 
@@ -2824,6 +2840,9 @@ export function buildWorld(genesis) {
       { name: keeperName('monastery', 'mourner'), kind: 'mourner' })
     sput('mon-well', 'well', c.x - 7, c.y + 1)
     sput('mon-sign', 'signpost', c.x, c.y + 6)
+    // §6bp: the second stone, in the monastery precinct. The other place on
+    // the island whose entire business is remembering people.
+    sput('ded-monastery', 'dedication', c.x + 3, c.y + 2, { tag: 'monastery' })
     // and the stones outside it, because a burying-place has them
     for (let a = -3; a <= 3; a += 3) sput('mon-stone-' + (i2++), 'landmark', c.x + a, c.y + 6, { kind: 'standing-stone' })
   }
