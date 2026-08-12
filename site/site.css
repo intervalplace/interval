@@ -402,6 +402,24 @@ tr.crow-total td { background: #2b2113; border-bottom: 2px solid var(--stone-lt)
 .playsub { margin-top: 10px; font-size: 12px; color: var(--dim, #8a7d68) }
 .nowrap { white-space: nowrap }
 
+/* The creed, gathered into one block directly under the door. Five short
+   lines are the most inviting thing on the page, so they come first; grouped
+   and set on a faint panel they read as a unit rather than dissolving into the
+   prose that used to sit above and below them. */
+.tenets {
+  margin: 4px 0 30px; padding: 20px 22px 10px;
+  background: rgba(0,0,0,.14);
+  border: 1px solid var(--stone-dk);
+  border-radius: 3px;
+}
+.tenets .tenet:last-child { margin-bottom: 8px; }
+
+/* Sections get room to breathe: a heading is a place to land, and the eye
+   needs a beat of empty before the next one so the page has a rhythm instead
+   of one unbroken column. */
+main.stone > h2 { margin-top: 34px; }
+main.stone > .tenets + h2 { margin-top: 30px; }
+
 /* the window cards: a name, a line, and what it asks of a machine */
 .spec { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #8a7d68 }
 .spec b { color: #b0913f; font-weight: 700 }
