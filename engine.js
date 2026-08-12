@@ -315,7 +315,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // is the chart, as a GOOD rather than a key (6ci): 6ag was right that a
   // master surveyor should come home with something to sell. It had simply
   // spent that idea on a door.
-  'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
+  'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'crier', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
   // §2g: A RAMPART IS NOT A HOUSE WALL.
   //
   // The town drawings have always distinguished them -- '%' is a town's outer
@@ -4555,7 +4555,13 @@ const LANDMARK_KINDS = new Set([
       // Only a standing stone: a cut-face or a spoil-heap bearing prose
       // would be somebody's graffiti, not the world's own voice.
       const carvable = n.type === 'signpost'
-        || (n.type === 'landmark' && n.kind === 'standing-stone');
+        || (n.type === 'landmark' && n.kind === 'standing-stone')
+        // §6cz (v6): THE TOWN CRIER speaks the town's own line. Where the anvil
+        // was pulled to Thornbury, the smith who stood at a forge that no longer
+        // exists is now a crier -- a person, not a board, who says what the town
+        // is for. The words are the town's SIGN_TEXT, carried in state so every
+        // window reads the same voice.
+        || n.type === 'crier';
       if (!carvable) return 'text on a node that bears none';
       if (typeof n.text !== 'string' || n.text.length > 256) return 'malformed node text';
     }
@@ -4571,7 +4577,7 @@ const LANDMARK_KINDS = new Set([
     // A name is part of who stands there. It belongs in the world, where the
     // hash covers it and every window reads the same person.
     if (n.name !== undefined) {
-      if (n.type !== 'keeper') return 'a name belongs to a keeper';
+      if (n.type !== 'keeper' && n.type !== 'crier') return 'a name belongs to a keeper';
       if (typeof n.name !== 'string' || n.name.length < 1 || n.name.length > 32) return 'malformed keeper name';
     }
   }
