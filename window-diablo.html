@@ -8278,7 +8278,7 @@ function drawNode(g, n, sx, sy, t, hot) {
         }
       }), sx - 30, sy - 62 + 16); return
       // 6ch: no stone to draw.
-    case 'keeper': case 'guard': case 'smith': {
+    case 'keeper': case 'guard': case 'smith': case 'crier': {
       const role = n.type
       const t2 = t / 1000 + hs
       // A KEEPER WHO KEEPS SOMETHING LOOKS LIKE IT.
@@ -13339,10 +13339,11 @@ function frame(now) {
       //
       // A name over a calling, or a name alone for somebody who lives in a
       // house and does no particular job.
-      if (hover.e.type === 'keeper' || hover.e.type === 'smith' || hover.e.type === 'guard') {
+      if (hover.e.type === 'keeper' || hover.e.type === 'smith' || hover.e.type === 'guard' || hover.e.type === 'crier') {
         const who = hover.e.name || residentName(hover.e)
         const call = hover.e.kind ? CALLING_NAME[hover.e.kind]
           : hover.e.type === 'smith' ? 'the smith'
+          : hover.e.type === 'crier' ? 'the town crier'
           : hover.e.type === 'guard' ? 'the guard' : null
         tipAt = { title: who, sub: call ? titleCase(call.replace(/^the /, '')) : null, col: '#d9c9a0' }
       } else {

@@ -6201,12 +6201,13 @@ function drawScene(now) {
         cx.fillStyle = '#2c2216'; cx.fillText('WEST', X + 22, Y + 23.6)
       }
       // 6ch: the standing stone, and the recall it offered, are gone.
-      if (n.type === 'guard' || n.type === 'smith') {
+      if (n.type === 'guard' || n.type === 'smith' || n.type === 'crier') {
         shadow(X, Y, 8)
         const bob = Math.sin(now / 900 + n.x) * 0.6
         const isSmith = n.type === 'smith'
-        // body
-        cx.fillStyle = isSmith ? '#5a4632' : '#5a6b7d'
+        const isCrier = n.type === 'crier'
+        // body -- the crier in town-brown, a public voice
+        cx.fillStyle = isCrier ? '#6a5330' : isSmith ? '#5a4632' : '#5a6b7d'
         cx.fillRect(X + 14, Y + 15 + bob, 12, 12)
         cx.fillStyle = isSmith ? '#3a2f22' : '#48576a'
         cx.fillRect(X + 14, Y + 22 + bob, 12, 5)
@@ -8704,6 +8705,7 @@ cv.addEventListener('click', (e) => {
       }
       if (n.type === 'rampart') { feed('A curtain wall. Dressed stone, battered at the foot, and old.'); return }
       if (n.type === 'signpost') { feed(n.text || 'West: Westhearth. East: Eastmere. North: Anchor.'); return }
+      if (n.type === 'crier') { feed((n.name ? n.name + ': "' : '"') + (n.text || 'Hear ye.') + '"'); return }
       // a carved stone is read the same way a sign is: the words are in the
       // world, on the stone, not in this file
       if (n.type === 'landmark' && n.text) { feed(n.text); flashClick(n.x, n.y, false); return }
