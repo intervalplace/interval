@@ -3345,11 +3345,16 @@ export function buildWorld(genesis) {
     return y < 168 && x > 600
   }
   counts.goldSeam = clusterScatter('gseam', 4, goldCountry, (id, x, y) => E.addNode(w, id, 'gold-rock', x, y), 1, 8)
-  // deep-fish: the northern Moor/Wilds water pocket, placed at the DEEP end
-  // (~15t into the Wilds) so fishing there is a real commitment, not a step-out.
+  // deep-fish: the Wilds-shore water at the DEEP end (12-20 tiles into the
+  // Wilds) so fishing there is a real commitment, not a step-out. §6cz FIX: the
+  // first version scanned a hardcoded pocket [x170-195, y108-140] that assumed a
+  // coastline v6 does not have -- 825 sea tiles there, none with a Wilds-land
+  // neighbour, so ZERO deep-fish placed and the Moor's Wilds had no fishing at
+  // all. Scan the whole Wilds coast by DEPTH, exactly as the shoal below does,
+  // and let the geography say where the deep band is.
   {
     const pocket = []
-    for (let y = 108; y <= 140; y++) for (let x = 170; x < 195; x++) {
+    for (let y = 42; y <= 389; y++) for (let x = 29; x < 195; x++) {
       if (!isWater(g, x, y)) continue
       // the fisher stands on the LAND beside the water; that land must be Wilds
       // (the water itself is sea-biome). Require a wilds-land neighbour.
@@ -4678,28 +4683,33 @@ export function buildWorld(genesis) {
     counts.criers = criers
   }
 
-  // §6cz (v6): NOTHING LOOSE BLOCKS THE ROAD. The router lays its paths before
-  // the towns are drawn, and decorations (crofts, peat, a stray landmark or
-  // campfire) can land on a road tile -- an obstacle on the one surface that
-  // must stay clear. Sweep the road: any movement-blocking node that is NOT a
-  // town's own fixture is removed. Town fabric (the perimeter wall a road ends
-  // at, the well in the square a road passes) is left -- a road meeting a town
-  // wall is a gate, and every gate was checked to stay reachable; but a plot or
-  // a peat-stack sitting in the open road is just wrong, and goes.
+  // §6cz (v6): THE ROAD PASSES THROUGH A GATE, NOT THROUGH A WALL. The router
+  // lays its paths from town centre to town centre BEFORE the walls are drawn,
+  // so a wall can come down straight across the road -- and then the road runs
+  // up to a blank rampart instead of an opening, which is what "the road leads
+  // out through the wall" looks like from the ground. A road meeting a wall IS a
+  // gate, so make it one: any wall, hedge or fence on a road tile is opened (the
+  // road punches its gate). Loose decor that strayed onto the open road (a
+  // croft, a peat-stack, a landmark) is simply removed. The point-fixtures a
+  // road happens to pass beside -- a well, a hearth, a counter -- are left; if
+  // one genuinely sits in the roadway that is a seating fault, reported below.
   {
     const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market'])
-    // things that belong to a town/among buildings -- left where they are
-    const FIXTURE = new Set(['wall', 'hedge', 'fence', 'well', 'hearth', 'bank', 'store',
-      'anvil', 'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire'])
-    let cleared = 0
+    const OPENABLE = new Set(['wall', 'hedge', 'fence'])              // a road here is a gate
+    const KEEP = new Set(['well', 'hearth', 'bank', 'store', 'anvil', // point fixtures: leave
+      'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire'])
+    let gated = 0, cleared = 0, fixtureInRoad = 0
     for (const id of Object.keys(w.nodes)) {
       const n = w.nodes[id]
-      if (WALKABLE.has(n.type) || FIXTURE.has(n.type)) continue
+      if (WALKABLE.has(n.type)) continue
       if (!onRoad(g, n.x, n.y)) continue
-      // a loose blocker on the open road: plot, landmark, tree, rock, etc.
-      delete w.nodes[id]; cleared++
+      if (OPENABLE.has(n.type)) { delete w.nodes[id]; gated++ }       // open the wall: a gate
+      else if (KEEP.has(n.type)) { fixtureInRoad++ }                  // leave, but count it
+      else { delete w.nodes[id]; cleared++ }                          // loose decor: gone
     }
+    counts.roadGatesOpened = gated
     counts.roadDecorCleared = cleared
+    counts.fixturesInRoad = fixtureInRoad
   }
 
   const serr = E.validateState(w)
