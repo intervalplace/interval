@@ -14,7 +14,7 @@ import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf } from './worldgen-any.mjs'
 
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // which country the next founding raises: INTERVAL_GEN=interval-expanse-v1
@@ -62,6 +62,7 @@ const KNOWN_ITEMS = E.ITEMS // ONE constitutional item registry (rev5 §4) — e
 let AUDIO_WARNED = false
 const announced = new Map() // peerId -> { addr, at }: the mesh directory
 let GENESIS, migrated = 0
+let _roadsCache = null   // /api/roads: the founded world's road tiles, computed once
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
 let savedCp = null
 try { if (fs.existsSync(CP_FILE)) savedCp = JSON.parse(fs.readFileSync(CP_FILE)) } catch {}
@@ -365,6 +366,14 @@ const server = http.createServer((req, res) => {
       genesis: node.genesis, peerId: node.peerId(), p2pPort: P2P_PORT,
       note: 'run join.mjs against this URL to enter this world with your own node and keys',
     })
+    // THE ROADS THIS WORLD ACTUALLY HAS. Computed once here, from the founded
+    // genesis, by the same router that laid them -- so every window draws the
+    // real network (ring, passes, bridges) instead of guessing. Cached: roads
+    // never change for a given founding.
+    if (path === '/api/roads') {
+      if (!_roadsCache) { try { _roadsCache = roadDataOf(node.genesis) } catch (e) { _roadsCache = { tiles: [], bridges: [], bends: [], error: e.message } } }
+      return json(_roadsCache)
+    }
     if (path === '/api/world') return json({
       tick: node.state.tick, finalizedTick: node.finalizedTick, scheduledTick: node.scheduledTick,
       worldId: node.worldId, witnesses: GENESIS.witnesses.length, quorum: GENESIS.quorum,
