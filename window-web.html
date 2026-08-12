@@ -4079,6 +4079,16 @@ function onState(s, worldId) {
     GEN = s.genesis.worldGenerator ?? GEN; GSEED = s.genesis.genesisSeed ?? ''
     _seedNumC = null; _ssE = null; _roadSet = null
     buildGround()
+    // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
+    // node actually laid; the moment they arrive, rebuild the ground so every
+    // road and bridge is the real network (the ring, the passes, the bridged
+    // crossings) rather than the straight-line placeholder. One fetch per world.
+    fetch('/api/roads', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
+      if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
+        _roadSet = new Set(rd.tiles)
+        buildGround()   // repaint with the true roads
+      }
+    }).catch(() => { /* offline: the placeholder stands */ })
   }
   prevState = curState; curState = s; curWorldId = worldId
   // queue any milestone cries that happened since we last looked, but never

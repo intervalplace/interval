@@ -286,7 +286,7 @@ function configure(opts = {}) {
   _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
   _ssE = null
-  _roadSet = null
+  _roadSet = null; _roadBridges = null
   _ss3 = null
   _roads3 = null
   _shore4 = null
@@ -387,7 +387,7 @@ function settlementsE() {
   ]
 }
 const ssE = () => (_ssE ??= settlementsE())
-let _roadSet = null
+let _roadSet = null, _roadBridges = null
 function roadTilesE() {
   if (_roadSet) return _roadSet
   const ss = ssE(), a = ss[0]
@@ -12783,6 +12783,18 @@ function onState(s, worldId) {
   if (sig !== worldConfigured) {
     worldConfigured = sig
     configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
+    // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
+    // node actually laid; until they arrive roadTilesE() draws its placeholder,
+    // and the moment they do, every road and bridge redraws from the real
+    // network. (One fetch per world; the roads never change for a founding.)
+    fetch('/api/roads', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
+      if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
+        _roadSet = new Set(rd.tiles)
+        _roadBridges = new Set(rd.bridges || [])
+        _roadBmp = null; _roadBmpFor = null   // force the fast-path bitmap to rebuild
+        _tileArt.clear(); _gcol.clear()        // repaint ground with the real roads
+      }
+    }).catch(() => { /* offline: the placeholder stands */ })
     _tileArt.clear()
     _gcol.clear()
     _bspan2.clear()
