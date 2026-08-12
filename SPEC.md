@@ -1146,9 +1146,12 @@ the sand at a citizen and swing at them and never once land a blow,
 and teaches nothing for the trouble. It costs a citizen nothing but
 company.
 
-**Unmaking at range, which is denial and not theft.** A citizen falls
+**Unmaking at range, which is denial and not theft.** (The instrument
+has since moved off the heartwood stave and onto the goo staff, and
+gained an opposite verb beside it -- see §6bn. Everything below is
+otherwise unchanged.) A citizen falls
 and their pack spills; the one who felled them walks over to take it.
-Five tiles off, an alchemist with a heartwood stave burns a sigil and
+Five tiles off, a citizen with the staff burns a sigil and
 the pile is simply GONE -- the plate, the sword, the stones. Nobody
 gets them, the caster least of all: no coin comes of it, because the
 thing was unmade rather than sold, and unmaking somebody else's spoil
@@ -1167,9 +1170,10 @@ materials no keeper will sell -- against the seven gold a beginner's
 goblin drops. It costs nine times what it would deny them, so it
 cannot be used to torment newcomers; against a star-plate lying in the
 grass it is very much worth doing, which is the fight where it
-belongs. The stave is the instrument because the stave is what alchemy
-is done with, and because it is already the rarest thing a fletcher
-makes.
+belongs. The stave WAS the instrument because the stave is what alchemy
+is done with -- and that turned out to be the argument against it, since
+it made the alchemy pace tool the thing that destroys other people's
+goods. §6bn moves the verb to a staff that does nothing else.
 
 **A keeper will not deal with the branded.** Strike first in the Wilds
 and the mark rides on you for fifteen minutes -- and until it cools,
@@ -4319,6 +4323,7 @@ a **different reason** than the dragon.
 ```
 great-spider  maxHp 300 · atk 26 · def 18 · maxHit 9 · every 3
               aggro 6 · mends 6 · respawn 36,000 (six hours)
+              drops: goo-staff, one kill in eight (§6bn)
 ```
 
 The dragon asks *can you survive long enough*. This asks **are there enough
@@ -4365,6 +4370,402 @@ ground from any town outside the Wilds: **215 tiles** from Cragfoot, against
 the dragon's 166 from Norwick. A longer journey than the dragon's and a
 different kind: long, but not lawless. The Greenwood's far end had no reason
 to be visited at all.
+
+## 6bn. The goo staff, and sealing (v0.87)
+
+The great spider gave nothing. Three citizens, a two-hundred-and-fifteen
+tile walk, six hours between one killing and the next, and the reward was
+that it stopped mending. The second thing in this world that cannot be done
+alone had no drop at all.
+
+```
+goo-staff   off the great-spider, 8,192/65,536 -- one kill in eight, counted
+            wield: magic 70 · two-handed · no alchemy cadence
+            unpriced: no keeper buys it, no prayer keeps it
+            verbs: unmake (moved here) · seal (new)
+```
+
+It is **not made**. No recipe mints it, no stall sells it, and no keeper
+prices it -- so it is never bought, and because `prayerKeeps` considers only
+priced goods it is **never kept at any prayer level**, exactly as the old
+chain, a chart, a sigil and the dragonbow are never kept. Every goo staff in
+the world came off a spider or off a body.
+
+### The instrument moved, and why
+
+`unmake` lived on the heartwood stave. The heartwood stave is the **alchemy
+pace tool** -- two intervals against three, the whole reason to walk to
+fletching ninety and spend two heartwood. So the fastest tool for the day's
+work also carried the one verb that destroys another citizen's goods, and
+every alchemy master was armed with it whether they wanted to be or not.
+Nobody ever chose `unmake`; it arrived with the tool they were already
+carrying.
+
+The wand shows the shape this world already had for such a thing: a pure
+verb item, worth six coins, with **no cadence at all**. That is the side of
+the line `unmake` belongs on.
+
+```
+staff             alch every 3    no verb        fletched from a log
+heartwood-staff   alch every 2    no verb        fletching 90, two heartwood
+wand              alch every 4    mend, still    fletched from a log
+goo-staff         alch every 4    seal, unmake   off the spider
+```
+
+The heartwood stave keeps its job entire. Two intervals against three is
+what its four hundred and ninety-five gold was always for.
+
+Seventy is the wield level because seventy is what the heartwood stave
+asked. **Nobody lost their reach when the verb moved.** Anything higher
+would have quietly gated a verb that was never gated, and the real gate on
+this staff is not a level: it is three citizens and six hours of the world.
+
+### Sealing: for the dropper, never the caster
+
+`seal {groundId}` spends a sigil, reaches five tiles -- the same five
+`unmake` reaches, because these are two verbs of one staff and a citizen
+should not have two distances to remember -- and reserves a pile on the
+ground **for whoever put it there**. Not for the caster. The caster cannot
+lift it, then or ever.
+
+This is the whole safety of the spell, and it is not a fairness rule. It is
+the automation rule (§8). Consider the version that reserves for the caster:
+
+```
+one seal, caster-reserve, a full pack of magic-stone on the ground
+  income  28 x 20g  = 560g          cost  1 sigil = 60g of ore
+  net per seal      = +500g         -- and the sigil is the only cost there is
+```
+
+A loop that returns nine times its own materials is a loop that expands: one
+camper funds two, and the thing to optimise is standing where people die.
+Sealing for the dropper earns **nothing at any rate**, in any configuration,
+forever. There is no bot to write, so nobody writes one.
+
+It also keeps magic what magic is. Every verb the skill has -- `anchor`
+removes you from a fight, `mend` keeps somebody else standing, `still` stops
+the violence, `unmake` destroys and pays the caster nothing -- and not one of
+them pays. A spell that turned proximity to a killing into profit would be
+the first.
+
+### A vigil, not a timer
+
+A seal holds while the caster **stands within five tiles, lives, and keeps
+the staff in hand**. Walk away, unwield, or fall, and it lapses that
+interval. While it holds the pile does not rot; when it lapses the ordinary
+hundred intervals begin again from that moment.
+
+A duration would have been easier and wrong. **Waiting out a clock is
+patience, and patience is the one cost this constitution rejects** -- a bot
+waits better than any person alive, so a timed seal is beaten by standing
+still, which is the thing standing still must never beat. A vigil ends when
+somebody *does* something.
+
+It also puts the price where it belongs. A mage who intervenes in a killing
+is standing in the Wilds, weaponless, holding an unpriced staff they can
+never get back, in front of somebody who has just demonstrated they swing.
+Kill the mage and the seal breaks -- and now there are two packs on the
+ground instead of one.
+
+**Once, ever.** A pile carries `sealSpent` from the interval it is sealed and
+never loses it, so a lapsed pile cannot be sealed again -- not by the same
+caster, and not by three mages taking turns, which would make a pack
+immortal. The star-dagger's `rootImmuneUntil` exists for the same reason.
+
+**No dropper, no seal.** `by` is written when a citizen's goods reach the
+ground -- dropped, spilled on death, burst out of a consignment -- and never
+on a beast's spoil, because §6e says loot lies where it falls and a spider's
+drop belongs to nobody. Sealing an ownerless pile would lock it for the
+length of a vigil to no one's benefit, which is griefing with a sigil
+attached.
+
+### What answers it
+
+`unmake`, off the same staff. A sealed pile can be destroyed, and then
+nobody has it -- denial answering denial. This is deliberate and it is the
+only counter, which means **the arms race over a pile is capped by the
+spider** rather than by fletching ninety.
+
+Note what sealing can never do: it cannot leave the dropper worse off. With
+no seal the killer takes the pack; with seal-then-unmake nobody does. The
+dropper's outcome is identical in both and the killer's is worse, so there
+is no configuration in which casting it harms the person it was cast for.
+
+### The arithmetic of how many
+
+The supply, not the balance, is what makes this safe, and that is the right
+place for the safety.
+
+```
+spider kills island-wide      ~3/day (6h respawn, three citizens, 215 tiles)
+staffs entering the world      3 x 1/8 = 0.375/day
+staffs leaving                 every death of a holder -- unpriced, never kept
+
+equilibrium escorts on station        0.63          at 4 vigil-hours a day
+escorts needed to cover 40 deaths/day 10
+margin                                16x
+```
+
+At a drop of one in two the equilibrium is still under three. **The drop rate
+is not the lever.** What moves the answer is how often a stationary
+weaponless citizen dies in the Wilds: at 0.15 an hour the numbers above hold;
+if escorting turns out to be safe -- 0.02 -- equilibrium rises to 4.7 and
+coverage to nearly half, and the design is in trouble. That number is
+measurable before founding and should be measured.
+
+§6c's premise survives intact either way: **a pack dropped in the Wilds is
+gone.** Coverage at equilibrium is a few per cent of deaths, and death
+remains the deepest sink this world has.
+
+### What this does not do
+
+It does not slow anybody. A staff that stuck a citizen to the ground would
+break the Flight Rule (§2b-i), which names the only three things that take
+away consent to violence, and a fourth would be the largest change in this
+document.
+
+It does not touch the spider's `mends`. Suppressing them is the obvious use
+for a spider's own drop and it is the wrong one: at four a tick two maxed
+citizens clear it, and the spider exists to say that **no level, no gear and
+no patience substitutes for another person.** This staff would have been the
+thing that substitutes.
+
+It does not reserve for the caster, in any circumstance, at any level, ever.
+
+It does not create an escort rule. A mage paid for standing over somebody's
+pack is paid the way §11g says a caravan guard will be: on the board,
+afterward, in goods, arranged between two people who signed for it.
+
+### What is still open
+
+**One.** Whether the two verbs want different geometry. Both reach five
+tiles, so a single misdirected input destroys what it meant to protect, and
+the cost lands on a third party who never touched a button. Position is the
+only confirmation this world can enforce -- a window that asks "are you
+sure?" is a window that casts a tick slower than one that does not, and they
+compete. Unmaking at one tile and sealing at five would make the destroying
+verb require walking onto the pile. It was left at five for both because two
+distances is a thing to remember wrong under pressure.
+
+**Two.** Whether a stone should remember the vigils kept over it. Being the
+pack somebody stood over is a small piece of history, and it costs a
+bounded array.
+
+## 6bo. Charcoal, and the fire that makes it (v0.87)
+
+Firemaking was the one skill in this world that **made nothing**. Woodcutting
+gives logs, mining gives ore, fishing gives fish; firemaking took logs and
+gave light. It was a sink with a view.
+
+```
+char {nodeId}   at a BURNING watchfire, within reach
+                10 ironbark -> 1 charcoal
+                firemaking 60 · 220 xp · costs the fire 2 logs of burn
+charcoal        priced 12, exactly as coal is: it IS coal at the anvil
+```
+
+### Why ironbark, and why not logs
+
+Coal is gated — mining twenty — so charcoal must be gated too, or the whole
+mid-tier smithing economy has a back door standing open at woodcutting one.
+Ironbark is the answer for three reasons and not only the obvious one:
+
+- It is the wood **whose entire job is the watchfire** (§6bc). Charring
+  happens at a watchfire, so the wood that belongs there is the wood that
+  chars.
+- It burns three logs' worth to one. A wood that lasts is a wood that can be
+  reduced rather than merely consumed.
+- Woodcutting **forty-five** against coal's mining twenty. A substitute
+  should cost *more* than the thing it substitutes for, always, or it is not
+  a substitute — it is a replacement, and the coal seam stops mattering.
+
+### It is not cheaper. It is closer.
+
+Ten ironbark is ninety gold of wood for a good priced at twelve. Nobody will
+ever char for profit and the arithmetic is not shy about it.
+
+What charcoal buys is **geography**, which is the only currency this world has
+ever really traded in. A smith standing in a forest with no seam within an
+hour's walk can now make steel out of what is around them, slowly and badly,
+instead of walking. That is the same bargain alchemy strikes — *what a citizen
+buys with the difference is not having to walk* — and it is the reason the
+ratio is allowed to be brutal.
+
+### It costs the fire, which is the point
+
+Charring takes two logs' worth of burn out of the watchfire it is done at.
+
+Below firemaking eighty a citizen **cannot keep a watchfire** (§6bd), and
+charring opens at sixty. So for twenty levels the only way to char is at
+**somebody else's fire, spending fuel somebody else carried**. The keeper
+earns nothing for it and cannot refuse it.
+
+That is deliberate and it is the whole social shape of the thing: the
+watchfire was already the one public work in the world, a thing you light
+where others can see it. Now it is a place people come *to*, with wood, to ask
+something of a fire they did not build. What passes between them is not in
+this document.
+
+### One substitution, in one place
+
+`charcoal` is not a new ingredient in twelve recipes. It is a single
+substitution in the one place recipes are read, so no recipe learned a second
+name for the same fire, and a founding that removes charcoal removes one line.
+
+Mined coal is spent **before** made charcoal in any pack holding both — the
+same order `consumeLogs` spends ordinary logs before heartwood. What was
+cheaper to come by goes in first.
+
+## 6bp. The dedication stones (v0.87)
+
+**Three stones on the island, each bearing one name, and the name is bought.**
+
+```
+dedicate {nodeId, pay}   at the stone, with a claimed name
+price = floor + floor x count / stepDen      (100,000 · +10% of floor each)
+the coin is DESTROYED · no refund to the displaced · the stone remembers 3
+it grants NOTHING
+```
+
+They stand at the Ring, at the monastery, and on Shrine Isle: the three places
+on this island whose business already is remembering — where Oberon's teaching
+is cut into rock, where the dead are kept, and across water where almost
+nobody goes.
+
+### The only pure sink in the world
+
+Gold enters at twelve an interval from six store purses and leaves through
+keepers. Everything a citizen can spend on buys a *capability*: an axe, a
+plate, a chart, a sigil. This buys a name on a rock. It cannot be worn,
+carried, sold, or lost in the Wilds. It confers no level, no reach, no
+standing, no speed.
+
+That is not a limitation of the design, it is the design. A world needs
+somewhere for a fortune to *go* that does not make the fortunate stronger, or
+wealth compounds into power and the arithmetic of every other rule shifts
+under it. This is a place to put money where the only thing it buys is that
+everyone can see you put it there.
+
+### Why the step is arithmetic
+
+Each name pays a tenth of the **floor** more than the count before it. Not a
+tenth more than the last name — that distinction is the entire section.
+
+```
+name      1       10       50        100       1,000
+arith  100,000  200,000  600,000  1,100,000  10,100,000
+geom   100,000  235,795  10.7 M    1.25 B     unreachable
+```
+
+A geometric ratchet compounds past the world's money supply. This island mints
+twelve gold an interval — about seventy-two thousand an hour, and gold is
+never otherwise destroyed — so a compounding stone passes the total wealth
+that will ever exist somewhere around its hundredth name and **freezes
+forever**. The last person to afford it owns it for the life of the world.
+That is a defensible design and it is not this one: a monument that stops
+being contested has stopped being interesting.
+
+Arithmetic grows and never outruns. The tenth name pays double the first, the
+hundredth eleven times, the thousandth a hundred and one times, and it never
+approaches `MAX_QTY`, so the representational ceiling §4b worries about is
+never reached. **The stone stays winnable for as long as the world lasts.**
+
+### No refunds, and why that is the load-bearing rule
+
+When a name is displaced, the gold that put it there is **already gone**. It
+was destroyed at the moment it was paid.
+
+Refunding the displaced holder would turn the stone into a savings account —
+pay in, get outbid, get it back — and the sink would evaporate entirely while
+looking exactly the same. Burning it means every overwrite destroys more than
+the last, so the sink **scales with the world's wealth** instead of with a
+founding constant that goes stale in a year.
+
+Being displaced buys you the thing you actually paid for: the interval during
+which the island's most expensive name was yours.
+
+### What the stone remembers
+
+The current name, what it cost, and **the last three it bore**. Bounded, so a
+stone that changes hands four hundred times is the same few bytes as one that
+changed hands twice.
+
+The three are there because being the name somebody paid a fortune to erase is
+its own kind of fame, and a monument that keeps no history is only an
+advertisement.
+
+### The small rules, and their reasons
+
+- **A bid names its own ceiling.** `pay` is what the citizen signed for; the
+  world charges the current price and never more. Two citizens may bid on one
+  stone in one interval, and the loser must not be charged for a name they did
+  not get — so a bid whose price has risen past its ceiling is refused whole
+  and spends nothing. The gate is re-checked at resolution rather than trusted
+  from validation, because those two look at the world an interval apart.
+- **You cannot outbid yourself.** Otherwise the wealthy could ratchet a stone
+  out of everyone else's reach by bidding against themselves — which is a real
+  strategy, but it should cost a rival's gold rather than a loop.
+- **A citizen must have claimed a name.** A stone bears what somebody is
+  called; an unnamed citizen has nothing to cut.
+- **The island is told**, by name, by price, by stone, and it says who it bore
+  before. This is the one announcement in the world about somebody spending
+  money, and it should be.
+
+## 6bq. The spilled cart (v0.87)
+
+When a hauler falls, the consignment no longer bursts into twenty-eight piles
+on one tile. It becomes **a cart standing in the road**.
+
+```
+cart          a node, walkable, ~600 intervals
+unload {nodeId}   one slot per interval, dearest first, to whoever is there
+              empty carts are not scenery: the last slot taken removes it
+```
+
+### What was wrong with a heap
+
+§11i left this open, and the reason it was open is that a heap of twenty-eight
+is three bad things at once. It is the largest pile `worthRank` will ever be
+asked to sort. It rots on the hundred-interval ground clock, so a caravan lost
+a country from anywhere is simply gone before anyone could be told. And it is
+a **race**: everything is takeable in the same interval, so the winner is
+whoever clicks fastest, which is a contest between windows rather than between
+citizens.
+
+A cart answers all three by being a place instead of a pile. It gives up one
+slot an interval to whoever is standing at it, so a caravan comes apart at the
+speed of the people taking it. It stands for an hour, which is long enough
+that somebody can be sent for. And it has an order — dearest first, the same
+order `worthRank` gives a window for a heap — so nobody needs a faster client
+to get the plate.
+
+### A spill is now an event
+
+This is the part worth the rule. A hauler killed on the north road used to
+produce a puddle that evaporated in sixty seconds. Now it produces a thing
+standing in the road with somebody's cargo on it, for an hour, that anyone
+walking past will see and that the owner can come back to and find
+half-emptied by strangers.
+
+The world gains a small ruin that people can arrive at. §11h's argument for
+hauling was that the road should be worth watching; a cart is what makes a
+robbery leave a mark on it.
+
+### What a cart is not
+
+It is **not ground**, so a seal (§6bn) does not reach it and neither does an
+unmaking. That is a real consequence of the change and it is accepted: a
+consignment was committed to the road (§11d), and the road is not a place
+where anything is reserved for anybody.
+
+It never blocks. Carts are walkable-built like a brewpot or a watchfire —
+a cart is a thing that spills on roads, and a road-blocking node would be the
+first thing anybody weaponised.
+
+The hauler's own pack still spills as ordinary ground, on the ordinary clock.
+Only what was **consigned** becomes a cart, which keeps §11d's separation
+exactly where it was: what a citizen carried is theirs and dies with them;
+what the container held was committed to the road and belongs to it.
 
 ## 6af. The special blow (v0.81)
 
@@ -4960,10 +5361,10 @@ founding decision rather than a law of nature.
 
 ### 11i. What is still open
 
-1. **`worthRank` and the spilled container.** A consignment spills as ground
-   items on the hundred-interval clock. Twenty-eight star-plates landing at
-   once is the largest single heap this world can produce, and §5b-ii's default
-   pickup order was written for smaller piles.
+1. ~~**`worthRank` and the spilled container.**~~ **Answered by §6bq.** A
+   consignment no longer spills as ground at all: it becomes a cart, which
+   gives up one slot an interval, dearest first. The largest heap this world
+   can produce is now the size of a citizen's own pack again.
 2. **The four storeless towns.** Millbrook, Thornbury, Hollybarrow and Norwick
    hold no `store` node, so no route can end there and the drawing has six
    destinations rather than ten. Thornbury's `kind` is literally `market`.
