@@ -19,8 +19,26 @@
 // would matter exactly as much as Nought does -- which is to say not at all,
 // since nothing computed here is ever sent anywhere.
 
-import * as ed from '@noble/ed25519'
-import * as nobleSha2 from '@noble/hashes/sha2.js'
+// The engine's two dependencies, resolved by URL rather than by name.
+//
+// A browser has no node resolution and this project has no bundler, so a bare
+// specifier here is unresolvable and the whole module fails to load -- taking
+// Nought with it. The pillar serves these under /vendor/ with their relative
+// imports intact, and this file is the only place that needs to know it.
+//
+// `ed25519` must be SYNCHRONOUS: the engine verifies signatures inside
+// validInput, which is a pure function and cannot await. WebCrypto (which this
+// window uses for its own signing) is async and cannot serve here.
+// Under a pillar these resolve to /vendor/; under node (the test suite) there
+// is no such directory and the package names resolve normally. Try the served
+// path first, because that is the one that has to work where it matters.
+const VENDOR = new URL('./vendor/', import.meta.url).href
+async function dep (url, bare) {
+  try { return await import(/* @vite-ignore */ VENDOR + url) }
+  catch { return await import(/* @vite-ignore */ bare) }
+}
+const ed = await dep('noble-ed25519.js', '@noble/ed25519')
+const nobleSha2 = await dep('sha2.js', '@noble/hashes/sha2.js')
 
 // --- Buffer, in the four shapes engine.js actually asks for -----------------
 // Measured, not guessed: from(bytes|string|hex), concat, alloc, subarray,
@@ -191,6 +209,12 @@ export function registerTerrainTable (E, table) {
     country: (g, x, y) => (inB(x, y) ? biomes[country[y * w + x]] : biomes[0]),
     spawn: () => ({ x: spawn.x, y: spawn.y }),
     geographyHash: () => geographyHash,
+    // The engine reads this when deciding whether to check a founding's
+    // committed geography against what this node draws. A table cannot draw
+    // anything -- it repeats the hash it was handed -- so the check would
+    // compare a number with itself and always pass. Saying so is honest;
+    // leaving it undefined would have been the same behaviour by accident.
+    _isProbing: () => true,
   })
 }
 

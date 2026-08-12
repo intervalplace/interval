@@ -561,6 +561,30 @@ const server = http.createServer((req, res) => {
     // Nothing served here is ever sent back: a resident's Nought is computed
     // in their window and dies there.
     if (path === '/engine.js') return sendFile('./engine.js', 'text/javascript')
+    // §0: THE ENGINE'S OWN DEPENDENCIES, served so a window can resolve them.
+    //
+    // engine.js requires '@noble/ed25519' and '@noble/hashes/sha2.js'. A browser
+    // has no node resolution and this project has no bundler, so a bare
+    // specifier is simply unresolvable there -- which is exactly how the first
+    // run failed: "Importing a module script failed."
+    //
+    // These are served under one path so their RELATIVE imports keep working
+    // (sha2.js reaches for ./_md.js, ./_u64.js and ./utils.js), and the shim
+    // maps the bare names onto these URLs. Nothing is rewritten and nothing is
+    // bundled: they are the same files this node runs.
+    if (path.startsWith('/vendor/')) {
+      const leaf = path.slice('/vendor/'.length)
+      if (!/^[a-z0-9_.-]+\.js$/i.test(leaf)) { res.writeHead(404, NC); return res.end('no') }
+      const VENDOR = {
+        'noble-ed25519.js': './node_modules/@noble/ed25519/index.js',
+        'sha2.js': './node_modules/@noble/hashes/sha2.js',
+        '_md.js': './node_modules/@noble/hashes/_md.js',
+        '_u64.js': './node_modules/@noble/hashes/_u64.js',
+        'utils.js': './node_modules/@noble/hashes/utils.js',
+      }
+      if (!VENDOR[leaf]) { res.writeHead(404, NC); return res.end('no') }
+      return sendFile(VENDOR[leaf], 'text/javascript')
+    }
     if (path === '/engine-browser.mjs') return sendFile('./engine-browser.mjs', 'text/javascript')
     // §0: THE GROUND ITSELF, packed. The engine fails closed without a
     // registered generator, and a window cannot import one, so it is served

@@ -4202,7 +4202,7 @@ async function ensureNought(live) {
     noughtBanner(true)
     noughtCard()
   } catch (e) {
-    feed('Nought could not be built here (' + e.message + '). You may still wait and cross.')
+    feed('This window could not build the practice island (' + e.message + '). You are watching Tallyholm from outside it \u2014 you cannot act there yet, but your wait is running and you can still cross.')
   } finally { noughtLoading = false }
 }
 function endNought() {
@@ -4501,7 +4501,16 @@ function onState(s, worldId, local) {
     ensureNought(s)
     if (!entered) updateGate(s, worldId)
     else if (crossingOpen) updateGate(s, worldId)
-    return                      // the island a resident sees is not this one
+    // A WINDOW MUST NOT GO DARK IF NOUGHT CANNOT BE BUILT. The first run of
+    // this showed a person a blank green rectangle and two error lines: the
+    // early return skipped every draw, so a failure to build the practice world
+    // became a failure to show them anything at all.
+    //
+    // If Nought is running, its island is what they see and this state is not.
+    // If it is not, fall through and draw the real world instead -- they cannot
+    // act in it and the HUD says so, but a world they can watch while they wait
+    // is better than a void, and the crossing still works.
+    if (nought) return
   }
   if (crossSentAt >= 0 && !local) {
     // it took. The act is done; asking again would be asking twice for one
