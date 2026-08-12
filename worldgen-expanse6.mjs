@@ -89,7 +89,7 @@ import E from './engine.js'
 import { seedNum, meander, thash } from './worldgen-expanse.mjs'
 import { angleOf } from './worldgen-expanse3.mjs'
 import { PLANS5_V6 as PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
-         seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS } from './worldgen-shire-v6.mjs'
+         seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS, LEGEND_V6 } from './worldgen-shire-v6.mjs'
 export { seedNum, meander, thash, angleOf }
 
 export const GENERATOR_ID = 'interval-expanse-v6'
@@ -1870,7 +1870,7 @@ export function buildWorld(genesis) {
   const layDrawnTown = (s) => {
     checkPlanConnected(s.tag, PLANS[s.tag], s.x, s.y, { g, isWater, blockedAt })
     layPlan(planCtx, s.tag, PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
-      { nameKeeper: (k) => keeperName(k, 'plan') })
+      { nameKeeper: (k) => keeperName(k, 'plan'), legend: LEGEND_V6 })
     // the sign is the one thing the drawing cannot carry: its text
     const r = rectOf(s)
     for (let rad = 1; rad <= 6 && true; rad++) {
@@ -2212,7 +2212,7 @@ export function buildWorld(genesis) {
         }
       if (sx < 0) continue // the land refused it; a place may fail, quietly
       layPlan(planCtx, pl.tag, pl.art, sx, sy, 'place-' + pl.tag,
-        { landmarkKind: pl.kind, nameKeeper: (k) => keeperName(k, 'place') })
+        { landmarkKind: pl.kind, nameKeeper: (k) => keeperName(k, 'place'), legend: LEGEND_V6 })
       // every named place carries its name, so the chart can print it and
       // a traveller can read where they are
       for (const [dx, dy] of [[0, (d.h >> 1) + 1], [(d.w >> 1) + 1, 0], [0, -(d.h >> 1) - 1], [-(d.w >> 1) - 1, 0]]) {
@@ -4565,7 +4565,7 @@ export function buildWorld(genesis) {
   {
     const BLOCK = new Set(['wall', 'fence', 'hedge', 'tree', 'rock', 'iron-rock', 'coal-rock',
       'magic-rock', 'gold-rock', 'oak-tree', 'heartwood-tree', 'stall', 'anvil', 'bank', 'store',
-      'well', 'hearth', 'plot', 'keeper', 'guard', 'signpost', 'banner', 'campfire'])
+      'well', 'fountain', 'hearth', 'plot', 'keeper', 'guard', 'signpost', 'banner', 'campfire'])
     const nodeAt = new Map()
     for (const n of Object.values(w.nodes)) nodeAt.set(n.x + ',' + n.y, n)
     const walkable = (x, y) => {
@@ -4726,7 +4726,10 @@ export function buildWorld(genesis) {
   {
     const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market'])
     const OPENABLE = new Set(['rampart', 'hedge', 'fence'])           // a boundary: a road here is a gate
-    const KEEP = new Set(['wall', 'well', 'hearth', 'bank', 'store', 'anvil', // buildings & fixtures: leave whole
+    // §0e: the FOUNTAIN is a fixture, not decor. It stands in Anchor's street
+    // by design and the road sweep would otherwise clear it as loose ornament
+    // -- which it was, until it became the one door out of Nought.
+    const KEEP = new Set(['wall', 'well', 'fountain', 'hearth', 'bank', 'store', 'anvil', // buildings & fixtures: leave whole
       'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire'])
     let gated = 0, cleared = 0, kept = 0
     for (const id of Object.keys(w.nodes)) {
@@ -4808,7 +4811,7 @@ export function buildWorld(genesis) {
     // whatever stands between it and open ground. Deterministic -- fixed
     // neighbour order, and it takes the shortest way out, ties broken by
     // the order tiles are reached.
-    const ESSENTIAL = new Set(['bank','store','anvil','smith','well','keeper','signpost','landmark'])
+    const ESSENTIAL = new Set(['bank','store','anvil','smith','well','fountain','keeper','signpost','landmark'])
     const nodeAt = new Map()
     for (const [id, n] of Object.entries(w.nodes)) nodeAt.set(n.x + ',' + n.y, id)
     let felled = 0, opened = 0

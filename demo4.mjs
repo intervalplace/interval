@@ -40,12 +40,12 @@ const pb = new IntervalClient({ node: B, identity: bob })
 
 // interactive-style play: clients react on their own node's heartbeat
 pa.onTick(() => {
-  if (!pa.me) return pa.spawn()
+  if (!pa.me) return pa.enter()
   if (!pa.me.name) return pa.claimName('alice')
   if (!pa.me.action) return pa.gather('tree-1')
 })
 pb.onTick(() => {
-  if (!pb.me) return pb.spawn()
+  if (!pb.me) return pb.enter()
   if (!pb.me.action) return pb.gather('rock-1')
 })
 

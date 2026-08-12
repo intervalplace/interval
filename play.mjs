@@ -54,7 +54,7 @@ function nearestAdjacentNode() {
 }
 
 async function act() {
-  if (!client.me) return client.spawn()
+  if (!client.me) return client.enter((m) => console.log('[' + m + ']'))
   if (NAME && !client.me.name && /^[a-z0-9-]{1,12}$/.test(NAME)) return client.claimName(NAME)
   if (!queued) return
   const key = queued; queued = null

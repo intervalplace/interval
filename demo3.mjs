@@ -74,7 +74,7 @@ const pc = new IntervalClient({ node: Cnode, identity: charlie })
 console.log(`charlie exists in world before spawning: ${pc.me ? 'yes ✗' : 'no ✓'}`)
 
 // tick 4: charlie spawns — a signed constitutional input like any other
-ok &= await tick(() => pc.spawn())
+ok &= await tick(() => pc.enter())
 console.log(`tick 4: charlie spawns at (${pc.me?.x},${pc.me?.y}) — visible on nodeA too: ${A.state.players[charlie.playerId] ? '✓' : '✗'}`)
 
 // tick 5: names his fresh identity, walks toward the tree

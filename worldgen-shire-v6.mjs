@@ -7,6 +7,7 @@
 // on them); this module re-exports everything else from there unchanged and
 // overrides only PLANS5, under the name PLANS5_V6, so no earlier world moves a
 // tile.
+import { LEGEND as LEGEND_BASE_FOR_V6 } from './worldgen-shire.mjs'
 export {
   LEGEND, OPEN, FLOOR, KIND_FOR, SEA, QUAY, PLANS, PLACES,
   isIndoor, validatePlan, checkPlanConnected, layPlan, seatCoastalPlan,
@@ -24,6 +25,26 @@ export const PLAN_ROOMS = {
   millbrook: [[4,13,4,2],[12,13,4,2],[20,13,4,2],[28,13,4,2],[36,13,4,2],[44,13,4,2]],
 }
 
+// §0e (v6): THE FOUNTAIN BECOMES ITS OWN NODE.
+//
+// 'U' has always been drawn as a fountain and has always BEEN a well, because
+// the comment in the frozen legend is right: a node type is a rules-hash change
+// and a basin is not worth one. That argument held for exactly as long as the
+// fountain did nothing.
+//
+// It does something now. The crossing out of Nought is offered at the fountain
+// in Anchor, and it cannot be offered at a well: `drink` restores a citizen to
+// full with no cooldown, so in a place where death is free and fighting is the
+// point, the well is the most-touched object a resident has. An irreversible
+// act does not share furniture with a habit.
+//
+// So 'U' is a `fountain` in v6 and a `well` everywhere before it. The frozen
+// legend is untouched and v1-v5 do not move a tile.
+export const LEGEND_V6 = { ...LEGEND_BASE_FOR_V6, U: 'fountain' }
+
+// §0e (v6): OXENFORD'S FOUNTAIN IS A WELL. There is ONE fountain in the world
+// and it stands in Anchor. A second one would be a second door that does not
+// open, and every window would have to explain why.
 export const PLANS5_V6 = {
   // ANCHOR. Every building is a ROOM with a door. The rampart and the keep
   // curtain are % -- massive stone; the buildings are # -- timber. The bank
@@ -108,7 +129,7 @@ export const PLANS5_V6 = {
     ' .................................. ',
     ' .................################. ',
     ' ..f.f.f.f.f.f....#e,d,,,#v,k,,,,#. ',
-    ' ..f.f.f.f.f.f..U.#h,,,,,#,,,,h,,#. ',
+    ' ..f.f.f.f.f.f..o.#h,,,,,#,,,,h,,#. ',
     ' ..f.f.f.f.f.f....#,,,,q,#,,,,,,e#. ',
     ' .................#,,,,,,#,,,,,,,#. ',
     ' .................###,#######,####. ',

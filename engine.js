@@ -209,6 +209,39 @@ function _smtWith(pid, digest, path) {
   return _smtFold(pid, digest === null ? _EMPTY[0] : _smtLeaf(pid, digest), path);
 }
 
+// ---------- §0b: the attendance buffer ----------
+// Entries are [tick, playerId-prefix], ascending by tick, appended in canonical
+// id order within a tick and pruned from the front by age. One entry per key:
+// attending again REPLACES the old wait rather than adding to the buffer, so a
+// resident who keeps the world open for a week still costs exactly one slot.
+const _attKey = (pid) => pid.slice(0, ATTEND_CHARS);
+function _attFind(state, pid) {
+  const k = _attKey(pid), a = state.attend;
+  if (!Array.isArray(a)) return -1;
+  for (let i = 0; i < a.length; i++) if (a[i][1] === k) return i;
+  return -1;
+}
+// how old is this key's wait, or -1 if it holds none?
+function _attAge(state, pid) {
+  const i = _attFind(state, pid);
+  return i < 0 ? -1 : state.tick - state.attend[i][0];
+}
+// LIVE: the buffer holds it and it has not aged out. The prune runs at the end
+// of a tick and validInput reads the state as it OPENED, so without this a
+// wait that expired during the previous interval would still open the door for
+// one more. A bound checked in only one place is a bound with a seam in it.
+function _attLive(state, pid) {
+  const age = _attAge(state, pid);
+  return age >= 0 && age <= ATTEND_WINDOW;
+}
+// RIPE: live, and old enough. The window between VIGIL_TICKS and ATTEND_WINDOW
+// is the ten minutes in which a resident may cross; before it they are too
+// early, after it the wait is stale and must be kept again.
+function _attRipe(state, pid) {
+  const age = _attAge(state, pid);
+  return age >= VIGIL_TICKS && age <= ATTEND_WINDOW;
+}
+
 // does this citizen carry the one bow, in pack or in hand?
 function _carriesBow(p) {
   if (p?.equipment?.weapon?.item === 'dragonbow') return true;
@@ -265,6 +298,51 @@ const STRANGER_SHARE = 256;
 // It costs an honest newcomer nothing but a tick or two of waiting on the
 // busiest day this world will ever have.
 const MAX_SPAWNS_PER_TICK = 1;
+
+// ---------- §0: NOUGHT, THE TIDELINE, AND THE ATTENDANCE ----------
+//
+// Nought is not a place in this file and never will be. It is every key the
+// world does not hold: not in `players`, not under `archiveRoot`. It costs the
+// tick nothing because there is nothing to cost. What IS in this file is the
+// one thing Nought cannot supply for itself -- proof that a soul waited.
+//
+// THE FIRST DESIGN DID NOT WORK, and the reason is worth keeping. It had the
+// newcomer sign the world's recent state hashes, one every ten ticks, and
+// present the chain as a vigil. But those hashes live in state, so any node
+// hands out all hundred on request: a key minted this second reads them,
+// signs them in a loop, and its ten-minute vigil is indistinguishable from a
+// real one. Verification requires the verifier to hold the data, and whatever
+// the verifier holds, the prover can read. KNOWLEDGE OF PUBLIC DATA CANNOT
+// PROVE PRESENCE OVER TIME. No arrangement of hashes fixes that.
+//
+// Elapsed time can only be proved by the world WRITING SOMETHING DOWN at a
+// tick nobody can backdate. So birth is two-phase: `attend` puts a key in a
+// rolling buffer, and `spawn` is refused until that entry is VIGIL_TICKS old.
+// The buffer is bounded by construction -- a small admission budget times a
+// fixed window -- so it can never grow, never needs sweeping, and expires
+// without anybody closing a gate.
+const VIGIL_TICKS = 1000;             // ten minutes: the wait before a soul may be born
+const ATTEND_PER_TICK = 2;            // admissions per interval, canonical id order
+const ATTEND_WINDOW = 2000;           // an attendance ages out after twenty minutes
+const ATTEND_CHARS = 16;              // 64 bits of playerId per entry
+// ATTEND_WINDOW must exceed VIGIL_TICKS or an attendance would mature at the
+// instant it expired. The difference is the window in which a resident may
+// cross: ripe at ten minutes, stale at twenty, and kept again after that. It
+// is also what caps the buffer -- ATTEND_PER_TICK * ATTEND_WINDOW entries,
+// four thousand of them, about a hundred kilobytes, forever.
+const ATTEND_MAX = ATTEND_PER_TICK * ATTEND_WINDOW;
+// Grinding a 64-bit prefix collision would let one key spend another's wait.
+// It saves the grinder ten minutes and costs them 2^32 keys; the attack is
+// slower than the queue it skips.
+
+// THE TIDELINE. The world's own short memory: the finalized state hash of
+// every tenth tick, truncated, a hundred of them. It is not load-bearing for
+// birth -- the attendance is -- but it is 1.6 KB and it lets a window show a
+// resident their wait against something the world will vouch for rather than
+// against its own clock.
+const TIDE_STRIDE = 10;
+const TIDE_LEN = 100;
+const TIDE_CHARS = 16;
 // Typed error codes for the CJS engine (mirrors errors.mjs; kept in sync by
 // test/version.test.mjs). Identity corruption is the one safety-critical
 // engine throw that operators classify.
@@ -315,7 +393,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // is the chart, as a GOOD rather than a key (6ci): 6ag was right that a
   // master surveyor should come home with something to sell. It had simply
   // spent that idea on a door.
-  'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'crier', 'store', 'wall', 'well', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
+  'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'crier', 'store', 'wall', 'well', 'fountain', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
   // §2g: A RAMPART IS NOT A HOUSE WALL.
   //
   // The town drawings have always distinguished them -- '%' is a town's outer
@@ -2706,6 +2784,9 @@ const INPUT_SCHEMAS = {
     subject: T.id,
     path: (v) => (v !== null && typeof v === 'object' && typeof v.bits === 'string' && Array.isArray(v.sibs)) || 'must be a path',
   },
+  // §0b: the first half of a birth. It carries nothing: the world records
+  // WHEN, and that is the whole content of the deed.
+  attend: {},
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
   still: { target: T.id },
   move: { dx: T.unit, dy: T.unit },
@@ -2974,6 +3055,101 @@ function isAwake(p, tick) {
 // but the hedge and the nodes bars the way) which is what every
 // world founded before this shipped replays under.
 const TERRAINS = Object.create(null);
+// ---------------------------------------------------------------------------
+// §0: NOUGHT IS A DIFFERENT WORLD THAT DRAWS THE SAME ISLAND.
+//
+// Legibility cannot be left to windows. A window is asked by §0e to say plainly
+// that nothing in Nought is real, and an honest one does -- but nothing in this
+// file can MAKE it, any more than anything can make a window render chat
+// faithfully (§9c). A resident in a careless window could practise for a week
+// believing every hour of it counted, and be told nothing.
+//
+// So the difference is put where no window can blur it: in the WORLD ID.
+//
+// `genesis.nought` changes nothing a generator reads -- same seed, same size,
+// same generator, so the same coastline, the same towns, the same fountain,
+// tile for tile. What it changes is the identity the founding hashes to. That
+// makes three things true by arithmetic instead of by promise:
+//
+//   1. Nought is not Tallyholm, and says so to anybody who asks, in one field,
+//      unforgeably, in every window ever written.
+//   2. An input signed for Nought is REFUSED by Tallyholm and vice versa --
+//      §1's worldId binding already does this and now does it here. "Nothing
+//      crosses" stops being an architecture note and becomes a rule with
+//      teeth.
+//   3. A citizen who wants to check cannot be lied to. `isNought(state)` is a
+//      field read, and a window that shows a world hash shows it already.
+//
+// It cannot force a careless window to be honest. It can make an honest one
+// impossible to get wrong, and a dishonest one detectable by anyone who looks.
+function noughtGenesisOf(genesis) {
+  const g = JSON.parse(JSON.stringify(genesis));
+  g.nought = true;
+  return g;
+}
+// Is this state a practice world rather than the world? One field, no
+// interpretation, and no way to be wrong about it.
+function isNought(state) {
+  return !!(state && state.genesis && state.genesis.nought);
+}
+
+// §0a: THE WORLD SAYS IT, BECAUSE NOTHING ELSE CAN.
+//
+// A world id is invisible to a person. Nobody reads `genesis.nought`, and a
+// window that means to deceive will not mention it. The marker below makes an
+// honest implementation unambiguous and enforces the boundary between the two
+// worlds, and it does NOT, on its own, tell anybody anything.
+//
+// This engine cannot render, so there is exactly one channel from here to a
+// person's eyes: WORLD CONTENT. A window renders signposts and hears criers
+// because rendering the world is what makes it a window rather than a frame
+// around one. So the notice goes in the furniture. Every signpost on the
+// island, every crier in every town, says where you are -- in the same place a
+// citizen already looks to find out where they are.
+//
+// A window can still filter the text out. Nothing can stop that and nothing
+// ever will. But there is a real difference between a window that OMITS a
+// banner it was asked to draw and one that rewrites the world's own signposts
+// to hide something, and the second is not carelessness. It is forgery, and it
+// is visible to anybody who stands at the same post in another window.
+const NOUGHT_POST = 'NOUGHT — not the world. Nothing here is kept.';
+// A body in Nought is NAMED, and named the same thing every time.
+//
+// A name is drawn wherever a citizen is drawn -- over the body, in the panel,
+// in any list of who is here -- so this reaches a person through paths a window
+// cannot skip without ceasing to show them their own citizen. It is also the
+// answer to the question a resident would otherwise have to trust the window
+// for: their real key has no citizen in the world at all, which anyone can
+// confirm from any pillar's hiscores, in any other window, without believing a
+// word this one says.
+const NOUGHT_NAME = 'nought';
+function nameNoughtBody(state, playerId) {
+  if (!isNought(state)) return state;
+  const p = state.players?.[playerId];
+  if (!p) return state;
+  p.name = NOUGHT_NAME;
+  state.names = state.names ?? {};
+  state.names[NOUGHT_NAME] = playerId;
+  return state;
+}
+function markNoughtWorld(state) {
+  if (!isNought(state)) return state;
+  for (const n of Object.values(state.nodes)) {
+    if (n.type === 'signpost') n.text = NOUGHT_POST + ' (' + (n.text ?? '') + ')';
+    else if (n.type === 'crier') {
+      n.text = NOUGHT_POST;
+      n.name = 'the crier of Nought';
+    } else if (n.type === 'keeper' && n.name) {
+      // The last thing in the world that speaks. A banker, a shopkeep and a
+      // brewer are the three strangers a newcomer talks to first, and in a
+      // practice world they are nobody: their counterparts in Tallyholm have
+      // names, hold real stock, and will not remember this conversation.
+      n.name = n.name + ' (of the practice world)';
+    }
+  }
+  return state;
+}
+
 function registerTerrain(id, t) { TERRAINS[id] = t; }
 // the geography hash the REGISTERED generator computes for its island
 // (v0.80). A generator that draws a different island returns a different
@@ -3891,7 +4067,7 @@ function normaliseSource(src) {
 function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'utf8')).toString('hex'); }
 
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape']);
+const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -4592,6 +4768,37 @@ const LANDMARK_KINDS = new Set([
       return 'malformed archive root';
   }
 
+  // §0a/§0b: the tideline and the attendance. Both are fixed-ceiling structures
+  // and both are checked for their ceiling here, because a state that arrives
+  // over the wire has not been through the tick that bounds them.
+  const HEXN = /^[0-9a-f]+$/;
+  if (state.tideline !== undefined) {
+    if (!Array.isArray(state.tideline) || state.tideline.length > TIDE_LEN)
+      return 'malformed tideline';
+    for (const h of state.tideline)
+      if (typeof h !== 'string' || h.length !== TIDE_CHARS || !HEXN.test(h))
+        return 'malformed tideline entry';
+  }
+  if (state.attend !== undefined) {
+    if (!Array.isArray(state.attend) || state.attend.length === 0 || state.attend.length > ATTEND_MAX)
+      return 'malformed attendance';
+    let last = -1;
+    const seenK = new Set();
+    for (const e of state.attend) {
+      if (!Array.isArray(e) || e.length !== 2) return 'malformed attendance entry';
+      if (!isInt(e[0], 0, MAX_TIME)) return 'attendance tick out of bounds';
+      if (typeof e[1] !== 'string' || e[1].length !== ATTEND_CHARS || !HEXN.test(e[1]))
+        return 'malformed attendance key';
+      // ascending, and one entry per key: both are invariants the tick keeps,
+      // so a state that breaks either was not produced by these rules.
+      if (e[0] < last) return 'attendance out of order';
+      last = e[0];
+      if (seenK.has(e[1])) return 'duplicate attendance';
+      seenK.add(e[1]);
+      if (state.tick - e[0] > ATTEND_WINDOW) return 'stale attendance';
+    }
+  }
+
   // ground entries: OBJECTS with a closed field set, { item, qty?, x, y,
   // expiresAt }; qty is absent on mob drops
   for (const [gid, g] of Object.entries(state.ground)) {
@@ -4777,7 +4984,26 @@ function validInput(state, input, ctx) {
   if (input.worldId !== worldId(state.genesis)) return false;
   if (!verifyInputSig(input)) return false;
   const p = state.players[input.playerId];
-  if (input.type === 'spawn') return !p; // §5b: the only input for unknown ids
+  // §0b: ATTEND. Valid for a key the world does not hold -- which is to say,
+  // for a resident of Nought. It is the other input an unknown id may send.
+  // Re-attending is allowed and simply restarts the wait; it costs the buffer
+  // nothing, because a key holds at most one entry.
+  // A KEY THAT ALREADY WAITS DOES NOT KNOCK AGAIN, and this is a fairness rule
+  // rather than a tidiness one. Admission is in canonical playerId order, so
+  // when re-attending was free the two lowest ids in the world could re-attend
+  // every interval, hold the whole budget forever, and no other soul could
+  // ever be born. Grinding a low key is cheap; a permanent denial of birth is
+  // not a thing it should buy.
+  //
+  // Refusing it costs a resident nothing. Their wait stands for the full
+  // window, and if they let it go stale it is pruned and they may knock again
+  // like anyone else.
+  if (input.type === 'attend') return !p && !_attLive(state, input.playerId);
+  // §5b/§0b: spawn is still the only input that CREATES, and it is now refused
+  // until the wait it names has ripened. The attendance was written by the
+  // world at a tick nobody can backdate, which is the only thing in this
+  // protocol that can prove a soul waited.
+  if (input.type === 'spawn') return !p && _attRipe(state, input.playerId);
   // §5g: a `restore` is the other input an unknown id may send -- unknown
   // because they were archived, which is the whole point. It carries the
   // record the world put away, and it is checked against the digest the
@@ -7001,10 +7227,24 @@ function nextState(state, inputs, _legacyBeacon) {
   // Taken in canonical playerId order so every node admits the same souls;
   // the rest are simply not applied and may try again next tick.
   {
-    let born = 0;
+    let born = 0, attended = 0;
     order = order.filter((pid) => {
       const inp = seen.get(pid);
-      if (inp === 'DUP' || inp?.type !== 'spawn') return true;
+      if (inp === 'DUP') return true;
+      // §0b: attendance has its own budget, for the same reason spawning does.
+      // It writes to a bounded buffer, so the buffer's size is exactly this
+      // number times ATTEND_WINDOW and cannot be argued with.
+      if (inp?.type === 'attend') {
+        // A BUDGET MUST NOT BE SPENT ON A REFUSAL. Counting attends that
+        // validInput will reject anyway let the two lowest ids in the world
+        // burn both slots every interval -- their knock was refused, but it
+        // was refused AFTER it had taken the place of a soul who would have
+        // been admitted, and the buffer never grew past two. A cap charged
+        // before validity is a denial of service wearing a fairness badge.
+        if (s.players[pid] || _attLive(s, pid)) return true;   // will be refused; costs nothing
+        return ++attended <= ATTEND_PER_TICK;
+      }
+      if (inp?.type !== 'spawn') return true;
       if (s.players[pid]) return true;          // not actually a birth
       return ++born <= MAX_SPAWNS_PER_TICK;
     });
@@ -7087,7 +7327,25 @@ function nextState(state, inputs, _legacyBeacon) {
       delete s.players[inp.subject];
       continue;
     }
+    if (inp.type === 'attend') {
+      // The world writes down WHEN, and nothing else. One entry per key: an
+      // existing wait is replaced, not stacked, so the buffer's ceiling is a
+      // function of the budget alone and never of how many times anyone knocks.
+      if (!Array.isArray(s.attend)) s.attend = [];
+      const k = _attKey(pid);
+      const at = s.attend.findIndex((e) => e[1] === k);
+      if (at >= 0) s.attend.splice(at, 1);
+      s.attend.push([s.tick, k]);
+      continue;
+    }
     if (inp.type === 'spawn') {
+      // The wait is SPENT. Leaving it in the buffer would let one attendance
+      // stand behind a second birth if a key were ever forgotten (§5f) and
+      // came back, and would hold a slot for somebody who is no longer in
+      // Nought at all.
+      const at = _attFind(s, pid);
+      if (at >= 0) s.attend.splice(at, 1);
+      if (s.attend && s.attend.length === 0) delete s.attend;
       const sp = spawnOf(s.genesis); addPlayer(s, pid, sp.x, sp.y);
       // the newcomer's quiver (v0.78): every soul wakes with twenty-five
       // arrows. At ranged 1 with a wooden bow an arrow lands half the
@@ -8910,10 +9168,44 @@ function nextState(state, inputs, _legacyBeacon) {
   scrubSkills(s);   // nothing non-finite leaves a tick
   grantHoods(s);    // §6ax: whoever crossed this interval
   stepEvents(s, beacon);   // §6ao (v6): the bloom and the incursion, if this world founds them
+
+  // §0b: THE ATTENDANCE AGES OUT. Entries are ascending by tick, so the prune
+  // is a prefix drop and costs nothing to find. Nobody closes this gate: a
+  // wait that was never spent simply stops being one, and the key may knock
+  // again. This is the only structure in the world that forgets by itself.
+  if (Array.isArray(s.attend) && s.attend.length) {
+    let drop = 0;
+    while (drop < s.attend.length && s.tick - s.attend[drop][0] > ATTEND_WINDOW) drop++;
+    if (drop > 0) s.attend = s.attend.slice(drop);
+    // A belt for the braces: the budget already bounds this, but a bound that
+    // is only true because of arithmetic elsewhere is a bound one refactor
+    // from being false.
+    if (s.attend.length > ATTEND_MAX) s.attend = s.attend.slice(s.attend.length - ATTEND_MAX);
+    if (s.attend.length === 0) delete s.attend;
+  }
+
+  // §0a: THE TIDELINE. The resulting state hash of every tenth tick, truncated,
+  // a hundred of them. `state` is the result of tick s.tick - 1, so this is
+  // that tick's own hash, recorded one interval after it became true -- which
+  // is the earliest any tick can record its own result without asking itself
+  // what it is about to be.
+  if ((s.tick - 1) % TIDE_STRIDE === 0) {
+    const tl = Array.isArray(s.tideline) ? s.tideline.slice() : [];
+    tl.push(stateHash(state).slice(0, TIDE_CHARS));
+    while (tl.length > TIDE_LEN) tl.shift();
+    s.tideline = tl;
+  }
   return s;
 }
 
 module.exports = {
+  // §0: Nought is a different world by worldId that draws the same island, so
+  // that "nothing crosses" is arithmetic rather than a window's promise.
+  noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_POST, NOUGHT_NAME,
+  // §0: a window cannot import a worldgen module (ESM importing CommonJS), so
+  // a pillar packs the registered generator's answers into a table and serves
+  // those instead. Reading the registry is how it knows what to pack.
+  TERRAINS,
   registerTerrain, terrainBlocked, geographyHashOf,
   SPEC_VERSION, TICK_MS, INV_SLOTS,
   XP_TABLE, levelForXp,

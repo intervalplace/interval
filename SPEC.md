@@ -8,6 +8,290 @@ rules and is ignored by the network.
 The world advances in fixed intervals, ticks, and everything that ever
 happens, happens on one.
 
+## 0. Nought (the world before the tick)
+
+**Nought is Tallyholm unwalked.** The same island, the same towns, the same
+monuments, the same coastline, computed from the same seed by the same pure
+functions. Nothing about it is younger: geography is law (§9d) and a world is
+founded once, so a changed building is a changed hash and therefore a different
+world. What Nought lacks is not age. It lacks **marks** -- no worn paths, no
+survey findings, no watchfire lit, no race won, no name on anything, the inn's
+yard still waiting for its brewer. The only thing this world accumulates is what
+citizens did, and in Nought no citizen has done anything.
+
+**Who is there.** Every key that is not in `players` and is not held under
+`archiveRoot`. Nought has no roll, no root and no record. A key is not admitted
+to it and cannot be evicted from it; it is in Nought exactly when the world has
+never heard of it. A key generated this second is in Nought.
+
+**What happens there.** The rules, entire, run by the resident's own window: the
+same engine, the same interval, the same drops, the same death. A resident chops
+a real tree at real speed for real logs and real experience, and none of it is
+in the world, because they are not in the world. Death costs nothing, because
+there is nothing there to destroy.
+
+**Nought is never consensus.** No state hash depends on it. No node computes it
+for anyone but its own operator. A node that had never heard of Nought would
+compute every tick of this world correctly, forever. What the world holds is not
+Nought; it is the two structures below, which exist so that a wait can be
+proved.
+
+**Leaving.** `spawn` (§5b), on the terms of §0c. The soul it creates is the soul
+§5b has always created. Nothing held, learned, killed or banked in Nought comes
+across, because nothing in Nought was ever in the world to come across.
+
+**Returning.** There is none, and no rule is needed to forbid it: Nought is the
+set of keys the world does not hold, and after `spawn` the world holds you.
+§5b's sentence that a playerId spawns at most once, ever, is now also the
+sentence that shuts the door.
+
+## 0a. Nought is a different world that draws the same island
+
+The founding state a resident computes carries `genesis.nought = true`. Nothing
+a generator reads changes -- same seed, same size, same generator, so the same
+coastline, the same towns, the same fountain, tile for tile -- but the world id
+the founding hashes to is not Tallyholm's.
+
+This is the only part of Nought's honesty that does not depend on a window.
+
+**Why it is here and not left to §0e.** A window is asked to say plainly that
+nothing in Nought is real, and an honest one does. Nothing in this document can
+MAKE it, any more than anything can make a window render speech faithfully
+(§9c). A citizen in a careless window could practise for a week believing every
+hour of it counted. So the difference is put where no window can blur it:
+
+1. **Nought answers for itself.** `isNought(state)` is one field. Every window
+   and every executor ever written gets the same answer, and none of them can
+   be lied to about it by a pillar.
+2. **"Nothing crosses" becomes arithmetic.** §1 binds every input to a world id,
+   so an input signed in Nought is refused by Tallyholm and an input signed in
+   Tallyholm is refused by Nought. It stops being an architectural note and
+   becomes a rule with teeth, enforced by nodes that have never heard of §0.
+3. **A dishonest window is detectable.** Anyone who can read a world hash can
+   tell which world they are in, so a window that hides it is not hiding
+   something unknowable -- it is hiding something one field wide.
+
+None of that, on its own, tells a person anything. A world id is invisible: no
+citizen reads it, and a window that means to deceive will not mention it. What
+the marker buys is an unambiguous answer for anyone who asks and a boundary
+enforced by arithmetic. It is plumbing, and it should not be mistaken for
+legibility.
+
+**The notice goes in the furniture, because nothing else reaches a person.**
+This document cannot render, so there is exactly one channel from it to a
+citizen's eyes: WORLD CONTENT. A window draws signposts and carries criers
+because drawing the world is what makes it a window rather than a frame around
+one. So in a practice founding every signpost on the island and every crier in
+every town says where you are -- in the same place a citizen already looks to
+find out where they are.
+
+A window MUST apply this itself on the founding it is given, rather than trust a
+pillar to have done it. A pillar cannot then strip what was never its to strip.
+
+**Who is being designed against.** Not malice. A window that passes Nought off
+as the world steals nothing: there is nothing in Nought to take, and a key never
+leaves the machine it was minted on. Anyone willing to write a dishonest window
+has far better uses for one in the world itself. The realistic adversary is
+CARELESSNESS -- an author who never read this section -- and carelessness is
+answerable in a way malice is not, by making the lazy path the safe one. A
+pillar therefore serves the practice founding already marked, so that a window
+which does nothing at all still shows a resident where they are.
+
+**And a citizen need not believe any window.** A soul in Nought has no citizen
+in the world: their key is in no `players`, on no hiscore, in no other window.
+That is checkable from anywhere, by anyone, without trusting the page they are
+looking at, and a window SHOULD say so plainly rather than ask to be believed.
+It is the only assurance here that survives a window being wrong on purpose.
+
+**Where the line actually is.** This document cannot render, so it has exactly
+one instrument: what it puts in the state. Everything a window MUST draw in
+order to be a window is therefore reachable from here, and everything a window
+merely CHOOSES to draw is not. That is the whole of it, and it is not a gap in
+any implementation -- it is what the word "engine" means in this system.
+
+What the state carries on its own account, with no cooperation asked:
+
+- the tick. A practice world counts from ZERO. Any window that shows the world's
+  clock shows two digits where Tallyholm shows eight, forever, without being
+  told to.
+- every signpost on the island, and every crier in every town.
+- every keeper's name.
+- the citizen's own name, which is `nought`.
+- the population, which is one and never changes. A world with other people in
+  it that has nobody in it is its own tell.
+
+What no rule can reach: a banner, a card, a countdown, an explanation. Those are
+a window's to give or withhold, and §0g asks for them knowing it cannot compel
+them.
+
+A window can still filter the text. Nothing here can stop that and nothing ever
+will. But there is a real difference between a window that omits a banner it was
+asked to draw and one that rewrites the world's own signposts to hide what they
+say. The second is not carelessness; it is forgery, and it is visible to anybody
+who stands at the same post in another window.
+
+A pillar serves the practice founding under its own id (§0g). A window MUST
+refuse a founding that is not marked, because a pillar serving the real one
+would have that window running a private copy of Tallyholm and calling it
+practice.
+
+## 0b. Presence in Nought (auxiliary, never consensus)
+
+Residents may see one another. A window MAY relay `{playerId, x, y}` to other
+residents over an auxiliary channel, on the same terms as speech (§9c): never
+consensus, never judged, never in any state hash.
+
+Each resident computes their own island, so nothing else is shared and nothing
+else should pretend to be: a tree one has felled still stands for another, and
+their ticks are not the same tick. They are drawn walking the same ground, and
+that is all.
+
+A resident may lie about where they are standing. This is permitted and
+uninteresting. Nothing in Nought is scarce, contested, ranked or recorded, so
+there is no claim a liar could profit from and no ledger a lie could corrupt.
+The channel exists so that the place is populated, not so that it is proved.
+
+**Why it is worth having.** A practice world that nobody else is ever in is a
+lonelier thing than the world it is practice for, and a first hour spent alone
+teaches a newcomer the wrong thing about what they are joining. Everyone
+arrives through here. They should be able to see that.
+
+## 0c. The tideline
+
+State carries `tideline`: the finalized state hash of every `TIDE_STRIDE` (10)
+ticks, truncated to `TIDE_CHARS` (16) hex characters, `TIDE_LEN` (100) of them.
+At the top of any tick where the previous tick number is a multiple of the
+stride, that previous tick's resulting state hash is truncated and appended and
+the oldest falls off. The buffer is fixed-width: one write per ten intervals,
+about 1.6 KB, and it never grows.
+
+The tideline is not what admits a soul. It is the world's own short memory, and
+it is here so that a window can show a resident their wait against something the
+world will vouch for rather than against its own clock.
+
+## 0d. The attendance
+
+State carries `attend`: entries of `[tick, playerId-prefix]`, ascending by tick,
+one per key, holding the `ATTEND_CHARS` (16) leading characters of the id.
+
+- **`attend`** is valid for a key that is not in `players` and does not already
+  hold a live entry. On success the world records the tick it saw the knock.
+- At most `ATTEND_PER_TICK` (2) are admitted in an interval, in canonical
+  `playerId` order, budgeted apart from actions exactly as spawning is (§5h).
+  An attend that will be refused does not consume the budget.
+- An entry ages out after `ATTEND_WINDOW` (2,000 ticks) and is pruned at the end
+  of the tick. Nobody closes this gate: a wait that was never spent simply stops
+  being one, and the key may knock again.
+- The buffer's ceiling is therefore `ATTEND_PER_TICK * ATTEND_WINDOW` entries,
+  four thousand, about a hundred kilobytes, forever. It cannot grow, needs no
+  sweep, and is the only structure in this world that forgets by itself.
+
+## 0e. A soul is born of a wait it kept
+
+`spawn` is valid only when the sender's attendance is **ripe**: recorded at
+least `VIGIL_TICKS` (1,000 ticks, ten minutes) ago and not yet stale. The wait
+is **spent** on success -- the entry is removed -- so one attendance stands
+behind exactly one birth.
+
+The window between ripe and stale is the ten minutes in which a resident may
+cross. Before it they are early; after it the wait is gone and must be kept
+again. Nothing fires at either boundary: `spawn` is an input a soul signs, and a
+resident who stays for a year is a resident who never signed it.
+
+**Why the world must write it down.** An earlier draft had the newcomer sign the
+world's recent state hashes and present the chain as a vigil. It does not work,
+and the reason generalises: those hashes are in state, so any node hands out all
+hundred on request, and a key minted this second reads them, signs them in a
+loop, and its ten-minute vigil is indistinguishable from a real one.
+Verification requires the verifier to hold the data, and whatever the verifier
+holds, the prover can read. **Knowledge of public data cannot prove presence over
+time.** Elapsed time can only be proved by the world recording something at a
+tick nobody can backdate, and that is what an attendance is.
+
+**Why this is not the thing §8 forbids.** §8's rule is that the clock may never
+*gate value*: a bot's patience is infinite, so a timer that pays out pays bots
+first. The wait pays out nothing. It is not a timer on a reward, it is the price
+of entry, and every vessel pays it in the same intervals -- `join.mjs` holds its
+key and waits exactly as a person does. The rule that would violate §8 is the
+*skippable* wait, where the executor enters at once and only the person waits.
+
+**What a wait proves, and what it does not.** It proves that this key was known
+to the world ten minutes ago. It does not prove a deed, and it does not prove
+that the waiter and the newcomer are the same person: a key is a key, and where
+it was minted is not a fact the world can see. Both limits are accepted. The
+first cannot be closed without replaying a resident's run, and a replay costs the
+verifier what it cost the resident. The second cannot be closed at all.
+
+**Imported citizens keep no wait.** A founding may seed `players`, which is how
+citizens of an old world cross into a new one whole. They exist at genesis, never
+call `spawn`, and are never in Nought.
+
+**Before the world is old enough, no soul can be born.** A wait cannot ripen
+before `VIGIL_TICKS` have passed, so a world stands unwalked for its first ten
+minutes, once, and no citizen will ever see that again.
+
+## 0f. The fountain
+
+A `fountain` is an inert node with no verb, no validity case and no behaviour in
+this document beyond standing where it stands. It is the only object in the
+world that the world itself never uses. That is its justification and not a gap:
+the crossing needs a tile every window agrees on, and the constitution can supply
+the tile without supplying a rule.
+
+Exactly one is founded, in Anchor, beside the tile a citizen wakes on. It is
+**not a well**: `drink` restores a citizen to full with no cooldown (§6l), which
+in a place where death is free and fighting is the point makes the well the
+most-touched object a resident has, and an irreversible act does not share
+furniture with a habit. The two stand near each other in Anchor and say opposite
+things with the same water.
+
+The engine cannot check where a resident stands -- they are not in `players` and
+have no position any node computes -- so no rule requires the fountain and none
+pretends to. §0g is convention, and convention is sufficient for what it is for.
+
+## 0g. What a window owes a resident
+
+- A window that mints a key MUST open in Nought and MUST send `attend` at once.
+- A window MUST NOT send `spawn` on its own initiative, at the wait's ripening
+  or at any other time. The crossing is an act; there is one thing in this world
+  that shuts a door behind a citizen and it may never be done for them.
+- A window MUST NOT send `spawn` until the resident's key has been exported. The
+  citizen is the keypair (§1), and a soul that crosses with its key held only in
+  a browser is a soul with a countdown on it.
+- A window offers the crossing at the fountain in Anchor and nowhere else, and
+  MUST NOT complete it on a single action. It MUST name, in plain words, that
+  everything held and learned in Nought ends here, that this key can never be in
+  Nought again in this world, and that the key is the only thing that crosses.
+- A window SHOULD furnish a resident with every tool the world is gated on, a
+  set of gear, material to work, and gold enough for its shops. This world is
+  tool-gated (§6ao), so a soul made as §5b makes one cannot cut, mine or fish
+  at all, and an unfurnished Nought is a practice ground where almost nothing
+  can be practised. It costs nobody anything: none of it crosses.
+- A window SHOULD tell a resident how to check without it: their key holds no
+  citizen in the world, on any hiscore, in any other window. An assurance that
+  depends on the window making it is worth nothing against a window that lies.
+- A window SHOULD show the resident THE OTHER WORLD while they stand in this
+  one: Tallyholm's live tick and how many citizens are in it. A newcomer cannot
+  tell there are two worlds because they have only ever seen one, and being told
+  does not fix that. A real population counting up beside a wait counting down
+  is the whole idea in one line, and it is worth more than any paragraph.
+- A window MUST make it plain, continuously and not only once, that nothing in
+  Nought is in the world. It SHOULD do so in the plainest words it can find. A
+  window that says a beautiful thing a newcomer cannot decode has not said it:
+  most people arriving here have never heard of Tallyholm, and the sentence they
+  need is that there are two worlds and this is the practice one. A resident may stay for an hour or a year, and the one
+  unforgivable outcome is that they find out late. A banner that does not leave
+  and a world drawn visibly apart are worth more than any number of messages,
+  because neither can be looked away from.
+- A window SHOULD show the queue rather than hide it. §5h admits one soul per
+  interval, so a crossing may not take on the first tick and the window simply
+  keeps sending. That wait is the rule, and it is the only place in the world
+  where a person can watch it happen to them.
+
+An executor is not a window and is bound by none of §0e. It sends `attend`,
+waits the same ten minutes, sends `spawn`, and renders nothing. The protocol
+cannot tell the difference, and does not want to.
+
 ## 1. Core principles
 
 1. **Determinism.** Given `(state, inputs, beacon)` for tick N, every

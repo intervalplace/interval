@@ -51,7 +51,56 @@ export class IntervalClient {
   gather(nodeId) { return this.#send({ type: 'gather', nodeId }) }
   stop() { return this.#send({ type: 'stop' }) }
   claimName(name) { return this.#send({ type: 'claim_name', name }) }
+  // §0b: the first half of a birth. An executor attends, waits the same ten
+  // minutes a person waits, and then spawns. There is no faster path and there
+  // is not meant to be one.
+  attend() { return this.#send({ type: 'attend' }) }
+
+  /**
+   * §0: AM I IN THE WORLD, OR IN A PRACTICE OF IT?
+   *
+   * One field, unforgeable, and the same answer in every window and every
+   * executor ever written. A client that never asks is not deceived by
+   * anything -- an executor attends, waits and crosses without Nought
+   * existing for it -- but a client that DOES render a world owes its citizen
+   * this, and now cannot get it wrong.
+   */
+  get inNought() { return this.node.state ? this.node.state.genesis?.nought === true : false }
   spawn() { return this.#send({ type: 'spawn' }) }
+
+  /**
+   * §0c: GET ME INTO THE WORLD, whatever that currently takes.
+   *
+   * Birth is two-phase now, and every executor in this repository used to open
+   * with `if (!this.me) return client.spawn()` -- which under §0c is an input
+   * that will be refused forever, because no wait stands behind it. That is not
+   * a bug in those bots; it is a bug in asking each of them to know about
+   * §0b. So the knowledge lives here, once.
+   *
+   * Safe to call every tick: it attends when there is nothing to wait on, waits
+   * in silence while the wait ripens, and spawns the moment it may. It reports
+   * what it is doing so an operator watching a log is never left wondering why
+   * their bot is standing still for ten minutes.
+   */
+  enter(onNote) {
+    if (this.me) return null
+    const st = this.node.state
+    const k = this.identity.playerId.slice(0, 16)
+    const e = Array.isArray(st.attend) ? st.attend.find((x) => x[1] === k) : null
+    const age = e ? st.tick - e[0] : -1
+    if (age < 0 || age > 2000) {                       // no wait, or a stale one
+      if (this._attendAt !== undefined && st.tick - this._attendAt < 12) return null
+      this._attendAt = st.tick
+      onNote?.('nought: knocking')
+      return this.attend()
+    }
+    if (age < 1000) {                                  // waiting, as everyone does
+      if (!this._waitNoted) { this._waitNoted = true; onNote?.('nought: waiting ten minutes, like everyone') }
+      return null
+    }
+    onNote?.('nought: crossing')
+    return this.spawn()                                // ripe; §5h may still queue us
+  }
   // v0.69: one slot or many. A number is still accepted because one slot is
   // the common case and a caller should not have to write [3] to mean 3.
   #slots(v) {

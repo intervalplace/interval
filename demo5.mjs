@@ -31,7 +31,7 @@ for (let i = 0; i < 100 && !ready(); i++) await new Promise(r => setTimeout(r, 1
 
 const pa = new IntervalClient({ node: A, identity: alice })
 pa.onTick(() => {
-  if (!pa.me) return pa.spawn()
+  if (!pa.me) return pa.enter()
   if (!pa.me.name) return pa.claimName('alice')
   if (!pa.me.action) return pa.gather('tree-1')
 })

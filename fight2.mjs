@@ -142,7 +142,7 @@ let said = false
 
 client.onTick((s) => {
   const p = client.me
-  if (!p) return client.spawn()
+  if (!p) return client.enter((m) => console.log('[' + m + ']'))
   if (NAME && !p.name) return client.claimName(NAME)
   if (!said) { said = true; return client.chat('the interval provides') }
   if (p.action) return

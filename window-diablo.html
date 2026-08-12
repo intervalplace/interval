@@ -2849,6 +2849,7 @@ async function ownIdentity() {
     const pub = toHex(await crypto.subtle.exportKey('raw', kp.publicKey))
     const pk8 = toHex(await crypto.subtle.exportKey('pkcs8', kp.privateKey))
     localStorage.setItem('interval-ownkey', JSON.stringify({ pk8, pub }))
+    try { localStorage.setItem('interval-keyout:' + pub, 'yes') } catch {}   // §0e: it came from somewhere, so it is somewhere
     return { priv: kp.privateKey, pub }
   } catch { return null }
 }
@@ -2933,6 +2934,7 @@ window.addEventListener('keydown', (e) => {
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
   : a.do === 'spawn' ? { type: 'spawn' }
+  : a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
@@ -2999,6 +3001,7 @@ function connect() {
   ws.onmessage = (ev) => {
     let m; try { m = JSON.parse(ev.data) } catch { return }
     if (m.type === 'hello') { myId = m.playerId; return }
+    if (m.type === 'nought') { noughtPeerSaw(m.at); return }   // §0: another resident, walking
     if (m.type === 'state') { onState(m.state, m.worldId); return }
     if (m.type === 'refused') {
       // WHY a thing did not happen. Without this, a refused deed and a dead
@@ -3066,6 +3069,13 @@ function allocTick() {
 }
 
 async function send(a) {
+  // §0: NOTHING A RESIDENT DOES IS IN THE WORLD. Movement is local and stays
+  // local; knocking and crossing go out; everything else is refused here rather
+  // than by the engine, because the engine would refuse it anyway and the
+  // person deserves to be told why.
+  // §0: a resident's deeds go to the LOCAL world. `attend` and `spawn` are the
+  // only two things a soul in Nought says to Tallyholm.
+  if (inNought && !NOUGHT_ALLOWED.has(a.do)) { noughtDo(a); return }
   if (!ws || ws.readyState !== 1) { say('Not connected to the world.', 'warn'); return }
   // the window sent it, so the window knows what it was: everything except a
   // footstep gets a gesture and a mark (52-scene). Local, presentational, and
@@ -12411,7 +12421,18 @@ function pickWorld(p) {
 function primaryClick(p, isRight) {
   const s = curState; if (!s) return
   const me = myId && s.players[myId]
-  if (!me) { send({ do: 'spawn' }); say('You wake at the well.', 'good'); return }
+  // §0e: a click is not a birth. In Nought a click on the FOUNTAIN, standing
+  // beside it, opens the crossing; everything else is a walk.
+  if (inNought && !hitRegion(p)) {
+    const pick = pickWorld(p)
+    const fn = pick && pick.kind === 'node' && s.nodes[pick.id]?.type === 'fountain' ? s.nodes[pick.id] : null
+    if (fn) {
+      const body = nought && nought.state.players[myId]
+      if (body && Math.max(Math.abs(body.x - fn.x), Math.abs(body.y - fn.y)) <= 1) { openCrossing(); return }
+      say('You are not beside the fountain yet.', 'dim')
+      return
+    }
+  }
 
   const r = hitRegion(p)
   // A MODAL IS A CONVERSATION, and the first click elsewhere ends it.
@@ -12735,7 +12756,7 @@ let prevMe = null, worldConfigured = '', lastPlace = null
 // EVERY citizen's last-seen hitpoints, not just our own. A mending sent to
 // somebody else is only visible as their hp moving, and nothing was watching.
 let prevPlayers = null
-function onState(s, worldId) {
+function onState(s, worldId, local) {
   const now = performance.now()
   if (stateAt) statePeriod = clamp(now - stateAt, 300, 1200)
   stateAt = now
@@ -12773,6 +12794,35 @@ function onState(s, worldId) {
       const rate = Math.min(0.5, Math.max(0.05, Math.abs(err) / 600))
       tickOffset += err * rate
     }
+  }
+  // §0: everything needing the RAW truth about whether the world holds this key
+  // happens BEFORE the ghost goes in; past that line s.players[myId] is a
+  // fiction this window told itself.
+  const askAbout = realId ?? myId
+  if (!local) inNought = !!(askAbout && s.players && !s.players[askAbout])
+  if (inNought && !local) {
+    lastLive = s                 // the OTHER world, so a resident can see it exists
+    keepAttending(s)
+    // §5h admits ONE soul per interval, so a crossing may not take on the first
+    // tick. Keep sending: that is the queue at the fountain, shown not hidden.
+    if (crossSentAt >= 0 && s.tick - crossSentAt >= 2) { crossSentAt = s.tick; send({ do: 'spawn' }) }
+    noughtHud(s)
+    ensureNought()
+    if (!entered || crossingOpen) updateNoughtGate(s)
+    return                      // the island a resident sees is not this one
+  }
+  if (!local) {
+    noughtHud(null)
+    if (crossSentAt >= 0) {
+      endNought()
+      // it took. The act is done; asking again would be asking twice.
+      crossSentAt = -1; crossArmed = false; crossingOpen = false
+      entered = true
+      gate.classList.add('gone')
+      SFX.ctx(); fadeMusicOut(2200)
+      say('You wake in Tallyholm. Nought is behind you, and it stays there.', 'good')
+      if (pendingName) setTimeout(() => send({ do: 'name', name: pendingName }), 1400)
+    } else if (!entered) updateNoughtGate(s)
   }
   curState = s; world = s
   if (worldId) curWorldId = worldId
@@ -13066,6 +13116,8 @@ sayBox.addEventListener('keydown', (e) => {
 
 window.addEventListener('keydown', (e) => {
   if (document.activeElement === sayBox) return
+  // stepping back from the fountain is always allowed, and costs nothing
+  if (e.key === 'Escape' && crossingOpen) { closeCrossing(); say('You step back from the fountain.', 'dim'); return }
   if (!entered) return
   if (e.key === 'Alt') { altHeld = true; e.preventDefault() }
   if (e.key === 'Shift') shiftHeld = true
@@ -13515,6 +13567,349 @@ async function startMusic() {
 // ===========================================================================
 const gate = document.getElementById('gate')
 const gName = document.getElementById('gname')
+// ---------------------------------------------------------------------------
+// §0: NOUGHT. Every key the world does not hold is in Nought, and every key is
+// until it crosses. This gate is the threshold, and §0e binds it three ways:
+// open in Nought and attend at once, never send `spawn` on our own initiative,
+// never let a soul cross carrying a key it has not exported.
+// ---------------------------------------------------------------------------
+const VIGIL_TICKS = 1000, ATTEND_WINDOW = 2000
+let attendSentAt = -1, crossArmed = false, crossSentAt = -1
+function myWait(s) {
+  if (!s || !myId || !Array.isArray(s.attend)) return null
+  const k = myId.slice(0, 16)
+  const e = s.attend.find(x => x[1] === k)
+  if (!e) return null
+  const age = s.tick - e[0]
+  return { age, ripe: age >= VIGIL_TICKS && age <= ATTEND_WINDOW, stale: age > ATTEND_WINDOW }
+}
+function keepAttending(s) {
+  if (!s || !myId || s.players[myId]) return
+  const w = myWait(s)
+  if (w && !w.stale) return
+  if (s.tick - attendSentAt < 12) return
+  attendSentAt = s.tick
+  send({ do: 'attend' })
+}
+const wordFor = (t) => { const sec = Math.max(0, Math.round(t * 0.6))
+  return sec >= 90 ? Math.ceil(sec / 60) + ' minutes' : sec >= 60 ? 'a minute' : sec + ' seconds' }
+// §0e: has this key been taken out of this browser? Recorded per public key,
+// so a different citizen does not inherit the last one's answer.
+function keyExported() {
+  try { const sv = localStorage.getItem('interval-ownkey'); if (!sv) return false
+    return localStorage.getItem('interval-keyout:' + JSON.parse(sv).pub) === 'yes' } catch { return false }
+}
+function markKeyExported() {
+  try { const sv = localStorage.getItem('interval-ownkey'); if (!sv) return
+    localStorage.setItem('interval-keyout:' + JSON.parse(sv).pub, 'yes') } catch {}
+}
+// §0: NOUGHT, RUN HERE. The window runs the REAL ENGINE -- engine.js itself,
+// fetched as text and evaluated -- against the world the founding made, ticked
+// privately at the same interval. Not a second implementation, which would
+// drift, and the first thing a resident would learn would be a lie about how
+// the world works. Nothing computed here leaves this machine.
+//
+// The body in Nought carries its OWN keypair, minted here and thrown away at
+// the crossing: a citizen on a pillar-held identity cannot sign locally, and a
+// soul that has not crossed has nothing to sign with anyway. `realId` stays the
+// key the world is asked about; `myId` is swapped to the local body, so every
+// render path goes on working without being told any of this.
+let inNought = false, realId = null, nought = null, noughtLoading = false, lastLive = null
+const NOUGHT_ALLOWED = new Set(['attend', 'spawn'])
+// §0e: FURNISH THE RESIDENT. This world is tool-gated (§6ao), so a soul made as
+// §5b makes one -- a quiver and nothing else -- cannot cut, mine or fish at
+// all. An unfurnished Nought is a practice ground where almost nothing can be
+// practised. None of it crosses, so it costs nobody anything and is generous
+// on purpose: every skill in the world should be tryable in the first minute.
+const NOUGHT_KIT = [
+  ['iron-hatchet', 1], ['iron-pickaxe', 1], ['rod', 1],
+  ['iron-sword', 1], ['wooden-bow', 1], ['arrows', 500],
+  ['iron-helm', 1], ['iron-plate', 1], ['iron-shield', 1],
+  ['logs', 100], ['ore', 100], ['iron', 50], ['raw-fish', 50], ['seeds', 25],
+]
+function furnish(st, pid) {
+  const p = st.players[pid]; if (!p) return
+  let slot = 0
+  for (const [item, qty] of NOUGHT_KIT) if (slot < p.inventory.length) p.inventory[slot++] = { item, qty }
+  p.gold = 10000
+  p.equipment.weapon = { item: 'iron-hatchet', qty: 1 }
+}
+async function ensureNought() {
+  if (nought || noughtLoading) return
+  noughtLoading = true
+  try {
+    const mod = await import('./engine-browser.mjs')
+    const E2 = await mod.loadEngine('./engine.js')
+    const [tRes, mRes, wRes] = await Promise.all([
+      fetch('./nought/terrain.bin', { cache: 'force-cache' }),
+      fetch('./nought/terrain.json', { cache: 'force-cache' }),
+      fetch('./nought/world.json', { cache: 'force-cache' }),
+    ])
+    if (!tRes.ok || !mRes.ok || !wRes.ok) throw new Error('the founding was not served')
+    mod.registerTerrainTable(E2, mod.parseTerrainTable(await tRes.arrayBuffer(), await mRes.json()))
+    const st = await wRes.json()
+    // §0: CHECK WHAT WE WERE HANDED. A practice world is a different world by
+    // id, and a pillar that served the REAL founding here would have this
+    // window quietly running a private copy of Tallyholm and calling it
+    // practice. Refuse it rather than render it.
+    if (!E2.isNought(st)) throw new Error('that pillar served the world itself, not a practice of it')
+    // §0a: THIS WINDOW writes the notice into the world, not the pillar. A
+    // pillar that served an unmarked founding cannot strip it, because it was
+    // never the pillar's to strip: every signpost on the island and every
+    // crier in every town will say where you are, in the same place a citizen
+    // already looks to find out where they are.
+    E2.markNoughtWorld(st)
+    const key = E2.generateIdentity()
+    const sp = E2.spawnOf(st.genesis)
+    E2.addPlayer(st, key.playerId, sp.x, sp.y)
+    furnish(st, key.playerId)
+    E2.nameNoughtBody(st, key.playerId)   // §0a: the body says what it is, wherever a name is drawn
+    nought = { E: E2, state: st, key, inputs: [], wid: E2.worldId(st.genesis) }
+    realId = realId ?? myId
+    myId = key.playerId
+    nought.timer = setInterval(noughtTick, 600)
+    noughtBanner(true)
+    noughtCard()
+  } catch (e) {
+    say('Nought could not be built here (' + e.message + '). You may still wait and cross.', 'warn')
+  } finally { noughtLoading = false }
+}
+function endNought() {
+  if (!nought) return
+  clearInterval(nought.timer); nought = null
+  if (realId) { myId = realId; realId = null }
+  noughtBanner(false)
+}
+function noughtTick() {
+  if (!nought) return
+  const ins = nought.inputs; nought.inputs = []
+  try { nought.state = nought.E.nextState(nought.state, ins) }
+  catch (e) { say('Nought stumbled: ' + e.message, 'warn') }
+  const meN = nought.state.players[myId]
+  if (meN && meN.hp <= 0 && !nought.died) {
+    nought.died = true
+    say('You die in Nought. It costs you nothing, because there is nothing here to lose.', 'dim')
+  } else if (meN && meN.hp > 0) nought.died = false
+  fountainMark(nought.state)
+  if (lastLive) noughtHud(lastLive)
+  if ((nought.state.tick % 2) === 0) noughtPeerSend()
+  onState(withPeers(nought.state), curWorldId, true)
+}
+function noughtDo(a) {
+  if (!nought) return
+  const f = BRIDGE_TO_INPUT(a)
+  if (!f) { say('Nought has no wiring for "' + a.do + '".', 'warn'); return }
+  try {
+    nought.inputs.push(nought.E.signInput(
+      { worldId: nought.wid, playerId: myId, tick: nought.state.tick, ...f }, nought.key.privateKey))
+  } catch (e) { say('Nought refused that: ' + e.message, 'warn') }
+}
+// §0e: NOBODY MAY BE FOOLED BY NOUGHT. Said two ways that cannot be looked
+// away from -- the world drawn visibly apart, and a banner that never leaves --
+// because a resident may stay a year and the one unforgivable outcome is that
+// they find out late.
+// THE ARRIVAL CARD. The drained palette is a CONTRAST signal, and contrast
+// only works for somebody who has seen the other thing -- a first-timer has
+// never seen Tallyholm in colour, so to them it is simply the art style. Words
+// have to carry it, and they have to be the first words. The card also answers
+// the question a resident actually has, which is not "where am I" but "what do
+// I do": a person dropped into an empty island with no instruction concludes
+// they are stuck long before they conclude they are somewhere unreal.
+function noughtCard() {
+  if (document.getElementById('ncard')) return
+  const d = document.createElement('div')
+  d.id = 'ncard'
+  d.style.cssText = 'position:fixed;inset:0;z-index:90;background:rgba(4,3,2,.88);'
+    + 'display:flex;align-items:center;justify-content:center;padding:18px'
+  d.innerHTML = '<div style="max-width:460px;background:#120f0b;border:1px solid #4a3f2e;'
+    + 'padding:20px 22px;font:13px/1.65 ui-monospace,monospace;color:#cdbf9f">'
+    + '<div style="font-size:11px;letter-spacing:.2em;color:#e0a94a;text-transform:uppercase;margin-bottom:12px">You are not in the world yet</div>'
+    + '<p style="margin:0 0 11px"><b style="color:#e8dcc0">There are two worlds here.</b> Tallyholm is the real one \u2014 it has other people in it, '
+    + 'it has been running for a while, and everything that happens there is permanent.</p>'
+    + '<p style="margin:0 0 11px">You are in the other one. It is called <b style="color:#e8dcc0">Nought</b>: a practice copy of the same island, '
+    + 'where <b style="color:#e0a94a">nothing is saved and nothing can be lost</b>. Think of it as the tutorial.</p>'
+    + '<p style="margin:0 0 11px">Other people are here too, on their way in \u2014 everyone arrives through this. '
+    + 'You each have your own copy of the island, so you can see one another walking about but not much more than that.</p>'
+    + '<p style="margin:0 0 11px">Everything works exactly as it does in the real world \u2014 same rules, same speed, same danger \u2014 but none of it is recorded. '
+    + 'You can die for free. When you cross you start over with nothing, no matter how long you stayed or what you got.</p>'
+    + '<p style="margin:0 0 11px">So use it. You have every tool and plenty of gold. Chop, mine, fish, fight something far too big for you.</p>'
+    + '<p style="margin:0 0 16px;color:#9a8f78">In about ten minutes you can cross. Walk to the <b style="color:#cdbf9f">fountain in Anchor</b> \u2014 '
+    + 'the town you are standing in \u2014 and click it. That happens once and cannot be undone.</p>'
+    + '<p style="margin:0 0 16px;padding:9px 11px;background:#0d0b08;border-left:2px solid #5d4e37;color:#9a8f78">'
+    + '<b style="color:#cdbf9f">Not sure you believe any of that?</b><br>'
+    + 'Look your key up on any pillar\u2019s hiscores, or open a second window. You are not there. That check needs no trust in this page.</p>'
+    + '<button id="ncardok" style="width:100%;padding:9px;background:#2a2418;border:1px solid #5d4e37;'
+    + 'color:#e8dcc0;font:12px ui-monospace,monospace;cursor:pointer">Start practising</button></div>'
+  document.body.appendChild(d)
+  document.getElementById('ncardok').onclick = () => d.remove()
+}
+// A WAY BACK: direction and distance to the fountain, always. "The fountain
+// will take you" is a cruel thing to say to somebody two hundred tiles into
+// the moor with no compass.
+let fountainEl = null
+function fountainMark(st) {
+  if (!st || !nought) { if (fountainEl) fountainEl.style.display = 'none'; return }
+  const me = st.players[myId]; if (!me) return
+  let f = null
+  for (const n of Object.values(st.nodes)) if (n.type === 'fountain') { f = n; break }
+  if (!f) return
+  if (!fountainEl) {
+    fountainEl = document.createElement('div')
+    fountainEl.style.cssText = 'position:fixed;right:10px;top:46px;z-index:72;'
+      + 'font:10px/1.6 ui-monospace,monospace;letter-spacing:.08em;color:#b8a882;'
+      + 'background:rgba(10,7,5,.82);border:1px solid #46372a;padding:5px 9px;text-align:right;pointer-events:none'
+    document.body.appendChild(fountainEl)
+  }
+  const dx = f.x - me.x, dy = f.y - me.y
+  const d = Math.max(Math.abs(dx), Math.abs(dy))
+  const dir = d === 0 ? 'here'
+    : (Math.abs(dy) > Math.abs(dx) * 2 ? (dy < 0 ? 'north' : 'south')
+      : Math.abs(dx) > Math.abs(dy) * 2 ? (dx < 0 ? 'west' : 'east')
+        : (dy < 0 ? 'north' : 'south') + (dx < 0 ? 'west' : 'east'))
+  fountainEl.style.display = ''
+  fountainEl.innerHTML = d <= 1
+    ? '<b style="color:#e0a94a">the fountain \u00b7 click it to leave</b>'
+    : 'the way out: fountain, ' + d + ' tiles ' + dir
+}
+let bannerEl = null
+// §0: THE OTHER RESIDENTS. Everyone in Nought computes their own island, so
+// nothing about them can be agreed and nothing about them needs to be: what is
+// relayed is a position, and a position is enough to make a place populated.
+//
+// Their worlds are not ours -- a tree we felled still stands in theirs, their
+// tick is not our tick -- so they are drawn walking the same ground and nothing
+// else is shared. That is honest, and it is the whole of what was ever
+// promised: the gossip exists so the place is populated, not so it is proved.
+//
+// They all carry the same name, because everyone here does. A crowd of people
+// all called `nought`, on an island where nothing counts, is its own way of
+// saying where you are.
+const peers = new Map()          // id -> { x, y, look, seen }
+function noughtPeerSaw(at) {
+  if (!at || at.id === myId) return
+  peers.set(at.id, { x: at.x, y: at.y, look: at.look | 0, seen: Date.now() })
+}
+function noughtPeerSend() {
+  if (!nought || ws.readyState !== 1) return
+  const me = nought.state.players[myId]; if (!me) return
+  try { ws.send(JSON.stringify({ type: 'nought', at: { id: myId, x: me.x, y: me.y, look: pickLook ?? 0 } })) } catch {}
+}
+// a render-only copy: the peers are drawn, never ticked, and never touch the
+// local world's state
+function withPeers(st) {
+  if (!peers.size) return st
+  const now = Date.now()
+  const v = Object.create(Object.getPrototypeOf(st)); Object.assign(v, st)
+  v.players = { ...st.players }
+  for (const [id, q] of peers) {
+    if (now - q.seen > 12000) { peers.delete(id); continue }   // gone quiet: gone
+    if (v.players[id]) continue
+    v.players[id] = {
+      x: q.x, y: q.y, hp: 10, gold: 0, name: NOUGHT_PEER_NAME, look: q.look,
+      action: null, trade: null, consignment: null, lastInput: st.tick,
+      equipment: { weapon: null, head: null, body: null, offhand: null, legs: null },
+      bank: {}, inventory: new Array(28).fill(null), skills: st.players[myId].skills,
+    }
+  }
+  return v
+}
+const NOUGHT_PEER_NAME = 'nought'
+
+
+function noughtBanner(on) {
+  const cv = document.querySelector('canvas')
+  if (cv) cv.style.filter = on ? 'saturate(.4) contrast(.96) brightness(.97)' : ''
+  if (!on) {
+    if (bannerEl) bannerEl.style.display = 'none'
+    if (fountainEl) fountainEl.style.display = 'none'
+    document.getElementById('ncard')?.remove()
+    return
+  }
+  if (!bannerEl) {
+    bannerEl = document.createElement('div')
+    bannerEl.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:71;'
+      + 'font:10px/1.7 ui-monospace,monospace;letter-spacing:.14em;text-align:center;'
+      + 'color:#9a8f78;background:linear-gradient(rgba(0,0,0,0),rgba(8,7,5,.86));'
+      + 'padding:14px 8px 5px;pointer-events:none;text-transform:uppercase'
+    document.body.appendChild(bannerEl)
+  }
+  bannerEl.style.display = ''
+  bannerEl.textContent = 'practice world \u00b7 not tallyholm \u00b7 nothing here is saved, nothing here is lost'
+}
+
+// A resident is owed one thing at all times: how long until the world will
+// have them.
+let hudEl = null
+function noughtHud(s) {
+  if (!s) { if (hudEl) hudEl.style.display = 'none'; return }
+  if (!hudEl) {
+    hudEl = document.createElement('div')
+    hudEl.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:10px;z-index:70;'
+      + 'font:11px/1.5 ui-monospace,monospace;letter-spacing:.08em;color:#d8c69a;'
+      + 'background:rgba(10,7,5,.84);border:1px solid #46372a;padding:5px 13px;'
+      + 'border-radius:2px;pointer-events:none;text-align:center'
+    document.body.appendChild(hudEl)
+  }
+  // THE OTHER WORLD, IN NUMBERS, WHILE YOU STAND IN THIS ONE. A newcomer cannot
+  // tell there are two worlds because they have only ever seen one, and telling
+  // them does not fix it. Showing does: Tallyholm's real tick and real
+  // population, counting up beside a wait that is counting down.
+  const w = myWait(s)
+  const live = Math.max(0, Object.keys(s.players ?? {}).length)
+  const who = live === 1 ? '1 person is' : live + ' people are'
+  const left = !w || w.stale ? null : w.ripe ? 0 : VIGIL_TICKS - w.age
+  hudEl.style.display = ''
+  hudEl.innerHTML = '<b style="color:#e0a94a">You are not in Tallyholm yet.</b> '
+    + who + ' there now, at tick ' + (s.tick ?? 0).toLocaleString() + '.'
+    + '<br><span style="color:#9a8f78">'
+    + (left === null ? 'Asking the world to expect you\u2026'
+      : left === 0 ? 'You can cross now \u2014 the fountain in Anchor.'
+      : 'You can cross in ' + wordFor(left) + '.')
+    + '</span>'
+}
+// the crossing is offered AT THE FOUNTAIN, on foot, and nowhere else
+let crossingOpen = false
+function openCrossing() { crossingOpen = true; gate.classList.remove('gone'); updateNoughtGate(curState) }
+function closeCrossing() { crossingOpen = false; crossArmed = false; if (entered) gate.classList.add('gone') }
+
+// The gate, every tick, while a soul is still in Nought.
+function updateNoughtGate(s) {
+  if (!s || !gEnter || entered) return
+  keepAttending(s)
+  if (!inNought) { gEnter.textContent = 'Enter the world'; gEnter.disabled = false; return }
+  const w = myWait(s), out = keyExported()
+  if (!crossingOpen) {
+    // §0e: A WINDOW OPENS IN NOUGHT. Walking in is not crossing and asks
+    // nothing: the island is open from the first interval, and the wait runs
+    // while you walk it.
+    gEnter.disabled = !myId
+    gEnter.textContent = 'Walk into Nought'
+    if (gWhy) gWhy.textContent = 'Tallyholm, unwalked. Nothing here is in the world, nothing here is lost, and the fountain in Anchor is the way out.'
+    crossArmed = false
+  } else if (!w || !w.ripe) {
+    gEnter.disabled = true
+    gEnter.textContent = w && !w.stale
+      ? 'The world will admit you in ' + wordFor(VIGIL_TICKS - w.age)
+      : 'Waiting for the world to see you\u2026'
+    if (gWhy) gWhy.textContent = w && !w.stale
+      ? 'You are in Nought: the island unwalked, before anyone. Nothing you do here is in the world.'
+      : 'The world has not seen you yet.'
+    crossArmed = false
+  } else if (!out) {
+    gEnter.disabled = true
+    gEnter.textContent = 'Take your key before you cross'
+    if (gWhy) gWhy.textContent = 'Your key IS your citizen. Copy it out of this browser first \u2014 there is no other copy and no way back to one.'
+  } else if (!crossArmed) {
+    gEnter.disabled = false
+    gEnter.textContent = 'Draw from the fountain'
+    if (gWhy) gWhy.textContent = 'The fountain stands in Anchor, beside the tile you will wake on.'
+  } else {
+    gEnter.disabled = false
+    gEnter.textContent = crossSentAt >= 0 ? 'Waiting your turn at the fountain\u2026' : 'Cross. This cannot be undone'
+    if (gWhy) gWhy.textContent = 'Everything you hold and learned in Nought ends here. '
+      + 'This key can never be in Nought again, in this world, ever. The key is the only thing that crosses.'
+  }
+}
 const gWhy = document.getElementById('gwhy')
 const gEnter = document.getElementById('genter')
 
@@ -13572,6 +13967,8 @@ document.getElementById('gkey').addEventListener('click', async () => {
   if (!k) { gWhy.textContent = 'This browser has no key of its own; the pillar holds one for you.'; return }
   try { await navigator.clipboard.writeText(k); gWhy.textContent = 'Key copied. It is the only copy. Keep it somewhere.' }
   catch { window.prompt('Your key. Copy it and keep it:', k) }
+  markKeyExported()
+  if (curState) updateNoughtGate(curState)
 })
 document.getElementById('gimport').addEventListener('click', async () => {
   const str = window.prompt('Paste a key (interval-key-v1.\u2026 or an identity JSON):')
@@ -13698,13 +14095,36 @@ function enterWorld() {
   const n = gName.value.trim().toLowerCase()
   if (n && !/^[a-z0-9-]{1,12}$/.test(n)) { gWhy.textContent = 'Names are 1\u201312 of a\u2013z, 0\u20139 and the hyphen.'; return }
   if (n && (n.startsWith('-') || n.endsWith('-'))) { gWhy.textContent = 'A name cannot begin or end with a hyphen.'; return }
+  // §0e: A CROSSING IS AN ACT AND IS NOT COMPLETED ON A SINGLE PRESS. The
+  // first press arms it and says what is about to happen; the second does it.
+  // This window used to send `spawn` from inside the door-opening, which made
+  // the one irreversible thing in the world a side effect of pressing Enter.
+  if (inNought && crossingOpen) {
+    const w0 = myWait(curState)
+    if (!w0 || !w0.ripe || !keyExported()) { updateNoughtGate(curState); return }
+    if (!crossArmed) { crossArmed = true; updateNoughtGate(curState); return }
+    pendingName = n
+    crossSentAt = curState.tick
+    send({ do: 'spawn' })
+    updateNoughtGate(curState)
+    say('You draw from the fountain in Anchor.', 'good')
+    return                       // Nought does not end until the world says so
+  }
+  if (inNought) {
+    pendingName = n
+    entered = true
+    gate.classList.add('gone')
+    SFX.ctx(); fadeMusicOut(2200)
+    say('You are in Nought: Tallyholm before anyone walked it.', 'good')
+    say('Nothing you do here is in the world. Return to the fountain when you are ready.', 'dim')
+    return
+  }
   pendingName = n
   entered = true
   gate.classList.add('gone')
   SFX.ctx()
   fadeMusicOut(2200)
   say('You wake in Interval.', 'good')
-  if (curState && myId && !curState.players[myId]) send({ do: 'spawn' })
   const already = myId && curState?.players?.[myId]?.name
   if (n && !already) setTimeout(() => send({ do: 'name', name: n }), 1400)
   // The appearance is NOT sent from here. See reconcileLook: a timer racing

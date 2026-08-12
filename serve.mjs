@@ -280,6 +280,35 @@ if (canResume) {
 }
 
 let node
+let noughtWorldJson = null   // §0: the founding state, built once, never changing
+let noughtTerrain = null     // §0: the ground, packed once, never changing
+// Evaluate the registered generator over the whole grid and pack it. Costs one
+// pass at first request and nothing ever again, because a changed island is a
+// different world (§9d).
+function packTerrain (g) {
+  // Ask the ENGINE, not the generator module: `terrainBlocked`/`onRoadAt` route
+  // through the same registration the tick uses, so the table cannot disagree
+  // with the world this node is actually running.
+  const t = E.TERRAINS[g.worldGenerator]
+  if (!t) throw new Error('this node has no generator registered for ' + g.worldGenerator)
+  const w = g.worldW, h = g.worldH, n = w * h, bits = Math.ceil(n / 8)
+  const blocked = Buffer.alloc(bits), road = Buffer.alloc(bits), country = Buffer.alloc(n)
+  const names = []
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = y * w + x
+    if (t.blocked && t.blocked(g, x, y)) blocked[i >> 3] |= (1 << (i & 7))
+    if (t.road && t.road(g, x, y)) road[i >> 3] |= (1 << (i & 7))
+    const c = t.country ? t.country(g, x, y) : ''
+    let k = names.indexOf(c); if (k < 0) { k = names.length; names.push(c) }
+    country[i] = k
+  }
+  return {
+    bin: Buffer.concat([blocked, road, country]),
+    meta: { generator: g.worldGenerator, w, h, biomes: names,
+            spawn: t.spawn ? t.spawn(g) : { x: w >> 1, y: h >> 1 },
+            geographyHash: t.geographyHash ? t.geographyHash(g) : null },
+  }
+}
 try {
   node = await new IntervalNode({ peerKeyFile: DATA + '/identities/peer-pillar.json',
     genesis: GENESIS, buildWorld, name: 'web', checkpointFile: CP_FILE,
@@ -522,6 +551,58 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': type, ...NC })
       return res.end(buf)
     }
+    // §0: NOUGHT. A window that wants to run the island itself needs two
+    // things and no more: the engine's own source, and the world as the
+    // founding made it.
+    //
+    // Both are pure functions of the genesis this node already holds, so
+    // neither is a secret, neither can be personalised, and both are the same
+    // bytes from every honest pillar -- which is what makes them checkable.
+    // Nothing served here is ever sent back: a resident's Nought is computed
+    // in their window and dies there.
+    if (path === '/engine.js') return sendFile('./engine.js', 'text/javascript')
+    if (path === '/engine-browser.mjs') return sendFile('./engine-browser.mjs', 'text/javascript')
+    // §0: THE GROUND ITSELF, packed. The engine fails closed without a
+    // registered generator, and a window cannot import one, so it is served
+    // the generator's ANSWERS instead: blocked and road as bitmaps, country as
+    // a byte, evaluated once over a grid that can never change.
+    if (path === '/nought/terrain.bin' || path === '/nought/terrain.json') {
+      if (!noughtTerrain) {
+        try { noughtTerrain = packTerrain(node.state.genesis) }
+        catch (e) { res.writeHead(503, NC); return res.end('cannot pack the ground: ' + e.message) }
+      }
+      const immutable = { 'Cache-Control': 'public, max-age=31536000, immutable' }
+      if (path.endsWith('.json')) {
+        res.writeHead(200, { 'Content-Type': 'application/json', ...immutable })
+        return res.end(JSON.stringify(noughtTerrain.meta))
+      }
+      res.writeHead(200, { 'Content-Type': 'application/octet-stream', ...immutable })
+      return res.end(noughtTerrain.bin)
+    }
+    if (path === '/nought/world.json') {
+      // Computed once and cached: it cannot change, because a changed world is
+      // a different world (§9d).
+      if (!noughtWorldJson) {
+        // §0: the practice world is a DIFFERENT WORLD that draws the same
+        // island. Serving it under its own id is what makes "nothing crosses"
+        // arithmetic: an input signed here is refused there, by §1's binding,
+        // with no window involved and nobody's word taken for it.
+        // SERVED ALREADY MARKED, so that the LAZY window is the safe one.
+        //
+        // The window marks it too (§0a), which defends against a pillar that
+        // did not. But a window author who never read §0 and simply renders
+        // what arrives must still end up showing a resident where they are --
+        // otherwise the default outcome of carelessness is a person deceived,
+        // and carelessness is the only adversary here worth designing against.
+        // Nobody gains anything by faking Nought: there is nothing in it to
+        // steal and the key never leaves the machine.
+        try { noughtWorldJson = Buffer.from(JSON.stringify(
+          E.markNoughtWorld(buildWorld(E.noughtGenesisOf(node.state.genesis))))) }
+        catch (e) { res.writeHead(503, NC); return res.end('cannot build the founding state: ' + e.message) }
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=31536000, immutable' })
+      return res.end(noughtWorldJson)
+    }
     // /play is the doorway: a window is a choice, and the choice is shown.
     // The old paths keep working, since links live longer than layouts.
     if (path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
@@ -625,6 +706,29 @@ function handle(ws, buf) {
       ws.send(JSON.stringify({ type: 'hello', playerId: m.pub, external: true }))
       return
     }
+    // §0: NOUGHT PRESENCE. Residents each compute their own private island, so
+    // nothing about them is consensus and nothing here is judged: this relays
+    // a position to whoever else is standing on the same geography, and that
+    // is all it does.
+    //
+    // It exists because a practice world nobody else is ever in is a lonelier
+    // thing than the one it is practice for, and because the point of Nought
+    // was never solitude -- it was the island, with the people who are also
+    // about to arrive on it.
+    //
+    // A resident may lie about where they are standing. This is permitted and
+    // uninteresting: nothing in Nought is scarce, contested or recorded, so
+    // there is no claim a liar could profit from.
+    if (m.type === 'nought') {
+      const p = m.at
+      if (!p || !/^[0-9a-f]{64}$/.test(p.id ?? '') ) return
+      if (!Number.isFinite(p.x) || !Number.isFinite(p.y)) return
+      const out = JSON.stringify({ type: 'nought', at: { id: p.id, x: p.x | 0, y: p.y | 0, look: p.look | 0 } })
+      for (const other of sockets.keys()) {
+        if (other !== ws && other.readyState === 1) { try { other.send(out) } catch {} }
+      }
+      return
+    }
     if (m.type === 'rawsay') {
       const ext = sockets.get(ws)
       if (!ext?.external || m.msg?.playerId !== ext.playerId) return
@@ -679,7 +783,8 @@ function handle(ws, buf) {
     if (!client || client.external) return // externals speak only in signatures
     const a = m.action
     // one input per tick, exactly as the constitution demands
-    if (a.do === 'spawn') client.spawn()
+    if (a.do === 'attend') client.attend()          // §0b: a soul knocks
+    else if (a.do === 'spawn') client.spawn()
     else if (a.do === 'move') client.move(Math.sign(a.dx | 0), Math.sign(a.dy | 0))
     else if (a.do === 'gather') client.gather(String(a.nodeId))
     else if (a.do === 'attack') client.attack(String(a.mobId))
