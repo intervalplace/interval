@@ -4413,9 +4413,14 @@ export function buildWorld(genesis) {
     for (const kind of kinds) {
       let seated = false
       // indoors first: a spare house, if the drawing left one
-      const house = shopRoom && shopRoom[hi % shopRoom.length]
-      if (house) {
-        hi++
+      // indoors first: try EVERY spare house the drawing left, not just one.
+      // The old code picked shopRoom[hi % len] -- a single house per stall -- so
+      // once a market had more stalls than clean rooms, the extra stall landed
+      // on a house already taken, failed, and was exiled to the ring outside the
+      // town (Millbrook's delver ended up alone on the verge). Walking all the
+      // houses seats it wherever there is genuinely room before giving up.
+      for (let hh = 0; hh < (shopRoom ? shopRoom.length : 0) && !seated; hh++) {
+        const house = shopRoom[(hi + hh) % shopRoom.length]
         const pw = plan[0].length, ph = plan.length
         const ox = st.x - (pw >> 1), oy = st.y - (ph >> 1)
         const [rx, ry, rw, rh] = house
@@ -4461,10 +4466,17 @@ export function buildWorld(genesis) {
             // a radius of three -- with a banker at two, so the two trades
             // shared a hall and a citizen saw an arms stall inside the bank.
             // A room in these drawings is bigger than three tiles.
+            // A market is stalls SIDE BY SIDE -- that is what makes it a market
+            // -- so the eight-tile rule applies only to the trades a stall must
+            // not sit inside (bank, store, anvil). Another stall's keeper only
+            // needs a tile of its own; two shopfronts a few tiles apart is a
+            // market row, not a conflict.
             if (Object.values(w.nodes).some((q) =>
-              (q.type === 'bank' || q.type === 'store' || q.type === 'anvil'
-               || (q.type === 'keeper' && q.kind && q.kind !== kind))
+              (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
               && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
+            if (Object.values(w.nodes).some((q) =>
+              q.type === 'keeper' && q.kind && q.kind !== kind
+              && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 2)) continue
             E.addNode(w, 'stall-' + st.tag + '-' + kind, 'stall', x, y, { kind })
             taken.add(key(x, y))
             // and whoever keeps it, stood behind the counter
@@ -4485,7 +4497,7 @@ export function buildWorld(genesis) {
               taken.add(key(kx, ky))
               break
             }
-            seated = true; break
+            seated = true; hi = (hi + hh + 1); break
           }
         }
       }
@@ -4500,15 +4512,15 @@ export function buildWorld(genesis) {
         for (const [x, y] of ring) {
           if (!inB(x, y) || taken.has(key(x, y)) || isWater(g, x, y) || blockedAt(g, x, y)) continue
           if (onRoad(g, x, y)) continue                 // never in the roadway
-          // AND THE SAME RULE AS INDOORS. This fallback had no counter test at
-          // all, so a stall that could not find a house simply pitched wherever
-          // the ring allowed -- five tiles from Anchor's anvil, six from
-          // Fenmarch's store. A stall outside a wall is still a stall, and it
-          // still must not set up in another trade's doorway.
+          // AND THE SAME RULE AS INDOORS: keep clear of a bank, store or anvil,
+          // but a fellow stall's keeper only owns its own tile -- a market is a
+          // row of neighbours.
           if (Object.values(w.nodes).some((q) =>
-            (q.type === 'bank' || q.type === 'store' || q.type === 'anvil'
-             || (q.type === 'keeper' && q.kind && q.kind !== kind))
+            (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
             && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
+          if (Object.values(w.nodes).some((q) =>
+            q.type === 'keeper' && q.kind && q.kind !== kind
+            && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 2)) continue
           // BESIDE A STREET, NOT ON A MOOR. The first version took the first
           // free ground on the ring, which put the axe man at Greenhollow
           // out on open moorland and the delver at Fenmarch in the fens. A
@@ -4521,6 +4533,21 @@ export function buildWorld(genesis) {
           if (!byRoad && rad < 5) continue
           E.addNode(w, 'stall-' + st.tag + '-' + kind, 'stall', x, y, { kind })
           taken.add(key(x, y)); si++; seated = true
+          // A STALL WITHOUT A KEEPER IS AN ABANDONED TABLE. The indoor path
+          // stands a keeper behind the counter; this fallback used to place the
+          // stall alone, so a market that overflowed its houses left a shop out
+          // on the verge with nobody tending it. Stand a keeper on the first free
+          // tile beside it, the same as indoors.
+          for (const [dx2, dy2] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) {
+            const kx = x + dx2, ky = y + dy2
+            if (!inB(kx, ky) || taken.has(key(kx, ky)) || isWater(g, kx, ky) || blockedAt(g, kx, ky)) continue
+            if (onRoad(g, kx, ky)) continue
+            if (Object.values(w.nodes).some((q) => q.x === kx && q.y === ky)) continue
+            E.addNode(w, 'keeper-' + st.tag + '-' + kind, 'keeper', kx, ky,
+              { kind, name: keeperName(st.tag, kind) })
+            taken.add(key(kx, ky))
+            break
+          }
           break
         }
       }
@@ -4683,33 +4710,36 @@ export function buildWorld(genesis) {
     counts.criers = criers
   }
 
-  // §6cz (v6): THE ROAD PASSES THROUGH A GATE, NOT THROUGH A WALL. The router
+  // §6cz (v6): THE ROAD PASSES THROUGH A GATE, NOT THROUGH A HOUSE. The router
   // lays its paths from town centre to town centre BEFORE the walls are drawn,
-  // so a wall can come down straight across the road -- and then the road runs
-  // up to a blank rampart instead of an opening, which is what "the road leads
-  // out through the wall" looks like from the ground. A road meeting a wall IS a
-  // gate, so make it one: any wall, hedge or fence on a road tile is opened (the
-  // road punches its gate). Loose decor that strayed onto the open road (a
-  // croft, a peat-stack, a landmark) is simply removed. The point-fixtures a
-  // road happens to pass beside -- a well, a hearth, a counter -- are left; if
-  // one genuinely sits in the roadway that is a seating fault, reported below.
+  // so a boundary can come down across the road. Where that boundary is a town's
+  // RAMPART -- the fortified curtain of a walled town -- a road meeting it is a
+  // gate, so open it. A garden HEDGE or FENCE the same. But a plain house WALL
+  // is a building, and a road clipping a house does NOT license tearing the
+  // house open: the first version opened every wall a road touched and left the
+  // market towns looking like ruins, their houses gutted where a lane passed.
+  // So houses are LEFT WHOLE -- the road runs up to the wall and around it, the
+  // way a lane meets a building in any real town -- and only true boundaries
+  // (rampart, hedge, fence) are opened into the gates they are meant to have.
+  // Loose decor that strayed onto the open road (a croft, a peat-stack, a
+  // landmark) is still simply removed.
   {
     const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market'])
-    const OPENABLE = new Set(['wall', 'hedge', 'fence'])              // a road here is a gate
-    const KEEP = new Set(['well', 'hearth', 'bank', 'store', 'anvil', // point fixtures: leave
+    const OPENABLE = new Set(['rampart', 'hedge', 'fence'])           // a boundary: a road here is a gate
+    const KEEP = new Set(['wall', 'well', 'hearth', 'bank', 'store', 'anvil', // buildings & fixtures: leave whole
       'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire'])
-    let gated = 0, cleared = 0, fixtureInRoad = 0
+    let gated = 0, cleared = 0, kept = 0
     for (const id of Object.keys(w.nodes)) {
       const n = w.nodes[id]
       if (WALKABLE.has(n.type)) continue
       if (!onRoad(g, n.x, n.y)) continue
-      if (OPENABLE.has(n.type)) { delete w.nodes[id]; gated++ }       // open the wall: a gate
-      else if (KEEP.has(n.type)) { fixtureInRoad++ }                  // leave, but count it
+      if (OPENABLE.has(n.type)) { delete w.nodes[id]; gated++ }       // open the boundary: a gate
+      else if (KEEP.has(n.type)) { kept++ }                          // a house/fixture: leave it whole
       else { delete w.nodes[id]; cleared++ }                          // loose decor: gone
     }
     counts.roadGatesOpened = gated
     counts.roadDecorCleared = cleared
-    counts.fixturesInRoad = fixtureInRoad
+    counts.roadFixturesKept = kept
   }
 
   const serr = E.validateState(w)
