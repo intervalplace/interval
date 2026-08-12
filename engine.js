@@ -6810,7 +6810,7 @@ function nextState(state, inputs, _legacyBeacon) {
             spillHoods(s, target, tid ?? 'v');   // §6ax: before the pack goes
             const kept9 = prayerKeeps(target, s.tick, s.genesis);
             target.inventory = Array(INV_SLOTS).fill(null);
-            target.equipment = { weapon: null, head: null, body: null };
+            target.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             kept9.forEach((k, i) => { target.inventory[i] = k; });
             // §11d: THE CONSIGNMENT SPILLS EVEN WHEN THE PACK BURNS. A beast
             // kills like any other death here -- the pack is annihilated -- but
@@ -7593,7 +7593,7 @@ function nextState(state, inputs, _legacyBeacon) {
             }
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
-            q.equipment = { weapon: null, head: null, body: null };
+            q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null; q.deadUntil = s.tick + DEATH_TICKS;
             break;
@@ -8375,7 +8375,7 @@ function nextState(state, inputs, _legacyBeacon) {
             }
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
-            q.equipment = { weapon: null, head: null, body: null };
+            q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null;
             q.deadUntil = s.tick + DEATH_TICKS;
