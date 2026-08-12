@@ -2235,6 +2235,7 @@ const EQUIPPABLE = new Set([
   'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
   'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
+  'goo-staff',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -2955,6 +2956,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }
+  : a.do === 'seal' ? { type: 'seal', groundId: a.groundId }
   : a.do === 'raise_market' ? { type: 'raise_market' }
   : a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }
   : a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }
@@ -2975,6 +2977,9 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }
   : a.do === 'kindle' ? { type: 'kindle' }
   : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
+  : a.do === 'char' ? { type: 'char', nodeId: a.nodeId }
+  : a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }
+  : a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }
   : a.do === 'still' ? { type: 'still', target: a.target }
   : a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
                          wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }
@@ -4192,6 +4197,43 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     const wg = g.createRadialGradient(tx2, ty2, 0, tx2, ty2, 8 * s)
     wg.addColorStop(0, 'rgba(160,206,224,.34)'); wg.addColorStop(1, 'rgba(160,206,224,0)')
     g.fillStyle = wg; g.beginPath(); g.arc(tx2, ty2, 8 * s, 0, 7); g.fill(); g.restore()
+    return
+  }
+  if (item === 'goo-staff') {
+    // §6bn: A STAVE THAT WAS NEVER SHAPED BY ANYBODY. Leaned on like the
+    // others -- it is still a stave, and a stave goes to the ground -- but the
+    // wood is near-black, the grip is wound in silk rather than cord, and the
+    // head is a wet green bead that throws a cold light instead of a warm one.
+    //
+    // It should read across a field. Two verbs come out of this staff and both
+    // of them decide what happens to somebody else's pack, so whoever is
+    // holding one is the most important person on the ground and everyone
+    // ought to be able to see it before anything is cast.
+    const UP = 26 * s, DOWN = 22 * s
+    const topX = hx - Math.sin(a) * 3 * s, topY = hy - UP
+    const botX = hx + Math.sin(a) * 1.5 * s, botY = hy + DOWN
+    g.strokeStyle = '#2f3326'; g.lineWidth = 3.2 * s; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(botX, botY)
+    g.quadraticCurveTo(hx + 2 * s, hy - UP * .5, topX, topY); g.stroke()
+    g.strokeStyle = '#4a5238'; g.lineWidth = 1.2 * s      // the grain, barely
+    g.beginPath(); g.moveTo(botX - .8 * s, botY)
+    g.quadraticCurveTo(hx + 1.2 * s, hy - UP * .5, topX - .8 * s, topY); g.stroke()
+    g.strokeStyle = '#3a352c'; g.lineWidth = 3.6 * s      // the ferrule
+    g.beginPath(); g.moveTo(botX, botY - 3 * s); g.lineTo(botX, botY); g.stroke()
+    g.strokeStyle = '#5e6b46'; g.lineWidth = 3.8 * s      // silk at the grip
+    g.beginPath(); g.moveTo(hx + .6 * s, hy + 3 * s); g.lineTo(hx + 1.2 * s, hy - 5 * s); g.stroke()
+    g.fillStyle = '#7fbf5a'                               // the bead
+    g.beginPath(); g.ellipse(topX, topY, 2.6 * s, 3.2 * s, .2, 0, 7); g.fill()
+    g.fillStyle = '#bfe89a'                               // and it is wet
+    g.beginPath(); g.ellipse(topX - .9 * s, topY - 1.0 * s, .9 * s, 1.1 * s, .3, 0, 7); g.fill()
+    g.fillStyle = '#7fbf5a'                               // a drip, always falling
+    g.beginPath(); g.ellipse(topX + .8 * s, topY + 6 * s, 1.1 * s, 1.6 * s, 0, 0, 7); g.fill()
+    g.save(); g.globalCompositeOperation = 'lighter'
+    const gg = g.createRadialGradient(topX, topY, 0, topX, topY, 11 * s)
+    gg.addColorStop(0, 'rgba(150,214,120,.40)'); gg.addColorStop(1, 'rgba(150,214,120,0)')
+    g.fillStyle = gg
+    g.beginPath(); g.arc(topX, topY, 11 * s, 0, 7); g.fill()
+    g.restore()
     return
   }
   if (/staff/.test(item)) {
@@ -5617,6 +5659,22 @@ function itemIcon(item) {
       g.save(); g.globalCompositeOperation = 'lighter'
       g.fillStyle = 'rgba(160,206,224,.45)'
       g.beginPath(); g.arc(cx + 6, cy - 8, 5.5, 0, 7); g.fill(); g.restore()
+      return }
+    if (item === 'goo-staff') {
+      // the same thing the hand holds, small: dark shaft, silk grip, wet head
+      g.strokeStyle = '#2f3326'; g.lineWidth = 2.8
+      g.beginPath(); g.moveTo(cx - 5, cy + 11); g.quadraticCurveTo(cx + 1, cy, cx + 3, cy - 11); g.stroke()
+      g.strokeStyle = '#5e6b46'; g.lineWidth = 2.8       // silk, ON the shaft
+      g.beginPath(); g.moveTo(cx - 1.7, cy + 4.4); g.lineTo(cx - 1.0, cy + 0.6); g.stroke()
+      g.fillStyle = '#7fbf5a'
+      g.beginPath(); g.ellipse(cx + 2.6, cy - 10.4, 2.1, 2.5, .2, 0, 7); g.fill()
+      g.fillStyle = '#bfe89a'
+      g.beginPath(); g.ellipse(cx + 1.9, cy - 11.2, .7, .85, .3, 0, 7); g.fill()
+      g.fillStyle = '#7fbf5a'
+      g.beginPath(); g.arc(cx + 3.1, cy - 6.4, .95, 0, 7); g.fill()
+      g.save(); g.globalCompositeOperation = 'lighter'
+      g.fillStyle = 'rgba(150,214,120,.42)'
+      g.beginPath(); g.arc(cx + 2.6, cy - 10.4, 4.2, 0, 7); g.fill(); g.restore()
       return }
     if (/staff/.test(item)) {
       const heart = /heartwood/.test(item)
@@ -7754,6 +7812,81 @@ function drawNode(g, n, sx, sy, t, hot) {
       g.beginPath(); g.ellipse(sx, sy, 6 + q * 20, (6 + q * 20) / 2, 0, 0, 7); g.stroke()
       g.restore(); return
     }
+    case 'cart': {
+      // §6bq: A HANDCART DOWN IN THE ROAD -- shed wheel, shafts in the dirt,
+      // cargo tipped against the low side. It must read as an accident from a
+      // long way off, because the whole point of a cart is that somebody sees
+      // it and comes over.
+      g.drawImage(sprite('cart' + (hs & 1), 96, 68, (gg, W2, H2) => {
+        const cx2 = W2 / 2, by2 = H2 - 10
+        groundShadow(gg, cx2, by2 + 2, 30, 12, .5)
+        // the bed, tipped toward the viewer
+        poly(gg, [[cx2 - 26, by2], [cx2 + 20, by2 - 8], [cx2 + 26, by2 - 28], [cx2 - 20, by2 - 20]], '#4a3722', '#241b10')
+        gg.strokeStyle = '#6b5433'; gg.lineWidth = 1.4
+        for (let k = 0; k < 4; k++) {
+          gg.beginPath(); gg.moveTo(cx2 - 24 + k * 3, by2 - 2 - k * 4.6)
+          gg.lineTo(cx2 + 22 + k, by2 - 10 - k * 4.6); gg.stroke()
+        }
+        // the shafts, ploughed into the ground
+        gg.strokeStyle = '#3a2c1a'; gg.lineWidth = 3.4; gg.lineCap = 'round'
+        gg.beginPath(); gg.moveTo(cx2 - 20, by2 - 20); gg.lineTo(cx2 - 40, by2 - 30)
+        gg.moveTo(cx2 - 24, by2 - 12); gg.lineTo(cx2 - 42, by2 - 21); gg.stroke()
+        // the wheel that came off, lying flat
+        gg.strokeStyle = '#5c4023'; gg.lineWidth = 3.2
+        gg.beginPath(); gg.ellipse(cx2 + 22, by2 + 2, 15, 7, 0, 0, 7); gg.stroke()
+        gg.lineWidth = 2
+        for (const a2 of [0, 1.05, 2.1]) {
+          gg.beginPath(); gg.moveTo(cx2 + 22 - Math.cos(a2) * 15, by2 + 2 - Math.sin(a2) * 7)
+          gg.lineTo(cx2 + 22 + Math.cos(a2) * 15, by2 + 2 + Math.sin(a2) * 7); gg.stroke()
+        }
+      }), sx - 48, sy - 68 + 24)
+      // and what is still ON it: a few goods heaped, so a passer-by can see at
+      // a glance whether this is worth stopping for
+      const kinds = Object.keys(n.shelf ?? {}).sort()
+      for (let k = 0; k < Math.min(4, kinds.length); k++) {
+        g.fillStyle = ['#8a8a80', '#6e4e2b', '#8fa8c4', '#c9862a'][k]
+        g.beginPath(); g.ellipse(sx - 10 + k * 7, sy - 22 - (k % 2) * 5, 5, 3.4, 0, 0, 7); g.fill()
+      }
+      return
+    }
+    case 'dedication': {
+      // §6bp: A DRESSED STONE, standing. Blank until somebody pays; once a
+      // name is on it the face is cut and the letters take the light. It is
+      // the only object in this world whose entire visual job is to be READ.
+      const named = !!n.name
+      g.drawImage(sprite('dedstone' + (named ? 'n' : 'b'), 72, 104, (gg, W2, H2) => {
+        const cx2 = W2 / 2, by2 = H2 - 8
+        groundShadow(gg, cx2, by2, 20, 9, .55)
+        // a plinth, then the stone
+        // A STELA, NOT A DOMINO. The first cut of this was eleven wide and
+        // seventy-eight tall, which at this camera is a monolith -- and a
+        // monolith is what the Ring's standing stones already are. This is a
+        // DRESSED stone: broad enough to carry writing, low enough to read
+        // without leaning back, and unmistakably worked rather than raised.
+        poly(gg, [[cx2 - 24, by2], [cx2 + 24, by2], [cx2 + 19, by2 - 9], [cx2 - 19, by2 - 9]], '#57534a', '#2e2b25')
+        poly(gg, [[cx2 - 17, by2 - 9], [cx2 + 17, by2 - 9], [cx2 + 15, by2 - 52], [cx2 - 15, by2 - 56]],
+             '#6e6a60', '#3a3831')
+        // the lit face, a third of the width, so the stone has a corner
+        poly(gg, [[cx2 - 17, by2 - 9], [cx2 - 5, by2 - 9], [cx2 - 5, by2 - 54], [cx2 - 15, by2 - 56]], '#847f74')
+        if (named) {
+          // the cut: dark strokes with a pale lower lip, which is what carving
+          // looks like when the light is above it. Four lines, tapering, so it
+          // reads as WRITING rather than as a ladder.
+          gg.fillStyle = '#35332c'
+          for (let k = 0; k < 4; k++) gg.fillRect(cx2 - 11, by2 - 46 + k * 9, 22 - k * 4, 2.6)
+          gg.fillStyle = 'rgba(255,250,228,.45)'
+          for (let k = 0; k < 4; k++) gg.fillRect(cx2 - 11, by2 - 43.4 + k * 9, 22 - k * 4, 1.1)
+        }
+      }), sx - 36, sy - 104 + 34)
+      if (named && (t + n.x * 211) % 3200 < 460) {
+        // gold in the letters, now and then. Somebody paid for that.
+        g.save(); g.globalCompositeOperation = 'lighter'
+        const gr = g.createRadialGradient(sx, sy - 40, 0, sx, sy - 40, 22)
+        gr.addColorStop(0, 'rgba(232,204,120,.30)'); gr.addColorStop(1, 'rgba(232,204,120,0)')
+        g.fillStyle = gr; g.beginPath(); g.arc(sx, sy - 40, 22, 0, 7); g.fill(); g.restore()
+      }
+      return
+    }
     case 'campfire': case 'fire': case 'watchfire': {
       const size = n.type === 'watchfire' ? 1.9 : n.type === 'campfire' ? 1.1 : .9
       const dying = n.type === 'fire' && (n.expiresAt - (s?.tick ?? 0)) < 20
@@ -8864,7 +8997,7 @@ const mendedAt = new Map()
 // the writing and drawFx has never heard of either, which would have been a
 // silent no-op for eating -- the one deed the whole change is for.
 const DEED_MARK = {
-  alch: 'unmake', unmake: 'unmake', mendp: 'sent', invoke: 'sent', cast: 'sent', still: 'sent',
+  alch: 'unmake', unmake: 'unmake', seal: 'seal', mendp: 'sent', invoke: 'sent', cast: 'sent', still: 'sent',
   eat: 'act', forage: 'act', drink: 'ripple', bury: 'dig',
   kindle: 'spark', light: 'spark', plant: 'sow', harvest: 'sow',
   fletch: 'shavings',
@@ -8880,7 +9013,7 @@ const DEED_MARK = {
 // addFx also caps the list at sixty, which would have stopped it on its own.
 // The lesson is the ordinary one: there is a constructor, and reaching past it
 // loses everything the constructor knows.
-const DEED_LIFE = { unmake: 1500, sent: 900, ripple: 700, act: 500,
+const DEED_LIFE = { unmake: 1500, seal: 1500, sent: 900, ripple: 700, act: 500,
                     dig: 600, sow: 600, spark: 500, shavings: 500 }
 function deedSeen(pid, q) {
   const kind = DEED_MARK[q.deed]
@@ -9121,6 +9254,41 @@ function drawFx(g, now) {
         if (t2 <= 0) continue
         g.fillStyle = 'rgba(170,222,236,' + (.55 * (1 - t2)).toFixed(2) + ')'
         g.beginPath(); g.arc(B.x, by2 - 16 - t2 * 26, 2.6 * (1 - t2 * .5), 0, 7); g.fill()
+      }
+      g.restore()
+    } else if (f.kind === 'seal') {
+      // §6bn: THE OPPOSITE OF COMING APART, and it must LOOK it. Unmaking
+      // lifts, burns and scatters outward in warm gold. This settles: a cold
+      // green dome closing down over the pile, a bead running its rim, and
+      // then nothing moving at all -- because a seal is a thing that STAYS,
+      // for as long as somebody stands over it.
+      //
+      // Same second and a half as unmaking, for the same reason: these are the
+      // two verbs of one staff, and telling them apart across a field is the
+      // whole job of both animations.
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const dome = clamp(k / .45, 0, 1)
+      const rx = 30 * dome, ry = 15 * dome
+      // the dome comes down and closes
+      g.strokeStyle = 'rgba(150,214,120,' + (.80 * (1 - k * .3)).toFixed(2) + ')'
+      g.lineWidth = 2.4
+      g.beginPath(); g.ellipse(B.x, by2 + 6, rx, ry, 0, Math.PI, 0); g.stroke()
+      const gr = g.createRadialGradient(B.x, by2 + 6, 0, B.x, by2 + 6, rx + 6)
+      gr.addColorStop(0, 'rgba(150,214,120,' + (.26 * dome * (1 - k * .4)).toFixed(2) + ')')
+      gr.addColorStop(1, 'rgba(150,214,120,0)')
+      g.fillStyle = gr; g.beginPath(); g.arc(B.x, by2 + 6, rx + 6, 0, 7); g.fill()
+      // three drips falling INTO it, not motes leaving it
+      for (let i2 = 0; i2 < 3; i2++) {
+        const q = clamp(k * 1.25 - i2 * .10, 0, 1)
+        if (q <= 0 || q >= 1) continue
+        g.fillStyle = 'rgba(191,232,154,' + (.75 * (1 - q)).toFixed(2) + ')'
+        g.fillRect(B.x - 16 + i2 * 16, by2 - 26 + q * 30, 2.2, 4.4)
+      }
+      // the bead, running the rim once and stopping
+      if (k > .38) {
+        const q = (k - .38) / .62, a2 = Math.PI + q * Math.PI
+        g.fillStyle = 'rgba(214,245,180,' + (.9 * (1 - q * .7)).toFixed(2) + ')'
+        g.beginPath(); g.arc(B.x + Math.cos(a2) * rx, by2 + 6 + Math.sin(a2) * ry, 2.6, 0, 7); g.fill()
       }
       g.restore()
     } else if (f.kind === 'unmake') {
@@ -12069,6 +12237,56 @@ function buildMenu(px2, py2, target) {
     if (n.type === 'watchfire') {
       const lg = slotOf(me, 'logs')
       items.push({ label: 'Stoke it with logs', dim: lg < 0, run: () => send({ do: 'stoke', nodeId: target.id, slot: lg }) })
+      // §6bo: THE CLAMP, and it names both prices. The wood is yours; the burn
+      // is the keeper's, and a window that hid the second one would be helping
+      // you spend somebody else's evening without telling you.
+      const wt9 = curState?.genesis?.watch
+      if (wt9?.charWood !== undefined) {
+        const bark = (me.inventory ?? []).reduce((a, sl) => a + (sl?.item === 'ironbark' ? (sl.qty ?? 1) : 0), 0)
+        const hot = (n.fuelUntil ?? 0) > (curState?.tick ?? 0)
+        const lv = XP_TO_LVL(me.skills?.firemaking ?? 0)
+        items.push({
+          label: !hot ? 'Char ironbark (the fire is cold)'
+               : lv < wt9.charLevel ? 'Char ironbark (needs firemaking ' + wt9.charLevel + ')'
+               : bark < wt9.charWood ? 'Char ironbark (needs ' + wt9.charWood + ', you have ' + bark + ')'
+               : 'Char ' + wt9.charWood + ' ironbark to charcoal (2 logs of its burn)',
+          dim: !hot || lv < wt9.charLevel || bark < wt9.charWood,
+          run: () => { send({ do: 'char', nodeId: target.id })
+            say('You bank the ironbark into the heart of the fire.', 'good') } })
+      }
+    }
+    if (n.type === 'cart') {
+      // §6bq: one slot an interval, dearest first. The menu shows what is on
+      // it, because whether it is worth stopping for is the whole question.
+      const load = Object.entries(n.shelf ?? {})
+        .sort((A, B) => worthRank(B[0]) - worthRank(A[0]) || (A[0] < B[0] ? -1 : 1))
+      const full = !(me.inventory ?? []).some(sl => sl === null)
+      if (load.length) {
+        items.push({ label: full ? 'Your pack is full' : 'Take the ' + wordy(load[0][0]).toLowerCase(),
+          dim: full, run: go('unload', target.id, n.x, n.y) })
+        items.push({ label: 'On it: ' + load.map(([it, q]) => q + ' ' + wordy(it).toLowerCase()).join(', '),
+          dim: true, run: () => {} })
+      }
+    }
+    if (n.type === 'dedication') {
+      // §6bp: read it, and pay to change it. Both lines say the price, since
+      // the price is the only thing about this that is ever in doubt.
+      const dg = curState?.genesis?.dedication
+      const price9 = dg ? Math.floor(dg.floor + (dg.floor * (n.count ?? 0)) / dg.stepDen) : null
+      items.push({ label: n.name ? '\u201c' + n.name + '\u201d \u2014 ' + (n.coin ?? 0) + ' gold'
+                                 : 'Blank stone', dim: true, run: () => {} })
+      if (n.past?.length)
+        items.push({ label: 'Before them: ' + n.past.join(', '), dim: true, run: () => {} })
+      if (price9 !== null && n.by !== myId) {
+        const canPay = (me.gold ?? 0) >= price9 && !!me.name
+        items.push({
+          label: !me.name ? 'Cut your name (you have no name)'
+               : !canPay ? 'Cut your name (' + price9 + ' gold, you have ' + (me.gold ?? 0) + ')'
+               : 'Cut your name into it (' + price9 + ' gold, burnt)',
+          dim: !canPay,
+          run: () => { send({ do: 'dedicate', nodeId: target.id, pay: price9 })
+            say('You pay ' + price9 + ' gold to have your name cut. It buys nothing but this.', 'good') } })
+      }
     }
     if (n.type === 'brewpot') {
       const gr = slotOf(me, 'grain')
@@ -12185,10 +12403,18 @@ function buildMenu(px2, py2, target) {
     const page = pileFrom % Math.max(1, Math.ceil(here.length / SHOW))
     const shown = here.slice(page * SHOW, page * SHOW + SHOW)
     for (const [gid, gi] of shown) {
-      items.push({ label: gi.item === 'forage' ? 'Eat the forage where it lies'
+      // §6bn: a sealed pile SAYS SO in the menu, and says whether it is yours.
+      // Walking to a thing you cannot lift is a wasted trip, and the window
+      // knows before you set off.
+      const mine9 = gi.by === myId
+      const seal9 = gi.sealedBy ? (mine9 ? ' \u2014 sealed for you' : ' \u2014 sealed, not yours') : ''
+      items.push({ label: (gi.item === 'forage' ? 'Eat the forage where it lies'
                      : (here.length > 1 ? 'Take the ' + wordy(gi.item).toLowerCase() : 'Take it')
-                       + ((gi.qty ?? 1) > 1 ? ' (' + gi.qty + ')' : ''),
-                   run: go('pickup', gid, gi.x, gi.y) })
+                       + ((gi.qty ?? 1) > 1 ? ' (' + gi.qty + ')' : '')) + seal9,
+                   dim: !!gi.sealedBy && !mine9,
+                   run: gi.sealedBy && !mine9
+                     ? () => say('It is sealed for whoever dropped it. Your hand closes on nothing.', 'dim')
+                     : go('pickup', gid, gi.x, gi.y) })
     }
     if (here.length > SHOW)
       items.push({ label: '\u2026' + (here.length - shown.length) + ' more beneath (show them)',
@@ -12197,13 +12423,29 @@ function buildMenu(px2, py2, target) {
     // Offered only when it would actually work, and it names its price: the
     // sigil is three magic-stone and nobody should spend one by accident.
     const meU = curState?.players?.[myId]
-    const hasStaff = meU?.equipment?.weapon?.item === 'heartwood-staff'
+    const hasStaff = meU?.equipment?.weapon?.item === 'goo-staff'
     const hasSigil = (meU?.inventory ?? []).some((sl) => sl?.item === 'sigil')
     const near = meU && Math.max(Math.abs(target.e.x - meU.x), Math.abs(target.e.y - meU.y)) <= 5
     if (hasStaff && near && here.length) {
       // the dearest thing on the tile, which is the one worth a sigil
       const [dgid, dgi] = shown[0] ?? here[0]
       const what = wordy(dgi.item).toLowerCase()
+      // §6bn: SEAL FIRST, AND SEPARATELY. Both verbs come out of the one staff
+      // and they are opposites, so the window offers them as two lines and
+      // words them so nobody picks by reflex: one names whose it is, the other
+      // says nobody will have it. A pile with no dropper -- a spider's spoil --
+      // cannot be sealed and so is not offered.
+      const sealable = here.find(([, gi]) => gi.by && !gi.sealSpent && !gi.sealedBy)
+      if (sealable) {
+        const sWhat = wordy(sealable[1].item).toLowerCase()
+        items.push(hasSigil
+          ? { label: 'Seal the ' + sWhat + ' for whoever dropped it (a sigil)',
+              run: () => { send({ do: 'seal', groundId: sealable[0] })
+                say('You seal the ' + sWhat + ' where it lies. Only the hand that dropped it '
+                  + 'may lift it, and only while you stand here.', 'good') } }
+          : { label: 'Seal the ' + sWhat + ' (needs a sigil)', dim: true,
+              run: () => say('You have no sigil to spend.', 'dim') })
+      }
       items.push(hasSigil
         ? { label: 'Unmake the ' + what + ' (a sigil)',
             run: () => { send({ do: 'unmake', groundId: dgid })
@@ -12695,6 +12937,18 @@ function pumpIntent() {
     case 'collect': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) { send({ do: 'collect', nodeId: intent.id }); intent = null; return }
+      stepToward(from, n, 'adjacent'); return
+    }
+    case 'unload': {
+      // §6bq: walk to the cart, then take ONE. The intent ends after the send
+      // and not when the cart empties: a cart gives up a slot an interval and
+      // holding the intent open would strip it without another decision, which
+      // is precisely the click-race the cart exists to stop.
+      const n = s.nodes?.[intent.id]
+      if (!n || n.type !== 'cart') { intent = null; return }
+      if (near(n) || (me.x === n.x && me.y === n.y)) {
+        send({ do: 'unload', nodeId: intent.id }); intent = null; return
+      }
       stepToward(from, n, 'adjacent'); return
     }
     case 'cook': {
