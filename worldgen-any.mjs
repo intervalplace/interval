@@ -55,3 +55,25 @@ export function generatorFor(genesis) {
 export function buildWorld(genesis) {
   return generatorFor(genesis).buildWorld(genesis)
 }
+
+// THE ROADS, AS DATA. Every window used to re-derive the road network for
+// itself, and a window that lacked a generator's road logic fell back to
+// straight lines out of the capital -- the real network (the ring, the passes,
+// the bridged crossings) drawn as a wheel with no rim. So the node that founded
+// the world -- the one place that ran the real router -- ships the road tiles
+// it actually laid, and a window draws exactly those. The chart and the world
+// cannot disagree because they are no longer two computations.
+//
+// Returned: { tiles: ["x,y", ...] all road tiles; bridges: ["x,y", ...] the
+// subset that crosses water; bends: [{x,y}] where a road turns (for waymarks) }.
+export function roadDataOf(genesis) {
+  const gen = generatorFor(genesis)
+  if (typeof gen.roadTilesOf !== 'function') return { tiles: [], bridges: [], bends: [] }
+  const tiles = [...gen.roadTilesOf(genesis)]
+  const isWater = gen.isWater
+  const bridges = (typeof isWater === 'function')
+    ? tiles.filter((k) => { const c = k.indexOf(','); return isWater(genesis, +k.slice(0, c), +k.slice(c + 1)) })
+    : []
+  const bends = (typeof gen.roadBendsOf === 'function') ? gen.roadBendsOf(genesis) : []
+  return { tiles, bridges, bends }
+}
