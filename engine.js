@@ -411,6 +411,16 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // Greenwood, a miner the Wilds, a fisher the water; a mourner had a verb and
   // no destination, and buried wherever their feet happened to be.
   'rampart', 'ossuary', 'house',
+  // §6bq: THE CART. What a burst consignment becomes -- not twenty-eight piles
+  // on one tile but ONE thing standing in the road, unloaded a slot at a time
+  // by whoever stops. It is a node and not ground because ground forgets in a
+  // hundred intervals and a spilled caravan should be an event people can walk
+  // to, and because a heap of twenty-eight is a race for whoever clicks first.
+  'cart',
+  // §6bp: THE DEDICATION STONE. Cut stone with one name on it, bought and
+  // outbid. It grants nothing. It is the only thing in this world a citizen
+  // can spend a fortune on and receive no capability at all.
+  'dedication',
   // §6am (v6): THE MIDDLE OF THE ROAD GETS A GROUND OF ITS OWN.
   //
   // Two tiers only -- bronze at one, star and the master yields at the far end
@@ -592,6 +602,16 @@ const WIELD_REQS = {
   // of thing it is, and seventy says "a serious tool" where forty said "not
   // quite a beginner".
   'heartwood-staff': { magic: 70 },
+  // §6bn: THE GOO STAFF, and it takes the SAME seventy the heartwood took.
+  //
+  // `unmake` moved here off the heartwood stave, and the level is chosen so
+  // that the move costs nobody their reach: a citizen who could unmake before
+  // can unmake now, at exactly the magic they already had. Anything higher
+  // would have quietly gated a verb that was never gated.
+  //
+  // Nothing else about this staff is a level. It falls off the great-spider
+  // and the spider is the gate -- three citizens and six hours of the world.
+  'goo-staff': { magic: 70 },
   'star-helm': { defence: 45 }, 'star-plate': { defence: 50 }, 'king-shroud': { defence: 40 },
   // 6bb: it defends exactly as starmetal does. NOT better -- better would make
   // it mandatory, and a thing everybody must own says nothing about anybody.
@@ -1070,7 +1090,7 @@ const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 
 // cleared at the top of the next. Fourteen bytes, on the interval they act,
 // against a citizen record of six hundred. Every window reads it; no window
 // has to be clever enough to infer it from a skill going up.
-const DEEDS = ['alch', 'unmake', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
+const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'dedicate', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
   'cast', 'recall', 'pickup', 'drop', 'buy', 'sell', 'deposit', 'withdraw'];
 const DEED_SET = new Set(DEEDS);
@@ -1115,7 +1135,7 @@ function strikeConsequences(s, pid, p, target, targetId) {
     target.action = { type: 'attackp', targetId: pid, since: s.tick + 1, style: 'even' };
 }
 
-const TEACHES = new Set(['alch', 'unmake', 'bury', 'fletch', 'smith', 'cook',
+const TEACHES = new Set(['alch', 'unmake', 'seal', 'char', 'bury', 'fletch', 'smith', 'cook',
   'invoke', 'stoke', 'plant', 'harvest', 'light', 'kindle', 'brew', 'collect',
   'survey', 'build_brewpot', 'raise_market']);
 
@@ -1695,6 +1715,8 @@ const inReach = (p, t) => {
 //
 // This is also why defence keeps mattering past fifty, and why a shield would
 // be worth carrying: there is finally something in the world whose blows land.
+// §6bn: one kill in eight, out of 65,536 like every other rare drop.
+const GOO_STAFF_DROP = 8192;
 const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
@@ -1802,8 +1824,20 @@ const MOB_STATS = {
   //
   // It is not very dangerous and that is deliberate. Somebody must hold it,
   // but the fight is a sum, not a gauntlet.
+  //
+  // §6bn: AND IT GIVES SOMETHING UP AT LAST. The second thing that cannot be
+  // done alone dropped nothing at all -- three citizens, a six-hour respawn,
+  // and a pile of no reward. The goo staff is its one drop and it is RARE
+  // (8192/65536, one kill in eight, counted per citizen like every other
+  // scarce drop so no beacon-watcher can time it).
+  //
+  // One in eight of a thing that respawns every six hours and needs three
+  // people is the whole supply of goo staffs in the world, forever, less
+  // whatever dies in the Wilds holding one. That scarcity IS the balance of
+  // both its verbs; neither of them needed a number.
   'great-spider': { maxHp: 300, atk: 48, def: 18, maxHit: 18, every: 3,
-                    respawn: 36000, aggro: 6, mends: 6 },
+                    respawn: 36000, aggro: 6, mends: 6,
+                    drops: [{ item: 'goo-staff', chance: GOO_STAFF_DROP }] },
   // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
   // Wilds -- a thing that is there, like the Barrow and the Ring.
   //
@@ -1975,9 +2009,60 @@ const MENDP_RANGE = 4;
 // newcomers -- and against a star-plate on the ground it is very much worth
 // doing, which is the fight where it belongs.
 //
-// The stave is the instrument because the stave is what alchemy is done with,
-// and it is already the rarest thing a fletcher makes.
+// §6bn: THE INSTRUMENT MOVED. It was the heartwood stave, and the heartwood
+// stave is the ALCHEMY PACE staff -- two intervals against three, the whole
+// reason to walk to fletching ninety. So the fastest tool for the day's work
+// also carried the one verb that destroys another citizen's goods, and every
+// alchemy master was armed with it whether or not they ever wanted to be.
+// Nobody chose `unmake`; it arrived with the tool they were carrying anyway.
+//
+// The wand shows the shape this world already had for it: a pure verb item,
+// no cadence at all, worth six coins. `unmake` belongs on that side of the
+// line, so it now lives on the goo staff -- which is a verb item and nothing
+// else, and which comes off the great-spider rather than off a bench.
+//
+// The heartwood stave keeps its job. Two intervals against three is still the
+// whole of what its four hundred and ninety-five gold buys.
 const UNMAKE_RANGE = 5;      // near enough to see who you are helping
+
+// §6bn: SEALING, which is the same range and the opposite verb.
+//
+// One noun -- a pile on the ground -- and one item pointed at it, and the
+// caster chooses the direction: unmake it for nobody, or seal it for whoever
+// PUT IT THERE. Never for the caster. A seal moves nothing into the caster's
+// pack and never can, which is the whole reason it is safe to put both verbs
+// on one staff: neither of them pays.
+//
+// That is not a fairness rule, it is the automation rule. A spell that
+// reserved a pile for its CASTER is a camping loop -- stand where people die,
+// spend sixty gold of sigil, lift five hundred and sixty of pack -- and a loop
+// that funds its own sigils is a loop that expands. Sealing for the dropper
+// earns nothing at any rate, so there is nothing to run forever.
+//
+// FIVE TILES, the same as unmaking. The two verbs are meant to be a choice
+// made from one place, not two different distances to remember.
+const SEAL_RANGE = 5;
+
+// §6bn: A SEAL IS A VIGIL, NOT A TIMER.
+//
+// It holds while the caster stands within `SEAL_RANGE`, lives, and keeps the
+// staff in hand. Walk away, unwield, or fall, and it lapses that interval.
+//
+// A duration would have been the easy thing and the wrong one: waiting out a
+// clock is patience, and §8 says patience is never the tax -- a bot waits
+// better than anybody. A vigil ends when somebody DOES something. It also
+// means the mage who intervenes in a killing is standing in the Wilds holding
+// an unpriced staff in front of whoever just swung, which is the price.
+//
+// ONCE, EVER. `sealSpent` is set when the seal is cast and never cleared, so
+// a lapsed pile cannot be sealed again -- by the same caster or by three
+// mages taking turns, which would make a pack immortal. Same reason the
+// star-dagger carries `rootImmuneUntil`.
+//
+// While it holds, the pile does not rot: `expiresAt` is pushed forward each
+// interval. A hundred-tick decay would otherwise answer the seal by itself,
+// and the answer to a seal should be somebody's decision, not the clock.
+const SEAL_KEEPS_FRESH = 100;
 
 // ---------------------------------------------------------------------------
 // ALCHEMY
@@ -2183,7 +2268,7 @@ const PRICES = {
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   // §6am (v6): the mid goods, priced between the baseline and the mastery --
   // a mid seam's hour worth more than a doorstep's, less than a master's.
-  'oak-logs': 6, 'coal': 12, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
+  'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
   'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
@@ -2382,7 +2467,7 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
   'heartwood-bow', 'king-shroud',
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
-  'staff', 'heartwood-staff', 'wand']);
+  'staff', 'heartwood-staff', 'wand', 'goo-staff']);
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
 // syntactically pretty identifier that is not in this set is contraband:
@@ -2407,6 +2492,14 @@ const ITEMS = new Set([
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
   'staff', 'heartwood-staff', 'wand',
+  // §6bo: charcoal. Wood burnt down at a watchfire until what is left is
+  // nearly all fire. It is coal in every recipe that asks for coal, and it is
+  // the only thing firemaking has ever MADE.
+  'charcoal',
+  // §6bn: what the great-spider gives up. It is not made and no keeper prices
+  // it, so it is never bought, never kept by a mourner's prayer, and never
+  // anything but taken off a spider or off a body.
+  'goo-staff',
   // §2g: FORAGE. It exists only on the ground and only for a little while.
   // No pack ever holds it, no keeper prices it, no vault will take it.
   'forage',
@@ -2570,7 +2663,7 @@ const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plat
 // they were, and the shield only changes what arrives.
 const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'iron-maul', 'star-maul',
   'star-flail', 'old-chain', 'wooden-bow', 'horn-bow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
-  'crossbow', 'handgonne', 'staff', 'heartwood-staff']);
+  'crossbow', 'handgonne', 'staff', 'heartwood-staff', 'goo-staff']);
 const SHIELD_DIV = { 'iron-shield': [7, 8], 'steel-shield': [4, 5], 'star-shield': [3, 4] };
 // what a blow becomes once it has met an off-hand shield. Integers only, and a
 // blow never falls below one: a shield turns a blow aside, it does not erase it.
@@ -2819,6 +2912,19 @@ const INPUT_SCHEMAS = {
   build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
   kindle: {}, stoke: { nodeId: T.id, slot: T.slot },
   unmake: { groundId: T.id },
+  // §6bn: the other half of the same staff, aimed at the same noun.
+  seal: { groundId: T.id },
+  // §6bo: ten ironbark into a burning watchfire, one charcoal out.
+  char: { nodeId: T.id },
+  // §6bq: one slot off a spilled cart. The taker names no item: the cart gives
+  // up its dearest first, the same order a window offers a heap in.
+  unload: { nodeId: T.id },
+  // §6bp: A BID NAMES ITS OWN CEILING. `pay` is what the citizen SIGNED for,
+  // and the world never takes more than that -- if the price has risen past it
+  // between the signing and the interval it lands, the bid is refused whole
+  // and spends nothing. Two citizens may bid on one stone in one interval;
+  // the loser must not be charged for a name they did not get.
+  dedicate: { nodeId: T.id, pay: T.nonnegInt },
   raise_market: {}, dismantle_market: {},
   stock_market: { slot: T.slot }, price_market: { ask: T.nonnegInt }, take_market: {},
   // EVERY VERB MUST BE DECLARED HERE, AND TWICE I FORGOT.
@@ -3890,7 +3996,19 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
            // is a PLACE, not a rate -- what it gives that a field fire cannot
            // is that the whole country can see it, and that somebody has to be
            // standing there.
-           watch: { level: 80, kindleLogs: 10, perLog: 300, cap: 6000, xpPerLog: 20, burnXp: 1, maxOwned: 2, decayTicks: 432000 } };
+           watch: { level: 80, kindleLogs: 10, perLog: 300, cap: 6000, xpPerLog: 20, burnXp: 1, maxOwned: 2, decayTicks: 432000,
+                    // §6bo: THE CLAMP. Ten ironbark charred at a burning
+                    // watchfire make one charcoal. The constants live here
+                    // because §8e says a shape is constitutional and a number
+                    // is a founding's: a world that finds ten too dear founds
+                    // itself with eight and forks nothing.
+                    charWood: 10, charLevel: 60, charXp: 220, charBurn: 2 },
+           // §6bp: the dedication stones. `floor` is what the first name on a
+           // stone costs; every name after pays a tenth of the floor more than
+           // the count before it, forever. ARITHMETIC, not geometric: see
+           // §6bp for why a compounding price ends the stone instead of
+           // keeping it contested.
+           dedication: { floor: 100000, stepDen: 10, remembers: 3 } };
 }
 
 // Fix brief §2.1: the world identifier is the hash of the COMPLETE
@@ -4067,7 +4185,9 @@ function normaliseSource(src) {
 function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'utf8')).toString('hex'); }
 
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought']);
+const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought',
+  // §6bp: what the first name on a stone costs, and how the price climbs
+  'dedication']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -4149,8 +4269,30 @@ function validateGenesis(g) {
   }
   if (g.watch !== undefined) {
     const wt = g.watch;
-    if (!wt || typeof wt !== 'object' || Object.keys(wt).sort().join(',') !== 'burnXp,cap,decayTicks,kindleLogs,level,maxOwned,perLog,xpPerLog') return 'non-constitutional genesis.watch';
+    // §6bo: the four charring constants join the eight. They come TOGETHER or
+    // not at all, like every other block here: a founding that names charWood
+    // and forgets charLevel is a founding with a verb whose price is half
+    // written, and the exact-key check is what stops that shipping.
+    const wkeys = Object.keys(wt ?? {}).sort().join(',');
+    const OLD8 = 'burnXp,cap,decayTicks,kindleLogs,level,maxOwned,perLog,xpPerLog';
+    const NEW12 = 'burnXp,cap,charBurn,charLevel,charWood,charXp,decayTicks,kindleLogs,level,maxOwned,perLog,xpPerLog';
+    if (!wt || typeof wt !== 'object' || (wkeys !== OLD8 && wkeys !== NEW12)) return 'non-constitutional genesis.watch';
     for (const wk of ['level', 'kindleLogs', 'perLog', 'cap', 'xpPerLog', 'burnXp', 'maxOwned', 'decayTicks']) if (!isInt(wt[wk], 0, 1e12)) return `genesis.watch.${wk} out of bounds`;
+    if (wkeys === NEW12) {
+      // charWood at least one: a clamp that eats no wood is a mint.
+      if (!isInt(wt.charWood, 1, 28)) return 'genesis.watch.charWood out of bounds';
+      for (const wk of ['charLevel', 'charXp', 'charBurn']) if (!isInt(wt[wk], 0, 1e12)) return `genesis.watch.${wk} out of bounds`;
+    }
+  }
+  // §6bp: the dedication stones. A floor of nothing is a free stone, and a
+  // step denominator of nothing divides by zero, so both are bounded here
+  // rather than discovered at the first bid.
+  if (g.dedication !== undefined) {
+    const d = g.dedication;
+    if (!d || typeof d !== 'object' || Object.keys(d).sort().join(',') !== 'floor,remembers,stepDen') return 'non-constitutional genesis.dedication';
+    if (!isInt(d.floor, 1, 1e12)) return 'genesis.dedication.floor out of bounds';
+    if (!isInt(d.stepDen, 1, 1e6)) return 'genesis.dedication.stepDen out of bounds';
+    if (!isInt(d.remembers, 0, 8)) return 'genesis.dedication.remembers out of bounds';
   }
   // pre-freeze §8 + Byzantine upgrade: the witnessed-world triple ,
   // witnesses, quorum, byzantineTolerance, comes together or not at all.
@@ -4595,7 +4737,10 @@ const LANDMARK_KINDS = new Set([
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin', 'ask']);
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin', 'ask',
+    // §6bp: what a dedication stone carries -- how many names it has borne,
+    // and the last few of them.
+    'count', 'past']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -4635,7 +4780,7 @@ const LANDMARK_KINDS = new Set([
     }
     if (n.shelf !== undefined) {
       // §6al: and a stall a citizen raised, which keeps ONE good
-      if (n.type !== 'store' && n.type !== 'market') return 'only a store or a stall keeps a shelf';
+      if (n.type !== 'store' && n.type !== 'market' && n.type !== 'cart') return 'only a store, a stall or a cart keeps a shelf';
       if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)) return 'shelf malformed';
       for (const [it, q] of Object.entries(n.shelf)) {
         if (!ITEMS.has(it)) return `shelf holds a thing that is not an item: ${it}`;
@@ -4648,11 +4793,39 @@ const LANDMARK_KINDS = new Set([
     // node kinds the engine gives it to, ownership metadata on a static
     // resource node is as malformed as a fire that never expires
     if (n.expiresAt !== undefined) {
-      if (n.type !== 'fire') return 'only fires expire';
+      // §6bq: and a cart. It is the second thing in this world that stands for
+      // a while and then is not there -- an hour rather than a fire's burn,
+      // long enough for somebody a country away to be told and come.
+      if (n.type !== 'fire' && n.type !== 'cart') return 'only fires and carts expire';
       if (!isInt(n.expiresAt, 0, MAX_TIME)) return 'node expiry out of bounds';
     }
     if (n.type === 'fire' && n.expiresAt === undefined) return 'fire without expiry';
-    if (n.type === 'brewpot') { // a brewpot is owned; it may be idle or fermenting (v0.51)
+    // §6bq: a cart with no clock would stand in the road forever, and a cart
+    // with nothing on it is not a cart at all -- it is unloaded, and unloading
+    // the last slot is what removes it.
+    if (n.type === 'cart') {
+      if (n.expiresAt === undefined) return 'cart without expiry';
+      if (!n.shelf || Object.keys(n.shelf).length === 0) return 'an empty cart is not a thing';
+    }
+    if (n.type === 'cart') {
+      // §6bq: `by` on a cart is WHOSE CARAVAN THIS WAS, not who owns it --
+      // anybody may unload one. It is kept because a cart standing in the road
+      // is a thing with a story, and the story is somebody's name.
+      //
+      // The dead are archived, so unlike a brewpot's keeper this owner may
+      // legitimately no longer be in the world; nothing reads the field.
+      if (n.by !== undefined && (typeof n.by !== 'string' || !HEX64.test(n.by))) return 'malformed cart owner';
+      if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined
+          || n.fuelUntil !== undefined || n.ask !== undefined) return 'a cart carries foreign metadata';
+    } else if (n.type === 'dedication') {
+      // §6bp: `by` is who paid last, and they may have been archived since.
+      if (n.by !== undefined && (typeof n.by !== 'string' || !HEX64.test(n.by))) return 'malformed dedication holder';
+      if ((n.name !== undefined) !== (n.by !== undefined)) return 'a stone bears a name and a hand, or neither';
+      if (n.coin !== undefined && !isInt(n.coin, 0, MAX_QTY)) return 'dedication price out of bounds';
+      if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined
+          || n.fuelUntil !== undefined || n.ask !== undefined || n.shelf !== undefined)
+        return 'a stone carries foreign metadata';
+    } else if (n.type === 'brewpot') { // a brewpot is owned; it may be idle or fermenting (v0.51)
       if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'brewpot without an owner';
       if (!state.players[n.by]) return 'brewpot owner does not exist';
       if ((n.readyAt !== undefined) !== (n.brewKind !== undefined)) return 'brewpot half-fermenting';
@@ -4700,7 +4873,11 @@ const LANDMARK_KINDS = new Set([
     }
     if (n.type === 'stall' && typeof n.kind !== 'string') return 'a stall must say what it sells';
     if (n.coin !== undefined) {
-      if (n.type !== 'store' && n.type !== 'market') return 'only a keeper carries a purse';
+      // §6bp: A STONE'S `coin` IS NOT A PURSE. It is the RECORD of what the
+      // name on it cost -- nobody may take it, nothing spends it, and the gold
+      // it names does not exist any more. It is here so a citizen reading the
+      // stone can see what standing on it was worth to somebody.
+      if (n.type !== 'store' && n.type !== 'market' && n.type !== 'dedication') return 'only a keeper carries a purse';
       if (!isInt(n.coin, 0, PURSE_MAX)) return 'malformed purse';   // 6bn: float, not a capped tank
     }
     if (n.tag !== undefined) {
@@ -4715,7 +4892,12 @@ const LANDMARK_KINDS = new Set([
       // What matters is that every window derives the SAME arms from the same
       // tag, so a citizen who learns Anchor's colours in one window still
       // knows them in another.
-      if (n.type !== 'banner') return 'a tag on a node that bears none';
+      // §6bp: and a dedication stone, whose tag says WHICH stone it is --
+      // `ring`, `monastery`, `shrine`. A slug like a banner's, for the same
+      // reason: the state carries the identifier and each window says it in
+      // its own words. The announcement names it so the island hears where
+      // somebody's name has gone up.
+      if (n.type !== 'banner' && n.type !== 'dedication') return 'a tag on a node that bears none';
       if (typeof n.tag !== 'string' || !/^[a-z0-9-]{1,24}$/.test(n.tag)) return 'malformed banner tag';
     }
     if (n.text !== undefined) {
@@ -4753,8 +4935,23 @@ const LANDMARK_KINDS = new Set([
     // A name is part of who stands there. It belongs in the world, where the
     // hash covers it and every window reads the same person.
     if (n.name !== undefined) {
-      if (n.type !== 'keeper' && n.type !== 'crier') return 'a name belongs to a keeper';
+      // §6bp: and a dedication stone bears one too -- a CITIZEN's, which is
+      // the only kind of name in this world anybody had to pay for.
+      if (n.type !== 'keeper' && n.type !== 'crier' && n.type !== 'dedication') return 'a name belongs to a keeper';
       if (typeof n.name !== 'string' || n.name.length < 1 || n.name.length > 32) return 'malformed keeper name';
+    }
+    // §6bp: the stone's tally and its memory
+    if (n.count !== undefined) {
+      if (n.type !== 'dedication') return 'a tally belongs to a dedication stone';
+      if (!isInt(n.count, 0, MAX_QTY)) return 'dedication tally out of bounds';
+    }
+    if (n.past !== undefined) {
+      if (n.type !== 'dedication') return 'only a dedication stone remembers';
+      if (!Array.isArray(n.past)) return 'dedication memory malformed';
+      const keep = state.genesis?.dedication?.remembers ?? 3;
+      if (n.past.length > keep) return 'dedication remembers more than it may';
+      for (const nm of n.past)
+        if (typeof nm !== 'string' || nm.length < 1 || nm.length > 32) return 'malformed name on a stone';
     }
   }
 
@@ -4800,15 +4997,25 @@ const LANDMARK_KINDS = new Set([
   }
 
   // ground entries: OBJECTS with a closed field set, { item, qty?, x, y,
-  // expiresAt }; qty is absent on mob drops
+  // expiresAt, by?, sealedBy?, sealSpent? }; qty is absent on mob drops, and
+  // §6bn's three are absent on everything that was never a citizen's
   for (const [gid, g] of Object.entries(state.ground)) {
     if (typeof gid !== 'string' || gid.length > 80) return 'malformed ground id';
     if (!g || typeof g !== 'object' || Array.isArray(g)) return 'malformed ground entry';
-    for (const k of Object.keys(g)) if (!['item', 'qty', 'x', 'y', 'expiresAt'].includes(k)) return `unknown ground field ${k}`;
+    for (const k of Object.keys(g)) if (!['item', 'qty', 'x', 'y', 'expiresAt', 'by', 'sealedBy', 'sealSpent'].includes(k)) return `unknown ground field ${k}`;
     if (!isItemName(g.item)) return 'malformed ground item';
     if (g.qty !== undefined && !isInt(g.qty, 1, MAX_QTY)) return 'ground quantity out of bounds';
     if (!isInt(g.x, 0, W - 1) || !isInt(g.y, 0, H - 1)) return 'ground item out of bounds';
     if (!isInt(g.expiresAt, 0, MAX_TIME)) return 'ground expiry out of bounds';
+    // §6bn: both are player ids and both must name somebody the world holds --
+    // a seal kept by a citizen who does not exist would never lapse.
+    if (g.by !== undefined && (typeof g.by !== 'string' || !HEX64.test(g.by))) return 'malformed ground dropper';
+    if (g.sealedBy !== undefined) {
+      if (typeof g.sealedBy !== 'string' || !HEX64.test(g.sealedBy)) return 'malformed ground sealer';
+      if (g.by === undefined) return 'sealed ground with no dropper';
+      if (g.sealSpent !== 1) return 'sealed ground that was never spent';
+    }
+    if (g.sealSpent !== undefined && g.sealSpent !== 1) return 'malformed ground seal mark';
   }
 
   // names: validated in BOTH directions (brief §9) every registry entry
@@ -5412,14 +5619,76 @@ function validInput(state, input, ctx) {
       return !!myMarketBeside(state, ctx, p, input.playerId);
     }
     case 'unmake': {
-      // §6aj: a heartwood stave in the hand, a sigil to spend, and a pile of
-      // somebody's spoil within five tiles.
+      // §6aj, amended §6bn: a GOO STAFF in the hand, a sigil to spend, and a
+      // pile of somebody's spoil within five tiles. The stave that used to do
+      // this is the alchemy pace tool and had no business carrying a verb
+      // that destroys another citizen's goods.
       if (p.hp <= 0) return false;
-      if (p.equipment?.weapon?.item !== 'heartwood-staff') return false;
+      if (p.equipment?.weapon?.item !== 'goo-staff') return false;
       if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
       const gr = state.ground?.[input.groundId];
       if (!gr) return false;
       return Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= UNMAKE_RANGE;
+    }
+    case 'seal': {
+      // §6bn: the same staff, the same sigil, the same five tiles, and the
+      // opposite outcome. Four things it asks that unmaking does not:
+      //
+      //   THE PILE MUST HAVE A DROPPER. A spider's spoil and a dragon's
+      //   belong to nobody (§6e: loot lies where it falls), so sealing one
+      //   would lock it for the length of a vigil to no one's benefit --
+      //   griefing with a sigil attached. `by` is written only when a
+      //   CITIZEN's goods hit the ground.
+      //
+      //   ONCE, EVER. `sealSpent` outlives the seal itself.
+      //
+      //   NOT ALREADY SEALED, which follows from the above but is cheap to say.
+      if (p.hp <= 0) return false;
+      if (p.equipment?.weapon?.item !== 'goo-staff') return false;
+      if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
+      const gr = state.ground?.[input.groundId];
+      if (!gr || !gr.by || gr.sealSpent || gr.sealedBy) return false;
+      return Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= SEAL_RANGE;
+    }
+    case 'char': {
+      // §6bo: A WATCHFIRE IS THE ONLY KILN. An ordinary campfire is lit and
+      // gone; a watchfire is a thing somebody KEEPS, interval after interval,
+      // and a fire that has been fed for hours is the only fire on this island
+      // hot enough to char wood instead of merely burning it. That is also
+      // what makes this social: the charrer needs a fire, and below firemaking
+      // eighty they cannot keep one, so the wood goes to somebody else's.
+      if (p.hp <= 0) return false;
+      const wt = state.genesis.watch;
+      if (!wt || wt.charWood === undefined) return false;
+      const wf = state.nodes?.[input.nodeId];
+      if (!wf || wf.type !== 'watchfire' || !atOrBeside(p, wf)) return false;
+      if ((wf.fuelUntil ?? 0) <= state.tick) return false;   // a cold fire chars nothing
+      if (effLevel(p.skills.firemaking) < wt.charLevel) return false;
+      return countItem(p.inventory, 'ironbark') >= wt.charWood;
+    }
+    case 'unload': {
+      // §6bq: at the cart or beside it, and a slot free to put the thing in.
+      if (p.hp <= 0) return false;
+      const ct = state.nodes?.[input.nodeId];
+      if (!ct || ct.type !== 'cart' || !atOrBeside(p, ct)) return false;
+      if (!ct.shelf || Object.keys(ct.shelf).length === 0) return false;
+      return firstFreeSlot(p.inventory) !== -1;
+    }
+    case 'dedicate': {
+      // §6bp: A NAME, THE PRICE, AND THE COIN TO PAY IT.
+      //
+      // The name is the point: a stone bears what a citizen is called, so a
+      // citizen who has not claimed a name has nothing to cut. The price is
+      // read from the stone at THIS interval, and the signed `pay` is a
+      // ceiling, never the charge.
+      if (p.hp <= 0) return false;
+      const st = state.nodes?.[input.nodeId];
+      if (!st || st.type !== 'dedication' || !atOrBeside(p, st)) return false;
+      if (!p.name) return false;
+      if (st.by === input.playerId) return false;      // you cannot outbid yourself
+      const price = dedicationPrice(state.genesis, st);
+      if (price === null) return false;
+      return input.pay >= price && (p.gold ?? 0) >= price;
     }
     case 'consign': {
       // §11b: BESIDE A STORE, WHICH IS THE ENTIRE DISCIPLINE. Stores stand
@@ -5480,7 +5749,12 @@ function validInput(state, input, ctx) {
         }
         if (!inWild && !inTown) return false;
         const held = p.equipment?.weapon?.item;
-        if (held !== 'staff' && held !== 'wand' && held !== 'heartwood-staff') return false;
+        // §6bn: a goo staff is a staff. It grants no cadence -- `alchEveryFor`
+        // does not name it, so it transmutes at the bare-handed four -- but a
+        // citizen holding one is holding an instrument, and this rule asks
+        // whether there is an instrument in the hand, not how fast it is.
+        if (held !== 'staff' && held !== 'wand' && held !== 'heartwood-staff'
+            && held !== 'goo-staff') return false;
       }
       const slot = p.inventory?.[input.slot];
       // A PRICED GOOD, NOT A PAYING ONE.
@@ -5623,7 +5897,11 @@ function validInput(state, input, ctx) {
       if (!hasAdjacentNode(state, ctx, p, 'anvil')) return false;
       const req = reqOverride(state.genesis, 'smith', input.recipe) ?? SMITH_REQS[input.recipe];
       if (req && !Object.entries(req).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
-      const have = (item) => p.inventory.filter(sl => sl && sl.item === item).length;
+      // §6bo: the same substitution the resolver makes, in the same words.
+      // The gate and the effect must agree about what a recipe will accept, or
+      // charcoal is a thing the anvil takes and the validator refuses.
+      const have = (item) => p.inventory.filter(sl => sl
+        && (sl.item === item || (item === 'coal' && sl.item === 'charcoal'))).length;
       return Object.entries(r).every(([item, qty]) => have(item) >= qty);
     }
     case 'wield': {
@@ -5696,6 +5974,10 @@ function validInput(state, input, ctx) {
     case 'pickup': {
       const g2 = state.ground[input.groundId];
       if (!g2 || g2.x !== p.x || g2.y !== p.y) return false;
+      // §6bn: A SEALED PILE ANSWERS TO ONE HAND ONLY -- the hand that dropped
+      // it. Not the caster's: sealing reserves nothing for whoever cast it,
+      // which is the only reason the spell is safe to exist.
+      if (g2.sealedBy && g2.by !== input.playerId) return false;
       // FORAGE IS EATEN WHERE IT LIES. No slot is needed because it never
       // enters a pack, and a full pack is no reason to be unable to eat.
       if (g2.item === 'forage') return p.hp > 0;
@@ -5907,7 +6189,66 @@ function nodeExistsAt(state, ctx, x, y) { // any node occupies the tile
   const ta = ctx.byTile.get(_tileKey(x, y));
   return !!ta && ta.length > 0;
 }
-const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire', 'market']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
+// §6bp: WHAT THE NEXT NAME COSTS.
+//
+//     price = floor + floor * count / stepDen
+//
+// ARITHMETIC, and that is the whole design decision. A geometric ratchet --
+// each name a tenth MORE than the last -- compounds: from a hundred thousand
+// it passes eleven million by the fiftieth name and 1.4 billion by the
+// hundredth, which is more gold than this island mints in two years at twelve
+// a interval. A compounding stone is contested for a season and then frozen
+// forever, because nobody alive can afford it. That is a defensible world and
+// it is not this one.
+//
+// A tenth of the FLOOR each time grows without ever outrunning the supply:
+// the tenth name pays double the first, the hundredth eleven times, and the
+// stone stays winnable for as long as the world lasts. It also never
+// approaches MAX_QTY, so the ceiling §4b worries about is not reached here.
+// §6bq: A BURST CONSIGNMENT BECOMES A CART, and it does so in ONE function
+// because it happens at three sites -- killed by a citizen, killed by a beast,
+// and killed on the branded road -- and three copies of a spill is exactly the
+// shape this file has been bitten by before.
+//
+// Everything the container held goes onto one node standing where the hauler
+// fell. It does NOT go on the ground: a ground pile is a hundred intervals and
+// a race, and twenty-eight of them on one tile is the largest heap in the
+// world for `worthRank` to sort and the least interesting thirty seconds
+// anybody could have. A cart is a thing you walk to, and it gives up one slot
+// at a time to whoever is standing there.
+function spillConsignment(s, ctx, q, qid) {
+  if (!q.consignment) return;
+  const shelf = {};
+  for (const cs of q.consignment.items) {
+    if (!cs) continue;
+    shelf[cs.item] = (shelf[cs.item] ?? 0) + (cs.qty ?? 1);
+  }
+  q.consignment = null;
+  if (Object.keys(shelf).length === 0) return;
+  const hc = s.genesis.haul ?? {};
+  addIndexedNode(s, ctx, 'cart-' + s.tick + '-' + qid, {
+    type: 'cart', x: q.x, y: q.y, by: qid, shelf,
+    // A CART STANDS LONGER THAN A PILE ROTS. Six hundred intervals, an hour --
+    // long enough that somebody a country away can be told and come, which is
+    // the entire point of making a spill a place instead of a scramble.
+    expiresAt: s.tick + (hc.cartTicks ?? 600) });
+}
+
+// §6bp: what each stone is called, once, so the announcement and every window
+// say the same thing. A tag is a slug in the state; this is the sentence.
+const DEDICATION_NAMES = {
+  ring: 'the stone at the Ring', monastery: 'the monastery stone',
+  shrine: 'the shrine stone', '': 'the stone',
+};
+
+function dedicationPrice(genesis, node) {
+  const d = genesis?.dedication;
+  if (!d) return null;
+  const n = node.count ?? 0;
+  return Math.floor(d.floor + (d.floor * n) / d.stepDen);
+}
+
+const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire', 'market', 'cart', 'dedication']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
 // v0.80: the citizen's fire joins them. A fire is the only blocking node a
 // citizen could CREATE, and movement is cardinal, so four logs boxed a
 // stranger in and one log closed a ford for as long as it burned. The
@@ -7051,14 +7392,8 @@ function nextState(state, inputs, _legacyBeacon) {
             // citizen felled them": a caravan lost to wolves is still a
             // caravan on the ground, and whoever comes down the road next may
             // have it.
-            if (target.consignment) {
-              let sc = -1;
-              for (const cs of target.consignment.items) { sc++; if (!cs) continue;
-                s.ground['g' + s.tick + '-' + (tid ?? 'v') + '-c' + sc] =
-                  { item: cs.item, qty: cs.qty ?? 1, x: target.x, y: target.y, expiresAt: s.tick + 100 };
-              }
-              target.consignment = null;
-            }
+            // §6bq: a caravan lost to wolves is still a caravan in the road.
+            spillConsignment(s, _ctx, target, tid ?? 'v');
             target.action = null;
             target.trade = null;
             target.deadUntil = s.tick + DEATH_TICKS;
@@ -7181,6 +7516,28 @@ function nextState(state, inputs, _legacyBeacon) {
     for (const k of Object.keys(p2.crops))
       if (s.tick - p2.crops[k] > CROP_ROTS_AFTER) delete p2.crops[k];
     if (Object.keys(p2.crops).length === 0) delete p2.crops;
+  }
+  // §6bn: THE VIGIL, checked before the ground forgets and never after.
+  //
+  // A seal is not a duration. It holds only while the caster is alive, within
+  // SEAL_RANGE, and still holding the staff -- so it ends when SOMEBODY DOES
+  // SOMETHING, which is the only kind of cost §8 permits. A timer would have
+  // meant standing still beats the spell, and standing still is what a bot is
+  // best at.
+  //
+  // While it holds, the pile does not rot. When it lapses, the ordinary
+  // hundred intervals start again from this one: the pack is not punished for
+  // having been helped, and whoever broke the vigil still has to stoop.
+  //
+  // `sealSpent` is NOT cleared. Once, ever.
+  for (const g2 of Object.values(s.ground)) {
+    if (!g2.sealedBy) continue;
+    const keeper = s.players[g2.sealedBy];
+    const holds = keeper && keeper.hp > 0
+      && keeper.equipment?.weapon?.item === 'goo-staff'
+      && Math.max(Math.abs(g2.x - keeper.x), Math.abs(g2.y - keeper.y)) <= SEAL_RANGE;
+    if (holds) g2.expiresAt = s.tick + SEAL_KEEPS_FRESH;
+    else { delete g2.sealedBy; g2.expiresAt = s.tick + SEAL_KEEPS_FRESH; }
   }
   // ground decay (spec §3.4): the ground forgets
   for (const [gid, g2] of Object.entries(s.ground)) {
@@ -7415,7 +7772,7 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'unmake') {
       const gr = s.ground?.[inp.groundId];
       const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
-      if (gr && si !== -1 && p.equipment?.weapon?.item === 'heartwood-staff'
+      if (gr && si !== -1 && p.equipment?.weapon?.item === 'goo-staff'
           && Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= UNMAKE_RANGE) {
         p.inventory[si] = null;                 // the sigil goes with it
         // §6w: BUT THE BOW CANNOT BE UNMADE. There is one, and there will only
@@ -7436,6 +7793,86 @@ function nextState(state, inputs, _legacyBeacon) {
         // pack would be a drumbeat nobody could read past
         delete s.ground[inp.groundId];          // and so does the pile
         p.skills.magic += XP_ALCH;              // the practice, and nothing else
+      }
+    } else if (inp.type === 'char') {
+      const wt = s.genesis.watch, wf = s.nodes?.[inp.nodeId];
+      if (wt && wt.charWood !== undefined && wf && wf.type === 'watchfire' && atOrBeside(p, wf)
+          && (wf.fuelUntil ?? 0) > s.tick
+          && effLevel(p.skills.firemaking) >= wt.charLevel
+          && countItem(p.inventory, 'ironbark') >= wt.charWood) {
+        consumeItem(p.inventory, 'ironbark', wt.charWood);
+        const slot = firstFreeSlot(p.inventory);   // ten slots just came free
+        if (slot !== -1) p.inventory[slot] = { item: 'charcoal', qty: 1 };
+        // §6bo: AND IT COSTS THE FIRE. A clamp is not a thing you hold beside
+        // a flame, it is a thing the flame is spent on -- so charring eats two
+        // logs' worth of burn out of the watchfire, which somebody had to
+        // carry there. That is the whole reason this is done at another
+        // citizen's fire and not alone in a field: it takes their fuel, and
+        // they earn nothing for it but the company and whatever was arranged.
+        wf.fuelUntil = Math.max(s.tick, (wf.fuelUntil ?? 0) - wt.perLog * wt.charBurn);
+        p.skills.firemaking += wt.charXp;
+      }
+    } else if (inp.type === 'unload') {
+      const ct = s.nodes?.[inp.nodeId];
+      if (ct && ct.type === 'cart' && atOrBeside(p, ct) && ct.shelf) {
+        // THE DEAREST FIRST, which is the same order `worthRank` gives a
+        // window for a heap: whoever stops at a cart takes the plate before
+        // the ore, because that is what a person would reach for and a script
+        // would do anyway. What the cart changes is that they may take ONE.
+        let best = null;
+        for (const it of Object.keys(ct.shelf))
+          if (best === null || worthRank(it) > worthRank(best)
+              || (worthRank(it) === worthRank(best) && it < best)) best = it;
+        const slot = firstFreeSlot(p.inventory);
+        if (best !== null && slot !== -1) {
+          p.inventory[slot] = { item: best, qty: 1 };
+          if ((ct.shelf[best] -= 1) <= 0) delete ct.shelf[best];
+          // an empty cart is not scenery. It goes when the last slot is off it.
+          if (Object.keys(ct.shelf).length === 0) deleteIndexedNode(s, _ctx, inp.nodeId);
+        }
+      }
+    } else if (inp.type === 'dedicate') {
+      const st = s.nodes?.[inp.nodeId];
+      const price = st ? dedicationPrice(s.genesis, st) : null;
+      // RE-CHECKED HERE, and refused rather than charged. `mayDo` read the
+      // stone an interval ago; another citizen's bid may have landed since,
+      // and a citizen must never pay a price they did not sign for.
+      if (st && st.type === 'dedication' && atOrBeside(p, st) && p.name
+          && st.by !== pid && price !== null && inp.pay >= price && (p.gold ?? 0) >= price) {
+        p.gold -= price;                       // and it goes NOWHERE. See §6bp.
+        const d = s.genesis.dedication;
+        if (st.name) {
+          // the stone remembers the last few it carried, oldest dropped first
+          const past = (st.past ?? []).slice();
+          past.unshift(st.name);
+          st.past = past.slice(0, d.remembers);
+        }
+        st.name = p.name;
+        st.by = pid;
+        st.coin = price;
+        st.count = (st.count ?? 0) + 1;
+        announce(s, p.name + ' has cut their name into ' + DEDICATION_NAMES[st.tag ?? '']
+          + ' for ' + price + ' gold.'
+          + (st.past?.length ? ' It bore ' + st.past[0] + ' before.' : ''));
+      }
+    } else if (inp.type === 'seal') {
+      // §6bn: the mirror of the branch above. The gate is re-checked here and
+      // not trusted from `mayDo`, because the two look at the world one
+      // interval apart -- another citizen may have lifted the pile, or sealed
+      // it, in between. Five copies of one predicate is how this file has
+      // been bitten before; agreeing on the answer is the cheap part.
+      const gr = s.ground?.[inp.groundId];
+      const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
+      if (gr && si !== -1 && gr.by && !gr.sealSpent && !gr.sealedBy
+          && p.equipment?.weapon?.item === 'goo-staff'
+          && Math.max(Math.abs(gr.x - p.x), Math.abs(gr.y - p.y)) <= SEAL_RANGE) {
+        p.inventory[si] = null;                 // the sigil goes either way
+        gr.sealedBy = pid;                      // whose vigil it is
+        gr.sealSpent = 1;                       // and it is spent for good
+        gr.expiresAt = s.tick + SEAL_KEEPS_FRESH;
+        p.skills.magic += XP_ALCH;              // the same practice unmaking gives
+        // no announcement: a spell cast on every spilled pack would be a
+        // drumbeat nobody could read past -- the same reason unmaking is quiet
       }
     } else if (inp.type === 'alch') {
       const slot = p.inventory?.[inp.slot];
@@ -7566,12 +8003,22 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'smith') {
       const r = RECIPES[inp.recipe];
       const nearAnvil = hasAdjacentNode(s, _ctx, p, 'anvil');
-      const have = (item) => p.inventory.filter(sl => sl && sl.item === item).length;
+      // §6bo: CHARCOAL IS COAL AT THE ANVIL. Not a new ingredient in twelve
+      // recipes -- one substitution, in the one place recipes are read, so no
+      // recipe had to learn a second name for the same fire.
+      const fills = (item, held) => held === item || (item === 'coal' && held === 'charcoal');
+      const have = (item) => p.inventory.filter(sl => sl && fills(item, sl.item)).length;
       if (r && nearAnvil && Object.entries(r).every(([item, qty]) => have(item) >= qty)) {
         for (const [item, qty] of Object.entries(r)) {
           let left = qty;
+          // the MINED coal goes in first and the made charcoal after, the same
+          // order `consumeLogs` spends ordinary logs before heartwood: what
+          // was cheaper to come by is spent before what was dearer.
           for (let i = 0; i < p.inventory.length && left > 0; i++) {
             if (p.inventory[i]?.item === item) { p.inventory[i] = null; left--; }
+          }
+          for (let i = 0; i < p.inventory.length && left > 0; i++) {
+            if (p.inventory[i] && fills(item, p.inventory[i].item)) { p.inventory[i] = null; left--; }
           }
         }
         // §6av: shot comes five to the ore, as a bone gives five arrows, and it
@@ -7840,21 +8287,14 @@ function nextState(state, inputs, _legacyBeacon) {
               // order, so a patient griefer can grind a key that sorts after a
               // killer's and delete other people's kills on purpose.
               s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
-                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
+                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
             } }
             // §11d: AND THE CONSIGNMENT SPILLS WITH IT, wherever they fell --
             // not only in the Wilds. Without this, killing a hauler destroys
             // the cargo and there is nothing to steal, only somebody to ruin.
             // A mourner's prayer does not reach it: what is consigned was
             // committed to the road.
-            if (q.consignment) {
-              let sc = -1;
-              for (const cs of q.consignment.items) { sc++; if (!cs) continue;
-                s.ground['g' + s.tick + '-' + qid9 + '-c' + sc] =
-                  { item: cs.item, qty: cs.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
-              }
-              q.consignment = null;
-            }
+            spillConsignment(s, _ctx, q, qid9);   // §6bq: it becomes a cart
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
@@ -8391,7 +8831,12 @@ function nextState(state, inputs, _legacyBeacon) {
         const gid = 'g' + s.tick + '-' + pid + '-' + inp.slot;
         // 7.2: the whole slot falls, quantity intact, 17 arrows dropped
         // are 17 arrows on the ground, matching death drops and pickup
-        s.ground[gid] = { item: it.item, qty: it.qty ?? 1, x: p.x, y: p.y, expiresAt: s.tick + 100 };
+        // §6bn: `by` is WHOSE GOODS THESE WERE, and it is written wherever a
+        // citizen's things reach the ground -- dropped, spilled on death, or
+        // burst out of a consignment. Nothing but `seal` reads it, and `seal`
+        // needs it: a pile with no dropper has nobody to be sealed FOR. Mob
+        // spoil never carries it, so a spider's drop cannot be locked up.
+        s.ground[gid] = { item: it.item, qty: it.qty ?? 1, x: p.x, y: p.y, by: pid, expiresAt: s.tick + 100 };
       }
     } else if (inp.type === 'pickup') {
       const g2 = s.ground[inp.groundId];
@@ -8622,21 +9067,14 @@ function nextState(state, inputs, _legacyBeacon) {
               // order, so a patient griefer can grind a key that sorts after a
               // killer's and delete other people's kills on purpose.
               s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
-                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
+                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
             } }
             // §11d: AND THE CONSIGNMENT SPILLS WITH IT, wherever they fell --
             // not only in the Wilds. Without this, killing a hauler destroys
             // the cargo and there is nothing to steal, only somebody to ruin.
             // A mourner's prayer does not reach it: what is consigned was
             // committed to the road.
-            if (q.consignment) {
-              let sc = -1;
-              for (const cs of q.consignment.items) { sc++; if (!cs) continue;
-                s.ground['g' + s.tick + '-' + qid9 + '-c' + sc] =
-                  { item: cs.item, qty: cs.qty ?? 1, x: q.x, y: q.y, expiresAt: s.tick + 100 };
-              }
-              q.consignment = null;
-            }
+            spillConsignment(s, _ctx, q, qid9);   // §6bq: it becomes a cart
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
