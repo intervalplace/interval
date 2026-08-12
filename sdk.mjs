@@ -224,6 +224,12 @@ export class IntervalClient {
 
   // ---- the rest of what the engine will hear ----
   unmake(groundId) { return this.#send({ type: 'unmake', groundId }) }
+  // §6bn: the other half of the goo staff. Sealing reserves the pile for
+  // WHOEVER DROPPED IT -- never for the caster, so a script that seals gains
+  // nothing it can carry. It holds only while the caster stands within five
+  // tiles, alive, with the staff still in hand, and a pile may be sealed once
+  // and once only.
+  seal(groundId) { return this.#send({ type: 'seal', groundId }) }
 
   // ---- what a pot will take ----
   // brew() is unchanged: grain makes ale, a raw fish makes broth, and a DEEP
