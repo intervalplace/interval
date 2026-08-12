@@ -421,6 +421,7 @@ tr.crow-total td { background: #2b2113; border-bottom: 2px solid var(--stone-lt)
 .lede { margin: 0 0 20px; }
 .lede b { color: var(--gold); }
 main.stone > .lede:first-of-type { margin-top: 8px; }
+.lede.last { margin-top: 24px; }
 
 /* Sections get room to breathe: a heading is a place to land, and the eye
    needs a beat of empty before the next one so the page has a rhythm instead
