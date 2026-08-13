@@ -8627,6 +8627,30 @@ function nextState(state, inputs, _legacyBeacon) {
             // committed to the road.
             spillConsignment(s, _ctx, q, qid9);   // §6bq: it becomes a cart
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
+            // §6bx: AND WHAT THEY WERE WEARING SPILLS TOO.
+            //
+            // This loop used to walk the pack alone and then null `q.equipment`
+            // wholesale, so a citizen killed in full star gear DESTROYED about
+            // two thousand gold of armour that nobody could pick up. The
+            // killer took the pack and the plate simply ceased to exist.
+            //
+            // Unintentional, and the engine says so in three places: prayer
+            // already weighs the equipment slots (§6bz), the dragonbow's own
+            // comment claims it "spills to the ground when they fall in PvP",
+            // and §6c's argument is about risk PASSING TO THE KILLER, not
+            // about destruction. A robbery has a beneficiary; that is what
+            // makes it a robbery rather than an accident.
+            //
+            // Keyed `e{slot}` so it can never collide with the pack's numeric
+            // keys, which is the same content-addressing fix §2b-v made above.
+            for (const g9 of EQUIP_SLOTS) {
+              const w9 = q.equipment?.[g9];
+              if (!w9) continue;
+              const m8 = held.find((k) => !k.taken && k.item === w9.item && k.qty === (w9.qty ?? 1));
+              if (m8) { m8.taken = true; continue; }   // a mourner carries it through
+              s.ground['g' + s.tick + '-' + qid9 + '-e' + g9] =
+                { item: w9.item, qty: w9.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
+            }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
@@ -9414,6 +9438,30 @@ function nextState(state, inputs, _legacyBeacon) {
             // committed to the road.
             spillConsignment(s, _ctx, q, qid9);   // §6bq: it becomes a cart
             spillHoods(s, q, qid9);   // §6ax: worn or packed, a hood never burns
+            // §6bx: AND WHAT THEY WERE WEARING SPILLS TOO.
+            //
+            // This loop used to walk the pack alone and then null `q.equipment`
+            // wholesale, so a citizen killed in full star gear DESTROYED about
+            // two thousand gold of armour that nobody could pick up. The
+            // killer took the pack and the plate simply ceased to exist.
+            //
+            // Unintentional, and the engine says so in three places: prayer
+            // already weighs the equipment slots (§6bz), the dragonbow's own
+            // comment claims it "spills to the ground when they fall in PvP",
+            // and §6c's argument is about risk PASSING TO THE KILLER, not
+            // about destruction. A robbery has a beneficiary; that is what
+            // makes it a robbery rather than an accident.
+            //
+            // Keyed `e{slot}` so it can never collide with the pack's numeric
+            // keys, which is the same content-addressing fix §2b-v made above.
+            for (const g9 of EQUIP_SLOTS) {
+              const w9 = q.equipment?.[g9];
+              if (!w9) continue;
+              const m8 = held.find((k) => !k.taken && k.item === w9.item && k.qty === (w9.qty ?? 1));
+              if (m8) { m8.taken = true; continue; }   // a mourner carries it through
+              s.ground['g' + s.tick + '-' + qid9 + '-e' + g9] =
+                { item: w9.item, qty: w9.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
+            }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
