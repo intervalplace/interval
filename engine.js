@@ -1775,6 +1775,9 @@ const BURST_ONE_IN = 24;
 function gunshotHeard(s, pid, p) {
   for (const m of Object.values(s.mobs)) {
     if (m.hp <= 0) continue;
+    // §6cz: an incursion NEVER changes who it is fixed on -- not for a gunshot,
+    // not for a blow. It came for one citizen and it answers only them.
+    if (m.type === 'incursion') continue;
     if (Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= GUN_NOISE) m.mad = pid;
   }
 }
@@ -1833,6 +1836,22 @@ const GOO_STAFF_DROP = 8192;
 const GRAVER_DROP = 1024;
 // §6bv: one incursion in thirty-two. They are events, not a farm.
 const HORN_DROP = 2048;
+// §6cz: THE INCURSION'S DROPS DEPEND ON THE FACE IT WORE. The event fixes on a
+// citizen and wears a face chosen by what they were doing -- a woodwraith when
+// they chop, a gargoyle when they mine, a drownling when they fish -- and the
+// reward should belong to that work: the two tool tiers of the skill the face
+// answers to. None of them drop bones (they are conjured of the country, not
+// beasts). The two open-country faces -- the wilds-shade and the haunt -- carry
+// the HORN instead: the community-summon reward for the fights that were about
+// nothing but who came. Rolls are out of DROP_DEN (65536): 2048 = 1 in 32 for
+// the first tool, 512 = 1 in 128 for the second.
+const INCURSION_FACE_DROPS = {
+  woodwraith: [{ item: 'iron-hatchet', chance: 2048 }, { item: 'steel-hatchet', chance: 512 }],
+  gargoyle:   [{ item: 'iron-pickaxe', chance: 2048 }, { item: 'steel-pickaxe', chance: 512 }],
+  drownling:  [{ item: 'oak-rod',      chance: 2048 }, { item: 'ironbark-rod',  chance: 512 }],
+  'wilds-shade': [{ item: 'horn', chance: HORN_DROP }],
+  haunt:      [{ item: 'horn', chance: HORN_DROP }],
+};
 const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
@@ -2070,8 +2089,15 @@ const MOB_STATS = {
   // long enough that help can arrive. The reward for having answered a call
   // being the power to MAKE one is the tightest loop in this world: the item
   // is worth nothing to somebody alone, and everything to somebody who is not.
-  'incursion': { maxHp: 120, atk: 30, def: 8, maxHit: 8, respawn: 0, aggro: 6,
-            drops: [{ item: 'bones' }, { item: 'horn', chance: HORN_DROP }] },
+  // §6cz: maxHit LOWERED to 4 (was 8). The incursion's whole job is to last
+  // long enough that neighbours come -- the danger was never the point, the
+  // gathering is -- so it must be safe to turn your back on and go help someone
+  // else's. It keeps its high HP (the fight LASTS) and its atk (so it connects),
+  // but a single blow can no longer be frightening. Its drops are chosen PER
+  // FACE (see INCURSION_FACE_DROPS) -- and no bones: a woodwraith or a drownling
+  // is conjured of the country, not a beast with a skeleton to leave.
+  'incursion': { maxHp: 120, atk: 30, def: 8, maxHit: 4, respawn: 0, aggro: 6,
+            drops: [{ item: 'horn', chance: HORN_DROP }] },
   // §6ao (v6): THE RISEN, and THE GIBBET KING. The Moor was dead space -- goblins
   // and wolves already found in three other countries, and nothing of its own.
   // Now it is his: the bleak crossing to the master fishing, where the dead walk
@@ -4909,15 +4935,15 @@ const LANDMARK_KINDS = new Set([
       // §6ao (v6): the incursion carries a scaled body and its bounds -- a
       // maxHp and def scaled to its target, the tick it must be gone by, its
       // leash and the tile it came from. Only an 'incursion' may bear them.
-      'maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face',
+      'maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit',
       // §6ao (v6): the Gibbet King's clock (lastRaise) and the mark a risen
       // carries back to the King who called it (raisedBy).
       'lastRaise', 'raisedBy'].includes(mk)) return 'non-constitutional mob field ' + mk;
-    for (const ik of ['maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face']) if (m[ik] !== undefined && m.type !== 'incursion') return 'only an incursion bears ' + ik;
+    for (const ik of ['maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit']) if (m[ik] !== undefined && m.type !== 'incursion') return 'only an incursion bears ' + ik;
     if (m.lastRaise !== undefined && m.type !== 'gibbet-king') return 'only the Gibbet King raises';
     if (m.raisedBy !== undefined && m.type !== 'risen') return 'only a risen is raised';
     for (const ik of ['goneBy']) if (m[ik] !== undefined && !isInt(m[ik], 0, MAX_TIME)) return 'incursion ' + ik + ' out of bounds';
-    for (const ik of ['maxHp', 'def', 'leash', 'spawnX', 'spawnY']) if (m[ik] !== undefined && !isInt(m[ik], 0, 200000)) return 'incursion ' + ik + ' out of bounds';
+    for (const ik of ['maxHp', 'def', 'leash', 'spawnX', 'spawnY', 'maxHit']) if (m[ik] !== undefined && !isInt(m[ik], 0, 200000)) return 'incursion ' + ik + ' out of bounds';
     for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'burnUntil']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
     // §6ac: whom she has taken, and the arrows she took with them
@@ -7009,6 +7035,15 @@ function stepEvents(s, beacon) {
         addMob(s, iid, 'incursion', sx, sy);
         const m = s.mobs[iid];
         m.maxHp = scaleHp; m.hp = scaleHp; m.def = scaleDef;
+        // §6cz: ITS BLOW SCALES TO THE ONE IT CAME FOR. maxHit was a flat 4,
+        // which is a third of a newcomer's ten hitpoints -- frightening, when
+        // the whole design is that you can safely turn your back on it and go
+        // help. So it is a fraction of the TARGET's hitpoints instead: a tenth,
+        // floored at 1 and capped at the table's maxHit. A ten-HP newcomer takes
+        // at most a 1; a ninety-nine-HP veteran at most the full 4. It always
+        // reads as "come help", never "flee".
+        const tgtHp = Math.max(1, effLevel(t.skills.hitpoints));
+        m.maxHit = Math.max(1, Math.min(base.maxHit, Math.round(tgtHp / 10)));
         m.mad = tid;
         // §6ao (v6): THE LIFETIME MUST OUTLAST A SOLO KILL. The despawn is for
         // the ABANDONED case (nobody came), never to end a fight in progress. A
@@ -7030,17 +7065,21 @@ function stepEvents(s, beacon) {
           const gn = s.nodes[act.nodeId];
           const sk = gn && NODE_YIELD[gn.type] && NODE_YIELD[gn.type].skill;
           face = sk === 'woodcutting' ? 'woodwraith'
-            : sk === 'mining' ? 'rock-thing'
-            : sk === 'fishing' ? 'fen-thing' : null;
+            : sk === 'mining' ? 'gargoyle'
+            : sk === 'fishing' ? 'drownling' : null;
         }
         if (!face) {
           const _tt = TERRAINS[s.genesis.worldGenerator];
           const b = _tt && _tt.country ? _tt.country(s.genesis, sx, sy) : null;
-          face = b === 'fens' ? 'fen-thing' : b === 'greenwood' ? 'woodwraith'
-            : b === 'crags' ? 'rock-thing' : b === 'wilds' ? 'wilds-shade' : 'incursion';
+          face = b === 'fens' ? 'drownling' : b === 'greenwood' ? 'woodwraith'
+            : b === 'crags' ? 'gargoyle' : b === 'wilds' ? 'wilds-shade' : 'haunt';
         }
         m.face = face;
-        announce(s, 'A ' + face.replace('-', ' ') + ' has come for ' + (t.name ?? tid.slice(0, 6)) + '.');
+        // §6cz: names, not "-thing" placeholders -- and the article agrees with
+        // the name (a woodwraith, an ancient... "a haunt", "a gargoyle").
+        const _nm = face.replace('-', ' ');
+        const _art = /^[aeiou]/i.test(_nm) ? 'An ' : 'A ';
+        announce(s, _art + _nm + ' has come for ' + (t.name ?? tid.slice(0, 6)) + '.');
       }
     }
   }
@@ -7463,14 +7502,25 @@ function nextState(state, inputs, _legacyBeacon) {
           const shroudStills = wearsShroud && isDead && m.mad !== pid;
           // §6av: a beast maddened by a gunshot comes from further off than it
           // could have SEEN you -- that is what the noise is for.
-          const wants = !shroudStills && ((m.mad === pid && d <= Math.max(senses, GUN_NOISE))
-            || (st.aggro && d <= st.aggro && mayStart));
+          // §6cz: AN INCURSION HUNTS ONE CITIZEN AND NO OTHER. It does not start
+          // on whoever wanders near (no aggro-hunting) and it does not answer the
+          // neighbours who strike it (m.mad is fixed at spawn and never moves).
+          // It pursues only the one it came for, out to its leash, and if they
+          // flee past it, it simply stands where it is and takes what comes.
+          const wants = m.type === 'incursion'
+            ? (m.mad === pid && d <= (m.leash ?? st.aggro ?? 0))
+            : (!shroudStills && ((m.mad === pid && d <= Math.max(senses, GUN_NOISE))
+              || (st.aggro && d <= st.aggro && mayStart)));
           if (!wants) continue;
           if (d < best) { best = d; target = p; tid = pid; }
         }
       }
       if (!target) {
-        if (m.mad !== undefined) delete m.mad;
+        // §6cz: an incursion NEVER forgets who it came for. If they have fled
+        // past its leash it simply has no target THIS tick and stands idle --
+        // but m.mad is kept, so the moment they return it resumes. Every other
+        // beast lets go of a target it cannot reach.
+        if (m.mad !== undefined && m.type !== 'incursion') delete m.mad;
         // §6ac: she lets go of anybody who has fallen, left, or stopped
         // coming, so nobody can hold her by logging off
         if (st.mirrors && m.bound !== undefined) {
@@ -7589,7 +7639,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // is a bigger one than the half-soak it replaces.
           const soak = 0;
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
-                    : (mirrorHit !== null ? mirrorHit : st.maxHit);
+                    : (mirrorHit !== null ? mirrorHit : (m.maxHit ?? st.maxHit));
           target.hp -= afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak));   // 6bz
           // §6bw: and it holds against a beast exactly as it holds against a
           // citizen. A rule that saved you from people but not from the dragon
@@ -7714,7 +7764,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // Three times the blow's own maximum. A goblin teaches three, a
           // troll nine, a knight and the King twelve. Tanking becomes a
           // decision about what you are willing to be hit by.
-          target.skills.defence += DEFENCE_PER_MAXHIT * (st.maxHit ?? 1);
+          target.skills.defence += DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1);
         }
         continue;
       }
@@ -9515,7 +9565,11 @@ function nextState(state, inputs, _legacyBeacon) {
       // §6aa: whoever swings at a beast is remembered by it. This is how a
       // shore-crab -- which hunts nobody -- still answers a blow, and how a
       // goblin that has taken an arrow starts walking toward the archer.
-      m.mad = pid;
+      // §6cz: BUT NOT AN INCURSION. It came for ONE citizen and it answers only
+      // them. Everyone else who strikes it -- the neighbours who came to help --
+      // it simply takes the hits from, never turning, never retaliating. That is
+      // the whole point: it is safe to walk up to and help kill.
+      if (m.type !== 'incursion') m.mad = pid;
       // the citizen only strikes when their own arm has recovered. This was
       // a `continue` above, which also skipped the beast's turn -- see the
       // note there.
@@ -9636,10 +9690,17 @@ function nextState(state, inputs, _legacyBeacon) {
         // firemaking are: the tally is per citizen and per drop, so the rate is
         // the promised rate and no timing can bend it.
         if (!p.slain) p.slain = {};
-        for (let di = 0; di < stats.drops.length; di++) {
-          const d = stats.drops[di];
+        // §6cz: an incursion's drops are chosen by the FACE it wore, so a
+        // woodwraith gives up hatchets and a gargoyle pickaxes. Everything else
+        // uses its own kind's table. The tally key includes the face, so each
+        // face's rate is counted on its own and no timing can bend it.
+        const _drops = (m.type === 'incursion' && INCURSION_FACE_DROPS[m.face])
+          ? INCURSION_FACE_DROPS[m.face] : stats.drops;
+        const _tallyKey = m.type === 'incursion' ? (m.type + ':' + (m.face || '')) : m.type;
+        for (let di = 0; di < _drops.length; di++) {
+          const d = _drops[di];
           if (d.chance !== undefined) {
-            const tally = m.type + ':' + di;
+            const tally = _tallyKey + ':' + di;
             p.slain[tally] = (p.slain[tally] ?? 0) + 1;
             if (!countedSuccess(p.slain[tally], d.chance, DROP_DEN)) continue;
           }
