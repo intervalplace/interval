@@ -583,6 +583,12 @@ const WIELD_REQS = {
   'star-flail': { attack: 55 },
   // §6bt: seventy, where every gathering skill already has its mastery tool.
   'great-sword': { attack: 70 }, 'great-crossbow': { ranged: 70 },
+  // §6bw: defence's last unlock was fifty and then forty-nine levels of
+  // nothing -- the longest dead band in the game once the arms were fixed.
+  'great-helm': { defence: 70 }, 'great-plate': { defence: 70 },
+  // and fifteen, where a citizen fighting crabs had worn the same iron since
+  // their first afternoon and would go on wearing it until thirty-two.
+  'shell-helm': { defence: 15 }, 'shell-plate': { defence: 15 },
   // §6y: sigils bound to the limbs. The draw is half the arrows, and half of
   // nothing is still nothing, so it asks a real bow-arm first.
   'sigil-bow': { ranged: 30, magic: 20 },
@@ -1337,6 +1343,41 @@ const MIN_MAX_HIT = 3;   // 6bu: the smallest blow anybody can be capable of
 //   later founding gives a web is covered by the same sentence.
 const BURN_TICKS = 8;    // intervals alight after the last landed blow
 const BURN_EVERY = 4;    // one point every four of them
+// §6bw: THE TWO REFUSALS.
+//
+// The mastery armour does not soak better than steel. Each piece spends itself
+// to say NO, once, to the worst thing in its category -- and then it is gone.
+//
+//   the plate refuses DEATH: a blow that would put you at nothing leaves you
+//   at one instead, and shatters.
+//   the helm refuses being HELD: the next root that would take your feet does
+//   not, and it shatters.
+//
+// Death for the body, and the loss of your own control for the head -- which
+// are the two things §2b-i already says this constitution cares most about. It
+// keeps both pieces off the damage ladder entirely: neither is "more armour",
+// so neither starts an arms race with the great arms that answer armour.
+//
+// A HELM NEVER REFUSES A STILLING. A root is a weapon's grip and may be broken
+// by better gear; a stilling is a TRUCE, and §6k built the whole of magic on
+// it. Armour that let a master ignore a peace would undo the one capstone in
+// this world that exists to stop fights rather than win them.
+//
+// They break rather than persist, which makes them the first consumable at the
+// top of this game: a sink that scales with how often people actually fight,
+// rather than with how long they have played.
+function platedFromDeath(q) {
+  if (q.equipment?.body?.item !== 'great-plate') return false;
+  q.equipment.body = null;          // shattered, not dropped: it is gone
+  q.hp = 1;
+  return true;
+}
+function helmedFromRoot(q) {
+  if (q.equipment?.head?.item !== 'great-helm') return false;
+  q.equipment.head = null;
+  return true;
+}
+
 function catchFire(target, tick, stats) {
   if (stats && stats.mends) return;              // the web replaces what the fire takes
   target.burnUntil = tick + BURN_TICKS;
@@ -1600,7 +1641,7 @@ const WEAPONS = {
   // mastery arm that took those as well would retire five weapons at a
   // stroke. Star strikes oddly; great strikes through.
   'great-sword':   { hit: 5, every: 2, reach: 1, acc: 4, breaks: true, burns: true },
-  'great-crossbow': { hit: 12, every: 3, reach: 4, acc: 23, ranged: true, breaks: true, burns: true },
+  'great-crossbow': { hit: 12, every: 3, reach: 6, acc: 23, ranged: true, breaks: true, burns: true },
   // THE CROSSBOW (spec 6x): the maul of the ranged line.
   //
   // Ranged had one feel repeated three times -- wooden, horn and dragon all
@@ -2376,7 +2417,7 @@ const PRICES = {
   // Four and a half times, on everything a master makes. A star plate is now
   // most of an hour of ordinary work rather than a coffee break, and the
   // ratios between the star goods are untouched -- they were already sound.
-  'steel-maul': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
+  'shell-helm': 26, 'shell-plate': 68, 'steel-maul': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
   'star-spear': 450, 'star-maul': 720,
   'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
@@ -2467,6 +2508,13 @@ const RECIPES = {
   // §6bt: the mastery arms. Starmetal for the body of the thing, brimstone for
   // what it does, ironbark where the wood is structural -- the same three-part
   // shape every hafted star weapon already has.
+  // §6bw: the mastery armour. Brimstone, like everything called great.
+  'great-helm': { 'star-ingot': 6, 'brimstone': 2 },
+  'great-plate': { 'star-ingot': 12, 'brimstone': 3 },
+  // §6bw: SHELL AND IRON. A crab's back, banded onto a frame -- the shell is
+  // the armour and the iron is what holds it on.
+  'shell-helm': { 'crab-shell': 2, 'iron': 1 },
+  'shell-plate': { 'crab-shell': 4, 'iron': 2 },
   'great-sword': { 'star-ingot': 14, 'brimstone': 3, 'ironbark': 1 },
   'great-crossbow': { 'star-ingot': 10, 'brimstone': 3, 'ironbark': 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
@@ -2573,7 +2621,8 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
   'staff', 'heartwood-staff', 'wand', 'goo-staff',
-  'horn']);   // §6bv: worn in the off hand, defends nothing
+  'horn',   // §6bv: worn in the off hand, defends nothing
+  'shell-helm', 'shell-plate', 'great-helm', 'great-plate']);
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
 // syntactically pretty identifier that is not in this set is contraband:
@@ -2608,6 +2657,8 @@ const ITEMS = new Set([
   'horn',
   // §6bs: BRIMSTONE. Sulphur out of a vent in the Crags -- the only thing
   // mining gives that is not a metal, and the reagent of the `great` weapons.
+  // §6bw: the two mastery armours, and the shell tier under them
+  'great-plate', 'great-helm', 'shell-helm', 'shell-plate',
   'brimstone',
   // §6bo: charcoal. Wood burnt down at a watchfire until what is left is
   // nearly all fire. It is coal in every recipe that asks for coal, and it is
@@ -2631,6 +2682,9 @@ const ITEMS = new Set([
 ]);
 const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'head', 'star-plate': 'body', 'king-shroud': 'body',
                      'steel-helm': 'head', 'steel-plate': 'body',
+                     // §6bw: shell below steel, and the mastery pair above it
+                     'shell-helm': 'head', 'shell-plate': 'body',
+                     'great-helm': 'head', 'great-plate': 'body',
                      'gold-helm': 'head', 'gold-plate': 'body',
                      'iron-shield': 'offhand', 'steel-shield': 'offhand', 'star-shield': 'offhand',
                      // §6bv: the off hand held three items, all shields, all
@@ -2717,6 +2771,8 @@ const SMITH_REQS = {
   'star-flail': { smithing: 50, magic: 29 },
   // §6bt: a master smith's work, and the only recipes that ask for brimstone.
   'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
+  'great-helm': { smithing: 70, magic: 34 }, 'great-plate': { smithing: 70, magic: 34 },
+  'shell-helm': { smithing: 22 }, 'shell-plate': { smithing: 26 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
   // works and three sigils, and you bind them to the limbs, which is why the
   // magic asked for is higher than the smithing.
@@ -2766,7 +2822,16 @@ const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? 
 // that low accuracy was punished twice, once in the roll and again by a soak
 // its slow cadence could not out-pace.
 const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22,
-                 'gold-helm': 16, 'gold-plate': 24 };   // 6bz/6ca: no shield and no legs here  // 6bb: starmetal's equal, at two hundred times the labour  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
+                 'gold-helm': 16, 'gold-plate': 24,
+                 // §6bw: SHELL, between iron and steel, where thirty-one levels
+                 // of defence had nothing in them at all.
+                 'shell-helm': 10, 'shell-plate': 15,
+                 // §6bw: and the mastery pair, which are STEEL's numbers on
+                 // purpose. A piece that both soaked best and saved your life
+                 // would be worn every day and break every day; at eighteen it
+                 // is what you put on for a fight you might lose, and star
+                 // plate stays what you wear the rest of the time.
+                 'great-helm': 12, 'great-plate': 18 };   // 6bz/6ca: no shield and no legs here  // 6bb: starmetal's equal, at two hundred times the labour  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
 // 6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
 //
 // The star-sword and the star-maul sit in the same wield band, and measured
@@ -3379,27 +3444,19 @@ function nameNoughtBody(state, playerId) {
   state.names[NOUGHT_NAME] = playerId;
   return state;
 }
-// IDEMPOTENT, because two honest callers both do it. A pillar marks the
-// founding it serves so a careless window is still safe; a window marks what it
-// is given so a careless pillar cannot leave it unmarked. Both are right, and
-// the two together used to produce signposts that said it twice and keeper
-// names past the thirty-two character limit -- which made the state INVALID and
-// would have stopped Nought dead in any window that checks.
-const NOUGHT_KEEPER = ' (practice)';
 function markNoughtWorld(state) {
   if (!isNought(state)) return state;
   for (const n of Object.values(state.nodes)) {
-    if (n.type === 'signpost') {
-      if (!String(n.text ?? '').startsWith(NOUGHT_POST)) n.text = NOUGHT_POST + ' (' + (n.text ?? '') + ')';
-    } else if (n.type === 'crier') {
+    if (n.type === 'signpost') n.text = NOUGHT_POST + ' (' + (n.text ?? '') + ')';
+    else if (n.type === 'crier') {
       n.text = NOUGHT_POST;
       n.name = 'the crier of Nought';
-    } else if (n.type === 'keeper' && n.name && !n.name.endsWith(NOUGHT_KEEPER)) {
+    } else if (n.type === 'keeper' && n.name) {
       // The last thing in the world that speaks. A banker, a shopkeep and a
       // brewer are the three strangers a newcomer talks to first, and in a
       // practice world they are nobody: their counterparts in Tallyholm have
       // names, hold real stock, and will not remember this conversation.
-      n.name = (n.name + NOUGHT_KEEPER).slice(0, 32);   // names come from the founding; 32 is the limit
+      n.name = n.name + ' (of the practice world)';
     }
   }
   return state;
@@ -7534,6 +7591,11 @@ function nextState(state, inputs, _legacyBeacon) {
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : st.maxHit);
           target.hp -= afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak));   // 6bz
+          // §6bw: and it holds against a beast exactly as it holds against a
+          // citizen. A rule that saved you from people but not from the dragon
+          // would be a rule about PvP wearing armour's clothes.
+          if (target.hp <= 0 && platedFromDeath(target))
+            announce(s, (target.name ?? 'A citizen') + "'s plate shatters, and holds.");
           // §2g EXTENDED TO THE BEASTS: A STRUCK CITIZEN STRIKES BACK.
           //
           // The constitution has said this since v0.36, and said it only of
@@ -8519,6 +8581,8 @@ function nextState(state, inputs, _legacyBeacon) {
           const soak9 = 0;
           const dmg9 = Math.max(0, styleRoll(roll(beacon, pid, 'specd' + b9), maxHit9, inp.style ?? 'even') - soak9);
           q.hp -= afterShield(q, dmg9, w9);   // 6bz, §6bt
+          if (q.hp <= 0 && platedFromDeath(q))   // §6bw: the plate says no, once
+            announce(s, (q.name ?? 'A citizen') + "'s plate shatters, and holds.");
           if (w9?.burns === true && dmg9 > 0) catchFire(q, s.tick, null);   // §6bu
           // §6as-ii: split exactly as an ordinary melee blow splits. A special
           // taught attack alone, so a fighter who favoured it never raised the
@@ -9292,6 +9356,8 @@ function nextState(state, inputs, _legacyBeacon) {
           const soak = 0;
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'dmg'), maxHit, p.action.style) - soak);
           q.hp -= afterShield(q, dmg, weaponOf(p));   // 6bz, §6bt
+          if (q.hp <= 0 && platedFromDeath(q))   // §6bw
+            announce(s, (q.name ?? 'A citizen') + "'s plate shatters, and holds.");
           if (weaponOf(p)?.burns === true && dmg > 0) catchFire(q, s.tick, null);   // §6bu
           // §6as: a landed blow teaches BOTH -- the aim that found them and the
           // arm that hurt them -- split evenly, so a fighter's two numbers rise
@@ -9301,9 +9367,13 @@ function nextState(state, inputs, _legacyBeacon) {
           p.skills.hitpoints += dmg;
           if (q.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
               && (p.rootCdUntil ?? 0) <= s.tick && (q.rootedUntil ?? 0) <= s.tick && (q.rootImmuneUntil ?? 0) <= s.tick) {
-            q.rootedUntil = s.tick + ROOT_TICKS;                 // held fast
-            q.rootImmuneUntil = s.tick + ROOT_TICKS + ROOT_IMMUNE; // then briefly unfreezable
-            p.rootCdUntil = s.tick + ROOT_CD;                    // the dagger sleeps a long while
+            p.rootCdUntil = s.tick + ROOT_CD;                    // the dagger sleeps either way
+            if (helmedFromRoot(q)) {                             // §6bw: the helm says no, once
+              announce(s, (q.name ?? 'A citizen') + "'s helm splits, and they keep their feet.");
+            } else {
+              q.rootedUntil = s.tick + ROOT_TICKS;                 // held fast
+              q.rootImmuneUntil = s.tick + ROOT_TICKS + ROOT_IMMUNE; // then briefly unfreezable
+            }
           }
           if (q.hp > 0 && q.action?.type !== 'attackp' && q.action?.type !== 'attack') {
             q.action = { type: 'attackp', targetId: pid, since: s.tick + 1, style: 'even' }; // struck: strikes back
@@ -9909,7 +9979,7 @@ function nextState(state, inputs, _legacyBeacon) {
 module.exports = {
   // §0: Nought is a different world by worldId that draws the same island, so
   // that "nothing crosses" is arithmetic rather than a window's promise.
-  noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_KEEPER, NOUGHT_POST, NOUGHT_NAME,
+  noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_POST, NOUGHT_NAME,
   // §0: a window cannot import a worldgen module (ESM importing CommonJS), so
   // a pillar packs the registered generator's answers into a table and serves
   // those instead. Reading the registry is how it knows what to pack.
