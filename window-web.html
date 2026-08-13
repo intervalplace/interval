@@ -2407,6 +2407,110 @@ function itemSprite(item) {
       g.beginPath(); g.moveTo(10, 22); g.lineTo(14, 18); g.stroke()
       g.fillStyle = '#cfe2e6'; g.beginPath(); g.arc(23, 8, 2.6, 0, 7); g.fill()
       g.fillStyle = 'rgba(160,206,224,.45)'; g.beginPath(); g.arc(23, 8, 6, 0, 7); g.fill(); break
+    // §6bt: THE GREAT LINE. Not starmetal in another colour.
+    //
+    // Starmetal is cold and pale and clean -- compressed night, drawn with a
+    // blue rim light. This is the opposite thing: brimstone-worked iron that
+    // never finished cooling. Dark slag, a body cracked with heat that shows
+    // through from INSIDE, a sulphur crust at the joins, and a haft bound in
+    // scorched leather.
+    //
+    // NO FLAMES. A weapon on fire is a cartoon and reads as a light source;
+    // what makes a thing look dangerous is that it is clearly still hot, and
+    // heat lives in the CRACKS, not above the blade. The only thing that moves
+    // is the glow in the fissures, breathing slowly, like a coal you should
+    // not pick up.
+    case 'great-sword': case 'great-crossbow':
+    case 'great-hatchet': case 'great-pickaxe': {
+      const beat = 0.62 + Math.sin(Date.now() / 520 + item.length) * 0.20   // the ember breathes
+      // SLAG HAS TO BE LIGHTER THAN THE NIGHT IT SITS IN. The first cut used
+      // #24211f, which is within a few points of the field these are drawn on:
+      // the silhouette disappeared and the only thing left was the glow, so
+      // every one of the four read as an orange smear. Cooled iron is a warm
+      // dark GREY, not black, and it takes a highlight along the top edge.
+      const SLAG = '#3c352e', EDGE = '#15120f', LIP = '#6d6153', CRUST = '#8a6b23'
+      const emb = (a) => 'rgba(255,' + Math.round(96 + 40 * beat) + ',' + Math.round(24 * beat) + ',' + a + ')'
+      // the fissure: a jagged line of heat drawn INSIDE a shape already laid down
+      const crack = (pts, w2) => {
+        g.strokeStyle = emb((0.55 + 0.35 * beat).toFixed(2)); g.lineWidth = w2
+        g.beginPath(); g.moveTo(pts[0][0], pts[0][1])
+        for (const [px2, py2] of pts.slice(1)) g.lineTo(px2, py2)
+        g.stroke()
+      }
+      const haft = (x1, y1, x2, y2, w2) => {
+        g.strokeStyle = '#33281c'; g.lineWidth = w2; g.lineCap = 'round'
+        g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke()
+        g.strokeStyle = '#5a4326'; g.lineWidth = 1
+        for (let k = 0; k < 3; k++) {   // scorched binding
+          const t2 = 0.25 + k * 0.2
+          g.beginPath()
+          g.moveTo(x1 + (x2 - x1) * t2 - 2, y1 + (y2 - y1) * t2)
+          g.lineTo(x1 + (x2 - x1) * t2 + 2, y1 + (y2 - y1) * t2 - 1); g.stroke()
+        }
+      }
+      // THE BLOOM GOES DOWN FIRST, BEHIND THE METAL. Painted last it is a disc
+      // over the weapon: the first cut of this drew a brown circle across the
+      // whole blade and hid the shape entirely. Heat comes OUT of a thing, so
+      // it belongs under it.
+      // and it is a HINT, not a lamp. At 0.13 over a nine-pixel radius the
+      // bloom was a disc across the whole icon.
+      const bloom = (bx, by, r) => {
+        g.fillStyle = emb('0.07'); g.beginPath(); g.arc(bx, by, r * 0.75, 0, 7); g.fill()
+      }
+      // the lit top edge, which is what tells you the shape is metal
+      const lip = (pts) => {
+        g.strokeStyle = LIP; g.lineWidth = 1.1
+        g.beginPath(); g.moveTo(pts[0][0], pts[0][1])
+        for (const [px2, py2] of pts.slice(1)) g.lineTo(px2, py2)
+        g.stroke()
+      }
+      if (item === 'great-sword') {
+        // A CLEAVER, NOT A SWORD. Broad, heavy, blunt-tipped, one edge -- it
+        // should look like it was cast rather than forged, and like it would
+        // take a hand off by weight alone.
+        bloom(17, 11, 9)
+        haft(12, 30, 16, 20, 3.4)
+        g.fillStyle = '#241d14'                                  // the guard, a slab
+        g.fillRect(9, 18, 15, 3.2)
+        pl([[11, 18], [22, 18], [24, 8], [20, 3], [14, 3]], SLAG, EDGE)   // the blade
+        lip([[14, 3], [20, 3], [24, 8]])                                   // the ground edge
+        crack([[16, 17], [15, 13], [18, 10], [16.5, 5]], 1.6)             // heat inside it
+        crack([[19, 15], [21, 12]], 1.1)
+        g.fillStyle = CRUST                                       // sulphur at the join
+        g.fillRect(10, 17.4, 13, 1.2)
+      } else if (item === 'great-crossbow') {
+        // SHORT, THICK, AND UGLY. A siege piece shrunk to one man: a slag prod
+        // that sags with its own weight, a black stock, and the heat in the
+        // channel where the bolt sits.
+        bloom(16.3, 16, 8)
+        g.strokeStyle = SLAG; g.lineWidth = 4.6; g.lineCap = 'round'
+        g.beginPath(); g.moveTo(5, 9); g.quadraticCurveTo(16, 15, 27, 9); g.stroke()
+        g.strokeStyle = LIP; g.lineWidth = 1.1                    // light along the prod
+        g.beginPath(); g.moveTo(5, 7.4); g.quadraticCurveTo(16, 13.2, 27, 7.4); g.stroke()
+        g.strokeStyle = '#6e6154'; g.lineWidth = 1                // the string, twisted wire
+        g.beginPath(); g.moveTo(5, 9); g.lineTo(27, 9); g.stroke()
+        g.fillStyle = '#2b2118'                                   // the stock
+        g.fillRect(14.5, 8, 3.6, 20)
+        g.fillStyle = '#1b1510'; g.fillRect(13, 24, 6.6, 5)       // the butt
+        crack([[16.3, 11], [16.3, 22]], 1.4)                      // the channel, glowing
+        g.fillStyle = CRUST; g.fillRect(13.6, 12.4, 5.4, 1.2)
+      } else if (item === 'great-hatchet') {
+        bloom(22, 13, 8)
+        haft(9, 30, 19, 10, 3.4)
+        pl([[16, 6], [28, 9], [27, 19], [15, 15]], SLAG, EDGE)
+        lip([[16, 6], [28, 9], [27, 19]])
+        crack([[19, 9], [22, 12], [20, 16]], 1.5)
+        g.fillStyle = CRUST; g.fillRect(16, 9.6, 10, 1.2)
+      } else {
+        bloom(17, 10, 8)
+        haft(10, 30, 19, 11, 3.4)
+        pl([[6, 12], [17, 5], [28, 12], [26, 15], [17, 9], [8, 15]], SLAG, EDGE)
+        lip([[6, 12], [17, 5], [28, 12]])
+        crack([[12, 11], [17, 8], [23, 11]], 1.5)
+        g.fillStyle = CRUST; g.fillRect(14, 8.2, 7, 1.1)
+      }
+      break
+    }
     case 'star-hatchet': case 'star-pickaxe': {
       const pick = item === 'star-pickaxe'
       g.strokeStyle = '#5a4630'; g.lineWidth = 3
@@ -2416,6 +2520,41 @@ function itemSprite(item) {
       else { pl([[18,5],[30,10],[28,18],[17,13]], '#8fa8c4', '#3d4c60') }
       g.fillStyle = 'rgba(190,220,255,.5)'
       g.beginPath(); g.arc(24, 11, 4, 0, 7); g.fill(); break
+    }
+    // §6bs: BRIMSTONE. A crusted yellow lump with the heat still in the seams
+    // -- it should look like something you would not put in your pocket.
+    case 'brimstone': {
+      const beat = 0.6 + Math.sin(Date.now() / 620) * 0.22
+      pl([[9, 24], [7, 15], [13, 9], [22, 8], [26, 15], [23, 24]], '#7a6420', '#3d3210')
+      g.fillStyle = '#c9a63a'
+      pl([[12, 22], [11, 15], [15, 11], [21, 11], [23, 16], [20, 22]], '#c9a63a', '#6b5417')
+      g.strokeStyle = 'rgba(255,' + Math.round(120 + 40 * beat) + ',40,' + (0.5 + 0.3 * beat).toFixed(2) + ')'
+      g.lineWidth = 1.4
+      g.beginPath(); g.moveTo(13, 20); g.lineTo(16, 15); g.lineTo(14, 12)
+      g.moveTo(18, 21); g.lineTo(20, 16); g.stroke()
+      g.fillStyle = 'rgba(255,150,40,.12)'
+      g.beginPath(); g.arc(16, 16, 9, 0, 7); g.fill(); break
+    }
+    // §6bv: THE HORN. Not a shield, and it should not look like one.
+    case 'horn': {
+      // A DRINKING-HORN SHAPE, TAPERED: narrow where the mouth goes, wide at
+      // the bell. Drawn as one filled body rather than two strokes -- a horn
+      // that is the same width along its whole length is a pipe.
+      g.beginPath()
+      g.moveTo(6, 24); g.quadraticCurveTo(15, 27, 22, 17)      // the outer curve
+      g.lineTo(27, 8); g.lineTo(21.5, 8)                        // out to the bell
+      g.quadraticCurveTo(17, 19, 8, 21); g.closePath()          // and back, inside
+      g.fillStyle = '#d9cdb2'; g.fill()
+      g.strokeStyle = '#6b5f47'; g.lineWidth = 1; g.stroke()
+      g.fillStyle = '#efe6cf'                                   // the mouth of it
+      g.beginPath(); g.ellipse(24.2, 8.4, 3.1, 1.5, -0.55, 0, 7); g.fill()
+      g.fillStyle = '#a8977a'                                   // shading along the belly
+      g.beginPath(); g.moveTo(7, 23); g.quadraticCurveTo(15, 25.5, 21, 16.5)
+      g.lineTo(22.6, 13); g.quadraticCurveTo(16, 22, 7.5, 21.5); g.closePath(); g.fill()
+      g.fillStyle = '#6b5433'                                   // the band and the cord
+      g.fillRect(11, 21.6, 2.8, 3.6)
+      g.strokeStyle = '#6b5433'; g.lineWidth = 1.1
+      g.beginPath(); g.moveTo(12, 25); g.quadraticCurveTo(16, 30, 21, 26); g.stroke(); break
     }
     case 'forage':
       // it never sits in a pack -- only on the ground -- but a window that
@@ -3257,6 +3396,8 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
   : a.do === 'char' ? { type: 'char', nodeId: a.nodeId }
   : a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }
+  : a.do === 'grave' ? { type: 'grave', nodeId: a.nodeId, target: a.target }
+  : a.do === 'sound' ? { type: 'sound' }
   : a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }
   : a.do === 'cook' ? { type: 'cook', slot: a.slot }
   : a.do === 'stop' ? { type: 'stop' }
@@ -5496,6 +5637,27 @@ function lookOf(pidOrPlayer, maybeId) {
 // the little citizen: shadow, legs, tunic, arms, tool, head. ~26px tall.
 function drawCitizen(X, Y, o) {
   const now = o.now
+  // §6bu: ALIGHT. Half of this is drawn under the body and half over it, and
+  // the split is the whole difference between reading and not reading.
+  //
+  // The first cut put everything underneath -- a wide ground glow and four
+  // embers -- on the reasoning that a burning citizen should smoulder rather
+  // than wear a bonfire. Rendered, it was a brown puddle at the feet and two
+  // orange dots hidden behind the legs, and at true size you could not tell a
+  // burning citizen from a muddy one. UNDER the body means BEHIND the body,
+  // and a body is most of what there is to see.
+  //
+  // So: a tight hot pool at the feet here, and over the body a warm wash and
+  // embers rising off the shoulders (further down). Still no flames, because a
+  // figure wearing fire reads as a torch. What says burning at eight pixels is
+  // that the whole person has gone the wrong colour.
+  if (o.burning) {
+    const b = 0.6 + Math.sin(now / 210 + X) * 0.25
+    cx.fillStyle = 'rgba(255,110,30,' + (0.22 + 0.10 * b).toFixed(2) + ')'
+    cx.beginPath(); cx.ellipse(X + 20, Y + 33, 7.5, 3, 0, 0, 7); cx.fill()
+    cx.fillStyle = 'rgba(255,190,90,' + (0.16 + 0.08 * b).toFixed(2) + ')'
+    cx.beginPath(); cx.ellipse(X + 20, Y + 33, 4, 1.6, 0, 0, 7); cx.fill()
+  }
   const bob = o.anim === 'idle' ? Math.sin(now / 600) * 0.8 : 0
   const step = o.anim === 'walk' ? Math.sin(now / 110) : 0
   const hurt = (o.now - (hitFlash[o.pid] ?? -9999)) < 320
@@ -5615,6 +5777,21 @@ function drawCitizen(X, Y, o) {
     // iron's. A citizen wearing a thing that will refuse their death once
     // should be readable as such from across a field -- that is most of what
     // wearing it is for.
+    // §6cx: THE SHROUD IS CLOTH. It has its own sprite in the pack and then
+    // rendered on the body as ordinary iron plate, so the rarest mantle in the
+    // world looked like a beginner's cuirass on the person wearing it. Drawn
+    // here as a draping, tattered thing with bone trim -- and drawn INSTEAD of
+    // the metal band, because its whole point is that its silhouette is unlike
+    // every cuirass in the world.
+    if (o.bodyItem === 'king-shroud') {
+      const CF = o.face ?? 1
+      poly([[X + 13, Y + 16], [X + 27, Y + 16], [X + 28, Y + 24],
+            [X + 26, Y + 30], [X + 23, Y + 27], [X + 20, Y + 31],
+            [X + 17, Y + 27], [X + 14, Y + 30], [X + 12, Y + 24]], '#5a3340', '#3f2530')
+      cx.fillStyle = '#cdbfa6'; cx.fillRect(X + 13, Y + 16.4, 14, 1.3)   // bone at the shoulders
+      cx.fillStyle = 'rgba(205,191,166,.22)'; cx.fillRect(X + 19.4, Y + 17, 1.2, 12)
+      cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(X + 22 + CF, Y + 18, 1.6, 10)
+    } else {
     const shell9 = o.bodyItem === 'shell-plate', great9 = o.bodyItem === 'great-plate'
     cx.fillStyle = great9 ? '#3c352e' : shell9 ? '#a8532c'
       : o.goldPlate ? '#e8b93a' : o.starPlate ? '#5cb8d9' : '#a3743a'
@@ -5634,6 +5811,7 @@ function drawCitizen(X, Y, o) {
       cx.fillRect(X + 13.5, Y + 19, 13, 0.9); cx.fillRect(X + 13.5, Y + 21.4, 13, 0.9)
     }
     cx.fillStyle = 'rgba(0,0,0,.18)'; cx.fillRect(X + 19.6, Y + 16.5, 0.9, 6.5)
+    }
   }
   cx.fillStyle = tunicDk; cx.fillRect(X + 13, Y + 22, 14, 1.6) // belt
   // rear arm
@@ -5644,7 +5822,23 @@ function drawCitizen(X, Y, o) {
   // the bow or the blow -- which is the one thing a window must not do to a
   // fight anybody is reading. A two-hander empties this slot in the engine, so
   // nothing here has to know about hands: if it is there, it is legal.
-  if (o.shield) {
+  if (o.shield === 'horn') {
+    // §6bv: A HORN IS NOT A SHIELD, and the off-hand painter had no idea --
+    // it fell through to the iron colours and the rarest thing in the slot
+    // came out looking like a beginner's buckler. Slung at the hip on its
+    // cord, mouth up, because that is how you carry a thing you may have to
+    // put to your lips in a hurry.
+    const hx9 = X + (F > 0 ? 10 : 26), hy9 = Y + 20 + swing
+    cx.beginPath()
+    cx.moveTo(hx9 - 2, hy9 + 4); cx.quadraticCurveTo(hx9 + 2, hy9 + 5, hx9 + 4, hy9)
+    cx.lineTo(hx9 + 5.5, hy9 - 4); cx.lineTo(hx9 + 3, hy9 - 4)
+    cx.quadraticCurveTo(hx9 + 1, hy9 + 1, hx9 - 3, hy9 + 2); cx.closePath()
+    cx.fillStyle = '#d9cdb2'; cx.fill()
+    cx.strokeStyle = '#6b5f47'; cx.lineWidth = 0.7; cx.stroke()
+    cx.fillStyle = '#efe6cf'
+    cx.beginPath(); cx.ellipse(hx9 + 4.4, hy9 - 4, 1.5, 0.8, -0.5, 0, 7); cx.fill()
+    cx.fillStyle = '#6b5433'; cx.fillRect(hx9 - 1, hy9 + 1.6, 1.4, 2)
+  } else if (o.shield) {
     const sx = X + (F > 0 ? 9.5 : 27.5), sy = Y + 17.5 + swing
     const face = o.shield === 'star-shield' ? '#5cb8d9'
                : o.shield === 'steel-shield' ? '#9aa3ac' : '#8a6a3e'
@@ -5779,6 +5973,21 @@ function drawCitizen(X, Y, o) {
       cx.beginPath(); cx.moveTo(-4, 1); cx.quadraticCurveTo(0, 3.4, 4, 1); cx.stroke()
       cx.strokeStyle = '#c9c1b6'; cx.lineWidth = 0.7
       cx.beginPath(); cx.moveTo(-4, 1); cx.lineTo(0, 5); cx.lineTo(4, 1); cx.stroke()
+    } else if (o.wepItem === 'handgonne') {
+      // §6av: A HAND CANNON, carried muzzle-down across the body. It had no
+      // held sprite at all and fell through every branch, so the loudest thing
+      // in the world was invisible in the hand that held it. Wood stock, a
+      // grey barrel, and a lit match at the touch-hole -- the match is what
+      // says this is about to go off.
+      cx.fillStyle = '#6b5330'; cx.fillRect(-1.1, 0, 2.2, 9)          // the stock
+      cx.save(); cx.rotate(F > 0 ? -0.5 : 0.5)
+      cx.fillStyle = '#5a616b'; cx.fillRect(-1.4, -9, 2.8, 9)         // the barrel
+      cx.fillStyle = '#3a4048'; cx.fillRect(-1.4, -9, 2.8, 1.4)       // the muzzle
+      cx.fillStyle = '#8a939d'; cx.fillRect(-1.8, -2.6, 3.6, 1.3)     // the band
+      const glow = 0.55 + Math.sin(now / 220) * 0.35
+      cx.fillStyle = 'rgba(255,170,70,' + glow.toFixed(2) + ')'       // the match, burning
+      cx.beginPath(); cx.arc(1.9, -3.4, 1.1, 0, 7); cx.fill()
+      cx.restore()
     } else if (RANGED_ITEMS.has(o.wepItem)) {
       // a bow slung: horn brown, sigil blue-lit, dragon bone-pale
       const dbow = o.wepItem === 'dragonbow', sbow = o.wepItem === 'sigil-bow'
@@ -5810,6 +6019,20 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = 'rgba(255,' + Math.round(96 + 40 * beat9) + ',24,' + (0.45 + 0.3 * beat9).toFixed(2) + ')'
       cx.fillRect(X + 16.4, Y + 5.2, 0.9, 2)
     }
+  } else if (o.hooded) {
+    // §6ax: THE WAYFARER'S HOOD, which is worn and was never drawn. It defends
+    // nothing and cannot be bought -- it is given for having walked every
+    // trade -- so being SEEN in it is the entire reward, and a window that
+    // left it off gave a citizen nothing for a hundred hours.
+    //
+    // A soft peak and a cowl that falls over the shoulders, in undyed
+    // road-wool: it should read as a traveller rather than a soldier.
+    poly([[X + 13.5, Y + 12], [X + 15, Y + 5], [X + 20, Y + 2.4],
+          [X + 25, Y + 5], [X + 26.5, Y + 12], [X + 20, Y + 10]], '#8d7f66', '#5c5140')
+    cx.fillStyle = 'rgba(255,248,225,.18)'; cx.fillRect(X + 15.6, Y + 5.4, 8.8, 1.2)
+    cx.fillStyle = '#14110c'                                  // the shadow under it
+    cx.fillRect(X + 16, Y + 8.2, 8, 2.4)
+    cx.fillStyle = '#5c5140'; cx.fillRect(X + 13.5, Y + 12, 13, 1.5)
   } else {
     cx.fillStyle = flash ? '#ffffff' : look.hair
     cx.fillRect(X + 15, Y + 5.5, 10, 3.4)
@@ -5817,6 +6040,19 @@ function drawCitizen(X, Y, o) {
   }
   cx.fillStyle = '#1c1710'
   cx.fillRect(X + (F > 0 ? 21.5 : 17), Y + 10, 1.6, 1.6)
+  // §6bu: the other half -- OVER the body, so it is actually visible.
+  if (o.burning) {
+    const b = 0.6 + Math.sin(now / 210 + X) * 0.25
+    cx.fillStyle = 'rgba(255,120,40,' + (0.16 + 0.07 * b).toFixed(2) + ')'   // the wash
+    cx.fillRect(X + 13, Y + 5, 14, 26)
+    for (let k = 0; k < 6; k++) {          // embers, off the shoulders and up
+      const t3 = ((now / 620 + k * 0.17 + X * 0.03) % 1)
+      const ex = X + 13.5 + ((k * 7) % 13) + Math.sin(t3 * 4 + k) * 1.6
+      cx.fillStyle = 'rgba(255,' + Math.round(170 + 60 * (1 - t3)) + ',70,'
+        + (0.85 * (1 - t3)).toFixed(2) + ')'
+      cx.fillRect(ex, Y + 20 - t3 * 20, 1.5, 1.5)
+    }
+  }
 
   // name + hp (your own name reads white so you can find yourself in a crowd)
   cx.fillStyle = o.branded ? '#e8452e' : o.mine ? '#ffffff' : '#e2b63e'
@@ -7812,6 +8048,8 @@ function drawScene(now) {
           mine: pid === myId, cape: capeOf(p), helm: !!p.equipment?.head, plate: !!p.equipment?.body,
           starHelm: p.equipment?.head?.item === 'star-helm', starPlate: p.equipment?.body?.item === 'star-plate',
           headItem: p.equipment?.head?.item ?? null, bodyItem: p.equipment?.body?.item ?? null,
+          hooded: !!p.hooded,
+          burning: (p.burnUntil ?? 0) > (world?.tick ?? 0),
           shield: p.equipment?.offhand?.item ?? null, legs: p.equipment?.legs?.item ?? null,
           goldHelm: p.equipment?.head?.item === 'gold-helm', goldPlate: p.equipment?.body?.item === 'gold-plate',
           wepItem: wep, name: '', hp: 1, maxHp: 1 })
