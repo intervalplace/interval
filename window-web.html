@@ -6154,7 +6154,11 @@ function drawScene(now) {
         const rTR = (!adj2.n && !adj2.e) ? j(22) : 0
         const rBR = (!adj2.s && !adj2.e) ? j(23) : 0
         const rBL = (!adj2.s && !adj2.w) ? j(24) : 0
-        cx.fillStyle = dep ? '#22394a' : '#255a77'
+        // §6cz: the water takes its kind's colour -- ordinary blue, the deep-
+        // fish darker, the gibbet-shoal a dead violet -- so the master shoals
+        // read as different water from across the shore.
+        const _wt = tintOf(n.type)
+        cx.fillStyle = dep ? '#22394a' : (_wt && _wt.water ? _wt.water : '#255a77')
         cx.beginPath()
         cx.roundRect(X + ix0, Y + iy0, ix1 - ix0, iy1 - iy0, [rTL, rTR, rBR, rBL])
         cx.fill()
@@ -6832,19 +6836,21 @@ function drawScene(now) {
         }
         return
       }
-      if (famOf(n.type) === 'tree' && tileHash(n.x, n.y, 7) % 3 === 0) {
-        // the deciduous cousin: round canopy, sun-kissed crown
+      const _plainTree = (n.type === 'tree' || n.type === 'oak-tree')
+      if (famOf(n.type) === 'tree' && _plainTree && tileHash(n.x, n.y, 7) % 3 === 0) {
+        // the deciduous cousin: round canopy, sun-kissed crown (plain woods only)
+        const _ot = tintOf(n.type)
         if (!dep) shadow(X, Y, 12)
         cx.fillStyle = '#4a3319'; cx.fillRect(X + 17.5, Y + 22, 5, 12)
         cx.fillStyle = '#5c4023'; cx.fillRect(X + 19.5, Y + 22, 3, 12)
         if (!dep) {
           const sway2 = Math.sin(now / 1100 + n.y) * 1.1
-          cx.fillStyle = '#2a5c1e'; cx.beginPath(); cx.arc(X + 20 + sway2, Y + 15, 12, 0, 7); cx.fill()
-          cx.fillStyle = '#397a26'; cx.beginPath(); cx.arc(X + 18 + sway2, Y + 13, 9, 0, 7); cx.fill()
-          cx.fillStyle = '#4f9433'; cx.beginPath(); cx.arc(X + 16 + sway2, Y + 11, 5, 0, 7); cx.fill()
+          cx.fillStyle = _ot ? _ot.dark : '#2a5c1e'; cx.beginPath(); cx.arc(X + 20 + sway2, Y + 15, 12, 0, 7); cx.fill()
+          cx.fillStyle = _ot ? _ot.leaf : '#397a26'; cx.beginPath(); cx.arc(X + 18 + sway2, Y + 13, 9, 0, 7); cx.fill()
+          cx.fillStyle = _ot ? _ot.lit : '#4f9433'; cx.beginPath(); cx.arc(X + 16 + sway2, Y + 11, 5, 0, 7); cx.fill()
         } else { shadow(X, Y, 7); poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319') }
       }
-      else if (famOf(n.type) === 'tree' && HD && tileHash(n.x, n.y, 13) % 4 === 0 && (() => {
+      else if (famOf(n.type) === 'tree' && _plainTree && HD && tileHash(n.x, n.y, 13) % 4 === 0 && (() => {
         const lt = ((now / 5200) + (n.x * 7 + n.y * 13) % 10 / 10) % 1
         if (lt < 0.55) {
           cx.fillStyle = 'rgba(110,160,60,' + (0.9 - lt) + ')'
@@ -6853,84 +6859,148 @@ function drawScene(now) {
         }
         return false
       })()) {}
-      else if (famOf(n.type) === 'tree' && biomeAtE4(n.x, n.y) === 'wilds') {
-        // A TREE IN THE WILDS IS A DEAD TREE.
-        //
-        // There are a hundred and thirty-four of them out there and they were
-        // drawn exactly like the Greenwood's: full, green, thriving. Which is
-        // most of why the Wilds did not feel blasted -- the country with the
-        // trolls and the skeletons and the dragon in it looked like a park.
-        //
-        // Nothing changes in the world. It is the same node, the same logs,
-        // the same woodcutting. It just stops pretending it is alive, and
-        // that costs nothing at all: no node, no tick, no rule. The cheapest
-        // way to change a country is to draw it honestly.
-        const v = tileHash(n.x, n.y, 9) % 3
-        const lean = ((tileHash(n.x, n.y, 17) % 5) - 2) * 0.5     // the wind got at it
-        if (!dep) shadow(X, Y, 9)
-        cx.save(); cx.translate(X + 20, Y + 34); cx.rotate(lean * 0.06); cx.translate(-X - 20, -Y - 34)
-        cx.fillStyle = ['#4a4038', '#443a33', '#514740'][v]
-        cx.beginPath(); cx.moveTo(X + 17, Y + 34)
-        cx.lineTo(X + 18.5, Y + 12); cx.lineTo(X + 22, Y + 11); cx.lineTo(X + 23, Y + 34)
-        cx.closePath(); cx.fill()
-        cx.strokeStyle = ['#4a4038', '#443a33', '#514740'][v]; cx.lineCap = 'round'
-        const limbs = [[3.0, 14, -12, -8], [2.4, 18, 11, -5], [1.8, 10, -9, -14], [1.6, 13, 8, -13]]
-        for (const [lw, ly, ex, ey] of limbs) {
-          cx.lineWidth = lw
-          cx.beginPath(); cx.moveTo(X + 20, Y + ly)
-          cx.quadraticCurveTo(X + 20 + ex * 0.6, Y + ly + ey * 0.4, X + 20 + ex, Y + ly + ey)
-          cx.stroke()
-        }
-        cx.lineWidth = 1                                            // the last twigs
-        for (const [tx, ty] of [[-16, -10], [15, -8], [-11, -19], [11, -18]]) {
-          cx.beginPath(); cx.moveTo(X + 20 + tx * 0.7, Y + 12 + ty * 0.5)
-          cx.lineTo(X + 20 + tx, Y + 12 + ty); cx.stroke()
-        }
-        cx.lineCap = 'butt'
-        cx.fillStyle = 'rgba(20,16,12,.35)'                         // the split up one side
-        cx.fillRect(X + 19, Y + 14, 1.2, 20)
-        cx.restore()
-        return
-      }
       else if (famOf(n.type) === 'tree') {
+        // §6cz: EACH WOOD LOOKS LIKE ITSELF. The kinds shared one green canopy,
+        // so oak, ironbark, heartwood and the gallows-oak were indistinguishable
+        // -- you could not tell the timber you wanted from across a clearing.
+        // Each kind now carries its own leaf colour (NODE_TINT), and the two
+        // that are more than a colour get their own shape below.
+        const t = tintOf(n.type)
         const v = tileHash(n.x, n.y, 9) % 3
-        const dk = ['#26571a', '#225122', '#2b5a14'][v]
-        const g1 = ['#2f6b1e', '#2a6329', '#356f18'][v]
-        const hi = ['#4a8f2e', '#448a44', '#529630'][v]
-        const spread = [14, 11, 16][v], top = [2, 6, 0][v]
-        if (!dep) shadow(X, Y, spread * 0.8)
-        cx.fillStyle = '#4a3319'; cx.fillRect(X + 17.5, Y + 22, 5, 12)
-        cx.fillStyle = '#5c4023'; cx.fillRect(X + 19.5, Y + 22, 3, 12)
-        if (!dep) {
-          const sway = Math.sin(now / 900 + n.x) * 1.2
-          poly([[X+20+sway,Y+top],[X+20+spread,Y+24],[X+20-spread,Y+24]], dk, '#1e4712')
-          poly([[X+20+sway,Y+top+4],[X+20+spread-3,Y+25],[X+20-spread+3,Y+25]], g1)
-          poly([[X+20+sway-1,Y+top+5],[X+20+sway-spread*0.45,Y+21],[X+20+sway-2,Y+21]], hi) // sun side
+        if (n.type === 'heartwood-tree' && !dep) {
+          // THE HEARTWOOD: taller, straighter, a golden crown -- the prize wood.
+          shadow(X, Y, 13)
+          cx.fillStyle = '#5a4326'; cx.fillRect(X + 18, Y + 16, 5, 18)
+          cx.fillStyle = '#6e5330'; cx.fillRect(X + 19.5, Y + 16, 2, 18)
+          const sway = Math.sin(now / 950 + n.x) * 1.1
+          poly([[X+20+sway,Y-4],[X+20+11,Y+20],[X+20-11,Y+20]], t.dark, '#2c1e08')
+          poly([[X+20+sway,Y+0],[X+20+8,Y+20],[X+20-8,Y+20]], t.leaf)
+          poly([[X+20+sway,Y+2],[X+20+4,Y+13],[X+20-2,Y+13]], t.lit)   // gold sun-side
+          cx.fillStyle = 'rgba(226,182,62,0.22)'; cx.beginPath(); cx.arc(X+20+sway, Y+4, 7, 0, 7); cx.fill()
+        } else if (n.type === 'gallows-oak' && !dep) {
+          // THE GALLOWS-OAK: a black-barked Wilds tree with a noose hung from a
+          // limb -- the doubled heartwood seam, and it looks the part.
+          shadow(X, Y, 12)
+          cx.fillStyle = '#241820'; cx.fillRect(X + 17.5, Y + 20, 6, 14)
+          cx.fillStyle = '#31222c'; cx.fillRect(X + 19.5, Y + 20, 2.5, 14)
+          const sway = Math.sin(now / 1200 + n.y) * 0.8
+          poly([[X+20+sway,Y+2],[X+20+13,Y+22],[X+20-13,Y+22]], t.dark, '#180c12')
+          poly([[X+20+sway,Y+5],[X+20+9,Y+21],[X+20-9,Y+21]], t.leaf)
+          poly([[X+20+sway-1,Y+6],[X+20-5,Y+18],[X+20-1,Y+18]], t.lit)
+          // a limb reaching out, and the noose
+          cx.strokeStyle = '#241820'; cx.lineWidth = 2
+          cx.beginPath(); cx.moveTo(X+22, Y+14); cx.lineTo(X+31, Y+13); cx.stroke()
+          cx.strokeStyle = '#6a5a3a'; cx.lineWidth = 1.2
+          cx.beginPath(); cx.moveTo(X+30, Y+13); cx.lineTo(X+30, Y+20); cx.stroke()
+          cx.beginPath(); cx.arc(X+30, Y+21.5, 1.8, 0, 7); cx.stroke()
+        } else if (n.type === 'ironbark-tree' && !dep) {
+          // THE IRONBARK: dark blue-green, dense, with a heavy ridged trunk.
+          shadow(X, Y, 12)
+          cx.fillStyle = '#3a4436'; cx.fillRect(X + 17, Y + 20, 6, 14)
+          cx.fillStyle = '#48543f'; cx.fillRect(X + 19.5, Y + 20, 2.5, 14)
+          const sway = Math.sin(now / 1000 + n.x) * 0.9
+          poly([[X+20+sway,Y+1],[X+20+12,Y+23],[X+20-12,Y+23]], t.dark, '#12241a')
+          poly([[X+20+sway,Y+5],[X+20+9,Y+23],[X+20-9,Y+23]], t.leaf)
+          poly([[X+20+sway-1,Y+6],[X+20-5,Y+20],[X+20-1,Y+20]], t.lit)
+        } else if (biomeAtE4(n.x, n.y) === 'wilds' && !(n.type === 'gallows-oak')) {
+          // A TREE IN THE WILDS IS A DEAD TREE (unchanged for the plain wilds tree).
+          const vv = tileHash(n.x, n.y, 9) % 3
+          const lean = ((tileHash(n.x, n.y, 17) % 5) - 2) * 0.5
+          if (!dep) shadow(X, Y, 9)
+          cx.save(); cx.translate(X + 20, Y + 34); cx.rotate(lean * 0.06); cx.translate(-X - 20, -Y - 34)
+          cx.fillStyle = ['#4a4038', '#443a33', '#514740'][vv]
+          cx.beginPath(); cx.moveTo(X + 17, Y + 34); cx.lineTo(X + 18.5, Y + 12); cx.lineTo(X + 22, Y + 11); cx.lineTo(X + 23, Y + 34); cx.closePath(); cx.fill()
+          cx.strokeStyle = ['#4a4038', '#443a33', '#514740'][vv]; cx.lineCap = 'round'
+          for (const [lw, ly, ex, ey] of [[3.0, 14, -12, -8], [2.4, 18, 11, -5], [1.8, 10, -9, -14], [1.6, 13, 8, -13]]) {
+            cx.lineWidth = lw; cx.beginPath(); cx.moveTo(X + 20, Y + ly)
+            cx.quadraticCurveTo(X + 20 + ex * 0.6, Y + ly + ey * 0.4, X + 20 + ex, Y + ly + ey); cx.stroke()
+          }
+          cx.lineCap = 'butt'; cx.restore(); return
         } else {
-          shadow(X, Y, 7)
-          poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319')
+          // the ordinary Greenwood tree (oak / plain): its own leaf tint if it
+          // has one, else the default greens.
+          const dk = t ? t.dark : ['#26571a', '#225122', '#2b5a14'][v]
+          const g1 = t ? t.leaf : ['#2f6b1e', '#2a6329', '#356f18'][v]
+          const hi = t ? t.lit : ['#4a8f2e', '#448a44', '#529630'][v]
+          const spread = [14, 11, 16][v], top = [2, 6, 0][v]
+          if (!dep) shadow(X, Y, spread * 0.8)
+          cx.fillStyle = '#4a3319'; cx.fillRect(X + 17.5, Y + 22, 5, 12)
+          cx.fillStyle = '#5c4023'; cx.fillRect(X + 19.5, Y + 22, 3, 12)
+          if (!dep) {
+            const sway = Math.sin(now / 900 + n.x) * 1.2
+            poly([[X+20+sway,Y+top],[X+20+spread,Y+24],[X+20-spread,Y+24]], dk, '#1e4712')
+            poly([[X+20+sway,Y+top+4],[X+20+spread-3,Y+25],[X+20-spread+3,Y+25]], g1)
+            poly([[X+20+sway-1,Y+top+5],[X+20+sway-spread*0.45,Y+21],[X+20+sway-2,Y+21]], hi)
+          } else {
+            shadow(X, Y, 7); poly([[X+14,Y+20],[X+26,Y+20],[X+22,Y+26],[X+18,Y+26]], '#4a3319')
+          }
         }
       }
       if (famOf(n.type) === 'magic-rock') {
+        // §6cz: the magic-rock glows BLUE; the mother-lode -- the doubled master
+        // seam -- glows VIOLET and richer, so you can tell the prize from afar.
+        const mother = n.type === 'mother-lode'
         shadow(X, Y, 10)
         const pulse = (Math.sin(now / 600 + n.x) + 1) / 2
-        poly([[X+8,Y+30],[X+14,Y+18],[X+24,Y+15],[X+32,Y+22],[X+29,Y+31],[X+11,Y+32]], dep ? '#3a3a44' : '#4a4a5c', '#1c1c26')
+        poly([[X+8,Y+30],[X+14,Y+18],[X+24,Y+15],[X+32,Y+22],[X+29,Y+31],[X+11,Y+32]], dep ? '#3a3a44' : (mother ? '#4a3a5c' : '#4a4a5c'), '#1c1c26')
         if (!dep) {
-          cx.fillStyle = 'rgba(120,220,255,' + (0.25 + pulse * 0.3) + ')'
-          poly([[X+16,Y+14],[X+20,Y+4],[X+24,Y+13],[X+20,Y+18]], 'rgba(140,235,255,' + (0.55 + pulse * 0.4) + ')')
-          poly([[X+24,Y+18],[X+29,Y+11],[X+31,Y+19]], 'rgba(170,160,255,' + (0.5 + pulse * 0.4) + ')')
-          cx.fillStyle = 'rgba(140,225,255,' + (0.10 + pulse * 0.12) + ')'
-          cx.beginPath(); cx.arc(X + 21, Y + 18, 16 + pulse * 4, 0, 7); cx.fill()
+          const cores = mother
+            ? ['rgba(200,140,255,', 'rgba(210,160,255,', 'rgba(180,120,240,']
+            : ['rgba(120,220,255,', 'rgba(140,235,255,', 'rgba(170,160,255,']
+          cx.fillStyle = cores[0] + (0.25 + pulse * 0.3) + ')'
+          poly([[X+16,Y+14],[X+20,Y+4],[X+24,Y+13],[X+20,Y+18]], cores[1] + (0.55 + pulse * 0.4) + ')')
+          poly([[X+24,Y+18],[X+29,Y+11],[X+31,Y+19]], cores[2] + (0.5 + pulse * 0.4) + ')')
+          if (mother) {   // a second crystal, richer
+            poly([[X+11,Y+22],[X+14,Y+13],[X+17,Y+21]], cores[1] + (0.5 + pulse * 0.4) + ')')
+          }
+          cx.fillStyle = cores[1] + (0.10 + pulse * 0.12) + ')'
+          cx.beginPath(); cx.arc(X + 21, Y + 18, (mother ? 18 : 16) + pulse * 4, 0, 7); cx.fill()
+        }
+      }
+      if (n.type === 'brimstone-vent') {
+        // §6cz: a sulfurous vent in the crag -- cracked black stone, an orange
+        // glow in the fissure, and a wisp of smoke. Mining, but nothing like ore.
+        shadow(X, Y, 11)
+        const pulse = (Math.sin(now / 500 + n.y) + 1) / 2
+        poly([[X+7,Y+31],[X+12,Y+16],[X+22,Y+13],[X+33,Y+20],[X+30,Y+32],[X+10,Y+33]], dep ? '#2a2620' : '#332c26', '#160f0a')
+        if (!dep) {
+          // the glowing crack
+          cx.strokeStyle = 'rgba(255,140,40,' + (0.5 + pulse * 0.4) + ')'; cx.lineWidth = 2.2
+          cx.beginPath(); cx.moveTo(X+14, Y+28); cx.lineTo(X+19, Y+20); cx.lineTo(X+23, Y+25); cx.lineTo(X+28, Y+19); cx.stroke()
+          cx.fillStyle = 'rgba(255,90,20,' + (0.12 + pulse * 0.14) + ')'
+          cx.beginPath(); cx.arc(X+21, Y+23, 12 + pulse * 3, 0, 7); cx.fill()
+          // a wisp of smoke rising
+          cx.fillStyle = 'rgba(90,80,70,' + (0.25 + pulse * 0.15) + ')'
+          for (let k = 0; k < 3; k++) {
+            const sy = Y + 14 - k * 5 - pulse * 3
+            cx.beginPath(); cx.arc(X + 20 + Math.sin(now / 400 + k) * 3, sy, 3 - k * 0.6, 0, 7); cx.fill()
+          }
         }
       }
       if (famOf(n.type) === 'rock') {
+        // §6cz: EACH SEAM LOOKS LIKE WHAT IT HOLDS. iron grey, coal near-black
+        // with a glitter, gold with bright veins in the face, from NODE_TINT.
+        const t = tintOf(n.type)
         const v = tileHash(n.x, n.y, 8) % 3
-        const c = dep ? '#3a3a3a' : ['#7a7a72', '#83786a', '#6f7478'][v]
-        const cd = dep ? '#2e2e2e' : ['#5c5c55', '#645a4e', '#53575c'][v]
+        const c = dep ? '#3a3a3a' : (t ? t.body : ['#7a7a72', '#83786a', '#6f7478'][v])
+        const cd = dep ? '#2e2e2e' : (t ? t.edge : ['#5c5c55', '#645a4e', '#53575c'][v])
         shadow(X, Y, 12)
         poly([[X+8,Y+30],[X+14,Y+12],[X+26,Y+9],[X+34,Y+24],[X+28,Y+33]], c, '#2c2c2c')
         poly([[X+8,Y+30],[X+28,Y+33],[X+34,Y+24],[X+26,Y+27]], cd) // underside
-        if (!dep) { cx.fillStyle = 'rgba(255,255,255,.2)'; cx.fillRect(X+16, Y+13, 6, 3) }
+        if (!dep && n.type === 'gold-rock' && t.ore) {
+          // veins of gold in the face
+          cx.strokeStyle = t.ore; cx.lineWidth = 1.4
+          cx.beginPath(); cx.moveTo(X+14, Y+22); cx.lineTo(X+19, Y+17); cx.lineTo(X+23, Y+21); cx.stroke()
+          cx.beginPath(); cx.moveTo(X+24, Y+14); cx.lineTo(X+27, Y+19); cx.stroke()
+          cx.fillStyle = t.ore
+          cx.fillRect(X+18, Y+16, 1.6, 1.6); cx.fillRect(X+25, Y+22, 1.4, 1.4)
+        } else if (!dep && n.type === 'coal-rock') {
+          // a black glitter
+          cx.fillStyle = 'rgba(150,160,180,0.5)'
+          for (const [gx, gy] of [[15, 20], [22, 15], [26, 24], [19, 26]]) cx.fillRect(X+gx, Y+gy, 1.3, 1.3)
+        } else if (!dep) {
+          cx.fillStyle = 'rgba(255,255,255,.2)'; cx.fillRect(X+16, Y+13, 6, 3)
+        }
       }
       if (n.type === 'cart') {
         // §6bq: A HANDCART ON ITS SIDE, shed wheel, cargo spilled against it.

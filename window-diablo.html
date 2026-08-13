@@ -3570,12 +3570,25 @@ function paintBuilding(g, W, H, opt) {
 }
 
 // ---- a tree, which is really a silhouette ---------------------------------
-function paintTree(g, W, H, R, style) {
+// §6cz: per-kind paint for the diablo node painters -- each wood and each seam
+// looks like itself, not one shared green tree or grey rock.
+const TREE_PAINT = {
+  'oak-tree':       { leafDark: '#1c3a14', leafMid: '#2c5220', leafLit: '#4a8a30' },
+  'ironbark-tree':  { leafDark: '#132618', leafMid: '#1f3a28', leafLit: '#3a6e4a', bark: ['#20302a', '#33463c', '#101a14'] },
+  'heartwood-tree': { leafDark: '#3a2c10', leafMid: '#6a5324', leafLit: '#b08a3e', crown: true, bark: ['#3a2c18', '#5a4326', '#221a0e'] },
+  'gallows-oak':    { leafDark: '#241018', leafMid: '#3f2030', leafLit: '#6a3348', noose: true, bark: ['#1a1218', '#2c1e28', '#0c080c'] },
+}
+const ROCK_PAINT = {
+  'iron-rock':   { body: ['#5a564e', '#726c60', '#33302a'], ore: '#8a6a34' },
+  'coal-rock':   { body: ['#26262a', '#3a3a40', '#141418'], ore: '#0e0e12', glit: true },
+  'gold-rock':   { body: ['#5a5240', '#726846', '#33301f'], ore: '#ffd23f', gold: true },
+}
+function paintTree(g, W, H, R, style, tint) {
   const cx = W / 2, base = H - 6
   const dead = style === 'dead' || style === 'burnt'
   const trunkC = style === 'burnt' ? ['#191413', '#2a2220', '#0d0a0a']
                : dead ? ['#2e281f', '#463c2e', '#191512']
-               : ['#2c241a', '#463829', '#161109']
+               : (tint && tint.bark) || ['#2c241a', '#463829', '#161109']
   groundShadow(g, cx + 4, base - 2, 26, 11, .55)
   const th = 30 + R() * 16
   // trunk with a root flare, drawn as a tapered polygon rather than a rectangle
@@ -3599,15 +3612,25 @@ function paintTree(g, W, H, R, style) {
     g.quadraticCurveTo(mx, my, bx + Math.cos(a - .3) * len, by + Math.sin(a - .3) * len)
     g.stroke()
   }
+  if (dead && tint && tint.noose) {
+    // §6cz: the gallows-oak carries a noose from a limb
+    const nx = cx + 14, ny = base - th * 0.72
+    g.strokeStyle = '#4a4038'; g.lineWidth = 2.4; g.lineCap = 'round'
+    g.beginPath(); g.moveTo(cx, base - th * 0.78); g.lineTo(nx, ny); g.stroke()
+    g.strokeStyle = '#6a5a3a'; g.lineWidth = 1.6
+    g.beginPath(); g.moveTo(nx, ny); g.lineTo(nx, ny + 11); g.stroke()
+    g.beginPath(); g.arc(nx, ny + 13.5, 3, 0, 7); g.stroke()
+  }
   if (!dead) {
     // foliage: overlapping masses, dark, with the light only on the upper left
     const cy = base - th - 12
     const blobs = []
     for (let i = 0; i < 7; i++)
       blobs.push([cx + (R() - .5) * 40, cy + (R() - .5) * 26, 13 + R() * 12])
-    const dark = style === 'pine' ? '#161f16' : '#1a2116'
-    const mid = style === 'pine' ? '#22301f' : '#28331f'
-    const lit = style === 'pine' ? '#38492c' : '#41512c'
+    // per-kind leaf colours when a tint is given, else the style defaults
+    const dark = tint ? tint.leafDark : (style === 'pine' ? '#161f16' : '#1a2116')
+    const mid = tint ? tint.leafMid : (style === 'pine' ? '#22301f' : '#28331f')
+    const lit = tint ? tint.leafLit : (style === 'pine' ? '#38492c' : '#41512c')
     for (const [bx, by, br] of blobs) { g.fillStyle = dark; g.beginPath(); g.arc(bx, by, br, 0, 7); g.fill() }
     for (const [bx, by, br] of blobs) { g.fillStyle = mid; g.beginPath(); g.arc(bx - br * .12, by - br * .16, br * .78, 0, 7); g.fill() }
     for (const [bx, by, br] of blobs) { g.fillStyle = lit; g.beginPath(); g.arc(bx - br * .3, by - br * .34, br * .38, 0, 7); g.fill() }
@@ -3615,14 +3638,20 @@ function paintTree(g, W, H, R, style) {
     for (let i = 0; i < 40; i++) {
       const b = blobs[(R() * blobs.length) | 0]
       const a = R() * 7, rr = b[2] * (.5 + R() * .55)
-      g.fillStyle = R() > .6 ? '#4d5c33' : '#2e3a22'
+      g.fillStyle = R() > .6 ? (tint ? tint.leafLit : '#4d5c33') : (tint ? tint.leafDark : '#2e3a22')
       g.fillRect(b[0] + Math.cos(a) * rr, b[1] + Math.sin(a) * rr * .8, 2, 2)
+    }
+    if (tint && tint.crown) {   // heartwood: a golden shimmer at the crown
+      g.save(); g.globalCompositeOperation = 'lighter'
+      const gr = g.createRadialGradient(cx, cy - 4, 0, cx, cy - 4, 22)
+      gr.addColorStop(0, 'rgba(226,182,62,0.28)'); gr.addColorStop(1, 'rgba(226,182,62,0)')
+      g.fillStyle = gr; g.beginPath(); g.arc(cx, cy - 4, 22, 0, 7); g.fill(); g.restore()
     }
   }
 }
 
 // ---- rock, boulder, ore ---------------------------------------------------
-function paintRock(g, W, H, R, style) {
+function paintRock(g, W, H, R, style, tint) {
   const cx = W / 2, base = H - 5
   const s = style === 'magic' ? 1.05 : 1
   const w = (17 + R() * 8) * s, h = (15 + R() * 9) * s
@@ -3632,7 +3661,8 @@ function paintRock(g, W, H, R, style) {
     const a = (i / n) * Math.PI * 2
     top.push([cx + Math.cos(a) * w * (.7 + R() * .4), base - h + Math.sin(a) * w * .34 * (.7 + R() * .4)])
   }
-  const body = style === 'magic' ? ['#3a3a4c', '#4c4c64', '#22222e']
+  const body = (tint && tint.body) ? tint.body
+             : style === 'magic' ? ['#3a3a4c', '#4c4c64', '#22222e']
              : style === 'dark' ? ['#2b2825', '#3d3934', '#171514']
              : ['#3a352e', '#4e4840', '#1f1c19']
   // the mass: sides first, then the lit cap
@@ -3653,10 +3683,19 @@ function paintRock(g, W, H, R, style) {
     const x = cx + (R() - .5) * w, y = base - h * R() * .9
     g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - .5) * 12, y + 5 + R() * 8); g.stroke()
   }
-  if (style === 'ore') {                       // metal in the stone
+  if (tint && tint.gold) {                     // §6cz: bright gold veins in the face
+    g.strokeStyle = tint.ore; g.lineWidth = 1.6
+    for (let i = 0; i < 3; i++) {
+      const x = cx + (R() - .5) * w, y = base - h * (.3 + R() * .5)
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - .5) * 10, y - 4 - R() * 5); g.lineTo(x + (R() - .5) * 14, y - 2); g.stroke()
+    }
+    for (let i = 0; i < 5; i++) { g.fillStyle = tint.ore; g.beginPath(); g.arc(cx + (R() - .5) * w, base - R() * h, 1.4, 0, 7); g.fill() }
+  } else if (tint && tint.glit) {              // coal: a cold glitter
+    for (let i = 0; i < 8; i++) { g.fillStyle = 'rgba(150,165,190,0.55)'; g.fillRect(cx + (R() - .5) * w * 1.1, base - R() * h, 1.3, 1.3) }
+  } else if (style === 'ore') {                // metal in the stone (default iron)
     for (let i = 0; i < 7; i++) {
       const x = cx + (R() - .5) * w * 1.2, y = base - R() * h
-      g.fillStyle = R() > .5 ? '#8a6a34' : '#5e4a26'
+      g.fillStyle = R() > .5 ? ((tint && tint.ore) || '#8a6a34') : '#5e4a26'
       g.beginPath(); g.arc(x, y, 1.3 + R() * 1.4, 0, 7); g.fill()
       g.fillStyle = 'rgba(255,214,140,.5)'; g.fillRect(x - .6, y - 1.2, 1.2, 1.2)
     }
@@ -7917,7 +7956,7 @@ function drawNode(g, n, sx, sy, t, hot) {
   const dep = (n.depletedUntil ?? 0) > (s?.tick ?? 0)
   const hs = tileHash(n.x, n.y, 5)
   switch (n.type) {
-    case 'tree': {
+    case 'tree': case 'oak-tree': case 'ironbark-tree': case 'heartwood-tree': case 'gallows-oak': {
       if (dep) { // a stump and a scatter of chips: the world shows its work
         g.drawImage(sprite('stump' + (hs & 1), 64, 40, (gg, W2, H2, R) => {
           groundShadow(gg, W2 / 2 + 3, H2 - 5, 18, 8, .5)
@@ -7929,33 +7968,70 @@ function drawNode(g, n, sx, sy, t, hot) {
         return
       }
       const b = biomeAtE4 ? biomeAtE4(n.x, n.y) : 'meadow'
-      const style = b === 'wilds' ? 'dead' : (hs % 5 === 0 ? 'pine' : 'leafy')
-      g.drawImage(sprite('tree' + style + (hs % 6), 120, 122, (gg, W2, H2, R) => paintTree(gg, W2, H2, R, style)),
+      // §6cz: each wood looks like itself. A tinted kind uses its own leaves
+      // (and the gallows-oak keeps the wilds 'dead' silhouette + a noose); a
+      // plain tree falls to the biome/hash style as before.
+      const tint = TREE_PAINT[n.type] || null
+      const style = n.type === 'gallows-oak' ? 'dead'
+                  : b === 'wilds' ? 'dead' : (hs % 5 === 0 ? 'pine' : 'leafy')
+      g.drawImage(sprite('tree' + (n.type) + style + (hs % 6), 120, 122, (gg, W2, H2, R) => paintTree(gg, W2, H2, R, style, tint)),
         sx - 60, sy - 122 + 20)
       return
     }
-    case 'rock': case 'magic-rock': {
+    case 'rock': case 'iron-rock': case 'coal-rock': case 'gold-rock': case 'magic-rock': case 'mother-lode': case 'brimstone-vent': {
+      if (n.type === 'brimstone-vent') {
+        // §6cz: a sulfurous vent -- cracked dark stone, a glowing fissure, smoke.
+        g.drawImage(sprite('brim' + (hs % 4), 76, 60, (gg, W2, H2, R) => {
+          const bcx = W2 / 2, bb = H2 - 6
+          groundShadow(gg, bcx + 2, bb - 1, 24, 11, .55)
+          const top = [], nn = 7
+          for (let i = 0; i < nn; i++) { const a = (i / nn) * Math.PI * 2; top.push([bcx + Math.cos(a) * 19 * (.7 + R() * .4), bb - 16 + Math.sin(a) * 6 * (.7 + R() * .4)]) }
+          poly(gg, [...top, ...top.slice().reverse().map(p => [p[0] * .96 + bcx * .04, bb])], '#2a2420')
+          poly(gg, top, '#372f28')
+          for (let i = 0; i < nn; i++) { const a = top[i], b = top[(i + 1) % nn]; poly(gg, [a, b, [b[0], bb], [a[0], bb]], (a[0] + b[0] > bcx * 2) ? '#160f0a' : '#2a2420') }
+        }), sx - 38, sy - 60 + 18)
+        if (!dep) {   // the live glow + smoke, drawn fresh each frame
+          const p = (Math.sin(t / 380 + hs) + 1) / 2
+          g.save(); g.globalCompositeOperation = 'lighter'
+          const gr = g.createRadialGradient(sx, sy - 14, 0, sx, sy - 14, 24)
+          gr.addColorStop(0, 'rgba(255,120,30,' + (.2 + p * .22) + ')'); gr.addColorStop(1, 'rgba(255,120,30,0)')
+          g.fillStyle = gr; g.beginPath(); g.arc(sx, sy - 14, 24, 0, 7); g.fill(); g.restore()
+          g.strokeStyle = 'rgba(255,160,50,' + (.5 + p * .4) + ')'; g.lineWidth = 2
+          g.beginPath(); g.moveTo(sx - 8, sy - 8); g.lineTo(sx - 2, sy - 18); g.lineTo(sx + 4, sy - 12); g.lineTo(sx + 9, sy - 20); g.stroke()
+          g.fillStyle = 'rgba(90,82,74,' + (.22 + p * .12) + ')'
+          for (let k = 0; k < 3; k++) { g.beginPath(); g.arc(sx + Math.sin(t / 500 + k) * 4, sy - 24 - k * 6 - p * 4, 3.4 - k * .7, 0, 7); g.fill() }
+        }
+        return
+      }
+      const tint = ROCK_PAINT[n.type] || null
       const style = famOf(n.type) === 'magic-rock' ? 'magic' : (dep ? 'dark' : 'ore')
-      g.drawImage(sprite('rock' + style + (hs % 5), 76, 56, (gg, W2, H2, R) => paintRock(gg, W2, H2, R, style)),
+      g.drawImage(sprite('rock' + (n.type) + style + (hs % 5), 76, 56, (gg, W2, H2, R) => paintRock(gg, W2, H2, R, style, tint)),
         sx - 38, sy - 56 + 18)
       if (famOf(n.type) === 'magic-rock' && !dep) {           // the vein answers the tick
+        const mother = n.type === 'mother-lode'
         const p = (Math.sin(t / 420 + hs) + 1) / 2
         g.save(); g.globalCompositeOperation = 'lighter'
         const gr = g.createRadialGradient(sx, sy - 16, 0, sx, sy - 16, 26)
-        gr.addColorStop(0, 'rgba(120,200,255,' + (.16 + p * .2) + ')')
-        gr.addColorStop(1, 'rgba(120,200,255,0)')
+        const col = mother ? '200,140,255' : '120,200,255'   // §6cz: mother-lode glows violet
+        gr.addColorStop(0, 'rgba(' + col + ',' + (.16 + p * .2) + ')')
+        gr.addColorStop(1, 'rgba(' + col + ',0)')
         g.fillStyle = gr; g.beginPath(); g.arc(sx, sy - 16, 26, 0, 7); g.fill(); g.restore()
       }
       return
     }
-    case 'fishing-spot': {                              // painted flat, on the floor
+    case 'fishing-spot': case 'eel-spot': case 'deep-fish-spot': case 'gibbet-shoal': {  // painted flat, on the floor
       g.save()
       const p = (t / 900 + hs) % 1
-      g.fillStyle = 'rgba(10,20,28,.62)'; diamond(g, sx - 32, sy - 16, 3); g.fill()
-      g.strokeStyle = 'rgba(150,196,214,' + (.34 * (1 - p)) + ')'; g.lineWidth = 1.4
+      // §6cz: each shoal its own water -- deep-fish darker, gibbet a dead violet
+      const wt = tintOf(n.type)
+      const ripple = n.type === 'gibbet-shoal' ? '180,150,210'
+                   : n.type === 'deep-fish-spot' ? '110,150,200' : '150,196,214'
+      g.fillStyle = wt && wt.water ? hexA(wt.water, .62) : 'rgba(10,20,28,.62)'
+      diamond(g, sx - 32, sy - 16, 3); g.fill()
+      g.strokeStyle = 'rgba(' + ripple + ',' + (.34 * (1 - p)) + ')'; g.lineWidth = 1.4
       g.beginPath(); g.ellipse(sx, sy, 6 + p * 20, (6 + p * 20) / 2, 0, 0, 7); g.stroke()
       const q = (p + .5) % 1
-      g.strokeStyle = 'rgba(150,196,214,' + (.26 * (1 - q)) + ')'
+      g.strokeStyle = 'rgba(' + ripple + ',' + (.26 * (1 - q)) + ')'
       g.beginPath(); g.ellipse(sx, sy, 6 + q * 20, (6 + q * 20) / 2, 0, 0, 7); g.stroke()
       g.restore(); return
     }
