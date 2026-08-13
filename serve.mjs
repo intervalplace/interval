@@ -586,6 +586,13 @@ const server = http.createServer((req, res) => {
       return sendFile(VENDOR[leaf], 'text/javascript')
     }
     if (path === '/engine-browser.mjs') return sendFile('./engine-browser.mjs', 'text/javascript')
+    // The windows stopped carrying their own copy of the geography: the deep
+    // and photo windows IMPORT the one mirror, so the pillar must serve it as
+    // JavaScript. A module served as anything else is refused silently, which
+    // is a window that does not start and a world that looks like it will not
+    // answer. sky.mjs rides along for the same reason.
+    if (path === '/terrain-mirror.mjs') return sendFile('./terrain-mirror.mjs', 'text/javascript')
+    if (path === '/sky.mjs') return sendFile('./sky.mjs', 'text/javascript')
     // §0: THE GROUND ITSELF, packed. The engine fails closed without a
     // registered generator, and a window cannot import one, so it is served
     // the generator's ANSWERS instead: blocked and road as bitmaps, country as
