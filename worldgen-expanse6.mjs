@@ -3364,6 +3364,20 @@ export function buildWorld(genesis) {
     return y < 168 && x > 600
   }
   counts.goldSeam = clusterScatter('gseam', 4, goldCountry, (id, x, y) => E.addNode(w, id, 'gold-rock', x, y), 1, 8)
+  // §6bs: THE BRIMSTONE VENTS. The southern crags, where the iron and the coal
+  // already are -- brimstone belongs with the working seams and not with the
+  // patient wealth in the north, because it is a REAGENT and a master smith
+  // will be coming back for it, load after load, for as long as they forge.
+  //
+  // Safe country, deliberately. The great arms already cost fourteen star
+  // ingots, and starmetal is Wilds work: asking the Wilds for the brimstone
+  // too would be two dangers for one weapon, which is the mistake §6av names
+  // about the handgonne's powder.
+  const ventCountry = (x, y) => {
+    if (B(x, y) !== 'crags') return false
+    return y > 200
+  }
+  counts.brimstone = clusterScatter('bvent', 4, ventCountry, (id, x, y) => E.addNode(w, id, 'brimstone-vent', x, y), 1, 6)
   // deep-fish: the Wilds-shore water at the DEEP end (12-20 tiles into the
   // Wilds) so fishing there is a real commitment, not a step-out. §6cz FIX: the
   // first version scanned a hardcoded pocket [x170-195, y108-140] that assumed a
