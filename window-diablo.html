@@ -5015,6 +5015,17 @@ const BEAST = {
   'shore-crab':      { s: 1.00, fam: 'carapace', hide: ['#6a3a26', '#96593a', '#2a1408'], eye: '#ffd85a' },
   sheep:             { s: .88, fam: 'sheep',    hide: ['#5a564c', '#7e7a6e', '#2a2723'], eye: '#c8c0a8' },
   dragon:            { s: 2.6, fam: 'wyrm',     hide: ['#42160f', '#6e2a18', '#140505'], eye: '#ffb03a' },
+  // §6cz: THE INCURSION FACES. One family -- 'wraith', a hooded hovering thing --
+  // in the material of the country it came from. Keyed 'incursion:<face>'.
+  'incursion:woodwraith':  { s: 1.15, fam: 'wraith', hide: ['#4a5a2c', '#6a7d3c', '#2c3a18'], eye: '#c8e070' },
+  'incursion:gargoyle':    { s: 1.2,  fam: 'wraith', hide: ['#5a5650', '#7c766a', '#343029'], eye: '#e0b050' },
+  'incursion:drownling':   { s: 1.15, fam: 'wraith', hide: ['#2f5a52', '#3f7a6c', '#183430'], eye: '#7ce0d0' },
+  'incursion:wilds-shade': { s: 1.15, fam: 'wraith', hide: ['#241f2a', '#3a3244', '#0e0b12'], eye: '#c060e0' },
+  'incursion:haunt':       { s: 1.15, fam: 'wraith', hide: ['#6a6a72', '#8e8e98', '#3e3e46'], eye: '#d0d0e0' },
+  incursion:               { s: 1.15, fam: 'wraith', hide: ['#6a6a72', '#8e8e98', '#3e3e46'], eye: '#d0d0e0' },
+  // §6cz: THE RISEN and THE GIBBET KING of the Moor.
+  risen:                   { s: .92, fam: 'risen',  hide: ['#5a6150', '#6e755f', '#2e332a'], eye: '#b060c0' },
+  'gibbet-king':           { s: 1.5, fam: 'king',   hide: ['#3a2440', '#4e3356', '#1c1020'], eye: '#c060e0' },
 }
 
 // ---- the grammar, as four helpers ----------------------------------------
@@ -5493,6 +5504,99 @@ function drawBeast(g, cx, base, type, t, opt) {
       emberEyes(g, nx2 - 6 * s, ny2 - 2 * s, 2 * s, B.eye, 4 * s, 18 * s)
       // the near wing, over the body
       wing(g, cx, bodyY, 1, flap, s, h, 1)
+      break
+    }
+
+    // ---- the wraith: the incursion. A hooded, hovering, tattered silhouette
+    // that leans toward its target. No legs -- it drifts. The material is in the
+    // hide colours (bark, stone, drowned, shadow, pale), so one family serves
+    // all five faces. It hits softly; the aura says "come help", not "flee".
+    case 'wraith': {
+      const hover = Math.sin(t * 1.8 + cx * .05) * 2.4 * s
+      const baseY = base - 4 * s + hover
+      const shY = baseY - 30 * s, hipY = baseY - 12 * s
+      const lean2 = (opt?.mad ? 4 : 2) * s
+      eliteAura(g, cx, base, 20 * s, B.eye, t)
+      // a faint seep of shadow on the ground instead of a solid shadow
+      g.save(); g.globalAlpha = .3
+      g.fillStyle = h[2]; g.beginPath(); g.ellipse(cx, base, 12 * s, 3.4 * s, 0, 0, 7); g.fill(); g.restore()
+      // drifting motes of the material
+      g.fillStyle = h[1]
+      for (let k = 0; k < 5; k++) {
+        const a = t * 1.1 + k * 1.5 + cx
+        g.globalAlpha = .3 + .25 * Math.sin(a * 1.3)
+        g.fillRect(cx + Math.cos(a) * (10 + k * 2) * s, baseY - 16 * s + Math.sin(a * 1.2) * 9 * s, 1.8 * s, 1.8 * s)
+      }
+      g.globalAlpha = 1
+      // the cloak-body: broad hooded shoulders tapering to a ragged, legless hem
+      poly(g, [[cx + lean2, shY], [cx + 11 * s, hipY], [cx + 8 * s, baseY],
+               [cx - 8 * s, baseY], [cx - 11 * s, hipY]], h[0], h[2])
+      poly(g, [[cx + lean2, shY + 3 * s], [cx + 7 * s, hipY], [cx + 5 * s, baseY - 2 * s],
+               [cx - 5 * s, baseY - 2 * s], [cx - 7 * s, hipY]], h[1])
+      tatters(g, cx, baseY - 3 * s, 16 * s, 8 * s, h[2], t, 5)
+      // reaching arm toward the target when engaged
+      if (opt?.swinging || opt?.mad) {
+        const rx = cx + lean2 + 13 * s + (opt?.swinging ? Math.sin(t * 8) * 4 * s : 0)
+        limb(g, cx + 6 * s + lean2, shY + 6 * s, rx, hipY, 3 * s, 1.2 * s, h[1])
+      }
+      // the hood: a dark hollow, two burning eyes deep in it
+      poly(g, [[cx + lean2, shY - 2 * s], [cx + 7 * s, shY + 7 * s],
+               [cx + lean2, shY + 11 * s], [cx - 7 * s, shY + 7 * s]], h[2])
+      emberEyes(g, cx + lean2, shY + 5 * s, 1.5 * s, B.eye, 2.6 * s, 10 * s)
+      break
+    }
+
+    // ---- the risen: the King's shambling dead. A lurching grave-corpse, kin to
+    // the wraith but rougher, smaller, with legs that drag.
+    case 'risen': {
+      groundShadow(g, cx + 2 * s, base - 1, 15 * s, 6 * s, .5)
+      const lurch = (opt?.moving ? Math.abs(step) : Math.sin(t * 1.6) * .4) * 3 * s
+      const shY = base - 24 * s - breathe, hipY = base - 11 * s
+      // dragging legs
+      limb(g, cx - 3 * s, hipY, cx - 5 * s + step * 2 * s, base, 2.6 * s, 1.4 * s, h[2])
+      limb(g, cx + 3 * s, hipY, cx + 4 * s, base, 2.6 * s, 1.4 * s, h[2])
+      // hunched torso
+      poly(g, [[cx - 8 * s, shY], [cx + 8 * s, shY], [cx + 6 * s, hipY], [cx - 6 * s, hipY]], h[0], h[2])
+      poly(g, [[cx - 5 * s, shY + 2 * s], [cx + 5 * s, shY + 2 * s], [cx + 4 * s, hipY], [cx - 4 * s, hipY]], h[1])
+      tatters(g, cx, hipY - 1 * s, 12 * s, 8 * s, h[2], t, 4)
+      // one reaching arm
+      const rx = cx + 10 * s + (opt?.swinging ? Math.sin(t * 8) * 4 * s : 0)
+      limb(g, cx + 6 * s, shY + 4 * s, rx, hipY + 2 * s, 2.4 * s, 1.1 * s, h[1])
+      // gaunt head
+      poly(g, [[cx - 4 * s, shY - 6 * s], [cx + 4 * s, shY - 6 * s], [cx + 3 * s, shY + 1 * s], [cx - 3 * s, shY + 1 * s]], h[1])
+      emberEyes(g, cx, shY - 3 * s, 1.1 * s, B.eye, 2 * s, 7 * s)
+      break
+    }
+
+    // ---- the king: the Gibbet King. A tall crowned corpse in a royal robe at
+    // his gallows-frame, a violet will burning where his eyes were. He does not
+    // chase; he presides.
+    case 'king': {
+      // the gibbet frame behind him
+      g.strokeStyle = '#241a12'; g.lineWidth = 3.4 * s; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(cx - 16 * s, base + 2); g.lineTo(cx - 16 * s, base - 46 * s); g.lineTo(cx + 8 * s, base - 46 * s); g.stroke()
+      g.strokeStyle = '#140d08'; g.lineWidth = 1.6 * s
+      g.beginPath(); g.moveTo(cx + 6 * s, base - 46 * s); g.lineTo(cx + 6 * s, base - 36 * s); g.stroke()
+      g.fillStyle = '#140d08'; g.beginPath(); g.arc(cx + 6 * s, base - 35 * s, 2 * s, 0, 7); g.fill()
+      eliteAura(g, cx, base, 24 * s, B.eye, t)
+      groundShadow(g, cx, base - 1, 16 * s, 5 * s, .5)
+      const shY = base - 34 * s - breathe, hipY = base - 12 * s
+      // the long robe
+      poly(g, [[cx, shY], [cx + 13 * s, hipY], [cx + 10 * s, base], [cx - 10 * s, base], [cx - 13 * s, hipY]], h[0], h[2])
+      poly(g, [[cx, shY + 4 * s], [cx + 9 * s, hipY], [cx + 7 * s, base - 2 * s], [cx - 7 * s, base - 2 * s], [cx - 9 * s, hipY]], h[1])
+      tatters(g, cx, base - 4 * s, 20 * s, 8 * s, h[2], t, 6)
+      // ribs at the chest
+      g.strokeStyle = '#c8c0b0'; g.lineWidth = 1 * s
+      for (let r = 0; r < 3; r++) { g.beginPath(); g.moveTo(cx - 5 * s, shY + 6 * s + r * 3 * s); g.lineTo(cx + 5 * s, shY + 6 * s + r * 3 * s); g.stroke() }
+      // bone hands crossed
+      g.fillStyle = '#d8d0c0'; g.fillRect(cx - 5 * s, hipY - 2 * s, 4 * s, 2.4 * s); g.fillRect(cx + 1 * s, hipY - 2 * s, 4 * s, 2.4 * s)
+      // the skull
+      g.fillStyle = '#e6e0cd'; g.beginPath(); g.arc(cx, shY - 4 * s, 6 * s, 0, 7); g.fill()
+      g.fillStyle = '#cfc7b4'; g.fillRect(cx - 3 * s, shY - 1 * s, 6 * s, 3 * s)
+      emberEyes(g, cx, shY - 4 * s, 1.6 * s, B.eye, 3 * s, 12 * s)
+      // the crown
+      g.fillStyle = '#d8b03a'; g.fillRect(cx - 6 * s, shY - 11 * s, 12 * s, 2.4 * s)
+      for (const dx of [-5, 0, 5]) spike(g, cx + dx * s, shY - 11 * s, 5 * s, -1.5708, 1.8 * s, '#f0d45a')
       break
     }
   }
@@ -9540,8 +9644,9 @@ function drawScene(now) {
       const moving = wasHere && (wasHere[0] !== m.x || wasHere[1] !== m.y)
       const mSw = swingAt.get('m' + it.id)
       const mSwing = mSw ? (now - mSw) < 420 : false
+      const _beastType = (m.type === 'incursion' && m.face) ? ('incursion:' + m.face) : m.type
       flashed(g, 'm' + it.id, sx, sy, (gg, ax, ay, sc) =>
-        drawBeast(gg, ax, ay, m.type, now / 1000, { mad, moving, swinging: mSwing, scale: sc }))
+        drawBeast(gg, ax, ay, _beastType, now / 1000, { mad, moving, swinging: mSwing, scale: sc }))
       const st = MOB_STATS[m.type]
       if (st && m.hp < st.maxHp) {
         const w = 32
