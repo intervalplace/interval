@@ -467,6 +467,36 @@ function roadTilesE() {
   return (_roadSet = set)
 }
 const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
+
+// §6cz: WHO IS MOUNTED, and it is deliberately not a pure function of the tile.
+//
+// Two faults a straight `onRoadE(x,y)` has, both only visible in motion:
+//
+//   FLICKER. Roads meander and a citizen walking one clips on and off the
+//   tiles constantly, so a strict test had them vaulting on and off a horse
+//   several times a second. A rider who has just stepped off the verge is
+//   still a rider, so the horse LINGERS a couple of intervals past the last
+//   road tile and the wobble disappears.
+//
+//   FIGHTING. Nothing in this world does mounted combat, so a rider swinging a
+//   maul would promise a rule that does not exist. They get down, and they
+//   stay down a moment after it ends rather than popping back up between
+//   swings.
+//
+// A HAULER IS MOUNTED EVERYWHERE. The traveller's horse belongs to the road;
+// the hauler's belongs to the CONSIGNMENT -- take the container, get the beast
+// that carries it. That gives the off-road silhouette a meaning it did not
+// have: on a road everybody is mounted and it tells you nothing, but off one,
+// mounted means CARRYING, which is the single fact `mayStrike` turns on.
+const MOUNT_LINGER = 1800, MOUNT_REMOUNT = 2200
+const _rodeAt = new Map(), _fellOffAt = new Map()
+function mountedNow(pid, p, nowMs) {
+  const act = p?.action?.type
+  if (act === 'attack' || act === 'attackp') { _fellOffAt.set(pid, nowMs); return false }
+  if (nowMs - (_fellOffAt.get(pid) ?? -1e9) < MOUNT_REMOUNT) return false
+  if (onRoadE(p.x, p.y) || !!p.consignment) { _rodeAt.set(pid, nowMs); return true }
+  return nowMs - (_rodeAt.get(pid) ?? -1e9) < MOUNT_LINGER
+}
 function biomeAtE(x, y) {
   if (x <= Math.round(W * 0.19)) return 'wilds'
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
@@ -5637,6 +5667,109 @@ function lookOf(pidOrPlayer, maybeId) {
 // the little citizen: shadow, legs, tunic, arms, tool, head. ~26px tall.
 function drawCitizen(X, Y, o) {
   const now = o.now
+  // §11: THE LOAD IS ON THEIR BACK, and it is drawn before the body so it sits
+  // behind them. Roped crates, stacked as high as the container is full -- a
+  // citizen carrying one slot and a citizen carrying twenty-eight should not
+  // look the same, because what is on the cart is what makes them worth
+  // robbing (§11d).
+  //
+  // Mounted, it goes on the horse instead (further down): a laden animal reads
+  // as a caravan and a laden man reads as a porter, and the world has both.
+  if (o.hauling && !o.mounted) {
+    const FB = -(o.face ?? 1)                                  // behind them
+    const tiers = Math.max(1, Math.min(3, Math.ceil((o.haulLoad ?? 1) / 10)))
+    for (let k = 0; k < tiers; k++) {
+      cx.fillStyle = k === 1 ? '#7a5a34' : '#6b4a2c'
+      cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 20 - k * 4.4, 6.5, 4.2)
+      cx.fillStyle = 'rgba(0,0,0,.28)'                         // the rope round it
+      cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 21.4 - k * 4.4, 6.5, 0.9)
+    }
+    cx.fillStyle = '#3a2a1a'                                   // the strap over the shoulder
+    cx.fillRect(X + 16 + FB * 3, Y + 17, 2, 6)
+  }
+  // §6cz: THE ROAD PUTS YOU ON A HORSE.
+  //
+  // Purely a picture. Roads carry no speed and grant nothing -- §2b-i's promise
+  // that nobody can be run down falls out of one deed per interval, and a mount
+  // that actually moved faster would break it. This exists so the road network,
+  // drawn across the whole island, reads as a road when somebody travels it.
+  //
+  // PROPORTION IS THE WHOLE PROBLEM, and two cuts of this got it wrong before
+  // anybody looked. A citizen stands thirty pixels; the first horses were about
+  // twelve at the withers, which put a horse's back at a standing man's KNEE
+  // and read as a toy -- a bench with a head on it, with an enormous person
+  // perched on top. A riding horse's withers are near a person's shoulder.
+  //
+  // So the numbers here are anchored, not eyeballed: hooves on the same ground
+  // line the citizen stands on (Y+35), withers at Y+13, which is twenty-two
+  // pixels of animal against thirty of person. Legs are eleven, not seven. The
+  // barrel is deep rather than flat. And the rider is lifted SIXTEEN, so their
+  // hem sits on the horse's back instead of hovering over it.
+  if (o.mounted) {
+    const F2 = o.face ?? 1
+    const gait = o.anim === 'walk' ? Math.sin(now / 110) : 0
+    const GND = Y + 35, BY = Y + 19                     // hoof line, barrel centre
+    const CXH = X + 14
+    cx.fillStyle = 'rgba(0,0,0,.25)'
+    cx.beginPath(); cx.ellipse(CXH + 1, GND - 0.5, 14, 3.2, 0, 0, 7); cx.fill()
+    const fore = CXH + F2 * 10, hind = CXH - F2 * 10
+    // FAR PAIR FIRST, darker and offset, so the animal has depth
+    cx.strokeStyle = '#3f2c1c'; cx.lineWidth = 3; cx.lineCap = 'round'
+    cx.beginPath()
+    cx.moveTo(fore - F2 * 2.5, BY + 4); cx.lineTo(fore - F2 * 2.5 - gait * 2, GND)
+    cx.moveTo(hind - F2 * 2.5, BY + 4); cx.lineTo(hind - F2 * 2.5 + gait * 2, GND)
+    cx.stroke()
+    cx.strokeStyle = '#5a3f26'; cx.lineWidth = 3.6      // near pair
+    cx.beginPath()
+    cx.moveTo(fore, BY + 4); cx.lineTo(fore + gait * 2, GND)
+    cx.moveTo(hind, BY + 4); cx.lineTo(hind - gait * 2, GND)
+    cx.stroke()
+    cx.strokeStyle = '#c9b48c'; cx.lineWidth = 3.6      // one white sock
+    cx.beginPath(); cx.moveTo(fore + gait * 1.6, GND - 3.5); cx.lineTo(fore + gait * 2, GND); cx.stroke()
+    // AND SLIM. At thirteen by six with a five-and-a-half haunch it stopped
+    // being a horse and became an ox -- the height was right and the DEPTH was
+    // not. A riding horse is long and comparatively shallow through the body.
+    cx.fillStyle = '#6b4a2c'
+    cx.beginPath(); cx.ellipse(CXH, BY, 12, 4.4, 0, 0, 7); cx.fill()
+    cx.fillStyle = '#7d5833'                            // the lit back
+    cx.beginPath(); cx.ellipse(CXH, BY - 1.4, 11.4, 2.6, 0, 0, 7); cx.fill()
+    cx.fillStyle = '#5c4023'                            // haunch, just enough to shape it
+    cx.beginPath(); cx.ellipse(hind + F2 * 2.5, BY + 0.6, 4.2, 4.4, 0, 0, 7); cx.fill()
+    cx.fillStyle = '#63452a'                            // chest, the same at the front
+    cx.beginPath(); cx.ellipse(fore - F2 * 1.5, BY + 0.4, 3.6, 4.2, 0, 0, 7); cx.fill()
+    // NECK AND HEAD: rising, and well clear of the rider's own body
+    const NX = CXH + F2 * 10, NY = BY - 2.5
+    cx.fillStyle = '#6b4a2c'
+    cx.beginPath()
+    cx.moveTo(NX - F2 * 1.6, NY + 3); cx.lineTo(NX + F2 * 3.4, NY - 10)
+    cx.lineTo(NX + F2 * 9, NY - 12.5); cx.lineTo(NX + F2 * 10, NY - 9)
+    cx.lineTo(NX + F2 * 5.4, NY - 6.5); cx.lineTo(NX + F2 * 2.8, NY + 3.2)
+    cx.closePath(); cx.fill()
+    cx.fillStyle = '#7d5833'                            // muzzle
+    cx.beginPath(); cx.ellipse(NX + F2 * 8.9, NY - 10.4, 2.5, 1.9, 0, 0, 7); cx.fill()
+    cx.fillStyle = '#2b1d12'                            // ear
+    cx.beginPath()
+    cx.moveTo(NX + F2 * 3.8, NY - 11.4); cx.lineTo(NX + F2 * 4.2, NY - 15)
+    cx.lineTo(NX + F2 * 5.8, NY - 11.8); cx.closePath(); cx.fill()
+    cx.fillStyle = '#1a1108'
+    cx.fillRect(NX + F2 * 6.2 - 0.6, NY - 10.8, 1.3, 1.3)   // eye
+    cx.fillStyle = '#2b1d12'                            // mane down the crest
+    cx.beginPath()
+    cx.moveTo(NX - F2 * 1.2, NY + 2); cx.lineTo(NX + F2 * 3.4, NY - 10.6)
+    cx.lineTo(NX + F2 * 5.2, NY - 10.2); cx.lineTo(NX + F2 * 0.8, NY + 2.8)
+    cx.closePath(); cx.fill()
+    cx.beginPath()                                      // tail
+    cx.moveTo(hind - F2 * 3, BY - 2); cx.lineTo(hind - F2 * 7, BY + 9 + gait * 2)
+    cx.lineTo(hind - F2 * 3.4, BY + 6); cx.closePath(); cx.fill()
+    cx.fillStyle = '#3a2a1a'                            // saddle, on the back
+    cx.fillRect(CXH - 4, BY - 6.5, 10, 3)
+    if (o.hauling) {                                    // §11: a laden animal
+      cx.fillStyle = '#6b4a2c'; cx.fillRect(hind + F2 * 1, BY - 1, 7, 7)
+      cx.fillStyle = 'rgba(0,0,0,.3)'; cx.fillRect(hind + F2 * 1, BY + 1.6, 7, 1.1)
+      cx.fillStyle = '#7a5a34'; cx.fillRect(hind + F2 * 2, BY - 6, 5.4, 4.6)
+    }
+    Y -= 16                                             // the rider sits ON the back
+  }
   // §6bu: ALIGHT. Half of this is drawn under the body and half over it, and
   // the split is the whole difference between reading and not reading.
   //
@@ -5750,6 +5883,33 @@ function drawCitizen(X, Y, o) {
   const skin = flash ? '#ffffff' : look.skin
 
   // legs (alternate while walking)
+  // §6cz: A RIDER DOES NOT STAND. Mounted, the legs become one short thigh
+  // down the near flank with a boot at the stirrup -- draw the standing pair
+  // and the citizen reads as somebody stood behind a horse rather than on it.
+  if (o.mounted) {
+    // A SEATED LEG GOES FORWARD AND DOWN THE FLANK. Anchored to the animal
+    // rather than to the citizen: the hip is at the hem (which is now the
+    // horse's back), the knee is forward over the barrel, and the boot hangs
+    // at the girth. Drawn DARK -- the first cut used the breeches' own brown
+    // over a brown barrel and the rider came out legless, which reads as
+    // floating just as badly as standing does.
+    const F3 = o.face ?? 1
+    const hipX = X + 18, kneeX = X + 18 + F3 * 6
+    cx.fillStyle = o.legs ? '#e8b93a' : '#2b2016'
+    cx.beginPath()
+    cx.moveTo(hipX - F3 * 2, Y + 28); cx.lineTo(kneeX, Y + 33)
+    cx.lineTo(kneeX, Y + 36); cx.lineTo(hipX - F3 * 2, Y + 32); cx.closePath(); cx.fill()
+    if (o.legs) {
+      cx.fillStyle = 'rgba(255,244,190,.5)'
+      cx.beginPath()
+      cx.moveTo(hipX - F3 * 2, Y + 28); cx.lineTo(kneeX, Y + 33)
+      cx.lineTo(kneeX, Y + 34); cx.lineTo(hipX - F3 * 2, Y + 29); cx.closePath(); cx.fill()
+    }
+    cx.fillStyle = o.legs ? '#e8b93a' : '#2b2016'
+    cx.fillRect(kneeX - 1.8, Y + 34, 3.6, 5)              // the shin
+    cx.fillStyle = '#2b2016'
+    cx.fillRect(kneeX - 2.3, Y + 38.4, 4.6, 2.2)          // boot, in the stirrup
+  } else {
   cx.fillStyle = '#4a3a26'
   cx.fillRect(X + 16 + step * 1.5, Y + 28, 3.4, 7 - Math.abs(step))
   cx.fillRect(X + 21 - step * 1.5, Y + 28, 3.4, 7 - Math.abs(step))
@@ -5768,6 +5928,7 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = 'rgba(90,60,0,.30)'
     cx.fillRect(X + 15 + step * 1.5, Y + 31.5, 3.6, 0.9)
     cx.fillRect(X + 20.9 - step * 1.5, Y + 31.5, 3.6, 0.9)
+    }
   }
   // tunic (trapezoid, slight lean while working)
   const lean = swing * 1.5 * F
@@ -8254,6 +8415,19 @@ function drawScene(now) {
           starHelm: p.equipment?.head?.item === 'star-helm', starPlate: p.equipment?.body?.item === 'star-plate',
           headItem: p.equipment?.head?.item ?? null, bodyItem: p.equipment?.body?.item ?? null,
           hooded: !!p.hooded,
+          // §6cz: DERIVED, NOT STORED. A citizen is mounted because of where
+          // they are standing, so the window works it out from the road it is
+          // already drawing. Nothing enters the state, no rule changes, and a
+          // terminal that cannot draw a horse loses nothing but a horse.
+          mounted: mountedNow(pid, p, now),
+          // §11: WHO IS CARRYING. `mayStrike` lets two consignment-bearers
+          // fight ANYWHERE, safe country included -- so a citizen's carrying
+          // is the single fact that decides whether they may be struck where
+          // they stand, and no window drew it. You could not tell a hauler
+          // from a walker, which meant you could not tell whether the person
+          // approaching you on the road was allowed to hit you.
+          hauling: !!p.consignment,
+          haulLoad: p.consignment ? (p.consignment.items ?? []).filter(Boolean).length : 0,
           burning: (p.burnUntil ?? 0) > (world?.tick ?? 0),
           shield: p.equipment?.offhand?.item ?? null, legs: p.equipment?.legs?.item ?? null,
           goldHelm: p.equipment?.head?.item === 'gold-helm', goldPlate: p.equipment?.body?.item === 'gold-plate',
