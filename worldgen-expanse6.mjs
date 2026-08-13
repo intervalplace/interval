@@ -1546,6 +1546,12 @@ export function groundKindAt(g, x, y) {
         // enclosure, not the character: a booth, a hearth and the clerk all
         // stand on the same floor as the empty tile beside them
         if (isIndoor(st.tag, rows, rx, ry)) return 'floor'
+        // §6cz: MILLBROOK IS A MARKET, AND A MARKET IS PAVED. The market's
+        // drawing is spacious -- shops with a plaza between them -- and
+        // townPaved only pays the tiles beside a building, so the open market
+        // came out as grass with shops standing in a field. A market square is
+        // cobbled end to end; pave the whole of its rect.
+        if (st.tag === 'millbrook') return onRoad(g, x, y) ? 'cobble' : 'flag'
         // and the paving reaches only as far as the town does
         if (!townPaved(rows, rx, ry)) return onRoad(g, x, y) ? 'trail' : null
       }
