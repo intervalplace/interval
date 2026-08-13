@@ -5830,6 +5830,12 @@ function buildSkinCore(hv, tunicHex, skinHex, trouserUp, trouserLo, clothTex) {
     normalScale: new THREE.Vector2(0.5, 0.5) })
   const mesh = new THREE.SkinnedMesh(merged, mat)
   mesh.castShadow = true
+  // AND RECEIVES. A body that only casts is lit by a sun the rest of the
+  // world is standing out of: walk under a tree and the grass darkens while
+  // the citizen stays in full noon, which is the exact cue that reads as a
+  // sticker laid over a photograph. Receiving also buys self-shadowing, so
+  // an arm darkens the tunic it swings across and the head shades the neck.
+  mesh.receiveShadow = true
   mesh.add(hips)
   hips.updateMatrixWorld(true)
   mesh.bind(new THREE.Skeleton(bones))
@@ -5942,6 +5948,7 @@ function buildBeastCore(type) {
     normalMap: clothDetail?.normal ?? null, normalScale: new THREE.Vector2(0.7, 0.7) })
   const mesh = new THREE.SkinnedMesh(merged, mat)
   mesh.castShadow = true
+  mesh.receiveShadow = true   // see buildSkinCore: casting without receiving is the sticker cue
   mesh.add(hips)
   hips.updateMatrixWorld(true)
   mesh.bind(new THREE.Skeleton(bones))
