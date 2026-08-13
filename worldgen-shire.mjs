@@ -27,7 +27,7 @@
 //   '@'  the plan's origin (open, reserved). Optional: absent, the plan
 //        centres on the settlement's anchor.
 // ---------------------------------------------------------------------
-export const LEGEND = {
+const LEGEND_BASE = {
   // TWO KINDS OF WALL, one node type. The engine is explicit that "only a
   // landmark bears a kind", so a rampart and a cottage wall are the same
   // node in the state -- and they must be, or the geography hash would care
@@ -66,6 +66,7 @@ export const LEGEND = {
                       // the plans, so they look up the 'U' and draw a basin
                       // instead of a windlass. Same trick as the ramparts.
 }
+export const LEGEND = LEGEND_BASE
 // ',' is INTERIOR FLOOR. Open ground like '.', reserved so nothing scatters
 // on it, but it carries a different surface: boards, not dirt. Dragon Quest
 // makes a shop read as INSIDE not with its walls but with its floor -- you
@@ -900,6 +901,15 @@ export function checkPlanConnected(name, rows, cx, cy, ctx) {
 export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
   const { g, E, w, taken, key, inB, isWater, reserve, onRoad } = ctx
   const nameKeeper = opts.nameKeeper
+  // §0e (v6): THE LEGEND IS A PARAMETER, defaulting to this file's own.
+  //
+  // The plans here are frozen -- v1 through v5 hash on them -- and so is what
+  // their glyphs mean. v6 needed exactly one glyph to mean something else
+  // ('U', the fountain, which stopped being decoration), and rewriting LEGEND
+  // in place would have moved five foundings that have nothing to do with it.
+  // A caller that passes no legend gets the frozen one and is bit-for-bit
+  // unmoved, which is the same courtesy `onRoad` is given.
+  const LEGEND = opts.legend ?? LEGEND_BASE
   const { w: pw, h: ph } = validatePlan(name, rows)
   const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
   // '!' is a landmark, and the engine requires every landmark to name its

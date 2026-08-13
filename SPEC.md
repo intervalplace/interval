@@ -283,6 +283,21 @@ pretends to. §0g is convention, and convention is sufficient for what it is for
   unforgivable outcome is that they find out late. A banner that does not leave
   and a world drawn visibly apart are worth more than any number of messages,
   because neither can be looked away from.
+- A window SHOULD hold the last frame of Nought while the world arrives over
+  it, rather than cutting. Both worlds stand on the same coordinates, so nobody
+  has to be moved: the same view fills with everything the citizens have done
+  since the founding, and the tick runs up from nothing to now underneath it.
+
+  This is the only frame of the island unwalked that this person will ever see,
+  and cutting throws it away. What is being shown is not a room changing but a
+  place transformed by other people's time, which is the true fact and the one
+  worth two seconds.
+
+- A window MAY tell a citizen who touches the fountain what it is. It will never
+  work for them again -- it takes nobody twice -- and it stands in the busiest
+  square in Tallyholm doing nothing at all. It needs no rule to be a memorial;
+  it needs somebody to say so.
+
 - A window SHOULD show the queue rather than hide it. §5h admits one soul per
   interval, so a crossing may not take on the first tick and the window simply
   keeps sending. That wait is the rule, and it is the only place in the world

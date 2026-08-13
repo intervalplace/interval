@@ -144,7 +144,11 @@ let _sourceHash = null
  */
 export async function loadEngine (url = './engine.js') {
   if (_engine) return _engine
-  const res = await fetch(url, { cache: 'no-cache' })
+  // `document?.baseURI` is NOT enough: optional chaining guards a declared but
+  // nullish value, not an undeclared identifier, and threw ReferenceError under
+  // node before it could reach the fetch.
+  const base = (typeof document !== 'undefined' && document.baseURI) || import.meta.url
+  const res = await fetch(new URL(url, base).href, { cache: 'no-cache' })
   if (!res.ok) throw new Error('engine-browser: could not fetch ' + url + ' (' + res.status + ')')
   const src = await res.text()
   _sourceHash = await sha256Hex(new TextEncoder().encode(src))
