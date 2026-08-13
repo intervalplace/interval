@@ -4175,7 +4175,7 @@ than a wall: four at a time is survivable, but they come again while you
 close the distance.
 
 ```
-risen · maxHp 12 · atk 4 · def 3 · maxHit 2 · aggro 6 · summoned · drops: bones
+risen · maxHp 12 · atk 22 · def 3 · maxHit 5 · aggro 6 · summoned · drops: bones
 ```
 
 **The risen exist only while he does.** A risen is his: it carries the mark
@@ -4231,14 +4231,38 @@ every node.
 
 **The incursion — a roaming shared fight.** A thing walks out of the dark, fixes
 on **one** citizen, and takes a while to put down — two to seven minutes for a
-master. Its body is **scaled to its target at spawn** (an incursion carries its
-own `maxHp`, `def`, `goneBy`, `leash`, and origin tile — the only mob permitted
-those fields). It hits softly relative to its bulk, so anyone may safely turn and
-help; the danger is not the point, the **gathering** is. It never loses the scent
-of the one it came for, out to its leash, and it is bounded in time — it must be
-gone by `goneBy` — so it is a shared fight that flares and passes, not a fixture.
-Its face is contextual: the dark takes the shape of the country and the skill it
-interrupts.
+master. It only ever comes for a citizen who is **awake**. Its body is **scaled
+to its target at spawn** (an incursion carries its own `maxHp`, `def`, `maxHit`,
+`goneBy`, `leash`, and origin tile — the only mob permitted those fields). It
+hits softly, and softly relative to the *target* rather than a fixed number: its
+`maxHit` is about a tenth of the target's hitpoints, floored at 1 and capped at
+the table's 4, so a ten-hitpoint newcomer takes at most a scratch and only a
+seasoned fighter feels the full blow. The danger is not the point, the
+**gathering** is.
+
+It answers **one citizen and no other**, immutably. The one it came for is fixed
+at spawn and never moves: it does not start on whoever wanders near (it has no
+hunting aggro), it does not answer the neighbours who strike it, a gunshot does
+not turn it, and it never forgets — if its target flees past its leash it simply
+stands and takes what comes until they return or it times out. This is the whole
+mechanism of "the neighbours notice and come": everyone but the target may walk
+up and help kill it in perfect safety, because it will never turn on them. It is
+bounded in time (it must be gone by `goneBy`), so an unanswered one is a story —
+it came, none came, it left — and never a fixture.
+
+**Its face is contextual, and named.** The dark takes the shape of the country
+and the skill it interrupts. Chopping (or the Greenwood) → a **woodwraith**;
+mining (or the Crags) → a **gargoyle**; fishing (or the Fens) → a **drownling**;
+the Wilds → a **wilds-shade**; anything else (the settled country, no active
+gathering) → a **haunt**. The five are one silhouette — a hooded, drifting,
+legless thing — wearing the material of their country (bark, stone, drowned
+green, shadow, pale). The face is flavour over one scaled body, but it decides
+the **drops**: each face gives up the two tool tiers of the skill it answers to
+— a woodwraith drops the iron then the steel hatchet, a gargoyle the pickaxes, a
+drownling the rods (1 in 32 and 1 in 128) — while the two open-country faces, the
+wilds-shade and the haunt, carry the **horn** instead, the reward for the fights
+that were about nothing but who came. **None of them drop bones:** they are
+conjured of the country, not beasts with skeletons to leave.
 
 **The bloom — a roaming rich spot.** Where the incursion is a threat that gathers
 people to fight, the bloom is an **opportunity** that gathers them to work: a
