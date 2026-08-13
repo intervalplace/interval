@@ -230,6 +230,10 @@ export class IntervalClient {
   // tiles, alive, with the staff still in hand, and a pile may be sealed once
   // and once only.
   seal(groundId) { return this.#send({ type: 'seal', groundId }) }
+  // §6br: cut another citizen's name into a stone. Never your own -- the world
+  // refuses a graver aimed at its holder -- and both of you must be standing
+  // at it. One name per stone, and the chisel is spent.
+  grave(nodeId, target) { return this.#send({ type: 'grave', nodeId, target }) }
 
   // ---- what a pot will take ----
   // brew() is unchanged: grain makes ale, a raw fish makes broth, and a DEEP
