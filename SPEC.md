@@ -283,21 +283,6 @@ pretends to. §0g is convention, and convention is sufficient for what it is for
   unforgivable outcome is that they find out late. A banner that does not leave
   and a world drawn visibly apart are worth more than any number of messages,
   because neither can be looked away from.
-- A window SHOULD hold the last frame of Nought while the world arrives over
-  it, rather than cutting. Both worlds stand on the same coordinates, so nobody
-  has to be moved: the same view fills with everything the citizens have done
-  since the founding, and the tick runs up from nothing to now underneath it.
-
-  This is the only frame of the island unwalked that this person will ever see,
-  and cutting throws it away. What is being shown is not a room changing but a
-  place transformed by other people's time, which is the true fact and the one
-  worth two seconds.
-
-- A window MAY tell a citizen who touches the fountain what it is. It will never
-  work for them again -- it takes nobody twice -- and it stands in the busiest
-  square in Tallyholm doing nothing at all. It needs no rule to be a memorial;
-  it needs somebody to say so.
-
 - A window SHOULD show the queue rather than hide it. §5h admits one soul per
   interval, so a crossing may not take on the first tick and the window simply
   keeps sending. That wait is the rule, and it is the only place in the world
@@ -4782,6 +4767,133 @@ Only what was **consigned** becomes a cart, which keeps §11d's separation
 exactly where it was: what a citizen carried is theirs and dies with them;
 what the container held was committed to the road and belongs to it.
 
+## 6bw. The armour ladder: shell, and the two refusals (v0.87)
+
+```
+shell-helm    def 15 · armour 10 · smithing 22 · 2 crab-shell, 1 iron · 26g
+shell-plate   def 15 · armour 15 · smithing 26 · 4 crab-shell, 2 iron · 68g
+great-helm    def 70 · armour 12 · smithing 70 · 6 star-ingot, 2 brimstone
+great-plate   def 70 · armour 18 · smithing 70 · 12 star-ingot, 3 brimstone
+```
+
+### What the table looked like when somebody counted it
+
+```
+   1   iron-shield              (iron helm and plate: NO requirement at all)
+  30   steel-shield
+  32   steel-helm
+  38   steel-plate
+  40   king-shroud
+  45   star-helm, gold-helm, gold-legs
+  48   star-shield
+  50   star-plate, gold-plate
+       ...and then forty-nine levels of nothing
+```
+
+Thirty-one levels at the bottom with nothing to want, eighteen levels in the
+middle carrying the entire skill, and forty-nine at the top with nothing at
+all — the longest dead band left in the world once the arms were fixed. Half
+of defence was spent earning a number that unlocked nothing.
+
+### Shell, out of a thing that had no use
+
+The shore-crab drops `crab-shell`, and §6z said plainly that it is worth money
+and nothing else, that not every drop needs to be an input. **That section is
+amended here, and it should be read as a change of mind rather than an
+oversight.** The argument was right in general and wrong in this one case: the
+hole in the armour ladder sits exactly where a new citizen is fighting crabs,
+and shell is what armour was made of before anybody could smelt.
+
+Wool keeps §6z's original point. It is still worth money and nothing else, and
+that is still fine.
+
+Shell is banded on with iron — the shell is the armour, the iron is what holds
+it there — so it is a recipe rather than a purchase, and the crab becomes an
+early fight worth having rather than a thing that happens to you on a beach.
+
+### The two refusals
+
+The mastery pair does **not** soak better than steel. Each piece spends itself
+to say no, once, to the worst thing in its category, and is then gone:
+
+- **the plate refuses death** — a blow that would put you at nothing leaves you
+  at one instead, and it shatters
+- **the helm refuses being held** — the next root that would take your feet
+  does not, and it splits
+
+Death for the body, the loss of your own control for the head. Those are the
+two things §2b-i already says this constitution cares most about, which is why
+they are the two things a master's armour can refuse.
+
+Keeping both off the damage ladder is the whole trick. Neither piece is *more
+armour*, so neither starts an arms race with the great arms that answer
+armour — §6bt gave attack a way through a shield, and if defence had answered
+with a bigger number the two would simply climb past each other forever.
+
+**A helm never refuses a stilling.** A root is a weapon's grip and may be
+broken by better gear. A stilling is a **truce**, and §6k built the whole of
+magic on it. Armour that let a master ignore a peace would undo the one
+capstone in this world that exists to stop a fight rather than win one.
+
+### Steel's numbers, deliberately
+
+Great plate soaks eighteen where star plate soaks twenty-four.
+
+A piece that soaked best *and* saved your life would be worn every day and
+break every day, and starmetal armour would be retired the afternoon it
+appeared. At eighteen it is what you put on for a fight you think you might
+lose, and star plate stays what you wear the rest of the time. The same
+reasoning kept specials off the great arms.
+
+It also gives the top of this game its **first consumable**. Everything else a
+master owns is permanent; these spend themselves, so they are a sink that
+scales with how often people actually fight rather than with how long they
+have played. That is the second such sink in the world, and the dedication
+stone (§6bp) is the first.
+
+## 6bx. What a body leaves behind (v0.87)
+
+**Worn gear now spills when a citizen kills you.** It did not before: the
+spill loop walked `q.inventory` and then nulled `q.equipment` wholesale, so a
+citizen killed in full star gear destroyed roughly two thousand gold of armour
+that nobody could pick up. The killer took the pack, and the plate simply
+ceased to exist.
+
+That was a bug and the engine says so in three places. Prayer already weighs
+the equipment slots (§6bz), so worn things were plainly meant to be ordinary
+property. The dragonbow's own comment claims it "spills to the ground when
+they fall in PvP" — true only if it was carried rather than held. And §6c's
+argument was always about risk **passing to the killer**, not about
+destruction: what makes the Wilds dangerous is that somebody else ends up with
+your things.
+
+Kept gear is not duplicated: what a mourner's prayer carries through is
+matched off before the spill, exactly as it is for the pack.
+
+### And a beast still destroys everything
+
+This is deliberate and it stays. Death to a mob annihilates pack and armour
+alike, anywhere in the world, and only prayer holds anything back.
+
+**A robbery has a beneficiary; an accident does not.** That distinction is
+worth more than consistency here, for three reasons:
+
+- **Gear must leave the world faster than it enters.** Death by beast is the
+  only large equipment sink this world has. If everything spilled everywhere,
+  every plate ever forged would circulate for as long as the founding lasts,
+  and a decade-old world drowns in starmetal.
+- **Safe country has no contest.** Loot on the ground where nobody may fight
+  for it is a race decided by whose window clicks faster — precisely the fault
+  §6bq built the cart to avoid. A citizen killed by a wolf outside a town
+  should not have their pack become a footrace among bystanders.
+- **It keeps the Wilds meaningful.** Out there both things can happen to you,
+  and only one of them makes somebody else rich.
+
+The consequence is worth naming plainly: with worn gear spilling, killing a
+citizen is now substantially more profitable than it was, because the best
+things anybody owns are usually being worn rather than carried. That is a
+balance change and not only a repair.
+
 ## 6af. The special blow (v0.81)
 
 Three weapons can strike off the rhythm. Each does **one thing you can say in
@@ -4912,7 +5024,8 @@ five-hitpoint sheep in the safest country on the island would be the
 cheapest attack experience in the world. Forty at defence eight is about a
 minute's work. It is the same reason the crab is ninety.
 
-**Wool is worth money and nothing else**, exactly as `crab-shell` is. Not
+**Wool is worth money and nothing else.** (`crab-shell` was the other
+example here until §6bw made it armour; wool alone carries the point now.) Not
 every drop has to be an input to something. Clothing was considered and
 rejected: armour in this world only soaks and never penalises ranged, so an
 archer's tunic would be a star-plate that soaks less, and giving it a niche
