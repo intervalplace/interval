@@ -3470,19 +3470,27 @@ function nameNoughtBody(state, playerId) {
   state.names[NOUGHT_NAME] = playerId;
   return state;
 }
+// IDEMPOTENT, because two honest callers both do it. A pillar marks the
+// founding it serves so a careless window is still safe; a window marks what it
+// is given so a careless pillar cannot leave it unmarked. Both are right, and
+// together they produced signposts saying it twice and keeper names past the
+// thirty-two character limit -- which made the state INVALID and would have
+// stopped Nought dead in any window that checks.
+const NOUGHT_KEEPER = ' (practice)';
 function markNoughtWorld(state) {
   if (!isNought(state)) return state;
   for (const n of Object.values(state.nodes)) {
-    if (n.type === 'signpost') n.text = NOUGHT_POST + ' (' + (n.text ?? '') + ')';
-    else if (n.type === 'crier') {
+    if (n.type === 'signpost') {
+      if (!String(n.text ?? '').startsWith(NOUGHT_POST)) n.text = NOUGHT_POST + ' (' + (n.text ?? '') + ')';
+    } else if (n.type === 'crier') {
       n.text = NOUGHT_POST;
       n.name = 'the crier of Nought';
-    } else if (n.type === 'keeper' && n.name) {
+    } else if (n.type === 'keeper' && n.name && !n.name.endsWith(NOUGHT_KEEPER)) {
       // The last thing in the world that speaks. A banker, a shopkeep and a
       // brewer are the three strangers a newcomer talks to first, and in a
       // practice world they are nobody: their counterparts in Tallyholm have
       // names, hold real stock, and will not remember this conversation.
-      n.name = n.name + ' (of the practice world)';
+      n.name = (n.name + NOUGHT_KEEPER).slice(0, 32);   // names come from the founding; 32 is the limit
     }
   }
   return state;
@@ -10088,7 +10096,7 @@ function nextState(state, inputs, _legacyBeacon) {
 module.exports = {
   // §0: Nought is a different world by worldId that draws the same island, so
   // that "nothing crosses" is arithmetic rather than a window's promise.
-  noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_POST, NOUGHT_NAME,
+  noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_KEEPER, NOUGHT_POST, NOUGHT_NAME,
   // §0: a window cannot import a worldgen module (ESM importing CommonJS), so
   // a pillar packs the registered generator's answers into a table and serves
   // those instead. Reading the registry is how it knows what to pack.

@@ -4415,15 +4415,19 @@ async function ensureNought(live) {
   if (nought || noughtLoading) return
   noughtLoading = true
   try {
-    const mod = await import('./engine-browser.mjs')
-    const E2 = await mod.loadEngine('./engine.js')
+    // ABSOLUTE, NOT RELATIVE. This window is served at /play/flat and
+    // /play/lantern, and a relative specifier resolves against the PAGE:
+    // './engine-browser.mjs' asked for /play/engine-browser.mjs, which is a
+    // 404. Invisible in a repository where every file sits in one directory.
+    const mod = await import('/engine-browser.mjs')
+    const E2 = await mod.loadEngine('/engine.js')
     // THE GROUND FIRST. The engine fails closed on an unregistered generator --
     // every tile reads as blocked -- so a Nought without this is an island
     // nobody can take one step on.
     const [tRes, mRes, res] = await Promise.all([
-      fetch('./nought/terrain.bin', { cache: 'force-cache' }),
-      fetch('./nought/terrain.json', { cache: 'force-cache' }),
-      fetch('./nought/world.json', { cache: 'force-cache' }),
+      fetch('/nought/terrain.bin', { cache: 'force-cache' }),
+      fetch('/nought/terrain.json', { cache: 'force-cache' }),
+      fetch('/nought/world.json', { cache: 'force-cache' }),
     ])
     if (!tRes.ok || !mRes.ok || !res.ok) throw new Error('the founding was not served')
     mod.registerTerrainTable(E2, mod.parseTerrainTable(await tRes.arrayBuffer(), await mRes.json()))
@@ -4663,6 +4667,56 @@ function withPeers(st) {
 const NOUGHT_PEER_NAME = 'nought'
 
 
+
+// §0: THE CROSSING IS A TRANSFORMATION, NOT A SCENE CHANGE.
+//
+// Both worlds stand on the same coordinates, so the door does not have to move
+// anybody: a resident draws from the fountain in an empty Anchor, and the SAME
+// VIEW fills with everything the citizens of Tallyholm have done since the
+// founding. Stalls, lit fires, worn ground, names over heads. Nothing is
+// invented for this and nothing is animated by hand -- both frames already
+// exist, and one of them is what the other became.
+//
+// The last frame of Nought is the only frame of this island unwalked that this
+// person will ever see. Cutting throws it away; holding it while the world
+// arrives over the top is the difference between being TOLD the world moved on
+// without you and watching it happen.
+function crossingScene(canvasId) {
+  const cv = document.getElementById(canvasId)
+  if (!cv) return
+  let shot = null
+  try { shot = cv.toDataURL() } catch { return }   // tainted canvas: skip in silence
+  const box = cv.parentElement
+  if (!box) return
+  const wasStatic = getComputedStyle(box).position === 'static'
+  if (wasStatic) box.style.position = 'relative'
+  const img = document.createElement('img')
+  img.src = shot
+  img.style.cssText = 'position:absolute;left:0;top:0;width:' + cv.clientWidth + 'px;height:'
+    + cv.clientHeight + 'px;pointer-events:none;z-index:40;'
+    + 'filter:saturate(.4) contrast(.96) brightness(.97);transition:opacity 2.4s ease-in,filter 2.4s ease-in'
+  box.appendChild(img)
+  const say = document.createElement('div')
+  say.style.cssText = 'position:absolute;left:0;right:0;top:44%;z-index:41;text-align:center;'
+    + 'pointer-events:none;font:12px/1.9 ui-monospace,monospace;letter-spacing:.14em;'
+    + 'color:#e8dcc0;text-shadow:0 1px 3px #000;transition:opacity 1.1s ease-out'
+  box.appendChild(say)
+  const to = (world?.tick ?? 0), DUR = 2400, t0 = performance.now()
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / DUR)
+    // eased so the count sprints and settles: the SIZE of the gap should be
+    // felt rather than read off a slot machine
+    const e = 1 - Math.pow(1 - k, 3)
+    say.innerHTML = 'tick ' + Math.round(to * e).toLocaleString()
+      + '<br><span style="color:#9a8f78;font-size:10px">everything here happened while you waited</span>'
+    if (k < 1) requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+  setTimeout(() => { img.style.opacity = '0'; img.style.filter = 'saturate(1) contrast(1) brightness(1)' }, 220)
+  setTimeout(() => { say.style.opacity = '0' }, DUR + 500)
+  setTimeout(() => { img.remove(); say.remove(); if (wasStatic) box.style.position = '' }, DUR + 1700)
+}
+
 function noughtBanner(on) {
   const cv = document.getElementById('world')
   if (cv) cv.style.filter = on ? 'saturate(.4) contrast(.96) brightness(.97)' : ''
@@ -4764,12 +4818,16 @@ function onState(s, worldId, local) {
   if (crossSentAt >= 0 && !local) {
     // it took. The act is done; asking again would be asking twice for one
     // decision, so the door simply opens.
+    // The last frame of the unwalked island is captured BEFORE Nought is torn
+    // down, because a moment later there is nothing left to photograph.
+    crossingScene('world')
     crossSentAt = -1; crossArmed = false; crossingOpen = false
     endNought()
     entered = true
     document.getElementById('gate').style.display = 'none'
     noughtHud(null)
-    feed('You wake in Tallyholm. Nought is behind you, and it stays there.')
+    feed('Tallyholm. The same coastline, the same streets, the same fountain \u2014 and everything a hundred people did to it while you waited.')
+    feed('You will not see it empty again. Nobody does, twice.')
     feed('Nothing you did there came with you. That was the arrangement.')
   }
   world = s
@@ -10298,7 +10356,16 @@ cv.addEventListener('click', (e) => {
       // to a citizen it is a basin that has never done anything and never will.
       if (n.type === 'fountain') {
         flashClick(n.x, n.y, false)
-        if (!inNought) { feed('A fountain. It rises rather than being drawn from, and it is not a well.'); return }
+        if (!inNought) {
+          // §0f: THE ONE OBJECT IN THE WORLD THAT WILL NEVER WORK AGAIN. Every
+          // citizen came through it exactly once and cannot come through it
+          // twice, and it stands in the busiest square in Tallyholm doing
+          // nothing at all. It needs no rule to be a memorial; it needs
+          // somebody to say so.
+          feed('The fountain. You came through here, and it will not take you again \u2014 it takes nobody twice.')
+          feed('Somebody is standing in Nought right now, looking at this same water, in an Anchor with nothing in it.')
+          return
+        }
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You make for the fountain.'); return }
         if (!nought) { feed('Nought is still being built here.'); return }
         openCrossing()
