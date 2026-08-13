@@ -437,6 +437,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // v1-v5 world contains one, so the yield, the gate and the tool below are
   // never reached in it.
   'oak-tree', 'coal-rock', 'eel-spot', 'iron-rock', 'heartwood-tree', 'deep-fish-spot',
+  'brimstone-vent',
   // 6bb: THE GOLD SEAM. Not a tier of mining -- a lottery inside it.
   'gold-rock',
   // 6bc: the woodcutting ladder. Ironbark is a wood; the gallows-oak is a
@@ -504,6 +505,9 @@ const NODE_YIELD = {
   // the one public work in this world, and the haft of the last axe.
   'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 22 },
   'coal-rock': { item: 'coal',     skill: 'mining',      xp: 21 },
+  // §6bs: the vent. Mining's late game was a rarer metal and a deeper one;
+  // this is the first thing it pulls out that a smith BURNS rather than beats.
+  'brimstone-vent': { item: 'brimstone', skill: 'mining',    xp: 44 },
   'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 21 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
@@ -577,6 +581,8 @@ const WIELD_REQS = {
   // ore beat a star-clad one more efficiently than a star-sword does. It is
   // the answer to armour, and it belongs to people who have earned armour.
   'star-flail': { attack: 55 },
+  // §6bt: seventy, where every gathering skill already has its mastery tool.
+  'great-sword': { attack: 70 }, 'great-crossbow': { ranged: 70 },
   // §6y: sigils bound to the limbs. The draw is half the arrows, and half of
   // nothing is still nothing, so it asks a real bow-arm first.
   'sigil-bow': { ranged: 30, magic: 20 },
@@ -620,7 +626,7 @@ const WIELD_REQS = {
   'iron-shield': { defence: 1 }, 'steel-shield': { defence: 30 }, 'star-shield': { defence: 48 },
   // §6am (v6): the mid arms and armour, worn at the middle of the fighting
   // road -- past a beginner, short of the fifty that straps on starmetal.
-  'steel-sword': { attack: 35 }, 'steel-dagger': { attack: 35 }, 'steel-spear': { attack: 35 },
+  'steel-sword': { attack: 35 }, 'steel-dagger': { attack: 35 }, 'steel-spear': { attack: 35 }, 'steel-maul': { attack: 38 },
   'steel-helm': { defence: 32 }, 'steel-plate': { defence: 38 },
   'handgonne': { ranged: 90 },   // §6av
 };
@@ -724,6 +730,7 @@ function skillUnlocks() {
     'heartwood-tree': 'the heartwood of the deep Greenwood', 'gallows-oak': 'the gallows-oaks of the Wilds',
     'coal-rock': 'the coal seams open to your pick', 'magic-rock': 'the magic-rocks of the Wilds open to your pick',
     'gold-rock': 'the gold seam will answer you',
+    'brimstone-vent': 'the brimstone vents of the Crags',
     'mother-lode': 'the mother lode, deep in the Wilds',
     'eel-spot': 'the eel runs', 'deep-fish-spot': 'the deep fish of the Wilds water',
     'gibbet-shoal': 'the drowned shoal under the gibbet',
@@ -1063,6 +1070,7 @@ const NODE_GATE = {
   // and holds the road from thirty to seventy-eight, because a skill whose only
   // way up ran through the Wilds would be a fighting skill wearing a pick.
   'coal-rock':       { skill: 'mining',      level: 20 },
+  'brimstone-vent':  { skill: 'mining',      level: 70 },
   'magic-rock':      { skill: 'mining',      level: MAGIC_ROCK_MINING },
   'mother-lode':     { skill: 'mining',      level: 92 },
   'gold-rock':       { skill: 'mining',      level: GOLD_MINING },
@@ -1090,7 +1098,7 @@ const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 
 // cleared at the top of the next. Fourteen bytes, on the interval they act,
 // against a citizen record of six hundred. Every window reads it; no window
 // has to be clever enough to infer it from a skill going up.
-const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'dedicate', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
+const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
   'cast', 'recall', 'pickup', 'drop', 'buy', 'sell', 'deposit', 'withdraw'];
 const DEED_SET = new Set(DEEDS);
@@ -1301,6 +1309,38 @@ const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
 // timing at all -- so teachMelee carries all of it and the beat is left alone.
 const MOB_EVERY = 2, DEFENCE_PER_MAXHIT = 3;
 const MIN_MAX_HIT = 3;   // 6bu: the smallest blow anybody can be capable of
+
+// §6bu: BRIMSTONE CATCHES, AND THE FIRE NEVER LANDS THE LAST BLOW.
+//
+// A landed blow from a `burns` weapon sets the target alight for BURN_TICKS
+// intervals; while lit they take one point every BURN_EVERY. It does not
+// stack -- a second blow REFRESHES it, exactly as a root does not chain --
+// so the whole of it is two points a window. Felt, never decisive.
+//
+// TWO RULES MAKE IT CONSTITUTIONAL, and without either it could not exist:
+//
+//   IT CANNOT KILL. Burn floors at one hitpoint, on a citizen and on a beast
+//   alike. §2b-i promises no one can be run down, and a fire that finishes
+//   somebody four intervals after they broke away and fled has run them down
+//   -- by the clock rather than on foot, which is worse, because there is no
+//   answer to it. Now there is: you always survive the fire, and whoever
+//   wants you dead must catch you. It also disposes of a whole class of bug,
+//   since a burn that killed a beast would have no striker to give the drop
+//   to.
+//
+//   IT DOES NOT TOUCH A BEAST THAT MENDS. This is arithmetic, not flavour.
+//   §6ab's hard promise is that ONE citizen can never take the great-spider:
+//   the best sustained output in the world is the chain's 5.74 a interval
+//   against the web's six, a deficit of 0.26. A quarter-point of burn erases
+//   it almost exactly. Gated on the `mends` PROPERTY rather than the spider's
+//   name, so it is a rule and not an exception -- and so that any beast a
+//   later founding gives a web is covered by the same sentence.
+const BURN_TICKS = 8;    // intervals alight after the last landed blow
+const BURN_EVERY = 4;    // one point every four of them
+function catchFire(target, tick, stats) {
+  if (stats && stats.mends) return;              // the web replaces what the fire takes
+  target.burnUntil = tick + BURN_TICKS;
+}
 const STILL_XP = STILL_SIGILS * 20;   // 6bp: three sigils spent, twenty apiece -- and the branch READS this now
 // 6be: SIX, WHICH IS WHAT THE LADDER ALWAYS SAID IT WAS.
 //
@@ -1501,6 +1541,12 @@ const WEAPONS = {
   'steel-dagger':    { hit: 1, every: 2, reach: 1, acc: 14 },
   'steel-sword':     { hit: 3, every: 2, reach: 1, acc: 0 },
   'steel-spear':     { hit: 8, every: 2, reach: 2, acc: 0 },
+  // §6bt: THE STEEL MAUL, which was simply missing. Iron had one and starmetal
+  // had one and the whole middle of the game had none, so a maul-swinger went
+  // from attack one to fifty-five with nothing new to hold -- fifty-four
+  // levels, the longest dead band of any shape in the world. Not a design; an
+  // omission, found by counting.
+  'steel-maul':      { hit: 11, every: 2, reach: 1, acc: -12 },
   'star-dagger':   { spec: 'flurry', blows: 6, rec: 12, hit: 2, every: 2, reach: 1, acc: 14 },
   'star-sword':    { hit: 4, every: 2, reach: 1, acc: 0 },
   'star-spear':    { hit: 9, every: 2, reach: 2, acc: 0 },
@@ -1530,6 +1576,31 @@ const WEAPONS = {
   //
   // So it is not an upgrade, it is an ANSWER, and only to one thing.
   'star-flail':    { hit: 9, every: 2, reach: 1, acc: -6, pierces: true },
+  // §6bt: THE GREAT ARMS. Level seventy, where woodcutting, mining and fishing
+  // each got a mastery tool and combat got nothing at all -- attack's last
+  // unlock was fifty-five and then forty-four levels of nothing to want.
+  //
+  // They are NOT a fourth tier. A tier is a bigger number and would make
+  // starmetal a stepping stone; the `great` tools earn their place by ACCESS
+  // (a great-hatchet fells a wood nothing else fells), and these earn theirs
+  // the same way: they answer a defence rather than out-damage one.
+  //
+  //   `breaks` -- the off-hand shield is not there. §6x gave the flail
+  //   `pierces` against ARMOUR and reasoned that the answer to a defensive
+  //   system belongs to people who have earned that system. A shield is the
+  //   other defensive system and had no answer at all: a star-shield takes a
+  //   flat quarter off everything, forever, and nothing in the world could
+  //   do anything about it.
+  //
+  //   `burns` -- brimstone catches. Small, short, and it can never kill
+  //   (§6bu). It is the only damage in this world that arrives on an interval
+  //   the striker did not act on.
+  //
+  // AND NO SPECIAL. The flurries and the bite belong to the star line, and a
+  // mastery arm that took those as well would retire five weapons at a
+  // stroke. Star strikes oddly; great strikes through.
+  'great-sword':   { hit: 5, every: 2, reach: 1, acc: 4, breaks: true, burns: true },
+  'great-crossbow': { hit: 12, every: 3, reach: 4, acc: 23, ranged: true, breaks: true, burns: true },
   // THE CROSSBOW (spec 6x): the maul of the ranged line.
   //
   // Ranged had one feel repeated three times -- wooden, horn and dragon all
@@ -1717,6 +1788,10 @@ const inReach = (p, t) => {
 // be worth carrying: there is finally something in the world whose blows land.
 // §6bn: one kill in eight, out of 65,536 like every other rare drop.
 const GOO_STAFF_DROP = 8192;
+// §6br: one siren in sixty-four, counted per citizen like every other rarity.
+const GRAVER_DROP = 1024;
+// §6bv: one incursion in thirty-two. They are events, not a farm.
+const HORN_DROP = 2048;
 const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
@@ -1805,8 +1880,18 @@ const MOB_STATS = {
   // and she stood on her strand and never once swung back. Ten, because she
   // is looking out to sea and sees you coming a long way off -- and because a
   // mirrored archer must be answerable at their own reach, which can be nine.
+  //
+  // §6br: AND SHE GIVES UP THE GRAVER, one kill in sixty-four. The mirror of
+  // yourself is the source of the one item you cannot use on yourself, which
+  // is the sort of joke this island's geography already tells.
+  //
+  // She is ALONE on the island and comes back every twelve minutes, so even
+  // camped without pause she mints under two a day. And she cannot be farmed
+  // asleep: she copies your levels, your weapon and your quiver, so the fight
+  // is exactly even at any level, forever.
   'siren': { maxHp: 60, atk: 20, def: 20, maxHit: 6, every: 2, respawn: 1200,
-             aggro: 10, mirrors: true },
+             aggro: 10, mirrors: true,
+             drops: [{ item: 'graver', chance: GRAVER_DROP }] },
   // THE SPIDER (spec 6ab). The second thing that cannot be done alone, and
   // it cannot be done alone for a different reason than the dragon.
   //
@@ -1939,8 +2024,13 @@ const MOB_STATS = {
   // unanswered one is a story ("it came, none came, it left") and never a
   // permanent fixture. Its maxHp and def are SCALED to the target at spawn by
   // the event step; these are the floor a level-one target would face.
+  // §6bv: AND WHOEVER PUTS ONE DOWN MAY GET THE HORN. The incursion exists so
+  // that "the neighbours notice and come" -- it fixes on one citizen and takes
+  // long enough that help can arrive. The reward for having answered a call
+  // being the power to MAKE one is the tightest loop in this world: the item
+  // is worth nothing to somebody alone, and everything to somebody who is not.
   'incursion': { maxHp: 120, atk: 30, def: 8, maxHit: 8, respawn: 0, aggro: 6,
-            drops: [{ item: 'bones' }] },
+            drops: [{ item: 'bones' }, { item: 'horn', chance: HORN_DROP }] },
   // §6ao (v6): THE RISEN, and THE GIBBET KING. The Moor was dead space -- goblins
   // and wolves already found in three other countries, and nothing of its own.
   // Now it is his: the bleak crossing to the master fishing, where the dead walk
@@ -2268,7 +2358,7 @@ const PRICES = {
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   // §6am (v6): the mid goods, priced between the baseline and the mastery --
   // a mid seam's hour worth more than a doorstep's, less than a master's.
-  'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
+  'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
   'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
@@ -2286,7 +2376,7 @@ const PRICES = {
   // Four and a half times, on everything a master makes. A star plate is now
   // most of an hour of ordinary work rather than a coffee break, and the
   // ratios between the star goods are untouched -- they were already sound.
-  'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
+  'steel-maul': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
   'star-spear': 450, 'star-maul': 720,
   'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
@@ -2374,6 +2464,11 @@ const RECIPES = {
   'shot': { 'iron': 1 },
   'star-spear': { 'star-ingot': 12, 'ironbark': 1 },
   'star-maul': { 'star-ingot': 18, 'ironbark': 1 },
+  // §6bt: the mastery arms. Starmetal for the body of the thing, brimstone for
+  // what it does, ironbark where the wood is structural -- the same three-part
+  // shape every hafted star weapon already has.
+  'great-sword': { 'star-ingot': 14, 'brimstone': 3, 'ironbark': 1 },
+  'great-crossbow': { 'star-ingot': 10, 'brimstone': 3, 'ironbark': 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
   //
   // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
@@ -2443,6 +2538,7 @@ const RECIPES = {
   'steel-hatchet':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
   'steel-pickaxe':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
   'steel-sword':    { 'iron': 1, 'coal': 1 },
+  'steel-maul':     { 'iron': 2, 'coal': 1, 'oak-logs': 1 },   // §6bt: weight on a handle
   'steel-helm':     { 'iron': 1, 'coal': 1 },
   'steel-plate':    { 'iron': 2, 'coal': 1 },
   'steel-dagger':   { 'iron': 1, 'coal': 1 },
@@ -2452,8 +2548,17 @@ const RECIPES = {
   // not currency, and there is no mint anywhere in it. Eight bars to a helm
   // and twelve to a plate: forty nuggets and sixty, a hundred for the set,
   // which is two hundred and seventy-three hours of seam.
-  'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2 },
-  'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'coal': 2 },
+  // §6bt: ONE LINE, ONE REAGENT. The `great` tools were named before brimstone
+  // existed and took magic-stone and coal like anything else, so the world was
+  // about to have two unrelated things called great -- a pair of tools and a
+  // pair of arms, sharing a word and nothing else. A name that means two
+  // things means neither.
+  //
+  // Brimstone is what `great` means now: every one of the four takes it, all
+  // four are level seventy in their own trade, and a citizen who has held one
+  // knows what the other three are the moment they see the word.
+  'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2, 'brimstone': 1 },
+  'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'brimstone': 1 },
   'gold-bar':       { 'gold-ore': GOLD_ORE_PER_BAR },
   'gold-helm':      { 'gold-bar': 6 },
   'gold-plate':     { 'gold-bar': 16 },
@@ -2467,7 +2572,8 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
   'heartwood-bow', 'king-shroud',
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
-  'staff', 'heartwood-staff', 'wand', 'goo-staff']);
+  'staff', 'heartwood-staff', 'wand', 'goo-staff',
+  'horn']);   // §6bv: worn in the off hand, defends nothing
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
 // syntactically pretty identifier that is not in this set is contraband:
@@ -2492,6 +2598,17 @@ const ITEMS = new Set([
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
   'staff', 'heartwood-staff', 'wand',
+  // §6br: THE GRAVER. A chisel that cuts somebody ELSE's name into the world
+  // and can never cut your own. It is the only object here whose entire worth
+  // is that you can spend it on another person.
+  'graver',
+  // §6bv: THE HORN. The one treasure in the off hand, and the only thing worn
+  // there that is not a shield. Sounding it tells the island where you are,
+  // which is the worst idea in the world and occasionally the only one left.
+  'horn',
+  // §6bs: BRIMSTONE. Sulphur out of a vent in the Crags -- the only thing
+  // mining gives that is not a metal, and the reagent of the `great` weapons.
+  'brimstone',
   // §6bo: charcoal. Wood burnt down at a watchfire until what is left is
   // nearly all fire. It is coal in every recipe that asks for coal, and it is
   // the only thing firemaking has ever MADE.
@@ -2516,6 +2633,10 @@ const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'he
                      'steel-helm': 'head', 'steel-plate': 'body',
                      'gold-helm': 'head', 'gold-plate': 'body',
                      'iron-shield': 'offhand', 'steel-shield': 'offhand', 'star-shield': 'offhand',
+                     // §6bv: the off hand held three items, all shields, all
+                     // divisors, differing only in how much. Every other slot
+                     // in this world has one thing in it that cannot be made.
+                     'horn': 'offhand',
                      // 6ca: GOLD LEGS DEFEND NOTHING, and that is the point. A
                      // slot no other thing in the world can fill, holding a
                      // thing with no stat on it. The hood taught this already:
@@ -2559,6 +2680,7 @@ const SMITH_REQS = {
   'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
   'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
   'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
+  'steel-maul': { smithing: 42 },
   // THE TOOLS A CITIZEN ACTUALLY USES, in the metal everything else comes in.
   //
   // Every other star thing exists and the two a working citizen holds all day
@@ -2587,10 +2709,14 @@ const SMITH_REQS = {
   // 6bb: gold is soft and the work is fine, so the bar asks little and the
   // finished piece asks a great deal. The plate is the last thing a smith
   // learns that is not a weapon.
+  // §6bt: 55 kept -- the TOOLS are still tools. What changed is the reagent,
+  // not who may make them; a smith at fifty-five simply has to walk further.
   'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'iron-shield': { smithing: 12 }, 'steel-shield': { smithing: 34 }, 'star-shield': { smithing: 48 },
   'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
   'crossbow': { smithing: 18 },
   'star-flail': { smithing: 50, magic: 29 },
+  // §6bt: a master smith's work, and the only recipes that ask for brimstone.
+  'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
   // works and three sigils, and you bind them to the limbs, which is why the
   // magic asked for is higher than the smithing.
@@ -2661,13 +2787,23 @@ const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plat
 // would quietly retune a skill. A divisor touches neither the roll nor the
 // miss: what a defender learns and what an attacker learns are exactly what
 // they were, and the shield only changes what arrives.
-const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'iron-maul', 'star-maul',
+const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'iron-maul', 'steel-maul', 'star-maul',
+  'great-sword', 'great-crossbow',
   'star-flail', 'old-chain', 'wooden-bow', 'horn-bow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
   'crossbow', 'handgonne', 'staff', 'heartwood-staff', 'goo-staff']);
 const SHIELD_DIV = { 'iron-shield': [7, 8], 'steel-shield': [4, 5], 'star-shield': [3, 4] };
 // what a blow becomes once it has met an off-hand shield. Integers only, and a
 // blow never falls below one: a shield turns a blow aside, it does not erase it.
-function afterShield(q, dmg) {
+// §6bt: AND A GREAT ARM BREAKS IT. The attacker's weapon is passed in, because
+// a shield's worth cannot be decided by looking only at the person holding it.
+//
+// A star-shield takes a flat quarter off every blow in the world, forever, and
+// until now nothing could do anything about it -- §6x reasoned that the answer
+// to ARMOUR belongs to whoever has earned armour, and left the other defensive
+// system unanswered. `breaks` is that answer, at seventy, where the mastery
+// tools already live.
+function afterShield(q, dmg, w) {
+  if (w?.breaks === true) return dmg;
   const d = SHIELD_DIV[q?.equipment?.offhand?.item];
   return d ? Math.max(1, Math.ceil((dmg * d[0]) / d[1])) : dmg;
 }
@@ -2925,6 +3061,11 @@ const INPUT_SCHEMAS = {
   // and spends nothing. Two citizens may bid on one stone in one interval;
   // the loser must not be charged for a name they did not get.
   dedicate: { nodeId: T.id, pay: T.nonnegInt },
+  // §6br: the stone, and WHO IT IS FOR. Never the sender: a graver names the
+  // other person or it names nobody.
+  grave: { nodeId: T.id, target: T.hex64 },
+  // §6bv: no argument. A horn says one thing.
+  sound: {},
   raise_market: {}, dismantle_market: {},
   stock_market: { slot: T.slot }, price_market: { ask: T.nonnegInt }, take_market: {},
   // EVERY VERB MUST BE DECLARED HERE, AND TWICE I FORGOT.
@@ -4493,7 +4634,9 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment']);
+  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment',
+    // §6bu: alight, and it burns off by itself
+    'burnUntil']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -4642,7 +4785,7 @@ const LANDMARK_KINDS = new Set([
         if (!isId(w)) return 'malformed attunement';
       }
     }
-    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
     // 6bg: these are now a tally PER ITEM (see the pan and the hearth), so the
     // validator has to know that too. A shape rule that lags the executor by
     // one revision is exactly how a state that runs becomes a state that will
@@ -4697,7 +4840,7 @@ const LANDMARK_KINDS = new Set([
     // while it only ever answered a blow -- a clock of its own, so its swing
     // rate is its own and not the citizen's, and a memory of who hit it, so a
     // passive creature still fights back.
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'bound', 'quiver',
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'bound', 'quiver', 'burnUntil',
       // §6ao (v6): the incursion carries a scaled body and its bounds -- a
       // maxHp and def scaled to its target, the tick it must be gone by, its
       // leash and the tile it came from. Only an 'incursion' may bear them.
@@ -4710,7 +4853,7 @@ const LANDMARK_KINDS = new Set([
     if (m.raisedBy !== undefined && m.type !== 'risen') return 'only a risen is raised';
     for (const ik of ['goneBy']) if (m[ik] !== undefined && !isInt(m[ik], 0, MAX_TIME)) return 'incursion ' + ik + ' out of bounds';
     for (const ik of ['maxHp', 'def', 'leash', 'spawnX', 'spawnY']) if (m[ik] !== undefined && !isInt(m[ik], 0, 200000)) return 'incursion ' + ik + ' out of bounds';
-    for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
+    for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'burnUntil']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
     // §6ac: whom she has taken, and the arrows she took with them
     if (m.bound !== undefined && (typeof m.bound !== 'string' || !/^[0-9a-f]{64}$/.test(m.bound))) return 'malformed siren binding';
@@ -4937,7 +5080,11 @@ const LANDMARK_KINDS = new Set([
     if (n.name !== undefined) {
       // §6bp: and a dedication stone bears one too -- a CITIZEN's, which is
       // the only kind of name in this world anybody had to pay for.
-      if (n.type !== 'keeper' && n.type !== 'crier' && n.type !== 'dedication') return 'a name belongs to a keeper';
+      // §6br: and a landmark that somebody was given. A keeper's name is who
+      // stands there; a stone's is who was brought to it.
+      if (n.type !== 'keeper' && n.type !== 'crier' && n.type !== 'dedication'
+          && n.type !== 'landmark') return 'a name belongs to a keeper';
+      if (n.type === 'landmark' && !GRAVABLE.has(n.kind)) return 'a name cut into scenery';
       if (typeof n.name !== 'string' || n.name.length < 1 || n.name.length > 32) return 'malformed keeper name';
     }
     // §6bp: the stone's tally and its memory
@@ -5690,6 +5837,37 @@ function validInput(state, input, ctx) {
       if (price === null) return false;
       return input.pay >= price && (p.gold ?? 0) >= price;
     }
+    case 'grave': {
+      // §6br: FOUR THINGS, AND THE FOURTH IS THE POINT.
+      //
+      // A graver in the pack. A stone that will take a name and has none. The
+      // citizen it is FOR, standing at the stone with you -- so a name never
+      // appears on this island without its owner having walked to the spot.
+      // And that citizen is not you.
+      //
+      // There is no level on it, no skill, no standing. Nothing about who you
+      // are qualifies you to give somebody else a name; you either have the
+      // chisel and the friend or you do not.
+      if (p.hp <= 0) return false;
+      if (!p.inventory.some((sl) => sl?.item === 'graver')) return false;
+      const st = state.nodes?.[input.nodeId];
+      if (!st || st.type !== 'landmark' || !GRAVABLE.has(st.kind)) return false;
+      if (st.name) return false;                       // one name, and it is cut
+      if (!atOrBeside(p, st)) return false;
+      if (input.target === input.playerId) return false;   // NEVER YOUR OWN
+      const q = state.players?.[input.target];
+      if (!q || q.hp <= 0 || !q.name) return false;
+      return atOrBeside(q, st);                        // both of you, at the stone
+    }
+    case 'sound': {
+      // §6bv: THE HORN IN THE OFF HAND, AND NOTHING ELSE ASKED.
+      //
+      // No level, no cooldown of its own beyond the one deed an interval every
+      // citizen already has, and no cost but the shield you are not wearing.
+      // A horn that asked for anything would be a horn people saved.
+      if (p.hp <= 0) return false;
+      return p.equipment?.offhand?.item === 'horn';
+    }
     case 'consign': {
       // §11b: BESIDE A STORE, WHICH IS THE ENTIRE DISCIPLINE. Stores stand
       // inside walled towns, so a consignment may be taken up or put down only
@@ -6233,6 +6411,17 @@ function spillConsignment(s, ctx, q, qid) {
     // the entire point of making a spill a place instead of a scramble.
     expiresAt: s.tick + (hc.cartTicks ?? 600) });
 }
+
+// §6br: WHAT WILL TAKE A NAME. Stones and monuments, not furniture: a citizen's
+// name belongs on a thing that was already going to outlast them. A haystack
+// and a barrel are scenery, and a name cut into scenery is a joke at the
+// expense of whoever received it.
+//
+// 247 of them on a full island (counted, not estimated), and that number is
+// the whole life of this item: when the last is cut there is nothing left for
+// a graver to do, and the world says so.
+const GRAVABLE = new Set(['standing-stone', 'milestone', 'boundary-stone', 'cairn',
+  'sentinel', 'broken-tower', 'drowned-bell', 'shipwreck', 'elder-tree', 'glass-stone']);
 
 // §6bp: what each stone is called, once, so the announcement and every window
 // say the same thing. A tag is a slug in the state; this is the sentence.
@@ -7517,6 +7706,20 @@ function nextState(state, inputs, _legacyBeacon) {
       if (s.tick - p2.crops[k] > CROP_ROTS_AFTER) delete p2.crops[k];
     if (Object.keys(p2.crops).length === 0) delete p2.crops;
   }
+  // §6bu: WHAT IS ALIGHT BURNS, and it burns on the interval whether or not
+  // whoever lit it did anything. This is the only damage in the world that
+  // arrives without somebody having acted, which is exactly why it is capped
+  // at a point every four intervals and why it cannot land the last blow.
+  for (const q2 of Object.values(s.players)) {
+    if (!q2.burnUntil) continue;
+    if (s.tick >= q2.burnUntil) { delete q2.burnUntil; continue; }
+    if (q2.hp > 1 && s.tick % BURN_EVERY === 0) q2.hp = Math.max(1, q2.hp - 1);
+  }
+  for (const m2 of Object.values(s.mobs ?? {})) {
+    if (!m2.burnUntil) continue;
+    if (s.tick >= m2.burnUntil || m2.hp <= 0) { delete m2.burnUntil; continue; }
+    if (m2.hp > 1 && s.tick % BURN_EVERY === 0) m2.hp = Math.max(1, m2.hp - 1);
+  }
   // §6bn: THE VIGIL, checked before the ground forgets and never after.
   //
   // A seal is not a duration. It holds only while the caster is alive, within
@@ -7830,6 +8033,61 @@ function nextState(state, inputs, _legacyBeacon) {
           // an empty cart is not scenery. It goes when the last slot is off it.
           if (Object.keys(ct.shelf).length === 0) deleteIndexedNode(s, _ctx, inp.nodeId);
         }
+      }
+    } else if (inp.type === 'sound') {
+      if (p.equipment?.offhand?.item === 'horn' && p.hp > 0) {
+        // WHERE, NOT WHO IS IN TROUBLE. The world says the country and the
+        // tile; it does not say why, because a horn cannot say why. Whoever
+        // comes is deciding to come on almost nothing, which is the whole
+        // of what makes coming mean something.
+        const tt = TERRAINS[s.genesis.worldGenerator];
+        const where = (tt && tt.country ? tt.country(s.genesis, p.x, p.y) : null) ?? 'the country';
+        announce(s, 'A horn sounds in ' + String(where).replace(/-/g, ' ')
+          + ', at ' + p.x + ',' + p.y + '. ' + (p.name ?? pid.slice(0, 6)) + ' is calling.');
+        if (claimFirst(s, 'horn', pid))
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to sound the horn.');
+      }
+    } else if (inp.type === 'grave') {
+      const st = s.nodes?.[inp.nodeId];
+      const q = s.players?.[inp.target];
+      const gi = p.inventory.findIndex((sl) => sl?.item === 'graver');
+      if (st && q && gi !== -1 && st.type === 'landmark' && GRAVABLE.has(st.kind)
+          && !st.name && atOrBeside(p, st) && atOrBeside(q, st)
+          && inp.target !== pid && q.hp > 0 && q.name) {
+        p.inventory[gi] = null;                        // the chisel is spent
+        st.name = q.name;
+        // BOTH NAMES IN THE TELLING, ONE ON THE STONE. The giver is announced
+        // and then never recorded anywhere again, which is the correct shape
+        // for a gift: the stone is about who received it.
+        announce(s, q.name + "'s name is cut into the "
+          + (st.kind ?? 'stone').replace(/-/g, ' ') + ', by '
+          + (p.name ?? pid.slice(0, 6)) + '. It will not be cut again.');
+        // §6br: AND THE GIVER GOES ON THE ROLL, ONCE.
+        //
+        // The stone carries the receiver and nothing else -- a gift is about
+        // who received it, and recording the giver there would make a graver
+        // useful to its holder, which no rule could then undo. (Forbid
+        // reciprocal pairs and a ring of three defeats the check at the same
+        // cost per name.)
+        //
+        // But the announcement is not a record. The herald keeps twenty-four
+        // cries and drops the rest, so under that alone the first person in
+        // the world to give a name away would be erased within minutes. The
+        // honours roll is the right home for it: permanent, winnable exactly
+        // once, and it rewards the ACT without making the act self-serving.
+        if (claimFirst(s, 'graver', pid))
+          announce(s, (p.name ?? pid.slice(0, 6))
+            + ' is the FIRST to give a name away. It cost them a graver and bought them nothing.');
+        // §6br: AND THE ISLAND IS TOLD WHEN THERE IS NOTHING LEFT TO CUT.
+        //
+        // The last stone is the end of this item's life and the world should
+        // mark it. Counted here and nowhere else, on the one interval it can
+        // ever become true.
+        let anyBlank = false;
+        for (const n2 of Object.values(s.nodes))
+          if (n2.type === 'landmark' && GRAVABLE.has(n2.kind) && !n2.name) { anyBlank = true; break; }
+        if (!anyBlank) announce(s, 'There is no unnamed stone left on the island. '
+          + 'Every graver still in the world is a keepsake now.');
       }
     } else if (inp.type === 'dedicate') {
       const st = s.nodes?.[inp.nodeId];
@@ -8252,7 +8510,8 @@ function nextState(state, inputs, _legacyBeacon) {
           // nothing, so a blow that lands lands whole.
           const soak9 = 0;
           const dmg9 = Math.max(0, styleRoll(roll(beacon, pid, 'specd' + b9), maxHit9, inp.style ?? 'even') - soak9);
-          q.hp -= afterShield(q, dmg9);   // 6bz
+          q.hp -= afterShield(q, dmg9, w9);   // 6bz, §6bt
+          if (w9?.burns === true && dmg9 > 0) catchFire(q, s.tick, null);   // §6bu
           // §6as-ii: split exactly as an ordinary melee blow splits. A special
           // taught attack alone, so a fighter who favoured it never raised the
           // number their own special scores from.
@@ -9024,7 +9283,8 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6ap: armour is in the roll, not the damage
           const soak = 0;
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'dmg'), maxHit, p.action.style) - soak);
-          q.hp -= afterShield(q, dmg);   // 6bz
+          q.hp -= afterShield(q, dmg, weaponOf(p));   // 6bz, §6bt
+          if (weaponOf(p)?.burns === true && dmg > 0) catchFire(q, s.tick, null);   // §6bu
           // §6as: a landed blow teaches BOTH -- the aim that found them and the
           // arm that hurt them -- split evenly, so a fighter's two numbers rise
           // together unless they deliberately train one alone.
@@ -9160,6 +9420,7 @@ function nextState(state, inputs, _legacyBeacon) {
           const maxHit = 1 + Math.floor(rLvl / 12) + (weaponOf(p)?.hit ?? 0);
           const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
           m.hp -= dmg;
+          if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
           p.skills.ranged += dmg;   // 6br
           p.skills.hitpoints += dmg;
         }
@@ -9198,6 +9459,7 @@ function nextState(state, inputs, _legacyBeacon) {
           1 + Math.floor(effLevel(p.skills.strength) / 10) + (weaponOf(p)?.hit ?? 0));
         const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
         m.hp -= dmg;
+        if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         // §6as-ii: split as a citizen's blow is split. Beasts taught ATTACK
         // alone, so strength -- which every melee blow now scores from -- could
         // not be raised except by fighting people, which asks a citizen to be
