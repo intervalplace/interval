@@ -1378,6 +1378,20 @@ function helmedFromRoot(q) {
   return true;
 }
 
+// §7.3a: WHAT A VAULT WILL NOT TAKE, in one place.
+//
+// Two items are refused and for opposite reasons -- the dragonbow so its
+// bearer cannot opt out of being hunted (§6w), the wayfarer's hood so its
+// bearer cannot opt out of being seen (§6ax). Both rules already existed and
+// both lived in a DIFFERENT function from each other: the bow was checked in
+// the gate and the hood in the resolver, so `mayDo` and `apply` disagreed
+// about what a deposit would do. Adding a bulk deposit with two more copies
+// of that disagreement is exactly the §11h fault, so they are one predicate
+// now and every caller asks the same question.
+function vaultRefuses(item) {
+  return item === 'dragonbow' || isHood(item);
+}
+
 function catchFire(target, tick, stats) {
   if (stats && stats.mends) return;              // the web replaces what the fire takes
   target.burnUntil = tick + BURN_TICKS;
@@ -3053,6 +3067,9 @@ const T = {
     return true;
   },
   nonnegInt: (v) => (Number.isSafeInteger(v) && v >= 0 && v <= 1e12) || 'must be a nonnegative integer',
+  // §7.3a: a count of things, at least one. Capped at the pack so no input can
+  // ask for more than a citizen could ever hold, whatever the vault contains.
+  qty: (v) => (Number.isSafeInteger(v) && v >= 1 && v <= 1e12) || 'must be a positive quantity',
   id: (v) => (typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v)) || 'must be an identifier', // v0.80: 96 to fit full-64-hex pids in durable node/ground ids
   hex64: (v) => (typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)) || 'must be lowercase 64-hex',
   item: (v) => ITEMS.has(v) || 'must be a constitutional item',
@@ -3125,7 +3142,14 @@ const INPUT_SCHEMAS = {
   light: { slot: T.slot }, bury: { slot: T.slot }, deposit: { slot: T.slot },
   drop: { slot: T.slot }, eat: { slot: T.slot }, cook: { slot: T.slot },
   unwield: { gear: T.gear },
-  buy: { item: T.item }, withdraw: { item: T.bankable },
+  buy: { item: T.item },
+  // §7.3a: a quantity, because withdrawing twenty-five arrows one at a time
+  // was twenty-five intervals AND twenty-five slots -- they did not even stack
+  // on the way out.
+  withdraw: { item: T.bankable, qty: T.qty },
+  // §7.3a: the whole pack, in one input. One input per interval is a rule
+  // about EQUIVOCATION (§2287), not about how much a single deed may move.
+  deposit_all: {},
   cast: { spell: T.spell },
   // A MENDING, SENT. Its own verb rather than a target on `cast`, because
   // every field in a schema here is required and anchor has nobody to aim at
@@ -6233,7 +6257,15 @@ function validInput(state, input, ctx) {
       // never set it down somewhere safe and go about their day. That is
       // what makes being hunted TRUE rather than merely said: you cannot opt
       // out of it without giving the bow up.
-      if (p.inventory[input.slot].item === 'dragonbow') return false;
+      // §7.3a: and the hood, which used to be checked only in the resolver --
+      // so `mayDo` said yes, the deed was recorded, and nothing happened.
+      if (vaultRefuses(p.inventory[input.slot].item)) return false;
+      return hasAdjacentNode(state, ctx, p, 'bank');
+    }
+    case 'deposit_all': {
+      // §7.3a: at least one thing the vault will take, and a bank to take it.
+      if (p.consignment) return false;                       // §11d, as `deposit`
+      if (!p.inventory.some((sl) => sl && !vaultRefuses(sl.item))) return false;
       return hasAdjacentNode(state, ctx, p, 'bank');
     }
     case 'withdraw': {
@@ -6242,7 +6274,11 @@ function validInput(state, input, ctx) {
       // permanent loss of a survey reward. Two gates that must agree.
       if (typeof input.item !== 'string' || !(p.bank[input.item] > 0)) return false;
       if (p.consignment) return false;   // §11d, and see `deposit` for why both
-      if (firstFreeSlot(p.inventory) === -1) return false;
+      // ROOM FOR AT LEAST ONE. How many actually come out is settled in the
+      // resolver against what is banked and what will fit; asking for more
+      // than either is not an error, it is just optimism.
+      if (firstFreeSlot(p.inventory) === -1
+          && !(STACKABLE.has(input.item) && p.inventory.some((sl) => sl?.item === input.item))) return false;
       return hasAdjacentNode(state, ctx, p, 'bank');
     }
     case 'drop': {
@@ -9222,20 +9258,69 @@ function nextState(state, inputs, _legacyBeacon) {
       // This is the dragonbow's rule, and its reason inverted: the bow is
       // refused so its bearer cannot opt out of being hunted; the hood is
       // refused so its bearer cannot opt out of being seen.
-      if (sl && nearBank && !isHood(sl.item)) {
-        // 7.3: one item per interval (spec) means ONE unit leaves the slot;
-        // the old path banked 1 and vaporized the rest of the stack
-        p.bank[sl.item] = (p.bank[sl.item] ?? 0) + 1;
-        if ((sl.qty ?? 1) > 1) sl.qty -= 1;
-        else p.inventory[inp.slot] = null;
+      // §7.3a: THE WHOLE SLOT, and the rate limit goes with it.
+      //
+      // This banked ONE UNIT an interval, so a stack of twenty-five arrows was
+      // twenty-five intervals at the counter. The justification for that rate
+      // is written at `alch`: one input an interval means a full pack is
+      // twenty-odd intervals of STANDING STILL IN THE OPEN, and standing still
+      // in dangerous country is a real thing to choose.
+      //
+      // That argument is exactly right, and it is an argument about the WILDS.
+      // A bank is in a town. Nothing may strike you there, nothing may be
+      // taken, and no decision is on offer -- the twenty-five intervals buy no
+      // risk and no choice, only waiting. §8 says patience is never the tax,
+      // and a script does not mind twenty-five clicks, so the whole of that
+      // cost fell on the person and none of it on the thing §8 worries about.
+      if (sl && nearBank && !vaultRefuses(sl.item)) {
+        p.bank[sl.item] = (p.bank[sl.item] ?? 0) + (sl.qty ?? 1);
+        p.inventory[inp.slot] = null;
+      }
+    } else if (inp.type === 'deposit_all') {
+      // §7.3a: and the pack, in one deed. §2287 gives a citizen one INPUT an
+      // interval to stop them equivocating -- signing two different futures
+      // for the same tick. It says nothing about how much one deed may move,
+      // and every other resolver here moves as much as its rule describes.
+      const nearBank2 = hasAdjacentNode(s, _ctx, p, 'bank');
+      if (nearBank2 && !p.consignment) {
+        for (let i = 0; i < p.inventory.length; i++) {
+          const it = p.inventory[i];
+          if (!it || vaultRefuses(it.item)) continue;   // the bow and the hood stay
+          p.bank[it.item] = (p.bank[it.item] ?? 0) + (it.qty ?? 1);
+          p.inventory[i] = null;
+        }
       }
     } else if (inp.type === 'withdraw') {
-      const slot = firstFreeSlot(p.inventory);
       const nearBank = hasAdjacentNode(s, _ctx, p, 'bank');
-      if (p.bank[inp.item] > 0 && slot !== -1 && nearBank) {
-        p.bank[inp.item]--;
-        if (p.bank[inp.item] === 0) delete p.bank[inp.item];
-        p.inventory[slot] = { item: inp.item, qty: 1 };
+      // §7.3a: AS MANY AS ASKED, AS MANY AS BANKED, AS MANY AS FIT -- whichever
+      // is least. Withdrawing used to hand over one unit into one free slot,
+      // which meant twenty-five arrows cost twenty-five intervals AND
+      // twenty-five slots: they did not stack on the way out of the vault the
+      // way they stack on the way in.
+      if (p.bank[inp.item] > 0 && nearBank) {
+        let want = Math.min(inp.qty, p.bank[inp.item]);
+        if (STACKABLE.has(inp.item)) {
+          const at = p.inventory.findIndex((x) => x?.item === inp.item);
+          const slot2 = at !== -1 ? at : firstFreeSlot(p.inventory);
+          if (slot2 !== -1) {
+            const cur = p.inventory[slot2];
+            const room = MAX_QTY - (cur?.qty ?? 0);
+            want = Math.min(want, room);
+            if (want > 0) {
+              p.inventory[slot2] = { item: inp.item, qty: (cur?.qty ?? 0) + want };
+              p.bank[inp.item] -= want;
+            }
+          }
+        } else {
+          let took = 0;
+          for (let i = 0; i < p.inventory.length && took < want; i++) {
+            if (p.inventory[i]) continue;
+            p.inventory[i] = { item: inp.item, qty: 1 };
+            took++;
+          }
+          p.bank[inp.item] -= took;
+        }
+        if (p.bank[inp.item] <= 0) delete p.bank[inp.item];
       }
     } else if (inp.type === 'drop') {
       const it = p.inventory[inp.slot];
