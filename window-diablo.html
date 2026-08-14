@@ -2990,7 +2990,10 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
   : a.do === 'drink' ? { type: 'drink' }
   : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
+  // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
+  // one, so a window that omits it silently stops being able to use a vault.
+  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }
+  : a.do === 'deposit_all' ? { type: 'deposit_all' }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
   : a.do === 'sell' ? { type: 'sell', slot: a.slot }
   : a.do === 'name' ? { type: 'claim_name', name: a.name }
@@ -3090,6 +3093,9 @@ function connect() {
 // responsive. Resync whenever the stamp leaves the window it may occupy in
 // either direction: reconnecting to an earlier state used to strand it in a
 // future that never arrived, and every step was refused forever after.
+// §2287: how many footsteps the two-deep tick line has thrown away. Read it
+// from the console as `_movesDropped`; it should stay near zero.
+let _movesDropped = 0
 function allocTick() {
   const cur = world?.tick ?? 0
   if (lastStamped < cur || lastStamped > cur + 2) lastStamped = cur
@@ -3131,7 +3137,13 @@ async function send(a) {
     // is exactly what that looks like from the outside.
     //
     // A one-shot deed waits its turn instead.
-    if (a.do === 'move') return
+    // A FOOTSTEP STILL DOES NOT QUEUE -- a walk re-plans itself every interval
+    // and a stale step is worse than none. But it is COUNTED now, because a
+    // silent drop is how a background message about somebody's coat ate one
+    // step in three for a whole session and looked like a network problem.
+    // If this climbs while you are walking, something else is spending your
+    // intervals: find it rather than blaming the connection.
+    if (a.do === 'move') { _movesDropped++; return }
     if (outbox.length < 8) outbox.push(a)
     return
   }
@@ -3838,17 +3850,34 @@ function humanoid(g, cx, base, o) {
   const shY = base - 32 * s + bob - bulk * 1.5 * s + crouch
   const headY = base - 40 * s + bob - bulk * 1.2 * s + crouch + pitch * .6
   // legs
-  const la = Math.sin(step) * 4.5 * s, lb = -la
+  // §6cz: A RIDER'S LEGS DO NOT WALK. Mounted, the body was still running the
+  // full stride cycle on the horse's back -- so a citizen crossing the island
+  // appeared to be MARCHING ALONG THE SPINE of the animal carrying them. The
+  // stride is suppressed and the near leg is folded over the flank: thigh
+  // forward from the hip, shin down from the knee, boot at the girth.
+  const seated = !!o.seated
+  const la = seated ? 0 : Math.sin(step) * 4.5 * s, lb = -la
   g.strokeStyle = o.boots ?? '#241d16'; g.lineWidth = 4.2 * s; g.lineCap = 'round'
+  if (seated) {
+    const F4 = o.face ?? 1
+    const kneeX = cx + F4 * 6 * s, kneeY = hipY + 5 * s
+    g.strokeStyle = o.greaves ?? o.boots ?? '#241d16'; g.lineWidth = 4.4 * s
+    g.beginPath(); g.moveTo(cx - F4 * s, hipY); g.lineTo(kneeX, kneeY); g.stroke()
+    g.beginPath(); g.moveTo(kneeX, kneeY); g.lineTo(kneeX - F4 * s, kneeY + 6 * s); g.stroke()
+    g.strokeStyle = '#241d16'; g.lineWidth = 3.4 * s
+    g.beginPath(); g.moveTo(kneeX - F4 * 2 * s, kneeY + 6.5 * s)
+    g.lineTo(kneeX + F4 * 1.5 * s, kneeY + 6.5 * s); g.stroke()
+  } else {
   g.beginPath(); g.moveTo(cx - 2 * s, hipY); g.lineTo(cx - 2 * s + la, base); g.stroke()
   g.beginPath(); g.moveTo(cx + 2 * s, hipY); g.lineTo(cx + 2 * s + lb, base); g.stroke()
+  }
   // 6ce: GREAVES, over the boot and short of the ankle, so the leg still reads
   // as a leg that walks. Gold defends nothing -- being seen IS the item -- so a
   // window that skipped this would have made four hundred hours at the seam buy
   // an invisible thing. Stroked over the limb rather than drawn beside it,
   // because this window builds a body out of strokes and a rectangle would sit
   // on it like a sticker.
-  if (o.greaves) {
+  if (o.greaves && !seated) {
     g.strokeStyle = o.greaves; g.lineWidth = 5 * s
     g.beginPath(); g.moveTo(cx - 2 * s, hipY + 1 * s); g.lineTo(cx - 2 * s + la * .62, base - 4 * s); g.stroke()
     g.beginPath(); g.moveTo(cx + 2 * s, hipY + 1 * s); g.lineTo(cx + 2 * s + lb * .62, base - 4 * s); g.stroke()
@@ -9091,6 +9120,7 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     }
   }
   humanoid(g, sx, sy - rideLift, {
+    seated: rideLift > 0, face: f[0] >= 0 ? 1 : -1,
     // WHOEVER THIS CITIZEN SAYS THEY ARE. `look` is a seed in the state, so
     // every window agrees who is standing there; absent one, their key stands
     // in, exactly as it always did.
@@ -12859,7 +12889,12 @@ function buildSlotMenu(px2, py2, i) {
                  dim: fl < 90 || n3 < 2,
                  run: () => send({ do: 'fletch', slot: i, make: 'heartwood-staff' }) })
   }
-  if (near('bank')) items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
+  if (near('bank')) {
+    items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
+    // §7.3a: and the whole pack, for the walk home from the seam. The bow and
+    // the hood stay in your hands whatever you click.
+    items.push({ label: 'Vault everything', run: () => send({ do: 'deposit_all' }) })
+  }
   if (near('store') && PRICES[it]) items.push({ label: 'Sell it \u00b7 ' + (PRICES[it] * (sl.qty ?? 1)) + 'g', run: () => send({ do: 'sell', slot: i }) })
   // ALCHEMY, anywhere -- including where there is no store to walk to, which
   // is the point of it.
@@ -13896,7 +13931,11 @@ runRegion = function (r, isRight) {
   const a = r.act
   if (a.t === 'panebg') return          // the panel itself absorbs the click
   if (a.t === 'deposit') { send({ do: 'deposit', slot: a.slot }); SFX.pane(); return }
-  if (a.t === 'withdraw') { send({ do: 'withdraw', item: a.item }); SFX.pane(); return }
+  // §7.3a: take the lot -- what fits comes out, the rest stays in the vault.
+  if (a.t === 'withdraw') {
+    const have = curState?.players?.[myId]?.bank?.[a.item] ?? 1
+    send({ do: 'withdraw', item: a.item, qty: have }); SFX.pane(); return
+  }
   if (a.t === 'buystall') { send({ do: 'buy', item: a.item }); SFX.pane(); return }
   // 6ch: there is no recall.
   if (a.t === 'buy') { send({ do: 'buy', item: a.item }); SFX.gold(); return }
@@ -14748,7 +14787,24 @@ function reconcileLook(s) {
   const me = s?.players?.[myId]
   if (!me) return                       // not spawned yet: there is nobody to dress
   if (me.look === pickLook) return      // agreed
-  if ((s.tick ?? 0) - lookSentAt < 3) return
+  // AND IT WAITS ITS TURN, because the tick line is TWO DEEP.
+  //
+  // §2287 gives a citizen one input per interval, and `allocTick` honours that
+  // by stamping each deed onto its own future tick -- at most `cur+1` and
+  // `cur+2`. Two slots, total. This reconciliation used to fire every three
+  // intervals regardless, and a walking citizen has BOTH slots spoken for, so
+  // the look took one and the footstep behind it hit a full line. A move that
+  // finds the line full is dropped in silence (see `send`), because a walk
+  // re-plans itself -- true, but it re-plans a tick late.
+  //
+  // The symptom was a citizen who walked, stalled, then jumped: one step in
+  // three eaten by a background message about the colour of their coat. And it
+  // could not converge while they moved, so it did it for the whole journey.
+  //
+  // Three conditions now, all of them "the citizen is not using their turn":
+  if (me.action) return                          // busy: the interval is the deed's
+  if (lastStamped > (s.tick ?? 0)) return         // a slot is already spoken for
+  if ((s.tick ?? 0) - lookSentAt < 12) return     // and back off, rather than hammer
   lookSentAt = s.tick ?? 0
   send({ do: 'look', look: pickLook })
 }

@@ -3401,7 +3401,10 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'accept' ? { type: 'accept', from: a.from, slot: a.slot }
   : a.do === 'decline' ? { type: 'decline' }
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
+  // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
+  // one, so a window that omits it silently stops being able to use a vault.
+  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }
+  : a.do === 'deposit_all' ? { type: 'deposit_all' }
   : a.do === 'light' ? { type: 'light', slot: a.slot }
   : a.do === 'bury' ? { type: 'bury', slot: a.slot }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
@@ -3718,7 +3721,12 @@ function stepToward(s, me, goal, reach, stampTick) {
   if (step === null) { feed("You can't reach that."); intent = null; travelMark = null; return }
   if (step === 'arrived') return
   const tk = allocTick()
-  if (tk === null) return // the tick line is full; step on the next state
+  // §2287: two inputs stamped on one interval annihilate, so the allocator
+  // gives each deed its own tick and the line is only two deep. When it is
+  // full the step is abandoned and re-planned next state -- correct, but
+  // COUNTED, because a silent drop here is exactly how a background `set_look`
+  // ate one footstep in five and looked like a bad connection.
+  if (tk === null) { _movesDropped++; return }
   facing[myId] = step.dx !== 0 ? step.dx : (facing[myId] ?? 1)
   moveLock = { x: me.x + step.dx, y: me.y + step.dy, tick: tk, until: tk + 2 }
   send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
@@ -4123,6 +4131,7 @@ let pendingLight = null // { slot, tick } while coaxing a fire
 let _invSig = '' // last-rendered inventory signature: only rebuild slots on change (keeps taps responsive)
 let nameTries = 0
 let moveLock = null // { x, y, until } the step in flight: plan nothing atop it
+let _movesDropped = 0   // footsteps lost to a full tick line; should stay near zero
 let lastStamped = 0 // the tick allocator: two inputs on one tick annihilate
 function allocTick() {
   // at most two ticks of lookahead. Beyond that, an eager clicker was
@@ -4833,9 +4842,18 @@ function onState(s, worldId, local) {
   world = s
   // RECONCILE THE FACE. A set_look sent in the same interval as a spawn can
   // arrive first and be dropped, so this keeps asking until the world agrees.
+  // AND IT WAITS ITS TURN. The tick line is two deep (`allocTick`: cur+1 and
+  // cur+2, and its own comment says two inputs on one tick annihilate -- §2287).
+  // A walking citizen has both slots spoken for, so a face sent every fifth
+  // interval takes one and the footstep behind it finds the line full. A move
+  // that finds it full is DROPPED IN SILENCE, so the citizen walks, stalls,
+  // then jumps -- one step in five eaten by a message about their appearance,
+  // and it cannot converge while they walk, so it does it the whole way.
   const meL = s.players?.[myId]
   if (entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
-      && (s.tick % 5) === 0) { send({ do: 'set_look', look: pickLook }) }
+      && !meL.action                          // busy: the interval is the deed's
+      && lastStamped <= s.tick                // no slot already spoken for
+      && (s.tick % 12) === 0) { send({ do: 'set_look', look: pickLook }) }
   // per-state caches (perf): water adjacency and who pins which mob
   s._waterAdj = {}
   s._waterTiles = new Set()
@@ -8521,6 +8539,17 @@ function drawScene(now) {
       legs: p.equipment?.legs?.item ?? null,
       goldHelm: p.equipment?.head?.item === 'gold-helm',
       goldPlate: p.equipment?.body?.item === 'gold-plate',
+      // §6cz/§11: MOUNTED AND LADEN, ON THE BRANCH THAT DRAWS THE LIVING.
+      //
+      // There are two `drawCitizen` calls here -- one for a citizen who is
+      // FALLING and one for everybody else -- and these two fields went onto
+      // the falling one, because it comes first in the file and matched first.
+      // The result: no living citizen was ever mounted or ever carried a pack,
+      // and the only thing in Interval that could be seen on a horse was a
+      // corpse. It looked like the feature had simply not been written.
+      mounted: mountedNow(pid, p, now),
+      hauling: !!p.consignment,
+      haulLoad: p.consignment ? (p.consignment.items ?? []).filter(Boolean).length : 0,
         sword: wep === 'iron-sword', wepItem: wep, ironTool,
         // A COMMA, NOT AN INTERPUNCT. "Rosamund, banker (412)" is a person
         // with a job; "Rosamund . banker (412)" is two fields in a table. The
@@ -9683,7 +9712,14 @@ document.getElementById('gatename').addEventListener('keydown', (e) => { if (e.k
 
 document.getElementById('vault').addEventListener('click', (e) => {
   const item = e.target.dataset.wd
-  if (item) { send({ do: 'withdraw', item }); feed('You withdraw the ' + item.replace('-', ' ') + '.') }
+  if (item) {
+    // §7.3a: take the LOT. A vault holding twenty-five arrows used to hand
+    // them back one an interval into one slot each; now the pack takes what
+    // fits and the rest stays banked.
+    const have = world?.players?.[myId]?.bank?.[item] ?? 1
+    send({ do: 'withdraw', item, qty: have })
+    feed('You withdraw the ' + item.replace('-', ' ') + '.')
+  }
 })
 
 document.getElementById('offers').addEventListener('click', (e) => {

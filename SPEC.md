@@ -4928,6 +4928,68 @@ citizen is now substantially more profitable than it was, because the best
 things anybody owns are usually being worn rather than carried. That is a
 balance change and not only a repair.
 
+## 7.3a. Banking is not the Wilds (v0.87)
+
+```
+deposit {slot}     the WHOLE slot, stack and all, in one interval
+deposit_all {}     every slot the vault will take, in one deed
+withdraw {item, qty}   as many as asked, as banked, and as fit -- least wins
+```
+
+A deposit used to move **one unit** an interval. A stack of twenty-five arrows
+was twenty-five intervals standing at a counter, and a full pack was minutes.
+
+### The rate limit was pricing a risk that is not there
+
+The justification is written into `alch` and it is a good one:
+
+> a citizen may submit one input per interval, so a full pack is twenty-odd
+> intervals of standing still in the open… standing still in dangerous country
+> is a real thing to choose.
+
+Exactly right — **about the Wilds**. Out there the rate limit prices exposure,
+and the choice between carrying it out and standing to convert is a real one.
+
+A bank is in a town. Nothing may strike you, nothing may be taken, and no
+decision is on offer. The twenty-five intervals bought no risk and no choice,
+only waiting. §8 says patience is never the tax, and a script does not mind
+twenty-five clicks — so the entire cost fell on the person and none of it on
+the thing §8 exists to worry about. Alchemy keeps its rate, because alchemy
+keeps its danger.
+
+### One input is about equivocation, not about volume
+
+§2287 gives a citizen one input per interval and discards the bundle if they
+send two. That rule exists so nobody signs two different futures for the same
+tick. It says nothing about how much a single deed may move, and every other
+resolver in this engine moves as much as its rule describes.
+
+`deposit_all` is therefore one input like any other. What it does not do is
+override the vault's refusals: **the dragonbow and the wayfarer's hood stay in
+your hands** (§6w, §6ax), and a hauler is refused outright (§11d).
+
+Those refusals used to live in two different functions — the bow in the gate,
+the hood in the resolver — so `mayDo` and `apply` disagreed about what a
+deposit would do, and a hood deposit was accepted, recorded as a deed, and did
+nothing. They are one predicate now, `vaultRefuses`, and every caller asks it.
+
+### Withdrawal, and a breaking change
+
+Withdrawing handed back one unit into one free slot, so twenty-five arrows
+cost twenty-five intervals **and twenty-five slots** — they did not stack on
+the way out of a vault the way they stack on the way in.
+
+`withdraw` now names a quantity and takes the least of what was asked, what is
+banked, and what will fit. **This changes the input shape**, and there is no
+optional-field support in the shape table: an old `withdraw` without `qty` is
+refused rather than defaulted. Any client sending raw inputs must add the
+field. The SDK defaults it to one so ordinary callers are unaffected.
+
+Nothing was done to make a vault easier to REACH. It is still one map per
+citizen at any bank node, which is already a teleport for goods, and that is
+the generosity this world chose. What changed is only how long you stand at
+the counter once you are there.
+
 ## 6af. The special blow (v0.81)
 
 Three weapons can strike off the rhythm. Each does **one thing you can say in
