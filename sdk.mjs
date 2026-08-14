@@ -146,7 +146,15 @@ export class IntervalClient {
   kindle() { return this.#send({ type: 'kindle' }) }
   stoke(nodeId, slot) { return this.#send({ type: 'stoke', nodeId, slot }) }
   deposit(slot) { return this.#send({ type: 'deposit', slot }) }
-  withdraw(item) { return this.#send({ type: 'withdraw', item }) }
+  // §7.3a: A QUANTITY IS REQUIRED NOW, and this is a BREAKING CHANGE for any
+  // script written against the old shape -- `withdraw(item)` with no count is
+  // refused by the shape check, not silently treated as one. Defaulted here so
+  // callers that never cared keep working; anything sending raw inputs must
+  // add the field.
+  withdraw(item, qty = 1) { return this.#send({ type: 'withdraw', item, qty }) }
+  // §7.3a: the whole pack into the vault, in one deed. The bow and the hood
+  // stay in your hands (§6w, §6ax) and a hauler is refused outright (§11d).
+  depositAll() { return this.#send({ type: 'deposit_all' }) }
   smith(recipe) { return this.#send({ type: 'smith', recipe }) }
   wield(slot) { return this.#send({ type: 'wield', slot }) }
   buy(item) { return this.#send({ type: 'buy', item }) }
