@@ -11,6 +11,7 @@ import * as expanse3 from './worldgen-expanse3.mjs'
 import * as expanse4 from './worldgen-expanse4.mjs'
 import * as expanse5 from './worldgen-expanse5.mjs'
 import * as expanse6 from './worldgen-expanse6.mjs'
+import * as expanse7 from './worldgen-expanse7.mjs'
 
 const GENERATORS = {
   [classic.GENERATOR_ID]: classic,
@@ -20,12 +21,15 @@ const GENERATORS = {
   [expanse4.GENERATOR_ID]: expanse4,
   [expanse5.GENERATOR_ID]: expanse5,
   [expanse6.GENERATOR_ID]: expanse6,
+  [expanse7.GENERATOR_ID]: expanse7,
 }
 
 // the founding, dispatched: each generator founds at its own calibrated
 // scale unless the founder names one. The expanse's own founding also
 // seals its geography, watchfire, and survey retunes into the genesis.
 export function foundGenesis(genId, seed, rulesHash, anchorMs, W = 0, H = 0) {
+  if (genId === expanse7.GENERATOR_ID)
+    return expanse7.makeExpanse7Genesis(seed, rulesHash, anchorMs, W || 896, H || 512)
   if (genId === expanse6.GENERATOR_ID)
     return expanse6.makeExpanse6Genesis(seed, rulesHash, anchorMs, W || 896, H || 512)
   if (genId === expanse5.GENERATOR_ID)
