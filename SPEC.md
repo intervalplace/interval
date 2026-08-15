@@ -6161,6 +6161,37 @@ So: neither is a second hearth in any living world, and neither may be reused
 for something new. **A node type is a word in a constitution that old worlds
 are still written in.**
 
+### 13n. Who lives here (v0.88)
+
+**Thirty-nine of the island's eighty-one rooms held a bed, a hearth and
+nobody** — a door, a floor, and no answer to "why is this room here".
+
+The answer is not another verb. §13k gave three rooms the only place in the
+world where something can be done, and three is the right number of those:
+eight brewhouses would be wallpaper for the reason nine shrines were. The
+answer is that **somebody lives here**. Lumbridge's houses are empty too; the
+difference is that people are standing in them.
+
+**No new vocabulary.** Every calling is already in `KEEPER_KINDS`, and most had
+stood exactly once on the whole island — collier, quarrier, beekeeper, drover
+and mourner were each a single person in a country of a thousand. A country has
+more than one shepherd.
+
+**A person beats a table.** Most of these cottages are furnished to capacity: a
+three-by-two interior with a bed, a hearth and a table has no free tile at all.
+A resident may take the tile a table, shelf or barrel stands on — never the bed
+or the hearth. A room with a bed, a fire and somebody in it is better furnished
+than a room with one more table and nobody.
+
+Two mistakes on the way, both the same shape as the rest of this founding.
+The seats were gated on `groundKindAt === 'floor'`, which **refused 27 of 37 of
+them in rooms that plainly have floorboards** — that kind belongs to the lone
+rooms out in the country, and a town cottage's interior does not report as it.
+And the seat finder allowed a resident to move a table while the builder did
+not, so seven more stood politely outside their own houses.
+
+**81 rooms, 73 with somebody in them, none holding only furniture.**
+
 ### 13l. Doors, stalls and the altar (v0.88)
 
 **A trade to a house, and never in the doorway.** Drawing all eighty-one rooms
