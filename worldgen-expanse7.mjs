@@ -123,8 +123,51 @@
 //
 // Per SPEC 9c this is a NEW GENERATOR ID: v3's world keeps its land.
 import E from './engine.js'
-import { seedNum, meander, thash } from './worldgen-expanse.mjs'
+import { seedNum, meander as _meander, thash as _thash } from './worldgen-expanse.mjs'
+
+// ---------------------------------------------------------------------------
+// THE ISLAND IS FROZEN
+// ---------------------------------------------------------------------------
+// Tallyholm is not a generator any more. It is a DESCRIPTION.
+//
+// Everything about the land -- the coast, the countries, the Great River, the
+// Ridge, the Barrow, the lake, where every town seats itself, where every
+// place and holding stands, where the last tree in the Greenwood grows -- is
+// computed from ONE founding seed, whatever seed a pillar is actually founded
+// with. Two consequences, both wanted:
+//
+//   A world founded tomorrow with a different INTERVAL_SEED is a DIFFERENT
+//   WORLD -- its own ledger, its own worldId, its own history -- standing on
+//   THE SAME ISLAND. Which is how the game this one is measured against always
+//   worked: many worlds, one map.
+//
+//   And therefore a chart drawn by one citizen is true for every citizen in
+//   every world, forever. "Meet me at the Nine Stones" means something across
+//   servers. Directions survive. A procedural island fragments that knowledge
+//   into as many maps as there are seeds, and no one of them is ever worth
+//   learning by heart.
+//
+// It also ends, by construction, the entire class of fault this founding spent
+// its life on: a seater that collides with what is already there cannot
+// surprise anybody twice, because there is only one arrangement and a person
+// has looked at it.
+//
+// The seed below is the one this island was computed from and must never
+// change: changing it is not a tuning, it is a different country, and it wants
+// a new generator id.
+export const TALLYHOLM_SEED = 'solo-50'
+const ISLE = (g) => (g && g.genesisSeed === TALLYHOLM_SEED ? g
+  : { ...g, genesisSeed: TALLYHOLM_SEED })
+const thash = (g, x, y, k) => _thash(ISLE(g), x, y, k)
+const meander = (g, tag, u, seg, amp) => _meander(ISLE(g), tag, u, seg, amp)
 import { angleOf } from './worldgen-expanse3.mjs'
+import { PLACES_V7, PLACE_MOBS, PLACE_INSIDE } from './worldgen-places-v7.mjs'
+import { HOLDINGS, HOLDING_NAMES, HOLDING_SEATS } from './worldgen-holdings-v7.mjs'
+import { FIELDS_V7 } from './worldgen-fields-v7.mjs'
+import { COUNTRY_WORKS, COUNTRY_SEATS, DROVE, TRACKS, QUAYS } from './worldgen-country-v7.mjs'
+import { WATERS, BECKS, BECK_FORDS, BECK_PLANKS, SHAPE_K } from './worldgen-water-v7.mjs'
+import { CAMPS } from './worldgen-camps-v7.mjs'
+import { SEAMS } from './worldgen-seams-v7.mjs'
 import { PLANS5_V6 as PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
          seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS, LEGEND_V6 } from './worldgen-shire-v6.mjs'
 export { seedNum, meander, thash, angleOf }
@@ -432,13 +475,29 @@ export function onRidge(g, x, y) {
   const d = x - rx < 0 ? rx - x : x - rx
   if (d > 2) return false
   for (const p of passesOf(g)) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
-  if (biomeAt(g, x, y) === 'greenwood') return false // the ridge sinks beneath the wood
-  // ...and dies away into the Downs before it reaches the bay. A ridge that
-  // runs into the sea leaves the southeast with no shore a port could stand
-  // on: Eastmere's first three seats put its piers into solid rock, and the
-  // drawing was not the thing that was wrong. Hand-authoring the core forces
-  // the terrain to make room for it, which is the right way round.
-  if (y > g.worldH * 0.70) return false
+  // v7: A WALL WITH BOTH ENDS OPEN IS NOT A WALL.
+  //
+  // Two rules used to stand here, each deliberate and each with a good reason:
+  // the ridge "sinks beneath the wood" in the north (the greenwood test) and
+  // "dies away into the Downs before it reaches the bay" in the south (y >
+  // 0.70H), so that Eastmere had a shore to put piers on. Between them they
+  // left the ridge absent on 241 of the island's 433 land rows -- the WHOLE
+  // north end and the WHOLE south end -- and the consequence, which nobody
+  // chose, was that the two named passes gated nothing at all. Measured: shut
+  // the South Pass and it changed ZERO of the forty-five journeys between
+  // towns. North Pass, South Pass, and the crags beyond them were scenery.
+  //
+  // Both reasons are answered better elsewhere now. Eastmere does not need a
+  // hole in a mountain to find a shore: the ridge line runs x613-628 at the
+  // port's latitudes and the town seats itself at 635-673, so the wall misses
+  // it by seven tiles and covers NONE of its 144 quay tiles -- and if a future
+  // seed puts them together, seatDrawnTown moves the town, which is the right
+  // way round, exactly as this file's own comment argued. The wood keeps its
+  // character without swallowing a mountain range.
+  //
+  // What it costs: ten road tiles that used to cross the line away from a
+  // pass. The router walks them round to the gaps, which is what a road does
+  // when it meets a mountain.
   if (inSeaBase(g, x, y)) return false
   return true
 }
@@ -488,9 +547,83 @@ export function inRiver(g, x, y) {
   return false
 }
 export function lakeC(g) { return { x: Math.round(g.worldW * 0.745), y: Math.round(g.worldH * 0.21) } }
+// THE INLAND WATERS. Stillwater, and the hand-drawn meres, tarns, pools and
+// becks of worldgen-water-v7.mjs. Memoised as a tile set because this is asked
+// once per tile per render and the ellipses are not free.
+let _waterSet = null
+function inlandSet(g) {
+  if (_waterSet) return _waterSet
+  const set = new Set()
+  // STILLWATER GETS THE SAME TREATMENT. It is the island's oldest water and was
+  // still a perfect ellipse, conspicuous now that every mere and tarn round it
+  // has a shoreline. It joins the table rather than keeping its own rule --
+  // which is also one fewer place for the two to disagree, and the first
+  // attempt at this DELETED THE LAKE by leaving `inLake` reading a set the
+  // lake had not been added to.
+  const ALL = [...WATERS,
+    { x: lakeC(g).x, y: lakeC(g).y, rx: 24, ry: 13, kind: 'mere', name: 'Stillwater' }]
+  for (let wi = 0; wi < ALL.length; wi++) {
+    const w2 = ALL[wi]
+    const k = SHAPE_K[w2.kind] ?? 0.24
+    // FIVE harmonics, not three, and a tile of roughness on top. Three gave a
+    // smooth lobed blob -- better than a circle, still plainly drawn with a
+    // compass. The high terms (7, 11) are what put an inlet and a spit on a
+    // shoreline, and the last term breaks the rim so it is crenellated tile to
+    // tile rather than swept.
+    const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
+    const ph = M.map((m) => ((thash(g, wi, m, 907) % 1000) / 1000) * Math.PI * 2)
+    const rAt = (a, x, y) => {
+      let r = 1
+      for (let i = 0; i < M.length; i++) r += k * A[i] * Math.sin(M[i] * a + ph[i])
+      return r + ((thash(g, x, y, 911) % 100) / 100 - 0.5) * 0.05
+    }
+    const pad = Math.ceil(Math.max(w2.rx, w2.ry) * (1 + k)) + 2
+    for (let y = w2.y - pad; y <= w2.y + pad; y++)
+      for (let x = w2.x - pad; x <= w2.x + pad; x++) {
+        const dx = (x - w2.x) / w2.rx, dy = (y - w2.y) / w2.ry
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d === 0) { set.add(x + ',' + y); continue }
+        if (d < rAt(Math.atan2(dy, dx), x, y)) set.add(x + ',' + y)
+      }
+  }
+  // the becks, joined tile to tile. A beck leaves a FORD wherever a road
+  // crosses it: water that severs a route is a bug wearing a landscape.
+  for (const b of BECKS) {
+    for (let i = 0; i < b.path.length - 1; i++) {
+      let [x, y] = b.path[i]; const [tx, ty] = b.path[i + 1]
+      let guard = 0
+      while ((x !== tx || y !== ty) && guard++ < 400) {
+        set.add(x + ',' + y)
+        if (Math.abs(tx - x) >= Math.abs(ty - y)) x += Math.sign(tx - x)
+        else y += Math.sign(ty - y)
+      }
+    }
+    const last = b.path[b.path.length - 1]; set.add(last[0] + ',' + last[1])
+  }
+  for (const [x, y] of BECK_FORDS) set.delete(x + ',' + y)
+  _waterSet = set
+  return set
+}
 export function inLake(g, x, y) {
-  const c = lakeC(g), dx = (x - c.x) / 24, dy = (y - c.y) / 13
-  return dx * dx + dy * dy < 1
+  // Stillwater is in the table now (see inlandSet): one rule for every water.
+  // NO ROAD EXCEPTION HERE, and the reason is worth writing down: asking
+  // `onRoad` from inside `inLake` is a cycle. Roads are routed by a router
+  // that consults isWater, isWater consults inLake, and the whole founding
+  // disappears down its own throat -- which it did, first try, with a stack
+  // overflow eleven frames deep.
+  //
+  // So the water is laid FIRST and the router routes around it, finding its
+  // own way as it already does round the Barrow and through the passes. Where
+  // a beck genuinely severs something the answer is to move the beck by hand,
+  // not to teach the water about roads.
+  return inlandSet(g).has(x + ',' + y)
+}
+export function waterNameAt(g, x, y) {
+  for (const w2 of WATERS) {
+    const dx = (x - w2.x) / (w2.rx + 1), dy = (y - w2.y) / (w2.ry + 1)
+    if (dx * dx + dy * dy < 1) return w2.name
+  }
+  return null
 }
 export const isWater = (g, x, y) => inSea(g, x, y) || inRiver(g, x, y) || inLake(g, x, y)
 
@@ -781,7 +914,25 @@ export function bridgesOf(g) {
   out.push({ x: mx, y: marchWY(g, mx), name: 'the Oxenford', tag: 'brm' })
   return out
 }
+// the planks over the becks, and the quays at Eastmere: both are decking, and
+// decking is water you can walk on
+const _plankSet = new Set(BECK_PLANKS.map(([x, y]) => x + ',' + y))
+for (const q of QUAYS) {
+  for (let i = 0; i < q.path.length - 1; i++) {
+    let [x, y] = q.path[i]; const [tx, ty] = q.path[i + 1]
+    let guard = 0
+    while ((x !== tx || y !== ty) && guard++ < 60) {
+      _plankSet.add(x + ',' + y)
+      if (Math.abs(tx - x) >= Math.abs(ty - y)) x += Math.sign(tx - x)
+      else y += Math.sign(ty - y)
+    }
+  }
+  const last = q.path[q.path.length - 1]; _plankSet.add(last[0] + ',' + last[1])
+}
 export function onBridge(g, x, y) {
+  // §13f: the planks over the becks. Cheap, first, and it makes blockedAt and
+  // groundKindAt both agree that a crossing is decking.
+  if (_plankSet.has(x + ',' + y)) return true
   // A BRIDGE IS A SPAN, NOT A RECTANGLE.
   //
   // This stamped a nine-by-five block of deck at each crossing, so wherever a
@@ -1001,7 +1152,7 @@ export function routeCost(g, x, y) {
   let c = BIOME_COST[b] ?? 14
   const hm = handmadeAt(x, y)                      // and the things somebody put here
   if (hm) c += HANDMADE_COST[hm.kind] ?? 40
-  c += goingAt(goingSalt(g.genesisSeed), x, y)     // the going, patch by patch
+  c += goingAt(goingSalt(TALLYHOLM_SEED), x, y)     // the going, patch by patch
   // a road would rather not run along the lip of the water
   if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) c += 6
   return c
@@ -1070,7 +1221,7 @@ export function routePath(g, ax, ay, bx, by, laid) {
   // divided by five, which on a two-hundred-tile road is a pull no terrain can
   // argue with -- the reason every long road came out as a ruled diagonal. At
   // fourteen it still settles the ties and the going decides the route.
-  const esalt = goingSalt(g.genesisSeed) ^ 0x9e37
+  const esalt = goingSalt(TALLYHOLM_SEED) ^ 0x9e37
   const vx = bx - ax, vy = by - ay
   const L = Math.sqrt(vx * vx + vy * vy)
   const offLine = (x, y) => {
@@ -1171,6 +1322,11 @@ export function junctionsOf(g) {
     spass: { x: ridgeX(g, p2), y: p2 },
     watersmeet: seatPoint(g, riverX(g, confY(g)) + 6, confY(g) + 7),
     shrine: (() => { const i = islesOf(g)[0]; return { x: i.x, y: i.y } })(),
+    // §13: the two localities the roads never reached. Aimed at the locality's
+    // own centre, not at the place: the track goes to the Moor, and the Nine
+    // Stones happen to be standing on it.
+    ninestone: seatPoint(g, ...(() => { const L = LOCALES.find(l => l.tag === 'ninestone'); const c = localeCentre(g, L); return [c.x, c.y] })()),
+    kingswood: seatPoint(g, ...(() => { const L = LOCALES.find(l => l.tag === 'kingswood'); const c = localeCentre(g, L); return [c.x, c.y] })()),
   }
   _juncMemo.set(_k, out)
   return out
@@ -1256,6 +1412,40 @@ export function roadSegsOf(g) {
     [s.oxenford, s.norwick, 111],     // finds the Oxenford crossing
     [s.hollybarrow, s.norwick, 112],
     [s.eastmere, j.shrine, 113],      // the causeway: drawn, not routed
+    // §13: TWO TRACKS TO TWO PLACES NOBODY WOULD OTHERWISE SEE.
+    //
+    // Measured after the places were laid: ten of the eighteen sit within
+    // sight of a road, and the other eight are in countries that have no roads
+    // at all. For the Boneyard and the Ruined Tower that is correct -- the
+    // Wilds should be a walk into nothing, and a place out there is supposed
+    // to cost you something to reach.
+    //
+    // But Ninestone Moor stood 59 tiles from the nearest road and the King's
+    // Oak 99, and those are not remote, they are invisible. A seater cannot
+    // fix that: you cannot bias a place towards a road in a country that has
+    // none. So the country gets the road. Two tracks, from the nearest town to
+    // the locality, and the router does the rest.
+    [s.hollybarrow, j.ninestone, 114],
+    [s.greenhollow, j.kingswood, 115],
+    // ---- THE MESH ----
+    // Measured against the map this island is compared with: 11.6% of their
+    // land is road against 1.9% of ours, and it is not because their roads are
+    // wider. It is TOPOLOGY. Every road here ran town to town and the whole
+    // network was a spanning tree with ten leaves -- no loops, no alternatives,
+    // one way to get anywhere. A country's roads are not a spanning tree. They
+    // are what is left after everybody has walked to everybody for a century,
+    // and that has cycles in it.
+    //
+    // These are the links a person would actually have worn in: the ones
+    // between neighbours who currently have to go via the capital.
+    [s.thornbury, s.eastmere, 116],     // the forge sells to the port direct
+    [s.greenhollow, s.hollybarrow, 117], // over the top, not down through Millbrook
+    [s.oxenford, s.fenmarch, 118],      // the crossing to the fen port
+    [s.norwick, s.hollybarrow, 119],    // the garrison's own way east
+    [s.cragfoot, j.spass, 120],         // the Crags reach the South Pass road
+    [s.millbrook, j.watersmeet, 121],   // market to the meeting of the waters
+    [s.thornbury, j.br2, 122],          // and to the Watersmeet Bridge
+    [s.anchor, j.br0, 123],             // the capital's own road north to Highford
   ]
 }
 export const CAUSEWAY_TAG = 113
@@ -1288,7 +1478,7 @@ export function routedPathsOf(g) {
   }
   // and then the lanes, which join nothing. They are laid LAST so they hang
   // off the finished network rather than becoming part of anyone's route.
-  const lanes = laneSeatsOf(settlementsOf(g), goingSalt(g.genesisSeed) ^ 0x5a17)
+  const lanes = laneSeatsOf(settlementsOf(g), goingSalt(TALLYHOLM_SEED) ^ 0x5a17)
   let li = 0
   for (const L2 of lanes) {
     const seat = seatPoint(g, L2.x, L2.y)
@@ -1603,9 +1793,182 @@ export function innSeat(g) {
   _innSeatCache.set(g, got)
   return got
 }
+// ---------------------------------------------------------------------------
+// THE HOLDINGS: WHERE THE LANES LEAVE THE ROAD
+// ---------------------------------------------------------------------------
+// See worldgen-holdings-v7.mjs for the measurement that motivates these and
+// for why a farmhouse may repeat where a shrine may not.
+//
+// Pure in (seed, size) and memoised, like every other seat here: this is asked
+// for by groundKindAt, which is asked for by every tile of every render.
+const _hMemo = new Map()
+export function holdingsOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const hit = _hMemo.get(k); if (hit) return hit
+  // READ, NOT SEARCHED. The seats are a table now (HOLDING_SEATS), baked once
+  // off the placer that used to run here and edited by hand since. What is
+  // still computed is only the arithmetic of laying a drawing down: which
+  // tiles its corner falls on.
+  const out = []
+  for (const seat of HOLDING_SEATS) {
+    const pick = HOLDINGS.find(h => h.tag === seat.kind)
+    if (!pick) { console.warn('WORLDGEN: no drawing called ' + seat.kind + ' for ' + seat.name); continue }
+    const pw = pick.rows[0].length, ph = pick.rows.length
+    out.push({ ...pick, id: 'hold' + out.length, name: seat.name,
+      x: seat.x, y: seat.y, x0: seat.x - (pw >> 1), y0: seat.y - (ph >> 1),
+      w: pw, h: ph, rows: pick.rows, lane: seat.lane })
+  }
+  _hMemo.set(k, out)
+  return out
+}
+
+// THE DROVE ROAD, walked in rather than built. A hand-drawn polyline across
+// the chalk, joined tile to tile, added to the lanes -- so it reads as trodden
+// ground and, like every lane, is deliberately not a King's road.
+export function droveTilesOf(g) {
+  const out = []
+  for (const t of TRACKS) {
+    for (let i = 0; i < t.length - 1; i++) {
+      let [x, y] = t[i]; const [tx, ty] = t[i + 1]
+      let guard = 0
+      while ((x !== tx || y !== ty) && guard++ < 200) {
+        out.push([x, y])
+        if (Math.abs(tx - x) >= Math.abs(ty - y)) x += Math.sign(tx - x)
+        else y += Math.sign(ty - y)
+      }
+    }
+    out.push(t[t.length - 1])
+  }
+  for (let i = 0; i < DROVE.length - 1; i++) {
+    let [x, y] = DROVE[i]; const [tx, ty] = DROVE[i + 1]
+    let guard = 0
+    while ((x !== tx || y !== ty) && guard++ < 200) {
+      out.push([x, y])
+      if (Math.abs(tx - x) >= Math.abs(ty - y)) x += Math.sign(tx - x)
+      else y += Math.sign(ty - y)
+    }
+  }
+  out.push(DROVE[DROVE.length - 1])
+  return out.filter(([x, y]) => !isWater(g, x, y) && !blockedAt(g, x, y))
+}
+
+const _laneMemo = new Map()
+export function laneTilesOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const hit = _laneMemo.get(k); if (hit) return hit
+  const set = new Set()
+  for (const h of holdingsOf(g)) for (const [x, y] of h.lane) set.add(x + ',' + y)
+  for (const [x, y] of droveTilesOf(g)) set.add(x + ',' + y)
+  _laneMemo.set(k, set)
+  return set
+}
+export const onLane = (g, x, y) => laneTilesOf(g).has(x + ',' + y)
+
+// ---------------------------------------------------------------------------
+// THE PLACES: WHERE EACH ONE STANDS
+// ---------------------------------------------------------------------------
+// A hand-drawn one-off, seated at the locality whose name is already on the
+// chart. Pure in (seed, size) like every other seat here, and memoised,
+// because groundKindAt asks for it on every tile of the island.
+const _plMemo = new Map()
+export function placeSeatsOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const hit = _plMemo.get(k); if (hit) return hit
+  const out = []
+  const claimed = []
+  for (const tag of Object.keys(PLACES_V7).sort()) {
+    const P = PLACES_V7[tag]
+    const L = LOCALES.find(l => l.tag === P.locale)
+    if (!L) continue
+    const c = localeCentre(g, L)
+    const pw = P.rows[0].length, ph = P.rows.length
+    // the ground a place needs: every drawn tile dry, unblocked, out of every
+    // town, off every road, and clear of any place already seated.
+    const ok = (cx, cy) => {
+      const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
+      for (const q of claimed)
+        if (x0 - 6 <= q.x1 && x0 + pw + 6 >= q.x0 && y0 - 6 <= q.y1 && y0 + ph + 6 >= q.y0) return false
+      for (const s2 of settlementsOf(g)) {
+        const r = rectOf(s2)
+        if (x0 - 4 <= r.x1 && x0 + pw + 4 >= r.x0 && y0 - 4 <= r.y1 && y0 + ph + 4 >= r.y0) return false
+      }
+      for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+        if (P.rows[ry][rx] === '~') continue
+        const x = x0 + rx, y = y0 + ry
+        if (x < 3 || y < 3 || x >= g.worldW - 3 || y >= g.worldH - 3) return false
+        if (isWater(g, x, y) || onRidge(g, x, y) || onBarrow(g, x, y)) return false
+        if (onRoad(g, x, y) || fordAt(g, x, y)) return false
+      }
+      return true
+    }
+    // WITHIN SIGHT OF A ROAD.
+    //
+    // The first cut spiralled out from the locality centre and took the first
+    // dry seat it found, which is how the Bothy ended up at 260,77 and the
+    // Sawyer's Camp at 466,36 -- both a long way off any road, in country
+    // nobody crosses. A place nobody walks past is not texture, it is a
+    // screenshot. What makes Draynor Manor work is that it is BESIDE the road
+    // from Draynor to Varrock: you do not go to it, you pass it, and one day
+    // you go in.
+    //
+    // So the search is scored rather than first-hit. Every candidate seat that
+    // the land allows is rated by how far it stands from the nearest road, and
+    // the best is one that is NEAR but not ON: close enough to see from the
+    // verge, far enough that the place is not roadside furniture. Ties break
+    // on distance from the locality's own centre, so a place still belongs to
+    // the name it was given.
+    const NEAR = 4, FAR = 14           // tiles from the road: the good band
+    const roadDist = (x, y) => {
+      for (let r = 0; r <= FAR + 4; r++)
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+          if (onRoad(g, x + dx, y + dy)) return r
+        }
+      return 99
+    }
+    let seat = null, bestScore = Infinity
+    for (let rad = 0; rad < 60 && bestScore === Infinity ? true : rad < 60; rad++) {
+      let anyThisRing = false
+      for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+        const x = c.x + dx, y = c.y + dy
+        if (!ok(x, y)) continue
+        anyThisRing = true
+        const rd = roadDist(x, y)
+        // how badly does this seat miss the band, in tiles
+        const miss = rd < NEAR ? (NEAR - rd) * 3 : rd > FAR ? (rd - FAR) : 0
+        const score = miss * 10 + rad
+        if (score < bestScore) { bestScore = score; seat = { x, y } }
+      }
+      // once a seat inside the band has been found, stop widening: a place
+      // belongs to its locality, not to the best road on the island.
+      if (seat && bestScore < 10 && anyThisRing) break
+      if (rad > 24 && seat) break
+    }
+    if (!seat) continue                       // the country would not hold it
+    const x0 = seat.x - (pw >> 1), y0 = seat.y - (ph >> 1)
+    claimed.push({ x0, y0, x1: x0 + pw - 1, y1: y0 + ph - 1 })
+    out.push({ tag, ...P, x: seat.x, y: seat.y, x0, y0, w: pw, h: ph })
+  }
+  _plMemo.set(k, out)
+  return out
+}
+
 export function loneRooms(g) {
   const s = innSeat(g)
-  return s ? [[s.x - 2, s.y, 5, 3]] : []      // the Lantern's interior
+  const out = s ? [[s.x - 2, s.y, 5, 3]] : [] // the Lantern's interior
+  // ...and the hand-drawn places that have a roof. A ruin does not: the
+  // Boneyard and the Nine Stones are meant to have the moor underfoot.
+  for (const h of holdingsOf(g)) {
+    for (let ry = 0; ry < h.h; ry++) for (let rx = 0; rx < h.w; rx++)
+      if (h.rows[ry][rx] === ',') out.push([h.x0 + rx, h.y0 + ry, 1, 1])
+  }
+  for (const P of placeSeatsOf(g)) {
+    if (!P.floors) continue
+    for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++)
+      if (P.rows[ry][rx] === ',') out.push([P.x0 + rx, P.y0 + ry, 1, 1])
+  }
+  return out
 }
 
 // ---------------------------------------------------------------------------
@@ -1632,6 +1995,11 @@ function townPaved(rows, rx, ry) {
   return false;
 }
 export function groundKindAt(g, x, y) {
+  // DECKING IS DECKING. A window asks the ground what it is; over a bridge,
+  // a beck plank or a quay the answer is boards, not "nothing, it is water".
+  // Every window mirrored this from the generator and painted the sea, so the
+  // jetties at Eastmere came out as three fishing marks on an empty tide.
+  if (onBridge(g, x, y)) return 'bridge'
   for (const [rx, ry, rw, rh] of loneRooms(g))
     if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) return 'floor'
   if (isWater(g, x, y)) return null
@@ -1666,6 +2034,12 @@ export function groundKindAt(g, x, y) {
       return onRoad(g, x, y) ? 'cobble' : 'flag'
     }
   }
+  // A LANE IS TRODDEN GROUND, NOT A ROAD. It is deliberately NOT in onRoad:
+  // every rule that cares about roads -- where a citizen may raise a stall,
+  // what the founding sweeps off a street, where the wayside goes -- should go
+  // on meaning the King's roads. A lane is just where the grass has worn off
+  // between somebody's door and the way to town.
+  if (onLane(g, x, y)) return 'trail'
   if (onRoad(g, x, y)) {
     for (const st of sts) if (Math.max(Math.abs(x - st.x), Math.abs(y - st.y)) <= 20) return 'cobble'
     if (onRidge(g, x - 1, y) || onRidge(g, x + 1, y) || onBarrow(g, x, y)) return 'gravel'
@@ -1786,6 +2160,13 @@ E.registerTerrain(GENERATOR_ID, {
   spawn: (g) => spawnDry(g),
   country: (g, x, y) => biomeAt(g, x, y),
   road: (g, x, y) => onRoad(g, x, y),   // §6ao (v6): so the engine can require citizen stalls to line the roads
+  // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
+  // itself from a hand-copied table, and the copy went stale. The node that
+  // founded the world is the one place that ran the real seater; it ships what
+  // it seated, and a window draws exactly that. Same cure as roadDataOf.
+  settlements: (g) => settlementsOf(g).map((s) => ({
+    tag: s.tag, name: s.name, x: s.x, y: s.y, w: s.w, h: s.h, kind: s.kind, ring: s.ring,
+  })),
   // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
   // itself from a hand-copied table of nominal seats and footprints, and the
   // copy went stale: terrain-mirror still believed Millbrook was 40x18 after
@@ -1966,7 +2347,7 @@ export function buildWorld(genesis) {
     for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (_main.has((x+dx)+','+(y+dy))) return true
     return false
   }
-  const H32 = (tag, i) => E.sha256(Buffer.from(g.genesisSeed + ':' + tag + ':' + i))
+  const H32 = (tag, i) => E.sha256(Buffer.from(TALLYHOLM_SEED + ':' + tag + ':' + i))
 
   // ================= TOWNS THAT ARE LAID OUT =================
   // A town is: a wall with a named gate, two street lanes crossing at a
@@ -2570,6 +2951,81 @@ export function buildWorld(genesis) {
     for (let k = 0; k < 4; k++) seat('shrine-stone-' + k, 'landmark', [-4, 4, 0, 0][k], [0, 2, -4, 4][k], { kind: 'standing-stone' })
   }
 
+  // ================= THE SOUTH PASS, SHUT =================
+  //
+  // The Crags are crossed at two gaps in a five-tile wall of rock. One of them
+  // is full of boulders, and has been since before anyone arrived.
+  //
+  // Why nine stones and not a wall: they are NODES. A node blocks its tile
+  // (nothing here is in the engine's _WALKABLE_BUILT) and a node can be taken
+  // away, so the South Pass is the one thing on this island that CITIZENS can
+  // change and no re-founding will restore. It costs the constitution nothing
+  // to allow, because geographyHash covers blockedAt -- the land -- and these
+  // are not the land. The chart and the world stay in agreement about a pass
+  // whose stones the chart does not claim to know.
+  //
+  // The road still runs to it. That is deliberate: the sweep that clears
+  // blocked streets spares 'rockfall' precisely so this road survives, arrives
+  // at rock, and stops. A route that plainly used to work and does not is
+  // worth more than a route that was never drawn.
+  //
+  // A PLUG, NOT A FENCE. The first cut of this stood one stone on each row of
+  // the throat, in a single file -- and a single file is opened by ONE stone,
+  // because movement is cardinal and a one-tile gap is a road. Measured: break
+  // any one of the seven and the walk east falls from 397 tiles to 217. Six of
+  // them were decoration.
+  //
+  // So the fall is DEEP: the full height of the gap and ROCKFALL_DEPTH tiles
+  // thick, and what citizens do to it is not knock down a fence but drive a
+  // TUNNEL. The least work that opens the pass is one line straight through --
+  // five stones, not one and not thirty-five -- and every other stone is
+  // somebody widening the hole after the fact, which is exactly what people do
+  // to a hole.
+  {
+    const [, southPass] = passesOf(g)
+    // find the line across the gap that takes the fewest stones to shut
+    let bestX = ridgeX(g, southPass), bestN = Infinity
+    for (let x = ridgeX(g, southPass) - 3; x <= ridgeX(g, southPass) + 3; x++) {
+      let n = 0, ok = true
+      for (let y = southPass - 5; y <= southPass + 5; y++) {
+        if (blockedAt(g, x, y)) continue            // the wall already holds here
+        if (isWater(g, x, y)) { ok = false; break }
+        n++
+      }
+      if (ok && n < bestN) { bestN = n; bestX = x }
+    }
+    const DEPTH = 5
+    let laid = 0
+    for (let dx = -(DEPTH >> 1); dx <= (DEPTH >> 1); dx++) {
+      const x = bestX + dx
+      for (let y = southPass - 5; y <= southPass + 5; y++) {
+        if (blockedAt(g, x, y) || isWater(g, x, y)) continue
+        if (inAnySettlement(x, y)) continue
+        // NOT `free()`: that refuses the road, and the road is the point.
+        if (taken.has(key(x, y))) continue
+        put('rockfall-south-' + x + '-' + y, 'rockfall', x, y, {})
+        laid++
+      }
+    }
+    // and a sign at the near end, because a road that stops needs to say why
+    for (const dx of [-6, 6]) {
+      const x = bestX + dx
+      if (free(x, southPass)) { put('rockfall-sign' + dx, 'signpost', x, southPass, { text: 'the South Pass \u2014 shut' }); break }
+    }
+    // §7b: and something lives in it. Two scree-imps, which hit for one and
+    // cannot follow you out of the throat: the pass should have a NOISE in it,
+    // not a danger. Whoever is digging has company and nothing worse.
+    for (const [k, dy] of [[0, -3], [1, 3]]) {
+      const y = southPass + dy
+      for (let dx = -4; dx <= 4; dx++) {
+        const x = bestX + dx
+        if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || taken.has(key(x, y))) continue
+        E.addMob(w, 'screeimp-' + k, 'scree-imp', x, y); break
+      }
+    }
+    if (!laid) console.warn('WORLDGEN: the South Pass took no rockfall -- the gap is not where it was')
+  }
+
   // ================= THE BRIDGES, NAMED =================
   for (const b of bridgesOf(g)) {
     for (const [dx, dy] of [[-4, -2], [4, -2], [-4, 2], [4, 2]]) {
@@ -2582,6 +3038,592 @@ export function buildWorld(genesis) {
     }
   }
 
+  let _holdCount = 0, _fieldCount = 0, _workCount = 0, _skepCount = 0, _lockupCount = 0
+  // ================= THE HOLDINGS, AND THE FIELDS =================
+  // Somebody lives between the towns. See worldgen-holdings-v7.mjs for the
+  // measurement: this island had 73 built clumps against the 272 on the map it
+  // is always compared with, and -- the number that actually names the fault --
+  // a MEDIAN clump of twenty tiles against their one cottage. A few big towns
+  // and then nothing is what an unpopulated country looks like.
+  {
+    const HOLD_NODE = {
+      '#': ['wall'], 'f': ['fence'], '^': ['hedge'], 'p': ['plot'],
+      'h': ['hearth'], 'd': ['landmark', { kind: 'bed' }], 'e': ['landmark', { kind: 'table' }],
+      'q': ['landmark', { kind: 'barrel' }], 'v': ['landmark', { kind: 'shelf' }], 'T': ['tree'],
+    }
+    let built = 0, fields = 0
+    for (const hd of holdingsOf(g)) {
+      // the drawing owns its ground, as a place does
+      for (let ry = 0; ry < hd.h; ry++) for (let rx = 0; rx < hd.w; rx++) {
+        if (hd.rows[ry][rx] === '~') continue
+        const x = hd.x0 + rx, y = hd.y0 + ry
+        for (const [id, q] of Object.entries(w.nodes)) if (q.x === x && q.y === y) delete w.nodes[id]
+      }
+      for (let ry = 0; ry < hd.h; ry++) for (let rx = 0; rx < hd.w; rx++) {
+        const ch = hd.rows[ry][rx]
+        const spec = HOLD_NODE[ch]
+        if (!spec) continue                       // '~', '.', ',', '@' build nothing
+        const x = hd.x0 + rx, y = hd.y0 + ry
+        if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y)) continue
+        put(hd.id + '-' + rx + '-' + ry, spec[0], x, y, spec[1] ?? {})
+        if (ch === 'p') fields++
+        built++
+      }
+      // reserve the yard and the lane so nothing else moves in
+      for (let ry = -1; ry <= hd.h; ry++) for (let rx = -1; rx <= hd.w; rx++)
+        taken.add(key(hd.x0 + rx, hd.y0 + ry))
+      for (const [x, y] of hd.lane) taken.add(key(x, y))
+      // a board where the lane leaves the road, so the farm has a name
+      const far = hd.lane[hd.lane.length - 1]
+      if (far) {
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const x = far[0] + dx, y = far[1] + dy
+          if (free(x, y)) { put(hd.id + '-sign', 'signpost', x, y, { text: hd.name }); break }
+        }
+      }
+    }
+
+    // ---- AND THE FIELDS ROUND EVERY TOWN ----
+    // Hand-drawn now (worldgen-fields-v7.mjs). The placer that came before
+    // threw rectangles at a ring round each town and laid a quarter of the
+    // island's nodes as slabs of brown; a field is strips in a furlong with a
+    // headland to turn the plough on, a hedge round it and a gate where the
+    // lane comes in, and no amount of tuning a placer produces that.
+    //
+    // Tiles that fall on water, rock, road or anything already standing are
+    // simply not ploughed, so a field goes ragged where it meets a stream --
+    // which is what a real one does.
+    const FIELD_NODE = { p: ['plot'], '^': ['hedge'], f: ['fence'] }
+    for (const st of ss) {
+      const sys = FIELDS_V7[st.tag]
+      if (!sys) continue                                   // the ports fish
+      let k = 0
+      for (const blk of sys) {
+        const x0 = st.x + blk.dx, y0 = st.y + blk.dy
+        let laid = 0, want = 0
+        for (let ry = 0; ry < blk.rows.length; ry++) {
+          const row = blk.rows[ry]
+          for (let rx = 0; rx < row.length; rx++) {
+            const ch = row[rx]
+            if (ch === '~' || ch === ' ' || ch === '.' || ch === 'g') continue
+            want++
+            const x = x0 + rx, y = y0 + ry
+            if (blockedAt(g, x, y) || isWater(g, x, y) || onLane(g, x, y) || onRoad(g, x, y)) continue
+            if (inAnySettlement(x, y)) continue
+            // PLOUGHING CLEARS THE GROUND. `free` refuses any tile that already
+            // holds anything, so a furlong laid over the country's own scatter
+            // came out moth-eaten -- and Greenhollow's assarts, which are by
+            // definition wood being turned into field, laid 7 tiles of 30.
+            // Scrub gives way to the plough; walls, buildings and seams do not.
+            const CLEARABLE = new Set(['tree', 'oak-tree', 'landmark'])
+            let occupied = false
+            for (const [oid, q] of Object.entries(w.nodes)) {
+              if (q.x !== x || q.y !== y) continue
+              if (CLEARABLE.has(q.type) && q.kind !== 'standing-stone') { delete w.nodes[oid]; continue }
+              occupied = true
+            }
+            if (occupied) continue
+            const spec = ch === 'T' ? ['landmark', { kind: 'stump' }] : FIELD_NODE[ch]
+            if (!spec) continue
+            put('field-' + st.tag + '-' + (k++), spec[0], x, y, spec[1] ?? {})
+            if (ch === 'p') fields++
+            laid++
+          }
+        }
+        // a field that lands almost nowhere is a drawing in the wrong place,
+        // and the founding should say so rather than quietly ploughing a pond
+        if (want && laid / want < 0.35)
+          console.warn('WORLDGEN: ' + st.name + ' field at +' + blk.dx + ',' + blk.dy
+            + ' only laid ' + laid + ' of ' + want + ' tiles')
+      }
+    }
+    _holdCount = built; _fieldCount = fields
+  }
+
+  // ================= THE WORKING COUNTRY =================
+  // The Fens and the Downs, on their own terms. See worldgen-country-v7.mjs
+  // for the measurement: the Fens came out with the longest walk-to-anything
+  // on the island despite carrying a port, a causeway and an eel trade, and
+  // the Downs were sheep country with one fold on them.
+  {
+    const WORK_NODE = {
+      '#': ['wall'], 'f': ['fence'], '^': ['hedge'], 'p': ['plot'],
+      'h': ['hearth'], 'd': ['landmark', { kind: 'bed' }], 'q': ['landmark', { kind: 'barrel' }],
+      'v': ['landmark', { kind: 'shelf' }], 'T': ['tree'], 'o': ['well'],
+    }
+    let works = 0, laid = 0
+    for (let i = 0; i < COUNTRY_SEATS.length; i++) {
+      const seat = COUNTRY_SEATS[i]
+      const rows = COUNTRY_WORKS[seat.kind]
+      if (!rows) { console.warn('WORLDGEN: no drawing called ' + seat.kind); continue }
+      const pw = rows[0].length, ph = rows.length
+      const x0 = seat.x - (pw >> 1), y0 = seat.y - (ph >> 1)
+      let got = 0, want = 0
+      for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+        const ch = rows[ry][rx]
+        if (ch === '~' || ch === '.' || ch === ',') continue
+        want++
+        const x = x0 + rx, y = y0 + ry
+        // WHAT MAY STAND IN WATER, AND WHY IT IS NOT A HUT.
+        //
+        // The first rule here let a stilt hut stand in the wet, on the grounds
+        // that a fen hut is built on staddles. That is true of fen huts and
+        // false of THIS world: a window may draw a hut on posts, but the tile
+        // underneath is water, water is blocked, and a building whose floor is
+        // blocked is a building nobody can go inside. The picture cannot grant
+        // reachability -- the same reason the constitution insists a town is
+        // its drawing and not its plot, read backwards.
+        //
+        // So a BUILDING goes on the bank. What may stand in water is what
+        // already does: FURNITURE you work from the shore -- trap racks and a
+        // fowler's hide -- and only where a citizen can stand beside it, which
+        // is exactly the rule a fishing spot lives by. A node with no walkable
+        // tile next to it is unreachable, the founding sweeps it, and it is
+        // right to.
+        const wet = ['eel-traps', 'fowler'].includes(seat.kind)
+        const standing = isWater(g, x, y) && !inSea(g, x, y)   // a mere or a beck, not the ocean
+        const wadeable = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+          .some(([dx2, dy2]) => !blockedAt(g, x + dx2, y + dy2))
+        if (!inB(x, y) || onRoad(g, x, y) || inAnySettlement(x, y)) continue
+        if (blockedAt(g, x, y) && !(wet && standing && wadeable)) continue
+        // NOT `taken` -- FOR THE THIRD TIME IN THIS FOUNDING.
+        //
+        // `taken` reserves ground that nothing stands on. The scatter marks
+        // tiles for POROSITY so a wood never closes up, layPlan reserves every
+        // lane and plaza of a drawing, and both of those are reservations
+        // against future scatter rather than statements that a tile is
+        // occupied. Testing it has now silently emptied three different things:
+        // the market stalls, the town fields, and these traps -- which laid
+        // ZERO of eight nodes on a shoreline where five tiles passed every
+        // other gate. Ask whether a NODE stands here, which is the question.
+        if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+        const spec = WORK_NODE[ch]
+        if (!spec) continue
+        put('work-' + i + '-' + rx + '-' + ry, spec[0], x, y, spec[1] ?? {})
+        got++; laid++
+      }
+      for (let ry = -1; ry <= ph; ry++) for (let rx = -1; rx <= pw; rx++)
+        taken.add(key(x0 + rx, y0 + ry))
+      if (seat.name) {
+        for (const [dx, dy] of [[pw >> 1, ph + 1], [-2, ph >> 1], [pw + 1, ph >> 1], [pw >> 1, -2]]) {
+          const x = x0 + dx, y = y0 + dy
+          if (free(x, y)) { put('work-sign-' + i, 'signpost', x, y, { text: seat.name }); break }
+        }
+      }
+      if (want && got / want < 0.4)
+        console.warn('WORLDGEN: ' + seat.kind + ' at ' + seat.x + ',' + seat.y
+          + ' only laid ' + got + ' of ' + want)
+      works++
+    }
+    _workCount = laid
+  }
+
+  // ================= ONE THING YOU CAN ONLY DO THERE =================
+  //
+  // §7e. Thirty-nine of this island's eighty-one buildings hold nothing but a
+  // bed, a hearth and a table -- a door, a floor, and no reason to open it.
+  // The answer is not to furnish them. It is to give a FEW of them the only
+  // place in the world where something can be done, the way the looking glass
+  // has the only face-changing in Tallyholm.
+  //
+  // Scarce on purpose. Eight brewhouses would be wallpaper for exactly the
+  // reason nine shrines were.
+  {
+    // ---- THE INN'S POT ----
+    // A brewpot a citizen raises is theirs and works for them alone, which is
+    // right for a thing somebody built. This one is the inn's: no owner, and
+    // the brew rides on the citizen the way a crop does, so one pot serves
+    // everybody and nobody can sit on it. At the Lantern rather than in a
+    // room in Anchor -- a public house is where a public pot belongs, and it
+    // stands a good walk further from any vault, which is the price.
+    const inn = loneRooms(g)[0]
+    if (inn) {
+      const [ix, iy] = [inn[0] + 1, inn[1] + 1]
+      for (const [id, q] of Object.entries(w.nodes)) if (q.x === ix && q.y === iy) delete w.nodes[id]
+      put('inn-brewpot', 'brewpot', ix, iy, {})
+      for (const [dx, dy] of [[1, 2], [2, 2], [-2, 1], [4, 1]]) {
+        const x = inn[0] + dx, y = inn[1] + dy
+        if (free(x, y)) { put('inn-sign', 'signpost', x, y, { text: 'the Lantern \u2014 the pot is the house\u2019s' }); break }
+      }
+    } else console.warn('WORLDGEN: no inn to put the public pot in')
+
+    // ---- THE CHARCOAL CLAMP AT GREENHOLLOW ----
+    // §6bo gives the rule for charcoal -- ten ironbark into a BURNING
+    // watchfire, one charcoal out -- and this island had no watchfire on it.
+    // A recipe in the constitution with nowhere to perform it. The timber town
+    // gets the clamp, the wood keeps it lit, and charcoal becomes a thing that
+    // exists.
+    const gh = ss.find((t) => t.tag === 'greenhollow')
+    if (gh) {
+      const r = rectOf(gh)
+      let seated = false
+      for (let rad = 3; rad <= 14 && !seated; rad++)
+        for (let dy = -rad; dy <= rad && !seated; dy++) for (let dx = -rad; dx <= rad; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+          const x = gh.x + dx, y = r.y1 + 2 + dy
+          if (!free(x, y) || blockedAt(g, x, y) || inAnySettlement(x, y)) continue
+          put('greenhollow-clamp', 'watchfire', x, y, {})
+          for (const [ax, ay] of [[x + 1, y], [x - 1, y], [x, y + 1]])
+            if (free(ax, ay)) { put('clamp-collier', 'keeper', ax, ay,
+              { kind: 'collier', name: 'Hal the Collier' }); break }
+          for (const [ax, ay] of [[x, y - 2], [x + 2, y], [x - 2, y]])
+            if (free(ax, ay)) { put('clamp-sign', 'signpost', ax, ay,
+              { text: 'the charcoal clamp \u2014 feed it ironbark' }); break }
+          seated = true; break
+        }
+      if (!seated) console.warn('WORLDGEN: no ground for the charcoal clamp')
+    }
+
+    // ---- MILLBROOK'S TWO LOCK-UPS ----
+    // The market's drawing gives six houses and the roster fills four. The
+    // other two stood on the chart with LITERALLY nothing in them -- the only
+    // rooms on the island in that state -- because the plan reserved them for
+    // trades nobody rostered. A market has lock-ups: cold rooms where the
+    // crates wait for market day.
+    //
+    // Placed by coordinate rather than by scanning for empty floor. The scan
+    // found six tiles and put the furniture in none of the two rooms it was
+    // written for, which is the whole argument of this founding in one line:
+    // "find me somewhere that looks empty" is not the same question as "put
+    // this in that room".
+    {
+      // Two of these six landed on tiles that already held something -- the
+      // rooms are four by three and the plan puts a little in them -- so the
+      // list is the tiles that are actually free.
+      const LOCKUPS = [
+        [446, 193, 'barrel'], [447, 193, 'shelf'], [447, 194, 'barrel'],
+        [453, 193, 'barrel'], [454, 193, 'shelf'], [454, 194, 'barrel'],
+      ]
+      let n3 = 0
+      for (const [x, y, kind] of LOCKUPS) {
+        if (!inB(x, y) || blockedAt(g, x, y)) continue
+        if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+        put('lockup-' + n3, 'landmark', x, y, { kind }); n3++
+      }
+      if (n3 < LOCKUPS.length)
+        console.warn('WORLDGEN: only ' + n3 + ' of ' + LOCKUPS.length + ' lock-up pieces stood')
+      _lockupCount = n3
+    }
+
+    // ---- THE ALTAR AT NORWICK ----
+    // §7g. Three magic-stones become a sigil, and until now that happened
+    // wherever the citizen was standing -- which in practice meant beside the
+    // magic seam they had just mined, out in the Wilds, because that is the
+    // one place the walk home is worth not making.
+    //
+    // Norwick is the garrison on the edge of the Wilds and the last roof
+    // before the Brandline. An altar in its hall makes the westward trip end
+    // somewhere: you mine out there and you invoke on the way back, which is
+    // the shape the journey should have had all along.
+    const nw = ss.find((t) => t.tag === 'norwick')
+    if (nw) {
+      const r = rectOf(nw)
+      let set = false
+      for (let dy = -6; dy <= 6 && !set; dy++) for (let dx = -6; dx <= 6; dx++) {
+        const x = nw.x + dx, y = nw.y + dy
+        if (groundKindAt(g, x, y) !== 'floor') continue      // indoors only
+        if (blockedAt(g, x, y)) continue
+        if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+        // not in a doorway, and not where it seals the room
+        const wallAt2 = (ax, ay) => Object.values(w.nodes).some((q) =>
+          q.x === ax && q.y === ay && (q.type === 'wall' || q.type === 'rampart'))
+        if ((wallAt2(x - 1, y) && wallAt2(x + 1, y)) || (wallAt2(x, y - 1) && wallAt2(x, y + 1))) continue
+        put('norwick-altar', 'altar', x, y, {})
+        set = true; break
+      }
+      if (!set) console.warn('WORLDGEN: no room in Norwick for the altar')
+    }
+
+    // ---- THE BEE GARDEN AT HOLLYBARROW ----
+    // No new verb here and none pretended: skeps and a keeper, on the farm
+    // town's own ground. Texture, honestly labelled as texture.
+    const hb = ss.find((t) => t.tag === 'hollybarrow')
+    if (hb) {
+      const r = rectOf(hb)
+      let n2 = 0
+      for (let dy = 0; dy < 4 && n2 < 6; dy++) for (let dx = 0; dx < 6 && n2 < 6; dx++) {
+        const x = r.x1 + 4 + dx * 2, y = r.y0 + 4 + dy * 2
+        if (!free(x, y) || blockedAt(g, x, y)) continue
+        put('hb-skep-' + n2, 'landmark', x, y, { kind: 'skep' }); n2++
+      }
+      for (const [dx, dy] of [[r.x1 + 3, r.y0 + 5], [r.x1 + 3, r.y0 + 7]]) {
+        if (free(dx, dy)) { put('hb-beekeeper', 'keeper', dx, dy,
+          { kind: 'beekeeper', name: 'Wenna of the Skeps' }); break }
+      }
+      _skepCount = n2
+    }
+  }
+
+  // ================= THE LOOKING GLASS =================
+  //
+  // §7d. A citizen's first face is free, at the door. Changing it afterwards
+  // is a walk to the one place on the island you can see yourself.
+  //
+  // Two things are wrong with a face you edit in a menu. It costs nothing, so
+  // it means nothing -- and every window wired the verb to its own door, so
+  // the world had no idea the choice existed. Meanwhile Anchor's Hall 2 is a
+  // four-by-nine room containing one hearth, and the same is true of most of
+  // the eighty-one buildings on this island: a door, a floor, and no reason.
+  //
+  // One glass, in one hall, in the capital. Scarce on purpose: it is a
+  // Schelling point like the seams, and the walk is the whole point of it.
+  {
+    // Anchor's Hall 2 (4x9 at 473,270) -- the hearth room off the south lane
+    const gx = 475, gy = 274
+    if (inB(gx, gy) && !blockedAt(g, gx, gy)) {
+      for (const [id, q] of Object.entries(w.nodes)) if (q.x === gx && q.y === gy) delete w.nodes[id]
+      put('looking-glass', 'looking-glass', gx, gy, {})
+      // and a board outside, because a room you cannot know the use of is a
+      // room nobody enters
+      for (const [dx, dy] of [[0, 6], [0, 7], [-4, 0], [4, 0], [0, -6], [0, -7], [-4, 4], [4, 4]]) {
+        const x = gx + dx, y = gy + dy
+        if (free(x, y)) { put('glass-sign', 'signpost', x, y, { text: 'the glass \u2014 look at yourself' }); break }
+      }
+    } else console.warn('WORLDGEN: no room for the looking glass at ' + gx + ',' + gy)
+  }
+
+  // ================= THE TOLL, ON THE MILLBROOK BRIDGE =================
+  //
+  // Which crossing, decided by measurement rather than taste. Shut each of the
+  // island's five crossings in turn and ask how much longer every journey
+  // between towns becomes: Fenford costs six tiles, Highford sixteen, the
+  // Watersmeet fifty-four, the Oxenford sixty-eight -- and the MILLBROOK
+  // BRIDGE costs two hundred and eight, lengthening sixteen of the forty-five
+  // journeys on the island. It is the only crossing on Tallyholm that is worth
+  // anything, and the walk round it (Anchor to Hollybarrow, 177 tiles becoming
+  // 385) is long enough to hurt and short enough to take when you have arrived
+  // without a log.
+  //
+  // The bar stands on the deck; the keeper stands on the bank beside it. See
+  // TOLL_TICKS in engine.js for why the toll is a log and not a coin.
+  {
+    const br = bridgesOf(g).find(b => b.tag === 'br1')     // the Millbrook Bridge
+    if (br) {
+      // the middle of the span: a gate on the abutment is a gate you walk round
+      let gx = br.x, gy = br.y
+      let w0 = br.x, e0 = br.x
+      while (w0 > 3 && isWater(g, w0 - 1, gy)) w0--
+      while (e0 < W - 4 && isWater(g, e0 + 1, gy)) e0++
+      gx = (w0 + e0) >> 1
+      // A BAR ACROSS THE WHOLE DECK. The first cut skipped any tile that was
+      // already `taken` and so gated two of the span's three rows -- leaving
+      // the third open, and a toll you can side-step is scenery. Measured:
+      // Anchor to Hollybarrow was 177 tiles with the bar up and 177 with it
+      // down. Every deck tile on the line is gated, and whatever was standing
+      // on one is cleared, the way a place clears its footprint.
+      const bar = []
+      for (let y = gy - 3; y <= gy + 3; y++) {
+        if (!inB(gx, y) || !onBridge(g, gx, y)) continue
+        for (const [id, q] of Object.entries(w.nodes))
+          if (q.x === gx && q.y === y) delete w.nodes[id]
+        bar.push([gx, y])
+      }
+      for (const [x, y] of bar) put('toll-millbrook-' + y, 'tollgate', x, y, { text: 'the Millbrook Bridge \u2014 one log' })
+      // the keeper, on the first dry ground east of the bar
+      let seated = false
+      for (let dx = 1; dx <= 8 && !seated; dx++) for (const dy of [0, -1, 1]) {
+        const x = gx + dx, y = gy + dy
+        if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || taken.has(key(x, y))) continue
+        put('toll-keeper-millbrook', 'keeper', x, y, { kind: 'toll', name: 'the bridge-keeper' })
+        seated = true; break
+      }
+      for (const dx of [-4, 4]) {
+        const x = gx + dx, y = gy
+        if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && !blockedAt(g, x, y)) {
+          put('toll-sign' + dx, 'signpost', x, y, { text: 'the bridge is kept \u2014 a log to cross' })
+        }
+      }
+      if (!bar.length) console.warn('WORLDGEN: the Millbrook Bridge took no toll gate')
+    }
+  }
+
+  // ================= THE PLACES =================
+  // Eighteen one-off things, hand-drawn in worldgen-places-v7.mjs, each seated
+  // at a locality that already had a name on the chart and nothing under it.
+  // None of them is required, none of them repeats, and most of them have a
+  // door. See the note at the top of that file for why that is the shape.
+  {
+    const PLACE_NODE = {
+      '#': ['wall'], '%': ['rampart'], '!': ['landmark', { kind: 'standing-stone' }],
+      'o': ['well'], '*': ['campfire'], 'h': ['hearth'], 'e': ['landmark', { kind: 'table' }],
+      'd': ['landmark', { kind: 'bed' }], 'v': ['landmark', { kind: 'shelf' }],
+      'q': ['landmark', { kind: 'barrel' }], 'D': ['dedication'], 'B': ['ossuary'],
+      'T': ['tree'], 'Y': ['gallows-oak'], '^': ['hedge'], 'f': ['fence'],
+    }
+    let placed = 0, nodes0 = putCount
+    for (const P of placeSeatsOf(g)) {
+      // A PLACE OWNS ITS FOOTPRINT. Every locality already carried a signpost
+      // at its exact centre, seated long before this pass -- and a place is
+      // seated at that same centre, so the board landed on whatever the
+      // drawing put in the middle. The Nine Stones' dedication, the Maze's
+      // centre stone and the Drowned Bell's were all quietly replaced by a
+      // signpost, and the Bothy's doorway was corked by one. Anything already
+      // standing inside the drawing is cleared: the place brings its own name
+      // on its own board, at its edge, where a board belongs.
+      for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++) {
+        if (P.rows[ry][rx] === '~') continue
+        const x = P.x0 + rx, y = P.y0 + ry
+        for (const [id, q] of Object.entries(w.nodes))
+          if (q.x === x && q.y === y) delete w.nodes[id]
+      }
+      for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++) {
+        const ch = P.rows[ry][rx]
+        if (ch === '~' || ch === '.' || ch === ',') continue
+        const spec = PLACE_NODE[ch]
+        if (!spec) continue
+        const x = P.x0 + rx, y = P.y0 + ry
+        if (!inB(x, y) || taken.has(key(x, y))) continue
+        put('place-' + P.tag + '-' + rx + '-' + ry, spec[0], x, y, spec[1] ?? {})
+      }
+      // reserve the whole footprint so no later pass drops a cairn in the maze
+      for (let ry = -1; ry <= P.h; ry++) for (let rx = -1; rx <= P.w; rx++)
+        taken.add(key(P.x0 + rx, P.y0 + ry))
+      // a board at the near edge, because a place with no name is scenery
+      for (const [dx, dy] of [[P.w >> 1, P.h + 1], [P.w >> 1, -2], [-2, P.h >> 1], [P.w + 1, P.h >> 1]]) {
+        const x = P.x0 + dx, y = P.y0 + dy
+        if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && !blockedAt(g, x, y)) {
+          put('place-sign-' + P.tag, 'signpost', x, y, { text: P.sign ?? P.name }); break
+        }
+      }
+      // ...and WHAT IS BEHIND THE DOOR. A keeper stands on the place's own
+      // floor where it has one and in its yard where it does not; the seams
+      // and shoals go on the open ground just outside, because a coal seam in
+      // somebody's parlour is a joke rather than a place.
+      const inside = PLACE_INSIDE[P.tag]
+      if (inside) {
+        const floors = [], yards = []
+        for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++) {
+          const ch = P.rows[ry][rx]
+          const x = P.x0 + rx, y = P.y0 + ry
+          if (ch === ',') floors.push([x, y])
+          else if (ch === '.') yards.push([x, y])
+        }
+        // A KEEPER BLOCKS THE TILE THEY STAND ON, so where they stand is a
+        // graph question and nothing else. Two wrong answers first:
+        //
+        //   `list[1]` -- an arbitrary cell -- sealed ELEVEN of the eighteen
+        //   places, every one of which this founding had already proved you
+        //   could walk into.
+        //
+        //   "the cell with the most floor around it" sealed the maze WORSE
+        //   (38 cells lost), because in a one-tile corridor the most connected
+        //   cell is the middle of the corridor, and every cell in a corridor
+        //   is a cut vertex.
+        //
+        // So: ask. A keeper may stand anywhere whose removal does not
+        // disconnect the rest of the room. Places drawn with no such cell --
+        // the King's Oak has two open tiles in a line -- get their warden
+        // outside the ring, which is where a warden stands anyway.
+        const standable = (list) => {
+          const inSet = new Set(list.map(([x, y]) => x + ',' + y))
+          const conn = (skip) => {
+            const start2 = list.find(([x, y]) => (x + ',' + y) !== skip)
+            if (!start2) return true
+            const seen = new Set([start2.join(',')]); const q2 = [start2]
+            let h2 = 0
+            while (h2 < q2.length) {
+              const [x, y] = q2[h2++]
+              for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                const kk = (x + dx) + ',' + (y + dy)
+                if (kk === skip || !inSet.has(kk) || seen.has(kk)) continue
+                seen.add(kk); q2.push([x + dx, y + dy])
+              }
+            }
+            return seen.size === list.length - 1
+          }
+          for (const c of list) if (conn(c.join(','))) return c
+          return null
+        }
+
+        if (inside.keeper) {
+          // A RING OF STONES HAS NO FLOOR. The Boneyard and the Nine Stones
+          // draw nothing but stones and open country, so `floors` and `yards`
+          // were both empty and their wardens were quietly never seated -- the
+          // same silent-nothing this founding has caught four times now. If
+          // the drawing offers no ground, stand them just outside it.
+          if (!floors.length && !yards.length) {
+            outer: for (let r = 1; r <= 4; r++)
+              for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+                const x = P.x0 + (P.w >> 1) + dx, y = P.y0 + (P.h >> 1) + dy
+                if (free(x, y) && !blockedAt(g, x, y)) { yards.push([x, y]); break outer }
+              }
+          }
+          let at = standable(floors) || standable(yards)
+          if (!at) {   // no cell of the drawing may be blocked: stand outside
+            outer2: for (let r = 1; r <= 5; r++)
+              for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+                const x = P.x0 + (P.w >> 1) + dx, y = P.y0 + (P.h >> 1) + dy
+                if (x >= P.x0 && x < P.x0 + P.w && y >= P.y0 && y < P.y0 + P.h) continue
+                if (free(x, y) && !blockedAt(g, x, y)) { at = [x, y]; break outer2 }
+              }
+          }
+          if (at && !isWater(g, at[0], at[1]) && !blockedAt(g, at[0], at[1])) {
+            for (const [id, q] of Object.entries(w.nodes))
+              if (q.x === at[0] && q.y === at[1]) delete w.nodes[id]
+            put('place-keeper-' + P.tag, 'keeper', at[0], at[1],
+              { kind: inside.keeper.kind, ...(inside.keeper.name ? { name: inside.keeper.name } : {}) })
+          }
+        }
+        let ni = 0
+        for (const [type, count] of (inside.nodes ?? [])) {
+          for (let c = 0; c < count; c++) {
+            let placed = false
+            for (let r = 2; r <= 16 && !placed; r++)
+              for (let dy = -r; dy <= r && !placed; dy++) for (let dx = -r; dx <= r; dx++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+                const x = P.x0 + (P.w >> 1) + dx, y = P.y0 + (P.h >> 1) + dy
+                const wet = type === 'eel-spot' || type === 'fishing-spot'
+                // WATER IS BLOCKED GROUND, which is exactly where a shoal
+                // goes. Testing blockedAt for a wet node refuses every tile it
+                // could ever stand on -- the Eel Sheds asked for three eel
+                // spots and got none, five radii running.
+                // ...and OUTSIDE the drawing. A coal seam laid on the gate
+                // cell of the King's Oak sealed the King's Oak.
+                if (x >= P.x0 && x < P.x0 + P.w && y >= P.y0 && y < P.y0 + P.h) continue
+                if (!inB(x, y) || taken.has(key(x, y))) continue
+                if (wet !== isWater(g, x, y)) continue
+                if (!wet && blockedAt(g, x, y)) continue
+                if (onRoad(g, x, y)) continue
+                put('place-' + P.tag + '-' + type + '-' + (ni++), type, x, y, {})
+                taken.add(key(x, y)); placed = true; break
+              }
+            if (!placed) console.warn('WORLDGEN: no room for a ' + type + ' at ' + P.name)
+          }
+        }
+      }
+
+      // ...and whoever lives there. Seated on the place's own open ground where
+      // there is any, on the country just outside where there is not, so that
+      // the Sentinel keeps its emptiness and the kennels get their dogs.
+      const spots = []
+      for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++) {
+        const ch = P.rows[ry][rx]
+        if (ch !== '.' && ch !== ',') continue
+        spots.push([P.x0 + rx, P.y0 + ry])
+      }
+      for (let r = 1; r <= 3 && spots.length < 12; r++)
+        for (let rx = -r; rx < P.w + r; rx++) for (let ry = -r; ry < P.h + r; ry++) {
+          if (rx > -r && rx < P.w + r - 1 && ry > -r && ry < P.h + r - 1) continue
+          const x = P.x0 + rx, y = P.y0 + ry
+          if (inB(x, y) && !isWater(g, x, y) && !blockedAt(g, x, y) && !onRoad(g, x, y)) spots.push([x, y])
+        }
+      let mi = 0
+      for (const [kind, n] of (PLACE_MOBS[P.tag] ?? [])) {
+        for (let k = 0; k < n; k++) {
+          const at = spots[(mi * 5 + k * 3 + 1) % Math.max(1, spots.length)]
+          if (!at) break
+          E.addMob(w, 'place-' + P.tag + '-' + kind + '-' + k, kind, at[0], at[1])
+        }
+        mi++
+      }
+      placed++
+    }
+    if (placed < Object.keys(PLACES_V7).length)
+      console.warn('WORLDGEN: only ' + placed + ' of ' + Object.keys(PLACES_V7).length + ' places found ground')
+  }
+
   // ================= THE WAYSIDE: ONE THING EVERY ~35 TILES =================
   // What a route is made of. Milestones that name the next two towns (so a
   // citizen navigates by reading, not by counting), and a rotating table of
@@ -2591,7 +3633,21 @@ export function buildWorld(genesis) {
     .sort((a, b) => a.d - b.d || (a.s.tag < b.s.tag ? -1 : 1)).slice(0, 2)
   const LEAGUE = 40 // tiles to a league: 24 seconds' walk
   let wayN = 0, mileN = 0
-  const waysideKinds = ['croft', 'cairn', 'shrine', 'orchard', 'gibbet', 'kennel', 'beehives', 'bouldercircle']
+  // v7: THREE KINDS, NOT EIGHT, AND FEWER OF THEM.
+  //
+  // A croft, a shrine, a gibbet, a kennel and a stone circle are PLACES: each
+  // one reads like somewhere, and the moment there are nine of them scattered
+  // at random none of them is anywhere. Eight kinds on rotation, one every
+  // thirty-five tiles, produced 626 built things in the country and not a
+  // single landmark -- more props than the map this was measured against, and
+  // fewer places. They are hand-drawn one-offs now (worldgen-places-v7.mjs),
+  // exactly once each, at the localities that already carried their names.
+  //
+  // What is left here is what SHOULD repeat, because repetition is what it is:
+  // a cairn is a pile of stones somebody made, an orchard is a farmer's, bees
+  // are kept in numbers. Nobody looks at the fourth cairn and wonders about it,
+  // which is precisely why a fourth cairn is fine and a fourth shrine was not.
+  const waysideKinds = ['cairn', 'orchard', 'beehives']
   const buildWayside = (x, y, kind, tag) => {
     const ok = (ax, ay) => free(ax, ay) && !onRoad(g, ax, ay)  // §6cz: never build decor on the road
     switch (kind) {
@@ -2663,7 +3719,11 @@ export function buildWorld(genesis) {
   for (const { tag, path } of routedPathsOf(g)) {
     const PL = path.length
     if (PL < 24) continue
-    const stops = Math.max(1, Math.round(PL / 35))
+    // ...and one every SIXTY tiles rather than every thirty-five. The milestones
+    // (every other stop) still fall about every two minutes' walk, which is the
+    // job they do; the sights between them are now something you come across
+    // rather than something you pass continuously.
+    const stops = Math.max(1, Math.round(PL / 60))
     for (let k = 1; k <= stops; k++) {
       const ix = Math.min(PL - 2, Math.max(1, Math.round((k - 0.5) / stops * PL)))
       const bx = path[ix][0], by = path[ix][1]
@@ -2957,7 +4017,12 @@ export function buildWorld(genesis) {
     sput('kpr-mon-mourner', 'keeper', c.x + 2, c.y - 1,
       { name: keeperName('monastery', 'mourner'), kind: 'mourner' })
     sput('mon-well', 'well', c.x - 7, c.y + 1)
-    sput('mon-sign', 'signpost', c.x, c.y + 6)
+    // NOT ON THE CENTRE LINE. The door of this precinct is the gap in the
+    // middle of the south wall, and the board was put at c.x -- the same
+    // column -- so the sign announcing the monastery stood in the only way
+    // into it. Third time this founding: the fishmonger corked its own shop
+    // and a keeper corked eleven rooms. A board goes BESIDE a door.
+    sput('mon-sign', 'signpost', c.x + 2, c.y + 6)
     // §6bp: the second stone, in the monastery precinct. The other place on
     // the island whose entire business is remembering people.
     sput('ded-monastery', 'dedication', c.x + 3, c.y + 2, { tag: 'monastery' })
@@ -3565,14 +4630,53 @@ export function buildWorld(genesis) {
 
   const mob = (kind) => (id, x, y) => E.addMob(w, id, kind, x, y)
   const ccx = Math.floor(W / 2), ccy = Math.floor(H / 2)
-  counts.goblins = scatter('gob', A(180), (x, y, h) => {
-    const b = B(x, y)
-    if (b === 'fens') return true                       // §6ao (v6): NOT the moor -- that is the King's now
-    if (b !== 'heartlands' && b !== 'downs') return false
-    const dx = x - ccx, dy = y - ccy, d2 = dx * dx + dy * dy
-    return d2 >= 900 && d2 <= 6400 && (!h || h.readUInt16BE(4) % 3 === 0)
-  }, mob('goblin'))
-  counts.wolves = scatter('wolf', A(108), (x, y) => { const b = B(x, y); return b === 'greenwood' || b === 'fens' }, mob('wolf'))
+
+  // ---- THE CAMPS AND LAIRS (see worldgen-camps-v7.mjs) ----
+  //
+  // The beasts were the last thing on this island still scattered by rule. The
+  // seams were designed as Schelling points -- a few remembered places rather
+  // than a smear -- and seven hundred goblins and wolves spread evenly over
+  // two countries is the opposite of that: nowhere to go, because everywhere
+  // is the same.
+  //
+  // So they are camps now, out of a table: a kind, a middle, a count and a
+  // spread. Not a coordinate each -- "the wolves on the Hollybarrow road" is
+  // what a citizen remembers, and it is what a person places.
+  //
+  // Nothing here replaces the hand-placed beasts: the eighteen places keep
+  // theirs, the pound keeps its goblins, the South Pass keeps its imps, and
+  // the four named things keep their own reasons.
+  {
+    let seated = 0, empty = 0
+    for (let ci = 0; ci < CAMPS.length; ci++) {
+      const c = CAMPS[ci]
+      const spots = []
+      for (let dy = -c.r; dy <= c.r; dy++) for (let dx = -c.r; dx <= c.r; dx++) {
+        if (dx * dx + dy * dy > c.r * c.r) continue
+        const x = c.x + dx, y = c.y + dy
+        if (!inB(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        if (inAnySettlement(x, y) || onRoad(g, x, y)) continue
+        if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+        spots.push([x, y])
+      }
+      // deterministic and spread out: take every k'th tile of the ring rather
+      // than the first n, so a camp is a camp and not a queue
+      const step = Math.max(1, Math.floor(spots.length / Math.max(1, c.n)))
+      let placed = 0
+      for (let k = 0; k < spots.length && placed < c.n; k += step) {
+        const [x, y] = spots[k]
+        E.addMob(w, 'camp-' + ci + '-' + placed, c.kind, x, y)
+        placed++; seated++
+      }
+      if (!placed) { empty++
+        console.warn('WORLDGEN: the ' + c.kind + ' camp at ' + c.x + ',' + c.y + ' found no ground') }
+    }
+    counts.camps = CAMPS.length
+    counts.campBeasts = seated
+    if (empty) console.warn('WORLDGEN: ' + empty + ' camps of ' + CAMPS.length + ' found no ground')
+  }
+  counts.goblins = 0
+  counts.wolves = 0
   // §6ao (v6): THE GIBBET KING holds the Moor. One of him, at the gibbet crossing
   // -- placed like the dragon, a thing that IS there. The Moor is quiet undead
   // ground until a citizen comes near and he raises the dead against them. His
@@ -3632,7 +4736,10 @@ export function buildWorld(genesis) {
   })()
   // ask for a looser canopy (>=4) since the forest is now landmark-oaks spread
   // thinner than the old dense clusters; still follows the wood's blotchy shape.
-  counts.bears  = scatterIn('bear', A(62), (x, y) => B(x, y) === 'greenwood' && canopy(x, y, 10) >= 4, mob('bear'))
+  // §13g: SCATTER OFF. This kind is seated from the camp table now; leaving
+  // the scatter on simply doubled the population (measured: 870 beasts where
+  // 700 stood before, bears and trolls and crabs each counted twice).
+  counts.bears  = 0
   // MORE TROLLS, AND NOT ALONE.
   //
   // Seventy-two trolls averaged 1.2 of their own kind within fifteen tiles
@@ -3659,13 +4766,8 @@ export function buildWorld(genesis) {
     for (const t of settlementsOf(g)) { const q = Math.hypot(t.x - x, t.y - y); if (q < d) d = q }
     return d
   }
-  counts.trolls = clusterScatter('troll', A(150),
-    (x, y) => {
-      const b = B(x, y)
-      if (b === 'crags') return true
-      return b === 'wilds' && depthOf(x, y) > 88
-    },
-    mob('troll'), 14, 10)
+  // §13g: seated from the camp table now -- see the note over `counts.bears`.
+  counts.trolls = 0
   // ---- THE PLACED COPSES GET THEIR TREES ----
   //
   // The table makes a copse expensive to route through and paints the ground
@@ -3711,8 +4813,8 @@ export function buildWorld(genesis) {
   // Forty takes the Downs to about thirty per ten thousand: below the Crags
   // at thirty-five, well below the Fens. The emptiest country stops being
   // empty without becoming busy.
-  counts.sheep = clusterScatter('sheep', A(28), (x, y) => B(x, y) === 'downs',
-    mob('sheep'), 5, 7)
+  // §13g: seated from the camp table now.
+  counts.sheep = 0
   // AND A FLOCK IN THE FOLDS THEMSELVES.
   //
   // A named place should hold the thing it is named for, rather than hoping
@@ -3845,7 +4947,9 @@ export function buildWorld(genesis) {
           if (isWater(g, x + dx, y + dy)) return true
         return false
       }
-      for (let i = 0; i < A(700) && cr < A(34); i++) {
+      // §13g: seated from the camp table now -- the shore crabs of Eastmere
+      // are three camps rather than thirty-four dots round a compass.
+      for (let i = 0; i < 0; i++) {
         const hh = H32('shorecrab', i)
         const rad = 6 + (hh[0] % 52)                      // thinning outward
         const ang = (hh.readUInt16BE(1) / 65536) * Math.PI * 2
@@ -3951,7 +5055,20 @@ export function buildWorld(genesis) {
     for (let y = 8; y < H - 8; y += 4) for (let x = 8; x < W - 8; x += 4) {
       if (biomeAt(g, x, y) !== 'greenwood') continue
       if (blockedAt(g, x, y) || isWater(g, x, y) || !free(x, y)) continue
-      if (sirenSeat && Math.hypot(sirenSeat.x - x, sirenSeat.y - y) < 120) continue
+      // v7: NOT IN A QUIET QUARTER, and this is why she had no web.
+      //
+      // Both this search and the quiet quarters maximise distance from towns,
+      // so she landed inside quiet-6 on every measured seed -- a tract the
+      // founding deliberately keeps empty. Nothing may be built there, so all
+      // 260 attempts at a strand and all 90 at a husk were refused, and the
+      // great spider stood in bare grass with a signpost: 169 of the 169 tiles
+      // around her held nothing at all. The comment above says "you see the
+      // wood change before you see what changed it", and there was no change
+      // to see.
+      //
+      // A quiet quarter is somewhere nothing happens. A boss is something
+      // happening. She keeps the far Greenwood; she gives up the empty acre.
+      if (inQuietQuarter(g, x, y)) continue
       let near = 1e9
       for (const t of towns) { const d = Math.hypot(t.x - x, t.y - y); if (d < near) near = d }
       if (near > bestD) { bestD = near; seat = { x, y } }
@@ -3986,6 +5103,10 @@ export function buildWorld(genesis) {
         taken.add(key(sx, sy))
         put('spider-sign', 'signpost', sx, sy, { text: 'the wood ends here \u00b7 go back or go together' })
       }
+      // A WEB THAT DID NOT BUILD IS A BUG, NOT A VARIATION. It failed silently
+      // for as long as she has existed because nothing ever asked.
+      if (strands < 8) console.warn('WORLDGEN: the great spider has only ' + strands
+        + ' strands of web at ' + seat.x + ',' + seat.y + ' -- she is standing in bare wood')
       counts.spiderWeb = strands
     }
   }
@@ -4035,6 +5156,39 @@ export function buildWorld(genesis) {
     }
   }
 
+  // ---- THE SEAMS ARE A TABLE (worldgen-seams-v7.mjs) ----
+  //
+  // The seeding routines above put the seams where the design wanted them, and
+  // the design is right: ninety-two gatherable nodes on the whole island, so
+  // that going to mine is going SOMEWHERE. What was wrong is that the only way
+  // to know where a seam was, was to run the founding and look.
+  //
+  // So the table is the truth now. Everything the routines seeded is cleared
+  // and re-laid from the list -- the same coordinates, since the list was baked
+  // off them -- and from here a seam is moved by editing one line. A place's
+  // own seam (the coal at the High Delving, the heartwood at the King's Oak)
+  // is not in the table and is left exactly where its drawing put it.
+  {
+    const GATHERABLE = new Set(['tree', 'oak-tree', 'ironbark-tree', 'heartwood-tree', 'gallows-oak',
+      'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'magic-rock', 'mother-lode', 'brimstone-vent',
+      'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal'])
+    let cleared = 0
+    for (const [id, n] of Object.entries(w.nodes)) {
+      if (!GATHERABLE.has(n.type) || id.startsWith('place-')) continue
+      delete w.nodes[id]; cleared++
+    }
+    let laid = 0, refused = 0
+    for (let si = 0; si < SEAMS.length; si++) {
+      const sm = SEAMS[si]
+      if (Object.values(w.nodes).some((q) => q.x === sm.x && q.y === sm.y)) { refused++; continue }
+      E.addNode(w, 'seam-' + si, sm.type, sm.x, sm.y, {})
+      taken.add(key(sm.x, sm.y)); laid++
+    }
+    if (refused) console.warn('WORLDGEN: ' + refused + ' seams of ' + SEAMS.length + ' had something on them')
+    counts.seamsCleared = cleared
+    counts.seamsLaid = laid
+  }
+
   // ---- THE GOBLIN PEN ----
   //
   // The Heartlands is the safe country and safety is dull to walk through.
@@ -4044,12 +5198,18 @@ export function buildWorld(genesis) {
   // guards exist, and it is the only place in the home country where you can
   // look a goblin in the eye through a fence.
   {
-    const j = junctionsOf(g)
-    const cx0 = Math.round((settlementsOf(g).find(t => t.tag === 'anchor').x
-                          + settlementsOf(g).find(t => t.tag === 'oxenford').x) / 2)
-    const cy0 = Math.round((settlementsOf(g).find(t => t.tag === 'anchor').y
-                          + settlementsOf(g).find(t => t.tag === 'oxenford').y) / 2) - 14
-    const seat = seatPoint(g, cx0, cy0)
+    // HAND-SEATED, and clear of the furlongs.
+    //
+    // It was placed at the midpoint of the Anchor-Oxenford road and the pen
+    // runs LATE -- after the fields, the holdings and the works -- so `free()`
+    // simply skipped every tile a furlong had already taken and what got built
+    // was a pound with holes in it and a scatter of goblins standing in
+    // somebody's barley. Measured at the old seat: 31 plot tiles, 25 hedge and
+    // 24 fence within twelve tiles of the densest goblin cluster on the island.
+    //
+    // This seat was chosen by scoring every tile within ten of that road for
+    // conflicts against everything already standing: 0 of 143.
+    const seat = { x: 354, y: 259 }
     let gp = 0
     const PW = 11, PH = 8
     for (let dy = 0; dy < PH; dy++) for (let dx = 0; dx < PW; dx++) {
@@ -4058,7 +5218,11 @@ export function buildWorld(genesis) {
       const edge = dx === 0 || dy === 0 || dx === PW - 1 || dy === PH - 1
       const gate = dy === PH - 1 && dx === (PW >> 1)
       if (edge && !gate) { taken.add(key(x, y)); put('pen-' + gp, 'fence', x, y); gp++ }
-      else if (!edge && ((dx + dy) % 3 === 0)) {
+      // FEWER OF THEM. One in three interior tiles was a goblin -- fifteen of
+      // them shoulder to shoulder, which reads as a warehouse rather than a
+      // pound. One in five is eight or nine: enough to be a crowd, few enough
+      // that you can see the ground they are standing on.
+      else if (!edge && ((dx * 2 + dy) % 5 === 0)) {
         taken.add(key(x, y)); E.addMob(w, 'pengob-' + gp, 'goblin', x, y); gp++
       }
     }
@@ -4594,6 +5758,25 @@ export function buildWorld(genesis) {
           }
           return n2
         }
+        // §7f: ONE TRADE TO A HOUSE, AND NEVER IN THE DOORWAY.
+        //
+        // Two faults, both visible the moment every room on the island was
+        // drawn on one sheet. Millbrook's bowyer and delver were seated THREE
+        // TILES APART -- the same 4x3 market house -- so one house held two
+        // trades and the house next door held none, and the chart read as
+        // though the bowyer had gone missing. And Eastmere's fishmonger stood
+        // in the gap in its own wall: a stall blocks its tile, so the trade
+        // was corking the only way into the building it trades from.
+        //
+        // A doorway is a gap in a run of wall, so it has wall on two OPPOSITE
+        // sides. `freeSides >= 2` cannot see that -- a doorway has exactly two
+        // free sides, in and out, which is why it passed.
+        const wallAt = (x, y) => Object.values(w.nodes)
+          .some((q) => q.x === x && q.y === y && (q.type === 'wall' || q.type === 'rampart'))
+        const isDoorway = (x, y) => (wallAt(x - 1, y) && wallAt(x + 1, y))
+                                 || (wallAt(x, y - 1) && wallAt(x, y + 1))
+        const stallNear = (x, y) => Object.values(w.nodes).some((q) =>
+          q.type === 'stall' && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 5)
         for (let yy = ry; yy < ry + rh && !seated; yy++) {
           for (let xx = rx; xx < rx + rw; xx++) {
             if (plan[yy]?.[xx] !== ',') continue        // bare floor only
@@ -4612,6 +5795,8 @@ export function buildWorld(genesis) {
             // then simply did not exist: at solo-42 the armourer and the bowyer
             // were both seated and both deleted, and nothing said a word.
             if (onRoad(g, x, y)) continue
+            if (isDoorway(x, y)) continue               // never cork the door
+            if (stallNear(x, y)) continue               // one trade to a house
             if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
             if (freeSides(x, y) < 2) continue           // room for a keeper AND a customer
             // AND NOT IN SOMEBODY ELSE'S SHOP.
@@ -4954,7 +6139,20 @@ export function buildWorld(genesis) {
     // by design and the road sweep would otherwise clear it as loose ornament
     // -- which it was, until it became the one door out of Nought.
     const KEEP = new Set(['wall', 'well', 'fountain', 'hearth', 'bank', 'store', 'anvil', // buildings & fixtures: leave whole
-      'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire'])
+      'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire',
+      // v7: THE ROCKFALL STAYS WHERE IT FELL, road or no road. This sweep
+      // exists to stop the founding sealing its own streets, and a boulder in
+      // the South Pass is the one node in the world whose entire purpose is to
+      // seal a road. The road to the South Pass is still drawn, still leaves
+      // Anchor, and still arrives at a wall of rock -- which is the whole
+      // point: a route that plainly used to work, and does not.
+      'rockfall',
+      // §14: ...and the toll gate, for exactly the same reason. This sweep
+      // exists to stop a founding sealing its own streets, and the one gate on
+      // the Millbrook Bridge is a thing whose entire job is to stand in a road.
+      // It swept the gate off the single deck tile the road actually crosses
+      // and left the two either side of it, which is a toll you walk round.
+      'tollgate'])
     let gated = 0, cleared = 0, kept = 0
     for (const id of Object.keys(w.nodes)) {
       const n = w.nodes[id]
@@ -5083,7 +6281,18 @@ export function buildWorld(genesis) {
   // seams (gwtree, cgrock/iron, the coal/oak/eel seams, port fish, magic-rock)
   // are exempt by their id.
   {
-    const KEEP = (id) => /^(gwtree|cgrock|cgmid|gwmid|fnmid|wdmagic|fish-|hwtree|dfish-)/.test(id)
+    // §13g: AND THE SEAM TABLE. This exempted the intended seams BY ID PREFIX,
+    // which was fine while the ids were minted by the seeding routines and
+    // became a trap the moment the seams became a table: everything from
+    // worldgen-seams-v7 is called `seam-N`, no prefix matched, and this pass
+    // silently demoted the island's ENTIRE baseline tier -- all seven starter
+    // trees, all seven iron seams and all nine fishing spots -- into scenery
+    // that looks identical and cannot be worked. A newcomer would have found
+    // nothing on the whole island to chop, mine or fish.
+    //
+    // Matching on a NAME is matching on a spelling. The table is the register
+    // of what is real; ask it.
+    const KEEP = (id) => /^(seam-|gwtree|cgrock|cgmid|gwmid|fnmid|wdmagic|fish-|hwtree|dfish-)/.test(id)
     const DECOR = { tree: 'old-oak', 'iron-rock': 'cairn', 'fishing-spot': 'standing-stone' }
     let neutralised = 0
     for (const id of Object.keys(w.nodes)) {
