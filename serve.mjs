@@ -25,7 +25,7 @@ const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // v4's land and changes only how much furniture stands on it -- half the
 // landmarks, pulled toward the roads, with six named tracts that refuse them
 // outright, so that a landmark is a landmark by contrast again.
-const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v6'
+const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v7'
 const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
 // §2n: and the engine names itself. `rulesHash` binds the constitution, which
 // is prose ABOUT the rules; this binds the rules. A node running a different
@@ -184,7 +184,7 @@ if (canResume) {
   }
   GENESIS = foundGenesis(WORLD_GEN, SEED, RULES_HASH, Date.now(), WORLD_W, WORLD_H)
   console.warn('FOUNDING with generator: ' + WORLD_GEN
-    + (WORLD_GEN === 'interval-classic-v1' ? '  (set INTERVAL_GEN=interval-expanse-v6 for the expanse)' : ''))
+    + (WORLD_GEN === 'interval-classic-v1' ? '  (set INTERVAL_GEN=interval-expanse-v7 for the expanse)' : ''))
   // the founding witness set (Milestone 4): immutable for this world; a
   // different witness configuration is a different world (Phase 9)
   GENESIS.witnesses = [WITNESS.playerId, ...EXTRA_WITNESSES.filter(w => w !== WITNESS.playerId)]
@@ -306,6 +306,8 @@ function packTerrain (g) {
     bin: Buffer.concat([blocked, road, country]),
     meta: { generator: g.worldGenerator, w, h, biomes: names,
             spawn: t.spawn ? t.spawn(g) : { x: w >> 1, y: h >> 1 },
+            // the towns as the founder seated them, not as a window guesses
+            settlements: t.settlements ? t.settlements(g) : null,
             geographyHash: t.geographyHash ? t.geographyHash(g) : null },
   }
 }
