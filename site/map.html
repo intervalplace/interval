@@ -38,11 +38,14 @@
   </div>
   <p id="findnote" style="color:var(--dim);font-size:12px;margin:6px 0 0"></p>
   <p class="maplegend"><b>Anchor</b> holds the center; the <b>Brandline</b> stones mark where the
-  law of the Wilds begins; the <b>Ridge</b> is crossed at its two passes or skirted through the
-  deep wood; the causeway to <b>Shrine Isle</b> is walked once and recalled to forever. One
-  island in the northwest appears on no road and carries no label. It is drawn faithfully.</p>
-  <p class="maplegend">generator <code>interval-expanse-v6</code> &middot; rules <code>7f5389d8bbb873ed&hellip;</code>
-  &middot; charted from a provisional seed until the founding writes its own coasts</p>
+  law of the Wilds begins. The <b>Ridge</b> now runs sea to sea and is crossed at its two passes
+  or not at all &mdash; and the <b>South Pass</b> is shut, filled with a rockfall that a
+  generation of citizens may dig through. Nineteen <b>meres, tarns and pools</b> lie inland, and
+  five becks run off the high ground into the Great River and the sea. One island in the
+  northwest appears on no road and carries no label. It is drawn faithfully.</p>
+  <p class="maplegend">generator <code>interval-expanse-v7</code> &middot; rules <code>7d510cbe03f6d15d&hellip;</code>
+  &middot; the island is frozen: every founding under v7 stands on this same Tallyholm, whatever
+  seed its ledger carries, so a chart drawn once is true in every world</p>
 </main>
 </div>
 <script>
@@ -134,6 +137,12 @@ const tileHash = (x, y, salt) => {
 let _seedNumC = null, _ssE = null
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
+  // v7: ONE ISLAND. Every founding stands on the same Tallyholm whatever seed
+  // its ledger carries, so the terrain noise is taken from the founding seed
+  // rather than from whatever the URL asked for.
+  if (V7()) { let h = 2166136261
+    for (const ch of V7_SEED) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) }
+    return (_seedNumC = h >>> 0) }
   let h = 0
   for (let i = 0; i < GSEED.length; i++) h = Math.imul(h ^ GSEED.charCodeAt(i), 2654435761) | 0
   return (_seedNumC = h >>> 0)
@@ -170,7 +179,7 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
-  if (GEN === 'interval-expanse-v6') return settlementsE6()
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return settlementsE6()
   if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
@@ -531,8 +540,12 @@ function onRidge4(x, y) {
   const rx = ridgeX4(y), d = x - rx < 0 ? rx - x : x - rx
   if (d > 2) return false
   for (const p of passes4()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
-  if (biomeAtE4(x, y) === 'greenwood') return false
-  if (y > H * 0.70) return false      // the ridge dies away before the bay
+  if (!V7() && biomeAtE4(x, y) === 'greenwood') return false   // v7: the ridge no longer sinks beneath the wood
+  // v7: THE RIDGE RUNS SEA TO SEA. Under v6 it sank beneath the Greenwood and
+  // died away before the bay, so 241 of the island's 433 land rows had no
+  // ridge on them and both named passes gated nothing -- shutting the South
+  // Pass changed zero of the forty-five journeys between towns.
+  if (!V7() && y > H * 0.70) return false      // the ridge dies away before the bay
   if (inSeaBase4(x, y)) return false
   return true
 }
@@ -1716,7 +1729,7 @@ function localeAt4(x, y) {
 
 
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v6') return terrainOfE6(x, y)
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return terrainOfE6(x, y)
   if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
@@ -2027,19 +2040,89 @@ function inLake6(x, y) {
   const c = lakeC6(), dx = (x - c.x) / 24, dy = (y - c.y) / 13
   return dx * dx + dy * dy < 1
 }
-const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y)
+const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y) || (V7() && inland7(x, y))
 
 // v6 settlements: nominal centres from worldgen-expanse6 settlementsOf, each
 // nudged off water by a light dry-spiral (the generator's seatDrawnTown clears
 // Anchor ~29t east of the Great River; the rest barely move). Sizes are the
 // hand-drawn plan footprints. Only used for cobble tint and bridge decks --
 // the walls and buildings come from node data.
+// ---------------------------------------------------------------------
+// THE SEVENTH FOUNDING
+// ---------------------------------------------------------------------
+// v7 is not a new set of rules for drawing land; it is the SAME land with
+// three changes, and this page needs all three or it charts a country that no
+// longer exists:
+//
+//   THE ISLAND IS FROZEN. Every world founded under v7 stands on one island,
+//   whatever seed its ledger carries, so this page stops asking the URL what
+//   to draw and draws Tallyholm.
+//
+//   THE RIDGE IS SEALED. It used to sink beneath the Greenwood and die away
+//   before the bay, which left both named passes gating nothing.
+//
+//   THERE IS INLAND WATER. Nineteen meres, tarns, pools and moss-hollows and
+//   five becks, hand-placed -- almost three and a half per cent of the land,
+//   and none of it on any earlier chart.
+//
+// The seats are baked from the founding rather than re-derived: the seater
+// this page carried was a simplified copy and it disagreed with the generator
+// by up to ten tiles, which is exactly the drift that made a window paint
+// cobble on ground the world did not agree was a town.
+const V7 = () => GEN === 'interval-expanse-v7'
+const V7_SEED = 'solo-50'
+const W7 = [[476,324,13,8,'mere'], [430,246,7,5,'pond'], [372,262,9,6,'mere'], [540,268,3,2,'pond'], [476,92,19,10,'mere'], [566,130,4,3,'pond'], [588,88,7,5,'pond'], [700,176,8,7,'tarn'], [748,214,6,5,'tarn'], [664,236,3,3,'tarn'], [300,108,9,6,'moss'], [250,142,3,3,'moss'], [340,88,3,2,'moss'], [352,396,34,14,'mere'], [268,376,17,8,'mere'], [534,392,12,6,'mere'], [424,420,5,3,'pond'], [690,300,4,3,'pond'], [150,268,14,9,'moss']]
+const B7 = [[[700,183],[697,191],[692,197],[688,205],[683,210],[677,214],[672,221],[668,228],[665,233]],[[690,304],[696,308],[705,310],[712,316],[715,326],[714,337],[713,347],[714,358],[714,369],[711,381],[706,391],[700,399],[692,406],[683,412]],[[376,268],[381,277],[383,287],[386,297],[388,307],[391,316],[396,322],[404,325],[413,326],[423,325],[430,324],[434,322]],[[478,103],[477,113],[474,122],[470,131],[468,140],[468,148],[469,156],[468,163],[464,168],[459,171]],[[302,116],[307,126],[313,136],[319,146],[326,154],[335,160],[346,166],[358,171],[370,175],[383,179],[396,178],[409,178],[421,177],[432,177],[441,177],[449,178]]]
+
+let _w7 = null
+function inland7(x, y) {
+  if (!_w7) {
+    _w7 = new Set()
+    for (let i = 0; i < W7.length; i++) {
+      const [cx, cy, rx, ry, kind] = W7[i]
+      const k = kind === 'tarn' ? 0.10 : kind === 'pond' ? 0.20 : kind === 'moss' ? 0.26 : 0.34
+      const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
+      const ph = M.map((m) => ((thashE(i, m, 907) % 1000) / 1000) * Math.PI * 2)
+      const pad = Math.ceil(Math.max(rx, ry) * (1 + k)) + 2
+      for (let y2 = cy - pad; y2 <= cy + pad; y2++) for (let x2 = cx - pad; x2 <= cx + pad; x2++) {
+        const dx = (x2 - cx) / rx, dy = (y2 - cy) / ry
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d === 0) { _w7.add(x2 + ',' + y2); continue }
+        const a = Math.atan2(dy, dx)
+        let r = 1
+        for (let q = 0; q < M.length; q++) r += k * A[q] * Math.sin(M[q] * a + ph[q])
+        r += ((thashE(x2, y2, 911) % 100) / 100 - 0.5) * 0.05
+        if (d < r) _w7.add(x2 + ',' + y2)
+      }
+    }
+    for (const path of B7) for (let i = 0; i < path.length - 1; i++) {
+      let [x2, y2] = path[i]; const [tx, ty] = path[i + 1]; let guard = 0
+      while ((x2 !== tx || y2 !== ty) && guard++ < 400) {
+        _w7.add(x2 + ',' + y2)
+        if (Math.abs(tx - x2) >= Math.abs(ty - y2)) x2 += Math.sign(tx - x2)
+        else y2 += Math.sign(ty - y2)
+      }
+      _w7.add(tx + ',' + ty)
+    }
+  }
+  return _w7.has(x + ',' + y)
+}
+
 let _ss6 = null
 function settlementsE6() {
   if (_ss6) return _ss6
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   const mby = cy - 62, oxy = cy + 30
   const noms = [
+    // v7: baked from the founding. See the note over V7 -- this page's own
+    // seater disagreed with the generator by up to ten tiles.
+    ...(V7() ? [
+      ['anchor', 466, 265, 52, 36], ['millbrook', 468, 194, 52, 22],
+      ['oxenford', 344, 296, 36, 28], ['thornbury', 526, 222, 34, 30],
+      ['hollybarrow', 352, 204, 36, 24], ['greenhollow', 376, 61, 32, 22],
+      ['cragfoot', 772, 231, 28, 32], ['eastmere', 654, 379, 38, 24],
+      ['fenmarch', 458, 421, 36, 22], ['norwick', 211, 241, 34, 24],
+    ] : [
     ['anchor',      cx,                       cy,                        52, 36],
     ['millbrook',   riverX6(mby) + 16,        mby,                       40, 18],
     ['oxenford',    cx - 104,                 oxy + 10,                  36, 28],
@@ -2050,6 +2133,7 @@ function settlementsE6() {
     ['eastmere',    (bayShoreX6(emY6()) ?? Math.round(W * 0.7)) - 14, emY6(), 38, 24],
     ['fenmarch',    riverX6(Math.round(H * 0.83)) + 9, Math.round(H * 0.83), 36, 22],
     ['norwick',     Math.round(W * 0.24),     Math.round(H * 0.46),      34, 24],
+    ]),
   ]
   // nudge each centre off water (mirrors seatDrawnTown's dry-spiral, simplified
   // to the water test, which is what moves Anchor clear of the river)
@@ -2091,7 +2175,7 @@ function terrainOfE6(x, y) {
 
 
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v6') return terrainOfE6(x, y)
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return terrainOfE6(x, y)
   if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
@@ -2110,7 +2194,7 @@ const params = new URLSearchParams(location.search)
 // own W and H beside the mirror's, which is exactly the kind of second copy
 // that lets a map drift from the world it draws.
 configure({
-  generator: params.get('gen') || 'interval-expanse-v6',
+  generator: params.get('gen') || 'interval-expanse-v7',
   seed: params.get('seed') || 'tallyholm',
   worldW: Math.max(448, parseInt(params.get('w') || '896', 10) || 896),
   worldH: Math.max(256, parseInt(params.get('h') || '512', 10) || 512),
