@@ -166,6 +166,13 @@ export class IntervalClient {
   // engine without one, which quietly made them window-only features in a
   // world that does not have window-only features.
   drink() { return this.#send({ type: 'drink' }) }
+  // §14: THE TOLL. One log to the keeper of the Millbrook Bridge, and the bar
+  // is up for you for TOLL_TICKS. Stand beside the gate, carry an ordinary
+  // log, `pay()`, then walk across. It is the same lesson as `drink` above: a
+  // bot is a citizen here, and a verb the SDK cannot speak is a verb half the
+  // island cannot use -- which for a toll would mean half the island simply
+  // cannot cross the river's busiest bridge.
+  pay() { return this.#send({ type: 'pay' }) }
   alch(slot) { return this.#send({ type: 'alch', slot }) }
   setLook(look) { return this.#send({ type: 'set_look', look }) }
   // and the four the SDK never spoke, which an audit turned up alongside
