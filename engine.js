@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.87';
+const SPEC_VERSION = '0.88';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -446,7 +446,35 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // 6bd: mining's own gallows-oak -- the same stone, twice a strike, deeper in
   'mother-lode',
   // 6be: fishing's Wilds rung -- the drowned shoal below the gibbet
-  'gibbet-shoal'];
+  'gibbet-shoal',
+  // THE WAYSTONE IS STILL A NODE TYPE. SPEC 2o introduces `waystone` and then
+  // amends it for the SIXTH EXPANSE only -- "the sixth expanse has no
+  // waystones" is a statement about Tallyholm, not a repeal. Dropping it from
+  // this list did not remove a feature from one world; it made every v1-v5
+  // world unfoundable, because their generators still seat the stones the
+  // constitution gives them and validateState then calls each one an unknown
+  // node type. 77 of the battery's 199 tests failed for this one reason.
+  // Nothing in v6 or v7 seats a waystone, so restoring the type widens
+  // validation and moves no tile in any living world.
+  'waystone',
+  // §7a: THE ROCKFALL. Nine boulders standing in the throat of the South Pass,
+  // where a road still runs and no longer arrives. They are NODES, not
+  // terrain, which is the whole reason this can exist: a node blocks its tile
+  // (it is not in _WALKABLE_BUILT) and a node can be removed, so citizens can
+  // permanently change what the island is like to walk WITHOUT the geography
+  // ever disagreeing with its founding. geographyHash covers blockedAt; the
+  // stones are not in it.
+  'rockfall',
+  // §14: THE TOLL GATE. A bar across the Millbrook Bridge with a keeper beside
+  // it. It blocks its tile like any node, and the `pay` verb lifts it for the
+  // citizen who paid -- for a while, and for them only.
+  'tollgate',
+  // §7d: THE LOOKING GLASS. A citizen's first face is free, at the door. To
+  // change it afterwards you go and look at yourself in something, and there
+  // is one of them on the island.
+  'looking-glass',
+  // §7g: THE ALTAR. Three magic-stones become a sigil here and nowhere else.
+  'altar'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
 // the registry all call this, never a private regex.
@@ -492,6 +520,10 @@ const NODE_YIELD = {
   // The old shape was 25/45/65 and a 13.8x shortcut; this is 1.2x.
   'tree':         { item: 'logs',        skill: 'woodcutting', xp: 20 },
   'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
+  // §7a: a boulder pays a piece of itself and almost no experience. Nobody
+  // should be able to train on the South Pass -- the reason to strike it is
+  // that it is in the way, and the day it stops being in the way is the point.
+  'rockfall':     { item: 'rubble',      skill: 'mining',      xp: 1 },
   'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 20 },
   'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 23 },
   // 6bd: THE MOTHER LODE, the exact sibling of the gallows-oak. Two stones to a
@@ -674,7 +706,9 @@ const STORE_SELLS = {};
 const KEEPER_KINDS = ['lumber', 'delve', 'arms', 'armour', 'bows', 'seed',
   'banker', 'merchant', 'sawyer', 'shepherd', 'delver', 'miller', 'quarrier',
   'watchman', 'wizard', 'fisher', 'brewer', 'mourner',
-  'innkeeper', 'collier', 'drover', 'beekeeper'];
+  'innkeeper', 'collier', 'drover', 'beekeeper',
+  // §14: the bridge-keeper, who is mending the deck and has been for years
+  'toll'];
 // AND WHAT EACH IS CALLED. A display string in a rules file looks out of
 // place until you remember what happened without one: the calling lived in a
 // single window's own table, so that window said "Rosamund, the banker" and
@@ -807,6 +841,7 @@ const CALLING_NAMES = {
   quarrier: 'the quarrier', watchman: 'the watchman', wizard: 'the wizard',
   fisher: 'the fisher', brewer: 'the brewer', mourner: 'the mourner',
   innkeeper: 'the innkeeper', collier: 'the collier', drover: 'the drover',
+  toll: 'the bridge-keeper',
   beekeeper: 'the beekeeper',
 };
 // 6cf: THE FISHER IS A KIND, NOT JUST A SHELF.
@@ -1017,6 +1052,51 @@ const GOLD_ONE_IN = 16384;      // one strike in this many intervals: 2h44m
 // and the lot itself, out of roll16's 65,536. 65536/16384 = 4.
 const GOLD_THRESHOLD = 65536 / GOLD_ONE_IN;
 const GOLD_DEPLETE_TICKS = 0;   // a seam that yields this seldom never sleeps
+// §7a: THE SOUTH PASS IS A CALENDAR, NOT A LABOUR POOL.
+//
+// A threshold denominated in effort is denominated in the one currency a
+// scripted world has without limit: twenty executors would chip the pass out
+// overnight and nobody would ever have been there. So the boulders are
+// RATE-limited, the way gold and the Gibbet King already are. Each one takes a
+// single strike and then lies dark for ROCKFALL_DARK ticks, whether one
+// citizen is working it or four hundred clients are.
+//
+// The South Pass is plugged by 41 stones, and the least that opens it is a
+// TUNNEL five deep. Each stone lies dark for ten minutes after a strike, so a
+// stone yields at most six strikes an hour however many clients are swinging
+// at it. The five stones of a tunnel can be worked at once, so the floor on
+// the whole endeavour is ROCKFALL_STRIKES / 6 hours -- about seven days --
+// and that floor assumes somebody is standing at all five of them every time
+// they wake, around the clock, for a week. In a world with sleep in it, weeks.
+// The other thirty-six stones are somebody widening the hole afterwards.
+//
+// A farm can meet the ceiling. It cannot raise it, and the ceiling is a
+// calendar rather than a quantity of work.
+//
+// Per-citizen caps were the other obvious lever and they do not survive this
+// world's threat model: identities are keypairs, so a farm simply makes more.
+// Wall-clock time is the only thing nobody can buy in bulk.
+// §14: THE TOLL IS A CARRY CHECK, NOT A PRICE.
+//
+// Gold in this world is a number on a citizen, not an object in a pack: it
+// cannot be forgotten, cannot be left in the bank by accident, cannot have
+// been spent an hour ago on the wrong thing. A gold toll would therefore be
+// an arithmetic inconvenience and nothing else. What made the gate on the
+// Al Kharid road memorable was never the ten coins -- it was arriving without
+// them.
+//
+// So the toll is a LOG. It occupies a slot, it comes from the Greenwood, and
+// you can turn up without one. The keeper is mending the deck, forever, which
+// is what the keeper of a wooden bridge does.
+//
+// TOLL_TICKS is how long the bar stays up for the citizen who paid: long
+// enough to walk across at one tile per interval and back if they forgot
+// something, short enough that a crossing is a decision rather than a
+// subscription.
+const TOLL_TICKS = 200;           // two minutes' grace, then the bar comes down
+const TOLL_LOGS = 1;              // one log, any ordinary log
+const ROCKFALL_DARK = 1000;       // ten minutes of dark after every strike
+const ROCKFALL_STRIKES = 1000;    // ...and this many strikes retire one boulder
 const GOLD_ORE_PER_BAR = 5;     // and what the anvil makes of them
 // 6bc: THE GATHERING CURVE, AND WHY IT IS NEARLY FLAT.
 //
@@ -1873,6 +1953,23 @@ const MOB_STATS = {
   goblin: { maxHp: 5, atk: 1, def: 1, maxHit: 1, respawn: 16, aggro: 3,
             drops: [{ item: 'bones' }, { item: 'ore', chance: 16384 }, { item: 'seeds', chance: 16384 },
                     { item: 'forage', chance: 20480 }] },
+  // §7b: THE SCREE-IMP. Something small lives in the rockfall at the South
+  // Pass and objects to being dug out of it. It hits for one, it cannot
+  // follow you past the stones, and at any level above the first week it is
+  // simply a noise -- which is the point. What made the dark wizards on the
+  // Varrock road memorable was not that they were dangerous; it was that they
+  // were THERE, on a road everybody walked, being inexplicable. A thing that
+  // kills nobody and is standing where you were going anyway is texture. A
+  // thing that kills you is content, and content is a different budget.
+  //
+  // IT DROPS NOTHING. The first cut had it drop rubble, which quietly undid
+  // the only thing rubble is for: a piece of the South Pass is the receipt for
+  // having dug at the South Pass, and a receipt you can farm off a mob is not
+  // a receipt. Whoever wants one swings a pick at the fall like everybody
+  // else. The imp is conjured of the country like the incursion faces are, so
+  // it leaves no bones either -- it leaves the noise it was made to make.
+  'scree-imp': { maxHp: 6, atk: 2, def: 3, maxHit: 1, respawn: 60, aggro: 2, harmless: true,
+            drops: [] },
   wolf:   { maxHp: 8, atk: 2, def: 2, maxHit: 2, respawn: 150, aggro: 5,   // a wolf hunts
             drops: [{ item: 'bones' }, { item: 'bones', chance: 24576 }, { item: 'forage', chance: 16384 }] },
   // v0.75: the old-chain falls at 2/65536, one troll in 32,768, which is some
@@ -2670,6 +2767,12 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 // and imports alike.
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
+  // §7a: RUBBLE. What the South Pass gives up, one piece at a time. It smelts
+  // into nothing, builds nothing, and opens nothing -- like `chart` its whole
+  // worth is that you were there, and unlike `chart` it cannot even be sold.
+  // A world where a script can do the digging is a world where the digging is
+  // not the achievement; being at the boulder when it gave way is.
+  'rubble',
   // §6am (v6): the mid-tier raw goods, gathered from the mid seams. Like logs
   // and ore they are not made, so they are named here rather than by a recipe.
   'oak-logs', 'coal', 'eel', 'cooked-eel', 'burnt-eel', 'iron', 'steel',
@@ -3023,9 +3126,17 @@ const TOOL_FOR = { tree: AXES, rock: PICKS,
                    'coal-rock': PICKS,
                    'iron-rock': PICKS,
                    'gold-rock': PICKS, 'mother-lode': PICKS,  // §6ao (v6): baseline iron
+                   // §7a: a pick and nothing else. There is deliberately no
+                   // entry in NODE_GATE for the rockfall: the whole island is
+                   // meant to be able to take a swing at it, including the
+                   // citizen who arrived this morning.
+                   'rockfall': PICKS,
                    'heartwood-tree': AXES,
                    'deep-fish-spot': RODS, 'gibbet-shoal': RODS,
-                   'fishing-spot': RODS, 'eel-spot': RODS };
+                   'fishing-spot': RODS,
+                   // §7c: no entry for 'eel-spot' -- a rod is not a bonus at a
+                   // trap either. A better rod does not lift a buck faster.
+                   };
 // §6ao (v6): which tools satisfy the tool-gate for each gathering skill. Any
 // tier of the right tool opens the door; a better one only works faster. The
 // baseline fishing tool is the plain `rod` (shaped from logs, sold at market);
@@ -3192,6 +3303,8 @@ const INPUT_SCHEMAS = {
   // is precisely the message you get from a world too old to have the verb.
   // I read that symptom and diagnosed the wrong thing twice.
   drink: {},
+  // §14: one log to the keeper of the bridge, and the bar goes up
+  pay: {},
   // §11b: the container. `consign` names the slots that go into it, `release`
   // gives them back, `deliver` sells one of them at the route's end.
   consign: { slots: (v) => (Array.isArray(v) && v.length >= 1 && v.length <= INV_SLOTS
@@ -4138,7 +4251,7 @@ function roll16(beacon, playerId, tag) {
 // The canonical generator registry (rev7 §8): a founding record names its
 // generator EXPLICITLY, so two deterministic generators can never be
 // confused about which world a genesis founds.
-const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4', 'interval-expanse-v5', 'interval-expanse-v6']);
+const WORLD_GENERATORS = new Set(['interval-classic-v1', 'interval-expanse-v1', 'interval-expanse-v2', 'interval-expanse-v3', 'interval-expanse-v4', 'interval-expanse-v5', 'interval-expanse-v6', 'interval-expanse-v7']);
 
 function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH = 200,
                      worldGenerator = 'interval-classic-v1') {
@@ -4757,7 +4870,7 @@ const LANDMARK_KINDS = new Set([
   'web',   // §6ab: what mends the spider
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment',
+  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing',
     // §6bu: alight, and it burns off by itself
     'burnUntil']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
@@ -4908,7 +5021,14 @@ const LANDMARK_KINDS = new Set([
         if (!isId(w)) return 'malformed attunement';
       }
     }
-    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    // §7e: the brew a citizen has going at the inn's pot
+    if (p.brewing !== undefined) {
+      if (typeof p.brewing !== 'object' || p.brewing === null) return 'malformed brewing';
+      if (!ITEMS.has(p.brewing.kind)) return 'brewing an unknown thing';
+      if (!isInt(p.brewing.readyAt, 0, MAX_TIME)) return 'brewing readyAt out of bounds';
+      if (Object.keys(p.brewing).length !== 2) return 'brewing carries foreign metadata';
+    }
     // 6bg: these are now a tally PER ITEM (see the pan and the hearth), so the
     // validator has to know that too. A shape rule that lags the executor by
     // one revision is exactly how a state that runs becomes a state that will
@@ -5006,7 +5126,10 @@ const LANDMARK_KINDS = new Set([
   const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin', 'ask',
     // §6bp: what a dedication stone carries -- how many names it has borne,
     // and the last few of them.
-    'count', 'past']);
+    'count', 'past',
+    // §7a: how many strikes the rockfall has taken. Monotonic, which is the
+    // safest thing there is to put in a ledger that replays.
+    'struck']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -5055,6 +5178,7 @@ const LANDMARK_KINDS = new Set([
     }
     if (!isInt(n.x, 0, W - 1) || !isInt(n.y, 0, H - 1)) return 'node out of bounds';
     if (!isInt(n.depletedUntil ?? 0, 0, MAX_TIME)) return 'node depletion out of bounds';
+    if (!isInt(n.struck ?? 0, 0, 1000000)) return 'node strike count out of bounds';
     // type-specific rules (rev6 §6): each field belongs to exactly the
     // node kinds the engine gives it to, ownership metadata on a static
     // resource node is as malformed as a fire that never expires
@@ -5092,8 +5216,17 @@ const LANDMARK_KINDS = new Set([
           || n.fuelUntil !== undefined || n.ask !== undefined || n.shelf !== undefined)
         return 'a stone carries foreign metadata';
     } else if (n.type === 'brewpot') { // a brewpot is owned; it may be idle or fermenting (v0.51)
-      if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'brewpot without an owner';
-      if (!state.players[n.by]) return 'brewpot owner does not exist';
+      // §7e: ...unless the WORLD owns it. A brewpot a citizen raised is theirs
+      // and works for them alone, which is right for a thing somebody built.
+      // The one at the Lantern was not built by anybody: it is the inn's, it
+      // has no `by`, and it works for whoever is standing at it -- the same
+      // shape as a farming plot, where the crop lives on the CITIZEN and the
+      // ground is only the place. Nobody's brew can occupy it against anybody
+      // else's, because the brew was never in the pot.
+      if (n.by !== undefined) {
+        if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'brewpot without an owner';
+        if (!state.players[n.by]) return 'brewpot owner does not exist';
+      }
       if ((n.readyAt !== undefined) !== (n.brewKind !== undefined)) return 'brewpot half-fermenting';
       if (n.readyAt !== undefined && !isInt(n.readyAt, 0, MAX_TIME)) return 'brewpot readyAt out of bounds';
       // §6an: and the deep broth. A pot may hold any of the three; leaving it
@@ -5104,8 +5237,12 @@ const LANDMARK_KINDS = new Set([
       if (n.lastUsed !== undefined && !isInt(n.lastUsed, 0, MAX_TIME)) return 'brewpot lastUsed out of bounds';
       if (n.plantedAt !== undefined) return 'brewpot carries plot metadata';
     } else if (n.type === 'watchfire') { // owned public light, fed by logs (v0.53)
-      if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'watchfire without a keeper';
-      if (!state.players[n.by]) return 'watchfire keeper does not exist';
+      // §7e: and the same for the clamp at Greenhollow, which the wood keeps
+      // rather than any one collier.
+      if (n.by !== undefined) {
+        if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'watchfire without a keeper';
+        if (!state.players[n.by]) return 'watchfire keeper does not exist';
+      }
       if (!isInt(n.fuelUntil ?? 0, 0, MAX_TIME)) return 'watchfire fuelUntil out of bounds';
       if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined) return 'watchfire carries foreign metadata';
     } else if (n.type === 'market') { // §6al: a stall a citizen raised
@@ -5185,7 +5322,11 @@ const LANDMARK_KINDS = new Set([
         // exists is now a crier -- a person, not a board, who says what the town
         // is for. The words are the town's SIGN_TEXT, carried in state so every
         // window reads the same voice.
-        || n.type === 'crier';
+        || n.type === 'crier'
+        // §14: THE TOLL GATE says what it costs, on the bar itself. A gate
+        // whose price is written on a board four tiles away is a gate that
+        // stops people without telling them why.
+        || n.type === 'tollgate';
       if (!carvable) return 'text on a node that bears none';
       if (typeof n.text !== 'string' || n.text.length > 256) return 'malformed node text';
     }
@@ -5528,6 +5669,13 @@ function validInput(state, input, ctx) {
       // troll, you deal with it, the troll bars the way. (Two bodies in
       // one square was how a fisher came to fight from inside a troll.)
       for (const m of Object.values(state.mobs)) if (m.hp > 0 && m.x === nx && m.y === ny) return false;
+      // §14: ...except a toll gate, for a citizen who has paid. The gate is a
+      // node like any other and bars the deck like any other; what `pay` buys
+      // is a window in which it does not bar it FOR YOU. Everybody else still
+      // meets a closed bridge, which is the difference between a toll and a
+      // switch.
+      if ((p.paidUntil ?? 0) > state.tick && tollGateAt(state, ctx, nx, ny)
+          && !blockingNodeAt(state, ctx, nx, ny, 'tollgate')) return true;
       // nodes are impassable (§5): you fish beside the water, not in it
       return !blockingNodeAt(state, ctx, nx, ny); // brewpots are walkable, no wall-ins (v0.52)
     }
@@ -5554,7 +5702,18 @@ function validInput(state, input, ctx) {
         // Wielded settles it, and it costs what a pickaxe already costs an
         // alchemist: a citizen working a seam is carrying no sword.
         const need = GATHER_TOOLS[y.skill];
-        if (need && !need.has(p.equipment?.weapon?.item)) return false;
+        // §7c: AN EEL BUCK IS NOT A ROD. You do not angle for eels; you set a
+        // trap woven out of willow, leave it in the run, and come back and lift
+        // it. The racks standing at the Eel Sheds and out along the fen ARE the
+        // bucks -- they were already built as furniture -- so working an eel
+        // spot is emptying somebody's trap, which takes hands.
+        //
+        // This is also the only barehanded rung in the whole gathering economy,
+        // and it lands in exactly the right place: at Fenmarch, on the poorest
+        // ground on the island, reachable by a citizen who has not yet bought a
+        // tool. A newcomer with nothing can eat.
+        if (n.type === 'eel-spot') { /* the buck is already set */ }
+        else if (need && !need.has(p.equipment?.weapon?.item)) return false;
       }
       return true;
     }
@@ -5595,11 +5754,29 @@ function validInput(state, input, ctx) {
       // bank happens to be.
       return hasAdjacentNode(state, ctx, p, 'well');
     }
+    case 'pay': {
+      // Beside the gate, and carrying what it asks for. Nothing here checks
+      // gold: see the note over TOLL_TICKS for why the toll is a log.
+      if (!hasAdjacentNode(state, ctx, p, 'tollgate')) return false;
+      return countLogs(p.inventory) >= TOLL_LOGS;
+    }
     case 'set_look': {
-      // free, and changeable: a look is not a claim on anything. A name costs
-      // fifty standing because names are scarce and permanent; there is only
-      // one of each. Faces are not scarce.
-      return isInt(input.look, 0, 255);
+      // Free and changeable still: a look is not a claim on anything. A name
+      // costs fifty standing because names are scarce and permanent; there is
+      // only one of each. Faces are not scarce.
+      if (!isInt(input.look, 0, 255)) return false;
+      // §7d: YOUR FIRST FACE IS FREE. Anybody who has not chosen one yet may
+      // choose at the door, because arriving in a world you cannot see
+      // yourself in is a poor way to begin.
+      if (p.look === undefined) return true;
+      // ...and changing your mind is a walk. You go and look at yourself in
+      // something. This costs a citizen nothing but the journey, and it buys
+      // the world a REASON for a building to exist -- which most of the
+      // buildings on this island did not have. Every window wired this verb to
+      // its own door, so a face was something you edited in a menu; a face you
+      // have to travel to change is a face that means something for the hour
+      // you are wearing it.
+      return hasAdjacentNode(state, ctx, p, 'looking-glass');
     }
     case 'claim_name': {
       // spec §5a: lowercase a-z0-9- (no leading/trailing -), 1-12 chars,
@@ -5810,8 +5987,17 @@ function validInput(state, input, ctx) {
       return (st.coin ?? PURSE_SEED) >= storeBid(sl.item, st.shelf?.[sl.item] ?? 0) * (sl.qty ?? 1);
     }
     case 'invoke': {
-      // three stones, any hour (v0.40): the cost is the mining, not the wait
-      return p.inventory.filter(sl => sl?.item === 'magic-stone').length >= 3;
+      // Three stones (v0.40): the cost is the mining, not the wait. The wait
+      // was once nightfall and was dropped, correctly -- an hour of the clock
+      // is not a decision anybody makes.
+      if (p.inventory.filter(sl => sl?.item === 'magic-stone').length < 3) return false;
+      // §7g: ...AND A PLACE. Dropping the hour left invoking with no cost but
+      // the ore and no location at all: a citizen made sigils standing in a
+      // field in the Wilds beside the seam they had just mined, which is the
+      // one spot where the walk home is worth avoiding. An altar puts the
+      // making somewhere -- and puts it at the END of the journey west rather
+      // than at the far end of it.
+      return hasAdjacentNode(state, ctx, p, 'altar');
     }
     case 'mendp': {
       // A WAND SENDS WHAT A BARE HAND KEEPS.
@@ -6134,13 +6320,23 @@ function validInput(state, input, ctx) {
     }
     case 'brew': {
       const bp = state.nodes[input.nodeId];
-      if (!bp || bp.type !== 'brewpot' || bp.by !== input.playerId || bp.readyAt !== undefined || !atOrBeside(p, bp)) return false;
+      if (!bp || bp.type !== 'brewpot' || !atOrBeside(p, bp)) return false;
       const sl = p.inventory[input.slot];
-      return !!sl && (sl.item === 'grain' || isRawFood(sl.item));
+      if (!sl || !(sl.item === 'grain' || isRawFood(sl.item))) return false;
+      // §7e: the inn's pot -- ownerless -- ferments for whoever is standing at
+      // it, and the brew rides on the CITIZEN. One at a time each, and no
+      // citizen can occupy it against another.
+      if (bp.by === undefined) return p.brewing === undefined;
+      return bp.by === input.playerId && bp.readyAt === undefined;
     }
     case 'collect': {
       const bp = state.nodes[input.nodeId];
-      if (!bp || bp.type !== 'brewpot' || bp.by !== input.playerId || !atOrBeside(p, bp)) return false;
+      if (!bp || bp.type !== 'brewpot' || !atOrBeside(p, bp)) return false;
+      if (bp.by === undefined) {
+        return p.brewing !== undefined && state.tick >= p.brewing.readyAt
+          && canAddItem(p.inventory, p.brewing.kind);
+      }
+      if (bp.by !== input.playerId) return false;
       return bp.readyAt !== undefined && state.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind);
     }
     case 'dismantle': {
@@ -6652,12 +6848,22 @@ function prayerKeeps(p, tick, genesis) {
   if (shroudSpared) kept.push({ item: 'king-shroud', qty: 1 });  // outside the Wilds, the mantle comes home
   return kept;
 }
-function blockingNodeAt(state, ctx, x, y) { // movement rule: player-built nodes are walkable
-  if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.values(state.nodes).some(n => n.x === x && n.y === y && !_WALKABLE_BUILT.has(n.type)); }
+function blockingNodeAt(state, ctx, x, y, except) { // movement rule: player-built nodes are walkable
+  const bars = (t) => !_WALKABLE_BUILT.has(t) && t !== except;
+  if (!ctx) { if (_p2on) _p2c.fullNodeScans++; return Object.values(state.nodes).some(n => n.x === x && n.y === y && bars(n.type)); }
   if (_p2on) _p2c.posLookups++;
   const ta = ctx.byTile.get(_tileKey(x, y));
   if (!ta) return false;
-  for (const id of ta) if (!_WALKABLE_BUILT.has(state.nodes[id].type)) return true;
+  for (const id of ta) if (bars(state.nodes[id].type)) return true;
+  return false;
+}
+// §14: is there a gate on this tile at all? (A paid citizen walks through a
+// gate, not through a wall that happens to stand beside one.)
+function tollGateAt(state, ctx, x, y) {
+  if (!ctx) return Object.values(state.nodes).some(n => n.x === x && n.y === y && n.type === 'tollgate');
+  const ta = ctx.byTile.get(_tileKey(x, y));
+  if (!ta) return false;
+  for (const id of ta) if (state.nodes[id].type === 'tollgate') return true;
   return false;
 }
 const _ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // adjacent(): Manhattan distance exactly 1
@@ -7276,11 +7482,22 @@ function nextState(state, inputs, _legacyBeacon) {
     // SITS, which is the only version of this that puts a person in a place.
     // Owning two is still allowed; nobody can sit at both.
     if (s.tick < (_n.fuelUntil ?? 0)) {
-      const _k = s.players[_n.by];
+      // §7e: an OWNERLESS fire pays nobody for burning. The clamp at
+      // Greenhollow is the wood's, not a firekeeper's, so there is no `by` to
+      // credit and this loop simply finds nobody -- which is the wanted
+      // behaviour written down rather than left to a lookup that happens to
+      // miss. What a public fire pays is the stoke, to whoever stokes it, and
+      // `stoke` already pays the feeder at anybody's fire.
+      const _k = _n.by === undefined ? null : s.players[_n.by];
       if (_k && _k.hp > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE)
         _k.skills.firemaking += _wt.burnXp;
     }
-    else if (s.tick - (_n.fuelUntil ?? 0) > _wt.decayTicks) deleteIndexedNode(s, _ctx, _nid);
+    // ...and it does not rot away when it goes out. A citizen's fire that has
+    // been cold for five days is abandoned and the world tidies it up; the
+    // clamp is a fixture of Greenhollow and a cold clamp is just a clamp
+    // waiting for ironbark. Without this the one place charcoal can be made
+    // would quietly disappear the first week nobody fed it.
+    else if (_n.by !== undefined && s.tick - (_n.fuelUntil ?? 0) > _wt.decayTicks) deleteIndexedNode(s, _ctx, _nid);
   }
 
   // the dead return (spec §6c, v0.41): processed at tick start
@@ -9050,18 +9267,38 @@ function nextState(state, inputs, _legacyBeacon) {
       // that tick spent on silence. The same validator/executor drift as the
       // cook gate and the eat list, and the third time from one predicate not
       // being carried to every site.
-      if (bp && bp.type === 'brewpot' && bp.by === pid && bp.readyAt === undefined
-          && atOrBeside(p, bp) && sl && (sl.item === 'grain' || isRawFood(sl.item))) {
+      const publicPot = !!bp && bp.type === 'brewpot' && bp.by === undefined;
+      const mayBrew = !!bp && bp.type === 'brewpot' && atOrBeside(p, bp)
+        && sl && (sl.item === 'grain' || isRawFood(sl.item))
+        && (publicPot ? p.brewing === undefined : (bp.by === pid && bp.readyAt === undefined));
+      if (mayBrew) {
         removeItem(p.inventory, inp.slot, 1);
         // §6an: a deep fish in the hands of a master brewer is a deep broth
-        bp.brewKind = sl.item === 'grain' ? 'ale'
+        const kind = sl.item === 'grain' ? 'ale'
           : (sl.item === 'deep-fish' && effLevel(p.skills.brewing) >= DEEP_BROTH_BREW)
             ? 'deep-broth' : 'broth';
-        bp.readyAt = s.tick + s.genesis.brew.ferment; bp.lastUsed = s.tick; // the world does the waiting (spec 8)
+        if (publicPot) {
+          // §7e: the inn's pot holds nothing. The brew is the CITIZEN's, the
+          // way a crop is, so the one pot serves everybody at once and no
+          // citizen can sit on it.
+          p.brewing = { kind, readyAt: s.tick + s.genesis.brew.ferment };
+          bp.lastUsed = s.tick;
+        } else {
+          bp.brewKind = kind
+          bp.readyAt = s.tick + s.genesis.brew.ferment; bp.lastUsed = s.tick; // the world does the waiting (spec 8)
+        }
       }
     } else if (inp.type === 'collect') {
       const bp = s.nodes[inp.nodeId];
-      if (bp && bp.type === 'brewpot' && bp.by === pid && atOrBeside(p, bp) && bp.readyAt !== undefined && s.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind)) {
+      if (bp && bp.type === 'brewpot' && bp.by === undefined && atOrBeside(p, bp)
+          && p.brewing && s.tick >= p.brewing.readyAt && canAddItem(p.inventory, p.brewing.kind)) {
+        const draughts = (p.brewing.kind !== 'deep-broth'
+          && effLevel(p.skills.brewing) >= BREW_MASTER) ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
+        addItem(p.inventory, p.brewing.kind, draughts);
+        p.skills.brewing += s.genesis.brew.xpPerBatch;
+        if (claimFirst(s, 'brewer', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to draw a finished brew.');
+        delete p.brewing; bp.lastUsed = s.tick;
+      } else if (bp && bp.type === 'brewpot' && bp.by === pid && atOrBeside(p, bp) && bp.readyAt !== undefined && s.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind)) {
         // §6an: the deep broth is never doubled -- one fish, one draught
         const draughts = (bp.brewKind !== 'deep-broth'
           && effLevel(p.skills.brewing) >= BREW_MASTER)
@@ -9428,6 +9665,10 @@ function nextState(state, inputs, _legacyBeacon) {
           p.inventory[inp.slot] = { item: burnt, qty: 1 };
         }
       }
+    } else if (inp.type === 'pay') {
+      // the log goes into the bridge, which is where a plank comes from
+      consumeLogs(p.inventory, TOLL_LOGS);
+      p.paidUntil = s.tick + TOLL_TICKS;
     } else if (inp.type === 'drink') {
       p.hp = effLevel(p.skills.hitpoints);
     } else if (inp.type === 'set_look') {
@@ -9975,6 +10216,22 @@ function nextState(state, inputs, _legacyBeacon) {
       // success RATE already compensates for durability, so XP-per-gather need
       // not change -- progression matches v5 exactly.
       p.skills[y.skill] += y.xp;
+      // §7a: THE BOULDER REMEMBERS. Every other node in this world forgets a
+      // strike the moment it pays for it; the rockfall keeps a count, and when
+      // the count is met the stone is gone for good and the way through the
+      // South Pass is open to everyone who comes after. It is the only thing
+      // citizens can do to this island that the next founding will not undo.
+      if (n.type === 'rockfall') {
+        n.struck = (n.struck ?? 0) + 1;
+        if (n.struck >= ROCKFALL_STRIKES) {
+          const _rid = p.action.nodeId;
+          deleteIndexedNode(s, _ctx, _rid);
+          p.action = null;
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' broke the last of that boulder.');
+        }
+        else n.depletedUntil = s.tick + ROCKFALL_DARK;
+        continue;
+      }
       // and the node stands until the roll retires it.
       // §6ao (v6): DURABILITY IS A FOUNDING'S CHOICE. In one shared world a
       // Schelling point must hold any crowd from a FIXED few nodes, so v6
