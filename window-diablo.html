@@ -12600,6 +12600,31 @@ function buildMenu(px2, py2, target) {
     if (n.type === 'stall') {
       items.push({ label: 'Look over the goods', run: go('stall', target.id, n.x, n.y) })
     }
+    // §7d/§7e/§7g: THE THINGS v7 ADDED, and this window knew none of them.
+    // A citizen playing here met the Millbrook bar as a wall with no
+    // explanation, could not change their face, could not swing at the South
+    // Pass, and could not invoke -- because a verb a window cannot express is
+    // a verb its citizens do not have. Same lesson as `drink` and the SDK.
+    if (n.type === 'tollgate') {
+      const lg2 = slotOf(me, 'logs')
+      items.push({ label: lg2 < 0 ? 'Pay the toll (you have no ordinary log)' : 'Pay the keeper a log',
+        dim: lg2 < 0, run: () => { send({ do: 'pay' }); say('You hand over a log. The keeper lifts the bar.') } })
+    }
+    if (n.type === 'looking-glass') {
+      items.push({ label: 'Look at yourself', run: () => {
+        const nl = (((me.look ?? 0) + 1) & 255)
+        send({ do: 'set_look', look: nl }); say('Something about you settles differently.') } })
+    }
+    if (n.type === 'altar') {
+      const st9 = (me.inventory ?? []).reduce((a, sl) => a + (sl?.item === 'magic-stone' ? (sl.qty ?? 1) : 0), 0)
+      items.push({ label: st9 < 3 ? 'Invoke a sigil (needs 3 magic-stones, you have ' + st9 + ')' : 'Invoke a sigil',
+        dim: st9 < 3, run: () => { send({ do: 'invoke' }); say('The stones go dark, and the sigil is made.') } })
+    }
+    if (n.type === 'rockfall') {
+      const dark = (n.depletedUntil ?? 0) > (curState?.tick ?? 0)
+      items.push({ label: dark ? 'Strike the fall (this stone is spent for now)' : 'Strike the fall',
+        dim: dark, run: go('gather', target.id, n.x, n.y) })
+    }
     if (n.type === 'well') {
       items.push({ label: 'Drink', run: go('drink', target.id, n.x, n.y) })
       // 6ch: the recall items that stood here were nested inside the WELL

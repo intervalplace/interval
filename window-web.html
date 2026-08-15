@@ -3371,6 +3371,8 @@ const BRIDGE_TO_INPUT = (a) =>
   // they could not drink at a well, transmute anything, choose their own face,
   // or send a mending to somebody who needed it.
   : a.do === 'drink' ? { type: 'drink' }
+  // §14: the toll on the Millbrook Bridge
+  : a.do === 'pay' ? { type: 'pay' }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'set_look' ? { type: 'set_look', look: a.look }
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
@@ -3981,7 +3983,7 @@ const STALL_NAME = {
   armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
 }
 const DEED_FX = {
-  alch: 'unmake', unmake: 'unmake', seal: 'seal', drink: 'drink', bury: 'bury', invoke: 'invoke',
+  alch: 'unmake', unmake: 'unmake', seal: 'seal', drink: 'drink', bury: 'bury', invoke: 'invoke', pay: 'pay the toll',
   mendp: 'mend', cast: 'cast', fletch: 'fletch', eat: 'eat', forage: 'eat',
   plant: 'plant', harvest: 'harvest',
 }
@@ -7350,6 +7352,64 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
+      if (n.type === 'altar') {
+        // §7g: three magic-stones become a sigil, here and nowhere else.
+        const meA = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('A low stone altar, worn smooth.'); return }
+        const stones = (meA.inventory || []).reduce((a, sl) => a + (sl?.item === 'magic-stone' ? (sl.qty ?? 1) : 0), 0)
+        if (stones < 3) { feed('The altar wants three magic-stones. You have ' + stones + '.'); return }
+        send({ do: 'invoke' }); feed('The stones go dark in your hands, and the sigil is made.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'rockfall') {
+        // §12c: the South Pass. Every stone takes one strike and then lies
+        // dark; the way through opens when a tunnel is driven.
+        const meR = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('Boulders, shoulder-high, filling the throat of the pass.'); return }
+        if ((n.depletedUntil ?? 0) > (world?.tick ?? 0)) { feed('This stone is spent for now. Another, or come back.'); return }
+        send({ do: 'gather', nodeId: id }); feed('You set the pick to the fall.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'looking-glass') {
+        // §7d: the one place on the island you can change your face. The
+        // window used to do this at its own door, which meant a citizen's
+        // appearance was a menu setting; it is a journey now.
+        const meG = world.players[myId]
+        const adjG = Math.abs(meG.x - n.x) + Math.abs(meG.y - n.y) === 1
+        if (!adjG) { feed('A tall glass, clouded at the edges. You would have to stand at it.'); return }
+        // step to the next face and send it. The gate's picker is a preview
+        // screen and does not exist once you are in the world; standing at the
+        // glass, a click IS the change.
+        pickLook = (pickLook + 1) & 255
+        send({ do: 'set_look', look: pickLook })
+        lookSent = pickLook
+        feed('You look at yourself in the glass, and something about you settles differently.')
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'tollgate') {
+        // §14: THE BAR ON THE MILLBROOK BRIDGE. One ordinary log to the
+        // keeper and it is up for you for two minutes. The point of the toll
+        // is that you can arrive without one, so say so plainly rather than
+        // failing silently -- a gate that refuses you and does not explain is
+        // just a wall.
+        const meT = world.players[myId]
+        const adjT = Math.abs(meT.x - n.x) + Math.abs(meT.y - n.y) === 1
+        if (!adjT) { feed('The bar is down across the bridge. There is a keeper beside it.'); return }
+        const LOGKINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood']
+        const hasLog = (meT.inventory || []).some(sl => sl && sl.item === 'logs')
+        const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
+        if (!hasLog) {
+          feed(hasOther
+            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.'
+            : 'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
+          return
+        }
+        send({ do: 'pay' })
+        feed('You hand over a log. The keeper lifts the bar and goes back to the deck.')
+        flashClick(n.x, n.y, false)
+        return
+      }
       if (n.type === 'market') {
         // A CITIZEN'S STALL: trestles, a cloth, a post with their mark, and
         // whatever is actually on the shelf standing on the board.
@@ -10338,15 +10398,26 @@ cv.addEventListener('click', (e) => {
         return
       }
       if (n.type === 'brewpot') {
-        if (n.by !== myId) { feed('This brewpot belongs to another brewer.'); return }
+        // §7e: THE HOUSE'S POT. A brewpot with no `by` is the inn's and works
+        // for whoever stands at it -- the brew lives on the CITIZEN, so what
+        // to read for readiness is `me.brewing`, not anything in the node.
+        // This window refused every unowned pot outright ("belongs to another
+        // brewer"), which would have left the one public pot on the island
+        // unusable from the window most citizens play in.
+        const housePot = n.by === undefined
+        if (!housePot && n.by !== myId) { feed('This brewpot belongs to another brewer.'); return }
         if (!adj(n) && !(me.x === n.x && me.y === n.y)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; return }
-        if (n.readyAt !== undefined && (world?.tick ?? 0) >= n.readyAt) { send({ do: 'collect', nodeId: id }); feed('You draw off the finished ' + (n.brewKind ?? 'brew') + '.'); return }
-        if (n.readyAt !== undefined) { feed('Still fermenting \, come back when it\\u2019s ready.'); return }
+        const mine = housePot ? me.brewing
+          : (n.readyAt !== undefined ? { kind: n.brewKind, readyAt: n.readyAt } : undefined)
+        if (mine && (world?.tick ?? 0) >= mine.readyAt) {
+          send({ do: 'collect', nodeId: id }); feed('You draw off the finished ' + (mine.kind ?? 'brew') + '.'); return }
+        if (mine) { feed('Still fermenting. Come back when it is ready.'); return }
         const gi = me.inventory.findIndex(s => s?.item === 'grain'), fi = me.inventory.findIndex(s => s?.item === 'raw-fish')
         const opts = []
         if (gi !== -1) opts.push({ label: 'brew ale (grain)', act: () => { send({ do: 'brew', nodeId: id, slot: gi }); feed('You set grain to ferment. Ale, in time.') } })
         if (fi !== -1) opts.push({ label: 'brew broth (fish)', act: () => { send({ do: 'brew', nodeId: id, slot: fi }); feed('You set fish to steep. Broth, in time.') } })
-        opts.push({ label: 'dismantle brewpot', act: () => { send({ do: 'dismantle', nodeId: id }); feed('You take the brewpot apart, recovering some of its makings.') } })
+        if (!opts.length && housePot) feed('The house pot, scoured and waiting. You have nothing to put in it.')
+        if (!housePot) opts.push({ label: 'dismantle brewpot', act: () => { send({ do: 'dismantle', nodeId: id }); feed('You take the brewpot apart, recovering some of its makings.') } })
         opts.push({ label: 'never mind', act: () => {} }); chooseAction(opts); return
       }
       if (n.type === 'house') {

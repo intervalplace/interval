@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.87 ("The Constitution")
+# Interval: Protocol Specification v0.88 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -5599,6 +5599,783 @@ founding decision rather than a law of nature.
    `waystoneStandingReq`.
 4. **A hauler's calling.** §10 has no word for this trade yet. *Hauler* is the
    obvious one and costs nothing, being display-only.
+
+## 12. The seventh founding: interval-expanse-v7 (v0.88)
+
+The sixth expanse's land is not amended. `interval-expanse-v6` draws the same
+island it drew on the day it was founded, and a v6 world is a v6 world for as
+long as anyone runs it. What follows is the **seventh** generator, and per §6
+of the prelaunch audit it carries a new id precisely so that a change to the
+world cannot arrive silently inside an old one.
+
+Four things change, and one of them is a change to what the constitution says
+citizens are ALLOWED TO DO to the island.
+
+### 12a. A town may not be seated inside another town
+
+`seatDrawnTown` spirals outward from a nominal seat and takes the first ground
+the LAND allows. It is deterministic — a pure function of the seed — but it
+knew nothing about the towns already seated, and determinism is not the same
+as correctness: the same dice, thrown the same way, at every founding.
+
+Measured over 150 v6 foundings: **9.3% put two towns' walls through each
+other**, and the narrowest field between two ramparts was **minus seven
+tiles**. Millbrook was in every collision, because its nominal seat was
+`riverX + 16` — a number chosen when its drawing was 28 tiles wide. The v6
+market square made it 52, and the dry-spiral shoved the town fifteen to twenty
+tiles east at every seed.
+
+**The rule.** Towns are seated in a fixed order, and a seat must leave
+`CLEAR_GAP` tiles of open ground clear of every town already seated. A nominal
+seat derived from a river is derived from **the drawing's own width**, so that
+redrawing a town moves its seat and the number cannot go stale again. Where
+the land offers no seat that is both dry and clear, clear wins: a town in a
+marsh is a bad town, a town inside another town is not a town.
+
+Measured over 100 v7 foundings: no overlaps, narrowest field thirteen tiles.
+
+### 12b. The ridge is a wall at both ends
+
+The Ridge was drawn absent on 241 of the island's 433 land rows — the whole
+north end (it sank beneath the Greenwood) and the whole south end (it died
+away before the bay, so Eastmere had a shore). Both were deliberate. The
+consequence was not: **the two named passes gated nothing**. Shutting the
+South Pass changed zero of the forty-five journeys between towns.
+
+The ridge now runs from sea to sea, broken only at the two passes. Eastmere's
+shore is protected by the seater, which moves the town, rather than by a hole
+in a mountain — which is the right way round.
+
+### 12c. The South Pass, and the first thing citizens may do to the island
+
+**This is the substantive amendment.** Until now the geography of a world was
+fixed at its founding: `geographyHash` is taken over `blockedAt`, and nothing
+a citizen did could alter a tile of it. That remains true. What changes is
+that the island now contains a barrier which is **not made of geography**.
+
+The throat of the South Pass is plugged by `rockfall` nodes — the full height
+of the gap and five tiles deep. A rockfall blocks its tile the way any node
+does. It can be mined away, and it does not come back.
+
+- **`rockfall` is a node type.** It yields `rubble` to `mining` at one
+  experience a strike. There is deliberately **no level gate**: the whole
+  island may take a swing at it, including a citizen who arrived this morning.
+- **A rockfall remembers.** `node.struck` is a monotonic count. At
+  `ROCKFALL_STRIKES` the node is removed from the world permanently.
+- **It is rate-limited, not labour-limited.** After every strike a rockfall
+  lies dark for `ROCKFALL_DARK` ticks. This is deliberate and it is the whole
+  design: a threshold denominated in effort is denominated in the one currency
+  a world of executors has without limit. A bot is a citizen here (§2n), so a
+  labour pool would be chipped out overnight by twenty scripts and nobody
+  would ever have been there. A stone that yields six times an hour yields six
+  times an hour whether one citizen or four hundred clients are swinging at
+  it. **The floor is a calendar**, and a calendar is the only thing that
+  cannot be bought in bulk.
+- **Per-citizen caps are not used** and must not be. Identity is a keypair; a
+  farm simply makes more.
+- **The least work that opens the pass is a tunnel**, five stones deep. Every
+  other stone is somebody widening the hole afterwards.
+- **The road to the South Pass is still drawn**, still leaves the capital, and
+  still arrives at rock. The sweep that clears blocked streets spares
+  `rockfall` for exactly this reason. A route that plainly used to work and
+  does not is worth more than a route that was never drawn.
+
+**`rubble` is an item with no use.** It smelts into nothing, builds nothing,
+opens nothing, and — unlike `chart` — cannot be sold. Its entire worth is that
+you were there. Nothing else in the world drops it, and nothing else may: a
+receipt that can be farmed off a mob is not a receipt.
+
+The constitutional point: the day the pass opens is the first fact about the
+island that its citizens wrote rather than inherited, and every citizen who
+arrives afterwards lives in the world they made and cannot join them in making
+it. That is a one-way door and it is meant to be.
+
+### 12d. The scree-imp
+
+`scree-imp`: six hitpoints, hits for one, `harmless`, aggro two. It lives in
+the South Pass rockfall and objects to being dug out of it.
+
+It drops nothing at all. It is not a source of `rubble` (§12c) and it leaves
+no bones, being conjured of the country as the incursion faces are.
+
+The reasoning is worth writing down because it governs everything in §13 as
+well. What made the wizards on the north road memorable was never that they
+were dangerous. It was that they were **there**, on a road everybody walked,
+being inexplicable, killing nobody. A thing that kills you is content, and
+content is a different budget.
+
+## 13. The places (v0.88)
+
+A world of 458,752 tiles carried nineteen named localities and **twelve of
+them were a signpost standing in an empty field**. Ninestone Moor had no
+stones. The Boneyard had a board. Deadman's Reach had nothing whatever.
+
+It also carried 626 built things out in the country, drawn from **eight
+rotating kinds** — croft, cairn, shrine, orchard, gibbet, kennel, beehives,
+stone circle. That is more props than the island it was measured against and
+fewer PLACES, because the fifth croft is not a place. It is wallpaper with a
+door.
+
+### 13a. What a place is
+
+A **place** is a hand-authored drawing, appearing exactly once in the world,
+seated at a locality that already carries its name on the chart. It is written
+in `worldgen-places-v7.mjs` in the same way a town is written in
+`worldgen-shire-v6.mjs`: as ASCII, by a person, one entry at a time.
+
+A place is **not required to be useful**. It gates nothing, drops nothing
+worth carrying, and no route depends on it. This is the specification, not an
+omission. The measure a place answers to is whether a citizen would walk over
+and look, and the thing that makes them walk over is that it is the only one
+of its kind on the island.
+
+Three rules, each of which the first draft broke:
+
+1. **Every open cell must be reachable from outside.** A drawing that reads as
+   a building is not a building. Seven of the first eighteen places could not
+   be entered — a maze whose gate was one column off its corridor, a cottage
+   whose door opened onto a barrel, sheepfolds with no gaps onto the drove. A
+   founding must audit this and refuse to ship a sealed place.
+2. **A place owns its footprint.** Anything already standing inside the
+   drawing is cleared before it is laid. The localities carried a signpost at
+   their exact centre and a place is seated at that centre, so three
+   dedication stones were quietly replaced by boards and one doorway was
+   corked by one.
+3. **A place should be within sight of a road where the country has one.** Not
+   on it — beside it, in a band of four to fourteen tiles. What makes a manor
+   on the Varrock road memorable is that you do not go to it: you pass it, and
+   one day you go in. Where a country has no roads at all — the Wilds, the
+   Moor — a place is remote, and that is the country speaking.
+
+### 13b. What repeats, and what does not
+
+A croft, a shrine, a gibbet, a kennel and a stone circle each read like
+somewhere, and the moment there are nine of them scattered at random none of
+them is anywhere. They are places now, once each, by hand.
+
+What remains on the rotating wayside table is what SHOULD repeat, because
+repetition is what it is: **a cairn, an orchard, beehives**. Nobody looks at
+the fourth cairn and wonders about it, which is exactly why a fourth cairn is
+fine and a fourth shrine was not. The spacing is one every sixty tiles rather
+than every thirty-five: a sight is something you come across, not something
+you pass continuously.
+
+### 13c. Who is there
+
+An empty building is a diorama. Each place may name inhabitants, in small
+numbers, dropping nothing worth farming — so that no place becomes a
+destination and every place stays what it is, which is something you meet on
+the way to somewhere else.
+
+### 13d. The holdings, the lanes and the fields (v0.88)
+
+Measured against the map this island invites comparison with — RuneScape in
+2002, drawn at about the same six pixels to the tile:
+
+| | RuneScape 2002 | Tallyholm, before |
+|---|---|---|
+| road, track and wall | 11.6% of land | 1.8% |
+| buildings | 8.5% | 1.2% |
+| ploughed field | 2.3% | 0.06% |
+| **anything built** | **22.4%** | **6.4%** |
+| separate built clumps | 272 | 73 |
+| median clump | about a cottage | 20 tiles |
+
+The last two rows name the fault, and it is not "too empty". They have four
+times as many built things and **each one is smaller**. A handful of large
+towns and then nothing between them is what an unpopulated map looks like.
+
+Two rules follow.
+
+**A road may end at somebody's door.** Every road here ran town to town — a
+spanning tree with ten leaves — and a spanning tree does not look like a
+country. **Lanes** are short tracks off the routed roads, each ending at a
+holding. A lane is trodden ground, not a King's road: it is deliberately *not*
+in `onRoad`, so every rule that cares about roads (where a citizen may raise a
+stall, what the founding sweeps off a street, where the wayside goes) goes on
+meaning what it meant.
+
+**A town must be fed, and the fields are DRAWN.** The first pass threw
+rectangles at a ring round each town and laid a quarter of the island's nodes
+as slabs of brown. It closed the measured gap and it looked like exactly what
+it was. A field is not a rectangle: it is strips in a furlong, with a headland
+to turn the plough on, a hedge round the whole thing and a gate where the lane
+comes in — and no amount of tuning a placer produces that.
+
+So each town has a hand-drawn field system (`worldgen-fields-v7.mjs`), sized
+and shaped to what that town is. Hollybarrow is a farm and has six blocks.
+Greenhollow is a clearing in a wood, so its fields are **assarts** — ground
+taken from the wood a year at a time, with the stumps still standing in it.
+Cragfoot is a mine on thin stony soil and gets one walled garth, because even
+a mining town eats. The two ports get nothing: they fish.
+
+Two rules the drawings answer to:
+
+- **Ploughing clears the ground.** Scrub, trees and stumps give way to the
+  plough; walls, buildings, seams and standing stones do not. Without this an
+  assart — which is by definition wood becoming field — laid seven tiles of
+  thirty.
+- **A field goes ragged where it meets a stream.** Tiles falling on water,
+  rock, road or lane are simply not ploughed. A founding that lays less than a
+  third of a drawing says so aloud, because that is a field in the wrong place
+  rather than a field with a pond in it.
+
+The ploughed share went **down** when this replaced the placer — 1.11% to
+0.76% — and the map got better. Which is the whole argument against tuning to
+a number.
+
+**On repetition.** §13b forbids the wayside repeating a shrine or a gibbet,
+and this section fills the country with cottages. The distinction is what the
+thing *reads as*. A shrine reads as SOMEWHERE, so nine of them scattered at
+random makes none of them anywhere. A farmhouse reads as SOMEBODY, and a
+country is supposed to have a great many of those. Nobody looks at the fourth
+farm and wonders what it means. They look at it and think people live here.
+
+### 13e. The working country: the Fens, the Downs and Stillwater (v0.88)
+
+Built things per thousand tiles, after the holdings and the fields went in:
+
+| heartlands | downs | crags | greenwood | fens | moor | wilds |
+|---:|---:|---:|---:|---:|---:|---:|
+| 90.1 | 49.9 | 31.4 | 23.9 | 16.8 | 7.3 | 7.0 |
+
+The heartlands came out **thirteen times** more inhabited than the Wilds,
+because everything added went where the roads already were, and the effect of
+that is to make the dense part denser.
+
+Two of those numbers are right and must stay wrong-looking. **The Wilds carry
+no roads at all by design and the Moor is meant to be bare**: a walk into
+nothing is the point of both, and neither wants a farmhouse.
+
+Two were wrong:
+
+- **The Fens** had the longest mean walk to anything on the island — 51.6
+  tiles, half again the Wilds — in a country carrying a port, a causeway and an
+  eel trade. A country with a road and a harbour must not be emptier than the
+  lawless west.
+- **The Downs** looked healthy at 49.9 and were almost entirely the Sheepfolds
+  and the causeway. Sheep country with one fold on it.
+
+**They are worked on their own terms, not by copying the heartlands.** A
+furlong of strips would be wrong in both: you cannot plough a fen and the chalk
+is too thin. A fen has peat, eels, wildfowl and huts up on staddles. A down has
+folds, dew ponds, shepherds' huts and the **drove road** the sheep are walked
+along — which is a lane rather than a road, because nobody built it, it wore in.
+
+Stillwater, the island's only inland water, had nothing on any shore of it. It
+now carries two camps.
+
+| | before | after |
+|---|---:|---:|
+| fens, mean walk to anything | 51.6 | **23.9** |
+| fens, worst | 133 | **87** |
+| downs, built per 1k | 49.9 | **58.5** |
+| downs, mean walk | 14.5 | **11.8** |
+
+**On hand-placement, in miniature.** These thirty-nine seats were chosen by
+eye and then checked by machine: **ten of the first guesses were in the sea, on
+the Barrow, or standing in the causeway itself**, and four more overlapped each
+other so that the second drawing of a pair laid nothing. A pass moved each to
+the nearest ground that holds the whole drawing, and the corrected numbers were
+baked back into the table. Hand-placed and machine-checked is not a compromise
+between the two — it is the only version of hand-placement that is honest about
+how often a person is wrong about a coordinate.
+
+### 13f. Inland water, the road mesh, and what is behind the door (v0.88)
+
+The three things a comparison with the map of 2002 left standing.
+
+**Inland water is not round.** The first cut drew ellipses with a per-tile
+hash on the rim, and it was wrong at a glance: a lake has lobes, a bay, a
+headland and an outflow corner, and per-TILE noise does not give you any of
+those. It varies at the wrong frequency — a fuzzy speckled edge on a shape that
+is still obviously a circle. The radius varies with the **angle** instead, from
+five harmonics whose phases are hashed off the water's own index, plus a tile
+of roughness so the rim is crenellated rather than swept. The deformation
+constant is geology, not style: a tarn sits in a rock basin and is nearly
+round; a fen mere is shapeless and sprawls.
+
+**A building may not stand in water, whatever a window draws.** The fen works
+were written on the reasoning that a hut in a fen is built on staddles. True of
+fens and false of this world: a window may draw a hut on posts, but the tile
+underneath is water, water is blocked, and **a building whose floor is blocked
+is a building nobody can enter**. The picture cannot grant reachability — which
+is §6's rule that a town is its drawing and not its plot, read backwards.
+
+So a building goes on the bank. What may stand in water is what already does:
+furniture worked from the shore — trap racks and a fowler's hide — and only
+where a citizen can stand beside it, which is the rule a fishing spot already
+lives by.
+
+**And the order of two tests may cancel one of them.** The rule permitting wet
+tiles was written *after* a `blockedAt` test, and `blockedAt` returns true for
+water — so for as long as the fen works existed, not one of them ever built on
+a wet tile, and nothing said so. Order matters when one test is a superset of
+what another is trying to permit.
+
+**`taken` is not "occupied", and this is the third time.** The scatter reserves
+tiles for POROSITY so a wood never closes up, and `layPlan` reserves every lane
+and plaza of a drawing; both are reservations against future scatter, not
+statements that a tile is in use. Testing it has now silently emptied three
+separate things — the market stalls, the town fields, and a set of eel traps
+that laid zero of eight nodes where five tiles passed every other gate. The
+question is whether a NODE stands here.
+
+**And a water must be checked against what is already standing.** The first
+placement put **245 of the Barrow Mere's 323 tiles on the Barrow** — a lake on
+top of a burial mound, which reads as fine in a table and absurd on a chart —
+and three more flooded a holding, the King's Oak, and the ridge. Every water is
+now audited against every town, place, holding, ridge and barrow.
+
+**Two towns get no fields at all, and that is the point of them.** Norwick was
+given two furlongs and they were landing in the **Wilds** — ploughed strips a
+hundred tiles past the Brandline. A garrison on the edge of the Wilds does not
+farm; it is supplied, which is why the road from Hollybarrow exists and why a
+hauler has a reason to walk it. Cragfoot's single garth scored **zero** tiles,
+because the ploughing rule refuses crags and Cragfoot stands in the crags. The
+rule was right and the garth was sentiment. An empty margin says *victualled*;
+a furlong says the opposite.
+
+**Inland water.** The island had exactly one piece of water that was not the
+sea or the Great River. Everything else was coast, and all of the coast was on
+the outer edge where nobody walks — while an enormous share of the other map's
+interest comes from water *inside* the landmass. So: nineteen meres, tarns,
+pools and moss-hollows and five becks, hand-placed, each answering to its own
+country. A tarn is not a small lake: it is high, cold and steep-sided and lives
+in a corrie in the Crags. A mere is low, wide and reed-fringed and lives in the
+Fens. The chalk holds no water at all, which is why the Downs have almost none
+and why the dew ponds there are man-made. **2.92% of the land is now inland
+water, and every town is still reachable.**
+
+**A beck must go somewhere, and wander getting there.** The first five rose
+properly out of a mere and then simply ENDED — four of the five in open grass.
+Water does not stop; it reaches other water or it reaches the sea. And they ran
+on two or three bends across sixty tiles, which reads as *dug*: a straight
+watercourse looks like a canal somebody abandoned. Each now runs from a named
+body to the Great River, the sea or another water, in eight to sixteen reaches
+with six to eleven real bends.
+
+**And a beck must be checked against everything standing.** The first routing
+of the rewritten becks ran the Sheep Beck **through Eastmere**, the Oxenbeck
+**through Oxenford** and then through the Ferryman's Rest, the Blackbeck
+through a holding, and the Bleak Beck — once it was long enough to reach the
+river — straight down **onto Millbrook**. It joins the river above the town now.
+
+**Where a beck crosses a road, the road is planked.** A wandering beck meets
+the King's roads; the Bleak Beck alone crossed six times coming off the Moor. A
+road that walks into a stream and stops is the same fault as a toll you can
+side-step. `onBridge` knows the planks, so `blockedAt` and `groundKindAt` both
+agree a crossing is decking. Baked and iterated to a fixed point (61 tiles,
+stable over three passes), because laying a plank moves the router, which finds
+new crossings.
+
+**Variety of scale is most of what makes water read.** Nineteen bodies all
+much the same size — a 9:1 spread, nothing under sixty tiles — read as a
+scatter of blobs however good each outline is. The Great Mere is 1,495 tiles
+now and six others are ponds of nineteen to forty-seven: **79:1**.
+
+**One rule for every water.** Stillwater kept its own ellipse test and was
+conspicuous once every mere around it had a shoreline. Folding it into the
+table cost a lesson: the first attempt **deleted the lake**, by removing its
+old test while leaving it out of the set that replaced it, and what rendered
+was a name and a track floating in bare grass.
+
+Two things learned laying it:
+
+- **The water cannot ask about roads.** The first attempt gave a beck a ford
+  wherever a road crossed it, and the founding disappeared down its own throat:
+  roads are routed by a router that consults the water. The water is laid
+  first; the router finds its own way round, as it already does round the
+  Barrow. Where a beck genuinely severs something, move the beck.
+- The crossings were then **counted** rather than assumed, and the answer was
+  zero: the router avoids every beck unaided. `BECK_FORDS` stays as an empty,
+  measured list.
+
+**The road mesh.** The network was a spanning tree with ten leaves — no loops,
+no alternatives, one way to get anywhere — which is not what a country's roads
+look like. Roads are what is left after everybody has walked to everybody for a
+century, and that has cycles in it. Eight links added, each one a route a
+person would have worn in between neighbours who otherwise go via the capital:
+the forge to the port, the timber town over the top to the farm, the crossing
+to the fen port. **Road and track: 1.94% → 2.51% of the land.**
+
+**What is behind the door.** Eighteen buildings with doors and nothing on the
+other side are eighteen dioramas. Each now has an inhabitant or a thing, and
+neither is a reward: nothing here drops loot, sells anything or gates a skill.
+Osmund the Sawyer is at his own camp at last. Corwin Underhill never left the
+workings. Alys keeps a mill with no wheel and has not mentioned it. Gilbert is
+the ferryman at a crossing that has had a bridge for years. The Sentinel gets
+nobody, deliberately: it is a stone.
+
+The callings are taken from `KEEPER_KINDS` exactly as it already stood —
+mourner, watchman, wizard, fisher, shepherd, miller, delver, drover. The world
+already had words for all of these people and had simply never put any of them
+anywhere.
+
+**And a keeper blocks the tile they stand on**, which makes where they stand a
+graph question. Two wrong answers came first: an arbitrary cell **sealed eleven
+of the eighteen places**, every one of which had already been proved walkable;
+and "the cell with the most floor around it" sealed the maze *worse*, because
+in a one-tile corridor the most connected cell is the middle of the corridor
+and every cell in a corridor is a cut vertex. A keeper may stand only where
+removing them does not disconnect the room. A place drawn with no such cell —
+the King's Oak has two open tiles in a line — gets its warden outside the ring,
+which is where a warden stands anyway.
+
+### 13g. The camps and the seams: everything placed by hand (v0.88)
+
+The seams on this island were always **Schelling points** — ninety-two
+gatherable nodes on 458,752 tiles, so that "I am going to Cragfoot to mine" is
+a sentence with a destination in it. A wood with a tree on every third tile has
+no Greenhollow in it, and a citizen who can gather anywhere never goes
+anywhere. That design is not changed here. What changes is that it is now
+**written down** rather than emergent from six seeding routines: a table
+(`worldgen-seams-v7.mjs`) that is the register of what is real, and that the
+founding clears and re-lays from, so a seam moves by editing one line.
+
+**And the beasts were the last thing still scattered.** Seven hundred goblins
+and wolves spread evenly over two countries is the opposite of a Schelling
+point: nowhere to go, because everywhere is the same. They are **camps** now
+(`worldgen-camps-v7.mjs`) — a kind, a middle, a count and a spread. Not a
+coordinate each: "the wolves on the Hollybarrow road" is what a citizen
+remembers and what a person places. 119 camps, capped on the way in because
+the scatter put nineteen wolves in one clump and a lair is six. 615 beasts,
+every one of them either from the table or hand-placed for its own reason.
+
+**A seam belongs at the town that exists to work it.** Cragfoot's iron stood
+seventy-seven tiles up the ridge and Greenhollow's timber seventy-three tiles
+into the wood — a mining town with no ore and a timber town with nothing to
+chop, each a longer walk from its trade than from its neighbour. A Schelling
+point is only one if the name on the map and the thing you came for are in the
+same place. Both now sit on two faces of their town, so a crowd has a choice.
+
+**A fishing spot is the water, not the bank.** The engine wants the node
+ADJACENT to the citizen, so the spot is what you reach and the ground beside it
+is where you put your feet — you walk out on the boards and fish off the end,
+which is also what a jetty is for.
+
+Six were briefly moved onto the bank after four in the channel were swept, and
+the sweep was misread: it was not saying they were in the wrong element, it
+was saying **the quays were floating**. Both jetties began one tile out in the
+water with water on three sides, so nothing on the island could reach them and
+anything laid beside them was correctly removed as unreachable. Sixteen tiles
+of boards nobody could stand on. Every quay path now begins on dry ground.
+
+**Every tier is a place, and none of it is scattered.** Ninety-one nodes in
+nineteen clusters, and no lone node anywhere: a seam a citizen can name and
+walk to, not a mark they happen upon. Nothing gatherable on this island stands
+by itself. Six were put out in the channel
+off Eastmere's new quays and the path-opening pass felled four of them, which
+was right: a node floating in a shipping lane is in the way. They are on the
+bank, touching water, which is also what the battery has always tested for.
+
+**Never exempt something by the shape of its name.** The pass that makes the
+world scarce demotes every ordinary tree, iron seam and fishing spot into a
+look-alike landmark, and exempted the real ones by matching an id prefix. The
+moment the seams became a table their ids changed, no prefix matched, and it
+silently neutralised **the island's entire baseline tier** — all seven starter
+trees, all seven iron seams, all nine fishing spots, still standing, still
+looking exactly like themselves, and unworkable. A newcomer would have found
+nothing on the whole island to chop, mine or fish. Matching on a name is
+matching on a spelling; ask the register.
+
+**The goblin pound is hand-seated.** It ran late in the founding, after the
+fields, so `free()` skipped every tile a furlong had taken and what got built
+was a pound with holes in it and goblins standing in the barley — 31 plot tiles
+and 49 hedge and fence tiles within twelve of the densest goblin cluster on the
+island. Its seat was chosen by scoring every tile within ten of that road for
+conflicts: 0 of 143. Thinned from one interior tile in three to one in five,
+because fifteen goblins shoulder to shoulder is a warehouse.
+
+### 13h. The quays of Eastmere, and the eel bucks (v0.88)
+
+**A port has jetties.** Eastmere's three fishing marks stood on bare shingle: a
+fishing town whose entire reason to exist was three dots on a beach. It has two
+quays now, laid as **decking** — water tiles that are walkable, which is what
+`onBridge` already meant. Not built of `wall`, because a wall in the sea is a
+wall.
+
+That exposed a fault older than the quays: **`groundKindAt` never returned
+`bridge` for anything**, so every window on the island mirrored it and painted
+the sea over every bridge deck there has ever been.
+
+**An eel buck is not a rod.** You do not angle for eels; you set a trap woven
+from willow, leave it in the run, and come back and lift it. The racks at the
+Eel Sheds and out along the fen ARE the bucks — they were already built as
+furniture — so working an eel spot is emptying somebody's trap, which takes
+hands. No new tree species, no new item: the willow lives in the name, which is
+where it belongs.
+
+This also makes eel fishing the only **barehanded** rung in the gathering
+economy, and it lands exactly where it should: at Fenmarch, on the poorest
+ground on the island, reachable by a citizen who has not yet bought a tool. A
+newcomer with nothing can eat.
+
+### 13i. The opening, and the looking glass (v0.88)
+
+**A newcomer must be able to reach the first rung.** Measured from spawn once
+every seam sat at the town that works it: the nearest tree was 314 tiles and
+the nearest ore **419** — four minutes — while `brimstone-vent` (late) stood at
+319 and the gallows oaks of the Wilds at 374. **The ladder had inverted.** A
+citizen's opening move was a four-minute walk past two end-game seams to reach
+the one they could work.
+
+Putting each seam at its own town was right, and the side effect was that "at
+its town" also meant "at the edge of the island", with spawn dead centre. So
+two small clusters answer it, and both make the same trade **deliberately**:
+
+- **Three iron rocks on the west face of the Crags.** Cragfoot's ore is six
+  tiles from a vault; these are ninety. A shorter walk out and a longer walk
+  back, or go east and carry less further — both are legitimate for a whole
+  career, and neither dominates.
+- **Two trees in the heartlands east of Hollybarrow.** Greenhollow's are
+  thirteen tiles from its bank; this copse is fifty-five from any. It halves
+  the walk from spawn and doubles the walk home, so the timber town keeps its
+  reason to exist — which it would not if a copse this close were also
+  convenient.
+
+The ladder now reads tree 1.4 min, fishing 1.8, iron 2.0, and every mid and
+late tier further than all three.
+
+**And the fishing is deliberately left alone.** It was already the shortest
+walk, and walking to a coast to fish is not a defect: it is what a coast is.
+
+### 13m. Two names kept for the dead (v0.88)
+
+`NODE_TYPES` carries two entries this island never places, and both must stay.
+
+**`waystone`** was removed from Tallyholm on purpose — 2o's amendment says the
+sixth expanse has none, so that citizens walk. It stays in the registry because
+v1-v5 generators still seat the eighteen stones their constitutions gave them,
+and taking the string out made **every one of those worlds unfoundable**: 45 of
+the battery's failures came from that single deletion.
+
+**`house`** is the older word. Before v5 a dwelling WAS a node; since v5 the
+building is the room you walk into, and what stands in a dwelling is its
+hearth — which is what every window has painted a `house` as for several
+releases. It is placed by `worldgen-expanse`, `expanse2`, `expanse3` and
+`expanse4`, so removing it or renaming it breaks those four countries exactly
+as removing `waystone` broke five.
+
+So: neither is a second hearth in any living world, and neither may be reused
+for something new. **A node type is a word in a constitution that old worlds
+are still written in.**
+
+### 13l. Doors, stalls and the altar (v0.88)
+
+**A trade to a house, and never in the doorway.** Drawing all eighty-one rooms
+on one sheet showed two faults at once. Millbrook's bowyer and delver were
+seated **three tiles apart in the same 4x3 market house**, so one house held two
+trades and the house next door held none — and the chart read as though a trade
+had gone missing. And Eastmere's fishmonger stood **in the gap in its own
+wall**: a stall blocks its tile, so the trade was corking the only way into the
+building it traded from.
+
+A doorway is a gap in a run of wall, so it has wall on two OPPOSITE sides and
+open ground on the other two. `freeSides >= 2` cannot see that — a doorway has
+exactly two free sides, in and out, which is why it passed. **This is the third
+time this founding has put something in a doorway**: a stall, eleven keepers,
+and the board announcing the monastery, which stood in the middle of the south
+wall of its own precinct. A board goes BESIDE a door.
+
+A founding must audit it. `towndoors.mjs` walks from spawn and asks of every
+room in every town whether any tile of it can be reached: **0 of 81 sealed.**
+
+**The altar.** `invoke` asked for three magic-stones and nothing else. The wait
+was once nightfall and was rightly dropped — an hour of the clock is not a
+decision anybody makes — but dropping it left the making with no place at all,
+so sigils were struck standing in a field beside the seam in the Wilds, which
+is the one spot where the walk home is worth avoiding. The altar stands in
+Norwick's hall: the garrison on the edge of the Wilds, the last roof before the
+Brandline. You mine out west and invoke on the way back.
+
+**Millbrook's lock-ups.** The market's drawing gives six houses and the roster
+fills four; the other two stood with literally nothing in them, the only rooms
+on the island in that state. They are lock-ups now — barrels and a shelf, where
+the crates wait for market day. No verb: this is furniture, and it is furniture
+because the honest answer for those two is that nobody trades out of them.
+
+### 13k. One thing you can only do there (v0.88)
+
+**Thirty-nine of the island's eighty-one buildings hold nothing but a bed, a
+hearth and a table** — a door, a floor, and no reason to open it. The answer is
+not to furnish them. It is to give a FEW of them the only place in the world
+where something can be done. Scarce on purpose: eight brewhouses would be
+wallpaper for exactly the reason nine shrines were.
+
+**The inn's pot.** A brewpot a citizen raises is theirs and works for them
+alone, which is right for a thing somebody built. The one at the Lantern is the
+house's: **no owner**, and the brew rides on the CITIZEN the way a crop does,
+so one pot serves everybody at once and nobody can sit on it. Verified: two
+citizens brewing at the same pot in the same tick, the pot itself holding
+nothing, and one collecting without touching the other's.
+
+At the inn rather than in a room in the capital, for two reasons. A public
+house is where a public pot belongs. And the Lantern stands a good walk further
+from any vault than Anchor does — which is the price, and the reason to have
+built one of your own.
+
+**The charcoal clamp.** §6bo gives the rule for charcoal — ten ironbark into a
+**burning watchfire**, one charcoal out — and **this island had no watchfire on
+it**. A recipe in the constitution with nowhere in the world to perform it, for
+as long as the recipe has existed. Greenhollow gets the clamp, the wood keeps
+it lit, and charcoal becomes a thing that exists.
+
+**A public fire pays the stoke, not the burn.** A watchfire a citizen raises
+pays its owner for ATTENDANCE — sitting at their own fire while it burns. The
+clamp has no owner, so there is nobody to credit and the burn pays nothing,
+which is the wanted behaviour. What it does pay is `stoke`, to whoever stokes
+it, and `stoke` has always paid the feeder at anybody's fire.
+
+It also does not rot. A citizen's fire cold for five days is abandoned and the
+world tidies it away; the clamp is a fixture of Greenhollow, and a cold clamp
+is a clamp waiting for ironbark. Without that exemption **the one place
+charcoal can be made would quietly disappear the first week nobody fed it.**
+
+**The bee garden at Hollybarrow.** Skeps and a keeper on the farm town's
+ground, and **no new verb**: texture, labelled honestly as texture. Not
+everything needs a rule, but everything that claims one should have it.
+
+### 13j. The looking glass (v0.88)
+
+A citizen's **first face is free**, chosen at the door, because arriving in a
+world you cannot see yourself in is a poor way to begin. **Changing it
+afterwards is a walk** to the one glass on the island.
+
+Two things were wrong with `set_look` as it stood. It cost nothing, so it meant
+nothing — and every window wired the verb to its own gate, so a face was a menu
+setting the world had no idea existed. Meanwhile Anchor's Hall 2 is a
+four-by-nine room containing one hearth, and the same is true of most of the
+eighty-one buildings on this island: a door, a floor, and no reason.
+
+So: one `looking-glass`, in one hall, in the capital, with a board outside
+because a room whose use cannot be known is a room nobody enters. Scarce on
+purpose — it is a Schelling point like the seams, and the walk is the whole
+point of it. A face you have to travel to change is a face that means something
+for the hour you are wearing it.
+
+## 14. The toll on the Millbrook Bridge (v0.88)
+
+### 14a. Which crossing, and why that one
+
+Not chosen by taste. Shut each of the island's five crossings in turn and
+measure how much longer every journey between towns becomes:
+
+| crossing | journeys lengthened | worst detour |
+|---|---|---|
+| Fenford | 2 of 45 | +6 tiles |
+| Highford | 2 of 45 | +16 |
+| the Watersmeet Bridge | 2 of 45 | +54 |
+| the Oxenford | 4 of 45 | +68 |
+| **the Millbrook Bridge** | **16 of 45** | **+208** |
+
+The Millbrook Bridge is the only crossing on Tallyholm that is worth anything.
+Anchor to Hollybarrow is 177 tiles across it and 385 around it — long enough
+to hurt, short enough to take when you have arrived without a log.
+
+The fen causeway is *not* a candidate and must not become one: shutting it does
+not lengthen Eastmere's journeys, it **severs** them. A toll where there is no
+way round is not a price, it is a hostage.
+
+### 14b. The toll is a carry check, not a price
+
+Gold in this world is a number on a citizen, not an object in a pack. It cannot
+be forgotten, cannot be left in the bank by mistake, cannot have been spent an
+hour ago on something else. A toll denominated in gold would therefore be an
+arithmetic inconvenience and nothing more.
+
+What made the gate on the road to Al Kharid memorable was never the ten coins.
+It was **arriving without them**.
+
+So the toll is **one log**. It occupies a slot in a pack of twenty-eight, it
+comes out of the Greenwood, it is already the currency of building and burning
+— and you can turn up at the bridge without one. The keeper is mending the
+deck, which is what the keeper of a wooden bridge does, forever.
+
+Note that this deliberately does **not** fall hardest on the hauler: a
+consignment (§11a) is a second container, so a citizen mid-route is walking
+with an empty pack and the toll costs them nothing at all. It falls on the
+citizen carrying a full load of their own, which is the ordinary case.
+
+### 14c. The gate
+
+- `tollgate` is a node type. It blocks its tile as any node does, and it bears
+  `text`, because a gate whose price is written on a board four tiles away is a
+  gate that stops people without telling them why.
+- Every deck tile on the line is gated. A bar with a gap in it is scenery.
+- The road sweep that clears blocked streets spares `tollgate`, exactly as it
+  spares `rockfall` (§12c): both are things whose whole purpose is to stand in
+  a road.
+- `pay` is a verb. It requires standing beside the gate and carrying
+  `TOLL_LOGS` ordinary logs. It consumes them and sets `player.paidUntil`.
+- While `paidUntil` has not passed, the gate does not bar **that citizen**.
+  Everybody else still meets a closed bridge. That is the difference between a
+  toll and a switch: paying buys a window, not a state change to the world.
+- **The SDK speaks it.** `pay()` in `sdk.mjs`, for the same reason `drink`
+  and `alch` were added there: a bot is a citizen here, and a verb the SDK
+  cannot express is a verb half the island cannot use — which for a toll would
+  mean half the island cannot cross the river's busiest bridge.
+- `TOLL_TICKS` is two minutes — enough to cross at one tile per interval and
+  come back for what you forgot, short enough that a crossing is a decision
+  rather than a subscription.
+
+## 15. The island is frozen (v0.88)
+
+Tallyholm is not a generator any more. It is a **description**.
+
+Everything about the land — the coast, the countries, the Great River, the
+Ridge, the Barrow, the lake, where every town seats itself, where every place
+and holding stands, where the last tree in the Greenwood grows — is computed
+from one founding seed (`TALLYHOLM_SEED`), whatever seed a pillar is actually
+founded with.
+
+### 15a. Many worlds, one map
+
+A world founded tomorrow with a different `INTERVAL_SEED` is a **different
+world** — its own ledger, its own `worldId`, its own history — standing on
+**the same island**. That is how the game this one invites comparison with
+always worked, and the reason is not nostalgia:
+
+**A chart drawn by one citizen is true for every citizen in every world,
+forever.** "Meet me at the Nine Stones" means something across servers.
+Directions survive. A map is worth learning by heart. A procedural island
+fragments that knowledge into as many maps as there are seeds, and no one of
+them is ever worth learning.
+
+The precedent is already here: Nought (§0) draws the same island as the world
+it shadows, so that "nothing crosses" is arithmetic rather than a promise.
+
+Changing `TALLYHOLM_SEED` is not a tuning. It is a different country, and it
+requires a new generator id under §6 of the prelaunch audit.
+
+### 15b. Placement is authored, not searched
+
+Of the 8,110 things standing on this island, 56% were already tiles of ascii
+somebody wrote by hand — the town drawings, the eighteen places, the holdings,
+the fields. What was procedural was never the drawings. It was the **seats**:
+one (x, y) per thing, and there are only about a hundred of them.
+
+Every fault this founding spent its life on came from a seat, not from a
+drawing. Towns seated inside each other in 9.3% of foundings. A market stall
+seated outside its own wall. A bowyer seated onto a road tile and swept away
+without a word. The great spider seated inside a quiet quarter where her web
+could never be built, standing in bare grass for as long as she had existed.
+Seven of eighteen places drawn with no way in. A toll bar covering two of a
+bridge's three deck rows.
+
+None of those was a logic error. Every one was a placement making a decision
+without knowing what was already there. **An authored seat cannot make that
+mistake twice**, because there is only one arrangement and a person has looked
+at it.
+
+So the seats are **baked**: produced once by the placer, written down as a
+literal table (`HOLDING_SEATS`), and edited by hand from there. Baked rather
+than typed from scratch, deliberately — every check this island passes was
+passing when the numbers were taken, so they start correct and stay correct
+while a person moves them one at a time.
+
+What remains generated is what should be: the wandering and respawning of
+beasts, which is runtime rather than placement.
 
 ## 10. Out of scope for v0.1
 
