@@ -167,6 +167,7 @@ import { FIELDS_V7 } from './worldgen-fields-v7.mjs'
 import { COUNTRY_WORKS, COUNTRY_SEATS, DROVE, TRACKS, QUAYS } from './worldgen-country-v7.mjs'
 import { WATERS, BECKS, BECK_FORDS, BECK_PLANKS, SHAPE_K } from './worldgen-water-v7.mjs'
 import { CAMPS } from './worldgen-camps-v7.mjs'
+import { RESIDENTS } from './worldgen-residents-v7.mjs'
 import { SEAMS } from './worldgen-seams-v7.mjs'
 import { PLANS5_V6 as PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
          seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS, LEGEND_V6 } from './worldgen-shire-v6.mjs'
@@ -3038,7 +3039,7 @@ export function buildWorld(genesis) {
     }
   }
 
-  let _holdCount = 0, _fieldCount = 0, _workCount = 0, _skepCount = 0, _lockupCount = 0
+  let _holdCount = 0, _fieldCount = 0, _workCount = 0, _skepCount = 0, _lockupCount = 0, _residentCount = 0
   // ================= THE HOLDINGS, AND THE FIELDS =================
   // Somebody lives between the towns. See worldgen-holdings-v7.mjs for the
   // measurement: this island had 73 built clumps against the 272 on the map it
@@ -3274,6 +3275,54 @@ export function buildWorld(genesis) {
       if (!seated) console.warn('WORLDGEN: no ground for the charcoal clamp')
     }
 
+    // ---- WHO LIVES HERE ----
+    // §7h. Thirty-nine rooms held a bed, a hearth and nobody. The answer is
+    // not another verb -- three rooms with the only place in the world where
+    // something can be done is the right number of those -- it is that
+    // somebody lives here. See worldgen-residents-v7.mjs.
+    //
+    // A resident blocks their tile like any keeper, so each seat was chosen
+    // off the room census: interior floor, never the doorway, never the cell
+    // whose removal seals the room. The founding checks all three anyway,
+    // because a person standing in a door is how this island has corked a
+    // building three separate times.
+    {
+      const wallAt4 = (x, y) => Object.values(w.nodes).some((q) =>
+        q.x === x && q.y === y && (q.type === 'wall' || q.type === 'rampart'))
+      let seated = 0, refused = 0
+      for (let i = 0; i < RESIDENTS.length; i++) {
+        const r = RESIDENTS[i]
+        if (!inB(r.x, r.y) || blockedAt(g, r.x, r.y)) { refused++; continue }
+        // NOT a groundKindAt test. A town cottage's interior does not report
+        // as 'floor' -- that kind belongs to the lone rooms out in the country
+        // -- so requiring it refused 27 of 37 residents from rooms that
+        // plainly have floorboards. The seats come from the room census and
+        // are inside a room by construction.
+        // A PERSON BEATS A TABLE. Most of these cottages are furnished to
+        // capacity -- a three-by-two interior with a bed, a hearth and a table
+        // has no free tile at all -- so a resident may take the tile a table,
+        // shelf or barrel stands on, and never the bed or the hearth. A room
+        // with a bed, a fire and somebody in it is better furnished than a
+        // room with one more table and nobody. The seat finder allowed this
+        // and the builder did not, which is why seven of eight refusals were
+        // a person standing politely outside their own house.
+        const sitting = Object.entries(w.nodes).find(([, q]) => q.x === r.x && q.y === r.y)
+        if (sitting) {
+          const [sid, sn] = sitting
+          const movable = sn.type === 'landmark' && ['table', 'shelf', 'barrel'].includes(sn.kind)
+          if (!movable) { refused++; continue }
+          delete w.nodes[sid]
+        }
+        if ((wallAt4(r.x - 1, r.y) && wallAt4(r.x + 1, r.y))
+         || (wallAt4(r.x, r.y - 1) && wallAt4(r.x, r.y + 1))) { refused++; continue }
+        put('resident-' + i, 'keeper', r.x, r.y, { kind: r.kind, name: r.name })
+        seated++
+      }
+      if (refused) console.warn('WORLDGEN: ' + refused + ' of ' + RESIDENTS.length
+        + ' residents had nowhere to stand')
+      _residentCount = seated
+    }
+
     // ---- MILLBROOK'S TWO LOCK-UPS ----
     // The market's drawing gives six houses and the roster fills four. The
     // other two stood on the chart with LITERALLY nothing in them -- the only
@@ -3290,9 +3339,14 @@ export function buildWorld(genesis) {
       // Two of these six landed on tiles that already held something -- the
       // rooms are four by three and the plan puts a little in them -- so the
       // list is the tiles that are actually free.
+      // AND NOT IN THE DOOR. The third piece of each set sat at y194 -- which
+      // is the gap in the south wall of its own lock-up -- so furnishing the
+      // two rooms SEALED them, and `towndoors.mjs` caught it the moment a
+      // resident moved in and there was nothing left to walk on. Four pieces
+      // to a room, all on the back wall.
       const LOCKUPS = [
-        [446, 193, 'barrel'], [447, 193, 'shelf'], [447, 194, 'barrel'],
-        [453, 193, 'barrel'], [454, 193, 'shelf'], [454, 194, 'barrel'],
+        [446, 193, 'barrel'], [447, 193, 'shelf'], [448, 193, 'barrel'],
+        [453, 193, 'barrel'], [454, 193, 'shelf'], [455, 193, 'barrel'],
       ]
       let n3 = 0
       for (const [x, y, kind] of LOCKUPS) {
