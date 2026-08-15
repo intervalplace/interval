@@ -25,12 +25,24 @@
 
 let W = 192, H = 96
 let GEN = 'interval-classic-v1', GSEED = ''
+// THE TOWNS, WHEN THE WORLD HAS TOLD US. Every mirrored settlement table in
+// this file is a hand copy of the generator's nominal seats and footprints,
+// and a hand copy goes stale: it still believed Millbrook was 40x18 after the
+// v6 market square made it 52x22, and still seated Norwick at W*0.24 after the
+// generator moved it to brandX+18. The pillar now ships what it actually
+// seated (packTerrain meta.settlements), so a window that has been told stops
+// guessing. The tables below remain for the moments before the world has
+// announced itself.
+let GIVEN_SS = null
 
 export function configure(opts = {}) {
   W = opts.worldW ?? opts.W ?? W
   H = opts.worldH ?? opts.H ?? H
   GEN = opts.generator ?? opts.gen ?? GEN
   GSEED = opts.seed ?? opts.genesisSeed ?? GSEED
+  if (opts.settlements !== undefined) GIVEN_SS = opts.settlements && opts.settlements.length
+    ? opts.settlements.map((s) => ({ ...s, name: s.name ?? (s.tag[0].toUpperCase() + s.tag.slice(1)) }))
+    : null
   // a new world means every memo is about the old one
   _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
   _roadBmp = null; _roadBmpFor = null
@@ -108,7 +120,11 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
-  if (GEN === 'interval-expanse-v6') return settlementsE6()
+  // TOLD BEATS DERIVED. If the world announced where its towns stand, that is
+  // where they stand; the chart and the world cannot disagree about something
+  // neither of them is computing twice.
+  if (GIVEN_SS) return GIVEN_SS
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return settlementsE6()
   if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
@@ -1800,15 +1816,17 @@ function settlementsE6() {
   const mby = cy - 62, oxy = cy + 30
   const noms = [
     ['anchor',      cx,                       cy,                        52, 36],
-    ['millbrook',   riverX6(mby) + 16,        mby,                       40, 18],
+    // 52x22 since the v6 market square, not 40x18; and the seat is derived
+    // from the drawing's own width, exactly as worldgen-expanse7 derives it.
+    ['millbrook',   riverX6(mby) + 40,        mby,                       52, 22],
     ['oxenford',    cx - 104,                 oxy + 10,                  36, 28],
     ['thornbury',   cx + 78,                  cy - 34,                   34, 30],
     ['hollybarrow', cx - 96,                  cy - 52,                   36, 24],
     ['greenhollow', Math.round(W * 0.42),     Math.round(H * 0.12),      32, 22],
-    ['cragfoot',    Math.round(W * 0.86),     Math.round(H * 0.46),      28, 32],
+    ['cragfoot',    Math.round(W * 0.87),     Math.round(H * 0.44),      28, 32],
     ['eastmere',    (bayShoreX6(emY6()) ?? Math.round(W * 0.7)) - 14, emY6(), 38, 24],
     ['fenmarch',    riverX6(Math.round(H * 0.83)) + 9, Math.round(H * 0.83), 36, 22],
-    ['norwick',     Math.round(W * 0.24),     Math.round(H * 0.46),      34, 24],
+    ['norwick',     Math.round(W * 0.215) + 18, Math.round(H * 0.47),    34, 24],
   ]
   // nudge each centre off water (mirrors seatDrawnTown's dry-spiral, simplified
   // to the water test, which is what moves Anchor clear of the river)
