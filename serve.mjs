@@ -63,6 +63,7 @@ let AUDIO_WARNED = false
 const announced = new Map() // peerId -> { addr, at }: the mesh directory
 let GENESIS, migrated = 0
 let _roadsCache = null   // /api/roads: the founded world's road tiles, computed once
+let _settleCache = null  // /api/settlements: the towns as the founder seated them
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null
 let savedCp = null
 try { if (fs.existsSync(CP_FILE)) savedCp = JSON.parse(fs.readFileSync(CP_FILE)) } catch {}
@@ -401,6 +402,22 @@ const server = http.createServer((req, res) => {
     // genesis, by the same router that laid them -- so every window draws the
     // real network (ring, passes, bridges) instead of guessing. Cached: roads
     // never change for a given founding.
+    // THE TOWNS, AS THE FOUNDER SEATED THEM. A window cannot import a
+    // generator, so it has always re-derived the town seats from a simplified
+    // copy of the seater -- and a copy drifts. It drifted by up to ten tiles
+    // under v6, and under v7 by twenty-seven, which is a whole town: a citizen
+    // stood in Anchor's market square on grass, because the window had paved
+    // somewhere else.
+    //
+    // The pillar already computes this for the practice world's terrain
+    // packet. Serve it to the living one too. Told beats derived.
+    if (path === '/api/settlements') {
+      if (!_settleCache) {
+        try { _settleCache = { settlements: packTerrain(node.state.genesis).meta.settlements ?? [] } }
+        catch (e) { _settleCache = { settlements: [], error: e.message } }
+      }
+      return json(_settleCache)
+    }
     if (path === '/api/roads') {
       if (!_roadsCache) { try { _roadsCache = roadDataOf(node.genesis) } catch (e) { _roadsCache = { tiles: [], bridges: [], bends: [], error: e.message } } }
       return json(_roadsCache)
