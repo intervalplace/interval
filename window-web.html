@@ -392,8 +392,14 @@ let _w7 = null
 function inland7(x, y) {
   if (!_w7) {
     _w7 = new Set()
-    for (let i = 0; i < W7.length; i++) {
-      const [cx, cy, rx, ry, kind] = W7[i]
+    // STILLWATER JOINS THE TABLE. The world folded it in so that one rule
+    // shapes every water; a window that keeps the old plain ellipse for it
+    // disagrees with the lake's whole shoreline -- which was all sixty-eight
+    // of the remaining disagreements when this was checked tile by tile.
+    const c0 = lakeC6()
+    const ALL7 = [...W7, [c0.x, c0.y, 24, 13, 'mere']]
+    for (let i = 0; i < ALL7.length; i++) {
+      const [cx, cy, rx, ry, kind] = ALL7[i]
       const k = kind === 'tarn' ? 0.10 : kind === 'pond' ? 0.20 : kind === 'moss' ? 0.26 : 0.34
       const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
       const ph = M.map((m) => ((thashE(i, m, 907) % 1000) / 1000) * Math.PI * 2)
@@ -424,12 +430,15 @@ function inland7(x, y) {
 let _seedNumC = null, _ssE = null
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
-  // v7: one island under every seed
-  if (V7()) { let h = 2166136261
-    for (const ch of V7_SEED) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) }
-    return (_seedNumC = h >>> 0) }
+  // v7: ONE ISLAND UNDER EVERY SEED -- hashed by THIS function's own rule.
+  //
+  // The first version of this freezing wrote its own FNV-1a here, next to a
+  // hash that is not FNV-1a, and the two disagree: the river moved
+  // twenty-seven tiles east and ran straight through Anchor's market square.
+  // Freezing an input must not change the function.
+  const src = V7() ? V7_SEED : GSEED
   let h = 0
-  for (let i = 0; i < GSEED.length; i++) h = Math.imul(h ^ GSEED.charCodeAt(i), 2654435761) | 0
+  for (let i = 0; i < src.length; i++) h = Math.imul(h ^ src.charCodeAt(i), 2654435761) | 0
   return (_seedNumC = h >>> 0)
 }
 function thashE(x, y, k) {
@@ -2179,7 +2188,8 @@ function inLake6(x, y) {
   const c = lakeC6(), dx = (x - c.x) / 24, dy = (y - c.y) / 13
   return dx * dx + dy * dy < 1
 }
-const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y) || (V7() && inland7(x, y))
+const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y)
+  || (V7() ? inland7(x, y) : inLake6(x, y))
 
 // v6 settlements: nominal centres from worldgen-expanse6 settlementsOf, each
 // nudged off water by a light dry-spiral (the generator's seatDrawnTown clears
