@@ -2022,7 +2022,33 @@ export function groundKindAt(g, x, y) {
         // townPaved only pays the tiles beside a building, so the open market
         // came out as grass with shops standing in a field. A market square is
         // cobbled end to end; pave the whole of its rect.
-        if (st.tag === 'millbrook') return onRoad(g, x, y) ? 'cobble' : 'flag'
+        // §7k: AND THE SQUARE ITSELF IS PLAZA. `plaza` is a ground kind this
+        // constitution has always declared and NEVER LAID -- not one tile of
+        // it existed anywhere on the island, while 5,334 tiles of flagstone
+        // did. The market town's market square was flagstone like its side
+        // streets, which is why it read as a wide street rather than a place.
+        //
+        // The middle of Millbrook's rect, clear of its buildings, is plaza
+        // now: the ground a citizen may raise a stall on (§7k in engine.js),
+        // and the only such ground on Tallyholm.
+        if (st.tag === 'millbrook') {
+          // ...and CLEAR OF THE HOUSES. `isIndoor` reads the plan's interior
+          // marks, and the market's shops are drawn with chars it does not
+          // count, so three stall-houses had their floors painted as market
+          // square. A square is open ground: no wall within one tile of it in
+          // any direction, which is a thing the drawing can answer.
+          const nearWall = (() => {
+            for (let dy2 = -1; dy2 <= 1; dy2++) for (let dx2 = -1; dx2 <= 1; dx2++) {
+              const c = rows[ry + dy2]?.[rx + dx2]
+              if (c === '#' || c === '%') return true
+            }
+            return false
+          })()
+          if (!onRoad(g, x, y) && !isIndoor(st.tag, rows, rx, ry) && !nearWall
+              && Math.abs(rx - (rows[0].length >> 1)) <= 9
+              && Math.abs(ry - (rows.length >> 1)) <= 4) return 'plaza'
+          return onRoad(g, x, y) ? 'cobble' : 'flag'
+        }
         // and the paving reaches only as far as the town does
         if (!townPaved(rows, rx, ry)) return onRoad(g, x, y) ? 'trail' : null
       }
@@ -2123,6 +2149,26 @@ function geographyHashE6(g0) {
     const nodeSig = Object.entries(w.nodes)
       .map(([id, n]) => id + ':' + n.type + ':' + (n.kind ?? '') + ':' + n.x + ',' + n.y)
       .sort().join('|')
+    // ...AND THE BEASTS.
+    //
+    // This signature was built from `w.nodes` alone, and while every mob on
+    // the island came out of scatter functions living in this same file that
+    // was harmless: you could not change where the wolves were without
+    // changing the generator, and the generator's own identity covers that.
+    //
+    // v7 moved them into a TABLE (worldgen-camps-v7.mjs, 119 camps seating
+    // 614 beasts) so a person could move a lair by editing two numbers -- and
+    // that is exactly what makes it consensus-critical. Two nodes carrying
+    // different camp tables would shake hands on an identical geography hash
+    // and then diverge on the state root: caught, but a great deal later and
+    // far more confusingly than at founding, which is the moment a mismatch is
+    // cheap to read.
+    //
+    // The same argument the note below makes for groundKindAt: "free to edit"
+    // and "two nodes can quietly disagree" are the same sentence.
+    const mobSig = Object.entries(w.mobs)
+      .map(([id, m]) => id + ':' + m.type + ':' + m.x + ',' + m.y)
+      .sort().join('|')
     // EVERY TILE, and the ground it is made of.
     //
     // v3 sampled the terrain at stride 4 and this inherited it, which meant
@@ -2150,7 +2196,9 @@ function geographyHashE6(g0) {
         terr.push(blockedAt(g0, x, y) ? '#' : biomeAt(g0, x, y)[0])
         terr.push(groundKindAt(g0, x, y)?.[0] ?? '-')
       }
-    const h = E.sha256(Buffer.from('EXPANSE5-GEO-V1\n' + nodeSig + '\n' + terr.join(''))).toString('hex')
+    // the tag moves with the shape of what is hashed: a signature that has
+    // grown a section is not the same signature, and saying so is free.
+    const h = E.sha256(Buffer.from('EXPANSE7-GEO-V2\n' + nodeSig + '\n' + mobSig + '\n' + terr.join(''))).toString('hex')
     _geoMemo.set(memoKey, h)
     return h
   } finally { _probing = false }
@@ -2161,6 +2209,9 @@ E.registerTerrain(GENERATOR_ID, {
   spawn: (g) => spawnDry(g),
   country: (g, x, y) => biomeAt(g, x, y),
   road: (g, x, y) => onRoad(g, x, y),   // §6ao (v6): so the engine can require citizen stalls to line the roads
+  // §7k: and the ground, so the engine can tell a market square from a verge.
+  // stallGroundOk asks this; without it the square is just more flagstone.
+  ground: (g, x, y) => groundKindAt(g, x, y),
   // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
   // itself from a hand-copied table, and the copy went stale. The node that
   // founded the world is the one place that ran the real seater; it ships what
@@ -5225,7 +5276,7 @@ export function buildWorld(genesis) {
   {
     const GATHERABLE = new Set(['tree', 'oak-tree', 'ironbark-tree', 'heartwood-tree', 'gallows-oak',
       'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'magic-rock', 'mother-lode', 'brimstone-vent',
-      'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal'])
+      'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal', 'muck-heap'])
     let cleared = 0
     for (const [id, n] of Object.entries(w.nodes)) {
       if (!GATHERABLE.has(n.type) || id.startsWith('place-')) continue
@@ -5471,6 +5522,35 @@ export function buildWorld(genesis) {
         for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++)
           if (!blockedAt(g, x + dx, y + dy) && !isWater(g, x + dx, y + dy)) open++
         if (open < 44) continue
+        // §7j: A MILL IS A BUILDING, NOT A TRINKET.
+        //
+        // The mill was one tile of landmark standing in a field, which read as
+        // miniature next to a town whose smallest cottage is six by four --
+        // and now that grain is ground here it is somewhere a citizen goes,
+        // which makes the scale worse. So the sails get a mill-house under
+        // them: a stone round-house, its door to the south, with the grinding
+        // stone (the `mill` node) standing in the middle where the shaft comes
+        // down. You work it from the doorway or from inside.
+        //
+        // Not a room with a windmill in it -- a windmill with a room in it,
+        // which is what a tower mill actually is.
+        const MILLHOUSE = [
+          '~###~',
+          '#,,,#',
+          '#,M,#',
+          '#,,,#',
+          '~#.#~',
+        ]
+        for (let ry = 0; ry < MILLHOUSE.length; ry++) for (let rx = 0; rx < 5; rx++) {
+          const ch = MILLHOUSE[ry][rx]
+          const mx = x + rx - 2, my = y + ry - 2
+          if (ch === '~' || ch === '.' || ch === ',') continue
+          if (!inB(mx, my) || blockedAt(g, mx, my) || isWater(g, mx, my) || onRoad(g, mx, my)) continue
+          if (Object.values(w.nodes).some((q) => q.x === mx && q.y === my)) continue
+          if (ch === '#') put('millhouse-' + tag + '-' + rx + '-' + ry, 'wall', mx, my, {})
+        }
+        for (let ry = 0; ry < MILLHOUSE.length; ry++) for (let rx = 0; rx < 5; rx++)
+          if (MILLHOUSE[ry][rx] === ',') taken.add(key(x + rx - 2, y + ry - 2))
         taken.add(key(x, y)); put('mill-' + tag, 'landmark', x, y, { kind: 'mill' })
         const kx = x + 1, ky = y
         if (free(kx, ky) && !blockedAt(g, kx, ky)) {
@@ -5831,6 +5911,19 @@ export function buildWorld(genesis) {
                                  || (wallAt(x, y - 1) && wallAt(x, y + 1))
         const stallNear = (x, y) => Object.values(w.nodes).some((q) =>
           q.type === 'stall' && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 5)
+        // §7k: A ROSTERED TRADE HAS A ROOF. The one-trade-to-a-house rule
+        // pushed the delver out of the house it was sharing and it came to
+        // rest in the open -- on what is now the market SQUARE, which is worse
+        // than untidy: the square is where CITIZENS raise stalls, and a shop
+        // the town founded standing among them is unreadable. A roster stall
+        // is a shop; a shop has walls. The square is for the citizens.
+        const indoors = (x, y) => {
+          let n2 = 0
+          for (const [dx2, dy2] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]])
+            if (Object.values(w.nodes).some((q) => (q.type === 'wall' || q.type === 'rampart')
+              && q.x === x + dx2 && q.y === y + dy2)) n2++
+          return n2 >= 2
+        }
         for (let yy = ry; yy < ry + rh && !seated; yy++) {
           for (let xx = rx; xx < rx + rw; xx++) {
             if (plan[yy]?.[xx] !== ',') continue        // bare floor only
@@ -5851,6 +5944,7 @@ export function buildWorld(genesis) {
             if (onRoad(g, x, y)) continue
             if (isDoorway(x, y)) continue               // never cork the door
             if (stallNear(x, y)) continue               // one trade to a house
+            if (!indoors(x, y)) continue                // and a house is walls
             if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
             if (freeSides(x, y) < 2) continue           // room for a keeper AND a customer
             // AND NOT IN SOMEBODY ELSE'S SHOP.
@@ -5925,6 +6019,16 @@ export function buildWorld(genesis) {
         square.sort((a, b) => (Math.abs(a[0] - st.x) + Math.abs(a[1] - st.y))
                             - (Math.abs(b[0] - st.x) + Math.abs(b[1] - st.y))
                             || (a[0] - b[0]) || (a[1] - b[1]))
+        // §7k: THE SQUARE IS THE CITIZENS'. This fallback seats a rostered
+        // trade on Millbrook's market square when no house will take it -- and
+        // since the square became plaza, that is precisely the ground a
+        // CITIZEN raises a stall on. A shop the town founded standing among
+        // them is unreadable: you cannot tell the world's delver from
+        // somebody's pitch. A rostered trade is a shop and a shop has walls.
+        //
+        // Kept as the last resort it always was, because a trade nobody can
+        // find is worse than a trade in the open -- but it now says so aloud
+        // instead of quietly putting a shop in the marketplace.
         for (const [x, y] of square) {
           // NOT `taken`. layPlan reserves every tile of a drawing -- lanes and
           // plaza included -- so that no later pass drops a tree in somebody's
@@ -5942,6 +6046,7 @@ export function buildWorld(genesis) {
           if (Object.values(w.nodes).some((q) =>
             q.type === 'keeper' && q.kind && q.kind !== kind
             && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 2)) continue
+          if (groundKindAt(g, x, y) === 'plaza') continue   // the square is not a shop
           E.addNode(w, 'stall-' + st.tag + '-' + kind, 'stall', x, y, { kind })
           taken.add(key(x, y)); seated = true
           for (const [dx2, dy2] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
