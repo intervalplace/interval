@@ -276,7 +276,9 @@
 let W = 192, H = 96
 let GEN = 'interval-classic-v1', GSEED = ''
 
+let SETTLE_TOLD = null
 function configure(opts = {}) {
+  SETTLE_TOLD = opts.settlements ?? SETTLE_TOLD
   W = opts.worldW ?? opts.W ?? W
   H = opts.worldH ?? opts.H ?? H
   GEN = opts.generator ?? opts.gen ?? GEN
@@ -285,6 +287,7 @@ function configure(opts = {}) {
   _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
   _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
+  _w7 = null
   _ssE = null
   _roadSet = null; _roadBridges = null
   _ss3 = null
@@ -318,9 +321,56 @@ const tileHash = (x, y, salt) => {
   return (h ^ (h >> 16)) >>> 0
 }
 
+// ---- THE SEVENTH FOUNDING -------------------------------------------------
+// v7 is the same land with three changes, and a window without all three shows
+// a country that no longer exists: the island is FROZEN (one Tallyholm under
+// every seed), the Ridge is SEALED sea to sea, and there is INLAND WATER --
+// nineteen meres, tarns and pools and five becks, three and a half per cent of
+// the land, none of it on any earlier chart.
+const V7 = () => GEN === 'interval-expanse-v7'
+const V7_SEED = 'solo-50'
+const W7 = [[476,324,13,8,'mere'], [430,246,7,5,'pond'], [372,262,9,6,'mere'], [540,268,3,2,'pond'], [476,92,19,10,'mere'], [566,130,4,3,'pond'], [588,88,7,5,'pond'], [700,176,8,7,'tarn'], [748,214,6,5,'tarn'], [664,236,3,3,'tarn'], [300,108,9,6,'moss'], [250,142,3,3,'moss'], [340,88,3,2,'moss'], [352,396,34,14,'mere'], [268,376,17,8,'mere'], [534,392,12,6,'mere'], [424,420,5,3,'pond'], [690,300,4,3,'pond'], [150,268,14,9,'moss']]
+const B7 = [[[700,183],[697,191],[692,197],[688,205],[683,210],[677,214],[672,221],[668,228],[665,233]],[[690,304],[696,308],[705,310],[712,316],[715,326],[714,337],[713,347],[714,358],[714,369],[711,381],[706,391],[700,399],[692,406],[683,412]],[[376,268],[381,277],[383,287],[386,297],[388,307],[391,316],[396,322],[404,325],[413,326],[423,325],[430,324],[434,322]],[[478,103],[477,113],[474,122],[470,131],[468,140],[468,148],[469,156],[468,163],[464,168],[459,171]],[[302,116],[307,126],[313,136],[319,146],[326,154],[335,160],[346,166],[358,171],[370,175],[383,179],[396,178],[409,178],[421,177],[432,177],[441,177],[449,178]]]
+let _w7 = null
+function inland7(x, y) {
+  if (!_w7) {
+    _w7 = new Set()
+    for (let i = 0; i < W7.length; i++) {
+      const [cx, cy, rx, ry, kind] = W7[i]
+      const k = kind === 'tarn' ? 0.10 : kind === 'pond' ? 0.20 : kind === 'moss' ? 0.26 : 0.34
+      const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
+      const ph = M.map((m) => ((thashE(i, m, 907) % 1000) / 1000) * Math.PI * 2)
+      const pad = Math.ceil(Math.max(rx, ry) * (1 + k)) + 2
+      for (let y2 = cy - pad; y2 <= cy + pad; y2++) for (let x2 = cx - pad; x2 <= cx + pad; x2++) {
+        const dx = (x2 - cx) / rx, dy = (y2 - cy) / ry
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d === 0) { _w7.add(x2 + ',' + y2); continue }
+        const a = Math.atan2(dy, dx)
+        let r = 1
+        for (let q = 0; q < M.length; q++) r += k * A[q] * Math.sin(M[q] * a + ph[q])
+        r += ((thashE(x2, y2, 911) % 100) / 100 - 0.5) * 0.05
+        if (d < r) _w7.add(x2 + ',' + y2)
+      }
+    }
+    for (const path of B7) for (let i = 0; i < path.length - 1; i++) {
+      let [x2, y2] = path[i]; const [tx, ty] = path[i + 1]; let guard = 0
+      while ((x2 !== tx || y2 !== ty) && guard++ < 400) {
+        _w7.add(x2 + ',' + y2)
+        if (Math.abs(tx - x2) >= Math.abs(ty - y2)) x2 += Math.sign(tx - x2)
+        else y2 += Math.sign(ty - y2)
+      }
+      _w7.add(tx + ',' + ty)
+    }
+  }
+  return _w7.has(x + ',' + y)
+}
 let _seedNumC = null, _ssE = null
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
+  // v7: one island under every seed
+  if (V7()) { let h = 2166136261
+    for (const ch of V7_SEED) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) }
+    return (_seedNumC = h >>> 0) }
   let h = 0
   for (let i = 0; i < GSEED.length; i++) h = Math.imul(h ^ GSEED.charCodeAt(i), 2654435761) | 0
   return (_seedNumC = h >>> 0)
@@ -357,7 +407,13 @@ function inPoolE(x, y) {
 }
 const isWaterE = (x, y) => inSeaE(x, y) || inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1
 function settlementsE() {
-  if (GEN === 'interval-expanse-v6') return settlementsE6()
+  // TOLD BEATS DERIVED. The pillar ships the settlements it actually founded
+  // (serve.mjs, packTerrain meta); this window re-derived them from a
+  // simplified copy of the seater and drew the paving wherever ITS answer
+  // landed. A citizen standing in Anchor on grass, inside a town the window
+  // had put somewhere else, is what that looks like from the inside.
+  if (SETTLE_TOLD) return SETTLE_TOLD
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return settlementsE6()
   if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
@@ -744,8 +800,8 @@ function onRidge4(x, y) {
   const rx = ridgeX4(y), d = x - rx < 0 ? rx - x : x - rx
   if (d > 2) return false
   for (const p of passes4()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
-  if (biomeAtE4(x, y) === 'greenwood') return false
-  if (y > H * 0.70) return false      // the ridge dies away before the bay
+  if (!V7() && biomeAtE4(x, y) === 'greenwood') return false   // v7: the ridge no longer sinks beneath the wood
+  if (!V7() && y > H * 0.70) return false      // v7: it runs sea to sea
   if (inSeaBase4(x, y)) return false
   return true
 }
@@ -2062,7 +2118,7 @@ function inLake6(x, y) {
   const c = lakeC6(), dx = (x - c.x) / 24, dy = (y - c.y) / 13
   return dx * dx + dy * dy < 1
 }
-const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y)
+const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y) || (V7() && inland7(x, y))
 
 // v6 settlements: nominal centres from worldgen-expanse6 settlementsOf, each
 // nudged off water by a light dry-spiral (the generator's seatDrawnTown clears
@@ -2126,7 +2182,7 @@ function terrainOfE6(x, y) {
 
 
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v6') return terrainOfE6(x, y)
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return terrainOfE6(x, y)
   if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
@@ -13511,11 +13567,30 @@ function onState(s, worldId, local) {
   const sig = gen + '|' + seed + '|' + (s.genesis?.worldW ?? 0) + 'x' + (s.genesis?.worldH ?? 0)
   if (sig !== worldConfigured) {
     worldConfigured = sig
-    configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed })
+    // TOLD BEATS DERIVED: the pillar ships the settlements it founded, and a
+    // window that re-derives them paves the wrong ground.
+    configure({ worldW: s.genesis?.worldW, worldH: s.genesis?.worldH, generator: gen, seed,
+      settlements: Array.isArray(s.genesis?.settlements) && s.genesis.settlements.length
+        ? s.genesis.settlements.map((t) => ({ tag: t.tag,
+            name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
+            x: t.x, y: t.y, w: t.w, h: t.h }))
+        : undefined })
     // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
     // node actually laid; until they arrive roadTilesE() draws its placeholder,
     // and the moment they do, every road and bridge redraws from the real
     // network. (One fetch per world; the roads never change for a founding.)
+    // AND THE TOWNS FROM THE WORLD TOO. Same reason as the roads: this
+    // window's seat table is a copy of the founder's seater, and a copy
+    // drifts -- twenty-seven tiles under v7, which is a whole town.
+    fetch('/api/settlements', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(sd => {
+      if (sd && Array.isArray(sd.settlements) && sd.settlements.length) {
+        SETTLE_TOLD = sd.settlements.map((t) => ({
+          tag: t.tag, name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
+          x: t.x, y: t.y, w: t.w, h: t.h }))
+        _ssE = null
+        _tileArt.clear(); _gcol.clear()
+      }
+    }).catch(() => { /* offline: the derived seats stand, and may be wrong */ })
     fetch('/api/roads', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
       if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
         _roadSet = new Set(rd.tiles)
