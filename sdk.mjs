@@ -173,6 +173,8 @@ export class IntervalClient {
   // island cannot use -- which for a toll would mean half the island simply
   // cannot cross the river's busiest bridge.
   pay() { return this.#send({ type: 'pay' }) }
+  // §7j: grain to flour, beside a mill
+  grind(slot) { return this.#send({ type: 'grind', slot }) }
   alch(slot) { return this.#send({ type: 'alch', slot }) }
   setLook(look) { return this.#send({ type: 'set_look', look }) }
   // and the four the SDK never spoke, which an audit turned up alongside
