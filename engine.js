@@ -8399,6 +8399,29 @@ function nextState(state, inputs, _legacyBeacon) {
     }
     if (inp.type === 'move') {
       if ((p.rootedUntil ?? 0) <= s.tick) { p.x += inp.dx; p.y += inp.dy; } // rooted: held in place by the star-dagger
+      // ===================================================================
+      // THIS LINE IS THE FLIGHT RULE (SPEC 2b-i). DO NOT REMOVE IT.
+      // ===================================================================
+      //
+      // The constitution states the rule plainly -- "a pursuer who moves
+      // cannot swing that interval, and a pursuer who swings does not move,
+      // so the runner gains a tile" -- and names it the reason no citizen can
+      // be robbed by another, the reason the armour tax was repealed (6aq),
+      // and the reason an ambusher must already be adjacent. But it never
+      // says WHERE that is enforced, and the answer is here: clearing the
+      // action on a move is the whole of it. There is no other check.
+      //
+      // Everyone walks at one tile per interval, so if an attack action
+      // SURVIVED its owner's movement, a pursuer would step and swing in the
+      // same interval, hold adjacency for the entire chase, and hit every
+      // interval forever. Flight would not become harder; it would cease to
+      // exist. Nothing else in the world covers that case -- armour only
+      // decides fights that were agreed to, the Brand is a trading penalty,
+      // and distance closes to zero on the first step.
+      //
+      // It reads like bookkeeping ("a new deed replaces the old one") and it
+      // is one refactor away from being tidied into oblivion by somebody who
+      // has read the constitution and still not known this is where it lives.
       p.action = null;
     } else if (inp.type === 'raise_market') {
       // the work begins; the world will finish it if nobody interrupts
