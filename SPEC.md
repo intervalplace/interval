@@ -1866,6 +1866,20 @@ strongest, not the best equipped, not the most patient. In the open, on
 foot, violence in this world requires the consent of the person
 receiving it.
 
+**Where this lives, and why that is written down.** The rule is one line of
+`engine.js`: the `move` handler clears the actor's action. There is no other
+check anywhere. It reads like bookkeeping — a new deed replaces the old one —
+and it is the whole of the Flight Rule.
+
+That is recorded because the rule was nearly repealed by accident. Reading this
+section without reading that line, it is easy to conclude the pursuit tax is an
+incidental side effect and that letting an attack survive its owner's movement
+would merely make pursuit *stickier*. It would not. Everyone walks at one tile
+per interval, so an attack that survived a move would let a pursuer step and
+swing in the same interval, hold adjacency for the whole chase, and land a blow
+every interval until the runner logged off. **Flight would not get harder; it
+would cease to exist**, and nothing else in the world covers that case.
+
 Three things take that consent away, and only three.
 
 **One: standing still.** Every deed costs a tick. Mining, woodcutting,
