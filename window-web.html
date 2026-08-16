@@ -3439,6 +3439,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'drink' ? { type: 'drink' }
   // §14: the toll on the Millbrook Bridge
   : a.do === 'pay' ? { type: 'pay' }
+  : a.do === 'grind' ? { type: 'grind', slot: a.slot }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'set_look' ? { type: 'set_look', look: a.look }
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
@@ -7443,6 +7444,18 @@ function drawScene(now) {
           cx.fillRect(X + 18 + Math.sin(t2 * 9 + i) * 5, Y + 22 - t2 * 26, 1.8, 1.8)
         }
         cx.globalAlpha = 1
+      }
+      if (n.type === 'landmark' && n.kind === 'mill') {
+        // §7j: the mill grinds. Stand at the stone with grain in the pack.
+        const meM = world.players[myId]
+        if (!adj(n) && !(meM.x === n.x && meM.y === n.y)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('The sails turn. Somewhere below them a stone is grinding.'); return }
+        const gi2 = (meM.inventory || []).findIndex(sl => sl?.item === 'grain')
+        if (gi2 === -1) { feed('The miller looks at your empty hands. Bring grain.'); return }
+        send({ do: 'grind', slot: gi2 })
+        feed('You tip a measure of grain in, and the stone gives back flour.')
+        flashClick(n.x, n.y, false); return
       }
       if (n.type === 'altar') {
         // §7g: three magic-stones become a sigil, here and nowhere else.
