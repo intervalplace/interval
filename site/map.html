@@ -2146,6 +2146,17 @@ function settlementsE6() {
     return true
   }
   _ss6 = noms.map(([tag, nx, ny, w, h]) => {
+    // v7: DO NOT NUDGE A BAKED SEAT. This dry-spiral is a simplified copy of
+    // seatDrawnTown, and under v7 it walks the towns away from where the
+    // founding actually put them: it demands the whole rectangle be dry, and
+    // v7 added nineteen inland waters, so Anchor's 52x36 caught a mere and
+    // the spiral carried it TWENTY-SEVEN TILES to 493,238. Thornbury did not
+    // move, so on the chart the two towns ended up on top of each other --
+    // which is exactly what a citizen reported seeing.
+    //
+    // The baked seats ARE the founding's answer, arrived at by the real
+    // seater with real clearance. Told beats derived.
+    if (V7()) return { tag, name: tag[0].toUpperCase() + tag.slice(1), x: nx, y: ny, w, h }
     let sx = nx, sy = ny, seated = false
     spiral: for (let rad = 0; rad < 60 && !seated; rad++)
       for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
