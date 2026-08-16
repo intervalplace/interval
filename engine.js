@@ -438,6 +438,9 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // never reached in it.
   'oak-tree', 'coal-rock', 'eel-spot', 'iron-rock', 'heartwood-tree', 'deep-fish-spot',
   'brimstone-vent',
+  // §7i: THE MUCK HEAP. Nitre is scraped off a dung heap; it is the one thing
+  // a farm makes that a soldier needs.
+  'muck-heap',
   // 6bb: THE GOLD SEAM. Not a tier of mining -- a lottery inside it.
   'gold-rock',
   // 6bc: the woodcutting ladder. Ironbark is a wood; the gallows-oak is a
@@ -540,6 +543,9 @@ const NODE_YIELD = {
   // §6bs: the vent. Mining's late game was a rarer metal and a deeper one;
   // this is the first thing it pulls out that a smith BURNS rather than beats.
   'brimstone-vent': { item: 'brimstone', skill: 'mining',    xp: 44 },
+  // §7i: worked with FARMING, which is the point of it -- the only gatherable
+  // on the island that pays a farmer, and it stands in the farm country.
+  'muck-heap':      { item: 'saltpetre', skill: 'farming',   xp: 26 },
   'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 21 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
@@ -771,6 +777,7 @@ function skillUnlocks() {
     'coal-rock': 'the coal seams open to your pick', 'magic-rock': 'the magic-rocks of the Wilds open to your pick',
     'gold-rock': 'the gold seam will answer you',
     'brimstone-vent': 'the brimstone vents of the Crags',
+    'muck-heap': 'the muck heaps of the farm country',
     'mother-lode': 'the mother lode, deep in the Wilds',
     'eel-spot': 'the eel runs', 'deep-fish-spot': 'the deep fish of the Wilds water',
     'gibbet-shoal': 'the drowned shoal under the gibbet',
@@ -1157,6 +1164,7 @@ const NODE_GATE = {
   // way up ran through the Wilds would be a fighting skill wearing a pick.
   'coal-rock':       { skill: 'mining',      level: 20 },
   'brimstone-vent':  { skill: 'mining',      level: 70 },
+  'muck-heap':       { skill: 'farming',     level: 25 },
   'magic-rock':      { skill: 'mining',      level: MAGIC_ROCK_MINING },
   'mother-lode':     { skill: 'mining',      level: 92 },
   'gold-rock':       { skill: 'mining',      level: GOLD_MINING },
@@ -1231,7 +1239,9 @@ function strikeConsequences(s, pid, p, target, targetId) {
 
 const TEACHES = new Set(['alch', 'unmake', 'seal', 'char', 'bury', 'fletch', 'smith', 'cook',
   'invoke', 'stoke', 'plant', 'harvest', 'light', 'kindle', 'brew', 'collect',
-  'survey', 'build_brewpot', 'raise_market']);
+  'survey', 'build_brewpot', 'raise_market',
+  // §7j: grain to flour, at a mill and nowhere else
+  'grind']);
 
 const DEATH_TICKS = 5; // the world holds its breath; windows may grieve
 
@@ -1506,6 +1516,7 @@ const healOf = (item) => item === 'cooked-fish' ? HEAL_FISH
   : item === 'cooked-deep-fish' ? HEAL_DEEP_FISH
   : item === 'deep-broth' ? HEAL_DEEP_BROTH
   : item === 'broth' ? HEAL_BROTH
+  : item === 'bread' ? HEAL_BREAD
   : item === 'ale' ? HEAL_ALE : 0;
 const COOK_DEEP_REQ = 78;       // 6be: a cook to match the fisher -- the same number the deep water asks
 // 6bf: THE BURN CURVE, FLATTENED, AND A REASON TO COOK SOMEWHERE.
@@ -1558,6 +1569,24 @@ const SEED_FROM_HARVEST = 1;
 const HEARTWOOD_FLETCH = 90;
 const XP_COOK_DEEP = 20;   // 6bf: flat. A deep fish is worth more; it does not TEACH more.
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
+// §7i: THE LOAF. Seven, which is more than a cooked fish -- and it does NOT
+// stack, which is the whole design. Ale's value was never its five points; it
+// was that a citizen can carry twenty draughts in one slot and stay out all
+// day. A stackable bread would simply be a better ale and would kill it.
+//
+// So: bread is the strongest single bite in the game and the worst thing to
+// carry a lot of. A loaf for the walk out, ale for the week.
+const HEAL_BREAD = 7;
+// §7i: THE POWDER. Three of nitre to one of charcoal and one of brimstone --
+// near enough the real proportions, and the ratio is the point: the farm
+// supplies the bulk of it, which is why fields matter to an army.
+const POWDER_NITRE = 3, POWDER_CHAR = 1, POWDER_BRIM = 1;
+// §7j: THE MILL STEP, and why bread earns it. Ale is one step and a wait; if
+// bread were also one step, at any fire, and healed more per bite, the only
+// thing holding ale up would be that it stacks. Now bread costs two steps and
+// a DESTINATION and ale costs one step and patience, and both have a shape.
+const XP_GRIND = 9;
+const HOUSE_POT_XP = 1.05;   // §7j: the Lantern's five per cent
 // §6an: THE DEEP BROTH, and why it is eight rather than ten.
 //
 // A deep fish already brewed -- into ordinary broth, five, the same as any
@@ -2536,6 +2565,7 @@ const PRICES = {
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   // §6am (v6): the mid goods, priced between the baseline and the mastery --
   // a mid seam's hour worth more than a doorstep's, less than a master's.
+  'bread': 9, 'burnt-bread': 1, 'flour': 6, 'saltpetre': 14, 'gunpowder': 60,
   'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
   'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
@@ -2629,7 +2659,16 @@ const RECIPES = {
   // somebody could have died on. Against citizens who automate, effort is not
   // a limit and risk is: a level gate is paid overnight and a failed roll is
   // only a throughput multiplier, but a pack dropped in the Wilds is gone.
-  'handgonne': { 'magic-stone': 4, 'iron': 3, logs: 1 },
+  // §7i: A GONNE IS NOT A MAGIC ITEM. This asked for four magic-stones, which
+  // is the Wilds' ore, because the handgonne was designed before this world
+  // had coal or brimstone and the only "special" material to hand was magic.
+  // A firearm made of magic is a wand with extra steps.
+  //
+  // Iron for the barrel, ironbark for the stock, brimstone for the proofing:
+  // the Crags and the Greenwood, and no errand into the Wilds. The comment
+  // below already complained that asking the Wilds for the powder as well was
+  // two bottlenecks for one weapon; it is now zero.
+  'handgonne': { 'iron': 9, 'ironbark': 1, 'brimstone': 2 },
   // §6av: ORE ALONE, AND FIVE AT A TIME. A magic-stone apiece put twenty-five
   // gold of materials in every shot -- six hundred over a gonne's life against
   // ninety-five for the gonne itself, so the ammunition cost six times the
@@ -2639,7 +2678,12 @@ const RECIPES = {
   // Five to the ore, exactly as a bone gives five arrows, and it hands ore a
   // sink it did not have: a master smith makes gonnes, and the mid-level smiths
   // who cannot yet make one keep them fed.
-  'shot': { 'iron': 1 },
+  // §7i: ...AND THE SHOT DRAWS POWDER. One ball of iron and one measure of
+  // powder makes five rounds. The gonne was cheap to fire and that was the
+  // wrong thing to be cheap: a weapon whose ammunition costs nothing has no
+  // supply line behind it, and the whole point of the powder is that three
+  // countries stand behind every shot.
+  'shot': { 'iron': 1, 'gunpowder': 1 },
   'star-spear': { 'star-ingot': 12, 'ironbark': 1 },
   'star-maul': { 'star-ingot': 18, 'ironbark': 1 },
   // §6bt: the mastery arms. Starmetal for the body of the thing, brimstone for
@@ -2767,6 +2811,8 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 // and imports alike.
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
+  // §7i: THE LOAF, THE NITRE AND THE POWDER.
+  'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder',
   // §7a: RUBBLE. What the South Pass gives up, one piece at a time. It smelts
   // into nothing, builds nothing, and opens nothing -- like `chart` its whole
   // worth is that you were there, and unlike `chart` it cannot even be sold.
@@ -2787,6 +2833,7 @@ const ITEMS = new Set([
   'chart',
   // §6ad: what a master brings back from the same tree and the same water
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'deep-broth', 'heartwood-bow',
+  'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder',
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
   'staff', 'heartwood-staff', 'wand',
@@ -2900,7 +2947,7 @@ const SMITH_REQS = {
   // §6av: smithing reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
   // not end with the first one.
-  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
+  'handgonne': { smithing: 90 }, 'shot': { smithing: 50 },   // §7i: no magic in a gonne
   // §6x: a crossbow is a steel prod under tension and a lock that must not
   // slip. The flail is easier iron and harder geometry.
   // 6bb: gold is soft and the work is fine, so the bar asks little and the
@@ -3271,7 +3318,7 @@ const INPUT_SCHEMAS = {
   pickup: { groundId: T.id },
   claim_name: { name: T.name },
   survey: {}, read_chart: { slot: T.slot },
-  build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
+  grind: { slot: T.slot }, build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
   kindle: {}, stoke: { nodeId: T.id, slot: T.slot },
   unmake: { groundId: T.id },
   // §6bn: the other half of the same staff, aimed at the same noun.
@@ -5496,7 +5543,9 @@ function firstFreeSlot(inv) {
 // ---------- shared inventory helpers (fix brief 7.5) ----------
 // One vocabulary for every stack mutation. All deterministic; all mutate
 // only through explicit calls. STACKABLE names the items that pool.
-const STACKABLE = new Set(['shot', 'arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth']);
+const STACKABLE = new Set(['shot', 'arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth',
+  // §7j: flour stacks; the LOAF does not (see HEAL_BREAD)
+  'flour', 'saltpetre', 'gunpowder']);
 
 function countItem(inv, item) {
   let n = 0;
@@ -5724,7 +5773,10 @@ function validInput(state, input, ctx) {
       // taught about it and the validator had not. Two places that must agree
       // and only one of them was told, which is the same fault as the eat list
       // that could not hold `cooked-deep-fish`.
-      if (!Number.isInteger(input.slot) || !slot || !isRawFood(slot.item)) return false;
+      // §7i: ...and GRAIN, which is the second thing farming has ever been
+      // for. The fields feed people now and not only brewers.
+      if (!Number.isInteger(input.slot) || !slot
+          || !(isRawFood(slot.item) || slot.item === 'flour')) return false;
       // beside the flame, or standing in it: walkable fires made the second
       // possible, and a citizen in a fire they cannot cook on is a trap
       return hasAdjacentNode(state, ctx, p, _FIRE_TYPES) || fireOnTile(state, ctx, p.x, p.y);
@@ -5759,6 +5811,15 @@ function validInput(state, input, ctx) {
       // gold: see the note over TOLL_TICKS for why the toll is a log.
       if (!hasAdjacentNode(state, ctx, p, 'tollgate')) return false;
       return countLogs(p.inventory) >= TOLL_LOGS;
+    }
+    case 'grind': {
+      // §7j: A MILL IS A MILL. Grain becomes flour beside the sails and
+      // nowhere else -- which is what a windmill has been miming since it was
+      // first placed: a landmark with a miller standing next to it and nothing
+      // to mill.
+      const sl2 = p.inventory[input.slot];
+      if (!Number.isInteger(input.slot) || sl2?.item !== 'grain') return false;
+      return hasAdjacentNode(state, ctx, p, 'landmark', (n) => n.kind === 'mill');
     }
     case 'set_look': {
       // Free and changeable still: a look is not a claim on anything. A name
@@ -6322,6 +6383,21 @@ function validInput(state, input, ctx) {
       const bp = state.nodes[input.nodeId];
       if (!bp || bp.type !== 'brewpot' || !atOrBeside(p, bp)) return false;
       const sl = p.inventory[input.slot];
+      // §7i: AND THE POWDER. Saltpetre, charcoal and brimstone -- one thing
+      // from the farm country, one from the wood, one from the Crags. It is
+      // the only recipe on the island that asks for all three, which is what
+      // makes a handgonne a national effort rather than a rich man's toy.
+      //
+      // Milled in a brewpot because a brewpot is what this world has for "put
+      // things in a vessel and wait": no new verb, no new furniture, and the
+      // house pot at the Lantern will do it for anybody.
+      if (sl && sl.item === 'saltpetre') {
+        if (countItem(p.inventory, 'saltpetre') < POWDER_NITRE) return false;
+        if (countItem(p.inventory, 'charcoal') < POWDER_CHAR) return false;
+        if (countItem(p.inventory, 'brimstone') < POWDER_BRIM) return false;
+        return bp.by === undefined ? p.brewing === undefined
+          : (bp.by === input.playerId && bp.readyAt === undefined);
+      }
       if (!sl || !(sl.item === 'grain' || isRawFood(sl.item))) return false;
       // §7e: the inn's pot -- ownerless -- ferments for whoever is standing at
       // it, and the brew rides on the CITIZEN. One at a time each, and no
@@ -7015,6 +7091,17 @@ function stallGroundOk(s2, x, y) {
   if (!s2.genesis.stallsLineRoads) return true;
   const tt = TERRAINS[s2.genesis.worldGenerator];
   if (!tt || !tt.road) return false;
+  // §7k: ...OR THE MARKET SQUARE. A stall lines the road because commerce
+  // belongs where the traffic is, and that rule already let a citizen trade
+  // anywhere in Millbrook -- there are a hundred and seven legal verges inside
+  // its walls. But a hundred and seven scattered verges is not a market, it is
+  // a hundred and seven people standing along a road.
+  //
+  // The square is the one piece of ground on Tallyholm where stalls may stand
+  // in the OPEN, shoulder to shoulder, which is what a market is. Same
+  // argument as the Lantern's pot: you do not get people to gather by
+  // forbidding the alternatives, you give them somewhere worth gathering.
+  if (tt.ground && tt.ground(s2.genesis, x, y) === 'plaza') return true;
   const isRoad = (a, b) => tt.road(s2.genesis, a, b);
   return !isRoad(x, y) && (isRoad(x + 1, y) || isRoad(x - 1, y) || isRoad(x, y + 1) || isRoad(x, y - 1));
 }
@@ -9268,6 +9355,21 @@ function nextState(state, inputs, _legacyBeacon) {
       // cook gate and the eat list, and the third time from one predicate not
       // being carried to every site.
       const publicPot = !!bp && bp.type === 'brewpot' && bp.by === undefined;
+      // §7i: the powder mill
+      if (bp && bp.type === 'brewpot' && atOrBeside(p, bp) && sl && sl.item === 'saltpetre'
+          && countItem(p.inventory, 'saltpetre') >= POWDER_NITRE
+          && countItem(p.inventory, 'charcoal') >= POWDER_CHAR
+          && countItem(p.inventory, 'brimstone') >= POWDER_BRIM
+          && (bp.by === undefined ? p.brewing === undefined
+              : (bp.by === pid && bp.readyAt === undefined))) {
+        consumeItem(p.inventory, 'saltpetre', POWDER_NITRE);
+        consumeItem(p.inventory, 'charcoal', POWDER_CHAR);
+        consumeItem(p.inventory, 'brimstone', POWDER_BRIM);
+        if (bp.by === undefined) p.brewing = { kind: 'gunpowder', readyAt: s.tick + s.genesis.brew.ferment };
+        else { bp.brewKind = 'gunpowder'; bp.readyAt = s.tick + s.genesis.brew.ferment; }
+        bp.lastUsed = s.tick;
+        return s;
+      }
       const mayBrew = !!bp && bp.type === 'brewpot' && atOrBeside(p, bp)
         && sl && (sl.item === 'grain' || isRawFood(sl.item))
         && (publicPot ? p.brewing === undefined : (bp.by === pid && bp.readyAt === undefined));
@@ -9295,7 +9397,13 @@ function nextState(state, inputs, _legacyBeacon) {
         const draughts = (p.brewing.kind !== 'deep-broth'
           && effLevel(p.skills.brewing) >= BREW_MASTER) ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
         addItem(p.inventory, p.brewing.kind, draughts);
-        p.skills.brewing += s.genesis.brew.xpPerBatch;
+        // §7j: THE HOUSE POT PAYS A LITTLE BETTER. Five per cent -- not enough
+        // to make a citizen's own pot pointless, enough that a brewer who is
+        // near the Lantern walks in rather than past. You do not get people to
+        // gather by removing the alternatives; you get it by making the shared
+        // thing the best one, and by a margin small enough that choosing the
+        // other is still sane.
+        p.skills.brewing += Math.round(s.genesis.brew.xpPerBatch * HOUSE_POT_XP);
         if (claimFirst(s, 'brewer', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to draw a finished brew.');
         delete p.brewing; bp.lastUsed = s.tick;
       } else if (bp && bp.type === 'brewpot' && bp.by === pid && atOrBeside(p, bp) && bp.readyAt !== undefined && s.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind)) {
@@ -9633,7 +9741,25 @@ function nextState(state, inputs, _legacyBeacon) {
       // re-check against new state; instant, same-tick resolution (§6a)
       const slot = p.inventory[inp.slot];
       const nearFire = hasAdjacentNode(s, _ctx, p, _FIRE_TYPES) || fireOnTile(s, _ctx, p.x, p.y); // v0.80: the tile underfoot counts, exactly as the validator says
-      if (slot && isRawFood(slot.item) && nearFire) {
+      // §7i/§7j: FLOUR BECOMES BREAD, on the same tally as every other cook.
+      // Grain goes to the mill first (see `grind`); a loaf is two steps and a
+      // destination, which is what earns it seven points and beats a fish.
+      if (slot && slot.item === 'flour' && nearFire) {
+        if (!p.cooksTried || typeof p.cooksTried !== 'object') p.cooksTried = {};
+        p.cooksTried.flour = (p.cooksTried.flour ?? 0) + 1;
+        const lvl2 = effLevel(p.skills.cooking);
+        const atHearth2 = hasAdjacentNode(s, _ctx, p, 'hearth');
+        const take = Math.min(slot.qty ?? 1, 1);
+        if (countedSuccess(p.cooksTried.flour,
+              Math.min(COOK_BASE + lvl2 + (atHearth2 ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
+          removeItem(p.inventory, inp.slot, take);
+          addItem(p.inventory, 'bread', 1);
+          p.skills.cooking += XP_COOK;
+        } else {
+          removeItem(p.inventory, inp.slot, take);
+          addItem(p.inventory, 'burnt-bread', 1);
+        }
+      } else if (slot && isRawFood(slot.item) && nearFire) {
         // §6ad: a deep fish asks for a cook to match the fisher who caught it.
         // Below eighty it burns every time -- not a gamble, a refusal.
         const deep = slot.item === 'deep-fish';
@@ -9669,6 +9795,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // the log goes into the bridge, which is where a plank comes from
       consumeLogs(p.inventory, TOLL_LOGS);
       p.paidUntil = s.tick + TOLL_TICKS;
+    } else if (inp.type === 'grind') {
+      const sl2 = p.inventory[inp.slot];
+      if (sl2 && sl2.item === 'grain' && hasAdjacentNode(s, _ctx, p, 'landmark', (n) => n.kind === 'mill')) {
+        removeItem(p.inventory, inp.slot, 1);
+        addItem(p.inventory, 'flour', 1);
+        p.skills.farming += XP_GRIND;
+      }
     } else if (inp.type === 'drink') {
       p.hp = effLevel(p.skills.hitpoints);
     } else if (inp.type === 'set_look') {
