@@ -6285,6 +6285,169 @@ purpose — it is a Schelling point like the seams, and the walk is the whole
 point of it. A face you have to travel to change is a face that means something
 for the hour you are wearing it.
 
+## 16. The loaf, the nitre and the powder (v0.88)
+
+### 16a. Farming had one customer
+
+`seeds` sown on a plot yield `grain`, and grain did exactly two things: it
+fermented into ale, and it was food value 4 — the weakest edible in the world.
+Compare mining, which feeds a whole smithing tree, or woodcutting, which feeds
+fires, fletching and building. **Farming was a supply chain with one customer**,
+on an island that now carries 1,878 ploughed tiles and hand-drawn furlongs at
+seven towns. The world said farming mattered more than the rules did.
+
+**Grain bakes into bread**, on the same burn tally as every other cook. Bread
+heals **seven** — more than a cooked fish, the strongest single bite in the
+game — and it **does not stack**.
+
+That last part is the design, not an oversight. Ale's value was never its five
+points; it is that a citizen carries twenty draughts in one slot and stays out
+all day. A stackable bread would simply be a better ale and would kill it. So:
+**a loaf for the walk out, ale for the week.**
+
+### 16d. The mill, and why bread earns two steps (v0.88)
+
+Ale is one step and a wait. If bread were also one step, at any fire, and
+healed more per bite, the only thing holding ale up would be that it stacks.
+
+So grain goes to a **mill** first. `grind` turns grain into flour beside the
+sails and nowhere else; flour bakes into bread at any fire. **Bread costs two
+steps and a destination, ale costs one step and patience**, and both have a
+shape.
+
+**A mill is a building, not a trinket.** It was one tile of landmark standing
+in a field — miniature beside a town whose smallest cottage is six by four —
+and making it somewhere a citizen goes made the scale worse. The sails now have
+a mill-house under them: a stone round-house, door to the south, the grinding
+stone in the middle where the shaft comes down. **Not a room with a windmill in
+it — a windmill with a room in it**, which is what a tower mill actually is.
+Four of them: two at Millbrook, one on the Downs, one in the heartlands.
+
+And the Oxenlea Mill (§13) has stood there the whole time as a drawn round
+tower with a miller inside and no wheel. It has one now.
+
+### 16f. The market square (v0.88)
+
+A citizen's stall **lines the road** (§6ao), and that rule already lets anyone
+trade in Millbrook: there are **107 legal verges inside its walls**. Permission
+was never the gap.
+
+The gap was that **Millbrook had no market square.** `plaza` is a ground kind
+this constitution has always declared and had **never once laid** — not a tile
+of it existed anywhere on the island, while 5,334 tiles of flagstone did. The
+market town's square was paved like its side streets, which is why it read as a
+wide street rather than a place. And 107 scattered verges is not a market; it
+is 107 people standing along a road.
+
+So the middle of Millbrook's rect, clear of its buildings, is **plaza** — 108
+tiles, the only such ground on Tallyholm — and a stall may stand on it. It is
+the one place in the world where citizen stalls stand **in the open, shoulder
+to shoulder**, which is what a market is.
+
+Same argument as the Lantern's pot (§16e): **you do not get people to gather by
+forbidding the alternatives.** The verges are all still legal. The square is
+simply the only place worth standing.
+
+### 16e. The Lantern pays five per cent (v0.88)
+
+The house pot brews at **1.05× xp**. Not enough to make a citizen's own pot
+pointless; enough that a brewer near the Lantern walks in rather than past.
+
+The alternative considered was removing citizen brewpots entirely so that every
+brewer had to meet at the one public vessel. It was rejected, and the reasoning
+is worth keeping: the brewpot is the only structure a citizen **builds**, the
+only one a citizen **owns**, and the manual's whole argument is that *a house
+ringed with brewpots becomes somebody's tavern — a meaning players assign*.
+Take it away and everything on this island is authored, with nothing a player
+makes that persists. It would also punish geography: a brewer at Cragfoot would
+walk to the north road every batch.
+
+**You do not get people to gather by removing the alternatives. You get it by
+making the shared thing the best one** — and by a margin small enough that
+choosing the other is still sane.
+
+### 16b. A gonne is not a magic item
+
+The handgonne asked for **four magic-stones** — the Wilds' ore — because it was
+designed before this world had coal or brimstone, and magic was the only
+"special" material to hand. A firearm made of magic is a wand with extra steps.
+It is iron for the barrel, ironbark for the stock and brimstone for the
+proofing now: the Crags and the Greenwood, and no errand into the Wilds.
+
+**And the shot draws powder.** It was `iron ×1` and nothing else — a weapon
+whose ammunition costs nothing has no supply line behind it.
+
+### 16c. Gunpowder is the only thing that needs the whole island
+
+Powder is saltpetre, charcoal and sulphur. **Charcoal** comes from the clamp at
+Greenhollow (§7e), **brimstone is sulphur** and sits in the Crags, and
+saltpetre was historically scraped from muck heaps and stable floors — a farm
+byproduct, which is precisely the hole in farming.
+
+So: **three of nitre, one of charcoal, one of brimstone.** One thing from the
+farm country, one from the wood, one from the Crags, and the farm supplies the
+bulk of it — which is why fields matter to an army.
+
+`muck-heap` is worked with **farming**, the only gatherable on the island that
+pays a farmer, and it stands in the farm country: the Sheepfolds, the goblin
+pound, and the yards behind Hollybarrow. Seven heaps in three clusters, hand-
+placed like every other seam.
+
+It is milled in a **brewpot**, because a brewpot is what this world already has
+for *put things in a vessel and wait* — no new verb, no new furniture, and the
+house pot at the Lantern will mill for anybody who walks in.
+
+### 16g. The beasts are part of the island's identity (v0.88)
+
+`geographyHash` is what two nodes compare to agree they founded the same world.
+It covers **every node** — id, type, kind and position, all 8,834 of them, so
+every field tile, seam, place, holding, resident and lock-up is in it — and
+**every tile**, both `blockedAt`/biome and `groundKindAt`, all 458,752 with no
+stride. The waters, the sealed ridge and the market square are covered by the
+tile half; the fields and the people by the node half. **Nothing hand-drawn on
+this island can move without the identity moving with it.**
+
+It did not cover **mobs**, and until v7 that was harmless: every beast came out
+of scatter functions living in the generator itself, so you could not move a
+wolf without changing the generator, and the generator's name covers that.
+
+**v7 moved them into a table** — `worldgen-camps-v7.mjs`, 119 camps seating 614
+beasts — precisely so a person could move a lair by editing two numbers. That
+is exactly what makes it consensus-critical. Two nodes carrying different camp
+tables would have shaken hands on an identical geography hash and then diverged
+on the state root: caught, but a great deal later and far more confusingly than
+at founding, which is the moment a mismatch is cheap to read.
+
+Mobs are in the signature now, and the tag moved with it —
+`EXPANSE7-GEO-V2` — because a signature that has grown a section is not the
+same signature, and saying so is free.
+
+**Measured, in separate processes** (the first attempt hashed twice in one and
+got the memo back, which reported no change): moving one bear camp by one tile
+takes the island from `9532eb06…` to `7b8466a6…`, and restoring the table
+restores the hash exactly.
+
+The same sentence as the note on `groundKindAt` above: **"free to edit" and
+"two nodes can quietly disagree" are the same sentence.**
+
+### 16h. A rostered trade has a roof (v0.88)
+
+The one-trade-to-a-house rule (§13l) pushed Millbrook's delver out of the shop
+it was sharing, and it came to rest **in the open on what is now the market
+square** — which is worse than untidy, because the square is where CITIZENS
+raise stalls, and a shop the town founded standing among them is unreadable.
+You could not tell the world's delver from somebody's pitch.
+
+A rostered trade is a shop and a shop has walls. The outdoor fallback stays,
+because a trade nobody can find is worse than a trade in the open, but it will
+not take the square.
+
+**And the square stops at the shop walls.** `isIndoor` reads the plan's
+interior marks and the market's shops are drawn with characters it does not
+count, so three stall-houses had their floors painted as market square. A
+square is open ground: no wall within one tile of it, which is a thing the
+drawing can answer. 66 tiles, and all seven rostered stalls are indoors.
+
 ## 14. The toll on the Millbrook Bridge (v0.88)
 
 ### 14a. Which crossing, and why that one
