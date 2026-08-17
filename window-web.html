@@ -2795,6 +2795,33 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(205,191,166,.25)'; g.fillRect(15.4, 12, 1.2, 14)
       g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(19, 13, 1.6, 12)
       break }
+    // §6da: THE CINDER-CROWN. A king's war-helm with the crown worked into it,
+    // taken by the dragon off someone who came to kill it and was burned for
+    // trying. It must read REGAL and BURNED, never craftable: the crown points
+    // (gold, tarnished) say king, the scorch and the ember in the eye-slot say
+    // how he died. Not starmetal, not iron in another colour -- an OLD thing
+    // out of a hoard, gold gone dull and metal gone dark with soot.
+    case 'cinder-crown': {
+      const dark = '#2b2622', darkLo = '#151210', soot = '#0e0c0a'
+      const gold = '#b8912f', goldLo = '#7a5f1e', goldHi = '#e6c25a'
+      // the war-helm bowl: a rounded skull-guard, scorched dark metal
+      pl([[8,24],[8,15],[12,9],[16,7],[20,9],[24,15],[24,24]], dark, darkLo)
+      // the brow-band the crown sits on
+      g.fillStyle = darkLo; g.fillRect(8, 18, 16, 2.4)
+      // the eye-slot, and an ember still living in it (the fire that took him)
+      g.fillStyle = soot; g.fillRect(11, 20, 10, 2.2)
+      const beat = 0.55 + Math.sin(Date.now() / 540) * 0.22
+      g.fillStyle = 'rgba(255,' + Math.round(96 + 44 * beat) + ',34,' + (0.5 + 0.3 * beat).toFixed(2) + ')'
+      g.fillRect(14.4, 20.3, 3.2, 1.6)
+      // the crown: five points worked into the brow, gold gone dull
+      pl([[8,18],[9.5,11],[11.5,15.5],[13,9.5],[16,14],[19,9.5],[20.5,15.5],[22.5,11],[24,18]], gold, goldLo)
+      // the tarnish/soot creeping up the points, and one bright surviving glint
+      g.fillStyle = 'rgba(14,12,10,.5)'; g.fillRect(8.5, 15, 15, 3)
+      g.fillStyle = goldHi; g.fillRect(15.4, 10.5, 1.3, 3.4)
+      // scorch licking up the left of the bowl -- it is not clean metal
+      g.fillStyle = 'rgba(0,0,0,.4)'
+      pl([[8,24],[8,16],[11,20],[10,24]], 'rgba(0,0,0,.4)', null)
+      break }
     case 'star-plate':
       pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#5cb8d9', '#2a7d9e')
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
@@ -3099,6 +3126,10 @@ const EQUIPPABLE = new Set([
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
   'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
   'goo-staff',
+  // §6da: the cinder-crown -- a named cosmetic (unlike the shape-tested hood
+  // and fall-stone ids), so it lives in this set like every other wieldable
+  // name; the engine's slotOf() sends it to the head. Matches engine EQUIPPABLE.
+  'cinder-crown',
   // §7l: the bare-blade -- damage from what you are NOT wearing
   'bare-blade',
 ])
@@ -6373,7 +6404,26 @@ function drawCitizen(X, Y, o) {
   }
   // head: skin, hair cap, eye toward facing
   cx.fillStyle = skin; cx.fillRect(X + 15.5, Y + 7, 9, 9)
-  if (o.helm) { // metal over the brow; the barber weeps
+  if (o.crown) {
+    // §6da: THE CINDER-CROWN, worn over the brow. Hair shows beneath it -- a
+    // king wears a crown, he is not replaced by one -- and it reads REGAL and
+    // BURNED: dull gold points, soot-darkened band, an ember breathing in it.
+    // Being SEEN in it is the whole of what it does, so it is drawn large
+    // enough to catch the eye across the bank, the way trimmed armour did.
+    cx.fillStyle = flash ? '#ffffff' : look.hair            // hair under the crown
+    cx.fillRect(X + 15, Y + 5.5, 10, 3)
+    cx.fillStyle = '#1c150c'                                 // the band, soot-dark
+    cx.fillRect(X + 14.5, Y + 5, 11, 2.4)
+    const beat = 0.55 + Math.sin(now / 540) * 0.24           // an ember still in it
+    cx.fillStyle = 'rgba(255,' + Math.round(96 + 44 * beat) + ',34,' + (0.45 + 0.3 * beat).toFixed(2) + ')'
+    cx.fillRect(X + 19.4, Y + 5.4, 1.4, 1.4)
+    // five points of dull gold, soot creeping up them, one bright survivor
+    poly([[X + 14.5, Y + 5], [X + 15.6, Y + 1.6], [X + 17, Y + 4],
+          [X + 20, Y + 0.8], [X + 23, Y + 4], [X + 24.4, Y + 1.6],
+          [X + 25.5, Y + 5]], '#b8912f', '#7a5f1e')
+    cx.fillStyle = 'rgba(14,12,10,.45)'; cx.fillRect(X + 15, Y + 3, 10, 2)  // tarnish
+    cx.fillStyle = '#e6c25a'; cx.fillRect(X + 19.6, Y + 1.4, 0.9, 3)        // the glint
+  } else if (o.helm) { // metal over the brow; the barber weeps
     const shellH = o.headItem === 'shell-helm', greatH = o.headItem === 'great-helm'
     cx.fillStyle = greatH ? '#3c352e' : shellH ? '#a8532c'
       : o.goldHelm ? '#e8b93a' : o.starHelm ? '#5cb8d9' : '#a3743a'
@@ -8688,10 +8738,11 @@ function drawScene(now) {
         cx.translate(fx, fy); cx.rotate((facing[pid] ?? 1) * prog * 1.45); cx.translate(-fx, -fy)
         cx.globalAlpha = 1 - prog * 0.75
         drawCitizen(px(ix), py(iy), { now, pid, player: p, face: facing[pid] ?? 1, anim: 'idle', tool,
-          mine: pid === myId, cape: capeOf(p), helm: !!p.equipment?.head, plate: !!p.equipment?.body,
+          mine: pid === myId, cape: capeOf(p), helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
           starHelm: p.equipment?.head?.item === 'star-helm', starPlate: p.equipment?.body?.item === 'star-plate',
           headItem: p.equipment?.head?.item ?? null, bodyItem: p.equipment?.body?.item ?? null,
           hooded: !!p.hooded,
+          crown: p.equipment?.head?.item === 'cinder-crown',   // §6da
           // §6cz: DERIVED, NOT STORED. A citizen is mounted because of where
           // they are standing, so the window works it out from the road it is
           // already drawing. Nothing enters the state, no rule changes, and a
@@ -8732,9 +8783,11 @@ function drawScene(now) {
         && (p.action.type === 'attack' || p.action.type === 'attackp')
         && (() => { const t2 = p.action.mobId ? s.mobs[p.action.mobId] : s.players[p.action.targetId]
           return t2 && Math.abs(p.x - t2.x) + Math.abs(p.y - t2.y) > 1 })(),
-      helm: !!p.equipment?.head, plate: !!p.equipment?.body,
+      helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
       starHelm: p.equipment?.head?.item === 'star-helm',
       starPlate: p.equipment?.body?.item === 'star-plate',
+      // §6da: the cinder-crown is its own head-branch, not a generic helm
+      crown: p.equipment?.head?.item === 'cinder-crown',
       // 6ce: the off hand and the legs
       shield: p.equipment?.offhand?.item ?? null,
       legs: p.equipment?.legs?.item ?? null,

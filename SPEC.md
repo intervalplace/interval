@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.88 ("The Constitution")
+# Interval: Protocol Specification v0.89 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -6564,6 +6564,80 @@ a cook feed the doomed attempt a cheap fish.
 The stone goes to the reservoir holder whether they are standing there or not.
 A citizen who dug for a week and logged off before the last swing has still
 earned it.
+
+## 6da. The cinder-crown (v0.89)
+
+The dragon took it off a king. He came to kill it — regalia worked into a
+war-helm, because a king wore his kingship into the fight and it made him the
+odd one out, the marked man, the one the fire found first — and whether the
+thing beside him held the line or slipped away is not in this file, and will
+not be. The dragon keeps the crown as dragons keep crowns. **None of this is
+written anywhere the citizen can read it.** The crown is drawn faithfully and
+says nothing, like the island on no road; who he was is for the island to
+invent, and it will do it better than a lore entry would.
+
+It is **purely cosmetic**: worn on the head, **absent from `ARMOUR`** so it
+soaks nothing and a pure may wear one at the bare-blade's full bonus, no
+requirement to don it, no effect while worn. It is the first cosmetic here
+that is **fungible**. The hood and the fall-stone are welded to whoever earned
+them — the id carries the key, so a stone is legible as *yours* on every one
+you ever sold. The crown carries nothing. Every crown is every other crown, so
+the whole island holds the same picture of it: not *your* crown, not *that*
+crown, just **the crown** — which is what a thing must be before a story about
+it can be a story the whole world already knows.
+
+### 6da-i. It is the thing wealth cannot reach, and the world will not price
+
+No keeper buys it and none sells it — it joins the dragonbow, the old chain, a
+sigil and a chart among the objects the world **declines to have an opinion
+about** (§6l, §7.3a). Unpriced is not worthless: `worthRank` floats it to the
+top of a spilled pile, above every priced thing, so in the scramble over a
+dead dragon it is the thing a hand reaches for first. It does not alch —
+`alchValue` reads the empty price and pays nothing, so the one faucet of gold
+in the world cannot melt a crown down. A crown only ever moves the way
+everything dearest here moves: **from the citizen who has it to the citizen who
+wants it**, at whatever the two of them agree, and no coin can conjure one.
+
+And unlike the dragonbow, **no vault or shelf refuses it** (§7.3a). The bow is
+kept from the bank so its bearer cannot opt out of being hunted; the crown has
+no such power to protect. It banks, it stalls, it sells while its owner sleeps.
+It is *made* to circulate — the first cosmetic built to be traded rather than
+worn as proof — which is the whole of why it exists.
+
+### 6da-ii. One dragon in thirty-two, counted, and it cannot be timed
+
+The crown falls at **2 in 65,536 — one dragon in thirty-two** — which across a
+world's life is a slow trickle: enough that several are loose at once and one
+may be glimpsed on a bold citizen in the Wilds, never so many that it stops
+being a rumour. Its rarity is doubled by the dragon's own: a thing that is not
+one citizen's fight to begin with, on a twelve-hour tenure.
+
+It is **counted per citizen**, exactly as the old chain, the goo-staff and the
+graver are (§6bn, §6br) — the killer's private `slain` tally, granted at the
+promised rate in a fixed order. It is emphatically **not** rolled on the
+tick's beacon, and the reason is §6ba, the Reading Rule, which §18b records for
+the fall-stone and which reaches here the same way: a beacon-judged drop could
+be **timed** — hold the dragon at a point of life, read the public beacon, and
+withhold the blow until a kind tick comes round, which turns one-in-thirty-two
+into a certainty for a party with stacked broth and the patience to wait.
+Counted, there is no roll at the kill to read, so no timing can bend it. The
+only coordination left is to funnel every last blow to one citizen, and that
+buys nothing but the knowledge that **thirty-two dragons must fall to their
+hand** — a week and more of a fight nobody wins alone — for a hat that fights
+no better than a bare head.
+
+### 6da-iii. It falls where the stones fall
+
+The crown drops to the **shared pile** where the dragon dies, beside the six
+stones and the three sets of bones, and belongs to whoever lifts it (§6e). The
+tally decides *that a crown appears*, never *who carries it home*. So the
+citizen whose blow made it fall is not always the one who leaves with it: the
+party stands over one thing that cannot be split four ways, exactly as they
+stand over three bone-sets that can — and the crown is the one nobody agreed
+how to divide before the dragon fell. The tally is private, read by no window,
+so its crossing is a surprise even to the party grinding toward it: the crown
+is simply, suddenly, in the grass. What happens next is between citizens, and
+the world keeps out of it. It always did. That is what the crown is for.
 
 ## 14. The toll on the Millbrook Bridge (v0.88)
 
