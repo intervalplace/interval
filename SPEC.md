@@ -6462,6 +6462,109 @@ count, so three stall-houses had their floors painted as market square. A
 square is open ground: no wall within one tile of it, which is a thing the
 drawing can answer. 66 tiles, and all seven rostered stalls are indoors.
 
+## 17. The bare-blade (v0.88)
+
+A weapon whose damage is what you are **not** wearing. `bare: true` adds
+`round(10 · ((40 − armourOf(you)) / 40)²)` to `maxHit`: ten when you stand in
+nothing, four in a helm alone, one in steel, none in a full star suit.
+
+**Why it exists.** §6aq repealed the armour tax and answered whether armour
+*dominates* — the Flight Rule means a clad citizen cannot make anybody fight
+them. It never answered the complaint it opened with: *"armour which only helps
+is a checklist rather than a choice — everybody wears the best they own and
+going without is a handicap."* This is the first thing in the world that pays
+for going without.
+
+**The price was already in the engine.** Since §6x-ii armour does not soak
+damage, it lowers an attacker's CHANCE. So standing in nothing does not merely
+forgo protection; it hands every enemy a far better roll. The weapon roughly
+doubles what you deal and roughly doubles what you take. Nothing new had to be
+invented to pay for it.
+
+### 17a. What the duels said
+
+Measured on the engine itself — two citizens, signed inputs, `nextState`, in
+the Wilds — and validated first by a mirror match of identical citizens (17:13
+over 30 trials, lengths 49 to 85), because thirty *identical* duels are one
+duel and the first rig ran exactly that without noticing.
+
+**Naked bare-blade against a star-sword over a full star suit: 23% at level 40,
+37% at 60, 30% at 80, 37% at 99.** It loses more often than it wins at every
+level. It is an option, not an answer.
+
+**THE CURVE IS NOT A LINE, and that is the finding.** A flat
+`(40 − armour) / 4` gave +10 naked and +5 in iron, and the middle beat both
+ends: naked won 40%, the same blade over an iron suit won **45%**. A weapon
+meant to ask *"will you strip?"* was really asking *"will you wear medium?"*
+Squaring it puts the whole bonus in the last few points of armour, and the
+order came right: **naked 40%, helm alone 25%, steel 20%, full star 20%.**
+
+Two things were also learned about the world as it already stood, both by
+being wrong first:
+
+- **Armour pays for itself.** An early rig with leaking state reported that a
+  naked star-maul beat full plate every time. It does not: 25–40%. A star-maul
+  *with* a suit beats a star-sword with a suit **85%**. §6aq's assumption holds.
+- **A duel is not the island.** Ticking Tallyholm costs 130 ms because it walks
+  8,800 nodes and 642 beasts; combat reads two players and the genesis and
+  nothing else.
+
+## 18. The fall-stone (v0.88)
+
+Rubble is what the mountain gives everybody. A **fall-stone** is what it gives
+the citizen who finished a boulder — same rock, same swing, and the only
+difference is that it was the last one.
+
+It is the hood's design exactly: **head slot, absent from `ARMOUR`** so it is
+worth nothing in a fight and a pure may wear one at the bare-blade's full
+bonus, tradeable, and **the id stores the KEY, not the name**. So a citizen who
+takes a name in year three is retroactively legible on every stone they broke,
+including the ones they sold. Every one is therefore different — whose it was,
+and which day of the world. The first ever broken, and the one that opened the
+way, will be worth more than the fortieth, and that value is **history rather
+than a rarity table**.
+
+### 18a. The supply is not ours to set
+
+There are at most forty-one, and the real number is the island's decision. The
+South Pass opens on a five-stone tunnel, so **if the island digs the minimum,
+five exist for all time.** Every stone past that is trophy-mining: a thousand
+rate-limited strikes for an object that does nothing.
+
+Whatever the count turns out to be, it is a fossil of one collective choice
+made in the first week — and the seam is deleted afterwards. Nothing issues
+another, ever.
+
+### 18b. The lottery cannot be timed
+
+The obvious rule — the last blow takes it — is gameable and openly so.
+`n.struck` is public state, so a citizen reads 999 and swipes the thousandth,
+and the whole endeavour becomes people watching a counter instead of digging.
+
+So the claim is a **reservoir**: each strike replaces the holder with
+probability exactly `1/struck`, which leaves the holder uniform over every
+strike ever landed on that stone. Swing a hundred times and you hold a hundred
+tickets. **Timing the final blow buys one chance in a thousand**, which is
+strictly worse than turning up and working.
+
+Measured: over 200 boulders where one citizen lands 999 strikes and a sniper
+lands only the last, **the digger takes all 200 and the sniper takes none.**
+
+The roll is the tick's beacon, which per §6ba advances at the top of the tick
+over a digest of every input applied in it, including other citizens' — so a
+striker cannot know their own roll when they sign. A citizen digging entirely
+alone can, and it does not help them: they are the only ticket either way.
+
+`countedSuccess` was not used, and the reason is written on it: it is Bresenham
+and **perfectly predictable**, which §6bn already records as the fault that let
+a cook feed the doomed attempt a cheap fish.
+
+### 18c. And it does not need you present
+
+The stone goes to the reservoir holder whether they are standing there or not.
+A citizen who dug for a week and logged off before the last swing has still
+earned it.
+
 ## 14. The toll on the Millbrook Bridge (v0.88)
 
 ### 14a. Which crossing, and why that one

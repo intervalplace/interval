@@ -2800,6 +2800,36 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
       g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(9, 7.5, 14, 1.6); break
     // ---- the shapes (v0.66): each reads as itself at a glance ----
+    // §7m: A STONE OF THE FALL. A chip of the South Pass on a leather thong --
+    // worn at the head like a hood, worth nothing in a fight, and the only
+    // thing in the world that says you were there in the first week.
+    case 'fall-stone': {
+      g.strokeStyle = '#6b5334'; g.lineWidth = 1.4                        // the thong
+      g.beginPath(); g.moveTo(9, 6); g.quadraticCurveTo(16, 13, 23, 6); g.stroke()
+      pl([[13,13],[19,12],[22,17],[19,24],[13,23],[11,17]], '#8d8578', '#4c4740')  // the chip
+      g.fillStyle = 'rgba(255,255,255,.22)'                               // a struck face
+      pl([[14,14],[18,13.4],[19,17],[15,18]], 'rgba(255,255,255,.22)', null)
+      g.fillStyle = 'rgba(40,34,28,.5)'                                   // and the shadowed one
+      pl([[15,19],[19,18],[18,23],[14,22]], 'rgba(40,34,28,.45)', null)
+      break }
+    // §7l: THE BARE-BLADE. Long, narrow, single-edged, NO GUARD, and a grip
+    // wound in leather cord to the pommel -- the shape of a weapon carried by
+    // somebody who owns nothing else and needs both hands free.
+    //
+    // The silhouette is doing the arguing. Drawn like the other knives it read
+    // as a slightly longer iron-dagger, which is exactly the wrong signal for
+    // an item whose whole point is that it is not part of a kit: the guard is
+    // gone (nothing between you and the blow), the steel is plain and worn
+    // rather than bright, and the wrap is the only ornament on it.
+    case 'bare-blade': {
+      pl([[15,22],[17,22],[17.6,7],[16,2],[14.4,7]], '#cdc7b4', '#6d6552')   // long narrow blade
+      g.fillStyle = 'rgba(255,255,255,.6)'; g.fillRect(16.6, 5, 0.9, 16)     // the honed edge
+      g.fillStyle = 'rgba(90,80,64,.5)'; g.fillRect(14.6, 5, 0.8, 16)        // and the dull spine
+      g.fillStyle = '#4a3b28'; g.fillRect(14.6, 22, 2.8, 8)                  // the bare tang
+      g.fillStyle = '#6b5334'                                                // leather cord
+      for (let k = 0; k < 5; k++) g.fillRect(14.2, 22.6 + k * 1.5, 3.6, 1.0)
+      g.fillStyle = '#33281a'; g.fillRect(14.0, 29.6, 4.0, 1.6)              // pommel knot
+      break }
     case 'iron-dagger': case 'star-dagger': {
       const star = item.startsWith('star-')
       const blade = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
@@ -3069,6 +3099,8 @@ const EQUIPPABLE = new Set([
   'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
   'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
   'goo-staff',
+  // §7l: the bare-blade -- damage from what you are NOT wearing
+  'bare-blade',
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -3295,7 +3327,11 @@ const ICON_TINT = {
   'steel-plate': '#b9c0c8', 'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
   'steel-helm': '#b9c0c8', 'iron-shield': '#8a8a82', 'steel-shield': '#b9c0c8',
 }
-const iconAliasOf = (it) => ICON_ALIAS[it] ?? it
+// §7m: THE FALL-STONE draws as itself, and every hood-shaped id resolves the
+// same way -- these are per-citizen ids, not item names, so a table cannot hold
+// them and the lookup has to be a shape test.
+const isFallStoneId = (it) => typeof it === 'string' && it.startsWith('fallstone:')
+const iconAliasOf = (it) => isFallStoneId(it) ? 'fall-stone' : (ICON_ALIAS[it] ?? it)
 const iconTintOf  = (it) => ICON_TINT[it] ?? null
 const NODE_FAMILY = {
   'tree': 'tree', 'oak-tree': 'tree', 'ironbark-tree': 'tree',
