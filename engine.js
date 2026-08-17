@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.88';
+const SPEC_VERSION = '0.89';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -2240,6 +2240,12 @@ const MOB_STATS = {
                     { item: 'dragon-bones' }, { item: 'dragon-bones' }, { item: 'dragon-bones' },
                     { item: 'magic-stone' }, { item: 'magic-stone' }, { item: 'magic-stone' },
                     { item: 'magic-stone' }, { item: 'magic-stone' }, { item: 'magic-stone' },
+                    // §6da: THE CINDER-CROWN, one dragon in thirty-two. Counted
+                    // per citizen like every rare drop (the Reading Rule, §6ba),
+                    // so it cannot be timed by holding the dragon at a point of
+                    // life and reading the beacon -- and it falls into the same
+                    // shared pile as the stones, to be fought over at the pickup.
+                    { item: 'cinder-crown', chance: 2048 },
                     { item: 'ore' }] },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
@@ -2839,6 +2845,7 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
   // carrying one is carrying no sword
   'staff', 'heartwood-staff', 'wand', 'goo-staff',
   'horn',   // §6bv: worn in the off hand, defends nothing
+  'cinder-crown',   // §6da: worn on the head, defends nothing -- pure cosmetic
   'shell-helm', 'shell-plate', 'great-helm', 'great-plate']);
 // The constitutional ITEM vocabulary (rev5 §4): every item the engine can
 // mint, derived from protocol constants plus the base gather/drop set. A
@@ -2901,6 +2908,14 @@ const ITEMS = new Set([
   'dragonbow',   // §6w: there is one. No keeper prices it, so it is never bought.
   'crab-shell',  // §6z: what a shore-crab gives up
   'king-shroud', // §6ao (v6): the Gibbet King's mantle -- drop-only, worn on the body
+  // §6da: THE CINDER-CROWN. The dragon took it off a king who came to kill it
+  // and was left to die; the dragon hoards it as dragons hoard crowns. Purely
+  // cosmetic -- worn on the head, absent from ARMOUR, worth nothing in a fight.
+  // Unlike the hood and the fall-stone (welded to whoever earned them), it is
+  // FUNGIBLE and freely traded: the first cosmetic here whose whole life is
+  // changing hands. Drop-only off the dragon, never smithed, no keeper prices
+  // it, and no vault or shelf refuses it -- so it circulates, and is fought over.
+  'cinder-crown',
   'wool',        // §6ag: what a sheep gives up. Worth money and nothing else,
                  // which is exactly what crab-shell is: this world does not
                  // need every drop to be an input to something.
@@ -2913,6 +2928,9 @@ const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'he
                      'shell-helm': 'head', 'shell-plate': 'body',
                      'great-helm': 'head', 'great-plate': 'body',
                      'gold-helm': 'head', 'gold-plate': 'body',
+                     // §6da: the cinder-crown sits on the head and soaks nothing;
+                     // it is not in ARMOUR, so armourOf reads it as zero.
+                     'cinder-crown': 'head',
                      'iron-shield': 'offhand', 'steel-shield': 'offhand', 'star-shield': 'offhand',
                      // §6bv: the off hand held three items, all shields, all
                      // divisors, differing only in how much. Every other slot
