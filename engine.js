@@ -619,6 +619,12 @@ const WIELD_REQS = {
   // ore beat a star-clad one more efficiently than a star-sword does. It is
   // the answer to armour, and it belongs to people who have earned armour.
   'star-flail': { attack: 55 },
+  // §7l: MEASURED, not guessed. A naked bare-blade wins 23-37% of duels
+  // against a star-sword over a full star suit, at every level from 40 to 99 --
+  // it is an option, not an answer, and it never dominates. No level gate is
+  // needed for balance; this one is here so that a citizen meets the choice
+  // after they have met armour, not before.
+  'bare-blade': { attack: 30, strength: 30 },
   // §6bt: seventy, where every gathering skill already has its mastery tool.
   'great-sword': { attack: 70 }, 'great-crossbow': { ranged: 70 },
   // §6bw: defence's last unlock was fifty and then forty-nine levels of
@@ -1721,6 +1727,30 @@ const WEAPONS = {
   // intervals against their 87. It is two-handed -- no shield beside it -- and
   // that, with its rarity, is the whole of what it pays for being fast.
   'old-chain':     { hit: 1, every: 1, reach: 1, acc: 0 },
+  // §7l: THE BARE-BLADE. Its damage is what you are NOT wearing.
+  //
+  // `bare` adds floor((40 - armourOf(you)) / 4) to maxHit -- ten when you
+  // stand in nothing, nothing when you stand in a full star suit. Naked it
+  // strikes like a maul without the maul's poor accuracy; clad it is worse
+  // than an iron dagger. It is not an upgrade. It is the flail's argument
+  // pointed the other way: an ANSWER, and only to one thing, and the thing it
+  // answers is your own plate.
+  //
+  // The price is already in the engine and it is severe. Since 6x-ii armour
+  // does not soak damage, it lowers an attacker's CHANCE -- so standing in
+  // nothing does not merely forgo protection, it hands every enemy in the
+  // world a far better roll against you. This weapon doubles what you deal
+  // and roughly doubles what you take. Nothing new had to be invented to pay
+  // for it.
+  //
+  // 6aq repealed the armour tax on the grounds that "armour which only helps
+  // is a checklist rather than a choice -- everybody wears the best they own
+  // and going without is a handicap". The repeal answered whether armour
+  // DOMINATES; it never made going without a decision. This does.
+  //
+  // (The name is the old one. A berserkr was a bear-shirt, and the reading
+  // that has always fitted the fighting is ber-serkr: BARE of shirt.)
+  'bare-blade':    { hit: 0, every: 2, reach: 1, acc: 0, bare: true },
   // A WAND IS A BAD WEAPON ON PURPOSE. Magic is the anti-combat skill, so the
   // fullest expression of it is a thing you hold INSTEAD of a weapon: you have
   // given up fighting to be better at not fighting.
@@ -2566,6 +2596,7 @@ const PRICES = {
   // §6am (v6): the mid goods, priced between the baseline and the mastery --
   // a mid seam's hour worth more than a doorstep's, less than a master's.
   'bread': 9, 'burnt-bread': 1, 'flour': 6, 'saltpetre': 14, 'gunpowder': 60,
+  'bare-blade': 55,
   'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
   'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
@@ -2654,6 +2685,11 @@ const RECIPES = {
   // fletch input, because a bow made by a fletcher belongs to fletching.
   'crossbow': { 'iron': 2, logs: 2 },              // a steel prod and a wooden stock
   'star-flail': { 'star-ingot': 15, 'ironbark': 1 },
+  // §7l: CHEAP ON PURPOSE. A weapon whose whole point is that you are wearing
+  // nothing is a weapon carried by people with nothing to lose -- and by
+  // pures, who never gear up and should not have to risk a fortune to train
+  // the only build the world offers them. Steel, and not much of it.
+  'bare-blade': { 'steel-ingot': 4, 'ironbark': 1 },
   // §6av: starmetal, because that is where the scarcity already lives -- a
   // magic-stone is mined in the WILDS, so every one has survived a trip
   // somebody could have died on. Against citizens who automate, effort is not
@@ -2834,6 +2870,7 @@ const ITEMS = new Set([
   // §6ad: what a master brings back from the same tree and the same water
   'heartwood', 'deep-fish', 'cooked-deep-fish', 'burnt-deep-fish', 'deep-broth', 'heartwood-bow',
   'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder',
+  'bare-blade',
   'bones', 'dragon-bones', 'arrows', 'shot', 'handgonne', 'wooden-bow', 'horn-bow', 'magic-stone', 'sigil', 'old-chain', 'ale', 'broth',
   // §2g: the tool of the one working skill that had none
   'staff', 'heartwood-staff', 'wand',
@@ -2959,6 +2996,7 @@ const SMITH_REQS = {
   'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
   'crossbow': { smithing: 18 },
   'star-flail': { smithing: 50, magic: 29 },
+  'bare-blade': { smithing: 34 },   // §7l: steel-tier work, provisional
   // §6bt: a master smith's work, and the only recipes that ask for brimstone.
   'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
   'great-helm': { smithing: 70, magic: 34 }, 'great-plate': { smithing: 70, magic: 34 },
@@ -3011,6 +3049,28 @@ const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? 
 // It also repairs the maul without touching the maul: its whole problem was
 // that low accuracy was punished twice, once in the roll and again by a soak
 // its slow cadence could not out-pace.
+// §7l: a full star suit is helm 16 + plate 24 = 40, which is the ceiling the
+// bare-blade measures against.
+//
+// THE CURVE IS NOT A LINE, and the reason is a measurement. A flat
+// floor((40 - armour) / 4) gave +10 naked and +5 in iron, and the duels said
+// the middle beat both ends: naked won 40% against a star-clad star-sword,
+// and the SAME blade over an iron suit won 45%. Half the bonus plus real
+// protection was the optimum, so a weapon meant to ask "will you strip?"
+// was really asking "will you wear medium?" -- a duller question, and not the
+// one it was built for.
+//
+// Squaring it puts the whole bonus in the last few points of armour. A citizen
+// in nothing keeps ten; one in a leather cap has already lost a third of it;
+// iron keeps two. The choice is now the one the design promised: bare, or not.
+//
+//   armour   0    8   16   20   25   30   40
+//   bonus   10    6    4    2    1    0    0
+const BARE_CAP = 40;
+const bareBonus = (armour) => {
+  const t = Math.max(0, Math.min(1, (BARE_CAP - armour) / BARE_CAP));
+  return Math.round(10 * t * t);
+};
 const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22,
                  'gold-helm': 16, 'gold-plate': 24,
                  // §6bw: SHELL, between iron and steel, where thirty-one levels
@@ -3133,8 +3193,8 @@ function reqOverride(genesis, kind, item) {
   if (!g || !g[kind]) return undefined;
   return g[kind][item];
 }
-const isEquippable = (item) => EQUIPPABLE.has(item) || isHood(item);
-const slotOf = (item) => isHood(item) ? 'head' : (EQUIP_SLOT[item] ?? 'weapon');
+const isEquippable = (item) => EQUIPPABLE.has(item) || isHood(item) || isFallStone(item);
+const slotOf = (item) => (isHood(item) || isFallStone(item)) ? 'head' : (EQUIP_SLOT[item] ?? 'weapon');
 // 6bz: and a hand may not hold a shield while both are on the haft.
 const twoHandedOn = (q) => TWO_HANDED.has(q?.equipment?.weapon?.item);
 // 6bz: the two rules that make the choice a choice. They are stated once and
@@ -4539,9 +4599,29 @@ const isChart = (v) => typeof v === 'string' && /^chart:[a-z0-9_-]{1,64}$/i.test
 // so a citizen who takes a name in year three is retroactively legible on
 // every hood they ever earned -- including the ones they traded away.
 const isHood = (v) => typeof v === 'string' && /^hood:[0-9a-f]{64}:[0-9]{1,15}$/.test(v);
+// §7m: THE FALL-STONE. Rubble is what the mountain gives everybody; a
+// fall-stone is what it gives the citizen who finished a boulder. Same rock,
+// same swing, and the only difference is that it was the last one.
+//
+// Built on the hood exactly: head slot, absent from ARMOUR so it is worth
+// nothing in a fight, tradeable, and the id stores the KEY rather than the
+// name -- so a citizen who takes a name in year three is retroactively legible
+// on every stone they broke, including the ones they sold. Every one is
+// therefore DIFFERENT: whose it was and which day of the world. The first ever
+// broken, and the one that opened the way, will be worth more than the
+// fortieth, and that value is history rather than a rarity table.
+//
+// There are at most forty-one, and the real number is not mine to set: the
+// pass opens on a five-stone tunnel, so if the island digs the minimum then
+// FIVE exist for all time. Every stone past that is trophy-mining -- a
+// thousand rate-limited strikes for a thing that does nothing. Whatever the
+// count turns out to be, it is a fossil of one collective decision made in the
+// first week, and the seam is deleted afterwards. Nothing issues another.
+const isFallStone = (v) => typeof v === 'string' && /^fallstone:[0-9a-f]{64}:[0-9]{1,15}$/.test(v);
+const fallStoneFor = (pid, tick) => 'fallstone:' + pid + ':' + tick;
 const hoodOf = (v) => { const m = /^hood:([0-9a-f]{64}):([0-9]{1,15})$/.exec(v || ''); return m ? { pid: m[1], tick: +m[2] } : null; };
 const hoodFor = (pid, tick) => 'hood:' + pid + ':' + tick;
-const isItemName = (v) => typeof v === 'string' && (ITEMS.has(v) || isChart(v) || isHood(v)); // membership, not just shape (rev5 §4)
+const isItemName = (v) => typeof v === 'string' && (ITEMS.has(v) || isChart(v) || isHood(v) || isFallStone(v)); // membership, not just shape (rev5 §4)
 const isSlot = (s) => s === null || (s && typeof s === 'object'
   && isItemName(s.item) && isInt(s.qty, 1, MAX_QTY));
 
@@ -5226,6 +5306,11 @@ const LANDMARK_KINDS = new Set([
     if (!isInt(n.x, 0, W - 1) || !isInt(n.y, 0, H - 1)) return 'node out of bounds';
     if (!isInt(n.depletedUntil ?? 0, 0, MAX_TIME)) return 'node depletion out of bounds';
     if (!isInt(n.struck ?? 0, 0, 1000000)) return 'node strike count out of bounds';
+    // §7m: the reservoir holder for a rockfall's fall-stone
+    if (n.claim !== undefined) {
+      if (n.type !== 'rockfall') return 'claim on a node that keeps none';
+      if (typeof n.claim !== 'string' || !HEX64.test(n.claim)) return 'malformed node claim';
+    }
     // type-specific rules (rev6 §6): each field belongs to exactly the
     // node kinds the engine gives it to, ownership metadata on a static
     // resource node is as malformed as a fire that never expires
@@ -9903,8 +9988,11 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6as: the BLOW is strength's, the roll is attack's -- except for a
           // bow, where the same draw does both and lvl2 is ranged.
           const powLvl = bowDrawn2 ? lvl2 : effLevel(p.skills.strength);
+          const _w7l = weaponOf(p);
           const maxHit = 1 + Math.floor(powLvl / (bowDrawn2 ? 12 : 10))
-            + (weaponOf(p)?.hit ?? 0);
+            + (_w7l?.hit ?? 0)
+            // §7l: the bare-blade pays you for what you are not wearing
+            + (_w7l?.bare === true ? bareBonus(armourOf(p)) : 0);
           // §6x: A FLAIL GOES ROUND THE PLATE, not through it.
           //
           // A full suit of starmetal soaks four, and against `max(0, ...)`
@@ -10379,11 +10467,41 @@ function nextState(state, inputs, _legacyBeacon) {
       // citizens can do to this island that the next founding will not undo.
       if (n.type === 'rockfall') {
         n.struck = (n.struck ?? 0) + 1;
+        // §7m: WHO GETS THE STONE, AND WHY IT CANNOT BE TIMED.
+        //
+        // The obvious rule -- the last blow takes it -- is gameable, and
+        // openly: `n.struck` is public state, so a citizen reads 999 and
+        // swipes the thousandth. The whole endeavour would turn into people
+        // watching a counter instead of digging.
+        //
+        // So the claim is a RESERVOIR. Each strike replaces the holder with
+        // probability exactly 1/struck, which leaves the holder uniform over
+        // every strike ever landed on that stone: swing a hundred times and
+        // you hold a hundred tickets. And it inverts the incentive completely
+        // -- timing the final blow buys you one chance in a thousand, which is
+        // strictly worse than turning up and working.
+        //
+        // The roll is the tick's beacon, which per §6ba advances at the TOP of
+        // the tick over a digest of every input applied in it, including other
+        // citizens'. A striker cannot know their own roll at the moment they
+        // sign. (A citizen digging entirely alone can, and it does not help
+        // them: they are the only ticket in the reservoir either way.)
+        if (roll16(Buffer.from(s.beacon, 'hex'), pid, 'fallstone|' + p.action.nodeId)
+              * n.struck < 65536) n.claim = pid;
         if (n.struck >= ROCKFALL_STRIKES) {
           const _rid = p.action.nodeId;
+          const _won = n.claim ?? pid;
+          const _wp = s.players[_won];
+          // the stone goes to the reservoir holder whether they are here to
+          // take it or not -- a citizen who dug for a week and logged off
+          // before the last swing has still earned it
+          if (_wp && canAddItem(_wp.inventory, fallStoneFor(_won, s.tick)))
+            addItem(_wp.inventory, fallStoneFor(_won, s.tick), 1);
           deleteIndexedNode(s, _ctx, _rid);
           p.action = null;
-          announce(s, (p.name ?? pid.slice(0, 6)) + ' broke the last of that boulder.');
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' broke the last of that boulder'
+            + (_wp ? ', and a stone of the fall went to '
+                + (_wp.name ?? _won.slice(0, 6)) : '') + '.');
         }
         else n.depletedUntil = s.tick + ROCKFALL_DARK;
         continue;
