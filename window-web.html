@@ -4183,7 +4183,7 @@ const FORGE = {
   'steel-spear':    { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
   'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2, 'brimstone': 1 },
   'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'brimstone': 1 },
-  'gold-bar':       { 'gold-ore': GOLD_ORE_PER_BAR },
+  'gold-bar':       { 'gold-ore': 5 },   // §6dj: GOLD_ORE_PER_BAR, resolved
   'gold-helm':      { 'gold-bar': 6 },
   'gold-plate':     { 'gold-bar': 16 },
 }
@@ -5796,7 +5796,7 @@ function onState(s, worldId, local) {
     }
   } catch (err) { console.error('state diff error (recovered):', err) }
   prev = s
-  panel(s)
+  _guarded('the side panel', () => panel(s))
 }
 
 // ---- low-poly animated renderer ----
@@ -6817,6 +6817,44 @@ function drawCitizen(X, Y, o) {
 }
 
 let sunDirX = 0, shadowLen = 0
+// §6dj: A THROWN FRAME MUST NOT TAKE THE WINDOW WITH IT.
+//
+// `panel()` and `drawScene()` are called on every state change and every
+// animation frame, and neither sat inside anything's try/catch -- the one above
+// covers the state DIFF and stops short of the render. So a single bad frame
+// killed the caller, the requestAnimationFrame chain stopped, and the window
+// sat there looking frozen with no way to find out why but the console, which
+// on a phone there is no way to open.
+//
+// A frame that throws is now a frame that is skipped, once, loudly. The banner
+// is deliberately ugly and deliberately quotes the error: a citizen who hits
+// this can read it out, which is worth more than a clean-looking corpse.
+let _frameErr = null, _frameErrN = 0
+function _guarded(what, fn) {
+  try { return fn() } catch (err) {
+    _frameErrN++
+    if (_frameErr !== String(err)) {
+      _frameErr = String(err)
+      try { console.error(what + ' threw (frame skipped):', err) } catch {}
+      try {
+        let b = document.getElementById('frameerr')
+        if (!b) {
+          b = document.createElement('div'); b.id = 'frameerr'
+          b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a1e1e;'
+            + 'color:#ffd9d9;font:11px Verdana;padding:6px 10px;border-top:2px solid #a33;'
+            + 'cursor:pointer;white-space:pre-wrap'
+          b.onclick = () => b.remove()
+          document.body.appendChild(b)
+        }
+        b.textContent = 'The window hit an error drawing this (' + what + '). '
+          + 'The world is fine and still ticking; the picture skipped a frame.\n'
+          + _frameErr + '\n(tap to dismiss)'
+      } catch {}
+    }
+    return undefined
+  }
+}
+
 function drawScene(now) {
   const s = curState; if (!s || !groundReady) return
   cx.setTransform(ZR, 0, 0, ZR, 0, 0) // the whole frame, a step closer (and in HD, twice as fine)
@@ -9608,7 +9646,7 @@ requestAnimationFrame(function frame(now) {
   if (now - meterAt > 2000) { // meter: worst frame gap + broadcast jitter, 2s window
     meterText = '  \u00b7  frame ' + Math.round(worstFrame) + 'ms  \u00b7  jit \u00b1' + Math.round(worstJitter) + 'ms'
     worstFrame = 0; worstJitter = 0; meterAt = now
-  } drawScene(now); requestAnimationFrame(frame) })
+  } _guarded('the world view', () => drawScene(now)); requestAnimationFrame(frame) })
 
 let panelSig = ''
 function panel(s) {
@@ -10849,7 +10887,20 @@ cv.addEventListener('click', (e) => {
   for (const [id, n] of Object.entries(world.nodes))
     if (n.x === x && n.y === y) {
       if (me.action?.nodeId === id) return                     // already working it: silent
-      if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'bank' && n.type !== 'anvil' && n.depletedUntil > world.tick) {
+      // §6dd: A DRY WELL IS NOT AN EXHAUSTED SEAM. This guard was written when
+      // `depletedUntil` only ever appeared on something you gather from, so the
+      // moment a well started carrying one (§6dd) clicking it answered
+      // "Nothing left here." and returned before the well's own branch below.
+      if (n.type === 'well' && (n.depletedUntil ?? 0) > world.tick) {
+        const secs = Math.max(1, Math.round((n.depletedUntil - world.tick) * 0.6))
+        feed('The bucket comes up wet and empty. The well draws down again in about '
+          + secs + ' second' + (secs === 1 ? '' : 's') + '.')
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'bank' && n.type !== 'anvil'
+          && n.type !== 'well' && n.type !== 'store' && n.type !== 'stall' && n.type !== 'market'
+          && n.type !== 'hearth' && n.type !== 'waystone' && n.depletedUntil > world.tick) {
         feed({ 'tree': 'The tree is felled. It will regrow.',
                'rock': 'The rock is mined out. Give it a moment.',
                'magic-rock': 'The hum has gone out of it. It will come back.',
@@ -10872,7 +10923,10 @@ cv.addEventListener('click', (e) => {
         const adj = Math.abs(meW.x - n.x) + Math.abs(meW.y - n.y) === 1
         if (!adj) { feed('You peer into the well. Somewhere far below, a tick echoes.'); return }
         send({ do: 'drink' })
-        feed('You drink. The cold of it goes all the way down, and you are whole.')
+        // §6dd: it restores you to full and spends your arm, and the well is
+        // dry behind you for a hundred intervals
+        feed('You drink. The cold of it goes all the way down, and you are whole \u2014 '
+          + 'and the well is drawn down behind you.')
         flashClick(n.x, n.y, false)
         return
       }
