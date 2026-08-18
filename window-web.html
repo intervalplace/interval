@@ -2329,7 +2329,29 @@ function regionNameAt(x, y) {
   } catch { return '' } // a nameplate must never stop the world drawing
 }
 // <<< EXPANSE TERRAIN MIRROR
-const inWildsC = (x, y) => x >= 1 && x <= 34 && y >= 1 && y <= 22
+// §2g: THE WILDS ARE WHERE THE FOUNDING PUT THEM. This was the classic v1
+// rectangle, hardcoded -- thirty-four by twenty-two -- and every world since
+// has drawn them somewhere else. On the expanse the real bounds are 193 by 510,
+// so this window believed almost the whole of the Wilds was safe country: it
+// would not offer an attack there, it named the region wrong, and it never said
+// you had crossed the line.
+const inWildsC = (x, y) => {
+  const w = world?.genesis?.wilds
+  if (w) return x >= w.x0 && x <= w.x1 && y >= w.y0 && y <= w.y1
+  return x >= 1 && x <= 34 && y >= 1 && y <= 22
+}
+// §11d: AND A CONSIGNMENT CARRIES THE WILDS WITH IT. `mayStrike` in the engine
+// is two clauses and this window only ever knew one, so two haulers standing on
+// a town road -- the case §11d was written to create -- could not raise a hand
+// at each other from here. The special could be fired, because that path never
+// asked; an ordinary blow could not, because this did. One citizen was struck
+// off the rhythm and could not strike back, which is not a fight, and it is not
+// what the rule says either.
+const mayStrikeC = (a, b) => {
+  if (!a || !b) return false
+  if (a.consignment && b.consignment) return true
+  return inWildsC(a.x, a.y) && inWildsC(b.x, b.y)
+}
 function riverXC(y) { const cx2 = Math.floor(W / 2)
   return cx2 + 22 + Math.round(Math.sin(y / 9) * 7) + (tileHash(0, y, 11) % 3) - 1 }
 function terrainOf(x, y) {
@@ -3487,7 +3509,35 @@ const WEAPON_REACH = {
   'great-crossbow': 6,
   'iron-javelin': 3, 'steel-javelin': 3, 'star-javelin': 3,   // §6dg
 }
+// §11c: WHICH TOWN. The route is DRAWN, not chosen (§11c), and this window
+// never said what had been drawn -- a citizen sealed a consignment and was told
+// nothing at all about where it had to go, which turns "the road is committed"
+// into "wander until something happens". The route is a list of store ids in
+// the state; every one of them stands in a place that already has a name.
+const townOfNode = (s, id) => {
+  const n = s?.nodes?.[id]
+  if (!n) return null
+  const nm = (IS_EXPANSE4() && typeof localeAt4 === 'function') ? localeAt4(n.x, n.y) : null
+  return nm || regionNameAt(n.x, n.y) || ('the counter at ' + n.x + ',' + n.y)
+}
+// where a consignment is going NEXT, and where it finally discharges
+const haulNext = (s, c) => (c && c.leg < (c.route ?? []).length) ? townOfNode(s, c.route[c.leg]) : null
+const haulAtEndC = (c) => !!c && (c.leg ?? 0) >= (c.route ?? []).length
+const haulLast = (s, c) => (c && (c.route ?? []).length) ? townOfNode(s, c.route[c.route.length - 1]) : null
 const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
+// §6dj: and how often each one comes round, generated from engine WEAPONS.
+// The arrow tracer assumed every weapon fired on twos, so a crossbow drew
+// three shafts for every two bolts it actually loosed.
+const WEAPON_EVERY = {
+  'iron-dagger': 2, 'iron-sword': 2, 'iron-spear': 2, 'iron-maul': 2,
+  'steel-dagger': 2, 'steel-sword': 2, 'steel-spear': 2, 'steel-maul': 2,
+  'star-dagger': 2, 'star-sword': 2, 'star-spear': 2, 'star-maul': 2,
+  'old-chain': 1, 'bare-blade': 2, 'wand': 3, 'star-flail': 2,
+  'iron-javelin': 2, 'steel-javelin': 2, 'star-javelin': 2,
+  'great-sword': 2, 'great-crossbow': 3, 'crossbow': 3, 'sigil-bow': 2,
+  'heartwood-bow': 2, 'wooden-bow': 2, 'horn-bow': 2, 'handgonne': 4,
+  'dragonbow': 2
+}
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
@@ -4022,7 +4072,49 @@ const send = a => {
   if (ownKey && BRIDGE_TO_INPUT(a)) { signAndSend(a); return }
   ws.send(JSON.stringify({ type: 'act', action: a }))
 }
+// §6dj: WHERE A SWALLOWED ERROR GOES TO BE SEEN.
+//
+// Three separate places in this window catch an exception and carry on: the
+// state diff, the panel and the world view. Carrying on is right -- one bad
+// frame should not kill a session -- but all three carried on into a console
+// that on a phone there is no way to open, so the window's failure mode was to
+// look fine and do nothing. Once, loudly, per distinct error.
+let _frameErr = null
+function _noteFrameErr(what, err) {
+  const msg = String(err && err.stack ? err.stack.split('\n').slice(0, 2).join(' | ') : err)
+  if (_frameErr === msg) return
+  _frameErr = msg
+  try { console.error(what + ':', err) } catch {}
+  try {
+    let b = document.getElementById('frameerr')
+    if (!b) {
+      b = document.createElement('div'); b.id = 'frameerr'
+      b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a1e1e;'
+        + 'color:#ffd9d9;font:11px Verdana;padding:6px 10px;border-top:2px solid #a33;'
+        + 'cursor:pointer;white-space:pre-wrap'
+      b.onclick = () => b.remove()
+      document.body.appendChild(b)
+    }
+    b.textContent = 'The window hit an error in ' + what + '. The world is fine and '
+      + 'still ticking; this frame was skipped.\n' + msg + '\n(tap to dismiss)'
+  } catch {}
+}
 const feed = t => { const now = performance.now()
+  // it compared against the IMMEDIATELY previous line only, so a message
+  // repeating on a slow loop got through every time anything else spoke in
+  // between -- which is how the same sentence filled the log while looking
+  // deduplicated. Fold a repeat into a count instead.
+  const back = feedLines.length - 1
+  for (let i = back; i >= 0 && i > back - 6; i--) {
+    const m = /^(.*?)(?: \u00d7(\d+))?$/.exec(feedLines[i])
+    if (m && m[1] === t && now - lastFeed.at < 12000) {
+      feedLines[i] = t + ' \u00d7' + ((+m[2] || 1) + 1)
+      lastFeed = { text: t, at: now }
+      const el0 = document.getElementById('feed')
+      el0.innerHTML = feedLines.map(x => '<div>' + x + '</div>').join(''); el0.scrollTop = 9e9
+      return
+    }
+  }
   if (t === lastFeed.text && now - lastFeed.at < 2000) return // no log spam
   lastFeed = { text: t, at: now }
   feedLines.push(t); if (feedLines.length > 40) feedLines.shift()
@@ -4401,6 +4493,11 @@ const CALLING_LINE_W = {
   collier: 'He burns the stack slow, and sleeps beside it so it stays slow.',
   wizard: 'He was here before the stones were, and says so often.',
 }
+// §6dg/§6af: how many blows each special throws, and whether it is loosed or
+// swung -- generated from engine.js WEAPONS. The window knew the NAME of a
+// special and nothing about its shape, so a six-arrow flurry and a single
+// dagger thrust drew the same little ring and nothing else.
+const SPEC_BLOWS = { 'star-dagger': 6, 'star-maul': 2, 'horn-bow': 6, 'handgonne': 2, 'dragonbow': 1 }
 // §6dj: generated from engine.js WEAPONS. It still named `true` for the
 // horn-bow -- a special that was retired two revisions ago -- and knew nothing
 // of the great-crossbow.
@@ -5317,7 +5414,14 @@ function onState(s, worldId, local) {
   if (entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
       && !meL.action                          // busy: the interval is the deed's
       && lastStamped <= s.tick                // no slot already spoken for
-      && (s.tick % 12) === 0) { send({ do: 'set_look', look: pickLook }) }
+      && (s.tick % 12) === 0
+      // §7d: ...and only where the engine would ACCEPT it. Once a citizen has a
+      // face, `set_look` is refused anywhere but at a looking-glass -- so this
+      // retried every twelve intervals, for ever, and was refused every time.
+      // A retry that can never succeed is a loop, not a retry.
+      && (meL.look === undefined || Object.values(s.nodes ?? {}).some((n) => n.type === 'looking-glass'
+          && Math.abs(meL.x - n.x) + Math.abs(meL.y - n.y) === 1))
+     ) { send({ do: 'set_look', look: pickLook }) }
   // per-state caches (perf): water adjacency and who pins which mob
   s._waterAdj = {}
   s._waterTiles = new Set()
@@ -5375,8 +5479,43 @@ function onState(s, worldId, local) {
     // because no ordinary swing ever does that.
     for (const [pid2, p2] of Object.entries(s.players)) {
       const was9 = prev.players?.[pid2]?.lastSwing ?? -9
-      if ((p2.lastSwing ?? -9) > s.tick && (p2.lastSwing ?? -9) !== was9)
-        effects.push({ kind: 'special', x: p2.x, y: p2.y, at: performance.now() })
+      if (!((p2.lastSwing ?? -9) > s.tick && (p2.lastSwing ?? -9) !== was9)) continue
+      const at9 = performance.now()
+      effects.push({ kind: 'special', x: p2.x, y: p2.y, at: at9 })
+      // §6af: AND IT MAKES A NOISE. A flurry that arrives in silence is a
+      // health bar falling on its own. The rising third says "off the rhythm";
+      // the volley below counts itself out loud.
+      const mine9 = pid2 === myId
+      tone(mine9 ? 300 : 240, 0.16, { type: 'square', vol: mine9 ? 0.07 : 0.05, glide: mine9 ? 520 : 400 })
+      // §6af: A SPECIAL LOOKS LIKE ONE -- AND LIKE HOW MANY.
+      //
+      // The ring above is thrown at the STRIKER, which tells the striker
+      // something they already know and tells the struck nothing at all. A
+      // horn-bow flurry is six arrows in one interval; on screen it was a
+      // health bar falling forty points with no arrow, no sound and one splat
+      // that was gone before you looked. That is not a fight, it is a verdict.
+      //
+      // So: the volley flies, one shaft per blow, staggered; and the mark lands
+      // where it lands. The count is the engine's own `blows`.
+      const w2 = p2.equipment?.weapon?.item
+      const n2 = SPEC_BLOWS[w2] ?? 1
+      const act2 = p2.action
+      const tgt2 = act2 ? (act2.mobId ? s.mobs[act2.mobId] : s.players[act2.targetId]) : null
+      if (!tgt2) continue
+      if (RANGED_ITEMS.has(w2) && Math.max(Math.abs(p2.x - tgt2.x), Math.abs(p2.y - tgt2.y)) > 1) {
+        effects.push({ kind: 'volley', x: p2.x, y: p2.y, tx: tgt2.x, ty: tgt2.y,
+          n: n2, self: mine9, at: at9 })
+        // one thwip per shaft, on the same 60ms stagger the drawing uses, so
+        // you can COUNT them -- six is a different sound from two.
+        for (let k = 0; k < n2; k++)
+          thud(0.045, mine9 ? 0.06 : 0.05, k * 0.06, true)
+      }
+      effects.push({ kind: 'specialhit', x: tgt2.x, y: tgt2.y, n: n2, at: at9 })
+      // and it lands. Being on the receiving end is the louder of the two: a
+      // citizen who is being hit should hear it before they read the number.
+      const hitMe9 = act2 && act2.targetId === myId
+      thud(0.13, hitMe9 ? 0.20 : 0.11, RANGED_ITEMS.has(w2) ? 0.06 + (n2 - 1) * 0.06 : 0.02)
+      if (hitMe9) tone(150, 0.22, { type: 'sawtooth', vol: 0.09, glide: 90, at: 0.04 })
     }
     // §6aa: AND THE BLOWS THAT MISSED.
     //
@@ -5682,11 +5821,18 @@ function onState(s, worldId, local) {
     for (const [pid2, p2] of Object.entries(s.players)) {
       const act = p2.action
       if (!act || (act.type !== 'attack' && act.type !== 'attackp')) continue
-      if (p2.equipment?.weapon?.item !== 'wooden-bow') continue
-      if ((s.tick - (act.since ?? 0)) % 2 !== 0) continue
+      // §6dg: EVERY DRAWN ARM, NOT THE FIRST BOW. This read `!== 'wooden-bow'`,
+      // so the horn-bow, both crossbows, the sigil-bow, the dragonbow, the
+      // handgonne and the javelins loosed NOTHING a citizen could see. Being
+      // shot at from five tiles looked like your health bar deciding to fall.
+      const wi2 = p2.equipment?.weapon?.item
+      if (!RANGED_ITEMS.has(wi2)) continue
+      // ...and on the weapon's own rhythm, not a hardcoded two
+      if ((s.tick - (act.since ?? 0)) % (WEAPON_EVERY[wi2] ?? 2) !== 0) continue
       const t2 = act.mobId ? s.mobs[act.mobId] : s.players[act.targetId]
       if (!t2 || Math.abs(p2.x - t2.x) + Math.abs(p2.y - t2.y) <= 1) continue
       effects.push({ kind: 'arrowshot', x: p2.x, y: p2.y, tx: t2.x, ty: t2.y, at: performance.now() })
+      thud(0.04, pid2 === myId ? 0.05 : 0.035, 0, true)   // §6dg: a loosed shaft is heard
     }
 
     // the Wilds chase: a fleeing target breaks the engagement (spec 2g),
@@ -5694,7 +5840,7 @@ function onState(s, worldId, local) {
     if (old.action?.type === 'attackp' && !me.action && intent === null) {
       const tid2 = old.action.targetId
       const q2 = s.players[tid2]
-      if (q2 && q2.hp > 0 && inWildsC(me.x, me.y) && inWildsC(q2.x, q2.y)) {
+      if (q2 && q2.hp > 0 && mayStrikeC(me, q2)) {   // §11d
         feed('They break away: you give chase!')
         intent = { kind: 'pvpattack', id: tid2 }
       }
@@ -5794,7 +5940,15 @@ function onState(s, worldId, local) {
       if (n && n.depletedUntil > s.tick) feed({ 'tree': 'The tree falls.', 'rock': 'The rock crumbles.',
         'fishing-spot': 'The fish stop biting: for now.' }[n.type] ?? 'Exhausted.')
     }
-  } catch (err) { console.error('state diff error (recovered):', err) }
+  } catch (err) {
+    // §6dj: THIS SWALLOWED THE HIT SPLATS. Everything a citizen SEES about a
+    // fight is computed in this block -- splats, misses, the special's mark --
+    // and a throw anywhere in it skips all of the rest in silence. A fight then
+    // looks like nothing happening while health drops, which is exactly what it
+    // looked like. Recovered, still, but no longer quietly.
+    console.error('state diff error (recovered):', err)
+    _noteFrameErr('the fight log', err)
+  }
   prev = s
   _guarded('the side panel', () => panel(s))
 }
@@ -6247,6 +6401,23 @@ function drawCitizen(X, Y, o) {
   //
   // Mounted, it goes on the horse instead (further down): a laden animal reads
   // as a caravan and a laden man reads as a porter, and the world has both.
+  // §11d: A HAULER IS WORTH KNOWING FROM ACROSS A CLEARING. The crates on the
+  // back read at a glance only if you already knew to look; what a citizen
+  // needs to see is WHO MAY STRIKE THEM AND WHO THEY MAY STRIKE, because that
+  // is the whole of what a consignment changes about a stranger. A banded mark
+  // over the head, in the same amber the counter uses, on anybody carrying.
+  if (o.hauling) {
+    const HY = Y + (o.mounted ? -6 : 2)
+    const ph = (now / 520) % 1
+    cx.globalAlpha = 0.55 + 0.25 * Math.sin(ph * Math.PI * 2)
+    cx.fillStyle = '#e2b63e'
+    cx.fillRect(X + 15, HY, 10, 2.2)                           // the strap
+    cx.fillStyle = '#8a6f45'
+    cx.fillRect(X + 16.5, HY + 2.2, 7, 5)                      // the crate
+    cx.fillStyle = 'rgba(0,0,0,.35)'
+    cx.fillRect(X + 19.6, HY + 2.2, 1, 5)
+    cx.globalAlpha = 1
+  }
   if (o.hauling && !o.mounted) {
     const FB = -(o.face ?? 1)                                  // behind them
     const tiers = Math.max(1, Math.min(3, Math.ceil((o.haulLoad ?? 1) / 10)))
@@ -6829,30 +7000,8 @@ let sunDirX = 0, shadowLen = 0
 // A frame that throws is now a frame that is skipped, once, loudly. The banner
 // is deliberately ugly and deliberately quotes the error: a citizen who hits
 // this can read it out, which is worth more than a clean-looking corpse.
-let _frameErr = null, _frameErrN = 0
 function _guarded(what, fn) {
-  try { return fn() } catch (err) {
-    _frameErrN++
-    if (_frameErr !== String(err)) {
-      _frameErr = String(err)
-      try { console.error(what + ' threw (frame skipped):', err) } catch {}
-      try {
-        let b = document.getElementById('frameerr')
-        if (!b) {
-          b = document.createElement('div'); b.id = 'frameerr'
-          b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;background:#5a1e1e;'
-            + 'color:#ffd9d9;font:11px Verdana;padding:6px 10px;border-top:2px solid #a33;'
-            + 'cursor:pointer;white-space:pre-wrap'
-          b.onclick = () => b.remove()
-          document.body.appendChild(b)
-        }
-        b.textContent = 'The window hit an error drawing this (' + what + '). '
-          + 'The world is fine and still ticking; the picture skipped a frame.\n'
-          + _frameErr + '\n(tap to dismiss)'
-      } catch {}
-    }
-    return undefined
-  }
+  try { return fn() } catch (err) { _noteFrameErr(what, err); return undefined }
 }
 
 function drawScene(now) {
@@ -9218,7 +9367,11 @@ function drawScene(now) {
   layer.sort((a, b) => a.z - b.z)
   for (const item of layer) item.draw()
 
-  // hit splats: the red star of damage, 700ms — and a pale nought for a blow
+  // §6af: A BIG BLOW LINGERS. Seven hundred milliseconds is right for a swing
+  // and wrong for a flurry: forty points arrived, flashed once, and were gone
+  // before a citizen looked up. A splat now lasts in proportion to what it
+  // says, to a ceiling, so the number that mattered is the number you can read.
+  // hit splats: the red star of damage — and a pale nought for a blow
   // that found nothing, which is the difference between armour working and
   // the world being broken
   // SPLATS THAT ARRIVE TOGETHER MUST NOT SIT ON TOP OF EACH OTHER.
@@ -9248,14 +9401,18 @@ function drawScene(now) {
   for (let i = splats.length - 1; i >= 0; i--) {
     const sp = splats[i]
     const age = now - sp.at
-    if (age > 700) { splats.splice(i, 1); continue }
+    // a splat lasts in proportion to what it says: seven hundred for an
+    // ordinary blow, up to sixteen hundred for the kind of number that decides
+    // a fight. Twenty points is where a blow stops being ordinary.
+    const life = Math.min(1600, 700 + Math.max(0, (sp.amount ?? 0) - 20) * 30)
+    if (age > life) { splats.splice(i, 1); continue }
     // spread them along an arc: one sits centred, several open out, and the
     // order is the order they landed
     const n = sp._n ?? 0, of = sp._of ?? 1
     const spread = of > 1 ? ((n - (of - 1) / 2) * 13) : 0
     const lift = of > 1 ? Math.abs(n - (of - 1) / 2) * 4 : 0
     const SX = px(sp.x) + 20 + spread, SY = py(sp.y) + 18 - lift - age / 90
-    cx.globalAlpha = age > 500 ? (700 - age) / 200 : 1
+    cx.globalAlpha = age > life - 200 ? (life - age) / 200 : 1
     // a MISS is a pale ring, not a red star: the shape says at a glance
     // whether anything got through, without reading the number
     if (sp.amount === 0) {
@@ -9302,7 +9459,9 @@ function drawScene(now) {
       continue
     }
     const ef = effects[i]
-    const life = ef.kind === 'arrowshot' ? 380 : ef.kind === 'click' ? 420 : 800
+    const life = ef.kind === 'arrowshot' ? 380 : ef.kind === 'click' ? 420
+      : ef.kind === 'volley' ? 260 + ((ef.n ?? 1) - 1) * 60 + 80
+      : ef.kind === 'specialhit' ? 700 : 800
     const age = now - ef.at
     if (age > life) { effects.splice(i, 1); continue }
     const p2 = age / life
@@ -9434,6 +9593,49 @@ function drawScene(now) {
       cx.beginPath(); cx.moveTo(6, 0); cx.lineTo(2, -2); cx.lineTo(2, 2); cx.closePath(); cx.fill()
       cx.fillStyle = '#e8e4d0'; cx.fillRect(-7, -1.4, 2.4, 2.8)
       cx.restore()
+    } else if (ef.kind === 'volley') {
+      // §6af: ONE SHAFT PER BLOW, staggered, so six reads as six. Each flies
+      // its own 260ms; the last leaves 60ms after the one before it.
+      const fx3 = px(ef.x) + 20, fy3 = py(ef.y) + 16
+      const tx3 = px(ef.tx) + 20, ty3 = py(ef.ty) + 16
+      const ang3 = Math.atan2(ty3 - fy3, tx3 - fx3)
+      const perp = ang3 + Math.PI / 2
+      for (let k = 0; k < (ef.n ?? 1); k++) {
+        const t3 = (age - k * 60) / 260
+        if (t3 < 0 || t3 > 1) continue
+        // a little spread across the flight, so a volley looks loosed and not printed
+        const sp = ((k % 2 ? 1 : -1) * (1 + (k >> 1)) * 2.4) * Math.sin(t3 * Math.PI)
+        const ax3 = fx3 + (tx3 - fx3) * t3 + Math.cos(perp) * sp
+        const ay3 = fy3 + (ty3 - fy3) * t3 + Math.sin(perp) * sp
+        cx.save(); cx.translate(ax3, ay3); cx.rotate(ang3)
+        cx.globalAlpha = Math.min(1, (1 - t3) * 3)
+        cx.strokeStyle = ef.self ? '#c9a86a' : '#d08a5a'; cx.lineWidth = 1.8
+        cx.beginPath(); cx.moveTo(-7, 0); cx.lineTo(4, 0); cx.stroke()
+        cx.fillStyle = '#e6e2d2'
+        cx.beginPath(); cx.moveTo(7, 0); cx.lineTo(2, -2.2); cx.lineTo(2, 2.2); cx.closePath(); cx.fill()
+        cx.restore()
+      }
+      cx.globalAlpha = 1
+    } else if (ef.kind === 'specialhit') {
+      // and it lands: a struck ring at the TARGET, one tick mark per blow
+      // around it, so the person being hit can see what hit them.
+      const t4 = age / 700
+      if (t4 <= 1) {
+        cx.strokeStyle = 'rgba(255,120,90,' + (0.85 * (1 - t4)) + ')'
+        cx.lineWidth = 3 * (1 - t4) + 0.8
+        cx.beginPath(); cx.arc(EX, EY, 4 + t4 * 17, 0, 7); cx.stroke()
+        const n4 = ef.n ?? 1
+        cx.strokeStyle = 'rgba(255,224,200,' + (0.9 * (1 - t4)) + ')'
+        cx.lineWidth = 1.8
+        for (let k = 0; k < n4; k++) {
+          const a4 = (k / n4) * Math.PI * 2 - 1.2
+          const r0 = 6 + t4 * 12, r1 = r0 + 5
+          cx.beginPath()
+          cx.moveTo(EX + Math.cos(a4) * r0, EY + Math.sin(a4) * r0)
+          cx.lineTo(EX + Math.cos(a4) * r1, EY + Math.sin(a4) * r1)
+          cx.stroke()
+        }
+      }
     } else if (ef.kind === 'fletch') {
       cx.fillStyle = '#c9a86a'
       for (let k = 0; k < 4; k++) cx.fillRect(EX - 6 + k * 4, EY + 2 + p2 * 10 + k, 2.4, 1.6)
@@ -9653,9 +9855,24 @@ function panel(s) {
   const me = s.players[myId]; if (!me) return
   // walking changes nothing here; rebuilding anyway stole frames
   // 'is a counter beside me' walked the whole island, sixty times a second
+  // §6dj: THE SIGNATURE DECIDES WHETHER THIS FUNCTION RUNS AT ALL, and it only
+  // ever asked whether a STORE was beside you. So walking up to a trade stall
+  // changed nothing it watched -- same pack, same gold, no store -- and `panel`
+  // returned four lines below without rebuilding the bar. The stall's stock
+  // pane was written, wired and correct, and could not appear: the window said
+  // "buy from the bar below" and the bar below was whatever it had been before.
+  //
+  // Everything the bar draws has to be in here, or the bar is a function of
+  // state this never looks at.
+  const nearBarSig = nodesNear(s, me.x - 2, me.y - 2, me.x + 2, me.y + 2)
+    .filter(([, n]) => (n.type === 'store' || n.type === 'stall' || n.type === 'market')
+      && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) <= 1)
+    .map(([id, n]) => id + ':' + n.type + ':' + (n.kind ?? '') + ':' + (n.ask ?? '')
+      + ':' + (n.coin ?? '') + ':' + JSON.stringify(n.shelf ?? null)).sort().join('|')
   const nearStoreSig = nodesNear(s, me.x - 2, me.y - 2, me.x + 2, me.y + 2)
     .some(([, n]) => n.type === 'store' && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
   const sig = JSON.stringify([me.hp, me.name, me.skills, me.inventory, me.equipment, me.gold, nearStoreSig,
+    nearBarSig, me.consignment, me.brandedUntil ?? 0,
     me.bank, me.trade,
     Object.values(s.players).filter(p => p.trade?.to === myId).map(p => [p.trade, p.name])])
   if (sig === panelSig) return
@@ -9797,6 +10014,11 @@ function panel(s) {
       + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard'
       + (atEnd ? ' \u00b7 <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>'
                : ' \u00b7 leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
+      + (atEnd ? '' : '<div style="color:#e2b63e;font-size:11px;margin:0 0 4px">Next: '
+          + (haulNext(s, myHaul) ?? 'the next counter')
+          + ((myHaul.route ?? []).length > 1
+            ? ' <span style="color:#8a7f68">\u00b7 discharge at ' + (haulLast(s, myHaul) ?? '?') + '</span>' : '')
+          + '</div>')
       + (atEnd
         ? (((me.brandedUntil ?? 0) > s.tick)
           ? '<span style="color:#d08a5a;font-size:10px">Branded. No counter will take a delivery from you yet.</span>'
@@ -9903,6 +10125,28 @@ function panel(s) {
       send({ do: 'buy', item: b })
       feed((STALL_NAME[stallB.kind] ?? 'the trader') + ' slides it across.')
     }
+  }
+  // §11c: THE ROAD, WHEREVER YOU ARE. A hauler needs this on the road, not at
+  // the counter they have already left, so it stands under the skills.
+  const hb = document.getElementById('haulbar') ?? (() => {
+    const d = document.createElement('div'); d.id = 'haulbar'
+    d.style.cssText = 'margin:4px 0;padding:4px 6px;border:1px solid #6e5433;background:#2a2418;'
+      + 'color:#e2b63e;font-size:11px;line-height:1.5'
+    document.getElementById('sellbar').parentNode.insertBefore(d, document.getElementById('sellbar'))
+    return d
+  })()
+  if (!me.consignment) hb.style.display = 'none'
+  else {
+    hb.style.display = 'block'
+    const c9 = me.consignment
+    const load9 = (c9.items ?? []).filter(Boolean).length
+    hb.innerHTML = 'CARRYING \u00b7 ' + load9 + ' slot' + (load9 === 1 ? '' : 's')
+      + (haulAtEndC(c9)
+        ? ' \u00b7 <b style="color:#8ce08c">discharge here at ' + (haulLast(s, c9) ?? 'this counter') + '</b>'
+        : '<br><span style="color:#e8d9a0">Next: ' + (haulNext(s, c9) ?? 'the next counter') + '</span>'
+          + '<span style="color:#8a7f68"> \u00b7 leg ' + ((c9.leg ?? 0) + 1) + ' of '
+          + (c9.route ?? []).length + ' \u00b7 discharge at ' + (haulLast(s, c9) ?? '?') + '</span>')
+      + '<br><span style="color:#a89a7c;font-size:10px">No bank, no recall. Anyone else carrying may strike you.</span>'
   }
   document.getElementById('status').textContent =
     me.action ? 'busy: ' + me.action.type : 'idle: click the world'
@@ -10757,14 +11001,15 @@ cv.addEventListener('click', (e) => {
         feed('You send a mending to ' + nm2 + '. The sigil goes with it.')
       } }]
     })()
-    if (inWildsC(me.x, me.y) && inWildsC(p.x, p.y)) {
+    if (mayStrikeC(me, p)) {
       const nm = p.name ?? pid.slice(0, 6)
+      const why = (me.consignment && p.consignment) ? 'You are both carrying.' : 'The Wilds allow it.'
       chooseAction([
         ...mendOpt,
         { label: 'attack ' + nm, act: () => {
           const q2 = world.players[pid]
-          if (q2 && Math.abs(me.x - q2.x) + Math.abs(me.y - q2.y) <= 1) { send({ do: 'attackp', targetId: pid }); feed('You turn on ' + nm + '. The Wilds allow it.') }
-          else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. The Wilds allow it.') }
+          if (q2 && Math.abs(me.x - q2.x) + Math.abs(me.y - q2.y) <= 1) { send({ do: 'attackp', targetId: pid }); feed('You turn on ' + nm + '. ' + why) }
+          else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. ' + why) }
         } },
         { label: 'trade', act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
       ]); return

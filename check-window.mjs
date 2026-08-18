@@ -124,4 +124,25 @@ console.log('\n--- the skill guide ---')
     `skills that gate nothing say so: ${noGate.join(', ')}${unexplained.length ? ' — UNEXPLAINED ' + unexplained.join(',') : ''}`)
 }
 
+
+
+console.log('\n--- a fight is visible ---')
+{
+  const eW3 = grab(E, 'const WEAPONS = ')
+  const wBlows = ev(blk(W, 'const SPEC_BLOWS = '))
+  const wEvery = ev(blk(W, 'const WEAPON_EVERY = '))
+  const eBlows = Object.fromEntries(Object.entries(eW3).filter(([, v]) => v.spec).map(([k, v]) => [k, v.blows ?? 1]))
+  ok(JSON.stringify(eBlows) === JSON.stringify(wBlows), `blow counts: ${JSON.stringify(wBlows)}`)
+  const everyDrift = Object.entries(eW3).filter(([k, v]) => wEvery[k] !== (v.every ?? 2)).map(([k]) => k)
+  ok(!everyDrift.length, `cadences match the engine${everyDrift.length ? ' — DRIFT ' + everyDrift.join(',') : ''}`)
+  {
+    const tracer = W.slice(W.indexOf('loosed arrows fly'), W.indexOf('loosed arrows fly') + 1400)
+      .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
+    ok(!/'wooden-bow'/.test(tracer), 'the arrow tracer is not pinned to one bow')
+  }
+  for (const k of ['volley', 'specialhit'])
+    ok(new RegExp(`kind === '${k}'`).test(W) && new RegExp(`kind: '${k}'`).test(W),
+      `\`${k}\` is both raised and drawn`)
+}
+
 process.exit(bad ? 1 : 0)

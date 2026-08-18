@@ -16,27 +16,34 @@ const html = readFileSync('window-web.html', 'utf8')
 const body = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)][0][1]
 
 const noop = () => {}
-const el = () => new Proxy(function () {}, {
+const bars = {}   // what each panel element was last given
+let bad = 0
+const ok = (c, m) => { console.log((c ? '  ok  ' : '  FAIL') + '  ' + m); if (!c) bad++ }
+const el = (id) => new Proxy(function () {}, {
   get(t, k) {
+    if (k === '__id') return id
     if (k === 'style') return new Proxy({}, { get: () => '', set: () => true })
     if (k === 'dataset') return {}
     if (k === 'classList') return { add: noop, remove: noop, contains: () => false }
     if (k === 'children' || k === 'childNodes') return []
-    if (k === 'parentNode' || k === 'parentElement') return el()
+    if (k === 'parentNode' || k === 'parentElement') return el(null)
     if (k === 'innerHTML' || k === 'textContent' || k === 'value' || k === 'id') return ''
     if (k === 'width' || k === 'height' || k === 'offsetWidth') return 800
+    if (k === 'toDataURL') return () => 'data:,'
     if (k === Symbol.toPrimitive) return () => ''
-    return el()
+    return el(null)
   },
-  set: () => true, apply: () => el(),
+  set(t, k, v) { if (k === 'innerHTML' && id) bars[id] = String(v); return true },
+  apply: () => el(),
 })
 const ctx = {
   document: new Proxy({}, { get(t, k) {
-    if (k === 'getElementById' || k === 'querySelector' || k === 'createElement') return () => el()
+    if (k === 'getElementById') return (id) => el(id)
+    if (k === 'querySelector' || k === 'createElement') return () => el('new')
     if (k === 'querySelectorAll') return () => []
     if (k === 'addEventListener') return noop
-    if (k === 'body' || k === 'head') return el()
-    return el()
+    if (k === 'body' || k === 'head') return el(null)
+    return el(null)
   } }),
   console: { log: noop, warn: noop, error: noop },
   setTimeout: noop, setInterval: noop, clearTimeout: noop, requestAnimationFrame: noop,
@@ -49,7 +56,13 @@ const ctx = {
 }
 ctx.window = ctx
 vm.createContext(ctx)
-vm.runInContext(body, ctx, { timeout: 20000 })
+// §6dj: `let` at the top of a vm script is NOT on the context object, so
+// assigning ctx.myId from outside changed nothing and `panel()` returned at its
+// first line -- `if (!me) return` -- every single time. The harness reported
+// green because nothing ran. A setter compiled into the same lexical scope is
+// the only way in.
+vm.runInContext(body + '\n;globalThis.__test = (w, i) => { world = w; myId = i }',
+  ctx, { timeout: 20000 })
 
 // a real state from the real engine, so the shapes are never a guess
 const RULES = 'a'.repeat(64)
@@ -71,10 +84,8 @@ function fresh(place) {
 }
 const sign = (f) => E.signInput({ worldId: WID, playerId: me.playerId, ...f }, me.privateKey)
 
-let bad = 0
 const drive = (label, s) => {
-  ctx.world = s
-  ctx.myId = me.playerId
+  ctx.__test(s, me.playerId)
   try { ctx.panel(s); console.log(`  ok    ${label}`) }
   catch (e) { console.log(`  FAIL  ${label}\n          ${e.name}: ${e.message}`); bad++ }
 }
@@ -107,11 +118,31 @@ s6.players[me.playerId].equipment.weapon = { item: 'star-javelin', qty: 1 }
 s6.players[me.playerId].inventory[1] = { item: 'star-javelin', qty: 9 }
 drive('holding a javelin', s6)
 
+console.log('\n--- the bar shows what you are standing next to ---')
+// §6dj: `panel()` early-returns on an unchanged signature, and the signature
+// did not mention stalls -- so the stock pane could not appear when you walked
+// up to one. It renders into an element, so the check has to READ that element.
+{
+  const s7 = fresh()
+  s7.nodes['stall-1'].kind = 'lumber'
+  s7.players[me.playerId].gold = 100
+  ctx.__test(s7, me.playerId)
+  ctx.panel(s7)
+  const html = String(bars.sellbar ?? '')
+  ok(/data-buy="iron-hatchet"/.test(html), 'the axe man offers a hatchet')
+  ok(/THE AXE MAN SELLS/.test(html), 'and is named')
+  const s8 = fresh()
+  s8.players[me.playerId].consignment = { from: 'store-1', route: ['store-1'], leg: 0,
+    items: [{ item: 'logs', qty: 3 }, ...Array(27).fill(null)] }
+  ctx.__test(s8, me.playerId); ctx.panel(s8)
+  ok(/Next:/.test(String(bars.haulbar ?? '')), 'a hauler is told where to go')
+}
+
 console.log('\n--- drawScene() survives a frame ---')
 // the canvas loop runs sixty times a second and is not inside anything's
 // try/catch either. If it throws, the picture stops and the window is frozen.
 const paint = (label, s) => {
-  ctx.world = s; ctx.myId = me.playerId
+  ctx.__test(s, me.playerId)
   try { ctx.drawScene(s, 0); console.log(`  ok    ${label}`) }
   catch (e) { console.log(`  FAIL  ${label}\n          ${e.name}: ${e.message}`); bad++ }
 }
@@ -120,7 +151,7 @@ paint('after drinking (the well is depleted)', s2)
 paint('holding a javelin', s6)
 
 console.log('\n--- the skill guide opens for every skill ---')
-ctx.world = fresh(); ctx.myId = me.playerId
+ctx.__test(fresh(), me.playerId)
 const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing', 'firemaking',
   'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength', 'defence',
   'hitpoints', 'exploration', 'brewing', 'hauling']
