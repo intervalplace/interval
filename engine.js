@@ -2198,7 +2198,7 @@ const MOB_STATS = {
                     { item: 'old-chain', chance: 2 }] },
   bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
             drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'iron-hatchet', chance: 4096 },
-                    { item: 'horn-bow', chance: 65536 }, { item: 'forage', chance: 22938 }] },
+                    { item: 'horn-bow', chance: 66 }, { item: 'forage', chance: 22938 }] },
   // the skeleton-knight (v0.42): a horned, shield-bearing warrior of the frontier.
   // Seldom alone, they muster in warbands in and around the Wilds. The round
   // shield makes them hard to strike (high def); the longsword bites back. And

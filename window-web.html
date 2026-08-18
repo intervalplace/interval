@@ -2876,6 +2876,25 @@ function itemSprite(item) {
       g.fillStyle = '#4a4a52'; g.fillRect(18.5, 10.5, 4.6, 2.2)    // collar
       if (star) { g.fillStyle = 'rgba(120,220,255,.4)'; g.fillRect(22.6, 3, 1, 6) }
       break }
+    // §6dg: THE JAVELIN. A spear's head on a short shaft, drawn upright rather
+    // than raked back like the long spears, so the two never read as the same
+    // weapon in a pack. A leather grip at the balance point says thrown, and
+    // steel gets a bright collar the way the rest of the steel line does.
+    case 'iron-javelin': case 'steel-javelin': case 'star-javelin': {
+      const star = item.startsWith('star-'), steel = item.startsWith('steel-')
+      const head = star ? '#c8f0ff' : steel ? '#dfe6ee' : '#e4ddc9'
+      const edge = star ? '#54a8cc' : steel ? '#8794a4' : '#9a927e'
+      g.strokeStyle = '#7a5124'; g.lineWidth = 2.2                 // short shaft
+      g.beginPath(); g.moveTo(13, 30); g.lineTo(18, 9); g.stroke()
+      g.strokeStyle = '#5c3d1b'; g.lineWidth = 0.9
+      g.beginPath(); g.moveTo(13, 30); g.lineTo(18, 9); g.stroke()
+      pl([[18,9],[19,1],[23,8],[20,11]], head, edge)               // leaf head
+      g.fillStyle = '#4a4a52'; g.fillRect(16.2, 10.6, 4.2, 1.9)    // collar
+      g.fillStyle = '#3b2a16'; g.fillRect(14.4, 18, 3.4, 4.6)      // the grip
+      g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(14.6, 18.4, 1, 3.8)
+      if (star) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
+      if (steel) { g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(19.6, 3.4, 0.9, 4.6) }
+      break }
     case 'iron-maul': case 'star-maul': {
       const star = item.startsWith('star-')
       const head = star ? '#bfe6f5' : '#d8d1bc', edge = star ? '#4c98bb' : '#8b846f'
@@ -3118,20 +3137,37 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
 // the engine by check-equip.mjs so it cannot drift again.
 // WHAT MAY BE TAKEN UP. Five things could be made and then not held: the
 // staff, the heartwood staff, the wand and both star tools.
+// §6dj: EVERY NAME THE ENGINE LETS YOU TAKE UP, and this list had gone stale
+// AGAIN -- twenty-five of them, which is more than were in it the last time
+// somebody wrote the note above about seven having fallen out.
+//
+// The stakes are not cosmetic. A name the window does not recognise is not
+// wielded, it is DROPPED ON THE GROUND. So a citizen who forged a steel sword,
+// a star shield, a gold plate, any of the three rods, the shell armour, the
+// king's shroud or the horn, and then clicked it in their pack, threw it away.
+// The whole steel tier, every shield in the world, and all of the gold.
+//
+// It went stale for the reason it went stale before: the engine DERIVES its
+// set -- every smithing recipe, plus the handful of things that are fletched
+// or found -- and the window spells it out by hand. A derived list and a
+// written list drift the moment anybody adds a recipe, and this world adds
+// recipes. Spelled out here in full, sorted, generated from the engine's own
+// derivation, and worth a check that runs rather than a comment that asks.
 const EQUIPPABLE = new Set([
-  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-maul',
-  'iron-pickaxe', 'iron-plate', 'iron-spear', 'iron-sword',
-  'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
-  'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
-  'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
-  'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
-  'goo-staff',
-  // §6da: the cinder-crown -- a named cosmetic (unlike the shape-tested hood
-  // and fall-stone ids), so it lives in this set like every other wieldable
-  // name; the engine's slotOf() sends it to the head. Matches engine EQUIPPABLE.
-  'cinder-crown',
-  // §7l: the bare-blade -- damage from what you are NOT wearing
-  'bare-blade',
+  'bare-blade', 'cinder-crown', 'crossbow', 'dragonbow', 'gold-bar',
+  'gold-helm', 'gold-legs', 'gold-plate', 'goo-staff', 'great-crossbow',
+  'great-hatchet', 'great-helm', 'great-pickaxe', 'great-plate',
+  'great-sword', 'handgonne', 'heartwood-bow', 'heartwood-rod',
+  'heartwood-staff', 'horn', 'horn-bow', 'iron-dagger', 'iron-hatchet',
+  'iron-helm', 'iron-javelin', 'iron-maul', 'iron-pickaxe', 'iron-plate',
+  'iron-shield', 'iron-spear', 'iron-sword', 'ironbark-rod', 'king-shroud',
+  'oak-rod', 'old-chain', 'rod', 'shell-helm', 'shell-plate', 'shot',
+  'sigil-bow', 'staff', 'star-dagger', 'star-flail', 'star-hatchet',
+  'star-helm', 'star-ingot', 'star-javelin', 'star-maul', 'star-pickaxe',
+  'star-plate', 'star-shield', 'star-spear', 'star-sword', 'steel-dagger',
+  'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-maul',
+  'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
+  'steel-sword', 'wand', 'wooden-bow'
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -3170,6 +3206,207 @@ const CALLINGS = {
   smithing: 'smith', firemaking: 'firekeeper', prayer: 'mourner', ranged: 'archer',
   magic: 'sigilist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
   defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
+}
+// §6bv: WHAT OPENS, AND AT WHAT LEVEL. Generated from the engine's own
+// `skillUnlocks()`, which has existed and been exported this whole time and
+// which no window ever called -- so the only way to find out what a level was
+// FOR was to read nine thousand lines of engine.
+//
+// The engine's doctrine travels with the table and this window keeps it:
+// NAMES AND LEVELS, NEVER YIELDS, ODDS, MULTIPLIERS OR TACTICS. That a
+// gallows-oak gives two heartwood to a strike, that the gold seam answers
+// about once in sixteen thousand intervals -- those are discoveries, findable
+// by anybody willing to stand at a tree and count. Printing them in a menu
+// costs nothing to reach and so is worth nothing to know.
+//
+// A gate is different. A citizen has to be able to AIM: to know the heartwood
+// wants seventy-eight and decide whether to walk that road. Hiding a gate does
+// not create discovery, it creates wandering.
+const SKILL_UNLOCKS = {
+  attack: [
+    [30, 'take up the bare blade'],
+    [30, 'take up the old chain'],
+    [35, 'take up the steel dagger'],
+    [35, 'take up the steel spear'],
+    [35, 'take up the steel sword'],
+    [38, 'take up the steel maul'],
+    [50, 'take up the star dagger'],
+    [50, 'take up the star spear'],
+    [50, 'take up the star sword'],
+    [55, 'take up the star flail'],
+    [55, 'take up the star maul'],
+    [70, 'take up the great sword'],
+  ],
+  brewing: [
+    [78, 'a deep fish makes a DEEP BROTH'],
+    [90, 'a pot gives up more than it used to'],
+  ],
+  cooking: [
+    [78, 'you may cook the deep fish'],
+  ],
+  defence: [
+    [1, 'take up the iron shield'],
+    [15, 'take up the shell helm'],
+    [15, 'take up the shell plate'],
+    [30, 'take up the steel shield'],
+    [32, 'take up the steel helm'],
+    [38, 'take up the steel plate'],
+    [40, 'take up the king shroud'],
+    [45, 'take up the gold helm'],
+    [45, 'take up the gold legs'],
+    [45, 'take up the star helm'],
+    [48, 'take up the star shield'],
+    [50, 'take up the gold plate'],
+    [50, 'take up the star plate'],
+    [70, 'take up the great helm'],
+    [70, 'take up the great plate'],
+  ],
+  exploration: [
+    [90, 'any rumour yields a chart'],
+  ],
+  farming: [
+    [25, 'the muck heaps of the farm country'],
+    [90, 'a fuller sheaf from every row'],
+  ],
+  firemaking: [
+    [80, 'kindle a watchfire'],
+  ],
+  fishing: [
+    [10, 'take up the oak rod'],
+    [20, 'the eel runs'],
+    [30, 'take up the ironbark rod'],
+    [70, 'take up the heartwood rod'],
+    [78, 'the deep fish of the Wilds water'],
+    [92, 'the drowned shoal under the gibbet'],
+  ],
+  fletching: [
+    [1, 'shape the rod'],
+    [10, 'shape the oak rod'],
+    [30, 'shape the ironbark rod'],
+    [70, 'shape the heartwood rod'],
+    [80, 'more arrows from the same bone'],
+    [90, 'the heartwood bow and the heartwood staff'],
+  ],
+  magic: [
+    [1, 'transmute'],
+    [20, 'forge the star helm'],
+    [20, 'take up the sigil bow'],
+    [22, 'forge the star hatchet'],
+    [22, 'forge the star pickaxe'],
+    [25, 'forge the sigil bow'],
+    [25, 'forge the star sword'],
+    [26, 'forge the star javelin'],
+    [26, 'forge the star spear'],
+    [28, 'forge the star dagger'],
+    [29, 'forge the star flail'],
+    [30, 'forge the star maul'],
+    [30, 'forge the star plate'],
+    [34, 'forge the great crossbow'],
+    [34, 'forge the great helm'],
+    [34, 'forge the great plate'],
+    [34, 'forge the great sword'],
+    [50, 'mend'],
+    [70, 'take up the goo staff'],
+    [70, 'take up the heartwood staff'],
+    [85, 'the stilling'],
+  ],
+  mining: [
+    [10, 'take up the steel pickaxe'],
+    [20, 'the coal seams open to your pick'],
+    [30, 'take up the star pickaxe'],
+    [70, 'take up the great pickaxe'],
+    [70, 'the brimstone vents of the Crags'],
+    [78, 'the magic-rocks of the Wilds open to your pick'],
+    [85, 'the gold seam will answer you'],
+    [92, 'the mother lode, deep in the Wilds'],
+  ],
+  prayer: [
+    [70, 'the dearest priced thing you carry survives your death'],
+    [99, 'the two dearest do'],
+  ],
+  ranged: [
+    [1, 'take up the iron javelin'],
+    [15, 'take up the steel javelin'],
+    [20, 'take up the horn bow'],
+    [25, 'take up the crossbow'],
+    [30, 'take up the sigil bow'],
+    [40, 'take up the dragonbow'],
+    [40, 'take up the heartwood bow'],
+    [50, 'take up the star javelin'],
+    [70, 'take up the great crossbow'],
+    [90, 'take up the handgonne'],
+  ],
+  smithing: [
+    [1, 'forge the iron dagger'],
+    [1, 'forge the iron hatchet'],
+    [1, 'forge the iron pickaxe'],
+    [5, 'forge the iron javelin'],
+    [5, 'forge the iron spear'],
+    [7, 'forge the iron helm'],
+    [10, 'forge the iron sword'],
+    [12, 'forge the iron shield'],
+    [12, 'forge the sigil bow (magic 25)'],
+    [14, 'forge the iron maul'],
+    [18, 'forge the crossbow'],
+    [20, 'forge the iron plate'],
+    [22, 'forge the shell helm'],
+    [25, 'forge the steel dagger'],
+    [26, 'forge the shell plate'],
+    [26, 'forge the steel hatchet'],
+    [26, 'forge the steel pickaxe'],
+    [28, 'forge the steel javelin'],
+    [28, 'forge the steel spear'],
+    [30, 'forge the steel helm'],
+    [32, 'forge the steel sword'],
+    [34, 'forge the bare blade'],
+    [34, 'forge the steel shield'],
+    [38, 'forge the steel plate'],
+    [40, 'forge the gold bar'],
+    [40, 'forge the star helm (magic 20)'],
+    [42, 'forge the star hatchet (magic 22)'],
+    [42, 'forge the star pickaxe (magic 22)'],
+    [42, 'forge the steel maul'],
+    [45, 'forge the star dagger (magic 28)'],
+    [45, 'forge the star ingot'],
+    [45, 'forge the star sword (magic 25)'],
+    [46, 'forge the star javelin (magic 26)'],
+    [46, 'forge the star spear (magic 26)'],
+    [48, 'forge the star shield'],
+    [50, 'forge the shot'],
+    [50, 'forge the star flail (magic 29)'],
+    [50, 'forge the star plate (magic 30)'],
+    [52, 'forge the star maul (magic 30)'],
+    [55, 'forge the great hatchet'],
+    [55, 'forge the great pickaxe'],
+    [70, 'forge the great crossbow (magic 34)'],
+    [70, 'forge the great helm (magic 34)'],
+    [70, 'forge the great plate (magic 34)'],
+    [70, 'forge the great sword (magic 34)'],
+    [75, 'forge the gold helm'],
+    [80, 'forge the gold legs'],
+    [85, 'forge the gold plate'],
+    [90, 'forge the handgonne'],
+  ],
+  strength: [
+    [30, 'take up the bare blade'],
+  ],
+  woodcutting: [
+    [10, 'take up the steel hatchet'],
+    [20, 'the oak groves open to your axe'],
+    [30, 'take up the star hatchet'],
+    [45, 'the ironbark stands'],
+    [70, 'take up the great hatchet'],
+    [78, 'the heartwood of the deep Greenwood'],
+    [92, 'the gallows-oaks of the Wilds'],
+  ],
+}
+// the skills that gate nothing are not broken, they are the four that pay no
+// power (§11): the road is the whole of what they are.
+const SKILL_NOTE = {
+  hitpoints: 'Rises on its own, from every blow you land. It gates nothing \u2014 it IS your health.',
+  hauling: 'Gates nothing. A consignment is sealed at any counter; the level is the achievement.',
+  exploration: 'Gates one thing, below. Charts are the trace it leaves.',
+  prayer: 'Gates nothing you wield. What it buys is what survives you.',
 }
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
@@ -3227,7 +3464,16 @@ const poly9 = (cx, pts) => { cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
   for (const q of pts.slice(1)) cx.lineTo(q[0], q[1]); cx.closePath(); cx.fill() }
 const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // anything a citizen draws rather than swings (engine WEAPONS `ranged: true`)
-const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow', 'dragonbow'])
+const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
+  'handgonne', 'great-crossbow',   // both were missing: their bearers walked
+  // into melee rather than shooting, because the window did not know they drew
+  'iron-javelin', 'steel-javelin', 'star-javelin'])   // §6dg
+// §6dg: what a weapon draws FROM. A bow wants arrows, a gonne wants shot, and a
+// javelin wants more javelins -- the engine's `ammoOf`, which answers with the
+// weapon's own name when it is `selfAmmo`.
+const SELF_AMMO = new Set(['iron-javelin', 'steel-javelin', 'star-javelin'])
+const ammoForItem = (it) => SELF_AMMO.has(it) ? it : (it === 'handgonne' ? 'shot' : 'arrows')
+const hasAmmoFor = (me, it) => me.inventory.some((sl) => sl?.item === ammoForItem(it))
 // how far each weapon strikes, character for character from engine WEAPONS.
 // The window needs this to know where to STOP walking: a citizen who has
 // clicked a mob at nine tiles with the dragonbow should loose an arrow, not
@@ -3238,6 +3484,8 @@ const WEAPON_REACH = {
   'old-chain': 1, 'iron-flail': 1, 'star-flail': 1,
   'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
   'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
+  'great-crossbow': 6,
+  'iron-javelin': 3, 'steel-javelin': 3, 'star-javelin': 3,   // §6dg
 }
 const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
@@ -3249,62 +3497,49 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // drifted or were simply absent -- the whole star range, the heartwood goods,
 // both deep fish, wool, crab-shell -- so this window would not offer to sell
 // them and could not price them.
+// §6dj: GENERATED FROM engine.js PRICES. The window carried forty-three of the
+// engine's eighty-six by hand, so FORTY-THREE priced goods were invisible to
+// it: everything gold, every shield, the whole steel line, charcoal, coal,
+// brimstone, ironbark, the eels, the bread chain, gunpowder and its parts,
+// the great tools, three of the four rods, and the chart.
+//
+// It is worse than a cosmetic gap. `PRICES` is what decides whether a thing may
+// be consigned at all (§11e), what prayer keeps when you die (§6c), and what
+// alchemy will accept (§6dc) -- so a window reading half the table gave the
+// wrong answer about a citizen's death and refused to let them haul goods the
+// engine would have taken. Nothing was mispriced; the entries simply were not
+// there, which is the failure mode a hand-copied table always has.
 const PRICES = {
-  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
-  'horn-bow': 400, 'crab-shell': 12,
-  'wool': 9,   // under the shell: downland is safer than a cold harbour
-  'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
-  // heartwood is worth more than logs, and a deep fish more than a shallow
-  // one: a master's hour should be worth more than a beginner's
-  // HEARTWOOD AT FIFTEEN, not nine.
-  //
-  // Every other trade downstream of a mastery takes about a double: a cook of
-  // eighty turns an eleven-gold deep fish into twenty-two, a smith of fifty
-  // turns ninety-five in materials into two hundred. The fletcher took FOUR
-  // AND A HALF -- three heartwood at nine became a bow worth a hundred and
-  // twenty -- so the value of woodcutting ninety, the longest road in the
-  // world, was being collected by somebody else's trade.
-  //
-  // At fifteen the bow is 120 against 45 of timber, which is a fletcher's
-  // margin rather than a fletcher's windfall, and the woodcutter who spent
-  // five hundred thousand logs getting there is paid for it.
-  'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
-  'heartwood-bow': 540,
-  'magic-stone': 20, 'iron-sword': 15, 'iron-hatchet': 10, 'iron-pickaxe': 10,
-  'iron-helm': 12, 'iron-plate': 30, 'wooden-bow': 8, 'grain': 4,
-  // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
-  //
-  // A star plate was two hundred, which is seven minutes of a beginner's
-  // chopping -- the best armour on the island, needing smithing fifty, magic
-  // thirty and four stones carried out of the Wilds, priced at seven minutes.
-  // The purse fixes what a coin is worth; it does nothing about what a plate
-  // is worth in LOGS, and two hundred was a hundred logs.
-  //
-  // Four and a half times, on everything a master makes. A star plate is now
-  // most of an hour of ordinary work rather than a coffee break, and the
-  // ratios between the star goods are untouched -- they were already sound.
-  'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
-  'star-spear': 450, 'star-maul': 720,
-  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
-  // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
-  // though every one of them is made by a citizen's work. Seeds at ten so the
-  // seedsman's twenty-two is the usual double; ale and broth by what they
-  // mend, at about two coins a hitpoint, which is where the cooked fish sit.
-  'seeds': 10, 'ale': 8, 'broth': 10,
-  // a keeper will take dragon-bones and pays what a curiosity is worth to
-  // somebody who will never see the beast. THREE thousand ordinary bones fetch
-  // six thousand, so five hundred is far under what the thing does: a keeper is
-  // the worst buyer in the world for it and a mourner the best, which is how
-  // every Wilds good in this table is priced.
-  'dragon-bones': 500,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22, 'horn-bow': 400,
+  'crab-shell': 12, 'wool': 9, 'logs': 2, 'ore': 5, 'raw-fish': 3,
+  'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2, 'chart': 180,
+  'iron-shield': 34, 'steel-shield': 120, 'star-shield': 640,
+  'gold-legs': 3400, 'star-ingot': 420, 'gold-ore': 60, 'gold-bar': 320,
+  'gold-helm': 2800, 'gold-plate': 4200, 'ironbark': 9, 'great-hatchet': 520,
+  'great-pickaxe': 520, 'rod': 10, 'ironbark-rod': 120, 'heartwood-rod': 300,
+  'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22,
+  'burnt-deep-fish': 1, 'bread': 9, 'burnt-bread': 1, 'flour': 6,
+  'saltpetre': 14, 'gunpowder': 60, 'bare-blade': 55, 'oak-logs': 6,
+  'coal': 12, 'charcoal': 12, 'brimstone': 46, 'iron-javelin': 3,
+  'steel-javelin': 6, 'star-javelin': 12, 'eel': 7, 'cooked-eel': 13,
+  'burnt-eel': 1, 'iron': 5, 'steel-sword': 60, 'steel-helm': 45,
+  'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
+  'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40, 'deep-broth': 24,
+  'heartwood-bow': 540, 'magic-stone': 20, 'iron-sword': 15,
+  'iron-hatchet': 10, 'iron-pickaxe': 10, 'iron-helm': 12, 'iron-plate': 30,
+  'wooden-bow': 8, 'grain': 4, 'shell-helm': 26, 'shell-plate': 68,
+  'steel-maul': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
+  'king-shroud': 800, 'star-spear': 450, 'star-maul': 720,
+  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6,
+  'heartwood-staff': 495, 'wand': 6, 'seeds': 10, 'ale': 8, 'broth': 10,
+  'dragon-bones': 500
 }
 
 
-// what the keeper offers, from engine.js STORE_SELLS (spec 6l). One line, and
-// it is the whole of the store's stock: the world sells seeds and nothing
-// else, because everything else is meant to be made or found. A window that
-// guesses at this offers a citizen things they cannot buy.
-const STORE_SELLS = { seeds: 15 }
+// §6l: THE KEEPER OFFERS NOTHING. `STORE_SELLS` is an empty table in the engine
+// and has been since the seeds went to the seedsman at Hollybarrow; now the
+// shelf and the purse are gone too, so there is nothing for this constant to
+// hold and nothing for it to be read by.
 // <<< CONSTITUTIONAL IDENTITY BLOCK
 // ---- v6 NODE FAMILIES ------------------------------------------------------
 // Every drawing routine below asks `famOf(n.type) === 'tree'` or `'rock'` and so on.
@@ -3550,8 +3785,12 @@ const BRIDGE_TO_INPUT = (a) =>
   // line for it, so it answered 'no wiring for special yet' and swallowed the
   // only interesting decision in a fight.
   : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }
-  : a.do === 'sell' ? { type: 'sell', slot: a.slot }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
+  // §11b: the counter. None of the three had a line here, so the eighteenth
+  // skill could not be reached from this window at all.
+  : a.do === 'consign' ? { type: 'consign', slots: a.slots }
+  : a.do === 'release' ? { type: 'release' }
+  : a.do === 'deliver' ? { type: 'deliver', slot: a.slot }
   : a.do === 'plant' ? { type: 'plant', slot: a.slot }
   : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
   : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
@@ -3887,37 +4126,96 @@ function stepToward(s, me, goal, reach, stampTick) {
 // A row that says `smithing 28 (you have 22)` teaches the whole progression,
 // which is most of the value of building this at all. The failing clause is
 // coloured, not the whole row.
+// §6dj: GENERATED FROM engine.js RECIPES. The window kept its own forge and it
+// had drifted back to a v5 snapshot: `star-sword` still cost three magic-stone
+// and two ore where the engine goes through `star-ingot`, the whole STEEL TIER
+// was absent so the anvil could not make any of it, and the ingredient names
+// were `ore` where the engine says `iron`. Anybody at this anvil was reading a
+// list of things that had not been true for a dozen releases.
+//
+// A window that copies a table copies it at a MOMENT IN TIME. check-window.mjs
+// holds this one to the engine's now, so the next recipe cannot quietly land on
+// one side only.
 const FORGE = {
-  'iron-dagger':  { ore: 1 },
-  'iron-hatchet': { ore: 1, logs: 1 },
-  'iron-pickaxe': { ore: 1, logs: 1 },
-  'iron-spear':   { ore: 1, logs: 1 },
-  'iron-helm':    { ore: 1, logs: 1 },
-  'iron-sword':   { ore: 2, logs: 1 },
-  'iron-maul':    { ore: 2, logs: 1 },
-  'iron-plate':   { ore: 3, logs: 1 },
-  'crossbow':       { ore: 2, logs: 2 },
-  'sigil-bow':      { 'horn-bow': 1, sigil: 3 },
-  'star-helm':      { 'magic-stone': 2, ore: 1 },
-  'star-spear':     { 'magic-stone': 2, ore: 1, logs: 1 },
-  'star-dagger':    { 'magic-stone': 2, ore: 1 },
-  'star-sword':     { 'magic-stone': 3, ore: 2 },
-  'star-maul':      { 'magic-stone': 3, ore: 2, logs: 1 },
-  'star-flail':     { 'magic-stone': 3, ore: 2, logs: 1 },
-  'star-plate':     { 'magic-stone': 4, ore: 3 },
-  'handgonne':      { 'magic-stone': 4, ore: 3, logs: 1 },
-  'shot':           { ore: 1 },   // §6av: five to the ore
+  'iron-dagger': { iron: 1 },
+  'iron-spear': { iron: 1, logs: 1 },
+  'iron-javelin': { iron: 1, logs: 1 },
+  'steel-javelin': { steel: 1, logs: 1 },
+  'star-javelin': { 'star-ingot': 1, ironbark: 1 },
+  'iron-maul': { iron: 2, logs: 1 },
+  'sigil-bow': { 'horn-bow': 1, sigil: 3 },
+  'crossbow': { 'iron': 2, logs: 2 },
+  'star-flail': { 'star-ingot': 15, 'ironbark': 1 },
+  'bare-blade': { 'steel-ingot': 4, 'ironbark': 1 },
+  'handgonne': { 'iron': 9, 'ironbark': 1, 'brimstone': 2 },
+  'shot': { 'iron': 1, 'gunpowder': 1 },
+  'star-spear': { 'star-ingot': 12, 'ironbark': 1 },
+  'star-maul': { 'star-ingot': 18, 'ironbark': 1 },
+  'great-helm': { 'star-ingot': 4, 'brimstone': 12 },
+  'great-plate': { 'star-ingot': 9, 'brimstone': 22 },
+  'shell-helm': { 'crab-shell': 2, 'iron': 1 },
+  'shell-plate': { 'crab-shell': 4, 'iron': 2 },
+  'great-sword': { 'star-ingot': 10, 'brimstone': 26, 'ironbark': 1 },
+  'great-crossbow': { 'star-ingot': 7, 'brimstone': 20, 'ironbark': 1 },
+  'iron-sword':   { iron: 2 },
+  'iron-hatchet': { iron: 1, logs: 1 },
+  'iron-pickaxe': { iron: 1, logs: 1 },
+  'iron-helm':    { iron: 1 },
+  'iron-plate':   { iron: 3 },
+  'iron-shield':    { 'iron': 4, 'oak-logs': 1 },
+  'steel-shield':   { 'iron': 3, 'coal': 3, 'ironbark': 1 },
+  'star-shield':    { 'star-ingot': 14, 'ironbark': 1 },
+  'gold-legs':      { 'gold-bar': 8 },
+  'star-ingot':     { 'magic-stone': 20, 'coal': 4 },
+  'star-sword':     { 'star-ingot': 12 },
+  'star-helm':      { 'star-ingot': 10 },
+  'star-plate':     { 'star-ingot': 20 },
+  'star-dagger':    { 'star-ingot': 8 },
+  'star-hatchet':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
+  'star-pickaxe':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
+  'steel-hatchet':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  'steel-pickaxe':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  'steel-sword':    { 'iron': 1, 'coal': 1 },
+  'steel-maul':     { 'iron': 2, 'coal': 1, 'oak-logs': 1 },
+  'steel-helm':     { 'iron': 1, 'coal': 1 },
+  'steel-plate':    { 'iron': 2, 'coal': 1 },
+  'steel-dagger':   { 'iron': 1, 'coal': 1 },
+  'steel-spear':    { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2, 'brimstone': 1 },
+  'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'brimstone': 1 },
+  'gold-bar':       { 'gold-ore': GOLD_ORE_PER_BAR },
+  'gold-helm':      { 'gold-bar': 6 },
+  'gold-plate':     { 'gold-bar': 16 },
 }
 // character for character from engine SMITH_REQS
+// §6dj: generated from engine.js SMITH_REQS
 const FORGE_REQ = {
-  'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
-  'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 },
-  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
-  'star-flail': { smithing: 26, magic: 14 },
-  'crossbow': { smithing: 18 }, 'iron-flail': { smithing: 8 },
+  'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
+  'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
+  'iron-javelin': { smithing: 5 }, 'steel-javelin': { smithing: 28 },
+  'star-javelin': { smithing: 46, magic: 26 },
+  'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
+  'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
+  'steel-maul': { smithing: 42 },
+  'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
+  'star-sword': { smithing: 45, magic: 25 },
+  'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
+  'star-dagger': { smithing: 45, magic: 28 },
+  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
+  'steel-dagger': { smithing: 25 }, 'steel-hatchet': { smithing: 26 }, 'steel-pickaxe': { smithing: 26 },
+  'steel-spear': { smithing: 28 },
+  'steel-helm': { smithing: 30 }, 'steel-sword': { smithing: 32 }, 'steel-plate': { smithing: 38 },
+  'handgonne': { smithing: 90 }, 'shot': { smithing: 50 },
+  'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'iron-shield': { smithing: 12 }, 'steel-shield': { smithing: 34 }, 'star-shield': { smithing: 48 },
+  'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
+  'crossbow': { smithing: 18 },
+  'star-flail': { smithing: 50, magic: 29 },
+  'bare-blade': { smithing: 34 },
+  'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
+  'great-helm': { smithing: 70, magic: 34 }, 'great-plate': { smithing: 70, magic: 34 },
+  'shell-helm': { smithing: 22 }, 'shell-plate': { smithing: 26 },
   'sigil-bow': { smithing: 12, magic: 25 },
-  'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
-}
+  }
 // a log is a log (§6ad), so heartwood pays for anything logs pay for
 function forgeHave(me, item) {
   return me.inventory.reduce((a, sl) => {
@@ -3955,9 +4253,22 @@ function openForge(me) {
   box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);'
     + 'z-index:60;background:#241f18;border:3px solid #8a6f45;padding:10px 12px;'
     + 'max-height:78%;overflow-y:auto;min-width:330px;font:12px Verdana;color:#e2d6b8'
-  const groups = [['iron', Object.keys(FORGE).filter((k) => k.startsWith('iron-'))],
-                  ['starmetal', Object.keys(FORGE).filter((k) => k.startsWith('star-'))],
-                  ['and the rest', ['crossbow', 'sigil-bow']]]
+  // §6dj: grouped by tier, and the LAST group is everything the tier filters
+  // did not claim -- so a recipe added to the engine appears here on its own
+  // rather than falling into a gap nobody notices. The old menu named its
+  // leftovers by hand ('crossbow', 'sigil-bow') and so hid the whole steel
+  // line, the great line, the gold line and the shields the moment they landed.
+  const tiers = [['iron', (k) => k.startsWith('iron-')],
+                 ['steel', (k) => k.startsWith('steel-')],
+                 ['starmetal', (k) => k.startsWith('star-')],
+                 ['great', (k) => k.startsWith('great-')],
+                 ['gold', (k) => k.startsWith('gold-')]]
+  const claimed = new Set()
+  const groups = tiers.map(([label, f]) => {
+    const keys = Object.keys(FORGE).filter(f); keys.forEach((k) => claimed.add(k))
+    return [label, keys]
+  }).filter(([, keys]) => keys.length)
+  groups.push(['and the rest', Object.keys(FORGE).filter((k) => !claimed.has(k))])
   let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     + '<b style="color:#e2b63e">THE ANVIL</b>'
     + '<span id="forgex" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
@@ -4090,10 +4401,23 @@ const CALLING_LINE_W = {
   collier: 'He burns the stack slow, and sleeps beside it so it stays slow.',
   wizard: 'He was here before the stones were, and says so often.',
 }
-const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true',
-                  'dragonbow': 'far' }
-const SPEC_SAYS = { twice: 'two blows in one tick', now: 'swings whatever your arm says',
-                    'true': 'the shot cannot miss' }
+// §6dj: generated from engine.js WEAPONS. It still named `true` for the
+// horn-bow -- a special that was retired two revisions ago -- and knew nothing
+// of the great-crossbow.
+const SPEC_OF = {
+  'star-dagger': 'flurry',   // 6 blows, 12 to recover
+  'star-maul': 'now',   // 2 blows, 8 to recover
+  'horn-bow': 'flurry',   // 6 blows, 13 to recover
+  'handgonne': 'flurry',   // 2 blows, 8 to recover
+  'dragonbow': 'far',   // 1 blows, 4 to recover
+}
+// §6dj: the shapes the engine actually has. `twice` and `true` were retired.
+const SPEC_SAYS = {
+  flurry: 'a burst of blows, one round each',
+  now: 'swings the moment your arm is ready',
+  haymaker: 'one blow, and it lands like several',
+  far: 'reaches further than it should',
+}
 // ARMED, not fired. A special is a decision, so it is taken in two steps:
 // arm it, then choose who. That also means one control works for a mouse and
 // a thumb alike, and you cannot spend your arm by misclicking.
@@ -4104,6 +4428,8 @@ const effects = []    // { kind, x, y, at } rites and works made visible
 // actually draw: inventing one here is a silent no-op, and the deeds people
 // most want to see are the ordinary ones.
 // what each stall keeps, copied from the engine's STALL_SELLS
+// §6dj: generated from engine.js STALL_SELLS. The FISHER was missing entirely,
+// so the one stall that sells a rod could be walked up to and not used.
 const STALL_SELLS = {
   lumber: { 'iron-hatchet': 20 },
   delve:  { 'iron-pickaxe': 20 },
@@ -4111,10 +4437,12 @@ const STALL_SELLS = {
   armour: { 'iron-helm': 24 },
   bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
   seed:   { seeds: 22 },
+  fisher: { rod: 20 },
 }
 const STALL_NAME = {
   lumber: 'the axe man', delve: 'the delver', arms: 'the arms-master',
   armour: 'the armourer', bows: 'the fletcher', seed: 'the seedsman',
+  fisher: 'the fisher',   // §6dj
 }
 const DEED_FX = {
   alch: 'unmake', unmake: 'unmake', seal: 'seal', drink: 'drink', bury: 'bury', invoke: 'invoke', pay: 'pay the toll',
@@ -5234,7 +5562,7 @@ function onState(s, worldId, local) {
     // anybody should have to compose.
     else if (intent.kind === 'attack'
              && RANGED_ITEMS.has(me.equipment?.weapon?.item)
-             && me.inventory.some(sl => sl?.item === 'arrows')
+             && hasAmmoFor(me, me.equipment?.weapon?.item)   // §6dg: arrows, shot or javelins
              && Math.max(Math.abs(me.x - goal.x), Math.abs(me.y - goal.y))
                 <= reachOfItem(me.equipment?.weapon?.item)) {
       send({ do: 'attack', mobId: intent.id })
@@ -5334,6 +5662,10 @@ function onState(s, worldId, local) {
     const GAIN = {
   'wooden-bow': 'You whittle the log into a bow.',
   'arrows': 'You knap the bones into arrowheads. Five arrows.',
+  // §6dg
+  'iron-javelin': 'You draw the iron out and socket three short shafts. Three javelins.',
+  'steel-javelin': 'You draw the steel out and socket three short shafts. Three javelins.',
+  'star-javelin': 'The starmetal takes the shape without complaint. Three javelins.',
   'iron-helm': 'You hammer out a iron helm.',
   'iron-plate': 'You hammer out a iron platebody.', 'logs': 'You get some logs.', 'ore': 'You manage to mine some ore.',
                    'raw-fish': 'You catch a fish!', 'cooked-fish': 'Nicely cooked.',
@@ -5370,11 +5702,13 @@ function onState(s, worldId, local) {
 
     // an archer's quiver ran dry mid-fight: close to melee (spec 6n spirit)
     if (old.action?.type === 'attack' && !me.action
-        && me.equipment?.weapon?.item === 'wooden-bow'
-        && !me.inventory.some(sl => sl?.item === 'arrows')) {
+        && RANGED_ITEMS.has(me.equipment?.weapon?.item)   // §6dg: any drawn arm, not just the first bow
+        && !hasAmmoFor(me, me.equipment?.weapon?.item)) {
       const tid = old.action.mobId
       if (s.mobs[tid]?.hp > 0) {
-        feed('Your quiver is empty. You close to melee!')
+        feed(SELF_AMMO.has(me.equipment?.weapon?.item)
+          ? 'Your last javelin is in your hand. You close!'
+          : 'Your quiver is empty. You close to melee!')
         intent = { kind: 'attack', id: tid }
       }
     }
@@ -9301,12 +9635,23 @@ function panel(s) {
       const pct = lvl >= 99 ? 100
         : Math.floor(100 * (xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl]))
       const hot = k === training
-      return '<div' + (hot ? ' style="outline:1px solid var(--gold)"' : '') + '>'
+      return '<div data-skill="' + k + '" style="cursor:pointer'
+        + (hot ? ';outline:1px solid var(--gold)' : '') + '">'
         + '<svg class="skico" width="20" height="20" viewBox="0 0 10 10"><use href="#sk-' + k + '"/></svg>'
         + '<span class="skname">' + k + '</span><b style="' + (lvl >= 99 ? 'color:#e2b63e;text-shadow:0 0 6px rgba(226,182,62,.5)' : '') + '">' + lvl + '</b>'
         + '<div style="height:3px;background:#1c1710;margin-top:3px">'
         + '<div style="height:3px;width:' + pct + '%;background:' + (hot ? '#e2b63e' : '#8a7a4a') + '"></div></div></div>'
     }).join('')
+  // §6bv: one delegated handler, bound once, so the panel may be rebuilt every
+  // frame without losing it
+  const skPanel = document.getElementById('skills')
+  if (!skPanel._guideWired) {
+    skPanel._guideWired = true
+    skPanel.addEventListener('click', (e) => {
+      const row = e.target?.closest?.('[data-skill]')
+      if (row) openSkillGuide(row.dataset.skill)
+    })
+  }
   // Only rewrite the inventory DOM when it actually changes. It used to be
   // rebuilt every animation frame (~60/s), which destroyed the slot elements
   // between a tap's press and release so the click event almost never fired.
@@ -9392,20 +9737,40 @@ function panel(s) {
     document.getElementById('inv').parentNode.insertBefore(d, document.getElementById('inv'))
     return d
   })()
-  sellBar.innerHTML = !nearStore ? '' :
-    '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE KEEPER BUYS:</div>'
-    + me.inventory.map((sl, i) => sl && PRICES_C[sl.item]
-      ? '<button data-sell="' + i + '" style="margin:1px;background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer">'
-        + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 ' + (PRICES_C[sl.item] * (sl.qty ?? 1)) + 'g</button>'
-      : '').join('')
-  // and what the keeper SELLS. The flat window could take your goods but never
-  // hand anything back, so a citizen at a store could not buy here at all.
-  // The stock is the constitution's, not a guess: the world sells seeds and
-  // nothing else, because everything else is meant to be made or found.
-  // A STALL IS A COUNTER TOO, and this window could not use one at all: you
-  // could walk to the seedsman and stand there. The stock is the engine's own
-  // STALL_SELLS -- fixed goods, made from nothing, dearer than a store and
-  // always there -- so a stall is bought from exactly as a shelf is.
+  // §6l: A KEEPER BUYS NOTHING, AND SELLS NOTHING. `sell` is repealed, the
+  // shelf is repealed, and the purse with them. This pane used to offer both
+  // and would now be offering verbs the engine refuses -- a window lying about
+  // the rules, which is the one thing a window must never do.
+  //
+  // What a store is now is a COUNTER (§11): the one place a consignment can be
+  // taken up, and the one place it can be discharged. That had no controls in
+  // this window at all, so the eighteenth skill was unreachable from here.
+  const myHaul = me.consignment
+  const haulLoad = myHaul ? (myHaul.items ?? []).filter(Boolean).length : 0
+  const atEnd = myHaul && (myHaul.leg ?? 0) >= ((myHaul.route ?? []).length)
+  sellBar.innerHTML = !nearStore ? '' : (!myHaul
+    ? '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER:</div>'
+      + '<div style="color:#a89a7c;font-size:10px;margin:0 0 3px">Seal a consignment and the road '
+      + 'is committed: you cannot bank it, you cannot recall, and anyone else carrying one may strike you.</div>'
+      + ((me.inventory ?? []).some(Boolean)
+        ? '<button data-consign="1" style="' + BTN + '">seal your pack into a consignment</button>'
+        : '<span style="color:#8a7f68;font-size:10px">Nothing in your pack to consign.</span>')
+    : '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER \u00b7 '
+      + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard'
+      + (atEnd ? ' \u00b7 <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>'
+               : ' \u00b7 leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
+      + (atEnd
+        ? (((me.brandedUntil ?? 0) > s.tick)
+          ? '<span style="color:#d08a5a;font-size:10px">Branded. No counter will take a delivery from you yet.</span>'
+          : '<div style="color:#a89a7c;font-size:10px;margin:0 0 3px">Discharging is not selling: the goods '
+            + 'leave the world and you are paid in hauling alone.</div>'
+            + (myHaul.items ?? []).map((sl, k) => sl && PRICES_C[sl.item]
+              ? '<button data-deliver="' + k + '" style="margin:1px;background:#3a3126;color:#e8d9a0;'
+                + 'border:1px solid #6e5433;padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer">'
+                + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 discharge</button>'
+              : '').join(''))
+        : '<span style="color:#8a7f68;font-size:10px">Carry it to the last town on the route.</span>')
+      + '<button data-release="1" style="' + BTN + '">set the container down</button>')
   // §6al: YOUR OWN STALL, tended from the bar. Stock is ONE WAY: there is no
   // button to take it back because there is no verb to take it back, and a
   // pane that implied otherwise would be lying about the rules.
@@ -9441,23 +9806,8 @@ function panel(s) {
         + 'font-size:10px;cursor:pointer' + ((me.gold ?? 0) < pr ? ';opacity:.4' : '') + '">'
         + it.replace(/-/g, ' ') + ' \u2190 ' + pr + 'g</button>').join('')
   }
-  if (nearStore) {
-    // the keeper's SHELF (v0.74) finally reaches this window: what
-    // citizens sold and nobody carried off is for sale beside the
-    // keeper's own seeds, priced by the constitution's ask
-    const storeN = Object.values(world.nodes).find(n => n.type === 'store'
-      && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
-    const ask = (it2) => (PRICES[it2] ?? 1) + Math.max(1, Math.floor((PRICES[it2] ?? 1) / 10))
-    const wares = { ...STORE_SELLS }
-    for (const [it2, q2] of Object.entries(storeN?.shelf ?? {}))
-      if (q2 > 0 && !(it2 in wares)) wares[it2] = ask(it2)
-    sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">AND SELLS:</div>'
-      + Object.entries(wares).map(([it, pr]) => '<button data-buy="' + it + '" style="margin:1px;'
-        + 'background:#3a3126;color:#e8d9a0;border:1px solid #6e5433;padding:3px 6px;font-family:inherit;'
-        + 'font-size:10px;cursor:pointer' + ((me.gold ?? 0) < pr ? ';opacity:.4' : '') + '">'
-        + it.replace(/-/g, ' ') + ' \u2190 ' + pr + 'g'
-        + (storeN?.shelf?.[it] ? ' (\u00d7' + storeN.shelf[it] + ')' : '') + '</button>').join('')
-  }
+  // §6l: the keeper's shelf pane is repealed with the shelf. What is bought
+  // from now is a STALL, above, and a citizen's own stall.
   sellBar.onclick = (e) => {
     // §6al: the citizen's own stall
     const mkE = Object.entries(world.nodes).find(([, n]) => n.type === 'market' && n.by === myId
@@ -9486,19 +9836,34 @@ function panel(s) {
       feed('You pull the stall down. What was on it lies in the grass.')
       return
     }
-    const i = e.target?.dataset?.sell
-    if (i !== undefined) { send({ do: 'sell', slot: +i }); feed('The keeper counts out your coin.') }
+    // §11b: the counter
+    if (e.target?.dataset?.consign !== undefined) {
+      const slots = (me.inventory ?? []).map((sl, k) => sl ? k : -1).filter((k) => k >= 0)
+      if (!slots.length) { feed('Nothing in your pack to consign.'); return }
+      send({ do: 'consign', slots })
+      feed('Sealed. The road is committed \u2014 and so are you.')
+      return
+    }
+    if (e.target?.dataset?.release !== undefined) {
+      send({ do: 'release' }); feed('You set the container down. Your hands are your own again.'); return
+    }
+    const dv = e.target?.dataset?.deliver
+    if (dv !== undefined) {
+      send({ do: 'deliver', slot: +dv })
+      feed('Discharged. The goods are off your hands and the road is paid for.')
+      return
+    }
     const b = e.target?.dataset?.buy
     if (b !== undefined) {
-      // a stall's price is its own: it is not the store's ask, and buying at a
-      // stall you are stood beside must not be quoted at the shelf's rate
+      // §6l: a stall's price is its own, and a stall is the only counter that
+      // sells anything now
       const stallB = Object.values(world.nodes).find(n => n.type === 'stall'
         && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
-      const stallPr = stallB ? (STALL_SELLS[stallB.kind] ?? {})[b] : undefined
-      const askB = stallPr ?? STORE_SELLS[b]
-        ?? ((PRICES[b] ?? 1) + Math.max(1, Math.floor((PRICES[b] ?? 1) / 10)))
+      const askB = stallB ? (STALL_SELLS[stallB.kind] ?? {})[b] : undefined
+      if (askB === undefined) { feed('Nobody here sells that.'); return }
       if ((me.gold ?? 0) < askB) { feed('Not enough coin for that.'); return }
-      send({ do: 'buy', item: b }); feed(kFromId(Object.entries(world.nodes).find(([, n2]) => n2.type === 'store' && Math.abs(me.x - n2.x) + Math.abs(me.y - n2.y) === 1)?.[0]) + ' slides it across.')
+      send({ do: 'buy', item: b })
+      feed((STALL_NAME[stallB.kind] ?? 'the trader') + ' slides it across.')
     }
   }
   document.getElementById('status').textContent =
@@ -9514,6 +9879,66 @@ document.getElementById('specbtn').addEventListener('click', (e) => {
 document.getElementById('equip').addEventListener('click', () => {
   if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
 })
+
+// §6bv: THE SKILL GUIDE. Click a skill, see what it opens.
+//
+// Every gate in this world was public and unreachable at the same time: the
+// numbers were all in engine.js, exported by `skillUnlocks()`, and the only
+// way to read them was to open the file. A citizen deciding whether to push
+// mining from seventy-eight to ninety-two could not find out what waited at
+// ninety-two without leaving the game.
+function openSkillGuide(skill) {
+  document.getElementById('skillguide')?.remove()
+  const me = world?.players?.[myId]
+  const lvl = XP_TO_LVL(me?.skills?.[skill] ?? 0)
+  const xp = me?.skills?.[skill] ?? 0
+  const rows = SKILL_UNLOCKS[skill] ?? []
+  const box = document.createElement('div')
+  box.id = 'skillguide'
+  box.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);'
+    + 'z-index:60;background:#241f18;border:3px solid #8a6f45;padding:10px 12px;'
+    + 'max-height:78%;overflow-y:auto;min-width:340px;max-width:min(92vw,520px);'
+    + 'font:12px Verdana;color:#e2d6b8'
+  const toNext = lvl >= 99 ? null : XP_TABLE[lvl + 1] - xp
+  let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+    + '<b style="color:#e2b63e">' + skill.toUpperCase() + ' \u00b7 ' + lvl + '</b>'
+    + '<span id="skgx" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
+    + '<div style="color:#8a7f68;font-size:10px;margin-bottom:8px">'
+    + xp.toLocaleString() + ' experience'
+    + (toNext === null ? ' \u00b7 mastered' : ' \u00b7 ' + toNext.toLocaleString() + ' to ' + (lvl + 1))
+    + '</div>'
+  if (SKILL_NOTE[skill]) {
+    html += '<div style="color:#a89a7c;font-size:10px;margin:0 0 8px;line-height:1.5">'
+      + SKILL_NOTE[skill] + '</div>'
+  }
+  if (!rows.length) {
+    html += '<div style="color:#8a7f68;font-size:11px">Nothing in this world is locked behind it.</div>'
+  } else {
+    const done = rows.filter(([l]) => l <= lvl), todo = rows.filter(([l]) => l > lvl)
+    const line = ([l, t], open) => '<div style="display:flex;gap:8px;padding:2px 0;'
+      + (open ? 'color:#8a7f68' : 'color:#e2d6b8') + '">'
+      + '<b style="min-width:26px;text-align:right;'
+      + (open ? 'color:#6e6355' : 'color:#e2b63e') + '">' + l + '</b>'
+      + '<span>' + t + '</span></div>'
+    if (todo.length) {
+      html += '<div style="color:#8a7f68;margin:4px 0 2px;letter-spacing:1px;font-size:10px">AHEAD</div>'
+        + todo.map((r) => line(r, false)).join('')
+    }
+    if (done.length) {
+      html += '<div style="color:#8a7f68;margin:10px 0 2px;letter-spacing:1px;font-size:10px">OPEN TO YOU</div>'
+        + done.map((r) => line(r, true)).join('')
+    }
+  }
+  // §6bv again, said to the citizen rather than to the maintainer: the guide
+  // is deliberately incomplete, and saying so is part of the design.
+  html += '<div style="color:#6e6355;font-size:9px;margin-top:10px;line-height:1.5;border-top:1px solid #3a3126;padding-top:6px">'
+    + 'Gates only. What a seam YIELDS, how often the rare thing answers, what a '
+    + 'blow is worth \u2014 those are not here, and they are not hidden either. '
+    + 'Stand at a tree and count.</div>'
+  box.innerHTML = html
+  document.getElementById('view')?.parentNode?.appendChild(box) ?? document.body.appendChild(box)
+  box.querySelector('#skgx').onclick = () => box.remove()
+}
 
 function openTrade(pid) {
   const me = world?.players[myId], them = world?.players[pid]
@@ -10497,6 +10922,54 @@ cv.addEventListener('click', (e) => {
       if (n.type === 'bank') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }
         else feed('The bank stands ready: tap items to deposit, tap the vault to withdraw.')
+        return
+      }
+      // §6dj: A TRADE STALL, WHICH COULD NOT BE CLICKED AT ALL.
+      //
+      // There was no branch here for `stall`, so every one of them -- the axe
+      // man, the delver, the arms-master, the armourer, the fletcher, the
+      // seedsman and the fisher -- fell through to the gather path at the
+      // bottom of this function. Clicking the armourer at Millbrook answered
+      // "You begin gathering." and sent a `gather` the engine refused. The
+      // stock pane existed but only appeared if you were ALREADY stood beside
+      // one, which you could only manage by clicking the dirt next to it.
+      if (n.type === 'stall') {
+        const stock = STALL_SELLS[n.kind] ?? {}
+        const who = STALL_NAME[n.kind] ?? 'a trader'
+        const wares = Object.entries(stock)
+          .map(([it, pr]) => it.replace(/-/g, ' ') + ' ' + pr + 'g').join(', ')
+        flashClick(n.x, n.y, false)
+        if (!wares) { feed(who.charAt(0).toUpperCase() + who.slice(1) + ' has nothing out.'); return }
+        if (!adj(n)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('You make for ' + who + '. ' + wares.charAt(0).toUpperCase() + wares.slice(1) + '.')
+        } else {
+          feed(who.charAt(0).toUpperCase() + who.slice(1) + ' sells: ' + wares + '. Buy from the bar below.')
+        }
+        return
+      }
+      // §6dj: THE HEARTH is the one place a brewpot may be raised beside
+      // (§8a), and the waystone is a road marker. Neither answered a click, so
+      // both said "You begin gathering." and sent an input the engine refused.
+      if (n.type === 'hearth') {
+        flashClick(n.x, n.y, false)
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You make for the hearth.'); return }
+        feed('A town hearth. Bones burn hotter here, and a brewpot may be raised beside it.')
+        return
+      }
+      if (n.type === 'waystone') {
+        flashClick(n.x, n.y, false)
+        feed(n.text || 'A waystone, cut and set by somebody who walked this road before the towns had names.')
+        return
+      }
+      // §11b: THE COUNTER. A store answered nothing either, and it is the only
+      // place in the world a consignment can be taken up or set down.
+      if (n.type === 'store') {
+        flashClick(n.x, n.y, false)
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You make for the counter.'); return }
+        feed(me.consignment
+          ? 'The counter. Discharge what you carried, or set the container down.'
+          : 'The counter. Seal a consignment here and the road is committed.')
         return
       }
       if (n.type === 'watchfire') {
