@@ -118,6 +118,23 @@ const Buffer = {
   isBuffer: (v) => v instanceof Uint8Array,
 }
 
+// --- `process`, because the engine reads it on the hot path ------------------
+//
+// `_cloneForTick` consults `process.env.INTERVAL_CLONE` on EVERY TICK, and
+// `_p2mark` reaches for `process.hrtime.bigint()`. Neither exists in a browser,
+// so the local world threw once per interval and never advanced -- forty ticks,
+// forty "Can't find variable: process".
+//
+// `env` is deliberately EMPTY. Those variables are operator switches for a
+// pillar (clone mode, index mode, perf marks); a resident's private island
+// should take every default, and an empty object is how it says so without
+// pretending to be a node.
+const PROCESS = {
+  env: {},
+  hrtime: { bigint: () => BigInt(Math.round((globalThis.performance?.now() ?? 0) * 1e6)) },
+  argv: [], platform: 'browser', version: '',
+}
+
 // --- the require the engine gets --------------------------------------------
 // `crypto` is REFUSED on purpose. engine.js prefers Node's native crypto and
 // falls through to noble when it is absent; throwing here is how we take that
@@ -157,9 +174,9 @@ export async function loadEngine (url = './engine.js') {
   // A named function rather than eval so stack traces still say where they are,
   // and so `this` is undefined inside the engine exactly as it is under CJS.
   // eslint-disable-next-line no-new-func
-  const factory = new Function('module', 'exports', 'require', 'Buffer', 'globalThis',
+  const factory = new Function('module', 'exports', 'require', 'Buffer', 'process', 'globalThis',
     '"use strict";\n' + src + '\n;return module.exports;')
-  _engine = factory(module, module.exports, makeRequire(), Buffer, globalThis)
+  _engine = factory(module, module.exports, makeRequire(), Buffer, PROCESS, globalThis)
   if (typeof _engine.nextState !== 'function') {
     throw new Error('engine-browser: that did not look like the engine')
   }

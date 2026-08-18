@@ -4728,7 +4728,15 @@ function allocTick() {
   // arrived: every step refused, forever, while the citizen still turned to
   // face the goal. Resync whenever the stamp is outside the window it is
   // allowed to occupy, in either direction.
-  const cur = world?.tick ?? 0
+  // WHICH WORLD'S CLOCK? While a resident is in Nought, `world` is their own
+  // practice island -- a different world, at its own tick, counting from zero.
+  // Stamping an input for TALLYHOLM with that number made every `attend` land
+  // hundreds of ticks in the past, so the allocator refused it and the wait
+  // never began: "Asking the world to expect you..." forever.
+  //
+  // Only two inputs ever leave Nought, and both belong to the other world. They
+  // are stamped by the other world's clock.
+  const cur = ((inNought && lastLive) ? lastLive.tick : world?.tick) ?? 0
   if (lastStamped < cur || lastStamped > cur + 2) lastStamped = cur
   const t = Math.max(cur + 1, lastStamped + 1)
   if (t > cur + 2) return null

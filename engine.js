@@ -3896,6 +3896,21 @@ const TERRAINS = Object.create(null);
 function noughtGenesisOf(genesis) {
   const g = JSON.parse(JSON.stringify(genesis));
   g.nought = true;
+  // AND NOBODY IS IN IT.
+  //
+  // A founding may carry citizens across from an older world (§0e), and a
+  // generator seats every one of them when it builds. That is right for
+  // Tallyholm and wrong for a practice of it: the first run of this on a
+  // world founded with a hundred and forty-seven imported souls put all of
+  // them on the practice island, standing about under their real names, while
+  // the resident walked among them called `nought`.
+  //
+  // Nought is the island UNWALKED. Not lightly populated, not populated by
+  // people who are elsewhere -- empty. The only body on it is the one whose
+  // window is computing it, and the only others a resident should ever see are
+  // the live figures of other residents (§0b), who are also on their way in.
+  delete g.imported;
+  delete g.importedFrom;
   return g;
 }
 // Is this state a practice world rather than the world? One field, no
