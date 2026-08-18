@@ -4567,6 +4567,29 @@ function flashClick(tx, ty, isAct) {
 }
 // the goal marker: pulsing corner brackets on wherever the citizen is headed.
 // Yellow means walking; ember means about to ACT. No more mystery strolls.
+// §11c: AND THE COUNTER YOU ARE WALKING TO. The route is a list of node ids
+// the citizen never sees; naming the town is not enough when a town has more
+// than one counter and the leg only counts from ORTHOGONALLY beside the right
+// one. A ring on the ground under it, and the tiles that count picked out, so
+// "stand beside it" is a thing you can look at rather than a thing you are told.
+function drawHaulMarker(s, tNow) {
+  const me9 = s.players?.[myId]
+  const c9 = me9?.consignment
+  if (!c9 || (c9.leg ?? 0) >= (c9.route ?? []).length) return
+  const n9 = s.nodes[c9.route[c9.leg]]
+  if (!n9) return
+  const MX = px(n9.x) + 20, MY = py(n9.y) + 22
+  const ph = (performance.now() / 900) % 1
+  cx.save()
+  cx.strokeStyle = 'rgba(226,182,62,' + (0.75 - 0.4 * ph) + ')'
+  cx.lineWidth = 2.4
+  cx.beginPath(); cx.ellipse(MX, MY, 13 + ph * 12, 7 + ph * 6, 0, 0, 7); cx.stroke()
+  // the four tiles a leg actually counts from
+  cx.fillStyle = 'rgba(226,182,62,.16)'
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+    cx.fillRect(px(n9.x + dx) + 3, py(n9.y + dy) + 3, 34, 34)
+  cx.restore()
+}
 function drawGoalMarker(s, tNow) {
   if (!intent) return
   let gx = null, gy = null, isAct = true
@@ -4777,6 +4800,7 @@ let stillRings = []   // { x, y, at }: the truce, spoken, one expanding white ri
 // fifty-six citizens and one face between them. It costs nothing and can be
 // changed later; what it buys is that the person beside you is not you.
 let pickLook = 0, lookSent = -1
+let _releaseArmed = false   // §11b: releasing loses the route, so it asks twice
 function drawLookPreview() {
   // THE SAME lookOf THE WORLD USES. The first version of this had its own
   // little table of skins and coats, which is how a gate shows you one face
@@ -5837,14 +5861,29 @@ function onState(s, worldId, local) {
 
     // the Wilds chase: a fleeing target breaks the engagement (spec 2g),
     // but the chaser's window renews the hunt: they run, you follow.
-    if (old.action?.type === 'attackp' && !me.action && intent === null) {
+    // §3.3: A DEATH IS NOT A TARGET BREAKING AWAY. This renewed the hunt on the
+    // one signal a death also produces -- your action going null -- so a
+    // citizen killed in the Wilds woke at the fountain, was handed a fresh
+    // `pvpattack`, and set off walking back across the island to the person who
+    // had just killed them. It looked like the corpse wanted a rematch, and the
+    // window was the one asking for it. Neither of you having died is the whole
+    // of the condition; the rest was already right.
+    const iDied = (me.deadUntil ?? 0) > s.tick || (prev?.players?.[myId]?.hp ?? 1) <= 0 || me.hp <= 0
+    if (old.action?.type === 'attackp' && !me.action && intent === null && !iDied) {
       const tid2 = old.action.targetId
       const q2 = s.players[tid2]
-      if (q2 && q2.hp > 0 && mayStrikeC(me, q2)) {   // §11d
+      const theyDied = q2 && ((q2.deadUntil ?? 0) > s.tick
+        || (prev?.players?.[tid2]?.hp ?? 1) > q2.hp && q2.hp <= 0)
+      if (q2 && q2.hp > 0 && !theyDied && mayStrikeC(me, q2)) {   // §11d
         feed('They break away: you give chase!')
         intent = { kind: 'pvpattack', id: tid2 }
       }
     }
+
+    // §3.3: and dying clears the errand entirely. Waking somewhere else with a
+    // standing order to walk back to a tree, a heap or a body is never what the
+    // citizen meant when they clicked it.
+    if (iDied && intent !== null) { intent = null }
 
     // an archer's quiver ran dry mid-fight: close to melee (spec 6n spirit)
     if (old.action?.type === 'attack' && !me.action
@@ -5956,6 +5995,19 @@ function onState(s, worldId, local) {
 // ---- low-poly animated renderer ----
 const px = (x) => x * TILE, py = (y) => y * TILE
 const lerp = (a, b, t) => a + (b - a) * t
+// §3.3: NOTHING IN THIS WORLD MOVES MORE THAN A TILE AN INTERVAL, so a jump of
+// more than one tile between two states is never movement -- it is a body being
+// PUT somewhere. A slain beast respawning at its post, a citizen waking at the
+// fountain, a mob spawned into an id that was just freed. Interpolating those
+// draws a goblin skating forty tiles across the grass at forty tiles an
+// interval, which is the single most alarming thing this window has ever done
+// and is not happening in the world at all.
+//
+// One tile of slack in each axis: real movement is orthogonal and single-step,
+// and anything wider is a cut, not a slide.
+const teleported = (a, b) => Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1
+const lerpPos = (o, n, t) => (!o || teleported(o, n))
+  ? { x: n.x, y: n.y } : { x: lerp(o.x, n.x, t), y: lerp(o.y, n.y, t) }
 function poly(pts, fill, stroke) {
   cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
   for (const p of pts.slice(1)) cx.lineTo(p[0], p[1])
@@ -6401,23 +6453,6 @@ function drawCitizen(X, Y, o) {
   //
   // Mounted, it goes on the horse instead (further down): a laden animal reads
   // as a caravan and a laden man reads as a porter, and the world has both.
-  // §11d: A HAULER IS WORTH KNOWING FROM ACROSS A CLEARING. The crates on the
-  // back read at a glance only if you already knew to look; what a citizen
-  // needs to see is WHO MAY STRIKE THEM AND WHO THEY MAY STRIKE, because that
-  // is the whole of what a consignment changes about a stranger. A banded mark
-  // over the head, in the same amber the counter uses, on anybody carrying.
-  if (o.hauling) {
-    const HY = Y + (o.mounted ? -6 : 2)
-    const ph = (now / 520) % 1
-    cx.globalAlpha = 0.55 + 0.25 * Math.sin(ph * Math.PI * 2)
-    cx.fillStyle = '#e2b63e'
-    cx.fillRect(X + 15, HY, 10, 2.2)                           // the strap
-    cx.fillStyle = '#8a6f45'
-    cx.fillRect(X + 16.5, HY + 2.2, 7, 5)                      // the crate
-    cx.fillStyle = 'rgba(0,0,0,.35)'
-    cx.fillRect(X + 19.6, HY + 2.2, 1, 5)
-    cx.globalAlpha = 1
-  }
   if (o.hauling && !o.mounted) {
     const FB = -(o.face ?? 1)                                  // behind them
     const tiers = Math.max(1, Math.min(3, Math.ceil((o.haulLoad ?? 1) / 10)))
@@ -6977,6 +7012,26 @@ function drawCitizen(X, Y, o) {
     }
   }
 
+  // §11d: A HAULER IS WORTH KNOWING FROM ACROSS A CLEARING, and this has to be
+  // drawn LAST or it is not drawn at all. The first attempt put it at the top
+  // of this function, which is where the load on the back goes -- deliberately
+  // behind the body -- so the mark sat at head height with the head painted
+  // over it. It was there and it was invisible, which is the worst of both.
+  //
+  // What a citizen needs from a stranger on the road is not what is in their
+  // pack: it is WHETHER THEY MAY BE STRUCK WHERE THEY STAND. Two consignments
+  // make that true anywhere (§11d), so it is the one fact worth a mark, and it
+  // goes above the name where nothing can cover it.
+  if (o.hauling) {
+    const HY = Y - 9
+    cx.globalAlpha = 0.7 + 0.3 * Math.sin(((now / 520) % 1) * Math.PI * 2)
+    cx.fillStyle = '#1c1710'; cx.fillRect(X + 13.4, HY - 0.6, 13.2, 8.6)   // a dark seat
+    cx.fillStyle = '#e2b63e'; cx.fillRect(X + 14, HY, 12, 2)               // the strap
+    cx.fillStyle = '#a8813a'; cx.fillRect(X + 15.6, HY + 2, 8.8, 5.4)      // the crate
+    cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillRect(X + 19.4, HY + 2, 1.2, 5.4)
+    cx.fillStyle = 'rgba(255,255,255,.22)'; cx.fillRect(X + 15.6, HY + 2, 8.8, 1)
+    cx.globalAlpha = 1
+  }
   // name + hp (your own name reads white so you can find yourself in a crowd)
   cx.fillStyle = o.branded ? '#e8452e' : o.mine ? '#ffffff' : '#e2b63e'
   cx.font = 'bold 10px Verdana'; cx.textAlign = 'center'
@@ -7014,9 +7069,10 @@ function drawScene(now) {
 
   // camera follows you, clamped to world edges, smooth between ticks
   const meCam = s.players[myId], oCam = prevState?.players[myId]
+  // §3.3: and the camera does not fly either -- it cuts with the body
   if (meCam) {
-    const fx = oCam ? lerp(oCam.x, meCam.x, t) : meCam.x
-    const fy = oCam ? lerp(oCam.y, meCam.y, t) : meCam.y
+    const _cp = lerpPos(oCam, meCam, t)
+    const fx = _cp.x, fy = _cp.y
     cam.x = Math.max(0, Math.min(W - VIEW_W, fx - VIEW_W / 2 + 0.5))
     cam.y = Math.max(0, Math.min(H - VIEW_H, fy - VIEW_H / 2 + 0.5))
   }
@@ -8531,8 +8587,10 @@ function drawScene(now) {
   for (const [id, m] of (s._mobsE ?? Object.entries(s.mobs))) {
     if (m.hp <= 0) continue
     const mo = prevState?.mobs?.[id]
-    const mix = mo ? lerp(mo.x, m.x, t) : m.x
-    const miy = mo ? lerp(mo.y, m.y, t) : m.y
+    // §3.3: a respawn REUSES THE ID, so the old body and the new one are the
+    // same entry and the window slid one into the other. Cut instead.
+    const _mp = lerpPos(mo, m, t)
+    const mix = _mp.x, miy = _mp.y
     // mobs square off: face whoever is hitting them, else face travel
     const attacker = s._pinnedBy?.[id]
     if (attacker) mobFacing[id] = attacker.x !== m.x ? Math.sign(attacker.x - m.x) : -1
@@ -9215,7 +9273,8 @@ function drawScene(now) {
   for (const [pid, p] of (s._playersE ?? Object.entries(s.players))) {
     if (pid !== myId && p.hp > 0 && s.tick - (p.lastInput ?? 0) > HIDE_AFTER) continue // long gone
     const o = prevState?.players[pid]
-    const ix = o ? lerp(o.x, p.x, t) : p.x
+    const _pp = lerpPos(o, p, t)   // §3.3: a death moves a body; it does not walk it
+    const ix = _pp.x
     const iy = o ? lerp(o.y, p.y, t) : p.y
     if (p.action) {
       // you face what you fight (and what you work)
@@ -9362,6 +9421,8 @@ function drawScene(now) {
       cx.globalAlpha = 1
     }})
   }
+
+  drawHaulMarker(s, t)
 
   drawGoalMarker(s, t)
   layer.sort((a, b) => a.z - b.z)
@@ -9648,7 +9709,7 @@ function drawScene(now) {
     if (now - b.at > 4000) { delete bubbles[pid]; continue }
     const p = s.players[pid]; if (!p) continue
     const o = prevState?.players[pid]
-    const bx2 = px(o ? lerp(o.x, p.x, t) : p.x) + 20
+    const bx2 = px(lerpPos(o, p, t).x) + 20
     const by2 = py(o ? lerp(o.y, p.y, t) : p.y) - 12
     cx.globalAlpha = now - b.at > 3400 ? (4000 - (now - b.at)) / 600 : 1
     cx.fillStyle = '#ffff9c'; cx.font = 'bold 11px Verdana'; cx.textAlign = 'center'
@@ -9959,8 +10020,18 @@ function panel(s) {
     vaultEl.style.display = 'block'
     vaultEl.innerHTML = '<b style="color:var(--gold)">Your vault</b> <span style="color:var(--dim)">(tap inventory to deposit)</span><br>'
       + (vaulted.length
-        ? vaulted.map(([item, q]) => '<button data-wd="' + item + '" style="margin:3px 3px 0 0">'
-            + (ICONS[item] ?? '') + ' ' + item.replace('-', ' ') + ' \u00d7' + q + '</button>').join('')
+        // §7.3a: ONE, AND ALL AS A SEPARATE ASK. Tapping a vault line took the
+        // WHOLE LOT, which is right for a stack of arrows and wrong for
+        // everything else: a citizen who wanted one plate to wear emptied
+        // their armoury into their pack and had to walk it all back. Deposit
+        // has always been one tap per item; withdraw should not be the one
+        // verb in the window that acts on everything at once by default.
+        ? vaulted.map(([item, q]) => '<span style="white-space:nowrap;display:inline-block;margin:3px 3px 0 0">'
+            + '<button data-wd="' + item + '">'
+            + (ICONS[item] ?? '') + ' ' + item.replace('-', ' ') + ' \u00d7' + q + '</button>'
+            + (q > 1 ? '<button data-wdall="' + item + '" title="withdraw all ' + q + '"'
+                + ' style="margin-left:-1px;padding:0 5px;color:#a89a7c">all</button>' : '')
+            + '</span>').join('')
         : '<span style="color:var(--dim)">empty. Your fortune starts here</span>')
   } else vaultEl.style.display = 'none'
 
@@ -10030,7 +10101,8 @@ function panel(s) {
                 + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 discharge</button>'
               : '').join(''))
         : '<span style="color:#8a7f68;font-size:10px">Carry it to the last town on the route.</span>')
-      + '<button data-release="1" style="' + BTN + '">set the container down</button>')
+      + '<button data-release="1" style="' + BTN + ';border-color:#a33">set the container down'
+      + ' \u2014 the route is lost</button>')
   // §6al: YOUR OWN STALL, tended from the bar. Stock is ONE WAY: there is no
   // button to take it back because there is no verb to take it back, and a
   // pane that implied otherwise would be lying about the rules.
@@ -10105,6 +10177,17 @@ function panel(s) {
       return
     }
     if (e.target?.dataset?.release !== undefined) {
+      // §11b: releasing forfeits the DRAWN ROUTE, not just the load -- the next
+      // consignment draws a new one. A button that reads like putting a bag
+      // down should not quietly undo an hour of walking.
+      if (!_releaseArmed) {
+        _releaseArmed = true
+        feed('That forfeits the route you have walked \u2014 the next consignment draws a new one. '
+          + 'Tap again to set it down.')
+        setTimeout(() => { _releaseArmed = false }, 6000)
+        return
+      }
+      _releaseArmed = false
       send({ do: 'release' }); feed('You set the container down. Your hands are your own again.'); return
     }
     const dv = e.target?.dataset?.deliver
@@ -10140,12 +10223,29 @@ function panel(s) {
     hb.style.display = 'block'
     const c9 = me.consignment
     const load9 = (c9.items ?? []).filter(Boolean).length
+    // §11c: A LEG IS REACHED BY STANDING BESIDE ITS OWN COUNTER, orthogonally,
+    // and the engine only checks it on an interval you ACT on. That is three
+    // conditions a citizen cannot see: which counter, which side of it, and
+    // that standing still is not enough. Somebody walked a whole leg, stood in
+    // the right town, watched "leg 1 of 2" refuse to move, and gave up. So the
+    // bar names the node, points at it, and counts the tiles.
+    const dest9 = c9.route?.[c9.leg] ? s.nodes[c9.route[c9.leg]] : null
+    const d9 = dest9 ? Math.abs(me.x - dest9.x) + Math.abs(me.y - dest9.y) : null
+    const bear9 = dest9
+      ? ((Math.abs(dest9.y - me.y) > Math.abs(dest9.x - me.x))
+          ? (dest9.y < me.y ? 'north' : 'south') : (dest9.x < me.x ? 'west' : 'east'))
+      : ''
     hb.innerHTML = 'CARRYING \u00b7 ' + load9 + ' slot' + (load9 === 1 ? '' : 's')
       + (haulAtEndC(c9)
         ? ' \u00b7 <b style="color:#8ce08c">discharge here at ' + (haulLast(s, c9) ?? 'this counter') + '</b>'
-        : '<br><span style="color:#e8d9a0">Next: ' + (haulNext(s, c9) ?? 'the next counter') + '</span>'
+        : '<br><span style="color:#e8d9a0">Next: the counter at ' + (haulNext(s, c9) ?? '?') + '</span>'
           + '<span style="color:#8a7f68"> \u00b7 leg ' + ((c9.leg ?? 0) + 1) + ' of '
-          + (c9.route ?? []).length + ' \u00b7 discharge at ' + (haulLast(s, c9) ?? '?') + '</span>')
+          + (c9.route ?? []).length + ' \u00b7 discharge at ' + (haulLast(s, c9) ?? '?') + '</span>'
+          + (d9 === null ? ''
+            : d9 <= 1
+              ? '<br><span style="color:#8ce08c">You are beside it. Take one step, or any deed, and the leg counts.</span>'
+              : '<br><span style="color:#a89a7c;font-size:10px">' + d9 + ' tiles ' + bear9
+                + ' \u2014 stand directly beside that counter (not on it, not corner-on).</span>'))
       + '<br><span style="color:#a89a7c;font-size:10px">No bank, no recall. Anyone else carrying may strike you.</span>'
   }
   document.getElementById('status').textContent =
@@ -10674,12 +10774,17 @@ document.getElementById('gatename').addEventListener('keydown', (e) => { if (e.k
 document.getElementById('vault').addEventListener('click', (e) => {
   const item = e.target.dataset.wd
   if (item) {
-    // §7.3a: take the LOT. A vault holding twenty-five arrows used to hand
-    // them back one an interval into one slot each; now the pack takes what
-    // fits and the rest stays banked.
-    const have = world?.players?.[myId]?.bank?.[item] ?? 1
-    send({ do: 'withdraw', item, qty: have })
+    send({ do: 'withdraw', item, qty: 1 })
     feed('You withdraw the ' + item.replace('-', ' ') + '.')
+    return
+  }
+  const allItem = e.target.dataset.wdall
+  if (allItem) {
+    // the lot, when the lot is what you meant. The pack takes what fits and
+    // the rest stays banked, which is the engine's own rule.
+    const have = world?.players?.[myId]?.bank?.[allItem] ?? 1
+    send({ do: 'withdraw', item: allItem, qty: have })
+    feed('You withdraw what will fit \u2014 ' + have + ' ' + allItem.replace('-', ' ') + '.')
   }
 })
 
@@ -10953,7 +11058,8 @@ cv.addEventListener('click', (e) => {
   for (const [pid, p] of Object.entries(world.players)) {
     if (pid === myId) continue
     const o = prevState?.players?.[pid]
-    const ix = o ? lp(o.x, p.x) : p.x, iy = o ? lp(o.y, p.y) : p.y
+    const _hp2 = (!o || teleported(o, p)) ? { x: p.x, y: p.y } : { x: lp(o.x, p.x), y: lp(o.y, p.y) }
+    const ix = _hp2.x, iy = _hp2.y
     const d = Math.hypot(ix + 0.5 - fxT, iy + 0.5 - fyT)
     if (d < 0.8 && (!best || d < best.d)) best = { d, kind: 'citizen', id: pid, p }
   }

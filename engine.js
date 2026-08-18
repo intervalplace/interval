@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.96';
+const SPEC_VERSION = '0.97';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -7924,6 +7924,24 @@ function nextState(state, inputs, _legacyBeacon) {
       if (MOB_STATS[m.type]?.summoned) continue;
       m.hp = MOB_STATS[m.type].maxHp;
       m.x = m.hx; m.y = m.hy; // the dead come back where they belong
+      // §3.3: AND THEY COME BACK WITHOUT THE GRUDGE.
+      //
+      // `m.mad` is who hit it, and it survived death. A goblin killed at its
+      // post rose sixteen intervals later still angry at its killer and set
+      // off after them from wherever they now were -- which reads, correctly,
+      // as a beast that remembers being killed and holds it against you. When
+      // a mob dies to a citizen the grudge is cleared (the citizen-dies path
+      // already does this); when a mob dies and RISES nobody cleared anything,
+      // so the one death that was meant to end a fight was the one that did
+      // not.
+      //
+      // The rest of it goes with the grudge for the same reason: a root, a
+      // stilling, a burn and a spent arm are all things that happened to a
+      // body that is no longer there. Rising is a new body at an old post.
+      delete m.mad;
+      delete m.rootedUntil; delete m.rootImmuneUntil;
+      delete m.stilledUntil; delete m.stillImmuneUntil; delete m.stillAt;
+      delete m.burnUntil; delete m.lastSwing;
       // §6w: A DRAGON COMES BACK WITH ITS BOW.
       //
       // The bow used to be kept for as long as its bearer kept logging in, and

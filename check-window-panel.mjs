@@ -13,6 +13,7 @@ import E from './engine.js'
 if (E.initCrypto) await E.initCrypto()
 
 const html = readFileSync('window-web.html', 'utf8')
+const html_src = html
 const body = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)][0][1]
 
 const noop = () => {}
@@ -136,6 +137,19 @@ console.log('\n--- the bar shows what you are standing next to ---')
     items: [{ item: 'logs', qty: 3 }, ...Array(27).fill(null)] }
   ctx.__test(s8, me.playerId); ctx.panel(s8)
   ok(/Next:/.test(String(bars.haulbar ?? '')), 'a hauler is told where to go')
+  // §11c: mid-route, the bar has to name the counter, the distance and the fact
+  // that standing ON it is not standing BESIDE it
+  const s9 = fresh()
+  E.addNode(s9, 'store-2', 'store', 20, 20)
+  s9.players[me.playerId].consignment = { from: 'store-1', route: ['store-2', 'store-1'], leg: 0,
+    items: [{ item: 'logs', qty: 3 }, ...Array(27).fill(null)] }
+  ctx.__test(s9, me.playerId); ctx.panel(s9)
+  const hb9 = String(bars.haulbar ?? '')
+  ok(/leg 1 of 2/.test(hb9), 'it counts the legs')
+  ok(/tiles/.test(hb9) && /beside/.test(hb9), 'and says how far and to stand beside it')
+  // the release label is a string in the counter pane; assert it at the source
+  // rather than chase a fixture into being adjacent to the right node
+  ok(/the route is lost/.test(html_src), 'release warns that it forfeits the route')
 }
 
 console.log('\n--- drawScene() survives a frame ---')

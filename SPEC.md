@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.96 ("The Constitution")
+# Interval: Protocol Specification v0.97 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -2696,6 +2696,22 @@ swing ordinal is what alternates.** Odd cadences were never affected, which is
 why a crossbow never showed it, and why almost nothing in this world would have.
 
 After: strength +37, attack +15 over the same forty intervals.
+
+### 3.3-ii. The dead rise without the grudge
+
+`m.mad` is the beast's memory of who struck it, and it survived the beast. A
+goblin killed at its post rose sixteen intervals later still angry at its
+killer, and set off after them from wherever they now were.
+
+The asymmetry is what gives it away. When a beast kills a **citizen**, the
+grudge is cleared on the spot — that line has always been there. When a beast
+dies and **rises**, nobody cleared anything. So the one death that was written
+to end a fight was the only one that didn't.
+
+The rest of the transient state goes with it: a root, a stilling, a burn and a
+spent arm all happened to a body that is no longer there. **Rising is a new
+body at an old post**, and it should carry nothing forward but its type and
+where it belongs.
 
 ### 6dg-ii. The javelin, measured and cut
 
