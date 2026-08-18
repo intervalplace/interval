@@ -7,6 +7,7 @@
 //   usage: node serve.mjs [name]   then open http://localhost:8787
 
 import fs from 'fs'
+import crypto from 'crypto'
 import { makeBoard } from './board.mjs'
 import http from 'http'
 import { WebSocketServer } from 'ws'
@@ -282,6 +283,17 @@ if (canResume) {
 
 let node
 let noughtWorldJson = null   // §0: the founding state, built once, never changing
+// A tag that changes when anything a window caches changes: the practice
+// world's own id, plus the engine that builds it. Either moving is a different
+// island, and a window must be told rather than left holding the old one.
+let _noughtTag = null
+function noughtTag() {
+  if (_noughtTag) return _noughtTag
+  const gid = E.worldId(E.noughtGenesisOf(node.state.genesis))
+  const eng = crypto.createHash('sha256').update(fs.readFileSync(new URL('./engine.js', import.meta.url))).digest('hex')
+  _noughtTag = gid.slice(0, 16) + '-' + eng.slice(0, 8)
+  return _noughtTag
+}
 let noughtTerrain = null     // §0: the ground, packed once, never changing
 // Evaluate the registered generator over the whole grid and pack it. Costs one
 // pass at first request and nothing ever again, because a changed island is a
@@ -621,7 +633,17 @@ const server = http.createServer((req, res) => {
         try { noughtTerrain = packTerrain(node.state.genesis) }
         catch (e) { res.writeHead(503, NC); return res.end('cannot pack the ground: ' + e.message) }
       }
-      const immutable = { 'Cache-Control': 'public, max-age=31536000, immutable' }
+      // REVALIDATE, DO NOT PIN.
+      //
+      // These were served `immutable, max-age=31536000` on the reasoning that a
+      // founding cannot change. The founding cannot; what this node BUILDS from
+      // it can, and did -- the day the practice world stopped seating imported
+      // citizens, every window that had already fetched it went on loading the
+      // populated one from disk cache, for a year, with no way to notice.
+      //
+      // An ETag makes revalidation a 304 and costs nothing, and correctness is
+      // worth more than a cache hit on forty kilobytes.
+      const immutable = { 'Cache-Control': 'no-cache', 'ETag': '"' + noughtTag() + '"' }
       if (path.endsWith('.json')) {
         res.writeHead(200, { 'Content-Type': 'application/json', ...immutable })
         return res.end(JSON.stringify(noughtTerrain.meta))
@@ -630,27 +652,20 @@ const server = http.createServer((req, res) => {
       return res.end(noughtTerrain.bin)
     }
     if (path === '/nought/world.json') {
+      res.setHeader('Cache-Control', 'no-cache')
+      res.setHeader('ETag', '"' + noughtTag() + '"')
       // Computed once and cached: it cannot change, because a changed world is
       // a different world (§9d).
       if (!noughtWorldJson) {
-        // §0: the practice world is a DIFFERENT WORLD that draws the same
-        // island. Serving it under its own id is what makes "nothing crosses"
-        // arithmetic: an input signed here is refused there, by §1's binding,
-        // with no window involved and nobody's word taken for it.
-        // SERVED ALREADY MARKED, so that the LAZY window is the safe one.
-        //
-        // The window marks it too (§0a), which defends against a pillar that
-        // did not. But a window author who never read §0 and simply renders
-        // what arrives must still end up showing a resident where they are --
-        // otherwise the default outcome of carelessness is a person deceived,
-        // and carelessness is the only adversary here worth designing against.
-        // Nobody gains anything by faking Nought: there is nothing in it to
-        // steal and the key never leaves the machine.
-        try { noughtWorldJson = Buffer.from(JSON.stringify(
-          E.markNoughtWorld(buildWorld(E.noughtGenesisOf(node.state.genesis))))) }
-        catch (e) { res.writeHead(503, NC); return res.end('cannot build the founding state: ' + e.message) }
+        // Startup did not manage it. Do NOT build here: this handler runs on
+        // the same thread as the tick, and a minute of blocking is worse for
+        // everyone than a minute of one window watching from outside.
+        res.writeHead(503, NC)
+        return res.end('the practice island is not built on this node')
       }
-      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=31536000, immutable' })
+      // headers already set above: no-cache + ETag, so a founding that changes
+      // reaches every window instead of sitting in a year-long disk cache.
+      res.writeHead(200, { 'Content-Type': 'application/json' })
       return res.end(noughtWorldJson)
     }
     // /play is the doorway: a window is a choice, and the choice is shown.
@@ -940,6 +955,35 @@ node.onTick = (state) => {
   else if (skipped && state.tick % 100 === 0) console.warn('[backpressure] '
     + skipped + ' behind at tick ' + state.tick + ', worst ' + (worst / 1048576).toFixed(1)
     + 'MB of ' + (DROP_ABOVE / 1048576) + 'MB — skipping until they drain')
+}
+
+// §0: BUILD THE PRACTICE ISLAND BEFORE ANYONE ASKS FOR IT.
+//
+// This used to be built lazily, inside the HTTP handler for
+// /nought/world.json. Building a v7 world takes the better part of a minute of
+// straight-line synchronous work, so the FIRST resident to arrive froze this
+// node's event loop for that whole time: no ticks proposed, no state
+// broadcast, no input accepted, every other visitor stalled. The window that
+// asked simply sat on "Asking the world to expect you..." while the world it
+// was asking had stopped answering.
+//
+// A synchronous build cannot be moved off this thread, so it is moved off the
+// REQUEST instead: paid once at startup, where an operator is already waiting
+// and nobody is mid-interval. It roughly doubles the time to come up and costs
+// nothing afterwards.
+try {
+  const t0 = Date.now()
+  console.log('building the practice island (§0) — this is paid once, at startup...')
+  noughtWorldJson = Buffer.from(JSON.stringify(
+    E.markNoughtWorld(buildWorld(E.noughtGenesisOf(node.state.genesis)))))
+  noughtTerrain = packTerrain(node.state.genesis)
+  console.log('  practice island ready in ' + ((Date.now() - t0) / 1000).toFixed(1)
+    + 's (' + (noughtWorldJson.length / 1024).toFixed(0) + ' KB), tag ' + noughtTag())
+} catch (e) {
+  // Not fatal: a node that cannot build it serves 503 and its windows fall back
+  // to watching Tallyholm from outside, which is a lesser thing than Nought but
+  // very much better than a node that refuses to start.
+  console.warn('  could not build the practice island: ' + e.message)
 }
 
 node.startTicking()

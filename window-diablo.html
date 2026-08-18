@@ -14427,9 +14427,9 @@ async function ensureNought() {
     const mod = await import('/engine-browser.mjs')
     const E2 = await mod.loadEngine('/engine.js')
     const [tRes, mRes, wRes] = await Promise.all([
-      fetch('/nought/terrain.bin', { cache: 'force-cache' }),
-      fetch('/nought/terrain.json', { cache: 'force-cache' }),
-      fetch('/nought/world.json', { cache: 'force-cache' }),
+      fetch('/nought/terrain.bin', { cache: 'no-cache' }),
+      fetch('/nought/terrain.json', { cache: 'no-cache' }),
+      fetch('/nought/world.json', { cache: 'no-cache' }),
     ])
     if (!tRes.ok || !mRes.ok || !wRes.ok) throw new Error('the founding was not served')
     mod.registerTerrainTable(E2, mod.parseTerrainTable(await tRes.arrayBuffer(), await mRes.json()))

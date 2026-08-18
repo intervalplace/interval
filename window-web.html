@@ -5027,9 +5027,9 @@ async function ensureNought(live) {
     // every tile reads as blocked -- so a Nought without this is an island
     // nobody can take one step on.
     const [tRes, mRes, res] = await Promise.all([
-      fetch('/nought/terrain.bin', { cache: 'force-cache' }),
-      fetch('/nought/terrain.json', { cache: 'force-cache' }),
-      fetch('/nought/world.json', { cache: 'force-cache' }),
+      fetch('/nought/terrain.bin', { cache: 'no-cache' }),
+      fetch('/nought/terrain.json', { cache: 'no-cache' }),
+      fetch('/nought/world.json', { cache: 'no-cache' }),
     ])
     if (!tRes.ok || !mRes.ok || !res.ok) throw new Error('the founding was not served')
     mod.registerTerrainTable(E2, mod.parseTerrainTable(await tRes.arrayBuffer(), await mRes.json()))
@@ -10379,6 +10379,9 @@ function tellArrival() {
   if (!me9) return
   arrivalTold = true
   const asleep = curState.tick - (me9.lastInput ?? curState.tick)
+  // §0: NOT WHILE IN NOUGHT. A resident's local body is freshly made and so has
+  // lastInput 0, which read as a first waking in a world they have not reached.
+  if (inNought) return
   if ((me9.lastInput ?? 0) === 0 || asleep < 8) { feed('You wake in Tallyholm for the first time.'); return }
   const s9 = Math.round(asleep * 0.6)
   const t9 = s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day'
