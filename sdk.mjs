@@ -123,7 +123,8 @@ export class IntervalClient {
   attackp(targetId, style = 'even') { return this.#send({ type: 'attackp', targetId, style }) }
   plant(slot) { return this.#send({ type: 'plant', slot }) }
   harvest(nodeId) { return this.#send({ type: 'harvest', nodeId }) }
-  sell(slot) { return this.#send({ type: 'sell', slot }) }
+  // §6l: `sell` is repealed. A keeper buys nothing; raise a stall (§6al)
+  // or unmake it (§6dc).
   invoke() { return this.#send({ type: 'invoke' }) }
   cast(spell) { return this.#send({ type: 'cast', spell }) }
   // 6cj: FIVE SLOTS, not three. `offhand` and `legs` joined the constitution

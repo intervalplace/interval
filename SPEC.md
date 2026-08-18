@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.89 ("The Constitution")
+# Interval: Protocol Specification v0.96 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -390,15 +390,19 @@ building, water tile, and creature stands where the founding says.
 
 ## 6l. The store and gold (the first coin)
 
-Each citizen carries `gold` (an integer, starting 0). `sell {slot}`
-is valid beside a `store` node when the slot's item has a listed
-price; it resolves same-tick: the whole stack is consumed and
-`gold += price * qty`. Prices: logs 2, ore 5, raw-fish 3,
-cooked-fish 6, bones 2, arrows 1, magic-stone 20, bronze-sword 15,
-bronze-hatchet 10, bronze-pickaxe 10, bronze-helm 12, bronze-plate 30,
-wooden-bow 8. Gold survives death (coin knows no master) and is not
-an inventory item. What gold BUYS is reserved for a future amendment:
-the till is patient.
+Each citizen carries `gold` (an integer, starting 0). **There is no
+`sell`.** The verb, the keeper's shelf and the keeper's purse were all
+repealed together; see the paragraphs below for why, and §6dc for what
+replaced them.
+
+`PRICES` survives, but it is no longer a price list in the sense of
+something a citizen can transact against. What it does now is name
+which things the world considers *valuable at all* — it orders what
+prayer keeps on death (§6c), it feeds the hauling multiplier (§11e),
+and it decides what alchemy will accept. A thing absent from `PRICES`
+— the dragonbow, the old chain, the goo staff, the cinder-crown — is a
+thing the constitution declines to value, which is a stronger
+statement than any number.
 
 New inert node type: `store` (with its `keeper`).
 
@@ -691,13 +695,14 @@ PRACTICE is whatever a citizen can gather most of. A woodcutter can
 learn magic from logs, and nobody burns a star-plate to learn a
 spell.
 
-The pittance is the design, and it is what keeps a keeper's purse
-meaning anything. It is capped at four so that unmaking a star plate
-is never worth doing, and held under the keeper's price so that
-unmaking a log is never worth doing either: a flat four paid twice
-what a keeper paid for logs and bones and four times what it paid for
-arrows, which inverted the whole rule for exactly the goods a beginner
-gathers. An arrow now pays nothing at all and is unmade for the
+The pittance is the design. It is four for everything, so unmaking a
+star plate is never worth doing and unmaking a log always is -- and
+what keeps that from being a statement that a log and a star plate are
+worth the same is HARDNESS (§6db), which prices the ladder in
+intervals rather than in coin. Four is the world's whole monetary
+policy, and there is nothing else to tune. See §6dc.
+
+An arrow pays four like everything else and is unmade for the
 practice, which is the honest worth of unmaking an arrow. Alchemy has no purse -- there is no keeper in the
 Wilds -- so a payment that followed the item's price would be the one
 uncapped mint in the world, and one that grew with what it was fed:
@@ -1033,10 +1038,12 @@ a pack slot can carry, and doubling the pot doubles exactly that.
 **A citizen's stall sells while they sleep.** Every economic rule here
 ends the same way: the only sensible buyer is another citizen.
 Magic-stone at twenty when a plate wants seven. Dragon-bones at five
-hundred when they are worth six thousand. A keeper's purse holding
-twelve hundred against a master smith's thirty-five million. The world
-is built to force citizens to trade with each other, and until now
-that required both of them awake at the same moment.
+hundred when they are worth six thousand. A keeper who, in the end,
+was repealed for having a price list at all (§6l). The world is built
+to force citizens to trade with each other, and until now that
+required both of them awake at the same moment -- and now the stall is
+the ONLY asynchronous market there is, which is a weight it was
+designed for and should be watched under.
 
 Sixteen logs and eight ore -- twenty-four of a pack of twenty-eight,
 so it costs most of a pack and cannot be carried with much else. It is
@@ -1192,9 +1199,12 @@ fight, still trade with another citizen. What you may not do is turn
 what you took into anything, or leave quickly.
 
 A keeper's refusal punishes somebody who needs a keeper, and a citizen
-of any standing does not -- they sell to each other, and a purse holds
-only twelve hundred anyway -- so the mark cost the people it was
-written for the least. The stones cost everybody the same thing:
+of any standing does not -- they sell to each other -- so the mark cost
+the people it was written for the least. (With the keeper out of the
+goods trade entirely (§6l), the refusal now bites on the stalls, the
+waystones and `deliver`: a branded hauler cannot discharge a
+consignment until the mark cools, which is the sharpest edge it has
+ever had.) The stones cost everybody the same thing:
 strike first and you WALK home, for fifteen minutes, carrying whatever
 you took, through exactly the window in which the person you struck
 and their friends might like a word. The Brand makes you catchable,
@@ -1411,33 +1421,56 @@ hitpoints has a reason to look at where they are standing rather than
 at what they are carrying. Its worth is TIMING, never throughput --
 which is why it heals a fixed six and why nothing can be stockpiled.
 
-**A keeper's purse is finite, and the world's money supply is this
-sentence.** A `store` holds `coin`, at most twelve hundred, recovering
-two an interval. Selling spends it; buying off the shelf returns it. A
-keeper who cannot pay in full refuses the sale rather than paying
-part, and the citizen still has their goods and the road to the next
-town.
+**A KEEPER BUYS NOTHING.** There is no `sell`, no shelf, and no purse.
+A `store` is a counter where a consignment is signed, carried to, and
+discharged (§11), and it is nothing else. The only bid the
+constitution still makes on a citizen's goods is alchemy's flat four
+(§6dc), and four coins is a mercy for what you would otherwise drop,
+not a market.
 
-Before this a store conjured what it paid, so gold entered the world
-at whatever rate a citizen could gather -- seventeen hundred an hour
-for a beginner and twenty-eight thousand for a master -- and left it
-only through a tenth on resale. That is a money supply with a source
-and no ceiling, in a world that will never be amended. Now the whole
-island mints at most ten towns times two coin an interval, and that
-number is fixed here forever.
+Three drafts of a keeper failed, and they failed in the same
+direction. A store that conjured what it paid was a mint with no
+ceiling. A store with a purse of twelve hundred, recovering two an
+interval, was a money supply of about twelve gold an interval for a
+whole island -- until the accrual was removed and the sentence
+describing it was not, at which point the keeper economy of Tallyholm
+was worth eight thousand four hundred coin FOR THE LIFE OF THE WORLD.
+Measured: one star plate per store, ever. And underneath both, a
+`sell` that read the whole stack at one bid, where alchemy has always
+taken ONE FROM THE STACK, NEVER THE STACK -- so a brewer holding a
+thousand ale emptied a till in a single interval.
 
-What it costs a citizen is a walk, and what it buys is that the ten
-towns finally differ: a keeper who has been bought out is a fact about
-a place, and carrying goods to a town that can still pay is the first
-trade this world has had that is not simply gathering.
+The fault common to all three is that a fixed price list under any
+mint at all breaks in exactly one place: the shelf. A citizen sells a
+star plate for nine hundred and anybody may buy it back for nine
+hundred and ninety, so as gold accumulates the keeper's shelf becomes
+a free-gear dispenser and the star economy evaporates without anybody
+mining a stone.
 
-**The store makes nothing.** A general store's shelf holds only what
-citizens have carried in and sold; nothing appears there from nowhere.
-The keeper's own goods are gone -- seeds were the last of them, and
-they now belong to the seedsman at Hollybarrow. A store is a MARKET,
-and its keeper's cut remains what it always was: the spread between
-what a seller is paid and what the next buyer pays, which is this
-world's oldest gold sink.
+So the keeper is out of the goods trade, and what a raw thing is
+worth is settled between citizens at a stall (§6al) -- which is what
+this section has claimed since it was written and never once
+enforced. **The only sensible buyer is another citizen** is now a
+structural fact rather than an aspiration.
+
+What this costs is the newcomer's first sale, and what it buys is
+every sale after it. A pack is twenty-eight slots and a walk, and with
+no counter paying a guaranteed two coin for a log, whether a log is
+worth carrying home becomes a question a citizen actually answers. A
+smith who wants iron must mine it or find a miner. That is the
+two-halves rule (§6bt) applied to the basic economy instead of only to
+the endgame, and it is the trade this world has been reaching for
+since it had one.
+
+**The store makes nothing, and now it takes nothing either.** The
+keeper's own goods went first -- seeds were the last of them, and they
+belong to the seedsman at Hollybarrow now -- and the shelf followed.
+What remains is a counter: the place a consignment is signed, carried
+to, and discharged (§11), and the fixed point the drawn routes run
+between. A store is a PLACE, not a market. The market is the stalls
+citizens raise (§6al), and the gold sink that the keeper's spread used
+to be is now the stall premium below, which is destroyed entire
+because there is no till behind a stall to credit.
 
 What follows from this is the point of it. Farming now BEGINS
 somewhere. A citizen who wants to grow anything walks to Hollybarrow
@@ -1447,10 +1480,10 @@ there; the geography does it, which is the better way.
 
 **A town has stalls, and they are dear.** A `stall` node bears a
 `kind` -- `lumber`, `delve`, `arms`, `armour` or `bows` -- and sells
-that trade's basic bronze gear from nothing, adjacent, at roughly
-twice what the same thing costs elsewhere. It buys nothing: selling
-remains the general store's business, and a stall is where a thing
-comes FROM.
+that trade's basic gear from nothing, adjacent, at roughly twice what
+the same thing costs elsewhere. It buys nothing: a stall is where a
+thing comes FROM, and with the keeper out of the goods trade it is the
+only place in the world that sells from nothing at all.
 
 The premium is not an oversight. A stall does not compete with the
 market, it competes with WALKING, and it wins by always being there
@@ -1854,12 +1887,39 @@ Fleeing costs an action. So does striking. A pursuer who moves cannot
 swing that interval, and a pursuer who swings does not move, so the
 runner gains a tile. Both walk at one tile per interval and neither can
 walk faster, so the distance between a hunter and a willing runner never
-closes. Measured over sixty intervals of unbroken pursuit at mastery, a
-fleeing citizen takes **nothing** from a sword, a spear or a bow, and
-ends the chase further away than it began. Reach buys an oscillation in
-and out of range and almost no blows. Because §2b requires attacker and
-target to stand inside the Wilds, running for the border ends any
-pursuit absolutely.
+closes.
+
+**And it is a conservation law, not a balance.** Every blow costs a tile
+that can never be won back, so what a runner takes is bounded by the
+weapon's **reach** and not by the duration of the chase. Sixty intervals
+and six hundred give the same answer. This is the strong form of the
+rule, it is what actually holds, and it is what will still hold after
+the next weapon is added — which the old wording, a list of three
+weapon types, would not have.
+
+Measured at mastery over sixty intervals, quarry running in a straight
+line and doing nothing else — no food, no well, no turn — against every
+weapon in the world, in 364 pursuits: **no runner was killed, not once,
+and every hunter ended further away than it began.** A sword, a flail
+and a great sword take **nothing at all**: one swing from adjacency puts
+the runner at two tiles, and a reach-one weapon never touches them
+again. A spear takes about six per cent. Bows take between seven and
+thirty-six, rising with reach, and the two that carry a `flurry` take
+most because a burst buys six blows for one tile of gap where every
+other weapon pays a tile per blow. Nothing in the world takes half a bar
+off a runner.
+
+The ambush is *weaker* than the chase for most of them, which is worth
+recording because it reads the other way round. Opening at its own full
+reach, a crossbow and a great crossbow land **nothing**: their cadence
+of three means the arm is not ready until the runner has already drifted
+out of range, so they fire once at the wrong moment and never again.
+§6w's *"reach nine is a devastating opening"* is true only of the
+dragonbow, and even there the opening is worth less than half of what
+the same weapon does starting adjacent.
+
+Because §2b requires attacker and target to stand inside the Wilds,
+running for the border ends any pursuit absolutely.
 
 Therefore: **no citizen may be robbed by one other citizen.** Not the
 strongest, not the best equipped, not the most patient. In the open, on
@@ -2282,8 +2342,9 @@ v0.1 input types:
 - `release` → no params (v0.87); valid beside a `store` while bearing one.
   Returns as many slots as will fit; what does not fit stays, and the
   consignment stands. A citizen is never made to destroy their own cargo.
-- `deliver` → `{slot}` (v0.87); sells one slot of the container at the
-  route's LAST town, and pays Hauling XP. See §11e.
+- `deliver` → `{slot}` (v0.87); **discharges** one slot of the container at
+  the route's LAST town and pays Hauling XP. The goods leave the world; no
+  gold changes hands and nothing is shelved. See §11e.
 - `eat` → `{slot}`; slot must hold `cooked-fish`, `ale` or `broth`.
   Consumes one, heals 3, 4 or 5 HP respectively (capped at max HP).
   It does **not** clear the player's current action: swallowing a fish
@@ -2419,44 +2480,45 @@ Nodes SHOULD buffer more than 4096 inputs per tick so that this
 selection is made over the whole field rather than over an arbitrary
 subset of it.
 
-## 5b-ii. The keeper's shelf
+## 5b-ii. The keeper's shelf, repealed
 
-A `store` node may hold a **shelf**: a map of item name to count, at most
-**1000** of any one item. It is the only node that may hold one.
+A `store` node holds **no shelf and no purse**. `sell` does not exist.
+Only a citizen's stall (§6al) and a spilled cart (§6bq) may hold a
+shelf; only a stall and a dedication stone may hold coin.
 
-- `sell` pays the seller `PRICES[item]` per unit, as before, and places
-  the goods on the shelf of the store they are standing beside. Above
-  the cap the keeper still pays and the goods are lost.
-- `buy` may take either the keeper's own goods (`STORE_SELLS`, made from
-  nothing and priced by this document) or anything on that store's
-  shelf. Shelf goods cost `PRICES[item] + max(1, PRICES[item] / 10)`,
-  integer division: what the seller was paid, plus the keeper's cut.
-  Bought shelf goods leave the shelf.
-- Every **1500 ticks**, each store loses a sixteenth of every stock it
-  holds, rounded up, and a stock that reaches nought is forgotten.
+This section used to describe the keeper's shelf, and the three things
+it said followed from it are worth keeping, because two of them were
+right and the third was the fault.
 
-Three things follow from this, and all three are the point.
+**Trade no longer needs both citizens awake** — still true, and still
+the point. `offer_trade` requires two people in the same interval,
+which in a world of a few dozen souls across many hours means most
+exchanges never happen. What holds what somebody sold six hours ago is
+now the citizen's own stall: two hundred of one good, priced by its
+owner, standing three days from their last attention. That is a
+*better* answer than the keeper's shelf was, because the price is set
+by a person rather than by this document.
 
-**Trade no longer needs both citizens awake.** `offer_trade` requires
-two people in the same interval, which in a world of a few dozen souls
-across many hours means most exchanges never happen. A shelf holds what
-somebody sold six hours ago.
+**Each place is its own market** — still true, and more so. Stock has a
+location and now so does the person who gathered it.
 
-**Each store is its own market.** The shelves are not shared, so the
-settlements develop separate strengths, and carrying goods from a town
-that has them to a town that wants them is a trade in itself. Nothing
-enforces this: it is what happens when stock has a location.
+**Selling stops minting coin from nothing** — this was the fault. It
+was answered three times and never solved, because a fixed `PRICES`
+table with infinite liquidity behind it cannot be made safe: a keeper
+who conjures what it pays is an uncapped mint, a keeper with a purse
+is a mint with a hard stop that strangles hauling instead (§11g), and
+either way the shelf resells at a constitutional price, so as gold
+accumulates the shelf becomes a free-gear dispenser. And `sell` read
+the *whole stack* at one bid, where alchemy takes one from the stack
+and never the stack, so a brewer holding a thousand ale emptied a till
+in a single interval.
 
-**Selling stops minting coin from nothing.** Before this, `sell` was the
-world's only source of gold and it was unbounded, while the only sinks
-were the keeper's seeds and death. Now every purchase from a shelf
-destroys the spread. A flat tenth would round to zero on the nine
-cheapest goods, which are the ones that actually move, so the cut is
-never less than a single coin.
-
-Decay is the item sink that selling used to be. Goods still on a shelf
-are goods nobody wanted at that price, and a world where every log ever
-cut waits in a shop is a world whose economy only grows.
+The mint has one name now and it is `alch` (§6dc), flat at four coins,
+denominated in gathering time, and it **destroys the good it pays
+for**. The matched sink is hauling (§11e), which destroys
+twenty-eight to a trip. A mint that consumes its input is
+self-limiting; a mint that shelves its input inflates both sides at
+once. That is the sentence this section spent three drafts learning.
 
 ## 5c. Trade
 
@@ -2508,12 +2570,21 @@ At the end of every tick, in canonical `playerId` order, a player is removed
 if **both** hold:
 
 1. **absent** — `FORGET_AFTER` (36,000 ticks, six hours) with no input;
-2. **empty-handed** — no name, no gold, nothing banked, nothing equipped, no
-   action, no trade, every skill still at its floor, and nothing in the pack
-   but the twenty-five arrows every soul wakes with.
+2. **empty-handed** — no name, nothing banked, nothing equipped, no action, no
+   trade, every skill still at its floor, nothing in the pack but the
+   twenty-five arrows every soul wakes with, and **no more gold than the purse
+   every soul wakes with** (`newcomerGold`).
 
-Both. One level, one coin, one name, one item beyond the quiver, and the
-world keeps that citizen for good.
+Both. One level, one coin *over the newcomer's purse*, one name, one item
+beyond the quiver, and the world keeps that citizen for good.
+
+**The purse is carved out for the same reason the quiver is.** This clause
+read "no gold" and the engine read `gold > 0`, while every soul spawns holding
+`newcomerGold` — twenty-two on a v7 world. So no citizen was ever
+empty-handed, the sweep never fired once, and the archive flooding §5h is
+written against was open again at one permanent citizen an interval. A thing
+the world hands you on arrival is not a deed you did; only what is *over* it
+counts.
 
 **Why both.** Time alone would forget the founder after a long absence.
 Emptiness alone would forget a newcomer who has not started. Together they
@@ -2603,6 +2674,356 @@ The log is bounded and the honors roll is finite (one entry per skill
 plus totals and any named firsts), so neither grows without limit. The
 herald changes no other state: a windows renders these cries how it
 likes, or ignores them; the record is the same regardless.
+
+### 6di. The even split did not split
+
+`teachMelee` alternates the `even` style between attack and strength on `tick
+& 1`, on the reasoning — correct in itself — that experience is an integer and
+half of one damage is nothing.
+
+But tick parity is in lockstep with the cadence of almost every weapon in the
+world. A citizen swinging `every: 2` lands on ticks of **one parity and only
+ever that parity**, so `even` paid a hundred per cent to attack, or a hundred
+per cent to strength, for the life of that citizen — decided by nothing but
+which tick their first blow happened to fall on. Measured over forty intervals
+with a star-javelin: **strength +96, attack +0.**
+
+§6y caught this exact error for the sigil-bow's arrows — *"`s.tick % 2` was in
+lockstep with the bow's own `every: 2` cadence; it only ever loosed on ticks of
+one parity"* — and the identical sentence was true two hundred lines away about
+experience, where nobody looked. The fix is the one §6y already found: **the
+swing ordinal is what alternates.** Odd cadences were never affected, which is
+why a crossbow never showed it, and why almost nothing in this world would have.
+
+After: strength +37, attack +15 over the same forty intervals.
+
+### 6dg-ii. The javelin, measured and cut
+
+At hit 6/7/8 with acc +6 the javelin was strictly better than the sword it
+stands beside — more damage, better accuracy, three tiles of reach, and the
+same free off-hand. A star-javelin beat a star-sword **twenty duels to
+nothing.** A weapon better in every dimension is not a choice, it is a
+replacement.
+
+It now carries exactly the sword line's `hit` at each tier and the sword's
+accuracy:
+
+```
+iron-javelin   hit 2   steel-javelin  hit 3   star-javelin  hit 4
+```
+
+**A javelin is a sword you can throw, and throwing it costs you the javelin.**
+That is the whole trade and it is enough of one. Measured after: 15–5 against a
+star-sword, from a weapon that also holds a shield and reaches three tiles.
+
+One property is worth recording because it fell out rather than being designed.
+A javelin **teaches by distance**: thrown it pays `ranged`, held it pays
+`attack` and `strength`, and both pay `hitpoints`. The same weapon trains
+different citizens depending on how they choose to fight with it, and nothing
+in the engine says so — `drawnAt` says it, once, for bows.
+
+### 6dh. A bow is not a club
+
+An archer *can* strike somebody standing on top of them — a ranged weapon
+adjacent falls into the melee half of the roll, which is `attack` for the mark
+and `strength` for the blow. What that half did was read the weapon's `hit` and
+`acc` straight off the table: numbers written for `1 + ranged/12` and for a
+bow's own accuracy curve, spent instead on `1 + strength/10` against an attack
+roll.
+
+Measured at mastery, standing fight, damage an interval:
+
+```
+dragonbow        3.07      star-spear    2.42   ← the best MELEE weapon
+great-crossbow   2.55      star-flail    2.20
+crossbow         2.40      star-sword    1.66
+```
+
+**The dragonbow was the hardest-hitting melee weapon in the world**, and a
+crossbow's `acc: 21` — written to describe a bolt that flies flat — was
+dagger-grade accuracy for hitting somebody with the stock. A star-clad warrior's
+best play was to close and swing a bow.
+
+Held at arm's length a drawn weapon now has no `hit` and thirty off the mark.
+After:
+
+```
+great-crossbow   1.10      dragonbow     0.82
+crossbow         0.69      horn-bow      0.65
+wooden-bow       0.63      handgonne     0.15
+```
+
+It is not a disarm. The floor of three (§6bu) still applies, so an archer with
+somebody on top of them still does *something*. It is simply bad at a thing it
+was never for — which is the counterweight the reach was always meant to have,
+and it leaves the pursuit numbers of §2b-i untouched, because a pursuit is
+fought at range by definition.
+
+**The javelin is exempt**, and that is its identity rather than an oversight. A
+javelin held rather than thrown is a short spear, it keeps its numbers at every
+distance, and it is the whole reason `selfAmmo` exists (§6dg). At 2.61 an
+interval it is the best arm in the world for a fight that has already closed —
+which is what a one-handed weapon with a shield beside it ought to be.
+
+**And this is what a specialist costs.** The same table with `attack` and
+`strength` at one, a citizen who put everything into `ranged`:
+
+```
+star-spear 0.10   ·   any bow 0.01–0.02
+```
+
+A pure archer is twenty times worse than a warrior at arm's length and always
+was. Reach is the whole of what they bought, and §2b-i is the reason it is
+worth buying.
+
+### 6dg. The javelin: the first one-handed ranged weapon
+
+Ranged had eight weapons and **every one of them was two-handed**. That is the
+gap, and it is not a missing fourth kind of bow.
+
+Melee is not five points on a damage line. It is a *hand* trade: a dagger and a
+sword keep the off-hand, a spear and a maul and a flail give it up for reach or
+weight or armour, and a star shield divides an incoming blow by three or four.
+Those are two different things to be. Ranged had reach, cadence and accuracy —
+three points on one line — and no such choice at all. There was no such person
+as an archer who took a shield.
+
+**A javelin is the weapon that is its own ammunition.**
+
+```
+iron-javelin   hit 6  every 2  reach 3  acc +6   smithing  5 · ranged  1
+steel-javelin  hit 7  every 2  reach 3  acc +6   smithing 28 · ranged 15
+star-javelin   hit 8  every 2  reach 3  acc +6   smithing 46 · ranged 50
+```
+
+One-handed, stackable, three to the forging — as shot comes five to the ore and
+a bone gives five arrows, because a thing spent by the throw is priced by the
+bundle.
+
+Two rules written for bows already did the work and neither needed amending.
+`ammoOf` answers with the weapon's own name, so the bundle in the pack *is* the
+magazine. And `drawnAt` already says a ranged weapon is only **drawn** when it
+is not adjacent — so a javelin is thrown at range and costs one, and held at
+arm's length it is a short spear that costs nothing. Measured: one spent from
+three tiles, none spent adjacent.
+
+**Reach three is what pays for one hand.** §2b-i's pursuit measurement says
+damage against a runner is bounded by reach and not by time, so a short arm is
+cheap to make good in other ways. Measured over sixty intervals at mastery:
+
+```
+star-spear         2.5   (reach 2, two-handed)
+iron-javelin       8.4
+heartwood-bow     10.4
+steel-javelin     10.8
+star-javelin      12.1   ( 5.0 against a star-clad runner)
+horn-bow          34.3
+```
+
+Twelve per cent of a bar at the top of the line, zero kills in 168 pursuits,
+and — as with the crossbows — **nothing at all** when opened at its own full
+reach, because the arm is not ready again until the runner has drifted out of
+range. It sits exactly where a heartwood bow sits and buys a shield with the
+difference.
+
+**And it is the first thing in this world that fights and is consumed by
+fighting.** Every throw is metal gone. §6bw wanted a sink that scales with how
+often people fight and had only the great plate, which is at most one shatter
+an hour; this is one iron a throw, at the bottom of the ladder where iron is
+abundant and a sink is safe to put.
+
+### 6df. A burst spends a round a blow
+
+`flurry` spent **one** arrow and then ran its blow loop, so a horn-bow put six
+shafts into somebody for the price of one and the handgonne fired both barrels
+off a single load.
+
+The comment beside it still reads *"a special spends the arm for this cycle
+AND the next, so it costs two ordinary blows; `flurry` pays two blows back"* —
+which was true when a flurry **was** two blows. §6af-iii raised it to six and
+lengthened the recovery to match, correctly, for the damage. Nobody came back
+for the ammunition.
+
+The result was backwards from what a special is for. A burst should cost more
+and pay it back in timing; this one cost **six times less per point of damage**
+than the weapon's own ordinary shot, so an archer had no reason ever to loose a
+plain arrow. A weapon whose special is strictly cheaper has no moment, and
+choosing the moment is the whole of §6af.
+
+So a special spends one round per blow, and — because the validator and the
+resolver must ask the same question or a node computes a state its neighbours
+refuse — it is **gated** on carrying them. Five arrows will not buy a
+six-arrow burst.
+
+§6av's *"both barrels are one report"* governs the noise and the beacon, not
+the load. Two barrels are two loads, and a handgonne's shot is iron and
+gunpowder both.
+
+### 6de. A special reads its own divisor
+
+`ord9` — the ordinary blow a special is measured against — is computed
+with the bow's divisor when the weapon is drawn, and the note above it
+says plainly that ignoring that divisor was the defect it was written to
+fix. The line beneath it then recomputed the same quantity with a
+hardcoded `/10`, so `flurry` and `haymaker` went on using the melee
+divisor for a drawn bow. Only `far` ever read the corrected value.
+
+The horn-bow's flurry therefore sat about seven per cent above the
+neutrality that whole block exists to guarantee: eighteen a blow at
+ranged ninety-nine where its own rule says seventeen. Measured against a
+fleeing citizen it was 44.1 of a 99-point bar and is now 34.3 — still
+the hardest thing in the world to run from, but by its own numbers
+rather than by an arithmetic slip.
+
+One expression, read once, used everywhere. §6af's own warning applies
+and is the reason this is recorded rather than quietly corrected: **a
+measurement taken over a defect will recommend a feature.** The horn-bow
+looked like a design problem for as long as the divisor was wrong.
+
+### 6dd. The well runs dry, and the proofing costs something
+
+**Two amendments that §11d made necessary and nobody made.**
+
+**The well.** `drink` restored a citizen to full, had no cooldown, and — alone
+among the things that restore your own hitpoints — did not spend the arm,
+against §6m's rule in as many words. The note defending this argued that
+nobody would ever choose to walk home mid-fight, which was true when it was
+written and stopped being true the moment §11d (v0.87) made two haulers
+attack-capable *anywhere*. Thirty-four wells stand in the settled country. A
+hauler stood at one could not be killed by anything whose single-interval
+burst was under their maximum, which is every ordinary weapon in the game.
+
+Drinking now spends the arm, and **the well stands dry for a hundred intervals
+afterwards**. The cooldown is on the well and not on the citizen deliberately:
+this constitution repealed the night gate on the grounds that *waiting is the
+one cost this world rejects*, and a timer on a person is precisely that. A
+node that depletes is not waiting — it is a fact about a place, the same
+machinery every seam already uses, and the same idea as the mother lode and
+the fall-stone reservoir. Out of a fight it costs nothing: drink, walk to your
+work, come back an age later. In a fight it is decisive, and it cuts both
+ways — drinking *first*, to leave the well dry behind you, is a real move, and
+it costs you your arm for the interval to make it.
+
+**The proofing.** §6bt says *starmetal for the body of the thing, brimstone
+for the proofing*, and measured at mastery after hardness (§6db) a great
+plate's three brimstone were **two minutes against forty-three** — four per
+cent. Nobody organises a trip to the Crags over two minutes, so the two halves
+the great arms exist to join never met.
+
+The counts are rebalanced *inside the same budget* rather than added on top,
+because a great plate is single-use (§6bw) and an hour of gathering per death
+saved is already steep:
+
+```
+great-helm      6 ingot +  2 brimstone  →  4 ingot + 12 brimstone
+great-plate    12 ingot +  3 brimstone  →  9 ingot + 22 brimstone
+great-sword    14 ingot +  3 brimstone  → 10 ingot + 26 brimstone
+great-crossbow 10 ingot +  3 brimstone  →  7 ingot + 20 brimstone
+```
+
+Total gathering time moves by under two per cent in every case; brimstone goes
+from four per cent of the work to about thirty. The great *tools* and the
+handgonne are untouched, because brimstone is already half their cost or more
+— they were small enough for one unit to matter.
+
+What this buys, and what to watch: four vents at eighty-five an hour is a
+ceiling of roughly **fifteen great plates an hour for the whole island**,
+where it was a hundred and thirteen. That is the first hard supply limit this
+world has had, and it is deliberately near the rate a fighting island would
+burn them, which is what a consumable is for. It also makes the Crags a place
+worth standing in — though not yet a place worth fighting over, because all
+four vents stand outside the Wilds. That is a worldgen question, not a rule.
+
+### 6db. Hardness: a seam's rate and a seam's experience are two knobs
+
+They had been welded together. Every node in this world resolved on
+one formula — a base, plus level over ten, plus the tool, capped,
+times `rateMul` — with **no term for the node**. A magic-rock and a
+starter tree paid out at exactly the same rate for the same level and
+the same pick. Counted on the founded island, magic-rock is also the
+most abundant gatherable there is: fourteen of them, against ten
+iron-rocks and nine trees, plus five mother lodes at two stones a
+strike. So past its level gate the endgame material was **easier to
+come by than the baseline one**, and the only thing separating them
+was a walk.
+
+Every node now carries `hard`. It divides the success chance and
+multiplies the experience:
+
+```
+chance   = base / hard          experience = xp · hard
+xp/hour  = (base/hard) · (xp·hard) = base · xp     ← unchanged
+goods/hr = base / hard                             ← divided
+```
+
+The levelling road is untouched to the interval, and the
+five-per-cent-a-rung gradient survives whole: `hard` cancels out of
+the hourly rate and the base experience still climbs a point a rung,
+so software still sees a positive gradient for climbing, which is the
+whole of what that rule requires. What changes is only how much
+**material** an hour buys — the one thing the ladder never said.
+
+The ladder is 1 at the baseline, 2 in the middle, 4 at the mastery
+seams, 8 at the vents. The doubled places — the gallows-oak, the
+gibbet shoal, the mother lode — carry their tier's hardness and pay
+two to a strike, so the Wilds still buy throughput with danger,
+exactly as §6bc and §6be describe, now measured against something.
+
+Two seams were rebased onto the ladder in the doing. The
+brimstone-vent paid 44 where its rung pays 24, and the muck-heap 26;
+both now pay 24 and let `hard` carry the difference. The gold seam
+keeps its own threshold — it is a lottery, not a rate — and so carries
+hardness 1 and is untouched.
+
+Scarcity now lives in **time** rather than in a price list, which is
+where it has to live in a world with no keeper (§6l).
+
+### 6dc. Alchemy is flat, and this time the other half is fitted
+
+**`alch` pays four coins for whatever came apart.** Unpriced things —
+the dragonbow, the old chain, the goo staff, the cinder-crown — are
+refused at the door: a thing no keeper ever priced is not a thing the
+constitution values at all.
+
+A sloped payment was an authority bid with unlimited liquidity wearing
+a different hat. It said ore is worth at least four to anybody holding
+a staff, coal eleven, magic-stone nineteen — forever, by fiat, in any
+town or anywhere in the Wilds. That is the price floor the keeper was
+repealed for having, and it was *worse* than the keeper's, because a
+keeper at least demanded the walk and a staff in the hand does not.
+
+It was also a mint, and a growing one. The payment followed the item's
+price; every recipe in this world **raises** price, because that is
+what a recipe is; so every craftable good was a pump. Thirteen recipes
+paid more unmade than their parts did — an iron maul by eleven, a
+bare-blade by twelve, an iron spear and an iron plate by eight — and
+cooking and brewing pumped the same way. The rule that was meant to
+prevent this was written down and only ever checked against the star
+tier, where the parts happen to be dear.
+
+Flat closes it by construction and permanently: a product pays `F` and
+its parts pay at least `F` each, so `F − nF ≤ 0` for every recipe that
+exists or will ever be written. No list of alchable goods, no audit of
+new recipes, nothing for a future hand to get wrong.
+
+What a flat four lacked the first time was any statement of relative
+worth, and the keeper was standing in for it badly. **Hardness (§6db)
+is the real answer.** A magic-stone pays the same four as a log and
+costs four times the intervals to hold, so the ladder is priced in
+time — and alchemy settles to the bottom of it on its own, with no
+rule saying so and no list for anybody to maintain. Above four coins,
+what a thing is worth is what a citizen will give for it. That is the
+point.
+
+Four, and not six or ten, because of what four has to buy. A newcomer
+wakes with `newcomerGold` — twenty-two, one tool at a stall — and their
+second tool costs twenty: five casts, about half a minute, an errand
+and not a career. Above that the number is monetary policy and nothing
+else. The sustainable mint is roughly 550 casts a citizen-hour at the
+foot of the ladder, so about 2,200 coin an hour each, and a
+hundred-thousand-coin dedication stone (§6bp) is forty-five hours of
+one citizen or two of a busy island. **One integer sets the money
+supply of this world, and it should stay one integer.**
 
 ## 6. Gathering resolution
 
@@ -3500,8 +3921,10 @@ said; only who said it.
   penalty (v0.41): it is reputation, made legible.
 - **Gold trades.** `offer_trade` may name `wantGold` instead of
   `wantItem`: coin settles like any item, atomically, adjacent.
-- **The store sells.** `buy {item}` adjacent to a store: currently
-  `seeds` at 15 gold. Farming no longer waits on goblin luck.
+- **The stalls sell.** `buy {item}` adjacent to a `stall` of the right
+  `kind`, from a narrow stock made from nothing and priced by this
+  document. A store sells nothing and buys nothing (§6l); seeds belong
+  to the seedsman at Hollybarrow.
 
 ## 7. Verifiable randomness: the drawing of lots (v0.38)
 
@@ -4705,13 +5128,26 @@ arith  100,000  200,000  600,000  1,100,000  10,100,000
 geom   100,000  235,795  10.7 M    1.25 B     unreachable
 ```
 
-A geometric ratchet compounds past the world's money supply. This island mints
-twelve gold an interval — about seventy-two thousand an hour, and gold is
-never otherwise destroyed — so a compounding stone passes the total wealth
-that will ever exist somewhere around its hundredth name and **freezes
-forever**. The last person to afford it owns it for the life of the world.
-That is a defensible design and it is not this one: a monument that stops
-being contested has stopped being interesting.
+A geometric ratchet compounds past what anybody will ever gather. **The
+arithmetic figure this paragraph used to reason from was wrong**, and the way
+it was wrong is worth recording, because the conclusion survived it and the
+next person to revisit this will want to know that.
+
+It said the island mints twelve gold an interval, from ten keepers recovering
+two apiece. That accrual had already been removed from the engine when the
+sentence was written, and the keepers are now out of the goods trade entirely
+(§6l). The real mint is `alch` (§6dc): flat four a cast, roughly 2,200 coin a
+citizen-hour at the foot of the ladder, and — this is the part that matters —
+**it scales with population**, where the keeper's did not. A busy island mints
+more than a quiet one, by design, because a world meant to outlive its author
+cannot have a money supply fixed at founding.
+
+Under the real numbers the geometric stone's hundredth name (1.25 B) is on the
+order of a year of a populated island rather than literally unreachable. So it
+would not freeze forever; it would freeze slowly, which is worse, because
+nobody can see it happening. Arithmetic is still the right choice, and now for
+a reason that holds under a mint nobody can predict: it grows without ever
+compounding, so it tracks a rising money supply instead of racing it.
 
 Arithmetic grows and never outruns. The tenth name pays double the first, the
 hundredth eleven times, the thousandth a hundred and one times, and it never
@@ -5439,10 +5875,26 @@ While a citizen bears one:
    bears one.** Not only in the Wilds. The Wilds is a rectangle where the law
    thins (§2g); a consignment is the same thinning, carried on a body, by
    consent, and it reaches wherever that body goes.
-2. **On death the container spills where they fall** rather than burning, on
-   the ordinary hundred-interval ground clock (§3.4). Without this, killing a
-   hauler destroys the cargo and there is nothing to steal, only somebody to
-   ruin.
+2. **On death the container spills where they fall** rather than burning, as a
+   cart (§6bq). Without this, killing a hauler destroys the cargo and there is
+   nothing to steal, only somebody to ruin.
+   **And outside the Wilds it is the ONLY thing that spills.** The victim's
+   pack and worn gear burn there, exactly as they burn when a beast kills them
+   there (§6bx). Clause 1 makes two haulers attack-capable anywhere; the spill
+   had no location test at all, so a hauler killed on a safe road dropped a
+   full pack and a suit of armour where a bystander bearing no consignment
+   could lift it at no risk. §6bx's whole argument against a beast spilling
+   gear is that *loot on the ground where nobody may fight for it is a race
+   decided by whose window clicks faster* — and a robbery in safe country
+   produced exactly that race, with the killer not even favoured to win it.
+   What the road put at stake was the cargo. Now that is all it puts at stake.
+2a. **A cart is taken only by somebody who could have been fought for it** —
+   the same predicate as clause 1, read as a claim on the goods rather than a
+   licence to swing: bear a consignment, or stand in the Wilds. Otherwise the
+   cart is the same footrace one tier up. A thief buys cargo, seals it, walks
+   the road and wins a fight; a bystander carrying nothing lifts twenty-eight
+   slots having accepted none of it. Everyone may still **watch**, which is
+   most of what makes a robbery on a public road worth doing at all.
 3. **`recall` is invalid.** The road will not be skipped by anyone who profits
    from its length.
 4. **The bank is closed** — `deposit` and `withdraw` both, not merely
@@ -5546,16 +5998,29 @@ and wears it openly.
 
 ### 11g. What this does not do
 
-- **It pays no gold.** Every draft that did died the same way. A store's purse
-  holds twelve hundred and recovers two an interval (§6l), so the island mints
-  a fixed sum per hour no matter how many citizens haul. Simulation put a lone
-  merchant at 43,666 coin an hour and sixteen merchants at 2,974 each — below
-  what a citizen earns *standing at a store selling nothing but what the purse
-  refills*. A reward drawn from a rationed pool dilutes to nothing at exactly
-  the population where the profession would otherwise come alive. XP is not
-  rationed. Mine does not reduce yours.
-- **It does not touch prices, purses, or the money supply.** Keepers,
-  alchemy, stalls and beginners are all exactly as they were.
+- **It pays no gold, and now the engine agrees.** Every draft that paid gold
+  died the same way: a reward drawn from a rationed pool dilutes to nothing at
+  exactly the population where the profession would otherwise come alive. But
+  the version that shipped drew the *experience* from that pool too — a
+  delivery paid the keeper's bid out of the keeper's purse and awarded no XP
+  unless the sale cleared. Two haulers at one counter competed for the same
+  twelve hundred coin, and the cheapest road to hauling ninety-nine asked
+  keepers for three hundred and fifty-two thousand coin against a world float
+  of eight thousand four hundred. *Mine does not reduce yours* was false of the
+  engine for as long as the sentence stood.
+  **A delivery is discharged, not sold.** §11a already says the cargo was
+  committed to the road; this is where the commitment is met. The goods leave
+  the world, the hauler is paid in the only currency this profession was ever
+  meant to earn, and no village counter has to be able to afford twenty-eight
+  plates. XP is not rationed. Mine does not reduce yours.
+- **It is now the largest goods sink in the world** — twenty-eight to a trip
+  against alchemy's one — which is the matched half of a mint denominated in
+  gathering (§6dc). One skill makes gold out of time; the other spends goods
+  for distance.
+- **And the cargo's material value belongs to the thief.** A hauler who arrives
+  earns experience; a hauler who is robbed hands somebody twenty-eight slots of
+  real goods. The cart (§6bq) is worth more than the delivery, which is the
+  asymmetry §11d was always reaching for and never had.
 - **It adds no hunter or escort role.** One may arise — a caravan carrying a
   thousand intervals of somebody's mining is the moment a guard is worth
   hiring — but it needs no rule. Two citizens can arrange it on the board and

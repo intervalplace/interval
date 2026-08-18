@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.89';
+const SPEC_VERSION = '0.96';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -247,9 +247,19 @@ function _carriesBow(p) {
   if (p?.equipment?.weapon?.item === 'dragonbow') return true;
   return (p?.inventory ?? []).some(sl => sl && sl.item === 'dragonbow');
 }
-function everWasSomebody(p) {
+function everWasSomebody(p, genesis) {
   if (p.name !== null && p.name !== undefined) return true;
-  if ((p.gold ?? 0) > 0) return true;
+  // §5f: THE NEWCOMER'S PURSE IS WHAT EVERYONE WAKES WITH, exactly as the
+  // newcomer's quiver is, and only what is OVER it is a deed.
+  //
+  // This read `> 0`, and every soul spawns holding `newcomerGold`. So on a
+  // world founded with any starting coin at all -- which is every v7 world --
+  // NO CITIZEN WAS EVER EMPTY-HANDED, the sweep this function exists to
+  // perform never fired once, and the archive flooding §5h is written against
+  // was open again at one permanent citizen an interval. The quiver is carved
+  // out eight lines below for precisely this reason; the purse was given the
+  // same carve-out in the constitution and never in the code.
+  if ((p.gold ?? 0) > (genesis?.newcomerGold ?? 0)) return true;
   if (p.bank && Object.keys(p.bank).length > 0) return true;
   if (p.equipment && EQUIP_SLOTS.some((k) => p.equipment[k])) return true;   // 6bz: not three hard-coded names
   if (p.action !== null && p.action !== undefined) return true;
@@ -504,6 +514,43 @@ const DEPLETE_TICKS = 8;
 // average, sometimes one, sometimes nine -- which is how a tree behaves.
 const DEPLETE_ONE_IN = 4;
 const NODE_YIELD = {
+  // §6db: HARDNESS. A SEAM'S RATE AND A SEAM'S EXPERIENCE ARE TWO KNOBS, AND
+  // THEY HAD BEEN WELDED TOGETHER.
+  //
+  // Every node in this world resolved on one formula -- GATHER_BASE plus level
+  // over ten plus the tool, capped, times rateMul -- with NO TERM FOR THE NODE.
+  // A magic-rock and a starter tree paid out at exactly the same rate for the
+  // same level and the same pick. Counted on the founded island, magic-rock is
+  // also the most abundant gatherable there is (fourteen of them, against ten
+  // iron-rocks and nine trees), plus five mother lodes at two stones a strike.
+  // So past its level gate the endgame material was EASIER TO COME BY than the
+  // baseline one, and the only thing separating them was a walk.
+  //
+  // `hard` divides the success chance and multiplies the experience:
+  //
+  //     chance = base / hard          experience = xp * hard
+  //     experience an hour = (base/hard) * (xp*hard) = base * xp   <- unchanged
+  //     goods an hour      = base/hard                             <- divided
+  //
+  // The levelling road is untouched to the interval, and the five-per-cent
+  // gradient below survives whole, because `hard` cancels out of the hourly
+  // rate and the BASE experience still climbs a point a rung. What changes is
+  // only how much MATERIAL an hour buys, which is the one thing the ladder
+  // never said. Scarcity now lives in time rather than in a keeper's price
+  // list -- which is where it has to live, in a world with no keeper (§6l).
+  //
+  // It is also the half that flat alchemy was missing. With one flat payment
+  // for any good, unmaking a log and unmaking a magic-stone were worth the
+  // same for the same effort, so the payment amounted to a constitutional
+  // claim that every raw thing on the island is worth the same. Under hardness
+  // a magic-stone pays what a log pays and costs four times the intervals, so
+  // ALCHEMY SETTLES TO THE BOTTOM OF THE LADDER ON ITS OWN, with no rule
+  // saying so and no list for anybody to maintain.
+  //
+  // The ladder: 1 baseline, 2 middle, 4 mastery, 8 the vents. The doubled
+  // places (gallows-oak, gibbet-shoal, mother lode) carry their tier's hardness
+  // and pay two to a strike, so the Wilds still buy throughput with danger --
+  // exactly the trade 6bc and 6be describe, now measured against something.
   // 6bx: A GRADIENT OF ONE, WHICH IS ALL SOFTWARE NEEDS.
   //
   // Flat experience cured the tier-as-shortcut fault and introduced a quieter
@@ -521,56 +568,56 @@ const NODE_YIELD = {
   //
   // It costs 14% off the road (879 hours to 754), which rateMul takes back.
   // The old shape was 25/45/65 and a 13.8x shortcut; this is 1.2x.
-  'tree':         { item: 'logs',        skill: 'woodcutting', xp: 20 },
-  'rock':         { item: 'ore',         skill: 'mining',      xp: 35 },
+  'tree':         { item: 'logs',        skill: 'woodcutting', xp: 20, hard: 1 },
+  'rock':         { item: 'ore',         skill: 'mining',      xp: 35, hard: 1 },
   // §7a: a boulder pays a piece of itself and almost no experience. Nobody
   // should be able to train on the South Pass -- the reason to strike it is
   // that it is in the way, and the day it stops being in the way is the point.
-  'rockfall':     { item: 'rubble',      skill: 'mining',      xp: 1 },
-  'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 20 },
-  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 23 },
+  'rockfall':     { item: 'rubble',      skill: 'mining',      xp: 1, hard: 1 },
+  'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 20, hard: 1 },
+  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 23, hard: 4 },
   // 6bd: THE MOTHER LODE, the exact sibling of the gallows-oak. Two stones to a
   // strike, deeper in the Wilds, and not one point more experience for it.
-  'mother-lode':  { item: 'magic-stone', skill: 'mining',      xp: 24, qty: 2 },
+  'mother-lode':  { item: 'magic-stone', skill: 'mining',      xp: 24, qty: 2, hard: 4 },
   // §6am (v6): the middle tier. Higher xp than baseline, lower than the
   // capstones, and the item is its own thing -- oak-logs, coal, eel --
   // that the mid gear (steel) is forged and fletched from.
-  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 21 },
+  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 21, hard: 2 },
   // 6bc: ironbark, the long-burning wood. Its job is the watchfire, which is
   // the one public work in this world, and the haft of the last axe.
-  'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 22 },
-  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 21 },
+  'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 22, hard: 2 },
+  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 21, hard: 2 },
   // §6bs: the vent. Mining's late game was a rarer metal and a deeper one;
   // this is the first thing it pulls out that a smith BURNS rather than beats.
-  'brimstone-vent': { item: 'brimstone', skill: 'mining',    xp: 44 },
+  'brimstone-vent': { item: 'brimstone', skill: 'mining',    xp: 24, hard: 8 },
   // §7i: worked with FARMING, which is the point of it -- the only gatherable
   // on the island that pays a farmer, and it stands in the farm country.
-  'muck-heap':      { item: 'saltpetre', skill: 'farming',   xp: 26 },
-  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 21 },
+  'muck-heap':      { item: 'saltpetre', skill: 'farming',   xp: 24, hard: 4 },
+  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 21, hard: 2 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
   // still (bronze is iron worked simply here), and STEEL is iron quenched with
   // coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
-  'iron-rock': { item: 'iron',     skill: 'mining',      xp: 20 },
+  'iron-rock': { item: 'iron',     skill: 'mining',      xp: 20, hard: 1 },
   // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
   // Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
   // mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
-  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 23 },
+  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 23, hard: 4 },
   // 6bc: THE GALLOWS-OAK. Not a new wood -- a new PLACE for the same one, in
   // the Wilds, giving two heartwood to a strike instead of one. This is the
   // lever that replaced price (a keeper's purse is 2 gold a tick and caps
   // everything): yield per action is uncapped, costs the experience curve
   // nothing, and the price of it is that anybody may kill you while you work.
-  'gallows-oak':    { item: 'heartwood', skill: 'woodcutting', xp: 24, qty: 2 },
-  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 23 },
+  'gallows-oak':    { item: 'heartwood', skill: 'woodcutting', xp: 24, qty: 2, hard: 4 },
+  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 23, hard: 4 },
   // 6be: THE DROWNED SHOAL. Two deep fish to a cast, under the gibbet, in the
   // water only the Wilds touches -- fishing's gallows-oak, and the third of
   // the three. Every trade now has one place where the good is doubled and
   // the price of standing there is that somebody may kill you for it.
-  'gibbet-shoal':   { item: 'deep-fish', skill: 'fishing',     xp: 24, qty: 2 },
+  'gibbet-shoal':   { item: 'deep-fish', skill: 'fishing',     xp: 24, qty: 2, hard: 4 },
   // 6bb: the gold seam yields like any other seam and pays like any other
   // seam. What differs is only how often, and that is decided by roll16.
-  'gold-rock':      { item: 'gold-ore',  skill: 'mining',      xp: 23 },
+  'gold-rock':      { item: 'gold-ore',  skill: 'mining',      xp: 23, hard: 1 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
@@ -614,6 +661,9 @@ const WIELD_REQS = {
   // crossbow is heavy to hold level and heavier to crank; a flail on a chain
   // is the least forgiving thing in the world to swing at anything.
   'crossbow': { ranged: 25 },
+  // §6dg: a thrown arm asks the bow-arm, one notch under the weapon it shares
+  // a forge with -- and star asks the same fifty every star arm asks.
+  'iron-javelin': { ranged: 1 }, 'steel-javelin': { ranged: 15 }, 'star-javelin': { ranged: 50 },
   // §6x: THE FLAIL IS STARMETAL ONLY. `pierces` ignores an entire defensive
   // system, and on a starter weapon that meant a level-ten citizen with two
   // ore beat a star-clad one more efficiently than a star-sword does. It is
@@ -1010,9 +1060,33 @@ const MARKET_DECAY = 432000;              // three days untouched, then it falls
 // and it MEANS something: this store has bought more than it has sold, and is
 // out of money. That is a market signal, and the answer to it is to trade with
 // a person instead, which is the economy this world actually wants.
-const PURSE_SEED = 1200;        // 6bn: what a founding puts in a keeper's till, once
-const PURSE_MAX = 1e12;         // 6bn: a bound for the validator, not a rule about trade
-const SHELF_CAP = 8000;        // per item, per store.
+// §6l: THE KEEPER IS OUT OF THE GOODS TRADE. `sell` is repealed, the store's
+// shelf is repealed, and the purse with them.
+//
+// What the purse was FOR was two things and it did neither. As texture -- "a
+// keeper who has been bought out is a fact about a place" -- storeBid's
+// softening already said it and repaired itself through decay. As money supply
+// control it bound the wrong quantity: seeded once at twelve hundred a store
+// and never replenished (the accrual this comment used to describe was removed
+// and the comment was not), so the whole keeper economy of an island was worth
+// eight thousand four hundred coin FOR THE LIFE OF THE WORLD -- one star plate
+// per store, ever, measured -- while the actual mint scaled with population.
+//
+// And a fixed PRICES table under a scaling mint breaks in exactly one place:
+// the shelf. A citizen sells a star plate for nine hundred and anybody may buy
+// it back for nine hundred and ninety, so with gold abundant the keeper's
+// shelf is a free-gear dispenser and the star economy evaporates without
+// anybody mining a stone. It was also, still, a bulk mint: `sell` read the
+// whole stack at one bid where alchemy takes ONE FROM THE STACK, NEVER THE
+// STACK -- a brewer with a thousand ale emptied a till in a single interval.
+//
+// So the store keeps its counter and loses its trade. It is where a
+// consignment is signed, carried to, and discharged (§11), and nothing else.
+// What a raw good is worth is now settled between citizens at a stall (§6al),
+// where it always belonged, and the only bid the constitution still makes is
+// alchemy's flat four (§6dc) -- a mercy for what you would otherwise drop, not
+// a market.
+const SHELF_CAP = 8000;        // §6al: per good, on a citizen's stall or a spilled cart
 // v0.83: was 1000, when there were thirteen stores. The two numbers were
 // always independent and got confused for one: state cost is the number of
 // (store, item) PAIRS -- twenty-five items times however many shops -- and
@@ -1023,8 +1097,6 @@ const SHELF_CAP = 8000;        // per item, per store.
 // them. The decay sink is unharmed, being proportional -- a deep shelf still
 // sheds a sixteenth a cycle. What stops happening is the max(1) floor eating
 // small piles alive, which is what fragmentation actually cost.
-const SHELF_DECAY_EVERY = 1500; // 15 minutes
-const SHELF_DECAY_SHIFT = 4;    // a sixteenth rots away: goods nobody wanted // farming no longer waits on goblin luck
 // SEVENTY. THE VEIN REFUSES ANYONE BUT A MASTER.
 //
 // This was ten -- a beginner's gate wearing a master's clothes. Mining had a
@@ -1200,7 +1272,7 @@ const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 
 // has to be clever enough to infer it from a skill going up.
 const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
-  'cast', 'recall', 'pickup', 'drop', 'buy', 'sell', 'deposit', 'withdraw'];
+  'cast', 'recall', 'pickup', 'drop', 'buy', 'deposit', 'withdraw'];   // §6l: `sell` is repealed
 const DEED_SET = new Set(DEEDS);
 
 // §6am: YOU CANNOT BE PAID TWICE FOR ONE INTERVAL.
@@ -1502,6 +1574,11 @@ const STILL_XP = STILL_SIGILS * 20;   // 6bp: three sigils spent, twenty apiece 
 // the broth brewed from the very same raw fish. Cooking a fish destroyed value
 // against brewing it, and the one rung the argument was written about was the
 // pointless one.
+// §6dd: a well gives one full restoration and stands dry for a hundred
+// intervals -- a minute. Long enough that a fight resolves instead of
+// stalemating (a star-sword burns a full bar in roughly eight), short enough
+// that ordinary play never notices, and there are thirty-four wells.
+const WELL_DRY = 100;
 const HEAL_FISH = 6;
 // §6ad: THE DEEP FISH. Ten, against a broth's five -- but a fish does not
 // STACK and a broth does, so a pack of broth is still the greater total and
@@ -1541,6 +1618,10 @@ const COOK_DEEP_REQ = 78;       // 6be: a cook to match the fisher -- the same n
 const COOK_BASE = 150, COOK_CAP = 240, COOK_HEARTH_BONUS = 16;
 const ARROWS_PER_BONE = 5, ARROWS_MASTER = 8, ARROW_MASTER = 80;
 const SHOT_PER_ORE = 5;   // §6av
+// §6dg: the javelin line, named once so the three places that ask -- the forge
+// yield, the tests and any window -- cannot drift apart.
+const JAVELINS = new Set(['iron-javelin', 'steel-javelin', 'star-javelin']);
+const JAVELIN_PER_FORGING = 3;
 const GRAIN_PER_PLOT = 2, GRAIN_MASTER = 3, FARM_MASTER = 90;
 // 6bl: HOW MANY ROWS A CITIZEN MAY HAVE IN THE GROUND AT ONCE.
 //
@@ -1770,6 +1851,46 @@ const WEAPONS = {
   //
   // So it is not an upgrade, it is an ANSWER, and only to one thing.
   'star-flail':    { hit: 9, every: 2, reach: 1, acc: -6, pierces: true },
+  // §6dg: THE JAVELIN LINE -- the first ONE-HANDED ranged weapon in the world.
+  //
+  // Ranged had eight weapons and every one of them was in TWO_HANDED. Melee is
+  // not five points on a damage line: it is a HAND trade -- dagger and sword
+  // keep a shield, spear and maul and flail give it up for reach or weight or
+  // armour -- and a star shield divides a blow by three or four, so those are
+  // two different things to be. Ranged had reach, cadence and accuracy, which
+  // are three points on ONE line, and no such choice at all. There was no such
+  // person as an archer who took a shield.
+  //
+  // A javelin is the weapon that is its own ammunition. `selfAmmo` sends
+  // `ammoOf` to the weapon's own name, so the bundle in the pack IS the
+  // magazine, and `drawnAt` already says a ranged weapon is only DRAWN when it
+  // is not adjacent -- so a javelin is thrown at range and costs one, and held
+  // at arm's length it is a short spear that costs nothing. That behaviour
+  // wanted no new rule; it was already sitting in two lines written for bows.
+  //
+  // Reach three, between the wooden bow's four and a spear's two. Measured
+  // against the Flight Rule it is worth about a tenth of a bar to a runner,
+  // which is a heartwood bow, and the reason it can afford to be one-handed:
+  // the pursuit sim (§2b-i) says damage against a runner is bounded by REACH,
+  // so a short arm is cheap to make good in other ways.
+  //
+  // And it is the first thing in this world that fights and is CONSUMED by
+  // fighting. Every throw is metal gone. §6bw wanted a sink that scales with
+  // how often people fight and had only the great plate, which is one shatter
+  // an hour at most; this is one iron a throw at the bottom of the ladder,
+  // where iron is abundant and a sink is safe to put.
+  // §6dg-ii: MEASURED, AND CUT. At hit 6/7/8 with acc 6 the javelin was
+  // strictly better than the sword it stands beside -- more damage, better
+  // accuracy, three tiles of reach, and the same free off-hand -- and a
+  // star-javelin beat a star-sword TWENTY DUELS TO NOTHING. A weapon that is
+  // better in every dimension is not a choice, it is a replacement.
+  //
+  // So it is exactly the sword line's `hit` at each tier, and the sword's
+  // accuracy: a javelin is A SWORD YOU CAN THROW, and throwing it costs you
+  // the javelin. That is the whole trade, and it is enough of one.
+  'iron-javelin':  { hit: 2, every: 2, reach: 3, acc: 0, ranged: true, selfAmmo: true },
+  'steel-javelin': { hit: 3, every: 2, reach: 3, acc: 0, ranged: true, selfAmmo: true },
+  'star-javelin':  { hit: 4, every: 2, reach: 3, acc: 0, ranged: true, selfAmmo: true },
   // §6bt: THE GREAT ARMS. Level seventy, where woodcutting, mining and fishing
   // each got a mastery tool and combat got nothing at all -- attack's last
   // unlock was fifty-five and then forty-four levels of nothing to want.
@@ -1901,7 +2022,13 @@ const isRanged = (p) => weaponOf(p)?.ranged === true;
 // §6av: a gonne draws powder and shot, not arrows. Asked ONCE, for the reason
 // `isLog` is asked once: four places spend ammunition by name, and the one you
 // miss is a weapon that fires for free.
-const ammoOf = (p) => weaponOf(p)?.powder ? 'shot' : 'arrows';
+// §6dg: ...and a javelin is its own. A weapon that IS the ammunition needs no
+// second item and no second rule: the name it answers with is its own.
+const ammoOf = (p) => {
+  const w = weaponOf(p);
+  if (w?.selfAmmo) return p.equipment.weapon.item;
+  return w?.powder ? 'shot' : 'arrows';
+};
 // §6av: A GONNE IS LOUD, AND THE WILDS ARE LISTENING.
 //
 // The shot is paid for in the world rather than in the arithmetic: every beast
@@ -1943,6 +2070,36 @@ function gonneFired(s, beacon, pid, p) {
 }
 // a ranged weapon is drawn only at distance; in your face it is a club
 const drawnAt = (p, t) => isRanged(p) && !adjacent(p, t);
+// §6dh: A BOW IS NOT A CLUB.
+//
+// A ranged weapon held against somebody standing on top of you falls into the
+// melee half of the roll, and that half read the weapon's `hit` and `acc`
+// STRAIGHT OFF THE TABLE -- numbers tuned for `1 + ranged/12` and for a bow's
+// own accuracy curve, spent instead on `1 + strength/10` against an attack
+// roll. The effect was not small and it was not in anybody's favour:
+//
+//   dragonbow, adjacent, at mastery   3.07 damage an interval
+//   great-crossbow                    2.55
+//   crossbow                          2.40
+//   star-spear                        2.42   <- the best MELEE weapon
+//   star-sword                        1.66
+//
+// The dragonbow was the hardest-hitting melee weapon in the world, and a
+// crossbow's `acc: 21` -- written to describe a bolt that flies flat -- was
+// dagger-grade accuracy for hitting somebody with the stock.
+//
+// So held at arm's length a drawn weapon has no `hit` and a heavy penalty to
+// find its mark. It is not disarmed: the floor of three (6bu) still applies, so
+// an archer cornered still does something. It is simply bad at a thing it was
+// never for, which is the counterweight the reach was always supposed to have.
+//
+// EXCEPT the javelin, which is a short spear in the hand and is the entire
+// reason `selfAmmo` exists (§6dg). It keeps its numbers at every distance, and
+// that is its identity rather than an oversight.
+const CLUB_ACC = -30;
+const clubbed = (p, t) => isRanged(p) && adjacent(p, t) && weaponOf(p)?.selfAmmo !== true;
+const hitOf = (p, t) => (clubbed(p, t) ? 0 : (weaponOf(p)?.hit ?? 0));
+const accOf = (p, t) => (weaponOf(p)?.acc ?? 0) + (clubbed(p, t) ? CLUB_ACC : 0);
 const inReach = (p, t) => {
   // melee geometry (v0.79): movement is cardinal, so a reach-1 weapon
   // strikes only along lines you can step, the four faced tiles, the
@@ -2529,38 +2686,55 @@ const ALCH_SHARE = 3, ALCH_OF = 4;   // three quarters, in integers
 // The consequence I like: nobody will ever alch their good gear again. They
 // will carry it home through the Wilds, which is exactly the risk that made
 // the Wilds worth having.
-// 6bn: TWENTY, NOT FOUR.
+// §6dc: FLAT AGAIN, AND THIS TIME WITH THE OTHER HALF FITTED.
 //
-// `min(4, price - 1)` meant EVERY good worth five gold or more transmuted for
-// exactly the same four: oak-logs, coal, heartwood, magic-stone and a
-// nine-hundred-gold star plate, indistinguishable. The note beneath this line
-// says "what is worth alching is an economic question about price and
-// distance" -- and with the cap at four there was no economic question left,
-// because there was no slope to reason about.
+// The slope above was right about the fault and wrong about the cure. Four
+// coins for everything did leave no economic question -- but the question it
+// was reaching for ("where do I sell?") was a KEEPER's question, and there is
+// no keeper any more (§6l). What replaced it is a better one: WHO WILL BUY
+// THIS FROM ME?, and that question only exists if the constitution declines to
+// answer it.
 //
-// The safety rule, which is why it is twenty and not a hundred: THE CAP MUST
-// SIT BELOW WHAT A RECIPE'S PARTS ALCH FOR, or crafting becomes a mint. A star
-// plate's four magic-stone transmute for seventy-six; the plate itself now
-// transmutes for twenty. There is no profit in forging to burn, which is the
-// only thing this number has to guarantee.
-const ALCH_PAYS = 20;
-// NEVER MORE THAN A KEEPER, WHICH A FLAT FOUR WAS NOT.
+// A sloped payment is an authority bid with unlimited liquidity wearing a
+// different hat. It said ore is worth at least four to anybody holding a
+// staff, coal eleven, magic-stone nineteen -- forever, by fiat, in any town or
+// anywhere in the Wilds. That is the price floor the store was deleted for
+// having, and it was WORSE than the store's, because a keeper at least
+// demanded the walk and a staff in the hand does not.
 //
-// Four coins is a pittance beside a star plate and a windfall beside a log.
-// Measured: arrows sell for one and burnt fish for one, logs and bones for
-// two, raw fish for three -- so alchemy paid two to four times what a keeper
-// paid for the six commonest goods in the world, needing no keeper, no purse
-// and no walk. The whole design is that a store is ALWAYS the better price,
-// and for the things a beginner actually gathers it was the worse one.
+// It was also, measured, a mint: alchValue followed price, every recipe in the
+// world RAISES price (that is what a recipe is), so every craftable good was a
+// pump. Thirteen recipes in RECIPES alone paid more unmade than their parts
+// did -- iron-maul +11, bare-blade +12, iron-spear and iron-plate +8 -- and
+// cooking and brewing pumped the same way. The safety rule stated above ("the
+// cap must sit below what a recipe's parts alch for") was only ever checked
+// against the star tier, where the parts happen to be dear.
 //
-// The lesser of four coins and a coin under the keeper's price. A star plate
-// still pays four; a log pays one; an arrow pays nothing at all and is
-// unmade for the practice, which is the honest value of unmaking an arrow.
-const alchValue = (item) => {
-  const p = PRICES[item] ?? 0;
-  if (!p) return 0;
-  return Math.min(ALCH_PAYS, Math.max(0, p - 1));
-};
+// Flat closes that by construction, permanently: a product pays F and its
+// parts pay at least F each, so F - nF <= 0 for every recipe that exists or
+// will ever be written. No list of alchable goods, no audit of new recipes,
+// nothing for a future hand to get wrong.
+//
+// What the flat four lacked in v0.51 was any statement of relative worth, and
+// the store was standing in for it badly. HARDNESS (§6db) is the real answer:
+// a magic-stone pays the same four as a log and costs four times the intervals
+// to hold, so the ladder is priced in TIME. Above four coins, what a thing is
+// worth is what a citizen will give for it, which is the whole point.
+//
+// Four, and not six or ten, because of what four has to buy. A newcomer wakes
+// with `newcomerGold` (twenty-two, one tool at a stall) and their second tool
+// costs twenty: five casts, about half a minute of alchemy, which is an errand
+// and not a career. Above that the number is monetary policy and nothing else:
+// the sustainable mint is roughly 550 casts a citizen-hour at the foot of the
+// ladder, so 2,200 coin an hour each, and a hundred-thousand-coin dedication
+// stone (§6bp) is forty-five hours of one citizen or two of a busy island.
+// One integer sets the money supply of the world. It should stay one integer.
+const ALCH_PAYS = 4;
+// THE SAME FOUR FOR WHATEVER CAME APART. Unpriced things -- the dragonbow, the
+// old chain, the goo staff, the cinder-crown -- are still refused at the door,
+// because a thing no keeper ever priced is not a thing the constitution values
+// at all. Everything else is four.
+const alchValue = (item) => (PRICES[item] ? ALCH_PAYS : 0);
 // §6o: A CROP LEFT IN THE GROUND GOES TO SEED.
 //
 // A plot was released in exactly one place -- the harvest branch -- so a
@@ -2603,7 +2777,9 @@ const PRICES = {
   // a mid seam's hour worth more than a doorstep's, less than a master's.
   'bread': 9, 'burnt-bread': 1, 'flour': 6, 'saltpetre': 14, 'gunpowder': 60,
   'bare-blade': 55,
-  'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
+  'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46,
+  // §6dg: a javelin is spent like an arrow and forged like a spear
+  'iron-javelin': 3, 'steel-javelin': 6, 'star-javelin': 12, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
   'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
@@ -2636,25 +2812,7 @@ const PRICES = {
   // every Wilds good in this table is priced.
   'dragon-bones': 500,
 };
-const storeAsk = (item) => PRICES[item] + Math.max(1, Math.floor(PRICES[item] / 10));
-// 6bn: WHAT A KEEPER PAYS FALLS AS THE SHELF FILLS, which is the mechanism the
-// purse was standing in for and doing badly.
-//
-// With no cap and no regeneration a store would otherwise pay full price for
-// the ten-thousandth log, so the honest limit is the one every general store
-// has always had: a shopkeeper with a hundred logs does not want your log. It
-// self-enforces (nobody has to guess a "terrible price" constant), it makes
-// WHERE you sell a real decision across six stores and twenty-five shelves,
-// and SHELF_DECAY already refills the well if you leave it alone.
-//
-// Integer division only, and a floor of one coin: a keeper will always take a
-// thing off your hands for something.
-const STOCK_SOFTNESS = 40;      // the shelf depth at which a keeper pays half
-const storeBid = (item, onShelf) => {
-  const base = PRICES[item] ?? 0;
-  if (!base) return 0;
-  return Math.max(1, Math.floor((base * STOCK_SOFTNESS) / (STOCK_SOFTNESS + Math.max(0, onShelf | 0))));
-};
+// §6l: `storeAsk` and `storeBid` are repealed with the shelf they priced.
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 // the Wilds (spec 2g): where citizens may hunt citizens
 // ---- a world's own geography lives in its founding record (v0.54) ----
@@ -2685,6 +2843,12 @@ const inCity = (g, x, y) => {
 const RECIPES = {
   'iron-dagger': { iron: 1 },
   'iron-spear': { iron: 1, logs: 1 },
+  // §6dg: THREE TO THE FORGING, as shot comes five to the ore and a bone gives
+  // five arrows. A thing spent by the throw is priced by the bundle, and one
+  // iron for one javelin would make a fight cost more metal than a spear.
+  'iron-javelin': { iron: 1, logs: 1 },
+  'steel-javelin': { steel: 1, logs: 1 },
+  'star-javelin': { 'star-ingot': 1, ironbark: 1 },
   'iron-maul': { iron: 2, logs: 1 },
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
@@ -2732,14 +2896,38 @@ const RECIPES = {
   // what it does, ironbark where the wood is structural -- the same three-part
   // shape every hafted star weapon already has.
   // §6bw: the mastery armour. Brimstone, like everything called great.
-  'great-helm': { 'star-ingot': 6, 'brimstone': 2 },
-  'great-plate': { 'star-ingot': 12, 'brimstone': 3 },
+  // §6dd: THE PROOFING WAS A ROUNDING ERROR. Measured at mastery after
+  // hardness (§6db): a great plate's twelve ingots are two hundred and forty
+  // magic-stone, forty-three minutes at a mother lode; its three brimstone are
+  // TWO. Four per cent. The line above this one says "starmetal for the body of
+  // the thing, brimstone for the proofing", and at three units that was a
+  // sentence about nothing -- nobody organised a trip to the Crags over two
+  // minutes of work, so the two halves the great arms exist to join never met.
+  //
+  // The counts are rebalanced INSIDE the same budget rather than added on top,
+  // because a great plate is single-use (it shatters instead of letting its
+  // wearer die, §6bw) and an hour of gathering per death saved is already
+  // steep. Ingots down, brimstone up, total gathering time within two per cent
+  // of what it was, and brimstone goes from four per cent of the work to about
+  // thirty.
+  //
+  // What this buys: four vents on the island at eighty-five an hour is a
+  // ceiling of roughly fifteen great plates an hour for everybody, where it
+  // was a hundred and thirteen. The Crags become a place worth standing in.
+  // Watch that ceiling -- it is deliberately close to the rate a fighting
+  // island would burn them, which is the whole point of a consumable, but it
+  // is the first hard supply limit this world has had.
+  //
+  // The great TOOLS and the handgonne are untouched: brimstone is already half
+  // their cost or more, because they were small enough for one unit to matter.
+  'great-helm': { 'star-ingot': 4, 'brimstone': 12 },
+  'great-plate': { 'star-ingot': 9, 'brimstone': 22 },
   // §6bw: SHELL AND IRON. A crab's back, banded onto a frame -- the shell is
   // the armour and the iron is what holds it on.
   'shell-helm': { 'crab-shell': 2, 'iron': 1 },
   'shell-plate': { 'crab-shell': 4, 'iron': 2 },
-  'great-sword': { 'star-ingot': 14, 'brimstone': 3, 'ironbark': 1 },
-  'great-crossbow': { 'star-ingot': 10, 'brimstone': 3, 'ironbark': 1 },
+  'great-sword': { 'star-ingot': 10, 'brimstone': 26, 'ironbark': 1 },
+  'great-crossbow': { 'star-ingot': 7, 'brimstone': 20, 'ironbark': 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
   //
   // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
@@ -2862,6 +3050,7 @@ const ITEMS = new Set([
   // A world where a script can do the digging is a world where the digging is
   // not the achievement; being at the boulder when it gave way is.
   'rubble',
+  'iron-javelin', 'steel-javelin', 'star-javelin',   // §6dg
   // §6am (v6): the mid-tier raw goods, gathered from the mid seams. Like logs
   // and ore they are not made, so they are named here rather than by a recipe.
   'oak-logs', 'coal', 'eel', 'cooked-eel', 'burnt-eel', 'iron', 'steel',
@@ -2977,6 +3166,9 @@ const SMITH_REQS = {
   // bronze it is the dagger.
   'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
   'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
+  // §6dg: a socket and a shaft, the same as a spear, at each tier
+  'iron-javelin': { smithing: 5 }, 'steel-javelin': { smithing: 28 },
+  'star-javelin': { smithing: 46, magic: 26 },
   'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
   'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
   'steel-maul': { smithing: 42 },
@@ -3374,7 +3566,7 @@ const INPUT_SCHEMAS = {
   offer_trade: { to: T.hex64, giveSlots: T.slotList, wantItem: T.itemOrNull, wantGold: T.nonnegInt },
   accept_trade: { from: T.hex64 },
   smith: { recipe: T.recipe },
-  wield: { slot: T.slot }, sell: { slot: T.slot }, plant: { slot: T.slot },
+  wield: { slot: T.slot }, plant: { slot: T.slot },   // §6l: `sell` repealed
   light: { slot: T.slot }, bury: { slot: T.slot }, deposit: { slot: T.slot },
   drop: { slot: T.slot }, eat: { slot: T.slot }, cook: { slot: T.slot },
   unwield: { gear: T.gear },
@@ -3550,10 +3742,29 @@ function normalizeInput(fields) {
 // `floor(dmg/2)` would pay a beginner NOTHING for every one-point blow they
 // ever land. Alternating gives exactly half of each over any run of intervals,
 // which is what the split always meant, and never a rounded-down zero.
-function teachMelee(p, dmg, style, tick) {
+//
+// §6di: AND IT ALTERNATES BY THE SWING, NOT BY THE TICK.
+//
+// `tick & 1` is in lockstep with the cadence of almost every weapon in the
+// world. A citizen swinging `every: 2` lands on ticks of ONE PARITY and only
+// ever that parity, so `even` did not split anything: it paid a hundred per
+// cent to attack, or a hundred per cent to strength, for the life of that
+// citizen, decided by nothing but which tick their first blow happened to fall
+// on. Measured over forty intervals with a star-javelin: strength +96, attack
+// +0.
+//
+// §6y caught this exact error for the sigil-bow's arrows -- "`s.tick % 2` was
+// in lockstep with the bow's own `every: 2` cadence, it only ever loosed on
+// ticks of one parity" -- and the same sentence was true two hundred lines
+// away about experience, where nobody looked. The fix is the one §6y already
+// found: THE SWING ORDINAL IS WHAT ALTERNATES.
+//
+// Odd cadences were unaffected, which is why a crossbow never showed it. Most
+// of this world swings on two.
+function teachMelee(p, dmg, style, tick, every) {
   if (style === 'aim') p.skills.attack += dmg;
   else if (style === 'force') p.skills.strength += dmg;
-  else if ((tick & 1) === 0) p.skills.attack += dmg;
+  else if ((Math.floor(tick / Math.max(1, every ?? 2)) & 1) === 0) p.skills.attack += dmg;
   else p.skills.strength += dmg;
 }
 const XP_SMITH_PER_UNIT = 20;
@@ -5314,7 +5525,8 @@ const LANDMARK_KINDS = new Set([
     }
     if (n.shelf !== undefined) {
       // §6al: and a stall a citizen raised, which keeps ONE good
-      if (n.type !== 'store' && n.type !== 'market' && n.type !== 'cart') return 'only a store, a stall or a cart keeps a shelf';
+      // §6l: a store keeps no shelf. Only a citizen's stall and a spilled cart.
+      if (n.type !== 'market' && n.type !== 'cart') return 'only a stall or a cart keeps a shelf';
       if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)) return 'shelf malformed';
       for (const [it, q] of Object.entries(n.shelf)) {
         if (!ITEMS.has(it)) return `shelf holds a thing that is not an item: ${it}`;
@@ -5430,7 +5642,9 @@ const LANDMARK_KINDS = new Set([
       // name on it cost -- nobody may take it, nothing spends it, and the gold
       // it names does not exist any more. It is here so a citizen reading the
       // stone can see what standing on it was worth to somebody.
-      if (n.type !== 'store' && n.type !== 'market' && n.type !== 'dedication') return 'only a keeper carries a purse';
+      // §6l: a store keeps no purse. A citizen's stall keeps its takings and a
+      // dedication stone remembers what the last name cost; nothing else.
+      if (n.type !== 'market' && n.type !== 'dedication') return 'only a stall or a stone carries coin';
       if (!isInt(n.coin, 0, PURSE_MAX)) return 'malformed purse';   // 6bn: float, not a capped tank
     }
     if (n.tag !== undefined) {
@@ -5646,7 +5860,9 @@ function firstFreeSlot(inv) {
 // ---------- shared inventory helpers (fix brief 7.5) ----------
 // One vocabulary for every stack mutation. All deterministic; all mutate
 // only through explicit calls. STACKABLE names the items that pool.
-const STACKABLE = new Set(['shot', 'arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth',
+// §6dg: javelins stack, because a bundle is the point of them
+const STACKABLE = new Set(['iron-javelin', 'steel-javelin', 'star-javelin',
+  'shot', 'arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth',
   // §7j: flour stacks; the LOAF does not (see HEAL_BREAD)
   'flour', 'saltpetre', 'gunpowder']);
 
@@ -5800,7 +6016,7 @@ function validInput(state, input, ctx) {
     const subj = state.players[input.subject];
     if (!subj) return false;                              // not here to archive
     if (state.tick - (subj.lastInput ?? 0) <= ARCHIVE_AFTER) return false;  // not absent enough
-    if (!everWasSomebody(subj)) return false;             // the sweep forgets these instead
+    if (!everWasSomebody(subj, state.genesis)) return false;             // the sweep forgets these instead
     return true;   // the path is checked against the LIVE root at application
   }
   if (!p) return false;
@@ -5892,6 +6108,13 @@ function validInput(state, input, ctx) {
     // not vanish.
     case 'recall': return false;
     case 'drink': {
+      // §6dd: a dry well restores nothing. See the resolver for why the timer
+      // sits on the NODE and not on the citizen.
+      if (p.hp <= 0) return false;
+      {
+        const wl = findAdjacentNode(state, ctx, p, 'well');
+        if (!wl || (wl.depletedUntil ?? 0) > state.tick) return false;
+      }
       // THE WELL. Every settlement has one and none of them did anything: it
       // was in NODE_TYPES and nowhere else in this file, decorative furniture
       // like `guard` and `smith`.
@@ -5907,7 +6130,15 @@ function validInput(state, input, ctx) {
       // What it changes is not combat. It is that a town becomes somewhere you
       // RETURN to -- drink, restock, go out again -- instead of the place the
       // bank happens to be.
-      return hasAdjacentNode(state, ctx, p, 'well');
+      //
+      // §6dd amends the paragraph above: the cooldown IS needed, but on the
+      // well and not on the citizen, and for a reason this note could not have
+      // seen. §11d (v0.87) made two haulers attack-capable anywhere, which put
+      // a fight beside a well for the first time -- and "nobody will ever
+      // choose the walk" stops being true the moment the well is already where
+      // you are standing. The behaviour nobody would exhibit became the only
+      // sensible one. The adjacency and the dry check are both above.
+      return true;
     }
     case 'pay': {
       // Beside the gate, and carrying what it asks for. Nothing here checks
@@ -6005,33 +6236,18 @@ function validInput(state, input, ctx) {
       // took into anything, for fifteen minutes, in the daylight where
       // everybody can see you being refused.
       if ((p.brandedUntil ?? 0) > state.tick) return false;
-      // v0.74: two things are for sale at a store. The keeper's own goods,
-      // conjured from nothing (STORE_SELLS), and whatever citizens have sold
-      // to THIS store and nobody has yet carried off.
-      // A STALL FIRST, if you are stood at one AND it stocks the thing.
+      // §6l: A STALL SELLS. A STORE DOES NOT.
       //
-      // The first version returned false when the stall did not stock it,
-      // which meant a citizen standing between the seedsman and the store
-      // could buy nothing from the store at all: the stall answered for both.
-      // A trader who does not sell what you asked for does not stop you asking
-      // the man next door.
+      // The keeper's own goods were already an empty table (STORE_SELLS), and
+      // the shelf held only what citizens had sold -- which is repealed. What
+      // is left to buy from is the trade stalls, which conjure a narrow stock
+      // of tools from nothing and keep no change, and a citizen's own stall,
+      // handled above at whatever price its owner named.
       const sl = findAdjacentNode(state, ctx, p, 'stall');
       const stock = sl ? (STALL_SELLS[sl.kind] ?? {}) : null;
-      if (sl && (input.item in stock)) {
-        if ((p.gold ?? 0) < stock[input.item]) return false;
-        if (!STACKABLE.has(input.item) && firstFreeSlot(p.inventory) === -1) return false;
-        return true;
-      }
-      const st = findAdjacentNode(state, ctx, p, 'store');
-      if (!st) return false;
-      const onShelf = (st.shelf?.[input.item] ?? 0) > 0;
-      if (!(input.item in STORE_SELLS) && !onShelf) return false;
-      const price = onShelf && !(input.item in STORE_SELLS) ? storeAsk(input.item)
-        : (input.item in STORE_SELLS) ? STORE_SELLS[input.item] : storeAsk(input.item);
-      if ((p.gold ?? 0) < price) return false;
+      if (!sl || !(input.item in stock)) return false;
+      if ((p.gold ?? 0) < stock[input.item]) return false;
       if (!STACKABLE.has(input.item) && firstFreeSlot(p.inventory) === -1) return false;
-      if (STACKABLE.has(input.item) && countItem(p.inventory, input.item) === 0
-          && firstFreeSlot(p.inventory) === -1) return false;
       return true;
     }
     case 'attack': {
@@ -6089,10 +6305,13 @@ function validInput(state, input, ctx) {
       if (!q9 || q9.hp <= 0 || input.targetId === input.playerId) return false;
       if ((q9.stilledUntil ?? 0) > state.tick || (p.stilledUntil ?? 0) > state.tick) return false;
       if (!mayStrike(state, p, q9)) return false;   // §11d: the Wilds, or two consignments
+      // §6df: A BURST SPENDS A ROUND A BLOW, and it must be paid for before it
+      // can be ordered -- the validator and the resolver have to ask the same
+      // question or a node computes a state its neighbours refuse.
+      if (isRanged(p) && countItem(p.inventory, ammoOf(p)) < Math.max(1, w9.blows ?? 1)) return false;
       if (inReach(p, q9)) return true;
       return isRanged(p)
-        && Math.max(Math.abs(p.x - q9.x), Math.abs(p.y - q9.y)) <= reachOf(p)
-        && p.inventory.some((sl) => sl?.item === ammoOf(p));
+        && Math.max(Math.abs(p.x - q9.x), Math.abs(p.y - q9.y)) <= reachOf(p);
     }
     case 'attackp': {
       if ((state.players[input.targetId]?.stilledUntil ?? 0) > state.tick) return false; // the truce shields (v0.80)
@@ -6126,30 +6345,7 @@ function validInput(state, input, ctx) {
         && (state.tick - sown) >= GROW_TICKS_RIPE && adjacent(p, n)
         && firstFreeSlot(p.inventory) !== -1;
     }
-    case 'sell': {
-      // §2b: A KEEPER WILL NOT DEAL WITH THE BRANDED.
-      //
-      // The Brand was evidence and nothing else -- fifteen minutes of a mark
-      // that only existed if a window chose to paint one, and for four
-      // foundings not one of them did. A rule that a window may quietly
-      // decline to enforce is not a rule; it is a suggestion the engine makes
-      // about art.
-      //
-      // So it costs exactly the thing a raider wants: an honest keeper in a
-      // safe town knows what you did on the other side of the Brandline, and
-      // will not take your money or your goods until the mark cools. You may
-      // still bank, still walk, still fight. You simply cannot turn what you
-      // took into anything, for fifteen minutes, in the daylight where
-      // everybody can see you being refused.
-      if ((p.brandedUntil ?? 0) > state.tick) return false;
-      const sl = p.inventory[input.slot];
-      if (!Number.isInteger(input.slot) || !sl || !(sl.item in PRICES)) return false;
-      const st = findAdjacentNode(state, ctx, p, 'store');
-      if (!st) return false;
-      // refused rather than half-paid, and refused HERE so a citizen is told
-      // why instead of watching a click do nothing
-      return (st.coin ?? PURSE_SEED) >= storeBid(sl.item, st.shelf?.[sl.item] ?? 0) * (sl.qty ?? 1);
-    }
+    // §6l: `case 'sell'` is repealed. A keeper buys nothing.
     case 'invoke': {
       // Three stones (v0.40): the cost is the mining, not the wait. The wait
       // was once nightfall and was dropped, correctly -- an hour of the clock
@@ -6292,6 +6488,16 @@ function validInput(state, input, ctx) {
       const ct = state.nodes?.[input.nodeId];
       if (!ct || ct.type !== 'cart' || !atOrBeside(p, ct)) return false;
       if (!ct.shelf || Object.keys(ct.shelf).length === 0) return false;
+      // §6bq: A CART IS TAKEN ONLY BY SOMEBODY WHO COULD HAVE BEEN FOUGHT FOR
+      // IT. Same predicate as `mayStrike`, read as a claim on the goods rather
+      // than a licence to swing: bear a consignment, or stand in the Wilds.
+      //
+      // Otherwise the cart is the footrace §6bx forbids, one tier up. A thief
+      // buys cargo, seals it, walks the road, wins a fight -- and a bystander
+      // standing beside the wreck bearing nothing lifts twenty-eight slots at
+      // no risk, having accepted none of it. Everyone may still WATCH, which
+      // is most of what makes a robbery on the road worth doing at all.
+      if (!p.consignment && !inWilds(state.genesis, p.x, p.y)) return false;
       return firstFreeSlot(p.inventory) !== -1;
     }
     case 'dedicate': {
@@ -6360,9 +6566,8 @@ function validInput(state, input, ctx) {
       if (!haulAtEnd(p.consignment)) return false;
       const sl = p.consignment.items[input.slot];
       if (!Number.isInteger(input.slot) || !sl || !(sl.item in PRICES)) return false;
-      const st = findAdjacentNode(state, ctx, p, 'store');
-      if (!st) return false;
-      return (st.coin ?? PURSE_SEED) >= storeBid(sl.item, st.shelf?.[sl.item] ?? 0) * (sl.qty ?? 1);
+      // §11e: a discharge needs a counter, not a keeper's purse.
+      return !!findAdjacentNode(state, ctx, p, 'store');
     }
     case 'alch': {
       // THE ITEM IS THE COST. Not a sigil -- a sigil is three magic-stones and
@@ -8244,24 +8449,8 @@ function nextState(state, inputs, _legacyBeacon) {
     }
   }
 
-  // v0.74: the shelves rot. Every SHELF_DECAY_EVERY intervals a sixteenth of
-  // each stock is lost, rounded up so nothing lingers forever at a count of
-  // one. Goods still on a shelf are goods nobody wanted at that price, and a
-  // world where every log ever cut waits in a shop is a world whose economy
-  // only ever grows. This is the item sink that selling used to be.
-  if (s.tick % SHELF_DECAY_EVERY === 0) {
-    for (const nid of Object.keys(s.nodes).sort()) {
-      const n2 = s.nodes[nid];
-      if (n2.type !== 'store' || !n2.shelf) continue;
-      for (const item of Object.keys(n2.shelf).sort()) {
-        const q = n2.shelf[item];
-        const gone = Math.max(1, q >> SHELF_DECAY_SHIFT);
-        if (q - gone <= 0) delete n2.shelf[item];
-        else n2.shelf[item] = q - gone;
-      }
-      if (Object.keys(n2.shelf).length === 0) delete n2.shelf;
-    }
-  }
+  // §6l: the shelf rot is repealed with the shelf. A citizen's stall falls on
+  // its OWNER's clock (MARKET_DECAY) and always did; nothing else rots.
 
   // player-made fires burn out (spec §6f)
   for (const [nid, n2] of Object.entries(s.nodes)) {
@@ -8875,7 +9064,8 @@ function nextState(state, inputs, _legacyBeacon) {
         }
         // §6av: shot comes five to the ore, as a bone gives five arrows, and it
         // pools into a quiver already held rather than demanding a fresh slot.
-        const made = inp.recipe === 'shot' ? SHOT_PER_ORE : 1;
+        const made = inp.recipe === 'shot' ? SHOT_PER_ORE
+          : (JAVELINS.has(inp.recipe) ? JAVELIN_PER_FORGING : 1);   // §6dg
         const ex = STACKABLE.has(inp.recipe)
           ? p.inventory.findIndex(sl => sl?.item === inp.recipe) : -1;
         if (ex !== -1) p.inventory[ex].qty += made;
@@ -8934,41 +9124,13 @@ function nextState(state, inputs, _legacyBeacon) {
         // from a shelf its keeper abandoned.
       }
     } else if (inp.type === 'buy') {
-      // v0.74: the keeper's own goods are made from nothing and priced by the
-      // constitution. Everything else on the shelf was put there by a citizen,
-      // and costs the ask: what its seller was paid, plus the keeper's cut.
-      // A STALL SELLS ITS OWN NARROW STOCK, made from nothing like the
-      // keeper's seeds, and takes no shelf and keeps no change.
+      // §6l: the stall's narrow stock, made from nothing and priced by the
+      // constitution. The gold is destroyed: there is no till behind a stall,
+      // which makes tool-buying the world's one price-proportional gold sink.
       const sl = findAdjacentNode(s, _ctx, p, 'stall');
       const stallPrice = sl ? ((STALL_SELLS[sl.kind] ?? {})[inp.item] ?? 0) : 0;
-      if (stallPrice) {
-        if ((p.gold ?? 0) >= stallPrice && addItem(p.inventory, inp.item, 1)) p.gold -= stallPrice;
-      } else {
-      const st = findAdjacentNode(s, _ctx, p, 'store');
-      const own = inp.item in STORE_SELLS;
-      const onShelf = (st?.shelf?.[inp.item] ?? 0) > 0;
-      const price = own ? STORE_SELLS[inp.item] : onShelf ? storeAsk(inp.item) : 0;
-      if (st && price && (own || onShelf) && (p.gold ?? 0) >= price) {
-        if (addItem(p.inventory, inp.item, 1)) {
-          p.gold -= price;
-          // AND THE COIN GOES INTO THE PURSE, which is the whole point: gold
-          // now circulates between citizens and keepers instead of being
-          // conjured at one end and shaved at the other. The keeper's cut --
-          // the spread between what a seller was paid and what a buyer pays --
-          // is still destroyed, so the float shrinks a little on every round
-          // trip and the sink outlives the source.
-          // 6bn: uncapped. A busy keeper accumulates float, which is correct:
-          // a store people buy from can afford to buy from people.
-          st.coin = (st.coin ?? PURSE_SEED) + (PRICES[inp.item] ?? 0);
-          // goods from the shelf LEAVE the shelf. The keeper's own do not:
-          // seeds are made, not stocked.
-          if (!own && st.shelf) {
-            st.shelf[inp.item] -= 1;
-            if (st.shelf[inp.item] <= 0) delete st.shelf[inp.item];
-            if (Object.keys(st.shelf).length === 0) delete st.shelf;
-          }
-        }
-      }
+      if (stallPrice && (p.gold ?? 0) >= stallPrice && addItem(p.inventory, inp.item, 1)) {
+        p.gold -= stallPrice;
       }
     } else if (inp.type === 'special') {
       // §6af: THE SPECIAL BLOW. Resolved here and now rather than becoming an
@@ -8982,11 +9144,30 @@ function nextState(state, inputs, _legacyBeacon) {
         // whichever verb carried it.
         strikeConsequences(s, pid, p, q, inp.targetId);
         const drawn9 = drawnAt(p, q);
-        if (drawn9) {                       // a drawn shot still costs its arrow
-          const aS = p.inventory.findIndex((sl) => sl?.item === ammoOf(p));
-          if (aS === -1) { p.action = null; continue; }
-          p.inventory[aS].qty -= 1;
-          if (p.inventory[aS].qty <= 0) p.inventory[aS] = null;
+        // §6df: A ROUND A BLOW, NOT A ROUND A BURST.
+        //
+        // This spent ONE arrow and then ran the blow loop, so a horn-bow flurry
+        // put six shafts into somebody for the price of one and the handgonne
+        // fired both barrels off a single load. The comment below still says a
+        // special "costs TWO ordinary blows" and `flurry` "pays two blows back"
+        // -- which was true when a flurry WAS two blows. §6af-iii raised it to
+        // six and lengthened the recovery to match, correctly, for the damage;
+        // nobody came back for the ammunition.
+        //
+        // The result was backwards from what a special is for. A burst is meant
+        // to cost more and pay it back in timing; this one cost SIX TIMES LESS
+        // per point of damage than the weapon's ordinary shot, so an archer had
+        // no reason ever to loose a plain arrow. A weapon whose special is
+        // strictly cheaper has no moment, and choosing the moment is the whole
+        // of §6af.
+        //
+        // §6av's "both barrels are one report" governs the NOISE and the beacon,
+        // not the load: two barrels are two loads, and a handgonne's shot is
+        // iron and gunpowder both.
+        if (drawn9) {
+          const need9 = Math.max(1, w9.blows ?? 1);
+          if (countItem(p.inventory, ammoOf(p)) < need9) { p.action = null; continue; }
+          consumeItem(p.inventory, ammoOf(p), need9);
         }
         const lvl9 = effLevel(drawn9 ? p.skills.ranged : p.skills.attack);
         const defL9 = effLevel(q.skills.defence);
@@ -9027,7 +9208,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // nearer, and it scales with the skill the way the ordinary shot does.
         // §6as: a special's blow is strength's too, and its roll is attack's
         const pow9 = drawn9 ? lvl9 : effLevel(p.skills.strength);
-        const ord9 = 1 + Math.floor(pow9 / (drawn9 ? 12 : 10)) + (w9.hit ?? 0);
+        const ord9 = 1 + Math.floor(pow9 / (drawn9 ? 12 : 10)) + hitOf(p, q);   // §6dh
         // §6af-v: AND BLOW COUNT IS THE VARIANCE OF A BURST.
         //
         // Every special's blows were set for its CEILING, and nobody noticed
@@ -9043,9 +9224,22 @@ function nextState(state, inputs, _legacyBeacon) {
         // is the same expected burst on the same recovery of ten. The dagger
         // stays a flurry. A citizen now picks a shape as well as a weapon.
         const bite9 = w9.bite ?? 1;
+        // §6de: AND IT IS `ord9` FOR EVERY SHAPE, NOT ONLY FOR `far`.
+        //
+        // `ord9` is computed two lines above with the bow's own divisor -- the
+        // note over it says in as many words that ignoring that divisor was the
+        // defect it fixed -- and then this line recomputed the same quantity
+        // with a hardcoded /10, so `flurry` and `haymaker` went on using the
+        // melee divisor for a drawn bow. Only `far` ever read the corrected
+        // value. The horn-bow's flurry therefore sat about seven per cent above
+        // the neutrality this whole block exists to guarantee: eighteen a blow
+        // at ranged ninety-nine where its own rule says seventeen.
+        //
+        // A defect measured over a defect will recommend a feature (§6af). One
+        // expression, read once, used everywhere.
         const maxHit9 = w9.spec === 'far'
           ? Math.max(1, Math.floor(ord9 * (8 + Math.max(0, far9 - 1)) / 8))
-          : Math.round((1 + Math.floor(pow9 / 10) + (w9.hit ?? 0)) * bite9);
+          : Math.round(ord9 * bite9);
         const acc9 = hitChance256(lvl9, defL9, w9.acc ?? 0,
           w9.pierces === true ? 0 : armourOf(q)); // §6x-ii: a flail ignores steel
         // §6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
@@ -9112,7 +9306,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // taught attack alone, so a fighter who favoured it never raised the
           // number their own special scores from.
           if (drawn9) p.skills.ranged += dmg9;   // 6br
-          else teachMelee(p, dmg9, inp.style ?? 'even', s.tick);   // §6as-iii
+          else teachMelee(p, dmg9, inp.style ?? 'even', s.tick, cadenceOf(p, w9.every ?? 2));   // §6as-iii, §6di
           p.skills.hitpoints += dmg9;
           if (q.hp <= 0) {
             q.hp = 0;
@@ -9122,6 +9316,26 @@ function nextState(state, inputs, _legacyBeacon) {
             // except whatever a mourner carries through, which is taken out of
             // the spill exactly once each
             const held = keptQ.map((k) => ({ ...k, taken: false }));
+            // §6bx: THE PACK AND THE PLATE SPILL IN THE WILDS. NOWHERE ELSE.
+            //
+            // This block ran with no location test at all -- its own comment
+            // said "slain in the Wilds (spec 2g)" and nothing checked. §11d
+            // makes two haulers attack-capable ANYWHERE, so a hauler killed on
+            // a safe road dropped their whole pack and their armour where a
+            // bystander who bears no consignment could lift it at no risk
+            // whatever. §6bx's argument against a beast spilling gear is
+            // exactly that: "loot on the ground where nobody may fight for it
+            // is a race decided by whose window clicks faster". A robbery in
+            // safe country produced precisely that race, and the killer was
+            // not even the one who won it.
+            //
+            // Outside the Wilds the pack and the worn gear burn, exactly as
+            // they burn when a beast kills you there. What spills is the CART,
+            // and only the cart -- which is what the road put at stake and all
+            // it put at stake. §11d says the consignment is what makes a
+            // hauler worth robbing; now it is the only thing that makes them
+            // worth robbing.
+            const _spills9 = inWilds(s.genesis, q.x, q.y);
             const qid9 = inp?.targetId ?? q.id ?? 'v';
             let sl9 = -1;
             for (const sl of q.inventory) { sl9++; if (!sl) continue; {
@@ -9141,8 +9355,9 @@ function nextState(state, inputs, _legacyBeacon) {
               // Griefable, not merely wrong: inputs apply in sorted playerId
               // order, so a patient griefer can grind a key that sorts after a
               // killer's and delete other people's kills on purpose.
-              s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
-                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
+              if (_spills9)
+                s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
+                  { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
             } }
             // §11d: AND THE CONSIGNMENT SPILLS WITH IT, wherever they fell --
             // not only in the Wilds. Without this, killing a hauler destroys
@@ -9172,8 +9387,9 @@ function nextState(state, inputs, _legacyBeacon) {
               if (!w9) continue;
               const m8 = held.find((k) => !k.taken && k.item === w9.item && k.qty === (w9.qty ?? 1));
               if (m8) { m8.taken = true; continue; }   // a mourner carries it through
-              s.ground['g' + s.tick + '-' + qid9 + '-e' + g9] =
-                { item: w9.item, qty: w9.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
+              if (_spills9)
+                s.ground['g' + s.tick + '-' + qid9 + '-e' + g9] =
+                  { item: w9.item, qty: w9.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
             }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
@@ -9312,13 +9528,32 @@ function nextState(state, inputs, _legacyBeacon) {
       const c = p.consignment;
       const sl = c ? c.items[inp.slot] : null;
       const st0 = findAdjacentNode(s, _ctx, p, 'store');
-      // 6bn: the keeper's bid, softened by what is already on the shelf
-      const owed = sl ? storeBid(sl.item, st0?.shelf?.[sl.item] ?? 0) * (sl.qty ?? 1) : 0;
-      if (c && haulAtEnd(c) && sl && owed && st0 && (st0.coin ?? PURSE_SEED) >= owed) {
-        st0.coin = (st0.coin ?? PURSE_SEED) - owed;
-        p.gold = (p.gold ?? 0) + owed;
-        if (!st0.shelf) st0.shelf = {};
-        st0.shelf[sl.item] = Math.min(SHELF_CAP, (st0.shelf[sl.item] ?? 0) + (sl.qty ?? 1));
+      // §11e: THE CARGO IS DISCHARGED, NOT SOLD.
+      //
+      // It used to pay the keeper's bid out of the keeper's purse and gate the
+      // experience on the sale clearing, which made the eighteenth skill a draw
+      // on a fixed float: §11g's defence of the profession -- "XP is not
+      // rationed, mine does not reduce yours" -- was false of this engine,
+      // because two haulers at one counter competed for the same twelve
+      // hundred coin. Measured on the founded island, the cheapest road to
+      // hauling ninety-nine asked keepers for three hundred and fifty thousand
+      // coin against a world float of eight thousand four hundred.
+      //
+      // §11a already says the cargo was COMMITTED TO THE ROAD. This is where
+      // the commitment is discharged: the goods leave the world, the hauler is
+      // paid in the only currency this profession was ever meant to earn, and
+      // no village counter has to be able to afford twenty-eight plates.
+      //
+      // Three things follow, and all three are wanted. The experience is
+      // unrationed, so §11g becomes true. Hauling becomes the largest GOODS
+      // sink in the world -- twenty-eight to a trip against alchemy's one --
+      // which is the matched half of a mint denominated in gathering (§6dc):
+      // one skill makes gold out of time, the other spends goods for distance.
+      // And the cargo's material value now belongs to the THIEF: a hauler who
+      // arrives earns experience, a hauler who is robbed hands somebody
+      // twenty-eight slots of real goods. The cart (§6bq) is worth more than
+      // the delivery, which is the asymmetry §11d was always reaching for.
+      if (c && haulAtEnd(c) && sl && st0) {
         // §11e: WEIGHT OVER DISTANCE. Paid per slot as it lands, so a partial
         // delivery pays for exactly what arrived.
         const per = s.genesis.haul?.perTileSlot ?? 0;
@@ -9330,25 +9565,6 @@ function nextState(state, inputs, _legacyBeacon) {
         }
         c.items[inp.slot] = null;
         haulSweep(p);
-      }
-    } else if (inp.type === 'sell') {
-      const sl = p.inventory[inp.slot];
-      const st0 = findAdjacentNode(s, _ctx, p, 'store');
-      // 6bn: the keeper's bid, softened by what is already on the shelf
-      const owed = sl ? storeBid(sl.item, st0?.shelf?.[sl.item] ?? 0) * (sl.qty ?? 1) : 0;
-      // A KEEPER CANNOT PAY WHAT A KEEPER HAS NOT GOT. All or nothing: a
-      // half-paid sale is a worse surprise than a refused one, and the citizen
-      // still has the goods and the next town's road.
-      if (sl && owed && st0 && (st0.coin ?? PURSE_SEED) >= owed) {
-        st0.coin = (st0.coin ?? PURSE_SEED) - owed;
-        p.gold = (p.gold ?? 0) + owed;
-        // v0.74: onto THIS store's shelf, not into nothing. Beyond the cap the
-        // keeper still pays but the goods are lost: a shelf is finite, and
-        // consensus state is held by every node forever.
-        if (!st0.shelf) st0.shelf = {};
-        const have = st0.shelf[sl.item] ?? 0;
-        st0.shelf[sl.item] = Math.min(SHELF_CAP, have + (sl.qty ?? 1));
-        p.inventory[inp.slot] = null;
       }
     } else if (inp.type === 'invoke') {
       const slots = [];
@@ -9930,6 +10146,46 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'drink') {
       p.hp = effLevel(p.skills.hitpoints);
+      // §6dd: AND THE WELL RUNS DRY BEHIND YOU.
+      //
+      // Spending the arm (below) stopped a citizen at a well from drinking AND
+      // swinging, and did not stop them drinking every interval for ever --
+      // so a hauler stood at a well went from unkillable-and-dangerous to
+      // merely unkillable, which is not a fight either.
+      //
+      // A per-citizen cooldown would be the obvious answer and it is the wrong
+      // one here: this constitution repealed the night gate on the grounds
+      // that "waiting is the one cost this world rejects", and a timer on a
+      // person is exactly that. A NODE that depletes is not waiting, it is a
+      // fact about a place -- the same machinery every seam already uses, and
+      // the same idea as the mother lode and the fall-stone: scarcity, in the
+      // ground, contested.
+      //
+      // So a well gives one full restoration and is dry for a while. Out of a
+      // fight this costs nothing at all: drink, walk to your work, come back
+      // an age later. In a fight it is decisive and it cuts both ways --
+      // drinking FIRST to leave the well dry behind you is a real move, and it
+      // costs you your arm for the interval to make it.
+      const wl = findAdjacentNode(s, _ctx, p, 'well');
+      if (wl) wl.depletedUntil = s.tick + WELL_DRY;
+      // §6m: WHATEVER RESTORES YOUR OWN HITPOINTS SPENDS YOUR ARM -- and this
+      // was the one deed that restored them and spent nothing.
+      //
+      // It is the largest heal in the world (to FULL), it has no cooldown, and
+      // it took no rhythm, so beside a well a citizen could drink every single
+      // interval for ever. Against beasts that is only generous, because
+      // nothing hunts in the settled country where the wells are. Against
+      // another citizen it is decisive: §11d makes two haulers attack-capable
+      // ANYWHERE, and thirty-four wells stand in safe country, so a hauler
+      // stood at one could not be killed by anything whose single-interval
+      // burst was under their maximum -- which is every ordinary weapon in the
+      // game. The exception had swallowed the rule that names it.
+      //
+      // Spent exactly as `eat` spends it: drinking is the deed this interval
+      // and the next swing waits on the weapon's recovery. Walking is
+      // untouched, so running to a well and drinking still works and still
+      // costs the walk, which was always the price §6l charged for it.
+      p.lastSwing = Math.max(p.lastSwing ?? 0, s.tick);
     } else if (inp.type === 'set_look') {
       p.look = inp.look;
     } else if (inp.type === 'claim_name') {
@@ -10000,7 +10256,7 @@ function nextState(state, inputs, _legacyBeacon) {
           lvl2 = effLevel(p.skills.ranged); tag2 = 'ranged';
         } else { lvl2 = effLevel(p.skills.attack); tag2 = 'attack'; }
         const defL = effLevel(q.skills.defence);
-        const Tp = hitChance256(lvl2, defL, weaponOf(p)?.acc ?? 0,
+        const Tp = hitChance256(lvl2, defL, accOf(p, q),   // §6dh
           weaponOf(p)?.pierces === true ? 0 : armourOf(q)); // §6x-ii
         if (roll(beacon, pid, 'atk') < Tp) {
           // §6as: the BLOW is strength's, the roll is attack's -- except for a
@@ -10008,7 +10264,8 @@ function nextState(state, inputs, _legacyBeacon) {
           const powLvl = bowDrawn2 ? lvl2 : effLevel(p.skills.strength);
           const _w7l = weaponOf(p);
           const maxHit = 1 + Math.floor(powLvl / (bowDrawn2 ? 12 : 10))
-            + (_w7l?.hit ?? 0)
+            + hitOf(p, q)   // §6dh
+
             // §7l: the bare-blade pays you for what you are not wearing
             + (_w7l?.bare === true ? bareBonus(armourOf(p)) : 0);
           // §6x: A FLAIL GOES ROUND THE PLATE, not through it.
@@ -10033,7 +10290,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // arm that hurt them -- split evenly, so a fighter's two numbers rise
           // together unless they deliberately train one alone.
           if (bowDrawn2) p.skills[tag2] += dmg;   // 6br
-          else teachMelee(p, dmg, p.action.style, s.tick);   // §6as-iii
+          else teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2));   // §6as-iii, §6di
           p.skills.hitpoints += dmg;
           if (q.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
               && (p.rootCdUntil ?? 0) <= s.tick && (q.rootedUntil ?? 0) <= s.tick && (q.rootImmuneUntil ?? 0) <= s.tick) {
@@ -10055,6 +10312,26 @@ function nextState(state, inputs, _legacyBeacon) {
             // what a mourner carries through, decided BEFORE the pack spills
             const keptQ = prayerKeeps(q, s.tick, s.genesis);
             const held = keptQ.map((k) => ({ ...k, taken: false }));
+            // §6bx: THE PACK AND THE PLATE SPILL IN THE WILDS. NOWHERE ELSE.
+            //
+            // This block ran with no location test at all -- its own comment
+            // said "slain in the Wilds (spec 2g)" and nothing checked. §11d
+            // makes two haulers attack-capable ANYWHERE, so a hauler killed on
+            // a safe road dropped their whole pack and their armour where a
+            // bystander who bears no consignment could lift it at no risk
+            // whatever. §6bx's argument against a beast spilling gear is
+            // exactly that: "loot on the ground where nobody may fight for it
+            // is a race decided by whose window clicks faster". A robbery in
+            // safe country produced precisely that race, and the killer was
+            // not even the one who won it.
+            //
+            // Outside the Wilds the pack and the worn gear burn, exactly as
+            // they burn when a beast kills you there. What spills is the CART,
+            // and only the cart -- which is what the road put at stake and all
+            // it put at stake. §11d says the consignment is what makes a
+            // hauler worth robbing; now it is the only thing that makes them
+            // worth robbing.
+            const _spills9 = inWilds(s.genesis, q.x, q.y);
             const qid9 = p.action.targetId;   // the victim, named
             let sl9 = -1;
             for (const sl of q.inventory) { sl9++; if (!sl) continue; {
@@ -10074,8 +10351,9 @@ function nextState(state, inputs, _legacyBeacon) {
               // Griefable, not merely wrong: inputs apply in sorted playerId
               // order, so a patient griefer can grind a key that sorts after a
               // killer's and delete other people's kills on purpose.
-              s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
-                { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
+              if (_spills9)
+                s.ground['g' + s.tick + '-' + qid9 + '-' + sl9] =
+                  { item: sl.item, qty: sl.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
             } }
             // §11d: AND THE CONSIGNMENT SPILLS WITH IT, wherever they fell --
             // not only in the Wilds. Without this, killing a hauler destroys
@@ -10105,8 +10383,9 @@ function nextState(state, inputs, _legacyBeacon) {
               if (!w9) continue;
               const m8 = held.find((k) => !k.taken && k.item === w9.item && k.qty === (w9.qty ?? 1));
               if (m8) { m8.taken = true; continue; }   // a mourner carries it through
-              s.ground['g' + s.tick + '-' + qid9 + '-e' + g9] =
-                { item: w9.item, qty: w9.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
+              if (_spills9)
+                s.ground['g' + s.tick + '-' + qid9 + '-e' + g9] =
+                  { item: w9.item, qty: w9.qty ?? 1, x: q.x, y: q.y, by: qid9, expiresAt: s.tick + 100 };
             }
             q.inventory = q.inventory.map(() => null);
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
@@ -10209,7 +10488,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // was read on the additive scale here and the multiplicative one in the
       // Wilds. The same steel cannot mean two things.
       const atkLvl = effLevel(p.skills.attack);
-      const T = hitChance256(atkLvl, stats.def, weaponOf(p)?.acc ?? 0, 0);
+      const T = hitChance256(atkLvl, stats.def, accOf(p, m), 0);   // §6dh
       if (roll(beacon, pid, 'atk') < T) {
         // §6as-ii: and the blow is STRENGTH's here too, or the only place to
         // raise a max hit would be on other citizens.
@@ -10232,7 +10511,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // bare hands under strength twenty, which is a newcomer and nobody
         // else. Buy a sword and it has never applied to you.
         const maxHit = Math.max(MIN_MAX_HIT,
-          1 + Math.floor(effLevel(p.skills.strength) / 10) + (weaponOf(p)?.hit ?? 0));
+          1 + Math.floor(effLevel(p.skills.strength) / 10) + hitOf(p, m));   // §6dh
         const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
         m.hp -= dmg;
         if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
@@ -10242,7 +10521,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // dangerous before they are allowed to become dangerous. Measured: three
         // hundred intervals on a wolf gave attack +2924 and strength +0, and the
         // resulting citizen dealt 0.73 a tick where a trained one deals 1.79.
-        teachMelee(p, dmg, p.action.style, s.tick);   // §6as-iii
+        teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2));   // §6as-iii, §6di
         p.skills.hitpoints += dmg;
         if (m.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
             && (p.rootCdUntil ?? 0) <= s.tick && (m.rootedUntil ?? 0) <= s.tick && (m.rootImmuneUntil ?? 0) <= s.tick) {
@@ -10440,9 +10719,12 @@ function nextState(state, inputs, _legacyBeacon) {
     const isGold = n.type === 'gold-rock';
     // 6bi: both lots are drawn out of 65,536 now -- gold at a fixed four, and
     // everything else at a threshold with room in it for a tool to matter.
+    // §6db: HARDNESS DIVIDES THE CHANCE. The gold seam keeps its own threshold
+    // (a lottery, not a rate), so it carries hard 1 and is untouched here.
+    const _hard = Math.max(1, y.hard ?? 1);
     const threshold = isGold ? GOLD_THRESHOLD
       : Math.round(Math.min(GATHER_BASE
-          + Math.floor(lvl / GATHER_SLOPE_DEN) + toolBonus, GATHER_CAP) * rateMul * 256);
+          + Math.floor(lvl / GATHER_SLOPE_DEN) + toolBonus, GATHER_CAP) * rateMul * 256 / _hard);
     const r = roll16(beacon, pid, isGold ? 'gold' : 'gather');
 
     if (r < threshold) {
@@ -10477,7 +10759,9 @@ function nextState(state, inputs, _legacyBeacon) {
       // §6ao (v6): full XP per successful gather (v5's value). Under Option A the
       // success RATE already compensates for durability, so XP-per-gather need
       // not change -- progression matches v5 exactly.
-      p.skills[y.skill] += y.xp;
+      // §6db: ...AND MULTIPLIES THE EXPERIENCE, so experience an hour is exactly
+      // what it was and only the goods an hour moved. See NODE_YIELD.
+      p.skills[y.skill] += y.xp * _hard;
       // §7a: THE BOULDER REMEMBERS. Every other node in this world forgets a
       // strike the moment it pays for it; the rockfall keeps a count, and when
       // the count is met the stone is gone for good and the way through the
@@ -10584,7 +10868,8 @@ function nextState(state, inputs, _legacyBeacon) {
   // store founded before this rule simply starts with its seed float.
   for (const nid of Object.keys(s.nodes).sort()) {
     const n = s.nodes[nid];
-    if (n.type === 'store' && n.coin === undefined) n.coin = PURSE_SEED;
+    // §6l: a store bears no purse. `market` (a citizen's stall) and
+    // `dedication` still bear `coin`; a store does not.
   }
 
   _p2mark('beacon');
@@ -10668,14 +10953,14 @@ function nextState(state, inputs, _legacyBeacon) {
       // remains for the narrower case the dragon cannot cover: a citizen who
       // stops coming while the dragon is still down. Without it the bow would
       // sit in an absent pack for the rest of the window.
-      if (_carriesBow(p) && everWasSomebody(p)) {
+      if (_carriesBow(p) && everWasSomebody(p, s.genesis)) {
         s.bowOut = false;
         if (p.equipment?.weapon?.item === 'dragonbow') p.equipment.weapon = null;
         for (let i = 0; i < p.inventory.length; i++)
           if (p.inventory[i]?.item === 'dragonbow') p.inventory[i] = null;
         announce(s, 'The DRAGONBOW has gone back to the Wilds; its bearer did not come back.');
       }
-      if (!everWasSomebody(p)) {           // a key that was never anybody
+      if (!everWasSomebody(p, s.genesis)) {   // a key that was never anybody
         // §6w: THE BOW GOES HOME. A unique thing held by somebody who never
         // comes back is a unique thing lost, and the best object in the world
         // sitting in a dead pack forever is worse than no unique object at

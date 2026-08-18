@@ -1,6 +1,6 @@
 # Interval Consensus Specification v1.9 (Byzantine Safety Upgrade)
 
-*Release 0.81.0 · protocol spec v0.81 · rules hash `dc14de3d0b186a86`…`*
+*Release 0.96.0 · protocol spec v0.96 · rules hash `af8f2375edabe871`…`*
 
 **Certified Interval Bundles, the agreement protocol for authoritative worlds.**
 
@@ -11,8 +11,8 @@ inputs each interval contains and *when* a state is final. Where the code
 and this document disagree, this document is the protocol and the code
 has a bug.
 
-- Implementation release: `package.json` version `0.81.0`
-- Constitution version: SPEC.md header `v0.47` (rules hash binds it)
+- Implementation release: `package.json` version `0.96.0`
+- Constitution version: SPEC.md header `v0.96` (rules hash binds it)
 - Consensus specification version: `v1.9` (this document)
 - Wire protocol version: `PROTOCOL_VERSION = 2` (`protocol.mjs`)
 - World identity: `worldId = SHA-256(canonical(genesis))`, full hex
