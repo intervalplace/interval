@@ -3505,15 +3505,28 @@ export function buildWorld(genesis) {
       for (let y = 6; y < g.worldH - 6; y += 3) for (let x = 6; x < g.worldW - 6; x += 3) {
         const b = biomeAt(g, x, y)
         if (b !== 'wilds' && b !== 'moor') continue
-        if ((thash(g, x, y, 137) % 23) !== 0) continue
+        if ((thash(g, x, y, 137) % 13) !== 0) continue
         tree(x, y, 'dead-tree')
       }
       // PINES on the high ground, and WIND-THORN on the open Downs.
       for (let y = 6; y < g.worldH - 6; y += 2) for (let x = 6; x < g.worldW - 6; x += 2) {
         const b = biomeAt(g, x, y)
-        if (b === 'crags' && (thash(g, x, y, 139) % 17) === 0) tree(x, y, 'pine')
-        else if (b === 'downs' && (thash(g, x, y, 149) % 29) === 0) tree(x, y, 'wind-thorn')
+        if (b === 'crags' && (thash(g, x, y, 139) % 11) === 0) tree(x, y, 'pine')
+        else if (b === 'downs' && (thash(g, x, y, 149) % 19) === 0) tree(x, y, 'wind-thorn')
       }
+      // §7af: AND THE COUNTRIES THE FURNITURE USED TO FILL. The heartlands and
+      // the fens had no landmark trees at all -- their texture was carts and
+      // haystacks and hurdles, and that is exactly what came out looking
+      // generated. Hedgerow oaks and fen willows instead: a farmed country is
+      // full of trees nobody planted deliberately, in ones and twos along a
+      // boundary, and it never reads as a machine's work.
+      for (let y = 6; y < g.worldH - 6; y += 2) for (let x = 6; x < g.worldW - 6; x += 2) {
+        const b = biomeAt(g, x, y)
+        if (b === 'heartlands' && (thash(g, x, y, 151) % 37) === 0) tree(x, y, 'old-oak-lm')
+        else if (b === 'fens' && (thash(g, x, y, 157) % 23) === 0) tree(x, y, 'willow')
+        else if (b === 'moor' && (thash(g, x, y, 163) % 31) === 0) tree(x, y, 'thorn')
+      }
+
       // AND THE AVENUE TO HOLLYBARROW. Two lines of oaks either side of the
       // road for forty tiles up to the town -- the one thing on this island
       // that can only mean somebody planted it, for show, on purpose.
@@ -3621,11 +3634,20 @@ export function buildWorld(genesis) {
               for (let rx = 0; rx < YARD[0].length; rx++) {
                 const ch = YARD[ry][rx], x = ox + rx, y = oy + ry
                 if (ch === '#') put('yard-w-' + rx + '-' + ry, 'wall', x, y, {})
-                else if (ch === 'd') E.addMob(w, 'yard-dummy-' + rx + '-' + ry, 'dummy', x, y)
-                else if (ch === 'b') E.addMob(w, 'yard-butt-' + rx + '-' + ry, 'butt', x, y)
+                // §7t: 64-HEX IDS, so `special` can name one. Its shape asks
+                // for hex64 -- the PvP target -- and a yard mob with an
+                // ordinary id could not be named by it without a new field or
+                // a new verb. Giving the straw men hex names costs nothing and
+                // the shape already fits.
+                else if (ch === 'd' || ch === 'b') {
+                  const seed = (ch === 'd' ? 'dummy' : 'butt') + ':' + x + ':' + y
+                  const hid = E.sha256(Buffer.from(seed)).toString('hex')
+                  E.addMob(w, hid, ch === 'd' ? 'dummy' : 'butt', x, y)
+                }
               }
             put('yard-sign', 'signpost', ox + 4, oy + 6, { text: 'the training yard' })
-            put('yard-keeper', 'keeper', ox + 7, oy + 2, { kind: 'arms', name: 'Wystan Yardmaster' })
+            put('yard-keeper', 'keeper', ox + 7, oy + 2,
+              { kind: 'arms', name: 'Wystan Yardmaster, iron flail' })
             placed = true; break
           }
         if (!placed) console.warn('WORLDGEN: no ground in the heartlands for the training yard')
@@ -4396,7 +4418,23 @@ export function buildWorld(genesis) {
       const b = biomeAt(g, n.x, n.y)
       have[b] = (have[b] || 0) + 1
     }
-    for (const [country, floor] of Object.entries(FURNITURE_FLOOR)) {
+    // §7af: THE COUNTRY FURNITURE IS OFF.
+    //
+    // This scattered a floor of "things" across every country to stop the land
+    // reading as empty, and it is the last scatter left on an island where the
+    // seams, camps, holdings, fields, works and residents are all hand-placed
+    // tables. It shows: three carts abreast, four wells fenced into a two-by-
+    // two, a standing stone every few paces of nothing.
+    //
+    // A tree can stand anywhere and read as landscape. A CART CANNOT -- a cart
+    // is evidence of a person, and evidence of a person in a nonsensical
+    // arrangement reads worse than bare ground. So the generic furniture goes,
+    // the hand-drawn things stay (the spider's web, the dragon's burnt ring,
+    // the Drowned Bell, the capes, the mills, the clamp), and what the country
+    // gets instead is MORE TREES, which is the one kind that never looks
+    // placed by a machine.
+    const COUNTRY_FURNITURE_OFF = true
+    for (const [country, floor] of Object.entries(COUNTRY_FURNITURE_OFF ? {} : FURNITURE_FLOOR)) {
       const a = area[country] ?? 0
       const want = Math.max(0, Math.round(a * floor / 1000) - (have[country] ?? 0))
       if (want <= 0) continue
@@ -4443,8 +4481,25 @@ export function buildWorld(genesis) {
   }
 
   // ---- what the trails go around ----
+  // §7ag: A WAYMARK IS FOR A JUNCTION, NOT FOR EVERY WIGGLE.
+  //
+  // This put one at every road BEND, and a routed road bends constantly -- so
+  // a winding stretch collected a mark every few tiles. Measured: 133 of them,
+  // median nearest-neighbour distance FIVE tiles, minimum one, and seventy of
+  // the hundred and thirty-three with another inside six. Whatever that is, it
+  // is not "one thing every thirty-five tiles of road", and it is exactly why
+  // the roadsides read as generated.
+  //
+  // A mark means SOMETHING HAPPENS HERE: a fork, a ford, a county boundary, a
+  // pass. So a bend qualifies only if nothing else has been marked within
+  // twenty-five tiles -- which cuts a winding lane to one mark and leaves the
+  // junctions, because a junction is a place a road actually turns toward
+  // somewhere.
   let wm = 0
+  const _wmAt = []
+  const WAYMARK_APART = 25
   for (const b of roadBendsOf(g)) {
+    if (_wmAt.some((q) => Math.hypot(q[0] - b.x, q[1] - b.y) < WAYMARK_APART)) continue
     for (const [dx, dy] of [[0,0],[1,0],[0,1],[-1,0],[0,-1],[1,1],[-1,-1]]) {
       const x = b.x + dx, y = b.y + dy
       if (!free(x, y)) continue
@@ -4481,6 +4536,7 @@ export function buildWorld(genesis) {
       }
       const _wk = WAYKINDS[bi] ?? WAYKINDS.heartlands
       taken.add(key(x, y))
+      _wmAt.push([x, y])
       E.addNode(w, 'waymark-' + (wm++), 'landmark', x, y,
         { kind: _wk[thash(g, x, y, 61) % _wk.length] })
       break
@@ -5475,7 +5531,13 @@ export function buildWorld(genesis) {
   {
     const c = barrowC(g), rx = 26, ry = 15   // the mound's own radii, from onBarrow
     let bs = 0
-    for (let i = 0; i < A(46); i++) {
+    // §7ak: A FEW, NOT A RING. Forty-six were raised around the mound's edge
+    // and they came out shoulder to shoulder -- a fence of skeletons, which
+    // reads as a spawner rather than as a haunting. The Barrow is the one
+    // dangerous thing in the safe country and it works by being UNEXPECTED,
+    // not by being crowded: three or four standing among the stones is more
+    // frightening than forty, because forty is obviously a farm.
+    for (let i = 0; i < A(12); i++) {
       const hh = H32('barrowdead', i)
       const ang = (hh.readUInt16BE(0) / 65536) * Math.PI * 2
       const rad = 1.04 + (hh[2] / 255) * 0.28              // just outside the mound
@@ -5762,11 +5824,23 @@ export function buildWorld(genesis) {
   // ---- THE GOBLIN PEN ----
   //
   // The Heartlands is the safe country and safety is dull to walk through.
-  // So: a hedged pound on the Anchor-Oxenford road with a dozen goblins in
-  // it and four guards outside, taken off the Brand and kept for whatever
-  // the city does with them. It is somewhere to stop, it explains why the
-  // guards exist, and it is the only place in the home country where you can
-  // look a goblin in the eye through a fence.
+  // So: a hedged pound on the Anchor-Oxenford road with goblins in it and four
+  // guards outside, taken off the Brand and kept for whatever the city does
+  // with them. It is somewhere to stop, it explains why the guards exist, and
+  // it is the only place in the home country where you can look a goblin in
+  // the eye through a fence.
+  //
+  // §7ah: AND IT MEANS MORE NOW, NOT LESS. When wild goblins were seated in
+  // the meadow as well, a penned goblin was just a goblin with a hedge round
+  // it. The heartlands hold no hostile camp any more -- so these are the only
+  // goblins in the home country, and the fence is the whole story: somebody
+  // caught them and somebody is guarding them.
+  //
+  // It is also the safest fight on the island, which is exactly what a
+  // newcomer wants and what the training yard down the road cannot give: a
+  // real beast, cornered, with four guards standing over it. The same
+  // argument as folding the sheep -- a penned thing is a PLACE, and a thing
+  // roaming loose is scenery.
   {
     // HAND-SEATED, and clear of the furlongs.
     //
@@ -6238,6 +6312,26 @@ export function buildWorld(genesis) {
     // stripped of its trees.
     const q0 = (pred) => (x, y, h) => !inQuietQuarter(g, x, y) && pred(x, y, h)
     const t0 = counts
+    // §7af: THE GENERIC SCATTER IS OFF.
+    //
+    // This is the last scatter on an island whose seams, camps, holdings,
+    // fields, works, residents and places are all hand-placed tables -- and it
+    // shows. Three carts abreast. Four wells fenced into a two-by-two. A
+    // standing stone every few paces of nothing.
+    //
+    // The distinction that matters: A TREE CAN STAND ANYWHERE and read as
+    // landscape, because nobody put it there. A cart cannot. A cart is
+    // EVIDENCE OF A PERSON, and evidence of a person in a nonsensical
+    // arrangement reads worse than bare ground -- it says the world was
+    // generated, which is the one thing this island is trying not to say.
+    //
+    // So all of it goes, and the country gets more trees instead (§7u), which
+    // is the one kind that never looks placed by a machine. What remains is
+    // hand-drawn or unique: the spider's web, the dragon's burnt ring, the
+    // Drowned Bell, the capes, the mills, the clamp, the orchards, the works
+    // and everything inside a drawing.
+    const SCATTER_OFF = true
+    if (!SCATTER_OFF) {
     // the wood, worked
     t0.stumps   = scatter('stump',   AH(46), q0(inC('greenwood')), lm('stump'))
     t0.logpiles = scatter('logpile', AH(18), q0(inC('greenwood')), lm('log-pile'))
@@ -6262,6 +6356,7 @@ export function buildWorld(genesis) {
     t0.sunken   = scatterIn('sunkw', AH(20), both(q0(inC('fens')), wet(2)), lm('sunken-wall'))
     // CRATES ON THE SHORE, wherever cargo is landed
     t0.crates   = scatterIn('crate', AH(30), both(q0(() => true), wet(2)), lm('crate'))
+    }
   }
 
   // ---- waystones: NONE ----
