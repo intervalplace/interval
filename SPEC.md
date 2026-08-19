@@ -6943,6 +6943,56 @@ count, so three stall-houses had their floors painted as market square. A
 square is open ground: no wall within one tile of it, which is a thing the
 drawing can answer. 66 tiles, and all seven rostered stalls are indoors.
 
+### 16i. Every kind is in the identity, and that was checked (v0.88)
+
+`geographyHash` hashes every node as `id : type : kind : x,y`, every mob as
+`id : type : x,y`, and every one of the 458,752 tiles' blocked, biome and
+ground. The world holds **45 node types and 74 landmark kinds**, and all of
+them are inside it.
+
+**The `kind` term is what makes that true, and it is easy to leave out.** A
+willow is not a node type — it is `kind: 'willow'` on a `landmark`. A signature
+hashing only type and position would leave all 74 kinds invisible, and 816
+trees could be turned into standing stones without the island's name changing.
+
+Measured rather than argued, in separate processes: one extra willow smuggled
+into the tree pass takes the hash from `9bc11832…` to `976723ca…`, and removing
+it restores it exactly.
+
+### 16j. Nothing a citizen builds can wall anybody in (v0.88)
+
+A citizen can create exactly five node types at runtime: `cart`, `brewpot`,
+`watchfire`, `fire`, `market`. **All five are in `_WALKABLE_BUILT`**, so none
+of them blocks a tile and a ring of them is not a prison.
+
+`canwall.mjs` derives that list from the engine source rather than trusting the
+comment on it, so a sixth buildable that blocks would be reported.
+
+### 16k. No enclosure may be sealed (v0.88)
+
+A hedge with no way in is not a field, it is a decoration of one. Two passes
+that each place correctly can seal each other: a furlong draws its ring with a
+gate, and a holding — knowing nothing about fields — puts a wall across it.
+
+The founding walks the island from spawn and **opens a way into anything
+ploughed that the walk cannot reach**, removing whatever is actually in the way:
+a hedge panel, a fence, or a tree. 279 ways this founding; **0 plots of 1,231
+left unreachable.**
+
+Three faults on the road to that, each concealing the next, and all three are
+the same kind of mistake:
+
+- It opened **one** blocker per pass against a cap of twelve passes, so it could
+  never open more than twelve ways at all. With 180 plots shut in it opened its
+  twelve and reported success. *A sweep with a ceiling below the size of the
+  problem is a sweep that lies.*
+- It could not remove **trees**, which are laid in a pass of their own, so a
+  willow could shut a field the sweep had just opened.
+- It ran in the **middle** of the founding and therefore only ever saw what came
+  before it. The towns' fields are drawn afterwards, so it reported 279
+  successful openings while 144 plots in Anchor's furlongs stayed shut. *A sweep
+  that runs before the thing it checks is not a check.* It runs last now.
+
 ## 17. The bare-blade (v0.88)
 
 A weapon whose damage is what you are **not** wearing. `bare: true` adds
@@ -7119,6 +7169,287 @@ how to divide before the dragon fell. The tally is private, read by no window,
 so its crossing is a surprise even to the party grinding toward it: the crown
 is simply, suddenly, in the grass. What happens next is between citizens, and
 the world keeps out of it. It always did. That is what the crown is for.
+
+## 19. The middle of the chain (v0.88)
+
+Three skills went from raw thing straight to finished use. Farming got its
+middle in §16 (the mill); these are the other two, and a third that was missing
+a step nobody had noticed.
+
+### 19a. The furnace, and why there is exactly one
+
+`iron-rock` gave **`iron`** — a finished bar, ready for the anvil — so the
+deepest supply chain in the world was also the shortest: strike the rock, walk
+to the forge, done. The seam gives **`iron-ore`** now.
+
+*(The first cut of this pointed the seam at `ore`, which was wrong and is
+recorded because it is the kind of wrong that is hard to see: `ore` is the
+generic of the FIRST founding, what the plain `rock` gives, from when there was
+one tier and it was bronze. A seam giving the retired generic would have made
+bronze stock and iron stock the same substance.)*
+
+**One furnace**, at Cragfoot, on the outskirts. Three would have split one small
+crowd into three smaller ones. And it is deliberately **not at the forge**: the
+world has been saying the shape of this out loud since v6 in Cragfoot's own
+crier's line — *"Mine here; the anvil is at Thornbury."*
+
+Every bar is smelted there and nowhere else: `iron`, `star-ingot`, `gold-bar`.
+Bars are refused at the anvil and shapes are refused at the furnace.
+
+**`smelt` is its own verb.** These were briefly folded into `smith` because it
+saved teaching two windows and the SDK a new word — a reason to write code a
+certain way, not a reason to tell a citizen that running ore into metal and
+beating metal into a shape are the same act. Two trades, two places, two verbs.
+The `RECIPES` table is shared because the ingredients genuinely are the same
+kind of thing; only `SMELTED` says which door each goes through.
+
+**What this is NOT.** It is not a haul. Banks make that fiction: a citizen will
+bank at Norwick, walk light, and withdraw at Cragfoot. The 238 tiles between
+furnace and anvil are flavour, and were briefly described here as economics,
+which was romance.
+
+### 19b. The fire is the fuel, and somebody has to keep it lit
+
+Coal was an ingredient of the iron bar and of almost nothing else, while steel
+gear took iron AND coal at the anvil, and steel itself was never smelted at all.
+Three different answers to one question, which is how you can tell nobody had
+asked it.
+
+**One answer: the furnace burns.** A bar costs only its ore. The coal goes into
+the furnace, by anybody, and while it burns anyone standing there may smelt.
+One coal is 600 intervals; the fire will not bank past 6,000, so it cannot be
+stoked once and abandoned.
+
+That is the watchfire's design pointed at metal, and it makes a **job** out of a
+vending machine. The fireman is paid **26 a coal** — the watchfire pays 20 for a
+log, and coal is dearer by every measure this constitution already has (mining
+21, hardness 2). *The first cut said twelve, which made the dearer fuel pay
+less: the fireman would have been working for the greater good, and nobody does
+that twice.*
+
+And he is paid **1 an interval for attendance**, exactly as a firekeeper is,
+because a stoke is a moment's work and standing there for the hour it burns —
+so the crowd never finds it cold — is the actual job. The furnace has no owner,
+so it credits whoever last fed it, and only while they are beside it. Walk off
+and the fire burns on for everyone; you simply stop being paid to mind it.
+
+### 19c. The sawpit, and the plank
+
+Logs went to use with nothing between, and a plank already had **three buyers
+waiting**: a citizen's stall, a citizen's brewpot, and the deck of the Millbrook
+Bridge — whose keeper is *mending* it, and you cannot plank a bridge with a
+round log. That last one was always slightly wrong and nobody noticed until
+there was a sawpit to make it right. **The toll takes a plank now.**
+
+One sawpit, at the Sawyer's Camp in the Deepwood: a place drawn in the first
+week of v7 with a sawyer standing in it and nothing whatever to saw. One log
+gives two planks, because the cost of a plank is the WALK, not the timber.
+
+### 19d. Steel is a bar (v0.88)
+
+The last incoherent corner. Every other metal in the world is smelted; steel
+gear was forged straight out of **iron and coal at the anvil**, in nine
+recipes — which is to say the anvil was doing the furnace's job, for the one
+metal that is actually MADE rather than merely shaped.
+
+Iron carburised in a fire is a bar like any other. `steel` smelts from one iron
+at the furnace, and the nine recipes buy steel. **No recipe in the world burns
+coal at an anvil any more**; the coal goes into the furnace, per §19b, and the
+anvil only shapes.
+
+The ladder is legible for the first time: `iron-ore` → `iron` → `steel`, each
+step at the furnace, and the shape at Thornbury.
+
+### 19e. Placing things in the right order, and what to do when you cannot
+
+Three faults this founding had the same cause: a pass that runs before the
+thing it depends on. They are recorded together because the answer is not
+"order the passes correctly" — the founding is long and it will grow — but
+**make each pass able to correct whatever it finds.**
+
+- **The sealed-enclosure sweep** ran mid-founding and never saw the towns'
+  fields, drawn afterwards (§16k). It runs last.
+- **The landmark trees** knew nothing of the seam table, so a dead tree stood on
+  the mother-lode at 168,249 and the seam pass refused the seam and warned about
+  it in a line nobody would read. **A seam outranks scenery**: ninety-six seams
+  are the economy of this island and eight hundred trees are decoration, so if a
+  piece of decoration is in the way, the decoration moves.
+- **The holdings pass deleted every node in its footprint**, unconditionally,
+  and it runs after the eighteen hand-drawn places — so a croft laid its
+  vegetable patch straight through the apiary and took the pen's fence out from
+  under the bees. It never asked whether the ground was reserved. **The whole
+  reason for hand-placing is that each thing has its own place**: a holding may
+  sweep a stump or a standing stone off its yard, and may not sweep away a
+  building somebody drew.
+- **The sawpit** tested what stood on its ground, which was not enough, because
+  the Greenwood's oaks are sown afterwards and were never in the set. It
+  RESERVES its four approaches now, and every later pass respects `taken`.
+  Reserving is the only one of these answers that keeps working as the founding
+  grows: correcting what you find needs you to run last, and only one pass can.
+- **Two nodes may share a tile.** They are keyed by id, not by position, so
+  nothing in the engine forbids it and nothing was checking: the apiary's hedge
+  and hold5's vegetable patch both stood on 376,280, a croft's garden growing
+  through a bee-garden's fence, invisible to every audit. **One thing to a
+  tile**, resolved LAST and BY RANK: a place beats a work, a work beats a
+  holding, a holding beats a field. The drawn thing wins, because that is what
+  hand-placing is for — a place is eighteen buildings somebody sat and drew, a
+  field is a pattern stamped over half a shire.
+
+  Ranking rather than ordering, because there are **two separate
+  place-drawing paths** in this founding and patching one of them fixed
+  nothing. A rule that says who wins does not care who ran first.
+- **The training yard** tested `onRoad` per tile and put its west wall hard
+  against the lane. Clear of the road's EDGE now, not merely off its tiles —
+  the same fault as a stall in a doorway.
+
+## 20. Fires, yards and trees (v0.88)
+
+### 20a. A burning fire cooks
+
+Cooking's bonus lived at a `hearth`, and every hearth on this island is indoors
+in a town — so the best place to cook was always somebody's kitchen, and the
+fisherman on the quay carried the catch home. Anyone who has fished in a game
+like this remembers the other thing: somebody calls for a fire, somebody lays
+one, and a crowd cooks together at the water's edge.
+
+**A watchfire that is burning now cooks like a hearth.** Not a rule about quays
+— a rule about fires. The docks become the best cooking spot in the world only
+because somebody chose to keep a fire there, and it works the same at the Wilds
+edge or on the Downs.
+
+**And the fire earns its keeper.** Without this the quayside fire is charity: a
+firekeeper stands in the Greenwood because that is where the logs are, and
+carrying them to the docks to cook other people's dinners is working for
+nothing. He will not, and the fire will never be there. So a cook at a
+citizen's fire pays that citizen **6 firemaking**. Site your fire where the
+fishermen are and the fishermen are your income — the same bargain as a stall
+on a road, which is placed for the traffic and for no other reason.
+
+This is what makes *"fire plz"* something a firekeeper wants to hear.
+
+### 20b. The training yard
+
+Dummies for the melee and butts for the bow, in **one** walled ground on the
+heartlands road — the peaceful country, before you venture out, which is where
+a person ought to find out what they are carrying. One yard and not two:
+separate grounds for archers and swordsmen would split a small population, the
+same mistake three furnaces would have been.
+
+**They are MOBS, not furniture**, and that is the whole trick: `attack`,
+specials, a drawn bow and the damage readout all work on them unchanged. A new
+verb would have reimplemented combat badly beside the real one.
+
+**It teaches to level 20 and not one point after.** Past the cap a dummy still
+reports the blow and pays nothing, which keeps the yard useful forever as an
+INSTRUMENT — the only place to read your true max hit, feel a weapon, and try a
+special before you risk it — without ever being a way to train. Measured: at
+level 5 a blow deals 24 and teaches 24; at level 60 it deals 58 and teaches
+nothing.
+
+### 20c. Trees that are not timber
+
+Every tree on this island could be chopped, so the countryside could only be
+wooded where the world wanted woodcutting. A landmark tree is reached by no
+verb, so a country can have trees the way a country does: **willows** at the
+meres, **dead trees** in the Wilds and the Moor, **pines** in the Crags,
+**wind-thorn** on the open Downs. 829 of them.
+
+And the **avenue to Hollybarrow**: 44 oaks, both sides of the road, for its
+whole approach. It is the only thing on this island that can mean nothing
+except that somebody planted it, on purpose, for show.
+
+*Two mistakes on the way, both about the same false assumption. Planting due
+south of the town gave THREE oaks, because roads here are routed and not drawn
+and the whole point of that is that they bend. Reading the road's immediate
+neighbours gave six, because a road here is TWO TILES WIDE and 144 of 180 tiles
+therefore look like corners. Measuring the run — how far the road reaches
+up-down against left-right — gave the avenue its length.*
+
+### 20d. A place may not seed a tier (v0.88)
+
+The eighteen hand-drawn places could ask for resource nodes of their own, and
+five of them were **gatherable trees**: two oaks and a heartwood at the Sawyer's
+Camp, a heartwood in the Kingswood, a gallows-oak at the Ruined Tower.
+
+The seam table's own tree clusters are **three, four and two** nodes. So those
+were not decoration standing beside a tier — they were extra tiers, a fourth and
+fifth place a woodcutter could stand that nothing sanctioned.
+
+This island already carries two or three clusters per tier where a Schelling
+point wants one. It cannot afford five. **A place may not seed any tiered
+resource**: a forester walks to the seam and carries the logs to the sawpit,
+which is what a sawpit is for.
+
+*(One remains and it is deliberate: the Ruined Tower's gallows-oak is drawn into
+the place's own rows rather than requested as a node, and a single tree deep in
+the Wilds is not a cluster — nobody travels there for one log when a cluster
+exists. If the rule is ever to be absolute, that is the one to take out.)*
+
+## 21. The Moorgrave (v0.88)
+
+Everything a citizen walks into on this island is small. A cottage is three by
+four; the training yard is nine by six; the largest drawn place before this was
+the Barrow Crown. **That is a world of rooms and no halls**, and a landscape
+wants somewhere that takes a while to cross.
+
+Twenty-nine by seventeen on the open moor, and it is placed where it is on
+purpose: **thirty-one tiles short of the Gibbet King**, on the way to the worst
+fight in the world and on the way back with the bones.
+
+**The ossuary inside is the point.** Kill on the moor, bury on the way home,
+consecrated — it closes a loop that had no middle. Without it this would be
+scenery, however large.
+
+**It is not the Boneyard again.** The Boneyard is bones lying in the open Wilds
+where nobody put them. This is walled, gated, laid out in rows, with a
+mort-house, a mourner and yews at the corners. Somebody dug these.
+
+A grave and a yew are LANDMARKS, so a graveyard can be full of them without
+being a tier (§20d). And the Moorgrave named its own ground: there are only
+eighteen locales, so the nineteenth place had nowhere to stand with half a moor
+empty. **A drawing may say `at`.**
+
+### 21a. Iron railing (v0.88)
+
+The Moorgrave was drawn with `rampart` because it was the only long boundary
+the vocabulary had. **A rampart is a war wall** — earth and stone, the thing
+Norwick's garrison stands behind — and a churchyard is not a fort.
+
+`railing` blocks like a wall and reads like a fence: uprights, a top rail, and
+daylight between them. **You can see through it, which is most of what a
+graveyard wall is for.**
+
+### 21b. Everything must be drawn (v0.88)
+
+A node type or landmark kind the window cannot draw is a thing that is in the
+world and invisible in it. Audited against the founding rather than by eye:
+**46 of 46 node types named, and every mob.**
+
+Twelve landmark kinds were added and never drawn — the willows, the dead trees,
+the pines, the thorns, the graves and yews, the peat and withy stacks — and
+would have fallen through to the default. The **scree-imp** drew nothing at
+all: four of them live in the South Pass rockfall, so a citizen a week into the
+dig would have been bitten by empty air.
+
+The seventeen names still unmatched are all **keeper** kinds (banker, collier,
+drover…), which the window draws as people rather than by trade. That is the
+intended behaviour and not a gap.
+
+`windrawn.mjs` performs this audit from the built world, so a kind added later
+and never drawn will be reported.
+
+## 22. One Schelling point per tier (v0.88)
+
+The seams were made few and findable on purpose — 94 nodes where the old
+scatter had 653 — because scarcity only makes a MEETING PLACE if there is one
+place. Three tiers had drifted into two and three clusters apiece: iron in
+three, magic-rock in two, the plain tree in three. **That is not scarcity, it is
+the same scarcity divided, and it buys nothing.**
+
+Nineteen nodes moved into their tier's main cluster. Every tier now stands in
+one place, with a single deliberate exception: **the plain tree keeps its
+Hollybarrow pair**, because a starter tier beside the first town a newcomer
+reaches is a second point somebody chose rather than drift.
 
 ## 14. The toll on the Millbrook Bridge (v0.88)
 

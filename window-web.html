@@ -3792,6 +3792,8 @@ const BRIDGE_TO_INPUT = (a) =>
   // §14: the toll on the Millbrook Bridge
   : a.do === 'pay' ? { type: 'pay' }
   : a.do === 'grind' ? { type: 'grind', slot: a.slot }
+  : a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }
+  : a.do === 'saw' ? { type: 'saw' }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'set_look' ? { type: 'set_look', look: a.look }
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
@@ -7558,6 +7560,81 @@ function drawScene(now) {
           }
           cx.fillStyle = 'rgba(240,246,255,' + (0.10 + 0.14 * pull) + ')'
           cx.beginPath(); cx.arc(X + 20, Y + 20, 2.2, 0, 7); cx.fill()
+        } else if (K === 'grave') {
+          // §7ab: a settled mound and a headstone leaning the way the ground took it
+          cx.fillStyle = ['#4b4638','#443f33','#514b3d'][v]
+          cx.beginPath(); cx.ellipse(X + 20, Y + 29, 12, 6, 0, 0, 7); cx.fill()
+          cx.save(); cx.translate(X + 20, Y + 24); cx.rotate((v - 1) * 0.09)
+          cx.fillStyle = ['#a9a292','#b4ad9c','#9e9787'][v]
+          cx.fillRect(-5, -13, 10, 14)
+          cx.beginPath(); cx.arc(0, -13, 5, Math.PI, 0); cx.fill()
+          cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fillRect(-5, -13, 3, 14)
+          cx.restore()
+        } else if (K === 'yew') {
+          // dark, dense and older than the graves
+          cx.fillStyle = '#40311f'; cx.fillRect(X + 18, Y + 26, 5, 11)
+          cx.fillStyle = '#182a1c'
+          cx.beginPath(); cx.arc(X + 20, Y + 19, 13, 0, 7); cx.fill()
+          cx.fillStyle = '#23412c'
+          cx.beginPath(); cx.arc(X + 16, Y + 16, 9, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(140,180,140,.14)'
+          cx.beginPath(); cx.arc(X + 15, Y + 14, 4, 0, 7); cx.fill()
+        } else if (K === 'willow') {
+          cx.fillStyle = '#4d3d28'; cx.fillRect(X + 18, Y + 24, 4, 13)
+          cx.fillStyle = '#5f7d38'; cx.beginPath(); cx.arc(X + 20, Y + 17, 12, 0, 7); cx.fill()
+          cx.strokeStyle = 'rgba(150,180,90,.75)'; cx.lineWidth = 1.3
+          for (let i = -2; i <= 2; i++) { cx.beginPath()
+            cx.moveTo(X + 20 + i * 5, Y + 20); cx.lineTo(X + 20 + i * 6, Y + 34); cx.stroke() }
+        } else if (K === 'dead-tree') {
+          cx.strokeStyle = ['#8d8474','#968d7c','#847b6c'][v]; cx.lineWidth = 3.2
+          cx.beginPath(); cx.moveTo(X + 20, Y + 37); cx.lineTo(X + 20, Y + 13)
+          cx.moveTo(X + 20, Y + 22); cx.lineTo(X + 9, Y + 11)
+          cx.moveTo(X + 20, Y + 18); cx.lineTo(X + 32, Y + 8); cx.stroke()
+        } else if (K === 'pine') {
+          cx.fillStyle = '#4d3d28'; cx.fillRect(X + 18, Y + 29, 4, 8)
+          cx.fillStyle = '#20402a'
+          for (const [w2, y2] of [[15, 30], [11, 21], [7, 13]]) { cx.beginPath()
+            cx.moveTo(X + 20, Y + y2 - 10); cx.lineTo(X + 20 - w2, Y + y2)
+            cx.lineTo(X + 20 + w2, Y + y2); cx.closePath(); cx.fill() }
+        } else if (K === 'avenue-oak' || K === 'apple-tree' || K === 'pear-tree') {
+          cx.fillStyle = '#54422b'; cx.fillRect(X + 18, Y + 25, 5, 12)
+          cx.fillStyle = K === 'avenue-oak' ? '#3f6128' : '#4e7030'
+          cx.beginPath(); cx.arc(X + 20, Y + 17, 13, 0, 7); cx.fill()
+          cx.fillStyle = K === 'avenue-oak' ? '#6f9740' : '#7fa84a'
+          cx.beginPath(); cx.arc(X + 16, Y + 14, 9, 0, 7); cx.fill()
+          if (K === 'apple-tree') { cx.fillStyle = '#c4402a'
+            cx.beginPath(); cx.arc(X + 26, Y + 19, 2.6, 0, 7); cx.fill() }
+          if (K === 'pear-tree') { cx.fillStyle = '#c9b04a'
+            cx.beginPath(); cx.arc(X + 14, Y + 22, 2.6, 0, 7); cx.fill() }
+        } else if (K === 'thorn' || K === 'wind-thorn') {
+          cx.strokeStyle = '#4a5636'; cx.lineWidth = 3
+          cx.beginPath(); cx.moveTo(X + 14, Y + 36)
+          cx.quadraticCurveTo(X + 20, Y + 22, X + 32, Y + 16); cx.stroke()
+          cx.fillStyle = '#3b4f2c'; cx.beginPath(); cx.arc(X + 30, Y + 14, 7, 0, 7); cx.fill()
+        } else if (K === 'windfall') {
+          cx.fillStyle = '#7a5a2a'
+          for (const [ax, ay] of [[13, 26], [21, 30], [28, 24]]) { cx.beginPath()
+            cx.arc(X + ax, Y + ay, 4, 0, 7); cx.fill() }
+        } else if (K === 'peat-stack' || K === 'withy-stack') {
+          cx.fillStyle = K === 'peat-stack' ? '#463b30' : '#9a8a58'
+          cx.fillRect(X + 8, Y + 18, 24, 17)
+          cx.fillStyle = 'rgba(0,0,0,.25)'
+          for (let i = 0; i < 3; i++) cx.fillRect(X + 8, Y + 22 + i * 5, 24, 2)
+        } else if (K === 'dew-mark') {
+          cx.fillStyle = '#b9c4a8'; cx.beginPath()
+          cx.ellipse(X + 20, Y + 24, 12, 7, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(255,255,255,.25)'; cx.beginPath()
+          cx.ellipse(X + 17, Y + 22, 5, 3, 0, 0, 7); cx.fill()
+        } else if (K === 'sheep-skull') {
+          cx.fillStyle = '#ded7c5'; cx.beginPath(); cx.arc(X + 20, Y + 24, 8, 0, 7); cx.fill()
+          cx.fillStyle = '#c2baa6'; cx.fillRect(X + 8, Y + 20, 24, 3)
+          cx.fillStyle = '#4a4438'
+          cx.beginPath(); cx.arc(X + 17, Y + 24, 1.8, 0, 7); cx.fill()
+          cx.beginPath(); cx.arc(X + 23, Y + 24, 1.8, 0, 7); cx.fill()
+        } else if (K === 'charcoal-ring') {
+          cx.strokeStyle = '#2c2c2e'; cx.lineWidth = 5
+          cx.beginPath(); cx.arc(X + 20, Y + 22, 11, 0, 7); cx.stroke()
+          cx.fillStyle = 'rgba(70,60,50,.5)'; cx.beginPath(); cx.arc(X + 20, Y + 22, 7, 0, 7); cx.fill()
         } else if (K === 'skep') {
           // a coiled straw hive: rings of rope, a dark mouth, and bees
           cx.fillStyle = ['#c9a044','#bf963c','#d3aa4e'][v]
@@ -8116,6 +8193,33 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
+      if (n.type === 'furnace') {
+        // §7p: the island's one furnace. Anybody may feed it; anybody may use
+        // it while it burns.
+        const meF = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('The bloomery. Ore and coal go in; iron comes out.'); return }
+        const lit = (n.fuelUntil ?? 0) > (world?.tick ?? 0)
+        const ci = (meF.inventory || []).findIndex(sl => sl?.item === 'coal' || sl?.item === 'charcoal')
+        if (!lit) {
+          if (ci === -1) { feed('The furnace is cold, and you have no coal to light it.'); return }
+          send({ do: 'stoke', nodeId: id, slot: ci }); feed('The bloom catches.')
+          flashClick(n.x, n.y, false); return
+        }
+        const ore = (meF.inventory || []).filter(sl => sl?.item === 'iron-ore').length
+        if (ore >= 2) { send({ do: 'smelt', recipe: 'iron' }); feed('Two of ore run down into a bar.') }
+        else if (ci !== -1) { send({ do: 'stoke', nodeId: id, slot: ci }); feed('You feed the fire.') }
+        else feed('It burns. Bring ore, or coal to keep it going.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'sawpit') {
+        const meS = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('A sawpit, and a trestle over it.'); return }
+        if (!(meS.inventory || []).some(sl => sl?.item === 'logs')) { feed('Bring logs.'); return }
+        send({ do: 'saw' }); feed('Two boards off the log.')
+        flashClick(n.x, n.y, false); return
+      }
       if (n.type === 'landmark' && n.kind === 'mill') {
         // §7j: the mill grinds. Stand at the stone with grain in the pack.
         const meM = world.players[myId]
@@ -8241,6 +8345,22 @@ function drawScene(now) {
                           armour:'#3a3228', bows:'#44412a', seed:'#4a4428' })[n.kind] ?? '#5a4a22'
         cx.fillRect(X + 10, Y + 4, 20, 9)
         cx.fillStyle = 'rgba(0,0,0,.24)'; cx.fillRect(X + 21, Y + 4, 9, 9)
+        return
+      }
+      if (n.type === 'railing') {
+        // §7ac: IRON RAILING. Not a wall: uprights, a top rail, and daylight
+        // between them. A churchyard bounds itself so you can see in.
+        const rr = ((n.x * 7 + n.y * 13) & 3)
+        cx.strokeStyle = '#2f3338'; cx.lineWidth = 2
+        cx.beginPath(); cx.moveTo(X, Y + 16); cx.lineTo(X + 40, Y + 16); cx.stroke()
+        cx.beginPath(); cx.moveTo(X, Y + 30); cx.lineTo(X + 40, Y + 30); cx.stroke()
+        cx.lineWidth = 2.6
+        for (let i = 0; i < 4; i++) {
+          const px = X + 6 + i * 10
+          cx.beginPath(); cx.moveTo(px, Y + 8 + (i === rr % 4 ? 1 : 0)); cx.lineTo(px, Y + 36); cx.stroke()
+          cx.fillStyle = '#3b4046'
+          cx.beginPath(); cx.arc(px, Y + 7, 1.8, 0, 7); cx.fill()
+        }
         return
       }
       if (n.type === 'wall' || n.type === 'rampart') {
@@ -8969,6 +9089,47 @@ function drawScene(now) {
         cx.fillStyle = 'rgba(226,182,62,.9)'
         cx.font = '600 8px ui-monospace,monospace'; cx.textAlign = 'center'
         cx.fillText('THE SPIDER', X + 20, Y - 11); cx.textAlign = 'left'
+        return
+      }
+      if (m.type === 'scree-imp') {
+        // §12: the four things living in the South Pass rockfall. Small, grey,
+        // and made of the same stone the diggers are breaking -- they were
+        // drawing NOTHING, so a citizen a week into the dig would have been
+        // bitten by empty air.
+        const bob = Math.sin(((world?.tick ?? 0) + m.x * 7 + m.y * 3) * 0.18) * 1.6
+        cx.fillStyle = '#5d5a52'
+        cx.beginPath(); cx.arc(X + 20, Y + 24 + bob, 8, 0, 7); cx.fill()
+        cx.fillStyle = '#6e6b61'
+        cx.beginPath(); cx.moveTo(X + 13, Y + 19 + bob); cx.lineTo(X + 16, Y + 10 + bob)
+        cx.lineTo(X + 19, Y + 18 + bob); cx.closePath(); cx.fill()
+        cx.beginPath(); cx.moveTo(X + 21, Y + 18 + bob); cx.lineTo(X + 25, Y + 10 + bob)
+        cx.lineTo(X + 27, Y + 19 + bob); cx.closePath(); cx.fill()
+        cx.fillStyle = '#d8963c'
+        cx.beginPath(); cx.arc(X + 17, Y + 23 + bob, 1.7, 0, 7); cx.fill()
+        cx.beginPath(); cx.arc(X + 24, Y + 23 + bob, 1.7, 0, 7); cx.fill()
+        return
+      }
+      if (m.type === 'dummy' || m.type === 'butt') {
+        // §7t: THE YARD. Not creatures -- a straw man on a post and a bound
+        // straw butt. They are mobs so that `attack`, the specials and a drawn
+        // bow all work on them unchanged, but nothing about them should read
+        // as alive: no eyes, no idle sway, and they never move.
+        if (m.type === 'dummy') {
+          cx.fillStyle = '#6b5334'; cx.fillRect(X + 18, Y + 24, 5, 15)
+          cx.fillStyle = '#a8863a'; cx.fillRect(X + 8, Y + 17, 25, 5)     // the crossbar
+          cx.fillStyle = '#c9a94e'
+          cx.beginPath(); cx.arc(X + 20, Y + 13, 8, 0, 7); cx.fill()      // the straw head
+          cx.strokeStyle = '#5a4a2a'; cx.lineWidth = 1.6
+          cx.strokeRect(X + 12, Y + 8, 16, 12)
+          cx.strokeStyle = 'rgba(90,70,40,.6)'
+          for (let i = 0; i < 3; i++) { cx.beginPath()
+            cx.moveTo(X + 13 + i * 5, Y + 9); cx.lineTo(X + 13 + i * 5, Y + 19); cx.stroke() }
+        } else {
+          cx.fillStyle = '#6b5334'; cx.fillRect(X + 18, Y + 28, 4, 11)
+          const rings = [[13, '#d8c07a'], [10, '#b8983f'], [6.5, '#8a6f2a'], [3, '#c4561a']]
+          for (const [r, col] of rings) { cx.fillStyle = col
+            cx.beginPath(); cx.arc(X + 20, Y + 18, r, 0, 7); cx.fill() }
+        }
         return
       }
       if (m.type === 'sheep') {
