@@ -7339,6 +7339,26 @@ same mistake three furnaces would have been.
 specials, a drawn bow and the damage readout all work on them unchanged. A new
 verb would have reimplemented combat badly beside the real one.
 
+**A dummy is furniture, and had to be told three times.** `harmless` only ever
+meant that its blows do not land — it still drifted a tile or two about its post
+like every beast (two shuffled into one square and the yard's labels read
+*"dibuttmy"*), still chose a target, still walked toward them, and still swung.
+A thing you hit to READ A NUMBER must be exactly where you left it. It now never
+wanders, never engages, and never answers.
+
+**And a special may be tried on one.** §6af says the special is *"deliberately
+NOT confined to PvP"* — which was true of the design and false of the code,
+because it asked for a player target and nothing else. So the only way to learn
+what your own special did was to spend it on somebody, which is exactly backward
+for a blow whose whole point is choosing the moment.
+
+The shape did not change: the yard's mobs are given **64-hex ids**, so
+`targetId` names one without a second field or a second verb. A shape that
+already fits is worth more than a tidier name.
+
+No brand, no answering blow, no consequences of any kind — a straw man has
+nothing to answer with.
+
 **It teaches to level 20 and not one point after.** Past the cap a dummy still
 reports the blow and pays nothing, which keeps the yard useful forever as an
 INSTRUMENT — the only place to read your true max hit, feel a weapon, and try a
@@ -7409,6 +7429,54 @@ being a tier (§20d). And the Moorgrave named its own ground: there are only
 eighteen locales, so the nineteenth place had nowhere to stand with half a moor
 empty. **A drawing may say `at`.**
 
+### 20e. A dummy is furniture, and a special may be tried on one (v0.88)
+
+`harmless` already meant a dummy's blows never landed — but it still **chose a
+target, walked toward it and swung**. That is a beast pretending to be
+furniture. Two of them shuffled into one square and the yard's labels read
+"dibuttmy".
+
+A dummy and a butt now take no action at all and never move, by either path:
+not the wander that drifts every beast about its post, and not the pursuit that
+brings a beast to the citizen who struck it. **They take hits and do nothing
+else, forever.** Measured: forty intervals of being hit, zero tiles moved, zero
+damage dealt, no action taken.
+
+**And a special may be spent on one.** The rule already allowed it — the note on
+`special` says it is *"deliberately NOT confined to PvP"* — but the input SHAPE
+demanded `hex64`, a player's key, so a strike at `yard-dummy-0-1` was thrown out
+before the rule was ever consulted. **Two halves of one permission, disagreeing
+quietly**, and the effect was that the only way to see what your own special did
+was to use it on somebody. That is exactly backwards for a thing you are meant
+to spend carefully. The yard is where you find out.
+
+### 20f. Wystan Yardmaster (v0.88)
+
+Every keeper on this island is an unarmed brown figure, and one of them teaches
+people to fight. A newcomer meets him before they own anything, so he ought to
+look like the reason to stay: plate, a crested helm, and an **iron flail** —
+a weapon this island cannot forge at all.
+
+A beginner sees a legend. A citizen who has been to Thornbury sees a man with a
+museum piece. **Both readings are correct, and that is the joke.**
+
+### 20g. Interaction does not belong in the drawing (v0.88)
+
+Five handlers written this founding — the furnace, the sawpit, the mill, the
+altar and the rockfall — were placed inside `drawScene` instead of the click
+path. Every one of them ran its logic **on every animation frame**, calling an
+`adj()` that exists only in the click handler, and threw the moment one came on
+screen. A citizen crashed the window by WALKING PAST a thing.
+
+The throw was a mercy. Had it not thrown, `send()` would have fired sixty times
+a second: stoking, smelting, sawing and grinding on repeat.
+
+It also explains a report of swinging *"every tick, maybe faster"* at an
+incursion. **The engine was innocent** — measured against a real one with a
+horn-bow, the gaps between landed blows were 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 4, 2,
+a mean of 2.10 ticks and exactly the weapon's cadence. What was fast was
+`feed()` and `flashClick()` firing per frame from the drawing loop.
+
 ### 21a. Iron railing (v0.88)
 
 The Moorgrave was drawn with `rampart` because it was the only long boundary
@@ -7450,6 +7518,323 @@ Nineteen nodes moved into their tier's main cluster. Every tier now stands in
 one place, with a single deliberate exception: **the plain tree keeps its
 Hollybarrow pair**, because a starter tier beside the first town a newcomer
 reaches is a second point somebody chose rather than drift.
+
+## 23b. The bridge the windows could not see (v0.88)
+
+The Watersmeet deck was made a rectangle in the generator (§7v) and reported
+fixed. A citizen walked there and found **no bridge**, because the fix went into
+the world and not into the mirrors — and then a tile-by-tile comparison found a
+second, older fault underneath it.
+
+`onBridge4` branches on `b.tag !== 'brm'` to decide whether a crossing spans
+east-west or north-south. **The windows' bridge list carried no `tag` at all**,
+so the test was true for all five, and the Oxenford — which crosses a march
+running east-west and must therefore be spanned north-south — was spanned the
+wrong way round. Ninety-three tiles where the pillar said bridge and the citizen
+saw water.
+
+The generator has always tagged them. The mirror simply dropped the field, which
+is **the quietest way for two implementations to disagree: not a different
+answer, an absent question.**
+
+Measured after: 1,845 bridge tiles compared, **0 disagreements**.
+`bridgecheck.mjs` keeps it that way.
+
+## 23a. A waymark is for a junction (v0.88)
+
+The waymarks survived the cut of §23 because a mark at a road bend looked
+purposeful: somebody puts a stone where the way turns. Measuring it said
+otherwise.
+
+One was placed at **every bend**, and a routed road bends constantly — so a
+winding stretch collected a mark every few tiles. **133 of them, median
+nearest-neighbour distance five tiles, minimum one, and seventy of the
+hundred-and-thirty-three with another inside six.** Whatever that is, it is not
+"one thing every thirty-five tiles of road".
+
+A mark means SOMETHING HAPPENS HERE: a fork, a ford, a boundary, a pass. So a
+bend now qualifies only if nothing else has been marked within **twenty-five
+tiles**. That cuts a winding lane to a single mark and leaves the junctions,
+because a junction is a place a road actually turns *toward somewhere*.
+
+**133 to 49; median spacing 32 tiles; no two within 25.**
+
+## 23. The generic scatter is off (v0.88)
+
+Every other placement on this island is a hand-written table: the seams, the
+camps, the holdings, the fields, the works, the residents, the places. One
+scatter was left, and it filled the countries with "things" so the land would
+not read as empty. **It read as generated instead** — three carts abreast, four
+wells fenced into a two-by-two, a standing stone every few paces of nothing.
+
+The distinction that decides it: **a tree can stand anywhere and read as
+landscape, because nobody put it there. A cart cannot.** A cart is evidence of a
+person, and evidence of a person in a nonsensical arrangement is worse than bare
+ground — it announces that the world was generated, which is the one thing this
+island is trying not to say.
+
+So the generic scatter is off: the carts, haystacks, crates, gibbets, bone
+piles, eel racks, sunken walls, spoil heaps and stumps that nobody placed. What
+survives is hand-drawn or unique — the spider's web, the dragon's burnt ring
+and glass, the Drowned Bell, the capes, the mills, the charcoal clamp, the
+orchards, and everything inside a drawing.
+
+**And the country got trees instead**, which is the one kind that never looks
+placed by a machine: 801 became **1,916**. The heartlands and the fens had no
+landmark trees at all — their texture was carts and hurdles, which is precisely
+what looked wrong — and now carry hedgerow oaks and fen willows in the ones and
+twos a farmed country actually has.
+
+## 24. A country wants a creature of its own (v0.88)
+
+Four species did all the work across seven countries — 168 goblins, 166
+skeleton-knights, 113 wolves, 64 trolls — and they overlapped so completely that
+none of them belonged anywhere. Skeleton-knights in the Wilds **and in the
+meadow outside Anchor**. Trolls in the Crags **and** the Wilds. Goblins in the
+Fens **and** the heartlands. Walk anywhere and meet the same four things.
+
+Meanwhile **the Moor held the Gibbet King and two sheep.**
+
+Seventeen camps moved home: goblins to the Fens, skeletons to the Wilds, wolves
+to the Greenwood, trolls to the Crags. **No hostile camp is seated in the
+heartlands at all now** — which is what a starting country is for, and what the
+training yard standing in it already implied.
+
+And five creatures that belong somewhere. **None of them drops anything new**, and
+that is fine: a creature that exists so the Fens do not feel like the Downs is
+doing a job — the same argument as the landmark trees, one layer up.
+
+- **boar** — the Greenwood. Heavy and short-sighted, and it charges: the one
+  beast in the wood that comes at you rather than waiting to be found.
+- **mountain-goat** — the Crags, and **harmless**. The island had exactly two
+  things a pure could train on and both were at sea level.
+- **carrion-crow** — the Moor. Weak alone, always in numbers, over a country of
+  graves.
+- **fen-adder** — the Fens. Small, low, and it bites hard for its size.
+- **barrow-wight** — the Moor, and the reason to be careful there.
+
+## 25. Holy water, and the thing it lets you kill (v0.88)
+
+An ossuary paid experience and nothing else, so consecrated ground was a better
+*rate* rather than a *place*. **Ten bones buried in it now give a flask of holy
+water** — counted on the citizen and not the node, so a burial at the Moorgrave
+and one at the monastery are the same errand and neither can be farmed alone.
+
+It is the only thing in this world made by an act of respect rather than by
+labour.
+
+**And the barrow-wight is warded.** Every blow lands for ONE unless the citizen
+striking it carries holy water, and the flask is spent when the wight falls.
+Measured with a star-sword at level 90: **2 damage in sixty intervals without a
+flask; 66 and a kill with one.**
+
+**It is the only gate in this world that is not a level or a tool.** You cannot
+buy past it, smith past it, or out-level it. You go and bury the dead first —
+which is a strange requirement, and the point: the Moor is a country of graves,
+and the thing that walks there answers to the only courtesy anybody ever paid
+it.
+
+What it carries is **grave-silver**: worth seven hundred, made by nothing, mined
+nowhere, and reachable only through the ossuary.
+
+### 24a. A folded flock (v0.88)
+
+Fifty-two sheep loose across the Downs, and **a sheep on an open hillside is
+wallpaper**: you walk past it, kill one in passing, and it means nothing.
+
+The Sheepfolds have stood since the first week as **six empty pens with a
+shepherd beside them**. Six empty pens. Twenty-one head are in them now, on a
+tight radius so they stay in the pens they belong to.
+
+Same argument as the goblin pound and the training yard: **a thing behind a
+fence is a destination, and a thing roaming loose is scenery.**
+
+*(And the fen-adders were seated on the DOWNS — four of them, in the wrong
+country, by the very pass that was meant to give each country its own. The
+seat-picker read ground kind where it should have read biome. They are in the
+fens.)*
+
+### 25a. And the pound means more than it did
+
+When wild goblins were seated in the meadow as well, a penned goblin was just a
+goblin with a hedge round it. **The heartlands hold no hostile camp now**, so
+those are the only goblins in the home country and the fence is the whole
+story: somebody caught them, and somebody is guarding them.
+
+It is also the safest fight on the island — a real beast, cornered, with four
+guards standing over it — which is what a newcomer wants and what the training
+yard down the road cannot give. The same argument as folding the sheep: **a
+penned thing is a place; a thing roaming loose is scenery.**
+
+## 26. The spade (v0.88)
+
+Strength came from melee and from nowhere else, so a citizen who wanted to be
+strong had to want to be a fighter — and every point of it dragged hitpoints
+along, **which is exactly what a pure is trying not to take.**
+
+Digging is the obvious answer, and this world already had two things worth
+digging: the muck heaps of the farm country and the rockfall shutting the South
+Pass. A **spade** in the hand instead of a sword turns a shift at either into
+strength.
+
+It is a poor weapon (`hit 0, every 3, acc −8`), it comes off a barrow-wight one
+time in six thousand, and using it costs a citizen their weapon slot. Measured
+over 200 intervals at a muck heap: **barehanded, farming 96 and one nitre; with
+a spade, farming 384, STRENGTH 136, and eight nitre.**
+
+It also gives grave-silver company. Silver is a store of value and nothing else
+— which is a fine thing for a haul to be — but a wight that drops only money is
+a wight worth killing once.
+
+### 26a. And the Barrow was a farm
+
+Forty-six skeletons were raised around the mound's edge and came out shoulder to
+shoulder: **a fence of skeletons**, which reads as a spawner rather than as a
+haunting. Twelve are raised now and eleven stand.
+
+The Barrow is the one dangerous thing in the safe country and it works by being
+UNEXPECTED, not by being crowded. Three or four among the stones is more
+frightening than forty, because forty is obviously a farm.
+
+### 26b. A table rewritten from a derived list loses what the derivation missed
+
+§22's consolidation rebuilt the whole seam table from the *built world*, and
+dropped every kind it had no cluster rule for. **The seven muck heaps simply
+vanished** — and with them saltpetre, and with that gunpowder, and with that
+every shot the handgonne fires.
+
+Nothing failed. No audit fired. The world founded cleanly with an entire supply
+chain missing, and it was found only because a spade needed somewhere to dig.
+
+## 27. The siphon (v0.88)
+
+A brass tube on a pump, and what comes out of it sticks and keeps burning.
+
+Fire is the one thing in this world already written to go **round** armour — the
+dragon's breath takes no soak and the note on it says so in as many words — so a
+weapon that throws fire inherits that and needs no new rule. `pierces` is the
+flail's word for it, used here unchanged. Reach **two**, because you do not
+stand next to something you are setting alight, and `burns`, so it goes on
+burning after the blow.
+
+Measured over 40 intervals against a citizen in a full star suit: the siphon
+deals **51 at one tile and 51 at two**; a star-sword deals 32 adjacent and
+**nothing** at two.
+
+The cost is brimstone — six of it, the Crags' scarcest thing, which until now
+was spent on nothing but endgame plate. **It is not a gonne**: a gonne is a bang
+and a ball and a supply line three countries long. This is a nasty short-ranged
+thing a citizen builds once and carries forever, and it answers armour rather
+than distance.
+
+### 27d. A spade does not dig like a hatchet (v0.88)
+
+The gather animation chose its tool from the node's FAMILY — rod for fishing,
+pick for rock, and **axe for everything else**. So digging a muck heap drew the
+citizen swinging a hatchet: the one trade that pays a farmer looked exactly like
+felling a tree, and the spade that pays strength looked like nothing at all.
+
+A spade now has its own motion — long haft, broad blade, a low steady lift with
+earth on it — and bare hands have theirs, a reach and a scoop with no haft.
+Three ways of working three things.
+
+**And the muck heap itself was never drawn.** A node type, gathered, paying
+farming and strength — and it drew NOTHING, so a citizen who walked to the only
+nitre in the world found bare grass. 47 of 47 node types are drawn now, checked
+against the built world by `windrawn.mjs`.
+
+### 27c. And the siphon eats (v0.88)
+
+A weapon that pierces plate at reach two and costs nothing to swing is a weapon
+nobody puts down. So it burns **brimstone, one measure to every eight blows**,
+and a dry siphon does not light at all — the action ends rather than swinging
+for nothing, so a citizen finds out at once.
+
+That gives the Crags' scarcest thing an ongoing buyer instead of a one-off, and
+it means a long fight has a bottom to it. Measured: **53 damage in 40 intervals
+fuelled, 0 dry.**
+
+It teaches **attack and strength**, not ranged: it is a reach-two melee weapon
+like the spear, and a siphon is a thing you spray at somebody close rather than
+loose across a field. It takes no nitre — powder is the gonne's, and one weapon
+per supply line is the point of both.
+
+Its special is `now`: **no flurry, no volley — one sustained gout, out of
+rhythm, when you decide.** A flurry belongs to a dagger and a volley to a bow.
+
+*(The dry guard went into the mob path alone at first, so an empty siphon still
+burned citizens: the same one-path-of-two mistake as the wight's ward and the
+smelt rule. A weapon that needs fuel needs it against everything.)*
+
+### 27a. The spade digs for strength and nothing else
+
+The spade also doubled what it dug, which quietly made it a **nitre** tool — 240
+saltpetre an hour from one digger, against a powder economy built on a scarce
+farm byproduct. A spade is for strength. What it digs comes out at the rate
+hands do, and the citizen pays their weapon slot for the muscle.
+
+*(Strength at a muck heap works out near 4,000 an hour before bank runs —
+under melee, and costing no hitpoints, which is the whole point of it.)*
+
+### 27b. There is no mob in a duel
+
+Adding the dummy flag to "the teachMelee call sites" caught one in the
+**attackp** path — citizen against citizen, where no mob is in scope at all. It
+threw a ReferenceError on **every PvP blow**: a crash in the middle of the only
+fight this world takes seriously, found by a test that was looking at something
+else entirely. A citizen is never a dummy.
+
+## 28a. The third great arm (v0.88)
+
+The great tier had a **sword** for attack and a **crossbow** for ranged, and
+nothing for strength. That was invisible while mauls were gated on attack, and
+glaring the moment they were not: a citizen who trained strength alone had a
+ladder that stopped two rungs short of the world.
+
+**`great-maul`** — strength 70, `hit 16`, `acc −10`, `breaks`, `burns`; eleven
+star-ingots, twenty-four brimstone and a heartwood haft. It keeps the maul
+line's whole character: the biggest blow in the world, bought with the worst
+accuracy in it.
+
+Measured at attack 1 / strength 75, a citizen may wield all three mauls and
+neither sword; at attack 75 / strength 1, both swords and no maul. **Two
+ladders that reach the top and never cross.**
+
+**And the great line is not star-metal.** The maul was drawn first in
+star-blue and read as a star-maul with a bigger head — but every other great
+arm on this island is near-black steel with molten orange running in the
+cracks, because brimstone is what quenched it. **The recipe said so all along;
+only the sprite disagreed.** A family that shares a material should look like
+it, and twenty-four brimstone is not a thing you can paint blue.
+
+And it settles a rule that had been true by accident: **every brimstone arm
+burns.** The great sword, the great crossbow and the siphon all carry `burns`,
+and now so does this — brimstone is the world's fire, and anything quenched in
+twenty-four of it comes off the anvil still smoking.
+
+## 28. A maul answers to strength (v0.88)
+
+Every maul was gated on **attack**, which is the finesse stat — and a maul is
+the one weapon in the world that has no finesse: `acc: -12`, the worst accuracy
+on the table, bought with the largest blow. **It was asking for the exact
+quality it does not have.**
+
+It also left a build with nowhere to go. The spade (§26) gave strength a way to
+rise without fighting, and a citizen who took it had nothing worth wielding at
+the end of it, because every weapon in the world wanted attack. **A strength
+pure can pick up a maul now**, which is what a strength pure would pick up.
+
+Measured: at attack 1 / strength 60 a citizen may wield the steel and star
+mauls and nothing else; at attack 60 / strength 1 they may wield the swords and
+neither maul.
+
+No new item was needed, which is the argument for doing it this way. A weapon
+invented to serve a build is a patch; a weapon whose requirement was simply
+*wrong* is a correction.
+
+*(The siphon stays on attack 60: it is a sprayed weapon that wants a steady
+hand, and it is already the answer to armour. One build does not get every
+answer.)*
 
 ## 14. The toll on the Millbrook Bridge (v0.88)
 

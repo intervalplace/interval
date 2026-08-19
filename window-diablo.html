@@ -881,15 +881,31 @@ const isWater4 = (x, y) => {
   const i = y * W + x
   const hit = _wet4[i]
   if (hit) return hit === 2
-  const w = inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  // §7v: AND THE v7 WATERS. This predicate feeds the BRIDGE mirror, and it was
+  // still answering with v6's three waters -- so the window measured every
+  // deck against a river the world no longer has by itself. The Oxenford came
+  // out ninety-three tiles adrift: a citizen looking at a crossing the pillar
+  // says is there, and seeing water.
+  const w = inSea4(x, y) || inRiver4(x, y)
+    || (V7() ? inland7(x, y) : inLake4(x, y))
   _wet4[i] = w ? 2 : 1
   return w
 }
 function bridges4() {
   const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
-  const out = ys.map((y) => ({ x: riverX4(y), y }))
+  // §7v: THE TAGS. onBridge4 branches on `b.tag !== 'brm'` to decide whether a
+  // crossing spans east-west or north-south -- and this list never carried a
+  // tag at all, so the test was true for ALL FIVE and the Oxenford, which
+  // crosses a march running east-west and must therefore be spanned
+  // NORTH-south, was spanned the wrong way round. Ninety-three tiles where the
+  // pillar said bridge and the citizen saw water.
+  //
+  // The generator has always tagged them. The mirror simply dropped the field,
+  // which is the quietest way for two implementations to disagree: not a
+  // different answer, an absent question.
+  const out = ys.map((y, i) => ({ x: riverX4(y), y, tag: 'br' + i }))
   const mx = Math.round(W * 0.30)
-  out.push({ x: mx, y: marchWY4(mx) })
+  out.push({ x: mx, y: marchWY4(mx), tag: 'brm' })
   return out
 }
 function onBridge4(x, y) {
@@ -909,9 +925,24 @@ function onBridge4(x, y) {
     if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
     if (b.tag !== 'brm') {
       if (y - b.y > 1 || b.y - y > 1) continue
+      // §7v: A DECK IS A RECTANGLE, and this window never learned it.
+      //
+      // The world was fixed for the Watersmeet -- where the march meets the
+      // river, the water runs diagonally, and a per-ROW span leaves open water
+      // beside the deck on two rows of three. The fix went into the generator
+      // and not into the mirror, so the pillar had a bridge there and the
+      // citizen looking at it did not. A crossing that exists in the world and
+      // not in the window is worse than no crossing: you walk onto water.
+      //
+      // Span measured across ALL the deck's rows; the widest run wins.
       let w = b.x, e = b.x
-      while (w > 3 && isWater4(w - 1, y)) w--
-      while (e < W - 4 && isWater4(e + 1, y)) e++
+      for (let ry = b.y - 1; ry <= b.y + 1; ry++) {
+        let w2 = b.x, e2 = b.x
+        while (w2 > 3 && isWater4(w2 - 1, ry)) w2--
+        while (e2 < W - 4 && isWater4(e2 + 1, ry)) e2++
+        if (w2 < w) w = w2
+        if (e2 > e) e = e2
+      }
       if (x >= w - 2 && x <= e + 2) return true
     } else {
       if (x - b.x > 1 || b.x - x > 1) continue
@@ -3029,6 +3060,9 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'spawn' ? { type: 'spawn' }
   : a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
+  // §7p/§7q: the furnace and the sawpit
+  : a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }
+  : a.do === 'saw' ? { type: 'saw' }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
   : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }   // §6af
@@ -12679,6 +12713,22 @@ function buildMenu(px2, py2, target) {
     // explanation, could not change their face, could not swing at the South
     // Pass, and could not invoke -- because a verb a window cannot express is
     // a verb its citizens do not have. Same lesson as `drink` and the SDK.
+    if (n.type === 'furnace') {
+      const lit = (n.fuelUntil ?? 0) > (curState?.tick ?? 0)
+      const coal = (me.inventory ?? []).findIndex((sl) => sl?.item === 'coal' || sl?.item === 'charcoal')
+      items.push({ label: coal < 0 ? 'Stoke the furnace (you have no coal)'
+        : (lit ? 'Feed the furnace' : 'Light the furnace'),
+        dim: coal < 0, run: () => { send({ do: 'stoke', nodeId: target.id, slot: coal })
+          say(lit ? 'You feed the fire.' : 'The bloom catches.') } })
+      for (const r of ['iron', 'star-ingot', 'gold-bar'])
+        items.push({ label: lit ? 'Smelt ' + wordy(r) : 'Smelt ' + wordy(r) + ' (the fire is out)',
+          dim: !lit, run: () => { send({ do: 'smelt', recipe: r }); say('The metal runs.') } })
+    }
+    if (n.type === 'sawpit') {
+      const lg3 = (me.inventory ?? []).findIndex((sl) => sl?.item === 'logs')
+      items.push({ label: lg3 < 0 ? 'Saw planks (you have no logs)' : 'Saw a log into planks',
+        dim: lg3 < 0, run: () => { send({ do: 'saw' }); say('Two boards off the log.') } })
+    }
     if (n.type === 'landmark' && n.kind === 'mill') {
       const gi2 = (me.inventory ?? []).findIndex((sl) => sl?.item === 'grain')
       items.push({ label: gi2 < 0 ? 'Grind (you have no grain)' : 'Grind grain to flour',

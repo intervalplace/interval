@@ -942,15 +942,31 @@ const isWater4 = (x, y) => {
   const i = y * W + x
   const hit = _wet4[i]
   if (hit) return hit === 2
-  const w = inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
+  // §7v: AND THE v7 WATERS. This predicate feeds the BRIDGE mirror, and it was
+  // still answering with v6's three waters -- so the window measured every
+  // deck against a river the world no longer has by itself. The Oxenford came
+  // out ninety-three tiles adrift: a citizen looking at a crossing the pillar
+  // says is there, and seeing water.
+  const w = inSea4(x, y) || inRiver4(x, y)
+    || (V7() ? inland7(x, y) : inLake4(x, y))
   _wet4[i] = w ? 2 : 1
   return w
 }
 function bridges4() {
   const ys = [Math.round(H * 0.20), Math.round(H * 0.395), confY4() + 2, Math.round(H * 0.80)]
-  const out = ys.map((y) => ({ x: riverX4(y), y }))
+  // §7v: THE TAGS. onBridge4 branches on `b.tag !== 'brm'` to decide whether a
+  // crossing spans east-west or north-south -- and this list never carried a
+  // tag at all, so the test was true for ALL FIVE and the Oxenford, which
+  // crosses a march running east-west and must therefore be spanned
+  // NORTH-south, was spanned the wrong way round. Ninety-three tiles where the
+  // pillar said bridge and the citizen saw water.
+  //
+  // The generator has always tagged them. The mirror simply dropped the field,
+  // which is the quietest way for two implementations to disagree: not a
+  // different answer, an absent question.
+  const out = ys.map((y, i) => ({ x: riverX4(y), y, tag: 'br' + i }))
   const mx = Math.round(W * 0.30)
-  out.push({ x: mx, y: marchWY4(mx) })
+  out.push({ x: mx, y: marchWY4(mx), tag: 'brm' })
   return out
 }
 function onBridge4(x, y) {
@@ -970,9 +986,24 @@ function onBridge4(x, y) {
     if (Math.abs(x - b.x) > 16 || Math.abs(y - b.y) > 16) continue
     if (b.tag !== 'brm') {
       if (y - b.y > 1 || b.y - y > 1) continue
+      // §7v: A DECK IS A RECTANGLE, and this window never learned it.
+      //
+      // The world was fixed for the Watersmeet -- where the march meets the
+      // river, the water runs diagonally, and a per-ROW span leaves open water
+      // beside the deck on two rows of three. The fix went into the generator
+      // and not into the mirror, so the pillar had a bridge there and the
+      // citizen looking at it did not. A crossing that exists in the world and
+      // not in the window is worse than no crossing: you walk onto water.
+      //
+      // Span measured across ALL the deck's rows; the widest run wins.
       let w = b.x, e = b.x
-      while (w > 3 && isWater4(w - 1, y)) w--
-      while (e < W - 4 && isWater4(e + 1, y)) e++
+      for (let ry = b.y - 1; ry <= b.y + 1; ry++) {
+        let w2 = b.x, e2 = b.x
+        while (w2 > 3 && isWater4(w2 - 1, ry)) w2--
+        while (e2 < W - 4 && isWater4(e2 + 1, ry)) e2++
+        if (w2 < w) w = w2
+        if (e2 > e) e = e2
+      }
       if (x >= w - 2 && x <= e + 2) return true
     } else {
       if (x - b.x > 1 || b.x - x > 1) continue
@@ -1846,6 +1877,13 @@ function shopDoors4(st) {
 // person is standing beside is what they do.
 const _roleCache = new Map()
 function keeperRole4(st, id, n) {
+  // §7ae: THE YARDMASTER. Every keeper on this island is an unarmed brown
+  // figure, and one of them teaches people to fight. A newcomer meets him
+  // before they have anything, so he ought to look like the reason to stay --
+  // and he carries an IRON FLAIL, a weapon that cannot be forged here at all.
+  // A beginner sees a legend; a citizen who has been to Thornbury sees a man
+  // with a museum piece. Both readings are correct and that is the joke.
+  if (id === 'yard-keeper') return 'yardmaster'
   if (id === 'kpr-wizard-oberon') return 'wizard'
   if (id.includes('lantern')) return 'inn'
   if (id.includes('shep') || id.includes('fold')) return 'shep'
@@ -2849,6 +2887,63 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
       g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(9, 7.5, 14, 1.6); break
     // ---- the shapes (v0.66): each reads as itself at a glance ----
+    // §7ap: THE GREAT MAUL. Star-metal on a heartwood haft, brimstone-quenched
+    // so it comes off the anvil still smoking.
+    case 'great-maul': {
+      // §7ap: THE GREAT LINE IS NOT STAR-METAL. Drawn first in star-blue, it
+      // read as a star-maul with a bigger head -- but every other great arm on
+      // this island is near-black steel with molten orange running in the
+      // cracks, because brimstone is what quenched it. The recipe said so all
+      // along; only the sprite disagreed.
+      g.fillStyle = '#6b5334'; g.fillRect(15, 13, 3, 17)                 // the haft
+      g.fillStyle = '#4a3a26'; g.fillRect(14, 27, 5, 4)                  // the grip
+      pl([[7,5],[25,3],[27,15],[9,17]], '#2c2c30', '#111114')            // the head
+      g.strokeStyle = '#e07a1c'; g.lineWidth = 1.8                        // the fire in it
+      g.beginPath(); g.moveTo(11, 6); g.lineTo(15, 11); g.lineTo(12, 15); g.stroke()
+      g.beginPath(); g.moveTo(20, 4); g.lineTo(18, 9); g.lineTo(23, 13); g.stroke()
+      g.fillStyle = 'rgba(240,140,40,.55)'; g.fillRect(9, 15, 17, 1.6)   // the glow at the edge
+      g.fillStyle = '#f2c033'
+      g.beginPath(); g.arc(15, 11, 1.4, 0, 7); g.fill()
+      break }
+    // §7am: THE SIPHON. A brass tube on a pump, with the nozzle lit.
+    case 'fire-siphon': {
+      g.fillStyle = '#8a6f45'; g.fillRect(9, 20, 8, 10)                  // the pump box
+      g.fillStyle = '#5a4a2a'; g.fillRect(9, 20, 8, 2)
+      pl([[16,22],[27,17],[29,19],[18,25]], '#b98d3c', '#6d5320')        // the barrel
+      g.fillStyle = '#d8c88a'; g.fillRect(11, 14, 3, 7)                  // the plunger
+      g.fillStyle = '#c4561a'                                            // the flame
+      g.beginPath(); g.moveTo(29, 18); g.lineTo(24, 12); g.lineTo(28, 13); g.lineTo(25, 6)
+      g.lineTo(31, 12); g.lineTo(30, 9); g.lineTo(32, 16); g.closePath(); g.fill()
+      g.fillStyle = '#f2c033'
+      g.beginPath(); g.moveTo(29, 17); g.lineTo(27, 12); g.lineTo(30, 14); g.closePath(); g.fill()
+      break }
+    // §7al: THE SPADE. What a wight is carrying, and the only tool that pays
+    // strength.
+    case 'spade': {
+      g.fillStyle = '#6b5334'; g.fillRect(18, 6, 4, 15)                  // the haft
+      g.fillStyle = '#8a6f45'; g.fillRect(15, 4, 10, 3)                  // the grip
+      pl([[13,21],[27,21],[25,30],[15,30]], '#9aa2ae', '#5a6068')        // the blade
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(15, 22, 3, 7)
+      g.fillStyle = 'rgba(60,50,38,.55)'; g.fillRect(14, 28, 12, 2)      // the earth on it
+      break }
+    // §7ai: HOLY WATER. A stoppered flask, the only thing in this world made
+    // by an act of respect rather than by labour -- ten bones laid in
+    // consecrated ground.
+    case 'holy-water': {
+      g.fillStyle = '#6b5334'; g.fillRect(14, 4, 4, 4)                    // the stopper
+      pl([[13,8],[19,8],[22,16],[22,26],[10,26],[10,16]], '#bfd6de', '#5f7c88')
+      g.fillStyle = 'rgba(150,220,235,.75)'; g.fillRect(12, 15, 8, 10)    // what is in it
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.fillRect(12, 10, 2, 14)    // the light on the glass
+      g.fillStyle = '#e8e2c8'; g.fillRect(11, 19, 10, 1.6)                // the band
+      break }
+    // §7ai: GRAVE-SILVER. Mined nowhere, forged by nobody: it comes off a
+    // wight and out of the ground it was buried in.
+    case 'grave-silver': {
+      pl([[16,5],[24,11],[24,22],[16,28],[8,22],[8,11]], '#cdd3d8', '#6a7076')
+      g.fillStyle = 'rgba(255,255,255,.45)'
+      pl([[16,7],[21,11],[21,17],[16,15],[11,17],[11,11]], 'rgba(255,255,255,.35)', null)
+      g.fillStyle = 'rgba(40,50,45,.35)'; g.fillRect(9, 21, 14, 3)        // the tarnish
+      break }
     // §7m: A STONE OF THE FALL. A chip of the South Pass on a leather thong --
     // worn at the head like a hood, worth nothing in a fight, and the only
     // thing in the world that says you were there in the first week.
@@ -6815,6 +6910,20 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 10)
     cx.strokeStyle = metal; cx.lineWidth = 3
     cx.beginPath(); cx.arc(0, 17, 5, F > 0 ? -0.6 : 2.5, F > 0 ? 0.6 : 3.7); cx.stroke()
+  } else if (o.anim === 'gather' && o.tool === 'spade') {
+    // §7an: a long haft, a broad blade, and a low steady lift -- nothing like
+    // the chop of a hatchet or the overhand of a pick.
+    cx.rotate(F * 0.35)
+    cx.fillStyle = '#6b5334'; cx.fillRect(-1, 6, 2, 13)
+    cx.fillStyle = '#9aa2ae'; cx.fillRect(-3.5, 18, 7, 6)
+    cx.fillStyle = 'rgba(70,58,42,.7)'; cx.fillRect(-3.5, 22, 7, 2)   // the earth on it
+  } else if (o.anim === 'gather' && o.tool === 'hands') {
+    // bare hands: no haft at all, just a low reach and a scoop
+    cx.rotate(F * 0.5)
+    cx.fillStyle = '#e8d9a0'
+    cx.beginPath(); cx.arc(0, 17, 2.6, 0, 7); cx.fill()
+    cx.fillStyle = 'rgba(70,58,42,.6)'
+    cx.beginPath(); cx.arc(F * 2, 20, 2, 0, 7); cx.fill()
   } else if (o.anim === 'gather') { // hatchet
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 9)
     cx.fillStyle = metal; cx.fillRect(F > 0 ? 1 : -6, 14, 5, 4)
@@ -7219,6 +7328,23 @@ function drawScene(now) {
         // smith's mate, beside a hearth someone who lives there.
         const role = keeperRole4(s, id, n)
         shadow(X, Y, 8)
+        if (role === 'yardmaster') {
+          // plated, helmed, and holding a flail across his body
+          cx.fillStyle = '#8d949e'; cx.fillRect(X + 13, Y + 15, 14, 14)      // plate
+          cx.fillStyle = '#6f7681'; cx.fillRect(X + 13, Y + 15, 4, 14)       // its shadowed side
+          cx.fillStyle = '#e8d9a0'; cx.fillRect(X + 16, Y + 8, 8, 7)         // face
+          cx.fillStyle = '#9aa2ae'                                            // helm
+          cx.fillRect(X + 14, Y + 5, 12, 5); cx.fillRect(X + 19, Y + 8, 2, 6)
+          cx.fillStyle = '#8a2f2a'; cx.fillRect(X + 14, Y + 3, 12, 2)        // crest
+          cx.strokeStyle = '#5a4a36'; cx.lineWidth = 2                        // haft
+          cx.beginPath(); cx.moveTo(X + 28, Y + 30); cx.lineTo(X + 26, Y + 12); cx.stroke()
+          cx.strokeStyle = '#3b4046'; cx.lineWidth = 1.4                      // chain
+          cx.beginPath(); cx.moveTo(X + 26, Y + 12); cx.lineTo(X + 31, Y + 8); cx.stroke()
+          cx.fillStyle = '#5c646e'                                            // the head
+          cx.beginPath(); cx.arc(X + 32, Y + 7, 3.4, 0, 7); cx.fill()
+          cx.fillStyle = '#7d858f'; cx.beginPath(); cx.arc(X + 31, Y + 6, 1.6, 0, 7); cx.fill()
+          return
+        }
         if (role === 'wizard') {
           cx.fillStyle = '#2c3a5e'; cx.fillRect(X + 14, Y + 14, 12, 16)
           cx.fillStyle = '#a8865c'; cx.fillRect(X + 15.5, Y + 8, 9, 8)
@@ -7596,11 +7722,11 @@ function drawScene(now) {
           for (const [w2, y2] of [[15, 30], [11, 21], [7, 13]]) { cx.beginPath()
             cx.moveTo(X + 20, Y + y2 - 10); cx.lineTo(X + 20 - w2, Y + y2)
             cx.lineTo(X + 20 + w2, Y + y2); cx.closePath(); cx.fill() }
-        } else if (K === 'avenue-oak' || K === 'apple-tree' || K === 'pear-tree') {
+        } else if (K === 'avenue-oak' || K === 'old-oak-lm' || K === 'apple-tree' || K === 'pear-tree') {
           cx.fillStyle = '#54422b'; cx.fillRect(X + 18, Y + 25, 5, 12)
-          cx.fillStyle = K === 'avenue-oak' ? '#3f6128' : '#4e7030'
+          cx.fillStyle = (K === 'avenue-oak' || K === 'old-oak-lm') ? '#3f6128' : '#4e7030'
           cx.beginPath(); cx.arc(X + 20, Y + 17, 13, 0, 7); cx.fill()
-          cx.fillStyle = K === 'avenue-oak' ? '#6f9740' : '#7fa84a'
+          cx.fillStyle = (K === 'avenue-oak' || K === 'old-oak-lm') ? '#6f9740' : '#7fa84a'
           cx.beginPath(); cx.arc(X + 16, Y + 14, 9, 0, 7); cx.fill()
           if (K === 'apple-tree') { cx.fillStyle = '#c4402a'
             cx.beginPath(); cx.arc(X + 26, Y + 19, 2.6, 0, 7); cx.fill() }
@@ -8193,63 +8319,6 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
-      if (n.type === 'furnace') {
-        // §7p: the island's one furnace. Anybody may feed it; anybody may use
-        // it while it burns.
-        const meF = world.players[myId]
-        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
-          feed('The bloomery. Ore and coal go in; iron comes out.'); return }
-        const lit = (n.fuelUntil ?? 0) > (world?.tick ?? 0)
-        const ci = (meF.inventory || []).findIndex(sl => sl?.item === 'coal' || sl?.item === 'charcoal')
-        if (!lit) {
-          if (ci === -1) { feed('The furnace is cold, and you have no coal to light it.'); return }
-          send({ do: 'stoke', nodeId: id, slot: ci }); feed('The bloom catches.')
-          flashClick(n.x, n.y, false); return
-        }
-        const ore = (meF.inventory || []).filter(sl => sl?.item === 'iron-ore').length
-        if (ore >= 2) { send({ do: 'smelt', recipe: 'iron' }); feed('Two of ore run down into a bar.') }
-        else if (ci !== -1) { send({ do: 'stoke', nodeId: id, slot: ci }); feed('You feed the fire.') }
-        else feed('It burns. Bring ore, or coal to keep it going.')
-        flashClick(n.x, n.y, false); return
-      }
-      if (n.type === 'sawpit') {
-        const meS = world.players[myId]
-        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
-          feed('A sawpit, and a trestle over it.'); return }
-        if (!(meS.inventory || []).some(sl => sl?.item === 'logs')) { feed('Bring logs.'); return }
-        send({ do: 'saw' }); feed('Two boards off the log.')
-        flashClick(n.x, n.y, false); return
-      }
-      if (n.type === 'landmark' && n.kind === 'mill') {
-        // §7j: the mill grinds. Stand at the stone with grain in the pack.
-        const meM = world.players[myId]
-        if (!adj(n) && !(meM.x === n.x && meM.y === n.y)) {
-          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
-          feed('The sails turn. Somewhere below them a stone is grinding.'); return }
-        const gi2 = (meM.inventory || []).findIndex(sl => sl?.item === 'grain')
-        if (gi2 === -1) { feed('The miller looks at your empty hands. Bring grain.'); return }
-        send({ do: 'grind', slot: gi2 })
-        feed('You tip a measure of grain in, and the stone gives back flour.')
-        flashClick(n.x, n.y, false); return
-      }
-      if (n.type === 'altar') {
-        // §7g: three magic-stones become a sigil, here and nowhere else.
-        const meA = world.players[myId]
-        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('A low stone altar, worn smooth.'); return }
-        const stones = (meA.inventory || []).reduce((a, sl) => a + (sl?.item === 'magic-stone' ? (sl.qty ?? 1) : 0), 0)
-        if (stones < 3) { feed('The altar wants three magic-stones. You have ' + stones + '.'); return }
-        send({ do: 'invoke' }); feed('The stones go dark in your hands, and the sigil is made.')
-        flashClick(n.x, n.y, false); return
-      }
-      if (n.type === 'rockfall') {
-        // §12c: the South Pass. Every stone takes one strike and then lies
-        // dark; the way through opens when a tunnel is driven.
-        const meR = world.players[myId]
-        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('Boulders, shoulder-high, filling the throat of the pass.'); return }
-        if ((n.depletedUntil ?? 0) > (world?.tick ?? 0)) { feed('This stone is spent for now. Another, or come back.'); return }
-        send({ do: 'gather', nodeId: id }); feed('You set the pick to the fall.')
-        flashClick(n.x, n.y, false); return
-      }
       if (n.type === 'looking-glass') {
         // §7d: the one place on the island you can change your face. The
         // window used to do this at its own door, which meant a citizen's
@@ -8345,6 +8414,23 @@ function drawScene(now) {
                           armour:'#3a3228', bows:'#44412a', seed:'#4a4428' })[n.kind] ?? '#5a4a22'
         cx.fillRect(X + 10, Y + 4, 20, 9)
         cx.fillStyle = 'rgba(0,0,0,.24)'; cx.fillRect(X + 21, Y + 4, 9, 9)
+        return
+      }
+      if (n.type === 'muck-heap') {
+        // §7an: A HEAP NOBODY DREW. It is a node type, it is gathered, it pays
+        // farming and strength -- and it drew nothing at all, so a citizen
+        // walked to the only nitre in the world and found bare grass.
+        const hh = ((n.x * 5 + n.y * 11) & 3)
+        cx.fillStyle = '#3a2f22'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 30, 15, 7, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#4a3b28'
+        cx.beginPath(); cx.moveTo(X + 6, Y + 30); cx.quadraticCurveTo(X + 20, Y + 9 - hh, X + 34, Y + 30); cx.fill()
+        cx.fillStyle = '#5c4a30'
+        cx.beginPath(); cx.moveTo(X + 10, Y + 29); cx.quadraticCurveTo(X + 18, Y + 15, X + 26, Y + 29); cx.fill()
+        cx.fillStyle = '#8a7f58'                                   // the straw in it
+        for (let i = 0; i < 5; i++) cx.fillRect(X + 9 + i * 5, Y + 24 + (i % 2) * 3, 4, 1.4)
+        cx.fillStyle = 'rgba(190,200,150,.30)'                     // and what it gives up
+        cx.fillRect(X + 15, Y + 20, 3, 2); cx.fillRect(X + 22, Y + 23, 2, 2)
         return
       }
       if (n.type === 'railing') {
@@ -9091,6 +9177,58 @@ function drawScene(now) {
         cx.fillText('THE SPIDER', X + 20, Y - 11); cx.textAlign = 'left'
         return
       }
+      if (m.type === 'boar') {
+        cx.fillStyle = '#4a3a2c'; cx.beginPath(); cx.ellipse(X + 20, Y + 25, 13, 8, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#3a2c20'; cx.beginPath(); cx.ellipse(X + 30, Y + 22, 7, 6, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#ddd6c4'                                        // tusks
+        cx.beginPath(); cx.moveTo(X + 35, Y + 23); cx.lineTo(X + 38, Y + 19); cx.lineTo(X + 36, Y + 24); cx.fill()
+        cx.fillStyle = '#2a1f16'
+        for (const bx of [13, 18, 24, 28]) cx.fillRect(X + bx, Y + 31, 3, 6)
+        cx.fillStyle = '#c46a2a'; cx.beginPath(); cx.arc(X + 32, Y + 20, 1.6, 0, 7); cx.fill()
+        return
+      }
+      if (m.type === 'mountain-goat') {
+        cx.fillStyle = '#cdc3b0'; cx.beginPath(); cx.ellipse(X + 19, Y + 24, 11, 7, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#e4dcc9'; cx.beginPath(); cx.arc(X + 29, Y + 20, 6, 0, 7); cx.fill()
+        cx.strokeStyle = '#6b5a44'; cx.lineWidth = 2                    // swept horns
+        cx.beginPath(); cx.moveTo(X + 29, Y + 15); cx.quadraticCurveTo(X + 35, Y + 11, X + 32, Y + 8); cx.stroke()
+        cx.fillStyle = '#8a7f6c'
+        for (const bx of [13, 18, 23]) cx.fillRect(X + bx, Y + 30, 2, 7)
+        return
+      }
+      if (m.type === 'carrion-crow') {
+        const flap = Math.sin(((world?.tick ?? 0) + m.x * 5) * 0.4) * 2
+        cx.fillStyle = '#1c1c22'; cx.beginPath(); cx.ellipse(X + 20, Y + 24, 8, 6, 0, 0, 7); cx.fill()
+        cx.beginPath(); cx.moveTo(X + 13, Y + 22 - flap); cx.lineTo(X + 20, Y + 20)
+        cx.lineTo(X + 27, Y + 22 + flap); cx.lineTo(X + 20, Y + 26); cx.fill()
+        cx.fillStyle = '#2a2a32'; cx.beginPath(); cx.arc(X + 26, Y + 18, 4, 0, 7); cx.fill()
+        cx.fillStyle = '#c9a03a'
+        cx.beginPath(); cx.moveTo(X + 29, Y + 18); cx.lineTo(X + 34, Y + 19); cx.lineTo(X + 29, Y + 20); cx.fill()
+        return
+      }
+      if (m.type === 'fen-adder') {
+        cx.strokeStyle = '#5a6b34'; cx.lineWidth = 4; cx.lineCap = 'round'
+        cx.beginPath(); cx.moveTo(X + 9, Y + 30)
+        cx.quadraticCurveTo(X + 20, Y + 20, X + 31, Y + 27); cx.stroke()
+        cx.lineWidth = 1.6; cx.strokeStyle = '#2f3a1c'
+        cx.beginPath(); cx.moveTo(X + 12, Y + 28); cx.quadraticCurveTo(X + 20, Y + 22, X + 29, Y + 26); cx.stroke()
+        cx.fillStyle = '#6d8140'; cx.beginPath(); cx.arc(X + 32, Y + 27, 3.4, 0, 7); cx.fill()
+        cx.fillStyle = '#d8b83c'; cx.beginPath(); cx.arc(X + 33, Y + 26, 1.2, 0, 7); cx.fill()
+        return
+      }
+      if (m.type === 'barrow-wight') {
+        const drift = Math.sin(((world?.tick ?? 0) + m.y * 3) * 0.12) * 1.4
+        cx.fillStyle = 'rgba(120,150,140,.22)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 26 + drift, 11, 13, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#6d7b72'
+        cx.beginPath(); cx.moveTo(X + 12, Y + 36); cx.lineTo(X + 15, Y + 12 + drift)
+        cx.lineTo(X + 25, Y + 12 + drift); cx.lineTo(X + 28, Y + 36); cx.fill()
+        cx.fillStyle = '#c9c2ac'; cx.beginPath(); cx.arc(X + 20, Y + 13 + drift, 5.5, 0, 7); cx.fill()
+        cx.fillStyle = '#1a2420'
+        cx.beginPath(); cx.arc(X + 18, Y + 13 + drift, 1.5, 0, 7); cx.fill()
+        cx.beginPath(); cx.arc(X + 22, Y + 13 + drift, 1.5, 0, 7); cx.fill()
+        return
+      }
       if (m.type === 'scree-imp') {
         // §12: the four things living in the South Pass rockfall. Small, grey,
         // and made of the same stone the diggers are breaking -- they were
@@ -9461,7 +9599,13 @@ function drawScene(now) {
         : p.action?.type === 'gather' ? 'gather'
                : p.action?.type === 'attack' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
+    // §7an: A SPADE IS NOT A HATCHET. Digging a muck heap drew the citizen
+    // swinging an axe -- the fallback -- so the one trade that pays a farmer
+    // looked exactly like felling a tree, and the spade that pays STRENGTH
+    // looked like nothing at all.
     const tool = famOf(workNode?.type) === 'fishing-spot' ? 'rod'
+               : workNode?.type === 'muck-heap' || workNode?.type === 'rockfall'
+                 ? (p.equipment?.weapon?.item === 'spade' ? 'spade' : 'hands')
                : (famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'magic-rock') ? 'pick' : 'axe'
     const wep = p.equipment?.weapon?.item
     const ironTool = (famOf(workNode?.type) === 'tree' && wep === 'iron-hatchet')
@@ -11496,6 +11640,66 @@ cv.addEventListener('click', (e) => {
       // world, on the stone, not in this file
       if (n.type === 'landmark' && n.text) { feed(n.text); flashClick(n.x, n.y, false); return }
       if (n.type === 'wall') { feed('The wall is old, and it is not going anywhere.'); return }
+      // §7ad: THE WORKS. These five were written into drawScene by mistake --
+      // the DRAWING function -- so every furnace, altar, rockfall, mill and
+      // sawpit ran its interaction logic on every animation frame, calling an
+      // adj() that exists only here and throwing the moment one came on
+      // screen. A citizen crashed the window by WALKING PAST a thing.
+      //
+      // Worse than the crash: had it not thrown, `send()` would have fired
+      // sixty times a second. Interaction belongs where the clicks are.
+      if (n.type === 'furnace') {
+        const meF = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('The bloomery. Ore and coal go in; iron comes out.'); return }
+        const lit = (n.fuelUntil ?? 0) > (world?.tick ?? 0)
+        const ci = (meF.inventory || []).findIndex(sl => sl?.item === 'coal' || sl?.item === 'charcoal')
+        if (!lit) {
+          if (ci === -1) { feed('The furnace is cold, and you have no coal to light it.'); return }
+          send({ do: 'stoke', nodeId: id, slot: ci }); feed('The bloom catches.')
+          flashClick(n.x, n.y, false); return
+        }
+        const ore = (meF.inventory || []).filter(sl => sl?.item === 'iron-ore').length
+        if (ore >= 2) { send({ do: 'smelt', recipe: 'iron' }); feed('Two of ore run down into a bar.') }
+        else if (ci !== -1) { send({ do: 'stoke', nodeId: id, slot: ci }); feed('You feed the fire.') }
+        else feed('It burns. Bring ore, or coal to keep it going.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'sawpit') {
+        const meS = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('A sawpit, and a trestle over it.'); return }
+        if (!(meS.inventory || []).some(sl => sl?.item === 'logs')) { feed('Bring logs.'); return }
+        send({ do: 'saw' }); feed('Two boards off the log.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'landmark' && n.kind === 'mill') {
+        const meM = world.players[myId]
+        if (!adj(n) && !(meM.x === n.x && meM.y === n.y)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('The sails turn. Somewhere below them a stone is grinding.'); return }
+        const gi2 = (meM.inventory || []).findIndex(sl => sl?.item === 'grain')
+        if (gi2 === -1) { feed('The miller looks at your empty hands. Bring grain.'); return }
+        send({ do: 'grind', slot: gi2 })
+        feed('You tip a measure of grain in, and the stone gives back flour.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'altar') {
+        const meA = world.players[myId]
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('A low stone altar, worn smooth.'); return }
+        const stones = (meA.inventory || []).reduce((a, sl) => a + (sl?.item === 'magic-stone' ? (sl.qty ?? 1) : 0), 0)
+        if (stones < 3) { feed('The altar wants three magic-stones. You have ' + stones + '.'); return }
+        send({ do: 'invoke' }); feed('The stones go dark in your hands, and the sigil is made.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'rockfall') {
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('Boulders, shoulder-high, filling the throat of the pass.'); return }
+        if ((n.depletedUntil ?? 0) > (world?.tick ?? 0)) { feed('This stone is spent for now. Another, or come back.'); return }
+        send({ do: 'gather', nodeId: id }); feed('You set the pick to the fall.')
+        flashClick(n.x, n.y, false); return
+      }
       if (n.type === 'bank') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }
         else feed('The bank stands ready: tap items to deposit, tap the vault to withdraw.')
