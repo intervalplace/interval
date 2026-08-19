@@ -485,6 +485,19 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // §7d: THE LOOKING GLASS. A citizen's first face is free, at the door. To
   // change it afterwards you go and look at yourself in something, and there
   // is one of them on the island.
+  // §7p: THE FURNACE. Ore becomes metal here and nowhere else on the island.
+  'furnace',
+  // §7ac: IRON RAILING. A rampart is a war wall -- earth and stone, the thing
+  // Norwick's garrison stands behind -- and the Moorgrave was drawn with one
+  // because it was the only long boundary the vocabulary had. A churchyard is
+  // not a fort. Railing blocks like a wall and reads like a fence: you can see
+  // through it, which is most of what a graveyard wall is for.
+  'railing',
+  // §7q: THE SAWPIT. Logs become planks here and nowhere else.
+  'sawpit',
+  // §7t: THE TRAINING YARD. A dummy takes a blow and a butt takes an arrow;
+  // neither ever hits back, and past a low level neither teaches anything.
+  'dummy', 'butt',
   'looking-glass',
   // §7g: THE ALTAR. Three magic-stones become a sigil here and nowhere else.
   'altar'];
@@ -598,7 +611,19 @@ const NODE_YIELD = {
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
   // still (bronze is iron worked simply here), and STEEL is iron quenched with
   // coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
-  'iron-rock': { item: 'iron',     skill: 'mining',      xp: 20, hard: 1 },
+  // §7p: THE SEAM GIVES ORE, NOT A FINISHED BAR. It gave `iron` -- metal,
+  // ready for the anvil -- so the deepest supply chain in the world was also
+  // the shortest: strike the rock, walk to the forge, done. Ore now, and the
+  // furnace at Cragfoot turns two of it and a coal into the bar.
+  // §7p: THE SEAM GIVES IRON ORE. It gave `iron` -- a finished bar, ready for
+  // the anvil -- so the deepest chain in the world was also the shortest.
+  //
+  // The first cut of this pointed it at `ore`, which was WRONG and worth
+  // recording: `ore` is the generic of the first founding, what the plain
+  // `rock` gives, from when there was one tier and it was bronze. Iron ore is
+  // not that, and a seam that gave the retired generic would have made bronze
+  // stock and iron stock the same substance.
+  'iron-rock': { item: 'iron-ore', skill: 'mining',      xp: 20, hard: 1 },
   // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
   // Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
   // mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
@@ -1179,7 +1204,13 @@ const GOLD_DEPLETE_TICKS = 0;   // a seam that yields this seldom never sleeps
 // something, short enough that a crossing is a decision rather than a
 // subscription.
 const TOLL_TICKS = 200;           // two minutes' grace, then the bar comes down
-const TOLL_LOGS = 1;              // one log, any ordinary log
+// §7q: ONE PLANK, not one log. The keeper is mending the deck and a deck is
+// made of sawn boards -- "a log to cross" was always slightly wrong, and it
+// only became fixable once there was a sawpit. It costs a citizen one more
+// errand and it costs the toll nothing: a plank still occupies a slot, still
+// comes out of the Greenwood, and you can still turn up without one, which was
+// always the whole of the design.
+const TOLL_PLANKS = 1;
 const ROCKFALL_DARK = 1000;       // ten minutes of dark after every strike
 const ROCKFALL_STRIKES = 1000;    // ...and this many strikes retire one boulder
 const GOLD_ORE_PER_BAR = 5;     // and what the anvil makes of them
@@ -1317,7 +1348,7 @@ function strikeConsequences(s, pid, p, target, targetId) {
 
 const TEACHES = new Set(['alch', 'unmake', 'seal', 'char', 'bury', 'fletch', 'smith', 'cook',
   'invoke', 'stoke', 'plant', 'harvest', 'light', 'kindle', 'brew', 'collect',
-  'survey', 'build_brewpot', 'raise_market',
+  'survey', 'build_brewpot', 'raise_market', 'saw', 'smelt',
   // §7j: grain to flour, at a mill and nowhere else
   'grind']);
 
@@ -1673,6 +1704,48 @@ const POWDER_NITRE = 3, POWDER_CHAR = 1, POWDER_BRIM = 1;
 // thing holding ale up would be that it stacks. Now bread costs two steps and
 // a DESTINATION and ale costs one step and patience, and both have a shape.
 const XP_GRIND = 9;
+// §7p: two of ore and one of coal to the bar. Coal finally has a buyer, and
+// the ratio is why steel costs more than iron without anybody being told.
+// §7p: what is made at the furnace rather than the anvil. Ore and fuel into
+// metal is a different act from metal into a shape, and this is the whole of
+// the difference in the rules.
+const SMELTED = new Set(['iron', 'steel', 'star-ingot', 'gold-bar']);
+const XP_SMELT_BAR = 18;
+// §7r: one coal buys the furnace this many intervals of heat, and it will not
+// bank more than the cap -- so a fire cannot be stoked once and left for a
+// week, and there is a reason for somebody to be standing there.
+// §7r: one coal buys the furnace this many intervals of heat (an hour is
+// 6,000 at 600ms a tick), and it will not bank past the cap -- so a fire cannot
+// be stoked once and left for a week, and there is a reason for somebody to be
+// standing there.
+//
+// TWENTY-SIX, and the first cut said twelve. The watchfire -- this world's
+// other public fire -- pays TWENTY for a log, and coal is dearer than a log by
+// every measure the constitution already has: mining 21 against a chop, and
+// hardness 2. Twelve made the dearer fuel pay less, which meant the fireman
+// was doing it for the greater good and nobody does a job for the greater good
+// twice. A stoke may be sent every interval, and a full fire still takes the
+// coal and still pays for it (the watchfire's own rule, for the same reason),
+// so the rate is bounded by what a citizen can mine -- which is the honest
+// bound, and self-limiting.
+const FURNACE_PER_COAL = 600, FURNACE_CAP = 6000, XP_STOKE_FURNACE = 26;
+const FURNACE_BURN_XP = 1;   // §7r: per interval, to whoever is minding it
+const COOK_FIRE_FEE = 6;     // §7s: what a cook pays the keeper of the fire they used
+// §7t: THE YARD TEACHES THE FIRST RUNGS AND NOTHING AFTER.
+//
+// Past this level a dummy still reports the blow and pays NOTHING. That is the
+// whole design: it stays useful forever as an INSTRUMENT -- the only place in
+// the world to read your true max hit, feel a weapon, and try a special before
+// risking it in the Wilds -- without ever becoming a way to train. A citizen
+// who wants levels has to go and meet something that hits back.
+//
+// It is in the HEARTLANDS on purpose: the peaceful country, before you venture
+// out, which is where a person finds out what they are carrying.
+const YARD_CAP = 20;
+// §7q: one log gives two planks. Deliberately generous -- the cost of a plank
+// is the WALK to the sawpit, not the timber, exactly as the cost of flour is
+// the walk to the mill.
+const SAW_LOGS = 1, SAW_YIELD = 2, XP_SAW = 12;
 const HOUSE_POT_XP = 1.05;   // §7j: the Lantern's five per cent
 // §6an: THE DEEP BROTH, and why it is eight rather than ten.
 //
@@ -2247,6 +2320,18 @@ const MOB_STATS = {
   // safest country on the island would be the cheapest attack experience in
   // the world. Forty, at defence eight, makes a sheep about a minute's work
   // -- livestock, not a dummy -- which is the same reason the crab is ninety.
+  // §7t: THE YARD. A dummy and a butt are MOBS, not furniture, and that is the
+  // whole trick: `attack`, `attackp`'s specials, a drawn bow and the damage
+  // readout all work on them already, unchanged. A new verb would have had to
+  // reimplement combat badly beside the real one.
+  //
+  // Enormous hitpoints so they are never actually felled, no aggro, harmless,
+  // and def 1 so they are hit nearly every swing -- you came to read a number,
+  // not to roll for it.
+  dummy: { maxHp: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
+    dummy: true, drops: [] },
+  butt: { maxHp: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
+    dummy: true, ranged: true, drops: [] },
   sheep: { maxHp: 40, atk: 2, def: 8, maxHit: 1, every: 4, respawn: 120, harmless: true,
            drops: [{ item: 'wool' }, { item: 'wool', chance: 16384 }] },
   // THE SIREN (spec 6ac). The third thing, and the only one that FORBIDS a
@@ -2776,6 +2861,7 @@ const PRICES = {
   // §6am (v6): the mid goods, priced between the baseline and the mastery --
   // a mid seam's hour worth more than a doorstep's, less than a master's.
   'bread': 9, 'burnt-bread': 1, 'flour': 6, 'saltpetre': 14, 'gunpowder': 60,
+  'planks': 5, 'iron-ore': 4,
   'bare-blade': 55,
   'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46,
   // §6dg: a javelin is spent like an arrow and forged like a spear
@@ -2968,7 +3054,7 @@ const RECIPES = {
   // thousand. The hafted arms take ironbark rather than plain logs -- a haft
   // for a starmetal head should not be the cheapest wood in the world.
   'iron-shield':    { 'iron': 4, 'oak-logs': 1 },
-  'steel-shield':   { 'iron': 3, 'coal': 3, 'ironbark': 1 },
+  'steel-shield':   { 'steel': 3, 'ironbark': 1 },
   'star-shield':    { 'star-ingot': 14, 'ironbark': 1 },
   // 6ca: six, eight, sixteen -- thirty bars for the set, priced by how much
   // of a citizen each piece covers. The helm is the least and the way in;
@@ -2976,7 +3062,7 @@ const RECIPES = {
   // because every other set looks unfinished without them, and then wants
   // the rest -- so the cheapest piece should not be the one they came for.
   'gold-legs':      { 'gold-bar': 8 },
-  'star-ingot':     { 'magic-stone': 20, 'coal': 4 },
+  'star-ingot':     { 'magic-stone': 20 },
   'star-sword':     { 'star-ingot': 12 },
   'star-helm':      { 'star-ingot': 10 },
   'star-plate':     { 'star-ingot': 20 },
@@ -2994,14 +3080,14 @@ const RECIPES = {
   // deeper in the Crags, keeping the baseline mine alive into the mid-game and
   // making two mining Schelling points that need each other. Oak hafts the
   // tools; the rod is an oak shaft and a line.
-  'steel-hatchet':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
-  'steel-pickaxe':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
-  'steel-sword':    { 'iron': 1, 'coal': 1 },
-  'steel-maul':     { 'iron': 2, 'coal': 1, 'oak-logs': 1 },   // §6bt: weight on a handle
-  'steel-helm':     { 'iron': 1, 'coal': 1 },
-  'steel-plate':    { 'iron': 2, 'coal': 1 },
-  'steel-dagger':   { 'iron': 1, 'coal': 1 },
-  'steel-spear':    { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
+  'steel-hatchet':  { 'steel': 1, 'oak-logs': 1 },
+  'steel-pickaxe':  { 'steel': 1, 'oak-logs': 1 },
+  'steel-sword':    { 'steel': 1 },
+  'steel-maul':     { 'steel': 2, 'oak-logs': 1 },   // §6bt: weight on a handle
+  'steel-helm':     { 'steel': 1 },
+  'steel-plate':    { 'steel': 2 },
+  'steel-dagger':   { 'steel': 1 },
+  'steel-spear':    { 'steel': 1, 'oak-logs': 1 },
   // 6bb: THE GOLD LADDER. Five nuggets to a bar because thirty-five loose
   // nuggets will not fit in a pack of twenty-eight -- the bar is compression,
   // not currency, and there is no mint anywhere in it. Eight bars to a helm
@@ -3019,6 +3105,21 @@ const RECIPES = {
   'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2, 'brimstone': 1 },
   'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'brimstone': 1 },
   'gold-bar':       { 'gold-ore': GOLD_ORE_PER_BAR },
+  // §7p: AND IRON IS A RECIPE LIKE THE REST OF THEM.
+  //
+  // The first cut of smelting was its own verb, `smelt`, which meant two doors
+  // to one idea -- and a new verb every window and the SDK would have to be
+  // taught, for a thing `smith` already does. Iron is a recipe now, and what
+  // makes it a SMELT rather than a forging is only where it may be made.
+  // §7r: no coal in a bar. The furnace's own fire is the fuel.
+  'iron':           { 'iron-ore': 2 },
+  // §7x: AND STEEL IS A BAR. It was the last incoherent corner: every other
+  // metal in the world is smelted, and steel gear was forged straight out of
+  // iron AND COAL at the anvil -- which is to say the anvil was doing the
+  // furnace's job, in nine recipes, for the one metal that is actually MADE
+  // rather than merely shaped. Iron carburised in the fire is a bar like any
+  // other, and the coal is the furnace's fire, per §7r.
+  'steel':          { 'iron': 1 },
   'gold-helm':      { 'gold-bar': 6 },
   'gold-plate':     { 'gold-bar': 16 },
 };
@@ -3043,7 +3144,7 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 const ITEMS = new Set([
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
   // §7i: THE LOAF, THE NITRE AND THE POWDER.
-  'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder',
+  'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder', 'planks', 'iron-ore',
   // §7a: RUBBLE. What the South Pass gives up, one piece at a time. It smelts
   // into nothing, builds nothing, and opens nothing -- like `chart` its whole
   // worth is that you were there, and unlike `chart` it cannot even be sold.
@@ -3203,6 +3304,7 @@ const SMITH_REQS = {
   // §6bt: 55 kept -- the TOOLS are still tools. What changed is the reagent,
   // not who may make them; a smith at fifty-five simply has to walk further.
   'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'iron-shield': { smithing: 12 }, 'steel-shield': { smithing: 34 }, 'star-shield': { smithing: 48 },
+  'iron': { smithing: 1 }, 'steel': { smithing: 30 },
   'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
   'crossbow': { smithing: 18 },
   'star-flail': { smithing: 50, magic: 29 },
@@ -3588,7 +3690,7 @@ const INPUT_SCHEMAS = {
   pickup: { groundId: T.id },
   claim_name: { name: T.name },
   survey: {}, read_chart: { slot: T.slot },
-  grind: { slot: T.slot }, build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
+  grind: { slot: T.slot }, saw: {}, smelt: { recipe: T.recipe }, build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
   kindle: {}, stoke: { nodeId: T.id, slot: T.slot },
   unmake: { groundId: T.id },
   // §6bn: the other half of the same staff, aimed at the same noun.
@@ -3761,7 +3863,15 @@ function normalizeInput(fields) {
 //
 // Odd cadences were unaffected, which is why a crossbow never showed it. Most
 // of this world swings on two.
-function teachMelee(p, dmg, style, tick, every) {
+function teachMelee(p, dmg, style, tick, every, dummy) {
+  // §7t: A DUMMY TEACHES THE FIRST RUNGS AND NOTHING AFTER.
+  //
+  // Past YARD_CAP it still reports the blow -- the number is the point -- and
+  // pays nothing at all. That keeps the yard useful forever as an INSTRUMENT
+  // (read your true max hit, feel a weapon, try a special before you risk it)
+  // without it ever being a way to train. Levels come from things that hit
+  // back.
+  if (dummy && Math.max(effLevel(p.skills.attack), effLevel(p.skills.strength)) >= YARD_CAP) return;
   if (style === 'aim') p.skills.attack += dmg;
   else if (style === 'force') p.skills.strength += dmg;
   else if ((Math.floor(tick / Math.max(1, every ?? 2)) & 1) === 0) p.skills.attack += dmg;
@@ -5205,6 +5315,30 @@ const LANDMARK_KINDS = new Set([
   // -- so a new kind can add texture to the world without adding a rule to
   // the world. That is why these are kinds and not node types: the verb set
   // is complete, the vocabulary was not.
+  // §7o (v0.88): AND THE NOUNS THE ROADSIDES WERE SHORT OF.
+  //
+  // The same argument one more time, measured. 135 waymarks along every road
+  // on the island were drawn from TWO kinds -- a stump or a standing stone --
+  // and an orchard was eight identical old-oaks in a five-tile square, which
+  // put sixteen of one thing inside two tiles where two orchards met. 317 of
+  // the island's 1,023 landmarks stood in a clump of three or more of exactly
+  // themselves. That is what makes a hand-drawn country read as generated.
+  //
+  // A kind is free -- no verb reaches a landmark -- so the roadsides now speak
+  // their own country: cairns and cut faces in the Crags, withy and eel racks
+  // in the Fens, thorn and peat on the Moor, hurdles and dew-marks on the
+  // Downs. Twelve words instead of two.
+  // §7u: THE TREES THAT ARE NOT TIMBER. Every tree on this island was a thing
+  // you could chop, so the countryside could only be wooded where the world
+  // wanted woodcutting. These are landmarks -- no verb reaches them -- so a
+  // country can have trees the way a country does: willows where the water is,
+  // dead ones where the land turned, pines on the high ground, and an AVENUE,
+  // which is the only one of them that says a person did it on purpose.
+  'willow', 'dead-tree', 'pine', 'avenue-oak', 'wind-thorn',
+  // §7ab: the Moorgrave
+  'grave', 'yew',
+  'thorn', 'peat-stack', 'dew-mark', 'sheep-skull', 'withy-stack',
+  'charcoal-ring', 'apple-tree', 'pear-tree', 'windfall',
   'table', 'bed', 'shelf', 'barrel', 'crate',      // things inside a room
   'stump', 'charcoal-clamp', 'log-pile',            // the wood, worked
   'spoil-heap', 'cut-face',                         // the quarry
@@ -5500,7 +5634,10 @@ const LANDMARK_KINDS = new Set([
     'count', 'past',
     // §7a: how many strikes the rockfall has taken. Monotonic, which is the
     // safest thing there is to put in a ledger that replays.
-    'struck']);
+    'struck',
+    // §7m/§7r: the reservoir holder for a rockfall's fall-stone, and whoever
+    // is minding the furnace
+    'claim', 'stokedBy']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -5552,6 +5689,13 @@ const LANDMARK_KINDS = new Set([
     if (!isInt(n.depletedUntil ?? 0, 0, MAX_TIME)) return 'node depletion out of bounds';
     if (!isInt(n.struck ?? 0, 0, 1000000)) return 'node strike count out of bounds';
     // §7m: the reservoir holder for a rockfall's fall-stone
+    // §7r: the furnace's fire, and who is minding it
+    if (n.fuelUntil !== undefined && n.type === 'furnace'
+        && !isInt(n.fuelUntil, 0, MAX_TIME)) return 'malformed furnace fuel';
+    if (n.stokedBy !== undefined) {
+      if (n.type !== 'furnace') return 'a stoker on a node that keeps no fire';
+      if (typeof n.stokedBy !== 'string' || !HEX64.test(n.stokedBy)) return 'malformed stoker';
+    }
     if (n.claim !== undefined) {
       if (n.type !== 'rockfall') return 'claim on a node that keeps none';
       if (typeof n.claim !== 'string' || !HEX64.test(n.claim)) return 'malformed node claim';
@@ -5637,8 +5781,10 @@ const LANDMARK_KINDS = new Set([
       if (n.plantedAt !== undefined || n.readyAt !== undefined
           || n.brewKind !== undefined || n.fuelUntil !== undefined)
         return 'a stall carries foreign metadata';
-    } else if (n.fuelUntil !== undefined) {
-      return 'fuel on a non-watchfire node';
+    } else if (n.fuelUntil !== undefined && n.type !== 'furnace') {
+      // §7r: the furnace keeps a fire too, and for the same reason -- it is a
+      // public work that anybody may feed and anybody may use.
+      return 'fuel on a node that keeps no fire';
     } else if (n.readyAt !== undefined || n.brewKind !== undefined) {
       return 'brew metadata on a non-brewpot node';
     } else if (n.ask !== undefined) {
@@ -6159,7 +6305,47 @@ function validInput(state, input, ctx) {
       // Beside the gate, and carrying what it asks for. Nothing here checks
       // gold: see the note over TOLL_TICKS for why the toll is a log.
       if (!hasAdjacentNode(state, ctx, p, 'tollgate')) return false;
-      return countLogs(p.inventory) >= TOLL_LOGS;
+      return countItem(p.inventory, 'planks') >= TOLL_PLANKS;
+    }
+    case 'smelt': {
+      // §7p: SMELTING IS NOT SMITHING, AND THE WORLD SHOULD SAY SO.
+      //
+      // These were briefly one verb -- `smith`, refusing bars anywhere but the
+      // furnace -- because it saved teaching two windows and the SDK a new
+      // word. That is a reason to write code a certain way, not a reason to
+      // tell a citizen that running ore into metal and beating metal into a
+      // shape are the same act. They are two trades, in two places, two
+      // hundred and thirty-eight tiles apart. They get two verbs.
+      //
+      // The RECIPES table is shared, because the ingredients genuinely are the
+      // same kind of thing; only SMELTED says which door each goes through.
+      const r2 = RECIPES[input.recipe];
+      if (!r2 || !SMELTED.has(input.recipe)) return false;
+      // and it must be BURNING. A cold furnace is a pile of stone.
+      if (!hasAdjacentNode(state, ctx, p, 'furnace',
+            (n) => (n.fuelUntil ?? 0) > state.tick)) return false;
+      const req2 = reqOverride(state.genesis, 'smith', input.recipe) ?? SMITH_REQS[input.recipe];
+      if (req2 && !Object.entries(req2).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
+      const fills2 = (item, held) => held === item || (item === 'coal' && held === 'charcoal');
+      const have2 = (item) => p.inventory.filter((sl) => sl && fills2(item, sl.item)).length;
+      return Object.entries(r2).every(([item, qty]) => have2(item) >= qty)
+        && (firstFreeSlot(p.inventory) !== -1
+            || p.inventory.some((sl) => sl?.item === input.recipe));
+    }
+    case 'saw': {
+      // §7q: A ROUND LOG IS NOT A PLANK.
+      //
+      // Woodcutting went tree straight to use, like mining before the furnace,
+      // and the difference is that a plank already had THREE buyers waiting: a
+      // citizen's stall, a citizen's brewpot, and the deck of the Millbrook
+      // Bridge -- whose keeper is mending it, and you cannot plank a bridge
+      // with a round log. That last one was always slightly wrong and nobody
+      // noticed until the sawpit existed to make it right.
+      //
+      // One sawpit, at the Sawyer's Camp in the Deepwood: a place that has had
+      // a sawyer standing in it and nothing to saw since the day it was drawn.
+      if (!hasAdjacentNode(state, ctx, p, 'sawpit')) return false;
+      return countLogs(p.inventory) >= SAW_LOGS && canAddItem(p.inventory, 'planks');
     }
     case 'grind': {
       // §7j: A MILL IS A MILL. Grain becomes flour beside the sails and
@@ -6752,6 +6938,23 @@ function validInput(state, input, ctx) {
     }
     case 'stoke': { // anyone may feed anyone's fire: the light is common
       const wf = state.nodes[input.nodeId];
+      // §7r: THE FURNACE BURNS TOO, AND SOMEBODY HAS TO KEEP IT LIT.
+      //
+      // Coal was an ingredient of the iron bar and of nothing else that
+      // mattered -- while steel gear took iron AND coal at the anvil, and
+      // steel itself was never smelted at all. Three different answers to one
+      // question, which is how you can tell nobody had asked it.
+      //
+      // One answer: THE FIRE IS THE FUEL. A bar costs only its ore; the coal
+      // goes into the furnace, by anybody, at any time, and while it burns
+      // anyone standing there may smelt. That is the watchfire's design
+      // exactly -- the one public work in the world -- and it makes a JOB out
+      // of a vending machine: somebody feeds the fire while the crowd smelts,
+      // and is paid in smithing for doing it.
+      if (wf?.type === 'furnace') {
+        const sl2 = p.inventory[input.slot];
+        return atOrBeside(p, wf) && !!sl2 && (sl2.item === 'coal' || sl2.item === 'charcoal');
+      }
       if (!wf || wf.type !== 'watchfire' || !atOrBeside(p, wf) || !state.genesis.watch) return false;
       const sl = p.inventory[input.slot];
       // AND THE VALIDATOR MUST AGREE. Relaxing only the executor would have
@@ -6790,6 +6993,22 @@ function validInput(state, input, ctx) {
     case 'smith': {
       const r = RECIPES[input.recipe];
       if (!r) return false;
+      // §7p: THE BAR IS MADE AT THE FURNACE, THE TOOL AT THE ANVIL.
+      //
+      // Every bar in the world -- iron, the star-ingot, the gold bar -- is a
+      // SMELT: ore and fuel into metal, at a fire hot enough to run it. That
+      // is not what an anvil is. The anvil is where metal is beaten into a
+      // shape, and it stands at Thornbury, two hundred and thirty-eight tiles
+      // from the furnace at Cragfoot.
+      //
+      // So the deepest chain in the world is a journey and not two verbs in a
+      // square: mine at the seam, smelt beside it, and carry bars across the
+      // island to the one anvil. Cragfoot's crier has been describing this
+      // since v6 without it being true -- "Mine here; the anvil is at
+      // Thornbury."
+      // §7p: a bar is not smithed. `smelt` is its own verb (below) and this
+      // one refuses the recipes that belong to it.
+      if (SMELTED.has(input.recipe)) return false;
       if (!hasAdjacentNode(state, ctx, p, 'anvil')) return false;
       const req = reqOverride(state.genesis, 'smith', input.recipe) ?? SMITH_REQS[input.recipe];
       if (req && !Object.entries(req).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
@@ -7167,7 +7386,18 @@ function dedicationPrice(genesis, node) {
   return Math.floor(d.floor + (d.floor * n) / d.stepDen);
 }
 
-const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire', 'market', 'cart', 'dedication']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
+const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire', 'market', 'cart', 'dedication',
+  // §7n: A FIELD IS NOT A WALL. A plot blocked its tile, so a block of them
+  // was a solid mass and only the outer ring could be stood beside -- and
+  // `harvest` wants ADJACENCY. Measured on the seventh founding: 1,269 of the
+  // island's 1,370 field plots could not be reached by anybody. Seventy per
+  // cent of the ploughed land was scenery, and no drawing could fix it: any
+  // shape two tiles thick has an unreachable middle.
+  //
+  // Ploughed ground is walked over. You stand in one furrow to work the next,
+  // exactly as nothing in this engine strikes the tile it stands on, and the
+  // hedge round the furlong still says where the field ends.
+  'plot']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
 // v0.80: the citizen's fire joins them. A fire is the only blocking node a
 // citizen could CREATE, and movement is cardinal, so four logs boxed a
 // stranger in and one log closed a ford for as long as it burned. The
@@ -7879,6 +8109,23 @@ function nextState(state, inputs, _legacyBeacon) {
   // light is public, the vigil is theirs. A fire long cold crumbles to ash.
   const _wt = s.genesis.watch;
   if (_wt) for (const [_nid, _n] of Object.entries(s.nodes)) {
+    // §7r: THE FURNACE PAYS FOR ATTENDANCE TOO, and for the same reason the
+    // watchfire does: a fire is somewhere a person SITS. A stoke is a moment's
+    // work; standing there for the hour it burns, so the crowd never finds it
+    // cold, is the actual job -- and it was paid nothing.
+    //
+    // The furnace has no owner (it is the island's, like the clamp), so it
+    // credits whoever last fed it, and only while they are still beside it.
+    // Walk off and the fire keeps burning for everyone; you simply stop being
+    // paid for minding it.
+    if (_n.type === 'furnace') {
+      if (s.tick < (_n.fuelUntil ?? 0) && _n.stokedBy !== undefined) {
+        const _f = s.players[_n.stokedBy];
+        if (_f && _f.hp > 0 && Math.max(Math.abs(_f.x - _n.x), Math.abs(_f.y - _n.y)) <= WATCH_TEND_RANGE)
+          _f.skills.smithing += FURNACE_BURN_XP;
+      }
+      continue;
+    }
     if (_n.type !== 'watchfire') continue;
     // 6bg: THE KEEPER MUST BE AT THE FIRE.
     //
@@ -9076,7 +9323,11 @@ function nextState(state, inputs, _legacyBeacon) {
         : { type: 'attack', mobId: inp.mobId, since: s.tick, style: inp.style ?? 'even' };
     } else if (inp.type === 'smith') {
       const r = RECIPES[inp.recipe];
-      const nearAnvil = hasAdjacentNode(s, _ctx, p, 'anvil');
+      // §7p: the same split as the rule above -- a bar is smelted at the
+      // furnace, a shape is beaten at the anvil. Both halves must agree, and
+      // the first cut of this changed only the RULE, so every bar validated at
+      // the furnace and then quietly made nothing.
+      const nearAnvil = !SMELTED.has(inp.recipe) && hasAdjacentNode(s, _ctx, p, 'anvil');
       // §6bo: CHARCOAL IS COAL AT THE ANVIL. Not a new ingredient in twelve
       // recipes -- one substitution, in the one place recipes are read, so no
       // recipe had to learn a second name for the same fire.
@@ -9818,7 +10069,14 @@ function nextState(state, inputs, _legacyBeacon) {
       // cook gate and the brew gate, a third time. The work was done and the
       // log was cut; the fire simply cannot hold more burn. So the log goes on
       // it and the firekeeper earns, and the fuel stays where it was.
-      if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt) {
+      if (wf && wf.type === 'furnace' && atOrBeside(p, wf) && sl
+          && (sl.item === 'coal' || sl.item === 'charcoal')) {
+        removeItem(p.inventory, inp.slot, 1);
+        wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + FURNACE_PER_COAL,
+          s.tick + FURNACE_CAP);
+        wf.stokedBy = pid;   // §7r: whoever fed it last is the one minding it
+        p.skills.smithing += XP_STOKE_FURNACE;   // the fireman earns, at anybody's fire
+      } else if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt) {
         removeItem(p.inventory, inp.slot, 1);
         // fuel banks forward from whichever is later: now, or the fire's remaining burn
         // 6bc: AND IRONBARK BURNS LONGER. This is ironbark's whole job -- the
@@ -10123,7 +10381,8 @@ function nextState(state, inputs, _legacyBeacon) {
         if (!p.cooksTried || typeof p.cooksTried !== 'object') p.cooksTried = {};
         p.cooksTried.flour = (p.cooksTried.flour ?? 0) + 1;
         const lvl2 = effLevel(p.skills.cooking);
-        const atHearth2 = hasAdjacentNode(s, _ctx, p, 'hearth');
+        const atHearth2 = hasAdjacentNode(s, _ctx, p, 'hearth')
+          || hasAdjacentNode(s, _ctx, p, 'watchfire', (n) => (n.fuelUntil ?? 0) > s.tick);
         const take = Math.min(slot.qty ?? 1, 1);
         if (countedSuccess(p.cooksTried.flour,
               Math.min(COOK_BASE + lvl2 + (atHearth2 ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
@@ -10156,7 +10415,46 @@ function nextState(state, inputs, _legacyBeacon) {
         p.cooksTried[slot.item] = (p.cooksTried[slot.item] ?? 0) + 1;
         const able = !deep || lvl >= COOK_DEEP_REQ;
         // 6bf: a proper hearth forgives a cook what a field fire does not
-        const atHearth = hasAdjacentNode(s, _ctx, p, 'hearth');
+        // §7s: AND A LIT PUBLIC FIRE COOKS AS WELL AS A HEARTH.
+        //
+        // Cooking's bonus lived at a hearth, and every hearth in the world is
+        // indoors in a town -- so the best place to cook was always a kitchen,
+        // and the fisherman on the quay carried their catch home. Anyone who
+        // has fished in a game like this remembers the other thing: somebody
+        // calls for a fire, somebody else lays one, and a crowd cooks together
+        // at the water's edge.
+        //
+        // A watchfire that is BURNING now cooks like a hearth. Not a rule about
+        // quays -- a rule about fires, which makes the quay the best cooking
+        // spot on the island only because somebody chose to keep a fire there.
+        // The same bargain as the furnace: one citizen feeds it, everybody
+        // works at it, and the feeder is paid for the feeding.
+        // there is no adjacentNode() helper -- hasAdjacentNode answers yes or
+        // no, and the keeper's fee needs the node itself
+        let _wfHere = null;
+        for (const [_dx, _dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [0, 0]]) {
+          const _c = Object.values(s.nodes).find((n) => n.type === 'watchfire'
+            && n.x === p.x + _dx && n.y === p.y + _dy && (n.fuelUntil ?? 0) > s.tick);
+          if (_c) { _wfHere = _c; break; }
+        }
+        const atHearth = hasAdjacentNode(s, _ctx, p, 'hearth') || !!_wfHere;
+        // §7s: AND THE FIRE EARNS ITS KEEPER WHEN SOMEBODY COOKS AT IT.
+        //
+        // Without this the quayside fire is a charity. A firekeeper stands in
+        // the Greenwood because that is where the logs are; asking him to
+        // carry them to the docks and burn them for other people's dinners is
+        // asking him to work for nothing, and he will not, and the fire will
+        // never be there. He needs the crowd to be his income.
+        //
+        // So a cook at a citizen's fire pays that citizen. Site your fire
+        // where the fishermen are and the fishermen pay for it -- the same
+        // bargain as a stall on a road, which is sited for the traffic and for
+        // no other reason. This is what makes "fire plz" a thing somebody
+        // WANTS to hear.
+        if (_wfHere && _wfHere.by !== undefined && _wfHere.by !== pid) {
+          const _own = s.players[_wfHere.by];
+          if (_own) _own.skills.firemaking += COOK_FIRE_FEE;
+        }
         const cooked = deep ? 'cooked-deep-fish' : mid ? 'cooked-eel' : 'cooked-fish';
         const burnt  = deep ? 'burnt-deep-fish'  : mid ? 'burnt-eel'  : 'burnt-fish';
         if (able && countedSuccess(p.cooksTried[slot.item], Math.min(COOK_BASE + lvl + (atHearth ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
@@ -10168,8 +10466,34 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'pay') {
       // the log goes into the bridge, which is where a plank comes from
-      consumeLogs(p.inventory, TOLL_LOGS);
+      consumeItem(p.inventory, 'planks', TOLL_PLANKS);
       p.paidUntil = s.tick + TOLL_TICKS;
+    } else if (inp.type === 'smelt') {
+      const r2 = RECIPES[inp.recipe];
+      const atFurnace = SMELTED.has(inp.recipe)
+        && hasAdjacentNode(s, _ctx, p, 'furnace', (n) => (n.fuelUntil ?? 0) > s.tick);
+      const fills2 = (item, held) => held === item || (item === 'coal' && held === 'charcoal');
+      const have2 = (item) => p.inventory.filter((sl) => sl && fills2(item, sl.item)).length;
+      if (r2 && atFurnace && Object.entries(r2).every(([item, qty]) => have2(item) >= qty)) {
+        for (const [item, qty] of Object.entries(r2)) {
+          let left = qty;
+          for (let i = 0; i < p.inventory.length && left > 0; i++)
+            if (p.inventory[i]?.item === item) { p.inventory[i] = null; left--; }
+          for (let i = 0; i < p.inventory.length && left > 0; i++)
+            if (p.inventory[i] && fills2(item, p.inventory[i].item)) { p.inventory[i] = null; left--; }
+        }
+        const ex2 = STACKABLE.has(inp.recipe) ? p.inventory.findIndex((sl) => sl?.item === inp.recipe) : -1;
+        if (ex2 !== -1) p.inventory[ex2].qty += 1;
+        else { const sl2 = firstFreeSlot(p.inventory); if (sl2 !== -1) p.inventory[sl2] = { item: inp.recipe, qty: 1 } }
+        p.skills.smithing += XP_SMELT_BAR;
+      }
+    } else if (inp.type === 'saw') {
+      if (hasAdjacentNode(s, _ctx, p, 'sawpit') && countLogs(p.inventory) >= SAW_LOGS
+          && canAddItem(p.inventory, 'planks')) {
+        consumeLogs(p.inventory, SAW_LOGS);
+        addItem(p.inventory, 'planks', SAW_YIELD);
+        p.skills.woodcutting += XP_SAW;
+      }
     } else if (inp.type === 'grind') {
       const sl2 = p.inventory[inp.slot];
       if (sl2 && sl2.item === 'grain' && hasAdjacentNode(s, _ctx, p, 'landmark', (n) => n.kind === 'mill')) {
@@ -10323,7 +10647,8 @@ function nextState(state, inputs, _legacyBeacon) {
           // arm that hurt them -- split evenly, so a fighter's two numbers rise
           // together unless they deliberately train one alone.
           if (bowDrawn2) p.skills[tag2] += dmg;   // 6br
-          else teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2));   // §6as-iii, §6di
+          else teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2),
+            MOB_STATS[m?.type]?.dummy === true);   // §7t
           p.skills.hitpoints += dmg;
           if (q.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
               && (p.rootCdUntil ?? 0) <= s.tick && (q.rootedUntil ?? 0) <= s.tick && (q.rootImmuneUntil ?? 0) <= s.tick) {
@@ -10554,7 +10879,8 @@ function nextState(state, inputs, _legacyBeacon) {
         // dangerous before they are allowed to become dangerous. Measured: three
         // hundred intervals on a wolf gave attack +2924 and strength +0, and the
         // resulting citizen dealt 0.73 a tick where a trained one deals 1.79.
-        teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2));   // §6as-iii, §6di
+        teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2),
+          MOB_STATS[m?.type]?.dummy === true);   // §7t: a dummy stops teaching at YARD_CAP
         p.skills.hitpoints += dmg;
         if (m.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
             && (p.rootCdUntil ?? 0) <= s.tick && (m.rootedUntil ?? 0) <= s.tick && (m.rootImmuneUntil ?? 0) <= s.tick) {
