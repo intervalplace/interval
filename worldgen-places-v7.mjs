@@ -97,6 +97,45 @@ export const PLACES_V7 = {
   },
   // A tower with no roof and no stair, four days' walk from anywhere, and
   // whoever built it is not on any list.
+  // §7ab: THE MOORGRAVE. The one big place on Tallyholm.
+  //
+  // Everything a citizen walks into here is small: a cottage is three by four,
+  // the training yard is nine by six, the largest drawn place before this was
+  // the Barrow Crown. That is a world of rooms and no HALLS, and a landscape
+  // wants somewhere that takes a while to cross.
+  //
+  // Twenty-nine by seventeen, on the open moor, on the road that runs up to the
+  // Gibbet King -- so it is a thing you pass on the way to the worst fight in
+  // the world, and a thing you pass again coming back with the bones. The
+  // ossuary inside is the point: kill on the moor, bury on the way home,
+  // consecrated. It closes a loop that had no middle.
+  //
+  // Not the Boneyard again. The Boneyard is bones lying in the open Wilds where
+  // nobody put them. This is a graveyard: walled, gated, laid out in rows, with
+  // a mort-house and a mourner and yews at the corners. Somebody dug these.
+  moorgrave: {
+    name: 'the Moorgrave', at: { x: 330, y: 118 }, locale: 'ninestone', floors: true,
+    sign: 'the Moorgrave',
+    rows: [
+      '~~~RRRRRRRRRRRRRRRRRRRRRRR~~~',
+      '~~RR,,,,,,,,,,,,,,,,,,,,,RR~~',
+      '~RR,,W,,,,,,,,,,,,,,,,,W,,RR~',
+      'RR,,,,,,g,g,g,,,,,g,g,g,,,,RR',
+      'R,,,###########,,,,,,,,,,,,,R',
+      'R,,,#,,,,,,,,#,,g,g,g,g,g,,,R',
+      'R,,,#,,B,,,,,#,,,,,,,,,,,,,,R',
+      'R,,,#,,,,,,k,#,,g,g,g,g,g,,,R',
+      'R,,,#,,,,,,,,#,,,,,,,,,,,,,,R',
+      'R,,,#####.####,,g,g,g,g,g,,,R',
+      'R,,,,,,,,,,,,,,,,,,,,,,,,,,,R',
+      'RR,,g,g,g,,,,,,,,,,g,g,g,,,RR',
+      '~RR,,,,,,,,,,,,,,,,,,,,,,,RR~',
+      '~~RR,,W,,,,,,,,,,,,,,,W,,,RR~',
+      '~~~RRRRRRRR,,,,,RRRRRRRRRRR~~',
+      '~~~~~~~~~~~~,,,~~~~~~~~~~~~~~',
+      '~~~~~~~~~~~~,,,~~~~~~~~~~~~~~',
+    ],
+  },
   deadreach: {
     name: "the Ruined Tower", locale: 'deadreach', floors: false,
     sign: "Deadman's Reach",
