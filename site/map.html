@@ -465,8 +465,20 @@ function bayShoreX4(y) {
 }
 function isles4() {
   const ey = emY4(), sh = bayShoreX4(ey) ?? Math.round(W * 0.7)
-  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
-          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 }]
+  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7, tag: 'shrine' },
+          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5, tag: 'farshore' },
+          // §7cu: THE CHART HAD TWO ISLES AND THE WORLD HAS FOUR.
+          //
+          // Whiting and the Lists were added to worldgen and this mirror was
+          // not, so the chart drew open sea over both -- the same drift the
+          // bridge check was written for, where a window and the world
+          // disagreed about 1,845 tiles of decking.
+          //
+          // These must stay character-for-character with islesOf() in
+          // worldgen-expanse7.mjs. A chart that disagrees with the world is
+          // worse than no chart: it is confidently wrong.
+          { x: sh + 58, y: ey + 8, rx: 12, ry: 8, tag: 'whiting' },
+          { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' }]
 }
 function onIsle4(x, y) {
   for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
@@ -1636,6 +1648,16 @@ function terrainOfE4(x, y) {
     return 'trail'
   }
   if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) return 'sand'
+  // §7cu: and an isle is GROUND. Falling through here paints it as sea, which
+  // is how two islands a citizen can stand on came to be drawn as open water.
+  if (onIsle4(x, y)) {
+    for (const i of isles4()) {
+      if (((x - i.x) / i.rx) ** 2 + ((y - i.y) / i.ry) ** 2 > 1) continue
+      if (i.tag === 'whiting') return 'shingle'
+      if (i.tag === 'lists') return 'trodden'
+      return 'chalk'
+    }
+  }
   return biomeAtE4(x, y)
 }
 // ---- the locales: names smaller than a country ----
