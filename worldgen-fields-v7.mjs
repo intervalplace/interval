@@ -28,50 +28,64 @@
 //   T  a stump left standing in an assart
 //   ~  not part of this field
 
-const FURLONG = [                       // the standard open field: 8 strips
+// EVERY RIDGE MUST TOUCH A FURROW.
+//
+// These were strips TWO tiles wide with one-tile baulks -- 'pp.pp.' -- and it
+// looked right and was unworkable. A plot is a solid node: you stand beside it
+// to plant. The inner column of a two-wide strip has plots above and below and
+// a hedge or its own pair either side, so it can never be reached. Measured:
+// 1,269 of the island's 1,370 field plots could not be stood next to. Seventy
+// per cent of the ploughed land was scenery.
+//
+// One-tile ridges alternating with furrows. Fewer plots, all of them workable,
+// and closer to real ridge-and-furrow than the fat strips were.
+const FURLONG = [                       // the standard open field: 8 ridges
   '^^^^^^^^^^^^^^^^^^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
   '^................^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
-  '^pp.pp.pp.pp.pp.pp^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
+  '^p.p.p.p.p.p.p.p.^',
   '^^^^^^^^g^^^^^^^^^',
 ]
+// AND THE ROWS MUST BE THE SAME LENGTH. This one was twelve characters at the
+// top and bottom and ELEVEN in the middle, so the eastern hedge sat one tile
+// in from the corner and the ring did not close.
 const HALF_FURLONG = [
   '^^^^^^^^^^^^',
-  '^pp.pp.pp.pp^',
-  '^pp.pp.pp.pp^',
-  '^pp.pp.pp.pp^',
-  '^pp.pp.pp.pp^',
+  '^p.p.p.p.p.^',
+  '^p.p.p.p.p.^',
+  '^p.p.p.p.p.^',
+  '^p.p.p.p.p.^',
   '^..........^',
-  '^pp.pp.pp.pp^',
-  '^pp.pp.pp.pp^',
+  '^p.p.p.p.p.^',
+  '^p.p.p.p.p.^',
   '^^^^^g^^^^^^',
 ]
 const CLOSE = [                          // a small enclosed close by the walls
   'ffffffff',
-  'f.pppp.f',
-  'f.pppp.f',
-  'f.pppp.f',
+  'f.p.p.pf',
+  'f.p.p.pf',
+  'f.p.p.pf',
   'fffgffff',
 ]
 const ASSART = [                         // hacked out of the wood, stumps left
-  '~~TppT~~~',
-  '~Tpppp T~',
-  'Tpppppp~~',
-  '~ppppppT~',
-  '~T ppp~~~',
+  '~~Tp.T~~~',
+  '~Tp.p. T~',
+  'Tp.p.p.~~',
+  '~p.p.p.T~',
+  '~T p.p~~~',
   '~~~T~~~T~',
 ]
 const GARTH = [                          // a walled kitchen garden on thin soil
   '^^^^^^',
-  '^pppp^',
-  '^pppp^',
+  '^p.p.^',
+  '^p.p.^',
   '^^g^^^',
 ]
 

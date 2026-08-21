@@ -36,10 +36,6 @@ export const SEAMS = [
   { type: 'coal-rock', x: 742, y: 248 },
   { type: 'coal-rock', x: 743, y: 247 },
   { type: 'coal-rock', x: 743, y: 249 },
-  { type: 'deep-fish-spot', x: 173, y: 112 },
-  { type: 'deep-fish-spot', x: 174, y: 112 },
-  { type: 'deep-fish-spot', x: 175, y: 111 },
-  { type: 'deep-fish-spot', x: 176, y: 110 },
   { type: 'eel-spot', x: 410, y: 436 },
   { type: 'eel-spot', x: 411, y: 436 },
   { type: 'eel-spot', x: 412, y: 436 },
@@ -142,5 +138,35 @@ export const SEAMS = [
   { type: 'muck-heap', x: 351, y: 258 },
   { type: 'muck-heap', x: 374, y: 199 },   // the Hollybarrow yards
   { type: 'muck-heap', x: 373, y: 201 },
+
+
+  // §7bu: THE DEEP FISHING MOVED TO WHITING ISLE.
+  //
+  // It sat in the north-western sea, reachable on foot along the shore, and an
+  // island whose only draw is a second-best copy of something is a detour
+  // rather than a destination. The master fishing is the isle's whole reason,
+  // it is nowhere else, and the only way to it is the boat from Eastmere.
+  // Placed HERE after all. The isle pass tried three ways and landed none: the
+  // search stopped short of the water, then `put()` silently refused every sea
+  // tile because SEA IS NOT FREE, then addNode placed nothing I could find. The
+  // seam table demonstrably works -- it has carried these four since v5 -- so
+  // they move by changing their coordinates, which is what "moving a tier"
+  // should have meant in the first place.
+  // REVERTED to the north-western sea, where they have stood since v5.
+  //
+  // Four attempts to move this tier to Whiting Isle landed none of them: the
+  // isle search stopped short of the water; `put()` silently refuses a sea tile
+  // because SEA IS NOT FREE; `addNode` placed nothing I could find; and moving
+  // the coordinates in this table -- which demonstrably works, it has carried
+  // these four for two versions -- produced zero as well, for a reason I did
+  // not find before running out of room to look.
+  //
+  // A tier deleted from the world is far worse than a tier in the wrong place,
+  // so it goes back. The isle and its ferries stand and are sound; what the
+  // isle is FOR is unfinished, and that is the next thing to do.
+  { type: 'deep-fish-spot', x: 173, y: 112 },
+  { type: 'deep-fish-spot', x: 174, y: 112 },
+  { type: 'deep-fish-spot', x: 175, y: 111 },
+  { type: 'deep-fish-spot', x: 176, y: 110 },
 
 ]

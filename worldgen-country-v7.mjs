@@ -48,9 +48,9 @@ const EEL_TRAPS = [          // traps and drying racks where the water runs
   '~~qq~~',
 ]
 const PEAT_CUTTING = [       // turf cut and stacked to dry
-  'pppp~~',
-  'pppp~~',
-  '~ppqq~',
+  'p.p.~~',
+  'p.p.~~',
+  '~p.qq~',
   '~~qq~~',
 ]
 const FOWLER = [             // a wildfowler's hide and his punt

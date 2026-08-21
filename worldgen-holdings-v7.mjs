@@ -50,8 +50,8 @@ export const HOLDINGS = [
   {
     tag: 'croft', weight: 4,
     rows: [
-      '~ppp~~',
-      '~ppp~~',
+      '~p.p~~',
+      '~p.p~~',
       '~####~',
       '~#,h#~',
       '~#d,#~',
@@ -62,8 +62,8 @@ export const HOLDINGS = [
   {
     tag: 'steading', weight: 3,
     rows: [
-      'pppp~~~~',
-      'pppp~ff~',
+      'p.p.~~~~',
+      'p.p.~ff~',
       '~~~~~ff~',
       '#####~~~',
       '#,,,h#~~',
@@ -80,8 +80,8 @@ export const HOLDINGS = [
       '~#d,#~~#,d#~',
       '~##@#~~#@##~',
       '~~..~~~~..~~',
-      'pp........pp',
-      'pp........pp',
+      'p.........p.',
+      'p.........p.',
     ],
   },
   // a shepherd's fold, up on the grass
@@ -101,8 +101,8 @@ export const HOLDINGS = [
   {
     tag: 'barn', weight: 2,
     rows: [
-      'pppppp~',
-      'pppppp~',
+      'p.p.p.~',
+      'p.p.p.~',
       '~~~~~~~',
       '#####~~',
       '#,,q,#~',

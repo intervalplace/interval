@@ -235,10 +235,16 @@
       background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
       color:var(--gold);letter-spacing:1px"></div>
     <div id="stylebar" style="margin-top:3px" title="how you swing: 1 aim, 2 even, 3 force"></div>
+    <div id="bookbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
+      background:var(--stone-dk);border:1px solid var(--stone-lt);cursor:pointer;
+      color:var(--gold);letter-spacing:1px">SPELLS</div>
+    <div id="bookpanel" style="display:none;font-size:11px;margin-top:2px;
+      background:var(--stone-dk);border:1px solid var(--stone-lt)"></div>
   <div id="trade" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
   <div id="offers" style="font-size:12px"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
     <h2>Skills</h2><div id="skills"></div>
+    <h2 id="friendsh" style="display:none">Names you keep</h2><div id="friends" style="font-size:12px"></div>
     <h2>Inventory</h2><div id="inv"></div>
     <div id="feed" class="stone"></div>
     <div id="sndtoggle" style="font-size:10px;color:var(--dim);cursor:pointer;user-select:none"></div>
@@ -794,8 +800,13 @@ function bayShoreX4(y) {
 }
 function isles4() {
   const ey = emY4(), sh = bayShoreX4(ey) ?? Math.round(W * 0.7)
-  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
-          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 }]
+  // §7cu: FOUR, and character-for-character with islesOf() in worldgen. Two
+  // were added to the world and none of these mirrors were told, so every
+  // window drew open sea over ground a citizen can stand on.
+  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7, tag: 'shrine' },
+          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5, tag: 'farshore' },
+          { x: sh + 58, y: ey + 8, rx: 12, ry: 8, tag: 'whiting' },
+          { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' }]
 }
 function onIsle4(x, y) {
   for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
@@ -1999,6 +2010,16 @@ function terrainOfE4(x, y) {
     return 'trail'
   }
   if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) return 'sand'
+  // §7cu: and an isle is GROUND. Falling through here paints it as sea, which
+  // is how two islands a citizen can stand on came to be drawn as open water.
+  if (onIsle4(x, y)) {
+    for (const i of isles4()) {
+      if (((x - i.x) / i.rx) ** 2 + ((y - i.y) / i.ry) ** 2 > 1) continue
+      if (i.tag === 'whiting') return 'shingle'
+      if (i.tag === 'lists') return 'trodden'
+      return 'chalk'
+    }
+  }
   return biomeAtE4(x, y)
 }
 // ---- the locales: names smaller than a country ----
@@ -2904,6 +2925,87 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(240,140,40,.55)'; g.fillRect(9, 15, 17, 1.6)   // the glow at the edge
       g.fillStyle = '#f2c033'
       g.beginPath(); g.arc(15, 11, 1.4, 0, 7); g.fill()
+      break }
+    // §7cj: THE BONE STAFF. The worst weapon in the world, and the only thing
+    // that will carry what the dead taught.
+    case 'bone-staff': {
+      g.strokeStyle = '#6b5f4a'; g.lineWidth = 3            // the yew shaft
+      g.beginPath(); g.moveTo(13, 34); g.lineTo(19, 12); g.stroke()
+      g.fillStyle = '#ddd6c4'                               // the skull
+      g.beginPath(); g.arc(20, 9, 5.5, 0, 7); g.fill()
+      g.fillStyle = '#ddd6c4'; g.fillRect(17, 11, 6, 4)     // the jaw
+      g.fillStyle = '#1a1620'                                // the sockets
+      g.beginPath(); g.arc(18, 8, 1.6, 0, 7); g.fill()
+      g.beginPath(); g.arc(22.4, 8, 1.6, 0, 7); g.fill()
+      g.fillStyle = '#1a1620'; g.fillRect(19.2, 11.5, 1.4, 2)
+      g.strokeStyle = '#8a8fa0'; g.lineWidth = 1            // the grave-silver binding
+      g.beginPath(); g.moveTo(15, 20); g.lineTo(18, 20.6); g.stroke()
+      g.beginPath(); g.moveTo(14.4, 24); g.lineTo(17.4, 24.6); g.stroke()
+      break }
+    // §7cv: THE CHARTER. A chart drawn up as a licence for a voyage.
+    case 'charter': {
+      g.fillStyle = '#d8cdb0'                               // the vellum, rolled
+      g.beginPath(); g.moveTo(7, 12); g.lineTo(31, 10); g.lineTo(31, 27); g.lineTo(7, 29); g.closePath(); g.fill()
+      g.fillStyle = '#c2b593'
+      g.fillRect(7, 12, 3, 17); g.fillRect(28, 10, 3, 17)   // the curl at each end
+      g.strokeStyle = '#6b5f4a'; g.lineWidth = 1            // the coastline on it
+      g.beginPath(); g.moveTo(12, 22); g.quadraticCurveTo(17, 15, 22, 20)
+      g.quadraticCurveTo(25, 23, 27, 18); g.stroke()
+      g.fillStyle = '#8a2f2a'                                // the seal
+      g.beginPath(); g.arc(24, 26, 3.4, 0, 7); g.fill()
+      g.fillStyle = '#6b1f1c'; g.beginPath(); g.arc(24, 26, 1.6, 0, 7); g.fill()
+      break }
+    // §7by: THE GOLD CHAIN. The worst weapon in the world, cast in gold.
+    case 'gold-chain': {
+      g.strokeStyle = '#8a6a1a'; g.lineWidth = 5
+      g.beginPath(); g.moveTo(7, 9); g.quadraticCurveTo(20, 22, 31, 12)
+      g.quadraticCurveTo(22, 30, 10, 27); g.stroke()
+      g.strokeStyle = '#e2b63e'; g.lineWidth = 3
+      g.beginPath(); g.moveTo(7, 9); g.quadraticCurveTo(20, 22, 31, 12)
+      g.quadraticCurveTo(22, 30, 10, 27); g.stroke()
+      g.fillStyle = '#f6dd8c'
+      for (const [lx, ly] of [[9,11],[16,18],[24,17],[30,13],[19,27],[11,26]]) {
+        g.beginPath(); g.arc(lx, ly, 2.2, 0, 7); g.fill()
+      }
+      break }
+    // §7bw: SALT FISH. Split, salted, and dried hard enough to travel.
+    case 'salt-fish': case 'salt-deep-fish': {
+      const deep = item === 'salt-deep-fish'
+      g.fillStyle = deep ? '#7e93a8' : '#a89d84'
+      g.beginPath(); g.moveTo(6, 20); g.quadraticCurveTo(18, 9, 28, 17)
+      g.quadraticCurveTo(18, 26, 6, 20); g.fill()
+      g.fillStyle = deep ? '#5d7086' : '#8a7f68'
+      g.beginPath(); g.moveTo(28, 17); g.lineTo(33, 12); g.lineTo(33, 22); g.closePath(); g.fill()
+      g.fillStyle = 'rgba(255,255,255,.75)'                 // the salt on it
+      for (const [sx, sy] of [[11,17],[15,14],[19,19],[23,15],[13,21],[21,22]])
+        g.fillRect(sx, sy, 2, 2)
+      g.fillStyle = '#2a2620'; g.beginPath(); g.arc(10, 18, 1.4, 0, 7); g.fill()
+      break }
+    // §7bq: THE HOLLOW BOW. Bone and gut, and it whistles instead of shooting.
+    case 'hollow-bow': {
+      g.strokeStyle = '#ddd6c4'; g.lineWidth = 3            // the bone stave
+      g.beginPath(); g.moveTo(12, 5); g.quadraticCurveTo(24, 16, 12, 27); g.stroke()
+      g.strokeStyle = '#8a7f6c'; g.lineWidth = 1            // the gut
+      g.beginPath(); g.moveTo(12, 5); g.lineTo(12, 27); g.stroke()
+      g.fillStyle = '#c9c2ac'                                // the hollow, drilled
+      g.beginPath(); g.arc(19, 11, 2, 0, 7); g.fill()
+      g.beginPath(); g.arc(21, 16, 2, 0, 7); g.fill()
+      g.beginPath(); g.arc(19, 21, 2, 0, 7); g.fill()
+      break }
+    // §7br: FIRE ARROWS. A cage of tinder on the head.
+    case 'fire-arrows': {
+      for (let i = 0; i < 3; i++) {
+        const bx = 9 + i * 8
+        g.fillStyle = '#8a6f45'; g.fillRect(bx, 12, 2, 16)   // the shaft
+        g.fillStyle = '#c9c2ac'                              // the fletching
+        g.fillRect(bx - 1, 24, 4, 2)
+        g.fillStyle = '#5a4a36'                              // the tinder cage
+        g.fillRect(bx - 2, 7, 6, 5)
+        g.fillStyle = '#c4561a'
+        g.beginPath(); g.moveTo(bx + 1, 7); g.lineTo(bx - 2, 2); g.lineTo(bx + 4, 4); g.closePath(); g.fill()
+        g.fillStyle = '#f2c033'
+        g.beginPath(); g.arc(bx + 1, 6, 1.4, 0, 7); g.fill()
+      }
       break }
     // §7am: THE SIPHON. A brass tube on a pump, with the nozzle lit.
     case 'fire-siphon': {
@@ -3889,6 +3991,17 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'grind' ? { type: 'grind', slot: a.slot }
   : a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }
   : a.do === 'saw' ? { type: 'saw' }
+  : a.do === 'nock' ? { type: 'nock', slot: a.slot }
+  : a.do === 'follow' ? { type: 'follow', targetId: a.targetId }
+  : a.do === 'turn' ? { type: 'turn' }
+  : a.do === 'waking' ? { type: 'waking', targetId: a.targetId }
+  : a.do === 'rot' ? { type: 'rot', targetId: a.targetId }
+  : a.do === 'taking' ? { type: 'taking', targetId: a.targetId }
+  : a.do === 'withering' ? { type: 'withering', targetId: a.targetId }
+  : a.do === 'befriend' ? { type: 'befriend', targetId: a.targetId }
+  : a.do === 'unfriend' ? { type: 'unfriend', targetId: a.targetId }
+  : a.do === 'charter' ? { type: 'charter', slot: a.slot }
+  : a.do === 'unfollow' ? { type: 'unfollow' }
   : a.do === 'alch' ? { type: 'alch', slot: a.slot }
   : a.do === 'set_look' ? { type: 'set_look', look: a.look }
   : a.do === 'mendp' ? { type: 'mendp', target: a.target }
@@ -4898,6 +5011,19 @@ addEventListener('unhandledrejection', (e) => {
 let xpDrops = []      // { amt, x, y, at }: floating +xp for gathering/cooking
 let arrowShots = []   // { x0, y0, x1, y1, at }: tracers for arrows in flight
 let stillRings = []   // { x, y, at }: the truce, spoken, one expanding white ring
+// §7cr: AND THE OTHER SPELLS HAD NOTHING AT ALL.
+//
+// The stilling has had a ring since v0.81. The turning, the rot, the taking,
+// the waking and the withering had NOT ONE MARK BETWEEN THEM -- a citizen
+// spoke the withering and the world looked exactly as it had, which for a
+// spell that does no damage means it was indistinguishable from a mis-tap.
+//
+// Each gets the shape of what it does, not a colour swap: the taking is a line
+// that travels from them to you, the waking is a ring that opens where the
+// clump is, the rot is a slow stain, the withering is a cage of bars closing,
+// and the turning is the ossuary answering.
+let spellMarks = []   // { kind, x, y, tx, ty, at }
+
 // A CITIZEN CHOOSES THEIR OWN FACE.
 //
 // `set_look` has been a verb since v0.81 and this window could not send it, so
@@ -5598,7 +5724,27 @@ function onState(s, worldId, local) {
     }
     for (const [pid2, p2] of Object.entries(s.players)) {
       const o2 = prev.players?.[pid2]
-      if (o2 && o2.hp > p2.hp) splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
+      if (!(o2 && o2.hp > p2.hp)) continue
+      // §7ca: SIX BLOWS, SIX SPLATS.
+      //
+      // A splat is made by diffing hitpoints between ticks, so a flurry of six
+      // came out as one number and a citizen could not tell a lucky burst from
+      // an even one. The engine reports each blow now, so show each blow --
+      // fanned around the target and staggered a few milliseconds apart so they
+      // read as a burst rather than a stack.
+      //
+      // Only when the list accounts for the whole drop. If a blow list and a
+      // hitpoint diff disagree, the diff is the truth and the fan is a guess:
+      // fall back to the single honest number.
+      const bl = Array.isArray(p2.blows) ? p2.blows.filter((b) => b > 0) : null
+      const sum = bl ? bl.reduce((t, b) => t + b, 0) : 0
+      if (bl && bl.length > 1 && sum === o2.hp - p2.hp) {
+        bl.forEach((b, i) => splats.push({
+          x: p2.x, y: p2.y, amount: b, at: performance.now() + i * 70,
+          fan: (i - (bl.length - 1) / 2) * 11, burst: true }))
+      } else {
+        splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
+      }
     }
     // §6af: A SPECIAL LOOKS LIKE ONE.
     //
@@ -6362,6 +6508,11 @@ function tileShade(x, y) {
   // a causey is stone and timber laid over the fen, grey against the green.
   if (t === 'chalk')  return ['#c4bd98', '#cec7a2', '#b9b28e', '#c9c29d'][tileHash(x, y, 0) % 4]
   if (t === 'peat')   return ['#4a3f3a', '#524740', '#423834', '#564a44'][tileHash(x, y, 0) % 4]
+  // §7cu: the two isles' own ground. Shingle is a salt shore -- pale, wet-dark,
+  // and crusted; trodden is bare beaten earth with nothing growing on it,
+  // because nothing on the Lists is allowed to grow.
+  if (t === 'shingle') return ['#9a9483', '#8e8878', '#a49e8c'][tileHash(x, y, 0) % 3]
+  if (t === 'trodden') return ['#6e6353', '#786d5c', '#665c4d'][tileHash(x, y, 0) % 3]
   if (t === 'causey') return ['#7d7a63', '#85826b', '#75725c'][tileHash(x, y, 0) % 3]
   if (t === 'plaza') return ['#6e5f3e', '#75663f', '#665837'][tileHash(x, y, 0) % 3]
   // the surface canon (v0.79) reached the palettes and the minimap but
@@ -6558,13 +6709,55 @@ function drawCitizen(X, Y, o) {
   //
   // Mounted, it goes on the horse instead (further down): a laden animal reads
   // as a caravan and a laden man reads as a porter, and the world has both.
+  // §7ch: A CASTER CARRIES THEIR BOOK, and you can see which.
+  //
+  // `book` is already public state -- it is on the player and in the hash -- so
+  // this needs nothing new in the engine, and should not have it: a book in a
+  // hand is scenery, exactly as the fountain and the ferry's hull are. What it
+  // buys is that a citizen walking up to a caster can tell whether they are
+  // meeting somebody who refuses fights or somebody who is very good at one,
+  // BEFORE the first spell, which is the whole point of the two books being a
+  // visible choice rather than a hidden one.
+  if (o.wand) {
+    const dark = o.book === 'barrow'
+    const BX = X + 16 - (o.face ?? 1) * 8, BY = Y + 19
+    cx.fillStyle = dark ? '#241c22' : '#6b5a3a'          // the boards
+    cx.fillRect(BX - 3, BY - 4, 7, 9)
+    cx.fillStyle = dark ? '#0f0c10' : '#8a7548'
+    cx.fillRect(BX - 3, BY - 4, 2, 9)                    // the spine
+    cx.fillStyle = dark ? '#8a7f9a' : '#ddd2b4'          // the leaves
+    cx.fillRect(BX - 0.5, BY - 3, 4, 7)
+    if (dark) {                                          // and what is on the cover
+      cx.fillStyle = '#7a2f3a'
+      cx.fillRect(BX + 0.5, BY - 1.5, 2, 2)
+    }
+  }
+  // §7cg: and the rot shows. A spell that does nothing the interval it lands is
+  // one a victim could miss entirely, and a fight they do not know they are
+  // losing is not a fight they can decide about.
+  if (o.rotting) {
+    const t2 = (world?.tick ?? 0)
+    cx.fillStyle = 'rgba(96,132,72,.5)'
+    cx.beginPath(); cx.ellipse(X + 16, Y + 22, 11, 13, 0, 0, 7); cx.fill()
+    cx.fillStyle = 'rgba(140,170,96,.75)'
+    for (let k = 0; k < 4; k++) {
+      const a2 = t2 * 0.06 + k * 1.6
+      cx.fillRect(X + 16 + Math.cos(a2) * 9 - 1, Y + 20 + Math.sin(a2) * 10 - 1, 2.5, 2.5)
+    }
+  }
   if (o.hauling && !o.mounted) {
     const FB = -(o.face ?? 1)                                  // behind them
+    // §7bz: the pack's SIZE is its slot count, and it is bound with rope or
+    // with a strap of gold depending on what is in it. A rival at twenty paces
+    // should be able to tell a porter of logs from a porter of star-ingots
+    // WITHOUT reading a number, because that is the decision they are making.
     const tiers = Math.max(1, Math.min(3, Math.ceil((o.haulLoad ?? 1) / 10)))
+    const rich = (o.haulWorth ?? 0) >= 2000, fat = (o.haulWorth ?? 0) >= 400
     for (let k = 0; k < tiers; k++) {
       cx.fillStyle = k === 1 ? '#7a5a34' : '#6b4a2c'
       cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 20 - k * 4.4, 6.5, 4.2)
-      cx.fillStyle = 'rgba(0,0,0,.28)'                         // the rope round it
+      cx.fillStyle = rich ? 'rgba(226,182,62,.85)'             // a gold strap
+        : fat ? 'rgba(190,150,70,.5)' : 'rgba(0,0,0,.28)'      // ...or plain rope
       cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 21.4 - k * 4.4, 6.5, 0.9)
     }
     cx.fillStyle = '#3a2a1a'                                   // the strap over the shoulder
@@ -8416,6 +8609,64 @@ function drawScene(now) {
         cx.fillStyle = 'rgba(0,0,0,.24)'; cx.fillRect(X + 21, Y + 4, 9, 9)
         return
       }
+      if (n.type === 'salt-pan') {
+        // §7bw: a shallow pan cut in the rock, the sea in it, a crust at the rim
+        cx.fillStyle = '#6b6255'; cx.fillRect(X + 2, Y + 6, 36, 28)
+        cx.fillStyle = '#4a4238'; cx.fillRect(X + 5, Y + 9, 30, 22)
+        cx.fillStyle = 'rgba(120,170,190,.55)'; cx.fillRect(X + 7, Y + 11, 26, 18)
+        cx.fillStyle = 'rgba(255,255,255,.8)'
+        for (const [sx, sy] of [[8,12],[14,10],[24,12],[30,16],[9,26],[28,27],[19,28]])
+          cx.fillRect(X + sx, Y + sy, 3, 2)
+        cx.strokeStyle = 'rgba(255,255,255,.35)'; cx.lineWidth = 1
+        cx.strokeRect(X + 5.5, Y + 9.5, 29, 21)
+        return
+      }
+      if (n.type === 'ferry') {
+        // §7bu: THE TILE IS THE GANGPLANK; THE BOAT IS DRAWN BESIDE IT.
+        //
+        // A one-tile boat is a rowing dinghy, and this is the only crossing in
+        // the world. So the ferry node is the PLANK a citizen stands on to
+        // sail, and the hull is painted across the water east of it -- the same
+        // trick the fountain uses, where 'U' is a well node the windows draw as
+        // a basin. A node type is a rules-hash change and a hull is scenery.
+        // ...and it is a SHIP, not a dinghy. Drawn first at 108 pixels it was
+        // barely three tiles of a forty-pixel grid -- a rowing boat for the only
+        // crossing in the world. Five tiles of hull, a mast above the roofline,
+        // and the plank standing proud of the quay so you can see where to
+        // stand.
+        const sway = Math.sin((world?.tick ?? 0) * 0.05 + n.x) * 2.5
+        cx.fillStyle = '#a8875a'                                    // the gangplank
+        cx.fillRect(X + 4, Y + 14, 44, 11)
+        cx.fillStyle = '#7a5f38'
+        for (let i = 0; i < 5; i++) cx.fillRect(X + 6 + i * 9, Y + 14, 2, 11)
+        cx.fillStyle = '#5f4b30'; cx.fillRect(X + 4, Y + 24, 44, 3)
+        cx.save(); cx.translate(X + 50, Y + 22 + sway)
+        cx.fillStyle = '#3a2c1c'                                    // the hull
+        cx.beginPath(); cx.moveTo(0, -26); cx.lineTo(168, -30)
+        cx.lineTo(196, 8); cx.lineTo(156, 40); cx.lineTo(8, 36); cx.closePath(); cx.fill()
+        cx.fillStyle = '#5f4b30'
+        cx.beginPath(); cx.moveTo(10, -18); cx.lineTo(160, -22)
+        cx.lineTo(180, 6); cx.lineTo(148, 30); cx.lineTo(16, 27); cx.closePath(); cx.fill()
+        cx.fillStyle = '#4a3a26'                                    // strakes
+        for (let i = 0; i < 3; i++) cx.fillRect(14, -12 + i * 12, 150, 3)
+        cx.strokeStyle = '#241a10'; cx.lineWidth = 3                // the gunwale
+        cx.beginPath(); cx.moveTo(0, -26); cx.lineTo(168, -30); cx.stroke()
+        cx.strokeStyle = '#6b5334'; cx.lineWidth = 6                // the mast
+        cx.beginPath(); cx.moveTo(84, -22); cx.lineTo(80, -116); cx.stroke()
+        cx.strokeStyle = '#4a3a26'; cx.lineWidth = 3                // the yard
+        cx.beginPath(); cx.moveTo(44, -96); cx.lineTo(120, -100); cx.stroke()
+        cx.fillStyle = '#ddd2b4'                                    // the sail, brailed up
+        cx.beginPath(); cx.moveTo(46, -96); cx.lineTo(118, -100)
+        cx.lineTo(110, -66); cx.lineTo(54, -63); cx.closePath(); cx.fill()
+        cx.fillStyle = 'rgba(0,0,0,.16)'
+        cx.beginPath(); cx.moveTo(46, -96); cx.lineTo(74, -98); cx.lineTo(70, -64); cx.lineTo(54, -63); cx.closePath(); cx.fill()
+        cx.fillStyle = '#8a2f2a'                                    // a strip of colour on the sail
+        cx.fillRect(52, -84, 60, 6)
+        cx.strokeStyle = '#8a7f68'; cx.lineWidth = 2                // the mooring rope
+        cx.beginPath(); cx.moveTo(4, -14); cx.quadraticCurveTo(-24, 4, -46, -4); cx.stroke()
+        cx.restore()
+        return
+      }
       if (n.type === 'muck-heap') {
         // §7an: A HEAP NOBODY DREW. It is a node type, it is gathered, it pays
         // farming and strength -- and it drew nothing at all, so a citizen
@@ -8431,6 +8682,51 @@ function drawScene(now) {
         for (let i = 0; i < 5; i++) cx.fillRect(X + 9 + i * 5, Y + 24 + (i % 2) * 3, 4, 1.4)
         cx.fillStyle = 'rgba(190,200,150,.30)'                     // and what it gives up
         cx.fillRect(X + 15, Y + 20, 3, 2); cx.fillRect(X + 22, Y + 23, 2, 2)
+        return
+      }
+      if (n.type === 'ferry') {
+        // §7bu: THE GANGPLANK, and the boat drawn beside it over the water.
+        // The tile is the plank; the hull is painted across the sea alongside,
+        // which is the fountain's trick -- 'U' is a WELL node the windows draw
+        // as a basin, because a node type is a rules-hash change and a hull is
+        // purely visual. So: one node to stand on, and a vessel five tiles long.
+        const roll = Math.sin((world?.tick ?? 0) * 0.05 + n.x) * 1.6
+        cx.save(); cx.translate(X, Y)
+        // the hull, running east over the water
+        cx.fillStyle = '#4a3a26'
+        cx.beginPath()
+        cx.moveTo(40, 26 + roll); cx.lineTo(190, 20 + roll)
+        cx.lineTo(178, 40 + roll); cx.lineTo(44, 40 + roll); cx.closePath(); cx.fill()
+        cx.fillStyle = '#6b5334'
+        cx.beginPath()
+        cx.moveTo(42, 24 + roll); cx.lineTo(186, 19 + roll)
+        cx.lineTo(180, 30 + roll); cx.lineTo(44, 32 + roll); cx.closePath(); cx.fill()
+        cx.strokeStyle = '#3a2c1c'; cx.lineWidth = 1
+        for (let i = 1; i < 5; i++) { cx.beginPath()
+          cx.moveTo(44 + i * 28, 22 + roll); cx.lineTo(44 + i * 28, 39 + roll); cx.stroke() }
+        // mast and furled sail
+        cx.strokeStyle = '#5a4a30'; cx.lineWidth = 3
+        cx.beginPath(); cx.moveTo(108, 22 + roll); cx.lineTo(104, -34 + roll); cx.stroke()
+        cx.fillStyle = '#c9bc9a'
+        cx.beginPath(); cx.moveTo(104, -30 + roll); cx.lineTo(150, -6 + roll)
+        cx.lineTo(106, 4 + roll); cx.closePath(); cx.fill()
+        cx.strokeStyle = 'rgba(120,105,80,.9)'; cx.lineWidth = 1
+        cx.beginPath(); cx.moveTo(104, -34 + roll); cx.lineTo(178, 22 + roll); cx.stroke()
+        cx.restore()
+        // the plank itself, which is the tile a citizen stands on
+        cx.fillStyle = '#6b5334'; cx.fillRect(X + 4, Y + 14, 32, 12)
+        cx.fillStyle = '#8a6f45'
+        for (let i = 0; i < 3; i++) cx.fillRect(X + 6 + i * 10, Y + 14, 7, 12)
+        cx.fillStyle = '#3a2c1c'; cx.fillRect(X + 1, Y + 8, 5, 24)   // the bollard
+        return
+      }
+      if (n.type === 'salt-pan') {
+        cx.fillStyle = '#6e6a60'; cx.fillRect(X + 2, Y + 5, 36, 30)
+        cx.fillStyle = '#44525e'; cx.fillRect(X + 7, Y + 9, 26, 22)
+        cx.fillStyle = 'rgba(150,190,205,.45)'; cx.fillRect(X + 9, Y + 11, 12, 7)
+        cx.fillStyle = '#e8e2d0'
+        cx.fillRect(X + 2, Y + 5, 36, 3); cx.fillRect(X + 2, Y + 32, 36, 3)
+        cx.fillRect(X + 2, Y + 5, 4, 30); cx.fillRect(X + 34, Y + 5, 4, 30)
         return
       }
       if (n.type === 'railing') {
@@ -9216,6 +9512,40 @@ function drawScene(now) {
         cx.fillStyle = '#d8b83c'; cx.beginPath(); cx.arc(X + 33, Y + 26, 1.2, 0, 7); cx.fill()
         return
       }
+      // §7cr: THE GIBBET-DEAD, which was drawing NOTHING. The same fault the
+      // scree-imps had two notes down: a creature in the world that the window
+      // does not know about is empty air with hitpoints, and this one stands in
+      // a lit cage in the Moorgrave where everybody will look at it.
+      //
+      // It is hunched, wrong, and it winds up to throw -- the hurl is on the
+      // beat of `every: 4`, so what you see is the arm coming back before the
+      // stone lands, which is the only warning a citizen gets at four tiles.
+      if (m.type === 'gibbet-dead') {
+        const t7 = (world?.tick ?? 0)
+        const phase = ((t7 % 4) + 4) % 4              // matches MOB_STATS.every
+        const wind = phase === 3 ? 1 : phase === 0 ? -0.6 : 0
+        const sway = Math.sin((t7 + m.y * 5) * 0.09) * 1.2
+        cx.fillStyle = 'rgba(70,90,60,.28)'           // the smell of it
+        cx.beginPath(); cx.ellipse(X + 20, Y + 26, 12, 14, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#4a4738'                       // the shroud, gone to rags
+        cx.beginPath(); cx.moveTo(X + 11, Y + 37); cx.lineTo(X + 14 + sway, Y + 15)
+        cx.lineTo(X + 26 + sway, Y + 15); cx.lineTo(X + 29, Y + 37)
+        for (let k = 0; k < 4; k++) cx.lineTo(X + 27 - k * 5, Y + 34 + (k % 2) * 3)
+        cx.closePath(); cx.fill()
+        cx.fillStyle = '#6a6752'                       // the arm, winding back
+        cx.save(); cx.translate(X + 20 + sway, Y + 20); cx.rotate(wind * 0.9)
+        cx.fillRect(-2, -2, 14, 4)
+        cx.fillStyle = '#8a8578'                       // and what is in the hand
+        cx.beginPath(); cx.arc(13, 0, 3, 0, 7); cx.fill()
+        cx.restore()
+        cx.fillStyle = '#b8b09a'                       // the skull
+        cx.beginPath(); cx.arc(X + 20 + sway, Y + 14, 5.5, 0, 7); cx.fill()
+        cx.fillStyle = '#2a1c14'                       // sockets, and the jaw hanging
+        cx.beginPath(); cx.arc(X + 18 + sway, Y + 13, 1.7, 0, 7); cx.fill()
+        cx.beginPath(); cx.arc(X + 22.4 + sway, Y + 13, 1.7, 0, 7); cx.fill()
+        cx.fillRect(X + 18.5 + sway, Y + 17, 3, 3)
+        return
+      }
       if (m.type === 'barrow-wight') {
         const drift = Math.sin(((world?.tick ?? 0) + m.y * 3) * 0.12) * 1.4
         cx.fillStyle = 'rgba(120,150,140,.22)'
@@ -9649,7 +9979,14 @@ function drawScene(now) {
           // approaching you on the road was allowed to hit you.
           hauling: !!p.consignment,
           haulLoad: p.consignment ? (p.consignment.items ?? []).filter(Boolean).length : 0,
+          // §7bz: and what it is worth, which is the thing that makes them a mark
+          haulWorth: p.consignment ? (p.consignment.items ?? []).filter(Boolean)
+            .reduce((t, it) => t + (PRICES[it.item] ?? 0) * (it.qty ?? 1), 0) : 0,
           burning: (p.burnUntil ?? 0) > (world?.tick ?? 0),
+          // §7ch: which book, and whether they are holding anything to read it from
+          book: p.book ?? 'common',
+          wand: /wand|staff/.test(p.equipment?.weapon?.item ?? ''),
+          rotting: (p.rottingUntil ?? 0) > (world?.tick ?? 0),
           shield: p.equipment?.offhand?.item ?? null, legs: p.equipment?.legs?.item ?? null,
           goldHelm: p.equipment?.head?.item === 'gold-helm', goldPlate: p.equipment?.body?.item === 'gold-plate',
           wepItem: wep, name: '', hp: 1, maxHp: 1 })
@@ -9783,8 +10120,13 @@ function drawScene(now) {
     // spread them along an arc: one sits centred, several open out, and the
     // order is the order they landed
     const n = sp._n ?? 0, of = sp._of ?? 1
-    const spread = of > 1 ? ((n - (of - 1) / 2) * 13) : 0
-    const lift = of > 1 ? Math.abs(n - (of - 1) / 2) * 4 : 0
+    // §7ca: a burst opens wider than an ordinary cluster -- six numbers at
+    // thirteen apart overlap, and a flurry that reads as a smear is no better
+    // than the one number it replaced.
+    const spread = sp.fan !== undefined ? sp.fan * 1.6
+      : of > 1 ? ((n - (of - 1) / 2) * 13) : 0
+    const lift = sp.burst ? Math.abs(sp.fan ?? 0) * 0.5 + 3
+      : of > 1 ? Math.abs(n - (of - 1) / 2) * 4 : 0
     const SX = px(sp.x) + 20 + spread, SY = py(sp.y) + 18 - lift - age / 90
     cx.globalAlpha = age > life - 200 ? (life - age) / 200 : 1
     // a MISS is a pale ring, not a red star: the shape says at a glance
@@ -10048,6 +10390,51 @@ function drawScene(now) {
     cx.lineWidth = 2 - f2
     cx.beginPath(); cx.arc(px(r2.x) + 16, py(r2.y) + 16, 6 + f2 * 46, 0, 7); cx.stroke()
   }
+  // §7cr: the marks the other spells leave
+  spellMarks = spellMarks.filter((k) => now - k.at < (k.kind === 'wither' ? 1400 : 1000))
+  for (const k of spellMarks) {
+    const life = k.kind === 'wither' ? 1400 : 1000
+    const f = (now - k.at) / life
+    const CX = px(k.x) + 16, CY = py(k.y) + 16
+    if (k.kind === 'taking') {
+      // a line, from them to you: the life is going somewhere
+      const TX = px(k.tx) + 16, TY = py(k.ty) + 16
+      cx.strokeStyle = 'rgba(190,60,70,' + (0.85 * (1 - f)) + ')'
+      cx.lineWidth = 3 - f * 2
+      cx.beginPath(); cx.moveTo(CX, CY)
+      cx.lineTo(CX + (TX - CX) * Math.min(1, f * 2), CY + (TY - CY) * Math.min(1, f * 2)); cx.stroke()
+      cx.fillStyle = 'rgba(220,90,90,' + (1 - f) + ')'
+      cx.beginPath(); cx.arc(CX + (TX - CX) * Math.min(1, f * 2), CY + (TY - CY) * Math.min(1, f * 2), 4 * (1 - f), 0, 7); cx.fill()
+    } else if (k.kind === 'waking') {
+      // a ring that opens where the clump is, and a second inside it
+      for (const mul of [1, 0.55]) {
+        cx.strokeStyle = 'rgba(150,120,200,' + (0.8 * (1 - f) * mul) + ')'
+        cx.lineWidth = 3 - f * 2
+        cx.beginPath(); cx.arc(CX, CY, 4 + f * 52 * mul, 0, 7); cx.stroke()
+      }
+    } else if (k.kind === 'rot') {
+      cx.fillStyle = 'rgba(110,150,80,' + (0.5 * (1 - f)) + ')'
+      cx.beginPath(); cx.arc(CX, CY, 8 + f * 14, 0, 7); cx.fill()
+    } else if (k.kind === 'wither') {
+      // bars closing: the door being shut
+      for (let b = 0; b < 5; b++) {
+        const off = (1 - f) * 26
+        cx.strokeStyle = 'rgba(40,30,45,' + (0.9 * (1 - f * 0.6)) + ')'
+        cx.lineWidth = 2.5
+        cx.beginPath(); cx.moveTo(CX - 12 + b * 6, CY - 18 - off); cx.lineTo(CX - 12 + b * 6, CY + 18 + off); cx.stroke()
+      }
+    } else if (k.kind === 'turn') {
+      // the ossuary answering: a dark ring going IN rather than out
+      cx.strokeStyle = 'rgba(60,40,60,' + (0.9 * (1 - f)) + ')'
+      cx.lineWidth = 3
+      cx.beginPath(); cx.arc(CX, CY, 50 * (1 - f) + 4, 0, 7); cx.stroke()
+      cx.fillStyle = 'rgba(150,130,160,' + (0.5 * (1 - f)) + ')'
+      for (let q = 0; q < 6; q++) {
+        const a = q * 1.05 + f * 2
+        cx.beginPath(); cx.arc(CX + Math.cos(a) * (46 * (1 - f)), CY + Math.sin(a) * (46 * (1 - f)), 2.5, 0, 7); cx.fill()
+      }
+    }
+  }
   // floating xp drops (world coords, so drawn before restore)
   xpDrops = xpDrops.filter(d => now - d.at < 1100)
   for (const d of xpDrops) {
@@ -10273,6 +10660,31 @@ function panel(s) {
     }).join('')
   // §6bv: one delegated handler, bound once, so the panel may be rebuilt every
   // frame without losing it
+  // §7cn: THE NAMES YOU KEEP. A list, and nothing more -- no whereabouts, no
+  // presence, no way to speak to anybody who is not in front of you. That is
+  // 43a and it is the point: a list that told you where your friends were
+  // standing would repeal the walk as surely as a waystone.
+  //
+  // What it CAN say is whether somebody is in front of you right now, because
+  // you can see that with your eyes anyway.
+  {
+    const fh = document.getElementById('friendsh'), fp = document.getElementById('friends')
+    const mine = me.friends ?? []
+    fh.style.display = mine.length ? 'block' : 'none'
+    fp.innerHTML = !mine.length ? '' : mine.map((fid) => {
+      const them = world.players[fid]
+      const nm = them?.name ?? fid.slice(0, 6)
+      const here = them && Math.max(Math.abs(me.x - them.x), Math.abs(me.y - them.y)) <= FRIEND_RANGE
+      return '<div style="display:flex;justify-content:space-between;padding:1px 0">'
+        + '<span style="color:' + (here ? 'var(--gold)' : 'var(--dim)') + '">' + nm + '</span>'
+        + '<span style="color:var(--dim);font-size:10px">' + (here ? 'here' : '') + '</span></div>'
+    }).join('')
+  }
+  drawBook()
+  if (!_bookWired) {
+    _bookWired = true
+    document.getElementById('bookbtn').onclick = () => { bookOpen = !bookOpen; drawBook() }
+  }
   const skPanel = document.getElementById('skills')
   if (!skPanel._guideWired) {
     skPanel._guideWired = true
@@ -10364,8 +10776,18 @@ function panel(s) {
     if (!kind) { sb.style.display = 'none'; specArmed = false }
     else {
       sb.style.display = 'block'
-      sb.style.background = specArmed ? '#4a2e18' : 'var(--stone-dk)'
-      sb.textContent = (specArmed ? '\u25b8 ARMED \u00b7 choose a target' : 'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
+      // §7cc: ARMED SHOULD LOOK ARMED. A slightly darker brown and the word
+      // "ARMED" is not a state you notice in a fight -- and the tap that arms
+      // it already toggles, so a citizen who did not notice cannot tell whether
+      // the next tap arms or disarms. Make it unmissable and say how to undo it.
+      sb.style.background = specArmed ? '#8a2f14' : 'var(--stone-dk)'
+      sb.style.color = specArmed ? '#ffe9c0' : ''
+      sb.style.boxShadow = specArmed ? '0 0 0 2px #e2b63e, 0 0 14px rgba(226,182,62,.55)' : ''
+      sb.style.fontWeight = specArmed ? '700' : ''
+      sb.style.letterSpacing = specArmed ? '.04em' : ''
+      sb.textContent = (specArmed
+        ? '\u25b8 ARMED \u2014 strike a target, or tap again to stand down'
+        : 'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
     }
   }
     + '<br>Gold: <b style="color:#e2b63e">' + (me.gold ?? 0) + '</b> ' + ICONS['gold-coin']
@@ -10386,6 +10808,17 @@ function panel(s) {
   // this window at all, so the eighteenth skill was unreachable from here.
   const myHaul = me.consignment
   const haulLoad = myHaul ? (myHaul.items ?? []).filter(Boolean).length : 0
+  // §7bz: WHAT A HAULER IS RISKING IS A VALUE, NOT A COUNT.
+  //
+  // The bar said "9 slots aboard", which tells a hauler almost nothing and
+  // tells anyone watching them even less: nine slots of logs and nine of
+  // star-ingots are the same sentence. Worth is what makes somebody a target,
+  // and it is what a hauler is actually deciding about when they seal a pack.
+  //
+  // Both halves matter. A hauler should know what they have staked; a rival
+  // should be able to see whether it is worth the walk.
+  const haulWorth = !myHaul ? 0 : (myHaul.items ?? []).filter(Boolean)
+    .reduce((t, it) => t + (PRICES[it.item] ?? 0) * (it.qty ?? 1), 0)
   const atEnd = myHaul && (myHaul.leg ?? 0) >= ((myHaul.route ?? []).length)
   sellBar.innerHTML = !nearStore ? '' : (!myHaul
     ? '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER:</div>'
@@ -10395,7 +10828,8 @@ function panel(s) {
         ? '<button data-consign="1" style="' + BTN + '">seal your pack into a consignment</button>'
         : '<span style="color:#8a7f68;font-size:10px">Nothing in your pack to consign.</span>')
     : '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER \u00b7 '
-      + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard'
+      + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard \u00b7 '
+      + '<b style=\"color:#f0c860\">' + haulWorth.toLocaleString() + '</b> at stake'
       + (atEnd ? ' \u00b7 <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>'
                : ' \u00b7 leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
       + (atEnd ? '' : '<div style="color:#e2b63e;font-size:11px;margin:0 0 4px">Next: '
@@ -10570,6 +11004,10 @@ document.getElementById('specbtn').addEventListener('click', (e) => {
   const me9 = world?.players?.[myId]
   if (!me9 || !SPEC_OF[me9.equipment?.weapon?.item]) return
   specArmed = !specArmed
+  // §7cc: and say so, so it is in the feed as well as under your thumb
+  feed(specArmed
+    ? 'You set yourself \u2014 the next blow is a special. Tap again to stand down.'
+    : 'You stand down. The next blow is an ordinary one.')
 })
 document.getElementById('equip').addEventListener('click', () => {
   if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
@@ -11156,11 +11594,190 @@ document.addEventListener('keydown', (e) => {
 // Named, because the "light fire" branch re-enters it for the same slot once
 // the choice is made. It was anonymous, so that re-entry called a function that
 // did not exist and lighting a fire from the menu threw instead.
+// §7cn: THE SOCIAL CHOICES. Remembering somebody, forgetting them, and falling
+// in behind them -- offered on every citizen tap, whether or not you may fight
+// them, because none of the three is a fight.
+//
+// FOLLOW_LOSE is twelve in the engine and the same twelve gates a befriend: you
+// must be where they are. The window says so BEFORE sending, because a verb the
+// rule silently refuses is indistinguishable from a broken button.
+const FRIEND_RANGE = 12
+function socialOpts(pid, p, me) {
+  const nm = p.name ?? pid.slice(0, 6)
+  const mine = me.friends ?? []
+  const d = Math.max(Math.abs(me.x - p.x), Math.abs(me.y - p.y))
+  const out = []
+  if (mine.includes(pid)) {
+    out.push({ label: 'forget ' + nm, act: () => {
+      send({ do: 'unfriend', targetId: pid }); feed('You will not keep ' + nm + '\u2019s name.') } })
+  } else {
+    out.push({ label: 'remember ' + nm, act: () => {
+      if (d > FRIEND_RANGE) {
+        feed('You have not been anywhere with ' + nm + '. To keep somebody\u2019s name you must '
+          + 'have stood where they were standing \u2014 within twelve tiles, which is as far as '
+          + 'you can follow them before you lose them. They are ' + d + ' away.')
+        return
+      }
+      if (mine.length >= 64) { feed('You keep sixty-four names already. Forget one first.'); return }
+      send({ do: 'befriend', targetId: pid }); feed('You will remember ' + nm + '.')
+    } })
+  }
+  if (me.following === pid) {
+    out.push({ label: 'fall out', act: () => { send({ do: 'unfollow' }); feed('You stop following ' + nm + '.') } })
+  } else {
+    out.push({ label: 'fall in behind ' + nm, act: () => {
+      send({ do: 'follow', targetId: pid })
+      feed('You fall in behind ' + nm + '. Your feet, not your sword \u2014 what they strike is still yours to strike.') } })
+  }
+  return out
+}
+// §7cq: THE SPELLBOOK, because there was not one.
+//
+// `alch` lived on an inventory slot, `still` on a citizen tap, `turn` at an
+// ossuary -- and the four barrow spells lived NOWHERE. They were in the engine,
+// the SDK and both windows' input mapping, and no thumb could reach any of them.
+// A citizen who walked to an ossuary, turned to the barrow-work and gave up five
+// spells got four they could not cast.
+//
+// It follows the special-attack button, which already works this way and which
+// citizens already understand: ARM a spell, then pick what it lands on. The
+// panel shows the book you are actually reading, greys what you cannot speak,
+// and says WHY -- the level, the sigils, the staff.
+const SPELLBOOK = {
+  common: [
+    { v: 'alch',   name: 'transmute',  lvl: 1,  sigils: 1, on: 'item',
+      says: 'a thing, into what it is worth' },
+    { v: 'mend',   name: 'mend',       lvl: 50, sigils: 1, on: 'self',
+      says: 'your own wounds, +20, once in twenty-five' },
+    { v: 'mendp',  name: 'mend other', lvl: 50, sigils: 1, on: 'citizen', wand: 'wand',
+      says: 'somebody else\u2019s \u2014 a wand sends what a bare hand keeps' },
+    { v: 'still',  name: 'the stilling', lvl: 85, sigils: 3, on: 'citizen',
+      says: 'the fight simply stops' },
+  ],
+  barrow: [
+    { v: 'rot',       name: 'the rot',       lvl: 40, sigils: 1, on: 'any', wand: 'bone-staff',
+      says: 'nothing now; twenty-four intervals of decay, and plate does not stop it' },
+    { v: 'taking',    name: 'the taking',    lvl: 60, sigils: 2, on: 'any', wand: 'bone-staff',
+      says: 'eight of their life becomes yours \u2014 once in twelve' },
+    { v: 'waking',    name: 'the waking',    lvl: 75, sigils: 3, on: 'any', wand: 'bone-staff',
+      says: 'your mark and everything standing round it \u2014 once in forty' },
+    { v: 'withering', name: 'the withering', lvl: 88, sigils: 4, on: 'any', wand: 'bone-staff',
+      says: 'sixteen intervals in which nothing will heal them' },
+  ],
+}
+let spellArmed = null
+function castable(sp, me) {
+  const have = (me.inventory || []).reduce((t, sl) => t + (sl?.item === 'sigil' ? (sl.qty ?? 1) : 0), 0)
+  const mag = XP_TO_LVL(me.skills?.magic ?? 0)   // the window's own ladder
+  if (mag < sp.lvl) return 'magic ' + sp.lvl
+  if (have < sp.sigils) return sp.sigils + ' sigils'
+  if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + sp.wand.replace('-', ' ')
+  return null
+}
+function drawBook() {
+  const me = world?.players?.[myId]; if (!me) return
+  const btn = document.getElementById('bookbtn'), pan = document.getElementById('bookpanel')
+  const book = me.book ?? 'common'
+  btn.style.display = 'block'
+  btn.textContent = (bookOpen ? '\u25be ' : '\u25b8 ')
+    + (book === 'barrow' ? 'THE BARROW-WORK' : 'SPELLS')
+    + (spellArmed ? ' \u00b7 ' + spellArmed.name + ' ARMED' : '')
+  btn.style.borderColor = spellArmed ? 'var(--gold)' : 'var(--stone-lt)'
+  btn.style.background = spellArmed ? '#3a2a12' : 'var(--stone-dk)'
+  pan.style.display = bookOpen ? 'block' : 'none'
+  if (!bookOpen) return
+  pan.innerHTML = SPELLBOOK[book].map((sp, i) => {
+    const why = castable(sp, me)
+    const on = spellArmed && spellArmed.v === sp.v
+    return '<div data-sp="' + i + '" style="padding:3px 6px;cursor:pointer;'
+      + 'border-left:3px solid ' + (on ? 'var(--gold)' : 'transparent') + ';'
+      + 'color:' + (why ? 'var(--dim)' : 'var(--gold)') + '">'
+      + '<b>' + sp.name + '</b>'
+      + '<span style="float:right;font-size:10px">' + (why ? 'needs ' + why : sp.sigils + '\u25c6') + '</span>'
+      + '<div style="font-size:10px;color:var(--dim)">' + sp.says + '</div></div>'
+  }).join('')
+  pan.querySelectorAll('[data-sp]').forEach((el) => {
+    el.onclick = () => {
+      const sp = SPELLBOOK[book][Number(el.dataset.sp)]
+      const why = castable(sp, me)
+      if (why) { feed('You cannot speak ' + sp.name + ' yet. It needs ' + why + '.'); return }
+      if (sp.on === 'self') { send({ do: 'cast', spell: 'mend' }); feed('You close your own wounds.'); return }
+      if (sp.on === 'item') { feed('Tap what you want to transmute, in your pack.'); return }
+      spellArmed = (spellArmed && spellArmed.v === sp.v) ? null : sp
+      feed(spellArmed ? 'You hold ' + sp.name + ' ready. Tap what it lands on.'
+        : 'You let ' + sp.name + ' go.')
+      drawBook()
+    }
+  })
+}
+let bookOpen = false, _bookWired = false
+// §7cq: what an armed spell does when you tap something
+function castArmed(tid, t) {
+  const sp = spellArmed; if (!sp) return
+  const me = world.players[myId]
+  const why = castable(sp, me)
+  if (why) { feed('You cannot speak ' + sp.name + '. It needs ' + why + '.'); spellArmed = null; drawBook(); return }
+  if (sp.on === 'citizen' && !world.players[tid]) {
+    feed(sp.name + ' is for a citizen, not a beast.'); return
+  }
+  send({ do: sp.v, targetId: tid, target: tid })
+  // §7cr: and the world shows it. The mark is raised HERE, on the tap, rather
+  // than from a state diff -- three of these four change no hitpoints at all
+  // the interval they land, so there is nothing for a diff to notice.
+  const MARK = { rot: 'rot', taking: 'taking', waking: 'waking', withering: 'wither', still: 'still' }
+  if (sp.v === 'still') stillRings.push({ x: t.x, y: t.y, at: performance.now() })
+  else if (MARK[sp.v]) spellMarks.push({ kind: MARK[sp.v], x: t.x, y: t.y,
+    tx: me.x, ty: me.y, at: performance.now() })
+  feed('You speak ' + sp.name + ' at ' + (t?.name ?? 'them') + '.')
+  spellArmed = null; drawBook()
+}
+// §7cy: WHO WORKS HERE. A trace left at the place, not a directory.
+//
+// It says who has used this work lately and how long ago. It does NOT say where
+// they are now -- that would repeal the walk as surely as a waystone -- so a
+// citizen still has to go to the furnace to learn who works the furnace, and
+// still has to find them themselves. What it ends is a specialist being
+// invisible, which is the thing that stops the trade happening at all.
+function whoWorksHere(n) {
+  const w = (n.worked ?? []).filter((e) => e.who !== myId)
+  if (!w.length) return
+  const t = world?.tick ?? 0
+  const ago = (k) => {
+    const d = t - k
+    return d < 60 ? 'just now' : d < 600 ? Math.round(d / 60) + ' minutes ago'
+      : Math.round(d / 600) / 10 + ' hours ago'
+  }
+  const names = w.map((e) => (world.players[e.who]?.name ?? e.who.slice(0, 6)) + ' (' + ago(e.at) + ')')
+  feed('Hands that have been here: ' + names.join(', ') + '.')
+}
 function invClick(i) {
   if (i === undefined || !world) return
   const meNow = world.players[myId]
   const it = meNow?.inventory[i]
   if (!it) return
+  // §7bs: TAP A QUIVER TO NOCK IT. An archer carrying both kinds shoots
+  // whatever ammoOf prefers, and there is no way to reorder a pack in this
+  // world -- so the choice has to be an act. Tapping arrows puts them on the
+  // string, and the pack shows which are nocked.
+  // §7cv: a master explorer's chart can be drawn up as a charter
+  if (it.item === 'chart' && XP_TO_LVL(meNow.skills?.exploration ?? 0) >= 90) {
+    chooseAction([
+      { label: 'draw it up as a charter (for the boat to the Lists)', act: () => {
+        send({ do: 'charter', slot: Number(i) })
+        feed('You draw the crossing up. Somebody may sail who could not \u2014 and pay you for it.') } },
+      { label: 'keep the chart', act: () => feed('A chart. It opens no doors; it says where a thing is.') },
+    ])
+    return
+  }
+  if (it.item === 'arrows' || it.item === 'fire-arrows') {
+    if ((meNow.nocked ?? 'arrows') !== it.item) {
+      send({ do: 'nock', slot: Number(i) })
+      feed(it.item === 'fire-arrows'
+        ? 'You set a fire arrow on the string. It flies shorter, and it will not touch plate.'
+        : 'You set an ordinary shaft on the string.')
+      return
+    }
+  }
   const nearBank = Object.values(world.nodes).some(n => n.type === 'bank'
     && Math.abs(meNow.x - n.x) + Math.abs(meNow.y - n.y) === 1)
   // items with MENUS keep their menus even beside the bank (Anchor's
@@ -11259,9 +11876,9 @@ function invClick(i) {
         const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
         if (already) return [{ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') }]
         if (logs2 < 16 || ore2 < 8)
-          return [{ label: 'raise a stall (needs 16 logs, 8 ore)',
+          return [{ label: 'raise a stall (needs 32 planks, 8 ore)',
                     act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') }]
-        return [{ label: 'raise a stall here (16 logs, 8 ore)', act: () => { send({ do: 'raise_market' })
+        return [{ label: 'raise a stall here (32 planks, 8 ore)', act: () => { send({ do: 'raise_market' })
           feed('You begin raising a stall. Twenty intervals, and do not move.') } }]
       })(),
       { label: 'fletch wand', act: () => send({ do: 'fletch', slot: +i, make: 'wand' }) },
@@ -11394,6 +12011,10 @@ cv.addEventListener('click', (e) => {
   if (best?.kind === 'mob') {
     const { id, m } = best
     flashClick(m.x, m.y, true)
+    // §7cq: an armed spell lands on a beast too. Three of the four barrow
+    // spells work on anything with hitpoints, and the gibbet-dead behind its
+    // railing can be reached by nothing else.
+    if (spellArmed) { castArmed(id, m); return }
     if (me.action?.mobId === id) return                        // already fighting it: silent
     if (adj(m)) { send({ do: 'attack', mobId: id }); feed('You attack the ' + m.type + '!') }
     else intent = { kind: 'attack', id }                       // hunt it down, then engage
@@ -11426,6 +12047,8 @@ cv.addEventListener('click', (e) => {
     if (mayStrikeC(me, p)) {
       const nm = p.name ?? pid.slice(0, 6)
       const why = (me.consignment && p.consignment) ? 'You are both carrying.' : 'The Wilds allow it.'
+      const social = socialOpts(pid, p, me)
+      if (spellArmed) { castArmed(pid, p); return }
       chooseAction([
         ...mendOpt,
         { label: 'attack ' + nm, act: () => {
@@ -11434,8 +12057,12 @@ cv.addEventListener('click', (e) => {
           else { intent = { kind: 'pvpattack', id: pid }; feed('You go for ' + nm + '. ' + why) }
         } },
         { label: 'trade', act: () => { if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid); else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm + '.') } } },
+        ...social,
       ]); return
     }
+    // §7cq: an armed spell lands on whoever you tapped, whatever else the tap
+    // would have offered -- the same way an armed special does.
+    if (spellArmed) { castArmed(pid, p); return }
     if (mendOpt.length) {
       const nm3 = p.name ?? pid.slice(0, 6)
       chooseAction([
@@ -11443,10 +12070,19 @@ cv.addEventListener('click', (e) => {
         { label: 'trade with ' + nm3, act: () => {
           if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
           else { intent = { kind: 'meet', id: pid }; feed('You approach ' + nm3 + '.') } } },
+        ...socialOpts(pid, p, me),
       ]); return
     }
-    if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
-    else { intent = { kind: 'meet', id: pid }; feed('You approach ' + (p.name ?? 'the stranger') + '.') }
+    // §7cn: a plain stranger still gets the social choices -- remembering
+    // somebody and falling in behind them are not combat and not trade, and
+    // before this there was no way to do either from a tap.
+    if (spellArmed) { castArmed(pid, p); return }
+    chooseAction([
+      { label: 'trade with ' + (p.name ?? 'the stranger'), act: () => {
+        if (Math.abs(me.x - p.x) + Math.abs(me.y - p.y) === 1) openTrade(pid)
+        else { intent = { kind: 'meet', id: pid }; feed('You approach ' + (p.name ?? 'the stranger') + '.') } } },
+      ...socialOpts(pid, p, me),
+    ])
     return
   }
 
@@ -11630,7 +12266,32 @@ cv.addEventListener('click', (e) => {
         return
       }
       if (n.type === 'ossuary') {
-        feed('The ossuary. Bones laid here are worth more than bones laid in a field.')
+        // §7cj: AND THE TURNING IS OFFERED HERE. `turn` had no button anywhere
+        // -- the verb, the SDK and both windows' input mapping all knew it and
+        // no thumb could reach it. Same debt as saw, smelt and nock: a verb
+        // that only an SDK can speak is a verb citizens do not have.
+        //
+        // It follows the furnace's shape, not a menu: walk if you are not
+        // beside it, act if you are. (I wrote `menu(...)` first, which is not a
+        // function this window has -- there is no menu helper here, and every
+        // other work in the world does it this way.)
+        const meO = world.players[myId]
+        if (!adj(n)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('The ossuary. Bones laid here are worth more than bones laid in a field.')
+          return
+        }
+        const onBarrow = (meO.book ?? 'common') === 'barrow'
+        send({ do: 'turn' })
+        // §7cr: the ossuary answers -- a ring going IN, not out
+        spellMarks.push({ kind: 'turn', x: n.x, y: n.y, at: performance.now() })
+        tone(70, 1.1, { type: 'sine', vol: 0.05 })
+        tone(52, 1.4, { type: 'sine', vol: 0.04, at: 0.2 })
+        feed(onBarrow
+          ? 'You close the barrow-work. The waking, the rot and the taking are gone; '
+            + 'the stilling, the mending, the sealing, the alching and the recall come back.'
+          : 'You turn to the barrow-work. The stilling, the mending, the sealing, the alching '
+            + 'and the recall are closed to you. What is left will not refuse a fight.')
         flashClick(n.x, n.y, false); return
       }
       if (n.type === 'rampart') { feed('A curtain wall. Dressed stone, battered at the foot, and old.'); return }
@@ -11648,6 +12309,8 @@ cv.addEventListener('click', (e) => {
       //
       // Worse than the crash: had it not thrown, `send()` would have fired
       // sixty times a second. Interaction belongs where the clicks are.
+      // §7bs: (arrows are nocked from the pack, not from the map -- see the
+      // inventory handler; this note is here so the two are read together)
       if (n.type === 'furnace') {
         const meF = world.players[myId]
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
@@ -11659,17 +12322,78 @@ cv.addEventListener('click', (e) => {
           send({ do: 'stoke', nodeId: id, slot: ci }); feed('The bloom catches.')
           flashClick(n.x, n.y, false); return
         }
-        const ore = (meF.inventory || []).filter(sl => sl?.item === 'iron-ore').length
-        if (ore >= 2) { send({ do: 'smelt', recipe: 'iron' }); feed('Two of ore run down into a bar.') }
+        // §7co: ALL FOUR SMELTS, NOT JUST IRON. The furnace had a button and it
+        // could only make one of the four things the engine smelts -- so steel,
+        // star-ingots and gold bars were reachable from an SDK and from nowhere
+        // else. A verb with one of its four recipes wired is not a wired verb.
+        //
+        // It offers what you can actually make, and says what is short when you
+        // cannot make anything.
+        const have = (it) => (meF.inventory || [])
+          .reduce((t, sl) => t + (sl?.item === it ? (sl.qty ?? 1) : 0), 0)
+        const SMELTS = [
+          { r: 'iron',       needs: { 'iron-ore': 2 },     says: 'Two of ore run down into a bar.' },
+          { r: 'steel',      needs: { 'iron': 1 },         says: 'The bar goes back in, and comes out steel.' },
+          { r: 'star-ingot', needs: { 'magic-stone': 20 }, says: 'Twenty stones, and one ingot of starmetal.' },
+          { r: 'gold-bar',   needs: { 'gold-ore': 5 },     says: 'The gold runs.' },   // GOLD_ORE_PER_BAR
+        ]
+        const can = SMELTS.filter((sm) =>
+          Object.entries(sm.needs).every(([it, q]) => have(it) >= q))
+        if (can.length > 1) {
+          chooseAction([
+            ...can.map((sm) => ({ label: 'smelt ' + sm.r,
+              act: () => { send({ do: 'smelt', recipe: sm.r }); feed(sm.says); flashClick(n.x, n.y, false) } })),
+            ...(ci !== -1 ? [{ label: 'feed the fire',
+              act: () => { send({ do: 'stoke', nodeId: id, slot: ci }); feed('You feed the fire.') } }] : []),
+          ])
+          return
+        }
+        if (can.length === 1) { send({ do: 'smelt', recipe: can[0].r }); feed(can[0].says) }
         else if (ci !== -1) { send({ do: 'stoke', nodeId: id, slot: ci }); feed('You feed the fire.') }
-        else feed('It burns. Bring ore, or coal to keep it going.')
+        else {
+          // §7cx: AND SAY THAT IT IS A JOB TWO PEOPLE DO.
+          //
+          // A star-ingot is twenty magic-stone, magic-stone does not stack, and
+          // the pack is twenty-eight -- so one ingot is one trip into the Wilds
+          // and back to this fire. A great maul is ELEVEN ingots: two hundred
+          // and twenty stones, eleven journeys.
+          //
+          // The trade is already possible and nothing ever said so. A citizen
+          // who mines in the Wilds and a citizen who can work the fire need
+          // each other exactly as a rune-runner and a crafter did: one has the
+          // legs and the danger, the other has the level, and neither is
+          // complete. The furnace is where they meet, so the furnace should be
+          // the thing that mentions it.
+          whoWorksHere(n)
+        const sm = XP_TO_LVL(meF.skills?.smithing ?? 0)
+          const stones = have('magic-stone')
+          if (stones >= 20 && sm < 45)
+            feed('You have the stones and not the craft \u2014 twenty make one ingot, and it '
+              + 'wants smithing 45. Somebody standing at this fire could smelt them for you.')
+          else if (sm >= 45 && stones < 20)
+            feed('You could work this fire and have nothing to put in it. Twenty magic-stone '
+              + 'make one star-ingot, and they come out of the Wilds. Somebody who walks there '
+              + 'would carry them, if you smelted for them.')
+          else
+            feed('It burns. Two of iron-ore make a bar, a bar makes steel, twenty magic-stone '
+              + 'make an ingot, five of gold-ore make gold. Or bring coal to keep it going.')
+        }
         flashClick(n.x, n.y, false); return
       }
       if (n.type === 'sawpit') {
         const meS = world.players[myId]
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
           feed('A sawpit, and a trestle over it.'); return }
-        if (!(meS.inventory || []).some(sl => sl?.item === 'logs')) { feed('Bring logs.'); return }
+        whoWorksHere(n)
+        // §7co: and the sawpit says what it is FOR when you have nothing to saw.
+        // "Bring logs." tells a citizen what is missing and not why they would
+        // want to: planks are the toll on the Millbrook bridge, and the stall,
+        // and the brewpot, and nothing else in the world makes them.
+        if (!(meS.inventory || []).some(sl => sl?.item === 'logs')) {
+          feed('Bring logs. A log gives two boards, and boards are what the bridge-keeper '
+            + 'takes as toll \u2014 and what a stall and a brewpot are built from.')
+          return
+        }
         send({ do: 'saw' }); feed('Two boards off the log.')
         flashClick(n.x, n.y, false); return
       }
@@ -11873,13 +12597,13 @@ cv.addEventListener('click', (e) => {
         const bc = world?.genesis?.brew
         const owned = Object.values(world.nodes).filter(nn => nn.type === 'brewpot' && nn.by === myId).length
         const logs = me.inventory.filter(s => s?.item === 'logs').length, ore = me.inventory.filter(s => s?.item === 'ore').length
-        if (bc && owned < bc.potCap && logs >= bc.buildLogs && ore >= bc.buildOre) {
+        if (bc && owned < bc.potCap && planks >= bc.buildPlanks && ore >= bc.buildOre) {
           chooseAction([
-            { label: 'build brewpot (' + bc.buildLogs + ' logs, ' + bc.buildOre + ' ore)', act: () => { send({ do: 'build_brewpot' }); feed('You raise a brewpot by the house. A brewhouse begins.') } },
+            { label: 'build brewpot (' + bc.buildPlanks + ' logs, ' + bc.buildOre + ' ore)', act: () => { send({ do: 'build_brewpot' }); feed('You raise a brewpot by the house. A brewhouse begins.') } },
             { label: 'never mind', act: () => {} },
           ]); return
         }
-        feed(bc && owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.' : 'A brewpot needs ' + (bc?.buildLogs ?? 4) + ' logs and ' + (bc?.buildOre ?? 2) + ' ore, raised beside a house.')
+        feed(bc && owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.' : 'A brewpot needs ' + (bc?.buildPlanks ?? 8) + ' planks and ' + (bc?.buildOre ?? 2) + ' ore, raised beside a house.')
         return
       }
       if (n.type === 'keeper') {

@@ -7836,6 +7836,1426 @@ invented to serve a build is a patch; a weapon whose requirement was simply
 hand, and it is already the answer to armour. One build does not get every
 answer.)*
 
+## 29. A town, not three terraces (v0.88)
+
+Oxenford was **one long rectangle spanning the town's full width**, chopped into
+rooms by partition walls, with doors punched along its bottom edge — then a
+straight street, then another terrace, then another. Every building shared its
+neighbours' walls, every roofline was identical, every door faced the same way,
+and every street was a horizontal gap of uniform width.
+
+It read as a spreadsheet with a hedge round it. Held against a map of Varrock
+the difference is not detail, it is **kind**: Varrock's buildings are separate
+structures of wildly different sizes at different setbacks, with lanes that bend
+round them.
+
+Rebuilt on five rules taken off that map:
+
+- **Separate footprints.** Every building has its own four walls and ground
+  between it and the next. Nothing shares a wall with anything.
+- **Sizes that differ wildly.** A 4×3 cot beside a 9×6 hall. Eleven identical
+  rooms is a barracks; a town has a big house and a shed.
+- **Broken alignment.** One sits back from the lane, its neighbour juts forward.
+  No two doors on a line.
+- **Lanes that bend**, fork, vary in width and dead-end. You navigate a town;
+  you do not scan it.
+- **An anchor and a square.** The hall holds the north; the fountain and its
+  open ground sit off-centre, where a ford road would put them.
+
+**The validator earned its keep three times.** `checkPlanConnected` refused the
+drawing at (330,307), then (333,308), then (346,308) — a cot I kept trying to
+put in the southern band, which is water and blocked ground. The old plan had
+left that whole band empty and never said why. The lane runs south to the ford
+now and nothing stands on it.
+
+Measured after: **0 of 72 town rooms sealed, 0 stalls unseated or misplaced.**
+
+### 29a. Two more drawings before it was right
+
+The first rebuild got the principle and missed the execution: lanes four and
+five tiles across, which reads as a courtyard, and nothing dominating — 7x6
+beside 6x4 beside 5x4 is one register, not a town. Four of its seven buildings
+had no keeper, which is §16's fault committed again in a town built to fix a
+different one.
+
+The second drawing is nine buildings from **13x7 down to 3x3**, a keeper in
+every one, lanes one tile wide, three streets running north-south and one across
+the width, and the forge on a dead-end spur. **Four of them had no door** — I
+drew sealed boxes, and the east-west lane ran straight through the smithy's
+wall. `checkPlanConnected` named all four by name and coordinate.
+
+### 29b. A lane is a lane
+
+Two rules widened every street in turn, and each looked right until it was
+drawn. `townPaved` first flagged anything within one tile of anything BUILT —
+fine for three long terraces with wide bands between them, and for scattered
+houses it makes the whole interior **one sheet of flagstone**. Corrected to pave
+every ',' and its four neighbours — but **a room's floor is ',' too**, so the
+ring around every building paved as well and a lane drawn ONE tile wide came out
+THREE.
+
+A lane is a ',' that is not indoors. Nothing else. **The grass comes right up to
+the wall, which is what it does in a town.**
+
+### 29c. Millbrook, and the anvil that should not have existed
+
+Oxenford's second drawing gave it a smithy -- 's' and 'A' -- which put a
+**SECOND ANVIL** on an island whose own crier says, at Cragfoot, *"Mine here;
+the anvil is at Thornbury."* One anvil is a rule this world states aloud and
+builds a two-hundred-tile errand around; a drawing does not get to quietly add
+another. Oxenford has a wheelwright now: a hearth, a bench and a man, no forge.
+
+Millbrook is thirteen buildings from a 14x7 market hall to a 3x3 shed, round
+four sides of an open square, with the great road running two tiles wide between
+the gates and every other lane at one. **The middle is left empty on purpose**:
+7k lays plaza where the centre is open and clear of walls, and that plaza is the
+only ground on Tallyholm a citizen may raise a stall on.
+
+*(Written first over `PLAN_ROOMS.millbrook` -- the stall seater's room list,
+which carries the same key in the same file -- which took `LEGEND_V6` out of the
+module's exports and stopped four worlds founding. Two tables, one key, and no
+error until load.)*
+
+### 29d. What "terrain has sealed off" actually means
+
+Millbrook was attempted three times and refused three times, each with the
+message *"terrain has sealed off N essential(s)"*. **The terrain under Millbrook
+refuses nothing.** Mapped tile by tile across the whole 52x36 seat: not one tile
+of water, not one blocked. The message names the wrong cause, and I redrew whole
+quarters twice on the strength of it.
+
+`checkPlanConnected` floods the WORLD, after every other pass has run -- the
+roads, the hedges, the field ring, the holdings. A drawing whose door opens onto
+a tile another pass has since filled is cut off, and the loader calls that
+terrain.
+
+`planlint.mjs` was written to answer the drawing's own half of the question: it
+finds the connected components of a plan and names every essential not on the
+main one, in a second, without building a world. It clears all ten current towns
+and it cleared the third Millbrook -- which the loader then still refused,
+**which is exactly how the two halves were told apart.**
+
+It was not the world's blockers either. Mapped: **zero foreign nodes inside
+Millbrook's whole 52x36 footprint.** Reading `checkPlanConnected` gave the
+answer the message never did --
+
+- the flood passes through `.`, `@`, `,`, blank and QUAY **only**. Furniture is
+  not walkable: a hearth stops it as surely as a wall.
+- an essential is stranded unless one of its **four orthogonal** neighbours is
+  in the flood. Diagonals do not count.
+
+So the three houses that failed all had **furniture standing in the doorway** --
+a hearth on the tile inside one door, a table inside the bank's. A room whose
+threshold is furnished is a room with no door at all, and no amount of redrawing
+the quarter would ever have found it.
+
+`planlint.mjs` is a faithful replica of that function over the drawing alone. It
+clears all ten towns, and on the failing draft it named **the same six
+essentials the loader named**. With furniture kept out of every doorway and a
+spur carved from each door to the nearest lane, it went to zero -- **and the
+loader accepted the drawing first time.**
+
+### 29e. A drawing and its room list are one thing in two files
+
+`PLAN_ROOMS.millbrook` names the interiors the stall seater may put a rostered
+stall in, and it still held the six shop-fronts of the four-a-side Millbrook.
+The third drawing leaves that ground OPEN -- so the seater found no room at any
+of them and dropped **five rostered stalls in the middle of the market square**,
+in the open, which is the one thing 7k says a rostered stall may never be.
+
+Nothing in the loader said so. `check-stalls` reported zero unseated and zero
+outside their town, because they were seated, and they were in Millbrook. They
+were simply in the wrong kind of place.
+
+**Redraw a town and the room list must move with it**, and no audit couples
+them. Two more faults sat behind it:
+
+**A room finder must stop at the door.** The first one flooded interiors and ran
+straight OUT through the doorways, so a house and the street it opens onto came
+back as one room. A DOOR is a floor tile with wall on both opposite sides;
+flooding without ever stepping on one gives seventeen rooms in Millbrook,
+seventeen in Anchor, seven in Oxenford -- the exact counts drawn.
+
+**And a shop must be left empty.** A room qualifies to hold a rostered stall
+only if it holds none of bank, store, anvil, smith, keeper, waystone, well or
+fountain -- *and a stall brings its own keeper*. "A keeper in every house" was
+the right lesson from Oxenford and the wrong rule here: it disqualified all
+seventeen rooms at once, so the seater fell back to the ring round the wall and
+five stalls stood in the open market square. Twelve ranges are left unkept now.
+They are not empty rooms; they are the shops, waiting for the trade the roster
+puts in them.
+
+Measured: **all five of Millbrook's rostered stalls stand indoors.**
+
+### 29f. A rule learned in one town is not a rule
+
+Millbrook needed rooms left unkept, because a rostered stall brings its own
+keeper and will not seat in an occupied house. Anchor was drawn the same way --
+and **6am puts EVERY specialist stall at Millbrook**, so the market has one
+answer and one journey. Anchor gets no rostered stall at all. Nine of its
+seventeen houses were emptied for traders who are never coming, and **twelve of
+seventeen stood with nobody in them**.
+
+The number mattered in Millbrook too: six unkept rooms left two stalls in the
+open, twelve left seven houses empty, **nine is right** -- five stalls indoors,
+one spare, everybody else at home.
+
+### 29g. A drawing's later strokes overwrite its earlier ones without a word
+
+Anchor's east house was drawn with a door in its south wall, and the gaol's
+curtain -- laid afterwards in the same drawing -- ran straight over that wall
+and the doorway with it. A house with a keeper and no way out. `planlint`
+named it before the loader ever saw it; its door opens west now.
+
+### 29h. Twice is a pattern: no town plan may hold an anvil
+
+Oxenford's second drawing was given a smithy, which put a second anvil on an
+island whose crier says *"Mine here; the anvil is at Thornbury."* Anchor's
+drawing did the identical thing. **Once is a slip; twice is a rule that was
+never written down.** It is written now: a town plan may not contain `A` or
+`s`. Anchor has a chandler instead.
+
+### 29i. Two banks that close are one bank drawn twice
+
+Anchor's counters were `qBBB` -- three bank tiles shoulder to shoulder, which
+is a row of desks rather than a vault -- with a fourth twenty tiles away in the
+gaol. **Varrock's east and west banks are a journey apart, and that journey is
+the whole reason it has two.** One counter in the keep, one in the far
+south-west: **28 tiles**, the longest walk the drawing allows.
+
+*(The towns are not too small. 52x36 is a good size for Anchor. What was small
+was the distance between things that should be far apart.)*
+
+### 29j. Thornbury: the forge is the town
+
+The island's only anvil sat in the middle terrace band **between a bed and a
+barrel** -- the single most important object on Tallyholm, drawn as furniture
+in a row of cottages.
+
+The forge is 11x8 now, alone in its own yard inside the wall, the largest
+building in the town by a long way, with everything else standing outside
+looking at it. A citizen who walks two hundred tiles on the strength of
+Cragfoot's crier should arrive somewhere that looks like the reason.
+
+### 29k. Draw a town the way it is walked
+
+Four towns were drawn houses-first, doors by hand, lanes afterwards -- and every
+one cost several passes to the same three faults: **a door a later stroke
+overwrote, furniture set on the threshold, and a door opening onto ground no
+lane ever reached.**
+
+The order was wrong. A town is a set of STREETS with buildings put along them.
+`townkit.mjs` lays the lanes first, then each house chooses the wall with the
+most street against it and puts its door there, and refuses to place furniture
+within a tile of that threshold. **It cannot commit any of the three**, and it
+throws by name -- *"no lane touches this house at 3,27"* -- before a world is
+ever built.
+
+Cragfoot's own lesson came out of that refusal: nothing stands below the last
+retaining wall, because that band is three rows deep and **a house needs three
+for itself and a fourth for the street it faces.** Two cots were drawn there
+anyway; the kit named them. The lower terrace is the town's approach now -- open
+ground, a fire, and the road out to the seam.
+
+### 29l. One table, two readers, and a lane that looks like a floor
+
+`PLAN_ROOMS` has two readers wanting different things. The stall seater treats
+it as *"rooms a rostered stall may stand in"*, so the redrawn towns listed only
+the ones left unkept. But **`isIndoor` reads the same table** to answer *"is
+this tile inside a building"* -- and the paving consults it, so **every room not
+listed was outdoors as far as the world was concerned, and its floor was
+flagged as street.** Listing every room satisfies both: isIndoor gets the truth
+and the seater filters by what is occupied, which its `busy` test was always for.
+
+The lists are generated by `roomfind` rather than typed, so a redrawn town's
+rooms cannot drift from its drawing again.
+
+**And the same character fooled the chart.** `ROOMY` holds `,`, which is a
+room's floor AND -- in every redrawn town -- the street outside it, so
+`buildingsOf` ran from an interior straight out through the doorway and along
+the lanes. Anchor came back as **one building, 49x32**; Cragfoot as **none at
+all**. Stopping at doors: Cragfoot 0 to 12, Anchor 1 to 18, Millbrook 7 to 18,
+Thornbury 9 to 15.
+
+*A lane drawn with the same character as a floor is indistinguishable from a
+floor to anything that does not know where the doors are.*
+
+### 29m. Eastmere, and two rooms nobody could ever enter
+
+The port was three terrace bands with the sea to the east -- a town whose whole
+reason is the water, arranged so that almost nothing faced it. A port is a ROAD
+ALONG THE WATER with the town pressed against it: the quayside street runs the
+length of the shore, three ways lead down to the jetties, warehouses on the
+quay, houses behind, cots behind those.
+
+*(The first draft laid its warehouses straight across the jetties and took six
+of the twenty-one deck tiles -- a later stroke over an earlier one, and this
+time over the thing the whole town is for.)*
+
+**And listing every room found two that had never been enterable.** Oxenford has
+a 3x1 interior with three pieces of furniture in it and a 2x2 with four: no tile
+to stand on. They were sealed from the day they were drawn and no audit could
+see them, because `PLAN_ROOMS` listed only shops and the door audit only checks
+listed rooms. **A room needs a tile with nothing on it** -- and an audit only
+finds what its table lets it look at.
+
+### 29n. A fact about one town is not a rule about towns
+
+Millbrook needed rooms left unkept so its rostered stalls could seat indoors,
+and that was written down as *Millbrook's* lesson. Eastmere was then drawn with
+a keeper in every room and **its fishmonger stood in the open** -- the identical
+fault, one town later. Two quayside rooms are empty on purpose now.
+
+This is the third time a rule learned in one town has failed in the next: the
+anvil (7as, twice), the unkept shops (7aw, now twice). **Any town holding a
+rostered stall needs a room with nobody in it**, and that belongs in the drawing
+kit rather than in a memory of Millbrook.
+
+### 29p. A room with nobody in it was invisible to every check
+
+`planlint` guarded ESSENTIALS -- keepers, banks, stores -- and pronounced
+Oxenford sound. Oxenford has a room holding a barrel, a table and a hearth and
+**no keeper at all**, sealed since the day it was drawn, and nothing was ever
+looking at it. The door audit saw it only because 7bd finally listed every room.
+
+**A room a citizen cannot enter is a fault whether or not anybody lives in it.**
+The linter reports every unreachable FLOOR tile now, and names essentials
+separately as the worse case. Run against the ten towns it finds:
+
+    oxenford    11 unreachable floor tiles
+    eastmere     8
+    cragfoot     6
+    thornbury    4
+
+Three of those four I drew myself, with a tool that guarantees every house a
+door. **A door is not enough**: a later stroke can seal the lane it opens onto,
+and nothing checked the drawing as a whole until now. Proved by refusal -- a
+sound drawing passes, and walling one stretch of its lane afterwards is thrown
+out naming thirteen tiles and the first of them.
+
+### 29q. Open a way in, rather than repairing a wall at a time
+
+`planopen.mjs` is 16k's answer applied to drawings: find every unreachable floor
+tile and cut ONE wall panel between it and ground the town can walk. Hand-fixing
+twenty-nine tiles across four towns is how Millbrook cost five passes.
+
+Eleven panels opened three of them outright. Cragfoot kept two tiles that had no
+wall to cut at all: **a floor tile with a hearth on one side and a bed on the
+other**, walled in by the room's own contents. So the repair takes a piece of
+furniture out instead -- a room with a gap in its furnishing is still a room.
+
+### 29r. Fenmarch, and a drawing's '=' is a request
+
+The fen town was a pier with the SAME blocks either side of it, twice over: four
+identical 9x4s, then four more, in perfect bilateral symmetry. A town does not
+grow symmetrically and a fen town least of all, because it grows where the reed
+lets it. The pier stays -- it is the one dry line through the marsh -- and the
+walks now branch off at different lengths on each side, with a 10x6 eel house
+holding the east and a 3x5 cot hanging off a walk on the other.
+
+*(It also held a SMITH, which 7as forbids and nobody had noticed, because the
+rule lived in a comment rather than in the tool.)*
+
+**A BOARDWALK IS A STREET.** `townkit` counted only ',' as a lane, so in a town
+that is nothing but decking not one house could find a frontage and the entire
+drawing was refused. Decking is footing; it is what a fen town walks on.
+
+**And a drawing's '=' is a REQUEST, not a fact.** The plan asks for decking and
+the coast decides where it is laid. The eel house passed `planlint` -- which
+reads the drawing -- and the loader sealed it anyway. It has two doors now, south
+onto the walk and west onto the pier, and it opens.
+
+**The part worth keeping is how I nearly talked myself out of it.** I wrote a
+quick trace to second-guess the audit and it reported the room reachable -- door,
+threshold, interior, all of it -- because the walkable set I typed included
+`landmark`, and a landmark blocks. **The audit was right and the check I invented
+to doubt it was wrong.** A permissive walkability model will tell you anything
+you want to hear.
+
+### 29s. The last three, and what the rule caught
+
+Norwick, Greenhollow and Hollybarrow were the same two-by-two of near-identical
+blocks -- **and all three held a SMITH**, which 7as forbids. Three towns had
+been carrying a second, third and fourth forge since v5, and nobody had seen
+them, because the rule lived in a comment until `townkit` was taught to refuse
+it. **Two smith characters remain in the ten plans and both are Thornbury's
+own.**
+
+- **Norwick** keeps its curtain wall -- a place holding both a garrison and the
+  only ossuary outside the Boneyard is walled -- with the monastery hall in the
+  north-west and the waystone in it.
+- **Greenhollow** is a clearing, so the wood closes in raggedly rather than
+  bordering the town in a neat line. The log hall holds the centre.
+- **Hollybarrow** is a yard with buildings round it. **A farm's biggest building
+  is not a house**: the great barn is 13x7, with the farmhouse, byres and cots
+  round the yard and the ploughed strips where the hedge lets them run.
+
+### 29t. There are no waystones in v7
+
+Norwick's first drawing put a `W` in the monastery hall and the comment beside
+it called the thing a waystone. **They were taken out of this world
+deliberately**: there is no recall here, and a stone that moves a citizen across
+the island would undo the tolls, the roads, the two hundred tiles between the
+seam and the anvil, and the flight rule with them.
+
+Nothing was placed, because the engine no longer knows the type -- **which is
+worse, not better.** A character the loader silently drops is a landmine that
+arms itself the day somebody makes the type valid again. It is gone from the
+drawing.
+
+### 29u. A stall outranks a lodger
+
+Rooms were left unkept for the roster and the RESIDENTS pass -- which runs first
+-- moved people into them, so the seater arrived at a full town and put its
+stall in the square. Stripping more keepers only gave the residents more homes:
+the two passes were competing for the same rooms and the roster always lost.
+
+A rostered stall is a world institution -- the arms of Millbrook, the fishmonger
+of Eastmere. A lodger is a name in a table. When no empty house remains, the
+lodger moves out.
+
+*(And the check I was measuring with was wrong: it asked whether a wall stood
+within one tile, so a stall in the middle of a WIDE room read as outdoors. Six
+of seven were always indoors. The seventh is Eastmere's fishmonger, still on
+the quay.)*
+
+### 29v. A doorway may be two tiles wide, and no wider
+
+Anchor's keep has a two-tile gate, and every door detector in this codebase
+asked for wall immediately on BOTH opposite sides -- so a two-tile gap was not a
+door at all, the flood ran straight out through it, and **the biggest building
+in the capital was not a room.** Its floor was painted indoors from PLAN_ROOMS
+while the chart drew no building round it, which is why the ground looked
+random: brown rectangles lining up with nothing.
+
+Widening the scan to three tiles each way was worse -- it called ordinary floor
+near a wall a door and cut the ten towns from **105 rooms to 49**. Exactly two
+cases, then: wall on both sides, or wall on one side with a single floor tile
+and then wall.
+
+The keep is a 14x6 room now and every floor patch lines up with a building.
+
+**All ten towns redrawn. 99 rooms, 0 of 89 sealed in the world, 0 stalls
+unseated, 1 anvil, 0 waystones.**
+That last number is against the full room list for the first time; every "0 of
+59" before it was measuring a subset.
+
+### 29o. Put the rules in the tool, not in the drawer's memory
+
+Three lessons were taken in one town and broken in the next, because each was
+remembered as a fact about that town rather than as a rule about towns. They are
+in `townkit` now and they throw, by name, the moment a drawing is finished:
+
+- **the one anvil is Thornbury's** -- a plan containing `A` or `s` is refused
+  unless it is Thornbury's own;
+- **a town holding a rostered stall needs a room with nobody in it** -- a stall
+  brings its own keeper and will not seat in an occupied house;
+- **a room needs a tile with nothing on it** -- a backstop for hand-drawn plans,
+  since the kit's own furnishing cannot fill a floor.
+
+Verified by refusal: an anvil plan, and a stall town with every room kept, are
+both thrown out; a sound drawing passes.
+
+**A rule a person has to remember is a rule that will be broken.** Three times
+was the evidence.
+
+*(And the plans are clean of the third: no room in any town is furnished to its
+walls. Oxenford's two unenterable rooms are therefore not a drawing fault -- the
+rects `roomfind` produced for them do not match the rooms the door audit walks,
+and that discrepancy is the open question.)*
+
+*(Eastmere is still boxy -- thirteen buildings between 2x2 and 5x3, in three
+columns and four rows. "Sizes that differ wildly" was written at Oxenford and
+not done here. A net loft big enough to dominate the quay is drafted and lints
+one essential short; it is not installed.)*
+
+Measured: **2 of 100 town rooms sealed (the Oxenford pair, still open), 2 of 7
+stalls in the open (Millbrook's lumber, which moved when the room list grew, and
+Hollybarrow's seed stall, which stands in a farmyard by design), 1 anvil.** Six
+of ten towns are redrawn. Four are still terraces.
+
+## 30. Ranged has more friction than melee (v0.88)
+
+Melee trains itself: pick up a sword or nothing at all and keep swinging,
+forever, for free. Ranged asks for a continuous supply of arrows AND falls apart
+the moment a beast closes -- `clubbed` says a drawn bow at arm's length is a
+stick. An archer looses two or three, gets rushed, and is holding an expensive
+club. That is a lot of friction on one skill's ladder and none on another's.
+
+Two answers, **both only part-built, and recorded here so nobody mistakes them
+for finished**:
+
+**THE HOLLOW BOW** -- bone and gut, four bones and a log at fletching 12, no
+metal at all. `noAmmo` rather than `selfAmmo`: selfAmmo means THE PACK IS THE
+MAGAZINE, which is right for a javelin and wrong here, because a bow in the
+weapon slot is not in the pack and the first cut could not shoot at all. It is
+deliberately poor -- hit 2 against the horn bow's 8, accuracy -10, reach 3
+against 5 -- so nobody carries it into the Wilds who can afford arrows.
+
+**It shoots now.** 43 damage at reach three over 40 intervals, spending
+nothing, against the horn bow's 79 and twenty arrows. An archer can train.
+
+*The bug is worth more than the weapon: the RULE and the RESOLVER were both
+taught about `noAmmo` and a THIRD ammo test in the swing path was not, so the
+hollow bow validated at range and then found no arrow and did nothing. Fourth
+time this session that validate and apply have been two doors and I walked
+through one.*
+
+**FIRE ARROWS** -- four shafts and a measure of brimstone, at fletching 24.
+Meant to set the target alight, fly shorter (heavy and dirty in the air) and be
+BAD against armour, since there is no point on them to drive through plate --
+the exact opposite of the siphon, which is fire that goes round armour. They are
+declared, priced and fletchable.
+
+**The range works**: a horn bow reaches five and a fire arrow three, so at four
+tiles it simply cannot reach -- 0 damage, where a plain shaft kills.
+
+**And the armour penalty works, once I stopped tuning the wrong number.** Three
+shapes failed first: a flat +4 soak made them worse against a NAKED citizen too
+(57 against 79), which is not "bad against armour", it is just bad. Doubling the
+soak let the burn outweigh it, so a fire arrow beat a plain shaft through a star
+suit -- 65 against 57. Stopping the burn catching on plate levelled them at 26
+apiece.
+
+**Because `soak` is zero. Everywhere.** §6ap put armour in the ROLL and not the
+damage, and `const soak = 0` survives in three places as a seam. Every attempt
+to subtract from the blow was multiplying zero.
+
+The lever was always `hitChance256`'s fourth argument. A flail passes **0** and
+ignores armour entirely; **a fire arrow passes armour DOUBLED**, which is the
+exact inverse and costs nothing against bare skin, because the term is zero
+either way.
+
+Measured over twelve fights of thirty intervals at level 80:
+
+    plain arrows @3    53.7 unarmoured    39.3 through a star suit
+    fire  arrows @3    60.1               28.3
+    fire  arrows @4     0.0                0.0   -- out of reach
+    plain arrows @4    58.3               33.0
+
+**Better than a plain shaft against the unarmoured, a third worse through plate,
+and it cannot reach as far as either.** That is a choice, which is what ranged
+did not have.
+
+### 30a. And a choice needs a way to make it
+
+`ammoOf` took plain arrows whenever any were carried, so **an archer holding
+both always shot plain** and the choice could not be made at all. There is no
+swap, no drag, no reorder anywhere in this world -- a citizen cannot rearrange
+their pack -- so slot order could not carry it either.
+
+One verb. **`nock` a slot and that is what the bow draws** until you nock
+something else or run out, at which point it falls back to whatever remains. In
+the window it is a tap on the quiver, which is how a citizen meeting a naked
+goblin and a plated citizen in the same hour changes shaft between them.
+
+Measured, carrying 300 of each over 20 intervals: nocking nothing spends 10
+plain and 0 fire; nocking the fire quiver spends 10 fire and **0 plain**.
+
+## 31. Whiting Isle, and the boat to it (v0.88)
+
+The sea was a border and not a place. An island you can WALK to is a peninsula,
+so this one has no bridge, no ford and no shallows: **a ferry at Eastmere's quay
+and a ferry on the isle, and nothing else touches it.**
+
+**A ferry is not a waystone.** Waystones were taken out of this world on purpose
+-- recall dissolves the tolls, the roads, the two hundred and thirty-eight tiles
+between the seam and the anvil, and the flight rule with them. A boat does the
+opposite: it runs between TWO NAMED POINTS and nowhere else, you must walk to
+the quay to take it, and what it reaches cannot be reached any other way. That
+is geography, not a shortcut, and it is why Karamja feels far rather than near.
+
+### 31a. An island needs a reason that is not a tier
+
+The first plan was to move the master fishing there. That was wrong twice over.
+A tier can stand anywhere, so an island holding one is a fishing spot with a
+boat attached -- and four attempts to move it failed anyway, leaving the tier
+briefly deleted from the world, which is far worse than a tier in the wrong
+place. It is back in the north-western sea where it has stood since v5.
+
+**The isle has a SALTERN instead**: shallow pans cut in the rock, the sea let in
+and the wind taking the water. Salt needs a windy shore with nothing behind it,
+and there is exactly one such place.
+
+Salting needed **no new verb**. `cook` already means *turn this raw thing into
+food where you are standing*, and where you are standing is the whole
+difference: at a fire a fish is cooked, at the pans it is salted.
+
+| | cooked | salted |
+|---|---|---|
+| common fish | 6 | **4** |
+| deep fish | 10 | **8** |
+
+Measured, two of each raw fish: **4 salt-fish and 2 salt-deep-fish in TWO
+slots**, against **1 cooked fish in SIX slots** at a hearth -- salting never
+burns, cooking burnt five of six. It stacks, it cannot fail, and it heals two
+less. The same bargain ale won against bread in 16d.
+
+**And the two places need each other.** The deep fish is caught in the
+north-west and is the most valuable thing anyone can carry across to salt;
+neither place absorbs the other.
+
+### 31b. Two faults worth keeping
+
+**Only plain fish could be salted.** Three raw foods exist -- `raw-fish`,
+`deep-fish`, `eel` -- and the first cut asked for `'raw-fish'` by name, so a
+deep fish carried all the way to the island could not be salted at all. There is
+a note at the top of that same rule describing the identical fault about cooking
+deep fish. Second time, same function.
+
+**And the salted deep fish healed FOURTEEN against a cooked one's ten.** I set it
+from the deep fish's PRICE (11, against a common fish's 3) and never looked at
+the heal it had to sit under -- so the compromise beat the thing it compromises
+for, on the one axis where it is meant to lose. Salting would have strictly
+dominated cooking. Two less than cooked, both fish, always.
+
+## 32. The founding was slow because of one line (v0.88)
+
+Two minutes and forty seconds a world, and the last several fixes were guesses
+rather than measurements because looking at the island cost a five-minute round
+trip. Profiled rather than guessed:
+
+**`loneRooms` rebuilt a list of every interior tile in the world once per tile
+queried** -- `groundKindAt` calls it, and there are 458,752 tiles. Memoised, and
+the scan of thousands of one-tile rects replaced with a Set: **2:37 to 1:55,
+measured.**
+
+**And one line is seventy per cent of what remains**: the camp-ring test asking
+*"is anything standing here"* by walking all 9,582 nodes for every candidate
+tile. The profiler puts it at 3.5 billion ticks against the next line's 1.0
+billion.
+
+**That one is NOT FIXED**, and the reason is recorded beside it: two attempts to
+splice in an occupancy Set put it between a `for` head and its body -- rebuilding
+it sixty thousand times, so the founding stopped finishing -- and then above the
+line where `w` exists at all. A fix slower than the bug, then a fix that does not
+run. The scan stands and the measurement is written down for whoever takes it
+next.
+
+## 31. Whiting Isle, and the boat to it (v0.88)
+
+The sea was a border and not a place. **An island you can walk to is a
+peninsula**, so this one has no bridge, no ford and no shallows: a ferry at
+Eastmere's quay, a ferry on the isle, and nothing else touches it.
+
+**A FERRY IS NOT A WAYSTONE.** Waystones were taken out of this world on purpose
+-- recall dissolves the tolls, the roads, the two hundred and thirty-eight tiles
+between the seam and the anvil, and the flight rule with them. A boat does the
+opposite: it runs between two named points and nowhere else, you must walk to
+the quay to take it, and what it reaches cannot be reached any other way. That
+is geography, not a shortcut, and it is why Karamja feels far rather than near.
+
+### 31a. And an island needs a reason that is not a tier
+
+The first plan was to move the master fishing here. It is the wrong shape: a
+tier could stand anywhere, and an island whose only draw is one is a boat with a
+fishing spot on the end.
+
+**A SALTERN.** Shallow pans cut in the rock, the sea let in, the wind taking the
+water. Salt needs a windy shore with nothing behind it and there is exactly one
+such place. It needed **no new verb** -- `cook` already means "turn this raw
+thing into food where you are standing", and where you are standing is the whole
+difference. At a fire a fish is cooked; at the pans it is SALTED.
+
+Measured, two of each raw fish:
+
+    at the pans     4 salt-fish + 2 salt-deep-fish   in 2 slots, none lost
+    at a hearth     1 cooked fish                    in 6 slots, five burnt
+
+Three differences, all deliberate: **it stacks**, so a citizen crosses with an
+empty pack and comes home with a column; **it never burns**, which is the
+compensation for a trade you can only do on an island; and **it heals two less**,
+so the cooked fish is still the better bite. The same argument ale won against
+bread (16d).
+
+And the deep fishing stays in the north-western sea. If it were here the isle
+would be one tier and a boat; as it is, **the two places need each other** --
+the most valuable fish in the world is caught at one end of the island and
+becomes cargo at the other.
+
+### 31b. Two arbitrary lines, both mine
+
+**Only the common fish could be salted.** There are three raw foods --
+`raw-fish`, `deep-fish`, `eel` -- and the resolver asked for `'raw-fish'` by
+name, so a deep fish carried all that way could not be salted at all. A note at
+the top of that same rule already describes this exact fault about COOKING deep
+fish. Second time, same function.
+
+**And the salted deep fish healed FOURTEEN against a cooked one's ten** -- better
+than the thing it is meant to be a compromise for, on the one axis where it is
+supposed to lose. I scaled it from the deep fish's PRICE (11 against 3) and never
+looked at the heal it had to sit under. Salting would have strictly dominated
+cooking: better to eat, stacks, cannot burn, no reason ever to cook one.
+
+    common fish     cooked 6    salted 4
+    deep fish       cooked 10   salted 8
+
+Two less either way.
+
+## 32. The founding was two minutes and forty seconds (v0.88)
+
+Profiled rather than guessed, and the answer was not where I would have looked.
+
+**`loneRooms` rebuilt a list of every interior tile in the world once per tile
+queried** -- 458,752 times, thousands of one-tile rects each. `groundKindAt`
+calls it per tile. Memoised, and the lookup made a Set: **2:37 to 1:55.**
+
+**And one line is seventy per cent of what remains.** The camp-ring test asks
+"is anything standing here" by walking all 9,582 nodes, for every candidate tile
+of every ring: 3.5 billion ticks against the next line's 1.0 billion. The fix is
+an occupancy Set built once and **it is not applied** -- two attempts put it
+between a `for` head and its body (rebuilding it sixty thousand times, so the
+founding stopped finishing) and then above the line where `w` exists at all. The
+scan stands and the measurement is written where the next person will find it.
+
+*A slow founding is not only slow: the last four fixes before this were guesses
+rather than measurements, because looking at the world cost five minutes.*
+
+## 33. A hauler's risk is a worth, not a count (v0.88)
+
+The counter said *"9 slots aboard"*, which tells the hauler almost nothing and
+tells anyone watching them less: nine slots of logs and nine of star-ingots are
+the same sentence. **Worth is what makes somebody a target**, and it is what a
+hauler is actually deciding about when they seal a pack.
+
+Both halves are shown now. The hauler's own bar carries the total at stake, and
+a carrier's pack is **bound in rope, in a strap, or in gold** by what is in it --
+so a rival at twenty paces can tell a porter of logs from a porter of ingots
+without reading a number, which is the decision they are making.
+
+*And a thing worth watching for once this is live: a sealed consignment is
+public, verifiable and unbankable, and two bearers may strike each other
+anywhere. That is a DUEL with agreed stakes, and nobody designed it -- it falls
+out of 11d and the seal. If citizens start using consignments to stake fights
+rather than to move goods, the right response is probably to let them.*
+
+## 34. The hollow bow is earned, not made (v0.88)
+
+It was four bones and a log at fletching 12 -- an hour's work for a weapon that
+removes the arrow economy from training altogether. **A bow that needs no
+ammunition is a large thing to hand out for the price of a log**, however poor
+its numbers, because what it costs is not damage: it is the SUPPLY LINE, and
+that is the whole of ranged's asymmetry.
+
+It comes off a skeleton-knight, **one in five hundred** -- rarer than the
+star-helm at one in two hundred, which is right: the helm is a prize and this is
+a rarer one. An archer who wants to train without arrows goes and earns it.
+
+## 35. The gold chain (v0.88)
+
+Gold armour is star armour's equal in defence and nothing more -- a pure
+cosmetic, worn because it is worth being seen in. Melee had no such thing, so a
+citizen who wanted to look like they had arrived could dress the part and not
+arm it.
+
+The OLD CHAIN is the one to gild, and the joke is the reason: it is a length of
+rusted chain, the worst weapon in the world, and this is the version cast in
+gold. **Twelve gold bars and the chain itself, and the numbers are identical.**
+Somebody will carry it.
+
+## 36. Six blows, six splats (v0.88)
+
+A hit splat is made by DIFFING hitpoints between ticks, so a dagger's flurry of
+six came out as a single number. All the information existed in the engine and
+was thrown away at the door: `3,0,5,2,0,4` read as 14, and a citizen could not
+tell a lucky burst from an even one or see the two that missed.
+
+The engine records each blow in `blows`, cleared at the top of the next tick so
+it holds only what happened this interval and cannot grow. **It is state, so it
+is in the hash and validated** -- a cosmetic that lies is worse than no
+cosmetic, and the only honest way to show six numbers is for the engine to have
+said six.
+
+Measured, a star-dagger at level 90: `[10,6,8,7,4]` for 35, `[10,7,4]` for 21,
+`[6,2,4]` for 12. The misses show as absent entries, which is the truth.
+
+**And the window falls back when the two disagree.** If a blow list does not
+account for the whole hitpoint drop, the diff is the truth and the fan is a
+guess -- one honest number beats six invented ones.
+
+## 37. On multiplying every number by ten
+
+Considered and declined. RuneScape's 2011 change bought finer granularity, and
+this world does not need it for two reasons.
+
+**Combat here is differentiated by cadence, reach, the accuracy RATIO, and by
+flags -- pierces, burns, breaks, thrift, noAmmo -- not by fine damage steps.** A
+maul answers plate by hitting harder than armour can absorb; a flail answers it
+by ignoring the term entirely; a fire arrow by doubling it. None of those get
+sharper at ten times the scale.
+
+**And damage IS experience.** `p.skills.attack += dmg` -- so a tenfold hit is a
+tenfold skill unless every XP constant moves with it, and the heals, the prices,
+the max-hit tables and every measurement written into this document move too.
+That is a very large blast radius for a change whose whole benefit is that the
+numbers on screen look bigger.
+
+*The place granularity would genuinely help is armour, and armour is already
+fine-grained: 6ap put it in the roll as a ratio rather than a subtraction,
+precisely so that every level keeps buying something.*
+
+## 38. The thing behind the bars (v0.88)
+
+`canClaw` is `best === 1` -- a beast strikes at one tile and no further. **That
+is why a creature behind railing costs no new mechanic to imprison**: it cannot
+reach out, and railing blocks a citizen from reaching in. The cage is geometry,
+not a rule.
+
+But a caged thing that can only be shot at and cannot answer is a butt with
+drops, and this world already has butts, at the yard, and they teach nothing
+above level 20. So `hurls` gives it a throwing arm.
+
+**THE GIBBET-DEAD**, in a ring of iron in the Moorgrave -- what the Mourner
+keeps behind the bars. 120 hitpoints, hits for 11 at four tiles, never wanders
+because there is nowhere to go. It drops grave-silver, and the hollow bow at one
+in two hundred and fifty.
+
+It is **the only fight in the world conducted entirely at distance by both
+sides** -- the mirror of every dragon that must be met with steel and company,
+and a place ranged has that melee does not.
+
+*The first cage was a 5x5 ring, which put the bars two tiles out and let anybody
+walk up and stab it. Measured: the eight tiles around it now read `RRRRRRRR`.*
+
+*(`dummy` would have stopped it wandering and also stopped it fighting. `rooted`
+is the half of that flag it wanted.)*
+
+## 39. Armed should look armed (v0.88)
+
+The special button already toggled -- tapping an armed one stood it down -- but
+it said so in a slightly darker brown, which is not a state anybody notices mid
+fight. **A citizen who did not notice could not tell whether the next tap arms
+or disarms**, which is the worst possible reading of a toggle.
+
+Red, a gold ring, a glow, and the words *"ARMED -- strike a target, or tap again
+to stand down"*. And it says so in the feed both ways, because the thumb is not
+the only place a state should live.
+
+## 40. Fall in (v0.88)
+
+Two citizens walking somewhere together should be able to walk together. The
+question was whether it belongs in the Wilds, and the answer came from how it
+was actually used: **a small band patrolling the hot spots behind one navigator,
+so a victim sees two people and is hit by six.**
+
+That is the best version of this, not the dangerous one -- **because every one
+of the six pressed the button.** The follow moved their feet and never their
+swords.
+
+So: `follow` moves your feet and nothing else. If you want to strike what the
+leader struck, you strike it yourself. It works everywhere, the Wilds included,
+because a band crossing the Wilds behind one navigator is the whole point of the
+thing. **A follow that acts for you is a bot with extra steps**, and that is the
+line, not the geography.
+
+**And a follower's step is a step.** It clears the action on the same line the
+flight rule lives on (2b-i) -- so a follower carried into reach cannot also
+swing that interval. *A pursuer who moves cannot swing* is true of feet whoever
+chose the direction. Measured: a follower with an attack queued, pulled one tile
+after its leader, comes out of the interval with `action = null`.
+
+It closes to one tile and holds there, and it lapses by itself at twelve tiles
+-- you have lost them. It does not lapse for being in danger.
+
+*(The first cut ran at the top of the tick and died reaching for a context that
+had not been built yet: it asks the same passability questions a walker asks,
+and those need it. A follower may not walk through what a walker may not.)*
+
+## 41. The second book (v0.88)
+
+Magic here was four unrelated verbs -- `still`, `seal`, `char`, `alch` -- each
+with its own requirement and no sense of WHICH magic a citizen is doing.
+
+What makes a second spellbook worth having is not that its spells are stronger.
+**It is that you walk to it, that it changes your whole hand at once, and that it
+takes something away.** A book that only gives is a tier with a ceremony
+attached.
+
+### 41a. Two books, and nothing in both
+
+Magic in this world was built as **the rejection of combat** (8b). Stilling ends
+a fight, sealing shuts a way, charring unmakes, alching turns a thing into money.
+Not one of them hurts anybody, and that is the whole argument for the skill: a
+caster is somebody who has decided not to swing.
+
+**A book of the dead is therefore not an addition to that. It is the reversal of
+it** -- and the honest form of a reversal is that you cannot hold both.
+
+The first cut took only `alch` away, which made the barrow-work *"the common
+book plus a war spell"* -- the exact tier-with-a-ceremony it had just been
+written not to be. The lists are disjoint now and every spell asks the same
+question through one gate:
+
+    common   still  seal  char  alch        the refusal
+    barrow   waking                         and the turning of it
+
+**THE BARROW-WORK** is turned to at an ossuary -- the Boneyard's, Norwick's, or
+the Moorgrave's -- a journey wherever you start from, and `turn` again closes it.
+A citizen at an ossuary is choosing **which kind of caster they are**, and walks
+back to change their mind. The announcement names what was given up, both ways,
+because nobody should discover it by finding a spell missing in a fight.
+
+**THE WAKING** strikes your mark and everything standing round it -- the one
+thing no other spell, arrow or blade here does, and the reason a band walks to an
+ossuary together. Measured, three in a clump with a fourth four tiles off:
+
+    m1  5      m2  2      m3  3      the one standing apart  0
+
+    common book, alch works?   true
+    barrow book, alch works?   false
+    barrow book, still works?  false
+
+Magic 55, three sigils a cast, six tiles' reach, and it clears the caster's
+action like any other step or swing.
+
+### 41b. Every spell, and one that was not one
+
+Three were missed and one did not belong.
+
+**`mendp` and `unmake`** were ungated -- I gated the four I happened to grep for.
+**`anchor` and `mend` live inside `cast`**, not as verbs of their own, so a
+turned caster could still recall to Anchor and still close their own wounds.
+
+**And `char` is not a spell at all.** It wants a lit watchfire and a FIREMAKING
+level and no sigil -- it is what a fire-tender does to wood, and I gated it
+because it lives in the same switch as the ones that are.
+
+The book is the seven that spend a sigil:
+
+    alch      turn a thing into money
+    mend      close your own wounds
+    mendp     close somebody else's, with a wand
+    still     end a fight
+    seal      shut a way
+    unmake    take a thing apart
+    anchor    the recall to Anchor
+
+**Every one of them refuses, repairs or unmakes. Not one hurts anybody.** That
+is 8b, and it is why the barrow-work has to be a reversal rather than an
+addition.
+
+### 41c. The ladder, reasoned
+
+The common ladder is sparser than it looks: **alch 1, mend 50, stilling 85** --
+and the top is the highest requirement of any spell here, because ending a fight
+outright is the strongest thing magic does.
+
+    common     alch 1      mend 50       stilling 85
+    barrow     rot 40      taking 60     waking 75    withering 88
+
+**ROT at 40** is below mend: it is what a turned caster has instead of a first
+useful spell, and must be reachable or nobody would turn before 50. **TAKING at
+60** is ten above the mend it stands in for, because taking life is a worse
+thing to know than mending it and this world charges for the worse thing. **THE
+WAKING at 75** is below the stilling, because striking a clump is a lesser thing
+than stopping a fight, and above the rest because it is the reason to walk to an
+ossuary at all.
+
+### 41d. The rot, and the taking
+
+**THE ROT** does nothing the interval it is cast. It costs the caster the
+opening of the fight and pays over the next twenty-four, and **armour does not
+enter into it** -- plate does not stop decay, the exact inverse of the fire
+arrow. Measured at magic 60 against a level-80 target: 0 on the cast, 24 over the
+next 28, identical through a full star suit.
+
+**THE TAKING** is priced against the mend it replaces. Mend is +20 every
+twenty-five; the taking is +8 every twelve, and what it costs on top of the time
+is somebody else. It MOVES hitpoints rather
+than making them:
+
+    caster down 30, target whole      you +8    them -8
+    caster nearly whole               you +3    them -3
+    target has only 5 left            you +5    them -5
+    caster at full                    nothing, and no sigil spent
+
+It can never heal more than they had left or more than you lacked. Two sigils,
+three tiles -- close enough to see whose life you are moving.
+
+### 41e. The bone staff, and why a staff at all
+
+The wands are terrible on purpose -- a caster is somebody who has decided not to
+swing -- so a barrow staff cannot be a better weapon without wrecking that. And
+the barrow spells did not need one: the rot, the taking and the waking all
+worked out of an empty hand, which made **the wand's own rule look arbitrary
+rather than principled.**
+
+The rule is already written: *A WAND SENDS WHAT A BARE HAND KEEPS.* A caster
+mends themselves bare-handed and needs a wand to mend anybody else.
+
+**THE BONE STAFF SENDS WHAT THE BARROW BOOK KEEPS**, and it is the WORST weapon
+in the world by accuracy -- worse than the wand, which was already terrible on
+purpose -- because a caster who has turned to the dead has given up hitting
+people with a stick even harder than an ordinary one has. Two logs, twelve bones
+and a piece of grave-silver, at fletching 45. It is not an upgrade. It is the
+instrument, and it is the only thing that will carry these four.
+
+*So turning is two steps and both are visible: the book in the hand and the skull
+on the staff.*
+
+### 41f. The withering
+
+An endgame spell cannot be a bigger number, because a bigger number is a tier.
+It has to be the inverse of the thing at the top of the other book.
+
+The common book's top is the STILLING at 85: it **ends a fight outright**, the
+highest requirement in the world. So the barrow book's answer at **88** -- the
+last thing anybody learns -- is its exact reversal: the stilling stops a fight,
+and the withering makes one **impossible to survive by the usual means.**
+
+For sixteen intervals the marked citizen **cannot be healed by anything.** Not
+food, not a mend, not another caster's mend, not a taking. Measured:
+
+    before        a cooked fish heals   +6
+    withered      a cooked fish heals   +0
+    withered      a self-mend heals     +0
+    after 16      a cooked fish heals   +6
+
+It is terrifying because **eating is how you live in a fight here** --
+twenty-eight slots of cooked fish is what a duel is made of -- and this shuts
+that door while the blows keep landing. And it is the right price for what the
+book gave up: **a caster who surrendered the mending of anybody, including
+themselves, gets in exchange the power to deny it to everybody.**
+
+Four sigils, two tiles. You must be close enough to be in the fight yourself.
+
+*(A withered caster's own taking still costs them and still hurts the target --
+the life leaves whether or not there is anywhere for it to go.)*
+
+### 41e. And you can see which book somebody carries
+
+`book` is already public state, so this needs nothing new in the engine and
+should not have it: a book in a hand is scenery, exactly as the fountain's basin
+and the ferry's hull are. A caster holding a wand carries theirs -- **pale boards
+for the common one, dark with a red device for the barrow-work.**
+
+A citizen walking up can tell whether they are meeting somebody who refuses
+fights or somebody very good at one, BEFORE the first spell. **The two books are
+a visible choice rather than a hidden one**, which is most of what makes the
+choice mean anything -- and a PKer holding the book of the dead is spooky at
+twenty paces, which is the correct amount of information for a stranger to have.
+
+*The rot shows too, on the rotting: a green haze and drifting motes. A fight you
+do not know you are losing is not a fight you can decide about.*
+
+## 42. The barrow book had no cadence (v0.88)
+
+A citizen submits **one input an interval**, enforced -- two in the same tick are
+both dropped as a duplicate pair -- so nothing can be cast twice in a tick, and
+casting does not stop you loosing an arrow the interval after. The bone staff is
+in your hand though, so switching weapons is its own interval.
+
+**But nothing stopped the WAKING going off every single interval forever**, nine
+damage to a whole clump for three sigils, or the TAKING moving eight hitpoints a
+tick. The common book has leashes everywhere -- MEND_EVERY 25, STILL_CD 150 --
+and I gave the new one none, then wrote in this document that the taking has *"no
+leash at all"* as though that were the design rather than an omission.
+
+The rot and the withering were already self-limiting: neither stacks on somebody
+who has it. The other two get the same kind of leash the common book uses:
+
+    TAKING every 12    half of mend's 25, because it heals less than half of
+                       mend's 20 and takes it from somebody who felt it
+    WAKING every 40    a quarter of the stilling's 150, because stopping a
+                       fight is worth more than hurting everybody in it
+
+Measured: the taking tried every interval for 60 landed **5 times**; the waking
+tried every interval for 120 landed **2 times**.
+
+## 43. A name you keep (v0.88)
+
+There was no way to remember anybody. Two citizens who walked to the ferry
+together and want to do it again had to be in the same place at the same time by
+accident, forever -- and `follow` takes a targetId, so **the one social verb in
+this world could only be aimed at somebody already on your screen.**
+
+`befriend` is **a list of names and nothing else.** No chat, no channel, no
+presence, no whereabouts.
+
+That last one is deliberate and it is the whole design: this world's argument is
+that **distance is real**. A friends list that told you where your friends were
+standing would repeal that as surely as a waystone -- it is the same thing
+wearing a friendlier coat. What the list says is *"I know this person"*, which is
+enough to greet them by name, to fall in behind them without hunting for a
+target, and to know whose consignment you are looking at.
+
+### 43a. And you must be where they are
+
+The first cut needed only that the other citizen exist, which made it a contact
+book: a stranger could add you from the far side of the island, and a name could
+be kept by somebody you have never been in the same COUNTRY as.
+
+**Adjacency was the obvious fix and it is too narrow.** Two people who spent an
+afternoon at the same seam, or walked the same road a hundred tiles abreast,
+never touched. What makes somebody a friend here is having been in the same
+PLACE, not the same square.
+
+**Twelve tiles, and the number is not invented.** `FOLLOW_LOSE` is twelve --
+past that you have lost them and a fall-in lapses. *The distance at which this
+world already says you are no longer together is exactly the distance at which
+it should refuse to say you were.*
+
+    11 tiles apart   remembered
+    12 tiles apart   remembered
+    13 tiles apart   refused
+
+So the list cannot be built from a menu of everybody alive. **To keep somebody's
+name you have to go and stand where they are standing** -- which, in a world
+built on the walk being real, is the only honest way to have met them.
+
+*The friends a citizen keeps here are not the ones they typed at. They are the
+ones who were THERE: who happened to be at the same rock, who fell in behind
+without being asked, who they ended up walking to the same places with often
+enough that it stopped being coincidence. A chat window would have made that
+meaningless -- why go anywhere together if you can talk from anywhere?*
+
+Sixty-four names, bounded because it is state and every node carries it forever.
+
+### 43b. And a thumb can reach it
+
+Tapping any citizen now offers **remember**, **forget** and **fall in behind**
+-- on every tap, whether or not you may fight them, because none of the three is
+a fight. Before this a plain stranger got a trade prompt and nothing else, and
+`follow` and `befriend` were verbs only an SDK could speak.
+
+**The window refuses before the rule does**, and says why: *"You have not been
+anywhere with Cuthbert. To keep somebody's name you must have stood where they
+were standing -- within twelve tiles, which is as far as you can follow them
+before you lose them. They are 40 away."* A verb the rule silently refuses is
+indistinguishable from a broken button.
+
+The panel lists the names and **whether each one is in front of you right now**,
+which you can see with your eyes anyway. It does not say where anybody is.
+
+## 44. A verb with one of its four recipes wired is not a wired verb (v0.88)
+
+`saw` and `smelt` were recorded as having no button in either window. **That was
+wrong** -- both had handlers, and both worked. What was actually missing was
+worse, because it looked done:
+
+**The flat window's furnace offered only IRON.** Steel, star-ingots and gold bars
+were reachable from an SDK and from nowhere else. It offers whichever of the four
+you can actually make, chooses for you when there is only one, and when there is
+none it says what each takes rather than "bring ore".
+
+**The lantern window listed three of four and left out STEEL** -- the one that
+gates every steel weapon in the world. A citizen with a bar of iron and a lit
+furnace had no way to make it into anything.
+
+*(And the flat window's new table said gold was two ore. It is five --
+`GOLD_ORE_PER_BAR`. A menu that offers a smelt the rule refuses is worse than no
+menu, because the button does nothing and says nothing.)*
+
+**The sawpit said "Bring logs."** which names what is missing and not why anybody
+would want it. It now says a log gives two boards, and that boards are the toll
+on the Millbrook bridge and what a stall and a brewpot are built from -- because
+nothing else in the world makes them.
+
+## 45. A built thing is built of boards (v0.88)
+
+The stall cost **sixteen logs** and eight ore -- twenty-four slots of a pack of
+twenty-eight -- and it still did after the sawpit and planks were added. The
+brewpot cost four logs. So the toll at Millbrook took planks and **nothing else
+in the world did**, and the whole middle of that chain existed for one
+bridge-keeper.
+
+A log is a tree you dragged. A board is a thing somebody made. **Everything this
+world BUILDS is built of the second now**, and the sawpit is where the first
+becomes it.
+
+    stall     32 planks + 8 ore     (was 16 logs + 8 ore)
+    brewpot    8 planks + 2 ore     (was  4 logs + 2 ore)
+
+**The arithmetic is deliberate.** Sixteen logs sawn is thirty-two planks, so a
+stall costs the same wood and MORE WORK -- fell sixteen, walk to a sawpit, saw
+sixteen, then build. What it costs less of is CARRYING, because planks stack and
+logs do not: twenty-four slots becomes two. That is the right trade for a thing
+you build once and stand beside for hours.
+
+*Nine places knew the old cost and every one had to move: the rule, the raising,
+the genesis shape (`buildLogs` is a KEY NAME in a validated object -- leaving it
+would have rejected every world), the dismantle refund, and five windows. The
+refund was the interesting one: it handed back LOGS for a pot built of boards,
+so a citizen could have turned boards into logs by building and unbuilding.*
+
+## 46. There was no spellbook (v0.88)
+
+`alch` lived on an inventory slot, `still` on a citizen tap, `turn` at an
+ossuary -- and **the four barrow spells lived nowhere.** They were in the engine,
+the SDK and both windows' input mapping, and no thumb could reach any of them.
+
+**A citizen who walked to an ossuary, turned to the barrow-work and gave up five
+spells got four they could not cast.** That is the worst version of this fault
+in the whole session, because the turning is irreversible until you walk back.
+
+The panel follows the special-attack button, which already works this way and
+which citizens already understand: **arm a spell, then tap what it lands on.**
+
+It shows the book you are actually reading -- common or barrow, never both --
+greys what you cannot speak and says why: the level, the sigils, the staff. An
+armed spell lands on a citizen or a beast, whichever you tap, and three of the
+four barrow spells work on either. *The gibbet-dead behind its railing can be
+reached by nothing else.*
+
+    the rot          40    1 sigil    nothing now; twenty-four intervals of decay
+    the taking       60    2          eight of their life becomes yours
+    the waking       75    3          your mark and everything round it
+    the withering    88    4          sixteen intervals in which nothing heals them
+
+*A verb that exists in the engine and nowhere a thumb can reach is not a feature.
+This session shipped `saw`, `smelt`, `nock`, `sail`, `turn`, `follow`,
+`befriend`, `rot`, `taking`, `waking` and `withering` before any of them had a
+button, and every one had to be found and fixed afterwards. The rule worth
+keeping: the window is part of the verb, not a later job.*
+
+## 47. A spell that leaves no mark is a mis-tap (v0.88)
+
+The stilling has had an expanding white ring since v0.81. **The turning, the rot,
+the taking, the waking and the withering had not one mark between them** -- and
+three of those four change no hitpoints at all the interval they land, so a
+citizen who spoke the withering saw the world look exactly as it had. It is
+indistinguishable from having tapped the wrong thing.
+
+Each gets **the shape of what it does**, not a colour swap:
+
+    the turning     a ring going IN, not out -- the ossuary answering
+    the rot         a slow green stain
+    the taking      a line that travels FROM them TO you
+    the waking      two rings opening where the clump is
+    the withering   five bars closing, a door being shut
+
+**The marks are raised on the tap, not from a state diff.** A hit splat is made
+by diffing hitpoints between intervals, and that is exactly the mechanism these
+four defeat: nothing to diff.
+
+### 47a. And the gibbet-dead was drawing nothing
+
+The same fault the scree-imps had -- a creature in the world the window does not
+know about is **empty air with hitpoints** -- and this one stands in a lit cage
+in the Moorgrave where everybody will look at it.
+
+It is hunched and wrong, and **it winds up to throw on the beat of its own
+`every: 4`**, so the arm comes back before the stone lands. At four tiles, with
+no way to reach it and no way for it to reach you, that wind-up is the only
+warning a citizen gets.
+
+## 48. Ten ossuaries (v0.88)
+
+The turning happens at an ossuary, and there were **ten of them.** Six were the
+Boneyard's own drawing -- a ring of them as scenery -- plus the Barrow, the
+Chalk Barrow, the Moorgrave and the monastery.
+
+**A choice you can make in ten places is not a journey**, and 41 says the whole
+point of the second book is that you walk to it. The Boneyard's six were also
+the same spot six times, which is scenery pretending to be a destination.
+
+Three now, and each is a reason:
+
+    the monastery at Norwick    the one ossuary outside the Boneyard, and why
+                               anybody walks to Norwick
+    the Boneyard                out in the Wilds, which is the walk it should be
+    the Moorgrave               what the Mourner keeps
+
+The rest are GRAVES, which is what they always looked like and what a boneyard
+is actually full of.
+
+## 49. The Lists (v0.88)
+
+A second crossing, **off Fenmarch and not off Eastmere** -- one quay with two
+boats is a hub, and the ferry would become a coach service. Two pairs, each with
+its own port and its own walk.
+
+*"It would only make sense if the island is Wilds. Otherwise what's the point?"*
+-- that is the load-bearing observation. **A rule that removes something is only
+interesting where the thing mattered**, and armour and magic only matter where
+people fight.
+
+**No armour. No magic. No prayer. Anyone may strike anyone.** Nothing is on the
+isle but ground, a ring of standing stones, and the boat -- nothing to gather,
+nothing to build, nothing to carry home. What it has is a rule.
+
+The three refusals do different work:
+
+- **no armour** makes the accuracy ratio the whole game (6ap put armour in the
+  ROLL, so removing it removes the roll's other half) and it is the first place
+  the bare-blade bonus is worth anything;
+- **no magic** means the barrow book is real everywhere EXCEPT where people go to
+  fight, which is a better trade than making it real there;
+- **no prayer** means always full risk. Prayer's one effect is that your dearest
+  priced thing survives your death; on the Lists nothing does.
+
+**Enforced at the quay, not on the ground.** The boat will not take you wearing
+armour -- if you cannot bring it you cannot wear it, and that is one check when
+you sail rather than a check every interval forever. Measured: sailing in plate
+is refused, sailing bare crosses, and the rot refuses to speak on the isle.
+
+### 49a. And the boat is not an escape hatch
+
+`sail` refused **nothing** -- not rooted, not branded, not mid-fight. So on the
+Lists it was a keystroke that ended any fight you were losing, from a tile whose
+location everybody knows.
+
+**That is exactly what 2k forbids the ANCHOR for**: *"the walk out, the decision
+whether to keep going with a full pack, was answered by a keystroke."* The Lists
+is Wilds ground and its boat was doing the thing the Wilds exists to prevent.
+
+A boat is not a recall and must not become one. It answers to the anchor's two
+rules and to a third of its own -- **a fight you are in is a fight you are in**:
+
+    standing quietly              it takes you
+    you swung two intervals ago   no
+    you swung nine intervals ago  yes
+    rooted                        no
+    branded                       no
+    somebody is swinging at you   no
+    they stopped ten ago          yes
+
+Eight intervals after a blow struck or taken. Long enough that fleeing is a
+decision rather than a reflex; short enough that a fight which is genuinely over
+lets you go home.
+
+*So the isle is 159 walkable tiles with no cover and one way off, and that way is
+shut while anybody is still swinging. Leaving is possible and it is never free.*
+
+*One line closed all eleven spells, because every spell in both books asks
+`speaks` -- which is exactly what 7cf was written for. And `prayerKeeps` took
+`genesis` and not `state`: the check would have compiled, read undefined, and
+quietly granted the mourner's grace on an isle whose whole point is that there
+is none.*
+
+## 50. An isle is ground, and had none (v0.88)
+
+`groundKindAt` fell through to `null` on every isle tile, and **a window paints
+null as SEA** -- so Whiting and the Lists were drawn as open water: ground a
+citizen can walk on and cannot see. The shrine isle only ever looked right BY
+ACCIDENT, because it is small enough that every tile of it is caught by the
+`sand` shoreline rule one line earlier.
+
+**And five window mirrors plus the chart had two isles when the world has four.**
+The same drift the bridge check was written for.
+
+Fixed in seven places, and proved rather than asserted: `window-web`,
+`window-diablo` and `site/map.html` each compared against the world across
+**1,790 tiles round all four isles, 0 disagreements.**
+
+Their ground follows what they are -- **Whiting is `shingle`**, a salt shore,
+pale and crusted; **the Lists is `trodden`**, bare beaten earth with nothing
+growing on it, because nothing on it is allowed to grow.
+
+## 51. The charter (v0.88)
+
+A master explorer at 90 already makes CHARTS, and the engine says of them: *"it
+opens no doors, nobody travels by it, it is the export of a trade whose whole
+product was previously experience."* **That sentence is worth keeping true**, so
+the charter is not a chart -- it is what a master draws UP from one, which is
+what the word has always meant: a licence for a voyage.
+
+**It is spent on the boat to the LISTS and not on the boat to Whiting.** Whiting
+is work -- salt, and the fish that becomes cargo -- and gating a trade behind
+somebody else's skill puts a toll on a living. The Lists is a place you go to
+fight, and a fight can afford a price.
+
+Only the crossing OUT wants one. The boat home is free, because **an isle you can
+be stranded on is a prison** and this one is a duelling ground.
+
+### 51a. Spent once, and you are chartered for good
+
+It was consumed on EVERY crossing out -- and **death returns a citizen to spawn,
+142 tiles from the Fenmarch quay.** So on a duelling isle whose whole point is
+fighting repeatedly and losing everything, each death cost a fresh charter and a
+walk across the island.
+
+**That is friction, not risk, and the two are not the same thing.** Risk makes a
+decision interesting; friction makes it tiresome. The Lists already takes
+everything you carry -- it does not also need to take the afternoon.
+
+Spent once. After that the boat knows you.
+
+    no charter                 refused
+    two charters               sailed, one left
+    already chartered, none    sailed, spends nothing
+    exploration 89             cannot draw one up
+    exploration 90             chart becomes charter
+
+**What the explorer sells is not a ticket but an INTRODUCTION.** Every citizen
+buys exactly one, ever -- so the market is every citizen who ever decides to
+fight, rather than every fight anybody has. A smaller trade and a permanent one.
+
+*(It is also the honest version of what a charter IS. A licence for a voyage is
+something you are granted, not something you hand over at a gate each time.)*
+
+**What it buys is an economy nobody designed.** The master explorer is a citizen
+who has done nothing but walk, peacefully, for a very long time -- and he turns
+out to be the person who supplies the fighters. Ninety levels of wandering, sold
+to people about to lose everything they carry.
+
+## 52. What two citizens need each other for (v0.88)
+
+The rune-runner and the crafter worked because **one person's cap was another
+person's floor.** The crafter could craft without limit and carry twenty-eight;
+the runner could carry and could not craft. Neither was complete, so they met.
+
+That shape is already in this world -- in more places than it looked -- and what
+was missing is that **nothing ever said so.**
+
+    THE INGOT RUN     a star-ingot is 20 magic-stone; magic-stone does not
+                      stack and the pack is 28, so one ingot is ONE TRIP into
+                      the Wilds and back to the one furnace at Cragfoot. A
+                      GREAT MAUL is eleven ingots: 220 stones, eleven journeys.
+                      Smelting one wants smithing 45. The miner has the legs
+                      and the danger; the smith has the level.
+
+    THE FIRE          the furnace burns coal and pays whoever feeds it -- 26
+                      smithing a coal, and 1 an interval for standing there.
+                      A fire-keeper earns from other people's smelting.
+
+    THE GRAVE         holy water is ten consecrated burials at an ossuary, and
+                      there are now THREE ossuaries. Bones come off things that
+                      are killed. A gravedigger makes flasks; a wight-hunter
+                      needs them and is not at a graveyard.
+
+    THE PANS          salting is `cook` at Whiting Isle, which is a boat away.
+                      A cook who lives there salts other people's catch.
+
+    THE CHARTER       a master explorer, ninety levels of peaceful walking,
+                      turns out to be the only person who can let a fighter
+                      reach the Lists.
+
+    THE TOLL          the bridge takes PLANKS, and only a sawpit makes them.
+
+**The furnace now names its half of the bargain.** A citizen with twenty stones
+and no craft is told somebody at that fire could smelt for them; a citizen with
+the craft and nothing to smelt is told the stones come out of the Wilds and
+somebody who walks there would carry them.
+
+*A trade that is possible and invisible is a trade that does not happen. This is
+the cheapest kind of design there is: not a new mechanic, a sentence.*
+
+### 52a. And who works here
+
+Naming the bargain is not enough if the other half of it cannot be found. **The
+rune-crafter was findable because they STOOD at the altar for hours** and you
+could see them -- and this world will not have a directory of who is online and
+where, because that repeals the walk as surely as a waystone.
+
+**A trace, then, and not a tracker.** A work remembers the last five citizens
+who used it and how long ago, and tells you when you stand beside it:
+
+    Hands that have been here: Wulf (just now), Hesta (4 minutes ago),
+    Osric (2 minutes ago).
+
+It says **who works here. It does not say where they are.** A citizen still has
+to walk to the furnace to learn who works the furnace, and still has to find
+them themselves -- what it ends is a specialist being *invisible*, which is the
+thing that stops the trade happening at all.
+
+It fades after six thousand intervals, so a work speaks about the people
+currently keeping it rather than everybody who ever touched it. The furnace, the
+sawpit and the anvil keep one each.
+
+*(The furnace already had `stokedBy` -- one name, for paying the fire-keeper.
+This is that idea admitted to be general.)*
+
 ## 14. The toll on the Millbrook Bridge (v0.88)
 
 ### 14a. Which crossing, and why that one

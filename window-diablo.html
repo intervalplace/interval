@@ -733,8 +733,13 @@ function bayShoreX4(y) {
 }
 function isles4() {
   const ey = emY4(), sh = bayShoreX4(ey) ?? Math.round(W * 0.7)
-  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
-          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 }]
+  // §7cu: FOUR, and character-for-character with islesOf() in worldgen. Two
+  // were added to the world and none of these mirrors were told, so every
+  // window drew open sea over ground a citizen can stand on.
+  return [{ x: sh + 20, y: ey + 24, rx: 10, ry: 7, tag: 'shrine' },
+          { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5, tag: 'farshore' },
+          { x: sh + 58, y: ey + 8, rx: 12, ry: 8, tag: 'whiting' },
+          { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' }]
 }
 function onIsle4(x, y) {
   for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
@@ -1931,6 +1936,16 @@ function terrainOfE4(x, y) {
     return 'trail'
   }
   if (isWater4(x+1,y) || isWater4(x-1,y) || isWater4(x,y+1) || isWater4(x,y-1)) return 'sand'
+  // §7cu: and an isle is GROUND. Falling through here paints it as sea, which
+  // is how two islands a citizen can stand on came to be drawn as open water.
+  if (onIsle4(x, y)) {
+    for (const i of isles4()) {
+      if (((x - i.x) / i.rx) ** 2 + ((y - i.y) / i.ry) ** 2 > 1) continue
+      if (i.tag === 'whiting') return 'shingle'
+      if (i.tag === 'lists') return 'trodden'
+      return 'chalk'
+    }
+  }
   return biomeAtE4(x, y)
 }
 // ---- the locales: names smaller than a country ----
@@ -3063,6 +3078,17 @@ const BRIDGE_TO_INPUT = (a) =>
   // §7p/§7q: the furnace and the sawpit
   : a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }
   : a.do === 'saw' ? { type: 'saw' }
+  : a.do === 'nock' ? { type: 'nock', slot: a.slot }
+  : a.do === 'follow' ? { type: 'follow', targetId: a.targetId }
+  : a.do === 'turn' ? { type: 'turn' }
+  : a.do === 'waking' ? { type: 'waking', targetId: a.targetId }
+  : a.do === 'rot' ? { type: 'rot', targetId: a.targetId }
+  : a.do === 'taking' ? { type: 'taking', targetId: a.targetId }
+  : a.do === 'withering' ? { type: 'withering', targetId: a.targetId }
+  : a.do === 'befriend' ? { type: 'befriend', targetId: a.targetId }
+  : a.do === 'unfriend' ? { type: 'unfriend', targetId: a.targetId }
+  : a.do === 'charter' ? { type: 'charter', slot: a.slot }
+  : a.do === 'unfollow' ? { type: 'unfollow' }
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
   : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }   // §6af
@@ -8506,7 +8532,7 @@ function drawNode(g, n, sx, sy, t, hot) {
     }
     case 'market': {
       // A CITIZEN'S STALL. Not the keeper's indoor counter -- this one is
-      // raised wherever somebody chose, out of sixteen logs and eight ore, and
+      // raised wherever somebody chose, out of thirty-two boards and eight ore, and
       // it must read as somebody's rather than the world's: rough trestles,
       // a cloth over them, a post with the owner's mark, and whatever is
       // actually on the shelf standing on top where a buyer can see it.
@@ -12548,11 +12574,11 @@ function useSlot(i) {
     const already = Object.values(curState?.nodes ?? {}).some((q) => q.type === 'market' && q.by === myId)
     if (already) items.push({ label: 'Raise a stall (you have one)', dim: true, run: () => {} })
     else if (logs2 >= 16 && ore2 >= 8)
-      items.push({ label: 'Raise a stall here (16 logs, 8 ore)',
+      items.push({ label: 'Raise a stall here (32 planks, 8 ore)',
                    run: () => { send({ do: 'raise_market' })
                      say('You begin raising a stall. Twenty intervals, and do not move.', 'good') } })
     else
-      items.push({ label: 'Raise a stall (needs 16 logs, 8 ore)', dim: true,
+      items.push({ label: 'Raise a stall (needs 32 planks, 8 ore)', dim: true,
                    run: () => say('You have ' + logs2 + ' logs and ' + ore2 + ' ore.', 'dim') })
   }
   if (EQUIPPABLE.has(it)) {
@@ -12720,7 +12746,11 @@ function buildMenu(px2, py2, target) {
         : (lit ? 'Feed the furnace' : 'Light the furnace'),
         dim: coal < 0, run: () => { send({ do: 'stoke', nodeId: target.id, slot: coal })
           say(lit ? 'You feed the fire.' : 'The bloom catches.') } })
-      for (const r of ['iron', 'star-ingot', 'gold-bar'])
+      // §7co: ...and STEEL, which was missing. Three of the four smelts were
+      // listed and the one that gates every steel weapon in the world was not,
+      // so a citizen with a bar of iron and a lit furnace had no way to make it
+      // into anything from this window.
+      for (const r of ['iron', 'steel', 'star-ingot', 'gold-bar'])
         items.push({ label: lit ? 'Smelt ' + wordy(r) : 'Smelt ' + wordy(r) + ' (the fire is out)',
           dim: !lit, run: () => { send({ do: 'smelt', recipe: r }); say('The metal runs.') } })
     }
@@ -13001,11 +13031,11 @@ function buildSlotMenu(px2, py2, i) {
     const already = Object.values(curState?.nodes ?? {}).some((q) => q.type === 'market' && q.by === myId)
     if (already) items.push({ label: 'Raise a stall (you have one)', dim: true, run: () => {} })
     else if (logs2 >= 16 && ore2 >= 8)
-      items.push({ label: 'Raise a stall here (16 logs, 8 ore)',
+      items.push({ label: 'Raise a stall here (32 planks, 8 ore)',
                    run: () => { send({ do: 'raise_market' })
                      say('You begin raising a stall. Twenty intervals, and do not move.', 'good') } })
     else
-      items.push({ label: 'Raise a stall (needs 16 logs, 8 ore)', dim: true,
+      items.push({ label: 'Raise a stall (needs 32 planks, 8 ore)', dim: true,
                    run: () => say('You have ' + logs2 + ' logs and ' + ore2 + ' ore.', 'dim') })
   }
   if (EQUIPPABLE.has(it)) {

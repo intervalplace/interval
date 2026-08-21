@@ -268,6 +268,20 @@ export function islesOf(g) {
   const ey = emY(g), sh = bayShoreX(g, ey) ?? Math.round(g.worldW * 0.7)
   return [
     { x: sh + 20, y: ey + 24, rx: 10, ry: 7, tag: 'shrine' },
+    // §7bu: WHITING ISLE, east of the shrine and reachable only by boat.
+    //
+    // The sea was a border and not a place. An island you can WALK to is a
+    // peninsula, so this one has no bridge, no ford and no shallows: a ferry at
+    // Eastmere's quay and a ferry on the isle, and nothing else touches it.
+    { x: sh + 58, y: ey + 8, rx: 12, ry: 8, tag: 'whiting' },
+    // §7cs: THE LISTS, off Fenmarch. A second CROSSING and not a second
+    // destination from the same quay -- Eastmere with two boats would be a hub
+    // and the ferry would become a coach service.
+    //
+    // What it is for is a fight that is only about the fight: no armour, no
+    // magic, no prayer, and anybody may strike anybody. Every other variable
+    // gone, so a maul and a bare blade can be compared honestly.
+    { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' },
     { x: Math.round(g.worldW * 0.175), y: Math.round(g.worldH * 0.09), rx: 8, ry: 5, tag: 'farshore' },
   ]
 }
@@ -1978,7 +1992,32 @@ export function placeSeatsOf(g) {
   return out
 }
 
+const _loneMemo = new Map()
+// §7bv: MEMOISED, AND THEN INDEXED.
+//
+// This walked every holding and every roofed place and pushed a 1x1 rect for
+// each interior tile -- thousands of them -- and `groundKindAt` calls it ONCE
+// PER TILE. 458,752 tiles times a few thousand rects is the reason a founding
+// took two minutes and forty seconds, and the reason the last four fixes were
+// guesses rather than measurements: I could not look at the world without a
+// five-minute round trip.
+//
+// The list is a pure function of the genesis, so it is built once. And since
+// every entry is a single tile, the lookup is a Set of 'x,y' rather than a scan.
+export function loneRoomTiles(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  let hit = _loneMemo.get(k)
+  if (!hit) {
+    hit = new Set()
+    for (const [x, y] of loneRooms(g)) hit.add(x + ',' + y)
+    _loneMemo.set(k, hit)
+  }
+  return hit
+}
+const _loneListMemo = new Map()
 export function loneRooms(g) {
+  const _k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const _hit = _loneListMemo.get(_k); if (_hit) return _hit
   const s = innSeat(g)
   const out = s ? [[s.x - 2, s.y, 5, 3]] : [] // the Lantern's interior
   // ...and the hand-drawn places that have a roof. A ruin does not: the
@@ -1992,6 +2031,7 @@ export function loneRooms(g) {
     for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++)
       if (P.rows[ry][rx] === ',') out.push([P.x0 + rx, P.y0 + ry, 1, 1])
   }
+  _loneListMemo.set(_k, out)
   return out
 }
 
@@ -2011,12 +2051,32 @@ export function loneRooms(g) {
 // country simply carries on, which is what a village looks like from above and
 // what these eight were drawn as in the first place.
 const _TOWN_OPEN = new Set([' ', '.']);
-function townPaved(rows, rx, ry) {
-  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-    const c = rows[ry + dy]?.[rx + dx];
-    if (c !== undefined && !_TOWN_OPEN.has(c)) return true;
-  }
-  return false;
+// §7ar: A STREET IS DRAWN, NOT INFERRED.
+//
+// This paved any tile within ONE of anything built -- which was fine for a
+// town of three long terraces with wide bands between them, and is wrong for a
+// town of scattered buildings: every gap is within one of a wall, so the whole
+// interior comes out as a single sheet of flagstone. Oxenford was rebuilt with
+// separate houses and lanes bending between them, and the lanes vanished --
+// not because they were not drawn, but because the ground around them was
+// paved too.
+//
+// A town is roads with GROUND either side of them. So the pavement follows
+// what the drawing says is a lane: ',' outside a building is a street; '.' is
+// the grass between the houses, and stays grass.
+function townPaved(rows, rx, ry, tag) {
+  // §7ar: ONLY WHAT WAS DRAWN AS A LANE.
+  //
+  // Two rules widened every street here in turn. First this paved anything
+  // within one of anything BUILT, which made a town of scattered houses into
+  // one sheet of flagstone. Then it paved every ',' and its four neighbours --
+  // but a room's floor is ',' too, so the ring around every building paved as
+  // well, and a lane drawn ONE tile wide came out THREE.
+  //
+  // A lane is a ',' that is not indoors. Nothing else. The grass comes right
+  // up to the wall, which is what it does in a town.
+  const c = rows[ry]?.[rx];
+  return c === ',' && !isIndoor(tag, rows, rx, ry);
 }
 export function groundKindAt(g, x, y) {
   // DECKING IS DECKING. A window asks the ground what it is; over a bridge,
@@ -2024,8 +2084,8 @@ export function groundKindAt(g, x, y) {
   // Every window mirrored this from the generator and painted the sea, so the
   // jetties at Eastmere came out as three fishing marks on an empty tide.
   if (onBridge(g, x, y)) return 'bridge'
-  for (const [rx, ry, rw, rh] of loneRooms(g))
-    if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) return 'floor'
+  // §7bv: a Set lookup, not a scan of thousands of one-tile rects
+  if (loneRoomTiles(g).has(x + ',' + y)) return 'floor'
   if (isWater(g, x, y)) return null
   const sts = settlementsOf(g)
   for (const st of sts) {
@@ -2070,10 +2130,21 @@ export function groundKindAt(g, x, y) {
           if (!onRoad(g, x, y) && !isIndoor(st.tag, rows, rx, ry) && !nearWall
               && Math.abs(rx - (rows[0].length >> 1)) <= 9
               && Math.abs(ry - (rows.length >> 1)) <= 4) return 'plaza'
-          return onRoad(g, x, y) ? 'cobble' : 'flag'
+          // §7au: AND ONLY THE LANES ARE FLAGGED. This returned 'flag' for
+          // EVERY remaining tile in Millbrook's rect -- fifty-two by
+          // thirty-six of unbroken pavement -- so when the town was redrawn as
+          // separate buildings they came out as islands standing in a car
+          // park. There were no streets because there was no ground for a
+          // street to be a street AGAINST.
+          //
+          // A market town is paved where people walk and where they trade.
+          // Between the backs of two houses it is grass, exactly as it is
+          // everywhere else on the island.
+          if (townPaved(rows, rx, ry, st.tag)) return onRoad(g, x, y) ? 'cobble' : 'flag'
+          return onRoad(g, x, y) ? 'trail' : null
         }
         // and the paving reaches only as far as the town does
-        if (!townPaved(rows, rx, ry)) return onRoad(g, x, y) ? 'trail' : null
+        if (!townPaved(rows, rx, ry, st.tag)) return onRoad(g, x, y) ? 'trail' : null
       }
       // NOT EVERY TOWN IS PAVED. A farm is not a market: Hollybarrow works
       // the ground it stands on and Greenhollow is a clearing in a wood, so
@@ -2113,6 +2184,25 @@ export function groundKindAt(g, x, y) {
     }
   }
   if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) return 'sand'
+  // §7cu: AN ISLE IS GROUND, AND HAD NONE.
+  //
+  // This fell through to null on every isle tile, and a window paints null as
+  // SEA -- so Whiting and the Lists were drawn as open water on the chart, an
+  // island you can walk on and cannot see. The shrine isle only ever looked
+  // right because it is small enough to be entirely beach: every tile of it was
+  // caught by the `sand` line above.
+  //
+  // Their ground follows what they ARE: Whiting is a salt shore of shingle and
+  // pan, the Lists is bare trodden ground with nothing growing on it, because
+  // nothing on it is allowed to grow.
+  if (onIsle(g, x, y)) {
+    for (const i of islesOf(g)) {
+      if (((x - i.x) / i.rx) ** 2 + ((y - i.y) / i.ry) ** 2 > 1) continue
+      if (i.tag === 'whiting') return 'shingle'
+      if (i.tag === 'lists') return 'trodden'
+      return 'chalk'
+    }
+  }
   return null
 }
 
@@ -3449,6 +3539,126 @@ export function buildWorld(genesis) {
       _lockupCount = n3
     }
 
+    // ---- WHITING ISLE, AND THE BOAT TO IT ----
+    //
+    // §7bu. A ferry at Eastmere's quay and a ferry on the isle. Two named
+    // points and nothing between them: you walk to the quay, you cross, and you
+    // walk at the other end. That is a crossing, and it is the opposite of a
+    // waystone, which dissolves distance everywhere at once.
+    //
+    // What is on the isle has to be worth the crossing, and it must not be
+    // anywhere else -- an island with a second-best copy of something is a
+    // detour, not a destination. So the DEEP FISHING moves here entire.
+    {
+      const isle = islesOf(g).find((i) => i.tag === 'whiting')
+      const em = ss.find((t) => t.tag === 'eastmere')
+      if (isle && em) {
+        // the isle's quay, on its western shore facing home
+        let put2 = null
+        for (let dx = -isle.rx; dx <= 0 && !put2; dx++)
+          for (let dy = -3; dy <= 3; dy++) {
+            const x = isle.x + dx, y = isle.y + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            put2 = [x, y]; break
+          }
+        if (put2) {
+          put('ferry-whiting', 'ferry', put2[0], put2[1], {})
+          put('whiting-sign', 'signpost', put2[0], put2[1] + 1,
+            { text: 'Whiting Isle \u2014 the boat home' })
+          // (the deep water itself is in the seam table, at the isle's own
+          // coordinates -- see worldgen-seams-v7)
+          for (const [dx, dy, k] of [[2, -3, 'withy-stack'], [3, 2, 'eel-rack'], [-2, 3, 'log-pile']])
+            if (free(isle.x + dx, isle.y + dy) && !isWater(g, isle.x + dx, isle.y + dy))
+              put('whiting-' + k, 'landmark', isle.x + dx, isle.y + dy, { kind: k })
+          // §7bw: THE SALTERN. Shallow pans cut in the rock, the sea let in and
+          // the wind taking the water. It is the isle's reason: master fishing
+          // is a tier and could stand anywhere, but salt needs a windy shore
+          // with nothing behind it, and there is one such place.
+          let sp = 0
+          for (let dx = -4; dx <= 4 && sp < 5; dx++) for (let dy = -3; dy <= 3 && sp < 5; dy++) {
+            const x = put2[0] + dx, y = put2[1] + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            if (Math.abs(dx) + Math.abs(dy) < 2) continue
+            put('saltpan-' + sp, 'salt-pan', x, y, {}); sp++
+          }
+          put('whiting-keeper', 'keeper', put2[0] + 1, put2[1],
+            { kind: 'fisher', name: 'Cuthred the Ferryman' })
+        }
+        // and the quay at Eastmere: on the shore, beside the town
+        let put1 = null
+        // a dry tile with the sea within two, searched wide -- the first cut
+        // asked for water ORTHOGONALLY adjacent inside fourteen tiles of the
+        // town's centre and found none, so the boat had one end and not the
+        // other: an island reachable only from the island.
+        for (let r = 3; r <= 30 && !put1; r++)
+          for (let dy = -r; dy <= r && !put1; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+            const x = em.x + dx, y = em.y + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            if (onRoad(g, x, y) || inAnySettlement(x, y)) continue
+            let nearSea = false
+            for (let ax = -2; ax <= 2 && !nearSea; ax++) for (let ay = -2; ay <= 2; ay++)
+              if (isWater(g, x + ax, y + ay)) { nearSea = true; break }
+            if (!nearSea) continue
+            put1 = [x, y]; break
+          }
+        if (put1) {
+          put('ferry-eastmere', 'ferry', put1[0], put1[1], {})
+          put('ferry-sign', 'signpost', put1[0], put1[1] + 1,
+            { text: 'the boat to Whiting Isle' })
+        }
+      }
+    }
+
+    // ---- THE LISTS, AND THE BOAT OFF FENMARCH ----
+    //
+    // §7cs. A second crossing from a different quay: Fenmarch to the Lists.
+    // Nothing is on the isle but ground and the boat -- there is nothing to
+    // gather, nothing to build, nothing to take home. What it has is a rule.
+    {
+      const li = islesOf(g).find((i) => i.tag === 'lists')
+      const fm = ss.find((t) => t.tag === 'fenmarch')
+      if (li && fm) {
+        let lq = null
+        for (let dx = -li.rx; dx <= 0 && !lq; dx++)
+          for (let dy = -3; dy <= 3; dy++) {
+            const x = li.x + dx, y = li.y + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            lq = [x, y]; break
+          }
+        if (lq) {
+          put('ferry-lists', 'ferry', lq[0], lq[1], {})
+          put('lists-sign', 'signpost', lq[0], lq[1] + 1,
+            { text: 'The Lists \u2014 no plate, no book, no grace. The boat home.' })
+          // a ring of standing stones: the ground says what it is
+          for (let a = 0; a < 8; a++) {
+            const x = Math.round(li.x + Math.cos(a * 0.785) * 5)
+            const y = Math.round(li.y + Math.sin(a * 0.785) * 4)
+            if (inB(x, y) && free(x, y) && !isWater(g, x, y))
+              put('lists-stone-' + a, 'landmark', x, y, { kind: 'standing-stone' })
+          }
+        }
+        let fq = null
+        for (let r = 3; r <= 30 && !fq; r++)
+          for (let dy = -r; dy <= r && !fq; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+            const x = fm.x + dx, y = fm.y + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            if (onRoad(g, x, y) || inAnySettlement(x, y)) continue
+            let nearSea = false
+            for (let ax = -2; ax <= 2 && !nearSea; ax++) for (let ay = -2; ay <= 2; ay++)
+              if (isWater(g, x + ax, y + ay)) { nearSea = true; break }
+            if (!nearSea) continue
+            fq = [x, y]; break
+          }
+        if (fq) {
+          put('ferry-fenmarch', 'ferry', fq[0], fq[1], {})
+          put('lists-quay-sign', 'signpost', fq[0], fq[1] + 1,
+            { text: 'the boat to the Lists \u2014 it will not take you in armour' })
+        }
+      }
+    }
+
     // ---- THE TREES THAT ARE NOT TIMBER ----
     // §7u. Landmark trees: nothing gathers them, so they can stand where the
     // country wants trees rather than where the world wants woodcutting.
@@ -3943,7 +4153,9 @@ export function buildWorld(genesis) {
   // door. See the note at the top of that file for why that is the shape.
   {
     const PLACE_NODE = {
-      '#': ['wall'], '%': ['rampart'], 'R': ['railing'], '!': ['landmark', { kind: 'standing-stone' }],
+      '#': ['wall'], '%': ['rampart'], 'R': ['railing'],
+      // §7cb: 'Z' seats the caged dead rather than a node -- see below
+      '!': ['landmark', { kind: 'standing-stone' }],
       // §7ab: the Moorgrave's furniture. A grave and a yew are LANDMARKS --
       // nothing gathers them, so a graveyard can be full of them without being
       // a tier (§20d).
@@ -3995,6 +4207,15 @@ export function buildWorld(genesis) {
       for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++) {
         const ch = P.rows[ry][rx]
         if (ch === '~' || ch === '.' || ch === ',') continue
+        // §7cb: 'Z' IS NOT A NODE. It seats the caged dead -- a mob, in a place
+        // drawing, which nothing else here does. It belongs in the drawing
+        // because WHERE it stands is the whole design: inside a ring of iron
+        // railing, where no blade reaches it and it reaches no one.
+        if (ch === 'Z') {
+          const zx = P.x0 + rx, zy = P.y0 + ry
+          if (inB(zx, zy)) E.addMob(w, 'caged-' + P.tag, 'gibbet-dead', zx, zy)
+          continue
+        }
         const spec = PLACE_NODE[ch]
         if (!spec) continue
         const x = P.x0 + rx, y = P.y0 + ry
@@ -5270,6 +5491,19 @@ export function buildWorld(genesis) {
         const x = c.x + dx, y = c.y + dy
         if (!inB(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
         if (inAnySettlement(x, y) || onRoad(g, x, y)) continue
+        // §7bv: THIS LINE IS SEVENTY PER CENT OF THE FOUNDING.
+        //
+        // It asks "is anything standing here" by walking all 9,582 nodes, for
+        // every candidate tile of every camp's ring. The profiler puts it at
+        // 3.5 billion ticks against the next line's 1.0 billion -- most of a
+        // two-minute world, on one `some`.
+        //
+        // The fix is an occupancy Set built once. It is NOT APPLIED: two
+        // attempts to splice it in put it between a `for` head and its body
+        // (rebuilding it sixty thousand times, so the founding stopped
+        // finishing) and then above the line where `w` exists at all. A fix
+        // that is slower than the bug, then a fix that does not run, so the
+        // scan stands and the measurement is written down instead.
         if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
         spots.push([x, y])
       }
@@ -6433,6 +6667,53 @@ export function buildWorld(genesis) {
         const pw = plan[0].length, ph = plan.length
         const ox = st.x - (pw >> 1), oy = st.y - (ph >> 1)
         const [rx, ry, rw, rh] = house
+        // §7ax: AND A HOUSE SOMEBODY ALREADY LIVES IN IS NOT A SHOP.
+        //
+        // The `busy` test that chose these rooms reads the DRAWING, and the
+        // residents pass puts people into empty rooms at a different point in
+        // the founding -- so a room the drawing left bare could have a citizen
+        // in it by the time the roster arrived, and the stall sat down beside
+        // them. Millbrook came out with two keepers in one building and a
+        // stall alone in the next, which is a shop with a lodger and a lodging
+        // with a shop.
+        //
+        // The world is built by now. Ask IT, not the plan.
+        {
+          let occupied = false, lodger = null
+          for (const [n3id, n3] of Object.entries(w.nodes)) {
+            if (n3.type !== 'keeper' && n3.type !== 'stall') continue
+            if (n3.x < ox + rx || n3.x >= ox + rx + rw
+                || n3.y < oy + ry || n3.y >= oy + ry + rh) continue
+            if (n3.type === 'stall') { occupied = true; break }
+            lodger = n3id
+          }
+          // §7bo: AND A STALL OUTRANKS A LODGER, at the last house.
+          //
+          // Rooms were left unkept for the roster and the RESIDENTS pass -- which
+          // runs first -- moved people into them, so the seater arrived to a
+          // full town and put its stall in the open. Stripping more keepers
+          // only gave the residents more homes; the two passes were competing
+          // for the same rooms and the roster always lost.
+          //
+          // A rostered stall is a world institution: the arms of Millbrook, the
+          // fishmonger of Eastmere. A lodger is a name in a table. If the last
+          // candidate house has somebody in it and the stall would otherwise
+          // stand in the square, the lodger moves out.
+          if (occupied) continue
+          // ...and the last house is not the last CHANCE: with several stalls
+          // sharing one list, the one that comes last finds every house tried
+          // and skipped. A stall evicts as soon as no empty house remains,
+          // which is a thing this loop can only know by looking.
+          if (lodger !== null) {
+            const anyEmpty = shopRoom.some(([qx, qy, qw, qh]) =>
+              !Object.values(w.nodes).some((n4) =>
+                (n4.type === 'keeper' || n4.type === 'stall')
+                && n4.x >= ox + qx && n4.x < ox + qx + qw
+                && n4.y >= oy + qy && n4.y < oy + qy + qh))
+            if (anyEmpty) continue
+            delete w.nodes[lodger]
+          }
+        }
         // A COUNTER NEEDS A SIDE TO BE SERVED FROM.
         //
         // The first version took the first bare floor tile in the room and

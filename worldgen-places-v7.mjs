@@ -87,11 +87,11 @@ export const PLACES_V7 = {
     sign: 'the Boneyard',
     rows: [
       '~~%%~~~%%~~',
-      '~%~~~B~~~%~',
-      '~~~B~~~B~~~',
+      '~%~~~g~~~%~',
+      '~~~g~~~g~~~',
       '%~~~~D~~~~%',
-      '~~~B~~~B~~~',
-      '~%~~~B~~~%~',
+      '~~~g~~~B~~~',
+      '~%~~~g~~~%~',
       '~~%%~~~%%~~',
     ],
   },
@@ -128,6 +128,11 @@ export const PLACES_V7 = {
       'R,,,#,,,,,,,,#,,,,,,,,,,,,,,R',
       'R,,,#####.####,,g,g,g,g,g,,,R',
       'R,,,,,,,,,,,,,,,,,,,,,,,,,,,R',
+      'R,,,,,,,,,,,,,,,,,,,,,,,,,,,R',
+      'R,,,,,,RRR,,,,,,g,g,g,g,g,,,R',
+      'R,,,,,,RZR,,,,,,,,,,,,,,,,,,R',
+      'R,,,,,,RRR,,,,,,g,g,g,g,g,,,R',
+      'R,,,,,,,,,,,,,,,,,,,,,,,,,,,R',
       'RR,,g,g,g,,,,,,,,,,g,g,g,,,RR',
       '~RR,,,,,,,,,,,,,,,,,,,,,,,RR~',
       '~~RR,,W,,,,,,,,,,,,,,,W,,,RR~',
@@ -154,6 +159,65 @@ export const PLACES_V7 = {
   // ---- THE GREENWOOD -------------------------------------------------------
   // The sawyer's camp: a lean-to, a fire, a stack of what he cut. He is not
   // here today either.
+  // §7bt: THE GREENWOOD HAD NO EXCUSE.
+  //
+  // Measured tiles-per-node by country: the heartlands 14, the downs 21, the
+  // crags 27, the moor 28, the fens 37 -- and the GREENWOOD 68, second only to
+  // the Wilds at 111. The Wilds is meant to be bare; that emptiness is what it
+  // is for, and a world with nowhere empty reads as built rather than found.
+  // The Greenwood is the timber country, the whole reason woodcutting exists,
+  // and it was the emptiest place on the island that had a reason to be full.
+  //
+  // Three camps, the work of the wood: burning, felling, and the man who counts
+  // what leaves it.
+  charcoalcamp: {
+    name: "the Burners' Camp", locale: 'kingswood', floors: false,
+    sign: "the Burners' Camp",
+    rows: [
+      '~T~~~~~~~~T~',
+      '~~~######~~~',
+      '~T~#,,k,#~~~',
+      '~~~#,h,,#~T~',
+      '~~~##,###~~~',
+      '~T~~,~~~~~T~',
+      '~~~~,~~~~~~~',
+      '~T~!~~~!~~T~',
+      '~~~~~~~~~~~~',
+      '~T~~~~T~~~T~',
+    ],
+  },
+  woodward: {
+    name: "the Woodward's Lodge", locale: 'hollychase', floors: true,
+    sign: "the Woodward's Lodge",
+    rows: [
+      '~~T~~~~~~~~~',
+      '~#########~~',
+      '~#v,,e,,d#~T',
+      '~#,,,,,,,#~~',
+      '~#,h,k,,q#~~',
+      '~####,####~~',
+      '~~~~~,~~~~~~',
+      'T~~~~,~~~T~~',
+      '~~~~~~~~~~~~',
+      '~~T~~~~T~~~~',
+    ],
+  },
+  fellingstead: {
+    name: 'the Felling Stead', locale: 'deadreach', floors: false,
+    sign: 'the Felling Stead',
+    rows: [
+      '~~T~~~~~~T~~',
+      '~~~~~~~~~~~~',
+      '~T~#####~~~~',
+      '~~~#,k,#~T~~',
+      '~~~#,,h#~~~~',
+      '~~~##,##~~~~',
+      '~T~~,~~~~T~~',
+      '~~~!,~!~~~~~',
+      '~~~~~~~~~~~~',
+      '~T~~~T~~~T~~',
+    ],
+  },
   deepwood: {
     name: "the Sawyer's Camp", locale: 'deepwood', floors: false,
     sign: "the Sawyer's Camp",
@@ -269,7 +333,7 @@ export const PLACES_V7 = {
     rows: [
       '~~%%%%%~~',
       '~%~~~~~%~',
-      '%~~~B~~~%',
+      '%~~~g~~~%',
       '%~~~~~~~%',
       '~%~~.~~%~',
       '~~%%.%%~~',
@@ -341,13 +405,13 @@ export const PLACES_V7 = {
   // The Barrow Crown: the ring of stones on the crest, older than the road
   // that goes round it.
   barrow: {
-    name: 'the Barrow Crown', locale: 'barrow', floors: false,
-    sign: 'the Barrow Crown',
+    name: 'the garrow Crown', locale: 'barrow', floors: false,
+    sign: 'the garrow Crown',
     rows: [
       '~~!~!~!~~',
       '~!~~~~~!~',
       '!~~~~~~~!',
-      '~~~~B~~~~',
+      '~~~~g~~~~',
       '!~~~~~~~!',
       '~!~~~~~!~',
       '~~!~!~!~~',
@@ -442,6 +506,9 @@ export const PLACE_INSIDE = {
   // a shepherd who has been up here since before anyone asked
   bleakfell:   { keeper: { kind: 'shepherd', name: 'Elric of the Bothy' } },
   // the sawyer, finally, at his own camp
+  charcoalcamp: { keeper: { kind: 'collier', name: 'Hesta the Burner' } },
+  woodward:     { keeper: { kind: 'lumber', name: 'Beorn the Woodward' } },
+  fellingstead: { keeper: { kind: 'lumber', name: 'Wulf at the Felling' } },
   deepwood:    { keeper: { kind: 'sawyer', name: 'Osmund the Sawyer' },
                  nodes: [['oak-tree', 2], ['heartwood-tree', 1]] },
   // whoever keeps the Chase keeps the dogs
