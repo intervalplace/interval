@@ -1111,6 +1111,18 @@ const FORAGE_ROTS = 50;
 // saw sixteen, then build. What it costs less of is CARRYING, because planks
 // stack and logs do not: twenty-four slots becomes two. That is the right trade
 // for a thing you build once and stand beside for hours.
+// §7da: IRON ORE, BECAUSE `ore` CANNOT BE MINED.
+//
+// The old `rock` seam that yielded `ore` was retired and replaced by `iron-rock`
+// yielding `iron-ore` -- and the stall's recipe was never moved with it. There
+// are ZERO rock nodes on the island, so a stall cost eight of a thing no pickaxe
+// can produce. It survives only as a rare mob drop and a waymark find, which is
+// not a supply, it is a lottery.
+//
+// A recipe whose material was retired is a recipe nobody can complete, and it
+// had been that way since the seam table was rewritten. This is the same fault
+// as the room list that outlived its town (7bd) and the buildLogs key that
+// outlived planks (7cp): a table changed, and the things that read it did not.
 const MARKET_PLANKS = 32, MARKET_ORE = 8;
 const MARKET_RAISE = 20;                  // intervals of standing still
 const MARKET_STOCK = 200;                 // one good, this many of it
@@ -2031,7 +2043,25 @@ const SPADE_STRENGTH = 1.4;
 // coal and still pays for it (the watchfire's own rule, for the same reason),
 // so the rate is bounded by what a citizen can mine -- which is the honest
 // bound, and self-limiting.
-const FURNACE_PER_COAL = 600, FURNACE_CAP = 6000, XP_STOKE_FURNACE = 26;
+// §7dc: COAL BURNS LONGER THAN CHARCOAL, AND IS NOW WORTH MINING.
+//
+// Coal was strictly the worse material. It substituted for charcoal as fuel
+// ONE FOR ONE, and charcoal also had a monopoly on gunpowder -- which is
+// correct and should stay, because real powder wants charcoal and coal's
+// sulphur makes a bad one. So a woodcutter at firemaking 60 could do
+// everything a coal miner could, plus one thing more, and coal existed to be
+// the option you took when you could not be bothered.
+//
+// What coal actually IS, is denser. It burns hotter and longer, which is why
+// the world went to the trouble of digging it out of the ground instead of
+// making charcoal forever. So it lasts half again as long in the furnace.
+//
+// The result is two fuels with two masters. A fire-keeper wants COAL, because
+// each one buys more hours of fire; a powder-maker wants CHARCOAL, because
+// nothing else will do. A miner and a woodcutter now supply different people,
+// instead of one of them supplying everybody.
+const FURNACE_PER_COAL = 900, FURNACE_PER_CHARCOAL = 600;
+const FURNACE_CAP = 6000, XP_STOKE_FURNACE = 26;
 const FURNACE_BURN_XP = 1;   // §7r: per interval, to whoever is minding it
 const COOK_FIRE_FEE = 6;     // §7s: what a cook pays the keeper of the fire they used
 // §7t: THE YARD TEACHES THE FIRST RUNGS AND NOTHING AFTER.
@@ -3305,6 +3335,27 @@ const alchValue = (item) => (PRICES[item] ? ALCH_PAYS : 0);
 // meant to collect, short enough that the ground comes back.
 const CROP_ROTS_AFTER = 3600;
 const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
+// §7cz: RUBBLE, WHICH DID NOTHING AT ALL.
+//
+// Two mentions in the whole engine: the rockfall that yields it and the item
+// list. You could mine it and it fed nothing, bought nothing, and built
+// nothing -- a gather with no consequence, which is the only kind of work this
+// world has that is not work.
+//
+// And FARMING took nothing from any other skill. Seeds go in, twelve minutes
+// pass, grain comes out; no tool, no input, no reason to have done anything
+// else first. It is the most isolated skill on the island.
+//
+// So the two answer each other. Rubble is broken stone, and broken stone
+// spread on a plot is what makes ground drain and warm: MARL. Sow with rubble
+// in the pack and the crop comes on in two thirds the time. It is not a bigger
+// harvest -- farming's yield is farming's business -- it is the WAIT, which is
+// the thing a farmer actually spends.
+//
+// A miner who has never sown now makes something a farmer wants, out of a node
+// that was previously a way to waste a pickaxe.
+const MARL_PER_PLOT = 2;
+const GROW_TICKS_MARLED = 800;   // two thirds of twelve minutes
 const PRICES = {
   'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
@@ -3828,7 +3879,21 @@ const SMITH_REQS = {
 // for. Order matters: the cheapest is spent first, so nobody burns their
 // heartwood by accident.
 const LOG_KINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood'];
-const BURN_MULT = { 'ironbark': 3 };   // 6bc: three logs' worth of night, from one
+// §7dd: AND COAL BANKS A WATCHFIRE. Six seams feed ONE furnace, which is why
+// coal is thirty times oversupplied -- the demand does not grow with the number
+// of citizens, because there is only ever one fire that wants it.
+//
+// A WATCHFIRE does grow: they are player-built, two to a citizen, and every one
+// of them has to be fed or it goes out. Coal banks one the way it banks a
+// furnace -- three logs' worth from a single lump, because that is what denser
+// fuel means and it is the same 1.5x the furnace already gives it over
+// charcoal.
+//
+// It closes a loop that was half-open: CHARRING NEEDS A LIT WATCHFIRE, and
+// charcoal is what powder is made of. So a coal miner keeps the fire that makes
+// the charcoal that somebody else turns into powder. The miner supplies the
+// burner supplies the gunner, and none of the three can do the others' work.
+const BURN_MULT = { 'ironbark': 3, 'coal': 3 };   // 6bc: three logs' worth of night, from one
 const isLog = (item) => LOG_KINDS.includes(item);
 const consumeLogs = (inv, n) => {           // spends ordinary logs first, heartwood after
   let left = n;
@@ -7336,7 +7401,7 @@ function validInput(state, input, ctx) {
     }
     case 'plant': {
       const sl = p.inventory[input.slot];
-      if (!Number.isInteger(input.slot) || sl?.item !== 'seeds') return false;
+      if (!Number.isInteger(input.slot) || sl?.item !== 'seeds') return false;   // §7cz: marl is optional
       // §6o: a plot is free to YOU unless you have already sown it. Whether
       // anybody else has is not your business.
       if (Object.keys(p.crops ?? {}).length >= CROP_CAP) return false;   // 6bl: the executor's rule, not a second copy
@@ -7409,7 +7474,7 @@ function validInput(state, input, ctx) {
       // with no refusal to read. Two gates that must agree.
       if (!stallGroundOk(state, p.x, p.y)) return false;
       return countItem(p.inventory, 'planks') >= MARKET_PLANKS
-          && countItem(p.inventory, 'ore') >= MARKET_ORE;
+          && countItem(p.inventory, 'iron-ore') >= MARKET_ORE;   // §7da
     }
     case 'stock_market': {
       const mk = myMarketBeside(state, ctx, p, input.playerId);
@@ -7699,7 +7764,7 @@ function validInput(state, input, ctx) {
       if (!hasAdjacentNode(state, ctx, p, 'hearth')) return false;
       if (brewpotsOwnedBy(state, ctx, input.playerId) >= bc.potCap) return false;
       return countItem(p.inventory, 'planks') >= bc.buildPlanks
-          && countItem(p.inventory, 'ore') >= bc.buildOre;   // §7cp
+          && countItem(p.inventory, 'iron-ore') >= bc.buildOre;   // §7da   // §7cp
     }
     case 'brew': {
       const bp = state.nodes[input.nodeId];
@@ -7745,7 +7810,7 @@ function validInput(state, input, ctx) {
       const wt = state.genesis.watch;
       if (!wt || p.hp <= 0) return false;
       if (effLevel(p.skills.firemaking) < wt.level) return false;
-      if (countLogs(p.inventory) < wt.kindleLogs) return false;
+      if (countLogs(p.inventory) < wt.kindleLogs) return false;   // kindling is wood; coal will not catch
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       return countOwnedNodes(state, ctx, 'watchfire', input.playerId) < wt.maxOwned;
     }
@@ -7774,7 +7839,9 @@ function validInput(state, input, ctx) {
       // left the input refused at the gate and the change invisible: the same
       // validator/executor drift this file has been bitten by three times.
       // A full fire still takes the log; it simply gains no burn from it.
-      return !!sl && isLog(sl.item);
+      // §7dd: ...and coal, which banks it. The note above is about exactly this
+      // fault and I nearly committed it a seventh time in the same function.
+      return !!sl && (isLog(sl.item) || sl.item === 'coal');
     }
     case 'fletch': {
       const sl = p.inventory[input.slot];
@@ -9947,7 +10014,7 @@ function nextState(state, inputs, _legacyBeacon) {
         spillShelf(s, mk);
         if ((mk.coin ?? 0) > 0) p.gold = (p.gold ?? 0) + mk.coin;
         addItem(p.inventory, 'planks', MARKET_PLANKS);   // §7cp: boards back, not logs
-        for (let i2 = 0; i2 < MARKET_ORE; i2++) addItem(p.inventory, 'ore', 1);
+        addItem(p.inventory, 'iron-ore', MARKET_ORE);   // §7da: what it was built from
         deleteIndexedNode(s, _ctx, mid);
       }
     } else if (inp.type === 'unmake') {
@@ -10701,8 +10768,17 @@ function nextState(state, inputs, _legacyBeacon) {
         if (sl.qty <= 0) p.inventory[inp.slot] = null;
         // §6o: the row is the CITIZEN'S. The ground is nobody's.
         if (!p.crops) p.crops = {};
-        p.crops[plotId] = s.tick;
-        p.skills.farming += 20;   // 6bl: the sowing is an act like any other
+        // §7cz: MARL, if they brought it. Broken stone spread on the row makes
+        // the ground drain and warm, and the crop comes on in two thirds the
+        // time. It needs NO NEW STATE: `crops[plotId]` is the tick it was sown,
+        // and a marled row is simply sown EARLIER than it was. Ripeness is
+        // already `tick - sown >= GROW_TICKS_RIPE` in two places, and both get
+        // this for nothing -- which is the only way to change a rule that lives
+        // in two places without them drifting apart.
+        const marled = countItem(p.inventory, 'rubble') >= MARL_PER_PLOT;
+        if (marled) consumeItem(p.inventory, 'rubble', MARL_PER_PLOT);
+        p.crops[plotId] = s.tick - (marled ? (GROW_TICKS_RIPE - GROW_TICKS_MARLED) : 0);
+        p.skills.farming += marled ? 30 : 20;   // 6bl: the sowing is an act like any other
       }
     } else if (inp.type === 'harvest') {
       const n = s.nodes[inp.nodeId];
@@ -10928,8 +11004,8 @@ function nextState(state, inputs, _legacyBeacon) {
       const owned = brewpotsOwnedBy(s, _ctx, pid);
       if (bc && free && nearHearth && owned < bc.potCap
           && countItem(p.inventory, 'planks') >= bc.buildPlanks
-          && countItem(p.inventory, 'ore') >= bc.buildOre) {   // §7cp
-        consumeItem(p.inventory, 'planks', bc.buildPlanks); consumeItem(p.inventory, 'ore', bc.buildOre);
+          && countItem(p.inventory, 'iron-ore') >= bc.buildOre) {   // §7cp
+        consumeItem(p.inventory, 'planks', bc.buildPlanks); consumeItem(p.inventory, 'iron-ore', bc.buildOre);   // §7da
         addIndexedNode(s, _ctx, 'brewpot-' + pid + '-' + s.tick, { type: 'brewpot', x: p.x, y: p.y, by: pid, lastUsed: s.tick });
       }
     } else if (inp.type === 'brew') {
@@ -11035,12 +11111,15 @@ function nextState(state, inputs, _legacyBeacon) {
       // it and the firekeeper earns, and the fuel stays where it was.
       if (wf && wf.type === 'furnace' && atOrBeside(p, wf) && sl
           && (sl.item === 'coal' || sl.item === 'charcoal')) {
+        // §7dc: and the fire knows which it was given
+        const burn = sl.item === 'coal' ? FURNACE_PER_COAL : FURNACE_PER_CHARCOAL;
         removeItem(p.inventory, inp.slot, 1);
-        wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + FURNACE_PER_COAL,
+        wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + burn,
           s.tick + FURNACE_CAP);
         wf.stokedBy = pid;   // §7r: whoever fed it last is the one minding it
         p.skills.smithing += XP_STOKE_FURNACE;   // the fireman earns, at anybody's fire
-      } else if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl && isLog(sl.item) && wt) {
+      } else if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl
+          && (isLog(sl.item) || sl.item === 'coal') && wt) {   // §7dd
         removeItem(p.inventory, inp.slot, 1);
         // fuel banks forward from whichever is later: now, or the fire's remaining burn
         // 6bc: AND IRONBARK BURNS LONGER. This is ironbark's whole job -- the
@@ -12208,7 +12287,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // sixth time this session that a validator and its resolver were taught
       // different things, and the first five were all the same shape.
       const enough = countItem(p.inventory, 'planks') >= MARKET_PLANKS
-        && countItem(p.inventory, 'ore') >= MARKET_ORE;
+        && countItem(p.inventory, 'iron-ore') >= MARKET_ORE;   // §7da
       const room = !nodeExistsAt(s, _ctx, p.x, p.y);
       const spare = marketsOwnedBy(s, _ctx, pid) < MARKET_OWNED;
       // §6ao (v6): A STALL LINES THE ROAD. A founding may require citizen stalls
@@ -12219,7 +12298,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const byRoad = stallGroundOk(s, p.x, p.y);
       if (enough && room && spare && byRoad) {
         consumeItem(p.inventory, 'planks', MARKET_PLANKS);
-        consumeItem(p.inventory, 'ore', MARKET_ORE);
+        consumeItem(p.inventory, 'iron-ore', MARKET_ORE);   // §7da
         addIndexedNode(s, _ctx, 'market-' + pid + '-' + s.tick,
           { type: 'market', x: p.x, y: p.y, by: pid, lastUsed: s.tick, ask: 1 });
         announce(s, (p.name ?? pid.slice(0, 6)) + ' has raised a stall.');

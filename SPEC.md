@@ -8500,13 +8500,26 @@ Profiled rather than guessed, and the answer was not where I would have looked.
 queried** -- 458,752 times, thousands of one-tile rects each. `groundKindAt`
 calls it per tile. Memoised, and the lookup made a Set: **2:37 to 1:55.**
 
-**And one line is seventy per cent of what remains.** The camp-ring test asks
-"is anything standing here" by walking all 9,582 nodes, for every candidate tile
-of every ring: 3.5 billion ticks against the next line's 1.0 billion. The fix is
-an occupancy Set built once and **it is not applied** -- two attempts put it
-between a `for` head and its body (rebuilding it sixty thousand times, so the
-founding stopped finishing) and then above the line where `w` exists at all. The
-scan stands and the measurement is written where the next person will find it.
+**And one line was NOT seventy per cent of what remains, though I said it was.**
+
+The profiler put the camp-ring's `Object.values(w.nodes).some(...)` at 3.5
+billion ticks against the next line's 1.0 billion, and I reported that as
+seventy per cent of the founding. **It is a misreading.** V8's `positionTicks`
+attribute a sample to the line it landed on, and for an inlined closure inside a
+hot loop that attribution is not trustworthy.
+
+The arithmetic that should have been done first: seventeen camps, about 113
+candidate tiles in each ring, 9,619 nodes scanned per tile -- **18 million
+comparisons, about two tenths of a second.** Not seventy.
+
+The index is in now anyway, at the right scope this time, because a Set lookup
+is the correct shape whatever it saves. **It saved nothing measurable**: 115s
+before, 114s after, which is noise.
+
+**So the founding's two minutes is still unexplained.** `loneRooms` was real and
+worth 42 seconds; the rest is somewhere I have not looked, and the profile's line
+numbers are not where to look for it. A profiler that names a line is telling you
+where a sample landed, not where the time went.
 
 *A slow founding is not only slow: the last four fixes before this were guesses
 rather than measurements, because looking at the world cost five minutes.*
@@ -9255,6 +9268,185 @@ sawpit and the anvil keep one each.
 
 *(The furnace already had `stokedBy` -- one name, for paying the fire-keeper.
 This is that idea admitted to be general.)*
+
+## 53. Rubble did nothing, and farming took nothing (v0.88)
+
+Two mentions of `rubble` in the whole engine: the rockfall that yields it, and
+the item list. **You could mine it and it fed nothing, bought nothing, built
+nothing** -- a gather with no consequence, which is the only kind of work this
+world has that is not work.
+
+And **farming took nothing from any other skill.** Seeds in, twelve minutes,
+grain out. No tool, no input, no reason to have done anything else first. The
+most isolated skill on the island.
+
+**So the two answer each other.** Rubble is broken stone, and broken stone
+spread on a row is what makes ground drain and warm: MARL. Sow with two in the
+pack and the crop comes on in two thirds the time.
+
+    bare ground        ripe after 1199 intervals
+    two rubble spread  ripe after  799
+    saved              400, a third of the wait
+
+**It is the WAIT and not the yield.** A farmer's harvest is farming's business;
+what a farmer actually spends is time. And a miner who has never sown now makes
+something a farmer wants, out of a node that was previously a way to waste a
+pickaxe.
+
+*It needed no new state. `crops[plotId]` is the tick a row was sown, and a
+marled row is simply sown EARLIER. Ripeness is `tick - sown >= GROW_TICKS_RIPE`
+in two places and both got this for nothing -- which is the only way to change a
+rule that lives in two places without them drifting apart, and this session has
+found six pairs that did drift.*
+
+### 53a. And it changes nothing about the South Pass
+
+Marl spends the rubble a strike ALREADY produced. Rubble per strike: one, before
+and after. Strikes to retire a stone: a thousand, before and after. **The pass
+takes exactly as long as it did** -- 41 stones, a tunnel five deep, six strikes
+an hour per stone however many citizens swing, so a floor near seven days of
+continuous work and in a world with sleep in it, weeks.
+
+*What marl does is give the byproduct a use. A citizen digging at the pass was
+throwing the spoil away.*
+
+### 53b. And the supply, which I nearly got wrong twice
+
+**41 rockfalls**, each retiring after a thousand strikes and each dark for a
+thousand intervals between them:
+
+    total rubble that will ever exist    41,000  ->  20,500 marled sowings
+    the rate, world-wide                 41 per 1000 intervals
+                                         about 74 marled rows an hour
+    to exhaust ONE boulder               a million intervals of dark
+
+Scarce enough to be worth something, plentiful enough to be a habit. Marl is a
+thing a farmer sometimes has, not a thing they always have.
+
+**I counted SEVEN first, off a stale cache, and did the arithmetic on it: 3,500
+sowings in the world's history, twelve rows an hour for every farmer combined.**
+On that number marl is a curiosity nobody would build a habit around, and I was
+one command from reverting it. The number was wrong, not the mechanic.
+
+*Twice now in this session a measurement has nearly decided a design, and been
+wrong: the profiler's seventy per cent, and this. **A number is evidence, and
+evidence needs checking before it is believed** -- especially when it agrees with
+what you were already inclined to do.*
+
+## 54. Coal is thirty times oversupplied (v0.88, MEASURED NOT FIXED)
+
+Coal is mined from six seams and **consumed by no recipe at all** -- 7x took it
+out of every steel recipe, deliberately, so its only sink is fuel for the one
+furnace. And `charcoal` substitutes for it everywhere, so a woodcutter at
+firemaking 60 can make the same fuel out of logs.
+
+The arithmetic:
+
+    one coal keeps the furnace lit    600 intervals
+    the furnace holds                 6,000 (ten coal)
+    a miner at one seam makes         roughly one coal per 20 intervals
+    so one miner produces             thirty times what the fire burns
+    six seams could keep lit          about 180 furnaces
+    furnaces on the island            ONE
+
+**Coal is not scarce. It has nothing to be spent on.** That is the opposite
+problem from marl and it wants a different answer -- not more supply but a
+second sink, and not at the anvil, because 7x closed that on purpose and was
+right to.
+
+### 54a. And the answer was not a new use
+
+The obvious move was gunpowder -- and 7i already makes it from **three nitre,
+one CHARCOAL and one brimstone**, which is the real formula. Coal does not
+belong in it: coal's sulphur makes a bad powder, and that door is correctly
+closed.
+
+But looking at it showed the actual fault. **Coal substituted for charcoal as
+fuel one for one, and charcoal also had a monopoly on powder** -- so a
+woodcutter at firemaking 60 could do everything a coal miner could, plus one
+thing more. Coal was strictly the worse material, and it existed to be the
+option you took when you could not be bothered.
+
+**What coal IS, is denser.** It burns hotter and longer, which is why the world
+went to the trouble of digging it out instead of making charcoal forever:
+
+    one coal      900 intervals of fire
+    one charcoal  600
+    coal is worth 1.5x a charcoal at the furnace
+
+**Two fuels with two masters.** A fire-keeper wants coal, because each buys more
+hours of fire; a powder-maker wants charcoal, because nothing else will do. A
+miner and a woodcutter supply different people now, instead of one of them
+supplying everybody.
+
+### 54b. And the oversupply was a DEMAND problem
+
+Six seams feed ONE furnace. **That is why coal is thirty times oversupplied: the
+demand does not grow with the number of citizens**, because there is only ever
+one fire that wants it. Cutting the seams to one would not fix that -- it would
+queue everybody at a single rock and make a beginner's material scarce, which is
+the wrong end of the problem.
+
+**A watchfire does grow.** They are player-built, two to a citizen, and every one
+has to be fed or it goes out. Coal banks one the way it banks a furnace:
+
+    logs      309 intervals
+    ironbark  909
+    coal      909      -- three logs' worth, the same 1.5x it gets at the furnace
+
+**And it closes a loop that was half-open.** Charring needs a LIT WATCHFIRE, and
+charcoal is the only thing powder is made of. So a coal miner keeps the fire that
+makes the charcoal that somebody else turns into powder: **the miner supplies the
+burner supplies the gunner, and none of the three can do the others' work.**
+
+*The rule said `isLog` and the resolver was relaxed first -- and the comment
+directly above that line is about this exact validator/executor drift, which
+this file has been bitten by three times and this session six. I nearly made it
+seven in the same function.*
+
+## 55. A stall cost eight of something nobody can mine (v0.88)
+
+The old `rock` seam that yielded `ore` was retired and replaced by `iron-rock`
+yielding `iron-ore`. **The stall's recipe was never moved with it** -- and there
+are ZERO rock nodes on the island, so a stall cost eight of a thing no pickaxe
+can produce. It survives only as a rare mob drop and a waymark find, which is
+not a supply, it is a lottery. The brewpot wanted two of the same.
+
+Seven sites, all moved to `iron-ore`: the stall's rule and its raising and its
+refund, the brewpot's rule and its raising and its consume, and three window
+messages.
+
+*A recipe whose material was retired is a recipe nobody can complete. This is the
+same fault as the room list that outlived its town (7bd) and the `buildLogs` key
+that outlived planks (7cp): a table changed, and the things that read it did
+not. Three times now, and the pattern is always a rename that was done in one
+place.*
+
+## 56. A node says what it is, when you are near it (v0.88)
+
+Four rocks share one sprite family and are told apart by TINT -- grey, near
+black, gold-flecked -- which at twenty pixels a tile is a difference you can only
+see if you already know to look. Trees were worse: **a plain tree had no tint
+entry at all**, so an ordinary tree and an oak were the same green.
+
+**A newcomer looking for iron had two options: read the worldgen source, or tap
+every rock on the island until one worked.** Both are the game failing to be a
+game.
+
+There is no hover here -- this window is thumbs -- and **a gatherable has only
+ONE action, so there is no menu to hang a name on.** So the name goes on the
+GROUND, near the thing, and only within seven tiles: as far as a person standing
+there could tell what they were looking at. It fades over the last two tiles, and
+greys when the node is spent.
+
+    tree  oak  ironbark  heartwood  iron  coal  gold  magic stone  muck heap  fishing
+
+The map stays clean at distance and legible at hand. Drawn as its own pass, over
+the world and under the interface, rather than threaded through nine routines
+that each know how to paint one kind of rock.
+
+*And the plain tree has its own green now -- paler and thinner, which is what a
+tree nobody wants looks like beside one they do.*
 
 ## 14. The toll on the Millbrook Bridge (v0.88)
 

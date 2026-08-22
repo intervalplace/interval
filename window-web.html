@@ -3855,6 +3855,10 @@ const NODE_FAMILY = {
   'deep-fish-spot': 'fishing-spot', 'gibbet-shoal': 'fishing-spot',
 }
 const NODE_TINT = {
+  // §7db: the plain tree had NO entry, so it fell to the default and an oak and
+  // an ordinary tree were the same green. A paler, thinner green -- what a tree
+  // nobody wants looks like next to one they do.
+  'tree':           { leaf: '#5d8a41', dark: '#33502a', lit: '#7fae5c' },
   'oak-tree':       { leaf: '#3f6b25', dark: '#244014', lit: '#6f9a3e' },
   'ironbark-tree':  { leaf: '#2f5a3a', dark: '#183324', lit: '#4f8257' },
   'heartwood-tree': { leaf: '#7a5a24', dark: '#3d2c10', lit: '#b08a3e' },
@@ -3867,6 +3871,36 @@ const NODE_TINT = {
   'deep-fish-spot': { water: '#1f3f66' },
   'gibbet-shoal':   { water: '#3a2a4a' },
 }
+// §7db: A NODE SAYS WHAT IT IS, WHEN YOU ARE NEAR IT.
+//
+// Four rocks share one sprite family and are told apart by tint -- grey, near
+// black, gold-flecked -- which at twenty pixels a tile is a difference you can
+// only see if you already know to look. Trees are worse: a plain tree had no
+// tint entry at all, so an ordinary tree and an oak were the SAME GREEN.
+//
+// A newcomer looking for iron had two options: read the worldgen source, or tap
+// every rock on the island until one worked. Both are the game failing to be a
+// game.
+//
+// Hover is not available -- this window is thumbs -- and a gatherable has only
+// ONE action, so there is no menu to hang a name on. So the name goes on the
+// GROUND, near the thing, and only when you are close enough that a person
+// standing there would know what they were looking at. The map stays clean at
+// distance and legible at hand.
+const NODE_NAME = {
+  'tree': 'tree', 'oak-tree': 'oak', 'ironbark-tree': 'ironbark',
+  'heartwood-tree': 'heartwood', 'gallows-oak': 'gallows oak',
+  'rock': 'rock', 'iron-rock': 'iron', 'coal-rock': 'coal', 'gold-rock': 'gold',
+  'magic-rock': 'magic stone', 'mother-lode': 'mother lode',
+  'brimstone-vent': 'brimstone', 'muck-heap': 'muck heap', 'rockfall': 'rockfall',
+  // §7db-ii: and a fishing spot is not "fishing". There are FOUR, they yield
+  // three different fish, and I named the family instead of the thing -- which
+  // is the exact fault the labels were added to fix, committed in the table
+  // that fixes it. A name has to say what you get.
+  'fishing-spot': 'fish', 'eel-spot': 'eels', 'deep-fish-spot': 'deep fish',
+  'gibbet-shoal': 'the shoal \u2014 deep fish, two to a cast', 'salt-pan': 'salt pans',
+}
+const NAME_RANGE = 7   // as far as you could read a thing by looking at it
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
 const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'magic-rock': 'mining', 'fishing-spot': 'fishing' }
@@ -10383,6 +10417,32 @@ function drawScene(now) {
     cx.beginPath(); cx.moveTo(bx, by); cx.lineTo(ax, ay); cx.stroke()
   }
   // the stilling's ring: everything else adds motion; this removes it
+  // §7db: THE NAMES OF THINGS NEAR YOU.
+  //
+  // Drawn as its own pass, over the world and under the interface, so it does
+  // not have to be threaded through nine drawing routines that each know how to
+  // paint one kind of rock. Only within NAME_RANGE, and only for gatherables:
+  // the map stays clean at distance and legible at hand.
+  {
+    const meN = world?.players?.[myId]
+    if (meN) {
+      cx.font = '10px Verdana'; cx.textAlign = 'center'
+      for (const n of (world._nodesV ?? Object.values(world.nodes ?? {}))) {
+        const nm = NODE_NAME[n.type]; if (!nm) continue
+        const d = Math.max(Math.abs(n.x - meN.x), Math.abs(n.y - meN.y))
+        if (d > NAME_RANGE) continue
+        const fade = d > NAME_RANGE - 2 ? (NAME_RANGE - d) / 2 : 1
+        const LX = px(n.x) + 20, LY = py(n.y) - 2
+        cx.fillStyle = 'rgba(0,0,0,' + (0.55 * fade) + ')'
+        const w = cx.measureText(nm).width
+        cx.fillRect(LX - w / 2 - 3, LY - 9, w + 6, 12)
+        cx.fillStyle = (n.depletedUntil ?? 0) > (world.tick ?? 0)
+          ? 'rgba(150,140,120,' + fade + ')' : 'rgba(226,214,180,' + fade + ')'
+        cx.fillText(nm, LX, LY)
+      }
+      cx.textAlign = 'left'
+    }
+  }
   stillRings = stillRings.filter(r2 => now - r2.at < 900)
   for (const r2 of stillRings) {
     const f2 = (now - r2.at) / 900
@@ -11760,6 +11820,13 @@ function invClick(i) {
   // world -- so the choice has to be an act. Tapping arrows puts them on the
   // string, and the pack shows which are nocked.
   // §7cv: a master explorer's chart can be drawn up as a charter
+  // §7cz: rubble is marl, and a citizen holding it should be told what it is for
+  if (it.item === 'rubble') {
+    feed('Broken stone. Spread two on a row when you sow and the crop comes on in '
+      + 'two thirds the time \u2014 it drains the ground and warms it. It is the only '
+      + 'thing a miner makes that a farmer wants.')
+    return
+  }
   if (it.item === 'chart' && XP_TO_LVL(meNow.skills?.exploration ?? 0) >= 90) {
     chooseAction([
       { label: 'draw it up as a charter (for the boat to the Lists)', act: () => {
@@ -11876,9 +11943,9 @@ function invClick(i) {
         const already = Object.values(world.nodes).some(n => n.type === 'market' && n.by === myId)
         if (already) return [{ label: 'raise a stall (you have one)', act: () => feed('One stall to a citizen.') }]
         if (logs2 < 16 || ore2 < 8)
-          return [{ label: 'raise a stall (needs 32 planks, 8 ore)',
+          return [{ label: 'raise a stall (needs 32 planks, 8 iron-ore)',
                     act: () => feed('You have ' + logs2 + ' logs and ' + ore2 + ' ore.') }]
-        return [{ label: 'raise a stall here (32 planks, 8 ore)', act: () => { send({ do: 'raise_market' })
+        return [{ label: 'raise a stall here (32 planks, 8 iron-ore)', act: () => { send({ do: 'raise_market' })
           feed('You begin raising a stall. Twenty intervals, and do not move.') } }]
       })(),
       { label: 'fletch wand', act: () => send({ do: 'fletch', slot: +i, make: 'wand' }) },
@@ -12319,6 +12386,10 @@ cv.addEventListener('click', (e) => {
         const ci = (meF.inventory || []).findIndex(sl => sl?.item === 'coal' || sl?.item === 'charcoal')
         if (!lit) {
           if (ci === -1) { feed('The furnace is cold, and you have no coal to light it.'); return }
+          // §7dc: and say which fuel is which, since they are no longer the same
+          const isCoal = meF.inventory[ci]?.item === 'coal'
+          feed(isCoal ? 'Coal. It burns half again as long as charcoal in a furnace.'
+            : 'Charcoal. It burns clean, but coal burns longer here \u2014 keep the charcoal for powder.')
           send({ do: 'stoke', nodeId: id, slot: ci }); feed('The bloom catches.')
           flashClick(n.x, n.y, false); return
         }
@@ -12603,7 +12674,7 @@ cv.addEventListener('click', (e) => {
             { label: 'never mind', act: () => {} },
           ]); return
         }
-        feed(bc && owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.' : 'A brewpot needs ' + (bc?.buildPlanks ?? 8) + ' planks and ' + (bc?.buildOre ?? 2) + ' ore, raised beside a house.')
+        feed(bc && owned >= bc.potCap ? 'You already run ' + bc.potCap + ' brewpots.' : 'A brewpot needs ' + (bc?.buildPlanks ?? 8) + ' planks and ' + (bc?.buildOre ?? 2) + ' iron-ore, raised beside a house.')
         return
       }
       if (n.type === 'keeper') {
