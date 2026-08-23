@@ -9571,6 +9571,208 @@ while a person moves them one at a time.
 What remains generated is what should be: the wandering and respawning of
 beasts, which is runtime rather than placement.
 
+## 57. The bone spear: a weapon that pays you for dying (v0.97)
+
+`bare` pays you for what you are not wearing. **`desperate` pays you for what
+you have already lost.** They are the same argument on two axes, and the
+difference between the axes is the whole of the design: nakedness is chosen at
+a bank and holds for the whole trip, while a wound arrives whether or not you
+wanted it and can be taken away from you by anybody.
+
+**The curve is squared, and §7l is the reason.** A flat bare bonus was measured
+and the middle beat both ends — naked won 40% of duels against a star-clad
+star-sword, and the *same blade over an iron suit* won 45%. Half the bonus plus
+real protection was the optimum, so a weapon meant to ask "will you strip?" was
+really asking "will you wear medium?". A linear hitpoint curve fails identically
+and more insidiously: the optimum becomes **hovering at half health**, half the
+bonus with a genuine margin of safety, and the weapon asks "will you hover?",
+which is duller and not the question it was built for.
+
+Squaring puts the whole bonus in the last few points of life. Measured against a
+maxed citizen (strength 99, `every: 2`, damage per landed blow over ~290 swings):
+
+| hitpoints | 99 | 75 | 50 | 25 | **15** | 10 | 5 |
+|---|---|---|---|---|---|---|---|
+| largest blow | 10 | 11 | 12 | 16 | **17** | 18 | 19 |
+| mean blow | 5.3 | 6.0 | 6.4 | 8.6 | 8.9 | 9.3 | 9.9 |
+
+**SEVENTEEN AT FIFTEEN, and neither number was tuned to meet the other.**
+Seventeen is the largest ordinary blow in the world — the maul's, bought with
+the worst accuracy in it. Fifteen is the star-maul's bite, where "it ends the
+fight, because they do not get a later". So the interval in which this weapon
+finally equals the biggest blow anybody can throw is the interval in which one
+blow can delete you, and the price is therefore **already in the engine**. That
+is the sentence §7l ends on, and nothing new had to be invented to pay for this
+one either.
+
+At full health it is worse than the iron spear a beginner carries: hit 0 against
+the iron spear's 7, two-handed, asking strength 50 for the privilege. It is
+ordinary until you are nearly dead and then it is the largest blow in the world,
+and **there is no way to hold the second state except by being in real danger of
+the first**.
+
+### It is made of a dragon, and that is what makes the sink honest
+
+Dragon bones had exactly one use: bury them, at `XP_BURY_DRAGON`, on the longest
+road in the world. They now have two, and the two are **opposed in the one way
+that matters**. Prayer's reward is `PRAYER_KEEP` — *the dearest priced thing you
+carry survives your death* — and `snaps` is not death.
+
+**Bury them and keep your things when you fall. Haft them and carry the one
+object in this world that prayer cannot save you from losing.**
+
+Two bones, not three. A dragon drops three sets *"so that a party has something
+to DIVIDE"*; a recipe eating all three would quietly repeal that and make every
+dragon one person's spear.
+
+### And bone snaps
+
+One landed blow in 2,048 and the weapon is **gone** — not damaged, not
+repairable, not a bar in a window. There is no durability in this constitution
+and inventing one for a single item would put a field in the ledger that every
+mirror must then be taught.
+
+§7am made the javelin *"the first thing in this world that fights and is
+CONSUMED by fighting"* and put that sink at the BOTTOM of the ladder where iron
+is abundant and a sink is safe. This is the same sink at the top, where the
+material is a dragon and the weapon is worth going to get.
+
+**MEASURED, AND THE FIRST CUT WAS BROKEN.** It read
+`roll(beacon, pid, 'snap') % DROP_DEN < SNAP_CHANCE`, which looks exactly right
+and is not: `roll` returns ONE BYTE, "uniform integer in [0, 255]", so the
+modulo by 65,536 did nothing whatsoever and the real test was 32 in 256. Three
+bone spears were driven into a goblin and broke after **three landed blows, then
+nine, then none at all** — one interval in eight. §6bb says it in its title: one
+byte cannot say 'rare'. Reading `roll16` instead, a spear now survives **2,062
+intervals of unbroken fighting**, about twenty-one minutes, and every genuinely
+scarce thing in this world draws the wider lot for the same reason.
+
+## 58. The mere-lamprey: a door that shuts (v0.97)
+
+§7a opened a door that can never be closed: the South Pass, dug out by whoever
+swung, where *"every citizen who arrives afterwards lives in the world they made
+and cannot join them in making it. That is a one-way door and it is meant to
+be."* **This is the same door pointed the other way — a thing the island can
+SPEND.**
+
+Seven lampreys, sixty-four lives apiece. 448 kills to empty the meres, and at
+two measures of spit to a barb there will never be more than **224 barbs**, in
+this world, forever.
+
+### Nobody decides this, and that is the only reason it is allowed to exist
+
+There is no vote, no committee, no seal to build. A construction anybody may
+work at is a mechanism by which twenty determined citizens impose a permanent
+loss on four hundred who wanted it kept, and this constitution has no way to ask
+the four hundred anything.
+
+§18a already solved it. At most forty-one fall-stones, *"the real number is the
+island's decision"*, and no citizen ever cast a vote about it. **Appetite
+decided.** Each digger wanted a stone and the sum of wanting ended the seam.
+
+A lamprey dies the same way. Every kill is somebody who came for spit, nobody
+ever sets out to kill the last one, and there is no villain anywhere in it.
+**It dies of being wanted.**
+
+### Seven, not one with a counter
+
+"There are three left" is a sentence a world can say. "Four hundred and eighty
+of five hundred" is a progress bar. A small named population goes one at a time
+over years — the first death barely registers, the fourth is an argument, the
+last is `lasts` — and it blunts the spite case, because killing the first one is
+not an ending and the weight arrives slowly enough that the island can notice
+what it is doing while it can still stop.
+
+### What it leaves is walkable
+
+§7a's best line is that the road to the South Pass still ARRIVES at rock. A
+spent lamprey is **not deleted**. It is marked `spent`, left lying at its post
+with no hitpoints, and never rises again. The reed-bed stays and the thing lies
+in it, and a citizen who walks out there finds *the place* rather than an empty
+tile that never explains itself.
+
+Nothing anywhere touches `blockedAt`. That is the same discipline the rockfall
+needed and for the same reason: `geographyHash` covers the founding, and no
+citizen may ever make it disagree.
+
+### `lasts`, and the reservoir
+
+`firsts` is a permanent honours roll and **every entry in it is an opening** —
+the first sigil, the first stilling, the first skeleton-knight. Nothing in this
+constitution could record a thing happening for the last time, because until now
+nothing could. `claimLast` **overwrites** rather than refusing, which is the
+exact inverse of `claimFirst` and correct for the same reason: a first is
+claimed once, a last is provisional until the source is empty.
+
+`slain` is public, and the final kill of a thing that never returns is the most
+valuable interval in the world's history — far more snipeable than a thousandth
+swing at a boulder, because there is exactly one of it and everybody can watch it
+coming. So §18b's reservoir is borrowed whole: each kill replaces the holder with
+probability `1/n`, `n` counting across the entire species rather than per body.
+
+**Measured, on two lampreys driven to extinction:** the citizen who finished the
+*first* held `lamprey` at the end, not the one who landed the final blow. That is
+the mechanism working. Whoever it names may have killed one lamprey in the first
+week and never come back, which makes the record a memorial of the campaign
+rather than a prize for being awake.
+
+### The barb bites all round
+
+`flurry` hits twice at the same target and that was as close as anything in this
+world came to answering more than one thing. Meanwhile §6by deliberately built
+content out of **crowds** — the risen the King calls up, an incursion, and the
+carrion-crows that are weak alone and never alone — and the arsenal had answers
+to armour (the flail), to shields (the great arms) and to plate at reach (the
+siphon), and none at all to numbers.
+
+The barb is pure geometry: the same blow, already rolled, reaching every other
+beast in reach. Not re-rolled per target, which would make a crowd a slot
+machine; not divided by how many there are, which would make it worse than a
+sword at the exact moment it did the only thing it exists for.
+
+**It applies no state, and that is why it is a weapon rather than a spell.** The
+six words the barrow book already owns — anchor, mend, still, wither, taking,
+rot — have between them claimed every status worth having. `wither` in
+particular already shuts the healing door at level 88 for sixteen intervals at
+reach two. A seventh status wearing a haft would be `flurry` and `volley` all
+over again.
+
+**Measured**, four goblins pinned to the four faced tiles, one at the corner, one
+three tiles off, eighty intervals:
+
+| | north | east | west | south | corner | 3 tiles |
+|---|---|---|---|---|---|---|
+| barb | 237 | 295 | 247 | 269 | 0\* | 0 |
+| iron-sword | 0 | 239 | 0 | 0 | 0 | 0 |
+
+\* the corner goblin takes damage only on intervals it has actually stepped onto
+a faced tile. `inReach` is doing the work and no exception clause exists.
+
+**And it teaches nothing extra.** `teachMelee` and the hitpoints credit are
+scored once, off the named target: measured at attack +87 / strength +106 /
+hitpoints +193 over sixty intervals, *identical* alone and in a crowd of four. A
+weapon that trained you six times an interval in a lair of crows would be the
+fastest ladder in the world, and this is a weapon about a crowd, not a farm.
+
+The domain selects itself with no exception clause anywhere, in the star-maul
+special's manner: worthless on the dragon, worthless on the gibbet-dead behind
+their rail, worse than a sword in a duel, and the only thing anybody wants when
+an incursion has fixed on a neighbour.
+
+### The population is a rule; the spacing is a preference
+
+The first cut fixed the separation at fifty tiles and seated **six** — the Fens
+do not hold seven bank tiles that far apart — which would have shipped a world
+with 384 spit and 192 barbs instead of 448 and 224, silently, under the same
+version number. **The permanent supply of an item may not depend on how lucky a
+coastline was.** The placer now steps 50 → 42 → 34 → 26 → 18 → 10 and takes the
+first gap that seats seven, and warns at founding if even ten fails.
+
+Each seat requires water in one of the four faced tiles. §2b-ii gave the Fens
+meres and reed-water for hydrological reasons years before anything wanted them,
+and a beast at the edge of standing water stands where §2b-i's promise is worth
+least: the ground you would back away over is the ground you cannot cross.
+
 ## 10. Out of scope for v0.1
 
 Sharding, combat, hidden information, name release/transfer,

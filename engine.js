@@ -727,6 +727,13 @@ const WIELD_REQS = {
   // needed for balance; this one is here so that a citizen meets the choice
   // after they have met armour, not before.
   'bare-blade': { attack: 30, strength: 30 },
+  // §7cm: strength alone, and high. It is the maul's argument -- a blow, not a
+  // roll -- and §7ao's point stands: a strength pure should have something to
+  // pick up at the end of the spade.
+  'bone-spear': { strength: 50 },
+  // §7cn: attack, mid-high. A weapon that answers a crowd should be carried by
+  // somebody who has already stood in one.
+  'barb': { attack: 45 },
   // §6bt: seventy, where every gathering skill already has its mastery tool.
   // §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
   // crossbow for ranged, and nothing for strength -- which was invisible while
@@ -2271,6 +2278,48 @@ const WEAPONS = {
   // (The name is the old one. A berserkr was a bear-shirt, and the reading
   // that has always fitted the fighting is ber-serkr: BARE of shirt.)
   'bare-blade':    { hit: 0, every: 2, reach: 1, acc: 0, bare: true },
+  // §7cm: THE BONE SPEAR. Its damage is what you have already lost.
+  //
+  // Hit ZERO, so at full health it is worse than the iron spear a beginner
+  // carries -- a two-handed stick that asks strength fifty and gives nothing
+  // back. At fifteen hitpoints it is a maul without the maul's accuracy
+  // problem. It is ordinary until you are nearly dead and then it is the
+  // largest blow in the world, and there is no way to hold the second state
+  // except by being in real danger of the first.
+  //
+  // IT IS MADE OF A DRAGON, and that is what makes the sink honest. Dragon
+  // bones already had exactly one use -- bury them, at XP_BURY_DRAGON, on the
+  // longest road in the world. Now they have two, and the two are opposed in
+  // the only way that matters: prayer's reward is PRAYER_KEEP, "the dearest
+  // priced thing you carry survives your death", and `snaps` is not death.
+  // Bury the bones and keep your things when you fall; forge them and hold the
+  // one object in this world that prayer cannot save you from losing.
+  //
+  // Two bones, not three. A dragon drops three sets so that "a party has
+  // something to DIVIDE"; a recipe that ate all three would quietly undo that
+  // and make every dragon one person's spear.
+  'bone-spear':    { hit: 0, every: 2, reach: 2, acc: 0, desperate: true, snaps: true },
+  // §7cn: THE BARB. The first weapon in this world that strikes MORE THAN ONE
+  // THING.
+  //
+  // `flurry` hits twice at the same target and that was as close as anything
+  // came. Meanwhile §6by deliberately built content out of CROWDS -- the risen
+  // the King calls up, an incursion, and the carrion-crows that are weak alone
+  // and never alone -- and the arsenal had no answer to numbers at all, only
+  // to armour (the flail), to shields (the great arms) and to plate at reach
+  // (the siphon).
+  //
+  // It is pure geometry. It applies no state, which is why it is a weapon and
+  // not a spell: the six words the barrow book already owns -- anchor, mend,
+  // still, wither, taking, rot -- have between them claimed every status worth
+  // having, and a seventh wearing a haft would be `flurry` and `volley` all
+  // over again.
+  //
+  // The domain selects itself, in the star-maul special's manner, with no
+  // exception clause anywhere: worthless on the dragon, worthless on the
+  // gibbet-dead behind their rail, worse than a sword in a duel, and the only
+  // thing anybody wants when an incursion has fixed on a neighbour.
+  'barb':          { hit: 4, every: 2, reach: 1, acc: 8, cleaves: true },
   // A WAND IS A BAD WEAPON ON PURPOSE. Magic is the anti-combat skill, so the
   // fullest expression of it is a thing you hold INSTEAD of a weapon: you have
   // given up fighting to be better at not fighting.
@@ -2611,7 +2660,18 @@ const drawnAt = (p, t) => isRanged(p) && !adjacent(p, t);
 // that is its identity rather than an oversight.
 const CLUB_ACC = -30;
 const clubbed = (p, t) => isRanged(p) && adjacent(p, t) && weaponOf(p)?.selfAmmo !== true;
-const hitOf = (p, t) => (clubbed(p, t) ? 0 : (weaponOf(p)?.hit ?? 0));
+// §7cm: `desperate` rides in hitOf so it reaches EVERY path -- citizens,
+// beasts and the yard butt alike -- rather than being added at each call site
+// the way `bare` is. (The bare-blade's bonus is applied at the PvP and dummy
+// sites only, which is why a bare-blade is an ordinary blade against a wolf.
+// A weapon whose whole argument is about dying would be a lie if it forgot
+// the things most likely to kill you.)
+const hitOf = (p, t) => {
+  if (clubbed(p, t)) return 0;
+  const w = weaponOf(p);
+  return (w?.hit ?? 0)
+    + (w?.desperate === true ? desperateBonus(p.hp, effLevel(p.skills.hitpoints)) : 0);
+};
 const accOf = (p, t) => (weaponOf(p)?.acc ?? 0) + (clubbed(p, t) ? CLUB_ACC : 0);
 const inReach = (p, t) => {
   // melee geometry (v0.79): movement is cardinal, so a reach-1 weapon
@@ -2675,6 +2735,10 @@ const INCURSION_FACE_DROPS = {
   'wilds-shade': [{ item: 'horn', chance: HORN_DROP }],
   haunt:      [{ item: 'horn', chance: HORN_DROP }],
 };
+// §7cn: seven lampreys, sixty-four lives each. 448 kills to empty the meres,
+// and at two spit to a barb there will never be more than 224 barbs.
+const LAMPREY_LIVES = 64;
+const LAMPREY_COUNT = 7;
 const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
@@ -2991,6 +3055,48 @@ const MOB_STATS = {
                     // shared pile as the stones, to be fought over at the pickup.
                     { item: 'cinder-crown', chance: 2048 },
                     { item: 'ore' }] },
+  // §7cn: THE MERE-LAMPREY, and the first creature in this world that can be
+  // USED UP.
+  //
+  // §7a opened a door that can never be shut again: the South Pass, dug out by
+  // whoever swung, and "every citizen who arrives afterwards lives in the world
+  // they made and cannot join them in making it. That is a one-way door and it
+  // is meant to be." This is the same door pointed the other way -- a thing the
+  // island can SPEND -- and it is built out of the same two anti-farm
+  // materials, calendar and appetite, because §12c is still true: identity is a
+  // keypair and a threshold denominated in labour is denominated in the one
+  // currency an executor has infinitely much of.
+  //
+  // SEVEN OF THEM, sixty-four lives apiece. Not one boss with a counter: a
+  // small named population that goes one at a time, because "there are three
+  // left" is a sentence a world can say and "four hundred and eighty of five
+  // hundred" is a progress bar. The first death barely registers. The fourth is
+  // an argument. The last is `lasts`.
+  //
+  // NOBODY DECIDES THIS. There is no vote, no committee and no seal to build --
+  // which is the whole reason it is allowed to exist. §18a already works this
+  // way: at most forty-one fall-stones, "the real number is the island's
+  // decision", and no citizen ever cast one. Appetite decided. Each digger
+  // wanted a stone and the sum of wanting ended the seam. A lamprey dies of
+  // being wanted, every kill is somebody who came for spit, and there is no
+  // villain anywhere in it.
+  //
+  // AND WHAT IT LEAVES IS WALKABLE. When the last one is gone the mere is still
+  // there and still empty. §7a's best line is that the road to the South Pass
+  // still ARRIVES at rock; a reed-bed you can wade into with nothing in it says
+  // more than a reed-bed that was never drawn.
+  //
+  // The numbers: it kills a master in a shade over four minutes, which is the
+  // band §6by set for the four things that are supposed to be dangerous. It is
+  // not a boss. It is a hard beast in bad ground that four hundred and forty
+  // eight people will each want a piece of.
+  'mere-lamprey': { maxHp: 44, atk: 62, def: 15, maxHit: 8, every: 2, respawn: 400,
+            aggro: 3, finite: LAMPREY_LIVES,
+            // Every kill leaves spit. No chance roll anywhere: a finite source
+            // whose drop is also a lottery would put the island's total supply
+            // at the mercy of variance, and the supply is the whole design.
+            // 448 kills, 448 spit, 224 barbs, forever.
+            drops: [{ item: 'lamprey-spit' }, { item: 'bones' }] },
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 12288 },            // scavenged metal
@@ -3422,6 +3528,16 @@ const PRICES = {
   // the worst buyer in the world for it and a mourner the best, which is how
   // every Wilds good in this table is priced.
   'dragon-bones': 500,
+  // §7cm: a keeper will take a bone spear, and pays for the bones rather than
+  // the work -- two dragon-bones is a thousand and the haft is nothing. Priced
+  // rather than unpriced ON PURPOSE: PRAYER_KEEP saves "the dearest PRICED
+  // thing you carry", and a weapon whose entire argument is about being nearly
+  // dead must be a thing prayer can be asked to save. It just cannot be asked
+  // to save it from snapping.
+  'bone-spear': 900,
+  // §7cn: and what a fixed supply is worth at a stall, which is not what it is
+  // worth to a citizen. The keeper does not know there are only two hundred.
+  'barb': 260, 'lamprey-spit': 90,
 };
 // §6l: `storeAsk` and `storeBid` are repealed with the shelf they priced.
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
@@ -3475,6 +3591,12 @@ const RECIPES = {
   // pures, who never gear up and should not have to risk a fortune to train
   // the only build the world offers them. Steel, and not much of it.
   'bare-blade': { 'steel-ingot': 4, 'ironbark': 1 },
+  // §7cm: bone and a haft, exactly as the hollow bow is bone and a log. No
+  // metal at all -- a dragon is the whole cost.
+  'bone-spear': { 'dragon-bones': 2, 'ironbark': 1 },
+  // §7cn: two measures of spit and a steel head. The steel is nothing; the
+  // spit is the entire price, and there will never be more of it.
+  'barb': { 'lamprey-spit': 2, 'steel-ingot': 1 },
   // §6av: starmetal, because that is where the scarcity already lives -- a
   // magic-stone is mined in the WILDS, so every one has survived a trip
   // somebody could have died on. Against citizens who automate, effort is not
@@ -3694,6 +3816,11 @@ const ITEMS = new Set([
   // A world where a script can do the digging is a world where the digging is
   // not the achievement; being at the boulder when it gave way is.
   'rubble',
+  // §7cn: WHAT A LAMPREY LEAVES. A finite substance -- 448 of them will ever
+  // be drawn out of the meres, because there are seven lampreys and each of
+  // them can be killed sixty-four times and then not again. Every barb in the
+  // world for the rest of the world is made of this.
+  'lamprey-spit',
   'iron-javelin', 'steel-javelin', 'star-javelin',   // §6dg
   // §6am (v6): the mid-tier raw goods, gathered from the mid seams. Like logs
   // and ore they are not made, so they are named here rather than by a recipe.
@@ -3855,6 +3982,15 @@ const SMITH_REQS = {
   'fire-siphon': { smithing: 62 },
   'hollow-bow': { fletching: 12 },
   'bare-blade': { smithing: 34 },   // §7l: steel-tier work, provisional
+  // §7cm: BONE IS FLETCHING'S WORK, as the bone staff already is at 45. A
+  // smith would be the obvious hand and it is the wrong one: nothing here is
+  // forged, and the skill that shapes bone into a shaft in this world is the
+  // one that shapes it into arrows.
+  'bone-spear': { fletching: 55 },
+  // §7cn: the head is steel and the binding is not. Mid work, because the
+  // scarcity is in the material and a level gate on top of a fixed supply
+  // would only decide WHO gets the two hundred, not how many there are.
+  'barb': { smithing: 40 },
   // §6bt: a master smith's work, and the only recipes that ask for brimstone.
   'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
   'great-maul': { smithing: 70, magic: 34 },
@@ -3944,6 +4080,43 @@ const bareBonus = (armour) => {
   const t = Math.max(0, Math.min(1, (BARE_CAP - armour) / BARE_CAP));
   return Math.round(10 * t * t);
 };
+// §7cm: THE DESPERATE CURVE. `bare` pays you for what you are not wearing;
+// `desperate` pays you for what you have already lost. They are the same
+// argument on two axes -- one chosen at the bank and permanent for the trip,
+// the other involuntary and arriving whether you wanted it or not.
+//
+// THE SHAPE IS BORROWED ON PURPOSE, and so is the reasoning behind it. §7l
+// measured a FLAT bare bonus and found the middle beat both ends: half the
+// bonus plus real protection was the optimum, so a weapon meant to ask "will
+// you strip?" was really asking "will you wear medium?". A linear hitpoint
+// curve fails in exactly the same way -- the optimum becomes hovering at half
+// health, half the bonus and a real margin of safety, and the weapon asks
+// "will you hover?", which is a duller question and not the one it is for.
+//
+// Squaring puts the whole bonus in the last few points of life.
+//
+//   hp/max   99   50   25   15    5    1
+//   bonus     0    2    6    7    9   10
+//
+// SEVEN AT FIFTEEN is not a coincidence and was not tuned to be one. Fifteen
+// hitpoints is the star-maul's bite -- "against a citizen at fifteen it ends
+// the fight, because they do not get a later". The interval where this weapon
+// becomes worth carrying is the interval in which you can be deleted in one
+// blow, and the price is therefore already in the engine: to hold the bonus
+// you must stand inside somebody else's execute window. Nothing new had to be
+// invented to pay for it, which is the same sentence §7l ends on.
+const desperateBonus = (hp, maxHp) => {
+  if (!(maxHp > 0)) return 0;
+  const t = Math.max(0, Math.min(1, (maxHp - hp) / maxHp));
+  return Math.round(10 * t * t);
+};
+// §7cm: and what it costs to swing a thing made of bone. One in 2,048 blows,
+// which is a little over forty minutes of continuous fighting at `every: 2`.
+// §7am made the javelin "the first thing in this world that fights and is
+// CONSUMED by fighting" and wanted the sink at the BOTTOM of the ladder where
+// iron is abundant; this is the same sink at the top, where the material is a
+// dragon and the weapon is worth going to get.
+const SNAP_CHANCE = 32;   // out of DROP_DEN (65536)
 const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plate': 18, 'star-helm': 16, 'star-plate': 24, 'king-shroud': 22,
                  'gold-helm': 16, 'gold-plate': 24,
                  // §6bw: SHELL, between iron and steel, where thirty-one levels
@@ -3975,7 +4148,11 @@ const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plat
 // would quietly retune a skill. A divisor touches neither the roll nor the
 // miss: what a defender learns and what an attacker learns are exactly what
 // they were, and the shield only changes what arrives.
-const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'iron-maul', 'steel-maul', 'star-maul',
+// §7cm: the bone spear is on the list because it is a spear. §6bz's trade is
+// the point -- reach and weight are bought with the off hand -- and a weapon
+// that gave a two-tile haft AND a star shield would be answering a question
+// nobody asked it.
+const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'bone-spear', 'iron-maul', 'steel-maul', 'star-maul',
   'great-sword', 'great-crossbow',
   'star-flail', 'old-chain', 'wooden-bow', 'horn-bow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
   'crossbow', 'handgonne', 'staff', 'heartwood-staff', 'goo-staff']);
@@ -6210,7 +6387,16 @@ const LANDMARK_KINDS = new Set([
       'maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit',
       // §6ao (v6): the Gibbet King's clock (lastRaise) and the mark a risen
       // carries back to the King who called it (raisedBy).
-      'lastRaise', 'raisedBy'].includes(mk)) return 'non-constitutional mob field ' + mk;
+      'lastRaise', 'raisedBy',
+      // §7cn: what a finite beast carries -- how many times it has been killed
+      // and whether it is done. Only a beast MOB_STATS calls finite may bear
+      // either, so an ordinary goblin cannot be quietly retired by a peer.
+      'slain', 'spent'].includes(mk)) return 'non-constitutional mob field ' + mk;
+    for (const fk of ['slain', 'spent'])
+      if (m[fk] !== undefined && MOB_STATS[m.type]?.finite === undefined)
+        return 'only a finite beast bears ' + fk;
+    if (m.slain !== undefined && !isInt(m.slain, 0, 1000000)) return 'mob slain out of bounds';
+    if (m.spent !== undefined && !isInt(m.spent, 0, 1)) return 'mob spent out of bounds';
     for (const ik of ['maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit']) if (m[ik] !== undefined && m.type !== 'incursion') return 'only an incursion bears ' + ik;
     if (m.lastRaise !== undefined && m.type !== 'gibbet-king') return 'only the Gibbet King raises';
     if (m.raisedBy !== undefined && m.type !== 'risen') return 'only a risen is raised';
@@ -8118,7 +8304,7 @@ function cloneStateForTick(state) {
       case 'nodes': case 'mobs': case 'ground':
         out[k] = (v === null || typeof v !== 'object' || Array.isArray(v)) ? _deepCloneJson(v) : _cloneEntityMap(v);
         break;
-      case 'names': case 'firsts':
+      case 'names': case 'firsts': case 'lasts':
         out[k] = (v === null || typeof v !== 'object' || Array.isArray(v)) ? _deepCloneJson(v) : _cloneFlat(v);
         break;
       default: // tick, beacon, markers, announce, spec fields, unknown fields
@@ -8749,6 +8935,22 @@ function claimFirst(s, key, pid) { // true the first time `key` is ever achieved
   if (s.firsts[key] === undefined) { s.firsts[key] = pid; return true; }
   return false;
 }
+// §7cn: AND A WORLD WITH CLOSING DOORS NEEDS `lasts`.
+//
+// `firsts` is a permanent honours roll of things that happened for the first
+// time, and every one of them is an opening: the first sigil, the first
+// stilling, the first skeleton-knight. Nothing in this constitution could
+// record a thing happening for the LAST time, because until now nothing could.
+//
+// It overwrites rather than refusing, which is the exact opposite of
+// claimFirst and correct for the same reason: a first is claimed once and a
+// last is only ever provisional until the source is empty. The sixth lamprey's
+// killer holds `lamprey` right up until the seventh dies.
+function claimLast(s, key, pid) {
+  if (!s.lasts) s.lasts = {};
+  s.lasts[key] = pid;
+  return true;
+}
 
 // NO NON-FINITE NUMBER MAY ENTER THE STATE.
 //
@@ -9135,7 +9337,38 @@ function nextState(state, inputs, _legacyBeacon) {
     const king = r.raisedBy ? s.mobs[r.raisedBy] : null;
     if (!king || king.hp <= 0) { delete s.mobs[rid]; }
   }
+  // §7cn: THE DOOR THAT SHUTS. Before anything rises, a beast that has been
+  // spent stops rising -- forever, with no node, no flag on the terrain and no
+  // change to `blockedAt`, which is the same discipline §7a needed for the
+  // rockfall and for the same reason: `geographyHash` covers the founding and
+  // a citizen may never make it disagree.
+  //
+  // The body is NOT deleted. It is marked `spent` and left lying at its post
+  // with no hitpoints, so a mirror still draws a reed-bed with something dead
+  // in it and a citizen who walks out there finds the place rather than an
+  // empty tile that never explains itself.
+  for (const [_lid, _lm] of Object.entries(s.mobs).sort()) {
+    const _fin = MOB_STATS[_lm.type]?.finite;
+    if (_fin === undefined || (_lm.spent ?? 0) === 1) continue;
+    if ((_lm.slain ?? 0) < _fin) continue;
+    _lm.spent = 1;
+    _lm.hp = 0;
+    _lm.respawnAt = MAX_TIME;
+    const _left = Object.values(s.mobs)
+      .filter(x => MOB_STATS[x.type]?.finite !== undefined && (x.spent ?? 0) === 0).length;
+    if (_left > 0) {
+      announce(s, 'The mere is quiet. ' + _left
+        + (_left === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.'));
+    } else {
+      // Nothing is credited to the killer. The reservoir over a whole campaign
+      // belongs in `lasts`, and whoever it names may have stopped playing in
+      // the first week -- which is the point of recording it at all.
+      announce(s, 'THE LAST LAMPREY IS DEAD. There will be no more spit, and no '
+        + 'more barbs than the ones that already exist.');
+    }
+  }
   for (const m of Object.values(s.mobs)) {
+    if ((m.spent ?? 0) === 1) continue;   // §7cn: spent things do not rise
     if (m.hp <= 0 && m.respawnAt <= s.tick) {
       // §6ao (v6): a summoned risen does not come back on its own -- only the
       // King raises more. (It is cleaned up by the crumble pass / stays dead.)
@@ -12171,6 +12404,56 @@ function nextState(state, inputs, _legacyBeacon) {
         if (stats?.warded === true && m.hp <= 0 && countItem(p.inventory, 'holy-water') >= 1)
           consumeItem(p.inventory, 'holy-water', 1);
         if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
+        // §7cn: AND A BARB BITES ALL ROUND. The same blow, already rolled,
+        // reaches every OTHER beast standing where this one stands -- in reach
+        // of the citizen, alive, and not a straw man in a yard.
+        //
+        // The damage is NOT re-rolled per target and NOT divided by how many
+        // there are: one swing, one number, applied wherever the swing went. A
+        // per-target roll would make a crowd a slot machine; a divided one
+        // would make the weapon worse than a sword at the exact moment it did
+        // the only thing it exists for.
+        //
+        // AND IT TEACHES NOTHING EXTRA. `teachMelee` and the hitpoints credit
+        // below are scored once, off the named target. A weapon that trained
+        // you six times an interval in a lair of crows would be the fastest
+        // ladder in the world; this is a weapon about a crowd, not a farm.
+        if (weaponOf(p)?.cleaves === true) {
+          for (const oid of Object.keys(s.mobs).sort()) {
+            if (oid === p.action.mobId) continue;
+            const o = s.mobs[oid];
+            if (!o || o.hp <= 0 || MOB_STATS[o.type]?.dummy === true) continue;
+            if (!inReach(p, o)) continue;
+            o.hp -= dmg;
+            if (o.hp <= 0) {
+              o.respawnAt = s.tick + (MOB_STATS[o.type]?.respawn ?? 60);
+              if (MOB_STATS[o.type]?.finite !== undefined) o.slain = (o.slain ?? 0) + 1;
+            }
+          }
+        }
+        // §7cm: AND BONE SNAPS. One blow in 2,048 and the weapon is GONE --
+        // not damaged, not repairable, not a bar in a window. There is no
+        // durability in this constitution and inventing one for a single item
+        // would put a field in the ledger every mirror must then be taught.
+        //
+        // It is rolled off the same beacon as the blow, so it cannot be timed
+        // and cannot be avoided by swinging at something safe. The only way to
+        // keep a bone spear is to not use it, which is not keeping it.
+        // §6bb IS NOT OPTIONAL HERE, and the first cut of this got it wrong in
+        // the way that reads correctly: `roll(...) % DROP_DEN < SNAP_CHANCE`.
+        // `roll` returns ONE BYTE -- "uniform integer in [0, 255]" -- so the
+        // modulo by 65,536 did nothing at all and the test was really 32 in
+        // 256. Measured: a bone spear snapped after three landed blows, then
+        // nine, then none, at one interval in eight. §6bb says it plainly --
+        // one byte cannot say 'rare' -- and every genuinely scarce thing in
+        // this world draws roll16 for exactly this reason.
+        if (weaponOf(p)?.snaps === true
+            && roll16(beacon, pid, 'snap') < SNAP_CHANCE) {
+          const broke9 = p.equipment.weapon.item;
+          p.equipment.weapon = null;
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' swings once more and the '
+            + broke9 + ' SNAPS. There is nothing left of it.');
+        }
         // §6as-ii: split as a citizen's blow is split. Beasts taught ATTACK
         // alone, so strength -- which every melee blow now scores from -- could
         // not be raised except by fighting people, which asks a citizen to be
@@ -12191,6 +12474,33 @@ function nextState(state, inputs, _legacyBeacon) {
       }   // armReady
 
       if (m.hp <= 0) {
+        // §7cn: A FINITE BEAST COUNTS ITS OWN DEATHS. The tally lives on the
+        // body, not in a global -- so it survives a checkpoint, it is visible
+        // to every mirror that can already read a mob, and seven lampreys wear
+        // down independently instead of sharing one bar.
+        if (MOB_STATS[m.type]?.finite !== undefined && (m.spent ?? 0) === 0) {
+          m.slain = (m.slain ?? 0) + 1;
+          // §7cn: THE RESERVOIR, borrowed whole from §18b. `slain` is public
+          // and the FINAL kill of a thing that never returns is the most
+          // valuable interval in the world's history -- far more snipeable
+          // than a thousandth swing at a boulder, because there is exactly one
+          // of it and everybody can see it coming.
+          //
+          // So it is not the last blow that is recorded. Each kill replaces
+          // the holder with probability 1/n, uniform over everyone who ever
+          // fought a lamprey, and `n` counts across the whole species rather
+          // than per body. Whoever `lasts` finally names may have killed one
+          // lamprey in the first week and never come back, which is better
+          // than naming whoever happened to be awake at the end: it makes the
+          // record a memorial of the campaign instead of a prize for timing.
+          s.lampreyN = (s.lampreyN ?? 0) + 1;
+          if (roll(beacon, pid, 'reservoir') % s.lampreyN === 0)
+            claimLast(s, 'lamprey', pid);
+          const left = MOB_STATS[m.type].finite - m.slain;
+          if (left === 8 || left === 4 || left === 1)
+            announce(s, 'Something in the mere is failing. It has ' + left
+              + (left === 1 ? ' life left.' : ' lives left.'));
+        }
         if (m.type === 'skeleton-knight' && claimFirst(s, 'knightslayer', pid))
           announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to fell a skeleton-knight.');
         // §6ac: THE STRAND KEEPS SCORE QUIETLY.

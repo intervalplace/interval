@@ -5965,6 +5965,85 @@ export function buildWorld(genesis) {
     }
   }
 
+  // ---- THE LAMPREYS (§7cn) ----
+  //
+  // Seven, in the Fens, each on dry ground with standing water beside it. They
+  // are hand-placed like the other named things and for the same reason: a
+  // creature the island can only kill four hundred and forty-eight times in
+  // the whole history of the world does not belong to a scatter table.
+  //
+  // THE WATER IS NOT DECORATION. §2b-ii gave the Fens meres and reed-water for
+  // hydrological reasons years before anything wanted them -- and a beast that
+  // stands at the edge of water is standing where §2b-i's promise is worth
+  // least, because the ground you would back away over is the ground you
+  // cannot cross. The lampreys were not put in the wet to look right.
+  //
+  // SPREAD APART, hard. Fifty tiles between any two, so the island cannot burn
+  // through the whole population in one lair over one weekend: each is its own
+  // errand, and "there are three left" has to be learned in three places.
+  {
+    // SEVEN OR NOTHING, and the spacing yields before the count does.
+    //
+    // The first cut fixed the separation at fifty tiles and seated SIX -- the
+    // Fens simply do not hold seven bank tiles that far apart -- which would
+    // have shipped a world with 384 spit instead of 448 and 192 barbs instead
+    // of 224, silently, under the same version number. The permanent supply of
+    // an item may not depend on how lucky a coastline was.
+    //
+    // So the spread is a preference and the population is a rule. Try fifty;
+    // if the country will not hold seven at fifty, try forty-two, and so on
+    // down. Deterministic, seed-stable, and it degrades in the direction that
+    // keeps the constitution true.
+    const seatsAt = (minGap) => {
+      const out = []
+      for (let i = 0; i < 24000 && out.length < 7; i++) {
+        const hh = H32('lamprey', i)
+        const x = 2 + (hh.readUInt16BE(0) % (W - 4))
+        const y = 2 + (hh.readUInt16BE(2) % (H - 4))
+        if (biomeAt(g, x, y) !== 'fens') continue
+        if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        // WATER IN ONE OF THE FOUR FACED TILES, and nowhere else will do. §2b-i
+        // promises nobody can be run down; a beast at the edge of standing
+        // water is standing where that promise is worth least, because the
+        // ground you would back away over is the ground you cannot cross.
+        let wet = false
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+          if (isWater(g, x + dx, y + dy)) wet = true
+        if (!wet) continue
+        let clash = false
+        for (const st of out) if (Math.hypot(st.x - x, st.y - y) < minGap) clash = true
+        if (clash) continue
+        out.push({ x, y })
+      }
+      return out
+    }
+    let seats = []
+    for (const gap of [50, 42, 34, 26, 18, 10]) {
+      seats = seatsAt(gap)
+      if (seats.length === 7) { counts.lampreyGap = gap; break }
+    }
+    seats.forEach((st, i) => {
+      E.addMob(w, 'lamprey-' + (i + 1), 'mere-lamprey', st.x, st.y)
+      taken.add(key(st.x, st.y))
+    })
+    if (seats.length) {
+      const st = seats[0]
+      const sy = st.y + 2
+      if (free(st.x, sy) && !blockedAt(g, st.x, sy) && !isWater(g, st.x, sy)) {
+        taken.add(key(st.x, sy))
+        put('lamprey-sign', 'signpost', st.x, sy,
+          { text: 'seven mouths in the meres \u00b7 there will not be more' })
+      }
+    }
+    // SEVEN OR THE WORLD IS WRONG. The supply of every barb that will ever
+    // exist is decided here, so a founding that quietly seats six must say so
+    // rather than ship a different world with the same version number.
+    if (seats.length < 7) console.warn('WORLDGEN: only ' + seats.length
+      + ' lampreys found a mere even at ten tiles apart -- this world has a smaller permanent '
+      + 'supply of spit than the spec states')
+    counts.lampreys = seats.length
+  }
+
   // ---- THE DRAGON ----
   //
   // One. Not a kind of thing that spawns in the Wilds -- a thing that is

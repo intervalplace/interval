@@ -2772,14 +2772,6 @@ function itemSprite(item) {
       g.fillStyle = '#8a939d'; g.fillRect(18.4, 16.6, 3, 1.6)        // the band
       g.fillStyle = 'rgba(255,180,90,.5)'; g.beginPath(); g.arc(20.4, 15.6, 1.5, 0, 6.3); g.fill()
       break }
-    case 'iron-helm':
-      pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#c9862a', '#6b4515')
-      g.fillStyle = 'rgba(255,255,255,.25)'; g.fillRect(9, 9.5, 14, 2)
-      g.fillStyle = '#6b4515'; g.fillRect(7, 20, 18, 2.6); break
-    case 'iron-plate':
-      pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#c9862a', '#6b4515')
-      g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
-      g.fillStyle = 'rgba(255,255,255,.2)'; g.fillRect(9, 7.5, 14, 1.6); break
     case 'magic-stone':
       pl([[16,3],[26,16],[16,29],[6,16]], '#8ce0ff', '#2a7d9e')
       pl([[16,3],[16,29],[6,16]], 'rgba(255,255,255,.28)')
@@ -2855,10 +2847,42 @@ function itemSprite(item) {
         g.fillStyle = '#8a6b23'; g.fillRect(8, 11.4, 17, 1.4)
       }
       break }
-    case 'star-helm':
-      pl([[7,20],[7,13],[16,6],[25,13],[25,20]], '#5cb8d9', '#2a7d9e')
-      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(9, 9.5, 14, 2)
-      g.fillStyle = '#2a7d9e'; g.fillRect(7, 20, 18, 2.6); break
+    // §6s says it plainly -- "the metal is the tier, the shape is the choice"
+    // -- so the metals belong in ONE table and the shapes read from it. Every
+    // case below was carrying its own pair of hex literals, which is why the
+    // steel line kept arriving half-drawn: adding a metal meant finding every
+    // shape by hand and missing two.
+    case 'iron-helm': case 'steel-helm': case 'star-helm': case 'gold-helm': {
+      const [lo, hi, sheen] = METAL(item)
+      pl([[7,20],[7,13],[16,6],[25,13],[25,20]], lo, hi)
+      g.fillStyle = sheen; g.fillRect(9, 9.5, 14, 2)
+      g.fillStyle = hi; g.fillRect(7, 20, 18, 2.6); break }
+    // THE SHIELD, which this window has never drawn. Every shield in the world
+    // borrowed the HELM's outline through ICON_ALIAS -- so a citizen carrying
+    // an iron shield and an iron helm saw the same picture twice in one pack,
+    // and could not tell at a glance which slot they were about to fill.
+    case 'iron-shield': case 'steel-shield': case 'star-shield': {
+      const [lo, hi, sheen] = METAL(item)
+      pl([[8,5],[24,5],[24,17],[16,28],[8,17]], lo, hi)     // a heater: flat top, point below
+      g.strokeStyle = hi; g.lineWidth = 1.6                  // the rim, all round
+      g.beginPath(); g.moveTo(10,7); g.lineTo(22,7); g.lineTo(22,16.5)
+      g.lineTo(16,25.5); g.lineTo(10,16.5); g.closePath(); g.stroke()
+      g.fillStyle = hi; g.fillRect(15.2, 6, 1.6, 19)         // the spine
+      g.fillStyle = sheen
+      g.beginPath(); g.moveTo(9,6); g.lineTo(15,6); g.lineTo(11,20); g.fill()
+      g.fillStyle = hi; g.beginPath(); g.arc(16, 14, 2.6, 0, 7); g.fill()   // the boss
+      break }
+    // AND GREAVES, which drew as a CUIRASS. Legs are a pair and a plate is
+    // one piece; nothing about the two silhouettes should agree.
+    case 'iron-legs': case 'steel-legs': case 'star-legs': case 'gold-legs': {
+      const [lo, hi, sheen] = METAL(item)
+      pl([[8,4],[24,4],[25,10],[21,29],[17,29],[16,15],[15,29],[11,29],[7,10]], lo, hi)
+      g.fillStyle = hi; g.fillRect(8, 8.4, 16, 1.8)          // the belt
+      g.fillStyle = 'rgba(0,0,0,.22)'; g.fillRect(15.4, 12, 1.2, 17)  // the split
+      g.fillStyle = hi                                        // knee bands
+      g.fillRect(10, 20, 5.2, 1.6); g.fillRect(17, 20, 5.2, 1.6)
+      g.fillStyle = sheen; g.fillRect(9.4, 5.6, 5, 1.4)
+      break }
     case 'king-shroud': {
       // the Gibbet King's mantle: a hooded cowl over a ragged, draping shroud.
       // death-purple cloth with a bone-ash trim -- reads as cloth, not plate,
@@ -2903,10 +2927,11 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(0,0,0,.4)'
       pl([[8,24],[8,16],[11,20],[10,24]], 'rgba(0,0,0,.4)', null)
       break }
-    case 'star-plate':
-      pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], '#5cb8d9', '#2a7d9e')
+    case 'iron-plate': case 'steel-plate': case 'star-plate': case 'gold-plate': {
+      const [lo, hi, sheen] = METAL(item)
+      pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], lo, hi)
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
-      g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(9, 7.5, 14, 1.6); break
+      g.fillStyle = sheen; g.fillRect(9, 7.5, 14, 1.6); break }
     // ---- the shapes (v0.66): each reads as itself at a glance ----
     // §7ap: THE GREAT MAUL. Star-metal on a heartwood haft, brimstone-quenched
     // so it comes off the anvil still smoking.
@@ -2980,6 +3005,61 @@ function itemSprite(item) {
       for (const [sx, sy] of [[11,17],[15,14],[19,19],[23,15],[13,21],[21,22]])
         g.fillRect(sx, sy, 2, 2)
       g.fillStyle = '#2a2620'; g.beginPath(); g.arc(10, 18, 1.4, 0, 7); g.fill()
+      break }
+    // §7cm: THE BONE SPEAR. A dragon's rib lashed to an ironbark haft, and it
+    // must not read as a spear with a pale head -- the whole object is bone,
+    // porous and yellowed and slightly wrong, because a citizen deciding
+    // between burying these and hafting them should be able to see which.
+    case 'bone-spear': {
+      g.strokeStyle = '#6a5334'; g.lineWidth = 2.4                  // ironbark haft
+      g.beginPath(); g.moveTo(10, 30); g.lineTo(23, 9); g.stroke()
+      g.strokeStyle = '#4a3822'; g.lineWidth = 0.8
+      g.beginPath(); g.moveTo(11, 28); g.lineTo(22, 11); g.stroke()
+      // the rib: split, tapered, and not symmetrical. Bone does not forge.
+      pl([[21,13],[24.5,10],[29,1],[26,10],[25,15]], '#e8e0c4', '#8f8468')
+      g.fillStyle = '#cfc4a2'                                        // the marrow channel
+      g.beginPath(); g.moveTo(24.6, 10.4); g.lineTo(27.4, 3.6); g.lineTo(25.6, 11.4); g.fill()
+      g.fillStyle = 'rgba(120,110,84,.55)'                           // pitting
+      for (const [px, py] of [[23,12],[25.4,7.6],[26.6,5],[24,14]]) g.fillRect(px, py, 0.9, 0.9)
+      g.fillStyle = '#8a7248'                                        // gut lashing at the socket
+      for (let k = 0; k < 4; k++) g.fillRect(20.2 - k * 0.7, 13.4 + k * 1.5, 4.6, 1.0)
+      break }
+    // §7cn: THE BARB. A short hooked head on a ring, and the ring is the point:
+    // this is the one weapon in the world that bites all round.
+    case 'barb': {
+      g.fillStyle = '#4a3b28'; g.fillRect(15, 20, 3, 11)             // the grip
+      g.fillStyle = '#6b5334'
+      for (let k = 0; k < 4; k++) g.fillRect(14.6, 21 + k * 2.6, 3.8, 1.1)
+      // the ring of teeth, drawn as a mouth rather than a blade
+      g.strokeStyle = '#b9b2a0'; g.lineWidth = 2.2
+      g.beginPath(); g.arc(16.5, 12, 7, 0, 7); g.stroke()
+      g.strokeStyle = '#7c7462'; g.lineWidth = 1
+      g.beginPath(); g.arc(16.5, 12, 4.2, 0, 7); g.stroke()
+      g.fillStyle = '#e6dfcb'                                         // the hooks, all round
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2
+        const ix = 16.5 + Math.cos(a) * 4.6, iy = 12 + Math.sin(a) * 4.6
+        const ox = 16.5 + Math.cos(a + 0.28) * 7.4, oy = 12 + Math.sin(a + 0.28) * 7.4
+        g.beginPath(); g.moveTo(ix, iy); g.lineTo(ox, oy)
+        g.lineTo(16.5 + Math.cos(a - 0.1) * 6.2, 12 + Math.sin(a - 0.1) * 6.2); g.fill()
+      }
+      g.fillStyle = 'rgba(90,120,90,.5)'                              // spit, still on it
+      g.beginPath(); g.arc(16.5, 12, 3, 0, 7); g.fill()
+      break }
+    // §7cn: LAMPREY SPIT. A finite substance in a stoppered horn -- 448 of
+    // these will ever be drawn out of the meres and no more, so it is drawn as
+    // something kept rather than something carried.
+    case 'lamprey-spit': {
+      pl([[14,29],[22,29],[23,14],[13,14]], '#6d5a3a', '#3f3422')     // the horn
+      g.fillStyle = 'rgba(126,158,110,.85)'                           // what is in it
+      g.fillRect(14, 18, 8, 11)
+      g.fillStyle = 'rgba(170,200,150,.55)'
+      g.fillRect(14, 18, 8, 2.2)
+      g.fillStyle = 'rgba(200,225,180,.45)'                           // it moves slowly
+      g.beginPath(); g.arc(17, 23, 1.5, 0, 7); g.fill()
+      g.beginPath(); g.arc(19.6, 26, 1.0, 0, 7); g.fill()
+      g.fillStyle = '#8a7248'; g.fillRect(12.6, 12, 10.8, 3)          // the stopper
+      g.fillStyle = '#5a4a2e'; g.fillRect(15.4, 8, 5.2, 4.4)
       break }
     // §7bq: THE HOLLOW BOW. Bone and gut, and it whistles instead of shooting.
     case 'hollow-bow': {
@@ -3114,14 +3194,15 @@ function itemSprite(item) {
       if (star) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
       if (steel) { g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(19.6, 3.4, 0.9, 4.6) }
       break }
-    case 'iron-maul': case 'star-maul': {
+    case 'iron-maul': case 'steel-maul': case 'star-maul': {
       const star = item.startsWith('star-')
-      const head = star ? '#bfe6f5' : '#d8d1bc', edge = star ? '#4c98bb' : '#8b846f'
+      const [head, edge] = METAL(item)
       g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
       g.beginPath(); g.moveTo(11, 30); g.lineTo(18, 14); g.stroke()
       pl([[9,15],[20,9],[25,15],[23,20],[12,21]], head, edge)      // the great block
       g.fillStyle = edge; g.fillRect(12.5, 12.5, 3, 7)             // banded face
       if (star) { g.fillStyle = 'rgba(140,225,255,.4)'; g.fillRect(19, 11, 2, 8) }
+      if (item.startsWith('steel-')) { g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(19, 11, 2, 8) }
       g.fillStyle = '#3b2a16'; g.fillRect(9.5, 28, 3.4, 3.4)       // butt
       break }
     case 'horn-bow': {
@@ -3373,7 +3454,7 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
 // recipes. Spelled out here in full, sorted, generated from the engine's own
 // derivation, and worth a check that runs rather than a comment that asks.
 const EQUIPPABLE = new Set([
-  'bare-blade', 'cinder-crown', 'crossbow', 'dragonbow', 'gold-bar',
+  'barb', 'bare-blade', 'bone-spear', 'cinder-crown', 'crossbow', 'dragonbow', 'gold-bar',
   'gold-helm', 'gold-legs', 'gold-plate', 'goo-staff', 'great-crossbow',
   'great-hatchet', 'great-helm', 'great-pickaxe', 'great-plate',
   'great-sword', 'handgonne', 'heartwood-bow', 'heartwood-rod',
@@ -3442,182 +3523,206 @@ const CALLINGS = {
 // wants seventy-eight and decide whether to walk that road. Hiding a gate does
 // not create discovery, it creates wandering.
 const SKILL_UNLOCKS = {
-  attack: [
-    [30, 'take up the bare blade'],
-    [30, 'take up the old chain'],
-    [35, 'take up the steel dagger'],
-    [35, 'take up the steel spear'],
-    [35, 'take up the steel sword'],
-    [38, 'take up the steel maul'],
-    [50, 'take up the star dagger'],
-    [50, 'take up the star spear'],
-    [50, 'take up the star sword'],
-    [55, 'take up the star flail'],
-    [55, 'take up the star maul'],
-    [70, 'take up the great sword'],
+  "attack": [
+    [30, "take up the bare blade"],
+    [30, "take up the gold chain"],
+    [30, "take up the old chain"],
+    [35, "take up the steel dagger"],
+    [35, "take up the steel spear"],
+    [35, "take up the steel sword"],
+    [45, "take up the barb"],
+    [50, "take up the star dagger"],
+    [50, "take up the star spear"],
+    [50, "take up the star sword"],
+    [55, "take up the star flail"],
+    [60, "take up the fire siphon"],
+    [70, "take up the great sword"]
   ],
-  brewing: [
-    [78, 'a deep fish makes a DEEP BROTH'],
-    [90, 'a pot gives up more than it used to'],
+  "brewing": [
+    [78, "a deep fish makes a DEEP BROTH"],
+    [90, "a pot gives up more than it used to"]
   ],
-  cooking: [
-    [78, 'you may cook the deep fish'],
+  "cooking": [
+    [78, "you may cook the deep fish"]
   ],
-  defence: [
-    [1, 'take up the iron shield'],
-    [15, 'take up the shell helm'],
-    [15, 'take up the shell plate'],
-    [30, 'take up the steel shield'],
-    [32, 'take up the steel helm'],
-    [38, 'take up the steel plate'],
-    [40, 'take up the king shroud'],
-    [45, 'take up the gold helm'],
-    [45, 'take up the gold legs'],
-    [45, 'take up the star helm'],
-    [48, 'take up the star shield'],
-    [50, 'take up the gold plate'],
-    [50, 'take up the star plate'],
-    [70, 'take up the great helm'],
-    [70, 'take up the great plate'],
+  "defence": [
+    [1, "take up the iron shield"],
+    [15, "take up the shell helm"],
+    [15, "take up the shell plate"],
+    [30, "take up the steel shield"],
+    [32, "take up the steel helm"],
+    [38, "take up the steel plate"],
+    [40, "take up the king shroud"],
+    [45, "take up the gold helm"],
+    [45, "take up the gold legs"],
+    [45, "take up the star helm"],
+    [48, "take up the star shield"],
+    [50, "take up the gold plate"],
+    [50, "take up the star plate"],
+    [70, "take up the great helm"],
+    [70, "take up the great plate"]
   ],
-  exploration: [
-    [90, 'any rumour yields a chart'],
+  "exploration": [
+    [90, "any rumour yields a chart"]
   ],
-  farming: [
-    [25, 'the muck heaps of the farm country'],
-    [90, 'a fuller sheaf from every row'],
+  "farming": [
+    [25, "the muck heaps of the farm country"],
+    [90, "a fuller sheaf from every row"]
   ],
-  firemaking: [
-    [80, 'kindle a watchfire'],
+  "firemaking": [
+    [80, "kindle a watchfire"]
   ],
-  fishing: [
-    [10, 'take up the oak rod'],
-    [20, 'the eel runs'],
-    [30, 'take up the ironbark rod'],
-    [70, 'take up the heartwood rod'],
-    [78, 'the deep fish of the Wilds water'],
-    [92, 'the drowned shoal under the gibbet'],
+  "fishing": [
+    [10, "take up the oak rod"],
+    [20, "the eel runs"],
+    [30, "take up the ironbark rod"],
+    [70, "take up the heartwood rod"],
+    [78, "the deep fish of the Wilds water"],
+    [92, "the drowned shoal under the gibbet"]
   ],
-  fletching: [
-    [1, 'shape the rod'],
-    [10, 'shape the oak rod'],
-    [30, 'shape the ironbark rod'],
-    [70, 'shape the heartwood rod'],
-    [80, 'more arrows from the same bone'],
-    [90, 'the heartwood bow and the heartwood staff'],
+  "fletching": [
+    [1, "shape the rod"],
+    [10, "shape the oak rod"],
+    [12, "forge the hollow bow"],
+    [30, "shape the ironbark rod"],
+    [45, "forge the bone staff"],
+    [55, "forge the bone spear"],
+    [70, "shape the heartwood rod"],
+    [80, "more arrows from the same bone"],
+    [90, "the heartwood bow and the heartwood staff"]
   ],
-  magic: [
-    [1, 'transmute'],
-    [20, 'forge the star helm'],
-    [20, 'take up the sigil bow'],
-    [22, 'forge the star hatchet'],
-    [22, 'forge the star pickaxe'],
-    [25, 'forge the sigil bow'],
-    [25, 'forge the star sword'],
-    [26, 'forge the star javelin'],
-    [26, 'forge the star spear'],
-    [28, 'forge the star dagger'],
-    [29, 'forge the star flail'],
-    [30, 'forge the star maul'],
-    [30, 'forge the star plate'],
-    [34, 'forge the great crossbow'],
-    [34, 'forge the great helm'],
-    [34, 'forge the great plate'],
-    [34, 'forge the great sword'],
-    [50, 'mend'],
-    [70, 'take up the goo staff'],
-    [70, 'take up the heartwood staff'],
-    [85, 'the stilling'],
+  "magic": [
+    [1, "transmute"],
+    [20, "forge the star helm"],
+    [20, "take up the sigil bow"],
+    [22, "forge the star hatchet"],
+    [22, "forge the star pickaxe"],
+    [25, "forge the sigil bow"],
+    [25, "forge the star sword"],
+    [26, "forge the star javelin"],
+    [26, "forge the star spear"],
+    [28, "forge the star dagger"],
+    [29, "forge the star flail"],
+    [30, "forge the star maul"],
+    [30, "forge the star plate"],
+    [34, "forge the great crossbow"],
+    [34, "forge the great helm"],
+    [34, "forge the great maul"],
+    [34, "forge the great plate"],
+    [34, "forge the great sword"],
+    [40, "take up the bone staff"],
+    [40, "the rot — from the barrow-work"],
+    [50, "mend"],
+    [60, "the taking — from the barrow-work"],
+    [70, "take up the goo staff"],
+    [70, "take up the heartwood staff"],
+    [75, "the waking — from the barrow-work"],
+    [85, "the stilling"],
+    [88, "the withering — from the barrow-work"]
   ],
-  mining: [
-    [10, 'take up the steel pickaxe'],
-    [20, 'the coal seams open to your pick'],
-    [30, 'take up the star pickaxe'],
-    [70, 'take up the great pickaxe'],
-    [70, 'the brimstone vents of the Crags'],
-    [78, 'the magic-rocks of the Wilds open to your pick'],
-    [85, 'the gold seam will answer you'],
-    [92, 'the mother lode, deep in the Wilds'],
+  "mining": [
+    [10, "take up the steel pickaxe"],
+    [20, "the coal seams open to your pick"],
+    [30, "take up the star pickaxe"],
+    [70, "take up the great pickaxe"],
+    [70, "the brimstone vents of the Crags"],
+    [78, "the magic-rocks of the Wilds open to your pick"],
+    [85, "the gold seam will answer you"],
+    [92, "the mother lode, deep in the Wilds"]
   ],
-  prayer: [
-    [70, 'the dearest priced thing you carry survives your death'],
-    [99, 'the two dearest do'],
+  "prayer": [
+    [70, "the dearest priced thing you carry survives your death"],
+    [99, "the two dearest do"]
   ],
-  ranged: [
-    [1, 'take up the iron javelin'],
-    [15, 'take up the steel javelin'],
-    [20, 'take up the horn bow'],
-    [25, 'take up the crossbow'],
-    [30, 'take up the sigil bow'],
-    [40, 'take up the dragonbow'],
-    [40, 'take up the heartwood bow'],
-    [50, 'take up the star javelin'],
-    [70, 'take up the great crossbow'],
-    [90, 'take up the handgonne'],
+  "ranged": [
+    [1, "take up the hollow bow"],
+    [1, "take up the iron javelin"],
+    [15, "take up the steel javelin"],
+    [20, "take up the horn bow"],
+    [25, "take up the crossbow"],
+    [30, "take up the sigil bow"],
+    [40, "take up the dragonbow"],
+    [40, "take up the heartwood bow"],
+    [50, "take up the star javelin"],
+    [70, "take up the great crossbow"],
+    [90, "take up the handgonne"]
   ],
-  smithing: [
-    [1, 'forge the iron dagger'],
-    [1, 'forge the iron hatchet'],
-    [1, 'forge the iron pickaxe'],
-    [5, 'forge the iron javelin'],
-    [5, 'forge the iron spear'],
-    [7, 'forge the iron helm'],
-    [10, 'forge the iron sword'],
-    [12, 'forge the iron shield'],
-    [12, 'forge the sigil bow (magic 25)'],
-    [14, 'forge the iron maul'],
-    [18, 'forge the crossbow'],
-    [20, 'forge the iron plate'],
-    [22, 'forge the shell helm'],
-    [25, 'forge the steel dagger'],
-    [26, 'forge the shell plate'],
-    [26, 'forge the steel hatchet'],
-    [26, 'forge the steel pickaxe'],
-    [28, 'forge the steel javelin'],
-    [28, 'forge the steel spear'],
-    [30, 'forge the steel helm'],
-    [32, 'forge the steel sword'],
-    [34, 'forge the bare blade'],
-    [34, 'forge the steel shield'],
-    [38, 'forge the steel plate'],
-    [40, 'forge the gold bar'],
-    [40, 'forge the star helm (magic 20)'],
-    [42, 'forge the star hatchet (magic 22)'],
-    [42, 'forge the star pickaxe (magic 22)'],
-    [42, 'forge the steel maul'],
-    [45, 'forge the star dagger (magic 28)'],
-    [45, 'forge the star ingot'],
-    [45, 'forge the star sword (magic 25)'],
-    [46, 'forge the star javelin (magic 26)'],
-    [46, 'forge the star spear (magic 26)'],
-    [48, 'forge the star shield'],
-    [50, 'forge the shot'],
-    [50, 'forge the star flail (magic 29)'],
-    [50, 'forge the star plate (magic 30)'],
-    [52, 'forge the star maul (magic 30)'],
-    [55, 'forge the great hatchet'],
-    [55, 'forge the great pickaxe'],
-    [70, 'forge the great crossbow (magic 34)'],
-    [70, 'forge the great helm (magic 34)'],
-    [70, 'forge the great plate (magic 34)'],
-    [70, 'forge the great sword (magic 34)'],
-    [75, 'forge the gold helm'],
-    [80, 'forge the gold legs'],
-    [85, 'forge the gold plate'],
-    [90, 'forge the handgonne'],
+  "smithing": [
+    [1, "forge the bone spear (fletching 55)"],
+    [1, "forge the bone staff (fletching 45)"],
+    [1, "forge the hollow bow (fletching 12)"],
+    [1, "forge the iron"],
+    [1, "forge the iron dagger"],
+    [1, "forge the iron hatchet"],
+    [1, "forge the iron pickaxe"],
+    [5, "forge the iron javelin"],
+    [5, "forge the iron spear"],
+    [7, "forge the iron helm"],
+    [10, "forge the iron sword"],
+    [12, "forge the iron shield"],
+    [12, "forge the sigil bow (magic 25)"],
+    [14, "forge the iron maul"],
+    [18, "forge the crossbow"],
+    [20, "forge the iron plate"],
+    [22, "forge the shell helm"],
+    [25, "forge the steel dagger"],
+    [26, "forge the shell plate"],
+    [26, "forge the steel hatchet"],
+    [26, "forge the steel pickaxe"],
+    [28, "forge the steel javelin"],
+    [28, "forge the steel spear"],
+    [30, "forge the steel"],
+    [30, "forge the steel helm"],
+    [32, "forge the steel sword"],
+    [34, "forge the bare blade"],
+    [34, "forge the steel shield"],
+    [38, "forge the steel plate"],
+    [40, "forge the barb"],
+    [40, "forge the gold bar"],
+    [40, "forge the star helm (magic 20)"],
+    [42, "forge the star hatchet (magic 22)"],
+    [42, "forge the star pickaxe (magic 22)"],
+    [42, "forge the steel maul"],
+    [45, "forge the star dagger (magic 28)"],
+    [45, "forge the star ingot"],
+    [45, "forge the star sword (magic 25)"],
+    [46, "forge the star javelin (magic 26)"],
+    [46, "forge the star spear (magic 26)"],
+    [48, "forge the star shield"],
+    [50, "forge the shot"],
+    [50, "forge the star flail (magic 29)"],
+    [50, "forge the star plate (magic 30)"],
+    [52, "forge the star maul (magic 30)"],
+    [55, "forge the great hatchet"],
+    [55, "forge the great pickaxe"],
+    [62, "forge the fire siphon"],
+    [70, "forge the gold chain"],
+    [70, "forge the great crossbow (magic 34)"],
+    [70, "forge the great helm (magic 34)"],
+    [70, "forge the great maul (magic 34)"],
+    [70, "forge the great plate (magic 34)"],
+    [70, "forge the great sword (magic 34)"],
+    [75, "forge the gold helm"],
+    [80, "forge the gold legs"],
+    [85, "forge the gold plate"],
+    [90, "forge the handgonne"]
   ],
-  strength: [
-    [30, 'take up the bare blade'],
+  "strength": [
+    [30, "take up the bare blade"],
+    [38, "take up the steel maul"],
+    [50, "take up the bone spear"],
+    [55, "take up the star maul"],
+    [70, "take up the great maul"]
   ],
-  woodcutting: [
-    [10, 'take up the steel hatchet'],
-    [20, 'the oak groves open to your axe'],
-    [30, 'take up the star hatchet'],
-    [45, 'the ironbark stands'],
-    [70, 'take up the great hatchet'],
-    [78, 'the heartwood of the deep Greenwood'],
-    [92, 'the gallows-oaks of the Wilds'],
-  ],
+  "woodcutting": [
+    [10, "take up the steel hatchet"],
+    [20, "the oak groves open to your axe"],
+    [30, "take up the star hatchet"],
+    [45, "the ironbark stands"],
+    [70, "take up the great hatchet"],
+    [78, "the heartwood of the deep Greenwood"],
+    [92, "the gallows-oaks of the Wilds"]
+  ]
 }
 // the skills that gate nothing are not broken, they are the four that pay no
 // power (§11): the road is the whole of what they are.
@@ -3664,6 +3769,11 @@ const MOB_STATS = {
   sheep:             { maxHp: 40, atk: 2, def: 8, maxHit: 1, respawn: 120, harmless: true },
   dragon:            { maxHp: 420, atk: 115, def: 24, maxHit: 28, respawn: 36000,
                        aggro: 9, breath: 5 },
+  // §7cn: seven in the meres, sixty-four lives apiece, and then never again.
+  // `finite` is carried here so the window can draw the difference between a
+  // lamprey that is dead until it respawns and one that is DONE.
+  'mere-lamprey':    { maxHp: 44, atk: 62, def: 15, maxHit: 8, respawn: 400,
+                       aggro: 3, finite: 64 },
 }
 // §6aa: THE COUNTRIES WHERE A BEAST WILL START SOMETHING. Character for
 // character from the engine, and it is the difference between a country you
@@ -3683,10 +3793,20 @@ const poly9 = (cx, pts) => { cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
   for (const q of pts.slice(1)) cx.lineTo(q[0], q[1]); cx.closePath(); cx.fill() }
 const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // anything a citizen draws rather than swings (engine WEAPONS `ranged: true`)
-const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
-  'handgonne', 'great-crossbow',   // both were missing: their bearers walked
-  // into melee rather than shooting, because the window did not know they drew
-  'iron-javelin', 'steel-javelin', 'star-javelin'])   // §6dg
+const RANGED_ITEMS = new Set([
+  "crossbow",
+  "dragonbow",
+  "great-crossbow",
+  "handgonne",
+  "heartwood-bow",
+  "hollow-bow",
+  "horn-bow",
+  "iron-javelin",
+  "sigil-bow",
+  "star-javelin",
+  "steel-javelin",
+  "wooden-bow"
+])   // §6dg
 // §6dg: what a weapon draws FROM. A bow wants arrows, a gonne wants shot, and a
 // javelin wants more javelins -- the engine's `ammoOf`, which answers with the
 // weapon's own name when it is `selfAmmo`.
@@ -3698,13 +3818,42 @@ const hasAmmoFor = (me, it) => me.inventory.some((sl) => sl?.item === ammoForIte
 // clicked a mob at nine tiles with the dragonbow should loose an arrow, not
 // stroll into its teeth.
 const WEAPON_REACH = {
-  'iron-dagger': 1, 'iron-sword': 1, 'iron-spear': 2, 'iron-maul': 1,
-  'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
-  'old-chain': 1, 'iron-flail': 1, 'star-flail': 1,
-  'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
-  'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
-  'great-crossbow': 6,
-  'iron-javelin': 3, 'steel-javelin': 3, 'star-javelin': 3,   // §6dg
+  "barb": 1,
+  "bare-blade": 1,
+  "bone-spear": 2,
+  "bone-staff": 1,
+  "crossbow": 4,
+  "dragonbow": 9,
+  "fire-siphon": 2,
+  "gold-chain": 1,
+  "great-crossbow": 6,
+  "great-maul": 1,
+  "great-sword": 1,
+  "handgonne": 4,
+  "heartwood-bow": 3,
+  "hollow-bow": 3,
+  "horn-bow": 5,
+  "iron-dagger": 1,
+  "iron-javelin": 3,
+  "iron-maul": 1,
+  "iron-spear": 2,
+  "iron-sword": 1,
+  "old-chain": 1,
+  "sigil-bow": 5,
+  "spade": 1,
+  "star-dagger": 1,
+  "star-flail": 1,
+  "star-javelin": 3,
+  "star-maul": 1,
+  "star-spear": 2,
+  "star-sword": 1,
+  "steel-dagger": 1,
+  "steel-javelin": 3,
+  "steel-maul": 1,
+  "steel-spear": 2,
+  "steel-sword": 1,
+  "wand": 1,
+  "wooden-bow": 4
 }
 // §11c: WHICH TOWN. The route is DRAWN, not chosen (§11c), and this window
 // never said what had been drawn -- a citizen sealed a consignment and was told
@@ -3726,14 +3875,42 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // The arrow tracer assumed every weapon fired on twos, so a crossbow drew
 // three shafts for every two bolts it actually loosed.
 const WEAPON_EVERY = {
-  'iron-dagger': 2, 'iron-sword': 2, 'iron-spear': 2, 'iron-maul': 2,
-  'steel-dagger': 2, 'steel-sword': 2, 'steel-spear': 2, 'steel-maul': 2,
-  'star-dagger': 2, 'star-sword': 2, 'star-spear': 2, 'star-maul': 2,
-  'old-chain': 1, 'bare-blade': 2, 'wand': 3, 'star-flail': 2,
-  'iron-javelin': 2, 'steel-javelin': 2, 'star-javelin': 2,
-  'great-sword': 2, 'great-crossbow': 3, 'crossbow': 3, 'sigil-bow': 2,
-  'heartwood-bow': 2, 'wooden-bow': 2, 'horn-bow': 2, 'handgonne': 4,
-  'dragonbow': 2
+  "barb": 2,
+  "bare-blade": 2,
+  "bone-spear": 2,
+  "bone-staff": 3,
+  "crossbow": 3,
+  "dragonbow": 2,
+  "fire-siphon": 3,
+  "gold-chain": 1,
+  "great-crossbow": 3,
+  "great-maul": 2,
+  "great-sword": 2,
+  "handgonne": 4,
+  "heartwood-bow": 2,
+  "hollow-bow": 2,
+  "horn-bow": 2,
+  "iron-dagger": 2,
+  "iron-javelin": 2,
+  "iron-maul": 2,
+  "iron-spear": 2,
+  "iron-sword": 2,
+  "old-chain": 1,
+  "sigil-bow": 2,
+  "spade": 3,
+  "star-dagger": 2,
+  "star-flail": 2,
+  "star-javelin": 2,
+  "star-maul": 2,
+  "star-spear": 2,
+  "star-sword": 2,
+  "steel-dagger": 2,
+  "steel-javelin": 2,
+  "steel-maul": 2,
+  "steel-spear": 2,
+  "steel-sword": 2,
+  "wand": 3,
+  "wooden-bow": 2
 }
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
@@ -3757,29 +3934,109 @@ const WEAPON_EVERY = {
 // engine would have taken. Nothing was mispriced; the entries simply were not
 // there, which is the failure mode a hand-copied table always has.
 const PRICES = {
-  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22, 'horn-bow': 400,
-  'crab-shell': 12, 'wool': 9, 'logs': 2, 'ore': 5, 'raw-fish': 3,
-  'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2, 'chart': 180,
-  'iron-shield': 34, 'steel-shield': 120, 'star-shield': 640,
-  'gold-legs': 3400, 'star-ingot': 420, 'gold-ore': 60, 'gold-bar': 320,
-  'gold-helm': 2800, 'gold-plate': 4200, 'ironbark': 9, 'great-hatchet': 520,
-  'great-pickaxe': 520, 'rod': 10, 'ironbark-rod': 120, 'heartwood-rod': 300,
-  'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22,
-  'burnt-deep-fish': 1, 'bread': 9, 'burnt-bread': 1, 'flour': 6,
-  'saltpetre': 14, 'gunpowder': 60, 'bare-blade': 55, 'oak-logs': 6,
-  'coal': 12, 'charcoal': 12, 'brimstone': 46, 'iron-javelin': 3,
-  'steel-javelin': 6, 'star-javelin': 12, 'eel': 7, 'cooked-eel': 13,
-  'burnt-eel': 1, 'iron': 5, 'steel-sword': 60, 'steel-helm': 45,
-  'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
-  'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40, 'deep-broth': 24,
-  'heartwood-bow': 540, 'magic-stone': 20, 'iron-sword': 15,
-  'iron-hatchet': 10, 'iron-pickaxe': 10, 'iron-helm': 12, 'iron-plate': 30,
-  'wooden-bow': 8, 'grain': 4, 'shell-helm': 26, 'shell-plate': 68,
-  'steel-maul': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
-  'king-shroud': 800, 'star-spear': 450, 'star-maul': 720,
-  'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6,
-  'heartwood-staff': 495, 'wand': 6, 'seeds': 10, 'ale': 8, 'broth': 10,
-  'dragon-bones': 500
+  "ale": 8,
+  "arrows": 1,
+  "barb": 260,
+  "bare-blade": 55,
+  "bone-spear": 900,
+  "bone-staff": 880,
+  "bones": 2,
+  "bread": 9,
+  "brimstone": 46,
+  "broth": 10,
+  "burnt-bread": 1,
+  "burnt-deep-fish": 1,
+  "burnt-eel": 1,
+  "charcoal": 12,
+  "chart": 180,
+  "charter": 240,
+  "coal": 12,
+  "cooked-deep-fish": 22,
+  "cooked-eel": 13,
+  "cooked-fish": 6,
+  "crab-shell": 12,
+  "deep-broth": 24,
+  "deep-fish": 11,
+  "dragon-bones": 500,
+  "eel": 7,
+  "fire-arrows": 12,
+  "fire-siphon": 1450,
+  "flour": 6,
+  "gold-bar": 320,
+  "gold-chain": 3900,
+  "gold-helm": 2800,
+  "gold-legs": 3400,
+  "gold-ore": 60,
+  "gold-plate": 4200,
+  "grain": 4,
+  "grave-silver": 700,
+  "great-hatchet": 520,
+  "great-maul": 5200,
+  "great-pickaxe": 520,
+  "gunpowder": 60,
+  "heartwood": 15,
+  "heartwood-bow": 540,
+  "heartwood-rod": 300,
+  "heartwood-staff": 495,
+  "hollow-bow": 45,
+  "holy-water": 90,
+  "horn-bow": 400,
+  "iron": 5,
+  "iron-dagger": 8,
+  "iron-hatchet": 10,
+  "iron-helm": 12,
+  "iron-javelin": 3,
+  "iron-maul": 22,
+  "iron-ore": 4,
+  "iron-pickaxe": 10,
+  "iron-plate": 30,
+  "iron-shield": 34,
+  "iron-spear": 14,
+  "iron-sword": 15,
+  "ironbark": 9,
+  "ironbark-rod": 120,
+  "king-shroud": 800,
+  "lamprey-spit": 90,
+  "logs": 2,
+  "magic-stone": 20,
+  "oak-logs": 6,
+  "oak-rod": 40,
+  "ore": 5,
+  "planks": 5,
+  "raw-fish": 3,
+  "rod": 10,
+  "salt-deep-fish": 30,
+  "salt-fish": 11,
+  "saltpetre": 14,
+  "seeds": 10,
+  "shell-helm": 26,
+  "shell-plate": 68,
+  "shot": 2,
+  "spade": 260,
+  "staff": 6,
+  "star-hatchet": 315,
+  "star-helm": 270,
+  "star-ingot": 420,
+  "star-javelin": 12,
+  "star-maul": 720,
+  "star-pickaxe": 315,
+  "star-plate": 900,
+  "star-shield": 640,
+  "star-spear": 450,
+  "star-sword": 540,
+  "steel-dagger": 40,
+  "steel-hatchet": 44,
+  "steel-helm": 45,
+  "steel-javelin": 6,
+  "steel-maul": 85,
+  "steel-pickaxe": 44,
+  "steel-plate": 110,
+  "steel-shield": 120,
+  "steel-spear": 48,
+  "steel-sword": 60,
+  "wand": 6,
+  "wooden-bow": 8,
+  "wool": 9
 }
 
 
@@ -3809,6 +4066,17 @@ const PRICES = {
 // icons, each unknown item borrows the drawing of the thing it IS and says so
 // in its colour. `iconAliasOf` runs before the switch; `iconTintOf` is applied
 // over the result.
+// §6s: THE METAL IS THE TIER. [body, edge, sheen] for every metal a shape can
+// be made of, so a new one is a line here rather than a search through thirty
+// drawing cases -- which is exactly how steel-helm and steel-maul came to be
+// undrawn while the rest of the steel line was fine.
+const METAL_PALETTE = {
+  iron:  ['#c9862a', '#6b4515', 'rgba(255,255,255,.25)'],
+  steel: ['#dfe6ee', '#8794a4', 'rgba(255,255,255,.34)'],
+  star:  ['#5cb8d9', '#2a7d9e', 'rgba(255,255,255,.35)'],
+  gold:  ['#ffd23f', '#a8781a', 'rgba(255,255,255,.42)'],
+}
+const METAL = (it) => METAL_PALETTE[(it || '').split('-')[0]] ?? METAL_PALETTE.iron
 const ICON_ALIAS = {
   'oak-logs': 'logs', 'ironbark': 'logs', 'heartwood': 'logs',
   'iron': 'ore', 'coal': 'ore', 'magic-stone': 'ore', 'gold-ore': 'ore',
@@ -3818,12 +4086,12 @@ const ICON_ALIAS = {
   'burnt-eel': 'burnt-fish', 'burnt-deep-fish': 'burnt-fish',
   'deep-broth': 'broth',
   'rod': 'staff', 'oak-rod': 'staff', 'ironbark-rod': 'staff', 'heartwood-rod': 'staff',
-  'iron-shield': 'iron-helm', 'steel-shield': 'steel-helm', 'star-shield': 'star-helm',
-  'gold-helm': 'star-helm', 'gold-plate': 'star-plate', 'gold-legs': 'star-plate',
+  // shields, greaves, helms and cuirasses now draw themselves in their own
+  // metal; the aliases that pointed a shield at a helm are gone.
   // king-shroud now has its own sprite (a hooded mantle); no longer aliased.
   'great-hatchet': 'star-hatchet', 'great-pickaxe': 'star-pickaxe',
   'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
-  'steel-sword': 'iron-sword', 'steel-plate': 'iron-plate',
+  'steel-sword': 'iron-sword',
   'steel-dagger': 'iron-dagger', 'steel-spear': 'iron-spear',
 }
 const ICON_TINT = {
@@ -3834,11 +4102,9 @@ const ICON_TINT = {
   'cooked-eel': '#7a6b3a', 'cooked-deep-fish': '#8a6f45',
   'deep-broth': '#3a5a6b',
   'oak-rod': '#6b4a22', 'ironbark-rod': '#3f5a3a', 'heartwood-rod': '#b08a3e',
-  'gold-helm': '#ffd23f', 'gold-plate': '#ffd23f', 'gold-legs': '#ffd23f',
   'king-shroud': '#5a3340',
   'steel-hatchet': '#b9c0c8', 'steel-pickaxe': '#b9c0c8', 'steel-sword': '#b9c0c8',
-  'steel-plate': '#b9c0c8', 'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
-  'steel-helm': '#b9c0c8', 'iron-shield': '#8a8a82', 'steel-shield': '#b9c0c8',
+  'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
 }
 // §7m: THE FALL-STONE draws as itself, and every hood-shaped id resolves the
 // same way -- these are per-citizen ids, not item names, so a table cannot hold
@@ -4473,85 +4739,127 @@ function stepToward(s, me, goal, reach, stampTick) {
 // holds this one to the engine's now, so the next recipe cannot quietly land on
 // one side only.
 const FORGE = {
-  'iron-dagger': { iron: 1 },
-  'iron-spear': { iron: 1, logs: 1 },
-  'iron-javelin': { iron: 1, logs: 1 },
-  'steel-javelin': { steel: 1, logs: 1 },
-  'star-javelin': { 'star-ingot': 1, ironbark: 1 },
-  'iron-maul': { iron: 2, logs: 1 },
-  'sigil-bow': { 'horn-bow': 1, sigil: 3 },
-  'crossbow': { 'iron': 2, logs: 2 },
-  'star-flail': { 'star-ingot': 15, 'ironbark': 1 },
-  'bare-blade': { 'steel-ingot': 4, 'ironbark': 1 },
-  'handgonne': { 'iron': 9, 'ironbark': 1, 'brimstone': 2 },
-  'shot': { 'iron': 1, 'gunpowder': 1 },
-  'star-spear': { 'star-ingot': 12, 'ironbark': 1 },
-  'star-maul': { 'star-ingot': 18, 'ironbark': 1 },
-  'great-helm': { 'star-ingot': 4, 'brimstone': 12 },
-  'great-plate': { 'star-ingot': 9, 'brimstone': 22 },
-  'shell-helm': { 'crab-shell': 2, 'iron': 1 },
-  'shell-plate': { 'crab-shell': 4, 'iron': 2 },
-  'great-sword': { 'star-ingot': 10, 'brimstone': 26, 'ironbark': 1 },
-  'great-crossbow': { 'star-ingot': 7, 'brimstone': 20, 'ironbark': 1 },
-  'iron-sword':   { iron: 2 },
-  'iron-hatchet': { iron: 1, logs: 1 },
-  'iron-pickaxe': { iron: 1, logs: 1 },
-  'iron-helm':    { iron: 1 },
-  'iron-plate':   { iron: 3 },
-  'iron-shield':    { 'iron': 4, 'oak-logs': 1 },
-  'steel-shield':   { 'iron': 3, 'coal': 3, 'ironbark': 1 },
-  'star-shield':    { 'star-ingot': 14, 'ironbark': 1 },
-  'gold-legs':      { 'gold-bar': 8 },
-  'star-ingot':     { 'magic-stone': 20, 'coal': 4 },
-  'star-sword':     { 'star-ingot': 12 },
-  'star-helm':      { 'star-ingot': 10 },
-  'star-plate':     { 'star-ingot': 20 },
-  'star-dagger':    { 'star-ingot': 8 },
-  'star-hatchet':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
-  'star-pickaxe':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
-  'steel-hatchet':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
-  'steel-pickaxe':  { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
-  'steel-sword':    { 'iron': 1, 'coal': 1 },
-  'steel-maul':     { 'iron': 2, 'coal': 1, 'oak-logs': 1 },
-  'steel-helm':     { 'iron': 1, 'coal': 1 },
-  'steel-plate':    { 'iron': 2, 'coal': 1 },
-  'steel-dagger':   { 'iron': 1, 'coal': 1 },
-  'steel-spear':    { 'iron': 1, 'coal': 1, 'oak-logs': 1 },
-  'great-hatchet':  { 'magic-stone': 2, 'ironbark': 2, 'brimstone': 1 },
-  'great-pickaxe':  { 'magic-stone': 2, 'ironbark': 1, 'brimstone': 1 },
-  'gold-bar':       { 'gold-ore': 5 },   // §6dj: GOLD_ORE_PER_BAR, resolved
-  'gold-helm':      { 'gold-bar': 6 },
-  'gold-plate':     { 'gold-bar': 16 },
+  "barb": {"lamprey-spit":2,"steel-ingot":1},
+  "bare-blade": {"steel-ingot":4,"ironbark":1},
+  "bone-spear": {"dragon-bones":2,"ironbark":1},
+  "bone-staff": {"logs":2,"bones":12,"grave-silver":1},
+  "crossbow": {"iron":2,"logs":2},
+  "fire-siphon": {"steel":4,"brimstone":6,"ironbark":1},
+  "gold-bar": {"gold-ore":5},
+  "gold-chain": {"gold-bar":12,"old-chain":1},
+  "gold-helm": {"gold-bar":6},
+  "gold-legs": {"gold-bar":8},
+  "gold-plate": {"gold-bar":16},
+  "great-crossbow": {"star-ingot":7,"brimstone":20,"ironbark":1},
+  "great-hatchet": {"magic-stone":2,"ironbark":2,"brimstone":1},
+  "great-helm": {"star-ingot":4,"brimstone":12},
+  "great-maul": {"star-ingot":11,"brimstone":24,"ironbark":1},
+  "great-pickaxe": {"magic-stone":2,"ironbark":1,"brimstone":1},
+  "great-plate": {"star-ingot":9,"brimstone":22},
+  "great-sword": {"star-ingot":10,"brimstone":26,"ironbark":1},
+  "handgonne": {"iron":9,"ironbark":1,"brimstone":2},
+  "hollow-bow": {"bones":4,"logs":1},
+  "iron": {"iron-ore":2},
+  "iron-dagger": {"iron":1},
+  "iron-hatchet": {"iron":1,"logs":1},
+  "iron-helm": {"iron":1},
+  "iron-javelin": {"iron":1,"logs":1},
+  "iron-maul": {"iron":2,"logs":1},
+  "iron-pickaxe": {"iron":1,"logs":1},
+  "iron-plate": {"iron":3},
+  "iron-shield": {"iron":4,"oak-logs":1},
+  "iron-spear": {"iron":1,"logs":1},
+  "iron-sword": {"iron":2},
+  "shell-helm": {"crab-shell":2,"iron":1},
+  "shell-plate": {"crab-shell":4,"iron":2},
+  "shot": {"iron":1,"gunpowder":1},
+  "sigil-bow": {"horn-bow":1,"sigil":3},
+  "star-dagger": {"star-ingot":8},
+  "star-flail": {"star-ingot":15,"ironbark":1},
+  "star-hatchet": {"magic-stone":2,"iron":1,"logs":1},
+  "star-helm": {"star-ingot":10},
+  "star-ingot": {"magic-stone":20},
+  "star-javelin": {"star-ingot":1,"ironbark":1},
+  "star-maul": {"star-ingot":18,"ironbark":1},
+  "star-pickaxe": {"magic-stone":2,"iron":1,"logs":1},
+  "star-plate": {"star-ingot":20},
+  "star-shield": {"star-ingot":14,"ironbark":1},
+  "star-spear": {"star-ingot":12,"ironbark":1},
+  "star-sword": {"star-ingot":12},
+  "steel": {"iron":1},
+  "steel-dagger": {"steel":1},
+  "steel-hatchet": {"steel":1,"oak-logs":1},
+  "steel-helm": {"steel":1},
+  "steel-javelin": {"steel":1,"logs":1},
+  "steel-maul": {"steel":2,"oak-logs":1},
+  "steel-pickaxe": {"steel":1,"oak-logs":1},
+  "steel-plate": {"steel":2},
+  "steel-shield": {"steel":3,"ironbark":1},
+  "steel-spear": {"steel":1,"oak-logs":1},
+  "steel-sword": {"steel":1}
 }
 // character for character from engine SMITH_REQS
 // §6dj: generated from engine.js SMITH_REQS
 const FORGE_REQ = {
-  'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
-  'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
-  'iron-javelin': { smithing: 5 }, 'steel-javelin': { smithing: 28 },
-  'star-javelin': { smithing: 46, magic: 26 },
-  'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
-  'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
-  'steel-maul': { smithing: 42 },
-  'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
-  'star-sword': { smithing: 45, magic: 25 },
-  'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
-  'star-dagger': { smithing: 45, magic: 28 },
-  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
-  'steel-dagger': { smithing: 25 }, 'steel-hatchet': { smithing: 26 }, 'steel-pickaxe': { smithing: 26 },
-  'steel-spear': { smithing: 28 },
-  'steel-helm': { smithing: 30 }, 'steel-sword': { smithing: 32 }, 'steel-plate': { smithing: 38 },
-  'handgonne': { smithing: 90 }, 'shot': { smithing: 50 },
-  'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'iron-shield': { smithing: 12 }, 'steel-shield': { smithing: 34 }, 'star-shield': { smithing: 48 },
-  'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
-  'crossbow': { smithing: 18 },
-  'star-flail': { smithing: 50, magic: 29 },
-  'bare-blade': { smithing: 34 },
-  'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
-  'great-helm': { smithing: 70, magic: 34 }, 'great-plate': { smithing: 70, magic: 34 },
-  'shell-helm': { smithing: 22 }, 'shell-plate': { smithing: 26 },
-  'sigil-bow': { smithing: 12, magic: 25 },
-  }
+  "barb": {"smithing":40},
+  "bare-blade": {"smithing":34},
+  "bone-spear": {"fletching":55},
+  "bone-staff": {"fletching":45},
+  "crossbow": {"smithing":18},
+  "fire-siphon": {"smithing":62},
+  "gold-bar": {"smithing":40},
+  "gold-chain": {"smithing":70},
+  "gold-helm": {"smithing":75},
+  "gold-legs": {"smithing":80},
+  "gold-plate": {"smithing":85},
+  "great-crossbow": {"smithing":70,"magic":34},
+  "great-hatchet": {"smithing":55},
+  "great-helm": {"smithing":70,"magic":34},
+  "great-maul": {"smithing":70,"magic":34},
+  "great-pickaxe": {"smithing":55},
+  "great-plate": {"smithing":70,"magic":34},
+  "great-sword": {"smithing":70,"magic":34},
+  "handgonne": {"smithing":90},
+  "hollow-bow": {"fletching":12},
+  "iron": {"smithing":1},
+  "iron-dagger": {"smithing":1},
+  "iron-hatchet": {"smithing":1},
+  "iron-helm": {"smithing":7},
+  "iron-javelin": {"smithing":5},
+  "iron-maul": {"smithing":14},
+  "iron-pickaxe": {"smithing":1},
+  "iron-plate": {"smithing":20},
+  "iron-shield": {"smithing":12},
+  "iron-spear": {"smithing":5},
+  "iron-sword": {"smithing":10},
+  "shell-helm": {"smithing":22},
+  "shell-plate": {"smithing":26},
+  "shot": {"smithing":50},
+  "sigil-bow": {"smithing":12,"magic":25},
+  "star-dagger": {"smithing":45,"magic":28},
+  "star-flail": {"smithing":50,"magic":29},
+  "star-hatchet": {"smithing":42,"magic":22},
+  "star-helm": {"smithing":40,"magic":20},
+  "star-ingot": {"smithing":45},
+  "star-javelin": {"smithing":46,"magic":26},
+  "star-maul": {"smithing":52,"magic":30},
+  "star-pickaxe": {"smithing":42,"magic":22},
+  "star-plate": {"smithing":50,"magic":30},
+  "star-shield": {"smithing":48},
+  "star-spear": {"smithing":46,"magic":26},
+  "star-sword": {"smithing":45,"magic":25},
+  "steel": {"smithing":30},
+  "steel-dagger": {"smithing":25},
+  "steel-hatchet": {"smithing":26},
+  "steel-helm": {"smithing":30},
+  "steel-javelin": {"smithing":28},
+  "steel-maul": {"smithing":42},
+  "steel-pickaxe": {"smithing":26},
+  "steel-plate": {"smithing":38},
+  "steel-shield": {"smithing":34},
+  "steel-spear": {"smithing":28},
+  "steel-sword": {"smithing":32}
+}
 // a log is a log (§6ad), so heartwood pays for anything logs pay for
 function forgeHave(me, item) {
   return me.inventory.reduce((a, sl) => {
@@ -4741,16 +5049,26 @@ const CALLING_LINE_W = {
 // swung -- generated from engine.js WEAPONS. The window knew the NAME of a
 // special and nothing about its shape, so a six-arrow flurry and a single
 // dagger thrust drew the same little ring and nothing else.
-const SPEC_BLOWS = { 'star-dagger': 6, 'star-maul': 2, 'horn-bow': 6, 'handgonne': 2, 'dragonbow': 1 }
+const SPEC_BLOWS = {
+  "star-dagger": 6,
+  "star-maul": 2,
+  "fire-siphon": 1,
+  "great-maul": 2,
+  "horn-bow": 6,
+  "handgonne": 2,
+  "dragonbow": 1
+}
 // §6dj: generated from engine.js WEAPONS. It still named `true` for the
 // horn-bow -- a special that was retired two revisions ago -- and knew nothing
 // of the great-crossbow.
 const SPEC_OF = {
-  'star-dagger': 'flurry',   // 6 blows, 12 to recover
-  'star-maul': 'now',   // 2 blows, 8 to recover
-  'horn-bow': 'flurry',   // 6 blows, 13 to recover
-  'handgonne': 'flurry',   // 2 blows, 8 to recover
-  'dragonbow': 'far',   // 1 blows, 4 to recover
+  "star-dagger": "flurry",
+  "star-maul": "now",
+  "fire-siphon": "now",
+  "great-maul": "now",
+  "horn-bow": "flurry",
+  "handgonne": "flurry",
+  "dragonbow": "far"
 }
 // §6dj: the shapes the engine actually has. `twice` and `true` were retired.
 const SPEC_SAYS = {
@@ -9536,6 +9854,87 @@ function drawScene(now) {
         cx.beginPath(); cx.moveTo(X + 29, Y + 18); cx.lineTo(X + 34, Y + 19); cx.lineTo(X + 29, Y + 20); cx.fill()
         return
       }
+      // §7cn: THE MERE-LAMPREY. A mouth on a rope, half out of the reed-water.
+      //
+      // It has no face and no jaw -- a funnel of rasping rings, which is what
+      // the animal actually is -- and it never leaves the water entirely. The
+      // rings turn, because a lamprey's mouth is the part that moves.
+      //
+      // AND A SPENT ONE IS DRAWN. `spent` means this body will never rise
+      // again, and the window must not answer that with an empty tile: the
+      // reed-bed stays, the thing lies in it, grey and still, and a citizen
+      // who walks out here finds the PLACE rather than nothing. §7a's rule --
+      // the road still arrives at the rock -- said this first.
+      if (m.type === 'mere-lamprey') {
+        const spent = (m.spent ?? 0) === 1
+        const t9 = (world?.tick ?? 0)
+        const rise = spent ? 0 : Math.sin(now / 900 + m.x) * 2.4
+        shadow(X, Y, 11)
+        // the water it stands in, always
+        cx.fillStyle = 'rgba(58,84,74,.55)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 29, 13, 4.6, 0, 0, 7); cx.fill()
+        cx.strokeStyle = 'rgba(120,150,120,.4)'; cx.lineWidth = 1
+        cx.beginPath(); cx.ellipse(X + 20, Y + 29, 9, 3, 0, 0, 7); cx.stroke()
+        // the body: a rope, not a fish. No fins anywhere on it.
+        cx.strokeStyle = spent ? '#4e5148' : '#3f4a3a'
+        cx.lineWidth = 6; cx.lineCap = 'round'
+        cx.beginPath(); cx.moveTo(X + 20, Y + 30)
+        if (spent) cx.quadraticCurveTo(X + 27, Y + 28, X + 33, Y + 29)
+        else cx.quadraticCurveTo(X + 16, Y + 20 + rise, X + 21, Y + 10 - rise)
+        cx.stroke()
+        cx.strokeStyle = spent ? 'rgba(120,124,112,.5)' : 'rgba(96,112,86,.7)'
+        cx.lineWidth = 1.4
+        cx.beginPath(); cx.moveTo(X + 20, Y + 29)
+        if (spent) cx.quadraticCurveTo(X + 27, Y + 27, X + 32, Y + 28)
+        else cx.quadraticCurveTo(X + 17, Y + 20 + rise, X + 21, Y + 11 - rise)
+        cx.stroke()
+        // the gill pores, seven a side, which is the giveaway
+        cx.fillStyle = spent ? 'rgba(70,72,64,.8)' : 'rgba(24,32,22,.85)'
+        for (let k = 0; k < 7; k++) {
+          const gy = spent ? Y + 28.5 : Y + 15 + k * 1.7 - rise * 0.5
+          const gx = spent ? X + 25 + k * 1.3 : X + 19.2 + k * 0.28
+          cx.beginPath(); cx.arc(gx, gy, 0.85, 0, 7); cx.fill()
+        }
+        // THE MOUTH. Rings of teeth, and they turn.
+        const mx = spent ? X + 20 : X + 21, my = spent ? Y + 30 : Y + 9 - rise
+        const spin = spent ? 0 : now / 1400
+        cx.fillStyle = spent ? '#5c5f54' : '#7d8a6a'
+        cx.beginPath(); cx.arc(mx, my, 6.2, 0, 7); cx.fill()
+        cx.fillStyle = spent ? '#2e302a' : '#241c18'
+        cx.beginPath(); cx.arc(mx, my, 4.2, 0, 7); cx.fill()
+        if (!spent) {
+          cx.fillStyle = '#e8e2cc'
+          for (let ring = 0; ring < 2; ring++) {
+            const rad = 5.4 - ring * 1.9
+            for (let k = 0; k < 9; k++) {
+              const a = spin * (ring ? -1 : 1) + (k / 9) * Math.PI * 2
+              cx.beginPath()
+              cx.arc(mx + Math.cos(a) * rad, my + Math.sin(a) * rad, 0.75, 0, 7)
+              cx.fill()
+            }
+          }
+        }
+        if (spent) {
+          cx.fillStyle = 'rgba(150,150,138,.7)'
+          cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
+          cx.fillText('spent', X + 20, Y - 4); cx.textAlign = 'left'
+          return
+        }
+        // the hitpoint bar, and UNDER it the tally -- how many lives this one
+        // has left of the sixty-four it was born with. It is the only number
+        // in this world that only ever goes down.
+        const left = 64 - (m.slain ?? 0)
+        cx.fillStyle = '#22301e'; cx.fillRect(X + 6, Y - 1, 28, 3.4)
+        cx.fillStyle = '#8fbf6a'
+        cx.fillRect(X + 6, Y - 1, 28 * Math.max(0, m.hp / 44), 3.4)
+        cx.fillStyle = '#4a5a3a'; cx.fillRect(X + 6, Y + 3, 28, 2)
+        cx.fillStyle = left <= 8 ? '#d8a03a' : '#7a9a5a'
+        cx.fillRect(X + 6, Y + 3, 28 * Math.max(0, left / 64), 2)
+        cx.fillStyle = left <= 8 ? '#e8c060' : 'rgba(180,200,160,.8)'
+        cx.font = '600 7px ui-monospace,monospace'; cx.textAlign = 'center'
+        cx.fillText(left + ' left', X + 20, Y - 4); cx.textAlign = 'left'
+        return
+      }
       if (m.type === 'fen-adder') {
         cx.strokeStyle = '#5a6b34'; cx.lineWidth = 4; cx.lineCap = 'round'
         cx.beginPath(); cx.moveTo(X + 9, Y + 30)
@@ -11914,6 +12313,70 @@ function invClick(i) {
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You drop the arrows.') } },
     ]); return
   }
+  // §7cm: DRAGON BONES ASK A QUESTION NOW, and the window has to put it.
+  //
+  // They had no menu of their own at all -- they fell through to the generic
+  // rows, so the one thing they were FOR (burying, at XP_BURY_DRAGON, on the
+  // longest road in the world) had no button and the new thing they are for
+  // had nowhere to appear.
+  //
+  // The two options are opposed and the labels say how: prayer's reward is
+  // PRAYER_KEEP, "the dearest priced thing you carry survives your death", and
+  // `snaps` is not death. Bury these and keep your things when you fall; haft
+  // them and carry the one object in the world prayer cannot save.
+  if (it.item === 'dragon-bones') {
+    const have = (me.inventory ?? []).filter(x => x?.item === 'dragon-bones').length
+    const bark = (me.inventory ?? []).filter(x => x?.item === 'ironbark').length
+    const fl = lvl('fletching')
+    const canHaft = have >= 2 && bark >= 1 && fl >= 55
+    chooseAction([
+      { label: 'bury (prayer, and the dearest road there is)', act: () => {
+        send({ do: 'bury', slot: +i })
+        const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
+          && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
+        feed(oss ? 'You lay the dragon in the ossuary. The ground here is consecrated.'
+                 : 'You bury the dragon. The earth takes it as it takes everything.') } },
+      { label: canHaft ? 'haft a BONE SPEAR (2 bones + 1 ironbark)'
+                       : 'haft a bone spear \u2014 ' + (fl < 55 ? 'fletching 55 (you have ' + fl + ')'
+                         : have < 2 ? 'you have ' + have + ' of 2 bones'
+                         : 'you need an ironbark haft'),
+        act: () => {
+          if (!canHaft) { feed('Not yet. A bone spear is two dragon-bones, an ironbark haft and fletching 55.'); return }
+          send({ do: 'smith', recipe: 'bone-spear' })
+          feed('You lash the rib to the haft. It is nothing at all until you are nearly dead, '
+             + 'and then it is the largest blow in the world. It will snap, and there is no mending it.') } },
+      { label: 'what are these worth?', act: () => feed('Five hundred at a counter, and a keeper who does not '
+        + 'know what else they are for. Buried they are the fastest prayer on the island. Hafted they are a spear '
+        + 'that grows as you fail \u2014 and prayer will not save a thing that breaks in your hand.') },
+      ...bankOpt, ...alchOpt,
+      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You set the dragon down.') } },
+    ]); return
+  }
+  // §7cn: WHAT A LAMPREY LEAVES, and how much of it there will ever be.
+  if (it.item === 'lamprey-spit') {
+    const sp = (me.inventory ?? []).filter(x => x?.item === 'lamprey-spit').length
+    const st = (me.inventory ?? []).filter(x => x?.item === 'steel-ingot').length
+    const sm = lvl('smithing')
+    const canMake = sp >= 2 && st >= 1 && sm >= 40
+    const alive = Object.values(world?.mobs ?? {})
+      .filter(x => x.type === 'mere-lamprey' && (x.spent ?? 0) === 0).length
+    chooseAction([
+      { label: canMake ? 'set a BARB (2 spit + 1 steel ingot)'
+                       : 'set a barb \u2014 ' + (sm < 40 ? 'smithing 40 (you have ' + sm + ')'
+                         : sp < 2 ? 'you have ' + sp + ' of 2 spit' : 'you need a steel ingot'),
+        act: () => {
+          if (!canMake) { feed('A barb is two measures of spit, one steel ingot and smithing 40.'); return }
+          send({ do: 'smith', recipe: 'barb' })
+          feed('You work the spit into the ring. It bites all round \u2014 every beast within reach, '
+             + 'one swing. Worthless in a duel; the only answer anybody has to a crowd.') } },
+      { label: 'how much is left?', act: () => feed(alive > 0
+        ? alive + (alive === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.')
+          + ' When they are gone there is no more spit, and no more barbs than the ones that exist.'
+        : 'The meres are empty. Every barb that will ever exist already exists.') },
+      ...bankOpt, ...alchOpt,
+      { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You set the horn down. There is not much of this.') } },
+    ]); return
+  }
   if (it.item === 'bones') {
     chooseAction([
       { label: 'bury', act: () => { send({ do: 'bury', slot: +i })
@@ -12359,6 +12822,30 @@ cv.addEventListener('click', (e) => {
             + 'the stilling, the mending, the sealing, the alching and the recall come back.'
           : 'You turn to the barrow-work. The stilling, the mending, the sealing, the alching '
             + 'and the recall are closed to you. What is left will not refuse a fight.')
+        flashClick(n.x, n.y, false); return
+      }
+      // §7t: THE TRAINING YARD, which this window did not know existed.
+      //
+      // `dummy` and `butt` are in NODE_TYPES *and* in MOB_STATS, and the engine
+      // note says why: "a dummy and a butt are MOBS, not furniture, and that is
+      // the whole trick" -- attack, the specials, a drawn bow and the damage
+      // readout all work on them unchanged. So a click on the frame finds the
+      // thing standing in it and swings at that, rather than sending a refused
+      // input and saying nothing.
+      if (n.type === 'dummy' || n.type === 'butt') {
+        const tgt = Object.entries(world.mobs ?? {})
+          .find(([, m]) => m.x === n.x && m.y === n.y && m.hp > 0)
+        const bow = RANGED_ITEMS.has(meNow?.equipment?.weapon?.item)
+        if (!tgt) { feed(n.type === 'butt' ? 'An archery butt. Straw and canvas, and nothing in it.'
+                                           : 'A pell of oak. Nobody has set a dummy on it.'); return }
+        if (n.type === 'butt' && !bow) {
+          feed('A butt takes an ARROW. Wield a bow and it will teach you the first rungs of ranged; '
+             + 'the pell beside it is the one you hit with steel.'); return }
+        if (n.type === 'dummy' && bow) {
+          feed('A pell takes a BLOW. Put the bow away, or shoot the butt instead.'); return }
+        intent = { kind: 'attack', id: tgt[0] }
+        feed('You set about the ' + (n.type === 'butt' ? 'butt' : 'pell') + '. It never hits back, and '
+           + 'past the twentieth level it has nothing left to teach you.')
         flashClick(n.x, n.y, false); return
       }
       if (n.type === 'rampart') { feed('A curtain wall. Dressed stone, battered at the foot, and old.'); return }
