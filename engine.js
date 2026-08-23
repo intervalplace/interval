@@ -1638,6 +1638,41 @@ const BURN_EVERY = 4;    // one point every four of them
 // They break rather than persist, which makes them the first consumable at the
 // top of this game: a sink that scales with how often people actually fight,
 // rather than with how long they have played.
+// §7cn-iii: WHAT A CORPSE LEAVES, asked in ONE place.
+//
+// The drop loop lived inside the named target's death, so a beast killed by a
+// cleave left NOTHING -- and the barb, whose whole purpose is a crowd, killed
+// six wolves for a sword's eight and produced a third of the loot. It was worse
+// at the only thing it exists for. A body is a body: what it carried does not
+// depend on which blow of the swing reached it.
+//
+// XP is NOT here, and that is deliberate. A drop is the BEAST'S and belongs to
+// the corpse; a lesson is YOURS and belongs to the swing, of which there was
+// one. §7cn already says a weapon that taught six times an interval in a lair
+// of crows would be the fastest ladder in the world, and it is right.
+//
+// The counted tally comes with it (v0.64): the rate is per citizen per drop, so
+// five bodies in one interval advance one counter five times and the promised
+// rate is the rate. A second copy of this loop is how the two halves drifted
+// apart in the first place, which is the fault §11h is about.
+function spillDrops(s, beacon, pid, p, m, mid, stats) {
+  if (!p.slain) p.slain = {};
+  const drops = (m.type === 'incursion' && INCURSION_FACE_DROPS[m.face])
+    ? INCURSION_FACE_DROPS[m.face] : stats.drops;
+  const tallyKey = m.type === 'incursion' ? (m.type + ':' + (m.face || '')) : m.type;
+  for (let di = 0; di < drops.length; di++) {
+    const d = drops[di];
+    if (d.chance !== undefined) {
+      const tally = tallyKey + ':' + di;
+      p.slain[tally] = (p.slain[tally] ?? 0) + 1;
+      if (!countedSuccess(p.slain[tally], d.chance, DROP_DEN)) continue;
+    }
+    const gid = 'g' + s.tick + '-' + mid + '-' + di + '-' + d.item; // di keeps twin drops distinct
+    s.ground[gid] = { item: d.item, x: m.x, y: m.y,
+      expiresAt: s.tick + (d.item === 'forage' ? FORAGE_ROTS : 100) };
+  }
+}
+
 function platedFromDeath(q) {
   if (q.equipment?.body?.item !== 'great-plate') return false;
   q.equipment.body = null;          // shattered, not dropped: it is gone
@@ -2214,7 +2249,25 @@ const WEAPONS = {
   'star-dagger':   { spec: 'flurry', blows: 6, rec: 12, hit: 2, every: 2, reach: 1, acc: 14 },
   'star-sword':    { hit: 4, every: 2, reach: 1, acc: 0 },
   'star-spear':    { hit: 9, every: 2, reach: 2, acc: 0 },
-  'star-maul':     { spec: 'now', blows: 2, bite: 2, rec: 8, hit: 13, every: 2, reach: 1, acc: -12 },
+  // §6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
+  //
+  // `bite: 2` was set when a star-maul's hit was 7. At 13 the same multiplier
+  // makes a per-blow maximum of 46, and `now` is the special that can land ON
+  // TOP of an ordinary blow -- so the pair reached 104 against a citizen with
+  // 99, measured, in about one combo in twelve hundred. A weapon that removes a
+  // full bar from full health in two intervals is not a gamble, it is a coin
+  // that sometimes deletes somebody.
+  //
+  // Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the maul
+  // fell to 77% of its own ordinary damage. The pair is 1.5 and six.
+  //
+  // AND IT IS THE SAME PAIR ON BOTH MAULS. They were briefly 1.6/7 and 1.4/6 --
+  // not because a great-maul swings differently, but because each was lowered
+  // only until it stopped one-shotting and then left there. `hit` already says
+  // one is bigger than the other (sixteen against thirteen); a second number
+  // saying it again is two rules for one weapon class, and a reader would go
+  // looking for the distinction it draws. There is none.
+  'star-maul':     { spec: 'now', blows: 2, bite: 1.5, rec: 6, hit: 13, every: 2, reach: 1, acc: -12 },
   // 6bz: THE CHAIN KEEPS ITS OLD BLOW. Two-handed arms gained six to pay for
   // the shield, but a weapon that swings EVERY interval banks that six twice
   // as often as anything else: at hit 7 it killed a shielded swordsman in 46
@@ -2251,8 +2304,21 @@ const WEAPONS = {
   // A `spec` of 'now' is the right special for a siphon and the wrong one for
   // a gonne: no flurry, no volley -- one sustained gout, out of rhythm,
   // when you decide. It costs the arm exactly as the maul's does.
-  'fire-siphon':   { spec: 'now', blows: 1, bite: 3, rec: 9,
-                     hit: 3, every: 3, reach: 2, acc: 0,
+  // §7cx: AND A SIPHON HAS TO BEAT THE FLAIL IT COPIES.
+  //
+  // Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through star plate --
+  // against a star-flail, which pierces the same way, at 2.23 and 2.29. The
+  // flail wants no fuel, no smithing 62, no attack 60 and no 1450 gold, so the
+  // siphon was strictly dominated by a cheaper weapon that does its trick
+  // better. Nothing about `burns` closes that: a fire is one point every four
+  // intervals for eight, which is two points that cannot land the last blow --
+  // about a twentieth of a tick, invisible next to a gap of nine tenths.
+  //
+  // So the cadence goes to two, where every other short arm in the world sits,
+  // and the blow rises to answer the price. It keeps its own shape: the only
+  // weapon that pierces AND burns, and the only one that drinks brimstone.
+  'fire-siphon':   { spec: 'now', blows: 1, bite: 3, rec: 6,
+                     hit: 6, every: 2, reach: 2, acc: 0,
                      burns: true, pierces: true, fuel: 'brimstone', per: 8 },
   // §7l: THE BARE-BLADE. Its damage is what you are NOT wearing.
   //
@@ -2444,7 +2510,10 @@ const WEAPONS = {
   // §7ap: the maul line's top, and it keeps the line's whole character -- the
   // biggest blow in the world bought with the worst accuracy in it. `burns`
   // because every brimstone arm burns, and this one is twenty-four of it.
-  'great-maul':    { spec: 'now', blows: 2, bite: 2, rec: 8,
+  // §6af-vi: the same pair as the star-maul, and its larger `hit` is the only
+  // thing that makes it larger. Measured over three thousand combos: ceiling
+  // 94 against the star's 82, and neither can delete a citizen at full health.
+  'great-maul':    { spec: 'now', blows: 2, bite: 1.5, rec: 6,
                      hit: 16, every: 2, reach: 1, acc: -10, breaks: true, burns: true },
   // THE CROSSBOW (spec 6x): the maul of the ranged line.
   //
@@ -12424,10 +12493,27 @@ function nextState(state, inputs, _legacyBeacon) {
             const o = s.mobs[oid];
             if (!o || o.hp <= 0 || MOB_STATS[o.type]?.dummy === true) continue;
             if (!inReach(p, o)) continue;
+            // §7cn-ii: AND A CLEAVE MAY NOT SPEND WHAT IT CANNOT PAY FOR.
+            //
+            // A cleaved beast dies without dropping: the loot block below is
+            // inside the named target's `hp <= 0`, and only the named target
+            // ever reaches it. For an ordinary wolf that is the weapon's price
+            // -- it kills more and loots less. For a FINITE beast it was a hole
+            // in the floor of the economy: a lamprey has 448 lives in the whole
+            // world and each one is a spit, two of which are a barb. A citizen
+            // holding a barb, standing where two lampreys meet, burned the
+            // world's only supply of barbs and left nothing on the ground. The
+            // weapon ate its own source.
+            //
+            // So the cleave does not touch a finite beast at all. Not "drops
+            // nothing" -- it is not reached. Its life is spent only by a blow
+            // aimed at it, which is the blow that pays.
+            if (MOB_STATS[o.type]?.finite !== undefined) continue;
             o.hp -= dmg;
             if (o.hp <= 0) {
+              // §7cn-iii: a body is a body. The same loop, the same tally.
+              spillDrops(s, beacon, pid, p, o, oid, MOB_STATS[o.type]);
               o.respawnAt = s.tick + (MOB_STATS[o.type]?.respawn ?? 60);
-              if (MOB_STATS[o.type]?.finite !== undefined) o.slain = (o.slain ?? 0) + 1;
             }
           }
         }
@@ -12531,27 +12617,9 @@ function nextState(state, inputs, _legacyBeacon) {
         // rare drop at all. Loot is therefore COUNTED, exactly as cooking and
         // firemaking are: the tally is per citizen and per drop, so the rate is
         // the promised rate and no timing can bend it.
-        if (!p.slain) p.slain = {};
-        // §6cz: an incursion's drops are chosen by the FACE it wore, so a
-        // woodwraith gives up hatchets and a gargoyle pickaxes. Everything else
-        // uses its own kind's table. The tally key includes the face, so each
-        // face's rate is counted on its own and no timing can bend it.
-        const _drops = (m.type === 'incursion' && INCURSION_FACE_DROPS[m.face])
-          ? INCURSION_FACE_DROPS[m.face] : stats.drops;
-        const _tallyKey = m.type === 'incursion' ? (m.type + ':' + (m.face || '')) : m.type;
-        for (let di = 0; di < _drops.length; di++) {
-          const d = _drops[di];
-          if (d.chance !== undefined) {
-            const tally = _tallyKey + ':' + di;
-            p.slain[tally] = (p.slain[tally] ?? 0) + 1;
-            if (!countedSuccess(p.slain[tally], d.chance, DROP_DEN)) continue;
-          }
-          const gid = 'g' + s.tick + '-' + p.action.mobId + '-' + di + '-' + d.item; // di keeps twin drops distinct
-          // forage rots in half the time: it is a decision inside the fight,
-          // not a pile to sweep up afterwards
-          s.ground[gid] = { item: d.item, x: m.x, y: m.y,
-            expiresAt: s.tick + (d.item === 'forage' ? FORAGE_ROTS : 100) };
-        }
+        // §6cz: an incursion's drops are chosen by the FACE it wore, and the
+        // tally key carries the face so each face's rate is counted on its own.
+        spillDrops(s, beacon, pid, p, m, p.action.mobId, stats);   // §7cn-iii
         // §6w: THE BOW GOES WITH WHOEVER TAKES THE DRAGON, IF THE DRAGON
         // STILL HAS IT.
         //
