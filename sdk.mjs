@@ -174,6 +174,13 @@ export class IntervalClient {
   // island cannot use -- which for a toll would mean half the island simply
   // cannot cross the river's busiest bridge.
   pay() { return this.#send({ type: 'pay' }) }
+  // §14d: THE WILD SPAN. Found a bridge on a crossing site by standing ON it
+  // with a plank in hand; then lay planks onto the spanwork, up to the rate,
+  // until the pool is full and it opens for everyone. Same lesson as `pay`
+  // above: a bot is a citizen, and a crossing the SDK cannot help build is a
+  // crossing half the island cannot help build.
+  found(x, y) { return this.#send({ type: 'found', x, y }) }
+  lay(nodeId, n = 1) { return this.#send({ type: 'lay', nodeId, n }) }
   // §7j: grain to flour, beside a mill
   grind(slot) { return this.#send({ type: 'grind', slot }) }
   alch(slot) { return this.#send({ type: 'alch', slot }) }

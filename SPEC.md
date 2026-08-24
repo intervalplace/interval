@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.97 ("The Constitution")
+# Interval: Protocol Specification v0.98 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -9512,6 +9512,63 @@ citizen carrying a full load of their own, which is the ordinary case.
 - `TOLL_TICKS` is two minutes — enough to cross at one tile per interval and
   come back for what you forgot, short enough that a crossing is a decision
   rather than a subscription.
+
+### 14d. The wild span (a crossing the citizens build)
+
+The toll gate stands on a crossing the founding **gave** the island. This is
+the opposite: a crossing the founding **withheld**, and left for the citizens
+to build if they ever want it.
+
+There is one watercourse in the Wilds — the Drowning Beck, which drains the
+Drowning Pool (§2h) down into the Marchwater and thence to the Great River and
+the sea. It bars the way like any water. At **one** authored
+tile on it — the **crossing site**, and there is deliberately only one — a
+citizen may found a bridge, and the two banks of the Wilds are joined only where
+and when enough hands have carried enough planks to join them. One crossing and
+no more is the whole of the scarcity: a second bridge would relieve the pressure
+on the first, and the contest that makes the crossing worth anything would
+deflate. This one tile is the one contested place in the Wilds.
+
+- `spanwork` and `span` are node types. A `spanwork` is the bridge unbuilt: a
+  pool of planks standing on the water tile, blocking it exactly as the beck
+  does. A `span` is the bridge built: decking, walkable by **everyone**,
+  forever. This is the mirror of the rockfall (§12c): where a rockfall is a
+  node that blocks a tile the geography left open, a span is a node that opens
+  a tile the geography left blocked. Both are nodes and not terrain, so the
+  founding's geography hash never disagrees with what the island has become.
+- `found` is a verb. It requires standing **on** a crossing site — not beside
+  it, on it, exposed in the water where a saboteur most wants to deny you —
+  carrying at least one plank, with nothing already built there. It lays the
+  first plank and opens the bridge's record.
+- `lay` is a verb. It banks up to `span.perLay` planks onto a `spanwork` from at
+  or beside it. **The pool only rises.** There is no verb that lowers it and
+  none that unbuilds a span. A plank banked is a plank kept, for as long as the
+  world lasts. The last plank turns the `spanwork` into a `span`.
+- Saboteurs do not lower the pool; they cannot. They suppress the **rate** —
+  by killing carriers before those carriers bank. A citizen killed spills their
+  pack where they fall (§2b), so **carried** planks are at risk and **banked**
+  planks are permanent. The contest is over how fast the pool climbs, never
+  whether it climbs, which is why a contested span is a campaign and not a
+  match: given a floor above zero and a world that outlives its builders, the
+  bridge is inevitable. What the saboteurs decide is how long it takes, and how
+  many dead it takes — which is the bridge's story, not its defeat.
+- **The bridge is a monument.** A `spanwork` and the `span` it becomes carry
+  their own history, because a crossing that cost a decade of siege should say
+  so to whoever finds it a century on: who laid the **first** plank and on what
+  interval (`foundBy`, `foundAt`); the **last** hands (`by`, `lastAt`); the toll
+  in **dead** who fell on its tile (`dead`, which only rises); the last
+  `SPAN_REMEMBERS` who carried to it (`hands`); and, once it opens, who laid the
+  **last** plank, on what interval, and how many intervals it took from first
+  plank to last (`doneBy`, `doneAt`, `tookTicks`). The pool's own count stands
+  for the anonymous thousands between the first hand and the last.
+- **The SDK speaks it.** `found()` and `lay()` belong in `sdk.mjs` for the same
+  reason `pay` does: a bot is a citizen, and a crossing the SDK cannot build is
+  a crossing half the island cannot help build.
+- `span` is a new generator concern, exposed to the engine as data
+  (`spanSites`), the same seam settlements and roads already use. The crossing
+  sites move no tile's walkability and so are not in the geography hash; they
+  are coordinates the founding declares and the engine reads. A generator with
+  no wild crossings declares none, and the verb finds nowhere to build.
 
 ## 15. The island is frozen (v0.88)
 

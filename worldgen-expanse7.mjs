@@ -564,7 +564,15 @@ export function onBarrow(g, x, y) {
 }
 
 // ---------- the waters ----------
-export const SRC_YF = 0.105
+// SRC_YF is where the Great River's head sits. It used to stop at 0.105 -- a
+// tenth of the way down -- which left the river BEGINNING full-width in the
+// middle of the Greenwood, on dry land, with a stub of open water floating
+// above nothing. A river does not start in a field any more than a beck does;
+// it rises from somewhere and runs to somewhere. So the head is pulled up to
+// the north coast (the sea along this column ends at y31 on the founding
+// island), where the river now meets the sea and the two waters are one. It is
+// an estuary, which is what the mouth of a great river IS.
+export const SRC_YF = 0.06
 export function riverX(g, y) {
   return Math.floor(g.worldW / 2) + Math.round(meander(g, 21, y, 52, 30) + meander(g, 22, y, 16, 6))
 }
@@ -979,6 +987,34 @@ export function bridgesOf(g) {
   out.push({ x: mx, y: marchWY(g, mx), name: 'the Oxenford', tag: 'brm' })
   return out
 }
+// ---------- the wild crossings: unbuilt, and contested ----------
+// The five river bridges above are the world's, laid at the founding: they
+// exist and everyone crosses them. THESE do not exist. They are the tiles on
+// the Drowning Beck -- the one watercourse in the Wilds -- where the banks come
+// close enough to bridge, and where a bridge is NOT built until citizens build
+// it, plank by plank, against whoever would rather it never stood.
+//
+// Scarce ON PURPOSE (§7a is the whole design note): ONE site, and one only.
+// A second crossing relieves the pressure on the first -- two bridges means
+// neither is THE crossing, and the contest deflates. With a single wild span,
+// that one tile is the one contested place in the Wilds: whoever holds it holds
+// movement across the beck, and the fight over it is the fight over the Wilds.
+// A single water tile of the beck with dry Wilds on the east and west bank -- a
+// span you walk onto from either side. Baked as a literal for the same reason
+// the fords are: the water is laid before the router runs, so it cannot ask
+// about roads, and a crossing the router might have wanted is written down
+// rather than computed.
+//
+// A site is { x, y, name }. The name is what the finished span is called, and
+// what its monument bears.
+export const SPAN_SITES = [
+  { x: 172, y: 291, name: 'the Drowning Span' },   // the beck's narrows, deep in the Wilds
+]
+export function spanSiteAt(g, x, y) {
+  for (const s of SPAN_SITES) if (s.x === x && s.y === y) return s
+  return null
+}
+
 // the planks over the becks, and the quays at Eastmere: both are decking, and
 // decking is water you can walk on
 const _plankSet = new Set(BECK_PLANKS.map(([x, y]) => x + ',' + y))
@@ -2431,6 +2467,12 @@ E.registerTerrain(GENERATOR_ID, {
   // §7k: and the ground, so the engine can tell a market square from a verge.
   // stallGroundOk asks this; without it the square is just more flagstone.
   ground: (g, x, y) => groundKindAt(g, x, y),
+  // §7a: THE WILD CROSSINGS, AS DATA. Where a citizen may found a span. These
+  // are coordinates, not terrain -- they change no tile's walkability and so do
+  // not enter the geography hash. The engine reads them to permit a `found`,
+  // and to name the monument a finished span bears. A generator with no wild
+  // crossings omits this and the engine offers none.
+  spanSites: (g) => SPAN_SITES.map((s) => ({ x: s.x, y: s.y, name: s.name })),
   // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
   // itself from a hand-copied table, and the copy went stale. The node that
   // founded the world is the one place that ran the real seater; it ships what
@@ -2471,6 +2513,13 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     norwick: { x0: nw.x - 12, x1: nw.x + 12, y0: nw.y - 9, y1: nw.y + 9 },
   }
   g.watch = { level: 60, kindleLogs: 10, perLog: 420, cap: 12600, xpPerLog: 200, burnXp: 1, maxOwned: 4, decayTicks: 432000 }
+  // §7a: THE WILD SPAN. Ten thousand planks to open one crossing, and no more
+  // than five may be banked in any one interval -- so even an unopposed span is
+  // an afternoon's hauling, and an opposed one is the campaign the design wants.
+  // The pool only rises (there is no verb that lowers it); saboteurs suppress
+  // the RATE by killing carriers before they bank, never the total. A plank
+  // banked is a plank kept, for as long as the world lasts.
+  g.span = { pool: 10000, perLay: 5, xpPerPlank: 6 }
   // §6am (v6): STAR IS THE ENDGAME NOW. With a mid tier filling the middle of
   // the road (mid-ore and mid-wood at thirty-five), star rises to where it was
   // always meant to be -- the ninety-tier gear, forged from the magic-stone a

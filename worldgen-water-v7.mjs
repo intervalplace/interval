@@ -135,6 +135,32 @@ export const BECKS = [
     [335, 160], [346, 166], [358, 171], [370, 175], [383, 179],
     [396, 178], [409, 178], [421, 177], [432, 177], [441, 177],
     [449, 178]] },   // the river above Millbrook, x448-450 -- NOT down onto the town
+
+  // THE WILDS HAD ORPHAN WATER. The Drowning Pool sat alone in the west with
+  // no inlet and no outlet -- a closed shape in wet green country, which is the
+  // one thing every other water on this island is not.
+  //
+  // The fix is a beck, and the beck runs OUT of the pool, not into it. This is
+  // the whole of why the west reads right. A pool in a hollow, up in the Wilds,
+  // is the HIGH point of its own little basin; its overflow runs DOWNHILL to
+  // the nearest lower water, which is the Marchwater draining toward Watersmeet.
+  // So: pool -> beck -> the Marchwater -> the Great River -> the sea. Small into
+  // bigger into biggest, converging the whole way down, the way water does.
+  //
+  // Run it the other way -- the march sending a branch UP to fill the pool --
+  // and you get a distributary, a river SPLITTING to feed two places at once,
+  // which happens in flat deltas and nowhere in hill country. That is the fork
+  // the eye catches. Draining the pool instead makes the junction a confluence:
+  // nothing splits, the beck simply JOINS the march and they go on together.
+  //
+  // The tiles are the same either way (a blue line is the same drawn in either
+  // direction); what changed is which end is the source. Path is written
+  // source-first, from the pool's south edge down to where it meets the march.
+  // This is the one watercourse in the Wilds, and the wild crossing (worldgen
+  // SPAN_SITES) sits on it where it runs narrow.
+  { name: 'the Drowning Beck', path: [
+    [156, 274], [160, 277], [164, 281], [168, 286], [172, 291],
+    [176, 296], [180, 301], [184, 306], [188, 311], [192, 316]] },  // out of the pool, down to the Marchwater
 ]
 
 

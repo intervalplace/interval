@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.97';
+const SPEC_VERSION = '0.98';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -495,6 +495,28 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // it. It blocks its tile like any node, and the `pay` verb lifts it for the
   // citizen who paid -- for a while, and for them only.
   'tollgate',
+  // §7a: THE WILD SPAN, in its two states. The mirror of the rockfall: where a
+  // rockfall is a NODE that blocks a tile the geography left open, a span is a
+  // node that OPENS a tile the geography left blocked -- a deck over the one
+  // beck in the Wilds. Both are nodes and not terrain for the same reason and
+  // by the same discipline: the founding's geographyHash covers blockedAt, and
+  // neither the stones nor the deck are in it, so citizens permanently change
+  // what the island is to walk without any two nodes ever disagreeing about the
+  // island they were handed.
+  //
+  //   `spanwork` is the span UNFINISHED: a pool of planks that only rises,
+  //   standing on the water tile, blocking it exactly as the water did (you
+  //   cannot yet cross -- that is the whole contest). It carries its own
+  //   history: who laid the first plank and when, the last hands, the dead who
+  //   fell on it, and the last ten who carried to it.
+  //
+  //   `span` is the span FINISHED: decking. It is walkable-built, so the tile
+  //   it stands on reads as a crossing for everyone, forever. It keeps the
+  //   monument the spanwork earned -- first hand, last hand, the toll in dead,
+  //   the interval it opened and the interval it was begun -- because a
+  //   crossing that cost a decade of siege should say so to whoever finds it a
+  //   century on.
+  'spanwork', 'span',
   // §7d: THE LOOKING GLASS. A citizen's first face is free, at the door. To
   // change it afterwards you go and look at yourself in something, and there
   // is one of them on the island.
@@ -1388,6 +1410,11 @@ const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 
 // has to be clever enough to infer it from a skill going up.
 const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
+  // §7a: FOUND lays the first plank of a wild span; LAY adds to the pool. Both
+  // are woodwork done in the open, both pay and both end whatever else was
+  // running -- a citizen banking planks on a contested crossing is not also
+  // quietly felling a tree somewhere.
+  'found', 'lay',
   'cast', 'recall', 'pickup', 'drop', 'buy', 'deposit', 'withdraw'];   // §6l: `sell` is repealed
 const DEED_SET = new Set(DEEDS);
 
@@ -1885,6 +1912,11 @@ const XP_SMELT_BAR = 18;
 // §7ai: ten bones to a flask
 // §7cy: how many hands a work remembers, and for how long
 const WORKED_KEEP = 5, WORKED_FADE = 6000;
+// §7a: how many of the last hands a wild span keeps on its monument. The pool's
+// thousands stand for the anonymous crowd; these are the names shown beside the
+// count -- the recent carriers -- alongside the one who laid the first plank.
+// Ten, and it never fades: a span's roll is history, not a live tracker.
+const SPAN_REMEMBERS = 10;
 function noteWork(n, pid, tick) {
   if (!n) return;
   const w = (n.worked ?? []).filter((e) => e.who !== pid && tick - e.at < WORKED_FADE);
@@ -4459,6 +4491,11 @@ const T = {
     return true;
   },
   nonnegInt: (v) => (Number.isSafeInteger(v) && v >= 0 && v <= 1e12) || 'must be a nonnegative integer',
+  // §7a: a world coordinate. A found names the tile it stands on, so the input
+  // carries an x and a y; bounded generously (the widest world is far under
+  // this) and never negative, which is all the shape gate can know without the
+  // genesis. The handler checks it is an actual crossing site.
+  coord: (v) => (Number.isSafeInteger(v) && v >= 0 && v <= 1e6) || 'must be a world coordinate',
   // §7.3a: a count of things, at least one. Capped at the pack so no input can
   // ask for more than a citizen could ever hold, whatever the vault contains.
   qty: (v) => (Number.isSafeInteger(v) && v >= 1 && v <= 1e12) || 'must be a positive quantity',
@@ -4584,6 +4621,11 @@ const INPUT_SCHEMAS = {
   // and spends nothing. Two citizens may bid on one stone in one interval;
   // the loser must not be charged for a name they did not get.
   dedicate: { nodeId: T.id, pay: T.nonnegInt },
+  // §7a: FOUND names the crossing tile (x, y) the citizen stands on; LAY names
+  // the spanwork and how many planks to bank this interval (bounded by the rate
+  // in the handler, but the count itself is a positive quantity here).
+  found: { x: T.coord, y: T.coord },
+  lay: { nodeId: T.id, n: T.qty },
   // §6br: the stone, and WHO IT IS FOR. Never the sender: a graver names the
   // other person or it names nobody.
   grave: { nodeId: T.id, target: T.hex64 },
@@ -4973,6 +5015,18 @@ function markNoughtWorld(state) {
 }
 
 function registerTerrain(id, t) { TERRAINS[id] = t; }
+// §7a: the wild crossing sites a generator declares, as data. A tile the engine
+// will permit a `found` on, and the name the finished span bears. A generator
+// with no wild crossings returns none, and the engine offers no span there.
+// These are coordinates, not terrain: they move no tile's walkability and so
+// are not in the geography hash. Read fresh (never cached against a tile array)
+// because the list is tiny and asked only when a citizen actually founds.
+function spanSiteAt(g, x, y) {
+  const t = TERRAINS[g.worldGenerator];
+  if (!t || !t.spanSites) return null;
+  for (const s of t.spanSites(g)) if (s.x === x && s.y === y) return s;
+  return null;
+}
 // the geography hash the REGISTERED generator computes for its island
 // (v0.80). A generator that draws a different island returns a different
 // hash; a generator that only refactors returns the same one. Absent a
@@ -5925,7 +5979,9 @@ function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'ut
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
 const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'alchWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought',
   // §6bp: what the first name on a stone costs, and how the price climbs
-  'dedication']);
+  'dedication',
+  // §7a: the wild span -- pool size, plank rate, and the woodwork it pays
+  'span']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -5992,6 +6048,20 @@ function validateGenesis(g) {
     const bw = g.brew;
     if (!bw || typeof bw !== 'object' || Object.keys(bw).sort().join(',') !== 'buildOre,buildPlanks,decayTicks,ferment,potCap,xpPerBatch') return 'non-constitutional genesis.brew';
     for (const bk of ['ferment', 'potCap', 'xpPerBatch', 'buildPlanks', 'buildOre', 'decayTicks']) if (!isInt(bw[bk], 0, 1e12)) return `genesis.brew.${bk} out of bounds`;
+  }
+  // §7a: THE WILD SPAN. `pool` is the planks a span needs to open; `perLay` is
+  // how many a citizen may bank in one interval (bounded so a crossing is a
+  // campaign, not a click); `xpPerPlank` is the woodwork the founder and every
+  // hauler earns. A world with no wild crossings omits this and offers no
+  // `found`/`lay`. Every value is a plain integer for the same reason the brew
+  // and watch configs are: two nodes reading the same founding must agree to
+  // the plank on how far a pool has risen.
+  if (g.span !== undefined) {
+    const sp = g.span;
+    if (!sp || typeof sp !== 'object' || Object.keys(sp).sort().join(',') !== 'perLay,pool,xpPerPlank') return 'non-constitutional genesis.span';
+    for (const sk of ['pool', 'perLay', 'xpPerPlank']) if (!isInt(sp[sk], 0, 1e12)) return `genesis.span.${sk} out of bounds`;
+    if (sp.pool < 1) return 'genesis.span.pool must be at least one plank';
+    if (sp.perLay < 1) return 'genesis.span.perLay must be at least one plank';
   }
   if (g.geo !== undefined) {
     const ge = g.geo;
@@ -6623,7 +6693,13 @@ const LANDMARK_KINDS = new Set([
     'struck',
     // §7m/§7r: the reservoir holder for a rockfall's fall-stone, and whoever
     // is minding the furnace
-    'claim', 'stokedBy', 'worked']);
+    'claim', 'stokedBy', 'worked',
+    // §7a: THE WILD SPAN. Its pool (`laid` of `need`), its history (`foundBy`/
+    // `foundAt`, the last hands via `by`/`lastAt`, the recent carriers in
+    // `hands`), its toll (`dead`), and — once finished — how it closed
+    // (`doneBy`/`doneAt`/`tookTicks`). `name` and `by` are shared with the set
+    // above; these are the fields a crossing adds.
+    'laid', 'need', 'foundBy', 'foundAt', 'lastAt', 'dead', 'hands', 'doneBy', 'doneAt', 'tookTicks']);
   for (const [nid, n] of Object.entries(state.nodes)) {
     if (!/^[a-z0-9_-]{1,96}$/i.test(nid)) return 'malformed node id';
     if (!n || typeof n !== 'object') return 'malformed node';
@@ -6707,6 +6783,36 @@ const LANDMARK_KINDS = new Set([
       if (n.type !== 'rockfall') return 'claim on a node that keeps none';
       if (typeof n.claim !== 'string' || !HEX64.test(n.claim)) return 'malformed node claim';
     }
+    // §7a: THE WILD SPAN, unfinished or finished. A spanwork is a rising pool
+    // with a history; a span is the same record, closed. The invariants are
+    // arithmetic so two nodes cannot disagree about how far a crossing has come:
+    // laid never exceeds need, a finished span has laid at least need and bears
+    // its closing hands, an unfinished one does not.
+    if (n.type === 'spanwork' || n.type === 'span') {
+      if (typeof n.name !== 'string' || n.name.length === 0 || n.name.length > 40) return 'a span without a name';
+      if (!isInt(n.need, 1, 1e12)) return 'span need out of bounds';
+      if (!isInt(n.laid, 0, n.need)) return 'span laid out of bounds';        // only rises, never past the goal
+      if (!isInt(n.dead ?? 0, 0, 1e12)) return 'span toll out of bounds';
+      if (typeof n.foundBy !== 'string' || !HEX64.test(n.foundBy)) return 'a span nobody founded';
+      if (!isInt(n.foundAt, 0, MAX_TIME)) return 'span foundAt out of bounds';
+      if (n.by !== undefined && (typeof n.by !== 'string' || !HEX64.test(n.by))) return 'malformed last span hand';
+      if (n.lastAt !== undefined && !isInt(n.lastAt, 0, MAX_TIME)) return 'span lastAt out of bounds';
+      if (!Array.isArray(n.hands) || n.hands.length === 0 || n.hands.length > SPAN_REMEMBERS) return 'malformed span hands';
+      for (const h of n.hands) if (typeof h !== 'string' || !HEX64.test(h)) return 'malformed span hand';
+      if (n.type === 'span') {
+        if (n.laid < n.need) return 'a finished span short of its pool';        // it opened, so it is full
+        if (typeof n.doneBy !== 'string' || !HEX64.test(n.doneBy)) return 'a span nobody finished';
+        if (!isInt(n.doneAt, 0, MAX_TIME)) return 'span doneAt out of bounds';
+        if (!isInt(n.tookTicks, 0, MAX_TIME)) return 'span duration out of bounds';
+        if (n.doneAt < n.foundAt) return 'a span finished before it was begun';
+      } else {
+        if (n.laid >= n.need) return 'a spanwork that should have become a span';  // full means finished
+        if (n.doneBy !== undefined || n.doneAt !== undefined || n.tookTicks !== undefined) return 'an unfinished span bearing a finish';
+      }
+      if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined
+          || n.fuelUntil !== undefined || n.ask !== undefined || n.coin !== undefined
+          || n.shelf !== undefined) return 'a span carries foreign metadata';
+    }
     // type-specific rules (rev6 §6): each field belongs to exactly the
     // node kinds the engine gives it to, ownership metadata on a static
     // resource node is as malformed as a fire that never expires
@@ -6725,7 +6831,13 @@ const LANDMARK_KINDS = new Set([
       if (n.expiresAt === undefined) return 'cart without expiry';
       if (!n.shelf || Object.keys(n.shelf).length === 0) return 'an empty cart is not a thing';
     }
-    if (n.type === 'cart') {
+    if (n.type === 'spanwork' || n.type === 'span') {
+      // §7a: fully checked in the span block above -- its `by` is the last
+      // hands, not plot ownership, so it must be claimed here or the generic
+      // guard below (which reads any stray `by` as a mislaid plot owner) would
+      // reject every valid crossing. Same shape of exemption cart/brewpot get.
+      // Nothing more to check; the branch exists to end the chain.
+    } else if (n.type === 'cart') {
       // §6bq: `by` on a cart is WHOSE CARAVAN THIS WAS, not who owns it --
       // anybody may unload one. It is kept because a cart standing in the road
       // is a thing with a story, and the story is somebody's name.
@@ -6908,9 +7020,14 @@ const LANDMARK_KINDS = new Set([
       // §6br: and a landmark that somebody was given. A keeper's name is who
       // stands there; a stone's is who was brought to it.
       if (n.type !== 'keeper' && n.type !== 'crier' && n.type !== 'dedication'
-          && n.type !== 'landmark') return 'a name belongs to a keeper';
+          && n.type !== 'landmark' && n.type !== 'spanwork' && n.type !== 'span') return 'a name belongs to a keeper';
       if (n.type === 'landmark' && !GRAVABLE.has(n.kind)) return 'a name cut into scenery';
-      if (typeof n.name !== 'string' || n.name.length < 1 || n.name.length > 32) return 'malformed keeper name';
+      // §7a: a span's name is a PLACE name, like a crier's line or a stone's --
+      // it comes from the founding's crossing table, not from a citizen, so it
+      // is not length-checked as a keeper name here (the span block above bounds
+      // it). Every other named node is a citizen or keeper name, capped at 32.
+      if (n.type !== 'spanwork' && n.type !== 'span'
+          && (typeof n.name !== 'string' || n.name.length < 1 || n.name.length > 32)) return 'malformed keeper name';
     }
     // §6bp: the stone's tally and its memory
     if (n.count !== undefined) {
@@ -7229,7 +7346,14 @@ function validInput(state, input, ctx) {
       if (nx < 1 || nx >= state.genesis.worldW - 1 || ny < 1 || ny >= state.genesis.worldH - 1) return false;
       // the water is law where the generator says so (terrain registry):
       // rivers and the sea bar the way, and their fords are law too
-      if (terrainBlocked(state.genesis, nx, ny)) return false;
+      // §7a: ...unless a FINISHED SPAN stands on the water. A span is decking a
+      // citizen built, and decking is water you can walk on -- for everyone,
+      // which is what makes it a bridge and not a toll. An unfinished spanwork
+      // grants nothing: it blocks its tile as the beck does, so this refuses
+      // the move and the crossing stays contested until the last plank is laid.
+      if (terrainBlocked(state.genesis, nx, ny)) {
+        if (!spanDeckAt(state, ctx, nx, ny)) return false;
+      }
       // a living beast holds its tile (v0.79): you do not walk THROUGH a
       // troll, you deal with it, the troll bars the way. (Two bodies in
       // one square was how a fisher came to fight from inside a troll.)
@@ -7991,6 +8115,40 @@ function validInput(state, input, ctx) {
       if (price === null) return false;
       return input.pay >= price && (p.gold ?? 0) >= price;
     }
+    case 'found': {
+      // §7a: LAY THE FIRST PLANK OF A WILD SPAN. A citizen standing ON a
+      // declared crossing tile, carrying at least one plank, with no span or
+      // spanwork there yet, begins the work. Standing ON it (not beside it) is
+      // the whole design: the builder is exposed in the water, on the one tile
+      // a saboteur most wants to deny them.
+      if (p.hp <= 0) return false;
+      const sp = state.genesis.span;
+      if (!sp) return false;
+      // the founder stands on the crossing itself
+      if (p.x !== input.x || p.y !== input.y) return false;
+      if (!spanSiteAt(state.genesis, input.x, input.y)) return false;
+      // nothing may already stand here -- not a finished span, not a spanwork
+      // in progress, not anything else a citizen or the world put on the tile
+      if (nodeExistsAt(state, ctx, input.x, input.y)) return false;
+      // and a plank in hand to lay: a span begins with a plank, like every
+      // plank after it
+      return countItem(p.inventory, 'planks') >= 1;
+    }
+    case 'lay': {
+      // §7a: ADD TO THE POOL. A citizen at or beside an unfinished spanwork,
+      // bearing planks, banks up to `perLay` of them. The pool only ever rises;
+      // there is no verb that lowers it, and none that finishes it but this one
+      // reaching the goal. `n` is how many the citizen means to lay this
+      // interval; the handler banks the lesser of that, what they carry, what
+      // the rate allows, and what the pool still needs.
+      if (p.hp <= 0) return false;
+      const sp = state.genesis.span;
+      if (!sp) return false;
+      const sw = state.nodes?.[input.nodeId];
+      if (!sw || sw.type !== 'spanwork' || !atOrBeside(p, sw)) return false;
+      if (!isInt(input.n, 1, sp.perLay)) return false;   // a signed count, bounded by the rate
+      return countItem(p.inventory, 'planks') >= 1;
+    }
     case 'grave': {
       // §6br: FOUR THINGS, AND THE FOURTH IS THE POINT.
       //
@@ -8591,6 +8749,21 @@ function addIndexedNode(s, ctx, nodeId, node) {
   let ty = ctx.byType.get(node.type); if (!ty) ctx.byType.set(node.type, ty = []); ty.push(nodeId);
   if (node.type === 'brewpot') ctx.brewBy.set(node.by, (ctx.brewBy.get(node.by) || 0) + 1);
 }
+// §7a: change a node's TYPE in place, keeping its id, its tile, and its seq.
+// A spanwork that reaches its pool becomes a span without moving or being
+// re-sequenced -- anything that referenced the node still finds it, and two
+// nodes that ran the same inputs keep the same node order. Only the byType
+// index (which the reference path, ctx===null, does not use) is corrected.
+function reindexNodeType(s, ctx, nodeId, fromType, toType) {
+  const n = s.nodes[nodeId];
+  if (!n) return;
+  n.type = toType;
+  if (!ctx) return;
+  if (_p2on) _p2c.indexUpdates++;
+  const fy = ctx.byType.get(fromType);
+  if (fy) { const i = fy.indexOf(nodeId); if (i !== -1) fy.splice(i, 1); if (!fy.length) ctx.byType.delete(fromType); }
+  let ty = ctx.byType.get(toType); if (!ty) ctx.byType.set(toType, ty = []); ty.push(nodeId);
+}
 function deleteIndexedNode(s, ctx, nodeId) {
   const n = s.nodes[nodeId];
   if (n === undefined) return;
@@ -8697,6 +8870,11 @@ const _WALKABLE_BUILT = new Set(['smokerack', 'brewpot', 'watchfire', 'fire', 'm
   // Ploughed ground is walked over. You stand in one furrow to work the next,
   // exactly as nothing in this engine strikes the tile it stands on, and the
   // hedge round the furlong still says where the field ends.
+  // §7a: a FINISHED span is decking, and decking is water you can walk on. The
+  // spanwork it grew from is deliberately NOT here -- an unfinished bridge bars
+  // its tile exactly as the beck under it does, which is the entire reason the
+  // crossing is worth fighting over before it is done.
+  'span',
   'plot']); // what citizens build never blocks a door (v0.52, v0.53, v0.80)
 // v0.80: the citizen's fire joins them. A fire is the only blocking node a
 // citizen could CREATE, and movement is cardinal, so four logs boxed a
@@ -8804,6 +8982,30 @@ function tollGateAt(state, ctx, x, y) {
   if (!ta) return false;
   for (const id of ta) if (state.nodes[id].type === 'tollgate') return true;
   return false;
+}
+// §7a: is there FINISHED decking on this tile? A `span` opens the water it
+// stands on for everyone; a `spanwork` (still building) does not, and is not
+// consulted here. This is the mirror of tollGateAt: the gate refuses all but
+// the payer, the span admits all.
+function spanDeckAt(state, ctx, x, y) {
+  if (!ctx) return Object.values(state.nodes).some(n => n.x === x && n.y === y && n.type === 'span');
+  const ta = ctx.byTile.get(_tileKey(x, y));
+  if (!ta) return false;
+  for (const id of ta) if (state.nodes[id].type === 'span') return true;
+  return false;
+}
+// §7a: A DEATH ON THE CROSSING IS PART OF THE CROSSING'S STORY. When a citizen
+// falls on the tile a spanwork (or a finished span) stands on, the toll in dead
+// rises by one and never falls. It is the saboteurs' monument, the counter to
+// the builders' plank count: a span opened with eighty dead on it was walked
+// across; one with forty thousand was a siege, and the number alone says which.
+// Called from every place a citizen's death is finalised, with the tile they
+// fell on. Cheap, and a no-op away from the two crossings.
+function tallySpanDeath(s, ctx, x, y) {
+  const ta = ctx ? ctx.byTile.get(_tileKey(x, y)) : null;
+  const bump = (n) => { if (n && (n.type === 'spanwork' || n.type === 'span')) n.dead = (n.dead ?? 0) + 1; };
+  if (ta) { for (const id of ta) bump(s.nodes[id]); return; }
+  for (const n of Object.values(s.nodes)) if (n.x === x && n.y === y) bump(n);
 }
 const _ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]]; // adjacent(): Manhattan distance exactly 1
 function fireOnTile(state, ctx, x, y) { // a fire you are standing IN is a fire you are at
@@ -10116,6 +10318,7 @@ function nextState(state, inputs, _legacyBeacon) {
             target.action = null;
             target.trade = null;
             target.deadUntil = s.tick + DEATH_TICKS;
+            tallySpanDeath(s, _ctx, target.x, target.y);   // §7a: a death on the crossing is the crossing's story
             delete m.mad;
           }
         } else {
@@ -10649,6 +10852,75 @@ function nextState(state, inputs, _legacyBeacon) {
         announce(s, p.name + ' has cut their name into ' + DEDICATION_NAMES[st.tag ?? '']
           + ' for ' + price + ' gold.'
           + (st.past?.length ? ' It bore ' + st.past[0] + ' before.' : ''));
+      }
+    } else if (inp.type === 'found') {
+      // §7a: THE FIRST PLANK. Re-checked here, not trusted from mayDo: another
+      // citizen may have founded this same tile an interval ago, or walked onto
+      // it, in between. A span begins with one plank banked and its whole
+      // history opened -- who laid it, and when.
+      const sp = s.genesis.span;
+      const site = sp ? spanSiteAt(s.genesis, inp.x, inp.y) : null;
+      if (sp && site && p.hp > 0 && p.x === inp.x && p.y === inp.y
+          && !nodeExistsAt(s, _ctx, inp.x, inp.y)
+          && countItem(p.inventory, 'planks') >= 1) {
+        consumeItem(p.inventory, 'planks', 1);
+        p.skills.woodcutting += sp.xpPerPlank;
+        const id = 'span' + s.tick + '-' + pid;
+        addIndexedNode(s, _ctx, id, {
+          type: 'spanwork', x: inp.x, y: inp.y, name: site.name,
+          laid: 1,                    // planks banked so far
+          need: sp.pool,              // and the goal, carried so a window reads it off the node
+          foundBy: pid,               // WHO LAID THE FIRST PLANK
+          foundAt: s.tick,            // and the interval it was laid
+          by: pid,                    // the last hands (anvil/furnace idiom)
+          lastAt: s.tick,             // and when they last laid
+          dead: 0,                    // the toll in dead, on this tile
+          hands: [pid],               // the last few who carried to it, newest first
+        });
+        if (claimFirst(s, 'spanwork', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to found a wild span.');
+        announce(s, (p.name ?? pid.slice(0, 6)) + ' has laid the first plank of ' + site.name + '.');
+      }
+    } else if (inp.type === 'lay') {
+      // §7a: ADD TO THE POOL, and it only rises. The lesser of what the citizen
+      // signed for, what they carry, what the rate allows, and what the span
+      // still needs. When the last plank lands the spanwork becomes a span --
+      // decking, walkable, public forever -- and keeps every line of its
+      // history: who began it and when, who ended it and when, the dead it
+      // cost, and how many intervals it took.
+      const sp = s.genesis.span;
+      const sw = s.nodes?.[inp.nodeId];
+      if (sp && sw && sw.type === 'spanwork' && p.hp > 0 && atOrBeside(p, sw)
+          && isInt(inp.n, 1, sp.perLay) && countItem(p.inventory, 'planks') >= 1) {
+        const room = Math.max(0, sw.need - sw.laid);
+        const lay = Math.min(inp.n, countItem(p.inventory, 'planks'), sp.perLay, room);
+        if (lay > 0) {
+          consumeItem(p.inventory, 'planks', lay);
+          p.skills.woodcutting += sp.xpPerPlank * lay;
+          sw.laid += lay;
+          sw.by = pid;                          // the last hands
+          sw.lastAt = s.tick;
+          // the last few who carried to it, newest first, oldest dropped. The
+          // pool's thousands are the plank count; these are the names a window
+          // shows beside it.
+          const hands = (sw.hands ?? []).filter((h) => h !== pid);
+          hands.unshift(pid);
+          sw.hands = hands.slice(0, SPAN_REMEMBERS);
+          if (sw.laid >= sw.need) {
+            // THE LAST PLANK. The work becomes the crossing. Same node id kept,
+            // so nothing that referenced the spanwork dangles; only the type,
+            // and the closing record, change.
+            sw.type = 'span';
+            sw.doneBy = pid;                    // WHO LAID THE LAST PLANK
+            sw.doneAt = s.tick;                 // and the interval it opened
+            sw.tookTicks = s.tick - (sw.foundAt ?? s.tick);   // and how long it took, from first plank to last
+            // the tile index carried the node under its old type; re-home it so
+            // byType('span') finds it and byType('spanwork') no longer does.
+            reindexNodeType(s, _ctx, inp.nodeId, 'spanwork', 'span');
+            if (claimFirst(s, 'span', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to open a wild span.');
+            announce(s, (p.name ?? pid.slice(0, 6)) + ' has laid the last plank of ' + sw.name
+              + '. It stood after ' + sw.tookTicks + ' intervals and ' + (sw.dead ?? 0) + ' dead.');
+          }
+        }
       }
     } else if (inp.type === 'seal') {
       // §6bn: the mirror of the branch above. The gate is re-checked here and
@@ -11194,6 +11466,7 @@ function nextState(state, inputs, _legacyBeacon) {
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null; q.deadUntil = s.tick + DEATH_TICKS;
+            tallySpanDeath(s, _ctx, q.x, q.y);   // §7a
             break;
           }
         }
@@ -12564,6 +12837,7 @@ function nextState(state, inputs, _legacyBeacon) {
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null;
             q.deadUntil = s.tick + DEATH_TICKS;
+            tallySpanDeath(s, _ctx, q.x, q.y);   // §7a
           }
         }
       }
