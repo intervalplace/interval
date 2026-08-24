@@ -804,7 +804,12 @@ const BRIDGE = (a) =>
   : a.do === 'plant' ? { type: 'plant', slot: a.slot }
   : a.do === 'sell' ? { type: 'sell', slot: a.slot }
   : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId }
+  // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
+  // belongs to another citizen. This window has no confirmation dialogue yet, so
+  // it takes only what is safe to take: an unconfirmed pickup of somebody else's
+  // goods is refused by the engine and nothing happens, which is the correct
+  // failure -- a window that cannot ask must not be able to answer.
+  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
   : a.do === 'buy' ? { type: 'buy', item: a.item }
   : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
   : a.do === 'unwield' ? { type: 'unwield', gear: a.gear }

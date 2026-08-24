@@ -116,7 +116,10 @@ export class IntervalClient {
   attack(mobId, style = 'even') { return this.#send({ type: 'attack', mobId, style }) }
   eat(slot) { return this.#send({ type: 'eat', slot }) }
   drop(slot) { return this.#send({ type: 'drop', slot }) }
-  pickup(groundId) { return this.#send({ type: 'pickup', groundId }) }
+  // §7dk: taking another citizen's pile is a deliberate act and the engine
+  // refuses it unless the input says so. `confirm` defaults to false, so every
+  // existing caller is unchanged and picks up only what is theirs or a mob's.
+  pickup(groundId, confirm = false) { return this.#send({ type: 'pickup', groundId, confirm: confirm === true }) }
   light(slot) { return this.#send({ type: 'light', slot }) }
   bury(slot) { return this.#send({ type: 'bury', slot }) }
   fletch(slot, make) { return this.#send({ type: 'fletch', slot, make }) }

@@ -2254,6 +2254,31 @@ const EXPLORE_MASTER = 90;
 // 6bq: one more rumour for every this-many citizens awake, and a ceiling.
 const SURVEY_PER_MARKER = 4, SURVEY_K_MAX = 256;
 const HP_START_XP = 1154; // hitpoints level 10
+
+// §7dk: THE RECORD BAND -- fifty to ninety-nine.
+//
+// A record needs a clock, and the two obvious places to start it are both
+// wrong. FROM WAKING means a citizen must decide their trade before they have
+// seen the island: a bet placed blind, and every record thereafter belongs to
+// whoever guessed. FROM FIRST EXPERIENCE is better but it cannot be refused:
+// defence is paid to whoever is HIT (`target.skills.defence += ...`) and
+// hitpoints to whoever deals damage, so one goblin on your first day starts
+// two clocks you never chose, and a year at the trees afterwards has ruined
+// two boards by playing normally. Hitpoints is worse still -- it begins at
+// 1154, so its "first experience" is at waking for everybody alive.
+//
+// FIFTY IS THE ONE LINE THAT WORKS FOR ALL EIGHTEEN. Nothing crosses it by
+// accident, nobody has to choose before waking, and it is about an eighth of
+// the way to ninety-nine by experience -- so the band is the great majority of
+// the work and all of the interesting part, since everything below it is the
+// tutorial of whichever trade it belongs to.
+//
+// It also bounds the obvious cheat. Started at first experience, a citizen
+// could bank two hundred thousand raw fish across a year and only THEN gain
+// one cooking experience, and the record would measure nothing but how fast
+// they could press a button. Crossing fifty first means the preparation window
+// is narrow and the preparer is already committed to that trade.
+const RECORD_FLOOR = 50;
 // ---- weapons (v0.65): the metal is the tier, the shape is the choice ----
 // No new materials. The same ore and star-stone, worked into different answers
 // to the same question, so that how a citizen fights is something they chose
@@ -4491,6 +4516,14 @@ const T = {
     return true;
   },
   nonnegInt: (v) => (Number.isSafeInteger(v) && v >= 0 && v <= 1e12) || 'must be a nonnegative integer',
+  // §7dk: a deliberate yes or no, and ALWAYS PRESENT.
+  //
+  // validateInputShape requires every field a schema names -- there is no
+  // optional-field mechanism in this constitution and adding one would be a
+  // far larger change than this rule deserves. So the confirmation is simply
+  // part of the verb, stated either way, and there is exactly one
+  // serialisation of each intent.
+  bool: (v) => v === true || v === false || 'must be true or false',
   // §7a: a world coordinate. A found names the tile it stands on, so the input
   // carries an x and a y; bounded generously (the widest world is far under
   // this) and never negative, which is all the shape gate can know without the
@@ -4602,7 +4635,10 @@ const INPUT_SCHEMAS = {
   // `attackp` are two verbs for one act against two kinds of thing.
   mendp: { target: T.hex64 },
   fletch: { slot: T.slot, make: T.make },
-  pickup: { groundId: T.id },
+  // §7dk: `confirm` says the citizen knows this pile is not theirs. Required
+  // on every pickup and only ever CHECKED when the pile belongs to somebody
+  // else, so an ordinary pickup sends false and nothing about it changes.
+  pickup: { groundId: T.id, confirm: T.bool },
   claim_name: { name: T.name },
   survey: {}, read_chart: { slot: T.slot },
   grind: { slot: T.slot }, saw: {}, smelt: { recipe: T.recipe }, build_brewpot: {}, brew: { nodeId: T.id, slot: T.slot }, collect: { nodeId: T.id }, dismantle: { nodeId: T.id },
@@ -6245,6 +6281,40 @@ function validateState(state) {
   }
   if (totalEntities > MAX_ENTITIES) return 'aggregate entity count exceeds bounds'; // rev5 §8
 
+  // §7dk: THE RECORD BOARDS, and the reason they are checked as hard as a bank.
+  //
+  // They are hashed state: every node replaying this history must reach the
+  // same three names in the same order, or the board is a fork. So the board
+  // key is a closed vocabulary, the order is asserted rather than assumed, and
+  // the length is capped HERE as well as at the point of writing -- because a
+  // table whose size depends on how many citizens ever played is the fault §5
+  // exists to prevent, and a cap enforced in one place only is a cap that a
+  // future import can walk straight past.
+  if (state.records !== undefined) {
+    const R = state.records;
+    if (typeof R !== 'object' || R === null || Array.isArray(R)
+      || Object.getPrototypeOf(R) !== Object.prototype) return 'records must be a table of boards';
+    if (Object.keys(R).length > SKILLS.length * 2) return 'more record boards than there are boards';
+    for (const [board, row] of Object.entries(R)) {
+      const cut = board.indexOf(':');
+      const kind = board.slice(0, cut), sk = board.slice(cut + 1);
+      if (kind !== 'unaided' && kind !== 'supplied') return 'a record board that is neither unaided nor supplied';
+      if (!SKILLS.includes(sk)) return 'a record board for a skill that does not exist';
+      if (!Array.isArray(row) || row.length === 0 || row.length > RECORD_KEEP) return 'a record board out of bounds';
+      let prev = null;
+      for (const e of row) {
+        if (!e || typeof e !== 'object' || Array.isArray(e)
+          || Object.keys(e).sort().join(',') !== 'by,took') return 'a malformed record';
+        if (typeof e.by !== 'string' || !HEX64.test(e.by)) return 'a record with a malformed hand';
+        if (!isInt(e.took, 0, MAX_TIME)) return 'a record out of bounds';
+        // fastest first, ties by playerId: the same order on every node
+        if (prev && (e.took < prev.took || (e.took === prev.took && e.by <= prev.by)))
+          return 'a record board out of canonical order';
+        prev = e;
+      }
+    }
+  }
+
   // ---- constitutional tables (final brief §7): the validator accepts
   // exactly what THIS engine writes, nothing missing, nothing extra ----
   const SKILL_SET = SKILLS;                 // shared constitutional tables
@@ -6388,7 +6458,10 @@ const LANDMARK_KINDS = new Set([
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
     // §6bu: alight, and it burns off by itself
-    'burnUntil']);
+    'burnUntil',
+    // §7dk: the record clock, this citizen's own bands, and whether they ever
+    // went and got help
+    'began', 'aided', 'bands']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -6586,6 +6659,36 @@ const LANDMARK_KINDS = new Set([
     // one revision is exactly how a state that runs becomes a state that will
     // not import -- and the keys are item names, checked, because a tally
     // against contraband is contraband.
+    // §7dk: `began` -- the interval a citizen crossed RECORD_FLOOR in a skill.
+    // Same shape as the tallies below and validated the same way, except the
+    // keys are SKILLS and the values are ticks. Written once each, never
+    // rewritten, never cleared: a clock that can be restarted is not a clock.
+    if (p.began !== undefined) {
+      const bg = p.began;
+      if (typeof bg !== 'object' || bg === null || Array.isArray(bg)
+        || Object.getPrototypeOf(bg) !== Object.prototype) return 'began must be a tick per skill';
+      for (const [sk, t] of Object.entries(bg)) {
+        if (!SKILLS.includes(sk)) return 'began names a skill that does not exist';
+        if (!isInt(t, 0, MAX_TIME)) return 'began out of bounds';
+      }
+    }
+    // §7dk: `aided` -- whether this citizen has ever TAKEN a thing from another.
+    // A bit, and only ever true. See the four channels in the executor.
+    if (p.aided !== undefined && p.aided !== true) return 'aided is set or absent, never false';
+    // §7dk: `bands` -- what this citizen's own fifty-to-ninety-nine took, per
+    // skill, placed or not. Same bound and same shape rules as `began`.
+    if (p.bands !== undefined) {
+      const bd = p.bands;
+      if (typeof bd !== 'object' || bd === null || Array.isArray(bd)
+        || Object.getPrototypeOf(bd) !== Object.prototype) return 'bands must be a band per skill';
+      for (const [sk, v] of Object.entries(bd)) {
+        if (!SKILLS.includes(sk)) return 'bands names a skill that does not exist';
+        if (!v || typeof v !== 'object' || Array.isArray(v)
+          || Object.keys(v).sort().join(',') !== 'aided,took') return 'a malformed band';
+        if (!isInt(v.took, 0, MAX_TIME)) return 'a band out of bounds';
+        if (typeof v.aided !== 'boolean') return 'a band must say whether it was aided';
+      }
+    }
     for (const ck of ['cooksTried', 'lightsTried']) {
       const tally = p[ck];
       if (tally === undefined) continue;
@@ -8563,6 +8666,20 @@ function validInput(state, input, ctx) {
       // it. Not the caster's: sealing reserves nothing for whoever cast it,
       // which is the only reason the spell is safe to exist.
       if (g2.sealedBy && g2.by !== input.playerId) return false;
+      // §7dk: ANOTHER CITIZEN'S GOODS NEED A DELIBERATE YES.
+      //
+      // Taking them sets `aided` for ever, and a permanent flag must never be
+      // settable by a mis-tap. At a crowded furnace or over a corpse the pile
+      // under somebody's finger is as likely to be a stranger's as their own,
+      // and one wrong tap at hour nine hundred should not be able to end a run.
+      //
+      // `accept_trade` needs no such gate: it already has a counterparty, an
+      // offer and a deliberate press. Nobody accepts a trade by accident.
+      //
+      // The act stays irreversible. It simply stops being possible by mistake,
+      // which is the difference between a rule that is harsh and one that is
+      // unfair.
+      if (typeof g2.by === 'string' && g2.by !== input.playerId && input.confirm !== true) return false;
       // FORAGE IS EATEN WHERE IT LIES. No slot is needed because it never
       // enters a pack, and a full pack is no reason to be unable to eat.
       if (g2.item === 'forage') return p.hp > 0;
@@ -9379,6 +9496,84 @@ function announce(s, text) {
   s.announce.push({ tick: s.tick, text });
   while (s.announce.length > ANNOUNCE_KEEP) s.announce.shift();
 }
+// §7dk: THE RECORDS -- the one prize on this island that never runs out.
+//
+// A FIRST IS SPENT THE DAY IT IS WON. There are thirty-eight of them and the
+// founding cohort will have every one inside a year; a citizen who arrives in
+// year ten walks into a world where every permanent mark has been taken. That
+// is the shape of a world that can only ever be finished.
+//
+// A RECORD CANNOT BE SPENT. Somebody always walks it faster, and the board is
+// as alive in year twenty as on the first day -- at no cost in content, in a
+// world that has frozen its content on purpose.
+//
+// AND THIS WORLD CAN PROVE ONE. Deterministic ticks, no wall clock, signed
+// inputs, a certified history: "fastest from fifty to ninety-nine in fishing,
+// in intervals" is a VERIFIABLE fact here in a way it is in no other game ever
+// made. Every other leaderboard in the world is a claim its operator asks you
+// to believe. This one is arithmetic anybody can redo.
+//
+// It also repairs something. `master:<skill>` fires only on CROSSING ninety-
+// nine, so a citizen imported at ninety-nine arrives above the line, never
+// crosses it, and in any refounded world containing a master that first is
+// permanently unwinnable. A record is per-world, measured from a floor a
+// crossing citizen is already above -- so `began` must NOT ride in
+// GENESIS.imported, exactly as `firsts` does not. A clock that started in a
+// world which no longer exists is not a clock.
+//
+// BOUNDED, and that is not negotiable. Three per board, eighteen skills, two
+// boards each: a hundred and eight entries, fixed for ever, however many
+// citizens ever live here. §5's whole argument is that state which grows with
+// participation eventually stops the world -- "not because anyone was playing
+// but because everyone once did". Three is also the naming stone's number,
+// and for the same reason: a monument that keeps no history is only an
+// advertisement.
+//
+// TWO BOARDS, because supplied and unaided are different disciplines and one
+// board that mixes them measures neither. Neither is the cheat. Being supplied
+// is what an island with an economy is FOR.
+const RECORD_KEEP = 3;
+function recordBand(s, p, pid, sk) {
+  const from = p.began?.[sk];
+  if (from === undefined) return;              // crossed ninety-nine without ever crossing fifty here
+  const took = s.tick - from;
+  if (took < 0) return;
+  const aided = p.aided === true;
+  // §7dk: AND EVERY CITIZEN KEEPS THEIR OWN, whether or not it placed.
+  //
+  // The three names on a board are the monument; your own number is the reason
+  // you care about the monument. A citizen who runs a good band and comes
+  // fourth had, until this line, no record of it anywhere: they could not
+  // compare, could not tell whether they had improved, could not tell how far
+  // off the board they were. That is most of the point of a record.
+  //
+  // It is also what lets four friends race each other without any of them
+  // needing to be the fastest on the island -- which is how most people will
+  // ever use this.
+  //
+  // `aided` IS STORED WITH THE BAND, not read from the citizen later. A run
+  // finished unaided stays an unaided run even if its citizen accepts a gift a
+  // year afterwards; the board recorded it that way at the time and the
+  // citizen's own sheet must not disagree with the board.
+  //
+  // Bounded exactly like `began`: at most eighteen, one per skill, written the
+  // once. Ninety-nine is crossed once in a world, so this never overwrites.
+  if (!p.bands) p.bands = {};
+  if (p.bands[sk] === undefined) p.bands[sk] = { took, aided };
+  const board = (aided ? 'supplied:' : 'unaided:') + sk;
+  if (!s.records) s.records = {};
+  const row = s.records[board] ?? [];
+  row.push({ by: pid, took });
+  // canonical: fastest first, and ties broken by playerId so two citizens who
+  // walk the same band in the same number of intervals are ordered the same
+  // way on every node that ever replays this tick.
+  row.sort((a, b) => a.took - b.took || (a.by < b.by ? -1 : a.by > b.by ? 1 : 0));
+  while (row.length > RECORD_KEEP) row.pop();
+  s.records[board] = row;
+  if (row[0].by === pid && row[0].took === took)
+    announce(s, (p.name ?? pid.slice(0, 6)) + ' has the fastest ' + sk
+      + ' on record' + (p.aided ? '' : ', unaided') + ': ' + took + ' intervals from fifty.');
+}
 function claimFirst(s, key, pid) { // true the first time `key` is ever achieved; records it forever
   if (!s.firsts) s.firsts = {};
   if (s.firsts[key] === undefined) { s.firsts[key] = pid; return true; }
@@ -9656,10 +9851,17 @@ function nextState(state, inputs, _legacyBeacon) {
   // snapshot who has already mastered what, so the end-of-tick pass can tell who
   // CROSSED a threshold this tick, regardless of which of the 18 XP sites paid it
   const _preMaster = {};
+  // §7dk: ...and who had already crossed the RECORD FLOOR, for the same
+  // reason and by the same canonical order. Two thresholds, one snapshot.
+  const _preFloor = {};
   for (const _pid of Object.keys(s.players).sort()) { // canonical, matching the mastery pass below
-    const _done = new Set();
-    for (const _sk of SKILLS) if (s.players[_pid].skills[_sk] >= XP_TABLE[99]) _done.add(_sk);
+    const _done = new Set(), _above = new Set();
+    for (const _sk of SKILLS) {
+      if (s.players[_pid].skills[_sk] >= XP_TABLE[99]) _done.add(_sk);
+      if (s.players[_pid].skills[_sk] >= XP_TABLE[RECORD_FLOOR]) _above.add(_sk);
+    }
     _preMaster[_pid] = _done;
+    _preFloor[_pid] = _above;
   }
   // the world marks its own years (deterministic: a pure function of the tick)
   if (s.tick > 0 && s.tick % TICKS_PER_YEAR === 0) {
@@ -10768,6 +10970,10 @@ function nextState(state, inputs, _legacyBeacon) {
               || (worthRank(it) === worthRank(best) && it < best)) best = it;
         const slot = firstFreeSlot(p.inventory);
         if (best !== null && slot !== -1) {
+          // §7dk: a cart is a dead hauler's shelf and it remembers whose it was
+          // (`by: qid`, written where the cart is made). Opening a stranger's
+          // is the fourth and last way to take a thing from another citizen.
+          if (ct.by !== pid) p.aided = true;
           p.inventory[slot] = { item: best, qty: 1 };
           if ((ct.shelf[best] -= 1) <= 0) delete ct.shelf[best];
           // an empty cart is not scenery. It goes when the last slot is off it.
@@ -11029,8 +11235,40 @@ function nextState(state, inputs, _legacyBeacon) {
       // re-validate against the NEW state (§5c): all-or-nothing. Everything is
       // checked before anything moves, so a trade that cannot complete leaves
       // both packs exactly as they were.
+      // §7dk: AID IS A THING YOU WENT AND GOT.
+      //
+      // Not "help happened near you". A citizen who is mended by a passing
+      // stranger has done nothing and chosen nothing, and a flag that a
+      // stranger can set is not a measurement -- it is a way to end somebody
+      // else's nine-hundred-hour run by being kind at them. So `aided` is set
+      // ONLY by acts the citizen initiates, and there are exactly four:
+      //
+      //   accept_trade   you accepted
+      //   pickup         of another citizen's goods -- you reached down
+      //   unload         another citizen's cart -- you opened their shelf
+      //   buy            from another citizen's market
+      //
+      // NOT `mendp`, which is cast on you. NOT a stall (§6l: the world's own
+      // stock, made from nothing, gold destroyed -- there is no citizen behind
+      // it). NOT `take_market`, which takes from your OWN stall. NOT the toll,
+      // which spends your own planks.
+      //
+      // AND NOT SHARED INFRASTRUCTURE, which is the line that matters most.
+      // Smelting at a furnace somebody else is stoking, crossing a bridge
+      // somebody built, walking a pass dug out of the South rockfalls, reading
+      // a chart drawn by a stranger: none of that is aid. If it were, the
+      // unaided board would be a board for citizens who refuse to use the
+      // island, and §52 -- the ingot run, the fire-keeper, the gravedigger and
+      // the wight-hunter -- would become the thing that disqualifies you. That
+      // is exactly backwards. The best design on this island must not be the
+      // one that voids your record.
+      //
+      // ONE WAY, FOREVER. A flag that can be washed off is worth nothing, and
+      // a hiscore that says THIS CITIZEN NEVER TOOK A THING FROM ANOTHER SOUL
+      // is only worth reading if there was no way back.
       const o = s.players[inp.from];
       if (o && o.trade && o.trade.to === pid && adjacent(p, o) && tradeFits(o, p, o.trade)) {
+        p.aided = true;
         const slots = o.trade.giveSlots;
         const goods = slots.map(sl => o.inventory[sl]);
         if (o.trade.wantGold) { // v0.41: coin settles like any item
@@ -11133,6 +11371,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const mk = findAdjacentNode(s, _ctx, p, 'market');
       const ask = mk.ask ?? 0;
       if (ask > 0 && (p.gold ?? 0) >= ask && canAddItem(p.inventory, inp.item)) {
+        p.aided = true;   // §7dk: bought from a citizen. The stall below is the world.
         p.gold -= ask;
         mk.coin = (mk.coin ?? 0) + ask;
         mk.shelf[inp.item] -= 1;
@@ -12183,18 +12422,29 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'pickup') {
       const g2 = s.ground[inp.groundId];
       const onTile = g2 && g2.x === p.x && g2.y === p.y;
+      // §7dk: whose goods were these? `by` is written wherever a citizen's
+      // things reach the ground -- dropped, spilled on death, or burst out of
+      // a consignment -- and MOB SPOIL NEVER CARRIES IT. So the world already
+      // knows a stranger's logs from a spider's, which is the whole fact this
+      // needs. See the confirmation gate in validateInput: a pile under your
+      // finger at a crowded furnace is one tap, and one tap must not be able
+      // to end a run that has cost somebody nine hundred hours.
+      const _fromAnother = onTile && typeof g2.by === 'string' && g2.by !== pid;
       const ex = onTile && g2.item === 'arrows' ? p.inventory.findIndex(s2 => s2?.item === 'arrows') : -1;
       const slot = firstFreeSlot(p.inventory);
       if (onTile && g2.item === 'forage') {
         // eaten where it lies. No slot, no gullet cooldown -- its worth is the
         // moment it is taken, and it is gone either way.
         p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + FORAGE_HEAL);
+        if (_fromAnother) p.aided = true;
         delete s.ground[inp.groundId];
       } else if (onTile && ex !== -1) {                // the quiver (6n): arrows pool
         p.inventory[ex].qty += g2.qty ?? 1;
+        if (_fromAnother) p.aided = true;
         delete s.ground[inp.groundId];
       } else if (onTile && slot !== -1) {
         p.inventory[slot] = { item: g2.item, qty: g2.qty ?? 1 }; // the whole stack, not one of it
+        if (_fromAnother) p.aided = true;
         delete s.ground[inp.groundId];
         // §6w: AND THE WORLD IS TOLD, every time, not only the first.
         //
@@ -13443,11 +13693,24 @@ function nextState(state, inputs, _legacyBeacon) {
   // mis-attributed permanent 'first'. Sorting makes the record canonical.
   for (const _pid of Object.keys(s.players).sort()) {
     const _p = s.players[_pid], _pre = _preMaster[_pid] ?? new Set();
+    const _pfl = _preFloor[_pid] ?? new Set();
     const _nm = _p.name ?? _pid.slice(0, 6);
     let _newMastery = false;
     for (const _sk of SKILLS) {
+      // §7dk: THE CLOCK STARTS AT FIFTY, silently.
+      //
+      // Written once and never rewritten -- a clock that can be restarted is
+      // not a clock -- and NOT ANNOUNCED. Announce the break, never the
+      // attempt: a world that tells everyone when a citizen reaches fifty has
+      // put every one of them publicly on the clock, and turns an island
+      // people live on into one they perform in.
+      if (_p.skills[_sk] >= XP_TABLE[RECORD_FLOOR] && !_pfl.has(_sk)) {
+        if (!_p.began) _p.began = {};
+        if (_p.began[_sk] === undefined) _p.began[_sk] = s.tick;
+      }
       if (_p.skills[_sk] >= _M && !_pre.has(_sk)) {
         _newMastery = true;
+        recordBand(s, _p, _pid, _sk);
         if (claimFirst(s, 'master:' + _sk, _pid)) announce(s, _nm + ' is the FIRST citizen ever to master ' + _sk + '.');
         else announce(s, _nm + ' has mastered ' + _sk + '.');
       }

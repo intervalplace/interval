@@ -389,6 +389,25 @@ function hiscores() {
              levels, skillXp: { ...p.skills },
              calling: E.callingOf(p),
              total: E.standingOf(p),
+             // §7dk: THE UNAIDED HISCORE IS A FILTER, NOT A SECOND TABLE.
+             //
+             // These rankings are DERIVED -- every citizen, every skill, sorted
+             // fresh from the state, nothing stored. So an unaided board is the
+             // same board with one clause, at exactly the same shape and depth
+             // and at no cost in state at all.
+             //
+             // That is the difference between a hiscore and a RECORD, and it is
+             // worth being clear about. A level is in the state already, so it
+             // can be ranked to any depth for ever. An elapsed band is not: the
+             // interval a citizen crossed fifty is remembered, but what their
+             // run TOOK exists only for the moment it is computed. That is why
+             // the record boards keep three and these keep everybody.
+             unaided: p.aided !== true,
+             // §7dk: and the citizen's own fifty-to-ninety-nines, placed or
+             // not. Eighteen at most, and they are what makes four friends
+             // able to race each other without any of them being the fastest
+             // on the island -- which is how most people will ever use this.
+             bands: p.bands ? { ...p.bands } : undefined,
              xp: Object.values(p.skills).reduce((a, b) => a + b, 0) }
   }).sort((a, b) => b.total - a.total || b.xp - a.xp)
 }
@@ -559,6 +578,10 @@ const server = http.createServer((req, res) => {
       })
     }
     if (path === '/api/hiscores') return json({ tick: node.state.tick, players: hiscores() })
+    // §7dk: the record boards. Three deep, both kinds, every skill -- the whole
+    // table is 108 entries however many citizens ever live here, so it is
+    // served whole and a page can do what it likes with it.
+    if (path === '/api/records') return json({ tick: node.state.tick, records: node.state.records ?? {} })
     if (path.startsWith('/api/player/')) {
       const q = decodeURIComponent(path.slice(12)).toLowerCase()
       const hit = Object.entries(node.state.players).find(([pid, p]) => p.name === q || pid === q)

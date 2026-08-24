@@ -2448,7 +2448,7 @@ function act(hit) {
     const verb = a.n.type === 'pond' ? 'fish' : a.n.type === 'rock' ? 'mine' : 'gather'
     goal = { x: a.n.x, y: a.n.y, adjacentOk: true, then: { type: 'gather', nodeId: a.id }, feed: 'You ' + verb + '…' }
   }
-  else if (a.kind === 'ground') goal = { x: a.g.x, y: a.g.y, then: { type: 'pickup', groundId: a.id }, feed: 'You take the ' + (a.g.item ?? 'item') + '.' }
+  else if (a.kind === 'ground') goal = { x: a.g.x, y: a.g.y, then: { type: 'pickup', groundId: a.id, confirm: false }, feed: 'You take the ' + (a.g.item ?? 'item') + '.' }
   else if (a.kind === 'player') feed((a.p.name ?? a.id.slice(0, 6)) + ' · hp ' + a.p.hp)
 }
 

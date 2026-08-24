@@ -4354,7 +4354,10 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
   : a.do === 'drop' ? { type: 'drop', slot: a.slot }
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId }
+  // §7dk: `confirm` is required on every pickup and only CHECKED when the
+  // pile belongs to another citizen. An ordinary pickup sends false and
+  // nothing about it changes.
+  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
   : a.do === 'wield' ? { type: 'wield', slot: a.slot }
   : a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }
   : a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
@@ -4647,6 +4650,83 @@ function _noteFrameErr(what, err) {
       + 'still ticking; this frame was skipped.\n' + msg + '\n(tap to dismiss)'
   } catch {}
 }
+// §7dk: THE TAKING OF ANOTHER CITIZEN'S GOODS IS A DELIBERATE ACT.
+//
+// The engine refuses a pickup of somebody else's pile unless the input says
+// so in as many words. This is the window's half of that: it knows whose the
+// pile is before it sends anything (`ground.by` is in the state), so it asks
+// here rather than letting the engine refuse and leaving a citizen tapping a
+// pile that will not lift.
+//
+// TWO REASONS TO ASK, and they are separate:
+//
+//   1. It is somebody's property. Taking it is a thing a person decides to do,
+//      and one tap at a crowded furnace is not a decision.
+//   2. It ends an unaided record, permanently and with no appeal.
+//
+// The first is always true, so the question is always asked. The second is
+// only true while the citizen still has something to lose, so that line is
+// only shown to a citizen who has never taken anything. After the first time
+// the warning would be noise, and a warning that keeps appearing after it has
+// stopped meaning anything teaches people to dismiss warnings.
+// WHOSE THEY ARE, and the window says so.
+//
+// `ground.by` is in the state, so the fact is already public: any window can
+// read it, and a 3D one somebody writes next year will show it. Hiding it here
+// protects nobody -- it only makes this window the one that tells you less.
+//
+// And a name is most of what makes the act deliberate. "These are Zezima's" is
+// a decision about a person; "somebody dropped these" is a decision about an
+// object. The whole reason the engine asks is that taking another citizen's
+// goods should be the first kind of decision.
+//
+// A citizen who has not claimed a name is their first six characters, which is
+// what every other panel in this window calls them. A dropper the state no
+// longer holds -- gone, or archived -- is "a citizen who is no longer here",
+// because that is true and "somebody" is not: somebody, specifically, left
+// these.
+let _askBox = null
+const dropperName = (by) => {
+  if (typeof by !== 'string') return null
+  const q = s.players?.[by]
+  if (!q) return 'a citizen who is no longer here'
+  return q.name ?? by.slice(0, 6)
+}
+function askTake(g2, alreadyAided, onYes) {
+  if (_askBox) return                                   // one question at a time
+  const box = document.createElement('div')
+  _askBox = box
+  box.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;'
+    + 'justify-content:center;background:rgba(8,7,5,.72)'
+  const what = String(g2.item).replace(/-/g, ' ') + (g2.qty > 1 ? ' \u00d7' + g2.qty : '')
+  const who = dropperName(g2.by)
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  box.innerHTML = '<div style="background:#17140f;border:1px solid #4a3f28;border-radius:4px;'
+    + 'padding:20px 22px;max-width:42ch;font:13px/1.6 ui-monospace,Menlo,Consolas,monospace;'
+    + 'color:#c9bd9a;box-shadow:0 8px 40px rgba(0,0,0,.6)">'
+    + '<div style="color:#d9c98a;font-weight:600;letter-spacing:.06em;margin-bottom:10px">'
+    + 'THESE ARE ' + esc(String(who).toUpperCase()) + '\u2019S</div>'
+    + '<div>' + esc(who) + ' left ' + esc(what) + ' here. You can take them.</div>'
+    + (alreadyAided ? ''
+      : '<div style="margin-top:12px;color:#c98a3a">You have never taken a thing from another '
+        + 'citizen. Taking these ends that \u2014 for this world, for good, and it cannot be '
+        + 'undone.</div>')
+    + '<div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end">'
+    + '<button id="_askNo" style="background:#171410;color:#8d8168;border:1px solid #2c2619;'
+    + 'padding:7px 15px;font:inherit;cursor:pointer;border-radius:3px">Leave them</button>'
+    + '<button id="_askYes" style="background:#2a2418;color:#e8d9a6;border:1px solid #6b5a34;'
+    + 'padding:7px 15px;font:inherit;cursor:pointer;border-radius:3px">Take them</button>'
+    + '</div></div>'
+  const close = () => { box.remove(); _askBox = null }
+  box.querySelector('#_askNo').onclick = close
+  box.querySelector('#_askYes').onclick = () => { close(); onYes() }
+  // Escape leaves them. The safe answer is always the one you get by default.
+  box.addEventListener('keydown', (e) => { if (e.key === 'Escape') close() })
+  document.body.appendChild(box)
+  box.querySelector('#_askNo').focus()
+}
+
 const feed = t => { const now = performance.now()
   // it compared against the IMMEDIATELY previous line only, so a message
   // repeating on a slow loop got through every time anything else spoke in
@@ -6397,9 +6477,19 @@ function onState(s, worldId, local) {
       const g2 = s.ground[intent.id]
       if (!g2) intent = null
       else if (me.x === g2.x && me.y === g2.y) {
-        send({ do: 'pickup', groundId: intent.id })
-        feed('You pick up the ' + g2.item.replace('-', ' ') + '.')
+        const theirs = typeof g2.by === 'string' && g2.by !== myId
+        const gid = intent.id
         intent = null
+        if (theirs) {
+          askTake(g2, me.aided === true, () => {
+            send({ do: 'pickup', groundId: gid, confirm: true })
+            feed('You take the ' + g2.item.replace('-', ' ') + '. They were '
+              + (dropperName(g2.by) ?? 'not yours') + '\u2019s.')
+          })
+        } else {
+          send({ do: 'pickup', groundId: gid, confirm: false })
+          feed('You pick up the ' + g2.item.replace('-', ' ') + '.')
+        }
       } else stepToward(s, me, g2, false)
     } else {
       stepToward(s, me, goal, intent.kind !== 'walk')

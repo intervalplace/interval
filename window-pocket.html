@@ -140,7 +140,7 @@ function contextAction() {
   const opts = interactables()
   if (!opts.length) { say('nothing here') ; return }
   const o = opts[targetPick % opts.length]
-  if (o.kind === 'pickup')  act({ do:'pickup', groundId:o.id })
+  if (o.kind === 'pickup')  act({ do:'pickup', groundId:o.id, confirm:false })  // §7dk
   if (o.kind === 'attack')  act({ do:'attack', mobId:o.id })
   if (o.kind === 'gather')  act({ do:'gather', nodeId:o.id })
   if (o.kind === 'harvest') act({ do:'harvest', nodeId:o.id })
