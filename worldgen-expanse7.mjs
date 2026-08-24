@@ -161,16 +161,42 @@ const ISLE = (g) => (g && g.genesisSeed === TALLYHOLM_SEED ? g
 const thash = (g, x, y, k) => _thash(ISLE(g), x, y, k)
 const meander = (g, tag, u, seg, amp) => _meander(ISLE(g), tag, u, seg, amp)
 import { angleOf } from './worldgen-expanse3.mjs'
-import { PLACES_V7, PLACE_MOBS, PLACE_INSIDE } from './worldgen-places-v7.mjs'
+import { PLACES_V7 as PLACES_V7_ALL, PLACE_MOBS, PLACE_INSIDE } from './worldgen-places-v7.mjs'
+import { VILLAGES, VILLAGE_PLANS, VILLAGE_SIGNS, VILLAGE_ROOMS,
+         VILLAGE_LEGEND, VILLAGE_LANDMARK_KIND, SUPERSEDED_PLACES } from './worldgen-villages-v7.mjs'
+
+// §7dh: FOUR PLACES BECOME VILLAGES.
+//
+// The Eel Sheds, the Old Mill, the Ferryman's Rest and the Bothy were each a
+// building standing alone with nobody in the country around it. A place is a
+// thing you FIND; a village is somewhere people live. The village drawings
+// contain them now -- the sheds, the tower, the two rooms and a fire, the bed
+// somebody still uses -- and their keepers are drawn in as 'k'.
+//
+// The King's Oak is NOT superseded and does not move. A tree nobody may fell,
+// walled by somebody with no authority, is supposed to be alone in the wood.
+const PLACES_V7 = Object.fromEntries(
+  Object.entries(PLACES_V7_ALL).filter(([tag]) => !SUPERSEDED_PLACES.includes(tag)))
 import { HOLDINGS, HOLDING_NAMES, HOLDING_SEATS } from './worldgen-holdings-v7.mjs'
 import { FIELDS_V7 } from './worldgen-fields-v7.mjs'
 import { COUNTRY_WORKS, COUNTRY_SEATS, DROVE, TRACKS, QUAYS } from './worldgen-country-v7.mjs'
 import { WATERS, BECKS, BECK_FORDS, BECK_PLANKS, SHAPE_K } from './worldgen-water-v7.mjs'
 import { CAMPS } from './worldgen-camps-v7.mjs'
+import { SCENES, SCENE_SEATS, SCENE_LEGEND } from './worldgen-scenes-v7.mjs'
 import { RESIDENTS } from './worldgen-residents-v7.mjs'
 import { SEAMS } from './worldgen-seams-v7.mjs'
 import { PLANS5_V6 as PLANS, PLACES, layPlan, validatePlan, checkPlanConnected, isIndoor,
-         seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS, LEGEND_V6 } from './worldgen-shire-v6.mjs'
+         seatCoastalPlan, quayTilesOfPlan, PLAN_ROOMS as PLAN_ROOMS_TOWNS, LEGEND_V6 } from './worldgen-shire-v6.mjs'
+// A village is a DRAWN settlement, so it goes through exactly the same layer
+// the towns do. Merging here rather than at the call sites means layDrawnTown,
+// the room lookup and isIndoor all see one table and cannot disagree.
+const ALL_PLANS = { ...PLANS, ...VILLAGE_PLANS }
+// PLAN_ROOMS has two readers and a village only has one of them. The stall
+// seater never looks at a village (no village is in STALLS); isIndoor does,
+// and it is consulted by the PAVING -- so a room left off this table is a room
+// the world believes is outdoors and whose floor gets flagged as street. That
+// is the fault §7bd was written to fix, and it would have come straight back.
+const PLAN_ROOMS = { ...PLAN_ROOMS_TOWNS, ...VILLAGE_ROOMS }
 export { seedNum, meander, thash, angleOf }
 
 export const GENERATOR_ID = 'interval-expanse-v7'
@@ -421,7 +447,14 @@ export const LOCALES = [
 const _locMemo = new Map()
 function localeCentre(g, L) {
   if (L.anchor === 'barrow') return barrowC(g)
-  if (L.anchor === 'watersmeet') return junctionsOf(g).watersmeet
+  // §7dh: THE MEETING OF THE WATERS, STATED WHERE IT IS USED.
+  //
+  // This asked junctionsOf for the point, and junctionsOf derived it here.
+  // That was harmless while nothing was seated on it -- and a cycle the
+  // moment settlementsOf needed a locale centre in order to seat the village
+  // that replaced the junction. The arithmetic is unchanged, so Watersmeet's
+  // locale is the same ellipse round the same tile it has always been.
+  if (L.anchor === 'watersmeet') return seatPoint(g, riverX(g, confY(g)) + 6, confY(g) + 7)
   const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH + ':' + L.tag
   const hit = _locMemo.get(k)
   if (hit) return hit
@@ -730,7 +763,7 @@ export function seatDrawnTown(g, tag, nomX, nomY, avoid = []) {
     + (avoid.length ? ':' + avoid.map(r => r.x0 + '.' + r.y0 + '.' + r.x1 + '.' + r.y1).join('|') : '')
   const hit = _seatMemo.get(k)
   if (hit) return hit
-  const rows = PLANS[tag], d = validatePlan(tag, rows)
+  const rows = ALL_PLANS[tag], d = validatePlan(tag, rows, VILLAGE_LEGEND)
   const pw = d.w, ph = d.h
   const dryOk = (cx, cy) => {
     const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
@@ -842,7 +875,7 @@ export function settlementsOf(g) {
   // The shire towns take their footprint FROM THEIR DRAWING, so the
   // walls, the rect, and the art can never disagree about where the town
   // ends. Change the ascii, the rect follows.
-  const P = (tag) => { const d = validatePlan(tag, PLANS[tag]); return { w: d.w, h: d.h } }
+  const P = (tag) => { const d = validatePlan(tag, ALL_PLANS[tag], VILLAGE_LEGEND); return { w: d.w, h: d.h } }
 
   // v7: A NOMINAL SEAT DERIVED FROM THE DRAWING, NOT FROM A REMEMBERED WIDTH.
   //
@@ -907,6 +940,23 @@ export function settlementsOf(g) {
          nomY: Math.round(H * 0.83), kind: 'port', ring: 'frontier', drawn: true })
   seat({ tag: 'norwick', name: 'Norwick', nomX: brandX(g, Math.round(H * 0.47)) + 18, nomY: Math.round(H * 0.47),
          kind: 'garrison', ring: 'frontier', drawn: true })
+  // ---- THE VILLAGES (worldgen-villages-v7) ----
+  //
+  // Seated LAST, and that ordering is the whole of their politeness: `seat`
+  // refuses any placement within CLEAR_GAP of something already standing, so a
+  // village yields to every town and never the other way round.
+  //
+  // Each sits at the centre of a locale that has carried its name since v4 --
+  // found by localeCentre, exactly as junctionsOf finds the Ninestone and
+  // Kingswood tracks in §13. No hand-typed coordinates: redraw the coast
+  // tomorrow and these follow it.
+  for (const V of VILLAGES) {
+    const L = LOCALES.find((l) => l.tag === V.locale)
+    if (!L) throw new Error(`village ${V.tag} names locale ${V.locale}, which is not on the chart`)
+    const c = localeCentre(g, L)
+    seat({ tag: V.tag, name: V.name, nomX: c.x, nomY: c.y,
+           kind: V.kind, ring: V.ring, drawn: true })
+  }
 
   _ssMemo.set(_k, S)
   return S
@@ -1354,13 +1404,13 @@ export function junctionsOf(g) {
     ...b,
     npass: { x: ridgeX(g, p1), y: p1 },
     spass: { x: ridgeX(g, p2), y: p2 },
-    watersmeet: seatPoint(g, riverX(g, confY(g)) + 6, confY(g) + 7),
+    // watersmeet, ninestone and kingswood are gone from here: each has a
+    // village standing on it now and roadSegsOf names the settlement.
+
     shrine: (() => { const i = islesOf(g)[0]; return { x: i.x, y: i.y } })(),
     // §13: the two localities the roads never reached. Aimed at the locality's
     // own centre, not at the place: the track goes to the Moor, and the Nine
     // Stones happen to be standing on it.
-    ninestone: seatPoint(g, ...(() => { const L = LOCALES.find(l => l.tag === 'ninestone'); const c = localeCentre(g, L); return [c.x, c.y] })()),
-    kingswood: seatPoint(g, ...(() => { const L = LOCALES.find(l => l.tag === 'kingswood'); const c = localeCentre(g, L); return [c.x, c.y] })()),
   }
   _juncMemo.set(_k, out)
   return out
@@ -1398,8 +1448,44 @@ function laneSeatsOf(towns, salt) {
   }
   return out
 }
+// §7dh: A LANE ENDS AT A VILLAGE. IT DOES NOT GO THROUGH THE KITCHEN.
+//
+// A road reserves its tile before any plan is laid, and layPlan silently
+// skips a reserved tile -- so a road crossing a drawing does not knock a wall
+// down, it deletes whatever the drawing put there and says nothing. Measured
+// on the first honest founding: the road from Fenmarch ran through the Eel
+// Sheds and took the fourth rack with it. Three racks in the world, four in
+// the drawing, and no warning anywhere.
+//
+// A town does not meet this. Its outer work is '%', and layPlan's gate rule
+// lets a rampart yield to a road wherever the traffic really arrives. A
+// village has no rampart -- it is four cottages and a well, drawn in '#',
+// and a house's wall holds: "a road clipping the corner of somebody's
+// kitchen is not a doorway, it is a hole."
+//
+// THE FIX CANNOT BE AT SEAT TIME. A village is a road's ENDPOINT, so a seat
+// that tested onRoad would ask for the roads that are waiting for the seat.
+// (It does, loudly: stack overflow on the first attempt.)
+//
+// So the road aims at the village's DOOR instead of its middle: the tile just
+// outside the drawing, on the side the traffic is coming from. The lane still
+// arrives -- that is the whole point of siting these on roads people already
+// walk -- and the village street takes over from there, which is exactly what
+// happens when you walk into a village.
+//
+// Pure arithmetic on seats that already exist, so no cycle and no hash draw.
+const villageDoor = (v, from) => {
+  const hw = (v.w >> 1) + 2, hh = (v.h >> 1) + 2
+  const dx = from.x - v.x, dy = from.y - v.y
+  // the side the traffic is on: whichever axis it is further away along
+  if (Math.abs(dx) * hh >= Math.abs(dy) * hw)
+    return { x: v.x + (dx >= 0 ? hw : -hw), y: v.y }
+  return { x: v.x, y: v.y + (dy >= 0 ? hh : -hh) }
+}
 export function roadSegsOf(g) {
   const s = {}; for (const t of settlementsOf(g)) s[t.tag] = t
+  // every village endpoint becomes its door, seen from the other end
+  const D = (v, from) => (v && v.kind === 'village') ? { ...villageDoor(v, from), tag: v.tag } : v
   const j = junctionsOf(g)
   // TOPOLOGY only. Where a road actually goes is the router's business now:
   // the passes, the bridges and the way around the Barrow are all found,
@@ -1439,8 +1525,17 @@ export function roadSegsOf(g) {
     // through the North Pass, because there is nowhere else it could go.
     [s.thornbury, j.npass, 100], [j.npass, s.cragfoot, 101],
     [s.anchor, j.spass, 103], [j.spass, s.eastmere, 106],
-    [s.oxenford, j.br2, 102], [j.br2, j.watersmeet, 104],   // by the Watersmeet Bridge
-    [j.watersmeet, s.fenmarch, 107],
+    // §7dh: A JUNCTION WITH A VILLAGE ON IT IS NOT A JUNCTION.
+    //
+    // These three segments already ran through Watersmeet -- the note above
+    // says it survived as a waypoint "because it is a named place with a
+    // waystone". It is a named place with a BOATYARD now, so the road ends at
+    // the village rather than at a point beside it. Retargeted, not added:
+    // the topology of the island does not change, only what the road arrives
+    // at, which is the whole idea of putting villages on roads people already
+    // walk rather than on spurs of their own.
+    [s.oxenford, j.br2, 102], [j.br2, D(s.watersmeet, j.br2), 104],   // by the Watersmeet Bridge
+    [D(s.watersmeet, s.fenmarch), s.fenmarch, 107],
     [s.eastmere, s.fenmarch, 108],
     [s.cragfoot, s.eastmere, 109],
     [s.oxenford, s.norwick, 111],     // finds the Oxenford crossing
@@ -1459,8 +1554,12 @@ export function roadSegsOf(g) {
     // fix that: you cannot bias a place towards a road in a country that has
     // none. So the country gets the road. Two tracks, from the nearest town to
     // the locality, and the router does the rest.
-    [s.hollybarrow, j.ninestone, 114],
-    [s.greenhollow, j.kingswood, 115],
+    // and the same for the two §13 tracks: the track to the Moor now ends at
+    // the last roof standing on it, and the track under the eaves at the
+    // woodward's door. The Nine Stones and the King's Oak still stand where
+    // they stood -- the road goes PAST them, which is what §13 asked for.
+    [s.hollybarrow, D(s.bleakfell, s.hollybarrow), 114],
+    [s.greenhollow, D(s.kingswood, s.greenhollow), 115],
     // ---- THE MESH ----
     // Measured against the map this island is compared with: 11.6% of their
     // land is road against 1.9% of ours, and it is not because their roads are
@@ -1477,9 +1576,14 @@ export function roadSegsOf(g) {
     [s.oxenford, s.fenmarch, 118],      // the crossing to the fen port
     [s.norwick, s.hollybarrow, 119],    // the garrison's own way east
     [s.cragfoot, j.spass, 120],         // the Crags reach the South Pass road
-    [s.millbrook, j.watersmeet, 121],   // market to the meeting of the waters
+    [s.millbrook, D(s.watersmeet, s.millbrook), 121],   // market to the boatyard
     [s.thornbury, j.br2, 122],          // and to the Watersmeet Bridge
     [s.anchor, j.br0, 123],             // the capital's own road north to Highford
+    // ---- AND THE TWO THE VILLAGES NEEDED ----
+    // Oxenlea sits between the crossing and the capital and would otherwise be
+    // a mill nobody passes; the fens have never had a road to the sheds at all.
+    [s.oxenford, D(s.oxenlea, s.oxenford), 124], [D(s.oxenlea, s.anchor), s.anchor, 125],
+    [s.fenmarch, D(s.eelmarsh, s.fenmarch), 126],
   ]
 }
 export const CAUSEWAY_TAG = 113
@@ -2076,7 +2180,7 @@ function townPaved(rows, rx, ry, tag) {
   // A lane is a ',' that is not indoors. Nothing else. The grass comes right
   // up to the wall, which is what it does in a town.
   const c = rows[ry]?.[rx];
-  return c === ',' && !isIndoor(tag, rows, rx, ry);
+  return c === ',' && !isIndoor(tag, rows, rx, ry, PLAN_ROOMS);
 }
 export function groundKindAt(g, x, y) {
   // DECKING IS DECKING. A window asks the ground what it is; over a bridge,
@@ -2093,13 +2197,15 @@ export function groundKindAt(g, x, y) {
     if (x > r.x0 && x < r.x1 && y > r.y0 && y < r.y1) {
       // INDOORS? The drawing knows. A ',' is a room's floor, and it should
       // not look like the street it opens onto.
-      const rows = PLANS[st.tag]
+      // ALL_PLANS, or a village's boards read as street and every room in
+      // all five gets paved. This is the same lookup isIndoor does.
+      const rows = ALL_PLANS[st.tag]
       if (rows) {
         const pw = rows[0].length, ph = rows.length
         const rx = x - (st.x - (pw >> 1)), ry = y - (st.y - (ph >> 1))
         // enclosure, not the character: a booth, a hearth and the clerk all
         // stand on the same floor as the empty tile beside them
-        if (isIndoor(st.tag, rows, rx, ry)) return 'floor'
+        if (isIndoor(st.tag, rows, rx, ry, PLAN_ROOMS)) return 'floor'
         // §6cz: MILLBROOK IS A MARKET, AND A MARKET IS PAVED. The market's
         // drawing is spacious -- shops with a plaza between them -- and
         // townPaved only pays the tiles beside a building, so the open market
@@ -2127,7 +2233,7 @@ export function groundKindAt(g, x, y) {
             }
             return false
           })()
-          if (!onRoad(g, x, y) && !isIndoor(st.tag, rows, rx, ry) && !nearWall
+          if (!onRoad(g, x, y) && !isIndoor(st.tag, rows, rx, ry, PLAN_ROOMS) && !nearWall
               && Math.abs(rx - (rows[0].length >> 1)) <= 9
               && Math.abs(ry - (rows.length >> 1)) <= 4) return 'plaza'
           // §7au: AND ONLY THE LANES ARE FLAGGED. This returned 'flag' for
@@ -2474,6 +2580,9 @@ const SIGN_TEXT = {
   oxenford: 'Oxenford, on the ford. The road west runs from here; keep the peace yourself.',
   millbrook: 'Millbrook, the market. The arms, the armour, the bows and the axe \u2014 near everything keeps here. For a rod ask the port; for seed, the farm.',
   thornbury: 'Thornbury, the forge. The one anvil on Tallyholm; bring ore and bring patience.',
+  // A village's sign says what the village is FOR, because four cottages and a
+  // well do not tell you, and a town's does not have to.
+  ...VILLAGE_SIGNS,
 }
 
 export function buildWorld(genesis) {
@@ -2532,9 +2641,27 @@ export function buildWorld(genesis) {
   // citizen walks a thousand times, procedure where variety is the point.
   const signPlaced = (tag) => !!w.nodes['sign-' + tag]
   const layDrawnTown = (s) => {
-    checkPlanConnected(s.tag, PLANS[s.tag], s.x, s.y, { g, isWater, blockedAt })
-    layPlan(planCtx, s.tag, PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
-      { nameKeeper: (k) => keeperName(k, 'plan'), legend: LEGEND_V6 })
+    checkPlanConnected(s.tag, ALL_PLANS[s.tag], s.x, s.y, { g, isWater, blockedAt }, VILLAGE_LEGEND)
+    // VILLAGE_LEGEND is LEGEND_V6 plus 'R' (a smokerack) and 'O' (a landmark),
+    // so no town moves a tile by being laid through it. A village that carries
+    // trees names the KIND once for the whole plan -- avenue-oak, a landmark
+    // no verb reaches -- because a 'T' would be a gatherable tree node, and
+    // nine of those round a village is nine seam-table entries that were never
+    // in the seam table. §7z: A PLACE MAY NOT SEED A TIER.
+    const _laid = layPlan(planCtx, s.tag, ALL_PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
+      { nameKeeper: (k) => keeperName(k, 'plan'), legend: VILLAGE_LEGEND,
+        ...(VILLAGE_LANDMARK_KIND[s.tag] ? { landmarkKind: VILLAGE_LANDMARK_KIND[s.tag] } : {}) })
+    // §7dh: A VILLAGE MUST BE LAID WHOLE.
+    //
+    // The towns are old and have been measured; some of them have lost a tile
+    // to a road or a beck for years and the world is the world. A village is
+    // new, and its whole content is four cottages and one specific thing --
+    // four racks, one mill, one lodge. Losing one of those silently is losing
+    // the point of the village, so it is a founding error and not a warning.
+    if (s.kind === 'village' && (_laid.skipped ?? 0) > 0)
+      throw new Error(`village ${s.tag} lost ${_laid.skipped} drawn tile(s) to reserved ground `
+        + `at (${s.x},${s.y}): a road or a beck is crossing its buildings. `
+        + `Move the seat or redraw the art -- do not let the world keep a half-built village.`)
     // the sign is the one thing the drawing cannot carry: its text
     const r = rectOf(s)
     for (let rad = 1; rad <= 6 && true; rad++) {
@@ -2697,7 +2824,7 @@ export function buildWorld(genesis) {
     for (const k of street) taken.add(k)
   }
   for (const s of ss) {
-    if ((s.ring === 'shire' || s.drawn) && PLANS[s.tag]) layDrawnTown(s)
+    if ((s.ring === 'shire' || s.drawn) && ALL_PLANS[s.tag]) layDrawnTown(s)
     else layTown(s)
     // -- THE STALLS: one trade per town, matching what the town IS --
     //
@@ -2754,6 +2881,9 @@ export function buildWorld(genesis) {
       // still lives above the shop, which is how every trade in a town like
       // this actually worked.
       const roomsOf = PLAN_ROOMS[s.tag] ?? []
+      // DELIBERATELY the towns' table and not ALL_PLANS. This is the shop
+      // seater, and a village sells nothing -- a village that sold you
+      // something would be a town. An unknown tag returns null below.
       const plan = PLANS[s.tag]
       const shopRoom = (() => {
         if (!plan) return null
@@ -3262,6 +3392,48 @@ export function buildWorld(genesis) {
           if (free(x, y)) { put(hd.id + '-sign', 'signpost', x, y, { text: hd.name }); break }
         }
       }
+    }
+
+    // ---- §7di: AND THE SCENES ----
+    //
+    // Laid HERE: after the towns, the places, the villages and the holdings,
+    // and before any scatter. So a scene yields to every hand-drawn thing on
+    // the island, and nothing generated can land on top of one. The seats were
+    // checked against exactly this ordering; a scene that has to move is a
+    // scene to re-seat by hand, not one to shove aside at run time.
+    //
+    // A scene may place a LANDMARK and nothing else. That restriction is the
+    // safety: it cannot seed a resource (§7z), block a road, grow a bank or
+    // add a verb. The only thing it knows how to make is scenery, and the only
+    // thing scenery does is tell you somebody was here.
+    {
+      const byTag = Object.fromEntries(SCENES.map((sc) => [sc.tag, sc]))
+      let props = 0, laid = 0, skipped = 0
+      for (let si = 0; si < SCENE_SEATS.length; si++) {
+        const seat = SCENE_SEATS[si]
+        const sc = byTag[seat.tag]
+        if (!sc) { console.warn('WORLDGEN: no scene called ' + seat.tag); continue }
+        const pw = sc.rows[0].length, ph = sc.rows.length
+        const x0 = seat.x - (pw >> 1), y0 = seat.y - (ph >> 1)
+        let any = false
+        for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
+          const ch = sc.rows[ry][rx]
+          if (ch === '~') continue
+          const kind = SCENE_LEGEND[ch]
+          if (!kind) throw new Error('scene ' + sc.tag + " uses '" + ch + "', which is not in SCENE_LEGEND")
+          const x = x0 + rx, y = y0 + ry
+          if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y)) { skipped++; continue }
+          if (!free(x, y)) { skipped++; continue }
+          put('scene-' + si + '-' + sc.tag + '-' + rx + '-' + ry, 'landmark', x, y, { kind })
+          taken.add(key(x, y))
+          props++; any = true
+        }
+        if (any) laid++
+      }
+      // `counts` is declared further down; the scenes are laid before it
+      // exists, so they report for themselves.
+      if (skipped > 0) console.warn('WORLDGEN: ' + skipped + ' scene prop(s) found no ground')
+      console.warn('WORLDGEN: ' + laid + ' scenes, ' + props + ' props')
     }
 
     // ---- AND THE FIELDS ROUND EVERY TOWN ----
@@ -7231,7 +7403,22 @@ export function buildWorld(genesis) {
       // the Millbrook Bridge is a thing whose entire job is to stand in a road.
       // It swept the gate off the single deck tile the road actually crosses
       // and left the two either side of it, which is a toll you walk round.
-      'tollgate'])
+      'tollgate',
+      // §7dh: ...AND THE SMOKERACKS, which is the third time this list has
+      // learned the same lesson.
+      //
+      // Every other name here is a FIXTURE somebody drew on purpose, and the
+      // sweep's own test cannot tell one from loose decor -- so each has had
+      // to be named after it went missing. The racks went missing the same
+      // way: four in the Eel Sheds' drawing, three in the founded world, and
+      // no warning, because the road through the fens runs across the shed
+      // and this sweep cleared what stood on it as ornament.
+      //
+      // A rack is not ornament. There are four in the world, that number is
+      // the design, and the drawing has said four since before anything could
+      // be done with one. A road across a shed is a road across a shed; the
+      // rack stays where the shed put it.
+      'smokerack'])
     let gated = 0, cleared = 0, kept = 0
     for (const id of Object.keys(w.nodes)) {
       const n = w.nodes[id]
@@ -7403,7 +7590,10 @@ export function buildWorld(genesis) {
     const RANK = (id) => id.startsWith('place-') ? 4
       : id.startsWith('yard-') || id.startsWith('shed-') || id.startsWith('cragfoot-')
         || id.startsWith('deepwood-') ? 3
-      : id.startsWith('hold') ? 2 : id.startsWith('field-') ? 1 : 0
+      // §7di: a scene ranks with the holdings. Both are hand-authored drawings
+      // seated at frozen coordinates; neither should lose a tile to anything
+      // a hash put down. Unlisted ids rank 0, which is where the scatter goes.
+      : id.startsWith('hold') || id.startsWith('scene-') ? 2 : id.startsWith('field-') ? 1 : 0
     const seen3 = new Map()
     let evicted = 0
     for (const [id, n] of Object.entries(w.nodes)) {

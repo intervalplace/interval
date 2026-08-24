@@ -805,15 +805,37 @@ export const PLAN_ROOMS = {
 //
 // Ramparts '%' are deliberately passable to this flood. A town wall encloses
 // a town, not a room; if it blocked, the whole of Anchor would be indoors.
-export function isIndoor(name, rows, rx, ry) {
-  const rs = PLAN_ROOMS[name]
+// THE ROOM TABLE IS A PARAMETER TOO, and for the third time on this page the
+// reason is the same: this file is FROZEN and it does not know about tables
+// that were written after it.
+//
+// It read the frozen PLAN_ROOMS -- which has no v6 towns in it and no v7
+// villages -- so isIndoor answered `false` for every room the later tables
+// describe, the paving flagged their floors as street, and five villages came
+// out of the founding with flagstone in every cottage. That is precisely the
+// fault §7bd names, arriving by a different door: not a room LEFT OFF the
+// table, but a table the reader could not see.
+//
+// A caller that passes no rooms gets the frozen ones and is unmoved.
+export function isIndoor(name, rows, rx, ry, rooms = PLAN_ROOMS) {
+  const rs = rooms[name]
   if (!rs) return false
   for (const [x, y, w, h] of rs)
     if (rx >= x && ry >= y && rx < x + w && ry < y + h) return true
   return false
 }
 
-export function validatePlan(name, rows) {
+// THE LEGEND IS A PARAMETER HERE TOO, and for exactly the reason layPlan
+// gives above: this file is FROZEN -- v1 through v5 hash on its plans and on
+// what their glyphs mean -- and a caller that passes no legend gets the frozen
+// one and is bit-for-bit unmoved.
+//
+// layPlan learned this in v6 and validatePlan did not, which went unnoticed
+// for as long as no new glyph existed. v7's villages carry two ('R', a
+// smokerack, and 'O', an avenue oak), and without this the seater rejected a
+// drawing the layer would have laid quite happily -- the validator and the
+// layer disagreeing about the same alphabet.
+export function validatePlan(name, rows, legend = LEGEND) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error(`plan ${name}: empty`)
   const w = rows[0].length
   rows.forEach((r, i) => {
@@ -821,7 +843,7 @@ export function validatePlan(name, rows) {
       throw new Error(`plan ${name}: row ${i} is ${r.length} wide, row 0 is ${w}. `
         + `A ragged drawing is a hole in a wall; fix the art, not the loader.`)
     for (const ch of r)
-      if (!OPEN.has(ch) && ch !== ' ' && ch !== SEA && ch !== QUAY && !(ch in LEGEND))
+      if (!OPEN.has(ch) && ch !== ' ' && ch !== SEA && ch !== QUAY && !(ch in legend))
         throw new Error(`plan ${name}: row ${i} uses '${ch}', which is not in the legend`)
   })
   return { w, h: rows.length }
@@ -835,9 +857,9 @@ export function validatePlan(name, rows) {
 // the first run. A ragged row throws; so should this. The author then moves
 // the town or redraws the quarter, which is the correct place for the
 // decision to be made.
-export function checkPlanConnected(name, rows, cx, cy, ctx) {
+export function checkPlanConnected(name, rows, cx, cy, ctx, legend = LEGEND) {
   const { g, isWater, blockedAt } = ctx
-  const { w: pw, h: ph } = validatePlan(name, rows)
+  const { w: pw, h: ph } = validatePlan(name, rows, legend)
   const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
   const at = (x, y) => {
     const rx = x - x0, ry = y - y0
@@ -910,12 +932,17 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
   // A caller that passes no legend gets the frozen one and is bit-for-bit
   // unmoved, which is the same courtesy `onRoad` is given.
   const LEGEND = opts.legend ?? LEGEND_BASE
-  const { w: pw, h: ph } = validatePlan(name, rows)
+  // ...and the validator gets the SAME legend. layPlan has taken a legend
+  // since v6 and then validated against the frozen one two lines later, which
+  // was invisible for as long as every legend was a superset of the frozen
+  // alphabet. It is not invisible with 'R' in it: the layer would happily lay
+  // a glyph its own validator had just rejected.
+  const { w: pw, h: ph } = validatePlan(name, rows, LEGEND)
   const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
   // '!' is a landmark, and the engine requires every landmark to name its
   // kind. A drawing says "something stands here"; the plan says what.
   const lk = opts.landmarkKind ?? 'standing-stone'
-  let n = 0, i = 0
+  let n = 0, i = 0, skipped = 0
   for (let ry = 0; ry < ph; ry++) {
     for (let rx = 0; rx < pw; rx++) {
       const ch = rows[ry][rx]
@@ -950,7 +977,11 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
       // fifth founding wanted one. A caller that passes `onRoad` is asking
       // for this law; v4 does not pass it and is bit-for-bit unmoved.
       if (ch === '%' && onRoad && onRoad(g, x, y)) { reserve(x, y); continue }
-      if (taken.has(key(x, y))) continue
+      // A RESERVED TILE SWALLOWS WHATEVER THE DRAWING PUT THERE, quietly.
+      // Counted now, and returned, so a caller that cares can refuse to found
+      // a world whose art it did not fully lay. (A road ate the fourth of the
+      // Eel Sheds' four racks and nothing said a word.)
+      if (taken.has(key(x, y))) { skipped++; continue }
       const type = LEGEND[ch]
       // NAME THE KEEPER. Which trade they follow is decided by what they
       // stand beside, exactly as the window works it out for the sprite --
@@ -976,7 +1007,12 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
       n++
     }
   }
-  return n
+  // BACKWARD COMPATIBLE ON PURPOSE: this has always returned a number and
+  // every existing caller uses it as one. `skipped` rides along as a property
+  // so a caller that wants to know can ask, and one that does not is unmoved.
+  const out = new Number(n)
+  out.skipped = skipped
+  return out
 }
 
 // Seat a COASTAL drawing: find the placement where the plan's declared

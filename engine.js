@@ -391,6 +391,19 @@ const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
 // empty ones; see the migration below.
 const EQUIP_SLOTS = ['weapon', 'head', 'body', 'offhand', 'legs'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
+  // §7dg: THE SMOKERACK, and why it is not a shelf.
+  //
+  // The Eel Sheds were drawn with four 'v' glyphs -- shelves -- years before
+  // anything could be done with one. A shelf is a `landmark`: it is furniture,
+  // it is scenery, and nothing may be left on it. A rack holds one citizen's
+  // catch for a fixed number of intervals and hands it back changed, which is
+  // a different noun and earns its own type, exactly as the fountain did.
+  //
+  // NOT 'rack', and not 'eel-rack'. `eel-rack` is already a landmark KIND in
+  // the fen group beside `sunken-wall` -- decorative plank racks over standing
+  // water. Two nouns one letter apart, one of them scenery and one of them
+  // holding your dinner, is a bug waiting for whoever reads this next.
+  'smokerack',
   // 6ch: THE WAYSTONES ARE GONE, AND WITH THEM EVERY TELEPORT IN THIS WORLD.
   //
   // A world whose whole shape is DISTANCE -- a gold seam an hour into the high
@@ -1767,7 +1780,8 @@ const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish' || item 
 // occupies a slot of its own; a salted one is worth two less and STACKS, which
 // is the whole of the trade -- the same argument ale won against bread (16d).
 // A citizen crossing to the isle with an empty pack comes home with a column.
-const healOf = (item) => item === 'salt-fish' ? HEAL_SALT_FISH
+const healOf = (item) => item === 'smoked-eel' ? HEAL_SMOKED_EEL
+  : item === 'salt-fish' ? HEAL_SALT_FISH
   : item === 'salt-deep-fish' ? HEAL_SALT_DEEP
   : item === 'cooked-fish' ? HEAL_FISH
   : item === 'cooked-eel' ? HEAL_MID_FISH
@@ -1839,6 +1853,19 @@ const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
 // So: bread is the strongest single bite in the game and the worst thing to
 // carry a lot of. A loaf for the walk out, ale for the week.
 const HEAL_BREAD = 7;
+// §7dg: A SMOKED EEL HEALS FIVE, WHICH IS LESS THAN A COOKED ONE.
+//
+// The ladder tops out at HEAL_DEEP_FISH (10) and bread at seven is
+// deliberately the strongest single bite a citizen can make. A high-heal
+// smoked eel would be a deep fish obtainable without ever entering the Wilds,
+// and it would undercut the deep fish the day it shipped. Worse: there are
+// four racks in the world, and a scarce STAPLE is only annoying where a
+// scarce UTILITY is interesting.
+//
+// So this is not food. It is a counter that happens to be edible, and what it
+// counters is rot -- see the eat branch. Smoke stops rot; that is not a pun,
+// it is the reason the technology exists, and nobody has to be told.
+const HEAL_SMOKED_EEL = 5;
 // §7i: THE POWDER. Three of nitre to one of charcoal and one of brimstone --
 // near enough the real proportions, and the ratio is the point: the farm
 // supplies the bulk of it, which is why fields matter to an army.
@@ -1946,6 +1973,29 @@ const WAKING_LEVEL = 75, WAKING_SIGILS = 3, WAKING_REACH = 6, WAKING_HIT = 9;
 // exact inverse of the fire arrow, where plate counts double.
 const ROT_LEVEL = 40, ROT_SIGILS = 1, ROT_REACH = 5;
 const ROT_TICKS = 24, ROT_EVERY = 3, ROT_BITE = 3;
+// §7dg: SMOKING, AND THE WINDOW.
+//
+// Longer than a ferment (genesis.brew.ferment is 3000) because smoking is
+// slower than fermenting and because the rack is the scarcer vessel: there
+// are four in the world and eight brewpots to a citizen.
+//
+// Module constants and NOT genesis, deliberately. validateGenesis pins
+// genesis.brew by an exact key list -- Object.keys(bw).sort().join(',') --
+// so a `smoke` block there is a constitutional change to a table that has
+// nothing to do with eels. These are the same shape as ROT_TICKS above.
+//
+// THE WINDOW IS THE LOAD-BEARING NUMBER. §7e made the inn's pot hold nothing
+// so that no citizen could sit on it, and four racks world-wide is exactly
+// the case that rule feared. The answer is not the public-pot trick -- the
+// scarcity here IS the design -- it is a clock on BOTH ends: a rack finishes,
+// stays collectable for a window, and then the catch is over-smoked and the
+// rack clears itself. The longest anyone can hold a rack is bounded, it
+// costs them the eel, and it resolves with nobody intervening.
+//
+// It also turns a rack into an APPOINTMENT. You have to come back, and being
+// late is a real loss -- which is the one thing a world with no clock of its
+// own has been short of.
+const SMOKE_TICKS = 4500, SMOKE_WINDOW = 3000, XP_SMOKE = 30;
 // §7ci: THE TAKING, priced against the mend it replaces.
 //
 // MEND is +20 every twenty-five intervals -- a strong heal on a long leash,
@@ -3565,7 +3615,7 @@ const PRICES = {
   'bare-blade': 55,
   'oak-logs': 6, 'coal': 12, 'charcoal': 12, 'brimstone': 46,
   // §6dg: a javelin is spent like an arrow and forged like a spear
-  'iron-javelin': 3, 'steel-javelin': 6, 'star-javelin': 12, 'eel': 7, 'cooked-eel': 13, 'burnt-eel': 1, 'iron': 5,
+  'iron-javelin': 3, 'steel-javelin': 6, 'star-javelin': 12, 'eel': 7, 'cooked-eel': 13, 'smoked-eel': 30, 'burnt-eel': 1, 'iron': 5,
   'steel-sword': 60, 'steel-helm': 45, 'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48,
   'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24,   // dearer than a cooked deep fish: it keeps, and it stacks
@@ -3885,6 +3935,11 @@ const ITEMS = new Set([
   // A world where a script can do the digging is a world where the digging is
   // not the achievement; being at the boulder when it gave way is.
   'rubble',
+  // §7dg: what four racks in a fen shed make of an eel. It is the only thing
+  // in the world that ends a rot, and SALTS_TO's own note is why it exists:
+  // an eel salts to the common bite because "it is a poor fish however you
+  // keep it". There is now exactly one way to keep it that is not poor.
+  'smoked-eel',
   // §7cn: WHAT A LAMPREY LEAVES. A finite substance -- 448 of them will ever
   // be drawn out of the meres, because there are seven lampreys and each of
   // them can be killed sixty-four times and then not again. Every barb in the
@@ -6198,6 +6253,67 @@ const LANDMARK_KINDS = new Set([
   // Nothing about them changes except that they are now themselves.
   'skep', 'cairn', 'boundary-stone', 'skull-pile',
   'web',   // §6ab: what mends the spider
+
+  // §7di: THE SCENE NOUNS (worldgen-scenes-v7).
+  //
+  // The island had fifty-seven kinds and two thousand of them standing about,
+  // one at a time, spread by a hash. It was never short of nouns; it was short
+  // of SENTENCES. A stump alone is texture. A stump, a second stump, a
+  // chopping-block and a cold charcoal-ring within four tiles is somebody’s
+  // afternoon, and the difference between those two things is the whole of
+  // what makes a world look authored rather than generated.
+  //
+  // These are the words the scenes needed and the fifty-seven could not say.
+  // Most of them are LABOUR CAUGHT IN THE MIDDLE -- a scaffold, wood-chips, a
+  // wheel-rut, an unfired shot-hole -- because a trace of work implies a
+  // person who is not on the map, and that implication is most of what makes
+  // a country feel lived in.
+  //
+  // Cheap, and safe, for the reason §7o gives: no verb in this constitution
+  // reaches a landmark. It cannot be worked, fought, lit or consumed. A kind
+  // adds texture to the world without adding a rule to the world.
+  'scaffold',
+  'chopping-block',
+  'wood-chips',
+  'sawhorse',
+  'trestle',
+  'wheel-rut',
+  'daub-mark',
+  'tally-post',
+  'reeds',
+  'upturned-boat',
+  'fish-trap',
+  'staithe',
+  'dew-pond',
+  'sheep-hurdle',
+  'wool-snag',
+  'salt-lick',
+  'peat-cut',
+  'turf-stack',
+  'bog-pool',
+  'ore-heap',
+  'shot-hole',
+  'ladder',
+  'bench',
+  'flowerbed',
+  'topiary',
+  'birdbath',
+  'gazebo-post',
+  'ash-heap',
+  'broken-cart',
+  'fallen-stone',
+  'rag-tree',
+
+  // §7dj: and four that exist only because the obvious word already has a job.
+  // A stone-heap is not a cairn, a way-post is not a milestone, a slag-lump is
+  // not a glass-stone and a hay-wain is not a cart -- each of those four is
+  // reachable by a verb (the first three are GRAVABLE, the fourth is a node
+  // type a hauler drops on death with a shelf anybody may unload). Scenery is
+  // cosmetic and nothing else, so scenery gets its own words.
+  'stone-heap',
+  'way-post',
+  'slag-lump',
+  'hay-wain',
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
@@ -6627,6 +6743,35 @@ const LANDMARK_KINDS = new Set([
       if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined
           || n.fuelUntil !== undefined || n.ask !== undefined || n.shelf !== undefined)
         return 'a stone carries foreign metadata';
+    } else if (n.type === 'smokerack') {
+      // §7dg: A RACK IS THE PRIVATE-POT SHAPE, not the inn-pot shape.
+      //
+      // The brew lives ON THE NODE, which is the opposite of what §7e chose
+      // for the Lantern, and the difference is the point. The inn has ONE pot
+      // for the whole island, so a citizen sitting on it denies everybody; the
+      // sheds have FOUR racks and the scarcity is the design. What stops a
+      // squatter here is not that the vessel holds nothing, it is that the
+      // vessel spoils -- see the sweep.
+      //
+      // A rack is placed by the WORLD and never by a citizen, so unlike a
+      // brewpot it has no owner until somebody hangs a catch on it, and it is
+      // never deleted when it empties.
+      if (n.by !== undefined) {
+        if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'smokerack with a malformed hand';
+        if (!state.players[n.by]) return 'smokerack hand does not exist';
+      }
+      // by, brewKind and readyAt travel together or not at all: a rack is
+      // empty, or it is one citizen's, hung with one thing, finishing at one
+      // known interval. Any other combination is a rack in a state no verb in
+      // this file can produce.
+      const _hung = [n.by !== undefined, n.brewKind !== undefined, n.readyAt !== undefined];
+      if (_hung.some(Boolean) && !_hung.every(Boolean)) return 'smokerack half-hung';
+      if (n.readyAt !== undefined && !isInt(n.readyAt, 0, MAX_TIME)) return 'smokerack readyAt out of bounds';
+      if (n.brewKind !== undefined && n.brewKind !== 'smoked-eel') return 'a rack smokes eels and nothing else';
+      if (n.lastUsed !== undefined && !isInt(n.lastUsed, 0, MAX_TIME)) return 'smokerack lastUsed out of bounds';
+      if (n.plantedAt !== undefined || n.fuelUntil !== undefined || n.ask !== undefined
+          || n.coin !== undefined || n.name !== undefined || n.shelf !== undefined)
+        return 'a rack carries foreign metadata';
     } else if (n.type === 'brewpot') { // a brewpot is owned; it may be idle or fermenting (v0.51)
       // §7e: ...unless the WORLD owns it. A brewpot a citizen raised is theirs
       // and works for them alone, which is right for a thing somebody built.
@@ -8023,6 +8168,17 @@ function validInput(state, input, ctx) {
     }
     case 'brew': {
       const bp = state.nodes[input.nodeId];
+      // §7dg: THE RACK ANSWERS THE SAME VERB. `brew` already means "put this
+      // in the vessel and let the world do the waiting" -- the powder mill
+      // borrowed it for the same reason (§7i) -- so smoking needs no new word
+      // and no new furniture. Where you are standing is the whole difference,
+      // exactly as it is for the salt pans in §7bw.
+      if (bp && bp.type === 'smokerack') {
+        if (!atOrBeside(p, bp)) return false;
+        if (bp.readyAt !== undefined) return false;        // that rack is hung
+        const es = p.inventory[input.slot];
+        return !!es && es.item === 'eel';
+      }
       if (!bp || bp.type !== 'brewpot' || !atOrBeside(p, bp)) return false;
       const sl = p.inventory[input.slot];
       // §7i: AND THE POWDER. Saltpetre, charcoal and brimstone -- one thing
@@ -8049,6 +8205,15 @@ function validInput(state, input, ctx) {
     }
     case 'collect': {
       const bp = state.nodes[input.nodeId];
+      if (bp && bp.type === 'smokerack') {
+        if (!atOrBeside(p, bp)) return false;
+        if (bp.by !== input.playerId) return false;        // your catch or nobody's
+        if (bp.readyAt === undefined || state.tick < bp.readyAt) return false;
+        // past the window it is over-smoked and the sweep has taken it; this
+        // guard is belt and braces for an input that raced the tick.
+        if (state.tick > bp.readyAt + SMOKE_WINDOW) return false;
+        return canAddItem(p.inventory, 'smoked-eel');
+      }
       if (!bp || bp.type !== 'brewpot' || !atOrBeside(p, bp)) return false;
       if (bp.by === undefined) {
         return p.brewing !== undefined && state.tick >= p.brewing.readyAt
@@ -8521,7 +8686,7 @@ function dedicationPrice(genesis, node) {
   return Math.floor(d.floor + (d.floor * n) / d.stepDen);
 }
 
-const _WALKABLE_BUILT = new Set(['brewpot', 'watchfire', 'fire', 'market', 'cart', 'dedication',
+const _WALKABLE_BUILT = new Set(['smokerack', 'brewpot', 'watchfire', 'fire', 'market', 'cart', 'dedication',
   // §7n: A FIELD IS NOT A WALL. A plot blocked its tile, so a block of them
   // was a solid mass and only the outer ring could be stood beside -- and
   // `harvest` wants ADJACENCY. Measured on the seventh founding: 1,269 of the
@@ -8864,12 +9029,25 @@ function findAdjacentNode(state, ctx, p, type, pred) {
   return best;
 }
 function adjacentNodeIdsInOrder(state, ctx, p, type) {
-  // reference: every matching node, in Object.entries enumeration order
+  // reference: every matching node, BY NODEID -- the same canonical order the
+  // indexed path below uses.
+  //
+  // v0.81 sorted the indexed path and left this one in Object.entries
+  // enumeration order, so the two halves of the same function answered
+  // differently the moment two matching nodes stood beside one citizen. That
+  // is the exact fault v0.81 was written to fix, surviving in the branch it
+  // did not touch: `findAdjacentNode` got the nodeId tie-break in v0.80 and
+  // this reference path never did.
+  //
+  // Caught by the phase2 differential, which had been unable to see it because
+  // its own fixture named a node type -- `waystone` -- that §6ch deleted, so
+  // the comparison ran over an empty list and agreed with itself.
   if (!ctx) {
     if (_p2on) _p2c.fullNodeScans++;
     const out = [];
     for (const [nid, n] of Object.entries(state.nodes))
       if (n.type === type && Math.abs(n.x - p.x) + Math.abs(n.y - p.y) === 1) out.push(nid);
+    out.sort();
     return out;
   }
   if (_p2on) _p2c.adjLookups++;
@@ -9332,6 +9510,18 @@ function nextState(state, inputs, _legacyBeacon) {
   const _decay = s.genesis.brew?.decayTicks ?? 0;
   if (_decay > 0) for (const [_nid, _n] of Object.entries(s.nodes))
     if (_n.type === 'brewpot' && s.tick - (_n.lastUsed ?? 0) > _decay) deleteIndexedNode(s, _ctx, _nid);
+  // §7dg: A CATCH LEFT TOO LONG IS OVER-SMOKED, and the rack clears itself.
+  //
+  // This is the whole anti-squat rule and it is four lines. A rack cannot be
+  // held indefinitely because holding it past the window destroys what is on
+  // it; nobody has to arbitrate, no keeper has to sweep, and the citizen who
+  // walked away paid for walking away. The rack itself is never deleted -- it
+  // was placed by the world and belongs to the shed, not to anybody.
+  for (const _n of Object.values(s.nodes)) {
+    if (_n.type !== 'smokerack' || _n.readyAt === undefined) continue;
+    if (s.tick <= _n.readyAt + SMOKE_WINDOW) continue;
+    delete _n.by; delete _n.brewKind; delete _n.readyAt; _n.lastUsed = s.tick;
+  }
   // watchfires (v0.53): while a fire burns it pays its keeper a slow trickle, the
   // light is public, the vigil is theirs. A fire long cold crumbles to ash.
   const _wt = s.genesis.watch;
@@ -11319,6 +11509,14 @@ function nextState(state, inputs, _legacyBeacon) {
       // cook gate and the eat list, and the third time from one predicate not
       // being carried to every site.
       const publicPot = !!bp && bp.type === 'brewpot' && bp.by === undefined;
+      // §7dg: hang a catch on a rack. One eel, one rack, one wait.
+      if (bp && bp.type === 'smokerack' && atOrBeside(p, bp)
+          && sl && sl.item === 'eel' && bp.readyAt === undefined) {
+        removeItem(p.inventory, inp.slot, 1);
+        bp.by = pid; bp.brewKind = 'smoked-eel';
+        bp.readyAt = s.tick + SMOKE_TICKS; bp.lastUsed = s.tick;
+        return s;
+      }
       // §7i: the powder mill
       if (bp && bp.type === 'brewpot' && atOrBeside(p, bp) && sl && sl.item === 'saltpetre'
           && countItem(p.inventory, 'saltpetre') >= POWDER_NITRE
@@ -11356,6 +11554,18 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'collect') {
       const bp = s.nodes[inp.nodeId];
+      // §7dg: take it off the rack, inside the window.
+      if (bp && bp.type === 'smokerack' && atOrBeside(p, bp) && bp.by === pid
+          && bp.readyAt !== undefined && s.tick >= bp.readyAt
+          && s.tick <= bp.readyAt + SMOKE_WINDOW
+          && canAddItem(p.inventory, 'smoked-eel')) {
+        addItem(p.inventory, 'smoked-eel', 1);
+        p.skills.cooking += XP_SMOKE;
+        delete bp.by; delete bp.brewKind; delete bp.readyAt; bp.lastUsed = s.tick;
+        if (claimFirst(s, 'smoker', pid))
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to take a smoked eel off the racks.');
+        return s;
+      }
       if (bp && bp.type === 'brewpot' && bp.by === undefined && atOrBeside(p, bp)
           && p.brewing && s.tick >= p.brewing.readyAt && canAddItem(p.inventory, p.brewing.kind)) {
         const draughts = (p.brewing.kind !== 'deep-broth'
@@ -11755,6 +11965,20 @@ function nextState(state, inputs, _legacyBeacon) {
         // deliberate: twenty hitpoints and they never break rhythm. Fighting
         // in a pair should be worth something that fighting alone is not.
         p.lastSwing = Math.max(p.lastSwing ?? -EAT_EVERY, s.tick);
+        // §7dg: AND SMOKE STOPS ROT.
+        //
+        // `rottingUntil` is twenty-four intervals of three every three and it
+        // IGNORES ARMOUR, which is what makes the barrow book's worst spell
+        // worth carrying. Nothing in this world cleared it early. One thing
+        // does now, and it is the one thing that was cured in smoke.
+        //
+        // This is a COUNTER, not a heal: five is less than a cooked eel, so a
+        // citizen who carries these instead of food has made a trade, not an
+        // upgrade. It answers the rot without nerfing it -- whoever went to
+        // the fens first has a card to play and whoever did not does not.
+        //
+        // The withering is untouched, deliberately. One counter, one thing.
+        if (slot.item === 'smoked-eel') { delete p.rottingUntil; delete p.rotBy; }
       }
     } else if (inp.type === 'cook') {
       // re-check against new state; instant, same-tick resolution (§6a)

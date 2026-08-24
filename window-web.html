@@ -1325,6 +1325,26 @@ const PLANS4 = {
   ],
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
+// §7dh: THE V6/V7 TOWN DRAWINGS, and the five villages.
+//
+// PLANS4 above is the FROZEN v1 art and it is right for v1-v5. It was also
+// what this window drew over a v6 and a v7 world, which is how Millbrook
+// came to be painted forty by eighteen on top of a town that has been fifty-
+// two by thirty-six since the market square was cut. Every one of the ten
+// differs; one of them differs in SIZE.
+//
+// The seats have been told-not-derived since the /api/settlements fetch went
+// in. The ART was still a generation behind, so the window knew exactly where
+// each town stood and drew the wrong town there.
+const PLANS6_W = {"anchor":["%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%","%........................G,........................%","%.................################.................%","%..#######.######.#,,,,,,,,,,,,,,#..#######........%","%..#q,k,e#.#v,h,#.#,,B,k,,,v,,eq,#..#v,q,k#..####..%","%..#,,,,,#.#,,,,#.#,,,,,,,,,,,,,,#..#,,,,,#..#kh#..%","%..#,h,,,#.#,,,k#.#,,,,,,,,,,,,,,#..#,,,,,#..#,,#..%","%..###,###.##,###.#,h,,,e,,,d,,q,#..#,h,e,#..#q,#..%","%.................#,,,,,,,,,,,,,,#..###,###..##,#..%","%.................#######,,#######.....,.......,...%","%.,######,,#####,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.%","%..#S,k,#.,#h,k#.........,,.........######.,#####..%","%..#,,,,#.,#,,,#.........,,.........#k,v,#.,#h,k#..%","%..#,,,,#.,#,,,#.....i...,,.........#,,,,#.,#,,,#..%","%..##,###.,##,##.........,,...*.....#,,,,#.,#,,,#..%","%....,....,..,...........,,.........##,###.,##,##..%","%....,....,..,...........,,...........,....,..,....%"," .,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,. "," ,,#######,..............,,................,#####.. ","%..#h,k,d#,..............,,................,#k,q#..%","%..#,,,,,#,..........U...,,................,,,,,#..%","%..#,e,,,#,...G..........,,................,#,,h#..%","%..###,###,..............,,.....%%%%%%%%%%%%%%%%%..%","%.........,..............,,.....%,h,,#GG,,#,ek,,%..%","%.........,..............,,.....%,,,,#,,,,#,,,,,%..%","%..######.,..............,,.....%,,,,#,,,,#,,,,,%..%","%..#B,k,#.,..............,,.....%,,,,#,,,,#,,,,,%..%","%..#,,,,#.,.........o....,,.....%,,,,#,,,,#,,,,,%..%","%..#,,,,#.,..............,,.....%,,,,#,,,,#,,,,,%..%","%.,#,,,q#,,,,,,,,,,,,,,,,,,,,,,,%,,,,#,,,,#,,,,,%..%","%..##,####,###.........###,##...%,,,,#,,,,#,,,,,%..%","%.....#k,e,,h#..##,##..#k,,,#...%%%,%%%%,%%%%,%%%..%","%.....#,,,,,,#..#h,k#..#,,,,#......,...............%","%.....#,d,,,,#..#,,,#..#,h,,#......,...............%","%.....########..#####..###G##......,...............%","%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%"],"millbrook":["%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%","%........................,,........................%","%.................#########........................%","%..#######.######.#S,,,,q,#.########.#######.......%","%..#q,,,e#.#v,,,#.#,,,,,,,#.#,,e,,v#.#d,h,,#.####..%","%..#,,,,,#,#,,,,#.#,,,,,,,#.#,,,,,,#.#,,,,,#.#,h#..%","%..#,h,,,#,#,,,d#.#,h,,e,v#.#,h,,q,#.#,,,,,#.#,,#..%","%..###,###,##,###.####,####.####,###.#,e,q,#.#q,#..%","%.....,...,..,........,..,,.....,....###,###.##,#..%","%.,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.%","%.........,..............,,..............,.........%","%..######.,..............,,..............,.######..%","%..#B,k,#.,..............,,..............,.#k,v,#..%","%..#,,,,#.,..........i...,,..............,.#,,,,#..%","%..#,,,q#.,..............,,..............,.#,,,,#..%","%..##,###.,..............,,..............,.##,###..%","%....,....,..............,,...U..........,.........%"," ,,,,,,,,,,..............,,..............,......... "," ..#######,..............,,..............,#######,, ","%..#h,,,d#,..............,,..............,#q,,,h#..%","%..#,,,,,#,..............,,..............,#,,,,,#..%","%..#,e,,,#,.........*....,,..............,#,e,,,#..%","%..###,###,..............,,..............,###,###..%","%.........,..............,,..............,.........%","%.........,..............,,......o.......,.........%","%..######.,..............,,..............,.######..%","%..#e,,,#.,......!.......,,..............,.#d,h,#..%","%..#,,,,#.,..............,,..............,.#,,,,#..%","%..#,,,,#.,..............,,..............,.#,,,,#..%","%.,#,,,q#,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,#,,,,#,.%","%..##,####,###.........###,##.........##,#.##,###..%","%.....#,,e,,h#..##,##..#,,,,#..##,##..#k,#.........%","%.....#,,,,,,#..#h,k#..#,,,,#..#e,k#..#,,#.........%","%.....#,d,,,,#..#,,,#..#,h,,#..#,,,#..#,h#.........%","%.....########..#####..######..#####..####.........%","%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%"],"oxenford":["                                    "," .................................. "," ...###########..........##,##..... "," ...#d,,,h,,,v#..........,q,e#..... "," ...#,,,,,,,,,#....,,,,,,#,,,#..... "," ...#,e,,k,,q,#....,.....#,h,#.###. "," ...#,,,,,,,,,#....,.....##,##.#q#. "," ...#h,,,,,,,e#....,......,....#,,. "," ...####,######....,......,....#k#. "," ......,...........,......,....###. "," ......,,,,,,,,,,,,,,,,,,,,,,,,,,,. "," ......,...........,......,........ "," ..#######,........,......,..#,#### "," ..#B,,k,#,........,......,..#,d,h# "," ..#,,,,,#,........,......,..#,q,,# "," ..#,e,q,#,..#####.,......,..#k,,e# "," ..###,###,..#h,v#.,......,..###,## "," ....,....,..#k,,#.,......,....,... "," ....,,,,,,,.##,##.,,,,,,,,,,,,,... "," ....,........,....,......,........ "," ....,........,....,......,........ "," ..####,####..,....,......,..##,#.. "," ..#S,,,,,q#..,....,......,..,v,#.. "," ..#,,k,,,,#..,....,......,..,,k#.. "," ..#####,###..,....,......,..##,##. "," .......,.....,....,......,....,... "," .......i,,,,,,,,,,,,,,,,,,,,,,.... "," ..................,..U...,...!.... ","                                    "],"thornbury":["                                  "," ................................ "," %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% "," %..###########.,.#######.#####.% "," %..#,,,,,,,,,#.,.#B,k,,#.#k,h#.% "," %G.#,A,s,,k,v#.,.#,,,,,#.#,,,#G% "," %..#,,,,,,,,,#.,.#,e,q,#.#,,,#.% "," %..#,,,,,,,,,#.,.###,###.##,##.% "," %..#,h,,q,,e,#.,...........,...% "," %..#,,,,,,,,,#.,...........,...% "," %..#####,#####,,.##,#,#..##,##.% "," %.......,.....,,.#h,k,#..#k,q#.% "," %!,,,,,,,,,,,,,,,,,e,,#,,#,,o#.% "," %.............,,.######..#####.% "," %%%%%%%%%%%%%%,,%%%%%%%%%%%%%%%% "," ...............,................ "," .########..######...#######..... "," .#e,k,,d#..#h,k,#...#S,k,q#.#### "," .#,,,,,,#..#,,,,#...#,,,,,#.#kh# "," .#,h,,,,#..#,,,,#...#,,,,,#.#,,# "," .####,###..##,###...#,h,e,#.#,,# "," .....,..,....,.,....###,###.#,## "," .,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,. "," .....*........i,................ "," .###,###,......,.###,##.,....... "," .#k,,,h#,.##,##,.#k,,,#.,##,###. "," .#,,,,,#,.#h,k#,.#,,,,#.,#e,k,#. "," .#,d,,,#,.#,,,#..#,h,,#.,#,,,,#. "," .#######,.#####..######.,######. ","                                  "],"eastmere":["                             ~~~~~~~~~"," ....................#####...~~~~~~~~~"," .,,,,,,,,,,,,,,,,,,,#,,q#,,.~~~~~~~~~"," .....,#####,######.,#,,,#,..~~~~~~~~~"," .####,#k,e#,#B,k,#.,##,##,..~~~~~~~~~"," .#k,#,#,,h#,#e,h,#.,,,,=======F~~~~~~"," .#,,,,,,,d#,#q,,,#.,#####,..~~~~~~~~~"," .####,#,,,#,#,,,,#.,#,S,#,..~~~~~~~~~"," .....,#####,###,##o,,,,,#,G.~~~~~~~~~"," .,,,,,,,,,,,,,,,,,,,#,q,#,,.~~~~~~~~~"," .....,##,##,###,##.,#####,..~~~~~~~~~"," .####,#,,,#,#k,,,#.,.....,..~~~~~~~~~"," .#k,#,#h,k#,,,h,d#.,,,,=======F~~~~~~"," .#,,,,,,v,,,#,e,,#.,###,#,..~~~~~~~~~"," .####,#####,######.,#,k,#,..~~~~~~~~~"," ...*.,.....,.......,,,v,#,..~~~~~~~~~"," .,,,,,,,,,,,,,,,,,,,#,h,#,,.~~~~~~~~~"," .##,#,##,##,######.,#####,..~~~~~~~~~"," .#,,#,#k,q#,#h,k,#.,.....,..~~~~~~~~~"," .#k,#,#,h,#,#e,,,#.,,,,=======F~~~~~~"," .####,#,,,#,#,,,,#.,.....,..~~~~~~~~~"," .....,##,##,###,##.,.....,..~~~~~~~~~"," .,,,,,,,,,,,,,,,,,,,,,,,,,,.~~~~~~~~~","                             ~~~~~~~~~"],"greenhollow":["                                "," ..T.....T...T........T...T.... "," .....T.........T...........T.. "," ..........,.........,......... "," T..,,,,,,,,,,,,,,,,,,....,.... "," .########.,########.,#######.T "," .#B,k,e,#.,#k,h,d,#.,#k,q,h#.. "," .#h,,,,,#.,#e,,,,,#.,#,,,,,#.. "," .#,,,,,,#.,#,,,,,,#.,#,,,,,#.. "," T####,###.,####,###.,###,###.. "," .,,,,,,,,,,,,,,,,,,,,,,,,,,,,T "," .###,##...,#########,###,##... "," .#k,,,#...,#S,k,e,h#,#k,,,#!.. "," .#,h,,#...,#,,,,,,,#,#,e,h#... "," .#,,,,#...,#,,,,,,,#,#,,,,#... "," T#,,,,#...,#,,,,,,,#,######... "," .######...,####,####,........T "," .....,,,,,,,,,,,,,,,,,,,,,.... "," ......###,##..*.....,##,##.... "," ......#,,,,#.........#,,,#..T. "," ..T...######....T....#####.... ","                                "],"cragfoot":["                            ","                            ","  ........................  ","  ##,#,####,.,.......,....  ","  #S,k,q,h#,.,######.,....  ","  #,e,v,,,#,.,#k,h,#.#####  ","  #,,,,,,,#,.,#d,,,#.#e,k#  ","  #,,,,,,,#,.,#,,,,#.#,,,#  ","  ####,####,.,###,##.##,##  ","  ,,,,,,,,,,,,,,,,,,,,,,,,  ","  %%%%%,,%%%%%%%%%%%%%%%%%  ","  .....,,.,...............  ","  ........,...######,.....  ","  ##,#,##.,...#d,h,#,#####  ","  #B,k,q#.,...#k,e,#,#k,q#  ","  #,h,e,#.,...#v,,,#,#,,,#  ","  #,,,,,#.,...#,,,,#,#,,,#  ","  ###,###.,...###,##,##,##  ","  ,,,,,,,,,,,,,,,,,,,,,,,,  ","  %%%%%%%%%%%%%%,,%%%%%%%%  ","  ######,,..#####,.,,#####  ","  #e,k,#,,..#h,,#..,,#k,,#  ","  #h,,,#,,..#,k,#..,,#,h,#  ","  #,,,,#,,..#,,,#..,,#,,,#  ","  ###,##,,..##,##..,,##,##  ","  ,,,,,,,,,,,,,,,,,,,,,,,,  ","  %%%%%%%%%,,%%%%%%%%%%%%%  ","  .........,,.............  ","  ....*....,,...i.........  ","  .......G................  ","                            ","                            "],"fenmarch":["                 ===                "," ................===............... "," .######..######.===.########...... "," .#B,k,#=.#k,h,#.===.#k,q,e,#...... "," .#e,,,#=.#,,,,#.===.#,,,,,,#...... "," .###,##=.###,##.===.####,###...... "," .f============================f... "," ...........=.o..===##########,,,,. "," ..########.=###.===#S,k,q,v,#,.... "," f.#k,h,d,#.=#,#.===,e,h,d,,,#,...f "," ..#e,,,,,#.=,,#.===,,,,,,,,,#,.... "," ..#,,,,,,#.=#,#.===#,,,,,,,,#,.... "," ..####,###.=###.===#####,####,.... "," ....=============================. "," .####,##.=..####===...=####,###... "," .#h,,,,#.=..#h,#===...=#k,,,,e#... "," f#k,e,,#.=..#,,#===...=#,h,d,,#..f "," .#######.=..##,#===...=#,,,,,,#... "," ........===========...=########... "," ..........##,##.===............... "," ..........#,,,#.===G.............. ","           ##### ===                "],"norwick":["%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%","%...............,,...............%","%.,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.%","%.,####,#####,#.,,####,###.####,.%","%.,#v,,,,k##,,#.,,#B,,,,k#.#k,#,.%","%.,#,h,e,,##k,#.,,#,h,,,,#.#h,#,.%","%.,#,,,,,,##h,#.,,#,,,,,,#.#,,,,.%","%.,#,,,,,,#####.,,########.#d,#,.%","%.,#,,,,,,#.....,,......,..####,.%","%.,########.....,,......,......,.%","%.,......,......,,......,......,.%",".,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.",".,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.","%.,###,##,.##,#.,,####,####.###,.%","%.,#k,,,#,.#,,#.,,#S,,,,k,#.#,#,.%","%.,#,h,e#,.#k,#.,,#e,h,,,,#.#,,,.%","%.,#,,,,#,.#q,#.,,#,,,,,,,#.#,#,.%","%.,######,.####.,,#,,,,,,,#.###,.%","%.,#####.,......,,#########....,.%","%.,#,,,#.,......,,......,......,.%","%.,##,##.,......,,......,......,.%","%.,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,.%","%...............,,...............%","%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%"],"hollybarrow":["                                    "," \"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\" "," \".#####,.######.,,.########......\" "," \".#B,k#,.#k,h,#.,,.#k,e,h,#......\" "," \".#,,,#,.#,,,,#.,,.#,,,,,,#T.T.T.\" "," \".##,##,.###,##.,,.####,###p.p.p.\" "," \",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,\" "," \".#####,.###,##.,,#############..\" "," \".#k,h#,.#k,,,#.,,#S,k,e,h,,,,#..\" "," \".#,,,#,.#,h,,#.,,#,,,,,,,,,,,#..\" "," \".#,,,,,.#,,,,#.,,#,,,,,,,,,,,#.!\" "," \".#,,,#,.#,,,,#.,,#,,,,,,,,,,,#..\" "," \".#,,,#,.######.,,#,,,,,,,,,,,#..\" "," \".#####,........,,######,######..\" "," \",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,\" "," \".########.####.,,........,##,##.\" "," \".#,,e,h,#.#,,#.,,........,#,,,#.\" "," \".#,,,,,,#.#q,#.,,........,#h,k#.\" "," \".#,,,,,,#.#,,#.,,........,#,,,#.\" "," \".####,###.##,#.,,........,#####.\" "," \".,,,,,,,,,,,,,,,,,,,,,,,,,,,,...\" "," \"..p..p..p..p...,,.p..p..p,......\" "," \"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"..\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\" ","                                    "],"eelmarsh":["     .......     ","  ####.....####  ","  #R,v#...#v,R#  ","  #,,,#...#,,,#  ","  #R,h#...#h,R#  ","  ##,##...##,##  ","  ..,.......,..  ","  .....o.i.....  ","  ##,####..##,#  ","  #,,,,,#..#,,#  ","  #q,e,d#..#k,#  ","  ##,####..####  ","   ..........    ","     .....       "],"oxenlea":["      %%%%%      ","     %%,,,%%     ","     %,,,e,%     ","     %%,,k%%     ","      %%,%%      ","  ......,......  ","  ##,####..####  ","  #q,,,,#..#,,#  ","  #,,,v,#..#h,#  ","  ######...#,##  ","  ...o...i.....  ","  ####..####..#  ","  #,h#..#,d#..#  ","  #,,,..,,,,..#  ","  ####..####..#  ","   ...........   "],"watersmeet":["   ...........   ","  ####...####..  ","  #v,#...#,q#..  ","  #,,,...,,,#..  ","  ####...####..  ","  ....o...i....  ","  .............  ","  ff.fff...ff.f  ","  f....f...f..f  ","  f....f...f..f  ","  ffffff...ffff  ","  .............  ","  ####,#####     ","  #h,,,,,e,#     ","  #,d,#,k,,#     ","  #####,####     ","     .....       "],"kingswood":["    O....O.O     ","  \"\"\"\"\"\".\"\"\"\"\"\"  ","  \"...........O  ","  \".####,####..  ","  \".#v,,,h,e#..  ","  \".#,,,,,,,#.O  ","  \".#q,k,,,d#..  ","  \".#####,###..  ","  \"......,.....  ","  \"..o...,...i.  ","  \".##,##.##,##  ","  O.#,,,#.#,,,#  ","  \".#h,q#.#v,h#  ","  \".#####.#####  ","  \"\"\"\"\"\".\"\"\"\"\"\"  ","   O..O....O     "],"bleakfell":["    ......    ","  %%%%,%%%%%  ","  %h,,,,,e,%  ","  %,d,,,,,,%  ","  %%,%%%%,%%  ","  ..,....,..  ","  ....o.....  ","  %%,%%.%%,%  ","  %,,,%.%,,%  ","  %q,k%.%h,%  ","  %%%%%.%%%%  ","  ....i.....  ","   .........  ","    .....     "]}
+const PLAN_ROOMS6_W = {"anchor":[[19,3,14,6],[4,4,5,3],[12,4,4,3],[37,4,5,4],[4,11,4,3],[12,11,3,3],[37,12,4,3],[45,12,3,3],[4,19,5,3],[45,19,3,3],[33,23,4,8],[38,23,4,8],[43,23,5,8],[4,26,4,4],[7,31,6,3],[24,31,4,3],[18,32,1,2]],"millbrook":[[19,3,7,4],[4,4,5,3],[12,4,4,3],[29,4,6,3],[38,4,5,4],[4,12,4,3],[44,12,4,3],[4,19,5,3],[43,19,5,3],[4,26,4,4],[44,26,4,4],[7,31,6,3],[24,31,4,3],[18,32,1,2],[33,32,1,2]],"oxenford":[[5,3,9,5],[26,3,3,3],[4,13,5,3],[30,13,4,3],[15,16,1,2],[7,22,2,2],[31,22,1,2]],"thornbury":[[5,4,9,6],[19,4,5,3],[27,4,3,3],[20,11,1,2],[22,11,1,2],[28,11,1,2],[3,17,6,3],[13,17,4,3],[22,17,5,4],[3,25,5,3],[19,25,4,3],[13,26,1,2],[28,26,1,2]],"hollybarrow":[[5,3,1,2],[13,3,1,2],[24,3,1,2],[4,8,3,5],[11,8,4,4],[20,8,11,5],[4,16,6,3],[29,16,3,3]],"eastmere":[[23,2,1,2],[8,4,3,4],[14,4,4,4],[22,7,3,3],[8,11,3,3],[14,11,4,3],[12,12,1,2],[22,14,3,3],[8,18,3,3],[14,18,4,3]],"greenhollow":[[3,6,6,3],[13,6,6,3],[23,6,5,3],[5,10,2,1],[3,12,4,4],[13,12,7,4],[23,12,4,3]],"cragfoot":[[3,4,7,4],[15,5,4,3],[23,6,1,2],[6,9,3,1],[15,13,4,4],[3,14,5,3],[22,14,3,3],[3,21,4,3],[13,21,3,3],[22,21,3,3]],"fenmarch":[[5,3,1,2],[13,3,1,2],[25,3,1,2],[21,8,8,4],[4,9,6,3],[6,15,1,2],[25,15,6,3]],"norwick":[[4,4,6,5],[19,4,6,3],[28,6,2,1],[4,14,4,3],[19,14,7,4]],"eelmarsh":[[3,2,3,5],[11,2,3,5],[3,8,5,4],[12,8,2,3]],"oxenlea":[[6,1,4,5],[3,6,5,3],[12,7,2,2],[3,12,3,2],[8,12,4,2]],"watersmeet":[[3,2,3,2],[9,2,3,2],[4,12,5,4],[9,13,2,2]],"kingswood":[[5,3,7,7],[5,10,3,3],[11,10,3,3]],"bleakfell":[[4,1,7,5],[3,7,3,3],[9,7,2,3]]}
+// WHICH ALPHABET IS THIS WORLD WRITTEN IN? v6 renamed nothing and added the
+// fountain; v7 added the villages. Older foundings keep the frozen tables and
+// are bit-for-bit unmoved -- the same courtesy layPlan gives its legend.
+const IS_V67 = () => GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7'
+const planFor = (tag) => (IS_V67() ? PLANS6_W[tag] : undefined) ?? planFor(tag)
+const roomsFor = (tag) => (IS_V67() ? PLAN_ROOMS6_W[tag] : undefined) ?? PLAN_ROOMS4[tag]
+
 const OPEN4 = new Set(['.','@',','])
 const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
@@ -1365,7 +1385,7 @@ function planConnected4(rows, cx, cy) {
 const _seat4 = {}
 function seatDrawnTown4(tag, nomX, nomY) {
   if (_seat4[tag]) return _seat4[tag]
-  const rows = PLANS4[tag], pw = rows[0].length, ph = rows.length
+  const rows = planFor(tag), pw = rows[0].length, ph = rows.length
   const dryOk = (cx, cy) => {
     const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
     for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
@@ -1396,7 +1416,12 @@ function settlementsE4() {
   if (_ss4) return _ss4
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
   const mby = cy - 62, ey = emY4()
-  const P = (t) => ({ w: PLANS4[t][0].length, h: PLANS4[t].length })
+  // settlementsE4 is the DERIVED fallback used only when the pillar has told
+  // us nothing (offline, or an old world). Its footprints follow the same
+  // alphabet as everything else now, so a v7 world seated without the fetch
+  // still gets Millbrook's real fifty-two by thirty-six rather than the v1
+  // forty by eighteen.
+  const P = (t) => { const r = planFor(t); return { w: r[0].length, h: r.length } }
   const S = (t, x, y) => seatDrawnTown4(t, x, y)
   _ss4 = [
     { tag:'anchor',      name:'Anchor',      ...S('anchor', cx, cy),                                        ...P('anchor'),      ring:'shire' },
@@ -1680,7 +1705,7 @@ function laneSeatsOf4(towns, salt) {
 }
 function roadSet4() {
   if (_roads4) return _roads4
-  const s = {}; for (const t of settlementsE4()) s[t.tag] = t
+  const s = {}; for (const t of ssE()) s[t.tag] = t
   const wm = seatPoint4(riverX4(confY4()) + 6, confY4() + 7)
   // bridges4 returns the crossings untagged, but in the generator's own order:
   // Highford, the Millbrook Bridge, the Watersmeet Bridge, Fenford, the
@@ -1776,7 +1801,7 @@ function fordE4(x, y) {
 // the arrival point, so it has to agree about where it is.
 function spawnDry4() {
   const a = settlementsE4().find(s => s.tag === 'anchor')
-  const rows = PLANS4.anchor, pw = rows[0].length, ph = rows.length
+  const rows = planFor('anchor'), pw = rows[0].length, ph = rows.length
   const x0 = a.x - (pw >> 1), y0 = a.y - (ph >> 1)
   const openHere = (x, y) => {
     const rx = x - x0, ry = y - y0
@@ -1808,8 +1833,8 @@ function isFountain4(x, y) {
   const hit = _fountCache.get(k)
   if (hit !== undefined) return hit
   let out = false
-  for (const t of settlementsE4()) {
-    const rows = PLANS4[t.tag]; if (!rows) continue
+  for (const t of ssE()) {
+    const rows = planFor(t.tag); if (!rows) continue
     const pw = rows[0].length, ph = rows.length
     const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
     if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
@@ -1852,8 +1877,8 @@ function shopDoors4(st) {
     const q = st.nodes[k]
     if (q.type === 'bank' || q.type === 'store') shops.push(q)
   }
-  for (const t of settlementsE4()) {
-    const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
+  for (const t of ssE()) {
+    const rows = planFor(t.tag), rects = roomsFor(t.tag)
     if (!rows || !rects) continue
     const pw = rows[0].length, ph = rows.length
     const ox = t.x - (pw >> 1), oy = t.y - (ph >> 1)
@@ -1934,8 +1959,8 @@ function isRampart4(x, y) {
   const hit = _rampCache.get(k)
   if (hit !== undefined) return hit
   let out = false
-  for (const t of settlementsE4()) {
-    const rows = PLANS4[t.tag]; if (!rows) continue
+  for (const t of ssE()) {
+    const rows = planFor(t.tag); if (!rows) continue
     const pw = rows[0].length, ph = rows.length
     const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
     if (rx < 0 || ry < 0 || rx >= pw || ry >= ph) continue
@@ -1973,20 +1998,20 @@ function terrainOfE4(x, y) {
                         : hm.kind === 'mire' ? 'fens' : 'scree'
     }
   }
-  for (const t of settlementsE4()) {
+  for (const t of ssE()) {
     // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
     // inclusive test claimed the rampart line itself as town ground and
     // painted seven tiles of trail as cobble.
     if (Math.abs(x - t.x) >= (t.w >> 1) || Math.abs(y - t.y) >= (t.h >> 1)) continue
     // INDOORS? Ask the drawing, exactly as groundKindAt does. ',' is a room's
     // floor and must not be painted as the street it opens onto.
-    const rows = PLANS4[t.tag]
+    const rows = planFor(t.tag)
     if (rows) {
       const pw = rows[0].length, ph = rows.length
       const rx = x - (t.x - (pw >> 1)), ry = y - (t.y - (ph >> 1))
       // ENCLOSURE, not the character: a counter, a hearth and the clerk all
       // stand on the same floor as the empty tile beside them
-      for (const [rxx, ryy, rww, rhh] of (PLAN_ROOMS4[t.tag] ?? []))
+      for (const [rxx, ryy, rww, rhh] of (roomsFor(t.tag) ?? []))
         if (rx >= rxx && ry >= ryy && rx < rxx + rww && ry < ryy + rhh) return 'floor'
       // and the paving reaches only as far as the town does
       if (!townPaved4(rows, rx, ry)) return onRoad4(x, y) ? 'trail' : biomeAtE4(x, y)
@@ -1999,7 +2024,7 @@ function terrainOfE4(x, y) {
   if (onRidge4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
   if (onBarrow4(x, y)) return onRoad4(x, y) ? 'gravel' : 'mountain'
   if (onRoad4(x, y)) {
-    for (const t of settlementsE4()) if (Math.max(Math.abs(x - t.x), Math.abs(y - t.y)) <= 20) return 'cobble'
+    for (const t of ssE()) if (Math.max(Math.abs(x - t.x), Math.abs(y - t.y)) <= 20) return 'cobble'
     if (onRidge4(x-1,y) || onRidge4(x+1,y) || onBarrow4(x,y)) return 'gravel'
     // the road takes its country's colour (mirrors groundKindAt)
     const rb = biomeAtE4(x, y)
@@ -2165,10 +2190,23 @@ function bayShoreX6(y) {
   _bayShore6.set(y, sx); return sx
 }
 function islesOf6() {
+  // §9b: FOUR ISLANDS, and this table had two.
+  //
+  // Whiting Isle (§7bu) and the Lists (§7cs) were added to the engine and
+  // never to the mirror, so the window painted open sea over both -- 452
+  // tiles of it. The saltern a citizen crosses to, and the duelling ground
+  // where the only honest comparison of a maul and a bare blade happens,
+  // were water on the screen and land under the feet.
+  //
+  // Found by the repaired §9b test (test/mirror.test.mjs). The old version of
+  // that test could not locate the mirror block at all and reported it as
+  // missing, so nothing had checked this since the isles went in.
   const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
   return [
-    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
-    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
+    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },   // the shrine isle
+    { x: sh + 58, y: ey + 8,  rx: 12, ry: 8 },   // §7bu Whiting Isle: the salt pans
+    { x: Math.round(W * 0.335), y: Math.round(H * 0.883), rx: 9, ry: 6 },  // §7cs the Lists
+    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },   // Farshore
   ]
 }
 function onIsle6(x, y) {
@@ -6720,7 +6758,7 @@ function innSeat4() {
       const b = biomeAtE4(x, y)
       if (b !== 'heartlands' && b !== 'downs') continue
       let inTown = false
-      for (const t of settlementsE4())
+      for (const t of ssE())
         if (Math.abs(x - t.x) < (t.w >> 1) + 12 && Math.abs(y - t.y) < (t.h >> 1) + 12) { inTown = true; break }
       if (inTown) continue
       if (onRoad4(x, y)) continue
@@ -7973,6 +8011,33 @@ function drawScene(now) {
         cx.fillRect(X + 2, Y + 10, 28, 2.5); cx.fillRect(X + 2, Y + 16, 28, 2.5)
         return
       }
+      if (n.type === 'smokerack') {
+        // §7dg: A RACK IS NOT A SHELF. A shelf is joinery in warm brown that
+        // lives indoors; a rack is two posts and three poles standing over
+        // standing water, weathered grey, with a catch hung off it. Four in
+        // the world, all in one shed in the fens.
+        shadow(X, Y, 12)
+        cx.fillStyle = '#4e463a'
+        cx.fillRect(X + 7, Y + 4, 3.4, 30); cx.fillRect(X + 29.5, Y + 4, 3.4, 30)
+        cx.fillStyle = '#5d5449'
+        for (const ry of [9, 18, 27]) cx.fillRect(X + 6, Y + ry, 28, 2.4)
+        // WHAT IS ON IT, and this is the only sprite in the window that reads
+        // the node's own state: an empty rack is empty, a hung one is hung,
+        // and one past its window is empty again because the world took it.
+        if (n.readyAt !== undefined) {
+          const done = (st && st.tick >= n.readyAt)
+          for (let i = 0; i < 3; i++) {
+            const hx = X + 11 + i * 6 + (tileHash(n.x, n.y, 30 + i) % 3)
+            const hy = Y + 10 + (tileHash(n.x, n.y, 50 + i) % 2) * 9
+            cx.fillStyle = done ? '#2e2a22' : '#4a4436'   // it darkens as it cures
+            cx.fillRect(hx, hy, 2.6, 11)
+            cx.fillStyle = 'rgba(190,170,120,.35)'; cx.fillRect(hx, hy, 2.6, 2)
+          }
+          cx.fillStyle = 'rgba(200,192,170,' + (done ? '.06' : '.13') + ')'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 14, 13, 8, 0, 0, 7); cx.fill()
+        }
+        return
+      }
       if (n.type === 'hedge') {
         shadow(X, Y, 12)
         cx.fillStyle = '#2a4218'; cx.fillRect(X + 2, Y + 6, 28, 18)
@@ -8321,6 +8386,334 @@ function drawScene(now) {
             const t2 = (now / 700 + i * 0.4) % 1
             cx.fillStyle = 'rgba(50,40,20,.7)'
             cx.fillRect(X + 14 + Math.sin(t2 * 6.28 + i) * 11, Y + 12 + Math.cos(t2 * 6.28 * 1.3) * 7, 1.6, 1.4)
+          }
+        // ---- §7di: THE SCENE NOUNS ----
+        // Thirty-one kinds the scenes needed. Most of them are LABOUR CAUGHT
+        // IN THE MIDDLE, and each is drawn so you can tell at a glance that a
+        // person made it happen: chips lie where the axe threw them, a
+        // scaffold has a plank walk halfway up, a shot-hole is drilled and
+        // unfired. A window is not authoritative here -- somebody may arrive
+        // in a 3D one tomorrow -- so these are how THIS window reads the
+        // state, not what the state means.
+        } else if (K === 'stone-heap') {
+          // FIELD CLEARANCE, not a monument. A cairn tapers because somebody
+          // built it; this is dumped, so it sprawls and nothing is level.
+          shadow(X, Y, 12)
+          for (let i = 0; i < 9; i++) {
+            const bx = X + 9 + (tileHash(n.x, n.y, 40 + i) % 23)
+            const by = Y + 20 + (tileHash(n.x, n.y, 55 + i) % 10)
+            const r2 = 2.6 + (tileHash(n.x, n.y, 70 + i) % 3)
+            cx.fillStyle = ['#79736a', '#6e685f', '#837c72', '#726c63'][(i + v) % 4]
+            cx.beginPath(); cx.ellipse(bx, by, r2, r2 * 0.8, 0, 0, 7); cx.fill()
+          }
+          cx.fillStyle = 'rgba(70,85,50,.28)'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 30, 14, 3.4, 0, 0, 7); cx.fill()
+        } else if (K === 'way-post') {
+          // WOOD, and that is the whole difference. A milestone is cut stone
+          // and a graver may put a name on it; nobody cuts a name into a post.
+          shadow(X, Y, 7)
+          cx.fillStyle = '#6b5330'; cx.fillRect(X + 17, Y + 8, 5.4, 26)
+          cx.fillStyle = '#7d6238'; cx.fillRect(X + 18, Y + 8, 2, 26)
+          cx.fillStyle = '#c9b98a'; cx.fillRect(X + 16, Y + 6, 8, 2.6)   // a weathered cap
+          cx.fillStyle = 'rgba(90,120,70,.35)'                            // moss on the north side
+          cx.fillRect(X + 17, Y + 22, 2.4, 11)
+        } else if (K === 'slag-lump') {
+          // FURNACE WASTE. Glassy, but nobody would mistake it for the
+          // glass-stone, which is the strange thing you find once.
+          shadow(X, Y, 9)
+          poly([[X + 12, Y + 30], [X + 28, Y + 30], [X + 26, Y + 19], [X + 15, Y + 17]],
+            '#4a4a52', '#2a2a30')
+          cx.fillStyle = 'rgba(150,170,190,.30)'
+          cx.beginPath(); cx.ellipse(X + 19, Y + 22, 4, 2.4, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#6a5a4a'
+          for (let i = 0; i < 3; i++)
+            cx.fillRect(X + 13 + i * 5, Y + 31, 3.4, 2)
+        } else if (K === 'hay-wain') {
+          // A FARM WAGON, and pointedly not a `cart`. A cart is a node type: the
+          // thing a hauler drops when they die, with a shelf on it that anybody
+          // may unload. This one is full of hay and has no shelf and never had.
+          shadow(X, Y, 14)
+          cx.fillStyle = '#6b5330'; cx.fillRect(X + 5, Y + 17, 30, 9)
+          cx.fillStyle = '#b09144'                       // the load, which is the point
+          poly([[X + 6, Y + 17], [X + 34, Y + 17], [X + 30, Y + 7], [X + 10, Y + 7]], '#b09144', '#8a7134')
+          cx.fillStyle = 'rgba(255,255,255,.10)'; cx.fillRect(X + 10, Y + 8, 20, 2)
+          cx.strokeStyle = '#4a3720'; cx.lineWidth = 2.2
+          cx.beginPath(); cx.arc(X + 12, Y + 29, 6, 0, 7); cx.moveTo(X + 34, Y + 29)
+          cx.arc(X + 28, Y + 29, 6, 0, 7); cx.stroke()
+          cx.fillStyle = '#5a462a'; cx.fillRect(X + 33, Y + 20, 6, 2.6)   // the shaft
+        } else if (K === 'scaffold') {
+          shadow(X, Y, 12)
+          cx.fillStyle = '#7a6132'
+          for (const px of [8, 20, 31]) cx.fillRect(X + px, Y + 2, 2.8, 32)
+          for (const py of [10, 20, 30]) cx.fillRect(X + 7, Y + py, 26, 2.2)
+          cx.fillStyle = '#8e7440'; cx.fillRect(X + 6, Y + 16, 28, 3.4)   // the plank walk
+          cx.fillStyle = 'rgba(0,0,0,.28)'; cx.fillRect(X + 6, Y + 19, 28, 1.4)
+          cx.strokeStyle = '#5a4526'; cx.lineWidth = 1.6
+          cx.beginPath(); cx.moveTo(X + 9, Y + 30); cx.lineTo(X + 31, Y + 12); cx.stroke()
+        } else if (K === 'chopping-block') {
+          shadow(X, Y, 10)
+          cx.fillStyle = '#6b5330'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 24, 11, 6.5, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#7e6339'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 20, 11, 6.5, 0, 0, 7); cx.fill()
+          cx.strokeStyle = '#4a3720'; cx.lineWidth = 1; cx.stroke()
+          cx.fillStyle = '#4a3720'                       // the marks in the top
+          for (let i = 0; i < 4; i++) cx.fillRect(X + 13 + i * 4, Y + 16 + (i % 2) * 3, 5, 1.2)
+        } else if (K === 'wood-chips') {
+          cx.fillStyle = '#a8905c'
+          for (let i = 0; i < 9; i++) {
+            const cxp = X + 6 + (tileHash(n.x, n.y, 60 + i) % 28)
+            const cyp = Y + 12 + (tileHash(n.x, n.y, 80 + i) % 20)
+            cx.save(); cx.translate(cxp, cyp); cx.rotate((tileHash(n.x, n.y, 90 + i) % 100) / 16)
+            cx.fillRect(-2.4, -1, 4.8, 2); cx.restore()
+          }
+        } else if (K === 'sawhorse') {
+          shadow(X, Y, 10)
+          cx.fillStyle = '#6b5330'
+          cx.fillRect(X + 8, Y + 12, 24, 3)
+          cx.strokeStyle = '#6b5330'; cx.lineWidth = 2.6
+          cx.beginPath()
+          cx.moveTo(X + 11, Y + 13); cx.lineTo(X + 7, Y + 30)
+          cx.moveTo(X + 13, Y + 13); cx.lineTo(X + 17, Y + 30)
+          cx.moveTo(X + 27, Y + 13); cx.lineTo(X + 23, Y + 30)
+          cx.moveTo(X + 29, Y + 13); cx.lineTo(X + 33, Y + 30)
+          cx.stroke()
+        } else if (K === 'trestle') {
+          shadow(X, Y, 12)
+          cx.fillStyle = '#8a6d3e'; cx.fillRect(X + 4, Y + 14, 32, 5)
+          cx.fillStyle = 'rgba(255,255,255,.08)'; cx.fillRect(X + 4, Y + 14, 32, 1.6)
+          cx.fillStyle = '#5a462a'
+          cx.fillRect(X + 8, Y + 19, 3, 13); cx.fillRect(X + 29, Y + 19, 3, 13)
+        } else if (K === 'wheel-rut') {
+          cx.strokeStyle = 'rgba(58,46,32,.55)'; cx.lineWidth = 2.6
+          for (const off of [12, 26]) {
+            cx.beginPath()
+            cx.moveTo(X, Y + off + (tileHash(n.x, n.y, 3) % 3) - 1)
+            cx.bezierCurveTo(X + 13, Y + off - 3, X + 27, Y + off + 3, X + 40, Y + off)
+            cx.stroke()
+          }
+          cx.fillStyle = 'rgba(120,105,72,.35)'; cx.fillRect(X, Y + 18, 40, 3)
+        } else if (K === 'daub-mark') {
+          // paint on stone. Somebody wrote it; nobody has read it.
+          cx.fillStyle = '#6e6a62'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 22, 13, 10, 0, 0, 7); cx.fill()
+          cx.strokeStyle = '#9c2b22'; cx.lineWidth = 2.4; cx.lineCap = 'round'
+          const seed = tileHash(n.x, n.y, 12) % 3
+          cx.beginPath()
+          if (seed === 0) { cx.moveTo(X + 14, Y + 15); cx.lineTo(X + 26, Y + 28); cx.moveTo(X + 26, Y + 15); cx.lineTo(X + 14, Y + 28) }
+          else if (seed === 1) { cx.moveTo(X + 15, Y + 27); cx.lineTo(X + 20, Y + 14); cx.lineTo(X + 25, Y + 27) }
+          else { cx.moveTo(X + 15, Y + 16); cx.lineTo(X + 25, Y + 16); cx.moveTo(X + 20, Y + 16); cx.lineTo(X + 20, Y + 28) }
+          cx.stroke(); cx.lineCap = 'butt'
+        } else if (K === 'tally-post') {
+          shadow(X, Y, 7)
+          cx.fillStyle = '#5a462a'; cx.fillRect(X + 17, Y + 6, 6, 28)
+          cx.fillStyle = '#c9b98a'; cx.fillRect(X + 17, Y + 6, 6, 2.4)
+          cx.fillStyle = '#2f2313'                       // the notches, a count of something
+          const notches = 4 + (tileHash(n.x, n.y, 21) % 6)
+          for (let i = 0; i < notches; i++) cx.fillRect(X + 17, Y + 11 + i * 3, 6, 1.3)
+        } else if (K === 'reeds') {
+          cx.strokeStyle = '#6d7a3a'; cx.lineWidth = 1.5
+          for (let i = 0; i < 11; i++) {
+            const bx = X + 4 + (tileHash(n.x, n.y, 30 + i) % 32)
+            const by = Y + 26 + (tileHash(n.x, n.y, 50 + i) % 8)
+            const lean = ((tileHash(n.x, n.y, 70 + i) % 9) - 4) * 0.9
+            cx.beginPath(); cx.moveTo(bx, by); cx.quadraticCurveTo(bx + lean, by - 12, bx + lean * 2, by - 21); cx.stroke()
+          }
+          cx.fillStyle = '#5b4a2c'
+          for (let i = 0; i < 4; i++) cx.fillRect(X + 7 + i * 8, Y + 5 + (tileHash(n.x, n.y, 40 + i) % 5), 2, 5)
+        } else if (K === 'upturned-boat') {
+          shadow(X, Y, 14)
+          cx.fillStyle = '#6b5330'
+          cx.beginPath()
+          cx.moveTo(X + 4, Y + 26); cx.quadraticCurveTo(X + 20, Y + 8, X + 36, Y + 26)
+          cx.quadraticCurveTo(X + 20, Y + 31, X + 4, Y + 26); cx.closePath(); cx.fill()
+          cx.strokeStyle = '#3b2c16'; cx.lineWidth = 1.4; cx.stroke()
+          cx.fillStyle = 'rgba(0,0,0,.18)'
+          cx.beginPath(); cx.moveTo(X + 8, Y + 24); cx.quadraticCurveTo(X + 20, Y + 13, X + 32, Y + 24); cx.stroke()
+        } else if (K === 'fish-trap') {
+          shadow(X, Y, 11)
+          cx.strokeStyle = '#8a7442'; cx.lineWidth = 1.8
+          for (let i = 0; i < 5; i++) {
+            cx.beginPath(); cx.ellipse(X + 11 + i * 4.5, Y + 22, 4 + i * 1.3, 9 - i * 0.8, 0, 0, 7); cx.stroke()
+          }
+          cx.strokeStyle = '#6e5a34'; cx.lineWidth = 1.4
+          cx.beginPath(); cx.moveTo(X + 9, Y + 14); cx.lineTo(X + 32, Y + 18)
+          cx.moveTo(X + 9, Y + 30); cx.lineTo(X + 32, Y + 26); cx.stroke()
+        } else if (K === 'staithe') {
+          cx.fillStyle = '#7a6132'
+          for (let i = 0; i < 4; i++) cx.fillRect(X + 3, Y + 10 + i * 6, 34, 4.4)
+          cx.fillStyle = 'rgba(0,0,0,.22)'
+          for (let i = 0; i < 4; i++) cx.fillRect(X + 3, Y + 13.4 + i * 6, 34, 1.4)
+          cx.fillStyle = '#4a3720'; cx.fillRect(X + 6, Y + 8, 3.4, 28); cx.fillRect(X + 31, Y + 8, 3.4, 28)
+        } else if (K === 'dew-pond') {
+          cx.fillStyle = '#8d8578'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 21, 16, 12, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#3c5a68'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 21, 12, 8.5, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(190,215,225,.35)'
+          cx.beginPath(); cx.ellipse(X + 16, Y + 18, 5, 2.6, 0, 0, 7); cx.fill()
+        } else if (K === 'sheep-hurdle') {
+          shadow(X, Y, 11)
+          cx.strokeStyle = '#7d6b46'; cx.lineWidth = 2
+          cx.beginPath()
+          cx.moveTo(X + 5, Y + 30); cx.lineTo(X + 5, Y + 12)
+          cx.moveTo(X + 35, Y + 30); cx.lineTo(X + 35, Y + 12)
+          for (const yy of [14, 20, 26]) { cx.moveTo(X + 5, Y + yy); cx.lineTo(X + 35, Y + yy) }
+          for (const xx of [15, 25]) { cx.moveTo(X + xx, Y + 12); cx.lineTo(X + xx, Y + 30) }
+          cx.stroke()
+        } else if (K === 'wool-snag') {
+          // fleece caught on a thorn: nothing at all, and unmistakable
+          cx.strokeStyle = '#4a3f2e'; cx.lineWidth = 1.8
+          cx.beginPath(); cx.moveTo(X + 18, Y + 32); cx.lineTo(X + 21, Y + 12)
+          cx.moveTo(X + 20, Y + 20); cx.lineTo(X + 27, Y + 15); cx.stroke()
+          cx.fillStyle = '#ddd7c8'
+          for (let i = 0; i < 4; i++) {
+            cx.beginPath()
+            cx.arc(X + 20 + (tileHash(n.x, n.y, 15 + i) % 7) - 3, Y + 13 + (tileHash(n.x, n.y, 25 + i) % 7), 3.2, 0, 7)
+            cx.fill()
+          }
+        } else if (K === 'salt-lick') {
+          shadow(X, Y, 9)
+          cx.fillStyle = '#cfc9b4'
+          poly([[X + 13, Y + 30], [X + 27, Y + 30], [X + 25, Y + 17], [X + 15, Y + 17]], '#cfc9b4', '#9a947f')
+          cx.fillStyle = 'rgba(255,255,255,.35)'; cx.fillRect(X + 15, Y + 17, 10, 2.4)
+          cx.fillStyle = 'rgba(90,80,60,.35)'                     // licked hollow
+          cx.beginPath(); cx.ellipse(X + 20, Y + 22, 4, 2.4, 0, 0, 7); cx.fill()
+        } else if (K === 'peat-cut') {
+          // the trench the stacks came out of: a clean edge, and black below
+          cx.fillStyle = '#2e2622'
+          cx.fillRect(X + 4, Y + 14, 32, 16)
+          cx.fillStyle = '#3f3630'; cx.fillRect(X + 4, Y + 14, 32, 3.4)
+          cx.fillStyle = '#4f4238'
+          for (let i = 0; i < 4; i++) cx.fillRect(X + 6 + i * 8, Y + 18, 5, 10)
+          cx.fillStyle = 'rgba(0,0,0,.35)'; cx.fillRect(X + 4, Y + 28, 32, 2.4)
+        } else if (K === 'turf-stack') {
+          shadow(X, Y, 11)
+          for (let r = 0; r < 4; r++) {
+            cx.fillStyle = ['#4a5a2e', '#3f4f27', '#54642f', '#455528'][(r + v) % 4]
+            cx.fillRect(X + 9 + r, Y + 28 - r * 5, 22 - r * 2, 5.4)
+            cx.fillStyle = 'rgba(0,0,0,.16)'; cx.fillRect(X + 9 + r, Y + 32.4 - r * 5, 22 - r * 2, 1.2)
+          }
+        } else if (K === 'bog-pool') {
+          cx.fillStyle = '#39322a'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 22, 13, 9, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#20303020'; cx.fillRect(X + 8, Y + 14, 24, 16)
+          cx.fillStyle = 'rgba(140,160,130,.25)'
+          cx.beginPath(); cx.ellipse(X + 16, Y + 19, 4.5, 2.4, 0, 0, 7); cx.fill()
+          cx.strokeStyle = '#5d5a44'; cx.lineWidth = 1.2
+          cx.beginPath(); cx.moveTo(X + 28, Y + 26); cx.lineTo(X + 33, Y + 16); cx.stroke()
+        } else if (K === 'ore-heap') {
+          shadow(X, Y, 11)
+          for (let i = 0; i < 8; i++) {
+            const bx = X + 10 + (tileHash(n.x, n.y, 30 + i) % 20)
+            const by = Y + 20 + (tileHash(n.x, n.y, 44 + i) % 12)
+            cx.fillStyle = ['#6a5a4a', '#7a6752', '#5e5044'][(i + v) % 3]
+            cx.beginPath(); cx.arc(bx, by, 3.4, 0, 7); cx.fill()
+            cx.fillStyle = 'rgba(190,150,90,.30)'; cx.fillRect(bx - 1.4, by - 1.4, 2.8, 1.4)
+          }
+        } else if (K === 'shot-hole') {
+          // drilled, and never fired
+          cx.fillStyle = '#6e6a62'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 22, 14, 11, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(0,0,0,.30)'
+          for (const [hx, hy] of [[15, 18], [24, 21], [18, 26]]) {
+            cx.beginPath(); cx.ellipse(X + hx, Y + hy, 2.6, 2, 0, 0, 7); cx.fill()
+          }
+          cx.fillStyle = 'rgba(210,205,190,.35)'; cx.fillRect(X + 10, Y + 30, 20, 2.4)
+        } else if (K === 'ladder') {
+          shadow(X, Y, 8)
+          cx.fillStyle = '#7a6132'
+          cx.fillRect(X + 12, Y + 2, 3, 34); cx.fillRect(X + 25, Y + 2, 3, 34)
+          for (let i = 0; i < 6; i++) cx.fillRect(X + 12, Y + 6 + i * 5.5, 16, 2.2)
+        } else if (K === 'bench') {
+          shadow(X, Y, 11)
+          cx.fillStyle = '#8a6d3e'; cx.fillRect(X + 5, Y + 20, 30, 4.4)
+          cx.fillStyle = '#7a5f34'; cx.fillRect(X + 5, Y + 12, 30, 3.4)   // the back
+          cx.fillStyle = '#5a462a'
+          cx.fillRect(X + 8, Y + 24, 3, 9); cx.fillRect(X + 29, Y + 24, 3, 9)
+          cx.fillRect(X + 8, Y + 12, 2.6, 9); cx.fillRect(X + 29, Y + 12, 2.6, 9)
+        } else if (K === 'flowerbed') {
+          cx.fillStyle = '#4a3a28'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 22, 14, 9, 0, 0, 7); cx.fill()
+          for (let i = 0; i < 10; i++) {
+            const fx = X + 9 + (tileHash(n.x, n.y, 30 + i) % 22)
+            const fy = Y + 15 + (tileHash(n.x, n.y, 55 + i) % 14)
+            cx.strokeStyle = '#3f6a2a'; cx.lineWidth = 1.1
+            cx.beginPath(); cx.moveTo(fx, fy + 4); cx.lineTo(fx, fy); cx.stroke()
+            cx.fillStyle = ['#4a6fc4', '#5f83d8', '#3d5eb0', '#c9d4f0'][(i + v) % 4]
+            cx.beginPath(); cx.arc(fx, fy - 1, 2.2, 0, 7); cx.fill()
+          }
+        } else if (K === 'topiary') {
+          shadow(X, Y, 11)
+          cx.fillStyle = '#4a3a22'; cx.fillRect(X + 18, Y + 27, 4, 7)
+          cx.fillStyle = '#2f5720'
+          cx.beginPath(); cx.arc(X + 20, Y + 20, 11, 0, 7); cx.fill()
+          cx.fillStyle = '#3d6d29'
+          cx.beginPath(); cx.arc(X + 20, Y + 13, 7.5, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(255,255,255,.07)'                  // clipped: somebody did this
+          cx.beginPath(); cx.arc(X + 17, Y + 11, 3.4, 0, 7); cx.fill()
+        } else if (K === 'birdbath') {
+          shadow(X, Y, 9)
+          cx.fillStyle = '#9a947f'; cx.fillRect(X + 18, Y + 20, 4.4, 13)
+          cx.fillStyle = '#a8a290'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 18, 11, 5.4, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#3c5a68'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 17.5, 7.5, 3.4, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#8e8877'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 33, 9, 3.4, 0, 0, 7); cx.fill()
+        } else if (K === 'gazebo-post') {
+          // a folly. It does nothing, and that is the point.
+          shadow(X, Y, 8)
+          cx.fillStyle = '#b6b0a0'; cx.fillRect(X + 15, Y + 8, 9, 26)
+          cx.fillStyle = '#c6c0b0'; cx.fillRect(X + 13, Y + 5, 13, 4)
+          cx.fillStyle = '#a49e8e'; cx.fillRect(X + 13, Y + 32, 13, 3.4)
+          cx.fillStyle = 'rgba(0,0,0,.14)'
+          for (let i = 0; i < 3; i++) cx.fillRect(X + 17 + i * 3, Y + 9, 1.2, 23)
+        } else if (K === 'ash-heap') {
+          cx.fillStyle = '#5a544c'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 23, 12, 7.5, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#7d766c'
+          cx.beginPath(); cx.ellipse(X + 18, Y + 21, 7, 4.4, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#2e2a26'
+          for (let i = 0; i < 5; i++) {
+            const ax = X + 13 + (tileHash(n.x, n.y, 33 + i) % 14)
+            cx.fillRect(ax, Y + 19 + (tileHash(n.x, n.y, 47 + i) % 7), 3.4, 1.6)
+          }
+        } else if (K === 'broken-cart') {
+          shadow(X, Y, 13)
+          cx.fillStyle = '#6b5330'
+          cx.save(); cx.translate(X + 20, Y + 24); cx.rotate(0.22)
+          cx.fillRect(-15, -6, 30, 9)
+          cx.fillStyle = '#5a462a'; cx.fillRect(-15, -6, 30, 2.2)
+          cx.restore()
+          cx.strokeStyle = '#4a3720'; cx.lineWidth = 2.2      // one wheel on, one off
+          cx.beginPath(); cx.arc(X + 12, Y + 29, 6.5, 0, 7); cx.stroke()
+          cx.save(); cx.translate(X + 31, Y + 31); cx.rotate(1.2)
+          cx.beginPath(); cx.ellipse(0, 0, 6.5, 2.4, 0, 0, 7); cx.stroke(); cx.restore()
+          cx.fillStyle = '#6b5330'; cx.fillRect(X + 24, Y + 10, 2.6, 13)  // the broken shaft
+        } else if (K === 'fallen-stone') {
+          shadow(X, Y, 13)
+          cx.save(); cx.translate(X + 20, Y + 25); cx.rotate(1.35)
+          poly([[-5, -13], [5, -13], [6, 13], [-6, 13]], '#6e6a62', '#3c3a34')
+          cx.fillStyle = 'rgba(255,255,255,.06)'; cx.fillRect(-5, -13, 10, 3)
+          cx.restore()
+          cx.fillStyle = 'rgba(60,70,40,.30)'                 // grass grown over the low edge
+          cx.beginPath(); cx.ellipse(X + 20, Y + 33, 13, 3.4, 0, 0, 7); cx.fill()
+        } else if (K === 'rag-tree') {
+          cx.fillStyle = '#4a3f2e'; cx.fillRect(X + 18, Y + 20, 4, 15)
+          cx.strokeStyle = '#4a3f2e'; cx.lineWidth = 1.8
+          cx.beginPath()
+          cx.moveTo(X + 20, Y + 22); cx.lineTo(X + 10, Y + 12)
+          cx.moveTo(X + 20, Y + 20); cx.lineTo(X + 30, Y + 11)
+          cx.moveTo(X + 20, Y + 24); cx.lineTo(X + 27, Y + 20); cx.stroke()
+          // the cloth, for a reason nobody living has
+          const cols = ['#b04a3a', '#c9b98a', '#4a6fa8', '#8a6d9c', '#c98a3a']
+          for (let i = 0; i < 5; i++) {
+            const rx2 = X + 10 + (tileHash(n.x, n.y, 61 + i) % 21)
+            const ry2 = Y + 10 + (tileHash(n.x, n.y, 73 + i) % 12)
+            cx.fillStyle = cols[(i + v) % 5]
+            cx.save(); cx.translate(rx2, ry2); cx.rotate(((tileHash(n.x, n.y, 85 + i) % 8) - 4) / 8)
+            cx.fillRect(-1.6, 0, 3.2, 9); cx.restore()
           }
         } else if (K === 'cairn') {
           // stones stacked by somebody, tapering: the mark of a passing
