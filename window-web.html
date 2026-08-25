@@ -3539,11 +3539,17 @@ function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
   const q = BigInt(Math.floor(lvl / 7)), r = lvl % 7
   return lvl + Number((300n * (1n << q) * POW2_SEVENTHS[r]) >> 96n)
 }
+// §10: character for character from the engine's CALLINGS. A window that
+// invents a word here is a window that calls a citizen something the world
+// does not. Three were wrong: `strength` and `hauling` had no word at all
+// (a berserker or a runner rendered as `undefined`), and `magic` said
+// sigilist where the constitution says alchemist.
 const CALLINGS = {
   woodcutting: 'forester', mining: 'miner', fishing: 'fisher', cooking: 'cook',
   smithing: 'smith', firemaking: 'firekeeper', prayer: 'mourner', ranged: 'archer',
-  magic: 'sigilist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
-  defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
+  magic: 'alchemist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
+  strength: 'berserker', defence: 'warden', exploration: 'cartographer',
+  brewing: 'brewer', hauling: 'runner',
 }
 // §6bv: WHAT OPENS, AND AT WHAT LEVEL. Generated from the engine's own
 // `skillUnlocks()`, which has existed and been exported this whole time and
@@ -3773,6 +3779,7 @@ const SKILL_NOTE = {
 const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
   'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
   'strength', 'defence', 'hitpoints', 'exploration', 'brewing', 'hauling']
+// ---- who a citizen is (spec 10) ----
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
   for (const sk of SKILL_ORDER) n += XP_TO_LVL(p?.skills?.[sk] ?? 0)
@@ -9108,6 +9115,34 @@ function drawScene(now) {
           cx.fillStyle = '#6b5a44'; cx.fillRect(0, 0, 12, 2); cx.restore()
           cx.fillStyle = 'rgba(201,185,138,.5)'
           cx.fillRect(X + 0, Y + 20, 32, 5) // the sand keeps what it catches
+        } else if (n.kind === 'wellspring') {
+          // §6c-ii: THE WELLSPRING. Drawn, never labelled.
+          //
+          // It needs its own art for a plain reason: this chain falls through
+          // to broken-tower for any kind it does not know, so without these
+          // lines the one place on the island that takes a wound off would
+          // have been painted as ruined masonry -- a citizen could stand on
+          // it and see something else. A thing meant to be found by walking
+          // has to be visible when you arrive.
+          //
+          // Deliberately quiet: dark water in pale stone, and a little light
+          // coming up out of it rather than falling on it. No glow, no
+          // marker, no pillar of light. It should read as ODD before it
+          // reads as important, which is the whole register of this island's
+          // monuments.
+          shadow(X, Y, 11)
+          cx.fillStyle = '#9d9689'                       // the rim, cut stone
+          cx.beginPath(); cx.ellipse(X + 16, Y + 18, 13, 7, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#7c7669'
+          cx.beginPath(); cx.ellipse(X + 16, Y + 17, 13, 7, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#16232b'                       // water, and it is deep
+          cx.beginPath(); cx.ellipse(X + 16, Y + 17, 10, 5, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(150,205,210,.30)'         // light from underneath
+          cx.beginPath(); cx.ellipse(X + 16, Y + 16, 5.5, 2.6, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(226,244,246,.55)'
+          cx.beginPath(); cx.ellipse(X + 13, Y + 15, 1.9, 0.9, 0, 0, 7); cx.fill()
+          cx.fillStyle = 'rgba(120,140,120,.35)'         // the grass comes right up
+          cx.fillRect(X + 2, Y + 20, 28, 3)
         } else { // broken-tower: masonry that remembers being taller
           shadow(X, Y, 12)
           cx.fillStyle = '#5e5952'
@@ -13756,6 +13791,11 @@ cv.addEventListener('click', (e) => {
                'sentinel': 'The Sentinel. Miners swear it moves when nobody climbs.',
                'drowned-bell': 'The Drowned Bell. Nobody remembers the town it called to prayer. On some mornings, the mud still rings.',
                'shipwreck': 'A wreck, broken on the shore. Somewhere there is a sea worth sailing, and this ship sailed it.' }[n.kind]
+          // §6c-ii: THE WELLSPRING IS NOT IN THIS TABLE, ON PURPOSE. Every
+          // other landmark answers with its story; this one answers with the
+          // default, because it has no story anybody has been told. What it
+          // does is discoverable by drinking, and that is the only way it is
+          // meant to be discovered. Do not add a row here.
           ?? 'It stands. It has always stood.')
         flashClick(n.x, n.y, false)
         return

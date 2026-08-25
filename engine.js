@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.98';
+const SPEC_VERSION = '0.99';
 const TICK_MS = 600;
 const INV_SLOTS = 28;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
@@ -1496,6 +1496,32 @@ const TEACHES = new Set(['alch', 'unmake', 'seal', 'char', 'bury', 'fletch', 'sm
 
 const DEATH_TICKS = 5; // the world holds its breath; windows may grieve
 
+// §6c-ii: what a death writes on the citizen, at every site that kills one.
+//
+// Three places in this file fell a citizen -- a beast's blow, a special, an
+// ordinary swing -- and each grew its own pack-spilling by copy. The wound
+// and the tally do NOT get that treatment: one function, called from all
+// three, because a rule that must hold at every death is a rule that must be
+// written once. A fourth way to die added later inherits it by calling this,
+// and a fourth way that forgets to call it is a bug with one obvious name.
+//
+// `deaths` is unbounded and never falls. It is not a punishment -- nothing
+// reads it but the boards -- it is a FACT, kept because the world keeps
+// facts. A citizen may farm it, at the price of everything they were
+// carrying each time, and whoever tops that board will have paid more for
+// the honour than whoever won a race. That is allowed. It is arguably the
+// most Interval thing a person could do.
+//
+// The mirror rule (a kill count) is deliberately absent, and the asymmetry
+// is not squeamishness: a farmed kill count confers standing the farmer did
+// not earn, and the cheapest way to earn it is to mint citizens and fell
+// them. A farmed death count confers a joke the farmer paid for. The exploit
+// and the intended use are the same act, so there is nothing to defend.
+function markDeath(q) {
+  q.deaths = (q.deaths ?? 0) + 1;
+  if ((q.wounds ?? 0) < WOUND_MAX) q.wounds = (q.wounds ?? 0) + 1;
+}
+
 // ---------------------------------------------------------------------------
 // WHAT PRAYER IS FOR
 // ---------------------------------------------------------------------------
@@ -2895,7 +2921,7 @@ const hitOf = (p, t) => {
   if (clubbed(p, t)) return 0;
   const w = weaponOf(p);
   return (w?.hit ?? 0)
-    + (w?.desperate === true ? desperateBonus(p.hp, effLevel(p.skills.hitpoints)) : 0);
+    + (w?.desperate === true ? desperateBonus(p.hp, maxHp(p)) : 0);
 };
 const accOf = (p, t) => (weaponOf(p)?.acc ?? 0) + (clubbed(p, t) ? CLUB_ACC : 0);
 const inReach = (p, t) => {
@@ -5339,6 +5365,44 @@ function levelForXp(xp) {
 // mechanics read capped mastery (spec 4b)
 const effLevel = (xp) => Math.min(levelForXp(xp), 99);
 
+// §6c-ii: THE WOUND THE DEAD LEAVE.
+//
+// Death took everything a citizen was CARRYING and nothing a citizen WAS,
+// which made it a tax on the pack and left the body untouched. A death cost
+// you an afternoon of gathering and not one thing you could feel the next
+// time you stood in front of something. The pack is rebuildable by grinding;
+// that is what made the sink survivable, and also what made it forgettable.
+//
+// So a death now leaves a WOUND: one point off the frame, permanently, until
+// it is carried somewhere and put down. `skills.hitpoints` is untouched --
+// XP is a record of what you have done and nothing may edit it backwards --
+// so the wound is a SECOND number and max HP is the difference.
+//
+// Two clamps, and both exist to stop this being the spiral the obvious
+// version of this rule always is:
+//
+//   WOUND_MAX   -- no citizen loses more than ten points to the dead, ever.
+//                  Without it, dying makes you easier to kill, which makes
+//                  you die, and every citizen trends to unplayable given
+//                  enough intervals. A capped debt is friction; an uncapped
+//                  one is a countdown.
+//   WOUND_FLOOR -- and never below a novice's frame. A citizen at hitpoints
+//                  10 is already at the floor and cannot be wounded at all,
+//                  which is deliberate: the people who die most are the
+//                  people who have just arrived, and a rule that lands
+//                  hardest on whoever is still learning the world is a rule
+//                  that teaches them to go away.
+//
+// It bites hardest in the middle -- around hitpoints 30 to 60, ten points is
+// a fifth to a third of you -- which is exactly the band with something to
+// lose and nowhere safe to lose it.
+const WOUND_MAX = 10;
+const WOUND_FLOOR = 10;
+function maxHp(p) {
+  const nat = effLevel(p.skills.hitpoints);
+  return Math.max(Math.min(nat, WOUND_FLOOR), nat - Math.min(p.wounds ?? 0, WOUND_MAX));
+}
+
 // ---------- who a citizen is (spec 10, v0.55) ----------
 // Two windows once each invented their own idea of a citizen's "level" and
 // disagreed about the same public state, which meant level was a property of
@@ -6525,6 +6589,19 @@ const LANDMARK_KINDS = new Set([
   // the eight of the first founding
   'elder-tree', 'old-oak', 'standing-stone', 'broken-tower', 'sentinel',
   'drowned-bell', 'shipwreck', 'tally-half',
+  // §6c-ii: THE WELLSPRING. One, on the island, and it is not on any road.
+  //
+  // A landmark and not a node type of its own, on the same argument the mill
+  // already settled: the verb set is complete and the vocabulary was not.
+  // `drink` reaches it, exactly as `grind` reaches a mill, and no second verb
+  // enters the constitution to carry one place.
+  //
+  // It is not described here and it is not described in SPEC.md beyond what
+  // it DOES. It stands with the oak that cannot be cut and the bell drowned
+  // to its shoulders: a thing that is simply there, that a citizen works out
+  // by walking to it. Which the wounded will, eventually, because ten points
+  // off your frame is a fact you carry into every fight until you go.
+  'wellspring',
   // ---- and the nouns the world was short of ----
   //
   // Seventy per cent of everything a citizen walked past was a wall, a tree
@@ -6668,7 +6745,9 @@ const LANDMARK_KINDS = new Set([
   'window-arch',
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
-  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+  const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
+    // §6c-ii: the wound the dead leave, and the tally that never falls
+    'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
     // §6bu: alight, and it burns off by itself
     'burnUntil',
     // §7dk: the record clock, this citizen's own bands, and whether they ever
@@ -6782,6 +6861,10 @@ const LANDMARK_KINDS = new Set([
     }
     if (p.look !== undefined && !isInt(p.look, 0, 255)) return 'look out of bounds';
     if (!isInt(p.hp, 0, 100000)) return 'player hp out of bounds';
+    // §6c-ii: a wound is bounded by the rule that makes it; a tally is not
+    // bounded by anything but the citizen's willingness to keep dying.
+    if (p.wounds !== undefined && !isInt(p.wounds, 0, WOUND_MAX)) return 'wounds out of bounds';
+    if (p.deaths !== undefined && !isInt(p.deaths, 0, 1e12)) return 'death tally out of bounds';
     // skills: the COMPLETE constitutional set, exactly, a missing skill is
     // as hostile as an unknown one (both change transition behavior)
     if (!p.skills || typeof p.skills !== 'object') return 'player has no skills';
@@ -7825,8 +7908,25 @@ function validInput(state, input, ctx) {
       // sits on the NODE and not on the citizen.
       if (p.hp <= 0) return false;
       {
-        const wl = findAdjacentNode(state, ctx, p, 'well');
-        if (!wl || (wl.depletedUntil ?? 0) > state.tick) return false;
+        // §6c-ii: THE WELLSPRING IS DRUNK FROM LIKE ANY OTHER WATER.
+        //
+        // One verb, two waters, and the difference is the place -- which is
+        // the same shape as the wand ("a wand sends what a bare hand keeps").
+        // A well restores what a fight took. The wellspring restores what the
+        // dead took, which no well can, and it never runs dry: it is a day's
+        // walk from anywhere, and a cooldown on top of the journey would be
+        // the waiting this constitution repealed the night gate to be rid of.
+        //
+        // It also costs nothing to every window that already exists. The flat
+        // one, the deluxe one, the painterly one and the pocket one all drew
+        // a drink button the day wells started working; they do not need to
+        // be told the wellspring is there, and a citizen who finds it can use
+        // it in whatever window they are holding. A new verb would have made
+        // the discovery depend on which client you happened to have open.
+        if (!hasAdjacentNode(state, ctx, p, 'landmark', (n) => n.kind === 'wellspring')) {
+          const wl = findAdjacentNode(state, ctx, p, 'well');
+          if (!wl || (wl.depletedUntil ?? 0) > state.tick) return false;
+        }
       }
       // THE WELL. Every settlement has one and none of them did anything: it
       // was in NODE_TYPES and nowhere else in this file, decorative furniture
@@ -7973,7 +8073,7 @@ function validInput(state, input, ctx) {
       if (!kt || kt.hp <= 0) return false;
       if (kq && !mayStrike(state, p, kq)) return false;
       // ...and nothing to take, if you are already whole
-      if (p.hp >= effLevel(p.skills.hitpoints)) return false;
+      if (p.hp >= maxHp(p)) return false;
       if (state.tick - (p.lastTaking ?? -TAKING_EVERY) < TAKING_EVERY) return false;   // §7cl
       return Math.max(Math.abs(p.x - kt.x), Math.abs(p.y - kt.y)) <= TAKING_REACH;
     }
@@ -9982,7 +10082,7 @@ function stepEvents(s, beacon) {
         // floored at 1 and capped at the table's maxHit. A ten-HP newcomer takes
         // at most a 1; a ninety-nine-HP veteran at most the full 4. It always
         // reads as "come help", never "flee".
-        const tgtHp = Math.max(1, effLevel(t.skills.hitpoints));
+        const tgtHp = Math.max(1, maxHp(t));
         m.maxHit = Math.max(1, Math.min(base.maxHit, Math.round(tgtHp / 10)));
         m.mad = tid;
         // §6ao (v6): THE LIFETIME MUST OUTLAST A SOLO KILL. The despawn is for
@@ -10316,7 +10416,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (pl2.hp <= 0 && pl2.deadUntil !== undefined && s.tick >= pl2.deadUntil) {
       const sp2 = spawnOf(s.genesis);
       pl2.x = sp2.x; pl2.y = sp2.y;
-      pl2.hp = effLevel(pl2.skills.hitpoints);
+      pl2.hp = maxHp(pl2);
       delete pl2.deadUntil;
     }
   }
@@ -10852,6 +10952,8 @@ function nextState(state, inputs, _legacyBeacon) {
             spillConsignment(s, _ctx, target, tid ?? 'v');
             target.action = null;
             target.trade = null;
+            // §6c-ii: THE WOUND AND THE TALLY. Every death, from any hand.
+            markDeath(target);
             target.deadUntil = s.tick + DEATH_TICKS;
             tallySpanDeath(s, _ctx, target.x, target.y);   // §7a: a death on the crossing is the crossing's story
             delete m.mad;
@@ -11579,7 +11681,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const t = s.players[inp.target];
       if (si !== -1 && t && t.hp > 0) {
         p.inventory[si] = null;
-        t.hp = Math.min(effLevel(t.skills.hitpoints), t.hp + 20);
+        t.hp = Math.min(maxHp(t), t.hp + 20);
         p.skills.magic += XP_SPEND_SIGIL;
         if (claimFirst(s, 'mendp', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to mend somebody who was not themselves.');
       }
@@ -12096,6 +12198,8 @@ function nextState(state, inputs, _legacyBeacon) {
             q.equipment = { weapon: null, head: null, body: null, offhand: null, legs: null };
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null; q.deadUntil = s.tick + DEATH_TICKS;
+            // §6c-ii: THE WOUND AND THE TALLY. Every death, from any hand.
+            markDeath(q);
             tallySpanDeath(s, _ctx, q.x, q.y);   // §7a
             break;
           }
@@ -12328,7 +12432,7 @@ function nextState(state, inputs, _legacyBeacon) {
         p.inventory[si] = null;
         // §7ck: and a mend closes nothing on the withered
         if ((p.witheredUntil ?? 0) <= s.tick)
-          p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + 20); // v0.41: a strong heal (+20), not a full reset, keeps mend premium without making sigil-stackers unkillable
+          p.hp = Math.min(maxHp(p), p.hp + 20); // v0.41: a strong heal (+20), not a full reset, keeps mend premium without making sigil-stackers unkillable
         // §6m-iv: AND IT SPENDS THE ARM, as a meal does.
         //
         // A cooked fish restores six and costs a swing. A mending restored
@@ -12832,7 +12936,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (onTile && g2.item === 'forage') {
         // eaten where it lies. No slot, no gullet cooldown -- its worth is the
         // moment it is taken, and it is gone either way.
-        p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + FORAGE_HEAL);
+        p.hp = Math.min(maxHp(p), p.hp + FORAGE_HEAL);
         if (_fromAnother) p.aided = true;
         delete s.ground[inp.groundId];
       } else if (onTile && ex !== -1) {                // the quiver (6n): arrows pool
@@ -12861,7 +12965,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (heal > 0 && s.tick - (p.lastAte ?? -1024) >= eatRhythm(slot.item)) {   // §6m-iii, §6m-v
         p.lastAte = s.tick;
         removeItem(p.inventory, inp.slot, 1); // stackable brews draw from the stack; a fish clears its slot
-        p.hp = Math.min(p.hp + heal, effLevel(p.skills.hitpoints));
+        p.hp = Math.min(p.hp + heal, maxHp(p));
         // §6m-ii: AND IT COSTS A SWING.
         //
         // v0.32 said eating does not lower your guard, and the fight still
@@ -13090,7 +13194,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'taking') {
       const kt = s.players[inp.targetId] ?? s.mobs[inp.targetId];
-      const cap = effLevel(p.skills.hitpoints);
+      const cap = maxHp(p);
       // §7ck: a withered caster cannot be filled by a taking either -- the
       // spell still costs them and still hurts the target, because the life
       // leaves whether or not there is anywhere for it to go.
@@ -13184,7 +13288,29 @@ function nextState(state, inputs, _legacyBeacon) {
         p.skills.farming += XP_GRIND;
       }
     } else if (inp.type === 'drink') {
-      p.hp = effLevel(p.skills.hitpoints);
+      // §6c-ii: AND THE WELLSPRING PUTS THE WHOLE DEBT DOWN.
+      //
+      // All of it, in one visit. The temptation is to give back one point a
+      // trip -- it looks like it prices the walk correctly -- and it is
+      // wrong: the walk is not the punishment. CARRYING the wound is. Ten
+      // points off your frame is felt in every fight between the death and
+      // the journey, which is the whole of the cost, and the spring is the
+      // release. One point a trip turns a pilgrimage into an errand, and
+      // errands get automated or abandoned. Neither is a story.
+      //
+      // Which is also why nobody will walk after one death, and everybody
+      // walks eventually. That is the mechanism working, not a gap in it.
+      //
+      // Note what this rule does NOT depend on: secrecy. Someone will publish
+      // the spring's coordinates the week the world is founded, and it will
+      // change nothing at all, because knowing where it is was never the
+      // difficulty. Every other scarcity in this file can be datamined out of
+      // the seed. This one cannot be walked out of.
+      if (hasAdjacentNode(s, _ctx, p, 'landmark', (n) => n.kind === 'wellspring') && (p.wounds ?? 0) > 0) {
+        delete p.wounds;
+        announce(s, (p.name ?? pid.slice(0, 6)) + ' has come back whole.');
+      }
+      p.hp = maxHp(p);
       // §6dd: AND THE WELL RUNS DRY BEHIND YOU.
       //
       // Spending the arm (below) stopped a citizen at a well from drinking AND
@@ -13484,6 +13610,8 @@ function nextState(state, inputs, _legacyBeacon) {
             keptQ.forEach((k, i) => { q.inventory[i] = k; });
             q.action = null; q.trade = null;
             q.deadUntil = s.tick + DEATH_TICKS;
+            // §6c-ii: THE WOUND AND THE TALLY. Every death, from any hand.
+            markDeath(q);
             tallySpanDeath(s, _ctx, q.x, q.y);   // §7a
           }
         }

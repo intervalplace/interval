@@ -206,6 +206,21 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
   const wkeys = Array.from({ length: cfg.n }, (_, i) => identityFromSeed(`${name}|${seed}|w${i}`))
   const players = [identityFromSeed(`${name}|${seed}|p0`), identityFromSeed(`${name}|${seed}|p1`)]
   const genesis = E.makeGenesis(`adv-${name}-${seed}`, RULES, 0, 64, 48)
+  // THE CONSENSUS SIM MUST NOT MOVE WHEN THE GAME'S VERSION DOES.
+  //
+  // `specVersion` goes into the genesis, the genesis hashes to the worldId,
+  // and the worldId seeds `proposerFor` -- so bumping SPEC.md's version
+  // reshuffles which witness proposes each tick, and a seeded scenario lands
+  // somewhere slightly different. Caught at 0.98 -> 0.99: `heal` converged to
+  // a spread of 1 instead of 0 (min 42, max 43) purely because the version
+  // string changed. No safety property moved -- no fork, no double-sign,
+  // every cert verified -- but two liveness assertions tuned to one proposer
+  // schedule went red on a release that touched nothing consensus does.
+  //
+  // Pinned, so this battery tests CONSENSUS rather than testing which spec
+  // revision happens to be current. A change here is a deliberate reshuffle
+  // of every scenario's schedule and should be treated as one.
+  genesis.specVersion = 'adv'
   genesis.witnesses = wkeys.map(k => k.playerId)
   genesis.quorum = cfg.q
   // Byzantine Safety Upgrade: each scenario declares its fault threshold f

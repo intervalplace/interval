@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
-Release 0.98.0 · protocol spec v0.98 · consensus spec v1.9 · rules hash
-`971459f9f2739b84…`.
+Release 0.99.0 · protocol spec v0.99 · consensus spec v1.9 · rules hash
+`62f210992120020e…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,9 +10,10 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 305 tests across:
+`node --test test/*.test.mjs`, 242 tests across:
 
 - `engine.test.mjs`, pure state-machine transitions
+- `wound.test.mjs`, the wound the dead leave, the tally, and the wellspring (§6c-ii)
 - `node.test.mjs`, libp2p node boundary
 - `agreement.test.mjs`, proposer rotation, quorum, lock discipline
 - `safety.test.mjs`, one-vote-per-tick, intersecting quorums

@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.98 ("The Constitution")
+# Interval: Protocol Specification v0.99 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -3112,10 +3112,88 @@ and their **entire inventory and equipment destroyed** (in the Wilds,
 spilled where they fell: spec 2g). Skills, XP, name, and **bank**
 survive. Destroyed items leave the world: death is the deepest sink.
 
+A death also leaves a lasting mark on the body: see §6c-ii.
+
 This severity is explicitly provisional. No sentence in this document
 can declare a fork legitimate or illegitimate: legitimacy is adoption,
 and adoption belongs to whoever shows up. Softer death rules are simply
 expected.
+
+## 6c-ii. The wound the dead leave, and the one place that takes it back
+
+A death also leaves a **wound**: one point off the citizen's frame, kept
+until it is carried somewhere and put down.
+
+`skills.hitpoints` is never edited. XP is the record of what a citizen has
+done and nothing in this document may write it backwards, so the wound is a
+second number and maximum HP is the difference:
+
+    maxHp = max( min(natural, 10), natural - min(wounds, 10) )
+
+where `natural` is `effLevel(skills.hitpoints)`. Two clamps, and both are
+load-bearing:
+
+- **`wounds` caps at 10.** No citizen loses more than ten points to the dead,
+  ever. Without the cap this rule is a spiral rather than a friction: dying
+  makes you easier to kill, which makes you die, and every citizen trends to
+  unplayable given enough intervals. A bounded debt is a cost; an unbounded
+  one is a countdown.
+- **The frame never falls below 10.** A citizen at hitpoints 10 is already at
+  the floor and cannot be wounded at all. This is deliberate and it is the
+  more important of the two: the citizens who die most are the ones who have
+  just arrived, and a rule that lands hardest on whoever is still learning the
+  world is a rule that teaches them to leave it.
+
+The cost therefore bites hardest in the middle — around hitpoints 30 to 60,
+ten points is a fifth to a third of a citizen — which is the band with
+something to lose and nowhere safe to lose it.
+
+### The wellspring
+
+There is **one** wellspring on the island. `drink` beside it clears the whole
+debt in a single visit and restores the frame; a wellspring never depletes.
+It bears no other verb and it is not explained: it stands with the oak that
+cannot be cut and the bell drowned to its shoulders.
+
+Three choices in that paragraph are the whole design.
+
+**One verb, not two.** `drink` already reaches a well; it now reaches this as
+well, and the difference is the place — the shape the wand already uses ("a
+wand sends what a bare hand keeps"). A new verb would have made a citizen's
+ability to use the spring depend on which window they happened to be holding.
+Every window that has ever drawn a drink button can already do this.
+
+**The whole debt, not one point a visit.** The walk is not the punishment;
+**carrying the wound is**. Ten points off the frame is felt in every fight
+between the death and the journey, and the spring is the release. Returning
+one point a trip converts a pilgrimage into an errand, and errands are
+automated or abandoned. So nobody walks after one death, and everybody walks
+eventually. That is the mechanism working, not a gap in it.
+
+**No cooldown.** On the founding this document is written against, the spring
+sits some 266 tiles from the spawn — a quarter-hour of walking each way, at
+one tile per interval, and further from most of the island. A timer on top of
+that journey is the waiting §8 rejects and the night gate was repealed for.
+
+### What this rule does not depend on
+
+Secrecy. Someone will publish the spring's coordinates in the world's first
+week and it will change nothing, because knowing where it is was never the
+difficulty. Every other scarcity in this document can be datamined out of the
+seed; this one cannot be walked out of.
+
+### The tally
+
+A citizen's `deaths` is unbounded and never falls. It is not a punishment —
+nothing in this document reads it — it is a fact, kept because the world keeps
+facts, and provable on the boards like any other rank.
+
+There is deliberately **no kill count**, and the asymmetry is not squeamishness.
+A farmed kill count confers standing the farmer did not earn, and the cheapest
+way to farm it is to mint citizens and fell them. A farmed death count confers
+a joke the farmer paid for in full, every time, in everything they were
+carrying. The exploit and the intended use are the same act, so there is
+nothing to defend against.
 
 ## 6d. Smithing (the ore sink)
 

@@ -43,6 +43,7 @@
 //   Y  gallows-oak    the one tree that is a warning
 //   ^  hedge
 //   f  fence
+//   O  wellspring     the one spring that takes a wound off (§6c-ii)
 //   ~  (nothing)      a hole in the drawing: leave the ground alone
 //
 // A place is NOT required to be enclosed, connected, or useful. That is the
@@ -409,6 +410,53 @@ export const PLACES_V7 = {
       '%...%...%...%',
       '%%%%%.%%%%%%%',
       '~~~~~.~~~~~~~',
+    ],
+  },
+  // §6c-ii: THE WELLSPRING. One on the island, and the only place a wound
+  // comes off a citizen.
+  //
+  // It belongs in THIS file rather than among the scattered monuments, and
+  // that is the whole fix: it spent one founding as a bare landmark seated by
+  // `seatLandmark` in an open field, which read as one more thing the seed
+  // dropped. The only place on the island that undoes a death has to read as
+  // something somebody MADE.
+  //
+  // Why the drawing is what it is:
+  //
+  //   HEDGE, NOT WALL OR RAMPART. Every other enclosure here is defensive --
+  //   the Barrow's ring, the folds' drystone. A hedge is what you plant round
+  //   a garden. The downs are lawful and nothing here needs keeping out.
+  //
+  //   ONE GAP, AND IT IS ON THE SOUTH. Solid ring otherwise, for exactly the
+  //   reason §7dn gives above: movement is eight-way and a ring with gaps is
+  //   not a ring. A citizen coming from any other side walks the perimeter to
+  //   find the way in -- eight or ten intervals of going AROUND a thing
+  //   rather than into it. That is the difference between a monument and a
+  //   door, and it costs one character in this drawing.
+  //
+  //   FOUR STANDING STONES, NOT COLUMNS. Columns are Mediterranean and this
+  //   island is not. Four stones round a spring is a holy well, which the
+  //   chalk country is full of, and it explains itself to anybody who has
+  //   seen one. Note they are GRAVABLE (§6br): the one place where citizens
+  //   put their deaths down will slowly ring itself with the names of
+  //   everyone who walked there. That is the best thing about it and it was
+  //   not designed, it fell out.
+  //
+  //   NO SIGNPOST. `sign` is omitted deliberately -- every other place in
+  //   this file carries its own name and this one carries nothing. It is
+  //   found by walking and understood by drinking. SPEC.md says what it does
+  //   and never what it is.
+  wellspring: {
+    name: 'the Wellspring', locale: 'sheepfolds', floors: false,
+    rows: [
+      '~^^^^^^^~',
+      '~^.....^~',
+      '~^.!.!.^~',
+      '~^..O..^~',
+      '~^.!.!.^~',
+      '~^.....^~',
+      '~^^^.^^^~',
+      '~~~~.~~~~',
     ],
   },
   // §7dn: THE CHALK BARROW, and A RING WITH GAPS IN IT IS NOT A RING.

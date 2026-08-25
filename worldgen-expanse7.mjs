@@ -3293,6 +3293,27 @@ export function buildWorld(genesis) {
     put('drownedbell', 'bellwork', p.x, p.y, { pulls: 0 }) }
   { const p = seatLandmark(Math.round(W * 0.74), Math.round(H * 0.72), 'downs');      put('longbarrow', 'landmark', p.x, p.y, { kind: 'standing-stone' }) }
   { const p = seatLandmark(Math.round(W * 0.28), Math.round(H * 0.16), 'moor');       put('moorcairn', 'landmark', p.x, p.y, { kind: 'standing-stone' }) }
+  // §6c-ii: THE WELLSPRING. One, and the only place a wound comes off.
+  //
+  // Placed in the far south-east downs, and every part of that is the rule
+  // rather than scenery:
+  //
+  //   FAR. It is the opposite corner from the Wilds, which run down the
+  //   island's western edge. The journey is the cost and there is no other
+  //   cost, so the distance IS the mechanic; a spring near Anchor would be a
+  //   button.
+  //
+  //   SAFE. It must not sit in the Wilds, and it must not sit where the road
+  //   to it crosses them. A citizen walking to fix having been killed must
+  //   not be killable for making the walk -- otherwise the mechanic inverts
+  //   and camping the spring becomes the strongest play in the game. The
+  //   downs are chalk sheep country: open, quiet, and lawful.
+  //
+  //   OPEN. Not tucked in a copse. It is found by walking, and the downs are
+  //   the country you can see across.
+  //
+  // It carries no signpost, no dedication and no name. Nothing in this file
+  // or in SPEC.md says what it is beyond what it does.
   {
     let wx = Math.round(W * 0.40), wy = Math.round(H * 0.90)
     seekW: for (let rad = 0; rad < 60; rad++) for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
@@ -4526,6 +4547,8 @@ export function buildWorld(genesis) {
       'd': ['landmark', { kind: 'bed' }], 'v': ['landmark', { kind: 'shelf' }],
       'q': ['landmark', { kind: 'barrel' }], 'D': ['dedication'], 'B': ['ossuary'],
       'T': ['tree'], 'Y': ['gallows-oak'], '^': ['hedge'], 'f': ['fence'],
+      // §6c-ii: the one spring on the island that takes a wound off
+      'O': ['landmark', { kind: 'wellspring' }],
       // §7dn: RUIN IN A SHAPE. Four glyphs, and between them a citizen can
       // read what a building USED TO BE.
       //
@@ -4576,6 +4599,24 @@ export function buildWorld(genesis) {
         const x = P.x0 + rx, y = P.y0 + ry
         for (const [id, q] of Object.entries(w.nodes))
           if (q.x === x && q.y === y) delete w.nodes[id]
+        // ...AND GIVE THE TILE BACK.
+        //
+        // `taken` is the reservation set `put` writes and `free` reads, and
+        // deleting from `w.nodes` never touched it. So every tile this loop
+        // cleared stayed marked as occupied, and the laying loop below --
+        // which skips any tile `taken` claims -- silently dropped that glyph
+        // from the drawing. The clearing pass was DEFEATING the pass it
+        // exists to make room for.
+        //
+        // Silent is the operative word: no warning, no count, and a drawing
+        // that comes out with holes in it looks like a drawing somebody drew
+        // with holes in it. Found via the Wellspring, whose entire north face
+        // (eleven of twenty-three hedge panels, in a clean line) never
+        // appeared, because those three rows had held scattered landmark
+        // trees -- of which this island lays 1,897. Any place seated on
+        // previously-occupied ground has been losing tiles this way, and the
+        // more crowded the country, the more it loses.
+        taken.delete(key(x, y))
       }
       // §7y: A PLACE OUTRANKS A FIELD IT WAS DRAWN THROUGH.
       //
@@ -4598,7 +4639,7 @@ export function buildWorld(genesis) {
           // a thing IS, not on what it happens to be called.
           if (nn.x === x && nn.y === y
               && (nn.type === 'plot' || nn.type === 'hedge' || nn.type === 'fence')
-              && !nid.startsWith('place-')) delete w.nodes[nid]
+              && !nid.startsWith('place-')) { delete w.nodes[nid]; taken.delete(key(x, y)) }
       }
       for (let ry = 0; ry < P.h; ry++) for (let rx = 0; rx < P.w; rx++) {
         const ch = P.rows[ry][rx]
@@ -7873,6 +7914,12 @@ export function buildWorld(genesis) {
   // enter is nothing.
   {
     const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market', 'cart', 'dedication', 'plot'])
+    // the footprints of the hand-drawn places, from the same seating pass the
+    // drawings themselves were laid by, so this can never disagree with where
+    // they actually ended up
+    const _seats = placeSeatsOf(g)
+    const inAuthoredPlace = (x, y) => _seats.some((p) =>
+      x >= p.x0 && x < p.x0 + p.w && y >= p.y0 && y < p.y0 + p.h)
     let opened = 0
     for (let pass = 0; pass < 24; pass++) {
       const solid = new Set()
@@ -7919,6 +7966,26 @@ export function buildWorld(genesis) {
         const isTree = n.type === 'landmark' && ['willow', 'dead-tree', 'pine',
           'avenue-oak', 'apple-tree', 'pear-tree', 'wind-thorn', 'thorn'].includes(n.kind)
         if (n.type !== 'hedge' && n.type !== 'fence' && !isTree) continue
+        // AUTHORED GROUND IS NOT THIS SWEEP'S TO CUT.
+        //
+        // This pass exists for the SCATTERED layers -- hedgerows dropped along
+        // the country, the landmark trees of §7u -- which are laid without
+        // regard to what they shut in, and which nothing would miss. The
+        // drawings in worldgen-places-v7.mjs are the opposite: every wall,
+        // every hedge and every gap in them is a decision somebody made, and
+        // "a place is NOT required to be enclosed, connected, or useful" is
+        // that file's stated first principle.
+        //
+        // Caught by the Wellspring, whose hedge ring the sweep took 22 panels
+        // out of on the founding it was added -- and it was not even fixing
+        // anything, because the ring already had its door: the sweep cuts on
+        // ADJACENCY to reachable ground, not on whether the enclosure is
+        // actually sealed, so a lawful ring with a lawful gap in it reads to
+        // this loop exactly like an accident.
+        //
+        // Anything else drawn with a wall and a door -- the Chalk Barrow, the
+        // Sheepfolds -- was one stranded plot away from the same treatment.
+        if (inAuthoredPlace(n.x, n.y)) continue
         if (!near.has(n.x + ',' + n.y)) continue
         if (![[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => seen[(n.y + dy) * W + n.x + dx])) continue
         delete w.nodes[id]; opened++; cut = true
