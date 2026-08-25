@@ -250,8 +250,25 @@ function drawCitizen(j) {
   // this. Bands are public -- they are in the hashed state, so every node has
   // them -- and that is the point: a race nobody else can verify is a race run
   // on trust, which is the one thing this world is built not to require.
+  // §7dm: THE FACTS THAT ARE TRUE OF THIS CITIZEN.
+  //
+  // Nothing here is an achievement the world handed out. They are readings:
+  // hitpoints still at its starting 1154, no defence experience, never a spell
+  // cast, never past the first rung of a ladder. Somebody else decides which
+  // of them add up to something worth doing, which is the whole point -- a
+  // challenge the world had already named would not be self-imposed.
+  const HP0 = 1154
+  const facts = []
+  if ((me.skillXp?.hitpoints ?? 0) === HP0) facts.push('has never dealt a wound')
+  if ((me.skillXp?.defence ?? 0) === 0) facts.push('has never worn a blow')
+  if ((me.skillXp?.magic ?? 0) === 0) facts.push('has never cast')
+  if ((me.skillXp?.prayer ?? 0) === 0) facts.push('has never buried a bone')
+  for (const [sk, h] of Object.entries(me.top ?? {}))
+    if (h <= 1 && (me.levels?.[sk] ?? 1) >= 50)
+      facts.push('has never worked ' + sk + ' past the first rung')
   const bands = me.bands ?? {}
   const hasBands = Object.keys(bands).length > 0
+  if (facts.length) html += '<div class="cband">' + facts.map(esc).join(' \u00b7 ') + '</div>'
   html += '<div class="cband">' + (me.unaided
     ? 'Has never taken a thing from another citizen.'
     : 'Has traded, like a citizen of a place with an economy.') + '</div>'
@@ -359,9 +376,34 @@ const noneFound = () => '<p style="color:var(--dim)">No citizen here matches \u2
 function wireUnaided() {
   const b = document.getElementById('unaidedBtn')
   if (!b) return
-  b.textContent = ONLY_UNAIDED ? 'showing unaided only' : 'show unaided only'
   b.setAttribute('aria-pressed', String(ONLY_UNAIDED))
   b.style.color = ONLY_UNAIDED ? 'var(--gold)' : ''
+  // §7dk: THE COUNT, ALWAYS, because the honest failure mode here is not an
+  // error -- it is that NOTHING VISIBLY HAPPENS.
+  //
+  // On a young world where nobody has yet taken a thing from another soul,
+  // every citizen is unaided, so the filter removes nobody and the board looks
+  // identical. That is the correct answer to the question and it reads exactly
+  // like a broken button. Saying "62 of 62" makes the filter legible even when
+  // it excludes no one, which is most of this world's life.
+  //
+  // And a pillar on an older build sends no `unaided` field at all, in which
+  // case the filter would silently empty the board. A control whose failure
+  // looks identical to its no-op is worse than no control, so that says so too.
+  const all = LAST?.players ?? []
+  const told = all.some((p) => p.unaided !== undefined)
+  if (!told) {
+    b.disabled = true
+    b.title = 'This pillar does not report it yet'
+    b.textContent = 'unaided \u2014 this pillar does not say'
+    return
+  }
+  const un = all.filter((p) => p.unaided === true).length
+  b.textContent = (ONLY_UNAIDED ? 'showing unaided: ' : 'show unaided: ') + un + ' of ' + all.length
+  b.title = un === all.length
+    ? 'Nobody here has taken a thing from another citizen yet'
+    : un + ' of ' + all.length + ' have never taken a thing from another citizen'
+  b.disabled = false
   b.onclick = () => { ONLY_UNAIDED = !ONLY_UNAIDED; PAGE = 0; PROFILE = null
     wireUnaided(); if (LAST) drawBoard(LAST) }
 }
