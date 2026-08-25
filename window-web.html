@@ -8485,6 +8485,55 @@ function drawScene(now) {
         // unfired. A window is not authoritative here -- somebody may arrive
         // in a 3D one tomorrow -- so these are how THIS window reads the
         // state, not what the state means.
+        } else if (K === 'half-wall') {
+          // §7dn: A COURSE OF STONE AT KNEE HEIGHT. Low on purpose -- you can
+          // see over it and step across it, and that is what turns a ruin into
+          // a floor plan a citizen paces rather than a silhouette they walk
+          // around. Drawn short so the eye reads "was a wall", not "is a wall".
+          shadow(X, Y, 13)
+          const wl2 = 4, wt = Y + 24
+          cx.fillStyle = ['#6e6a62', '#66625a', '#726e66'][v]
+          cx.fillRect(X + wl2, wt, 40 - wl2 * 2, 10)
+          cx.fillStyle = 'rgba(0,0,0,.16)'                 // the coursing
+          for (let xx = X + wl2 + 5; xx < X + 40 - wl2; xx += 7) cx.fillRect(xx, wt, 1.4, 10)
+          cx.fillRect(X + wl2, wt + 5, 40 - wl2 * 2, 1.4)
+          cx.fillStyle = 'rgba(255,255,255,.09)'; cx.fillRect(X + wl2, wt, 40 - wl2 * 2, 2)
+          cx.fillStyle = 'rgba(0,0,0,.24)'; cx.fillRect(X + wl2, wt + 8, 40 - wl2 * 2, 2)
+          cx.fillStyle = 'rgba(80,100,60,.28)'             // grass along the top
+          for (let i = 0; i < 4; i++)
+            cx.fillRect(X + 7 + i * 8 + (tileHash(n.x, n.y, 30 + i) % 3), wt - 2, 2, 3)
+        } else if (K === 'window-arch') {
+          // THE THING YOU SEE FROM FOUR DAYS AWAY: one wall still to its full
+          // height, with the opening that says what the building was.
+          shadow(X, Y, 11)
+          cx.fillStyle = ['#6e6a62', '#66625a', '#726e66'][v]
+          cx.fillRect(X + 4, Y + 2, 32, 34)
+          cx.fillStyle = '#100e0c'                          // the sky through it
+          cx.beginPath()
+          cx.moveTo(X + 14, Y + 32); cx.lineTo(X + 14, Y + 16)
+          cx.quadraticCurveTo(X + 20, Y + 7, X + 26, Y + 16)
+          cx.lineTo(X + 26, Y + 32); cx.closePath(); cx.fill()
+          cx.strokeStyle = '#4a4740'; cx.lineWidth = 1.4; cx.stroke()
+          cx.fillStyle = 'rgba(0,0,0,.16)'
+          for (let yy = Y + 8; yy < Y + 34; yy += 7) {
+            cx.fillRect(X + 4, yy, 10, 1.4); cx.fillRect(X + 26, yy, 10, 1.4)
+          }
+          cx.fillStyle = 'rgba(255,255,255,.08)'; cx.fillRect(X + 4, Y + 2, 32, 2)
+        } else if (K === 'rubble-heap') {
+          // WHERE IT WENT. Dressed stone, not field stone: these were cut
+          // square once, and half of them still are.
+          shadow(X, Y, 13)
+          for (let i = 0; i < 8; i++) {
+            const bx = X + 7 + (tileHash(n.x, n.y, 40 + i) % 24)
+            const by = Y + 19 + (tileHash(n.x, n.y, 58 + i) % 12)
+            const w2 = 5 + (tileHash(n.x, n.y, 72 + i) % 4)
+            cx.save(); cx.translate(bx, by)
+            cx.rotate(((tileHash(n.x, n.y, 84 + i) % 7) - 3) / 7)
+            cx.fillStyle = ['#79736a', '#6e685f', '#837c72', '#726c63'][(i + v) % 4]
+            cx.fillRect(-w2 / 2, -2.4, w2, 4.8)
+            cx.fillStyle = 'rgba(0,0,0,.20)'; cx.fillRect(-w2 / 2, 1.4, w2, 1.4)
+            cx.restore()
+          }
         } else if (K === 'stone-heap') {
           // FIELD CLEARANCE, not a monument. A cairn tapers because somebody
           // built it; this is dumped, so it sprawls and nothing is level.

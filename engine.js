@@ -404,6 +404,16 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // water. Two nouns one letter apart, one of them scenery and one of them
   // holding your dinner, is a bug waiting for whoever reads this next.
   'smokerack',
+  // §7do: A HOARD. Grave goods, in a barrow, behind a squeeze.
+  //
+  // Not a cart: a cart's `unload` takes the DEAREST thing automatically,
+  // because whoever stops at a dead hauler's shelf would reach for the plate
+  // before the ore and a script would do it anyway. A hoard is the opposite --
+  // the whole of it is that a citizen CHOOSES, having got in with three slots.
+  //
+  // Not a stall either: nothing is bought here and there is no keeper. It is a
+  // hole in the ground with things in it that somebody was buried with.
+  'hoard',
   // 6ch: THE WAYSTONES ARE GONE, AND WITH THEM EVERY TELEPORT IN THIS WORLD.
   //
   // A world whose whole shape is DISTANCE -- a gold seam an hour into the high
@@ -517,6 +527,25 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   //   crossing that cost a decade of siege should say so to whoever finds it a
   //   century on.
   'spanwork', 'span',
+  // §7du: THE DROWNED BELL, and the one raising on this island that CANNOT be
+  // done alone.
+  //
+  // Every other collective work here is many hands OVER TIME: the South Pass
+  // is 41 rockfalls and six strikes an hour however many citizens swing, the
+  // spanwork is a pool of planks, a watchfire is fed. Each of them is finishable
+  // by one determined person given enough weeks, and so each of them is really
+  // a long errand that several people may share.
+  //
+  // This is many hands IN ONE INTERVAL. Three citizens must haul on the same
+  // tick or the water takes it back, and no amount of patience substitutes.
+  // It is the only thing in the constitution that requires a citizen to have
+  // found two others and agreed a moment with them -- which is a different
+  // social shape from anything else on the island, and the reason to build it.
+  //
+  // Once in the world's life. When it comes up it is a BELL: a thing that
+  // rings, that everybody hears, that nobody can un-ring, and that carries the
+  // names of whoever was on the rope.
+  'bellwork', 'bell',
   // §7d: THE LOOKING GLASS. A citizen's first face is free, at the door. To
   // change it afterwards you go and look at yourself in something, and there
   // is one of them on the island.
@@ -1408,7 +1437,7 @@ const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 
 // cleared at the top of the next. Fourteen bytes, on the interval they act,
 // against a citizen record of six hundred. Every window reads it; no window
 // has to be clever enough to infer it from a skill going up.
-const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
+const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'rifle', 'haul', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
   // §7a: FOUND lays the first plank of a wild span; LAY adds to the pool. Both
   // are woodwork done in the open, both pay and both end whatever else was
@@ -1654,6 +1683,17 @@ const MIN_MAX_HIT = 3;   // 6bu: the smallest blow anybody can be capable of
 //   name, so it is a rule and not an exception -- and so that any beast a
 //   later founding gives a web is covered by the same sentence.
 const BURN_TICKS = 8;    // intervals alight after the last landed blow
+// §7dr: HOW LONG A TORCH LASTS, and why it going out is the best part.
+//
+// It turns the cave into a clock without adding a single system. A citizen goes
+// in knowing how much light they have; they may always walk out and relight,
+// because the mouth is only asked about on the way IN -- but the walk back costs
+// them the trip. That is the whole tension, and it is one integer.
+//
+// A FIXED TIMER, not "while held". A torch burning in your pack is a torch
+// burning, and a rule that paused it would be a rule about inventory management
+// rather than about fire.
+const TORCH_TICKS = 900;
 const BURN_EVERY = 4;    // one point every four of them
 // §6bw: THE TWO REFUSALS.
 //
@@ -1917,6 +1957,12 @@ const WORKED_KEEP = 5, WORKED_FADE = 6000;
 // count -- the recent carriers -- alongside the one who laid the first plank.
 // Ten, and it never fades: a span's roll is history, not a live tracker.
 const SPAN_REMEMBERS = 10;
+// §7du: three on the rope, in the same interval, and the water gives back what
+// it is not held against. HAUL_HOLD is how long a pull counts for: long enough
+// that three people can act within a window of each other, short enough that
+// they have to mean it. TWELVE PULLS raises it -- so it is not one lucky
+// moment either, it is twelve moments three people arranged.
+const BELL_HANDS = 3, BELL_HOLD = 3, BELL_PULLS = 12, BELL_REMEMBERS = 12;
 function noteWork(n, pid, tick) {
   if (!n) return;
   const w = (n.worked ?? []).filter((e) => e.who !== pid && tick - e.at < WORKED_FADE);
@@ -2612,6 +2658,9 @@ const WEAPONS = {
   // AND NO SPECIAL. The flurries and the bite belong to the star line, and a
   // mastery arm that took those as well would retire five weapons at a
   // stroke. Star strikes oddly; great strikes through.
+  // §7dr: worse than anything else you could hold, and the only thing that
+  // answers the dark before level sixty. `burns` is the whole of its worth.
+  'torch':         { hit: 1, every: 3, reach: 1, acc: -6, burns: true },
   'great-sword':   { hit: 5, every: 2, reach: 1, acc: 4, breaks: true, burns: true },
   'great-crossbow': { hit: 12, every: 3, reach: 6, acc: 23, ranged: true, breaks: true, burns: true },
   // §7ap: the maul line's top, and it keeps the line's whole character -- the
@@ -3067,6 +3116,34 @@ const MOB_STATS = {
             drops: [{ item: 'bones' }, { item: 'grave-silver', chance: 655 },
                     { item: 'arrows', chance: 26214 },
                     { item: 'hollow-bow', chance: 262 }] },
+  // §7dq: A QUENCHER. Steel passes through it; only fire tells.
+  //
+  // Named for what a citizen actually experiences rather than for what it is:
+  // nobody meeting one in the Smother learns its nature, they learn that the
+  // light goes. `dark-thing` was a placeholder and read like one -- a
+  // description standing in for a name -- and a world that has a Gibbet King
+  // and a Barrow Warden in it should not have a noun with a hyphen and a
+  // shrug in the middle.
+  //
+  // The exact mirror of the wight above. A wight shrugs off steel UNLESS you
+  // carry holy water -- a flask you buy with ten burials. This shrugs off
+  // everything that is not burning, and the answer is a weapon that burns:
+  // the great sword, the great crossbow, the fire-siphon fed on brimstone.
+  //
+  // PREPARATION, NOT PROGRESSION, which is the whole reason it is fire and not
+  // "great weapons only". Great weapons are top of the ladder, so gating on
+  // them would lock the cave behind gear and nothing else. Brimstone and a
+  // burning blade are things anybody may bring, at a cost, at any level -- the
+  // same axis the squeeze reads, and the same axis the toll reads at the
+  // bridge. What it asks is forethought.
+  //
+  // It also gives the Crags' hardest seam somewhere its output is REQUIRED
+  // rather than merely valuable. Brimstone has been the fuel of the fire-siphon
+  // since §6da and nothing has ever needed the fire-siphon.
+  'quencher': { maxHp: 60, atk: 30, def: 20, maxHit: 7, every: 3, respawn: 220, aggro: 4,
+    unlit: true,
+    drops: [{ item: 'bones' }, { item: 'brimstone', chance: 8192 },
+            { item: 'grave-silver', chance: 4096 }] },
   'barrow-wight': { maxHp: 95, atk: 34, def: 26, maxHit: 9, every: 3, respawn: 200, aggro: 5,
     warded: true,
     drops: [{ item: 'bones' }, { item: 'grave-silver', chance: 3072 },
@@ -3968,7 +4045,25 @@ const RECIPES = {
 // silently made it unwieldable.
 const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', 'old-chain', 'dragonbow',
   'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',   // 6bk: fletched, not forged
-  'heartwood-bow', 'king-shroud',
+  'heartwood-bow', 'king-shroud', 'torch',
+  // §7dp: the four barrow masks. `slotOf` knew where they sit and this did not,
+  // so a masked citizen was an unconstitutional one -- the two lists have to
+  // agree or an item can be worn by the executor and rejected by the validator,
+  // which is a fork.
+  'hart-mask', 'wolf-mask', 'raven-mask', 'hare-mask',
+  // §7dr: A TORCH, and it is the reason the Smother is not gear-locked.
+  //
+  // Every other burning thing in this world is late: the great sword is attack
+  // seventy, the great crossbow ranged seventy, the fire-siphon attack sixty
+  // and forged out of brimstone that wants mining seventy. So the cave built to
+  // be gated on PREPARATION was gated on PROGRESSION -- the exact fault argued
+  // against one page earlier.
+  //
+  // A torch is the low answer. Anybody may carry one at any level, and it is a
+  // wretched weapon -- which is the design, not a compromise: a citizen with a
+  // torch clears the Smother slowly and carefully, and a citizen with a great
+  // sword does it in a quarter of the time. Same cave, two experiences, no gate.
+  'torch',
   // a staff is held, and being held is the whole of what it costs: a citizen
   // carrying one is carrying no sword
   'staff', 'heartwood-staff', 'wand', 'goo-staff',
@@ -3997,6 +4092,29 @@ const ITEMS = new Set([
   // an eel salts to the common bite because "it is a poor fish however you
   // keep it". There is now exactly one way to keep it that is not poor.
   'smoked-eel',
+  // §7dp: THE BARROW MASKS. Four skulls, four ways to look, and a citizen may
+  // take ONE of them in their whole life.
+  //
+  // Purely cosmetic by the cinder-crown's own route: they are in `slotOf` and
+  // NOT in ARMOUR, so armourOf reads them as zero and a mask soaks nothing.
+  // Wearing one costs a helm, which is the only price they have.
+  //
+  // ALL FOUR ARE THE HEAD. Four variants of one slot, never four slots -- so
+  // even a citizen who somehow gathered the set can wear one at a time, and
+  // the choosing stays visible for ever instead of being solved by owning
+  // everything.
+  'hart-mask', 'wolf-mask', 'raven-mask', 'hare-mask',
+  // §7dr: A TORCH, and it is the reason the Smother is not gear-locked. Every
+  // other burning thing in this world is late -- the great sword is attack
+  // seventy, the great crossbow ranged seventy, the fire-siphon attack sixty
+  // and forged of brimstone that wants mining seventy. A cave built to be
+  // gated on PREPARATION was gated on PROGRESSION.
+  //
+  // Anybody may carry one at any level, and it is a wretched weapon, which is
+  // the design rather than a compromise: a torch clears the Smother slowly and
+  // carefully, a great sword does it in a quarter of the time. Same cave, two
+  // experiences, no gate.
+  'torch',
   // §7cn: WHAT A LAMPREY LEAVES. A finite substance -- 448 of them will ever
   // be drawn out of the meres, because there are seven lampreys and each of
   // them can be killed sixty-four times and then not again. Every barb in the
@@ -4072,6 +4190,9 @@ const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'he
                      // §6da: the cinder-crown sits on the head and soaks nothing;
                      // it is not in ARMOUR, so armourOf reads it as zero.
                      'cinder-crown': 'head',
+                     // §7dp: and the four barrow masks, on the same terms
+                     'hart-mask': 'head', 'wolf-mask': 'head',
+                     'raven-mask': 'head', 'hare-mask': 'head',
                      'iron-shield': 'offhand', 'steel-shield': 'offhand', 'star-shield': 'offhand',
                      // §6bv: the off hand held three items, all shields, all
                      // divisors, differing only in how much. Every other slot
@@ -4546,7 +4667,8 @@ const T = {
   gear: (v) => EQUIP_SLOTS.includes(v) || 'must be an equipment slot name',
   spell: (v) => ['anchor', 'mend'].includes(v) || 'must be a constitutional spell',
   make: (v) => ['bow', 'arrows', 'heartwood-bow', 'staff', 'heartwood-staff', 'wand',
-                'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod'].includes(v)   // 6bk: a rod is shaped wood
+                'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',   // 6bk: a rod is shaped wood
+                'torch'].includes(v)   // §7dt: a log and a knife
     
     || 'must be bow, arrows, staff, wand or a heartwood one',
   name: (v) => isValidName(v) || 'must be a constitutional name',
@@ -4651,6 +4773,12 @@ const INPUT_SCHEMAS = {
   // §6bq: one slot off a spilled cart. The taker names no item: the cart gives
   // up its dearest first, the same order a window offers a heap in.
   unload: { nodeId: T.id },
+  // §7do: one named thing out of a hoard. `item` is required and checked,
+  // because the choosing is the point.
+  rifle: { nodeId: T.id, item: T.item },
+  // §7du: put a hand on the rope. No argument but the bell: what it costs is
+  // being there, at the same interval as two others.
+  haul: { nodeId: T.id },
   // §6bp: A BID NAMES ITS OWN CEILING. `pay` is what the citizen SIGNED for,
   // and the world never takes more than that -- if the price has risen past it
   // between the signing and the interval it lands, the bid is refused whole
@@ -5112,6 +5240,68 @@ function terrainBlocked(g, x, y) {
   }
   return t.blocked ? !!t.blocked(g, x, y) : false;
 }
+// §7dl: PASSABILITY IS A PROPERTY OF THE CROSSING, NOT ONLY OF THE TILE.
+//
+// `terrainBlocked` answers whether a tile can be stood on, and that is all the
+// island ever needed while every obstacle was a wall. It is not enough for the
+// kind of friction that makes a country memorable: a gap you can only squeeze
+// through with a light pack, a scree you can come down and not climb, a ford
+// the river takes back twice a day, a pass that wants something burning.
+//
+// AND IT MUST NOT TOUCH SPEED. Everyone walks one tile an interval and §2b-i
+// leans on it -- a pursuer who moves cannot swing, so the runner gains a tile
+// -- which is why no citizen can be robbed and why the armour tax was
+// repealed. Slow ground would mean relitigating the flight rule to get a snow
+// effect. So the friction is in WHETHER, never in HOW FAST.
+//
+// A SECOND PREDICATE, NOT A REPLACEMENT. `terrainBlocked` is asked first and
+// unchanged; this is only consulted for a tile the citizen could otherwise
+// stand on. Nine of the ten places the engine asks about terrain are the world
+// moving itself -- mob wander, spawn, scatter, the incursion -- and none of
+// them carries a pack or a direction, so none of them changes. Exactly one
+// call site is a citizen moving.
+//
+// A generator that exports no `crossing` produces a world identical in every
+// tile, which is the same courtesy layPlan gives its legend.
+//
+// THE ROUTER GETS THE PESSIMISTIC ANSWER, deliberately -- see the note in
+// worldgen. A road that depended on a crossing a citizen might fail is a road
+// that is sometimes not there, and §14a's rule stands: a way round must exist,
+// or the gate is a hostage rather than a choice.
+function crossingBlocked(state, p, fx, fy, tx, ty) {
+  const t = TERRAINS[state.genesis.worldGenerator];
+  if (!t || !t.crossing) return false;
+  return !!t.crossing(state.genesis, p, fx, fy, tx, ty);
+}
+// What the predicate is allowed to know about a citizen. A NARROW VIEW ON
+// PURPOSE: terrain may ask what somebody is carrying and which way they are
+// facing, and may not ask their name, their standing, their skills or their
+// hitpoints. Ground does not know who you are, and a gate that let it would be
+// a rule wearing terrain's clothes.
+function crossingView(p, tick) {
+  let carried = 0;
+  for (const sl of p.inventory) if (sl) carried++;
+  // §7dq: ...and whether anything they hold is burning. Derived from the
+  // weapon table, so terrain never learns a list of items: a great sword, a
+  // great crossbow, the fire-siphon with fuel in the pack. A siphon with no
+  // brimstone is not lit, which is the whole reason brimstone matters.
+  const w = WEAPONS[p?.equipment?.weapon?.item];
+  // §7dt: AND FIRE ARROWS ARE FIRE. They are ammunition rather than a weapon,
+  // so `burns` on the weapon table never saw them -- but a quiver of them is
+  // as much a light as a torch is, and an archer who has gone to the trouble
+  // of brimstone and shafts has done exactly the preparing this gate asks for.
+  // They do not go out, which is fair: they are spent by being shot.
+  const arrows = countItem(p.inventory, 'fire-arrows') > 0;
+  // A torch counts only while still alight, and need not be in the hand: a
+  // citizen may carry one and fight with a sword.
+  // ...and it must still be BURNING. `> 0` was not that: a torch lit once was
+  // lit for ever, so the timer that is the whole point of the item did nothing
+  // at all. It is compared against the interval, like every other clock here.
+  const torch = (countItem(p.inventory, 'torch') > 0 || p?.equipment?.weapon?.item === 'torch')
+    && (p.torchUntil ?? 0) > (tick ?? 0);
+  const lit = torch || arrows || (!!w?.burns && !(w.fuel && countItem(p.inventory, w.fuel) < 1));
+  return { carried, slots: INV_SLOTS, lit };
+}
 const spawnOf = (g) => (TERRAINS[g.worldGenerator] && TERRAINS[g.worldGenerator].spawn
   ? TERRAINS[g.worldGenerator].spawn(g)
   : { x: Math.floor(g.worldW / 2), y: Math.floor(g.worldH / 2) });
@@ -5232,6 +5422,18 @@ function spillHoods(s, q, qid) {
   for (const k of EQUIP_SLOTS) { const w = q.equipment?.[k]; if (w && isHood(w.item)) put(w.item); }
 }
 
+// §7dk: WHAT UNAIDED MEANS LIVES IN THE RULES, like standing and calling.
+//
+// `serve.mjs` computed `p.aided !== true` inline, which was right and in the
+// wrong place. The comment beside hiscores() states the principle already:
+// standing and calling come from the ENGINE, never recomputed on the page,
+// because there is one definition of who a citizen is and it lives here. A
+// fact derived in three places is a fact three readers can disagree about.
+//
+// It is a derived reading and not a stored one -- there is no `unaided` field
+// on a citizen, only `aided`, set the once by taking something from another
+// soul and never cleared. This is simply the sentence read the other way round.
+const unaidedOf = (p) => p?.aided !== true;
 function standingOf(p) {
   let n = 0;
   for (const sk of SKILLS) n += levelForXp(p?.skills?.[sk] ?? 0);
@@ -6454,6 +6656,16 @@ const LANDMARK_KINDS = new Set([
   'way-post',
   'slag-lump',
   'hay-wain',
+
+  // §7dn: THE RUIN NOUNS. A ruin is legible when you can still read what it
+  // WAS -- one wall to full height with a window in it, a stump of tower, a
+  // course of stone at knee height you step over. A half-wall is the one that
+  // matters: it lets a ruin be a floor plan a citizen walks THROUGH rather
+  // than a silhouette they walk around, and a ruin you cannot enter is only
+  // scenery. Cosmetic, like every landmark: no verb reaches them.
+  'half-wall',
+  'rubble-heap',
+  'window-arch',
 ]); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
@@ -6461,7 +6673,9 @@ const LANDMARK_KINDS = new Set([
     'burnUntil',
     // §7dk: the record clock, this citizen's own bands, and whether they ever
     // went and got help
-    'began', 'aided', 'bands']);
+    'began', 'aided', 'bands', 'barrowed', 'torchUntil',
+    // §7dm: the hardest rung ever worked, per skill
+    'top']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -6675,6 +6889,21 @@ const LANDMARK_KINDS = new Set([
     // §7dk: `aided` -- whether this citizen has ever TAKEN a thing from another.
     // A bit, and only ever true. See the four channels in the executor.
     if (p.aided !== undefined && p.aided !== true) return 'aided is set or absent, never false';
+    // §7dp: `barrowed` -- this citizen has taken from a barrow. Set once, never
+    // cleared, and the same shape as `aided` for the same reason.
+    if (p.barrowed !== undefined && p.barrowed !== true) return 'barrowed is set or absent, never false';
+    if (p.torchUntil !== undefined && !isInt(p.torchUntil, 0, MAX_TIME)) return 'torchUntil out of bounds';
+    // §7dm: `top` -- the hardest rung ever worked, per skill. The ladder is
+    // 1, 2, 4, 8, so the mark is small and monotonic.
+    if (p.top !== undefined) {
+      const tp = p.top;
+      if (typeof tp !== 'object' || tp === null || Array.isArray(tp)
+        || Object.getPrototypeOf(tp) !== Object.prototype) return 'top must be a mark per skill';
+      for (const [sk, v] of Object.entries(tp)) {
+        if (!SKILLS.includes(sk)) return 'top names a skill that does not exist';
+        if (!isInt(v, 1, 8)) return 'top out of bounds';
+      }
+    }
     // §7dk: `bands` -- what this citizen's own fifty-to-ninety-nine took, per
     // skill, placed or not. Same bound and same shape rules as `began`.
     if (p.bands !== undefined) {
@@ -6794,6 +7023,11 @@ const LANDMARK_KINDS = new Set([
     // §7a: how many strikes the rockfall has taken. Monotonic, which is the
     // safest thing there is to put in a ledger that replays.
     'struck',
+    // §7du: the bell -- how many pulls it has taken, and who has a hand on the
+    // rope right now. `pulls` is monotonic; `holding` is transient and bounded
+    // by the number of hands the rope has room for, never by how many citizens
+    // ever tried.
+    'pulls', 'holding',
     // §7m/§7r: the reservoir holder for a rockfall's fall-stone, and whoever
     // is minding the furnace
     'claim', 'stokedBy', 'worked',
@@ -6843,7 +7077,11 @@ const LANDMARK_KINDS = new Set([
     if (n.shelf !== undefined) {
       // §6al: and a stall a citizen raised, which keeps ONE good
       // §6l: a store keeps no shelf. Only a citizen's stall and a spilled cart.
-      if (n.type !== 'market' && n.type !== 'cart') return 'only a stall or a cart keeps a shelf';
+      // §7do: ...and a hoard, which is neither. A stall's shelf is stock a
+      // citizen priced, a cart's is what a dead hauler spilled, and a hoard's
+      // is what somebody was buried with. Three different sentences that
+      // happen to be the same shape.
+      if (n.type !== 'market' && n.type !== 'cart' && n.type !== 'hoard') return 'only a stall, a cart or a hoard keeps a shelf';
       if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)) return 'shelf malformed';
       for (const [it, q] of Object.entries(n.shelf)) {
         if (!ITEMS.has(it)) return `shelf holds a thing that is not an item: ${it}`;
@@ -6891,7 +7129,33 @@ const LANDMARK_KINDS = new Set([
     // arithmetic so two nodes cannot disagree about how far a crossing has come:
     // laid never exceeds need, a finished span has laid at least need and bears
     // its closing hands, an unfinished one does not.
-    if (n.type === 'spanwork' || n.type === 'span') {
+    if (n.type === 'bellwork' || n.type === 'bell') {
+      if (!isInt(n.pulls ?? 0, 0, BELL_PULLS)) return 'bell pulls out of bounds';
+      // who has a hand on the rope right now, and since when. Bounded by the
+      // number of hands it takes, never by how many citizens ever tried.
+      if (n.holding !== undefined) {
+        if (typeof n.holding !== 'object' || n.holding === null || Array.isArray(n.holding)
+          || Object.getPrototypeOf(n.holding) !== Object.prototype) return 'a bell rope held by nothing';
+        const hs = Object.keys(n.holding);
+        if (hs.length > BELL_HANDS * 2) return 'more hands on the rope than it has room for';
+        for (const [h, t] of Object.entries(n.holding)) {
+          if (!HEX64.test(h)) return 'a malformed hand on the rope';
+          if (!isInt(t, 0, MAX_TIME)) return 'a hand on the rope out of time';
+        }
+      }
+      if (n.hands !== undefined) {
+        if (!Array.isArray(n.hands) || n.hands.length > BELL_REMEMBERS) return 'malformed bell hands';
+        for (const h of n.hands) if (typeof h !== 'string' || !HEX64.test(h)) return 'a malformed bell hand';
+      }
+      if (n.type === 'bell') {
+        if ((n.pulls ?? 0) < BELL_PULLS) return 'a bell that came up short of its pulls';
+        if (typeof n.doneBy !== 'string' || !HEX64.test(n.doneBy)) return 'a bell nobody raised';
+        if (!isInt(n.doneAt, 0, MAX_TIME)) return 'bell doneAt out of bounds';
+        if (n.holding !== undefined) return 'a raised bell still has hands on its rope';
+      } else if ((n.pulls ?? 0) >= BELL_PULLS) return 'a bellwork that should have become a bell';
+      if (n.by !== undefined || n.shelf !== undefined || n.ask !== undefined)
+        return 'a bell carries foreign metadata';
+    } else if (n.type === 'spanwork' || n.type === 'span') {
       if (typeof n.name !== 'string' || n.name.length === 0 || n.name.length > 40) return 'a span without a name';
       if (!isInt(n.need, 1, 1e12)) return 'span need out of bounds';
       if (!isInt(n.laid, 0, n.need)) return 'span laid out of bounds';        // only rises, never past the goal
@@ -6958,6 +7222,23 @@ const LANDMARK_KINDS = new Set([
       if (n.plantedAt !== undefined || n.readyAt !== undefined || n.brewKind !== undefined
           || n.fuelUntil !== undefined || n.ask !== undefined || n.shelf !== undefined)
         return 'a stone carries foreign metadata';
+    } else if (n.type === 'hoard') {
+      // §7do: a shelf of grave goods, and nothing else. No owner -- nobody
+      // living put these here -- so no `by`, which is also why taking from one
+      // is not `aided`: there is no citizen on the other side of it.
+      if (n.shelf !== undefined) {
+        if (typeof n.shelf !== 'object' || n.shelf === null || Array.isArray(n.shelf)
+          || Object.getPrototypeOf(n.shelf) !== Object.prototype) return 'a hoard without a shelf';
+        const ks = Object.keys(n.shelf);
+        if (ks.length > 8) return 'a hoard holds at most eight kinds';
+        for (const [it, q] of Object.entries(n.shelf)) {
+          if (!ITEMS.has(it)) return 'a hoard of a non-constitutional item';
+          if (!isInt(q, 1, MAX_QTY)) return 'a hoard quantity out of bounds';
+        }
+      }
+      if (n.by !== undefined || n.ask !== undefined || n.coin !== undefined
+          || n.readyAt !== undefined || n.name !== undefined)
+        return 'a hoard carries foreign metadata';
     } else if (n.type === 'smokerack') {
       // §7dg: A RACK IS THE PRIVATE-POT SHAPE, not the inn-pot shape.
       //
@@ -7457,6 +7738,9 @@ function validInput(state, input, ctx) {
       if (terrainBlocked(state.genesis, nx, ny)) {
         if (!spanDeckAt(state, ctx, nx, ny)) return false;
       }
+      // §7dl: ...and then whether THIS citizen may make THIS crossing. The one
+      // place in the engine where terrain is asked about a person.
+      if (crossingBlocked(state, crossingView(p, state.tick), p.x, p.y, nx, ny)) return false;
       // a living beast holds its tile (v0.79): you do not walk THROUGH a
       // troll, you deal with it, the troll bars the way. (Two bodies in
       // one square was how a fisher came to fight from inside a troll.)
@@ -8184,6 +8468,20 @@ function validInput(state, input, ctx) {
       if (effLevel(p.skills.firemaking) < wt.charLevel) return false;
       return countItem(p.inventory, 'ironbark') >= wt.charWood;
     }
+    case 'haul': {
+      if (p.hp <= 0) return false;
+      const bw = state.nodes?.[input.nodeId];
+      if (!bw || bw.type !== 'bellwork' || !atOrBeside(p, bw)) return false;
+      return true;
+    }
+    case 'rifle': {
+      if (p.hp <= 0) return false;
+      const hd = state.nodes?.[input.nodeId];
+      if (!hd || hd.type !== 'hoard' || !atOrBeside(p, hd)) return false;
+      if (p.barrowed === true) return false;      // §7dp: once in a life
+      if (!hd.shelf || (hd.shelf[input.item] ?? 0) <= 0) return false;
+      return canAddItem(p.inventory, input.item);
+    }
     case 'unload': {
       // §6bq: at the cart or beside it, and a slot free to put the thing in.
       if (p.hp <= 0) return false;
@@ -8534,6 +8832,15 @@ function validInput(state, input, ctx) {
       // beginner's wooden bow. The one crafted bow in the world, forged. Its
       // whole point is that fletching finally has a summit, so it belongs at
       // the bench with the rest of the fletcher's work.
+      // §7dt: A TORCH IS A LOG AND NOTHING ELSE.
+      //
+      // Deliberately the cheapest thing anybody makes: no level, no second
+      // ingredient, no bench. The whole reason the torch exists is that the
+      // Smother was gated on gear at level sixty and should have been gated on
+      // forethought -- so the answer has to be something a citizen on their
+      // first afternoon can carry, or it is the same fault wearing a different
+      // hat. One log, one torch, and the cost is that it burns out.
+      if (input.make === 'torch') return sl.item === 'logs';
       if (input.make === 'heartwood-bow') {
         if (effLevel(p.skills.fletching) < 90) return false;
         // §6ah: and a sigil in the binding. Relaxing the executor alone
@@ -9850,6 +10157,32 @@ function nextState(state, inputs, _legacyBeacon) {
 
   // snapshot who has already mastered what, so the end-of-tick pass can tell who
   // CROSSED a threshold this tick, regardless of which of the 18 XP sites paid it
+  // §7du: THE WATER TAKES BACK WHAT IS NOT HELD AGAINST IT.
+  //
+  // A hand let go of is a hand let go of: nobody is punished for it and nothing
+  // is announced, the rope simply goes slack. Two citizens who cannot find a
+  // third will haul all afternoon and raise nothing, which is the whole point
+  // and why this is the only work on the island that a determined person
+  // cannot finish alone.
+  for (const _n of Object.values(s.nodes)) {
+    if (_n.type !== 'bellwork' || !_n.holding) continue;
+    for (const _h of Object.keys(_n.holding).sort())
+      if (s.tick - _n.holding[_h] >= BELL_HOLD) delete _n.holding[_h];
+    if (Object.keys(_n.holding).length === 0) delete _n.holding;
+  }
+  // §7dr: A TORCH BESIDE A FIRE IS A LIT TORCH.
+  //
+  // No verb, no input, no confirmation. Standing next to a fire with a torch
+  // relights it, because that is what would happen, and a world that made
+  // somebody press a button for it would be a world with a button in it. The
+  // hearth deep in the Smother is a checkpoint made of nothing at all.
+  for (const _pid of Object.keys(s.players).sort()) {
+    const _q = s.players[_pid];
+    if (_q.hp <= 0) continue;
+    if (!countItem(_q.inventory, 'torch') && _q.equipment?.weapon?.item !== 'torch') continue;
+    if (!(hasAdjacentNode(s, _ctx, _q, _FIRE_TYPES) || fireOnTile(s, _ctx, _q.x, _q.y))) continue;
+    _q.torchUntil = s.tick + TORCH_TICKS;
+  }
   const _preMaster = {};
   // §7dk: ...and who had already crossed the RECORD FLOOR, for the same
   // reason and by the same canonical order. Two thresholds, one snapshot.
@@ -10956,6 +11289,64 @@ function nextState(state, inputs, _legacyBeacon) {
         // they earn nothing for it but the company and whatever was arranged.
         wf.fuelUntil = Math.max(s.tick, (wf.fuelUntil ?? 0) - wt.perLog * wt.charBurn);
         p.skills.firemaking += wt.charXp;
+      }
+    } else if (inp.type === 'haul') {
+      const bw = s.nodes?.[inp.nodeId];
+      if (bw && bw.type === 'bellwork' && p.hp > 0 && atOrBeside(p, bw)) {
+        // §7du: a hand goes on the rope and stays there for BELL_HOLD
+        // intervals. Three at once is a PULL; anything less is the water
+        // winning, which it does silently and without malice.
+        if (!bw.holding) bw.holding = {};
+        bw.holding[pid] = s.tick;
+        // let go of anything older than the hold, in canonical order
+        for (const h of Object.keys(bw.holding).sort())
+          if (s.tick - bw.holding[h] >= BELL_HOLD) delete bw.holding[h];
+        const on = Object.keys(bw.holding).sort();
+        if (on.length >= BELL_HANDS) {
+          bw.pulls = (bw.pulls ?? 0) + 1;
+          // the rope is let go after a pull: three people have to arrange the
+          // NEXT moment too, twelve times over
+          const hands = (bw.hands ?? []).filter((h) => !on.includes(h));
+          bw.hands = [...on, ...hands].slice(0, BELL_REMEMBERS);
+          delete bw.holding;
+          if (bw.pulls >= BELL_PULLS) {
+            // IT COMES UP. Same node id, so nothing that referenced the work
+            // dangles; only the type and the closing record change.
+            bw.type = 'bell';
+            bw.doneBy = on[0];
+            bw.doneAt = s.tick;
+            if (claimFirst(s, 'bell', pid))
+              announce(s, 'THE DROWNED BELL IS UP. It has not been heard in living memory, '
+                + 'and it was ' + on.length + ' hands on one rope that brought it.');
+          } else {
+            announce(s, 'The drowned bell shifts. ' + bw.pulls + ' of ' + BELL_PULLS + '.');
+          }
+        }
+      }
+    } else if (inp.type === 'rifle') {
+      const hd = s.nodes?.[inp.nodeId];
+      if (hd && hd.type === 'hoard' && atOrBeside(p, hd) && p.barrowed !== true
+          && hd.shelf && (hd.shelf[inp.item] ?? 0) > 0
+          && canAddItem(p.inventory, inp.item)) {
+        // §7dp: ONCE IN A LIFE, and the flag is on the CITIZEN rather than a
+        // list of hands on the hoard -- a table that grew with everybody who
+        // ever came would be exactly the fault §5 exists to prevent.
+        //
+        // So a citizen wears one mask and can never legitimately hold a
+        // second. Anybody wearing two has traded for it, or run another
+        // citizen and traded to themselves, and BOTH of those set `aided` --
+        // visibly, on every board, for ever. There is no route to a second
+        // mask that does not show. That is not a hole in the rule; it is the
+        // rule saying something about how somebody lives.
+        p.barrowed = true;
+        addItem(p.inventory, inp.item, 1);
+        if ((hd.shelf[inp.item] -= 1) <= 0) delete hd.shelf[inp.item];
+        // AN EMPTIED HOARD STAYS. The hole in the ground is still there and
+        // still says what it was; it is simply empty now, the way the drawing
+        // has claimed since v4 that this barrow already was.
+        if (Object.keys(hd.shelf).length === 0) delete hd.shelf;
+        if (claimFirst(s, 'barrowgoods', pid))
+          announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to carry something out of a barrow.');
       }
     } else if (inp.type === 'unload') {
       const ct = s.nodes?.[inp.nodeId];
@@ -12156,6 +12547,12 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'fletch') {
       const sl = p.inventory[inp.slot];
+      if (inp.make === 'torch' && sl && sl.item === 'logs') {
+        removeItem(p.inventory, inp.slot, 1);
+        const st = firstFreeSlot(p.inventory);
+        if (st !== -1) p.inventory[st] = { item: 'torch', qty: 1 };
+        p.skills.fletching += XP_FLETCH_PER_UNIT;
+      } else
       if (inp.make === 'heartwood-bow' && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
           && countItem(p.inventory, 'heartwood') >= 3
           && countItem(p.inventory, 'sigil') >= 1) {   // §6ah: a sigil in the binding
@@ -13172,7 +13569,11 @@ function nextState(state, inputs, _legacyBeacon) {
         const Tr = hitChance256(rLvl, stats.def, weaponOf(p)?.acc ?? 0, 0); // §6ap-ii
         if (roll(beacon, pid, 'atk') < Tr) {
           const maxHit = 1 + Math.floor(rLvl / 12) + (weaponOf(p)?.hit ?? 0);
-          const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
+          // §7dq: the same at range as in reach. A great crossbow burns and an
+          // ordinary bow does not, so the answer to a thing of the dark is the
+          // answer whichever hand you fight with.
+          const dmg = (stats?.unlit === true && weaponOf(p)?.burns !== true)
+            ? 0 : 1 + (roll(beacon, pid, 'dmg') % maxHit);
           m.hp -= dmg;
           if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         burnFuel(p);   // §7am: the siphon drinks
@@ -13216,7 +13617,13 @@ function nextState(state, inputs, _legacyBeacon) {
         // citizen carries holy water, and the flask is spent the moment it
         // falls. Ten bones buried in consecrated ground buys one fight.
         const warded = stats?.warded === true && countItem(p.inventory, 'holy-water') < 1;
-        const dmg = warded ? 1 : 1 + (roll(beacon, pid, 'dmg') % maxHit);
+        // §7dq: AND A THING OF THE DARK TAKES NOTHING THAT IS NOT BURNING.
+        // Not "one damage" like the ward -- NOTHING. A ward is a thing you can
+        // grind through badly; this is a wall until you have brought the right
+        // answer, which is what makes bringing it a decision rather than a
+        // discount.
+        const unlit = stats?.unlit === true && weaponOf(p)?.burns !== true;
+        const dmg = unlit ? 0 : warded ? 1 : 1 + (roll(beacon, pid, 'dmg') % maxHit);
         m.hp -= dmg;
         if (stats?.warded === true && m.hp <= 0 && countItem(p.inventory, 'holy-water') >= 1)
           consumeItem(p.inventory, 'holy-water', 1);
@@ -13548,6 +13955,32 @@ function nextState(state, inputs, _legacyBeacon) {
       // §6db: ...AND MULTIPLIES THE EXPERIENCE, so experience an hour is exactly
       // what it was and only the goods an hour moved. See NODE_YIELD.
       p.skills[y.skill] += y.xp * _hard;
+      // §7dm: THE HIGH-WATER MARK -- the hardest rung this citizen has ever
+      // worked in this skill.
+      //
+      // Two years and 532,000 shrimp for a ninety-nine caught on the small net
+      // alone. Somebody did that, and a company's data team had to be asked to
+      // go through their logs and confirm it. THIS WORLD CAN SETTLE IT IN ONE
+      // COMPARISON, for ever, and it costs one small integer.
+      //
+      // Half the genre is already free here: a ten-hitpoint citizen reads 1154
+      // experience because that is where hitpoints begins and nothing else ever
+      // paid them; one defence reads zero; never cast a spell reads zero magic.
+      // Every "pure" is a DERIVED fact of state that anybody can check.
+      //
+      // What is NOT visible in a skill number is METHOD -- only the small net,
+      // only the shallow seam -- and this is the whole of what method costs. It
+      // is monotonic, so it cannot be washed off, and it needs no history at
+      // all, which matters because a node DISCARDS its inputs the interval it
+      // executes them. Nothing not written down here can ever be asked later.
+      //
+      // FACTS, NOT ACHIEVEMENTS. There is no table of blessed challenges and
+      // there must not be: nobody designed "only small net", a player invented
+      // it, and a challenge the world has already named and rewarded is not
+      // self-imposed any more -- it is a quest. The world records dumb
+      // monotonic facts and leaves the inventing to citizens.
+      if (!p.top) p.top = {};
+      if ((p.top[y.skill] ?? 0) < _hard) p.top[y.skill] = _hard;
       // §7al: THE SPADE PAYS STRENGTH, AND IT IS THE ONLY THING THAT DOES
       // WITHOUT A FIGHT.
       //
@@ -13840,7 +14273,7 @@ module.exports = {
   // a pillar packs the registered generator's answers into a table and serves
   // those instead. Reading the registry is how it knows what to pack.
   TERRAINS,
-  registerTerrain, terrainBlocked, geographyHashOf,
+  registerTerrain, terrainBlocked, crossingBlocked, crossingView, geographyHashOf,
   SPEC_VERSION, TICK_MS, INV_SLOTS,
   XP_TABLE, levelForXp,
   canonical, stateHash, sha256, beaconValue, roll,
@@ -13882,5 +14315,5 @@ module.exports = {
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
-  SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

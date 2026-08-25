@@ -402,12 +402,17 @@ function hiscores() {
              // interval a citizen crossed fifty is remembered, but what their
              // run TOOK exists only for the moment it is computed. That is why
              // the record boards keep three and these keep everybody.
-             unaided: p.aided !== true,
+             unaided: E.unaidedOf(p),   // §7dk: the engine's word, not the page's
              // §7dk: and the citizen's own fifty-to-ninety-nines, placed or
              // not. Eighteen at most, and they are what makes four friends
              // able to race each other without any of them being the fastest
              // on the island -- which is how most people will ever use this.
              bands: p.bands ? { ...p.bands } : undefined,
+             // §7dm: the hardest rung ever worked, per skill. One comparison
+             // settles "only the small net" for ever -- and half the genre is
+             // free already, because a ten-hitpoint citizen and a one-defence
+             // citizen read off `levels` with nothing stored at all.
+             top: p.top ? { ...p.top } : undefined,
              xp: Object.values(p.skills).reduce((a, b) => a + b, 0) }
   }).sort((a, b) => b.total - a.total || b.xp - a.xp)
 }

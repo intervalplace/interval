@@ -141,17 +141,39 @@ export const PLACES_V7 = {
       '~~~~~~~~~~~~,,,~~~~~~~~~~~~~~',
     ],
   },
+  // §7dn: THE RUINED TOWER, redrawn so you can read what it was.
+  //
+  // It was an octagon of rampart with a hearth in the middle and one gap for a
+  // door: a shape, but not a RUIN -- a ruin drawn as an unbroken ring is just a
+  // small fort, and the only thing it said about its own history was that it
+  // had none.
+  //
+  // What makes ruin legible is that it is BROKEN IN A SHAPE. The Wilderness
+  // this island keeps being measured against does it exactly so: one wall
+  // standing to its full height with a window still in it, a stump of tower
+  // beside it, a course of stone at knee height where the rest went, and the
+  // rubble lying where it fell. From that a citizen reads a building. From a
+  // scatter of stones they read nothing.
+  //
+  // The north wall still stands ('%'), and its window ('w') is the thing you
+  // see from four days away. The east wall is down to knee height ('j') and
+  // you step over it, which is what turns the drawing into a FLOOR PLAN a
+  // citizen paces rather than a silhouette they walk around. The south-west
+  // corner fell outward and is lying there ('x', 'k'). The hearth is still in
+  // the middle because a hearth is the last thing to go.
+  //
+  // No roof, no stair, four days' walk -- and now the drawing says so.
   deadreach: {
     name: "the Ruined Tower", locale: 'deadreach', floors: false,
     sign: "Deadman's Reach",
     rows: [
-      '~~%%%%%~~',
+      '~~%%w%%~~',
       '~%%...%%~',
-      '~%..h..%~',
-      '~%.....%~',
-      '~%%...%%~',
-      '~~%%.%%~~',
-      '~~~~.~~~~',
+      '~%..h..j~',
+      '~%.....j~',
+      '~j%...%j~',
+      '~~x%.%~~~',
+      '~k~~.~x~~',
       '~~Y~~~~~~',
     ],
   },
@@ -281,6 +303,70 @@ export const PLACES_V7 = {
   },
   // The Sentinel: one stone, twice the height of a man, and a smaller one at
   // its foot where people have been leaving names for a long time.
+  // §7dq: THE SMOTHER -- a hole in the crags with things in it that steel does
+  // not touch.
+  //
+  // A DEAD END, and that is deliberate: the same lesson the cleat cost a whole
+  // build. A tunnel that is the short way somewhere competes with the long way
+  // and wins for anybody carrying a torch, which quietly undoes whatever work
+  // opened the long way. This goes nowhere. It has a bottom, and something at
+  // the bottom, and the only reason to be in it is that you meant to be.
+  //
+  // THE MOUTH ASKS FOR FIRE. Not a level, not a tool tier -- something burning,
+  // which anybody may bring at any level and nobody carries by accident. The
+  // same axis the squeeze reads and the toll reads: forethought.
+  //
+  // Solid rock, one gap, exactly as the barrow had to be: '~' is nothing, the
+  // country shows through, and a ring of corners is not a ring.
+  smother: {
+    name: 'the Smother', locale: 'cragscar', floors: false,
+    // §7ds: A BOARD OUTSIDE, because a wall with no explanation is a puzzle
+    // box and not a place.
+    //
+    // A citizen learned this cave wanted fire by walking to the mouth and
+    // being refused, with nothing telling them why. That is the whole
+    // quest-giver this world needs: a sentence on a post, and the citizen
+    // works out the rest. It spoils nothing -- it does not say a torch, it
+    // says what is true of the dark -- and it turns a refusal into an
+    // invitation.
+    sign: 'the Smother. What is in there does not take steel, and it does not like a light.',
+    // §7dr: A CAVE-MOUTH INSIDE A CAVE IS A DOOR IN THE MIDDLE OF A ROOM.
+    // The first draft put one at the centre, which said nothing except that
+    // whoever drew it had not pictured standing in the place. You are already
+    // in the cave. The mouth is the gap at the bottom and needs no marker: the
+    // dark either side of it is the marker.
+    //
+    // AND IT HAD TO GET BIGGER. A fire deep inside is only a checkpoint if
+    // there is a depth for it to be at the bottom of -- a hearth eight tiles
+    // from daylight is a hearth beside the door. So: a mouth, an upper
+    // chamber, a throat one tile wide, and a lower hall with the fire in it.
+    // A citizen with a guttering torch has to decide whether to press on to
+    // the fire or turn round, and that decision is the whole cave.
+    //
+    // Solid rock throughout, one gap, exactly as the barrow had to be: '~' is
+    // nothing and the country shows through, so a ring of corners is not a
+    // ring.
+    rows: [
+      '~~%%%%%%%%%~~',
+      '~%%.......%%~',
+      '%%.........%%',
+      '%.....*.....%',
+      '%...........%',
+      '%%.........%%',
+      '~%%.......%%~',
+      '~~%%.....%%~~',
+      '~~~%%...%%~~~',
+      '~~~~%%.%%~~~~',
+      '~~~~~%.%~~~~~',
+      '~~~~~%.%~~~~~',
+      '~~~~%%.%%~~~~',
+      '~~~%%...%%~~~',
+      '~~%%.....%%~~',
+      '~%%.......%%~',
+      '~~%%%%.%%%%~~',
+      '~~~~~~.~~~~~~',
+    ],
+  },
   sentinel: {
     name: 'the Sentinel', locale: 'sentinel', floors: false,
     sign: 'the Sentinel',
@@ -325,18 +411,34 @@ export const PLACES_V7 = {
       '~~~~~.~~~~~~~',
     ],
   },
-  // A barrow cut into white chalk, opened long ago, emptied by somebody who
-  // did not write down what they took.
+  // §7dn: THE CHALK BARROW, and A RING WITH GAPS IN IT IS NOT A RING.
+  //
+  // This was drawn as a mound: '%' at the corners and '~' between them, which
+  // LOOKS enclosed on a chart and is not. '~' is nothing -- the country shows
+  // through and a citizen walks over it -- so the old drawing's chamber was
+  // reachable from outside on all nineteen of its tiles, without ever going
+  // near the door. Measured, not guessed: a flood-fill from outside the
+  // drawing, refusing the door tile, reached every single one.
+  //
+  // AND IT WAS TRUE OF EVERY PLACE ON THE ISLAND. Not one of the eighteen
+  // enclosed a tile. Every drawing was a silhouette you walk around rather
+  // than a room you go into, which is why nothing has ever been INSIDE one.
+  //
+  // Movement is eight-way and the destination is the only tile the engine
+  // checks, so a citizen may cut a corner between two walls. A ring therefore
+  // has to be solid: every tile of it '%', with exactly one gap, and that gap
+  // is the only way through. Then the door means something -- and the squeeze
+  // on it means something, because there is now an inside for it to keep.
   whitechalk: {
     name: 'the Chalk Barrow', locale: 'whitechalk', floors: false,
     sign: 'Whitechalk',
     rows: [
-      '~~%%%%%~~',
-      '~%~~~~~%~',
-      '%~~~g~~~%',
-      '%~~~~~~~%',
-      '~%~~.~~%~',
-      '~~%%.%%~~',
+      '~%%%%%%%~',
+      '~%.....%~',
+      '~%.H.g.%~',
+      '~%.....%~',
+      '~%.....%~',
+      '~%%%.%%%~',
       '~~!~.~!~~',
     ],
   },
@@ -469,6 +571,11 @@ export const PLACE_MOBS = {
   hollychase:  [['wolf', 3]],              // the kennels did not stay empty
   highdelving: [['goblin', 3]],
   cragscar:    [['scree-imp', 2]],
+  // §7dq: four of them, and steel does nothing at all to any of them
+  // §7dr: eight, in eighty-one tiles across two chambers and a throat. Four
+  // was a cave you walked through; eight is a cave you fight through, and the
+  // fire at the bottom is worth reaching.
+  smother:     [['quencher', 8]],
   sentinel:    [],                         // nothing. It is a stone.
   sheepfolds:  [['sheep', 6]],
   whitechalk:  [['skeleton-knight', 1]],

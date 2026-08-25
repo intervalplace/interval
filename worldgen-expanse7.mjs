@@ -518,6 +518,39 @@ export function localesOf(g) { return LOCALES.map(L => ({ ...L, ...localeCentre(
 // the road has a reason a traveller can see.
 export const ridgeX = (g, y) => Math.round(g.worldW * 0.695 + meander(g, 311, y, 30, 11))
 export const passesOf = (g) => [Math.round(g.worldH * 0.34), Math.round(g.worldH * 0.62)]
+
+// §7dl: THE CLEAT IS GONE, AND WHY -- the note stays so nobody rebuilds it.
+//
+// A third gap in the ridge, three rows wide, passable only with a light pack.
+// It worked, it was tested, and it was WRONG, for a reason no tuning of the
+// threshold could reach.
+//
+// THE SOUTH PASS'S WHOLE JOB IS TO BE THE SECOND WAY THROUGH. Forty-one
+// rockfalls, weeks of collective digging, and the country changes because
+// people worked at it. A cleat hands a second crossing to most travellers most
+// of the time, free, from the first interval -- so the citizens digging at the
+// Pass are working for weeks to unlock something the map already gave away.
+// And the North Pass being ALONE is a forcing function: everyone funnels there,
+// which is where they meet. A third gap thins that out.
+//
+// Ask what would make it not simply the better option, and the answer is
+// nothing: for a light traveller it is shorter and free, always.
+//
+// THE RULE THIS TAUGHT, which is worth more than the gate was:
+//
+//   AN ENCUMBRANCE GATE SHOULD GATE A PLACE, NOT A CROSSING.
+//
+// A crossing always has an alternative to be measured against, so a
+// conditional one is either better than the alternative (and undermines the
+// work that made it) or worse (and nobody walks it). There is no third result.
+// A place has no alternative. You are in or you are not, the gate competes
+// with nothing, and "you may carry eight slots in and eight out" becomes a
+// property worth having rather than a restriction worth resenting: whatever is
+// inside must be worth a light trip, and nobody empties it in one visit.
+//
+// The MECHANISM was right and stays -- `crossing` in the registry below, and
+// crossingBlocked in the engine. It never assumed a ridge. Only the content
+// came out.
 export function onRidge(g, x, y) {
   const rx = ridgeX(g, y)
   const d = x - rx < 0 ? rx - x : x - rx
@@ -2045,6 +2078,85 @@ export const onLane = (g, x, y) => laneTilesOf(g).has(x + ',' + y)
 // chart. Pure in (seed, size) like every other seat here, and memoised,
 // because groundKindAt asks for it on every tile of the island.
 const _plMemo = new Map()
+// §7dn: THE SQUEEZE -- the mouth of the Chalk Barrow, and the one piece of
+// ground on Tallyholm that asks a question before it lets somebody through.
+//
+// A GATE ON A PLACE, NOT ON A CROSSING, and that distinction cost a whole
+// build to learn. The first version of this was a third gap in the ridge
+// passable with a light pack, and it was wrong in a way no threshold could
+// reach: a crossing always has an alternative to be measured against, so a
+// conditional one either beats the alternative -- and quietly undoes the weeks
+// of digging that opened the South Pass -- or is never walked. There is no
+// third result.
+//
+// A place has no alternative. You are in or you are not, the gate competes
+// with nothing, and the restriction turns into a PROPERTY worth having: eight
+// slots in, eight slots out, so whatever is down there has to be worth a light
+// trip and nobody empties it in one visit. It is also, precisely, why the
+// barrow has not already been stripped -- which the drawing has claimed since
+// v4 without anything making it true.
+//
+// It gates nothing anybody needs. Not a road, not a seam, not a way home:
+// §14a's rule holds trivially, because there is nothing on the far side except
+// the barrow itself.
+// THREE, NOT EIGHT.
+//
+// Eight slots was a haulier's limit and it left the barrow a place you visited
+// with a shopping bag. Three is a decision: you go in carrying almost nothing,
+// and what you carry out has to be worth the walk back. That is only worth
+// asking BECAUSE there is now something in there to choose between -- a gate on
+// an empty room is a rule about nothing.
+//
+// It also means nobody clears the barrow in one visit, which is the property
+// the drawing has claimed since v4 without anything making it true.
+// §7dq: AND THE SMOTHER'S MOUTH ASKS FOR FIRE.
+//
+// The second use of the crossing predicate, and the second gate on a PLACE
+// rather than a crossing. It goes nowhere: a citizen refused here has lost a
+// visit, never a way home, so §14a holds as trivially as it does at the barrow.
+//
+// Something BURNING, which is a thing anybody may bring at any level and
+// nobody carries by accident -- a great sword, a great crossbow, the fire-
+// siphon fed on brimstone. Not a level and not a tier: gating on great weapons
+// would lock the cave behind gear, where this locks it behind forethought.
+const _smMemo = new Map()
+export function smotherDoorOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  if (_smMemo.has(k)) return _smMemo.get(k)
+  let out = null
+  for (const P of placeSeatsOf(g)) {
+    if (P.tag !== 'smother') continue
+    for (let ry = P.h - 1; ry >= 0 && !out; ry--) {
+      const row = P.rows[ry]
+      if (!row || row.indexOf('%') === -1) continue
+      const cx = row.indexOf('.')
+      if (cx !== -1) out = { x: P.x0 + cx, y: P.y0 + ry }
+    }
+  }
+  _smMemo.set(k, out)
+  return out
+}
+export const SQUEEZE_CARRY = 3
+const _sqMemo = new Map()
+export function squeezeOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  if (_sqMemo.has(k)) return _sqMemo.get(k)
+  let out = null
+  for (const P of placeSeatsOf(g)) {
+    if (P.tag !== 'whitechalk') continue
+    // the passage is the '.' in the barrow's closing wall: the one tile the
+    // mound can be entered by, found from the drawing rather than typed in, so
+    // redrawing the barrow moves its door with it
+    for (let ry = P.h - 1; ry >= 0 && !out; ry--) {
+      const row = P.rows[ry]
+      if (!row || row.indexOf('%') === -1) continue      // a wall row
+      const cx = row.indexOf('.')
+      if (cx !== -1) out = { x: P.x0 + cx, y: P.y0 + ry }
+    }
+  }
+  _sqMemo.set(k, out)
+  return out
+}
 export function placeSeatsOf(g) {
   const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
   const hit = _plMemo.get(k); if (hit) return hit
@@ -2464,6 +2576,27 @@ E.registerTerrain(GENERATOR_ID, {
   spawn: (g) => spawnDry(g),
   country: (g, x, y) => biomeAt(g, x, y),
   road: (g, x, y) => onRoad(g, x, y),   // §6ao (v6): so the engine can require citizen stalls to line the roads
+  // §7dn: WHETHER THIS CITIZEN MAY MAKE THIS CROSSING.
+  //
+  // Asked only for a tile `blocked` has already allowed, and only of a citizen
+  // moving -- the nine other places the engine consults terrain are the world
+  // moving itself and carry no pack. A generator omitting this draws an
+  // identical island.
+  //
+  // The view is narrow on purpose: ground may ask what somebody is carrying,
+  // and may not ask their name, standing, skills or hitpoints. A gate that knew
+  // who you were would be a rule wearing terrain's clothes.
+  crossing: (g, who, fx, fy, tx, ty) => {
+    const sq = squeezeOf(g)
+    if (sq && tx === sq.x && ty === sq.y && fy > sq.y)
+      return (who.carried ?? 0) > SQUEEZE_CARRY   // §7dn: three slots into the barrow
+    const sm = smotherDoorOf(g)
+    if (sm && tx === sm.x && ty === sm.y && fy > sm.y)
+      return who.lit !== true                     // §7dq: and something burning into the Smother
+    // coming out is never asked about either way, so nobody is ever shut in by
+    // what they picked up or by a blade that broke while they were down there
+    return false
+  },
   // §7k: and the ground, so the engine can tell a market square from a verge.
   // stallGroundOk asks this; without it the square is just more flagstone.
   ground: (g, x, y) => groundKindAt(g, x, y),
@@ -3149,7 +3282,15 @@ export function buildWorld(genesis) {
           if (nearWet(x, y)) { p = { x, y }; break seekBell }
         }
     }
-    put('drownedbell', 'landmark', p.x, p.y, { kind: 'drowned-bell' }) }
+    // §7du: NOT A LANDMARK ANY MORE. It was scenery -- a bell you could read a
+    // name off and nothing else -- while its own drawing had said for four
+    // versions that the bell is still in there and nobody has worked out how
+    // to get it out. Nobody had, because there was nothing to work out.
+    //
+    // It is a `bellwork` now: twelve pulls, three hands on the rope in the
+    // SAME interval each time, and the water takes back anything less. The
+    // only work on this island a determined citizen cannot finish alone.
+    put('drownedbell', 'bellwork', p.x, p.y, { pulls: 0 }) }
   { const p = seatLandmark(Math.round(W * 0.74), Math.round(H * 0.72), 'downs');      put('longbarrow', 'landmark', p.x, p.y, { kind: 'standing-stone' }) }
   { const p = seatLandmark(Math.round(W * 0.28), Math.round(H * 0.16), 'moor');       put('moorcairn', 'landmark', p.x, p.y, { kind: 'standing-stone' }) }
   {
@@ -4385,6 +4526,40 @@ export function buildWorld(genesis) {
       'd': ['landmark', { kind: 'bed' }], 'v': ['landmark', { kind: 'shelf' }],
       'q': ['landmark', { kind: 'barrel' }], 'D': ['dedication'], 'B': ['ossuary'],
       'T': ['tree'], 'Y': ['gallows-oak'], '^': ['hedge'], 'f': ['fence'],
+      // §7dn: RUIN IN A SHAPE. Four glyphs, and between them a citizen can
+      // read what a building USED TO BE.
+      //
+      // A rubble field says nothing. One wall standing to full height with a
+      // window still in it says "chapel", and a stump of tower beside it says
+      // how it ended. The Wilderness shot this island keeps being measured
+      // against does exactly that: the ruin is legible because it is BROKEN IN
+      // A SHAPE rather than merely broken.
+      //
+      // 'j' is the one that does the work. A wall you can see over and step
+      // across is what lets a drawing be a FLOOR PLAN a citizen walks through
+      // rather than a fenced-off silhouette they walk around. A ruin you
+      // cannot enter is scenery; a ruin whose rooms you can pace is a place.
+      // §7do: the grave goods. Eight kinds at most and one of each -- a hoard
+      // is what somebody was buried WITH, not a shop, and the whole design is
+      // that a citizen who got in with three slots has to choose.
+      // Four kinds, and a citizen with three slots takes three of them. The
+      // helm is the prize; the graver is the useful thing; the holy water is
+      // the thing you want if you are going on to the Moorgrave; the bones are
+      // what was actually buried here, and prayer is what they are for.
+      // §7dp: FOUR MASKS, AND A CITIZEN TAKES ONE.
+      //
+      // The gold helm that was here took a hundred hours at an anvil, which
+      // made the barrow a shortcut past somebody else's work. These are worth
+      // nothing at all: they soak nothing, sell for nothing, and do nothing
+      // but say where their wearer has been and which of the four they chose.
+      //
+      // Four kinds and one take, so the choice is the whole of it -- and it is
+      // made in the dark, three slots deep, past the knight.
+      'H': ['hoard', { shelf: { 'hart-mask': 1, 'wolf-mask': 1, 'raven-mask': 1, 'hare-mask': 1 } }],
+      'j': ['landmark', { kind: 'half-wall' }],
+      'k': ['landmark', { kind: 'fallen-stone' }],
+      'x': ['landmark', { kind: 'rubble-heap' }],
+      'w': ['landmark', { kind: 'window-arch' }],
     }
     let placed = 0, nodes0 = putCount
     for (const P of placeSeatsOf(g)) {
@@ -4447,7 +4622,25 @@ export function buildWorld(genesis) {
       for (let ry = -1; ry <= P.h; ry++) for (let rx = -1; rx <= P.w; rx++)
         taken.add(key(P.x0 + rx, P.y0 + ry))
       // a board at the near edge, because a place with no name is scenery
-      for (const [dx, dy] of [[P.w >> 1, P.h + 1], [P.w >> 1, -2], [-2, P.h >> 1], [P.w + 1, P.h >> 1]]) {
+      //
+      // §7ds: AND NEAR THE DOOR, WHERE THERE IS ONE. The four candidates below
+      // are the four sides in a fixed order, which is right for a ring of
+      // stones and wrong for anything a citizen walks INTO: the Smother's
+      // board fell through to the far side and stood eighteen tiles away at
+      // the deep end, where nobody approaching the mouth would ever read it.
+      //
+      // So a drawing with a gap in its closing wall gets its board beside that
+      // gap first. A warning nobody passes is not a warning.
+      const _doorSpots = []
+      for (let ry = P.h - 1; ry >= 0 && !_doorSpots.length; ry--) {
+        const row = P.rows[ry]
+        if (!row || row.indexOf('%') === -1) continue
+        const dcx = row.indexOf('.')
+        if (dcx === -1) continue
+        for (const [ox, oy] of [[dcx - 1, P.h + 1], [dcx + 1, P.h + 1], [dcx - 2, P.h], [dcx + 2, P.h]])
+          _doorSpots.push([ox, oy])
+      }
+      for (const [dx, dy] of [..._doorSpots, [P.w >> 1, P.h + 1], [P.w >> 1, -2], [-2, P.h >> 1], [P.w + 1, P.h >> 1]]) {
         const x = P.x0 + dx, y = P.y0 + dy
         if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && !blockedAt(g, x, y)) {
           put('place-sign-' + P.tag, 'signpost', x, y, { text: P.sign ?? P.name }); break
