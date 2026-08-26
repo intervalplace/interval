@@ -13,10 +13,20 @@ const read = (f) => fs.readFileSync(path.join(root, f), 'utf8')
 const pkg = JSON.parse(read('package.json'))
 
 test('package.json declares the release tuple', () => {
+  // This asserted the LITERAL '0.55'. package.json is described one line
+  // above as the single source of truth for the tuple, so pinning a literal
+  // here inverted that: the file that is supposed to define the version was
+  // being checked against a copy of it frozen in a test. It broke at 0.56 and
+  // stayed broken for forty-odd revisions while every other version assertion
+  // in this file -- the ones that check agreement rather than a constant --
+  // kept working exactly as intended.
+  //
+  // What matters is SHAPE here and AGREEMENT everywhere below.
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/)
   assert.ok(pkg.protocol, 'package.json has a protocol block')
-  assert.equal(pkg.protocol.specVersion, '0.55')
-  assert.equal(pkg.protocol.consensusVersion, '1.9')
+  assert.match(pkg.protocol.specVersion, /^\d+\.\d+$/)
+  assert.match(pkg.protocol.consensusVersion, /^\d+\.\d+$/)
+  assert.equal(E.SPEC_VERSION, pkg.protocol.specVersion, 'the engine agrees with the declaration')
 })
 
 test('engine SPEC_VERSION matches the declared spec version', () => {

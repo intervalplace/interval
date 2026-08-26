@@ -68,9 +68,20 @@ test('every fishing spot actually touches water', () => {
 test("window-web's terrain mirror matches the engine tile for tile", () => {
   const g = G()
   const html = fs.readFileSync(path.join(here, '..', 'window-web.html'), 'utf8')
-  const start = html.indexOf('// ---- the expanse (interval-expanse-v1)')
-  const end = html.indexOf('function tileHash(x, y, k)')
-  assert.ok(start > 0 && end > start, 'the expanse mirror block is missing from window-web.html')
+  // The slice used to run from a comment marker to `function tileHash(x, y, k)`.
+  // Both moved: the terrain block is now headed "THE SEVENTH FOUNDING" and the
+  // hash is called `thashE`. The slice came back empty, the eval threw, and
+  // the assertion that caught it says "the expanse mirror block is missing"
+  // -- which reads like the window lost a feature rather than like the test
+  // lost its footing, and that is why it sat red rather than getting chased.
+  //
+  // Anchored on the declaration and the section header that FOLLOWS the block
+  // instead, and both ends are asserted by name, so a future restructure
+  // fails saying which anchor moved.
+  const start = html.indexOf("let GEN = 'interval-classic-v1', GSEED = ''")
+  const end = html.indexOf('// ---- the third expanse (interval-expanse-v3)')
+  assert.ok(start > 0, 'window-web.html: the GEN/GSEED declaration has moved')
+  assert.ok(end > start, 'window-web.html: the v3 section header has moved')
   const src = `let W=${g.worldW}, H=${g.worldH};\n`
     + html.slice(start, end).replace(
       "let GEN = 'interval-classic-v1', GSEED = ''",

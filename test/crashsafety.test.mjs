@@ -133,8 +133,8 @@ test('exact engine invariants: actions, trades, equipment, skills, mob/node tabl
     [s => { s.players[alice.playerId].action = { type: 'dance' } }, /unknown action type/],
     [s => { s.players[alice.playerId].action = { type: 'gather', nodeId: 'tree-1', extra: 1 } }, /malformed gather action/],
     [s => { s.players[alice.playerId].action = { type: 'attack', mobId: 'm1' } }, /malformed attack action/],
-    [s => { s.players[alice.playerId].trade = { to: 'zz', giveSlot: 0, wantItem: null, wantGold: 0 } }, /malformed trade partner/],
-    [s => { s.players[alice.playerId].trade = { to: bob.playerId, giveSlot: 0, wantItem: null, wantGold: 0, bonus: 1 } }, /malformed trade shape/],
+    [s => { s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }; s.players[alice.playerId].trade = { to: 'zz', giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0 } }, /malformed trade partner/],
+    [s => { s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0, bonus: 1 } }, /malformed trade shape/],
     [s => { s.players[alice.playerId].equipment.ring = null }, /non-constitutional equipment/],
     [s => { delete s.players[alice.playerId].equipment.head }, /non-constitutional equipment/],
     [s => { delete s.players[alice.playerId].skills.magic }, /missing skill/],
@@ -171,7 +171,7 @@ test('gold-only trade offers no longer crash the state hash (undefined never ent
   let s = build(world)
   E.addPlayer(s, bob.playerId, 6, 5)
   s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }
-  const offer = E.signInput({ worldId: world.worldId, playerId: alice.playerId, tick: 0, type: 'offer_trade', to: bob.playerId, giveSlot: 0, wantItem: null, wantGold: 5 }, alice.privateKey)
+  const offer = E.signInput({ worldId: world.worldId, playerId: alice.playerId, tick: 0, type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: null, wantGold: 5 }, alice.privateKey)
   s = E.nextState(s, [offer])
   assert.equal(s.players[alice.playerId].trade.wantItem, null, 'absent wantItem becomes null, not undefined')
   assert.doesNotThrow(() => E.stateHash(s))

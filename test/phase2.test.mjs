@@ -33,20 +33,24 @@ function richState() {
   const mobId = Object.keys(s.mobs)[0]
   // players: every optional field, plus item slots with and without qty
   p1.name = 'rich-one'; s.names['rich-one'] = pids[0]
-  p1.gold = 123; p1.attuned = [wsId]
+  p1.gold = 123; p1.attuned = [wsId]   // §6ch: kept as a shape; it names nothing now
   p1.inventory[0] = { item: 'arrows', qty: 17 }
   p1.inventory[1] = { item: 'logs', qty: 3 }
   p1.inventory[3] = { item: 'chart:' + wsId, qty: 1 }
-  p1.equipment.weapon = { item: 'bronze-sword', qty: 1 }
-  p1.equipment.head = { item: 'bronze-helm', qty: 1 }
+  p1.equipment.weapon = { item: 'iron-sword', qty: 1 }
+  p1.equipment.head = { item: 'iron-helm', qty: 1 }
   p1.bank = { ore: 4, logs: 9 }
   p1.action = { type: 'gather', nodeId: Object.keys(s.nodes)[0] }
-  p1.trade = { to: pids[1], giveSlot: 0, wantItem: 'logs', wantGold: 0 }
-  p1.lightsTried = 7; p1.cooksTried = 3
-  p2.action = { type: 'attack', mobId, since: 41 }
+  // §6q: a stored offer names WHAT it gives, not merely where it sits
+  p1.trade = { to: pids[1], giveSlots: [0], giveItems: [{ item: 'arrows', qty: 17 }],
+               wantItem: 'logs', wantGold: 0 }
+  // §6bg: a tally PER ITEM, not one number. A citizen's luck at a raw-fish
+  // is not their luck at a deep-fish, and a single counter pooled them.
+  p1.lightsTried = { logs: 7 }; p1.cooksTried = { 'raw-fish': 3, flour: 1 }
+  p2.action = { type: 'attack', mobId, since: 41, style: 'even' }   // §6m: a fight has a style
   p2.rootedUntil = 100; p2.rootImmuneUntil = 120; p2.rootCdUntil = 400
   p2.brandedUntil = 900; p2.lastInput = 40
-  p3.action = { type: 'attackp', targetId: pids[1], since: 42 }
+  p3.action = { type: 'attackp', targetId: pids[1], since: 42, style: 'even' }
   p4.hp = 0; p4.deadUntil = 60
   // nodes: planted plot, brewing brewpot, burning fire
   s.nodes[plotId].plantedAt = 30; s.nodes[plotId].by = pids[0]
@@ -55,10 +59,12 @@ function richState() {
   // ground: with and without qty
   s.ground['g-rich-1'] = { item: 'bones', qty: 2, x: 20, y: 21, expiresAt: 700 }
   s.ground['g-rich-2'] = { item: 'ore', x: 20, y: 22, expiresAt: 700 }
-  // markers: both kinds
+  // §6ch: THERE IS ONLY ONE KIND OF MARKER NOW. A 'ws' rumour pointed at a
+  // waystone, and the stones went out of the world; the validator rejects the
+  // kind outright rather than tolerating a marker that names nothing.
   s.markers = [
     { x: 30, y: 30, kind: 'ord', bornAt: 10 },
-    { x: 31, y: 30, kind: 'ws', ws: wsId, bornAt: 12 },
+    { x: 31, y: 30, kind: 'ord', bornAt: 12 },
   ]
   s.announce = [{ tick: 40, text: 'rich fixture cries out' }]
   s.firsts = { surveyor: pids[0], 'master:mining': pids[1] }
@@ -231,9 +237,10 @@ test('index differential: thousands of random queries match the reference scans'
       T2.findAdjacentNode(s, ctx, p, type),
       T2.findAdjacentNode(s, null, p, type),
       `findAdjacentNode(${x},${y},${type}) selected a different object`)
-    assert.deepEqual(T2.adjacentNodeIdsInOrder(s, ctx, p, 'waystone'), T2.adjacentNodeIdsInOrder(s, null, p, 'waystone'))
+    assert.deepEqual(T2.adjacentNodeIdsInOrder(s, ctx, p, 'plot'), T2.adjacentNodeIdsInOrder(s, null, p, 'plot'))
   }
-  assert.deepEqual(T2.waystoneIdsSorted(s, ctx), T2.waystoneIdsSorted(s, null))
+  // §6ch: `waystoneIdsSorted` went out of the engine with the stones it
+  // indexed. There is no replacement to differential-test here.
   for (const pid of pids) assert.equal(T2.brewpotsOwnedBy(s, ctx, pid), T2.brewpotsOwnedBy(s, null, pid))
   assert.equal(T2.hasAdjacentNode(s, ctx, { x: 40, y: 41 }, new Set(['campfire', 'fire'])),
                T2.hasAdjacentNode(s, null, { x: 40, y: 41 }, new Set(['campfire', 'fire'])))
@@ -253,12 +260,18 @@ test('ordering (2D): with multiple matching adjacent nodes, the indexed path sel
   const ref = T2.findAdjacentNode(s, null, p, 'plot', n => !n.plantedAt)
   const idx = T2.findAdjacentNode(s, ctx, p, 'plot', n => !n.plantedAt)
   assert.equal(idx, ref)
-  assert.equal(ref, s.nodes['zz-plot-late'], 'reference is enumeration order, not tile order')
+  // The tie-break is CANONICAL ID ORDER, not insertion order and not tile
+  // order. This assertion expected `zz-plot-late` because the reference path
+  // once walked Object.entries and took the first match, which made the
+  // choice depend on the order nodes happened to be inserted -- and that is
+  // exactly the kind of thing two nodes can disagree about after a resync.
+  // Min-id order is the fix, and `aa-plot-early` is what it must select.
+  assert.equal(ref, s.nodes['aa-plot-early'], 'reference is min-id order, not insertion order')
   assert.deepEqual(
-    T2.adjacentNodeIdsInOrder(s, ctx, p, 'waystone'),
-    T2.adjacentNodeIdsInOrder(s, null, p, 'waystone'))
+    T2.adjacentNodeIdsInOrder(s, ctx, p, 'plot'),
+    T2.adjacentNodeIdsInOrder(s, null, p, 'plot'))
   // and after the first is planted, both paths move to the second
-  s.nodes['zz-plot-late'].plantedAt = 5
+  s.nodes['aa-plot-early'].plantedAt = 5
   const ctx2 = T2.buildTickContext(s)
   assert.equal(T2.findAdjacentNode(s, ctx2, p, 'plot', n => !n.plantedAt),
                T2.findAdjacentNode(s, null, p, 'plot', n => !n.plantedAt))

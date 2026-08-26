@@ -29,23 +29,29 @@ const CANON = {
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
   move: { dx: 1, dy: 0 },
   gather: { nodeId: 'tree-1' }, harvest: { nodeId: 'plot-1' },
-  attack: { mobId: 'gob-1' }, attackp: { targetId: 'ab'.repeat(32) },
+  // §6m: a fight carries its style. §6q: an offer names what it gives.
+  attack: { mobId: 'gob-1', style: 'even' },
+  attackp: { targetId: 'ab'.repeat(32), style: 'even' },
   recall: { to: 'ws-east' },
-  offer_trade: { to: 'ab'.repeat(32), giveSlot: 0, wantItem: 'logs', wantGold: 0 },
+  offer_trade: { to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 0 },
   accept_trade: { from: 'ab'.repeat(32) },
-  smith: { recipe: 'bronze-sword' },
-  wield: { slot: 0 }, sell: { slot: 1 }, plant: { slot: 2 }, light: { slot: 3 },
+  smith: { recipe: 'iron-sword' },
+  wield: { slot: 0 }, plant: { slot: 2 }, light: { slot: 3 },   // §6l: `sell` repealed
   bury: { slot: 4 }, deposit: { slot: 5 }, drop: { slot: 6 }, eat: { slot: 7 }, cook: { slot: 8 },
   unwield: { gear: 'weapon' },
-  buy: { item: 'logs' }, withdraw: { item: 'ore' },
+  buy: { item: 'logs' }, withdraw: { item: 'ore', qty: 1 },   // §7.3a: a quantity
   cast: { spell: 'anchor' },
   fletch: { slot: 0, make: 'bow' },
-  pickup: { groundId: 'g-1' },
+  pickup: { groundId: 'g-1', confirm: false },   // §7dk: a deliberate yes or no
   claim_name: { name: 'ada' },
 }
 // one representative corruption of each kind, per action where applicable
-const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, giveSlot: '0', wantItem: 9, wantGold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }
-const BAD_ID = { nodeId: 'has spaces!', mobId: 'x'.repeat(80), targetId: 'AB'.repeat(32), to: 'has spaces!', from: 'not hex!', groundId: '"; drop', name: '-lead' }
+const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, giveSlots: 'nope', wantItem: 9, wantGold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }
+// v0.80: T.id widened to 96 chars so a full 64-hex playerId fits inside a
+// durable node or ground id. An 80-character mobId is therefore LEGAL now,
+// and using it as the malformed sample meant this row silently stopped
+// testing anything. 200 is past the bound in any revision.
+const BAD_ID = { nodeId: 'has spaces!', mobId: 'x'.repeat(200), targetId: 'AB'.repeat(32), to: 'has spaces!', from: 'not hex!', groundId: '"; drop', name: '-lead' }
 
 test('§13 canonical action battery: exactly one accepted representation per action', () => {
   const worldId = E.worldId(mkGenesis('battery'))
@@ -78,7 +84,7 @@ test('§13 canonical action battery: exactly one accepted representation per act
     }
   }
   // trade-specific equivalence killers (§1): the alternates are dead
-  const tr = (extra) => E.validateInputShape(sign({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlot: 0, ...extra }))
+  const tr = (extra) => E.validateInputShape(sign({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], ...extra }))
   assert.match(tr({ wantItem: 'logs' }), /missing field wantGold/)
   assert.match(tr({ wantGold: 5 }), /missing field wantItem/)
   assert.match(tr({ wantItem: 'logs', wantGold: 5 }), /exactly one/)
@@ -125,13 +131,13 @@ test('§15 genesis canonicality matrix', () => {
 
 test('§16 SDK normalization: equivalent requests → byte-identical signed objects', () => {
   // shared-normalizer identity, straight from the engine
-  const a = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlot: 0, wantItem: 'logs' })
-  const b = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlot: 0, wantItem: 'logs', wantGold: 0 })
+  const a = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs' })
+  const b = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 0 })
   assert.equal(E.canonical(a), E.canonical(b), 'omitted zero and explicit zero are the same bytes')
   assert.equal(a.wantGold, 0)
-  const c = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlot: 0, wantGold: 5 })
+  const c = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantGold: 5 })
   assert.equal(c.wantItem, null)
-  assert.throws(() => E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlot: 0, wantItem: 'logs', wantGold: 5 }), /exactly one/)
+  assert.throws(() => E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 5 }), /exactly one/)
   assert.throws(() => E.normalizeInput({ type: 'move', dx: 1, dy: 0, memo: 'x' }), /unknown field memo/)
   // …and through the SDK itself: the object actually SIGNED is canonical
   const genesis = mkGenesis('sdk-world')
@@ -161,7 +167,24 @@ test('§17 transition closure across EVERY input type on one living world', () =
     const err = E.validateState(s)
     assert.equal(err, null, `after ${fields.type} at tick ${s.tick}: ${err}`)
   }
+  // §0e: A SOUL IS BORN OF A WAIT IT KEPT. `spawn` is refused unless the
+  // sender's attendance is ripe -- recorded at least VIGIL_TICKS (1,000)
+  // ticks ago. Neither spawn below could succeed, so `s.players[alice]` was
+  // undefined and this test died on a property read three lines later. That
+  // reads as a broken fixture, which is why it sat red: the actual message
+  // ("cannot read properties of undefined") names nothing about the vigil.
+  //
+  // The wait is written straight into the buffer and the clock moved past
+  // it, rather than simulating a thousand empty ticks that would add a
+  // minute to every run of this suite and test nothing §0e does not already
+  // cover on its own.
+  const ATTEND_CHARS = 16
+  s.tick = 1000
+  s.attend = [alice, bob].map((id) => [0, id.playerId.slice(0, ATTEND_CHARS)])
+    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
+  assert.equal(E.validateState(s), null, 'a seeded attendance buffer is a valid one')
   step(alice, { type: 'spawn' }); step(bob, { type: 'spawn' })
+  assert.ok(s.players[alice.playerId] && s.players[bob.playerId], 'both souls were born')
   // teleport the fixtures to the players (spawn point is genesis-defined)
   const p = s.players[alice.playerId]
   for (const n of Object.values(s.nodes)) { n.x = p.x + (n.x - 4); n.y = p.y + (n.y - 5) }
@@ -170,31 +193,33 @@ test('§17 transition closure across EVERY input type on one living world', () =
   const inv = s.players[alice.playerId].inventory
   inv[0] = { item: 'logs', qty: 3 }; inv[1] = { item: 'seeds', qty: 1 }
   inv[2] = { item: 'raw-fish', qty: 1 }; inv[3] = { item: 'bones', qty: 2 }
-  inv[4] = { item: 'ore', qty: 5 }; inv[5] = { item: 'bronze-helm', qty: 1 }
+  inv[4] = { item: 'ore', qty: 5 }; inv[5] = { item: 'iron-helm', qty: 1 }
   inv[6] = { item: 'cooked-fish', qty: 1 }; inv[7] = { item: 'magic-stone', qty: 3 }
   inv[8] = { item: 'sigil', qty: 1 }
   s.players[alice.playerId].gold = 50
+  // v0.70: a name costs standing (NAME_STANDING), which a fresh soul lacks
+  for (const sk of ['attack', 'strength', 'defence', 'mining', 'woodcutting'])
+    s.players[alice.playerId].skills[sk] = 150000
   assert.equal(E.validateState(s), null)
 
   step(alice, { type: 'move', dx: 0, dy: 0 })
   step(alice, { type: 'gather', nodeId: 'tree-1' })
   step(alice, { type: 'stop' })
-  step(alice, { type: 'attack', mobId: 'gob-1' })
+  step(alice, { type: 'attack', mobId: 'gob-1', style: 'even' })
   step(alice, { type: 'stop' })
-  step(alice, { type: 'attackp', targetId: bob.playerId })
+  step(alice, { type: 'attackp', targetId: bob.playerId, style: 'even' })
   step(alice, { type: 'stop' })
   step(alice, { type: 'claim_name', name: 'ada' })
-  step(alice, { type: 'offer_trade', to: bob.playerId, giveSlot: 0, wantGold: 3 })
+  step(alice, { type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantGold: 3 })
   step(bob, { type: 'accept_trade', from: alice.playerId })
-  step(alice, { type: 'offer_trade', to: bob.playerId, giveSlot: 3, wantItem: 'grain' })
+  step(alice, { type: 'offer_trade', to: bob.playerId, giveSlots: [3], wantItem: 'grain' })
   step(alice, { type: 'cancel_trade' })
   step(alice, { type: 'wield', slot: 5 })      // helm → head
   step(alice, { type: 'unwield', gear: 'head' })
   step(alice, { type: 'deposit', slot: 4 })    // one ore to the bank
-  step(alice, { type: 'withdraw', item: 'ore' })
+  step(alice, { type: 'withdraw', item: 'ore', qty: 1 })
   step(alice, { type: 'buy', item: 'logs' })
-  step(alice, { type: 'sell', slot: 6 })
-  step(alice, { type: 'smith', recipe: 'bronze-sword' })
+  step(alice, { type: 'smith', recipe: 'iron-sword' })
   step(alice, { type: 'plant', slot: 1 })
   step(alice, { type: 'harvest', nodeId: 'plot-1' }) // unripe: a lawful no-op
   step(alice, { type: 'light', slot: 0 })
@@ -204,10 +229,10 @@ test('§17 transition closure across EVERY input type on one living world', () =
   step(alice, { type: 'bury', slot: 3 })
   step(alice, { type: 'invoke' })
   step(alice, { type: 'cast', spell: 'anchor' })
-  step(alice, { type: 'recall', to: 'ws-east' }) // dead-or-unattuned: a lawful no-op
+  step(alice, { type: 'recall', to: 'ws-east' }) // §6ch: the stones are gone; still a LAWFUL no-op, and that is the point — an old client is refused, never desynced
   step(alice, { type: 'drop', slot: 0 })
-  step(alice, { type: 'pickup', groundId: Object.keys(s.ground)[0] ?? 'g-none' })
-  // every one of the 29 input types crossed nextState; the state never
-  // left the constitution
+  step(alice, { type: 'pickup', groundId: Object.keys(s.ground)[0] ?? 'g-none', confirm: false })
+  // every input type a citizen can still send crossed nextState; the state
+  // never left the constitution. `sell` is absent because §6l repealed it.
   assert.ok(s.players[alice.playerId].name === 'ada')
 })

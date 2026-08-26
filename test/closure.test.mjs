@@ -38,6 +38,24 @@ test('PROPERTY: hundreds of accepted transitions never produce a state the valid
   const pick = (arr) => arr[Math.floor(rnd() * arr.length)]
   const sign = (id, fields) => E.signInput({ worldId, playerId: id.playerId, tick: s.tick, ...fields }, id.privateKey)
 
+  // §0e: A SOUL IS BORN OF A WAIT IT KEPT. `spawn` is valid only against a
+  // ripe attendance -- a wait recorded at least VIGIL_TICKS (1,000 ticks)
+  // ago. This property test ran for 80 ticks, so nothing it signed could ever
+  // ripen and every citizen it generated inputs for never existed. The
+  // assertion at the end ("everyone spawned") is what noticed, but the real
+  // damage was silent: for 80 ticks the generator was exercising the shape
+  // gate against an empty world and calling it hundreds of transitions.
+  //
+  // The wait is seeded directly rather than waited out. Simulating 1,000
+  // empty ticks would buy nothing this test is about -- §0e's own machinery
+  // has its own coverage -- and would put a minute of dead clock in front of
+  // every run of the property battery.
+  const ATTEND_CHARS = 16 // §0b: 64 bits of playerId per entry
+  s.attend = players.map((id) => [0, id.playerId.slice(0, ATTEND_CHARS)])
+    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
+  assert.equal(E.validateState(s), null, 'a seeded attendance buffer is a valid one')
+  for (let i = 0; i < 1001; i++) s = E.nextState(s, [])
+
   const gen = (id) => {
     const p = s.players[id.playerId]
     if (!p) return sign(id, { type: 'spawn' })
@@ -81,7 +99,7 @@ test('trade closure: exactly one of constitutional item XOR positive gold', () =
     s.players[a.playerId].inventory[0] = { item: 'logs', qty: 1 }
     return s
   }
-  const offer = (extra) => E.signInput({ worldId, playerId: a.playerId, tick: 0, type: 'offer_trade', to: b.playerId, giveSlot: 0, ...extra }, a.privateKey)
+  const offer = (extra) => E.signInput({ worldId, playerId: a.playerId, tick: 0, type: 'offer_trade', to: b.playerId, giveSlots: [0], ...extra }, a.privateKey)
   const applied = (extra) => E.nextState(base(), [offer(extra)]).players[a.playerId].trade
 
   assert.equal(applied({ wantItem: 'sword-of-doom', wantGold: 0 }), null, 'unknown item refused')
@@ -124,7 +142,7 @@ test('imported citizens: complete validation before world construction', () => {
   g.imported = [{
     pid: pidA, name: 'old-hand', hp: 30,
     skills: { woodcutting: 5000, hitpoints: 5000 },
-    inventory: [{ item: 'logs', qty: 7 }, null, { item: 'bronze-sword', qty: 1 }],
+    inventory: [{ item: 'logs', qty: 7 }, null, { item: 'iron-sword', qty: 1 }],
     bank: { ore: 100, arrows: 250 },
     weapon: { item: 'old-chain', qty: 1 },
   }]
@@ -159,12 +177,12 @@ test('node type rules: ownership, expiry, and text belong to exactly their kinds
   }
   const cases = [
     [s => { s.nodes.f1 = { type: 'fire', x: 1, y: 1, depletedUntil: 0 } }, /fire without expiry/],
-    [s => { s.nodes['tree-1'].expiresAt = 99 }, /only fires expire/],
+    [s => { s.nodes['tree-1'].expiresAt = 99 }, /only fires and carts expire/],
     [s => { s.nodes['tree-1'].by = a.playerId }, /ownership metadata on a non-plot/],
     [s => { s.nodes['plot-1'].plantedAt = 3 }, /planted plot without an owner/],
     [s => { s.nodes['plot-1'].plantedAt = 3; s.nodes['plot-1'].by = 'ab'.repeat(32) }, /plot owner does not exist/],
     [s => { s.nodes['plot-1'].plantedAt = 0; s.nodes['plot-1'].by = a.playerId }, /unplanted plot carries an owner/],
-    [s => { s.nodes['tree-1'].text = 'hello' }, /text on a non-signpost/],
+    [s => { s.nodes['tree-1'].text = 'hello' }, /text on a node that bears none/],
   ]
   for (const [mutate, want] of cases) {
     const s = base(); mutate(s)

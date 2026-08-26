@@ -32,17 +32,41 @@ function citizens() {
   ]
 }
 
+// Extraction, by NAME rather than by position.
+//
+// This used to slice the file between two literal strings: an opening
+// comment marker and `const XP_TABLE = (() =>`. Both moved. The marker was
+// renamed and the XP table became a literal array, so the slice came back
+// empty and every assertion below died on `standingOf is not defined` --
+// which reads exactly like a broken test and is why nobody chased it. For
+// four spec revisions the two windows were free to disagree with the engine
+// about who a citizen is, and they did: the 3D window omitted `strength` and
+// `hauling` from its standing, and BOTH windows called an alchemist a
+// sigilist and had no word at all for a berserker or a runner.
+//
+// Pulling each declaration out by name costs a little more code and cannot
+// silently match nothing: a missing piece throws with the name of the piece.
+function grab(html, label, opener, closer) {
+  const i = html.indexOf(opener)
+  if (i < 0) throw new Error(`${label}: '${opener}' not found — the window has been restructured`)
+  const j = html.indexOf(closer, i)
+  if (j < 0) throw new Error(`${label}: no closing '${closer}' after it`)
+  return html.slice(i, j + closer.length)
+}
+
 function windowImpl(file, lvlName) {
   const html = read(file)
-  const start = html.indexOf('// ---- who a citizen is (spec 10)')
-  assert.ok(start > 0, `${file} is missing the identity block`)
-  const end = html.indexOf('\n', html.indexOf('return best === null', start))
-  const block = html.slice(start, html.indexOf('}', end) + 1)
-  // the window's own XP curve comes along, so a wrong curve fails here too
-  const tableSrc = html.slice(html.indexOf('const XP_TABLE = (() =>'), html.indexOf('const SKILL_OF_NODE') > 0 && file.includes('web')
-    ? html.indexOf('// ---- who a citizen is (spec 10)')
-    : html.indexOf('// ---- who a citizen is (spec 10)'))
-  return (0, eval)(tableSrc + '\n' + block + `\n;({standingOf, callingOf, lvl: ${lvlName}})`)
+  const parts = [
+    grab(html, 'XP_TABLE', 'const XP_TABLE = [', '];'),
+    grab(html, 'POW2_SEVENTHS', 'const POW2_SEVENTHS = [', ']'),
+    grab(html, 'xpStepAt', 'function xpStepAt(lvl)', '\n}'),
+    grab(html, lvlName, `const ${lvlName} = (xp) => {`, '\n}'),
+    grab(html, 'CALLINGS', 'const CALLINGS = {', '\n}'),
+    grab(html, 'SKILL_ORDER', 'const SKILL_ORDER = [', ']'),
+    grab(html, 'standingOf', 'function standingOf(p)', '\n}'),
+    grab(html, 'callingOf', 'function callingOf(p)', '\n}'),
+  ]
+  return (0, eval)(parts.join('\n') + `\n;({standingOf, callingOf, lvl: ${lvlName}})`)
 }
 
 test('the 2D window agrees with the engine about standing and calling', () => {

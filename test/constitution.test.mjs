@@ -61,6 +61,15 @@ test('ONE constitutional name rule everywhere: inputs, state, registry, imports'
   // claim_name input validation uses it
   const world = makeWorld()
   let s = build(world)
+  // v0.70: A NAME COSTS TIME. `claim_name` now also requires standing --
+  // the sum of true skill levels -- of at least NAME_STANDING (50). A newly
+  // added citizen stands at about 24, so every claim below was refused for a
+  // reason that had nothing to do with the name rule this test is about, and
+  // the test could no longer tell a bad name from a young citizen. Standing
+  // is granted here so the assertions test what they claim to test.
+  for (const sk of ['attack', 'strength', 'defence', 'mining', 'woodcutting']) {
+    if (s.players[alice.playerId].skills[sk] !== undefined) s.players[alice.playerId].skills[sk] = 150000
+  }
   const claim = (name) => E.nextState(s, [E.signInput({ worldId: world.worldId, playerId: alice.playerId, tick: s.tick, type: 'claim_name', name }, alice.privateKey)])
   assert.equal(claim('-sneaky').players[alice.playerId].name, null, 'leading hyphen refused at input')
   assert.equal(claim('waytoolongname').players[alice.playerId].name, null, 'overlong refused at input')
@@ -92,7 +101,7 @@ test('ONE constitutional item registry: unknown items are contraband everywhere'
     [s => { s.players[alice.playerId].bank[forged] = 5 }, /bank item/],
     [s => { s.players[alice.playerId].equipment.weapon = { item: forged, qty: 1 } }, /equipment slot/],
     [s => { s.ground.g1 = { item: forged, qty: 1, x: 1, y: 1, expiresAt: 9 } }, /ground item/],
-    [s => { E.addPlayer(s, bob.playerId, 6, 5); s.players[alice.playerId].trade = { to: bob.playerId, giveSlot: 0, wantItem: forged, wantGold: 0 } }, /trade item/],
+    [s => { E.addPlayer(s, bob.playerId, 6, 5); s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }; s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: forged, wantGold: 0 } }, /trade item/],
   ]
   for (const [mutate, want] of cases) {
     const s = build(world)
@@ -111,24 +120,34 @@ test('ONE constitutional item registry: unknown items are contraband everywhere'
 test('relational validation: no dangling references are constitutionally permitted', () => {
   const world = makeWorld()
   const cases = [
-    [s => { s.players[alice.playerId].action = { type: 'attack', mobId: 'ghost-mob', since: 0 } }, /references a missing mob/],
+    [s => { s.players[alice.playerId].action = { type: 'attack', mobId: 'ghost-mob', since: 0, style: 'even' } }, /references a missing mob/],
     [s => { s.players[alice.playerId].action = { type: 'gather', nodeId: 'ghost-node' } }, /references a missing node/],
-    [s => { s.players[alice.playerId].action = { type: 'attackp', targetId: bob.playerId, since: 0 } }, /references a missing player/],
-    [s => { s.players[alice.playerId].trade = { to: bob.playerId, giveSlot: 0, wantItem: null, wantGold: 1 } }, /missing partner/],
-    [s => { s.players[alice.playerId].attuned = ['ghost-stone'] }, /missing waystone/],
-    [s => { s.players[alice.playerId].attuned = ['tree-1'] }, /missing waystone/], // exists, but is no waystone
+    [s => { s.players[alice.playerId].action = { type: 'attackp', targetId: bob.playerId, since: 0, style: 'even' } }, /references a missing player/],
+    [s => { s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }; s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 1 } }, /missing partner/],
+    // §6ch: THE STONES WENT OUT OF THE WORLD. `attuned` survives as a SHAPE
+    // only, so a citizen imported from a world that had waystones still
+    // validates -- it names nothing now and nothing reads it. The two
+    // referential assertions that used to live here are therefore gone
+    // rather than updated: there is no referent left to dangle. What
+    // remains checkable is the shape itself.
+    [s => { s.players[alice.playerId].attuned = 'not-an-array' }, /malformed attunements/],
+    [s => { s.players[alice.playerId].attuned = ['UPPER CASE'] }, /malformed attunement/]
   ]
   for (const [mutate, want] of cases) {
     const s = build(world)
     mutate(s)
     assert.match(E.validateState(s) ?? 'VALID', want)
   }
-  // POSITIVE: resolved references validate — a live fight, a live trade, a real attunement
+  // POSITIVE: resolved references validate — a live fight and a live trade.
+  // The attunement is no longer part of this: §6ch left `attuned` as a shape
+  // with no referent, so an attunement that "resolves" is not a thing this
+  // world can have. A positive case asserting one would be asserting nothing.
   const s = build(world)
   E.addPlayer(s, bob.playerId, 6, 5)
-  s.players[alice.playerId].action = { type: 'attack', mobId: 'gob-1', since: 0 }
-  s.players[alice.playerId].attuned = ['ws-east']
-  s.players[bob.playerId].trade = { to: alice.playerId, giveSlot: 0, wantItem: 'logs', wantGold: 0 }
+  s.players[alice.playerId].action = { type: 'attack', mobId: 'gob-1', since: 0, style: 'even' }
+  s.players[bob.playerId].inventory[0] = { item: 'logs', qty: 1 }
+  s.players[bob.playerId].trade = { to: alice.playerId, giveSlots: [0],
+    giveItems: [{ item: 'logs', qty: 1 }], wantItem: 'logs', wantGold: 0 }
   assert.equal(E.validateState(s), null)
 })
 

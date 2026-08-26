@@ -25,11 +25,11 @@ const step = (s, inputs) => E.nextState(s, inputs)
 // ---------- 7.1: self-targeting PvP ----------
 test('attackp targeting the sender\'s own id is always invalid', () => {
   const s = world() // (5,5) and (6,5) are inside the Wilds (x 1-34, y 1-22)
-  const selfAtk = sign({ tick: 0, type: 'attackp', targetId: alice.playerId })
+  const selfAtk = sign({ tick: 0, type: 'attackp', targetId: alice.playerId, style: 'even' })
   const s2 = step(s, [selfAtk])
   assert.equal(s2.players[alice.playerId].action, null, 'self-attack must not start an action')
   // sanity: attacking ANOTHER player in the Wilds still works
-  const atk = sign({ tick: 1, type: 'attackp', targetId: bob.playerId })
+  const atk = sign({ tick: 1, type: 'attackp', targetId: bob.playerId, style: 'even' })
   const s3 = step(s2, [atk])
   assert.equal(s3.players[alice.playerId].action?.type, 'attackp')
 })
@@ -42,20 +42,26 @@ test('dropping 17 arrows grounds qty 17; picking them up restores 17', () => {
   const gids = Object.keys(s.ground)
   assert.equal(gids.length, 1)
   assert.equal(s.ground[gids[0]].qty, 17, 'ground record must carry the stack quantity')
-  s = step(s, [sign({ tick: 1, type: 'pickup', groundId: gids[0] })])
+  s = step(s, [sign({ tick: 1, type: 'pickup', groundId: gids[0], confirm: false })])
   assert.equal(E.countItem(s.players[alice.playerId].inventory, 'arrows'), 17)
   assert.equal(Object.keys(s.ground).length, 0)
 })
 
-// ---------- 7.3: deposit takes exactly one unit ----------
-test('depositing from a 17-stack banks 1 and leaves 16', () => {
+// ---------- 7.3: deposit takes the WHOLE slot (§7.3a) ----------
+// This test asserted the one-unit-per-interval rule until §7.3a repealed it.
+// The repeal's own argument is the reason the assertion had to move rather
+// than the engine: the per-unit rate was a tax on PATIENCE inside a town,
+// where nothing may strike you and no decision is on offer, and §8 says
+// patience is never the tax. The rate limit stays where it earns its keep --
+// at `alch`, in the open.
+test('depositing a 17-stack banks all 17 and clears the slot', () => {
   let s = world()
   s.players[alice.playerId].inventory[0] = { item: 'arrows', qty: 17 }
   s = step(s, [sign({ tick: 0, type: 'deposit', slot: 0 })])
   const p = s.players[alice.playerId]
-  assert.equal(p.bank.arrows, 1)
-  assert.equal(p.inventory[0].qty, 16)
-  // and a single item clears the slot
+  assert.equal(p.bank.arrows, 17, 'the whole slot goes over the counter')
+  assert.equal(p.inventory[0], null, 'and the slot is empty behind it')
+  // and a single item behaves identically: one slot, one interval
   s.players[alice.playerId].inventory[1] = { item: 'logs', qty: 1 }
   s = step(s, [sign({ tick: 1, type: 'deposit', slot: 1 })])
   assert.equal(s.players[alice.playerId].bank.logs, 1)
@@ -70,10 +76,10 @@ test('full inventory: arrow pickup merges into the quiver; non-stackable is refu
   p.inventory[3] = { item: 'arrows', qty: 5 }
   s.ground['ga'] = { item: 'arrows', qty: 7, x: 5, y: 5, expiresAt: 100 }
   s.ground['gb'] = { item: 'bones', qty: 1, x: 5, y: 5, expiresAt: 100 }
-  s = step(s, [sign({ tick: 0, type: 'pickup', groundId: 'ga' })])
+  s = step(s, [sign({ tick: 0, type: 'pickup', groundId: 'ga', confirm: false })])
   assert.equal(E.countItem(s.players[alice.playerId].inventory, 'arrows'), 12, 'arrows pool into the quiver')
   assert.equal('ga' in s.ground, false)
-  s = step(s, [sign({ tick: 1, type: 'pickup', groundId: 'gb' })])
+  s = step(s, [sign({ tick: 1, type: 'pickup', groundId: 'gb', confirm: false })])
   assert.equal('gb' in s.ground, true, 'non-stackable pickup with a full pack is refused')
 })
 
