@@ -2,7 +2,7 @@
 
 *A world that runs on rules, not servers.*
 
-*Release 0.99.0 · protocol spec v0.99 · consensus spec v1.9 · rules hash `62f210992120020e`…`. These four move together; a change to any is a new release.*
+*Release 0.99.0 · protocol spec v0.99 · consensus spec v1.9 · rules hash `a5af2784500abefc`…`. These four move together; a change to any is a new release.*
 
 Interval is a decentralized MMO. The game is a deterministic state
 machine. The spec is the constitution, and the rules are the authority; not a
@@ -27,6 +27,7 @@ Source and constitution: [github.com/intervalplace/interval](https://github.com/
 Open [interval.place/play](https://interval.place/play). A key is minted
 in your browser, and you wake at the well in Anchor. Chop, mine, fish,
 fight, trade, light fires; everything you do is signed and witnessed.
+Swear a calling when you know what you are.
 
 - **/play**: the flat window. Fast, complete, runs anywhere.
 - **/deluxe**: the 3D window.
@@ -137,10 +138,12 @@ explained. Its keepers stand at their counters from the founding
 on, every one named by a hash except the wizard, who chose his own.
 It has fenced fields, worksites where each country's trade gathers,
 an inn on the north road whose yard is waiting for its first brewer,
-and sixteen races, one per skill, each winnable exactly once, the
-winner named for as long as the world lasts. Magic is the skill of
+and a race for each of the nine trades, each winnable exactly once, the
+winner named for as long as the world lasts. Sorcery is the trade of
 refusing combat: its capstone spell's whole law is one sentence, and
-the sentence is in the SPEC. One island in the northwest appears on no
+the sentence is in the SPEC. Mourning is the only trade paid in what it
+cost you -- every other converts time into levels; that one converts
+wealth, and the goods are gone. One island in the northwest appears on no
 road and carries no label. It is drawn faithfully.
 
 Some things on the island are not in this file on purpose.
@@ -157,7 +160,8 @@ Some things on the island are not in this file on purpose.
 | `serve.mjs` | the pillar: founds, witnesses, serves the site and windows |
 | `join.mjs` | become a sovereign peer of an existing world |
 | `recover.mjs` | rebuild the finalized present from certificates alone |
-| `worldgen-expanse3.mjs` | Tallyholm: the island as pure functions of the seed |
+| `worldgen-expanse7.mjs` | Tallyholm: the island as pure functions of the seed |
+| `worldgen-any.mjs` | which landscape a founding record describes |
 | `window-web.html` · `window-3d.html` · `window-photo.html` | three windows, one world |
 | `site/` | the map, hiscores, board, manual, served by the pillar |
 | `sdk.mjs` · `session.mjs` | build your own window or executor |
@@ -175,8 +179,14 @@ under adversaries, and the release tuple itself. The suite fails if
 this README's banner drifts from `package.json`. Freeze evidence and
 methodology live in [TESTING.md](TESTING.md).
 
-## Homage
+## Lineage
 
-Interval is deeply inspired by early-2000s RuneScape: its tick-based
-time, discrete systems, and coherent fixed rules. Interval is an
-independent project with no affiliation with Jagex.
+Interval is in the tradition of late-90s and early-2000s tick-based
+worlds — the browser and cartridge era, when a game was a small set of
+fixed rules applied the same way every time, and the interesting part
+was what people did inside them rather than what the engine did to keep
+them entertained. Discrete time, discrete systems, no hidden difficulty
+curve, no live-ops.
+
+It is not a clone of any of them, and it has no affiliation with any of
+their makers.

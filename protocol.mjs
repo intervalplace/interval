@@ -30,8 +30,17 @@ export const AGREEMENT = {
   ROUND_BACKOFF_CAP: 6,           // exponential round windows, capped at 2^6
   MAX_SKEW_MS: 150,               // clock slack when judging round windows
   MAX_INPUTS_PER_PLAYER: 2,       // one action + at most one equivocation proof
-  MAX_INPUTS_PER_BUNDLE: 4096,
-  MAX_BUNDLE_BYTES: 1024 * 1024,
+  MAX_INPUTS_PER_BUNDLE: 65536,  // == engine MAX_APPLIED_INPUTS; a bundle may carry a full tick
+  // Sized FROM the input cap, not chosen independently. A signed input measures
+  // ~331 bytes on the wire, so a full 65536-input bundle is ~21.7 MB: at the
+  // old 1 MiB a proposer could assemble a bundle lawful by count and illegal by
+  // size, and would do so first under exactly the load that matters.
+  //
+  // 32 MiB is a CEILING, not an expectation. It is never approached at any
+  // operating point: the working limit is CPU and admission bandwidth, both
+  // tunable, both far below this. What it must not do is become a second,
+  // invisible input cap -- which is precisely what 1 MiB was.
+  MAX_BUNDLE_BYTES: 32 * 1024 * 1024,
   MAX_ATTESTATION_BYTES: 2 * 1024,
   MAX_FINALITY_BYTES: 2 * 1024 * 1024,
   MAX_FINALIZED_HISTORY: 512,     // in-memory certified-bundle log retention

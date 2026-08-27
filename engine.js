@@ -55,7 +55,18 @@ const hex = (u8) => Buffer.from(u8).toString('hex');
 
 const SPEC_VERSION = '0.99';
 const TICK_MS = 600;
-const INV_SLOTS = 28;
+// §5t: TWELVE. Twenty-eight was RuneScape's number and it made deciding cheap:
+// a citizen could carry a gathering run, a combat kit and a spare set at once,
+// so leaving town was never a choice about anything. Twelve is tight enough
+// that an errand has to be picked before the gate.
+//
+// It is also the whole reason the recipe tree was rebuilt below. A pack is not
+// just storage -- it is the ceiling on what one craft may cost, because nothing
+// reads from a bank at an anvil. Twenty-eight already had FOUR recipes that
+// could not be held at all (the entire `great` tier shipped uncraftable); at
+// twelve, sixteen were over. The answer was not smaller numbers, it was DEPTH:
+// see star-grit and star-alloy.
+const INV_SLOTS = 12;
 // v0.70: a name is claimed once and held forever (§5a), with no release and no
 // transfer, so an unclaimed name is a commons that can be taken permanently.
 // Free identities made that a land grab: mint keys, claim every short word, and
@@ -65,7 +76,52 @@ const NAME_STANDING = 50;
 // The most inputs one tick may apply. A protocol limit, not a node's memory
 // setting: it decides which deeds happen, so it decides state, so it belongs
 // to the constitution.
-const MAX_APPLIED_INPUTS = 4096;
+// The applied cap is CONSTITUTIONAL: it cannot be raised after a founding
+// without founding a different world. It is therefore sized against the
+// machines this world might EVER be served by, not against the machine that
+// founds it.
+//
+// Everything that makes a tick expensive is implementation and stays tunable
+// forever -- verification parallelism, the clone, the state hash, the wire
+// format, the tick's own CPU budget. None of it is in the rules hash. This
+// number is, and it alone fixes the ceiling: a world's lifetime maximum
+// population is MAX_APPLIED_INPUTS / (input rate x TICK_MS), permanently, and
+// no future hardware moves it.
+//
+// Sizing it just above the founding machine (~1,800 inputs/tick measured, or
+// ~2,900 with verification parallelised) would therefore have been a category
+// error -- the right criterion for an OPERATING limit, and the wrong one for a
+// permanent one. A world meant to run for decades would reach that ceiling
+// within a couple of CPU generations and could only escape it by refounding,
+// which is to say by dissolving itself.
+//
+// 65536 is a flood limit, not an operating point. The cost of setting it high
+// is memory and admission bandwidth, both bounded separately by
+// MAX_BUNDLE_BYTES and by the requirement that every input carry a valid
+// signature from a distinct citizen -- and both are the resources that improve
+// fastest. The cost of setting it low cannot be paid off at any price.
+const MAX_APPLIED_INPUTS = 65536;
+
+// §5i: HOW FAR ONE DEED MAY CARRY YOU.
+//
+// Walking was the only thing in this world still billed by the interval.
+// Gathering, swinging and raising a stall are all ACTIONS -- given once, they
+// run on by themselves and cost nothing further -- but a citizen crossing the
+// island to Thornbury, two hundred and thirty-eight tiles off, was signing two
+// hundred and thirty-eight separate inputs to do it. Travel is the commonest
+// thing anybody does, and it alone was consuming an order of magnitude of the
+// world's population against a cap that cannot be raised after a founding.
+//
+// A walk is NOT a path: there is no search here, no heuristic, and nothing to
+// standardise between implementations. It is a direction and a count, one tile
+// per interval, stopping the moment the way is barred -- exactly as a gather
+// stops when the seam runs dry. A journey with two turns is three deeds.
+//
+// The bound is the world diagonal, so a single deed can carry a citizen across
+// the map and no further. It does not make anybody faster: everyone still
+// walks one tile per interval, and the flight rule (§2b-i) is untouched,
+// because a walk occupies the same single action slot a swing would.
+const WALK_MAX_STEPS = 512;
 
 // ---------- THE WORLD FORGETS WHAT NOBODY EVER WAS (spec 5f) ----------
 //
@@ -265,8 +321,7 @@ function everWasSomebody(p, genesis) {
   if (p.action !== null && p.action !== undefined) return true;
   if (p.trade !== null && p.trade !== undefined) return true;
   for (const sk of SKILLS) {
-    const floor = sk === 'hitpoints' ? HP_START_XP : 0;
-    if ((p.skills?.[sk] ?? floor) !== floor) return true;
+    if ((p.skills?.[sk] ?? 0) !== 0) return true;
   }
   // the newcomer's quiver is what everyone wakes with; anything else is a deed
   let slots = 0;
@@ -285,7 +340,12 @@ function everWasSomebody(p, genesis) {
 // applied cap as KNOWN, with every honest newcomer behind them forever. A
 // world that cannot be entered is a world that ends with the people already
 // in it. This share is not a courtesy; it is the door.
-const STRANGER_SHARE = 256;
+// Expressed as a FRACTION of the applied cap, not an absolute. Written as 256
+// against a cap of 4096 it was one sixteenth of the tick; the same literal
+// against a larger cap silently halves the door while appearing unchanged, and
+// the argument above is proportional -- it is about what share of an interval
+// a newcomer can claim, not about a count.
+const STRANGER_SHARE = MAX_APPLIED_INPUTS >> 4;   // one sixteenth of the tick
 
 // ---------- SPAWNING IS NOT AN ACTION (spec 5h) ----------
 //
@@ -362,8 +422,8 @@ function engineThrow(code, message) { const e = new Error(message); e.code = cod
 // validation, and tests all reference these. A validator with its own
 // copy of the constitution eventually disagrees with the engine (it
 // happened: signpost text), so neither may define these locally.
-const SKILLS = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack', 'strength', 'defence', 'hitpoints', 'exploration', 'brewing', 'hauling'];
+const SKILLS = ['woodcraft', 'earthcraft', 'shorecraft',
+  'mourning', 'marksmanship', 'sorcery', 'hearthcraft', 'prowess', 'wayfaring'];
 // §11: HAULING IS THE EIGHTEENTH SKILL (v0.87).
 //
 // It grants no power -- like prayer, exploration and brewing, the level IS the
@@ -571,6 +631,8 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   'salt-pan',
   // §7q: THE SAWPIT. Logs become planks here and nowhere else.
   'sawpit',
+  // §5u: the crushing floor, placed by the world in the high country
+  'stamp',
   // §7t: THE TRAINING YARD. A dummy takes a blow and a butt takes an arrow;
   // neither ever hits back, and past a low level neither teaches anything.
   'dummy', 'butt',
@@ -657,32 +719,32 @@ const NODE_YIELD = {
   //
   // It costs 14% off the road (879 hours to 754), which rateMul takes back.
   // The old shape was 25/45/65 and a 13.8x shortcut; this is 1.2x.
-  'tree':         { item: 'logs',        skill: 'woodcutting', xp: 20, hard: 1 },
-  'rock':         { item: 'ore',         skill: 'mining',      xp: 35, hard: 1 },
+  'tree':         { item: 'logs',        skill: 'woodcraft', xp: 20, hard: 1 },
+  'rock':         { item: 'ore',         skill: 'earthcraft',      xp: 35, hard: 1 },
   // §7a: a boulder pays a piece of itself and almost no experience. Nobody
   // should be able to train on the South Pass -- the reason to strike it is
   // that it is in the way, and the day it stops being in the way is the point.
-  'rockfall':     { item: 'rubble',      skill: 'mining',      xp: 1, hard: 1 },
-  'fishing-spot': { item: 'raw-fish',    skill: 'fishing',     xp: 20, hard: 1 },
-  'magic-rock':   { item: 'magic-stone', skill: 'mining',      xp: 23, hard: 4 },
+  'rockfall':     { item: 'rubble',      skill: 'earthcraft',      xp: 1, hard: 1 },
+  'fishing-spot': { item: 'raw-fish',    skill: 'shorecraft',     xp: 20, hard: 1 },
+  'magic-rock':   { item: 'magic-stone', skill: 'earthcraft',      xp: 23, hard: 4 },
   // 6bd: THE MOTHER LODE, the exact sibling of the gallows-oak. Two stones to a
   // strike, deeper in the Wilds, and not one point more experience for it.
-  'mother-lode':  { item: 'magic-stone', skill: 'mining',      xp: 24, qty: 2, hard: 4 },
+  'mother-lode':  { item: 'magic-stone', skill: 'earthcraft',      xp: 24, qty: 2, hard: 4 },
   // §6am (v6): the middle tier. Higher xp than baseline, lower than the
   // capstones, and the item is its own thing -- oak-logs, coal, eel --
   // that the mid gear (steel) is forged and fletched from.
-  'oak-tree':  { item: 'oak-logs', skill: 'woodcutting', xp: 21, hard: 2 },
+  'oak-tree':  { item: 'oak-logs', skill: 'woodcraft', xp: 21, hard: 2 },
   // 6bc: ironbark, the long-burning wood. Its job is the watchfire, which is
   // the one public work in this world, and the haft of the last axe.
-  'ironbark-tree': { item: 'ironbark', skill: 'woodcutting', xp: 22, hard: 2 },
-  'coal-rock': { item: 'coal',     skill: 'mining',      xp: 21, hard: 2 },
+  'ironbark-tree': { item: 'ironbark', skill: 'woodcraft', xp: 22, hard: 2 },
+  'coal-rock': { item: 'coal',     skill: 'earthcraft',      xp: 21, hard: 2 },
   // §6bs: the vent. Mining's late game was a rarer metal and a deeper one;
   // this is the first thing it pulls out that a smith BURNS rather than beats.
-  'brimstone-vent': { item: 'brimstone', skill: 'mining',    xp: 24, hard: 8 },
+  'brimstone-vent': { item: 'brimstone', skill: 'earthcraft',    xp: 24, hard: 8 },
   // §7i: worked with FARMING, which is the point of it -- the only gatherable
   // on the island that pays a farmer, and it stands in the farm country.
-  'muck-heap':      { item: 'saltpetre', skill: 'farming',   xp: 24, hard: 4 },
-  'eel-spot':  { item: 'eel',      skill: 'fishing',     xp: 21, hard: 2 },
+  'muck-heap':      { item: 'saltpetre', skill: 'hearthcraft', xp: 24, hard: 4 },
+  'eel-spot':  { item: 'eel',      skill: 'shorecraft',     xp: 21, hard: 2 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
   // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
   // still (bronze is iron worked simply here), and STEEL is iron quenched with
@@ -699,26 +761,26 @@ const NODE_YIELD = {
   // `rock` gives, from when there was one tier and it was bronze. Iron ore is
   // not that, and a seam that gave the retired generic would have made bronze
   // stock and iron stock the same substance.
-  'iron-rock': { item: 'iron-ore', skill: 'mining',      xp: 20, hard: 1 },
+  'iron-rock': { item: 'iron-ore', skill: 'earthcraft',      xp: 20, hard: 1 },
   // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
   // Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
   // mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
-  'heartwood-tree': { item: 'heartwood', skill: 'woodcutting', xp: 23, hard: 4 },
+  'heartwood-tree': { item: 'heartwood', skill: 'woodcraft', xp: 23, hard: 4 },
   // 6bc: THE GALLOWS-OAK. Not a new wood -- a new PLACE for the same one, in
   // the Wilds, giving two heartwood to a strike instead of one. This is the
   // lever that replaced price (a keeper's purse is 2 gold a tick and caps
   // everything): yield per action is uncapped, costs the experience curve
   // nothing, and the price of it is that anybody may kill you while you work.
-  'gallows-oak':    { item: 'heartwood', skill: 'woodcutting', xp: 24, qty: 2, hard: 4 },
-  'deep-fish-spot': { item: 'deep-fish', skill: 'fishing',     xp: 23, hard: 4 },
+  'gallows-oak':    { item: 'heartwood', skill: 'woodcraft', xp: 24, qty: 2, hard: 4 },
+  'deep-fish-spot': { item: 'deep-fish', skill: 'shorecraft',     xp: 23, hard: 4 },
   // 6be: THE DROWNED SHOAL. Two deep fish to a cast, under the gibbet, in the
   // water only the Wilds touches -- fishing's gallows-oak, and the third of
   // the three. Every trade now has one place where the good is doubled and
   // the price of standing there is that somebody may kill you for it.
-  'gibbet-shoal':   { item: 'deep-fish', skill: 'fishing',     xp: 24, qty: 2, hard: 4 },
+  'gibbet-shoal':   { item: 'deep-fish', skill: 'shorecraft',     xp: 24, qty: 2, hard: 4 },
   // 6bb: the gold seam yields like any other seam and pays like any other
   // seam. What differs is only how often, and that is decided by roll16.
-  'gold-rock':      { item: 'gold-ore',  skill: 'mining',      xp: 23, hard: 1 },
+  'gold-rock':      { item: 'gold-ore',  skill: 'earthcraft',      xp: 23, hard: 1 },
 };
 // v0.40: the night gate is repealed. It was constitutional arithmetic
 // (tick % 2400), not wall-clock authority: but its only effect was
@@ -747,15 +809,15 @@ const WIELD_REQS = {
   // fifty. So the whole tool ladder is earned in the first days -- which is the
   // only part of this skill a person will ever cut by hand before handing it to
   // an executor. A tool nobody living ever forges is a tool for nobody.
-  'steel-hatchet': { woodcutting: 10 }, 'steel-pickaxe': { mining: 10 }, 'oak-rod': { fishing: 10 }, 'ironbark-rod': { fishing: 30 }, 'heartwood-rod': { fishing: 70 },
-  'star-hatchet': { woodcutting: 30 }, 'star-pickaxe': { mining: 30 },
+  'steel-hatchet': { woodcraft: 10 }, 'steel-pickaxe': { earthcraft: 10 }, 'oak-rod': { shorecraft: 10 }, 'ironbark-rod': { shorecraft: 30 }, 'heartwood-rod': { shorecraft: 70 },
+  'star-hatchet': { woodcraft: 30 }, 'star-pickaxe': { earthcraft: 30 },
   // 6bc: the felling axe -- a starmetal head on an ironbark haft, and the last
   // thing woodcutting asks for. It needs the Wilds (the head) and the deep
   // Greenwood (the haft), so the peaceful half of the trade and the dangerous
   // half have to meet, exactly as the heartwood bow makes them.
-  'great-hatchet': { woodcutting: 70 }, 'great-pickaxe': { mining: 70 },
-  'star-sword': { attack: 50 }, 'star-dagger': { attack: 50 }, 'old-chain': { attack: 30 },
-  'gold-chain': { attack: 30 }, 'bone-staff': { magic: 40 },
+  'great-hatchet': { woodcraft: 70 }, 'great-pickaxe': { earthcraft: 70 },
+  'star-sword': { prowess: 50 }, 'star-dagger': { prowess: 50 }, 'old-chain': { prowess: 30 },
+  'gold-chain': { prowess: 30 }, 'bone-staff': { sorcery: 40 },
   // §7ao: A MAUL ANSWERS TO STRENGTH.
   //
   // Every maul was gated on ATTACK, which is the finesse stat -- and a maul is
@@ -768,54 +830,54 @@ const WIELD_REQS = {
   // wielding at the end of it: every weapon in the world wanted attack. A
   // strength pure can pick up a maul now, which is what a strength pure would
   // pick up.
-  'star-spear': { attack: 50 }, 'star-maul': { strength: 55 }, 'horn-bow': { ranged: 20 },
-  'hollow-bow': { ranged: 1 },
-  'dragonbow': { ranged: 40 },   // it will not be drawn by a beginner
+  'star-spear': { prowess: 50 }, 'star-maul': { prowess: 55 }, 'horn-bow': { marksmanship: 20 },
+  'hollow-bow': { marksmanship: 1 },
+  'dragonbow': { marksmanship: 40 },   // it will not be drawn by a beginner
   // §6x: these shipped with NO requirement at all, which made a starmetal
   // flail wieldable at level one while a star-maul asked for attack 25. A
   // crossbow is heavy to hold level and heavier to crank; a flail on a chain
   // is the least forgiving thing in the world to swing at anything.
-  'crossbow': { ranged: 25 },
+  'crossbow': { marksmanship: 25 },
   // §6dg: a thrown arm asks the bow-arm, one notch under the weapon it shares
   // a forge with -- and star asks the same fifty every star arm asks.
-  'iron-javelin': { ranged: 1 }, 'steel-javelin': { ranged: 15 }, 'star-javelin': { ranged: 50 },
+  'iron-javelin': { marksmanship: 1 }, 'steel-javelin': { marksmanship: 15 }, 'star-javelin': { marksmanship: 50 },
   // §6x: THE FLAIL IS STARMETAL ONLY. `pierces` ignores an entire defensive
   // system, and on a starter weapon that meant a level-ten citizen with two
   // ore beat a star-clad one more efficiently than a star-sword does. It is
   // the answer to armour, and it belongs to people who have earned armour.
-  'star-flail': { attack: 55 },
-  'fire-siphon': { attack: 60 },
+  'star-flail': { prowess: 55 },
+  'fire-siphon': { prowess: 60 },
   // §7l: MEASURED, not guessed. A naked bare-blade wins 23-37% of duels
   // against a star-sword over a full star suit, at every level from 40 to 99 --
   // it is an option, not an answer, and it never dominates. No level gate is
   // needed for balance; this one is here so that a citizen meets the choice
   // after they have met armour, not before.
-  'bare-blade': { attack: 30, strength: 30 },
+  'bare-blade': { prowess: 30, prowess: 30 },
   // §7cm: strength alone, and high. It is the maul's argument -- a blow, not a
   // roll -- and §7ao's point stands: a strength pure should have something to
   // pick up at the end of the spade.
-  'bone-spear': { strength: 50 },
+  'bone-spear': { prowess: 50 },
   // §7cn: attack, mid-high. A weapon that answers a crowd should be carried by
   // somebody who has already stood in one.
-  'barb': { attack: 45 },
+  'barb': { prowess: 45 },
   // §6bt: seventy, where every gathering skill already has its mastery tool.
   // §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
   // crossbow for ranged, and nothing for strength -- which was invisible while
   // mauls were gated on attack (§7ao) and glaring the moment they were not. A
   // citizen who trains strength alone now has a ladder that reaches the top of
   // the world like everybody else's.
-  'great-sword': { attack: 70 }, 'great-crossbow': { ranged: 70 },
-  'great-maul': { strength: 70 },
+  'great-sword': { prowess: 70 }, 'great-crossbow': { marksmanship: 70 },
+  'great-maul': { prowess: 70 },
   // §6bw: defence's last unlock was fifty and then forty-nine levels of
   // nothing -- the longest dead band in the game once the arms were fixed.
-  'great-helm': { defence: 70 }, 'great-plate': { defence: 70 },
+  'great-helm': { prowess: 70 }, 'great-plate': { prowess: 70 },
   // and fifteen, where a citizen fighting crabs had worn the same iron since
   // their first afternoon and would go on wearing it until thirty-two.
-  'shell-helm': { defence: 15 }, 'shell-plate': { defence: 15 },
+  'shell-helm': { prowess: 15 }, 'shell-plate': { prowess: 15 },
   // §6y: sigils bound to the limbs. The draw is half the arrows, and half of
   // nothing is still nothing, so it asks a real bow-arm first.
-  'sigil-bow': { ranged: 30, magic: 20 },
-  'heartwood-bow': { ranged: 40 },
+  'sigil-bow': { marksmanship: 30, sorcery: 20 },
+  'heartwood-bow': { marksmanship: 40 },
   // §6ae AGAIN, AND IT WAS MISSED. The heartwood bow is fletched at ninety and
   // drawn at ranged forty; the heartwood staff was fletched at ninety and held
   // by ANYBODY. It halves the cadence of a transmuting, so handing one to a
@@ -836,7 +898,7 @@ const WIELD_REQS = {
   // ninety and spend two heartwood on it. The level only has to say what kind
   // of thing it is, and seventy says "a serious tool" where forty said "not
   // quite a beginner".
-  'heartwood-staff': { magic: 70 },
+  'heartwood-staff': { sorcery: 70 },
   // §6bn: THE GOO STAFF, and it takes the SAME seventy the heartwood took.
   //
   // `unmake` moved here off the heartwood stave, and the level is chosen so
@@ -846,18 +908,18 @@ const WIELD_REQS = {
   //
   // Nothing else about this staff is a level. It falls off the great-spider
   // and the spider is the gate -- three citizens and six hours of the world.
-  'goo-staff': { magic: 70 },
-  'star-helm': { defence: 45 }, 'star-plate': { defence: 50 }, 'king-shroud': { defence: 40 },
+  'goo-staff': { sorcery: 70 },
+  'star-helm': { prowess: 45 }, 'star-plate': { prowess: 50 }, 'king-shroud': { prowess: 40 },
   // 6bb: it defends exactly as starmetal does. NOT better -- better would make
   // it mandatory, and a thing everybody must own says nothing about anybody.
   // Equal means wearing it is a statement rather than a build.
-  'gold-helm': { defence: 45 }, 'gold-plate': { defence: 50 }, 'gold-legs': { defence: 45 },
-  'iron-shield': { defence: 1 }, 'steel-shield': { defence: 30 }, 'star-shield': { defence: 48 },
+  'gold-helm': { prowess: 45 }, 'gold-plate': { prowess: 50 }, 'gold-legs': { prowess: 45 },
+  'iron-shield': { prowess: 1 }, 'steel-shield': { prowess: 30 }, 'star-shield': { prowess: 48 },
   // §6am (v6): the mid arms and armour, worn at the middle of the fighting
   // road -- past a beginner, short of the fifty that straps on starmetal.
-  'steel-sword': { attack: 35 }, 'steel-dagger': { attack: 35 }, 'steel-spear': { attack: 35 }, 'steel-maul': { strength: 38 },   // §7ao
-  'steel-helm': { defence: 32 }, 'steel-plate': { defence: 38 },
-  'handgonne': { ranged: 90 },   // §6av
+  'steel-sword': { prowess: 35 }, 'steel-dagger': { prowess: 35 }, 'steel-spear': { prowess: 35 }, 'steel-maul': { prowess: 38 },   // §7ao
+  'steel-helm': { prowess: 32 }, 'steel-plate': { prowess: 38 },
+  'handgonne': { marksmanship: 90 },   // §6av
 };
 // THE STORE MAKES NOTHING. It was `{ seeds: 15 }` -- the one good in the world
 // conjured by an institution rather than by a person -- and with the stalls in
@@ -968,37 +1030,37 @@ function skillUnlocks() {
     'gibbet-shoal': 'the drowned shoal under the gibbet',
   };
   for (const [nt, g] of Object.entries(NODE_GATE)) if (_gateWords[nt]) add(g.skill, g.level, _gateWords[nt]);
-  add('farming', FARM_MASTER, 'a fuller sheaf from every row');            // 6bv: how much fuller is GRAIN_MASTER
-  add('cooking', COOK_DEEP_REQ, 'you may cook the deep fish');
-  add('fletching', ARROW_MASTER, 'more arrows from the same bone');         // 6bv: how many more is ARROWS_MASTER
-  add('fletching', HEARTWOOD_FLETCH, 'the heartwood bow and the heartwood staff');
-  for (const [rd, lv] of Object.entries(ROD_FLETCH_REQ)) add('fletching', lv, 'shape the ' + rd.replace(/-/g, ' '));
+  add('hearthcraft', FARM_MASTER, 'a fuller sheaf from every row');            // 6bv: how much fuller is GRAIN_MASTER
+  add('shorecraft', COOK_DEEP_REQ, 'you may cook the deep fish');
+  add('woodcraft', ARROW_MASTER, 'more arrows from the same bone');         // 6bv: how many more is ARROWS_MASTER
+  add('woodcraft', HEARTWOOD_FLETCH, 'the heartwood bow and the heartwood staff');
+  for (const [rd, lv] of Object.entries(ROD_FLETCH_REQ)) add('woodcraft', lv, 'shape the ' + rd.replace(/-/g, ' '));
   // magic, from its first spell to its last
-  add('magic', ALCH_REQ, 'transmute');                                      // 6bv: what a thing is worth unmade is ALCH_PAYS
-  add('magic', MEND_REQ, 'mend');                                           // 6bv: that a wand sends it is for a wand-bearer to find
-  add('magic', ROT_LEVEL, 'the rot \u2014 from the barrow-work');            // §7cg
-  add('magic', TAKING_LEVEL, 'the taking \u2014 from the barrow-work');       // §7ci
-  add('magic', WAKING_LEVEL, 'the waking \u2014 from the barrow-work');
-  add('magic', WITHER_LEVEL, 'the withering \u2014 from the barrow-work');    // §7ck       // §7ce
-  add('magic', STILL_LEVEL, 'the stilling');                                // 6bv: what it does, and what it costs, are the caster's to learn
+  add('sorcery', ALCH_REQ, 'transmute');                                      // 6bv: what a thing is worth unmade is ALCH_PAYS
+  add('sorcery', MEND_REQ, 'mend');                                           // 6bv: that a wand sends it is for a wand-bearer to find
+  add('sorcery', ROT_LEVEL, 'the rot \u2014 from the barrow-work');            // §7cg
+  add('sorcery', TAKING_LEVEL, 'the taking \u2014 from the barrow-work');       // §7ci
+  add('sorcery', WAKING_LEVEL, 'the waking \u2014 from the barrow-work');
+  add('sorcery', WITHER_LEVEL, 'the withering \u2014 from the barrow-work');    // §7ck       // §7ce
+  add('sorcery', STILL_LEVEL, 'the stilling');                                // 6bv: what it does, and what it costs, are the caster's to learn
   // prayer, which does one thing and then does it twice
-  add('prayer', PRAYER_KEEP, 'the dearest priced thing you carry survives your death');
-  add('prayer', PRAYER_KEEP_TWO, 'the two dearest do');
+  add('mourning', PRAYER_KEEP, 'the dearest priced thing you carry survives your death');
+  add('mourning', PRAYER_KEEP_TWO, 'the two dearest do');
   // and the tables, so a new recipe needs no new line here
   for (const [item, req] of Object.entries(SMITH_REQS)) {
     const words = Object.entries(req).filter(([k]) => k !== 'smithing')
       .map(([k, v]) => k + ' ' + v);
-    add('smithing', req.smithing ?? 1,
+    add('earthcraft', req.smithing ?? 1,
       'forge the ' + item.replace(/-/g, ' ') + (words.length ? ' (' + words.join(', ') + ')' : ''));
     for (const [k, v] of Object.entries(req)) if (k !== 'smithing') add(k, v, 'forge the ' + item.replace(/-/g, ' '));
   }
   // firemaking's one threshold lives in the genesis rather than a constant,
   // because a founding chooses it; the default is the one every world so far
   // has used, and a window with a genesis to hand may say the real number.
-  add('firemaking', 80, 'kindle a watchfire');                              // 6bv: that the country sees it is the point of raising one
-  add('brewing', BREW_MASTER, 'a pot gives up more than it used to');       // 6bv: DRAUGHTS_MASTER
-  add('brewing', DEEP_BROTH_BREW, 'a deep fish makes a DEEP BROTH');        // 6bv: heals HEAL_DEEP_BROTH, and stacks
-  add('exploration', EXPLORE_MASTER, 'any rumour yields a chart');          // 6bv: what a chart is FOR is the finder's business
+  add('woodcraft', 80, 'kindle a watchfire');                              // 6bv: that the country sees it is the point of raising one
+  add('hearthcraft', BREW_MASTER, 'a pot gives up more than it used to');       // 6bv: DRAUGHTS_MASTER
+  add('hearthcraft', DEEP_BROTH_BREW, 'a deep fish makes a DEEP BROTH');        // 6bv: heals HEAL_DEEP_BROTH, and stacks
+  add('wayfaring', EXPLORE_MASTER, 'any rumour yields a chart');          // 6bv: what a chart is FOR is the finder's business
   for (const [item, req] of Object.entries(WIELD_REQS))
     for (const [skill, lv] of Object.entries(req))
       add(skill, lv, 'take up the ' + item.replace(/-/g, ' '));
@@ -1400,25 +1462,25 @@ const GATHER_BASE = 30, GATHER_SLOPE_DEN = 10, GATHER_CAP = 130;
 // woodcutting's middle and fishing's middle came to be the same number for no
 // reason anybody chose.
 const NODE_GATE = {
-  'oak-tree':        { skill: 'woodcutting', level: 20 },
-  'ironbark-tree':   { skill: 'woodcutting', level: 45 },
-  'heartwood-tree':  { skill: 'woodcutting', level: 78 },
-  'gallows-oak':     { skill: 'woodcutting', level: 92 },
+  'oak-tree':        { skill: 'woodcraft', level: 20 },
+  'ironbark-tree':   { skill: 'woodcraft', level: 45 },
+  'heartwood-tree':  { skill: 'woodcraft', level: 78 },
+  'gallows-oak':     { skill: 'woodcraft', level: 92 },
   // 6bd: mining, matched rung for rung to woodcutting. Coal is the SAFE middle
   // and holds the road from thirty to seventy-eight, because a skill whose only
   // way up ran through the Wilds would be a fighting skill wearing a pick.
-  'coal-rock':       { skill: 'mining',      level: 20 },
-  'brimstone-vent':  { skill: 'mining',      level: 70 },
-  'muck-heap':       { skill: 'farming',     level: 25 },
-  'magic-rock':      { skill: 'mining',      level: MAGIC_ROCK_MINING },
-  'mother-lode':     { skill: 'mining',      level: 92 },
-  'gold-rock':       { skill: 'mining',      level: GOLD_MINING },
-  'eel-spot':        { skill: 'fishing',     level: 20 },
-  'deep-fish-spot':  { skill: 'fishing',     level: 78 },
-  'gibbet-shoal':    { skill: 'fishing',     level: 92 },
+  'coal-rock':       { skill: 'earthcraft',      level: 20 },
+  'brimstone-vent':  { skill: 'earthcraft',      level: 70 },
+  'muck-heap':       { skill: 'hearthcraft', level: 25 },
+  'magic-rock':      { skill: 'earthcraft',      level: MAGIC_ROCK_MINING },
+  'mother-lode':     { skill: 'earthcraft',      level: 92 },
+  'gold-rock':       { skill: 'earthcraft',      level: GOLD_MINING },
+  'eel-spot':        { skill: 'shorecraft',     level: 20 },
+  'deep-fish-spot':  { skill: 'shorecraft',     level: 78 },
+  'gibbet-shoal':    { skill: 'shorecraft',     level: 92 },
 };
 const MID_TIER_GATE = 35;
-const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcutting', 'coal-rock': 'mining', 'eel-spot': 'fishing' };
+const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcraft', 'coal-rock': 'earthcraft', 'eel-spot': 'shorecraft' };
 // ---------------------------------------------------------------------------
 // A DEED IS DONE WHERE PEOPLE CAN SEE IT
 // ---------------------------------------------------------------------------
@@ -1484,12 +1546,15 @@ function strikeConsequences(s, pid, p, target, targetId) {
   const swingingBack = target.action?.type === 'attackp' && target.action.targetId === pid;
   if (!swingingBack && !already) p.brandedUntil = s.tick + BRAND_TICKS;
   if (target.hp > 0 && target.action?.type !== 'attackp' && target.action?.type !== 'attack')
-    target.action = { type: 'attackp', targetId: pid, since: s.tick + 1, style: 'even' };
+    // §21c: the ANSWER is written into somebody who did not act this interval,
+    // so the target has to be owned before it lands. Every other write here is
+    // to `p`, who is already owned by the loop that called this.
+    ownPlayer(s, targetId).action = { type: 'attackp', targetId: pid, since: s.tick + 1, style: 'even' };
 }
 
 const TEACHES = new Set(['alch', 'unmake', 'seal', 'char', 'bury', 'fletch', 'smith', 'cook',
   'invoke', 'stoke', 'plant', 'harvest', 'light', 'kindle', 'brew', 'collect',
-  'survey', 'build_brewpot', 'raise_market', 'saw', 'smelt', 'nock', 'sail', 'follow', 'unfollow',
+  'survey', 'build_brewpot', 'stamp', 'offer', 'raise_market', 'saw', 'smelt', 'nock', 'sail', 'follow', 'unfollow',
   'turn', 'waking', 'rot', 'taking', 'withering', 'befriend', 'unfriend', 'charter',
   // §7j: grain to flour, at a mill and nowhere else
   'grind']);
@@ -1525,7 +1590,7 @@ function markDeath(q) {
 // ---------------------------------------------------------------------------
 // WHAT PRAYER IS FOR
 // ---------------------------------------------------------------------------
-// Prayer did nothing. `effLevel(p.skills.prayer)` appeared nowhere in this
+// Prayer did nothing. `effLevel(p.skills.mourning)` appeared nowhere in this
 // file: a citizen buried bones, the number went up, and the number changed
 // nothing that ever happened to them. It fed a calling and a cape and that
 // was all.
@@ -1547,7 +1612,7 @@ const PRAYER_KEEP = 70;
 // mourner who has made their peace with dying packs accordingly. It is still
 // only PRICED things, so the old chain, a dragonbow, a sigil and a chart are
 // exactly as losable at ninety-nine as at one.
-const PRAYER_KEEP_TWO = 99;
+const PRAYER_KEEP_TWO = 100;   // §4b: mastery
 const BRAND_TICKS = 1500; // strike first in the Wilds, wear it 15 minutes
 // the star-dagger's root (v0.49): rare and expensive by design, a 3-tick
 // freeze on a 120-tick leash, and a 10-tick immunity after so no one is
@@ -1968,12 +2033,33 @@ const POWDER_NITRE = 3, POWDER_CHAR = 1, POWDER_BRIM = 1;
 // thing holding ale up would be that it stacks. Now bread costs two steps and
 // a DESTINATION and ale costs one step and patience, and both have a shape.
 const XP_GRIND = 9;
+// §5u: THE STAMP. Magic-stone does not melt -- it shatters -- so the first rung
+// of the starmetal chain (§5t) is not a furnace and never was. It is a weighted
+// beam dropped on rock, under a roof.
+//
+// IT IS PLACED BY THE WORLD, in the high country where the magic-rock is, and
+// no citizen may raise one. That is the whole of its purpose.
+//
+// An earlier draft let a citizen build a stamp wherever they liked, and
+// defended it as a long walk saved. Both halves were wrong. The reason this
+// rung exists at all is to put more of the world between a citizen and what
+// they want; a stamp that could be raised beside your own door would delete the
+// journey the tier was added to create, and a stamp anybody may site is a stamp
+// that ends up sited for convenience.
+//
+// Placed and unmovable, it is a PLACE. The magic-rock is in the highlands and
+// the mountains, so the stamps are too, and everyone who wants starmetal ends
+// up at the same handful of roofs in the crags -- standing about, waiting a
+// turn, complaining bitterly about the extra step. That is not a cost of the
+// design. It is most of what the design is for, and towns grew round the
+// furnaces for exactly this reason.
+const XP_STAMP = 14;
 // §7p: two of ore and one of coal to the bar. Coal finally has a buyer, and
 // the ratio is why steel costs more than iron without anybody being told.
 // §7p: what is made at the furnace rather than the anvil. Ore and fuel into
 // metal is a different act from metal into a shape, and this is the whole of
 // the difference in the rules.
-const SMELTED = new Set(['iron', 'steel', 'star-ingot', 'gold-bar']);
+const SMELTED = new Set(['iron', 'steel', 'star-ingot', 'star-alloy', 'gold-bar']);   // §5u: grit is STAMPED, not smelted
 const XP_SMELT_BAR = 18;
 // §7ai: ten bones to a flask
 // §7cy: how many hands a work remembers, and for how long
@@ -1996,6 +2082,53 @@ function noteWork(n, pid, tick) {
   n.worked = w.slice(0, WORKED_KEEP);
 }
 const BURIALS_PER_FLASK = 10;
+// §5v: MOURNING IS PAID IN WHAT IT COST YOU.
+//
+// Every other trade converts TIME into levels. This one converts WEALTH, and it
+// is the only skill in the world that asks a citizen to destroy something they
+// could have sold.
+//
+// Burying bones was an act of respect that cost a bone, and bones fall off
+// anything with a skull. That made the skill a tally of how many mobs a citizen
+// had killed, which is prowess wearing a cassock. `offer` asks for the thing
+// itself: the ground takes it, nobody gets it, and the ledger records what it
+// was worth.
+//
+// WORTH IS THE STORE'S PRICE, and only priced things may be offered. That is
+// not a gap, it is the rule: a store's price list is what the world can put a
+// number on, and an offering is a number given up. The dearest things here are
+// unpriced BECAUSE citizens price them between themselves (§ on prayerKeeps),
+// and a thing whose worth is a matter of opinion cannot be a matter of record.
+//
+// THE SAME GIFT TWICE IS WORTH LESS. Without this the skill would be one item
+// farmed forever -- whichever has the best price-to-effort ratio -- which is
+// the grind this replaces, wearing a different hat. The count is per KIND and
+// per citizen, so advancing means giving up DIFFERENT things, which means
+// buying them, which means the whole economy.
+// The falling-off has a FLOOR, and it must. A pure 1/n decay is the harmonic
+// series: it grows like a logarithm, so past the first dozen gifts of a kind
+// the ledger stops moving at any price. Measured before the floor was added, a
+// thousand offerings of every priced item in the world came to 765,000
+// experience against the 32,371,237 that mastery asks -- mourning would have
+// been unreachable above about fifty-five, by arithmetic, with no way for a
+// citizen to tell why.
+//
+// So: the first gifts of a kind are worth the most, and after twelve the price
+// settles at a quarter and stays there. Variety is still much the better route
+// and repetition is still possible, which is the right shape -- a rule that
+// makes something impossible is a wall, and a rule that makes it merely
+// expensive is a decision.
+const OFFER_HEAD = 4;              // worth * HEAD / (HEAD + given), floored below
+const OFFER_TAIL = 12;             // after this many of a kind, the rate settles
+// Four, not sixteen. At sixteen a single great-maul -- the dearest thing in the
+// world -- carried a citizen to mourning fifty-seven in ONE act, and seventy,
+// where a mourner's gear comes home, cost fifteen gifts. A skill bought in a
+// quarter of a minute is not a devotion, it is a receipt. At four the same maul
+// reaches forty-four, which is defensible: it was the finest weapon there is
+// and it is gone. Seventy now asks four hundred gifts, and mastery about
+// thirty-two million coins of goods destroyed.
+const OFFER_XP_PER_COIN = 4;       // what a coin of loss teaches
+const MAX_OFFERED = 1000000;
 // §7cd: past this many tiles you have lost them and the follow lapses
 const FOLLOW_LOSE = 12;
 // §7cf: TWO BOOKS, AND NOTHING IN BOTH.
@@ -2222,6 +2355,28 @@ function adjacentFerry(state, ctx, p) {
 // §7al: what a spade may be put into, and what a shift at it is worth
 const DIGGABLE = new Set(['muck-heap', 'rockfall']);
 const SPADE_STRENGTH = 1.4;
+// §5r-iii: LABOUR REACHES THE DOOR AND NOT PAST IT.
+//
+// A spade paid STRENGTH when strength was its own ladder, and that was a good
+// piece of design: hard work built the arm, and an arm alone is not a fighter.
+// A digger with ninety strength and one attack still missed, still had the
+// flesh of a newcomer, still had no guard. The bargain was honest.
+//
+// §5j made attack, strength, defence and hitpoints one number, and the spade
+// was carried across as a rename. That quietly changed what it MEANT: a shift
+// at the muck heap now bought accuracy, damage and guard together. Labour did
+// not just build the arm any more, it made a warrior, and nobody decided that.
+//
+// It is not repealed, because the idea was right. It is BOUNDED. Labour carries
+// a citizen to exactly the level at which a calling may be sworn (§5k) and no
+// further: about two hundred and fifty shifts at the heap. A farmer may dig
+// their way to the door, stand there, and swear -- which is a better story than
+// the mechanic ever had while it was a third of a stat. Past the door, a
+// fighter is made by fighting.
+// Written as a literal because SWEAR_LEVEL is declared far below this line --
+// the same ordering trap that let HP_START_XP drift two levels when the curve
+// was replaced. skill-check.mjs asserts the two stay equal, so it cannot rot.
+const LABOUR_PROWESS_CAP = 30;   // === SWEAR_LEVEL
 // §7r: one coal buys the furnace this many intervals of heat, and it will not
 // bank more than the cap -- so a fire cannot be stoked once and left for a
 // week, and there is a reason for somebody to be standing there.
@@ -2325,7 +2480,13 @@ const BREW_MASTER = 90, DRAUGHTS_MASTER = 2, DRAUGHTS_PER_POT = 1;
 const EXPLORE_MASTER = 90;
 // 6bq: one more rumour for every this-many citizens awake, and a ceiling.
 const SURVEY_PER_MARKER = 4, SURVEY_K_MAX = 256;
-const HP_START_XP = 1154; // hitpoints level 10
+// Hitpoints level 10, as a LEVEL rather than as a number that happened to mean
+// level 10 under the curve of the day. Written as a literal because XP_TABLE is
+// declared far below this line, and guarded by an invariant in skill-check.mjs
+// that fails if it ever stops matching XP_TABLE[10] -- which is exactly how it
+// drifted: the curve was replaced, 1154 quietly became level 12, and every
+// citizen born after that started with two extra hitpoints nobody granted them.
+const HP_START_XP = 677; // === XP_TABLE[10]
 
 // §7dk: THE RECORD BAND -- fifty to ninety-nine.
 //
@@ -2333,10 +2494,11 @@ const HP_START_XP = 1154; // hitpoints level 10
 // wrong. FROM WAKING means a citizen must decide their trade before they have
 // seen the island: a bet placed blind, and every record thereafter belongs to
 // whoever guessed. FROM FIRST EXPERIENCE is better but it cannot be refused:
-// defence is paid to whoever is HIT (`target.skills.defence += ...`) and
-// hitpoints to whoever deals damage, so one goblin on your first day starts
-// two clocks you never chose, and a year at the trees afterwards has ruined
-// two boards by playing normally. Hitpoints is worse still -- it begins at
+// prowess is paid both to whoever LANDS a blow and to whoever is HIT, so one
+// goblin on your first day starts a clock you never chose, and a year at the
+// trees afterwards has ruined a board by playing normally. (This note is older
+// than §5j and named three skills where there is now one; the hazard it
+// describes is unchanged and so is the reasoning. It used to add that
 // 1154, so its "first experience" is at waking for everybody alive.
 //
 // FIFTY IS THE ONE LINE THAT WORKS FOR ALL EIGHTEEN. Nothing crosses it by
@@ -2688,7 +2850,7 @@ const WEAPONS = {
   // answers the dark before level sixty. `burns` is the whole of its worth.
   'torch':         { hit: 1, every: 3, reach: 1, acc: -6, burns: true },
   'great-sword':   { hit: 5, every: 2, reach: 1, acc: 4, breaks: true, burns: true },
-  'great-crossbow': { hit: 12, every: 3, reach: 6, acc: 23, ranged: true, breaks: true, burns: true },
+  'great-crossbow': { 'star-alloy': 4 },
   // §7ap: the maul line's top, and it keeps the line's whole character -- the
   // biggest blow in the world bought with the worst accuracy in it. `burns`
   // because every brimstone arm burns, and this one is twenty-four of it.
@@ -2917,13 +3079,81 @@ const clubbed = (p, t) => isRanged(p) && adjacent(p, t) && weaponOf(p)?.selfAmmo
 // sites only, which is why a bare-blade is an ordinary blade against a wolf.
 // A weapon whose whole argument is about dying would be a lie if it forgot
 // the things most likely to kill you.)
+// §5r: WHAT THE BERSERKER GETS FOR THE SIXTEEN.
+//
+// §5k gave the berserker -16 flesh and the warden +16 and stopped there, which
+// left the berserker paying a price for nothing at all. A bargain with only one
+// side is not a bargain, it is a trap for whoever reads the flavour and not the
+// table.
+//
+// The arm and the guard, then, at the two choke points every melee blow already
+// passes through:
+//
+//   berserker  -16 flesh, +BERSERK_HIT to every blow landed
+//   warden     +16 flesh, +WARD_GUARD to what an attacker must beat
+//   fighter     neither, and 64 -- the one who takes no bargain
+//
+// It goes in `hitOf` and in the guard rather than at the call sites because
+// there are four of those and one of these. A bonus applied in three places out
+// of four is worse than none: it would be a weapon that hits harder against
+// mobs than against citizens, discovered by whoever tried it and nobody else.
+// §5r-ii: A BARGAIN HAS TWO SIDES, AND THE FIRST DRAFT ONLY HAD ONE.
+//
+// As first written the warden took +16 flesh AND +12 guard for nothing, while
+// the berserker paid -16 flesh for +2 damage. Modelled at mastery in star plate
+// that is not three bargains, it is a ladder: warden beat fighter 0.70, fighter
+// beat berserker 0.84, warden beat berserker 0.59. The berserker was simply the
+// worst thing a citizen could swear, and the warden simply the best.
+//
+// The error was not the size of the gap. It was that ONE side of the table was
+// paying. A quarter of your life is worth about a third more damage, not a
+// seventh; and a guard bonus on top of a flesh bonus is two upsides wearing one
+// name.
+//
+// Now every calling gives something up. The spread is also halved -- sixteen
+// rather than thirty-two -- because the balance never needed it: what needed
+// fixing was the trade, not the distance.
+//
+//   berserker  56 flesh, +3 to every blow
+//   fighter    64, and nothing either way
+//   warden     72 flesh, -2 to every blow, +4 to what an attacker must beat
+//
+// Measured at mastery, star plate, star-sword: within 4% across all three
+// pairings, and the three fights feel nothing alike -- a berserker kills a
+// fighter in 37 intervals and dies in 39, a warden takes 54 and lasts 52.
+const BERSERK_HIT = 3;
+const WARD_HIT = -2;
+const WARD_GUARD = 4;
+// §5s: STYLE IS THE SWING, NOT THE SCHOOL.
+//
+// `style` used to decide which of attack, strength or defence a blow taught.
+// §5j made prowess one number and left the field inert -- validated, carried on
+// every action, and deciding nothing. A field that means nothing is worse than
+// no field: it reads like a choice and answers like a placebo.
+//
+// It is the per-swing lever now, against the calling's permanent one. AIM buys
+// accuracy with damage, FORCE buys damage with accuracy, EVEN buys neither.
+// A citizen may change it every blow; a calling is said once and never again.
+const STYLE_ACC = 8, STYLE_HIT = 1;
+const STYLES = {
+  aim:   { acc:  STYLE_ACC, hit: -STYLE_HIT },
+  force: { acc: -STYLE_ACC, hit:  STYLE_HIT },
+  even:  { acc: 0,          hit: 0 },
+};
+// The style of the blow being thrown, which lives on the action. A citizen with
+// no action is not swinging, and 'even' is the honest answer for them.
+const styleOf = (p) => STYLES[p?.action?.style] ?? STYLES.even;
+const callingHit = (p) => p?.calling === 'berserker' ? BERSERK_HIT
+  : p?.calling === 'warden' ? WARD_HIT : 0;
+// What an attacker must beat: worn armour plus whatever the guard is owed.
+const guardOf = (q) => armourOf(q) + (q?.calling === 'warden' ? WARD_GUARD : 0);
 const hitOf = (p, t) => {
   if (clubbed(p, t)) return 0;
   const w = weaponOf(p);
-  return (w?.hit ?? 0)
+  return (w?.hit ?? 0) + callingHit(p) + styleOf(p).hit
     + (w?.desperate === true ? desperateBonus(p.hp, maxHp(p)) : 0);
 };
-const accOf = (p, t) => (weaponOf(p)?.acc ?? 0) + (clubbed(p, t) ? CLUB_ACC : 0);
+const accOf = (p, t) => (weaponOf(p)?.acc ?? 0) + styleOf(p).acc + (clubbed(p, t) ? CLUB_ACC : 0);
 const inReach = (p, t) => {
   // melee geometry (v0.79): movement is cardinal, so a reach-1 weapon
   // strikes only along lines you can step, the four faced tiles, the
@@ -3860,7 +4090,7 @@ const RECIPES = {
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
   // fletch input, because a bow made by a fletcher belongs to fletching.
   'crossbow': { 'iron': 2, logs: 2 },              // a steel prod and a wooden stock
-  'star-flail': { 'star-ingot': 15, 'ironbark': 1 },
+  'star-flail': { 'star-ingot': 8, 'ironbark': 1 },
   // §7am: brass, brimstone and a haft. The Crags pay for it.
   'fire-siphon': { 'steel': 4, 'brimstone': 6, 'ironbark': 1 },
   // §7bq: bone and gut. A fletcher's first bow, and it costs no metal at all.
@@ -3869,13 +4099,13 @@ const RECIPES = {
   // nothing is a weapon carried by people with nothing to lose -- and by
   // pures, who never gear up and should not have to risk a fortune to train
   // the only build the world offers them. Steel, and not much of it.
-  'bare-blade': { 'steel-ingot': 4, 'ironbark': 1 },
+  'bare-blade': { 'steel': 4, 'ironbark': 1 },
   // §7cm: bone and a haft, exactly as the hollow bow is bone and a log. No
   // metal at all -- a dragon is the whole cost.
   'bone-spear': { 'dragon-bones': 2, 'ironbark': 1 },
   // §7cn: two measures of spit and a steel head. The steel is nothing; the
   // spit is the entire price, and there will never be more of it.
-  'barb': { 'lamprey-spit': 2, 'steel-ingot': 1 },
+  'barb': { 'lamprey-spit': 2, 'steel': 1 },
   // §6av: starmetal, because that is where the scarcity already lives -- a
   // magic-stone is mined in the WILDS, so every one has survived a trip
   // somebody could have died on. Against citizens who automate, effort is not
@@ -3890,7 +4120,7 @@ const RECIPES = {
   // the Crags and the Greenwood, and no errand into the Wilds. The comment
   // below already complained that asking the Wilds for the powder as well was
   // two bottlenecks for one weapon; it is now zero.
-  'handgonne': { 'iron': 9, 'ironbark': 1, 'brimstone': 2 },
+  'handgonne': { 'iron': 8, 'ironbark': 1, 'brimstone': 2 },
   // §6av: ORE ALONE, AND FIVE AT A TIME. A magic-stone apiece put twenty-five
   // gold of materials in every shot -- six hundred over a gonne's life against
   // ninety-five for the gonne itself, so the ammunition cost six times the
@@ -3906,8 +4136,8 @@ const RECIPES = {
   // supply line behind it, and the whole point of the powder is that three
   // countries stand behind every shot.
   'shot': { 'iron': 1, 'gunpowder': 1 },
-  'star-spear': { 'star-ingot': 12, 'ironbark': 1 },
-  'star-maul': { 'star-ingot': 18, 'ironbark': 1 },
+  'star-spear': { 'star-ingot': 6, 'ironbark': 1 },
+  'star-maul': { 'star-ingot': 9, 'ironbark': 1 },
   // §6bt: the mastery arms. Starmetal for the body of the thing, brimstone for
   // what it does, ironbark where the wood is structural -- the same three-part
   // shape every hafted star weapon already has.
@@ -3936,15 +4166,15 @@ const RECIPES = {
   //
   // The great TOOLS and the handgonne are untouched: brimstone is already half
   // their cost or more, because they were small enough for one unit to matter.
-  'great-helm': { 'star-ingot': 4, 'brimstone': 12 },
-  'great-plate': { 'star-ingot': 9, 'brimstone': 22 },
+  'great-helm': { 'star-alloy': 2 },
+  'great-plate': { 'star-alloy': 5 },
   // §6bw: SHELL AND IRON. A crab's back, banded onto a frame -- the shell is
   // the armour and the iron is what holds it on.
   'shell-helm': { 'crab-shell': 2, 'iron': 1 },
   'shell-plate': { 'crab-shell': 4, 'iron': 2 },
-  'great-sword': { 'star-ingot': 10, 'brimstone': 26, 'ironbark': 1 },
-  'great-crossbow': { 'star-ingot': 7, 'brimstone': 20, 'ironbark': 1 },
-  'great-maul': { 'star-ingot': 11, 'brimstone': 24, 'ironbark': 1 },
+  'great-sword': { 'star-alloy': 5, 'ironbark': 1 },
+  'great-crossbow': { 'star-alloy': 4, 'ironbark': 1 },
+  'great-maul': { 'star-alloy': 6, 'ironbark': 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
   //
   // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
@@ -3986,18 +4216,29 @@ const RECIPES = {
   // for a starmetal head should not be the cheapest wood in the world.
   'iron-shield':    { 'iron': 4, 'oak-logs': 1 },
   'steel-shield':   { 'steel': 3, 'ironbark': 1 },
-  'star-shield':    { 'star-ingot': 14, 'ironbark': 1 },
+  'star-shield':    { 'star-ingot': 7, 'ironbark': 1 },
   // 6ca: six, eight, sixteen -- thirty bars for the set, priced by how much
   // of a citizen each piece covers. The helm is the least and the way in;
   // the plate is the most of it and the capstone. Somebody buys legs first
   // because every other set looks unfinished without them, and then wants
   // the rest -- so the cheapest piece should not be the one they came for.
   'gold-legs':      { 'gold-bar': 8 },
-  'star-ingot':     { 'magic-stone': 20 },
-  'star-sword':     { 'star-ingot': 12 },
-  'star-helm':      { 'star-ingot': 10 },
-  'star-plate':     { 'star-ingot': 20 },
-  'star-dagger':    { 'star-ingot': 8 },
+  // §5t: THREE RUNGS, NOT ONE. A pack caps what a single craft may cost --
+  // nothing reads from a bank at an anvil -- so scarcity that used to live in
+  // one huge number lives in DEPTH instead. Five stones to a grit, eight grits
+  // to an ingot: forty magic-stone an ingot, twice what it was, and never more
+  // than eight things carried at once. The Wilds trip is unchanged. What
+  // changed is that the ingot is worth the trip.
+  'star-grit':      { 'magic-stone': 5 },
+  'star-ingot':     { 'star-grit': 8 },
+  // §5t: and the alloy carries the brimstone. The `great` tier asked for
+  // twenty-six separate lumps of it, which no pack this world would want could
+  // hold. Five to an alloy, and the tier asks for alloys.
+  'star-alloy':     { 'star-ingot': 1, 'brimstone': 5 },
+  'star-sword':     { 'star-ingot': 6 },
+  'star-helm':      { 'star-ingot': 5 },
+  'star-plate':     { 'star-ingot': 10 },
+  'star-dagger':    { 'star-ingot': 4 },
   'star-hatchet':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
   'star-pickaxe':   { 'magic-stone': 2, 'iron': 1, logs: 1 },
   // §6am (v6): THE MIDDLE TIER, forged and fletched from what the mid seams
@@ -4052,7 +4293,7 @@ const RECIPES = {
   // other, and the coal is the furnace's fire, per §7r.
   'steel':          { 'iron': 1 },
   'gold-helm':      { 'gold-bar': 6 },
-  'gold-plate':     { 'gold-bar': 16 },
+  'gold-plate':     { 'gold-bar': 11 },
   // §7by: THE GOLD CHAIN. Gold armour is star armour's equal in defence and
   // nothing more -- a pure cosmetic, worn because it is worth being seen in.
   // Melee had no such thing, so a citizen who wanted to look like they had
@@ -4061,9 +4302,9 @@ const RECIPES = {
   // The OLD CHAIN is the one to gild, and the joke is the whole reason: it is a
   // length of rusted chain, the worst weapon in the world, and this is the
   // version cast in gold. Same numbers exactly. Somebody will carry it.
-  'gold-chain':     { 'gold-bar': 12, 'old-chain': 1 },
+  'gold-chain':     { 'gold-bar': 10, 'old-chain': 1 },
   // §7cj: cut from a yew of the Moorgrave and bound with what the barrow gave
-  'bone-staff':     { 'logs': 2, 'bones': 12, 'grave-silver': 1 },
+  'bone-staff':     { 'logs': 2, 'bones': 8, 'grave-silver': 1 },
 };
 // §6ad:  is listed here BY NAME because it is no longer in
 // RECIPES -- it is fletched, not forged. EQUIPPABLE was built from the recipe
@@ -4102,6 +4343,8 @@ const EQUIPPABLE = new Set([...Object.keys(RECIPES), 'wooden-bow', 'horn-bow', '
 // validation rejects it in inventories, banks, equipment, ground, trades,
 // and imports alike.
 const ITEMS = new Set([
+  // §5t: the starmetal chain's two new rungs
+  'star-grit', 'star-alloy',
   'seeds', 'grain', 'logs', 'ore', 'raw-fish', 'cooked-fish', 'burnt-fish',
   // §7i: THE LOAF, THE NITRE AND THE POWDER.
   'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder', 'planks', 'iron-ore',
@@ -4263,14 +4506,14 @@ const SMITH_REQS = {
   // The orders differ between the metals and that is right: in each, the entry
   // is whatever is CHEAPEST to make, and in star that is the helm while in
   // bronze it is the dagger.
-  'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
-  'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
+  'iron-dagger': { earthcraft: 1 }, 'iron-hatchet': { earthcraft: 1 },
+  'iron-pickaxe': { earthcraft: 1 }, 'iron-spear': { earthcraft: 5 },
   // §6dg: a socket and a shaft, the same as a spear, at each tier
-  'iron-javelin': { smithing: 5 }, 'steel-javelin': { smithing: 28 },
-  'star-javelin': { smithing: 46, magic: 26 },
-  'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
-  'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
-  'steel-maul': { smithing: 42 },
+  'iron-javelin': { earthcraft: 5 }, 'steel-javelin': { earthcraft: 28 },
+  'star-javelin': { earthcraft: 46, sorcery: 26 },
+  'iron-helm': { earthcraft: 7 }, 'iron-sword': { earthcraft: 10 },
+  'iron-maul': { earthcraft: 14 }, 'iron-plate': { earthcraft: 20 },
+  'steel-maul': { earthcraft: 42 },
   // THE TOOLS A CITIZEN ACTUALLY USES, in the metal everything else comes in.
   //
   // Every other star thing exists and the two a working citizen holds all day
@@ -4278,22 +4521,22 @@ const SMITH_REQS = {
   // smith than a sword does -- a head and an eye is simpler geometry than an
   // edge and a fuller -- and they give star bars a use that is not fighting,
   // which suits a world where most citizens are not fighters.
-  'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
-  'star-sword': { smithing: 45, magic: 25 },
-  'star-helm': { smithing: 40, magic: 20 }, 'star-plate': { smithing: 50, magic: 30 },
-  'star-dagger': { smithing: 45, magic: 28 },
-  'star-spear': { smithing: 46, magic: 26 }, 'star-maul': { smithing: 52, magic: 30 },
+  'star-hatchet': { earthcraft: 42, sorcery: 22 }, 'star-pickaxe': { earthcraft: 42, sorcery: 22 },
+  'star-sword': { earthcraft: 45, sorcery: 25 },
+  'star-helm': { earthcraft: 40, sorcery: 20 }, 'star-plate': { earthcraft: 50, sorcery: 30 },
+  'star-dagger': { earthcraft: 45, sorcery: 28 },
+  'star-spear': { earthcraft: 46, sorcery: 26 }, 'star-maul': { earthcraft: 52, sorcery: 30 },
   // §6am (v6): THE MIDDLE LADDER, between the bronze ladder and the star one,
   // and needing no magic -- mid-ore is worked cold by any smith who has come
   // far enough, where starmetal wants a transmuter's hand. Same order of entry
   // as bronze: the dagger and the tools are cheapest, the plate the most work.
-  'steel-dagger': { smithing: 25 }, 'steel-hatchet': { smithing: 26 }, 'steel-pickaxe': { smithing: 26 },
-  'steel-spear': { smithing: 28 },
-  'steel-helm': { smithing: 30 }, 'steel-sword': { smithing: 32 }, 'steel-plate': { smithing: 38 },
+  'steel-dagger': { earthcraft: 25 }, 'steel-hatchet': { earthcraft: 26 }, 'steel-pickaxe': { earthcraft: 26 },
+  'steel-spear': { earthcraft: 28 },
+  'steel-helm': { earthcraft: 30 }, 'steel-sword': { earthcraft: 32 }, 'steel-plate': { earthcraft: 38 },
   // §6av: smithing reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
   // not end with the first one.
-  'handgonne': { smithing: 90 }, 'shot': { smithing: 50 },   // §7i: no magic in a gonne
+  'handgonne': { earthcraft: 90 }, 'shot': { earthcraft: 50 },   // §7i: no magic in a gonne
   // §6x: a crossbow is a steel prod under tension and a lock that must not
   // slip. The flail is easier iron and harder geometry.
   // 6bb: gold is soft and the work is fine, so the bar asks little and the
@@ -4301,33 +4544,36 @@ const SMITH_REQS = {
   // learns that is not a weapon.
   // §6bt: 55 kept -- the TOOLS are still tools. What changed is the reagent,
   // not who may make them; a smith at fifty-five simply has to walk further.
-  'great-hatchet': { smithing: 55 }, 'great-pickaxe': { smithing: 55 }, 'iron-shield': { smithing: 12 }, 'steel-shield': { smithing: 34 }, 'star-shield': { smithing: 48 },
-  'iron': { smithing: 1 }, 'steel': { smithing: 30 },
-  'gold-chain': { smithing: 70 }, 'bone-staff': { fletching: 45 },
-  'gold-legs': { smithing: 80 }, 'star-ingot': { smithing: 45 }, 'gold-bar': { smithing: 40 }, 'gold-helm': { smithing: 75 }, 'gold-plate': { smithing: 85 },
-  'crossbow': { smithing: 18 },
-  'star-flail': { smithing: 50, magic: 29 },
-  'fire-siphon': { smithing: 62 },
-  'hollow-bow': { fletching: 12 },
-  'bare-blade': { smithing: 34 },   // §7l: steel-tier work, provisional
+  'great-hatchet': { earthcraft: 55 }, 'great-pickaxe': { earthcraft: 55 }, 'iron-shield': { earthcraft: 12 }, 'steel-shield': { earthcraft: 34 }, 'star-shield': { earthcraft: 48 },
+  'iron': { earthcraft: 1 }, 'steel': { earthcraft: 30 },
+  'gold-chain': { earthcraft: 70 }, 'bone-staff': { woodcraft: 45 },
+  'gold-legs': { earthcraft: 80 }, // §5t: the two new rungs sit BELOW the ingot they feed, so the chain is
+  // climbed in order and nobody is gated out of a step they already passed.
+  'star-grit': { earthcraft: 42, sorcery: 22 }, 'star-alloy': { earthcraft: 48, sorcery: 28 },
+  'star-ingot': { earthcraft: 45, sorcery: 25 }, 'gold-bar': { earthcraft: 40 }, 'gold-helm': { earthcraft: 75 }, 'gold-plate': { earthcraft: 85 },
+  'crossbow': { earthcraft: 18 },
+  'star-flail': { earthcraft: 50, sorcery: 29 },
+  'fire-siphon': { earthcraft: 62 },
+  'hollow-bow': { woodcraft: 12 },
+  'bare-blade': { earthcraft: 34 },   // §7l: steel-tier work, provisional
   // §7cm: BONE IS FLETCHING'S WORK, as the bone staff already is at 45. A
   // smith would be the obvious hand and it is the wrong one: nothing here is
   // forged, and the skill that shapes bone into a shaft in this world is the
   // one that shapes it into arrows.
-  'bone-spear': { fletching: 55 },
+  'bone-spear': { woodcraft: 55 },
   // §7cn: the head is steel and the binding is not. Mid work, because the
   // scarcity is in the material and a level gate on top of a fixed supply
   // would only decide WHO gets the two hundred, not how many there are.
-  'barb': { smithing: 40 },
+  'barb': { earthcraft: 40 },
   // §6bt: a master smith's work, and the only recipes that ask for brimstone.
-  'great-sword': { smithing: 70, magic: 34 }, 'great-crossbow': { smithing: 70, magic: 34 },
-  'great-maul': { smithing: 70, magic: 34 },
-  'great-helm': { smithing: 70, magic: 34 }, 'great-plate': { smithing: 70, magic: 34 },
-  'shell-helm': { smithing: 22 }, 'shell-plate': { smithing: 26 },
+  'great-sword': { earthcraft: 70, sorcery: 34 }, 'great-crossbow': { earthcraft: 70, sorcery: 34 },
+  'great-maul': { earthcraft: 70, sorcery: 34 },
+  'great-helm': { earthcraft: 70, sorcery: 34 }, 'great-plate': { earthcraft: 70, sorcery: 34 },
+  'shell-helm': { earthcraft: 22 }, 'shell-plate': { earthcraft: 26 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
   // works and three sigils, and you bind them to the limbs, which is why the
   // magic asked for is higher than the smithing.
-  'sigil-bow': { smithing: 12, magic: 25 },
+  'sigil-bow': { earthcraft: 12, sorcery: 25 },
   };
 // §6ad: A LOG IS A LOG.
 //
@@ -4627,9 +4873,9 @@ const TOOL_FOR = { tree: AXES, rock: PICKS,
 // baseline fishing tool is the plain `rod` (shaped from logs, sold at market);
 // woodcutting and mining take the bronze tool a newcomer buys with their coin.
 const GATHER_TOOLS = {
-  woodcutting: new Set(AXES),
-  mining: new Set(PICKS),
-  fishing: new Set(RODS),
+  woodcraft: new Set(AXES),
+  earthcraft: new Set(PICKS),
+  shorecraft: new Set(RODS),
 };
 const TOOL_BONUS = { 'iron-hatchet': 24, 'iron-pickaxe': 24,
                      // §6am (v6): the mid tool sits between the two it stands
@@ -4737,6 +4983,16 @@ const INPUT_SCHEMAS = {
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
   still: { target: T.id },
   move: { dx: T.unit, dy: T.unit },
+  // §5u: the crushing floor. There is no verb for raising one -- see below.
+  stamp: { slot: T.slot },
+  // §5v: what is given up, and never got back.
+  offer: { slot: T.slot },
+  // §5k: the word a citizen says about themselves.
+  swear: { calling: (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(SWORN, v))
+    || 'must be a constitutional calling' },
+  // §5i: a direction and a count. Both always present; there are no optional
+  // fields in this constitution.
+  walk: { dx: T.unit, dy: T.unit, steps: (v) => (Number.isInteger(v) && v >= 1 && v <= WALK_MAX_STEPS) || 'must be 1..' + WALK_MAX_STEPS + ' steps' },
   gather: { nodeId: T.id }, harvest: { nodeId: T.id },
   attack: { mobId: T.id, style: T.style },
   attackp: { targetId: T.hex64, style: T.style },
@@ -4981,11 +5237,14 @@ function teachMelee(p, dmg, style, tick, every, dummy) {
   // (read your true max hit, feel a weapon, try a special before you risk it)
   // without it ever being a way to train. Levels come from things that hit
   // back.
-  if (dummy && Math.max(effLevel(p.skills.attack), effLevel(p.skills.strength)) >= YARD_CAP) return;
-  if (style === 'aim') p.skills.attack += dmg;
-  else if (style === 'force') p.skills.strength += dmg;
-  else if ((Math.floor(tick / Math.max(1, every ?? 2)) & 1) === 0) p.skills.attack += dmg;
-  else p.skills.strength += dmg;
+  if (dummy && effLevel(p.skills.prowess) >= YARD_CAP) return;
+  // §5j: ONE BLOW, ONE PAYMENT. Attack, strength and hitpoints were three
+  // numbers rising off the same event -- a landed blow paid the aim, the arm,
+  // and the flesh, twice over in total. They are one skill now, and it is paid
+  // once. `style` no longer decides where experience goes; it decides how the
+  // blow lands, and nothing else. Choosing what to become is what a calling is
+  // for, and it is a thing a citizen swears rather than a thing they grind.
+  p.skills.prowess += dmg;
 }
 const XP_SMITH_PER_UNIT = 20;
 // 6bk: AND THE SAME TWENTY AT THE BENCH. Fletching had its own private scale --
@@ -5333,37 +5592,58 @@ const spawnOf = (g) => (TERRAINS[g.worldGenerator] && TERRAINS[g.worldGenerator]
   : { x: Math.floor(g.worldW / 2), y: Math.floor(g.worldH / 2) });
 
 // ---------- XP table: spec constants (Appendix A). Index = level. ----------
-const XP_TABLE = [0,0,83,174,276,388,512,650,801,969,1154,1358,1584,1833,2107,2411,2746,3115,3523,3973,4470,5018,5624,6291,7028,7842,8740,9730,10824,12031,13363,14833,16456,18247,20224,22406,24815,27473,30408,33648,37224,41171,45529,50339,55649,61512,67983,75127,83014,91721,101333,111945,123660,136594,150872,166636,184040,203254,224466,247886,273742,302288,333804,368599,407015,449428,496254,547953,605032,668051,737627,814445,899257,992895,1096278,1210421,1336443,1475581,1629200,1798808,1986068,2192818,2421087,2673114,2951373,3258594,3597792,3972294,4385776,4842295,5346332,5902831,6517253,7195629,7944614,8771558,9684577,10692629,11805606,13034431];
+// THE CURVE (§4b). Frozen integers, not a formula evaluated at runtime.
+//
+// The shape: cheap to about sixty, then punishing. The first fifty levels cost
+// roughly a third of what they used to; the last seven cost three times as
+// much. A citizen becomes competent quickly and spends years becoming rare,
+// which is the pacing this world wants -- most play here will be automated, so
+// the early grind was never the interesting part and the late one is the whole
+// point.
+//
+// It is FROZEN as literals for the same reason the old past-mastery recurrence
+// used exact BigInt powers: the generating expression involves L^1.75 and a
+// base-2 power at a non-integer exponent, and ECMA-262 does not require
+// Math.pow to be correctly rounded. Two engines that disagreed in the last
+// place would report different levels for the same citizen, which is a fork.
+// Evaluating it once at design time and shipping the integers removes the
+// question entirely -- there is no float arithmetic left to disagree about.
+//
+// Generated by: floor(sum over i<=L of (15*i + 0.005*i^1.75 * 2^(i/5.4)))
+//
+// The table ends at 171 because the next level's cost exceeds MAX_XP (10^12),
+// the bound on an experience field -- the same reason the old curve stopped at
+// 212. The ceiling is the field, not a design choice, and it moves when the
+// curve does. Seventy-two levels sit above mastery, where the old curve left a
+// hundred and thirteen: a steeper climb buys fewer of them out of the same
+// number. There is no level 172 to reach, so no continuation is needed and
+// none exists.
+const XP_TABLE = [0,0,15,45,90,150,225,315,420,541,677,828,994,1176,1373,1586,1815,2060,2322,2599,2894,3207,3537,3886,4254,4642,5052,5484,5940,6422,6932,7473,8046,8657,9309,10007,10757,11566,12442,13394,14433,15573,16829,18220,19765,21492,23428,25607,28071,30866,34046,37677,41833,46601,52084,58402,65693,74120,83873,95172,108275,123481,141139,161654,185499,213222,245464,282965,326589,377338,436376,505055,584944,677865,785930,911592,1057694,1227533,1424931,1654317,1920825,2230402,2589935,3007402,3492038,4054537,4707273,5464566,6342986,7361699,8542873,9912144,11499151,13338161,15468776,17936768,20795023,24104642,27936207,32371237,37503873,43442818,50313566,58260984,67452276,78080406,90368032,104572049,120988819,139960183,161880407,187204156,216455697,250239476,289252314,334297425,386300571,446328637,515611023,595564251,687820279,794259083,917046137,1058675522,1222019527,1410385686,1627582382,1877994284,2166669108,2499417359,2882927018,3324895400,3834180719,4420976327,5097010980,5875779017,6772804893,7805947182,8995747908,10365833943,11943378202,13759629501,15850521282,18257370874,21027682737,24216071066,27885319455,32107597891,36965860369,42555449834,48985941112,56383256983,64892097765,74678730695,85934192208,98877964056,113762193133,130876535190,150553714377,173175904081,199182050009,229076274241,263437519340,302930614932,348318975979,400479172598,460417646486,529289889308,608422444617,699338147835,803785079519,923769776721];
 
-// 2^(r/7) scaled by 2^96, as exact integers. ECMA-262 does not require
-// Math.pow to be correctly rounded, so the curve past mastery is computed from
-// these rather than from a float power: two engines that disagreed in the last
-// place would report different standings for the same citizen. (Verified: this
-// reproduces every one of the 98 constitutional thresholds exactly, and V8's
-// own Math.pow already differs from the true value at 15 levels past 267.)
-const POW2_SEVENTHS = [
-  79228162514264337593543950336n, 87474983419643881438334899625n,
-  96580211902419410754522887331n, 106633199189855989094361944303n,
-  117732597035010858756489598210n, 129987325803940059419872279709n,
-  143517643330631577550838571505n];
-function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
-  const q = BigInt(Math.floor(lvl / 7)), r = lvl % 7;
-  return lvl + Number((300n * (1n << q) * POW2_SEVENTHS[r]) >> 96n);
-}
+// The beyond-mastery recurrence and its exact BigInt powers of 2^(1/7) are
+// gone with the curve they served: XP_TABLE now holds every level an xp field
+// can express, so there is nothing left to extrapolate. The reasoning that
+// made them necessary survives in the note on XP_TABLE above -- a curve
+// evaluated at runtime must not depend on float arithmetic, and this one is
+// not evaluated at runtime at all.
 function levelForXp(xp) {
+  // The table is complete: it holds every level an xp field can hold, so there
+  // is no beyond-mastery continuation to compute. Mastery at 99 remains a
+  // milestone, not a ceiling.
   let lvl = 1;
-  while (lvl < 99 && xp >= XP_TABLE[lvl + 1]) lvl++;
-  if (lvl < 99 || xp < XP_TABLE[99]) return lvl;
-  // beyond mastery (spec 4b): the same recurrence, continued without bound
-  let points = XP_TABLE[99] * 4;
-  while (true) {
-    points += xpStepAt(lvl);
-    if (xp < Math.floor(points / 4)) return lvl;
-    lvl++;
-  }
+  while (lvl + 1 < XP_TABLE.length && xp >= XP_TABLE[lvl + 1]) lvl++;
+  return lvl;
 }
+
 // mechanics read capped mastery (spec 4b)
-const effLevel = (xp) => Math.min(levelForXp(xp), 99);
+// §4b: MASTERY IS ONE HUNDRED.
+//
+// It was ninety-nine, which is RuneScape's number and reads as a threshold --
+// the last rung before something, rather than the thing itself. A hundred is
+// the completion. Every mechanic still reads min(level, MASTERY): mastery is
+// the ceiling of power and levels past it are honour, proof of intervals spent.
+const MASTERY = 100;
+const effLevel = (xp) => Math.min(levelForXp(xp), MASTERY);
 
 // §6c-ii: THE WOUND THE DEAD LEAVE.
 //
@@ -5374,9 +5654,11 @@ const effLevel = (xp) => Math.min(levelForXp(xp), 99);
 // that is what made the sink survivable, and also what made it forgettable.
 //
 // So a death now leaves a WOUND: one point off the frame, permanently, until
-// it is carried somewhere and put down. `skills.hitpoints` is untouched --
-// XP is a record of what you have done and nothing may edit it backwards --
-// so the wound is a SECOND number and max HP is the difference.
+// it is carried somewhere and put down. Since §5j the frame is FLAT and no
+// skill feeds it, so the wound is simply subtracted from HP_FLAT. It was a
+// second number even when hitpoints existed, for the same reason it is one
+// now: xp is a record of what you have done and nothing may edit it backwards,
+// so a wound could never be taken out of the skill itself.
 //
 // Two clamps, and both exist to stop this being the spiral the obvious
 // version of this rule always is:
@@ -5398,9 +5680,34 @@ const effLevel = (xp) => Math.min(levelForXp(xp), 99);
 // lose and nowhere safe to lose it.
 const WOUND_MAX = 10;
 const WOUND_FLOOR = 10;
+// §5j: HITPOINTS IS NOT A SKILL, AND FLESH IS NOT AN ACHIEVEMENT.
+//
+// It rose off damage DEALT, alongside attack and strength, which made it a
+// fourth number measuring the same event twice. Worse, it meant a citizen who
+// had never been in danger was harder to kill than one who had, purely for
+// having swung more.
+//
+// The pool is flat. Survivability already scales, and it scales through the
+// thing that should carry it: §6ap put armour in the ROLL, so a citizen in
+// star plate is missed almost always and a citizen in nothing is hit almost
+// always. That IS the progression. A second, additive one on top of it was
+// the reason a mastered fighter could stand in the open and read a book.
+//
+// Sixty-four is chosen against the top of the bestiary, not from nothing: the
+// dragon hits twenty-eight, so it takes three landed blows to fell an unwounded
+// citizen and two on one who is carrying a full ten of wounds. Enough margin to
+// react, not enough to be careless.
+const HP_FLAT = 64;
 function maxHp(p) {
-  const nat = effLevel(p.skills.hitpoints);
+  const nat = HP_FLAT + callingHpBonus(p);
   return Math.max(Math.min(nat, WOUND_FLOOR), nat - Math.min(p.wounds ?? 0, WOUND_MAX));
+}
+// Callings are not sworn yet (§5k, coming): every citizen carries the same
+// flesh until they are. The hook exists so the day swearing lands is a change
+// to ONE function and not a hunt through the combat code.
+function callingHpBonus(p) {
+  const c = p?.calling;
+  return (typeof c === 'string' && Object.prototype.hasOwnProperty.call(SWORN, c)) ? SWORN[c].hp : 0;
 }
 
 // ---------- who a citizen is (spec 10, v0.55) ----------
@@ -5526,8 +5833,21 @@ const WAYSTONE_TIER = {
 // at 10, so without this every citizen would be born a fighter. Ties fall to
 // the constitutional skill order, so the answer is the same on every node.
 const CALLINGS = {
-  woodcutting: 'forester', mining: 'miner', fishing: 'fisher', cooking: 'cook',
-  smithing: 'smith', firemaking: 'firekeeper', prayer: 'mourner', ranged: 'archer',
+  // §5n: WOODWRIGHT. The axe, the bench and the fire were one trade split
+  // three ways: you fell a tree to shape it or to burn it, and nobody fells
+  // one for the sake of holding logs. 'forester', 'fletcher' and 'firekeeper'
+  // are parked until §5k, where they come back as things a citizen swears.
+  woodcraft: 'woodwright',
+  // §5o: SMITH. The pick and the anvil were one trade split at the pithead --
+  // ore has no use unmelted, and nobody digs for the sake of holding rock. The
+  // word for the whole of it is the one the anvil already had. 'miner' is
+  // parked until §5k.
+  earthcraft: 'smith',
+  // §5m: SHOREKEEPER. The rod and the fire over the sand were one errand
+  // pretending to be two -- nobody fishes in order to carry raw fish home.
+  // 'fisher' and 'cook' are parked with 'farmer' and 'brewer' until §5k.
+  shorecraft: 'shorekeeper',
+  mourning: 'mourner', marksmanship: 'archer',
   // ALCHEMIST, not sigilist.
   //
   // 'sigilist' was true when every use of magic needed a sigil, and three
@@ -5535,14 +5855,47 @@ const CALLINGS = {
   // how it is trained, so most citizens who hold this calling will have
   // reached it without ever pressing a sigil in their lives. A calling names
   // what somebody DOES; this one had come to name a thing they had not done.
-  magic: 'alchemist', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
-  // §6as (v0.86) split strength from attack and left it wordless: a citizen
-  // whose highest xp was strength rendered as the string "undefined" in every
-  // window and on the hiscores. 'force' style trains strength alone, so this
-  // was reachable by design, not by accident. BERSERKER names the arm the way
-  // FIGHTER names the aim and WARDEN the guard -- a style, not a trade.
-  strength: 'berserker',
-  defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
+  sorcery: 'alchemist',
+  // §5p: WAYFARER. Exploration and hauling were the same trade counted twice:
+  // one measures ground never seen, the other weight moved across ground you
+  // have. Both are the road, and this world already says the road is real.
+  //
+  // 'waycraft' and 'tradecraft' were both wrong. Neither is a CRAFT -- nothing
+  // is made -- and 'tradecraft' is an English word already spoken for: it means
+  // espionage, and hauling is not trading. The word for going out and coming
+  // back is the one that has always meant it.
+  //
+  // CARTOGRAPHER and RUNNER are parked with the rest until §5k, where the
+  // mapper and the carrier become two things a road-worker may swear rather
+  // than two numbers that happened to rise separately.
+  wayfaring: 'wayfarer',
+  // §5l: HEARTHKEEPER, for now, and only for now.
+  //
+  // Farming and brewing were a field and a pot, and a citizen who did both was
+  // two trades wearing one apron. They are one skill: the hearth is where the
+  // grain ends up either way. But 'farmer' and 'brewer' are good words that
+  // name real work, and neither survives a derived calling now that one number
+  // covers both -- the same loss §5j took on berserker and warden.
+  //
+  // They come back sworn (§5k). HEARTHKEEPER is the honest word until then:
+  // it names what the skill actually is rather than picking one of its halves
+  // and quietly demoting the other.
+  hearthcraft: 'hearthkeeper',
+  // §5j: FIGHTER, for now, and only for now.
+  //
+  // Attack, strength and defence were three skills and three callings --
+  // fighter, berserker, warden -- and the note that used to sit here observed
+  // that those name a STYLE, not a trade. That was the tell. They are one
+  // skill now, so the derived calling can no longer tell a berserker from a
+  // warden, and this table renders the only word left.
+  //
+  // The three names are not lost, they are waiting: a calling becomes a thing
+  // a citizen SWEARS rather than a thing derived from whichever number is
+  // highest, and berserker and warden come back the day it does (§5k). Until
+  // then every fighter reads as a fighter, which is honest -- nothing in the
+  // state currently distinguishes them.
+  prowess: 'fighter',
+
   // 6cd: RUNNER, and the same hole the note above describes, still open.
   //
   // §6as caught that strength had no word and rendered as the string
@@ -5555,17 +5908,110 @@ const CALLINGS = {
   // quay; this citizen walks the roads with what somebody paid them to walk it
   // with, under the one law in the world that lets anybody strike them for it
   // (§11d). The word should say the running, not the load.
-  hauling: 'runner',
+
 };
 // Chosen by EXPERIENCE, not by level. Levels are a step function of xp, so the
 // skill with the most experience always holds the highest level too: comparing
 // xp settles ties between equal levels the way a citizen expects, and gives the
 // identical answer everywhere else. Ties in raw xp fall to the constitutional
 // skill order, so every node still answers the same.
+// §5k: THE CALLINGS A CITIZEN MAY SWEAR.
+//
+// Nine trades, seventeen callings. Merging the skills (§5m) took ten good
+// words out of the world -- forester, firekeeper, fletcher, miner, fisher,
+// cook, farmer, brewer, berserker, warden -- because a DERIVED calling cannot
+// tell a berserker from a warden once one number covers both. They come back
+// here, and they come back better: as a thing a citizen says about themselves
+// rather than a thing computed from whichever of their numbers is highest.
+//
+// This is what the merges were for. A skill says how much you can do; a
+// calling says what you are.
+//
+// `hp` is the flesh a calling carries against HP_FLAT (§5j). Only prowess
+// spends it, because only prowess has two answers to the same question: the
+// berserker trades frame for the arm, the warden the reverse, and the fighter
+// takes neither bargain. Every other calling is 0 -- a cook is not tougher
+// than a fisher, and pretending otherwise would make swearing a stat check.
+const SWORN = {
+  forester:     { skill: 'woodcraft',    hp: 0 },
+  firekeeper:   { skill: 'woodcraft',    hp: 0 },
+  fletcher:     { skill: 'woodcraft',    hp: 0 },
+  miner:        { skill: 'earthcraft',   hp: 0 },
+  smith:        { skill: 'earthcraft',   hp: 0 },
+  fisher:       { skill: 'shorecraft',   hp: 0 },
+  cook:         { skill: 'shorecraft',   hp: 0 },
+  farmer:       { skill: 'hearthcraft',  hp: 0 },
+  brewer:       { skill: 'hearthcraft',  hp: 0 },
+  berserker:    { skill: 'prowess',      hp: -8 },
+  warden:       { skill: 'prowess',      hp: 8 },
+  fighter:      { skill: 'prowess',      hp: 0 },
+  mourner:      { skill: 'mourning',     hp: 0 },
+  archer:       { skill: 'marksmanship', hp: 0 },
+  alchemist:    { skill: 'sorcery',      hp: 0 },
+  cartographer: { skill: 'wayfaring',    hp: 0 },
+  runner:       { skill: 'wayfaring',    hp: 0 },
+};
+// §5k: A CALLING IS NOT A BET PLACED BLIND.
+//
+// The note on §10 already argued this against binding a trade FROM WAKING: a
+// citizen who must choose before they have seen the island is guessing, and
+// every record afterwards belongs to whoever guessed luckiest. So swearing is
+// gated on having DONE the work -- thirty in the skill the calling belongs to.
+// By thirty a citizen knows what the trade feels like, and the choice is
+// theirs rather than the tutorial's.
+const SWEAR_LEVEL = 30;
+
+// §5q: A CALLING IS FASTEST AT ITS OWN WORK.
+//
+// The merges (§5m) put a forester and a firekeeper on one number, which made
+// them the same citizen. This is what puts them back apart without splitting
+// the skill again: a sworn calling learns half again from its own work and
+// half as much from its sibling's. Each is quickest doing what they swore to,
+// which is the whole of the specialisation, expressed in a rate rather than in
+// a second experience pool nobody can see.
+//
+// It applies ONLY where the merge created siblings -- woodcraft, earthcraft,
+// shorecraft, hearthcraft, wayfaring. A trade with one calling has nothing to
+// tell apart, so an alchemist is neither faster nor slower at sorcery; their
+// word buys standing and not a rate. Prowess is likewise untouched here,
+// because berserker and warden are not two ACTIVITIES -- they are two bargains
+// over the same one, and they are paid in flesh (§5j).
+//
+// The unsworn are paid exactly as before: even at everything, quickest at
+// nothing. That is the main, and it is a real choice.
+//
+// Integer arithmetic throughout. A rate expressed as a float would be a rate
+// two engines could round differently, and a citizen whose level depended on
+// which node computed it is a fork.
+const XP_OWN_NUM = 3, XP_OWN_DEN = 2;   // your own work: half again
+const XP_SIBLING_NUM = 1, XP_SIBLING_DEN = 2;   // your sibling's: half
+function awardXp(p, skill, xp, calling) {
+  if (!(xp > 0)) return;
+  const c = p?.calling;
+  if (typeof c === 'string' && calling && Object.prototype.hasOwnProperty.call(SWORN, c)
+      && SWORN[c].skill === skill) {
+    if (c === calling) xp = Math.floor(xp * XP_OWN_NUM / XP_OWN_DEN);
+    else xp = Math.floor(xp * XP_SIBLING_NUM / XP_SIBLING_DEN);
+  }
+  p.skills[skill] += xp;
+}
+// Gathering is always the RAW calling of its trade: the one who goes and gets
+// it, as against the one who works it afterwards.
+const GATHER_CALLING = {
+  woodcraft: 'forester', earthcraft: 'miner',
+  shorecraft: 'fisher',  hearthcraft: 'farmer',
+};
+
 function callingOf(p) {
+  // §5k: a sworn calling is the answer. It is what the citizen SAID, and
+  // nothing they do afterwards edits it -- a smith who spends a year at the
+  // trees is a smith who has been at the trees.
+  if (typeof p?.calling === 'string' && Object.prototype.hasOwnProperty.call(SWORN, p.calling)) {
+    const sk = SWORN[p.calling].skill;
+    return ((p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY] ? 'master ' : '') + p.calling;
+  }
   let best = null, bestXp = -1;
   for (const sk of SKILLS) {
-    if (sk === 'hitpoints') continue;
     const xp = p?.skills?.[sk] ?? 0;
     if (xp > bestXp) { bestXp = xp; best = sk; }
   }
@@ -5578,14 +6024,14 @@ function callingOf(p) {
   // The same condition the world announces as Master of Interval.
   // Written now, while nobody is near it, because every rule change is a fork
   // and the day someone approaches this is the worst possible day to need one.
-  if (SKILLS.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])) return 'Master of Interval';
+  if (SKILLS.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY])) return 'Master of Interval';
   // Mastery is the one milestone this world already stops to announce, so the
   // calling says it. Note what needs no extra rule: since the calling is the
   // MOST-experienced trade, a citizen who has mastered anything has at least
   // that much experience in their calling, so the word turns to master exactly
   // when they have mastered something. Past mastery it does not change again;
   // standing carries the rest.
-  return (bestXp >= XP_TABLE[99] ? 'master ' : '') + CALLINGS[best];
+  return (bestXp >= XP_TABLE[MASTERY] ? 'master ' : '') + CALLINGS[best];
 }
 
 // ---------- canonical encoding & hashing ----------
@@ -5594,6 +6040,96 @@ function callingOf(p) {
 // null, booleans, FINITE numbers, strings, arrays, and plain objects.
 // Anything else is rejected loudly, a hash over silently-coerced data is
 // a consensus bug waiting for its tick.
+// §21b: THE SAME ARGUMENT, ONE LEVEL DOWN.
+//
+// `stateHash` already memoizes by OBJECT IDENTITY, on the reasoning that a
+// state object's canonical form is stable for that object's lifetime because
+// nextState never mutates its caller. Precisely the same is true of a citizen:
+// an unchanged citizen serializes to the same bytes every interval, forever.
+//
+// Measured at three thousand residents with a tenth of them acting, `canonical`
+// is 47 ms of a 72 ms interval -- two thirds of the whole tick, and almost all
+// of it re-serializing people who did nothing. The clone is 6 ms and the
+// seventeen full-population passes are 15 ms; serialisation dwarfs both, which
+// is not where anyone would look first.
+//
+// This caches the canonical fragment of a citizen against the citizen's own
+// object. It is worth nothing under the default clone, which hands every
+// citizen a fresh object each interval and so misses every time. Under
+// copy-on-write an untouched citizen keeps their identity, and the cache hits.
+//
+// That is what CoW was actually for. On its own it LOSES (the proxy is paid on
+// reads, and the tick reads everybody); its value is that it makes this
+// possible.
+//
+// The bytes are unchanged -- this is a memo of a pure function, not a new
+// encoding -- so no hash moves and this is not constitutional. A WeakMap
+// attaches no protocol-visible metadata and needs no invalidation: a citizen
+// who is written to becomes a different object and simply misses.
+const _canonPlayerCache = new WeakMap();
+// §21e: nodes get the same memo, for a bigger reason. On the real world 8,671
+// of 10,515 nodes are scenery -- walls, hedges, ramparts, signposts -- that
+// never change, and re-serialising them is most of the 150 ms an interval costs
+// before a single citizen exists.
+const _canonNodeCache = new WeakMap();
+function canonicalNodes(nodes) {
+  // §21e: 8,671 of the real world's 10,515 nodes are scenery -- walls, hedges,
+  // ramparts, signposts -- that never change and were re-serialised sixty times
+  // a minute regardless. Caching their bytes takes the floor from 136 ms to
+  // 108 ms.
+  //
+  // This was switched OFF for a while because it turned `clone equivalence`
+  // red. The cause was the fixture, not the cache: phase2's richState wrote
+  // `s.nodes[plotId].plantedAt = 30` INTO a node the world had already
+  // serialised, and got the memoised bytes back. The engine never does that --
+  // `ownNode` copies before writing -- and the fixture now swaps the reference
+  // as the engine does. Recorded because the failure looked exactly like a
+  // broken cache, and was a test reaching into a finished object.
+  const m = _cloneModeName();
+  const keys = Object.keys(nodes).sort();
+  if (m !== 'cow' && m !== 'dirty')
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(nodes[k])).join(',') + '}';
+  let out = '{';
+  for (let i = 0; i < keys.length; i++) {
+    if (i) out += ',';
+    const n = nodes[keys[i]];
+    let frag;
+    if (n !== null && typeof n === 'object') {
+      frag = _canonNodeCache.get(n);
+      if (frag === undefined) { frag = canonical(n); _canonNodeCache.set(n, frag); _perf.canonMisses++; }
+      else _perf.canonHits++;
+    } else frag = canonical(n);
+    out += JSON.stringify(keys[i]) + ':' + frag;
+  }
+  return out + '}';
+}
+
+function canonicalPlayers(players) {
+  // Only consult the cache when citizens can actually survive an interval as
+  // the same object. Under the default clone every citizen is fresh every
+  // interval, the hit rate is exactly zero (measured), and the lookup would be
+  // pure overhead paid on every citizen of every tick.
+  const _m = _cloneModeName();
+  if (_m !== 'cow' && _m !== 'dirty') {
+    const ks = Object.keys(players).sort();
+    return '{' + ks.map(k => JSON.stringify(k) + ':' + canonical(players[k])).join(',') + '}';
+  }
+  const keys = Object.keys(players).sort();
+  let out = '{';
+  for (let i = 0; i < keys.length; i++) {
+    if (i) out += ',';
+    const p = players[keys[i]];
+    let frag;
+    if (p !== null && typeof p === 'object') {
+      frag = _canonPlayerCache.get(p);
+      if (frag === undefined) { frag = canonical(p); _canonPlayerCache.set(p, frag); _perf.canonMisses++; }
+      else _perf.canonHits++;
+    } else frag = canonical(p);
+    out += JSON.stringify(keys[i]) + ':' + frag;
+  }
+  return out + '}';
+}
+
 function canonical(obj) {
   if (obj === undefined) throw new Error('canonical: undefined is not encodable');
   if (obj === null) return 'null';
@@ -5608,7 +6144,16 @@ function canonical(obj) {
   const proto = Object.getPrototypeOf(obj);
   if (proto !== Object.prototype && proto !== null) throw new Error('canonical: unsupported object type');
   const keys = Object.keys(obj).sort();
-  return '{' + keys.map(k => JSON.stringify(k) + ':' + canonical(obj[k])).join(',') + '}';
+  return '{' + keys.map(k =>
+    JSON.stringify(k) + ':' +
+    // §21b: the citizens are the expensive subtree and the only one whose
+    // members survive an interval unchanged. Everything else serializes plainly.
+    (k === 'players' && obj[k] !== null && typeof obj[k] === 'object' && !Array.isArray(obj[k])
+      ? canonicalPlayers(obj[k])
+      : k === 'nodes' && obj[k] !== null && typeof obj[k] === 'object' && !Array.isArray(obj[k])
+      ? canonicalNodes(obj[k])
+      : canonical(obj[k]))
+  ).join(',') + '}';
 }
 
 function sha256(buf) {
@@ -5696,7 +6241,7 @@ let _edBackendName = null; // 'native+fallback' | 'fallback'
 let _nativeCrypto = null;
 const _pubKeyObjects = new Map(); // raw pubkey hex -> KeyObject (bounded LRU)
 
-const _perf = {
+const _perf = { canonHits: 0, canonMisses: 0,
   sigCacheHits: 0, sigCacheMisses: 0, sigCacheEvictions: 0,
   nativeCalls: 0, fallbackCalls: 0,
   stateHashHits: 0, stateHashMisses: 0,
@@ -5788,7 +6333,36 @@ function _backendVerify(pubBytes, payloadBuf, sigBytes) {
 // The cache is process-local, bounded, disposable, never persisted, never
 // transmitted, and never part of canonical state: a node restarting with
 // an empty cache produces the same history.
-let _sigCacheMax = 16384; // implementation constant; test hook may shrink it
+// Sized to the protocol's real working set, not a round number. A node holds
+// inputs for up to MAX_PENDING_TICKS (64) distinct future ticks, each admitting
+// up to MAX_INPUTS_PER_BUNDLE (4096) inputs: 262,144 signatures may legitimately
+// be live at once. At 16384 the cache thrashed above ~1500 acting citizens —
+// every eviction re-ran an ed25519 verify inside the tick, which is precisely
+// what verifying-on-arrival exists to avoid, and it dragged replay throughput
+// below the live rate (a catching-up peer could never converge). Doubled for
+// headroom. ~500k entries costs on the order of 100 MB; a witness that cannot
+// spare that cannot serve the tick anyway. Kept as a literal because engine.js
+// is the lower layer and must not import protocol.mjs.
+// Sized from the OPERATING POINT, not the constitutional maximum. Deriving it
+// from MAX_INPUTS_PER_BUNDLE was right when that cap was 4096 and is wrong now
+// that the cap is a flood limit: 2 x 64 pending ticks x 65536 is 8.4 million
+// entries, about 1.7 GB, for a bundle size no node will ever actually be
+// served. The cache is memoisation, so oversizing it wastes memory and
+// undersizing it costs an ed25519 verify -- neither changes a single answer.
+//
+// The working set is what a node really holds: inputs seen per tick times the
+// ticks they stay relevant. At a measured ~3,600 inputs/tick and 64 pending
+// ticks that is ~230k; 524,288 covers it with headroom at roughly 100 MB.
+//
+// `sigCacheEvictions` in perfStats is the health signal. It should sit at
+// ZERO. Any sustained nonzero value means the cache is thrashing and every
+// eviction re-runs a verify inside the tick -- which is precisely what
+// verifying on arrival exists to avoid, and what once dragged replay below the
+// live rate so a joining peer could never converge. Raise INTERVAL_SIG_CACHE
+// if it climbs; nothing about consensus changes when you do.
+let _sigCacheMax = Number(process?.env?.INTERVAL_SIG_CACHE) > 0
+  ? Number(process.env.INTERVAL_SIG_CACHE)
+  : 524288;
 const _sigCache = new Map(); // insertion-ordered => cheap LRU
 
 function _sigCacheKey(pubBytes, payloadBuf, sigBytes) {
@@ -5800,6 +6374,45 @@ function _sigCacheKey(pubBytes, payloadBuf, sigBytes) {
     sigBytes.length & 0xff, (sigBytes.length >> 8) & 0xff,
   ]);
   return sha256(Buffer.concat([lens, pubBytes, sigBytes, payloadBuf])).toString('latin1');
+}
+
+// §2n: SEEDING A VERDICT COMPUTED ELSEWHERE IN THIS PROCESS.
+//
+// Verification is a pure predicate, so it does not matter WHICH thread of this
+// process ran it -- only that this engine's own code ran it over these exact
+// bytes. A pool of workers spawned from this same file may therefore hand back
+// verdicts, and seeding them here is identical in effect to having computed
+// them on the main thread, which is the entire point: it is the one large
+// component of a tick that can be split at all.
+//
+// Two properties keep this from being a hole:
+//
+//   1. The KEY IS RECOMPUTED HERE, from the input itself, by the same function
+//      verifyInputSig uses. A caller cannot name a key; it can only supply an
+//      input and a verdict about that input. There is no way to poison an
+//      entry for bytes you do not hold.
+//   2. The trust boundary is the PROCESS, not the thread. Anything able to call
+//      this already runs inside the engine and could call anything else.
+//
+// It is still memoisation: clearing the cache loses nothing, and a wrong
+// verdict would be caught by any node that verified independently -- which is
+// every other node in the world.
+function seedSigVerdict(input, valid) {
+  if (typeof valid !== 'boolean') return false;
+  if (typeof input?.sig !== 'string' || typeof input?.playerId !== 'string') return false;
+  let key;
+  try {
+    key = _sigCacheKey(Buffer.from(input.playerId, 'hex'),
+                       inputPayload(input, SIG_DOMAINS.input),
+                       Buffer.from(input.sig, 'hex'));
+  } catch { return false; }
+  if (_sigCache.has(key)) return true;      // already known; never overwrite
+  _sigCache.set(key, valid);
+  if (_sigCache.size > _sigCacheMax) {
+    _sigCache.delete(_sigCache.keys().next().value);
+    _perf.sigCacheEvictions++;
+  }
+  return true;
 }
 
 function verifyInputSig(input, domain = SIG_DOMAINS.input) {
@@ -6747,7 +7360,7 @@ const LANDMARK_KINDS = new Set([
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
-    'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
     // §6bu: alight, and it burns off by itself
     'burnUntil',
     // §7dk: the record clock, this citizen's own bands, and whether they ever
@@ -6774,6 +7387,13 @@ const LANDMARK_KINDS = new Set([
     } else if (a.type === 'attackp') {
       if (keys.join(',') !== 'since,style,targetId,type' || !['even','aim','force'].includes(a.style) || !HEX64.test(a.targetId ?? '') || !isInt(a.since, 0, MAX_TIME)) return 'malformed attackp action';
       if (!s2.players[a.targetId]) return 'attackp action references a missing player';
+    } else if (a.type === 'walk') {
+      // §5i: the remainder of a journey. `remaining` counts intervals still
+      // owed, never the distance travelled, so the record cannot outlive itself.
+      if (keys.join(',') !== 'dx,dy,remaining,type') return 'malformed walk action';
+      if (![ -1, 0, 1 ].includes(a.dx) || ![ -1, 0, 1 ].includes(a.dy)) return 'malformed walk action';
+      if (a.dx === 0 && a.dy === 0) return 'walk action goes nowhere';
+      if (!isInt(a.remaining, 1, WALK_MAX_STEPS)) return 'malformed walk action';
     } else if (a.type === 'raise') {
       // §6al: RAISING A STALL IS WORK, NOT A CLICK. It is an action so that
       // moving, swinging or being made to move cancels it -- which gives
@@ -6999,6 +7619,24 @@ const LANDMARK_KINDS = new Set([
           || Object.keys(v).sort().join(',') !== 'aided,took') return 'a malformed band';
         if (!isInt(v.took, 0, MAX_TIME)) return 'a band out of bounds';
         if (typeof v.aided !== 'boolean') return 'a band must say whether it was aided';
+      }
+    }
+    // §5k: a sworn calling must be one that exists AND one this citizen could
+    // have sworn. Checking the level here as well as at the input means a
+    // hostile checkpoint cannot hand somebody a calling they never earned.
+    if (p.calling !== undefined) {
+      if (typeof p.calling !== 'string' || !Object.prototype.hasOwnProperty.call(SWORN, p.calling)) return 'unknown calling';
+      const _cs = SWORN[p.calling].skill;
+      if (levelForXp(p.skills?.[_cs] ?? 0) < SWEAR_LEVEL) return 'calling not earned';
+    }
+    // §5v: the record of what has already been given, per kind.
+    if (p.offered !== undefined) {
+      const t = p.offered;
+      if (typeof t !== 'object' || t === null || Array.isArray(t)
+        || Object.getPrototypeOf(t) !== Object.prototype) return 'offered must be a tally per item';
+      for (const [it, n] of Object.entries(t)) {
+        if (!ITEMS.has(it)) return 'offered counts a non-constitutional item';
+        if (!isInt(n, 1, MAX_OFFERED)) return 'offered out of bounds';
       }
     }
     for (const ck of ['cooksTried', 'lightsTried']) {
@@ -7604,8 +8242,11 @@ const LANDMARK_KINDS = new Set([
 function addPlayer(state, playerId, x, y) {
   state.players[playerId] = {
     x, y,
-    skills: Object.fromEntries(SKILLS.map(sk => [sk, sk === 'hitpoints' ? HP_START_XP : 0])),
-    hp: 10,
+    skills: Object.fromEntries(SKILLS.map(sk => [sk, 0])),
+    // §5j: a citizen wakes whole. This was 10 because hitpoints began at level
+    // 10 and hp was that level; the frame is flat now, so a literal 10 would
+    // have every newcomer opening their eyes at a sixth of their strength.
+    hp: HP_FLAT,
     equipment: Object.fromEntries(EQUIP_SLOTS.map((k) => [k, null])),   // 6bz: from the one list
     bank: {},
     lastInput: state.tick,
@@ -7741,6 +8382,47 @@ function adjacent(p, n) { // orthogonal (§5): you face what you work
 // v0.2: the state machine itself verifies signatures. An input with a
 // bad or missing signature is invalid regardless of content.
 
+// §5i: ONE STEP, ONE RULE, READ BY BOTH SIDES.
+//
+// A single `move` and each interval of a `walk` ask exactly the same question,
+// so they must ask it of the same code. Stated twice it would be stated
+// differently within a release, and a step the validator accepts while the
+// executor refuses -- or the reverse -- is a fork.
+//
+// Every clause below was already the move rule; nothing here is new law.
+function canStep(state, ctx, p, dx, dy) {
+      if (![ -1, 0, 1 ].includes(dx) || ![ -1, 0, 1 ].includes(dy)) return false;
+      const nx = p.x + dx, ny = p.y + dy;
+      // the hedge is law (spec 2c): the outer ring is impassable
+      if (nx < 1 || nx >= state.genesis.worldW - 1 || ny < 1 || ny >= state.genesis.worldH - 1) return false;
+      // the water is law where the generator says so (terrain registry):
+      // rivers and the sea bar the way, and their fords are law too
+      // §7a: ...unless a FINISHED SPAN stands on the water. A span is decking a
+      // citizen built, and decking is water you can walk on -- for everyone,
+      // which is what makes it a bridge and not a toll. An unfinished spanwork
+      // grants nothing: it blocks its tile as the beck does, so this refuses
+      // the move and the crossing stays contested until the last plank is laid.
+      if (terrainBlocked(state.genesis, nx, ny)) {
+        if (!spanDeckAt(state, ctx, nx, ny)) return false;
+      }
+      // §7dl: ...and then whether THIS citizen may make THIS crossing. The one
+      // place in the engine where terrain is asked about a person.
+      if (crossingBlocked(state, crossingView(p, state.tick), p.x, p.y, nx, ny)) return false;
+      // a living beast holds its tile (v0.79): you do not walk THROUGH a
+      // troll, you deal with it, the troll bars the way. (Two bodies in
+      // one square was how a fisher came to fight from inside a troll.)
+      for (const m of Object.values(state.mobs)) if (m.hp > 0 && m.x === nx && m.y === ny) return false;
+      // §14: ...except a toll gate, for a citizen who has paid. The gate is a
+      // node like any other and bars the deck like any other; what `pay` buys
+      // is a window in which it does not bar it FOR YOU. Everybody else still
+      // meets a closed bridge, which is the difference between a toll and a
+      // switch.
+      if ((p.paidUntil ?? 0) > state.tick && tollGateAt(state, ctx, nx, ny)
+          && !blockingNodeAt(state, ctx, nx, ny, 'tollgate')) return true;
+      // nodes are impassable (§5): you fish beside the water, not in it
+      return !blockingNodeAt(state, ctx, nx, ny); // brewpots are walkable, no wall-ins (v0.52)
+}
+
 function validInput(state, input, ctx) {
   if (validateInputShape(input) !== null) return false; // one canonical form per action (rev7 §4)
   if (!input || typeof input !== 'object') return false;
@@ -7805,38 +8487,25 @@ function validInput(state, input, ctx) {
   if ((p.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot act (v0.80)
   const playerId = input.playerId; // the still case needs to refuse self-casts
   switch (input.type) {
-    case 'move': {
-      const { dx, dy } = input;
+    case 'move': return canStep(state, ctx, p, input.dx, input.dy);
+    // §5k: swear once, having done the work. There is no forswearing: a
+    // calling that could be put down would be a loadout, and the whole point
+    // of the word is that it costs something to say.
+    case 'swear': {
+      if (p.calling !== undefined) return false;              // already sworn
+      if (!Object.prototype.hasOwnProperty.call(SWORN, input.calling)) return false;
+      const c = SWORN[input.calling];
+      return levelForXp(p.skills?.[c.skill] ?? 0) >= SWEAR_LEVEL;
+    }
+    // §5i: A JOURNEY IS ONE DEED. The first step is checked here exactly as a
+    // single step is; the rest are checked by canStep again, one per interval,
+    // as the walk runs. A walk that cannot begin is refused like any move.
+    case 'walk': {
+      const { dx, dy, steps } = input;
       if (![ -1, 0, 1 ].includes(dx) || ![ -1, 0, 1 ].includes(dy)) return false;
-      const nx = p.x + dx, ny = p.y + dy;
-      // the hedge is law (spec 2c): the outer ring is impassable
-      if (nx < 1 || nx >= state.genesis.worldW - 1 || ny < 1 || ny >= state.genesis.worldH - 1) return false;
-      // the water is law where the generator says so (terrain registry):
-      // rivers and the sea bar the way, and their fords are law too
-      // §7a: ...unless a FINISHED SPAN stands on the water. A span is decking a
-      // citizen built, and decking is water you can walk on -- for everyone,
-      // which is what makes it a bridge and not a toll. An unfinished spanwork
-      // grants nothing: it blocks its tile as the beck does, so this refuses
-      // the move and the crossing stays contested until the last plank is laid.
-      if (terrainBlocked(state.genesis, nx, ny)) {
-        if (!spanDeckAt(state, ctx, nx, ny)) return false;
-      }
-      // §7dl: ...and then whether THIS citizen may make THIS crossing. The one
-      // place in the engine where terrain is asked about a person.
-      if (crossingBlocked(state, crossingView(p, state.tick), p.x, p.y, nx, ny)) return false;
-      // a living beast holds its tile (v0.79): you do not walk THROUGH a
-      // troll, you deal with it, the troll bars the way. (Two bodies in
-      // one square was how a fisher came to fight from inside a troll.)
-      for (const m of Object.values(state.mobs)) if (m.hp > 0 && m.x === nx && m.y === ny) return false;
-      // §14: ...except a toll gate, for a citizen who has paid. The gate is a
-      // node like any other and bars the deck like any other; what `pay` buys
-      // is a window in which it does not bar it FOR YOU. Everybody else still
-      // meets a closed bridge, which is the difference between a toll and a
-      // switch.
-      if ((p.paidUntil ?? 0) > state.tick && tollGateAt(state, ctx, nx, ny)
-          && !blockingNodeAt(state, ctx, nx, ny, 'tollgate')) return true;
-      // nodes are impassable (§5): you fish beside the water, not in it
-      return !blockingNodeAt(state, ctx, nx, ny); // brewpots are walkable, no wall-ins (v0.52)
+      if (dx === 0 && dy === 0) return false;          // a walk that goes nowhere is not a walk
+      if (!isInt(steps, 1, WALK_MAX_STEPS)) return false;
+      return canStep(state, ctx, p, dx, dy);
     }
     case 'gather': {
       const n = state.nodes[input.nodeId];
@@ -7986,7 +8655,7 @@ function validInput(state, input, ctx) {
     }
     case 'charter': {
       // §7cv: only a master, and only from a chart they are holding.
-      if (effLevel(p.skills.exploration) < CHARTER_LEVEL) return false;
+      if (effLevel(p.skills.wayfaring) < CHARTER_LEVEL) return false;
       const cs = p.inventory[input.slot];
       if (!cs || cs.item !== 'chart') return false;
       return canAddItem(p.inventory, 'charter');
@@ -8054,7 +8723,7 @@ function validInput(state, input, ctx) {
     case 'withering': {
       if (!speaks(p, 'withering', state)) return false;   // §7cf
       if (p.equipment?.weapon?.item !== 'bone-staff') return false;   // §7cj
-      if (effLevel(p.skills.magic) < WITHER_LEVEL) return false;
+      if (effLevel(p.skills.sorcery) < WITHER_LEVEL) return false;
       if (countItem(p.inventory, 'sigil') < WITHER_SIGILS) return false;
       const wq = state.players[input.targetId], wm = state.mobs[input.targetId];
       const wt = wq ?? wm;
@@ -8066,7 +8735,7 @@ function validInput(state, input, ctx) {
     case 'taking': {
       if (!speaks(p, 'taking', state)) return false;   // §7cf
       if (p.equipment?.weapon?.item !== 'bone-staff') return false;   // §7cj
-      if (effLevel(p.skills.magic) < TAKING_LEVEL) return false;
+      if (effLevel(p.skills.sorcery) < TAKING_LEVEL) return false;
       if (countItem(p.inventory, 'sigil') < TAKING_SIGILS) return false;
       const kq = state.players[input.targetId], km = state.mobs[input.targetId];
       const kt = kq ?? km;
@@ -8080,7 +8749,7 @@ function validInput(state, input, ctx) {
     case 'rot': {
       if (!speaks(p, 'rot', state)) return false;   // §7cf
       if (p.equipment?.weapon?.item !== 'bone-staff') return false;   // §7cj
-      if (effLevel(p.skills.magic) < ROT_LEVEL) return false;
+      if (effLevel(p.skills.sorcery) < ROT_LEVEL) return false;
       if (countItem(p.inventory, 'sigil') < ROT_SIGILS) return false;
       const rq = state.players[input.targetId], rm = state.mobs[input.targetId];
       const rt = rq ?? rm;
@@ -8094,7 +8763,7 @@ function validInput(state, input, ctx) {
       if (!speaks(p, 'waking', state)) return false;   // §7cf
       if (p.equipment?.weapon?.item !== 'bone-staff') return false;   // §7cj
       if (state.tick - (p.lastWaking ?? -WAKING_EVERY) < WAKING_EVERY) return false;   // §7cl
-      if (effLevel(p.skills.magic) < WAKING_LEVEL) return false;
+      if (effLevel(p.skills.sorcery) < WAKING_LEVEL) return false;
       if (countItem(p.inventory, 'sigil') < WAKING_SIGILS) return false;
       const q = state.players[input.targetId];
       const m = state.mobs[input.targetId];
@@ -8454,7 +9123,7 @@ function validInput(state, input, ctx) {
       // whole part in a fight is keeping somebody else standing. Which is the
       // most anti-combat thing magic could possibly do.
       if (p.equipment?.weapon?.item !== 'wand') return false;
-      if (effLevel(p.skills.magic) < MEND_REQ) return false;
+      if (effLevel(p.skills.sorcery) < MEND_REQ) return false;
       if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
       const t = state.players[input.target];
       if (!t || input.target === playerId) return false;
@@ -8463,7 +9132,7 @@ function validInput(state, input, ctx) {
     }
     case 'still': {
       if (!speaks(p, 'still', state)) return false;   // §7cf
-      if (effLevel(p.skills.magic) < STILL_LEVEL) return false;
+      if (effLevel(p.skills.sorcery) < STILL_LEVEL) return false;
       if (p.inventory.filter(sl => sl?.item === 'sigil').length < STILL_SIGILS) return false;
       if ((p.stillCdUntil ?? 0) > state.tick) return false;
       const tm = state.mobs[input.target];
@@ -8565,7 +9234,7 @@ function validInput(state, input, ctx) {
       const wf = state.nodes?.[input.nodeId];
       if (!wf || wf.type !== 'watchfire' || !atOrBeside(p, wf)) return false;
       if ((wf.fuelUntil ?? 0) <= state.tick) return false;   // a cold fire chars nothing
-      if (effLevel(p.skills.firemaking) < wt.charLevel) return false;
+      if (effLevel(p.skills.woodcraft) < wt.charLevel) return false;
       return countItem(p.inventory, 'ironbark') >= wt.charWood;
     }
     case 'haul': {
@@ -8718,7 +9387,7 @@ function validInput(state, input, ctx) {
       // tick does it. The choice is carry it out or stand and convert, and
       // standing still in dangerous country is a real thing to choose.
       if (p.hp <= 0) return false;
-      if (effLevel(p.skills.magic) < ALCH_REQ) return false;
+      if (effLevel(p.skills.sorcery) < ALCH_REQ) return false;
       // §6ao (v6): WHERE, AND WITH WHAT. A founding may say alchemy is a thing
       // done in TOWNS (but not at the spawn, so a newcomer must step out into
       // the world to do it) and in the WILDS (low-effort work to do while you
@@ -8805,7 +9474,7 @@ function validInput(state, input, ctx) {
         // §6ao: the rhythm is checked HERE too. Accepting the input and then
         // doing nothing spends the citizen's whole interval on silence -- the
         // validator/executor drift this file has been bitten by five times.
-        return effLevel(p.skills.magic) >= MEND_REQ
+        return effLevel(p.skills.sorcery) >= MEND_REQ
           && p.inventory.some(sl => sl?.item === 'sigil')
           && state.tick - (p.lastMend ?? -MEND_EVERY) >= MEND_EVERY;
       return false;
@@ -8816,6 +9485,12 @@ function validInput(state, input, ctx) {
     }
     // 6ci: a chart opens nothing; it is sold, not spent.
     case 'read_chart': return false;
+    case 'offer': {
+      const sl = p.inventory[input.slot];
+      if (!sl || !ITEMS.has(sl.item)) return false;
+      if (!(PRICES[sl.item] > 0)) return false;              // the ground takes what the world can price
+      return hasAdjacentNode(state, ctx, p, 'ossuary');
+    }
     case 'build_brewpot': {
       if (p.hp <= 0 || !state.genesis.brew) return false;
       const bc = state.genesis.brew;
@@ -8888,7 +9563,7 @@ function validInput(state, input, ctx) {
     case 'kindle': { // raise a great fire: high-tier Firemaking (v0.53)
       const wt = state.genesis.watch;
       if (!wt || p.hp <= 0) return false;
-      if (effLevel(p.skills.firemaking) < wt.level) return false;
+      if (effLevel(p.skills.woodcraft) < wt.level) return false;
       if (countLogs(p.inventory) < wt.kindleLogs) return false;   // kindling is wood; coal will not catch
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       return countOwnedNodes(state, ctx, 'watchfire', input.playerId) < wt.maxOwned;
@@ -8942,7 +9617,7 @@ function validInput(state, input, ctx) {
       // hat. One log, one torch, and the cost is that it burns out.
       if (input.make === 'torch') return sl.item === 'logs';
       if (input.make === 'heartwood-bow') {
-        if (effLevel(p.skills.fletching) < 90) return false;
+        if (effLevel(p.skills.woodcraft) < 90) return false;
         // §6ah: and a sigil in the binding. Relaxing the executor alone
         // would leave the fletch refused here and the change invisible --
         // the validator/executor pairing this file has been bitten by before.
@@ -8954,7 +9629,7 @@ function validInput(state, input, ctx) {
         || (input.make === 'staff' && sl.item === 'logs')
         || (input.make === 'wand' && sl.item === 'logs')
         || (input.make === 'heartwood-staff' && sl.item === 'heartwood'
-            && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
+            && effLevel(p.skills.woodcraft) >= HEARTWOOD_FLETCH
             && countItem(p.inventory, 'heartwood') >= 2
             && countItem(p.inventory, 'sigil') >= 1);
     }
@@ -9230,11 +9905,259 @@ function cloneStateForTick(state) {
   return out;
 }
 let _cloneOverride = null;   // test hook; null = env/default
-function _cloneModeName() { return _cloneOverride ?? process.env.INTERVAL_CLONE ?? 'fast'; }
+// §21c: DIRTY is the default now, and 'fast' -- the whole-population copy it
+// replaces -- is kept as a fallback for anyone who needs the old aliasing.
+//
+// The audit that had to happen first, and did:
+//   - no in-place write to a player record anywhere in the runtime path
+//   - advsim 36/36 in dirty, and 24/24 under `detect` through the real node
+//     and agreement paths, which is the strong form: the detector THROWS on a
+//     leak, so passing means there were none
+//   - the full suite at 182/27 in fast, dirty, cow and detect alike, with
+//     byte-identical failing sets
+//   - the one incompatibility, in test/agreement.test.mjs, was the TEST being
+//     wrong: it simulated a corrupt node by writing `hp` in place, which under
+//     sharing corrupts the lineage it measures against. Swapping the reference
+//     instead corrupts exactly one state, which is what it always meant.
+function _cloneModeName() { return _cloneOverride ?? process.env.INTERVAL_CLONE ?? 'dirty'; }
+// §21: COPY ON WRITE.
+//
+// The tick clones every citizen so that `nextState` can be a pure function --
+// state in, new state out, the caller's copy untouched. At five thousand
+// residents with full packs that is 29 ms an interval, all of it spent copying
+// people who did nothing, and it is the wall this world hits at scale: the
+// cost is O(everybody) when the work is O(whoever acted).
+//
+// Copy-on-write pays only for the ones who move. Each citizen is wrapped in a
+// proxy that reads straight through to the original and clones it the first
+// time anything is written. Measured against the same population: 29 ms of
+// cloning becomes about 3 ms of wrapping plus read overhead, and the read
+// overhead is only paid on citizens the tick actually looks at.
+//
+// THE TRAP, and it is a bad one. `p.inventory[0] = x` READS `inventory` and
+// then writes to the array it got back. A proxy that only guards the citizen's
+// own properties never sees that write, and it lands on the ORIGINAL -- which
+// is the caller's state, the state a replay will read, the state another node
+// hashed. Silent divergence, and the worst class of bug this system has.
+//
+// So every container a citizen holds is wrapped too, and a write anywhere
+// inside one clones the whole citizen first. `_cowDeep` is the list, and it
+// must stay in step with the shape of a player record.
+//
+// This is guarded by the differential campaign, which exists for exactly this:
+// `clone equivalence` proves the canonical bytes are identical, and `clone
+// independence` proves a deep mutation of the copy never reaches the source.
+// Run them against this mode before trusting it:
+//
+//   INTERVAL_CLONE=cow node --test test/phase2.test.mjs
+const _cowDeep = new Set(['inventory', 'skills', 'bank', 'equipment', 'crops', 'friends',
+  'cooksTried', 'lightsTried', 'offered', 'trade', 'action']);
+function _cowPlayer(orig) {
+  let copy = null;                       // null until somebody writes
+  const dirty = () => (copy ??= cloneStateForTick({ p: orig }).p);
+  const inner = new Map();               // one wrapper per container, memoised
+  const wrapChild = (key, val) => {
+    if (val === null || typeof val !== 'object') return val;
+    if (copy) return copy[key];          // already ours: hand back the real thing
+    let w = inner.get(key);
+    if (!w) {
+      w = new Proxy(val, {
+        get: (t, k) => (copy ? copy[key][k] : t[k]),
+        set: (t, k, v) => { dirty(); copy[key][k] = v; return true; },
+        deleteProperty: (t, k) => { dirty(); delete copy[key][k]; return true; },
+        has: (t, k) => k in (copy ? copy[key] : t),
+        ownKeys: (t) => Reflect.ownKeys(copy ? copy[key] : t),
+        getOwnPropertyDescriptor: (t, k) =>
+          Reflect.getOwnPropertyDescriptor(copy ? copy[key] : t, k),
+      });
+      inner.set(key, w);
+    }
+    return w;
+  };
+  const px = new Proxy(orig, {
+    get: (t, k) => {
+      if (k === _COW_SETTLE) return () => copy ?? orig;
+      const src = copy ?? t;
+      return _cowDeep.has(k) ? wrapChild(k, src[k]) : src[k];
+    },
+    set: (t, k, v) => { dirty(); copy[k] = v; return true; },
+    deleteProperty: (t, k) => { dirty(); delete copy[k]; return true; },
+    has: (t, k) => k in (copy ?? t),
+    ownKeys: (t) => Reflect.ownKeys(copy ?? t),
+    getOwnPropertyDescriptor: (t, k) => Reflect.getOwnPropertyDescriptor(copy ?? t, k),
+  });
+  return px;
+}
+// §21c: THE LEAK DETECTOR.
+//
+// Identity-preserving cloning -- handing the tick the ORIGINAL citizen and
+// copying only the ones it writes to -- is the one change that makes the
+// canonical cache pay (measured: 9.8% of citizens change in an interval where
+// 10% act, so ~90% of serialisation is wasted). It is also the most dangerous
+// change available, because a single missed write site does not throw, does not
+// fail a test, and silently mutates the CALLER's state: the state a replay
+// reads and another node already hashed.
+//
+// So it is not attempted without a tool that finds every such site. Under
+// INTERVAL_CLONE=detect every citizen is handed to the tick wrapped in a proxy
+// that THROWS on any write, naming the property and the citizen. Run the suite
+// under it and every leak announces itself with a stack trace; convert the site
+// to `ownPlayer` and run again until it is silent.
+//
+// This mode is for development. It is never a way to run a node.
+class CowLeak extends Error {}
+function _detectNode(orig, id) {
+  return new Proxy(orig, {
+    set: (_t, k) => { throw new CowLeak(`write leaked to the caller's state: nodes[${id}].${String(k)} `
+      + `— this site must go through ownNode(s, id) before writing (§21e)`); },
+    deleteProperty: (_t, k) => { throw new CowLeak(`delete leaked to the caller's state: nodes[${id}].${String(k)} (§21e)`); },
+  });
+}
+function _detectPlayer(orig, pid) {
+  const bang = (k) => {
+    throw new CowLeak(`write leaked to the caller's state: players[${pid}].${String(k)} `
+      + `— this site must go through ownPlayer(s, pid) before writing (§21c)`);
+  };
+  const wrapChild = (key, val) => (val === null || typeof val !== 'object') ? val
+    : new Proxy(val, { set: (_t, k) => bang(`${key}.${String(k)}`),
+                       deleteProperty: (_t, k) => bang(`${key}.${String(k)}`) });
+  return new Proxy(orig, {
+    get: (t, k) => _cowDeep.has(k) ? wrapChild(k, t[k]) : t[k],
+    set: (_t, k) => bang(k),
+    deleteProperty: (_t, k) => bang(k),
+  });
+}
+// The writable copy of a citizen. Idempotent: the second call in an interval
+// returns the same copy, so a site may ask without knowing whether another
+// already did.
+// The set of citizens already copied this interval lives in a WeakMap keyed on
+// the working state, NOT on the state itself. A field on the state would be
+// cloned into the next interval, serialised by `canonical`, and would change
+// every hash in the world -- protocol-visible bookkeeping, which is exactly
+// what the note on the stateHash memo warns against. It attaches nothing and
+// needs no clearing: a new interval is a new state object and a fresh set.
+const _ownedThisTick = new WeakMap();
+function ownPlayer(s, pid) {
+  const cur = s.players[pid];
+  if (cur === undefined) return cur;
+  let owned = _ownedThisTick.get(s);
+  if (owned === undefined) { owned = new Set(); _ownedThisTick.set(s, owned); }
+  if (owned.has(pid)) return cur;
+  const copy = cloneStateForTick({ p: cur }).p;
+  owned.add(pid);
+  s.players[pid] = copy;
+  // §21d: the mastery snapshot is taken HERE, of the citizen as they were
+  // before this interval touched them, because this is the only moment both
+  // facts are available: that they are about to change, and what they were.
+  // Taking it up front for everybody was two full passes over every citizen
+  // and every skill, twice an interval, to catch an event that almost never
+  // happens. A citizen nobody writes to cannot cross a threshold.
+  const snap = _masterySnap.get(s);
+  if (snap !== undefined && !snap.has(pid)) snap.set(pid, _thresholdsOf(cur));
+  return copy;
+}
+// Which skills a citizen had already carried past each threshold.
+function _thresholdsOf(p) {
+  const done = new Set(), above = new Set();
+  for (const sk of SKILLS) {
+    const xp = p.skills?.[sk] ?? 0;
+    if (xp >= XP_TABLE[MASTERY]) done.add(sk);
+    if (xp >= XP_TABLE[RECORD_FLOOR]) above.add(sk);
+  }
+  return { done, above };
+}
+const _masterySnap = new WeakMap();
+
+// §21e: THE SAME TRICK, NODE-SHAPED.
+//
+// Measured on the world that will actually be founded -- 896x512, 10,515 nodes
+// -- an interval costs 150 ms before a single citizen exists, and 33 ms per
+// thousand citizens after. The floor is the problem, not the crowd, and
+// EIGHT THOUSAND SIX HUNDRED of those nodes are walls, hedges, ramparts,
+// fences, railings, banners, signposts and landmarks: scenery that has never
+// changed and never will, re-copied and re-serialised sixty times a minute.
+//
+// A node written to is copied; the rest keep their identity and their cached
+// canonical bytes, exactly as citizens do (§21c). The write surface is far
+// smaller than the citizens' was -- a seam depletes, a plot is planted, a
+// furnace is fed -- and `detect` finds any that are missed.
+const _ownedNodesThisTick = new WeakMap();
+function ownNode(s, id) {
+  const cur = s.nodes[id];
+  if (cur === undefined) return cur;
+  let owned = _ownedNodesThisTick.get(s);
+  if (owned === undefined) { owned = new Set(); _ownedNodesThisTick.set(s, owned); }
+  if (owned.has(id)) return cur;
+  const copy = cloneStateForTick({ n: cur }).n;
+  owned.add(id);
+  s.nodes[id] = copy;
+  return copy;
+}
+
+const _COW_SETTLE = Symbol('cow.settle');
+// After the tick, unwrap: a citizen who was never written keeps their ORIGINAL
+// object, identity and all. That identity is what makes the canonical cache
+// possible -- an unchanged citizen serialises to bytes already computed.
+function _cowSettle(state) {
+  const players = {};
+  for (const k of Object.keys(state.players)) {
+    const v = state.players[k];
+    const settle = v && v[_COW_SETTLE];
+    players[k] = typeof settle === 'function' ? settle() : v;
+  }
+  state.players = players;
+  return state;
+}
 function _cloneForTick(state) {
   const m = _cloneModeName();
   if (m === 'json') return JSON.parse(JSON.stringify(state));
   if (m === 'structured') return structuredClone(state);
+  if (m === 'dirty') {
+    // §21c: the citizens are handed over AS THEY ARE. Whoever the tick writes
+    // to is copied by `ownPlayer`, once; everyone else survives the interval as
+    // the same object, and their canonical bytes are already computed.
+    //
+    // THE PRICE, and it is a real one: consecutive states now SHARE the objects
+    // of citizens who did nothing. Mutating a citizen in a state you did not
+    // just produce reaches backwards into every earlier state that shares them.
+    // `nextState` never does this -- it writes only through `ownPlayer` -- but
+    // anything OUTSIDE the engine that pokes at a past state is now doing
+    // something it was not doing before.
+    //
+    // `test/agreement.test.mjs` found this within minutes of the mode existing:
+    // it simulates a corrupted node by writing `state.players[x].hp = 9` into a
+    // finalized state, which under sharing corrupts the lineage it was meant to
+    // be measured against. The test is right and the mode is right; they are
+    // simply incompatible, and the incompatibility is the whole warning.
+    //
+    // So this is OPT-IN. Before it becomes the default, every consumer that
+    // holds a past state -- checkpointing, recovery, the observer paths -- has
+    // to be read for in-place writes. `INTERVAL_CLONE=detect` finds them inside
+    // the engine; outside it, nothing can but a person.
+    const shallow = cloneStateForTick({ ...state, players: {}, nodes: {} });
+    shallow.players = { ...state.players };
+    shallow.nodes = { ...state.nodes };   // §21e
+    return shallow;
+  }
+  if (m === 'detect') {
+    const shallow = cloneStateForTick({ ...state, players: {}, nodes: {} });
+    shallow.players = {};
+    for (const k of Object.keys(state.players)) shallow.players[k] = _detectPlayer(state.players[k], k);
+    // §21e: nodes are watched too. `ownNode` is newer than `ownPlayer` and the
+    // scenery is where a missed write would be quietest -- a wall nobody looks
+    // at, mutated once, wrong in every state that shares it thereafter.
+    shallow.nodes = {};
+    for (const k of Object.keys(state.nodes)) shallow.nodes[k] = _detectNode(state.nodes[k], k);
+    return shallow;
+  }
+  if (m === 'cow') {
+    // everything but `players` is cheap (0.3 ms at five thousand) and is
+    // copied outright; only the citizens are worth the machinery.
+    const shallow = cloneStateForTick({ ...state, players: {} });
+    shallow.players = {};
+    for (const k of Object.keys(state.players)) shallow.players[k] = _cowPlayer(state.players[k]);
+    return shallow;
+  }
   return cloneStateForTick(state);
 }
 
@@ -10017,7 +10940,7 @@ function scrubSkills(s) {
     if (!p || !p.skills) continue;
     for (const sk of SKILLS) {
       const v = p.skills[sk];
-      if (!Number.isFinite(v)) p.skills[sk] = sk === 'hitpoints' ? HP_START_XP : 0;
+      if (!Number.isFinite(v)) p.skills[sk] = 0;
       else if (v < 0) p.skills[sk] = 0;
       else if (v > MAX_XP) p.skills[sk] = MAX_XP;
       else if (!Number.isInteger(v)) p.skills[sk] = Math.floor(v);
@@ -10058,8 +10981,12 @@ function stepEvents(s, beacon) {
       const tid = present[pick];
       const t = s.players[tid];
       const base = MOB_STATS['incursion'];
-      const combat = Math.max(1, effLevel(t.skills.attack) + effLevel(t.skills.defence)
-        + effLevel(t.skills.ranged) + effLevel(t.skills.magic));
+      // §5j: prowess counts TWICE here, standing in for the attack and defence
+      // it replaced, so an incursion scales against the same figure it always
+      // did. Halving it silently would have made every incursion easier the
+      // day the skills merged.
+      const combat = Math.max(1, 2 * effLevel(t.skills.prowess)
+        + effLevel(t.skills.marksmanship) + effLevel(t.skills.sorcery));
       const scaleHp = Math.round(base.maxHp + combat * (ev.hpPerCombat ?? 6));
       const scaleDef = Math.round(base.def + combat * (ev.defPerCombat ?? 0.4));
       let sx = t.x, sy = t.y, seated = false;
@@ -10104,9 +11031,9 @@ function stepEvents(s, beacon) {
         if (act && act.type === 'gather') {
           const gn = s.nodes[act.nodeId];
           const sk = gn && NODE_YIELD[gn.type] && NODE_YIELD[gn.type].skill;
-          face = sk === 'woodcutting' ? 'woodwraith'
-            : sk === 'mining' ? 'gargoyle'
-            : sk === 'fishing' ? 'drownling' : null;
+          face = sk === 'woodcraft' ? 'woodwraith'
+            : sk === 'earthcraft' ? 'gargoyle'
+            : sk === 'shorecraft' ? 'drownling' : null;
         }
         if (!face) {
           const _tt = TERRAINS[s.genesis.worldGenerator];
@@ -10170,7 +11097,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (s.tick % ROT_EVERY !== 0) continue;
       _o.hp -= ROT_BITE;
       const _caster = s.players[_o.rotBy];
-      if (_caster) _caster.skills.magic += ROT_BITE;
+      if (_caster) _caster.skills.sorcery += ROT_BITE;
       if (_o.hp <= 0) { delete _o.rottingUntil; delete _o.rotBy; }
     }
   }
@@ -10222,7 +11149,9 @@ function nextState(state, inputs, _legacyBeacon) {
   // interval, so it is cleared at the top of the next -- in id order, because
   // this writes canonical state.
   for (const pid of Object.keys(s.players).sort()) {
-    if (s.players[pid].deed !== undefined) delete s.players[pid].deed;
+    // §21c: only a citizen who HAS a deed is written to; the rest are read
+    // and left alone, which is the whole point of the guard.
+    if (s.players[pid].deed !== undefined) delete ownPlayer(s, pid).deed;
   }
   // the beacon rides IN the state now (v0.38). A pre-0.38 state migrates
   // itself: seeded once from the old formula, then history takes over.
@@ -10287,15 +11216,11 @@ function nextState(state, inputs, _legacyBeacon) {
   // §7dk: ...and who had already crossed the RECORD FLOOR, for the same
   // reason and by the same canonical order. Two thresholds, one snapshot.
   const _preFloor = {};
-  for (const _pid of Object.keys(s.players).sort()) { // canonical, matching the mastery pass below
-    const _done = new Set(), _above = new Set();
-    for (const _sk of SKILLS) {
-      if (s.players[_pid].skills[_sk] >= XP_TABLE[99]) _done.add(_sk);
-      if (s.players[_pid].skills[_sk] >= XP_TABLE[RECORD_FLOOR]) _above.add(_sk);
-    }
-    _preMaster[_pid] = _done;
-    _preFloor[_pid] = _above;
-  }
+  // §21d: no scan. `ownPlayer` records each citizen's thresholds the first time
+  // this interval writes to them, and only a citizen who was written to can
+  // have crossed one. What was two passes over every citizen times every skill
+  // is now one small map, built only for whoever actually did something.
+  _masterySnap.set(s, new Map());
   // the world marks its own years (deterministic: a pure function of the tick)
   if (s.tick > 0 && s.tick % TICKS_PER_YEAR === 0) {
     const _yr = s.tick / TICKS_PER_YEAR;
@@ -10376,7 +11301,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (s.tick < (_n.fuelUntil ?? 0) && _n.stokedBy !== undefined) {
         const _f = s.players[_n.stokedBy];
         if (_f && _f.hp > 0 && Math.max(Math.abs(_f.x - _n.x), Math.abs(_f.y - _n.y)) <= WATCH_TEND_RANGE)
-          _f.skills.smithing += FURNACE_BURN_XP;
+          awardXp(_f, 'earthcraft', FURNACE_BURN_XP, 'smith');
       }
       continue;
     }
@@ -10401,7 +11326,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // `stoke` already pays the feeder at anybody's fire.
       const _k = _n.by === undefined ? null : s.players[_n.by];
       if (_k && _k.hp > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE)
-        _k.skills.firemaking += _wt.burnXp;
+        awardXp(_k, 'woodcraft', _wt.burnXp, 'firekeeper');
     }
     // ...and it does not rot away when it goes out. A citizen's fire that has
     // been cold for five days is abandoned and the world tidies it up; the
@@ -10748,7 +11673,10 @@ function nextState(state, inputs, _legacyBeacon) {
             : (!shroudStills && ((m.mad === pid && d <= Math.max(senses, GUN_NOISE))
               || (st.aggro && d <= st.aggro && mayStart)));
           if (!wants) continue;
-          if (d < best) { best = d; target = p; tid = pid; }
+          // §21c: only the CHOSEN target is written to (damage, death, the
+          // defence it learns), so ownership is taken once here rather than on
+          // every citizen the beast merely considered.
+          if (d < best) { best = d; target = ownPlayer(s, pid); tid = pid; }
         }
       }
       if (!target) {
@@ -10817,7 +11745,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (st.mirrors && target) {
         const tw = weaponOf(target);
         mirrorReach = tw?.reach ?? 1;
-        mirrorHit = 1 + Math.floor(effLevel(target.skills.attack) / 10) + (tw?.hit ?? 0);
+        mirrorHit = 1 + Math.floor(effLevel(target.skills.prowess) / 10) + (tw?.hit ?? 0);
         if (tw?.ranged === true && best > 1) {
           if ((m.quiver ?? 0) <= 0) mirrorReach = 1;   // she is out, as you would be
         }
@@ -10856,16 +11784,16 @@ function nextState(state, inputs, _legacyBeacon) {
         // §6z: a harmless creature swings and never lands, and teaches no
         // defence for it. Risk is the only thing that trains that skill.
         if (st.harmless) continue;
-        const defLvl = effLevel(target.skills.defence);
+        const defLvl = effLevel(target.skills.prowess);
         // mirrored: her accuracy is the citizen's own attack against their own
         // defence, which is what makes it a coin flip decided by supplies
-        const useAtk = st.mirrors ? effLevel(target.skills.attack) : st.atk;
+        const useAtk = st.mirrors ? effLevel(target.skills.prowess) : st.atk;
         // §6ap: the beasts roll on the same ratio as everybody else, and
         // armour enters HERE for them too. Leaving them on the old clamp with
         // a subtraction would have made steel work one way against a citizen
         // and another way against a wolf, which is the sort of split nobody
         // can hold in their head.
-        const Tm = hitChance256(useAtk, defLvl, 0, armourOf(target));
+        const Tm = hitChance256(useAtk, defLvl, 0, guardOf(target));
         if (st.mirrors && mirrorReach > 1 && best > 1 && m.quiver !== undefined) m.quiver -= 1;
         if (canBreathe || roll(beacon, mid, 'mobatk') < Tm) {   // §6x: a breath cannot be dodged
           // §6x: armour turns a blow aside, and a breath goes round it. Fire
@@ -11014,7 +11942,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // Three times the blow's own maximum. A goblin teaches three, a
           // troll nine, a knight and the King twelve. Tanking becomes a
           // decision about what you are willing to be hit by.
-          target.skills.defence += DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1);
+          target.skills.prowess += DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1);
         }
         continue;
       }
@@ -11184,11 +12112,11 @@ function nextState(state, inputs, _legacyBeacon) {
     // the citizen is doing this thing on this interval whatever comes of it.
     // A deed that takes longer than an interval sets `action` instead, and
     // always did.
-    if (DEED_SET.has(inp.type) && s.players[pid]) s.players[pid].deed = inp.type;
+    if (DEED_SET.has(inp.type) && s.players[pid]) ownPlayer(s, pid).deed = inp.type;
     // §6am: and a deed that teaches ends whatever else was running, in ONE
     // place so no future verb can quietly forget. Set BEFORE the branch, so a
     // branch that starts its own action (raising a stall) overwrites it.
-    if (TEACHES.has(inp.type) && s.players[pid]) s.players[pid].action = null;
+    if (TEACHES.has(inp.type) && s.players[pid]) ownPlayer(s, pid).action = null;
     if (inp.type === 'restore') {
       // Back exactly as they left, and present, so the sweep does not turn
       // round and archive them again on the same tick. The slot they came
@@ -11269,10 +12197,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // creation-only (§5b: the only input for unknown ids), so death
       // never re-fills it, and imported citizens arrive with their own
       // packs untouched.
-      s.players[pid].inventory[0] = { item: 'arrows', qty: 25 };
+      ownPlayer(s, pid).inventory[0] = { item: 'arrows', qty: 25 };
       continue;
     }
-    const p = s.players[pid];
+    // §21c: a citizen who sent an input is about to be written to, so take the
+    // writable copy here, once, before anything touches them. Every write in
+    // the rest of this block then lands on the copy.
+    const p = ownPlayer(s, pid);
     if (p) p.lastInput = s.tick; // presence (spec 5e)
     // 6ch: attunement is gone with the stones; standing beside one taught
     // the road nothing, because there is no road to teach.
@@ -11309,6 +12240,24 @@ function nextState(state, inputs, _legacyBeacon) {
       // is one refactor away from being tidied into oblivion by somebody who
       // has read the constitution and still not known this is where it lives.
       p.action = null;
+    } else if (inp.type === 'swear') {
+      // §5k: it takes no interval and interrupts nothing. Saying what you are
+      // is not an action, and a citizen mid-journey does not stop to say it.
+      p.calling = inp.calling;
+    } else if (inp.type === 'walk') {
+      // §5i: THE FIRST STEP IS TAKEN NOW, and it is taken HERE -- in the same
+      // phase as a `move`, before any swing resolves. A walk that took its
+      // first step later in the tick than a move would let a runner be caught
+      // by an attacker who would have missed them, which is the flight rule
+      // (§2b-i) decided by which verb the runner happened to use.
+      //
+      // Assigning `action` is also what clears whatever the citizen was doing:
+      // there is one action slot, so beginning a journey ends a fight exactly
+      // as a step does. The flight rule needs no separate enforcement here.
+      if ((p.rootedUntil ?? 0) <= s.tick) { p.x += inp.dx; p.y += inp.dy; }
+      p.action = inp.steps > 1
+        ? { type: 'walk', dx: inp.dx, dy: inp.dy, remaining: inp.steps - 1 }
+        : null;
     } else if (inp.type === 'raise_market') {
       // the work begins; the world will finish it if nobody interrupts
       p.action = { type: 'raise', since: s.tick };
@@ -11372,13 +12321,13 @@ function nextState(state, inputs, _legacyBeacon) {
         // and no announcement for anything else: a spell cast on every spilled
         // pack would be a drumbeat nobody could read past
         delete s.ground[inp.groundId];          // and so does the pile
-        p.skills.magic += XP_ALCH;              // the practice, and nothing else
+        p.skills.sorcery += XP_ALCH;              // the practice, and nothing else
       }
     } else if (inp.type === 'char') {
       const wt = s.genesis.watch, wf = s.nodes?.[inp.nodeId];
       if (wt && wt.charWood !== undefined && wf && wf.type === 'watchfire' && atOrBeside(p, wf)
           && (wf.fuelUntil ?? 0) > s.tick
-          && effLevel(p.skills.firemaking) >= wt.charLevel
+          && effLevel(p.skills.woodcraft) >= wt.charLevel
           && countItem(p.inventory, 'ironbark') >= wt.charWood) {
         consumeItem(p.inventory, 'ironbark', wt.charWood);
         const slot = firstFreeSlot(p.inventory);   // ten slots just came free
@@ -11390,7 +12339,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // citizen's fire and not alone in a field: it takes their fuel, and
         // they earn nothing for it but the company and whatever was arranged.
         wf.fuelUntil = Math.max(s.tick, (wf.fuelUntil ?? 0) - wt.perLog * wt.charBurn);
-        p.skills.firemaking += wt.charXp;
+        awardXp(p, 'woodcraft', wt.charXp, 'firekeeper');
       }
     } else if (inp.type === 'haul') {
       const bw = s.nodes?.[inp.nodeId];
@@ -11563,7 +12512,7 @@ function nextState(state, inputs, _legacyBeacon) {
           && !nodeExistsAt(s, _ctx, inp.x, inp.y)
           && countItem(p.inventory, 'planks') >= 1) {
         consumeItem(p.inventory, 'planks', 1);
-        p.skills.woodcutting += sp.xpPerPlank;
+        awardXp(p, 'woodcraft', sp.xpPerPlank, 'fletcher');
         const id = 'span' + s.tick + '-' + pid;
         addIndexedNode(s, _ctx, id, {
           type: 'spanwork', x: inp.x, y: inp.y, name: site.name,
@@ -11587,14 +12536,17 @@ function nextState(state, inputs, _legacyBeacon) {
       // history: who began it and when, who ended it and when, the dead it
       // cost, and how many intervals it took.
       const sp = s.genesis.span;
-      const sw = s.nodes?.[inp.nodeId];
+      // §21e: the spanwork is written to on every lay -- planks, the last
+      // hands, the interval -- so it is owned at its binding, once, rather
+      // than at each of the writes below.
+      const sw = s.nodes?.[inp.nodeId] === undefined ? undefined : ownNode(s, inp.nodeId);
       if (sp && sw && sw.type === 'spanwork' && p.hp > 0 && atOrBeside(p, sw)
           && isInt(inp.n, 1, sp.perLay) && countItem(p.inventory, 'planks') >= 1) {
         const room = Math.max(0, sw.need - sw.laid);
         const lay = Math.min(inp.n, countItem(p.inventory, 'planks'), sp.perLay, room);
         if (lay > 0) {
           consumeItem(p.inventory, 'planks', lay);
-          p.skills.woodcutting += sp.xpPerPlank * lay;
+          awardXp(p, 'woodcraft', sp.xpPerPlank * lay, 'fletcher');
           sw.laid += lay;
           sw.by = pid;                          // the last hands
           sw.lastAt = s.tick;
@@ -11636,7 +12588,7 @@ function nextState(state, inputs, _legacyBeacon) {
         gr.sealedBy = pid;                      // whose vigil it is
         gr.sealSpent = 1;                       // and it is spent for good
         gr.expiresAt = s.tick + SEAL_KEEPS_FRESH;
-        p.skills.magic += XP_ALCH;              // the same practice unmaking gives
+        p.skills.sorcery += XP_ALCH;              // the same practice unmaking gives
         // no announcement: a spell cast on every spilled pack would be a
         // drumbeat nobody could read past -- the same reason unmaking is quiet
       }
@@ -11674,7 +12626,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // worth alching for PRACTICE is whatever you can gather most of. A
         // woodcutter can learn magic from logs. Nobody burns a star-plate to
         // learn a spell.
-        p.skills.magic += XP_ALCH;
+        p.skills.sorcery += XP_ALCH;
       }
     } else if (inp.type === 'mendp') {
       const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
@@ -11682,7 +12634,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (si !== -1 && t && t.hp > 0) {
         p.inventory[si] = null;
         t.hp = Math.min(maxHp(t), t.hp + 20);
-        p.skills.magic += XP_SPEND_SIGIL;
+        p.skills.sorcery += XP_SPEND_SIGIL;
         if (claimFirst(s, 'mendp', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to mend somebody who was not themselves.');
       }
     } else if (inp.type === 'recall') {
@@ -11847,7 +12799,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // no re-import either, because validateState rejects it too. One
         // citizen, one ordinary input, and the world can never again prove
         // anything about itself while continuing to tick.
-        p.skills.smithing += XP_SMITH_FOR(inp.recipe, r);
+        awardXp(p, 'earthcraft', XP_SMITH_FOR(inp.recipe, r), 'smith');
       }
     } else if (inp.type === 'wield') {
       const sl = p.inventory[inp.slot];
@@ -11909,9 +12861,10 @@ function nextState(state, inputs, _legacyBeacon) {
       // is the second time in this founding: the furnace did it too.)
       const dmm = s.mobs[inp.targetId];
       if (dmm && dmm.hp > 0 && w9?.spec && MOB_STATS[dmm.type]?.dummy && inReach(p, dmm)) {
-        const lvl9 = Math.max(effLevel(p.skills.attack), effLevel(p.skills.strength));
-        const hit9 = 1 + Math.floor(effLevel(p.skills.strength) / 10) + (w9.hit ?? 0)
-          + (w9.bare === true ? bareBonus(armourOf(p)) : 0);
+        const lvl9 = effLevel(p.skills.prowess);
+        const hit9 = Math.max(MIN_MAX_HIT,
+          1 + Math.floor(effLevel(p.skills.prowess) / 10) + (w9.hit ?? 0) + callingHit(p) + styleOf(p).hit
+          + (w9.bare === true ? bareBonus(armourOf(p)) : 0));
         const dmg9 = 1 + (roll(Buffer.from(s.beacon, 'hex'), pid, 'spec|' + inp.targetId) % hit9);
         dmm.hp = Math.max(0, dmm.hp - dmg9);
         teachMelee(p, dmg9, inp.style ?? 'even', s.tick, cadenceOf(p, w9.every ?? 2), true);
@@ -11957,8 +12910,8 @@ function nextState(state, inputs, _legacyBeacon) {
             consumeItem(p.inventory, ammoOf(p), need9);
           }
         }
-        const lvl9 = effLevel(drawn9 ? p.skills.ranged : p.skills.attack);
-        const defL9 = effLevel(q.skills.defence);
+        const lvl9 = effLevel(drawn9 ? p.skills.marksmanship : p.skills.prowess);
+        const defL9 = effLevel(q.skills.prowess);
         // 'far' pays for the distance it crossed: nothing at touching range,
         // and its whole weight at the end of its reach
         // 'far' takes the DISTANCE INSTEAD OF the weapon's weight, not as well
@@ -11995,8 +12948,8 @@ function nextState(state, inputs, _legacyBeacon) {
         // Neutral at full stretch whatever your ranged is, a loss everywhere
         // nearer, and it scales with the skill the way the ordinary shot does.
         // §6as: a special's blow is strength's too, and its roll is attack's
-        const pow9 = drawn9 ? lvl9 : effLevel(p.skills.strength);
-        const ord9 = 1 + Math.floor(pow9 / (drawn9 ? 12 : 10)) + hitOf(p, q);   // §6dh
+        const pow9 = drawn9 ? lvl9 : effLevel(p.skills.prowess);
+        const ord9 = Math.max(MIN_MAX_HIT, 1 + Math.floor(pow9 / (drawn9 ? 12 : 10)) + hitOf(p, q));   // §6dh, §5s
         // §6af-v: AND BLOW COUNT IS THE VARIANCE OF A BURST.
         //
         // Every special's blows were set for its CEILING, and nobody noticed
@@ -12029,7 +12982,7 @@ function nextState(state, inputs, _legacyBeacon) {
           ? Math.max(1, Math.floor(ord9 * (8 + Math.max(0, far9 - 1)) / 8))
           : Math.round(ord9 * bite9);
         const acc9 = hitChance256(lvl9, defL9, w9.acc ?? 0,
-          w9.pierces === true ? 0 : armourOf(q)); // §6x-ii: a flail ignores steel
+          w9.pierces === true ? 0 : guardOf(q)); // §6x-ii: a flail ignores steel, §5r
         // §6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
         //
         // `twice` gave two blows for two intervals of arm: neutral, but a burst
@@ -12108,9 +13061,8 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6as-ii: split exactly as an ordinary melee blow splits. A special
           // taught attack alone, so a fighter who favoured it never raised the
           // number their own special scores from.
-          if (drawn9) p.skills.ranged += dmg9;   // 6br
+          if (drawn9) p.skills.marksmanship += dmg9;   // 6br
           else teachMelee(p, dmg9, inp.style ?? 'even', s.tick, cadenceOf(p, w9.every ?? 2));   // §6as-iii, §6di
-          p.skills.hitpoints += dmg9;
           if (q.hp <= 0) {
             q.hp = 0;
             // what a mourner carries through, decided BEFORE the pack spills
@@ -12277,7 +13229,7 @@ function nextState(state, inputs, _legacyBeacon) {
         const marled = countItem(p.inventory, 'rubble') >= MARL_PER_PLOT;
         if (marled) consumeItem(p.inventory, 'rubble', MARL_PER_PLOT);
         p.crops[plotId] = s.tick - (marled ? (GROW_TICKS_RIPE - GROW_TICKS_MARLED) : 0);
-        p.skills.farming += marled ? 30 : 20;   // 6bl: the sowing is an act like any other
+        awardXp(p, 'hearthcraft', marled ? 30 : 20, 'farmer');   // 6bl: the sowing is an act like any other
       }
     } else if (inp.type === 'harvest') {
       const n = s.nodes[inp.nodeId];
@@ -12291,7 +13243,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // ninety -- the same forty experience, the same growing time, the same
         // walk. What changes is what the row is worth, which is the only
         // reward that does not shorten the road for the people behind you.
-        const yieldN = effLevel(p.skills.farming) >= FARM_MASTER ? GRAIN_MASTER : GRAIN_PER_PLOT;
+        const yieldN = effLevel(p.skills.hearthcraft) >= FARM_MASTER ? GRAIN_MASTER : GRAIN_PER_PLOT;
         const ex = p.inventory.findIndex(s2 => s2?.item === 'grain');
         const slot = firstFreeSlot(p.inventory);
         if (ex !== -1) p.inventory[ex].qty += yieldN;
@@ -12302,7 +13254,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // grain is what the farmer came for.
         if (canAddItem(p.inventory, 'seeds')) addItem(p.inventory, 'seeds', SEED_FROM_HARVEST);
         delete p.crops[inp.nodeId];      // §6o: your row, cleared
-        p.skills.farming += 40;
+        awardXp(p, 'hearthcraft', 40, 'farmer');
       }
     } else if (inp.type === 'consign') {
       // §11a: the named slots leave the pack and enter a container the bank
@@ -12376,7 +13328,7 @@ function nextState(state, inputs, _legacyBeacon) {
           const tiles = haulRouteTiles(s, c.from, c.route);
           // 6bs: distance, slots, and what the cargo makes you worth killing
           // for. See haulMultFor above for why the last of those is there.
-          p.skills.hauling += Math.floor((tiles * per * haulMultFor(s.genesis, sl.item)) / 10000);
+          awardXp(p, 'wayfaring', Math.floor((tiles * per * haulMultFor(s.genesis, sl.item)) / 10000), 'runner');
         }
         c.items[inp.slot] = null;
         haulSweep(p);
@@ -12389,7 +13341,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (slots.length === 3) {
         for (const i2 of slots) p.inventory[i2] = null;
         p.inventory[slots[0]] = { item: 'sigil', qty: 1 };
-        p.skills.magic += XP_ALCH * 3;   // 6bo: three stones pressed, three lessons
+        p.skills.sorcery += XP_ALCH * 3;   // 6bo: three stones pressed, three lessons
         if (claimFirst(s, 'sigil', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to press three stones into a sigil.');
       }
     } else if (inp.type === 'still') {
@@ -12423,7 +13375,7 @@ function nextState(state, inputs, _legacyBeacon) {
       //
       // Three sigils spent, three lessons: the same twenty a mend pays for the
       // one it spends. The nine stones were already taught at the press.
-      p.skills.magic += STILL_XP;
+      p.skills.sorcery += STILL_XP;
       if (claimFirst(s, 'still', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the FIRST stilling. The fight simply stops.');
     } else if (inp.type === 'cast') {
       const si = p.inventory.findIndex(sl => sl?.item === 'sigil');
@@ -12444,7 +13396,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // your arm. Being mended by somebody else stays free to the wounded,
         // and that asymmetry is the whole reason to fight in a pair.
         p.lastSwing = Math.max(p.lastSwing ?? 0, s.tick);
-        p.skills.magic += XP_SPEND_SIGIL;   // 6bo
+        p.skills.sorcery += XP_SPEND_SIGIL;   // 6bo
       } else if (inp.spell === 'anchor' && si !== -1) {
         p.inventory[si] = null;
         // v0.80: anchor comes HOME. The old target (cx, 7) was the classic
@@ -12456,14 +13408,14 @@ function nextState(state, inputs, _legacyBeacon) {
         p.x = sp9.x; p.y = sp9.y;
         p.action = null;
         p.trade = null;
-        p.skills.magic += XP_SPEND_SIGIL;   // 6bo: an anchor spends the same sigil a mend does
+        p.skills.sorcery += XP_SPEND_SIGIL;   // 6bo: an anchor spends the same sigil a mend does
       }
     } else if (inp.type === 'survey') {
       const mi = (s.markers ?? []).findIndex(m => m.x === p.x && m.y === p.y);
       if (mi !== -1) {
         const m = s.markers[mi], anchor = spawnOf(s.genesis), sv = s.genesis.survey;
         const d = Math.max(Math.abs(m.x - anchor.x), Math.abs(m.y - anchor.y));
-        p.skills.exploration += Math.min(sv.max, sv.base + sv.perTile * d); // paid in distance
+        awardXp(p, 'wayfaring', Math.min(sv.max, sv.base + sv.perTile * d), 'cartographer'); // paid in distance
         // §6ag: A MASTER COMES HOME WITH SOMETHING. From ninety, ANY rumour
         // yields the way to a waystone this citizen has not yet learned --
         // the nearest such, in id order so every node agrees -- where an
@@ -12481,7 +13433,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // It opens no doors. Nobody travels by it. It is the export of a trade
         // whose whole product was previously experience, and the only thing in
         // this world a citizen makes by walking.
-        if (effLevel(p.skills.exploration) >= EXPLORE_MASTER) {
+        if (effLevel(p.skills.wayfaring) >= EXPLORE_MASTER) {
           const free2 = p.inventory.findIndex((x) => x === null);
           if (free2 !== -1) p.inventory[free2] = { item: 'chart', qty: 1 };
         }
@@ -12496,7 +13448,23 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'read_chart') {
       // 6ci: a chart is read by a buyer, not by its holder. Nothing to apply.
 
-    } else if (inp.type === 'build_brewpot') {
+    } else if (inp.type === 'offer') {
+      const sl = p.inventory[inp.slot];
+      if (sl && PRICES[sl.item] > 0 && hasAdjacentNode(s, _ctx, p, 'ossuary')) {
+        const kind = sl.item;
+        if (!p.offered || typeof p.offered !== 'object') p.offered = {};
+        const already = p.offered[kind] ?? 0;
+        // ONE at a time, whatever the stack. A citizen offering forty arrows
+        // has given up forty arrows' worth and should be paid for forty acts
+        // of it, each one worth less than the last -- not for one act at
+        // forty times the price.
+        removeItem(p.inventory, inp.slot, 1);
+        p.offered[kind] = already + 1;
+        const worth = PRICES[kind] * OFFER_XP_PER_COIN;
+        const n = Math.min(already, OFFER_TAIL);   // the rate settles; it does not vanish
+        awardXp(p, 'mourning', Math.floor(worth * OFFER_HEAD / (OFFER_HEAD + n)), 'mourner');
+      }
+        } else if (inp.type === 'build_brewpot') {
       const bc = s.genesis.brew;
       const free = !nodeExistsAt(s, _ctx, p.x, p.y);
       const nearHearth = hasAdjacentNode(s, _ctx, p, 'hearth');
@@ -12546,7 +13514,7 @@ function nextState(state, inputs, _legacyBeacon) {
         removeItem(p.inventory, inp.slot, 1);
         // §6an: a deep fish in the hands of a master brewer is a deep broth
         const kind = sl.item === 'grain' ? 'ale'
-          : (sl.item === 'deep-fish' && effLevel(p.skills.brewing) >= DEEP_BROTH_BREW)
+          : (sl.item === 'deep-fish' && effLevel(p.skills.hearthcraft) >= DEEP_BROTH_BREW)
             ? 'deep-broth' : 'broth';
         if (publicPot) {
           // §7e: the inn's pot holds nothing. The brew is the CITIZEN's, the
@@ -12567,7 +13535,7 @@ function nextState(state, inputs, _legacyBeacon) {
           && s.tick <= bp.readyAt + SMOKE_WINDOW
           && canAddItem(p.inventory, 'smoked-eel')) {
         addItem(p.inventory, 'smoked-eel', 1);
-        p.skills.cooking += XP_SMOKE;
+        awardXp(p, 'shorecraft', XP_SMOKE, 'cook');
         delete bp.by; delete bp.brewKind; delete bp.readyAt; bp.lastUsed = s.tick;
         if (claimFirst(s, 'smoker', pid))
           announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to take a smoked eel off the racks.');
@@ -12576,7 +13544,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (bp && bp.type === 'brewpot' && bp.by === undefined && atOrBeside(p, bp)
           && p.brewing && s.tick >= p.brewing.readyAt && canAddItem(p.inventory, p.brewing.kind)) {
         const draughts = (p.brewing.kind !== 'deep-broth'
-          && effLevel(p.skills.brewing) >= BREW_MASTER) ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
+          && effLevel(p.skills.hearthcraft) >= BREW_MASTER) ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
         addItem(p.inventory, p.brewing.kind, draughts);
         // §7j: THE HOUSE POT PAYS A LITTLE BETTER. Five per cent -- not enough
         // to make a citizen's own pot pointless, enough that a brewer who is
@@ -12584,16 +13552,16 @@ function nextState(state, inputs, _legacyBeacon) {
         // gather by removing the alternatives; you get it by making the shared
         // thing the best one, and by a margin small enough that choosing the
         // other is still sane.
-        p.skills.brewing += Math.round(s.genesis.brew.xpPerBatch * HOUSE_POT_XP);
+        awardXp(p, 'hearthcraft', Math.round(s.genesis.brew.xpPerBatch * HOUSE_POT_XP), 'brewer');
         if (claimFirst(s, 'brewer', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to draw a finished brew.');
         delete p.brewing; bp.lastUsed = s.tick;
       } else if (bp && bp.type === 'brewpot' && bp.by === pid && atOrBeside(p, bp) && bp.readyAt !== undefined && s.tick >= bp.readyAt && canAddItem(p.inventory, bp.brewKind)) {
         // §6an: the deep broth is never doubled -- one fish, one draught
         const draughts = (bp.brewKind !== 'deep-broth'
-          && effLevel(p.skills.brewing) >= BREW_MASTER)
+          && effLevel(p.skills.hearthcraft) >= BREW_MASTER)
           ? DRAUGHTS_MASTER : DRAUGHTS_PER_POT;
         addItem(p.inventory, bp.brewKind, draughts);
-        p.skills.brewing += s.genesis.brew.xpPerBatch; // XP lands on the completed batch
+        awardXp(p, 'hearthcraft', s.genesis.brew.xpPerBatch, 'brewer'); // XP lands on the completed batch
         if (claimFirst(s, 'brewer', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to draw a finished brew.');
         delete bp.readyAt; delete bp.brewKind; bp.lastUsed = s.tick;
       }
@@ -12611,10 +13579,10 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'kindle') {
       const wt = s.genesis.watch;
-      if (wt && effLevel(p.skills.firemaking) >= wt.level && countLogs(p.inventory) >= wt.kindleLogs
+      if (wt && effLevel(p.skills.woodcraft) >= wt.level && countLogs(p.inventory) >= wt.kindleLogs
           && !nodeExistsAt(s, _ctx, p.x, p.y) && countOwnedNodes(s, _ctx, 'watchfire', pid) < wt.maxOwned) {
         consumeLogs(p.inventory, wt.kindleLogs);
-        p.skills.firemaking += wt.xpPerLog * wt.kindleLogs; // every log pays, here as at the hearth
+        awardXp(p, 'woodcraft', wt.xpPerLog * wt.kindleLogs, 'firekeeper'); // every log pays, here as at the hearth
         addIndexedNode(s, _ctx, 'wf' + s.tick + '-' + pid,
           { type: 'watchfire', x: p.x, y: p.y, by: pid, fuelUntil: s.tick + wt.perLog * wt.kindleLogs });
         if (claimFirst(s, 'watchfire', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to raise a watchfire.');
@@ -12636,7 +13604,7 @@ function nextState(state, inputs, _legacyBeacon) {
         wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + burn,
           s.tick + FURNACE_CAP);
         wf.stokedBy = pid;   // §7r: whoever fed it last is the one minding it
-        p.skills.smithing += XP_STOKE_FURNACE;   // the fireman earns, at anybody's fire
+        awardXp(p, 'earthcraft', XP_STOKE_FURNACE, 'smith');   // the fireman earns, at anybody's fire
       } else if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl
           && (isLog(sl.item) || sl.item === 'coal') && wt) {   // §7dd
         removeItem(p.inventory, inp.slot, 1);
@@ -12647,7 +13615,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // The experience is unchanged (a log pays a log); what changes is how
         // long the country can see the fire.
         wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + wt.perLog * (BURN_MULT[sl.item] ?? 1), s.tick + wt.cap);
-        p.skills.firemaking += wt.xpPerLog; // the feeder earns, even at another's fire
+        awardXp(p, 'woodcraft', wt.xpPerLog, 'firekeeper'); // the feeder earns, even at another's fire
       }
     } else if (inp.type === 'fletch') {
       const sl = p.inventory[inp.slot];
@@ -12655,16 +13623,16 @@ function nextState(state, inputs, _legacyBeacon) {
         removeItem(p.inventory, inp.slot, 1);
         const st = firstFreeSlot(p.inventory);
         if (st !== -1) p.inventory[st] = { item: 'torch', qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT;
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT, 'fletcher');
       } else
-      if (inp.make === 'heartwood-bow' && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
+      if (inp.make === 'heartwood-bow' && effLevel(p.skills.woodcraft) >= HEARTWOOD_FLETCH
           && countItem(p.inventory, 'heartwood') >= 3
           && countItem(p.inventory, 'sigil') >= 1) {   // §6ah: a sigil in the binding
         consumeItem(p.inventory, 'heartwood', 3);
         consumeItem(p.inventory, 'sigil', 1);
         const sl2 = firstFreeSlot(p.inventory);
         if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-bow', qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT * 4;   // 6bk: 3 heartwood + a sigil
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT * 4, 'fletcher');   // 6bk: 3 heartwood + a sigil
       // §7bx: THE HOLLOW BOW IS NOT MADE. It was four bones and a log at
       // fletching 12 -- an hour's work for a weapon that removes the arrow
       // economy from training altogether. A bow that needs no ammunition is a
@@ -12675,24 +13643,24 @@ function nextState(state, inputs, _legacyBeacon) {
       // It comes off a skeleton-knight, one in five hundred. An archer who
       // wants to train without arrows goes and earns it, which is a fair price
       // for never buying another shaft.
-      } else if (inp.make === 'fire-arrows' && effLevel(p.skills.fletching) >= 24
+      } else if (inp.make === 'fire-arrows' && effLevel(p.skills.woodcraft) >= 24
           && countItem(p.inventory, 'arrows') >= 4 && countItem(p.inventory, 'brimstone') >= 1) {
         // §7br: four shafts and a measure of brimstone make four fire arrows.
         consumeItem(p.inventory, 'arrows', 4);
         consumeItem(p.inventory, 'brimstone', 1);
         addItem(p.inventory, 'fire-arrows', 4);
-        p.skills.fletching += XP_FLETCH_PER_UNIT * 2;
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT * 2, 'fletcher');
       } else if (sl && inp.make === 'bow' && isLog(sl.item)) {
         p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT;
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT, 'fletcher');
       } else if (sl && inp.make === 'wand' && sl.item === 'logs') {
         p.inventory[inp.slot] = { item: 'wand', qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT;
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT, 'fletcher');
       } else if (sl && inp.make === 'staff' && sl.item === 'logs') {
         // A stave, shaped and bound. Ordinary logs only -- heartwood makes the
         // other one, and a fletcher who has heartwood should not waste it here.
         p.inventory[inp.slot] = { item: 'staff', qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT;
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT, 'fletcher');
 
       // §6ah: AND A SIGIL IN THE BINDING.
       //
@@ -12707,7 +13675,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // kills people. A fletcher who wants to sell staves must now buy from
       // somebody who goes in -- which is the whole point.
       } else if (sl && inp.make === 'heartwood-staff' && sl.item === 'heartwood'
-                 && effLevel(p.skills.fletching) >= HEARTWOOD_FLETCH
+                 && effLevel(p.skills.woodcraft) >= HEARTWOOD_FLETCH
                  && countItem(p.inventory, 'heartwood') >= 2
                  && countItem(p.inventory, 'sigil') >= 1) {
         consumeItem(p.inventory, 'sigil', 1);
@@ -12719,7 +13687,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (p.inventory[i2]?.item === 'heartwood') { p.inventory[i2] = null; took++; }
         const sl2 = firstFreeSlot(p.inventory);
         if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-staff', qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT * 3;   // 6bk: 2 heartwood + a sigil
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT * 3, 'fletcher');   // 6bk: 2 heartwood + a sigil
       } else if (sl && inp.make === 'arrows' && sl.item === 'bones') {
         // §6ad, EXTENDED TO THE SHAFT. Mastery in this world buys VALUE PER
         // ACTION, never speed: a woodcutter of ninety takes heartwood instead
@@ -12735,14 +13703,14 @@ function nextState(state, inputs, _legacyBeacon) {
         // second kind of arrow to replace it with. Eight from a bone rather
         // than five is the same good, made better use of, which leaves the
         // arrow market where it was and simply means a master wastes less.
-        const per = effLevel(p.skills.fletching) >= ARROW_MASTER ? ARROWS_MASTER : ARROWS_PER_BONE;
+        const per = effLevel(p.skills.woodcraft) >= ARROW_MASTER ? ARROWS_MASTER : ARROWS_PER_BONE;
         const ex = p.inventory.findIndex((s2, i2) => s2?.item === 'arrows' && i2 !== inp.slot);
         p.inventory[inp.slot] = null;
         if (ex !== -1) p.inventory[ex].qty += per;                  // the quiver (6n)
         else p.inventory[inp.slot] = { item: 'arrows', qty: per };
-        p.skills.fletching += XP_FLETCH_PER_UNIT;   // 6bk: one bone in, one lesson
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT, 'fletcher');   // 6bk: one bone in, one lesson
       } else if (sl && ROD_OF[inp.make] && isLog(sl.item) && sl.item === ROD_OF[inp.make]
-                 && effLevel(p.skills.fletching) >= ROD_FLETCH_REQ[inp.make]
+                 && effLevel(p.skills.woodcraft) >= ROD_FLETCH_REQ[inp.make]
                  && countItem(p.inventory, sl.item) >= 2) {
         // 6bk: THE RODS COME TO THE BENCH.
         //
@@ -12754,7 +13722,7 @@ function nextState(state, inputs, _legacyBeacon) {
         consumeItem(p.inventory, sl.item, 2);
         const rs = firstFreeSlot(p.inventory);
         if (rs !== -1) p.inventory[rs] = { item: inp.make, qty: 1 };
-        p.skills.fletching += XP_FLETCH_PER_UNIT * 2;
+        awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT * 2, 'fletcher');
       }
     } else if (inp.type === 'unwield') {
       const g = EQUIP_SLOTS.includes(inp.gear) ? inp.gear : 'weapon';   // 6bz
@@ -12767,7 +13735,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const sl = p.inventory[inp.slot];
       const clear = !nodeExistsAt(s, _ctx, p.x, p.y);
       if (sl && isLog(sl.item) && clear) {
-        const lvl = effLevel(p.skills.firemaking);
+        const lvl = effLevel(p.skills.woodcraft);
         // 6bg: per wood, for the reason at the pan -- ironbark and heartwood
         // are not logs any more, and one tally would let a firekeeper spend
         // the failures on the cheap stuff.
@@ -12775,7 +13743,7 @@ function nextState(state, inputs, _legacyBeacon) {
         p.lightsTried[sl.item] = (p.lightsTried[sl.item] ?? 0) + 1;
         if (countedSuccess(p.lightsTried[sl.item], Math.min(COOK_BASE + lvl, COOK_CAP))) {  // 6bg: the pan's curve, for the same reason
           p.inventory[inp.slot] = null;
-          p.skills.firemaking += XP_FIREMAKING;
+          awardXp(p, 'woodcraft', XP_FIREMAKING, 'firekeeper');
           addIndexedNode(s, _ctx, 'f' + s.tick + '-' + pid,
             { type: 'fire', x: p.x, y: p.y, depletedUntil: 0, expiresAt: s.tick + FIRE_TICKS });
           // step aside (§6f): west, east, south, north: first free tile
@@ -12806,7 +13774,7 @@ function nextState(state, inputs, _legacyBeacon) {
         p.inventory[inp.slot] = null;
         const holy = sl.item === 'dragon-bones' ? XP_BURY_DRAGON : XP_BURY;
         const consecrated = hasAdjacentNode(s, _ctx, p, 'ossuary');
-        p.skills.prayer += consecrated
+        p.skills.mourning += consecrated
           ? Math.round(holy * XP_BURY_CONSECRATED / XP_BURY) : holy;
         // §7ai: TEN BURIALS MAKE A FLASK.
         //
@@ -13035,12 +14003,12 @@ function nextState(state, inputs, _legacyBeacon) {
         if (canAddItem(p.inventory, made)) {
           removeItem(p.inventory, inp.slot, take);
           addItem(p.inventory, made, 1);
-          p.skills.cooking += slot.item === 'deep-fish' ? XP_SALT_DEEP : XP_SALT;
+          awardXp(p, 'shorecraft', slot.item === 'deep-fish' ? XP_SALT_DEEP : XP_SALT, 'cook');
         }
       } else if (slot && slot.item === 'flour' && nearFire) {
         if (!p.cooksTried || typeof p.cooksTried !== 'object') p.cooksTried = {};
         p.cooksTried.flour = (p.cooksTried.flour ?? 0) + 1;
-        const lvl2 = effLevel(p.skills.cooking);
+        const lvl2 = effLevel(p.skills.shorecraft);
         const atHearth2 = hasAdjacentNode(s, _ctx, p, 'hearth')
           || hasAdjacentNode(s, _ctx, p, 'watchfire', (n) => (n.fuelUntil ?? 0) > s.tick);
         const take = Math.min(slot.qty ?? 1, 1);
@@ -13048,7 +14016,7 @@ function nextState(state, inputs, _legacyBeacon) {
               Math.min(COOK_BASE + lvl2 + (atHearth2 ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
           removeItem(p.inventory, inp.slot, take);
           addItem(p.inventory, 'bread', 1);
-          p.skills.cooking += XP_COOK;
+          awardXp(p, 'shorecraft', XP_COOK, 'cook');
         } else {
           removeItem(p.inventory, inp.slot, take);
           addItem(p.inventory, 'burnt-bread', 1);
@@ -13058,7 +14026,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // Below eighty it burns every time -- not a gamble, a refusal.
         const deep = slot.item === 'deep-fish';
         const mid = slot.item === 'eel';   // §6am (v6): the middle catch
-        const lvl = effLevel(p.skills.cooking);
+        const lvl = effLevel(p.skills.shorecraft);
         // 6bg: A COUNTER FOR EACH THING, because ONE counter is a menu.
         //
         // countedSuccess is Bresenham and therefore PERFECTLY PREDICTABLE --
@@ -13113,13 +14081,13 @@ function nextState(state, inputs, _legacyBeacon) {
         // WANTS to hear.
         if (_wfHere && _wfHere.by !== undefined && _wfHere.by !== pid) {
           const _own = s.players[_wfHere.by];
-          if (_own) _own.skills.firemaking += COOK_FIRE_FEE;
+          if (_own) awardXp(_own, 'woodcraft', COOK_FIRE_FEE, 'firekeeper');   // §5n: the fire is woodcraft now
         }
         const cooked = deep ? 'cooked-deep-fish' : mid ? 'cooked-eel' : 'cooked-fish';
         const burnt  = deep ? 'burnt-deep-fish'  : mid ? 'burnt-eel'  : 'burnt-fish';
         if (able && countedSuccess(p.cooksTried[slot.item], Math.min(COOK_BASE + lvl + (atHearth ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
           p.inventory[inp.slot] = { item: cooked, qty: 1 };
-          p.skills.cooking += deep ? XP_COOK_DEEP : XP_COOK;
+          awardXp(p, 'shorecraft', deep ? XP_COOK_DEEP : XP_COOK, 'cook');
         } else {
           p.inventory[inp.slot] = { item: burnt, qty: 1 };
         }
@@ -13147,14 +14115,14 @@ function nextState(state, inputs, _legacyBeacon) {
         const ex2 = STACKABLE.has(inp.recipe) ? p.inventory.findIndex((sl) => sl?.item === inp.recipe) : -1;
         if (ex2 !== -1) p.inventory[ex2].qty += 1;
         else { const sl2 = firstFreeSlot(p.inventory); if (sl2 !== -1) p.inventory[sl2] = { item: inp.recipe, qty: 1 } }
-        p.skills.smithing += XP_SMELT_BAR;
+        awardXp(p, 'earthcraft', XP_SMELT_BAR, 'smith');
       }
     } else if (inp.type === 'charter') {
       const cs = p.inventory[inp.slot];
-      if (cs && cs.item === 'chart' && effLevel(p.skills.exploration) >= CHARTER_LEVEL) {
+      if (cs && cs.item === 'chart' && effLevel(p.skills.wayfaring) >= CHARTER_LEVEL) {
         removeItem(p.inventory, inp.slot, CHARTER_CHART);
         addItem(p.inventory, 'charter', 1);
-        p.skills.exploration += XP_SPEND_SIGIL;
+        awardXp(p, 'wayfaring', XP_SPEND_SIGIL, 'cartographer');
         if (claimFirst(s, 'charter', pid))
           announce(s, (p.name ?? pid.slice(0, 6))
             + ' draws up the FIRST charter. Somebody may sail who could not.');
@@ -13185,7 +14153,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (wt && wt.hp > 0 && (wt.witheredUntil ?? 0) <= s.tick) {
         consumeItem(p.inventory, 'sigil', WITHER_SIGILS);
         wt.witheredUntil = s.tick + WITHER_TICKS;
-        p.skills.magic += WITHER_SIGILS * XP_SPEND_SIGIL;
+        p.skills.sorcery += WITHER_SIGILS * XP_SPEND_SIGIL;
         p.action = null;
         announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the WITHERING. '
           + 'Nothing will close those wounds for a while.');
@@ -13205,7 +14173,7 @@ function nextState(state, inputs, _legacyBeacon) {
         const moved = Math.min(TAKING_BITE, kt.hp, cap - p.hp);
         kt.hp -= moved;
         if (!withered) p.hp += moved;
-        p.skills.magic += moved * 2;
+        p.skills.sorcery += moved * 2;
         p.lastTaking = s.tick;   // §7cl
         p.action = null;
         announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the TAKING, and is ' + moved
@@ -13228,7 +14196,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const tgt = s.players[inp.targetId] ?? s.mobs[inp.targetId];
       if (tgt && tgt.hp > 0) {
         consumeItem(p.inventory, 'sigil', WAKING_SIGILS);
-        const lvlw = effLevel(p.skills.magic);
+        const lvlw = effLevel(p.skills.sorcery);
         let struck = 0;
         const hitOne = (o, oid) => {
           if (!o || o.hp <= 0) return;
@@ -13238,7 +14206,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (oid === pid) return;                       // never yourself
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'wake' + oid), WAKING_HIT, 'even'));
           o.hp -= dmg; struck++;
-          p.skills.magic += dmg;
+          p.skills.sorcery += dmg;
         };
         for (const [oid, o] of Object.entries(s.players)) hitOne(o, oid);
         for (const [oid, o] of Object.entries(s.mobs)) hitOne(o, oid);
@@ -13278,14 +14246,14 @@ function nextState(state, inputs, _legacyBeacon) {
           && canAddItem(p.inventory, 'planks')) {
         consumeLogs(p.inventory, SAW_LOGS);
         addItem(p.inventory, 'planks', SAW_YIELD);
-        p.skills.woodcutting += XP_SAW;
+        awardXp(p, 'woodcraft', XP_SAW, 'fletcher');
       }
     } else if (inp.type === 'grind') {
       const sl2 = p.inventory[inp.slot];
       if (sl2 && sl2.item === 'grain' && hasAdjacentNode(s, _ctx, p, 'landmark', (n) => n.kind === 'mill')) {
         removeItem(p.inventory, inp.slot, 1);
         addItem(p.inventory, 'flour', 1);
-        p.skills.farming += XP_GRIND;
+        awardXp(p, 'hearthcraft', XP_GRIND, 'farmer');
       }
     } else if (inp.type === 'drink') {
       // §6c-ii: AND THE WELLSPRING PUTS THE WHOLE DEBT DOWN.
@@ -13364,6 +14332,35 @@ function nextState(state, inputs, _legacyBeacon) {
   }
 
   _p2mark('actions');
+  // §5i: JOURNEYS RUN FIRST, AND ALL OF THEM BEFORE ANY SWING.
+  //
+  // This is its own pass, ahead of the action loop, and that is deliberate.
+  // Run inside that loop, a walker sorted before an attacker would move first
+  // and a walker sorted after would be struck first -- the flight rule (§2b-i)
+  // decided by identity. A separate pass gives every traveller their step
+  // before any blow lands, which is exactly what the input phase already does
+  // for a single `move`, and keeps the two verbs indistinguishable in effect.
+  //
+  // The way is re-asked EVERY interval through the same canStep the validator
+  // used: a walk is not a right of way. A beast that wanders into the road, a
+  // stall raised across it, a span that was never finished, a toll window that
+  // has closed -- any of these ends the journey where it stands. Nothing is
+  // owed to a citizen who is no longer walking; the action simply clears, as a
+  // gather clears on a dry seam.
+  for (const pid of Object.keys(s.players).sort()) {
+    const p = s.players[pid];
+    if (p.action?.type !== 'walk') continue;
+    if (p.hp <= 0 || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; }
+    // the rooted keep their journey but spend the interval standing: being
+    // held in place by the star-dagger is not the same as being turned back.
+    if ((p.rootedUntil ?? 0) > s.tick) continue;
+    if (!canStep(s, _ctx, p, p.action.dx, p.action.dy)) { p.action = null; continue; }
+    p.x += p.action.dx; p.y += p.action.dy;
+    p.action = p.action.remaining > 1
+      ? { type: 'walk', dx: p.action.dx, dy: p.action.dy, remaining: p.action.remaining - 1 }
+      : null;
+  }
+
   // resolve ongoing actions (spec §6, §6b), canonical order.
   //
   // The order is the sorted playerId, and a target already at zero is skipped
@@ -13374,11 +14371,18 @@ function nextState(state, inputs, _legacyBeacon) {
   // rediscovered as a defect. Any fix costs a deterministic ordering, which is
   // worth more than two points of a coin flip.
   for (const pid of Object.keys(s.players).sort()) {
-    const p = s.players[pid];
-    if (!p.action) continue;
+    const p0 = s.players[pid];
+    if (!p0.action) continue;
+    // §21c: past the guard this citizen is doing something, and everything
+    // below writes to them. Take the writable copy once, here, rather than at
+    // each of the dozens of writes in the body.
+    const p = ownPlayer(s, pid);
 
     if (p.action.type === 'attackp') {
-      const q = s.players[p.action.targetId];
+        // §21c: the target of a swing is written to -- damage, fire, plate,
+        // the answer -- and did not act this interval, so own them here, once,
+        // rather than at each of the writes below.
+        const q = ownPlayer(s, p.action.targetId);
       if (q && ((q.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick)) { p.action = null; continue; } // the truce ends the fight (v0.80)
       // §7am: AND HERE TOO. The dry-siphon guard went into the mob path alone,
       // so an empty siphon still burned citizens -- the same one-path-of-two
@@ -13430,9 +14434,9 @@ function nextState(state, inputs, _legacyBeacon) {
             if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
           }
 
-          lvl2 = effLevel(p.skills.ranged); tag2 = 'ranged';
-        } else { lvl2 = effLevel(p.skills.attack); tag2 = 'attack'; }
-        const defL = effLevel(q.skills.defence);
+          lvl2 = effLevel(p.skills.marksmanship); tag2 = 'ranged';
+        } else { lvl2 = effLevel(p.skills.prowess); tag2 = 'prowess'; }
+        const defL = effLevel(q.skills.prowess);
         // §7br: AND A FIRE ARROW COUNTS ARMOUR DOUBLE.
         //
         // §6ap put armour in the ROLL and not the damage -- `soak` is zero
@@ -13445,20 +14449,21 @@ function nextState(state, inputs, _legacyBeacon) {
         // exact inverse: a cage of tinder with no point to drive through plate,
         // so the plate counts twice. Against bare skin the term is zero either
         // way and it loses nothing.
-        const Tp = hitChance256(lvl2, defL, accOf(p, q),   // §6dh
+        const Tp = hitChance256(lvl2, defL, accOf(p, q),   // §6dh, §5r
           weaponOf(p)?.pierces === true ? 0
-            : firingFire(p) ? armourOf(q) * FIRE_ARROW_SOAK
-            : armourOf(q)); // §6x-ii
+            : firingFire(p) ? guardOf(q) * FIRE_ARROW_SOAK
+            : guardOf(q)); // §6x-ii, §5r
         if (roll(beacon, pid, 'atk') < Tp) {
           // §6as: the BLOW is strength's, the roll is attack's -- except for a
           // bow, where the same draw does both and lvl2 is ranged.
-          const powLvl = bowDrawn2 ? lvl2 : effLevel(p.skills.strength);
+          const powLvl = bowDrawn2 ? lvl2 : effLevel(p.skills.prowess);
           const _w7l = weaponOf(p);
-          const maxHit = 1 + Math.floor(powLvl / (bowDrawn2 ? 12 : 10))
+          const maxHit = Math.max(MIN_MAX_HIT,   // §5s: never zero; roll % 0 is NaN
+            1 + Math.floor(powLvl / (bowDrawn2 ? 12 : 10))
             + hitOf(p, q)   // §6dh
 
             // §7l: the bare-blade pays you for what you are not wearing
-            + (_w7l?.bare === true ? bareBonus(armourOf(p)) : 0);
+            + (_w7l?.bare === true ? bareBonus(armourOf(p)) : 0));
           // §6x: A FLAIL GOES ROUND THE PLATE, not through it.
           //
           // A full suit of starmetal soaks four, and against `max(0, ...)`
@@ -13509,7 +14514,6 @@ function nextState(state, inputs, _legacyBeacon) {
           // threw on every PvP blow: a ReferenceError in the middle of the
           // only fight this world takes seriously. A citizen is never a dummy.
           else teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2), false);
-          p.skills.hitpoints += dmg;
           if (q.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
               && (p.rootCdUntil ?? 0) <= s.tick && (q.rootedUntil ?? 0) <= s.tick && (q.rootImmuneUntil ?? 0) <= s.tick) {
             p.rootCdUntil = s.tick + ROOT_CD;                    // the dagger sleeps either way
@@ -13693,7 +14697,7 @@ function nextState(state, inputs, _legacyBeacon) {
           p.inventory[aSlot].qty -= 1;
           if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
         }
-        const rLvl = effLevel(p.skills.ranged);
+        const rLvl = effLevel(p.skills.marksmanship);
         const Tr = hitChance256(rLvl, stats.def, weaponOf(p)?.acc ?? 0, 0); // §6ap-ii
         if (roll(beacon, pid, 'atk') < Tr) {
           const maxHit = 1 + Math.floor(rLvl / 12) + (weaponOf(p)?.hit ?? 0);
@@ -13705,8 +14709,7 @@ function nextState(state, inputs, _legacyBeacon) {
           m.hp -= dmg;
           if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         burnFuel(p);   // §7am: the siphon drinks
-          p.skills.ranged += dmg;   // 6br
-          p.skills.hitpoints += dmg;
+          p.skills.marksmanship += dmg;   // 6br
         }
       } else {
       // §6ap-ii: AND THE BEASTS ARE ROLLED FOR THE SAME WAY.
@@ -13716,7 +14719,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // plateau still existed against everything with teeth, and a weapon's acc
       // was read on the additive scale here and the multiplicative one in the
       // Wilds. The same steel cannot mean two things.
-      const atkLvl = effLevel(p.skills.attack);
+      const atkLvl = effLevel(p.skills.prowess);
       const T = hitChance256(atkLvl, stats.def, accOf(p, m), 0);   // §6dh
       if (roll(beacon, pid, 'atk') < T) {
         // §6as-ii: and the blow is STRENGTH's here too, or the only place to
@@ -13740,7 +14743,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // bare hands under strength twenty, which is a newcomer and nobody
         // else. Buy a sword and it has never applied to you.
         const maxHit = Math.max(MIN_MAX_HIT,
-          1 + Math.floor(effLevel(p.skills.strength) / 10) + hitOf(p, m));   // §6dh
+          1 + Math.floor(effLevel(p.skills.prowess) / 10) + hitOf(p, m));   // §6dh
         // §7ai: THE WARD. A wight shrugs off steel: every blow is ONE unless the
         // citizen carries holy water, and the flask is spent the moment it
         // falls. Ten bones buried in consecrated ground buys one fight.
@@ -13831,7 +14834,6 @@ function nextState(state, inputs, _legacyBeacon) {
         // resulting citizen dealt 0.73 a tick where a trained one deals 1.79.
         teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2),
           MOB_STATS[m?.type]?.dummy === true);   // §7t: a dummy stops teaching at YARD_CAP
-        p.skills.hitpoints += dmg;
         if (m.hp > 0 && p.equipment.weapon?.item === 'star-dagger'
             && (p.rootCdUntil ?? 0) <= s.tick && (m.rootedUntil ?? 0) <= s.tick && (m.rootImmuneUntil ?? 0) <= s.tick) {
           m.rootedUntil = s.tick + ROOT_TICKS;
@@ -14014,7 +15016,7 @@ function nextState(state, inputs, _legacyBeacon) {
     // gather rather than a jackpot they chase. Continuous, steady, shared.
     if (s.bloom && s.bloom.nodeId === p.action.nodeId) {
       const bxp = (s.genesis.events && s.genesis.events.bloomXpPerTick) || 4;
-      p.skills[y.skill] += bxp;
+      awardXp(p, y.skill, bxp, GATHER_CALLING[y.skill]);
     }
     // §6ao (v6): DURABILITY IS A SOCIAL KNOB ONLY. A durable node is AVAILABLE
     // far more of the time, which would triple a citizen's real gathers-per-hour
@@ -14082,7 +15084,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // not change -- progression matches v5 exactly.
       // §6db: ...AND MULTIPLIES THE EXPERIENCE, so experience an hour is exactly
       // what it was and only the goods an hour moved. See NODE_YIELD.
-      p.skills[y.skill] += y.xp * _hard;
+      awardXp(p, y.skill, y.xp * _hard, GATHER_CALLING[y.skill]);
       // §7dm: THE HIGH-WATER MARK -- the hardest rung this citizen has ever
       // worked in this skill.
       //
@@ -14123,7 +15125,9 @@ function nextState(state, inputs, _legacyBeacon) {
       // strength. It is a poor weapon, it comes off a wight one time in six
       // thousand, and it asks a citizen to give up their weapon slot to use it.
       if (weaponOf(p)?.digs === true && DIGGABLE.has(n.type)) {
-        p.skills.strength += Math.round(y.xp * SPADE_STRENGTH);
+        // §5r-iii: the arm still grows, up to the door of a calling.
+        if (effLevel(p.skills.prowess) < LABOUR_PROWESS_CAP)
+          p.skills.prowess += Math.round(y.xp * SPADE_STRENGTH);
         // AND NOTHING ELSE. This also doubled the yield, which quietly made the
         // spade a NITRE tool: 240 saltpetre an hour from one digger, when the
         // whole powder economy was built around a scarce farm byproduct. A
@@ -14196,8 +15200,10 @@ function nextState(state, inputs, _legacyBeacon) {
       // is no crowd on a thing that pays this seldom, and a dark seam would
       // only add variance to a wait that is already all variance.
       if (isGold) depTicks = GOLD_DEPLETE_TICKS;
+      // §21e: a seam that goes dark is one of the few nodes an interval writes
+      // to, so it is copied here and the other ten thousand are left alone.
       if (depTicks > 0 && roll(beacon, pid, 'deplete') % depOneIn === 0)
-        n.depletedUntil = s.tick + depTicks;
+        ownNode(s, p.action.nodeId).depletedUntil = s.tick + depTicks;
     }
   }
 
@@ -14245,16 +15251,23 @@ function nextState(state, inputs, _legacyBeacon) {
   // to do here; the value in the state is already this tick's.
   _p2mark('mastery');
   // ---- mastery announcements (v0.48): who crossed 99 this tick ----
-  const _M = XP_TABLE[99];
+  const _M = XP_TABLE[MASTERY];
   // v0.80: this loop writes canonical state (s.firsts, s.announce), so it
   // MUST iterate in playerId order, not insertion order. Insertion order
   // differs between a genesis-replayed node and a checkpoint-bootstrapped
   // one, so two citizens crossing 99 on the same tick could be recorded in
   // a different order on different nodes: a stateHash fork and a
   // mis-attributed permanent 'first'. Sorting makes the record canonical.
-  for (const _pid of Object.keys(s.players).sort()) {
-    const _p = s.players[_pid], _pre = _preMaster[_pid] ?? new Set();
-    const _pfl = _preFloor[_pid] ?? new Set();
+  // §21d: only citizens this interval WROTE to can have crossed a threshold, so
+  // only they are examined. Still sorted, for the reason the note above gives:
+  // this loop writes canonical state and the order is part of the record.
+  const _snap = _masterySnap.get(s) ?? new Map();
+  for (const _pid of [..._snap.keys()].sort()) {
+    const _p = s.players[_pid];
+    if (!_p) continue;
+    const _t = _snap.get(_pid);
+    const _pre = _t ? _t.done : new Set();
+    const _pfl = _t ? _t.above : new Set();
     const _nm = _p.name ?? _pid.slice(0, 6);
     let _newMastery = false;
     for (const _sk of SKILLS) {
@@ -14390,7 +15403,10 @@ function nextState(state, inputs, _legacyBeacon) {
     while (tl.length > TIDE_LEN) tl.shift();
     s.tideline = tl;
   }
-  return s;
+  // §21: unwrap the copy-on-write proxies. A citizen nobody wrote to comes out
+  // as the ORIGINAL object, which is what makes an unchanged citizen free to
+  // hash next interval. A no-op in every other clone mode.
+  return _cloneModeName() === 'cow' ? _cowSettle(s) : s;
 }
 
 module.exports = {
@@ -14408,6 +15424,8 @@ module.exports = {
   worldId, SIG_DOMAINS,
   countItem, canAddItem, addItem, removeItem,
   generateIdentity, signInput, verifyInputSig,
+  // process-local memo seeding for the arrival-time verify pool (non-consensus)
+  seedSigVerdict,
   perfStats, ENGINE_ERR,
   // test-only hook (non-API): lets the perf suite exercise cache eviction
   // without minting 16k signatures. Never used by protocol code.
@@ -14432,7 +15450,7 @@ module.exports = {
   _phase2Testing: {
     setClone(m) { _cloneOverride = m; },
     setIndexes(b) { _indexOverride = b; },
-    cloneStateForTick, buildTickContext,
+    cloneStateForTick, buildTickContext, ownPlayer, ownNode, CowLeak, _cowSettle, _cloneForTick, ownPlayer, CowLeak,
     addIndexedNode, deleteIndexedNode,
     nodeExistsAt, blockingNodeAt, hasAdjacentNode, findAdjacentNode, prayerKeeps,
     adjacentNodeIdsInOrder, brewpotsOwnedBy,
@@ -14440,8 +15458,14 @@ module.exports = {
   },
   signPayload, verifyPayload,
   exportIdentity, importIdentity, loadOrCreateIdentity,
+  // Derivation surface (§2n): the engine is the law, so the prose that
+  // documents the law is GENERATED from these tables rather than maintained
+  // beside them. Read-only to consumers; exporting them adds no behaviour and
+  // enters no state. See spec-tables.mjs.
+  SMELTED, SMITH_REQS, STACKABLE, ARMOUR, TWO_HANDED,
+  MAX_APPLIED_INPUTS, STRANGER_SHARE,
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
-  SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHp, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

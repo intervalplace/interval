@@ -8,6 +8,60 @@ rules and is ignored by the network.
 The world advances in fixed intervals, ticks, and everything that ever
 happens, happens on one.
 
+## 0-i. How to read this document
+
+**This constitution accretes.** It is written as a record, not as a
+manual: a section that says a thing was tried, went wrong and was
+changed is telling the truth about how this world came to be, and the
+history is not decoration. Two consequences follow, and an implementer
+needs both.
+
+**Where a section names a skill that no longer exists, read the one
+that replaced it.** Eighteen skills became nine (§5m). Earlier sections
+were written when the old names were current and are left standing,
+because rewriting them would falsify the record of what was decided and
+when.
+
+| written as | read as |
+|---|---|
+| woodcutting, firemaking, fletching | `woodcraft` |
+| mining, smithing | `earthcraft` |
+| fishing, cooking | `shorecraft` |
+| farming, brewing | `hearthcraft` |
+| attack, strength, defence, hitpoints | `prowess` |
+| prayer | `mourning` |
+| ranged | `marksmanship` |
+| magic | `sorcery` |
+| exploration, hauling | `wayfaring` |
+
+Three warnings, because the words are reused:
+
+- **A mob's `atk` and `def` are not skills** and did not merge. Where a
+  bestiary line reads `goblin: attack 1, defence 1`, it means exactly
+  that and always did.
+- **`magic-stone`, `magic-rock` and magic doors are materials and
+  places**, not the skill. Only the SKILL became `sorcery`.
+- **`player.brewing` is the batch in the pot** (§5l), not a level.
+
+**Where a section describes a mechanic that was later repealed, the
+later section governs.** The repeals that matter most, because they are
+the ones an implementer would otherwise build:
+
+| repealed | by | what is true now |
+|---|---|---|
+| armour soaking damage | §6ap / §6i | armour enters the ROLL; soak is zero everywhere |
+| attack, strength and defence as separate ladders | §5j | one `prowess`; a blow is paid once |
+| hitpoints as a skill | §5j | the frame is flat at sixty-four, shaped only by a calling |
+| the bronze tier | §5m-era smithing | iron, steel, star, great and gold; no `bronze-*` item exists |
+| `style` routing experience | §5s | style is the per-swing lever: aim, force, even |
+| a derived calling | §5k | a calling is SWORN, and the seventeen are listed there |
+| mastery at ninety-nine | §4b | mastery is **one hundred** |
+
+Anything in Part 20 marked `[LIFTED]` was relocated from the engine's
+own comments and has not yet been read back against the code. Those
+sections are true to what the engine says about itself and may still
+carry vocabulary this table retires.
+
 ## 0. Nought (the world before the tick)
 
 **Nought is Tallyholm unwalked.** The same island, the same towns, the same
@@ -2133,8 +2187,13 @@ v0.25 skills: `woodcutting`, `mining`, `fishing` (gathering);
 `cooking`, `smithing`, `firemaking` (processing); `prayer` (rite);
 `attack`, `defence`, `hitpoints` (combat). Gathering
 creates items, processing consumes them, combat consumes everything.
-Players start with `hitpoints` at 1,154 XP (level 10); all other skills
-at 0. Max HP equals the hitpoints level.
+~~Players start with `hitpoints` at 1,154 XP (level 10); all other
+skills at 0. Max HP equals the hitpoints level.~~ **Superseded by §5j.**
+Hitpoints is not a skill: every skill starts at 0, and the frame is flat
+at sixty-four, shaped only by a sworn calling. The figure 1,154 was
+hitpoints level 10 under the curve of the day and is level 12 under the
+present one (§4b) — a good illustration of why a constant that means
+"level N" must be written as a level and not as a number.
 
 Level from XP uses a classic exponential curve: level L requires total XP
 
@@ -2145,25 +2204,30 @@ xp(L) = floor( (1/4) * sum_{n=1}^{L-1} floor(n + 300 * 2^(n/7)) )
 The table is **hardcoded as spec constants** (see the reference
 implementation's `XP_TABLE`); implementations MUST use the constants,
 not recompute them. Anchor values: level 2 = 83 XP, level 50 = 101,333,
-level 99 = 13,034,431. Levels range 1-99.
+level 100 = 37,503,873. Levels range 1-100.
 
 ## 4b. Beyond mastery
 
-The level function does not stop at 99: it continues by the same
-recurrence. Every mechanic that reads a level reads `min(level, 99)`:
+**Mastery is ONE HUNDRED.** It was ninety-nine, which is RuneScape's
+number and reads as a threshold -- the last rung before something,
+rather than the thing itself. A hundred is the completion.
+
+The level function does not stop there: the table continues to the
+bound of what an experience field can hold. Every mechanic that reads a
+level reads `min(level, 100)`:
 mastery is the ceiling of power, and nothing past it buys a stronger
 swing or a faster axe. Levels past 99 are honor, proof of intervals
 spent. A bot can reach them; so can you. The ledger does not care, and
 that is the point.
 
-The recurrence is not literally infinite, and the constitution should
+The curve is not literally infinite, and the constitution should
 not pretend otherwise. Experience is a state field, and every state
 field is bounded so that a hostile checkpoint cannot carry an absurd
 number and so that all arithmetic stays exactly representable: the bound
-is `MAX_XP`, 10^12, which is **level 212**, one hundred and thirteen
-levels above mastery. This is a bound on what a number can *be*, not a
-wall the design puts in anyone's way. Mastery costs 13,034,431
-experience; the ceiling is 76,720 times that, some four centuries of
+is `MAX_XP`, 10^12, which is **level 171**, seventy-one levels above
+mastery. This is a bound on what a number can *be*, not a wall the
+design puts in anyone's way. Mastery costs 37,503,873
+experience; the ceiling is 28,536 times that, some centuries of
 unbroken play in a single skill at a rate nobody sustains. It is written
 down here because a constitution that claims "without bound" and means
 "bounded at 212" is lying in a way that would eventually have to be
@@ -2171,7 +2235,7 @@ corrected, and corrections cost forks.
 
 ## 4c. Mastery and the cape
 
-**Mastery** is level 99 in a skill: the ceiling of power (4b). The
+**Mastery** is level 100 in a skill: the ceiling of power (4b). The
 recurrence runs far past it, to the representational bound of §4b, which
 no amount of play reaches.
 
@@ -2425,7 +2489,7 @@ Spawning competes for its own budget, not for the tick's input cap.
   the same soul. The others are not queued and not remembered: they may
   simply be sent again.
 
-**Why.** A spawn used to compete for the same 4,096 slots as a footstep,
+**Why.** A spawn used to compete for the same slots as a footstep,
 which meant four thousand souls could be born in six hundred milliseconds.
 No real world has that rate; even a launch day is a handful a second, and a
 crowd arriving together can wait a tick.
@@ -2441,18 +2505,18 @@ day this world will ever have.
 
 ## 5.4. How many inputs a tick applies
 
-A tick applies at most **4096** inputs. When more than that many distinct
+A tick applies at most **65536** inputs. When more than that many distinct
 players submit a valid input for the same tick, WHICH ones apply is
 decided by this rule and not by which arrived first:
 
 1. Players that already exist in `state.players` are taken before
    players that do not.
 2. Within each group, canonical ascending `playerId` order.
-3. At most **256** of the 4096 are given to players the world does not
+3. At most **one sixteenth** of the cap (4096 at 65536) is given to players the world does not
    yet know. If fewer than 256 strangers are present the remainder goes
    to existing citizens, and if fewer than 3840 citizens are present the
    remainder goes to strangers: no seat is left empty.
-4. The first 4096 of that ordering apply. The rest are discarded as
+4. The first 65536 of that ordering apply. The rest are discarded as
    though they had never been sent, and their senders may retry on a
    later tick.
 
@@ -2476,7 +2540,7 @@ an attacker can always fill the field with keys that have never done
 anything. Under such a flood the world becomes hard to ENTER, which is
 recoverable, rather than impossible to PLAY, which is not.
 
-Nodes SHOULD buffer more than 4096 inputs per tick so that this
+Nodes SHOULD buffer more than 65536 inputs per tick so that this
 selection is made over the whole field rather than over an arbitrary
 subset of it.
 
@@ -2552,6 +2616,35 @@ deliberate: trade requires *being there*.
 
 There is no partial trade, no negotiation protocol, and no escrow: the
 swap either happens whole in one tick or not at all.
+
+### 5c-i. The shape of a stored offer
+
+GENERATED from the engine's `validateState`. Do not edit by hand — run
+`node spec-tables.mjs --write`.
+
+<!-- BEGIN GENERATED: trade_shape -->
+A persisted offer (`player.trade`) carries **exactly** these five keys,
+no more and no fewer:
+
+| Field | Type | Rule |
+|---|---|---|
+| `to` | hex64 | an existing player, not the offerer |
+| `giveSlots` | int[] | non-empty, ascending, distinct, each `0..11` |
+| `giveItems` | {item,qty}[] | one per named slot, same order; the goods **as advertised** |
+| `wantItem` | item or null | |
+| `wantGold` | int ≥ 0 | |
+
+`wantItem` and `wantGold` are both written out always — `wantItem: null`
+or `wantGold: 0` — because omission is not a representation. Exactly one
+of them is a live demand (item XOR positive gold).
+
+`giveItems` is not redundant with `giveSlots`. It is the record of what
+was advertised, and `tradeFits()` re-checks the offerer's inventory
+against it at accept time. Without it, emptiness is guarded but
+**substitution is not**: the buyer agrees to a `star-sword` and receives
+an `iron-dagger`. An offer whose goods no longer match what was
+advertised does not partially apply — it does not apply at all.
+<!-- END GENERATED: trade_shape -->
 
 ## 5e. Presence: awake and asleep
 
@@ -2656,7 +2749,7 @@ agreed record of who was first: "first ever" is a fact of the state,
 not a claim any window can invent.
 
 **Mastery.** When a citizen's XP in a skill first crosses the mastery
-threshold (`XP_TABLE[99]`) on a tick, the world announces it. The very
+threshold (`XP_TABLE[MASTERY]`) on a tick, the world announces it. The very
 first citizen ever to master a given skill is named as such (and
 recorded in `firsts` under `master:<skill>`); everyone after is
 announced plainly. When the crossing that a tick produces leaves a
@@ -2733,19 +2826,24 @@ That is the whole trade and it is enough of one. Measured after: 15–5 against 
 star-sword, from a weapon that also holds a shield and reaches three tiles.
 
 One property is worth recording because it fell out rather than being designed.
-A javelin **teaches by distance**: thrown it pays `ranged`, held it pays
-`attack` and `strength`, and both pay `hitpoints`. The same weapon trains
-different citizens depending on how they choose to fight with it, and nothing
-in the engine says so — `drawnAt` says it, once, for bows.
+A javelin **teaches by distance**: thrown it pays `marksmanship`, held
+it pays `prowess`. The same weapon trains different citizens depending on
+how they choose to fight with it, and nothing in the engine says so —
+`drawnAt` says it, once, for bows.
+
+*As written in v0.86 this read "held it pays `attack` and `strength`, and
+both pay `hitpoints`". §5j made those one skill paid once; the property
+recorded here survives the merge, because the distinction that produces
+it is melee against ranged, which still exists.*
 
 ### 6dh. A bow is not a club
 
 An archer *can* strike somebody standing on top of them — a ranged weapon
-adjacent falls into the melee half of the roll, which is `attack` for the mark
-and `strength` for the blow. What that half did was read the weapon's `hit` and
-`acc` straight off the table: numbers written for `1 + ranged/12` and for a
-bow's own accuracy curve, spent instead on `1 + strength/10` against an attack
-roll.
+adjacent falls into the melee half of the roll, which is `prowess` for both
+the mark and the blow (`attack` and `strength` when this was written; §5j).
+What that half did was read the weapon's `hit` and `acc` straight off the
+table: numbers written for `1 + ranged/12` and for a bow's own accuracy
+curve, spent instead on `1 + prowess/10` against a melee roll.
 
 Measured at mastery, standing fight, damage an interval:
 
@@ -3197,18 +3295,557 @@ nothing to defend against.
 
 ## 6d. Smithing (the ore sink)
 
-`smith {recipe}` is valid iff the player is orthogonally adjacent to an
-`anvil` and holds the materials. It resolves in the same tick, always
-succeeds, consumes the materials, places the product in a free slot,
-and awards 30 smithing XP per ore consumed.
+Running ore into metal and beating metal into a shape are not the same
+act. They are two trades, in two places, and they get two verbs.
+`smelt {recipe}` requires a `furnace` that is **burning** (`fuelUntil`
+beyond the current tick); `smith {recipe}` requires an `anvil`. Both
+require orthogonal adjacency, both consume the materials, both resolve
+in the same tick, and both refuse an unearned hammer: where a recipe
+carries a level requirement, an under-levelled citizen strikes nothing.
 
-| Recipe           | Materials       | Effect when wielded            |
-|------------------|-----------------|--------------------------------|
-| `bronze-sword`   | 2 ore + 1 logs  | +2 max hit in combat           |
-| `bronze-hatchet` | 1 ore + 1 logs  | +24 gather threshold on trees  |
-| `bronze-pickaxe` | 1 ore + 1 logs  | +24 gather threshold on rocks  |
+The table below is GENERATED from the engine's `RECIPES`, `SMELTED`,
+and `SMITH_REQS` (§2n: the engine is the law; this prose documents it).
+Do not edit it by hand — run `node spec-tables.mjs --write`.
+
+<!-- BEGIN GENERATED: recipes -->
+**Smelted** (`smelt`, at a furnace whose `fuelUntil` exceeds the current
+tick; `charcoal` substitutes for `coal`). 5 recipes.
+
+| Product | Ingredients | Requires |
+|---|---|---|
+| `gold-bar` | 5 `gold-ore` | earthcraft 40 |
+| `iron` | 2 `iron-ore` | earthcraft 1 |
+| `star-alloy` | 1 `star-ingot` + 5 `brimstone` | earthcraft 48, sorcery 28 |
+| `star-ingot` | 8 `star-grit` | earthcraft 45, sorcery 25 |
+| `steel` | 1 `iron` | earthcraft 30 |
+
+**Forged** (`smith`, at an anvil). 55 recipes.
+
+| Product | Ingredients | Requires |
+|---|---|---|
+| `barb` | 2 `lamprey-spit` + 1 `steel` | earthcraft 40 |
+| `bare-blade` | 4 `steel` + 1 `ironbark` | earthcraft 34 |
+| `bone-spear` | 2 `dragon-bones` + 1 `ironbark` | woodcraft 55 |
+| `bone-staff` | 2 `logs` + 8 `bones` + 1 `grave-silver` | woodcraft 45 |
+| `crossbow` | 2 `iron` + 2 `logs` | earthcraft 18 |
+| `fire-siphon` | 4 `steel` + 6 `brimstone` + 1 `ironbark` | earthcraft 62 |
+| `gold-chain` | 10 `gold-bar` + 1 `old-chain` | earthcraft 70 |
+| `gold-helm` | 6 `gold-bar` | earthcraft 75 |
+| `gold-legs` | 8 `gold-bar` | earthcraft 80 |
+| `gold-plate` | 11 `gold-bar` | earthcraft 85 |
+| `great-crossbow` | 4 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
+| `great-hatchet` | 2 `magic-stone` + 2 `ironbark` + 1 `brimstone` | earthcraft 55 |
+| `great-helm` | 2 `star-alloy` | earthcraft 70, sorcery 34 |
+| `great-maul` | 6 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
+| `great-pickaxe` | 2 `magic-stone` + 1 `ironbark` + 1 `brimstone` | earthcraft 55 |
+| `great-plate` | 5 `star-alloy` | earthcraft 70, sorcery 34 |
+| `great-sword` | 5 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
+| `handgonne` | 8 `iron` + 1 `ironbark` + 2 `brimstone` | earthcraft 90 |
+| `hollow-bow` | 4 `bones` + 1 `logs` | woodcraft 12 |
+| `iron-dagger` | 1 `iron` | earthcraft 1 |
+| `iron-hatchet` | 1 `iron` + 1 `logs` | earthcraft 1 |
+| `iron-helm` | 1 `iron` | earthcraft 7 |
+| `iron-javelin` | 1 `iron` + 1 `logs` | earthcraft 5 |
+| `iron-maul` | 2 `iron` + 1 `logs` | earthcraft 14 |
+| `iron-pickaxe` | 1 `iron` + 1 `logs` | earthcraft 1 |
+| `iron-plate` | 3 `iron` | earthcraft 20 |
+| `iron-shield` | 4 `iron` + 1 `oak-logs` | earthcraft 12 |
+| `iron-spear` | 1 `iron` + 1 `logs` | earthcraft 5 |
+| `iron-sword` | 2 `iron` | earthcraft 10 |
+| `shell-helm` | 2 `crab-shell` + 1 `iron` | earthcraft 22 |
+| `shell-plate` | 4 `crab-shell` + 2 `iron` | earthcraft 26 |
+| `shot` | 1 `iron` + 1 `gunpowder` | earthcraft 50 |
+| `sigil-bow` | 1 `horn-bow` + 3 `sigil` | earthcraft 12, sorcery 25 |
+| `star-dagger` | 4 `star-ingot` | earthcraft 45, sorcery 28 |
+| `star-flail` | 8 `star-ingot` + 1 `ironbark` | earthcraft 50, sorcery 29 |
+| `star-grit` | 5 `magic-stone` | earthcraft 42, sorcery 22 |
+| `star-hatchet` | 2 `magic-stone` + 1 `iron` + 1 `logs` | earthcraft 42, sorcery 22 |
+| `star-helm` | 5 `star-ingot` | earthcraft 40, sorcery 20 |
+| `star-javelin` | 1 `star-ingot` + 1 `ironbark` | earthcraft 46, sorcery 26 |
+| `star-maul` | 9 `star-ingot` + 1 `ironbark` | earthcraft 52, sorcery 30 |
+| `star-pickaxe` | 2 `magic-stone` + 1 `iron` + 1 `logs` | earthcraft 42, sorcery 22 |
+| `star-plate` | 10 `star-ingot` | earthcraft 50, sorcery 30 |
+| `star-shield` | 7 `star-ingot` + 1 `ironbark` | earthcraft 48 |
+| `star-spear` | 6 `star-ingot` + 1 `ironbark` | earthcraft 46, sorcery 26 |
+| `star-sword` | 6 `star-ingot` | earthcraft 45, sorcery 25 |
+| `steel-dagger` | 1 `steel` | earthcraft 25 |
+| `steel-hatchet` | 1 `steel` + 1 `oak-logs` | earthcraft 26 |
+| `steel-helm` | 1 `steel` | earthcraft 30 |
+| `steel-javelin` | 1 `steel` + 1 `logs` | earthcraft 28 |
+| `steel-maul` | 2 `steel` + 1 `oak-logs` | earthcraft 42 |
+| `steel-pickaxe` | 1 `steel` + 1 `oak-logs` | earthcraft 26 |
+| `steel-plate` | 2 `steel` | earthcraft 38 |
+| `steel-shield` | 3 `steel` + 1 `ironbark` | earthcraft 34 |
+| `steel-spear` | 1 `steel` + 1 `oak-logs` | earthcraft 28 |
+| `steel-sword` | 1 `steel` | earthcraft 32 |
+<!-- END GENERATED: recipes -->
+
+## 5k. Callings are sworn
+
+Nine trades, seventeen callings. `swear {calling}` sets `player.calling`,
+and it is the last word on what a citizen is.
+
+A calling was DERIVED — whichever skill held the most experience. That
+worked while there were eighteen skills and could not survive nine: one
+number covers a berserker and a warden both, a farmer and a brewer both,
+a forester and a fletcher both. Ten good words went out of the world
+with the merges (§5m). They come back here, and they come back better,
+because a calling is now a thing a citizen SAYS about themselves rather
+than a thing computed behind their back.
+
+**A skill says how much you can do. A calling says what you are.**
+
+| trade | callings |
+|---|---|
+| `woodcraft` | forester, firekeeper, fletcher |
+| `earthcraft` | miner, smith |
+| `shorecraft` | fisher, cook |
+| `hearthcraft` | farmer, brewer |
+| `prowess` | fighter, berserker, warden |
+| `mourning` | mourner |
+| `marksmanship` | archer |
+| `sorcery` | alchemist |
+| `wayfaring` | cartographer, runner |
+
+**It is not a bet placed blind.** §10 already refused to bind a trade
+from waking, on the grounds that a citizen choosing before they have
+seen the island is guessing and every record afterwards belongs to
+whoever guessed luckiest. So swearing is gated on having done the work:
+**level thirty** in the calling's own trade. By thirty a citizen knows
+what the work feels like.
+
+**There is no forswearing.** A calling that could be put down would be a
+loadout, and the point of the word is that it costs something to say.
+
+**Unsworn is a choice, not a waiting room.** A citizen who never swears
+trains anything, is bound by nothing, and answers to their most
+experienced trade as callings always worked. That is the main; a sworn
+calling is the pure. Both are played on purpose.
+
+Swearing takes no interval and interrupts nothing: saying what you are
+is not an action, and a citizen mid-journey does not stop to say it.
+The level is re-checked in `validateState`, so no checkpoint can hand
+anybody a calling they never earned.
+
+Today a calling shapes the flesh (§5j) and nothing else — the berserker
+trades frame for the arm at forty-eight, the warden the reverse at
+eighty, the fighter takes neither bargain at sixty-four. Every other
+calling carries zero, because a cook is not tougher than a fisher and
+pretending otherwise would make swearing a stat check instead of a
+declaration.
+
+## 5v. Mourning is paid in what it cost you
+
+Every other trade converts TIME into levels. This one converts WEALTH,
+and it is the only skill in the world that asks a citizen to destroy
+something they could have sold.
+
+`offer {slot}` gives up one item on consecrated ground. The ground takes
+it, nobody gets it, and the ledger records what it was worth.
+
+Burying bones was an act of respect that cost a bone, and bones fall off
+anything with a skull — which made the skill a tally of how many beasts
+a citizen had killed, which is prowess wearing a cassock. Burial stays
+(§7ai, and ten in an ossuary still draw a flask). Offering is the trade
+itself.
+
+**Worth is the store's price, and only priced things may be offered.**
+That is not a gap in the rule, it IS the rule: a price list is what the
+world can put a number on, and an offering is a number given up. The
+dearest things here are unpriced precisely because citizens price them
+between themselves, and a worth that is a matter of opinion cannot be a
+matter of record.
+
+**The same gift twice is worth less.** The first of a kind pays full,
+and the rate falls to a quarter over twelve. Without this the skill
+would be one item farmed forever — whichever had the best price for the
+effort — which is the grind this replaces wearing a different hat. The
+count is per kind and per citizen, so advancing means giving up
+DIFFERENT things, which means buying them, which means the whole
+economy.
+
+**The falling-off has a floor, and it must.** A pure `1/n` decay is the
+harmonic series: it grows like a logarithm, so past the first dozen
+gifts of a kind the ledger stops moving at any price. A thousand
+offerings of every priced item in the world came to 765,000 experience
+against the 32,371,237 mastery asks — mourning would have been
+unreachable above about fifty-five, by arithmetic, with no way for a
+citizen to tell why. A rule that makes something impossible is a wall.
+A rule that makes it merely expensive is a decision.
+
+What it costs, buying the dearest thing available at every step:
+
+| mourning | goods destroyed | gifts |
+|---|---|---|
+| 50 | 5,200 | 1 |
+| 70 | 27,570 | 15 |
+| 90 | 1,722,268 | 1,481 |
+| 99 | 7,681,468 | 2,627 |
+
+Cheap to begin and ruinous to finish, which is the curve (§4b) doing
+what it was shaped to do. Seventy is the threshold that matters, since
+that is where a mourner's working gear comes home (§7ai) — and it is
+bought, openly, with about six suits of gold.
+
+## 5u. The stamp
+
+Magic-stone does not melt. It shatters.
+
+So the first rung of the starmetal chain (§5t) is not a furnace and
+never was. A **stamp** is a weighted beam under a roof. `stamp {slot}`
+crushes five magic-stone into one `star-grit` beside it and pays
+earthcraft: the rock is not metal yet, and whoever walked to the high
+country for it should not have to hand it to a smith to make it useful.
+
+**The world places them, and no citizen may raise one.** There are six:
+four in the highlands and two in the mountains, sited where the
+magic-rock is, because a crushing floor anywhere else is a floor nobody
+walks to.
+
+That is the whole of its purpose. This rung exists to put more of the
+world between a citizen and what they want, so a stamp that could be
+raised beside your own door would delete the journey the tier was added
+to create — and a stamp anybody may site is a stamp sited for
+convenience. Placed and unmovable, it is a PLACE. Everyone who wants
+starmetal ends up at the same handful of roofs in the crags, standing
+about, waiting a turn, complaining bitterly about the extra step.
+
+That is not a cost of the design. It is most of what the design is for,
+and towns grew round the furnaces for exactly this reason.
+
+## 5t. Twelve slots, and depth instead of bulk
+
+The pack holds **twelve**.
+
+Twenty-eight was RuneScape's number, and it made deciding cheap: a
+citizen could carry a gathering run, a combat kit and a spare set at
+once, so leaving town was never a choice about anything. Twelve is tight
+enough that an errand is picked before the gate.
+
+**A pack is not storage. It is the ceiling on what one craft may cost**,
+because nothing reads from a bank at an anvil. Twenty-eight already had
+four recipes that could not be held at all — the whole `great` tier
+shipped uncraftable, needing thirty-seven, thirty-six, thirty-one and
+twenty-eight against a pack of twenty-eight. At twelve, sixteen were
+over.
+
+The answer was not smaller numbers. It was DEPTH.
+
+    magic-stone --5--> star-grit --8--> star-ingot --+5 brimstone--> star-alloy
+
+Five stones to a grit, eight grits to an ingot: forty magic-stone an
+ingot, twice what it was, and never more than eight things carried at
+once. A pack caps the cost of a single CRAFT; chain depth multiplies
+crafts together, so scarcity survives a smaller bag without a citizen
+ever holding more than eleven of anything. The Wilds trip is unchanged.
+What changed is that the ingot is worth the trip.
+
+The alloy carries the brimstone for the same reason: the `great` tier
+asked for twenty-six separate lumps of it, which no pack this world
+would want could hold. Five to an alloy, and the tier asks for alloys.
+
+Costs are preserved, not cut. Nine of the thirteen top-tier items land
+on **exactly** their old raw cost in magic-stone; the worst drift is
+fourteen percent, upward. A `star-plate` still asks four hundred stones
+out of the Wilds. It just asks them ten at a time.
+
+## 5s. Style is the swing, not the school
+
+`style` decided which of attack, strength or defence a blow taught.
+§5j made prowess one number and left the field inert: validated,
+carried on every action, deciding nothing. A field that means nothing
+is worse than no field, because it reads like a choice and answers
+like a placebo.
+
+It is the per-swing lever now, against the calling's permanent one.
+
+| style | accuracy | damage |
+|---|---|---|
+| `aim` | +8 | −1 |
+| `force` | −8 | +1 |
+| `even` | — | — |
+
+At prowess sixty against prowess sixty in star plate: `aim` lands 40.6%
+of swings, `even` 36.3%, `force` 31.6%. A citizen may change it every
+blow. A calling is said once and never again.
+
+A citizen with no action is not swinging, and reads `even`.
+
+**Every maximum hit is clamped to `MIN_MAX_HIT`.** Damage is rolled as
+`1 + (roll % maxHit)`, and `x % 0` is `NaN` in this language, and
+`canonical()` refuses a non-finite number — so a maximum hit of zero is
+not a weak blow, it is an unhashable state and a halted world. Before
+this section nothing could reach zero, because every contribution was
+positive; `aim` is the first that subtracts. Three of the four sites
+were unclamped. A citizen at prowess one, bare-handed, choosing `aim`,
+would have found it.
+
+## 5r. The three bargains of prowess
+
+Prowess has three callings and they are not three activities. They are
+three bargains over the same one.
+
+| calling | flesh | arm | guard |
+|---|---|---|---|
+| `berserker` | 56 | +3 to every blow | — |
+| `fighter` | 64 | — | — |
+| `warden` | 72 | −2 to every blow | +4 to what an attacker must beat |
+
+### 5r-iii. Labour reaches the door and not past it
+
+A spade paid **strength** when strength was its own ladder, and that was
+a good piece of design: hard work built the arm, and an arm alone is not
+a fighter. A digger with ninety strength and one attack still missed,
+still had a newcomer's flesh, still had no guard. The bargain was
+honest.
+
+§5j made those four one number, and the spade was carried across as a
+rename. That quietly changed what it meant: a shift at the muck heap now
+bought accuracy, damage and guard together. Labour stopped building the
+arm and started making a warrior, and nobody decided that.
+
+It is not repealed, because the idea was right. It is **bounded**.
+Labour carries a citizen to exactly the level at which a calling may be
+sworn (§5k) and no further — about two hundred and fifty shifts at the
+heap. A farmer may dig their way to the door, stand there, and swear.
+Past the door, a fighter is made by fighting.
+
+### 5r-ii. A bargain has two sides
+
+**The first draft only had one.** As first
+written the warden took +16 flesh AND +12 guard for nothing, while the
+berserker paid −16 flesh for +2 damage. Modelled at mastery in star
+plate that is not three bargains but a ladder: warden beat fighter 0.70,
+fighter beat berserker 0.84, warden beat berserker 0.59. The berserker
+was simply the worst thing a citizen could swear.
+
+The error was not the size of the gap. It was that one side of the table
+was paying. The spread is halved as well — sixteen rather than
+thirty-two — because balance never needed the distance; it needed the
+trade.
+
+Measured at mastery, star plate, star-sword, the three pairings sit
+within four percent of even, and no two of the fights feel alike:
+
+| | kills a fighter in | survives a fighter for |
+|---|---|---|
+| `berserker` | 37 intervals | 39 |
+| `fighter` | 44 | 44 |
+| `warden` | 50 | 52 |
+
+The fighter takes neither bargain, and that is a position rather than
+an absence: even flesh, even arm, even guard, and nothing to regret.
+
+The guard enters the ROLL, exactly as armour does (§6ap), because a
+second mechanism that reduced damage instead would be the soak this
+world already repealed.
+
+**How a citizen becomes a berserker:** they train prowess to thirty by
+fighting — anything, any style — and then they say so. That is the
+whole of it. There is no build to grind toward and no number to leave
+deliberately untouched. Under the old skills a pure was made by
+REFUSING: a hundred hours of not training defence, a decision nobody
+announced and no one else could see. Here it is a word said once, in
+public, at a level that proves the citizen has held a weapon.
+
+The bonuses are applied in `hitOf` and `guardOf` — the two points every
+blow already passes through — and not at the four call sites that use
+them. A bonus applied at three sites out of four would be a bargain
+that held against beasts and failed against citizens, discovered by
+whoever tried it and by nobody else.
+
+## 5q. A calling is fastest at its own work
+
+A sworn calling learns **half again** from its own work and **half as
+much** from a sibling's. The unsworn are paid evenly at everything.
+
+This is what the merges were for. Putting a forester and a firekeeper
+on one number made them the same citizen; this puts them back apart
+without splitting the skill again. Each is quickest doing what they
+swore to, and the specialisation lives in a rate rather than in a
+second experience pool nobody can see.
+
+    felling a tree, same rolls, same forty intervals:
+      unsworn      120
+      forester     180      its own work
+      fletcher      60      a sibling's
+      firekeeper    60      a sibling's
+
+Gathering is always the RAW calling of its trade — forester, miner,
+fisher, farmer — as against the one who works it afterwards.
+
+**It applies only where the merge created siblings**: woodcraft,
+earthcraft, shorecraft, hearthcraft, wayfaring. A trade with one calling
+has nothing to tell apart, so an alchemist is neither faster nor slower
+at sorcery; their word buys standing and not a rate. Prowess is likewise
+untouched: berserker and warden are not two activities but two bargains
+over the same one, and they are paid in flesh (§5j).
+
+All integer arithmetic. A rate expressed as a float is a rate two
+engines may round differently, and a citizen whose level depends on
+which node computed it is a fork.
+
+## 5m. The nine trades
+
+Eighteen skills became nine. Every merge follows one rule: **a skill is a
+TRADE, not half of one.** Gathering and processing were split down the
+middle, and nothing about the world said those were two crafts — nobody
+fells a tree for the sake of holding logs, nobody digs for the sake of
+holding rock, nobody fishes in order to carry a raw fish home.
+
+| trade | was | calling (interim) |
+|---|---|---|
+| `woodcraft` | woodcutting + firemaking + fletching | woodwright |
+| `earthcraft` | mining + smithing | smith |
+| `shorecraft` | fishing + cooking | shorekeeper |
+| `hearthcraft` | farming + brewing | hearthkeeper |
+| `prowess` | attack + strength + defence + hitpoints | fighter |
+| `mourning` | prayer | mourner |
+| `marksmanship` | ranged | archer |
+| `sorcery` | magic | alchemist |
+| `wayfaring` | exploration + hauling | wayfarer |
+
+Every gate, tool and requirement moves with its skill and none is
+re-tuned: the oak still opens at twenty, the coal at twenty, the eel at
+twenty, and an axe is still what fells a tree. What changes is that a
+gate is reachable from either half of its trade. A brewer who has never
+sown passes the muck-heap; a smith who has never swung a pick passes
+the coal. That is the merge doing what a merge does.
+
+**The words that were lost are parked, not discarded.** `forester`,
+`firekeeper`, `fletcher`, `miner`, `fisher`, `cook`, `farmer`, `brewer`,
+`berserker` and `warden` all named real work, and a derived calling
+cannot tell them apart once one number covers both halves. They return
+in §5k as things a citizen SWEARS. Until then each trade renders the
+word for the whole of it, which is honest: nothing in the state
+currently distinguishes a berserker from a warden.
+
+`player.brewing` is not a skill and keeps its name: it is the batch in
+the pot.
+
+## 5l. Hearthcraft
+
+Farming and brewing were a field and a pot, and a citizen who did both
+was two trades wearing one apron. They are one skill: the grain ends up
+at the hearth either way, and nothing about the world said those were
+two crafts.
+
+Every gate moves with the skill rather than being re-tuned: the
+muck-heap still opens at twenty-five, the fuller sheaf at `FARM_MASTER`,
+the deep broth at `DEEP_BROTH_BREW`. What changes is that they are now
+reachable from either half of the trade — a brewer who has never sown
+can pass the muck-heap gate, and a farmer who has never lit a pot can
+make a deep broth. That is the merge doing what a merge does, and it is
+stated here so it is not later mistaken for a bug.
+
+`player.brewing` is NOT this skill. It is the batch in the pot: a
+`{kind, readyAt}` on the citizen, unrelated to any level, and it keeps
+its name.
+
+The calling is `hearthkeeper` until callings are sworn (§5k), when
+`farmer` and `brewer` return as declarations.
+
+## 5j. Prowess, and the end of hitpoints
+
+Attack, strength, defence and hitpoints were four numbers rising off
+the same event. A landed blow paid the aim OR the arm, and paid the
+flesh as well, so one blow taught twice; being hit paid the guard. They
+are one skill, `prowess`, and a blow is paid once.
+
+`style` no longer decides where experience goes. It decides how the
+blow lands and nothing else. Choosing what to become is what a calling
+is for, and a calling is a thing a citizen SWEARS, not a thing derived
+from whichever of their numbers happens to be highest.
+
+**Hitpoints is not a skill, and flesh is not an achievement.** It rose
+off damage DEALT, which meant a citizen who had never been in danger
+was harder to kill than one who had, purely for having swung more. The
+frame is FLAT: sixty-four for everyone.
+
+Survivability still scales, through the thing that should carry it.
+§6ap put armour in the ROLL and not the damage, so a citizen in star
+plate is missed almost always and a citizen in nothing is hit almost
+always. That is the progression. A second, additive one stacked on top
+of it was why a mastered fighter could stand in the open and read.
+
+Sixty-four is chosen against the top of the bestiary rather than from
+nothing: the dragon hits twenty-eight, so three landed blows fell an
+unwounded citizen and two fell one carrying a full ten of wounds.
+Enough margin to react, not enough to be careless. A wound is still
+subtracted from the frame (§6c) and is still a second number, for the
+same reason it always was: experience is a record of what has been
+done and nothing may edit it backwards.
+
+Until callings are sworn (§5k), every citizen carries the same flesh.
+
+## 5i. Walking (a journey is one deed)
+
+`walk {dx, dy, steps}` is valid iff `dx` and `dy` are each `-1`, `0` or
+`1` and not both zero, `steps` is `1..512`, and the first step is one a
+`move` would be allowed to make. It takes that first step immediately,
+in the same phase a `move` takes its step, and sets
+`player.action = {type, dx, dy, remaining}` when more steps are owed.
+
+Every interval thereafter the world asks the SAME question again,
+through the same rule a single `move` is judged by: the hedge, the
+water and its fords and finished spans, this citizen's own right to
+make this crossing, a living beast holding its tile, a toll gate and
+whether it has been paid, and any other node, which are impassable.
+A journey is not a right of way. The first refusal ends it where the
+citizen stands and the action clears, exactly as a gather clears on a
+seam run dry. Nothing is owed to a citizen who is no longer walking.
+
+**A walk is not a path.** There is no search here, no heuristic and no
+tie-breaking to agree on between implementations: a direction and a
+count, one tile per interval. A journey with two turns is three deeds.
+This is deliberate — pathfinding inside a deterministic state machine
+must be byte-identical everywhere forever, and buys nothing this does
+not.
+
+**It makes nobody faster.** Everyone still walks one tile per interval.
+What it changes is the price in DEEDS, not in time: crossing to
+Thornbury cost two hundred and thirty-eight signed inputs and now costs
+one. Travel is the commonest thing anybody does and it was the only
+thing in this world still billed by the interval, while gathering,
+swinging and raising a stall had all long since been actions that run
+on by themselves. Against a cap that cannot be raised after a founding,
+that single asymmetry was consuming an order of magnitude of the
+world's possible population.
+
+**The flight rule (§2b-i) is untouched.** A citizen has exactly one
+action slot, so beginning a journey ends a fight for the same reason a
+step does — there is nowhere for the swing to be kept. No separate
+enforcement is needed and none is added.
+
+All journeys advance in a single pass, before any blow of that interval
+lands. Run inside the ordinary action loop a traveller sorted before an
+attacker would move first and one sorted after would be struck first,
+making §2b-i turn on identity; a separate pass gives every traveller
+their step first, which is what the input phase already does for a
+single `move`, and keeps the two verbs indistinguishable in effect.
+
+A citizen held in place by the star-dagger keeps their journey and
+spends the interval standing:
+being held in place is not the same as being turned back. The dead and
+the stilled keep neither.
 
 ## 5d. Equipment
+
+<!-- BEGIN GENERATED: equipment -->
+The constitutional equipment slots are `weapon`, `head`, `body`, `offhand`, `legs`.
+Every slot is present on every player at all times; an empty slot is
+`null`, never absent. `slotOf()` is the single shared rule deciding where
+an item belongs: an item worn in the wrong slot is as malformed as an
+unknown one.
+
+| Slot | Items |
+|---|---|
+| `weapon` | `barb`, `bare-blade`, `bone-spear`, `bone-staff`, `crossbow`, `dragonbow`, `fire-siphon`, `gold-bar`, `gold-chain`, `goo-staff`, `great-crossbow`, `great-hatchet`, `great-maul`, `great-pickaxe`, `great-sword`, `handgonne`, `heartwood-bow`, `heartwood-rod`, `heartwood-staff`, `hollow-bow`, `horn-bow`, `iron`, `iron-dagger`, `iron-hatchet`, `iron-javelin`, `iron-maul`, `iron-pickaxe`, `iron-spear`, `iron-sword`, `ironbark-rod`, `oak-rod`, `old-chain`, `rod`, `shot`, `sigil-bow`, `staff`, `star-alloy`, `star-dagger`, `star-flail`, `star-grit`, `star-hatchet`, `star-ingot`, `star-javelin`, `star-maul`, `star-pickaxe`, `star-spear`, `star-sword`, `steel`, `steel-dagger`, `steel-hatchet`, `steel-javelin`, `steel-maul`, `steel-pickaxe`, `steel-spear`, `steel-sword`, `torch`, `wand`, `wooden-bow` |
+| `head` | `cinder-crown`, `gold-helm`, `great-helm`, `hare-mask`, `hart-mask`, `iron-helm`, `raven-mask`, `shell-helm`, `star-helm`, `steel-helm`, `wolf-mask` |
+| `body` | `gold-plate`, `great-plate`, `iron-plate`, `king-shroud`, `shell-plate`, `star-plate`, `steel-plate` |
+| `offhand` | `horn`, `iron-shield`, `star-shield`, `steel-shield` |
+| `legs` | `gold-legs` |
+<!-- END GENERATED: equipment -->
 
 `equipment.weapon` holds at most one wielded item. Wielded gear is
 destroyed on death along with the inventory (§6c): the sink spares
@@ -3256,14 +3893,58 @@ are reserved for future amendments; the dark is patient too.
 
 `magic` joins the skills: the twelfth.
 
-## 6i. Armor (the deeper ore sink)
+## 6i. Armour (the deeper ore sink)
 
-Two new anvil recipes: `bronze-helm` (1 ore, 1 logs, 30 xp) and
-`bronze-plate` (3 ore, 1 logs, 90 xp). Equipment gains `head` and
-`body` slots beside `weapon`; `wield` routes each item to its slot.
-Worn armor soaks incoming damage: each piece reduces every hit taken
-by 1, to a minimum of 0. Death destroys all of it. The sink spares
-nothing, and now it eats plate.
+Equipment gains `head` and `body` beside `weapon`; `wield` routes each
+item to its slot by the shared `slotOf()` rule. Death destroys all of
+it. The sink spares nothing, and now it eats plate.
+
+**Soak is repealed (v0.87).** Armour once took a flat amount off every
+blow, against a maximum hit that never passes about fourteen — which
+halved damage at ninety-nine, approached immunity below it, and made a
+star-clad duel a minute of uninterrupted single-digit swinging. A miss
+is dramatic; a two is not. Armour now makes a citizen **harder to hit
+rather than harder to hurt**: the same duel runs about as long and
+reads as "miss, miss, THIRTEEN", which is a fight. It also repaired the
+maul without touching the maul, whose whole problem was being punished
+twice — once in the roll, again by a soak its slow cadence could not
+out-pace.
+
+The values and the roll are GENERATED from the engine's `ARMOUR` table
+and `hitChance256()` (§2n). Do not edit by hand — run
+`node spec-tables.mjs --write`.
+
+<!-- BEGIN GENERATED: armour -->
+`armourOf()` sums **head and body only**. A shield, legs, a mask or a
+hood is not in this table, so it reads as zero armour however it is worn.
+
+| Item | Slot | Armour |
+|---|---|---|
+| `gold-helm` | head | 16 |
+| `gold-plate` | body | 24 |
+| `great-helm` | head | 12 |
+| `great-plate` | body | 18 |
+| `iron-helm` | head | 8 |
+| `iron-plate` | body | 12 |
+| `king-shroud` | body | 22 |
+| `shell-helm` | head | 10 |
+| `shell-plate` | body | 15 |
+| `star-helm` | head | 16 |
+| `star-plate` | body | 24 |
+| `steel-helm` | head | 12 |
+| `steel-plate` | body | 18 |
+
+Armour does not reduce damage. It reduces the chance of being hit:
+
+    A = (attack + 8) × (weaponAcc + 64)
+    D = (defence + 8) × (armour + 64)
+    hit256 = A > D ? 256 − floor(128(D+2) / (A+1))
+                   : floor(128A / (D+1))
+    clamped to [8, 250] out of 256
+
+Two-handed weapons occupy the off hand: `bone-spear`, `crossbow`, `dragonbow`, `goo-staff`, `great-crossbow`, `great-sword`, `handgonne`, `heartwood-bow`, `heartwood-staff`, `horn-bow`, `iron-maul`, `iron-spear`, `old-chain`, `sigil-bow`, `staff`, `star-flail`, `star-maul`, `star-spear`, `steel-maul`, `steel-spear`, `wooden-bow`.
+A hand may not hold a shield while both are on the haft.
+<!-- END GENERATED: armour -->
 
 ## 6v. The star-dagger and the root (v0.49)
 
@@ -3525,7 +4206,7 @@ standing = sum over SKILLS of levelForXp(xp)
 ```
 
 It is `levelForXp`, the continuing level of §4b, and deliberately not
-`effLevel`: mastery at 99 is a milestone, not a ceiling, and a citizen
+`effLevel`: mastery at 100 is a milestone, not a ceiling, and a citizen
 who keeps going past it keeps rising. The only limit on standing is the
 representational one of §4b, which puts it near 3,392 and which nobody
 will approach. It privileges no profession: an explorer who never draws
@@ -4186,7 +4867,7 @@ makes history replayable; replayability makes stalls survivable.
 Every network surface is bounded before allocation. Nodes MUST reject:
 gossip frames over 16 KiB (chat over 2 KiB) before parsing; inputs more
 than 20 ticks in the future or for any other world; malformed player
-ids; more than 4096 buffered inputs per interval or 64 buffered future
+ids; more than 65536 buffered inputs per interval or 64 buffered future
 intervals; hash gossip outside a 512-tick window. Rate/retention maps
 (input buffers, hash history, chat rate table) are pruned by tick or
 capped in size. Values are protocol constants published by the
@@ -4532,12 +5213,15 @@ Wilds with a single answer to a star-clad citizen — land more blows than the
 armour can absorb.
 
 A flail has a head on a chain. It does not meet the plate square, it comes
-round the edge of it, and `pierces: true` says so: **SOAK does not apply.**
+round the edge of it, and `pierces: true` says so.
 
-```
-bronze-flail  hit 1 · every 2 · reach 1 · acc -12 · pierces
-star-flail    hit 3 · every 2 · reach 1 · acc -12 · pierces
-```
+*As written this read "**SOAK does not apply**", which was true then and is
+not now: §6ap repealed soak everywhere and put armour in the ROLL instead.
+`pierces` survived the change and means what it always meant — the flail
+ignores the guard — it simply ignores it in the roll rather than in the
+damage. The two stat rows that stood here named a `bronze-flail` that
+exists in no table at all and gave `star-flail` numbers three releases
+old. Stat tables are GENERATED now; see §20.3.*
 
 It pays for it everywhere else. Its base damage is the lowest of any steel,
 so against an unarmoured citizen — which is most of the world — it is simply
@@ -4579,15 +5263,9 @@ arrow or none.
 
 ### Making them, and being allowed to
 
-```
-                 recipe                         smith         wield
-bronze-flail     ore 2 · logs 1                 smithing 8    attack 10
-crossbow         ore 2 · logs 2                 smithing 18   ranged 25
-star-flail       magic-stone 3 · ore 2 · logs 1 smithing 26   attack 25
-                                                magic 14
-sigil-bow        horn-bow 1 · sigil 3           smithing 12   ranged 30
-                                                magic 25      magic 20
-```
+*The hand-written recipe and wield table that stood here is replaced by
+the generated ones: recipes in §6d, weapons and wield requirements in
+§20.3. It listed a `bronze-flail`, and every other row had drifted.*
 
 Which puts the ranged line behind a smithing bench for the first time, and
 the sigil-bow behind a magician.
@@ -4845,8 +5523,8 @@ pack at the moment she took their shape**.
 ```
                       her hardest blow    the citizen's maxHit
 bare hands, level 1          1                    1
-star-maul, level 99         17                   17
-dragonbow, level 99         16                   16
+star-maul, level 100        17                   17
+dragonbow, level 100        16                   16
 ```
 
 The quiver matters more than it looks. Without it a mirrored archer fights
@@ -6230,7 +6908,7 @@ The throat of the South Pass is plugged by `rockfall` nodes — the full height
 of the gap and five tiles deep. A rockfall blocks its tile the way any node
 does. It can be mined away, and it does not come back.
 
-- **`rockfall` is a node type.** It yields `rubble` to `mining` at one
+- **`rockfall` is a node type.** It yields `rubble` to `earthcraft` at one
   experience a strike. There is deliberately **no level gate**: the whole
   island may take a swing at it, including a citizen who arrived this morning.
 - **A rockfall remembers.** `node.struck` is a monotonic count. At
@@ -9914,3 +10592,4921 @@ Sharding, combat, hidden information, name release/transfer,
 multi-item trades, distributed beacon. The v0.x series exists to prove one thing:
 **independent implementations replaying the same inputs agree on every
 byte of the world: and anyone can join it, leave it, or fork it.**
+
+# Part 21 — How a tick is copied
+
+*Nothing in this part changes a rule. Every mode below produces byte-identical
+state and byte-identical hashes, verified against the engine that preceded them.
+It is here because the choice is visible to anyone running a node, and because
+one of the modes changes an aliasing property that consumers outside the engine
+can notice.*
+
+## 21. Copy-on-write
+
+`nextState` is pure: state in, new state out, the caller's copy untouched. It
+achieves that by copying every citizen at the head of the interval. At five
+thousand residents with full packs that is 29 ms, nearly all of it spent copying
+people who did nothing.
+
+`INTERVAL_CLONE=cow` wraps each citizen in a proxy that reads through to the
+original and copies on first write. It is correct — the differential campaign
+passes against it, including `clone independence` — and it wins about 1.9× on a
+world where nearly everybody is acting.
+
+**It loses on a quiet world**, by about a fifth, and a quiet world is where
+large populations live. A proxy is paid on READS, the interval reads every
+citizen seventeen times whether they acted or not, and on an idle citizen that
+is seventeen dispatches to avoid one copy. Recorded because it is the opposite
+of what anyone expects, including whoever proposes it next.
+
+## 21b. The canonical cache
+
+`stateHash` memoises by object identity, on the reasoning that a state's
+canonical form is stable for that object's lifetime. The same is true one level
+down: an unchanged citizen serialises to the same bytes forever.
+
+This matters more than it sounds. Measured at three thousand residents with a
+tenth acting, `canonical` is **47 ms of a 72 ms interval** — two thirds of the
+whole tick, against 6 ms for the copy and 15 ms for the seventeen passes.
+Serialisation, not copying, is what a large world spends its time on, and almost
+all of it is re-serialising people who did nothing.
+
+The cache is a memo of a pure function: same bytes, no hash moves, nothing
+constitutional. It is worth nothing unless citizens survive an interval as the
+same object, so it is consulted only in the modes where they do.
+
+## 21f. A witness need not distrust its own arithmetic
+
+A witness executes a bundle at ATTEST time — *recompute, never trust* —
+and keeps the result so it can sign the hash it computed itself. When
+the certificate arrives it is, in the ordinary case, for that same
+bundle, and the engine executed it a second time to check.
+
+That second execution asks the same question of the same state with the
+same inputs. On the real world it costs **67 ms an interval**, spent
+proving arithmetic to itself.
+
+The result is now reused, keyed on the bundle hash — so it can only hit
+for a bundle this node validated and executed against **this** state,
+and the tick does not advance until commit, so the state is unchanged
+since. A certificate for a bundle the node never saw still executes in
+full, and a mismatch still halts.
+
+**Never trust the quorum** is intact. What is dropped is a witness
+distrusting its own prior arithmetic, which was never the rule.
+
+## 21e. The world is the floor, not the crowd
+
+Measured on the world that will actually be founded — expanse7, 896x512,
+10,515 nodes, 706 beasts — an interval costs **119 ms before a single
+citizen exists**, and about 35 ms per thousand citizens after.
+
+Every capacity figure before this one came from the classic 320x200
+generator with roughly 1,300 nodes, and every one treated cost as
+proportional to population. On the real world the constant term
+dominates until several thousand citizens deep. That reordered the whole
+optimisation queue, and it was not visible from any bench fixture.
+
+`ownNode(s, id)` extends §21c to nodes: a node written to is copied, the
+rest keep their identity. The write surface is small — a seam depletes,
+a plot is planted, a furnace is fed, a spanwork takes planks — and
+`INTERVAL_CLONE=detect` watches nodes as well as citizens, because
+scenery is where a missed write would be quietest: a wall nobody looks
+at, mutated once, wrong in every state that shares it afterwards.
+
+**8,671 of the 10,515 nodes are scenery** — walls, hedges, ramparts,
+fences, railings, banners, signposts, landmarks — which never change and
+are copied and serialised sixty times a minute regardless. Caching their
+canonical bytes the way §21b caches citizens takes the floor from 150 ms
+to 107 ms, the largest single saving available. It is written and
+switched **off**: it turned `clone equivalence` red, and a hash-affecting
+change does not ship past a red differential. The note in the engine
+records how to finish it.
+
+## 21d. Only the changed can cross a threshold
+
+Mastery and the record floor were detected by two full passes over every
+citizen times every skill, twice an interval — a snapshot before the tick
+and a comparison after — to catch an event that happens a handful of
+times in the life of a world.
+
+A citizen nobody wrote to cannot have crossed a threshold. §21c already
+knows exactly who was written to, so the snapshot is taken inside
+`ownPlayer`, at the one moment both facts are available: that this
+citizen is about to change, and what they were. The comparison then
+examines only them.
+
+The order is still the sorted playerId, for the reason §7dk gives: this
+loop writes canonical state, and two citizens crossing on the same
+interval must be recorded in the same order on every node or the record
+forks.
+
+Measured at three thousand residents with a tenth acting, the interval
+falls from 72 ms to **51 ms**, and `canonical` — which was two thirds of
+the whole tick — from 47 ms to under 8.
+
+## 21c. Dirty tracking
+
+`INTERVAL_CLONE=dirty` hands the interval the citizens as they are and copies
+only the ones written to, through `ownPlayer(s, pid)`. Measured at three
+thousand residents:
+
+| acting | default | dirty |
+|---|---|---|
+| 91% | 632 ms | **287 ms** (2.20×) |
+| 20% | 143 ms | **95 ms** (1.50×) |
+| 10% | 119 ms | **69 ms** (1.72×) |
+| 5% | 101 ms | **62 ms** (1.64×) |
+
+Only 9.8% of citizens change in an interval where 10% act, so the cache hits on
+nearly everyone.
+
+**A missed write site does not throw and does not fail a test.** It silently
+writes into the caller's state — the state a replay reads and another node has
+already hashed. So `INTERVAL_CLONE=detect` exists: every citizen is wrapped in a
+proxy that throws on any write, naming the property. Run the suite under it and
+each leak announces itself; convert the site and run again until it is silent.
+Four sites needed converting, and the suite is now silent under `detect` with a
+failing set identical to the default.
+
+**The price.** Consecutive states now share the objects of citizens who did
+nothing, so mutating a citizen in a state you did not just produce reaches
+backwards into every earlier state that shares them. `nextState` never does
+this. Anything outside the engine that pokes at a finalized state now is.
+
+**It is the default, and the audit came first.** No in-place write to a player
+record exists anywhere in the runtime path; `advsim` passes 36/36 in this mode
+and 24/24 under `detect`, which is the strong form, since the detector THROWS on
+a leak and passing means there were none; and the whole suite sits at 182/27 in
+every mode with byte-identical failing sets.
+
+The single incompatibility turned out to be a **test that was wrong**.
+`test/agreement.test.mjs` simulated a corrupt node by writing `hp = 9` into a
+finalized state, which under sharing corrupts the very lineage it measures the
+corruption against. Replacing the citizen rather than writing into them corrupts
+exactly one state — which is what "this node's local implementation drifted"
+always meant — and it behaves identically under every clone mode.
+
+`INTERVAL_CLONE=fast` restores the whole-population copy for anyone who needs
+the old aliasing.
+
+# Part 20 — Rules lifted from the engine
+
+## 7ab. The Moorgrave
+
+`grave`, `yew` and `old-oak-lm` are LANDMARKS, not nodes: no verb
+reaches them and nothing may be taken from them. They are the marks a
+burying people leave on high ground — a grave under a yew, an old oak
+grown over it — and they exist for the same reason as §7u's trees that
+are not timber. A countryside where every standing thing can be chopped,
+mined or fished is a countryside that only has scenery where the world
+wanted a verb.
+
+This is the one section in this part written by hand rather than
+lifted: it was cited from a single label with no argument beside it,
+because there was no argument to make. It is a name for three things on
+a list.
+
+
+Every section here was cited by `engine.js` and had no text in this
+constitution. The rules were never missing: they are argued beside the
+code that enforces them. This part relocates that reasoning so an
+independent implementation can be built from SPEC.md alone, which is
+the whole of the claim this world makes about itself.
+
+Each section records the engine lines it came from. **Sections marked
+`[LIFTED]` have not yet been read back against the code.** A comment
+that has gone stale becomes, when lifted, a wrong rule carrying a
+citation — so the mark comes off one section at a time, by someone who
+has checked it. Generated by `node spec-lift.mjs --write`.
+
+---
+
+## 2b-iv. The mark and the answer  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:1512-1542
+
+§6am: YOU CANNOT BE PAID TWICE FOR ONE INTERVAL.
+
+A gather is an ACTION: it runs on by itself, interval after interval, and
+costs no input once given. An instant deed costs the input. So a citizen who
+set a pickaxe going and then transmuted, fletched, smithed, cooked, buried,
+or pressed a sigil was earning TWO skills at full rate from one interval,
+for as long as the rock lasted -- and every one of these left the action
+running. Only drinking, mending and the stilling stopped it, and those three
+are the ones that teach nothing.
+
+The line is what a deed TEACHES. A deed that pays experience ends whatever
+else the citizen had going; eating, drinking, picking a thing up, banking
+and trading do not, because they pay nothing and a citizen should be able to
+eat without losing their tree.
+§2b-iv: THE MARK AND THE ANSWER, IN ONE PLACE.
+
+`brandedUntil` was assigned in exactly one line of this engine, inside
+`attackp`. The `special` handler deals damage, kills, spills packs and ends
+fights -- and never branded, and carried no copy of the retaliation that
+makes a struck citizen strike back. Measured: identical kill speed, no mark,
+and no damage taken, because the victim never answered.
+
+Every §2b enforcement hung off that one line, so a band that only ever sent
+`special` was invisible to the law: no keeper refused them, no stone was
+closed, prayer still covered them, and nobody was licensed to hunt them.
+"A raiding party marks itself in public and cannot deny having been one" was
+true of one verb out of two.
+
+So the mark and the answer live here, and BOTH paths call it. A future third
+way of hurting somebody will call it too, or it will be obvious in review
+that it did not.
+
+> from engine.js:12475-12478
+
+§2b-iv: the mark and the answer, BEFORE the blow -- so a special that
+kills outright still brands, and the victim's own answer is set even
+if they do not live to swing it. Hitting somebody is hitting somebody
+whichever verb carried it.
+
+> from engine.js:12790-12806
+
+the Brand (v0.41): striking one who was not striking you is worn
+openly, and the state enforces it -- no keeper deals with you and no
+stone carries you while it burns.
+
+§2b: BUT A MARKED CITIZEN IS ALREADY PROVOCATION.
+
+This branded you unless the target was ALREADY swinging at you by
+name, so chasing a raider marked the posse exactly as it marked the
+raider: the law punished justice and crime alike, and the only safe
+response to being robbed was to let it go. That is the opposite of
+what the mark is for.
+
+Strike somebody who is wearing it and you wear nothing. For fifteen
+minutes a raider may be hunted, in the Wilds, by anybody, at no cost
+-- which is the danger the mark never had, and it costs the world
+nothing outside the one country where blood is already legal.
+§2b-iv: one helper, called from here AND from `special`
+
+## 2b-v. Rule 2b-v  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> from engine.js:5714-5734
+
+§6ax: A HOOD OUTLIVES ITS BEARER.
+
+Death is the deepest sink in this world and stays so: every death still
+annihilates a pack, or spills one that rots in a hundred ticks. A hood is
+the single exception, and it is an exception because it is the only object
+whose worth is a fact about the past. Burning one deletes a piece of the
+world's record, permanently, with no rule anywhere able to mint another --
+and it would be deleted most often by an ordinary accident on an ordinary
+evening, which is the worst possible way to lose a thing like that.
+
+So it falls where its bearer fell, and it does NOT expire (§2b-v gives
+ground a hundred ticks; MAX_TIME is that rule declining to apply). What
+this buys is not preservation but a GRAVE MARKER: a hood lying in the deep
+Wilds years later says whose it was and how far they got, and nobody wrote
+it there. It is the only record in the world placed by history rather than
+by a generator.
+
+Anyone may take it. That is deliberate: a hood is never destroyed, only
+TRANSFERRED, and since a citizen crosses the mark once they can never have
+another. Your name walks away on somebody else's head. The whole penalty
+sits in the register the object was made for, and costs no power at all.
+
+> from engine.js:12694-12707
+
+§2b-v: CONTENT-ADDRESSED, like every other ground key here.
+
+This was `g{tick}-{ground.length}` -- the only positional key
+in the engine, where `drop` uses g{tick}-{pid}-{slot} and mob
+drops use g{tick}-{mobId}-{i}-{item}. If the ground SHRANK
+between two spills in one interval, the second reused the
+first's key and destroyed it. Reproducible: a special kills
+one citizen, somebody picks up an unrelated pile, an attackp
+kills a second in the action phase, and the first citizen's
+pack is simply gone.
+
+Griefable, not merely wrong: inputs apply in sorted playerId
+order, so a patient griefer can grind a key that sorts after a
+killer's and delete other people's kills on purpose.
+
+> from engine.js:12719-12734
+
+§6bx: AND WHAT THEY WERE WEARING SPILLS TOO.
+
+This loop used to walk the pack alone and then null `q.equipment`
+wholesale, so a citizen killed in full star gear DESTROYED about
+two thousand gold of armour that nobody could pick up. The
+killer took the pack and the plate simply ceased to exist.
+
+Unintentional, and the engine says so in three places: prayer
+already weighs the equipment slots (§6bz), the dragonbow's own
+comment claims it "spills to the ground when they fall in PvP",
+and §6c's argument is about risk PASSING TO THE KILLER, not
+about destruction. A robbery has a beneficiary; that is what
+makes it a robbery rather than an accident.
+
+Keyed `e{slot}` so it can never collide with the pack's numeric
+keys, which is the same content-addressing fix §2b-v made above.
+
+## 5n. Woodwright  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:5785-5788
+
+§5n: WOODWRIGHT. The axe, the bench and the fire were one trade split
+three ways: you fell a tree to shape it or to burn it, and nobody fells
+one for the sake of holding logs. 'forester', 'fletcher' and 'firekeeper'
+are parked until §5k, where they come back as things a citizen swears.
+
+> from engine.js:13664-13676
+
+§7s: AND THE FIRE EARNS ITS KEEPER WHEN SOMEBODY COOKS AT IT.
+
+Without this the quayside fire is a charity. A firekeeper stands in
+the Greenwood because that is where the logs are; asking him to
+carry them to the docks and burn them for other people's dinners is
+asking him to work for nothing, and he will not, and the fire will
+never be there. He needs the crowd to be his income.
+
+So a cook at a citizen's fire pays that citizen. Site your fire
+where the fishermen are and the fishermen pay for it -- the same
+bargain as a stall on a road, which is sited for the traffic and for
+no other reason. This is what makes "fire plz" a thing somebody
+WANTS to hear.
+
+## 5o. Smith  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:5790-5793
+
+§5o: SMITH. The pick and the anvil were one trade split at the pithead --
+ore has no use unmelted, and nobody digs for the sake of holding rock. The
+word for the whole of it is the one the anvil already had. 'miner' is
+parked until §5k.
+
+## 5p. Wayfarer  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:5808-5819
+
+§5p: WAYFARER. Exploration and hauling were the same trade counted twice:
+one measures ground never seen, the other weight moved across ground you
+have. Both are the road, and this world already says the road is real.
+
+'waycraft' and 'tradecraft' were both wrong. Neither is a CRAFT -- nothing
+is made -- and 'tradecraft' is an English word already spoken for: it means
+espionage, and hauling is not trading. The word for going out and coming
+back is the one that has always meant it.
+
+CARTOGRAPHER and RUNNER are parked with the rest until §5k, where the
+mapper and the carrier become two things a road-worker may swear rather
+than two numbers that happened to rise separately.
+
+## 6af-ii. The cost  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:12754-12774
+
+THE COST: the arm is spent for this cycle AND the next
+§6af-ii: THE COST, and it must be the cost the VALIDATOR quoted.
+
+The validator checks the arm against `state.tick`; this runs after
+`s.tick = state.tick + 1`, so writing `s.tick + every` charged
+every + 1. A special quietly cost an interval more than the rule
+said, and the extra interval refused a legitimate second blow in a
+way indistinguishable from lag -- exactly the failure §6b names for
+the old hardcoded bow reach.
+§6af: THE COST -- this cycle and the next, which is what makes the
+special exactly neutral over time and a burst in the moment. Written
+against the validator's tick, not the advanced one (defect 1.3).
+
+It is also what stops `now` chaining: the arm is spent INTO THE
+FUTURE, so a second special cannot follow. One interruption, then
+the full price -- which is what §6af always said and what the pool
+quietly undid.
+`now` is gated on `lastSwing <= tick`, not on the full cadence, so
+its recovery must be written ABSOLUTELY. Netting the cadence out of
+it -- as every other special requires -- let the maul fire twice as
+often as its own rule allowed: 208% of neutral, measured.
+
+## 6af-iii. This spent ONE arrow and then ran the blow loop  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:12481-12500
+
+§6df: A ROUND A BLOW, NOT A ROUND A BURST.
+
+This spent ONE arrow and then ran the blow loop, so a horn-bow flurry
+put six shafts into somebody for the price of one and the handgonne
+fired both barrels off a single load. The comment below still says a
+special "costs TWO ordinary blows" and `flurry` "pays two blows back"
+-- which was true when a flurry WAS two blows. §6af-iii raised it to
+six and lengthened the recovery to match, correctly, for the damage;
+nobody came back for the ammunition.
+
+The result was backwards from what a special is for. A burst is meant
+to cost more and pay it back in timing; this one cost SIX TIMES LESS
+per point of damage than the weapon's ordinary shot, so an archer had
+no reason ever to loose a plain arrow. A weapon whose special is
+strictly cheaper has no moment, and choosing the moment is the whole
+of §6af.
+
+§6av's "both barrels are one report" governs the NOISE and the beacon,
+not the load: two barrels are two loads, and a handgonne's shot is
+iron and gunpowder both.
+
+> from engine.js:12581-12612
+
+§6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
+
+`twice` gave two blows for two intervals of arm: neutral, but a burst
+of twelve per cent of a health bar, which is a rounding error and not
+a moment. Blow COUNT and RECOVERY are now both read from the table and
+move together, so a bigger burst buys a longer hole and the damage
+over time never changes.
+
+Measured: burst-per-recovery-interval lands on each weapon's own
+ordinary damage rate, which is what neutrality MEANS. No special can
+be stronger than another; the ordering only mirrors the weapon table,
+so balance stays in one place.
+§6af-iv: AND THE HEAVY WEAPON COMMITS HARDER.
+
+At a shared recovery the burst is dps x recovery, so the DAGGER --
+best damage rate of anything carrying a special -- owned the biggest
+burst, while the maul, whose single blow is the largest in the world
+at seventeen, had the smallest. Backwards. The maul now buys a rarer,
+heavier commitment instead: eight blows for twenty-four intervals of
+arm, the largest burst anybody can throw and the longest hole to
+stand in afterwards. Neutral all the same.
+
+AND THE COUNT IS SET AGAINST THE COMBO, NOT THE SPECIAL ALONE. `now`
+is the one special that can INTERRUPT -- it is gated on a spent arm
+rather than a recovered one -- so an ordinary blow lands and the
+special drops on top of it the very next interval. Measuring the
+special by itself misses the whole point of the weapon. Measured as
+the pair: eight blows put 89% of a health bar into two intervals,
+which is a one-shot wearing a gamble's clothing. Five puts 70% there,
+so there is a line to hold above and a real fight below it. A dagger
+cannot do this at all -- `twice` waits for the arm, so its ordinary
+blow and its special can never share a moment.
+
+## 6af-iv. And the heavy weapon commits harder  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:12581-12612
+
+§6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
+
+`twice` gave two blows for two intervals of arm: neutral, but a burst
+of twelve per cent of a health bar, which is a rounding error and not
+a moment. Blow COUNT and RECOVERY are now both read from the table and
+move together, so a bigger burst buys a longer hole and the damage
+over time never changes.
+
+Measured: burst-per-recovery-interval lands on each weapon's own
+ordinary damage rate, which is what neutrality MEANS. No special can
+be stronger than another; the ordering only mirrors the weapon table,
+so balance stays in one place.
+§6af-iv: AND THE HEAVY WEAPON COMMITS HARDER.
+
+At a shared recovery the burst is dps x recovery, so the DAGGER --
+best damage rate of anything carrying a special -- owned the biggest
+burst, while the maul, whose single blow is the largest in the world
+at seventeen, had the smallest. Backwards. The maul now buys a rarer,
+heavier commitment instead: eight blows for twenty-four intervals of
+arm, the largest burst anybody can throw and the longest hole to
+stand in afterwards. Neutral all the same.
+
+AND THE COUNT IS SET AGAINST THE COMBO, NOT THE SPECIAL ALONE. `now`
+is the one special that can INTERRUPT -- it is gated on a spent arm
+rather than a recovered one -- so an ordinary blow lands and the
+special drops on top of it the very next interval. Measuring the
+special by itself misses the whole point of the weapon. Measured as
+the pair: eight blows put 89% of a health bar into two intervals,
+which is a one-shot wearing a gamble's clothing. Five puts 70% there,
+so there is a line to hold above and a real fight below it. A dagger
+cannot do this at all -- `twice` waits for the arm, so its ordinary
+blow and its special can never share a moment.
+
+## 6af-v. Rule 6af-v  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:2918-2934
+
+§6as-iv: STYLE SHAPES THE BLOW, NOT ITS SIZE.
+
+A symmetric inset on the damage range: the MEAN is untouched, so no style is
+stronger and none is a trap, and the SPREAD moves, so they are differently
+USEFUL. Measured on a star-sword: aim lands for 4-11 with a spread of 2.3,
+force for 1-14 with 4.1, and damage per swing is 3.74 against 3.61 -- the
+same, within noise.
+
+It deliberately does NOT trade against the accuracy roll, which was the first
+attempt: accuracy is clamped at 250/256, so against a low-defence target
+extra accuracy buys nothing while lost damage costs everything. Measured,
+that version had force beating even by 25% against defence 1 and losing to
+it against plate. A trade against a ceiling is lopsided at one end and dead
+at the other.
+
+Variance only survives where there are few rolls to average it, so this is a
+dial for BURSTS, not for attrition -- see §6af-v.
+
+> from engine.js:12548-12561
+
+§6af-v: AND BLOW COUNT IS THE VARIANCE OF A BURST.
+
+Every special's blows were set for its CEILING, and nobody noticed
+that the same number sets its RELIABILITY. Six blows of twelve and
+two of thirty-six carry the same burst and are not the same weapon:
+the first reliably takes a chunk, the second either ends the fight or
+wastes the recovery. Measured, style is worth twenty points of
+execute threshold at two blows and nothing at all at six -- six rolls
+average their own spread away.
+
+So the maul, whose whole identity is the largest single blow in the
+world, becomes a HAYMAKER: two blows at two and a half times, which
+is the same expected burst on the same recovery of ten. The dagger
+stays a flurry. A citizen now picks a shape as well as a weapon.
+
+## 6af-vi. And a haymaker may not be a one-shot  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:2568-2585
+
+§6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
+
+`bite: 2` was set when a star-maul's hit was 7. At 13 the same multiplier
+makes a per-blow maximum of 46, and `now` is the special that can land ON
+TOP of an ordinary blow -- so the pair reached 104 against a citizen with
+99, measured, in about one combo in twelve hundred. A weapon that removes a
+full bar from full health in two intervals is not a gamble, it is a coin
+that sometimes deletes somebody.
+
+Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the maul
+fell to 77% of its own ordinary damage. The pair is 1.5 and six.
+
+AND IT IS THE SAME PAIR ON BOTH MAULS. They were briefly 1.6/7 and 1.4/6 --
+not because a great-maul swings differently, but because each was lowered
+only until it stopped one-shotting and then left there. `hit` already says
+one is bigger than the other (sixteen against thirteen); a second number
+saying it again is two rules for one weapon class, and a reader would go
+looking for the distinction it draws. There is none.
+
+> from engine.js:2829-2834
+
+§7ap: the maul line's top, and it keeps the line's whole character -- the
+biggest blow in the world bought with the worst accuracy in it. `burns`
+because every brimstone arm burns, and this one is twenty-four of it.
+§6af-vi: the same pair as the star-maul, and its larger `hit` is the only
+thing that makes it larger. Measured over three thousand combos: ceiling
+94 against the star's 82, and neither can delete a citizen at full health.
+
+## 6ah. Rule 6ah  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions fletching, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:9471-9473
+
+§6ah: and a sigil in the binding. Relaxing the executor alone
+would leave the fletch refused here and the change invisible --
+the validator/executor pairing this file has been bitten by before.
+
+> from engine.js:13206-13211
+
+fuel banks forward from whichever is later: now, or the fire's remaining burn
+6bc: AND IRONBARK BURNS LONGER. This is ironbark's whole job -- the
+watchfire is the one public work in the world, and a wood whose only
+virtue is that it feeds it is a wood people fetch FOR somebody else.
+The experience is unchanged (a log pays a log); what changes is how
+long the country can see the fire.
+
+> from engine.js:13260-13271
+
+§6ah: AND A SIGIL IN THE BINDING.
+
+Fletching's endgame -- the finest bow and the finest stave in the world
+-- was made from two logs by somebody who never left the safe country.
+Every other thing of that rank costs the Wilds: star gear eats stones,
+and every spell eats sigils, which ARE stones. The heartwood line ate
+nothing, so the peaceful trades and the dangerous ones never had to
+meet.
+
+One sigil is three magic-stone, mined at seventy in the one place that
+kills people. A fletcher who wants to sell staves must now buy from
+somebody who goes in -- which is the whole point.
+
+## 6ai. What a dragon is worth to the people who killed it  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:3490-3502
+
+§6ai: WHAT A DRAGON IS WORTH TO THE PEOPLE WHO KILLED IT.
+
+Four hundred and twenty hitpoints, twenty-eight a blow, and it
+dropped two bones and an ore -- less than a skeleton knight. It
+is not a fight one citizen wins, and everything it gave was a
+bow that ONE of them could carry and that goes home in twelve
+hours. There was nothing for the others to divide.
+
+Six magic-stone and a set of dragon-bones. The stones are the
+Wilds' own currency, so a party splits something every trade in
+the world wants; the bones are the only ones worth more than a
+goblin's, which gives the longest road in the world -- prayer,
+fourteen hundred hours -- a reason to come here.
+
+> from engine.js:9539-9541
+
+§6ai: a dragon's bones are bones. The validator named the item
+directly, so the new ones could be carried and never laid down --
+the validator/executor pairing, a fifth time.
+
+## 6aj. Unmaking at range  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions fletching, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:3638-3666
+
+§6aj: UNMAKING AT RANGE, which is denial and not theft.
+
+A citizen falls and their pack spills; the one who felled them walks over to
+take it. Five tiles away, an alchemist with a heartwood stave burns a sigil
+and the pile is simply GONE -- the plate, the sword, the stones. Nobody gets
+them. The caster least of all: no coin comes of it, because the thing was
+unmade rather than sold, and unmaking somebody else's spoil should never be
+a living.
+
+A sigil is three magic-stone out of the Wilds, sixty gold of materials that
+no keeper will sell, against the seven gold a beginner's goblin drops. It
+costs nine times what it would deny them, so it cannot be used to torment
+newcomers -- and against a star-plate on the ground it is very much worth
+doing, which is the fight where it belongs.
+
+§6bn: THE INSTRUMENT MOVED. It was the heartwood stave, and the heartwood
+stave is the ALCHEMY PACE staff -- two intervals against three, the whole
+reason to walk to fletching ninety. So the fastest tool for the day's work
+also carried the one verb that destroys another citizen's goods, and every
+alchemy master was armed with it whether or not they ever wanted to be.
+Nobody chose `unmake`; it arrived with the tool they were carrying anyway.
+
+The wand shows the shape this world already had for it: a pure verb item,
+no cadence at all, worth six coins. `unmake` belongs on that side of the
+line, so it now lives on the goo staff -- which is a verb item and nothing
+else, and which comes off the great-spider rather than off a bench.
+
+The heartwood stave keeps its job. Two intervals against three is still the
+whole of what its four hundred and ninety-five gold buys.
+
+> from engine.js:9042-9045
+
+§6aj, amended §6bn: a GOO STAFF in the hand, a sigil to spend, and a
+pile of somebody's spoil within five tiles. The stave that used to do
+this is the alchemy pace tool and had no business carrying a verb
+that destroys another citizen's goods.
+
+## 6ak. A tree does not end at one log  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions the bronze tier; iron is its successor and no `bronze-*` item exists (§0-i); woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:650-665
+
+§6ak: A TREE DOES NOT END AT ONE LOG.
+
+A node gave one thing and slept, so two citizens at one tree was a RACE:
+the first took the log and the second found it asleep. A resource nobody can
+share is a resource that pushes people apart, in a world whose best moments
+are the ones where they meet.
+
+And it made gathering mostly walking. The nearest other tree is 2.8 tiles
+off, so at woodcutting 57 with a bronze axe a log was 2.3 intervals of
+cutting and 2.8 of shuffling to the next trunk -- fifty-five per cent of the
+work was travel between things that are identical.
+
+So a node yields until a roll retires it: one success in four. No new field
+on the node, nothing to migrate, and the same beacon that decides every
+other chance in this world decides this one. A tree gives four logs on
+average, sometimes one, sometimes nine -- which is how a tree behaves.
+
+## 6al. 6bn: THE PURSE IS FLOAT  [LIFTED]
+
+*Cited from 9 places in the engine.*
+
+> from engine.js:1264-1311
+
+6bn: THE PURSE IS FLOAT. IT IS NOT A MINT.
+
+It was capped at 1200 and refilled at 2 a tick from NOTHING -- twelve gold
+an interval across six stores, 72,000 an hour, which was the entire money
+supply of this world and every coin of it conjured by the clock rather than
+earned by anybody. That contradicted the rule written over STORE_SELLS in
+this same file: "every item on its shelf was carried in by a citizen.
+Nothing appears there from nowhere." The GOODS obeyed it. The COIN never did.
+
+And the cap made it worse once the shelf loop existed. `Math.min(PURSE_CAP,
+...)` DESTROYS the coin a buyer pays once a keeper is full, so a store
+punished itself for being busy: a sink that fires exactly when the market is
+working. Anything priced over forty-two gold could not sell a full pack at
+all, which is why price could never be a tier lever.
+
+Both are gone. A purse now only rises when somebody BUYS off the shelf and
+only falls when somebody SELLS to it, and the keeper's spread (storeAsk) is
+still destroyed on every round trip -- so the float shrinks about a tenth
+each time it turns over, and the sink outlives the source. Zero is allowed
+and it MEANS something: this store has bought more than it has sold, and is
+out of money. That is a market signal, and the answer to it is to trade with
+a person instead, which is the economy this world actually wants.
+§6l: THE KEEPER IS OUT OF THE GOODS TRADE. `sell` is repealed, the store's
+shelf is repealed, and the purse with them.
+
+What the purse was FOR was two things and it did neither. As texture -- "a
+keeper who has been bought out is a fact about a place" -- storeBid's
+softening already said it and repaired itself through decay. As money supply
+control it bound the wrong quantity: seeded once at twelve hundred a store
+and never replenished (the accrual this comment used to describe was removed
+and the comment was not), so the whole keeper economy of an island was worth
+eight thousand four hundred coin FOR THE LIFE OF THE WORLD -- one star plate
+per store, ever, measured -- while the actual mint scaled with population.
+
+And a fixed PRICES table under a scaling mint breaks in exactly one place:
+the shelf. A citizen sells a star plate for nine hundred and anybody may buy
+it back for nine hundred and ninety, so with gold abundant the keeper's
+shelf is a free-gear dispenser and the star economy evaporates without
+anybody mining a stone. It was also, still, a bulk mint: `sell` read the
+whole stack at one bid where alchemy takes ONE FROM THE STACK, NEVER THE
+STACK -- a brewer with a thousand ale emptied a till in a single interval.
+
+So the store keeps its counter and loses its trade. It is where a
+consignment is signed, carried to, and discharged (§11), and nothing else.
+What a raw good is worth is now settled between citizens at a stall (§6al),
+where it always belonged, and the only bid the constitution still makes is
+alchemy's flat four (§6dc) -- a mercy for what you would otherwise drop, not
+a market.
+
+> from engine.js:7248-7252
+
+§6al: RAISING A STALL IS WORK, NOT A CLICK. It is an action so that
+moving, swinging or being made to move cancels it -- which gives
+"you cannot build one mid-fight" for free, and makes raising one in
+the Wilds twenty intervals of standing still with two dozen items on
+you, where anybody may arrive.
+
+> from engine.js:7649-7654
+
+§6al: and a stall a citizen raised, which keeps ONE good
+§6l: a store keeps no shelf. Only a citizen's stall and a spilled cart.
+§7do: ...and a hoard, which is neither. A stall's shelf is stock a
+citizen priced, a cart's is what a dead hauler spilled, and a hoard's
+is what somebody was buried with. Three different sentences that
+happen to be the same shape.
+
+## 6am. The middle of the road gets a ground of its own  [LIFTED]
+
+*Cited from 18 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions the bronze tier; iron is its successor and no `bronze-*` item exists (§0-i). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:517-531
+
+§6am (v6): THE MIDDLE OF THE ROAD GETS A GROUND OF ITS OWN.
+
+Two tiers only -- bronze at one, star and the master yields at the far end
+-- left the whole middle of every gathering skill as featureless slope: a
+place a citizen passed through in an afternoon and never stood in. The
+fix is not a better log from the same trunk (that has no PLACE); it is a
+new stand of trees, a new seam, a new shoal, set deeper in each country
+than the baseline, so the middle of the game is somewhere you WALK TO.
+
+These are the exact sibling of `magic-rock`: their own node, their own
+item, gated by a level and rewarded by a tool -- only the level is the
+middle (thirty-five) where the magic-rock's is the end (seventy). A world
+that founds itself on a generator which never seats them is unchanged: no
+v1-v5 world contains one, so the yield, the gate and the tool below are
+never reached in it.
+
+> from engine.js:733-735
+
+§6am (v6): the middle tier. Higher xp than baseline, lower than the
+capstones, and the item is its own thing -- oak-logs, coal, eel --
+that the mid gear (steel) is forged and fletched from.
+
+> from engine.js:792-811
+
+§6ae: STARMETAL IS A LATE THING, not a slightly better shirt.
+
+It was wieldable at attack 20 and defence 15-30 -- a fifth of the way up
+a ninety-nine scale -- so bronze was what newcomers wore for an hour and
+star was what everybody wore forever. With only two tiers in the world,
+the second one has to mean something.
+
+Fifty. Past the point where a citizen has decided what they are, and
+reachable on common beasts, which teach defence at any level (the flat
+four-per-miss of 6aa-ii).
+A STAR TOOL ASKS FOR THE TRADE, NOT FOR A SWORD ARM. Sixty in the skill it
+serves: past the middle of the road, so it is something to work toward,
+and well short of the ninety that buys heartwood and the deep fish.
+§6am (v6): a mid tool asks for the middle of its trade, the way a star
+tool asks for sixty. Thirty-five: the gate of the seam it is made to work.
+6bc: THE AXE LADDER, on the HUMAN clock. Because experience is flat and
+exponential, level 20 is half an hour in, 40 is three and a half, 70 is
+fifty. So the whole tool ladder is earned in the first days -- which is the
+only part of this skill a person will ever cut by hand before handing it to
+an executor. A tool nobody living ever forges is a tool for nobody.
+
+## 6an. The deep broth  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2409-2424
+
+§6an: THE DEEP BROTH, and why it is eight rather than ten.
+
+A deep fish already brewed -- into ordinary broth, five, the same as any
+fish out of the shallows, so a master fisher's catch was worth no more in a
+pot than a beginner's. This is the same shape as woodcutting ninety giving
+heartwood where a lesser axe gives logs.
+
+EIGHT, and not ten, because the cooked deep fish must stay worth cooking:
+ten in one slot against eight that stacks is a real choice, and ten against
+ten is not. The ladder stays evenly spaced -- ale four, broth five, a cooked
+fish six, a deep broth eight, a cooked deep fish ten -- with no gap wide
+enough to make the rungs beneath it pointless.
+
+AND IT IS NOT DOUBLED. A brewer of ninety draws two draughts from a pot, and
+two eights would be sixteen against the cooked fish's ten, which would end
+cooking as a trade. A deep fish makes ONE draught; there is no second in it.
+
+> from engine.js:7856-7858
+
+§6an: and the deep broth. A pot may hold any of the three; leaving it
+out here would have let a master brew one and then found the world
+unconstitutional the moment it did.
+
+> from engine.js:13110-13110
+
+§6an: a deep fish in the hands of a master brewer is a deep broth
+
+## 6ao. v6 mines IRON where v5 mined generic 'ore'  [LIFTED]
+
+*Cited from 38 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions the bronze tier; iron is its successor and no `bronze-*` item exists (§0-i). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:748-763
+
+§6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
+v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
+still (bronze is iron worked simply here), and STEEL is iron quenched with
+coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
+§7p: THE SEAM GIVES ORE, NOT A FINISHED BAR. It gave `iron` -- metal,
+ready for the anvil -- so the deepest supply chain in the world was also
+the shortest: strike the rock, walk to the forge, done. Ore now, and the
+furnace at Cragfoot turns two of it and a coal into the bar.
+§7p: THE SEAM GIVES IRON ORE. It gave `iron` -- a finished bar, ready for
+the anvil -- so the deepest chain in the world was also the shortest.
+
+The first cut of this pointed it at `ore`, which was WRONG and worth
+recording: `ore` is the generic of the first founding, what the plain
+`rock` gives, from when there was one tier and it was bronze. Iron ore is
+not that, and a seam that gave the retired generic would have made bronze
+stock and iron stock the same substance.
+
+> from engine.js:765-767
+
+§6ao (v6): the mastery seams, each its own place. Heartwood from the deep
+Greenwood grove, deep-fish from the Wilds water at the gibbet. Gated to the
+mastery level (MASTER_YIELD, 90) the way magic-rock gates mining.
+
+> from engine.js:3562-3582
+
+§6ao (v6): THE INCURSION. A thing that walks out of the dark, fixes on ONE
+citizen, and takes a while to put down -- long enough that the neighbours
+notice and come, which is the whole point. It hits SOFTLY (maxHit stays
+low even scaled) so that anyone may safely turn and help; the danger was
+never the point, the gathering is. High HP so the fight LASTS; a leash so
+it can be led toward help or lost; and it despawns on a timer so an
+unanswered one is a story ("it came, none came, it left") and never a
+permanent fixture. Its maxHp and def are SCALED to the target at spawn by
+the event step; these are the floor a level-one target would face.
+§6bv: AND WHOEVER PUTS ONE DOWN MAY GET THE HORN. The incursion exists so
+that "the neighbours notice and come" -- it fixes on one citizen and takes
+long enough that help can arrive. The reward for having answered a call
+being the power to MAKE one is the tightest loop in this world: the item
+is worth nothing to somebody alone, and everything to somebody who is not.
+§6cz: maxHit LOWERED to 4 (was 8). The incursion's whole job is to last
+long enough that neighbours come -- the danger was never the point, the
+gathering is -- so it must be safe to turn your back on and go help someone
+else's. It keeps its high HP (the fight LASTS) and its atk (so it connects),
+but a single blow can no longer be frightening. Its drops are chosen PER
+FACE (see INCURSION_FACE_DROPS) -- and no bones: a woodwraith or a drownling
+is conjured of the country, not a beast with a skeleton to leave.
+
+## 6ap. Armour is not a subtraction  [LIFTED]
+
+*Cited from 9 places in the engine.*
+
+> from engine.js:4570-4600
+
+§6ap: ARMOUR IS NOT A SUBTRACTION.
+
+SOAK took a flat two a piece off every blow, against a maxHit that never
+passes about fourteen. That halved damage at ninety-nine and approached
+immunity below it, and it made a star-clad duel a minute of uninterrupted
+swinging for single-digit hits: "2, 2, 2". A miss is dramatic; a two is not.
+
+Armour now makes you HARDER TO HIT rather than harder to hurt. The same
+duel lasts about as long -- sixty seconds against the sixty-six it took
+before -- but it reads as "miss, miss, THIRTEEN", which is a fight.
+
+It also repairs the maul without touching the maul: its whole problem was
+that low accuracy was punished twice, once in the roll and again by a soak
+its slow cadence could not out-pace.
+§7l: a full star suit is helm 16 + plate 24 = 40, which is the ceiling the
+bare-blade measures against.
+
+THE CURVE IS NOT A LINE, and the reason is a measurement. A flat
+floor((40 - armour) / 4) gave +10 naked and +5 in iron, and the duels said
+the middle beat both ends: naked won 40% against a star-clad star-sword,
+and the SAME blade over an iron suit won 45%. Half the bonus plus real
+protection was the optimum, so a weapon meant to ask "will you strip?"
+was really asking "will you wear medium?" -- a duller question, and not the
+one it was built for.
+
+Squaring it puts the whole bonus in the last few points of armour. A citizen
+in nothing keeps ten; one in a leather cap has already lost a third of it;
+iron keeps two. The choice is now the one the design promised: bare, or not.
+
+  armour   0    8   16   20   25   30   40
+  bonus   10    6    4    2    1    0    0
+
+> from engine.js:4701-4722
+
+§6aq (REPEALED, v0.87): STEEL IS NOT TAXED, AND NEVER NEEDED TO BE.
+
+Armour carried a price for three revisions: first an interval added to every
+swing, then a step every other interval, then that narrowed to the Wilds. The
+argument was always that armour which only helps is a checklist rather than a
+choice -- everybody wears the best they own and going without is a handicap.
+
+The argument was answered by a rule this world already had. THE FLIGHT RULE
+(§2b-i): everyone walks at the same speed and no reach-1 weapon lands on
+somebody who is leaving, so a clad citizen CANNOT MAKE ANYBODY FIGHT THEM.
+Armour only ever decides fights that were agreed to. It was never able to
+dominate, so there was nothing to tax, and each version of the tax was a
+second bolt on a door the first one already held.
+
+The measurements say the same. With the tax and without it, the standing duel
+orders identically -- star full 73/96 against 78/96, and every loadout in the
+same place -- so three rules, a state field and two off-by-one bugs bought a
+difference that does not appear in the numbers. What they did buy was a
+citizen who could be run down for wearing a helmet.
+
+The armour VALUES stay. They belong to the roll (§6ap), where a suit makes
+you harder to hit rather than harder to hurt, and that fix stands on its own.
+
+> from engine.js:4725-4749
+
+§6ap: AND THE ACCURACY IS A RATIO, NOT A CLAMP.
+
+`clamp(128 + 4*(atk - def) + acc, 16, 240)` saturated at a twenty-eight
+level gap, so against a ninety-nine attacker DEFENCE 1 THROUGH 71 WERE
+LITERALLY IDENTICAL: seventy levels bought nothing. It was symmetric --
+attack 50, 60 and 71 all sat at 6.3% against a defence-99 target -- and
+against a low-defence target everything clamped to the ceiling, so weapon
+accuracy stopped existing and the whole table collapsed to maxHit/every.
+
+Ratios asymptote instead of clamping, so every level keeps buying
+something and no two builds are the same character. Integer arithmetic
+throughout: this decides fights, and every node must agree to the bit.
+§6x-ii: AND `pierces` NOW MEANS THE ARMOUR IS NOT THERE.
+
+The flail's whole identity was that it ignored SOAK -- "the only weapon in
+the world that ignores this subtraction", paid for with the lowest base
+damage of any steel. Moving armour out of the damage and into the roll
+deleted that identity in one line: `pierces` had nothing left to ignore, and
+the flail became simply a weak sword.
+
+The translation is exact rather than approximate. Armour used to subtract
+from the blow and the flail went round it; armour now subtracts from the
+CHANCE, and the flail goes round that. A citizen in a full star suit is as
+easy to hit with a flail as a naked one -- which is what the weapon has
+always meant, expressed in the new currency.
+
+## 6ap-ii. alternate per DRAW  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:14278-14282
+
+alternate per DRAW, not per tick. `s.tick % 2` was in lockstep with the
+bow's own `every: 2` cadence -- it only ever loosed on ticks of one
+parity, so the test either always spared the arrow or never did. It
+spent NOTHING over a hundred ticks of shooting. The swing ordinal is
+what alternates.
+
+> from engine.js:14303-14309
+
+§6ap-ii: AND THE BEASTS ARE ROLLED FOR THE SAME WAY.
+
+Only the mob-strikes-citizen half was moved to the ratio. This half was
+left on `clamp(128 + 4*(atk - def) + acc)`, so the twenty-eight level
+plateau still existed against everything with teeth, and a weapon's acc
+was read on the additive scale here and the multiplicative one in the
+Wilds. The same steel cannot mean two things.
+
+## 6aq. Steel is not taxed  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> from engine.js:4701-4722
+
+§6aq (REPEALED, v0.87): STEEL IS NOT TAXED, AND NEVER NEEDED TO BE.
+
+Armour carried a price for three revisions: first an interval added to every
+swing, then a step every other interval, then that narrowed to the Wilds. The
+argument was always that armour which only helps is a checklist rather than a
+choice -- everybody wears the best they own and going without is a handicap.
+
+The argument was answered by a rule this world already had. THE FLIGHT RULE
+(§2b-i): everyone walks at the same speed and no reach-1 weapon lands on
+somebody who is leaving, so a clad citizen CANNOT MAKE ANYBODY FIGHT THEM.
+Armour only ever decides fights that were agreed to. It was never able to
+dominate, so there was nothing to tax, and each version of the tax was a
+second bolt on a door the first one already held.
+
+The measurements say the same. With the tax and without it, the standing duel
+orders identically -- star full 73/96 against 78/96, and every loadout in the
+same place -- so three rules, a state field and two off-by-one bugs bought a
+difference that does not appear in the numbers. What they did buy was a
+citizen who could be run down for wearing a helmet.
+
+The armour VALUES stay. They belong to the roll (§6ap), where a suit makes
+you harder to hit rather than harder to hurt, and that fix stands on its own.
+
+> from engine.js:8874-8882
+
+§6af: 'now' interrupts your own rhythm ONCE — it does not exempt you
+from the cost. This read `spec !== 'now'`, which skipped the arm check
+entirely and let the maul special EVERY TICK forever: seven to
+seventeen a tick against a normal three, and the damage-neutrality
+the whole design rests on simply did not hold for it.
+
+So: 'now' may be used while the arm is merely recovering from an
+ordinary swing, but never while it is already spent INTO THE FUTURE
+by a special. One interruption, then the full price.
+
+> from engine.js:13994-13998
+
+§7bq: ...unless the bow needs nothing. The rule and the resolver were
+patched for `noAmmo` and THIS was not -- a third door on the same
+question -- so the hollow bow validated at range and then found no
+arrow here and did nothing. Fourth time this session: validate and
+apply are two doors, and I keep walking through one.
+
+## 6as. It grants no power -- like prayer  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> from engine.js:427-451
+
+§11: HAULING IS THE EIGHTEENTH SKILL (v0.87).
+
+It grants no power -- like prayer, exploration and brewing, the level IS the
+achievement. What it adds is a REASON to be on the road carrying something
+worth taking, and a rule saying who may take it. See §11.
+§6as: STRENGTH IS ITS OWN SKILL (v0.86).
+
+One skill drove both how often you land and how hard, so there was no build
+space at all: every fighter in this world was the same fighter, further
+along. A separate strength is what makes ninety-nine strength at
+seventy-five attack a genuinely different citizen from the reverse, and it
+is the thing that lets somebody choose what kind of fighter to be.
+
+It is a constitutional change -- a new skill, a new rules hash, a new
+founding -- which is why it comes last of the combat work and not first.
+
+ATTACK decides the roll. STRENGTH decides the blow. Ranged keeps both, for
+itself, because a bow's draw is the same muscle as its aim; splitting it
+would need a second ranged skill nobody asked for.
+6bz/6ca: FIVE SLOTS. `offhand` for a shield, `legs` for gold and nothing
+else. Every layer reads this one list -- the wield validator, the state shape
+check at 4242 which demands the keys match EXACTLY, and the hood sweep -- so
+adding a slot anywhere but here would make a state that runs and will not
+import. A citizen founded before this rule has three keys and must gain two
+empty ones; see the migration below.
+
+> from engine.js:5848-5859
+
+6cd: RUNNER, and the same hole the note above describes, still open.
+
+§6as caught that strength had no word and rendered as the string
+"undefined" wherever a calling was shown. Hauling has had none SINCE IT WAS
+WRITTEN: it is the twelfth skill in the constitution and never reached this
+table, so any citizen whose deepest trade is the road has been nameless in
+every window and on the hiscores from the day the skill existed.
+
+RUNNER, not carter or porter. A carter has a cart and a porter works a
+quay; this citizen walks the roads with what somebody paid them to walk it
+with, under the one law in the world that lets anybody strike them for it
+(§11d). The word should say the running, not the load.
+
+> from engine.js:12519-12545
+
+AND IT MUST BE DAMAGE-NEUTRAL AT ITS BEST, which is the rule every
+other special in this world obeys. A special spends the arm for this
+cycle AND the next, so it costs TWO ordinary blows; 'flurry' pays two
+blows back, 'true' pays certainty, 'now' pays timing. At three
+halves the first draft paid twenty where two ordinary shots pay
+twenty-eight, so the shot was strictly worse than not using it.
+
+Five halves: at nine tiles it is worth exactly the two shots it cost,
+delivered as ONE blow, and at every distance closer it is a loss.
+What an archer buys is not more damage. It is all of it at once, from
+further away than anyone can answer.
+NEUTRAL AT EVERY LEVEL, not only at ninety-nine.
+
+This added a FLAT distance bonus to a base of lvl/10, and a drawn bow
+is scored on lvl/12 -- so the special quietly ignored the bow's own
+divisor and the flat twenty swamped the level term. Measured against
+the two ordinary shots it costs: at ranged 40 it paid 25 where two
+shots paid 20, at 70 it paid 28 against 24, and only at ninety-nine
+did it come out even. Below the cap the answer was always "special",
+which is the one thing this weapon must not be -- the whole of it is
+choosing the moment, and a blow that is simply better has no moment.
+
+So the special is a MULTIPLE of the ordinary blow at the same level:
+one of it at touching range, two of it at the end of nine tiles.
+Neutral at full stretch whatever your ranged is, a loss everywhere
+nearer, and it scales with the skill the way the ordinary shot does.
+§6as: a special's blow is strength's too, and its roll is attack's
+
+## 6as-ii. taught attack alone  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:12656-12658
+
+§6as-ii: split exactly as an ordinary melee blow splits. A special
+taught attack alone, so a fighter who favoured it never raised the
+number their own special scores from.
+
+> from engine.js:14313-14332
+
+§6as-ii: and the blow is STRENGTH's here too, or the only place to
+raise a max hit would be on other citizens.
+6bu: A FLOOR OF THREE, which touches the bottom and nothing else.
+
+A newcomer holds 22 gold. The arms stall sells the iron-dagger at 16,
+the spear at 28, the sword at 30 -- so the ONLY weapon they can buy
+has hit 0, and `1 + floor(1/10) + 0` is one. `dmg = 1 + (roll % 1)`
+is then ALWAYS EXACTLY ONE: never a two, never a lucky blow, for the
+first several hours. Attack was 27 minutes to level five where every
+other trade in this world takes three, and a beginner who never sees
+a different number is not playing a combat system, they are watching
+a subtraction.
+
+A FLOOR rather than a larger base, deliberately. `3 + floor(str/10)`
+would have added two to every max hit in the world, including a
+master's star-maul at ninety-nine -- eleven per cent more damage in
+every duel, and a retune of a system that is correct at the top. The
+floor binds only while `floor(str/10) + weapon.hit < 2`: a dagger or
+bare hands under strength twenty, which is a newcomer and nobody
+else. Buy a sword and it has never applied to you.
+
+> from engine.js:14417-14422
+
+§6as-ii: split as a citizen's blow is split. Beasts taught ATTACK
+alone, so strength -- which every melee blow now scores from -- could
+not be raised except by fighting people, which asks a citizen to be
+dangerous before they are allowed to become dangerous. Measured: three
+hundred intervals on a wolf gave attack +2924 and strength +0, and the
+resulting citizen dealt 0.73 a tick where a trained one deals 1.79.
+
+## 6as-iii. Where the lesson goes is the citizen's choice  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:4896-4910
+
+§6as-iii: WHERE THE LESSON GOES IS THE CITIZEN'S CHOICE, NOT THE WEAPON'S.
+
+Splitting a blow evenly is a sane default and a poor ceiling: measured at a
+matched experience budget, roughly sixty attack to ninety strength is the
+best melee anybody can bring against a lightly-armoured citizen (3.42 a
+tick against 3.07 for an even build), while about eighty to seventy is what
+beats a star-clad one (1.36 against 1.27). Two different characters, and
+the even split reaches neither.
+
+Routing by WEAPON was the obvious alternative and it is a trap: the natural
+strength weapon is the maul, second-worst damage in the world, so a citizen
+would grind hundreds of hours with a weapon they do not want in order to
+fight with one they do. It also binds two questions that are not the same
+question -- what I swing, and what I am becoming -- and it has no honest
+answer for the flail, the chain or the wand.
+
+> from engine.js:5084-5088
+
+One shared normalizer (pre-freeze §5): every client builds the object it
+signs THROUGH this, so equivalent user-facing requests always produce
+byte-identical canonical objects. Fills canonical null/zero values,
+normalizes numbers (-0 becomes 0), and refuses anything the schema
+refuses. `sig` is a shape-gate concern; normalization runs BEFORE signing.
+
+> from engine.js:12656-12658
+
+§6as-ii: split exactly as an ordinary melee blow splits. A special
+taught attack alone, so a fighter who favoured it never raised the
+number their own special scores from.
+
+## 6as-iv. Style shapes the blow  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:2918-2934
+
+§6as-iv: STYLE SHAPES THE BLOW, NOT ITS SIZE.
+
+A symmetric inset on the damage range: the MEAN is untouched, so no style is
+stronger and none is a trap, and the SPREAD moves, so they are differently
+USEFUL. Measured on a star-sword: aim lands for 4-11 with a spread of 2.3,
+force for 1-14 with 4.1, and damage per swing is 3.74 against 3.61 -- the
+same, within noise.
+
+It deliberately does NOT trade against the accuracy roll, which was the first
+attempt: accuracy is clamped at 250/256, so against a low-defence target
+extra accuracy buys nothing while lost damage costs everything. Measured,
+that version had force beating even by 25% against defence 1 and losing to
+it against plate. A trade against a ceiling is lopsided at one end and dead
+at the other.
+
+Variance only survives where there are few rolls to average it, so this is a
+dial for BURSTS, not for attrition -- see §6af-v.
+
+## 6au. A maul swings at the same speed as everything else  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:2533-2550
+
+§6au: A MAUL SWINGS AT THE SAME SPEED AS EVERYTHING ELSE.
+
+`every: 3` was flavour the arithmetic could not pay for. A blow is
+1 + level/10 + hit, and the level term is shared, so a slower weapon can
+only buy back its lost interval through `hit` -- which is FLAT, and
+therefore distorts low levels far more than high ones. At ninety-nine the
+maul landed 3.62 a swing against a dagger's 3.83 and took half again as
+long to do it: 1.21 a tick against 1.92. Measured over sixty duels with
+neither citizen using a special, that is 5:55. Not situational -- broken.
+
+At `every: 2` with the same hit and the same poor accuracy it is 30:30
+against the dagger, and it keeps every bit of its character: the largest
+ordinary blow in the world at seventeen against the dagger's twelve, the
+worst chance of landing it at forty per cent against fifty-nine, and the
+only special that can drop on top of an ordinary swing. It is the swingy
+weapon, not the slow one. The alternative -- `hit: 16` to make `every: 3`
+pay -- was measured too, and it hands a level-forty citizen 1.69 a tick
+where the honest build gets 1.22. A flat number is a low-level number.
+
+## 6av. road -- past a beginner  [LIFTED]
+
+*Cited from 17 places in the engine.*
+
+> from engine.js:918-919
+
+§6am (v6): the mid arms and armour, worn at the middle of the fighting
+road -- past a beginner, short of the fifty that straps on starmetal.
+
+> from engine.js:1949-1961
+
+6bf: THE BURN CURVE, FLATTENED, AND A REASON TO COOK SOMEWHERE.
+
+It was `min(64 + 2*lvl, 240)`: a newcomer burnt SEVENTY-FOUR PER CENT of
+everything they touched. Not a cost -- a wall, and one paid in the fish
+somebody had to catch. At 150 + lvl a beginner wastes two in five and a
+master one in sixteen, so the master still plainly wastes less (which is the
+only reward this world gives for a level) without the first hour being an
+exercise in destroying food.
+
+AND A HEARTH IS BETTER THAN A CAMPFIRE. Cooking had no equipment and no
+geography: a fire scratched in a field did exactly what a town's hearth did.
+Sixteen is worth about six levels, so it is a reason to carry the catch home
+without being a reason you must.
+
+> from engine.js:2880-2910
+
+THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
+Reach 9 is the whole weapon: nothing else in the world touches past five,
+so whoever draws it fights at a distance where almost nothing can answer.
+Against a citizen in the Wilds that is not a duel, it is a decision made
+before they knew it started.
+§6w: THE LONG SHOT. The dragonbow reaches nine, further than anything
+else in the world by four tiles, and had no special at all -- so its one
+distinction was a number in a table.
+
+It is not another 'flurry'. This world already has three specials and they
+are three different KINDS: two blows, off the rhythm, cannot miss. A
+fourth should be a fourth kind, and the obvious one for this weapon is the
+thing it alone can do.
+
+'far' scales the blow with the distance it crossed. At arm's length it is
+feeble -- worse than a dagger -- and at nine tiles it is the hardest blow
+in the world. The bow's reach stops being a number and becomes the skill:
+the shot you should not have been able to make is the one that kills.
+§6av: THE HANDGONNE. Slow, short, wildly inaccurate, and it hits like
+nothing else in the world -- a maximum blow of thirty-nine where the next
+largest is fifteen. Measured at 1.54 a tick it sits mid-table among the
+bows (heartwood 1.78, crossbow 1.57, sigil 1.51), and it loses to the two
+best weapons in the game: 9:31 against an old-chain, 11:29 against a
+dragonbow. Its `twice` is both barrels -- neutral like every other special,
+with a ceiling near eighty on the roughly one load in nine where both land.
+
+Four prototypes went into this and three were cleverer. A wind-up that
+could be walked away from landed nothing in sixty fights; a wind that
+survived walking killed a fleeing citizen thirty-three times in sixty and
+repealed §2b-i doing it. The mechanism was never the interesting part. It
+was `hit: 30`.
+
+## 6ax. Rule 6ax  [LIFTED]
+
+*Cited from 11 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions smithing, merged into `earthcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:1856-1865
+
+§7.3a: WHAT A VAULT WILL NOT TAKE, in one place.
+
+Two items are refused and for opposite reasons -- the dragonbow so its
+bearer cannot opt out of being hunted (§6w), the wayfarer's hood so its
+bearer cannot opt out of being seen (§6ax). Both rules already existed and
+both lived in a DIFFERENT function from each other: the bow was checked in
+the gate and the hood in the resolver, so `mayDo` and `apply` disagreed
+about what a deposit would do. Adding a bulk deposit with two more copies
+of that disagreement is exactly the §11h fault, so they are one predicate
+now and every caller asks the same question.
+
+> from engine.js:4429-4439
+
+§6ax: a hood is worn on the HEAD and defends nothing. That is the cost and
+it is the whole cost: to be seen wearing one is to walk the country in no
+helmet. Nothing else in this world asks a citizen to choose between being
+legible and being protected, and a mark that costs nothing says nothing.
+(the single reader is `slotOf`, below)
+the first level requirements (spec 6q): an unearned hammer strikes nothing
+§6ae: THE FORGE AGREES WITH THE ARM.
+
+These disagreed with themselves: star-plate was forgeable at smithing 30
+and wearable at defence 50, so a citizen could fill a bank with gear they
+could not put on. A tier should be one wall, not two at different heights.
+
+> from engine.js:5662-5685
+
+---------- who a citizen is (spec 10, v0.55) ----------
+Two windows once each invented their own idea of a citizen's "level" and
+disagreed about the same public state, which meant level was a property of
+the software rather than of the person. It is derived here instead, so every
+window agrees forever.
+
+STANDING is the sum of every skill's TRUE level, levelForXp, not effLevel,
+because mastery at 99 is a milestone and not a ceiling. A citizen who keeps
+going past mastery keeps rising, and standing has no maximum to hardcode.
+§6ax: HOOD_STANDING, and why it is this number and not a rounder one.
+
+A mastery is 13,034,431 experience. Because the curve is exponential,
+BREADTH is far cheaper than DEPTH -- standing 1200 spread across all
+seventeen trades is 13,469,999, within a few percent of a single ninety-
+nine, where reaching it by ten masteries would cost 130 million. So a
+hood costs what a cape costs, spent wide instead of deep. The cape says
+you went far in one thing; the hood says you went everywhere. They are
+peers, not a ladder, and neither of us chose that -- the curve did.
+
+It is not a filter. In a world that expects executors, every citizen who
+is maintained long enough crosses any line drawn here; the threshold buys
+a sybil toll and a pace, nothing more. That is sufficient, because the
+hood's scarcity was never meant to come from the threshold. It comes from
+each one being a different object.
+
+## 6ba. per citizen like every rare drop (the Reading Rule  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:3509-3513
+
+§6da: THE CINDER-CROWN, one dragon in thirty-two. Counted
+per citizen like every rare drop (the Reading Rule, §6ba),
+so it cannot be timed by holding the dragon at a point of
+life and reading the beacon -- and it falls into the same
+shared pile as the stones, to be fought over at the pickup.
+
+> from engine.js:10759-10783
+
+§6ba: THE LOTS ARE DRAWN FROM THIS TICK'S DEEDS, NOT THE LAST ONE'S.
+
+v0.38 folded the input digest into the beacon and left it in the state for
+the NEXT tick. That closed long-range prediction and left a one-tick hole
+open: a citizen who has applied tick T-1 holds `s.beacon` before signing
+for tick T, so `roll(beacon, pid, tag)` for tick T is knowable at the
+moment the input is chosen.
+
+An executor -- and this world expects executors -- reads that byte and
+acts only on the ticks that win. It skips the gathers that would deplete
+its node, so a tree never sleeps; and with a gold seam it would stand
+between two rocks and strike the gold one on precisely the ticks the gold
+one pays, keeping full ordinary mining experience AND every nugget. The
+entire cost of gold -- an hour forgone -- would evaporate.
+
+So the chain advances at the TOP of the tick and everything resolves
+against the new value. The digest covers every input applied this tick,
+including other citizens', so the lots a citizen is trying to read are
+reshuffled by the very deed they are reading them for -- which is exactly
+what the v0.38 note claimed and the ordering quietly did not deliver.
+
+Nothing is stored that was not stored before and no message changes: the
+same value that used to be written at the end of tick T-1 is now written
+at the start of tick T. It is the same chain, advanced in a different
+place, and only a founding may change where.
+
+> from engine.js:14730-14748
+
+§7m: WHO GETS THE STONE, AND WHY IT CANNOT BE TIMED.
+
+The obvious rule -- the last blow takes it -- is gameable, and
+openly: `n.struck` is public state, so a citizen reads 999 and
+swipes the thousandth. The whole endeavour would turn into people
+watching a counter instead of digging.
+
+So the claim is a RESERVOIR. Each strike replaces the holder with
+probability exactly 1/struck, which leaves the holder uniform over
+every strike ever landed on that stone: swing a hundred times and
+you hold a hundred tickets. And it inverts the incentive completely
+-- timing the final blow buys you one chance in a thousand, which is
+strictly worse than turning up and working.
+
+The roll is the tick's beacon, which per §6ba advances at the TOP of
+the tick over a digest of every input applied in it, including other
+citizens'. A striker cannot know their own roll at the moment they
+sign. (A citizen digging entirely alone can, and it does not help
+them: they are the only ticket in the reservoir either way.)
+
+## 6bb. A wider lot  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:6380-6396
+
+§6bb: A WIDER LOT, BECAUSE ONE BYTE CANNOT SAY 'RARE'.
+
+`roll` reads a single byte, so the rarest a per-interval event can be is one
+in two hundred and fifty-six -- about two and a half minutes. Everything in
+this world that is genuinely scarce is scarce by DROP CHANCE out of 65,536
+(the old-chain is two), and a gathered thing had no way to be.
+
+Two bytes of the same hash, BIG-ENDIAN, which is written here in words as
+well as in code because it is the whole of the compatibility surface: a
+second implementation that reads them the other way round agrees with this
+one on nothing. High byte first, low byte second, no arithmetic but a shift
+and an or -- integers only, per 2m, and nothing a floating point unit could
+disagree about.
+
+`roll` is untouched. Every existing lot in this world draws the same byte it
+has always drawn, from the same hash; this reads one more byte of it under a
+different tag.
+
+> from engine.js:14394-14409
+
+§7cm: AND BONE SNAPS. One blow in 2,048 and the weapon is GONE --
+not damaged, not repairable, not a bar in a window. There is no
+durability in this constitution and inventing one for a single item
+would put a field in the ledger every mirror must then be taught.
+
+It is rolled off the same beacon as the blow, so it cannot be timed
+and cannot be avoided by swinging at something safe. The only way to
+keep a bone spear is to not use it, which is not keeping it.
+§6bb IS NOT OPTIONAL HERE, and the first cut of this got it wrong in
+the way that reads correctly: `roll(...) % DROP_DEN < SNAP_CHANCE`.
+`roll` returns ONE BYTE -- "uniform integer in [0, 255]" -- so the
+modulo by 65,536 did nothing at all and the test was really 32 in
+256. Measured: a bone spear snapped after three landed blows, then
+nine, then none, at one interval in eight. §6bb says it plainly --
+one byte cannot say 'rare' -- and every genuinely scarce thing in
+this world draws roll16 for exactly this reason.
+
+## 6br. Rule 6br  [LIFTED]
+
+*Cited from 9 places in the engine.*
+
+> from engine.js:3148-3148
+
+§6br: one siren in sixty-four, counted per citizen like every other rarity.
+
+> from engine.js:3361-3387
+
+THE SIREN (spec 6ac). The third thing, and the only one that FORBIDS a
+party. The dragon needs one because you die alone; the spider needs one
+because the arithmetic does not close; she will not have one at all.
+
+She MIRRORS whoever engages her -- their combat levels, their weapon, and
+their quiver as it stood at the moment she took their shape. So the fight
+is exactly even, at any level, forever: it never trivialises and it never
+gates. What breaks the tie is the one thing she cannot copy, which is
+that you brought food and she did not.
+
+`maxHp` and `atk` here are only a floor for an unarmed opponent; almost
+everything about her is read from the citizen at `bound` time.
+
+`aggro` is what a beast can PERCEIVE, and she needs one or she perceives
+nothing: senses default to zero, `d <= 0` is never true at any distance,
+and she stood on her strand and never once swung back. Ten, because she
+is looking out to sea and sees you coming a long way off -- and because a
+mirrored archer must be answerable at their own reach, which can be nine.
+
+§6br: AND SHE GIVES UP THE GRAVER, one kill in sixty-four. The mirror of
+yourself is the source of the one item you cannot use on yourself, which
+is the sort of joke this island's geography already tells.
+
+She is ALONE on the island and comes back every twelve minutes, so even
+camped without pause she mints under two a day. And she cannot be farmed
+asleep: she copies your levels, your weapon and your quiver, so the fight
+is exactly even at any level, forever.
+
+> from engine.js:4361-4363
+
+§6br: THE GRAVER. A chisel that cuts somebody ELSE's name into the world
+and can never cut your own. It is the only object here whose entire worth
+is that you can spend it on another person.
+
+## 6bs. Rule 6bs  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:741-742
+
+§6bs: the vent. Mining's late game was a rarer metal and a deeper one;
+this is the first thing it pulls out that a smith BURNS rather than beats.
+
+> from engine.js:4369-4371
+
+§6bs: BRIMSTONE. Sulphur out of a vent in the Crags -- the only thing
+mining gives that is not a metal, and the reagent of the `great` weapons.
+§6bw: the two mastery armours, and the shell tier under them
+
+## 6bt. crossbow for ranged  [LIFTED]
+
+*Cited from 11 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:863-868
+
+§6bt: seventy, where every gathering skill already has its mastery tool.
+§7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
+crossbow for ranged, and nothing for strength -- which was invisible while
+mauls were gated on attack (§7ao) and glaring the moment they were not. A
+citizen who trains strength alone now has a ladder that reaches the top of
+the world like everybody else's.
+
+> from engine.js:2559-2563
+
+§6bt: THE STEEL MAUL, which was simply missing. Iron had one and starmetal
+had one and the whole middle of the game had none, so a maul-swinger went
+from attack one to fifty-five with nothing new to hold -- fifty-four
+levels, the longest dead band of any shape in the world. Not a design; an
+omission, found by counting.
+
+> from engine.js:2801-2825
+
+§6bt: THE GREAT ARMS. Level seventy, where woodcutting, mining and fishing
+each got a mastery tool and combat got nothing at all -- attack's last
+unlock was fifty-five and then forty-four levels of nothing to want.
+
+They are NOT a fourth tier. A tier is a bigger number and would make
+starmetal a stepping stone; the `great` tools earn their place by ACCESS
+(a great-hatchet fells a wood nothing else fells), and these earn theirs
+the same way: they answer a defence rather than out-damage one.
+
+  `breaks` -- the off-hand shield is not there. §6x gave the flail
+  `pierces` against ARMOUR and reasoned that the answer to a defensive
+  system belongs to people who have earned that system. A shield is the
+  other defensive system and had no answer at all: a star-shield takes a
+  flat quarter off everything, forever, and nothing in the world could
+  do anything about it.
+
+  `burns` -- brimstone catches. Small, short, and it can never kill
+  (§6bu). It is the only damage in this world that arrives on an interval
+  the striker did not act on.
+
+AND NO SPECIAL. The flurries and the bite belong to the star line, and a
+mastery arm that took those as well would retire five weapons at a
+stroke. Star strikes oddly; great strikes through.
+§7dr: worse than anything else you could hold, and the only thing that
+answers the dark before level sixty. `burns` is the whole of its worth.
+
+## 6bu. Brimstone catches  [LIFTED]
+
+*Cited from 8 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:1748-1772
+
+§6bu: BRIMSTONE CATCHES, AND THE FIRE NEVER LANDS THE LAST BLOW.
+
+A landed blow from a `burns` weapon sets the target alight for BURN_TICKS
+intervals; while lit they take one point every BURN_EVERY. It does not
+stack -- a second blow REFRESHES it, exactly as a root does not chain --
+so the whole of it is two points a window. Felt, never decisive.
+
+TWO RULES MAKE IT CONSTITUTIONAL, and without either it could not exist:
+
+  IT CANNOT KILL. Burn floors at one hitpoint, on a citizen and on a beast
+  alike. §2b-i promises no one can be run down, and a fire that finishes
+  somebody four intervals after they broke away and fled has run them down
+  -- by the clock rather than on foot, which is worse, because there is no
+  answer to it. Now there is: you always survive the fire, and whoever
+  wants you dead must catch you. It also disposes of a whole class of bug,
+  since a burn that killed a beast would have no striker to give the drop
+  to.
+
+  IT DOES NOT TOUCH A BEAST THAT MENDS. This is arithmetic, not flavour.
+  §6ab's hard promise is that ONE citizen can never take the great-spider:
+  the best sustained output in the world is the chain's 5.74 a interval
+  against the web's six, a deficit of 0.26. A quarter-point of burn erases
+  it almost exactly. Gated on the `mends` PROPERTY rather than the spider's
+  name, so it is a rule and not an exception -- and so that any beast a
+  later founding gives a web is covered by the same sentence.
+
+> from engine.js:2801-2825
+
+§6bt: THE GREAT ARMS. Level seventy, where woodcutting, mining and fishing
+each got a mastery tool and combat got nothing at all -- attack's last
+unlock was fifty-five and then forty-four levels of nothing to want.
+
+They are NOT a fourth tier. A tier is a bigger number and would make
+starmetal a stepping stone; the `great` tools earn their place by ACCESS
+(a great-hatchet fells a wood nothing else fells), and these earn theirs
+the same way: they answer a defence rather than out-damage one.
+
+  `breaks` -- the off-hand shield is not there. §6x gave the flail
+  `pierces` against ARMOUR and reasoned that the answer to a defensive
+  system belongs to people who have earned that system. A shield is the
+  other defensive system and had no answer at all: a star-shield takes a
+  flat quarter off everything, forever, and nothing in the world could
+  do anything about it.
+
+  `burns` -- brimstone catches. Small, short, and it can never kill
+  (§6bu). It is the only damage in this world that arrives on an interval
+  the striker did not act on.
+
+AND NO SPECIAL. The flurries and the bite belong to the star line, and a
+mastery arm that took those as well would retire five weapons at a
+stroke. Star strikes oddly; great strikes through.
+§7dr: worse than anything else you could hold, and the only thing that
+answers the dark before level sixty. `burns` is the whole of its worth.
+
+> from engine.js:7214-7214
+
+§6bu: alight, and it burns off by itself
+
+## 6bv. Rule 6bv  [LIFTED]
+
+*Cited from 7 places in the engine.*
+
+> from engine.js:3150-3150
+
+§6bv: one incursion in thirty-two. They are events, not a farm.
+
+> from engine.js:3562-3582
+
+§6ao (v6): THE INCURSION. A thing that walks out of the dark, fixes on ONE
+citizen, and takes a while to put down -- long enough that the neighbours
+notice and come, which is the whole point. It hits SOFTLY (maxHit stays
+low even scaled) so that anyone may safely turn and help; the danger was
+never the point, the gathering is. High HP so the fight LASTS; a leash so
+it can be led toward help or lost; and it despawns on a timer so an
+unanswered one is a story ("it came, none came, it left") and never a
+permanent fixture. Its maxHp and def are SCALED to the target at spawn by
+the event step; these are the floor a level-one target would face.
+§6bv: AND WHOEVER PUTS ONE DOWN MAY GET THE HORN. The incursion exists so
+that "the neighbours notice and come" -- it fixes on one citizen and takes
+long enough that help can arrive. The reward for having answered a call
+being the power to MAKE one is the tightest loop in this world: the item
+is worth nothing to somebody alone, and everything to somebody who is not.
+§6cz: maxHit LOWERED to 4 (was 8). The incursion's whole job is to last
+long enough that neighbours come -- the danger was never the point, the
+gathering is -- so it must be safe to turn your back on and go help someone
+else's. It keeps its high HP (the fight LASTS) and its atk (so it connects),
+but a single blow can no longer be frightening. Its drops are chosen PER
+FACE (see INCURSION_FACE_DROPS) -- and no bones: a woodwraith or a drownling
+is conjured of the country, not a beast with a skeleton to leave.
+
+> from engine.js:4283-4284
+
+a staff is held, and being held is the whole of what it costs: a citizen
+carrying one is carrying no sword
+
+## 6by. THING  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:2684-2703
+
+§7cn: THE BARB. The first weapon in this world that strikes MORE THAN ONE
+THING.
+
+`flurry` hits twice at the same target and that was as close as anything
+came. Meanwhile §6by deliberately built content out of CROWDS -- the risen
+the King calls up, an incursion, and the carrion-crows that are weak alone
+and never alone -- and the arsenal had no answer to numbers at all, only
+to armour (the flail), to shields (the great arms) and to plate at reach
+(the siphon).
+
+It is pure geometry. It applies no state, which is why it is a weapon and
+not a spell: the six words the barrow book already owns -- anchor, mend,
+still, wither, taking, rot -- have between them claimed every status worth
+having, and a seventh wearing a haft would be `flurry` and `volley` all
+over again.
+
+The domain selects itself, in the star-maul special's manner, with no
+exception clause anywhere: worthless on the dragon, worthless on the
+gibbet-dead behind their rail, worse than a sword in a duel, and the only
+thing anybody wants when an incursion has fixed on a neighbour.
+
+> from engine.js:3516-3550
+
+§7cn: THE MERE-LAMPREY, and the first creature in this world that can be
+USED UP.
+
+§7a opened a door that can never be shut again: the South Pass, dug out by
+whoever swung, and "every citizen who arrives afterwards lives in the world
+they made and cannot join them in making it. That is a one-way door and it
+is meant to be." This is the same door pointed the other way -- a thing the
+island can SPEND -- and it is built out of the same two anti-farm
+materials, calendar and appetite, because §12c is still true: identity is a
+keypair and a threshold denominated in labour is denominated in the one
+currency an executor has infinitely much of.
+
+SEVEN OF THEM, sixty-four lives apiece. Not one boss with a counter: a
+small named population that goes one at a time, because "there are three
+left" is a sentence a world can say and "four hundred and eighty of five
+hundred" is a progress bar. The first death barely registers. The fourth is
+an argument. The last is `lasts`.
+
+NOBODY DECIDES THIS. There is no vote, no committee and no seal to build --
+which is the whole reason it is allowed to exist. §18a already works this
+way: at most forty-one fall-stones, "the real number is the island's
+decision", and no citizen ever cast one. Appetite decided. Each digger
+wanted a stone and the sum of wanting ended the seam. A lamprey dies of
+being wanted, every kill is somebody who came for spit, and there is no
+villain anywhere in it.
+
+AND WHAT IT LEAVES IS WALKABLE. When the last one is gone the mere is still
+there and still empty. §7a's best line is that the road to the South Pass
+still ARRIVES at rock; a reed-bed you can wade into with nothing in it says
+more than a reed-bed that was never drawn.
+
+The numbers: it kills a master in a shade over four minutes, which is the
+band §6by set for the four things that are supposed to be dangerous. It is
+not a boss. It is a hard beast in bad ground that four hundred and forty
+eight people will each want a piece of.
+
+## 6bz. 6bz: TWO HANDS OR ONE  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:4654-4677
+
+6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
+
+The star-sword and the star-maul sit in the same wield band, and measured
+against an ARMOURED citizen they were already 87 intervals against 89 -- the
+maul's -12 accuracy costing exactly what its +5 damage buys. That balance
+was not designed and it is remarkably tight, so anything added here has to
+preserve it.
+
+A shield alone does not: any shield at all tips a coin-flip duel decisively
+to the one-handed line. So the two arrive together. Two-handed arms gain six
+to their blow; one-handed arms may carry a shield, which DIVIDES what lands.
+At a star shield's three-quarters the duel returns to 87 against 86.
+
+A DIVISOR, NOT A BLOCK AND NOT MORE ARMOUR. More armour feeds the same
+hitChance curve that already saturates, so a shield would be a number nobody
+could feel. A block would need its own roll and would raise the question of
+whether a blocked blow is a MISS -- which is what teaches defence, so it
+would quietly retune a skill. A divisor touches neither the roll nor the
+miss: what a defender learns and what an attacker learns are exactly what
+they were, and the shield only changes what arrives.
+§7cm: the bone spear is on the list because it is a spear. §6bz's trade is
+the point -- reach and weight are bought with the off hand -- and a weapon
+that gave a two-tile haft AND a star shield would be answering a question
+nobody asked it.
+
+> from engine.js:12719-12734
+
+§6bx: AND WHAT THEY WERE WEARING SPILLS TOO.
+
+This loop used to walk the pack alone and then null `q.equipment`
+wholesale, so a citizen killed in full star gear DESTROYED about
+two thousand gold of armour that nobody could pick up. The
+killer took the pack and the plate simply ceased to exist.
+
+Unintentional, and the engine says so in three places: prayer
+already weighs the equipment slots (§6bz), the dragonbow's own
+comment claims it "spills to the ground when they fall in PvP",
+and §6c's argument is about risk PASSING TO THE KILLER, not
+about destruction. A robbery has a beneficiary; that is what
+makes it a robbery rather than an accident.
+
+Keyed `e{slot}` so it can never collide with the pack's numeric
+keys, which is the same content-addressing fix §2b-v made above.
+
+> from engine.js:14175-14190
+
+§6bx: AND WHAT THEY WERE WEARING SPILLS TOO.
+
+This loop used to walk the pack alone and then null `q.equipment`
+wholesale, so a citizen killed in full star gear DESTROYED about
+two thousand gold of armour that nobody could pick up. The
+killer took the pack and the plate simply ceased to exist.
+
+Unintentional, and the engine says so in three places: prayer
+already weighs the equipment slots (§6bz), the dragonbow's own
+comment claims it "spills to the ground when they fall in PvP",
+and §6c's argument is about risk PASSING TO THE KILLER, not
+about destruction. A robbery has a beneficiary; that is what
+makes it a robbery rather than an accident.
+
+Keyed `e{slot}` so it can never collide with the pack's numeric
+keys, which is the same content-addressing fix §2b-v made above.
+
+## 6ch. reference: every matching node  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:10283-10295
+
+reference: every matching node, BY NODEID -- the same canonical order the
+indexed path below uses.
+
+v0.81 sorted the indexed path and left this one in Object.entries
+enumeration order, so the two halves of the same function answered
+differently the moment two matching nodes stood beside one citizen. That
+is the exact fault v0.81 was written to fix, surviving in the branch it
+did not touch: `findAdjacentNode` got the nodeId tie-break in v0.80 and
+this reference path never did.
+
+Caught by the phase2 differential, which had been unable to see it because
+its own fixture named a node type -- `waystone` -- that §6ch deleted, so
+the comparison ran over an empty list and agreed with itself.
+
+## 6cz. not for a blow  [LIFTED]
+
+*Cited from 10 places in the engine.*
+
+> from engine.js:3008-3009
+
+§6cz: an incursion NEVER changes who it is fixed on -- not for a gunshot,
+not for a blow. It came for one citizen and it answers only them.
+
+> from engine.js:3152-3160
+
+§6cz: THE INCURSION'S DROPS DEPEND ON THE FACE IT WORE. The event fixes on a
+citizen and wears a face chosen by what they were doing -- a woodwraith when
+they chop, a gargoyle when they mine, a drownling when they fish -- and the
+reward should belong to that work: the two tool tiers of the skill the face
+answers to. None of them drop bones (they are conjured of the country, not
+beasts). The two open-country faces -- the wilds-shade and the haunt -- carry
+the HORN instead: the community-summon reward for the fights that were about
+nothing but who came. Rolls are out of DROP_DEN (65536): 2048 = 1 in 32 for
+the first tool, 512 = 1 in 128 for the second.
+
+> from engine.js:3562-3582
+
+§6ao (v6): THE INCURSION. A thing that walks out of the dark, fixes on ONE
+citizen, and takes a while to put down -- long enough that the neighbours
+notice and come, which is the whole point. It hits SOFTLY (maxHit stays
+low even scaled) so that anyone may safely turn and help; the danger was
+never the point, the gathering is. High HP so the fight LASTS; a leash so
+it can be led toward help or lost; and it despawns on a timer so an
+unanswered one is a story ("it came, none came, it left") and never a
+permanent fixture. Its maxHp and def are SCALED to the target at spawn by
+the event step; these are the floor a level-one target would face.
+§6bv: AND WHOEVER PUTS ONE DOWN MAY GET THE HORN. The incursion exists so
+that "the neighbours notice and come" -- it fixes on one citizen and takes
+long enough that help can arrive. The reward for having answered a call
+being the power to MAKE one is the tightest loop in this world: the item
+is worth nothing to somebody alone, and everything to somebody who is not.
+§6cz: maxHit LOWERED to 4 (was 8). The incursion's whole job is to last
+long enough that neighbours come -- the danger was never the point, the
+gathering is -- so it must be safe to turn your back on and go help someone
+else's. It keeps its high HP (the fight LASTS) and its atk (so it connects),
+but a single blow can no longer be frightening. Its drops are chosen PER
+FACE (see INCURSION_FACE_DROPS) -- and no bones: a woodwraith or a drownling
+is conjured of the country, not a beast with a skeleton to leave.
+
+## 6m-ii. The gullet rhythm stays  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:9625-9636
+
+§6m-iii: THE GULLET RHYTHM STAYS, AND THE SWING IS ON TOP OF IT.
+
+Removing the rate and keeping only the arm cost looked equivalent -- a
+meal costs a swing, so an eater cannot also be fighting. It is not
+equivalent, because a citizen can EAT AND SWING ALTERNATELY. Brews
+stack to a million in one slot, so the pack never empties.
+
+Measured, mirror duel at ninety-nine in full starmetal: even without
+food it is 5:3, a coin flip. With a stack of ALE -- four hitpoints, the
+cheapest thing anybody can brew -- it is 0:8. Whoever brought the stack
+simply won, which is exactly the failure §6m-ii predicted in its own
+comment while the code deleted the rule that prevented it.
+
+> from engine.js:13532-13553
+
+§6m-ii: AND IT COSTS A SWING.
+
+v0.32 said eating does not lower your guard, and the fight still
+holds -- the ACTION is untouched, so nobody has to give an order
+again. But swallowing something cost nothing at all: full healing
+and a blow in the same interval, so a fight was decided by who
+brought more food and never by when they ate it.
+
+The arm is spent, exactly as a special spends it, so the next blow
+comes a cycle later. One swing in eight -- the gullet allows no more
+than that -- so it is a tempo cost and not a survivability one.
+
+The RATE stays, and its reason has changed. It was written when
+nothing in this world could kill anybody; now it is the only thing
+stopping food from out-healing damage. Without it a citizen eating
+every other interval restores three a tick against the two a sword
+at ninety-nine lands, and fights become a question of who empties
+their pack first.
+
+A MENDING FROM SOMEBODY ELSE COSTS THE WOUNDED NOTHING, and that is
+deliberate: twenty hitpoints and they never break rhythm. Fighting
+in a pair should be worth something that fighting alone is not.
+
+## 6m-iii. The gullet rhythm is repealed  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:1632-1653
+
+v0.73: the gullet has its own rhythm, as the arm does (§6b, lastSwing).
+Without one, a citizen ate every interval while the fight held, and broth
+heals 5 against a skeleton-knight's 2 hp per interval at absolute maximum:
+nobody carrying brews could die, so death, the Wilds and the brand were all
+decoration. Eating mid-fight stays legal, as §6m intends. It simply has a
+rate now, and that rate is what makes a beast dangerous to the unready.
+§6m-iii: THE GULLET RHYTHM IS REPEALED.
+
+It was written in v0.41 because nothing in this world could kill anybody,
+and a citizen with brews ate every interval and was immortal. That reason is
+long gone. What it was defended with afterwards -- that food would otherwise
+out-heal damage -- does not survive arithmetic: the old chain lands up to
+eleven EVERY interval, a maul special seventeen, the long shot thirty, and a
+fish heals six. Nothing about eating has ever made a citizen unkillable
+against anything that could really hurt them.
+
+What is left is the cost that actually bites, and it arrived tonight: a meal
+SPENDS THE ARM. Eat every interval if you like -- you will heal six and deal
+nothing, and anybody serious will kill you anyway or simply walk off. The
+brake is that eating is not fighting, which needs no constant at all.
+
+The value stays for old states, which carry `lastAte`, and for nothing else.
+
+> from engine.js:9625-9636
+
+§6m-iii: THE GULLET RHYTHM STAYS, AND THE SWING IS ON TOP OF IT.
+
+Removing the rate and keeping only the arm cost looked equivalent -- a
+meal costs a swing, so an eater cannot also be fighting. It is not
+equivalent, because a citizen can EAT AND SWING ALTERNATELY. Brews
+stack to a million in one slot, so the pack never empties.
+
+Measured, mirror duel at ninety-nine in full starmetal: even without
+food it is 5:3, a coin flip. With a stack of ALE -- four hitpoints, the
+cheapest thing anybody can brew -- it is 0:8. Whoever brought the stack
+simply won, which is exactly the failure §6m-ii predicted in its own
+comment while the code deleted the rule that prevented it.
+
+> from engine.js:13524-13526
+
+§7ck: ...unless the door is shut. A withered citizen cannot be healed
+by anything, and food is the door that matters: twenty-eight slots of
+cooked fish is what a duel in this world is made of.
+
+## 6m-iv. And it spends the arm  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:12983-12992
+
+§6m-iv: AND IT SPENDS THE ARM, as a meal does.
+
+A cooked fish restores six and costs a swing. A mending restored
+TWENTY and cost nothing at all -- the `p.action = null` above belongs
+to the stilling, not to this. So the best heal in the world was also
+the only free one, which is backwards.
+
+One rule covers both: whatever restores YOUR OWN hitpoints spends
+your arm. Being mended by somebody else stays free to the wounded,
+and that asymmetry is the whole reason to fight in a pair.
+
+## 6m-v. A richer meal is a longer one  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:1655-1695
+
+§6m-v: A RICHER MEAL IS A LONGER ONE.
+
+A flat rhythm made the heal value a RATE, and the rate is what decides a
+fight. A deep broth restored one hitpoint an interval for ever -- against the
+1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+citizen with the stack could not be killed. Measured 0:12, and the burst
+could not close it either: a finisher that removes half a health bar is no
+answer to somebody who never falls below three quarters.
+
+So the gullet asks in proportion to what it was given. Every food now
+restores the SAME half-hitpoint an interval over time, and the heal value
+buys something better than throughput: it buys the SIZE of one swallow, which
+is how a wounded citizen leaves an execute window in a single interval.
+A deep fish is still the best food in the world -- it lifts you ten in one
+breath, out of reach of any burst -- it simply cannot also be a wall.
+
+Below the weakest weapon in the world by a clear margin, so food lengthens a
+fight and never decides one.
+Tenths of an interval of gullet per hitpoint restored. At 25 every food
+sustains 0.40 a tick, comfortably under the 1.11 a star-sword lands through
+starmetal. Measured with both citizens fed and star-clad: at the old flat
+rhythm a pair with stacked broth STALLED -- sixteen fights of three thousand
+intervals, nobody ever fell. At 25 the same fight resolves in about two
+hundred and forty and is decided by the burst (11:5 for the citizen who uses
+it), which is the shape this world wants: food lengthens a fight, timing ends
+one.
+§6m-vi: A PACK RUNS OUT; A STACK DOES NOT.
+
+One rate for everything left food as decoration. Measured at 25: a survivor
+finished an old-chain duel holding 18 of 20 fish, having eaten THREE, while
+spending 78% of the fight wanting to eat and being refused. The pack was not
+a decision, and four fish played the same as twenty.
+
+Dropping the rate fixes that for fish and breaks it for brews, because a
+faster clock helps an ENDLESS source proportionally more: at 12 a stacked
+deep-broth went to 0:20, which is the v0.86 regression wearing a new hat.
+
+So they are clocked apart. Fish are bounded by the pack and may be eaten
+briskly; brews pool to a million in one slot and may not. Measured at 12/25:
+a long armoured fight runs a citizen dry a third of the time, a short one is
+still decided by damage, and an endless brew stays where it was at 4:16.
+
+> from engine.js:13524-13526
+
+§7ck: ...unless the door is shut. A withered citizen cannot be healed
+by anything, and food is the door that matters: twenty-eight slots of
+cooked fish is what a duel in this world is made of.
+
+## 6m-vi. A flat rhythm made the heal value a RATE  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:1655-1695
+
+§6m-v: A RICHER MEAL IS A LONGER ONE.
+
+A flat rhythm made the heal value a RATE, and the rate is what decides a
+fight. A deep broth restored one hitpoint an interval for ever -- against the
+1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+citizen with the stack could not be killed. Measured 0:12, and the burst
+could not close it either: a finisher that removes half a health bar is no
+answer to somebody who never falls below three quarters.
+
+So the gullet asks in proportion to what it was given. Every food now
+restores the SAME half-hitpoint an interval over time, and the heal value
+buys something better than throughput: it buys the SIZE of one swallow, which
+is how a wounded citizen leaves an execute window in a single interval.
+A deep fish is still the best food in the world -- it lifts you ten in one
+breath, out of reach of any burst -- it simply cannot also be a wall.
+
+Below the weakest weapon in the world by a clear margin, so food lengthens a
+fight and never decides one.
+Tenths of an interval of gullet per hitpoint restored. At 25 every food
+sustains 0.40 a tick, comfortably under the 1.11 a star-sword lands through
+starmetal. Measured with both citizens fed and star-clad: at the old flat
+rhythm a pair with stacked broth STALLED -- sixteen fights of three thousand
+intervals, nobody ever fell. At 25 the same fight resolves in about two
+hundred and forty and is decided by the burst (11:5 for the citizen who uses
+it), which is the shape this world wants: food lengthens a fight, timing ends
+one.
+§6m-vi: A PACK RUNS OUT; A STACK DOES NOT.
+
+One rate for everything left food as decoration. Measured at 25: a survivor
+finished an old-chain duel holding 18 of 20 fish, having eaten THREE, while
+spending 78% of the fight wanting to eat and being refused. The pack was not
+a decision, and four fish played the same as twenty.
+
+Dropping the rate fixes that for fish and breaks it for brews, because a
+faster clock helps an ENDLESS source proportionally more: at 12 a stacked
+deep-broth went to 0:20, which is the v0.86 regression wearing a new hat.
+
+So they are clocked apart. Fish are bounded by the pack and may be eaten
+briskly; brews pool to a million in one slot and may not. Measured at 12/25:
+a long armoured fight runs a citizen dry a third of the time, a short one is
+still decided by damage, and an endless brew stays where it was at 4:16.
+
+## 6t. take back out of a bank  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:4880-4884
+
+§6t: a chart is a thing a citizen can hold, so it is a thing they can
+take back out of a bank. `deposit` takes a SLOT and `isItemName` accepts
+charts, so one banked fine and `withdraw` -- which takes a name and
+checked ITEMS only -- could never return it. Silent, permanent loss of a
+survey reward, from two gates disagreeing about what an item is.
+
+## 6x-ii. `clamp(128 + 4*(atk - def) + acc  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:4725-4749
+
+§6ap: AND THE ACCURACY IS A RATIO, NOT A CLAMP.
+
+`clamp(128 + 4*(atk - def) + acc, 16, 240)` saturated at a twenty-eight
+level gap, so against a ninety-nine attacker DEFENCE 1 THROUGH 71 WERE
+LITERALLY IDENTICAL: seventy levels bought nothing. It was symmetric --
+attack 50, 60 and 71 all sat at 6.3% against a defence-99 target -- and
+against a low-defence target everything clamped to the ceiling, so weapon
+accuracy stopped existing and the whole table collapsed to maxHit/every.
+
+Ratios asymptote instead of clamping, so every level keeps buying
+something and no two builds are the same character. Integer arithmetic
+throughout: this decides fights, and every node must agree to the bit.
+§6x-ii: AND `pierces` NOW MEANS THE ARMOUR IS NOT THERE.
+
+The flail's whole identity was that it ignored SOAK -- "the only weapon in
+the world that ignores this subtraction", paid for with the lowest base
+damage of any steel. Moving armour out of the damage and into the roll
+deleted that identity in one line: `pierces` had nothing left to ignore, and
+the flail became simply a weak sword.
+
+The translation is exact rather than approximate. Armour used to subtract
+from the blow and the flail went round it; armour now subtracts from the
+CHANCE, and the flail goes round that. A citizen in a full star suit is as
+easy to hit with a flail as a naked one -- which is what the weapon has
+always meant, expressed in the new currency.
+
+> from engine.js:12563-12575
+
+§6de: AND IT IS `ord9` FOR EVERY SHAPE, NOT ONLY FOR `far`.
+
+`ord9` is computed two lines above with the bow's own divisor -- the
+note over it says in as many words that ignoring that divisor was the
+defect it fixed -- and then this line recomputed the same quantity
+with a hardcoded /10, so `flurry` and `haymaker` went on using the
+melee divisor for a drawn bow. Only `far` ever read the corrected
+value. The horn-bow's flurry therefore sat about seven per cent above
+the neutrality this whole block exists to guarantee: eighteen a blow
+at ranged ninety-nine where its own rule says seventeen.
+
+A defect measured over a defect will recommend a feature (§6af). One
+expression, read once, used everywhere.
+
+> from engine.js:14028-14039
+
+§7br: AND A FIRE ARROW COUNTS ARMOUR DOUBLE.
+
+§6ap put armour in the ROLL and not the damage -- `soak` is zero
+everywhere and kept only as a seam -- so three attempts to make a
+fire arrow "bad against armour" by subtracting from the blow changed
+nothing at all, and one of them made it worse against a naked citizen
+instead. The lever was always this argument.
+
+A flail passes 0 and ignores armour entirely. A fire arrow is the
+exact inverse: a cage of tinder with no point to drive through plate,
+so the plate counts twice. Against bare skin the term is zero either
+way and it loses nothing.
+
+## 6y. nothing is still nothing  [LIFTED]
+
+*Cited from 6 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions the bronze tier; iron is its successor and no `bronze-*` item exists (§0-i); hitpoints, which is not a skill: the frame is flat (§5j); smithing, merged into `earthcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:877-878
+
+§6y: sigils bound to the limbs. The draw is half the arrows, and half of
+nothing is still nothing, so it asks a real bow-arm first.
+
+> from engine.js:4522-4524
+
+§6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
+works and three sigils, and you bind them to the limbs, which is why the
+magic asked for is higher than the smithing.
+
+> from engine.js:5115-5180
+
+6bh: TWENTY A UNIT, AND NO TABLE AT ALL.
+
+What was here counted `ore` and `magic-stone` and nothing else -- and the
+bronze and steel ladders were WRITTEN IN `iron` AND `coal`, which the table
+had never heard of. So in the world as shipped, an iron plate, a steel
+plate, a steel sword, every tool a citizen actually uses and the whole
+middle of the trade taught NOTHING. Thirty levels of recipes paying zero,
+and the only way to learn smithing at all was starmetal out of the Wilds.
+Renaming ore to iron (so that v6's star ladder could be forged from metal
+v6 actually mines) extended the same silence to star.
+
+The fix is to stop naming materials. EVERY unit consumed teaches twenty --
+the same twenty a strike at a seam teaches, the same twenty a fish in a pan
+teaches. It cannot go stale, because a recipe invented tomorrow is counted
+by the same line, and it needs no maintenance when a material is added.
+
+And it balances ITSELF, which is the part worth noticing. Nearly every
+material in this world costs about eight intervals to gather, so twenty a
+unit puts every honest route within a hundred hours of every other: an iron
+dagger 962 hours, a star plate 1,054, a rod 909. Nobody is punished for
+working in the metal they happen to have. The uniform cost of gathering is
+what makes uniform teaching correct -- and the two exceptions prove it, since
+a magic-stone costs eleven intervals (so star is a little slower, as the
+Wilds should be) and a gold nugget costs sixteen thousand (so nobody will
+ever learn this trade at the gold seam, which is right: gold is for wearing).
+6br: ONE LESSON A WOUND, AND THE SPLIT KEPT HONEST.
+
+(This function was lost for a revision when the smithing table above it was
+rewritten -- it sat between two constants that were replaced together, and
+nothing caught it, because not one test in the suite lands a melee blow.
+Every swing in the world would have thrown. It is restored here, rescaled.)
+
+Four experience a point of damage made attack and strength the two fastest
+masteries on the island by a factor of nine -- ninety-six hours each against
+eight hundred and eighty everywhere else -- while hitpoints, at one a point,
+rode along at exactly a quarter for no reason anybody chose.
+
+One a point now, and the cadence of every weapon has doubled beside it: a
+swing is 2.4 seconds, which is what this world's 600ms interval was always
+sized for and what every player already has in their hands from elsewhere.
+Together that is a fourfold cut, and it puts combat where every trade is.
+
+THE EVEN SPLIT ALTERNATES BY TICK PARITY rather than paying half to each,
+because experience is an integer (3.1) and half of one damage is not.
+`floor(dmg/2)` would pay a beginner NOTHING for every one-point blow they
+ever land. Alternating gives exactly half of each over any run of intervals,
+which is what the split always meant, and never a rounded-down zero.
+
+§6di: AND IT ALTERNATES BY THE SWING, NOT BY THE TICK.
+
+`tick & 1` is in lockstep with the cadence of almost every weapon in the
+world. A citizen swinging `every: 2` lands on ticks of ONE PARITY and only
+ever that parity, so `even` did not split anything: it paid a hundred per
+cent to attack, or a hundred per cent to strength, for the life of that
+citizen, decided by nothing but which tick their first blow happened to fall
+on. Measured over forty intervals with a star-javelin: strength +96, attack
++0.
+
+§6y caught this exact error for the sigil-bow's arrows -- "`s.tick % 2` was
+in lockstep with the bow's own `every: 2` cadence, it only ever loosed on
+ticks of one parity" -- and the same sentence was true two hundred lines
+away about experience, where nobody looked. The fix is the one §6y already
+found: THE SWING ORDINAL IS WHAT ALTERNATES.
+
+Odd cadences were unaffected, which is why a crossbow never showed it. Most
+of this world swings on two.
+
+## 7ac. Iron railing  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:614-618
+
+§7ac: IRON RAILING. A rampart is a war wall -- earth and stone, the thing
+Norwick's garrison stands behind -- and the Moorgrave was drawn with one
+because it was the only long boundary the vocabulary had. A churchyard is
+not a fort. Railing blocks like a wall and reads like a fence: you can see
+through it, which is most of what a graveyard wall is for.
+
+## 7ah. A country wants a creature of its own  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:3269-3283
+
+§7ah: A COUNTRY WANTS A CREATURE OF ITS OWN.
+
+Four species were doing all the work across seven countries -- 168 goblins,
+166 skeleton-knights, 113 wolves, 64 trolls -- and they overlapped so
+completely that no country had anything to itself: skeleton-knights in the
+Wilds AND in the meadow outside Anchor, trolls in the Crags AND the Wilds,
+goblins in the Fens AND the heartlands. Walk anywhere and meet the same
+four things.
+
+These five need drop nothing new. A creature that exists so the Fens do not
+feel like the Downs is doing a job -- the same argument as the landmark
+trees, one layer up.
+
+BOAR -- the Greenwood. Heavy, short-sighted, and it charges: the one beast
+in the wood that comes at a citizen rather than waiting to be found.
+
+## 7ai. Rule 7ai  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> from engine.js:2061-2062
+
+§7ai: ten bones to a flask
+§7cy: how many hands a work remembers, and for how long
+
+> from engine.js:3297-3318
+
+BARROW-WIGHT -- the Moor again, and the reason to be careful there. It is
+what the Moorgrave is full of, if anybody had dug.
+§7ai: WARDED. A wight takes ONE from any blow unless the citizen striking
+it carries holy water -- and the flask is spent when it falls. Ten bones
+buried in consecrated ground for one fight.
+
+It is the only gate in this world that is not a level or a tool: you
+cannot buy past it, smith past it, or out-level it. You go and bury the
+dead first. That is a strange requirement and it is the point -- the Moor
+is a country of graves, and the thing that walks there answers to the only
+courtesy anybody ever paid it.
+
+GRAVE-SILVER is what it carries: worth seven hundred, made by nothing,
+mined nowhere, and the only way to it is through the ossuary.
+§7cb: THE GIBBET-DEAD. What the Mourner keeps behind the bars.
+
+It stands in a ring of iron railing in the Moorgrave: see-through, and no
+way in or out. Nobody can put a blade in it and it cannot put a hand on
+anybody, so it is fought at four tiles or not at all -- the one creature in
+the world that is ranged-only for BOTH sides.
+
+It never wanders, because it cannot. It hurls what comes to hand.
+
+> from engine.js:7381-7382
+
+§7e: the brew a citizen has going at the inn's pot
+§7ai: burials toward the next flask
+
+## 7al. Rule 7al  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:2352-2352
+
+§7al: what a spade may be put into, and what a shift at it is worth
+
+> from engine.js:2595-2596
+
+§7al: a spade is a poor weapon and that is the whole of its cost -- you
+carry it in the hand a sword would be in.
+
+> from engine.js:3355-3356
+
+§7al: THE SPADE. What a thing that lives in graves would be
+carrying, and the only tool in the world that pays STRENGTH.
+
+## 7am. citizen  [LIFTED]
+
+*Cited from 9 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions smithing, merged into `earthcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:1870-1873
+
+§7am: a fuelled weapon spends a measure every `per` blows, counted on the
+citizen. `shotsFired` is the gonne's counter and is reused deliberately: a
+citizen cannot wield both at once, the field is already constitutional, and
+a second counter for the same idea is how state tables rot.
+
+> from engine.js:2598-2635
+
+§7am: THE SIPHON. A brass tube on a pump, and what comes out of it sticks
+and keeps burning.
+
+Fire is the one thing in this world already written to go ROUND armour --
+the dragon's breath takes no soak, and the note on it says so in as many
+words -- so a weapon that throws fire inherits that and needs no new rule:
+`pierces` is the flail's word for it and it is used here unchanged.
+
+Reach TWO, because you do not stand next to something you are setting
+alight, and `burns` so it goes on burning after the blow. The cost is the
+brimstone: six of it, which is the Crags' scarcest thing and until now was
+spent on nothing but endgame plate.
+
+It is not a gonne. A gonne is a bang and a ball and a supply line three
+countries long. This is a nasty short-range thing that a citizen can build
+once and carry forever, and it answers armour rather than distance.
+§7am: and it EATS. A weapon that pierces plate at reach two and costs
+nothing to swing is a weapon nobody puts down -- so the siphon burns
+brimstone, one measure to every eight blows, and will not light without
+it. That gives the Crags' scarcest thing an ongoing buyer instead of a
+one-off, and it means a long fight has a bottom to it.
+
+A `spec` of 'now' is the right special for a siphon and the wrong one for
+a gonne: no flurry, no volley -- one sustained gout, out of rhythm,
+when you decide. It costs the arm exactly as the maul's does.
+§7cx: AND A SIPHON HAS TO BEAT THE FLAIL IT COPIES.
+
+Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through star plate --
+against a star-flail, which pierces the same way, at 2.23 and 2.29. The
+flail wants no fuel, no smithing 62, no attack 60 and no 1450 gold, so the
+siphon was strictly dominated by a cheaper weapon that does its trick
+better. Nothing about `burns` closes that: a fire is one point every four
+intervals for eight, which is two points that cannot land the last blow --
+about a twentieth of a tick, invisible next to a gap of nine tenths.
+
+So the cadence goes to two, where every other short arm in the world sits,
+and the blow rises to answer the price. It keeps its own shape: the only
+weapon that pierces AND burns, and the only one that drinks brimstone.
+
+> from engine.js:4043-4043
+
+§7am: brass, brimstone and a haft. The Crags pay for it.
+
+## 7ao. A maul answers to strength  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:821-832
+
+§7ao: A MAUL ANSWERS TO STRENGTH.
+
+Every maul was gated on ATTACK, which is the finesse stat -- and a maul is
+the one weapon in the world that has no finesse: `acc: -12`, the worst
+accuracy on the table, bought with the largest blow. It was asking for the
+exact quality it does not have.
+
+It also left a build with nowhere to go. The spade (7al) gave strength a
+way to rise without fighting, and a citizen who took it had nothing worth
+wielding at the end of it: every weapon in the world wanted attack. A
+strength pure can pick up a maul now, which is what a strength pure would
+pick up.
+
+> from engine.js:856-858
+
+§7cm: strength alone, and high. It is the maul's argument -- a blow, not a
+roll -- and §7ao's point stands: a strength pure should have something to
+pick up at the end of the spade.
+
+> from engine.js:863-868
+
+§6bt: seventy, where every gathering skill already has its mastery tool.
+§7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
+crossbow for ranged, and nothing for strength -- which was invisible while
+mauls were gated on attack (§7ao) and glaring the moment they were not. A
+citizen who trains strength alone now has a ladder that reaches the top of
+the world like everybody else's.
+
+## 7ap. The third great arm  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:863-868
+
+§6bt: seventy, where every gathering skill already has its mastery tool.
+§7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
+crossbow for ranged, and nothing for strength -- which was invisible while
+mauls were gated on attack (§7ao) and glaring the moment they were not. A
+citizen who trains strength alone now has a ladder that reaches the top of
+the world like everybody else's.
+
+> from engine.js:2829-2834
+
+§7ap: the maul line's top, and it keeps the line's whole character -- the
+biggest blow in the world bought with the worst accuracy in it. `burns`
+because every brimstone arm burns, and this one is twenty-four of it.
+§6af-vi: the same pair as the star-maul, and its larger `hit` is the only
+thing that makes it larger. Measured over three thousand combos: ceiling
+94 against the star's 82, and neither can delete a citizen at full health.
+
+## 7bq. The hollow bow  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:2778-2798
+
+§7bq: THE HOLLOW BOW, and the asymmetry it answers.
+
+Melee trains itself: pick up a sword or nothing at all and keep swinging,
+forever, for free. Ranged asks for a continuous supply of arrows AND falls
+apart the moment the beast closes -- `clubbed` says a drawn bow at arm's
+length is a stick. So an archer looses two or three, gets rushed, and is
+holding an expensive club. That is a lot of friction to put on one skill's
+ladder and none on another's.
+
+A bow of hollow bone that whistles instead of shooting. `selfAmmo` sends
+`ammoOf` to the weapon's own name and the bow is in the WEAPON slot, not
+the pack -- so there is nothing to spend, and the same flag exempts it from
+`clubbed`, which is the other half of the problem. An archer can train.
+
+It is deliberately poor: hit 2 against the horn bow's 8, accuracy -10, and
+reach 3 where a horn bow reaches 5. Nobody takes this into the Wilds when
+they can afford arrows. It is the thing you own before you can.
+`noAmmo` rather than `selfAmmo`: selfAmmo means THE PACK IS THE MAGAZINE,
+which is right for a javelin and wrong here -- a bow in the weapon slot is
+not in the pack, so the first cut of this could not shoot at all. It needs
+nothing, and it is exempt from `clubbed` for the same reason a javelin is.
+
+> from engine.js:4045-4045
+
+§7bq: bone and gut. A fletcher's first bow, and it costs no metal at all.
+
+> from engine.js:13994-13998
+
+§7bq: ...unless the bow needs nothing. The rule and the resolver were
+patched for `noAmmo` and THIS was not -- a third door on the same
+question -- so the hollow bow validated at range and then found no
+arrow here and did nothing. Fourth time this session: validate and
+apply are two doors, and I keep walking through one.
+
+## 7br. THE DRAGONBOW (spec 6w)  [LIFTED]
+
+*Cited from 7 places in the engine.*
+
+> from engine.js:2880-2910
+
+THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
+Reach 9 is the whole weapon: nothing else in the world touches past five,
+so whoever draws it fights at a distance where almost nothing can answer.
+Against a citizen in the Wilds that is not a duel, it is a decision made
+before they knew it started.
+§6w: THE LONG SHOT. The dragonbow reaches nine, further than anything
+else in the world by four tiles, and had no special at all -- so its one
+distinction was a number in a table.
+
+It is not another 'flurry'. This world already has three specials and they
+are three different KINDS: two blows, off the rhythm, cannot miss. A
+fourth should be a fourth kind, and the obvious one for this weapon is the
+thing it alone can do.
+
+'far' scales the blow with the distance it crossed. At arm's length it is
+feeble -- worse than a dagger -- and at nine tiles it is the hardest blow
+in the world. The bow's reach stops being a number and becomes the skill:
+the shot you should not have been able to make is the one that kills.
+§6av: THE HANDGONNE. Slow, short, wildly inaccurate, and it hits like
+nothing else in the world -- a maximum blow of thirty-nine where the next
+largest is fifteen. Measured at 1.54 a tick it sits mid-table among the
+bows (heartwood 1.78, crossbow 1.57, sigil 1.51), and it loses to the two
+best weapons in the game: 9:31 against an old-chain, 11:29 against a
+dragonbow. Its `twice` is both barrels -- neutral like every other special,
+with a ceiling near eighty on the roughly one load in nine where both land.
+
+Four prototypes went into this and three were cleverer. A wind-up that
+could be walked away from landed nothing in sixty fights; a wind that
+survived walking killed a fleeing citizen thirty-three times in sixty and
+repealed §2b-i doing it. The mechanism was never the interesting part. It
+was `hit: 30`.
+
+> from engine.js:2950-2965
+
+§7br: FIRE ARROWS, if the archer is carrying them and nothing else.
+
+Melee already has a shape to choose between -- a maul that answers plate, a
+flail that goes round it, a bare blade that pays for nakedness. Ranged had
+one arrow and a ladder of bows, so the only decision an archer ever made
+was which bow they could afford.
+
+A fire arrow is a cage of tinder on a head: it SETS THE TARGET ALIGHT, it
+flies shorter because it is heavy and dirty in the air, and it is bad
+against armour, because there is no point on it to drive through plate.
+Historically right and mechanically the opposite of the siphon, which is
+fire that goes ROUND armour rather than failing against it.
+
+Chosen by what is in the pack: plain arrows first, so an archer who wants
+fire carries only fire.
+§7bs: what the archer nocked, if they still have any of it.
+
+> from engine.js:2971-2971
+
+§7br: what the shaft in the pack does to the shot
+
+## 7bs. Rule 7bs  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:2950-2965
+
+§7br: FIRE ARROWS, if the archer is carrying them and nothing else.
+
+Melee already has a shape to choose between -- a maul that answers plate, a
+flail that goes round it, a bare blade that pays for nakedness. Ranged had
+one arrow and a ladder of bows, so the only decision an archer ever made
+was which bow they could afford.
+
+A fire arrow is a cage of tinder on a head: it SETS THE TARGET ALIGHT, it
+flies shorter because it is heavy and dirty in the air, and it is bad
+against armour, because there is no point on it to drive through plate.
+Historically right and mechanically the opposite of the siphon, which is
+fire that goes ROUND armour rather than failing against it.
+
+Chosen by what is in the pack: plain arrows first, so an archer who wants
+fire carries only fire.
+§7bs: what the archer nocked, if they still have any of it.
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+> from engine.js:8702-8712
+
+§7bs: WHICH SHAFT IS ON THE STRING.
+
+`ammoOf` took plain arrows whenever any were carried, so an archer with
+both kinds in the pack always shot plain and the choice fire arrows
+exist to offer could not be made. There is no way to reorder a pack in
+this world -- no swap, no drag -- so slot order cannot carry it either.
+
+One verb. Nock a slot and that is what the bow draws until you nock
+something else or run out, at which point it falls back to whatever
+remains. A citizen meeting a naked goblin and a plated citizen in the
+same hour changes shaft between them, which is the whole point.
+
+## 7bu. A ferry is not a waystone  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:620-627
+
+§7bu: A FERRY IS NOT A WAYSTONE.
+
+Waystones were taken out of this world on purpose: recall dissolves the
+tolls, the roads, the two hundred tiles between the seam and the anvil, and
+the flight rule with them. A boat does the opposite. It runs between TWO
+NAMED POINTS and nowhere else, you must walk to the quay to take it, and
+what it reaches cannot be reached any other way. That is geography, not a
+shortcut -- it is the reason Karamja feels far rather than near.
+
+> from engine.js:2294-2295
+
+§7bu: the two quays, and which answers which. A pair, not a network: adding a
+third would make this a coach service and the island would stop being one.
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+## 7bw. A saltern  [LIFTED]
+
+*Cited from 8 places in the engine.*
+
+> from engine.js:629-630
+
+§7bw: A SALTERN. Shallow pans cut in the rock where the sea is let in and
+the wind takes the water. There is one on Whiting Isle and nowhere else.
+
+> from engine.js:1905-1905
+
+§7bw: two less than a cooked fish, and it stacks
+
+> from engine.js:1907-1914
+
+§7bw: EIGHT, and it was FOURTEEN. A cooked deep fish heals TEN -- the salted
+one was better than the thing it is meant to be a compromise for, on the one
+axis where it is supposed to lose. I set it from the deep fish's PRICE (11,
+against a common fish's 3) instead of from its heal, and never looked at the
+number it had to beat.
+
+The rule is two less than cooked, the same two the common fish pays: 6 -> 4,
+10 -> 8. It stacks and it cannot burn; it does not also feed you better.
+
+## 7bx. The hollow bow is not made  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions fletching, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:13231-13240
+
+§7bx: THE HOLLOW BOW IS NOT MADE. It was four bones and a log at
+fletching 12 -- an hour's work for a weapon that removes the arrow
+economy from training altogether. A bow that needs no ammunition is a
+large thing to hand out for the price of a log, however poor its
+numbers are, because what it costs is not damage: it is the SUPPLY
+LINE, and that is the whole of ranged's asymmetry.
+
+It comes off a skeleton-knight, one in five hundred. An archer who
+wants to train without arrows goes and earns it, which is a fair price
+for never buying another shaft.
+
+## 7by. Rule 7by  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:2593-2593
+
+§7by: identical, and cast in gold. That is the entire difference.
+
+> from engine.js:4246-4253
+
+§7by: THE GOLD CHAIN. Gold armour is star armour's equal in defence and
+nothing more -- a pure cosmetic, worn because it is worth being seen in.
+Melee had no such thing, so a citizen who wanted to look like they had
+arrived could dress the part and not arm it.
+
+The OLD CHAIN is the one to gild, and the joke is the whole reason: it is a
+length of rusted chain, the worst weapon in the world, and this is the
+version cast in gold. Same numbers exactly. Somebody will carry it.
+
+## 7ca. Rule 7ca  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:7413-7413
+
+§7ca: what each blow of a flurry did, this interval only
+
+> from engine.js:10683-10685
+
+§7ca: last interval's blows are last interval's. Cleared at the top, so the
+list only ever holds what happened THIS tick and cannot accumulate into
+state that grows without bound.
+
+> from engine.js:12638-12649
+
+§7ca: A FLURRY IS SIX BLOWS AND SAID SO ONCE.
+
+The window makes a hit splat by DIFFING hitpoints between ticks, so
+six blows landing in one interval come out as a single number. All
+the information exists here and is thrown away at the door: a
+dagger's flurry of 3,0,5,2,0,4 reads as 14, and a citizen cannot
+tell a lucky burst from an even one, or see the two that missed.
+
+`blows` is a list of what each swing did, cleared at the top of the
+next tick. It is state, so it is in the hash and validated -- a
+cosmetic that lies is worse than no cosmetic, and the only honest
+way to show six numbers is for the engine to have said six.
+
+## 7cb. The gibbet-dead  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:3297-3318
+
+BARROW-WIGHT -- the Moor again, and the reason to be careful there. It is
+what the Moorgrave is full of, if anybody had dug.
+§7ai: WARDED. A wight takes ONE from any blow unless the citizen striking
+it carries holy water -- and the flask is spent when it falls. Ten bones
+buried in consecrated ground for one fight.
+
+It is the only gate in this world that is not a level or a tool: you
+cannot buy past it, smith past it, or out-level it. You go and bury the
+dead first. That is a strange requirement and it is the point -- the Moor
+is a country of graves, and the thing that walks there answers to the only
+courtesy anybody ever paid it.
+
+GRAVE-SILVER is what it carries: worth seven hundred, made by nothing,
+mined nowhere, and the only way to it is through the ossuary.
+§7cb: THE GIBBET-DEAD. What the Mourner keeps behind the bars.
+
+It stands in a ring of iron railing in the Moorgrave: see-through, and no
+way in or out. Nobody can put a blade in it and it cannot put a hand on
+anybody, so it is fought at four tiles or not at all -- the one creature in
+the world that is ranged-only for BOTH sides.
+
+It never wanders, because it cannot. It hurls what comes to hand.
+
+> from engine.js:11070-11077
+
+§7t: AND A DUMMY IS FURNITURE. It drifted a tile or two about its post
+like every other beast, so two of them shuffled into one square and the
+yard's labels read "dibuttmy". A thing you hit to READ A NUMBER must be
+exactly where you left it -- and a straw man that walks is not a straw
+man, it is a very poor opponent.
+§7cb: ...and a caged thing does not wander either, for a different
+reason: there is nowhere to go. `dummy` would also stop it FIGHTING, and
+this one fights -- so `rooted` is the half of that flag it wants.
+
+> from engine.js:11355-11364
+
+§7cb: ...OR A THING THAT SHOOTS FROM ITS CAGE. `best === 1` is why a
+creature behind railing costs no new mechanic to imprison: it cannot
+reach out and nobody can reach in. But a caged thing that can only be
+shot at, and cannot answer, is a butt with drops -- and this world
+already has butts, at the yard, and they teach nothing above level 20.
+
+`hurls` gives it a throwing arm. The cage becomes the one fight in the
+world conducted entirely at distance, by both sides, which is a place
+ranged has and melee does not -- the mirror of every dragon that must
+be met with steel and company.
+
+## 7cd. Rule 7cd  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> from engine.js:2129-2129
+
+§7cd: past this many tiles you have lost them and the follow lapses
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+> from engine.js:8626-8636
+
+§7cd: FALL IN.
+
+Two citizens walking somewhere together should be able to walk
+together, and a small band crossing the Wilds behind one navigator is
+the best version of this and not the dangerous one. The dangerous one
+is a follow that ACTS for you: that is a bot with extra steps.
+
+So this moves your FEET and never your sword. You step after them; if
+you want to strike what they struck, you strike it yourself. That is
+exactly what made a fall-in worth doing -- a victim sees two and is hit
+by six, and every one of the six pressed the button.
+
+## 7ce. pre-freeze §1: BOTH demand fields  [LIFTED]
+
+*Cited from 6 places in the engine.*
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+> from engine.js:8556-8570
+
+§7ce: THE SECOND BOOK.
+
+Magic here was four unrelated verbs -- still, seal, char, alch -- each
+with its own requirement and no sense of WHICH magic you are doing.
+What makes a second spellbook worth having is not that its spells are
+stronger. It is that you WALK TO IT, that it changes your whole hand at
+once, and that it TAKES SOMETHING AWAY. A book that is strictly better
+is a tier with a ceremony attached.
+
+The barrow-work is turned to at an ossuary -- the Boneyard's, or the
+one at Norwick, or the Moorgrave's -- which is a journey wherever you
+start. It gives you the WAKING, which strikes everything standing
+round your mark, and it takes ALCH: the barrow-dead do not do commerce,
+and a caster who wants to turn things into money speaks the common book
+like everybody else.
+
+> from engine.js:13787-13790
+
+§7ce: THE WAKING. It strikes your mark and everything standing round
+it -- which is the one thing no other spell, arrow or blade in this
+world does. A band that can hold a group still and hit all of them at
+once is the whole reason to walk to an ossuary.
+
+## 7cf. Two books  [LIFTED]
+
+*Cited from 13 places in the engine.*
+
+> from engine.js:2131-2145
+
+§7cf: TWO BOOKS, AND NOTHING IN BOTH.
+
+Magic in this world was built as THE REJECTION OF COMBAT -- 8b. Stilling ends
+a fight, sealing shuts a way, charring unmakes, alching turns a thing into
+money. Not one of them hurts anybody, and that is the whole argument for the
+skill: a caster is somebody who has decided not to swing.
+
+A book of the dead is therefore not an ADDITION to that. It is the reversal
+of it, and the honest form of a reversal is that you cannot hold both. The
+first cut took only alch away, which made the barrow-work "the common book
+plus a war spell" -- the exact tier-with-a-ceremony it was written not to be.
+
+So the two lists are disjoint and every spell asks the same question. A
+citizen at an ossuary chooses which kind of caster they are, and walks back
+to change their mind.
+
+> from engine.js:8556-8570
+
+§7ce: THE SECOND BOOK.
+
+Magic here was four unrelated verbs -- still, seal, char, alch -- each
+with its own requirement and no sense of WHICH magic you are doing.
+What makes a second spellbook worth having is not that its spells are
+stronger. It is that you WALK TO IT, that it changes your whole hand at
+once, and that it TAKES SOMETHING AWAY. A book that is strictly better
+is a tier with a ceremony attached.
+
+The barrow-work is turned to at an ossuary -- the Boneyard's, or the
+one at Norwick, or the Moorgrave's -- which is a journey wherever you
+start. It gives you the WAKING, which strikes everything standing
+round your mark, and it takes ALCH: the barrow-dead do not do commerce,
+and a caster who wants to turn things into money speaks the common book
+like everybody else.
+
+> from engine.js:8594-8594
+
+...and nothing to take, if you are already whole
+
+## 7cg. The rot  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> from engine.js:2186-2207
+
+§7cg: THE ROT, and where the barrow book's rungs actually go.
+
+The common ladder is sparser than it looks: ALCH at 1, MEND at 50, STILLING
+at 85. Three rungs, and the top one is the highest requirement of any spell
+in the world -- because ending a fight outright is the strongest thing magic
+does and it is priced accordingly.
+
+So the barrow book is set against THAT and not against a guess. ROT at 40 is
+below mend: it is what a turned caster has instead of a first useful spell,
+and it must be reachable or nobody would ever turn before 50. THE WAKING at
+75 sits below the stilling, because striking a clump is a lesser thing than
+stopping a fight, and above everything else, because it is the reason to walk
+to an ossuary at all.
+
+    common     alch 1        mend 50       stilling 85
+    barrow     rot 40        waking 75
+
+Rot is cheap in sigils and SLOW: it does nothing at all the interval it is
+cast. It costs the caster the opening of the fight and pays over the next
+twenty-four, which is the opposite of every blade here and the reason it is
+worth having. It ignores armour entirely -- plate does not stop decay -- the
+exact inverse of the fire arrow, where plate counts double.
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+> from engine.js:10692-10695
+
+§7cg: THE ROT BITES. Every third interval, for twenty-four, and armour does
+not enter into it -- plate does not stop decay. The caster is credited so a
+spell that pays late still teaches, and the mark is cleared on death so it
+cannot follow anybody back.
+
+## 7ci. The taking  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2233-2248
+
+§7ci: THE TAKING, priced against the mend it replaces.
+
+MEND is +20 every twenty-five intervals -- a strong heal on a long leash,
+which keeps it premium without making sigil-stackers unkillable. The barrow
+book loses it, so the taking is what a turned caster has instead, and it must
+answer the same question differently rather than better.
+
+It heals LESS and has NO leash: what it costs is not time but somebody else.
+A mend closes your wounds out of nothing; a taking moves the hitpoints across
+-- exactly what it does to them is what it does for you, so it can never heal
+more than they had left, and against a corpse or a full-strength caster it
+does nothing at all.
+
+Level 60: above the rot at 40, below the waking at 75, and ten above the mend
+it stands in for -- because taking life is a worse thing to know than mending
+it, and this world charges for the worse thing.
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+## 7cj. The bone staff  [LIFTED]
+
+*Cited from 6 places in the engine.*
+
+> from engine.js:2709-2721
+
+§7cj: THE BONE STAFF. Not a better weapon -- a worse one.
+
+"A WAND SENDS WHAT A BARE HAND KEEPS" is the rule already: a caster can
+mend themselves bare-handed and needs a wand to mend anybody else. The
+barrow book had no such instrument, so the rot, the taking and the waking
+all worked out of an empty hand, which made the wand's rule look arbitrary
+rather than principled.
+
+The bone staff sends what the barrow book keeps. It is the WORST weapon in
+the world by accuracy -- worse than the wand, which was already terrible on
+purpose -- because a caster who has turned to the dead has given up hitting
+people with a stick even harder than an ordinary one has. What it does is
+carry a spell, and it is the only thing that will.
+
+> from engine.js:4255-4255
+
+§7cj: cut from a yew of the Moorgrave and bound with what the barrow gave
+
+> from engine.js:8556-8570
+
+§7ce: THE SECOND BOOK.
+
+Magic here was four unrelated verbs -- still, seal, char, alch -- each
+with its own requirement and no sense of WHICH magic you are doing.
+What makes a second spellbook worth having is not that its spells are
+stronger. It is that you WALK TO IT, that it changes your whole hand at
+once, and that it TAKES SOMETHING AWAY. A book that is strictly better
+is a tier with a ceremony attached.
+
+The barrow-work is turned to at an ossuary -- the Boneyard's, or the
+one at Norwick, or the Moorgrave's -- which is a journey wherever you
+start. It gives you the WAKING, which strikes everything standing
+round your mark, and it takes ALCH: the barrow-dead do not do commerce,
+and a caster who wants to turn things into money speaks the common book
+like everybody else.
+
+## 7ck. The withering  [LIFTED]
+
+*Cited from 8 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2250-2268
+
+§7ck: THE WITHERING, and what an endgame spell has to be the inverse OF.
+
+The common book's top is the STILLING at 85: it ENDS a fight outright, and it
+is the highest requirement in the world because that is the strongest thing
+magic does. The barrow book's answer cannot be a bigger number -- a bigger
+number is a tier -- so it is the exact reversal: the stilling stops a fight,
+and the withering makes one IMPOSSIBLE TO SURVIVE BY THE USUAL MEANS.
+
+For sixteen intervals the marked citizen cannot be healed. Not by food, not
+by a mend, not by a taking, not by anything. Their hitpoints only go down.
+
+It is terrifying because in a fight in this world, EATING IS HOW YOU LIVE --
+twenty-eight slots of cooked fish is what a duel is made of -- and this shuts
+that door while the blows keep landing. And it is the perfect price for what
+the book gave up: a caster who surrendered the mending of anybody, including
+themselves, gets in exchange the power to deny it to everybody.
+
+Level 88, three above the stilling: the last thing anybody learns. Four
+sigils, two tiles -- you must be close enough to be in the fight yourself.
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+> from engine.js:8963-8963
+
+§7ck: and you cannot mend somebody the withering has hold of
+
+## 7cl. And the barrow book had no cadence at all  [LIFTED]
+
+*Cited from 6 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2270-2289
+
+§7cl: AND THE BARROW BOOK HAD NO CADENCE AT ALL.
+
+A citizen submits ONE input an interval, so nothing can be cast twice in the
+same tick -- but nothing stopped the WAKING going off every single interval
+forever, nine damage to a whole clump for three sigils, or the TAKING moving
+eight hitpoints a tick with no leash whatsoever. The common book has leashes
+everywhere: MEND_EVERY 25, STILL_CD 150. I gave the new book none, and wrote
+in the SPEC that the taking has "no leash at all" as though that were the
+design rather than an omission.
+
+The rot and the withering were already self-limiting -- neither stacks on
+somebody who has it -- so they keep their own shape. The other two get a
+leash each, and they are the SAME leash the common book uses for the same
+kind of thing:
+
+  TAKING every 12   -- half of mend's 25, because it heals less than half of
+                       mend's 20 and takes it from somebody who felt it
+  WAKING every 40   -- it strikes a whole clump; a quarter of the stilling's
+                       150, because stopping a fight is worth more than
+                       hurting everybody in it
+
+> from engine.js:7395-7395
+
+§7cl: the leashes on the two that needed them
+
+> from engine.js:8594-8594
+
+...and nothing to take, if you are already whole
+
+## 7cm. Rule 7cm  [LIFTED]
+
+*Cited from 14 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:856-858
+
+§7cm: strength alone, and high. It is the maul's argument -- a blow, not a
+roll -- and §7ao's point stands: a strength pure should have something to
+pick up at the end of the spade.
+
+> from engine.js:2291-2292
+
+§7cm: how many names a citizen may keep. It is state, in the hash, carried by
+every node forever -- so it is bounded, like everything else here.
+
+> from engine.js:2663-2682
+
+§7cm: THE BONE SPEAR. Its damage is what you have already lost.
+
+Hit ZERO, so at full health it is worse than the iron spear a beginner
+carries -- a two-handed stick that asks strength fifty and gives nothing
+back. At fifteen hitpoints it is a maul without the maul's accuracy
+problem. It is ordinary until you are nearly dead and then it is the
+largest blow in the world, and there is no way to hold the second state
+except by being in real danger of the first.
+
+IT IS MADE OF A DRAGON, and that is what makes the sink honest. Dragon
+bones already had exactly one use -- bury them, at XP_BURY_DRAGON, on the
+longest road in the world. Now they have two, and the two are opposed in
+the only way that matters: prayer's reward is PRAYER_KEEP, "the dearest
+priced thing you carry survives your death", and `snaps` is not death.
+Bury the bones and keep your things when you fall; forge them and hold the
+one object in this world that prayer cannot save you from losing.
+
+Two bones, not three. A dragon drops three sets so that "a party has
+something to DIVIDE"; a recipe that ate all three would quietly undo that
+and make every dragon one person's spear.
+
+## 7cn. somebody who has already stood in one  [LIFTED]
+
+*Cited from 17 places in the engine.*
+
+> from engine.js:860-861
+
+§7cn: attack, mid-high. A weapon that answers a crowd should be carried by
+somebody who has already stood in one.
+
+> from engine.js:1786-1825
+
+§6bw: THE TWO REFUSALS.
+
+The mastery armour does not soak better than steel. Each piece spends itself
+to say NO, once, to the worst thing in its category -- and then it is gone.
+
+  the plate refuses DEATH: a blow that would put you at nothing leaves you
+  at one instead, and shatters.
+  the helm refuses being HELD: the next root that would take your feet does
+  not, and it shatters.
+
+Death for the body, and the loss of your own control for the head -- which
+are the two things §2b-i already says this constitution cares most about. It
+keeps both pieces off the damage ladder entirely: neither is "more armour",
+so neither starts an arms race with the great arms that answer armour.
+
+A HELM NEVER REFUSES A STILLING. A root is a weapon's grip and may be broken
+by better gear; a stilling is a TRUCE, and §6k built the whole of magic on
+it. Armour that let a master ignore a peace would undo the one capstone in
+this world that exists to stop fights rather than win them.
+
+They break rather than persist, which makes them the first consumable at the
+top of this game: a sink that scales with how often people actually fight,
+rather than with how long they have played.
+§7cn-iii: WHAT A CORPSE LEAVES, asked in ONE place.
+
+The drop loop lived inside the named target's death, so a beast killed by a
+cleave left NOTHING -- and the barb, whose whole purpose is a crowd, killed
+six wolves for a sword's eight and produced a third of the loot. It was worse
+at the only thing it exists for. A body is a body: what it carried does not
+depend on which blow of the swing reached it.
+
+XP is NOT here, and that is deliberate. A drop is the BEAST'S and belongs to
+the corpse; a lesson is YOURS and belongs to the swing, of which there was
+one. §7cn already says a weapon that taught six times an interval in a lair
+of crows would be the fastest ladder in the world, and it is right.
+
+The counted tally comes with it (v0.64): the rate is per citizen per drop, so
+five bodies in one interval advance one counter five times and the promised
+rate is the rate. A second copy of this loop is how the two halves drifted
+apart in the first place, which is the fault §11h is about.
+
+> from engine.js:2684-2703
+
+§7cn: THE BARB. The first weapon in this world that strikes MORE THAN ONE
+THING.
+
+`flurry` hits twice at the same target and that was as close as anything
+came. Meanwhile §6by deliberately built content out of CROWDS -- the risen
+the King calls up, an incursion, and the carrion-crows that are weak alone
+and never alone -- and the arsenal had no answer to numbers at all, only
+to armour (the flail), to shields (the great arms) and to plate at reach
+(the siphon).
+
+It is pure geometry. It applies no state, which is why it is a weapon and
+not a spell: the six words the barrow book already owns -- anchor, mend,
+still, wither, taking, rot -- have between them claimed every status worth
+having, and a seventh wearing a haft would be `flurry` and `volley` all
+over again.
+
+The domain selects itself, in the star-maul special's manner, with no
+exception clause anywhere: worthless on the dragon, worthless on the
+gibbet-dead behind their rail, worse than a sword in a duel, and the only
+thing anybody wants when an incursion has fixed on a neighbour.
+
+## 7cn-ii. And a cleave may not spend what it cannot pay for  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:14370-14384
+
+§7cn-ii: AND A CLEAVE MAY NOT SPEND WHAT IT CANNOT PAY FOR.
+
+A cleaved beast dies without dropping: the loot block below is
+inside the named target's `hp <= 0`, and only the named target
+ever reaches it. For an ordinary wolf that is the weapon's price
+-- it kills more and loots less. For a FINITE beast it was a hole
+in the floor of the economy: a lamprey has 448 lives in the whole
+world and each one is a spit, two of which are a barb. A citizen
+holding a barb, standing where two lampreys meet, burned the
+world's only supply of barbs and left nothing on the ground. The
+weapon ate its own source.
+
+So the cleave does not touch a finite beast at all. Not "drops
+nothing" -- it is not reached. Its life is spent only by a blow
+aimed at it, which is the blow that pays.
+
+## 7cn-iii. What a corpse leaves  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions firemaking, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:1786-1825
+
+§6bw: THE TWO REFUSALS.
+
+The mastery armour does not soak better than steel. Each piece spends itself
+to say NO, once, to the worst thing in its category -- and then it is gone.
+
+  the plate refuses DEATH: a blow that would put you at nothing leaves you
+  at one instead, and shatters.
+  the helm refuses being HELD: the next root that would take your feet does
+  not, and it shatters.
+
+Death for the body, and the loss of your own control for the head -- which
+are the two things §2b-i already says this constitution cares most about. It
+keeps both pieces off the damage ladder entirely: neither is "more armour",
+so neither starts an arms race with the great arms that answer armour.
+
+A HELM NEVER REFUSES A STILLING. A root is a weapon's grip and may be broken
+by better gear; a stilling is a TRUCE, and §6k built the whole of magic on
+it. Armour that let a master ignore a peace would undo the one capstone in
+this world that exists to stop fights rather than win them.
+
+They break rather than persist, which makes them the first consumable at the
+top of this game: a sink that scales with how often people actually fight,
+rather than with how long they have played.
+§7cn-iii: WHAT A CORPSE LEAVES, asked in ONE place.
+
+The drop loop lived inside the named target's death, so a beast killed by a
+cleave left NOTHING -- and the barb, whose whole purpose is a crowd, killed
+six wolves for a sword's eight and produced a third of the loot. It was worse
+at the only thing it exists for. A body is a body: what it carried does not
+depend on which blow of the swing reached it.
+
+XP is NOT here, and that is deliberate. A drop is the BEAST'S and belongs to
+the corpse; a lesson is YOURS and belongs to the swing, of which there was
+one. §7cn already says a weapon that taught six times an interval in a lair
+of crows would be the fastest ladder in the world, and it is right.
+
+The counted tally comes with it (v0.64): the rate is per citizen per drop, so
+five bodies in one interval advance one counter five times and the promised
+rate is the rate. A second copy of this loop is how the two halves drifted
+apart in the first place, which is the fault §11h is about.
+
+> from engine.js:14388-14388
+
+§7cn-iii: a body is a body. The same loop, the same tally.
+
+> from engine.js:14484-14494
+
+drops lie where they fall (spec §6e): loot belongs to whoever takes it
+The Reading Rule (v0.39) reaches loot too (v0.64). A drop judged by
+the tick's beacon could be TIMED: fight the beast to its last point
+of life, read the public beacon, and withhold the killing blow until
+a kind tick comes round. That turns a one-in-thirty-two drop into a
+certainty for anyone willing to wait twenty seconds, which is not a
+rare drop at all. Loot is therefore COUNTED, exactly as cooking and
+firemaking are: the tally is per citizen and per drop, so the rate is
+the promised rate and no timing can bend it.
+§6cz: an incursion's drops are chosen by the FACE it wore, and the
+tally key carries the face so each face's rate is counted on its own.
+
+## 7cp. A built thing is built of boards  [LIFTED]
+
+*Cited from 7 places in the engine.*
+
+> from engine.js:1206-1258
+
+---------------------------------------------------------------------------
+A CITIZEN'S STALL
+---------------------------------------------------------------------------
+Every economic rule in this constitution ends the same way: the only
+sensible buyer is another citizen. Magic-stone at twenty when a plate wants
+seven. Dragon-bones at five hundred when they are worth six thousand. A
+keeper's purse holding twelve hundred against a master smith's thirty-five
+million. The world is built to force citizens to trade with each other --
+and until now that required both of them awake at the same moment.
+
+A stall a citizen raises sells while they sleep.
+
+STOCK IS ONE-WAY, and that single rule is what keeps it a shop. You may put
+things in; the only ways out are a SALE or a SPILL. Never a withdrawal.
+Without it a stall in the Wilds is a bank in the Wilds -- mine twenty-eight
+stones, walk five tiles, empty the pack, mine twenty-eight more -- and the
+six thousand trips out of the Wilds that the whole star economy rests on
+would simply evaporate.
+
+THE PRICE IS NOT THE WORLD'S BUSINESS. There is no cap on the ask. What a
+thing is worth between two citizens is the one number in this world that no
+rule should touch; a ceiling would be the constitution having an opinion
+about a market it exists to make possible.
+
+It never blocks a tile, so no run of stalls can wall anybody in or out.
+§7cp: A BUILT THING IS BUILT OF BOARDS.
+
+The stall cost SIXTEEN LOGS and eight ore -- twenty-four slots of a pack of
+twenty-eight -- and it still did after the sawpit and planks were added. The
+toll at Millbrook takes planks and nothing else in the world does, so the
+whole middle of that chain existed for one bridge-keeper.
+
+A log is a tree you dragged. A board is a thing somebody made. Everything
+this world BUILDS should be built of the second, and the sawpit is where the
+first becomes it.
+
+The arithmetic is deliberate: sixteen logs sawn is THIRTY-TWO planks, so the
+stall costs the same wood and MORE WORK -- fell sixteen, walk to a sawpit,
+saw sixteen, then build. What it costs less of is CARRYING, because planks
+stack and logs do not: twenty-four slots becomes two. That is the right trade
+for a thing you build once and stand beside for hours.
+§7da: IRON ORE, BECAUSE `ore` CANNOT BE MINED.
+
+The old `rock` seam that yielded `ore` was retired and replaced by `iron-rock`
+yielding `iron-ore` -- and the stall's recipe was never moved with it. There
+are ZERO rock nodes on the island, so a stall cost eight of a thing no pickaxe
+can produce. It survives only as a rare mob drop and a waymark find, which is
+not a supply, it is a lottery.
+
+A recipe whose material was retired is a recipe nobody can complete, and it
+had been that way since the seam table was rewritten. This is the same fault
+as the room list that outlived its town (7bd) and the buildLogs key that
+outlived planks (7cp): a table changed, and the things that read it did not.
+
+> from engine.js:6447-6461
+
+brewing (v0.51): a profession rate-limited by fermentation; constants
+are THIS world's, in the founding record, a larger world tunes its own.
+6bm: THIRTEEN AND A HALF THOUSAND AN URN WAS A HUNDRED AND
+EIGHTY HOURS TO NINETY-NINE -- the fastest mastery in the world by
+a factor of five, and it cost TWO TENTHS OF ONE PER CENT of a
+citizen's intervals. Brewing is meant to be rate-limited by
+fermentation, and it was: the limit was simply set so high that
+owning four urns was worth more than any trade anybody worked.
+
+Nine hundred an urn, eight urns, half an hour to ferment. The wait
+is shorter and there is more of it going at once, so a brewer must
+actually come back to their fire twice an hour instead of once --
+and the rate lands at nine hundred hours, beside everything else.
+§7cp: eight boards, not four logs -- the same wood, sawn. A brewpot is a
+built thing and everything built here is built of boards now.
+
+> from engine.js:9336-9336
+
+6ci: a chart opens nothing; it is sold, not spent.
+
+## 7cs. MENDP and UNMAKE were missed on the first pass  [LIFTED]
+
+*Cited from 7 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions firemaking, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2147-2164
+
+MENDP and UNMAKE were missed on the first pass, which is the whole reason a
+gate belongs in ONE table rather than at six call sites: I gated the four
+spells I happened to grep for and a caster on the barrow book could still
+heal and still unmake.
+...and CHAR IS NOT A SPELL. It wants a lit watchfire and a FIREMAKING
+level and no sigil at all -- it is what a fire-tender does to wood, and I
+gated a fire-tender's verb behind a spellbook because it lives in the same
+switch as the ones that are. The list is the six that spend a sigil:
+
+  alch      turn a thing into money
+  mend      close your own wounds       (cast: mend)
+  mendp     close somebody else's       (with a wand)
+  still     end a fight                 (cast, and with a wand)
+  seal      shut a way
+  unmake    take a thing apart
+  anchor    the recall to Anchor        (cast: anchor)
+
+Every one of them refuses, repairs or unmakes. Not one hurts anybody.
+
+> from engine.js:2171-2178
+
+§7cs: ...and nowhere on the Lists. Every spell in both books asks `speaks`,
+so one line closes all eleven of them rather than eleven lines that can drift
+apart -- which is exactly the fault 7cf was written about.
+
+The engine cannot see isles: `islesOf` is worldgen and this file must not
+import it. But it CAN see the ferry that stands on the isle, and the isle is
+small -- so "within the Lists" is "within LISTS_SPAN of the quay you can only
+have arrived at by boat".
+
+> from engine.js:2298-2298
+
+§7cs: a second PAIR, off a different quay. Two crossings, not a network.
+
+## 7ct. Rule 7ct  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:2320-2322
+
+§7ct: how long after a blow -- struck or taken -- the boat will not have you.
+Eight intervals: long enough that fleeing is a decision and not a reflex,
+short enough that a fight that is genuinely over lets you go home.
+
+> from engine.js:8679-8689
+
+§7ct: AND THE BOAT IS NOT AN ESCAPE HATCH.
+
+`sail` refused nothing -- not rooted, not branded, not mid-fight -- so
+on the Lists it was a keystroke that ended any fight you were losing,
+from a tile everybody knows the location of. That is exactly what 2k
+forbids the ANCHOR for: "the walk out, the decision whether to keep
+going with a full pack, was answered by a keystroke."
+
+A boat is not a recall and it should not become one. It answers to the
+same two rules the anchor does, and to a third of its own: a fight you
+are in is a fight you are in.
+
+## 7cv. The charter  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:2324-2340
+
+§7cv: THE CHARTER, and why it is not a chart.
+
+A master explorer already makes CHARTS -- and the engine says of them, "it
+opens no doors, nobody travels by it, it is the export of a trade whose whole
+product was previously experience." That sentence is worth keeping true, so
+the charter is a different thing MADE from one: a chart of a crossing, drawn
+up as a licence for a voyage, which is what the word has always meant.
+
+It is spent on the boat to the LISTS and not on the boat to Whiting. Whiting
+is work -- salt, and the fish that becomes cargo -- and gating a trade behind
+somebody else's skill would put a toll on a living. The Lists is a place you
+go to fight, and a fight can afford a price.
+
+What it buys is an economy nobody designed: the master explorer is a citizen
+who has done nothing but WALK, peacefully, for a very long time, and he turns
+out to be the person who supplies the fighters. Ninety levels of wandering,
+sold to people about to lose everything they carry.
+
+> from engine.js:4954-4956
+
+pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
+item trade carries wantGold: 0; the canonical gold trade carries
+wantItem: null. Omission is not a representation.
+
+> from engine.js:8507-8507
+
+§7cv: only a master, and only from a chart they are holding.
+
+## 7cw. Rule 7cw  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:7387-7387
+
+§7cw: whether the boat to the Lists knows them
+
+> from engine.js:8660-8676
+
+§7cw: A CHARTER IS SPENT ONCE, AND YOU ARE CHARTERED FOR GOOD.
+
+It was consumed on every crossing out, and DEATH RETURNS YOU TO SPAWN
+-- 142 tiles from the Fenmarch quay. So on a duelling isle where the
+whole point is fighting repeatedly and losing everything, each death
+cost a fresh charter and a walk across the island. That is not risk,
+it is FRICTION, and the two are not the same thing: risk makes a
+decision interesting, friction makes it tiresome.
+
+Spent once. After that the boat knows you. What the explorer sells is
+not a ticket but an INTRODUCTION -- every citizen buys exactly one,
+ever, and the market is every citizen who ever decides to fight rather
+than every fight anybody has.
+
+(Which is also the honest version of what a charter IS. A licence for a
+voyage is a thing you are granted, not a thing you hand over at a gate
+each time.)
+
+## 7cx. And a siphon has to beat the flail it copies  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions smithing, merged into `earthcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2598-2635
+
+§7am: THE SIPHON. A brass tube on a pump, and what comes out of it sticks
+and keeps burning.
+
+Fire is the one thing in this world already written to go ROUND armour --
+the dragon's breath takes no soak, and the note on it says so in as many
+words -- so a weapon that throws fire inherits that and needs no new rule:
+`pierces` is the flail's word for it and it is used here unchanged.
+
+Reach TWO, because you do not stand next to something you are setting
+alight, and `burns` so it goes on burning after the blow. The cost is the
+brimstone: six of it, which is the Crags' scarcest thing and until now was
+spent on nothing but endgame plate.
+
+It is not a gonne. A gonne is a bang and a ball and a supply line three
+countries long. This is a nasty short-range thing that a citizen can build
+once and carry forever, and it answers armour rather than distance.
+§7am: and it EATS. A weapon that pierces plate at reach two and costs
+nothing to swing is a weapon nobody puts down -- so the siphon burns
+brimstone, one measure to every eight blows, and will not light without
+it. That gives the Crags' scarcest thing an ongoing buyer instead of a
+one-off, and it means a long fight has a bottom to it.
+
+A `spec` of 'now' is the right special for a siphon and the wrong one for
+a gonne: no flurry, no volley -- one sustained gout, out of rhythm,
+when you decide. It costs the arm exactly as the maul's does.
+§7cx: AND A SIPHON HAS TO BEAT THE FLAIL IT COPIES.
+
+Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through star plate --
+against a star-flail, which pierces the same way, at 2.23 and 2.29. The
+flail wants no fuel, no smithing 62, no attack 60 and no 1450 gold, so the
+siphon was strictly dominated by a cheaper weapon that does its trick
+better. Nothing about `burns` closes that: a fire is one point every four
+intervals for eight, which is two points that cannot land the last blow --
+about a twentieth of a tick, invisible next to a gap of nine tenths.
+
+So the cadence goes to two, where every other short arm in the world sits,
+and the blow rises to answer the price. It keeps its own shape: the only
+weapon that pierces AND burns, and the only one that drinks brimstone.
+
+## 7cy. Rule 7cy  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:2061-2062
+
+§7ai: ten bones to a flask
+§7cy: how many hands a work remembers, and for how long
+
+> from engine.js:7669-7680
+
+§7cy: THE HANDS THAT HAVE BEEN HERE.
+
+A specialist in this world is unfindable. The rune-crafter was findable
+because they STOOD at the altar for hours and you could see them -- but
+this world will not have a directory of who is online and where, because
+that repeals the walk as surely as a waystone does.
+
+A TRACE, then, and not a tracker. A work remembers the last few citizens
+who used it and how long ago, and it tells you when you stand beside it.
+It says who works here; it does not say where they are. You still have to
+go to the furnace to learn who works the furnace, and you still have to
+find them yourself.
+
+> from engine.js:10223-10224
+
+§7cy: the same search, answering with the NODE. `hasAdjacentNode` returns a
+boolean and the work log needs the thing itself to write on.
+
+## 7cz. Rubble  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:3902-3920
+
+§7cz: RUBBLE, WHICH DID NOTHING AT ALL.
+
+Two mentions in the whole engine: the rockfall that yields it and the item
+list. You could mine it and it fed nothing, bought nothing, and built
+nothing -- a gather with no consequence, which is the only kind of work this
+world has that is not work.
+
+And FARMING took nothing from any other skill. Seeds go in, twelve minutes
+pass, grain comes out; no tool, no input, no reason to have done anything
+else first. It is the most isolated skill on the island.
+
+So the two answer each other. Rubble is broken stone, and broken stone
+spread on a plot is what makes ground drain and warm: MARL. Sow with rubble
+in the pack and the crop comes on in two thirds the time. It is not a bigger
+harvest -- farming's yield is farming's business -- it is the WAIT, which is
+the thing a farmer actually spends.
+
+A miner who has never sown now makes something a farmer wants, out of a node
+that was previously a way to waste a pickaxe.
+
+> from engine.js:8921-8925
+
+§11d: THE WILDS, OR TWO CONSIGNMENTS. The Wilds is a rectangle where
+the law thins (§2g); a consignment is that same thinning carried on a
+body, by consent, and it reaches wherever that body goes. BOTH must
+bear one -- which is what makes a thief a hauler with different
+intentions, and why there is no thieving skill.
+
+> from engine.js:12817-12823
+
+§7cz: MARL, if they brought it. Broken stone spread on the row makes
+the ground drain and warm, and the crop comes on in two thirds the
+time. It needs NO NEW STATE: `crops[plotId]` is the tick it was sown,
+and a marled row is simply sown EARLIER than it was. Ripeness is
+already `tick - sown >= GROW_TICKS_RIPE` in two places, and both get
+this for nothing -- which is the only way to change a rule that lives
+in two places without them drifting apart.
+
+## 7da. Iron ore  [LIFTED]
+
+*Cited from 7 places in the engine.*
+
+> from engine.js:1206-1258
+
+---------------------------------------------------------------------------
+A CITIZEN'S STALL
+---------------------------------------------------------------------------
+Every economic rule in this constitution ends the same way: the only
+sensible buyer is another citizen. Magic-stone at twenty when a plate wants
+seven. Dragon-bones at five hundred when they are worth six thousand. A
+keeper's purse holding twelve hundred against a master smith's thirty-five
+million. The world is built to force citizens to trade with each other --
+and until now that required both of them awake at the same moment.
+
+A stall a citizen raises sells while they sleep.
+
+STOCK IS ONE-WAY, and that single rule is what keeps it a shop. You may put
+things in; the only ways out are a SALE or a SPILL. Never a withdrawal.
+Without it a stall in the Wilds is a bank in the Wilds -- mine twenty-eight
+stones, walk five tiles, empty the pack, mine twenty-eight more -- and the
+six thousand trips out of the Wilds that the whole star economy rests on
+would simply evaporate.
+
+THE PRICE IS NOT THE WORLD'S BUSINESS. There is no cap on the ask. What a
+thing is worth between two citizens is the one number in this world that no
+rule should touch; a ceiling would be the constitution having an opinion
+about a market it exists to make possible.
+
+It never blocks a tile, so no run of stalls can wall anybody in or out.
+§7cp: A BUILT THING IS BUILT OF BOARDS.
+
+The stall cost SIXTEEN LOGS and eight ore -- twenty-four slots of a pack of
+twenty-eight -- and it still did after the sawpit and planks were added. The
+toll at Millbrook takes planks and nothing else in the world does, so the
+whole middle of that chain existed for one bridge-keeper.
+
+A log is a tree you dragged. A board is a thing somebody made. Everything
+this world BUILDS should be built of the second, and the sawpit is where the
+first becomes it.
+
+The arithmetic is deliberate: sixteen logs sawn is THIRTY-TWO planks, so the
+stall costs the same wood and MORE WORK -- fell sixteen, walk to a sawpit,
+saw sixteen, then build. What it costs less of is CARRYING, because planks
+stack and logs do not: twenty-four slots becomes two. That is the right trade
+for a thing you build once and stand beside for hours.
+§7da: IRON ORE, BECAUSE `ore` CANNOT BE MINED.
+
+The old `rock` seam that yielded `ore` was retired and replaced by `iron-rock`
+yielding `iron-ore` -- and the stall's recipe was never moved with it. There
+are ZERO rock nodes on the island, so a stall cost eight of a thing no pickaxe
+can produce. It survives only as a rare mob drop and a waymark find, which is
+not a supply, it is a lottery.
+
+A recipe whose material was retired is a recipe nobody can complete, and it
+had been that way since the seam table was rewritten. This is the same fault
+as the room list that outlived its town (7bd) and the buildLogs key that
+outlived planks (7cp): a table changed, and the things that read it did not.
+
+> from engine.js:9001-9004
+
+§6ao (v6): A STALL LINES THE ROAD -- and it must be REFUSED here, not
+silently at completion. The check lived only in the resolver, so a
+citizen stood twenty intervals in the wrong place and got nothing,
+with no refusal to read. Two gates that must agree.
+
+> from engine.js:9336-9336
+
+6ci: a chart opens nothing; it is sold, not spent.
+
+## 7dc. Coal burns longer than charcoal  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions firemaking, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2355-2388
+
+§7r: one coal buys the furnace this many intervals of heat, and it will not
+bank more than the cap -- so a fire cannot be stoked once and left for a
+week, and there is a reason for somebody to be standing there.
+§7r: one coal buys the furnace this many intervals of heat (an hour is
+6,000 at 600ms a tick), and it will not bank past the cap -- so a fire cannot
+be stoked once and left for a week, and there is a reason for somebody to be
+standing there.
+
+TWENTY-SIX, and the first cut said twelve. The watchfire -- this world's
+other public fire -- pays TWENTY for a log, and coal is dearer than a log by
+every measure the constitution already has: mining 21 against a chop, and
+hardness 2. Twelve made the dearer fuel pay less, which meant the fireman
+was doing it for the greater good and nobody does a job for the greater good
+twice. A stoke may be sent every interval, and a full fire still takes the
+coal and still pays for it (the watchfire's own rule, for the same reason),
+so the rate is bounded by what a citizen can mine -- which is the honest
+bound, and self-limiting.
+§7dc: COAL BURNS LONGER THAN CHARCOAL, AND IS NOW WORTH MINING.
+
+Coal was strictly the worse material. It substituted for charcoal as fuel
+ONE FOR ONE, and charcoal also had a monopoly on gunpowder -- which is
+correct and should stay, because real powder wants charcoal and coal's
+sulphur makes a bad one. So a woodcutter at firemaking 60 could do
+everything a coal miner could, plus one thing more, and coal existed to be
+the option you took when you could not be bothered.
+
+What coal actually IS, is denser. It burns hotter and longer, which is why
+the world went to the trouble of digging it out of the ground instead of
+making charcoal forever. So it lasts half again as long in the furnace.
+
+The result is two fuels with two masters. A fire-keeper wants COAL, because
+each one buys more hours of fire; a powder-maker wants CHARCOAL, because
+nothing else will do. A miner and a woodcutter now supply different people,
+instead of one of them supplying everybody.
+
+> from engine.js:13196-13196
+
+§7dc: and the fire knows which it was given
+
+## 7dd. And coal banks a watchfire  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> from engine.js:4541-4554
+
+§7dd: AND COAL BANKS A WATCHFIRE. Six seams feed ONE furnace, which is why
+coal is thirty times oversupplied -- the demand does not grow with the number
+of citizens, because there is only ever one fire that wants it.
+
+A WATCHFIRE does grow: they are player-built, two to a citizen, and every one
+of them has to be fed or it goes out. Coal banks one the way it banks a
+furnace -- three logs' worth from a single lump, because that is what denser
+fuel means and it is the same 1.5x the furnace already gives it over
+charcoal.
+
+It closes a loop that was half-open: CHARRING NEEDS A LIT WATCHFIRE, and
+charcoal is what powder is made of. So a coal miner keeps the fire that makes
+the charcoal that somebody else turns into powder. The miner supplies the
+burner supplies the gunner, and none of the three can do the others' work.
+
+> from engine.js:9442-9447
+
+AND THE VALIDATOR MUST AGREE. Relaxing only the executor would have
+left the input refused at the gate and the change invisible: the same
+validator/executor drift this file has been bitten by three times.
+A full fire still takes the log; it simply gains no burn from it.
+§7dd: ...and coal, which banks it. The note above is about exactly this
+fault and I nearly committed it a seventh time in the same function.
+
+> from engine.js:13196-13196
+
+§7dc: and the fire knows which it was given
+
+## 7dg. The smokerack  [LIFTED]
+
+*Cited from 10 places in the engine.*
+
+> from engine.js:454-465
+
+§7dg: THE SMOKERACK, and why it is not a shelf.
+
+The Eel Sheds were drawn with four 'v' glyphs -- shelves -- years before
+anything could be done with one. A shelf is a `landmark`: it is furniture,
+it is scenery, and nothing may be left on it. A rack holds one citizen's
+catch for a fixed number of intervals and hands it back changed, which is
+a different noun and earns its own type, exactly as the fountain did.
+
+NOT 'rack', and not 'eel-rack'. `eel-rack` is already a landmark KIND in
+the fen group beside `sunken-wall` -- decorative plank racks over standing
+water. Two nouns one letter apart, one of them scenery and one of them
+holding your dinner, is a bug waiting for whoever reads this next.
+
+> from engine.js:2011-2022
+
+§7dg: A SMOKED EEL HEALS FIVE, WHICH IS LESS THAN A COOKED ONE.
+
+The ladder tops out at HEAL_DEEP_FISH (10) and bread at seven is
+deliberately the strongest single bite a citizen can make. A high-heal
+smoked eel would be a deep fish obtainable without ever entering the Wilds,
+and it would undercut the deep fish the day it shipped. Worse: there are
+four racks in the world, and a scarce STAPLE is only annoying where a
+scarce UTILITY is interesting.
+
+So this is not food. It is a counter that happens to be edible, and what it
+counters is rot -- see the eat branch. Smoke stops rot; that is not a pun,
+it is the reason the technology exists, and nobody has to be told.
+
+> from engine.js:2210-2231
+
+§7dg: SMOKING, AND THE WINDOW.
+
+Longer than a ferment (genesis.brew.ferment is 3000) because smoking is
+slower than fermenting and because the rack is the scarcer vessel: there
+are four in the world and eight brewpots to a citizen.
+
+Module constants and NOT genesis, deliberately. validateGenesis pins
+genesis.brew by an exact key list -- Object.keys(bw).sort().join(',') --
+so a `smoke` block there is a constitutional change to a table that has
+nothing to do with eels. These are the same shape as ROT_TICKS above.
+
+THE WINDOW IS THE LOAD-BEARING NUMBER. §7e made the inn's pot hold nothing
+so that no citizen could sit on it, and four racks world-wide is exactly
+the case that rule feared. The answer is not the public-pot trick -- the
+scarcity here IS the design -- it is a clock on BOTH ends: a rack finishes,
+stays collectable for a window, and then the catch is over-smoked and the
+rack clears itself. The longest anyone can hold a rack is bounded, it
+costs them the eel, and it resolves with nobody intervening.
+
+It also turns a rack into an APPOINTMENT. You have to come back, and being
+late is a real loss -- which is the one thing a world with no clock of its
+own has been short of.
+
+## 7di. Rule 7di  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:7139-7156
+
+§7di: THE SCENE NOUNS (worldgen-scenes-v7).
+
+The island had fifty-seven kinds and two thousand of them standing about,
+one at a time, spread by a hash. It was never short of nouns; it was short
+of SENTENCES. A stump alone is texture. A stump, a second stump, a
+chopping-block and a cold charcoal-ring within four tiles is somebody’s
+afternoon, and the difference between those two things is the whole of
+what makes a world look authored rather than generated.
+
+These are the words the scenes needed and the fifty-seven could not say.
+Most of them are LABOUR CAUGHT IN THE MIDDLE -- a scaffold, wood-chips, a
+wheel-rut, an unfired shot-hole -- because a trace of work implies a
+person who is not on the map, and that implication is most of what makes
+a country feel lived in.
+
+Cheap, and safe, for the reason §7o gives: no verb in this constitution
+reaches a landmark. It cannot be worked, fought, lit or consumed. A kind
+adds texture to the world without adding a rule to the world.
+
+## 7dj. A stone-heap is not a cairn  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:7189-7194
+
+§7dj: and four that exist only because the obvious word already has a job.
+A stone-heap is not a cairn, a way-post is not a milestone, a slag-lump is
+not a glass-stone and a hay-wain is not a cart -- each of those four is
+reachable by a verb (the first three are GRAVABLE, the fourth is a node
+type a hauler drops on death with a shelf anybody may unload). Scenery is
+cosmetic and nothing else, so scenery gets its own words.
+
+## 7dk. A record needs a clock  [LIFTED]
+
+*Cited from 18 places in the engine.*
+
+> from engine.js:2466-2489
+
+§7dk: THE RECORD BAND -- fifty to ninety-nine.
+
+A record needs a clock, and the two obvious places to start it are both
+wrong. FROM WAKING means a citizen must decide their trade before they have
+seen the island: a bet placed blind, and every record thereafter belongs to
+whoever guessed. FROM FIRST EXPERIENCE is better but it cannot be refused:
+prowess is paid both to whoever LANDS a blow and to whoever is HIT, so one
+goblin on your first day starts a clock you never chose, and a year at the
+trees afterwards has ruined a board by playing normally. (This note is older
+than §5j and named three skills where there is now one; the hazard it
+describes is unchanged and so is the reasoning. It used to add that
+1154, so its "first experience" is at waking for everybody alive.
+
+FIFTY IS THE ONE LINE THAT WORKS FOR ALL EIGHTEEN. Nothing crosses it by
+accident, nobody has to choose before waking, and it is about an eighth of
+the way to ninety-nine by experience -- so the band is the great majority of
+the work and all of the interesting part, since everything below it is the
+tutorial of whichever trade it belongs to.
+
+It also bounds the obvious cheat. Started at first experience, a citizen
+could bank two hundred thousand raw fish across a year and only THEN gain
+one cooking experience, and the record would measure nothing but how fast
+they could press a button. Crossing fifty first means the preparation window
+is narrow and the preparer is already committed to that trade.
+
+> from engine.js:4861-4867
+
+§7dk: a deliberate yes or no, and ALWAYS PRESENT.
+
+validateInputShape requires every field a schema names -- there is no
+optional-field mechanism in this constitution and adding one would be a
+far larger change than this rule deserves. So the confirmation is simply
+part of the verb, stated either way, and there is exactly one
+serialisation of each intent.
+
+> from engine.js:4991-4993
+
+§7dk: `confirm` says the citizen knows this pile is not theirs. Required
+on every pickup and only ever CHECKED when the pile belongs to somebody
+else, so an ordinary pickup sends false and nothing about it changes.
+
+## 7dl. Passability is a property of the crossing  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:5477-5504
+
+§7dl: PASSABILITY IS A PROPERTY OF THE CROSSING, NOT ONLY OF THE TILE.
+
+`terrainBlocked` answers whether a tile can be stood on, and that is all the
+island ever needed while every obstacle was a wall. It is not enough for the
+kind of friction that makes a country memorable: a gap you can only squeeze
+through with a light pack, a scree you can come down and not climb, a ford
+the river takes back twice a day, a pass that wants something burning.
+
+AND IT MUST NOT TOUCH SPEED. Everyone walks one tile an interval and §2b-i
+leans on it -- a pursuer who moves cannot swing, so the runner gains a tile
+-- which is why no citizen can be robbed and why the armour tax was
+repealed. Slow ground would mean relitigating the flight rule to get a snow
+effect. So the friction is in WHETHER, never in HOW FAST.
+
+A SECOND PREDICATE, NOT A REPLACEMENT. `terrainBlocked` is asked first and
+unchanged; this is only consulted for a tile the citizen could otherwise
+stand on. Nine of the ten places the engine asks about terrain are the world
+moving itself -- mob wander, spawn, scatter, the incursion -- and none of
+them carries a pack or a direction, so none of them changes. Exactly one
+call site is a citizen moving.
+
+A generator that exports no `crossing` produces a world identical in every
+tile, which is the same courtesy layPlan gives its legend.
+
+THE ROUTER GETS THE PESSIMISTIC ANSWER, deliberately -- see the note in
+worldgen. A road that depended on a crossing a citizen might fail is a road
+that is sometimes not there, and §14a's rule stands: a way round must exist,
+or the gate is a hostage rather than a choice.
+
+> from engine.js:8258-8259
+
+§7dl: ...and then whether THIS citizen may make THIS crossing. The one
+place in the engine where terrain is asked about a person.
+
+## 7dm. Rule 7dm  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:7219-7219
+
+§7dm: the hardest rung ever worked, per skill
+
+> from engine.js:7449-7450
+
+§7dm: `top` -- the hardest rung ever worked, per skill. The ladder is
+1, 2, 4, 8, so the mark is small and monotonic.
+
+> from engine.js:14676-14699
+
+§7dm: THE HIGH-WATER MARK -- the hardest rung this citizen has ever
+worked in this skill.
+
+Two years and 532,000 shrimp for a ninety-nine caught on the small net
+alone. Somebody did that, and a company's data team had to be asked to
+go through their logs and confirm it. THIS WORLD CAN SETTLE IT IN ONE
+COMPARISON, for ever, and it costs one small integer.
+
+Half the genre is already free here: a ten-hitpoint citizen reads 1154
+experience because that is where hitpoints begins and nothing else ever
+paid them; one defence reads zero; never cast a spell reads zero magic.
+Every "pure" is a DERIVED fact of state that anybody can check.
+
+What is NOT visible in a skill number is METHOD -- only the small net,
+only the shallow seam -- and this is the whole of what method costs. It
+is monotonic, so it cannot be washed off, and it needs no history at
+all, which matters because a node DISCARDS its inputs the interval it
+executes them. Nothing not written down here can ever be asked later.
+
+FACTS, NOT ACHIEVEMENTS. There is no table of blessed challenges and
+there must not be: nobody designed "only small net", a player invented
+it, and a challenge the world has already named and rewarded is not
+self-imposed any more -- it is a quest. The world records dumb
+monotonic facts and leaves the inventing to citizens.
+
+## 7dn. The ruin nouns  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:7200-7205
+
+§7dn: THE RUIN NOUNS. A ruin is legible when you can still read what it
+WAS -- one wall to full height with a window in it, a stump of tower, a
+course of stone at knee height you step over. A half-wall is the one that
+matters: it lets a ruin be a floor plan a citizen walks THROUGH rather
+than a silhouette they walk around, and a ruin you cannot enter is only
+scenery. Cosmetic, like every landmark: no verb reaches them.
+
+## 7do. A hoard  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:467-475
+
+§7do: A HOARD. Grave goods, in a barrow, behind a squeeze.
+
+Not a cart: a cart's `unload` takes the DEAREST thing automatically,
+because whoever stops at a dead hauler's shelf would reach for the plate
+before the ore and a script would do it anyway. A hoard is the opposite --
+the whole of it is that a citizen CHOOSES, having got in with three slots.
+
+Not a stall either: nothing is bought here and there is no keeper. It is a
+hole in the ground with things in it that somebody was buried with.
+
+> from engine.js:5007-5008
+
+§7do: one named thing out of a hoard. `item` is required and checked,
+because the choosing is the point.
+
+> from engine.js:7649-7654
+
+§6al: and a stall a citizen raised, which keeps ONE good
+§6l: a store keeps no shelf. Only a citizen's stall and a spilled cart.
+§7do: ...and a hoard, which is neither. A stall's shelf is stock a
+citizen priced, a cart's is what a dead hauler spilled, and a hoard's
+is what somebody was buried with. Three different sentences that
+happen to be the same shape.
+
+## 7dp. Rule 7dp  [LIFTED]
+
+*Cited from 6 places in the engine.*
+
+> from engine.js:4265-4268
+
+§7dp: the four barrow masks. `slotOf` knew where they sit and this did not,
+so a masked citizen was an unconstitutional one -- the two lists have to
+agree or an item can be worn by the executor and rejected by the validator,
+which is a fork.
+
+> from engine.js:4313-4323
+
+§7dp: THE BARROW MASKS. Four skulls, four ways to look, and a citizen may
+take ONE of them in their whole life.
+
+Purely cosmetic by the cinder-crown's own route: they are in `slotOf` and
+NOT in ARMOUR, so armourOf reads them as zero and a mask soaks nothing.
+Wearing one costs a helm, which is the only price they have.
+
+ALL FOUR ARE THE HEAD. Four variants of one slot, never four slots -- so
+even a citizen who somehow gathered the set can wear one at a time, and
+the choosing stays visible for ever instead of being solved by owning
+everything.
+
+> from engine.js:4411-4411
+
+§7dp: and the four barrow masks, on the same terms
+
+## 7dq. A quencher  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:3324-3347
+
+§7dq: A QUENCHER. Steel passes through it; only fire tells.
+
+Named for what a citizen actually experiences rather than for what it is:
+nobody meeting one in the Smother learns its nature, they learn that the
+light goes. `dark-thing` was a placeholder and read like one -- a
+description standing in for a name -- and a world that has a Gibbet King
+and a Barrow Warden in it should not have a noun with a hyphen and a
+shrug in the middle.
+
+The exact mirror of the wight above. A wight shrugs off steel UNLESS you
+carry holy water -- a flask you buy with ten burials. This shrugs off
+everything that is not burning, and the answer is a weapon that burns:
+the great sword, the great crossbow, the fire-siphon fed on brimstone.
+
+PREPARATION, NOT PROGRESSION, which is the whole reason it is fire and not
+"great weapons only". Great weapons are top of the ladder, so gating on
+them would lock the cave behind gear and nothing else. Brimstone and a
+burning blade are things anybody may bring, at a cost, at any level -- the
+same axis the squeeze reads, and the same axis the toll reads at the
+bridge. What it asks is forethought.
+
+It also gives the Crags' hardest seam somewhere its output is REQUIRED
+rather than merely valuable. Brimstone has been the fuel of the fire-siphon
+since §6da and nothing has ever needed the fire-siphon.
+
+> from engine.js:5518-5521
+
+§7dq: ...and whether anything they hold is burning. Derived from the
+weapon table, so terrain never learns a list of items: a great sword, a
+great crossbow, the fire-siphon with fuel in the pack. A siphon with no
+brimstone is not lit, which is the whole reason brimstone matters.
+
+> from engine.js:14292-14294
+
+§7dq: the same at range as in reach. A great crossbow burns and an
+ordinary bow does not, so the answer to a thing of the dark is the
+answer whichever hand you fight with.
+
+## 7dr. How long a torch lasts  [LIFTED]
+
+*Cited from 5 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:1774-1783
+
+§7dr: HOW LONG A TORCH LASTS, and why it going out is the best part.
+
+It turns the cave into a clock without adding a single system. A citizen goes
+in knowing how much light they have; they may always walk out and relight,
+because the mouth is only asked about on the way IN -- but the walk back costs
+them the trip. That is the whole tension, and it is one integer.
+
+A FIXED TIMER, not "while held". A torch burning in your pack is a torch
+burning, and a rule that paused it would be a rule about inventory management
+rather than about fire.
+
+> from engine.js:2801-2825
+
+§6bt: THE GREAT ARMS. Level seventy, where woodcutting, mining and fishing
+each got a mastery tool and combat got nothing at all -- attack's last
+unlock was fifty-five and then forty-four levels of nothing to want.
+
+They are NOT a fourth tier. A tier is a bigger number and would make
+starmetal a stepping stone; the `great` tools earn their place by ACCESS
+(a great-hatchet fells a wood nothing else fells), and these earn theirs
+the same way: they answer a defence rather than out-damage one.
+
+  `breaks` -- the off-hand shield is not there. §6x gave the flail
+  `pierces` against ARMOUR and reasoned that the answer to a defensive
+  system belongs to people who have earned that system. A shield is the
+  other defensive system and had no answer at all: a star-shield takes a
+  flat quarter off everything, forever, and nothing in the world could
+  do anything about it.
+
+  `burns` -- brimstone catches. Small, short, and it can never kill
+  (§6bu). It is the only damage in this world that arrives on an interval
+  the striker did not act on.
+
+AND NO SPECIAL. The flurries and the bite belong to the star line, and a
+mastery arm that took those as well would retire five weapons at a
+stroke. Star strikes oddly; great strikes through.
+§7dr: worse than anything else you could hold, and the only thing that
+answers the dark before level sixty. `burns` is the whole of its worth.
+
+> from engine.js:4270-4281
+
+§7dr: A TORCH, and it is the reason the Smother is not gear-locked.
+
+Every other burning thing in this world is late: the great sword is attack
+seventy, the great crossbow ranged seventy, the fire-siphon attack sixty
+and forged out of brimstone that wants mining seventy. So the cave built to
+be gated on PREPARATION was gated on PROGRESSION -- the exact fault argued
+against one page earlier.
+
+A torch is the low answer. Anybody may carry one at any level, and it is a
+wretched weapon -- which is the design, not a compromise: a citizen with a
+torch clears the Smother slowly and carefully, and a citizen with a great
+sword does it in a quarter of the time. Same cave, two experiences, no gate.
+
+## 7dt. take back out of a bank  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions fletching, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:4880-4884
+
+§6t: a chart is a thing a citizen can hold, so it is a thing they can
+take back out of a bank. `deposit` takes a SLOT and `isItemName` accepts
+charts, so one banked fine and `withdraw` -- which takes a name and
+checked ITEMS only -- could never return it. Silent, permanent loss of a
+survey reward, from two gates disagreeing about what an item is.
+
+> from engine.js:5523-5527
+
+§7dt: AND FIRE ARROWS ARE FIRE. They are ammunition rather than a weapon,
+so `burns` on the weapon table never saw them -- but a quiver of them is
+as much a light as a torch is, and an archer who has gone to the trouble
+of brimstone and shafts has done exactly the preparing this gate asks for.
+They do not go out, which is fair: they are spent by being shot.
+
+> from engine.js:9453-9467
+
+§6ad: THE HEARTWOOD BOW IS FLETCHED, NOT FORGED.
+
+It was in RECIPES with a `fletching: 90` gate, which made it a bow
+you MAKE AT AN ANVIL while fletching heartwood by hand still gave a
+beginner's wooden bow. The one crafted bow in the world, forged. Its
+whole point is that fletching finally has a summit, so it belongs at
+the bench with the rest of the fletcher's work.
+§7dt: A TORCH IS A LOG AND NOTHING ELSE.
+
+Deliberately the cheapest thing anybody makes: no level, no second
+ingredient, no bench. The whole reason the torch exists is that the
+Smother was gated on gear at level sixty and should have been gated on
+forethought -- so the answer has to be something a citizen on their
+first afternoon can carry, or it is the same fault wearing a different
+hat. One log, one torch, and the cost is that it burns out.
+
+## 7du. The drowned bell  [LIFTED]
+
+*Cited from 6 places in the engine.*
+
+> from engine.js:590-607
+
+§7du: THE DROWNED BELL, and the one raising on this island that CANNOT be
+done alone.
+
+Every other collective work here is many hands OVER TIME: the South Pass
+is 41 rockfalls and six strikes an hour however many citizens swing, the
+spanwork is a pool of planks, a watchfire is fed. Each of them is finishable
+by one determined person given enough weeks, and so each of them is really
+a long errand that several people may share.
+
+This is many hands IN ONE INTERVAL. Three citizens must haul on the same
+tick or the water takes it back, and no amount of patience substitutes.
+It is the only thing in the constitution that requires a citizen to have
+found two others and agreed a moment with them -- which is a different
+social shape from anything else on the island, and the reason to build it.
+
+Once in the world's life. When it comes up it is a BELL: a thing that
+rings, that everybody hears, that nobody can un-ring, and that carries the
+names of whoever was on the rope.
+
+> from engine.js:2069-2073
+
+§7du: three on the rope, in the same interval, and the water gives back what
+it is not held against. HAUL_HOLD is how long a pull counts for: long enough
+that three people can act within a window of each other, short enough that
+they have to mean it. TWELVE PULLS raises it -- so it is not one lucky
+moment either, it is twelve moments three people arranged.
+
+> from engine.js:5010-5011
+
+§7du: put a hand on the rope. No argument but the bell: what it costs is
+being there, at the same interval as two others.
+
+## 7g. The altar  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> from engine.js:640-640
+
+§7g: THE ALTAR. Three magic-stones become a sigil here and nowhere else.
+
+> from engine.js:8953-8958
+
+§7g: ...AND A PLACE. Dropping the hour left invoking with no cost but
+the ore and no location at all: a citizen made sigils standing in a
+field in the Wilds beside the seam they had just mined, which is the
+one spot where the walk home is worth avoiding. An altar puts the
+making somewhere -- and puts it at the END of the journey west rather
+than at the far end of it.
+
+## 7i. The muck heap  [LIFTED]
+
+*Cited from 13 places in the engine.*
+
+> from engine.js:534-535
+
+§7i: THE MUCK HEAP. Nitre is scraped off a dung heap; it is the one thing
+a farm makes that a soldier needs.
+
+> from engine.js:744-745
+
+§7i: worked with FARMING, which is the point of it -- the only gatherable
+on the island that pays a farmer, and it stands in the farm country.
+
+> from engine.js:2003-2009
+
+§7i: THE LOAF. Seven, which is more than a cooked fish -- and it does NOT
+stack, which is the whole design. Ale's value was never its five points; it
+was that a citizen can carry twenty draughts in one slot and stay out all
+day. A stackable bread would simply be a better ale and would kill it.
+
+So: bread is the strongest single bite in the game and the worst thing to
+carry a lot of. A loaf for the walk out, ale for the week.
+
+## 7j. Rule 7j  [LIFTED]
+
+*Cited from 7 places in the engine.*
+
+> from engine.js:1556-1556
+
+§7j: grain to flour, at a mill and nowhere else
+
+> from engine.js:2028-2031
+
+§7j: THE MILL STEP, and why bread earns it. Ale is one step and a wait; if
+bread were also one step, at any fire, and healed more per bite, the only
+thing holding ale up would be that it stacks. Now bread costs two steps and
+a DESTINATION and ale costs one step and patience, and both have a shape.
+
+> from engine.js:2404-2406
+
+§7q: one log gives two planks. Deliberately generous -- the cost of a plank
+is the WALK to the sawpit, not the timber, exactly as the cost of flour is
+the walk to the mill.
+
+## 7k. belongs where the traffic is  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:10208-10217
+
+§7k: ...OR THE MARKET SQUARE. A stall lines the road because commerce
+belongs where the traffic is, and that rule already let a citizen trade
+anywhere in Millbrook -- there are a hundred and seven legal verges inside
+its walls. But a hundred and seven scattered verges is not a market, it is
+a hundred and seven people standing along a road.
+
+The square is the one piece of ground on Tallyholm where stalls may stand
+in the OPEN, shoulder to shoulder, which is what a market is. Same
+argument as the Lantern's pot: you do not get people to gather by
+forbidding the alternatives, you give them somewhere worth gathering.
+
+## 7l. Measured  [LIFTED]
+
+*Cited from 8 places in the engine.*
+
+> from engine.js:850-854
+
+§7l: MEASURED, not guessed. A naked bare-blade wins 23-37% of duels
+against a star-sword over a full star suit, at every level from 40 to 99 --
+it is an option, not an answer, and it never dominates. No level gate is
+needed for balance; this one is here so that a citizen meets the choice
+after they have met armour, not before.
+
+> from engine.js:2639-2661
+
+§7l: THE BARE-BLADE. Its damage is what you are NOT wearing.
+
+`bare` adds floor((40 - armourOf(you)) / 4) to maxHit -- ten when you
+stand in nothing, nothing when you stand in a full star suit. Naked it
+strikes like a maul without the maul's poor accuracy; clad it is worse
+than an iron dagger. It is not an upgrade. It is the flail's argument
+pointed the other way: an ANSWER, and only to one thing, and the thing it
+answers is your own plate.
+
+The price is already in the engine and it is severe. Since 6x-ii armour
+does not soak damage, it lowers an attacker's CHANCE -- so standing in
+nothing does not merely forgo protection, it hands every enemy in the
+world a far better roll against you. This weapon doubles what you deal
+and roughly doubles what you take. Nothing new had to be invented to pay
+for it.
+
+6aq repealed the armour tax on the grounds that "armour which only helps
+is a checklist rather than a choice -- everybody wears the best they own
+and going without is a handicap". The repeal answered whether armour
+DOMINATES; it never made going without a decision. This does.
+
+(The name is the old one. A berserkr was a bear-shirt, and the reading
+that has always fitted the fighting is ber-serkr: BARE of shirt.)
+
+> from engine.js:4047-4050
+
+§7l: CHEAP ON PURPOSE. A weapon whose whole point is that you are wearing
+nothing is a weapon carried by people with nothing to lose -- and by
+pures, who never gear up and should not have to risk a fortune to train
+the only build the world offers them. Steel, and not much of it.
+
+## 7m. The fall-stone  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:6655-6672
+
+§7m: THE FALL-STONE. Rubble is what the mountain gives everybody; a
+fall-stone is what it gives the citizen who finished a boulder. Same rock,
+same swing, and the only difference is that it was the last one.
+
+Built on the hood exactly: head slot, absent from ARMOUR so it is worth
+nothing in a fight, tradeable, and the id stores the KEY rather than the
+name -- so a citizen who takes a name in year three is retroactively legible
+on every stone they broke, including the ones they sold. Every one is
+therefore DIFFERENT: whose it was and which day of the world. The first ever
+broken, and the one that opened the way, will be worth more than the
+fortieth, and that value is history rather than a rarity table.
+
+There are at most forty-one, and the real number is not mine to set: the
+pass opens on a five-stone tunnel, so if the island digs the minimum then
+FIVE exist for all time. Every stone past that is trophy-mining -- a
+thousand rate-limited strikes for a thing that does nothing. Whatever the
+count turns out to be, it is a fossil of one collective decision made in the
+first week, and the seam is deleted afterwards. Nothing issues another.
+
+> from engine.js:7602-7603
+
+§7m/§7r: the reservoir holder for a rockfall's fall-stone, and whoever
+is minding the furnace
+
+> from engine.js:7665-7666
+
+§7m: the reservoir holder for a rockfall's fall-stone
+§7r: the furnace's fire, and who is minding it
+
+## 7n. A field is not a wall  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:9912-9925
+
+§7n: A FIELD IS NOT A WALL. A plot blocked its tile, so a block of them
+was a solid mass and only the outer ring could be stood beside -- and
+`harvest` wants ADJACENCY. Measured on the seventh founding: 1,269 of the
+island's 1,370 field plots could not be reached by anybody. Seventy per
+cent of the ploughed land was scenery, and no drawing could fix it: any
+shape two tiles thick has an unreachable middle.
+
+Ploughed ground is walked over. You stand in one furrow to work the next,
+exactly as nothing in this engine strikes the tile it stands on, and the
+hedge round the furlong still says where the field ends.
+§7a: a FINISHED span is decking, and decking is water you can walk on. The
+spanwork it grew from is deliberately NOT here -- an unfinished bridge bars
+its tile exactly as the beck under it does, which is the entire reason the
+crossing is worth fighting over before it is done.
+
+## 7o. And the nouns the roadsides were short of  [LIFTED]
+
+*Cited from 2 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:7068-7098
+
+---- and the nouns the world was short of ----
+
+Seventy per cent of everything a citizen walked past was a wall, a tree
+or a rock: the island was DENSE and MONOTONOUS, four to six different
+things within twenty tiles anywhere you stood. The answer is not more
+trees; it is more KINDS.
+
+A landmark is the right vehicle and the safe one. No verb in the
+constitution reaches it -- it cannot be worked, fought, lit or consumed
+-- so a new kind can add texture to the world without adding a rule to
+the world. That is why these are kinds and not node types: the verb set
+is complete, the vocabulary was not.
+§7o (v0.88): AND THE NOUNS THE ROADSIDES WERE SHORT OF.
+
+The same argument one more time, measured. 135 waymarks along every road
+on the island were drawn from TWO kinds -- a stump or a standing stone --
+and an orchard was eight identical old-oaks in a five-tile square, which
+put sixteen of one thing inside two tiles where two orchards met. 317 of
+the island's 1,023 landmarks stood in a clump of three or more of exactly
+themselves. That is what makes a hand-drawn country read as generated.
+
+A kind is free -- no verb reaches a landmark -- so the roadsides now speak
+their own country: cairns and cut faces in the Crags, withy and eel racks
+in the Fens, thorn and peat on the Moor, hurdles and dew-marks on the
+Downs. Twelve words instead of two.
+§7u: THE TREES THAT ARE NOT TIMBER. Every tree on this island was a thing
+you could chop, so the countryside could only be wooded where the world
+wanted woodcutting. These are landmarks -- no verb reaches them -- so a
+country can have trees the way a country does: willows where the water is,
+dead ones where the land turned, pines on the high ground, and an AVENUE,
+which is the only one of them that says a person did it on purpose.
+
+> from engine.js:7139-7156
+
+§7di: THE SCENE NOUNS (worldgen-scenes-v7).
+
+The island had fifty-seven kinds and two thousand of them standing about,
+one at a time, spread by a hash. It was never short of nouns; it was short
+of SENTENCES. A stump alone is texture. A stump, a second stump, a
+chopping-block and a cold charcoal-ring within four tiles is somebody’s
+afternoon, and the difference between those two things is the whole of
+what makes a world look authored rather than generated.
+
+These are the words the scenes needed and the fifty-seven could not say.
+Most of them are LABOUR CAUGHT IN THE MIDDLE -- a scaffold, wood-chips, a
+wheel-rut, an unfired shot-hole -- because a trace of work implies a
+person who is not on the map, and that implication is most of what makes
+a country feel lived in.
+
+Cheap, and safe, for the reason §7o gives: no verb in this constitution
+reaches a landmark. It cannot be worked, fought, lit or consumed. A kind
+adds texture to the world without adding a rule to the world.
+
+## 7p. The furnace  [LIFTED]
+
+*Cited from 10 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions the bronze tier; iron is its successor and no `bronze-*` item exists (§0-i). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:609-612
+
+§7d: THE LOOKING GLASS. A citizen's first face is free, at the door. To
+change it afterwards you go and look at yourself in something, and there
+is one of them on the island.
+§7p: THE FURNACE. Ore becomes metal here and nowhere else on the island.
+
+> from engine.js:748-763
+
+§6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
+v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
+still (bronze is iron worked simply here), and STEEL is iron quenched with
+coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
+§7p: THE SEAM GIVES ORE, NOT A FINISHED BAR. It gave `iron` -- metal,
+ready for the anvil -- so the deepest supply chain in the world was also
+the shortest: strike the rock, walk to the forge, done. Ore now, and the
+furnace at Cragfoot turns two of it and a coal into the bar.
+§7p: THE SEAM GIVES IRON ORE. It gave `iron` -- a finished bar, ready for
+the anvil -- so the deepest chain in the world was also the shortest.
+
+The first cut of this pointed it at `ore`, which was WRONG and worth
+recording: `ore` is the generic of the first founding, what the plain
+`rock` gives, from when there was one tier and it was bronze. Iron ore is
+not that, and a seam that gave the retired generic would have made bronze
+stock and iron stock the same substance.
+
+> from engine.js:2054-2058
+
+§7p: two of ore and one of coal to the bar. Coal finally has a buyer, and
+the ratio is why steel costs more than iron without anybody being told.
+§7p: what is made at the furnace rather than the anvil. Ore and fuel into
+metal is a different act from metal into a shape, and this is the whole of
+the difference in the rules.
+
+## 7q. The sawpit  [LIFTED]
+
+*Cited from 4 places in the engine.*
+
+> from engine.js:632-632
+
+§7q: THE SAWPIT. Logs become planks here and nowhere else.
+
+> from engine.js:1405-1410
+
+§7q: ONE PLANK, not one log. The keeper is mending the deck and a deck is
+made of sawn boards -- "a log to cross" was always slightly wrong, and it
+only became fixable once there was a sawpit. It costs a citizen one more
+errand and it costs the toll nothing: a plank still occupies a slot, still
+comes out of the Greenwood, and you can still turn up without one, which was
+always the whole of the design.
+
+> from engine.js:2404-2406
+
+§7q: one log gives two planks. Deliberately generous -- the cost of a plank
+is the WALK to the sawpit, not the timber, exactly as the cost of flour is
+the walk to the mill.
+
+## 7r. Rule 7r  [LIFTED]
+
+*Cited from 11 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions firemaking, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2355-2388
+
+§7r: one coal buys the furnace this many intervals of heat, and it will not
+bank more than the cap -- so a fire cannot be stoked once and left for a
+week, and there is a reason for somebody to be standing there.
+§7r: one coal buys the furnace this many intervals of heat (an hour is
+6,000 at 600ms a tick), and it will not bank past the cap -- so a fire cannot
+be stoked once and left for a week, and there is a reason for somebody to be
+standing there.
+
+TWENTY-SIX, and the first cut said twelve. The watchfire -- this world's
+other public fire -- pays TWENTY for a log, and coal is dearer than a log by
+every measure the constitution already has: mining 21 against a chop, and
+hardness 2. Twelve made the dearer fuel pay less, which meant the fireman
+was doing it for the greater good and nobody does a job for the greater good
+twice. A stoke may be sent every interval, and a full fire still takes the
+coal and still pays for it (the watchfire's own rule, for the same reason),
+so the rate is bounded by what a citizen can mine -- which is the honest
+bound, and self-limiting.
+§7dc: COAL BURNS LONGER THAN CHARCOAL, AND IS NOW WORTH MINING.
+
+Coal was strictly the worse material. It substituted for charcoal as fuel
+ONE FOR ONE, and charcoal also had a monopoly on gunpowder -- which is
+correct and should stay, because real powder wants charcoal and coal's
+sulphur makes a bad one. So a woodcutter at firemaking 60 could do
+everything a coal miner could, plus one thing more, and coal existed to be
+the option you took when you could not be bothered.
+
+What coal actually IS, is denser. It burns hotter and longer, which is why
+the world went to the trouble of digging it out of the ground instead of
+making charcoal forever. So it lasts half again as long in the furnace.
+
+The result is two fuels with two masters. A fire-keeper wants COAL, because
+each one buys more hours of fire; a powder-maker wants CHARCOAL, because
+nothing else will do. A miner and a woodcutter now supply different people,
+instead of one of them supplying everybody.
+
+> from engine.js:4229-4235
+
+§7p: AND IRON IS A RECIPE LIKE THE REST OF THEM.
+
+The first cut of smelting was its own verb, `smelt`, which meant two doors
+to one idea -- and a new verb every window and the SDK would have to be
+taught, for a thing `smith` already does. Iron is a recipe now, and what
+makes it a SMELT rather than a forging is only where it may be made.
+§7r: no coal in a bar. The furnace's own fire is the fuel.
+
+> from engine.js:4237-4242
+
+§7x: AND STEEL IS A BAR. It was the last incoherent corner: every other
+metal in the world is smelted, and steel gear was forged straight out of
+iron AND COAL at the anvil -- which is to say the anvil was doing the
+furnace's job, in nine recipes, for the one metal that is actually MADE
+rather than merely shaped. Iron carburised in the fire is a bar like any
+other, and the coal is the furnace's fire, per §7r.
+
+## 7s. Rule 7s  [LIFTED]
+
+*Cited from 3 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions firemaking, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:2355-2388
+
+§7r: one coal buys the furnace this many intervals of heat, and it will not
+bank more than the cap -- so a fire cannot be stoked once and left for a
+week, and there is a reason for somebody to be standing there.
+§7r: one coal buys the furnace this many intervals of heat (an hour is
+6,000 at 600ms a tick), and it will not bank past the cap -- so a fire cannot
+be stoked once and left for a week, and there is a reason for somebody to be
+standing there.
+
+TWENTY-SIX, and the first cut said twelve. The watchfire -- this world's
+other public fire -- pays TWENTY for a log, and coal is dearer than a log by
+every measure the constitution already has: mining 21 against a chop, and
+hardness 2. Twelve made the dearer fuel pay less, which meant the fireman
+was doing it for the greater good and nobody does a job for the greater good
+twice. A stoke may be sent every interval, and a full fire still takes the
+coal and still pays for it (the watchfire's own rule, for the same reason),
+so the rate is bounded by what a citizen can mine -- which is the honest
+bound, and self-limiting.
+§7dc: COAL BURNS LONGER THAN CHARCOAL, AND IS NOW WORTH MINING.
+
+Coal was strictly the worse material. It substituted for charcoal as fuel
+ONE FOR ONE, and charcoal also had a monopoly on gunpowder -- which is
+correct and should stay, because real powder wants charcoal and coal's
+sulphur makes a bad one. So a woodcutter at firemaking 60 could do
+everything a coal miner could, plus one thing more, and coal existed to be
+the option you took when you could not be bothered.
+
+What coal actually IS, is denser. It burns hotter and longer, which is why
+the world went to the trouble of digging it out of the ground instead of
+making charcoal forever. So it lasts half again as long in the furnace.
+
+The result is two fuels with two masters. A fire-keeper wants COAL, because
+each one buys more hours of fire; a powder-maker wants CHARCOAL, because
+nothing else will do. A miner and a woodcutter now supply different people,
+instead of one of them supplying everybody.
+
+> from engine.js:13640-13656
+
+6bf: a proper hearth forgives a cook what a field fire does not
+§7s: AND A LIT PUBLIC FIRE COOKS AS WELL AS A HEARTH.
+
+Cooking's bonus lived at a hearth, and every hearth in the world is
+indoors in a town -- so the best place to cook was always a kitchen,
+and the fisherman on the quay carried their catch home. Anyone who
+has fished in a game like this remembers the other thing: somebody
+calls for a fire, somebody else lays one, and a crowd cooks together
+at the water's edge.
+
+A watchfire that is BURNING now cooks like a hearth. Not a rule about
+quays -- a rule about fires, which makes the quay the best cooking
+spot on the island only because somebody chose to keep a fire there.
+The same bargain as the furnace: one citizen feeds it, everybody
+works at it, and the feeder is paid for the feeding.
+there is no adjacentNode() helper -- hasAdjacentNode answers yes or
+no, and the keeper's fee needs the node itself
+
+> from engine.js:13664-13676
+
+§7s: AND THE FIRE EARNS ITS KEEPER WHEN SOMEBODY COOKS AT IT.
+
+Without this the quayside fire is a charity. A firekeeper stands in
+the Greenwood because that is where the logs are; asking him to
+carry them to the docks and burn them for other people's dinners is
+asking him to work for nothing, and he will not, and the fire will
+never be there. He needs the crowd to be his income.
+
+So a cook at a citizen's fire pays that citizen. Site your fire
+where the fishermen are and the fishermen pay for it -- the same
+bargain as a stall on a road, which is sited for the traffic and for
+no other reason. This is what makes "fire plz" a thing somebody
+WANTS to hear.
+
+## 7t. The training yard  [LIFTED]
+
+*Cited from 11 places in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions hitpoints, which is not a skill: the frame is flat (§5j). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:636-637
+
+§7t: THE TRAINING YARD. A dummy takes a blow and a butt takes an arrow;
+neither ever hits back, and past a low level neither teaches anything.
+
+> from engine.js:2393-2402
+
+§7t: THE YARD TEACHES THE FIRST RUNGS AND NOTHING AFTER.
+
+Past this level a dummy still reports the blow and pays NOTHING. That is the
+whole design: it stays useful forever as an INSTRUMENT -- the only place in
+the world to read your true max hit, feel a weapon, and try a special before
+risking it in the Wilds -- without ever becoming a way to train. A citizen
+who wants levels has to go and meet something that hits back.
+
+It is in the HEARTLANDS on purpose: the peaceful country, before you venture
+out, which is where a person finds out what they are carrying.
+
+> from engine.js:3240-3264
+
+THE SHEEP (spec 6ag). The Downs is downland: twenty-two thousand tiles
+of it, twenty-eight living things on it, and a locale in the middle
+called the Sheepfolds. The map has been promising sheep since the fourth
+founding and the world never delivered any.
+
+NO `aggro` AT ALL, which is the difference between this and the crab. A
+crab keeps its aggro on purpose -- it walks at you so you can gather
+three at once. A sheep that walked at you would not be a sheep. With no
+aggro it never starts anything, and `harmless` means that if you start
+it, it swings and never lands and teaches no defence for it.
+
+The hitpoints are the whole balance and they are not decoration. Safe
+country plus a quick kill is a training dummy, and this world's position
+is that standing is paid for in time: a five-hitpoint sheep in the
+safest country on the island would be the cheapest attack experience in
+the world. Forty, at defence eight, makes a sheep about a minute's work
+-- livestock, not a dummy -- which is the same reason the crab is ninety.
+§7t: THE YARD. A dummy and a butt are MOBS, not furniture, and that is the
+whole trick: `attack`, `attackp`'s specials, a drawn bow and the damage
+readout all work on them already, unchanged. A new verb would have had to
+reimplement combat badly beside the real one.
+
+Enormous hitpoints so they are never actually felled, no aggro, harmless,
+and def 1 so they are hit nearly every swing -- you came to read a number,
+not to roll for it.
+
+## 7u. The trees that are not timber  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> **Vocabulary note.** This section was lifted verbatim and mentions woodcutting, merged into `woodcraft` (§5m). The rule it describes is unchanged; only the words moved. Read it under the table in §0-i.
+
+> from engine.js:7068-7098
+
+---- and the nouns the world was short of ----
+
+Seventy per cent of everything a citizen walked past was a wall, a tree
+or a rock: the island was DENSE and MONOTONOUS, four to six different
+things within twenty tiles anywhere you stood. The answer is not more
+trees; it is more KINDS.
+
+A landmark is the right vehicle and the safe one. No verb in the
+constitution reaches it -- it cannot be worked, fought, lit or consumed
+-- so a new kind can add texture to the world without adding a rule to
+the world. That is why these are kinds and not node types: the verb set
+is complete, the vocabulary was not.
+§7o (v0.88): AND THE NOUNS THE ROADSIDES WERE SHORT OF.
+
+The same argument one more time, measured. 135 waymarks along every road
+on the island were drawn from TWO kinds -- a stump or a standing stone --
+and an orchard was eight identical old-oaks in a five-tile square, which
+put sixteen of one thing inside two tiles where two orchards met. 317 of
+the island's 1,023 landmarks stood in a clump of three or more of exactly
+themselves. That is what makes a hand-drawn country read as generated.
+
+A kind is free -- no verb reaches a landmark -- so the roadsides now speak
+their own country: cairns and cut faces in the Crags, withy and eel racks
+in the Fens, thorn and peat on the Moor, hurdles and dew-marks on the
+Downs. Twelve words instead of two.
+§7u: THE TREES THAT ARE NOT TIMBER. Every tree on this island was a thing
+you could chop, so the countryside could only be wooded where the world
+wanted woodcutting. These are landmarks -- no verb reaches them -- so a
+country can have trees the way a country does: willows where the water is,
+dead ones where the land turned, pines on the high ground, and an AVENUE,
+which is the only one of them that says a person did it on purpose.
+
+## 7x. And steel is a bar  [LIFTED]
+
+*Cited from 1 place in the engine.*
+
+> from engine.js:4237-4242
+
+§7x: AND STEEL IS A BAR. It was the last incoherent corner: every other
+metal in the world is smelted, and steel gear was forged straight out of
+iron AND COAL at the anvil -- which is to say the anvil was doing the
+furnace's job, in nine recipes, for the one metal that is actually MADE
+rather than merely shaped. Iron carburised in the fire is a bar like any
+other, and the coal is the furnace's fire, per §7r.
+
+## 20. Generated registries
+
+Everything in this section is DERIVED from the engine (§2n). It is
+regenerated by `node spec-tables.mjs --write` and verified in CI by
+`node spec-tables.mjs --check`; hand edits will be overwritten.
+
+### 20.1 Skills
+
+<!-- BEGIN GENERATED: skills -->
+9 skills: `woodcraft`, `earthcraft`, `shorecraft`, `mourning`, `marksmanship`, `sorcery`, `hearthcraft`, `prowess`, `wayfaring`.
+
+XP is a non-negative integer. Levels come from the constitutional curve
+(`levelForXp`), which is shared by the engine and every window.
+<!-- END GENERATED: skills -->
+
+### 20.2 Node types
+
+<!-- BEGIN GENERATED: nodes -->
+64 constitutional node types. A node of any other type is
+contraband and the state carrying it is invalid.
+
+`altar`, `anvil`, `bank`, `banner`, `bell`, `bellwork`, `brewpot`, `brimstone-vent`, `butt`, `campfire`, `cart`, `coal-rock`, `crier`, `dedication`, `deep-fish-spot`, `dummy`, `eel-spot`, `fence`, `ferry`, `fire`, `fishing-spot`, `fountain`, `furnace`, `gallows-oak`, `gibbet-shoal`, `gold-rock`, `guard`, `hearth`, `heartwood-tree`, `hedge`, `hoard`, `house`, `iron-rock`, `ironbark-tree`, `keeper`, `landmark`, `looking-glass`, `magic-rock`, `market`, `mother-lode`, `muck-heap`, `oak-tree`, `ossuary`, `plot`, `railing`, `rampart`, `rock`, `rockfall`, `salt-pan`, `sawpit`, `signpost`, `smith`, `smokerack`, `span`, `spanwork`, `stall`, `stamp`, `store`, `tollgate`, `tree`, `wall`, `watchfire`, `waystone`, `well`.
+<!-- END GENERATED: nodes -->
+
+### 20.3 Weapons
+
+<!-- BEGIN GENERATED: weapons -->
+37 weapons. `acc` and `hit` enter the roll and the
+blow as described in §5r; `pierces` means the guard is ignored in the ROLL,
+since soak is zero everywhere (§6ap).
+
+| Weapon | Stats | Wield requires |
+|---|---|---|
+| `barb` | hit 4 · every 2 · reach 1 · acc 8 | attack 45 |
+| `bare-blade` | hit 0 · every 2 · reach 1 · acc 0 · bare | attack 30, strength 30 |
+| `bone-spear` | hit 0 · every 2 · reach 2 · acc 0 · desperate | strength 50 |
+| `bone-staff` | hit 0 · every 3 · reach 1 · acc -26 | sorcery 40 |
+| `crossbow` | hit 11 · every 3 · reach 4 · acc 21 | marksmanship 25 |
+| `dragonbow` | hit 12 · every 2 · reach 9 · acc 6 | marksmanship 40 |
+| `fire-siphon` | hit 6 · every 2 · reach 2 · acc 0 · pierces · burns | attack 60 |
+| `gold-chain` | hit 1 · every 1 · reach 1 · acc 0 | attack 30 |
+| `great-crossbow` |  | marksmanship 70 |
+| `great-maul` | hit 16 · every 2 · reach 1 · acc -10 · breaks · burns | prowess 70 |
+| `great-sword` | hit 5 · every 2 · reach 1 · acc 4 · breaks · burns | prowess 70 |
+| `handgonne` | hit 36 · every 4 · reach 4 · acc -20 | marksmanship 90 |
+| `heartwood-bow` | hit 10 · every 2 · reach 3 · acc 3 | marksmanship 40 |
+| `hollow-bow` | hit 2 · every 2 · reach 3 · acc -10 | marksmanship 1 |
+| `horn-bow` | hit 8 · every 2 · reach 5 · acc 0 | marksmanship 20 |
+| `iron-dagger` | hit 0 · every 2 · reach 1 · acc 14 | — |
+| `iron-javelin` | hit 2 · every 2 · reach 3 · acc 0 | marksmanship 1 |
+| `iron-maul` | hit 10 · every 2 · reach 1 · acc -12 | — |
+| `iron-spear` | hit 7 · every 2 · reach 2 · acc 0 | — |
+| `iron-sword` | hit 2 · every 2 · reach 1 · acc 0 | — |
+| `old-chain` | hit 1 · every 1 · reach 1 · acc 0 | attack 30 |
+| `sigil-bow` | hit 8 · every 2 · reach 5 · acc 0 | marksmanship 30, sorcery 20 |
+| `spade` | hit 0 · every 3 · reach 1 · acc -8 | — |
+| `star-dagger` | hit 2 · every 2 · reach 1 · acc 14 | attack 50 |
+| `star-flail` | hit 9 · every 2 · reach 1 · acc -6 · pierces | attack 55 |
+| `star-javelin` | hit 4 · every 2 · reach 3 · acc 0 | marksmanship 50 |
+| `star-maul` | hit 13 · every 2 · reach 1 · acc -12 | strength 55 |
+| `star-spear` | hit 9 · every 2 · reach 2 · acc 0 | attack 50 |
+| `star-sword` | hit 4 · every 2 · reach 1 · acc 0 | attack 50 |
+| `steel-dagger` | hit 1 · every 2 · reach 1 · acc 14 | attack 35 |
+| `steel-javelin` | hit 3 · every 2 · reach 3 · acc 0 | marksmanship 15 |
+| `steel-maul` | hit 11 · every 2 · reach 1 · acc -12 | strength 38 |
+| `steel-spear` | hit 8 · every 2 · reach 2 · acc 0 | attack 35 |
+| `steel-sword` | hit 3 · every 2 · reach 1 · acc 0 | attack 35 |
+| `torch` | hit 1 · every 3 · reach 1 · acc -6 · burns | — |
+| `wand` | hit 0 · every 3 · reach 1 · acc -20 | — |
+| `wooden-bow` | hit 6 · every 2 · reach 4 · acc 0 | — |
+<!-- END GENERATED: weapons -->

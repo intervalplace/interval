@@ -24,6 +24,14 @@ import E from './engine.js'
 import { throwCoded, ERR, DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import * as P from './protocol.mjs'
 import { IntervalAgreement } from './agreement.mjs'
+import { VerifyPool } from './verify-pool.mjs'
+import { fileURLToPath } from 'url'
+
+// Absolute path to the engine, for workers that must load the SAME file this
+// process is running. A worker on a different engine build would disagree, and
+// the pool's audit exists to catch exactly that -- but not resolving the path
+// here is how it would happen in the first place.
+const ENGINE_PATH = fileURLToPath(new URL('./engine.js', import.meta.url))
 
 // ---- protocol limits (fix brief §5.1): every surface is bounded ----
 export const LIMITS = {
@@ -687,6 +695,15 @@ export class IntervalNode {
       if (gerr) throwCoded(ERR.INVALID_GENESIS, `refusing to run on an invalid genesis: ${gerr}`)
     }
     this.name = opts.name
+    // Arrival-time verification pool (NON-CONSENSUS). Off by default: a pool
+    // is only worth its thread hops on a machine with cores to spare, and a
+    // single-core node is better served verifying inline. Set INTERVAL_VERIFY
+    // _WORKERS, or pass verifyWorkers, to enable it. Nothing about which inputs
+    // are accepted depends on this; see verify-pool.mjs.
+    this._verifyPool = null
+    this._verifyQueue = []
+    this._verifyTimer = null
+    this._verifyWorkers = opts.verifyWorkers ?? Number(process.env.INTERVAL_VERIFY_WORKERS ?? 0)
     this.tamper = opts.tamper || null
     // pre-freeze §6: EVERY builder result is validated the moment it
     // returns — never conditioned on tick, never assumed. A valid
@@ -1228,7 +1245,8 @@ export class IntervalNode {
       // It is also the natural place to parallelise: a pool of workers can
       // verify arrivals with no ordering to preserve, because application
       // order is decided later and separately by the engine.
-      try { E.verifyInputSig(msg) } catch {}
+      if (this._verifyWorkers > 1) this._queueVerify(msg)
+      else { try { E.verifyInputSig(msg) } catch {} }
     }
 
     if (topic === this.topics.hashes) {
@@ -1470,11 +1488,48 @@ export class IntervalNode {
   // witness directory after step 6. If the final checkpoint cannot be
   // completed, shutdown FAILS CLOSED: it throws with the lock still held,
   // rather than releasing exclusivity behind an incomplete write.
+  // Batch arrivals for the pool. Inputs reach a node well before the tick they
+  // are stamped for, so a few milliseconds of gathering costs nothing and a
+  // batch is what makes the split worth its overhead at all. Flushes on size or
+  // on a short timer, whichever comes first.
+  _queueVerify(msg) {
+    if (!this._verifyPool) {
+      this._verifyPool = new VerifyPool(ENGINE_PATH, this._verifyWorkers)
+        .onFault(() => {
+          // A worker disagreed with this thread about a signature. The pool has
+          // already retired itself and everything falls back inline; say so
+          // loudly, because it means a bad build or bad memory on this host.
+          try { console.error('[interval] verify pool retired: worker verdict disagreed with engine') } catch {}
+        })
+    }
+    this._verifyQueue.push(msg)
+    if (this._verifyQueue.length >= 256) return this._flushVerify()
+    if (!this._verifyTimer) {
+      this._verifyTimer = setTimeout(() => this._flushVerify(), 20)
+      this._verifyTimer.unref?.()
+    }
+  }
+
+  _flushVerify() {
+    if (this._verifyTimer) { clearTimeout(this._verifyTimer); this._verifyTimer = null }
+    const batch = this._verifyQueue
+    if (!batch.length) return
+    this._verifyQueue = []
+    // Fire and forget: the engine verifies authoritatively regardless, so a
+    // batch that has not finished warming by tick time costs a little work
+    // inside the tick and nothing else.
+    this._verifyPool.warm(batch, E).catch(() => {})
+  }
+
   async stop() {
     if (this._stopped) return
     this._stopped = true
     this._cpFatal = null // clear any fatal from a prior failed shutdown attempt
     this._ticking = false
+    if (this._verifyTimer) { clearTimeout(this._verifyTimer); this._verifyTimer = null }
+    this._verifyQueue = []
+    await this._verifyPool?.close().catch(() => {})
+    this._verifyPool = null
     this.agreement?.stop()
     this._shuttingDown = true // gate: queueCheckpoint() becomes a no-op past here
     // a final checkpoint at the current tick makes the next restart fast

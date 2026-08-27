@@ -746,7 +746,23 @@ if (isMain) {
         `crashes:${String(r.crashes).padEnd(3)} atts:${String(r.attestationsOnWire).padEnd(5)} ` +
         `${r.healed ? 'healed' : 'faulted'} halted:[${haltStr}] (${Date.now() - t0}ms)`)
       for (const v of r.violations) console.log('    ' + v)
-      if (!live && r.violations.length === 0) console.log(`    LIVENESS below floor (${r.frontier} < ${cfg.minTicks}) — investigate`)
+      if (!live && r.violations.length === 0) {
+        // Report the floor that was actually applied. This printed cfg.minTicks
+        // unconditionally, so every maxTicks scenario -- crashes, partitions,
+        // equivocator -- reported "below floor (3 < undefined)" and told you
+        // nothing about which promise had been broken or by how much.
+        const usingMin = 'minTicks' in cfg
+        const got = usingMin ? r.minFrontier : r.maxFrontier
+        const want = usingMin ? cfg.minTicks : (cfg.maxTicks ?? 0)
+        console.log(`    LIVENESS below floor: ${usingMin ? 'slowest' : 'fastest'} honest node reached `
+          + `${got}, floor is ${want} (${usingMin ? 'minTicks' : 'maxTicks'}) — investigate`)
+        // A seed is a fixed CRASH SCHEDULE, not a fixed scenario. The proposer
+        // is derived from previousStateHash, so any change to the shape of
+        // state -- a merged skill, an added field -- reshuffles proposer order
+        // against that schedule. Compare failure RATES across many seeds
+        // before concluding a change caused this.
+        console.log(`    (proposer order depends on state shape; compare rates over >=10 seeds, not one)`)
+      }
     }
   }
   console.log(`\n${totalRuns - failed}/${totalRuns} runs upheld the freeze criterion` + (failed ? ' — FAILURES PRESENT' : ''))

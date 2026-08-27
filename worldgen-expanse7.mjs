@@ -4392,6 +4392,24 @@ export function buildWorld(genesis) {
           for (const [ax, ay] of [[x + 2, y + 1], [x - 2, y + 1], [x + 2, y - 1]])
             if (free(ax, ay) && !blockedAt(g, ax, ay)) { put('furnace-keeper', 'keeper', ax, ay,
               { kind: 'collier', name: 'Ulf at the Bloomery' }); break }
+          // §5u: THE STAMP, in the bloomery's yard. Magic-stone shatters rather
+          // than melts, so the first rung of the starmetal chain is a weighted
+          // beam and not a fire -- but it belongs beside the fire, because the
+          // crags are where the magic-rock is and because a citizen carrying
+          // stone down off the tops should find both on one errand.
+          //
+          // It stands two clear of the furnace so neither blocks the other's
+          // approach: this is a place a crowd is meant to gather at, and the
+          // note above records what happened the last time something was put
+          // on three of the four ways in.
+          for (const [ax, ay] of [[x - 3, y - 2], [x + 3, y - 2], [x - 3, y + 2], [x + 3, y + 2]])
+            if (free(ax, ay) && !blockedAt(g, ax, ay) && !isWater(g, ax, ay)) {
+              put('cragfoot-stamp', 'stamp', ax, ay, {})
+              for (const [sx, sy] of [[ax, ay + 2], [ax + 2, ay], [ax - 2, ay]])
+                if (free(sx, sy) && !blockedAt(g, sx, sy)) { put('stamp-sign', 'signpost', sx, sy,
+                  { text: 'the stamp \u2014 magic-stone to grit' }); break }
+              break
+            }
           set2 = true; break
         }
       if (!set2) console.warn('WORLDGEN: no ground at Cragfoot for the furnace')

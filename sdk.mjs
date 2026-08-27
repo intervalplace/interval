@@ -48,6 +48,10 @@ export class IntervalClient {
     return this.node.submitInput(input)
   }
   move(dx, dy) { return this.#send({ type: 'move', dx, dy }) }
+  // §5i: a journey is one deed. A direction and a count, one tile per interval
+  // until the way is barred; a route with turns is one call per leg. It makes
+  // nobody faster -- it makes travel cost deeds instead of intervals.
+  walk(dx, dy, steps) { return this.#send({ type: 'walk', dx, dy, steps }) }
   gather(nodeId) { return this.#send({ type: 'gather', nodeId }) }
   stop() { return this.#send({ type: 'stop' }) }
   claimName(name) { return this.#send({ type: 'claim_name', name }) }

@@ -108,6 +108,27 @@
   #skills > div > div { flex: 0 0 100%; }
   #skills b { color: var(--parch); font-weight: normal; float: right; }
   #inv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  /* §5t: WHAT A CITIZEN IS WEARING, laid out as a body rather than a list.
+     The pack told you what you carried and nothing told you what you had ON;
+     equipment was five fields you could only see by their effects. */
+  #worn { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
+          justify-items: center; margin-bottom: 4px; }
+  .wslot { aspect-ratio: 1; width: 100%; background: var(--stone-dk);
+           border: 1px solid var(--stone-lt); border-radius: 2px; position: relative;
+           display: flex; align-items: center; justify-content: center; }
+  .wslot.empty { opacity: .38; }
+  .wslot .wlabel { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 6px;
+                   color: var(--dim); text-align: center; letter-spacing: .02em; }
+  /* head sits centre-top, body centre, the hands either side of it, legs below:
+     a figure, not a row. */
+  .w-head { grid-column: 2; grid-row: 1; }
+  .w-weapon { grid-column: 1; grid-row: 2; }
+  .w-body { grid-column: 2; grid-row: 2; }
+  .w-offhand { grid-column: 3; grid-row: 2; }
+  .w-legs { grid-column: 2; grid-row: 3; }
+  #itemname { min-height: 26px; font-size: 11px; color: var(--gold); padding: 3px 2px 0;
+              line-height: 1.25; }
+  #itemname .stat { color: var(--dim); font-size: 10px; display: block; }
   .slot { aspect-ratio: 1; background: var(--stone-dk); display: flex; align-items: center;
           justify-content: center; font-size: 17px; cursor: pointer; user-select: none;
           position: relative; overflow: hidden; }
@@ -210,7 +231,10 @@
 <!-- the skill marks (v0.80): pixel art expressed as rects, so they stay
      crisp at any zoom. Generated from one ASCII source and mirrored into
      every window that wants them; no window is required to want them. -->
-<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="sk-woodcutting" viewBox="0 0 10 10"><rect x="5" y="1" width="1" height="1" fill="#7f8790"/><rect x="6" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="1" height="1" fill="#7f8790"/><rect x="5" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="5" height="1" fill="#b9c0c8"/><rect x="3" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="4" width="1" height="1" fill="#7f8790"/><rect x="5" y="4" width="3" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="1" y="6" width="1" height="1" fill="#8a6f45"/><rect x="1" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="1" height="1" fill="#8a6f45"/></symbol><symbol id="sk-mining" viewBox="0 0 10 10"><rect x="2" y="1" width="6" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="2" height="1" fill="#8a6f45"/><rect x="7" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#8a6f45"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#8a6f45"/><rect x="4" y="5" width="2" height="1" fill="#8a6f45"/><rect x="4" y="6" width="2" height="1" fill="#8a6f45"/><rect x="4" y="7" width="2" height="1" fill="#8a6f45"/><rect x="4" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-fishing" viewBox="0 0 10 10"><rect x="3" y="2" width="3" height="1" fill="#4a6fa5"/><rect x="2" y="3" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="3" width="1" height="1" fill="#4a6fa5"/><rect x="1" y="4" width="2" height="1" fill="#4a6fa5"/><rect x="3" y="4" width="1" height="1" fill="#304a74"/><rect x="4" y="4" width="5" height="1" fill="#4a6fa5"/><rect x="2" y="5" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="5" width="1" height="1" fill="#4a6fa5"/><rect x="3" y="6" width="3" height="1" fill="#4a6fa5"/></symbol><symbol id="sk-cooking" viewBox="0 0 10 10"><rect x="4" y="1" width="1" height="1" fill="#e68c28"/><rect x="3" y="2" width="1" height="1" fill="#e68c28"/><rect x="4" y="2" width="1" height="1" fill="#c4561a"/><rect x="5" y="2" width="1" height="1" fill="#e68c28"/><rect x="1" y="4" width="8" height="1" fill="#6b6760"/><rect x="1" y="5" width="1" height="1" fill="#6b6760"/><rect x="2" y="5" width="5" height="1" fill="#4a4742"/><rect x="7" y="5" width="1" height="1" fill="#6b6760"/><rect x="1" y="6" width="7" height="1" fill="#6b6760"/><rect x="2" y="7" width="5" height="1" fill="#6b6760"/></symbol><symbol id="sk-smithing" viewBox="0 0 10 10"><rect x="3" y="1" width="1" height="1" fill="#7f8790"/><rect x="4" y="1" width="3" height="1" fill="#b9c0c8"/><rect x="7" y="1" width="1" height="1" fill="#7f8790"/><rect x="3" y="2" width="1" height="1" fill="#7f8790"/><rect x="4" y="2" width="3" height="1" fill="#b9c0c8"/><rect x="7" y="2" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="5" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="5" width="1" height="1" fill="#8a6f45"/><rect x="3" y="6" width="1" height="1" fill="#4a4742"/><rect x="4" y="6" width="2" height="1" fill="#6b6760"/><rect x="6" y="6" width="1" height="1" fill="#4a4742"/><rect x="2" y="7" width="1" height="1" fill="#4a4742"/><rect x="3" y="7" width="4" height="1" fill="#6b6760"/><rect x="7" y="7" width="1" height="1" fill="#4a4742"/><rect x="1" y="8" width="1" height="1" fill="#4a4742"/><rect x="2" y="8" width="6" height="1" fill="#6b6760"/><rect x="8" y="8" width="1" height="1" fill="#4a4742"/></symbol><symbol id="sk-firemaking" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e68c28"/><rect x="3" y="1" width="1" height="1" fill="#e68c28"/><rect x="4" y="1" width="1" height="1" fill="#c4561a"/><rect x="5" y="1" width="1" height="1" fill="#e68c28"/><rect x="2" y="2" width="1" height="1" fill="#e68c28"/><rect x="3" y="2" width="3" height="1" fill="#c4561a"/><rect x="6" y="2" width="1" height="1" fill="#e68c28"/><rect x="2" y="3" width="1" height="1" fill="#e68c28"/><rect x="3" y="3" width="4" height="1" fill="#c4561a"/><rect x="7" y="3" width="1" height="1" fill="#e68c28"/><rect x="1" y="4" width="1" height="1" fill="#e68c28"/><rect x="2" y="4" width="5" height="1" fill="#c4561a"/><rect x="7" y="4" width="1" height="1" fill="#e68c28"/><rect x="1" y="5" width="1" height="1" fill="#e68c28"/><rect x="2" y="5" width="6" height="1" fill="#c4561a"/><rect x="8" y="5" width="1" height="1" fill="#e68c28"/><rect x="1" y="6" width="1" height="1" fill="#e68c28"/><rect x="2" y="6" width="6" height="1" fill="#c4561a"/><rect x="8" y="6" width="1" height="1" fill="#e68c28"/><rect x="2" y="7" width="1" height="1" fill="#e68c28"/><rect x="3" y="7" width="5" height="1" fill="#c4561a"/><rect x="8" y="7" width="1" height="1" fill="#e68c28"/><rect x="3" y="8" width="5" height="1" fill="#e68c28"/></symbol><symbol id="sk-prayer" viewBox="0 0 10 10"><rect x="1" y="1" width="2" height="1" fill="#ded6be"/><rect x="7" y="1" width="2" height="1" fill="#ded6be"/><rect x="0" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="2" width="2" height="1" fill="#a89e88"/><rect x="3" y="2" width="1" height="1" fill="#ded6be"/><rect x="6" y="2" width="1" height="1" fill="#ded6be"/><rect x="7" y="2" width="2" height="1" fill="#a89e88"/><rect x="9" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="3" width="8" height="1" fill="#ded6be"/><rect x="2" y="4" width="6" height="1" fill="#ded6be"/><rect x="1" y="5" width="8" height="1" fill="#ded6be"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#a89e88"/><rect x="3" y="6" width="1" height="1" fill="#ded6be"/><rect x="6" y="6" width="1" height="1" fill="#ded6be"/><rect x="7" y="6" width="2" height="1" fill="#a89e88"/><rect x="9" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="7" width="2" height="1" fill="#ded6be"/><rect x="7" y="7" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-ranged" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#8a6f45"/><rect x="1" y="1" width="2" height="1" fill="#8a6f45"/><rect x="6" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="2" width="1" height="1" fill="#8a6f45"/><rect x="6" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="7" height="1" fill="#b9c0c8"/><rect x="0" y="5" width="1" height="1" fill="#8a6f45"/><rect x="6" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="6" width="1" height="1" fill="#8a6f45"/><rect x="6" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="7" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-magic" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e2b63e"/><rect x="4" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="4" y="2" width="1" height="1" fill="#e2b63e"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="3" width="3" height="1" fill="#e2b63e"/><rect x="0" y="4" width="9" height="1" fill="#e2b63e"/><rect x="3" y="5" width="3" height="1" fill="#e2b63e"/><rect x="2" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="6" width="1" height="1" fill="#e2b63e"/><rect x="6" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="7" width="1" height="1" fill="#e2b63e"/><rect x="4" y="8" width="1" height="1" fill="#e2b63e"/></symbol><symbol id="sk-farming" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="6" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="2" width="5" height="1" fill="#4e7a2e"/><rect x="3" y="3" width="3" height="1" fill="#4e7a2e"/><rect x="4" y="4" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="5" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="6" width="6" height="1" fill="#6a5434"/><rect x="1" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/><rect x="8" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="8" width="6" height="1" fill="#6a5434"/></symbol><symbol id="sk-fletching" viewBox="0 0 10 10"><rect x="6" y="0" width="3" height="1" fill="#b9c0c8"/><rect x="5" y="1" width="4" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="3" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#8a6f45"/><rect x="4" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="4" width="2" height="1" fill="#8a6f45"/><rect x="1" y="5" width="2" height="1" fill="#8a6f45"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#8a6f45"/><rect x="0" y="7" width="2" height="1" fill="#ded6be"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-attack" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="7" height="1" fill="#e2b63e"/><rect x="3" y="5" width="2" height="1" fill="#8a6f45"/><rect x="3" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="4" height="1" fill="#e2b63e"/></symbol><symbol id="sk-defence" viewBox="0 0 10 10"><rect x="1" y="0" width="8" height="1" fill="#b9c0c8"/><rect x="1" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="1" width="6" height="1" fill="#7f8790"/><rect x="8" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="2" width="1" height="1" fill="#7f8790"/><rect x="3" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="7" y="2" width="1" height="1" fill="#7f8790"/><rect x="8" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="3" width="1" height="1" fill="#7f8790"/><rect x="3" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#7f8790"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="7" y="3" width="1" height="1" fill="#7f8790"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="4" width="1" height="1" fill="#7f8790"/><rect x="3" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#7f8790"/><rect x="6" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="7" y="4" width="1" height="1" fill="#7f8790"/><rect x="8" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="6" height="1" fill="#7f8790"/><rect x="8" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="6" width="4" height="1" fill="#7f8790"/><rect x="7" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="7" width="2" height="1" fill="#7f8790"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="8" width="2" height="1" fill="#b9c0c8"/></symbol><symbol id="sk-hitpoints" viewBox="0 0 10 10"><rect x="2" y="1" width="2" height="1" fill="#b4432e"/><rect x="6" y="1" width="2" height="1" fill="#b4432e"/><rect x="1" y="2" width="1" height="1" fill="#b4432e"/><rect x="2" y="2" width="1" height="1" fill="#782c1e"/><rect x="3" y="2" width="3" height="1" fill="#b4432e"/><rect x="6" y="2" width="1" height="1" fill="#782c1e"/><rect x="7" y="2" width="2" height="1" fill="#b4432e"/><rect x="1" y="3" width="8" height="1" fill="#b4432e"/><rect x="1" y="4" width="8" height="1" fill="#b4432e"/><rect x="2" y="5" width="6" height="1" fill="#b4432e"/><rect x="3" y="6" width="4" height="1" fill="#b4432e"/><rect x="4" y="7" width="2" height="1" fill="#b4432e"/></symbol><symbol id="sk-exploration" viewBox="0 0 10 10"><rect x="2" y="0" width="5" height="1" fill="#e2b63e"/><rect x="2" y="1" width="1" height="1" fill="#e2b63e"/><rect x="3" y="1" width="3" height="1" fill="#a68428"/><rect x="6" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="2" width="3" height="1" fill="#a68428"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="2" y="3" width="5" height="1" fill="#e2b63e"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="1" y="8" width="5" height="1" fill="#8a6f45"/></symbol><symbol id="sk-brewing" viewBox="0 0 10 10"><rect x="2" y="1" width="1" height="1" fill="#8a6f45"/><rect x="7" y="1" width="1" height="1" fill="#8a6f45"/><rect x="2" y="2" width="6" height="1" fill="#8a6f45"/><rect x="2" y="3" width="1" height="1" fill="#8a6f45"/><rect x="3" y="3" width="4" height="1" fill="#c4561a"/><rect x="7" y="3" width="1" height="1" fill="#8a6f45"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="4" height="1" fill="#c4561a"/><rect x="7" y="4" width="2" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="3" y="5" width="4" height="1" fill="#c4561a"/><rect x="7" y="5" width="1" height="1" fill="#8a6f45"/><rect x="9" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="3" y="6" width="4" height="1" fill="#c4561a"/><rect x="7" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/></symbol><symbol id="sk-strength" viewBox="0 0 10 10"><rect x="0" y="4" width="2" height="1" fill="#8a6f45"/><rect x="0" y="5" width="3" height="1" fill="#c08a52"/><rect x="0" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="3" width="2" height="1" fill="#c08a52"/><rect x="3" y="2" width="3" height="1" fill="#c08a52"/><rect x="2" y="4" width="3" height="1" fill="#e0a468"/><rect x="3" y="3" width="3" height="1" fill="#e0a468"/><rect x="4" y="5" width="2" height="1" fill="#c08a52"/><rect x="5" y="4" width="2" height="1" fill="#c08a52"/><rect x="6" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="4" width="2" height="1" fill="#c08a52"/><rect x="7" y="5" width="2" height="1" fill="#c08a52"/><rect x="7" y="6" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="3" height="1" fill="#c08a52"/><rect x="6" y="8" width="3" height="1" fill="#8a6f45"/></symbol><symbol id="sk-hauling" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="1" fill="#8a6f45"/><rect x="2" y="2" width="1" height="1" fill="#6a5434"/><rect x="7" y="2" width="1" height="1" fill="#6a5434"/><rect x="1" y="3" width="3" height="1" fill="#a89e88"/><rect x="0" y="4" width="5" height="1" fill="#ded6be"/><rect x="0" y="5" width="5" height="1" fill="#a89e88"/><rect x="1" y="6" width="3" height="1" fill="#a89e88"/><rect x="6" y="3" width="3" height="1" fill="#a89e88"/><rect x="5" y="4" width="5" height="1" fill="#ded6be"/><rect x="5" y="5" width="5" height="1" fill="#a89e88"/><rect x="6" y="6" width="3" height="1" fill="#a89e88"/></symbol></svg>
+<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The rename from eighteen skills to nine
+     mapped several old icons onto each new id, and SVG uses only the first
+     symbol with a given id -- so nine drawings were shipping dead while
+     wayfaring had no icon at all. One per trade now, in SKILLS order. --><symbol id="sk-woodcraft" viewBox="0 0 10 10"><rect x="5" y="1" width="1" height="1" fill="#7f8790"/><rect x="6" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="1" height="1" fill="#7f8790"/><rect x="5" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="5" height="1" fill="#b9c0c8"/><rect x="3" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="4" width="1" height="1" fill="#7f8790"/><rect x="5" y="4" width="3" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="1" y="6" width="1" height="1" fill="#8a6f45"/><rect x="1" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="1" height="1" fill="#8a6f45"/></symbol><symbol id="sk-earthcraft" viewBox="0 0 10 10"><rect x="2" y="1" width="6" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="2" height="1" fill="#8a6f45"/><rect x="7" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#8a6f45"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#8a6f45"/><rect x="4" y="5" width="2" height="1" fill="#8a6f45"/><rect x="4" y="6" width="2" height="1" fill="#8a6f45"/><rect x="4" y="7" width="2" height="1" fill="#8a6f45"/><rect x="4" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-shorecraft" viewBox="0 0 10 10"><rect x="3" y="2" width="3" height="1" fill="#4a6fa5"/><rect x="2" y="3" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="3" width="1" height="1" fill="#4a6fa5"/><rect x="1" y="4" width="2" height="1" fill="#4a6fa5"/><rect x="3" y="4" width="1" height="1" fill="#304a74"/><rect x="4" y="4" width="5" height="1" fill="#4a6fa5"/><rect x="2" y="5" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="5" width="1" height="1" fill="#4a6fa5"/><rect x="3" y="6" width="3" height="1" fill="#4a6fa5"/></symbol><symbol id="sk-hearthcraft" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="6" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="2" width="5" height="1" fill="#4e7a2e"/><rect x="3" y="3" width="3" height="1" fill="#4e7a2e"/><rect x="4" y="4" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="5" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="6" width="6" height="1" fill="#6a5434"/><rect x="1" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/><rect x="8" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="8" width="6" height="1" fill="#6a5434"/></symbol><symbol id="sk-prowess" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="7" height="1" fill="#e2b63e"/><rect x="3" y="5" width="2" height="1" fill="#8a6f45"/><rect x="3" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="4" height="1" fill="#e2b63e"/></symbol><symbol id="sk-mourning" viewBox="0 0 10 10"><rect x="1" y="1" width="2" height="1" fill="#ded6be"/><rect x="7" y="1" width="2" height="1" fill="#ded6be"/><rect x="0" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="2" width="2" height="1" fill="#a89e88"/><rect x="3" y="2" width="1" height="1" fill="#ded6be"/><rect x="6" y="2" width="1" height="1" fill="#ded6be"/><rect x="7" y="2" width="2" height="1" fill="#a89e88"/><rect x="9" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="3" width="8" height="1" fill="#ded6be"/><rect x="2" y="4" width="6" height="1" fill="#ded6be"/><rect x="1" y="5" width="8" height="1" fill="#ded6be"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#a89e88"/><rect x="3" y="6" width="1" height="1" fill="#ded6be"/><rect x="6" y="6" width="1" height="1" fill="#ded6be"/><rect x="7" y="6" width="2" height="1" fill="#a89e88"/><rect x="9" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="7" width="2" height="1" fill="#ded6be"/><rect x="7" y="7" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-marksmanship" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#8a6f45"/><rect x="1" y="1" width="2" height="1" fill="#8a6f45"/><rect x="6" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="2" width="1" height="1" fill="#8a6f45"/><rect x="6" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="7" height="1" fill="#b9c0c8"/><rect x="0" y="5" width="1" height="1" fill="#8a6f45"/><rect x="6" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="6" width="1" height="1" fill="#8a6f45"/><rect x="6" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="7" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-sorcery" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e2b63e"/><rect x="4" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="4" y="2" width="1" height="1" fill="#e2b63e"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="3" width="3" height="1" fill="#e2b63e"/><rect x="0" y="4" width="9" height="1" fill="#e2b63e"/><rect x="3" y="5" width="3" height="1" fill="#e2b63e"/><rect x="2" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="6" width="1" height="1" fill="#e2b63e"/><rect x="6" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="7" width="1" height="1" fill="#e2b63e"/><rect x="4" y="8" width="1" height="1" fill="#e2b63e"/></symbol><symbol id="sk-wayfaring" viewBox="0 0 10 10"><rect x="2" y="0" width="5" height="1" fill="#e2b63e"/><rect x="2" y="1" width="1" height="1" fill="#e2b63e"/><rect x="3" y="1" width="3" height="1" fill="#a68428"/><rect x="6" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="2" width="3" height="1" fill="#a68428"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="2" y="3" width="5" height="1" fill="#e2b63e"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="1" y="8" width="5" height="1" fill="#8a6f45"/></symbol></svg>
 <nav id="topnav" class="stone" aria-label="the rest of the world">
   <a class="nhome" href="/" target="_blank" rel="noopener"><svg class="ntally" viewBox="0 0 9 12" aria-hidden="true"><g fill="currentColor">
     <rect x="1" y="1" width="2" height="10"/><rect x="6" y="1" width="2" height="10"/>
@@ -245,7 +269,9 @@
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
     <h2>Skills</h2><div id="skills"></div>
     <h2 id="friendsh" style="display:none">Names you keep</h2><div id="friends" style="font-size:12px"></div>
-    <h2>Inventory</h2><div id="inv"></div>
+    <h2>Worn</h2><div id="worn"></div>
+    <h2>Pack</h2><div id="inv"></div>
+    <div id="itemname"></div>
     <div id="feed" class="stone"></div>
     <div id="sndtoggle" style="font-size:10px;color:var(--dim);cursor:pointer;user-select:none"></div>
     <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
@@ -563,7 +589,7 @@ const MOUNT_LINGER = 1800, MOUNT_REMOUNT = 2200
 const _rodeAt = new Map(), _fellOffAt = new Map()
 function mountedNow(pid, p, nowMs) {
   const act = p?.action?.type
-  if (act === 'attack' || act === 'attackp') { _fellOffAt.set(pid, nowMs); return false }
+  if (act === 'prowess' || act === 'attackp') { _fellOffAt.set(pid, nowMs); return false }
   if (nowMs - (_fellOffAt.get(pid) ?? -1e9) < MOUNT_REMOUNT) return false
   if (onRoadE(p.x, p.y) || !!p.consignment) { _rodeAt.set(pid, nowMs); return true }
   return nowMs - (_rodeAt.get(pid) ?? -1e9) < MOUNT_LINGER
@@ -3566,219 +3592,982 @@ const CALLINGS = {
 // A gate is different. A citizen has to be able to AIM: to know the heartwood
 // wants seventy-eight and decide whether to walk that road. Hiding a gate does
 // not create discovery, it creates wandering.
+// §5m: GENERATED from engine.js skillUnlocks(). It listed `waycraft`, a trade
+// that does not exist, and was missing more than half of what the engine
+// gates -- earthcraft alone had 58 of 122 entries. Regenerate whenever a
+// requirement changes: node -e 'console.log(JSON.stringify(require("./engine.js").skillUnlocks(),null,2))'
 const SKILL_UNLOCKS = {
-  "attack": [
-    [30, "take up the bare blade"],
-    [30, "take up the gold chain"],
-    [30, "take up the old chain"],
-    [35, "take up the steel dagger"],
-    [35, "take up the steel spear"],
-    [35, "take up the steel sword"],
-    [45, "take up the barb"],
-    [50, "take up the star dagger"],
-    [50, "take up the star spear"],
-    [50, "take up the star sword"],
-    [55, "take up the star flail"],
-    [60, "take up the fire siphon"],
-    [70, "take up the great sword"]
+  "woodcraft": [
+    {
+      "level": 1,
+      "text": "shape the rod"
+    },
+    {
+      "level": 10,
+      "text": "shape the oak rod"
+    },
+    {
+      "level": 10,
+      "text": "take up the steel hatchet"
+    },
+    {
+      "level": 12,
+      "text": "forge the hollow bow"
+    },
+    {
+      "level": 20,
+      "text": "the oak groves open to your axe"
+    },
+    {
+      "level": 30,
+      "text": "shape the ironbark rod"
+    },
+    {
+      "level": 30,
+      "text": "take up the star hatchet"
+    },
+    {
+      "level": 45,
+      "text": "forge the bone staff"
+    },
+    {
+      "level": 45,
+      "text": "the ironbark stands"
+    },
+    {
+      "level": 55,
+      "text": "forge the bone spear"
+    },
+    {
+      "level": 70,
+      "text": "shape the heartwood rod"
+    },
+    {
+      "level": 70,
+      "text": "take up the great hatchet"
+    },
+    {
+      "level": 78,
+      "text": "the heartwood of the deep Greenwood"
+    },
+    {
+      "level": 80,
+      "text": "kindle a watchfire"
+    },
+    {
+      "level": 80,
+      "text": "more arrows from the same bone"
+    },
+    {
+      "level": 90,
+      "text": "the heartwood bow and the heartwood staff"
+    },
+    {
+      "level": 92,
+      "text": "the gallows-oaks of the Wilds"
+    }
   ],
-  "brewing": [
-    [78, "a deep fish makes a DEEP BROTH"],
-    [90, "a pot gives up more than it used to"]
+  "earthcraft": [
+    {
+      "level": 1,
+      "text": "forge the barb (earthcraft 40)"
+    },
+    {
+      "level": 1,
+      "text": "forge the bare blade (earthcraft 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the bone spear (woodcraft 55)"
+    },
+    {
+      "level": 1,
+      "text": "forge the bone staff (woodcraft 45)"
+    },
+    {
+      "level": 1,
+      "text": "forge the crossbow (earthcraft 18)"
+    },
+    {
+      "level": 1,
+      "text": "forge the fire siphon (earthcraft 62)"
+    },
+    {
+      "level": 1,
+      "text": "forge the gold bar (earthcraft 40)"
+    },
+    {
+      "level": 1,
+      "text": "forge the gold chain (earthcraft 70)"
+    },
+    {
+      "level": 1,
+      "text": "forge the gold helm (earthcraft 75)"
+    },
+    {
+      "level": 1,
+      "text": "forge the gold legs (earthcraft 80)"
+    },
+    {
+      "level": 1,
+      "text": "forge the gold plate (earthcraft 85)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great crossbow (earthcraft 70, sorcery 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great hatchet (earthcraft 55)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great helm (earthcraft 70, sorcery 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great maul (earthcraft 70, sorcery 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great pickaxe (earthcraft 55)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great plate (earthcraft 70, sorcery 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the great sword (earthcraft 70, sorcery 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the handgonne (earthcraft 90)"
+    },
+    {
+      "level": 1,
+      "text": "forge the hollow bow (woodcraft 12)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron (earthcraft 1)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron dagger"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron dagger (earthcraft 1)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron hatchet"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron hatchet (earthcraft 1)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron helm (earthcraft 7)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron javelin (earthcraft 5)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron maul (earthcraft 14)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron pickaxe"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron pickaxe (earthcraft 1)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron plate (earthcraft 20)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron shield (earthcraft 12)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron spear (earthcraft 5)"
+    },
+    {
+      "level": 1,
+      "text": "forge the iron sword (earthcraft 10)"
+    },
+    {
+      "level": 1,
+      "text": "forge the shell helm (earthcraft 22)"
+    },
+    {
+      "level": 1,
+      "text": "forge the shell plate (earthcraft 26)"
+    },
+    {
+      "level": 1,
+      "text": "forge the shot (earthcraft 50)"
+    },
+    {
+      "level": 1,
+      "text": "forge the sigil bow (earthcraft 12, sorcery 25)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star alloy (earthcraft 48, sorcery 28)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star dagger (earthcraft 45, sorcery 28)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star flail (earthcraft 50, sorcery 29)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star grit (earthcraft 42, sorcery 22)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star hatchet (earthcraft 42, sorcery 22)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star helm (earthcraft 40, sorcery 20)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star ingot (earthcraft 45, sorcery 25)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star javelin (earthcraft 46, sorcery 26)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star maul (earthcraft 52, sorcery 30)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star pickaxe (earthcraft 42, sorcery 22)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star plate (earthcraft 50, sorcery 30)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star shield (earthcraft 48)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star spear (earthcraft 46, sorcery 26)"
+    },
+    {
+      "level": 1,
+      "text": "forge the star sword (earthcraft 45, sorcery 25)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel (earthcraft 30)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel dagger (earthcraft 25)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel hatchet (earthcraft 26)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel helm (earthcraft 30)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel javelin (earthcraft 28)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel maul (earthcraft 42)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel pickaxe (earthcraft 26)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel plate (earthcraft 38)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel shield (earthcraft 34)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel spear (earthcraft 28)"
+    },
+    {
+      "level": 1,
+      "text": "forge the steel sword (earthcraft 32)"
+    },
+    {
+      "level": 5,
+      "text": "forge the iron javelin"
+    },
+    {
+      "level": 5,
+      "text": "forge the iron spear"
+    },
+    {
+      "level": 7,
+      "text": "forge the iron helm"
+    },
+    {
+      "level": 10,
+      "text": "forge the iron sword"
+    },
+    {
+      "level": 10,
+      "text": "take up the steel pickaxe"
+    },
+    {
+      "level": 12,
+      "text": "forge the iron shield"
+    },
+    {
+      "level": 12,
+      "text": "forge the sigil bow"
+    },
+    {
+      "level": 14,
+      "text": "forge the iron maul"
+    },
+    {
+      "level": 18,
+      "text": "forge the crossbow"
+    },
+    {
+      "level": 20,
+      "text": "forge the iron plate"
+    },
+    {
+      "level": 20,
+      "text": "the coal seams open to your pick"
+    },
+    {
+      "level": 22,
+      "text": "forge the shell helm"
+    },
+    {
+      "level": 25,
+      "text": "forge the steel dagger"
+    },
+    {
+      "level": 26,
+      "text": "forge the shell plate"
+    },
+    {
+      "level": 26,
+      "text": "forge the steel hatchet"
+    },
+    {
+      "level": 26,
+      "text": "forge the steel pickaxe"
+    },
+    {
+      "level": 28,
+      "text": "forge the steel javelin"
+    },
+    {
+      "level": 28,
+      "text": "forge the steel spear"
+    },
+    {
+      "level": 30,
+      "text": "forge the steel"
+    },
+    {
+      "level": 30,
+      "text": "forge the steel helm"
+    },
+    {
+      "level": 30,
+      "text": "take up the star pickaxe"
+    },
+    {
+      "level": 32,
+      "text": "forge the steel sword"
+    },
+    {
+      "level": 34,
+      "text": "forge the bare blade"
+    },
+    {
+      "level": 34,
+      "text": "forge the steel shield"
+    },
+    {
+      "level": 38,
+      "text": "forge the steel plate"
+    },
+    {
+      "level": 40,
+      "text": "forge the barb"
+    },
+    {
+      "level": 40,
+      "text": "forge the gold bar"
+    },
+    {
+      "level": 40,
+      "text": "forge the star helm"
+    },
+    {
+      "level": 42,
+      "text": "forge the star grit"
+    },
+    {
+      "level": 42,
+      "text": "forge the star hatchet"
+    },
+    {
+      "level": 42,
+      "text": "forge the star pickaxe"
+    },
+    {
+      "level": 42,
+      "text": "forge the steel maul"
+    },
+    {
+      "level": 45,
+      "text": "forge the star dagger"
+    },
+    {
+      "level": 45,
+      "text": "forge the star ingot"
+    },
+    {
+      "level": 45,
+      "text": "forge the star sword"
+    },
+    {
+      "level": 46,
+      "text": "forge the star javelin"
+    },
+    {
+      "level": 46,
+      "text": "forge the star spear"
+    },
+    {
+      "level": 48,
+      "text": "forge the star alloy"
+    },
+    {
+      "level": 48,
+      "text": "forge the star shield"
+    },
+    {
+      "level": 50,
+      "text": "forge the shot"
+    },
+    {
+      "level": 50,
+      "text": "forge the star flail"
+    },
+    {
+      "level": 50,
+      "text": "forge the star plate"
+    },
+    {
+      "level": 52,
+      "text": "forge the star maul"
+    },
+    {
+      "level": 55,
+      "text": "forge the great hatchet"
+    },
+    {
+      "level": 55,
+      "text": "forge the great pickaxe"
+    },
+    {
+      "level": 62,
+      "text": "forge the fire siphon"
+    },
+    {
+      "level": 70,
+      "text": "forge the gold chain"
+    },
+    {
+      "level": 70,
+      "text": "forge the great crossbow"
+    },
+    {
+      "level": 70,
+      "text": "forge the great helm"
+    },
+    {
+      "level": 70,
+      "text": "forge the great maul"
+    },
+    {
+      "level": 70,
+      "text": "forge the great plate"
+    },
+    {
+      "level": 70,
+      "text": "forge the great sword"
+    },
+    {
+      "level": 70,
+      "text": "take up the great pickaxe"
+    },
+    {
+      "level": 70,
+      "text": "the brimstone vents of the Crags"
+    },
+    {
+      "level": 75,
+      "text": "forge the gold helm"
+    },
+    {
+      "level": 78,
+      "text": "the magic-rocks of the Wilds open to your pick"
+    },
+    {
+      "level": 80,
+      "text": "forge the gold legs"
+    },
+    {
+      "level": 85,
+      "text": "forge the gold plate"
+    },
+    {
+      "level": 85,
+      "text": "the gold seam will answer you"
+    },
+    {
+      "level": 90,
+      "text": "forge the handgonne"
+    },
+    {
+      "level": 92,
+      "text": "the mother lode, deep in the Wilds"
+    }
   ],
-  "cooking": [
-    [78, "you may cook the deep fish"]
+  "hearthcraft": [
+    {
+      "level": 25,
+      "text": "the muck heaps of the farm country"
+    },
+    {
+      "level": 78,
+      "text": "a deep fish makes a DEEP BROTH"
+    },
+    {
+      "level": 90,
+      "text": "a fuller sheaf from every row"
+    },
+    {
+      "level": 90,
+      "text": "a pot gives up more than it used to"
+    }
   ],
-  "defence": [
-    [1, "take up the iron shield"],
-    [15, "take up the shell helm"],
-    [15, "take up the shell plate"],
-    [30, "take up the steel shield"],
-    [32, "take up the steel helm"],
-    [38, "take up the steel plate"],
-    [40, "take up the king shroud"],
-    [45, "take up the gold helm"],
-    [45, "take up the gold legs"],
-    [45, "take up the star helm"],
-    [48, "take up the star shield"],
-    [50, "take up the gold plate"],
-    [50, "take up the star plate"],
-    [70, "take up the great helm"],
-    [70, "take up the great plate"]
+  "shorecraft": [
+    {
+      "level": 10,
+      "text": "take up the oak rod"
+    },
+    {
+      "level": 20,
+      "text": "the eel runs"
+    },
+    {
+      "level": 30,
+      "text": "take up the ironbark rod"
+    },
+    {
+      "level": 70,
+      "text": "take up the heartwood rod"
+    },
+    {
+      "level": 78,
+      "text": "the deep fish of the Wilds water"
+    },
+    {
+      "level": 78,
+      "text": "you may cook the deep fish"
+    },
+    {
+      "level": 92,
+      "text": "the drowned shoal under the gibbet"
+    }
   ],
-  "exploration": [
-    [90, "any rumour yields a chart"]
+  "sorcery": [
+    {
+      "level": 1,
+      "text": "transmute"
+    },
+    {
+      "level": 20,
+      "text": "forge the star helm"
+    },
+    {
+      "level": 20,
+      "text": "take up the sigil bow"
+    },
+    {
+      "level": 22,
+      "text": "forge the star grit"
+    },
+    {
+      "level": 22,
+      "text": "forge the star hatchet"
+    },
+    {
+      "level": 22,
+      "text": "forge the star pickaxe"
+    },
+    {
+      "level": 25,
+      "text": "forge the sigil bow"
+    },
+    {
+      "level": 25,
+      "text": "forge the star ingot"
+    },
+    {
+      "level": 25,
+      "text": "forge the star sword"
+    },
+    {
+      "level": 26,
+      "text": "forge the star javelin"
+    },
+    {
+      "level": 26,
+      "text": "forge the star spear"
+    },
+    {
+      "level": 28,
+      "text": "forge the star alloy"
+    },
+    {
+      "level": 28,
+      "text": "forge the star dagger"
+    },
+    {
+      "level": 29,
+      "text": "forge the star flail"
+    },
+    {
+      "level": 30,
+      "text": "forge the star maul"
+    },
+    {
+      "level": 30,
+      "text": "forge the star plate"
+    },
+    {
+      "level": 34,
+      "text": "forge the great crossbow"
+    },
+    {
+      "level": 34,
+      "text": "forge the great helm"
+    },
+    {
+      "level": 34,
+      "text": "forge the great maul"
+    },
+    {
+      "level": 34,
+      "text": "forge the great plate"
+    },
+    {
+      "level": 34,
+      "text": "forge the great sword"
+    },
+    {
+      "level": 40,
+      "text": "take up the bone staff"
+    },
+    {
+      "level": 40,
+      "text": "the rot — from the barrow-work"
+    },
+    {
+      "level": 50,
+      "text": "mend"
+    },
+    {
+      "level": 60,
+      "text": "the taking — from the barrow-work"
+    },
+    {
+      "level": 70,
+      "text": "take up the goo staff"
+    },
+    {
+      "level": 70,
+      "text": "take up the heartwood staff"
+    },
+    {
+      "level": 75,
+      "text": "the waking — from the barrow-work"
+    },
+    {
+      "level": 85,
+      "text": "the stilling"
+    },
+    {
+      "level": 88,
+      "text": "the withering — from the barrow-work"
+    }
   ],
-  "farming": [
-    [25, "the muck heaps of the farm country"],
-    [90, "a fuller sheaf from every row"]
+  "mourning": [
+    {
+      "level": 70,
+      "text": "the dearest priced thing you carry survives your death"
+    },
+    {
+      "level": 100,
+      "text": "the two dearest do"
+    }
   ],
-  "firemaking": [
-    [80, "kindle a watchfire"]
+  "wayfaring": [
+    {
+      "level": 90,
+      "text": "any rumour yields a chart"
+    }
   ],
-  "fishing": [
-    [10, "take up the oak rod"],
-    [20, "the eel runs"],
-    [30, "take up the ironbark rod"],
-    [70, "take up the heartwood rod"],
-    [78, "the deep fish of the Wilds water"],
-    [92, "the drowned shoal under the gibbet"]
+  "prowess": [
+    {
+      "level": 1,
+      "text": "take up the iron shield"
+    },
+    {
+      "level": 15,
+      "text": "take up the shell helm"
+    },
+    {
+      "level": 15,
+      "text": "take up the shell plate"
+    },
+    {
+      "level": 30,
+      "text": "take up the bare blade"
+    },
+    {
+      "level": 30,
+      "text": "take up the gold chain"
+    },
+    {
+      "level": 30,
+      "text": "take up the old chain"
+    },
+    {
+      "level": 30,
+      "text": "take up the steel shield"
+    },
+    {
+      "level": 32,
+      "text": "take up the steel helm"
+    },
+    {
+      "level": 35,
+      "text": "take up the steel dagger"
+    },
+    {
+      "level": 35,
+      "text": "take up the steel spear"
+    },
+    {
+      "level": 35,
+      "text": "take up the steel sword"
+    },
+    {
+      "level": 38,
+      "text": "take up the steel maul"
+    },
+    {
+      "level": 38,
+      "text": "take up the steel plate"
+    },
+    {
+      "level": 40,
+      "text": "take up the king shroud"
+    },
+    {
+      "level": 45,
+      "text": "take up the barb"
+    },
+    {
+      "level": 45,
+      "text": "take up the gold helm"
+    },
+    {
+      "level": 45,
+      "text": "take up the gold legs"
+    },
+    {
+      "level": 45,
+      "text": "take up the star helm"
+    },
+    {
+      "level": 48,
+      "text": "take up the star shield"
+    },
+    {
+      "level": 50,
+      "text": "take up the bone spear"
+    },
+    {
+      "level": 50,
+      "text": "take up the gold plate"
+    },
+    {
+      "level": 50,
+      "text": "take up the star dagger"
+    },
+    {
+      "level": 50,
+      "text": "take up the star plate"
+    },
+    {
+      "level": 50,
+      "text": "take up the star spear"
+    },
+    {
+      "level": 50,
+      "text": "take up the star sword"
+    },
+    {
+      "level": 55,
+      "text": "take up the star flail"
+    },
+    {
+      "level": 55,
+      "text": "take up the star maul"
+    },
+    {
+      "level": 60,
+      "text": "take up the fire siphon"
+    },
+    {
+      "level": 70,
+      "text": "take up the great helm"
+    },
+    {
+      "level": 70,
+      "text": "take up the great maul"
+    },
+    {
+      "level": 70,
+      "text": "take up the great plate"
+    },
+    {
+      "level": 70,
+      "text": "take up the great sword"
+    }
   ],
-  "fletching": [
-    [1, "shape the rod"],
-    [10, "shape the oak rod"],
-    [12, "forge the hollow bow"],
-    [30, "shape the ironbark rod"],
-    [45, "forge the bone staff"],
-    [55, "forge the bone spear"],
-    [70, "shape the heartwood rod"],
-    [80, "more arrows from the same bone"],
-    [90, "the heartwood bow and the heartwood staff"]
-  ],
-  "magic": [
-    [1, "transmute"],
-    [20, "forge the star helm"],
-    [20, "take up the sigil bow"],
-    [22, "forge the star hatchet"],
-    [22, "forge the star pickaxe"],
-    [25, "forge the sigil bow"],
-    [25, "forge the star sword"],
-    [26, "forge the star javelin"],
-    [26, "forge the star spear"],
-    [28, "forge the star dagger"],
-    [29, "forge the star flail"],
-    [30, "forge the star maul"],
-    [30, "forge the star plate"],
-    [34, "forge the great crossbow"],
-    [34, "forge the great helm"],
-    [34, "forge the great maul"],
-    [34, "forge the great plate"],
-    [34, "forge the great sword"],
-    [40, "take up the bone staff"],
-    [40, "the rot — from the barrow-work"],
-    [50, "mend"],
-    [60, "the taking — from the barrow-work"],
-    [70, "take up the goo staff"],
-    [70, "take up the heartwood staff"],
-    [75, "the waking — from the barrow-work"],
-    [85, "the stilling"],
-    [88, "the withering — from the barrow-work"]
-  ],
-  "mining": [
-    [10, "take up the steel pickaxe"],
-    [20, "the coal seams open to your pick"],
-    [30, "take up the star pickaxe"],
-    [70, "take up the great pickaxe"],
-    [70, "the brimstone vents of the Crags"],
-    [78, "the magic-rocks of the Wilds open to your pick"],
-    [85, "the gold seam will answer you"],
-    [92, "the mother lode, deep in the Wilds"]
-  ],
-  "prayer": [
-    [70, "the dearest priced thing you carry survives your death"],
-    [99, "the two dearest do"]
-  ],
-  "ranged": [
-    [1, "take up the hollow bow"],
-    [1, "take up the iron javelin"],
-    [15, "take up the steel javelin"],
-    [20, "take up the horn bow"],
-    [25, "take up the crossbow"],
-    [30, "take up the sigil bow"],
-    [40, "take up the dragonbow"],
-    [40, "take up the heartwood bow"],
-    [50, "take up the star javelin"],
-    [70, "take up the great crossbow"],
-    [90, "take up the handgonne"]
-  ],
-  "smithing": [
-    [1, "forge the bone spear (fletching 55)"],
-    [1, "forge the bone staff (fletching 45)"],
-    [1, "forge the hollow bow (fletching 12)"],
-    [1, "forge the iron"],
-    [1, "forge the iron dagger"],
-    [1, "forge the iron hatchet"],
-    [1, "forge the iron pickaxe"],
-    [5, "forge the iron javelin"],
-    [5, "forge the iron spear"],
-    [7, "forge the iron helm"],
-    [10, "forge the iron sword"],
-    [12, "forge the iron shield"],
-    [12, "forge the sigil bow (magic 25)"],
-    [14, "forge the iron maul"],
-    [18, "forge the crossbow"],
-    [20, "forge the iron plate"],
-    [22, "forge the shell helm"],
-    [25, "forge the steel dagger"],
-    [26, "forge the shell plate"],
-    [26, "forge the steel hatchet"],
-    [26, "forge the steel pickaxe"],
-    [28, "forge the steel javelin"],
-    [28, "forge the steel spear"],
-    [30, "forge the steel"],
-    [30, "forge the steel helm"],
-    [32, "forge the steel sword"],
-    [34, "forge the bare blade"],
-    [34, "forge the steel shield"],
-    [38, "forge the steel plate"],
-    [40, "forge the barb"],
-    [40, "forge the gold bar"],
-    [40, "forge the star helm (magic 20)"],
-    [42, "forge the star hatchet (magic 22)"],
-    [42, "forge the star pickaxe (magic 22)"],
-    [42, "forge the steel maul"],
-    [45, "forge the star dagger (magic 28)"],
-    [45, "forge the star ingot"],
-    [45, "forge the star sword (magic 25)"],
-    [46, "forge the star javelin (magic 26)"],
-    [46, "forge the star spear (magic 26)"],
-    [48, "forge the star shield"],
-    [50, "forge the shot"],
-    [50, "forge the star flail (magic 29)"],
-    [50, "forge the star plate (magic 30)"],
-    [52, "forge the star maul (magic 30)"],
-    [55, "forge the great hatchet"],
-    [55, "forge the great pickaxe"],
-    [62, "forge the fire siphon"],
-    [70, "forge the gold chain"],
-    [70, "forge the great crossbow (magic 34)"],
-    [70, "forge the great helm (magic 34)"],
-    [70, "forge the great maul (magic 34)"],
-    [70, "forge the great plate (magic 34)"],
-    [70, "forge the great sword (magic 34)"],
-    [75, "forge the gold helm"],
-    [80, "forge the gold legs"],
-    [85, "forge the gold plate"],
-    [90, "forge the handgonne"]
-  ],
-  "strength": [
-    [30, "take up the bare blade"],
-    [38, "take up the steel maul"],
-    [50, "take up the bone spear"],
-    [55, "take up the star maul"],
-    [70, "take up the great maul"]
-  ],
-  "woodcutting": [
-    [10, "take up the steel hatchet"],
-    [20, "the oak groves open to your axe"],
-    [30, "take up the star hatchet"],
-    [45, "the ironbark stands"],
-    [70, "take up the great hatchet"],
-    [78, "the heartwood of the deep Greenwood"],
-    [92, "the gallows-oaks of the Wilds"]
+  "marksmanship": [
+    {
+      "level": 1,
+      "text": "take up the hollow bow"
+    },
+    {
+      "level": 1,
+      "text": "take up the iron javelin"
+    },
+    {
+      "level": 15,
+      "text": "take up the steel javelin"
+    },
+    {
+      "level": 20,
+      "text": "take up the horn bow"
+    },
+    {
+      "level": 25,
+      "text": "take up the crossbow"
+    },
+    {
+      "level": 30,
+      "text": "take up the sigil bow"
+    },
+    {
+      "level": 40,
+      "text": "take up the dragonbow"
+    },
+    {
+      "level": 40,
+      "text": "take up the heartwood bow"
+    },
+    {
+      "level": 50,
+      "text": "take up the star javelin"
+    },
+    {
+      "level": 70,
+      "text": "take up the great crossbow"
+    },
+    {
+      "level": 90,
+      "text": "take up the handgonne"
+    }
   ]
 }
 // the skills that gate nothing are not broken, they are the four that pay no
 // power (§11): the road is the whole of what they are.
-const SKILL_NOTE = {
-  hitpoints: 'Rises on its own, from every blow you land. It gates nothing \u2014 it IS your health.',
-  hauling: 'Gates nothing. A consignment is sealed at any counter; the level is the achievement.',
-  exploration: 'Gates one thing, below. Charts are the trace it leaves.',
-  prayer: 'Gates nothing you wield. What it buys is what survives you.',
+// §5m: one note per trade. Every key here used to be a skill that no longer
+// exists, so the guide showed no note for anything.
+// §5k: which callings a citizen may swear on the strength of this trade. Shown
+// in the guide because a trade's callings are the point of having trades.
+const CALLINGS_OF = {
+  woodcraft: ['forester', 'firekeeper', 'fletcher'],
+  earthcraft: ['miner', 'smith'],
+  shorecraft: ['fisher', 'cook'],
+  hearthcraft: ['farmer', 'brewer'],
+  prowess: ['fighter', 'berserker', 'warden'],
+  marksmanship: ['archer'],
+  sorcery: ['alchemist'],
+  wayfaring: ['cartographer', 'runner'],
+  mourning: ['mourner'],
 }
-const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
-  'strength', 'defence', 'hitpoints', 'exploration', 'brewing', 'hauling']
+const SKILL_NOTE = {
+  woodcraft: 'The axe, the bench and the fire. Fell, saw, fletch and light \u2014 one trade, because nobody fells a tree for the sake of holding logs.',
+  earthcraft: 'The seam and the anvil. Ore has no use unmelted, and the one who went to the crags for it should not have to hand it over to make it useful.',
+  shorecraft: 'The rod and the pan. Nobody fishes in order to carry a raw fish home.',
+  hearthcraft: 'The field and the pot. The grain ends up at the hearth either way. (Your brewing pot is not this level \u2014 it is a thing you raised.)',
+  prowess: 'One ladder for the whole of close fighting. A blow you land pays it and so does one you wear. Your frame is FLAT at sixty-four: it is not a skill and never rises.',
+  marksmanship: 'Every drawn arm \u2014 bow, crossbow, handgonne, javelin. Distance is the trade.',
+  sorcery: 'The trade of refusing combat. It gates the sigil spells, below.',
+  wayfaring: 'Going out and coming back. Ground never seen pays it; so does weight carried across ground you have. Gates one thing, below.',
+  mourning: 'The only trade paid in what it COST you. An offering is gone \u2014 nobody gets it \u2014 and the same gift twice is worth less. What it buys is what survives you.',
+}
+// §5m: THE NINE, in the engine's SKILLS order. This carried all eighteen old
+// names mapped onto the new ones, so it listed woodcraft three times, prowess
+// four, and two trades that no longer exist -- and `standingOf` sums it. A
+// citizen at fifty in every trade read 802 here against the engine's 450.
+// Standing is shown beside every name in this window; it was wrong for all of
+// them.
+const SKILL_ORDER = ['woodcraft', 'earthcraft', 'shorecraft', 'mourning',
+  'marksmanship', 'sorcery', 'hearthcraft', 'prowess', 'wayfaring']
 // ---- who a citizen is (spec 10) ----
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
@@ -3788,7 +4577,7 @@ function standingOf(p) { // the sum of true levels: mastery is a milestone, not 
 function callingOf(p) { // the trade you have the most experience in, as a word
   let best = null, bestXp = -1
   for (const sk of SKILL_ORDER) {
-    if (sk === 'hitpoints') continue
+    if (sk === 'prowess') continue
     const xp = p?.skills?.[sk] ?? 0
     if (xp > bestXp) { bestXp = xp; best = sk }
   }
@@ -4204,7 +4993,7 @@ const NODE_NAME = {
   'rock': 'rock', 'iron-rock': 'iron', 'coal-rock': 'coal', 'gold-rock': 'gold',
   'magic-rock': 'magic stone', 'mother-lode': 'mother lode',
   'brimstone-vent': 'brimstone', 'muck-heap': 'muck heap', 'rockfall': 'rockfall',
-  // §7db-ii: and a fishing spot is not "fishing". There are FOUR, they yield
+  // §7db-ii: and a fishing spot is not "shorecraft". There are FOUR, they yield
   // three different fish, and I named the family instead of the thing -- which
   // is the exact fault the labels were added to fix, committed in the table
   // that fixes it. A name has to say what you get.
@@ -4212,9 +5001,76 @@ const NODE_NAME = {
   'gibbet-shoal': 'the shoal \u2014 deep fish, two to a cast', 'salt-pan': 'salt pans',
 }
 const NAME_RANGE = 7   // as far as you could read a thing by looking at it
+// §5i: mirrors engine WALK_MAX_STEPS. The engine refuses anything longer, so a
+// window that planned further would simply have its journeys rejected.
+const WALK_MAX_STEPS = 512
+// §5t: the pack. Mirrored from the engine rather than typed as a literal --
+// this window carried three hardcoded 28s and went on drawing a
+// twenty-eight-slot bag for a twelve-slot world.
+const INV_SLOTS = 12
+// §4b: mastery is one hundred, not ninety-nine.
+const MASTERY = 100
+// the order they are DRAWN in; the engine's own EQUIP_SLOTS order is the
+// constitutional one and is not this window's to choose.
+// §5t: GENERATED from engine.js WEAPONS and ARMOUR by tools/gen-worn-stats.mjs.
+// Do not edit by hand: a citizen reading numbers off their own sword must be
+// reading the engine's, not a copy somebody made once.
+const WORN_STATS = {
+  "iron-dagger": {acc:14, every:2},
+  "iron-sword": {hit:2, every:2},
+  "iron-spear": {hit:7, every:2, reach:2},
+  "iron-maul": {hit:10, acc:-12, every:2},
+  "steel-dagger": {hit:1, acc:14, every:2},
+  "steel-sword": {hit:3, every:2},
+  "steel-spear": {hit:8, every:2, reach:2},
+  "steel-maul": {hit:11, acc:-12, every:2},
+  "star-dagger": {hit:2, acc:14, every:2},
+  "star-sword": {hit:4, every:2},
+  "star-spear": {hit:9, every:2, reach:2},
+  "star-maul": {hit:13, acc:-12, every:2},
+  "old-chain": {hit:1, every:1},
+  "gold-chain": {hit:1, every:1},
+  "spade": {acc:-8, every:3},
+  "fire-siphon": {hit:6, every:2, reach:2, pierces:1},
+  "bare-blade": {every:2},
+  "bone-spear": {every:2, reach:2},
+  "barb": {hit:4, acc:8, every:2},
+  "wand": {acc:-20, every:3},
+  "bone-staff": {acc:-26, every:3},
+  "star-flail": {hit:9, acc:-6, every:2, pierces:1},
+  "iron-javelin": {hit:2, every:2, reach:3},
+  "steel-javelin": {hit:3, every:2, reach:3},
+  "star-javelin": {hit:4, every:2, reach:3},
+  "hollow-bow": {hit:2, acc:-10, every:2, reach:3},
+  "torch": {hit:1, acc:-6, every:3},
+  "great-sword": {hit:5, acc:4, every:2},
+  "great-crossbow": {},
+  "great-maul": {hit:16, acc:-10, every:2},
+  "crossbow": {hit:11, acc:21, every:3, reach:4},
+  "sigil-bow": {hit:8, every:2, reach:5},
+  "heartwood-bow": {hit:10, acc:3, every:2, reach:3},
+  "wooden-bow": {hit:6, every:2, reach:4},
+  "horn-bow": {hit:8, every:2, reach:5},
+  "handgonne": {hit:36, acc:-20, every:4, reach:4},
+  "dragonbow": {hit:12, acc:6, every:2, reach:9},
+  "iron-helm": {armour:8},
+  "iron-plate": {armour:12},
+  "steel-helm": {armour:12},
+  "steel-plate": {armour:18},
+  "star-helm": {armour:16},
+  "star-plate": {armour:24},
+  "king-shroud": {armour:22},
+  "gold-helm": {armour:16},
+  "gold-plate": {armour:24},
+  "shell-helm": {armour:10},
+  "shell-plate": {armour:15},
+  "great-helm": {armour:12},
+  "great-plate": {armour:18}
+}
+const EQUIP_SLOTS = ['head', 'weapon', 'body', 'offhand', 'legs']
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
-const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'magic-rock': 'mining', 'fishing-spot': 'fishing' }
+const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'magic-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
 // §6: A MAGIC-ROCK ASKS FOR MINING 70, and neither window knew it. A citizen
 // walked to the glowing rock, clicked it, and NOTHING happened -- the engine
 // refused the gather at the door and the refusal is silent, so the rock simply
@@ -4324,6 +5180,8 @@ window.addEventListener('keydown', (e) => {
 })
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
+  // §5i: a journey is one deed. Direction and count; the world walks the rest.
+  : a.do === 'walk' ? { type: 'walk', dx: a.dx, dy: a.dy, steps: a.steps }
   : a.do === 'spawn' ? { type: 'spawn' }
   : a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
   // v0.82: the four verbs this window could not send. A window that cannot
@@ -4358,7 +5216,7 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'take_market' ? { type: 'take_market' }
   : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
   : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
+  : a.do === 'prowess' ? { type: 'prowess', mobId: a.mobId, style: a.style ?? combatStyle }
   : a.do === 'eat' ? { type: 'eat', slot: a.slot }
   : a.do === 'drop' ? { type: 'drop', slot: a.slot }
   // §7dk: `confirm` is required on every pickup and only CHECKED when the
@@ -4797,12 +5655,27 @@ function nextStep(s, me, goals) {
       const k = key(nx, ny)
       if (nx < 0 || nx >= W || ny < 0 || ny >= H || prev.has(k) || blockedAt(s, nx, ny)) continue
       prev.set(k, key(cx2, cy2))
-      if (goals.has(k)) { // walk back to the first step
-        let cur = k, par = prev.get(k)
+      if (goals.has(k)) {
+        // §5i: walk back the WHOLE chain, then measure the leading straight
+        // run. The engine's `walk` carries a direction and a count, so a
+        // journey costs one deed per TURN rather than one per tile -- the
+        // difference between two hundred and thirty-eight signed inputs to
+        // cross the island and three. The path itself is unchanged; only how
+        // much of it we can buy with a single input.
         const start = key(me.x, me.y)
-        while (par !== start) { cur = par; par = prev.get(cur) }
-        const [fx, fy] = cur.split(',').map(Number)
-        return { dx: fx - me.x, dy: fy - me.y }
+        const chain = []
+        for (let cur = k; cur !== start; cur = prev.get(cur)) chain.push(cur)
+        chain.reverse()
+        const at = (i) => chain[i].split(',').map(Number)
+        const [f0x, f0y] = at(0)
+        const dx = f0x - me.x, dy = f0y - me.y
+        let run = 1, px = f0x, py = f0y
+        while (run < chain.length) {
+          const [nx2, ny2] = at(run)
+          if (nx2 - px !== dx || ny2 - py !== dy) break
+          px = nx2; py = ny2; run++
+        }
+        return { dx, dy, run }
       }
       q.push([nx, ny])
     }
@@ -4810,7 +5683,22 @@ function nextStep(s, me, goals) {
   return null
 }
 
+// §5i: WHILE A JOURNEY IS RUNNING, SAY NOTHING.
+//
+// stepToward is called on every state, and a `walk` keeps moving the citizen
+// for many intervals after the single input that started it. Re-planning each
+// interval and sending a fresh walk would spend one deed per tile exactly as
+// `move` did -- the whole saving lost, and worse, since a walk is the larger
+// input. So: while the world is carrying us AND the destination has not
+// changed, this function does nothing at all.
+//
+// A new destination clears it immediately, because the goal comparison fails
+// and the fresh walk replaces the old action in the engine's one action slot.
+let walkGoal = null
 function stepToward(s, me, goal, reach, stampTick) {
+  if (me.action && me.action.type === 'walk') {
+    if (walkGoal && walkGoal.x === goal.x && walkGoal.y === goal.y) return
+  } else if (walkGoal) walkGoal = null   // the journey ended; plan freely again
   const goals = new Set()
   if (reach) { // the four tiles you can face it from
     for (const [mx, my] of [[1,0],[-1,0],[0,1],[0,-1]]) {
@@ -4831,7 +5719,17 @@ function stepToward(s, me, goal, reach, stampTick) {
   if (tk === null) { _movesDropped++; return }
   facing[myId] = step.dx !== 0 ? step.dx : (facing[myId] ?? 1)
   moveLock = { x: me.x + step.dx, y: me.y + step.dy, tick: tk, until: tk + 2 }
-  send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
+  // §5i: a straight run is ONE deed. `walk` takes its first step in the same
+  // phase a `move` would, so the lock above is right either way; the rest of
+  // the run is carried by the world without further input. A run of one stays
+  // a `move`, because a walk of a single step is a move with extra fields.
+  if (step.run > 1) {
+    walkGoal = { x: goal.x, y: goal.y }
+    send({ do: 'walk', dx: step.dx, dy: step.dy, steps: Math.min(step.run, WALK_MAX_STEPS), _tick: tk })
+  } else {
+    walkGoal = null
+    send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
+  }
 }
 
 // §6ad: THE FORGE MENU.
@@ -4926,64 +5824,64 @@ const FORGE = {
 // character for character from engine SMITH_REQS
 // §6dj: generated from engine.js SMITH_REQS
 const FORGE_REQ = {
-  "barb": {"smithing":40},
-  "bare-blade": {"smithing":34},
-  "bone-spear": {"fletching":55},
-  "bone-staff": {"fletching":45},
-  "crossbow": {"smithing":18},
-  "fire-siphon": {"smithing":62},
-  "gold-bar": {"smithing":40},
-  "gold-chain": {"smithing":70},
-  "gold-helm": {"smithing":75},
-  "gold-legs": {"smithing":80},
-  "gold-plate": {"smithing":85},
-  "great-crossbow": {"smithing":70,"magic":34},
-  "great-hatchet": {"smithing":55},
-  "great-helm": {"smithing":70,"magic":34},
-  "great-maul": {"smithing":70,"magic":34},
-  "great-pickaxe": {"smithing":55},
-  "great-plate": {"smithing":70,"magic":34},
-  "great-sword": {"smithing":70,"magic":34},
-  "handgonne": {"smithing":90},
-  "hollow-bow": {"fletching":12},
-  "iron": {"smithing":1},
-  "iron-dagger": {"smithing":1},
-  "iron-hatchet": {"smithing":1},
-  "iron-helm": {"smithing":7},
-  "iron-javelin": {"smithing":5},
-  "iron-maul": {"smithing":14},
-  "iron-pickaxe": {"smithing":1},
-  "iron-plate": {"smithing":20},
-  "iron-shield": {"smithing":12},
-  "iron-spear": {"smithing":5},
-  "iron-sword": {"smithing":10},
-  "shell-helm": {"smithing":22},
-  "shell-plate": {"smithing":26},
-  "shot": {"smithing":50},
-  "sigil-bow": {"smithing":12,"magic":25},
-  "star-dagger": {"smithing":45,"magic":28},
-  "star-flail": {"smithing":50,"magic":29},
-  "star-hatchet": {"smithing":42,"magic":22},
-  "star-helm": {"smithing":40,"magic":20},
-  "star-ingot": {"smithing":45},
-  "star-javelin": {"smithing":46,"magic":26},
-  "star-maul": {"smithing":52,"magic":30},
-  "star-pickaxe": {"smithing":42,"magic":22},
-  "star-plate": {"smithing":50,"magic":30},
-  "star-shield": {"smithing":48},
-  "star-spear": {"smithing":46,"magic":26},
-  "star-sword": {"smithing":45,"magic":25},
-  "steel": {"smithing":30},
-  "steel-dagger": {"smithing":25},
-  "steel-hatchet": {"smithing":26},
-  "steel-helm": {"smithing":30},
-  "steel-javelin": {"smithing":28},
-  "steel-maul": {"smithing":42},
-  "steel-pickaxe": {"smithing":26},
-  "steel-plate": {"smithing":38},
-  "steel-shield": {"smithing":34},
-  "steel-spear": {"smithing":28},
-  "steel-sword": {"smithing":32}
+  "barb": {"earthcraft":40},
+  "bare-blade": {"earthcraft":34},
+  "bone-spear": {"woodcraft":55},
+  "bone-staff": {"woodcraft":45},
+  "crossbow": {"earthcraft":18},
+  "fire-siphon": {"earthcraft":62},
+  "gold-bar": {"earthcraft":40},
+  "gold-chain": {"earthcraft":70},
+  "gold-helm": {"earthcraft":75},
+  "gold-legs": {"earthcraft":80},
+  "gold-plate": {"earthcraft":85},
+  "great-crossbow": {"earthcraft":70,"sorcery":34},
+  "great-hatchet": {"earthcraft":55},
+  "great-helm": {"earthcraft":70,"sorcery":34},
+  "great-maul": {"earthcraft":70,"sorcery":34},
+  "great-pickaxe": {"earthcraft":55},
+  "great-plate": {"earthcraft":70,"sorcery":34},
+  "great-sword": {"earthcraft":70,"sorcery":34},
+  "handgonne": {"earthcraft":90},
+  "hollow-bow": {"woodcraft":12},
+  "iron": {"earthcraft":1},
+  "iron-dagger": {"earthcraft":1},
+  "iron-hatchet": {"earthcraft":1},
+  "iron-helm": {"earthcraft":7},
+  "iron-javelin": {"earthcraft":5},
+  "iron-maul": {"earthcraft":14},
+  "iron-pickaxe": {"earthcraft":1},
+  "iron-plate": {"earthcraft":20},
+  "iron-shield": {"earthcraft":12},
+  "iron-spear": {"earthcraft":5},
+  "iron-sword": {"earthcraft":10},
+  "shell-helm": {"earthcraft":22},
+  "shell-plate": {"earthcraft":26},
+  "shot": {"earthcraft":50},
+  "sigil-bow": {"earthcraft":12,"sorcery":25},
+  "star-dagger": {"earthcraft":45,"sorcery":28},
+  "star-flail": {"earthcraft":50,"sorcery":29},
+  "star-hatchet": {"earthcraft":42,"sorcery":22},
+  "star-helm": {"earthcraft":40,"sorcery":20},
+  "star-ingot": {"earthcraft":45},
+  "star-javelin": {"earthcraft":46,"sorcery":26},
+  "star-maul": {"earthcraft":52,"sorcery":30},
+  "star-pickaxe": {"earthcraft":42,"sorcery":22},
+  "star-plate": {"earthcraft":50,"sorcery":30},
+  "star-shield": {"earthcraft":48},
+  "star-spear": {"earthcraft":46,"sorcery":26},
+  "star-sword": {"earthcraft":45,"sorcery":25},
+  "steel": {"earthcraft":30},
+  "steel-dagger": {"earthcraft":25},
+  "steel-hatchet": {"earthcraft":26},
+  "steel-helm": {"earthcraft":30},
+  "steel-javelin": {"earthcraft":28},
+  "steel-maul": {"earthcraft":42},
+  "steel-pickaxe": {"earthcraft":26},
+  "steel-plate": {"earthcraft":38},
+  "steel-shield": {"earthcraft":34},
+  "steel-spear": {"earthcraft":28},
+  "steel-sword": {"earthcraft":32}
 }
 // a log is a log (§6ad), so heartwood pays for anything logs pay for
 function forgeHave(me, item) {
@@ -5282,7 +6180,7 @@ function drawGoalMarker(s, tNow) {
   let gx = null, gy = null, isAct = true
   if (intent.kind === 'walk') { gx = intent.x; gy = intent.y; isAct = false }
   else if (intent.kind === 'pickup') { const g2 = s.ground[intent.id]; if (g2) { gx = g2.x; gy = g2.y } }
-  else if (intent.kind === 'attack' || intent.kind === 'meet' || intent.kind === 'pvpattack') {
+  else if (intent.kind === 'prowess' || intent.kind === 'meet' || intent.kind === 'pvpattack') {
     const e2 = s.mobs[intent.id] ?? s.players[intent.id]
     if (e2) {
       const o2 = (s.mobs[intent.id] ? prevState?.mobs?.[intent.id] : prevState?.players?.[intent.id])
@@ -5399,7 +6297,7 @@ function drawMini(s) {
   cx.globalAlpha = 1
 }
 let pendingLight = null // { slot, tick } while coaxing a fire
-let _invSig = '' // last-rendered inventory signature: only rebuild slots on change (keeps taps responsive)
+let _invSig = '', _wornSig = '', _namedItem = '' // last-rendered inventory signature: only rebuild slots on change (keeps taps responsive)
 let nameTries = 0
 let moveLock = null // { x, y, until } the step in flight: plan nothing atop it
 let _movesDropped = 0   // footsteps lost to a full tick line; should stay near zero
@@ -5455,9 +6353,9 @@ function chooseAction(opts) {
 }
 const SLEEP_AFTER = 500
 const CAPE_COLORS = {
-  woodcutting: '#2f7d2f', mining: '#5a6b7d', fishing: '#2a6f9e',
-  cooking: '#7d2f5a', smithing: '#b06a2a', firemaking: '#c9432a',
-  prayer: '#e8e4d0', magic: '#3a7d9e', ranged: '#5c7d3a', farming: '#7d9e3a', fletching: '#9e7d3a', attack: '#8e1f1f', defence: '#3a5a8e', hitpoints: '#7d7d2f',
+  woodcraft: '#2f7d2f', earthcraft: '#5a6b7d', shorecraft: '#2a6f9e',
+  shorecraft: '#7d2f5a', earthcraft: '#b06a2a', woodcraft: '#c9432a',
+  mourning: '#e8e4d0', sorcery: '#3a7d9e', marksmanship: '#5c7d3a', hearthcraft: '#7d9e3a', woodcraft: '#9e7d3a', prowess: '#8e1f1f', prowess: '#3a5a8e', prowess: '#7d7d2f',
 }
 function capeOf(p) { // mastery is a fact; the cape is what it looks like
   const mastered = Object.entries(p.skills).filter(([, xp]) => XP_TO_LVL(xp) >= 99)
@@ -5961,7 +6859,7 @@ function withPeers(st) {
       x: q.x, y: q.y, hp: 10, gold: 0, name: NOUGHT_PEER_NAME, look: q.look,
       action: null, trade: null, consignment: null, lastInput: st.tick,
       equipment: { weapon: null, head: null, body: null, offhand: null, legs: null },
-      bank: {}, inventory: new Array(28).fill(null), skills: st.players[myId].skills,
+      bank: {}, inventory: new Array(INV_SLOTS).fill(null), skills: st.players[myId].skills,
     }
   }
   return v
@@ -6343,8 +7241,8 @@ function onState(s, worldId, local) {
   // 'X is the FIRST to master woodcutting' and the banner should show the axe
   // beside it, exactly as a personal level-up does.
   for (const a of s.announce ?? []) if (a.tick > _lastAnnounceTick && a.tick <= s.tick) {
-    // ANCHORED on the mastery phrasing, not a loose substring. 'attack'
-    // appears in 'attacked', 'mining' in 'the mining camp is lost' — a naive
+    // ANCHORED on the mastery phrasing, not a loose substring. 'prowess'
+    // appears in 'attacked', 'earthcraft' in 'the mining camp is lost' — a naive
     // `includes` would put a pickaxe on an announcement about a camp. The
     // world names a skill in exactly one sentence shape, so match that.
     const m9 = /\bmaster(?:ed|s|y of)?\s+([a-z]+)/i.exec(a.text)
@@ -6416,7 +7314,7 @@ function onState(s, worldId, local) {
     else if (!fire) { intent = null }
     else send({ do: 'cook', slot: i })
   }
-  else if (me && intent?.kind === 'attack' && (me.action?.mobId === intent.id || !s.mobs[intent.id] || s.mobs[intent.id].hp <= 0)) {
+  else if (me && intent?.kind === 'prowess' && (me.action?.mobId === intent.id || !s.mobs[intent.id] || s.mobs[intent.id].hp <= 0)) {
     intent = null // the fight began, or the target is gone
   }
   else if (me && intent && !me.action) {
@@ -6451,25 +7349,25 @@ function onState(s, worldId, local) {
     // something with a bow in their hands. The only way to shoot was to stand
     // at the right distance first and then click, which is not a command
     // anybody should have to compose.
-    else if (intent.kind === 'attack'
+    else if (intent.kind === 'prowess'
              && RANGED_ITEMS.has(me.equipment?.weapon?.item)
              && hasAmmoFor(me, me.equipment?.weapon?.item)   // §6dg: arrows, shot or javelins
              && Math.max(Math.abs(me.x - goal.x), Math.abs(me.y - goal.y))
                 <= reachOfItem(me.equipment?.weapon?.item)) {
-      send({ do: 'attack', mobId: intent.id })
+      send({ do: 'prowess', mobId: intent.id })
       if (!intent.announced) { feed('You draw your bow at the ' + (s.mobs[intent.id]?.type ?? 'creature') + '!'); intent.announced = true }
     }
-    else if ((intent.kind === 'gather' || intent.kind === 'attack' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo' || intent.kind === 'meet' || intent.kind === 'plant' || intent.kind === 'harvest' || intent.kind === 'pvpattack')
+    else if ((intent.kind === 'gather' || intent.kind === 'prowess' || intent.kind === 'gatherfire' || intent.kind === 'anvilgo' || intent.kind === 'meet' || intent.kind === 'plant' || intent.kind === 'harvest' || intent.kind === 'pvpattack')
              && Math.abs(me.x - goal.x) + Math.abs(me.y - goal.y) === 1) {
       // arrived: engage automatically: clicking once was the whole command
       if (intent.kind === 'pvpattack') { send({ do: 'attackp', targetId: intent.id }); intent = null }
       else if (intent.kind === 'plant') { send({ do: 'plant', slot: intent.slot }); feed('You press a seed into the tilled earth.'); intent = null }
       else if (intent.kind === 'harvest') { send({ do: 'harvest', nodeId: intent.id }); feed('You gather the golden heads. The earth rests.'); intent = null }
       else if (intent.kind === 'gather') { send({ do: 'gather', nodeId: intent.id }); feed(intent.msg); intent = null }
-      else if (intent.kind === 'attack') {
+      else if (intent.kind === 'prowess') {
         // the hunt persists: keep the intent until the state confirms the
         // fight began, so a goblin that steps at the tick boundary is chased
-        send({ do: 'attack', mobId: intent.id })
+        send({ do: 'prowess', mobId: intent.id })
         if (!intent.announced) { feed('You attack the ' + (s.mobs[intent.id]?.type ?? 'creature') + '!'); intent.announced = true }
       }
       else if (intent.kind === 'anvilgo') { smithBest(me); intent = null }
@@ -6523,15 +7421,15 @@ function onState(s, worldId, local) {
     }
     for (const k in me.skills) if (me.skills[k] > old.skills[k]) {
       const l1 = XP_TO_LVL(old.skills[k]), l2 = XP_TO_LVL(me.skills[k])
-      if (k === 'smithing' && me.skills[k] > old.skills[k]) SFX.smith()
-      if (k === 'firemaking' && me.skills[k] > old.skills[k]) SFX.fire()
-      if (k === 'ranged' && me.skills[k] > old.skills[k]) {
-        const foe = me.action?.type === 'attack' ? world.mobs?.[me.action.mobId] : null
+      if (k === 'earthcraft' && me.skills[k] > old.skills[k]) SFX.smith()
+      if (k === 'woodcraft' && me.skills[k] > old.skills[k]) SFX.fire()
+      if (k === 'marksmanship' && me.skills[k] > old.skills[k]) {
+        const foe = me.action?.type === 'prowess' ? world.mobs?.[me.action.mobId] : null
         if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x, y1: foe.y, at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
         tone(880, 0.06, { type: 'triangle', vol: 0.05 }); tone(240, 0.1, { type: 'square', vol: 0.03, at: 0.05 }) // the string, then the thud
       }
-      if (k === 'prayer' && me.skills[k] > old.skills[k]) { tone(520, 0.3, { type: 'sine', vol: 0.05 }); tone(390, 0.4, { type: 'sine', vol: 0.04, at: 0.05 }) }
-      if (!['attack', 'defence', 'hitpoints', 'ranged'].includes(k)) { // combat trains QUIETLY, ranged included: the arrow is the feedback now
+      if (k === 'mourning' && me.skills[k] > old.skills[k]) { tone(520, 0.3, { type: 'sine', vol: 0.05 }); tone(390, 0.4, { type: 'sine', vol: 0.04, at: 0.05 }) }
+      if (!['prowess', 'prowess', 'prowess', 'marksmanship'].includes(k)) { // combat trains QUIETLY, ranged included: the arrow is the feedback now
         xpDrops.push({ amt: me.skills[k] - old.skills[k], x: me.x, y: me.y, at: performance.now() })
         if (xpDrops.length > 12) xpDrops.shift()
       }
@@ -6544,8 +7442,8 @@ function onState(s, worldId, local) {
     }
     { const oldArr = old.inventory.reduce((a2, sl) => a2 + (sl?.item === 'arrows' ? sl.qty : 0), 0)
       const newArr = me.inventory.reduce((a2, sl) => a2 + (sl?.item === 'arrows' ? sl.qty : 0), 0)
-      if (newArr < oldArr && me.skills.ranged === old.skills.ranged) { // loosed and MISSED: seen and heard, softer
-        const foe = me.action?.type === 'attack' ? world.mobs?.[me.action.mobId] : null
+      if (newArr < oldArr && me.skills.marksmanship === old.skills.marksmanship) { // loosed and MISSED: seen and heard, softer
+        const foe = me.action?.type === 'prowess' ? world.mobs?.[me.action.mobId] : null
         if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x + 0.6, y1: foe.y - 0.4, at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
         tone(880, 0.05, { type: 'triangle', vol: 0.04 })
       } }
@@ -6582,7 +7480,7 @@ function onState(s, worldId, local) {
     // loosed arrows fly: one tracer per exchange, timed by the same law
     for (const [pid2, p2] of Object.entries(s.players)) {
       const act = p2.action
-      if (!act || (act.type !== 'attack' && act.type !== 'attackp')) continue
+      if (!act || (act.type !== 'prowess' && act.type !== 'attackp')) continue
       // §6dg: EVERY DRAWN ARM, NOT THE FIRST BOW. This read `!== 'wooden-bow'`,
       // so the horn-bow, both crossbows, the sigil-bow, the dragonbow, the
       // handgonne and the javelins loosed NOTHING a citizen could see. Being
@@ -6624,7 +7522,7 @@ function onState(s, worldId, local) {
     if (iDied && intent !== null) { intent = null }
 
     // an archer's quiver ran dry mid-fight: close to melee (spec 6n spirit)
-    if (old.action?.type === 'attack' && !me.action
+    if (old.action?.type === 'prowess' && !me.action
         && RANGED_ITEMS.has(me.equipment?.weapon?.item)   // §6dg: any drawn arm, not just the first bow
         && !hasAmmoFor(me, me.equipment?.weapon?.item)) {
       const tid = old.action.mobId
@@ -6632,7 +7530,7 @@ function onState(s, worldId, local) {
         feed(SELF_AMMO.has(me.equipment?.weapon?.item)
           ? 'Your last javelin is in your hand. You close!'
           : 'Your quiver is empty. You close to melee!')
-        intent = { kind: 'attack', id: tid }
+        intent = { kind: 'prowess', id: tid }
       }
     }
 
@@ -6660,7 +7558,7 @@ function onState(s, worldId, local) {
     // one-input-per-tick and made walking lose coin-flips against it
     if (pendingLight) {
       pendingLight.tries = (pendingLight.tries ?? 0) + 1
-      if (me.skills.firemaking > old.skills.firemaking) pendingLight = null
+      if (me.skills.woodcraft > old.skills.woodcraft) pendingLight = null
       else if (intent || pendingLight.tries > 6 || me.inventory[pendingLight.slot]?.item !== 'logs') {
         if (pendingLight.tries > 6) feed('The wood is stubborn here. Perhaps another spot.')
         pendingLight = null
@@ -6705,9 +7603,9 @@ function onState(s, worldId, local) {
       if (GAIN[item]) feed(GAIN[item])
       SFX[item]?.()
     }
-    if (me.skills.firemaking > old.skills.firemaking) feed('The fire catches. It will burn for a minute.')
+    if (me.skills.woodcraft > old.skills.woodcraft) feed('The fire catches. It will burn for a minute.')
     // your foe fell → its loot is lying there
-    if (old.action?.type === 'attack') {
+    if (old.action?.type === 'prowess') {
       const mob = s.mobs[old.action.mobId], mobOld = prev.mobs[old.action.mobId]
       if (mob && mobOld?.hp > 0 && mob.hp <= 0) feed('The ' + mob.type + ' falls. Its drops lie where it fell.')
     }
@@ -10927,7 +11825,7 @@ function drawScene(now) {
       // looked idle would be indistinguishable from somebody asleep
       const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
         : p.action?.type === 'gather' ? 'gather'
-               : p.action?.type === 'attack' ? 'fight' : 'idle'
+               : p.action?.type === 'prowess' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
     // §7an: A SPADE IS NOT A HATCHET. Digging a muck heap drew the citizen
     // swinging an axe -- the fallback -- so the one trade that pays a farmer
@@ -10999,7 +11897,7 @@ function drawScene(now) {
       if (!awake) cx.globalAlpha = 0.55
       drawCitizen(px(ix), py(iy), {
         now, pid, player: p, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
-      exchange: (p.action?.type === 'attack' || p.action?.type === 'attackp')
+      exchange: (p.action?.type === 'prowess' || p.action?.type === 'attackp')
         && (p.equipment?.weapon?.item === 'old-chain' || (s.tick - (p.action.since ?? 0)) % 2 === 0),
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'star-sword',
@@ -11010,7 +11908,7 @@ function drawScene(now) {
       // the world was invisible on the person carrying it.
       bow: RANGED_ITEMS.has(p.equipment?.weapon?.item),
       shooting: RANGED_ITEMS.has(p.equipment?.weapon?.item) && p.action
-        && (p.action.type === 'attack' || p.action.type === 'attackp')
+        && (p.action.type === 'prowess' || p.action.type === 'attackp')
         && (() => { const t2 = p.action.mobId ? s.mobs[p.action.mobId] : s.players[p.action.targetId]
           return t2 && Math.abs(p.x - t2.x) + Math.abs(p.y - t2.y) > 1 })(),
       helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
@@ -11669,7 +12567,7 @@ function panel(s) {
   document.getElementById('hpfill').style.width = (100 * me.hp / maxHp) + '%'
   document.getElementById('hptext').textContent = 'HP ' + me.hp + ' / ' + maxHp
   const trainingNode = me.action?.nodeId ? s.nodes[me.action.nodeId] : null
-  const training = me.action?.type === 'attack' ? 'attack'
+  const training = me.action?.type === 'prowess' ? 'prowess'
     : trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
   document.getElementById('skills').innerHTML = Object.entries(me.skills)
     .map(([k, xp]) => {
@@ -11722,10 +12620,10 @@ function panel(s) {
   // Only rewrite the inventory DOM when it actually changes. It used to be
   // rebuilt every animation frame (~60/s), which destroyed the slot elements
   // between a tap's press and release so the click event almost never fired.
-  const invSig = me.inventory.slice(0, 28).map(it => it ? it.item + 'x' + (it.qty || 1) : '-').join(',')
+  const invSig = me.inventory.slice(0, INV_SLOTS).map(it => it ? it.item + 'x' + (it.qty || 1) : '-').join(',')
   if (invSig !== _invSig) {
     _invSig = invSig
-    document.getElementById('inv').innerHTML = me.inventory.slice(0, 28)
+    document.getElementById('inv').innerHTML = me.inventory.slice(0, INV_SLOTS)
     .map((it, i) => '<div class="slot" data-i="' + i + '" title="' + (it ? it.item : '') + '">'
       + (it ? (ICONS[it.item] ?? '?')
         + (it.qty > 1 ? '<div style="position:absolute;bottom:1px;right:2.4px;font-size:8px;color:#ffe08a">' + it.qty + '</div>' : '')
@@ -11733,6 +12631,48 @@ function panel(s) {
         : '')
       + '</div>').join('')
   }
+  // §5t: the named thing, with its numbers. `Green Mace of the Outlander /
+  // 5-10 Melee Damage` is the shape: a citizen should be able to read what a
+  // thing does without leaving the pack.
+  function describeItem(name) {
+    if (!name) return ''
+    const st = WORN_STATS[name] ?? {}
+    const bits = []
+    if (st.hit) bits.push('+' + st.hit + ' damage')
+    if (st.acc) bits.push((st.acc > 0 ? '+' : '') + st.acc + ' accuracy')
+    if (st.armour) bits.push('+' + st.armour + ' armour')
+    if (st.every) bits.push('swings every ' + st.every + (st.every === 1 ? ' interval' : ' intervals'))
+    if (st.reach) bits.push('reach ' + st.reach)
+    if (st.pierces) bits.push('goes round armour')
+    const price = PRICES?.[name]
+    if (price) bits.push(price + ' coin' + (price === 1 ? '' : 's'))
+    return '<b>' + name.replace(/-/g, ' ') + '</b>'
+      + (bits.length ? '<span class="stat">' + bits.join(' &middot; ') + '</span>' : '')
+  }
+  {
+    const el = document.getElementById('itemname')
+    if (el && _namedItem !== el.dataset.shown) { el.dataset.shown = _namedItem; el.innerHTML = describeItem(_namedItem) }
+  }
+
+  // §5t: THE BODY, and the named thing under it.
+  //
+  // Equipment was five fields a citizen could only read by their effects: you
+  // knew you were wearing a helm because blows landed less often. This draws
+  // the five slots as a figure -- head above, hands either side of the chest,
+  // legs below -- so what you are wearing is a picture rather than an
+  // inference, and names whatever is selected beneath it with its numbers.
+  const wornSig = EQUIP_SLOTS.map(k => me.equipment?.[k]?.item ?? '-').join(',')
+  if (wornSig !== _wornSig) {
+    _wornSig = wornSig
+    document.getElementById('worn').innerHTML = EQUIP_SLOTS.map(k => {
+      const it = me.equipment?.[k]
+      return '<div class="wslot w-' + k + (it ? '' : ' empty') + '"'
+        + ' data-worn="' + k + '" title="' + (it ? it.item.replace(/-/g, ' ') : k) + '">'
+        + (it ? (ICONS[it.item] ?? '?') : '')
+        + '<div class="wlabel">' + k + '</div></div>'
+    }).join('')
+  }
+
   // trade offers: incoming (accept) and outgoing (cancel)
   const offers = []
   for (const [pid, p] of Object.entries(s.players)) {
@@ -12058,9 +12998,11 @@ function openSkillGuide(skill) {
     + 'z-index:60;background:#241f18;border:3px solid #8a6f45;padding:10px 12px;'
     + 'max-height:78%;overflow-y:auto;min-width:340px;max-width:min(92vw,520px);'
     + 'font:12px Verdana;color:#e2d6b8'
-  const toNext = lvl >= 99 ? null : XP_TABLE[lvl + 1] - xp
+  const toNext = lvl >= MASTERY ? null : XP_TABLE[lvl + 1] - xp
   let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
     + '<b style="color:#e2b63e">' + skill.toUpperCase() + ' \u00b7 ' + lvl + '</b>'
+    + (CALLINGS_OF[skill] ? '<span style="color:#8a7f68;font-size:10px;margin-left:8px">'
+      + CALLINGS_OF[skill].join(' \u00b7 ') + '</span>' : '')
     + '<span id="skgx" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
     + '<div style="color:#8a7f68;font-size:10px;margin-bottom:8px">'
     + xp.toLocaleString() + ' experience'
@@ -12854,13 +13796,13 @@ function invClick(i) {
   }
   if (it.item === 'sigil') {
     const opts = []
-    if (lvl('magic') >= 85 && me.inventory.filter(sl => sl?.item === 'sigil').length >= 3
+    if (lvl('sorcery') >= 85 && me.inventory.filter(sl => sl?.item === 'sigil').length >= 3
       && !((world.players?.[myId]?.stillCdUntil ?? 0) > (world?.tick ?? 0)))
       opts.push({ label: 'cast: THE STILLING (3 sigils)', act: () => {
         window.__stillArm = true
         feed('You hold the truce unspoken. Tap whom to still , beast or citizen, within six tiles.')
       } })
-    if (lvl('magic') >= 20) opts.push({ label: 'cast: mend (heal)', act: () => {
+    if (lvl('sorcery') >= 20) opts.push({ label: 'cast: mend (heal)', act: () => {
       send({ do: 'cast', spell: 'mend' })
       feed('You spend the sigil to knit yourself whole.')
       tone(520, 0.18, { type: 'sine', vol: 0.05 }); tone(780, 0.22, { type: 'sine', vol: 0.045, at: 0.08 })
@@ -12894,7 +13836,7 @@ function invClick(i) {
   if (it.item === 'dragon-bones') {
     const have = (me.inventory ?? []).filter(x => x?.item === 'dragon-bones').length
     const bark = (me.inventory ?? []).filter(x => x?.item === 'ironbark').length
-    const fl = lvl('fletching')
+    const fl = lvl('woodcraft')
     const canHaft = have >= 2 && bark >= 1 && fl >= 55
     chooseAction([
       { label: 'bury (prayer, and the dearest road there is)', act: () => {
@@ -12923,7 +13865,7 @@ function invClick(i) {
   if (it.item === 'lamprey-spit') {
     const sp = (me.inventory ?? []).filter(x => x?.item === 'lamprey-spit').length
     const st = (me.inventory ?? []).filter(x => x?.item === 'steel-ingot').length
-    const sm = lvl('smithing')
+    const sm = lvl('earthcraft')
     const canMake = sp >= 2 && st >= 1 && sm >= 40
     const alive = Object.values(world?.mobs ?? {})
       .filter(x => x.type === 'mere-lamprey' && (x.spent ?? 0) === 0).length
@@ -12986,7 +13928,7 @@ function invClick(i) {
     const wt = world?.genesis?.watch
     const logs = meNow.inventory.filter(sl => sl?.item === 'logs').length
     const owned = Object.values(world?.nodes ?? {}).filter(n => n.type === 'watchfire' && n.by === myId).length
-    if (wt && lvl('firemaking') >= wt.level && logs >= wt.kindleLogs && owned < wt.maxOwned) {
+    if (wt && lvl('woodcraft') >= wt.level && logs >= wt.kindleLogs && owned < wt.maxOwned) {
       chooseAction([
         { label: 'kindle a watchfire (' + wt.kindleLogs + ' logs)', act: () => {
           send({ do: 'kindle' }); feed('You build the wood high and set it alight. The country will see this.')
@@ -12999,15 +13941,15 @@ function invClick(i) {
   }
   if (EQUIPPABLE.has(it.item)) { send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.') }
   else if (it?.item === 'cooked-fish') {
-    const foe = meNow.action?.type === 'attack' ? meNow.action.mobId : null
+    const foe = meNow.action?.type === 'prowess' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
-    if (foe) { intent = { kind: 'attack', id: foe }; feed('You wolf it down and raise your sword again.') }
+    if (foe) { intent = { kind: 'prowess', id: foe }; feed('You wolf it down and raise your sword again.') }
     else feed('You eat the fish.')
   }
   else if (it?.item === 'ale' || it?.item === 'broth') {
-    const foe = meNow.action?.type === 'attack' ? meNow.action.mobId : null
+    const foe = meNow.action?.type === 'prowess' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
-    if (foe) { intent = { kind: 'attack', id: foe }; feed('You down it and fight on.') }
+    if (foe) { intent = { kind: 'prowess', id: foe }; feed('You down it and fight on.') }
     else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.' : 'You sip the broth. Warmth returns.')
   }
   else if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
@@ -13030,7 +13972,21 @@ function invClick(i) {
 }
 document.getElementById('inv').addEventListener('click', (e) => {
   const slotEl = e.target.closest('.slot')
+  // §5t: name the thing under the pack as well as acting on it, so a tap
+  // answers "what IS this" and not only "use it".
+  if (slotEl) {
+    const me2 = world?.players?.[myId]
+    _namedItem = me2?.inventory?.[Number(slotEl.dataset.i)]?.item ?? ''
+  }
   invClick(slotEl?.dataset.i)
+})
+// §5t: and the worn slots name themselves too. Tapping what you are wearing is
+// how you find out what it is doing for you.
+document.getElementById('worn').addEventListener('click', (e) => {
+  const w = e.target.closest('.wslot')
+  if (!w) return
+  const me2 = world?.players?.[myId]
+  _namedItem = me2?.equipment?.[w.dataset.worn]?.item ?? ''
 })
 
 cv.addEventListener('click', (e) => {
@@ -13113,8 +14069,8 @@ cv.addEventListener('click', (e) => {
     // railing can be reached by nothing else.
     if (spellArmed) { castArmed(id, m); return }
     if (me.action?.mobId === id) return                        // already fighting it: silent
-    if (adj(m)) { send({ do: 'attack', mobId: id }); feed('You attack the ' + m.type + '!') }
-    else intent = { kind: 'attack', id }                       // hunt it down, then engage
+    if (adj(m)) { send({ do: 'prowess', mobId: id }); feed('You attack the ' + m.type + '!') }
+    else intent = { kind: 'prowess', id }                       // hunt it down, then engage
     return
   }
   if (best?.kind === 'citizen') {
@@ -13410,7 +14366,7 @@ cv.addEventListener('click', (e) => {
              + 'the pell beside it is the one you hit with steel.'); return }
         if (n.type === 'dummy' && bow) {
           feed('A pell takes a BLOW. Put the bow away, or shoot the butt instead.'); return }
-        intent = { kind: 'attack', id: tgt[0] }
+        intent = { kind: 'prowess', id: tgt[0] }
         feed('You set about the ' + (n.type === 'butt' ? 'butt' : 'pell') + '. It never hits back, and '
            + 'past the twentieth level it has nothing left to teach you.')
         flashClick(n.x, n.y, false); return

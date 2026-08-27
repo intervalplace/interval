@@ -10,7 +10,12 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 242 tests across:
+`node --test test/*.test.mjs`, 237 tests across:
+
+- `leak.test.mjs` — §21c: no write reaches the caller's state. Exercises the
+  paths where one citizen touches another (striking, being hunted, trading,
+  following), which is precisely where the rest of the suite had no coverage
+  and four such writes survived undetected.
 
 - `engine.test.mjs`, pure state-machine transitions
 - `wound.test.mjs`, the wound the dead leave, the tally, and the wellspring (§6c-ii)

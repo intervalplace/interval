@@ -631,9 +631,27 @@ export class IntervalAgreement {
       this.halt(HALT.CERTIFIED_INVALID_BUNDLE, `quorum certified an invalid bundle at tick ${record.tick}: ${berr}`, { record, bundleError: berr })
       return 'halted: certified bundle invalid'
     }
-    const next = E.nextState(state, record.bundle.inputs)
-    if (E.stateHash(next) !== record.resultingStateHash) {
-      this.halt(HALT.REPLAY_MISMATCH, `local replay of certified tick ${record.tick} disagrees with the quorum`, { record, localResult: E.stateHash(next), certified: record.resultingStateHash })
+    // §21f: WE HAVE USUALLY RUN THIS ALREADY.
+    //
+    // A witness executes a bundle at ATTEST time -- "recompute, never trust" --
+    // and keeps the result in `this.proposals` so it can sign the hash it
+    // computed itself. The certificate that arrives is, in the ordinary case,
+    // for that same bundle. Executing it a second time here asks the same
+    // question of the same state with the same inputs and can only get the same
+    // answer: measured on the real world that is 67 ms an interval spent
+    // proving arithmetic to itself.
+    //
+    // The reuse is keyed on the BUNDLE HASH, so it can only hit for a bundle
+    // this node validated and executed against THIS state -- the tick does not
+    // advance until commit, so `state` is unchanged since. A certificate for a
+    // bundle we never saw still executes here, in full, and still halts on a
+    // mismatch. "Never trust the quorum" is intact; what is dropped is
+    // distrusting our own prior arithmetic.
+    const seen = this.proposals.get(record.bundleHash)
+    const next = seen ? seen.next : E.nextState(state, record.bundle.inputs)
+    const localHash = seen ? seen.rsh : E.stateHash(next)
+    if (localHash !== record.resultingStateHash) {
+      this.halt(HALT.REPLAY_MISMATCH, `local replay of certified tick ${record.tick} disagrees with the quorum`, { record, localResult: localHash, certified: record.resultingStateHash })
       return 'halted: replay mismatch'
     }
     this.commit(record, next)
