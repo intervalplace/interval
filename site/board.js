@@ -3,7 +3,7 @@
 // Coordination that does not belong inside the world. Public chat is for what
 // is happening now, where you are standing; this is for what is happening
 // later, to someone who is not here. Selling four hundred logs, asking how
-// smithing works, arranging to meet.
+// earthcraft works, arranging to meet.
 //
 // It has no accounts, because the world already gave everyone an identity. A
 // post is signed with the same key that swings an axe, and the node checks

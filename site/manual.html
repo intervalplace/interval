@@ -1,7 +1,10 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Manual: Interval</title>
 <link rel="stylesheet" href="/site/site.css"><script src="/site/items.js" defer></script></head><body>
-<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><symbol id="sk-woodcutting" viewBox="0 0 10 10"><rect x="5" y="1" width="1" height="1" fill="#7f8790"/><rect x="6" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="1" height="1" fill="#7f8790"/><rect x="5" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="5" height="1" fill="#b9c0c8"/><rect x="3" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="4" width="1" height="1" fill="#7f8790"/><rect x="5" y="4" width="3" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="1" y="6" width="1" height="1" fill="#8a6f45"/><rect x="1" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="1" height="1" fill="#8a6f45"/></symbol><symbol id="sk-mining" viewBox="0 0 10 10"><rect x="2" y="1" width="6" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="2" height="1" fill="#8a6f45"/><rect x="7" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#8a6f45"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#8a6f45"/><rect x="4" y="5" width="2" height="1" fill="#8a6f45"/><rect x="4" y="6" width="2" height="1" fill="#8a6f45"/><rect x="4" y="7" width="2" height="1" fill="#8a6f45"/><rect x="4" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-fishing" viewBox="0 0 10 10"><rect x="3" y="2" width="3" height="1" fill="#4a6fa5"/><rect x="2" y="3" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="3" width="1" height="1" fill="#4a6fa5"/><rect x="1" y="4" width="2" height="1" fill="#4a6fa5"/><rect x="3" y="4" width="1" height="1" fill="#304a74"/><rect x="4" y="4" width="5" height="1" fill="#4a6fa5"/><rect x="2" y="5" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="5" width="1" height="1" fill="#4a6fa5"/><rect x="3" y="6" width="3" height="1" fill="#4a6fa5"/></symbol><symbol id="sk-cooking" viewBox="0 0 10 10"><rect x="4" y="1" width="1" height="1" fill="#e68c28"/><rect x="3" y="2" width="1" height="1" fill="#e68c28"/><rect x="4" y="2" width="1" height="1" fill="#c4561a"/><rect x="5" y="2" width="1" height="1" fill="#e68c28"/><rect x="1" y="4" width="8" height="1" fill="#6b6760"/><rect x="1" y="5" width="1" height="1" fill="#6b6760"/><rect x="2" y="5" width="5" height="1" fill="#4a4742"/><rect x="7" y="5" width="1" height="1" fill="#6b6760"/><rect x="1" y="6" width="7" height="1" fill="#6b6760"/><rect x="2" y="7" width="5" height="1" fill="#6b6760"/></symbol><symbol id="sk-smithing" viewBox="0 0 10 10"><rect x="3" y="1" width="1" height="1" fill="#7f8790"/><rect x="4" y="1" width="3" height="1" fill="#b9c0c8"/><rect x="7" y="1" width="1" height="1" fill="#7f8790"/><rect x="3" y="2" width="1" height="1" fill="#7f8790"/><rect x="4" y="2" width="3" height="1" fill="#b9c0c8"/><rect x="7" y="2" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="5" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="5" width="1" height="1" fill="#8a6f45"/><rect x="3" y="6" width="1" height="1" fill="#4a4742"/><rect x="4" y="6" width="2" height="1" fill="#6b6760"/><rect x="6" y="6" width="1" height="1" fill="#4a4742"/><rect x="2" y="7" width="1" height="1" fill="#4a4742"/><rect x="3" y="7" width="4" height="1" fill="#6b6760"/><rect x="7" y="7" width="1" height="1" fill="#4a4742"/><rect x="1" y="8" width="1" height="1" fill="#4a4742"/><rect x="2" y="8" width="6" height="1" fill="#6b6760"/><rect x="8" y="8" width="1" height="1" fill="#4a4742"/></symbol><symbol id="sk-firemaking" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e68c28"/><rect x="3" y="1" width="1" height="1" fill="#e68c28"/><rect x="4" y="1" width="1" height="1" fill="#c4561a"/><rect x="5" y="1" width="1" height="1" fill="#e68c28"/><rect x="2" y="2" width="1" height="1" fill="#e68c28"/><rect x="3" y="2" width="3" height="1" fill="#c4561a"/><rect x="6" y="2" width="1" height="1" fill="#e68c28"/><rect x="2" y="3" width="1" height="1" fill="#e68c28"/><rect x="3" y="3" width="4" height="1" fill="#c4561a"/><rect x="7" y="3" width="1" height="1" fill="#e68c28"/><rect x="1" y="4" width="1" height="1" fill="#e68c28"/><rect x="2" y="4" width="5" height="1" fill="#c4561a"/><rect x="7" y="4" width="1" height="1" fill="#e68c28"/><rect x="1" y="5" width="1" height="1" fill="#e68c28"/><rect x="2" y="5" width="6" height="1" fill="#c4561a"/><rect x="8" y="5" width="1" height="1" fill="#e68c28"/><rect x="1" y="6" width="1" height="1" fill="#e68c28"/><rect x="2" y="6" width="6" height="1" fill="#c4561a"/><rect x="8" y="6" width="1" height="1" fill="#e68c28"/><rect x="2" y="7" width="1" height="1" fill="#e68c28"/><rect x="3" y="7" width="5" height="1" fill="#c4561a"/><rect x="8" y="7" width="1" height="1" fill="#e68c28"/><rect x="3" y="8" width="5" height="1" fill="#e68c28"/></symbol><symbol id="sk-prayer" viewBox="0 0 10 10"><rect x="1" y="1" width="2" height="1" fill="#ded6be"/><rect x="7" y="1" width="2" height="1" fill="#ded6be"/><rect x="0" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="2" width="2" height="1" fill="#a89e88"/><rect x="3" y="2" width="1" height="1" fill="#ded6be"/><rect x="6" y="2" width="1" height="1" fill="#ded6be"/><rect x="7" y="2" width="2" height="1" fill="#a89e88"/><rect x="9" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="3" width="8" height="1" fill="#ded6be"/><rect x="2" y="4" width="6" height="1" fill="#ded6be"/><rect x="1" y="5" width="8" height="1" fill="#ded6be"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#a89e88"/><rect x="3" y="6" width="1" height="1" fill="#ded6be"/><rect x="6" y="6" width="1" height="1" fill="#ded6be"/><rect x="7" y="6" width="2" height="1" fill="#a89e88"/><rect x="9" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="7" width="2" height="1" fill="#ded6be"/><rect x="7" y="7" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-ranged" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#8a6f45"/><rect x="1" y="1" width="2" height="1" fill="#8a6f45"/><rect x="6" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="2" width="1" height="1" fill="#8a6f45"/><rect x="6" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="7" height="1" fill="#b9c0c8"/><rect x="0" y="5" width="1" height="1" fill="#8a6f45"/><rect x="6" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="6" width="1" height="1" fill="#8a6f45"/><rect x="6" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="7" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-magic" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e2b63e"/><rect x="4" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="4" y="2" width="1" height="1" fill="#e2b63e"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="3" width="3" height="1" fill="#e2b63e"/><rect x="0" y="4" width="9" height="1" fill="#e2b63e"/><rect x="3" y="5" width="3" height="1" fill="#e2b63e"/><rect x="2" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="6" width="1" height="1" fill="#e2b63e"/><rect x="6" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="7" width="1" height="1" fill="#e2b63e"/><rect x="4" y="8" width="1" height="1" fill="#e2b63e"/></symbol><symbol id="sk-farming" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="6" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="2" width="5" height="1" fill="#4e7a2e"/><rect x="3" y="3" width="3" height="1" fill="#4e7a2e"/><rect x="4" y="4" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="5" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="6" width="6" height="1" fill="#6a5434"/><rect x="1" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/><rect x="8" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="8" width="6" height="1" fill="#6a5434"/></symbol><symbol id="sk-fletching" viewBox="0 0 10 10"><rect x="6" y="0" width="3" height="1" fill="#b9c0c8"/><rect x="5" y="1" width="4" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="3" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#8a6f45"/><rect x="4" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="4" width="2" height="1" fill="#8a6f45"/><rect x="1" y="5" width="2" height="1" fill="#8a6f45"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#8a6f45"/><rect x="0" y="7" width="2" height="1" fill="#ded6be"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-attack" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="7" height="1" fill="#e2b63e"/><rect x="3" y="5" width="2" height="1" fill="#8a6f45"/><rect x="3" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="4" height="1" fill="#e2b63e"/></symbol><symbol id="sk-defence" viewBox="0 0 10 10"><rect x="1" y="0" width="8" height="1" fill="#b9c0c8"/><rect x="1" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="1" width="6" height="1" fill="#7f8790"/><rect x="8" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="2" width="1" height="1" fill="#7f8790"/><rect x="3" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="7" y="2" width="1" height="1" fill="#7f8790"/><rect x="8" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="3" width="1" height="1" fill="#7f8790"/><rect x="3" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#7f8790"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="7" y="3" width="1" height="1" fill="#7f8790"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="4" width="1" height="1" fill="#7f8790"/><rect x="3" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#7f8790"/><rect x="6" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="7" y="4" width="1" height="1" fill="#7f8790"/><rect x="8" y="4" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="6" height="1" fill="#7f8790"/><rect x="8" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="2" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="6" width="4" height="1" fill="#7f8790"/><rect x="7" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="7" width="2" height="1" fill="#7f8790"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="8" width="2" height="1" fill="#b9c0c8"/></symbol><symbol id="sk-hitpoints" viewBox="0 0 10 10"><rect x="2" y="1" width="2" height="1" fill="#b4432e"/><rect x="6" y="1" width="2" height="1" fill="#b4432e"/><rect x="1" y="2" width="1" height="1" fill="#b4432e"/><rect x="2" y="2" width="1" height="1" fill="#782c1e"/><rect x="3" y="2" width="3" height="1" fill="#b4432e"/><rect x="6" y="2" width="1" height="1" fill="#782c1e"/><rect x="7" y="2" width="2" height="1" fill="#b4432e"/><rect x="1" y="3" width="8" height="1" fill="#b4432e"/><rect x="1" y="4" width="8" height="1" fill="#b4432e"/><rect x="2" y="5" width="6" height="1" fill="#b4432e"/><rect x="3" y="6" width="4" height="1" fill="#b4432e"/><rect x="4" y="7" width="2" height="1" fill="#b4432e"/></symbol><symbol id="sk-exploration" viewBox="0 0 10 10"><rect x="2" y="0" width="5" height="1" fill="#e2b63e"/><rect x="2" y="1" width="1" height="1" fill="#e2b63e"/><rect x="3" y="1" width="3" height="1" fill="#a68428"/><rect x="6" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="2" width="3" height="1" fill="#a68428"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="2" y="3" width="5" height="1" fill="#e2b63e"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="1" y="8" width="5" height="1" fill="#8a6f45"/></symbol><symbol id="sk-brewing" viewBox="0 0 10 10"><rect x="2" y="1" width="1" height="1" fill="#8a6f45"/><rect x="7" y="1" width="1" height="1" fill="#8a6f45"/><rect x="2" y="2" width="6" height="1" fill="#8a6f45"/><rect x="2" y="3" width="1" height="1" fill="#8a6f45"/><rect x="3" y="3" width="4" height="1" fill="#c4561a"/><rect x="7" y="3" width="1" height="1" fill="#8a6f45"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="4" height="1" fill="#c4561a"/><rect x="7" y="4" width="2" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="3" y="5" width="4" height="1" fill="#c4561a"/><rect x="7" y="5" width="1" height="1" fill="#8a6f45"/><rect x="9" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="3" y="6" width="4" height="1" fill="#c4561a"/><rect x="7" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/></symbol><symbol id="sk-strength" viewBox="0 0 10 10"><rect x="0" y="4" width="2" height="1" fill="#8a6f45"/><rect x="0" y="5" width="3" height="1" fill="#c08a52"/><rect x="0" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="3" width="2" height="1" fill="#c08a52"/><rect x="3" y="2" width="3" height="1" fill="#c08a52"/><rect x="2" y="4" width="3" height="1" fill="#e0a468"/><rect x="3" y="3" width="3" height="1" fill="#e0a468"/><rect x="4" y="5" width="2" height="1" fill="#c08a52"/><rect x="5" y="4" width="2" height="1" fill="#c08a52"/><rect x="6" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="4" width="2" height="1" fill="#c08a52"/><rect x="7" y="5" width="2" height="1" fill="#c08a52"/><rect x="7" y="6" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="3" height="1" fill="#c08a52"/><rect x="6" y="8" width="3" height="1" fill="#8a6f45"/></symbol><symbol id="sk-hauling" viewBox="0 0 10 10"><rect x="1" y="1" width="8" height="1" fill="#8a6f45"/><rect x="2" y="2" width="1" height="1" fill="#6a5434"/><rect x="7" y="2" width="1" height="1" fill="#6a5434"/><rect x="1" y="3" width="3" height="1" fill="#a89e88"/><rect x="0" y="4" width="5" height="1" fill="#ded6be"/><rect x="0" y="5" width="5" height="1" fill="#a89e88"/><rect x="1" y="6" width="3" height="1" fill="#a89e88"/><rect x="6" y="3" width="3" height="1" fill="#a89e88"/><rect x="5" y="4" width="5" height="1" fill="#ded6be"/><rect x="5" y="5" width="5" height="1" fill="#a89e88"/><rect x="6" y="6" width="3" height="1" fill="#a89e88"/></symbol></svg>
+<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The rename from eighteen skills to nine
+     mapped several old icons onto each new id, and SVG uses only the first
+     symbol with a given id -- so nine drawings were shipping dead while
+     wayfaring had no icon at all. One per trade now, in SKILLS order. --><symbol id="sk-woodcraft" viewBox="0 0 10 10"><rect x="5" y="1" width="1" height="1" fill="#7f8790"/><rect x="6" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="1" height="1" fill="#7f8790"/><rect x="5" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="5" height="1" fill="#b9c0c8"/><rect x="3" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="4" width="1" height="1" fill="#7f8790"/><rect x="5" y="4" width="3" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="1" y="6" width="1" height="1" fill="#8a6f45"/><rect x="1" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="1" height="1" fill="#8a6f45"/></symbol><symbol id="sk-earthcraft" viewBox="0 0 10 10"><rect x="2" y="1" width="6" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="2" height="1" fill="#8a6f45"/><rect x="7" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#8a6f45"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#8a6f45"/><rect x="4" y="5" width="2" height="1" fill="#8a6f45"/><rect x="4" y="6" width="2" height="1" fill="#8a6f45"/><rect x="4" y="7" width="2" height="1" fill="#8a6f45"/><rect x="4" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-shorecraft" viewBox="0 0 10 10"><rect x="3" y="2" width="3" height="1" fill="#4a6fa5"/><rect x="2" y="3" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="3" width="1" height="1" fill="#4a6fa5"/><rect x="1" y="4" width="2" height="1" fill="#4a6fa5"/><rect x="3" y="4" width="1" height="1" fill="#304a74"/><rect x="4" y="4" width="5" height="1" fill="#4a6fa5"/><rect x="2" y="5" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="5" width="1" height="1" fill="#4a6fa5"/><rect x="3" y="6" width="3" height="1" fill="#4a6fa5"/></symbol><symbol id="sk-hearthcraft" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="6" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="2" width="5" height="1" fill="#4e7a2e"/><rect x="3" y="3" width="3" height="1" fill="#4e7a2e"/><rect x="4" y="4" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="5" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="6" width="6" height="1" fill="#6a5434"/><rect x="1" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/><rect x="8" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="8" width="6" height="1" fill="#6a5434"/></symbol><symbol id="sk-prowess" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="7" height="1" fill="#e2b63e"/><rect x="3" y="5" width="2" height="1" fill="#8a6f45"/><rect x="3" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="4" height="1" fill="#e2b63e"/></symbol><symbol id="sk-mourning" viewBox="0 0 10 10"><rect x="1" y="1" width="2" height="1" fill="#ded6be"/><rect x="7" y="1" width="2" height="1" fill="#ded6be"/><rect x="0" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="2" width="2" height="1" fill="#a89e88"/><rect x="3" y="2" width="1" height="1" fill="#ded6be"/><rect x="6" y="2" width="1" height="1" fill="#ded6be"/><rect x="7" y="2" width="2" height="1" fill="#a89e88"/><rect x="9" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="3" width="8" height="1" fill="#ded6be"/><rect x="2" y="4" width="6" height="1" fill="#ded6be"/><rect x="1" y="5" width="8" height="1" fill="#ded6be"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#a89e88"/><rect x="3" y="6" width="1" height="1" fill="#ded6be"/><rect x="6" y="6" width="1" height="1" fill="#ded6be"/><rect x="7" y="6" width="2" height="1" fill="#a89e88"/><rect x="9" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="7" width="2" height="1" fill="#ded6be"/><rect x="7" y="7" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-marksmanship" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#8a6f45"/><rect x="1" y="1" width="2" height="1" fill="#8a6f45"/><rect x="6" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="2" width="1" height="1" fill="#8a6f45"/><rect x="6" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="7" height="1" fill="#b9c0c8"/><rect x="0" y="5" width="1" height="1" fill="#8a6f45"/><rect x="6" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="6" width="1" height="1" fill="#8a6f45"/><rect x="6" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="7" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-sorcery" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e2b63e"/><rect x="4" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="4" y="2" width="1" height="1" fill="#e2b63e"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="3" width="3" height="1" fill="#e2b63e"/><rect x="0" y="4" width="9" height="1" fill="#e2b63e"/><rect x="3" y="5" width="3" height="1" fill="#e2b63e"/><rect x="2" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="6" width="1" height="1" fill="#e2b63e"/><rect x="6" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="7" width="1" height="1" fill="#e2b63e"/><rect x="4" y="8" width="1" height="1" fill="#e2b63e"/></symbol><symbol id="sk-wayfaring" viewBox="0 0 10 10"><rect x="2" y="0" width="5" height="1" fill="#e2b63e"/><rect x="2" y="1" width="1" height="1" fill="#e2b63e"/><rect x="3" y="1" width="3" height="1" fill="#a68428"/><rect x="6" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="2" width="3" height="1" fill="#a68428"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="2" y="3" width="5" height="1" fill="#e2b63e"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="1" y="8" width="5" height="1" fill="#8a6f45"/></symbol></svg>
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
   <h1>The Manual</h1>
@@ -20,55 +23,85 @@
   finality machinery in <code>CONSENSUS.md</code>. Changing either
   creates a new world, and nobody is ever force-updated.</p>
 
-  <h2>The sixteen skills</h2>
-  <p>Levels run 1 to 99 on the classic exponential curve (level 99 =
-  13,034,431 xp). Reaching it is meant to take a very long time. Master
-  all sixteen and the whole world hears of it.</p>
+  <h2>The nine trades</h2>
+  <p>Levels run 1 to 100 on a curve that is cheap to begin and ruinous to
+  finish: the first fifty levels cost about a third of what the last seven do,
+  and mastery at 100 is 37,503,873 experience. Reaching it is meant to take a
+  very long time. Master all nine and the whole world hears of it.</p>
+  <p>A trade here is a <b>whole trade</b>, not half of one. Nothing about the
+  world said that felling a tree and burning it were two crafts, or that the
+  citizen who digs the ore should have to hand it to somebody else to be
+  useful — so they don't.</p>
   <table>
-    <tr><th>Skill</th><th>Kind</th><th>How it trains</th></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-woodcutting"/></svg>Woodcutting</td><td>Gathering</td><td>Chop trees &rarr; logs</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-mining"/></svg>Mining</td><td>Gathering</td><td>Mine rocks &rarr; ore. At mining 70 the magic-rocks of the Wilds open &rarr; magic-stone</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-fishing"/></svg>Fishing</td><td>Gathering</td><td>Fish the water's edge &rarr; raw fish</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-farming"/></svg>Farming</td><td>Gathering</td><td>Sow seeds on a plot, let them grow, harvest &rarr; grain. At 90 a row gives three sheaves instead of two</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-cooking"/></svg>Cooking</td><td>Processing</td><td>Cook raw fish at a fire (failures burn; the fish is spent either way)</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-firemaking"/></svg>Firemaking</td><td>Processing</td><td>Light logs where you stand. At high level, raise and feed a <b>watchfire</b>: public light that lasts</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-smithing"/></svg>Smithing</td><td>Processing</td><td>Forge at an anvil from ore + logs: iron tools and armour, and star gear from magic-stone, the star hatchet and star pickaxe among them</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-fletching"/></svg>Fletching</td><td>Processing</td><td>Cut logs into a bow or a staff; bones into arrows. At 80 a bone gives eight arrows instead of five; at 90, the heartwood bow and heartwood staff</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-attack"/></svg>Attack</td><td>Combat</td><td>4 xp per point of melee damage dealt</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-defence"/></svg>Defence</td><td>Combat</td><td>Soak and survive; armor reduces every blow</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-hitpoints"/></svg>Hitpoints</td><td>Combat</td><td>Rises as you fight; starts at level 10; max HP equals its level</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-ranged"/></svg>Ranged</td><td>Combat</td><td>Loose arrows from a wooden bow at distance</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-magic"/></svg>Magic</td><td>Processing</td><td><i>Alch</i> a thing into coin and practice, from your first log. Later: press three magic-stones into a sigil and cast <i>mend</i>, <i>anchor</i> or <i>still</i></td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-prayer"/></svg>Prayer</td><td>Mourning</td><td>Bury the bones of the fallen. At 70 the dearest priced thing you carry survives your death</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-exploration"/></svg>Exploration</td><td>Profession</td><td>Survey markers the beacon scatters across the world; paid in distance travelled</td></tr>
-    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-brewing"/></svg>Brewing</td><td>Profession</td><td>Ferment grain into ale, fish into broth, at a brewpot raised beside a house</td></tr>
+    <tr><th>Trade</th><th>Kind</th><th>How it trains</th></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-woodcraft"/></svg>Woodcraft</td><td>Craft</td><td>Fell trees for logs; saw them into planks at a pit; cut them into bows, staves and arrows; and light what is left. The axe, the bench and the fire are one trade.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-earthcraft"/></svg>Earthcraft</td><td>Craft</td><td>Work the seam and the metal both: ore and coal from the rock, iron and steel at a burning furnace, gear at an anvil. At earthcraft 70 the magic-rocks of the high country open.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-shorecraft"/></svg>Shorecraft</td><td>Craft</td><td>The rod and the pan. Fish the water's edge, then cook, smoke or salt what you landed — nobody fishes in order to carry a raw fish home.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-hearthcraft"/></svg>Hearthcraft</td><td>Craft</td><td>The field and the pot. Sow, grow, harvest and grind; ferment grain into ale and fish into broth at a brewpot you raised yourself.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-prowess"/></svg>Prowess</td><td>Arms</td><td>One ladder for the whole of close fighting. A landed blow pays it and so does wearing one. Style — <i>aim</i>, <i>force</i> or <i>even</i> — decides how the blow lands, not what it teaches.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-marksmanship"/></svg>Marksmanship</td><td>Arms</td><td>Every drawn arm: bow, crossbow, handgonne, javelin. Distance is the whole of the trade.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-sorcery"/></svg>Sorcery</td><td>Arms</td><td>The trade of refusing combat. <i>Alch</i> a thing into coin and practice from your first log; later press three magic-stones into a sigil and cast <i>mend</i>, <i>anchor</i> or <i>still</i>.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-wayfaring"/></svg>Wayfaring</td><td>Road</td><td>Going out and coming back. Ground seen for the first time pays it, and so does weight carried across ground you have. Both halves of the road are one trade.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-mourning"/></svg>Mourning</td><td>Mourning</td><td>The only trade paid in what it cost you. Offer a priced thing on consecrated ground and it is gone: the ledger records what it was worth, and the same gift twice is worth less. At 70 the dearest priced thing you carry survives your death.</td></tr>
   </table>
 
   <h2>Standing and calling</h2>
-  <p>A citizen is introduced by two things, and neither is a score. <b>Standing</b>
-  is the sum of your true level in all sixteen skills, so it privileges no
-  profession: an explorer who never draws a sword and a knight who never brews
-  are measured by the same rule. Its only limit is how large a number the world will hold, which lands at level 212 and which nobody will reach, because mastery at 99 is a
-  milestone rather than a limit, and a citizen who keeps going keeps rising.
-  <b>Calling</b> is the trade you have the most experience in, said as a word, and it reads as <b>master brewer</b> or <b>master smith</b> once you have mastered it, and <b>Master of Interval</b> for the vanishingly rare citizen who has mastered all sixteen: forester, miner,
-  fisher, cook, smith, firekeeper, mourner, archer, alchemist, farmer, fletcher,
-  fighter, warden, cartographer, brewer. Together they read as an introduction:</p>
+  <p>A citizen is introduced by two things, and neither is a score.
+  <b>Standing</b> is the sum of your true level in all nine trades, so it
+  privileges nobody: a wayfarer who never draws a sword and a warden who never
+  brews are measured by the same rule. Its only limit is how large a number the
+  world will hold, which lands at level 171 and which nobody will reach, because
+  mastery at 100 is a milestone rather than a limit and a citizen who keeps
+  going keeps rising.</p>
+
+  <p><b>Calling</b> is what you <b>swear</b>. It used to be computed — whichever
+  trade you had the most experience in — and that stopped being possible when
+  nine trades replaced eighteen skills: one number cannot tell a berserker from
+  a warden, or a farmer from a brewer. So it is a word you say about yourself
+  instead, at level thirty in the trade it belongs to, and it cannot be put
+  down. There are seventeen:</p>
+
+  <table>
+    <tr><th>Trade</th><th>Callings</th></tr>
+    <tr><td>woodcraft</td><td>forester &middot; firekeeper &middot; fletcher</td></tr>
+    <tr><td>earthcraft</td><td>miner &middot; smith</td></tr>
+    <tr><td>shorecraft</td><td>fisher &middot; cook</td></tr>
+    <tr><td>hearthcraft</td><td>farmer &middot; brewer</td></tr>
+    <tr><td>prowess</td><td>fighter &middot; berserker &middot; warden</td></tr>
+    <tr><td>marksmanship</td><td>archer</td></tr>
+    <tr><td>sorcery</td><td>alchemist</td></tr>
+    <tr><td>wayfaring</td><td>cartographer &middot; runner</td></tr>
+    <tr><td>mourning</td><td>mourner</td></tr>
+  </table>
+
+  <p>Swearing is not free and it is not only a label. A sworn calling learns
+  <b>half again</b> from its own work and <b>half as much</b> from a sibling's,
+  so a forester is quickest at the trees and slowest at the bench. The three
+  callings of prowess are paid differently — in flesh rather than in rate — and
+  the table under <i>How fighting works</i> gives the bargain.</p>
+
+  <p><b>Not swearing is also a choice.</b> Train anything, be bound by nothing,
+  and answer to your most experienced trade as callings always worked. That is
+  the generalist; a sworn calling is the specialist; both are played on
+  purpose. Thirty is the gate because a citizen who chose before they had held
+  the tools would be guessing, and every record afterwards would belong to
+  whoever guessed luckiest.</p>
+
   <pre>Erik &middot; brewer (412)</pre>
   <p>The number says how much of the world you have touched. The word says who
   you are, and it is the more useful half: it tells you who to ask for a
-  smithing job, who sells charts, and whose tavern you are standing in. There
-  is deliberately no combat level. Combat is three skills of sixteen, and a
-  world whose countries are wood, stone, water, danger and home does not rank
-  its people by their capacity for violence. Because both are derived from
-  public state by a rule in the constitution, every window shows you the same
-  citizen.</p>
+  forging job, who sells charts, and whose tavern you are standing in. There is
+  deliberately no combat level. Fighting is one trade of nine, and a world whose
+  countries are wood, stone, water, danger and home does not rank its people by
+  their capacity for violence. Because both are derived from public state by a
+  rule in the constitution, every window shows you the same citizen.</p>
 
   <h2>Watchfires</h2>
   <p>An experienced firemaker can <b>kindle a watchfire</b>: a great fire on a
   cairn of stones, bought with a heap of logs, that throws light across the
   country for everyone who passes. Nobody owns the light. Anyone may
   <b>stoke</b> any watchfire with a log, and the wood they give both extends
-  the burn and pays them Firemaking experience, so feeding a neighbour's fire
+  the burn and pays them woodcraft experience, so feeding a neighbour's fire
   is not charity. While it burns, its keeper earns a slow trickle for the
   vigil. Because burn time is only ever bought with wood, nobody earns
   anything a forester did not first cut.</p>
@@ -88,10 +121,10 @@
   reward.</p>
   <p>The founding world of the expanse is built so that <b>every direction
   means something</b>. North is the <b>Greenwood</b>, the deep forest and the
-  best woodcutting in the world, patrolled by wolves and, further in, bears.
+  best timber in the world, patrolled by wolves and, further in, bears.
   East are the <b>Crags</b>, rocky uplands thick with ore and trolls, where the
   smiths get their supply. South are the <b>Fens</b>, wetland and shore, all
-  fishing and goblin warrens, opening onto the bay. West are the <b>Wilds</b>,
+  shore-fishing and goblin warrens, opening onto the bay. West are the <b>Wilds</b>,
   the frontier, where the richest magic-rock lies and the skeleton-knights
   muster in warbands. The middle is the <b>Heartlands</b>: farmed, settled,
   walled, and where most citizens keep a roof. Seven walled settlements stand
@@ -110,8 +143,8 @@
 
   <h2>How fighting works</h2>
   <p>Engage and combat runs itself: you trade blows every interval until
-  one of you falls. Two ways to fight, <b>melee</b> (attack,
-  defence, hitpoints) and <b>ranged</b> (a bow and arrows, striking at
+  one of you falls. Two ways to fight, <b>melee</b> (prowess,
+  one trade, <b>prowess</b>) and <b>marksmanship</b> (a drawn arm, striking at
   distance). <b>Magic</b> is not a third: it is the
   <em>anti</em>-combat skill. Its working half is alchemy, which unmakes goods
   into coin anywhere in the world; its sharp end is the sigil, and a sigil may
@@ -123,9 +156,9 @@
 
   <p>And a fight happens somewhere. A goblin, a wolf or a bear may leave
   <b>forage</b> where it falls: it cannot be picked up, banked or sold, and
-  taking it eats it on the spot for six hitpoints, with no gullet cooldown and
+  taking it eats it on the spot for six of your frame, with no gullet cooldown and
   no free slot needed. It rots in fifty intervals. So the ground behind you is
-  worth something and the ground ahead is not, and at four hitpoints it is
+  worth something and the ground ahead is not, and at four points of frame it is
   worth looking at where you are standing rather than at what you carry. Trolls,
   skeleton-knights and the dragon leave none: the settled country feeds you and
   the Wilds do not.</p>
@@ -142,8 +175,8 @@
   equipped. In the open, on foot, violence here needs the consent of the
   person receiving it.</p>
   <p>Three things take that consent away. <b>Standing still</b> is the
-  first and the ordinary one: every deed costs a tick, and mining,
-  smithing, cooking and above all <i>fighting</i> are ticks you are not
+  first and the ordinary one: every deed costs a tick, and earthcraft,
+  shorecraft and above all <i>fighting</i> are ticks you are not
   running. Every skeleton-knight in the world stands inside the Wilds, so
   the reason to go there is exactly the thing that pins you down, wounded
   and committed, choosing between the kill you came for and the pack you
@@ -195,7 +228,7 @@
   simply makes the deed legible, and the rest of the world decides what
   it means. Reputation, not punishment, enforced by daylight.</p>
 
-  <h2>Exploration &amp; charts</h2>
+  <h2>Wayfaring &amp; charts</h2>
   <p>The beacon keeps a handful of <b>survey markers</b> scattered across
   the world, relocating as they're claimed so the frontier never runs
   out. Stand on one to survey it; the XP scales with how far from home it
@@ -205,7 +238,7 @@
   money and opens nothing &mdash; knowledge as a good, and the only item in
   the world whose whole value is that somebody else went and looked.</p>
 
-  <h2>Brewing &amp; the brewhouse</h2>
+  <h2>The brewhouse</h2>
   <p>Raise a <b>brewpot</b> beside a house (logs and ore to build; four
   to a citizen), set grain to ferment into <b>ale</b> or fish into
   <b>broth</b>, and walk away, the world does the waiting. Return
@@ -240,7 +273,7 @@
   citizen can cast and the one they will still be casting at ninety-nine.</p>
   <p>Bare-handed it takes four intervals. A <b>staff</b>, fletched from a
   single log, makes it three; a <b>heartwood staff</b>, two heartwood at
-  fletching 90, makes it two. A staff is wielded, so carrying one means
+  woodcraft 90, makes it two. A staff is wielded, so carrying one means
   carrying no sword: an alchemist crossing the Wilds with a full pack chooses
   between converting faster and being able to fight.</p>
 
@@ -256,7 +289,7 @@
   is to make a building worth knowing.</p>
   <p><b>The seedsman is the only source of seed in the world.</b> A general
   store makes nothing at all now, its shelf holding only what citizens have
-  carried in and sold, so farming begins with a walk to Hollybarrow, and
+  carried in and sold, so hearthcraft begins with a walk to Hollybarrow, and
   afterwards you know for the rest of your life what Hollybarrow is for.</p>
   <p>And a keeper has a <b>purse</b>: at most twelve hundred coin, recovering
   two an interval. Selling spends it, buying off the shelf returns it. A keeper
@@ -277,19 +310,19 @@
   worth reaching.</p>
   <table class="tbl">
     <tr><th>At</th><th>You get</th></tr>
-    <tr><td>Woodcutting 90</td><td>Heartwood <em>instead of</em> logs</td></tr>
-    <tr><td>Fishing 90</td><td>The deep fish <em>instead of</em> the shallow</td></tr>
-    <tr><td>Cooking 80</td><td>You may cook the deep fish</td></tr>
-    <tr><td>Fletching 80</td><td>Eight arrows from a bone, not five</td></tr>
-    <tr><td>Fletching 90</td><td>The heartwood bow and the heartwood staff</td></tr>
-    <tr><td>Farming 90</td><td>Three sheaves from a row, not two</td></tr>
-    <tr><td>Mining 70</td><td>The magic-rocks of the Wilds open to your pick</td></tr>
-    <tr><td>Prayer 70</td><td>The dearest <em>priced</em> thing you carry survives death</td></tr>
+    <tr><td>Woodcraft 90</td><td>Heartwood <em>instead of</em> logs</td></tr>
+    <tr><td>Shorecraft 90</td><td>The deep fish <em>instead of</em> the shallow</td></tr>
+    <tr><td>Shorecraft 80</td><td>You may cook the deep fish</td></tr>
+    <tr><td>Woodcraft 80</td><td>Eight arrows from a bone, not five</td></tr>
+    <tr><td>Woodcraft 90</td><td>The heartwood bow and the heartwood staff</td></tr>
+    <tr><td>Hearthcraft 90</td><td>Three sheaves from a row, not two</td></tr>
+    <tr><td>Earthcraft 70</td><td>The magic-rocks of the high country open to your pick</td></tr>
+    <tr><td>Mourning 70</td><td>The dearest <em>priced</em> thing you carry survives death</td></tr>
     <tr><td>Magic 50</td><td><i>Mend</i></td></tr>
   </table>
   <p>Where it can be a <em>replacement</em> it is one: a master woodcutter can
   no longer take ordinary logs at all, so the cheap end of that market belongs
-  to beginners forever. And prayer keeps only <b>priced</b> things: the
+  to beginners forever. And mourning keeps only <b>priced</b> things: the
   old chain, a dragonbow, a sigil and a chart are traded between citizens and
   priced by nobody, so they stay exactly as losable at ninety-nine as at one.</p>
 
@@ -297,7 +330,7 @@
   <p>The chance of taking a yield rises with your level <em>and with the tool in
   your hand</em>, and is capped where only a master holding the better tool will
   reach it. An iron hatchet is worth carrying; a <b>star hatchet</b> or <b>star
-  pickaxe</b>, smithing 42 and sixty in the trade it serves, is
+  pickaxe</b>, earthcraft 42 and sixty in the trade it serves, is
   worth about a sixth of a week's work.</p>
   <p>And every settlement has a <b>well</b>. Stand beside it and drink: you are
   restored to full, free, with no cooldown at all. The cost is already paid in
@@ -309,7 +342,7 @@
   <h2>Milestones</h2>
   <p>Some deeds the whole world sees. Master a skill, and everyone is
   told; be the <i>first</i> ever to master it, and the telling is
-  grander. Master all sixteen and you become a <b>Master of Interval</b>,
+  grander. Master all nine and you become a <b>Master of Interval</b>,
   vanishingly rare, and permanent in the record. The first into
   the Wilds, the first to fell a skeleton-knight, the first to press a
   sigil, the first to draw a finished brew, the firsts are kept
@@ -323,7 +356,7 @@
   at 0 HP returns you to spawn with your carried inventory destroyed;
   skills, XP, your name and <b>every coin you hold</b> survive. Gold is the one
   thing death never takes, which is why the walk to a keeper is how goods become
-  safe, and a mourner of prayer 70 also carries through the dearest
+  safe, and a mourner of mourning 70 also carries through the dearest
   <em>priced</em> thing they held. <b>Names</b> are in-world objects:
   first valid claim wins, one per character, lowercase letters, digits,
   and hyphens, up to twelve. A claim asks for a standing of 50, so a
