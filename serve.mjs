@@ -224,7 +224,19 @@ if (canResume) {
     GENESIS.imported = Object.entries(old.players).filter(([, p]) => lived(p)).map(([pid, p]) => ({
       pid, skills: p.skills, name: E.isValidName(p.name) ? p.name : null, // constitutional or nothing (rev5 §3)
       hp: p.hp, // (rescued again from the comment a bad merge swallowed it into)
-      bank: Object.fromEntries(Object.entries(p.bank ?? {}).filter(([it]) => KNOWN_ITEMS.has(it))),
+      // §6g: A CROSSING CARRIES GOODS, NOT GEOGRAPHY. Vaults are keyed by
+      // bank node id, and the ids of a world that no longer exists name
+      // nothing. So the shelves are summed into one map on the way out and
+      // worldgen seats the total at the counter nearest where the citizen
+      // wakes. Founding data does not expire with the world that held it; the
+      // building it sat in does.
+      bank: (() => {
+        const flat = {}
+        for (const vault of Object.values(p.bank ?? {}))
+          for (const [it, q] of Object.entries(vault ?? {}))
+            if (KNOWN_ITEMS.has(it)) flat[it] = (flat[it] ?? 0) + q
+        return flat
+      })(),
       inventory: (p.inventory ?? []).filter(sl => sl && KNOWN_ITEMS.has(sl.item)),
       weapon: p.equipment?.weapon && KNOWN_ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
     }))
@@ -388,6 +400,14 @@ function hiscores() {
     return { playerId: pid, name: p.name ?? pid.slice(0, 8) + '…',
              levels, skillXp: { ...p.skills },
              calling: E.callingOf(p),
+             // §5k: THE SWORN WORD, SEPARATE FROM THE COMPUTED ONE.
+             // `callingOf` collapses two different facts into one string --
+             // `CALLINGS.earthcraft` is 'smith' and so is `SWORN.smith`, so a
+             // citizen who swore it and a citizen who merely has the most
+             // experience there read identically. A calling is a thing a
+             // citizen SAID and a page ranking callings must be able to tell
+             // the difference, so the raw field travels beside the word.
+             sworn: (typeof p.calling === 'string' ? p.calling : null),
              total: E.standingOf(p),
              // §7dk: THE UNAIDED HISCORE IS A FILTER, NOT A SECOND TABLE.
              //

@@ -7738,6 +7738,23 @@ export function buildWorld(genesis) {
   if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') founding aborted')
   w._composition = counts
 
+  // §6g: WHERE A CROSSING'S GOODS LAND. An import's bank is flat -- see
+  // serve.mjs -- because the vault ids of the world it left name nothing here.
+  // Everything arrives at the counter nearest the spawn, which is where the
+  // citizen opens their eyes, so the first thing a crossing citizen can do is
+  // walk to a counter they can already see. Computed once: every import shares
+  // one spawn, so a per-citizen search would be the same answer many times.
+  let landingBank = null
+  {
+    const sp0 = spawnDry(g)
+    let bd = Infinity
+    for (const id of Object.keys(w.nodes).sort()) {   // sorted: one answer on every node
+      const n = w.nodes[id]
+      if (n.type !== 'bank') continue
+      const d = Math.hypot(n.x - sp0.x, n.y - sp0.y)
+      if (d < bd) { bd = d; landingBank = id }
+    }
+  }
   for (const c9 of (g.imported ?? [])) {
     if (!/^[0-9a-f]{64}$/.test(c9.pid ?? '')) continue
     const sp9 = spawnDry(g)
@@ -7747,7 +7764,15 @@ export function buildWorld(genesis) {
     p9.hp = Math.min(c9.hp ?? p9.hp, E.levelForXp(p9.skills.hitpoints))
     ;(c9.inventory ?? []).forEach((sl9, i9) => { if (i9 < p9.inventory.length) p9.inventory[i9] = sl9 ?? null })
     p9.equipment.weapon = c9.weapon ?? null
-    for (const [it9, q9] of Object.entries(c9.bank ?? {})) p9.bank[it9] = q9
+    // A world with no bank at all cannot seat a vault; the goods are held in
+    // the founding record rather than invented into a counter that is not there.
+    if (landingBank) {
+      const carried = Object.entries(c9.bank ?? {})
+      if (carried.length) {
+        p9.bank[landingBank] = {}
+        for (const [it9, q9] of carried) p9.bank[landingBank][it9] = q9
+      }
+    }
     if (c9.name != null) { w.names[c9.name] = c9.pid; p9.name = c9.name }
   }
 

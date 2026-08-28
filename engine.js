@@ -356,7 +356,7 @@ function everWasSomebody(p, genesis) {
   // out eight lines below for precisely this reason; the purse was given the
   // same carve-out in the constitution and never in the code.
   if ((p.gold ?? 0) > (genesis?.newcomerGold ?? 0)) return true;
-  if (p.bank && Object.keys(p.bank).length > 0) return true;
+  if (p.bank && Object.keys(p.bank).length > 0) return true;   // §6g: any vault at all
   if (p.equipment && EQUIP_SLOTS.some((k) => p.equipment[k])) return true;   // 6bz: not three hard-coded names
   if (p.action !== null && p.action !== undefined) return true;
   if (p.trade !== null && p.trade !== undefined) return true;
@@ -1225,15 +1225,27 @@ for (const k of Object.keys(STALL_SELLS)) if (!STALL_KINDS.includes(k)) throw ne
 //
 // Which makes it the first thing here that exists only on a tile and only
 // right now. A fight acquires geography: the ground behind you is worth
-// something and the ground in front of you is not, and a citizen at four
-// hitpoints has a reason to look at where they are standing rather than what
-// they are carrying.
+// something and the ground in front of you is not, and a citizen has a reason
+// to look at where they are standing rather than what they are carrying.
 //
-// It is deliberately NOT better food. A fixed six -- the same as a cooked fish
-// now that the gullet is repealed -- and it
-// rots in fifty intervals -- half of what anything else on the ground lasts --
-// so its worth is TIMING and never throughput. Nobody farms it; there is
-// nothing to farm.
+// §6m-vii: AND ITS REASON CHANGED UNDER IT.
+//
+// This was written for a citizen at FOUR HITPOINTS -- when hitpoints were a
+// skill and a newcomer had ten, so six off the ground was most of them. §5j
+// made the frame flat at sixty-four and nothing in the hunting country can
+// bring anybody near four: a goblin lands half a hitpoint an interval and
+// would need two minutes of unanswered swinging. The citizen this was written
+// for does not exist any more.
+//
+// It kept a job anyway, and a better one. Food is a RATE now, so a fixed six
+// ARRIVING AT ONCE is the only instant mending a citizen can get alone in the
+// field -- the well is a place and a mend is another person. It is no longer
+// "not better food"; it is a different thing from food, which is what it
+// should always have been.
+//
+// Still six, and still rotting in fifty intervals -- half of what anything
+// else on the ground lasts -- so its worth is TIMING and never throughput.
+// Nobody farms it; there is nothing to farm.
 // WHO LEAVES IT, AND WHO DOES NOT.
 //
 // Goblin, wolf and bear: the beasts of the settled country, the ones a citizen
@@ -1245,8 +1257,8 @@ for (const k of Object.keys(STALL_SELLS)) if (!STALL_KINDS.includes(k)) throw ne
 // rather than an oversight. A skeleton was never carrying fruit. More to the
 // point, those three are the Wilds, and everything about the Wilds is that it
 // does not help you: no recall out, no keeper, no well, and now nothing
-// growing where a thing dies. The hunting country feeds a citizen at four
-// hitpoints. The Wilds do not, and never will.
+// growing where a thing dies. The hunting country feeds a citizen who is
+// losing. The Wilds do not, and never will.
 const FORAGE_HEAL = 6;
 const FORAGE_ROTS = 50;
 
@@ -1303,7 +1315,7 @@ const FORAGE_ROTS = 50;
 // had been that way since the seam table was rewritten. This is the same fault
 // as the room list that outlived its town (7bd) and the buildLogs key that
 // outlived planks (7cp): a table changed, and the things that read it did not.
-const MARKET_PLANKS = 32, MARKET_ORE = 8;
+const MARKET_PLANKS = 10, MARKET_ORE = 2;   // §6al: twelve slots, the whole pack
 const MARKET_RAISE = 20;                  // intervals of standing still
 const MARKET_STOCK = 200;                 // one good, this many of it
 const MARKET_OWNED = 1;                   // one each, like the seedsman
@@ -1357,6 +1369,7 @@ const MARKET_DECAY = 432000;              // three days untouched, then it falls
 // alchemy's flat four (§6dc) -- a mercy for what you would otherwise drop, not
 // a market.
 const SHELF_CAP = 8000;        // §6al: per good, on a citizen's stall or a spilled cart
+const VAULT_CAP = SHELF_CAP;   // §6g: per kind per vault. A vault holds what a shelf holds.
 // v0.83: was 1000, when there were thirteen stores. The two numbers were
 // always independent and got confused for one: state cost is the number of
 // (store, item) PAIRS -- twenty-five items times however many shops -- and
@@ -2002,6 +2015,30 @@ const healOf = (item) => item === 'smoked-eel' ? HEAL_SMOKED_EEL
   : item === 'broth' ? HEAL_BROTH
   : item === 'bread' ? HEAL_BREAD
   : item === 'ale' ? HEAL_ALE : 0;
+// §6m-vii: HOW FAST IT MENDS, which is the other half of what a food IS.
+//
+// A window alone made every food feel identical moment to moment: one hitpoint
+// an interval, and the only difference was how long it lasted. That is a
+// perfectly good rule and it threw away the tier. A cooked deep fish is the
+// capstone of shorecraft and it should not mend like a swallow of ale.
+//
+// So a food carries a RATE, and its `healOf` is still the total: the window is
+// however many intervals it takes to pay it. Nothing is rebalanced -- the same
+// food buys the same healing it always did -- but the good stuff arrives
+// faster, which is what a tier is for.
+//
+//   1  the PRESERVED and the BREWED. Salted fish, smoked eel, ale, broth: what
+//      a citizen carries because it stacks or keeps, mending slowly the whole
+//      while. This is the sustaining half of the larder.
+//   2  the COOKED. Hot food off a fire, prepared for the fight it is for.
+//   3  the DEEP CATCH, and nothing else. Deep water is the master's water
+//      (§6ad) and the fish out of it is the fastest mending in the world.
+//
+// The ceiling stays a long way under the old burst: three an interval against a
+// cooked fish's six all at once. Nothing here restores a fight in one swallow.
+const FEED_RATE = (item) => item === 'cooked-deep-fish' ? 3
+  : (item === 'cooked-fish' || item === 'cooked-eel' || item === 'bread') ? 2
+  : 1;
 const COOK_DEEP_REQ = 78;       // 6be: a cook to match the fisher -- the same number the deep water asks
 // 6bf: THE BURN CURVE, FLATTENED, AND A REASON TO COOK SOMEWHERE.
 //
@@ -4253,6 +4290,20 @@ function cityRectOf(g) {
 // Norwick (spec 2i): the garrison town, a second safe settlement on the Wilds frontier
 function norwickRectOf(g) {
   return g?.geo?.norwick ?? { x0: 36, x1: 50, y0: 24, y1: 36 };
+}
+// §6ao: WHERE A TOWN IS. `inCity` names Anchor and Norwick only; this island
+// has seven towns. Every one of them has a counting house, so a bank within
+// sixteen tiles is what "in a town" has meant since alchemy first needed to
+// ask (§6dc, which asked it inline). One definition now, because two functions
+// deciding separately where a town is would eventually disagree about it.
+const TOWN_RADIUS = 16;
+function inTown(state, ctx, x, y) {
+  for (const id of Object.keys(state.nodes)) {
+    const n = state.nodes[id];
+    if (n.type !== 'bank') continue;
+    if (Math.abs(n.x - x) <= TOWN_RADIUS && Math.abs(n.y - y) <= TOWN_RADIUS) return true;
+  }
+  return false;
 }
 const inCity = (g, x, y) => {
   const c = cityRectOf(g), n = norwickRectOf(g);
@@ -7574,7 +7625,7 @@ const LANDMARK_KINDS = new Set([
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
-    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+    'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
     // §6bu: alight, and it burns off by itself
     'burnUntil',
     // §7dk: the record clock, this citizen's own bands, and whether they ever
@@ -7709,11 +7760,29 @@ const LANDMARK_KINDS = new Set([
     // inventory: the exact constitutional slot count (28), always
     if (!Array.isArray(p.inventory) || p.inventory.length !== INV_SLOTS) return 'inventory length is not constitutional';
     for (const sl of p.inventory) if (!isSlot(sl)) return 'malformed inventory slot';
-    if (!p.bank || typeof p.bank !== 'object') return 'malformed bank';
-    if (Object.keys(p.bank).length > 512) return 'bank exceeds bounds';
-    for (const [it, q] of Object.entries(p.bank)) {
+    // §6g: A VAULT PER COUNTER. `p.bank` is a map from bank NODE ID to that
+    // counter's shelf, so the shape check is two deep. The bound that is
+    // load-bearing here is the VAULT COUNT -- what a citizen accumulates by
+    // travelling. Kinds are bounded by the item table and depth is not bounded
+    // by the state at all; see below.
+    if (!p.bank || typeof p.bank !== 'object' || Array.isArray(p.bank)) return 'malformed bank';
+    if (Object.keys(p.bank).length > 32) return 'bank exceeds vault bounds';
+    for (const [bid, vault] of Object.entries(p.bank)) {
+      if (typeof bid !== 'string' || !bid) return 'malformed vault id';
+      if (!vault || typeof vault !== 'object' || Array.isArray(vault)) return 'malformed vault';
+      if (Object.keys(vault).length === 0) return 'an empty vault is deleted, not kept';
+      // §6g: no bound on KINDS -- the item table is that bound, and a vault of
+      // every item in the world is ninety-one keys. The depth cap (VAULT_CAP)
+      // is deliberately NOT enforced here: a crossing sums the shelves of a
+      // world that no longer exists and may seat more than a deposit could add.
+      // Destroying the excess would contradict a crossing carrying a citizen
+      // whole, so an over-full vault is legal, refuses further deposits, and
+      // drains back under the cap by being used.
+      if (Object.keys(vault).length > ITEMS.size) return 'vault exceeds bounds';   // ITEMS is a Set
+    for (const [it, q] of Object.entries(vault)) {
       if (!isItemName(it)) return 'malformed bank item';
       if (!isInt(q, 1, MAX_QTY)) return 'bank quantity out of bounds'; // sparse: zero means the key is gone (rev7 §5)
+    }
     }
     // equipment: only the constitutional slots, all present
     if (!p.equipment || typeof p.equipment !== 'object') return 'malformed equipment';
@@ -7742,6 +7811,12 @@ const LANDMARK_KINDS = new Set([
       }
     }
     for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
+    // §6m-vii: the mending debt is hitpoints and a rate, not ticks. Bounded by
+    // the richest food in the world and by the fastest, so neither can be
+    // forged into an unbounded regeneration by a malformed checkpoint.
+    if (p.fedLeft !== undefined && !isInt(p.fedLeft, 1, 64)) return 'fedLeft out of bounds';
+    if (p.fedRate !== undefined && !isInt(p.fedRate, 1, 8)) return 'fedRate out of bounds';
+    if ((p.fedRate !== undefined) !== (p.fedLeft !== undefined)) return 'a mending rate without its debt';
     // §7e: the brew a citizen has going at the inn's pot
     // §7ai: burials toward the next flask
     if (p.buried !== undefined && !isInt(p.buried, 0, 1000000)) return 'malformed burial count';
@@ -8498,7 +8573,7 @@ function firstFreeSlot(inv) {
 // only through explicit calls. STACKABLE names the items that pool.
 // §6dg: javelins stack, because a bundle is the point of them
 const STACKABLE = new Set(['salt-fish', 'salt-deep-fish', 'iron-javelin', 'steel-javelin', 'star-javelin',
-  'shot', 'arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth',
+  'shot', 'arrows', 'fire-arrows', 'grain', 'seeds', 'ale', 'broth', 'deep-broth',
   // §7j: flour stacks; the LOAF does not (see HEAL_BREAD)
   'flour', 'saltpetre', 'gunpowder']);
 
@@ -8555,16 +8630,38 @@ function canAddItem(inv, item) {
   return firstFreeSlot(inv) !== -1;
 }
 
+// The gate and the resolver must ask the same question. `saw` asked whether
+// ONE plank would fit and then added SAW_YIELD of them.
+function canAddItems(inv, item, qty = 1) {
+  if (qty <= 1) return canAddItem(inv, item);
+  if (STACKABLE.has(item) && inv.some(sl => sl?.item === item)) return true;
+  let free = 0;
+  for (const sl of inv) if (!sl) free++;
+  return free >= qty;
+}
+
 // Adds qty of item, merging into an existing stack for stackables.
 // Returns true if fully added, false if nothing was added (never partial).
+// A NON-STACKABLE ITEM OCCUPIES ONE SLOT PER UNIT AT EVERY QUANTITY.
+// This consulted STACKABLE only to decide whether to MERGE. The placement
+// path below it wrote `{item, qty}` into a single slot whatever the set said,
+// so a bulk add of thirty-two planks stacked a thing this world had decided does
+// not stack -- and the pack cap meant nothing to anything arriving in bulk.
+// The set is the rule; nothing routes around it by passing a bigger number.
+// Atomic as before: fully added or nothing added, never partial.
 function addItem(inv, item, qty = 1) {
   if (STACKABLE.has(item)) {
     const i = inv.findIndex(sl => sl?.item === item);
     if (i !== -1) { inv[i].qty = (inv[i].qty ?? 1) + qty; return true; }
+    const slot = firstFreeSlot(inv);
+    if (slot === -1) return false;
+    inv[slot] = { item, qty };
+    return true;
   }
-  const slot = firstFreeSlot(inv);
-  if (slot === -1) return false;
-  inv[slot] = { item, qty };
+  const free = [];
+  for (let i = 0; i < inv.length && free.length < qty; i++) if (!inv[i]) free.push(i);
+  if (free.length < qty) return false;
+  for (const i of free) inv[i] = { item, qty: 1 };
   return true;
 }
 
@@ -9131,7 +9228,7 @@ function validInput(state, input, ctx) {
       // One sawpit, at the Sawyer's Camp in the Deepwood: a place that has had
       // a sawyer standing in it and nothing to saw since the day it was drawn.
       if (!hasAdjacentNode(state, ctx, p, 'sawpit')) return false;
-      return countLogs(p.inventory) >= SAW_LOGS && canAddItem(p.inventory, 'planks');
+      return countLogs(p.inventory) >= SAW_LOGS && canAddItems(p.inventory, 'planks', SAW_YIELD);
     }
     case 'grind': {
       // §7j: A MILL IS A MILL. Grain becomes flour beside the sails and
@@ -9972,26 +10069,51 @@ function validInput(state, input, ctx) {
       // §7.3a: and the hood, which used to be checked only in the resolver --
       // so `mayDo` said yes, the deed was recorded, and nothing happened.
       if (vaultRefuses(p.inventory[input.slot].item)) return false;
-      return hasAdjacentNode(state, ctx, p, 'bank');
+      // §6g: AND THE COUNTER MUST HAVE ROOM FOR AT LEAST ONE. A deposit that
+      // moves nothing is recorded as a deed and does nothing -- the §7.3a fault
+      // exactly, a gate saying yes to work the resolver will not do.
+      {
+        const bidG = adjacentBankId(state, ctx, p);
+        const vG = vaultAt(p, bidG);
+        const it = p.inventory[input.slot].item;
+        if (bidG && (vG?.[it] ?? 0) >= VAULT_CAP) return false;
+        if (bidG && !vG && Object.keys(p.bank).length >= VAULT_MAX) return false;
+      }
+      // the SAME lookup the resolver uses. A boolean cannot name a vault,
+      // and a gate that proves "some counter" while the resolver chooses "this
+      // counter" is two functions answering different questions.
+      return adjacentBankId(state, ctx, p) !== null;
     }
     case 'deposit_all': {
       // §7.3a: at least one thing the vault will take, and a bank to take it.
       if (p.consignment) return false;                       // §11d, as `deposit`
-      if (!p.inventory.some((sl) => sl && !vaultRefuses(sl.item))) return false;
-      return hasAdjacentNode(state, ctx, p, 'bank');
+      // §6g: at least one thing that will actually move.
+      {
+        const bidG = adjacentBankId(state, ctx, p);
+        if (!bidG) return false;
+        const vG = vaultAt(p, bidG) ?? {};
+        if (!vaultAt(p, bidG) && Object.keys(p.bank).length >= VAULT_MAX) return false;
+        return p.inventory.some((sl) => sl && !vaultRefuses(sl.item)
+          && (vG[sl.item] ?? 0) < VAULT_CAP);
+      }
     }
     case 'withdraw': {
       // a CHART banks fine (isItemName accepts it) and could never be taken
       // out again, because withdraw's shape check is ITEMS-only. Silent,
       // permanent loss of a survey reward. Two gates that must agree.
-      if (typeof input.item !== 'string' || !(p.bank[input.item] > 0)) return false;
+      // §6g: at THIS counter. The gate asked whether the citizen had the item
+      // anywhere, which under local vaults would accept a withdrawal from a
+      // vault three towns away and then quietly do nothing.
+      const bid = adjacentBankId(state, ctx, p);
+      const vault = vaultAt(p, bid);
+      if (typeof input.item !== 'string' || !vault || !(vault[input.item] > 0)) return false;
       if (p.consignment) return false;   // §11d, and see `deposit` for why both
       // ROOM FOR AT LEAST ONE. How many actually come out is settled in the
       // resolver against what is banked and what will fit; asking for more
       // than either is not an error, it is just optimism.
       if (firstFreeSlot(p.inventory) === -1
           && !(STACKABLE.has(input.item) && p.inventory.some((sl) => sl?.item === input.item))) return false;
-      return hasAdjacentNode(state, ctx, p, 'bank');
+      return true;   // `bid` non-null already proved the counter
     }
     case 'drop': {
       return Number.isInteger(input.slot) && !!p.inventory[input.slot];
@@ -10113,7 +10235,17 @@ function _clonePlayer(p) {
     const v = p[k];
     if (v === undefined) continue;
     switch (k) {
-      case 'skills': case 'bank': o[k] = _cloneFlat(v); break;
+      case 'skills': o[k] = _cloneFlat(v); break;
+      // §6g: TWO DEEP NOW. `_cloneFlat` copies one level, so a nested vault
+      // would be SHARED between the state a tick was computed from and the one
+      // it produced -- a write to a vault would reach backwards into history.
+      // Silent, and a divergence between two nodes computing the same tick is
+      // exactly the thing this world stops rather than forks over.
+      case 'bank': {
+        const b = {};
+        for (const bid of Object.keys(v)) b[bid] = _cloneFlat(v[bid]);
+        o[k] = b; break;
+      }
       case 'inventory': {
         const a = new Array(v.length);
         for (let i = 0; i < v.length; i++) { const sl = v[i]; a[i] = (sl === null || sl === undefined) ? null : _cloneFlat(sl); }
@@ -10205,7 +10337,12 @@ function _cloneModeName() { return _cloneOverride ?? process.env.INTERVAL_CLONE 
 // Run them against this mode before trusting it:
 //
 //   INTERVAL_CLONE=cow node --test test/phase2.test.mjs
-const _cowDeep = new Set(['inventory', 'skills', 'bank', 'equipment', 'crops', 'friends',
+// §6g: `bank` LEFT THIS SET when vaults became local. The wrapper memoises one
+// level of container, so a two-deep `bank` would hand back an unwrapped vault
+// object and writes to it would escape copy-on-write entirely. Reading a bank
+// now dirties the whole citizen, which is slower and correct; a citizen at a
+// counter is one of very few per interval, so the cost lands nowhere hot.
+const _cowDeep = new Set(['inventory', 'skills', 'equipment', 'crops', 'friends',
   'cooksTried', 'lightsTried', 'offered', 'trade', 'action']);
 function _cowPlayer(orig) {
   let copy = null;                       // null until somebody writes
@@ -10977,6 +11114,22 @@ function adjacentNodeIdsInOrder(state, ctx, p, type) {
 // whole minute could save two hundred, and one could save half. A stall
 // abandoned with a fortune in it is mostly a fortune destroyed, in public,
 // with everyone able to read the clock.
+// §6al: what a refund cannot fit falls where the thing stood, on the same
+// hundred-interval ground clock a spilled shelf uses. A bulk refund that
+// silently destroyed the timber because the pack was half full was the worst
+// of the three available outcomes.
+function spillUnits(s2, x, y, item, qty) {
+  for (let k = 0; k < qty; k++) {
+    s2.ground['r' + s2.tick + '-' + item + '-' + k] =
+      { item, qty: 1, x, y, expiresAt: s2.tick + 100 };
+  }
+}
+function refundOrSpill(s2, p, item, qty) {
+  for (let k = 0; k < qty; k++) {
+    if (!addItem(p.inventory, item, 1)) { spillUnits(s2, p.x, p.y, item, qty - k); return; }
+  }
+}
+
 function spillShelf(s2, mk) {
   const shelf = mk.shelf ?? {};
   let n = 0;
@@ -10988,6 +11141,57 @@ function spillShelf(s2, mk) {
   }
   delete mk.shelf;
 }
+// §6g: A VAULT IS A PLACE, NOT A PROPERTY OF THE CITIZEN.
+//
+// `p.bank` was one map readable at every bank node on the island, which made a
+// vault a teleport for goods: ore mined in the Crags was in your hand at
+// Anchor. That is the single decision that made hauling (§11) an errand nobody
+// needed and `wayfaring`'s runner a calling with nothing to run. Goods now sit
+// where they were left.
+//
+// Keyed by NODE ID, because a vault must be the same vault tomorrow and node
+// ids are pure functions of the seed (§9b). Coordinates would move if a town
+// were ever redrawn; a name would collide across countries.
+// Returns the KEY, not the node: `s.nodes[id] = node` and the node itself
+// carries no id. Iterates in the same order as `adjacentNodeOf` deliberately --
+// if two counters were ever adjacent to one tile, the gate and the resolver
+// must choose the SAME one, and two functions scanning differently is the
+// disagreement this codebase keeps finding.
+function adjacentBankId(state, ctx, p) {
+  for (const id of Object.keys(state.nodes)) {
+    const n = state.nodes[id];
+    if (n.type === 'bank' && adjacent(p, n)) return id;
+  }
+  return null;
+}
+// The vault a citizen is standing at, or an empty one. Never creates: a read
+// must not write, or merely walking past a counter would grow the state.
+function vaultAt(p, bankId) {
+  return (bankId && p.bank && p.bank[bankId]) ? p.bank[bankId] : null;
+}
+// §6g: WHAT A VAULT WILL HOLD.
+//
+// There was a bound of 512 KINDS per vault. There are ninety-one items in this
+// world, so it could never fire, and a bound that cannot fire is worse than
+// none: it reads as protection and is furniture. The item table is the bound
+// on kinds, and it always was.
+//
+// The bound that means something is DEPTH. `VAULT_CAP` is per kind per vault,
+// and it is `SHELF_CAP` -- a vault holds what a shelf holds, one number rather
+// than two nearly-equal ones. Four hundred magic-stone is a star-plate (§5t),
+// so a full vault of stone is twenty plates: enough to bank a long campaign in
+// the Wilds, not enough to mine for a year into one counter and never move.
+//
+// This is the half of §6g that makes goods CIRCULATE rather than merely sit
+// somewhere specific. A career miner at Cragfoot fills the counter and then has
+// three choices, all of which are the economy: haul it, sell it at a stall, or
+// walk it somewhere else. None of them is clicking.
+//
+// It is not a patience tax (§8). A cap cleared by more trips would be exactly
+// that, and this is not cleared by trips -- it is cleared by the goods LEAVING,
+// which is the thing the world wanted anyway.
+const VAULT_MAX = 32;      // vaults a citizen may hold: bounded, per §5
+
 function marketsOwnedBy(state, ctx, pid) {
   let n = 0;
   for (const k of Object.keys(state.nodes)) {
@@ -11106,9 +11310,12 @@ function announce(s, text) {
 // GENESIS.imported, exactly as `firsts` does not. A clock that started in a
 // world which no longer exists is not a clock.
 //
-// BOUNDED, and that is not negotiable. Three per board, eighteen skills, two
-// boards each: a hundred and eight entries, fixed for ever, however many
-// citizens ever live here. §5's whole argument is that state which grows with
+// BOUNDED, and that is not negotiable. Three per board, NINE trades, two
+// boards each: fifty-four entries, fixed for ever, however many citizens ever
+// live here. (This said eighteen skills and a hundred and eight entries,
+// written when it was true and never touched again after §5m merged them --
+// the same fault as §6cg's 'all sixteen'. The CODE was always right; it
+// counts SKILLS.) §5's whole argument is that state which grows with
 // participation eventually stops the world -- "not because anyone was playing
 // but because everyone once did". Three is also the naming stone's number,
 // and for the same reason: a monument that keeps no history is only an
@@ -11249,6 +11456,20 @@ function stepEvents(s, beacon) {
         const nx = t.x + dx, ny = t.y + dy;
         if (nx < 1 || ny < 1 || nx >= s.genesis.worldW - 1 || ny >= s.genesis.worldH - 1) continue;
         if (terrainBlocked(s.genesis, nx, ny)) continue;
+        // §6ao: NOT IN A TOWN. The incursion's whole job is that neighbours
+        // notice and come, and it hits softly so they safely can -- but a town
+        // is where this world promises nothing may strike you (§6dd says so of
+        // the well, §6al of a stall). A thing walking out of the dark into the
+        // middle of Anchor breaks the one place that was safe, and it does it
+        // to whoever happened to be standing at a counter rather than to
+        // somebody who chose to be out.
+        //
+        // Checked on the SEAT, not the target: a citizen just outside a town
+        // may still be answered, and one inside it is simply not seated, so
+        // the roll passes with nothing spawned. That is the correct outcome
+        // and not a missed event -- §6bv already says an unanswered incursion
+        // is a story, and an unspawned one costs a citizen nothing.
+        if (inTown(s, _ctx, nx, ny)) continue;
         if (Object.values(s.mobs).some(m => m.hp > 0 && m.x === nx && m.y === ny)) continue;
         sx = nx; sy = ny; seated = true; break;
       }
@@ -11257,13 +11478,22 @@ function stepEvents(s, beacon) {
         addMob(s, iid, 'incursion', sx, sy);
         const m = s.mobs[iid];
         m.maxHp = scaleHp; m.hp = scaleHp; m.def = scaleDef;
-        // §6cz: ITS BLOW SCALES TO THE ONE IT CAME FOR. maxHit was a flat 4,
-        // which is a third of a newcomer's ten hitpoints -- frightening, when
-        // the whole design is that you can safely turn your back on it and go
-        // help. So it is a fraction of the TARGET's hitpoints instead: a tenth,
-        // floored at 1 and capped at the table's maxHit. A ten-HP newcomer takes
-        // at most a 1; a ninety-nine-HP veteran at most the full 4. It always
-        // reads as "come help", never "flee".
+        // §6cz: ITS BLOW SCALES TO THE ONE IT CAME FOR -- and since §5j this
+        // scaling is DEAD, deliberately left standing.
+        //
+        // It was written when hitpoints were a skill and a newcomer had ten, so
+        // a flat 4 was a third of them. A tenth of the target's frame, capped at
+        // the table's maxHit, meant a newcomer took 1 and a veteran took 4.
+        //
+        // §5j made the frame FLAT at sixty-four for everyone. Sixty-four tenths
+        // is six, capped back to four, so every citizen now takes four whatever
+        // they are -- and that is correct, because four against a frame of
+        // sixty-four is the "come help, never flee" this was reaching for. The
+        // flat frame does the job the scaling was invented to do.
+        //
+        // Left in place rather than replaced with the constant: a calling moves
+        // the frame (§5k, the berserker at forty-eight) and the day one moves it
+        // far enough, this starts working again on its own.
         const tgtHp = Math.max(1, maxHp(t));
         m.maxHit = Math.max(1, Math.min(base.maxHit, Math.round(tgtHp / 10)));
         m.mad = tid;
@@ -12566,8 +12796,8 @@ function nextState(state, inputs, _legacyBeacon) {
       if (mk) {
         spillShelf(s, mk);
         if ((mk.coin ?? 0) > 0) p.gold = (p.gold ?? 0) + mk.coin;
-        addItem(p.inventory, 'planks', MARKET_PLANKS);   // §7cp: boards back, not logs
-        addItem(p.inventory, 'iron-ore', MARKET_ORE);   // §7da: what it was built from
+        refundOrSpill(s, p, 'planks', MARKET_PLANKS);   // §7cp: boards back, not logs
+        refundOrSpill(s, p, 'iron-ore', MARKET_ORE);   // §7da: what it was built from
         deleteIndexedNode(s, _ctx, mid);
       }
     } else if (inp.type === 'unmake') {
@@ -13858,7 +14088,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // planks was refunding logs -- you would have got back a different
         // material from the one you spent, and a citizen could have turned
         // boards into logs by building and unbuilding.
-        addItem(p.inventory, 'planks', Math.floor((bc?.buildPlanks ?? 0) / 2));
+        refundOrSpill(s, p, 'planks', Math.floor((bc?.buildPlanks ?? 0) / 2));
         for (let _r = 0; _r < Math.floor((bc?.buildOre ?? 0) / 2); _r++) if (canAddItem(p.inventory, 'ore')) addItem(p.inventory, 'ore', 1);
         deleteIndexedNode(s, _ctx, inp.nodeId);
       }
@@ -13933,7 +14163,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // §7br: four shafts and a measure of brimstone make four fire arrows.
         consumeItem(p.inventory, 'arrows', 4);
         consumeItem(p.inventory, 'brimstone', 1);
-        addItem(p.inventory, 'fire-arrows', 4);
+        addItem(p.inventory, 'fire-arrows', 4);   // §7br: ammunition stacks, as every other kind does
         awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT * 2, 'fletcher');
       } else if (sl && inp.make === 'bow' && isLog(sl.item)) {
         p.inventory[inp.slot] = { item: 'wooden-bow', qty: 1 };
@@ -14090,11 +14320,10 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'deposit') {
       const sl = p.inventory[inp.slot];
-      const nearBank = hasAdjacentNode(s, _ctx, p, 'bank');
       // §6ax: A VAULT WILL NOT TAKE A HOOD.
       //
       // Not to stop hoarding -- it cannot; a sleeping citizen in a town is a
-      // twenty-eight slot vault that costs nothing. It is to force the CHOICE.
+      // twelve-slot vault that costs nothing. It is to force the CHOICE.
       // A hood that can be banked is a hood nobody ever risks, and one that is
       // never worn is one nobody ever sees, which is the entire point of it.
       // Owning one has to be a decision renewed every time you leave a town.
@@ -14115,33 +14344,53 @@ function nextState(state, inputs, _legacyBeacon) {
       // risk and no choice, only waiting. §8 says patience is never the tax,
       // and a script does not mind twenty-five clicks, so the whole of that
       // cost fell on the person and none of it on the thing §8 worries about.
-      if (sl && nearBank && !vaultRefuses(sl.item)) {
-        p.bank[sl.item] = (p.bank[sl.item] ?? 0) + (sl.qty ?? 1);
-        p.inventory[inp.slot] = null;
+      const bidD = adjacentBankId(s, _ctx, p);
+      if (sl && bidD && !vaultRefuses(sl.item)
+          && (p.bank[bidD] !== undefined || Object.keys(p.bank).length < VAULT_MAX)) {
+        const v = (p.bank[bidD] ??= {});
+        // §6g: AS MUCH AS FITS, and the remainder stays in the pack. Withdraw
+        // already takes the least of what was asked, what is banked and what
+        // will fit; a deposit that refused a stack outright because its last
+        // few would not fit would be the same question answered differently.
+        const room = VAULT_CAP - (v[sl.item] ?? 0);
+        const move = Math.min(sl.qty ?? 1, room);
+        if (move > 0) {
+          v[sl.item] = (v[sl.item] ?? 0) + move;
+          if (move >= (sl.qty ?? 1)) p.inventory[inp.slot] = null;
+          else sl.qty -= move;
+        }
+        if (Object.keys(v).length === 0) delete p.bank[bidD];
       }
     } else if (inp.type === 'deposit_all') {
       // §7.3a: and the pack, in one deed. §2287 gives a citizen one INPUT an
       // interval to stop them equivocating -- signing two different futures
       // for the same tick. It says nothing about how much one deed may move,
       // and every other resolver here moves as much as its rule describes.
-      const nearBank2 = hasAdjacentNode(s, _ctx, p, 'bank');
-      if (nearBank2 && !p.consignment) {
+      const bidA = adjacentBankId(s, _ctx, p);
+      if (bidA && !p.consignment && (p.bank[bidA] !== undefined || Object.keys(p.bank).length < VAULT_MAX)) {
+        const v = (p.bank[bidA] ??= {});
         for (let i = 0; i < p.inventory.length; i++) {
           const it = p.inventory[i];
           if (!it || vaultRefuses(it.item)) continue;   // the bow and the hood stay
-          p.bank[it.item] = (p.bank[it.item] ?? 0) + (it.qty ?? 1);
-          p.inventory[i] = null;
+          const room = VAULT_CAP - (v[it.item] ?? 0);   // §6g, as `deposit`
+          const move = Math.min(it.qty ?? 1, room);
+          if (move <= 0) continue;                       // full: this one stays in the pack
+          v[it.item] = (v[it.item] ?? 0) + move;
+          if (move >= (it.qty ?? 1)) p.inventory[i] = null;
+          else it.qty -= move;
         }
+        if (Object.keys(v).length === 0) delete p.bank[bidA];
       }
     } else if (inp.type === 'withdraw') {
-      const nearBank = hasAdjacentNode(s, _ctx, p, 'bank');
       // §7.3a: AS MANY AS ASKED, AS MANY AS BANKED, AS MANY AS FIT -- whichever
       // is least. Withdrawing used to hand over one unit into one free slot,
       // which meant twenty-five arrows cost twenty-five intervals AND
       // twenty-five slots: they did not stack on the way out of the vault the
       // way they stack on the way in.
-      if (p.bank[inp.item] > 0 && nearBank) {
-        let want = Math.min(inp.qty, p.bank[inp.item]);
+      const bidW = adjacentBankId(s, _ctx, p);
+      const vaultW = vaultAt(p, bidW);
+      if (vaultW && vaultW[inp.item] > 0) {
+        let want = Math.min(inp.qty, vaultW[inp.item]);
         if (STACKABLE.has(inp.item)) {
           const at = p.inventory.findIndex((x) => x?.item === inp.item);
           const slot2 = at !== -1 ? at : firstFreeSlot(p.inventory);
@@ -14151,7 +14400,7 @@ function nextState(state, inputs, _legacyBeacon) {
             want = Math.min(want, room);
             if (want > 0) {
               p.inventory[slot2] = { item: inp.item, qty: (cur?.qty ?? 0) + want };
-              p.bank[inp.item] -= want;
+              vaultW[inp.item] -= want;
             }
           }
         } else {
@@ -14161,9 +14410,12 @@ function nextState(state, inputs, _legacyBeacon) {
             p.inventory[i] = { item: inp.item, qty: 1 };
             took++;
           }
-          p.bank[inp.item] -= took;
+          vaultW[inp.item] -= took;
         }
-        if (p.bank[inp.item] <= 0) delete p.bank[inp.item];
+        if (vaultW[inp.item] <= 0) delete vaultW[inp.item];
+        // An emptied vault is deleted, so a citizen who cleared a counter is
+        // not carrying a permanent record of having stood at it.
+        if (Object.keys(vaultW).length === 0) delete p.bank[bidW];
       }
     } else if (inp.type === 'drop') {
       const it = p.inventory[inp.slot];
@@ -14224,7 +14476,32 @@ function nextState(state, inputs, _legacyBeacon) {
       if (heal > 0 && s.tick - (p.lastAte ?? -1024) >= eatRhythm(slot.item)) {   // §6m-iii, §6m-v
         p.lastAte = s.tick;
         removeItem(p.inventory, inp.slot, 1); // stackable brews draw from the stack; a fish clears its slot
-        p.hp = Math.min(p.hp + heal, maxHp(p));
+        // §6m-vii: FOOD IS A RATE, NOT A BURST.
+        //
+        // Eating restored the whole of `healOf` in the interval it was
+        // swallowed, so a fight was a contest in clicking fish: damage landed
+        // and was undone at the same speed, and the winner was whoever brought
+        // more pack. The comment below already says the rhythm is "the only
+        // thing stopping food from out-healing damage" -- which is a rate
+        // limit bolted onto a burst, and the burst is the part that was wrong.
+        //
+        // A food's healing is now its DURATION at one hitpoint an interval.
+        // The totals are untouched, so nothing in the item table, the cook's
+        // ladder or the brewer's economy is rebalanced by this: a cooked fish
+        // is still six, taken six intervals at one. What changes is that the
+        // six arrive after the blow rather than instead of it, so damage
+        // accumulates, disengaging is the counter, and `anchor` has a job.
+        //
+        // THE DEBT AND THE RATE, not an end tick. A rate that does not divide
+        // its total evenly would lose or invent hitpoints at the last interval,
+        // so what is remembered is how much is still owed.
+        //
+        // MORE WINS, and it does not stack. Eating again takes the LARGER
+        // remaining debt rather than adding them -- or twelve slots of fish
+        // would be a burst again with extra steps -- and the rate travels with
+        // whichever won, because a rate without its food is nobody's food.
+        const rate = FEED_RATE(slot.item);
+        if (heal > (p.fedLeft ?? 0)) { p.fedLeft = heal; p.fedRate = rate; }
         // §6m-ii: AND IT COSTS A SWING.
         //
         // v0.32 said eating does not lower your guard, and the fight still
@@ -14540,7 +14817,7 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'saw') {
       { const sn = adjacentNodeOf(s, _ctx, p, 'sawpit'); if (sn) noteWork(sn, pid, s.tick); }
       if (hasAdjacentNode(s, _ctx, p, 'sawpit') && countLogs(p.inventory) >= SAW_LOGS
-          && canAddItem(p.inventory, 'planks')) {
+          && canAddItems(p.inventory, 'planks', SAW_YIELD)) {
         consumeLogs(p.inventory, SAW_LOGS);
         addItem(p.inventory, 'planks', SAW_YIELD);
         awardXp(p, 'woodcraft', XP_SAW, 'fletcher');
@@ -15530,6 +15807,28 @@ function nextState(state, inputs, _legacyBeacon) {
     if ((q.deadUntil ?? 0) > s.tick) continue;
     q.stilledUntil = s.tick + STILL_WAND_TICKS;
     if (q.action !== undefined) q.action = null;
+  }
+  // §6m-vii: THE MENDING OF THE FED, one hitpoint an interval while the window
+  // is open. Sorted, like every other pass here: the order two nodes apply this
+  // in must be the same order or they compute different worlds.
+  for (const pid of Object.keys(s.players).sort()) {
+    const q = s.players[pid];
+    if (!(q.fedLeft > 0)) { if (q.fedLeft !== undefined) { delete q.fedLeft; delete q.fedRate; } continue; }
+    // §7ck: the withered door is shut to this too. It was shut to the burst,
+    // and a rate that ignored it would be the same healing through a gap. The
+    // debt is NOT spent while the door is shut -- a withering does not eat the
+    // food, it stops it working, and the mending resumes when the door opens.
+    if ((q.witheredUntil ?? 0) > s.tick) continue;
+    if ((q.deadUntil ?? 0) > s.tick) continue;
+    if (q.hp <= 0) continue;
+    const pay = Math.min(q.fedRate ?? 1, q.fedLeft);
+    const cap = maxHp(q);
+    // Healing that would overflow the frame is still SPENT. A citizen who eats
+    // at full health has eaten; the alternative is a food that hangs unspent
+    // for ever and mends at the exact moment of the next blow.
+    q.hp = Math.min(cap, q.hp + pay);
+    q.fedLeft -= pay;
+    if (q.fedLeft <= 0) { delete q.fedLeft; delete q.fedRate; }
   }
   for (const mid of Object.keys(s.mobs).sort()) {
     const m2 = s.mobs[mid];

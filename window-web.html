@@ -588,19 +588,33 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 //   stay down a moment after it ends rather than popping back up between
 //   swings.
 //
-// A HAULER IS MOUNTED EVERYWHERE. The traveller's horse belongs to the road;
-// the hauler's belongs to the CONSIGNMENT -- take the container, get the beast
-// that carries it. That gives the off-road silhouette a meaning it did not
-// have: on a road everybody is mounted and it tells you nothing, but off one,
-// mounted means CARRYING, which is the single fact `mayStrike` turns on.
-const MOUNT_LINGER = 1800, MOUNT_REMOUNT = 2200
-const _rodeAt = new Map(), _fellOffAt = new Map()
+// MOUNTED MEANS CARRYING, EVERYWHERE, and it means nothing else.
+//
+// The note above used to end by conceding the whole point: *on a road
+// everybody is mounted and it tells you nothing, but off one, mounted means
+// CARRYING.* A silhouette that says one thing on a road and another beside it
+// is not a signal, it is a thing you have to know the road map to read -- and
+// `mayStrike` turns on exactly the fact the road was hiding.
+//
+// So the traveller's horse is gone and the hauler's stays. A rider is a
+// hauler. Full stop, on any tile in the world.
+//
+// The FLICKER fault the road version needed a linger for goes with it:
+// `consignment` is a discrete state a citizen takes and puts down, not a
+// meandering set of tiles they clip on and off several times a second. There
+// is nothing to smooth, so MOUNT_LINGER and its map are gone too.
+//
+// The FIGHTING fault stays. Nothing in this world does mounted combat, so a
+// rider swinging a maul would promise a rule that does not exist -- they get
+// down, and stay down a moment after it ends rather than popping back up
+// between swings.
+const MOUNT_REMOUNT = 2200
+const _fellOffAt = new Map()
 function mountedNow(pid, p, nowMs) {
   const act = p?.action?.type
   if (act === 'prowess' || act === 'attackp') { _fellOffAt.set(pid, nowMs); return false }
   if (nowMs - (_fellOffAt.get(pid) ?? -1e9) < MOUNT_REMOUNT) return false
-  if (onRoadE(p.x, p.y) || !!p.consignment) { _rodeAt.set(pid, nowMs); return true }
-  return nowMs - (_rodeAt.get(pid) ?? -1e9) < MOUNT_LINGER
+  return !!p.consignment
 }
 function biomeAtE(x, y) {
   if (x <= Math.round(W * 0.19)) return 'wilds'
@@ -6360,7 +6374,21 @@ function renderT(now) { // one clock for drawing AND clicking: what you see is w
   }
   return Math.min(1.2, (now - stateAt) / statePeriod)
 }
-function chooseAction(opts) {
+// THE OPTIONS, AND WHERE THEY APPEAR.
+//
+// A tap still fills the bar above the pack, unchanged: that is the phone, and a
+// floating menu under a thumb covers the thing it is about. A RIGHT CLICK gets
+// the same list at the pointer, because a mouse has a second button and every
+// game this one is descended from put the verbs on it.
+//
+// One list either way. `chooseAction` is the only place options are built, so
+// the two inputs cannot drift into offering different verbs -- which is the
+// fault this project keeps finding, and a menu that disagrees with the bar
+// would be a citizen learning two worlds.
+let _menuAt = null   // set for the length of one right-click, read here only
+function chooseAction(opts, at) {
+  const where = at ?? _menuAt
+  if (where) return floatMenu(opts, where)
   const bar = document.getElementById('choosebar') ?? (() => {
     const d = document.createElement('div'); d.id = 'choosebar'
     d.style.cssText = 'display:flex;gap:6px;margin:4px 0'
@@ -6376,14 +6404,68 @@ function chooseAction(opts) {
     bar.appendChild(b)
   }
 }
+// The pointer menu. Dismissed by anything that is not a choice -- another
+// click, Escape, a scroll, or the world moving under it.
+let _menuEl = null
+function closeMenu() { _menuEl?.remove(); _menuEl = null }
+function floatMenu(opts, at) {
+  closeMenu()
+  if (!opts?.length) return
+  const d = document.createElement('div')
+  d.id = 'ctxmenu'
+  d.style.cssText = 'position:fixed;z-index:9999;min-width:150px;background:#2a2419;'
+    + 'border:1px solid #6e5433;box-shadow:0 4px 14px rgba(0,0,0,.6);'
+    + 'font-family:inherit;font-size:12px;padding:2px'
+  for (const o of opts) {
+    const b = document.createElement('button')
+    b.textContent = o.label
+    b.style.cssText = 'display:block;width:100%;text-align:left;background:none;'
+      + 'color:#e8d9a0;border:0;padding:5px 9px;font:inherit;cursor:pointer'
+    b.onmouseenter = () => { b.style.background = '#3a3126' }
+    b.onmouseleave = () => { b.style.background = 'none' }
+    b.onclick = (ev) => { ev.stopPropagation(); closeMenu(); o.act() }
+    d.appendChild(b)
+  }
+  document.body.appendChild(d)
+  // Placed AFTER measuring, so a menu opened near an edge folds back over the
+  // pointer instead of hanging off the window where it cannot be read.
+  const r = d.getBoundingClientRect()
+  d.style.left = Math.min(at.x, innerWidth - r.width - 4) + 'px'
+  d.style.top = Math.min(at.y, innerHeight - r.height - 4) + 'px'
+  _menuEl = d
+}
+addEventListener('pointerdown', (e) => { if (!e.target.closest('#ctxmenu')) closeMenu() }, true)
+addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu() })
+addEventListener('wheel', closeMenu, { passive: true })
+addEventListener('blur', closeMenu)
+
 const SLEEP_AFTER = 500
+// §5m: ONE COLOUR PER TRADE, and there are nine.
+//
+// This was eighteen entries renamed in place, so four keys were written two or
+// three times and the last silently won: woodcraft was green, then red, then
+// ochre. Five colours were dead on arrival and `wayfaring` had none at all --
+// a master wayfarer wore the fallback gold, which is the colour of no trade.
+//
+// A cape says which mastery a citizen is wearing. It cannot do that if two
+// trades share an entry that only one of them reaches.
 const CAPE_COLORS = {
-  woodcraft: '#2f7d2f', earthcraft: '#5a6b7d', shorecraft: '#2a6f9e',
-  shorecraft: '#7d2f5a', earthcraft: '#b06a2a', woodcraft: '#c9432a',
-  mourning: '#e8e4d0', sorcery: '#3a7d9e', marksmanship: '#5c7d3a', hearthcraft: '#7d9e3a', woodcraft: '#9e7d3a', prowess: '#8e1f1f', prowess: '#3a5a8e', prowess: '#7d7d2f',
+  woodcraft: '#2f7d2f',     // the greenwood
+  earthcraft: '#b06a2a',    // hot iron
+  shorecraft: '#2a6f9e',    // deep water
+  hearthcraft: '#7d9e3a',   // the field
+  prowess: '#8e1f1f',       // blood
+  marksmanship: '#5c7d3a',  // yew
+  sorcery: '#3a7d9e',       // the cold light
+  mourning: '#e8e4d0',      // bone
+  wayfaring: '#c9a227',     // the road at dusk
 }
 function capeOf(p) { // mastery is a fact; the cape is what it looks like
-  const mastered = Object.entries(p.skills).filter(([, xp]) => XP_TO_LVL(xp) >= 99)
+  // §4b: mastery is ONE HUNDRED. This read ninety-nine and put a cape on a
+  // citizen a whole level before they had earned it -- and the last level is
+  // near a seventh of the entire ascent, so the cape arrived a very long time
+  // early.
+  const mastered = Object.entries(p.skills).filter(([, xp]) => XP_TO_LVL(xp) >= 100)
   if (!mastered.length) return null
   mastered.sort((a, b) => b[1] - a[1])
   return {
@@ -13661,8 +13743,11 @@ const SPELLBOOK = {
 let spellArmed = null
 function castable(sp, me) {
   const have = (me.inventory || []).reduce((t, sl) => t + (sl?.item === 'sigil' ? (sl.qty ?? 1) : 0), 0)
-  const mag = XP_TO_LVL(me.skills?.magic ?? 0)   // the window's own ladder
-  if (mag < sp.lvl) return 'magic ' + sp.lvl
+  // §5m: magic is SORCERY. This read `skills.magic`, which no citizen has, so
+  // `mag` was one for everybody and every spell above level one reported itself
+  // unreachable -- the whole trade, refused by the client on a name.
+  const mag = XP_TO_LVL(me.skills?.sorcery ?? 0)
+  if (mag < sp.lvl) return 'sorcery ' + sp.lvl
   if (have < sp.sigils) return sp.sigils + ' sigils'
   if (sp.wand && me.equipment?.weapon?.item !== sp.wand) return 'a ' + sp.wand.replace('-', ' ')
   return null
@@ -13760,7 +13845,7 @@ function invClick(i) {
       + 'thing a miner makes that a farmer wants.')
     return
   }
-  if (it.item === 'chart' && XP_TO_LVL(meNow.skills?.exploration ?? 0) >= 90) {
+  if (it.item === 'chart' && XP_TO_LVL(meNow.skills?.wayfaring ?? 0) >= 90) {   // §5p: exploration is wayfaring
     chooseAction([
       { label: 'draw it up as a charter (for the boat to the Lists)', act: () => {
         send({ do: 'charter', slot: Number(i) })
@@ -13995,6 +14080,16 @@ function invClick(i) {
     ])
   }
 }
+// Right-click a slot: the same verbs the tap gives, at the pointer.
+document.getElementById('inv').addEventListener('contextmenu', (e) => {
+  const slotEl = e.target.closest('.slot')
+  if (!slotEl) return
+  e.preventDefault()
+  const me2 = world?.players?.[myId]
+  _namedItem = me2?.inventory?.[Number(slotEl.dataset.i)]?.item ?? ''
+  _menuAt = { x: e.clientX, y: e.clientY }
+  try { invClick(slotEl.dataset.i) } finally { _menuAt = null }
+})
 document.getElementById('inv').addEventListener('click', (e) => {
   const slotEl = e.target.closest('.slot')
   // §5t: name the thing under the pack as well as acting on it, so a tap
@@ -14471,7 +14566,7 @@ cv.addEventListener('click', (e) => {
           // complete. The furnace is where they meet, so the furnace should be
           // the thing that mentions it.
           whoWorksHere(n)
-        const sm = XP_TO_LVL(meF.skills?.smithing ?? 0)
+        const sm = XP_TO_LVL(meF.skills?.earthcraft ?? 0)   // §5m: smithing is earthcraft
           const stones = have('magic-stone')
           if (stones >= 20 && sm < 45)
             feed('You have the stones and not the craft \u2014 twenty make one ingot, and it '
@@ -14602,7 +14697,8 @@ cv.addEventListener('click', (e) => {
         // else's fire, because the second one is not yours to spend quietly.
         const wt9 = world?.genesis?.watch
         const bark9 = (me.inventory ?? []).reduce((a, sl) => a + (sl?.item === 'ironbark' ? (sl.qty ?? 1) : 0), 0)
-        if (wt9?.charWood !== undefined && lit && (XP_TO_LVL(me.skills?.firemaking ?? 0) >= wt9.charLevel)) {
+        // §5m: firemaking is woodcraft
+        if (wt9?.charWood !== undefined && lit && (XP_TO_LVL(me.skills?.woodcraft ?? 0) >= wt9.charLevel)) {
           opts.push(bark9 >= wt9.charWood
             ? { label: 'char ' + wt9.charWood + ' ironbark to charcoal (2 logs of its burn)', act: () => {
                 send({ do: 'char', nodeId: id })
@@ -14786,7 +14882,7 @@ cv.addEventListener('click', (e) => {
         return
       }
       if (famOf(n.type) === 'magic-rock') {
-        const lv = XP_TO_LVL(me.skills?.mining ?? 0)
+        const lv = XP_TO_LVL(me.skills?.earthcraft ?? 0)   // §5m: mining is earthcraft
         if (lv < MAGIC_ROCK_MINING) {
           feed('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
                + ' opens the magic-rocks of the Wilds \u2014 you have ' + lv + '.')
