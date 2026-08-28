@@ -145,11 +145,11 @@ test('recovery AHEAD of the frontier requires a certified proof', () => {
   // run a solo witness forward, but freeze the durable frontier at tick 0
   let first = null
   const stickyFrontier = { save: (f) => { if (!first) first = JSON.parse(JSON.stringify(f)) }, load: () => first }
-  const h = { state: build(world), clock: 700 }
+  const h = { state: build(world), clock: E.TICK_MS + 100 }
   const ag = mk(world, h, { frontierStore: stickyFrontier })
   ag.drive()                       // tick 0 finalized; frontier recorded at 0
-  h.clock = 1300; ag.drive()       // tick 1 finalized; frontier STAYS at 0
-  h.clock = 1900; ag.drive()       // tick 2 finalized
+  h.clock = 2 * E.TICK_MS + 100; ag.drive()       // tick 1 finalized; frontier STAYS at 0
+  h.clock = 3 * E.TICK_MS + 100; ag.drive()       // tick 2 finalized
   assert.equal(h.state.tick, 3)
   assert.equal(first.tick, 0)
   const proof = ag.finalizedLog.get(2)
@@ -169,7 +169,7 @@ test('failure AFTER frontier persistence halts forward: the frontier is never ro
   let frontierMem = null
   const frontierStore = { save: (f) => { frontierMem = JSON.parse(JSON.stringify(f)) }, load: () => frontierMem }
   // (a) setState itself fails
-  const hA = { state: build(world), clock: 700 }
+  const hA = { state: build(world), clock: E.TICK_MS + 100 }
   const agA = mk(world, hA, {
     frontierStore,
     setState: () => { throw new Error('disk-backed state store exploded') },
@@ -181,7 +181,7 @@ test('failure AFTER frontier persistence halts forward: the frontier is never ro
   assert.equal(frontierMem.format, FRONTIER_FORMAT)
   // (b) the post-finality callback fails: state stands, node halts forward
   frontierMem = null
-  const hB = { state: build(world), clock: 700 }
+  const hB = { state: build(world), clock: E.TICK_MS + 100 }
   const agB = mk(world, hB, {
     frontierStore,
     onFinalized: () => { throw new Error('checkpoint writer exploded') },

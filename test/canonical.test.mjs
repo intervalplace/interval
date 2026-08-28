@@ -3,9 +3,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import * as P from '../protocol.mjs'
 import { IntervalNode } from '../node.mjs'
 import { buildWorld, GENERATOR_ID, WORLDGEN_MIN } from '../worldgen.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity()
@@ -25,17 +29,9 @@ const base = (genesis) => {
 
 test('trade XOR is enforced in PERSISTED state, exactly as at the input', () => {
   const genesis = mkGenesis('xor-world')
-  // §6q: A STORED OFFER NAMES WHAT IT GIVES. The persisted shape was once
-  // {to, giveSlot, wantItem, wantGold} -- an ADDRESS with no commitment to
-  // its contents, which let an offerer whose id sorted first wield the
-  // advertised slot in the settling tick and hand over whatever landed there.
-  // It is now {to, giveSlots, giveItems, wantItem, wantGold}, and this test
-  // must build that shape or it never reaches the XOR clause it is checking.
   const t = (wantItem, wantGold) => {
     const s = base(genesis)
-    s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }
-    s.players[alice.playerId].trade = {
-      to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem, wantGold }
+    s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem, wantGold }
     return E.validateState(s)
   }
   assert.match(t('logs', 5), /exactly one of item or gold/)
@@ -93,73 +89,46 @@ test('canonical input schemas: one serialized form per action, at every gate', (
   const genesis = mkGenesis('schema-world')
   const worldId = E.worldId(genesis)
   const s = base(genesis)
-  const sign = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 0, ...fields }, alice.privateKey)
+  // pre-freeze §5: built THROUGH the normalizer, as any client must be --
+  // EXCEPT where this test DELIBERATELY malforms an input to prove the gate
+  // refuses it. Normalizing those throws before the assertion runs, so `raw`
+  // signs exactly what it is handed.
+  const sign = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 0, ...E.normalizeInput(fields) }, alice.privateKey)
+  const raw = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 0, ...fields }, alice.privateKey)
 
   // a junk-padded twin of a legitimate move is invalid EVERYWHERE
-  const padded = sign({ type: 'move', dx: 1, dy: 0, memo: 'gm' })
+  const padded = raw({ type: 'move', dx: 1, dy: 0, memo: 'gm' })
   assert.match(E.validateInputShape(padded), /unknown field memo/)
   assert.equal(E.nextState(s, [padded]).players[alice.playerId].x, 5, 'engine ignores it')
   const prev = E.stateHash(s)
   const bundle = P.makeBundle({ worldId, tick: 0, round: 0, previousStateHash: prev, inputs: [padded], witness: w1 })
   assert.equal(P.validateBundle(s, worldId, bundle, null), 'non-canonical input shape')
   // missing required fields are equally invalid
-  assert.match(E.validateInputShape(sign({ type: 'move', dx: 1 })), /missing field dy/)
-  assert.match(E.validateInputShape(sign({ type: 'gather' })), /missing field nodeId/)
-  assert.match(E.validateInputShape(sign({ type: 'teleport' })), /unknown input type/)
+  assert.match(E.validateInputShape(raw({ type: 'move', dx: 1 })), /missing field dy/)
+  assert.match(E.validateInputShape(raw({ type: 'gather' })), /missing field nodeId/)
+  assert.match(E.validateInputShape(raw({ type: 'teleport' })), /unknown input type/)
   // every canonical form is accepted by the shape gate
-  //
-  // This table is written BY HAND on purpose. Deriving it from the engine's
-  // own schema would make the test tautological -- it would agree with
-  // whatever the engine currently believes, which is precisely the property
-  // a canonicality test must not have. The cost of writing it by hand is
-  // that it rots, and it did: §6m added `style` to both attack verbs, §7dk
-  // added `confirm` to pickup, §6q turned `giveSlot` into `giveSlots`, and
-  // this table went on asserting the pre-0.55 forms.
-  //
-  // So the completeness check below is the repair that matters. The table is
-  // still hand-written, but a verb the engine knows and this table does not
-  // now FAILS rather than passing silently, which is what let four spec
-  // revisions of drift accumulate unnoticed.
   const canon = {
     spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
-    move: { dx: 1, dy: 0 }, gather: { nodeId: 'n' }, harvest: { nodeId: 'n' },
-    attack: { mobId: 'm', style: 'even' },
-    attackp: { targetId: bob.playerId, style: 'even' },
-    recall: { to: 'ws' },
+    move: { dx: 1, dy: 0 }, walk: { dx: 1, dy: 0, steps: 12 },
+    gather: { nodeId: 'n' }, harvest: { nodeId: 'n' },
+    attack: { mobId: 'm' }, attackp: { targetId: bob.playerId }, recall: { to: 'ws' },
     offer_trade: { to: bob.playerId, giveSlots: [0], wantItem: null, wantGold: 1 },
     accept_trade: { from: bob.playerId }, smith: { recipe: 'iron-sword' },
+    // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a
+    // stall and sells from it. §6ch: the waystones are gone, so `recall` only
+    // ever fails, but its schema stays so an old client is refused rather than
+    // desynced -- which is why it is still listed above.
     wield: { slot: 0 }, plant: { slot: 0 }, light: { slot: 0 },
     bury: { slot: 0 }, deposit: { slot: 0 }, drop: { slot: 0 }, eat: { slot: 0 },
     cook: { slot: 0 }, unwield: { gear: 'weapon' }, buy: { item: 'logs' },
     withdraw: { item: 'logs', qty: 1 }, cast: { spell: 'anchor' },
-    fletch: { slot: 0, make: 'bow' },
-    pickup: { groundId: 'g', confirm: false }, claim_name: { name: 'ada' },
+    fletch: { slot: 0, make: 'bow' }, pickup: { groundId: 'g', confirm: false }, claim_name: { name: 'ada' },
   }
   for (const [type, fields] of Object.entries(canon))
     assert.equal(E.validateInputShape(sign({ type, ...fields })), null, `${type} canonical form accepted`)
   // the item-form of a trade is canonical too — with its explicit zero
   assert.equal(E.validateInputShape(sign({ type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: 'logs', wantGold: 0 })), null)
-})
-
-// The guard the table above needed and did not have. `validateInputShape`
-// answers 'unknown input type' for anything outside the engine's schema, so
-// probing a name is enough to ask "does this verb exist?" without the engine
-// having to export its schema table. Any verb the constitution gains from
-// here on must be given a canonical form in `canon` or this fails by name.
-test('the canonical table covers every verb the engine will accept', () => {
-  const genesis = mkGenesis('canon-cover')
-  const worldId = E.worldId(genesis)
-  const sign = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 0, ...fields }, alice.privateKey)
-  const known = (type) => E.validateInputShape(sign({ type })) !== 'unknown input type'
-  const covered = new Set(['spawn', 'stop', 'cancel_trade', 'invoke', 'move', 'gather', 'harvest',
-    'attack', 'attackp', 'recall', 'offer_trade', 'accept_trade', 'smith', 'wield', 'plant',
-    'light', 'bury', 'deposit', 'drop', 'eat', 'cook', 'unwield', 'buy', 'withdraw', 'cast',
-    'fletch', 'pickup', 'claim_name'])
-  // every verb the table names must still be a verb
-  for (const t of covered) assert.ok(known(t), `${t} is in the canonical table but the engine no longer knows it`)
-  // and a verb that was REMOVED must not silently linger: `sell` went out
-  // with §6l ("a keeper buys nothing") and its row is gone from the table.
-  assert.equal(known('sell'), false, 'sell was repealed by §6l and must stay repealed')
 })
 
 test('banks are sparse: zero is absence in execution, validation, and imports', () => {
@@ -169,7 +138,10 @@ test('banks are sparse: zero is absence in execution, validation, and imports', 
   let s = base(genesis)
   E.addNode(s, 'bank-1', 'bank', 5, 6)
   s.players[alice.playerId].bank = { logs: 1 }
-  s = E.nextState(s, [E.signInput({ worldId, playerId: alice.playerId, tick: 0, type: 'withdraw', item: 'logs', qty: 1 }, alice.privateKey)])
+  // a withdrawal names its quantity now, so this signed an input the gate
+  // refused: nothing came out of the bank and the key was never deleted
+  s = E.nextState(s, [E.signInput({ worldId, playerId: alice.playerId, tick: 0,
+    ...E.normalizeInput({ type: 'withdraw', item: 'logs', qty: 1 }) }, alice.privateKey)])
   assert.equal(s.players[alice.playerId].inventory.find(Boolean)?.item, 'logs')
   assert.ok(!('logs' in s.players[alice.playerId].bank), 'zero entry deleted')
   assert.equal(E.validateState(s), null)

@@ -6,6 +6,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import * as P from '../protocol.mjs'
 import { IntervalAgreement } from '../agreement.mjs'
 import { finalityIndexStore } from '../node.mjs'
@@ -92,14 +94,14 @@ test('historical conflicting certificates: identical accepted, conflicting halts
   g.witnesses = [w1.playerId]; g.quorum = 1; g.byzantineTolerance = 0
   const worldId = E.worldId(g)
   const build = () => { const s = E.newWorld(g); E.addPlayer(s, alice.playerId, 5, 5); return s }
-  const holder = { state: build(), clock: 700 }
+  const holder = { state: build(), clock: E.TICK_MS + 100 }
   const ag = new IntervalAgreement({
     genesis: g, worldId, name: 't', witnessKey: w1,
     getState: () => holder.state, setState: (n) => { holder.state = n },
     publish: () => {}, now: () => holder.clock, log: () => {}, allowEphemeralStores: true,
   })
   // finalize a few ticks
-  ag.drive(); holder.clock = 1300; ag.drive(); holder.clock = 1900; ag.drive()
+  ag.drive(); holder.clock = 2 * E.TICK_MS + 100; ag.drive(); holder.clock = 3 * E.TICK_MS + 100; ag.drive()
   assert.ok(holder.state.tick >= 2)
   const real = ag.finalizedLog.get(1)
   assert.ok(real, 'tick 1 was finalized and retained')
@@ -200,14 +202,14 @@ test('persistent finality index: conflict detected after the in-memory window an
 
   // run a witness with a durable finality index; finalize several ticks
   const idx = finalityIndexStore(idxFile)
-  const holder = { state: build(), clock: 700 }
+  const holder = { state: build(), clock: E.TICK_MS + 100 }
   const ag = new IntervalAgreement({
     genesis: g, worldId, name: 't', witnessKey: w1,
     getState: () => holder.state, setState: (n) => { holder.state = n },
     publish: () => {}, now: () => holder.clock, log: () => {},
     allowEphemeralStores: true, finalityIndexStore: idx,
   })
-  for (let i = 0; i < 4; i++) { ag.drive(); holder.clock += 600 }
+  for (let i = 0; i < 4; i++) { ag.drive(); holder.clock += E.TICK_MS }
   const realTick1 = ag.finalizedLog.get(1)
   assert.ok(realTick1, 'tick 1 finalized')
   // the durable index recorded it
@@ -263,8 +265,10 @@ import fs2 from 'fs'
 import os2 from 'os'
 import path2 from 'path'
 
+
+
 // a real finalizing witness with a controllable finality-index store
-function witnessWith(indexStore, { clock = 700 } = {}) {
+function witnessWith(indexStore, { clock = E.TICK_MS + 100 } = {}) {
   const w1 = E.generateIdentity(), alice = E.generateIdentity()
   const g = E.makeGenesis('fidx-safety-' + Math.random().toString(36).slice(2), RULES, 0, 64, 48)
   g.witnesses = [w1.playerId]; g.quorum = 1; g.byzantineTolerance = 0
@@ -292,7 +296,7 @@ test('finality index APPEND failure halts the node; state does not advance', () 
   const tickBefore = holder.state.tick
   assert.ok(tickBefore >= 1)
   failing = true
-  holder.clock += 600
+  holder.clock += E.TICK_MS
   ag.drive() // this finalization's index append fails
   assert.equal(ag.halted, true, 'the node halts when the index cannot be persisted')
   assert.equal(ag.haltCode, HALT.FINALITY_INDEX_PERSIST_FAILED)
@@ -313,7 +317,7 @@ test('finality index READ failure during a historical conflict check halts', () 
     validate: () => null,
   }
   const { ag, holder, worldId } = witnessWith(store)
-  ag.drive(); holder.clock += 600; ag.drive(); holder.clock += 600; ag.drive()
+  ag.drive(); holder.clock += E.TICK_MS; ag.drive(); holder.clock += E.TICK_MS; ag.drive()
   assert.equal(ag.halted, false, 'commits succeeded while the index was readable')
   // now the index read starts failing, and memory is cleared so the
   // historical conflict check must consult it
@@ -423,7 +427,7 @@ test('recovery after an index-persist halt: frontier durable, index valid, lock 
       append: (r) => { if (failIndex) throw new Error('simulated append failure'); return realIndex.append(r) },
       validate: (o) => realIndex.validate(o),
     }
-    const holder = { state: build(), clock: 700 }
+    const holder = { state: build(), clock: E.TICK_MS + 100 }
     const ag = new IntervalAgreement({
       genesis: g, worldId, name: 't', witnessKey: w1,
       getState: () => holder.state, setState: (n) => { holder.state = n },
@@ -434,7 +438,7 @@ test('recovery after an index-persist halt: frontier durable, index valid, lock 
     ag.drive()
     const okTick = holder.state.tick
     failIndex = true
-    holder.clock += 600
+    holder.clock += E.TICK_MS
     ag.drive()
     assert.equal(ag.haltCode, HALT.FINALITY_INDEX_PERSIST_FAILED)
     assert.equal(holder.state.tick, okTick, 'state did not advance past the failed append')

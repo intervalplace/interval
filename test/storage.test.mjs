@@ -235,7 +235,7 @@ test('sparse-checkpoint recovery: replay advances a stale checkpoint up to the f
 
   const idx = finalityIndexStore(path.join(dir, 'fi.ndjson'))
   const frontier = durableStore(path.join(dir, 'frontier.json'))
-  const holder = { state: build(), clock: 700 }
+  const holder = { state: build(), clock: E.TICK_MS + 100 }
   const earlyState = E.canonical(holder.state) // checkpoint at tick 0 (before any finality)
   const ag = new IntervalAgreement({
     genesis: g, worldId, name: 'w', witnessKey: w1,
@@ -244,7 +244,7 @@ test('sparse-checkpoint recovery: replay advances a stale checkpoint up to the f
     lockStore: durableStore(path.join(dir, 'lock.json')), frontierStore: frontier,
     finalityIndexStore: idx, allowEphemeralStores: false,
   })
-  for (let i = 0; i < 5; i++) { ag.drive(); holder.clock += 600 }
+  for (let i = 0; i < 5; i++) { ag.drive(); holder.clock += E.TICK_MS }
   const frontierTick = frontier.load().tick
   assert.ok(frontierTick >= 4, 'several ticks finalized')
 

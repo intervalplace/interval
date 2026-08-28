@@ -4,9 +4,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import { IntervalNode } from '../node.mjs'
 import { IntervalClient } from '../sdk.mjs'
 import { buildWorld } from '../worldgen.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity()
@@ -28,34 +32,39 @@ const base = (genesis) => {
 const CANON = {
   spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
   move: { dx: 1, dy: 0 },
+  walk: { dx: 1, dy: 0, steps: 12 },   // §5i: a journey is one deed
+  stamp: { slot: 0 },                   // §5u: the crushing floor
+  offer: { slot: 0 },                   // §5v: what is given up
+  swear: { calling: 'warden' },        // §5k: the word a citizen says
   gather: { nodeId: 'tree-1' }, harvest: { nodeId: 'plot-1' },
-  // §6m: a fight carries its style. §6q: an offer names what it gives.
-  attack: { mobId: 'gob-1', style: 'even' },
-  attackp: { targetId: 'ab'.repeat(32), style: 'even' },
+  attack: { mobId: 'gob-1' }, attackp: { targetId: 'ab'.repeat(32) },
   recall: { to: 'ws-east' },
   offer_trade: { to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 0 },
   accept_trade: { from: 'ab'.repeat(32) },
   smith: { recipe: 'iron-sword' },
-  wield: { slot: 0 }, plant: { slot: 2 }, light: { slot: 3 },   // §6l: `sell` repealed
+  // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a stall
+  // (§6al) and sells from it.
+  wield: { slot: 0 }, plant: { slot: 2 }, light: { slot: 3 },
   bury: { slot: 4 }, deposit: { slot: 5 }, drop: { slot: 6 }, eat: { slot: 7 }, cook: { slot: 8 },
   unwield: { gear: 'weapon' },
-  buy: { item: 'logs' }, withdraw: { item: 'ore', qty: 1 },   // §7.3a: a quantity
+  buy: { item: 'logs' }, withdraw: { item: 'ore', qty: 1 },
   cast: { spell: 'anchor' },
   fletch: { slot: 0, make: 'bow' },
-  pickup: { groundId: 'g-1', confirm: false },   // §7dk: a deliberate yes or no
+  pickup: { groundId: 'g-1', confirm: false },
   claim_name: { name: 'ada' },
 }
 // one representative corruption of each kind, per action where applicable
-const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, giveSlots: 'nope', wantItem: 9, wantGold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }
-// v0.80: T.id widened to 96 chars so a full 64-hex playerId fits inside a
-// durable node or ground id. An 80-character mobId is therefore LEGAL now,
-// and using it as the malformed sample meant this row silently stopped
-// testing anything. 200 is past the bound in any revision.
-const BAD_ID = { nodeId: 'has spaces!', mobId: 'x'.repeat(200), targetId: 'AB'.repeat(32), to: 'has spaces!', from: 'not hex!', groundId: '"; drop', name: '-lead' }
+const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, giveSlots: '0', wantItem: 9, wantGold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }
+const BAD_ID = { nodeId: 'has spaces!', mobId: 'x'.repeat(80), targetId: 'AB'.repeat(32), to: 'has spaces!', from: 'not hex!', groundId: '"; drop', name: '-lead' }
 
 test('§13 canonical action battery: exactly one accepted representation per action', () => {
   const worldId = E.worldId(mkGenesis('battery'))
-  const sign = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 3, ...fields }, alice.privateKey)
+  // pre-freeze §5: built THROUGH the normalizer, as any client must be --
+  // EXCEPT where a test DELIBERATELY malforms an input to check the gate
+  // refuses it. Normalizing those throws before the assertion runs, so `raw`
+  // signs exactly what it is handed.
+  const sign = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 3, ...E.normalizeInput(fields) }, alice.privateKey)
+  const raw = (fields) => E.signInput({ worldId, playerId: alice.playerId, tick: 3, ...fields }, alice.privateKey)
   for (const [type, fields] of Object.entries(CANON)) {
     // the canonical form is accepted
     assert.equal(E.validateInputShape(sign({ type, ...fields })), null, `${type}: canonical form accepted`)
@@ -66,25 +75,25 @@ test('§13 canonical action battery: exactly one accepted representation per act
     assert.match(E.validateInputShape({ ...sign({ type, ...fields }), tick: -1 }), /base field tick/, `${type}: tick format`)
     assert.match(E.validateInputShape({ ...sign({ type, ...fields }), sig: 'ab' }), /base field sig/, `${type}: sig format`)
     // an extra field is rejected
-    assert.match(E.validateInputShape(sign({ type, ...fields, memo: 1 })), /unknown field memo/, `${type}: no extras`)
+    assert.match(E.validateInputShape(raw({ type, ...fields, memo: 1 })), /unknown field memo/, `${type}: no extras`)
     // a missing action field is rejected
     for (const k of Object.keys(fields)) {
       const partial = { ...fields }; delete partial[k]
-      assert.match(E.validateInputShape(sign({ type, ...partial })) ?? 'OK', new RegExp(`missing field ${k}|exactly one`), `${type}: ${k} required`)
+      assert.match(E.validateInputShape(raw({ type, ...partial })) ?? 'OK', new RegExp(`missing field ${k}|exactly one`), `${type}: ${k} required`)
     }
     // a wrong primitive type is rejected
     for (const k of Object.keys(fields)) {
       if (!(k in WRONG_TYPE)) continue
-      assert.notEqual(E.validateInputShape(sign({ type, ...fields, [k]: WRONG_TYPE[k] })), null, `${type}: ${k} type checked`)
+      assert.notEqual(E.validateInputShape(raw({ type, ...fields, [k]: WRONG_TYPE[k] })), null, `${type}: ${k} type checked`)
     }
     // a malformed identifier is rejected
     for (const k of Object.keys(fields)) {
       if (!(k in BAD_ID)) continue
-      assert.notEqual(E.validateInputShape(sign({ type, ...fields, [k]: BAD_ID[k] })), null, `${type}: ${k} format checked`)
+      assert.notEqual(E.validateInputShape(raw({ type, ...fields, [k]: BAD_ID[k] })), null, `${type}: ${k} format checked`)
     }
   }
   // trade-specific equivalence killers (§1): the alternates are dead
-  const tr = (extra) => E.validateInputShape(sign({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], ...extra }))
+  const tr = (extra) => E.validateInputShape(raw({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], ...extra }))
   assert.match(tr({ wantItem: 'logs' }), /missing field wantGold/)
   assert.match(tr({ wantGold: 5 }), /missing field wantItem/)
   assert.match(tr({ wantItem: 'logs', wantGold: 5 }), /exactly one/)
@@ -167,24 +176,14 @@ test('§17 transition closure across EVERY input type on one living world', () =
     const err = E.validateState(s)
     assert.equal(err, null, `after ${fields.type} at tick ${s.tick}: ${err}`)
   }
-  // §0e: A SOUL IS BORN OF A WAIT IT KEPT. `spawn` is refused unless the
-  // sender's attendance is ripe -- recorded at least VIGIL_TICKS (1,000)
-  // ticks ago. Neither spawn below could succeed, so `s.players[alice]` was
-  // undefined and this test died on a property read three lines later. That
-  // reads as a broken fixture, which is why it sat red: the actual message
-  // ("cannot read properties of undefined") names nothing about the vigil.
-  //
-  // The wait is written straight into the buffer and the clock moved past
-  // it, rather than simulating a thousand empty ticks that would add a
-  // minute to every run of this suite and test nothing §0e does not already
-  // cover on its own.
-  const ATTEND_CHARS = 16
-  s.tick = 1000
-  s.attend = [alice, bob].map((id) => [0, id.playerId.slice(0, ATTEND_CHARS)])
-    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
-  assert.equal(E.validateState(s), null, 'a seeded attendance buffer is a valid one')
+  // §0b: A BIRTH IS ATTENDED AND THEN WAITED FOR. `spawn` alone has not made a
+  // citizen since the vigil -- attend, let the entry ripen over VIGIL_TICKS,
+  // then wake. This spawned directly, was refused, and every step below ran
+  // against a world with nobody in it.
+  step(alice, { type: 'attend' }); step(bob, { type: 'attend' })
+  for (let t = 0; t < E.VIGIL_TICKS + 2; t++) s = E.nextState(s, [])
   step(alice, { type: 'spawn' }); step(bob, { type: 'spawn' })
-  assert.ok(s.players[alice.playerId] && s.players[bob.playerId], 'both souls were born')
+  assert.ok(s.players[alice.playerId] && s.players[bob.playerId], 'both woke')
   // teleport the fixtures to the players (spawn point is genesis-defined)
   const p = s.players[alice.playerId]
   for (const n of Object.values(s.nodes)) { n.x = p.x + (n.x - 4); n.y = p.y + (n.y - 5) }
@@ -197,17 +196,17 @@ test('§17 transition closure across EVERY input type on one living world', () =
   inv[6] = { item: 'cooked-fish', qty: 1 }; inv[7] = { item: 'magic-stone', qty: 3 }
   inv[8] = { item: 'sigil', qty: 1 }
   s.players[alice.playerId].gold = 50
-  // v0.70: a name costs standing (NAME_STANDING), which a fresh soul lacks
-  for (const sk of ['attack', 'strength', 'defence', 'mining', 'woodcutting'])
-    s.players[alice.playerId].skills[sk] = 150000
+  // v0.70: A NAME COSTS TIME -- claim_name asks for NAME_STANDING before it
+  // takes, and a newly woken citizen has none.
+  for (const sk of E.SKILLS) s.players[alice.playerId].skills[sk] = E.XP_TABLE[40]
   assert.equal(E.validateState(s), null)
 
   step(alice, { type: 'move', dx: 0, dy: 0 })
   step(alice, { type: 'gather', nodeId: 'tree-1' })
   step(alice, { type: 'stop' })
-  step(alice, { type: 'attack', mobId: 'gob-1', style: 'even' })
+  step(alice, { type: 'attack', mobId: 'gob-1' })
   step(alice, { type: 'stop' })
-  step(alice, { type: 'attackp', targetId: bob.playerId, style: 'even' })
+  step(alice, { type: 'attackp', targetId: bob.playerId })
   step(alice, { type: 'stop' })
   step(alice, { type: 'claim_name', name: 'ada' })
   step(alice, { type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantGold: 3 })
@@ -229,10 +228,10 @@ test('§17 transition closure across EVERY input type on one living world', () =
   step(alice, { type: 'bury', slot: 3 })
   step(alice, { type: 'invoke' })
   step(alice, { type: 'cast', spell: 'anchor' })
-  step(alice, { type: 'recall', to: 'ws-east' }) // §6ch: the stones are gone; still a LAWFUL no-op, and that is the point — an old client is refused, never desynced
+  step(alice, { type: 'recall', to: 'ws-east' }) // dead-or-unattuned: a lawful no-op
   step(alice, { type: 'drop', slot: 0 })
   step(alice, { type: 'pickup', groundId: Object.keys(s.ground)[0] ?? 'g-none', confirm: false })
-  // every input type a citizen can still send crossed nextState; the state
-  // never left the constitution. `sell` is absent because §6l repealed it.
+  // every one of the 29 input types crossed nextState; the state never
+  // left the constitution
   assert.ok(s.players[alice.playerId].name === 'ada')
 })

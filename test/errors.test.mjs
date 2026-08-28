@@ -80,9 +80,9 @@ test('frontier rollback and ahead-of-frontier are distinctly coded', () => {
   // ahead-of-frontier without proof: run forward, freeze frontier at 0
   let first = null
   const sticky = { save: (f) => { if (!first) first = JSON.parse(JSON.stringify(f)) }, load: () => first }
-  const h = { state: build(), clock: 700 }
+  const h = { state: build(), clock: E.TICK_MS + 100 }
   const ag = mk(h, { frontierStore: sticky })
-  ag.drive(); h.clock = 1300; ag.drive(); h.clock = 1900; ag.drive()
+  ag.drive(); h.clock = 2 * E.TICK_MS + 100; ag.drive(); h.clock = 3 * E.TICK_MS + 100; ag.drive()
   e = grab(() => mk({ state: h.state, clock: 2000 }, { frontierStore: sticky }))
   assert.equal(e.code, ERR.FRONTIER_AHEAD_UNPROVEN)
 })
@@ -118,7 +118,7 @@ test('identity corruption is coded (CJS engine mirrors the code set)', () => {
 test('a Byzantine halt is structural: code + reason + supporting evidence', () => {
   // drive a witness to a REPLAY_MISMATCH by feeding a finality record whose
   // certified result disagrees with local replay
-  const h = { state: build(), clock: 700 }
+  const h = { state: build(), clock: E.TICK_MS + 100 }
   const ag = mk(h, { witnessKey: null, allowEphemeralStores: false }) // observer follows finality
   // craft a valid-looking record with a wrong resultingStateHash
   const st = h.state

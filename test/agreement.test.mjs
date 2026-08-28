@@ -5,8 +5,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import * as P from '../protocol.mjs'
 import { IntervalAgreement } from '../agreement.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity(), w2 = E.generateIdentity(), w3 = E.generateIdentity()
@@ -80,7 +84,7 @@ test('an input on opposite sides of the local boundary still yields ONE finalize
   const [a, b, c] = net.nodes
   const move = net.sign({ tick: 0, type: 'move', dx: 1, dy: 0 })
   a.addInput(move)            // node a saw it "before the boundary"
-  net.run(700)                // boundary passes; b and c never saw the raw input
+  net.run(E.TICK_MS + 100)                // boundary passes; b and c never saw the raw input
   // whichever witness proposed, all three finalized the same bundle & state
   for (const n of net.nodes) assert.equal(n._holder.state.tick, 1, `${n.name} finalized tick 0`)
   const recs = net.nodes.map(n => n._holder.finalized[0])
@@ -94,7 +98,7 @@ test('an input on opposite sides of the local boundary still yields ONE finalize
 
 test('empty intervals produce one certified empty bundle, not local improvisation', () => {
   const net = makeNet()
-  net.run(700)
+  net.run(E.TICK_MS + 100)
   for (const n of net.nodes) {
     const r = n._holder.finalized[0]
     assert.ok(r, `${n.name} finalized`)
@@ -111,10 +115,10 @@ test('proposer disappears: the next deterministic round finalizes', () => {
   const r0 = P.proposerFor(net.genesis, net.worldId, prev, 0, 0)
   const dead = net.nodes.find(n => n.witnessKey?.playerId === r0)
   net.dropBundlesFrom.add(dead)
-  net.run(700)
+  net.run(E.TICK_MS + 100)
   const alive = net.nodes.filter(n => n !== dead)
   for (const n of alive) assert.equal(n._holder.state.tick, 0, 'round 0 cannot finalize without its proposal')
-  net.run(700) // round 1 window opens: the next witness in canonical order proposes
+  net.run(E.TICK_MS + 100) // round 1 window opens: the next witness in canonical order proposes
   for (const n of alive) {
     assert.ok(n._holder.state.tick >= 1, `${n.name} finalized via fallback round`)
     assert.equal(n._holder.finalized[0].round, 1, 'tick 0 was certified in round 1, not round 0')
@@ -125,11 +129,11 @@ test('short partition converges by rebroadcast; a multi-round lock split stalls 
   // A: the proposer is briefly cut off — its lock rebroadcast converges everyone
   const netA = makeNet()
   netA.partition = () => true
-  netA.run(700)                    // round 0 proposer proposed + locked; nobody else saw it
+  netA.run(E.TICK_MS + 100)                    // round 0 proposer proposed + locked; nobody else saw it
   const lockedA = netA.nodes.filter(n => n.lock)
   assert.equal(lockedA.length, 1, 'only the round-0 proposer locked')
   netA.partition = null
-  netA.run(700)                    // rebroadcast (every RT/2) delivers the locked bundle
+  netA.run(E.TICK_MS + 100)                    // rebroadcast (every RT/2) delivers the locked bundle
   for (const n of netA.nodes) assert.ok(n._holder.state.tick >= 1, `${n.name} converged on the early lock`)
   const hA = netA.nodes.map(n => n._holder.finalized[0].resultingStateHash)
   assert.equal(new Set(hA).size, 1, 'one chain')
@@ -141,11 +145,11 @@ test('short partition converges by rebroadcast; a multi-round lock split stalls 
   netB.partition = () => true
   // rounds now open with EXPONENTIAL backoff (adversarial-sim finding):
   // round r starts at due + roundStartMs(r) — run until round 2 has opened
-  netB.run(600 + P.roundStartMs(2) + 200)
+  netB.run(E.TICK_MS + P.roundStartMs(2) + 200)
   assert.equal(netB.nodes.filter(n => n.lock).length, 3, 'three witnesses, three locks')
   assert.equal(new Set(netB.nodes.map(n => n.lock.bundleHash)).size, 3, 'all on different bundles')
   netB.partition = null
-  netB.run(4000)                   // heal: rebroadcasts fly, locks hold
+  netB.run(4 * E.TICK_MS)                   // heal: rebroadcasts fly, locks hold
   for (const n of netB.nodes) {
     assert.equal(n._holder.state.tick, 0, `${n.name} stays at tick 0: locks are never released`)
     assert.equal(n.halted, false, 'a stall is not a halt')
@@ -165,7 +169,7 @@ test('equivocation: X to half the witnesses, Y to the other half — one determi
   const Y = net.sign({ tick: 0, type: 'move', dx: -1, dy: 0 })
   a.addInput(X); b.addInput(X)
   c.addInput(Y)
-  net.run(2000)
+  net.run(2 * E.TICK_MS)
   // no conflicting state finalizes; the engine's duplicate rule excludes the
   // player when the certified bundle carries both versions, and applies one
   // version when the proposer saw only one — either way, ONE certified result
@@ -199,7 +203,7 @@ test('a wrong-lineage or forged bundle is rejected; a jumped round is rejected',
 
 test('finality proof: sub-quorum, non-witness, and duplicate-witness proofs are refused', () => {
   const net = makeNet()
-  net.run(700)
+  net.run(E.TICK_MS + 100)
   const rec = net.nodes[0]._holder.finalized[0]
   assert.equal(P.verifyFinalityProof(net.genesis, net.worldId, rec), null)
   assert.equal(P.verifyFinalityProof(net.genesis, net.worldId, { ...rec, attestations: rec.attestations.slice(0, 1) }), 'non-canonical proof: need exactly quorum attestations')
@@ -217,13 +221,13 @@ test('an observer finalizes from certified records and replays them, never adopt
   const net = makeNet({ observers: 1 })
   const obs = net.nodes[3]
   assert.equal(obs.witnessKey, null)
-  net.run(1400) // two intervals
+  net.run(2 * E.TICK_MS + 200) // two intervals
   assert.equal(obs._holder.state.tick, 2, 'observer follows the certified chain')
   // a record claiming a result the bundle does not produce HALTS the observer
   const net2 = makeNet({ observers: 1 })
   const obs2 = net2.nodes[3]
   net2.partition = (from, to) => to === obs2 // starve the observer of everything
-  net2.run(700)
+  net2.run(E.TICK_MS + 100)
   assert.equal(obs2._holder.state.tick, 0)
   const rec = net2.nodes[0]._holder.finalized[0]
   const lie = JSON.parse(JSON.stringify(rec))
@@ -238,10 +242,17 @@ test('local mismatch with a certified result halts the node instead of forking i
   const net = makeNet({ observers: 1 })
   const obs = net.nodes[3]
   net.partition = (from, to) => to === obs
-  net.run(700)
+  net.run(E.TICK_MS + 100)
   const rec = net.nodes[0]._holder.finalized[0]
   // simulate a corrupted local implementation: the observer's state drifted
-  obs._holder.state.players[alice.playerId].hp = 9
+  // §21c: REPLACE the citizen, do not write into them. Under a clone that
+  // shares untouched citizens between consecutive states, writing `hp` in place
+  // reaches backwards into the very lineage this test measures the corruption
+  // against. Swapping the reference corrupts exactly this state and nothing
+  // else, which is what "this node's local implementation drifted" means, and
+  // it behaves identically under every clone mode.
+  obs._holder.state.players[alice.playerId] =
+    { ...obs._holder.state.players[alice.playerId], hp: 9 }
   obs.prevHash = E.stateHash(obs._holder.state)
   const fake = JSON.parse(JSON.stringify(rec))
   fake.previousStateHash = obs.prevHash // lineage matches its (corrupt) state…
@@ -251,7 +262,7 @@ test('local mismatch with a certified result halts the node instead of forking i
   // certified bundle computes a different result → HALT (fix brief §3.5)
   const net3 = makeNet()
   net3.partition = () => true
-  net3.run(700) // round 0 proposer proposed to itself and locked
+  net3.run(E.TICK_MS + 100) // round 0 proposer proposed to itself and locked
   const w = net3.nodes.find(n => n.proposals.size > 0)
   assert.ok(w, 'someone proposed')
   const bh = [...w.proposals.keys()][0]

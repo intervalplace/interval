@@ -4,6 +4,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
 
+
+
+
+
 const RULES = 'a'.repeat(64)
 const GENESIS = E.makeGenesis('test-seed', RULES, 0, 40, 30) // big enough to hold the Wilds
 const WID = E.worldId(GENESIS)
@@ -18,18 +22,24 @@ function world() {
   E.addNode(w, 'bank-1', 'bank', 5, 6)   // adjacent to alice
   return w
 }
-const sign = (fields, who = alice) =>
-  E.signInput({ worldId: WID, playerId: who.playerId, ...fields }, who.privateKey)
+// pre-freeze §5: A CLIENT BUILDS WHAT IT SIGNS THROUGH THE NORMALIZER.
+// These helpers hand-rolled the signed object, so canonical fills never ran --
+// an omitted `style` stayed omitted, `validInput` refused the input, and the
+// citizen's whole interval went on silence. Every combat assertion below was
+// therefore asserting about a refusal, which is how two total-failure bugs
+// (every special dealing zero, drawn bows crashing the tick) sat undetected.
+const sign = ({ tick, ...action }, who = alice) =>
+  E.signInput({ worldId: WID, tick, playerId: who.playerId, ...E.normalizeInput(action) }, who.privateKey)
 const step = (s, inputs) => E.nextState(s, inputs)
 
 // ---------- 7.1: self-targeting PvP ----------
 test('attackp targeting the sender\'s own id is always invalid', () => {
   const s = world() // (5,5) and (6,5) are inside the Wilds (x 1-34, y 1-22)
-  const selfAtk = sign({ tick: 0, type: 'attackp', targetId: alice.playerId, style: 'even' })
+  const selfAtk = sign({ tick: 0, type: 'attackp', targetId: alice.playerId })
   const s2 = step(s, [selfAtk])
   assert.equal(s2.players[alice.playerId].action, null, 'self-attack must not start an action')
   // sanity: attacking ANOTHER player in the Wilds still works
-  const atk = sign({ tick: 1, type: 'attackp', targetId: bob.playerId, style: 'even' })
+  const atk = sign({ tick: 1, type: 'attackp', targetId: bob.playerId })
   const s3 = step(s2, [atk])
   assert.equal(s3.players[alice.playerId].action?.type, 'attackp')
 })
@@ -47,21 +57,18 @@ test('dropping 17 arrows grounds qty 17; picking them up restores 17', () => {
   assert.equal(Object.keys(s.ground).length, 0)
 })
 
-// ---------- 7.3: deposit takes the WHOLE slot (§7.3a) ----------
-// This test asserted the one-unit-per-interval rule until §7.3a repealed it.
-// The repeal's own argument is the reason the assertion had to move rather
-// than the engine: the per-unit rate was a tax on PATIENCE inside a town,
-// where nothing may strike you and no decision is on offer, and §8 says
-// patience is never the tax. The rate limit stays where it earns its keep --
-// at `alch`, in the open.
-test('depositing a 17-stack banks all 17 and clears the slot', () => {
+// ---------- 7.3: deposit takes exactly one unit ----------
+// §7.3a: THE WHOLE SLOT. This asserted the old one-unit-an-interval rate --
+// a stack of seventeen arrows was seventeen intervals at the counter -- which
+// the constitution replaced with banking the slot entire.
+test('depositing a 17-stack banks all seventeen and clears the slot', () => {
   let s = world()
   s.players[alice.playerId].inventory[0] = { item: 'arrows', qty: 17 }
   s = step(s, [sign({ tick: 0, type: 'deposit', slot: 0 })])
   const p = s.players[alice.playerId]
-  assert.equal(p.bank.arrows, 17, 'the whole slot goes over the counter')
-  assert.equal(p.inventory[0], null, 'and the slot is empty behind it')
-  // and a single item behaves identically: one slot, one interval
+  assert.equal(p.bank.arrows, 17)
+  assert.equal(p.inventory[0], null)
+  // and a single item clears the slot
   s.players[alice.playerId].inventory[1] = { item: 'logs', qty: 1 }
   s = step(s, [sign({ tick: 1, type: 'deposit', slot: 1 })])
   assert.equal(s.players[alice.playerId].bank.logs, 1)

@@ -24,7 +24,13 @@ test('every public SDK action emits a canonical signed input', () => {
   c.offerTradeForItem(other, 0, 'logs'); c.offerTradeForGold(other, 0, 5)
   c.acceptTrade(other); c.cancelTrade(); c.cook(0); c.attack('gob-1'); c.eat(0)
   c.drop(0); c.pickup('g-1'); c.light(0); c.bury(0); c.fletch(0, 'bow'); c.attackp(other)
+  // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a
+  // stall (§6al) and sells from it. The helper went with the verb.
   c.plant(0); c.harvest('plot-1'); c.invoke(); c.cast('anchor'); c.unequip('weapon')
+  // §6cj: `recall` and `read_chart` stay in the engine's schemas so an old
+  // client is REFUSED rather than desynced, but both always fail now -- the
+  // waystones are gone (§6ch). The SDK offers no method that can only ever
+  // return a rejection, so this asks for none.
   c.deposit(0); c.withdraw('logs'); c.smith('iron-sword'); c.wield(0); c.buy('logs')
 
   assert.equal(captured.length, 28)
@@ -34,25 +40,12 @@ test('every public SDK action emits a canonical signed input', () => {
     assert.equal(E.verifyInputSig(input), true, `${input.type} signature invalid`)
     types.add(input.type)
   }
-  // the SDK covers every constitutional input type a citizen can still use.
-  //
-  // Three names left this list, each for a different reason, and none of them
-  // because the SDK is incomplete:
-  //   `sell`     -- repealed outright by §6l ("a keeper buys nothing").
-  //   `recall`   -- §6ch took the waystones out of the world.
-  //   `read_chart` -- §6ci made a chart a good rather than a key.
-  // The last two are still in the engine's schemas ON PURPOSE, so that an old
-  // client is REFUSED rather than desynced; sdk.mjs declines to wrap them
-  // because a method that can only ever return a rejection is a trap dressed
-  // as a feature. That reasoning is written out at the foot of sdk.mjs, and
-  // this list must not quietly re-add them.
+  // the SDK covers every constitutional input type
   const SCHEMA_TYPES = ['spawn', 'stop', 'cancel_trade', 'invoke', 'move', 'gather',
     'harvest', 'attack', 'attackp', 'offer_trade', 'accept_trade', 'smith',
     'wield', 'plant', 'light', 'bury', 'deposit', 'drop', 'eat', 'cook',
     'unwield', 'buy', 'withdraw', 'cast', 'fletch', 'pickup', 'claim_name']
   for (const t of SCHEMA_TYPES) assert.ok(types.has(t), `no SDK helper emits ${t}`)
-  for (const gone of ['sell', 'recall', 'read_chart'])
-    assert.ok(!types.has(gone), `${gone} is repealed; the SDK must not wrap it`)
 })
 
 test('gold and item trade helpers each normalize to the canonical XOR form', () => {
@@ -81,7 +74,9 @@ test('malformed SDK calls are refused before signing, not turned into junk input
   assert.throws(() => c.offerTradeForItem(other, 0, 'sword-of-doom'), /item/)
   assert.throws(() => c.buy('sword-of-doom'), /item/)
   assert.throws(() => c.cast('fireball'), /spell/)
-  assert.throws(() => c.fletch(0, 'catapult'), /bow, arrows, staff, wand or a heartwood one/)
+  // the message names every make the constitution allows, and there are more
+  // of them now than 'bow or arrows'
+  assert.throws(() => c.fletch(0, 'catapult'), /must be bow, arrows/)
   assert.throws(() => c.claimName('-nope'), /name/)
   assert.throws(() => c.wield(99), /slot/)
   assert.throws(() => c.smith('adamant-sword'), /recipe/)

@@ -8,7 +8,7 @@ import os from 'os'
 import path from 'path'
 import E from '../engine.js'
 import { buildWorld } from '../worldgen.mjs'
-import { IntervalNode, acquireProcessLock } from '../node.mjs'
+import { IntervalNode, acquireProcessLock, processLockPathFor } from '../node.mjs'
 
 const RULES = E.sha256(fs.readFileSync(new URL('../SPEC.md', import.meta.url))).toString('hex')
 const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p))
@@ -77,9 +77,15 @@ test('stop() is idempotent', async () => {
 test('fail-safe startup: a failure after lock acquisition releases the lock', async () => {
   const dir = tmp('lifecycle-failstart-')
   const { g, w1 } = witnessGenesis('failstart')
-  const sockDir = path.join(dir, 'ws', E.worldId(g), w1.playerId)
-  fs.mkdirSync(sockDir, { recursive: true })
-  const lockPath = path.join(sockDir, 'process.lock.sock')
+  // The lock does NOT live inside <worldId>/<witnessId>/ any more. Two nested
+  // 64-hex ids are 130 bytes before any prefix, which overruns the ~100 bytes
+  // a Unix socket path can carry -- the kernel would truncate it, and a
+  // truncated lock can neither exclude nor be cleaned up. `processLockPathFor`
+  // hashes the pair into a short tag under <safetyDir>/locks/ for exactly that
+  // reason. Building the old path by hand here asked the node to bind
+  // something it correctly refuses, so this test failed on the guard rather
+  // than on the thing it means to check: that a failed startup RELEASES.
+  const lockPath = processLockPathFor(path.join(dir, 'ws'), E.worldId(g), w1.playerId)
 
   // force a startup failure AFTER the lock is acquired by breaking libp2p:
   // an unusable listen multiaddr makes createLibp2p reject.

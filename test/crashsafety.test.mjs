@@ -8,10 +8,14 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import E from '../engine.js'
+
+
 import * as P from '../protocol.mjs'
 import { IntervalAgreement } from '../agreement.mjs'
 import { durableStore } from '../node.mjs'
 import { buildWorld } from '../worldgen.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity(), w2 = E.generateIdentity(), w3 = E.generateIdentity()
@@ -45,7 +49,7 @@ test('frontier persistence fails CLOSED: halt, lock intact, no advance; restart 
     save: (f) => { if (frontierBroken) throw new Error('disk full'); frontierMem = JSON.parse(JSON.stringify(f)) },
     load: () => frontierMem,
   }
-  const h = { state: build(world), clock: 700 }
+  const h = { state: build(world), clock: E.TICK_MS + 100 }
   const ag = mk(world, w2, h, { lockStore, frontierStore })
   const p0 = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, ag.prevHash, 0, 0))
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: ag.prevHash, inputs: [], witness: p0 })
@@ -64,7 +68,7 @@ test('frontier persistence fails CLOSED: halt, lock intact, no advance; restart 
   // restart after the disk is fixed: the lock restores, a rival bundle is
   // refused, and the original vote can still finalize — no second vote ever
   frontierBroken = false
-  const h2 = { state: build(world), clock: 1300 }
+  const h2 = { state: build(world), clock: 2 * E.TICK_MS + 100 }
   const ag2 = mk(world, w2, h2, { lockStore, frontierStore })
   assert.equal(ag2.lock.bundleHash, P.bundleHash(A), 'lock restored and verified')
   const p1 = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, ag2.prevHash, 0, 1))
@@ -81,7 +85,7 @@ test('same-height impostor state is refused at restart (frontier hash check)', (
   const world = makeWorld()
   let frontierMem = null
   const frontierStore = { save: (f) => { frontierMem = JSON.parse(JSON.stringify(f)) }, load: () => frontierMem }
-  const h = { state: build(world), clock: 700 }
+  const h = { state: build(world), clock: E.TICK_MS + 100 }
   const ag = mk(world, w1, h, { frontierStore })
   ag.drive() // solo quorum finalizes tick 0
   assert.equal(h.state.tick, 1)
@@ -101,7 +105,7 @@ test('archive failure is tolerated (hygiene, not safety): finality still commits
     save: () => {}, load: () => null,
     archive: () => { throw new Error('archive dir is read-only') },
   }
-  const h = { state: build(world), clock: 700 }
+  const h = { state: build(world), clock: E.TICK_MS + 100 }
   const ag = mk(world, w1, h, { lockStore })
   ag.drive()
   assert.equal(h.state.tick, 1, 'the world advances even when archiving fails')
@@ -112,10 +116,10 @@ test('spent locks retire into a unique-name history journal on real disk', () =>
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'interval-journal-'))
   const lockFile = path.join(dir, 'w.lock')
   const world = makeWorld()
-  const h = { state: build(world), clock: 700 }
+  const h = { state: build(world), clock: E.TICK_MS + 100 }
   const ag = mk(world, w1, h, { lockStore: durableStore(lockFile) })
   ag.drive()                    // finalize tick 0
-  h.clock = 1300; ag.drive()    // finalize tick 1
+  h.clock = 2 * E.TICK_MS + 100; ag.drive()    // finalize tick 1
   assert.equal(h.state.tick, 2)
   assert.ok(!fs.existsSync(lockFile), 'no stale active lock after finality')
   const journal = fs.readdirSync(path.join(dir, 'w.lock.history')).sort()
@@ -133,11 +137,13 @@ test('exact engine invariants: actions, trades, equipment, skills, mob/node tabl
     [s => { s.players[alice.playerId].action = { type: 'dance' } }, /unknown action type/],
     [s => { s.players[alice.playerId].action = { type: 'gather', nodeId: 'tree-1', extra: 1 } }, /malformed gather action/],
     [s => { s.players[alice.playerId].action = { type: 'attack', mobId: 'm1' } }, /malformed attack action/],
-    [s => { s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }; s.players[alice.playerId].trade = { to: 'zz', giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0 } }, /malformed trade partner/],
+    [s => { s.players[alice.playerId].trade = { to: 'zz', giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0 } }, /malformed trade partner/],
     [s => { s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0, bonus: 1 } }, /malformed trade shape/],
     [s => { s.players[alice.playerId].equipment.ring = null }, /non-constitutional equipment/],
     [s => { delete s.players[alice.playerId].equipment.head }, /non-constitutional equipment/],
-    [s => { delete s.players[alice.playerId].skills.magic }, /missing skill/],
+    // §5j: `magic` is not a skill any more -- deleting it removed nothing and
+    // the state stayed VALID, so this asserted about a no-op.
+    [s => { delete s.players[alice.playerId].skills.sorcery }, /missing skill/],
     [s => { s.players[alice.playerId].skills.juggling = 0 }, /unknown or duplicated skill/],
     [s => { s.players[alice.playerId].sneaky = 'field' }, /unknown player field/],
     [s => { s.players[alice.playerId].attuned = [{}] }, /malformed attunement/],

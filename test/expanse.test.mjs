@@ -68,20 +68,15 @@ test('every fishing spot actually touches water', () => {
 test("window-web's terrain mirror matches the engine tile for tile", () => {
   const g = G()
   const html = fs.readFileSync(path.join(here, '..', 'window-web.html'), 'utf8')
-  // The slice used to run from a comment marker to `function tileHash(x, y, k)`.
-  // Both moved: the terrain block is now headed "THE SEVENTH FOUNDING" and the
-  // hash is called `thashE`. The slice came back empty, the eval threw, and
-  // the assertion that caught it says "the expanse mirror block is missing"
-  // -- which reads like the window lost a feature rather than like the test
-  // lost its footing, and that is why it sat red rather than getting chased.
-  //
-  // Anchored on the declaration and the section header that FOLLOWS the block
-  // instead, and both ends are asserted by name, so a future restructure
-  // fails saying which anchor moved.
+  // The anchors moved. This looked for a comment header that now sits nine
+  // hundred lines BELOW the code it labelled, and for `function tileHash`,
+  // which the window no longer has at all -- so start was after end, the slice
+  // was empty, and the test reported the mirror "missing" rather than wrong.
+  // Anchor on the declarations themselves: the mirror is whatever lies between
+  // the generator switch and the end of the v1 road table.
   const start = html.indexOf("let GEN = 'interval-classic-v1', GSEED = ''")
-  const end = html.indexOf('// ---- the third expanse (interval-expanse-v3)')
-  assert.ok(start > 0, 'window-web.html: the GEN/GSEED declaration has moved')
-  assert.ok(end > start, 'window-web.html: the v3 section header has moved')
+  const end = html.indexOf("function biomeAtE3(x, y)")   // the v1 mirror ends where v3 begins
+  assert.ok(start > 0 && end > start, 'the expanse mirror block is missing from window-web.html')
   const src = `let W=${g.worldW}, H=${g.worldH};\n`
     + html.slice(start, end).replace(
       "let GEN = 'interval-classic-v1', GSEED = ''",
@@ -110,7 +105,7 @@ test('a genesis naming no geography still founds the classic world exactly', () 
   const g = E.makeGenesis('x', 'ab'.repeat(32), 0, 320, 200)
   assert.equal(g.geo, undefined)
   const w = buildClassic(g)
-  assert.equal(Object.keys(w.nodes).length, 1294)
+  assert.equal(Object.keys(w.nodes).length, 1300)   // §5u: +6 stamps (4 highland, 2 mountain)
   assert.equal(Object.keys(w.mobs).length, 90)
   assert.equal(E.validateState(w), null)
   assert.equal(E.inWilds(g, 6, 6), true)

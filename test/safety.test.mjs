@@ -3,9 +3,13 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import * as P from '../protocol.mjs'
 import { IntervalAgreement } from '../agreement.mjs'
 import { readAll } from '../node.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity(), w2 = E.generateIdentity(), w3 = E.generateIdentity(), w4 = E.generateIdentity()
@@ -53,7 +57,7 @@ const signMove = (world, tick, dx) =>
 test('LOCK-2: a witness never signs conflicting bundles ACROSS rounds of one tick', () => {
   const world = makeWorld()
   const w = makeWitness(world, w2) // w2: a witness that (likely) isn't every round's proposer
-  w._clock.t = 700 // round 0 open
+  w._clock.t = E.TICK_MS + 100 // round 0 open
   const prev = w.prevHash
   const p0 = P.proposerFor(world.genesis, world.worldId, prev, 0, 0)
   const p1 = P.proposerFor(world.genesis, world.worldId, prev, 0, 1)
@@ -63,7 +67,7 @@ test('LOCK-2: a witness never signs conflicting bundles ACROSS rounds of one tic
   assert.equal(w.lock?.bundleHash, P.bundleHash(A), 'locked on the round-0 bundle')
   const signedA = w._sink.filter(m => m.kind === 'attestation' && m.obj.witness === w2.playerId)
   // round 1 opens with a DIFFERENT bundle from the legitimate round-1 proposer
-  w._clock.t = 1300
+  w._clock.t = E.TICK_MS + 100 + P.roundStartMs(1)
   const B = P.makeBundle({ worldId: world.worldId, tick: 0, round: 1, previousStateHash: prev, inputs: [signMove(world, 0, 1)], witness: key(p1) })
   w.onBundle(B)
   const signedB = w._sink.filter(m => m.kind === 'attestation' && m.obj.witness === w2.playerId && m.obj.bundleHash === P.bundleHash(B))
@@ -91,7 +95,7 @@ test('LOCK-3: a restarted witness reloads its vote and never signs a rival bundl
   const key = (pid) => [w1, w2, w3].find(k => k.playerId === pid)
 
   const w = makeWitness(world, w2, { lockStore })
-  w._clock.t = 700
+  w._clock.t = E.TICK_MS + 100
   const prev = w.prevHash
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: prev, inputs: [], witness: key(P.proposerFor(world.genesis, world.worldId, prev, 0, 0)) })
   w.onBundle(A)
@@ -100,7 +104,7 @@ test('LOCK-3: a restarted witness reloads its vote and never signs a rival bundl
 
   // crash. restart with the same disk and the same (unfinalized) state.
   const w9 = makeWitness(world, w2, { lockStore })
-  w9._clock.t = 1300
+  w9._clock.t = E.TICK_MS + 100 + P.roundStartMs(1)
   assert.equal(w9.lock?.bundleHash, P.bundleHash(A), 'lock restored from disk')
   const B = P.makeBundle({ worldId: world.worldId, tick: 0, round: 1, previousStateHash: prev, inputs: [signMove(world, 0, 1)], witness: key(P.proposerFor(world.genesis, world.worldId, prev, 0, 1)) })
   w9.onBundle(B)
@@ -115,14 +119,14 @@ test('LOCK-3: a restarted witness reloads its vote and never signs a rival bundl
 test('proposer equivocation: two signed bundles for one (tick, round) → evidence, refusal, next round advances', () => {
   const world = makeWorld()
   const w = makeWitness(world, w2)
-  w._clock.t = 700
+  w._clock.t = E.TICK_MS + 100
   const prev = w.prevHash
   const p0key = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, prev, 0, 0))
   if (p0key.playerId === w2.playerId) { // ensure the observer-witness isn't the equivocator itself
     // then judge from w3's seat instead
   }
   const judge = p0key.playerId === w2.playerId ? makeWitness(world, w3) : w
-  judge._clock.t = 700
+  judge._clock.t = E.TICK_MS + 100
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: prev, inputs: [], witness: p0key })
   const B = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: prev, inputs: [signMove(world, 0, 1)], witness: p0key })
   judge.onBundle(A)
@@ -139,7 +143,7 @@ test('proposer equivocation: two signed bundles for one (tick, round) → eviden
 test('a certificate mixing rounds is refused everywhere (the one verifier)', () => {
   const world = makeWorld()
   const w = makeWitness(world, w1)
-  w._clock.t = 700
+  w._clock.t = E.TICK_MS + 100
   const prev = w.prevHash
   const p0key = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, prev, 0, 0))
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: prev, inputs: [], witness: p0key })
@@ -215,11 +219,11 @@ test('engine: canonical rejects non-encodable values; validateState rejects host
   assert.equal(E.validateState(good), null)
   const cases = [
     [s => { s.players[alice.playerId].x = -1 }, /out of bounds/],
-    [s => { s.players[alice.playerId].skills.woodcutting = -5 }, /xp out of bounds/],
-    [s => { s.players[alice.playerId].skills.woodcutting = 2 ** 53 }, /xp out of bounds/],
+    [s => { s.players[alice.playerId].skills.woodcraft = -5 }, /xp out of bounds/],
+    [s => { s.players[alice.playerId].skills.woodcraft = 2 ** 53 }, /xp out of bounds/],
     [s => { s.players[alice.playerId].inventory[0] = { item: 'x'.repeat(99), qty: 1 } }, /inventory slot/],
     [s => { s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 0 } }, /inventory slot/],
-    [s => { s.players[alice.playerId].inventory = s.players[alice.playerId].inventory.slice(0, 27) }, /inventory length/],
+    [s => { s.players[alice.playerId].inventory = s.players[alice.playerId].inventory.slice(0, E.INV_SLOTS - 1) }, /inventory length/],
     [s => { s.players[alice.playerId].bank = { 'DROP TABLE': 3 } }, /bank item/],
     [s => { s.tick = 1.5 }, /bad tick/],
     [s => { s.mobs.evil = { type: 'goblin', x: 5, y: 5, hx: 5, hy: 5, hp: NaN, respawnAt: 0 } }, /mob hp/],

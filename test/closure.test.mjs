@@ -8,9 +8,13 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import E from '../engine.js'
+
+
 import { IntervalAgreement } from '../agreement.mjs'
 import { durableStore } from '../node.mjs'
 import { buildWorld, WORLDGEN_MIN } from '../worldgen.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity()
@@ -36,29 +40,17 @@ test('PROPERTY: hundreds of accepted transitions never produce a state the valid
   let s = buildWorld(genesis) // already self-validated at construction
   const rnd = mulberry(0xC0FFEE)
   const pick = (arr) => arr[Math.floor(rnd() * arr.length)]
-  const sign = (id, fields) => E.signInput({ worldId, playerId: id.playerId, tick: s.tick, ...fields }, id.privateKey)
+  // pre-freeze §5: built THROUGH the normalizer, as any client must be
+  const sign = (id, fields) => E.signInput({ worldId, playerId: id.playerId, tick: s.tick, ...E.normalizeInput(fields) }, id.privateKey)
 
-  // §0e: A SOUL IS BORN OF A WAIT IT KEPT. `spawn` is valid only against a
-  // ripe attendance -- a wait recorded at least VIGIL_TICKS (1,000 ticks)
-  // ago. This property test ran for 80 ticks, so nothing it signed could ever
-  // ripen and every citizen it generated inputs for never existed. The
-  // assertion at the end ("everyone spawned") is what noticed, but the real
-  // damage was silent: for 80 ticks the generator was exercising the shape
-  // gate against an empty world and calling it hundreds of transitions.
-  //
-  // The wait is seeded directly rather than waited out. Simulating 1,000
-  // empty ticks would buy nothing this test is about -- §0e's own machinery
-  // has its own coverage -- and would put a minute of dead clock in front of
-  // every run of the property battery.
-  const ATTEND_CHARS = 16 // §0b: 64 bits of playerId per entry
-  s.attend = players.map((id) => [0, id.playerId.slice(0, ATTEND_CHARS)])
-    .sort((a, b) => (a[1] < b[1] ? -1 : 1))
-  assert.equal(E.validateState(s), null, 'a seeded attendance buffer is a valid one')
-  for (let i = 0; i < 1001; i++) s = E.nextState(s, [])
-
+  // §0b: A BIRTH IS ATTENDED AND THEN WAITED FOR. `spawn` alone has not made
+  // a citizen since the vigil: you attend, the entry ripens over VIGIL_TICKS,
+  // and only then does spawn take. This asked for spawn directly, was refused
+  // every interval, and the world it then exercised had nobody in it -- so
+  // "hundreds of accepted transitions" were hundreds of refusals.
   const gen = (id) => {
     const p = s.players[id.playerId]
-    if (!p) return sign(id, { type: 'spawn' })
+    if (!p) return sign(id, { type: 'attend' })
     const nodes = Object.entries(s.nodes)
     const mobs = Object.entries(s.mobs).filter(([, m]) => m.hp > 0)
     const near = ([, o]) => Math.abs(o.x - p.x) + Math.abs(o.y - p.y) <= 6
@@ -68,14 +60,30 @@ test('PROPERTY: hundreds of accepted transitions never produce a state the valid
       case 3: { const n = pick(nodes.filter(near)) ?? pick(nodes); return sign(id, { type: 'gather', nodeId: n[0] }) }
       case 4: { const m = pick(mobs.filter(near)) ?? (mobs.length ? pick(mobs) : null); return m ? sign(id, { type: 'attack', mobId: m[0] }) : sign(id, { type: 'stop' }) }
       case 5: { const slot = p.inventory.findIndex(Boolean); return slot === -1 ? sign(id, { type: 'stop' }) : sign(id, { type: 'drop', slot }) }
-      case 6: { const g = Object.keys(s.ground)[0]; return g ? sign(id, { type: 'pickup', groundId: g }) : sign(id, { type: 'move', dx: 1, dy: 0 }) }
-      case 7: { const other = pick(players.filter(o => o !== id && s.players[o.playerId])); const slot = p.inventory.findIndex(Boolean); return (other && slot !== -1) ? sign(id, { type: 'offer_trade', to: other.playerId, giveSlot: slot, ...(rnd() < 0.5 ? { wantItem: pick([...E.ITEMS]), wantGold: 0 } : { wantItem: null, wantGold: 1 + Math.floor(rnd() * 5) }) }) : sign(id, { type: 'stop' }) }
+      case 6: { const g = Object.keys(s.ground)[0]; return g ? sign(id, { type: 'pickup', groundId: g, confirm: false }) : sign(id, { type: 'move', dx: 1, dy: 0 }) }
+      case 7: { const other = pick(players.filter(o => o !== id && s.players[o.playerId])); const slot = p.inventory.findIndex(Boolean); return (other && slot !== -1) ? sign(id, { type: 'offer_trade', to: other.playerId, giveSlots: [slot], ...(rnd() < 0.5 ? { wantItem: pick([...E.ITEMS]), wantGold: 0 } : { wantItem: null, wantGold: 1 + Math.floor(rnd() * 5) }) }) : sign(id, { type: 'stop' }) }
       case 8: { const from = pick(players.filter(o => o !== id)); return sign(id, { type: 'accept_trade', from: from.playerId }) }
       case 9: return sign(id, { type: 'claim_name', name: 'p' + id.playerId.slice(0, 6) })
       case 10: { const slot = p.inventory.findIndex(sl => sl && sl.item === 'cooked-fish'); return slot === -1 ? sign(id, { type: 'move', dx: 0, dy: 1 }) : sign(id, { type: 'eat', slot }) }
-      default: return sign(id, { type: pick(['stop', 'bury', 'cancel_trade', 'unwield']) , ...(rnd() < 0.3 ? { slot: Math.floor(rnd() * 28) } : {}) })
+      // each verb carries the fields its schema names: bury takes a slot,
+      // unwield a gear, and the other two nothing. Sprinkling an optional slot
+      // over all four was fine when the schemas were looser; they are not now.
+      default: {
+        const v = pick(['stop', 'bury', 'cancel_trade', 'unwield'])
+        if (v === 'bury') return sign(id, { type: v, slot: Math.floor(rnd() * E.INV_SLOTS) })
+        if (v === 'unwield') return sign(id, { type: v, gear: pick(['weapon', 'head', 'body']) })
+        return sign(id, { type: v })
+      }
     }
   }
+
+  // attend, ripen, spawn -- then the battery proper
+  // one an interval: both attending and waking have a per-interval budget, so
+  // three souls in one tick is two refusals and a citizen
+  for (const id of players) s = E.nextState(s, [sign(id, { type: 'attend' })])
+  for (let t = 0; t < E.VIGIL_TICKS + 2; t++) s = E.nextState(s, [])
+  for (const id of players) s = E.nextState(s, [sign(id, { type: 'spawn' })])
+  assert.equal(Object.keys(s.players).length, 3, 'the vigil ripened and everyone woke')
 
   let transitions = 0
   for (let t = 0; t < 80; t++) {
@@ -127,7 +135,7 @@ test('imported citizens: complete validation before world construction', () => {
     [[{ pid: pidA }, { pid: pidA }], /duplicate imported player id/],
     [[{ pid: pidA, name: 'dave' }, { pid: pidB, name: 'dave' }], /duplicate imported name/],
     [[{ pid: pidA, bank: { logs: -5 } }], /quantity out of bounds/],
-    [[{ pid: pidA, skills: { woodcutting: -1 } }], /xp out of bounds/],
+    [[{ pid: pidA, skills: { woodcraft: -1 } }], /xp out of bounds/],
     [[{ pid: pidA, skills: { juggling: 5 } }], /unknown skill/],
     [[{ pid: pidA, inventory: [{ item: 'logs', qty: 0 }] }], /inventory slot/],
     [[{ pid: pidA, weapon: { item: 'logs', qty: 1 } }], /not equippable/],
@@ -141,7 +149,7 @@ test('imported citizens: complete validation before world construction', () => {
   const g = mkGenesis('imports-world')
   g.imported = [{
     pid: pidA, name: 'old-hand', hp: 30,
-    skills: { woodcutting: 5000, hitpoints: 5000 },
+    skills: { woodcraft: 5000, prowess: 5000 },   // §5j/§5n
     inventory: [{ item: 'logs', qty: 7 }, null, { item: 'iron-sword', qty: 1 }],
     bank: { ore: 100, arrows: 250 },
     weapon: { item: 'old-chain', qty: 1 },
@@ -182,6 +190,8 @@ test('node type rules: ownership, expiry, and text belong to exactly their kinds
     [s => { s.nodes['plot-1'].plantedAt = 3 }, /planted plot without an owner/],
     [s => { s.nodes['plot-1'].plantedAt = 3; s.nodes['plot-1'].by = 'ab'.repeat(32) }, /plot owner does not exist/],
     [s => { s.nodes['plot-1'].plantedAt = 0; s.nodes['plot-1'].by = a.playerId }, /unplanted plot carries an owner/],
+    // §14: more than a signpost bears words now -- a crier and a tollgate do
+    // too -- so the refusal names the property rather than the one node type
     [s => { s.nodes['tree-1'].text = 'hello' }, /text on a node that bears none/],
   ]
   for (const [mutate, want] of cases) {
@@ -204,7 +214,7 @@ test('archive durability failures SURFACE in the log; consensus is unaffected', 
   const lockFile = path.join(dir, 'w.lock')
   fs.writeFileSync(lockFile + '.history', 'a FILE squatting where the journal dir must go')
   const genesis = mkGenesis('arch-world')
-  const holder = { state: (() => { const s = E.newWorld(genesis); E.addPlayer(s, players[0].playerId, 5, 5); return s })(), clock: 700, logs: [] }
+  const holder = { state: (() => { const s = E.newWorld(genesis); E.addPlayer(s, players[0].playerId, 5, 5); return s })(), clock: E.TICK_MS + 100, logs: [] }
   const ag = new IntervalAgreement({
     genesis, worldId: E.worldId(genesis), name: 't', witnessKey: w1,
     getState: () => holder.state, setState: (n) => { holder.state = n },

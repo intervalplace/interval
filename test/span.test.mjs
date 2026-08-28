@@ -7,8 +7,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import '../worldgen-expanse7.mjs'   // registers the expanse-7 terrain + span sites
 import { makeExpanse7Genesis, SPAN_SITES } from '../worldgen-expanse7.mjs'
+
+
 
 const RULES = 'a'.repeat(64)
 // A small pool so a test can finish a crossing in a handful of interventions,

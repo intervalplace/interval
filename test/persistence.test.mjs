@@ -3,8 +3,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import E from '../engine.js'
+
+
 import * as P from '../protocol.mjs'
 import { IntervalAgreement } from '../agreement.mjs'
+
+
 
 const RULES = 'c'.repeat(64)
 const w1 = E.generateIdentity(), w2 = E.generateIdentity(), w3 = E.generateIdentity()
@@ -65,7 +69,7 @@ test('a restored lock is verified in full: corruption refuses startup, a real lo
   const build = () => { const s = E.newWorld(world.genesis); E.addPlayer(s, alice.playerId, 5, 5); return s }
   let mem = null
   const lockStore = { save: (l) => { mem = JSON.parse(JSON.stringify(l)) }, load: () => mem }
-  const h1 = { state: build(), clock: 700 }
+  const h1 = { state: build(), clock: E.TICK_MS + 100 }
   const a1 = mkAgreement(world, w2, h1, { lockStore })
   const p0 = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, a1.prevHash, 0, 0))
   a1.onBundle(P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: a1.prevHash, inputs: [sign(world, alice, { tick: 0, type: 'move', dx: 1, dy: 0 })], witness: p0 }))
@@ -99,28 +103,28 @@ test('checkpoint rollback is refused: a state behind the finalized frontier neve
   // run a solo witness two ticks forward; the frontier follows finality
   const h = { state: build(), clock: 0 }
   const ag = mkAgreement(world, w1, h, { frontierStore })
-  h.clock = 700; ag.drive()
-  h.clock = 1300; ag.drive()
+  h.clock = E.TICK_MS + 100; ag.drive()
+  h.clock = 2 * E.TICK_MS + 100; ag.drive()
   assert.equal(h.state.tick, 2)
   assert.equal(frontier.tick, 1, 'frontier records the last finalized tick')
   assert.equal(frontier.resultingStateHash, E.stateHash(h.state))
   // restart from a STALE checkpoint (tick 0): refuse loudly
-  assert.throws(() => mkAgreement(world, w1, { state: build(), clock: 1400 }, { frontierStore }),
+  assert.throws(() => mkAgreement(world, w1, { state: build(), clock: 2 * E.TICK_MS + 200 }, { frontierStore }),
     /rollback refused.*tick 0.*tick 1 was already finalized/s)
   // restart from the CURRENT state: fine
-  const resumed = mkAgreement(world, w1, { state: h.state, clock: 1400 }, { frontierStore })
+  const resumed = mkAgreement(world, w1, { state: h.state, clock: 2 * E.TICK_MS + 200 }, { frontierStore })
   assert.equal(resumed.frontier.tick, 1)
   // a malformed frontier record also refuses startup (schema-checked, rev4 §6)
   frontier = { worldId: world.worldId, tick: 'yes' }
-  assert.throws(() => mkAgreement(world, w1, { state: h.state, clock: 1400 }, { frontierStore }), /stored frontier is malformed.*unknown format/)
+  assert.throws(() => mkAgreement(world, w1, { state: h.state, clock: 2 * E.TICK_MS + 200 }, { frontierStore }), /stored frontier is malformed.*unknown format/)
   frontier = { format: 'interval-witness-frontier-v1', worldId: world.worldId, tick: 'yes', resultingStateHash: 'b'.repeat(64) }
-  assert.throws(() => mkAgreement(world, w1, { state: h.state, clock: 1400 }, { frontierStore }), /stored frontier is malformed.*malformed tick/)
+  assert.throws(() => mkAgreement(world, w1, { state: h.state, clock: 2 * E.TICK_MS + 200 }, { frontierStore }), /stored frontier is malformed.*malformed tick/)
 })
 
 test('a late-starting witness proposes only the CURRENT round, never stale ones', () => {
   const world = makeWorld({ witnesses: [w1], quorum: 1 }) // solo: every round is ours
   const build = () => { const s = E.newWorld(world.genesis); E.addPlayer(s, alice.playerId, 5, 5); return s }
-  const h = { state: build(), clock: 600 + P.roundStartMs(7) + 50 } // round 7 is current (exponential schedule)
+  const h = { state: build(), clock: E.TICK_MS + P.roundStartMs(7) + 50 } // round 7 is current (exponential schedule)
   const ag = mkAgreement(world, w1, h)
   ag.drive()
   const bundles = h.sink.filter(m => m.kind === 'bundle')
@@ -133,7 +137,7 @@ test('a late-starting witness proposes only the CURRENT round, never stale ones'
 test('proposer equivocation: live conflicts poison, stale-lineage conflicts only leave evidence', () => {
   const world = makeWorld()
   const build = () => { const s = E.newWorld(world.genesis); E.addPlayer(s, alice.playerId, 5, 5); return s }
-  const h = { state: build(), clock: 700 }
+  const h = { state: build(), clock: E.TICK_MS + 100 }
   const judge = mkAgreement(world, null, h) // an observer judges impartially
   const p0 = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, judge.prevHash, 0, 0))
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: judge.prevHash, inputs: [], witness: p0 })
@@ -146,7 +150,7 @@ test('proposer equivocation: live conflicts poison, stale-lineage conflicts only
   assert.equal(judge.proposerEquivocations[0].liveConflict, false)
   assert.equal(judge.poisonedProposers.size, 0, 'stale conflict does not poison')
   // a second LIVE bundle (same lineage as A): unambiguous equivocation
-  const h2 = { state: build(), clock: 700 }
+  const h2 = { state: build(), clock: E.TICK_MS + 100 }
   const judge2 = mkAgreement(world, null, h2)
   const B = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: judge2.prevHash, inputs: [sign(world, alice, { tick: 0, type: 'stop' })], witness: p0 })
   judge2.onBundle(A)
@@ -183,15 +187,15 @@ test('full persistent-state round-trip: actions, trades, equipment, banks, fires
   s.players[alice.playerId].inventory[0] = { item: 'raw-fish', qty: 2 }
   s.players[alice.playerId].inventory[1] = { item: 'wooden-bow', qty: 1 }
   s.players[alice.playerId].bank = { logs: 40, ore: 12 }
-  // v0.70: a name costs standing (NAME_STANDING), which a bare addPlayer lacks
-  for (const sk of ['attack', 'strength', 'defence', 'mining', 'woodcutting'])
-    s.players[alice.playerId].skills[sk] = 150000
+  // v0.70: A NAME COSTS TIME -- claim_name asks for NAME_STANDING, which a
+  // citizen placed directly by addPlayer does not have.
+  for (const sk of E.SKILLS) s.players[alice.playerId].skills[sk] = E.XP_TABLE[40]
   const step = (inputs) => { s = E.nextState(s, inputs); const e = E.validateState(s); assert.equal(e, null, `tick ${s.tick}: ${e}`) }
   step([sign(world, alice, { tick: s.tick, type: 'gather', nodeId: 'tree-1' })])           // action set
   step([sign(world, alice, { tick: s.tick, type: 'wield', slot: 1 })])                     // equipment
   step([sign(world, alice, { tick: s.tick, type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: 'grain', wantGold: 0 })]) // trade offer
   step([sign(world, alice, { tick: s.tick, type: 'claim_name', name: 'alice-brave' })]) // names registry
-  step([sign(world, bob, { tick: s.tick, type: 'attack', mobId: 'rat-1', style: 'even' })])               // combat action
+  step([sign(world, bob, { tick: s.tick, type: 'attack', mobId: 'rat-1' })])               // combat action
   for (let i = 0; i < 4; i++) step([])                                                     // let combat tick, mob hp drops
   assert.ok(s.players[alice.playerId].name === 'alice-brave')
   assert.equal(s.names['alice-brave'], alice.playerId, 'names validated in both directions')
