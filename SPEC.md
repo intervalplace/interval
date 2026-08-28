@@ -367,8 +367,8 @@ cannot tell the difference, and does not want to.
    that name whenever it is describing the field, the wire, or the
    arithmetic. The world's word for the same span is an **interval**,
    and the manual, the windows and the site use that. They are the same
-   600 milliseconds. Neither is more correct: one is what implementers
-   type, the other is what citizens say.
+   **one thousand milliseconds**. Neither is more correct: one is what
+   implementers type, the other is what citizens say.
 3. **Verifiability.** Randomness derives from a public beacon; every drop
    roll can be re-computed and audited by any peer.
 4. **Bot indifference.** The protocol does not attempt to detect bots:
@@ -383,11 +383,25 @@ cannot tell the difference, and does not want to.
 
 ## 2. Time
 
-- The world advances in **intervals (ticks)** of 600 ms.
+- The world advances in **intervals (ticks)** of **1000 ms**.
+
+  §1c: this was 600 ms, which was RuneScape's tick and arrived with no
+  argument attached — every other number in this constitution has one. A
+  second is chosen rather than copied. It makes the clock legible (the Brand
+  is twenty-five minutes, a duel thirty-five seconds, a watchfire five days,
+  and a citizen can do that arithmetic unaided), and it makes the world
+  turn-based in the honest sense: a blow, a step, a mouthful, one a second is
+  a pace somebody THINKS at rather than reacts at. It was not taken further —
+  at two seconds a special's recovery is sixteen seconds of standing still,
+  which is dead air rather than tension.
+
+  Every duration in this document and in the engine counts INTERVALS. Only
+  the scheduler converts to wall-clock. Figures given in minutes or hours
+  written before this change understate by 1.67x.
 - Tick numbers are unsigned 64-bit integers starting at 0 (genesis).
 - All actions resolve on tick boundaries. There is no sub-tick time.
 - The genesis object contains `anchorMs`, the wall-clock epoch (Unix ms)
-  of tick 0. Tick N finalizes at `anchorMs + (N+1) * 600`. Every node
+  of tick 0. Tick N finalizes at `anchorMs + (N+1) * 1000`. Every node
   runs this schedule independently: the world has one clock, and it is
   arithmetic, not a server. Inputs for tick N must reach a node before
   it finalizes N; a node that stalls past a boundary must re-sync from
@@ -530,7 +544,7 @@ three citizens plant the same tick of ground
 **Bounded at 32 rows per citizen**, in the same shape and for the same reason
 `attuned` is bounded at 64.
 
-**A crop still goes over.** `CROP_ROTS_AFTER` is 3,600 ticks — three times its
+**A crop still goes over.** `CROP_ROTS_AFTER` is 2,160 ticks — three times its
 ripening, leaving twenty-four minutes to collect after it is ripe. It no
 longer frees ground, since a row blocks nobody; it clears so that a citizen
 who plants and forgets does not fill their own thirty-two and lose the skill.
@@ -4932,7 +4946,7 @@ tick, never by rounds or timeouts.
 attest to the same `(bundleHash, resultingStateHash)`. The bundle plus
 that quorum of attestations is a **finality record**: a portable proof
 anyone can verify against genesis alone. Nothing finalizes on a timer;
-the 600 ms schedule only paces proposals. `scheduledTick` (what local
+the interval schedule only paces proposals. `scheduledTick` (what local
 time predicts) and the finalized tick (what quorum evidence proves) are
 distinct quantities and MUST NOT be conflated.
 
