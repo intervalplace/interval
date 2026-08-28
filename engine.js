@@ -54,7 +54,44 @@ function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
 const SPEC_VERSION = '0.99';
-const TICK_MS = 600;
+// §1c: THE INTERVAL IS A SECOND, AND IT IS THE ONE NUMBER THAT WAS INHERITED.
+//
+// Six hundred milliseconds was RuneScape's tick and it arrived here with no
+// argument attached -- every other number in this file has one. A second is
+// chosen rather than copied, and it buys two things.
+//
+// EVERY OTHER TIME IN THIS FILE WAS WRITTEN AT 600ms. Comments arguing in
+// minutes and seconds -- "a swing is 2.4 seconds", "a log is 8.7 seconds", "it
+// kills a master in four minutes" -- were all measured at the old interval and
+// now understate by 1.67x. The ones stating a RULE a citizen acts on (the
+// Brand, the gullet, the toll, an attendance window) have been corrected in
+// place; the ones arguing a TUNING have not, because both sides of every such
+// comparison moved together and the argument is unchanged. See §4b-ii, which
+// says the same of every figure given in hours.
+//
+// It makes the clock legible. An interval is a second, so the Brand is
+// twenty-five minutes and a duel is thirty-five seconds and a watchfire is five
+// days, and a citizen can do that arithmetic in their head. At 600ms every
+// duration was a number you had to convert before you could feel it, and a
+// world meant to outlive the person who wrote it should keep time in units a
+// human holds.
+//
+// And it makes the game turn-based in the honest sense. A blow, a step, a
+// mouthful: one a second is a pace somebody THINKS at rather than reacts at,
+// which is what this world is -- a MUD's deliberation in a shared persistent
+// map, not an action game that happens to be networked.
+//
+// It was not taken further. At two seconds a duel is seventy seconds of
+// thirty-five decisions and a special's recovery is sixteen seconds of standing
+// still unable to act, which is not tension but dead air; the recoveries tuned
+// in §6af assume a pause a citizen can sit through. A second is the slowest
+// interval that still holds attention.
+//
+// Everything in this file counts INTERVALS, not milliseconds; only the
+// scheduler converts. The constants that had a wall-clock claim written into
+// them are marked below -- some were rescaled to keep the claim, and some kept
+// their count because the thing they measure should stretch with the world.
+const TICK_MS = 1000;
 // §5t: TWELVE. Twenty-eight was RuneScape's number and it made deciding cheap:
 // a citizen could carry a gathering run, a combat kit and a spare set at once,
 // so leaving town was never a choice about anything. Twelve is tight enough
@@ -166,15 +203,18 @@ const WALK_MAX_STEPS = 512;
 //
 // And forgetting an empty key costs its owner nothing: they had nothing.
 // They spawn again and are exactly where they were.
-const FORGET_AFTER = 36000;           // 6 hours of ticks at 600ms
+const FORGET_AFTER = 21600;           // §1c: six hours, rescaled for the second
 
 // ---------- THE ARCHIVE (spec 5g) ----------
 //
 // Every citizen who ever earned a single xp was kept in `state.players`
-// forever, and the tick clones that map sixty times a minute. At thirty
-// thousand lifetime citizens the tick is 709ms of a 600ms budget: the world
-// stops, not because anyone is playing but because everyone once did. That
-// is not a capacity, it is a countdown.
+// forever, and the tick clones that map every interval. At thirty thousand
+// lifetime citizens the tick took 709ms, which overran the 600ms budget this
+// was measured against: the world stops, not because anyone is playing but
+// because everyone once did. That is not a capacity, it is a countdown.
+// §1c: the interval is a second now, so 709ms fits -- but the curve does not
+// care what the budget is. It is superlinear in lifetime citizens, and a
+// bigger budget only moves the day it arrives.
 //
 // So the ABSENT leave the tick without leaving the world. A citizen who has
 // not acted in ARCHIVE_AFTER ticks is moved out of `players` and into
@@ -197,7 +237,7 @@ const FORGET_AFTER = 36000;           // 6 hours of ticks at 600ms
 //
 // This is the difference between a world with room for a town and a world
 // with room for a city, and it costs the absent nothing at all.
-const ARCHIVE_AFTER = 1008000;        // 7 days of ticks at 600ms
+const ARCHIVE_AFTER = 604800;         // §1c: seven days, rescaled for the second
 
 // ---------- THE ARCHIVE IS A ROOT, NOT A LIST (spec 5g) ----------
 //
@@ -291,7 +331,7 @@ function _attLive(state, pid) {
   return age >= 0 && age <= ATTEND_WINDOW;
 }
 // RIPE: live, and old enough. The window between VIGIL_TICKS and ATTEND_WINDOW
-// is the ten minutes in which a resident may cross; before it they are too
+// is the seventeen minutes in which a resident may cross; before it they are too
 // early, after it the wait is stale and must be kept again.
 function _attRipe(state, pid) {
   const age = _attAge(state, pid);
@@ -391,18 +431,18 @@ const MAX_SPAWNS_PER_TICK = 1;
 // The buffer is bounded by construction -- a small admission budget times a
 // fixed window -- so it can never grow, never needs sweeping, and expires
 // without anybody closing a gate.
-const VIGIL_TICKS = 1000;             // ten minutes: the wait before a soul may be born
+const VIGIL_TICKS = 1000;             // §1c: kept -- seventeen minutes now, and it is a social wait
 const ATTEND_PER_TICK = 2;            // admissions per interval, canonical id order
 const ATTEND_WINDOW = 2000;           // an attendance ages out after twenty minutes
 const ATTEND_CHARS = 16;              // 64 bits of playerId per entry
 // ATTEND_WINDOW must exceed VIGIL_TICKS or an attendance would mature at the
 // instant it expired. The difference is the window in which a resident may
-// cross: ripe at ten minutes, stale at twenty, and kept again after that. It
+// cross: ripe at seventeen minutes, stale at thirty-three, and kept again after. It
 // is also what caps the buffer -- ATTEND_PER_TICK * ATTEND_WINDOW entries,
 // four thousand of them, about a hundred kilobytes, forever.
 const ATTEND_MAX = ATTEND_PER_TICK * ATTEND_WINDOW;
 // Grinding a 64-bit prefix collision would let one key spend another's wait.
-// It saves the grinder ten minutes and costs them 2^32 keys; the attack is
+// It saves the grinder seventeen minutes and costs them 2^32 keys; the attack is
 // slower than the queue it skips.
 
 // THE TIDELINE. The world's own short memory: the finalized state hash of
@@ -720,6 +760,13 @@ const NODE_YIELD = {
   // It costs 14% off the road (879 hours to 754), which rateMul takes back.
   // The old shape was 25/45/65 and a 13.8x shortcut; this is 1.2x.
   'tree':         { item: 'logs',        skill: 'woodcraft', xp: 20, hard: 1 },
+  // §7q: RETIRED. This is the bronze-age rock and the world places none of
+  // them -- `worldgen-expanse7` scatters iron-rock, coal-rock, gold-rock,
+  // magic-rock and mother-lode, and no plain `rock` at all. Its entry stays so
+  // an old saved world still validates; its numbers mean nothing, and a
+  // measurement taken against it is a measurement of a place no citizen can
+  // stand. (It paid 35 where every live node pays 20-24; that gap was never
+  // reachable.)
   'rock':         { item: 'ore',         skill: 'earthcraft',      xp: 35, hard: 1 },
   // §7a: a boulder pays a piece of itself and almost no experience. Nobody
   // should be able to train on the South Pass -- the reason to strike it is
@@ -1370,12 +1417,15 @@ const GOLD_DEPLETE_TICKS = 0;   // a seam that yields this seldom never sleeps
 // citizen is working it or four hundred clients are.
 //
 // The South Pass is plugged by 41 stones, and the least that opens it is a
-// TUNNEL five deep. Each stone lies dark for ten minutes after a strike, so a
-// stone yields at most six strikes an hour however many clients are swinging
-// at it. The five stones of a tunnel can be worked at once, so the floor on
-// the whole endeavour is ROCKFALL_STRIKES / 6 hours -- about seven days --
-// and that floor assumes somebody is standing at all five of them every time
-// they wake, around the clock, for a week. In a world with sleep in it, weeks.
+// TUNNEL five deep. Each stone lies dark for ROCKFALL_DARK intervals after a
+// strike -- a thousand of them, which was ten minutes at the old 600ms tick
+// and is SIXTEEN AND A HALF at a second (§1c) -- so a stone yields at most
+// three and a half strikes an hour however many clients are swinging at it.
+// The five stones of a tunnel can be worked at once, so the floor on the whole
+// endeavour is about ROCKFALL_STRIKES / 3.6 hours -- eleven days, where this
+// note used to say seven -- and that floor assumes somebody is standing at all
+// five of them every time they wake, around the clock, for a fortnight. In a
+// world with sleep in it, longer.
 // The other thirty-six stones are somebody widening the hole afterwards.
 //
 // A farm can meet the ceiling. It cannot raise it, and the ceiling is a
@@ -1401,7 +1451,7 @@ const GOLD_DEPLETE_TICKS = 0;   // a seam that yields this seldom never sleeps
 // enough to walk across at one tile per interval and back if they forgot
 // something, short enough that a crossing is a decision rather than a
 // subscription.
-const TOLL_TICKS = 200;           // two minutes' grace, then the bar comes down
+const TOLL_TICKS = 120;           // §1c: two minutes' grace, then the bar comes down
 // §7q: ONE PLANK, not one log. The keeper is mending the deck and a deck is
 // made of sawn boards -- "a log to cross" was always slightly wrong, and it
 // only became fixable once there was a sawpit. It costs a citizen one more
@@ -1613,7 +1663,11 @@ const PRAYER_KEEP = 70;
 // only PRICED things, so the old chain, a dragonbow, a sigil and a chart are
 // exactly as losable at ninety-nine as at one.
 const PRAYER_KEEP_TWO = 100;   // §4b: mastery
-const BRAND_TICKS = 1500; // strike first in the Wilds, wear it 15 minutes
+// §1c: KEPT AT FIFTEEN HUNDRED, which is now twenty-five minutes and not
+// fifteen. The Brand is not measured against a human's patience but against a
+// raid: long enough that striking first is a decision, and it should stretch
+// with the fights it prices, not against a wall clock.
+const BRAND_TICKS = 1500; // strike first in the Wilds, wear it
 // the star-dagger's root (v0.49): rare and expensive by design, a 3-tick
 // freeze on a 120-tick leash, and a 10-tick immunity after so no one is
 // chain-frozen. Landing it is a decision, not a rhythm.
@@ -2380,8 +2434,8 @@ const LABOUR_PROWESS_CAP = 30;   // === SWEAR_LEVEL
 // §7r: one coal buys the furnace this many intervals of heat, and it will not
 // bank more than the cap -- so a fire cannot be stoked once and left for a
 // week, and there is a reason for somebody to be standing there.
-// §7r: one coal buys the furnace this many intervals of heat (an hour is
-// 6,000 at 600ms a tick), and it will not bank past the cap -- so a fire cannot
+// §7r: one coal buys the furnace this many intervals of heat (§1c: an hour is
+// 3,600 intervals at a second), and it will not bank past the cap -- so a fire cannot
 // be stoked once and left for a week, and there is a reason for somebody to be
 // standing there.
 //
@@ -2411,8 +2465,11 @@ const LABOUR_PROWESS_CAP = 30;   // === SWEAR_LEVEL
 // each one buys more hours of fire; a powder-maker wants CHARCOAL, because
 // nothing else will do. A miner and a woodcutter now supply different people,
 // instead of one of them supplying everybody.
-const FURNACE_PER_COAL = 900, FURNACE_PER_CHARCOAL = 600;
-const FURNACE_CAP = 6000, XP_STOKE_FURNACE = 26;
+// §1c: rescaled for the second-long interval. A coal was fifteen minutes of
+// heat and a charcoal ten; the cap was an hour, which is what stops a furnace
+// being stoked once and left for a week.
+const FURNACE_PER_COAL = 540, FURNACE_PER_CHARCOAL = 360;
+const FURNACE_CAP = 3600, XP_STOKE_FURNACE = 26;
 const FURNACE_BURN_XP = 1;   // §7r: per interval, to whoever is minding it
 const COOK_FIRE_FEE = 6;     // §7s: what a cook pays the keeper of the fire they used
 // §7t: THE YARD TEACHES THE FIRST RUNGS AND NOTHING AFTER.
@@ -2587,7 +2644,19 @@ const WEAPONS = {
   // levels, the longest dead band of any shape in the world. Not a design; an
   // omission, found by counting.
   'steel-maul':      { hit: 11, every: 2, reach: 1, acc: -12 },
-  'star-dagger':   { spec: 'flurry', blows: 6, rec: 12, hit: 2, every: 2, reach: 1, acc: 14 },
+  // §6af-vii: AND THE BURSTS WERE TUNED AGAINST NINETY-NINE FLESH.
+  //
+  // Every blow count and recovery in this table was set when a citizen carried
+  // ninety-nine hitpoints and they grew with a skill. Flesh is FLAT SIXTY-FOUR
+  // now (§5j) and no skill feeds it, so the same numbers became one-shots:
+  // measured, four of the seven specials could take a citizen from full health
+  // to nothing in a single interval, and the handgonne did it in all three
+  // styles. A burst that always kills is not a gamble, it is a delete button.
+  //
+  // Scaled to the new flesh, the worst case across every weapon and style now
+  // falls between sixty-three and eighty per cent of a bar -- enough to end a
+  // fight somebody was already losing, never enough to end one they were not.
+  'star-dagger':   { spec: 'flurry', blows: 4, rec: 8, hit: 2, every: 2, reach: 1, acc: 14 },
   'star-sword':    { hit: 4, every: 2, reach: 1, acc: 0 },
   'star-spear':    { hit: 9, every: 2, reach: 2, acc: 0 },
   // §6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
@@ -2608,7 +2677,7 @@ const WEAPONS = {
   // one is bigger than the other (sixteen against thirteen); a second number
   // saying it again is two rules for one weapon class, and a reader would go
   // looking for the distinction it draws. There is none.
-  'star-maul':     { spec: 'now', blows: 2, bite: 1.5, rec: 6, hit: 13, every: 2, reach: 1, acc: -12 },
+  'star-maul':     { spec: 'now', blows: 2, bite: 0.9, rec: 4, hit: 13, every: 2, reach: 1, acc: -12 },   // §6af-vii
   // 6bz: THE CHAIN KEEPS ITS OLD BLOW. Two-handed arms gained six to pay for
   // the shield, but a weapon that swings EVERY interval banks that six twice
   // as often as anything else: at hit 7 it killed a shielded swordsman in 46
@@ -2658,7 +2727,7 @@ const WEAPONS = {
   // So the cadence goes to two, where every other short arm in the world sits,
   // and the blow rises to answer the price. It keeps its own shape: the only
   // weapon that pierces AND burns, and the only one that drinks brimstone.
-  'fire-siphon':   { spec: 'now', blows: 1, bite: 3, rec: 6,
+  'fire-siphon':   { spec: 'now', blows: 1, bite: 2.2, rec: 4,
                      hit: 6, every: 2, reach: 2, acc: 0,
                      burns: true, pierces: true, fuel: 'brimstone', per: 8 },
   // §7l: THE BARE-BLADE. Its damage is what you are NOT wearing.
@@ -2850,14 +2919,24 @@ const WEAPONS = {
   // answers the dark before level sixty. `burns` is the whole of its worth.
   'torch':         { hit: 1, every: 3, reach: 1, acc: -6, burns: true },
   'great-sword':   { hit: 5, every: 2, reach: 1, acc: 4, breaks: true, burns: true },
-  'great-crossbow': { 'star-alloy': 4 },
+  // §7dq: THE STATS, NOT THE RECIPE. This line held `{ 'star-alloy': 4 }` --
+  // the great-crossbow's SMITHING RECIPE, pasted into the weapon table over
+  // its stats. The weapon therefore had no hit, no cadence, no reach and no
+  // `ranged` flag: `reachOf` fell to 1, so a six-tile crossbow could only be
+  // fired at somebody standing on top of you, it drew no arrows because
+  // nothing marked it ranged, and it scored off prowess rather than
+  // marksmanship. It is smithed, priced, gated at marksmanship 70 and listed
+  // as two-handed everywhere else in this file; only the line that says what
+  // it DOES was wrong. Restored from the numbers it carried before the
+  // mastery rebuild, with `hit` scaled to the flesh of 64 (§5j).
+  'great-crossbow': { hit: 12, every: 3, reach: 6, acc: 23, ranged: true, breaks: true, burns: true },
   // §7ap: the maul line's top, and it keeps the line's whole character -- the
   // biggest blow in the world bought with the worst accuracy in it. `burns`
   // because every brimstone arm burns, and this one is twenty-four of it.
   // §6af-vi: the same pair as the star-maul, and its larger `hit` is the only
   // thing that makes it larger. Measured over three thousand combos: ceiling
   // 94 against the star's 82, and neither can delete a citizen at full health.
-  'great-maul':    { spec: 'now', blows: 2, bite: 1.5, rec: 6,
+  'great-maul':    { spec: 'now', blows: 2, bite: 0.75, rec: 3,   // §6af-vii
                      hit: 16, every: 2, reach: 1, acc: -10, breaks: true, burns: true },
   // THE CROSSBOW (spec 6x): the maul of the ranged line.
   //
@@ -2901,7 +2980,7 @@ const WEAPONS = {
   // for the damage. The archer's weapon for somebody who means to be in it.
   'heartwood-bow': { hit: 10, every: 2, reach: 3, acc: 3, ranged: true },
   'wooden-bow':    { hit: 6, every: 2, reach: 4, acc: 0, ranged: true },
-  'horn-bow':      { spec: 'flurry', blows: 6, rec: 13, hit: 8, every: 2, reach: 5, acc: 0, ranged: true },
+  'horn-bow':      { spec: 'flurry', blows: 3, rec: 6, hit: 8, every: 2, reach: 5, acc: 0, ranged: true },   // §6af-vii
   // THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
   // Reach 9 is the whole weapon: nothing else in the world touches past five,
   // so whoever draws it fights at a distance where almost nothing can answer.
@@ -2933,7 +3012,7 @@ const WEAPONS = {
   // survived walking killed a fleeing citizen thirty-three times in sixty and
   // repealed §2b-i doing it. The mechanism was never the interesting part. It
   // was `hit: 30`.
-  'handgonne':     { spec: 'flurry', blows: 2, rec: 8, hit: 36, every: 4, reach: 4,
+  'handgonne':     { spec: 'flurry', blows: 1, rec: 3, hit: 36, every: 4, reach: 4,   // §6af-vii
                      acc: -20, ranged: true, powder: true },
   'dragonbow':     { spec: 'far', blows: 1, rec: 4, hit: 12, every: 2, reach: 9, acc: 6, ranged: true },
 };
@@ -3033,7 +3112,10 @@ function gunshotHeard(s, pid, p) {
     // §6cz: an incursion NEVER changes who it is fixed on -- not for a gunshot,
     // not for a blow. It came for one citizen and it answers only them.
     if (m.type === 'incursion') continue;
-    if (Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= GUN_NOISE) m.mad = pid;
+    // §6av-ii: `heard` is what lets it come further than it can SEE. It is
+    // carried on the creature that heard the report, so the extra reach
+    // belongs to the gunshot and to nothing else.
+    if (Math.max(Math.abs(m.x - p.x), Math.abs(m.y - p.y)) <= GUN_NOISE) { m.mad = pid; m.heard = s.tick; }
   }
 }
 function gonneFired(s, beacon, pid, p) {
@@ -3114,16 +3196,60 @@ const clubbed = (p, t) => isRanged(p) && adjacent(p, t) && weaponOf(p)?.selfAmmo
 // rather than thirty-two -- because the balance never needed it: what needed
 // fixing was the trade, not the distance.
 //
-//   berserker  56 flesh, +3 to every blow
-//   fighter    64, and nothing either way
-//   warden     72 flesh, -2 to every blow, +4 to what an attacker must beat
+// (Those were 56/64/72 and +3/-2/+4. Both ends were doubled afterwards --
+// §5k-ii for the berserker, §5k-iii for the warden -- so the table now reads:)
 //
-// Measured at mastery, star plate, star-sword: within 4% across all three
-// pairings, and the three fights feel nothing alike -- a berserker kills a
-// fighter in 37 intervals and dies in 39, a warden takes 54 and lasts 52.
-const BERSERK_HIT = 3;
-const WARD_HIT = -2;
-const WARD_GUARD = 4;
+//   berserker  48 flesh, +6 to every blow
+//   fighter    64, and nothing either way
+//   warden     80 flesh, -4 to every blow, +6 to what an attacker must beat
+//
+// Measured at mastery, star plate, star-sword: every pairing inside |z|<2 over
+// a hundred and twenty duels, and the three fights feel nothing alike. The
+// axis is the EXECUTE WINDOW rather than the win rate -- against the largest
+// special in the world a berserker is at 96% of their flesh, a fighter 72%, a
+// warden 58%. A warden is the only citizen a haymaker cannot end from half
+// health; a berserker is the only one it can end from full.
+// §5k-ii: AND A BERSERKER HAS TO BE WORTH BEING.
+//
+// Three hit for eight flesh was a real trade and too quiet a one to feel like
+// anything. Measured at mastery, the three callings killed a fighter in eleven,
+// thirteen and sixteen intervals -- close enough that nobody would describe
+// them differently. Six for sixteen widens it to twelve, sixteen and seventeen,
+// and win rates stay level (57:53 and 57:53 over a hundred duels): a shorter
+// fight cuts both ways, so damage up and flesh down cancel in a duel.
+//
+// What does NOT cancel is the execute window, and that is where the fragility
+// lives. Against the largest special burst in the world:
+//
+//   berserker  48 flesh -> a 46-burst is  96% of them
+//   fighter    64 flesh ->                72%
+//   warden     72 flesh ->                64%
+//
+// A berserker at full health can be ended by one good special. Nobody else can.
+// They also win closer: sixteen flesh left on an average win against a
+// fighter's twenty-one. Powerful and fragile, in the numbers rather than the
+// name.
+const BERSERK_HIT = 6;
+// §5k-iii: AND THE WARDEN IS SHARPENED TO MATCH.
+//
+// The berserker was doubled (§5k-ii) and the warden was left where it was, so
+// one end of the axis had conviction and the other did not: sixteen flesh
+// given up against eight gained. Doubling the warden too restores the symmetry
+// and widens the whole axis from 1.50x to 1.67x between the extremes.
+//
+// Win rates are unmoved -- 60:60 against a fighter bare, 58:62 in plate, and
+// still losing narrowly to a berserker in a straight duel -- because a longer
+// fight and a smaller blow cancel, exactly as they did for the berserker. What
+// changes is the execute window, which is where a calling is actually felt:
+//
+//   berserker  48 flesh -> the biggest special in the world is 96% of them
+//   fighter    64                                              72%
+//   warden     80                                              58%
+//
+// A warden is the only citizen a haymaker cannot take from half health, and a
+// berserker is the only one it can take from full. That is the axis.
+const WARD_HIT = -4;
+const WARD_GUARD = 6;   // §5k-iii
 // §5s: STYLE IS THE SWING, NOT THE SCHOOL.
 //
 // `style` used to decide which of attack, strength or defence a blow taught.
@@ -3134,6 +3260,26 @@ const WARD_GUARD = 4;
 // It is the per-swing lever now, against the calling's permanent one. AIM buys
 // accuracy with damage, FORCE buys damage with accuracy, EVEN buys neither.
 // A citizen may change it every blow; a calling is said once and never again.
+// §6as-v: EIGHT, AND EACH STYLE WINS SOMEWHERE.
+//
+// Measured at true mastery (100, not the 92 an old table made of it) against a
+// bare target, twenty-five hundred intervals a side:
+//
+//   opponent prowess 1     aim 3.58   even 3.79   force 4.05   <- force
+//   opponent prowess 50    aim 2.85   even 2.94   force 2.92   <- even
+//   opponent prowess 100   aim 2.13   even 1.94   force 1.82   <- aim
+//
+// Which is the whole design: force against a soft target where accuracy is
+// already near its ceiling and buys nothing, aim against a hard one where it
+// buys the most, and even in the middle where neither does. The spreads are
+// thirteen, three and seventeen per cent -- enough that the choice pays, little
+// enough that a wrong one is not a lost fight.
+//
+// It was briefly twelve, on a measurement taken before the special bug was
+// found and sampled at only two defence levels, which missed the crossover
+// entirely and read as "force always wins". At twelve aim leads by thirty-one
+// per cent at mastery; at sixteen, forty-seven; at twenty, fifty-seven. The
+// trade only stays a trade at eight.
 const STYLE_ACC = 8, STYLE_HIT = 1;
 const STYLES = {
   aim:   { acc:  STYLE_ACC, hit: -STYLE_HIT },
@@ -3681,10 +3827,10 @@ const MEND_REQ = 50;
 // citizens could not resolve a fight at all, and that -- rather than any
 // damage number -- was the binding constraint on the top of this world.
 //
-// Twenty-five intervals: fifteen seconds. Slower than the gullet ever was,
+// Twenty-five intervals: twenty-five seconds (§1c). Slower than the gullet ever was,
 // because a mending is four times a fish and made of three magic-stone out of
 // the Wilds. It is the emergency, not the diet.
-const MEND_EVERY = 25;
+const MEND_EVERY = 25;   // §1c: kept -- twenty-five seconds now; it paces a FIGHT, not a clock
 const MENDP_RANGE = 4;
 // §6aj: UNMAKING AT RANGE, which is denial and not theft.
 //
@@ -3821,7 +3967,44 @@ const ALCH_REQ = 1;
 // because ALCH_PAYS moved from four to twenty (6bn) -- a log transmutes for a
 // coin and a magic-stone for nineteen, while both teach the same twenty. What
 // is worth burning and what is worth learning from are finally two questions.
-const XP_ALCH = 20;             // per cast, whatever the item
+const XP_ALCH = 20;             // per cast, the floor for anything cheap
+// §6bv-ii: AND WHAT IT TEACHES FOLLOWS WHAT CAME APART.
+//
+// The lesson was flat -- twenty for a log and twenty for a star plate -- and
+// the note below the cast argued for it: value-scaling made "acquire and
+// destroy the most valuable gear in the world" the efficient road to magic,
+// which is a fighter's road to what was then the anti-combat skill.
+//
+// Two things have changed. Sorcery is not the anti-combat skill any more: the
+// barrow-work (§7ce) is offensive, and it TAKES alch away, so the caster who
+// wants to burn things and the caster who wants to unmake them are already two
+// different citizens. And the objection turns out not to survive arithmetic.
+// Measured, with the cost of OBTAINING the input counted:
+//
+//   chop a log, melt it            8,000 xp per hour of labour
+//   mine 400 magic-stone,
+//     forge a plate, melt it         675 xp per hour of labour
+//
+// A star plate is four hundred and fifty times a log in price and about four
+// hundred times a log in labour, so scaling the reward against price very
+// nearly cancels against the cost of getting one. The two roads land within
+// two per cent of each other for a citizen's own hours, and melting plate is
+// twelve times WORSE per hour the world spends. Nobody strips the Wilds to
+// learn a spell; they chop logs, exactly as before.
+//
+// What it buys is a real ITEM SINK at the top of the economy. Starmetal put
+// into a plate can now leave the world again, which gives smiths ongoing
+// demand for the same reason the handgonne's bursting does (§6av). A citizen
+// who wants to unmake something magnificent may, and it is a choice rather
+// than a mistake.
+//
+// THE GOLD IS UNTOUCHED. ALCH_PAYS is four whatever came apart, and it stays
+// four: one integer sets the money supply of this world (§6bv) and this is not
+// that integer. Only the lesson follows the loss.
+// (three quarters, the same share ALCH_SHARE/ALCH_OF names below -- written
+// out here because that pair is declared further down and this is only ever
+// called from the apply path, long after both exist.)
+const alchXpFor = (item) => Math.max(XP_ALCH, Math.round((PRICES[item] ?? 0) * 3 / 4));
 // A CADENCE, NOT A KEYPRESS.
 //
 // One cast per interval is as fast as a citizen can submit anything, so
@@ -3948,8 +4131,8 @@ const alchValue = (item) => (PRICES[item] ? ALCH_PAYS : 0);
 // restock, the ledger forgets. A crop is no different. Twice its ripening
 // again and it has gone over -- long enough that nobody loses a harvest they
 // meant to collect, short enough that the ground comes back.
-const CROP_ROTS_AFTER = 3600;
-const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
+const CROP_ROTS_AFTER = 2160;   // §1c: thirty-six minutes, as it was
+const GROW_TICKS_RIPE = 720;  // §1c + spec 6o: twelve minutes, seed to harvest
 // §7cz: RUBBLE, WHICH DID NOTHING AT ALL.
 //
 // Two mentions in the whole engine: the rockfall that yields it and the item
@@ -3970,7 +4153,7 @@ const GROW_TICKS_RIPE = 1200; // spec 6o: twelve minutes, seed to harvest
 // A miner who has never sown now makes something a farmer wants, out of a node
 // that was previously a way to waste a pickaxe.
 const MARL_PER_PLOT = 2;
-const GROW_TICKS_MARLED = 800;   // two thirds of twelve minutes
+const GROW_TICKS_MARLED = 480;   // §1c: two thirds of twelve minutes
 const PRICES = {
   'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
   'horn-bow': 400, 'crab-shell': 12,
@@ -5201,8 +5384,8 @@ function normalizeInput(fields) {
 // rode along at exactly a quarter for no reason anybody chose.
 //
 // One a point now, and the cadence of every weapon has doubled beside it: a
-// swing is 2.4 seconds, which is what this world's 600ms interval was always
-// sized for and what every player already has in their hands from elsewhere.
+// swing is four seconds at the second-long interval (§1c) -- deliberate, and
+// the pace this world reads at.
 // Together that is a fourfold cut, and it puts combat where every trade is.
 //
 // THE EVEN SPLIT ALTERNATES BY TICK PARITY rather than paying half to each,
@@ -5644,6 +5827,37 @@ function levelForXp(xp) {
 // the ceiling of power and levels past it are honour, proof of intervals spent.
 const MASTERY = 100;
 const effLevel = (xp) => Math.min(levelForXp(xp), MASTERY);
+// §4b-ii: EVERY HOUR FIGURE WRITTEN ABOVE THIS LINE IS HISTORICAL.
+//
+// Notes throughout this file argue their numbers in hours -- "886 hours that
+// take fishing to ninety-nine", "an iron dagger 962 hours", "1,629 hours to
+// ninety-nine while every other trade sat near nine hundred". Every one was
+// true when it was written and none of them is true now, for two reasons that
+// compound:
+//
+//   they say NINETY-NINE, and mastery is a hundred          x1.16
+//   the interval was 600ms and is a second (see TICK_MS)    x1.67
+//
+// so an old figure understates today's by about 1.9x. The reasoning that USED
+// it -- this trade sits beside that one, this gate costs ten hours in a
+// hundred and eighty -- is still sound, because both sides of every comparison
+// moved together. The arguments hold; the absolute numbers are archaeology.
+//
+// Measured against this curve, at a second an interval, with a pack of twelve:
+//
+//   prowess        2,047h    melee a beast
+//   earthcraft     2,212h    mine, smelt, smith
+//   sorcery        2,604h    alchemy bare-handed (1,555 with a heartwood staff)
+//   woodcraft      2,742h    chop and fletch
+//   shorecraft     3,266h    fish and cook
+//   marksmanship   3,592h    shoot, outranging what you shoot at
+//   wayfaring      1,021h surveying, 2,763h hauling plate, 8,334h hauling logs
+//   hearthcraft    priced by the market rather than the clock -- the grain has
+//   mourning       to come from somewhere, and buying it is not being unaided
+//
+// Six trades inside 1.75x of each other, after a skill collapse, a doubled
+// interval and a flat sixty-four flesh. Nobody tuned that; it fell out.
+
 
 // §6c-ii: THE WOUND THE DEAD LEAVE.
 //
@@ -5942,8 +6156,8 @@ const SWORN = {
   cook:         { skill: 'shorecraft',   hp: 0 },
   farmer:       { skill: 'hearthcraft',  hp: 0 },
   brewer:       { skill: 'hearthcraft',  hp: 0 },
-  berserker:    { skill: 'prowess',      hp: -8 },
-  warden:       { skill: 'prowess',      hp: 8 },
+  berserker:    { skill: 'prowess',      hp: -16 },   // §5k-ii
+  warden:       { skill: 'prowess',      hp: 16 },   // §5k-iii
   fighter:      { skill: 'prowess',      hp: 0 },
   mourner:      { skill: 'mourning',     hp: 0 },
   archer:       { skill: 'marksmanship', hp: 0 },
@@ -7688,7 +7902,7 @@ const LANDMARK_KINDS = new Set([
     // while it only ever answered a blow -- a clock of its own, so its swing
     // rate is its own and not the citizen's, and a memory of who hit it, so a
     // passive creature still fights back.
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'bound', 'quiver', 'burnUntil',
+    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'heard', 'bound', 'quiver', 'burnUntil',
       // §6ao (v6): the incursion carries a scaled body and its bounds -- a
       // maxHp and def scaled to its target, the tick it must be gone by, its
       // leash and the tile it came from. Only an 'incursion' may bear them.
@@ -8365,6 +8579,44 @@ function consumeItem(inv, item, qty) {
 
 // Removes qty units from a slot; clears the slot when it empties.
 // Returns true if the slot held at least qty units.
+// §7p-iii: WHAT A RECIPE COSTS, PAID IN ONE PLACE.
+//
+// The anvil and the furnace each carried their own copy of this: count what is
+// held, then spend it. Two copies of one rule is how they drifted -- BOTH
+// counted SLOTS rather than units and paid by nulling whole slots, so a recipe
+// asking for one unit of a stacked good (shot, flour, arrows, javelins) was
+// told the citizen had one, then took the entire stack. It was invisible for
+// bars and ore, which do not stack, and a hole for everything that does.
+//
+// `fills` is passed in because only the caller knows what substitutes for what
+// -- charcoal for coal at both fires (§6bo). The spend runs twice on purpose:
+// the exact good first, the substitute after, so what was cheaper to come by
+// is spent before what was dearer, exactly as `consumeLogs` spends ordinary
+// logs before heartwood.
+function heldUnits(inv, item, fills) {
+  return inv.reduce((n, sl) => n + (sl && fills(item, sl.item) ? (sl.qty ?? 1) : 0), 0);
+}
+function canPayRecipe(inv, r, fills) {
+  return Object.entries(r).every(([item, qty]) => heldUnits(inv, item, fills) >= qty);
+}
+function payRecipe(inv, r, fills) {
+  for (const [item, qty] of Object.entries(r)) {
+    let left = qty;
+    const spend = (exact) => {
+      for (let i = 0; i < inv.length && left > 0; i++) {
+        const sl = inv[i];
+        if (!sl) continue;
+        if (exact ? sl.item !== item : !fills(item, sl.item)) continue;
+        const take = Math.min(sl.qty ?? 1, left);
+        removeItem(inv, i, take);
+        left -= take;
+      }
+    };
+    spend(true);
+    spend(false);
+  }
+}
+
 function removeItem(inv, slot, qty = 1) {
   const sl = inv[slot];
   if (!sl || (sl.qty ?? 1) < qty) return false;
@@ -8647,9 +8899,12 @@ function validInput(state, input, ctx) {
             (n) => (n.fuelUntil ?? 0) > state.tick)) return false;
       const req2 = reqOverride(state.genesis, 'smith', input.recipe) ?? SMITH_REQS[input.recipe];
       if (req2 && !Object.entries(req2).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
+      // §7p-iii: the GATE must ask the same question the apply path answers.
+      // This was a third copy, and it still counted slots after the other two
+      // were fixed -- so the door said yes to a smelt the world then refused,
+      // and the citizen spent an interval on silence with nothing said.
       const fills2 = (item, held) => held === item || (item === 'coal' && held === 'charcoal');
-      const have2 = (item) => p.inventory.filter((sl) => sl && fills2(item, sl.item)).length;
-      return Object.entries(r2).every(([item, qty]) => have2(item) >= qty)
+      return canPayRecipe(p.inventory, r2, fills2)
         && (firstFreeSlot(p.inventory) !== -1
             || p.inventory.some((sl) => sl?.item === input.recipe));
     }
@@ -8955,7 +9210,7 @@ function validInput(state, input, ctx) {
       }
       // §2b: A KEEPER WILL NOT DEAL WITH THE BRANDED.
       //
-      // The Brand was evidence and nothing else -- fifteen minutes of a mark
+      // The Brand was evidence and nothing else -- twenty-five minutes of a mark
       // that only existed if a window chose to paint one, and for four
       // foundings not one of them did. A rule that a window may quietly
       // decline to enforce is not a rule; it is a suggestion the engine makes
@@ -8965,7 +9220,7 @@ function validInput(state, input, ctx) {
       // safe town knows what you did on the other side of the Brandline, and
       // will not take your money or your goods until the mark cools. You may
       // still bank, still walk, still fight. You simply cannot turn what you
-      // took into anything, for fifteen minutes, in the daylight where
+      // took into anything, for twenty-five minutes, in the daylight where
       // everybody can see you being refused.
       if ((p.brandedUntil ?? 0) > state.tick) return false;
       // §6l: A STALL SELLS. A STORE DOES NOT.
@@ -10352,7 +10607,7 @@ function prayerKeeps(p, tick, genesis, state) {
   // raider was insured, by a skill about making peace with dying.
   //
   // The keeper's refusal was an errand and the closed stones were a walk. This
-  // is the danger: for fifteen minutes you carry what you took with nothing
+  // is the danger: for twenty-five minutes you carry what you took with nothing
   // held back, and anybody may take it from you at no cost to themselves. The
   // Brand does not punish. It withdraws a protection, and lets the world do
   // the rest.
@@ -11559,7 +11814,7 @@ function nextState(state, inputs, _legacyBeacon) {
     //
     // This uses `isAwake`, which the engine already had -- a citizen is awake
     // while an action is running OR they have acted within SLEEP_AFTER. That
-    // second clause is generous (500 ticks, five minutes) and generous is
+    // second clause is generous (500 ticks, eight minutes) and generous is
     // right: the cost of being wrong is somebody losing everything they
     // carried because their train went into a tunnel.
     const HUNTS_HERE = (x, y) => {
@@ -11670,7 +11925,24 @@ function nextState(state, inputs, _legacyBeacon) {
           // flee past it, it simply stands where it is and takes what comes.
           const wants = m.type === 'incursion'
             ? (m.mad === pid && d <= (m.leash ?? st.aggro ?? 0))
-            : (!shroudStills && ((m.mad === pid && d <= Math.max(senses, GUN_NOISE))
+            // §6av-ii: THE NOISE BELONGS TO THE GUNSHOT, NOT TO EVERY BLOW.
+            //
+            // This read `d <= max(senses, GUN_NOISE)` for ANY maddened beast,
+            // so eight tiles of pursuit -- written for a handgonne's report --
+            // applied to a creature struck by an arrow, a sword or a javelin.
+            // It silently repealed the archer's ladder written above: a goblin
+            // that perceives THREE came for a citizen eight tiles off, so every
+            // bow in the world was outranged by every beast in it. Measured, a
+            // wooden bow at its full reach of four was closed on four times out
+            // of four, and marksmanship trained at 0.03 an interval against
+            // melee's 5.09 -- because a bow held adjacent IS melee, and pays
+            // prowess. An archer could not train the skill they were using.
+            //
+            // A beast that heard a gunshot still comes the eight, marked when
+            // the shot was fired. Everything else comes exactly as far as it
+            // perceives, which is what §6aa says and what the ladder needs.
+            : (!shroudStills && ((m.mad === pid
+                && d <= (m.heard !== undefined ? Math.max(senses, GUN_NOISE) : senses))
               || (st.aggro && d <= st.aggro && mayStart)));
           if (!wants) continue;
           // §21c: only the CHOSEN target is written to (damage, death, the
@@ -11924,7 +12196,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // `lastSwing` is the steady signal, and it already exists: the tick
           // a citizen last swung at anything. It survives a beast wandering,
           // it cannot be held by standing still, and it needs no new field.
-          // Twenty ticks is twelve seconds -- longer than any weapon's
+          // Twenty ticks is twenty seconds (§1c) -- longer than any weapon's
           // cadence, so an honest fight never lapses.
           if (s.tick - (target.lastSwing ?? -999) > 20) continue;
           // Restored flat: four for a miss, which is the rule every existing
@@ -12621,12 +12893,14 @@ function nextState(state, inputs, _legacyBeacon) {
         // world is the ANTI-combat skill -- teleport, heal, still. It would
         // have been trained by exactly the citizens it was not for.
         //
-        // Flat experience separates the two decisions cleanly. What is worth
-        // alching is an economic question about price and distance; what is
-        // worth alching for PRACTICE is whatever you can gather most of. A
-        // woodcutter can learn magic from logs. Nobody burns a star-plate to
-        // learn a spell.
-        p.skills.sorcery += XP_ALCH;
+        // §6bv-ii REVISITED THIS. The paragraph above is kept because its
+        // reasoning is sound and its conclusion is no longer the one the
+        // numbers give: a star plate costs about as much labour as it is worth,
+        // so scaling the lesson against price does NOT make gear-melting the
+        // efficient road. It stays twelve times worse per hour the world
+        // spends, and a woodcutter still learns magic from logs. See the note
+        // at `alchXpFor` for the measurement.
+        p.skills.sorcery += alchXpFor(slot.item);
       }
     } else if (inp.type === 'mendp') {
       const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
@@ -12762,20 +13036,16 @@ function nextState(state, inputs, _legacyBeacon) {
       // recipes -- one substitution, in the one place recipes are read, so no
       // recipe had to learn a second name for the same fire.
       const fills = (item, held) => held === item || (item === 'coal' && held === 'charcoal');
-      const have = (item) => p.inventory.filter(sl => sl && fills(item, sl.item)).length;
-      if (r && nearAnvil && Object.entries(r).every(([item, qty]) => have(item) >= qty)) {
-        for (const [item, qty] of Object.entries(r)) {
-          let left = qty;
-          // the MINED coal goes in first and the made charcoal after, the same
-          // order `consumeLogs` spends ordinary logs before heartwood: what
-          // was cheaper to come by is spent before what was dearer.
-          for (let i = 0; i < p.inventory.length && left > 0; i++) {
-            if (p.inventory[i]?.item === item) { p.inventory[i] = null; left--; }
-          }
-          for (let i = 0; i < p.inventory.length && left > 0; i++) {
-            if (p.inventory[i] && fills(item, p.inventory[i].item)) { p.inventory[i] = null; left--; }
-          }
-        }
+      // §7p-ii: COUNT THE UNITS, NOT THE SLOTS, AND SPEND ONLY WHAT IS ASKED.
+      //
+      // This counted SLOTS holding the item and then nulled whole slots to pay
+      // the cost. For a bar that is the same thing -- bars do not stack -- but
+      // several smithing inputs DO: shot, flour, arrows, javelins. A recipe
+      // asking for one unit of a stacked good was told the citizen had one
+      // (one slot), then took the entire stack for it. A hundred shot bought a
+      // single forging.
+      if (r && nearAnvil && canPayRecipe(p.inventory, r, fills)) {
+        payRecipe(p.inventory, r, fills);   // §7p-iii
         // §6av: shot comes five to the ore, as a bone gives five arrows, and it
         // pools into a quiver already held rather than demanding a fresh slot.
         const made = inp.recipe === 'shot' ? SHOT_PER_ORE
@@ -12875,13 +13145,28 @@ function nextState(state, inputs, _legacyBeacon) {
         announce(s, (p.name ?? pid.slice(0, 6)) + ' strikes the butt for ' + dmg9 + '.');
         return s;
       }
-      const q = s.players[inp.targetId];
+      let q = s.players[inp.targetId];
       if (q && q.hp > 0 && w9?.spec && mayStrike(s, p, q)) {   // §11d
         // §2b-iv: the mark and the answer, BEFORE the blow -- so a special that
         // kills outright still brands, and the victim's own answer is set even
         // if they do not live to swing it. Hitting somebody is hitting somebody
         // whichever verb carried it.
         strikeConsequences(s, pid, p, q, inp.targetId);
+        // §21d-ii: AND `q` HAS TO BE RE-READ, BECAUSE IT IS NO LONGER THE SAME
+        // OBJECT.
+        //
+        // `ownPlayer` is copy-on-write: the first write to a citizen in a tick
+        // REPLACES s.players[pid] with a fresh copy. `strikeConsequences` is
+        // that first write for the victim -- it brands and sets their answer --
+        // so every line after it held a pointer to a discarded object. Each
+        // blow of the special was rolled, computed and applied to a ghost: the
+        // damage was right, the hp went down, and the state that got hashed
+        // never saw it. EVERY special in the world dealt exactly nothing,
+        // melee and drawn alike, while still spending the arm and the arrows.
+        //
+        // The ordinary path never hit this because it resolves in the action
+        // phase, where the target is already owned.
+        q = s.players[inp.targetId];
         const drawn9 = drawnAt(p, q);
         // §6df: A ROUND A BLOW, NOT A ROUND A BURST.
         //
@@ -13705,7 +13990,13 @@ function nextState(state, inputs, _legacyBeacon) {
         // arrow market where it was and simply means a master wastes less.
         const per = effLevel(p.skills.woodcraft) >= ARROW_MASTER ? ARROWS_MASTER : ARROWS_PER_BONE;
         const ex = p.inventory.findIndex((s2, i2) => s2?.item === 'arrows' && i2 !== inp.slot);
-        p.inventory[inp.slot] = null;
+        // §6bk: ONE BONE IN, one lesson -- so take ONE, not the slot. This
+        // nulled the whole slot, which is right for a bone (they do not stack)
+        // and silently destroys the rest of any stack that ever does. The
+        // comment above already said "one bone in": the code took whatever was
+        // there. Spending exactly what the yield is paid for costs nothing
+        // today and cannot become a hole later.
+        removeItem(p.inventory, inp.slot, 1);
         if (ex !== -1) p.inventory[ex].qty += per;                  // the quiver (6n)
         else p.inventory[inp.slot] = { item: 'arrows', qty: per };
         awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT, 'fletcher');   // 6bk: one bone in, one lesson
@@ -14006,9 +14297,22 @@ function nextState(state, inputs, _legacyBeacon) {
           awardXp(p, 'shorecraft', slot.item === 'deep-fish' ? XP_SALT_DEEP : XP_SALT, 'cook');
         }
       } else if (slot && slot.item === 'flour' && nearFire) {
+        // §7j-ii: BREAD IS THE HEARTH'S, NOT THE SHORE'S.
+        //
+        // When fishing and cooking became `shorecraft`, one thing came with
+        // them that never had anything to do with the shore: a loaf. Grain is
+        // farmed, the mill grinds it for hearthcraft (see `grind` below), and
+        // then the bake -- the last step of the same chain -- paid a different
+        // skill and asked the shore for its odds. A farmer who milled their own
+        // grain had to be a fisher to finish the loaf.
+        //
+        // Both halves move: the roll reads hearthcraft, and so does the lesson.
+        // It costs no new skill and no new calling. A citizen who only ever
+        // bakes is a hearthkeeper, which is true, and they may call themselves
+        // the baker of Anchor without the engine's help.
         if (!p.cooksTried || typeof p.cooksTried !== 'object') p.cooksTried = {};
         p.cooksTried.flour = (p.cooksTried.flour ?? 0) + 1;
-        const lvl2 = effLevel(p.skills.shorecraft);
+        const lvl2 = effLevel(p.skills.hearthcraft);
         const atHearth2 = hasAdjacentNode(s, _ctx, p, 'hearth')
           || hasAdjacentNode(s, _ctx, p, 'watchfire', (n) => (n.fuelUntil ?? 0) > s.tick);
         const take = Math.min(slot.qty ?? 1, 1);
@@ -14016,7 +14320,7 @@ function nextState(state, inputs, _legacyBeacon) {
               Math.min(COOK_BASE + lvl2 + (atHearth2 ? COOK_HEARTH_BONUS : 0), COOK_CAP))) {
           removeItem(p.inventory, inp.slot, take);
           addItem(p.inventory, 'bread', 1);
-          awardXp(p, 'shorecraft', XP_COOK, 'cook');
+          awardXp(p, 'hearthcraft', XP_COOK, 'farmer');   // §7j-ii
         } else {
           removeItem(p.inventory, inp.slot, take);
           addItem(p.inventory, 'burnt-bread', 1);
@@ -14103,15 +14407,8 @@ function nextState(state, inputs, _legacyBeacon) {
       const atFurnace = SMELTED.has(inp.recipe)
         && hasAdjacentNode(s, _ctx, p, 'furnace', (n) => (n.fuelUntil ?? 0) > s.tick);
       const fills2 = (item, held) => held === item || (item === 'coal' && held === 'charcoal');
-      const have2 = (item) => p.inventory.filter((sl) => sl && fills2(item, sl.item)).length;
-      if (r2 && atFurnace && Object.entries(r2).every(([item, qty]) => have2(item) >= qty)) {
-        for (const [item, qty] of Object.entries(r2)) {
-          let left = qty;
-          for (let i = 0; i < p.inventory.length && left > 0; i++)
-            if (p.inventory[i]?.item === item) { p.inventory[i] = null; left--; }
-          for (let i = 0; i < p.inventory.length && left > 0; i++)
-            if (p.inventory[i] && fills2(item, p.inventory[i].item)) { p.inventory[i] = null; left--; }
-        }
+      if (r2 && atFurnace && canPayRecipe(p.inventory, r2, fills2)) {
+        payRecipe(p.inventory, r2, fills2);   // §7p-iii
         const ex2 = STACKABLE.has(inp.recipe) ? p.inventory.findIndex((sl) => sl?.item === inp.recipe) : -1;
         if (ex2 !== -1) p.inventory[ex2].qty += 1;
         else { const sl2 = firstFreeSlot(p.inventory); if (sl2 !== -1) p.inventory[sl2] = { item: inp.recipe, qty: 1 } }
@@ -14434,7 +14731,19 @@ function nextState(state, inputs, _legacyBeacon) {
             if (p.inventory[aSlot].qty <= 0) p.inventory[aSlot] = null;
           }
 
-          lvl2 = effLevel(p.skills.marksmanship); tag2 = 'ranged';
+          // §6dj: THE SKILL IS `marksmanship`, AND THE TAG HAS TO SAY SO.
+          //
+          // This read `tag2 = 'ranged'`, left behind when the skills were cut
+          // to nine. Line 14523 spends the tag -- `p.skills[tag2] += dmg` --
+          // so every drawn bow added a number to a skill that does not exist:
+          // `undefined + dmg` is NaN, and a NaN in the skills is a state that
+          // CANNOT BE CANONICALISED. Not a wrong number, an unencodable one.
+          // The tick throws, the state never hashes, and the world stops for
+          // everybody the moment somebody looses an arrow at range.
+          //
+          // Melee never hit it because 'prowess' is a real key. Only the drawn
+          // half was wrong, which is why an adjacent bow was fine.
+          lvl2 = effLevel(p.skills.marksmanship); tag2 = 'marksmanship';
         } else { lvl2 = effLevel(p.skills.prowess); tag2 = 'prowess'; }
         const defL = effLevel(q.skills.prowess);
         // §7br: AND A FIRE ARROW COUNTS ARMOUR DOUBLE.
@@ -15467,5 +15776,5 @@ module.exports = {
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
-  SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHp, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHp, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

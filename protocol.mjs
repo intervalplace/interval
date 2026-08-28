@@ -26,7 +26,13 @@ export const ATTESTATION_DOMAIN = 'INTERVAL_ATTESTATION_V1|'
 export const HEX64 = /^[0-9a-f]{64}$/
 
 export const AGREEMENT = {
-  ROUND_TIMEOUT_MS: 600,          // a vanished proposer costs one round, not the world
+  // §1c: ONE INTERVAL. This was 600 -- the same number as the tick, written out
+  // a second time in a second file, so when the interval became a second the
+  // consensus schedule stayed behind and every round window was six tenths of
+  // a tick. Twenty-seven agreement tests failed on it: proposers were judged
+  // vanished before the interval they were proposing for had finished.
+  // A round is one interval, whatever an interval is.
+  ROUND_TIMEOUT_MS: E.TICK_MS,    // a vanished proposer costs one round, not the world
   ROUND_BACKOFF_CAP: 6,           // exponential round windows, capped at 2^6
   MAX_SKEW_MS: 150,               // clock slack when judging round windows
   MAX_INPUTS_PER_PLAYER: 2,       // one action + at most one equivocation proof
