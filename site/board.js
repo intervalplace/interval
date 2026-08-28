@@ -12,7 +12,7 @@
 //
 // Spam is answered by the one thing this world has that cannot be forged in
 // bulk: TIME. Posting asks for a standing, and standing is minutes of real
-// work per identity, charged at 600ms an action with no way to hurry it. Above
+// work per identity, charged at one second an action with no way to hurry it. Above
 // that line there is a FLAT daily allowance. Flat, not scaled by standing: a
 // newcomer with a question needs the board more than a master does, and
 // rationing speech by rank is how a forum turns into a hierarchy.

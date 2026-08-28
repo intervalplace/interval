@@ -1,99 +1,129 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>New Player Guide: Interval</title>
+<title>The Guide: Interval</title>
+<meta name="description" content="Your first hour in Interval, and how to run a node that verifies the world instead of trusting one.">
 <link rel="stylesheet" href="/site/site.css"></head><body>
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
-  <h1>New Player Guide</h1>
-  <p class="tagline">From nothing to your first cooked fish, as fast as possible.</p>
+  <h1>The Guide</h1>
+  <p class="thesis">Your first hour, and how to stop trusting this website.</p>
 
-  <p class="lede"><b>The fastest way is to play right here.</b> If this page
-  is being served by a running node, just open <a href="/play"><b>Play</b></a>.
-  You'll spawn in the middle of the map. Click the ground to walk. That's it,
-  you're playing.</p>
+  <p class="lede">The fastest way in is <a href="/play"><b>Play</b></a>. You wake
+  in the middle of the island with twelve empty slots, twenty-two coins and no
+  trade above level one. Click the ground to walk. That is the whole of the
+  interface you need to begin.</p>
 
-  <h2>Your first ten minutes</h2>
-  <ol>
-    <li><b>Walk to water</b> (the blue tile, top-left) and click it. You'll
-    start fishing: a raw fish lands in your inventory every so often.</li>
-    <li><b>Catch three or four</b>, then walk to the campfire ♨ and click
-    it. You will burn most of them. Everyone does. Burn rate falls as
-    your cooking level rises.</li>
-    <li><b>Click a cooked fish</b> in your inventory to eat it: it heals.
-    You'll want that, because:</li>
-    <li><b>Click a goblin.</b> Combat runs itself once engaged: you trade
-    blows every interval until one of you falls. Goblins drop bones,
-    sometimes ore, and often <b>forage</b>. You cannot pick forage up:
-    click it where it lies and you eat it on the spot for six of your frame. It
-    rots quickly, so take it during the fight rather than after.</li>
-    <li><b>Alch a log.</b> Click any priced thing in your pack and choose
-    <i>Alch it</i>. It comes apart for four coins and twenty-five magic
-    experience, your first spell, castable from level one. Four coins is
-    meant to be poor: a keeper pays far better, and what alchemy buys is not
-    having to walk to one.</li>
-    <li><b>Drink at the well.</b> Every town has one. Stand beside it and click:
-    you are restored to full, free, with no waiting. It is why a town is
-    somewhere you come back to.</li>
-    <li><b>Don't die carelessly.</b> Death sends you back to spawn and
-    destroys everything you're carrying. Skills, your name and <b>your coin</b>
-    survive; goods don't. Selling at a keeper is how a day's work becomes
-    safe.</li>
+  <h2>The first hour</h2>
+  <ol class="steps">
+    <li><b>Walk to water and click it.</b> You start fishing, and a raw fish
+    lands in your pack every so often. Everything in this world works this way:
+    you point at a thing and your citizen works at it until you point somewhere
+    else.</li>
+
+    <li><b>Cook what you caught.</b> Stand at a fire and click it. You will burn
+    most of the first ones. Everybody does — the burn rate falls as shorecraft
+    rises, and fishing and cooking are the same trade, so the failures are still
+    teaching you.</li>
+
+    <li><b>Eat, and notice that it takes a moment.</b> Food does not restore you
+    the instant you swallow it. It <b>mends over several intervals</b> — a cooked
+    fish gives six, two an interval; a deep-water fish gives ten at three. So
+    eating is something you do <i>before</i> you need it, not instead of being
+    hit.</li>
+
+    <li><b>Fight something small.</b> Click a goblin. Combat runs itself: you
+    trade blows each interval until one of you falls. It will take a while,
+    because your damage at level one is terrible, and that — not the goblin's
+    strength — is what makes the early fights cost you. Expect about eight of
+    them before you need to heal.</li>
+
+    <li><b>Eat forage where it lies.</b> Goblins and wolves often leave it. You
+    cannot pick it up or carry it: click it on the ground and you eat it on the
+    spot for six, <b>all at once</b>. It is the only instant mending you can get
+    alone in the field, and it rots in fifty intervals, so take it during the
+    fight rather than after.</li>
+
+    <li><b>Alch a log.</b> Click anything priced in your pack and choose
+    <i>alch it</i>. It comes apart for four coins and your first sorcery.
+    Four coins is meant to be poor — a keeper pays far better. What alchemy buys
+    is not having to walk to one.</li>
+
+    <li><b>Drink at a well.</b> Every town has one. Stand beside it and click:
+    you are restored to full, free, instantly. The well then runs dry for a
+    hundred intervals — for everybody — so drinking first and leaving it empty
+    behind you is a real thing to do to somebody.</li>
+
+    <li><b>Bank something, and remember where.</b> A counting house is <b>its
+    own vault</b>. What you leave at Anchor is at Anchor; standing in the Crags
+    will not get it back. Choose where your things live.</li>
   </ol>
 
-  <p>That's the doorstep. Past it lies the rest: settlements with banks,
-  anvils and stalls, the axe man, the armourer, the seedsman who is the only
-  source of seed in the world, the dangerous <b>Wilds</b> where the best ore
-  and the skeleton-knights are, waystones to recall across the map, star gear
-  to forge, a brewhouse to build, and a whole frontier to chart.
-  <a href="/manual">The Manual</a> has all sixteen skills and everything
-  else.</p>
+  <div class="rule"><b>What dying costs.</b> You wake at the spawn and everything
+  in your pack is gone. Your trades, your name and your <b>coin</b> survive. You
+  also take a <b>wound</b>: one permanent point off your frame, up to ten, and
+  the only thing that clears wounds is drinking at the wellspring — which is not
+  in a town, and nobody will tell you where it is. Selling to a keeper is how a
+  day's work stops being something you can lose.</div>
 
-  <h2>Join the live world with your own node</h2>
-  <p>The browser window above already makes your key on your own machine
-  and keeps it there: it is generated in the browser, never sent anywhere,
-  and every deed you commit is signed locally before it is gossiped. (Only
-  if your browser cannot do Ed25519 at all does the node sign on your
-  behalf, and it will say so.) What the window does not do is verify: it
-  trusts this site's node to tell it the truth about the world. To check
-  every tick yourself instead of taking anyone's word for it, run a full
-  peer. Your machine computes the whole world independently,
-  checks each finalized interval against the constitution, and never
-  trusts a state it did not recompute.</p>
-  <pre>git clone https://github.com/intervalplace/interval
-cd interval && npm install
-node join.mjs yourname</pre>
-  <p>Your citizen appears in the world for everyone. Your key is written
-  to <code>identities/</code> on your machine and never leaves it. The
-  constitution check runs first: if your SPEC.md does not hash to this
-  world's rules, the node refuses and tells you both hashes.</p>
+  <h2>Then what</h2>
+  <p>At thirty in any trade you may <b>swear its calling</b> — forester, smith,
+  cook, brewer, berserker, warden, runner, one of seventeen. A sworn calling
+  learns half again from its own work and half as much from a sibling's, and it
+  cannot be put down, ever. It is the first thing in this world you cannot
+  undo, so take a while over it.</p>
 
-  <p>The name you pass is what your window calls you. It is not yet the
-  name the world knows: a name in the ledger is claimed once and held
-  forever, with no release and no transfer, and claiming one asks for a
-  standing of 50. That is an afternoon of doing almost anything. Until
-  then you are your key, which is the truest name you have anyway, and
-  you get to see the place before you decide what to be called in it.</p>
-  <p>By default your citizen simply exists while your node verifies the
-  world. Add <code>--chop</code> to run the example executor, a bot that
-  trains woodcraft and banks its logs. Write your own executor with
-  <code>sdk.mjs</code>: bots and people enter this world the same way.</p>
+  <p>Your <b>standing</b> is the sum of your level in all nine trades, so
+  anything you do raises it. At a standing of fifty you may claim a <b>name</b> in the ledger, held
+  forever, with no release and no transfer. Until then you are your key, which
+  is the truer name anyway, and you get to see the place before deciding what to
+  be called in it.</p>
 
-  <h2>Run your own world (two minutes)</h2>
-  <p>You need <a href="https://nodejs.org">Node.js</a> 22.5+.</p>
-  <pre>git clone https://github.com/intervalplace/interval && cd interval
+  <p>Past that: stalls, anvils, the seedsman who is the only source of seed in
+  the world, waystones, star gear, a brewpot of your own, charters sold to
+  citizens who cannot cross without one, and the Wilds.
+  <a href="/manual">The Manual</a> has all of it.</p>
+
+  <h2>Run a node</h2>
+  <p>The browser window already makes your key on your own machine and keeps it
+  there: generated locally, never transmitted, and every deed signed before it
+  is gossiped. What it does <b>not</b> do is verify. It trusts this site's node
+  to tell it the truth about the world.</p>
+
+  <p>To check every interval yourself instead of taking anyone's word for it,
+  run a peer. Your machine computes the whole world independently and refuses any
+  state it did not derive.</p>
+  <pre><code>git clone https://github.com/intervalplace/interval
+cd interval &amp;&amp; npm install
+node join.mjs yourname</code></pre>
+
+  <p>Your citizen appears for everyone. Your key is written to
+  <code>identities/</code> and never leaves the machine. The constitution check
+  runs first: if your copy does not hash to this world's rules, the node refuses
+  to start and prints both hashes. That is not an error — it means you are
+  holding a different world.</p>
+
+  <p>By default your citizen simply exists while your node verifies. Add
+  <code>--chop</code> to run the example executor, a bot that trains woodcraft
+  and banks its logs. Write your own with <code>sdk.mjs</code>: scripts and
+  people enter this world through the same door.</p>
+
+  <h3>Or run a world of your own</h3>
+  <p>You need <a href="https://nodejs.org">Node.js</a> 22.5 or later.</p>
+  <pre><code>git clone https://github.com/intervalplace/interval &amp;&amp; cd interval
 npm install
-node serve.mjs yourname     # then open http://localhost:8787</pre>
-  <p>Prefer a terminal? <code>node play.mjs yourname</code>: WASD to move,
+node serve.mjs yourname     # then open http://localhost:8787</code></pre>
+  <p>Prefer a terminal? <code>node play.mjs yourname</code> — WASD to move,
   <code>g</code> gather, <code>x</code> attack, <code>f</code> cook,
   <code>e</code> eat, <code>q</code> quit.</p>
 
   <h2>Three things worth knowing on day one</h2>
   <ul>
-    <li><b>Your character is a file.</b> <code>identities/</code> holds your
-    key. Back it up: it IS your character, and there is no password reset
-    in a world with no authority.</li>
-    <li><b>One action per interval.</b> The world moves every 600ms and so
-    do you. Clicks queue for the next interval: the rhythm is the game.</li>
-    <li><b>Everything is public.</b> Skills, inventories, names: all world
-    state is verifiable by anyone. Your 99 will be provable forever.</li>
+    <li><b>Your character is a file.</b> <code>identities/</code> holds your key.
+    Back it up. There is no password reset in a world with no authority.</li>
+    <li><b>One action per interval.</b> The world moves once a second and so do
+    you. Clicks queue for the next interval; the rhythm is the game, and no
+    amount of clicking beats it.</li>
+    <li><b>Everything is public.</b> Trades, packs, names, every deed ever
+    committed. Your mastery will be provable by strangers long after you stop
+    playing.</li>
   </ul>
 </main></div></body></html>

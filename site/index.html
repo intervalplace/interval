@@ -1,121 +1,141 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Interval: a world that runs on rules, not servers</title>
+<title>Interval: a world with a constitution instead of an owner</title>
+<meta name="description" content="A small persistent world that runs on the machines of the people playing it. No company, no servers, no account. The rules are a public document and its hash is the world's name.">
 <link rel="stylesheet" href="/site/site.css"><script src="/site/items.js" defer></script></head><body>
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
   <div class="torch l"></div><div class="torch r"></div>
   <h1>INTERVAL</h1>
-  <p class="tagline">A world that runs on rules, not servers.</p>
+
+  <p class="thesis">A world with <b>a constitution</b> instead of an owner.</p>
 
   <div class="tick" id="tick">·····</div>
   <div class="stats" id="stats">
     <div class="stat"><div class="k">awake</div><div class="v" id="s-awake">&middot;</div></div>
-    <div class="stat"><div class="k">souls</div><div class="v" id="s-souls">&middot;</div></div>
+    <div class="stat"><div class="k">citizens</div><div class="v" id="s-souls">&middot;</div></div>
     <div class="stat"><div class="k">settled</div><div class="v" id="s-settled">&middot;</div></div>
   </div>
   <div class="worldid" id="worldid"></div>
   <div class="ticklabel" id="ticklabel"></div>
 
-  <!-- THE DOOR, AND IT SHOULD LOOK LIKE ONE.
-       "Play in this browser" was one sentence in a paragraph two screens
-       down, ranked equal with the manual and the hiscores. Somebody arriving
-       here wants to know two things in this order: can I play it, and is it
-       going to ask me for anything. Both answers are on this button. -->
   <div class="playbox">
     <a class="playbtn" href="/play">PLAY IN YOUR BROWSER</a>
-    <div class="playsub">No account or download, and forever ad-free. 
-      <span class="nowrap">Nothing to install. It is one web page.</span></div>
+    <div class="playsub">No account, no download, no ads, no payment.
+      <span class="nowrap">It is one web page.</span></div>
   </div>
 
-  <div class="tenets">
-  <p class="tenet"><i data-item="logs" title="wood for the fire: the world burns as long as someone feeds it"></i><b>Free forever.</b> No company, no servers, no
-  subscription. The world runs on the computers of the people playing
-  in it, and stays alive as long as anyone cares.</p>
-  <p class="tenet"><i data-item="sigil" title="the sigil: what you hold is who you are"></i><b>Your key is your character.</b> A cryptographic keypair
-  on your machine. No account, no password reset, no one to confiscate it.</p>
-  <p class="tenet"><i data-item="magic-stone" title="starstone: one substance, and every window paints it differently"></i><b>Any window you like.</b> There is no official
-  look. This site's client is one window among many; the same world
-  renders in a terminal, in ASCII, or in whatever anyone builds.</p>
-  <p class="tenet"><i data-item="cooked-fish" title="the first thing any citizen ever makes: two skills, and neither of them fighting"></i><b>No combat level.</b> A citizen is
-  introduced by their <b>standing</b>, the sum of all sixteen skills, and their
-  <b>calling</b>, the trade they are best at. Combat is three skills of sixteen,
-  and this world does not rank its people by their capacity for violence.</p>
-  <p class="tenet"><i data-item="ale" title="the brewhouse: what the night shift is really for"></i><b>Bots hold the lanterns.</b> An executor runs its own
-  node, like everyone else, so the same script that grinds woodcraft is also
-  verifying every interval and enforcing the constitution on everyone, itself
-  included. Automation is priced into the economy; presence cannot be automated.</p>
-  </div>
+  <p class="lede">Every second, the world advances one <b>interval</b>. Everything
+  that has ever happened here happened on one, and every interval is written
+  down. There is no server deciding what is true: each machine running Interval
+  computes the next state itself from the rules, and a quorum of them certifies
+  the result. If they cannot agree, the world <b>stops</b> — it does not split
+  into two worlds that disagree.</p>
 
-  <p class="lede"><b>This is a place you live in.</b> Interval is a small
-  online world in the spirit of early-2000s browser games. Tallyholm is
-  one island of seven countries, the Greenwood, the Heartlands, the
-  Downs, the Moor, the Crags, the Fens and the Wilds, with nineteen
-  named places within them. Cut timber in the Greenwood, dig the Crags,
-  fish the Fens, fight the skeleton-knights that muster in the Wilds,
-  forge star gear, brew ale in a house of your own, chart the frontier
-  and sell the way, or keep a stall so somebody else does not have to
-  walk. Every 600 milliseconds the world advances one interval, and
-  everything that ever happens, happens on one.</p>
+  <p class="lede">The rules are a document. Not a description of the game, the
+  game itself: <code>SPEC.md</code>, and its hash is this world's name. Change a
+  line and you have not patched Interval, you have <b>founded a different
+  world</b>, and everyone is free to stay where they are. Nobody here can be
+  updated against their will, charged, or shut off.</p>
 
-  <p class="lede"><b>And it holds itself up.</b> There is no game server.
-  The rules are written in a public constitution, every node computes
-  the world independently, and a quorum of witnesses certifies each
-  interval, a proof anyone can check against the founding record alone.
-  Under a network split the world stops rather than fork: a stopped
-  world, never two. Nobody can shut it down, charge for it, or change it
-  out from under you. An update you don't like is just a different world
-  you don't have to move to.</p>
+  <ul class="claims">
+    <li>
+      <h4>Your key is your character</h4>
+      <p>A keypair made on your own machine and never sent anywhere. There is no
+      account to recover and nobody who could take it. Back up the file; it is
+      the whole of you.</p>
+    </li>
+    <li>
+      <h4>Nine trades, and none of them ranks you</h4>
+      <p>A citizen is introduced by their <b>standing</b> — the sum of all nine
+      trades — and by a <b>calling</b> they swear at level thirty and can never
+      put down. Fighting is one trade of nine. This world does not measure people
+      by their capacity for violence.</p>
+    </li>
+    <li>
+      <h4>Goods stay where you left them</h4>
+      <p>Every counting house is its own vault. Ore banked in the Crags is in the
+      Crags, and getting it anywhere else means somebody walks. That is why the
+      road is a trade.</p>
+    </li>
+    <li>
+      <h4>Ranks are proofs, not claims</h4>
+      <p>Nobody publishes the standings; they are arithmetic anyone can redo from
+      signed deeds. A rank here is not this site's opinion of you, and it comes
+      with you into any world founded on the same constitution.</p>
+    </li>
+    <li>
+      <h4>A script is a citizen</h4>
+      <p>Automation is expected, and it is priced into the economy rather than
+      forbidden. A bot runs its own node, so the same program grinding timber is
+      also verifying every interval and holding itself to the constitution.
+      What cannot be automated is <span class="said">being somewhere</span>.</p>
+    </li>
+    <li>
+      <h4>Any window you like</h4>
+      <p>There is no official client. This site ships one; the same world renders
+      in a terminal, in ASCII, in 3D, or in whatever anyone builds against the
+      spec. None of them is more real than another.</p>
+    </li>
+  </ul>
 
-  <p class="lede"><b>The world is an island named Tallyholm.</b> A tally is
-  the split stick whose two halves prove each other, which is how this
-  world stays real. What follows is not a picture of the map: it is the
-  map, and <a href="/map">the living copy</a> is computed in your browser
-  from the seed by the same functions every node verifies. TEN towns, two
-  passes through a Ridge that now runs sea to sea &mdash; and the southern
-  one is shut, filled with a rockfall the island may dig through together
-  &mdash; nineteen meres and tarns inland, and one island in the northwest
+  <h2>The island</h2>
+  <p class="lede">Tallyholm — a tally being the split stick whose two halves prove
+  each other. Seven countries: the <b>Greenwood</b>, the <b>Heartlands</b>, the
+  <b>Downs</b>, the <b>Moor</b>, the <b>Crags</b>, the <b>Fens</b>, and the
+  <b>Wilds</b>. Ten towns, two passes through a Ridge that runs sea to sea — the
+  southern one shut behind a rockfall the island may one day dig through
+  together — nineteen meres and tarns inland, and one island in the northwest
   that appears on no road and carries no label.</p>
+
+  <p class="lede">What follows is not a picture of the map. It <b>is</b> the map:
+  <a href="/map">the living copy</a> is computed in your browser from the founding
+  seed by the same functions every node verifies.</p>
+
   <p><a href="/map"><img src="/tallyholm.png" alt="The chart of Tallyholm"
     style="width:100%;height:auto;display:block;border:2px solid var(--stone-dk)"></a></p>
 
-  <p class="lede last"><a href="/play"><b>Choose a window</b></a> and you
-  are in. To run your own node instead, and be one of the machines the
-  world is computed on, the <a href="/quickstart">New Player Guide</a>
-  takes about two minutes. <a href="/manual">The Manual</a> has
-  everything else, and standings live on the
-  <a href="/hiscores">Hiscores</a>.</p>
+  <p class="lede">Fell timber in the Greenwood and saw it into boards. Dig the
+  Crags. Fish the Fens and cook what you land. Sow a field, raise a brewpot,
+  keep a stall so that somebody else does not have to walk. Chart the frontier
+  and sell the way across it. Carry another citizen's goods for money. Go into
+  the Wilds, where the best ore is and nothing helps you.</p>
 
-  <div class="footer">An independent
-  project with no affiliation to Jagex. The constitution is the game.</div>
+  <div class="rule"><b>The world is watching itself.</b> You do not have to trust
+  this site. Run a node and your machine recomputes every interval from the
+  founding record, refuses any state it did not derive itself, and refuses to
+  start at all if your copy of the constitution does not hash to this world's
+  rules. <a href="/quickstart">The Guide</a> takes about two minutes.</div>
+
+  <p class="lede last"><a href="/play"><b>Play in your browser</b></a> to be in it
+  now. <a href="/quickstart">The Guide</a> is your first hour and how to run a
+  node. <a href="/manual">The Manual</a> is everything the world knows about
+  itself. Standings are on the <a href="/hiscores">Hiscores</a>.</p>
+
+  <div class="footer">An independent project, affiliated with nobody.
+  The constitution is the game.</div>
 </main></div>
 <script>
 async function poll() {
   try {
     const r = await fetch('/api/world'); const j = await r.json()
     document.getElementById('tick').textContent = String(j.tick).padStart(9, '0')
-    // The counter above already says the tick, so saying it again in words was
-    // one fact twice. And the full worldId is sixty-four characters: on a phone
-    // it wrapped to two lines and buried everything else. It belongs here, but
-    // quietly, and in full only for anyone who actually wants it.
-    // Three facts, each with its own label, rather than one sentence of them
-    // strung together on middots. A number under a word is read at a glance;
-    // a clause has to be parsed.
     const put = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v }
     put('s-awake', (j.awake ?? j.players).toLocaleString())
     put('s-souls', j.players.toLocaleString())
     put('s-settled', Math.round(j.finalizedTick ?? j.tick).toLocaleString())
     const w = document.getElementById('worldid')
     if (w) {
+      // The world's name is its constitution's hash. Shown short because it is
+      // sixty-four characters and would bury the page; shown in full on hover
+      // for anyone actually checking it against their own node.
       w.textContent = 'world ' + String(j.worldId).slice(0, 12) + '\u2026'
-      w.title = j.worldId // the whole thing, for anyone verifying against their own node
+      w.title = j.worldId
     }
     document.getElementById('ticklabel').textContent = ''
   } catch {
-    // the stats stay as they were; only the status line speaks up
     document.getElementById('ticklabel').textContent = 'world unreachable. Is a node running?'
   }
 }
 poll(); setInterval(poll, 1200)
 </script>
-
 </body></html>

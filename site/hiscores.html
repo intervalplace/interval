@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hiscores: Interval</title>
 <link rel="stylesheet" href="/site/site.css"></head><body>
-<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The rename from eighteen skills to nine
+<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The merge from eighteen skills to nine
      mapped several old icons onto each new id, and SVG uses only the first
      symbol with a given id -- so nine drawings were shipping dead while
      wayfaring had no icon at all. One per trade now, in SKILLS order.
@@ -16,7 +16,10 @@
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
   <h1>Hiscores</h1>
-  <p class="tagline">Every rank on this page is cryptographically provable. No exceptions, no appeals.</p>
+  <p class="tagline">Every rank on this page is cryptographically provable. No exceptions,
+  no appeals — and nobody to appeal to. A rank here is arithmetic anybody can redo from
+  signed inputs and certified history, so it is yours rather than this server's, and it
+  crosses with you into any world founded on the same constitution.</p>
   <div id="finder">
     <input id="find" type="search" placeholder="Find a citizen" autocomplete="off" spellcheck="false">
     <button id="findme" class="stab" title="The window keeps your key in this browser">Find me</button>
@@ -27,8 +30,8 @@
   <div id="picker"></div>
   <div id="board">Loading the world…</div>
 
-  <h2>The Sixteen</h2>
-  <p>One race per skill, and each one can only be won once. A race that is
+  <h2>The Nine</h2>
+  <p>One race per trade, and each one can only be won once. A race that is
   over names its winner for as long as the world lasts. A race still running
   names whoever is closest, and how much of the climb they have behind them.
   The last level alone is 1,112,977 experience, near a seventh of the whole
@@ -101,7 +104,7 @@ try {
 // A citizen is introduced by their CALLING though, and a calling had no board
 // at all: the best brewer alive had no way to learn that they were.
 // Seventeen equal buttons is a wall. Standing is not a trade and should not
-// look like one, and the sixteen already have families: these are the manual's
+// look like one, and the nine already have families: these are the manual's
 // own, copied from its skills table so the site cannot quietly disagree with
 // its own documentation about what kind of thing a skill is.
 const FAMILIES = [
@@ -113,6 +116,36 @@ const FAMILIES = [
   ['road',    ['wayfaring']],
   ['mourning', ['mourning']],
 ]
+
+// §5k: SEVENTEEN CALLINGS ACROSS NINE TRADES, AS A SECOND AXIS.
+//
+// A calling had no board, so the best brewer alive had no way to learn that
+// they were: hearthcraft ranks farmers and brewers against each other and a
+// brewer who never sows is beaten by a farmer who never brews. But seventeen
+// equal buttons is a wall, and it pushed the ranks off the bottom of a phone.
+//
+// So a calling is not a THIRD kind of board. It is a filter on the trade it
+// belongs to, and it appears only once a trade is chosen -- one row of at most
+// three, under the nine. `prowess` is the whole argument: the berserker and
+// the warden take opposite bargains (§5k-ii, §5k-iii) and ranking them in one
+// column measures neither.
+//
+// Sworn only. A citizen who has not sworn is on the trade board and nowhere
+// else, because §5k says unsworn is a choice and not a waiting room -- putting
+// them in somebody's calling by inference would be the derived calling coming
+// back through the window it was thrown out of.
+const CALLINGS_OF = {
+  woodcraft:    ['forester', 'firekeeper', 'fletcher'],
+  earthcraft:   ['miner', 'smith'],
+  shorecraft:   ['fisher', 'cook'],
+  hearthcraft:  ['farmer', 'brewer'],
+  prowess:      ['fighter', 'berserker', 'warden'],
+  mourning:     ['mourner'],
+  marksmanship: ['archer'],
+  sorcery:      ['alchemist'],
+  wayfaring:    ['cartographer', 'runner'],
+}
+let CALLING = null   // null = every citizen at this trade, sworn or not
 
 // Two controls for one choice. A wall of seventeen buttons pushed the actual
 // rankings off the bottom of a phone: someone opening a hiscores page wants to
@@ -158,9 +191,30 @@ function drawPicker() {
     + rest.map(x => tab(x, x)).join('') + '</div></div>'
   wide += '</div>'
 
-  el.innerHTML = sel + wide
-  const choose = (v) => { VIEW = v; PAGE = 0; PROFILE = null; drawPicker(); if (LAST) drawBoard(LAST) }
-  for (const b of el.querySelectorAll('.stab')) b.onclick = () => choose(b.dataset.view)
+  // --- the second axis: the callings of the chosen trade, and only then ---
+  let call = ''
+  const cs = CALLINGS_OF[VIEW]
+  if (cs && cs.length) {
+    const ac = activeCalling()
+    const ctab = (v, label) => '<button class="stab' + (ac === v ? ' on' : '')
+      + '" data-calling="' + (v ?? '') + '">' + label + '</button>'
+    call = '<div class="prow prow-calling"><span class="plab">sworn</span><div class="ptabs">'
+      + ctab(null, 'everyone') + cs.map(c => ctab(c, c)).join('') + '</div></div>'
+  }
+
+  el.innerHTML = sel + wide + call
+  // Changing TRADE clears the calling: 'brewer' is not a thing you can be at
+  // woodcraft, and a filter that survives the board it belongs to is a filter
+  // that silently empties the next one.
+  // The unaided count describes the board, so changing the board must redraw
+  // it. Without this the count survives the population it was counting.
+  const choose = (v) => { VIEW = v; CALLING = null; PAGE = 0; PROFILE = null
+    drawPicker(); wireUnaided(); if (LAST) drawBoard(LAST) }
+  for (const b of el.querySelectorAll('.stab[data-view]')) b.onclick = () => choose(b.dataset.view)
+  for (const b of el.querySelectorAll('.stab[data-calling]')) b.onclick = () => {
+    CALLING = b.dataset.calling || null; PAGE = 0; PROFILE = null
+    drawPicker(); wireUnaided(); if (LAST) drawBoard(LAST)
+  }
   const sb = el.querySelector('#pickskill')
   if (sb) sb.onchange = () => choose(sb.value)
 }
@@ -172,7 +226,7 @@ function drawBoard(j) {
   if (PROFILE) { drawCitizen(j); return }
 
   if (VIEW === 'standing') { // the whole world, by the sum of everything
-    // Sixteen skills laid sideways made a table nineteen columns wide that
+    // Nine trades laid sideways still made a table too wide to read, and
     // nobody could read and no phone could show. A board is for finding a
     // citizen; a citizen's own page is for reading their trades. So this shows
     // what the ranking IS, and the detail lives one click away.
@@ -192,15 +246,24 @@ function drawBoard(j) {
     return
   }
 
-  // one trade, ranked by the work done in it and nothing else
+  // one trade, ranked by the work done in it and nothing else -- and, if a
+  // calling is chosen, only the citizens who SWORE it. Ranks are recomputed
+  // within the filter rather than carried over from the trade board: being
+  // fourth of all hearthcrafters and first of all brewers are different facts
+  // and the page must not print one while meaning the other.
   const sk = VIEW
-  const ranked = j.players
-    .map(p => ({ name: p.name, playerId: p.playerId, level: p.levels[sk] ?? 1, xp: (p.skillXp ?? {})[sk] ?? 0 }))
-    .filter(p => p.xp > 0)
+  const ranked = population(j)
+    .map(p => ({ name: p.name, playerId: p.playerId, sworn: p.sworn, unaided: p.unaided,
+                 level: p.levels[sk] ?? 1, xp: (p.skillXp ?? {})[sk] ?? 0 }))
     .sort((a, b) => b.xp - a.xp)
   if (!ranked.length) {
-    el.innerHTML = '<p style="color:var(--dim)">Nobody has done a day of ' + sk
-      + ' yet. The first rank is there to be taken.</p>'
+    el.innerHTML = activeCalling()
+      // §5k gates swearing at level thirty, so an empty calling board early in
+      // a world is the ordinary state and should not read as an error.
+      ? '<p style="color:var(--dim)">Nobody has sworn <b>' + activeCalling() + '</b> yet. '
+        + 'A calling is sworn at thirty in its own trade, and cannot be put down.</p>'
+      : '<p style="color:var(--dim)">Nobody has done a day of ' + sk
+        + ' yet. The first rank is there to be taken.</p>'
     return
   }
   const rows = ranked.map((p, i) => ({ p, rank: i + 1 })).filter(x => matches(x.p))
@@ -219,7 +282,7 @@ function drawBoard(j) {
 }
 
 // One citizen, read downwards. Every trade on its own row with the rank they
-// hold in it, which is the thing sixteen sideways columns could never show:
+// hold in it, which is the thing sideways columns could never show:
 // that a citizen ranked ninetieth in the world is fourth in the world at
 // fishing. Standing sits at the top because it is the sum of what follows.
 function rankIn(players, skill, pid) {
@@ -374,6 +437,39 @@ function wireBoard() {
   }
 }
 
+// §7dk: WHO THIS BOARD IS ABOUT, in one place.
+//
+// The unaided count exists to make the filter legible -- on a young world it
+// removes nobody, and a control whose no-op looks like a fault is worse than
+// no control. That only works if the count describes the board you are LOOKING
+// AT. It counted the whole island instead, which was merely loose while every
+// board was the island or a trade, and became wrong the day a calling board
+// could hold three people out of sixty.
+//
+// So the board and the button ask one function rather than two. This is the
+// same rule the engine keeps relearning: a gate and its resolver taught
+// separately will disagree, and the disagreement is always silent.
+//
+// It does NOT apply the search or the unaided clause. Those are views of a
+// population; this is the population.
+// A calling belongs to exactly one trade, so `brewer` on the woodcraft board is
+// not a narrow board -- it is brewers ranked by woodcutting. `choose` clears
+// CALLING on every trade change and that is enough TODAY, which is precisely
+// the shape of every silent disagreement in this codebase: correct because a
+// caller remembered. The pair is validated where it is READ instead.
+function activeCalling () {
+  return (CALLINGS_OF[VIEW] ?? []).includes(CALLING) ? CALLING : null
+}
+
+function population (j) {
+  const all = j?.players ?? []
+  if (VIEW === 'standing') return all
+  const c = activeCalling()
+  return all
+    .filter(p => !c || p.sworn === c)
+    .filter(p => ((p.skillXp ?? {})[VIEW] ?? 0) > 0)
+}
+
 // the rank shown is always the citizen's real rank in the world, never their
 // position in a filtered list: a search should not flatter anyone
 const matches = (p) => (!ONLY_UNAIDED || p.unaided === true)
@@ -405,12 +501,20 @@ function wireUnaided() {
   // And a pillar on an older build sends no `unaided` field at all, in which
   // case the filter would silently empty the board. A control whose failure
   // looks identical to its no-op is worse than no control, so that says so too.
-  const all = LAST?.players ?? []
-  const told = all.some((p) => p.unaided !== undefined)
+  const all = population(LAST)
+  const told = (LAST?.players ?? []).some((p) => p.unaided !== undefined)
   if (!told) {
     b.disabled = true
     b.title = 'This pillar does not report it yet'
     b.textContent = 'unaided \u2014 this pillar does not say'
+    return
+  }
+  if (!all.length) {
+    // Nobody is on this board at all, so there is nothing for the filter to be
+    // a view OF. Leaving it live would offer a choice between two empty lists.
+    b.disabled = true
+    b.textContent = 'unaided'
+    b.title = 'Nobody is on this board yet'
     return
   }
   const un = all.filter((p) => p.unaided === true).length
@@ -501,7 +605,7 @@ async function loadFirsts() {
 // is only an advertisement.
 //
 // A skill with nobody on either board is not drawn at all. An empty row of
-// dashes for eighteen skills says nothing except that the world is young, and
+// dashes for nine trades says nothing except that the world is young, and
 // the page can say that once in a sentence instead.
 function loadRecordsInto(el, j) {
   const R = j.records ?? {}

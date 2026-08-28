@@ -1,5 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Manual: Interval</title>
+<meta name="description" content="Everything the world knows about itself: the nine trades, standing and calling, the island, and how a world holds itself up without a server.">
 <link rel="stylesheet" href="/site/site.css"><script src="/site/items.js" defer></script></head><body>
 <svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The rename from eighteen skills to nine
      mapped several old icons onto each new id, and SVG uses only the first
@@ -8,30 +9,36 @@
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone">
   <h1>The Manual</h1>
-  <p class="tagline">Everything the world knows about itself.</p>
+  <p class="thesis">Everything the world knows about itself.</p>
 
   <h2>The world in one paragraph</h2>
-  <p>Interval is a deterministic world: fixed rules, integer numbers,
-  time in 600ms intervals. Every node computes the same next state from
-  the same inputs, so no one is the referee. A quorum of witnesses named
-  in the constitution certifies each interval, they recompute the
-  transition themselves and attest to the <i>result</i>, not merely the
-  proposal, so a finalized interval carries a portable proof anyone can
-  check against the founding record alone. Under partition the world
-  <b>stops finalizing rather than fork</b>: a stopped world, never two
-  worlds. The rules live in <code>SPEC.md</code>, the constitution; the
-  finality machinery in <code>CONSENSUS.md</code>. Changing either
-  creates a new world, and nobody is ever force-updated.</p>
+  <p>Interval is deterministic: fixed rules, integer arithmetic, time in
+  one-second intervals. Every node computes the same next state from the same
+  inputs, so nobody is the referee. A quorum of witnesses named in the
+  constitution certifies each interval &mdash; they recompute the transition
+  themselves and attest to the <i>result</i>, not to the proposal &mdash; so a
+  finalized interval carries a proof anyone can check against the founding
+  record alone. Under a network split the world <b>stops finalizing rather than
+  fork</b>. A stopped world, never two. The rules live in <code>SPEC.md</code>,
+  the constitution; the finality machinery in <code>CONSENSUS.md</code>.
+  Changing either founds a new world, and nobody is ever force-updated.</p>
+
+  <div class="rule">The world&rsquo;s name is the hash of its constitution. A node
+  whose copy hashes differently is playing a different game and is refused at
+  the door &mdash; not as a version check, but because it literally is a
+  different world.</div>
 
   <h2>The nine trades</h2>
   <p>Levels run 1 to 100 on a curve that is cheap to begin and ruinous to
-  finish: the first fifty levels cost about a third of what the last seven do,
-  and mastery at 100 is 37,503,873 experience. Reaching it is meant to take a
-  very long time. Master all nine and the whole world hears of it.</p>
+  finish. The first fifty levels cost about a third of what the last seven do,
+  and mastery at 100 is 37,503,873 experience. The final level alone is near a
+  seventh of the whole ascent, so a citizen can sit in sight of it for a very
+  long time while everybody watches. Master all nine and the world hears of
+  it.</p>
   <p>A trade here is a <b>whole trade</b>, not half of one. Nothing about the
   world said that felling a tree and burning it were two crafts, or that the
   citizen who digs the ore should have to hand it to somebody else to be
-  useful — so they don't.</p>
+  useful &mdash; so they don't.</p>
   <table>
     <tr><th>Trade</th><th>Kind</th><th>How it trains</th></tr>
     <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-woodcraft"/></svg>Woodcraft</td><td>Craft</td><td>Fell trees for logs; saw them into planks at a pit; cut them into bows, staves and arrows; and light what is left. The axe, the bench and the fire are one trade.</td></tr>
@@ -46,20 +53,18 @@
   </table>
 
   <h2>Standing and calling</h2>
-  <p>A citizen is introduced by two things, and neither is a score.
-  <b>Standing</b> is the sum of your true level in all nine trades, so it
-  privileges nobody: a wayfarer who never draws a sword and a warden who never
-  brews are measured by the same rule. Its only limit is how large a number the
-  world will hold, which lands at level 171 and which nobody will reach, because
-  mastery at 100 is a milestone rather than a limit and a citizen who keeps
-  going keeps rising.</p>
+  <p><b>Standing</b> is the sum of your level in all nine trades. It privileges
+  nobody: a wayfarer who never draws a sword and a warden who never brews are
+  measured by one rule. Mastery is a milestone, not a ceiling &mdash; a citizen
+  who keeps going keeps rising, and the only real limit is how large a number
+  the world will hold.</p>
 
-  <p><b>Calling</b> is what you <b>swear</b>. It used to be computed — whichever
-  trade you had the most experience in — and that stopped being possible when
-  nine trades replaced eighteen skills: one number cannot tell a berserker from
-  a warden, or a farmer from a brewer. So it is a word you say about yourself
-  instead, at level thirty in the trade it belongs to, and it cannot be put
-  down. There are seventeen:</p>
+  <p><b>Calling</b> is what you <b>swear</b>. It was once computed from whichever
+  trade you had most experience in, and that stopped being possible when nine
+  trades replaced eighteen skills: one number cannot tell a berserker from a
+  warden, or a farmer from a brewer. So it is a word you say about yourself, at
+  level thirty in the trade it belongs to, and <b>it cannot be put down</b>.
+  There are seventeen.</p>
 
   <table>
     <tr><th>Trade</th><th>Callings</th></tr>
@@ -74,350 +79,99 @@
     <tr><td>mourning</td><td>mourner</td></tr>
   </table>
 
-  <p>Swearing is not free and it is not only a label. A sworn calling learns
-  <b>half again</b> from its own work and <b>half as much</b> from a sibling's,
-  so a forester is quickest at the trees and slowest at the bench. The three
-  callings of prowess are paid differently — in flesh rather than in rate — and
-  the table under <i>How fighting works</i> gives the bargain.</p>
+  <p>Swearing is not only a label. A sworn calling learns <b>half again</b> from
+  its own work and <b>half as much</b> from a sibling&rsquo;s, so a forester is
+  quickest at the trees and slowest at the bench. The three callings of prowess
+  are paid in flesh instead of in rate: a <b>berserker</b> takes a smaller frame,
+  a <b>warden</b> a larger one and a harder guard. Being unsworn is a choice and
+  not a waiting room &mdash; an unsworn citizen trains everything at par,
+  forever, and some will.</p>
 
-  <p><b>Not swearing is also a choice.</b> Train anything, be bound by nothing,
-  and answer to your most experienced trade as callings always worked. That is
-  the generalist; a sworn calling is the specialist; both are played on
-  purpose. Thirty is the gate because a citizen who chose before they had held
-  the tools would be guessing, and every record afterwards would belong to
-  whoever guessed luckiest.</p>
+  <h2>The body</h2>
+  <p>Every citizen has the same frame: <b>sixty-four</b>, from the first
+  interval to the last. It does not grow with a skill, because when it did, a
+  citizen who had never been in danger was harder to kill than one who had,
+  purely for having swung more.</p>
+  <p>What progresses instead is <b>being hit</b>. Armour is not a subtraction
+  from damage; it is in the roll. A citizen in star plate is not shrugging blows
+  off, they are being <i>missed</i>. Against the same attacker, the difference
+  between nothing and a full star suit is a fivefold change in how long you last
+  &mdash; and no change at all in how hard you are struck when it lands.</p>
 
-  <pre>Erik &middot; brewer (412)</pre>
-  <p>The number says how much of the world you have touched. The word says who
-  you are, and it is the more useful half: it tells you who to ask for a
-  forging job, who sells charts, and whose tavern you are standing in. There is
-  deliberately no combat level. Fighting is one trade of nine, and a world whose
-  countries are wood, stone, water, danger and home does not rank its people by
-  their capacity for violence. Because both are derived from public state by a
-  rule in the constitution, every window shows you the same citizen.</p>
+  <div class="rule"><b>Death.</b> Your pack is gone; your trades, name and coin
+  survive. You also take a <b>wound</b>, one permanent point off the frame, to a
+  maximum of ten. Wounds are cleared only at the <b>wellspring</b>, which is not
+  in any town.</div>
 
-  <h2>Watchfires</h2>
-  <p>An experienced firemaker can <b>kindle a watchfire</b>: a great fire on a
-  cairn of stones, bought with a heap of logs, that throws light across the
-  country for everyone who passes. Nobody owns the light. Anyone may
-  <b>stoke</b> any watchfire with a log, and the wood they give both extends
-  the burn and pays them woodcraft experience, so feeding a neighbour's fire
-  is not charity. While it burns, its keeper earns a slow trickle for the
-  vigil. Because burn time is only ever bought with wood, nobody earns
-  anything a forester did not first cut.</p>
-  <p>A fire left cold long enough crumbles to ash and returns its ground to the
-  commons, and watchfires can be walked through, so no arrangement of them can
-  wall a door. Nobody is assigned to light the long road between two towns. If
-  it gets lit, it is because somebody decided it should be, and every traveller
-  after them walks in a light they did not build.</p>
+  <h3>Mending</h3>
+  <p>Food is a <b>rate</b>. Its value is the total it will pay and its kind
+  decides how fast: the preserved and the brewed mend one an interval, cooked
+  food two, and a cooked deep-water fish three, which is the quickest mending in
+  the world. Nothing arrives in the interval it is swallowed, and eating twice
+  takes the larger debt rather than the sum &mdash; so a full pack of fish is not
+  a second health bar.</p>
+  <p>Three things restore at once, and each is paid for differently. A
+  <b>well</b> is a place: full, free, instant, and then dry for a hundred
+  intervals for everybody. <b>Mend</b> is a person: a sorcerer casts it on
+  somebody else. <b>Forage</b> is the ground: eaten where it lies, impossible to
+  carry, and it rots.</p>
 
-  <h2>The shape of the world</h2>
-  <p>The map is not uniform. At its heart sit <b>settlements</b>,
-  Anchor and its lesser kin, safe ground thick with banks, anvils,
-  stores, and the resources of a settled life. Push outward and the
-  land grows wilder and richer, until you reach <b>the Wilds</b>: the
-  frontier, where the best ore and the rarest quarry lie, and where the
-  world stops protecting you. Danger rises with distance, and so does
-  reward.</p>
-  <p>The founding world of the expanse is built so that <b>every direction
-  means something</b>. North is the <b>Greenwood</b>, the deep forest and the
-  best timber in the world, patrolled by wolves and, further in, bears.
-  East are the <b>Crags</b>, rocky uplands thick with ore and trolls, where the
-  smiths get their supply. South are the <b>Fens</b>, wetland and shore, all
-  shore-fishing and goblin warrens, opening onto the bay. West are the <b>Wilds</b>,
-  the frontier, where the richest magic-rock lies and the skeleton-knights
-  muster in warbands. The middle is the <b>Heartlands</b>: farmed, settled,
-  walled, and where most citizens keep a roof. Seven walled settlements stand
-  across it, every road a spoke leading back to Anchor. A citizen who learns
-  that once still knows it a year later, which is what a world owes people who
-  leave and come back.</p>
-  <p><b>There are no waystones on Tallyholm.</b> Earlier expanses had them
-  &mdash; stand beside one, attune, and recall to it later &mdash; and the
-  sixth founding took them out on purpose, because this world is built on the
-  walk and a world you can blink across is a world with no distance in it.
-  Everything you reach here, you reached on foot. The type is still in the
-  engine's vocabulary so that older worlds still compile; nothing places one.</p>
-  <p>What replaces it is <b>the toll</b>: at the Millbrook Bridge a keeper will
-  take one ordinary log to lift the bar. That is not fast travel &mdash; it is
-  a shorter walk you paid for. Round it is 385 tiles; across it is 177.</p>
+  <h2>Carrying, and where things live</h2>
+  <p>A pack is <b>twelve slots</b>. It is not storage; it is the ceiling on what
+  one piece of work may cost, which is why recipes are deep rather than bulky.</p>
+  <p>Every counting house is <b>its own vault</b>. Ore banked in the Crags is in
+  the Crags. There is no counter anywhere on the island from which a citizen can
+  reach the whole of what they own, and that is the rule that makes hauling a
+  job somebody will pay for. A vault holds eight thousand of any one kind, so a
+  career at one seam eventually has to move, sell, or walk.</p>
 
-  <h2>How fighting works</h2>
-  <p>Engage and combat runs itself: you trade blows every interval until
-  one of you falls. Two ways to fight, <b>melee</b> (prowess,
-  one trade, <b>prowess</b>) and <b>marksmanship</b> (a drawn arm, striking at
-  distance). <b>Magic</b> is not a third: it is the
-  <em>anti</em>-combat skill. Its working half is alchemy, which unmakes goods
-  into coin anywhere in the world; its sharp end is the sigil, and a sigil may
-  be spent mid-fight to <i>mend</i> or to <i>still</i> an opponent outright.
-  <b>Armour</b> forged at the anvil (iron, and the rare star plate and helm)
-  soaks every incoming blow. Death destroys what you wear and carry,
-  though a mourner of 70 carries one ordinary thing through it, and the coin in
-  your purse is never touched.</p>
-
-  <p>And a fight happens somewhere. A goblin, a wolf or a bear may leave
-  <b>forage</b> where it falls: it cannot be picked up, banked or sold, and
-  taking it eats it on the spot for six of your frame, with no gullet cooldown and
-  no free slot needed. It rots in fifty intervals. So the ground behind you is
-  worth something and the ground ahead is not, and at four points of frame it is
-  worth looking at where you are standing rather than at what you carry. Trolls,
-  skeleton-knights and the dragon leave none: the settled country feeds you and
-  the Wilds do not.</p>
-
-  <h2>Nobody can run you down</h2>
-  <p>A citizen commits one deed each interval, and fleeing is a deed. A
-  pursuer who steps cannot swing; a pursuer who swings does not step, and
-  you gain a tile. Everyone walks at the same speed, so the gap between a
-  hunter and a willing runner never closes. Sixty intervals of unbroken
-  pursuit at the top of the world costs the runner nothing at all, against
-  a sword, a spear or a bow alike. Since citizen combat requires you both
-  to stand inside the Wilds, running for the border ends it outright.</p>
-  <p>So no one citizen can rob another. Not the strongest, not the best
-  equipped. In the open, on foot, violence here needs the consent of the
-  person receiving it.</p>
-  <p>Three things take that consent away. <b>Standing still</b> is the
-  first and the ordinary one: every deed costs a tick, and earthcraft,
-  shorecraft and above all <i>fighting</i> are ticks you are not
-  running. Every skeleton-knight in the world stands inside the Wilds, so
-  the reason to go there is exactly the thing that pins you down, wounded
-  and committed, choosing between the kill you came for and the pack you
-  carry. The Wilds is not dangerous to travellers. It is dangerous to
-  anyone who stops to work, and that is the toll it charges.</p>
-  <p>The <b>star-dagger's root</b> is the second: three intervals of
-  freeze, the only instrument in the world that takes away your choice to
-  leave, on a long leash and unable to kill by itself. <b>Numbers</b> are
-  the third. One hunter corners nobody; a band corners anyone, one rooting
-  while the rest fall on what is held. Killing an unwilling citizen is a
-  thing several people must agree to do together inside three intervals,
-  and every one of them wears the Brand for fifteen minutes afterward. A
-  raiding party cannot help announcing itself.</p>
-  <p>So weigh what you carry into the Wilds, but weigh it against the
-  right question. Not whether you might be jumped on the road: you will
-  not be. Whether what is in your pack is worth <i>standing still</i>
-  for.</p>
-  <p class="shapes">
-    <span><i data-item="iron-dagger"></i><b>dagger</b>lands often, for little</span>
-    <span><i data-item="iron-spear"></i><b>spear</b>strikes from a tile away</span>
-    <span><i data-item="iron-maul"></i><b>maul</b>lands seldom, for a lot</span>
-    <span><i data-item="horn-bow"></i><b>horn-bow</b>a bear's, not a bowyer's</span>
-    <span><i data-item="old-chain"></i><b>old chain</b>never rests</span>
-  </p>
-  <p>The metal is the tier and the shape is the choice: the same ore and the
-  same star-stone worked into different answers. A dagger suits a
-  skeleton-knight's guard, a maul suits anything slow, a spear keeps a troll at
-  arm's length, and a sword asks no questions. Two weapons cannot be forged at
-  any level: the <b>old chain</b> and the <b>horn-bow</b> are taken from trolls
-  and bears or not at all.</p>
-
-  <p>The roster you'll meet: <b>goblins</b> (drop bones, sometimes ore
-  and seeds), <b>wolves</b>, <b>bears</b> (an iron hatchet, if you're
-  lucky), <b>trolls</b> (iron plate, and rarely an old chain), and,
-  mustering in warbands in and around the Wilds, the
-  <b>skeleton-knight</b>: horned, shield-bearing, hard to strike and
-  quick to bite back. Fell one and its bones pay double; fell enough and
-  one may yield the horned <b>star-helm</b> itself.</p>
-  <p><b>Star gear</b> is the frontier's reward: forged from magic-stone
-  (star sword, plate, helm) or looted from a knight. The <b>star-dagger</b>
-  strikes lighter than the sword but <i>roots</i> what it hits for a few
-  intervals, a rare, long-cooldown hold, no chaining, no
-  stun-locks. Land it well and it decides a fight.</p>
-
-  <h2>The Brand</h2>
-  <p>The Wilds begin at the <b>Brandline</b>: a line of standing stones you walk between, with no ditch, no gate and no confirmation. The law and the look are the same line: if the ground has turned, you are in them. Strike an unprovoked citizen there and you are <b>branded</b>,
-  your name burns crimson and a hot-iron mark rides above you for
-  a time, seen by everyone. The rules impose no penalty; the record
-  simply makes the deed legible, and the rest of the world decides what
-  it means. Reputation, not punishment, enforced by daylight.</p>
-
-  <h2>Wayfaring &amp; charts</h2>
-  <p>The beacon keeps a handful of <b>survey markers</b> scattered across
-  the world, relocating as they're claimed so the frontier never runs
-  out. Stand on one to survey it; the XP scales with how far from home it
-  sat, so the deep, dangerous markers pay most. A <b>chart</b> is a tradeable
-  token an explorer can sell: on the expanses that had waystones it granted
-  attunement without the walk, and on Tallyholm, which has none, it is worth
-  money and opens nothing &mdash; knowledge as a good, and the only item in
-  the world whose whole value is that somebody else went and looked.</p>
-
-  <h2>The brewhouse</h2>
-  <p>Raise a <b>brewpot</b> beside a house (logs and ore to build; four
-  to a citizen), set grain to ferment into <b>ale</b> or fish into
-  <b>broth</b>, and walk away, the world does the waiting. Return
-  when it's ready and collect a stackable, tradeable draught that heals.
-  The protocol knows nothing of taverns; it knows only that a brewpot
-  needs a roof beside it. A house ringed with brewpots and the people who
-  gather there becomes <i>somebody's tavern</i>, a meaning players assign
-  rather than one the protocol grants. There is one pot the world owns
-  already: <b>the Lantern's</b>, on the north road, which has no keeper and
-  ferments for whoever stands at it &mdash; the brew rides on the citizen, so
-  one pot serves everybody and nobody can sit on it. Brewpots are walkable
-  (they wall no one in), and an abandoned one crumbles back to the
-  commons, so the world stays open to whoever comes next.</p>
-
-
-  <h2>Alchemy, and the staff</h2>
-  <p>Any citizen may <b>transmute</b> one thing from their pack. The input is
-  called <code>alch</code> on the wire, and citizens will say alch, but the act
-  has a proper name: the thing comes apart and pays <b>four coins and
-  twenty-five magic experience</b>, the same four and the same twenty-five
-  whatever it was, a log or a star plate. One from a stack, never the stack.</p>
-  <p>It is deliberately a pittance. A keeper will always pay you more; what the
-  difference buys is <em>not having to walk</em>, and since walking is most of
-  what this world is, that is the whole design. Nobody unmakes good gear for
-  four coins; they carry it home through the Wilds, which is the risk
-  that makes the Wilds worth having. And because a keeper's purse is finite and
-  alchemy's is not, a payment that followed an item's price would be the one
-  uncapped mint in the world.</p>
-  <p>It works everywhere, including the Wilds, and it is where magic
-  <em>begins</em>: every other use of the skill needs a sigil, and a sigil is
-  three magic-stones out of the deep country. Alchemy is the first spell a
-  citizen can cast and the one they will still be casting at ninety-nine.</p>
-  <p>Bare-handed it takes four intervals. A <b>staff</b>, fletched from a
-  single log, makes it three; a <b>heartwood staff</b>, two heartwood at
-  woodcraft 90, makes it two. A staff is wielded, so carrying one means
-  carrying no sword: an alchemist crossing the Wilds with a full pack chooses
-  between converting faster and being able to fight.</p>
-
-  <h2>Stalls, keepers, and the price of a coin</h2>
-  <p>Every town has a <b>stall</b>: one trade, a short list of that trade's
-  basic iron gear, made from nothing and sold at roughly twice what the same
-  thing costs elsewhere. The axe man in Greenhollow, the armourer and the
-  arms-master in Anchor, the delver in Millbrook, the fletcher in Eastmere, the
-  seedsman in Hollybarrow. They sell; they never buy.</p>
-  <p>The premium is not a mistake. A stall does not compete with the market, it
-  competes with <em>walking</em>, and it wins by always being there and always
-  being the same. What it sells you will stop needing within a month; the point
-  is to make a building worth knowing.</p>
-  <p><b>The seedsman is the only source of seed in the world.</b> A general
-  store makes nothing at all now, its shelf holding only what citizens have
-  carried in and sold, so hearthcraft begins with a walk to Hollybarrow, and
-  afterwards you know for the rest of your life what Hollybarrow is for.</p>
-  <p>And a keeper has a <b>purse</b>: at most twelve hundred coin, recovering
-  two an interval. Selling spends it, buying off the shelf returns it. A keeper
-  who cannot pay in full refuses the sale rather than paying part, and you still
-  have your goods and the road to the next town. This is the world's entire
-  money supply, fixed forever: ten towns times two coin an interval and no more.
-  Gold circulates now instead of appearing.</p>
-  <p>One consequence worth knowing: <b>a star plate is three quarters of a
-  keeper's whole purse.</b> One will empty a town's counter to three hundred
-  coin and leave it five minutes short of affording another. The very best
-  goods do not really move through keepers at all; they pass between
-  citizens, which is what a market is for.</p>
-
-  <h2>What mastery buys</h2>
-  <p>A master gets more from the same hour, never a shorter one. Faster
-  experience would shorten the road and devalue everyone already on it; a better
-  yield leaves the road exactly as long and makes the country at the end of it
-  worth reaching.</p>
-  <table class="tbl">
-    <tr><th>At</th><th>You get</th></tr>
-    <tr><td>Woodcraft 90</td><td>Heartwood <em>instead of</em> logs</td></tr>
-    <tr><td>Shorecraft 90</td><td>The deep fish <em>instead of</em> the shallow</td></tr>
-    <tr><td>Shorecraft 80</td><td>You may cook the deep fish</td></tr>
-    <tr><td>Woodcraft 80</td><td>Eight arrows from a bone, not five</td></tr>
-    <tr><td>Woodcraft 90</td><td>The heartwood bow and the heartwood staff</td></tr>
-    <tr><td>Hearthcraft 90</td><td>Three sheaves from a row, not two</td></tr>
-    <tr><td>Earthcraft 70</td><td>The magic-rocks of the high country open to your pick</td></tr>
-    <tr><td>Mourning 70</td><td>The dearest <em>priced</em> thing you carry survives death</td></tr>
-    <tr><td>Magic 50</td><td><i>Mend</i></td></tr>
-  </table>
-  <p>Where it can be a <em>replacement</em> it is one: a master woodcutter can
-  no longer take ordinary logs at all, so the cheap end of that market belongs
-  to beginners forever. And mourning keeps only <b>priced</b> things: the
-  old chain, a dragonbow, a sigil and a chart are traded between citizens and
-  priced by nobody, so they stay exactly as losable at ninety-nine as at one.</p>
-
-  <h2>Tools, and the well</h2>
-  <p>The chance of taking a yield rises with your level <em>and with the tool in
-  your hand</em>, and is capped where only a master holding the better tool will
-  reach it. An iron hatchet is worth carrying; a <b>star hatchet</b> or <b>star
-  pickaxe</b>, earthcraft 42 and sixty in the trade it serves, is
-  worth about a sixth of a week's work.</p>
-  <p>And every settlement has a <b>well</b>. Stand beside it and drink: you are
-  restored to full, free, with no cooldown at all. The cost is already paid in
-  geography: a well stands in a town, and a town is tens of tiles from
-  anywhere worth hunting, so nobody will ever walk home mid-fight. What it
-  changes is that a town becomes somewhere you <em>return</em> to: drink,
-  restock, go out again. Before it, home was only where the bank was.</p>
-
-  <h2>Milestones</h2>
-  <p>Some deeds the whole world sees. Master a skill, and everyone is
-  told; be the <i>first</i> ever to master it, and the telling is
-  grander. Master all nine and you become a <b>Master of Interval</b>,
-  vanishingly rare, and permanent in the record. The first into
-  the Wilds, the first to fell a skeleton-knight, the first to press a
-  sigil, the first to draw a finished brew, the firsts are kept
-  forever. And each year the world marks its own age.</p>
-
-  <h2>The bank, trade, death, names</h2>
-  <p><b>The bank</b> survives death: stand at a bank and deposit one item
-  per interval; what you vault endures, what you carry can burn.
-  <b>Trade</b> is face-to-face, adjacent tiles, item for item,
-  settled atomically in one interval, whole or not at all. <b>Death</b>
-  at 0 HP returns you to spawn with your carried inventory destroyed;
-  skills, XP, your name and <b>every coin you hold</b> survive. Gold is the one
-  thing death never takes, which is why the walk to a keeper is how goods become
-  safe, and a mourner of mourning 70 also carries through the dearest
-  <em>priced</em> thing they held. <b>Names</b> are in-world objects:
-  first valid claim wins, one per character, lowercase letters, digits,
-  and hyphens, up to twelve. A claim asks for a standing of 50, so a
-  name is something you take after playing rather than before. It is
-  never released and never transferred: what you claim, you hold while
-  the world lasts.</p>
-
-  <h2>Worlds and forks</h2>
-  <p>A world is identified by the hash of its constitution. Change a rule
-  and you have created a different world on a different network: one that
-  shares history up to the fork and welcomes whoever prefers it. Updates
-  don't happen to you; they compete for you. This is how the world
-  governs itself, by exit, not by decree.</p>
-
-  <h2>Ways to play</h2>
-  <div class="cards">
-    <div class="card stone"><b>The browser windows</b><p><code>node serve.mjs yourname</code>,
-    open <code>localhost:8787/play</code> and choose a window: the
-    <b>flat</b> one in tiles from above, or the <b>deep</b> one in geometry
-    from behind the shoulder. Both are reference windows, neither is the
-    required one.</p></div>
-    <div class="card stone"><b>The terminal window</b><p><code>node play.mjs yourname</code>.
-    The whole world in ASCII, because it can be.</p></div>
-    <div class="card stone"><b>The SDK</b><p>Write your own hands. <code>sdk.mjs</code>
-    exposes the world as data and actions; a script and a human use the
-    identical interface, by design.</p></div>
-    <div class="card stone"><b>A node</b><p>Run infrastructure as a way of
-    playing. Nodes gossip inputs, certify intervals, serve checkpoints to
-    newcomers and history to the stalled.</p></div>
+  <h2>The island</h2>
+  <p>Tallyholm, seven countries. A tally is the split stick whose two halves
+  prove each other.</p>
+  <div class="places">
+    <div><b>Greenwood</b> Timber and the sawpits. Where most citizens learn a first trade.</div>
+    <div><b>Heartlands</b> Fields, towns, the seedsman, the roads that join everything.</div>
+    <div><b>Downs</b> Open grazing, twenty-eight living things, and long sight lines.</div>
+    <div><b>Moor</b> The gibbet, and the king who stands at it raising the dead he sends.</div>
+    <div><b>Crags</b> The seams. Iron, coal, and above earthcraft seventy the magic-rock.</div>
+    <div><b>Fens</b> Deep water and what lives in it. The best fishing and the worst footing.</div>
+    <div><b>Wilds</b> The best ore, the skeleton-knights, the dragon. Nothing here helps you: no forage grows, and no town will take you in.</div>
   </div>
+  <p>Ten towns, two passes through a Ridge that runs sea to sea &mdash; the
+  southern one shut behind a rockfall the island may dig through together
+  &mdash; nineteen meres and tarns inland, and one island in the northwest that
+  appears on no road and carries no label.
+  <a href="/map">The living map</a> is computed in your browser from the founding
+  seed by the same functions every node verifies.</p>
 
-  <h2>Playing by script</h2>
-  <p>The rules cannot tell a click from a script and refuse to pretend
-  otherwise. What keeps the world human is design, not detection:
-  resources deplete and are shared, processing destroys supply, trade
-  requires being adjacent, and a brew ferments in real time whether or
-  not you're watching. A bot can grind all night; it cannot be
-  <i>there</i>.</p>
-  <p>Traditional games hunt bots because bots consume a world someone
-  else pays to run. In Interval a
-  bot cannot consume the world without computing it: every automated
-  citizen with its own node is unpaid infrastructure, another machine
-  checking every hash, another witness that makes the history harder to
-  fake. The criminal class of every other MMO is, here, the police and
-  the power grid at once. Run a bot; you are holding a lantern.</p>
+  <h2>The economy</h2>
+  <p>Prices are not set by anybody. A keeper buys at a floor and a stall is
+  whatever a citizen asks. A <b>stall</b> costs ten planks and two iron-ore
+  &mdash; twelve slots, the whole of a pack, so it cannot be carried with
+  anything else &mdash; takes twenty intervals of standing still to raise, and
+  is one to a citizen. It is the only market that works while you are asleep.</p>
+  <p><b>Mourning</b> is the only trade paid in what it cost you. Offer a priced
+  thing on consecrated ground and it is destroyed; the ledger records what it was
+  worth, and the same gift twice is worth less. It is the one ladder that
+  converts wealth into progress instead of time, which is why the callings that
+  never fight can still climb.</p>
 
-  <h2>The readable world (API)</h2>
-  <p>Every serving node exposes the world as JSON: hiscores sites, clan
-  pages, and market trackers are all just windows:</p>
-  <pre>GET /api/world        &rarr; { tick, worldId, players, mobs }
-GET /api/hiscores     &rarr; { players: [{ name, levels, total, xp }] }
-GET /api/player/:name &rarr; one citizen, full public record</pre>
+  <h2>Scripts</h2>
+  <p>Automation is expected and permitted. An executor runs its own node like
+  everyone else, so the same program grinding timber is also verifying every
+  interval and enforcing the constitution on itself. Nothing here is priced to
+  punish patience, because a script does not mind waiting and the whole of that
+  cost would land on the person. What a script cannot do is <b>be somewhere</b>:
+  the scarce thing in this world is presence, and no amount of clicking buys
+  more of it.</p>
 
-  <h2>For the systems-minded</h2>
-  <p>The full constitution is <code>SPEC.md</code> in the repository,
-  state machine, XP tables, combat math, the skill rules, the
-  checkpoint and catch-up protocols, and the certified-interval
-  consensus is <code>CONSENSUS.md</code>. The engine is a single
-  dependency-light JavaScript file that runs identically in Node and
-  browsers; an adversarial simulator stress-tests the consensus against
-  equivocating witnesses and partitions, and the test suite proves no two
-  honest nodes ever finalize different history. Reimplement any of it in
-  any language: if your hashes match, you're a citizen.</p>
+  <h2>Leaving</h2>
+  <p>A citizen may cross to any world founded on a constitution they accept,
+  carrying their trades, their name and their goods &mdash; goods arrive at the
+  counter nearest where they wake, since the vaults of a world that no longer
+  exists name nothing. Founding data does not expire with the world that held
+  it.</p>
+  <p>This is what governance looks like here. There are no votes. If you dislike
+  a rule, you write the world you would rather live in and see who crosses. The
+  constitution is short enough to read and the whole engine is one file.</p>
 </main></div></body></html>
