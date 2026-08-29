@@ -14594,6 +14594,13 @@ function noughtBadPath(o, path, out, seen, d) {
 function noughtTick() {
   if (!nought) return
   const ins = nought.inputs
+  // A state the engine ticks must be canonically encodable, and a window has
+  // several places that decorate a state for drawing. `withPeers` no longer
+  // hands ours out, but this costs nothing and means a future render cache
+  // cannot stop Nought dead the way this one did.
+  delete nought.state._grid
+  delete nought.state._waterTiles
+  delete nought.state._nodeTiles
   try {
     // ONLY CLEAR THE QUEUE ON SUCCESS. Emptying `inputs` before the call meant
     // a tick that threw swallowed whatever the person had just done, which is
@@ -14727,9 +14734,22 @@ function noughtPeerSend() {
 // a render-only copy: the peers are drawn, never ticked, and never touch the
 // local world's state
 function withPeers(st) {
-  if (!peers.size) return st
+  // ALWAYS A COPY, EVEN WITH NOBODY ELSE HERE.
+  //
+  // This returned `st` untouched when `peers` was empty -- which is the normal
+  // case, since most residents are alone -- and the renderer then hung its
+  // caches on the object it was handed: `_grid` (a Map), `_waterTiles` and
+  // `_nodeTiles` (Sets). That object was `nought.state`, so the next time the
+  // tideline asked for a state hash, `canonical()` met a Map where it allows
+  // only plain objects and threw. Every tenth interval, forever.
+  //
+  // The renderer is not at fault: decorating the state it is given is fine for
+  // the live world, which this window never hashes. What was wrong was handing
+  // it the same object the local engine ticks. It gets a copy now, always, and
+  // a PLAIN one -- `Object.create(getPrototypeOf(st))` would faithfully
+  // reproduce a bad prototype if one ever arrived.
   const now = Date.now()
-  const v = Object.create(Object.getPrototypeOf(st)); Object.assign(v, st)
+  const v = { ...st }
   v.players = { ...st.players }
   for (const [id, q] of peers) {
     if (now - q.seen > 12000) { peers.delete(id); continue }   // gone quiet: gone
