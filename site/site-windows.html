@@ -1,0 +1,154 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Choose a window: Interval</title>
+<link rel="stylesheet" href="/site/site.css">
+<style>
+.doors { display: flex; flex-wrap: wrap; gap: 22px; margin: 26px 0 8px }
+.door { flex: 1 1 300px; background: linear-gradient(#1d1409, #120c06);
+  border: 1px solid #55462d; border-radius: 10px; padding: 20px 20px 22px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  transition: border-color .18s, transform .18s }
+.door:hover { border-color: #c6941e; transform: translateY(-2px) }
+.door figure { margin: 0 0 14px; height: 168px; display: flex; align-items: flex-end }
+.door h3 { margin: 0 0 2px; font: 600 19px Georgia, serif; color: #e2b63e; letter-spacing: .01em }
+.door .kind { color: #94805a; font-size: 12px; margin: 0 0 12px; letter-spacing: .06em; text-transform: uppercase }
+.door p { color: #d6c49c; font-size: 14px; line-height: 1.55; margin: 0 0 18px; max-width: 34ch }
+.enter { display: inline-block; padding: 9px 26px; border-radius: 6px;
+  background: linear-gradient(#6b5a34, #46381f); border: 1px solid #8a7444;
+  color: #f2d574; font: bold 14px Verdana, sans-serif; text-decoration: none }
+.enter:hover { background: linear-gradient(#7d6a3e, #544325); border-color: #c6941e; text-decoration: none }
+.samecap { text-align: center; color: #94805a; font-size: 13px; font-style: italic; margin: 4px 0 30px }
+</style></head><body>
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
+  <h1>Choose a window</h1>
+  <p class="tagline">All of these open the same world. None of them is it.</p>
+
+  <!-- WHY THE NUMBERS ARE THERE.
+     A visitor who has met a modern game expects a download, an account and a
+     machine that can cope. Every one of those expectations is wrong here, and
+     the fastest way to say so is a file size next to a name. -->
+<p class="spec" style="text-align:center;max-width:46em;margin:0 auto 18px;font-size:12px">
+  There is no server to connect to, so there is nothing between you and the
+  world but the page itself. A window is <b>one HTML file</b>: it holds the
+  rules, the map and the art, computes every interval on your own machine, and
+  needs about <b>120 KB</b> of world state to know where everybody is.
+  Nothing is installed and nothing is stored anywhere but here.
+</p>
+<div class="doors">
+    <div class="door">
+      <figure>
+        <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
+          <!-- the flat window: a citizen as tiles, drawn straight on -->
+          <rect x="12" y="118" width="126" height="9" fill="#3d5a23"/>
+          <rect x="12" y="127" width="126" height="9" fill="#36501e"/>
+          <rect x="12" y="136" width="126" height="9" fill="#3d5a23"/>
+          <rect x="112" y="96" width="9" height="9" fill="#5c4023"/>
+          <rect x="103" y="87" width="27" height="9" fill="#26401b"/>
+          <rect x="112" y="78" width="9" height="9" fill="#26401b"/>
+          <rect x="66" y="52" width="18" height="9" fill="#d8b784"/>
+          <rect x="66" y="61" width="18" height="9" fill="#d8b784"/>
+          <rect x="70" y="56" width="4" height="4" fill="#241a0e"/>
+          <rect x="78" y="56" width="4" height="4" fill="#241a0e"/>
+          <rect x="61" y="70" width="28" height="27" fill="#6b5a34"/>
+          <rect x="52" y="79" width="9" height="18" fill="#d8b784"/>
+          <rect x="89" y="79" width="9" height="18" fill="#d8b784"/>
+          <rect x="43" y="70" width="9" height="14" fill="#9a927e"/>
+          <rect x="61" y="97" width="10" height="21" fill="#4a3a20"/>
+          <rect x="79" y="97" width="10" height="21" fill="#4a3a20"/>
+        </svg>
+      </figure>
+      <h3>The flat window</h3>
+      <p class="kind">tiles, from above &mdash; start here if unsure</p>
+      <p class="spec">
+        <b>467 KB</b>, one page &middot; 2D canvas &middot; runs in any browser since 2015<br>
+        works well on a phone
+      </p>
+      <a class="enter" href="/play/flat">Enter</a>
+    </div>
+    <div class="door">
+      <figure>
+        <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
+          <!-- eleven tiles of country, and then nothing -->
+          <defs>
+            <linearGradient id="mw-fog" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#8a9a86"/><stop offset="1" stop-color="#5c6b59"/>
+            </linearGradient>
+            <linearGradient id="mw-near" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#6a7a58"/><stop offset="1" stop-color="#3d4c30"/>
+            </linearGradient>
+          </defs>
+          <rect x="12" y="26" width="126" height="116" fill="url(#mw-fog)"/>
+          <path d="M12 142 L75 96 L138 142 Z" fill="url(#mw-near)"/>
+          <path d="M12 142 L46 118 L52 142 Z" fill="#46562f"/>
+          <path d="M138 142 L104 118 L98 142 Z" fill="#3a4a2a"/>
+          <path d="M52 112 L56 88 L60 112 Z" fill="#3a2818"/>
+          <path d="M44 92 L56 70 L68 92 Z" fill="#33512180"/>
+          <path d="M96 108 L99 92 L102 108 Z" fill="#4a3a2880"/>
+          <path d="M96 142 L118 118 L126 124 L106 142 Z" fill="#b0b6bc"/>
+          <path d="M104 142 L120 128 L132 140 L128 142 Z" fill="#c19064"/>
+          <rect x="12" y="26" width="126" height="116" fill="none" stroke="#55462d"/>
+          <g fill="#ffffff" opacity=".10">
+            <rect x="18" y="34" width="2" height="2"/><rect x="26" y="42" width="2" height="2"/>
+            <rect x="34" y="34" width="2" height="2"/><rect x="42" y="50" width="2" height="2"/>
+            <rect x="110" y="38" width="2" height="2"/><rect x="122" y="46" width="2" height="2"/>
+          </g>
+        </svg>
+      </figure>
+      <h3>The mist window</h3>
+      <p class="kind">from inside your own head, in 1997</p>
+      <p class="spec">
+        <b>199 KB</b>, one page &middot; WebGL &middot; needs a browser since 2017<br>
+        keyboard and mouse, or a controller; a phone can open it but not play it
+      </p>
+      <a class="enter" href="/play/mist">Enter</a>
+    </div>
+  </div>
+  <p class="samecap">All of them open in this browser, and nothing is
+  installed. Nothing is chosen for good either: leave by one door, come back
+  through another, and you are the same citizen in the same place. Standing,
+  calling and inventory are identical in every one, because none of that is
+  the window's to decide.</p>
+
+  <h2>A window is not the world</h2>
+  <p>The world is not in either of these pages. It is a protocol: a rule for
+  turning one state and a set of deeds into the next state, agreed six hundred
+  milliseconds at a time by every node that runs it. Interval is that
+  agreement. Everything you see here is one program's opinion about how to
+  paint it.</p>
+  <p>Which means none of these is the client and the rest the alternatives.
+  They are windows, written first, out of the same protocol anyone else
+  can read. A window that draws the world in a terminal, or reads it aloud, or
+  paints it on a headset, or fits it into a watch face, is not a lesser way to
+  play Interval. It is Interval, seen from somewhere else.</p>
+
+  <h2>What the world insists on</h2>
+  <p>A window may choose its colours, its camera, its sounds, whether to show
+  a map at all. It may not choose what is true. Where a citizen stands, what
+  they carry, which country they are in, how much of the world they have
+  touched: all of it is settled by the protocol before any window opens, and
+  every window that reads the same tick must agree about every one of them.</p>
+  <p>That line is drawn deliberately, and it is drawn tightly. Two people who
+  disagree about where the Fens end cannot arrange to meet there, so geography
+  is law. Two people whose windows report different levels for the same
+  citizen do not have a disagreement about pixels, they have a disagreement
+  about a person, so standing and calling are law. Almost nothing else is.</p>
+
+  <h2>Write your own</h2>
+  <p>The state of the world is public and readable over a plain HTTP endpoint,
+  and a window needs nothing more than that plus the ability to sign a deed
+  with a key. No permission, no registration, no approved client list. If your
+  hashes match, you are a citizen, and so is whatever you wrote to look at it
+  with.</p>
+  <p>Four others ship with the node and are not listed here: a
+  <a href="/play/deep">deep window</a> that puts the camera behind a citizen's
+  shoulder, a <a href="/play/photo">photo window</a> that holds it at eye
+  height, a <a href="/play/lantern">lantern window</a> at forty-five degrees,
+  and a <a href="/play/holo">holo window</a>. All four still open, all four
+  still read the same tick, and none of them is kept up any more. They are left
+  in because a window nobody maintains is still a window, and because the point
+  of this page is that anyone may write one, which is worth less if the ones
+  that fall behind quietly disappear.</p>
+  <p>The <a href="/manual">manual</a> documents the state and the rules. The
+  <a href="/quickstart">New Player Guide</a> gets you playing in ten minutes.
+  Every one of them ships with the node, and every one is yours to take apart.</p>
+</main></div></body></html>
