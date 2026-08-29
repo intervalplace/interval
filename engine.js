@@ -431,9 +431,35 @@ const MAX_SPAWNS_PER_TICK = 1;
 // The buffer is bounded by construction -- a small admission budget times a
 // fixed window -- so it can never grow, never needs sweeping, and expires
 // without anybody closing a gate.
-const VIGIL_TICKS = 1000;             // §1c: kept -- seventeen minutes now, and it is a social wait
+const VIGIL_TICKS = 300;              // five minutes at a second an interval
+// FIVE, NOT TEN, AND NOT SEVENTEEN.
+//
+// The wait is a FLOOR, not a duration: nobody is made to leave when it opens.
+// So the only thing the number decides is whether the door opens before or
+// after a newcomer is ready, and opening late is much worse than opening
+// early -- Tutorial Island gated on TASKS, so you left the moment you were
+// done, where a clock can leave you standing at a door with nothing left to
+// do. A floor that lifts while somebody is still curious beats one that lifts
+// after they have started checking it.
+//
+// It costs nothing in safety: the flood is bounded by ATTEND_PER_TICK, not by
+// duration, and a bot pays the same five minutes of wall clock a person does.
+//
+// (It was a thousand ticks when an interval was 600ms -- ten minutes. The
+// interval became a second and nobody moved this, so the wait quietly became
+// seventeen.)
 const ATTEND_PER_TICK = 2;            // admissions per interval, canonical id order
-const ATTEND_WINDOW = 2000;           // an attendance ages out after twenty minutes
+const ATTEND_WINDOW = 3600;           // an attendance ages out after an hour
+// AN HOUR, BECAUSE THE PEOPLE WHO LIKE IT HERE WERE BEING PUNISHED FOR IT.
+//
+// The window between ripe and stale is the span in which a resident may cross.
+// At two thousand ticks that span was ten minutes, so somebody who ENJOYED
+// Nought and explored for half an hour walked back to the fountain, found
+// their wait expired, and owed the whole thing again. The design was hardest
+// on exactly the people it was working for.
+//
+// An hour makes the ceiling ATTEND_PER_TICK * ATTEND_WINDOW = 7,200 entries,
+// roughly 180 KB, still fixed and still swept by nobody.
 const ATTEND_CHARS = 16;              // 64 bits of playerId per entry
 // ATTEND_WINDOW must exceed VIGIL_TICKS or an attendance would mature at the
 // instant it expired. The difference is the window in which a resident may

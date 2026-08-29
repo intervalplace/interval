@@ -6545,7 +6545,7 @@ function drawLookPreview() {
 // send `spawn` on our own initiative; never let a soul cross carrying a key it
 // has not exported.
 // ---------------------------------------------------------------------------
-const VIGIL_TICKS = 1000, ATTEND_WINDOW = 2000
+const VIGIL_TICKS = 300, ATTEND_WINDOW = 3600   // §0: five minutes, stale after an hour
 let attendSentAt = -1, crossArmed = false, crossSentAt = -1, crossingOpen = false
 // the crossing is offered AT THE FOUNTAIN, on foot, and nowhere else.
 function openCrossing() {
@@ -6578,7 +6578,7 @@ function keepAttending(s) {
   send({ do: 'attend' })
 }
 const wordFor = (ticks) => {
-  const sec = Math.max(0, Math.round(ticks * 0.6))
+  const sec = Math.max(0, Math.round(ticks)   /* §0: one interval is one second now, not 600ms */)
   if (sec >= 90) return Math.ceil(sec / 60) + ' minutes'
   if (sec >= 60) return 'a minute'
   return sec + ' seconds'
@@ -6692,22 +6692,31 @@ let nought = null           // { E, state, key, inputs, timer }
 let noughtLoading = false
 const NOUGHT_ALLOWED = new Set(['attend', 'spawn'])
 
-// §0e: FURNISH THE RESIDENT. A soul arrives in Nought exactly as §5b would make
-// it -- a quiver and nothing else -- which would make a practice ground where
-// almost nothing can be practised: this world is tool-gated, so a citizen with
-// empty hands cannot cut, mine or fish at all.
+// §0f: FURNISH THE RESIDENT, IN TWELVE SLOTS.
 //
-// Nothing here crosses, so nothing here costs anybody anything. The kit is
-// therefore generous on purpose: every tool, a full set of iron, a bow with
-// arrows enough to learn with, raw material to work, and gold enough that the
-// shops and the bank are worth walking into. A resident should be able to try
-// EVERY skill in the world within the first minute, because trying is the only
-// thing Nought is for.
+// The pack was twenty-eight and is now twelve, and the old kit was fourteen
+// items: two were silently dropped by the bounds check, and a resident whose
+// pack was FULL on arrival had nowhere to put the first thing they cut. A
+// practice ground that hands you every tool and no room to use them.
+//
+// ARMOUR IS WORN, NOT CARRIED. Five equipment slots were standing empty.
+// Wearing the set costs no pack space and is what a citizen would do with it.
+//
+// AND THE MATERIALS ARE GONE, for a reason worth writing down: `logs`, `ore`,
+// `iron` and `raw-fish` are NOT in STACKABLE. A hundred logs is not one slot
+// holding a hundred, it is a hundred slots -- and `{item:'logs',qty:100}` is a
+// shape this engine would never itself produce. Worse, every log a resident
+// cuts needs its own free slot, so a generous kit is precisely what stops them
+// gathering. They arrive with the tools to get their own within a minute,
+// which was always the better lesson.
+//
+// Six slots used, six left open. `arrows` and `seeds` are the only stackers
+// here, so they cost one slot each however many are in them.
+const NOUGHT_WORN = { weapon: 'iron-hatchet', head: 'iron-helm', body: 'iron-plate', offhand: 'iron-shield' }
 const NOUGHT_KIT = [
-  ['iron-hatchet', 1], ['iron-pickaxe', 1], ['rod', 1],
-  ['iron-sword', 1], ['wooden-bow', 1], ['arrows', 500],
-  ['iron-helm', 1], ['iron-plate', 1], ['iron-shield', 1],
-  ['logs', 100], ['ore', 100], ['iron', 50], ['raw-fish', 50], ['seeds', 25],
+  ['iron-pickaxe', 1], ['rod', 1],           // the other two gated tools
+  ['iron-sword', 1], ['wooden-bow', 1],
+  ['arrows', 500], ['seeds', 25],            // both stack: one slot each
 ]
 const NOUGHT_GOLD = 10000
 function furnish(E2, st, pid) {
@@ -6716,8 +6725,12 @@ function furnish(E2, st, pid) {
   let slot = 0
   for (const [item, qty] of NOUGHT_KIT) { if (slot < p.inventory.length) p.inventory[slot++] = { item, qty } }
   p.gold = NOUGHT_GOLD
-  p.equipment.weapon = { item: 'iron-hatchet', qty: 1 }
+  for (const [where, item] of Object.entries(NOUGHT_WORN)) {
+    if (where in p.equipment) p.equipment[where] = { item, qty: 1 }
+  }
 }
+
+
 async function ensureNought(live) {
   if (nought || noughtLoading) return
   noughtLoading = true
@@ -6772,12 +6785,54 @@ function endNought() {
   if (realId) { myId = realId; realId = null }
   noughtBanner(false)
 }
+// WHAT canonical() IS CHOKING ON, named once.
+//
+// `canonical: unsupported object type` says only that SOMETHING in the state
+// has a prototype that is neither Object.prototype nor null. That message has
+// cost several rounds of guessing, so the window now walks the state it failed
+// on and says exactly which key it was and what the thing is. Once, not every
+// interval -- a message repeated a hundred times is noise, and this one only
+// needs saying the first time.
+function noughtBadPath(o, path, out, seen, d) {
+  out = out || []; seen = seen || new Set(); d = d || 0; path = path || 'state'
+  if (o === null || typeof o !== 'object' || d > 10 || out.length > 3) return out
+  if (seen.has(o)) return out
+  seen.add(o)
+  if (!Array.isArray(o)) {
+    const p = Object.getPrototypeOf(o)
+    if (p !== Object.prototype && p !== null) {
+      out.push(path + ' <' + ((o.constructor && o.constructor.name) || 'unknown') + '>')
+      return out
+    }
+  }
+  for (const k of Object.keys(o)) noughtBadPath(o[k], path + '.' + k, out, seen, d + 1)
+  return out
+}
 // one interval, privately
 function noughtTick() {
   if (!nought) return
-  const ins = nought.inputs; nought.inputs = []
-  try { nought.state = nought.E.nextState(nought.state, ins) }
-  catch (e) { feed('Nought stumbled: ' + e.message) }
+  const ins = nought.inputs
+  try {
+    const next = nought.E.nextState(nought.state, ins)
+    // ONLY CLEAR THE QUEUE ON SUCCESS. This used to empty `inputs` before the
+    // call, so a tick that threw swallowed whatever the person had just done --
+    // which is why a stumbling Nought also felt like a Nought you could not
+    // move in, even though only one interval in ten was failing.
+    nought.state = next
+    nought.inputs = []
+  } catch (e) {
+    if (!nought.stumbled) {
+      nought.stumbled = true
+      const bad = noughtBadPath(nought.state)
+      feed('Nought stumbled: ' + e.message)
+      feed(bad.length ? ('the offending value is at ' + bad.join(' and ')) : 'nothing in the state looks wrong to a walk \u2014 it may be in an input')
+      if (!bad.length && ins.length) {
+        const b2 = ins.map((i, n) => noughtBadPath(i, 'input[' + n + ']')).filter(x => x.length)
+        if (b2.length) feed('...it is in an input: ' + b2.map(x => x.join(', ')).join(' | '))
+      }
+    }
+    nought.inputs = []           // a poisoned input must not be retried forever
+  }
   const meN = nought.state.players[myId]
   if (meN && meN.hp <= 0 && !nought.died) {
     nought.died = true
