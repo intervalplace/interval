@@ -206,6 +206,18 @@ export class IntervalClient {
   offer(to, giveSlots, { item = null, gold = 0 } = {}) {
     return this.#send({ type: 'offer_trade', to, giveSlots, wantItem: item, wantGold: gold })
   }
+  // §6dj: AND THE OTHER KIND OF OFFERING. `offer()` above is a bargain struck
+  // with a person; this is a thing given up at an ossuary, and it is the only
+  // thing in the world that pays `mourning`. The SDK had no word for it, so no
+  // script and no window could mourn, and the skill sat at its floor forever.
+  offerAtOssuary(slot) { return this.#send({ type: 'offer', slot }) }
+  // §6dj: AND THE LAST FOUR TRADES THE SDK COULD NOT SPEAK. A chart drawn up
+  // into a charter, a shaft nocked, a log sawn, an ore smelted — four inputs
+  // the engine has always validated and no script could ever send.
+  charter(slot) { return this.#send({ type: 'charter', slot }) }
+  nock(slot) { return this.#send({ type: 'nock', slot }) }
+  saw(slot) { return this.#send({ type: 'saw', slot }) }
+  smelt(recipe) { return this.#send({ type: 'smelt', recipe }) }
   accept(from) { return this.#send({ type: 'accept_trade', from }) }
   cancelTrade() { return this.#send({ type: 'cancel_trade' }) }
 

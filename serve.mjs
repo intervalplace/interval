@@ -724,6 +724,7 @@ const server = http.createServer((req, res) => {
     if (path === '/play/holo' || path === '/holo') return sendFile('./window-holo.html', 'text/html')
     if (path === '/play/lantern' || path === '/lantern' || path === '/diablo')
       return sendFile('./window-diablo.html', 'text/html')
+    if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
     // Music, if the world has any. Nothing here ships with a tune: a node with
     // an empty audio/ directory simply plays nothing, and the windows fall
     // silent without complaint. Drop files in and they are found.
@@ -930,6 +931,65 @@ function handle(ws, buf) {
     else if (a.do === 'cancel_trade') client.cancelTrade()
     else if (a.do === 'chat') { if (client.chat) client.chat(String(a.text)) }
     else if (a.do === 'attackp') { if (client.attackp) client.attackp(String(a.targetId)) }
+    // §6af: THE SPECIAL BLOW WAS NEVER ROUTED. The engine takes `special`
+    // (validated at case 'special': a weapon with a `spec` and a recovered
+    // arm), the sdk has it, and window-web has sent `{do:'special'}` from its
+    // armed button all along — but this ladder never carried the word, so
+    // every special every citizen has ever thrown at this pillar was dropped
+    // in silence. Nothing is invented here: one line, joining a verb clients
+    // already send to an input the engine already checks.
+    else if (a.do === 'special') { if (client.special) client.special(String(a.targetId)) }
+    // ---- §6dj: THE WORDS THE LADDER WAS NOT CARRYING ----
+    //
+    // Everything below already existed twice over: the engine has an input for
+    // each (`inp.type === 'survey'`, `'alch'`, `'brew'` …), sdk.mjs has a
+    // method for each, and window-web sends most of them. Only this ladder was
+    // missing, so they were dropped in silence — and two whole SKILLS were
+    // unreachable by any window as a result: `mourning` is paid by `offer` at
+    // an ossuary and `wayfaring` by `survey` and `deliver`. A citizen could
+    // not have found out why; there was nothing to see.
+    //
+    // Nothing is invented here. Every line joins a verb a client already sends
+    // to an input the engine already validates. Run check-window-skills.mjs
+    // before and after to see the two skills light up.
+    else if (a.do === 'survey') { if (client.survey) client.survey() }
+    else if (a.do === 'drink') { if (client.drink) client.drink() }
+    else if (a.do === 'offer') { if (client.offerAtOssuary) client.offerAtOssuary(a.slot | 0) }
+    else if (a.do === 'alch') { if (client.alch) client.alch(a.slot | 0) }
+    else if (a.do === 'grind') { if (client.grind) client.grind(a.slot | 0) }
+    else if (a.do === 'still') { if (client.still) client.still(String(a.target)) }
+    else if (a.do === 'mendp') { if (client.mendp) client.mendp(String(a.target)) }
+    else if (a.do === 'unmake') { if (client.unmake) client.unmake(String(a.groundId)) }
+    else if (a.do === 'seal') { if (client.seal) client.seal(String(a.groundId)) }
+    else if (a.do === 'grave') { if (client.grave) client.grave(String(a.nodeId), String(a.target)) }
+    else if (a.do === 'brew') { if (client.brew) client.brew(String(a.nodeId), a.slot | 0) }
+    else if (a.do === 'collect') { if (client.collect) client.collect(String(a.nodeId)) }
+    else if (a.do === 'kindle') { if (client.kindle) client.kindle() }
+    else if (a.do === 'stoke') { if (client.stoke) client.stoke(String(a.nodeId), a.slot | 0) }
+    else if (a.do === 'consign') { if (client.take) client.take(a.slots ?? [a.slot | 0]) }
+    else if (a.do === 'deliver') { if (client.deliver) client.deliver(a.slot | 0) }
+    else if (a.do === 'release') { if (client.releaseConsignment) client.releaseConsignment() }
+    else if (a.do === 'pay') { if (client.pay) client.pay() }
+    else if (a.do === 'lay') { if (client.lay) client.lay(String(a.nodeId), a.n | 0 || 1) }
+    else if (a.do === 'found') { if (client.found) client.found(a.x | 0, a.y | 0) }
+    else if (a.do === 'dismantle') { if (client.dismantle) client.dismantle(String(a.nodeId)) }
+    else if (a.do === 'charter') { if (client.charter) client.charter(a.slot | 0) }
+    else if (a.do === 'nock') { if (client.nock) client.nock(a.slot | 0) }
+    else if (a.do === 'saw') { if (client.saw) client.saw(a.slot | 0) }
+    else if (a.do === 'smelt') { if (client.smelt) client.smelt(String(a.recipe)) }
+    // ---- and the rest of what the sdk can already speak ----
+    // A citizen's own stall is a whole trade: raise it, stock it, price it,
+    // take the coin, take it down. Every one of those had an sdk method and an
+    // engine input and no way through this door.
+    else if (a.do === 'raise_market') { if (client.raiseStall) client.raiseStall() }
+    else if (a.do === 'stock_market') { if (client.stockStall) client.stockStall(a.slot | 0) }
+    else if (a.do === 'price_market') { if (client.priceStall) client.priceStall(a.ask | 0) }
+    else if (a.do === 'take_market') { if (client.takeStall) client.takeStall() }
+    else if (a.do === 'dismantle_market') { if (client.dismantleStall) client.dismantleStall() }
+    else if (a.do === 'build_brewpot') { if (client.buildBrewpot) client.buildBrewpot() }
+    else if (a.do === 'deposit_all') { if (client.depositAll) client.depositAll() }
+    else if (a.do === 'walk') { if (client.walk) client.walk(Math.sign(a.dx | 0), Math.sign(a.dy | 0), a.steps | 0) }
+    else if (a.do === 'set_look') { if (client.setLook) client.setLook(a.look | 0) }
     else if (a.do === 'name') client.claimName(String(a.name))
     else if (a.do === 'stop') client.stop()
 }
