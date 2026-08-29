@@ -5749,7 +5749,15 @@ function stepToward(s, me, goal, reach, stampTick) {
   const step = nextStep(s, me, goals)
   if (step === null) { feed("You can't reach that."); intent = null; travelMark = null; return }
   if (step === 'arrived') return
-  const tk = allocTick()
+  // §0: WHICH WORLD IS THIS STEP FOR? A footstep in Nought goes to the LOCAL
+  // island and never touches Tallyholm, so allocating it out of Tallyholm's
+  // two-tick line was asking the wrong world for permission -- and getting
+  // `null` back, which this function silently counts as a dropped move. That
+  // is why a resident could switch weapons and click things but not walk.
+  //
+  // The local world has one citizen and no contention, so there is nothing to
+  // allocate: the next interval is always free.
+  const tk = inNought ? (nought ? nought.state.tick + 1 : null) : allocTick()
   // §2287: two inputs stamped on one interval annihilate, so the allocator
   // gives each deed its own tick and the line is only two deep. When it is
   // full the step is abandoned and re-planned next state -- correct, but
@@ -6013,9 +6021,25 @@ function openForge(me) {
 function smithBest(me) { openForge(me) }
 
 ws.onmessage = (ev) => {
-  const m = JSON.parse(ev.data)
+  // A TRUNCATED FRAME MUST NOT TAKE THE HANDLER WITH IT. A state broadcast for
+  // this world is a large JSON message and one arriving cut short threw
+  // "Unterminated string" straight out of the socket handler. Count it and
+  // carry on: the next state is a second away and complete.
+  let m
+  try { m = JSON.parse(ev.data) }
+  catch (e) {
+    _badFrames++
+    if (_badFrames === 1) feed('a message from the world arrived malformed (' + e.message + '); ignoring it')
+    return
+  }
   if (m.type === 'hello') {
-    myId = m.playerId
+    // §0: DO NOT CLOBBER THE PRACTICE BODY. While a resident is in Nought,
+    // `myId` is the local body's throwaway key and `realId` is the one the
+    // world knows. A `hello` on reconnect used to overwrite `myId` with the
+    // world's id, which detached the resident from the island they were
+    // standing on.
+    if (inNought && realId) realId = m.playerId
+    else myId = m.playerId
     document.getElementById('gatekey').textContent = 'your key: ' + myId.slice(0, 12) + '\u2026'
   }
   if (m.type === 'nought') { noughtPeerSaw(m.at); return }   // §0: another resident, walking
@@ -6558,9 +6582,22 @@ function closeCrossing() {
   if (entered) document.getElementById('gate').style.display = 'none'
 }
 // our slot in the world's attendance, if it holds one
+// WHOSE WAIT? THE REAL KEY'S.
+//
+// `myId` is swapped to the practice body's throwaway key the moment Nought is
+// built, so this was searching Tallyholm's attendance for a key Tallyholm has
+// never heard of -- while `signAndSend` correctly knocked under `ownKey.pub`.
+// The wait landed under one identity and was looked up under another, so it
+// was never found, `keepAttending` knocked again every twelve intervals, and
+// the gate said "Asking the world to expect you..." forever.
+//
+// `realId` is the key the world is being asked about. It is the only one that
+// has any business in this function.
+function worldId_me() { return realId ?? myId }
 function myWait(s) {
-  if (!s || !myId || !Array.isArray(s.attend)) return null
-  const k = myId.slice(0, 16)
+  const who = worldId_me()
+  if (!s || !who || !Array.isArray(s.attend)) return null
+  const k = who.slice(0, 16)
   const e = s.attend.find(x => x[1] === k)
   if (!e) return null
   const age = s.tick - e[0]
@@ -6570,7 +6607,8 @@ function myWait(s) {
 // two intervals is admitted (§0b), so a knock that does not take is normal and
 // simply sent again; we throttle so a busy evening is not a flood.
 function keepAttending(s) {
-  if (!s || !myId || s.players[myId]) return
+  const who = worldId_me()
+  if (!s || !who || s.players[who]) return
   const w = myWait(s)
   if (w && !w.stale) return
   if (s.tick - attendSentAt < 12) return
@@ -6585,8 +6623,9 @@ const wordFor = (ticks) => {
 }
 // What the gate says while a soul is still in Nought.
 function noughtLine(s) {
-  if (!myId) return 'minting a key\u2026'
-  if (s.players[myId]) return null                     // already a citizen: not our business
+  const who = worldId_me()
+  if (!who) return 'minting a key\u2026'
+  if (s.players[who]) return null                      // already a citizen: not our business
   const w = myWait(s)
   if (!w) return 'The world has not seen you yet. Knocking\u2026'
   if (w.stale) return 'Your wait went stale. Knocking again\u2026'
@@ -6596,7 +6635,9 @@ function noughtLine(s) {
   return 'Your wait is kept. The fountain in Anchor will take you.'
 }
 function updateGate(s, worldId) {
-  const me = s.players[myId]
+  // §0: the LIVE state, so the LIVE identity -- `myId` is the practice body
+  // while a resident is in Nought.
+  const me = s.players[worldId_me()]
   const souls = Object.keys(s.players).length
   const awakeN = Object.values(s.players).filter(p => isAwake(p, s.tick)).length
   document.getElementById('gateinfo').textContent =
@@ -6688,6 +6729,7 @@ function updateGate(s, worldId) {
 // swapped to the local body while a resident is in Nought, so every render
 // path, camera and panel goes on working without being told any of this.
 let inNought = false, realId = null, lastLive = null
+let _badFrames = 0
 let nought = null           // { E, state, key, inputs, timer }
 let noughtLoading = false
 const NOUGHT_ALLOWED = new Set(['attend', 'spawn'])

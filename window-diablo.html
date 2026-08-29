@@ -3165,7 +3165,11 @@ function connect() {
   ws.onerror = () => { try { ws.close() } catch {} }
   ws.onmessage = (ev) => {
     let m; try { m = JSON.parse(ev.data) } catch { return }
-    if (m.type === 'hello') { myId = m.playerId; return }
+    // §0: DO NOT CLOBBER THE PRACTICE BODY. While a resident is in Nought,
+    // `myId` is the local body's throwaway key and `realId` is the one the
+    // world knows; a `hello` on reconnect used to overwrite `myId`, detaching
+    // the resident from the island they were standing on.
+    if (m.type === 'hello') { if (inNought && realId) realId = m.playerId; else myId = m.playerId; return }
     if (m.type === 'nought') { noughtPeerSaw(m.at); return }   // §0: another resident, walking
     if (m.type === 'state') { onState(m.state, m.worldId); return }
     if (m.type === 'refused') {
@@ -12513,7 +12517,15 @@ function stepToward(from, goal, reach) {
     intent = null; SFX.pane(); return 'no'
   }
   if (step === 'arrived') return 'here'
-  const tk = allocTick()
+  // §0: WHICH WORLD IS THIS STEP FOR? A footstep in Nought goes to the LOCAL
+  // island and never touches Tallyholm, so allocating it out of Tallyholm's
+  // two-tick line was asking the wrong world for permission -- and getting
+  // `null` back, which this function silently counts as a dropped move. That
+  // is why a resident could switch weapons and click things but not walk.
+  //
+  // The local world has one citizen and no contention, so there is nothing to
+  // allocate: the next interval is always free.
+  const tk = inNought ? (nought ? nought.state.tick + 1 : null) : allocTick()
   if (tk === null) return 'wait'
   facing.set('p' + myId, [step.dx, step.dy])
   planned = { x: from.x + step.dx, y: from.y + step.dy, tick: tk }
@@ -14442,16 +14454,30 @@ const gName = document.getElementById('gname')
 // ---------------------------------------------------------------------------
 const VIGIL_TICKS = 300, ATTEND_WINDOW = 3600   // §0: five minutes, stale after an hour
 let attendSentAt = -1, crossArmed = false, crossSentAt = -1
+// WHOSE WAIT? THE REAL KEY'S.
+//
+// `myId` is swapped to the practice body's throwaway key the moment Nought is
+// built, so this was searching Tallyholm's attendance for a key Tallyholm has
+// never heard of -- while `signAndSend` correctly knocked under `ownKey.pub`.
+// The wait landed under one identity and was looked up under another, so it
+// was never found, `keepAttending` knocked again every twelve intervals, and
+// the gate said "Asking the world to expect you..." forever.
+//
+// `realId` is the key the world is being asked about. It is the only one that
+// has any business in this function.
+function worldId_me() { return realId ?? myId }
 function myWait(s) {
-  if (!s || !myId || !Array.isArray(s.attend)) return null
-  const k = myId.slice(0, 16)
+  const who = worldId_me()
+  if (!s || !who || !Array.isArray(s.attend)) return null
+  const k = who.slice(0, 16)
   const e = s.attend.find(x => x[1] === k)
   if (!e) return null
   const age = s.tick - e[0]
   return { age, ripe: age >= VIGIL_TICKS && age <= ATTEND_WINDOW, stale: age > ATTEND_WINDOW }
 }
 function keepAttending(s) {
-  if (!s || !myId || s.players[myId]) return
+  const who = worldId_me()
+  if (!s || !who || s.players[who]) return
   const w = myWait(s)
   if (w && !w.stale) return
   if (s.tick - attendSentAt < 12) return
