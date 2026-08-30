@@ -37,7 +37,7 @@ THREE.WebGLRenderer=class{constructor(){this.domElement=canvas()}
   setPixelRatio(){}setSize(){}setClearColor(){}clear(){}clearDepth(){}setRenderTarget(){}
   render(sc){ if(sc.children.length>3) scene=sc }}
 global.THREE=THREE
-for(const b of [...readFileSync('window-mist.html','utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]))(0,eval)(b)
+for(const b of [...readFileSync('window-writ.html','utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m=>m[1]))(0,eval)(b)
 const frames=(n)=>{for(let i=0;i<n;i++){CLOCK+=40;for(const fn of raf.splice(0,raf.length))fn(CLOCK)}}
 const send=(m)=>{for(const s of socks)s.onmessage({data:JSON.stringify(m)})}
 let bad=0; const ok=(c,m)=>{console.log((c?'  ok  ':'  FAIL')+'  '+m);if(!c)bad++}

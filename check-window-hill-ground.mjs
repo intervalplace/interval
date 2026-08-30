@@ -62,7 +62,7 @@ THREE.WebGLRenderer = class { constructor () { this.domElement = canvas() }
   setPixelRatio () {} setSize () {} setClearColor () {} clear () {} clearDepth () {}
   setRenderTarget () {} render (sc) { if (sc.children.length > 2) scene = sc } }
 global.THREE = THREE
-for (const b of [...readFileSync('window-mist.html', 'utf8')
+for (const b of [...readFileSync('window-hill.html', 'utf8')
   .matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1])) (0, eval)(b)
 
 let bad = 0

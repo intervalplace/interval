@@ -2606,6 +2606,31 @@ E.registerTerrain(GENERATOR_ID, {
   // and to name the monument a finished span bears. A generator with no wild
   // crossings omits this and the engine offers none.
   spanSites: (g) => SPAN_SITES.map((s) => ({ x: s.x, y: s.y, name: s.name })),
+  // §6dj: THE HEIGHT OF THE LAND, AS DATA.
+  //
+  // This field is not new and it is not decoration: it is what routed every
+  // road in the world. `elevAt` charges six for every unit a step climbs, which
+  // is why the roads follow valley floors, contour along hillsides and arrive
+  // at passes rather than summits. The hills are already TRUE — they are the
+  // reason the roads wander — and every window has been drawing flat ground
+  // underneath a winding road and disagreeing with the world about why it winds.
+  //
+  // Served on a four-tile lattice, because the field's finest octave is eight
+  // tiles wide: sampling every fourth tile and interpolating between reproduces
+  // it, and costs a thirty-second of a byte a tile instead of a whole one.
+  //
+  // It changes NO tile's walkability and enters no geography hash. A window may
+  // draw the land as it lies; whether a step should COST what it climbs is a
+  // question for the spec and the engine, not for this table.
+  elevGrid: (g) => {
+    const salt = goingSalt(TALLYHOLM_SEED) ^ 0x9e37
+    const step = 4
+    const w = Math.ceil(g.worldW / step) + 1, h = Math.ceil(g.worldH / step) + 1
+    const out = new Array(w * h)
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++)
+      out[j * w + i] = elevAt(salt, Math.min(g.worldW - 1, i * step), Math.min(g.worldH - 1, j * step))
+    return { step, w, h, min: Math.min(...out), max: Math.max(...out), v: out }
+  },
   // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
   // itself from a hand-copied table, and the copy went stale. The node that
   // founded the world is the one place that ran the real seater; it ships what

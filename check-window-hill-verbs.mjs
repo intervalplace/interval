@@ -79,7 +79,7 @@ THREE.WebGLRenderer = class {
 }
 global.THREE = THREE
 
-const html = readFileSync('window-mist.html', 'utf8')
+const html = readFileSync('window-hill.html', 'utf8')
 for (const b of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1])) (0, eval)(b)
 
 // ---------- a world with something to do in every direction ----------
@@ -169,7 +169,7 @@ for (let i = 0; i < 12; i++) {
   }
   esc()
 }
-explore(() => tap('q'), [])        // yourself
+explore(() => tap('z'), [])        // yourself
 explore(() => tap('r'), [])        // trade -> give what -> offer
 explore(() => tap('e'), [])        // within reach -> bank / counter / anvil / waystone
 
@@ -193,7 +193,7 @@ delete absent.players.me
 absent.attend = [[absent.tick - 400, 'me'.slice(0, 16)]]     // knocked, and long ripe
 for (const s of socks) s.onmessage({ data: JSON.stringify({ type: 'state', state: absent, worldId: 'verbtest01' }) })
 frames(2)
-explore(() => tap('q'), [])
+explore(() => tap('z'), [])
 tap('e'); tap(' ')
 for (const s of socks) s.onmessage({ data: JSON.stringify({ type: 'state', state, worldId: 'verbtest01' }) })
 frames(2)
@@ -226,7 +226,7 @@ for (let i = 0; i < 12; i++) {
     key('Enter')
   }
 }
-esc(); explore(() => tap('q'), []); esc(); explore(() => tap('e'), []); esc(); explore(() => tap('r'), [])
+esc(); explore(() => tap('z'), []); esc(); explore(() => tap('e'), []); esc(); explore(() => tap('r'), [])
 const PLACED = { deposit: 'a bank', withdraw: 'a bank', sell: 'a counter', buy: 'a counter',
                  smith: 'an anvil', cook: 'a fire', plant: 'tilled ground',
                  offer_trade: 'a neighbour', recall: 'a waystone' }

@@ -81,7 +81,7 @@ THREE.WebGLRenderer = class { constructor () { this.domElement = canvas() }
   setRenderTarget () {} render () {} }
 global.THREE = THREE
 
-for (const b of [...readFileSync('window-mist.html', 'utf8')
+for (const b of [...readFileSync('window-hill.html', 'utf8')
   .matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1])) (0, eval)(b)
 
 let bad = 0
@@ -159,7 +159,7 @@ ok(level >= 4, 'a level is a fanfare, not a blip (' + level + ' nodes)')
   const webBody = web.slice(i, web.indexOf('\n  },', i))
   const num = (a, b) => a + '@' + Number(b)
   const notes = [...webBody.matchAll(/tone\((\d+),\s*([\d.]+)/g)].map(m => num(m[1], m[2]))
-  const mine = readFileSync('window-mist.html', 'utf8')
+  const mine = readFileSync('window-hill.html', 'utf8')
   const j = mine.indexOf("case 'level': {")
   const ourBody = mine.slice(j, mine.indexOf('break }', j))
   const ours = [...ourBody.matchAll(/chime\((\d+),\s*([\d.]+)/g)].map(m => num(m[1], m[2]))

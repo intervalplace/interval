@@ -333,6 +333,13 @@ function packTerrain (g) {
             spawn: t.spawn ? t.spawn(g) : { x: w >> 1, y: h >> 1 },
             // the towns as the founder seated them, not as a window guesses
             settlements: t.settlements ? t.settlements(g) : null,
+            // §6dj: THE HEIGHT OF THE LAND. Not decoration — this field is what
+            // routed every road in the world, charging six for each unit a step
+            // climbs, which is why they follow valleys and arrive at passes.
+            // Windows have been drawing flat ground under a winding road and
+            // disagreeing with the world about why it winds. On a four-tile
+            // lattice it is 29 KB for the whole expanse.
+            elev: t.elevGrid ? t.elevGrid(g) : null,
             geographyHash: t.geographyHash ? t.geographyHash(g) : null },
   }
 }
@@ -725,6 +732,8 @@ const server = http.createServer((req, res) => {
     if (path === '/play/lantern' || path === '/lantern' || path === '/diablo')
       return sendFile('./window-diablo.html', 'text/html')
     if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
+    if (path === '/play/hill' || path === '/hill') return sendFile('./window-hill.html', 'text/html')
+    if (path === '/play/writ' || path === '/writ') return sendFile('./window-writ.html', 'text/html')
     // Music, if the world has any. Nothing here ships with a tune: a node with
     // an empty audio/ directory simply plays nothing, and the windows fall
     // silent without complaint. Drop files in and they are found.
@@ -760,6 +769,33 @@ const server = http.createServer((req, res) => {
       return res.end(buf)
     }
     // what music this node actually has, so a window need not guess at names
+    // §6dj: THE TABLES, SERVED, SO NO WINDOW HAS TO KEEP A COPY.
+    //
+    // window-mist had a hand-copied forge table and twenty of its fifty-eight
+    // costs had drifted from the engine's: it offered recipes that could not be
+    // made and hid ones that could, and named two ingredients (`steel-ingot`)
+    // that do not exist. A copy of another file's constants, kept by hand in a
+    // third file, is a copy, and copies drift. The engine already exports all
+    // of this; the only thing missing was a door.
+    if (path === '/api/tables') {
+      // a Set does not survive JSON, so the tools become lists
+      const tools = {}
+      for (const [sk, set] of Object.entries(E.GATHER_TOOLS || {})) tools[sk] = [...set]
+      return json({
+        specVersion: E.SPEC_VERSION, tickMs: E.TICK_MS, vigilTicks: E.VIGIL_TICKS,
+        invSlots: E.INV_SLOTS, skills: E.SKILLS, equipSlots: E.EQUIP_SLOTS,
+        recipes: E.RECIPES, prices: E.PRICES, weapons: E.WEAPONS, smelted: E.SMELTED,
+        smithReqs: E.SMITH_REQS, wieldReqs: E.WIELD_REQS, mobs: E.MOB_STATS,
+        // §7p: which recipes belong to the FURNACE and not the anvil
+        smelted: [...(E.SMELTED || [])],
+        items: E.ITEMS, equippable: E.EQUIPPABLE, stackable: E.STACKABLE,
+        armour: E.ARMOUR, twoHanded: E.TWO_HANDED, nodeTypes: E.NODE_TYPES,
+        keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
+        // §6dj: what a seam wants of you, and what it gives back
+        nodeGate: E.NODE_GATE, nodeYield: E.NODE_YIELD, gatherTools: tools,
+        xpTable: E.XP_TABLE, mastery: E.MASTERY
+      })
+    }
     if (path === '/api/audio') {
       let names = []
       try { names = fs.readdirSync(new URL('./audio/', import.meta.url))

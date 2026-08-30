@@ -1,54 +1,77 @@
 <!doctype html>
-<!-- MIST — an Interval window with the draw distance of 1997.
+<!-- WRIT — a citizen you write instead of steer.
 
-     The same world as every other window, painted by a machine that has
-     no z-buffer worth the name, 2MB of texture memory, and one honest
-     trick for hiding the fact that it can only see eleven tiles: fog,
-     thick as milk, the colour of the hour.
+     Every other window puts your hand on the world. This one puts a WRIT in
+     the world's hand: one function, called once per interval, returning one
+     deed. That signature is not a design choice, it is the engine's own rule
+     made into a shape you cannot hold wrongly — you cannot write a citizen who
+     acts twice in a tick, because the function returns once.
 
-     This is a deliberate reconstruction of the fifth-generation console
-     look — the era of Turok, Silent Hill, MediEvil — and every artifact
-     in it is a real one, reproduced on purpose rather than filtered on
-     afterwards:
+       export default function decide (world, me) {
+         if (me.hp < 4) return { do: 'eat', slot: firstFood(me) }
+         const tree = nearest(world, me, 'tree')
+         if (tree) return { do: 'gather', nodeId: tree.id }
+         return stepToward(me, { x: 336, y: 208 })
+       }
 
-       · a 320x240 framebuffer, scaled up with hard edges and no blur
-       · vertices snapped to that grid, so everything shimmers as it moves
-       · AFFINE texture mapping: no perspective correction, so floors
-         swim and long walls fold. This is the signature of the machine.
-       · per-vertex Gouraud light and per-vertex fog, computed once per
-         corner and smeared across the triangle
-       · 16-colour 64px textures, nearest sampled, no mipmaps, so the
-         distance sparkles
-       · a 5:5:5 output with a 4x4 ordered dither, exactly where the
-         hardware put it
-       · one-bit alpha. A leaf is there or it is not.
-       · 30 frames a second, and the fog does the rest
+     WHY THIS IS NOT A MACRO. Three things, and all three come from the engine
+     rather than from a preference:
 
-     What it does NOT do is lie. Where a citizen stands, what they carry,
-     what they are fighting and what it costs are read off the same
-     protocol as the flat window and agree with it tick for tick. The
-     fog is the window's opinion. The tile under it is not.
+       · A writ is not faster than a person. One input an interval, and §0c
+         makes a scripted soul sit the same vigil a typed one does. So it is not
+         automation-as-advantage; it is a different way of being present.
+       · A run is CHECKABLE. Inputs are signed and the world is a pure function
+         of them, so a citizen can be published beside its input log and anyone
+         may replay it and confirm it played by the rules. Cheating at this is
+         not policed, it is arithmetically unavailable.
+       · A citizen becomes an object you can hand to somebody. Fork a
+         woodcutter, improve it, hand it back.
 
-     The sun matches the deep window's sun: DAY = 2400 ticks, same phase,
-     same angle. At the engine's TICK_MS of one second that is a forty-minute
-     day. Two people in two windows watching the same dusk are watching the
-     same dusk.
+     WHAT IT COSTS, said plainly because it is not small: a writ is not better
+     than you, but it is TIRELESS, and for gathering, tireless is better. A
+     world where the good play is to write a woodcutter and go to bed is a world
+     with more work happening in it and fewer people. The rate limit caps
+     throughput, not attendance, and nothing in this file fixes that.
+
+     The writ runs in a Worker with fetch, XMLHttpRequest, WebSocket and
+     importScripts deleted before your code is reached. It cannot touch the
+     socket, the page or the network: it is handed a state and returns a deed,
+     which is the same bargain every other window makes. It can only ask. The
+     pillar decides.
 
      Serve it from the pillar: add to serve.mjs
-       if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
-     Same interval-uid as every other window: this is your citizen, seen
-     from inside their own head.
+       if (path === '/play/writ' || path === '/writ') return sendFile('./window-writ.html', 'text/html')
 -->
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>interval · mist</title>
+<title>interval · writ</title>
 <style>
   html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden;
                font-family: "Courier New", monospace; color:#9fb08a; }
-  #stack { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-  canvas { position:absolute; cursor:none; image-rendering: pixelated; image-rendering: crisp-edges;
+  #stack { position:fixed; left:0; top:0; bottom:0; width:52%; display:flex;
+           align-items:center; justify-content:center; background:#05070a }
+  #desk { position:fixed; right:0; top:0; bottom:0; width:48%; display:flex; flex-direction:column;
+          background:#0a0d0b; border-left:2px solid #1e2a1c; font-family:"Courier New",monospace }
+  #desk h4 { margin:0; padding:7px 10px; font-size:11px; font-weight:normal; letter-spacing:.18em;
+             color:#8fb07a; background:#111a10; border-bottom:1px solid #1e2a1c; text-transform:uppercase }
+  #writ { flex:1 1 58%; margin:0; padding:9px 10px; border:0; outline:0; resize:none;
+          background:#080b09; color:#b8d8a0; font:12px/1.55 "Courier New",monospace;
+          tab-size:2; caret-color:#e2d6a0 }
+  #bar { display:flex; gap:6px; padding:6px 8px; background:#111a10; border-top:1px solid #1e2a1c;
+         border-bottom:1px solid #1e2a1c; align-items:center }
+  #bar button { font:11px "Courier New",monospace; letter-spacing:.12em; text-transform:uppercase;
+                background:#1c2a18; color:#b8d8a0; border:1px solid #2e4028; padding:4px 10px;
+                cursor:pointer }
+  #bar button:hover { background:#2a3d24; color:#e2d6a0 }
+  #bar b { margin-left:auto; font-weight:normal; font-size:11px; color:#6a7f5e; letter-spacing:.1em }
+  #log { flex:1 1 42%; overflow-y:auto; padding:6px 10px; font-size:11px; line-height:1.5;
+         background:#05070a; color:#7f9a70 }
+  #log div { white-space:pre; }
+  #log .bad { color:#d88a6a } #log .say { color:#c8bb8a } #log .tick { color:#4e6146 }
+  @media (max-width: 900px) { #stack { width:100%; height:52% } #desk { width:100%; top:52% } }
+  canvas { position:absolute; image-rendering: pixelated; image-rendering: crisp-edges;
            left:0; top:0; width:100%; height:100%; }
   #hud { pointer-events:none; }
   #tap { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -69,18 +92,31 @@
   <canvas id="gl"></canvas>
   <canvas id="hud"></canvas>
   <div id="tap"><span>
-    <b>THE MIST WINDOW</b>
-    move: W A S D &nbsp;·&nbsp; look: mouse &nbsp;·&nbsp; strike: click
+    <b>THE WRIT WINDOW</b>
+    a citizen you write, not one you steer
+    the writ is one function, called once an interval, returning one deed
     reach: E &nbsp;·&nbsp; satchel: TAB &nbsp;·&nbsp; yourself: Q &nbsp;·&nbsp; special: C
     trade: R &nbsp;·&nbsp; speak: T &nbsp;·&nbsp; special: C
     the chart-table: M &nbsp;·&nbsp; halt: X &nbsp;·&nbsp; name: N
-    <b>click to enter the fog</b>
+    <b>click to watch</b> &nbsp;·&nbsp; then write, and press RUN
     <u id="padline">or press any button on a controller</u>
     <i id="doormusic">music: on</i>
   </span></div>
   <div id="fail">three.js did not load, so this window has nothing to paint with.
     It is fetched from a CDN at the top of the file; a node serving this page
     offline should vendor it beside window-mist.html and change the tag.</div>
+</div>
+<div id="desk">
+  <h4>the writ &middot; one deed an interval</h4>
+  <textarea id="writ" spellcheck="false"></textarea>
+  <div id="bar">
+    <button id="run">run</button>
+    <button id="halt">halt</button>
+    <button id="wipe">revert</button>
+    <b id="stat">idle</b>
+  </div>
+  <h4>what it decided</h4>
+  <div id="log"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
@@ -94,32 +130,6 @@ if (window.THREE) (function () {
 'use strict'
 
 let dirty = true
-// §THERE WAS AN ERA SWITCH HERE, AND IT IS GONE.
-//
-// ?era=ps2 and ?era=ps3 turned off the affine mapping and the vertex snap, put
-// bilinear and mipmaps on the textures, widened the palettes, doubled the
-// frame, added a specular and a rim and a filmic grade, and finished the light
-// per pixel against a normal derived from the texture's own luminance. Every
-// one of those worked. Together they looked WORSE, and the reason is worth
-// keeping written down:
-//
-//   The content was PS1 content. Sixty-four-pixel textures painted to be seen
-//   at 320x240 through a dither, and bodies built out of boxes. Filtering and
-//   resolution do not flatter that, they EXPOSE it: a grass card that reads as
-//   grass at 240p is a set of enormous hard-edged blades at 512p, standing next
-//   to a tree that is still a 1994 tree. Nothing agreed about what year it was.
-//
-// The 1994 picture is better because it is COHERENT: the dither, the texel
-// size, the flat fog and the chunky tree all belong to one machine, so the
-// limits read as a style rather than as a shortfall. Constraints were doing the
-// design work, and removing them left the art carrying weight it was never
-// drawn to carry.
-//
-// TWO THINGS SURVIVED, because neither was ever about an era:
-//   · the ground clutter, at this machine's fidelity — a field with grass in it
-//     beats a bare green plane at any resolution
-//   · the height of the land, which is the world's own data and was never a
-//     rendering choice at all
 // HOW FAR YOU CAN SEE IS AN OPINION, AND AN OPINION SHOULD BE TESTABLE. Eleven
 // tiles is this window's argument and the fog is the argument's whole defence,
 // but a person who finds it infuriating rather than atmospheric should be able
@@ -128,9 +138,7 @@ let dirty = true
 const FAR = (() => {
   const q = (typeof location !== 'undefined' && location.search) || ''
   const m = /(?:\?|&)far=(\d+)/.exec(q)
-  // §the fog was the older machine's whole defence. The newer one could hold
-  // enough of the world that fog became weather instead of a wall.
-  return Math.max(8, Math.min(64, m ? +m[1] : 13))
+  return Math.max(10, Math.min(64, m ? +m[1] : 13))   // ground enough to close the board in weather
 })()
 // ============================================================================
 //  1. THE WIRE — identical handshake to window-web and window-pocket.
@@ -243,7 +251,6 @@ const waitLeft = () => {
 let prevInv = null, prevHp = null, prevGold = null
 let prevMobHp = new Map(), prevSkills = null
 const lastDeed = new Map(), lastShot = new Map(), lastPlayerHp = new Map(), lastSwingOf = new Map()
-const lastBreath = new Map()
 let camTile = [0, 0]
 const wieldOf = (q) => (q && q.equipment && q.equipment.weapon && q.equipment.weapon.item) || ''
 const countInv = (inv) => (inv || []).reduce((a, sl) => {
@@ -263,13 +270,12 @@ function onState (s) {
     const was = prevMobHp.get(id)
     if (was !== undefined && m.hp < was) {
       splat(m.x, m.y, was - m.hp, 'hit'); flinch(id, Math.min(2, (was - m.hp) / 3 + 0.6))
-      // struck by whom, with what: the sound of a hit is the sound of the weapon
       const by = Object.values(s.players || {}).find((q) => q && q.action &&
         q.action.type === 'attack' && q.action.mobId === id)
       const d2 = Math.max(Math.abs(m.x - camTile[0]), Math.abs(m.y - camTile[1]))
       sfx(HIT_OF(by ? wieldOf(by) : ''), Math.max(0.15, 1 - d2 / 12))
       const vv = VOICE[m.type]
-      if (vv && Math.random() < 0.55) cry(vv, d2, CARRY[vv] || 9)   // and it says so
+      if (vv && Math.random() < 0.55) cry(vv, d2, CARRY[vv] || 9)
     }
     if (was !== undefined && m.hp <= 0 && was > 0) topple(id, m)
   }
@@ -301,10 +307,7 @@ function onState (s) {
     if (pid !== myId && wasP !== undefined && Number.isFinite(q.hp) && q.hp < wasP) {
       splat(q.x, q.y, wasP - q.hp, 'hit')
       flinch(pid, Math.min(2, (wasP - q.hp) / 3 + 0.6))
-      const byP = Object.values(s.players || {}).find((r) => r && r.action &&
-        r.action.type === 'attackp' && r.action.targetId === pid)
-      sfx(HIT_OF(byP ? wieldOf(byP) : ''),
-          Math.max(0.15, 1 - Math.max(Math.abs(q.x - camTile[0]), Math.abs(q.y - camTile[1])) / 12))
+      sfx('thud')
     }
     if (pid !== myId && wasP !== undefined && q.hp <= 0 && wasP > 0) {
       splat(q.x, q.y, 0, 'dead'); sfx('death')
@@ -355,8 +358,12 @@ function onState (s) {
   }
   // a held key keeps walking: one deed per tick, exactly like the pocket window
   inkNearby()                                  // the land names itself as you pass
+  // §the writ moves you. A hand on the keys still works, and overrides it for
+  // that interval, because a window that will not let you take your own citizen
+  // back is a window you cannot debug from.
   const d = walkDir()
-  if (d && !paused()) act({ do: 'move', dx: d[0], dy: d[1] })
+  if (d && !paused()) { walkTo = null; act({ do: 'move', dx: d[0], dy: d[1] }) }
+  else if (!paused()) { walkOn(); askWrit(s) }
 }
 
 // ============================================================================
@@ -557,6 +564,165 @@ function inkNearby () {
 }
 
 // ============================================================================
+//  1d. THE WRIT — one function, called once an interval, returning one deed.
+//
+//  The signature is the engine's rule made into a shape. A writ CANNOT act
+//  twice in a tick because it returns once; it cannot outpace a person because
+//  the pillar takes one input an interval from anybody; and it cannot cheat
+//  because the world is a pure function of signed inputs and any run can be
+//  replayed by a stranger.
+//
+//  It runs in a Worker with fetch, XMLHttpRequest, WebSocket and importScripts
+//  DELETED before the writ is reached. It is handed a state and returns a deed.
+//  It cannot touch the socket, the page or the network — the same bargain every
+//  window in this project makes. It can only ask.
+// ============================================================================
+const WRIT_DEFAULT = `// A citizen you write instead of steer.
+// Called once an interval. Return ONE deed, or null to stand still.
+//
+//   world  the whole state, as every window sees it
+//   me     your own citizen
+//
+// helpers: nearest(world, me, type) · adjacent(me, thing) · stepToward(me, at)
+//          count(me, item) · slotOf(me, item) · nearestMob(world, me)
+//          say(...)  writes a line into the log beside you
+
+function decide (world, me) {
+  // eat before it matters
+  if (me.hp < 4) {
+    const food = slotOf(me, 'cooked-fish')
+    if (food >= 0) return { do: 'eat', slot: food }
+  }
+
+  // a tree in reach is a tree to fell
+  const tree = nearest(world, me, 'tree')
+  if (tree && adjacent(me, tree)) return { do: 'gather', nodeId: tree.id }
+  if (tree) return stepToward(me, tree)
+
+  // nothing to do but look for one
+  return stepToward(me, { x: me.x + 8, y: me.y })
+}`
+const WORKER_SRC = `
+// §the sandbox, closed before the writ is reached
+self.fetch = undefined; self.XMLHttpRequest = undefined; self.WebSocket = undefined
+self.importScripts = undefined; self.EventSource = undefined
+const LINES = []
+function say () { LINES.push([...arguments].map(String).join(' ')) }
+const tiles = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))
+const adjacent = (a, b) => !!a && !!b && tiles(a, b) <= 1
+function nearest (world, me, type) {
+  let best = null, bd = 1e9
+  for (const [id, n] of Object.entries((world && world.nodes) || {})) {
+    if (!n || n.type !== type) continue
+    if ((n.depletedUntil || 0) > world.tick) continue
+    const d = tiles(me, n); if (d < bd) { bd = d; best = Object.assign({ id }, n) }
+  }
+  return best
+}
+function nearestMob (world, me, type) {
+  let best = null, bd = 1e9
+  for (const [id, m] of Object.entries((world && world.mobs) || {})) {
+    if (!m || m.hp <= 0 || (type && m.type !== type)) continue
+    const d = tiles(me, m); if (d < bd) { bd = d; best = Object.assign({ id }, m) }
+  }
+  return best
+}
+const count = (me, item) => ((me && me.inventory) || [])
+  .reduce((a, sl) => a + (sl && sl.item === item ? (sl.qty || 1) : 0), 0)
+const slotOf = (me, item) => ((me && me.inventory) || []).findIndex((sl) => sl && sl.item === item)
+function stepToward (me, at) {
+  if (!at || (me.x === at.x && me.y === at.y)) return null
+  return { do: 'move', dx: Math.sign(at.x - me.x), dy: Math.sign(at.y - me.y) }
+}
+let DECIDE = null, ERR = null
+self.onmessage = (e) => {
+  const m = e.data
+  if (m.kind === 'writ') {
+    ERR = null; DECIDE = null
+    try {
+      const f = new Function('nearest', 'nearestMob', 'adjacent', 'stepToward', 'count',
+                             'slotOf', 'tiles', 'say', m.src + '\\nreturn typeof decide === \"function\" ? decide : null')
+      DECIDE = f(nearest, nearestMob, adjacent, stepToward, count, slotOf, tiles, say)
+      if (typeof DECIDE !== 'function') throw new Error('no decide() in the writ')
+    } catch (err) { ERR = String(err && err.message || err) }
+    self.postMessage({ kind: 'writ', err: ERR })
+    return
+  }
+  if (m.kind === 'tick') {
+    LINES.length = 0
+    if (!DECIDE) return self.postMessage({ kind: 'deed', at: m.at, err: ERR || 'no writ' })
+    let deed = null, err = null
+    try { deed = DECIDE(m.world, m.me) } catch (e2) { err = String(e2 && e2.message || e2) }
+    // §ONE DEED. Whatever it returns, one is what leaves.
+    if (Array.isArray(deed)) deed = deed[0]
+    // §a deed is an object with a verb on it. A string is not a deed, a number
+    // is not a deed, and a thing with no verb is not a deed: anything else and
+    // the window would be putting the writ's typing straight onto the socket.
+    if (!deed || typeof deed !== 'object' || typeof deed.do !== 'string') deed = null
+    self.postMessage({ kind: 'deed', at: m.at, deed: deed || null, err, lines: LINES.slice(0, 4) })
+  }
+}`
+let WORKER = null, writRunning = false, writErr = '', writWaiting = false
+let writSkipped = 0, writDeeds = 0
+const logEl = () => document.getElementById('log')
+function logLine (text, cls) {
+  const el = logEl(); if (!el) return
+  const d = document.createElement('div')
+  d.className = cls || ''; d.textContent = text
+  el.appendChild(d)
+  while (el.childNodes.length > 220) el.removeChild(el.firstChild)
+  el.scrollTop = el.scrollHeight
+}
+function startWrit () {
+  stopWrit()
+  const src = (document.getElementById('writ') || {}).value || ''
+  try { localStorage.setItem('interval-writ', src) } catch {}
+  try { WORKER = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' }))) }
+  catch (e) { logLine('no worker: ' + e.message, 'bad'); return }
+  WORKER.onmessage = (e) => {
+    const m = e.data
+    if (m.kind === 'writ') {
+      writErr = m.err || ''
+      logLine(writErr ? 'the writ will not read: ' + writErr : 'the writ is read. waiting for a tick.',
+              writErr ? 'bad' : 'say')
+      return
+    }
+    if (m.kind === 'deed') {
+      writWaiting = false
+      for (const l of (m.lines || [])) logLine('   \u00b7 ' + l, 'say')
+      if (m.err) { logLine('tick ' + m.at + '  \u2716 ' + m.err, 'bad'); return }
+      if (!m.deed) { logLine('tick ' + m.at + '  \u2014 stood still', 'tick'); return }
+      writDeeds++
+      act(m.deed)
+      logLine('tick ' + m.at + '  \u2192 ' + m.deed.do +
+        Object.entries(m.deed).filter(([k]) => k !== 'do')
+          .map(([k, v]) => '  ' + k + '=' + v).join(''))
+    }
+  }
+  WORKER.onerror = (e) => { logLine('the writ threw: ' + (e.message || 'unknown'), 'bad') }
+  WORKER.postMessage({ kind: 'writ', src })
+  writRunning = true; writSkipped = 0; writDeeds = 0
+  logLine('\u2014 running \u2014', 'say')
+}
+function stopWrit () {
+  if (WORKER) { try { WORKER.terminate() } catch {} }
+  WORKER = null; writRunning = false; writWaiting = false
+}
+// §one state, one question, one deed. If the writ has not answered the last
+// tick by the time the next one lands, the tick is SKIPPED rather than queued:
+// a citizen who cannot keep up misses their interval, exactly like one who
+// walked away from the keyboard.
+function askWrit (s) {
+  if (!writRunning || !WORKER) return
+  const me = (s.players || {})[myId]
+  if (!me) return
+  if (writWaiting) { writSkipped++; logLine('tick ' + s.tick + '  \u26a0 too slow, missed it', 'bad'); return }
+  writWaiting = true
+  WORKER.postMessage({ kind: 'tick', at: s.tick, world: s, me })
+  setTimeout(() => { if (writWaiting) { writWaiting = false } }, 700)
+}
+
+// ============================================================================
 //  2. THE ROOM — canvases, sizes, and the 320x240 the whole thing lives in.
 // ============================================================================
 const glc = document.getElementById('gl'), hudc = document.getElementById('hud')
@@ -565,18 +731,23 @@ let RW = 320, RH = 240, lockedAspect = false     // internal resolution; height 
 function sizeUp () {
   const aw = innerWidth, ah = innerHeight
   const aspect = lockedAspect ? 4 / 3 : Math.max(1.1, Math.min(2.1, aw / ah))
-  RH = 240; RW = Math.max(256, Math.min(464, Math.round(RH * aspect / 8) * 8))
+  RH = 288; RW = Math.max(256, Math.min(464, Math.round(RH * aspect / 8) * 8))
   glc.width = RW; glc.height = RH; hudc.width = RW; hudc.height = RH
   // fit the little frame into the big window without ever blurring it
-  const scale = Math.min(aw / RW, ah / RH)
+  const box = document.getElementById('stack')
+  const bw = (box && box.clientWidth) || aw, bh = (box && box.clientHeight) || ah
+  const scale = Math.min(bw / RW, bh / RH)
   for (const c of [glc, hudc]) {
     c.style.width = Math.round(RW * scale) + 'px'
     c.style.height = Math.round(RH * scale) + 'px'
-    c.style.left = Math.round((aw - RW * scale) / 2) + 'px'
-    c.style.top = Math.round((ah - RH * scale) / 2) + 'px'
+    c.style.left = Math.round((bw - RW * scale) / 2) + 'px'
+    c.style.top = Math.round((bh - RH * scale) / 2) + 'px'
   }
   if (renderer) { renderer.setSize(RW, RH, false); target.setSize(RW, RH)
-    camera.aspect = RW / RH; camera.updateProjectionMatrix()
+    const half = VIEW_TILES * TILE * 0.5
+    camera.left = -half * (RW / RH); camera.right = half * (RW / RH)
+    camera.top = half; camera.bottom = -half
+    camera.updateProjectionMatrix()
     vmCamera.aspect = RW / RH; vmCamera.updateProjectionMatrix()
     U.uRes.value.set(RW, RH); post.uniforms.uRes.value.set(RW, RH) }
   hx.imageSmoothingEnabled = false
@@ -669,12 +840,14 @@ addEventListener('pointerdown', startDoorMusic, { once: true })
 addEventListener('gamepadconnected', () => { startDoorMusic(); audioUp() })
 tap.addEventListener('click', (e) => {
   if (e.target && e.target.id === 'doormusic') return
-  glc.requestPointerLock && glc.requestPointerLock(); audioUp()
+  entered = true; tap.style.display = 'none'; audioUp()
 })
+let entered = false
 glc.addEventListener('contextmenu', (e) => e.preventDefault())
 glc.addEventListener('mousedown', (e) => {
   audioUp()
   if (mapOn) { mapOn = false; sfx('paper'); return }
+  if (!entered) { entered = true; tap.style.display = 'none'; return }
   if (paused()) {                                       // a panel is up: the click belongs to it
     if (e.button === 2) { backMenu(); return }
     for (const h of hot) if (mx >= h.x && my >= h.y && mx < h.x + h.w && my < h.y + h.h) {
@@ -684,19 +857,22 @@ glc.addEventListener('mousedown', (e) => {
     }
     return
   }
-  if (document.pointerLockElement !== glc) { glc.requestPointerLock && glc.requestPointerLock(); return }
-  if (e.button === 2 || e.shiftKey) strikeCitizen()      // turning on a neighbour is a separate deed
-  else strike()
+  // §POINT AT THE COUNTRY. A click on the ground is a step toward that tile; a
+  // click on a thing is the deed that thing offers. This is how every overhead
+  // game of the era was played, and it is the only input that suits a view
+  // where the whole board is in front of you.
+  const t = tileUnder(mx, my)
+  if (!t) return
+  if (e.button === 2 || e.shiftKey) { pointAt(t, true); return }
+  pointAt(t, false)
 })
-document.addEventListener('pointerlockchange', () => {
-  const inside = document.pointerLockElement === glc
-  tap.style.display = (inside || paused()) ? 'none' : 'flex'
-  // carried in: the theme ducks beneath the world instead of being cut off
-  if (inside && DOORMUSIC) doorTarget = 0.13
-  if (!inside && DOORMUSIC) doorTarget = 0.42
-})
+// the theme ducks under the world when you come up the hill
+setInterval(() => { if (DOORMUSIC) doorTarget = entered ? 0.13 : 0.42 }, 400)
+// §NO POINTER LOCK. An overhead window has no head to turn: the mouse is a
+// finger pointing at the country, so it keeps its cursor and the pointer stays
+// where the person put it.
 document.addEventListener('mousemove', (e) => {
-  if (document.pointerLockElement !== glc) {
+  if (true) {
     // out of the lock, the pointer is a pointer: put it in panel coordinates
     if (!glc.getBoundingClientRect) return
     const r = glc.getBoundingClientRect()
@@ -727,13 +903,15 @@ addEventListener('keydown', (e) => {
   if (keys[k]) return
   keys[k] = true
   if (k === 'e') context()
-  if (k === 'q') openMenu(selfMenu())
+  if (k === 'z') openMenu(selfMenu())
   if (k === 't') { chatOn = true; chatText = '' }
   if (k === 'r') openMenu(tradeMenu())
   if (k === 'x') { act({ do: 'stop' }); say('you stand still.') }
   if (k === 'c') special()
   if (k === 'n') claimName()
   if (k === 'f') { lockedAspect = !lockedAspect; sizeUp() }
+  if (k === 'q') { isoYawTo -= Math.PI / 2; sfx('blip'); return }   // turn the country
+  if (k === 'e' && keys.Shift) { isoYawTo += Math.PI / 2; sfx('blip'); return }
   if (k === 'k') { muted = !muted; say(muted ? 'sound off' : 'sound on') }
   if (k === 'm') { mapOn = true; loadMap(); sfx('paper')
                    if (document.exitPointerLock) document.exitPointerLock() }
@@ -852,8 +1030,6 @@ function vnoise (x, y) {                            // cheap value noise on the 
 }
 const TILE = 2.0                                    // one Interval tile, in metres
 const EYE = 1.52
-// the small lumps this window invented, PLUS the real height of the land, which
-// the pillar serves and which routed every road in the world
 const groundH = (tx, ty) => landH(tx, ty) +
                             (vnoise(tx * 0.31, ty * 0.31) - 0.5) * 0.62 +
                             (vnoise(tx * 0.9, ty * 0.9) - 0.5) * 0.18
@@ -874,26 +1050,7 @@ function mkTex (n, draw, opts) {
   return t
 }
 // a 4-bit palette, dithered — the way a 1997 artist would have fit it in VRAM
-// §FOUR COLOURS A TEXTURE WAS A BUDGET, NOT A LOOK. A 4bpp CLUT held sixteen
-// entries and an artist spent them carefully. The next machine had no such
-// ceiling, so every surface gained the in-between shades that make a texture
-// read as a material rather than as a pattern. This blends the intermediate
-// steps into every palette in the file at once.
-function widen (pal) {
-  return pal      // §sixteen colours, and they were chosen
-  const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
-  const str = (a) => '#' + a.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')
-  const out = []
-  for (let i = 0; i < pal.length; i++) {
-    out.push(pal[i])
-    const a = hex(pal[i]), b = hex(pal[(i + 1) % pal.length])
-    out.push(str(a.map((v, k) => v * 0.66 + b[k] * 0.34)))
-    out.push(str(a.map((v, k) => v * 0.33 + b[k] * 0.67)))
-  }
-  return out
-}
 function speckle (g, n, pal, density) {
-  pal = widen(pal)
   g.fillStyle = pal[0]; g.fillRect(0, 0, n, n)
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
     const r = hash2(x * 13 + n, y * 7 + n * 3)
@@ -1037,14 +1194,6 @@ TEX.flame = mkTex(128, (g, n) => {          // four frames of fire, 32px apiece
     }
   }
 })
-// §GROUND CLUTTER: the thing that actually separates the two machines.
-//
-// A 1994 game had BARE GROUND, because every blade of grass is a quad and the
-// quads were spent on the level. A 2000 game buried the floor in alpha-tested
-// cards — grass tufts, ferns, weeds, flowers, scattered by the hundred — and
-// that, far more than any filter, is what the picture is made of. Turning on
-// bilinear and calling it a newer machine is a smoothed old one; this is the
-// difference.
 TEX.tuft = mkTex(64, (g, n) => {
   g.clearRect(0, 0, n, n)
   const blade = (x0, h, col, lean) => {
@@ -1175,7 +1324,26 @@ const renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: false, alpha:
 renderer.setPixelRatio(1)
 renderer.autoClear = false
 const scene = new THREE.Scene()
-const camera = new THREE.PerspectiveCamera(72, 4 / 3, 0.12, Math.max(260, FAR * TILE * 2.6))
+// §THE OLD ANGLE. 30 degrees of pitch and 45 of yaw is what every isometric
+// game of the era used, because it is the shallowest angle at which a tile grid
+// still reads as a grid and a standing figure still reads as standing. An
+// orthographic camera keeps a tile the same size wherever it is, which is the
+// whole point: a world you are surveying should not have a near end and a far
+// one.
+const ISO_PITCH = 0.62                    // ~35 degrees, the true isometric tilt
+let isoYaw = Math.PI / 4                  // and a quarter turn, turned in quarters
+let isoYawTo = isoYaw
+// HOW WIDE THE BOARD IS, and it is not the same question as how much ground
+// exists. Sized to the whole built radius, twenty-two tiles across, a troll is
+// twenty pixels and a fight is legible only through its hitsplats — which is
+// the mist window's fault in reverse: too much country and not enough of what
+// is happening in it. Sixteen tiles is still four times the area a keyhole
+// gives you, and a citizen is a citizen rather than a mark.
+const VIEW_TILES = (() => {
+  const m = /(?:\?|&)tiles=(\d+)/.exec((typeof location !== 'undefined' && location.search) || '')
+  return Math.max(8, Math.min(40, m ? +m[1] : 16))
+})()
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400)
 const vmScene = new THREE.Scene()                       // the hands live in their own world
 const vmCamera = new THREE.PerspectiveCamera(58, 4 / 3, 0.02, 12)
 const target = new THREE.WebGLRenderTarget(320, 240, {
@@ -1187,11 +1355,6 @@ const target = new THREE.WebGLRenderTarget(320, 240, {
 const U = {
   uRes:      { value: new THREE.Vector2(320, 240) },
   uJitter:   { value: 1.0 },
-  uAffine:   { value: 1.0 },               // §the floor swims, and that is the point
-
-
-
-
   uLightDir: { value: new THREE.Vector3(0.5, 0.8, 0.3).normalize() },
   uAmb:      { value: 0.42 },
   uDif:      { value: 0.72 },
@@ -1203,23 +1366,24 @@ const U = {
   uFireGain: { value: 1.0 },
   // and the mist that pools in the low ground, thickest at the bottom of it
   uMistTop:   { value: 1.6 },
-  uMistDense: { value: 0.35 }
+  uMistDense: { value: 0.35 },
+  uFocus:     { value: new THREE.Vector3() }    // where the citizen stands
 }
 
 const VU = {
   uLightDir: { value: new THREE.Vector3(0.35, 0.72, 0.6).normalize() },
   uAmb: U.uAmb, uDif: U.uDif, uFogColor: U.uFogColor, uRes: U.uRes, uJitter: U.uJitter,
-  uAffine: U.uAffine,
   uFogNear: { value: 1e6 }, uFogFar: { value: 1e6 + 1 },   // your own hands are never in the fog
   uFires: U.uFires, uFireGain: U.uFireGain,
   uMistTop: { value: 0 }, uMistDense: { value: 0 }
 }
 const VERT = `
-  uniform vec2 uRes; uniform float uJitter; uniform float uAffine;
+  uniform vec2 uRes; uniform float uJitter;
   uniform vec3 uLightDir; uniform float uAmb; uniform float uDif;
   uniform float uFogNear; uniform float uFogFar;
   uniform vec4 uFires[4]; uniform float uFireGain;
   uniform float uMistTop; uniform float uMistDense;
+  uniform vec3 uFocus;
   attribute vec3 color;
   varying vec2 vUvW; varying float vW; varying vec3 vCol; varying float vFog;
   void main() {
@@ -1235,11 +1399,8 @@ const VERT = `
     // AFFINE texture mapping. Premultiplying by w and dividing it back out in
     // the fragment defeats the perspective correction the rasteriser wants to
     // do, which is exactly what the hardware could not afford. Floors swim.
-    // uAffine turns it off: with w held at 1 the varying interpolates the way
-    // the rasteriser wanted to all along, and the floor stops swimming. That
-    // one line is the largest single difference between the two eras.
-    vUvW = uv * mix(1.0, clip.w, uAffine);
-    vW   = mix(1.0, clip.w, uAffine);
+    vUvW = uv * clip.w;
+    vW   = clip.w;
     vec4 wp = modelMatrix * vec4(position, 1.0);
     vec3 wn = normalize(mat3(modelMatrix) * normal);
     float d = max(dot(wn, uLightDir), 0.0);
@@ -1256,12 +1417,9 @@ const VERT = `
       float nd = 0.34 + 0.66 * max(dot(wn, normalize(fd + vec3(0.0, 0.02, 0.0))), 0.0);
       fire += vec3(1.0, 0.50, 0.19) * at * nd * uFireGain;
     }
-    // §a highlight, which the older machine had no cycles for: the same
-    // per-vertex light with a hard shoulder on it, so wet stone and worked
-    // metal catch the sun instead of reading as flat paint.
     vCol = color * (uAmb + uDif * d + b) + color * fire;
-
-    float dist = length(mv.xyz);
+    // measured across the ground from where the citizen is standing
+    float dist = length(wp.xz - uFocus.xz);
     float df = clamp((dist - uFogNear) / (uFogFar - uFogNear), 0.0, 1.0);
     // the mist has weight: it lies in the low ground and thins out above it
     float low = clamp((uMistTop - wp.y) / max(uMistTop, 0.001), 0.0, 1.0);
@@ -1277,9 +1435,8 @@ const FRAG = `
     vec2 uv = vUvW / vW + uUvOff;
     vec4 t = vec4(1.0);
     if (uHasMap > 0.5) t = texture2D(uMap, uv);
-    if (t.a < uAlphaTest) discard;                       // one bit of alpha, or nearly
-    vec3 lit = vCol;
-    vec3 c = t.rgb * mix(lit, vec3(1.0), uUnlit) * uTint;
+    if (t.a < uAlphaTest) discard;                       // one-bit alpha, no blending
+    vec3 c = t.rgb * mix(vCol, vec3(1.0), uUnlit) * uTint;
     gl_FragColor = vec4(mix(c, uFogColor, vFog), t.a * uOpacity);
   }`
 
@@ -1302,7 +1459,6 @@ function ps1 (opt) {
   // the PlayStation had four semi-transparency modes and this is the one
   // everybody used for mist and glass: half the background, half the polygon.
   if (opt.opacity !== undefined && opt.opacity < 1) { m.transparent = true; m.depthWrite = false }
-
   if (opt.add) { m.transparent = true; m.depthWrite = false; m.blending = THREE.AdditiveBlending }
   return m
 }
@@ -1337,37 +1493,20 @@ const post = new THREE.ShaderMaterial({
       float l = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(l), c, uSat);
       vec2 p = vUv * uRes;
-      {                                                  // the console's own dither
-        float d = bayer2(0.5 * p) * 0.25 + bayer2(p);    // ordered 4x4, the console's own
-        c += (d - 0.5) / 32.0;                           // dither, then throw away the low bits
-        c = floor(c * 31.0 + 0.5) / 31.0;                // 5:5:5, 32768 colours and no more
-      }
+      float d = bayer2(0.5 * p) * 0.25 + bayer2(p);      // ordered 4x4, the console's own
+      c += (d - 0.5) / 32.0;                             // dither, then throw away the low bits
+      c = floor(c * 31.0 + 0.5) / 31.0;                  // 5:5:5, 32768 colours and no more
       gl_FragColor = vec4(c, 1.0);
     }`
 })
 postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post))
 
 // ---- the sky: a band of gradient, and mostly you will never see it ----
-// §THE OLDER MACHINE HAD NO SKY. It had fog, and the fog went all the way up,
-// because a sky you can see is a sky you have to draw and there was nothing
-// left to draw it with. The next one had a skybox, and the single loudest thing
-// about a 2000 game is that the sky is BLUE and the fog is only weather.
 const skyTex = mkTex(64, (g, n) => {
-  const top = [0x3a, 0x55, 0x74], bot = [0x9a, 0xa4, 0x92]
   for (let y = 0; y < n; y++) { const t = y / n
+    const top = [0x3a, 0x55, 0x74], bot = [0x9a, 0xa4, 0x92]
     const c = top.map((v, i) => Math.round(lerp(v, bot[i], Math.pow(t, 0.7))))
     g.fillStyle = 'rgb(' + c.join(',') + ')'; g.fillRect(0, y, n, 1) }
-  return
-  // clouds belonged to a machine with a sky
-  for (let i = 0; i < 26; i++) {
-    const cx = hash2(i, 3) * n, cy = n * (0.10 + hash2(i, 5) * 0.34), w = 8 + hash2(i, 7) * 26
-    for (let j = 0; j < 26; j++) {
-      const px = cx + (hash2(i * 9 + j, 11) - 0.5) * w
-      const py = cy + (hash2(i * 9 + j, 13) - 0.5) * w * 0.24
-      g.fillStyle = hash2(j, i) > 0.5 ? 'rgba(255,255,255,0.55)' : 'rgba(228,238,246,0.42)'
-      g.fillRect(px | 0, py | 0, 3 + (hash2(j, 3) * 5 | 0), 2)
-    }
-  }
 }, { clamp: true })
 const skyMat = ps1({ map: skyTex, unlit: true })
 // the sky sits outside the fog, or the fog would eat its own colour
@@ -1477,59 +1616,6 @@ function cellAt (tx, ty) {
   return { cell: n < 0.33 ? 10 : n > 0.63 ? 1 : 2, sea: false }
 }
 
-function buildGround (ctx, cty) {
-  const W = (world && world.genesis && world.genesis.worldW) || 320
-  const H = (world && world.genesis && world.genesis.worldH) || 200
-  const INS = 1 / 256
-  let k = 0
-  for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
-    const tx = ctx + i, ty = cty + j
-    const out = tx < 0 || ty < 0 || tx >= W || ty >= H
-    // WHAT COUNTRY THIS IS, FROM THE PILLAR — through the one classifier the
-    // footstep uses too, so what you see and what you hear cannot disagree.
-    const g0 = cellAt(tx, ty)
-    let cell = g0.cell, sea = g0.sea || out
-    const cu = (cell % 4) * 0.25, cv = 0.75 - ((cell / 4) | 0) * 0.25   // 64px rows on a 256px page
-    // §THE PILLAR SAYS WHERE THE ROCK IS. `blocked` and dry is a crag, and the
-    // newer machine had the triangles to make a crag a landform rather than a
-    // grey square you cannot walk on. The height is hashed off the tile, so it
-    // is the same crag in every window.
-    const crag = cell === 4 && !sea ? 1.1 + hash2(tx, ty) * 2.6 : 0
-    const drop = sea ? -0.85 : crag
-    const lump = sea ? 0.12 : 1                    // water lies flat; land does not
-    // a crag rises at its own corners only, so its edges are cliffs rather than
-    // a ramp: the tile beside it stays where the world says the ground is
-    const cH = (ax, ay) => (!sea && MAP && MAP.w && ax >= 0 && ay >= 0 && ax < MAP.w && ay < MAP.h
-      && mapBit(MAP.blocked, ax, ay) && (MAP.country[ay * MAP.w + ax] % 12) !== 0
-        ? 1.1 + hash2(ax, ay) * 2.6 : 0)
-    const cn = (ax, ay) => (crag ? Math.min(crag, Math.max(cH(ax, ay), cH(ax - 1, ay),
-                                    cH(ax, ay - 1), cH(ax - 1, ay - 1))) : 0)
-    const lift = (ax, ay) => (sea ? -0.85 : cn(ax, ay))
-    const h00 = cornerH(tx, ty) * lump + lift(tx, ty)
-    const h10 = cornerH(tx + 1, ty) * lump + lift(tx + 1, ty)
-    const h01 = cornerH(tx, ty + 1) * lump + lift(tx, ty + 1)
-    const h11 = cornerH(tx + 1, ty + 1) * lump + lift(tx + 1, ty + 1)
-    const x0 = tx * TILE, z0 = ty * TILE, x1 = x0 + TILE, z1 = z0 + TILE
-    const p = k * 12, u = k * 8, c = k * 12
-    gPos.set([x0, h00, z0, x1, h10, z0, x0, h01, z1, x1, h11, z1], p)
-    const CU = 0.25, CV = 0.25
-    gUv.set([cu + INS, cv + CV - INS, cu + CU - INS, cv + CV - INS,
-             cu + INS, cv + INS,      cu + CU - INS, cv + INS], u)
-    // one normal for the whole tile: flat shaded, like everything else here
-    const nx = (h00 + h01 - h10 - h11) * 0.5, nz = (h00 + h10 - h01 - h11) * 0.5
-    const len = Math.hypot(nx, TILE, nz)
-    for (let v = 0; v < 4; v++) gNor.set([nx / len, TILE / len, nz / len], p + v * 3)
-    const shade = (out ? 0.5 : sea ? 0.85 : 1) * (0.86 + hash2(tx, ty) * 0.28)
-    for (let v = 0; v < 4; v++) gCol.set([shade, shade, shade], c + v * 3)
-    k++
-  }
-  for (const a of ['position', 'uv', 'color', 'normal']) groundGeo.attributes[a].needsUpdate = true
-  // the clutter belongs to the ground and is rebuilt with it
-  if (clutter) { drop(clutter); clutter = null }
-  clutter = new THREE.Group(); scatterClutter(clutter, ctx, cty); scene.add(clutter)
-  builtAt = ctx + ',' + cty
-}
-
 // §GROUND CLUTTER, IN TWO BUFFERS.
 //
 // The first version built two meshes per tuft with a fresh geometry each — six
@@ -1586,6 +1672,57 @@ function scatterClutter (parent, ctx, cty) {
     parent.add(new THREE.Mesh(g, mat(kind, { alphaTest: 0.4, side: THREE.DoubleSide })))
   }
 }
+function buildGround (ctx, cty) {
+  const W = (world && world.genesis && world.genesis.worldW) || 320
+  const H = (world && world.genesis && world.genesis.worldH) || 200
+  const INS = 1 / 256
+  let k = 0
+  for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) {
+    const tx = ctx + i, ty = cty + j
+    const out = tx < 0 || ty < 0 || tx >= W || ty >= H
+    // through the one classifier the footstep uses too, so what you see and
+    // what you hear cannot disagree
+    const g0 = cellAt(tx, ty)
+    let cell = g0.cell, sea = g0.sea || out
+    const cu = (cell % 4) * 0.25, cv = 0.75 - ((cell / 4) | 0) * 0.25   // 64px rows on a 256px page
+    // §THE PILLAR SAYS WHERE THE ROCK IS. `blocked` and dry is a crag, and the
+    // newer machine had the triangles to make a crag a landform rather than a
+    // grey square you cannot walk on. The height is hashed off the tile, so it
+    // is the same crag in every window.
+    const crag = cell === 4 && !sea ? 1.1 + hash2(tx, ty) * 2.6 : 0
+    const drop = sea ? -0.85 : crag
+    const lump = sea ? 0.12 : 1                    // water lies flat; land does not
+    // a crag rises at its own corners only, so its edges are cliffs rather than
+    // a ramp: the tile beside it stays where the world says the ground is
+    const cH = (ax, ay) => (!sea && MAP && MAP.w && ax >= 0 && ay >= 0 && ax < MAP.w && ay < MAP.h
+      && mapBit(MAP.blocked, ax, ay) && (MAP.country[ay * MAP.w + ax] % 12) !== 0
+        ? 1.1 + hash2(ax, ay) * 2.6 : 0)
+    const cn = (ax, ay) => (crag ? Math.min(crag, Math.max(cH(ax, ay), cH(ax - 1, ay),
+                                    cH(ax, ay - 1), cH(ax - 1, ay - 1))) : 0)
+    const lift = (ax, ay) => (sea ? -0.85 : cn(ax, ay))
+    const h00 = cornerH(tx, ty) * lump + lift(tx, ty)
+    const h10 = cornerH(tx + 1, ty) * lump + lift(tx + 1, ty)
+    const h01 = cornerH(tx, ty + 1) * lump + lift(tx, ty + 1)
+    const h11 = cornerH(tx + 1, ty + 1) * lump + lift(tx + 1, ty + 1)
+    const x0 = tx * TILE, z0 = ty * TILE, x1 = x0 + TILE, z1 = z0 + TILE
+    const p = k * 12, u = k * 8, c = k * 12
+    gPos.set([x0, h00, z0, x1, h10, z0, x0, h01, z1, x1, h11, z1], p)
+    const CU = 0.25, CV = 0.25
+    gUv.set([cu + INS, cv + CV - INS, cu + CU - INS, cv + CV - INS,
+             cu + INS, cv + INS,      cu + CU - INS, cv + INS], u)
+    // one normal for the whole tile: flat shaded, like everything else here
+    const nx = (h00 + h01 - h10 - h11) * 0.5, nz = (h00 + h10 - h01 - h11) * 0.5
+    const len = Math.hypot(nx, TILE, nz)
+    for (let v = 0; v < 4; v++) gNor.set([nx / len, TILE / len, nz / len], p + v * 3)
+    const shade = (out ? 0.5 : sea ? 0.85 : 1) * (0.86 + hash2(tx, ty) * 0.28)
+    for (let v = 0; v < 4; v++) gCol.set([shade, shade, shade], c + v * 3)
+    k++
+  }
+  for (const a of ['position', 'uv', 'color', 'normal']) groundGeo.attributes[a].needsUpdate = true
+  if (clutter) { drop(clutter); clutter = null }         // the clutter belongs to the ground
+  clutter = new THREE.Group(); scatterClutter(clutter, ctx, cty); scene.add(clutter)
+  builtAt = ctx + ',' + cty
+}
 
 // ============================================================================
 //  8. THINGS — every node, beast, citizen and dropped item, in as few
@@ -1640,7 +1777,6 @@ function shadow (r) {
 function makeTree (big, leafTint, barkTint, tall, wide) {
   const g = new THREE.Group()
   const hgt = (big ? 5.4 : 3.6) * (tall ?? 1), rad = (big ? 0.26 : 0.18) * (wide ?? 1)
-  // §a trunk was five sides because five sides was what a trunk cost
   const tr = new THREE.Mesh(paint(new THREE.CylinderGeometry(rad * 0.7, rad, hgt, 5, 1), barkTint ?? 0xffffff, 0.16), mat('bark'))
   tr.position.y = hgt / 2; g.add(tr)
   const cw = (big ? 4.4 : 3.0) * (wide ?? 1), ch = (big ? 3.8 : 2.6) * (0.6 + (tall ?? 1) * 0.4)
@@ -2433,8 +2569,7 @@ function biped (o) {
 }
 
 // ---- and the things that fit neither chassis ----
-function serpent (o) {
-  const box = orgBox      // §what is alive, curves                                  // adder, lamprey
+function serpent (o) {                                  // adder, lamprey
   const s = o.s, g = new THREE.Group(), segs = []
   for (let i = 0; i < o.n; i++) {
     const w = o.w * s * (1 - i / o.n * 0.65)
@@ -2459,8 +2594,7 @@ function serpent (o) {
   g.userData.serpent = segs; g.userData.head = head
   return g
 }
-function crawler (o) {
-  const box = orgBox      // §what is alive, curves                                  // crab, spider
+function crawler (o) {                                  // crab, spider
   const s = o.s, g = new THREE.Group(), T = o.tex, C = o.col
   const bw = o.bodyW * s, bh = o.bodyH * s, y = (o.bodyY ?? o.legLen * 0.62) * s
   if (o.abdomen) { const ab = new THREE.Mesh(paint(new THREE.IcosahedronGeometry(bw * 0.62, 0), C, 0.12), mat(T))
@@ -2502,8 +2636,7 @@ function crawler (o) {
   g.userData.legs = legs; g.userData.gait = gait; g.userData.head = head
   return g
 }
-function bird (o) {
-  const box = orgBox      // §what is alive, curves                                     // the carrion crow
+function bird (o) {                                     // the carrion crow
   const s = o.s, g = new THREE.Group(), T = o.tex, C = o.col
   const y = 0.42 * s
   const body = P(g, 0.3 * s, 0.34 * s, 0.6 * s, T, C, 0, y, 0, 0.08)
@@ -2710,8 +2843,6 @@ function topple (id, m) {
   if (o.userData.plate) o.userData.plate.visible = false
   dying.push(o)
   sfx('death')
-  if (m && VOICE[m.type]) cry(VOICE[m.type], Math.max(Math.abs(m.x - camTile[0]),
-    Math.abs(m.y - camTile[1])), CARRY[VOICE[m.type]] || 9)
   if (m) splat(m.x, m.y, 0, 'dead')
 }
 
@@ -2731,6 +2862,12 @@ function topple (id, m) {
 const PARTS = []                       // live particles: {mesh, vx, vy, vz, born, life, spin}
 const MISSILES = []                    // things in flight: {mesh, from, to, born, life, kind}
 const partPool = []
+// A SPARK SIZED FOR A FACE IS INVISIBLE FROM A HILL. The mist window's
+// particles are a hand's breadth from the eye. Orthographic at sixteen tiles,
+// twelve pixels to the metre, the same spark is four pixels across and the
+// whole feedback layer quietly disappears: the deeds still happen and nothing
+// on the screen says so.
+const PART_SCALE = 2.8
 function particle (kind, x, y, z, vx, vy, vz, life, size) {
   const cell = { spark: [0, 0], chip: [0.25, 0], mote: [0, 0.25], drop: [0.25, 0.25] }[kind] || [0, 0]
   let m = partPool.pop()
@@ -2742,7 +2879,7 @@ function particle (kind, x, y, z, vx, vy, vz, life, size) {
     a.setXY(i, cell[0] + bx, (1 - cell[1] - 0.25) + by)
   }
   a.needsUpdate = true
-  m.scale.setScalar(size ?? 0.22)
+  m.scale.setScalar((size ?? 0.22) * PART_SCALE)
   m.position.set(x, y, z)
   m.visible = true
   scene.add(m)
@@ -2771,16 +2908,16 @@ function ring (tx, ty, kind, radius, n, life) {
 function missile (kind, fx, fy, tx, ty) {
   const g = new THREE.Group()
   if (kind === 'bolt') {                       // sorcery: a mote with a tail
-    const head = quad(0.3, 0.3, 'spark', 0xffffff, [0.25, 0.25], { unlit: true })
+    const head = quad(0.84, 0.84, 'spark', 0xffffff, [0.25, 0.25], { unlit: true })
     const a = head.geometry.attributes.uv
     for (let i = 0; i < a.count; i++) { const bx = i % 2 === 1 ? 0.25 : 0, by = i < 2 ? 0.25 : 0
       a.setXY(i, bx, 0.5 + by) }
     g.add(head); g.userData.bill = head
   } else {                                     // an arrow, or a stone, or shot
-    const shaft = box(0.045, 0.045, kind === 'shot' ? 0.12 : 0.7, 'bark', 0x8a6a3a, 0.05)
+    const shaft = box(0.10, 0.10, kind === 'shot' ? 0.3 : 1.1, 'bark', 0x8a6a3a, 0.05)
     g.add(shaft)
-    if (kind !== 'shot') { const tip = box(0.06, 0.06, 0.12, 'iron', 0x9aa0a6)
-      tip.position.z = -0.4; g.add(tip)
+    if (kind !== 'shot') { const tip = box(0.12, 0.12, 0.2, 'iron', 0x9aa0a6)
+      tip.position.z = -0.62; g.add(tip)
       for (const d of [-1, 1]) { const f = quad(0.14, 0.16, 'foliage', 0xe0dccc)
         f.position.set(d * 0.05, 0, 0.3); f.rotation.y = d * 0.5; g.add(f) } }
   }
@@ -2897,10 +3034,15 @@ function sync () {
   for (const [id, p] of Object.entries(ps)) {
     if (!placed(p)) continue
     const dead = (p.deadUntil ?? 0) > world.tick
-    const want = near(p) && !dead && id !== myId
+    // §from a hill you can see yourself, and a window that hides your own body
+    // in an overhead view is hiding the one piece you are moving
+    const want = near(p) && !dead
     let o = live.players.get(id)
     if (want && !o) {
-      o = makeFigure(id === myId ? 0x8a3a2a : 0x3a4a6a)
+      o = makeFigure(id === myId ? 0xc8a03a : 0x3a4a6a)   // yours is the gold one
+      if (id === myId) { const ring = shadow(1.5)
+        ring.position.y = 0.05; ring.material.uniforms.uTint = { value: new THREE.Color(0xffd772) }
+        ring.material.uniforms.uOpacity.value = 0.30; o.add(ring) }
       if (p.name) { const pl = nameplate(p.name, '#f0dfc0'); pl.position.y = 2.0
         pl.userData.plate = true; o.add(pl); o.userData.plate = pl }
       place(o, p.x, p.y, 0); scene.add(o); live.players.set(id, o)
@@ -2913,6 +3055,70 @@ function sync () {
     const b = box(0.22, 0.22, 0.22, 'iron', 0xd8c07a, 0.1)
     b.userData.item = gi.item; return b
   }, 0.3)
+}
+
+// ============================================================================
+//  9b. POINTING AT THE COUNTRY
+//
+//  A first-person window aims with its face: whatever is in front of you is
+//  what you mean. An overhead one has no face, so it aims with the mouse, and
+//  the whole question is which tile a pixel is standing on. With an
+//  orthographic camera that is one unproject and one plane intersection, and it
+//  is exact — no picking, no ray against every mesh, and it costs nothing.
+// ============================================================================
+const _ray = new THREE.Vector3(), _dir = new THREE.Vector3(), _hit = new THREE.Vector3()
+function tileUnder (px, py) {
+  if (!world || px < 0 || py < 0) return null
+  _ray.set((px / RW) * 2 - 1, -(py / RH) * 2 + 1, -1).unproject(camera)
+  _dir.set(0, 0, -1).applyQuaternion(camera.quaternion).normalize()
+  if (Math.abs(_dir.y) < 1e-4) return null
+  // the ground is not flat, but it is near enough flat for a click: meet the
+  // plane at the height of the tile the citizen is standing on
+  const me = meNow()
+  const planeY = me ? tileTop(me.x, me.y) : 0
+  const t = (planeY - _ray.y) / _dir.y
+  if (t < 0) return null
+  _hit.copy(_ray).addScaledVector(_dir, t)
+  const tx = Math.floor(_hit.x / TILE), ty = Math.floor(_hit.z / TILE)
+  const W = (world.genesis && world.genesis.worldW) || 1e9
+  const H = (world.genesis && world.genesis.worldH) || 1e9
+  if (tx < 0 || ty < 0 || tx >= W || ty >= H) return null
+  return { x: tx, y: ty }
+}
+// what a click on that tile MEANS: the thing standing on it, if there is one,
+// and otherwise a step toward it
+function pointAt (t, hostile) {
+  const me = meNow()
+  if (!me || ghost) return
+  const near1 = Math.abs(t.x - me.x) <= 1 && Math.abs(t.y - me.y) <= 1
+  const mob = NEAR.mobs.find((m) => m.m.x === t.x && m.m.y === t.y)
+  if (mob) { work(SWING_OF(wieldOf(me))); act({ do: 'attack', mobId: mob.id }); return }
+  const who = NEAR.folk.find((c) => c.p.x === t.x && c.p.y === t.y)
+  if (who) {
+    if (hostile) { work(SWING_OF(wieldOf(me))); act({ do: 'attackp', targetId: who.id })
+                   say('you turn on ' + (who.p.name || 'a stranger') + '.'); return }
+    openMenu(tradeMenu()); return
+  }
+  if (near1) {
+    const here = options().filter((o) => o.at && o.at.x === t.x && o.at.y === t.y)
+    if (here.length === 1) { here[0].go(); return }
+    if (here.length > 1) { openMenu({ title: 'HERE', rows: here.map((x) => ({ label: x.label, act: x.go, stay: x.stay })) }); return }
+  }
+  // nothing on it: walk toward it, one tile a tick, the way the world moves
+  const dx = Math.sign(t.x - me.x), dy = Math.sign(t.y - me.y)
+  if (!dx && !dy) { const o = options(); if (o.length === 1) o[0].go(); else if (o.length) context(); return }
+  walkTo = { x: t.x, y: t.y }
+  act({ do: 'move', dx, dy })
+}
+// §a path is not a plan: the window asks for ONE step a tick toward where you
+// pointed, and stops the moment the world stops moving you. It never pretends
+// to know a route the pillar has not agreed to.
+let walkTo = null
+function walkOn () {
+  const me = meNow(); if (!me || !walkTo) return
+  if (me.x === walkTo.x && me.y === walkTo.y) { walkTo = null; return }
+  if (Math.abs(me.x - walkTo.x) + Math.abs(me.y - walkTo.y) > 60) { walkTo = null; return }
+  act({ do: 'move', dx: Math.sign(walkTo.x - me.x), dy: Math.sign(walkTo.y - me.y) })
 }
 
 // ============================================================================
@@ -3063,7 +3269,7 @@ function options () {
   const me = meNow(); if (!me || ghost) return (NEAR.opts = [])
   const out = []
   for (const { id, g } of NEAR.ground) {
-    out.push({ label: 'take ' + nice(g.item), go: () => { work('stoop'); act({ do: 'pickup', groundId: id, confirm: false }) } })
+    out.push({ at: g, label: 'take ' + nice(g.item), go: () => { work('stoop'); act({ do: 'pickup', groundId: id, confirm: false }) } })
     // §7cf: a goo-staff unmakes what is lying there; a sigil seals it
     if (/goo-staff/.test(wieldOf(me)))
       out.push({ label: 'unmake ' + nice(g.item), go: () => { spellFx('invoke'); act({ do: 'unmake', groundId: id }) } })
@@ -3071,6 +3277,7 @@ function options () {
       out.push({ label: 'seal ' + nice(g.item), go: () => { spellFx('anchor'); act({ do: 'seal', groundId: id }) } })
   }
   for (const { id, n } of nodesNear([...GATHERABLE])) out.push({
+    at: n,
     label: n.type === 'fishing-spot' ? 'fish' : n.type === 'salt-pan' ? 'rake salt'
          : n.type.includes('tree') || n.type === 'gallows-oak' ? 'chop' : 'mine',
     go: () => { work(n.type === 'fishing-spot' || n.type === 'salt-pan' ? 'cast'
@@ -3356,7 +3563,6 @@ function deedsFor (i, item) {
   // send it until the ladder learned the word.
   if (at(['ossuary'])) D('offer it up', { do: 'offer', slot: i }, 'given up.')
   else if (BONEY.test(item)) notes.push('mourn: needs an ossuary')
-  // §where this came from, and where another would come from
   const src = whereFrom(item)
   if (src.length) rows.push({ label: 'where ' + nice(item) + ' comes from', stay: 1,
     act: () => openMenu({ title: nice(item).toUpperCase(),
@@ -3673,6 +3879,11 @@ function tradeMenu () {
   if (me && me.trade) rows.push({ label: 'withdraw your offer',
     act: () => { act({ do: 'cancel_trade' }); say('you take the offer back.') } })
   const near = citizensNear()
+  // §an overhead window aims with the mouse, but a deed this grave should not
+  // live ONLY under a mouse button
+  for (const { id, p } of near) rows.push({ label: 'turn on ' + (p.name || 'stranger'),
+    act: () => { work(SWING_OF(wieldOf(meNow() || {}))); act({ do: 'attackp', targetId: id })
+                 say('you turn on ' + (p.name || 'a stranger') + '.') } })
   for (const { id, p } of near) rows.push({ label: 'offer something to ' + (p.name || 'stranger'), stay: 1,
     act: () => openMenu({ title: 'GIVE WHAT?', rows: ((meNow() || {}).inventory || []).map((sl, i) => sl
       ? { label: nice(sl.item), stay: 1, act: () => openMenu(offerMenu(id, p, i, sl.item)) } : null).filter(Boolean) }) })
@@ -3775,17 +3986,6 @@ function buildViewmodel (item) {
   // the wrist, in cloth, because a hand that goes on forever is an arm
   const cuff = vbox(0.115, 0.065, 0.075, 'cloth', 0x6a5840, 0.06)
   cuff.position.set(0, -0.10, 0.075); grip.add(cuff)
-  if (false) {
-    for (let i = 0; i < 4; i++) {
-      const t = i / 3
-      const seg = vbox(0.115 - t * 0.018, 0.115, 0.10 - t * 0.012, 'skin', 0xcf9a70, 0.04)
-      seg.position.set(0, -0.16 - i * 0.10, 0.11 + i * 0.055)
-      seg.rotation.x = -0.42
-      grip.add(seg)
-    }
-    const sleeve = vbox(0.15, 0.13, 0.13, 'cloth', 0x5a4a34, 0.06)
-    sleeve.position.set(0, -0.50, 0.30); sleeve.rotation.x = -0.42; grip.add(sleeve)
-  }
   const band = vbox(0.128, 0.022, 0.085, 'iron', 0x9a7c50, 0.04)
   band.position.set(0, -0.062, 0.078); grip.add(band)
   const shaft = (len, th, tex, col) => { const h = vbox(th, len, th, tex || 'bark', col ?? 0x7a5a34, 0.06)
@@ -4059,7 +4259,7 @@ function cry (kind, dist, carry) {
 function sfx (kind, vol) {
   if (!AC || muted) return
   const t = AC.currentTime
-  const V = vol === undefined ? 1 : vol      // §how far away the thing making it is
+  const V = vol === undefined ? 1 : vol
   const blip = (freq, dur, type, vol, at) => {
     const o = AC.createOscillator(), g = AC.createGain(), t0 = t + (at || 0)
     o.type = type || 'square'; o.frequency.setValueAtTime(freq, t0)
@@ -4137,6 +4337,25 @@ function sfx (kind, vol) {
                         blip(320, 0.04, 'square', 0.02); break }
     case 'stepWet':   { burst(0.14, 500 + Math.random() * 300, 0.06, 0, 0.7, 'lowpass')
                         burst(0.08, 2000, 0.03, 0.01, 1); break }
+    case 'loose':  burst(0.06, 1800, 0.09, 0, 2); blip(240, 0.09, 'triangle', 0.05); break
+    case 'strike': burst(0.05, 900, 0.10, 0, 3); break
+    case 'cast':   { const o = blip(300, 0.3, 'sine', 0.06)
+                     o.frequency.exponentialRampToValueAtTime(900, t + 0.28)
+                     burst(0.28, 1600, 0.04, 0, 0.7); break }
+    case 'zap':    { const o = blip(1200, 0.16, 'sawtooth', 0.07)
+                     o.frequency.exponentialRampToValueAtTime(200, t + 0.15)
+                     burst(0.12, 900, 0.08, 0, 2); break }
+    case 'crush':  { const o = blip(90, 0.5, 'sawtooth', 0.13)
+                     o.frequency.exponentialRampToValueAtTime(38, t + 0.45)
+                     burst(0.4, 160, 0.16, 0, 0.6, 'lowpass'); burst(0.1, 2200, 0.07, 0, 3); break }
+    case 'draw':   { const o = blip(160, 0.42, 'triangle', 0.05)
+                     o.frequency.linearRampToValueAtTime(300, t + 0.4); break }
+    case 'paper':  burst(0.18, 2400, 0.06, 0, 0.8); burst(0.1, 1100, 0.04, 0.06, 1); break
+    case 'heave':  { burst(0.2, 220, 0.12, 0, 0.6, 'lowpass'); blip(110, 0.2, 'triangle', 0.06); break }
+    case 'flick':  burst(0.07, 2200, 0.08, 0, 3); break
+    case 'thrust': { burst(0.13, 1300, 0.09, 0, 2); blip(420, 0.09, 'triangle', 0.04); break }
+    case 'sweep':  { burst(0.24, 520, 0.09, 0, 0.5); break }
+    case 'cut':    { burst(0.12, 1500, 0.10, 0, 1.5); blip(900, 0.1, 'sine', 0.035); break }
     case 'stepDeep':  { burst(0.13, 420 + Math.random() * 240, 0.05, 0, 0.9, 'lowpass')
                         burst(0.09, 1500, 0.025, 0.02, 1.4); break }   // leaf litter
     case 'stepHeath': { burst(0.10, 700 + Math.random() * 400, 0.045, 0, 1.1)
@@ -4227,6 +4446,22 @@ function sfx (kind, vol) {
                      blip(180, 0.1, 'triangle', 0.05, 0.02); break }
     case 'hitPierce': { burst(0.06, 1250, 0.10, 0, 2.4); blip(420, 0.07, 'triangle', 0.05); break }
     case 'hitBone':  { burst(0.05, 2600, 0.10, 0, 4); burst(0.09, 900, 0.06, 0.02, 2); break }
+    case 'sizzle': { burst(0.75, 3400, 0.055, 0, 0.7); burst(0.4, 1200, 0.035, 0.1, 1.1)
+                     burst(0.3, 5200, 0.025, 0.3, 0.8); break }      // a fish on a fire
+    case 'whittle': for (let i = 0; i < 3; i++) burst(0.09, 1300 + i * 260, 0.06, i * 0.14, 2); break
+    case 'kindle': { burst(0.3, 900, 0.07, 0, 0.8); burst(0.6, 2400, 0.04, 0.08, 0.6)
+                     blip(140, 0.2, 'triangle', 0.04); break }
+    case 'dig':    { burst(0.16, 320, 0.09, 0, 0.9, 'lowpass'); burst(0.12, 900, 0.04, 0.1, 1.2); break }
+    case 'pour':   { const o = blip(420, 0.5, 'sine', 0.05)
+                     o.frequency.linearRampToValueAtTime(700, t + 0.45)
+                     burst(0.5, 1800, 0.03, 0, 0.9); break }
+    case 'grind':  { burst(0.9, 700, 0.07, 0, 0.5); burst(0.9, 2200, 0.03, 0.05, 0.9)
+                     blip(90, 0.8, 'sawtooth', 0.03); break }        // a millstone turning
+    case 'bubble': for (let i = 0; i < 6; i++) { const o = blip(200 + i * 40, 0.09, 'sine', 0.05, i * 0.13)
+                     o.frequency.exponentialRampToValueAtTime(520 + i * 40, t + i * 0.13 + 0.08) } break
+    case 'saw':    for (let i = 0; i < 4; i++) burst(0.22, 1100, 0.06, i * 0.26, 1.4); break
+    case 'toll':   { blip(392, 1.4, 'sine', 0.07); blip(587, 1.2, 'sine', 0.03, 0.02)
+                     blip(196, 1.6, 'sine', 0.05, 0.01); break }     // a bell over an ossuary
     case 'sizzle': { burst(0.75, 3400, 0.055, 0, 0.7); burst(0.4, 1200, 0.035, 0.1, 1.1)
                      burst(0.3, 5200, 0.025, 0.3, 0.8); break }      // a fish on a fire
     case 'whittle': for (let i = 0; i < 3; i++) burst(0.09, 1300 + i * 260, 0.06, i * 0.14, 2); break
@@ -4783,7 +5018,7 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 2.6)
 // walking eases in a little as well as out, so one stride runs into the next
 // instead of stopping dead and starting again
 const easeWalk = (t) => t * t * (3 - 2 * t)
-const _v = new THREE.Vector3(), _fv = new THREE.Vector3(), _sv = new THREE.Vector3()
+const _v = new THREE.Vector3(), _fv = new THREE.Vector3(), _sv = new THREE.Vector3(), _look = new THREE.Vector3()
 const sunDir = new THREE.Vector3(0.5, 0.8, 0.3)
 const DAY = 2400        // the deep window's day, to the tick: 40 minutes at TICK_MS
 // GROW_TICKS_RIPE is 720, and at an interval of a second that is the twelve
@@ -4826,18 +5061,22 @@ function step (dt, now) {
   sunDir.set(Math.cos(sunA), Math.max(0.05, sunH), 0.38).normalize()
   U.uLightDir.value.copy(sunDir)
   tmpC.copy(C_NIGHT).lerp(C_DAY, day).lerp(C_DUSK, dusk * 0.65)
-
   U.uFogColor.value.copy(tmpC)
   // the fog is sized to the ground that exists, so it always ends in fog and
   // never at an edge
+  // §the fog is an EDGE here, not a wall: it begins past the near country and
+  // closes just inside the ground that exists, so the world ends in weather
   const reach = R * TILE
-  U.uFogFar.value = Math.min(reach * 1.05, (17 + day * 15) * (R / 13))
-  U.uFogNear.value = (3 + day * 2) * (R / 13)
+  U.uFogFar.value = reach * 0.94
+  U.uFogNear.value = reach * 0.60
+  U.uMistTop.value = 0.9
+  U.uMistDense.value = 0.10 + (1 - day) * 0.16
   U.uAmb.value = 0.20 + day * 0.30 + dusk * 0.06
   U.uDif.value = 0.22 + day * 0.62
   post.uniforms.uSat.value = 0.72 + day * 0.28
   U.uMistTop.value = 1.7
   U.uMistDense.value = 0.14 + (1 - day) * 0.30 + dusk * 0.20
+  U.uFocus.value.set(camPos.x, camPos.y, camPos.z)
   renderer.setClearColor(tmpC, 1)
   ambience(day, U.uFogFar.value)
   beastVoices(now)
@@ -4902,9 +5141,20 @@ function step (dt, now) {
   // stick, because you are not the one deciding anything for the next five.
   const fall = deathAt < 0 ? 0 : Math.min(1, (now - deathAt) / 900)
   const fallY = fall * (EYE - 0.28), roll = fall * 0.75
-  camera.position.set(camPos.x + bobX + (Math.random() - 0.5) * sh,
-                      camPos.y + bobY - fallY + (Math.random() - 0.5) * sh, camPos.z)
-  camera.rotation.set(pitch - fall * 0.5, yaw, roll, 'YXZ')
+  // the country turns in quarters, and it eases rather than snapping, because a
+  // board being spun is a different gesture from a head being turned
+  const dYaw = ((isoYawTo - isoYaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI
+  isoYaw += dYaw * Math.min(1, dt * 7)
+  const DIST = VIEW_TILES * TILE * 0.9
+  const cy = Math.cos(ISO_PITCH), sy = Math.sin(ISO_PITCH)
+  camera.position.set(
+    camPos.x + Math.sin(isoYaw) * cy * DIST + (Math.random() - 0.5) * sh,
+    camPos.y + sy * DIST + bobY * 0.5 - fallY * 0.4 + (Math.random() - 0.5) * sh,
+    camPos.z + Math.cos(isoYaw) * cy * DIST)
+  _look.set(camPos.x + bobX * 0.5, camPos.y - 0.4, camPos.z)
+  camera.lookAt(_look)
+  camera.rotation.z += roll * 0.4
+  yaw = isoYaw                              // billboards and the pad still want a facing
   sky.position.set(camera.position.x, camera.position.y - SKY_R * 0.1, camera.position.z)
   sun.position.copy(camera.position).addScaledVector(sunDir, SKY_R * 0.79)
   sun.lookAt(camera.position)
@@ -5166,14 +5416,41 @@ function step (dt, now) {
   renderer.setRenderTarget(target)
   renderer.clear()
   renderer.render(scene, camera)
-  renderer.clearDepth()
-  renderer.render(vmScene, vmCamera)
+  // no hands: you are not holding anything from up here, you are watching
   renderer.setRenderTarget(null)
   renderer.clear()
   renderer.render(postScene, postCam)
   drawHud(now)
 }
 function worldYaw (o) { let y = 0, p = o; while (p && p !== scene) { y += p.rotation.y; p = p.parent } return y }
+
+// ---- the desk ----
+{
+  const box = document.getElementById('writ')
+  let saved = null
+  try { saved = localStorage.getItem('interval-writ') } catch {}
+  if (box) box.value = saved || WRIT_DEFAULT
+  const btn = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener('click', fn) }
+  btn('run', () => { startWrit(); audioUp() })
+  btn('halt', () => { stopWrit(); logLine('\u2014 halted \u2014', 'say') })
+  btn('wipe', () => { if (box) box.value = WRIT_DEFAULT
+    try { localStorage.removeItem('interval-writ') } catch {}
+    logLine('the writ is back to the one it came with', 'say') })
+  if (box) box.addEventListener('keydown', (e) => {
+    e.stopPropagation()                       // the world's keys are not the desk's
+    if (e.key === 'Tab') { e.preventDefault()
+      const a = box.selectionStart
+      box.value = box.value.slice(0, a) + '  ' + box.value.slice(box.selectionEnd)
+      box.selectionStart = box.selectionEnd = a + 2 }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); startWrit() }
+  })
+  setInterval(() => {
+    const st = document.getElementById('stat'); if (!st) return
+    st.textContent = !writRunning ? 'idle'
+      : writErr ? 'the writ will not read'
+      : writDeeds + ' deeds \u00b7 ' + writSkipped + ' missed'
+  }, 500)
+}
 
 sizeUp()
 loadMap()          // the ground is the pillar's to say, not this window's to guess

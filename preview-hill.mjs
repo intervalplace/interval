@@ -1,6 +1,6 @@
 // preview-mist.mjs — look at the mist window without a browser.
 //
-// This loads window-mist.html for real (real three.js, real geometry, real
+// This loads window-hill.html for real (real three.js, real geometry, real
 // materials, real textures) and then rasterises the scene IN SOFTWARE using
 // exactly the arithmetic the window's own shaders use: the same vertex snap,
 // the same affine UV trick, the same per-vertex fog, the same 4x4 dither and
@@ -136,9 +136,7 @@ global.document = {
   addEventListener: (t, f) => { (docHandlers[t] ||= []).push(f) },
   exitPointerLock: () => {}, pointerLockElement: null
 }
-global.location = { protocol: 'http:', host: 'x',
-  search: (process.env.FAR ? '?far=' + process.env.FAR : '?x=1') +
-          (process.env.ERA ? '&era=' + process.env.ERA : '') }
+global.location = { protocol: 'http:', host: 'x' }
 global.localStorage = { getItem: () => 'preview', setItem: () => {} }
 global.innerWidth = 960; global.innerHeight = 720           // a 4:3 320x240 frame
 global.addEventListener = (t, f) => { (winHandlers[t] ||= []).push(f) }
@@ -188,7 +186,7 @@ if (process.env.MAPDATA) {
 }
 
 
-const html = fs.readFileSync(process.argv[5] || 'window-mist.html', 'utf8')
+const html = fs.readFileSync(process.argv[5] || 'window-hill.html', 'utf8')
 for (const b of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1])) (0, eval)(b)
 
 // a real slice of a real world, if one has been saved beside us
@@ -287,7 +285,7 @@ if (process.env.TOIL) {
   state.players.me.action = { type: 'gather', nodeId: 'toil' }
   state.players.me.inventory = [{ item: process.env.TOOL || 'iron-hatchet' }]
   send({ type: 'state', state, worldId: 'a1b2c3d4e5' })
-  for (let i = 0; i < 14; i++) { CLOCK += 40; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
+  for (let i = 0; i < +(process.env.AFTER || 4); i++) { CLOCK += 40; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
 }
 
 if (process.env.DEAD) {
@@ -336,17 +334,6 @@ if (process.env.FIGHT) {
   for (let i = 0; i < (+process.env.AFTER || 5); i++) { CLOCK += 34; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
 }
 
-if (process.env.LEVEL) {
-  const [sk, xp] = process.env.LEVEL.split(',')
-  state.players.me.skills = { [sk]: 0 }
-  send({ type: 'state', state, worldId: 'a1b2c3d4e5' })
-  for (let i = 0; i < 3; i++) { CLOCK += 34; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
-  state.tick++
-  state.players.me.skills = { [sk]: +xp }
-  send({ type: 'state', state, worldId: 'a1b2c3d4e5' })
-  for (let i = 0; i < 12; i++) { CLOCK += 34; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
-}
-
 // press keys before the shutter, so the panels can be photographed
 if (process.env.MENU) {
   if (!process.env.BARE) {
@@ -386,29 +373,14 @@ const color = new Float32Array(RW * RH * 3), depth = new Float32Array(RW * RH)
 function clearBuf (c) { for (let i = 0; i < RW * RH; i++) {
   color[i * 3] = c.r; color[i * 3 + 1] = c.g; color[i * 3 + 2] = c.b; depth[i] = Infinity } }
 
-// NEAREST OR BILINEAR, AS THE TEXTURE ASKS. Sampling nearest whatever the
-// material says would show a 2000 machine's geometry with a 1994 machine's
-// filtering, which is not a comparison, it is a composite of two.
-const texel = (d, w, h, x, y, rep) => {
+function sample (tex, u, v) {
+  const img = tex.image, w = img.width, h = img.height, d = img.data
+  const rep = tex.wrapS === THREE.RepeatWrapping
+  let x = Math.floor(u * w), y = Math.floor((1 - v) * h)          // flipY, as three does
   if (rep) { x = ((x % w) + w) % w; y = ((y % h) + h) % h }
   else { x = Math.max(0, Math.min(w - 1, x)); y = Math.max(0, Math.min(h - 1, y)) }
   const i = (y * w + x) * 4
   return [d[i] / 255, d[i + 1] / 255, d[i + 2] / 255, d[i + 3] / 255]
-}
-function sample (tex, u, v) {
-  const img = tex.image, w = img.width, h = img.height, d = img.data
-  const rep = tex.wrapS === THREE.RepeatWrapping
-  if (tex.magFilter === THREE.LinearFilter) {
-    const fx = u * w - 0.5, fy = (1 - v) * h - 0.5
-    const x0 = Math.floor(fx), y0 = Math.floor(fy), ax = fx - x0, ay = fy - y0
-    const a = texel(d, w, h, x0, y0, rep), b = texel(d, w, h, x0 + 1, y0, rep)
-    const c = texel(d, w, h, x0, y0 + 1, rep), e = texel(d, w, h, x0 + 1, y0 + 1, rep)
-    const out = [0, 0, 0, 0]
-    for (let k = 0; k < 4; k++)
-      out[k] = (a[k] * (1 - ax) + b[k] * ax) * (1 - ay) + (c[k] * (1 - ax) + e[k] * ax) * ay
-    return out
-  }
-  return texel(d, w, h, Math.floor(u * w), Math.floor((1 - v) * h), rep)
 }
 const mv = new THREE.Matrix4(), tmpN = new THREE.Matrix3(), _wp = new THREE.Vector3()
 function drawMesh (o, cam) {
@@ -422,6 +394,7 @@ function drawMesh (o, cam) {
   const P = cam.projectionMatrix.elements
   const L = un.uLightDir.value, amb = un.uAmb.value, dif = un.uDif.value
   const fogN = un.uFogNear.value, fogF = un.uFogFar.value, fog = un.uFogColor.value
+  const FOCUS = un.uFocus ? un.uFocus.value : null
   const FIRES = un.uFires.value, GAIN = un.uFireGain.value
   const MT = un.uMistTop.value, MD = un.uMistDense.value
   const M = o.matrixWorld.elements
@@ -457,7 +430,6 @@ function drawMesh (o, cam) {
     const bk = Math.max(-(nx * L.x + ny * L.y + nz * L.z), 0) * 0.10
     const cr = colA ? colA.getX(vi) : 1, cg = colA ? colA.getY(vi) : 1, cb = colA ? colA.getZ(vi) : 1
     const lit = amb + dif * d + bk
-    // §the normal itself goes across, for the newest machine's per-pixel light
     // world position, for the fires and for how low in the mist this corner sits
     const wx = M[0] * x + M[4] * y + M[8] * z + M[12]
     const wy = M[1] * x + M[5] * y + M[9] * z + M[13]
@@ -473,19 +445,17 @@ function drawMesh (o, cam) {
       const nd = 0.34 + 0.66 * Math.max(nx * dx / l2 + ny * (dy + 0.02) / l2 + nz * dz / l2, 0)
       fR += 1.0 * at * nd * GAIN; fG += 0.50 * at * nd * GAIN; fB += 0.19 * at * nd * GAIN
     }
-    const dist = Math.hypot(ex, ey, ez)
+    const dist = FOCUS ? Math.hypot(wx - FOCUS.x, wz - FOCUS.z) : Math.hypot(ex, ey, ez)
     const df = Math.max(0, Math.min(1, (dist - fogN) / (fogF - fogN)))
     const low = Math.max(0, Math.min(1, (MT - wy) / Math.max(MT, 0.001)))
     const f = Math.max(0, Math.min(1, df + low * low * MD * Math.min(1, dist / fogF)))
     const u = uvA ? uvA.getX(vi) : 0, v = uvA ? uvA.getY(vi) : 0
     return { x: cx, y: cy, z: cz, w: cw, u: u * cw, v: v * cw,
-             r: cr * lit + cr * fR, g: cg * lit + cg * fG, b: cb * lit + cb * fB, f,
-             // §the normal itself, for the newest machine's per-pixel light
-             nx: nx * cw, ny: ny * cw, nz: nz * cw }
+             r: cr * lit + cr * fR, g: cg * lit + cg * fG, b: cb * lit + cb * fB, f }
   }
   for (let t = 0; t < n; t += 3) {
     const a = vert(idx ? idx[t] : t), b = vert(idx ? idx[t + 1] : t + 1), c = vert(idx ? idx[t + 2] : t + 2)
-    for (const tri of clipNear([a, b, c])) raster(tri, map, at, unlit, off, tint, fog, two, blend, opacity, L)
+    for (const tri of clipNear([a, b, c])) raster(tri, map, at, unlit, off, tint, fog, two, blend, opacity)
   }
 }
 // near-plane clipping, so a tile under your feet does not smear the screen
@@ -506,7 +476,7 @@ function clipNear (tri) {
   for (let i = 1; i + 1 < out.length; i++) tris.push([out[0], out[i], out[i + 1]])
   return tris
 }
-function raster (tri, map, at, unlit, off, tint, fog, two, blend, opacity, L) {
+function raster (tri, map, at, unlit, off, tint, fog, two, blend, opacity) {
   const S = tri.map(v => ({ ...v, sx: (v.x / v.w * 0.5 + 0.5) * RW, sy: (1 - (v.y / v.w * 0.5 + 0.5)) * RH,
                             sz: v.z / v.w, iw: 1 / v.w }))
   const [A, B, C] = S
@@ -532,26 +502,7 @@ function raster (tri, map, at, unlit, off, tint, fog, two, blend, opacity, L) {
     const vw = gi('w'), uu = gi('u') / vw + off.x, vv = gi('v') / vw + off.y
     let r = 1, g = 1, b = 1, ta = 1
     if (map) { const t = sample(map, uu, vv); if (t[3] < at) continue; r = t[0]; g = t[1]; b = t[2]; ta = t[3] }
-    let lr = unlit ? 1 : gi('r'), lg = unlit ? 1 : gi('g'), lb2 = unlit ? 1 : gi('b')
-    if (PIXEL && map && !unlit) {
-      // the normal, bent by the slope of the page's own luminance, and the
-      // lambert done HERE rather than at the corners
-      const tw = map.image.width, th = map.image.height
-      const h0 = LUM([r, g, b])
-      const hX = LUM(sample(map, uu + 1 / tw, vv)), hY = LUM(sample(map, uu, vv + 1 / th))
-      let nx = gi('nx') / vw, ny = gi('ny') / vw, nz = gi('nz') / vw
-      const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl
-      const ux = Math.abs(ny) > 0.9 ? 1 : 0, uy = Math.abs(ny) > 0.9 ? 0 : 1
-      let tx = uy * nz - 0 * ny, tyy = 0 * nx - ux * nz, tz = ux * ny - uy * nx
-      const tl = Math.hypot(tx, tyy, tz) || 1; tx /= tl; tyy /= tl; tz /= tl
-      const bx = ny * tz - nz * tyy, by = nz * tx - nx * tz, bz = nx * tyy - ny * tx
-      const kx = (h0 - hX) * BUMP, ky = (h0 - hY) * BUMP
-      nx += tx * kx + bx * ky; ny += tyy * kx + by * ky; nz += tz * kx + bz * ky
-      const n2 = Math.hypot(nx, ny, nz) || 1; nx /= n2; ny /= n2; nz /= n2
-      const dd = L ? Math.max(nx * L.x + ny * L.y + nz * L.z, 0) : 0.7
-      const k = 0.55 + dd * 0.62
-      lr *= k; lg *= k; lb2 *= k
-    }
+    const lr = unlit ? 1 : gi('r'), lg = unlit ? 1 : gi('g'), lb2 = unlit ? 1 : gi('b')
     r *= lr * tint.r; g *= lg * tint.g; b *= lb2 * tint.b
     const f = gi('f')
     r = r + (fog.r - r) * f; g = g + (fog.g - g) * f; b = b + (fog.b - b) * f
@@ -581,29 +532,15 @@ function drawScene (sc, cam) {
 
 // ============================ the last pass ==================================
 const bayer2 = (x, y) => { const f = x / 2 + y * y * 0.75; return f - Math.floor(f) }
-const BITS = true    // one machine, and it dithers
-// §PER-PIXEL LIGHT IN THE SHUTTER TOO. A rasteriser that only interpolates the
-// vertex colour cannot show a machine whose whole signature is that it stopped
-// doing that. The normal comes across as a varying and the lambert is done
-// here, against a normal bent by the slope of the texture's own luminance.
-const PIXEL = false  // the light is finished at the corners, as it was
-const LUM = (c) => c[0] * 0.299 + c[1] * 0.587 + c[2] * 0.114
-const BUMP = 2.6
 function present (scale) {
   const hud = els.hud
   const out = Buffer.alloc(RW * scale * RH * scale * 3)
   for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
     const i = y * RW + x
     let c = [color[i * 3], color[i * 3 + 1], color[i * 3 + 2]]
-    // §and the last pass is the era's too: dither and truncate, or keep the low
-    // bits and spend them on a bloom
-    if (BITS) {
-      const d = bayer2(Math.floor(0.5 * x), Math.floor(0.5 * y)) * 0.25 + bayer2(x, y)
-      c = c.map(v => Math.max(0, Math.min(1, v + (d - 0.5) / 32)))
-      c = c.map(v => Math.floor(v * 31 + 0.5) / 31 * 255)        // 5:5:5, and no more
-    } else {
-      c = c.map(v => { const lift = Math.max(v - 0.72, 0); return Math.max(0, Math.min(1, v + lift * 0.55)) * 255 })
-    }
+    const d = bayer2(Math.floor(0.5 * x), Math.floor(0.5 * y)) * 0.25 + bayer2(x, y)
+    c = c.map(v => Math.max(0, Math.min(1, v + (d - 0.5) / 32)))
+    c = c.map(v => Math.floor(v * 31 + 0.5) / 31 * 255)          // 5:5:5, and no more
     const h = process.env.NOHUD ? null : hud.data, k = (y * hud.width + x) * 4
     if (h && h[k + 3] > 8) { const a = h[k + 3] / 255
       c = [c[0] * (1 - a) + h[k] * a, c[1] * (1 - a) + h[k + 1] * a, c[2] * (1 - a) + h[k + 2] * a] }
@@ -639,7 +576,7 @@ function crc32 (buf) {
 
 clearBuf(seen.clear || new THREE.Color(0x8a9a86))
 drawScene(seen.scene, seen.cam)
-if (!process.env.NOHUD) {                       // the hands get their own depth
+if (!process.env.NOHUD && seen.vmScene) {      // this window may have no hands
   for (let i = 0; i < RW * RH; i++) depth[i] = Infinity
   drawScene(seen.vmScene, seen.vmCam)
 }
