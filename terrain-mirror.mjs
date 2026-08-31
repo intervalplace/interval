@@ -899,7 +899,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"vault","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -925,7 +925,7 @@ function planConnected4(rows, cx, cy) {
       const nx = x + dx, ny = y + dy, k = nx + ',' + ny
       if (seen.has(k) || !openAt(nx, ny)) continue
       seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
+  const ESS = new Set(['vault','store','anvil','smith','keeper','well','waystone'])
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
     if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
@@ -1423,7 +1423,7 @@ function shopDoors4(st) {
   const shops = []
   for (const k in st.nodes) {
     const q = st.nodes[k]
-    if (q.type === 'bank' || q.type === 'store') shops.push(q)
+    if (q.type === 'vault' || q.type === 'store') shops.push(q)
   }
   for (const t of settlementsE4()) {
     const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
@@ -1467,7 +1467,7 @@ function keeperRole4(st, id, n) {
   if (id.includes('sawyer') || id.includes('camp')) return 'forest'
   if (id.includes('eel') || id.includes('sheds')) return 'fisher'
   if (id.includes('delve') || id.includes('high')) return 'smith'
-  if (id.includes('bank')) return 'clerk'
+  if (id.includes('vault')) return 'clerk'
   const ck = _roleCache.get(id)
   if (ck) return ck
   let role = 'town'
@@ -1478,7 +1478,7 @@ function keeperRole4(st, id, n) {
       if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
       near[q.type] = true
     }
-    role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
+    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
          : near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
@@ -1905,7 +1905,7 @@ const KN = {}
       const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
       KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
     }
-    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+    for (const tag of tags) for (const role of ['vault', 'store', 'store2']) {
       const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
       KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
     }

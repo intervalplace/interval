@@ -29,7 +29,7 @@
 //     were walking           Barbarian Village are all things you pass.
 //
 // THE BANK IS THE WHOLE DEFINITION, and it costs nothing to enforce. A drawn
-// settlement is laid by layDrawnTown, which never runs the bankFill in
+// settlement is laid by layDrawnTown, which never runs the vaultFill in
 // layTown; a drawn town's bank comes from a 'B' glyph in its own art. So a
 // village has no bank by NOT DRAWING ONE, and that single omission is what
 // makes distance from a bank a real cost for the first time -- which is what

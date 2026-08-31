@@ -99,7 +99,7 @@ const TICK_MS = 1000;
 //
 // It is also the whole reason the recipe tree was rebuilt below. A pack is not
 // just storage -- it is the ceiling on what one craft may cost, because nothing
-// reads from a bank at an anvil. Twenty-eight already had FOUR recipes that
+// reads from a vault at an anvil. Twenty-eight already had FOUR recipes that
 // could not be held at all (the entire `great` tier shipped uncraftable); at
 // twelve, sixteen were over. The answer was not smaller numbers, it was DEPTH:
 // see star-grit and star-alloy.
@@ -356,7 +356,7 @@ function everWasSomebody(p, genesis) {
   // out eight lines below for precisely this reason; the purse was given the
   // same carve-out in the constitution and never in the code.
   if ((p.gold ?? 0) > (genesis?.newcomerGold ?? 0)) return true;
-  if (p.bank && Object.keys(p.bank).length > 0) return true;   // §6g: any vault at all
+  if (p.vaults && Object.keys(p.vaults).length > 0) return true;   // §6g: any vault at all
   if (p.equipment && EQUIP_SLOTS.some((k) => p.equipment[k])) return true;   // 6bz: not three hard-coded names
   if (p.action !== null && p.action !== undefined) return true;
   if (p.trade !== null && p.trade !== undefined) return true;
@@ -552,7 +552,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'mag
   // is the chart, as a GOOD rather than a key (6ci): 6ag was right that a
   // master surveyor should come home with something to sell. It had simply
   // spent that idea on a door.
-  'bank', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'crier', 'store', 'wall', 'well', 'fountain', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
+  'vault', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'crier', 'store', 'wall', 'well', 'fountain', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
   // §2g: A RAMPART IS NOT A HOUSE WALL.
   //
   // The town drawings have always distinguished them -- '%' is a town's outer
@@ -1009,7 +1009,7 @@ const STORE_SELLS = {};
 // ---------------------------------------------------------------------------
 // THE STALLS
 // ---------------------------------------------------------------------------
-// A town has a bank, a store and an anvil, and everything else is a house. The
+// A town has a vault, a store and an anvil, and everything else is a house. The
 // houses are not a failure -- a town needs to be somewhere people live -- but
 // it does mean a citizen learns three buildings and stops looking.
 //
@@ -1302,8 +1302,8 @@ const FORAGE_ROTS = 50;
 //
 // STOCK IS ONE-WAY, and that single rule is what keeps it a shop. You may put
 // things in; the only ways out are a SALE or a SPILL. Never a withdrawal.
-// Without it a stall in the Wilds is a bank in the Wilds -- mine twenty-eight
-// stones, walk five tiles, empty the pack, mine twenty-eight more -- and the
+// Without it a stall in the Wilds is a vault in the Wilds -- mine twelve
+// stones, walk five tiles, empty the pack, mine twelve more -- and the
 // six thousand trips out of the Wilds that the whole star economy rests on
 // would simply evaporate.
 //
@@ -4326,7 +4326,7 @@ const TOWN_RADIUS = 16;
 function inTown(state, ctx, x, y) {
   for (const id of Object.keys(state.nodes)) {
     const n = state.nodes[id];
-    if (n.type !== 'bank') continue;
+    if (n.type !== 'vault') continue;
     if (Math.abs(n.x - x) <= TOWN_RADIUS && Math.abs(n.y - y) <= TOWN_RADIUS) return true;
   }
   return false;
@@ -7392,7 +7392,7 @@ function validateGenesis(g) {
 // input is ever validated, so they get a dedicated, complete validator
 // (rev6 §2) IDs, names, skills, XP, HP, inventory, bank, equipment,
 // quantities, item vocabulary, and cross-entry uniqueness.
-const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'hp', 'bank', 'inventory', 'weapon']);
+const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'hp', 'vaults', 'inventory', 'weapon']);
 function validateImports(imported) {
   if (!Array.isArray(imported) || imported.length > MAX_ENTITIES) return 'bad imports';
   const pids = new Set(), names = new Set();
@@ -7419,10 +7419,10 @@ function validateImports(imported) {
       if (!Array.isArray(imp.inventory) || imp.inventory.length > INV_SLOTS) return 'malformed imported inventory';
       for (const sl of imp.inventory) if (!isSlot(sl)) return 'malformed imported inventory slot';
     }
-    if (imp.bank !== undefined) {
-      if (!imp.bank || typeof imp.bank !== 'object') return 'malformed imported bank';
-      if (Object.keys(imp.bank).length > 512) return 'imported bank exceeds bounds';
-      for (const [it, q] of Object.entries(imp.bank)) {
+    if (imp.vaults !== undefined) {
+      if (!imp.vaults || typeof imp.vaults !== 'object') return 'malformed imported vault';
+      if (Object.keys(imp.vaults).length > 512) return 'imported vault exceeds bounds';
+      for (const [it, q] of Object.entries(imp.vaults)) {
         if (!ITEMS.has(it)) return 'import carries an unknown item';
         if (!isInt(q, 1, MAX_QTY)) return 'import quantity out of bounds'; // sparse banks (rev7 §5)
       }
@@ -7648,7 +7648,7 @@ const LANDMARK_KINDS = new Set([
   'rubble-heap',
   'window-arch',
 ]); // (rev4 §11): defined ONCE, above
-  const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
+  const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'vaults', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
     'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
@@ -7786,14 +7786,14 @@ const LANDMARK_KINDS = new Set([
     // inventory: the exact constitutional slot count (28), always
     if (!Array.isArray(p.inventory) || p.inventory.length !== INV_SLOTS) return 'inventory length is not constitutional';
     for (const sl of p.inventory) if (!isSlot(sl)) return 'malformed inventory slot';
-    // §6g: A VAULT PER COUNTER. `p.bank` is a map from bank NODE ID to that
+    // §6g: A VAULT PER COUNTER. `p.vaults` is a map from vault NODE ID to that
     // counter's shelf, so the shape check is two deep. The bound that is
     // load-bearing here is the VAULT COUNT -- what a citizen accumulates by
     // travelling. Kinds are bounded by the item table and depth is not bounded
     // by the state at all; see below.
-    if (!p.bank || typeof p.bank !== 'object' || Array.isArray(p.bank)) return 'malformed bank';
-    if (Object.keys(p.bank).length > 32) return 'bank exceeds vault bounds';
-    for (const [bid, vault] of Object.entries(p.bank)) {
+    if (!p.vaults || typeof p.vaults !== 'object' || Array.isArray(p.vaults)) return 'malformed vaults';
+    if (Object.keys(p.vaults).length > 32) return 'too many vaults';
+    for (const [bid, vault] of Object.entries(p.vaults)) {
       if (typeof bid !== 'string' || !bid) return 'malformed vault id';
       if (!vault || typeof vault !== 'object' || Array.isArray(vault)) return 'malformed vault';
       if (Object.keys(vault).length === 0) return 'an empty vault is deleted, not kept';
@@ -7806,8 +7806,8 @@ const LANDMARK_KINDS = new Set([
       // drains back under the cap by being used.
       if (Object.keys(vault).length > ITEMS.size) return 'vault exceeds bounds';   // ITEMS is a Set
     for (const [it, q] of Object.entries(vault)) {
-      if (!isItemName(it)) return 'malformed bank item';
-      if (!isInt(q, 1, MAX_QTY)) return 'bank quantity out of bounds'; // sparse: zero means the key is gone (rev7 §5)
+      if (!isItemName(it)) return 'malformed vault item';
+      if (!isInt(q, 1, MAX_QTY)) return 'vault quantity out of bounds'; // sparse: zero means the key is gone (rev7 §5)
     }
     }
     // equipment: only the constitutional slots, all present
@@ -8554,6 +8554,52 @@ const LANDMARK_KINDS = new Set([
   return null;
 }
 
+// §6g / §9: THE CROSSING, IN ONE PLACE.
+//
+// Six generators carried their own copy of this loop. That is why the landing
+// vault reached expanse7 and nowhere else, and why an imported citizen woke at
+// ONE HITPOINT in the other five: the clamp read `p.skills.hitpoints`, a skill
+// §5j deleted, and `levelForXp(undefined)` is 1. Both faults are the same
+// fault, which is six implementations of one rule.
+//
+// A generator now says where a citizen wakes and hands the rest here.
+//
+// The import is FLAT -- a crossing carries goods, not the vault ids of a world
+// that no longer exists -- and the whole of it is seated at the counter nearest
+// the spawn, chosen over sorted node ids so every node founds the same world. A
+// world with no counter at all seats nothing rather than inventing one.
+function landingVaultId(state, x, y) {
+  let best = null, bd = Infinity;
+  for (const id of Object.keys(state.nodes).sort()) {
+    const n = state.nodes[id];
+    if (n.type !== 'vault') continue;
+    const d = Math.hypot(n.x - x, n.y - y);
+    if (d < bd) { bd = d; best = id; }
+  }
+  return best;
+}
+
+function seatImport(state, c, x, y) {
+  if (!/^[0-9a-f]{64}$/.test(c.pid ?? '')) return false;
+  addPlayer(state, c.pid, x, y);
+  const p = state.players[c.pid];
+  for (const k of Object.keys(p.skills)) if (c.skills?.[k] !== undefined) p.skills[k] = c.skills[k];
+  // §5j: the frame is flat and a calling may move it. It is NOT a skill.
+  p.hp = Math.max(1, Math.min(c.hp ?? maxHp(p), maxHp(p)));
+  // validateImports has already run: construction applies VALIDATED data
+  // directly, because silent per-field filtering would let two implementations
+  // disagree about which validated citizen got what.
+  (c.inventory ?? []).forEach((sl, i) => { if (i < p.inventory.length) p.inventory[i] = sl ?? null; });
+  p.equipment.weapon = c.weapon ?? null;
+  const carried = Object.entries(c.vaults ?? {});
+  if (carried.length) {
+    const bid = landingVaultId(state, x, y);
+    if (bid) { p.vaults[bid] = {}; for (const [it, q] of carried) p.vaults[bid][it] = q; }
+  }
+  if (c.name != null) { state.names[c.name] = c.pid; p.name = c.name; }
+  return true;
+}
+
 function addPlayer(state, playerId, x, y) {
   state.players[playerId] = {
     x, y,
@@ -8563,7 +8609,7 @@ function addPlayer(state, playerId, x, y) {
     // have every newcomer opening their eyes at a sixth of their strength.
     hp: HP_FLAT,
     equipment: Object.fromEntries(EQUIP_SLOTS.map((k) => [k, null])),   // 6bz: from the one list
-    bank: {},
+    vaults: {},
     lastInput: state.tick,
     // §6ao (v6): a newcomer wakes with just enough coin for ONE tool at the
     // market -- a bronze axe, a rod, or a pickaxe -- and nothing over. So the
@@ -9782,7 +9828,7 @@ function validInput(state, input, ctx) {
         if (!inAnchor) {
           for (const nid in state.nodes) {
             const nn = state.nodes[nid];
-            if (nn.type === 'bank' && Math.abs(nn.x - p.x) <= 16 && Math.abs(nn.y - p.y) <= 16) { inTown = true; break; }
+            if (nn.type === 'vault' && Math.abs(nn.x - p.x) <= 16 && Math.abs(nn.y - p.y) <= 16) { inTown = true; break; }
           }
         }
         if (!inWild && !inTown) return false;
@@ -10072,7 +10118,7 @@ function validInput(state, input, ctx) {
     }
     case 'deposit': {
       if (!Number.isInteger(input.slot) || !p.inventory[input.slot]) return false;
-      // §11d: THE BANK IS CLOSED TO A HAULER, both ways. `player.bank` is one
+      // §11d: THE VAULT IS CLOSED TO A HAULER, both ways. `player.vaults` is one
       // map per citizen reachable at any bank node (§6g), which makes it a
       // teleport for GOODS exactly as recall is one for the body. Banning
       // deposit alone leaves the route open: consign at Cragfoot, walk to
@@ -10099,26 +10145,26 @@ function validInput(state, input, ctx) {
       // moves nothing is recorded as a deed and does nothing -- the §7.3a fault
       // exactly, a gate saying yes to work the resolver will not do.
       {
-        const bidG = adjacentBankId(state, ctx, p);
+        const bidG = adjacentVaultId(state, ctx, p);
         const vG = vaultAt(p, bidG);
         const it = p.inventory[input.slot].item;
         if (bidG && (vG?.[it] ?? 0) >= VAULT_CAP) return false;
-        if (bidG && !vG && Object.keys(p.bank).length >= VAULT_MAX) return false;
+        if (bidG && !vG && Object.keys(p.vaults).length >= VAULT_MAX) return false;
       }
       // the SAME lookup the resolver uses. A boolean cannot name a vault,
       // and a gate that proves "some counter" while the resolver chooses "this
       // counter" is two functions answering different questions.
-      return adjacentBankId(state, ctx, p) !== null;
+      return adjacentVaultId(state, ctx, p) !== null;
     }
     case 'deposit_all': {
       // §7.3a: at least one thing the vault will take, and a bank to take it.
       if (p.consignment) return false;                       // §11d, as `deposit`
       // §6g: at least one thing that will actually move.
       {
-        const bidG = adjacentBankId(state, ctx, p);
+        const bidG = adjacentVaultId(state, ctx, p);
         if (!bidG) return false;
         const vG = vaultAt(p, bidG) ?? {};
-        if (!vaultAt(p, bidG) && Object.keys(p.bank).length >= VAULT_MAX) return false;
+        if (!vaultAt(p, bidG) && Object.keys(p.vaults).length >= VAULT_MAX) return false;
         return p.inventory.some((sl) => sl && !vaultRefuses(sl.item)
           && (vG[sl.item] ?? 0) < VAULT_CAP);
       }
@@ -10130,7 +10176,7 @@ function validInput(state, input, ctx) {
       // §6g: at THIS counter. The gate asked whether the citizen had the item
       // anywhere, which under local vaults would accept a withdrawal from a
       // vault three towns away and then quietly do nothing.
-      const bid = adjacentBankId(state, ctx, p);
+      const bid = adjacentVaultId(state, ctx, p);
       const vault = vaultAt(p, bid);
       if (typeof input.item !== 'string' || !vault || !(vault[input.item] > 0)) return false;
       if (p.consignment) return false;   // §11d, and see `deposit` for why both
@@ -10267,7 +10313,7 @@ function _clonePlayer(p) {
       // it produced -- a write to a vault would reach backwards into history.
       // Silent, and a divergence between two nodes computing the same tick is
       // exactly the thing this world stops rather than forks over.
-      case 'bank': {
+      case 'vault': {
         const b = {};
         for (const bid of Object.keys(v)) b[bid] = _cloneFlat(v[bid]);
         o[k] = b; break;
@@ -11169,7 +11215,7 @@ function spillShelf(s2, mk) {
 }
 // §6g: A VAULT IS A PLACE, NOT A PROPERTY OF THE CITIZEN.
 //
-// `p.bank` was one map readable at every bank node on the island, which made a
+// `p.vaults` was one map readable at every bank node on the island, which made a
 // vault a teleport for goods: ore mined in the Crags was in your hand at
 // Anchor. That is the single decision that made hauling (§11) an errand nobody
 // needed and `wayfaring`'s runner a calling with nothing to run. Goods now sit
@@ -11183,17 +11229,17 @@ function spillShelf(s2, mk) {
 // if two counters were ever adjacent to one tile, the gate and the resolver
 // must choose the SAME one, and two functions scanning differently is the
 // disagreement this codebase keeps finding.
-function adjacentBankId(state, ctx, p) {
+function adjacentVaultId(state, ctx, p) {
   for (const id of Object.keys(state.nodes)) {
     const n = state.nodes[id];
-    if (n.type === 'bank' && adjacent(p, n)) return id;
+    if (n.type === 'vault' && adjacent(p, n)) return id;
   }
   return null;
 }
 // The vault a citizen is standing at, or an empty one. Never creates: a read
 // must not write, or merely walking past a counter would grow the state.
 function vaultAt(p, bankId) {
-  return (bankId && p.bank && p.bank[bankId]) ? p.bank[bankId] : null;
+  return (bankId && p.vaults && p.vaults[bankId]) ? p.vaults[bankId] : null;
 }
 // §6g: WHAT A VAULT WILL HOLD.
 //
@@ -14370,10 +14416,10 @@ function nextState(state, inputs, _legacyBeacon) {
       // risk and no choice, only waiting. §8 says patience is never the tax,
       // and a script does not mind twenty-five clicks, so the whole of that
       // cost fell on the person and none of it on the thing §8 worries about.
-      const bidD = adjacentBankId(s, _ctx, p);
+      const bidD = adjacentVaultId(s, _ctx, p);
       if (sl && bidD && !vaultRefuses(sl.item)
-          && (p.bank[bidD] !== undefined || Object.keys(p.bank).length < VAULT_MAX)) {
-        const v = (p.bank[bidD] ??= {});
+          && (p.vaults[bidD] !== undefined || Object.keys(p.vaults).length < VAULT_MAX)) {
+        const v = (p.vaults[bidD] ??= {});
         // §6g: AS MUCH AS FITS, and the remainder stays in the pack. Withdraw
         // already takes the least of what was asked, what is banked and what
         // will fit; a deposit that refused a stack outright because its last
@@ -14385,16 +14431,16 @@ function nextState(state, inputs, _legacyBeacon) {
           if (move >= (sl.qty ?? 1)) p.inventory[inp.slot] = null;
           else sl.qty -= move;
         }
-        if (Object.keys(v).length === 0) delete p.bank[bidD];
+        if (Object.keys(v).length === 0) delete p.vaults[bidD];
       }
     } else if (inp.type === 'deposit_all') {
       // §7.3a: and the pack, in one deed. §2287 gives a citizen one INPUT an
       // interval to stop them equivocating -- signing two different futures
       // for the same tick. It says nothing about how much one deed may move,
       // and every other resolver here moves as much as its rule describes.
-      const bidA = adjacentBankId(s, _ctx, p);
-      if (bidA && !p.consignment && (p.bank[bidA] !== undefined || Object.keys(p.bank).length < VAULT_MAX)) {
-        const v = (p.bank[bidA] ??= {});
+      const bidA = adjacentVaultId(s, _ctx, p);
+      if (bidA && !p.consignment && (p.vaults[bidA] !== undefined || Object.keys(p.vaults).length < VAULT_MAX)) {
+        const v = (p.vaults[bidA] ??= {});
         for (let i = 0; i < p.inventory.length; i++) {
           const it = p.inventory[i];
           if (!it || vaultRefuses(it.item)) continue;   // the bow and the hood stay
@@ -14405,7 +14451,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (move >= (it.qty ?? 1)) p.inventory[i] = null;
           else it.qty -= move;
         }
-        if (Object.keys(v).length === 0) delete p.bank[bidA];
+        if (Object.keys(v).length === 0) delete p.vaults[bidA];
       }
     } else if (inp.type === 'withdraw') {
       // §7.3a: AS MANY AS ASKED, AS MANY AS BANKED, AS MANY AS FIT -- whichever
@@ -14413,7 +14459,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // which meant twenty-five arrows cost twenty-five intervals AND
       // twenty-five slots: they did not stack on the way out of the vault the
       // way they stack on the way in.
-      const bidW = adjacentBankId(s, _ctx, p);
+      const bidW = adjacentVaultId(s, _ctx, p);
       const vaultW = vaultAt(p, bidW);
       if (vaultW && vaultW[inp.item] > 0) {
         let want = Math.min(inp.qty, vaultW[inp.item]);
@@ -14441,7 +14487,7 @@ function nextState(state, inputs, _legacyBeacon) {
         if (vaultW[inp.item] <= 0) delete vaultW[inp.item];
         // An emptied vault is deleted, so a citizen who cleared a counter is
         // not carrying a permanent record of having stood at it.
-        if (Object.keys(vaultW).length === 0) delete p.bank[bidW];
+        if (Object.keys(vaultW).length === 0) delete p.vaults[bidW];
       }
     } else if (inp.type === 'drop') {
       const it = p.inventory[inp.slot];
@@ -16101,5 +16147,5 @@ module.exports = {
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
-  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHp, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHp, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

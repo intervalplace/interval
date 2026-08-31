@@ -709,13 +709,30 @@ export class IntervalNode {
     // returns — never conditioned on tick, never assumed. A valid
     // checkpoint may replace this state afterward through the normal
     // checkpoint-verification path.
-    this.state = opts.buildWorld(opts.genesis)
+    // §0: THE FOUNDING CACHE.
+    //
+    // `buildWorld` is a pure function of genesis and costs about three minutes
+    // on this island to produce a world that parses back in seven. Every node
+    // paid it on every start -- including a door somebody opens out of
+    // curiosity, who waits at a blank page and concludes it does not work.
+    //
+    // The cache is keyed on the genesis AND on the bytes of every generator and
+    // of engine.js, so a code change is a slow start rather than a stale world.
+    // And it is loaded THROUGH the validation below, not around it: a cached
+    // state faces exactly the checks a freshly built one does, including that
+    // it embeds the same genesis it was asked for. A corrupt or foreign cache
+    // is refused by the same rule that refuses a bad builder.
+    const _cached = opts.foundingCache?.read?.(opts.genesis) ?? null
+    this.state = _cached ?? opts.buildWorld(opts.genesis)
     {
       const serr = E.validateState(this.state)
       if (serr) throwCoded(ERR.INVALID_BUILT_STATE, `buildWorld produced an invalid state (${serr}) — refusing to run`)
       if (E.canonical(this.state.genesis) !== E.canonical(this.genesis))
         throwCoded(ERR.INVALID_BUILT_STATE, 'buildWorld embedded a DIFFERENT genesis than the one supplied — refusing to run on an ambiguous founding')
     }
+    // Written only after it has passed, so a cache can never hold a state this
+    // node would itself refuse.
+    if (!_cached) opts.foundingCache?.write?.(opts.genesis, this.state)
     this.inputBuffer = new Map()        // tick -> Map(playerId -> input)
     this.peerHashes = new Map()         // tick -> Map(peerId -> hash)
     this.myHashes = new Map()           // tick -> hash

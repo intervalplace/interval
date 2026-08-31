@@ -3034,7 +3034,7 @@ function nodeMesh(n) {
     stack.position.set(0, 0.95, -0.34); g.add(stack)
     const glow = lampProxy(0xffb14a, 0.9, 3.2)
     glow.position.set(0, 0.3, -0.1); g.add(glow); g.userData.hearthGlow = glow
-  } else if (n.type === 'bank') {
+  } else if (n.type === 'vault') {
     // A BOOTH. Three of these behind one door is a bank hall.
     const cnt = cast(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.42), std(0x4a3f2e)))
     cnt.position.set(0, 0.25, -0.1); g.add(cnt)
@@ -3074,7 +3074,7 @@ function nodeMesh(n) {
     const wallC = hues[n.type] ?? 0x7d6c47
     const hv2 = tileHash(n.x, n.y, 57)
     const beamM = std(0x3a2c1a, 1)
-    const twoStorey = n.type === 'bank' || n.type === 'store' || (n.type === 'house' && hv2 % 3 === 0)
+    const twoStorey = n.type === 'vault' || n.type === 'store' || (n.type === 'house' && hv2 % 3 === 0)
     const wallH = 0.56 + (hv2 % 5) / 40
     const base = cast(new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.34, 0.92), std(0x67635a)))
     base.position.y = 0.17; g.add(base) // stone footing
@@ -3186,15 +3186,15 @@ function nodeMesh(n) {
       }
       if (!g.userData.win) g.userData.win = win; else g.userData.win2 = win
     }
-    if (n.type === 'bank' || n.type === 'store' || n.type === 'smith') { // the trade, hung out over the street
+    if (n.type === 'vault' || n.type === 'store' || n.type === 'smith') { // the trade, hung out over the street
       const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.26), beamM)
       arm.position.set(0.38, 0.98, 0.5); g.add(arm)
       const sign = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.02),
-        std(n.type === 'bank' ? 0xc9a24a : n.type === 'store' ? 0x8a5a9e : 0x4a4a52, 0.8))
+        std(n.type === 'vault' ? 0xc9a24a : n.type === 'store' ? 0x8a5a9e : 0x4a4a52, 0.8))
       sign.position.set(0, -0.11, 0.1) // hangs from the arm's end
       arm.add(sign); g.userData.sign = sign
       const emblem = new THREE.Mesh(n.type === 'smith' ? new THREE.BoxGeometry(0.08, 0.05, 0.025) : new THREE.SphereGeometry(0.035, 8, 6),
-        n.type === 'bank' ? metalN(0xffd970) : n.type === 'store' ? std(0xd9d3c0) : metalN(0x8a8a92))
+        n.type === 'vault' ? metalN(0xffd970) : n.type === 'store' ? std(0xd9d3c0) : metalN(0x8a8a92))
       emblem.position.z = 0.02; sign.add(emblem)
     }
     if (n.type === 'guard') { // a banner, not a shingle
@@ -3998,15 +3998,15 @@ function renderCommerce(s) {
   if (!me2 || !bp || !sp2) return
   const nb2 = document.getElementById('namebtn')
   if (nb2) nb2.style.display = me2.name === null ? 'block' : 'none' // only the unnamed need it
-  const nearB = nearNodeOf(me2, 'bank'), nearS = nearNodeOf(me2, 'store')
+  const nearB = nearNodeOf(me2, 'vault'), nearS = nearNodeOf(me2, 'store')
   bp.style.display = nearB ? 'block' : 'none'
   sp2.style.display = nearS ? 'block' : 'none'
   sp2.style.top = (nearB && nearS ? 160 + bp.offsetHeight + 8 : 160) + 'px' // both counters can stand in one street
   if (nearB) {
-    const sig = JSON.stringify([me2.bank, me2.gold])
+    const sig = JSON.stringify([me2.vaults, me2.gold])
     if (bp.dataset.sig !== sig) {
       bp.dataset.sig = sig
-      const entries = Object.entries(me2.bank ?? {}).filter(([, n2]) => n2 > 0)
+      const entries = Object.entries(Object.values(me2.vaults ?? {}).reduce((t, sh) => { for (const [i, n] of Object.entries(sh ?? {})) t[i] = (t[i] ?? 0) + n; return t }, {})).filter(([, n2]) => n2 > 0)
       bp.innerHTML = '<div style="text-align:center;color:#ffcc33;font-weight:bold;border-bottom:1px solid #6b5d43;padding-bottom:4px;margin-bottom:5px">\ud83c\udfe6 the bank</div>' +
         (entries.length ? entries.map(([it, n2]) => itemRow(it, ' \u00d7 ' + n2, rowBtn('take', 'data-w="' + it + '"'))).join('')
           : '<div style="color:#8a8474;text-align:center;padding:6px 0">the vault stands empty</div>') +
@@ -6491,7 +6491,7 @@ function animate(now) {
         if (sl3.item === 'seeds') acts += btn('plant', 'plant')
         if (EQ.includes(sl3.item)) acts += btn('wield', 'wield')
         if (near2('store')) acts += btn('sell', 'sell')
-        if (near2('bank')) acts += btn('deposit', 'deposit')
+        if (near2('vault')) acts += btn('deposit', 'deposit')
         acts += btn('drop', 'drop')
         bar.innerHTML = acts
         bar.style.display = 'flex'

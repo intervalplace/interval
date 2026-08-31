@@ -12,6 +12,7 @@
 // tick. Add --fight for the combat executor.
 
 import fs from 'fs'
+import { rulesHash } from './rules-hash.mjs'
 import { multiaddr } from '@multiformats/multiaddr'
 import E from './engine.js'
 import { IntervalNode } from './node.mjs'
@@ -31,7 +32,8 @@ const pillarAddr = multiaddr(`/${proto}/${host}/tcp/${info.p2pPort}/p2p/${info.p
 console.log(`world ${E.worldId(info.genesis).slice(0, 12)}… · joining as a full peer`)
 
 // 2. verify we run the same constitution before anything else
-const myRulesHash = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §0-i: the constitution is THREE documents, hashed in order.
+const myRulesHash = rulesHash(new URL('./', import.meta.url))
 if (myRulesHash !== info.genesis.rulesHash) {
   console.log('constitution mismatch: their world runs different rules than your SPEC.md')
   console.log(`  theirs: ${info.genesis.rulesHash.slice(0, 16)}…  yours: ${myRulesHash.slice(0, 16)}…`)

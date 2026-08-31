@@ -5,6 +5,7 @@
 //
 //   node why-refound.mjs
 import fs from 'node:fs'
+import { rulesHash } from './rules-hash.mjs'
 import crypto from 'node:crypto'
 import E from './engine.js'
 
@@ -19,7 +20,8 @@ const CP_INTERVAL = Number(process.env.INTERVAL_CHECKPOINT_INTERVAL) || 200
 // this tool, and it accused a perfectly healthy world of two failures it did
 // not have: it truncated the hash serve.mjs keeps whole, and invented a seed.
 // A diagnostic that guesses at the thing it is checking is worse than none.
-const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §0-i: the constitution is THREE documents, hashed in order.
+const RULES_HASH = rulesHash(new URL('./', import.meta.url))
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 
 const saved = fs.existsSync(WORLD_FILE) ? JSON.parse(fs.readFileSync(WORLD_FILE)) : null

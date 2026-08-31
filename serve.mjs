@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Interval serve v0.9 — the browser bridge.
 // Runs a solo world node + a WebSocket bridge + serves the reference
 // graphical window. The browser is a pure layer-3 window: it receives
@@ -7,6 +8,8 @@
 //   usage: node serve.mjs [name]   then open http://localhost:8787
 
 import fs from 'fs'
+import { Worker } from 'node:worker_threads'
+import { rulesHash } from './rules-hash.mjs'
 import crypto from 'crypto'
 import { makeBoard } from './board.mjs'
 import http from 'http'
@@ -16,6 +19,65 @@ import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
 import { buildWorld, foundGenesis, roadDataOf } from './worldgen-any.mjs'
+import { readFounding, writeFounding } from './worldcache.mjs'
+
+// ---- the boot server: something to look at while the world is founded ----
+//
+// Founding is minutes of synchronous work on this thread, and the port used to
+// be bound only at the end of it. A worker owns the port from here instead, so
+// a browser gets a progress bar rather than ECONNREFUSED -- which is what a
+// machine that does not exist looks like, and is why a window would fail over
+// away from a node that was nearly ready.
+//
+// `bootSay` is a no-op once the world is up, so callers never have to ask
+// whether the worker is still there.
+let bootWorker = null
+const BOOT_PORT = Number(process.env.INTERVAL_HTTP_PORT) || 8787
+try {
+  bootWorker = new Worker(new URL('./boot-server.mjs', import.meta.url), {
+    workerData: { port: BOOT_PORT },
+  })
+  bootWorker.unref()   // it must never hold the process open
+  bootWorker.on('message', (m) => {
+    if (m?.type === 'error') {
+      // Said once, plainly. A restart racing its own predecessor for the port
+      // is the ordinary cause, and it is harmless: the world still founds.
+      // NOT `_warn`: that is declared below this point, so reaching it here
+      // would throw on the one path that exists to be harmless.
+      console.warn('  (boot server stood down: ' + m.message + ')')
+      bootWorker = null
+    }
+  })
+  bootWorker.on('error', () => { bootWorker = null })
+} catch (e) {
+  // Not fatal, ever. A node that cannot show a progress bar still founds a
+  // world; it just does it silently, the way it always used to.
+  console.warn('  (no boot server: ' + e.message + ')')
+}
+function bootSay (stage, pct) {
+  try { bootWorker?.postMessage({ type: 'progress', stage, pct }) } catch {}
+}
+// The worldgen stages already announce themselves on the console, and they are
+// the only honest progress signal this process has -- so the reporter TAPS
+// them rather than threading a callback through every generator. It is a tap,
+// not a rewrite: the lines still print exactly as before.
+// Worldgen reports through console.WARN, not log -- every stage line in the
+// generators is a warn. Tapping only `log` produced a bar that sat at zero
+// through the entire founding, which is the failure this exists to prevent
+// wearing a progress bar.
+const _log = console.log, _warn = console.warn
+let _stagesSeen = 0
+function _tap (line) {
+  if (!line.startsWith('WORLDGEN') && !line.startsWith('FOUNDING')) return
+  // Asymptotic, because the number of stages is not known ahead of time and a
+  // bar that reaches 100% and then waits is worse than one that crawls.
+  _stagesSeen++
+  bootSay(line.replace(/^WORLDGEN:?\s*/, '').slice(0, 70),
+    Math.round(92 * (1 - Math.exp(-_stagesSeen / 14))))
+}
+console.log = (...a) => { if (typeof a[0] === 'string') _tap(a[0]); _log(...a) }
+console.warn = (...a) => { if (typeof a[0] === 'string') _tap(a[0]); _warn(...a) }
+
 
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // which country the next founding raises: INTERVAL_GEN=interval-expanse-v1
@@ -27,7 +89,8 @@ const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // landmarks, pulled toward the roads, with six named tracts that refuse them
 // outright, so that a landmark is a landmark by contrast again.
 const WORLD_GEN = process.env.INTERVAL_GEN || 'interval-expanse-v7'
-const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §0-i: the constitution is THREE documents, hashed in order.
+const RULES_HASH = rulesHash(new URL('./', import.meta.url))
 // §2n: and the engine names itself. `rulesHash` binds the constitution, which
 // is prose ABOUT the rules; this binds the rules. A node running a different
 // engine is running a different world, and without this it would not find out
@@ -46,6 +109,14 @@ const WORLD_H = Number(process.env.INTERVAL_H) || 0
 // Point INTERVAL_DATA at a persistent path (a volume, a home dir,
 // anywhere the deploy does not touch) and the class of loss ends.
 const DATA = (process.env.INTERVAL_DATA || '.').replace(/\/$/, '')
+
+// §0: the founding cache. Keyed on genesis + generator bytes + engine bytes,
+// loaded through the same validation a fresh build faces. INTERVAL_NO_CACHE=1
+// makes every start recompute the world from scratch.
+const foundingCache = {
+  read: (g) => readFounding(g, { canonical: E.canonical, stateHash: E.stateHash, dataDir: DATA, log: (m) => console.log('  ' + m) }),
+  write: (g, s) => writeFounding(g, s, { canonical: E.canonical, stateHash: E.stateHash, dataDir: DATA, log: (m) => console.log('  ' + m) }),
+}
 if (DATA === '.') console.warn('INTERVAL_DATA is unset: world memory lives INSIDE the deploy directory. A replaced deploy is a wiped world. Set INTERVAL_DATA to a persistent path.')
 const WORLD_FILE = DATA + '/checkpoints/world.json'   // the founding record
 const CP_FILE = DATA + '/checkpoints/web.json'        // the living state
@@ -217,7 +288,7 @@ if (canResume) {
     const lived = (p) => p.name
       || Object.entries(p.skills).some(([k, xp]) => k !== 'hitpoints' ? xp > 0 : xp > 1154)
       || (p.inventory ?? []).some(Boolean)
-      || Object.keys(p.bank ?? {}).length > 0
+      || Object.keys(p.vaults ?? {}).length > 0
       || p.equipment?.weapon
     // imports are FOUNDING data: they live inside the genesis, the worldId
     // commits to them, and worldgen applies them on every node identically
@@ -230,9 +301,9 @@ if (canResume) {
       // worldgen seats the total at the counter nearest where the citizen
       // wakes. Founding data does not expire with the world that held it; the
       // building it sat in does.
-      bank: (() => {
+      vaults: (() => {
         const flat = {}
-        for (const vault of Object.values(p.bank ?? {}))
+        for (const vault of Object.values(p.vaults ?? {}))
           for (const [it, q] of Object.entries(vault ?? {}))
             if (KNOWN_ITEMS.has(it)) flat[it] = (flat[it] ?? 0) + q
         return flat
@@ -333,19 +404,12 @@ function packTerrain (g) {
             spawn: t.spawn ? t.spawn(g) : { x: w >> 1, y: h >> 1 },
             // the towns as the founder seated them, not as a window guesses
             settlements: t.settlements ? t.settlements(g) : null,
-            // §6dj: THE HEIGHT OF THE LAND. Not decoration — this field is what
-            // routed every road in the world, charging six for each unit a step
-            // climbs, which is why they follow valleys and arrive at passes.
-            // Windows have been drawing flat ground under a winding road and
-            // disagreeing with the world about why it winds. On a four-tile
-            // lattice it is 29 KB for the whole expanse.
-            elev: t.elevGrid ? t.elevGrid(g) : null,
             geographyHash: t.geographyHash ? t.geographyHash(g) : null },
   }
 }
 try {
   node = await new IntervalNode({ peerKeyFile: DATA + '/identities/peer-pillar.json',
-    genesis: GENESIS, buildWorld, name: 'web', checkpointFile: CP_FILE,
+    genesis: GENESIS, buildWorld, foundingCache, name: 'web', checkpointFile: CP_FILE,
     witnessKey: WITNESS,                      // the pillar proposes and attests
     safetyDir: DATA + '/witness-safety',              // world-namespaced vote lock + frontier (rev5 §1)
     finalityBackend: process.env.INTERVAL_FINALITY_BACKEND || 'sqlite', // SQLite is the production default (final review §3); set 'flatfile' for the dev/compat backend
@@ -485,9 +549,19 @@ const server = http.createServer((req, res) => {
       if (!_roadsCache) { try { _roadsCache = roadDataOf(node.genesis) } catch (e) { _roadsCache = { tiles: [], bridges: [], bends: [], error: e.message } } }
       return json(_roadsCache)
     }
+    // §0: the SAME endpoint the boot server answered, so a page that polled
+    // through the founding does not have to notice the handover. It 404'd
+    // before, and the boot page only recovered because a failed fetch happens
+    // to trigger its reload -- correct by accident is not correct.
+    if (path === '/api/status') return json({
+      booting: false, stage: 'ready', pct: 100,
+      live: { tick: node.state.tick, worldId: node.worldId },
+    })
     if (path === '/api/world') return json({
       tick: node.state.tick, finalizedTick: node.finalizedTick, scheduledTick: node.scheduledTick,
       worldId: node.worldId, witnesses: GENESIS.witnesses.length, quorum: GENESIS.quorum,
+      // a window can tell "still coming up" from "gone" (§0)
+      ready: noughtWorldJson !== null,
       halted: node.agreement?.halted ?? false,
       awake: Object.values(node.state.players).filter(p => E.isAwake(p, node.state.tick)).length,
       players: Object.keys(node.state.players).length,
@@ -499,14 +573,32 @@ const server = http.createServer((req, res) => {
       req.on('data', (c) => { body += c })
       req.on('end', () => {
         try {
-          const { peerId, port } = JSON.parse(body)
+          const { peerId, port, http } = JSON.parse(body)
           if (!/^12D3Koo[1-9A-HJ-NP-Za-km-z]+$/.test(peerId ?? '') || !Number.isInteger(port)) { res.writeHead(400); res.end(); return }
+          // A multiaddr is for NODES. A browser cannot dial one, so a window
+          // that lost its pillar had nowhere to go even though this directory
+          // was full of live peers of the same world. A pillar may therefore
+          // also announce the public HTTP address it serves windows on.
+          //
+          // Optional, and validated rather than trusted: an http(s) origin with
+          // no path, no credentials, no query. This list is handed to browsers,
+          // so a peer that could write an arbitrary string here could point
+          // every window at anything. The window checks worldId on arrival too;
+          // this is the first of the two gates, not the only one.
           // behind nginx the socket says 127.0.0.1 about everyone: honor the
           // forwarded header first, or the directory fills with loopback ghosts
           const fwd = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
           const ip = (fwd || req.socket.remoteAddress || '').replace(/^::ffff:/, '')
           const fam = ip.includes(':') ? 'ip6' : 'ip4'
-          announced.set(peerId, { addr: '/' + fam + '/' + ip + '/tcp/' + port + '/p2p/' + peerId, at: Date.now() })
+          let window = null
+          if (typeof http === 'string' && http.length <= 200) {
+            try {
+              const u = new URL(http)
+              if ((u.protocol === 'https:' || u.protocol === 'http:')
+                  && !u.username && !u.password && u.pathname === '/' && !u.search) window = u.origin
+            } catch { /* not a URL: recorded without one */ }
+          }
+          announced.set(peerId, { addr: '/' + fam + '/' + ip + '/tcp/' + port + '/p2p/' + peerId, window, at: Date.now() })
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ ok: true, recorded: announced.get(peerId).addr }))
         } catch { res.writeHead(400); res.end() }
@@ -519,7 +611,14 @@ const server = http.createServer((req, res) => {
       // on the hole someone drilled outward. Announcements are doors.
       const fresh = Date.now() - 5 * 60 * 1000
       for (const [id2, e2] of announced) if (e2.at < fresh) announced.delete(id2)
-      return json({ peers: [...announced.values()].map(e2 => e2.addr), count: announced.size })
+      // `peers` is for nodes and `windows` is for browsers. A window caches the
+      // second list, so after ONE successful connection a citizen knows every
+      // pillar of this world and never depends on the one that served the page.
+      return json({
+        peers: [...announced.values()].map(e2 => e2.addr),
+        windows: [...announced.values()].map(e2 => e2.window).filter(Boolean),
+        count: announced.size,
+      })
     }
     // ---- the board: coordination that does not belong inside the world ----
     // Public chat is for what is happening now, where you are standing. This
@@ -731,9 +830,6 @@ const server = http.createServer((req, res) => {
     if (path === '/play/holo' || path === '/holo') return sendFile('./window-holo.html', 'text/html')
     if (path === '/play/lantern' || path === '/lantern' || path === '/diablo')
       return sendFile('./window-diablo.html', 'text/html')
-    if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
-    if (path === '/play/hill' || path === '/hill') return sendFile('./window-hill.html', 'text/html')
-    if (path === '/play/writ' || path === '/writ') return sendFile('./window-writ.html', 'text/html')
     // Music, if the world has any. Nothing here ships with a tune: a node with
     // an empty audio/ directory simply plays nothing, and the windows fall
     // silent without complaint. Drop files in and they are found.
@@ -769,33 +865,6 @@ const server = http.createServer((req, res) => {
       return res.end(buf)
     }
     // what music this node actually has, so a window need not guess at names
-    // §6dj: THE TABLES, SERVED, SO NO WINDOW HAS TO KEEP A COPY.
-    //
-    // window-mist had a hand-copied forge table and twenty of its fifty-eight
-    // costs had drifted from the engine's: it offered recipes that could not be
-    // made and hid ones that could, and named two ingredients (`steel-ingot`)
-    // that do not exist. A copy of another file's constants, kept by hand in a
-    // third file, is a copy, and copies drift. The engine already exports all
-    // of this; the only thing missing was a door.
-    if (path === '/api/tables') {
-      // a Set does not survive JSON, so the tools become lists
-      const tools = {}
-      for (const [sk, set] of Object.entries(E.GATHER_TOOLS || {})) tools[sk] = [...set]
-      return json({
-        specVersion: E.SPEC_VERSION, tickMs: E.TICK_MS, vigilTicks: E.VIGIL_TICKS,
-        invSlots: E.INV_SLOTS, skills: E.SKILLS, equipSlots: E.EQUIP_SLOTS,
-        recipes: E.RECIPES, prices: E.PRICES, weapons: E.WEAPONS, smelted: E.SMELTED,
-        smithReqs: E.SMITH_REQS, wieldReqs: E.WIELD_REQS, mobs: E.MOB_STATS,
-        // §7p: which recipes belong to the FURNACE and not the anvil
-        smelted: [...(E.SMELTED || [])],
-        items: E.ITEMS, equippable: E.EQUIPPABLE, stackable: E.STACKABLE,
-        armour: E.ARMOUR, twoHanded: E.TWO_HANDED, nodeTypes: E.NODE_TYPES,
-        keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
-        // §6dj: what a seam wants of you, and what it gives back
-        nodeGate: E.NODE_GATE, nodeYield: E.NODE_YIELD, gatherTools: tools,
-        xpTable: E.XP_TABLE, mastery: E.MASTERY
-      })
-    }
     if (path === '/api/audio') {
       let names = []
       try { names = fs.readdirSync(new URL('./audio/', import.meta.url))
@@ -967,65 +1036,6 @@ function handle(ws, buf) {
     else if (a.do === 'cancel_trade') client.cancelTrade()
     else if (a.do === 'chat') { if (client.chat) client.chat(String(a.text)) }
     else if (a.do === 'attackp') { if (client.attackp) client.attackp(String(a.targetId)) }
-    // §6af: THE SPECIAL BLOW WAS NEVER ROUTED. The engine takes `special`
-    // (validated at case 'special': a weapon with a `spec` and a recovered
-    // arm), the sdk has it, and window-web has sent `{do:'special'}` from its
-    // armed button all along — but this ladder never carried the word, so
-    // every special every citizen has ever thrown at this pillar was dropped
-    // in silence. Nothing is invented here: one line, joining a verb clients
-    // already send to an input the engine already checks.
-    else if (a.do === 'special') { if (client.special) client.special(String(a.targetId)) }
-    // ---- §6dj: THE WORDS THE LADDER WAS NOT CARRYING ----
-    //
-    // Everything below already existed twice over: the engine has an input for
-    // each (`inp.type === 'survey'`, `'alch'`, `'brew'` …), sdk.mjs has a
-    // method for each, and window-web sends most of them. Only this ladder was
-    // missing, so they were dropped in silence — and two whole SKILLS were
-    // unreachable by any window as a result: `mourning` is paid by `offer` at
-    // an ossuary and `wayfaring` by `survey` and `deliver`. A citizen could
-    // not have found out why; there was nothing to see.
-    //
-    // Nothing is invented here. Every line joins a verb a client already sends
-    // to an input the engine already validates. Run check-window-skills.mjs
-    // before and after to see the two skills light up.
-    else if (a.do === 'survey') { if (client.survey) client.survey() }
-    else if (a.do === 'drink') { if (client.drink) client.drink() }
-    else if (a.do === 'offer') { if (client.offerAtOssuary) client.offerAtOssuary(a.slot | 0) }
-    else if (a.do === 'alch') { if (client.alch) client.alch(a.slot | 0) }
-    else if (a.do === 'grind') { if (client.grind) client.grind(a.slot | 0) }
-    else if (a.do === 'still') { if (client.still) client.still(String(a.target)) }
-    else if (a.do === 'mendp') { if (client.mendp) client.mendp(String(a.target)) }
-    else if (a.do === 'unmake') { if (client.unmake) client.unmake(String(a.groundId)) }
-    else if (a.do === 'seal') { if (client.seal) client.seal(String(a.groundId)) }
-    else if (a.do === 'grave') { if (client.grave) client.grave(String(a.nodeId), String(a.target)) }
-    else if (a.do === 'brew') { if (client.brew) client.brew(String(a.nodeId), a.slot | 0) }
-    else if (a.do === 'collect') { if (client.collect) client.collect(String(a.nodeId)) }
-    else if (a.do === 'kindle') { if (client.kindle) client.kindle() }
-    else if (a.do === 'stoke') { if (client.stoke) client.stoke(String(a.nodeId), a.slot | 0) }
-    else if (a.do === 'consign') { if (client.take) client.take(a.slots ?? [a.slot | 0]) }
-    else if (a.do === 'deliver') { if (client.deliver) client.deliver(a.slot | 0) }
-    else if (a.do === 'release') { if (client.releaseConsignment) client.releaseConsignment() }
-    else if (a.do === 'pay') { if (client.pay) client.pay() }
-    else if (a.do === 'lay') { if (client.lay) client.lay(String(a.nodeId), a.n | 0 || 1) }
-    else if (a.do === 'found') { if (client.found) client.found(a.x | 0, a.y | 0) }
-    else if (a.do === 'dismantle') { if (client.dismantle) client.dismantle(String(a.nodeId)) }
-    else if (a.do === 'charter') { if (client.charter) client.charter(a.slot | 0) }
-    else if (a.do === 'nock') { if (client.nock) client.nock(a.slot | 0) }
-    else if (a.do === 'saw') { if (client.saw) client.saw(a.slot | 0) }
-    else if (a.do === 'smelt') { if (client.smelt) client.smelt(String(a.recipe)) }
-    // ---- and the rest of what the sdk can already speak ----
-    // A citizen's own stall is a whole trade: raise it, stock it, price it,
-    // take the coin, take it down. Every one of those had an sdk method and an
-    // engine input and no way through this door.
-    else if (a.do === 'raise_market') { if (client.raiseStall) client.raiseStall() }
-    else if (a.do === 'stock_market') { if (client.stockStall) client.stockStall(a.slot | 0) }
-    else if (a.do === 'price_market') { if (client.priceStall) client.priceStall(a.ask | 0) }
-    else if (a.do === 'take_market') { if (client.takeStall) client.takeStall() }
-    else if (a.do === 'dismantle_market') { if (client.dismantleStall) client.dismantleStall() }
-    else if (a.do === 'build_brewpot') { if (client.buildBrewpot) client.buildBrewpot() }
-    else if (a.do === 'deposit_all') { if (client.depositAll) client.depositAll() }
-    else if (a.do === 'walk') { if (client.walk) client.walk(Math.sign(a.dx | 0), Math.sign(a.dy | 0), a.steps | 0) }
-    else if (a.do === 'set_look') { if (client.setLook) client.setLook(a.look | 0) }
     else if (a.do === 'name') client.claimName(String(a.name))
     else if (a.do === 'stop') client.stop()
 }
@@ -1115,7 +1125,8 @@ node.onTick = (state) => {
 // REQUEST instead: paid once at startup, where an operator is already waiting
 // and nobody is mid-interval. It roughly doubles the time to come up and costs
 // nothing afterwards.
-try {
+function buildPracticeIsland () {
+ try {
   const t0 = Date.now()
   console.log('building the practice island (§0) — this is paid once, at startup...')
   noughtWorldJson = Buffer.from(JSON.stringify(
@@ -1123,16 +1134,65 @@ try {
   noughtTerrain = packTerrain(node.state.genesis)
   console.log('  practice island ready in ' + ((Date.now() - t0) / 1000).toFixed(1)
     + 's (' + (noughtWorldJson.length / 1024).toFixed(0) + ' KB), tag ' + noughtTag())
-} catch (e) {
+ } catch (e) {
   // Not fatal: a node that cannot build it serves 503 and its windows fall back
   // to watching Tallyholm from outside, which is a lesser thing than Nought but
   // very much better than a node that refuses to start.
   console.warn('  could not build the practice island: ' + e.message)
+ }
 }
 
 node.startTicking()
+
+// BIND THE PORT BEFORE THE SLOW PART.
+//
+// The practice island above is built synchronously and roughly doubles the time
+// to come up -- which the comment there accepts, correctly, because paying it
+// during play froze the event loop for the first arrival. What it did NOT
+// account for is that `server.listen` came afterwards, so for the whole of
+// founding, catch-up and both worldgens a browser got ECONNREFUSED rather than
+// a slow answer.
+//
+// The difference matters more than it sounds. A refused connection is
+// indistinguishable from a node that does not exist, so a window fails over
+// away from a door that was thirty seconds from being ready, and a citizen on a
+// library PC concludes the world is gone. A bound port that answers slowly is
+// a queue, and a queue is a thing people wait in.
+//
+// So the island is built AFTER the listen, on the next turn of the loop.
+// Connections made during the build queue in the kernel and are served the
+// moment it finishes, and `/api/world` reports `ready` so a window can say
+// "starting" instead of guessing.
 const HTTP_PORT = Number(process.env.INTERVAL_HTTP_PORT) || 8787
+
+// Hand the port back. The worker closes its listener and exits; we wait for it
+// to actually go, because two servers cannot hold one port and a race here
+// would be an EADDRINUSE on every cold start.
+async function releaseBootPort () {
+  if (!bootWorker) return
+  console.log = _log; console.warn = _warn             // stop tapping
+  // The tick travels with the handover so the page can name what it waited for.
+  try {
+    bootWorker.postMessage({ type: 'done', tick: node?.state?.tick ?? null,
+      worldId: node?.worldId ?? null })
+  } catch {}
+  await new Promise((resolve) => {
+    const done = () => resolve()
+    bootWorker.once('exit', done)
+    // The worker holds the 'live' line for 1.2s on purpose, so this backstop
+    // has to clear that with room to spare. It exists for a worker that has
+    // wedged, not for the ordinary handover.
+    setTimeout(() => { try { bootWorker.terminate() } catch {} ; done() }, 6000)
+  })
+  bootWorker = null
+}
+
+await releaseBootPort()
 server.listen(HTTP_PORT, () => {
   console.log('Interval is live: http://localhost:' + HTTP_PORT + '  (site, game, hiscores, API)')
   console.log('peers may join via join.mjs — p2p port ' + P2P_PORT + ', peer ' + node.peerId())
+  // next turn of the loop: the listen callback has returned, the socket is
+  // accepting, and anything that arrives during the build waits instead of
+  // being refused.
+  setImmediate(buildPracticeIsland)
 })

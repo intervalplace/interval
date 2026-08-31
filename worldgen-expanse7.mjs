@@ -2606,31 +2606,6 @@ E.registerTerrain(GENERATOR_ID, {
   // and to name the monument a finished span bears. A generator with no wild
   // crossings omits this and the engine offers none.
   spanSites: (g) => SPAN_SITES.map((s) => ({ x: s.x, y: s.y, name: s.name })),
-  // §6dj: THE HEIGHT OF THE LAND, AS DATA.
-  //
-  // This field is not new and it is not decoration: it is what routed every
-  // road in the world. `elevAt` charges six for every unit a step climbs, which
-  // is why the roads follow valley floors, contour along hillsides and arrive
-  // at passes rather than summits. The hills are already TRUE — they are the
-  // reason the roads wander — and every window has been drawing flat ground
-  // underneath a winding road and disagreeing with the world about why it winds.
-  //
-  // Served on a four-tile lattice, because the field's finest octave is eight
-  // tiles wide: sampling every fourth tile and interpolating between reproduces
-  // it, and costs a thirty-second of a byte a tile instead of a whole one.
-  //
-  // It changes NO tile's walkability and enters no geography hash. A window may
-  // draw the land as it lies; whether a step should COST what it climbs is a
-  // question for the spec and the engine, not for this table.
-  elevGrid: (g) => {
-    const salt = goingSalt(TALLYHOLM_SEED) ^ 0x9e37
-    const step = 4
-    const w = Math.ceil(g.worldW / step) + 1, h = Math.ceil(g.worldH / step) + 1
-    const out = new Array(w * h)
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++)
-      out[j * w + i] = elevAt(salt, Math.min(g.worldW - 1, i * step), Math.min(g.worldH - 1, j * step))
-    return { step, w, h, min: Math.min(...out), max: Math.max(...out), v: out }
-  },
   // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
   // itself from a hand-copied table, and the copy went stale. The node that
   // founded the world is the one place that ran the real seater; it ships what
@@ -2998,10 +2973,10 @@ export function buildWorld(genesis) {
     }
     // -- the banks. The capital gets TWO, deliberately far apart: that one
     //    decision invents a north quarter and a south quarter for free.
-    const bankFill = (t) => [[0, 0, 'bank'], [1, 0, 'keeper']]
+    const vaultFill = (t) => [[0, 0, 'vault'], [1, 0, 'keeper']]
     if (s.kind === 'capital') {
-      seatBuilding(-14, -8, 6, 5, 's', bankFill())
-      seatBuilding(9, 5, 6, 5, 'n', bankFill())
+      seatBuilding(-14, -8, 6, 5, 's', vaultFill())
+      seatBuilding(9, 5, 6, 5, 'n', vaultFill())
       seatBuilding(-6, -9, 7, 5, 's', [[0, 0, 'store'], [1, 0, 'keeper'], [3, 0, 'store']])
       // §6am (v6): THE CAPITAL NO LONGER SMITHS. Anchor is where you spawn and
       // return, not where you work metal -- the one anvil is Thornbury's. What
@@ -3014,7 +2989,7 @@ export function buildWorld(genesis) {
       for (let k = 0; k < 5; k++) seatBuilding(-18 + k * 8, 10, 4, 4, 'n', [[0, 0, 'hearth']])
       for (let k = 0; k < 4; k++) seatBuilding(-18 + k * 9, -12, 4, 4, 's', [[0, 0, 'hearth']])
     } else {
-      seatBuilding(-7, -5, 6, 5, 's', bankFill())
+      seatBuilding(-7, -5, 6, 5, 's', vaultFill())
       // §6am (v6): THE SOLE ANVIL. Only the forge town (Thornbury, the central
       // hub) seats an anvil now. Ore is mined at Cragfoot and CARRIED here to
       // be worked -- the walk between the seam and the anvil is the gameplay,
@@ -4075,7 +4050,7 @@ export function buildWorld(genesis) {
       const _fieldish = new Set()
       const _worky = new Set()
       const WORKS = new Set(['furnace', 'sawpit', 'anvil', 'brewpot', 'watchfire', 'well',
-        'altar', 'looking-glass', 'rockfall', 'tollgate', 'ossuary', 'stall', 'bank', 'store',
+        'altar', 'looking-glass', 'rockfall', 'tollgate', 'ossuary', 'stall', 'vault', 'store',
         'iron-rock', 'coal-rock', 'gold-rock', 'magic-rock', 'mother-lode', 'brimstone-vent',
         'muck-heap', 'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal', 'tree',
         'oak-tree', 'ironbark-tree', 'heartwood-tree', 'gallows-oak', 'rock'])
@@ -5386,11 +5361,11 @@ export function buildWorld(genesis) {
         const edge = xx === bx || xx === bx + 5 || yy === by || yy === by + 4
         if (!edge) continue
         if (yy === by + 4 && xx === bx + 3) continue // the door
-        put('foldbank-w' + (bi++), 'wall', xx, yy)
+        put('foldvault-w' + (bi++), 'wall', xx, yy)
       }
-      put('foldbank', 'bank', bx + 2, by + 2)
-      put('kpr-bank-folds', 'keeper', bx + 3, by + 2, { name: keeperName('bank', 'folds') })
-      sput('foldbank-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
+      put('foldvault', 'vault', bx + 2, by + 2)
+      put('kpr-vault-folds', 'keeper', bx + 3, by + 2, { name: keeperName('vault', 'folds') })
+      sput('foldvault-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
     }
     // §6ao (v6): the Sheepfolds' stones are TEXTURE, not a mining town. This
     // laid up to forty-eight gatherable rocks with a bank beside them -- a
@@ -5724,7 +5699,7 @@ export function buildWorld(genesis) {
   let ghBank = { x: gh.x, y: gh.y }
   { let bd = Infinity
     for (const n of Object.values(w.nodes)) {
-      if (n.type !== 'bank') continue
+      if (n.type !== 'vault') continue
       const d = Math.hypot(n.x - gh.x, n.y - gh.y)
       if (d < bd) { bd = d; ghBank = { x: n.x, y: n.y } }
     } }
@@ -5759,7 +5734,7 @@ export function buildWorld(genesis) {
   let cfBank = { x: cf.x, y: cf.y }
   { let bd = Infinity
     for (const n of Object.values(w.nodes)) {
-      if (n.type !== 'bank') continue
+      if (n.type !== 'vault') continue
       const d = Math.hypot(n.x - cf.x, n.y - cf.y)
       if (d < bd) { bd = d; cfBank = { x: n.x, y: n.y } }
     } }
@@ -7383,7 +7358,7 @@ export function buildWorld(genesis) {
             // needs a tile of its own; two shopfronts a few tiles apart is a
             // market row, not a conflict.
             if (Object.values(w.nodes).some((q) =>
-              (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
+              (q.type === 'vault' || q.type === 'store' || q.type === 'anvil')
               && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
             if (Object.values(w.nodes).some((q) =>
               q.type === 'keeper' && q.kind && q.kind !== kind
@@ -7459,7 +7434,7 @@ export function buildWorld(genesis) {
           if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
           if (freeSides(x, y) < 2) continue
           if (Object.values(w.nodes).some((q) =>
-            (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
+            (q.type === 'vault' || q.type === 'store' || q.type === 'anvil')
             && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
           if (Object.values(w.nodes).some((q) =>
             q.type === 'keeper' && q.kind && q.kind !== kind
@@ -7496,7 +7471,7 @@ export function buildWorld(genesis) {
           // but a fellow stall's keeper only owns its own tile -- a market is a
           // row of neighbours.
           if (Object.values(w.nodes).some((q) =>
-            (q.type === 'bank' || q.type === 'store' || q.type === 'anvil')
+            (q.type === 'vault' || q.type === 'store' || q.type === 'anvil')
             && Math.max(Math.abs(q.x - x), Math.abs(q.y - y)) <= 8)) continue
           if (Object.values(w.nodes).some((q) =>
             q.type === 'keeper' && q.kind && q.kind !== kind
@@ -7550,7 +7525,7 @@ export function buildWorld(genesis) {
   // visible keeper still trades; a shop no one can reach does not.
   {
     const BLOCK = new Set(['wall', 'fence', 'hedge', 'tree', 'rock', 'iron-rock', 'coal-rock',
-      'magic-rock', 'gold-rock', 'oak-tree', 'heartwood-tree', 'stall', 'anvil', 'bank', 'store',
+      'magic-rock', 'gold-rock', 'oak-tree', 'heartwood-tree', 'stall', 'anvil', 'vault', 'store',
       'well', 'fountain', 'hearth', 'plot', 'keeper', 'guard', 'signpost', 'banner', 'campfire'])
     const nodeAt = new Map()
     for (const n of Object.values(w.nodes)) nodeAt.set(n.x + ',' + n.y, n)
@@ -7618,10 +7593,10 @@ export function buildWorld(genesis) {
   // and a house is not a job. A window gives them a name instead.
   {
     const BY_ID = [
-      // 'bank' is tested BEFORE 'fold': kpr-bank-folds is the counter at the
+      // 'vault' is tested BEFORE 'fold': kpr-bank-folds is the counter at the
       // Sheepfolds, not a shepherd, and read the other way round it came out
       // as one
-      ['bank', 'banker'],
+      ['vault', 'banker'],
       ['wizard', 'wizard'], ['sawyer', 'sawyer'], ['shep', 'shepherd'],
       ['fold', 'shepherd'], ['eel', 'fisher'], ['sheds', 'fisher'],
       ['delve', 'delver'], ['quarry', 'quarrier'], ['mill', 'miller'],
@@ -7648,7 +7623,7 @@ export function buildWorld(genesis) {
       }
       if (!call) {
         const around = near.get(n.x + ',' + n.y) ?? new Set()
-        if (around.has('bank')) call = 'banker'
+        if (around.has('vault')) call = 'banker'
         else if (around.has('store')) call = 'merchant'
       }
       if (call) n.kind = call
@@ -7662,7 +7637,9 @@ export function buildWorld(genesis) {
   // stones they now are, so no dead type reaches validation.
   for (const id of Object.keys(w.nodes)) {
     const n = w.nodes[id]
-    if (n.type === 'waystone') { n.type = 'landmark'; n.kind = 'standing-stone' }
+    // §21e: replaced rather than rewritten, so the canonical memo cannot hold
+    // this node's previous bytes. See the neutralise pass below.
+    if (n.type === 'waystone') w.nodes[id] = { ...n, type: 'landmark', kind: 'standing-stone' }
   }
 
   // §6cz (v6): ONE SMITH ON THE ISLAND. The anvil was pulled to Thornbury, but
@@ -7687,10 +7664,16 @@ export function buildWorld(genesis) {
       const town = townOfNode(n)
       if (town && town.tag === 'thornbury') continue   // the one true smith stays
       const line = (town && SIGN_TEXT[town.tag]) || (town ? town.name : 'a town on Tallyholm')
-      n.type = 'crier'
-      n.text = line
-      n.name = town ? ('the ' + town.name + ' crier') : 'the town crier'
-      delete n.kind
+      // §21e: a replacement, not four edits. `delete n.kind` on a node whose
+      // bytes are already memoised is the same fault as the rewrites above --
+      // the memo keeps the smith this used to be.
+      const { kind: _drop, ...rest } = n
+      w.nodes[id] = {
+        ...rest,
+        type: 'crier',
+        text: line,
+        name: town ? ('the ' + town.name + ' crier') : 'the town crier',
+      }
       criers++
     }
     counts.criers = criers
@@ -7715,7 +7698,7 @@ export function buildWorld(genesis) {
     // §0e: the FOUNTAIN is a fixture, not decor. It stands in Anchor's street
     // by design and the road sweep would otherwise clear it as loose ornament
     // -- which it was, until it became the one door out of Nought.
-    const KEEP = new Set(['wall', 'well', 'fountain', 'hearth', 'bank', 'store', 'anvil', // buildings & fixtures: leave whole
+    const KEEP = new Set(['wall', 'well', 'fountain', 'hearth', 'vault', 'store', 'anvil', // buildings & fixtures: leave whole
       'keeper', 'guard', 'signpost', 'crier', 'smith', 'banner', 'campfire',
       // v7: THE ROCKFALL STAYS WHERE IT FELL, road or no road. This sweep
       // exists to stop the founding sealing its own streets, and a boulder in
@@ -7763,43 +7746,11 @@ export function buildWorld(genesis) {
   if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') founding aborted')
   w._composition = counts
 
-  // §6g: WHERE A CROSSING'S GOODS LAND. An import's bank is flat -- see
-  // serve.mjs -- because the vault ids of the world it left name nothing here.
-  // Everything arrives at the counter nearest the spawn, which is where the
-  // citizen opens their eyes, so the first thing a crossing citizen can do is
-  // walk to a counter they can already see. Computed once: every import shares
-  // one spawn, so a per-citizen search would be the same answer many times.
-  let landingBank = null
-  {
-    const sp0 = spawnDry(g)
-    let bd = Infinity
-    for (const id of Object.keys(w.nodes).sort()) {   // sorted: one answer on every node
-      const n = w.nodes[id]
-      if (n.type !== 'bank') continue
-      const d = Math.hypot(n.x - sp0.x, n.y - sp0.y)
-      if (d < bd) { bd = d; landingBank = id }
-    }
-  }
-  for (const c9 of (g.imported ?? [])) {
-    if (!/^[0-9a-f]{64}$/.test(c9.pid ?? '')) continue
-    const sp9 = spawnDry(g)
-    E.addPlayer(w, c9.pid, sp9.x, sp9.y)
-    const p9 = w.players[c9.pid]
-    for (const k9 of Object.keys(p9.skills)) if (c9.skills?.[k9] !== undefined) p9.skills[k9] = c9.skills[k9]
-    p9.hp = Math.min(c9.hp ?? p9.hp, E.levelForXp(p9.skills.hitpoints))
-    ;(c9.inventory ?? []).forEach((sl9, i9) => { if (i9 < p9.inventory.length) p9.inventory[i9] = sl9 ?? null })
-    p9.equipment.weapon = c9.weapon ?? null
-    // A world with no bank at all cannot seat a vault; the goods are held in
-    // the founding record rather than invented into a counter that is not there.
-    if (landingBank) {
-      const carried = Object.entries(c9.bank ?? {})
-      if (carried.length) {
-        p9.bank[landingBank] = {}
-        for (const [it9, q9] of carried) p9.bank[landingBank][it9] = q9
-      }
-    }
-    if (c9.name != null) { w.names[c9.name] = c9.pid; p9.name = c9.name }
-  }
+  const _sp = spawnDry(g)
+  // §9: the crossing is ONE function, in the engine. Six generators carried
+  // their own copy, which is how five of them woke an imported citizen at one
+  // hitpoint and never seated a vault.
+  for (const c of (g.imported ?? [])) E.seatImport(w, c, _sp.x, _sp.y)
 
   // ---- final sweep: nothing gatherable where nobody can ever stand ----
   {
@@ -7850,7 +7801,7 @@ export function buildWorld(genesis) {
     // whatever stands between it and open ground. Deterministic -- fixed
     // neighbour order, and it takes the shortest way out, ties broken by
     // the order tiles are reached.
-    const ESSENTIAL = new Set(['bank','store','anvil','smith','well','fountain','keeper','signpost','landmark'])
+    const ESSENTIAL = new Set(['vault','store','anvil','smith','well','fountain','keeper','signpost','landmark'])
     const nodeAt = new Map()
     for (const [id, n] of Object.entries(w.nodes)) nodeAt.set(n.x + ',' + n.y, id)
     let felled = 0, opened = 0
@@ -7917,7 +7868,17 @@ export function buildWorld(genesis) {
       const kind = DECOR[n.type]
       if (!kind) continue
       if (KEEP(id)) continue
-      n.type = 'landmark'; n.kind = kind
+      // REPLACE, NEVER REWRITE. `canonicalNodes` memoises a node's bytes by
+      // object identity, and `validateState` has already canonicalised this
+      // world further up -- so editing a node in place leaves the memo holding
+      // what the node USED to be. The built world then hashed bba084e4 while
+      // its own serialisation hashed 6e5cd94e: a node that checkpoints and
+      // reloads computes a different world from one that stayed up.
+      //
+      // A fresh object gets a fresh memo entry. This is the same discipline
+      // §21e's comment already describes as "the engine never does that --
+      // `ownNode` copies before writing"; worldgen was the exception.
+      w.nodes[id] = { ...n, type: 'landmark', kind }
       neutralised++
     }
     counts.neutralisedDecor = neutralised

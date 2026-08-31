@@ -1685,8 +1685,8 @@ function onState(s, worldId) {
 
     // withdrawals are not catches: bank decreases mark their items
     const withdrawn = new Set()
-    for (const item in (old.bank ?? {})) {
-      if ((me.bank?.[item] ?? 0) < old.bank[item]) withdrawn.add(item)
+    for (const item in (old.vaults ?? {})) {
+      if ((me.vaults?.[item] ?? 0) < old.vaults[item]) withdrawn.add(item)
     }
 
     // trade settlement beats the generic gain messages, on BOTH sides
@@ -2249,7 +2249,7 @@ const PLANS4 = {
   ],
 }
 const OPEN4 = new Set(['.','@'])
-const LEG4 = {"#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"#":"wall","\"":"hedge","f":"fence","B":"vault","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"house","o":"well","*":"campfire","i":"signpost","W":"waystone","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -2275,7 +2275,7 @@ function planConnected4(rows, cx, cy) {
       const nx = x + dx, ny = y + dy, k = nx + ',' + ny
       if (seen.has(k) || !openAt(nx, ny)) continue
       seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well','waystone'])
+  const ESS = new Set(['vault','store','anvil','smith','keeper','well','waystone'])
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
     if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
@@ -3383,7 +3383,7 @@ function drawScene(now) {
         cx.fillStyle = '#ffe08a'; cx.font = 'bold 5px Verdana'; cx.textAlign = 'center'
         cx.fillText('STORE', X + 20, Y + 22)
       }
-      if (n.type === 'bank') {
+      if (n.type === 'vault') {
         shadow(X, Y, 15)
         poly([[X+6,Y+34],[X+34,Y+34],[X+34,Y+14],[X+6,Y+14]], '#3d3529', '#1c1710')
         poly([[X+6,Y+14],[X+34,Y+14],[X+34,Y+34],[X+30,Y+30],[X+30,Y+18],[X+10,Y+18],[X+10,Y+30],[X+6,Y+34]], '#493f30')
@@ -4481,7 +4481,7 @@ function panel(s) {
   // walking changes nothing here; rebuilding anyway stole frames
   const nearStoreSig = Object.values(s.nodes).some(n => n.type === 'store' && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
   const sig = JSON.stringify([me.hp, me.name, me.skills, me.inventory, me.equipment, me.gold, nearStoreSig,
-    me.bank, me.trade,
+    me.vaults, me.trade,
     Object.values(s.players).filter(p => p.trade?.to === myId).map(p => [p.trade, p.name])])
   if (sig === panelSig) return
   panelSig = sig
@@ -4543,9 +4543,9 @@ function panel(s) {
 
   // the vault: visible while standing at a bank
   const vaultEl = document.getElementById('vault')
-  const atBank = Object.values(s.nodes).some(n => n.type === 'bank'
+  const atBank = Object.values(s.nodes).some(n => n.type === 'vault'
     && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
-  const vaulted = Object.entries(me.bank ?? {})
+  const vaulted = Object.entries(me.vaults ?? {})
   if (atBank) {
     vaultEl.style.display = 'block'
     vaultEl.innerHTML = '<b style="color:var(--gold)">Your vault</b> <span style="color:var(--dim)">(tap inventory to deposit)</span><br>'
@@ -4919,9 +4919,9 @@ function invClick(i) {
   const meNow = world.players[myId]
   const it = meNow?.inventory[i]
   if (!it) return
-  const nearBank = Object.values(world.nodes).some(n => n.type === 'bank'
+  const nearVault = Object.values(world.nodes).some(n => n.type === 'vault'
     && Math.abs(meNow.x - n.x) + Math.abs(meNow.y - n.y) === 1)
-  if (nearBank) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
+  if (nearVault) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
   if (it.item === 'magic-stone') {
     const count = me.inventory.filter(sl => sl?.item === 'magic-stone').length
     chooseAction([
@@ -5111,7 +5111,7 @@ cv.addEventListener('click', (e) => {
   for (const [id, n] of Object.entries(world.nodes))
     if (n.x === x && n.y === y) {
       if (me.action?.nodeId === id) return                     // already working it: silent
-      if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'bank' && n.type !== 'anvil' && n.depletedUntil > world.tick) {
+      if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'vault' && n.type !== 'anvil' && n.depletedUntil > world.tick) {
         feed({ 'tree': 'The tree is felled. It will regrow.',
                'rock': 'The rock is mined out. Give it a moment.',
                'fishing-spot': "The fish aren't biting here yet." }[n.type] ?? 'Nothing left here.')
@@ -5276,7 +5276,7 @@ cv.addEventListener('click', (e) => {
         cx.fillStyle = '#ffe08a'; cx.font = 'bold 5px Verdana'; cx.textAlign = 'center'
         cx.fillText('STORE', X + 20, Y + 22)
       }
-      if (n.type === 'bank') {
+      if (n.type === 'vault') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }
         else feed('The bank stands ready: tap items to deposit, tap the vault to withdraw.')
         return

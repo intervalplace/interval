@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 236 tests across:
+`node --test test/*.test.mjs`, 340 tests across:
 
 - `leak.test.mjs` — §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,

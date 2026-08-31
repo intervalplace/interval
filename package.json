@@ -28,7 +28,8 @@
     "bench:storage": "node bench-storage.mjs",
     "manifest": "node manifest.mjs",
     "manifest:check": "node manifest.mjs --check",
-    "test:all": "node run-tests.mjs --all"
+    "test:all": "node run-tests.mjs --all",
+    "build:window": "node build-window.mjs"
   },
   "dependencies": {
     "@chainsafe/libp2p-gossipsub": "^14.1.2",
@@ -37,7 +38,6 @@
     "@libp2p/identify": "^3.0.39",
     "@libp2p/tcp": "^10.1.19",
     "@multiformats/multiaddr": "^12.5.1",
-    "@napi-rs/canvas": "^1.0.8",
     "@noble/ed25519": "^3.1.0",
     "@noble/hashes": "^2.2.0",
     "libp2p": "^2.10.0",
@@ -48,9 +48,28 @@
   "protocol": {
     "specVersion": "0.99",
     "consensusVersion": "1.9",
-    "rulesHash": "00e17419d7bdcc13"
+    "rulesHash": "654c1cd971dcc9c7"
   },
   "engines": {
     "node": ">=22.5.0"
-  }
+  },
+  "bin": {
+    "interval": "door.mjs",
+    "interval-serve": "serve.mjs",
+    "interval-play": "play.mjs"
+  },
+  "files": [
+    "*.mjs",
+    "engine.js",
+    "engine-browser.mjs",
+    "SPEC.md",
+    "LIFTED.md",
+    "HISTORY.md",
+    "CONSENSUS.md",
+    "README.md",
+    "site/",
+    "window-*.html",
+    "windows.html",
+    "audio/"
+  ]
 }

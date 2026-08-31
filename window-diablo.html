@@ -1259,7 +1259,7 @@ const PLANS4 = {
 }
 const PLAN_ROOMS4 = {"anchor":[[4,4,10,5],[4,12,7,3],[4,29,5,3],[13,29,5,3],[16,12,6,3],[19,4,6,4],[21,29,4,3],[30,4,8,4],[30,12,7,3],[34,25,13,6],[43,4,5,3],[43,11,5,3]],"millbrook":[[4,3,5,3],[4,13,5,3],[13,3,6,3],[13,13,6,3],[23,3,5,3],[23,13,5,3],[32,3,5,3],[32,13,5,3]],"oxenford":[[4,3,8,4],[4,18,6,3],[4,24,5,2],[23,3,7,4],[23,18,6,3],[23,24,5,2]],"thornbury":[[4,18,6,3],[4,24,6,3],[7,4,21,6],[22,18,7,3],[22,24,6,3]],"hollybarrow":[[4,4,7,4],[4,16,6,3],[23,16,6,3]],"eastmere":[[4,3,7,4],[4,17,7,3],[14,3,6,4],[15,17,5,3]],"greenhollow":[[4,5,7,3],[4,15,6,3],[20,5,6,3],[20,15,7,3]],"cragfoot":[[4,4,7,4],[4,13,7,4],[4,22,6,3],[17,4,7,4],[17,13,7,4],[17,22,6,3]],"fenmarch":[[4,3,7,2],[4,9,6,3],[4,16,7,3],[23,3,7,2],[24,9,6,3],[24,16,6,3]],"norwick":[[5,4,8,4],[5,16,7,3],[21,4,8,4],[21,16,8,3]]}
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"vault","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -1285,7 +1285,7 @@ function planConnected4(rows, cx, cy) {
       const nx = x + dx, ny = y + dy, k = nx + ',' + ny
       if (seen.has(k) || !openAt(nx, ny)) continue
       seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well'])   // 6ch
+  const ESS = new Set(['vault','store','anvil','smith','keeper','well'])   // 6ch
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
     if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
@@ -1783,7 +1783,7 @@ function shopDoors4(st) {
   const shops = []
   for (const k in st.nodes) {
     const q = st.nodes[k]
-    if (q.type === 'bank' || q.type === 'store') shops.push(q)
+    if (q.type === 'vault' || q.type === 'store') shops.push(q)
   }
   for (const t of settlementsE4()) {
     const rows = PLANS4[t.tag], rects = PLAN_ROOMS4[t.tag]
@@ -1827,7 +1827,7 @@ function keeperRole4(st, id, n) {
   if (id.includes('sawyer') || id.includes('camp')) return 'forest'
   if (id.includes('eel') || id.includes('sheds')) return 'fisher'
   if (id.includes('delve') || id.includes('high')) return 'smith'
-  if (id.includes('bank')) return 'clerk'
+  if (id.includes('vault')) return 'clerk'
   const ck = _roleCache.get(id)
   if (ck) return ck
   let role = 'town'
@@ -1838,7 +1838,7 @@ function keeperRole4(st, id, n) {
       if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
       near[q.type] = true
     }
-    role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
+    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
          : near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
@@ -2276,7 +2276,7 @@ const KN = {}
       const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
       KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
     }
-    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+    for (const tag of tags) for (const role of ['vault', 'store', 'store2']) {
       const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
       KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
     }
@@ -8419,7 +8419,7 @@ function drawNode(g, n, sx, sy, t, hot) {
         poly(gg, [[c2 - 15, b - 17], [c2 - 24, b - 20], [c2 - 15, b - 23], [c2 - 11, b - 23]], '#3f3a34')
         gg.fillStyle = 'rgba(255,240,214,.20)'; gg.fillRect(c2 - 11, b - 23, 22, 2)
       }), sx - 30, sy - 46 + 14); return
-    case 'bank': case 'store': {
+    case 'vault': case 'store': {
       // A COUNTER, NOT A BUILDING.
       //
       // This drew a whole gabled house, and it was wrong twice over. The world
@@ -8432,7 +8432,7 @@ function drawNode(g, n, sx, sy, t, hot) {
       //
       // So: a bench that fills its own diamond exactly, which means a run of
       // them abuts into one long counter with no seam and no thought.
-      const isBank = n.type === 'bank'
+      const isBank = n.type === 'vault'
       g.drawImage(sprite('counter' + n.type + (hs & 3), 84, 74, (gg, W2, H2, R) => {
         const c2 = W2 / 2, b = H2 - 22            // b is the tile centre
         const HGT = 15
@@ -10000,7 +10000,7 @@ function drawScene(now) {
       else if (n.type === 'fire' && n.expiresAt > s.tick) lights.push([sx, sy - 10, 140, .9, 1])
       else if (famOf(n.type) === 'magic-rock' && (n.depletedUntil ?? 0) <= s.tick) lights.push([sx, sy - 16, 82, .5, 0])
       else if (BUILDING_KINDS[n.type]) lights.push([sx - 14, sy - 34, 104, .5, 1])
-      else if (n.type === 'bank' || n.type === 'store') lights.push([sx, sy - 20, 66, .38, 1])
+      else if (n.type === 'vault' || n.type === 'store') lights.push([sx, sy - 20, 66, .38, 1])
     } else if (it.kind === 'ground') {
       drawGroundItem(g, it.e, sx, sy, now)
       beams.push([sx, sy, rarityOf(it.e.item)])
@@ -12549,7 +12549,7 @@ function verbFor(kind, e) {
   if (GATHERABLE.has(e.type)) return 'gather'
   if (e.type === 'plot') return 'harvest'
   if (e.type === 'anvil') return 'forge'
-  if (e.type === 'bank') return 'bank'
+  if (e.type === 'vault') return 'bank'
   if (e.type === 'store') return 'store'
   if (e.type === 'campfire' || e.type === 'fire') return 'cook'
   if (e.type === 'stall') return 'stall'
@@ -12872,7 +12872,7 @@ function buildMenu(px2, py2, target) {
       items.push({ label: 'Cook here', run: go('cook', target.id, n.x, n.y) })
     }
     if (n.type === 'anvil') items.push({ label: 'The anvil', run: go('forge', target.id, n.x, n.y) })
-    if (n.type === 'bank') items.push({ label: 'The vault', run: go('bank', target.id, n.x, n.y) })
+    if (n.type === 'vault') items.push({ label: 'The vault', run: go('vault', target.id, n.x, n.y) })
     if (n.type === 'store') items.push({ label: 'The counter', run: go('store', target.id, n.x, n.y) })
     // §6al: a citizen's stall -- theirs to tend, anybody else's to buy from
     if (n.type === 'market') {
@@ -13091,7 +13091,7 @@ function buildSlotMenu(px2, py2, i) {
                  dim: fl < 90 || n3 < 2,
                  run: () => send({ do: 'fletch', slot: i, make: 'heartwood-staff' }) })
   }
-  if (near('bank')) {
+  if (near('vault')) {
     items.push({ label: 'Vault it', run: () => send({ do: 'deposit', slot: i }) })
     // §7.3a: and the whole pack, for the walk home from the seam. The bow and
     // the hood stay in your hands whatever you click.
@@ -13212,7 +13212,7 @@ function pickWorld(p) {
   for (const [id, n] of Object.entries(s.nodes ?? {})) {
     if (SCENERY.has(n.type)) continue
     const big = BUILDING_KINDS[n.type] ? [-60, 60, -110, 20]
-      : (n.type === 'bank' || n.type === 'store') ? [-32, 32, -34, 18]
+      : (n.type === 'vault' || n.type === 'store') ? [-32, 32, -34, 18]
       : famOf(n.type) === 'tree' ? [-30, 30, -80, 16]
       : famOf(n.type) === 'fishing-spot' ? [-30, 30, -14, 14]
       : [-28, 28, -56, 14]
@@ -13567,11 +13567,11 @@ function pumpIntent() {
       stepToward(from, n, 'adjacent'); return
     }
     case 'hearth': { intent = null; say('A hearth. Somebody lives here.', 'dim'); return }
-    case 'forge': case 'bank': case 'store': case 'attune': case 'look': {
+    case 'forge': case 'vault': case 'store': case 'attune': case 'look': {
       const n = s.nodes?.[intent.id]; if (!n) { intent = null; return }
       if (near(n)) {
         if (intent.kind === 'forge') { paneModal = 'forge'; say('The anvil is cold, and yours.', 'dim') }
-        else if (intent.kind === 'bank') { paneModal = 'bank'; say('The vault opens.', 'dim') }
+        else if (intent.kind === 'vault') { paneModal = 'bank'; say('The vault opens.', 'dim') }
         else if (intent.kind === 'mystall') {
           const mk9 = curState?.nodes?.[intent.id]
           if (mk9) { myStallId = intent.id; askDraft = mk9.ask ?? 0; paneModal = 'mystall'; SFX.pane() }
@@ -14037,6 +14037,18 @@ window.addEventListener('blur', () => { altHeld = false; shiftHeld = false; mous
 // atmospheric: you came here to move goods, and legibility is the whole job.
 // ===========================================================================
 
+// §6g: the shelf at the counter the citizen is standing beside. A window that
+// read `p.vaults` flat saw shelves where it expected counts, so the panel was
+// empty and "withdraw the lot" fell back to one.
+function shelfHere(state, p) {
+  if (!p) return {}
+  for (const id of Object.keys(state?.nodes ?? {})) {
+    const n = state.nodes[id]
+    if (n.type !== 'vault') continue
+    if (Math.abs(n.x - p.x) + Math.abs(n.y - p.y) === 1) return p.vaults?.[id] ?? {}
+  }
+  return {}
+}
 function drawLedger(g, title, rows, empty) {
   const W2 = Math.min(430, VW - 16), H2 = Math.min(Math.max(220, VH - PANEL_H - 40), 500)
   const x = Math.round((VW - W2) / 2), y = Math.max(12, (VH - PANEL_H - H2) / 2)
@@ -14100,7 +14112,7 @@ function drawVault(g) {
   const rows = []
   for (const [i, sl] of (me?.inventory ?? []).entries())
     if (sl) rows.push({ item: sl.item, qty: sl.qty ?? 1, right: 'deposit \u2192', act: { t: 'deposit', slot: i } })
-  for (const [it, q] of Object.entries(me?.bank ?? {}))
+  for (const [it, q] of Object.entries(shelfHere(curState, me)))
     if (q > 0) rows.push({ item: it, qty: q, right: '\u2190 withdraw', act: { t: 'withdraw', item: it } })
   drawLedger(g, 'The Vault', rows, 'Nothing in the pack, nothing in the vault.')
 }
@@ -14154,7 +14166,7 @@ runRegion = function (r, isRight) {
   if (a.t === 'deposit') { send({ do: 'deposit', slot: a.slot }); SFX.pane(); return }
   // §7.3a: take the lot -- what fits comes out, the rest stays in the vault.
   if (a.t === 'withdraw') {
-    const have = curState?.players?.[myId]?.bank?.[a.item] ?? 1
+    const have = shelfHere(curState, curState?.players?.[myId])[a.item] ?? 1
     send({ do: 'withdraw', item: a.item, qty: have }); SFX.pane(); return
   }
   if (a.t === 'buystall') { send({ do: 'buy', item: a.item }); SFX.pane(); return }
@@ -14253,7 +14265,7 @@ function frame(now) {
     if (paneModal === 'guide') drawGuide(cx)
     if (paneModal === 'mystall') drawMyStall(cx)
     if (paneModal === 'forge') drawForge(cx, now)
-    else if (paneModal === 'bank') drawVault(cx)
+    else if (paneModal === 'vault') drawVault(cx)
     else if (paneModal === 'store') drawCounter(cx)
     else if (paneModal === 'stall') drawStall(cx)
     // THE LOG GOES LAST, OVER EVERYTHING.
@@ -14784,7 +14796,7 @@ function withPeers(st) {
       x: q.x, y: q.y, hp: 10, gold: 0, name: NOUGHT_PEER_NAME, look: q.look,
       action: null, trade: null, consignment: null, lastInput: st.tick,
       equipment: { weapon: null, head: null, body: null, offhand: null, legs: null },
-      bank: {}, inventory: new Array(28).fill(null), skills: st.players[myId].skills,
+      vaults: {}, inventory: new Array(28).fill(null), skills: st.players[myId].skills,
     }
   }
   return v

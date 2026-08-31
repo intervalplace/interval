@@ -610,6 +610,19 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 // between swings.
 const MOUNT_REMOUNT = 2200
 const _fellOffAt = new Map()
+// §6g: the shelf at the counter the citizen is standing beside. A window that
+// read `p.vaults` flat saw shelves where it expected counts, so the panel was
+// empty and "withdraw the lot" fell back to one.
+function shelfHere(state, p) {
+  if (!p) return {}
+  for (const id of Object.keys(state?.nodes ?? {})) {
+    const n = state.nodes[id]
+    if (n.type !== 'vault') continue
+    if (Math.abs(n.x - p.x) + Math.abs(n.y - p.y) === 1) return p.vaults?.[id] ?? {}
+  }
+  return {}
+}
+
 function mountedNow(pid, p, nowMs) {
   const act = p?.action?.type
   if (act === 'prowess' || act === 'attackp') { _fellOffAt.set(pid, nowMs); return false }
@@ -1394,7 +1407,7 @@ const planFor = (tag) => (IS_V67() ? PLANS6_W[tag] : undefined) ?? planFor(tag)
 const roomsFor = (tag) => (IS_V67() ? PLAN_ROOMS6_W[tag] : undefined) ?? PLAN_ROOMS4[tag]
 
 const OPEN4 = new Set(['.','@',','])
-const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"bank","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
+const LEG4 = {"%":"wall","#":"wall","\"":"hedge","f":"fence","B":"vault","S":"store","A":"anvil","s":"smith","k":"keeper","G":"guard","h":"hearth","o":"well","*":"campfire","i":"signpost","!":"landmark","p":"plot","T":"tree","n":"rock","F":"fishing-spot"}
 
 // checkPlanConnected + seatDrawnTown, mirrored exactly.
 function planConnected4(rows, cx, cy) {
@@ -1420,7 +1433,7 @@ function planConnected4(rows, cx, cy) {
       const nx = x + dx, ny = y + dy, k = nx + ',' + ny
       if (seen.has(k) || !openAt(nx, ny)) continue
       seen.add(k); q.push([nx, ny]) } }
-  const ESS = new Set(['bank','store','anvil','smith','keeper','well','fountain'])   // 6ch
+  const ESS = new Set(['vault','store','anvil','smith','keeper','well','fountain'])   // 6ch
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
     if (OPEN4.has(ch) || ch === ' ' || ch === '=' || ch === '~' || !(ch in LEG4)) continue
@@ -1923,7 +1936,7 @@ function shopDoors4(st) {
   const shops = []
   for (const k in st.nodes) {
     const q = st.nodes[k]
-    if (q.type === 'bank' || q.type === 'store') shops.push(q)
+    if (q.type === 'vault' || q.type === 'store') shops.push(q)
   }
   for (const t of ssE()) {
     const rows = planFor(t.tag), rects = roomsFor(t.tag)
@@ -1974,7 +1987,7 @@ function keeperRole4(st, id, n) {
   if (id.includes('sawyer') || id.includes('camp')) return 'forest'
   if (id.includes('eel') || id.includes('sheds')) return 'fisher'
   if (id.includes('delve') || id.includes('high')) return 'smith'
-  if (id.includes('bank')) return 'clerk'
+  if (id.includes('vault')) return 'clerk'
   const ck = _roleCache.get(id)
   if (ck) return ck
   let role = 'town'
@@ -1985,7 +1998,7 @@ function keeperRole4(st, id, n) {
       if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
       near[q.type] = true
     }
-    role = near.bank ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
+    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
          : near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
@@ -2436,7 +2449,7 @@ const KN = {}
       const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
       KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
     }
-    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+    for (const tag of tags) for (const role of ['vault', 'store', 'store2']) {
       const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
       KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
     }
@@ -5129,8 +5142,158 @@ if (!uid) {
         : Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
   localStorage.setItem('interval-uid', uid)
 }
-const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
-ws.onopen = async () => {
+// ---------------------------------------------------------------------------
+// WHICH NODE THIS WINDOW TALKS TO
+//
+// The window used `location.host` for both the websocket and every fetch, so
+// the page and the node it trusted were the same machine, permanently. That is
+// the whole availability story: if one pillar is down, the page is down AND the
+// world is unreachable, and there is nowhere else to go even though other
+// sovereign peers are running the same world right now.
+//
+// It also meant a custom window could not exist off that origin. Somebody who
+// writes their own client has to host it somewhere, and "somewhere" was the one
+// place they do not control.
+//
+// So the node is a RESOLVED value, in this order:
+//   1. ?node=https://host        -- an explicit choice, remembered
+//   2. the last node that worked -- localStorage
+//   3. the origin that served this page  -- the common case, unchanged
+//   4. NODE_FALLBACKS            -- baked in, for a page on a static host
+//
+// A page on a CDN, a USB stick or IPFS is now a complete client.
+const NODE_FALLBACKS = ['https://interval.place']
+
+// A PEER LIST BESIDE THE PAGE.
+//
+// The baked list below is frozen at build time and names whoever was running a
+// node that day. For the case this whole change exists for -- a public machine,
+// a browser with no memory, the page from a CDN, and the pillar down -- a stale
+// single address is the last thing standing, and it is not enough.
+//
+// So the page also looks for `peers.json` NEXT TO ITSELF. That file shares a
+// failure domain with the page, not with the world: if you can load the window
+// from GitHub Pages, or IPFS, or a shared drive, you can load the list too, and
+// whoever publishes the window can keep it current without touching a pillar or
+// asking anyone to rebuild.
+//
+// Relative on purpose. `new URL('peers.json', location.href)` resolves against
+// wherever the page actually is, so a copy on a USB stick reads the copy on the
+// USB stick and nobody has to know in advance where it was put.
+let SIDECAR = []
+async function loadSidecar () {
+  try {
+    const u = new URL('peers.json', location.href).href
+    const c = new AbortController()
+    const t = setTimeout(() => c.abort(), 3000)
+    const r = await fetch(u, { signal: c.signal, cache: 'no-store' })
+    clearTimeout(t)
+    if (!r.ok) return
+    const j = await r.json()
+    const list = Array.isArray(j) ? j : (j.nodes ?? j.windows ?? [])
+    SIDECAR = list.filter(x => typeof x === 'string' && /^https?:\/\//.test(x)).slice(0, 32)
+  } catch { /* no sidecar: the baked list and anything remembered still stand */ }
+}
+
+function nodeCandidates () {
+  const out = []
+  const q = new URLSearchParams(location.search).get('node')
+  if (q) out.push(q.replace(/\/$/, ''))
+  try { const saved = localStorage.getItem('interval-node'); if (saved) out.push(saved) } catch {}
+  // Peers learned from a previous session. After ONE successful connection a
+  // window knows every pillar of this world that serves browsers, so the baked
+  // fallback below stops being a single point of failure the moment it is used
+  // once. This is why availability here is not the same problem it is for a
+  // game with one company behind it: the directory is the world's, not a
+  // vendor's, and any citizen can add themselves to it.
+  try {
+    const learned = JSON.parse(localStorage.getItem('interval-peers') || '[]')
+    if (Array.isArray(learned)) for (const u of learned) if (typeof u === 'string') out.push(u)
+  } catch {}
+  // A page opened from a file has no useful origin; `http://` and `null` are
+  // not nodes, and dialling them wastes the first two seconds of every boot.
+  if (/^https?:$/.test(location.protocol) && location.host) out.push(location.origin)
+  for (const f of SIDECAR) out.push(f)
+  for (const f of NODE_FALLBACKS) out.push(f)
+  return [...new Set(out)]
+}
+
+let NODE = nodeCandidates()[0] ?? NODE_FALLBACKS[0]
+const api = (p) => NODE + p
+const wsUrl = () => NODE.replace(/^http/, 'ws')
+
+// Remember the other pillars of this world. Capped, because a directory a
+// stranger can append to should never be able to grow a citizen's browser
+// storage without bound.
+async function learnPeers () {
+  try {
+    const r = await fetch(api('/api/peers'), { cache: 'no-store' })
+    if (!r.ok) return
+    const j = await r.json()
+    const urls = (j.windows ?? []).filter(u => typeof u === 'string' && /^https?:\/\//.test(u))
+    if (urls.length) localStorage.setItem('interval-peers', JSON.stringify(urls.slice(0, 16)))
+  } catch { /* the directory is a convenience, never a requirement */ }
+}
+
+// A candidate is only acceptable if it is serving THIS world. Failing over to
+// a node that answers but runs a different constitution would move a citizen
+// between worlds without telling them -- and under governance by exit, that is
+// the one thing a client must never do quietly.
+async function pickNode (expectWorldId) {
+  await loadSidecar()
+  const cands = nodeCandidates()
+  if (!cands.length) return null
+
+  // ASK THEM ALL AT ONCE.
+  //
+  // This tried candidates one at a time with a four second timeout each, so a
+  // list where the first three are dead was twelve seconds of nothing before
+  // the fourth was even dialled -- and the list gets LONGER as discovery gets
+  // better, which made every improvement here a slower boot.
+  //
+  // They are raced instead. The candidates are ordered by preference and the
+  // first ACCEPTABLE answer wins, so an explicit ?node= still beats a fallback
+  // when both are alive: a later candidate that answers sooner does not get to
+  // overrule a citizen's choice unless the choice is actually unreachable.
+  const check = async (cand) => {
+    const c = new AbortController()
+    const t = setTimeout(() => c.abort(), 5000)
+    try {
+      const r = await fetch(cand + '/api/world', { signal: c.signal, cache: 'no-store' })
+      if (!r.ok) return null
+      const j = await r.json()
+      if (expectWorldId && j.worldId && j.worldId !== expectWorldId) {
+        console.warn('[interval] ' + cand + ' serves a different world; skipping')
+        return null
+      }
+      return { node: cand, worldId: j.worldId }
+    } catch { return null } finally { clearTimeout(t) }
+  }
+
+  const results = cands.map(check)
+  // Walk in PREFERENCE order and take the first that resolves to something
+  // acceptable. Every request is already in flight, so this costs the slowest
+  // preferred candidate rather than the sum of the dead ones.
+  for (let i = 0; i < results.length; i++) {
+    const found = await results[i]
+    if (!found) continue
+    NODE = found.node
+    try { localStorage.setItem('interval-node', found.node) } catch {}
+    try { localStorage.setItem('interval-world', found.worldId ?? '') } catch {}
+    learnPeers()                                     // not awaited: it is for NEXT time
+    return found
+  }
+  return null
+}
+
+// The socket is opened by `connect()` once a node has been chosen and checked,
+// not at parse time. `ws` starts as a stub so the send helpers scattered below
+// can keep calling `ws.readyState` and `ws.send` without every one of them
+// learning about connection state.
+let ws = { readyState: 0, send () {}, close () {} }
+let wsGen = 0                       // bumps on every connect: stale sockets stay quiet
+let reconnectAt = 0
+async function onOpen () {
   ownKey = await ownIdentity()
   if (ownKey) ws.send(JSON.stringify({ type: 'adopt', pub: ownKey.pub }))
   else ws.send(JSON.stringify({ type: 'auth', uid }))
@@ -5369,7 +5532,7 @@ async function startMusic(preferred) {
   musicTried = true
   let tracks = []
   try {
-    const r = await fetch('/api/audio')
+    const r = await fetch(api('/api/audio'))
     tracks = (await r.json()).tracks ?? []
   } catch { return }        // no node, no music, no complaint
   if (!tracks.length) return
@@ -6020,7 +6183,7 @@ function openForge(me) {
 }
 function smithBest(me) { openForge(me) }
 
-ws.onmessage = (ev) => {
+function onMessage (ev) {
   // A TRUNCATED FRAME MUST NOT TAKE THE HANDLER WITH IT. A state broadcast for
   // this world is a large JSON message and one arriving cut short threw
   // "Unterminated string" straight out of the socket handler. Count it and
@@ -6094,6 +6257,89 @@ ws.onmessage = (ev) => {
       + (far ? '<span style="color:#a89a7c">' : '') + m.text.replace(/</g, '&lt;') + (far ? '</span>' : ''))
   }
 }
+
+// ---------------------------------------------------------------------------
+// CONNECT, AND KEEP CONNECTING
+//
+// There was no `onclose` and no `onerror`. A dropped socket ended the session
+// silently: the world stopped moving and the window gave no reason, which is
+// indistinguishable from the world having stopped -- and this world CAN stop,
+// so that ambiguity is worse here than in an ordinary game.
+//
+// Now a drop retries, and each retry re-resolves the node. A pillar going down
+// moves a citizen to another peer of the SAME world rather than ending their
+// afternoon. `pickNode` refuses any candidate serving a different worldId, so
+// failing over can never quietly move somebody between constitutions.
+
+// WHICH NODE AM I LOOKING THROUGH?
+//
+// This matters more here than in a game with one server. A citizen on a public
+// machine needs to be able to answer three questions without reading source:
+// am I connected, to whom, and can I try somebody else. A page that silently
+// picks a node and says nothing is asking for the same trust a company asks
+// for, which is the thing this world is built not to need.
+//
+// Click it to name another node. It is remembered, so the next visit on this
+// machine starts there.
+function showNode (found) {
+  let el = document.getElementById('nodechip')
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'nodechip'
+    el.style.cssText = 'position:fixed;right:6px;bottom:6px;z-index:60;font:11px Verdana,sans-serif;'
+      + 'background:rgba(20,17,11,.82);color:#c9a227;border:1px solid #6e5433;'
+      + 'padding:3px 7px;cursor:pointer;user-select:none'
+    el.title = 'The node this window is reading the world from. Click to change it.'
+    el.onclick = () => {
+      const cur = NODE
+      const next = prompt('Read the world from which node?\n\n'
+        + 'Any peer of this world will do — a pillar, or a door you run yourself\n'
+        + '(node door.mjs, then http://localhost:8788).', cur)
+      if (!next || next === cur) return
+      try { localStorage.setItem('interval-node', next.replace(/\/$/, '')) } catch {}
+      // A fresh choice must not be filtered out by a remembered world: a
+      // citizen changing nodes on purpose may be crossing on purpose.
+      try { localStorage.removeItem('interval-world') } catch {}
+      location.search = '?node=' + encodeURIComponent(next.replace(/\/$/, ''))
+    }
+    document.body.appendChild(el)
+  }
+  const host = NODE.replace(/^https?:\/\//, '')
+  el.textContent = found ? ('\u25cf ' + host) : ('\u25cb searching\u2026')
+  el.style.color = found ? '#c9a227' : '#8a7a55'
+}
+
+async function connect (reason) {
+  const gen = ++wsGen
+  const known = (() => { try { return localStorage.getItem('interval-world') || null } catch { return null } })()
+  const found = await pickNode(known)
+  if (gen !== wsGen) return                        // a newer connect() overtook us
+  if (!found) {
+    showNode(null)
+    feed('No node is answering for this world. Retrying\u2026')
+    setTimeout(() => { if (gen === wsGen) connect('retry') }, 5000)
+    return
+  }
+  showNode(found)
+  if (reason === 'reconnect') feed('Reconnected by way of ' + NODE.replace(/^https?:\/\//, '') + '.')
+
+  const sock = new WebSocket(wsUrl())
+  ws = sock
+  sock.onopen = () => { reconnectAt = 0; onOpen() }
+  sock.onmessage = onMessage
+  const drop = () => {
+    if (gen !== wsGen) return                      // an old socket, already replaced
+    // Backs off to fifteen seconds. A window left open overnight against a
+    // dead pillar must not become a load generator against it.
+    reconnectAt = Math.min(15000, (reconnectAt || 1000) * 2)
+    feed('Connection lost. Looking for a node\u2026')
+    setTimeout(() => { if (gen === wsGen) connect('reconnect') }, reconnectAt)
+  }
+  sock.onclose = drop
+  sock.onerror = () => { try { sock.close() } catch {} }
+}
+connect('boot')
+
 
 let prev = null
 let curState = null, prevState = null, stateAt = 0, curWorldId = ''
@@ -7083,7 +7329,7 @@ function withPeers(st) {
       x: q.x, y: q.y, hp: 10, gold: 0, name: NOUGHT_PEER_NAME, look: q.look,
       action: null, trade: null, consignment: null, lastInput: st.tick,
       equipment: { weapon: null, head: null, body: null, offhand: null, legs: null },
-      bank: {}, inventory: new Array(INV_SLOTS).fill(null), skills: st.players[myId].skills,
+      vaults: {}, inventory: new Array(INV_SLOTS).fill(null), skills: st.players[myId].skills,
     }
   }
   return v
@@ -7439,7 +7685,7 @@ function onState(s, worldId, local) {
     // under v6 and by twenty-seven under v7, which is a whole town. A citizen
     // standing in Anchor's market square on grass is that drift, seen from
     // the inside. One fetch per world; the towns never move for a founding.
-    fetch('/api/settlements', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(sd => {
+    fetch(api('/api/settlements'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(sd => {
       if (sd && Array.isArray(sd.settlements) && sd.settlements.length) {
         SETTLE_TOLD = sd.settlements.map((t) => ({
           tag: t.tag, name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
@@ -7449,7 +7695,7 @@ function onState(s, worldId, local) {
         miniReady = false
       }
     }).catch(() => { /* offline: the derived seats stand, and may be wrong */ })
-    fetch('/api/roads', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
+    fetch(api('/api/roads'), { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(rd => {
       if (rd && Array.isArray(rd.tiles) && rd.tiles.length) {
         _roadSet = new Set(rd.tiles)
         buildGround()   // repaint the ground with the true roads
@@ -7793,11 +8039,20 @@ function onState(s, worldId, local) {
       }
     }
 
-    // withdrawals are not catches: bank decreases mark their items
-    const withdrawn = new Set()
-    for (const item in (old.bank ?? {})) {
-      if ((me.bank?.[item] ?? 0) < old.bank[item]) withdrawn.add(item)
+    // §6g: vaults are per counter, so "did this item leave a vault" is a
+    // question about the TOTAL a citizen holds anywhere -- one shelf falling
+    // while another rises is not a withdrawal.
+    const vaultTotals = (v) => {
+      const t = {}
+      for (const shelf of Object.values(v ?? {}))
+        for (const [it, n] of Object.entries(shelf ?? {})) t[it] = (t[it] ?? 0) + n
+      return t
     }
+
+    // withdrawals are not catches: vault decreases mark their items
+    const withdrawn = new Set()
+    const wasV = vaultTotals(old.vaults), nowV = vaultTotals(me.vaults)
+    for (const item in wasV) if ((nowV[item] ?? 0) < wasV[item]) withdrawn.add(item)
 
     // trade settlement beats the generic gain messages, on BOTH sides
     let tradeItem = null
@@ -8018,7 +8273,7 @@ function innSeat4() {
       const d2 = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag2 + '|' + role2))
       KN[role2 + '|' + tag2] = KEEPER_NAMES[new Uint8Array(d2)[0] % KEEPER_NAMES.length]
     }
-    for (const tag of tags) for (const role of ['bank', 'store', 'store2']) {
+    for (const tag of tags) for (const role of ['vault', 'store', 'store2']) {
       const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('keeper|' + tag + '|' + role))
       KN[tag + '|' + role] = KEEPER_NAMES[new Uint8Array(d)[0] % KEEPER_NAMES.length]
     }
@@ -10932,7 +11187,7 @@ function drawScene(now) {
           cx.beginPath(); cx.arc(X + 20 + Math.sin(st * 5 + pf) * 3, Y + 9 - st * 14, 2 + st * 3, 0, 7); cx.fill()
         }
       }
-      if (n.type === 'bank' || n.type === 'store') {
+      if (n.type === 'vault' || n.type === 'store') {
         // THE BOARD OVER THE DOOR, drawn here rather than in a pass of its
         // own: inside the node loop the transform is whatever the world is
         // already using, so the sign cannot land in the wrong space.
@@ -10941,11 +11196,11 @@ function drawScene(now) {
           const bx = X + (dr.x - n.x) * 40, by = Y + (dr.y - n.y) * 40
           cx.strokeStyle = '#2a2016'; cx.lineWidth = 2
           cx.beginPath(); cx.moveTo(bx + 20, by - 2); cx.lineTo(bx + 20, by + 7); cx.stroke()
-          cx.fillStyle = n.type === 'bank' ? '#6b5820' : '#6b3f20'
+          cx.fillStyle = n.type === 'vault' ? '#6b5820' : '#6b3f20'
           cx.fillRect(bx + 5, by + 6, 30, 20)
           cx.strokeStyle = '#241c10'; cx.lineWidth = 2; cx.strokeRect(bx + 5, by + 6, 30, 20)
           cx.fillStyle = 'rgba(255,255,255,.10)'; cx.fillRect(bx + 5, by + 6, 30, 2.5)
-          if (n.type === 'bank') {
+          if (n.type === 'vault') {
             cx.fillStyle = '#e2b63e'
             cx.beginPath(); cx.arc(bx + 20, by + 16, 7, 0, 7); cx.fill()
             cx.strokeStyle = '#8a6d1f'; cx.lineWidth = 1.6; cx.stroke()
@@ -10978,7 +11233,7 @@ function drawScene(now) {
           }
         }
       }
-      if (n.type === 'bank') {
+      if (n.type === 'vault') {
         // A BOOTH, not a bank hall. Three of these behind one door is a bank;
         // one in a village room is a strong box. The gold is the tell.
         shadow(X, Y, 11)
@@ -12782,7 +13037,7 @@ function panel(s) {
     .some(([, n]) => n.type === 'store' && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
   const sig = JSON.stringify([me.hp, me.name, me.skills, me.inventory, me.equipment, me.gold, nearStoreSig,
     nearBarSig, me.consignment, me.brandedUntil ?? 0,
-    me.bank, me.trade,
+    me.vaults, me.trade,
     Object.values(s.players).filter(p => p.trade?.to === myId).map(p => [p.trade, p.name])])
   if (sig === panelSig) return
   panelSig = sig
@@ -12928,9 +13183,9 @@ function panel(s) {
 
   // the vault: visible while standing at a bank
   const vaultEl = document.getElementById('vault')
-  const atBank = nodesNear(s, me.x - 2, me.y - 2, me.x + 2, me.y + 2).some(([, n]) => n.type === 'bank'
+  const atBank = nodesNear(s, me.x - 2, me.y - 2, me.x + 2, me.y + 2).some(([, n]) => n.type === 'vault'
     && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
-  const vaulted = Object.entries(me.bank ?? {})
+  const vaulted = Object.entries(me.vaults ?? {})
   if (atBank) {
     vaultEl.style.display = 'block'
     vaultEl.innerHTML = '<b style="color:var(--gold)">Your vault</b> <span style="color:var(--dim)">(tap inventory to deposit)</span><br>'
@@ -13615,10 +13870,10 @@ function drawSunMap(s, now) {
   // shows what is IN it, which is what you are actually looking for.
   for (const k in s.nodes) {
     const q = s.nodes[k]
-    if (q.type !== 'bank' && q.type !== 'store' && q.type !== 'anvil') continue
+    if (q.type !== 'vault' && q.type !== 'store' && q.type !== 'anvil') continue
     const [dx, dy] = at(q.x, q.y)
     if (dx < pad || dy < pad || dx > MW - pad || dy > MH - pad) continue
-    g.fillStyle = q.type === 'bank' ? '#e2b63e' : q.type === 'store' ? '#e08a3c' : '#9aa2b4'
+    g.fillStyle = q.type === 'vault' ? '#e2b63e' : q.type === 'store' ? '#e08a3c' : '#9aa2b4'
     g.fillRect(dx - 1.5, dy - 1.5, 3, 3)
     g.fillStyle = 'rgba(0,0,0,.5)'
     g.fillRect(dx - 1.5, dy - 1.5, 3, 0.8)
@@ -13728,7 +13983,7 @@ document.getElementById('vault').addEventListener('click', (e) => {
   if (allItem) {
     // the lot, when the lot is what you meant. The pack takes what fits and
     // the rest stays banked, which is the engine's own rule.
-    const have = world?.players?.[myId]?.bank?.[allItem] ?? 1
+    const have = shelfHere(world, world?.players?.[myId])[allItem] ?? 1
     send({ do: 'withdraw', item: allItem, qty: have })
     feed('You withdraw what will fit \u2014 ' + have + ' ' + allItem.replace('-', ' ') + '.')
   }
@@ -13980,7 +14235,7 @@ function invClick(i) {
       return
     }
   }
-  const nearBank = Object.values(world.nodes).some(n => n.type === 'bank'
+  const nearVault = Object.values(world.nodes).some(n => n.type === 'vault'
     && Math.abs(meNow.x - n.x) + Math.abs(meNow.y - n.y) === 1)
   // items with MENUS keep their menus even beside the bank (Anchor's
   // bank stands by the store: the old blanket deposit-on-click made
@@ -13989,8 +14244,8 @@ function invClick(i) {
   // deposit in one click, the banker's old convenience.
   const MENU_ITEMS = new Set(['logs', 'bones', 'sigil', 'magic-stone', 'arrows', 'ale'])
   const hasMenu = MENU_ITEMS.has(it.item) || it.item === 'chart' // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
-  if (nearBank && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
-  const bankOpt = nearBank ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.') } }] : []
+  if (nearVault && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
+  const bankOpt = nearVault ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.') } }] : []
   // TRANSMUTE: any priced good, anywhere, from the first log. The question is
   // whether a thing HAS a price, not what that price comes to -- an arrow pays
   // nothing and is still unmade, for the practice.
@@ -14188,7 +14443,7 @@ function invClick(i) {
     // floor. It is also exactly the set of goods a citizen would transmute,
     // and transmute was reachable on four items out of thirty-eight.
     //
-    // A menu instead: unmake it, bank it if a bank is at your elbow, or drop
+    // A menu instead: unmake it, vault it if a vault is at your elbow, or drop
     // it on purpose.
     chooseAction([
       ...alchOpt, ...bankOpt,
@@ -14491,7 +14746,7 @@ cv.addEventListener('click', (e) => {
         flashClick(n.x, n.y, false)
         return
       }
-      if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'bank' && n.type !== 'anvil'
+      if (n.type !== 'campfire' && n.type !== 'fire' && n.type !== 'vault' && n.type !== 'anvil'
           && n.type !== 'well' && n.type !== 'store' && n.type !== 'stall' && n.type !== 'market'
           && n.type !== 'hearth' && n.type !== 'waystone' && n.depletedUntil > world.tick) {
         feed({ 'tree': 'The tree is felled. It will regrow.',
@@ -14742,7 +14997,7 @@ cv.addEventListener('click', (e) => {
         send({ do: 'gather', nodeId: id }); feed('You set the pick to the fall.')
         flashClick(n.x, n.y, false); return
       }
-      if (n.type === 'bank') {
+      if (n.type === 'vault') {
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You head to the bank.') }
         else feed('The bank stands ready: tap items to deposit, tap the vault to withdraw.')
         return

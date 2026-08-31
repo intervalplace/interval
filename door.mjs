@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 // Interval door v1.0: a sovereign peer that also opens a door.
 // ===========================================================================
 // `serve.mjs` founds a world and serves windows into it. `join.mjs` joins
@@ -44,6 +45,7 @@
 // ===========================================================================
 
 import fs from 'fs'
+import { rulesHash } from './rules-hash.mjs'
 import http from 'http'
 import { WebSocketServer } from 'ws'
 import { multiaddr } from '@multiformats/multiaddr'
@@ -55,6 +57,8 @@ import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 // registers all of them, which is what serve.mjs has always imported --
 // and it is why join.mjs cannot currently enter any expanse world.
 import { buildWorld } from './worldgen-any.mjs'
+import { readFounding, writeFounding } from './worldcache.mjs'
+import { Worker } from 'node:worker_threads'
 
 const argOf = (k, d) => {
   const a = process.argv.find(s => s.startsWith('--' + k + '='))
@@ -62,6 +66,79 @@ const argOf = (k, d) => {
 }
 const HTTP_PORT = Number(argOf('http', process.env.INTERVAL_HTTP_PORT || 8788))
 const P2P_PORT = Number(argOf('port', process.env.INTERVAL_P2P_PORT || 0))
+
+const DOOR_DATA = (process.env.INTERVAL_DATA || '.').replace(/\/$/, '')
+// §0: the founding cache. Keyed on genesis + generator bytes + engine bytes,
+// loaded through the same validation a fresh build faces. INTERVAL_NO_CACHE=1
+// makes every start recompute the world from scratch.
+const foundingCache = {
+  read: (g) => readFounding(g, { canonical: E.canonical, stateHash: E.stateHash, dataDir: DOOR_DATA, log: (m) => console.log('  ' + m) }),
+  write: (g, s) => writeFounding(g, s, { canonical: E.canonical, stateHash: E.stateHash, dataDir: DOOR_DATA, log: (m) => console.log('  ' + m) }),
+}
+
+// ---- the boot server: a door takes as long to open as a world takes to build --
+//
+// This is the path that matters for reach. `serve.mjs` founds a world, which is
+// something an operator does once, having already decided to. A DOOR is what a
+// curious person runs, and a joining node pays the SAME worldgen as a founding
+// one -- `node.mjs` calls `buildWorld(genesis)` on start, because computing the
+// world yourself instead of trusting somebody's word for it is the entire point
+// of running one.
+//
+// So for minutes after `node door.mjs`, http://localhost:8788 refused
+// connections, and the person who was curious enough to try concluded it did
+// not work. A worker holds the port from the first moment and shows what is
+// happening, then hands it back.
+let bootWorker = null
+try {
+  bootWorker = new Worker(new URL('./boot-server.mjs', import.meta.url), {
+    workerData: { port: HTTP_PORT },
+  })
+  bootWorker.unref()
+  bootWorker.on('message', (m) => {
+    if (m?.type === 'error') {
+      console.warn('  (boot server stood down: ' + m.message + ')')
+      bootWorker = null
+    }
+  })
+  bootWorker.on('error', () => { bootWorker = null })
+} catch (e) {
+  console.warn('  (no boot server: ' + e.message + ')')
+}
+function bootSay (stage, pct) {
+  try { bootWorker?.postMessage({ type: 'progress', stage, pct }) } catch {}
+}
+// Worldgen announces every stage on console.WARN, and the join has stages of
+// its own on `log` -- fetching the founding record, checking the constitution,
+// syncing a checkpoint. Both are tapped, because to somebody waiting they are
+// the same wait.
+const _log = console.log, _warn = console.warn
+let _stages = 0
+function _tap (line) {
+  if (!/^(WORLDGEN|FOUNDING|\[door\])/.test(line)) return
+  _stages++
+  bootSay(line.replace(/^WORLDGEN:?\s*/, '').replace(/^\[door\]\s*/, '').slice(0, 70),
+    Math.round(92 * (1 - Math.exp(-_stages / 12))))
+}
+console.log = (...a) => { if (typeof a[0] === 'string') _tap(a[0]); _log(...a) }
+console.warn = (...a) => { if (typeof a[0] === 'string') _tap(a[0]); _warn(...a) }
+
+async function releaseBootPort () {
+  if (!bootWorker) return
+  console.log = _log; console.warn = _warn
+  // The tick travels with the handover so the page can name what it waited for.
+  try {
+    bootWorker.postMessage({ type: 'done', tick: node?.state?.tick ?? null,
+      worldId: node?.worldId ?? null })
+  } catch {}
+  await new Promise((resolve) => {
+    bootWorker.once('exit', resolve)
+    setTimeout(() => { try { bootWorker.terminate() } catch {} ; resolve() }, 6000)
+  })
+  bootWorker = null
+}
+
+
 const DEFAULT_WORLD = process.env.INTERVAL_WORLD || 'interval.place'
 const RAW = process.argv.slice(2).find(a => !a.startsWith('--')) || DEFAULT_WORLD
 
@@ -136,7 +213,8 @@ try {
 }
 
 // ---- 2. the same constitution, or nothing --------------------------------
-const myRulesHash = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §0-i: the constitution is THREE documents, hashed in order.
+const myRulesHash = rulesHash(new URL('./', import.meta.url))
 if (myRulesHash !== info.genesis.rulesHash) {
   console.log('constitution mismatch: that world runs different rules than your SPEC.md')
   console.log(`  theirs: ${info.genesis.rulesHash.slice(0, 16)}…  yours: ${myRulesHash.slice(0, 16)}…`)
@@ -158,7 +236,7 @@ if (W_ARG) {
 }
 const node = await new IntervalNode({
   peerKeyFile: 'identities/peer-door-' + host + '.json',
-  genesis: info.genesis, buildWorld, name: 'door', witnessKey,
+  genesis: info.genesis, buildWorld, foundingCache, name: 'door', witnessKey,
   safetyDir: witnessKey ? 'witness-safety' : null,
   finalityBackend: process.env.INTERVAL_FINALITY_BACKEND || 'sqlite',
   startupVerifyRecentN: process.env.INTERVAL_STARTUP_VERIFY_RECENT
@@ -277,12 +355,31 @@ const WINDOWS = {
 
 const server = http.createServer((req, res) => {
   const path = (req.url || '/').split('?')[0]
-  const json = (o) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)) }
+  // A DOOR IS FOR OTHER PEOPLE'S WINDOWS TOO.
+  //
+  // `serve.mjs` has sent `Access-Control-Allow-Origin: *` for a long time; this
+  // did not, so a window on a static host, a USB stick or somebody's laptop
+  // could reach a pillar and not a door -- which is backwards, because a door
+  // is the node a citizen actually verified for themselves.
+  //
+  // Wide open on purpose. Every endpoint here is public knowledge about a
+  // public world, every input is signed by a key the browser holds, and there
+  // are no cookies or sessions to steal. There is nothing here CORS protects.
+  const CORS = { 'Access-Control-Allow-Origin': '*' }
+  const json = (o) => {
+    res.writeHead(200, { 'Content-Type': 'application/json', ...CORS })
+    res.end(JSON.stringify(o))
+  }
   const sendFile = (rel, type) => {
     try {
       const b = fs.readFileSync(new URL(rel, import.meta.url))
-      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache' }); res.end(b)
+      res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache', ...CORS }); res.end(b)
     } catch { res.writeHead(404, { 'Content-Type': 'text/plain' }); res.end('nothing here') }
+  }
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, { ...CORS, 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type' })
+    return res.end()
   }
   try {
     // the three that make this a bootstrap
@@ -295,12 +392,24 @@ const server = http.createServer((req, res) => {
       req.on('data', (c) => { body += c })
       req.on('end', () => {
         try {
-          const { peerId, port } = JSON.parse(body)
+          const { peerId, port, http: pub } = JSON.parse(body)
           if (!/^12D3Koo[1-9A-HJ-NP-Za-km-z]+$/.test(peerId ?? '') || !Number.isInteger(port)) { res.writeHead(400); res.end(); return }
           const fwd = (req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()
           const ip = (fwd || req.socket.remoteAddress || '').replace(/^::ffff:/, '')
           const kind = ip.includes(':') ? 'ip6' : 'ip4'
-          announced.set(peerId, { addr: `/${kind}/${ip}/tcp/${port}/p2p/${peerId}`, at: Date.now() })
+          // An announced browser address is VALIDATED, never trusted: this list
+          // is handed to other people's windows, so a peer that could write an
+          // arbitrary string here could point them anywhere. The window checks
+          // worldId on arrival as well; this is the first gate, not the only one.
+          let window = null
+          if (typeof pub === 'string' && pub.length <= 200) {
+            try {
+              const u = new URL(pub)
+              if ((u.protocol === 'https:' || u.protocol === 'http:')
+                  && !u.username && !u.password && u.pathname === '/' && !u.search) window = u.origin
+            } catch { /* not a URL: recorded without one */ }
+          }
+          announced.set(peerId, { addr: `/${kind}/${ip}/tcp/${port}/p2p/${peerId}`, window, at: Date.now() })
           res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}')
         } catch { res.writeHead(400); res.end() }
       })
@@ -309,8 +418,20 @@ const server = http.createServer((req, res) => {
     if (path === '/api/peers') {
       const fresh = Date.now() - 5 * 60 * 1000
       for (const [id, e] of announced) if (e.at < fresh) announced.delete(id)
-      return json({ peers: [...announced.values()].map(e => e.addr), count: announced.size })
+      // §6g-availability: `peers` is for nodes, `windows` is for browsers. A
+      // multiaddr cannot be dialled from a page, so without this list a window
+      // whose node went down had nowhere to go while the mesh was full.
+      return json({
+        peers: [...announced.values()].map(e => e.addr),
+        windows: [...announced.values()].map(e => e.window).filter(Boolean),
+        count: announced.size,
+      })
     }
+    // §0: the same endpoint the boot server answered while this door opened.
+    if (path === '/api/status') return json({
+      booting: false, stage: 'ready', pct: 100,
+      live: { tick: node.state.tick, worldId: node.worldId },
+    })
     if (path === '/api/world') return json({
       tick: node.state.tick, finalizedTick: node.finalizedTick, scheduledTick: node.scheduledTick,
       worldId: node.worldId, joined: host, divergent: node.divergent?.size ?? 0,
@@ -417,6 +538,7 @@ node.onTick = (state) => {
 }
 
 node.startTicking()
+await releaseBootPort()
 server.listen(HTTP_PORT, () => {
   console.log('')
   console.log('  your door is open: http://localhost:' + HTTP_PORT + '/play/lantern')

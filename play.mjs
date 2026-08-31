@@ -1,8 +1,9 @@
+#!/usr/bin/env node
 // Interval play v0.6: the human window.
 // Interactive terminal client: a solo world you actually play with keys.
 //   usage: node play.mjs [name]
 //   WASD / arrows: move   g: gather adjacent node   c: cancel/stop   q: quit
-// One input per tick (600ms), exactly as the constitution demands: your
+// One input per interval (1000ms), exactly as the constitution demands: your
 // keypress is queued and signed on the next interval. Networked
 // interactive play needs the shared tick scheduler (roadmap: v0.7).
 
@@ -11,10 +12,14 @@ import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { IntervalClient } from './sdk.mjs'
 import { renderFrame } from './window-term.mjs'
+import { rulesHash } from './rules-hash.mjs'
 
 const NAME = (process.argv[2] || '').toLowerCase()
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
-const RULES_HASH = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §0-i: the constitution is THREE documents and the hash covers all of them in
+// order. Computing it from SPEC.md alone founded a solo world with a different
+// rules hash than the pillar's, so a citizen could not cross out of it.
+const RULES_HASH = rulesHash(new URL('./', import.meta.url))
 const GENESIS = E.makeGenesis(SEED, RULES_HASH, 0)
 
 // your key is your character: persisted. Delete identities/solo.json

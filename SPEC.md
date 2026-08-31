@@ -417,7 +417,7 @@ cannot tell the difference, and does not want to.
 
 A founding grows two hamlets joined by a trail. **Westhearth** stands
 at the western end and **Eastmere** at the eastern end; each holds a
-bank, an anvil, and a hearth campfire arranged around the trail row
+vault, an anvil, and a hearth campfire arranged around the trail row
 (`trailY = floor(worldH / 2)`). Fishing waters pool near each hamlet.
 Trees, rocks, and goblins scatter across the meadows between,
 seed-placed, avoiding the trail and the hamlet grounds. Spawn is the
@@ -435,7 +435,7 @@ bounds are the rectangle `x in [cx-8, cx+8], y in [2, 10]` where
 perimeter, broken by a three-tile gate in the south wall at
 `x in [cx-1, cx+1]`, flanked by guards. **No mob may enter the city
 bounds**: the wander rule refuses any step into them. Inside stand a
-bank, a walled smithy with its anvil and smith, hearths, a well, and a
+vault, a walled smithy with its anvil and smith, hearths, a well, and a
 hearth. Inert citizen-shaped nodes (`guard`, `smith`) are furniture
 with faces: impassable, unattackable, and reassuring.
 
@@ -459,7 +459,7 @@ The founding grows to town scale. Along the great east-west road:
 **bear**. South down the lake road lies **Stillwater**, a fishing
 village on the shore of the great lake, keeping the world's first
 **general store**. Southeast sits **Milbrook**, a quiet town of
-hearths, bank, anvil, and well. Roads are painted by windows; every
+hearths, vault, anvil, and well. Roads are painted by windows; every
 building, water tile, and creature stands where the founding says.
 
 ## 6l. The store and gold (the first coin)
@@ -927,8 +927,8 @@ which is how a world made by hand comes to read as one made by a
 machine.
 
 None of them was invented. A calling is read off what a person already
-stands beside and off what their own id already called them: the bank
-has bankers because there is a bank there, and `kpr-fold-shep` was
+stands beside and off what their own id already called them: the vault
+has vaultkeepers because there is a vault there, and `kpr-fold-shep` was
 always a shepherd, in a name somebody chose years ago and then threw
 away at the door.
 
@@ -954,7 +954,7 @@ tiles: hunt the Downs and it is worth carrying your bones in, hunt the
 Wilds and it is not.
 
 It stands FORTY-TWO TILES FROM THE NEAREST BANK, and that is a rule
-about siting rather than an accident. Bones do not stack, so a bank
+about siting rather than an accident. Bones do not stack, so a vault
 beside the ossuary would make the walk a one-time cost and the bonus a
 flat multiplier, and the decision would vanish.
 
@@ -1168,7 +1168,7 @@ declining to price a thing is not the world forbidding its sale, it is
 the world declining to have an opinion -- which is the whole reason a
 citizen's stall exists.
 
-The DRAGONBOW is refused, for exactly the reason a bank refuses it: a
+The DRAGONBOW is refused, for exactly the reason a vault refuses it: a
 citizen cannot opt out of being hunted without giving the bow up, and
 a stall is somewhere safe. It is also somewhere the dragon cannot
 reach -- the reclaim at its rising searches citizens and the ground,
@@ -1274,7 +1274,7 @@ goods. §6bn moves the verb to a staff that does nothing else.
 
 **A keeper will not deal with the branded.** Strike first in the Wilds
 and the mark rides on you for fifteen minutes -- and until it cools,
-no keeper in any town will take your money or your goods. **And the waystones will not take them.** You may still bank, still
+no keeper in any town will take your money or your goods. **And the waystones will not take them.** You may still vault goods, still
 fight, still trade with another citizen. What you may not do is turn
 what you took into anything, or leave quickly.
 
@@ -1588,7 +1588,7 @@ restores three to ten while you stand where you are, walking home is
 never the better trade -- so the well is not a combat tool and cannot
 be made into one. What it is instead is a reason for a town to be
 somewhere a citizen RETURNS to: drink, restock, go out again. Before
-this, home was only where the bank was.
+this, home was only where the vault was.
 
 A note on what is NOT here. No cooldown field guards this, and that is
 deliberate. A rule that guards against a behaviour geography already
@@ -1647,13 +1647,13 @@ garrison town, smaller and grimmer than Anchor, built for one reason:
 holding the line against the lawless quarter at its back. Walls
 trace its perimeter, broken by a gate in the south wall flanked by
 guards; **no mob may enter its bounds**, the same law that protects
-Anchor. Inside stand a bank, an anvil, hearths, a well, and
+Anchor. Inside stand a vault, an anvil, hearths, a well, and
 farming plots. Outside its walls, on the side facing away from the
 Wilds, a small quarry supplies the ore a garrison spends on itself.
 Norwick is reached by leaving the king's road on foot; no path is
 drawn in state, as ever, only the town itself is law.
 
-New inert node type: none (Norwick reuses `wall`, `guard`, `bank`,
+New inert node type: none (Norwick reuses `wall`, `guard`, `vault`,
 `anvil`, `well`, `hearth`, `signpost`, `rock`, `plot`). New founding
 constant: a second mob-forbidden rectangle, checked alongside
 Anchor's wherever the wander rule applies.
@@ -1675,10 +1675,10 @@ windows compute the curve themselves, as they already do for the
 river.
 
 **The hamlets stop mirroring each other.** Westhearth keeps its
-modest bank-and-anvil founding. Eastmere trades its anvil for a
+modest vault-and-anvil founding. Eastmere trades its anvil for a
 store and two dockside fishing spots: a port, not a second
 Westhearth. Anchor gains a second forge and its own store: the
-capital both smiths and trades. Milbrook keeps no forge at all: bank,
+capital both smiths and trades. Milbrook keeps no forge at all: vault,
 well, hearths, plots, nothing else: a farming town and only that.
 
 **Danger now shows before it bites.** Approaching the mountains, the
@@ -1793,7 +1793,7 @@ first (position by founding dimensions, `w x h` the walled extent):
 Every town is walled with a gate at the middle of each face, so no
 town is sealed; a wall stops at the water's edge, and where the river
 enters a town there is a **watergate** rather than masonry. Every town
-keeps a bank, a well, a hearth, and a signpost bearing its name; the
+keeps a vault, a well, a hearth, and a signpost bearing its name; the
 capital adds smiths, anvils, two stores, six hearths, and a guard line;
 forges, garrisons, and mills keep an anvil and a smith; ports, timber
 towns, and mills keep a store; garrisons muster guards. The settled
@@ -2107,7 +2107,7 @@ omission is not a representation).
 | `name`      | string or null  | Claimed display name (see §5a)         |
 | `trade`     | Offer or null   | Open trade offer (see §5c)             |
 | `equipment` | {weapon}        | Wielded item or null (see §5d)         |
-| `bank`      | map item→qty    | Vaulted goods (see §6g)                |
+| `vaults`    | map id→(item→qty) | A shelf at each counter (see §6g)    |
 | `consignment` | Consignment or null | Goods committed to the road (§11) |
 
 A **Consignment** is `{from, route, leg, items}`: the town it was sealed
@@ -2125,7 +2125,7 @@ A node is `{type, x, y, depletedUntil}`. Types: `tree`, `rock`,
 `fishing-spot` (gatherable); `campfire` (permanent; enables cooking,
 §6a); `fire` (player-made via firemaking §6f, carries `expiresAt` and
 vanishes at the start of that tick; enables cooking like a campfire);
-`anvil` (enables smithing, §6d); `bank` (enables banking, §6g); and
+`anvil` (enables smithing, §6d); `vault` (enables vaulting, §6g); and
 `hearth` (inert and impassable: the fire a dwelling is built around, §2b).
 Renamed from `house` at the fourth founding: the building is the ROOM you walk
 into, made of `wall` nodes on floor terrain, and what stands inside it is its
@@ -3233,7 +3233,7 @@ If a player's HP reaches 0, the body lies where it fell for **5 ticks**
 The world holds its breath; windows may grieve. At the fifth tick the
 citizen returns to the spawn point at full HP with their action cleared
 and their **entire inventory and equipment destroyed** (in the Wilds,
-spilled where they fell: spec 2g). Skills, XP, name, and **bank**
+spilled where they fell: spec 2g). Skills, XP, name, and **vaults**
 survive. Destroyed items leave the world: death is the deepest sink.
 
 A death also leaves a lasting mark on the body: see §6c-ii.
@@ -3549,7 +3549,7 @@ once, so leaving town was never a choice about anything. Twelve is tight
 enough that an errand is picked before the gate.
 
 **A pack is not storage. It is the ceiling on what one craft may cost**,
-because nothing reads from a bank at an anvil. Twenty-eight already had
+because nothing reads from a vault at an anvil. Twenty-eight already had
 four recipes that could not be held at all — the whole `great` tier
 shipped uncraftable, needing thirty-seven, thirty-six, thirty-one and
 twenty-eight against a pack of twenty-eight. At twelve, sixteen were
@@ -3893,13 +3893,13 @@ stand in it.
 
 ## 6g. The vault is a place (v1.0)
 
-**A vault belongs to a counter, not to a citizen.** `player.bank` is a map
-from bank NODE ID to that counter's shelf. Ore banked at Cragfoot is at
+**A vault belongs to a counter, not to a citizen.** `player.vaults` is a map
+from vault NODE ID to that counter's shelf. Ore banked at Cragfoot is at
 Cragfoot. Logs banked in the Folds are in the Folds. There is no counter
 anywhere on this island from which a citizen can reach the whole of what
 they own.
 
-It was one map readable at every bank in the world, and §11e called that
+It was one map readable at every vault in the world, and §11e called that
 what it was: *already a teleport for goods, and that is the generosity this
 world chose.* That generosity is the single rule that made hauling an errand
 nobody needed and the `runner` a calling with nothing to run. A world cannot
@@ -3942,7 +3942,7 @@ kind, and drains back under the cap by being used.
 a permanent record of having stood at it.
 
 **A crossing carries goods, not geography.** The ids of a world that no longer
-exists name nothing, so a founding record's `bank` is FLAT — the shelves summed
+exists name nothing, so a founding record's `vaults` is FLAT — the shelves summed
 into one map — and the whole of it is seated at the counter nearest where the
 citizen wakes. Founding data does not expire with the world that held it; the
 building it sat in does.
@@ -3997,13 +3997,13 @@ well (§6dd) is the only burst in the world — which is a PLACE, with a cooldow
 on the well and not the citizen, so drinking first to leave it dry behind you
 stays the move it was.
 
-## 6g-i. The bank
+## 6g-i. The vault
 
-`player.bank` is a map of item → quantity: goods vaulted outside the
+`player.vaults` is a map of item → quantity: goods vaulted outside the
 world's dangers. `deposit {slot}` and `withdraw {item}` are valid only
-orthogonally adjacent to a `bank` node (withdraw also needs a free
+orthogonally adjacent to a `vault` node (withdraw also needs a free
 inventory slot). One item per interval: patience is the fee.
-**The bank survives death** (§6c): what you carry can burn; what you
+**The vault survives death** (§6c): what you carry can burn; what you
 vault endures. This is the world's memory, and the foundation of wealth.
 
 ## 6k. Magic (the dark half of the interval)
@@ -4620,9 +4620,9 @@ double the first founding (the greenwood ~1,500 trees at the calibrated
 spoke carries a **wayside hearth** near its midpoint, a permanent
 campfire a step off the trail, so the long walk has light, warmth, and
 somewhere to cook halfway to anywhere. A town's essential buildings
-(bank, well, hearth, signpost, anvils, stores) seat themselves by a
+(vault, well, hearth, signpost, anvils, stores) seat themselves by a
 deterministic ring search inside the walls when their fixed offset
-lands in the water, so a river town never silently loses its bank.
+lands in the water, so a river town never silently loses its vault.
 
 **Founding.** The generator floor is 256 x 160; the calibrated founding
 is 640 x 400 via `makeExpanse2Genesis`, sealing the same `genesis.geo`,
@@ -6304,7 +6304,7 @@ The justification is written into `alch` and it is a good one:
 Exactly right — **about the Wilds**. Out there the rate limit prices exposure,
 and the choice between carrying it out and standing to convert is a real one.
 
-A bank is in a town. Nothing may strike you, nothing may be taken, and no
+A vault is in a town. Nothing may strike you, nothing may be taken, and no
 decision is on offer. The twenty-five intervals bought no risk and no choice,
 only waiting. §8 says patience is never the tax, and a script does not mind
 twenty-five clicks — so the entire cost fell on the person and none of it on
@@ -6340,7 +6340,7 @@ refused rather than defaulted. Any client sending raw inputs must add the
 field. The SDK defaults it to one so ordinary callers are unaffected.
 
 Nothing was done to make a vault easier to REACH. It is still one map per
-citizen at any bank node, which is already a teleport for goods, and that is
+citizen at any vault node, which is already a teleport for goods, and that is
 the generosity this world chose. What changed is only how long you stand at
 the counter once you are there.
 
@@ -6422,7 +6422,7 @@ star-plate   defence 50     smithing 50, magic 30
 ```
 
 The two halves must agree. Before this, star-plate was forgeable at smithing
-30 and wearable at defence 50, so a citizen could fill a bank with gear they
+30 and wearable at defence 50, so a citizen could fill a vault with gear they
 could not put on. **A tier is one wall, not two at different heights.**
 
 **Starmetal turns fire.** The dragon's breath ignores armour the way a flail
@@ -6692,9 +6692,9 @@ and is untouched by any of this. A citizen carrying a consignment carries two
 sets of goods under two different laws, and the difference between them is the
 whole design:
 
-**Nothing in a consignment may enter the bank.** Not by `deposit`, not by any
-other verb, not ever. The bank is `player.bank`, one map per citizen reachable
-at any `bank` node in the world (§6g), which makes it a teleport for goods
+**Nothing in a consignment may enter the vault.** Not by `deposit`, not by any
+other verb, not ever. The vault is `player.vaults`, one map per citizen reachable
+at any `vault` node in the world (§6g), which makes it a teleport for goods
 exactly as `recall` is a teleport for the body. Every earlier draft of this
 section failed on that one fact: as long as the cargo could be banked at one
 end and withdrawn at the other, no rule could make the walk mandatory, and
@@ -6801,7 +6801,7 @@ While a citizen bears one:
    most of what makes a robbery on a public road worth doing at all.
 3. **`recall` is invalid.** The road will not be skipped by anyone who profits
    from its length.
-4. **The bank is closed** — `deposit` and `withdraw` both, not merely
+4. **The vault is closed** — `deposit` and `withdraw` both, not merely
    `deposit`. A hauler who could withdraw at the far end would consign at
    Cragfoot, walk to Anchor carrying nothing, draw twelve plates out of
    the vault there and sell them, having risked nothing at all.
@@ -7288,7 +7288,7 @@ underneath is water, water is blocked, and **a building whose floor is blocked
 is a building nobody can enter**. The picture cannot grant reachability — which
 is §6's rule that a town is its drawing and not its plot, read backwards.
 
-So a building goes on the bank. What may stand in water is what already does:
+So a building goes on the vault. What may stand in water is what already does:
 furniture worked from the shore — trap racks and a fowler's hide — and only
 where a citizen can stand beside it, which is the rule a fishing spot already
 lives by.
@@ -7435,12 +7435,12 @@ chop, each a longer walk from its trade than from its neighbour. A Schelling
 point is only one if the name on the map and the thing you came for are in the
 same place. Both now sit on two faces of their town, so a crowd has a choice.
 
-**A fishing spot is the water, not the bank.** The engine wants the node
+**A fishing spot is the water, not the vault.** The engine wants the node
 ADJACENT to the citizen, so the spot is what you reach and the ground beside it
 is where you put your feet — you walk out on the boards and fish off the end,
 which is also what a jetty is for.
 
-Six were briefly moved onto the bank after four in the channel were swept, and
+Six were briefly moved onto the vault after four in the channel were swept, and
 the sweep was misread: it was not saying they were in the wrong element, it
 was saying **the quays were floating**. Both jetties began one tile out in the
 water with water on three sides, so nothing on the island could reach them and
@@ -7453,7 +7453,7 @@ walk to, not a mark they happen upon. Nothing gatherable on this island stands
 by itself. Six were put out in the channel
 off Eastmere's new quays and the path-opening pass felled four of them, which
 was right: a node floating in a shipping lane is in the way. They are on the
-bank, touching water, which is also what the battery has always tested for.
+vault, touching water, which is also what the battery has always tested for.
 
 **Never exempt something by the shape of its name.** The pass that makes the
 world scarce demotes every ordinary tree, iron seam and fishing spot into a
@@ -7515,7 +7515,7 @@ two small clusters answer it, and both make the same trade **deliberately**:
   back, or go east and carry less further — both are legitimate for a whole
   career, and neither dominates.
 - **Two trees in the heartlands east of Hollybarrow.** Greenhollow's are
-  thirteen tiles from its bank; this copse is fifty-five from any. It halves
+  thirteen tiles from its vault; this copse is fifty-five from any. It halves
   the walk from spawn and doubles the walk home, so the timber town keeps its
   reason to exist — which it would not if a copse this close were also
   convenient.
@@ -8021,8 +8021,8 @@ everything dearest here moves: **from the citizen who has it to the citizen who
 wants it**, at whatever the two of them agree, and no coin can conjure one.
 
 And unlike the dragonbow, **no vault or shelf refuses it** (§7.3a). The bow is
-kept from the bank so its bearer cannot opt out of being hunted; the crown has
-no such power to protect. It banks, it stalls, it sells while its owner sleeps.
+kept from the vault so its bearer cannot opt out of being hunted; the crown has
+no such power to protect. It vaults, it stalls, it sells while its owner sleeps.
 It is *made* to circulate — the first cosmetic built to be traded rather than
 worn as proof — which is the whole of why it exists.
 
@@ -8094,8 +8094,8 @@ beating metal into a shape are the same act. Two trades, two places, two verbs.
 The `RECIPES` table is shared because the ingredients genuinely are the same
 kind of thing; only `SMELTED` says which door each goes through.
 
-**What this is NOT.** It is not a haul. Banks make that fiction: a citizen will
-bank at Norwick, walk light, and withdraw at Cragfoot. The 238 tiles between
+**What this is NOT.** It is not a haul. Vaults make that fiction: a citizen will
+vault at Norwick, walk light, and withdraw at Cragfoot. The 238 tiles between
 furnace and anvil are flavour, and were briefly described here as economics,
 which was romance.
 
@@ -8664,7 +8664,7 @@ saltpetre an hour from one digger, against a powder economy built on a scarce
 farm byproduct. A spade is for strength. What it digs comes out at the rate
 hands do, and the citizen pays their weapon slot for the muscle.
 
-*(Strength at a muck heap works out near 4,000 an hour before bank runs —
+*(Strength at a muck heap works out near 4,000 an hour before vault runs —
 under melee, and costing no hitpoints, which is the whole point of it.)*
 
 ### 27b. There is no mob in a duel
@@ -8836,7 +8836,7 @@ answer the message never did --
   in the flood. Diagonals do not count.
 
 So the three houses that failed all had **furniture standing in the doorway** --
-a hearth on the tile inside one door, a table inside the bank's. A room whose
+a hearth on the tile inside one door, a table inside the vault's. A room whose
 threshold is furnished is a room with no door at all, and no amount of redrawing
 the quarter would ever have found it.
 
@@ -8868,7 +8868,7 @@ flooding without ever stepping on one gives seventeen rooms in Millbrook,
 seventeen in Anchor, seven in Oxenford -- the exact counts drawn.
 
 **And a shop must be left empty.** A room qualifies to hold a rostered stall
-only if it holds none of bank, store, anvil, smith, keeper, waystone, well or
+only if it holds none of vault, store, anvil, smith, keeper, waystone, well or
 fountain -- *and a stall brings its own keeper*. "A keeper in every house" was
 the right lesson from Oxenford and the wrong rule here: it disqualified all
 seventeen rooms at once, so the seater fell back to the ring round the wall and
@@ -8906,11 +8906,11 @@ drawing did the identical thing. **Once is a slip; twice is a rule that was
 never written down.** It is written now: a town plan may not contain `A` or
 `s`. Anchor has a chandler instead.
 
-### 29i. Two banks that close are one bank drawn twice
+### 29i. Two vaults that close are one vault drawn twice
 
-Anchor's counters were `qBBB` -- three bank tiles shoulder to shoulder, which
+Anchor's counters were `qBBB` -- three vault tiles shoulder to shoulder, which
 is a row of desks rather than a vault -- with a fourth twenty tiles away in the
-gaol. **Varrock's east and west banks are a journey apart, and that journey is
+gaol. **Varrock's east and west vaults are a journey apart, and that journey is
 the whole reason it has two.** One counter in the keep, one in the far
 south-west: **28 tiles**, the longest walk the drawing allows.
 
@@ -9004,7 +9004,7 @@ kit rather than in a memory of Millbrook.
 
 ### 29p. A room with nobody in it was invisible to every check
 
-`planlint` guarded ESSENTIALS -- keepers, banks, stores -- and pronounced
+`planlint` guarded ESSENTIALS -- keepers, vaults, stores -- and pronounced
 Oxenford sound. Oxenford has a room holding a barrel, a table and a hearth and
 **no keeper at all**, sealed since the day it was drawn, and nothing was ever
 looking at it. The door audit saw it only because 7bd finally listed every room.
@@ -10284,7 +10284,7 @@ queue everybody at a single rock and make a beginner's material scarce, which is
 the wrong end of the problem.
 
 **A watchfire does grow.** They are player-built, two to a citizen, and every one
-has to be fed or it goes out. Coal banks one the way it banks a furnace:
+has to be fed or it goes out. Coal vaults one the way it vaults a furnace:
 
     logs      309 intervals
     ironbark  909
@@ -10370,7 +10370,7 @@ way round is not a price, it is a hostage.
 ### 14b. The toll is a carry check, not a price
 
 Gold in this world is a number on a citizen, not an object in a pack. It cannot
-be forgotten, cannot be left in the bank by mistake, cannot have been spent an
+be forgotten, cannot be left in the vault by mistake, cannot have been spent an
 hour ago on something else. A toll denominated in gold would therefore be an
 arithmetic inconvenience and nothing more.
 
@@ -10419,7 +10419,7 @@ There is one watercourse in the Wilds — the Drowning Beck, which drains the
 Drowning Pool (§2h) down into the Marchwater and thence to the Great River and
 the sea. It bars the way like any water. At **one** authored
 tile on it — the **crossing site**, and there is deliberately only one — a
-citizen may found a bridge, and the two banks of the Wilds are joined only where
+citizen may found a bridge, and the two vaults of the Wilds are joined only where
 and when enough hands have carried enough planks to join them. One crossing and
 no more is the whole of the scarcity: a second bridge would relieve the pressure
 on the first, and the contest that makes the crossing worth anything would
@@ -10436,12 +10436,12 @@ deflate. This one tile is the one contested place in the Wilds.
   it, on it, exposed in the water where a saboteur most wants to deny you —
   carrying at least one plank, with nothing already built there. It lays the
   first plank and opens the bridge's record.
-- `lay` is a verb. It banks up to `span.perLay` planks onto a `spanwork` from at
+- `lay` is a verb. It vaults up to `span.perLay` planks onto a `spanwork` from at
   or beside it. **The pool only rises.** There is no verb that lowers it and
   none that unbuilds a span. A plank banked is a plank kept, for as long as the
   world lasts. The last plank turns the `spanwork` into a `span`.
 - Saboteurs do not lower the pool; they cannot. They suppress the **rate** —
-  by killing carriers before those carriers bank. A citizen killed spills their
+  by killing carriers before those carriers vault. A citizen killed spills their
   pack where they fall (§2b), so **carried** planks are at risk and **banked**
   planks are permanent. The contest is over how fast the pool climbs, never
   whether it climbs, which is why a contested span is a campaign and not a
@@ -10529,7 +10529,7 @@ beasts, which is runtime rather than placement.
 `bare` pays you for what you are not wearing. **`desperate` pays you for what
 you have already lost.** They are the same argument on two axes, and the
 difference between the axes is the whole of the design: nakedness is chosen at
-a bank and holds for the whole trip, while a wound arrives whether or not you
+a vault and holds for the whole trip, while a wound arrives whether or not you
 wanted it and can be taken away from you by anybody.
 
 **The curve is squared, and §7l is the reason.** A flat bare bonus was measured
@@ -10715,7 +10715,7 @@ an incursion has fixed on a neighbour.
 ### The population is a rule; the spacing is a preference
 
 The first cut fixed the separation at fifty tiles and seated **six** — the Fens
-do not hold seven bank tiles that far apart — which would have shipped a world
+do not hold seven vault tiles that far apart — which would have shipped a world
 with 384 spit and 192 barbs instead of 448 and 224, silently, under the same
 version number. **The permanent supply of an item may not depend on how lucky a
 coastline was.** The placer now steps 50 → 42 → 34 → 26 → 18 → 10 and takes the

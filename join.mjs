@@ -12,6 +12,7 @@
 // banks the logs). A bot and a person enter this world the same way.
 
 import fs from 'fs'
+import { rulesHash } from './rules-hash.mjs'
 import { multiaddr } from '@multiformats/multiaddr'
 import E from './engine.js'
 import { IntervalNode } from './node.mjs'
@@ -144,7 +145,8 @@ const WORLD_ID = E.worldId(info.genesis)
 console.log(`world ${WORLD_ID.slice(0, 12)}… (constitution ${info.genesis.rulesHash.slice(0, 12)}…) · joining as a full peer`)
 
 // 2. verify we run the same constitution before anything else
-const myRulesHash = E.sha256(fs.readFileSync(new URL('./SPEC.md', import.meta.url))).toString('hex')
+// §0-i: the constitution is THREE documents, hashed in order.
+const myRulesHash = rulesHash(new URL('./', import.meta.url))
 if (myRulesHash !== info.genesis.rulesHash) {
   console.log('constitution mismatch: their world runs different rules than your SPEC.md')
   console.log(`  theirs: ${info.genesis.rulesHash.slice(0, 16)}…  yours: ${myRulesHash.slice(0, 16)}…`)
@@ -236,7 +238,14 @@ async function meshUp() {
   //    address the pillar observes us calling from
   try {
     const r = await withTimeout(fetch(URL_ + '/api/announce', {
-      method: 'POST', body: JSON.stringify({ peerId: node.peerId(), port }),
+      // INTERVAL_PUBLIC is the address a BROWSER can reach this peer on, if it
+      // serves windows at all. A joined peer usually does not, and omitting it
+      // is the normal case -- but a second pillar that sets it becomes a place
+      // a citizen's window can fail over to when the first one is down.
+      method: 'POST', body: JSON.stringify({
+        peerId: node.peerId(), port,
+        ...(process.env.INTERVAL_PUBLIC ? { http: process.env.INTERVAL_PUBLIC } : {}),
+      }),
     }), 8000, 'announce')
     if (r.status === 404) {
       sayOnce('ann404', '[mesh] this pillar does not keep a peer directory (no /api/announce).'

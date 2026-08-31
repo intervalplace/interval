@@ -48,7 +48,7 @@ const LEGEND_BASE = {
   '%': 'rampart',        // rampart: massive, battlemented, a town's edge
   '#': 'wall',        // building: timber and plaster, domestic
   '"': 'hedge',       'f': 'fence',
-  'B': 'bank',        'S': 'store',       'A': 'anvil',   's': 'smith',
+  'B': 'vault',        'S': 'store',       'A': 'anvil',   's': 'smith',
   'k': 'keeper',      'G': 'guard',       'h': 'hearth',
   'o': 'well',        '*': 'campfire',    'i': 'signpost',
   'W': 'waystone',    '!': 'landmark',    'p': 'plot',
@@ -896,7 +896,7 @@ export function checkPlanConnected(name, rows, cx, cy, ctx, legend = LEGEND) {
       seen.add(k); q.push([nx, ny])
     }
   }
-  const ESSENTIAL = new Set(['bank', 'store', 'anvil', 'smith', 'keeper', 'well', 'waystone'])
+  const ESSENTIAL = new Set(['vault', 'store', 'anvil', 'smith', 'keeper', 'well', 'waystone'])
   const stranded = []
   for (let ry = 0; ry < ph; ry++) for (let rx = 0; rx < pw; rx++) {
     const ch = rows[ry][rx]
@@ -995,7 +995,7 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
           const rr = ry + ddy, cc = rx + ddx
           if (rr < 0 || cc < 0 || rr >= rows.length || cc >= rows[0].length) continue
           const t2 = LEGEND[rows[rr][cc]]
-          if (t2 === 'bank') { trade = 'clerk'; break }
+          if (t2 === 'vault') { trade = 'clerk'; break }
           if (t2 === 'store') { trade = 'shop'; break }
           if (t2 === 'anvil') { trade = 'smith'; break }
           if (t2 === 'hearth') trade = 'town'
