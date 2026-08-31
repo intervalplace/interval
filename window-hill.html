@@ -2962,6 +2962,17 @@ async function loadTables () {
     if (t.smithReqs) SMITH_REQS = t.smithReqs
     if (t.smelted) SMELTED = new Set(t.smelted)
     if (t.mobs) MOBS = t.mobs
+    if (t.sworn) SWORN = t.sworn
+    if (t.callings) CALLINGS = t.callings
+    if (t.swearLevel) SWEAR_LEVEL = t.swearLevel
+    if (t.mastery) MASTERY = t.mastery
+    if (t.capUnsworn) CAP_UNSWORN = t.capUnsworn
+    if (t.capOther) CAP_OTHER = t.capOther
+    if (t.masterYield) MASTER_YIELD = t.masterYield
+    if (t.gatherCalling) GATHER_CALLING = t.gatherCalling
+    if (t.apprenticeSlots) APPRENTICE_SLOTS = t.apprenticeSlots
+    if (t.apprenticeMilestones) APPRENTICE_MILESTONES = t.apprenticeMilestones
+    if (t.apprenticeLapse) APPRENTICE_LAPSE = t.apprenticeLapse
     if (t.wieldReqs) WIELD_REQS = t.wieldReqs
     if (t.nodeGate) NODE_GATE = t.nodeGate
     if (t.nodeYield) NODE_YIELD = t.nodeYield
@@ -2982,6 +2993,53 @@ let WIELD_REQS = {}, NODE_GATE = {}, NODE_YIELD = {}, GATHER_TOOLS = {}, SKILL_L
 // thirty-eight tiles from the furnace at Cragfoot. That is a long way to carry
 // ore on a window's word.
 let SMELTED = new Set(), MOBS = {}
+// §6dj: A CALLING, AND THE ONE CHOICE IN THIS WORLD THAT DOES NOT COME BACK.
+//
+// At SWEAR_LEVEL in a trade you may swear to one of its callings, and the
+// engine refuses a second one forever: `p.calling !== undefined` and that is
+// the end of it. It is a mastery cap that was written before any of these
+// windows existed and that nothing could ever reach — no sdk method, no route
+// — so every citizen in the world is a generalist by accident rather than by
+// choice.
+//
+// A window must be very careful with a deed like this. Everything else here is
+// reversible: you can drop a thing, unwield it, walk back. This cannot be
+// undone by anybody, including the pillar. So it is offered ONCE, plainly, with
+// what it costs said out loud, and it asks twice.
+let SWORN = {}, CALLINGS = {}, SWEAR_LEVEL = 50, MASTERY = 100
+let CAP_UNSWORN = 50, CAP_OTHER = 70
+let MASTER_YIELD = 2, GATHER_CALLING = {}
+// §5p: WHAT A MASTERY PAYS, IN THIS TRADE. Nine trades, nine boons, and none of
+// them a throughput multiplier. These are WORDS for a rule the engine holds —
+// the window cannot grant one, and a citizen reading it is reading a promise
+// the pillar keeps.
+const BOON = {
+  woodcraft:    'two logs where others take one',
+  earthcraft:   'two stones where others take one',
+  shorecraft:   'two fish where others take one',
+  hearthcraft:  'two of the crop where others take one',
+  marksmanship: 'an arrow that hits is an arrow you keep',
+  sorcery:      'three stones press two sigils',
+  mourning:     'an offering counts double',
+  prowess:      'the special is ready a quarter sooner',
+  wayfaring:    'a consignment is not spilled on death'
+}
+let APPRENTICE_SLOTS = 3, APPRENTICE_LAPSE = 43200, APPRENTICE_MILESTONES = [100, 105, 110]
+// §the band a number sits in, which is what a person actually wants to know
+// §5n: A HUNDRED ALONE IS A JOURNEYMAN. The craft admits you when you have
+// raised somebody to their own swearing — the piece of work laid before it is a
+// person. And §5m moved `apprentice`: it means taken on, not "below fifty".
+const GRADE = (lv, me) => {
+  if (!me || !me.calling) return 'newcomer'
+  if (lv >= MASTERY && (me.raised ?? 0) >= 1) return 'master'
+  return 'journeyman'
+}
+// §5o: the tail past a hundred buys room for other people, not a rate
+const slotsOf = (me) => {
+  if (!me || !me.calling || !SWORN[me.calling]) return 0
+  const lv = lvl((me.skills || {})[SWORN[me.calling].skill] || 0)
+  return APPRENTICE_MILESTONES.filter((m) => lv >= m).length
+}
 const FORGE = {
   iron: { 'iron-ore': 2 }, steel: { iron: 1 }, 'gold-bar': { 'gold-ore': 5 },
   'star-ingot': { 'magic-stone': 20 },
@@ -3604,6 +3662,33 @@ function selfMenu () {
   }
   // §6dj: not a list of numbers — a list of what the numbers OPEN
   rows.push({ label: 'your hand, and what it opens', stay: 1, act: () => openMenu(skillMenu()) })
+  // §5m: WHO TOOK YOU ON, AND WHO YOU HAVE TAKEN ON. A lineage is the one kind
+  // of reputation in this world that cannot be claimed: it is a signature in a
+  // replayable log. So it belongs beside a citizen's own record, not buried.
+  if (me) {
+    const lin = me.sworn_by
+    const mine = Object.keys(me.apprentices || {})
+    if (lin || mine.length || me.raised) rows.push({ label: 'your line', stay: 1,
+      act: () => { const r = []
+        r.push({ label: lin ? 'raised by a ' + nice(lin.calling) : 'you swore alone', dim: 1 })
+        if (lin) r.push({ label: nameOf(lin.by), hint: 'tick ' + lin.at, dim: 1 })
+        r.push({ label: me.raised ? 'you have raised ' + me.raised
+          : 'you have raised nobody yet', dim: 1 })
+        if (me.calling && SWORN[me.calling]) {
+          const at2 = lvl((me.skills || {})[SWORN[me.calling].skill] || 0)
+          if (at2 >= MASTERY && !(me.raised ?? 0))
+            r.push({ label: 'a hundred alone is a journeyman', hint: 'raise one', dim: 1 })
+          const nxt = APPRENTICE_MILESTONES.find((m) => at2 < m)
+          if (nxt) r.push({ label: 'another apprentice at ' + nxt, dim: 1 })
+        }
+        for (const id of mine) {
+          const q = (world.players || {})[id]
+          r.push({ label: 'teaching ' + (q ? (q.name || 'a stranger') : 'someone away'),
+            hint: 'part', act: () => { act({ do: 'part', who: id }); say('you part ways.') } })
+        }
+        openMenu({ title: 'YOUR LINE', rows: r,
+          foot: 'a mark no one can claim without having earned it' }) } })
+  }
   // §5i: A JOURNEY IS ONE DEED. Walking tile by tile spends an input a tick;
   // `walk` spends one and the world walks the rest, which is the difference
   // between crossing the expanse and standing at a keyboard crossing it.
@@ -3671,6 +3756,24 @@ function tradeMenu () {
   const near = citizensNear()
   // §an overhead window aims with the mouse, but a deed this grave should not
   // live ONLY under a mouse button
+  // §5m: a master may take an unsworn citizen on. Only offered where it can
+  // happen: sworn, at MASTERY, with a slot free, and them not yet sworn.
+  {
+    const me2 = meNow()
+    const c2 = me2 && me2.calling
+    const trade = c2 && SWORN[c2] && SWORN[c2].skill
+    const atTop = trade && lvl((me2.skills || {})[trade] || 0) >= MASTERY
+    const live = Object.values((me2 && me2.apprentices) || {})
+      .filter((at) => (world.tick - at) <= APPRENTICE_LAPSE).length
+    if (atTop && live < slotsOf(me2)) for (const { id, p } of near) {
+      if (p.calling !== undefined) continue
+      if (me2.apprentices && me2.apprentices[id] !== undefined) continue
+      rows.push({ label: 'take on ' + (p.name || 'stranger') + ' as apprentice',
+        hint: live + '/' + slotsOf(me2),
+        act: () => { act({ do: 'teach', to: id }); sfx('level')
+                     say('you take them on.') } })
+    }
+  }
   for (const { id, p } of near) rows.push({ label: 'turn on ' + (p.name || 'stranger'),
     act: () => { work(SWING_OF(wieldOf(meNow() || {}))); act({ do: 'attackp', targetId: id })
                  say('you turn on ' + (p.name || 'a stranger') + '.') } })
@@ -4541,6 +4644,14 @@ function unlocksFor (skill) {
   out.sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]))
   return out
 }
+// §the ceiling on a given trade, for this citizen
+function capOf (skill) {
+  const me = meNow(), c = me && me.calling
+  if (c && SWORN[c] && SWORN[c].skill === skill) return 0        // none
+  return c ? CAP_OTHER : CAP_UNSWORN
+}
+const nameOf = (id) => { const q = (world && world.players || {})[id]
+  return (q && q.name) || String(id).slice(0, 8) }
 function skillMenu () {
   const me = meNow(), sk = (me && me.skills) || {}
   const names = SKILL_LIST.length ? SKILL_LIST : Object.keys(sk)
@@ -4548,7 +4659,8 @@ function skillMenu () {
     const at = lvl(sk[k] || 0), ups = unlocksFor(k)
     const next = ups.find(([lv]) => lv > at)
     return { label: k, stay: 1,
-      hint: 'lvl ' + at + (next ? '  \u2192 ' + next[0] : '  \u00b7 all'),
+      hint: GRADE(at, me) + ' ' + at + (capOf(k) ? '/' + capOf(k) : '') +
+            (next ? '  \u2192 ' + next[0] : ''),
       act: () => openMenu(oneSkillMenu(k)) }
   })
   if (!rows.length) rows.push({ label: '(the pillar served no skills)', dim: 1 })
@@ -4592,17 +4704,86 @@ function oneSkillMenu (skill) {
   const at = lvl(xp)
   const ups = unlocksFor(skill)
   const rows = []
+  // §5k: THE CEILING. Context rather than content, so it goes in the foot: a
+  // row of it pushed the unlocks off the bottom of the panel, and a citizen
+  // cannot read what they cannot see.
+  const mine0 = me && me.calling
+  const own = mine0 && SWORN[mine0] && SWORN[mine0].skill === skill
+  const ceilTxt = own ? 'no ceiling: yours'
+    : mine0 ? 'stops at ' + CAP_OTHER + ', sworn elsewhere'
+    : 'stops at ' + CAP_UNSWORN + ' until you swear'
+  // §5k: WHAT SWEARING BUYS, said beside the choice rather than left to be
+  // discovered. A ceiling on its own is only a punishment; the reason to swear
+  // is that the work itself pays more, and a citizen deciding cannot see that
+  // in a number that has not moved yet.
+  // §5k: what a mastery is worth, said beside the choice rather than left to be
+  // discovered. A ceiling on its own is only a punishment; the reason to climb
+  // is the one thing at the top that nobody capped at seventy can ever have.
+  if (BOON[skill])
+    rows.push({ label: (own && at >= MASTERY && (me && me.raised) ? '\u00b7 ' : 'a master: ') +
+      BOON[skill], dim: 1 })
   const tools = GATHER_TOOLS[skill]
   if (tools && tools.length)
     rows.push({ label: 'in hand: ' + nice(tools[0]) + (tools.length > 1 ? ' or better' : ''), dim: 1 })
-  // what this skill gives you for gathering, and what it teaches
+  // §what this skill gives, behind a row of its own. The guide exists to answer
+  // "what does this open" — the seams and their experience are reference, and
+  // reference was pushing the answer off the bottom of the panel.
+  {
+    const yr = []
   for (const [t, y] of Object.entries(NODE_YIELD)) {
-    if (!y || y.skill !== skill) continue
-    const g = NODE_GATE[t]
-    if (g && g.level > at) continue                    // listed below, under what is still shut
-    rows.push({ label: nice(t) + ' gives ' + nice(y.item) + (y.qty > 1 ? ' x' + y.qty : ''),
-                hint: y.xp + ' xp', dim: 1 })
+      if (!y || y.skill !== skill) continue
+      const g = NODE_GATE[t]
+      if (g && g.level > at) continue                    // listed below, under what is still shut
+      yr.push({ label: nice(t) + ' gives ' + nice(y.item) + (y.qty > 1 ? ' x' + y.qty : ''),
+                  hint: y.xp + ' xp', dim: 1 })
+    }
+    if (yr.length) rows.push({ label: 'what it gives (' + yr.length + ')', stay: 1,
+      act: () => openMenu({ title: skill.toUpperCase() + ' \u00b7 SEAMS', rows: yr,
+        foot: 'what each place gives, and what it teaches' }) })
   }
+  // §5m: THE CALLINGS THIS TRADE OPENS, behind one row of their own.
+  //
+  // They were listed inline, and with the boon and the ceiling and five yields
+  // above them the page ran to twelve rows before the first unlock — of which
+  // nine are visible, so the unlocks were simply off the bottom. A citizen
+  // cannot read what they cannot see. Callings are a DECISION rather than
+  // reference, so they get a page of their own, and the unlocks come back up.
+  const me2 = meNow()
+  const mine = me2 && me2.calling
+  const callings = Object.entries(SWORN).filter(([, c]) => c && c.skill === skill)
+  if (callings.length) rows.push({ label: 'callings (' + callings.length + ')', stay: 1,
+    hint: mine && SWORN[mine] && SWORN[mine].skill === skill ? mine : '',
+    act: () => { const rows = []
+    for (const [name, c] of callings) {
+      if (mine === name) { rows.push({ label: name + '  \u2014 sworn', hint: 'yours', dim: 1 }); continue }
+      if (mine) { rows.push({ label: name, hint: 'sworn to ' + mine, dim: 1 }); continue }
+      if (at < SWEAR_LEVEL) { rows.push({ label: name, hint: 'at ' + SWEAR_LEVEL, dim: 1 }); continue }
+      rows.push({ label: 'swear to ' + name, hint: 'once', stay: 1,
+        act: () => openMenu({ title: 'SWEAR TO ' + name.toUpperCase(),
+          foot: 'the pillar keeps this. nothing undoes it.',
+          rows: [
+            { label: 'a ' + name + ' is sworn to ' + skill, dim: 1 },
+            { label: 'you may swear to ONE calling, ever', dim: 1 },
+            { label: 'no deed in this world takes it back', dim: 1 },
+            // §5m: if a master who took you on is standing here, the swearing
+            // may name them, and their mark goes into the record for ever
+            ...(() => {
+              const t = SWORN[name] && SWORN[name].skill
+              const at = citizensNear().find(({ id, p: q }) =>
+                q.apprentices && q.apprentices[myId] !== undefined &&
+                q.calling && SWORN[q.calling] && SWORN[q.calling].skill === t)
+              return at ? [{ label: 'swear it, before ' + (at.p.name || 'your master'),
+                act: () => { act({ do: 'swear', calling: name, attester: at.id })
+                  sfx('level'); say('you are sworn ' + name + ', before them.') } }] : []
+            })(),
+            { label: 'swear it', act: () => { act({ do: 'swear', calling: name })
+                sfx('level'); say('you are sworn ' + name + '.') } },
+            { label: 'not yet', act: () => backMenu() }
+          ] }) })
+    }
+
+      openMenu({ title: skill.toUpperCase() + ' \u00b7 CALLINGS', rows,
+        foot: mine ? 'you are sworn ' + mine : 'one, ever, and nothing undoes it' }) } })
   const shut = ups.filter(([lv]) => lv > at)
   const open = ups.filter(([lv]) => lv <= at)
   if (shut.length) rows.push({ label: '- still shut -', dim: 1 })
@@ -4610,8 +4791,8 @@ function oneSkillMenu (skill) {
   if (open.length) rows.push({ label: '- already yours -', dim: 1 })
   for (const [lv, what] of open.slice(-8)) rows.push({ label: what, hint: 'lvl ' + lv, dim: 1 })
   if (rows.length <= 1) rows.push({ label: 'nothing in the world gates on this', dim: 1 })
-  return { title: skill.toUpperCase() + '  \u00b7  LVL ' + at, rows,
-           foot: xp + ' xp \u00b7 \u2191\u2193 read \u00b7 BKSP back' }
+  return { title: skill.toUpperCase() + '  \u00b7  ' + GRADE(at, me2).toUpperCase() + ' ' + at, rows,
+           foot: ceilTxt + ' \u00b7 ' + xp + ' xp \u00b7 \u2191\u2193 read' }
 }
 
 // ---- THE CHART-TABLE, drawn as ink on vellum ----

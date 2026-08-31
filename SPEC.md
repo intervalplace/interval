@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v0.99 ("The Constitution")
+# Interval: Protocol Specification v1.00 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -56,6 +56,10 @@ the ones an implementer would otherwise build:
 | `style` routing experience | §5s | style is the per-swing lever: aim, force, even |
 | a derived calling | §5k | a calling is SWORN, and the seventeen are listed there |
 | mastery at ninety-nine | §4b | mastery is **one hundred** |
+| the unsworn generalist as a main | §5k | nothing unsworn passes fifty; depth is what swearing buys |
+| swearing at level thirty | §5k | **fifty** — thirty was six minutes of chopping |
+| mastery in every trade | §5k | one, ever: your own has no ceiling, the other eight stop at seventy |
+| a calling as a bonus you may decline | §5k | a ceiling applies whether or not you swear |
 
 **The constitution is three documents, and the rules hash covers all
 three in order.** `SPEC.md` is the settled law. `LIFTED.md` holds rules
@@ -3437,21 +3441,58 @@ than a thing computed behind their back.
 from waking, on the grounds that a citizen choosing before they have
 seen the island is guessing and every record afterwards belongs to
 whoever guessed luckiest. So swearing is gated on having done the work:
-**level thirty** in the calling's own trade. By thirty a citizen knows
-what the work feels like.
+**level fifty** in the calling's own trade.
+
+Thirty was the first figure and it was too small: measured against the
+engine's own gather formula — a roll out of 65,536, a node retiring
+about one pull in four, and the walk to the next one — thirty is about
+six minutes of chopping, which is a formality rather than a commitment.
+Fifty is about two hours. That is a session, and a citizen who has spent
+one knows what the work feels like.
 
 **There is no forswearing.** A calling that could be put down would be a
 loadout, and the point of the word is that it costs something to say.
 
-**Unsworn is a choice, not a waiting room.** A citizen who never swears
-trains anything, is bound by nothing, and answers to their most
-experienced trade as callings always worked. That is the main; a sworn
-calling is the pure. Both are played on purpose.
+**Unsworn is a beginning, not a second way to play.** This once read
+that a citizen who never swore "trains anything, is bound by nothing" —
+the generalist as a deliberate main. That is repealed, because it was
+not true of the world it produced: nothing capped an unsworn citizen, so
+the optimal play was to swear to nothing and master all nine, and a
+calling was a bonus you declined.
+
+**Nothing an unsworn citizen trains may pass fifty.** Depth is what
+swearing buys. Once sworn, the trade you named has no ceiling at all and
+every other stops at **seventy**.
+
+The numbers are chosen against the real cost of a level rather than
+against the table. At a star axe on ironbark, fifty is about two hours,
+seventy about twenty-two, and a hundred about eighteen hundred. So
+breadth across the other eight trades is roughly a tenth of one mastery
+— rounding out, and enough to fight with, rather than a second career.
+At eighty it would have been a quarter, which is a second career.
+
+**Why a ceiling and not a longer curve.** This world ships a window for
+writing the citizen (§9), and where the grind is scripted, curve length
+measures UPTIME rather than commitment: doubling it buys six months of
+waiting for the same writ. A ceiling is the one limit a script cannot
+out-wait, and so it is the only real limit this world has.
 
 Swearing takes no interval and interrupts nothing: saying what you are
 is not an action, and a citizen mid-journey does not stop to say it.
 The level is re-checked in `validateState`, so no checkpoint can hand
-anybody a calling they never earned.
+anybody a calling they never earned. **The ceiling is re-checked in the
+same place and for the same reason.** Every award passes one `gainXp`,
+which clamps to `xpCeiling` — and `gainXp` never runs on a state that
+was handed to us. `validateState` is the only thing standing between a
+foreign checkpoint and our own, so a peer carrying a citizen at a
+hundred in three trades must be refused there. What the rules forbid
+must be unrepresentable in a state, not merely unreachable by a legal
+input.
+
+There are eighteen places that once wrote `p.skills.x += y` directly —
+prowess on a blow landed, marksmanship on a shot, sorcery on a sigil
+spent. A ceiling in `awardXp` alone would have left the COMBAT skills
+uncapped, which is precisely the wrong hole. All of them pass the gate.
 
 Today a calling shapes the flesh (§5j) and nothing else — the berserker
 trades frame for the arm at forty-eight, the warden the reverse at
@@ -3737,6 +3778,178 @@ twenty, and an axe is still what fells a tree. What changes is that a
 gate is reachable from either half of its trade. A brewer who has never
 sown passes the muck-heap; a smith who has never swung a pick passes
 the coal. That is the merge doing what a merge does.
+
+### §5w — teaching, and a mark only finishing can mint
+
+A citizen at `MASTERY` in the trade they swore to may **take an unsworn
+citizen on**, and the swearing that follows may name them. The mark goes
+into the record for ever.
+
+It buys no rate, no level and no ceiling. The reward is entirely
+reputational — and it is the one kind of reputation that cannot be
+faked, because it is a signature in a replayable log rather than a
+claim. Everywhere else "I trained under her" is something a person says;
+here it is something anyone can check.
+
+| input | what it does |
+|---|---|
+| `teach { to }` | a master takes a citizen on. Consent is a signed input of its own: a master cannot be volunteered. |
+| `swear { calling, attester }` | the student may name a master whose apprenticeship is live and who is standing here. |
+| `part { who }` | either party may end it. |
+
+**The mark is minted by finishing, and only by finishing.** Taking
+somebody on writes nothing but the tick it happened. A master cannot
+collect lineages by taking on forty people and walking away: each one
+holds a slot until they swear, and only the swearing writes `sworn_by`
+and raises `raised`.
+
+**The apprenticeship does not so much end as turn into the permanent
+thing.** The swearing closes it in the same breath that mints the
+lineage. Which is why the only clock this needs is for the student who
+drifts off and never comes back: `APPRENTICE_LAPSE`, twelve hours of
+intervals, after which the slot is free.
+
+**A swearing ends every apprenticeship it was in**, whoever attested it
+and whatever trade it was to. An apprentice is by definition unsworn, so
+the moment they swear none of it can still be live. In particular a
+citizen taken on by a forester may walk off and swear miner, unattested,
+and that is entirely their right: an apprentice promised nothing. The
+master consented to teach, not to be owed. It costs the student only the
+mark they would have had.
+
+Three rulings:
+
+* **The same trade, not the same calling.** A master forester may raise
+  a fletcher. The trade is what is taught; which calling within it they
+  choose is theirs.
+* **The lineage carries the calling, not only the person.** *Raised by
+  Verity, forester.* It survives Verity changing name, and it says what
+  was actually passed on.
+* **Unattested swearing stays legal.** The first forester has nobody to
+  attest them, and anyone playing at an empty hour would otherwise be
+  stuck. The mark is the reward; its absence is not a wall.
+
+**And the grades moved with it.** `apprentice` used to mean *below
+fifty*, which is a number, and everybody was one by default — a word
+that applies to everybody describes nobody.
+
+| grade | what it means |
+|---|---|
+| newcomer | unsworn, unattached: what everyone starts as |
+| apprentice | unsworn, but taken on — a state another citizen consented to |
+| journeyman | sworn |
+| master | at `MASTERY` in their trade, **and admitted** (§5x) |
+
+`gradeOf(state, p)` is the engine's, and exported, so no window invents
+the words.
+
+### §5x — the ritual: you are not a master until you have made one
+
+Reaching `MASTERY` makes a citizen **eligible**. What admits them is
+having raised somebody to their own swearing — the old guild rule, where
+a journeyman stayed a journeyman until the craft accepted a piece of
+work laid before it. Here the piece of work is a person.
+
+Why this and not a quest:
+
+* **It is uniform.** Nine trades, no hand-authored tasks, nothing to
+  keep in step with the tables. Five of the nine have no deep node and
+  no dear recipe to build a quest around at all — measured, not assumed.
+* **It cannot be ground.** It needs another citizen to reach fifty and
+  swear, which is theirs to do and not yours.
+* **It is done once, ever**, so there is no point automating it: writing
+  a script for a thing you do once costs more than doing it. The defence
+  is not that it cannot be automated; it is that automating it is
+  pointless.
+* **It makes the endgame social by construction.** A master of Interval
+  is not a person with nine hundred hours. It is a line of people.
+
+An alt can do it — two hours to fifty and a swearing before yourself —
+and that is the correct price rather than a hole. It is also
+**legible**: the lineage is signed and public, and a master whose only
+apprentice appears nowhere else has told everybody what they did. This
+world does not prevent that; it records it, which is the more useful of
+the two.
+
+**Nothing new is stored.** `raised` is already minted only by finishing,
+so proof is derived: `isProven(p)` is `raised >= 1`. There is no field to
+migrate and no citizen can be handed it.
+
+### §5y — what the tail past a hundred is for
+
+A citizen's own trade has no ceiling and `XP_TABLE` runs to 171, so
+there is **no completion state**: you finish becoming who you are in
+about a month, and then you compete for ever against everyone else who
+chose the same trade. The hiscores already hold that.
+
+The levels themselves did nothing but count. Measured from the gather
+formula, **105 is a month past mastery, 110 is three, 120 is sixteen**,
+so milestones live at 100 / 105 / 110 and nothing lives past 110 where
+nobody would see it.
+
+They must not multiply throughput — the same argument as §5k, and
+stronger here, because past-mastery play is the most automated play
+there is. So the tail buys **capacity for other people**: one apprentice
+slot at each milestone. A very deep master is visibly a school.
+
+Teaching itself stays at `MASTERY` rather than moving up. Gating it at
+110 would starve the early world of teachers and the mechanic would
+never be used. `teach` checks MASTERY *xp*, not the master *grade*, so
+there is no deadlock: reach a hundred, take somebody on, raise them, and
+the craft admits you.
+
+### §5z — what a mastery is worth, in every trade
+
+A mastery that pays in four trades and pays a word in five is not a
+mastery. Mourning has no seam, prowess no recipe, and marksmanship,
+sorcery and wayfaring produce no stack of things to double.
+
+| trade | what a mastery pays |
+|---|---|
+| woodcraft, earthcraft, shorecraft, hearthcraft | two where others take one |
+| marksmanship | an arrow that hits is an arrow you keep |
+| sorcery | three stones press two sigils |
+| mourning | an offering counts double |
+| prowess | the special is ready a quarter sooner |
+| wayfaring | a consignment is not spilled on death |
+
+Every one passes the same test: **no multipliers on throughput, and
+nothing that merely rewards uptime.** Where a trade has an output a
+master gets two of it; where it does not, the boon is rhythm or
+protection.
+
+Three judgements worth recording, because each has an obvious wrong
+answer:
+
+* **Not two arrows, and not dual wielding.** Both are multipliers, and a
+  multiplier in a fight is a balance problem before it is a reward: it
+  changes what a master does to another citizen rather than what a
+  master is worth. Arrow recovery is a *material* saving, the same shape
+  as the double yield, and bounded — you can never end a fight with more
+  than you began with.
+* **Not "a master casts without spending the sigil."** Sorcery's
+  experience comes FROM spending sigils, so a master who stopped
+  spending would stop earning and be quietly frozen out of the tail that
+  §5y just gave a purpose. Pressing two keeps the spending and the
+  earning.
+* **Wayfaring's is a protection, not a reward**, because its output is
+  arriving rather than a stack. Death already costs the walk back; for a
+  runner it also cost the load, which is the one trade where dying
+  undoes hours of *somebody else's* goods.
+
+All of them go through one `masterOf(p, skill)`, which asks all three
+questions: sworn to that trade, at `MASTERY`, and admitted by §5x. **A
+boon nobody was admitted for is a number rewarding itself.**
+
+**And a calling does not multiply the gather rate.** It did briefly, on
+the argument that thirty levels of mastery otherwise bought an eight per
+cent rate while a better axe bought thirteen times that. Two things
+killed it. Keepers buy nothing (§6l), so every price here is set by a
+citizen selling to a citizen: more supply is undercut supply, the price
+falls until the advantage is competed away, and all that is left is
+cheaper logs. And a rate **scales automation** — a writ collects a
+multiplier better than a person does, because it never stops. One lever,
+not two, until a real market says otherwise.
 
 **The words that were lost are parked, not discarded.** `forester`,
 `firekeeper`, `fletcher`, `miner`, `fisher`, `cook`, `farmer`, `brewer`,
@@ -10465,6 +10678,150 @@ deflate. This one tile is the one contested place in the Wilds.
   sites move no tile's walkability and so are not in the geography hash; they
   are coordinates the founding declares and the engine reads. A generator with
   no wild crossings declares none, and the verb finds nowhere to build.
+
+### 14e. The tide and the stint (v1.00)
+
+This world has always been persistent, and persistence is the whole of what
+was asked for: a place that is still here when everybody moved on, that a
+citizen can walk back into in ten years and find running. Nothing below
+changes that, and nothing below may.
+
+But a world that never stops has no seams in it. Most people do not stop
+because something stopped them; they stop at an edge — the end of a side, the
+end of a roll, the end of a chapter — and this island had no edges at all.
+What follows puts one bounded thing INSIDE the persistent thing, rather than
+replacing it.
+
+It is two mechanisms and they are not the same mechanism.
+
+**The tide is the world's weather.** A set of windows computed from the
+interval count and nothing else: tide `i` is up when `tick % periods[i] <
+opens[i]`. The same for every citizen, everywhere, with no per-citizen roll
+anywhere in it — this protocol has nothing random in it by design and the
+tide is not the place to make the first exception. It is readable forward and
+backward forever, so a citizen reads the forecast the way an operator reads a
+propagation table: `nextTideTurn` says exactly when the next turn falls, and
+it is arithmetic every window computes identically and none of them has to be
+trusted about.
+
+Nobody chose it and nobody can move it. That is the point of it. When the
+channel shuts, no citizen is having a better evening than any other, and
+nobody's silence is a personal failure.
+
+- `genesis.tide` is `{ periods, opens }`, two parallel lists of plain
+  integers, between one and eight tides. `opens[i] >= periods[i]` is refused
+  at the door: a channel that never closes is not a tide, it is a permanently
+  open channel wearing the word.
+- **Periods are meant to be chosen coprime, and unrelated to any clock.**
+  Then the windows precess: they drift across the hours over weeks, and no
+  hour of any wall clock anywhere on earth is permanently the hour this world
+  is dead. A single global window would land at four in the morning for a
+  fixed fraction of the island forever, which is the same injustice as a
+  raid schedule and arrives without anybody choosing it.
+- A founding may omit it. A world with no tide has no far channel and no gate
+  on anything.
+
+**The stint is a citizen's promise made against the tide.** `stint(n)` swears
+presence for `n` intervals, signed with the same key that swings the axe,
+named BEFORE the citizen knows what will happen in those intervals. That is
+the whole of what makes it a promise rather than a log: the decision is taken
+at the start, when a person is fresh, not at the end, when they are tired and
+the next thing is always cheap. It is a citizen binding themselves, which is
+the only form of binding consistent with a world that has no owner.
+
+- `genesis.stint` is `{ cap, sample, remembers }`. `cap` is the longest oath
+  allowed in one breath, so the far channel cannot be bought with one enormous
+  declaration on waking; a citizen who means to be heard all day has to keep
+  saying so, and every renewal is a fresh decision rather than a forgotten one.
+- **One at a time, and no extending it.** A citizen inside a stint cannot
+  swear over it. The promise you are keeping is the promise you made.
+- **Standing is counted, not asserted.** A world cannot see somebody walk away
+  from a keyboard; what it can see is that no input arrived. Every `sample`
+  intervals the world asks who is inside a stint and present, and adds that to
+  what they have `stood`. Presence here is deliberately stricter than
+  `isAwake`: `SLEEP_AFTER` is five hundred intervals, which is right for
+  deciding whether to keep a body standing and far too loose for measuring a
+  promise, so a stint uses the founding's own `sample` in its place. An action
+  already running still counts — a citizen watching a pickaxe work is there,
+  and should not have to jog the keys to prove it.
+- **Sampling rather than tallying every interval** is not only for cost. A
+  promise measured to the interval invites a citizen to watch a clock, and
+  there is no version of this world that should ever ask anybody to do that.
+- `sworn` and `stood` are two tallies that only rise. **The world does not
+  punish the gap between them; it declines to forget it** — the same rule the
+  constitution keeps about its own repeals (§0-i). Nothing is taken from a
+  citizen who swore forty and stood five. It is simply on the record.
+
+**What settles is the overlap, and the overlap is the only number worth
+having.** On each sample, a citizen in a stint tallies every other citizen
+who is ALSO in a stint and within `FOLLOW_LOSE` of them. When the stint runs
+out it settles into a record — what was sworn, what was stood, and who was
+beside them for how much of it — kept newest-first up to `remembers`.
+
+A script can swear a flawless stint and stand every interval of it, alone,
+forever, and its tally stays empty. **What a script cannot do is make anybody
+else show up.** Every other measure in this world is one a bot can saturate;
+this one is not, and that is the entire reason it exists.
+
+**A voice has a reach, and only the far one is licensed.** Chat remains
+auxiliary in every respect (§9c): not world state, never in a state hash, its
+own gossip topic. What is added is a `scope` on the frame, and every node can
+check the claim against state it already holds.
+
+- `near` is **never gated**, by anything — no tide, no stint, no licence.
+  Speech to somebody standing beside you is not the network, it is being
+  somewhere, and being somewhere is what this world has always said a script
+  cannot do. It carries as far as `FOLLOW_LOSE`, because the distance at which
+  this world already says two people are no longer together is the distance at
+  which it should stop carrying a voice between them.
+- `far` requires a tide up **and** the speaker inside a stint. Both, and
+  neither alone. This is the amateur licensing rule exactly: receiving is
+  unrestricted, transmitting requires being present and identified.
+- **Relay is not hearing.** A well-formed `near` frame is relayed by every
+  node, because the only mesh path between two neighbours may run through a
+  node on the far side of the island and a mesh that dropped it would silence
+  them. Whether YOU hear it is a separate question, asked once, at the window
+  (`hearChat`).
+- The tide is checked at the frame's **own** interval, exactly, because it is a
+  pure function of the count and gossip is slow. The stint is checked against
+  the state the node holds now — an approximation, and an honest one: a stint
+  that closed while a frame was in flight costs its speaker one message, and
+  nothing in consensus depends on it.
+
+**A name is kept inside a tide, and outlives it.** `befriend` (§7cn) now also
+requires, in a world that has a tide, that a tide be up and that **both**
+citizens stand inside stints they swore in advance. Not to make names scarce —
+to make them mean the one thing they should: that two people who each
+promised, separately and beforehand, to be present, then were, in the same
+place, at the same time. The bond does not expire when the tide turns. **The
+contact is bounded; the record of it is not.** That asymmetry is the whole of
+what a kept name is for. A founding without a tide leaves `befriend` exactly
+as §7cn left it.
+
+**AND IT GATES NOTHING ELSE.** No yield rises inside a tide. No seam gives
+more, no blow lands harder, no price falls. A settled stint pays nothing. The
+moment any of this pays, a citizen swears stints for the pay, the length they
+name stops being the length they meant, and the promise is dead — it is a raid
+night with a different word on it, and this world already refused to build one
+(§6am, §7dt). What a tide confers is **legibility**: an open stint is public,
+so other citizens can see that you are here and until when, and can arrange to
+meet you. That is thin on purpose. Nothing about a contact changes what a
+radio does either. What changes is that somebody else knew to be there.
+
+**And nothing here charges patience.** Absence costs nothing, decays nothing,
+and locks nothing. A citizen who misses every tide for a year loses no ground
+to one who caught them all, because the tallies count what was stood and
+never what was skipped. A boundary that punishes absence is extraction wearing
+a different hat, and the reason this world does not price patience (§6am) is
+unchanged by any of it: a script does not mind waiting, so the whole of that
+cost would land on the person.
+
+**The stint does not end anybody's evening.** Nothing stops. Everything a
+citizen does after their stint closes works exactly as it did before. What
+ends is the part that was PROMISED — and the intervals after settle into
+nothing, the way a contact nobody wrote down counts as nothing. The band
+closing does not send an operator down off the hill either. They can sit
+there another hour listening to static, and sometimes they do.
 
 ## 15. The island is frozen (v0.88)
 

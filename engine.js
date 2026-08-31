@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '0.99';
+const SPEC_VERSION = '1.00';
 // §1c: THE INTERVAL IS A SECOND, AND IT IS THE ONE NUMBER THAT WAS INHERITED.
 //
 // Six hundred milliseconds was RuneScape's tick and it arrived here with no
@@ -5335,6 +5335,11 @@ const INPUT_SCHEMAS = {
   // §6br: the stone, and WHO IT IS FOR. Never the sender: a graver names the
   // other person or it names nobody.
   grave: { nodeId: T.id, target: T.hex64 },
+  // §7dv: SWEAR A STINT. `n` is the length in intervals, named BEFORE the
+  // citizen knows what will happen in it. That is the whole of the argument:
+  // the decision is made at the start, when a person is fresh, not at the end,
+  // when they are tired and the next thing is always cheap.
+  stint: { n: T.qty },
   // §6bv: no argument. A horn says one thing.
   sound: {},
   raise_market: {}, dismantle_market: {},
@@ -5504,7 +5509,7 @@ function teachMelee(p, dmg, style, tick, every, dummy) {
   // once. `style` no longer decides where experience goes; it decides how the
   // blow lands, and nothing else. Choosing what to become is what a calling is
   // for, and it is a thing a citizen swears rather than a thing they grind.
-  p.skills.prowess += dmg;
+  gainXp(p, 'prowess', dmg);
 }
 const XP_SMITH_PER_UNIT = 20;
 // 6bk: AND THE SAME TWENTY AT THE BENCH. Fletching had its own private scale --
@@ -5595,6 +5600,100 @@ const WATCH_TEND_RANGE = 8;   // 6bg: near enough to be warmed by it, and to be 
 const SLEEP_AFTER = 500;
 function isAwake(p, tick) {
   return p.action !== null || tick - (p.lastInput ?? 0) <= SLEEP_AFTER;
+}
+
+// §7dv: THE TIDE, AND THE STINT.
+//
+// Two things, and they are not the same thing. The TIDE is the world's
+// weather: a set of windows computed from the interval count and nothing
+// else, the same for every citizen, readable forward and backward forever.
+// Nobody chose it and nobody can move it. The STINT is a citizen's promise
+// made against it -- signed in advance, for a length they name before they
+// know what will happen in it.
+//
+// The tide gates one thing: a voice at RANGE. Speech to the person standing
+// next to you is never gated, because that is not the network, that is being
+// somewhere, and being somewhere is the one thing this world has always said
+// a script cannot do. What the tide opens is the far channel -- and the
+// stint is the licence to use it. Present by declaration, and the band up.
+//
+// It gates NOTHING ELSE. No yield rises in a tide, no seam gives more, no
+// blow lands harder. The moment a tide pays, a citizen declares stints for
+// the pay and the length they name stops being what they meant. Then it is
+// a raid night with a different word on it.
+//
+// A tide is up when `tick % period < open`. Periods are meant to be chosen
+// coprime and unrelated to any day, so the windows precess: a citizen who
+// gets the bad one this week does not get it next week, and no hour of any
+// clock anywhere is permanently the hour this world is dead.
+function tideUp(g, tick, i) {
+  const td = g.tide;
+  if (!td) return false;
+  const per = td.periods[i], op = td.opens[i];
+  if (!per) return false;
+  return ((tick % per) + per) % per < op;
+}
+function tidesOpen(g, tick) {          // which tides are up, in index order
+  const td = g.tide;
+  if (!td) return [];
+  const out = [];
+  for (let i = 0; i < td.periods.length; i++) if (tideUp(g, tick, i)) out.push(i);
+  return out;
+}
+function anyTideOpen(g, tick) {
+  const td = g.tide;
+  if (!td) return false;
+  for (let i = 0; i < td.periods.length; i++) if (tideUp(g, tick, i)) return true;
+  return false;
+}
+// THE FORECAST. A citizen can ask when a tide next turns, exactly, without
+// waiting for it -- the same way an operator reads a propagation table. It is
+// arithmetic on the interval count, so every window answers identically and
+// none of them has to be trusted.
+function nextTideTurn(g, tick, i) {
+  const td = g.tide;
+  if (!td) return null;
+  const per = td.periods[i], op = td.opens[i];
+  if (!per) return null;
+  const at = ((tick % per) + per) % per;
+  return tick + (at < op ? op - at : per - at);
+}
+// A citizen is IN a stint when one is open and this interval falls inside it.
+function stintOpen(p, tick) {
+  const st = p?.stint;
+  return !!st && tick >= st.from && tick < st.to;
+}
+// §7dv: PRESENT FOR THE PROMISE -- which is a stricter question than awake.
+//
+// `isAwake` is generous on purpose: SLEEP_AFTER is five hundred intervals, so
+// a citizen who walked away is still counted as in the world for eight
+// minutes, which is right for a world deciding whether to keep their body
+// standing. It is far too loose for measuring a promise. A stint shorter than
+// the sleep window could be stood in full by somebody who left on the
+// interval they swore it.
+//
+// So presence for a stint is the same shape with the founding's own sample in
+// place of SLEEP_AFTER: you acted within the last sample, or you have an
+// action running -- because a citizen who set a pickaxe going and is watching
+// it IS there, and should not have to jog the keys to prove it.
+function stintPresent(p, tick, sample) {
+  return p.action !== null || tick - (p.lastInput ?? 0) <= sample;
+}
+// §7dv: WHO MAY BE HEARD AT RANGE. Both halves, and neither alone.
+function maySpeakFar(state, pid) {
+  const p = state.players?.[pid];
+  if (!p || p.hp <= 0) return false;
+  if (!anyTideOpen(state.genesis, state.tick)) return false;
+  return stintOpen(p, state.tick);
+}
+// §7dv: WHO MAY BE HEARD NEAR. Distance, and nothing else -- no tide, no
+// stint, no licence. FOLLOW_LOSE is reused deliberately: the distance at
+// which this world already says two people are no longer together is the
+// distance at which it should stop carrying a voice between them.
+function withinEarshot(state, aId, bId) {
+  const a = state.players?.[aId], b = state.players?.[bId];
+  if (!a || !b) return false;
+  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y)) <= FOLLOW_LOSE;
 }
 
 // ---- the terrain registry (v0.77): a generator TEACHES the engine to
@@ -6250,7 +6349,7 @@ const SWORN = {
 // gated on having DONE the work -- thirty in the skill the calling belongs to.
 // By thirty a citizen knows what the trade feels like, and the choice is
 // theirs rather than the tutorial's.
-const SWEAR_LEVEL = 30;
+const SWEAR_LEVEL = 50;
 
 // §5q: A CALLING IS FASTEST AT ITS OWN WORK.
 //
@@ -6276,6 +6375,147 @@ const SWEAR_LEVEL = 30;
 // which node computed it is a fork.
 const XP_OWN_NUM = 3, XP_OWN_DEN = 2;   // your own work: half again
 const XP_SIBLING_NUM = 1, XP_SIBLING_DEN = 2;   // your sibling's: half
+// §5k: THE CEILING. WHAT A CITIZEN MAY NOT BECOME.
+//
+// A calling was a bonus and nothing else: 1.5x on your own trade, 0.5x on a
+// sibling of it, and every OTHER trade untouched. So an unsworn citizen could
+// master all nine at full rate and lose only the bonus, and a sworn one could
+// do the same. There was no cap on anything; `p.calling !== undefined` caps how
+// many callings you may HOLD, which restrains no training at all.
+//
+// The curve cannot fix this. Under a world where the grind is scripted, curve
+// length measures uptime and not commitment — doubling it buys six months of
+// waiting for the same writ. A CEILING is the one limit a script cannot
+// out-wait, and so it is the only real limit this world has.
+//
+//   unsworn          nothing may pass CAP_UNSWORN. Depth is what swearing buys.
+//   sworn, your own  no ceiling: masters go on past a hundred, and compete.
+//   sworn, any other CAP_OTHER. Enough to round out, and to fight with; not
+//                    enough to be a second career.
+//
+// The numbers are chosen against the real cost of a level, not against the
+// table: at a star axe on ironbark, 50 is about two hours, 70 about twenty-two,
+// and a hundred about eighteen hundred. So breadth across the other eight
+// trades is roughly a tenth of one mastery, which is rounding out.
+const CAP_UNSWORN = 50, CAP_OTHER = 70;
+// §5k: what a mastery is worth at the seam. An integer, like every other rate
+// in this file, so the arithmetic stays exact and two peers cannot disagree.
+const MASTER_YIELD = 2;                             // two where others take one
+// §5z: and for the trade with nothing to double, the arm comes back sooner.
+// Integers over integers, like every other rate here, so two peers cannot
+// disagree about a fraction.
+const MASTER_REC_NUM = 3, MASTER_REC_DEN = 4;       // a quarter off the special
+// §5w: TEACHING. A master may take a citizen on, and the swearing that follows
+// carries the master's mark for ever.
+//
+// APPRENTICE_SLOTS is small on purpose. A master with three apprentices is
+// making a commitment; a master with forty is running a mill, and the word
+// stops meaning attention. APPRENTICE_LAPSE is the only clock this needs: a
+// student who finishes FREES THEIR OWN SLOT by swearing, so the timer exists
+// solely for the one who drifts away and never comes back.
+// §5y: WHAT THE TAIL PAST A HUNDRED IS FOR.
+//
+// Your own trade has no ceiling and XP_TABLE runs to 171, so there is no
+// completion state — but the levels did nothing except count. Measured from the
+// gather formula, 105 is a month past mastery, 110 is three, 120 is sixteen. So
+// milestones live at 105 and 110; anything at 120 is decoration for people who
+// will never see it.
+//
+// They must not multiply throughput — the same argument that killed the calling
+// rate: a rate scales automation, and past-mastery play is the most automated
+// play there is. So the tail buys CAPACITY FOR OTHER PEOPLE instead. A very deep
+// master is visibly a school.
+const APPRENTICE_MILESTONES = [MASTERY, 105, 110];   // one slot at each
+const APPRENTICE_SLOTS = APPRENTICE_MILESTONES.length;
+function slotsFor(p) {
+  const c = typeof p?.calling === 'string' ? SWORN[p.calling] : null;
+  if (!c) return 0;
+  const lv = levelForXp(p.skills?.[c.skill] ?? 0);
+  return APPRENTICE_MILESTONES.filter((m) => lv >= m).length;
+}
+// §5w: THE GRADES, AND WHY 'APPRENTICE' MOVED.
+//
+// Apprentice used to mean "below fifty", which is a number, and everyone was
+// one by default — a word that applies to everybody describes nobody. It now
+// means SOMEBODY TOOK YOU ON: a state another citizen consented to, and one
+// they are spending a slot on. What everyone starts as is a newcomer.
+//
+//   newcomer    unsworn, unattached
+//   apprentice  unsworn, but taken on by a master
+//   journeyman  sworn
+//   master      at MASTERY in the trade they swore to
+// §5x: THE RITUAL. YOU ARE NOT A MASTER UNTIL YOU HAVE MADE ONE.
+//
+// Reaching MASTERY makes a citizen ELIGIBLE. What makes them a master is having
+// raised somebody to their own swearing — the old guild rule, where a
+// journeyman stayed a journeyman until the craft admitted them, and admission
+// was a piece of work laid before it. Here the piece of work is a person.
+//
+// Why this and not a quest:
+//
+//   · It is UNIFORM. Nine trades, no hand-authored tasks, nothing to keep in
+//     step with the tables. Five of the nine have no deep node and no dear
+//     recipe to build a quest around at all.
+//   · It cannot be ground. It needs another citizen to reach fifty and swear,
+//     which is theirs to do and not yours.
+//   · It is done ONCE, ever, so there is no point automating it: writing a
+//     script for a thing you do once costs more than doing it.
+//   · It makes the endgame social by construction. A master of Interval is not
+//     a person with nine hundred hours; it is a line of people.
+//
+// An alt can do it — two hours to fifty and a swearing before yourself — and
+// that is the correct price rather than a hole. It is also LEGIBLE: the
+// lineage is signed and public, and a master whose only apprentice appears
+// nowhere else has told everybody what they did.
+//
+// Nothing new is stored. `raised` already exists and is already minted only by
+// finishing, so proof is derived, and no citizen can be given it.
+const isProven = (p) => (p?.raised ?? 0) >= 1;
+// §5z: IS THIS CITIZEN A MASTER OF THIS TRADE. Asked at six sites now, so it is
+// one function: the calling must be sworn to that trade, the level must be at
+// MASTERY, and §5x's craft must have admitted them. A boon nobody was admitted
+// for is a number rewarding itself.
+function masterOf(p, skill) {
+  const c = typeof p?.calling === 'string' ? SWORN[p.calling] : null;
+  if (!c || c.skill !== skill) return false;
+  if (levelForXp(p.skills?.[skill] ?? 0) < MASTERY) return false;
+  return isProven(p);
+}
+function gradeOf(state, p) {
+  if (typeof p?.calling === 'string' && Object.prototype.hasOwnProperty.call(SWORN, p.calling)) {
+    const sk = SWORN[p.calling].skill;
+    const deep = (p.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY];
+    // §a journeyman until the craft admits them
+    return deep && isProven(p) ? 'master' : 'journeyman';
+  }
+  for (const m of Object.values(state?.players ?? {})) {
+    const ap = m?.apprentices;
+    if (!ap) continue;
+    for (const [who, at] of Object.entries(ap))
+      if (who === p?.id && state.tick - at <= APPRENTICE_LAPSE) return 'apprentice';
+  }
+  return 'newcomer';
+}
+const APPRENTICE_LAPSE = 43200;   // twelve hours of intervals, and it is forgotten
+// the most xp a citizen may hold in a skill: enough to stand AT the cap and no
+// more, which is XP_TABLE for the level above it, less one
+function xpCeiling(p, skill) {
+  const c = p?.calling;
+  if (typeof c === 'string' && Object.prototype.hasOwnProperty.call(SWORN, c))
+    return SWORN[c].skill === skill ? Infinity : XP_TABLE[CAP_OTHER + 1] - 1;
+  return XP_TABLE[CAP_UNSWORN + 1] - 1;
+}
+// §EVERY GAIN PASSES THROUGH HERE. There were eighteen places that wrote
+// `gainXp(p, 'x', y` directly — prowess on a blow landed, marksmanship on a shot,
+// sorcery on a sigil spent — so a ceiling in awardXp alone would have left the
+// combat skills uncapped, which is precisely the wrong hole to leave open.
+function gainXp(p, skill, xp) {
+  if (!(xp > 0) || !p || !p.skills) return;
+  const ceil = xpCeiling(p, skill);
+  const now = p.skills[skill] ?? 0;
+  p.skills[skill] = now >= ceil ? ceil : Math.min(now + xp, ceil);
+}
+
 function awardXp(p, skill, xp, calling) {
   if (!(xp > 0)) return;
   const c = p?.calling;
@@ -6284,7 +6524,7 @@ function awardXp(p, skill, xp, calling) {
     if (c === calling) xp = Math.floor(xp * XP_OWN_NUM / XP_OWN_DEN);
     else xp = Math.floor(xp * XP_SIBLING_NUM / XP_SIBLING_DEN);
   }
-  p.skills[skill] += xp;
+  gainXp(p, skill, xp);
 }
 // Gathering is always the RAW calling of its trade: the one who goes and gets
 // it, as against the one who works it afterwards.
@@ -6299,7 +6539,8 @@ function callingOf(p) {
   // trees is a smith who has been at the trees.
   if (typeof p?.calling === 'string' && Object.prototype.hasOwnProperty.call(SWORN, p.calling)) {
     const sk = SWORN[p.calling].skill;
-    return ((p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY] ? 'master ' : '') + p.calling;
+    // §5n: the word is earned by raising somebody, not by the number alone
+    return (((p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY] && isProven(p)) ? 'master ' : '') + p.calling;
   }
   let best = null, bestXp = -1;
   for (const sk of SKILLS) {
@@ -7187,7 +7428,11 @@ const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantin
   // §6bp: what the first name on a stone costs, and how the price climbs
   'dedication',
   // §7a: the wild span -- pool size, plank rate, and the woodwork it pays
-  'span']);
+  'span',
+  // §7dv: the tide (the world's windows, the same for everyone) and the stint
+  // (a citizen's promise made against one). A founding may have both, or
+  // neither; a world that omits them has no far channel and no gate on a name.
+  'tide', 'stint']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -7268,6 +7513,36 @@ function validateGenesis(g) {
     for (const sk of ['pool', 'perLay', 'xpPerPlank']) if (!isInt(sp[sk], 0, 1e12)) return `genesis.span.${sk} out of bounds`;
     if (sp.pool < 1) return 'genesis.span.pool must be at least one plank';
     if (sp.perLay < 1) return 'genesis.span.perLay must be at least one plank';
+  }
+  // §7dv: THE TIDE. `periods` and `opens` are parallel: tide i is up when
+  // `tick % periods[i] < opens[i]`. Both are plain integers for the same
+  // reason the span's pool is -- two nodes reading the same founding must
+  // agree to the interval on whether a voice carried. A world that omits
+  // this has no far channel at all and every voice is a near one.
+  if (g.tide !== undefined) {
+    const td = g.tide;
+    if (!td || typeof td !== 'object' || Object.keys(td).sort().join(',') !== 'opens,periods') return 'non-constitutional genesis.tide';
+    if (!Array.isArray(td.periods) || !Array.isArray(td.opens)) return 'genesis.tide must be two lists';
+    if (td.periods.length !== td.opens.length) return 'genesis.tide.periods and .opens must be the same length';
+    if (td.periods.length < 1 || td.periods.length > 8) return 'genesis.tide wants between one and eight tides';
+    for (let i = 0; i < td.periods.length; i++) {
+      if (!isInt(td.periods[i], 2, 1e9)) return `genesis.tide.periods[${i}] out of bounds`;
+      if (!isInt(td.opens[i], 1, 1e9)) return `genesis.tide.opens[${i}] out of bounds`;
+      // A tide that is never shut is not a tide, it is a permanently open
+      // channel wearing the word. It must close.
+      if (td.opens[i] >= td.periods[i]) return `genesis.tide[${i}] never closes`;
+    }
+  }
+  // §7dv: THE STINT. `cap` is the longest a citizen may swear in one breath --
+  // bounded so that the far channel cannot be bought with one enormous
+  // declaration on waking. `sample` is how often co-presence is tallied;
+  // `remembers` is how many settled stints a citizen's record keeps.
+  if (g.stint !== undefined) {
+    const sn = g.stint;
+    if (!sn || typeof sn !== 'object' || Object.keys(sn).sort().join(',') !== 'cap,remembers,sample') return 'non-constitutional genesis.stint';
+    for (const nk of ['cap', 'sample', 'remembers']) if (!isInt(sn[nk], 1, 1e9)) return `genesis.stint.${nk} out of bounds`;
+    if (sn.sample > sn.cap) return 'genesis.stint.sample cannot exceed the cap';
+    if (sn.remembers > 256) return 'genesis.stint.remembers out of bounds';
   }
   if (g.geo !== undefined) {
     const ge = g.geo;
@@ -7652,6 +7927,9 @@ const LANDMARK_KINDS = new Set([
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
     'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastAlch', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+    // §7dv: the open promise, the settled records, and the two tallies that
+    // hold the gap between what was sworn and what was stood
+    'stint', 'stints', 'sworn', 'stood',
     // §6bu: alight, and it burns off by itself
     'burnUntil',
     // §7dk: the record clock, this citizen's own bands, and whether they ever
@@ -7783,6 +8061,23 @@ const LANDMARK_KINDS = new Set([
     if (skeys.join(',') !== [...SKILL_SET].sort().join(','))
       return skeys.length < SKILL_SET.length ? 'missing skill' : 'unknown or duplicated skill';
     for (const sk of SKILL_SET) if (!isInt(p.skills[sk], 0, MAX_XP)) return 'xp out of bounds';
+    // §5k: AND THE CEILING IS A PROPERTY OF THE STATE, NOT OF THE PATH TO IT.
+    //
+    // `gainXp` clamps every award, and `gainXp` never runs on a checkpoint that
+    // was handed to us. A peer could carry a citizen at a hundred in three
+    // trades, and this function — the only thing standing between a foreign
+    // state and our own — would have waved it through, because MAX_XP is the
+    // only bound it knew about. The executor would then never re-derive it: the
+    // citizen simply IS past the ceiling, for ever.
+    //
+    // The calling is already re-checked here for exactly this reason ('calling
+    // not earned'). The ceiling needs the same treatment, and for the same
+    // reason: anything the rules forbid must be unrepresentable in a state, not
+    // merely unreachable by a legal input.
+    for (const sk of SKILL_SET) {
+      const ceil = xpCeiling(p, sk);
+      if (ceil !== Infinity && p.skills[sk] > ceil) return `${sk} past the ceiling`;
+    }
     // inventory: the exact constitutional slot count (28), always
     if (!Array.isArray(p.inventory) || p.inventory.length !== INV_SLOTS) return 'inventory length is not constitutional';
     for (const sl of p.inventory) if (!isSlot(sl)) return 'malformed inventory slot';
@@ -7857,6 +8152,47 @@ const LANDMARK_KINDS = new Set([
       for (const f of p.friends)
         if (!(typeof f === 'string' && /^[a-z0-9_-]{1,96}$/i.test(f))) return 'malformed friend';
     }
+    // §7dv: THE OPEN STINT -- what was sworn, and the tally of who has been
+    // beside them for it so far. `met` is written on sample intervals only,
+    // and it is bounded, because a promise is not a place to put a list that
+    // can grow as fast as the world can spawn keys.
+    if (p.stint !== undefined) {
+      const st = p.stint;
+      if (!st || typeof st !== 'object' || Object.keys(st).sort().join(',') !== 'from,kept,met,to') return 'malformed stint';
+      if (!isInt(st.from, 0, MAX_TIME) || !isInt(st.to, 0, MAX_TIME)) return 'stint bounds out of range';
+      if (st.to <= st.from) return 'a stint must have length';
+      if (!isInt(st.kept, 0, MAX_TIME)) return 'malformed stint keeping';
+      if (!st.met || typeof st.met !== 'object' || Array.isArray(st.met)) return 'malformed stint tally';
+      const mk = Object.keys(st.met);
+      if (mk.length > FRIEND_CAP) return 'stint tally too long';
+      for (const k of mk) {
+        if (!/^[a-z0-9_-]{1,96}$/i.test(k)) return 'malformed stint tally key';
+        if (!isInt(st.met[k], 1, MAX_TIME)) return 'malformed stint tally count';
+      }
+    }
+    // §7dv: THE SETTLED RECORD. Newest first, capped by the founding. Each is
+    // what was sworn, what was stood, and WHO WAS THERE -- which is the only
+    // number in it that a script cannot produce alone.
+    if (p.stints !== undefined) {
+      if (!Array.isArray(p.stints) || p.stints.length > 256) return 'malformed stint record';
+      for (const r of p.stints) {
+        if (!r || typeof r !== 'object' || Object.keys(r).sort().join(',') !== 'from,kept,met,to') return 'malformed settled stint';
+        if (!isInt(r.from, 0, MAX_TIME) || !isInt(r.to, 0, MAX_TIME) || r.to <= r.from) return 'malformed settled stint bounds';
+        if (!isInt(r.kept, 0, MAX_TIME)) return 'malformed settled stint keeping';
+        if (!Array.isArray(r.met) || r.met.length > FRIEND_CAP) return 'malformed settled stint tally';
+        for (const pair of r.met) {
+          if (!Array.isArray(pair) || pair.length !== 2) return 'malformed settled stint pair';
+          if (!(typeof pair[0] === 'string' && /^[a-z0-9_-]{1,96}$/i.test(pair[0]))) return 'malformed settled stint pair key';
+          if (!isInt(pair[1], 1, MAX_TIME)) return 'malformed settled stint pair count';
+        }
+      }
+    }
+    // §7dv: WHAT WAS SWORN, ALL TOLD, AND WHAT WAS STOOD. Two numbers that
+    // only rise. The world does not punish the gap between them; it declines
+    // to forget it, which is the same rule the constitution keeps about its
+    // own repeals.
+    if (p.sworn !== undefined && !isInt(p.sworn, 0, MAX_TIME)) return 'sworn out of bounds';
+    if (p.stood !== undefined && !isInt(p.stood, 0, MAX_TIME)) return 'stood out of bounds';
     // §7cl: the leashes on the two that needed them
     if (p.lastTaking !== undefined && !isInt(p.lastTaking, -1e12, 1e12)) return 'malformed taking stamp';
     if (p.lastWaking !== undefined && !isInt(p.lastWaking, -1e12, 1e12)) return 'malformed waking stamp';
@@ -7939,6 +8275,25 @@ const LANDMARK_KINDS = new Set([
     // §5k: a sworn calling must be one that exists AND one this citizen could
     // have sworn. Checking the level here as well as at the input means a
     // hostile checkpoint cannot hand somebody a calling they never earned.
+    // §5w: an apprenticeship is a tick per student, and a lineage is who,
+    // which calling, and when. A peer that disagrees about either disagrees
+    // about the world.
+    if (p.apprentices !== undefined) {
+      if (typeof p.apprentices !== 'object' || p.apprentices === null || Array.isArray(p.apprentices))
+        return 'malformed apprentices';
+      const ks = Object.keys(p.apprentices);
+      if (ks.length > APPRENTICE_SLOTS) return 'too many apprentices';
+      for (const k of ks) if (!isInt(p.apprentices[k], 0, MAX_TIME)) return `apprentice ${k} out of bounds`;
+    }
+    if (p.sworn_by !== undefined) {
+      const sb = p.sworn_by;
+      if (typeof sb !== 'object' || sb === null || Array.isArray(sb)) return 'malformed lineage';
+      if (typeof sb.by !== 'string') return 'lineage without a master';
+      if (!Object.prototype.hasOwnProperty.call(SWORN, sb.calling)) return 'lineage with no calling';
+      if (!isInt(sb.at, 0, MAX_TIME)) return 'lineage out of time';
+      if (p.calling === undefined) return 'lineage without a swearing';
+    }
+    if (p.raised !== undefined && !isInt(p.raised, 0, MAX_TIME)) return 'raised out of bounds';
     if (p.calling !== undefined) {
       if (typeof p.calling !== 'string' || !Object.prototype.hasOwnProperty.call(SWORN, p.calling)) return 'unknown calling';
       const _cs = SWORN[p.calling].skill;
@@ -8912,11 +9267,57 @@ function validInput(state, input, ctx) {
     // §5k: swear once, having done the work. There is no forswearing: a
     // calling that could be put down would be a loadout, and the whole point
     // of the word is that it costs something to say.
+    // §5w: TEACH — a master takes a citizen on. Consent is a signed input of
+    // its own, mirroring `offer_trade`: the offer is parked on the OFFERER, and
+    // the other party completes it. A master cannot be volunteered.
+    case 'teach': {
+      const t = state.players[input.to];
+      if (!t || input.to === input.playerId) return false;
+      if (t.calling !== undefined) return false;              // already sworn: nothing to teach
+      if (!adjacent(p, t)) return false;
+      const mc = typeof p.calling === 'string' ? SWORN[p.calling] : null;
+      if (!mc) return false;                                  // only the sworn may teach
+      if (levelForXp(p.skills?.[mc.skill] ?? 0) < MASTERY) return false;   // and only masters
+      const ap = p.apprentices ?? {};
+      if (Object.prototype.hasOwnProperty.call(ap, input.to)) return false;  // already taken on
+      // §the slots are few, and a lapsed one does not hold a place
+      const live = Object.values(ap).filter((at) => state.tick - at <= APPRENTICE_LAPSE);
+      return live.length < slotsFor(p);
+    }
+    case 'part': {                    // §5w: either party may end an apprenticeship
+      // NOT 'release': the consignment already owns that word, and a second
+      // case with the same label would have shadowed it silently — the kind of
+      // collision a switch never reports.
+      if (input.who === undefined) return false;
+      const other = state.players[input.who];
+      if (!other) return false;
+      const asMaster = p.apprentices && Object.prototype.hasOwnProperty.call(p.apprentices, input.who);
+      const asStudent = other.apprentices && Object.prototype.hasOwnProperty.call(other.apprentices, input.playerId);
+      return !!(asMaster || asStudent);
+    }
     case 'swear': {
       if (p.calling !== undefined) return false;              // already sworn
       if (!Object.prototype.hasOwnProperty.call(SWORN, input.calling)) return false;
       const c = SWORN[input.calling];
-      return levelForXp(p.skills?.[c.skill] ?? 0) >= SWEAR_LEVEL;
+      if (levelForXp(p.skills?.[c.skill] ?? 0) < SWEAR_LEVEL) return false;
+      // §5w: AN ATTESTED SWEARING. A citizen may name the master who took them
+      // on, and the mark goes into the record for ever. Unattested swearing
+      // stays legal — the first forester has nobody to attest them, and anyone
+      // playing at an empty hour would otherwise be stuck. The mark is the
+      // reward; its absence is not a wall.
+      if (input.attester !== undefined) {
+        const m = state.players[input.attester];
+        if (!m || input.attester === input.playerId) return false;
+        if (!adjacent(p, m)) return false;                    // in the same place
+        const mc = typeof m.calling === 'string' ? SWORN[m.calling] : null;
+        if (!mc || mc.skill !== c.skill) return false;        // the same TRADE, not the same calling
+        if (levelForXp(m.skills?.[mc.skill] ?? 0) < MASTERY) return false;
+        // and they must have taken this citizen on, and not let it lapse
+        const ap = m.apprentices;
+        if (!ap || !Object.prototype.hasOwnProperty.call(ap, input.playerId)) return false;
+        if (state.tick - ap[input.playerId] > APPRENTICE_LAPSE) return false;
+      }
+      return true;
     }
     // §5i: A JOURNEY IS ONE DEED. The first step is checked here exactly as a
     // single step is; the rest are checked by canStep again, one per interval,
@@ -9119,6 +9520,20 @@ function validInput(state, input, ctx) {
       // which this world says you are no longer together is exactly the
       // distance at which it should refuse to say you were.
       if (Math.max(Math.abs(p.x - ft.x), Math.abs(p.y - ft.y)) > FOLLOW_LOSE) return false;
+      // §7dv: AND BOTH OF YOU MUST HAVE SAID YOU WOULD BE HERE.
+      //
+      // A world with tides gates the keeping of a name on a tide being up and
+      // on BOTH citizens standing inside a stint they swore in advance. Not
+      // to make names scarce -- to make them mean the one thing they should:
+      // that two people who each promised, separately and beforehand, to be
+      // present, then were, in the same place, at the same time.
+      //
+      // The bond does not expire when the tide turns. The contact is bounded;
+      // the record of it is not. That asymmetry is the whole point of it.
+      if (state.genesis.tide) {
+        if (!anyTideOpen(state.genesis, state.tick)) return false;
+        if (!stintOpen(p, state.tick) || !stintOpen(ft, state.tick)) return false;
+      }
       const fl = p.friends ?? [];
       if (fl.includes(input.targetId)) return false;
       return fl.length < FRIEND_CAP;
@@ -9742,6 +10157,21 @@ function validInput(state, input, ctx) {
       if (!sw || sw.type !== 'spanwork' || !atOrBeside(p, sw)) return false;
       if (!isInt(input.n, 1, sp.perLay)) return false;   // a signed count, bounded by the rate
       return countItem(p.inventory, 'planks') >= 1;
+    }
+    case 'stint': {
+      // §7dv: SWEAR A LENGTH. Bounded by the founding's cap, so the far
+      // channel cannot be bought with one enormous oath on waking -- a
+      // citizen who wants to be heard all day has to keep saying so, and
+      // every renewal is a fresh decision rather than a forgotten one.
+      //
+      // One stint at a time. A citizen who is inside one cannot swear over
+      // it: the promise you are keeping is the promise you made, and there
+      // is no verb here for quietly extending it while it runs.
+      if (p.hp <= 0) return false;
+      const sn = state.genesis.stint;
+      if (!sn) return false;
+      if (!isInt(input.n, 1, sn.cap)) return false;
+      return !stintOpen(p, state.tick);
     }
     case 'grave': {
       // §6br: FOUR THINGS, AND THE FOURTH IS THE POINT.
@@ -10729,6 +11159,15 @@ function nodeExistsAt(state, ctx, x, y) { // any node occupies the tile
 // at a time to whoever is standing there.
 function spillConsignment(s, ctx, q, qid) {
   if (!q.consignment) return;
+  // §5z: A MASTER RUNNER DOES NOT SPILL. The other five boons are rewards; this
+  // one is a PROTECTION, because wayfaring's output is not a stack of things —
+  // it is arriving. Death already costs the walk back from the founding, and
+  // for a runner it also cost the load, which is the one trade where dying
+  // undoes hours of somebody else's goods rather than your own minutes.
+  //
+  // It is not a multiplier and it cannot be farmed: a master who never dies
+  // never notices it, and one who dies often has bigger problems.
+  if (masterOf(q, 'wayfaring')) return;
   const shelf = {};
   for (const cs of q.consignment.items) {
     if (!cs) continue;
@@ -11654,7 +12093,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (s.tick % ROT_EVERY !== 0) continue;
       _o.hp -= ROT_BITE;
       const _caster = s.players[_o.rotBy];
-      if (_caster) _caster.skills.sorcery += ROT_BITE;
+      if (_caster) gainXp(_caster, 'sorcery', ROT_BITE);
       if (_o.hp <= 0) { delete _o.rottingUntil; delete _o.rotBy; }
     }
   }
@@ -11709,6 +12148,72 @@ function nextState(state, inputs, _legacyBeacon) {
     // §21c: only a citizen who HAS a deed is written to; the rest are read
     // and left alone, which is the whole point of the guard.
     if (s.players[pid].deed !== undefined) delete ownPlayer(s, pid).deed;
+  }
+  // §7dv: THE STINT IS SAMPLED, AND THEN IT SETTLES.
+  //
+  // A world cannot see somebody walk away from a keyboard. What it can see is
+  // that no input arrived, which is what `isAwake` has always meant here. So
+  // presence is not asserted, it is COUNTED: every `sample` intervals the
+  // world asks who is inside a stint and awake, adds that to what they have
+  // stood, and tallies who else was within earshot at the same instant.
+  //
+  // That last number is the only one worth having. A script can swear a
+  // flawless stint and stand every interval of it alone, forever, and the
+  // tally of who was beside it stays empty. What a script cannot do is make
+  // anybody else show up.
+  //
+  // Sampling rather than tallying every interval is deliberate and not only
+  // for speed: a promise measured to the interval invites the citizen to
+  // watch a clock, and there is no version of this world that should ever ask
+  // somebody to do that.
+  {
+    const _sn = s.genesis.stint;
+    if (_sn) {
+      const _ids = Object.keys(s.players).sort();      // id order: this writes canonical state
+      if (s.tick % _sn.sample === 0) {
+        const _in = _ids.filter((id) => {
+          const q = s.players[id];
+          return q.hp > 0 && stintOpen(q, s.tick) && stintPresent(q, s.tick, _sn.sample);
+        });
+        for (const a of _in) {
+          const pa = s.players[a];
+          const near = [];
+          for (const b of _in) {
+            if (b === a) continue;
+            const pb = s.players[b];
+            if (Math.max(Math.abs(pa.x - pb.x), Math.abs(pa.y - pb.y)) <= FOLLOW_LOSE) near.push(b);
+          }
+          const own = ownPlayer(s, a);
+          own.stood = (own.stood ?? 0) + _sn.sample;    // what was STOOD, and it only rises
+          const met = { ...own.stint.met };
+          for (const b of near) {
+            if (met[b] === undefined && Object.keys(met).length >= FRIEND_CAP) continue;  // bounded
+            met[b] = (met[b] ?? 0) + _sn.sample;
+          }
+          own.stint = { from: own.stint.from, to: own.stint.to, kept: own.stint.kept + _sn.sample, met };
+        }
+      }
+      // AND THEN IT ENDS. Not because the citizen stopped -- nothing here
+      // stops anybody, and everything they do after this interval works
+      // exactly as it did before. What ends is the part that was PROMISED.
+      // Those intervals settle into a record; the ones after settle into
+      // nothing, the way a contact nobody wrote down counts as nothing.
+      for (const id of _ids) {
+        const q = s.players[id];
+        if (!q.stint || s.tick < q.stint.to) continue;
+        const own = ownPlayer(s, id);
+        const st = own.stint;
+        const met = Object.entries(st.met)
+          .sort((x, y) => (y[1] - x[1]) || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
+        const rec = { from: st.from, to: st.to, kept: st.kept, met };
+        own.stints = [rec, ...(own.stints ?? [])].slice(0, _sn.remembers);
+        delete own.stint;
+        if (met.length > 0) {
+          announce(s, (q.name ?? id.slice(0, 6)) + ' stood a stint of ' + (st.to - st.from)
+            + ', and was not alone for it.');
+        }
+      }
+    }
   }
   // the beacon rides IN the state now (v0.38). A pre-0.38 state migrates
   // itself: seeded once from the old formula, then history takes over.
@@ -12516,7 +13021,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // Three times the blow's own maximum. A goblin teaches three, a
           // troll nine, a knight and the King twelve. Tanking becomes a
           // decision about what you are willing to be hit by.
-          target.skills.prowess += DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1);
+          gainXp(target, 'prowess', DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1));
         }
         continue;
       }
@@ -12818,6 +13323,53 @@ function nextState(state, inputs, _legacyBeacon) {
       // §5k: it takes no interval and interrupts nothing. Saying what you are
       // is not an action, and a citizen mid-journey does not stop to say it.
       p.calling = inp.calling;
+      // §5w: A SWEARING ENDS EVERY APPRENTICESHIP IT WAS IN, whoever attested
+      // it and whatever trade it was to.
+      //
+      // An apprentice is by definition unsworn — `teach` refuses anyone who
+      // already has a calling — so the moment a citizen swears, no
+      // apprenticeship they are in can still be live. This closes them all,
+      // including the case that leaked: a citizen taken on by a forester who
+      // walks off and swears MINER, unattested. That is entirely their right
+      // — the apprentice promised nothing, and the master consented to teach,
+      // not to be owed — but it used to leave the master's slot held by
+      // somebody who could never be taught again until the lapse ran out.
+      for (const other of Object.values(s.players)) {
+        if (!other.apprentices) continue;
+        if (other.apprentices[inp.playerId] === undefined) continue;
+        delete other.apprentices[inp.playerId];
+        if (Object.keys(other.apprentices).length === 0) delete other.apprentices;
+      }
+      if (false) {}
+      // §5w: THE MARK IS MINTED BY FINISHING, and only by finishing. A master
+      // cannot collect lineages by taking on forty people and walking away:
+      // each one holds a slot until they get there. The apprenticeship closes
+      // in the same breath — it does not end so much as turn into the
+      // permanent thing.
+      if (inp.attester !== undefined) {
+        const m = s.players[inp.attester];
+        if (m) {
+          // the CALLING, not the person: it survives a change of name, and it
+          // says what was actually passed on
+          p.sworn_by = { by: inp.attester, calling: m.calling, at: s.tick };
+          if (m.apprentices) {
+            delete m.apprentices[inp.playerId];
+            if (Object.keys(m.apprentices).length === 0) delete m.apprentices;
+          }
+          m.raised = (m.raised ?? 0) + 1;
+        }
+      }
+    } else if (inp.type === 'teach') {
+      // §5w: the offer is parked on the MASTER, as a trade offer is parked on
+      // the offerer, and the tick it was made is the whole record: a live
+      // apprenticeship is one that has not lapsed.
+      (p.apprentices ??= {})[inp.to] = s.tick;
+    } else if (inp.type === 'part') {
+      const other = s.players[inp.who];
+      if (p.apprentices) { delete p.apprentices[inp.who]
+        if (Object.keys(p.apprentices).length === 0) delete p.apprentices; }
+      if (other && other.apprentices) { delete other.apprentices[inp.playerId]
+        if (Object.keys(other.apprentices).length === 0) delete other.apprentices; }
     } else if (inp.type === 'walk') {
       // §5i: THE FIRST STEP IS TAKEN NOW, and it is taken HERE -- in the same
       // phase as a `move`, before any swing resolves. A walk that took its
@@ -12895,7 +13447,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // and no announcement for anything else: a spell cast on every spilled
         // pack would be a drumbeat nobody could read past
         delete s.ground[inp.groundId];          // and so does the pile
-        p.skills.sorcery += XP_ALCH;              // the practice, and nothing else
+        gainXp(p, 'sorcery', XP_ALCH);              // the practice, and nothing else
       }
     } else if (inp.type === 'char') {
       const wt = s.genesis.watch, wf = s.nodes?.[inp.nodeId];
@@ -13162,7 +13714,7 @@ function nextState(state, inputs, _legacyBeacon) {
         gr.sealedBy = pid;                      // whose vigil it is
         gr.sealSpent = 1;                       // and it is spent for good
         gr.expiresAt = s.tick + SEAL_KEEPS_FRESH;
-        p.skills.sorcery += XP_ALCH;              // the same practice unmaking gives
+        gainXp(p, 'sorcery', XP_ALCH);              // the same practice unmaking gives
         // no announcement: a spell cast on every spilled pack would be a
         // drumbeat nobody could read past -- the same reason unmaking is quiet
       }
@@ -13202,7 +13754,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // efficient road. It stays twelve times worse per hour the world
         // spends, and a woodcutter still learns magic from logs. See the note
         // at `alchXpFor` for the measurement.
-        p.skills.sorcery += alchXpFor(slot.item);
+        gainXp(p, 'sorcery', alchXpFor(slot.item));
       }
     } else if (inp.type === 'mendp') {
       const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
@@ -13210,7 +13762,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (si !== -1 && t && t.hp > 0) {
         p.inventory[si] = null;
         t.hp = Math.min(maxHp(t), t.hp + 20);
-        p.skills.sorcery += XP_SPEND_SIGIL;
+        gainXp(p, 'sorcery', XP_SPEND_SIGIL);
         if (claimFirst(s, 'mendp', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to mend somebody who was not themselves.');
       }
     } else if (inp.type === 'recall') {
@@ -13494,7 +14046,12 @@ function nextState(state, inputs, _legacyBeacon) {
           const need9 = Math.max(1, w9.blows ?? 1);
           if (w9?.noAmmo !== true) {
             if (countItem(p.inventory, ammoOf(p)) < need9) { p.action = null; continue; }
-            consumeItem(p.inventory, ammoOf(p), need9);
+            // §5z: A MASTER ARCHER'S ARROWS COME BACK. Not two arrows and not more
+      // damage — both of those are multipliers, and a multiplier in a fight is
+      // a balance problem before it is a reward. This is a MATERIAL saving, the
+      // same shape as a master gatherer's double yield, and it is bounded: you
+      // can never end a fight with more arrows than you began it with.
+      if (!masterOf(p, 'marksmanship')) consumeItem(p.inventory, ammoOf(p), need9);
           }
         }
         const lvl9 = effLevel(drawn9 ? p.skills.marksmanship : p.skills.prowess);
@@ -13648,7 +14205,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6as-ii: split exactly as an ordinary melee blow splits. A special
           // taught attack alone, so a fighter who favoured it never raised the
           // number their own special scores from.
-          if (drawn9) p.skills.marksmanship += dmg9;   // 6br
+          if (drawn9) gainXp(p, 'marksmanship', dmg9);   // 6br
           else teachMelee(p, dmg9, inp.style ?? 'even', s.tick, cadenceOf(p, w9.every ?? 2));   // §6as-iii, §6di
           if (q.hp <= 0) {
             q.hp = 0;
@@ -13765,7 +14322,21 @@ function nextState(state, inputs, _legacyBeacon) {
         // it -- as every other special requires -- let the maul fire twice as
         // often as its own rule allowed: 208% of neutral, measured.
         const _ev9 = w9.every ?? 2;
-        const _rec9 = w9.rec ?? (2 * _ev9);
+        // §5z: A MASTER FIGHTER'S ARM COMES BACK SOONER.
+        //
+        // Prowess has no seam and no recipe, so there is no yield to double —
+        // and the two obvious boons both fail the test the other five pass.
+        // Dual wielding and a second blow are MULTIPLIERS, and a multiplier in
+        // a fight is a balance problem before it is a reward: it changes what a
+        // master does to another citizen, not what a master is worth.
+        //
+        // Recovery is rhythm rather than damage. A master hits exactly as hard
+        // as anyone else and no more often in the ordinary exchange — the
+        // cadence gate below is untouched — but the SPECIAL, the once-in-a-while
+        // blow this trade is defined by, is ready again a quarter sooner. It is
+        // visible to whoever they are fighting, which is the point.
+        const _rec9 = Math.max(1, Math.round((w9.rec ?? (2 * _ev9)) *
+          (masterOf(p, 'prowess') ? MASTER_REC_NUM : MASTER_REC_DEN) / MASTER_REC_DEN));
         gonneFired(s, beacon, pid, p);   // §6av: both barrels are one report, and no louder
         p.lastSwing = (s.tick - 1) + (w9.spec === 'now' ? _rec9 : Math.max(1, _rec9 - _ev9));
         p.action = null;
@@ -13927,8 +14498,23 @@ function nextState(state, inputs, _legacyBeacon) {
       }
       if (slots.length === 3) {
         for (const i2 of slots) p.inventory[i2] = null;
+        // §5z: A MASTER PRESSES TWO SIGILS FROM THE SAME THREE STONES.
+        //
+        // The obvious boon was "a master casts without spending the sigil", and
+        // it has a trap in it: sorcery's experience COMES FROM spending sigils
+        // (XP_SPEND_SIGIL), so a master who stopped spending would stop earning
+        // and be quietly frozen out of the tail past a hundred that §5o just
+        // gave a purpose. Pressing two keeps the spending, and the earning,
+        // and is the same "two where others take one" every other trade has.
+        const _sorc = masterOf(p, 'sorcery') ? MASTER_YIELD : 1;
         p.inventory[slots[0]] = { item: 'sigil', qty: 1 };
-        p.skills.sorcery += XP_ALCH * 3;   // 6bo: three stones pressed, three lessons
+        for (let _k = 1; _k < _sorc; _k++) {
+          if (STACKABLE.has('sigil')) { p.inventory[slots[0]].qty += 1; continue; }
+          const _fs = firstFreeSlot(p.inventory);
+          if (_fs === -1) break;
+          p.inventory[_fs] = { item: 'sigil', qty: 1 };
+        }
+        gainXp(p, 'sorcery', XP_ALCH * 3);   // 6bo: three stones pressed, three lessons
         if (claimFirst(s, 'sigil', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to press three stones into a sigil.');
       }
     } else if (inp.type === 'still') {
@@ -13962,7 +14548,7 @@ function nextState(state, inputs, _legacyBeacon) {
       //
       // Three sigils spent, three lessons: the same twenty a mend pays for the
       // one it spends. The nine stones were already taught at the press.
-      p.skills.sorcery += STILL_XP;
+      gainXp(p, 'sorcery', STILL_XP);
       if (claimFirst(s, 'still', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the FIRST stilling. The fight simply stops.');
     } else if (inp.type === 'cast') {
       const si = p.inventory.findIndex(sl => sl?.item === 'sigil');
@@ -13983,7 +14569,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // your arm. Being mended by somebody else stays free to the wounded,
         // and that asymmetry is the whole reason to fight in a pair.
         p.lastSwing = Math.max(p.lastSwing ?? 0, s.tick);
-        p.skills.sorcery += XP_SPEND_SIGIL;   // 6bo
+        gainXp(p, 'sorcery', XP_SPEND_SIGIL);   // 6bo
       } else if (inp.spell === 'anchor' && si !== -1) {
         p.inventory[si] = null;
         // v0.80: anchor comes HOME. The old target (cx, 7) was the classic
@@ -13995,7 +14581,7 @@ function nextState(state, inputs, _legacyBeacon) {
         p.x = sp9.x; p.y = sp9.y;
         p.action = null;
         p.trade = null;
-        p.skills.sorcery += XP_SPEND_SIGIL;   // 6bo: an anchor spends the same sigil a mend does
+        gainXp(p, 'sorcery', XP_SPEND_SIGIL);   // 6bo: an anchor spends the same sigil a mend does
       }
     } else if (inp.type === 'survey') {
       const mi = (s.markers ?? []).findIndex(m => m.x === p.x && m.y === p.y);
@@ -14049,7 +14635,15 @@ function nextState(state, inputs, _legacyBeacon) {
         p.offered[kind] = already + 1;
         const worth = PRICES[kind] * OFFER_XP_PER_COIN;
         const n = Math.min(already, OFFER_TAIL);   // the rate settles; it does not vanish
-        awardXp(p, 'mourning', Math.floor(worth * OFFER_HEAD / (OFFER_HEAD + n)), 'mourner');
+        // §5z: A MASTER MOURNER'S OFFERING COUNTS DOUBLE. Mourning has no
+        // seam and no recipe — the offering IS its yield — so this is the same
+        // "two where others take one" the gathering trades have, applied to the
+        // one thing the trade produces. It doubles what the act is WORTH, not
+        // how often it may be made: a citizen still gives up one thing at a
+        // time, and the tail still settles it.
+        const _mourn = masterOf(p, 'mourning') ? MASTER_YIELD : 1;
+        awardXp(p, 'mourning',
+          Math.floor(worth * OFFER_HEAD / (OFFER_HEAD + n)) * _mourn, 'mourner');
       }
         } else if (inp.type === 'build_brewpot') {
       const bc = s.genesis.brew;
@@ -14367,8 +14961,8 @@ function nextState(state, inputs, _legacyBeacon) {
         p.inventory[inp.slot] = null;
         const holy = sl.item === 'dragon-bones' ? XP_BURY_DRAGON : XP_BURY;
         const consecrated = hasAdjacentNode(s, _ctx, p, 'ossuary');
-        p.skills.mourning += consecrated
-          ? Math.round(holy * XP_BURY_CONSECRATED / XP_BURY) : holy;
+        gainXp(p, 'mourning', consecrated
+          ? Math.round(holy * XP_BURY_CONSECRATED / XP_BURY) : holy);
         // §7ai: TEN BURIALS MAKE A FLASK.
         //
         // An ossuary paid experience and nothing else, so consecrated ground
@@ -14773,6 +15367,15 @@ function nextState(state, inputs, _legacyBeacon) {
           announce(s, (p.name ?? pid.slice(0, 6))
             + ' draws up the FIRST charter. Somebody may sail who could not.');
       }
+    } else if (inp.type === 'stint') {
+      // §7dv: THE OATH LANDS. Re-checked here, not trusted from mayDo: a
+      // stint may have been sworn an interval ago and still be running.
+      const sn = s.genesis.stint;
+      if (sn && p.hp > 0 && isInt(inp.n, 1, sn.cap) && !stintOpen(p, s.tick)) {
+        p.stint = { from: s.tick, to: s.tick + inp.n, kept: 0, met: {} };
+        p.sworn = (p.sworn ?? 0) + inp.n;   // what was promised, all told, and it only rises
+        announce(s, (p.name ?? pid.slice(0, 6)) + ' swears a stint of ' + inp.n + '.');
+      }
     } else if (inp.type === 'befriend') {
       const fl = p.friends ?? [];
       announce(s, (p.name ?? pid.slice(0, 6)) + ' will remember '
@@ -14799,7 +15402,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (wt && wt.hp > 0 && (wt.witheredUntil ?? 0) <= s.tick) {
         consumeItem(p.inventory, 'sigil', WITHER_SIGILS);
         wt.witheredUntil = s.tick + WITHER_TICKS;
-        p.skills.sorcery += WITHER_SIGILS * XP_SPEND_SIGIL;
+        gainXp(p, 'sorcery', WITHER_SIGILS * XP_SPEND_SIGIL);
         p.action = null;
         announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the WITHERING. '
           + 'Nothing will close those wounds for a while.');
@@ -14819,7 +15422,7 @@ function nextState(state, inputs, _legacyBeacon) {
         const moved = Math.min(TAKING_BITE, kt.hp, cap - p.hp);
         kt.hp -= moved;
         if (!withered) p.hp += moved;
-        p.skills.sorcery += moved * 2;
+        gainXp(p, 'sorcery', moved * 2);
         p.lastTaking = s.tick;   // §7cl
         p.action = null;
         announce(s, (p.name ?? pid.slice(0, 6)) + ' speaks the TAKING, and is ' + moved
@@ -14852,7 +15455,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (oid === pid) return;                       // never yourself
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'wake' + oid), WAKING_HIT, 'even'));
           o.hp -= dmg; struck++;
-          p.skills.sorcery += dmg;
+          gainXp(p, 'sorcery', dmg);
         };
         for (const [oid, o] of Object.entries(s.players)) hitOne(o, oid);
         for (const [oid, o] of Object.entries(s.mobs)) hitOne(o, oid);
@@ -15367,7 +15970,7 @@ function nextState(state, inputs, _legacyBeacon) {
           m.hp -= dmg;
           if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         burnFuel(p);   // §7am: the siphon drinks
-          p.skills.marksmanship += dmg;   // 6br
+          gainXp(p, 'marksmanship', dmg);   // 6br
         }
       } else {
       // §6ap-ii: AND THE BEASTS ARE ROLLED FOR THE SAME WAY.
@@ -15685,6 +16288,27 @@ function nextState(state, inputs, _legacyBeacon) {
     // changes ONLY how many can share the node (congregation), with zero economic
     // or progression footprint. Gather speed and durability, cleanly separate.
     const rateMul = (s.genesis.gather && s.genesis.gather.rateMul) ?? 1;
+    // §5k: A CALLING DOES NOT MULTIPLY THE RATE, AND THIS IS WHY.
+    //
+    // It did, briefly: 3/2 in your own trade, on the argument that thirty
+    // levels of mastery otherwise bought an eight per cent rate while a better
+    // axe bought thirteen times that, so nobody would ever buy from a master.
+    // Two things killed it.
+    //
+    // Keepers buy nothing (§6l), so every price in this world is set by a
+    // citizen selling to a citizen. More supply is undercut supply: the price
+    // falls until the advantage is competed away, and all that is left is
+    // cheaper logs for everybody.
+    //
+    // And worse: A RATE SCALES AUTOMATION. This world ships a window for
+    // writing the citizen, and a writ collects a rate multiplier better than a
+    // person does — it never stops. So a rate bonus rewards most exactly the
+    // play the ceiling was built to blunt, which is an argument against it that
+    // has nothing to do with prices.
+    //
+    // The reward for a mastery is the YIELD below instead: rarer, gated behind
+    // a ceiling nobody else may pass, and it shows in the world rather than on
+    // the clock. One lever, not two, until a real market says otherwise.
     // 6bb: THE SEAM THAT PAYS ONCE IN SIXTEEN THOUSAND.
     //
     // Gold does not read the level, the tool or the founding's rate at all. A
@@ -15730,8 +16354,18 @@ function nextState(state, inputs, _legacyBeacon) {
       // curve does not feel: the gallows-oak pays two heartwood where the deep
       // Greenwood pays one, and charges the Wilds for the difference. Whatever
       // will not fit is simply not taken -- a pack is a pack.
+      // §5k: A MASTER TAKES TWO WHERE ANYONE ELSE TAKES ONE.
+      //
+      // Yield rather than rate, because yield shows in the WORLD instead of on
+      // the clock: a master's hour is visibly worth buying, and the pack fills
+      // at twice the speed without the strikes coming any faster. It applies
+      // only in the trade they swore to — breadth is capped at seventy and can
+      // never reach this — so it is the first thing in the world that only a
+      // master has, and it is why anybody would want one.
+      const _master = masterOf(p, y.skill);
+      const _qty = (y.qty ?? 1) * (_master ? MASTER_YIELD : 1);
       p.inventory[slot] = { item: got, qty: 1 };
-      for (let _extra = 1; _extra < (y.qty ?? 1); _extra++) {
+      for (let _extra = 1; _extra < _qty; _extra++) {
         if (STACKABLE.has(got)) { p.inventory[slot].qty += 1; continue; }
         const _s2 = firstFreeSlot(p.inventory);
         if (_s2 === -1) break;
@@ -15785,7 +16419,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (weaponOf(p)?.digs === true && DIGGABLE.has(n.type)) {
         // §5r-iii: the arm still grows, up to the door of a calling.
         if (effLevel(p.skills.prowess) < LABOUR_PROWESS_CAP)
-          p.skills.prowess += Math.round(y.xp * SPADE_STRENGTH);
+          gainXp(p, 'prowess', Math.round(y.xp * SPADE_STRENGTH));
         // AND NOTHING ELSE. This also doubled the yield, which quietly made the
         // spade a NITRE tool: 240 saltpetre an hour from one digger, when the
         // whole powder economy was built around a scarce farm byproduct. A
@@ -16092,12 +16726,29 @@ function nextState(state, inputs, _legacyBeacon) {
 module.exports = {
   // §0: Nought is a different world by worldId that draws the same island, so
   // that "nothing crosses" is arithmetic rather than a window's promise.
+  // §6dj: the two tables a citizen most needs and could least find. NODE_GATE
+  // says what level a seam or a tree wants; NODE_YIELD says what it gives and
+  // what it teaches. Without them a window can only tell somebody to go and
+  // read the engine, which is not a thing a window should ever have to say.
+  NODE_GATE, NODE_YIELD, GATHER_TOOLS, STALL_SELLS, CAP_UNSWORN, CAP_OTHER,
+  MASTER_YIELD, MASTER_REC_NUM, MASTER_REC_DEN, masterOf, GATHER_CALLING, APPRENTICE_SLOTS, APPRENTICE_LAPSE, gradeOf,
+  APPRENTICE_MILESTONES, slotsFor, isProven,
+  // §5k: a window wants to say "you cannot pass seventy here" without knowing
+  // why, so the rule is a query rather than a number to copy
+  xpCeiling, gainXp,
   noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_KEEPER, NOUGHT_POST, NOUGHT_NAME,
   // §0: a window cannot import a worldgen module (ESM importing CommonJS), so
   // a pillar packs the registered generator's answers into a table and serves
   // those instead. Reading the registry is how it knows what to pack.
   TERRAINS,
   registerTerrain, terrainBlocked, crossingBlocked, crossingView, geographyHashOf,
+  // §7dv: THE TIDE AND THE STINT. A window must be able to draw the forecast
+  // without being told it -- when the far channel opens, when it shuts, and
+  // whether this citizen has standing to use it. All of it is arithmetic on
+  // the interval count, so every window answers the same and none of them has
+  // to be believed.
+  tideUp, tidesOpen, anyTideOpen, nextTideTurn,
+  stintOpen, stintPresent, maySpeakFar, withinEarshot,
   SPEC_VERSION, TICK_MS, INV_SLOTS,
   XP_TABLE, levelForXp,
   canonical, stateHash, sha256, beaconValue, roll,
