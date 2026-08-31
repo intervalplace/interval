@@ -1,3 +1,64 @@
+# Three windows: mist, hill and writ
+
+**Three windows.** `window-mist.html` is first person in eleven tiles of fog.
+`window-hill.html` is the same world from above it: an orthographic camera at the
+old isometric angle, twenty-odd tiles of country, your own citizen small in the
+middle, and the board turned in whole quarters rather than a head being turned.
+
+`window-writ.html` is neither: it is a citizen you **write** rather than steer.
+One function, called once an interval, returning one deed — a signature that is
+the engine's own rule made into a shape you cannot hold wrongly, since a writ
+cannot act twice in a tick because the function returns once. It runs in a
+Worker with `fetch`, `XMLHttpRequest`, `WebSocket`, `importScripts` and
+`EventSource` deleted before your code is reached; it is handed a state and
+returns a deed, which is the same bargain every window here makes. Beside the
+world runs a decision log, tick by tick, because watching your citizen do
+something stupid and working out why is the actual game.
+
+It is not a macro, and for reasons that come from the engine rather than from
+taste: a writ is **not faster than a person** (one input an interval, and §0c
+makes a scripted soul sit the same vigil), a run is **checkable** (signed inputs
+into a pure function, so a citizen can be published beside its log and replayed
+by a stranger), and a citizen becomes an **object you can hand to somebody**.
+
+What it costs, said plainly: a writ is not better than you, but it is
+**tireless**, and for gathering, tireless is better. A world where the good play
+is to write a woodcutter and go to bed has more work happening in it and fewer
+people. The rate limit caps throughput, not attendance, and nothing in that file
+fixes it. That is a design decision to take deliberately, not a bug to find later.
+
+`check-window-writ.mjs` is adversarial rather than descriptive, because this
+window's central claim is a *constraint*: it hands the sandbox writs that return
+arrays, that return strings, that throw, that never return, that go looking for
+the network, and that ask for verbs the pillar does not carry — and asserts none
+of them buys an advantage a person at a keyboard could not have.
+
+All three share a great deal of code, and that is a **fork** — forks drift. The
+sixteen checks are therefore run twice, once against each file
+(`check-window-hill-*.mjs` and `check-window-writ-*.mjs` are the same questions
+asked of the other two), so
+that where the two disagree about the world, the disagreement is caught rather
+than discovered.
+
+Two things had to be re-tuned for the projection rather than merely ported.
+**The board is sixteen tiles, not the whole built radius** — at twenty-two a
+troll was twenty pixels and a fight was legible only through its hitsplats,
+which is the mist window's fault in reverse: too much country and not enough of
+what is happening in it. `?tiles=N` adjusts it. And **particles are scaled 2.8x**:
+a spark sized for something a hand's breadth from your eye is four pixels across
+at twelve pixels to the metre, so the entire feedback layer silently vanished —
+the deeds still happened and nothing on the screen said so.
+
+The hill window exists because the mist window's projection fights the engine in
+two places. Interval's economy wants to be visible at once and a keyhole puts it
+behind eight panels; and a world whose mean distance from a land tile to any
+built thing is thirty-six tiles is a landscape from above and a corridor from
+inside. What the hill window gives up is atmosphere, which is the mist window's
+entire argument. Neither is the right answer; they are answers to different
+questions, which is the point of a protocol anyone may write a window against.
+
+---
+
 # The mist window
 
 An Interval window that renders the same world the flat window renders, the way
@@ -18,6 +79,13 @@ it is not.
 **Two of these files are yours and I changed them.** If you have edited either
 since you sent me the project, do NOT overwrite — apply the changes by hand,
 they are one line each.
+
+### `serve.mjs` — two routes and the act ladder
+
+```js
+if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
+if (path === '/play/hill' || path === '/hill') return sendFile('./window-hill.html', 'text/html')
+```
 
 ### `serve.mjs` — the act ladder, extended
 
@@ -53,6 +121,46 @@ and `deliver`. A citizen could not have found out why, because there was
 nothing to see.
 
 `node check-window-skills.mjs` prints the table. Before: 7 of 9. After: 9 of 9.
+
+### `worldgen-expanse7.mjs` — the height of the land, exported
+
+`elevGrid(g)`. **This field is not new and it is not decoration.** `elevAt` is
+what routed every road in the world: the router charges six for each unit a step
+climbs, which is why the roads follow valley floors, contour along hillsides and
+arrive at passes rather than summits. The hills were already true — they are the
+*reason* the roads wander — and every window has been drawing flat ground
+underneath a winding road, disagreeing with the world about why it winds.
+
+Served on a four-tile lattice, because the field's finest octave is eight tiles
+across: sampling every fourth tile and interpolating reproduces it, and costs
+**29 KB for the whole expanse** instead of 459.
+
+It changes no tile's walkability and enters no geography hash. A window may draw
+the land as it lies. Whether a step should *cost* what it climbs is a question
+for the spec and the engine, and neither the table nor the window gets to answer
+it.
+
+Both eras draw it, because it is truth rather than decoration: a 1994 machine
+would have drawn these hills too.
+
+### `engine.js` — four tables exported
+
+`NODE_GATE`, `NODE_YIELD`, `GATHER_TOOLS` and `STALL_SELLS`. No logic changed;
+they were already there, just not visible outside the file. `NODE_GATE` is the
+one that matters most: it is the only place in the world that says an ironbark
+wants woodcraft 45, and without it a window can only tell a citizen to go and
+read the engine — which is not a thing a window should ever have to say.
+
+### `serve.mjs` also gains `/api/tables`
+
+The engine already exports `RECIPES`, `PRICES`, `WEAPONS`, `SMITH_REQS`,
+`MOB_STATS`, `VIGIL_TICKS` and the rest. Nothing served them, so every window
+kept a hand copy — and when the mist window's forge table was measured against
+the engine, **twenty of its fifty-eight costs had drifted**. It offered recipes
+that could not be made, hid ones that could, and named two ingredients
+(`steel-ingot`) that do not exist in the world. The route is a door onto tables
+that were already there. Windows fetch it at boot; the old copies stay only as a
+fallback for a pillar too old to answer.
 
 ### `sdk.mjs` — five methods added
 
@@ -97,6 +205,31 @@ open http://localhost:8787/play/mist
 Cold start takes about three minutes: the expanse is founded from the generator
 and the §0 practice island is built once at boot.
 
+**There was an era switch here, and it is gone.** `?era=ps2` and `?era=ps3`
+turned off the affine mapping and the vertex snap, put bilinear and mipmaps on
+the textures, widened the palettes, doubled the frame, added a specular and a
+rim and a filmic grade, and finished the light per pixel against a normal
+derived from the texture's own luminance. Every one of those worked. Together
+they looked **worse**, and the reason is worth keeping written down:
+
+> The content was PS1 content — sixty-four-pixel textures painted to be seen at
+> 320&times;240 through a dither, and bodies built out of boxes. Filtering and
+> resolution do not flatter that, they **expose** it. A grass card that reads as
+> grass at 240p is a set of enormous hard-edged blades at 512p, standing next to
+> a tree that is still a 1994 tree. Nothing agreed about what year it was.
+
+The 1994 picture is better because it is *coherent*: the dither, the texel size,
+the flat fog and the chunky tree all belong to one machine, so the limits read as
+a style rather than as a shortfall. Constraints were doing the design work, and
+removing them left the art carrying weight it was never drawn to carry.
+`renders/judge-ps1.png` and `renders/judge-ps2.png` are the same tile, tick and
+heading in both, if you want to check the reasoning.
+
+Two things survived the deletion, because neither was ever about an era: the
+**ground clutter**, now at this machine's fidelity — a field with grass in it
+beats a bare green plane at any resolution — and the **height of the land**,
+which is the world's own data and was never a rendering choice at all.
+
 **`?far=N`** widens the draw distance, 8 to 64 tiles, default 13. It moves the
 built ground and the fog together, because moving one without the other gives
 you a country that stops at a hard edge. Eleven tiles is the window's argument;
@@ -117,9 +250,15 @@ this is how you find out whether you agree with it.
 | `check-window-verbs.mjs` | all 32 verbs reachable, and none offered where they cannot happen |
 | `check-window-birth.mjs` | §0c: it knocks, waits like everyone, and crosses only when it may |
 | `check-window-feedback.mjs` | it *shows* what happens, not only sends it |
+| `check-window-stride.mjs` | a step snaps, a journey flows, and both of them arrive |
 | `check-window-sound.mjs` | the door has a theme and every deed has a noise |
 | `check-window-motion.mjs` | all 33 engine deeds throw something, and it clears up after itself |
 | `check-window-skills.mjs` | which of the nine skills can be trained, and whose fault it is when one cannot |
+| `check-window-guide.mjs` | a citizen can learn what a skill is for without reading the engine |
+| `check-window-tables.mjs` | the recipes and prices are the pillar's, and the window takes them |
+| `check-window-fuzz.mjs` | thirty malformed states, and it keeps drawing through all of them |
+| `check-window-death.mjs` | death is a state the window shows, and does not ask you to fix |
+| `check-window-cost.mjs` | a real world fits inside the frame budget, and an hour does not grow |
 | `check-window-nodes.mjs` | every node type the world puts on a tile has a body of its own |
 | `check-window-ground.mjs` | the ground agrees with the terrain table the pillar serves |
 | `check-window-pad.mjs` | the whole window is reachable from a controller |
@@ -131,7 +270,8 @@ skip rather than fail:
 
 ```
 npm i three@0.128.0
-for c in mist verbs birth feedback sound motion chart pad skills ground nodes; do node check-window-$c.mjs; done
+for c in mist verbs birth feedback sound motion chart pad skills ground nodes death fuzz tables guide stride; do node check-window-$c.mjs; done
+node --expose-gc check-window-cost.mjs      # needs a world dump from check-window-live.mjs
 node check-window-live.mjs      # boots its own pillar; ~3 minutes
 ```
 
@@ -236,6 +376,72 @@ midnight — and only the direction is fixed, over your shoulder.
 done with visibly bare hands. It has a tapering pole and a line on it now,
 because without the line it is a stick.
 
+**A step is a step.** This window spent its first month *hiding* the tick: the
+camera chased the citizen's tile with a per-frame lerp, the head-bob ran on a
+free sine, and the footfalls came off a timer with no relation to where the feet
+were. An exponential chase never actually arrives, so the eye was permanently
+behind the body it was following — and being permanently behind at a one-second
+interval is precisely what reads as lag rather than smoothness.
+
+It now takes strides, and it can tell a step from a journey. A **lone** step
+snaps: 260ms, hard out, done, and then genuinely still. Steps that keep arriving
+are **walking**, and stretch to 820ms with an ease that runs one into the next,
+so crossing the fens is not two hundred hard stops — 74% of frames are moving
+rather than 25%. Both shapes *land* exactly on the tile, the body dips through
+the stride and the footfall sounds when the foot lands, and the leading foot
+alternates. Interval moves one tile per interval; this is what that feels like
+when a window stops apologising for it.
+
+**A skill guide, derived and never written.** Every gate in this world is a
+number in a table, and none of it was anywhere a person could see: you found out
+by walking to a tree and being refused, with no reason given. `Q` &rarr; *your
+hand, and what it opens* lists the nine skills with your level and the next
+number that matters; open one and it says what to hold, what each seam gives and
+teaches, what is **still shut** with the level it wants, and what is already
+yours. Every line is read off the tables the pillar serves — so it cannot go
+stale, cannot disagree with the world, and a gate added to the engine appears in
+the guide without anybody remembering to write it down. That matters here: this
+window has already been bitten twice by hand-kept copies.
+
+**It does not trust the world to be tidy.** A window that throws stops drawing —
+not a wrong pixel, a black screen and a console nobody is reading. Thirty
+malformed states are thrown at it and then *used*, panels opened and keys
+pressed, because half the reads happen inside a panel and a state that renders
+can still explode the moment somebody presses TAB. Three broke it on the first
+run: a null node, a mob with no type, and `markers` that was not a list. Every
+read of the world is defended at its edge now. The pillar this was built against
+sends none of these, but a peer node, an older engine or a newer one might, and
+a window is not entitled to assume the world it is shown is well-formed.
+
+**Death is a state, not a gap.** §6c: five intervals after you fall, the world
+puts you back at the founding with your health whole — processed at the top of a
+tick, needing no input at all. This window used to offer a dead citizen a
+*wake* that sent `spawn`, which is the input for a soul **not** in the world and
+is refused for one who is. So on the single screen where a person most needs
+telling what is happening, it showed an unchanged HUD with the bar at zero and a
+button that did nothing. Now the eye drops to the grass and rolls, the frame
+goes dark and says **YOU FELL**, and it gives the count and says the count is
+not yours to hurry. No deed, no step and no panel while you are down.
+
+**It runs at thirty, on a real world.** The other checks ask whether the window
+is truthful; `check-window-cost.mjs` asks whether it is playable, and only a
+real world can answer that — an invented state with four nodes in it will never
+find this. It found that `nodesNear` walked all ten thousand nodes, `options`
+called it a dozen times, and the HUD called `options` **every frame**: a hundred
+and forty thousand iterations and thirteen ten-thousand-entry arrays allocated
+sixty times a second, to answer a question that changes only when the citizen
+moves. The window cost **59ms a frame against a 33ms budget** — seventeen frames
+a second, in a window whose whole argument is that it runs at thirty. The
+country is now indexed once per state and the frame reads the index: **1.5ms**.
+A step across a tile went from 86ms to 22ms.
+
+It also found that removing a thing from the scene is not the same as letting it
+go: `remove` unhooks it from the graph and leaves the geometry alive on the GPU,
+and this window builds a fresh one for every tree, rock and body that walks into
+the fog. Geometries are disposed on removal now (materials and textures are not
+— they are shared and the next tree wants them), and the nameplate cache is
+pruned. Nine hundred steps: the scene stays bounded and the heap settles.
+
 **Everything the world puts on a tile looks like itself.** `makeNode` has a
 default — an unknown type becomes a grey stone with a cap — and that default is
 right, because a window must draw *something* for a thing the world invented
@@ -266,13 +472,97 @@ bare stone. The table is fetched at boot, not the first time you press M.
 building — what the era did instead of shadow maps, and the single biggest fix
 for things reading as hovering rather than standing.
 
+**Every weapon is HELD like itself, too.** Everything in the hand shared one
+rest pose — rolled over at 0.74 radians, which is right for a haft you swing and
+wrong for a stave you draw. Rolled that far, a bowstring offset sideways swung
+across the *front* of the stave, so the picture showed a stick with a wire laid
+over it. Bows, gonnes, rods and spears have their own poses now, and the bow is
+one continuous arc of seven segments with the riser deepest away from the
+archer, a straight string on the near side, and an arrow on the rest.
+
+**A blow on a person is still a blow.** Damage was read off the mob table and
+off your own health and nowhere else, so a fight between two citizens was the
+one fight in the world with no numbers in the air. Other citizens take
+hitsplats and flinch now, and a citizen who goes down gets the dagger mark.
+
 **Every weapon swings like itself.** Six arcs, not one: a maul is wound right
 back and dropped, a dagger is three inches and back twice, a spear thrusts down
 its own line, a bow draws and holds and releases, a staff sweeps right to left,
 a sword cuts shoulder to hip — each at its own speed and with its own noise.
 Bare hands get a short hook.
 
-**The ground under your feet has a voice.** A footstep was one dull thud on a
+**The bar is made at the furnace, the tool at the anvil.** The guide labelled
+every `SMITH_REQS` entry a *forge* &mdash; and all five `SMELTED` recipes have
+one. So it was telling a citizen to make iron at an anvil that refuses it, and
+&sect;7p's whole point is that the anvil at Thornbury stands **238 tiles** from
+the furnace at Cragfoot. That is a long way to carry ore on a window's word.
+`serve.mjs` now sends the `SMELTED` set with the other tables, and the guide
+says *smelt* where the engine says furnace.
+
+**And where a thing comes from when it is not made.** A guide that knows only the
+crafting tables knows half the world: a hollow bow is forged at woodcraft 12
+*and* carried by the gibbet-dead and skeleton-knights. `MOB_STATS` already
+carries every drop table and the pillar already served it &mdash; nothing was
+missing but the question. Any item in your pack now offers *where it comes
+from*: which seams yield it, whether it is forged or smelted, which beasts carry
+it and how often, and which stall sells it and for how much.
+
+**The chime is window-web's, note for note.** C, E, G, then the octave held long
+with the fifth still ringing under it &mdash; the same five tones, the same
+triangle wave, the same eight-millisecond attack and exponential fall, which is
+what makes it a chime rather than a beep. Taken deliberately rather than
+re-invented: a person who has played this world in one window should recognise
+the sound of getting better at something in another. It is the same world, and
+this is one of the few places a window may agree about a *feeling* rather than
+only about a fact. `check-window-sound.mjs` reads the notes out of
+`window-web.html` itself and compares, so the two cannot drift apart.
+
+**A level takes the middle of the frame.** It used to be one grey line in the
+corner, in the same colour as everything else the feed says, gone in four
+seconds &mdash; and a level is the only thing in this world that is *permanent*.
+Hours of a trade, and it never goes back down. It was being reported like a
+footstep. Now it is a plate in the centre with the skill and the new number, a
+ring of motes off the citizen, and &mdash; the part that matters &mdash; **what
+it opened**, read off the same `NODE_GATE` / `WIELD_REQS` / `SMITH_REQS` the
+skill guide uses, so it cannot claim an unlock the world does not have. A level
+that opens nothing says what the next one opens instead, because otherwise the
+banner is a number congratulating itself.
+
+**Beasts have voices, and here that is not decoration.** You can see eleven
+tiles; everything else you know about where you are, you know by ear. A world
+where the wolves are silent is a world where the only warning is the one that
+arrives too late. Every one of the 24 beasts has a throat chosen by CHASSIS
+rather than by name &mdash; a growl, a roar, a shriek, a moan, a keen, a rattle,
+a hiss, a chitter, a caw, a snort, a bleat &mdash; each carrying its own distance
+(a dragon is heard at sixteen tiles, a crab at six) and falling off with it. One
+voice at a time, nearest first, because a wood where every beast calls at once is
+noise and noise carries no information. And the dragon's breath is the only sound
+in the world with a warning in the front of it: an inhale, then a second and a
+half of it.
+
+**A blow that lands sounds like the thing that landed it.** Every hit in the
+world used to be one `thud`. A maul is a low collapse, a dagger a short bright
+tick, a spear a pierce, a sword a cut with a ring in it, a staff or a pickaxe a
+crack of bone. Struck at distance, quieter.
+
+**And the deeds stopped borrowing.** Cooking was a hammer on an anvil; it is a
+sizzle now. Drinking pours, a mill grinds, a brewpot bubbles, a sawpit saws, an
+ossuary tolls, kindling catches, digging is soft, fletching is three strokes of a
+knife. 63 sounds, none of them sampled &mdash; all four oscillators and a bucket
+of noise, which is roughly what a disc had left after the textures.
+
+**The ground under your feet has a voice, and it is the ground you can SEE.**
+The footstep and the ground texture used to decide separately — the eye read the
+pillar's terrain table, the ear still read the hash noise the ground used before
+that table existed. So a citizen could stand on visibly tilled earth and hear
+grass, or cross the fens to the sound of a dry field. Both now ask one
+`cellAt()`, and the eight countries are eight surfaces: the greenwood swallows a
+footfall in leaf litter, the moor rustles through heather, the downs crunch on
+dry chalk, the fens squelch, a crag is bare rock, a road is stone, the shore is
+shingle. A window whose eye and ear disagree about where it is standing is a
+smaller version of the fault this whole file is about.
+
+**And the older claim, kept for the record:** A footstep was one dull thud on a
 road, in a fen and through a field. It now reads the tile the window already
 picked a texture for: grass, dirt, stone on a road, and a wet slap near water.
 And a fire is a sound before it is a light — a filtered crackle that rises as
@@ -311,9 +601,9 @@ world rather than stopping when you go in.
 
 - Nothing here has ever run in a browser. The software rasteriser is faithful
   because I wrote both halves, which is exactly the risk.
-- The stall prices and forge recipes are **copied tables**. If the engine's
-  numbers move, the window will show a stale price and the pillar will refuse
-  the deed. The refusal is correct; the window would be lying about the cost.
+- The copied tables are gone: the window fetches `/api/tables` from the pillar
+  at boot and only falls back to its own stale copy if the route is missing,
+  saying so on the anvil panel when it does.
 - `cast: mend` and `mendp` are deliberately absent. The engine has both, but
   this pillar maps every `cast` to an anchor and does not take `mendp` at all.
   Offering them would be the exact fault the window forbids everywhere else.
