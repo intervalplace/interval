@@ -15,7 +15,7 @@ const pkg = JSON.parse(read('package.json'))
 test('package.json declares the release tuple', () => {
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/)
   assert.ok(pkg.protocol, 'package.json has a protocol block')
-  assert.equal(pkg.protocol.specVersion, '0.99')
+  assert.equal(pkg.protocol.specVersion, '1.02')
   assert.equal(pkg.protocol.consensusVersion, '1.9')
 })
 
