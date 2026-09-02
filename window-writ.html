@@ -4116,13 +4116,42 @@ function buildViewmodel (item) {
     const head = kind === 'maul' || kind === 'flail' ? vbox(0.14, 0.14, 0.14, 'iron', metal, 0.06)
                : kind === 'pickaxe' ? vbox(0.32, 0.04, 0.04, 'iron', metal, 0.05)
                : kind === 'spade' ? vbox(0.14, 0.16, 0.028, 'iron', metal, 0.05)
-               : vbox(0.055, 0.11, 0.035, 'iron', metal, 0.05)
+               : vbox(0.05, 0.10, 0.045, 'iron', metal, 0.05)   // the eye the haft passes through
     head.position.y = L * 0.88; grip.add(head)
-    if (kind === 'hatchet') { const bit = vbox(0.085, 0.13, 0.026, 'iron', metal, 0.04)
-      bit.position.set(0.07, L * 0.88, 0); bit.rotation.z = -0.12; grip.add(bit) }
+    // §AN AXE IS ITS HEAD. This was a 0.055-wide box with a 0.085 bit beside it
+    // on a 0.44 shaft — at 320x240, in the corner of the eye, that is a thin
+    // brown stick with a nub, which is the silhouette of a BOW. Reported as
+    // exactly that from real play.
+    //
+    // What makes an axe read at this size is not the haft and not detail: it is
+    // a broad wedge hanging off ONE side, wider than it is tall, with a pale
+    // edge along the front of it. Three boxes, and the whole thing changes.
+    if (kind === 'hatchet') {
+      const cheek = vbox(0.19, 0.145, 0.030, 'iron', metal, 0.05)
+      cheek.position.set(0.105, L * 0.88, 0); cheek.rotation.z = -0.10; grip.add(cheek)
+      const beard = vbox(0.115, 0.085, 0.028, 'iron', metal, 0.05)   // the hook under it
+      beard.position.set(0.075, L * 0.88 - 0.09, 0); beard.rotation.z = 0.22; grip.add(beard)
+      const edge = vbox(0.030, 0.20, 0.034, 'iron', 0xe8eef4, 0.02)  // the bit, bright
+      edge.position.set(0.196, L * 0.88 - 0.018, 0); edge.rotation.z = -0.10; grip.add(edge)
+    }
   } else if (kind === 'spear' || kind === 'javelin') {
-    shaft(0.78, 0.034)
-    const tip = vbox(0.045, 0.17, 0.018, 'iron', metal); tip.position.y = 0.74; grip.add(tip)
+    // §A SPEAR IS HELD AT ITS MIDDLE, NOT ITS BUTT. Everything else in this
+    // file stands on the grip and points +Y, which is right for an axe you
+    // swing and wrong for a shaft you thrust: it put the hand on the very end
+    // and the point three quarters of a metre up and away, which is how you
+    // carry a pike on a march and not how anybody holds a spear.
+    //
+    // So the shaft is slid DOWN through the hand: a third of it behind the
+    // grip, two thirds in front. The pose below then only has to lay it flat.
+    const SP = 0.92, BUTT = 0.30
+    const sh = vbox(0.034, SP, 0.034, 'bark', 0x8a6a3a, 0.05)
+    sh.position.y = SP / 2 - BUTT; grip.add(sh)
+    const collar = vbox(0.046, 0.05, 0.046, 'iron', metal, 0.04)     // the ferrule
+    collar.position.y = SP - BUTT - 0.20; grip.add(collar)
+    const tip = vbox(0.048, 0.19, 0.020, 'iron', metal)
+    tip.position.y = SP - BUTT - 0.03; grip.add(tip)
+    const barb = vbox(0.088, 0.045, 0.016, 'iron', metal)            // and the leaf of it
+    barb.position.y = SP - BUTT - 0.115; grip.add(barb)
   } else if (kind === 'bow' || kind === 'crossbow') {
     // ONE CONTINUOUS STAVE, not three sticks near each other. Seven short
     // segments walked along an arc: the riser, where the hand is, sits deepest
@@ -4173,7 +4202,11 @@ const VM_POSE = {                    // per kind: where it sits, and how it is h
   bow:     { p: [0.31, -0.30, -0.92], r: [-0.05, 0.20, 0.06] },
   gonne:   { p: [0.30, -0.36, -0.72], r: [-0.14, 0.30, 0.16] },
   rod:     { p: [0.34, -0.40, -0.78], r: [-0.30, 0.34, 0.42] },
-  spear:   { p: [0.36, -0.40, -0.80], r: [-0.34, 0.34, 0.50] },
+  // §laid along the ready line: a thrust is a straight line, but a spear
+  // pointed straight down the eye is a stub with a hand on it. It wants enough
+  // pitch to read as level and enough yaw to cross the frame, so the SHAFT is
+  // what you see and the point sits near the middle where a thrust will go.
+  spear:   { p: [0.40, -0.34, -0.62], r: [-0.72, 0.40, 0.12] },
   fist:    { p: [0.40, -0.45, -0.80], r: [-0.26, 0.36, 0.74] },
   default: { p: [0.40, -0.43, -0.80], r: [-0.26, 0.36, 0.74] }
 }
