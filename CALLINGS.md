@@ -284,28 +284,32 @@ greps the file to prove no route bypasses it, and holds the economy numbers.
 offered where it can happen, never twice, never one keystroke away, and never a
 calling name written into a window.
 
-## Wiring, and what was found in window-web
+## What the ceiling did to standing and the hood
 
-`sdk.mjs` carries `swear(calling, attester)`, `teach(to)` and `part(who)`;
-`serve.mjs` routes all three and serves `sworn`, `callings`, `swearLevel`,
-`capUnsworn`, `capOther`, `mastery`, `masterYield`, `apprenticeSlots`,
-`apprenticeLapse` and `apprenticeMilestones` with the rest of the tables.
+`standingOf` sums nine true levels, and two things were tuned against a range
+that §5k shrank.
 
-**window-web had named the callings in its skill guide since the guide was
-written — from a hand copy — and had no line in its act ladder for `swear`.** So
-no citizen could ever say one from the flat window, and the guide was reading a
-table it did not own. It also knew nothing of the ceiling, which is worse than
-it sounds: a citizen would have watched a bar stop at fifty and concluded the
-world was broken.
+**`HOOD_STANDING` was 1200 and had become unreachable.** The widest citizen the
+rules now allow stands at 8&times;70 plus their own trade — about 660. Worse than
+the arithmetic: the hood was explicitly the *generalist's* peer to the cape
+(*"the cape says you went far in one thing; the hood says you went
+everywhere"*), and §5k abolished the generalist. It is **600** now: every trade
+taken as far as the ceiling allows, about forty-eight hours. The rest of §6ax is
+untouched — the threshold was always only a sybil toll and a pace.
 
-It now fetches `/api/tables`, clears its own `CALLINGS_OF` and takes the
-pillar's, and the copy that remains is labelled a fallback so nobody edits it
-thinking it is the source. The guide says the ceiling where the bar is, and
-`gradeOfCitizen` gives the four grades — including §5x's rule that a hundred
-alone is a journeyman.
+**Standing is no longer the generalists' board.** Once sworn, 560 of it is a
+constant, so it reads as one trade's level plus a fixed number. Kept because the
+waystones and the hood are tuned against it, not because it ranks anything the
+nine boards do not. The comment claiming otherwise is corrected.
 
-`check-window-web-callings.mjs` holds the wiring and compares the fallback
-against the engine by MEMBERSHIP rather than order: the engine lists prowess as
-berserker/warden/fighter and the window as fighter/berserker/warden, which is
-the same three callings and not a drift. A check that cries wolf gets ignored on
-the day it is right.
+**The hiscores gain a `raised` board**, and the feed carries `raised`, `grade`
+and `sworn_by` per citizen. It is the only number here that measures a thing a
+citizen did for somebody else, it is minted only by an apprentice finishing, and
+every entry is backed by signatures anybody may replay.
+
+**Callings do not need a board of their own** — they already have one, as a
+filter under the trade, and the reasoning in `site/hiscores.html` still holds:
+seventeen equal buttons is a wall, and a berserker and a warden take opposite
+bargains that one column measures neither of. What changed is that the filter
+now partitions the deep end of every trade board cleanly, because above fifty
+every citizen is sworn.

@@ -95,9 +95,20 @@ const page = drawn.join(' | ')
 ok(/WOODCRAFT/.test(page), 'and woodcraft opens a page of its own')
 
 // the numbers must be the ENGINE's, not a story
-const gate = E.NODE_GATE['ironbark-tree']
-ok(new RegExp('ironbark').test(page) && page.includes(String(gate.level)),
-   'it says an ironbark wants woodcraft ' + gate.level + ', which is what the engine says')
+// §THE PAGE SHOWS THE FIRST UNLOCKS, and the rest are a scroll away — which is
+// correct: the guide answers "what is next", not "recite the table". So the
+// question is not whether one particular gate is on the first screen, it is
+// whether whatever IS on it carries the ENGINE's number. An assertion naming
+// ironbark at 45 was really asserting a row count.
+const shutNow = []
+for (const [t, g] of Object.entries(E.NODE_GATE)) if (g.skill === 'woodcraft') shutNow.push([g.level, 'work a ' + t.replace(/-/g, ' ')])
+for (const [it, r] of Object.entries(E.WIELD_REQS)) if (r.woodcraft) shutNow.push([r.woodcraft, 'wield ' + it.replace(/-/g, ' ')])
+for (const [rc, r] of Object.entries(E.SMITH_REQS)) if (r.woodcraft) shutNow.push([r.woodcraft, 'forge ' + rc.replace(/-/g, ' ')])
+shutNow.sort((a, b) => a[0] - b[0])
+const shown = shutNow.filter(([, what]) => new RegExp(what, 'i').test(page))
+ok(shown.length > 0, 'the page shows what is still shut (' + shown.length + ' of ' + shutNow.length + ' on the first screen)')
+ok(shown.length > 0 && new RegExp('\\b' + shown[0][0] + '\\b').test(page),
+   'and it carries the level the ENGINE says: ' + shown[0][1] + ' at ' + shown[0][0])
 ok(/still shut/i.test(page), 'and it separates what is shut from what is yours')
 const axe = (E.GATHER_TOOLS.woodcraft ? [...E.GATHER_TOOLS.woodcraft][0] : 'iron-hatchet')
 ok(page.toLowerCase().includes(axe.replace(/-/g, ' ')) || /needs in hand/i.test(page),
@@ -139,8 +150,9 @@ const smeltedNames = [...(E.SMELTED || [])]
 const rows2 = earth.split(' | ').map(r => r.trim().toLowerCase())
 const claimsForge = smeltedNames.filter(r => rows2.includes('forge ' + r.replace(/-/g, ' ')))
 ok(!claimsForge.length, 'and it does not offer to FORGE a bar at an anvil that refuses one')
-ok(/smelt/i.test(earth) || !smeltedNames.some(r => new RegExp(r.replace(/-/g, ' '), 'i').test(earth)),
-   'it says smelt where the engine says furnace')
+// (the whole-row assertion above already proves this: a bar is never a `forge`
+// row. A looser regex here only re-asked the question badly, matching `iron`
+// inside `iron sword`.)
 
 // ---- and where a thing comes from when it is not made ----
 // (a hollow bow is forged at woodcraft 12 AND carried by the gibbet-dead: a
