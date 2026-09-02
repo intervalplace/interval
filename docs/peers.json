@@ -1,0 +1,6 @@
+{
+  "_": "Nodes this window may read the world from. Any peer of the world will do. Edit and republish freely -- the page reads this file from beside itself, so it works from a CDN, a repo, or a USB stick.",
+  "nodes": [
+    "https://interval.place"
+  ]
+}
