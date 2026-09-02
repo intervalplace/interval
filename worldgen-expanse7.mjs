@@ -2606,6 +2606,31 @@ E.registerTerrain(GENERATOR_ID, {
   // and to name the monument a finished span bears. A generator with no wild
   // crossings omits this and the engine offers none.
   spanSites: (g) => SPAN_SITES.map((s) => ({ x: s.x, y: s.y, name: s.name })),
+  // §6dj: THE HEIGHT OF THE LAND, AS DATA.
+  //
+  // This field is not new and it is not decoration: it is what routed every
+  // road in the world. `elevAt` charges six for every unit a step climbs, which
+  // is why the roads follow valley floors, contour along hillsides and arrive
+  // at passes rather than summits. The hills are already TRUE — they are the
+  // reason the roads wander — and every window has been drawing flat ground
+  // underneath a winding road and disagreeing with the world about why it winds.
+  //
+  // Served on a four-tile lattice, because the field's finest octave is eight
+  // tiles wide: sampling every fourth tile and interpolating between reproduces
+  // it, and costs a thirty-second of a byte a tile instead of a whole one.
+  //
+  // It changes NO tile's walkability and enters no geography hash. A window may
+  // draw the land as it lies; whether a step should COST what it climbs is a
+  // question for the spec and the engine, not for this table.
+  elevGrid: (g) => {
+    const salt = goingSalt(TALLYHOLM_SEED) ^ 0x9e37
+    const step = 4
+    const w = Math.ceil(g.worldW / step) + 1, h = Math.ceil(g.worldH / step) + 1
+    const out = new Array(w * h)
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++)
+      out[j * w + i] = elevAt(salt, Math.min(g.worldW - 1, i * step), Math.min(g.worldH - 1, j * step))
+    return { step, w, h, min: Math.min(...out), max: Math.max(...out), v: out }
+  },
   // WHERE THE TOWNS STAND, AS DATA. Every window used to re-derive this for
   // itself from a hand-copied table, and the copy went stale. The node that
   // founded the world is the one place that ran the real seater; it ships what
@@ -2653,6 +2678,50 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // the RATE by killing carriers before they bank, never the total. A plank
   // banked is a plank kept, for as long as the world lasts.
   g.span = { pool: 10000, perLay: 5, xpPerPlank: 6 }
+  // §7dv: THE TIDE. Three windows, computed from the interval count, the same
+  // for everyone. The periods are prime and pairwise coprime, and each is
+  // chosen so that `86400 mod P` leaves a small remainder: the windows walk
+  // the wall clock by 2.3, 5.9 and 20 minutes a day, completing a full circuit
+  // in 31, 49 and 36 days. That range is the whole reason these three numbers
+  // and not others. 43201 is prettier and drifts two seconds a day -- a
+  // fifty-nine year cycle, so whoever draws four in the morning keeps it for
+  // life, which is the unfairness of a raid schedule arriving without anybody
+  // choosing it. Faster drift and the world is merely chaotic.
+  //
+  // The far channel stands open 16.7% of all intervals. The longest stretch
+  // with every tide shut is sixty-six minutes. An hour at the world catches a
+  // window 94% of the time, and half an hour catches one 61% of the time --
+  // which is the point: sitting down is not the same as being heard, and some
+  // evenings the answer is no.
+  //
+  // The three have different characters and that is deliberate. Six minutes,
+  // twenty times a day, is the quick check -- is anybody about. Fifteen
+  // minutes, five times a day, is a conversation. Thirty minutes, twice a day,
+  // is the one worth arranging to meet inside.
+  g.tide = { periods: [4327, 17351, 43801], opens: [360, 900, 1800] }
+  // §7dv: THE STINT. `cap` is two hours: longer than any single tide, so a
+  // promise spans several and a citizen who swore one is reachable across
+  // them, and short enough that being heard all day means saying so again --
+  // every renewal a fresh decision rather than a forgotten one.
+  //
+  // `sample` is five minutes. It is the granularity at which standing is
+  // counted AND the freshness window that decides whether a citizen was
+  // present at all (§7dv: SLEEP_AFTER is far too generous to measure a
+  // promise). Finer would invite somebody to watch a clock, and there is no
+  // version of this world that should ask anybody to do that.
+  // §7dv: `meets` is fifteen minutes -- the overlap a pair must actually share
+  // before the world records that they know each other. A passing is not an
+  // acquaintance, and a farm briefly clustering its own keys buys nothing.
+  g.stint = { cap: 7200, sample: 300, remembers: 32, meets: 900 }
+  // §7dw: CLOSING TIME. Ninety minutes of standing in any rolling twenty-four
+  // hours, with ten minutes' notice. Ninety because that is the number that
+  // BINDS: three hours is more than most working adults have in an evening, so
+  // a ceiling there would never be met by the citizens it was built for, and a
+  // limit nobody reaches is not a design, it is a decoration.
+  //
+  // The window rolls rather than resetting at any midnight, so there is no
+  // allowance to race toward and none to waste.
+  g.ceiling = { window: 86400, allow: 5400, warn: 600 }
   // §6am (v6): STAR IS THE ENDGAME NOW. With a mid tier filling the middle of
   // the road (mid-ore and mid-wood at thirty-five), star rises to where it was
   // always meant to be -- the ninety-tier gear, forged from the magic-stone a
