@@ -1,0 +1,60 @@
+name: publish window
+
+on:
+  push:
+    branches: [main]
+    paths: ['window-web.html', 'build-window.mjs', '.github/workflows/publish-window.yml']
+  workflow_dispatch:
+    inputs:
+      nodes:
+        description: 'Comma-separated nodes to bake in as fallbacks'
+        default: 'https://interval.place'
+      domain:
+        description: 'Custom domain (leave blank for the github.io URL)'
+        default: 'play.interval.place'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: Build
+        run: |
+          node build-window.mjs \
+            --nodes="${{ inputs.nodes || 'https://interval.place' }}" \
+            --domain="${{ inputs.domain || 'play.interval.place' }}"
+
+      - name: Show the hash
+        run: cat dist/index.html.sha256
+
+      - name: Check the artifact is standalone
+        run: |
+          test -f dist/index.html
+          test -f dist/peers.json
+          ! grep -q "fetch('/api/" dist/index.html
+          ! grep -q "new WebSocket((location.protocol" dist/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
