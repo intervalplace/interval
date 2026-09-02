@@ -519,6 +519,14 @@ function inkNearby () {
 // ============================================================================
 const glc = document.getElementById('gl'), hudc = document.getElementById('hud')
 const hx = hudc.getContext('2d')
+// §how many whole pixels each texel may become. Four is about where a 320x240
+// frame stops looking like a small sharp picture and starts looking like a wall
+// of squares. `?scale=N` for anybody who disagrees, which is a fair thing to
+// disagree about.
+const SCALE_CAP = (() => {
+  const m = /(?:\?|&)scale=(\d+)/.exec((typeof location !== 'undefined' && location.search) || '')
+  return Math.max(1, Math.min(12, m ? +m[1] : 4))
+})()
 let RW = 320, RH = 240, lockedAspect = false     // internal resolution; height is always 240
 function sizeUp () {
   const aw = innerWidth, ah = innerHeight
@@ -526,7 +534,7 @@ function sizeUp () {
   RH = 288; RW = Math.max(256, Math.min(464, Math.round(RH * aspect / 8) * 8))
   glc.width = RW; glc.height = RH; hudc.width = RW; hudc.height = RH
   // fit the little frame into the big window without ever blurring it
-  const scale = Math.min(aw / RW, ah / RH)
+  const scale = Math.max(1, Math.min(SCALE_CAP, Math.floor(Math.min(aw / RW, ah / RH))))
   for (const c of [glc, hudc]) {
     c.style.width = Math.round(RW * scale) + 'px'
     c.style.height = Math.round(RH * scale) + 'px'
@@ -710,6 +718,8 @@ addEventListener('keydown', (e) => {
 })
 addEventListener('keyup', (e) => { keys[(e.key.length === 1 ? e.key.toLowerCase() : e.key)] = false })
 addEventListener('blur', () => { for (const k in keys) keys[k] = false })
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) for (const k in keys) keys[k] = false })
 
 // which tile the legs are asking for: the facing, folded onto the grid
 function walkDir () {

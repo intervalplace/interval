@@ -233,6 +233,7 @@ let VIGIL_TICKS = 300           // corrected from the engine the moment it loads
 const ATTEND_WINDOW = 3600      // an attendance ages out after an hour
 let attendAt = -1               // when this window last knocked
 let everSawWorld = false, lastStateMs = 0, tickSeen = 0
+const BOOTED = performance.now()                  // §so the wait can say how long it has been
 const feed = []                                   // the last few lines of what happened
 const say = (t) => { feed.push({ t, at: performance.now() }); while (feed.length > 5) feed.shift() }
 
@@ -632,14 +633,36 @@ function inkNearby () {
 // ============================================================================
 const glc = document.getElementById('gl'), hudc = document.getElementById('hud')
 const hx = hudc.getContext('2d')
+// §how many whole pixels each texel may become. Four is about where a 320x240
+// frame stops looking like a small sharp picture and starts looking like a wall
+// of squares. `?scale=N` for anybody who disagrees, which is a fair thing to
+// disagree about.
+const SCALE_CAP = (() => {
+  const m = /(?:\?|&)scale=(\d+)/.exec((typeof location !== 'undefined' && location.search) || '')
+  return Math.max(1, Math.min(12, m ? +m[1] : 4))
+})()
 let RW = 320, RH = 240, lockedAspect = false     // internal resolution; height is always 240
 function sizeUp () {
   const aw = innerWidth, ah = innerHeight
   const aspect = lockedAspect ? 4 / 3 : Math.max(1.1, Math.min(2.1, aw / ah))
   RH = 240; RW = Math.max(256, Math.min(464, Math.round(RH * aspect / 8) * 8))
   glc.width = RW; glc.height = RH; hudc.width = RW; hudc.height = RH
-  // fit the little frame into the big window without ever blurring it
-  const scale = Math.min(aw / RW, ah / RH)
+  // §THE FRAME DOES NOT HAVE TO FILL THE SCREEN, and on a large one it should
+  // not. Two faults, and the second is the real one:
+  //
+  //   · UNCAPPED. On a 1440p display this came out at six times, so a 320x240
+  //     picture was drawn at 1920x1440 and every texel was a six-pixel square.
+  //     The dither stops reading as a texture and starts reading as a grid.
+  //   · FRACTIONAL. `min(aw/RW, ah/RH)` is almost never a whole number, and a
+  //     fractional scale under `image-rendering: pixelated` gives UNEVEN
+  //     pixels — some texels five wide, some six, in bands across the frame.
+  //     That is not a preference, it is a defect, and it is invisible in a
+  //     screenshot and obvious in motion.
+  //
+  // So: whole numbers only, and no more than SCALE_CAP of them. What is left
+  // over is dark, which is what a window in a room looks like.
+  const raw = Math.min(aw / RW, ah / RH)
+  const scale = Math.max(1, Math.min(SCALE_CAP, Math.floor(raw)))
   for (const c of [glc, hudc]) {
     c.style.width = Math.round(RW * scale) + 'px'
     c.style.height = Math.round(RH * scale) + 'px'
@@ -761,6 +784,18 @@ glc.addEventListener('mousedown', (e) => {
 })
 document.addEventListener('pointerlockchange', () => {
   const inside = document.pointerLockElement === glc
+  // §A LOCK THAT DROPS MUST DROP THE KEYS WITH IT.
+  //
+  // Losing the pointer lock — Escape, a notification, macOS deciding — does not
+  // deliver the keyup for whatever is held, so `keys.w` stayed true for ever.
+  // And OUT of the lock, `mousemove` returns early and yaw stops changing. So
+  // the citizen walked on in the last direction they were pointed and the
+  // camera would not turn: you keep walking sideways, exactly as reported, and
+  // nothing you do with the mouse changes it.
+  //
+  // Two halves of one fault, and either alone is survivable. Together they are
+  // a citizen you cannot stop.
+  for (const k in keys) keys[k] = false
   tap.style.display = (inside || paused()) ? 'none' : 'flex'
   // carried in: the theme ducks beneath the world instead of being cut off
   if (inside && DOORMUSIC) doorTarget = 0.13
@@ -813,6 +848,8 @@ addEventListener('keydown', (e) => {
 })
 addEventListener('keyup', (e) => { keys[(e.key.length === 1 ? e.key.toLowerCase() : e.key)] = false })
 addEventListener('blur', () => { for (const k in keys) keys[k] = false })
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) for (const k in keys) keys[k] = false })
 
 // which tile the legs are asking for: the facing, folded onto the grid
 function walkDir () {
@@ -821,6 +858,13 @@ function walkDir () {
   if (keys.a) fx -= 1; if (keys.d) fx += 1
   if (PAD.dir) { fx += PAD.dir[0]; fz += PAD.dir[1] }   // a stick folds onto the grid too
   if (!fx && !fz || paused() || isDead()) return null
+  // §THERE WAS A GUARD HERE REFUSING TO WALK WITHOUT THE POINTER LOCK, on the
+  // argument that a citizen who cannot turn should not walk blind. It is gone:
+  // clearing the keys when the lock drops is the whole fix, and the guard broke
+  // three checks that were right — a pad needs no lock, and neither does a
+  // deliberate keypress with the door overlay up telling you how to get back in.
+  // Refusing an input because of how the window is focused is a bigger rule than
+  // the bug deserved.
   const c = Math.cos(yaw), s = Math.sin(yaw)
   // the camera looks down its own -Z: forward is (-sin, -cos), right is (cos, -sin)
   const wx = fx * c + fz * s, wz = -fx * s + fz * c
@@ -4610,6 +4654,26 @@ function drawHud (now) {
       hx.textAlign = 'left'
       hx.globalAlpha = 1
     }
+  }
+  // §THE PILLAR HAS NOT ANSWERED YET, AND THE WINDOW MUST SAY SO.
+  //
+  // Before the first state there is a sky, a ground and a citizen who cannot
+  // move — which looks exactly like a world that is broken. It is not: it is a
+  // world that has not arrived. A minute of that with no word is the difference
+  // between "loading" and "this does not work", and the window knows perfectly
+  // well which it is.
+  if (!world) {
+    const t0 = (now - BOOTED) / 1000
+    const dots = '.'.repeat(1 + (Math.floor(t0 * 2) % 3))
+    hx.textAlign = 'center'
+    const mid = RW >> 1, cy = (RH >> 1) - 8
+    hx.fillStyle = '#0a0e0a'; hx.fillRect(mid - 76, cy - 6, 152, 30)
+    hx.fillStyle = '#1c2a18'; hx.fillRect(mid - 74, cy - 4, 148, 26)
+    txt('REACHING THE PILLAR' + dots, mid, cy + 6, '#c8bb8a', true)
+    txt(connected ? 'connected \\u00b7 waiting for the world'
+        : t0 > 20 ? 'still trying \\u00b7 the pillar may be founding'
+        : 'opening the door', mid, cy + 17, '#6a7f5e')
+    hx.textAlign = 'left'
   }
   // the feed, fading out on its own
   feed.forEach((f, i) => {
