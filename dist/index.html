@@ -4589,6 +4589,71 @@ const SKILL_UNLOCKS = {
 // exists, so the guide showed no note for anything.
 // §5k: which callings a citizen may swear on the strength of this trade. Shown
 // in the guide because a trade's callings are the point of having trades.
+// §THIS IS A FALLBACK, and it is a hand copy of a table the engine owns.
+// `SWORN` has been exported and served at /api/tables since §5w; loadRules()
+// below replaces every line of this the moment the pillar answers. It is kept
+// only so the window still opens against a pillar too old to serve them.
+// Copies drift: this project has already shipped a forge table that was wrong
+// in twenty places and five recipes labelled `forge` that the anvil refuses.
+// §5k/§5w/§5x/§5y/§5z: what the pillar says about callings, ceilings, grades and
+// what a mastery is worth. Fetched once; every one of these has a stale
+// hand-copy below it that this replaces.
+let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
+let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
+// §0: THE TABLES COME FROM THE NODE THIS WINDOW CHOSE.
+//
+// This ran as an IIFE at parse time against `/api/tables` on whatever origin
+// served the page -- which is the assumption the node resolver exists to
+// remove. A window opened from a static host, a USB stick or `file://` fetched
+// a path on nothing at all and silently kept its built-in tables, so a citizen
+// would see the wrong callings or the wrong swear level with no error.
+//
+// Called from `connect()` instead, once a node has been chosen AND checked to
+// be serving this world. `api` is a const declared further down, so this must
+// not run before then -- which is exactly what being called from connect
+// guarantees.
+async function loadTables () {
+  try {
+    const r = await fetch(api('/api/tables'), { cache: 'no-cache' })
+    if (!r.ok) return
+    const t = await r.json()
+    if (t.sworn) { SWORN_T = t.sworn
+      for (const k of Object.keys(CALLINGS_OF)) delete CALLINGS_OF[k]
+      for (const [name, c] of Object.entries(t.sworn))
+        (CALLINGS_OF[c.skill] ??= []).push(name) }
+    if (t.swearLevel) SWEAR_LEVEL = t.swearLevel
+    if (t.capUnsworn) CAP_UNSWORN = t.capUnsworn
+    if (t.capOther) CAP_OTHER = t.capOther
+    if (t.mastery) MASTERY_T = t.mastery
+    if (t.apprenticeSlots) APPR_SLOTS = t.apprenticeSlots
+    if (t.apprenticeLapse) APPR_LAPSE = t.apprenticeLapse
+    if (t.apprenticeMilestones) APPR_MILES = t.apprenticeMilestones
+  } catch { /* the node's tables are an override; the built-in ones stand */ }
+}
+// §5k: the ceiling on this trade, for this citizen. Nothing unsworn passes
+// CAP_UNSWORN; once sworn your own trade has none and every other stops at
+// CAP_OTHER. A citizen who does not know this wonders why the bar stopped.
+function capOfSkill (p, skill) {
+  const c = p && p.calling
+  if (c && SWORN_T && SWORN_T[c] && SWORN_T[c].skill === skill) return 0
+  return c ? CAP_OTHER : CAP_UNSWORN
+}
+// §5w/§5x: the grade. `apprentice` means TAKEN ON, not "below fifty", and a
+// hundred alone is a journeyman until the craft admits them (§5x).
+function gradeOfCitizen (world, p) {
+  if (p && p.calling && SWORN_T && SWORN_T[p.calling]) {
+    const sk = SWORN_T[p.calling].skill
+    const deep = XP_TO_LVL(p.skills?.[sk] ?? 0) >= MASTERY_T
+    return deep && (p.raised ?? 0) >= 1 ? 'master' : 'journeyman'
+  }
+  for (const m of Object.values(world?.players ?? {})) {
+    const ap = m && m.apprentices
+    if (!ap) continue
+    for (const [who, at] of Object.entries(ap))
+      if (who === p?.id && (world.tick - at) <= APPR_LAPSE) return 'apprentice'
+  }
+  return 'newcomer'
+}
 const CALLINGS_OF = {
   woodcraft: ['forester', 'firekeeper', 'fletcher'],
   earthcraft: ['miner', 'smith'],
@@ -5132,6 +5197,22 @@ const MAGIC_ROCK_MINING = 70
 
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
+let _dial = null, _dialHidden = false
+;(async () => {
+  try {
+    const { makeDial } = await import('/dial.mjs')
+    _dial = makeDial({ corner: 'bottom-right' })
+    document.body.appendChild(_dial.el)
+    try { _dialHidden = localStorage.getItem('interval.dial') === 'off' } catch {}
+    _dial.setHidden(_dialHidden)
+  } catch (e) { /* a window without the module simply has no clock */ }
+})()
+addEventListener('keydown', (e) => {
+  if (!_dial || !e.altKey || (e.key !== 'c' && e.key !== 'C')) return
+  _dialHidden = !_dialHidden
+  _dial.setHidden(_dialHidden)
+  try { localStorage.setItem('interval.dial', _dialHidden ? 'off' : 'on') } catch {}
+})
 let _lastSurveyTick = -1
 // 6ci: a chart is one plain item now, not a 'chart:<stone>' key.
 let lastFeed = { text: '', at: 0 }
@@ -5448,6 +5529,15 @@ const BRIDGE_TO_INPUT = (a) =>
   : a.do === 'bury' ? { type: 'bury', slot: a.slot }
   : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
   : a.do === 'invoke' ? { type: 'invoke' }
+  // §5k/§5w: the calling was named in this window's guide since it was written
+  // and there was no line here for saying it, so no citizen could ever swear.
+  // `attester` is optional: an unattested swearing stays legal (§5w), and the
+  // first forester has nobody to attest them.
+  : a.do === 'swear' ? (a.attester === undefined
+      ? { type: 'swear', calling: a.calling }
+      : { type: 'swear', calling: a.calling, attester: a.attester })
+  : a.do === 'teach' ? { type: 'teach', to: a.to }
+  : a.do === 'part' ? { type: 'part', who: a.who }
   : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
   // §6af: the window sent `special` from the ring menu and the bridge had no
   // line for it, so it answered 'no wiring for special yet' and swallowed the
@@ -6183,6 +6273,68 @@ function openForge(me) {
 }
 function smithBest(me) { openForge(me) }
 
+// ---- ZONE-DELTA CLIENT (mirror of view.mjs; keep the two in step) ----
+// The pillar sends one full state on connect, then per-interval patches
+// carrying only the 3x3 zones around this citizen plus world scope. Nodes are
+// never zoned -- the chart draws the whole island -- so they arrive whole.
+var _held = null, _heldWorldId = null;
+var VZONE = 32, VZONED = ['players', 'mobs', 'ground'];
+function vZonesAround (x, y) {
+  var zx = (x / VZONE) | 0, zy = (y / VZONE) | 0, out = [];
+  for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+    var nx = zx + dx, ny = zy + dy;
+    if (nx < 0 || ny < 0) continue;
+    out.push(ny * 100000 + nx);
+  }
+  return out;
+}
+// ORDER MATTERS. An entity crossing a zone boundary is `changed` in its new
+// zone and listed in `...Gone` for its old one. A client watching both -- the
+// common case, they are neighbours -- that applied messages in arrival order
+// would add the citizen and then delete it, and they would vanish from the
+// window while still standing there in the world. So every removal for the
+// interval is applied before any upsert.
+function vApplyTick (state, deltas) {
+  var keys = ['players', 'mobs', 'nodes', 'ground'], i, k, key, id, d;
+  for (i = 0; i < deltas.length; i++) for (k = 0; k < keys.length; k++) {
+    key = keys[k]; var gone = deltas[i][key + 'Gone'];
+    if (gone && state[key]) for (var j = 0; j < gone.length; j++) delete state[key][gone[j]];
+  }
+  // FIELD-LEVEL MERGE. A patch for an entity we already hold carries only the
+  // fields that moved -- usually just x, y and action -- so it is merged, not
+  // assigned. An entity we do not hold arrives whole. `__gone` names fields
+  // that were removed outright.
+  for (i = 0; i < deltas.length; i++) for (k = 0; k < keys.length; k++) {
+    key = keys[k]; d = deltas[i][key];
+    if (!d) continue;
+    if (!state[key]) state[key] = {};
+    for (id in d) {
+      var patch = d[id], held = state[key][id];
+      if (!held) { state[key][id] = patch; continue; }
+      for (var f in patch) { if (f !== '__gone') held[f] = patch[f]; }
+      if (patch.__gone) for (var q = 0; q < patch.__gone.length; q++) delete held[patch.__gone[q]];
+    }
+  }
+  for (i = 0; i < deltas.length; i++) for (key in deltas[i]) {
+    if (key === 'type' || key.slice(-4) === 'Gone') continue;
+    if (keys.indexOf(key) >= 0) continue;
+    state[key] = deltas[i][key];
+  }
+  return state;
+}
+// A citizen who walks far enough leaves zones behind with no message saying
+// so. Sweep what is no longer watched, or the window accumulates ghosts.
+function vEvictOutside (state, watched) {
+  for (var k = 0; k < VZONED.length; k++) {
+    var m = state[VZONED[k]]; if (!m) continue;
+    for (var id in m) {
+      var e = m[id];
+      if (watched.indexOf(((e.y / VZONE) | 0) * 100000 + ((e.x / VZONE) | 0)) < 0) delete m[id];
+    }
+  }
+  return state;
+}
+
 function onMessage (ev) {
   // A TRUNCATED FRAME MUST NOT TAKE THE HANDLER WITH IT. A state broadcast for
   // this world is a large JSON message and one arriving cut short threw
@@ -6206,7 +6358,16 @@ function onMessage (ev) {
     document.getElementById('gatekey').textContent = 'your key: ' + myId.slice(0, 12) + '\u2026'
   }
   if (m.type === 'nought') { noughtPeerSaw(m.at); return }   // §0: another resident, walking
-  if (m.type === 'state') { onState(m.state, m.worldId) }
+  if (m.type === 'state') { _held = m.state; _heldWorldId = m.worldId; onState(m.state, m.worldId) }
+  if (m.type === 'patch') {
+    // A patch onto a world we do not hold yields a world with holes, so ask
+    // for a snapshot instead of guessing.
+    if (!_held) { try { sock.send(JSON.stringify({ type: 'resync' })) } catch (e) {} return }
+    vApplyTick(_held, m.d);
+    var _me = _held.players && _held.players[realId || myId];
+    if (_me) vEvictOutside(_held, vZonesAround(_me.x, _me.y));
+    onState(_held, _heldWorldId);
+  }
   if (m.type === 'refused') {
     // WHY a thing did not happen. Until now the only observable was the world
     // simply not changing, which reads exactly like a lost connection -- and
@@ -6321,6 +6482,7 @@ async function connect (reason) {
     return
   }
   showNode(found)
+  loadTables()          // not awaited: the built-in tables render until it lands
   if (reason === 'reconnect') feed('Reconnected by way of ' + NODE.replace(/^https?:\/\//, '') + '.')
 
   const sock = new WebSocket(wsUrl())
@@ -7501,6 +7663,12 @@ function onState(s, worldId, local) {
     feed('Nothing you did there came with you. That was the arrangement.')
   }
   world = s
+  // §7dv/§7dw: THE DIAL, refreshed on every state the world sends. It is a
+  // clock on a wall, so it lives outside the panels and outside the feed, and
+  // `Alt+C` puts it away for anybody who reads a dial and tenses rather than
+  // relaxes. Closing time is announced in world state either way: putting the
+  // dial away hides the display and never the fact.
+  if (_dial) _dial.update(s, myId)
   // RECONCILE THE FACE. A set_look sent in the same interval as a spawn can
   // arrive first and be dropped, so this keeps asking until the world agrees.
   // AND IT WAITS ITS TURN. The tick line is two deep (`allocTick`: cur+1 and
@@ -13485,6 +13653,12 @@ function openSkillGuide(skill) {
     + '<span id="skgx" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
     + '<div style="color:#8a7f68;font-size:10px;margin-bottom:8px">'
     + xp.toLocaleString() + ' experience'
+    // §5k: the ceiling, said where the bar is, because a citizen who does not
+    // know they stop at fifty will think the world broke
+    + (() => { const m = world && world.players && world.players[myId]
+        const cap = capOfSkill(m, skill)
+        return cap === 0 ? ' \u00b7 <span style="color:#e2b63e">no ceiling: yours</span>'
+          : ' \u00b7 stops at ' + cap + (m && m.calling ? ', sworn elsewhere' : ' until you swear') })()
     + (toNext === null ? ' \u00b7 mastered' : ' \u00b7 ' + toNext.toLocaleString() + ' to ' + (lvl + 1))
     + '</div>'
   if (SKILL_NOTE[skill]) {
