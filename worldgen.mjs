@@ -54,7 +54,7 @@ export function buildWorld(genesis) {
   // ---- hamlets (spec 2b, 2k): same pattern, different trades ----
   const hamlet = (tag, hx, kind) => {
     const ty = trailYAt(genesis, hx) // each hamlet sits on its own (locally flat) stretch of road
-    put('bank-' + tag, 'bank', hx, ty - 2)
+    put('bank-' + tag, 'vault', hx, ty - 2)
     if (kind === 'port') {
       put('store-' + tag, 'store', hx, ty + 2)
       put('keeper-' + tag, 'smith', hx + (hx < cx ? 1 : -1), ty + 2)
@@ -93,7 +93,7 @@ export function buildWorld(genesis) {
   put('smith-2', 'smith', city.x1 - 5, city.y0 + 3)
   put('store-city', 'store', city.x0 + 2, city.y1 - 3)
   put('keeper-city', 'smith', city.x0 + 3, city.y1 - 3)
-  put('bank-city', 'bank', city.x1 - 3, city.y0 + 2)
+  put('bank-city', 'vault', city.x1 - 3, city.y0 + 2)
   put('house-c1', 'house', city.x0 + 3, city.y1 - 2)
   put('house-c2', 'house', city.x1 - 3, city.y1 - 2)
   put('house-c3', 'house', city.x1 - 6, city.y0 + 2)
@@ -110,7 +110,7 @@ export function buildWorld(genesis) {
   for (let y = nw.y0 + 1; y < nw.y1; y++) for (const x of [nw.x0, nw.x1]) put('nwall-' + (ni++), 'wall', x, y)
   put('guard-nw', 'guard', nw.x0 + 5, nw.y1 + 1)
   put('guard-ne', 'guard', nw.x0 + 7, nw.y1 + 1)
-  put('bank-norwick', 'bank', nw.x0 + 2, nw.y0 + 2)
+  put('bank-norwick', 'vault', nw.x0 + 2, nw.y0 + 2)
   put('anvil-norwick', 'anvil', nw.x1 - 3, nw.y0 + 2)
   put('well-norwick', 'well', nw.x0 + 6, nw.y0 + 5)
   put('hearth-norwick', 'campfire', nw.x0 + 6, nw.y1 - 2)
@@ -133,13 +133,13 @@ export function buildWorld(genesis) {
   }
   put('store-1', 'store', lakeC.x + 9, lakeC.y - 4)
   put('keeper-1', 'smith', lakeC.x + 10, lakeC.y - 4)
-  put('bank-still', 'bank', lakeC.x + 9, lakeC.y - 7)
+  put('bank-still', 'vault', lakeC.x + 9, lakeC.y - 7)
   put('hearth-still', 'campfire', lakeC.x + 7, lakeC.y - 6)
   put('house-s1', 'house', lakeC.x + 12, lakeC.y - 6)
   put('house-s2', 'house', lakeC.x + 12, lakeC.y - 3)
   put('sign-south', 'signpost', cx + 1, lakeC.y - 6, { text: 'Stillwater ahead. Nets, not swords.' })
   const mb = { x: W - 22, y: H - 14 }
-  put('bank-mil', 'bank', mb.x, mb.y)
+  put('bank-mil', 'vault', mb.x, mb.y)
   put('well-mil', 'well', mb.x + 1, mb.y + 3)
   put('hearth-mil', 'campfire', mb.x - 2, mb.y + 2)
   put('house-m1', 'house', mb.x - 3, mb.y - 2)
@@ -311,23 +311,12 @@ export function buildWorld(genesis) {
   // ---- the crossing (fix brief §2.4): imported citizens are FOUNDING data.
   // They live in the genesis itself (so the worldId commits to them) and are
   // applied here, deterministically, by every node that grows this world.
-  if (Array.isArray(genesis.imported)) {
-    for (const c of genesis.imported) {
-      if (!/^[0-9a-f]{64}$/.test(c.pid ?? '')) continue
-      E.addPlayer(w, c.pid, spawn.x, spawn.y)
-      const p = w.players[c.pid]
-      for (const k of Object.keys(p.skills)) if (c.skills?.[k] !== undefined) p.skills[k] = c.skills[k]
-      p.hp = Math.min(c.hp ?? p.hp, E.levelForXp(p.skills.hitpoints))
-      // rev7 §6: validateGenesis already ran at the top of buildWorld and
-      // validateImports guarantees every field here — construction applies
-      // VALIDATED data directly. Silent per-field filtering would let two
-      // implementations disagree about which validated citizen got what.
-      ;(c.inventory ?? []).forEach((sl, i) => { if (i < p.inventory.length) p.inventory[i] = sl ?? null })
-      p.equipment.weapon = c.weapon ?? null
-      for (const [it, q] of Object.entries(c.bank ?? {})) p.bank[it] = q
-      if (c.name != null) { w.names[c.name] = c.pid; p.name = c.name }
-    }
-  }
+  // §9: the crossing is ONE function, in the engine. Six generators carried
+  // their own copy, which is how five of them woke an imported citizen at ONE
+  // HITPOINT -- the clamp read `skills.hitpoints`, a skill §5j deleted, and
+  // `levelForXp(undefined)` is 1 -- and how only one of them ever seated a vault.
+  for (const c of (genesis.imported ?? [])) E.seatImport(w, c, spawn.x, spawn.y)
+
 
   // rev6 §4: every accepted genesis produces a constitutionally valid
   // initial state — proven here, at the source, with the exact invariant

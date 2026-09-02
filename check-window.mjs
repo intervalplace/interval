@@ -94,7 +94,7 @@ console.log('\n--- every node type answers a click ---')
     'eel-spot','deep-fish-spot','gibbet-shoal','muck-heap','rockfall','plot'])
   const mute = nt.filter((t) => !seen.has(t) && !GATHERABLE.has(t))
   ok(!mute.length, `types with no click branch: ${mute.join(', ') || 'none'}`)
-  for (const t of ['stall', 'store', 'bank', 'market', 'anvil'])
+  for (const t of ['stall', 'store', 'vault', 'market', 'anvil'])
     ok(seen.has(t), `\`${t}\` answers a click`)
 }
 

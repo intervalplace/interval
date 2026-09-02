@@ -72,6 +72,13 @@ if (leaks.length) {
 }
 
 fs.mkdirSync(out, { recursive: true })
+
+// GitHub Pages runs Jekyll over a branch deploy unless told not to. Jekyll
+// ignores files and folders beginning with an underscore and rewrites some
+// others, which is a strange thing to let happen to a client whose whole claim
+// is that its bytes are checkable. One empty file turns it off.
+fs.writeFileSync(path.join(out, '.nojekyll'), '')
+
 const file = path.join(out, 'index.html')
 fs.writeFileSync(file, html)
 

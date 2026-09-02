@@ -213,7 +213,7 @@ export function buildWorld(genesis) {
         put(id, type, p.x, p.y, extra); return
       }
     }
-    placeNear('bank-' + s.tag, 'bank', -3, -2)
+    placeNear('bank-' + s.tag, 'vault', -3, -2)
     placeNear('well-' + s.tag, 'well', 0, 0)
     placeNear('hearth-' + s.tag, 'campfire', 2, -2)
     placeNear('sign-' + s.tag, 'signpost', 0, 3, { text: s.name })

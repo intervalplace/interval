@@ -39,7 +39,7 @@ for (const seed of SEEDS.slice(0, N)) {
       }
     }
     const near = (n) => [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => seen.has((n.x+dx)+','+(n.y+dy)))
-    const ESS = new Set(['bank','store','anvil','smith','well','waystone','keeper'])
+    const ESS = new Set(['vault','store','anvil','smith','well','waystone','keeper'])
     const stranded = Object.values(w.nodes).filter(n => ESS.has(n.type) && !near(n))
     const unreachedTowns = X.settlementsOf(g).filter(s => {
       for (let r = 0; r < 24; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++)
@@ -50,7 +50,7 @@ for (const seed of SEEDS.slice(0, N)) {
     // Thornbury and Hollybarrow without one, so that Anchor's two and
     // Oxenford's one are worth walking to. What matters is that no town is
     // absurdly far from a strong room.
-    const banks = Object.values(w.nodes).filter(n => n.type === 'bank')
+    const banks = Object.values(w.nodes).filter(n => n.type === 'vault')
     let worstBank = 0, worstTown = ''
     for (const s of X.settlementsOf(g)) {
       let best = Infinity

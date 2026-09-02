@@ -72,7 +72,7 @@ for (const st of ss) {
 }
 
 // --- 4. EMPTINESS: how long do you walk past nothing? ---
-const BUILT = new Set(['landmark','waystone','signpost','bank','well','anvil','store','smith','house','campfire','guard','keeper','plot','fence','hedge'])
+const BUILT = new Set(['landmark','waystone','signpost','vault','well','anvil','store','smith','house','campfire','guard','keeper','plot','fence','hedge'])
 const marks = Object.values(w.nodes).filter(n => BUILT.has(n.type))
 const dm = new Int32Array(W * H).fill(-1); const q2 = []
 for (const n of marks) if (dm[n.y * W + n.x] === -1) { dm[n.y * W + n.x] = 0; q2.push([n.x, n.y]) }
@@ -122,7 +122,7 @@ while (h3 < q3.length) {
     seen.add(k); q3.push([nx, ny])
   }
 }
-const ESS = new Set(['bank','store','anvil','smith','well','waystone','keeper','signpost'])
+const ESS = new Set(['vault','store','anvil','smith','well','waystone','keeper','signpost'])
 const stranded = Object.entries(w.nodes).filter(([, n]) => ESS.has(n.type)
   && ![[1,0],[-1,0],[0,1],[0,-1]].some(([dx, dy]) => seen.has((n.x + dx) + ',' + (n.y + dy))))
 console.log('\n-- reachability --')

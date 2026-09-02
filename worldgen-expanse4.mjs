@@ -1376,10 +1376,10 @@ export function buildWorld(genesis) {
     }
     // -- the banks. The capital gets TWO, deliberately far apart: that one
     //    decision invents a north quarter and a south quarter for free.
-    const bankFill = (t) => [[0, 0, 'bank'], [1, 0, 'keeper']]
+    const vaultFill = (t) => [[0, 0, 'vault'], [1, 0, 'keeper']]
     if (s.kind === 'capital') {
-      seatBuilding(-14, -8, 6, 5, 's', bankFill())
-      seatBuilding(9, 5, 6, 5, 'n', bankFill())
+      seatBuilding(-14, -8, 6, 5, 's', vaultFill())
+      seatBuilding(9, 5, 6, 5, 'n', vaultFill())
       seatBuilding(-6, -9, 7, 5, 's', [[0, 0, 'store'], [1, 0, 'keeper'], [3, 0, 'store']])
       seatBuilding(4, -9, 6, 5, 's', [[0, 0, 'anvil'], [1, 0, 'smith'], [2, 0, 'anvil']])
       seatBuilding(-16, 4, 6, 5, 'n', [[0, 0, 'store'], [1, 0, 'keeper']])
@@ -1388,7 +1388,7 @@ export function buildWorld(genesis) {
       for (let k = 0; k < 5; k++) seatBuilding(-18 + k * 8, 10, 4, 4, 'n', [[0, 0, 'house']])
       for (let k = 0; k < 4; k++) seatBuilding(-18 + k * 9, -12, 4, 4, 's', [[0, 0, 'house']])
     } else {
-      seatBuilding(-7, -5, 6, 5, 's', bankFill())
+      seatBuilding(-7, -5, 6, 5, 's', vaultFill())
       if (s.kind === 'forge' || s.kind === 'garrison' || s.kind === 'mill')
         seatBuilding(4, -5, 6, 5, 's', [[0, 0, 'anvil'], [1, 0, 'smith']])
       if (s.kind === 'port' || s.kind === 'timber' || s.kind === 'market' || s.kind === 'mill' || s.kind === 'farm')
@@ -1968,11 +1968,11 @@ export function buildWorld(genesis) {
         const edge = xx === bx || xx === bx + 5 || yy === by || yy === by + 4
         if (!edge) continue
         if (yy === by + 4 && xx === bx + 3) continue // the door
-        put('foldbank-w' + (bi++), 'wall', xx, yy)
+        put('foldvault-w' + (bi++), 'wall', xx, yy)
       }
-      put('foldbank', 'bank', bx + 2, by + 2)
-      put('kpr-bank-folds', 'keeper', bx + 3, by + 2, { name: keeperName('bank', 'folds') })
-      sput('foldbank-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
+      put('foldvault', 'vault', bx + 2, by + 2)
+      put('kpr-vault-folds', 'keeper', bx + 3, by + 2, { name: keeperName('vault', 'folds') })
+      sput('foldvault-sign', 'signpost', bx + 3, by + 5, { text: 'the Sheepfolds counting house' })
     }
     // and the stone: ordinary crag rock, close enough to carry
     let rn = 0
@@ -2861,18 +2861,13 @@ export function buildWorld(genesis) {
   if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') founding aborted')
   w._composition = counts
 
-  for (const c9 of (g.imported ?? [])) {
-    if (!/^[0-9a-f]{64}$/.test(c9.pid ?? '')) continue
-    const sp9 = spawnDry(g)
-    E.addPlayer(w, c9.pid, sp9.x, sp9.y)
-    const p9 = w.players[c9.pid]
-    for (const k9 of Object.keys(p9.skills)) if (c9.skills?.[k9] !== undefined) p9.skills[k9] = c9.skills[k9]
-    p9.hp = Math.min(c9.hp ?? p9.hp, E.levelForXp(p9.skills.hitpoints))
-    ;(c9.inventory ?? []).forEach((sl9, i9) => { if (i9 < p9.inventory.length) p9.inventory[i9] = sl9 ?? null })
-    p9.equipment.weapon = c9.weapon ?? null
-    for (const [it9, q9] of Object.entries(c9.bank ?? {})) p9.bank[it9] = q9
-    if (c9.name != null) { w.names[c9.name] = c9.pid; p9.name = c9.name }
-  }
+  const _sp = spawnDry(g)
+  // §9: the crossing is ONE function, in the engine. Six generators carried
+  // their own copy, which is how five of them woke an imported citizen at ONE
+  // HITPOINT -- the clamp read `skills.hitpoints`, a skill §5j deleted, and
+  // `levelForXp(undefined)` is 1 -- and how only one of them ever seated a vault.
+  for (const c of (g.imported ?? [])) E.seatImport(w, c, _sp.x, _sp.y)
+
 
   // ---- final sweep: nothing gatherable where nobody can ever stand ----
   {
@@ -2923,7 +2918,7 @@ export function buildWorld(genesis) {
     // whatever stands between it and open ground. Deterministic -- fixed
     // neighbour order, and it takes the shortest way out, ties broken by
     // the order tiles are reached.
-    const ESSENTIAL = new Set(['bank','store','anvil','smith','well','waystone','keeper','signpost','landmark'])
+    const ESSENTIAL = new Set(['vault','store','anvil','smith','well','waystone','keeper','signpost','landmark'])
     const nodeAt = new Map()
     for (const [id, n] of Object.entries(w.nodes)) nodeAt.set(n.x + ',' + n.y, id)
     let felled = 0, opened = 0

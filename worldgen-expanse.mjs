@@ -276,7 +276,7 @@ export function buildWorld(genesis) {
     }
     const at = (dx, dy) => ({ x: s.x + dx, y: s.y + dy })
     const place = (id, type, dx, dy, extra) => { const p = at(dx, dy); if (inB(p.x, p.y) && !taken.has(key(p.x, p.y)) && !isWater(g, p.x, p.y)) put(id, type, p.x, p.y, extra) }
-    place('bank-' + s.tag, 'bank', -3, -2)
+    place('bank-' + s.tag, 'vault', -3, -2)
     place('well-' + s.tag, 'well', 0, 0)
     place('hearth-' + s.tag, 'campfire', 2, -2)
     place('sign-' + s.tag, 'signpost', 0, 3, { text: s.name })

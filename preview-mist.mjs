@@ -220,7 +220,7 @@ for (let i = 0; i < 46; i++) {
   N(i % 11 === 0 ? 'elder-tree' : i % 7 === 0 ? 'rock' : 'tree', x, y)
 }
 N('campfire', 41, 36); N('house', 37, 33); N('waystone', 42, 38); N('signpost', 39, 38)
-N('well', 44, 36); N('fishing-spot', 36, 38); N('fishing-spot', 35, 37); N('bank', 44, 31)
+N('well', 44, 36); N('fishing-spot', 36, 38); N('fishing-spot', 35, 37); N('vault', 44, 31)
 
 const LINEUP = (process.env.BESTIARY || '').split(',').filter(Boolean)
 if (LINEUP.length) {
@@ -357,7 +357,7 @@ if (process.env.SKILLS_XP) {
 // press keys before the shutter, so the panels can be photographed
 if (process.env.MENU) {
   if (!process.env.BARE) {
-    state.nodes.mb = { type: 'bank', x: 41, y: 41 }
+    state.nodes.mb = { type: 'vault', x: 41, y: 41 }
     state.nodes.ms = { type: 'stall', kind: 'arms', x: 39, y: 41 }
     state.nodes.ma = { type: 'anvil', x: 41, y: 39 }
   }

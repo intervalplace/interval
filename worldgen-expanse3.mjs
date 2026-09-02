@@ -517,7 +517,7 @@ export function buildWorld(genesis) {
         put(id, type, p.x, p.y, extra); return
       }
     }
-    placeNear('bank-' + s.tag, 'bank', -3, -2)
+    placeNear('bank-' + s.tag, 'vault', -3, -2)
     const bankNode = w.nodes['bank-' + s.tag]
     const seatBeside = (id, type, host) => {
       if (!host) return placeNear(id, type, -3, -3)
@@ -529,7 +529,7 @@ export function buildWorld(genesis) {
       }
       placeNear(id, type, -3, -3) // fallback: near the offset, as before
     }
-    seatBeside('kpr-bank-' + s.tag, 'keeper', bankNode) // the banker stands at their counter
+    seatBeside('kpr-vault-' + s.tag, 'keeper', bankNode) // the banker stands at their counter
     placeNear('well-' + s.tag, 'well', 0, 0)
     placeNear('hearth-' + s.tag, 'campfire', 2, -2)
     // The capital's sign carries the island's name: Tallyholm, the tally
@@ -1157,18 +1157,13 @@ export function buildWorld(genesis) {
   // (block restored to the v0.66 canon, rev7 §6: validated data applied
   // directly, era-known skills only, hp capped at the hitpoints level,
   // the name REGISTRY written alongside the nameplate.)
-  for (const c9 of (g.imported ?? [])) {
-    if (!/^[0-9a-f]{64}$/.test(c9.pid ?? '')) continue
-    const sp9 = spawnDry(g)
-    E.addPlayer(w, c9.pid, sp9.x, sp9.y)
-    const p9 = w.players[c9.pid]
-    for (const k9 of Object.keys(p9.skills)) if (c9.skills?.[k9] !== undefined) p9.skills[k9] = c9.skills[k9]
-    p9.hp = Math.min(c9.hp ?? p9.hp, E.levelForXp(p9.skills.hitpoints))
-    ;(c9.inventory ?? []).forEach((sl9, i9) => { if (i9 < p9.inventory.length) p9.inventory[i9] = sl9 ?? null })
-    p9.equipment.weapon = c9.weapon ?? null
-    for (const [it9, q9] of Object.entries(c9.bank ?? {})) p9.bank[it9] = q9
-    if (c9.name != null) { w.names[c9.name] = c9.pid; p9.name = c9.name }
-  }
+  const _sp = spawnDry(g)
+  // §9: the crossing is ONE function, in the engine. Six generators carried
+  // their own copy, which is how five of them woke an imported citizen at ONE
+  // HITPOINT -- the clamp read `skills.hitpoints`, a skill §5j deleted, and
+  // `levelForXp(undefined)` is 1 -- and how only one of them ever seated a vault.
+  for (const c of (g.imported ?? [])) E.seatImport(w, c, _sp.x, _sp.y)
+
 
   // final sweep (v0.80): remove only a GATHERABLE that no citizen could EVER
   // reach, even by clearing a path. Gathering removes the node, so a dense

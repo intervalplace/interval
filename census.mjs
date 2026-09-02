@@ -91,7 +91,7 @@ for (const k of ['gallows-oak', 'mother-lode', 'gibbet-shoal', 'gold-rock', 'dee
 
 // ---- 5. FACILITIES: where you sell/bank/craft ----
 console.log('\nFACILITIES & PEOPLE:')
-for (const t of ['bank', 'store', 'stall', 'anvil', 'smith', 'crier', 'keeper', 'well', 'hearth', 'brewpot', 'signpost']) {
+for (const t of ['vault', 'store', 'stall', 'anvil', 'smith', 'crier', 'keeper', 'well', 'hearth', 'brewpot', 'signpost']) {
   if (byType[t]) console.log('    ' + t.padEnd(14) + byType[t])
 }
 
