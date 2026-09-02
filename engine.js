@@ -12051,7 +12051,7 @@ function scrubSkills(s) {
 function eventRoll(beacon, tag) {
   return sha256(Buffer.from(beacon.toString('hex') + '|event|' + tag)).readUInt32BE(0);
 }
-function stepEvents(s, beacon) {
+function stepEvents(s, beacon, _ctx) {
   const ev = s.genesis && s.genesis.events;
   if (!ev) return;   // a world that did not found events runs no events
 
@@ -16865,7 +16865,7 @@ function nextState(state, inputs, _legacyBeacon) {
 
   scrubSkills(s);   // nothing non-finite leaves a tick
   grantHoods(s);    // §6ax: whoever crossed this interval
-  stepEvents(s, beacon);   // §6ao (v6): the bloom and the incursion, if this world founds them
+  stepEvents(s, beacon, _ctx);   // §6ao (v6): the bloom and the incursion, if this world founds them
 
   // §0b: THE ATTENDANCE AGES OUT. Entries are ascending by tick, so the prune
   // is a prefix drop and costs nothing to find. Nobody closes this gate: a

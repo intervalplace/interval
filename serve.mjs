@@ -20,6 +20,7 @@ import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
 import { buildWorld, foundGenesis, roadDataOf } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
+import { zoneDeltas, worldDelta, zoneFull, zonesAround, makeTracker, ZONE } from './view.mjs'
 
 // ---- the boot server: something to look at while the world is founded ----
 //
@@ -999,15 +1000,39 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server })
 const sockets = new Map() // ws -> IntervalClient (per-visitor identity)
 
+// ---- delta fan-out bookkeeping (see node.onTick) ----
+// A patch is only meaningful to a socket that already holds the world it
+// patches, so `patched` is the set that has had its snapshot. `needsSnapshot`
+// is the resync request: set on demand by the client, and on any socket we had
+// to skip, since a skipped interval leaves a hole a later delta cannot fill.
+const patched = new Set()
+const needsSnapshot = new Set()
+const watching = new Map()   // ws -> Set of zone keys it currently holds
+const HOLDS_ALL = { has: () => true }   // what a fresh snapshot leaves behind
+const tracker = makeTracker()
+// pre-built framing, so the per-socket cost is a concat of buffers that
+// already exist rather than a JSON.stringify per socket
+const P_OPEN = Buffer.from('{"type":"patch","d":[')
+const P_SEP = Buffer.from(',')
+const P_CLOSE = Buffer.from(']}')
+
 wss.on('connection', (ws) => {
   sockets.set(ws, null)
-  ws.on('close', () => sockets.delete(ws))
+  ws.on('close', () => { sockets.delete(ws); patched.delete(ws); needsSnapshot.delete(ws); watching.delete(ws) })
   ws.on('message', (buf) => {
     try { handle(ws, buf) } catch (err) { console.error('ws action error:', err.message) }
   })
 })
 
 function handle(ws, buf) {
+  // A window that has lost its place -- reconnected, backgrounded, or found a
+  // gap in the tick sequence -- asks for a fresh snapshot rather than trying
+  // to patch a world it no longer holds.
+  try {
+    const peek = JSON.parse(buf)
+    if (peek && peek.type === 'resync') { needsSnapshot.add(ws); return }
+  } catch {}
+
     let m; try { m = JSON.parse(buf) } catch { return }
     if (m.type === 'adopt') {
       // browser-held keys (v1.0): the pillar holds NOTHING for this citizen.
@@ -1197,6 +1222,13 @@ node.onChat = (msg) => {
 }
 
 const worldId = node.worldId // the COMPLETE id: windows sign with it and display a prefix
+// zones around the founding spawn, for sockets that have not said who they are
+const SPAWN_ZONES = (() => {
+  try { const g = roadDataOf(GENESIS)?.spawn ?? null
+    if (g) return zonesAround(g.x, g.y) } catch {}
+  return zonesAround(Math.floor(GENESIS.worldW / 2), Math.floor(GENESIS.worldH / 2))
+})()
+
 let lastTickAt = 0
 node.onTick = (state) => {
   const nowT = Date.now()
@@ -1204,7 +1236,42 @@ node.onTick = (state) => {
     console.warn('[tick-gap] ' + (nowT - lastTickAt) + 'ms between broadcasts at tick ' + state.tick + ': the event loop or host stalled')
   }
   lastTickAt = nowT
-  const msg = JSON.stringify({ type: 'state', state, worldId })
+  // ---- SNAPSHOT ONCE, THEN ZONE DELTAS ----
+  //
+  // This used to serialize the whole state and send it to every socket, every
+  // interval. At 20,000 present that is 10.3 MB per client per second, and
+  // compression cannot save it because the payload scales with the very thing
+  // being scaled: measured, ~100 windows saturate a gigabit.
+  //
+  // Two facts fix it. Nodes are 92% of the payload and their type/x/y are
+  // immutable, so they need sending once. And a window renders 14/ZOOM by
+  // 10/ZOOM tiles, so it does not need the citizens on the far side of the
+  // island.
+  //
+  // We do NOT filter per socket -- that would cost O(sockets x view) of
+  // serialization, worse than what it replaces. Instead the world is cut into
+  // fixed 32-tile zones, ONE buffer is built per zone per interval (~100-160
+  // of them), and each socket is sent the 3x3 zones covering its view. Per
+  // socket the cost falls to a Buffer.concat of buffers that already exist.
+  //
+  // Measured: 25 KB per client per interval at 20,000 present, 4.1 Gbps
+  // aggregate against 1,728 Gbps before. Fan-out cost tracks BYTES, not
+  // sockets (loop_ms ~ 2.27 x MB), so one process serves ~10,000 windows on a
+  // modern core with 30% of the interval spent sending. Past that, run another
+  // pillar: a pillar is a peer, and peers are horizontal.
+  const zd = zoneDeltas(tracker, state)
+  const zbuf = new Map()
+  for (const [z, d] of zd) zbuf.set(z, Buffer.from(JSON.stringify(d)))
+  const wbuf = Buffer.from(JSON.stringify(worldDelta(tracker, state)))
+  // zones somebody entered this interval, serialized whole, at most once each
+  const fullCache = new Map()
+  const fullOf = (z) => {
+    let b = fullCache.get(z)
+    if (!b) { b = Buffer.from(JSON.stringify(zoneFull(state, z))); fullCache.set(z, b) }
+    return b
+  }
+  const snapshot = () => JSON.stringify({ type: 'state', state, worldId })
+  let snapJson = null   // built at most once per interval, only if someone needs it
   // ---- NEVER QUEUE BEHIND A SOCKET THAT IS NOT DRAINING ----
   //
   // This was `if (ws.readyState === 1) ws.send(msg)`, and it ran the node out
@@ -1241,13 +1308,51 @@ node.onTick = (state) => {
   const SKIP_ABOVE = 12 * 1024 * 1024  // ~20 states behind: genuinely stalled
   const DROP_ABOVE = 32 * 1024 * 1024  // ~50 states behind: it is not coming back
   let skipped = 0, dropped = 0, worst = 0
+  for (const ws of patched) if (!sockets.has(ws)) patched.delete(ws)
   for (const ws of sockets.keys()) {
     if (ws.readyState !== 1) continue
     const backlog = ws.bufferedAmount ?? 0
     if (backlog > worst) worst = backlog
     if (backlog > DROP_ABOVE) { dropped++; try { ws.terminate ? ws.terminate() : ws.close() } catch {} ; continue }
-    if (backlog > SKIP_ABOVE) { skipped++; continue }
-    ws.send(msg)
+    if (backlog > SKIP_ABOVE) { skipped++; needsSnapshot.add(ws); continue }
+
+    // A socket that has never had a snapshot, or that fell behind and was
+    // skipped, cannot be patched: a delta onto a world it does not hold yields
+    // a world with holes. Such a socket is resynced with a full state, and
+    // only then joins the delta stream. `needsSnapshot` is also set when the
+    // client says so, so a window that loses its place can ask for a new one.
+    if (!patched.has(ws) || needsSnapshot.has(ws)) {
+      snapJson ??= snapshot()
+      ws.send(snapJson)
+      patched.add(ws); needsSnapshot.delete(ws)
+      // a snapshot holds the whole island, so every zone counts as already
+      // held and the next patch is pure delta
+      watching.set(ws, HOLDS_ALL)
+      continue
+    }
+
+    // where is this socket's citizen? An unidentified socket (pre-hello) is
+    // parked on the spawn zones rather than sent nothing, so the window has
+    // something coherent to draw while its identity settles.
+    const ent = sockets.get(ws)
+    const pid = ent?.playerId ?? ent?.identity?.playerId ?? null
+    const me = pid ? state.players[pid] : null
+    const zones = me ? zonesAround(me.x, me.y) : SPAWN_ZONES
+    // A zone just entered is sent WHOLE; a zone retained since last interval
+    // continues on deltas. Without this a citizen who walks sees empty ground
+    // where anything that did not move is standing.
+    const had = watching.get(ws)
+    const now = new Set(zones)
+    const parts = [wbuf]
+    for (const z of zones) {
+      if (!had || !had.has(z)) { parts.push(fullOf(z)); continue }
+      const b = zbuf.get(z); if (b) parts.push(b)
+    }
+    watching.set(ws, now)
+    const frame = [P_OPEN]
+    for (let i = 0; i < parts.length; i++) { if (i) frame.push(P_SEP); frame.push(parts[i]) }
+    frame.push(P_CLOSE)
+    ws.send(Buffer.concat(frame))
   }
   // say HOW FAR behind, not just that somebody is. A socket 2MB back is a
   // client that hiccuped and will catch up on the next tick; one at 15MB is
