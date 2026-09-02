@@ -136,20 +136,24 @@ test('banks are sparse: zero is absence in execution, validation, and imports', 
   const worldId = E.worldId(genesis)
   // execution: withdrawing the last unit DELETES the key
   let s = base(genesis)
-  E.addNode(s, 'bank-1', 'bank', 5, 6)
-  s.players[alice.playerId].bank = { logs: 1 }
+  E.addNode(s, 'vault-1', 'vault', 5, 6)
+  s.players[alice.playerId].vaults = { 'vault-1': { logs: 1 } }
   // a withdrawal names its quantity now, so this signed an input the gate
   // refused: nothing came out of the bank and the key was never deleted
   s = E.nextState(s, [E.signInput({ worldId, playerId: alice.playerId, tick: 0,
     ...E.normalizeInput({ type: 'withdraw', item: 'logs', qty: 1 }) }, alice.privateKey)])
   assert.equal(s.players[alice.playerId].inventory.find(Boolean)?.item, 'logs')
-  assert.ok(!('logs' in s.players[alice.playerId].bank), 'zero entry deleted')
+  // §6g: sparse twice over. The last log leaves the shelf, and the empty shelf
+  // leaves the citizen -- nobody carries a permanent record of having once
+  // stood at a counter.
+  assert.ok(!('logs' in (s.players[alice.playerId].vaults['vault-1'] ?? {})), 'zero entry deleted')
+  assert.ok(!('vault-1' in s.players[alice.playerId].vaults), 'and the emptied vault with it')
   assert.equal(E.validateState(s), null)
   // validation: a zero entry is malformed
   const z = base(genesis)
-  z.players[alice.playerId].bank = { ore: 0 }
-  assert.match(E.validateState(z), /bank quantity out of bounds/)
-  assert.match(E.validateImports([{ pid: alice.playerId, bank: { ore: 0 } }]), /quantity out of bounds/)
+  z.players[alice.playerId].vaults = { 'vault-1': { ore: 0 } }
+  assert.match(E.validateState(z), /vault quantity out of bounds/)
+  assert.match(E.validateImports([{ pid: alice.playerId, vaults: { ore: 0 } }]), /quantity out of bounds/)
 })
 
 test('canonical founding: defaults match the classic generator, which is NAMED in genesis', () => {

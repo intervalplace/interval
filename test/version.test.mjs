@@ -2,6 +2,7 @@
 // the single source of truth for the release tuple; every doc and the
 // engine constant must match it. This test fails the moment they drift.
 import { test } from 'node:test'
+import { rulesHash } from '../rules-hash.mjs'
 import assert from 'node:assert/strict'
 import fs from 'fs'
 import { fileURLToPath } from 'url'
@@ -94,7 +95,10 @@ test('no stale version strings remain in the headline docs', () => {
 })
 
 test('rules hash in docs matches sha256(SPEC.md)', () => {
-  const actual = E.sha256(fs.readFileSync(path.join(root, 'SPEC.md'))).toString('hex')
+  // §0-i: the constitution is THREE documents and the rules hash covers all of
+  // them in order. Hashing SPEC.md alone certifies a prefix no node computes,
+  // which is worse than not checking at all.
+  const actual = rulesHash(new URL('../', import.meta.url))
   // docs cite a 16-char prefix
   const prefix = actual.slice(0, 16)
   assert.ok(read('CONSENSUS.md').includes(prefix), 'CONSENSUS cites the current rules-hash prefix')

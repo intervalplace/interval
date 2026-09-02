@@ -165,7 +165,7 @@ test('§17 transition closure across EVERY input type on one living world', () =
   let s = E.newWorld(genesis)
   // a compact world where every action has something to act on
   E.addNode(s, 'tree-1', 'tree', 4, 5)
-  E.addNode(s, 'bank-1', 'bank', 5, 6)
+  E.addNode(s, 'vault-1', 'vault', 5, 6)
   E.addNode(s, 'store-1', 'store', 6, 6)
   E.addNode(s, 'anvil-1', 'anvil', 4, 6)
   E.addNode(s, 'plot-1', 'plot', 7, 5)

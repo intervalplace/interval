@@ -186,7 +186,7 @@ test('full persistent-state round-trip: actions, trades, equipment, banks, fires
   E.addMob(s, 'rat-1', 'goblin', 7, 5)
   s.players[alice.playerId].inventory[0] = { item: 'raw-fish', qty: 2 }
   s.players[alice.playerId].inventory[1] = { item: 'wooden-bow', qty: 1 }
-  s.players[alice.playerId].bank = { logs: 40, ore: 12 }
+  s.players[alice.playerId].vaults = { 'vault-1': { logs: 40, ore: 12 } }   // §6g: a vault per counter
   // v0.70: A NAME COSTS TIME -- claim_name asks for NAME_STANDING, which a
   // citizen placed directly by addPlayer does not have.
   for (const sk of E.SKILLS) s.players[alice.playerId].skills[sk] = E.XP_TABLE[40]

@@ -134,7 +134,7 @@ test('imported citizens: complete validation before world construction', () => {
     [[{ pid: 'zz' }], /malformed player id/],
     [[{ pid: pidA }, { pid: pidA }], /duplicate imported player id/],
     [[{ pid: pidA, name: 'dave' }, { pid: pidB, name: 'dave' }], /duplicate imported name/],
-    [[{ pid: pidA, bank: { logs: -5 } }], /quantity out of bounds/],
+    [[{ pid: pidA, vaults: { logs: -5 } }], /quantity out of bounds/],
     [[{ pid: pidA, skills: { woodcraft: -1 } }], /xp out of bounds/],
     [[{ pid: pidA, skills: { juggling: 5 } }], /unknown skill/],
     [[{ pid: pidA, inventory: [{ item: 'logs', qty: 0 }] }], /inventory slot/],
@@ -151,7 +151,7 @@ test('imported citizens: complete validation before world construction', () => {
     pid: pidA, name: 'old-hand', hp: 30,
     skills: { woodcraft: 5000, prowess: 5000 },   // §5j/§5n
     inventory: [{ item: 'logs', qty: 7 }, null, { item: 'iron-sword', qty: 1 }],
-    bank: { ore: 100, arrows: 250 },
+    vaults: { ore: 100, arrows: 250 },   // §6g: an IMPORT is flat
     weapon: { item: 'old-chain', qty: 1 },
   }]
   assert.equal(E.validateGenesis(g), null)
@@ -160,7 +160,14 @@ test('imported citizens: complete validation before world construction', () => {
   const p = w.players[pidA]
   assert.equal(p.name, 'old-hand')
   assert.equal(w.names['old-hand'], pidA)
-  assert.equal(p.bank.ore, 100)
+  // §6g: an import is FLAT and lands in ONE vault -- the counter nearest where
+  // the citizen wakes -- because the vault ids of a world that no longer exists
+  // name nothing here. So the goods are found by looking in the one vault the
+  // crossing seated, not at the top level.
+  const seated = Object.values(p.vaults)
+  assert.equal(seated.length, 1, 'a crossing seats one vault')
+  assert.equal(seated[0].ore, 100)
+  assert.equal(seated[0].arrows, 250)
   assert.equal(p.equipment.weapon.item, 'old-chain')
 })
 

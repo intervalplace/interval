@@ -39,7 +39,10 @@ function richState() {
   p1.inventory[3] = { item: 'chart:' + wsId, qty: 1 }
   p1.equipment.weapon = { item: 'iron-sword', qty: 1 }
   p1.equipment.head = { item: 'iron-helm', qty: 1 }
-  p1.bank = { ore: 4, logs: 9 }
+  // §6g: a vault per counter. The clone tests care that the shape is DEEP --
+  // `_cloneFlat` copies one level, so a nested vault left aliased between the
+  // state a tick was computed from and the one it produced would be a fork.
+  p1.vaults = { 'vault-1': { ore: 4, logs: 9 }, 'vault-2': { 'iron-ore': 2 } }
   p1.action = { type: 'gather', nodeId: Object.keys(s.nodes)[0] }
   p1.trade = { to: pids[1], giveSlots: [0], giveItems: [{ item: 'arrows', qty: 17 }], wantItem: 'logs', wantGold: 0 }   // v0.69 multi-slot + advertised goods
   p1.lightsTried = { logs: 7 }; p1.cooksTried = { 'raw-fish': 3 }   // per-item tallies, not scalars
@@ -158,7 +161,7 @@ test('clone independence: deep mutations of the clone never reach the source', (
   p.action.nodeId = 'nope'
   p.trade.wantGold = 77
   p.attuned.push('phantom')
-  p.bank.ore = 999
+  p.vaults.ore = 999
   p.x = 1; p.hp = 1
   const nid = Object.keys(c.nodes)[0]
   c.nodes[nid].x = 63
@@ -232,7 +235,7 @@ test('index differential: thousands of random queries match the reference scans'
     const p = { x, y }
     assert.equal(T2.nodeExistsAt(s, ctx, x, y), T2.nodeExistsAt(s, null, x, y))
     assert.equal(T2.blockingNodeAt(s, ctx, x, y), T2.blockingNodeAt(s, null, x, y))
-    const type = ['bank', 'store', 'anvil', 'house', 'plot', 'waystone', 'tree', 'brewpot'][seededInt(8)]
+    const type = ['vault', 'store', 'anvil', 'house', 'plot', 'waystone', 'tree', 'brewpot'][seededInt(8)]
     assert.equal(T2.hasAdjacentNode(s, ctx, p, type), T2.hasAdjacentNode(s, null, p, type))
     assert.equal(
       T2.findAdjacentNode(s, ctx, p, type),

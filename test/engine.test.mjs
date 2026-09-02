@@ -19,7 +19,7 @@ function world() {
   const w = E.newWorld(GENESIS)
   E.addPlayer(w, alice.playerId, 5, 5)
   E.addPlayer(w, bob.playerId, 6, 5)
-  E.addNode(w, 'bank-1', 'bank', 5, 6)   // adjacent to alice
+  E.addNode(w, 'vault-1', 'vault', 5, 6)   // adjacent to alice
   return w
 }
 // pre-freeze §5: A CLIENT BUILDS WHAT IT SIGNS THROUGH THE NORMALIZER.
@@ -66,12 +66,12 @@ test('depositing a 17-stack banks all seventeen and clears the slot', () => {
   s.players[alice.playerId].inventory[0] = { item: 'arrows', qty: 17 }
   s = step(s, [sign({ tick: 0, type: 'deposit', slot: 0 })])
   const p = s.players[alice.playerId]
-  assert.equal(p.bank.arrows, 17)
+  assert.equal(p.vaults['vault-1'].arrows, 17)
   assert.equal(p.inventory[0], null)
   // and a single item clears the slot
   s.players[alice.playerId].inventory[1] = { item: 'logs', qty: 1 }
   s = step(s, [sign({ tick: 1, type: 'deposit', slot: 1 })])
-  assert.equal(s.players[alice.playerId].bank.logs, 1)
+  assert.equal(s.players[alice.playerId].vaults['vault-1'].logs, 1)
   assert.equal(s.players[alice.playerId].inventory[1], null)
 })
 

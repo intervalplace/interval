@@ -47,7 +47,7 @@ test('the fallback face is the biome, not a weaker mob', () => {
 
 test('an incursion is not seated in a town', () => {
   const state = { nodes: {
-    foldbank: { type: 'bank', x: 100, y: 100 },
+    foldvault: { type: 'vault', x: 100, y: 100 },
     tree:     { type: 'tree', x: 300, y: 300 },
   } }
   assert.equal(api.inTown(state, null, 100, 100), true, 'at the counter')

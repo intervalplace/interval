@@ -88,7 +88,7 @@ test('ONE constitutional name rule everywhere: inputs, state, registry, imports'
   // genesis never reaches world construction at all
   const g2 = JSON.parse(JSON.stringify(world.genesis))
   g2.worldW = 320; g2.worldH = 200
-  g2.imported = [{ pid: alice.playerId, name: 'Invalid Name', skills: {}, bank: {}, inventory: [] }]
+  g2.imported = [{ pid: alice.playerId, name: 'Invalid Name', skills: {}, vaults: {}, inventory: [] }]
   assert.throws(() => buildWorld(g2), /invalid genesis.*non-constitutional name/s)
 })
 
@@ -98,7 +98,7 @@ test('ONE constitutional item registry: unknown items are contraband everywhere'
   assert.ok(!E.ITEMS.has(forged))
   const cases = [
     [s => { s.players[alice.playerId].inventory[0] = { item: forged, qty: 1 } }, /inventory slot/],
-    [s => { s.players[alice.playerId].bank[forged] = 5 }, /bank item/],
+    [s => { s.players[alice.playerId].vaults['vault-1'] = { [forged]: 5 } }, /vault item/],
     [s => { s.players[alice.playerId].equipment.weapon = { item: forged, qty: 1 } }, /equipment slot/],
     [s => { s.ground.g1 = { item: forged, qty: 1, x: 1, y: 1, expiresAt: 9 } }, /ground item/],
     [s => { E.addPlayer(s, bob.playerId, 6, 5); s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: forged, wantGold: 0 } }, /trade item/],
@@ -108,12 +108,16 @@ test('ONE constitutional item registry: unknown items are contraband everywhere'
     mutate(s)
     assert.match(E.validateState(s) ?? 'VALID', want)
   }
-  // POSITIVE: every constitutional item is bankable and validates
+  // POSITIVE: every constitutional item may be vaulted, and validates
   const s = build(world)
-  for (const it of E.ITEMS) s.players[alice.playerId].bank[it] = 1
+  // §6g: every item in the world, in ONE vault. Written flat this asked for
+  // ninety-one VAULTS and tripped the thirty-two cap -- the shape moved, and a
+  // vocabulary test should not be a bounds test by accident.
+  s.players[alice.playerId].vaults = { 'vault-1': {} }
+  for (const it of E.ITEMS) s.players[alice.playerId].vaults['vault-1'][it] = 1
   assert.equal(E.validateState(s), null, 'the full constitutional vocabulary round-trips')
   // imports are filtered through the same registry
-  const g = { ...world.genesis, imported: [{ pid: alice.playerId, bank: { [forged]: 3 } }] }
+  const g = { ...world.genesis, imported: [{ pid: alice.playerId, vaults: { [forged]: 3 } }] }
   assert.match(E.validateGenesis(g), /unknown item/)
 })
 

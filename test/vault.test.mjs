@@ -26,12 +26,12 @@ const grab = (name) => {
 
 const api = new Function(`
   ${grab('_cloneFlat')} ${grab('_deepCloneJson')} ${grab('_clonePlayer')}
-  ${grab('adjacentBankId')} ${grab('vaultAt')} ${grab('adjacent')}
-  return { _clonePlayer, adjacentBankId, vaultAt }`)()
+  ${grab('adjacentVaultId')} ${grab('vaultAt')} ${grab('adjacent')}
+  return { _clonePlayer, adjacentVaultId, vaultAt }`)()
 
 const player = () => ({
   x: 5, y: 5, hp: 64, skills: { woodcraft: 0 }, inventory: [null, null],
-  equipment: {}, bank: { foldbank: { logs: 40 }, anchorbank: { 'iron-ore': 7 } },
+  equipment: {}, vaults: { foldvault: { logs: 40 }, anchorvault: { 'iron-ore': 7 } },
   gold: 0, action: null, name: null, trade: null, lastInput: 0,
 })
 
@@ -41,29 +41,29 @@ test('a cloned vault is not shared with the state it came from', () => {
   // then compute different worlds from the same history, silently.
   const a = player()
   const b = api._clonePlayer(a)
-  b.bank.foldbank.logs = 1
-  b.bank.anchorbank['iron-ore'] = 1
-  assert.equal(a.bank.foldbank.logs, 40, 'the original vault must be untouched')
-  assert.equal(a.bank.anchorbank['iron-ore'], 7)
-  assert.notEqual(a.bank.foldbank, b.bank.foldbank, 'vaults must not be the same object')
+  b.vaults.foldvault.logs = 1
+  b.vaults.anchorvault['iron-ore'] = 1
+  assert.equal(a.vaults.foldvault.logs, 40, 'the original vault must be untouched')
+  assert.equal(a.vaults.anchorvault['iron-ore'], 7)
+  assert.notEqual(a.vaults.foldvault, b.vaults.foldvault, 'vaults must not be the same object')
 })
 
 test('a vault is read at the counter you are standing at', () => {
   const state = { nodes: {
-    foldbank:   { type: 'bank', x: 5, y: 6 },
-    anchorbank: { type: 'bank', x: 90, y: 90 },
+    foldvault:   { type: 'vault', x: 5, y: 6 },
+    anchorvault: { type: 'vault', x: 90, y: 90 },
   } }
   const p = player()
-  const id = api.adjacentBankId(state, null, p)
-  assert.equal(id, 'foldbank', 'the adjacent counter, not the first one defined')
+  const id = api.adjacentVaultId(state, null, p)
+  assert.equal(id, 'foldvault', 'the adjacent counter, not the first one defined')
   assert.deepEqual(api.vaultAt(p, id), { logs: 40 })
-  assert.equal(api.vaultAt(p, 'anchorbank').logs, undefined,
+  assert.equal(api.vaultAt(p, 'anchorvault').logs, undefined,
     'the far vault holds no logs, however many are banked elsewhere')
 })
 
 test('standing at no counter reads no vault', () => {
-  const state = { nodes: { anchorbank: { type: 'bank', x: 90, y: 90 } } }
-  assert.equal(api.adjacentBankId(state, null, player()), null)
+  const state = { nodes: { anchorvault: { type: 'vault', x: 90, y: 90 } } }
+  assert.equal(api.adjacentVaultId(state, null, player()), null)
   assert.equal(api.vaultAt(player(), null), null, 'a null id must not select a vault')
 })
 
@@ -71,28 +71,44 @@ test('reading a vault never creates one', () => {
   // A read that writes would grow the state by walking past a counter, and
   // state that grows with traffic is what §5 exists to prevent.
   const p = player()
-  const before = JSON.stringify(p.bank)
+  const before = JSON.stringify(p.vaults)
   api.vaultAt(p, 'a-counter-never-visited')
-  assert.equal(JSON.stringify(p.bank), before)
+  assert.equal(JSON.stringify(p.vaults), before)
 })
 
 test('the gate and the resolver ask the same function', () => {
   // Every silent disagreement in this codebase has been two functions asking
   // the same question differently. There must be exactly one bank lookup.
-  const uses = [...src.matchAll(/adjacentBankId\(/g)].length
+  const uses = [...src.matchAll(/adjacentVaultId\(/g)].length
   assert.ok(uses >= 4, `expected the gate and all three resolvers to call it, saw ${uses}`)
-  assert.equal([...src.matchAll(/hasAdjacentNode\([^)]*'bank'/g)].length, 0,
-    'no bank check may bypass adjacentBankId: a boolean cannot name a vault')
+  assert.equal([...src.matchAll(/hasAdjacentNode\([^)]*'vault'/g)].length, 0,
+    'no bank check may bypass adjacentVaultId: a boolean cannot name a vault')
 })
 
 test('the crossing carries goods and not geography', () => {
   const serve = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
-  assert.match(serve, /for \(const vault of Object\.values\(p\.bank \?\? \{\}\)\)/,
+  assert.match(serve, /Object\.values\(p\.vaults \?\? \{\}\)/,
     'serve.mjs sums the vaults into one flat map on the way out')
-  const wg = fs.readFileSync(path.join(root, 'worldgen-expanse7.mjs'), 'utf8')
-  assert.match(wg, /landingBank/, 'worldgen seats the total at one counter')
-  assert.match(wg, /Object\.keys\(w\.nodes\)\.sort\(\)/,
+
+  // §9: THE SEATING IS ONE FUNCTION. It was copied into six generators, which
+  // is how the landing vault reached exactly one of them -- every other world
+  // silently dropped a crossing's goods -- and how an imported citizen woke at
+  // ONE HITPOINT in five of them, because the clamp read `skills.hitpoints`,
+  // a skill §5j deleted, and `levelForXp(undefined)` is 1.
+  assert.match(src, /function seatImport/, 'the crossing lives in the engine')
+  assert.match(src, /function landingVaultId/)
+  assert.match(src, /Object\.keys\(state\.nodes\)\.sort\(\)/,
     'the landing counter is chosen in a fixed order, or two nodes found different worlds')
+
+  for (const f of ['worldgen.mjs', 'worldgen-expanse3.mjs', 'worldgen-expanse4.mjs',
+                   'worldgen-expanse5.mjs', 'worldgen-expanse6.mjs', 'worldgen-expanse7.mjs']) {
+    const g = fs.readFileSync(path.join(root, f), 'utf8')
+    assert.match(g, /E\.seatImport\(/, `${f} must delegate the crossing`)
+    // Code only. A comment may NAME the deleted skill to explain what was
+    // repealed -- that is how the fix documents itself.
+    const code = g.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')
+    assert.equal(/skills\.hitpoints/.test(code), false, `${f} must not read a skill §5j deleted`)
+  }
 })
 
 // §6g: the depth cap. What matters is that the gate and the resolver agree
@@ -133,7 +149,7 @@ test('the gate refuses exactly when the resolver would move nothing', () => {
   // deed is recorded and nothing happens, with no refusal to read.
   const gate = src.match(/AND THE COUNTER MUST HAVE ROOM FOR AT LEAST ONE[\s\S]*?\n      \}/)[0]
   assert.match(gate, />= VAULT_CAP\) return false/, 'the gate knows the cap')
-  assert.match(gate, /adjacentBankId/, 'and asks the same counter')
+  assert.match(gate, /adjacentVaultId/, 'and asks the same counter')
 })
 
 test('the depth cap is not a state invariant, so a crossing loses nothing', () => {
@@ -153,4 +169,36 @@ test('the dead 512 bound is gone', () => {
   // 91 items in the world: a bound of 512 kinds could never fire, and a bound
   // that cannot fire reads as protection while being furniture.
   assert.equal(/VAULT_ITEMS/.test(src), false)
+})
+
+// The rename is only done if nothing anywhere still names the node type,
+// the field, or the helper by the word that described the repealed rule.
+// A bank is reachable from any branch; that is the property §6g removed, so
+// the word was actively wrong rather than merely borrowed.
+test('nothing live still calls a vault a bank', () => {
+  const files = fs.readdirSync(root)
+    .filter((f) => /\.(js|mjs|html)$/.test(f) && !f.startsWith('window-diablo'))
+  const bad = []
+  for (const f of files) {
+    const t = fs.readFileSync(path.join(root, f), 'utf8')
+    for (const [re, why] of [
+      [/'bank'/g, "node type 'bank'"],
+      [/\.bank\b(?!er|ed|ing|able)/g, 'the field .bank'],
+      [/adjacentBankId/g, 'the old helper'],
+      [/\bfoldbank\b/g, 'the old node id'],
+    ]) if (re.test(t)) bad.push(`${f}: ${why}`)
+  }
+  assert.deepEqual(bad, [], bad.join('\n'))
+})
+
+test('every rules-hash call site uses the shared module', () => {
+  // The constitution is three documents. Six files hashed SPEC.md alone, so a
+  // pillar and a joining peer would have computed different worlds -- and
+  // play.mjs founded a solo world nobody could cross out of.
+  const bad = []
+  for (const f of fs.readdirSync(root).filter((x) => x.endsWith('.mjs'))) {
+    const t = fs.readFileSync(path.join(root, f), 'utf8')
+    if (/readFileSync\(new URL\('\.\/SPEC\.md'/.test(t)) bad.push(f)
+  }
+  assert.deepEqual(bad, [], `these hash SPEC.md alone: ${bad}`)
 })
