@@ -54,6 +54,40 @@ try {
   // world; it just does it silently, the way it always used to.
   console.warn('  (no boot server: ' + e.message + ')')
 }
+// ---- every window the router promises must actually be on disk ----
+//
+// A missing window does not fail loudly. `sendFile` cannot find the file, logs
+// one line nobody is watching, and answers 404 with `text/plain` -- and a
+// browser handed text/plain at a URL ending `/mist` does not show an error,
+// it SAVES A FILE CALLED mist.txt. The operator sees a download, the log says
+// nothing they were reading, and every other window works, so the fault looks
+// like it is in the one window rather than in the deploy.
+//
+// That is the whole failure mode: a file that did not ship, reported as a
+// download. So the router's promises are checked once, at boot, against the
+// disk, and anything missing is said plainly before anybody clicks it.
+function verifyWindows () {
+  const promised = []
+  try {
+    const src = fs.readFileSync(new URL('./serve.mjs', import.meta.url), 'utf8')
+    // read the routes out of this file rather than keeping a second list:
+    // a list maintained by hand is the thing that drifts and causes this
+    for (const m of src.matchAll(/sendFile\('\.\/(window-[a-z0-9-]+\.html)'/g))
+      if (!promised.includes(m[1])) promised.push(m[1])
+  } catch { return }
+  const missing = promised.filter((f) => {
+    try { fs.accessSync(new URL('./' + f, import.meta.url)); return false } catch { return true }
+  })
+  if (missing.length === 0) return
+  console.error('')
+  console.error('  A WINDOW THIS NODE OFFERS IS NOT ON DISK:')
+  for (const f of missing) console.error('    missing: ' + f)
+  console.error('  Anybody choosing it will be handed a 404 as text/plain,')
+  console.error('  which most browsers DOWNLOAD rather than display. Check the')
+  console.error('  deploy: the file exists in the repository and did not ship.')
+  console.error('')
+}
+
 function bootSay (stage, pct) {
   try { bootWorker?.postMessage({ type: 'progress', stage, pct }) } catch {}
 }
@@ -404,6 +438,9 @@ function packTerrain (g) {
             spawn: t.spawn ? t.spawn(g) : { x: w >> 1, y: h >> 1 },
             // the towns as the founder seated them, not as a window guesses
             settlements: t.settlements ? t.settlements(g) : null,
+            // §6dj: THE HEIGHT OF THE LAND. Not decoration: this field routed
+            // every road in the world, charging six for each unit a step climbs.
+            elev: t.elevGrid ? t.elevGrid(g) : null,
             geographyHash: t.geographyHash ? t.geographyHash(g) : null },
   }
 }
@@ -479,6 +516,15 @@ function hiscores() {
              // citizen SAID and a page ranking callings must be able to tell
              // the difference, so the raw field travels beside the word.
              sworn: (typeof p.calling === 'string' ? p.calling : null),
+             // §5x: WHETHER THE CRAFT ADMITTED THEM, and how many they raised.
+             // A hundred alone is a journeyman; `raised` is the only number in
+             // this world that measures a thing a citizen did FOR SOMEBODY
+             // ELSE, and it is minted only by an apprentice finishing. It goes
+             // out with the rest because a board that can rank it is the
+             // natural home of the endgame §5x built.
+             raised: p.raised ?? 0,
+             grade: E.gradeOf ? E.gradeOf(node.state, { ...p, id: pid }) : null,
+             sworn_by: p.sworn_by ? { calling: p.sworn_by.calling, at: p.sworn_by.at } : null,
              total: E.standingOf(p),
              // §7dk: THE UNAIDED HISCORE IS A FILTER, NOT A SECOND TABLE.
              //
@@ -771,6 +817,9 @@ const server = http.createServer((req, res) => {
       return sendFile(VENDOR[leaf], 'text/javascript')
     }
     if (path === '/engine-browser.mjs') return sendFile('./engine-browser.mjs', 'text/javascript')
+    // §7dv/§7dw: the dial. A window imports it; a window that cannot simply
+    // has no clock, which is why the import is wrapped rather than assumed.
+    if (path === '/dial.mjs') return sendFile('./dial.mjs', 'text/javascript')
     // The windows stopped carrying their own copy of the geography: the deep
     // and photo windows IMPORT the one mirror, so the pillar must serve it as
     // JavaScript. A module served as anything else is refused silently, which
@@ -826,6 +875,9 @@ const server = http.createServer((req, res) => {
     // The old paths keep working, since links live longer than layouts.
     if (path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
     if (path === '/play/deep' || path === '/deluxe') return sendFile('./window-3d.html', 'text/html')
+    if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
+    if (path === '/play/hill' || path === '/hill') return sendFile('./window-hill.html', 'text/html')
+    if (path === '/play/writ' || path === '/writ') return sendFile('./window-writ.html', 'text/html')
     if (path === '/play/photo' || path === '/photo') return sendFile('./window-photo.html', 'text/html')
     if (path === '/play/holo' || path === '/holo') return sendFile('./window-holo.html', 'text/html')
     if (path === '/play/lantern' || path === '/lantern' || path === '/diablo')
@@ -865,6 +917,46 @@ const server = http.createServer((req, res) => {
       return res.end(buf)
     }
     // what music this node actually has, so a window need not guess at names
+    // §6dj: THE TABLES, SERVED, SO NO WINDOW HAS TO KEEP A COPY.
+    //
+    // window-mist had a hand-copied forge table and twenty of its fifty-eight
+    // costs had drifted from the engine's: it offered recipes that could not be
+    // made and hid ones that could, and named two ingredients (`steel-ingot`)
+    // that do not exist. A copy of another file's constants, kept by hand in a
+    // third file, is a copy, and copies drift. The engine already exports all
+    // of this; the only thing missing was a door.
+    if (path === '/api/tables') {
+      // a Set does not survive JSON, so the tools become lists
+      const tools = {}
+      for (const [sk, set] of Object.entries(E.GATHER_TOOLS || {})) tools[sk] = [...set]
+      return json({
+        specVersion: E.SPEC_VERSION, tickMs: E.TICK_MS, vigilTicks: E.VIGIL_TICKS,
+        invSlots: E.INV_SLOTS, skills: E.SKILLS, equipSlots: E.EQUIP_SLOTS,
+        recipes: E.RECIPES, prices: E.PRICES, weapons: E.WEAPONS, smelted: E.SMELTED,
+        smithReqs: E.SMITH_REQS, wieldReqs: E.WIELD_REQS, mobs: E.MOB_STATS,
+        // §7p: which recipes belong to the FURNACE and not the anvil
+        smelted: [...(E.SMELTED || [])],
+        items: E.ITEMS, equippable: E.EQUIPPABLE, stackable: E.STACKABLE,
+        armour: E.ARMOUR, twoHanded: E.TWO_HANDED, nodeTypes: E.NODE_TYPES,
+        keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
+        // §the callings: which trades a skill opens, what they are called, the
+        // level they want, and the ceiling. A window may not invent a calling.
+        sworn: E.SWORN, callings: E.CALLINGS, swearLevel: E.SWEAR_LEVEL, mastery: E.MASTERY,
+        // §5k: what a citizen may not become. Unsworn nothing passes the first;
+        // sworn, your own trade has no ceiling and every other stops at the second.
+        capUnsworn: E.CAP_UNSWORN, capOther: E.CAP_OTHER,
+        // §5m: how many a master may take on at once, and how long a forgotten
+        // apprenticeship stands before it lapses
+        apprenticeSlots: E.APPRENTICE_SLOTS, apprenticeLapse: E.APPRENTICE_LAPSE,
+        // §5o: where the tail past a hundred buys another apprentice
+        apprenticeMilestones: E.APPRENTICE_MILESTONES,
+        // §5k: what a mastery is worth in the pack
+        masterYield: E.MASTER_YIELD, gatherCalling: E.GATHER_CALLING,
+        // §6dj: what a seam wants of you, and what it gives back
+        nodeGate: E.NODE_GATE, nodeYield: E.NODE_YIELD, gatherTools: tools,
+        xpTable: E.XP_TABLE, mastery: E.MASTERY
+      })
+    }
     if (path === '/api/audio') {
       let names = []
       try { names = fs.readdirSync(new URL('./audio/', import.meta.url))
@@ -1036,6 +1128,63 @@ function handle(ws, buf) {
     else if (a.do === 'cancel_trade') client.cancelTrade()
     else if (a.do === 'chat') { if (client.chat) client.chat(String(a.text)) }
     else if (a.do === 'attackp') { if (client.attackp) client.attackp(String(a.targetId)) }
+    else if (a.do === 'special') { if (client.special) client.special(String(a.targetId)) }
+    else if (a.do === 'swear') { if (client.swear) client.swear(String(a.calling),
+      a.attester === undefined ? undefined : String(a.attester)) }
+    else if (a.do === 'teach') { if (client.teach) client.teach(String(a.to)) }
+    else if (a.do === 'part') { if (client.part) client.part(String(a.who)) }
+    // ---- §6dj: THE WORDS THE LADDER WAS NOT CARRYING ----
+    //
+    // Everything below already existed twice over: the engine has an input for
+    // each (`inp.type === 'survey'`, `'alch'`, `'brew'` …), sdk.mjs has a
+    // method for each, and window-web sends most of them. Only this ladder was
+    // missing, so they were dropped in silence — and two whole SKILLS were
+    // unreachable by any window as a result: `mourning` is paid by `offer` at
+    // an ossuary and `wayfaring` by `survey` and `deliver`. A citizen could
+    // not have found out why; there was nothing to see.
+    //
+    // Nothing is invented here. Every line joins a verb a client already sends
+    // to an input the engine already validates. Run check-window-skills.mjs
+    // before and after to see the two skills light up.
+    else if (a.do === 'survey') { if (client.survey) client.survey() }
+    else if (a.do === 'drink') { if (client.drink) client.drink() }
+    else if (a.do === 'offer') { if (client.offerAtOssuary) client.offerAtOssuary(a.slot | 0) }
+    else if (a.do === 'alch') { if (client.alch) client.alch(a.slot | 0) }
+    else if (a.do === 'grind') { if (client.grind) client.grind(a.slot | 0) }
+    else if (a.do === 'still') { if (client.still) client.still(String(a.target)) }
+    else if (a.do === 'mendp') { if (client.mendp) client.mendp(String(a.target)) }
+    else if (a.do === 'unmake') { if (client.unmake) client.unmake(String(a.groundId)) }
+    else if (a.do === 'seal') { if (client.seal) client.seal(String(a.groundId)) }
+    else if (a.do === 'grave') { if (client.grave) client.grave(String(a.nodeId), String(a.target)) }
+    else if (a.do === 'brew') { if (client.brew) client.brew(String(a.nodeId), a.slot | 0) }
+    else if (a.do === 'collect') { if (client.collect) client.collect(String(a.nodeId)) }
+    else if (a.do === 'kindle') { if (client.kindle) client.kindle() }
+    else if (a.do === 'stoke') { if (client.stoke) client.stoke(String(a.nodeId), a.slot | 0) }
+    else if (a.do === 'consign') { if (client.take) client.take(a.slots ?? [a.slot | 0]) }
+    else if (a.do === 'deliver') { if (client.deliver) client.deliver(a.slot | 0) }
+    else if (a.do === 'release') { if (client.releaseConsignment) client.releaseConsignment() }
+    else if (a.do === 'pay') { if (client.pay) client.pay() }
+    else if (a.do === 'lay') { if (client.lay) client.lay(String(a.nodeId), a.n | 0 || 1) }
+    else if (a.do === 'found') { if (client.found) client.found(a.x | 0, a.y | 0) }
+    else if (a.do === 'dismantle') { if (client.dismantle) client.dismantle(String(a.nodeId)) }
+    else if (a.do === 'charter') { if (client.charter) client.charter(a.slot | 0) }
+    else if (a.do === 'nock') { if (client.nock) client.nock(a.slot | 0) }
+    else if (a.do === 'saw') { if (client.saw) client.saw(a.slot | 0) }
+    else if (a.do === 'smelt') { if (client.smelt) client.smelt(String(a.recipe)) }
+    // ---- and the rest of what the sdk can already speak ----
+    // A citizen's own stall is a whole trade: raise it, stock it, price it,
+    // take the coin, take it down. Every one of those had an sdk method and an
+    // engine input and no way through this door.
+    else if (a.do === 'raise_market') { if (client.raiseStall) client.raiseStall() }
+    else if (a.do === 'stock_market') { if (client.stockStall) client.stockStall(a.slot | 0) }
+    else if (a.do === 'price_market') { if (client.priceStall) client.priceStall(a.ask | 0) }
+    else if (a.do === 'take_market') { if (client.takeStall) client.takeStall() }
+    else if (a.do === 'dismantle_market') { if (client.dismantleStall) client.dismantleStall() }
+    else if (a.do === 'build_brewpot') { if (client.buildBrewpot) client.buildBrewpot() }
+    else if (a.do === 'deposit_all') { if (client.depositAll) client.depositAll() }
+    else if (a.do === 'walk') { if (client.walk) client.walk(Math.sign(a.dx | 0), Math.sign(a.dy | 0), a.steps | 0) }
+    else if (a.do === 'set_look') { if (client.setLook) client.setLook(a.look | 0) }
+
     else if (a.do === 'name') client.claimName(String(a.name))
     else if (a.do === 'stop') client.stop()
 }
@@ -1188,6 +1337,7 @@ async function releaseBootPort () {
 }
 
 await releaseBootPort()
+verifyWindows()
 server.listen(HTTP_PORT, () => {
   console.log('Interval is live: http://localhost:' + HTTP_PORT + '  (site, game, hiscores, API)')
   console.log('peers may join via join.mjs — p2p port ' + P2P_PORT + ', peer ' + node.peerId())

@@ -5185,6 +5185,22 @@ const MAGIC_ROCK_MINING = 70
 
 
 let myId = null, myName = '', world = null, intent = null, feedLines = []
+let _dial = null, _dialHidden = false
+;(async () => {
+  try {
+    const { makeDial } = await import('/dial.mjs')
+    _dial = makeDial({ corner: 'bottom-right' })
+    document.body.appendChild(_dial.el)
+    try { _dialHidden = localStorage.getItem('interval.dial') === 'off' } catch {}
+    _dial.setHidden(_dialHidden)
+  } catch (e) { /* a window without the module simply has no clock */ }
+})()
+addEventListener('keydown', (e) => {
+  if (!_dial || !e.altKey || (e.key !== 'c' && e.key !== 'C')) return
+  _dialHidden = !_dialHidden
+  _dial.setHidden(_dialHidden)
+  try { localStorage.setItem('interval.dial', _dialHidden ? 'off' : 'on') } catch {}
+})
 let _lastSurveyTick = -1
 // 6ci: a chart is one plain item now, not a 'chart:<stone>' key.
 let lastFeed = { text: '', at: 0 }
@@ -7563,6 +7579,12 @@ function onState(s, worldId, local) {
     feed('Nothing you did there came with you. That was the arrangement.')
   }
   world = s
+  // §7dv/§7dw: THE DIAL, refreshed on every state the world sends. It is a
+  // clock on a wall, so it lives outside the panels and outside the feed, and
+  // `Alt+C` puts it away for anybody who reads a dial and tenses rather than
+  // relaxes. Closing time is announced in world state either way: putting the
+  // dial away hides the display and never the fact.
+  if (_dial) _dial.update(s, myId)
   // RECONCILE THE FACE. A set_look sent in the same interval as a spawn can
   // arrive first and be dropped, so this keeps asking until the world agrees.
   // AND IT WAITS ITS TURN. The tick line is two deep (`allocTick`: cur+1 and

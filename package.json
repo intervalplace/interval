@@ -1,6 +1,6 @@
 {
   "name": "interval",
-  "version": "0.99.0",
+  "version": "1.0.2",
   "description": "A world that runs on rules, not servers. Decentralized deterministic MMO protocol.",
   "scripts": {
     "test": "npm run test:unit && npm run test:adversarial:ci",
@@ -38,17 +38,18 @@
     "@libp2p/identify": "^3.0.39",
     "@libp2p/tcp": "^10.1.19",
     "@multiformats/multiaddr": "^12.5.1",
-    "@noble/ed25519": "^3.1.0",
-    "@noble/hashes": "^2.2.0",
+    "@noble/ed25519": "^3.2.0",
+    "@noble/hashes": "^2.4.0",
     "libp2p": "^2.10.0",
-    "ws": "^8.21.1"
+    "three": "^0.128.0",
+    "ws": "^8.21.3"
   },
   "type": "commonjs",
   "release": "phase-1-freeze",
   "protocol": {
-    "specVersion": "0.99",
+    "specVersion": "1.02",
     "consensusVersion": "1.9",
-    "rulesHash": "654c1cd971dcc9c7"
+    "rulesHash": "b961c123b73d67c0"
   },
   "engines": {
     "node": ">=22.5.0"

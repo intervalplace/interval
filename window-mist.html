@@ -4370,9 +4370,32 @@ function txt (t, x, y, col, bold) {
   hx.fillStyle = '#000'; hx.fillText(t, x + 1, y + 1)
   hx.fillStyle = col; hx.fillText(t, x, y)
 }
+// §7dv/§7dw: THE DIAL. Kept out of the canvas HUD on purpose -- it is a clock
+// on a wall, not a readout, and it should not flicker with the crosshair or
+// vanish when a panel opens. `Alt+C` puts it away for anybody who reads a dial
+// and tenses rather than relaxes; closing time is announced in world state
+// either way, so putting it away hides the display and never the fact.
+let _dial = null, _dialHidden = false
+;(async () => {
+  try {
+    const { makeDial } = await import('/dial.mjs')
+    _dial = makeDial({ corner: 'bottom-right' })
+    document.body.appendChild(_dial.el)
+    try { _dialHidden = localStorage.getItem('interval.dial') === 'off' } catch {}
+    _dial.setHidden(_dialHidden)
+  } catch (e) { /* a window without the module simply has no clock */ }
+})()
+addEventListener('keydown', (e) => {
+  if (!_dial || !e.altKey || (e.key !== 'c' && e.key !== 'C')) return
+  _dialHidden = !_dialHidden
+  _dial.setHidden(_dialHidden)
+  try { localStorage.setItem('interval.dial', _dialHidden ? 'off' : 'on') } catch {}
+})
+
 function drawHud (now) {
   hx.clearRect(0, 0, RW, RH)
   const me = meNow()
+  if (_dial && world) _dial.update(world, myId)
   hx.textAlign = 'left'; hx.textBaseline = 'alphabetic'
 
   // crosshair: four ticks and a hole, the way they all were

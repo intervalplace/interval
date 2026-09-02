@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '1.00';
+const SPEC_VERSION = '1.02';
 // §1c: THE INTERVAL IS A SECOND, AND IT IS THE ONE NUMBER THAT WAS INHERITED.
 //
 // Six hundred milliseconds was RuneScape's tick and it arrived here with no
@@ -2411,6 +2411,11 @@ const TAKING_EVERY = 12, WAKING_EVERY = 40;
 // §7cm: how many names a citizen may keep. It is state, in the hash, carried by
 // every node forever -- so it is bounded, like everything else here.
 const FRIEND_CAP = 64;
+// §7dv: HOW MANY CITIZENS ONE MAY BE KNOWN TO. Larger than FRIEND_CAP, which
+// is a list a citizen curates by hand; this one the world writes, one entry
+// per distinct person ever stood beside inside a stint. It is bounded because
+// state has to hash, not because acquaintance should be rationed.
+const KNOWN_CAP = 512;
 // §7bu: the two quays, and which answers which. A pair, not a network: adding a
 // third would make this a coach service and the island would stop being one.
 const FERRY_PAIR = {
@@ -5679,6 +5684,58 @@ function stintOpen(p, tick) {
 function stintPresent(p, tick, sample) {
   return p.action !== null || tick - (p.lastInput ?? 0) <= sample;
 }
+// §7dw: CLOSING TIME.
+//
+// A ceiling on how much of the world one citizen may stand in any rolling
+// window. Not a day: a DAY would need a wall clock, and every midnight anybody
+// could pick is dinnertime for somebody else. A rolling window has no calendar,
+// no reset to race toward, and nothing to hoard or waste -- it refills
+// continuously, which removes the whole "use it or lose it" pressure that makes
+// a daily allowance itself a retention hook.
+//
+// It counts PRESENCE, not stint time. A ceiling that only counted sworn
+// intervals would be escaped by never swearing, and a citizen could stand the
+// world forever so long as they stayed unreachable. The promise and the
+// ceiling measure the same thing for the same reason.
+//
+// It is enforced the way every other rule here is enforced: every node
+// computes it from state it already holds, and no owner is involved. A second
+// keypair is not a way around it, it is the price of it -- skills, standing, a
+// calling sworn at thirty that cannot be put down, kept names, and vaults that
+// have a location. A limit you must pay that much to leave is a limit.
+//
+// The ledger is BINNED rather than exact. `bins` counts of `window / bins.length`
+// intervals each, advanced and zeroed as the count moves. The window is
+// therefore accurate to within one bin, which is the right trade: an exact
+// rolling sum would want a stamp per sample and hundreds of integers per
+// citizen in a state that has to hash.
+const CEIL_BINS = 24;
+function ceilBin(tick, g) {
+  return Math.floor(tick / (g.ceiling.window / CEIL_BINS));
+}
+// What a citizen has stood inside the window ending now.
+function ceilStood(p, g, tick) {
+  const led = p.ledger;
+  if (!led) return 0;
+  const b = ceilBin(tick, g);
+  const gap = b - led.at;
+  if (gap >= CEIL_BINS) return 0;          // the whole window has rolled past
+  let sum = 0;
+  for (let k = 0; k < CEIL_BINS - gap; k++) sum += led.bins[(led.at - k + CEIL_BINS * 2) % CEIL_BINS];
+  return sum;
+}
+// What is left of it. Negative is impossible; nothing accrues past the floor.
+function ceilingLeft(state, pid) {
+  const g = state.genesis, p = state.players?.[pid];
+  if (!g?.ceiling || !p) return Infinity;
+  return Math.max(0, g.ceiling.allow - ceilStood(p, g, state.tick));
+}
+// §7dw: STOOD DOWN. Not frozen, not logged out, not taken: PRESENT AND NOT
+// ACTING. A body that is still standing where it stood, still holding what it
+// held, and doing nothing until the window rolls enough to let it act again.
+function isStoodDown(state, pid) {
+  return ceilingLeft(state, pid) <= 0;
+}
 // §7dv: WHO MAY BE HEARD AT RANGE. Both halves, and neither alone.
 function maySpeakFar(state, pid) {
   const p = state.players?.[pid];
@@ -6111,20 +6168,28 @@ function callingHpBonus(p) {
 // going past mastery keeps rising, and standing has no maximum to hardcode.
 // §6ax: HOOD_STANDING, and why it is this number and not a rounder one.
 //
-// A mastery is 13,034,431 experience. Because the curve is exponential,
-// BREADTH is far cheaper than DEPTH -- standing 1200 spread across all
-// seventeen trades is 13,469,999, within a few percent of a single ninety-
-// nine, where reaching it by ten masteries would cost 130 million. So a
-// hood costs what a cape costs, spent wide instead of deep. The cape says
-// you went far in one thing; the hood says you went everywhere. They are
-// peers, not a ladder, and neither of us chose that -- the curve did.
+// IT USED TO BE 1200, and the reasoning was sound for the world that had it:
+// because the curve is exponential, BREADTH was far cheaper than DEPTH, so
+// standing 1200 spread wide cost about what one mastery cost spent deep. The
+// cape said you went far in one thing; the hood said you went everywhere. They
+// were peers, not a ladder, and the curve chose that rather than anybody.
 //
-// It is not a filter. In a world that expects executors, every citizen who
-// is maintained long enough crosses any line drawn here; the threshold buys
-// a sybil toll and a pace, nothing more. That is sufficient, because the
-// hood's scarcity was never meant to come from the threshold. It comes from
-// each one being a different object.
-const HOOD_STANDING = 1200;
+// §5k REPEALED THE PREMISE. Nothing unsworn passes fifty and nothing outside
+// your own trade passes seventy, so the widest citizen this world now allows
+// stands at 8x70 + their own trade — about 660 — and 1200 is not reachable by
+// any path at all. The hood had quietly stopped existing.
+//
+// Worse than the arithmetic: the hood was the GENERALIST'S reward, and §5k
+// abolished the generalist. So this is not a number that needed lowering, it is
+// a mark whose meaning had to be re-fixed.
+//
+// It still says you went everywhere — everywhere just means something else now.
+// 600 is every trade taken as far as the ceiling allows and a little of your
+// own on top: about forty-eight hours of work, real but not a second career.
+// The rest of §6ax stands unchanged: the threshold buys a sybil toll and a
+// pace, nothing more, because the hood's scarcity never came from the
+// threshold. It comes from each one being a different object.
+const HOOD_STANDING = 600;
 
 // Once, at the interval a citizen's standing first reaches the mark, and
 // never again -- `hooded` records the tick so the id can be recomputed by
@@ -7432,7 +7497,9 @@ const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantin
   // §7dv: the tide (the world's windows, the same for everyone) and the stint
   // (a citizen's promise made against one). A founding may have both, or
   // neither; a world that omits them has no far channel and no gate on a name.
-  'tide', 'stint']);
+  // §7dw: closing time -- the rolling ceiling on how much of the world one
+  // citizen may stand. A founding may omit it and have none.
+  'tide', 'stint', 'ceiling']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
 // a separate question from structural validity, the seam matters once
@@ -7539,10 +7606,31 @@ function validateGenesis(g) {
   // `remembers` is how many settled stints a citizen's record keeps.
   if (g.stint !== undefined) {
     const sn = g.stint;
-    if (!sn || typeof sn !== 'object' || Object.keys(sn).sort().join(',') !== 'cap,remembers,sample') return 'non-constitutional genesis.stint';
-    for (const nk of ['cap', 'sample', 'remembers']) if (!isInt(sn[nk], 1, 1e9)) return `genesis.stint.${nk} out of bounds`;
+    if (!sn || typeof sn !== 'object' || Object.keys(sn).sort().join(',') !== 'cap,meets,remembers,sample') return 'non-constitutional genesis.stint';
+    for (const nk of ['cap', 'sample', 'remembers', 'meets']) if (!isInt(sn[nk], 1, 1e9)) return `genesis.stint.${nk} out of bounds`;
+    // §7dv: a MEETING is not a passing. `meets` is how much overlap a pair
+    // must actually share before the world records that they know each other,
+    // so walking past somebody for one sample is not an acquaintance.
+    if (sn.meets > sn.cap) return 'genesis.stint.meets cannot exceed the cap';
+    if (sn.meets < sn.sample) return 'genesis.stint.meets cannot be finer than the sample';
     if (sn.sample > sn.cap) return 'genesis.stint.sample cannot exceed the cap';
     if (sn.remembers > 256) return 'genesis.stint.remembers out of bounds';
+  }
+  // §7dw: CLOSING TIME. `window` is the rolling span, `allow` how much of it a
+  // citizen may stand, `warn` how long before the floor the world says so.
+  if (g.ceiling !== undefined) {
+    const ce = g.ceiling;
+    if (!ce || typeof ce !== 'object' || Object.keys(ce).sort().join(',') !== 'allow,warn,window') return 'non-constitutional genesis.ceiling';
+    for (const ck of ['window', 'allow', 'warn']) if (!isInt(ce[ck], 1, 1e9)) return `genesis.ceiling.${ck} out of bounds`;
+    // The window must divide into bins evenly or the ledger drifts.
+    if (ce.window % CEIL_BINS !== 0) return 'genesis.ceiling.window must divide into bins';
+    // A ceiling at or above its own window is not a ceiling.
+    if (ce.allow >= ce.window) return 'genesis.ceiling.allow never binds';
+    if (ce.warn >= ce.allow) return 'genesis.ceiling.warn must fall inside the allowance';
+    // Closing time is announced or it is a trapdoor. A world may set the
+    // notice short; it may not set it to nothing.
+    if (!g.stint) return 'genesis.ceiling requires genesis.stint (the sample is the ledger clock)';
+    if (g.ceiling.window / CEIL_BINS < g.stint.sample) return 'genesis.ceiling bins finer than the sample';
   }
   if (g.geo !== undefined) {
     const ge = g.geo;
@@ -7930,6 +8018,11 @@ const LANDMARK_KINDS = new Set([
     // §7dv: the open promise, the settled records, and the two tallies that
     // hold the gap between what was sworn and what was stood
     'stint', 'stints', 'sworn', 'stood',
+    // §7dv: the DISTINCT citizens ever met inside a stint -- the measure a
+    // farm cannot inflate by standing its own keys together for longer.
+    'known',
+    // §7dw: the rolling ledger closing time is computed from
+    'ledger',
     // §6bu: alight, and it burns off by itself
     'burnUntil',
     // §7dk: the record clock, this citizen's own bands, and whether they ever
@@ -8191,6 +8284,25 @@ const LANDMARK_KINDS = new Set([
     // only rise. The world does not punish the gap between them; it declines
     // to forget it, which is the same rule the constitution keeps about its
     // own repeals.
+    // §7dw: THE LEDGER. Bins of presence, and the bin the last one landed in.
+    // Bounded by construction: it is the same twenty-four integers forever, no
+    // matter how long a citizen stands the world.
+    if (p.ledger !== undefined) {
+      const led = p.ledger;
+      if (!led || typeof led !== 'object' || Object.keys(led).sort().join(',') !== 'at,bins') return 'malformed ledger';
+      if (!isInt(led.at, 0, MAX_TIME)) return 'ledger stamp out of bounds';
+      if (!Array.isArray(led.bins) || led.bins.length !== CEIL_BINS) return 'malformed ledger bins';
+      for (const b of led.bins) if (!isInt(b, 0, MAX_TIME)) return 'malformed ledger bin';
+    }
+    // §7dv: KNOWN. A sorted list of distinct ids, bounded, and it only grows
+    // by one per citizen ever met however long they stood beside you.
+    if (p.known !== undefined) {
+      if (!Array.isArray(p.known) || p.known.length > KNOWN_CAP) return 'malformed known';
+      for (let i = 0; i < p.known.length; i++) {
+        if (!(typeof p.known[i] === 'string' && /^[a-z0-9_-]{1,96}$/i.test(p.known[i]))) return 'malformed known id';
+        if (i > 0 && !(p.known[i - 1] < p.known[i])) return 'known must be sorted and distinct';
+      }
+    }
     if (p.sworn !== undefined && !isInt(p.sworn, 0, MAX_TIME)) return 'sworn out of bounds';
     if (p.stood !== undefined && !isInt(p.stood, 0, MAX_TIME)) return 'stood out of bounds';
     // §7cl: the leashes on the two that needed them
@@ -9261,6 +9373,16 @@ function validInput(state, input, ctx) {
   if (!p) return false;
   if (p.hp <= 0) return false; // the dead act on nothing (v0.41)
   if ((p.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot act (v0.80)
+  // §7dw: THE STOOD DOWN ACT ON NOTHING EITHER, and the placement of this line
+  // is the whole of the rule. It sits at the one gate every input passes, so
+  // there is no verb that slips under it and no need to remember it in ninety
+  // places. It is not a freeze and not a logout: the body stands where it
+  // stood, holding what it held, and the window rolls until it may act again.
+  //
+  // Nothing is taken. No skill decays, no vault empties, no ground is lost to
+  // a citizen who stood the world for longer. The world simply stops
+  // transacting with them for a while, and says so ten minutes before it does.
+  if (isStoodDown(state, input.playerId)) return false;
   const playerId = input.playerId; // the still case needs to refuse self-casts
   switch (input.type) {
     case 'move': return canStep(state, ctx, p, input.dx, input.dy);
@@ -12170,6 +12292,36 @@ function nextState(state, inputs, _legacyBeacon) {
     const _sn = s.genesis.stint;
     if (_sn) {
       const _ids = Object.keys(s.players).sort();      // id order: this writes canonical state
+      // §7dw: THE LEDGER, on the same cadence and BEFORE the stint tally, so a
+      // citizen who crosses the floor this interval crosses it once. Presence
+      // is counted whether or not a stint is open: a ceiling that only counted
+      // sworn intervals would be escaped by never swearing.
+      const _ce = s.genesis.ceiling;
+      if (_ce && s.tick % _sn.sample === 0) {
+        const bin = ceilBin(s.tick, s.genesis);
+        for (const id of _ids) {
+          const q = s.players[id];
+          if (q.hp <= 0 || !stintPresent(q, s.tick, _sn.sample)) continue;
+          const own = ownPlayer(s, id);
+          let at = own.ledger?.at ?? bin;
+          let bins = own.ledger ? [...own.ledger.bins] : new Array(CEIL_BINS).fill(0);
+          const gap = bin - at;
+          if (gap >= CEIL_BINS) bins = new Array(CEIL_BINS).fill(0);
+          else for (let k = 1; k <= gap; k++) bins[(at + k) % CEIL_BINS] = 0;   // zero what rolled past
+          bins[bin % CEIL_BINS] += _sn.sample;
+          own.ledger = { at: bin, bins };
+          // CLOSING TIME IS ANNOUNCED OR IT IS A TRAPDOOR. The whole of what a
+          // bounded session did was that you knew it was coming and roughly
+          // when. The stopping was never the part that worked.
+          const left = Math.max(0, _ce.allow - ceilStood(own, s.genesis, s.tick));
+          const was = left + _sn.sample;
+          if (left <= 0 && was > 0) {
+            announce(s, (q.name ?? id.slice(0, 6)) + ' stands down.');
+          } else if (left > 0 && left <= _ce.warn && was > _ce.warn) {
+            announce(s, (q.name ?? id.slice(0, 6)) + ': closing time in ' + Math.round(left / 60) + ' minutes.');
+          }
+        }
+      }
       if (s.tick % _sn.sample === 0) {
         const _in = _ids.filter((id) => {
           const q = s.players[id];
@@ -12206,6 +12358,30 @@ function nextState(state, inputs, _legacyBeacon) {
         const met = Object.entries(st.met)
           .sort((x, y) => (y[1] - x[1]) || (x[0] < y[0] ? -1 : x[0] > y[0] ? 1 : 0));
         const rec = { from: st.from, to: st.to, kept: st.kept, met };
+        // §7dv: AND THE MEASURE IS DISTINCT PEOPLE, NOT HOURS OF OVERLAP.
+        //
+        // The tally above says a script cannot make anybody show up, and that
+        // is true of a script standing alone. It is NOT true of a FARM: one
+        // operator running two citizens stands them side by side, both sworn,
+        // both present, and the world reads it as company. Overlap measured in
+        // intervals is inflated simply by leaving them there.
+        //
+        // So what accumulates across a life is the count of DISTINCT citizens
+        // ever met, gated by `meets` so a passing is not an acquaintance. A
+        // farm of N keys can manufacture at most N(N-1)/2 distinct pairs --
+        // bounded, paid for once, and it does not grow with time no matter how
+        // long the machines stand there. A person meets a new stranger and the
+        // number rises; a farm stands its own alts together for a year and it
+        // does not.
+        const _mn = _sn.meets;
+        let known = own.known;
+        for (const [other, held] of met) {
+          if (held < _mn) continue;                       // a passing, not a meeting
+          if ((known ?? []).includes(other)) continue;    // already known: once is once
+          if ((known ?? []).length >= KNOWN_CAP) break;
+          known = [...(known ?? []), other].sort();
+        }
+        if (known !== own.known) own.known = known;
         own.stints = [rec, ...(own.stints ?? [])].slice(0, _sn.remembers);
         delete own.stint;
         if (met.length > 0) {
@@ -16748,7 +16924,9 @@ module.exports = {
   // the interval count, so every window answers the same and none of them has
   // to be believed.
   tideUp, tidesOpen, anyTideOpen, nextTideTurn,
-  stintOpen, stintPresent, maySpeakFar, withinEarshot,
+  stintOpen, stintPresent, maySpeakFar, withinEarshot, KNOWN_CAP,
+  // §7dw: closing time -- a window must be able to draw the clock
+  ceilingLeft, isStoodDown, ceilStood, CEIL_BINS,
   SPEC_VERSION, TICK_MS, INV_SLOTS,
   XP_TABLE, levelForXp,
   canonical, stateHash, sha256, beaconValue, roll,

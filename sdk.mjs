@@ -211,6 +211,21 @@ export class IntervalClient {
   // thing in the world that pays `mourning`. The SDK had no word for it, so no
   // script and no window could mourn, and the skill sat at its floor forever.
   offerAtOssuary(slot) { return this.#send({ type: 'offer', slot }) }
+  // §6dj: SWEARING TO A CALLING. The engine has had this since it had skills:
+  // at SWEAR_LEVEL in a trade you may swear to one of its callings, and
+  // `p.calling !== undefined` refuses a second one FOREVER. That is a mastery
+  // cap already written and already enforced — one trade a citizen, chosen
+  // once. Nothing could reach it: no sdk method, no route, so no citizen has
+  // ever sworn to anything and every one of them is a generalist by accident.
+  // §5m: a swearing may name the master who took you on. The mark is minted by
+  // FINISHING and only by finishing, and it carries the calling rather than the
+  // person — it survives a change of name, and it says what was passed on.
+  swear(calling, attester) { return this.#send(attester === undefined
+    ? { type: 'swear', calling } : { type: 'swear', calling, attester }) }
+  // a master takes a citizen on. Consent is a signed input of its own: a master
+  // cannot be volunteered.
+  teach(to) { return this.#send({ type: 'teach', to }) }
+  part(who) { return this.#send({ type: 'part', who }) }
   // §6dj: AND THE LAST FOUR TRADES THE SDK COULD NOT SPEAK. A chart drawn up
   // into a charter, a shaft nocked, a log sawn, an ore smelted — four inputs
   // the engine has always validated and no script could ever send.
@@ -297,7 +312,36 @@ export class IntervalClient {
   // feature, so there is none. If a diff of engine schemas against this file
   // ever lists those two again, that is correct and expected.
 
-  chat(text) { return this.node.publishChat(this.identity, text) }
+  // §7dv: a voice near, a voice far, and the near one is the default because
+  // the near one is the one that needs nothing.
+  chat(text) { return this.node.publishChat(this.identity, text, 'near') }
+  say(text) { return this.node.publishChat(this.identity, text, 'near') }
+  call(text) { return this.node.publishChat(this.identity, text, 'far') }
+
+  // §7dv: SWEAR A STINT of `n` intervals. Named before you know what happens
+  // in it; that is the whole of what makes it a promise rather than a log.
+  stint(n) { return this.#send({ type: 'stint', n }) }
+
+  /** §7dv: the tide, as a forecast rather than a rumour. */
+  tide() {
+    const g = this.world?.genesis
+    if (!g?.tide) return null
+    const t = this.tick
+    return g.tide.periods.map((per, i) => ({
+      i, period: per, open: g.tide.opens[i],
+      up: E.tideUp(g, t, i),
+      turnsAt: E.nextTideTurn(g, t, i),
+      turnsIn: E.nextTideTurn(g, t, i) - t,
+    }))
+  }
+  /** §7dv: may this citizen be heard across the island, right now? */
+  get canCall() { return this.me ? E.maySpeakFar(this.world, this.identity.playerId) : false }
+  /** §7dv: the open promise, if there is one, and how much of it is left. */
+  get myStint() {
+    const p = this.me
+    if (!p?.stint) return null
+    return { ...p.stint, left: p.stint.to - this.tick, met: { ...p.stint.met } }
+  }
   onChat(cb) { this.node.onChat = cb }
 
   // ---- the heartbeat ----

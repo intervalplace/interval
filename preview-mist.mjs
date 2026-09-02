@@ -347,6 +347,13 @@ if (process.env.LEVEL) {
   for (let i = 0; i < 12; i++) { CLOCK += 34; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
 }
 
+if (process.env.SKILLS_XP) {
+  state.players.me.skills = JSON.parse(process.env.SKILLS_XP)
+  if (process.env.CALLING) state.players.me.calling = process.env.CALLING
+  send({ type: 'state', state, worldId: 'a1b2c3d4e5' })
+  for (let i = 0; i < 4; i++) { CLOCK += 34; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
+}
+
 // press keys before the shutter, so the panels can be photographed
 if (process.env.MENU) {
   if (!process.env.BARE) {

@@ -299,3 +299,158 @@ level is near a seventh of the whole ascent, is a very long time early.
 `window.test.mjs` now reads the client's skill names against `SKILLS`, checks
 `CAPE_COLORS` for duplicate keys and colours, and pins the mastery threshold.
 None of this needed a browser.
+
+## The tide, the stint, and the one thing befriending lost (v1.00, §14e)
+
+This world had no seams. It advanced one interval a second forever, which is
+exactly what was asked of it, and it meant nothing in it ever finished. Every
+mechanism that would coerce a citizen into staying had already been refused —
+no live-ops, no patience tax, no lockout for absence — and that was most of
+the work, but the last part cannot be done by refusing things. A citizen had
+to stop by themselves, unassisted, and that is the one moment a person is
+worst equipped for.
+
+§14e adds a tide (windows computed from the interval count, the same for
+everyone) and a stint (a promise a citizen swears against one). What follows
+is what it cost, and what was tried and thrown away.
+
+**`befriend` was repealed and re-granted narrower.** §7cn made a kept name
+cost nothing but proximity: be within twelve tiles of somebody alive, and the
+name is yours to keep. In a world with a tide it now also costs a tide being
+up and BOTH citizens standing inside stints they swore in advance. That is a
+repeal of a rule four releases old and it is recorded here as one rather than
+described as an addition, because a citizen who could keep a name yesterday
+and cannot today is owed the sentence that says so.
+
+The narrowing is not there to make names scarce. A name kept under §7cn could
+be a coincidence — two people who happened to be in the same field. Under
+§14e it cannot: it takes two promises made separately and beforehand, and
+then kept. **A founding that omits `genesis.tide` keeps §7cn exactly as it
+was**, which is what governance by exit is for.
+
+**A queue was considered and thrown out.** The obvious model was the login
+queues of the old subscription worlds, which did produce the effect wanted —
+an hour of waiting meant nobody entered casually, and once in, people stayed
+and made the wait worth something. But a queue is a capacity limit, and a
+capacity limit is patience charged as an entry fee. This world's pillars
+scale; imposing one would have been inventing a scarcity that does not exist
+in order to price the one thing §6am says must never be priced. What the
+queue really did was put the cost at the DOOR, where it falls on the person
+and blocks them from the thing. §14e moves the cost inside: entry is instant
+and free, and the deliberateness comes from swearing a length rather than
+from waiting for permission.
+
+**A random per-citizen grant was considered and thrown out.** It was proposed
+on the grounds that the ionosphere does not ask either. But the ionosphere is
+indifferent, not arbitrary: it is the same for everybody and it is
+forecastable, which is why it reads as weather rather than as a dealt hand.
+A window rolled per citizen would have been the first random thing in a
+protocol whose every other value is a pure function of the seed, and it would
+have killed the mechanism it was meant to serve — a promise you did not make
+is not a promise, and two people assigned overlapping windows have a
+coincidence, not an appointment.
+
+**`isAwake` was the wrong instrument and the tests caught it.** The first cut
+measured standing with `isAwake`, which is generous by design: `SLEEP_AFTER`
+is five hundred intervals. Any stint shorter than that could be stood in FULL
+by a citizen who left on the interval they swore it. `stintPresent` uses the
+founding's own `sample` instead, and keeps the running-action clause, because
+a citizen watching a pickaxe work is present and should not have to jog the
+keys to prove it.
+
+**And the tally counts the overlap, not the stint.** The first shape recorded
+how long a citizen stood their own promise, which is a bot leaderboard: a
+script never overruns and never forgets. What settles instead is who ELSE was
+inside a stint within twelve tiles, sampled. A script can stand a flawless
+stint alone forever and its tally stays empty. That is the only measure in
+this world a bot cannot saturate, and it is the reason the feature exists at
+all.
+
+**What it deliberately does not do.** It gates no yield, no price, no blow. A
+settled stint pays nothing. It ends nobody's evening — everything after a
+stint closes works as it did before, and what ends is only the part that was
+promised. And it charges no patience: a citizen who misses every tide for a
+year loses no ground to one who caught them all.
+
+## Closing time, and what it excludes (v1.01, §14f)
+
+§14e gave the world a bounded thing inside it. This bounds the world itself:
+ninety minutes of standing in any rolling twenty-four hours, ten minutes'
+notice, and then the citizen stands down until the window rolls.
+
+It is the most intrusive rule in the constitution and it was argued about
+longest. What follows is what was rejected, what was wrong on the first
+attempt, and — the part this document exists for — who it costs.
+
+**Three hours was the first number and it was wrong.** It is more than most
+working adults have in an evening, so the ceiling would never have bound for
+the citizens it was built for. A limit nobody reaches is not a design, it is a
+decoration. Ninety is the number that binds, and it is roughly the number a
+parent gives a child, which is the only piece of evidence anybody actually had.
+
+**A daily cap was rejected for a rolling window.** A day needs a wall clock,
+and this protocol's only truth is the interval count; every midnight anybody
+could pick is dinnertime for somebody else. Worse, a resetting allowance is
+itself a retention hook — "I have not used today's yet" is the same engine as a
+daily reward, and it makes absence costly, which is the exact thing §6am
+refuses.
+
+**A freeze was rejected for a stand down.** A limit that lands in the Wilds,
+mid-fight, carrying a full pack, and takes the haul, is not a boundary. It is a
+punishment, and the notice exists because of it. The announcement is not a
+courtesy wrapped around the rule; it IS the rule. What a bounded session did
+was never the stopping — it was knowing it was coming.
+
+**And the argument that nearly stopped it was wrong.** It was held, at length,
+that enforcement requires an owner, and that Interval cannot have one. That is
+backwards: consensus IS enforcement without an owner, and it is what this
+protocol has claimed from the start. A rolling budget on a citizen's own key is
+no less enforceable than the stint cap, and no more owned. The sybil objection
+was wrong for a different reason — a second keypair here costs skills,
+standing, a sworn calling, kept names, and vaults that have a location. A limit
+you must pay that much to leave is a limit.
+
+**WHO THIS EXCLUDES.** Someone housebound. Someone retired. Someone snowed in
+for a week in February. Their relationship with a world is legitimately
+long-form, and to them this rule says their life is the wrong shape. They will
+be among the most devoted citizens here and they will feel it most. The
+intended answer is rotation between several citizens, which is a real trade
+where depth is what gets ranked — but it is not free and it is not nothing.
+
+This was chosen with that in front of us, not discovered afterwards. If it
+proves wrong, the next founding should see the reasoning and not only the rule.
+
+**It is not a wellbeing feature.** It should not be described as one. Anybody
+for whom stopping is genuinely compulsive will make a second key without much
+internal argument. What it actually does is shape play for citizens who care
+about their citizen, and cap what any one identity can accumulate per unit of
+real time — which closes the last gap in "what a script cannot do is be
+somewhere".
+
+**And a correction on the record.** During the work it was reported that
+citizens in the expanse are walled in on all four sides and that spawn
+placement might not be checking walkability. That was wrong. The test was
+placing citizens at the northwest corner of an 896x512 island, which is sea:
+101 walkable of 625 sampled there, against 142 of 144 around the real anchor at
+448,256, which is itself walkable. Nothing was broken. The instrument was in
+the water.
+
+## The overlap tally was inflatable, and what replaced it (v1.02, §14e)
+
+§14e claimed the co-presence tally was the one measure in this world a script
+could not saturate, because what a script cannot do is make anybody else show
+up. That is true of a script standing ALONE. It was never true of a FARM.
+
+One operator running two citizens stands them side by side, both sworn, both
+present, and the world read it as company. Overlap counted in intervals was
+inflated by leaving the machines there. The measure the whole design leaned on
+was fake against anybody willing to run two keys, which is a low bar.
+
+What accumulates now is `known`: distinct citizens ever met inside a stint,
+gated by `genesis.stint.meets` so a passing is not an acquaintance. A farm of N
+keys can manufacture at most N(N-1)/2 pairs — bounded, paid once in the price
+of N identities, and flat in time. The per-stint overlap is still recorded,
+because it is the texture of an evening. It is no longer what gets ranked.
+
+This is recorded as a correction rather than a feature. The earlier claim was
+stated confidently in this document and it was wrong.

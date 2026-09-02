@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v1.00 ("The Constitution")
+# Interval: Protocol Specification v1.02 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -60,6 +60,8 @@ the ones an implementer would otherwise build:
 | swearing at level thirty | §5k | **fifty** — thirty was six minutes of chopping |
 | mastery in every trade | §5k | one, ever: your own has no ceiling, the other eight stop at seventy |
 | a calling as a bonus you may decline | §5k | a ceiling applies whether or not you swear |
+| the hood as the generalist's peer to the cape | §6ax | the generalist is abolished; the hood is 600, every trade to its ceiling |
+| standing as the generalists' board | §7dk | 560 of it is constant once sworn; it is a slow reading of one trade |
 
 **The constitution is three documents, and the rules hash covers all
 three in order.** `SPEC.md` is the settled law. `LIFTED.md` holds rules
@@ -3778,6 +3780,36 @@ twenty, and an axe is still what fells a tree. What changes is that a
 gate is reachable from either half of its trade. A brewer who has never
 sown passes the muck-heap; a smith who has never swung a pick passes
 the coal. That is the merge doing what a merge does.
+
+### §5v-ii — what the ceiling did to standing and the hood
+
+`standingOf` sums nine true levels, and two things were tuned against the range
+it used to have.
+
+**The hood (§6ax) had quietly stopped existing.** `HOOD_STANDING` was 1200, on
+the sound reasoning that an exponential curve makes breadth cheaper than depth,
+so 1200 spread wide cost about what one mastery cost spent deep — *the cape says
+you went far in one thing; the hood says you went everywhere.* Under §5k the
+widest citizen this world allows stands at 8&times;70 plus their own trade, about
+660, and 1200 is unreachable by any path. Worse than the arithmetic: **the hood
+was the generalist's reward and §5k abolished the generalist.**
+
+It is 600 now — every trade taken as far as the ceiling allows, and a little of
+your own on top, about forty-eight hours. It still says you went everywhere;
+everywhere just means something else. The rest of §6ax stands: the threshold
+buys a sybil toll and a pace, and the hood's scarcity comes from each one being
+a different object.
+
+**And standing is no longer the generalists' board.** Once a citizen is sworn,
+560 of their standing is a constant, so it reads as their own trade's level plus
+a fixed number — a slower way of saying what the trade board says. It is kept
+because the waystones and the hood are tuned against it, not because it ranks
+anything the nine do not.
+
+**The hiscores gain a `raised` board.** It is the only number in this world that
+measures a thing a citizen did for somebody else, it is minted only by an
+apprentice finishing (§5w), and every entry on it is backed by signatures anybody
+may replay. No other world can offer that ranking.
 
 ### §5w — teaching, and a mark only finishing can mint
 
@@ -10763,6 +10795,23 @@ forever, and its tally stays empty. **What a script cannot do is make anybody
 else show up.** Every other measure in this world is one a bot can saturate;
 this one is not, and that is the entire reason it exists.
 
+**And the measure is DISTINCT PEOPLE, not hours of overlap.** The claim that a
+script cannot make anybody show up is true of a script standing *alone*. It is
+not true of a FARM: one operator running two citizens stands them side by side,
+both sworn, both present, and overlap counted in intervals inflates by simply
+leaving them there.
+
+So what accumulates across a life is `known` — the count of distinct citizens
+ever met inside a stint, gated by `genesis.stint.meets` so that a passing is
+not an acquaintance. A farm of N keys can manufacture at most N(N−1)/2 distinct
+pairs: bounded, paid for once in the price of N identities, and **it does not
+grow with time**. Machines standing together for a year produce the same number
+as machines standing together for an hour. A person who meets a stranger
+produces one more.
+
+The per-stint overlap is still recorded, because it is the texture of an
+evening. It is simply not the thing that gets ranked.
+
 **A voice has a reach, and only the far one is licensed.** Chat remains
 auxiliary in every respect (§9c): not world state, never in a state hash, its
 own gossip topic. What is added is a `scope` on the frame, and every node can
@@ -10822,6 +10871,101 @@ ends is the part that was PROMISED — and the intervals after settle into
 nothing, the way a contact nobody wrote down counts as nothing. The band
 closing does not send an operator down off the hill either. They can sit
 there another hour listening to static, and sometimes they do.
+
+### 14f. Closing time (v1.01)
+
+§14e put a bounded thing inside the persistent world. This bounds the
+persistent world itself, for one citizen at a time, and it is the most
+intrusive rule in this document. It is written down at length because a rule
+that costs people something should be readable by the people it costs.
+
+**The claim.** Modern worlds are built so that a person never leaves, and they
+succeed. What they produce is not play, it is a blur — no entering, no
+leaving, no shape. A bounded session does not reduce the appetite for a world;
+it concentrates it. Thirty-six exposures produce better photographs than a
+memory card. A record side ends. The people who remember being given half an
+hour on a family computer remember it as *better*, not as less.
+
+**The rule.** `genesis.ceiling` is `{ window, allow, warn }`. A citizen may
+stand the world for `allow` intervals inside any rolling `window`. Past that
+they STAND DOWN, and `warn` intervals before it the world says so.
+
+- **Rolling, not daily.** A day would need a wall clock, and every midnight
+  anybody could choose is dinnertime for somebody else. A rolling window has no
+  calendar, no reset to race toward, nothing to hoard, and nothing to waste —
+  it refills continuously, which is precisely what stops a daily allowance from
+  being a retention hook in its own right. "I have not used today's three hours
+  yet" is the same engine as a daily reward, and this must not become that.
+- **Presence, not stint time.** The ledger counts a citizen who is present,
+  whether or not they swore. A ceiling that counted only sworn intervals would
+  be escaped by never swearing, and a citizen could stand the world forever so
+  long as they stayed unreachable.
+- **Binned, not exact.** Twenty-four bins of `window / 24`, advanced and zeroed
+  as the count moves. Accurate to within one bin, which is the right trade: an
+  exact rolling sum wants a stamp per sample and hundreds of integers per
+  citizen in a state that has to hash. The ledger is the same twenty-four
+  integers forever, however long anybody plays.
+- **One gate.** The refusal lives at the single point every input passes, next
+  to the dead and the stilled. There is no verb that slips under it and no need
+  to remember it in ninety places.
+
+**Stand down, not freeze, and NOTHING IS TAKEN.** The body stands where it
+stood, holding what it held. No health, no coin, no pack, no skill, no ground.
+No decay runs against a citizen for having stood the world longer. The world
+simply stops transacting with them until the window rolls — and it says so ten
+minutes out, because **closing time is announced or it is a trapdoor**. A limit
+that lands without warning in the Wilds, mid-fight, carrying a full pack, is
+not a boundary; it is a punishment, and it is the one version of this rule that
+people would be right to resent.
+
+The notice is not incidental to the design, it IS the design. What a bounded
+session did was never the stopping. It was that you knew it was coming and
+roughly when, and played the whole of it differently for knowing.
+
+**Enforcement without an owner.** Every node computes the ledger from state it
+already holds. Nobody imposes this; consensus *is* the imposition, which is
+what this protocol has claimed from §1 and is no less true when the rule is
+about time. A second keypair is not a way around the ceiling — it is the price
+of it: skills, standing, a calling sworn at thirty that cannot be put down,
+kept names, and vaults that have a location. **A limit you must pay that much
+to leave is a limit.**
+
+**WHAT THIS COSTS, STATED PLAINLY.** Some people's relationship with a world is
+legitimately long-form: someone housebound, someone retired, someone snowed in
+for a week in February. For them this is not a liberation. It is the world
+declaring their life the wrong shape, and they will be among the most devoted
+citizens here and will feel it most. The intended answer is that a dedicated
+person keeps several citizens and rotates — which is a real trade in a world
+where depth is the ranked thing, not a workaround, but it is not nothing and it
+is not free.
+
+This was chosen, not overlooked. A world that is honest about what it is for is
+better than one that pretends to be for everybody.
+
+**What it is not for.** It is not a wellbeing measure and should not be
+described as one, privately or otherwise. Anybody for whom stopping is
+genuinely compulsive will make a second key without much internal argument, so
+this does not reach them. What it does is change the texture of play for
+citizens who care about their citizen, and put a ceiling on how much any single
+identity can accumulate per unit of real time — which is also the last gap in
+"what a script cannot do is be somewhere". Presence was already the only
+unfakeable scarcity; now it is rate-limited per identity, so a farm's advantage
+collapses into running more citizens, and more citizens is exactly the thing
+that costs depth.
+
+**The dial (`dial.mjs`), and why it is a watch.** A window draws the tide and
+the allowance as two rings. A countdown shows a magnitude draining toward a
+target, which is the device every other game uses to manufacture urgency; a
+watch has no zero and shows position. Everything is rounded to five minutes,
+which is both the calmer reading and the one that cannot be optimised against
+— "twelve hundred left, I can fit one more run" is a citizen playing the clock
+rather than reading it. A citizen may put the dial away. Doing so hides the
+DISPLAY and never the FACT: the notice is in world state and arrives either
+way, so nobody is ambushed and nobody must watch a clock who does not want to.
+
+The dial duplicates this arithmetic so a window need not import the engine.
+That duplication is a promise, kept by `test/dial.test.mjs`. If the two ever
+disagree, the engine is right.
 
 ## 15. The island is frozen (v0.88)
 

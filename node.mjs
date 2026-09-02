@@ -1173,6 +1173,26 @@ export class IntervalNode {
     if (typeof msg.text !== 'string' || msg.text.length === 0 || msg.text.length > 80) return false
     if (msg.worldId !== this.worldId) return false // §2.3: chat is world-bound
     if (!E.verifyInputSig(msg, E.SIG_DOMAINS.chat)) return false // §2.3: chat domain, never replayable as an input
+    // §7dv: A VOICE HAS A REACH, AND THE FAR ONE IS LICENSED.
+    //
+    // Chat is still not world state and still never touches a hash (§9c).
+    // What changed is that a frame now says how far it means to carry, and
+    // every node can check that claim against state it already has. `near` is
+    // never gated -- speech to somebody standing beside you is not the
+    // network, it is being somewhere. `far` needs a tide up and the speaker
+    // inside a stint they swore in advance.
+    //
+    // The tide is checked at the frame's OWN interval, exactly, because it is
+    // a pure function of the count and gossip is slow. The stint is checked
+    // against the state this node holds now -- an approximation, and an
+    // honest one: a stint that closed in the seconds a frame spent in flight
+    // costs its speaker one message, and nothing in consensus depends on it.
+    if (msg.scope !== 'near' && msg.scope !== 'far') return false
+    if (msg.scope === 'far') {
+      if (!Number.isInteger(msg.tick)) return false
+      if (!E.anyTideOpen(this.state.genesis, msg.tick)) return false
+      if (!E.stintOpen(this.state.players?.[msg.playerId], this.state.tick)) return false
+    }
     const now = Date.now()
     if (now - (this._chatLast.get(msg.playerId) ?? 0) < E.TICK_MS) return false
     if (this._chatLast.size >= LIMITS.MAX_CHAT_SENDERS && !this._chatLast.has(msg.playerId)) {
@@ -1183,15 +1203,28 @@ export class IntervalNode {
     return true
   }
 
+  // §7dv: RELAY IS NOT HEARING. `acceptChat` decides what this node passes on;
+  // a well-formed `near` frame is relayed by everybody, because the only path
+  // between two neighbours may run through a node on the far side of the
+  // island and a mesh that dropped it would silence them. Whether YOU hear it
+  // is a separate question, asked once, at the window: near carries as far as
+  // this world already says two people are together, and no further.
+  hearChat(msg, selfId) {
+    if (!msg) return false
+    if (msg.scope === 'far') return true
+    if (!selfId || msg.playerId === selfId) return true
+    return E.withinEarshot(this.state, msg.playerId, selfId)
+  }
+
   async publishSignedChat(msg) { // browser-signed: validate, echo, publish
     if (!this.acceptChat(msg)) return false
     if (this.onChat) this.onChat(msg)
     await this.p2p.services.pubsub.publish(this.chatTopic, Buffer.from(JSON.stringify(msg)))
     return true
   }
-  async publishChat(identity, text) {
+  async publishChat(identity, text, scope = 'near') {
     const msg = E.signInput(
-      { type: 'chat', worldId: this.worldId, playerId: identity.playerId, tick: this.state.tick, text: String(text).slice(0, 80) },
+      { type: 'chat', worldId: this.worldId, playerId: identity.playerId, tick: this.state.tick, text: String(text).slice(0, 80), scope: scope === 'far' ? 'far' : 'near' },
       identity.privateKey, E.SIG_DOMAINS.chat)
     if (this.acceptChat(msg) && this.onChat) this.onChat(msg) // local echo
     await this.p2p.services.pubsub.publish(this.chatTopic, Buffer.from(JSON.stringify(msg)))
