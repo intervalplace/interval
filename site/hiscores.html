@@ -100,7 +100,12 @@ try {
   if (k && typeof k.pub === 'string') MINE = k.pub
 } catch {}
 
-// Standing is a sum, so the whole-world board always belongs to generalists.
+// §5k: STANDING NO LONGER BELONGS TO GENERALISTS, and this line used to say it
+// did. Nothing unsworn passes fifty, so the widest unsworn citizen stands at
+// 450; a sworn one stands at their own trade plus a near-constant 560, because
+// the other eight are pinned at seventy. So standing is now mostly a slower
+// reading of the trade board — kept because the waystones and the hood are
+// tuned against it (§6ao, §6ax), not because it ranks anything the nine do not.
 // A citizen is introduced by their CALLING though, and a calling had no board
 // at all: the best brewer alive had no way to learn that they were.
 // Seventeen equal buttons is a wall. Standing is not a trade and should not
@@ -131,7 +136,8 @@ const FAMILIES = [
 // column measures neither.
 //
 // Sworn only. A citizen who has not sworn is on the trade board and nowhere
-// else, because §5k says unsworn is a choice and not a waiting room -- putting
+// else -- not because unsworn is "a choice and not a waiting room", which §5k
+// repealed, but for the plainer reason that they have no calling. Putting
 // them in somebody's calling by inference would be the derived calling coming
 // back through the window it was thrown out of.
 const CALLINGS_OF = {
@@ -163,6 +169,8 @@ function drawPicker() {
   let sel = '<div class="pcompact"><label for="pickskill">showing</label>'
     + '<select id="pickskill"><option value="standing"'
     + (VIEW === 'standing' ? ' selected' : '') + '>standing (every trade)</option>'
+    + '<option value="raised"' + (VIEW === 'raised' ? ' selected' : '')
+    + '>raised (masters, by those they made)</option>'
   for (const [label, group] of FAMILIES) {
     const present = group.filter(x => known.has(x))
     if (!present.length) continue
@@ -180,7 +188,9 @@ function drawPicker() {
     + '" data-view="' + key + '">' + (key === 'standing' ? '' : skMark(key, 14)) + label + '</button>'
   let wide = '<div class="pwide"><div class="prow prow-top">'
     + '<button class="stab wide' + (VIEW === 'standing' ? ' on' : '')
-    + '" data-view="standing">standing</button></div>'
+    + '" data-view="standing">standing</button>'
+    + '<button class="stab wide' + (VIEW === 'raised' ? ' on' : '')
+    + '" data-view="raised">raised</button></div>'
   for (const [label, group] of FAMILIES) {
     const present = group.filter(x => known.has(x))
     if (!present.length) continue
@@ -224,6 +234,42 @@ function drawBoard(j) {
   if (!j.players.length) { el.textContent = 'No citizens yet. Be first.'; return }
 
   if (PROFILE) { drawCitizen(j); return }
+
+  // §5x: THE RAISED BOARD. `raised` is the only number in this world that
+  // measures a thing a citizen did FOR SOMEBODY ELSE, and it is minted only by
+  // an apprentice reaching their own swearing — a master cannot collect them by
+  // taking forty people on and walking away.
+  //
+  // It is the natural home of the endgame §5x built: a master of Interval is
+  // not a person with nine hundred hours, it is a line of people. And it is a
+  // ranking no other world can offer, because every entry on it is backed by
+  // signatures anybody may replay.
+  if (VIEW === 'raised') {
+    const rows = j.players
+      .filter(p => (p.raised ?? 0) > 0 && matches(p))
+      .sort((a, b) => (b.raised ?? 0) - (a.raised ?? 0) || b.total - a.total)
+      .map((p, i) => ({ p, rank: i + 1 }))
+    if (!rows.length) {
+      // early in a world nobody has raised anybody, and that is the ordinary
+      // state rather than an error: it takes a citizen to a hundred and then
+      // somebody else to fifty.
+      el.innerHTML = '<p class="none">Nobody has raised anybody yet. '
+        + 'It takes a master, and then somebody willing to be taught.</p>'
+      return
+    }
+    const page = clampPage(rows.length)
+    let html = '<table><tr><th class="rank">Rank</th><th>Name</th>'
+      + '<th>Raised</th><th>Calling</th></tr>'
+    for (const { p, rank } of rows.slice(page * PER_PAGE, (page + 1) * PER_PAGE)) {
+      html += '<tr' + (isMine(p) ? ' class="mine"' : '') + '><td class="rank">' + rank + '</td>'
+        + '<td>' + nameCell(p) + '</td>'
+        + '<td><b style="color:var(--gold)">' + (p.raised ?? 0) + '</b></td>'
+        + '<td style="color:var(--dim)">' + (p.sworn ?? p.calling ?? '\u2014') + '</td></tr>'
+    }
+    el.innerHTML = html + '</table>' + pager(rows.length)
+    wireBoard()
+    return
+  }
 
   if (VIEW === 'standing') { // the whole world, by the sum of everything
     // Nine trades laid sideways still made a table too wide to read, and
