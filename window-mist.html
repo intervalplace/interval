@@ -1495,9 +1495,12 @@ postScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), post))
 // left to draw it with. The next one had a skybox, and the single loudest thing
 // about a 2000 game is that the sky is BLUE and the fog is only weather.
 const skyTex = mkTex(64, (g, n) => {
-  const top = [0x3a, 0x55, 0x74], bot = [0x9a, 0xa4, 0x92]
+  // §on a dome, v runs from the ZENITH at the top of the page down to the
+  // horizon at the bottom, which is the other way round from the tube this
+  // replaced. Deep overhead, pale where it meets the fog.
+  const zenith = [0x3a, 0x55, 0x74], rim = [0x9a, 0xa4, 0x92]
   for (let y = 0; y < n; y++) { const t = y / n
-    const c = top.map((v, i) => Math.round(lerp(v, bot[i], Math.pow(t, 0.7))))
+    const c = zenith.map((v, i) => Math.round(lerp(v, rim[i], Math.pow(t, 0.7))))
     g.fillStyle = 'rgb(' + c.join(',') + ')'; g.fillRect(0, y, n, 1) }
   return
   // clouds belonged to a machine with a sky
@@ -1515,7 +1518,22 @@ const skyMat = ps1({ map: skyTex, unlit: true })
 // the sky sits outside the fog, or the fog would eat its own colour
 skyMat.uniforms.uFogNear = { value: 1e6 }; skyMat.uniforms.uFogFar = { value: 1e6 + 1 }
 const SKY_R = Math.max(120, FAR * TILE * 1.6)
-const skyGeo = paint(new THREE.CylinderGeometry(SKY_R, SKY_R, SKY_R * 0.8, 12, 1, true), 0xffffff)
+// §THERE WAS NO SKY ABOVE YOU, ONLY A WALL AROUND YOU.
+//
+// This was an OPEN-ENDED cylinder, as wide as it was and four fifths as tall.
+// From the middle of it you can always see over the rim, so looking up gave you
+// the top edge of a tube and then the clear colour beyond — which is the fog
+// colour, a pale green. Reported from real play as "when I look up the sky is
+// not blue", and it was not: there was no sky there at all.
+//
+// It went unseen because every render in this project was taken looking level
+// or slightly down, and at thirteen tiles the fog swallows the band you can
+// see. A shutter that never looks up cannot photograph a missing ceiling.
+//
+// A dome has no rim. The upper half of a sphere, twelve segments round and six
+// down, drawn from inside: the same twelve-sided silhouette at the horizon that
+// the cylinder gave, and a closed top.
+const skyGeo = paint(new THREE.SphereGeometry(SKY_R, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2), 0xffffff)
 const sky = new THREE.Mesh(skyGeo, skyMat)
 sky.material.side = THREE.BackSide
 scene.add(sky)
