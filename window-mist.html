@@ -166,6 +166,30 @@ function vZonesAround (x, y) {
 // interval is applied before any upsert.
 function vApplyTick (state, deltas) {
   var keys = ['players', 'mobs', 'nodes', 'ground'], i, k, key, id, d;
+  // §THE TICK IS IN THE PATCH AND THIS DROPPED IT ON THE FLOOR.
+  //
+  // `worldDelta` sends `{ type: 'world', tick }` as the first delta of every
+  // patch, and this walked players/mobs/nodes/ground and ignored the rest. So
+  // after the first snapshot the held tick FROZE, for ever.
+  //
+  // The vigil is `state.tick - the tick you knocked at`, so the countdown stuck
+  // wherever the snapshot left it — reported from real play as "it says the
+  // world opens in 4:25 and it never goes down". It never would have. And a
+  // citizen who waited the full five minutes would never have crossed either,
+  // because the window could not see that the wait had ripened.
+  //
+  // Anything else the world scope carries rides along the same way: it is the
+  // world's own fields, and a window that takes only the entities out of a
+  // patch is holding a world with no clock in it.
+  for (i = 0; i < deltas.length; i++) {
+    if (!deltas[i] || deltas[i].type !== 'world') continue;
+    if (typeof deltas[i].tick === 'number') state.tick = deltas[i].tick;
+    for (var wk in deltas[i]) {
+      if (wk === 'type' || wk === 'tick') continue;
+      if (keys.indexOf(wk) >= 0 || /Gone$/.test(wk)) continue;   // entities are merged below
+      state[wk] = deltas[i][wk];                                 // attend, markers, weather…
+    }
+  }
   for (i = 0; i < deltas.length; i++) for (k = 0; k < keys.length; k++) {
     key = keys[k]; var gone = deltas[i][key + 'Gone'];
     if (gone && state[key]) for (var j = 0; j < gone.length; j++) delete state[key][gone[j]];
@@ -259,6 +283,9 @@ function connect () {
       const _me = _held.players && _held.players[realId || myId]
       if (_me) vEvictOutside(_held, vZonesAround(_me.x, _me.y))
       liveState = _held
+      // §and birth() must run here too: it was called only on a snapshot, so a
+      // vigil that ripened during a run of patches was never noticed.
+      birth(_held)
       if (!nought) onState(_held)
     }
     if (m.type === 'chat')  { say((m.name || '???') + ': ' + String(m.text).slice(0, 44)) }
@@ -3256,7 +3283,22 @@ function options () {
   for (const { id } of nodesNear(['bank'])) out.push({ label: 'the bank', go: () => openMenu(bankMenu()), stay: 1 })
   for (const { n } of nodesNear(['stall', 'store', 'market'])) out.push({ label: 'the counter', go: () => openMenu(stallMenu(n)), stay: 1 })
   for (const { } of nodesNear(['anvil', 'smith'])) out.push({ label: 'the anvil', go: () => openMenu(forgeMenu()), stay: 1 })
-  for (const { } of nodesNear(['waystone', 'landmark'])) out.push({ label: 'the waystone', go: () => openMenu(recallMenu()), stay: 1 })
+  // §6ch: THE STONES ARE GONE, AND SO IS THE OFFER.
+  //
+  // This listed `['waystone', 'landmark']`, so EVERY landmark in the world — a
+  // house, a mill, a scarecrow — offered "the waystone", and the menu behind it
+  // offered four recalls. The engine's validator is `case 'recall': return
+  // false;` with no condition on it: not one of those rows could ever have
+  // done anything, at any time, anywhere.
+  //
+  // Reported from real play as walking into a building and being offered a
+  // waystone. Both halves were wrong: the wrong nodes, and a deed the world
+  // repealed. This window's own rule is that what the place does not allow is
+  // ABSENT rather than dimmed, and this was the loudest violation of it in the
+  // file.
+  //
+  // The waystone BODY stays (§8): a retired node type may still stand in an old
+  // world, and a window that cannot draw it would leave a hole in the ground.
   for (const { } of nodesNear(['looking-glass', 'dedication'])) out.push({ label: 'invoke', go: () => { work('stir'); sfx('craft'); act({ do: 'invoke' }) } })
   // ---- \u00a76dj: the deeds this pillar was dropping, now that it carries them ----
   // A marker is surveyed by STANDING ON IT — not beside it — and `state.markers`
@@ -3762,13 +3804,6 @@ function forgeMenu () {
   return { title: 'THE ANVIL', rows,
            foot: TABLES_LIVE ? 'the anvil shows only what you can make'
                              : 'costs from this window\u2019s own copy \u00b7 may be stale' }
-}
-function recallMenu () {
-  // §6ch says the stones are gone. The pillar still takes the word, so the
-  // waystone still offers it and the pillar still decides.
-  const rows = ['norwick', 'wildwood', 'the-fens', 'home'].map(to => ({
-    label: 'recall to ' + nice(to), act: () => { act({ do: 'recall', to }); say('the stone is asked\u2026') } }))
-  return { title: 'THE WAYSTONE', rows, foot: 'the stones may no longer answer' }
 }
 function selfMenu () {
   const me = meNow()
