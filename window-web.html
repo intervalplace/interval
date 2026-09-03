@@ -5615,7 +5615,7 @@ async function startMusic(preferred) {
   } catch { return }        // no node, no music, no complaint
   if (!tracks.length) return
   const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
-  const name = pick(preferred) ?? pick('theme') ?? tracks[0]
+  const name = pick(preferred) ?? pick('theme-deep') ?? tracks[0]
   if (!name) return
   const a = new Audio('/audio/' + encodeURIComponent(name))
   // Heard ONCE, on arrival, and then the world is quiet. A piece with a shape
@@ -5626,7 +5626,7 @@ async function startMusic(preferred) {
   a.loop = false
   a.volume = 0
   MUSIC = a
-  a.addEventListener('ended', () => { MUSIC = null }) // the arrival is over
+  a.addEventListener('ended', () => { MUSIC = null; musicTried = false }) // the arrival is over
   try { await a.play() } catch { MUSIC = null; musicTried = false; return } // the browser said no; fine
   // come in slowly: a world should not start by shouting
   const target = 0.42
@@ -14014,6 +14014,7 @@ function drawSunMap(s, now) {
   // means one place to everyone who hears it.
   {
     const rn = regionNameAt(Math.round(pxr), Math.round(pyr))
+    musicFollowsRegion(rn)   // the country, heard
     if (rn) { // an empty strip is worse than no strip
       g.fillStyle = "#181209"; g.fillRect(0, MH, MW, NAMEH)
       g.fillStyle = "#55462d"; g.fillRect(0, MH, MW, 1)
@@ -14106,6 +14107,60 @@ sndEl.addEventListener('click', () => {
   wakeAudio(); sndLabel(); musicFollowsSound()
   if (soundOn) { startMusic('theme-flat'); SFX.trade() }
 })
+
+// ---- region music: arrival, not atmosphere ----
+// The door theme plays once because entering the world is an arrival. Crossing
+// into the Crags is the same event at a smaller scale, so it gets the same rule:
+// heard once, then quiet. A region already heard this session stays quiet when
+// you come back through it -- you arrived there already, and a piece that greets
+// you at every crossing is not a greeting.
+//
+// Presentational only, like the daylight lock. No world state, no input, no
+// tick. Two windows standing on the same tile may be hearing different things,
+// and the world does not care.
+const REGION_STEM = {
+  'the Heartlands': 'theme-hearth', 'the Meadows': 'theme-hearth',
+  'Greenhollow': 'theme-hearth', 'Anchor': 'theme-hearth',
+  'Millbrook': 'theme-hearth', 'Norwick': 'theme-hearth',
+  'the City': 'theme-hearth', 'the Market': 'theme-hearth',
+  'the Greenwood': 'theme-road', 'the Downs': 'theme-road',
+  'the Road': 'theme-road', 'the Shore': 'theme-road', 'Eastmere': 'theme-road',
+  'the Crags': 'theme-crags', 'the Pass': 'theme-crags',
+  'the Mountains': 'theme-crags', 'the Scree': 'theme-crags', 'Cragfoot': 'theme-crags',
+  'the Fens': 'theme-fens', 'Fenmarch': 'theme-fens',
+  'the Moor': 'theme-moor',
+  'the Wilds': 'theme-wilds',
+  'the Deep': 'theme-gallery',
+  // the Sea and the Bridge stay silent on purpose: a world that goes quiet at
+  // the water's edge is better than one with a cue for every tile.
+}
+const REGION_HEARD = new Set()
+let regionSeen = null, regionSince = 0, regionSettled = false, regionWoke = false
+// Borders meander by design, so a citizen walking one flickers between two
+// names. Measured in wall time, not frames: this is called from the draw loop
+// and a fast machine must not arrive somewhere sooner than a slow one.
+const REGION_SETTLE_MS = 6000
+
+function musicFollowsRegion(name) {
+  if (!name) return
+  const now = performance.now()
+  if (name !== regionSeen) { regionSeen = name; regionSince = now; regionSettled = false; return }
+  if (regionSettled || now - regionSince < REGION_SETTLE_MS) return
+  regionSettled = true                       // this stay is decided, either way
+
+  // The region you WAKE in is not somewhere you arrived, it is where you were
+  // put, and the door theme already covered it.
+  if (!regionWoke) { regionWoke = true; REGION_HEARD.add(name); return }
+
+  if (REGION_HEARD.has(name)) return         // arrived here already today
+  if (!musicOn || !soundOn) return
+  const stem = REGION_STEM[name]
+  if (!stem) return
+  if (MUSIC) return                          // a piece with a destination reaches it
+  REGION_HEARD.add(name)
+  musicTried = false
+  startMusic(stem)
+}
 
 function fadeMusicOut(ms) { // the theme belongs to the DOOR: it bows out at the threshold
   const a = MUSIC; if (!a) return
