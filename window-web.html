@@ -4601,7 +4601,7 @@ let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
 let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
 ;(async () => {
   try {
-    const r = await fetch('/api/tables', { cache: 'no-cache' })
+    const r = await fetch(api('/api/tables'), { cache: 'no-cache' })
     if (!r.ok) return
     const t = await r.json()
     if (t.sworn) { SWORN_T = t.sworn
