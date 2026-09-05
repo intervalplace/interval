@@ -193,8 +193,23 @@ edit('let light through the gate card',
 edit('hide the HUD while the gate is up',
   'body.at-door #panel',
   `  #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);`,
-  `  body.at-door #panel, body.at-door #status, body.at-door #feed { display: none !important; }
-  body.at-door #frame { border-color: transparent; }
+  `  /* A login screen shows scenery and nothing else. These are DOM, not
+     canvas, so the gate's blur never touched them. */
+  body.at-door #panel, body.at-door #status, body.at-door #feed,
+  body.at-door #topnav { display: none !important; }
+  body.at-door #frame { border-color: transparent !important; background: transparent !important; }
+
+  /* FULL BLEED, WITHOUT WIDENING THE VIEW.
+     fitCanvas keeps cv.width / (TILE * ZR) constant on purpose -- the keyhole
+     is the design, and a citizen on a big screen must not see half the
+     country. So the canvas is not asked to render more; it is DISPLAYED
+     larger and cropped. The bitmap stays 560x400, object-fit does the rest.
+     !important is needed because fitCanvas writes cv.style.height inline. */
+  body.at-door #world {
+    position: fixed !important; inset: 0 !important; z-index: 1 !important;
+    width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+    max-width: none !important; object-fit: cover !important;
+  }
   #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);`)
 
 // ---------------------------------------------------------------- 6 of 6
