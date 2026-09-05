@@ -1,0 +1,110 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>interval — door check</title>
+<style>
+  body { background:#12100b; color:#cbbfa4; font:15px/1.5 ui-monospace,Menlo,Consolas,monospace;
+         margin:0; padding:14px 12px 60px; }
+  h1 { font-size:15px; letter-spacing:.14em; color:#c9a227; margin:0 0 12px; }
+  .row { border-top:1px solid #332a1c; padding:9px 0; word-break:break-all; }
+  .k { color:#8a7a55; font-size:12px; letter-spacing:.08em; }
+  .v { font-size:15px; margin-top:2px; }
+  .ok { color:#8fbf5f } .bad { color:#e08a5a } .warn { color:#d9c04a } .dim { color:#6e6656 }
+  button { font:13px ui-monospace,monospace; background:#291f12; color:#c9a227;
+           border:1px solid #6e5433; padding:9px 12px; margin:6px 6px 0 0; }
+</style>
+<h1>INTERVAL — DOOR CHECK</h1>
+<div id="out"></div>
+<div class="row">
+  <button id="clear">forget node + world</button>
+  <button id="again">run again</button>
+</div>
+<script>
+const NODE_URL = 'https://interval.place'
+const out = document.getElementById('out')
+const line = (k, v, cls) => {
+  const d = document.createElement('div'); d.className = 'row'
+  d.innerHTML = '<div class="k">' + k + '</div><div class="v ' + (cls||'') + '"></div>'
+  d.lastChild.textContent = v; out.appendChild(d); return d
+}
+const ls = (k) => { try { return localStorage.getItem(k) } catch { return '(blocked)' } }
+
+async function run () {
+  out.innerHTML = ''
+  line('page origin', location.origin)
+  line('remembered node',  ls('interval-node')  ?? '(none)')
+  const world = ls('interval-world')
+  line('remembered world', world ?? '(none)')
+  line('remembered peers', ls('interval-peers') ?? '(none)')
+  line('music / sound', (ls('interval-music') ?? 'on') + ' / ' + (ls('interval-sound') ?? 'on'))
+
+  // ---- 1. the exact probe pickNode() makes -------------------------------
+  let liveWorld = null
+  try {
+    const c = new AbortController(); const t = setTimeout(() => c.abort(), 8000)
+    const t0 = performance.now()
+    const r = await fetch(NODE_URL + '/api/world', { signal: c.signal, cache: 'no-store' })
+    clearTimeout(t)
+    const ms = Math.round(performance.now() - t0)
+    line('GET /api/world', r.status + ' in ' + ms + 'ms', r.ok ? 'ok' : 'bad')
+    if (r.ok) {
+      const j = await r.json()
+      liveWorld = j.worldId ?? null
+      line('worldId reported', String(liveWorld), liveWorld ? 'ok' : 'bad')
+      if (liveWorld === null) line('VERDICT', 'no worldId field: pickNode still accepts this', 'warn')
+    }
+  } catch (e) { line('GET /api/world', 'FAILED — ' + e.name + ' ' + e.message, 'bad') }
+
+  // the skip rule, spelled out
+  if (world && liveWorld && world !== liveWorld) {
+    line('VERDICT', 'MISMATCH. Your browser remembers a different world, so the '
+      + 'node is skipped and the chip stays on searching. Tap "forget node + world".', 'bad')
+  } else if (world && liveWorld) {
+    line('world match', 'yes — not the cause', 'ok')
+  }
+
+  // ---- 2. audio listing ---------------------------------------------------
+  try {
+    const r = await fetch(NODE_URL + '/api/audio', { cache: 'no-store' })
+    const j = await r.json()
+    line('GET /api/audio', r.status + ' — ' + (j.tracks?.length ?? 0) + ' tracks', r.ok ? 'ok' : 'bad')
+  } catch (e) { line('GET /api/audio', 'FAILED — ' + e.message, 'bad') }
+
+  // ---- 3. can the audio FILE itself be fetched? ---------------------------
+  // startMusic builds new Audio('/audio/' + name) — ORIGIN-relative, not via
+  // the node. On a page served from somewhere else that is a different host.
+  try {
+    const r = await fetch('/audio/theme-deep.m4a', { method: 'GET', headers: { Range: 'bytes=0-99' } })
+    line('GET /audio/theme-deep.m4a (origin-relative)',
+         r.status + ' ' + (r.headers.get('content-type') || ''), r.ok ? 'ok' : 'bad')
+    if (!r.ok) line('VERDICT', 'The track list loads but the FILE does not. '
+      + 'startMusic uses an origin-relative path — that is why there is no music.', 'bad')
+  } catch (e) { line('GET /audio/... ', 'FAILED — ' + e.message, 'bad') }
+
+  // ---- 4. the websocket, which is a separate step -------------------------
+  await new Promise((res) => {
+    const url = NODE_URL.replace(/^http/, 'ws')
+    let done = false
+    const finish = (msg, cls) => { if (done) return; done = true; line('WebSocket ' + url, msg, cls); res() }
+    let sock
+    try { sock = new WebSocket(url) } catch (e) { return finish('threw — ' + e.message, 'bad') }
+    const t0 = performance.now()
+    sock.onopen  = () => { finish('OPEN in ' + Math.round(performance.now() - t0) + 'ms', 'ok'); try { sock.close() } catch {} }
+    sock.onerror = () => finish('ERROR — the host answers HTTP but will not upgrade. '
+      + 'That is a reverse-proxy setting, not the window.', 'bad')
+    sock.onclose = () => finish('closed before opening', 'bad')
+    setTimeout(() => finish('timed out after 8s', 'bad'), 8000)
+  })
+
+  line('done', 'screenshot this whole page', 'dim')
+}
+
+document.getElementById('clear').onclick = () => {
+  for (const k of ['interval-node', 'interval-world', 'interval-peers']) {
+    try { localStorage.removeItem(k) } catch {}
+  }
+  line('cleared', 'node, world and peers forgotten — reopen the door now', 'ok')
+}
+document.getElementById('again').onclick = run
+run()
+</script>
