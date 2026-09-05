@@ -2551,6 +2551,8 @@ const COOK_FIRE_FEE = 6;     // §7s: what a cook pays the keeper of the fire th
 // It is in the HEARTLANDS on purpose: the peaceful country, before you venture
 // out, which is where a person finds out what they are carrying.
 const YARD_CAP = 20;
+// §5j-ii: what a landed blow used to pay across four ledgers, paid into one.
+const XP_BLOW_SHARE = 1;
 // §7q: one log gives two planks. Deliberately generous -- the cost of a plank
 // is the WALK to the sawpit, not the timber, exactly as the cost of flour is
 // the walk to the mill.
@@ -3751,7 +3753,22 @@ const MOB_STATS = {
             // chance -- and the clock runs from the KILL, not a fixed hour, so
             // tenures drift across the day by themselves and no timezone ends
             // up owning the dragon.
-            respawn: 72000,
+            // §6cz-iii: TWELVE HOURS, AND IT IS A FLOOR RATHER THAN A RATE.
+            // 43,200 intervals is twelve hours at §1c's second, which is the
+            // figure the prayer note below argues from and was written at.
+            // It stood at 72,000 for a while, which was the same twelve hours
+            // measured at RuneScape's 600ms and never rescaled -- §1c warned
+            // that comments arguing a TUNING were left alone because both
+            // sides of the comparison moved together, and here they did not:
+            // the respawn is in intervals and scaled with the clock, the road
+            // to a mastery is in experience and did not.
+            //
+            // Nobody takes it at the moment it stands up, so the real supply
+            // is well under two a day. That is the point of a floor: it bounds
+            // what the world can pour out at its most generous, and everything
+            // slower than that is the market's business rather than the
+            // engine's.
+            respawn: 43200,
             // §6ai: WHAT A DRAGON IS WORTH TO THE PEOPLE WHO KILLED IT.
             //
             // Four hundred and twenty hitpoints, twenty-eight a blow, and it
@@ -4359,7 +4376,18 @@ const RECIPES = {
   // §7am: brass, brimstone and a haft. The Crags pay for it.
   'fire-siphon': { 'steel': 4, 'brimstone': 6, 'ironbark': 1 },
   // §7bq: bone and gut. A fletcher's first bow, and it costs no metal at all.
-  'hollow-bow': { 'bones': 4, 'logs': 1 },
+  // §6cz-ii: THE HOLLOW BOW IS NOT MADE. It was `{ bones: 4, logs: 1 }` at
+  // woodcraft twelve, and that is four bones from beasts that sixteen of the
+  // world's twenty-four drop, for a bow that is `noAmmo` and `selfAmmo` -- it
+  // draws its own. Never buying an arrow again is the largest single thing a
+  // ranged weapon can offer, and it was a day-one craft out of trash.
+  //
+  // It also DROPS, from gibbet-dead at one in two hundred and fifty and from
+  // skeleton-knight at one in a hundred and thirty-one, and while the craft
+  // stood those drops were worthless: nobody waits five hundred kills for a
+  // thing they can whittle in an afternoon. Removing the recipe does not take
+  // the bow out of the world. It puts it back where the drop table already
+  // said it was.
   // §7l: CHEAP ON PURPOSE. A weapon whose whole point is that you are wearing
   // nothing is a weapon carried by people with nothing to lose -- and by
   // pures, who never gear up and should not have to risk a fortune to train
@@ -4819,7 +4847,6 @@ const SMITH_REQS = {
   'crossbow': { earthcraft: 18 },
   'star-flail': { earthcraft: 50, sorcery: 29 },
   'fire-siphon': { earthcraft: 62 },
-  'hollow-bow': { woodcraft: 12 },
   'bare-blade': { earthcraft: 34 },   // §7l: steel-tier work, provisional
   // §7cm: BONE IS FLETCHING'S WORK, as the bone staff already is at 45. A
   // smith would be the obvious hand and it is the wrong one: nothing here is
@@ -5514,7 +5541,60 @@ function teachMelee(p, dmg, style, tick, every, dummy) {
   // once. `style` no longer decides where experience goes; it decides how the
   // blow lands, and nothing else. Choosing what to become is what a calling is
   // for, and it is a thing a citizen swears rather than a thing they grind.
-  gainXp(p, 'prowess', dmg);
+  // §5j-ii: AND THE MERGE DID NOT NEED PAYING FOR. ONE, AND HERE IS WHY.
+  //
+  // This constant was three for a while, on the argument that §5j collapsed
+  // four ledgers into one without touching what a blow awards, and that combat
+  // measured 3.3x short of the gathering trades at every rung.
+  //
+  // THE MEASUREMENT WAS WRONG, and wrong in a way worth writing down, because
+  // the same mistake is available to anyone who tunes from a test yard. The
+  // harness stood a citizen in a camp of eight trolls and counted experience
+  // over five hundred intervals. Trolls respawn in three hundred. So the camp
+  // emptied -- eight beasts, then six, then four, then two -- and most of the
+  // run was a fighter standing in a field with nothing in reach. That is not a
+  // combat rate. It is a respawn timer with a fighter attached.
+  //
+  // Measured against a beast that is actually there, prowess pays 5.6 an
+  // interval at level thirty, 5.8 at fifty, 6.0 at seventy and 7.4 at ninety
+  // -- ABOVE the gathering trades' 4.3, not a third of them. And the founded
+  // island supplies it: the richest ground within twelve tiles sustains 27
+  // experience an interval, four times what a fighter can consume, so combat
+  // out there is bound by how fast you swing and not by what is standing near
+  // you. At three it was seventeen to twenty-two an interval, four to five
+  // times every other trade in the world.
+  //
+  // Combat is also the only trade paid twice, in drops as well as levels: a
+  // troll camp yields 0.64 coins an interval against a coal seam's 0.52. It
+  // did not need a third stream.
+  //
+  // The constant stays, at one, because the argument for its existence should
+  // stay findable. See check-engine-rates.mjs.
+  gainXp(p, 'prowess', dmg * XP_BLOW_SHARE);
+}
+
+// §7t, THE OTHER HALF OF IT.
+//
+// `teachMelee` has carried the yard rule since the yard was built, and every
+// melee caller passes the flag. The ranged award did not go through anything:
+// it was a bare `gainXp(p, 'marksmanship', dmg)` in the attack phase that never
+// asked what it was shooting.
+//
+// MOB_STATS.butt is `dummy: true, ranged: true, maxHit: 0` with a hundred
+// thousand hitpoints, so marksmanship could be taken the whole way to mastery
+// at a post that cannot hurt you. Measured before this existed: the dummy paid
+// 0 from level 30 on, and the butt paid 2.2 / 2.8 / 3.2 / 4.1 at levels
+// 30 / 50 / 70 / 90 -- the second fastest road in the world, in perfect safety.
+// "Levels come from things that hit back" was true of one hand and not the
+// other, for the same reason the furnace and the special-attack path each
+// broke once: the rule was changed in the place everybody reads and not in the
+// place that pays.
+//
+// It is a function rather than a line at the call site so that the next person
+// to add a way of loosing an arrow has somewhere obvious to send it.
+function teachRanged(p, dmg, dummy) {
+  if (dummy && effLevel(p.skills.marksmanship) >= YARD_CAP) return;
+  gainXp(p, 'marksmanship', dmg * XP_BLOW_SHARE);   // §5j-ii, as in reach
 }
 const XP_SMITH_PER_UNIT = 20;
 // 6bk: AND THE SAME TWENTY AT THE BENCH. Fletching had its own private scale --
@@ -5563,35 +5643,41 @@ const XP_BURY = 20;
 //
 // A THOUSAND times a goblin's, and the reason is that BONES DO NOT STACK.
 //
-// Prayer is 521,377 ordinary bones to ninety-nine, and a pack holds
-// twenty-four, so buying the road is twenty-one thousand separate trades:
-// impossible, not expensive. A rich citizen could not spend their way to
-// ninety-nine however much gold they had, which makes gold worth less and
-// makes the longest road in the world unbuyable rather than dear.
+// A mastery is 167,738 ordinary bones and a pack holds INV_SLOTS of them, so
+// buying the road is fourteen thousand separate trades: impossible, not
+// expensive. A rich citizen could not spend their way to a hundred however
+// much gold they had, which makes gold worth less and makes the longest road
+// in the world unbuyable rather than dear.
 //
 // Dragon-bones are the compressed form -- what noted items would have been,
 // without inventing notes.
 //
 // The number is set from the DRAGON'S CLOCK rather than from the bones. One
 // dragon should be worth a little under two per cent of the longest road in
-// the world, which puts a whole ninety-nine at fifty-eight dragons: twenty-nine
-// days if every one of them falls on time and every set goes to one buyer,
-// and nobody's world works like that -- call it a season of outbidding every
-// other mourner on the island.
+// the world, which puts a whole mastery at about fifty-eight dragons: twenty-
+// nine days if every one of them falls on time and every set goes to one
+// buyer, and nobody's world works like that -- call it a season of outbidding
+// every other mourner on the island.
 //
-// At twenty-five thousand it was a hundred and seventy-four dragons, three
-// months of PERFECT supply, which is another way of saying not actually
-// purchasable. A route nobody can complete is not a market; it is scenery.
-// A full pack is now 1.8 million prayer, about a seventh of a ninety-nine,
-// and it costs a fortune and the world's whole attention to assemble.
-const XP_BURY_DRAGON = 60000;     // 6bj: rescaled with the rest -- still 3,000 ordinary bones, still not a road anybody walks
+// AND IT CAME BACK ON ITS OWN. 6bj rescaled the curve underneath this
+// paragraph and left it standing: at a mastery of 37,503,873 one dragon was
+// 0.16% of the road, not two per cent, and a whole mastery was 626 sets -- ten
+// months of PERFECT supply for the entire island, which is the exact failure
+// this constant was raised from 25,000 to avoid. Retuning the doubling period
+// to 6.8 put the road at 3,354,741, and 60,000 against that is 1.79% and
+// fifty-six sets: the number this paragraph argued for all along.
+//
+// The literal was never wrong. The curve moved out from under the argument.
+// See check-engine-bury.mjs, which asserts the RATIO rather than the number,
+// and would have said so at the time.
+const XP_BURY_DRAGON = 60000;     // ~1.8% of the road; see check-engine-bury.mjs
 // AND WHAT CONSECRATED GROUND PAYS. A quarter more, and the number is chosen
 // so that the monastery stays a DECISION.
 //
 // Prayer is bone-bound, not tick-bound: burying is one input an interval, so
 // what limits it is that bones only exist where beasts die -- perhaps sixteen
 // intervals of hunting for each. Against that the walk to a monastery is
-// small, twenty-four bones to a pack and two walks a trip. Which means a
+// small, a pack of INV_SLOTS bones and two walks a trip. Which means a
 // generous bonus would be worth making from anywhere on the island, and the
 // monastery would stop being a choice and become a chore everybody performs.
 //
@@ -6030,11 +6116,11 @@ const spawnOf = (g) => (TERRAINS[g.worldGenerator] && TERRAINS[g.worldGenerator]
 // The table ends at 171 because the next level's cost exceeds MAX_XP (10^12),
 // the bound on an experience field -- the same reason the old curve stopped at
 // 212. The ceiling is the field, not a design choice, and it moves when the
-// curve does. Seventy-two levels sit above mastery, where the old curve left a
+// curve does. One hundred and ten levels sit above mastery, where the old curve left a
 // hundred and thirteen: a steeper climb buys fewer of them out of the same
 // number. There is no level 172 to reach, so no continuation is needed and
 // none exists.
-const XP_TABLE = [0,0,15,45,90,150,225,315,420,541,677,828,994,1176,1373,1586,1815,2060,2322,2599,2894,3207,3537,3886,4254,4642,5052,5484,5940,6422,6932,7473,8046,8657,9309,10007,10757,11566,12442,13394,14433,15573,16829,18220,19765,21492,23428,25607,28071,30866,34046,37677,41833,46601,52084,58402,65693,74120,83873,95172,108275,123481,141139,161654,185499,213222,245464,282965,326589,377338,436376,505055,584944,677865,785930,911592,1057694,1227533,1424931,1654317,1920825,2230402,2589935,3007402,3492038,4054537,4707273,5464566,6342986,7361699,8542873,9912144,11499151,13338161,15468776,17936768,20795023,24104642,27936207,32371237,37503873,43442818,50313566,58260984,67452276,78080406,90368032,104572049,120988819,139960183,161880407,187204156,216455697,250239476,289252314,334297425,386300571,446328637,515611023,595564251,687820279,794259083,917046137,1058675522,1222019527,1410385686,1627582382,1877994284,2166669108,2499417359,2882927018,3324895400,3834180719,4420976327,5097010980,5875779017,6772804893,7805947182,8995747908,10365833943,11943378202,13759629501,15850521282,18257370874,21027682737,24216071066,27885319455,32107597891,36965860369,42555449834,48985941112,56383256983,64892097765,74678730695,85934192208,98877964056,113762193133,130876535190,150553714377,173175904081,199182050009,229076274241,263437519340,302930614932,348318975979,400479172598,460417646486,529289889308,608422444617,699338147835,803785079519,923769776721];
+const XP_TABLE = [0,0,15,45,90,150,225,315,420,541,676,827,993,1174,1371,1583,1811,2054,2313,2588,2879,3186,3510,3851,4208,4583,4976,5387,5817,6267,6737,7228,7741,8277,8838,9424,10038,10682,11358,12068,12815,13602,14434,15315,16249,17242,18301,19433,20646,21949,23354,24873,26519,28308,30258,32390,34727,37294,40122,43244,46698,50528,54783,59518,64796,70688,77274,84646,92906,102170,112570,124255,137392,152171,168805,187536,208638,232416,259219,289438,323514,361945,405292,454189,509347,571569,641762,720942,810259,911005,1024633,1152782,1297294,1460243,1643961,1851074,2084534,2347659,2644184,2978305,3354741,3778795,4256426,4794333,5400041,6082005,6849721,7713855,8686389,9780772,11012110,12397358,13955552,15708057,17678851,19894842,22386225,25186876,28334799,31872627,35848176,40315077,45333470,50970793,57302662,64413849,72399386,81365799,91432486,102733261,115418082,129654987,145632255,163560831,183677034,206245589,231563020,259961442,291812807,327533651,367590407,412505340,462863191,519318607,582604443,653541055,733046679,822149050,921998375,1033881848,1159239876,1299684208,1457018208,1633259508,1830665331,2051760790,2299370511,2576653974,2887145006,3234795903,3624026738,4059780442,4547584351,5093618957,5704794718,6388837855,7154386192,8011096207,8969762603,10042451845,11242651311,12585435854,14087653806,15768134698,17647921201,19750528112,22102231533,24732391739,27673813649,30963149274,34641346989,38754153089,43352671668,48493989586,54241874070,60667551363,67850575794,75879799744,84854456184,94885366798,106096290225,118625426605,132627096507,148273614372,165757378943,185293205741,207120929516,231508307831,258754260514,289192483728,323195481817,361179065123,403607367428,450998442904,503930509299,563048911759,629073890241,702809242968,785151989020,877103144957,979779743564];
 
 // The beyond-mastery recurrence and its exact BigInt powers of 2^(1/7) are
 // gone with the curve they served: XP_TABLE now holds every level an xp field
@@ -7242,12 +7328,27 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
            // walk carrying logs took 446. Risk should pay MORE than safety,
            // not more than everything.
            //
-           // At twelve the plain cargo sits at 871 hours -- beside every other
-           // trade -- and the dear cargo at 282, three times faster, which is
-           // exactly the spread the mult table itself declares (100 to 300).
-           // The premium is now the table's own number rather than the table's
-           // number multiplied by a rate that was already too generous.
-           haul: { perTileSlot: 12, legMin: 1, legMax: 3,
+           // THIRTY-EIGHT, and the hours are gone from this paragraph.
+           //
+           // Twelve was derived when a mastery was 37.5 million experience.
+           // The doubling period is 6.8 now and the road is 3,354,741, so the
+           // same walk that was meant to sit "beside every other trade" was
+           // paying a seventh of one: 7,583 hours against a gatherer's 2,400.
+           // The geometry half of the argument never moved -- mean route 634
+           // tiles on the seventh expanse against the 641 this was tuned to --
+           // which is why the constant looked healthy while the sentence
+           // rotted.
+           //
+           // The target is now a RATE and not a number of hours: plain cargo
+           // pays 4.3 experience an interval, which is what the gathering
+           // trades measure at (check-engine-roads.mjs), and thirty-eight is
+           // what that costs on this island's geometry. Re-run haultune.mjs
+           // after any change to the curve; it derives the hours rather than
+           // remembering them. At thirty-eight: plain cargo 215 hours to
+           // mastery, dear cargo 71, three times faster, which is exactly the
+           // spread the mult table itself declares (100 to 300). The premium
+           // is the table's own number and not this constant's.
+           haul: { perTileSlot: 38, legMin: 1, legMax: 3,
                    mult: { logs: 100, 'raw-fish': 100, bones: 100, arrows: 100, seeds: 100,
                            grain: 123, ore: 130, 'cooked-fish': 130, ale: 140, broth: 145,
                            'iron-hatchet': 155, 'iron-pickaxe': 155, 'wooden-bow': 150,
@@ -13197,7 +13298,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // Three times the blow's own maximum. A goblin teaches three, a
           // troll nine, a knight and the King twelve. Tanking becomes a
           // decision about what you are willing to be hit by.
-          gainXp(target, 'prowess', DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1));
+          gainXp(target, 'prowess', XP_BLOW_SHARE * DEFENCE_PER_MAXHIT * ((m.maxHit ?? st.maxHit) ?? 1));   // §5j-ii: both streams, or the mix shifts
         }
         continue;
       }
@@ -15137,8 +15238,17 @@ function nextState(state, inputs, _legacyBeacon) {
         p.inventory[inp.slot] = null;
         const holy = sl.item === 'dragon-bones' ? XP_BURY_DRAGON : XP_BURY;
         const consecrated = hasAdjacentNode(s, _ctx, p, 'ossuary');
-        gainXp(p, 'mourning', consecrated
-          ? Math.round(holy * XP_BURY_CONSECRATED / XP_BURY) : holy);
+        // §5q: THROUGH `awardXp`, NOT `gainXp`.
+        //
+        // This called `gainXp` directly, which is the helper that applies the
+        // ceiling and nothing else. `offer` calls `awardXp(..., 'mourner')`
+        // and so is paid the own-calling rate; burying was not, so a sworn
+        // mourner got their calling's bonus on the road that costs wealth and
+        // none at all on the road that costs bones -- which is the road the
+        // arithmetic actually recommends, at roughly three times the rate.
+        // The one trade whose bonus fired only where it was least use.
+        awardXp(p, 'mourning', consecrated
+          ? Math.round(holy * XP_BURY_CONSECRATED / XP_BURY) : holy, 'mourner');
         // §7ai: TEN BURIALS MAKE A FLASK.
         //
         // An ossuary paid experience and nothing else, so consecrated ground
@@ -16146,7 +16256,7 @@ function nextState(state, inputs, _legacyBeacon) {
           m.hp -= dmg;
           if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         burnFuel(p);   // §7am: the siphon drinks
-          gainXp(p, 'marksmanship', dmg);   // 6br
+          teachRanged(p, dmg, MOB_STATS[m?.type]?.dummy === true);   // 6br, §7t
         }
       } else {
       // §6ap-ii: AND THE BEASTS ARE ROLLED FOR THE SAME WAY.
@@ -16912,6 +17022,18 @@ module.exports = {
   // §5k: a window wants to say "you cannot pass seventy here" without knowing
   // why, so the rule is a query rather than a number to copy
   xpCeiling, gainXp,
+  // ...and the same argument, applied where it had not been. `gainXp` was
+  // exported and `awardXp` was not, so no client could ask what a calling is
+  // worth. Nor could anything ask what an OFFERING is worth: an executor
+  // written against this engine had to calibrate the head-and-tail curve by
+  // making gifts and watching the ledger, or paste three literals out of
+  // engine.js and go stale the day they were tuned. The bury constants were
+  // the same. A rule that is a query in one place and a literal in another is
+  // a convention, not a rule -- see check-engine-bury.mjs, which could not
+  // check anything until these were here.
+  awardXp, XP_OWN_NUM, XP_OWN_DEN, XP_SIBLING_NUM, XP_SIBLING_DEN,
+  OFFER_XP_PER_COIN, OFFER_HEAD, OFFER_TAIL,
+  XP_BURY, XP_BURY_CONSECRATED, XP_BURY_DRAGON, BURIALS_PER_FLASK,
   noughtGenesisOf, isNought, markNoughtWorld, nameNoughtBody, NOUGHT_KEEPER, NOUGHT_POST, NOUGHT_NAME,
   // §0: a window cannot import a worldgen module (ESM importing CommonJS), so
   // a pillar packs the registered generator's answers into a table and serves
