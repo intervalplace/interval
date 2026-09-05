@@ -98,7 +98,12 @@ function panSpline(t) {
 function panFrame(now) {
   requestAnimationFrame(panFrame)
   const g = document.getElementById('gate')
-  if (!g || g.style.display === 'none') { panCv.style.display = 'none'; panLast = 0; return }
+  const atDoor = !!g && g.style.display !== 'none'
+  // A login screen shows scenery, not somebody's inventory. #panel and #status
+  // are DOM, not canvas, so the gate's blur never touched them and the skill
+  // list has been reading through it all along.
+  document.body.classList.toggle('at-door', atDoor)
+  if (!atDoor) { panCv.style.display = 'none'; panLast = 0; return }
 
   const dt = panLast ? Math.min(0.05, (now - panLast) / 1000) : 0
   panLast = now
@@ -183,6 +188,36 @@ edit('let light through the gate card',
   `  #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);
     backdrop-filter: blur(3px) saturate(.85);
     box-shadow: 0 0 60px rgba(0,0,0,.55), 0 0 24px rgba(230,126,34,.06); }`)
+
+// ---------------------------------------------------------------- 5 of 5
+edit('hide the HUD while the gate is up',
+  'body.at-door #panel',
+  `  #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);`,
+  `  body.at-door #panel, body.at-door #status, body.at-door #feed { display: none !important; }
+  body.at-door #frame { border-color: transparent; }
+  #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);`)
+
+// ---------------------------------------------------------------- 6 of 6
+// THE DOOR SHOWS TALLYHOLM, NOT THE PRACTICE OF IT.
+//
+// noughtTick pushes the practice island through onLocalState every 600ms, into
+// the same curState the renderer reads -- so while Nought runs, its island IS
+// what drawScene draws, and the live world is overwritten twenty times a
+// second. Standing at the door you were shown the waiting room while the real
+// place, the one with people in it, was the thing you could not see.
+//
+// Building it is deferred to after the gate closes. Nothing else changes:
+// onState still stashes the live state in lastLive and still draws it, so the
+// door now watches Tallyholm at this tick, with whoever is in it. Crossing is
+// then walking into the place you were looking at.
+//
+// The cost is that 'Enter as nought' builds the island on the way in rather
+// than in advance. Warm that is 35ms from cache; cold it is minutes -- which
+// is a loading screen, once, with the door theme still playing over it.
+edit('build the practice island after the gate, not before it',
+  'if (entered) ensureNought(s)   // the door watches Tallyholm',
+  `    ensureNought(s)`,
+  `    if (entered) ensureNought(s)   // the door watches Tallyholm; see below`)
 
 // ---------------------------------------------------------------------------
 if (done) {

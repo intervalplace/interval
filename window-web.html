@@ -142,6 +142,8 @@
     backdrop-filter: blur(1.2px) saturate(.92);
     display: flex; align-items: center; justify-content: center;
   }
+  body.at-door #panel, body.at-door #status, body.at-door #feed { display: none !important; }
+  body.at-door #frame { border-color: transparent; }
   #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);
     backdrop-filter: blur(3px) saturate(.85);
     box-shadow: 0 0 60px rgba(0,0,0,.55), 0 0 24px rgba(230,126,34,.06); }
@@ -4601,7 +4603,7 @@ let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
 let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
 ;(async () => {
   try {
-    const r = await fetch(api('/api/tables'), { cache: 'no-cache' })
+    const r = await fetch('/api/tables', { cache: 'no-cache' })
     if (!r.ok) return
     const t = await r.json()
     if (t.sworn) { SWORN_T = t.sworn
@@ -5604,15 +5606,26 @@ let MUSIC = null, musicTried = false
 // mobs, and every other window keep true time. Purely presentational.
 let DAYLOCK = localStorage.getItem('interval-daylock') === 'on'
 const dayCyc = (c) => DAYLOCK ? 0.25 : c // 0.25 = noon, per the calendar's own comment
-async function startMusic(preferred) {
+let TRACK_LIST = null, trackFetch = null
+function loadTracks() {
+  if (TRACK_LIST) return Promise.resolve(TRACK_LIST)
+  if (!trackFetch) {
+    trackFetch = fetch(api('/api/audio'))
+      .then((r) => r.json())
+      .then((j) => { TRACK_LIST = j.tracks ?? []; return TRACK_LIST })
+      .catch(() => { trackFetch = null; return null })
+  }
+  return trackFetch
+}
+function startMusic(preferred) {
   if (MUSIC || musicTried || !musicOn || !soundOn) return
+  // No list yet: warm it, and let the NEXT gesture carry the music. Returning
+  // here without latching is the whole point -- a tap that arrives before the
+  // node has answered must not spend the one chance we get.
+  if (!TRACK_LIST) { loadTracks(); return }
+  const tracks = TRACK_LIST
+  if (!tracks.length) return
   musicTried = true
-  let tracks = []
-  try {
-    const r = await fetch(api('/api/audio'))
-    tracks = (await r.json()).tracks ?? []
-  } catch { musicTried = false; return }        // no node, no music, no complaint
-  if (!tracks.length) { musicTried = false; return }
   const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
   const name = pick(preferred) ?? pick('theme-deep') ?? tracks[0]
   if (!name) return
@@ -5626,17 +5639,18 @@ async function startMusic(preferred) {
   a.volume = 0
   MUSIC = a
   a.addEventListener('ended', () => { MUSIC = null; musicTried = false }) // the arrival is over
-  try { await a.play() } catch { MUSIC = null; musicTried = false; return } // the browser said no; fine
-  // come in slowly: a world should not start by shouting
-  const target = 0.42
-  const t0 = performance.now()
-  const fade = () => {
-    if (!MUSIC) return
-    const k = Math.min(1, (performance.now() - t0) / 4000)
-    MUSIC.volume = (musicOn && soundOn) ? target * k : 0
-    if (k < 1) requestAnimationFrame(fade)
-  }
-  requestAnimationFrame(fade)
+  a.play().then(() => {
+    // come in slowly: a world should not start by shouting
+    const target = 0.42
+    const t0 = performance.now()
+    const fade = () => {
+      if (!MUSIC) return
+      const k = Math.min(1, (performance.now() - t0) / 4000)
+      MUSIC.volume = (musicOn && soundOn) ? target * k : 0
+      if (k < 1) requestAnimationFrame(fade)
+    }
+    requestAnimationFrame(fade)
+  }).catch(() => { MUSIC = null; musicTried = false })   // the browser said no; fine
 }
 
 // The threshold. A loading screen's real job is not to fill a wait, it is to
@@ -7619,7 +7633,7 @@ function onState(s, worldId, local) {
     // tick. Keep sending: that is the queue at the fountain.
     if (crossSentAt >= 0 && s.tick - crossSentAt >= 2) { crossSentAt = s.tick; send({ do: 'spawn' }) }
     noughtHud(s)
-    ensureNought(s)
+    if (entered) ensureNought(s)   // the door watches Tallyholm; see below
     if (!entered) updateGate(s, worldId)
     else if (crossingOpen) updateGate(s, worldId)
     // A WINDOW MUST NOT GO DARK IF NOUGHT CANNOT BE BUILT. The first run of
@@ -14238,7 +14252,12 @@ function panSpline(t) {
 function panFrame(now) {
   requestAnimationFrame(panFrame)
   const g = document.getElementById('gate')
-  if (!g || g.style.display === 'none') { panCv.style.display = 'none'; panLast = 0; return }
+  const atDoor = !!g && g.style.display !== 'none'
+  // A login screen shows scenery, not somebody's inventory. #panel and #status
+  // are DOM, not canvas, so the gate's blur never touched them and the skill
+  // list has been reading through it all along.
+  document.body.classList.toggle('at-door', atDoor)
+  if (!atDoor) { panCv.style.display = 'none'; panLast = 0; return }
 
   const dt = panLast ? Math.min(0.05, (now - panLast) / 1000) : 0
   panLast = now

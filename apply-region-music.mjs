@@ -164,6 +164,80 @@ edit('let any touch retry the door theme',
   `  window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })`,
   `  window.addEventListener(ev, () => startMusic('theme-flat'), { passive: true })`)
 
+// ---------------------------------------------------------------- 8 of 9
+// THE THEME CANNOT START ON iOS. startMusic is async and AWAITS the track list
+// before it calls play(). Safari's user-gesture activation does not survive an
+// await, so by the time play() runs the tap no longer counts and the browser
+// refuses -- every time, on every tap, for ever.
+//
+// So the list is fetched once, up front, and cached. When a gesture arrives
+// the element is made and played with nothing awaited in between.
+edit('cache the track list so a tap can actually start the music',
+  'let TRACK_LIST = null, trackFetch = null',
+  `async function startMusic(preferred) {
+  if (MUSIC || musicTried || !musicOn || !soundOn) return
+  musicTried = true
+  let tracks = []
+  try {
+    const r = await fetch(api('/api/audio'))
+    tracks = (await r.json()).tracks ?? []
+  } catch { musicTried = false; return }        // no node, no music, no complaint
+  if (!tracks.length) { musicTried = false; return }
+  const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))`,
+  `let TRACK_LIST = null, trackFetch = null
+function loadTracks() {
+  if (TRACK_LIST) return Promise.resolve(TRACK_LIST)
+  if (!trackFetch) {
+    trackFetch = fetch(api('/api/audio'))
+      .then((r) => r.json())
+      .then((j) => { TRACK_LIST = j.tracks ?? []; return TRACK_LIST })
+      .catch(() => { trackFetch = null; return null })
+  }
+  return trackFetch
+}
+function startMusic(preferred) {
+  if (MUSIC || musicTried || !musicOn || !soundOn) return
+  // No list yet: warm it, and let the NEXT gesture carry the music. Returning
+  // here without latching is the whole point -- a tap that arrives before the
+  // node has answered must not spend the one chance we get.
+  if (!TRACK_LIST) { loadTracks(); return }
+  const tracks = TRACK_LIST
+  if (!tracks.length) return
+  musicTried = true
+  const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))`)
+
+// ---------------------------------------------------------------- 9 of 9
+// ...and the tail of the old function still awaits play(). It does not need
+// to: play() returns a promise and the refusal is handled on it, so nothing
+// between the gesture and the call has to be awaited.
+edit('do not await play() inside the gesture',
+  'a.play().then(() => {',
+  `  try { await a.play() } catch { MUSIC = null; musicTried = false; return } // the browser said no; fine
+  // come in slowly: a world should not start by shouting
+  const target = 0.42
+  const t0 = performance.now()
+  const fade = () => {
+    if (!MUSIC) return
+    const k = Math.min(1, (performance.now() - t0) / 4000)
+    MUSIC.volume = (musicOn && soundOn) ? target * k : 0
+    if (k < 1) requestAnimationFrame(fade)
+  }
+  requestAnimationFrame(fade)
+}`,
+  `  a.play().then(() => {
+    // come in slowly: a world should not start by shouting
+    const target = 0.42
+    const t0 = performance.now()
+    const fade = () => {
+      if (!MUSIC) return
+      const k = Math.min(1, (performance.now() - t0) / 4000)
+      MUSIC.volume = (musicOn && soundOn) ? target * k : 0
+      if (k < 1) requestAnimationFrame(fade)
+    }
+    requestAnimationFrame(fade)
+  }).catch(() => { MUSIC = null; musicTried = false })   // the browser said no; fine
+}`)
+
 // ---------------------------------------------------------------------------
 if (done) {
   fs.writeFileSync(path, src)
