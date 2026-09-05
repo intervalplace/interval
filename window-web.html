@@ -5611,8 +5611,8 @@ async function startMusic(preferred) {
   try {
     const r = await fetch(api('/api/audio'))
     tracks = (await r.json()).tracks ?? []
-  } catch { return }        // no node, no music, no complaint
-  if (!tracks.length) return
+  } catch { musicTried = false; return }        // no node, no music, no complaint
+  if (!tracks.length) { musicTried = false; return }
   const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
   const name = pick(preferred) ?? pick('theme-deep') ?? tracks[0]
   if (!name) return
@@ -5661,7 +5661,7 @@ async function startMusic(preferred) {
     db.textContent = DAYLOCK ? 'day: bright' : 'day: cycle' })
 }
 for (const ev of ['pointerdown', 'keydown']) {
-  window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })
+  window.addEventListener(ev, () => startMusic('theme-flat'), { passive: true })
 }
 // ...and TRY IMMEDIATELY, gesture or no: a browser that has learned to
 // trust this site (any returning citizen) permits it, and the door has

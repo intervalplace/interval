@@ -136,6 +136,34 @@ edit('fix regionNameAt for v6/v7 worlds',
   `    if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return REGION_NAMES[biomeAt6(x, y)] ?? ''
     return REGION_NAMES[biomeAtE(x, y)] ?? ''`)
 
+// ---------------------------------------------------------------- 6 of 7
+// THE DOOR THEME NEVER PLAYS. startMusic sets musicTried BEFORE fetching the
+// track list, and the a.play() refusal path resets it -- but the fetch-failure
+// path does not. At page load the node is not up yet, so /api/audio fails, the
+// latch sticks, and the {once:true} tap listeners then return immediately for
+// the rest of the session.
+//
+// The comment right above the immediate call already says what should happen:
+// a browser that refuses loses nothing, the attempt resets itself, the first
+// touch carries it instead. That is true of the play() path and not of this
+// one. This makes the code match its own comment.
+edit('reset the music latch when there is no node yet',
+  'catch { musicTried = false; return }        // no node, no music',
+  `  } catch { return }        // no node, no music, no complaint
+  if (!tracks.length) return`,
+  `  } catch { musicTried = false; return }        // no node, no music, no complaint
+  if (!tracks.length) { musicTried = false; return }`)
+
+// ---------------------------------------------------------------- 7 of 7
+// ...and with the latch released, let a later touch actually carry it. These
+// were {once:true}, so on a slow connection they are both spent before the
+// node answers and nothing is left to retry. startMusic returns immediately
+// when a piece is already playing, so leaving them armed costs nothing.
+edit('let any touch retry the door theme',
+  "startMusic('theme-flat'), { passive: true })",
+  `  window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })`,
+  `  window.addEventListener(ev, () => startMusic('theme-flat'), { passive: true })`)
+
 // ---------------------------------------------------------------------------
 if (done) {
   fs.writeFileSync(path, src)
