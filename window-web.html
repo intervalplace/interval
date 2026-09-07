@@ -131,8 +131,13 @@
   /* §5t: WHAT A CITIZEN IS WEARING, laid out as a body rather than a list.
      The pack told you what you carried and nothing told you what you had ON;
      equipment was five fields you could only see by their effects. */
+  /* §5t-iv: the body is drawn SMALLER than the pack's cells. Five slots at a
+     quarter of the panel's width each is a diagram taking more room than the
+     twenty-four cells below it, and the pack was being cropped to pay for it.
+     A max-width on the grid keeps the shape and gives the space back. */
   #worn { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
-          justify-items: center; margin-bottom: 4px; }
+          justify-items: center; margin-bottom: 4px;
+          max-width: 156px; margin-left: auto; margin-right: auto; }
   .wslot { aspect-ratio: 1; width: 100%; background: var(--stone-dk);
            border: 1px solid var(--stone-lt); border-radius: 2px; position: relative;
            display: flex; align-items: center; justify-content: center; }
@@ -7129,6 +7134,13 @@ let spellMarks = []   // { kind, x, y, tx, ty, at }
 // fifty-six citizens and one face between them. It costs nothing and can be
 // changed later; what it buys is that the person beside you is not you.
 let pickLook = 0, lookSent = -1
+// §7d-iii: the interval a face was last attempted in. `tick % 12` reads like a
+// throttle and is not one: `onState` runs on every message and every render,
+// many times a second with the SAME tick, so whenever the count sat on a
+// multiple of twelve the retry fired on every call -- twenty a second rather
+// than one every twelve seconds. A modulo only rations something that runs
+// exactly once per tick, and nothing here does.
+let lookTriedAt = -1
 let _releaseArmed = false   // §11b: releasing loses the route, so it asks twice
 function drawLookPreview() {
   // THE SAME lookOf THE WORLD USES. The first version of this had its own
@@ -7863,9 +7875,21 @@ function onState(s, worldId, local) {
   // then jumps -- one step in five eaten by a message about their appearance,
   // and it cannot converge while they walk, so it does it the whole way.
   const meL = s.players?.[myId]
-  if (entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
+  // §7d-ii: AND NEVER IN NOUGHT. The guard below asks whether the engine would
+  // ACCEPT a set_look -- a citizen with no face yet, or one standing at a
+  // looking-glass. In Nought a resident has neither: the practice island has
+  // no glass, and their face is never set, so the first clause was true
+  // for ever. It retried every twelve intervals, was refused every time, and
+  // each attempt SPENT THE INPUT SLOT for that interval -- which is why a
+  // resident could wield and click and not walk, and why the feed filled with
+  // five thousand copies of one line about a tall glass.
+  //
+  // A face belongs to a citizen in the world. Nothing in Nought is saved, so
+  // there is nothing here for a face to be saved to.
+  if (!inNought && entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
       && !meL.action                          // busy: the interval is the deed's
       && lastStamped <= s.tick                // no slot already spoken for
+      && lookTriedAt !== s.tick               // ...and not already, this same interval
       && (s.tick % 12) === 0
       // §7d: ...and only where the engine would ACCEPT it. Once a citizen has a
       // face, `set_look` is refused anywhere but at a looking-glass -- so this
@@ -7873,7 +7897,7 @@ function onState(s, worldId, local) {
       // A retry that can never succeed is a loop, not a retry.
       && (meL.look === undefined || Object.values(s.nodes ?? {}).some((n) => n.type === 'looking-glass'
           && Math.abs(meL.x - n.x) + Math.abs(meL.y - n.y) === 1))
-     ) { send({ do: 'set_look', look: pickLook }) }
+     ) { lookTriedAt = s.tick; send({ do: 'set_look', look: pickLook }) }
   // per-state caches (perf): water adjacency and who pins which mob
   s._waterAdj = {}
   s._waterTiles = new Set()
