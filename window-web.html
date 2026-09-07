@@ -6480,7 +6480,21 @@ function onMessage (ev) {
   // "Unterminated string" straight out of the socket handler. Count it and
   // carry on: the next state is a second away and complete.
   let m
-  try { m = JSON.parse(ev.data) }
+  try {
+    // A ZONE PATCH ARRIVES AS BYTES, NOT AS A STRING.
+    //
+    // The pillar assembles a patch out of Buffers and sends the lot with
+    // `ws.send(Buffer.concat(frame))`. That is a BINARY frame, so the browser
+    // hands it over as a Blob or an ArrayBuffer -- and `JSON.parse` of either
+    // stringifies it first, which is how every patch this window ever received
+    // failed with `"[object Blob]" is not valid JSON` and how a window that had
+    // connected perfectly well sat on CONNECTING for ever.
+    //
+    // The bytes ARE json; only the frame type differs. `binaryType` is set to
+    // 'arraybuffer' where the socket is opened, so this decode is synchronous
+    // and the handler stays exactly as simple as it was.
+    m = JSON.parse(typeof ev.data === 'string' ? ev.data : new TextDecoder().decode(ev.data))
+  }
   catch (e) {
     _badFrames++
     if (_badFrames === 1) feed('a message from the world arrived malformed (' + e.message + '); ignoring it')
@@ -6625,6 +6639,9 @@ async function connect (reason) {
 
   const sock = new WebSocket(wsUrl())
   ws = sock
+  // ...and ask for bytes rather than a Blob, so a patch can be decoded in the
+  // handler instead of asynchronously, out of order, after the next one.
+  sock.binaryType = 'arraybuffer'
   sock.onopen = () => { reconnectAt = 0; onOpen() }
   sock.onmessage = onMessage
   const drop = () => {

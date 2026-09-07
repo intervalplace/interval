@@ -266,11 +266,17 @@ function connect () {
   try { sock = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host) }
   catch { return setTimeout(connect, 3000) }
   ws = sock
+  sock.binaryType = 'arraybuffer'   // patches come as bytes; decode them in the handler
   sock.onopen = () => { connected = true; sock.send(JSON.stringify({ type: 'auth', uid })) }
   sock.onclose = () => { connected = false; myId = null; setTimeout(connect, 2000) }
   sock.onerror = () => { try { sock.close() } catch {} }
   sock.onmessage = (ev) => {
-    let m; try { m = JSON.parse(ev.data) } catch { return }
+    // a zone patch is sent as BYTES (`ws.send(Buffer.concat(frame))`), so it
+    // arrives as an ArrayBuffer and `JSON.parse` of one stringifies it to
+    // "[object ArrayBuffer]" and throws. The bytes are json; only the frame
+    // type differs. This window swallowed the error silently, so the symptom
+    // was simply a world that never updated.
+    let m; try { m = JSON.parse(typeof ev.data === 'string' ? ev.data : new TextDecoder().decode(ev.data)) } catch { return }
     if (m.type === 'hello') { myId = m.playerId; realId = m.playerId
                               say('key ' + String(myId).slice(0, 10) + '\u2026') }
     if (m.type === 'state') { liveState = m.state; _held = m.state; worldId = m.worldId || worldId
