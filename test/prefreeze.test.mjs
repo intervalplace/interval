@@ -52,6 +52,12 @@ const CANON = {
   fletch: { slot: 0, make: 'bow' },
   pickup: { groundId: 'g-1', confirm: false },
   claim_name: { name: 'ada' },
+  // §7dy/§7dz: the deferred acts. `sapling` is NOT `plant` -- that verb sows a
+  // seed from a slot and existed first; a second verb of the same name simply
+  // replaced it, and this battery is what caught it.
+  sapling: { nodeId: 'grove-oak-0' },
+  setbuck: {},
+  lift: { nodeId: 'buck-1' },
 }
 // one representative corruption of each kind, per action where applicable
 const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, giveSlots: '0', wantItem: 9, wantGold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }

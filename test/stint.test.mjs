@@ -303,18 +303,18 @@ test('a citizen beside somebody who swore nothing tallies nothing', () => {
 
 // ---- the far channel, and the name ----
 
-test('the far channel needs both a tide up and an open stint', () => {
+test('§7dx: the far channel needs nothing but being alive', () => {
   const g = genesis()
   const alice = E.generateIdentity()
   let s = worldWith(g, [alice])
   // no stint yet, tide up at interval zero
   assert.equal(E.anyTideOpen(g, s.tick), true, 'the tide is up to begin with')
-  assert.equal(E.maySpeakFar(s, alice.playerId), false, 'but an unsworn citizen has no licence')
+  assert.equal(E.maySpeakFar(s, alice.playerId), true, 'an unsworn citizen may still be heard')
   s = step(s, [signer(g, alice)({ tick: s.tick, type: 'stint', n: 50 })])
-  assert.equal(E.maySpeakFar(s, alice.playerId), true, 'sworn, and the band up: heard')
+  assert.equal(E.maySpeakFar(s, alice.playerId), true, 'and a sworn one, equally')
 })
 
-test('when the tide shuts the far channel shuts with it, stint or no stint', () => {
+test('§7dx: when the tide shuts, the far channel does NOT shut with it', () => {
   const g = genesis()
   const alice = E.generateIdentity()
   let s = worldWith(g, [alice])
@@ -324,8 +324,9 @@ test('when the tide shuts the far channel shuts with it, stint or no stint', () 
   while (E.anyTideOpen(g, t) && t < 5000) t++
   s = run(s, g, [alice], t - s.tick)
   assert.equal(E.anyTideOpen(g, s.tick), false, 'the band has closed')
-  assert.equal(E.stintOpen(s.players[alice.playerId], s.tick), true, 'the promise is still open')
-  assert.equal(E.maySpeakFar(s, alice.playerId), false, 'and still nobody can be reached')
+  assert.equal(E.maySpeakFar(s, alice.playerId), true,
+    'and the island can still be reached: closing time already rations the evening, '
+    + 'and rationing the voice inside it as well was the mistake §7dx repealed')
 })
 
 test('a voice near is never gated, by anything', () => {
@@ -343,34 +344,22 @@ test('earshot ends where this world already says two people are no longer togeth
   assert.equal(E.withinEarshot(s, alice.playerId, bob.playerId), false)
 })
 
-test('a name is kept only inside a tide, and by two citizens who both swore', () => {
+test('§7dx: a name is kept by being near somebody living, and nothing more', () => {
   const g = genesis()
   const alice = E.generateIdentity(), bob = E.generateIdentity()
   let s = worldWith(g, [alice, bob])
-  const signA = signer(g, alice)
-  // neither has sworn: the tide is up, and it is still not enough
-  s = step(s, [signA({ tick: s.tick, type: 'befriend', targetId: bob.playerId })])
-  assert.equal(s.players[alice.playerId].friends, undefined, 'a name needs two promises')
-  // alice swears, bob does not
-  s = step(s, [signA({ tick: s.tick, type: 'stint', n: 50 })])
-  s = step(s, [signA({ tick: s.tick, type: 'befriend', targetId: bob.playerId })])
-  assert.equal(s.players[alice.playerId].friends, undefined, 'one promise is still one')
-  // and now both
-  s = step(s, [signer(g, bob)({ tick: s.tick, type: 'stint', n: 50 })])
-  s = step(s, [signA({ tick: s.tick, type: 'befriend', targetId: bob.playerId })])
-  assert.deepEqual(s.players[alice.playerId].friends, [bob.playerId], 'both present, both sworn: the name is kept')
+  // neither has sworn, and it does not matter: §7cn stands as written
+  s = step(s, [signer(g, alice)({ tick: s.tick, type: 'befriend', targetId: bob.playerId })])
+  assert.deepEqual(s.players[alice.playerId].friends, [bob.playerId],
+    'a name you could only keep during a sixth of a ninety-minute evening is a name you mostly cannot keep')
 })
 
-test('the bond outlives the tide that made it', () => {
+test('a bond, once kept, outlives everything', () => {
   const g = genesis()
   const alice = E.generateIdentity(), bob = E.generateIdentity()
   let s = worldWith(g, [alice, bob])
-  s = step(s, [
-    signer(g, alice)({ tick: s.tick, type: 'stint', n: 60 }),
-    signer(g, bob)({ tick: s.tick, type: 'stint', n: 60 }),
-  ])
   s = step(s, [signer(g, alice)({ tick: s.tick, type: 'befriend', targetId: bob.playerId })])
-  s = run(s, g, [alice, bob], 200)   // well past the stint AND past the tide
+  s = run(s, g, [alice, bob], 200)
   assert.deepEqual(s.players[alice.playerId].friends, [bob.playerId],
     'the contact is bounded; the record of it is not')
 })
