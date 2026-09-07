@@ -5918,6 +5918,16 @@ function ceilingLeft(state, pid) {
 // ACTING. A body that is still standing where it stood, still holding what it
 // held, and doing nothing until the window rolls enough to let it act again.
 function isStoodDown(state, pid) {
+  // §7dw: AND NOT IN NOUGHT. The practice island keeps no ledger worth
+  // keeping: nothing there is saved and nothing there is lost, so an hour
+  // spent learning to swing an axe must not cost an hour of the world. A
+  // ceiling is a claim on a citizen's real day, and Nought is not their real
+  // day -- it is the part before they have one.
+  //
+  // It also removes a trap that would have been very hard to read: a newcomer
+  // practising for ninety minutes would have stood down on arrival in
+  // Tallyholm, having never played it, with nothing on screen to say why.
+  if (isNought(state)) return false;
   return ceilingLeft(state, pid) <= 0;
 }
 // §7dv: WHO MAY BE HEARD AT RANGE. Both halves, and neither alone.
