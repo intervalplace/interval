@@ -30,7 +30,17 @@
     display: flex; justify-content: center; align-items: flex-start;
     flex-wrap: wrap; /* v0.80: the body is a centred ROW, so the nav strip
       became a column beside the game until it was allowed to take its own line */
-    min-height: 100vh; padding: 16px;
+    /* THE PAGE DOES NOT SCROLL. The world was losing its top rows the moment
+       the panel grew taller than the viewport -- a citizen reading the log had
+       to scroll, and scrolling pushed the tiles they were standing on off the
+       screen. A window whose map moves when you read a message is not a window
+       you can play in.
+       So the page is exactly the viewport and never more, and anything too
+       tall scrolls INSIDE its own box (see #panel). `100dvh` rather than
+       `100vh` because a phone's address bar is part of the viewport until it
+       is not, and `vh` measures the larger one. */
+    height: 100dvh; max-height: 100dvh; overflow: hidden;
+    padding: 16px;
   }
   /* the frame's width, in one place (v0.80). On a large desktop the world
      is shown LARGER rather than wider: the tile count is unchanged, so the
@@ -84,10 +94,20 @@
     border-top: 2px solid var(--stone-lt); border-left: 2px solid var(--stone-lt);
     border-bottom: 2px solid var(--stone-dk); border-right: 2px solid var(--stone-dk);
   }
-  #panel { width: var(--panel-w); flex: 0 0 var(--panel-w); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  /* the panel is the thing that scrolls, and only the panel. `min-height: 0`
+     is what lets a flex child be SHORTER than its content -- without it the
+     box grows to fit and pushes the page tall again, which is the whole bug. */
+  #panel { width: var(--panel-w); flex: 0 0 var(--panel-w); padding: 8px; display: flex; flex-direction: column; gap: 8px;
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #frame { max-height: 100%; }
+  #view { max-height: 100%; }
   @media (max-width: 900px) {
     #frame { flex-direction: column; }
-    #panel { width: 100%; flex: 1 1 auto; }
+    /* stacked: the map keeps its aspect at the top and the panel takes the
+       rest, scrolling inside itself rather than lengthening the page. */
+    #frame { flex-direction: column; max-height: 100%; }
+    #view { flex: 0 0 auto; }
+    #panel { width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
     #skills { grid-template-columns: repeat(4, 1fr); }
     #inv { grid-template-columns: repeat(7, 1fr); }
   }
@@ -5194,6 +5214,12 @@ const WORN_STATS = {
   "great-plate": {armour:18}
 }
 const EQUIP_SLOTS = ['head', 'weapon', 'body', 'offhand', 'legs']
+// §6bz: which slot an item wants, for the window's own reasoning. The engine's
+// `slotOf` is the authority; this only has to be right about shields.
+const EQUIP_SLOT_OF = (item) => /-shield$/.test(item ?? '') ? 'offhand'
+  : /-helm$|hood$/.test(item ?? '') ? 'head'
+  : /-plate$|shroud$/.test(item ?? '') ? 'body'
+  : /-greaves$|-legs$/.test(item ?? '') ? 'legs' : 'weapon'
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
 const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'magic-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
@@ -7333,7 +7359,7 @@ async function ensureNought(live) {
     nought = { E: E2, state: st, key, inputs: [], wid: E2.worldId(st.genesis) }
     realId = realId ?? myId
     myId = key.playerId
-    nought.timer = setInterval(noughtTick, 600)
+    nought.timer = setInterval(noughtTick, 1000)   // §0: the SAME interval as the world. Nought running faster than Tallyholm taught a newcomer a rhythm they would have to unlearn on arrival, which is the one thing a practice world must never do.
     noughtBanner(true)
     noughtCard()
   } catch (e) {
@@ -8029,6 +8055,20 @@ function onState(s, worldId, local) {
     if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
   }
   const me = s.players[myId]
+  // §0f: THE MOVE LOCK MUST BE RELEASED EVEN AT THE GATE.
+  //
+  // The lock is set when a step is sent and cleared forty lines below, once
+  // the citizen has arrived or the interval it was stamped for has passed.
+  // But the gate return sits ABOVE that line, and in Nought a resident is
+  // never `entered` -- that flag means Tallyholm accepted their spawn, which
+  // is exactly what has not happened yet. So the first click set the lock and
+  // nothing ever cleared it: one step, then frozen for the whole visit.
+  //
+  // It looked like a movement bug and was a control-flow one, which is why the
+  // tick-allocator fix above (§0, line ~6126) did not touch it -- that fix was
+  // about which world a footstep asks permission from. Wielding and clicking
+  // kept working throughout because neither goes anywhere near this lock.
+  if (me && moveLock && ((me.x === moveLock.x && me.y === moveLock.y) || s.tick >= moveLock.until)) moveLock = null
   if (!entered) { prev = s; panel(s); return } // wait at the gate
   // §0e: A WINDOW MUST NOT SEND `spawn` ON ITS OWN INITIATIVE. This window used
   // to birth a soul the instant it noticed one missing, which made the crossing
@@ -14902,7 +14942,41 @@ function invClick(i) {
     }
     send({ do: 'light', slot: +i }); feed('You attempt to light a fire\u2026'); return
   }
-  if (EQUIPPABLE.has(it.item)) { send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.') }
+  if (EQUIPPABLE.has(it.item)) {
+    // §6bz: ONE PAIR OF HANDS, AND THE WINDOW SAYS THE TWO INPUTS.
+    //
+    // The engine REFUSES a wield that would silently displace -- a shield
+    // beside a haft, or a haft beside a shield -- and it is right to: an
+    // executor that guessed wrong should be told, not quietly disarmed. But a
+    // refusal with nothing said is how a bow simply did nothing when clicked,
+    // over and over, with no way to find out why.
+    //
+    // So the window does what §6bz says a citizen should do: it says so in two
+    // inputs. It takes off what is in the way, then wields. If the pack has no
+    // room for what comes off, nothing is sent and the reason is said out loud,
+    // because a full pack is a thing a citizen can go and fix.
+    const meW = world?.players?.[myId]
+    const TWO_HAND = new Set(['wooden-bow', 'horn-bow', 'heartwood-bow', 'hollow-bow', 'sigil-bow', 'dragonbow',
+      'great-sword', 'great-mell', 'great-crossbow', 'crossbow', 'star-crossbow', 'fire-siphon'])
+    const wornWeapon = meW?.equipment?.weapon?.item ?? null
+    const wornOff = meW?.equipment?.offhand?.item ?? null
+    const takingUpTwoHander = TWO_HAND.has(it.item)
+    const raisingShieldOverHaft = EQUIP_SLOT_OF(it.item) === 'offhand' && TWO_HAND.has(wornWeapon)
+    const inTheWay = takingUpTwoHander ? (wornOff ? ['offhand'] : []) : raisingShieldOverHaft ? ['weapon'] : []
+    if (inTheWay.length) {
+      const free = (meW?.inventory ?? []).filter(sl => !sl).length
+      if (free < inTheWay.length) {
+        feed('Your hands are full and so is your pack: there is no room to set down the '
+          + (wornOff ?? wornWeapon ?? 'gear').replace(/-/g, ' ') + ' first.')
+        return
+      }
+      for (const gear of inTheWay) {
+        send({ do: 'unwield', gear })
+        feed('You lower the ' + (meW.equipment[gear]?.item ?? gear).replace(/-/g, ' ') + '.')
+      }
+    }
+    send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.')
+  }
   else if (it?.item === 'cooked-fish') {
     const foe = meNow.action?.type === 'prowess' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
@@ -14959,8 +15033,22 @@ document.getElementById('worn').addEventListener('click', (e) => {
   const w = e.target.closest('.wslot')
   if (!w) return
   const me2 = world?.players?.[myId]
-  _namedItem = me2?.equipment?.[w.dataset.worn]?.item ?? ''
+  const gear = w.dataset.worn
+  const worn = me2?.equipment?.[gear]?.item ?? ''
+  _namedItem = worn
+  // §5t-ii: AND TAPPING IT AGAIN TAKES IT OFF.
+  //
+  // Naming a thing and removing it are the two things somebody wants from a
+  // worn slot, and only the first was here -- so a citizen who had put on a
+  // helm had to find the verb somewhere else to take it off again. One tap
+  // says what it is; a second tap on the same slot removes it, which means
+  // nothing is ever unequipped by a stray click that was only asking.
+  if (!worn) { _wornTapped = null; return }
+  if (_wornTapped === gear) { _wornTapped = null; send({ do: 'unwield', gear }) }
+  else _wornTapped = gear
 })
+// which slot was last asked about, so the second tap is the one that acts
+let _wornTapped = null
 
 cv.addEventListener('click', (e) => {
   if (!world) return
