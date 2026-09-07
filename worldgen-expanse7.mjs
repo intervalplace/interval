@@ -306,9 +306,37 @@ export function islesOf(g) {
     //
     // What it is for is a fight that is only about the fight: no armour, no
     // magic, no prayer, and anybody may strike anybody. Every other variable
-    // gone, so a maul and a bare blade can be compared honestly.
+    // gone, so a mell and a bare blade can be compared honestly.
     { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' },
     { x: Math.round(g.worldW * 0.175), y: Math.round(g.worldH * 0.09), rx: 8, ry: 5, tag: 'farshore' },
+    // §7ea: THE DRAGON'S ISLE, and it is a different KIND of place from the
+    // three above.
+    //
+    // Whiting is twelve by eight and the Lists nine by six -- rocks you cross
+    // in under a minute, visited inside an evening spent mostly elsewhere.
+    // This is thirty by twenty-two: about eight times Whiting's area, and it
+    // is meant to BE the evening rather than an errand inside one.
+    //
+    // AND IT IS IN THE WILDS. That is not a detail, it is the whole design.
+    // The dragon cannot be killed alone, so it wants a party -- and a party
+    // that assembled in a place where anybody may hunt anybody is a party you
+    // had to TRUST. Put the isle in safe water and the fight becomes a raid
+    // with a boat ride, which is the one thing it must never be.
+    //
+    // It sits at 34,30: open sea inside the Wilds rectangle, a hundred and
+    // sixty tiles west of the Norwick frontier. `inWilds` already covers it --
+    // no rule changes, because the sea west of the line was always the Wilds.
+    //
+    // The APPROACH is the content. You cross the frontier at Norwick and walk
+    // west through open hunting ground to reach the quay, and you may simply
+    // not arrive. Everything after that is a fight you chose to have with
+    // people who could have taken it from you on the way.
+    //
+    // Closing time is why it is thirty by twenty-two rather than another
+    // twelve-by-eight rock. Ninety minutes is the whole allowance and the walk
+    // spends a real share of it, so the destination has to hold the rest of
+    // the evening or nobody makes the trip twice.
+    { x: 34, y: 30, rx: 30, ry: 22, tag: 'dragon' },
   ]
 }
 export function onIsle(g, x, y) {
@@ -410,6 +438,14 @@ export function biomeAt(g, x, y) {
 //
 // Cheap to add, and the thing that makes a chart worth reading.
 export const LOCALES = [
+  // §7ea: the dragon's isle. A named place so the window can say where a
+  // citizen is standing, and so the music has something to answer to. The
+  // gallery track was written for somewhere else, and it fits here for a
+  // structural reason rather than a coincidence: a piece meant for a place you
+  // enter deliberately, having spent something to get there, works anywhere
+  // that is true -- and it is more true of this shore than of anywhere else in
+  // the world.
+  { tag: 'scaleshore', name: 'Scaleshore', fx: 0.038, fy: 0.059, rx: 32, ry: 24 },
   // heartlands
   { tag: 'anchorvale',  name: 'Anchor Vale',       fx: 0.50, fy: 0.50, rx: 46, ry: 30 },
   { tag: 'watersmeet',  name: 'Watersmeet',        anchor: 'watersmeet', rx: 30, ry: 20 },
@@ -2576,6 +2612,10 @@ E.registerTerrain(GENERATOR_ID, {
   spawn: (g) => spawnDry(g),
   country: (g, x, y) => biomeAt(g, x, y),
   road: (g, x, y) => onRoad(g, x, y),   // §6ao (v6): so the engine can require citizen stalls to line the roads
+  // §7dz: ...and so the engine can require a willow trap to be set in WATER.
+  // A blocked tile may be a wall or a river and the engine cannot tell them
+  // apart; a generator that omits this simply has no place to set a buck.
+  water: (g, x, y) => isWater(g, x, y),
   // §7dn: WHETHER THIS CITIZEN MAY MAKE THIS CROSSING.
   //
   // Asked only for a tile `blocked` has already allowed, and only of a citizen
@@ -2732,13 +2772,13 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     wield: {
       'star-helm': { defence: 80 }, 'star-plate': { defence: 90 },
       'star-sword': { attack: 80 }, 'star-dagger': { attack: 80 }, 'star-spear': { attack: 80 },
-      'star-maul': { attack: 85 }, 'star-flail': { attack: 85 },
+      'star-mell': { attack: 85 }, 'star-flail': { attack: 85 },
       'star-hatchet': { woodcutting: 85 }, 'star-pickaxe': { mining: 85 },
     },
     smith: {
       'star-helm': { smithing: 80, magic: 40 }, 'star-plate': { smithing: 90, magic: 50 },
       'star-sword': { smithing: 85, magic: 45 }, 'star-dagger': { smithing: 85, magic: 48 },
-      'star-spear': { smithing: 86, magic: 46 }, 'star-maul': { smithing: 88, magic: 50 },
+      'star-spear': { smithing: 86, magic: 46 }, 'star-mell': { smithing: 88, magic: 50 },
       'star-hatchet': { smithing: 82, magic: 42 }, 'star-pickaxe': { smithing: 82, magic: 42 },
     },
   }
@@ -2836,6 +2876,7 @@ const SIGN_TEXT = {
   ...VILLAGE_SIGNS,
 }
 
+const GROVE_OF = { oak: 'oak-tree', ironbark: 'ironbark-tree' }
 export function buildWorld(genesis) {
   // stalls are seated at the end, once every town's counters exist
   const _stallWork = []
@@ -3993,6 +4034,106 @@ export function buildWorld(genesis) {
 
     // ---- WHITING ISLE, AND THE BOAT TO IT ----
     //
+    // §7ea-ii. WHAT STANDS ON THE ISLE, AND WHAT DOES NOT.
+    //
+    // The second half of this is the harder one. A place is not made hostile
+    // by putting frightening things on it -- skulls and bones are decoration
+    // and citizens stop seeing decoration in a week. A place is made hostile
+    // by TAKING AWAY THE THINGS THAT MEAN SAFETY, and every one of those is
+    // already a node type in this world with a meaning citizens have learned:
+    //
+    //   a hearth   -- warmth, and somewhere to come back to
+    //   a well     -- water, which is to say somebody lives here
+    //   a keeper   -- a person who will trade with you
+    //   a signpost -- somebody thought you might get lost and cared
+    //   a road     -- other people came this way often enough to wear it
+    //   a fence    -- a boundary somebody chose to maintain
+    //
+    // Not one of those is placed here. The isle has a landing and nothing
+    // else, and the absence does the work: a citizen who steps off the boat
+    // reads it in seconds without being told, because they have spent their
+    // whole life in this world seeing what an inhabited place looks like.
+    //
+    // The two signs at the crossing are the only writing, and they are at the
+    // WATER'S EDGE where a sign is a warning rather than a welcome.
+    {
+      const isle = islesOf(g).find((i) => i.tag === 'dragon')
+      if (isle) {
+        // THE DRAGON STANDS AT THE FAR END. Not at the landing -- an isle you
+        // must CROSS is an isle that can be lost halfway, and the walk inland
+        // with a party you chose to trust is the whole content of the place.
+        let seat = null
+        for (let dx = isle.rx - 2; dx > 0 && !seat; dx--)
+          for (let dy = -4; dy <= 4; dy++) {
+            const x = isle.x + dx, y = isle.y + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            seat = [x, y]; break
+          }
+        // §7ea: MOVE THE ONE THAT EXISTS. Worldgen has always placed exactly
+        // one dragon (`counts.dragon` is 1) and it stood at the deep-west
+        // Wilds coast -- six tiles, as it happens, from where the quay was
+        // sited without knowing. Adding a second here would have doubled the
+        // rarest thing in the world by accident, and a world with two dragons
+        // is not the world this one has spent every release being.
+        if (seat && w.mobs['the-dragon']) {
+          const d = w.mobs['the-dragon']
+          d.x = seat[0]; d.y = seat[1]; d.hx = seat[0]; d.hy = seat[1]
+          taken.add(key(seat[0], seat[1]))
+        }
+      }
+    }
+    // §7ea. THE DRAGON'S CROSSING, and every part of it is in the Wilds.
+    //
+    // The dragon cannot be killed alone. That is the whole of the design: it
+    // wants a party, and a party assembled in open hunting ground is one you
+    // had to TRUST. Put any part of this in safe water and it becomes a raid
+    // with a boat ride, which is the one thing it must never be.
+    //
+    // So the quay is deep west -- a hundred and fifty-odd tiles past the
+    // Norwick frontier, on the mainland Wilds coast, no isle under it. You
+    // cross at Norwick and walk west through ground where anybody may hunt
+    // anybody, and YOU MAY SIMPLY NOT ARRIVE. Everything after that is a fight
+    // you chose to have with people who could have taken it from you on the
+    // way, and who still can, because the isle is Wilds too.
+    //
+    // The boat buys no safety. It only commits you: now there is one way off.
+    {
+      const isle = islesOf(g).find((i) => i.tag === 'dragon')
+      if (isle) {
+        // the mainland quay: dry Wilds shore, off every isle, as far from safe
+        // ground as the coast allows
+        const wr = g.geo?.wilds ?? { x0: 1, x1: 193, y0: 1, y1: 510 }
+        let quay = null, bestScore = -1e9
+        for (let x = wr.x0; x <= wr.x1; x += 1) for (let y = wr.y0; y <= wr.y1; y += 1) {
+          if (onIsle(g, x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+          let sea = false
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+            if (isWater(g, x + dx, y + dy) && !onIsle(g, x + dx, y + dy)) sea = true
+          if (!sea) continue
+          const fromSafe = Math.min(Math.hypot(x - 211, y - 241), 199 - x)
+          const score = fromSafe - Math.hypot(x - isle.x, y - isle.y) * 0.35
+          if (score > bestScore) { bestScore = score; quay = [x, y] }
+        }
+        // the isle's own landing, on the shore facing home
+        let land = null
+        for (let dx = 0; dx <= isle.rx && !land; dx++)
+          for (let dy = -3; dy <= 3; dy++) {
+            const x = isle.x + dx, y = isle.y + dy
+            if (!inB(x, y) || isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
+            land = [x, y]; break
+          }
+        if (quay && land) {
+          put('ferry-wilds', 'ferry', quay[0], quay[1], {})
+          put('wilds-quay-sign', 'signpost', quay[0], quay[1] + 1,
+            { text: 'The boat out \u2014 nobody here is bound to keep faith with you' })
+          put('ferry-dragon', 'ferry', land[0], land[1], {})
+          put('dragon-quay-sign', 'signpost', land[0], land[1] + 1,
+            { text: 'The boat home \u2014 if you are still standing' })
+
+
+        }
+      }
+    }
     // §7bu. A ferry at Eastmere's quay and a ferry on the isle. Two named
     // points and nothing between them: you walk to the quay, you cross, and you
     // walk at the other end. That is a crossing, and it is the opposite of a
@@ -5907,6 +6048,40 @@ export function buildWorld(genesis) {
     const wr = g.geo.wilds
     return x > wr.x0 + (wr.x1 - wr.x0) * 0.45 && x < wr.x1 - 4
   }
+  // §7dy: THE GROVES. A ring of empty plots around the two stands worth
+  // tending, and only those two -- heartwood and the gallows-oaks are
+  // deep-Wilds capstones where the JOURNEY is the content, and thickening
+  // them would undercut the reason to go.
+  //
+  // Eight to a ring. That takes a fully tended stand from six trees to
+  // fourteen: enough to hold a gathering rather than three people taking
+  // turns on respawns, and nowhere near enough to be a farm. The ceiling is a
+  // count anybody can see standing there, which is better than a radius
+  // somebody has to reason about.
+  //
+  // Rings, not scatter, is the whole point. Abundance disperses and scarcity
+  // concentrates; twelve hundred plantable plots would give everybody a garden
+  // and nobody a neighbour. These extend the two places that already draw
+  // people and they cannot seed anywhere else.
+  const groveRing = (species, want) => {
+    const stand = Object.values(w.nodes).filter(n => n.type === GROVE_OF[species])
+    if (!stand.length) return 0
+    const cx = Math.round(stand.reduce((a, n) => a + n.x, 0) / stand.length)
+    const cy = Math.round(stand.reduce((a, n) => a + n.y, 0) / stand.length)
+    let n = 0
+    for (let r = 2; r <= 6 && n < want; r++)
+      for (let dy = -r; dy <= r && n < want; dy++) for (let dx = -r; dx <= r && n < want; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+        const x = cx + dx, y = cy + dy
+        if (!inB(x, y) || !free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+        if (onRoad(g, x, y) || onLane(g, x, y)) continue
+        const id = 'grove-' + species + '-' + n
+        E.addNode(w, id, 'grove-plot', x, y)
+        w.nodes[id].species = species
+        taken.add(key(x, y)); n++
+      }
+    return n
+  }
   counts.gallows = clusterScatter('gallow', 5, deepWildsSeams, (id, x, y) => E.addNode(w, id, 'gallows-oak', x, y), 1, 8)
   counts.motherLode = clusterScatter('mlode', 5, deepWildsSeams, (id, x, y) => E.addNode(w, id, 'mother-lode', x, y), 1, 8)
   // 6bb: THE GOLD SEAM. Remote but SAFE, and deliberately not the Wilds: the
@@ -7812,6 +7987,34 @@ export function buildWorld(genesis) {
   }
 
   const serr = E.validateState(w)
+  // §7dy: THE RINGS GO LAST. Placed mid-build they encircled where the
+  // ironbark stood at the time, and a later pass moved the stand seventy-five
+  // tiles -- leaving eight plots in an empty field. A ring must be drawn round
+  // the trees' FINAL position, so it is drawn when nothing will move again.
+  // §7ea-ii: AND THE ISLE IS SWEPT LAST.
+  //
+  // General scatter passes do not know this isle exists, and they left a
+  // campfire and two keepers on it -- a fire to warm yourself at and two
+  // people who would trade with you, on the one shore in the world where
+  // nobody is bound to keep faith with you. Absence is doing the work here,
+  // so the absence has to be enforced after everything else has finished
+  // placing things, or a later pass quietly makes the place habitable again.
+  {
+    const isle = islesOf(g).find((i) => i.tag === 'dragon')
+    const SIGNS_OF_LIFE = new Set(['hearth', 'well', 'keeper', 'stall', 'store', 'vault', 'campfire', 'banner', 'dedication', 'guard'])
+    if (isle) {
+      let swept = 0
+      for (const id of Object.keys(w.nodes)) {
+        const n = w.nodes[id]
+        if (!SIGNS_OF_LIFE.has(n.type)) continue
+        const dx = (n.x - isle.x) / isle.rx, dy = (n.y - isle.y) / isle.ry
+        if (dx * dx + dy * dy < 1) { delete w.nodes[id]; swept++ }
+      }
+      counts.dragonIsleSwept = swept
+    }
+  }
+  counts.groveOak = groveRing('oak', 8)
+  counts.groveIronbark = groveRing('ironbark', 8)
   if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') founding aborted')
   w._composition = counts
 

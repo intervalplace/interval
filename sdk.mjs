@@ -322,6 +322,15 @@ export class IntervalClient {
   // in it; that is the whole of what makes it a promise rather than a log.
   stint(n) { return this.#send({ type: 'stint', n }) }
 
+  // §7dy: put a sapling in an empty plot of a grove. Not `plant`, which sows a
+  // seed from a pack slot and is a different act entirely.
+  sapling(nodeId) { return this.#send({ type: 'sapling', nodeId }) }
+  // §7dz: set a willow trap in the run beside you, and lift it later. Anybody
+  // may lift a buck -- the eels go to whoever pulls them out, the skill stays
+  // with whoever wove it.
+  setbuck() { return this.#send({ type: 'setbuck' }) }
+  lift(nodeId) { return this.#send({ type: 'lift', nodeId }) }
+
   /** §7dv: the tide, as a forecast rather than a rumour. */
   tide() {
     const g = this.world?.genesis

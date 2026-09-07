@@ -485,7 +485,7 @@ off your own health and nowhere else, so a fight between two citizens was the
 one fight in the world with no numbers in the air. Other citizens take
 hitsplats and flinch now, and a citizen who goes down gets the dagger mark.
 
-**Every weapon swings like itself.** Six arcs, not one: a maul is wound right
+**Every weapon swings like itself.** Six arcs, not one: a mell is wound right
 back and dropped, a dagger is three inches and back twice, a spear thrusts down
 its own line, a bow draws and holds and releases, a staff sweeps right to left,
 a sword cuts shoulder to hip — each at its own speed and with its own noise.
@@ -541,7 +541,7 @@ in the world with a warning in the front of it: an inhale, then a second and a
 half of it.
 
 **A blow that lands sounds like the thing that landed it.** Every hit in the
-world used to be one `thud`. A maul is a low collapse, a dagger a short bright
+world used to be one `thud`. A mell is a low collapse, a dagger a short bright
 tick, a spear a pierce, a sword a cut with a ring in it, a staff or a pickaxe a
 crack of bone. Struck at distance, quieter.
 

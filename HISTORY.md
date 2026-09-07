@@ -454,3 +454,170 @@ because it is the texture of an evening. It is no longer what gets ranked.
 
 This is recorded as a correction rather than a feature. The earlier claim was
 stated confidently in this document and it was wrong.
+
+## The chat gate and the name gate, repealed (v1.03, §14g)
+
+§14e made the far channel need a tide up and an open stint, and made a kept
+name need the same. Two releases later §14f bounded presence itself: ninety
+minutes in any rolling day. Both rules were kept for one release and they
+should not have been.
+
+**The gates were right when they were written.** With an unbounded session,
+gating the far channel manufactured a scarcity that did not otherwise exist,
+and that was the whole point of it. Closing time supplies the same scarcity
+directly, and better, because it bounds the thing that actually wanted
+bounding.
+
+**Kept together they multiplied.** The far channel stands open about a sixth
+of all intervals. A citizen spending their entire ninety minutes could be
+heard across the island for roughly fifteen of them. That is not a bounded
+conversation; it is mostly not being able to talk, inside a window that was
+already short — and typing to people while the world goes on around you is
+most of what there is to do here.
+
+**And they taxed the wrong thing.** The ceiling bounds how long a citizen is
+here. The tide bounded whether they could be heard while here. Only the first
+of those is a boundary. The second is an obstacle dressed as one.
+
+The name gate fell with it, and more obviously: two people who spent a whole
+evening together should never have been told the band was shut. §7cn stands as
+originally written — be near somebody living, and the name is yours.
+
+**The tide is kept and given a different job.** It permits nothing now. The
+longest of the three announces its turning, four times a day, because a
+Schelling point is not a rule: it is a moment everybody can compute and agree
+on without being made to. Ninety minutes each, across every timezone, would
+scatter people into windows that never overlap; a shared hour nobody chose and
+everybody can read is what fixes that. The short tide stays silent — twenty
+announcements a day is wallpaper, not an event.
+
+**Recorded as a repeal, twice over.** §14e argued at length that the licensing
+analogy was exactly right — receiving unrestricted, transmitting licensed. The
+analogy was good. The rule it produced was wrong once the world had a ceiling,
+and a constitution that hashes its own repeals should say so in those words
+rather than quietly deleting the paragraph.
+
+## The maul became the mell, and its special stopped being a burst (v1.04, §6ag)
+
+The maul carried `spec: 'now'` -- a blow gated on a SPENT arm, so it dropped on
+top of an ordinary swing and ended fights. That is, recognisably, another
+game's weapon, and this world had spent a great deal of effort not looking
+like that game. The name said the same thing twice over.
+
+**The special is now `whole`: the blow does not roll. It lands the top of its
+own style's range, and its chance of landing is scaled by mean over maximum.**
+
+`styleRoll` has mean (M+1)/2 for every style -- the inset moves both ends of
+the range inward by the same amount, so it changes spread and never average.
+So scaling the chance by mean/max leaves the expectation exactly unchanged.
+Measured across M of 8, 13, 23 and 46, the ratio of whole to ordinary
+expectation is 1.0000 at every scale.
+
+That makes it the only special in the table neutral BY CONSTRUCTION rather
+than by a measured pair. `flurry` needs blows and recovery moving together;
+`now` needed bite and recovery moving together, and §6af-vii is a long note
+about the release where they did not. `whole` needs neither, and the row lost
+its `bite` -- one fewer tuned number in the world.
+
+**What it sells is variance**, which nothing else here trades in. `flurry` and
+`now` rearrange damage in TIME; this rearranges it in SHAPE. It selects its own
+domain the same way: against four hundred points of dragon a fatter tail is
+worth nothing, and against a citizen one good blow from dead it is the fight.
+
+**And it waits for the arm.** `now` was the one special that could interrupt,
+which meant it had to be balanced as a PAIR with an ordinary blow rather than
+on its own -- the whole subject of §6af-vii. There is no combo to measure now.
+The ceiling is two whole blows and nothing may land on top of them.
+
+`now` survives on the fire-siphon, where §7am argues for it on its own terms:
+one sustained gout, out of rhythm, when you decide. The mechanic was not lost,
+only taken off the weapon it was wrong for.
+
+**On the name.** `mell` is a northern English and Scots word for a heavy
+hammer, the same root as *mallet* through Old French *mail*. It is real, short,
+and unspoken for. Both mauls kept every other number: the largest ordinary blow
+in the world, and the worst chance of landing it.
+
+**LIFTED.md was NOT renamed.** It records what the rules were, and a repealed
+rule that quietly acquires today's vocabulary is a falsified record. Thirty-four
+occurrences of the old word stand there on purpose.
+
+## Texture in the gathering trades, and three things got wrong first (v1.05, §14h)
+
+Woodcraft and shorecraft gathered the same way earthcraft did before the
+furnace: stand at a node, spend the arm, take the item. §14h gives each of
+them a second act. What follows is what was wrong on the way there, because
+each of the three was wrong in a different and instructive direction.
+
+**The trees were nearly made finite, and it would have been vandalism.** The
+first design made wild trees permanent and replantable. Then the counts were
+measured: SIX ironbark trees exist in the whole world, and their job is the
+watchfire. One citizen with an axe would have ended the one public work here
+in an afternoon, with nobody able to undo it until a planting system existed.
+At those counts permanence is not stewardship, it is a griefing surface. The
+wild stands were left exactly as they were and permanence moved to the
+cultivated layer, where a stripped ring is always somebody's to restore.
+
+**And the groves were nearly scattered.** There are twelve hundred farm plots
+already placed, and putting saplings in them was the obvious move. It was
+also wrong: ABUNDANCE DISPERSES AND SCARCITY CONCENTRATES. Twelve hundred
+plantable plots would have given everybody a garden and nobody a neighbour,
+which is how self-sufficiency hollowed out the social density of a good many
+worlds. The low counts in this one are deliberate gathering points. Eight
+plots ringing each of the two stands EXTEND those points instead of replacing
+them: a tended site holds a crowd rather than three citizens taking turns.
+
+**The buck paid the wrong citizen.** The first cut awarded the lift experience
+to whoever lifted, and anybody may lift a buck -- so patrolling the fen
+emptying other people's traps was strictly better than running your own: one
+action for a full catch against one action, one log and half an hour of
+waiting. That is a parasite and the easiest thing in this world to script. The
+eels now go to whoever pulls them out and the skill stays with whoever wove the
+trap. A thief gets supper and no progress, and the experience is not passed to
+the absent setter either -- this world does not pay anybody for not being here.
+
+**The dragon's isle was built in the wrong place twice.** First in safe water
+off the north-east coast, which deletes the entire point: the dragon cannot be
+killed alone, so it wants a party, and a party assembled in open hunting
+ground is one you had to TRUST. In safe water it is a raid with a boat ride.
+Then it was moved -- to the far east, still the wrong side of a map whose
+Wilds is the whole western strip. It now sits at 34,30, in sea that `inWilds`
+already covered, with its quay on mainland Wilds coast a hundred and
+fifty-seven tiles west of the Norwick frontier. You may simply not arrive, and
+the boat buys no safety: the isle is Wilds too, so it only commits you.
+
+None of these three were caught by reasoning. They were caught by measuring the
+counts, by asking what the dragon was FOR, and by asking who the experience
+went to. The general lesson is that a design argument about a world is worth
+less than a query against it.
+
+## The grove regrown to six hours, and a verb that had quietly killed another
+
+Two corrections to §14h, both found after it was written.
+
+**Two days was wrong.** At that rate a grove was an ornament: no farmer could
+train on it, so the only citizens planting would have been ones doing it as a
+favour, and a public good that needs favours does not get built. Six hours lets
+a farmer sow in the morning, come back in the evening, fell and sow again --
+and the ninety minutes may be split however a citizen likes, so two short
+visits a day is an ordinary way to live here.
+
+The experience is now the crop rate held exactly: forty per seven hundred and
+twenty intervals, so a six-hour tree pays 1200 and not a point more. It is not
+a faster method, it is a lower-attention one -- the same wage for waiting
+rather than clicking. Sixteen plots cap the island's whole grove throughput,
+which is what stops a lower-attention method from dominating.
+
+**And `plant` already existed.** The grove's verb was called `plant`, and so is
+the verb that sows a seed from a pack slot (§6o). `INPUT_SCHEMAS` is an object
+literal, so the later key simply won and FARMING STOPPED WORKING with nothing
+to show for it -- the world still founded, the state still validated, the
+grove's own tests still passed. Only the §13 canonical action battery noticed,
+because it is the one thing that enumerates every verb and demands exactly one
+accepted form for each.
+
+The grove's verb is `sapling` now. The lesson is written into the schema beside
+it: a new verb in this world is not done when the engine accepts it. It wants
+an entry in `INPUT_SCHEMAS`, a validation case, an effect, a line in the
+canonical battery and an SDK action -- and skipping the last two does not fail
+loudly, it fails silently and takes an unrelated trade down with it.

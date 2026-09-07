@@ -1492,7 +1492,7 @@ const WEAPON_LOOK = {
   'bronze-dagger': { every: 2, ranged: false }, 'star-dagger': { every: 2, ranged: false },
   'bronze-sword': { every: 2, ranged: false }, 'star-sword': { every: 2, ranged: false },
   'bronze-spear': { every: 2, ranged: false }, 'star-spear': { every: 2, ranged: false },
-  'bronze-maul': { every: 3, ranged: false }, 'star-maul': { every: 3, ranged: false },
+  'bronze-mell': { every: 3, ranged: false }, 'star-mell': { every: 3, ranged: false },
   'old-chain': { every: 1, ranged: false },
   'wooden-bow': { every: 2, ranged: true }, 'horn-bow': { every: 2, ranged: true },
 }
@@ -1571,11 +1571,11 @@ const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
-// dagger, spear and maul. A window that copies a table copies it at a moment
+// dagger, spear and mell. A window that copies a table copies it at a moment
 // in time; test/identity.test.mjs holds this one to the engine's.
 const PRICES = {
-  'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22,
-  'star-spear': 100, 'star-maul': 160, 'horn-bow': 90,
+  'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-mell': 22,
+  'star-spear': 100, 'star-mell': 160, 'horn-bow': 90,
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
   'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10,
   'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4,
@@ -2013,8 +2013,8 @@ function makeCitizen() {
   }
   gear['bronze-spear'] = mkPole(w => w.add(at(new THREE.Mesh(new THREE.ConeGeometry(T * 0.028, T * 0.12, 5), M(0xc9c2b2)), 0, -T * 0.75, 0, Math.PI, 0, 0)))
   gear['star-spear'] = mkPole(w => w.add(at(new THREE.Mesh(new THREE.ConeGeometry(T * 0.028, T * 0.12, 5), M(0xc9c2b2)), 0, -T * 0.75, 0, Math.PI, 0, 0)))
-  gear['bronze-maul'] = mkPole(w => w.add(at(new THREE.Mesh(new THREE.BoxGeometry(T * 0.1, T * 0.09, T * 0.09), M(0x8a857c)), 0, -T * 0.72, 0)))
-  gear['star-maul'] = mkPole(w => w.add(at(new THREE.Mesh(new THREE.BoxGeometry(T * 0.1, T * 0.09, T * 0.09), M(0x8a857c)), 0, -T * 0.72, 0)))
+  gear['bronze-mell'] = mkPole(w => w.add(at(new THREE.Mesh(new THREE.BoxGeometry(T * 0.1, T * 0.09, T * 0.09), M(0x8a857c)), 0, -T * 0.72, 0)))
+  gear['star-mell'] = mkPole(w => w.add(at(new THREE.Mesh(new THREE.BoxGeometry(T * 0.1, T * 0.09, T * 0.09), M(0x8a857c)), 0, -T * 0.72, 0)))
   for (const k in gear) { gear[k].visible = false; hand.add(gear[k]) }
   // the helm: hides the whole coiffure at once
   const helm = at(new THREE.Mesh(new THREE.SphereGeometry(T * 0.15, 10, 9, 0, Math.PI * 2, 0, Math.PI * 0.62), M(0xa3743a)), 0, T * 1.09, 0)
@@ -2062,7 +2062,7 @@ function dressCitizen(g, pub, mine, p, s) { // all derived, none random, all fro
   const bareBlade = fighting && !toolOut && !wep // the reference window arms the unarmed
   const star = typeof wep === 'string' && wep.startsWith('star-')
   u.gear.sword.visible = wep === 'bronze-sword' || wep === 'star-sword' || bareBlade
-  for (const k of ['bronze-dagger', 'star-dagger', 'bronze-spear', 'star-spear', 'bronze-maul', 'star-maul'])
+  for (const k of ['bronze-dagger', 'star-dagger', 'bronze-spear', 'star-spear', 'bronze-mell', 'star-mell'])
     u.gear[k].visible = wep === k
   u.gear.bow.visible = wep === 'wooden-bow' || wep === 'horn-bow'
   for (const k of ['sword', 'bronze-dagger', 'star-dagger', 'bronze-spear', 'star-spear']) { // starlight in the steel

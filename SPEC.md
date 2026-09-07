@@ -1,4 +1,4 @@
-# Interval: Protocol Specification v1.02 ("The Constitution")
+# Interval: Protocol Specification v1.05 ("The Constitution")
 
 A decentralized, deterministic MMO protocol. The rules in this document
 **are** the game. Any client that implements this spec exactly is a valid
@@ -621,7 +621,7 @@ immortal; that reason has been gone for a long time.
 
 It was defended afterwards on the grounds that food would otherwise
 out-heal damage, and that does not survive arithmetic. The old chain
-lands up to ELEVEN every interval, a maul's special seventeen, the
+lands up to ELEVEN every interval, a mell's special seventeen, the
 long shot thirty -- and a fish heals six. Nothing about eating has
 ever made a citizen unkillable against anything that could really hurt
 them. The difference the rate actually bought was between a four
@@ -896,7 +896,7 @@ sometimes one, sometimes nine, which is how a tree behaves.
 
 **Wood only where the wood holds it together, and the hard metal
 teaches.** A hatchet is a head and a haft, a spear a point and a
-shaft, a maul weight on a handle, a crossbow a lock on a stock: take
+shaft, a mell weight on a handle, a crossbow a lock on a stock: take
 the timber away and there is nothing to hold. A helm and a plate are
 beaten out of sheet and a sword is a blade with a tang, so none of the
 three asks for a log -- asking for one to make a breastplate was
@@ -913,8 +913,8 @@ that kills people.
 **Every forged thing asks for a smith.** Both metals have a ladder,
 and both are built on the same two things: the material a piece eats
 and the shaping it needs. Bronze runs dagger and tools 1, spear 5,
-helm 7, sword 10, maul 14, plate 20; star runs helm 40, tools 42,
-sword and dagger 45, spear 46, plate 50, maul 52, and asks magic as
+helm 7, sword 10, mell 14, plate 20; star runs helm 40, tools 42,
+sword and dagger 45, spear 46, plate 50, mell 52, and asks magic as
 well. The orders differ between the metals because the entry to each
 is whatever is CHEAPEST to make, and in star that is the helm while in
 bronze it is the dagger.
@@ -1387,7 +1387,7 @@ fourteen made a star-clad duel a minute of swinging for single-digit
 hits. A miss is dramatic; a two is not. The same duel now lasts about
 as long and reads as "miss, miss, THIRTEEN".
 
-It repairs the maul without touching the maul, whose whole problem was
+It repairs the mell without touching the mell, whose whole problem was
 that low accuracy was punished twice -- once in the roll and again by
 a soak its slow cadence could not out-pace. The beasts roll on the
 same ratio, so steel does not work one way against a citizen and
@@ -1432,7 +1432,7 @@ price.
 **And no special may follow another.** Spending only the swing it
 replaces is right for the ordinary rhythm and it silently unlocked
 CHAINING for `now`, whose whole nature is ignoring a recovering arm:
-from a full bar that was six maul specials in six intervals, about a
+from a full bar that was six mell specials in six intervals, about a
 hundred damage, which is not a burst window but a deletion. A special
 has its own clock -- one per cadence, whatever the arm is doing. The
 interruption `now` exists for still works; a second special on top of
@@ -1939,7 +1939,7 @@ The cadence is therefore kept on the citizen, as the interval of their
 last swing. A blow may be struck only when the weapon's full recovery has
 passed since that swing, counted across all foes together. Changing
 target, repeating an order, being interrupted and beginning again: none of
-them return an arm that has already been spent. A maul is slow at
+them return an arm that has already been spent. A mell is slow at
 everything, and a chain rests at nothing.
 
 ### 2b-ii. Repeating an order does not restart it (v0.67)
@@ -2948,7 +2948,7 @@ Ranged had eight weapons and **every one of them was two-handed**. That is the
 gap, and it is not a missing fourth kind of bow.
 
 Melee is not five points on a damage line. It is a *hand* trade: a dagger and a
-sword keep the off-hand, a spear and a maul and a flail give it up for reach or
+sword keep the off-hand, a spear and a mell and a flail give it up for reach or
 weight or armour, and a star shield divides an incoming blow by three or four.
 Those are two different things to be. Ranged had reach, cadence and accuracy —
 three points on one line — and no such choice at all. There was no such person
@@ -3161,7 +3161,7 @@ keeper at least demanded the walk and a staff in the hand does not.
 It was also a mint, and a growing one. The payment followed the item's
 price; every recipe in this world **raises** price, because that is
 what a recipe is; so every craftable good was a pump. Thirteen recipes
-paid more unmade than their parts did — an iron maul by eleven, a
+paid more unmade than their parts did — an iron mell by eleven, a
 bare-blade by twelve, an iron spear and an iron plate by eight — and
 cooking and brewing pumped the same way. The rule that was meant to
 prevent this was written down and only ever checked against the star
@@ -3388,7 +3388,7 @@ tick; `charcoal` substitutes for `coal`). 5 recipes.
 | `great-crossbow` | 4 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
 | `great-hatchet` | 2 `magic-stone` + 2 `ironbark` + 1 `brimstone` | earthcraft 55 |
 | `great-helm` | 2 `star-alloy` | earthcraft 70, sorcery 34 |
-| `great-maul` | 6 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
+| `great-mell` | 6 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
 | `great-pickaxe` | 2 `magic-stone` + 1 `ironbark` + 1 `brimstone` | earthcraft 55 |
 | `great-plate` | 5 `star-alloy` | earthcraft 70, sorcery 34 |
 | `great-sword` | 5 `star-alloy` + 1 `ironbark` | earthcraft 70, sorcery 34 |
@@ -3397,7 +3397,7 @@ tick; `charcoal` substitutes for `coal`). 5 recipes.
 | `iron-hatchet` | 1 `iron` + 1 `logs` | earthcraft 1 |
 | `iron-helm` | 1 `iron` | earthcraft 7 |
 | `iron-javelin` | 1 `iron` + 1 `logs` | earthcraft 5 |
-| `iron-maul` | 2 `iron` + 1 `logs` | earthcraft 14 |
+| `iron-mell` | 2 `iron` + 1 `logs` | earthcraft 14 |
 | `iron-pickaxe` | 1 `iron` + 1 `logs` | earthcraft 1 |
 | `iron-plate` | 3 `iron` | earthcraft 20 |
 | `iron-shield` | 4 `iron` + 1 `oak-logs` | earthcraft 12 |
@@ -3413,7 +3413,7 @@ tick; `charcoal` substitutes for `coal`). 5 recipes.
 | `star-hatchet` | 2 `magic-stone` + 1 `iron` + 1 `logs` | earthcraft 42, sorcery 22 |
 | `star-helm` | 5 `star-ingot` | earthcraft 40, sorcery 20 |
 | `star-javelin` | 1 `star-ingot` + 1 `ironbark` | earthcraft 46, sorcery 26 |
-| `star-maul` | 9 `star-ingot` + 1 `ironbark` | earthcraft 52, sorcery 30 |
+| `star-mell` | 9 `star-ingot` + 1 `ironbark` | earthcraft 52, sorcery 30 |
 | `star-pickaxe` | 2 `magic-stone` + 1 `iron` + 1 `logs` | earthcraft 42, sorcery 22 |
 | `star-plate` | 10 `star-ingot` | earthcraft 50, sorcery 30 |
 | `star-shield` | 7 `star-ingot` + 1 `ironbark` | earthcraft 48 |
@@ -3423,7 +3423,7 @@ tick; `charcoal` substitutes for `coal`). 5 recipes.
 | `steel-hatchet` | 1 `steel` + 1 `oak-logs` | earthcraft 26 |
 | `steel-helm` | 1 `steel` | earthcraft 30 |
 | `steel-javelin` | 1 `steel` + 1 `logs` | earthcraft 28 |
-| `steel-maul` | 2 `steel` + 1 `oak-logs` | earthcraft 42 |
+| `steel-mell` | 2 `steel` + 1 `oak-logs` | earthcraft 42 |
 | `steel-pickaxe` | 1 `steel` + 1 `oak-logs` | earthcraft 26 |
 | `steel-plate` | 2 `steel` | earthcraft 38 |
 | `steel-shield` | 3 `steel` + 1 `ironbark` | earthcraft 34 |
@@ -4130,7 +4130,7 @@ unknown one.
 
 | Slot | Items |
 |---|---|
-| `weapon` | `barb`, `bare-blade`, `bone-spear`, `bone-staff`, `crossbow`, `dragonbow`, `fire-siphon`, `gold-bar`, `gold-chain`, `goo-staff`, `great-crossbow`, `great-hatchet`, `great-maul`, `great-pickaxe`, `great-sword`, `handgonne`, `heartwood-bow`, `heartwood-rod`, `heartwood-staff`, `horn-bow`, `iron`, `iron-dagger`, `iron-hatchet`, `iron-javelin`, `iron-maul`, `iron-pickaxe`, `iron-spear`, `iron-sword`, `ironbark-rod`, `oak-rod`, `old-chain`, `rod`, `shot`, `sigil-bow`, `staff`, `star-alloy`, `star-dagger`, `star-flail`, `star-grit`, `star-hatchet`, `star-ingot`, `star-javelin`, `star-maul`, `star-pickaxe`, `star-spear`, `star-sword`, `steel`, `steel-dagger`, `steel-hatchet`, `steel-javelin`, `steel-maul`, `steel-pickaxe`, `steel-spear`, `steel-sword`, `torch`, `wand`, `wooden-bow` |
+| `weapon` | `barb`, `bare-blade`, `bone-spear`, `bone-staff`, `crossbow`, `dragonbow`, `fire-siphon`, `gold-bar`, `gold-chain`, `goo-staff`, `great-crossbow`, `great-hatchet`, `great-mell`, `great-pickaxe`, `great-sword`, `handgonne`, `heartwood-bow`, `heartwood-rod`, `heartwood-staff`, `horn-bow`, `iron`, `iron-dagger`, `iron-hatchet`, `iron-javelin`, `iron-mell`, `iron-pickaxe`, `iron-spear`, `iron-sword`, `ironbark-rod`, `oak-rod`, `old-chain`, `rod`, `shot`, `sigil-bow`, `staff`, `star-alloy`, `star-dagger`, `star-flail`, `star-grit`, `star-hatchet`, `star-ingot`, `star-javelin`, `star-mell`, `star-pickaxe`, `star-spear`, `star-sword`, `steel`, `steel-dagger`, `steel-hatchet`, `steel-javelin`, `steel-mell`, `steel-pickaxe`, `steel-spear`, `steel-sword`, `torch`, `wand`, `wooden-bow` |
 | `head` | `cinder-crown`, `gold-helm`, `great-helm`, `hare-mask`, `hart-mask`, `iron-helm`, `raven-mask`, `shell-helm`, `star-helm`, `steel-helm`, `wolf-mask` |
 | `body` | `gold-plate`, `great-plate`, `iron-plate`, `king-shroud`, `shell-plate`, `star-plate`, `steel-plate` |
 | `offhand` | `horn`, `iron-shield`, `star-shield`, `steel-shield` |
@@ -4302,7 +4302,7 @@ star-clad duel a minute of uninterrupted single-digit swinging. A miss
 is dramatic; a two is not. Armour now makes a citizen **harder to hit
 rather than harder to hurt**: the same duel runs about as long and
 reads as "miss, miss, THIRTEEN", which is a fight. It also repaired the
-maul without touching the maul, whose whole problem was being punished
+mell without touching the mell, whose whole problem was being punished
 twice — once in the roll, again by a soak its slow cadence could not
 out-pace.
 
@@ -4338,7 +4338,7 @@ Armour does not reduce damage. It reduces the chance of being hit:
                    : floor(128A / (D+1))
     clamped to [8, 250] out of 256
 
-Two-handed weapons occupy the off hand: `bone-spear`, `crossbow`, `dragonbow`, `goo-staff`, `great-crossbow`, `great-sword`, `handgonne`, `heartwood-bow`, `heartwood-staff`, `horn-bow`, `iron-maul`, `iron-spear`, `old-chain`, `sigil-bow`, `staff`, `star-flail`, `star-maul`, `star-spear`, `steel-maul`, `steel-spear`, `wooden-bow`.
+Two-handed weapons occupy the off hand: `bone-spear`, `crossbow`, `dragonbow`, `goo-staff`, `great-crossbow`, `great-sword`, `handgonne`, `heartwood-bow`, `heartwood-staff`, `horn-bow`, `iron-mell`, `iron-spear`, `old-chain`, `sigil-bow`, `staff`, `star-flail`, `star-mell`, `star-spear`, `steel-mell`, `steel-spear`, `wooden-bow`.
 A hand may not hold a shield while both are on the haft.
 <!-- END GENERATED: armour -->
 
@@ -4734,7 +4734,7 @@ since soak is zero everywhere (§6ap).
 | `fire-siphon` | hit 6 · every 2 · reach 2 · acc 0 · pierces · burns | prowess 60 |
 | `gold-chain` | hit 1 · every 1 · reach 1 · acc 0 | prowess 30 |
 | `great-crossbow` | hit 12 · every 3 · reach 6 · acc 23 · breaks · burns | marksmanship 70 |
-| `great-maul` | hit 16 · every 2 · reach 1 · acc -10 · breaks · burns | prowess 70 |
+| `great-mell` | hit 16 · every 2 · reach 1 · acc -10 · breaks · burns | prowess 70 |
 | `great-sword` | hit 5 · every 2 · reach 1 · acc 4 · breaks · burns | prowess 70 |
 | `handgonne` | hit 36 · every 4 · reach 4 · acc -20 | marksmanship 90 |
 | `heartwood-bow` | hit 10 · every 2 · reach 3 · acc 3 | marksmanship 40 |
@@ -4742,7 +4742,7 @@ since soak is zero everywhere (§6ap).
 | `horn-bow` | hit 8 · every 2 · reach 5 · acc 0 | marksmanship 20 |
 | `iron-dagger` | hit 0 · every 2 · reach 1 · acc 14 | — |
 | `iron-javelin` | hit 2 · every 2 · reach 3 · acc 0 | marksmanship 1 |
-| `iron-maul` | hit 10 · every 2 · reach 1 · acc -12 | — |
+| `iron-mell` | hit 10 · every 2 · reach 1 · acc -12 | — |
 | `iron-spear` | hit 7 · every 2 · reach 2 · acc 0 | — |
 | `iron-sword` | hit 2 · every 2 · reach 1 · acc 0 | — |
 | `old-chain` | hit 1 · every 1 · reach 1 · acc 0 | prowess 30 |
@@ -4751,12 +4751,12 @@ since soak is zero everywhere (§6ap).
 | `star-dagger` | hit 2 · every 2 · reach 1 · acc 14 | prowess 50 |
 | `star-flail` | hit 9 · every 2 · reach 1 · acc -6 · pierces | prowess 55 |
 | `star-javelin` | hit 4 · every 2 · reach 3 · acc 0 | marksmanship 50 |
-| `star-maul` | hit 13 · every 2 · reach 1 · acc -12 | prowess 55 |
+| `star-mell` | hit 13 · every 2 · reach 1 · acc -12 | prowess 55 |
 | `star-spear` | hit 9 · every 2 · reach 2 · acc 0 | prowess 50 |
 | `star-sword` | hit 4 · every 2 · reach 1 · acc 0 | prowess 50 |
 | `steel-dagger` | hit 1 · every 2 · reach 1 · acc 14 | prowess 35 |
 | `steel-javelin` | hit 3 · every 2 · reach 3 · acc 0 | marksmanship 15 |
-| `steel-maul` | hit 11 · every 2 · reach 1 · acc -12 | prowess 38 |
+| `steel-mell` | hit 11 · every 2 · reach 1 · acc -12 | prowess 38 |
 | `steel-spear` | hit 8 · every 2 · reach 2 · acc 0 | prowess 35 |
 | `steel-sword` | hit 3 · every 2 · reach 1 · acc 0 | prowess 35 |
 | `torch` | hit 1 · every 3 · reach 1 · acc -6 · burns | — |
@@ -4778,10 +4778,10 @@ and each is a real trade, not a bigger number:
 | dagger | lowest | 2 ticks | 1 | **best** |
 | sword | middling | 2 ticks | 1 | even |
 | spear | modest | 2 ticks | **2** | even |
-| maul | **highest** | 3 ticks | 1 | worst |
+| mell | **highest** | 3 ticks | 1 | worst |
 
 A dagger lands often for little, which is what you want against a
-skeleton-knight's guard. A maul lands seldom for a great deal, and misses
+skeleton-knight's guard. A mell lands seldom for a great deal, and misses
 in a way you feel. A spear keeps a tile between you and the troll. A
 sword asks no questions. Bronze asks nothing of the arm; star-steel does.
 
@@ -5582,7 +5582,7 @@ own stride.
 **A beast keeps its own clock (§6b.4).** Its swing cadence is `stats.every`,
 not the citizen's. Two faults lived here: the retaliation sat behind a
 `continue` that fired when the CITIZEN's arm was not ready, so a slow weapon
-made you harder to hit — pick up a maul and a troll attacked a third less
+made you harder to hit — pick up a mell and a troll attacked a third less
 often than if you were barehanded, which is defence by choosing a heavy
 weapon and a rule nobody wrote. And the cadence was hardcoded to every other
 tick, so `every: 1` on the dragon did nothing and it struck like a goblin. This is the only reason a
@@ -5641,7 +5641,7 @@ maxed hunters in star gear:
 
 | | |
 |---|---|
-| one hunter with a maul | the holder falls |
+| one hunter with a mell | the holder falls |
 | two | the holder falls, quickly |
 
 Reach nine is a devastating opening, not an escape. The bow is a burden as
@@ -5672,11 +5672,11 @@ It pays for it everywhere else. Its base damage is the lowest of any steel,
 so against an unarmoured citizen — which is most of the world — it is simply
 worse. **An answer to one thing, not an upgrade to everything.**
 
-### A crossbow is the maul of the ranged line
+### A crossbow is the mell of the ranged line
 
 Ranged had one feel repeated three times: wooden, horn and dragon all loose
 every two ticks and differ only in how far and how hard. Melee has four — a
-dagger lands often for little, a maul seldom for a lot, a spear keeps its
+dagger lands often for little, a mell seldom for a lot, a spear keeps its
 distance, a sword asks no questions. Ranged deserved the same choice.
 
 ```
@@ -5716,7 +5716,7 @@ Which puts the ranged line behind a smithing bench for the first time, and
 the sigil-bow behind a magician.
 
 **All four shipped with no requirement at all** in their first draft — a
-starmetal flail was wieldable at level one while a star-maul asked for attack
+starmetal flail was wieldable at level one while a star-mell asked for attack
 25, and a crossbow with `acc +32` was free to anybody. Adding a weapon means
 adding two gates, and forgetting them is silent.
 
@@ -5968,7 +5968,7 @@ pack at the moment she took their shape**.
 ```
                       her hardest blow    the citizen's maxHit
 bare hands, level 1          1                    1
-star-maul, level 100        17                   17
+star-mell, level 100        17                   17
 dragonbow, level 100        16                   16
 ```
 
@@ -6021,10 +6021,10 @@ anything else in the tick — so a citizen watches their damage being undone
 rather than discovering afterwards that it was.
 
 One maxed citizen in star gear puts out, measured: chain 5.74, sword 3.40,
-dragonbow 3.70, maul 2.98, horn-bow 2.75, crossbow 2.31. Against six a tick:
+dragonbow 3.70, mell 2.98, horn-bow 2.75, crossbow 2.31. Against six a tick:
 
 ```
-spider hitpoints, ten ticks apart, star-mauls, everyone kept standing
+spider hitpoints, ten ticks apart, star-mells, everyone kept standing
 1 citizen : 293 -> 300 -> 300 -> 293 -> 294 -> 296     never gains
 2 citizens: 279 -> 288 -> 281 -> 283 -> 279 -> 269     grinding
 3 citizens: 283 -> 291 -> 271 -> 249 -> 215 -> 183     winning
@@ -6664,7 +6664,7 @@ a sentence**:
 
 ```
 star-dagger   'twice'   two blows land in one tick
-star-maul     'now'     it swings whatever your arm says
+star-mell     'now'     it swings whatever your arm says
 horn-bow      'true'    the shot cannot miss
 ```
 
@@ -6675,10 +6675,10 @@ than a button.
 
 **`'now'` interrupts your own rhythm ONCE.** It may be used while the arm is
 merely recovering from an ordinary swing, but never while the arm is already
-spent *into the future* by a special. Without that second clause the maul
+spent *into the future* by a special. Without that second clause the mell
 could special every tick forever — seven to seventeen damage a tick against a
 normal three — and the neutrality this whole design rests on did not hold for
-it. With it, chaining maul specials yields about 2.25 a tick against 3.00 for
+it. With it, chaining mell specials yields about 2.25 a tick against 3.00 for
 simply attacking: still a choice about the moment, never a rotation.
 
 **It does not touch the tick.** A special resolves inside the tick that
@@ -6694,7 +6694,7 @@ The cost makes it damage-neutral over the exchange:
 
 ```
 weapon        normal/tick   after a special
-star-maul          3.00          3.00
+star-mell          3.00          3.00
 star-sword         3.75          3.75
 
 horn-bow, target defence 99   normal over 4 ticks 6.50 · special 6.50
@@ -6728,7 +6728,7 @@ as the dragon's undrawn fire (§6w) and a swing that missed (§6aa).
 ```
              wield          forge
 star-sword   attack 50      smithing 45, magic 25
-star-maul    attack 55      smithing 52, magic 30
+star-mell    attack 55      smithing 52, magic 30
 star-flail   attack 55      smithing 50, magic 29
 star-helm    defence 45     smithing 40, magic 20
 star-plate   defence 50     smithing 50, magic 30
@@ -8238,7 +8238,7 @@ Two things were also learned about the world as it already stood, both by
 being wrong first:
 
 - **Armour pays for itself.** An early rig with leaking state reported that a
-  naked star-maul beat full plate every time. It does not: 25–40%. A star-maul
+  naked star-mell beat full plate every time. It does not: 25–40%. A star-mell
   *with* a suit beats a star-sword with a suit **85%**. §6aq's assumption holds.
 - **A duel is not the island.** Ticking Tallyholm costs 130 ms because it walks
   8,800 nodes and 642 beasts; combat reads two players and the genesis and
@@ -8991,21 +8991,21 @@ else entirely. A citizen is never a dummy.
 ## 28a. The third great arm (v0.88)
 
 The great tier had a **sword** for attack and a **crossbow** for ranged, and
-nothing for strength. That was invisible while mauls were gated on attack, and
+nothing for strength. That was invisible while mells were gated on attack, and
 glaring the moment they were not: a citizen who trained strength alone had a
 ladder that stopped two rungs short of the world.
 
-**`great-maul`** — strength 70, `hit 16`, `acc −10`, `breaks`, `burns`; eleven
-star-ingots, twenty-four brimstone and a heartwood haft. It keeps the maul
+**`great-mell`** — strength 70, `hit 16`, `acc −10`, `breaks`, `burns`; eleven
+star-ingots, twenty-four brimstone and a heartwood haft. It keeps the mell
 line's whole character: the biggest blow in the world, bought with the worst
 accuracy in it.
 
-Measured at attack 1 / strength 75, a citizen may wield all three mauls and
-neither sword; at attack 75 / strength 1, both swords and no maul. **Two
+Measured at attack 1 / strength 75, a citizen may wield all three mells and
+neither sword; at attack 75 / strength 1, both swords and no mell. **Two
 ladders that reach the top and never cross.**
 
-**And the great line is not star-metal.** The maul was drawn first in
-star-blue and read as a star-maul with a bigger head — but every other great
+**And the great line is not star-metal.** The mell was drawn first in
+star-blue and read as a star-mell with a bigger head — but every other great
 arm on this island is near-black steel with molten orange running in the
 cracks, because brimstone is what quenched it. **The recipe said so all along;
 only the sprite disagreed.** A family that shares a material should look like
@@ -9016,9 +9016,9 @@ burns.** The great sword, the great crossbow and the siphon all carry `burns`,
 and now so does this — brimstone is the world's fire, and anything quenched in
 twenty-four of it comes off the anvil still smoking.
 
-## 28. A maul answers to strength (v0.88)
+## 28. A mell answers to strength (v0.88)
 
-Every maul was gated on **attack**, which is the finesse stat — and a maul is
+Every mell was gated on **attack**, which is the finesse stat — and a mell is
 the one weapon in the world that has no finesse: `acc: -12`, the worst accuracy
 on the table, bought with the largest blow. **It was asking for the exact
 quality it does not have.**
@@ -9026,11 +9026,11 @@ quality it does not have.**
 It also left a build with nowhere to go. The spade (§26) gave strength a way to
 rise without fighting, and a citizen who took it had nothing worth wielding at
 the end of it, because every weapon in the world wanted attack. **A strength
-pure can pick up a maul now**, which is what a strength pure would pick up.
+pure can pick up a mell now**, which is what a strength pure would pick up.
 
 Measured: at attack 1 / strength 60 a citizen may wield the steel and star
-mauls and nothing else; at attack 60 / strength 1 they may wield the swords and
-neither maul.
+mells and nothing else; at attack 60 / strength 1 they may wield the swords and
+neither mell.
 
 No new item was needed, which is the argument for doing it this way. A weapon
 invented to serve a build is a patch; a weapon whose requirement was simply
@@ -9797,7 +9797,7 @@ this world does not need it for two reasons.
 
 **Combat here is differentiated by cadence, reach, the accuracy RATIO, and by
 flags -- pierces, burns, breaks, thrift, noAmmo -- not by fine damage steps.** A
-maul answers plate by hitting harder than armour can absorb; a flail answers it
+mell answers plate by hitting harder than armour can absorb; a flail answers it
 by ignoring the term entirely; a fire arrow by doubling it. None of those get
 sharper at ten times the scale.
 
@@ -10880,40 +10880,17 @@ produces one more.
 The per-stint overlap is still recorded, because it is the texture of an
 evening. It is simply not the thing that gets ranked.
 
-**A voice has a reach, and only the far one is licensed.** Chat remains
-auxiliary in every respect (§9c): not world state, never in a state hash, its
-own gossip topic. What is added is a `scope` on the frame, and every node can
-check the claim against state it already holds.
+**A voice has a reach, and NEITHER END OF IT IS LICENSED (amended §14g).**
+Chat remains auxiliary in every respect (§9c): not world state, never in a
+state hash, its own gossip topic. `scope` remains — `near` carries as far as
+`FOLLOW_LOSE`, `far` carries across the island — because those are genuinely
+different things to say. It is a CHANNEL, not a permission.
 
-- `near` is **never gated**, by anything — no tide, no stint, no licence.
-  Speech to somebody standing beside you is not the network, it is being
-  somewhere, and being somewhere is what this world has always said a script
-  cannot do. It carries as far as `FOLLOW_LOSE`, because the distance at which
-  this world already says two people are no longer together is the distance at
-  which it should stop carrying a voice between them.
-- `far` requires a tide up **and** the speaker inside a stint. Both, and
-  neither alone. This is the amateur licensing rule exactly: receiving is
-  unrestricted, transmitting requires being present and identified.
-- **Relay is not hearing.** A well-formed `near` frame is relayed by every
-  node, because the only mesh path between two neighbours may run through a
-  node on the far side of the island and a mesh that dropped it would silence
-  them. Whether YOU hear it is a separate question, asked once, at the window
-  (`hearChat`).
-- The tide is checked at the frame's **own** interval, exactly, because it is a
-  pure function of the count and gossip is slow. The stint is checked against
-  the state the node holds now — an approximation, and an honest one: a stint
-  that closed while a frame was in flight costs its speaker one message, and
-  nothing in consensus depends on it.
+The gate that stood here required a tide up and an open stint, on the amateur
+licensing analogy. §14g repealed it. The reasoning is recorded there.
 
-**A name is kept inside a tide, and outlives it.** `befriend` (§7cn) now also
-requires, in a world that has a tide, that a tide be up and that **both**
-citizens stand inside stints they swore in advance. Not to make names scarce —
-to make them mean the one thing they should: that two people who each
-promised, separately and beforehand, to be present, then were, in the same
-place, at the same time. The bond does not expire when the tide turns. **The
-contact is bounded; the record of it is not.** That asymmetry is the whole of
-what a kept name is for. A founding without a tide leaves `befriend` exactly
-as §7cn left it.
+**A name is kept by §7cn and nothing else (amended §14g).** The gate requiring
+a tide and two sworn stints was repealed for the same reason.
 
 **AND IT GATES NOTHING ELSE.** No yield rises inside a tide. No seam gives
 more, no blow lands harder, no price falls. A settled stint pays nothing. The
@@ -11035,6 +11012,166 @@ The dial duplicates this arithmetic so a window need not import the engine.
 That duplication is a promise, kept by `test/dial.test.mjs`. If the two ever
 disagree, the engine is right.
 
+### 14g. The tide stops asking permission (v1.03)
+
+§14e gated the far channel on a tide being up and a stint being open, and
+gated a kept name the same way. §14f then bounded presence itself: ninety
+minutes in any rolling day. **Both cannot stand.** This repeals the gates.
+
+**Why the gates were right and then were not.** When a session was unbounded,
+gating the far channel MANUFACTURED a scarcity that did not otherwise exist —
+that was the entire point of it, and it was a good point. Closing time supplies
+that scarcity directly and better. Leaving both in place multiplied them: the
+far channel stands open about a sixth of all intervals, so a citizen spending
+their whole allowance could be heard across the island for roughly fifteen
+minutes of it. That is not a bounded conversation. It is mostly not being able
+to talk, inside a window that was already short.
+
+**And it taxed the wrong thing.** The ceiling bounds HOW LONG A CITIZEN IS
+HERE, which is the boundary this world wanted and the one people remember from
+being given half an hour as children. The tide bounded WHETHER THEY COULD BE
+HEARD WHILE HERE, which adds no shape at all — only frustration. Typing to
+people while the world goes on around you is most of what there is to do here.
+A rule that makes the central activity intermittent inside an already-short
+evening is not a boundary; it is an obstacle wearing one's clothes.
+
+The name gate fell with it, and more obviously: two citizens who spent a whole
+evening together should never be told the band was shut.
+
+**What the tide is now.** It permits nothing. It is kept, and the longest of
+the three announces its turning, because a **Schelling point is not a rule** —
+it is a moment everybody can compute, forecast and agree on without being made
+to. Ninety minutes each, across every timezone, would otherwise scatter people
+into windows that never overlap. What fixes that is not a permission but a
+shared hour nobody chose and everybody can read. "At the deep tide" is
+something two strangers can agree to, and neither of them can move it.
+
+Only the longest tide speaks. The short one turns twenty times a day, and an
+announcement that frequent is not an event, it is wallpaper.
+
+**What survives untouched.** The stint: the promise sworn in advance, the
+`sworn` and `stood` tallies, the co-presence sampling, and `known` — the count
+of distinct citizens ever met, which remains the one measure a farm cannot
+inflate. None of that ever depended on gating speech.
+
+**What flooding is held off by now.** What it always was — one frame per
+interval per key — and now also the ceiling, which caps any one key at ninety
+minutes of saying anything at all.
+
+### 14h. Texture in the gathering trades (v1.05)
+
+Three skills gathered the same way: stand at a node, spend the arm, take the
+item. Tiers differed and shape did not. Earthcraft alone had a second step --
+ore to furnace to bar to anvil -- and it was the only one that felt like a
+trade rather than a tap.
+
+**§7dy. THE GROVE.** Two rings of eight `grove-plot` nodes, one around the oak
+stand and one around the ironbark, placed by the generator at the stands'
+FINAL positions.
+
+- **The wild stands are untouched and still respawn.** Six ironbark exist in
+  the whole world; make those finite and one citizen with an axe ends the
+  watchfire — the one public work here — in an afternoon, with nobody able to
+  undo it. At those counts permanence is not stewardship, it is a griefing
+  surface. Nothing anybody does can remove what the generator placed.
+- **A planted tree is finite.** Felled, it reverts to the empty plot it was and
+  drops a sapling. The loop closes itself: felling produces the means to
+  replant, so a bald ring is a thing people chose and not a thing that merely
+  happened.
+- **Ripening is a TYPE FLIP.** A plot that has stood two days becomes a node of
+  its own species, so gathering, tools, level gates, experience and every
+  window that already knows how to draw an oak get this for nothing. Not one
+  line of the gather path knows a grove exists.
+- **Six hours, and the experience is the crop rate exactly.** A row of grain is
+  forty for seven hundred and twenty intervals; a tree is six hours of the same
+  arithmetic and pays 1200, not a point more. It is NOT a faster method — it is
+  a LOWER-ATTENTION one, the same wage for waiting instead of clicking, which
+  under a presence ceiling is worth having without being worth abandoning the
+  fields for. Two days made a grove an ornament no farmer could use, and a
+  public good that needs favours does not get built.
+- **Sixteen plots cap the whole island's throughput**, which is what stops the
+  lower-attention method dominating. An empty ring is a race, and a race puts
+  people at the stands — which is what the stands are for.
+- **The planter is paid at once**, in the skill they were training anyway.
+  Public goods that need altruism fail; public goods that fall out of
+  self-interest do not. The grove is the side effect of somebody wanting a
+  farming level, and that is why it will actually get planted.
+- **Eight to a ring, and species fixed by the plot.** Six trees becomes
+  fourteen when tended: enough to hold a gathering rather than three citizens
+  taking turns on respawns, nowhere near enough to be a farm. ABUNDANCE
+  DISPERSES AND SCARCITY CONCENTRATES — twelve hundred plantable plots would
+  give everybody a garden and nobody a neighbour, so these extend the two
+  places that already draw people and can seed nowhere else. And nobody hauls
+  acorns to the ironbark: each of those two places is a place for ONE thing.
+- **Not the plain tree, and not the capstones.** The plain tree is where
+  everyone starts and a stripped starting ground kills arrival. Heartwood and
+  the gallows-oaks are deep-Wilds prizes where the JOURNEY is the content, and
+  thickening them would undercut the reason to go.
+
+**§7dz. THE EEL BUCK.** §7c already said what an eel is: you do not angle for
+them, you set a willow trap in the run, leave it, and come back and lift it.
+The fiction described two acts and the mechanic was one. It is two now.
+
+- `setbuck` costs a log and a tile of dry shore beside water; it fills over
+  thirty minutes off the interval count, so it charges no patience — the fen
+  works while the citizen is elsewhere, or gone.
+- **A grove is fixed and public and you maintain it; a buck is placed and
+  yours and you choose where.** Same deferred shape, opposite relationship to
+  the ground, which is what makes them read as different lives rather than one
+  mechanic painted twice.
+- **How many a citizen may have out rises with the skill** — one at twenty,
+  six at ninety-six. A shorekeeper running six along the fen is a small
+  operation, and that is a different thing from standing at a rod.
+- **ANYBODY MAY LIFT A BUCK.** §7c said working an eel spot is emptying
+  somebody's trap and meant it. But the eels go to whoever pulls them out and
+  **the skill stays with whoever wove the trap and chose the run.** Paying the
+  lifter made robbing the fen strictly better than working it: one action for
+  a full catch against one action, one log and half an hour of waiting. That
+  is a parasite and the easiest thing in this world to script. A thief now
+  gets supper and no progress.
+- The experience is not transferred to the absent setter either. It is simply
+  gone. This world does not pay anybody for not being here.
+- **A trap left over a day is empty, and nothing is taken for it.** An eel dead
+  in a willow cage is not supper. A citizen who meant to come back and did not
+  has lost the walk and no more.
+- A generator declares `water` for this, beside `road`. `blocked` cannot tell a
+  wall from a river; a generator that omits it simply has no fen to fish.
+
+**§7ea. THE DRAGON'S ISLE.** Thirty by twenty-two, about seven times Whiting's
+area, at 34,30 — **open sea inside the Wilds rectangle**. `inWilds` already
+covered it; the western sea was always the Wilds.
+
+- **That is not a detail, it is the design.** The dragon cannot be killed
+  alone, so it wants a party, and a party assembled in open hunting ground is
+  one you had to TRUST. In safe water this becomes a raid with a boat ride,
+  which is the one thing it must never be.
+- **The approach is the content.** The quay is mainland Wilds coast at 42,252,
+  a hundred and fifty-seven tiles west of the Norwick frontier. You cross at
+  Norwick and walk west through ground where anybody may hunt anybody, and you
+  may simply not arrive.
+- **The boat buys no safety.** The isle is Wilds too. It only commits you: now
+  there is one way off.
+- **It is a named place, Scaleshore**, and the gallery track answers to it.
+  That piece was written for the Deep. It fits here for a structural reason
+  rather than a coincidence: music meant for somewhere you enter deliberately,
+  having spent something to get there, works anywhere that is true — and it is
+  more true of this shore than of anywhere else in the world.
+- **What stands on it, and what does not.** A place is not made hostile by
+  frightening decoration; citizens stop seeing decoration in a week. It is made
+  hostile by the ABSENCE of what means safety — hearth, well, keeper, stall,
+  road, fence — every one of which is a node type citizens have spent their
+  whole time here learning to read. The isle carries a landing, two signs at
+  the water's edge where a sign is a warning rather than a welcome, burnt trees
+  and scorched ground. The sweep runs LAST, after every other placement, or a
+  later pass quietly makes the place habitable again.
+- **The dragon stands at the far end**, twenty-eight tiles inland. An isle you
+  must cross is an isle that can be lost halfway.
+- **It is large because of closing time.** Ninety minutes is the whole
+  allowance and the walk spends a real share of it. Another twelve-by-eight
+  rock at the end of that journey would cost more than it paid and nobody
+  would make the trip twice. A destination big enough to hold the rest of the
+  evening pays for its own approach.
+
 ## 15. The island is frozen (v0.88)
 
 Tallyholm is not a generator any more. It is a **description**.
@@ -11119,8 +11256,8 @@ maxed citizen (strength 99, `every: 2`, damage per landed blow over ~290 swings)
 | mean blow | 5.3 | 6.0 | 6.4 | 8.6 | 8.9 | 9.3 | 9.9 |
 
 **SEVENTEEN AT FIFTEEN, and neither number was tuned to meet the other.**
-Seventeen is the largest ordinary blow in the world — the maul's, bought with
-the worst accuracy in it. Fifteen is the star-maul's bite, where "it ends the
+Seventeen is the largest ordinary blow in the world — the mell's, bought with
+the worst accuracy in it. Fifteen is the star-mell's bite, where "it ends the
 fight, because they do not get a later". So the interval in which this weapon
 finally equals the biggest blow anybody can throw is the interval in which one
 blow can delete you, and the price is therefore **already in the engine**. That
@@ -11276,7 +11413,7 @@ hitpoints +193 over sixty intervals, *identical* alone and in a crowd of four. A
 weapon that trained you six times an interval in a lair of crows would be the
 fastest ladder in the world, and this is a weapon about a crowd, not a farm.
 
-The domain selects itself with no exception clause anywhere, in the star-maul
+The domain selects itself with no exception clause anywhere, in the star-mell
 special's manner: worthless on the dragon, worthless on the gibbet-dead behind
 their rail, worse than a sword in a duel, and the only thing anybody wants when
 an incursion has fixed on a neighbour.
@@ -11943,7 +12080,7 @@ the full price -- which is what §6af always said and what the pool
 quietly undid.
 `now` is gated on `lastSwing <= tick`, not on the full cadence, so
 its recovery must be written ABSOLUTELY. Netting the cadence out of
-it -- as every other special requires -- let the maul fire twice as
+it -- as every other special requires -- let the mell fire twice as
 often as its own rule allowed: 208% of neutral, measured.
 
 ## 6af-iii. A Round A Blow, Not A Round A Burst
@@ -11991,8 +12128,8 @@ so balance stays in one place.
 
 At a shared recovery the burst is dps x recovery, so the DAGGER --
 best damage rate of anything carrying a special -- owned the biggest
-burst, while the maul, whose single blow is the largest in the world
-at seventeen, had the smallest. Backwards. The maul now buys a rarer,
+burst, while the mell, whose single blow is the largest in the world
+at seventeen, had the smallest. Backwards. The mell now buys a rarer,
 heavier commitment instead: eight blows for twenty-four intervals of
 arm, the largest burst anybody can throw and the longest hole to
 stand in afterwards. Neutral all the same.
@@ -12036,18 +12173,18 @@ dial for BURSTS, not for attrition -- see §6af-v.
 
 §6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
 
-`bite: 2` was set when a star-maul's hit was 7. At 13 the same multiplier
+`bite: 2` was set when a star-mell's hit was 7. At 13 the same multiplier
 makes a per-blow maximum of 46, and `now` is the special that can land ON
 TOP of an ordinary blow -- so the pair reached 104 against a citizen with
 99, measured, in about one combo in twelve hundred. A weapon that removes a
 full bar from full health in two intervals is not a gamble, it is a coin
 that sometimes deletes somebody.
 
-Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the maul
+Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the mell
 fell to 77% of its own ordinary damage. The pair is 1.5 and six.
 
 AND IT IS THE SAME PAIR ON BOTH MAULS. They were briefly 1.6/7 and 1.4/6 --
-not because a great-maul swings differently, but because each was lowered
+not because a great-mell swings differently, but because each was lowered
 only until it stopped one-shotting and then left there. `hit` already says
 one is bigger than the other (sixteen against thirteen); a second number
 saying it again is two rules for one weapon class, and a reader would go
@@ -12286,7 +12423,7 @@ Armour now makes you HARDER TO HIT rather than harder to hurt. The same
 duel lasts about as long -- sixty seconds against the sixty-six it took
 before -- but it reads as "miss, miss, THIRTEEN", which is a fight.
 
-It also repairs the maul without touching the maul: its whole problem was
+It also repairs the mell without touching the mell: its whole problem was
 that low accuracy was punished twice, once in the roll and again by a soak
 its slow cadence could not out-pace.
 §7l: a full star suit is helm 16 + plate 24 = 40, which is the ceiling the
@@ -12392,7 +12529,7 @@ beats a star-clad one (1.36 against 1.27). Two different characters, and
 the even split reaches neither.
 
 Routing by WEAPON was the obvious alternative and it is a trap: the natural
-strength weapon is the maul, second-worst damage in the world, so a citizen
+strength weapon is the mell, second-worst damage in the world, so a citizen
 would grind hundreds of hours with a weapon they do not want in order to
 fight with one they do. It also binds two questions that are not the same
 question -- what I swing, and what I am becoming -- and it has no honest
@@ -12455,7 +12592,7 @@ entirely and read as "force always wins". At twelve aim leads by thirty-one
 per cent at mastery; at sixteen, forty-seven; at twenty, fifty-seven. The
 trade only stays a trade at eight.
 
-## 6au. A Maul Swings At The Same Speed As Everything Else
+## 6au. A Mell Swings At The Same Speed As Everything Else
 
 > **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:2685` by `spec-stubs.mjs`.
 
@@ -12465,7 +12602,7 @@ trade only stays a trade at eight.
 1 + level/10 + hit, and the level term is shared, so a slower weapon can
 only buy back its lost interval through `hit` -- which is FLAT, and
 therefore distorts low levels far more than high ones. At ninety-nine the
-maul landed 3.62 a swing against a dagger's 3.83 and took half again as
+mell landed 3.62 a swing against a dagger's 3.83 and took half again as
 long to do it: 1.21 a tick against 1.92. Measured over sixty duels with
 neither citizen using a special, that is 5:55. Not situational -- broken.
 
@@ -12571,7 +12708,7 @@ this is the first thing it pulls out that a smith BURNS rather than beats.
 §6bt: seventy, where every gathering skill already has its mastery tool.
 §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
 crossbow for ranged, and nothing for strength -- which was invisible while
-mauls were gated on attack (§7ao) and glaring the moment they were not. A
+mells were gated on attack (§7ao) and glaring the moment they were not. A
 citizen who trains strength alone now has a ladder that reaches the top of
 the world like everybody else's.
 
@@ -12672,7 +12809,7 @@ still, wither, taking, rot -- have between them claimed every status worth
 having, and a seventh wearing a haft would be `flurry` and `volley` all
 over again.
 
-The domain selects itself, in the star-maul special's manner, with no
+The domain selects itself, in the star-mell special's manner, with no
 exception clause anywhere: worthless on the dragon, worthless on the
 gibbet-dead behind their rail, worse than a sword in a duel, and the only
 thing anybody wants when an incursion has fixed on a neighbour.
@@ -12683,9 +12820,9 @@ thing anybody wants when an incursion has fixed on a neighbour.
 
 6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
 
-The star-sword and the star-maul sit in the same wield band, and measured
+The star-sword and the star-mell sit in the same wield band, and measured
 against an ARMOURED citizen they were already 87 intervals against 89 -- the
-maul's -12 accuracy costing exactly what its +5 damage buys. That balance
+mell's -12 accuracy costing exactly what its +5 damage buys. That balance
 was not designed and it is remarkably tight, so anything added here has to
 preserve it.
 
@@ -12875,7 +13012,7 @@ It was written in v0.41 because nothing in this world could kill anybody,
 and a citizen with brews ate every interval and was immortal. That reason is
 long gone. What it was defended with afterwards -- that food would otherwise
 out-heal damage -- does not survive arithmetic: the old chain lands up to
-eleven EVERY interval, a maul special seventeen, the long shot thirty, and a
+eleven EVERY interval, a mell special seventeen, the long shot thirty, and a
 fish heals six. Nothing about eating has ever made a citizen unkillable
 against anything that could really hurt them.
 
@@ -12909,7 +13046,7 @@ and that asymmetry is the whole reason to fight in a pair.
 
 A flat rhythm made the heal value a RATE, and the rate is what decides a
 fight. A deep broth restored one hitpoint an interval for ever -- against the
-1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+1.11 a star-sword lands through starmetal and the 0.62 a mell does -- so the
 citizen with the stack could not be killed. Measured 0:12, and the burst
 could not close it either: a finisher that removes half a health bar is no
 answer to somebody who never falls below three quarters.
@@ -12955,7 +13092,7 @@ still decided by damage, and an endless brew stays where it was at 4:16.
 
 A flat rhythm made the heal value a RATE, and the rate is what decides a
 fight. A deep broth restored one hitpoint an interval for ever -- against the
-1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+1.11 a star-sword lands through starmetal and the 0.62 a mell does -- so the
 citizen with the stack could not be killed. Measured 0:12, and the burst
 could not close it either: a finisher that removes half a health bar is no
 answer to somebody who never falls below three quarters.
@@ -13098,13 +13235,13 @@ citizen. `shotsFired` is the gonne's counter and is reused deliberately: a
 citizen cannot wield both at once, the field is already constitutional, and
 a second counter for the same idea is how state tables rot.
 
-## 7ao. A Maul Answers To Strength
+## 7ao. A Mell Answers To Strength
 
 > **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:894` by `spec-stubs.mjs`.
 
 §7ao: A MAUL ANSWERS TO STRENGTH.
 
-Every maul was gated on ATTACK, which is the finesse stat -- and a maul is
+Every mell was gated on ATTACK, which is the finesse stat -- and a mell is
 the one weapon in the world that has no finesse: `acc: -12`, the worst
 accuracy on the table, bought with the largest blow. It was asking for the
 exact quality it does not have.
@@ -13112,7 +13249,7 @@ exact quality it does not have.
 It also left a build with nowhere to go. The spade (7al) gave strength a
 way to rise without fighting, and a citizen who took it had nothing worth
 wielding at the end of it: every weapon in the world wanted attack. A
-strength pure can pick up a maul now, which is what a strength pure would
+strength pure can pick up a mell now, which is what a strength pure would
 pick up.
 
 ## 7ap. The Third Great Arm
@@ -13122,7 +13259,7 @@ pick up.
 §6bt: seventy, where every gathering skill already has its mastery tool.
 §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
 crossbow for ranged, and nothing for strength -- which was invisible while
-mauls were gated on attack (§7ao) and glaring the moment they were not. A
+mells were gated on attack (§7ao) and glaring the moment they were not. A
 citizen who trains strength alone now has a ladder that reaches the top of
 the world like everybody else's.
 
@@ -13164,7 +13301,7 @@ nothing, and it is exempt from `clubbed` for the same reason a javelin is.
 
 §7br: FIRE ARROWS, if the archer is carrying them and nothing else.
 
-Melee already has a shape to choose between -- a maul that answers plate, a
+Melee already has a shape to choose between -- a mell that answers plate, a
 flail that goes round it, a bare blade that pays for nakedness. Ranged had
 one arrow and a ladder of bows, so the only decision an archer ever made
 was which bow they could afford.
@@ -13350,7 +13487,7 @@ kind of thing:
 
 > **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:929` by `spec-stubs.mjs`.
 
-§7cm: strength alone, and high. It is the maul's argument -- a blow, not a
+§7cm: strength alone, and high. It is the mell's argument -- a blow, not a
 roll -- and §7ao's point stands: a strength pure should have something to
 pick up at the end of the spade.
 
@@ -13554,7 +13691,7 @@ one-off, and it means a long fight has a bottom to it.
 
 A `spec` of 'now' is the right special for a siphon and the wrong one for
 a gonne: no flurry, no volley -- one sustained gout, out of rhythm,
-when you decide. It costs the arm exactly as the maul's does.
+when you decide. It costs the arm exactly as the mell's does.
 §7cx: AND A SIPHON HAS TO BEAT THE FLAIL IT COPIES.
 
 Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through star plate --

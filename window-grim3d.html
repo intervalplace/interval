@@ -3789,11 +3789,11 @@ const WEAPON_LOOK = {
   'bronze-dagger': { every: 2, ranged: false, style: 'quick' },
   'bronze-sword':  { every: 2, ranged: false, style: 'swing' },
   'bronze-spear':  { every: 2, ranged: false, style: 'thrust' },
-  'bronze-maul':   { every: 3, ranged: false, style: 'heave' },
+  'bronze-mell':   { every: 3, ranged: false, style: 'heave' },
   'star-dagger':   { every: 2, ranged: false, style: 'quick' },
   'star-sword':    { every: 2, ranged: false, style: 'swing' },
   'star-spear':    { every: 2, ranged: false, style: 'thrust' },
-  'star-maul':     { every: 3, ranged: false, style: 'heave' },
+  'star-mell':     { every: 3, ranged: false, style: 'heave' },
   'old-chain':     { every: 1, ranged: false, style: 'whip' },
   'wooden-bow':    { every: 2, ranged: true,  style: 'draw' },
   'horn-bow':      { every: 2, ranged: true,  style: 'draw' },
@@ -3932,10 +3932,10 @@ function XP_AT(l) { // xp at the foot of level l, past mastery included
 const ICON_URL = {}
 const iconUrl = (item) => ICON_URL[item] ?? (ICON_URL[item] = itemSprite(item).toDataURL())
 const STORE_SELLS3 = { seeds: 15 } // what the store offers (engine STORE_SELLS)
-const RECIPES3 = { 'bronze-dagger': {"ore": 1}, 'bronze-spear': {"ore": 1, "logs": 1}, 'bronze-maul': {"ore": 2, "logs": 1}, 'star-spear': {"magic-stone": 2, "ore": 1, "logs": 1}, 'star-maul': {"magic-stone": 3, "ore": 2, "logs": 1}, 'bronze-sword': {"ore": 2, "logs": 1}, 'bronze-hatchet': {"ore": 1, "logs": 1}, 'bronze-pickaxe': {"ore": 1, "logs": 1}, 'bronze-helm': {"ore": 1, "logs": 1}, 'bronze-plate': {"ore": 3, "logs": 1}, 'star-sword': {"magic-stone": 3, "ore": 2}, 'star-helm': {"magic-stone": 2, "ore": 1}, 'star-plate': {"magic-stone": 4, "ore": 3}, 'star-dagger': {"magic-stone": 2, "ore": 1} }
+const RECIPES3 = { 'bronze-dagger': {"ore": 1}, 'bronze-spear': {"ore": 1, "logs": 1}, 'bronze-mell': {"ore": 2, "logs": 1}, 'star-spear': {"magic-stone": 2, "ore": 1, "logs": 1}, 'star-mell': {"magic-stone": 3, "ore": 2, "logs": 1}, 'bronze-sword': {"ore": 2, "logs": 1}, 'bronze-hatchet': {"ore": 1, "logs": 1}, 'bronze-pickaxe': {"ore": 1, "logs": 1}, 'bronze-helm': {"ore": 1, "logs": 1}, 'bronze-plate': {"ore": 3, "logs": 1}, 'star-sword': {"magic-stone": 3, "ore": 2}, 'star-helm': {"magic-stone": 2, "ore": 1}, 'star-plate': {"magic-stone": 4, "ore": 3}, 'star-dagger': {"magic-stone": 2, "ore": 1} }
 const SMITH_REQS3 = { 'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
   'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 } }
-const PRICES3 = { 'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-maul': 22, 'star-spear': 100, 'star-maul': 160, 'horn-bow': 90, 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10, 'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4, 'star-sword': 120, 'star-helm': 60, 'star-plate': 200 } // mirrors engine PRICES
+const PRICES3 = { 'bronze-dagger': 8, 'bronze-spear': 14, 'bronze-mell': 22, 'star-spear': 100, 'star-mell': 160, 'horn-bow': 90, 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'magic-stone': 20, 'bronze-sword': 15, 'bronze-hatchet': 10, 'bronze-pickaxe': 10, 'bronze-helm': 12, 'bronze-plate': 30, 'wooden-bow': 8, 'grain': 4, 'star-sword': 120, 'star-helm': 60, 'star-plate': 200 } // mirrors engine PRICES
 function nearNodeOf(me2, tt) {
   return Object.values(world?.nodes ?? {}).some((n2) => n2.type === tt && Math.abs(n2.x - me2.x) <= 1 && Math.abs(n2.y - me2.y) <= 1)
 }
@@ -4696,13 +4696,13 @@ function beingMesh(kind, id, thing) {
       const hd = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.28, 6), shapeSteel(star))
       hd.position.y = 1.3; sp.add(hd)
       shapes[tag + '-spear'] = sp
-      // maul: a great block on a heavy haft
+      // mell: a great block on a heavy haft
       const ml = new THREE.Group()
       const mh = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.85, 6), shapeWood)
       mh.position.y = 0.3; ml.add(mh)
       const blk = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.2), shapeSteel(star))
       blk.position.y = 0.8; ml.add(blk)
-      shapes[tag + '-maul'] = ml
+      shapes[tag + '-mell'] = ml
     }
     // the horn-bow: recurved, paler at the tips
     const hb = new THREE.Group()
@@ -4914,7 +4914,7 @@ function syncBeings(s, prev) {
         if (exch) {
           const st = look0.style
           if (st === 'heave') {
-            // the maul: a long coil, a heavy fall, a slow recovery. You feel the weight.
+            // the mell: a long coil, a heavy fall, a slow recovery. You feel the weight.
             if (t2 < 0.55) { const u = t2 / 0.55, e = u * u * (3 - 2 * u); strikeA = -1.1 - e * 1.9 }
             else if (t2 < 0.7) { const u = (t2 - 0.55) / 0.15; strikeA = -3.0 + u * u * 3.7 }
             else { const u = (t2 - 0.7) / 0.3; strikeA = 0.7 - u * u * (3 - 2 * u) * 1.8 }

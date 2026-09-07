@@ -4930,11 +4930,11 @@ const WEAPON_LOOK = {
   'bronze-dagger': { every: 2, ranged: false, style: 'quick' },
   'bronze-sword':  { every: 2, ranged: false, style: 'swing' },
   'bronze-spear':  { every: 2, ranged: false, style: 'thrust' },
-  'bronze-maul':   { every: 3, ranged: false, style: 'heave' },
+  'bronze-mell':   { every: 3, ranged: false, style: 'heave' },
   'star-dagger':   { every: 2, ranged: false, style: 'quick' },
   'star-sword':    { every: 2, ranged: false, style: 'swing' },
   'star-spear':    { every: 2, ranged: false, style: 'thrust' },
-  'star-maul':     { every: 3, ranged: false, style: 'heave' },
+  'star-mell':     { every: 3, ranged: false, style: 'heave' },
   'old-chain':     { every: 1, ranged: false, style: 'whip' },
   'wooden-bow':    { every: 2, ranged: true,  style: 'draw' },
   'horn-bow':      { every: 2, ranged: true,  style: 'draw' },
@@ -5055,7 +5055,7 @@ const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // holds this one honest -- test/identity.test.mjs looks for a marker comment no
 // window still carries, so it errors out before it compares anything.
 const PRICES = {
-  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22, 'horn-bow': 400, 'crab-shell': 12,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-mell': 22, 'horn-bow': 400, 'crab-shell': 12,
   'wool': 9, 'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1,
   'shot': 2, 'chart': 180, 'iron-shield': 34, 'steel-shield': 120, 'star-shield': 640,
   'gold-legs': 3400, 'star-ingot': 420, 'gold-ore': 60, 'gold-bar': 320, 'gold-helm': 2800,
@@ -5067,9 +5067,9 @@ const PRICES = {
   'steel-spear': 48, 'steel-hatchet': 44, 'steel-pickaxe': 44, 'oak-rod': 40,
   'deep-broth': 24, 'heartwood-bow': 540, 'magic-stone': 20, 'iron-sword': 15,
   'iron-hatchet': 10, 'iron-pickaxe': 10, 'iron-helm': 12, 'iron-plate': 30,
-  'wooden-bow': 8, 'grain': 4, 'shell-helm': 26, 'shell-plate': 68, 'steel-maul': 85,
+  'wooden-bow': 8, 'grain': 4, 'shell-helm': 26, 'shell-plate': 68, 'steel-mell': 85,
   'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
-  'star-spear': 450, 'star-maul': 720, 'star-hatchet': 315, 'star-pickaxe': 315,
+  'star-spear': 450, 'star-mell': 720, 'star-hatchet': 315, 'star-pickaxe': 315,
   'staff': 6, 'heartwood-staff': 495, 'wand': 6, 'seeds': 10, 'ale': 8, 'broth': 10,
   'dragon-bones': 500
 }
@@ -5366,7 +5366,7 @@ function itemSprite(item) {
 
 const iconUrl = (item) => ICON_URL[item] ?? (ICON_URL[item] = itemSprite(item).toDataURL())
 const STORE_SELLS3 = STORE_SELLS // one stock list, in the identity block above
-const RECIPES3 = { 'bronze-dagger': {"ore": 1}, 'bronze-spear': {"ore": 1, "logs": 1}, 'bronze-maul': {"ore": 2, "logs": 1}, 'star-spear': {"magic-stone": 2, "ore": 1, "logs": 1}, 'star-maul': {"magic-stone": 3, "ore": 2, "logs": 1}, 'bronze-sword': {"ore": 2, "logs": 1}, 'bronze-hatchet': {"ore": 1, "logs": 1}, 'bronze-pickaxe': {"ore": 1, "logs": 1}, 'bronze-helm': {"ore": 1, "logs": 1}, 'bronze-plate': {"ore": 3, "logs": 1}, 'star-sword': {"magic-stone": 3, "ore": 2}, 'star-helm': {"magic-stone": 2, "ore": 1}, 'star-plate': {"magic-stone": 4, "ore": 3}, 'star-dagger': {"magic-stone": 2, "ore": 1} }
+const RECIPES3 = { 'bronze-dagger': {"ore": 1}, 'bronze-spear': {"ore": 1, "logs": 1}, 'bronze-mell': {"ore": 2, "logs": 1}, 'star-spear': {"magic-stone": 2, "ore": 1, "logs": 1}, 'star-mell': {"magic-stone": 3, "ore": 2, "logs": 1}, 'bronze-sword': {"ore": 2, "logs": 1}, 'bronze-hatchet': {"ore": 1, "logs": 1}, 'bronze-pickaxe': {"ore": 1, "logs": 1}, 'bronze-helm': {"ore": 1, "logs": 1}, 'bronze-plate': {"ore": 3, "logs": 1}, 'star-sword': {"magic-stone": 3, "ore": 2}, 'star-helm': {"magic-stone": 2, "ore": 1}, 'star-plate': {"magic-stone": 4, "ore": 3}, 'star-dagger': {"magic-stone": 2, "ore": 1} }
 const SMITH_REQS3 = { 'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
   'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 } }
 const PRICES3 = PRICES // one ledger per window, in the identity block above
@@ -5670,13 +5670,13 @@ function makeAdventurer(id) {
       const hd = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.28, 6), shapeSteel(star))
       hd.position.y = 1.3; sp.add(hd)
       shapes[tag + '-spear'] = sp
-      // maul: a great block on a heavy haft
+      // mell: a great block on a heavy haft
       const ml = new THREE.Group()
       const mh = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.85, 6), shapeWood)
       mh.position.y = 0.3; ml.add(mh)
       const blk = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.2), shapeSteel(star))
       blk.position.y = 0.8; ml.add(blk)
-      shapes[tag + '-maul'] = ml
+      shapes[tag + '-mell'] = ml
     }
     // the horn-bow: recurved, paler at the tips
     const hb = new THREE.Group()
@@ -5694,7 +5694,7 @@ function makeAdventurer(id) {
     // straight up out of the fist at 1.45x. The spear ran 1.74 units of
     // geometry to 2.52 scaled, on a 1.15-unit body: a head 2.75 above
     // the ground, more than twice the height of the citizen holding it.
-    // The maul's block sat at 1.96, above its owner's skull. Meanwhile
+    // The mell's block sat at 1.96, above its owner's skull. Meanwhile
     // the sword, modelled the other way up, ran its tip to -0.12, a
     // hand's width UNDER the sole. Nothing was posed; the two halves of
     // the armoury simply disagreed about which way was up.
@@ -5714,7 +5714,7 @@ function makeAdventurer(id) {
       // the fist.
       dagger: { len: 0.19, ext: [-0.015, 0.37], grip: 0.00, rot: Math.PI, guard: Math.PI },
       spear:  { len: 1.11, ext: [-0.30, 1.44],  grip: 0.00, rot: 0.85, guard: 0 },
-      maul:   { len: 0.55, ext: [-0.125, 0.90], grip: 0.00, rot: 0.75, guard: 0 },
+      mell:   { len: 0.55, ext: [-0.125, 0.90], grip: 0.00, rot: 0.75, guard: 0 },
     }
     for (const [k, mesh] of Object.entries(shapes)) {
       const kind = k.split('-').pop()
@@ -6848,7 +6848,7 @@ function makeSewnBeast(id, type) {
 //   still a rider, so the horse LINGERS past the last road tile.
 //
 //   FIGHTING. Nothing in this world does mounted combat, so a rider swinging
-//   a maul would promise a rule that does not exist. They get down, and stay
+//   a mell would promise a rule that does not exist. They get down, and stay
 //   down a moment after it ends rather than popping up between swings.
 //
 // A HAULER IS MOUNTED EVERYWHERE. The traveller's horse belongs to the road;
@@ -7299,11 +7299,11 @@ function animateBeing(g, thing, id, dt, now, t) {
   const hitAgo = g.__hitAt ? (now - g.__hitAt) : 1e9
   // A blow lands every `every` ticks -- the table has said so all along
   // and the animator never read it, normalising every strike to a flat
-  // TICK_MS. So a maul swung no slower than a dagger flicked and then
+  // TICK_MS. So a mell swung no slower than a dagger flicked and then
   // stood in guard for the remaining 1200ms of its own cadence. Weight
   // IS cadence; a heave that finishes in 600ms is not heavy, it is
   // hurried. Each style now gets the share of its weapon's interval
-  // that suits it: a maul fills nearly all of 1800ms, a dagger spends
+  // that suits it: a mell fills nearly all of 1800ms, a dagger spends
   // half of 1200 and waits out the rest.
   const STYLE_DUR = { heave: 0.95, swing: 0.80, thrust: 0.70, quick: 0.50, whip: 0.55, draw: 0.90 }
   const STYLE_HIT = { heave: 0.66, swing: 0.55, thrust: 0.45, quick: 0.28, whip: 0.42, draw: 0.52 }
@@ -8504,7 +8504,7 @@ const packEl = document.getElementById('pack')
 const sheetEl = document.getElementById('sheet')
 const skillsEl = document.getElementById('skillsEl')
 let selSlot = -1, lastInvSig = ''
-const EQUIP_SET = new Set(['bronze-dagger', 'bronze-spear', 'bronze-maul', 'star-spear', 'star-maul',
+const EQUIP_SET = new Set(['bronze-dagger', 'bronze-spear', 'bronze-mell', 'star-spear', 'star-mell',
   'bronze-sword', 'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
   'star-sword', 'star-helm', 'star-plate', 'star-dagger', 'wooden-bow', 'horn-bow', 'old-chain'])
 function nearNodeEnt(types, pred) { // [id, node] of an adjacent node of type, or null

@@ -486,7 +486,7 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 //   still a rider, so the horse LINGERS past the last road tile.
 //
 //   FIGHTING. Nothing in this world does mounted combat, so a rider swinging a
-//   maul would promise a rule that does not exist. They get down, and stay
+//   mell would promise a rule that does not exist. They get down, and stay
 //   down a moment after it ends rather than popping up between swings.
 //
 // A HAULER IS MOUNTED EVERYWHERE. The traveller's horse belongs to the road;
@@ -2351,8 +2351,8 @@ function terrainOf(x, y) {
 
 // EVERYTHING THE ENGINE LETS YOU WIELD, and it is a list the window kept
 // separately and let go stale. Seven items had fallen out of it -- including
-// `star-maul`, the best melee weapon in the world, and both good bows. A
-// citizen who smithed a star-maul and clicked it in their pack did not wield
+// `star-mell`, the best melee weapon in the world, and both good bows. A
+// citizen who smithed a star-mell and clicked it in their pack did not wield
 // it: the window did not recognise the name, so it DROPPED it on the ground.
 //
 // The engine builds its set as every smithing recipe plus the four things
@@ -2367,11 +2367,11 @@ function terrainOf(x, y) {
 //
 // Checked against the engine at build time, the same way PRICES is.
 const EQUIPPABLE = new Set([
-  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-maul',
+  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-mell',
   'iron-pickaxe', 'iron-plate', 'iron-spear', 'iron-sword',
   'crossbow', 'dragonbow', 'heartwood-bow', 'heartwood-staff', 'horn-bow',
   'old-chain', 'sigil-bow', 'staff', 'star-dagger', 'star-flail',
-  'star-hatchet', 'star-helm', 'star-maul', 'star-pickaxe', 'star-plate',
+  'star-hatchet', 'star-helm', 'star-mell', 'star-pickaxe', 'star-plate',
   'star-spear', 'star-sword', 'wand', 'wooden-bow', 'handgonne',
   'goo-staff',
 ])
@@ -2475,8 +2475,8 @@ const RANGED_ITEMS = new Set(['wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow',
 // clicked a mob at nine tiles with the dragonbow should loose an arrow, not
 // stroll into its teeth.
 const WEAPON_REACH = {
-  'iron-dagger': 1, 'iron-sword': 1, 'iron-spear': 2, 'iron-maul': 1,
-  'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-maul': 1,
+  'iron-dagger': 1, 'iron-sword': 1, 'iron-spear': 2, 'iron-mell': 1,
+  'star-dagger': 1, 'star-sword': 1, 'star-spear': 2, 'star-mell': 1,
   'old-chain': 1, 'iron-flail': 1, 'star-flail': 1,
   'wooden-bow': 4, 'horn-bow': 5, 'crossbow': 4, 'sigil-bow': 5,
   'heartwood-bow': 3, 'dragonbow': 9, 'handgonne': 4,
@@ -2485,7 +2485,7 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
-// dagger, spear and maul. A window that copies a table copies it at a moment
+// dagger, spear and mell. A window that copies a table copies it at a moment
 // in time; test/identity.test.mjs holds this one to the engine's.
 // PRICED GOODS, copied from the engine's own table.
 //
@@ -2498,7 +2498,7 @@ const reachOfItem = (it) => WEAPON_REACH[it] ?? 1
 //
 // It also carried `seeds`, which the engine does not price at all.
 const PRICES = {
-  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-mell': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
@@ -2532,7 +2532,7 @@ const PRICES = {
   // most of an hour of ordinary work rather than a coffee break, and the
   // ratios between the star goods are untouched -- they were already sound.
   'star-sword': 540, 'star-helm': 270, 'star-plate': 900,
-  'star-spear': 450, 'star-maul': 720,
+  'star-spear': 450, 'star-mell': 720,
   'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
   // though every one of them is made by a citizen's work. Seeds at ten so the
@@ -2833,7 +2833,7 @@ const SKILL_UNLOCKS = {
     { level: 26, text: "forge the star spear" },
     { level: 28, text: "forge the star dagger" },
     { level: 29, text: "forge the star flail" },
-    { level: 30, text: "forge the star maul" },
+    { level: 30, text: "forge the star mell" },
     { level: 30, text: "forge the star plate" },
     { level: 50, text: "mend, and a wand may send it to somebody else" },
     { level: 70, text: "take up the heartwood staff" },
@@ -2851,7 +2851,7 @@ const SKILL_UNLOCKS = {
     { level: 7, text: "forge the iron helm" },
     { level: 10, text: "forge the iron sword" },
     { level: 12, text: "forge the sigil bow (magic 25)" },
-    { level: 14, text: "forge the iron maul" },
+    { level: 14, text: "forge the iron mell" },
     { level: 18, text: "forge the crossbow" },
     { level: 20, text: "forge the iron plate" },
     { level: 40, text: "forge the star helm (magic 20)" },
@@ -2862,7 +2862,7 @@ const SKILL_UNLOCKS = {
     { level: 46, text: "forge the star spear (magic 26)" },
     { level: 50, text: "forge the star flail (magic 29)" },
     { level: 50, text: "forge the star plate (magic 30)" },
-    { level: 52, text: "forge the star maul (magic 30)" },
+    { level: 52, text: "forge the star mell (magic 30)" },
   ],
   firemaking: [
     { level: 80, text: "kindle a watchfire, which the whole country can see" },
@@ -2879,7 +2879,7 @@ const SKILL_UNLOCKS = {
     { level: 50, text: "take up the star spear" },
     { level: 50, text: "take up the star sword" },
     { level: 55, text: "take up the star flail" },
-    { level: 55, text: "take up the star maul" },
+    { level: 55, text: "take up the star mell" },
   ],
   ranged: [
     { level: 20, text: "take up the horn bow" },
@@ -4485,7 +4485,7 @@ const metalOf = (item) => item?.startsWith('shell-') ? METAL.shell
 function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   if (!item) return
   const m = metalOf(item)
-  const long = /sword|spear|maul|flail/.test(item) ? (item.includes('spear') ? 26 : 20)
+  const long = /sword|spear|mell|flail/.test(item) ? (item.includes('spear') ? 26 : 20)
              : /axe|pick|rod/.test(item) ? 18 : 13
   // ALONG THE ARM, NOT ACROSS IT. This was `a - 1.35`, which is seventy-seven
   // degrees off the forearm: at rest the blade pointed up and BACK over the
@@ -4726,7 +4726,7 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     // A CHAIN HAS NO HAFT, AND THE HAFT IS DRAWN BEFORE THE BRANCHES.
     //
     // Every weapon below gets a shaft struck from the hand along the arm, and
-    // then its own head on the end of it. That is right for a sword and a maul
+    // then its own head on the end of it. That is right for a sword and a mell
     // and wrong for this: the links were being hung off a thirteen-unit iron
     // rod that nothing else in the world has, so a citizen with the chain
     // appeared to be holding a rod AND a chain. It is handled up here with the
@@ -4740,7 +4740,7 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     //
     // The engine agrees, and says so in numbers: `hit 1, every 1`. It strikes
     // on every single interval where a sword strikes on every second and a
-    // maul on every third -- the fastest thing in the world and the lightest
+    // mell on every third -- the fastest thing in the world and the lightest
     // blow. Nothing that winds up can do that. It lashes.
     const lash = clamp(drawAmt ?? 0, 0, 1)
     const N = 10
@@ -4783,20 +4783,20 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     return
   }
   // haft
-  g.strokeStyle = item.includes('maul') || item.includes('spear') || item.includes('hatchet') || item.includes('pickaxe')
+  g.strokeStyle = item.includes('mell') || item.includes('spear') || item.includes('hatchet') || item.includes('pickaxe')
     ? METAL.wood[0] : m[2]
   // WHERE THE HAND SITS ON THE SHAFT.
   //
   // Everything was gripped four pixels from the butt, which is right for a
   // sword -- a sword IS held at its end -- and wrong for anything with a
   // shaft. A spear ran twenty-six ahead of the hand and four behind it, so a
-  // citizen carried it like a very long sword rather than a spear, and a maul
+  // citizen carried it like a very long sword rather than a spear, and a mell
   // had no haft behind the fist at all.
   //
   // A spear is taken about a third from the butt: that is where it balances,
-  // and it is why a spear can be couched and a sword cannot. A maul and a
+  // and it is why a spear can be couched and a sword cannot. A mell and a
   // flail want a hand's width of haft behind the grip to swing on.
-  const butt = /spear/.test(item) ? 10 : /maul|flail/.test(item) ? 7 : 4
+  const butt = /spear/.test(item) ? 10 : /mell|flail/.test(item) ? 7 : 4
   g.lineWidth = 2.6 * s
   g.beginPath(); g.moveTo(hx - dx * butt * s, hy - dy * butt * s); g.lineTo(hx + dx * long * s, hy + dy * long * s); g.stroke()
   const tx = hx + dx * long * s, ty = hy + dy * long * s
@@ -4807,7 +4807,7 @@ function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
     g.beginPath(); g.moveTo(hx, hy); g.lineTo(tx, ty); g.stroke()
     g.strokeStyle = m[2]; g.lineWidth = 5 * s                     // crossguard
     g.beginPath(); g.moveTo(hx - dy * 4 * s, hy + dx * 4 * s); g.lineTo(hx + dy * 4 * s, hy - dx * 4 * s); g.stroke()
-  } else if (item.includes('maul')) {
+  } else if (item.includes('mell')) {
     g.fillStyle = m[0]
     g.beginPath(); g.ellipse(tx, ty, 6 * s, 5 * s, a, 0, 7); g.fill()
     g.fillStyle = m[1]; g.beginPath(); g.ellipse(tx - 1.4 * s, ty - 1.6 * s, 3 * s, 2.4 * s, a, 0, 7); g.fill()
@@ -5986,7 +5986,7 @@ function itemIcon(item) {
       haft(cy - 8)
       poly(g, [[cx - 4, cy - 6], [cx - 6, cy - 15], [cx, cy - 9]], m[1])
       poly(g, [[cx - 4, cy - 6], [cx - 6, cy - 15], [cx - 8, cy - 6]], m[0]); return }
-    if (/^(iron|star)-(maul)$/.test(item)) {
+    if (/^(iron|star)-(mell)$/.test(item)) {
       haft(cy - 6)
       poly(g, [[cx - 12, cy - 12], [cx + 2, cy - 14], [cx + 3, cy - 5], [cx - 11, cy - 3]], m[0])
       poly(g, [[cx - 12, cy - 12], [cx + 2, cy - 14], [cx + 2, cy - 10], [cx - 12, cy - 8]], m[1]); return }
@@ -9098,7 +9098,7 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
       const a1 = clamp(spK / .38, 0, 1), a2 = clamp((spK - .42) / .38, 0, 1)
       swingVal = -0.4 + Math.sin(a1 * Math.PI) * 1.35 + Math.sin(a2 * Math.PI) * 1.35
     } else if (sp.kind === 'now') {
-      // a maul: three quarters of the animation is the wind-up
+      // a mell: three quarters of the animation is the wind-up
       swingVal = spK < .62 ? -0.4 - (spK / .62) * 1.5
                : -1.9 + ((spK - .62) / .38) * 3.6
     } else {
@@ -9620,7 +9620,7 @@ function noteDeed(verb) {
 // what that sentence says:
 //
 //     'twice'  star-dagger   two blows land in one tick   -> two slashes
-//     'now'    star-maul     it swings whatever your arm says -> a shockwave
+//     'now'    star-mell     it swings whatever your arm says -> a shockwave
 //     'true'   horn-bow      the shot cannot miss         -> a golden tracer
 // which weapons have a special, mirroring WEAPONS[].spec in the engine. This
 // is a sixth hand-kept copy: the dragonbow's 'far' had to be added here as
@@ -9630,7 +9630,7 @@ function noteDeed(verb) {
 // 'true' became a plain flurry when certainty proved impossible to price: its
 // worth scales inversely with the target's hit rate, so no fixed recovery is
 // neutral across armour. Three mechanics, three words -- see §6af.
-const SPEC_OF = { 'star-dagger': 'flurry', 'star-maul': 'now', 'horn-bow': 'flurry',
+const SPEC_OF = { 'star-dagger': 'flurry', 'star-mell': 'now', 'horn-bow': 'flurry',
                   'dragonbow': 'far', 'handgonne': 'flurry' }
 // A blow that lands late carries its own delay rather than living in a
 // setTimeout: a throttled tab drops the timer and the impact never plays, and a
@@ -9664,7 +9664,7 @@ function drawFx(g, now) {
       gr.addColorStop(1, 'rgba(0,0,0,0)')
       g.fillStyle = gr; g.beginPath(); g.arc(px2, py2, gold ? 16 : 8, 0, 7); g.fill()
     } else if (f.kind === 'now') {
-      // the maul lands: a ring going out along the ground, and dust with it
+      // the mell lands: a ring going out along the ground, and dust with it
       g.globalCompositeOperation = 'lighter'
       const r = 8 + k * 54
       g.strokeStyle = 'rgba(255,196,110,' + (.75 * (1 - k)) + ')'
@@ -10549,7 +10549,7 @@ function rarityOf(item) {
   // the four things this island barely gives up
   if (/^(old-chain|dragonbow|heartwood-bow|sigil-bow)$/.test(item)) return RARITY.legendary
   // starmetal war-gear and the horn-bow: a campaign, not an afternoon
-  if (/^(star-sword|star-maul|star-plate|star-flail|star-helm|horn-bow)$/.test(item)) return RARITY.rare
+  if (/^(star-sword|star-mell|star-plate|star-flail|star-helm|horn-bow)$/.test(item)) return RARITY.rare
   // starmetal's lighter arms, and what magic is made of
   if (/^star-|^(magic-stone|sigil|crossbow|iron-plate)$/.test(item)) return RARITY.magic
   if (/^iron-|^(wooden-bow|arrows)$/.test(item)) return RARITY.common
@@ -11858,13 +11858,13 @@ const FORGE = {
   'iron-dagger': { ore: 1 }, 'iron-hatchet': { ore: 1, logs: 1 },
   'iron-pickaxe': { ore: 1, logs: 1 }, 'iron-spear': { ore: 1, logs: 1 },
   'iron-helm': { ore: 1 }, 'iron-sword': { ore: 2 },
-  'iron-maul': { ore: 2, logs: 1 }, 'iron-plate': { ore: 3 },
+  'iron-mell': { ore: 2, logs: 1 }, 'iron-plate': { ore: 3 },
   'crossbow': { ore: 2, logs: 2 }, 'sigil-bow': { 'horn-bow': 1, sigil: 3 },
   'star-hatchet': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-pickaxe': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-helm': { 'magic-stone': 2, ore: 1 }, 'star-spear': { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-dagger': { 'magic-stone': 2, ore: 1 }, 'star-sword': { 'magic-stone': 3, ore: 2 },
-  'star-maul': { 'magic-stone': 3, ore: 2, logs: 1 }, 'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
+  'star-mell': { 'magic-stone': 3, ore: 2, logs: 1 }, 'star-flail': { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-plate': { 'magic-stone': 4, ore: 3 },
   'handgonne': { 'magic-stone': 4, ore: 3, logs: 1 }, 'shot': { ore: 1 },
 }
@@ -11877,12 +11877,12 @@ const FORGE_REQ = {
   'iron-dagger': { smithing: 1 }, 'iron-hatchet': { smithing: 1 },
   'iron-pickaxe': { smithing: 1 }, 'iron-spear': { smithing: 5 },
   'iron-helm': { smithing: 7 }, 'iron-sword': { smithing: 10 },
-  'iron-maul': { smithing: 14 }, 'iron-plate': { smithing: 20 },
+  'iron-mell': { smithing: 14 }, 'iron-plate': { smithing: 20 },
   'crossbow': { smithing: 18 }, 'sigil-bow': { smithing: 12, magic: 25 },
   'star-hatchet': { smithing: 42, magic: 22 }, 'star-pickaxe': { smithing: 42, magic: 22 },
   'star-helm': { smithing: 40, magic: 20 }, 'star-spear': { smithing: 46, magic: 26 },
   'star-dagger': { smithing: 45, magic: 28 }, 'star-sword': { smithing: 45, magic: 25 },
-  'star-maul': { smithing: 52, magic: 30 }, 'star-flail': { smithing: 50, magic: 29 },
+  'star-mell': { smithing: 52, magic: 30 }, 'star-flail': { smithing: 50, magic: 29 },
   'star-plate': { smithing: 50, magic: 30 },
   'handgonne': { smithing: 90, magic: 40 }, 'shot': { smithing: 50 },
 }
@@ -12420,8 +12420,8 @@ function indexNodes(s) {
 // keep time when a citizen has not swung yet and `lastSwing` is therefore
 // absent from the state entirely -- which is every citizen's first fight.
 const WEAPON_EVERY = {
-  'iron-dagger': 2, 'iron-sword': 2, 'iron-spear': 2, 'iron-maul': 3,
-  'star-dagger': 2, 'star-sword': 2, 'star-spear': 2, 'star-maul': 3,
+  'iron-dagger': 2, 'iron-sword': 2, 'iron-spear': 2, 'iron-mell': 3,
+  'star-dagger': 2, 'star-sword': 2, 'star-spear': 2, 'star-mell': 3,
   'old-chain': 1, 'iron-flail': 2, 'star-flail': 2,
   'wooden-bow': 2, 'horn-bow': 2, 'crossbow': 3, 'sigil-bow': 2,
   'heartwood-bow': 2, 'dragonbow': 3,
@@ -12908,7 +12908,7 @@ function buildMenu(px2, py2, target) {
     const q = target.e
     title = q.name || target.id.slice(0, 8)
     const wilds = inWilds(me.x, me.y) && inWilds(q.x, q.y)
-    const spec = ['star-dagger', 'star-maul', 'horn-bow'].includes(me.equipment?.weapon?.item)
+    const spec = ['star-dagger', 'star-mell', 'horn-bow'].includes(me.equipment?.weapon?.item)
     items.push({ label: 'Hail them', run: go('greet', target.id, q.x, q.y) })
     // §6af: the Wilds is where the law thins, and both feet must be in it.
     // And §2b: somebody already wearing the mark may be struck for nothing --

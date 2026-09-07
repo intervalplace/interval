@@ -3209,11 +3209,11 @@ const FORGE = {
   'star-ingot': { 'magic-stone': 20 },
   'iron-dagger': { iron: 1 }, 'iron-sword': { iron: 2 }, 'iron-spear': { iron: 1, logs: 1 },
   'iron-hatchet': { iron: 1, logs: 1 }, 'iron-pickaxe': { iron: 1, logs: 1 },
-  'iron-maul': { iron: 2, logs: 1 }, 'iron-javelin': { iron: 1, logs: 1 },
+  'iron-mell': { iron: 2, logs: 1 }, 'iron-javelin': { iron: 1, logs: 1 },
   'iron-helm': { iron: 1 }, 'iron-plate': { iron: 3 }, 'iron-shield': { iron: 4, 'oak-logs': 1 },
   'steel-dagger': { steel: 1 }, 'steel-sword': { steel: 1 }, 'steel-spear': { steel: 1, 'oak-logs': 1 },
   'steel-hatchet': { steel: 1, 'oak-logs': 1 }, 'steel-pickaxe': { steel: 1, 'oak-logs': 1 },
-  'steel-maul': { steel: 2, 'oak-logs': 1 }, 'steel-javelin': { steel: 1, logs: 1 },
+  'steel-mell': { steel: 2, 'oak-logs': 1 }, 'steel-javelin': { steel: 1, logs: 1 },
   'steel-helm': { steel: 1 }, 'steel-plate': { steel: 2 }, 'steel-shield': { steel: 3, ironbark: 1 },
   crossbow: { iron: 2, logs: 2 }, handgonne: { iron: 9, ironbark: 1, brimstone: 2 },
   shot: { iron: 1, gunpowder: 1 }, 'hollow-bow': { bones: 4, logs: 1 },
@@ -3223,14 +3223,14 @@ const FORGE = {
   'gold-helm': { 'gold-bar': 6 }, 'gold-legs': { 'gold-bar': 8 }, 'gold-plate': { 'gold-bar': 16 },
   'gold-chain': { 'gold-bar': 12, 'old-chain': 1 },
   'star-dagger': { 'star-ingot': 8 }, 'star-sword': { 'star-ingot': 12 }, 'star-spear': { 'star-ingot': 12, ironbark: 1 },
-  'star-maul': { 'star-ingot': 18, ironbark: 1 }, 'star-flail': { 'star-ingot': 15, ironbark: 1 },
+  'star-mell': { 'star-ingot': 18, ironbark: 1 }, 'star-flail': { 'star-ingot': 15, ironbark: 1 },
   'star-javelin': { 'star-ingot': 1, ironbark: 1 }, 'star-helm': { 'star-ingot': 10 },
   'star-plate': { 'star-ingot': 20 }, 'star-shield': { 'star-ingot': 14, ironbark: 1 },
   'star-hatchet': { 'magic-stone': 2, iron: 1, logs: 1 }, 'star-pickaxe': { 'magic-stone': 2, iron: 1, logs: 1 },
   'great-hatchet': { 'magic-stone': 2, ironbark: 2, brimstone: 1 },
   'great-pickaxe': { 'magic-stone': 2, ironbark: 1, brimstone: 1 },
   'great-sword': { 'star-ingot': 10, brimstone: 26, ironbark: 1 },
-  'great-maul': { 'star-ingot': 11, brimstone: 24, ironbark: 1 },
+  'great-mell': { 'star-ingot': 11, brimstone: 24, ironbark: 1 },
   'great-helm': { 'star-ingot': 4, brimstone: 12 }, 'great-plate': { 'star-ingot': 9, brimstone: 22 },
   'great-crossbow': { 'star-ingot': 7, brimstone: 20, ironbark: 1 },
   'fire-siphon': { steel: 4, brimstone: 6, ironbark: 1 }, 'sigil-bow': { 'horn-bow': 1, sigil: 3 }
@@ -3400,16 +3400,16 @@ const aimScore = (me, e) => { const dx = e.x - me.x, dy = e.y - me.y, l = Math.h
 // through it, so nothing can be added later that happens invisibly.
 // A MAUL AND A DAGGER WERE SWINGING IDENTICALLY. The window already knows what
 // is in the hand — it builds the viewmodel from it — so a blow should be the
-// blow that weapon makes: a maul is wound back and dropped, a dagger is three
+// blow that weapon makes: a mell is wound back and dropped, a dagger is three
 // inches and back, a spear is a thrust down the line of it, a bow is a draw and
 // a release. The engine agrees these are different things; it gives them
 // different reach, different `every`, different `acc`.
 // §what a blow SOUNDS LIKE WHEN IT LANDS, which is a different question from
-// what it sounds like on the way. A maul on a troll and a dagger in a wolf
+// what it sounds like on the way. A mell on a troll and a dagger in a wolf
 // were both one `thud`.
 const HIT_OF = (item) => {
   if (!item) return 'hitQuick'
-  if (/(maul|flail|great)/.test(item)) return 'hitHeavy'
+  if (/(mell|flail|great)/.test(item)) return 'hitHeavy'
   if (/(dagger|barb)/.test(item)) return 'hitQuick'
   if (/(spear|javelin|arrow|bow|gonne|shot)/.test(item)) return 'hitPierce'
   if (/(sword|blade|hatchet|axe)/.test(item)) return 'hitCut'
@@ -3418,7 +3418,7 @@ const HIT_OF = (item) => {
 }
 const SWING_OF = (item) => {
   if (!item) return 'fist'
-  if (/(maul|flail|great-hatchet|hatchet|pickaxe|axe)/.test(item)) return 'heavy'
+  if (/(mell|flail|great-hatchet|hatchet|pickaxe|axe)/.test(item)) return 'heavy'
   if (/(dagger|barb)/.test(item)) return 'quick'
   if (/(spear|javelin)/.test(item)) return 'thrust'
   if (/(bow|gonne|siphon|crossbow)/.test(item)) return 'loose'
@@ -3539,12 +3539,12 @@ const SORCEROUS = /(^sigil$|magic-stone|^stones$)/
 // is lifted whole rather than inferred from the name. A button labelled
 // 'special' teaches nothing, so each is offered by what it actually does.
 const SPEC_OF = { 'star-dagger': 'flurry', 'horn-bow': 'flurry', handgonne: 'flurry',
-                  'star-maul': 'now', 'fire-siphon': 'now', 'great-maul': 'now',
+                  'star-mell': 'now', 'fire-siphon': 'now', 'great-mell': 'now',
                   dragonbow: 'far' }
 const SPEC_SAYS = { flurry: 'a flurry \u00b7 several blows in one breath',
                     now: 'now \u00b7 it swings whatever your arm says',
                     far: 'far \u00b7 the blow grows with the ground it crossed' }
-const EQUIPPABLE = /(sword|blade|dagger|hatchet|pickaxe|maul|flail|spear|javelin|bow|staff|wand|rod|spade|helm|plate|shield|legs|chain|crown|crossbow|handgonne|siphon|barb)/
+const EQUIPPABLE = /(sword|blade|dagger|hatchet|pickaxe|mell|flail|spear|javelin|bow|staff|wand|rod|spade|helm|plate|shield|legs|chain|crown|crossbow|handgonne|siphon|barb)/
 function deedsFor (i, item) {
   const rows = [], notes = []
   const at = (t) => nodesNear(t).length > 0
@@ -3705,7 +3705,7 @@ const ICON = (item) => {
   if (/(sword|blade|barb)/.test(item)) return 'blade'
   if (/hatchet/.test(item)) return 'hatchet'
   if (/pickaxe/.test(item)) return 'pickaxe'
-  if (/(maul|flail)/.test(item)) return 'maul'
+  if (/(mell|flail)/.test(item)) return 'mell'
   if (/spade/.test(item)) return 'spade'
   if (/rod$/.test(item)) return 'rod'
   if (/(spear|javelin)/.test(item)) return 'spear'
@@ -3751,7 +3751,7 @@ function drawIcon (x, y, item) {                     // 16x16, whole pixels only
     case 'blade': R(7, 1, 2, 9, m); R(6, 2, 1, 7, '#ffffff'); R(4, 10, 8, 2, '#6a5a3a'); R(7, 12, 2, 3, '#4a3a24'); break
     case 'hatchet': haft(); R(3, 3, 5, 5, m); R(3, 3, 5, 1, '#ffffff'); R(8, 4, 1, 3, '#5a4a3a'); break
     case 'pickaxe': haft(); R(2, 3, 11, 2, m); R(2, 5, 2, 2, m); R(11, 5, 2, 2, m); break
-    case 'maul': haft(); R(4, 2, 8, 5, m); R(4, 2, 8, 1, '#ffffff'); R(4, 6, 8, 1, '#3a3f44'); break
+    case 'mell': haft(); R(4, 2, 8, 5, m); R(4, 2, 8, 1, '#ffffff'); R(4, 6, 8, 1, '#3a3f44'); break
     case 'spade': haft(); R(4, 2, 8, 5, m); R(5, 7, 6, 2, m); R(6, 3, 4, 3, '#7a8086'); break
     case 'rod': R(3, 13, 2, 2, '#6a4a2a'); for (let k = 0; k < 6; k++) R(4 + k * 2, 12 - k * 2, 2, 2, '#8a6a3a'); R(14, 1, 1, 8, '#e8e2cf'); break
     case 'spear': R(7, 4, 2, 11, '#7a5a34'); R(6, 1, 4, 4, m); R(7, 0, 2, 2, m); break
@@ -4006,7 +4006,7 @@ function packKey (k) {
 let vmGroup = null, vmItem = ''
 const WEAPON = (item) => {
   if (!item) return 'fist'
-  for (const k of ['sword', 'blade', 'hatchet', 'pickaxe', 'maul', 'flail', 'spear', 'javelin',
+  for (const k of ['sword', 'blade', 'hatchet', 'pickaxe', 'mell', 'flail', 'spear', 'javelin',
                    'bow', 'staff', 'wand', 'dagger', 'spade', 'crossbow', 'handgonne', 'rod'])
     if (item.includes(k)) return k
   return 'fist'
@@ -4066,10 +4066,10 @@ function buildViewmodel (item) {
     const bl = vbox(0.055, L, 0.014, 'iron', metal, 0.05); bl.position.y = 0.10 + L / 2; grip.add(bl)
     const gd = vbox(0.19, 0.035, 0.045, 'iron', 0x6a5a3a); gd.position.y = 0.09; grip.add(gd)
     const pm = vbox(0.06, 0.05, 0.06, 'iron', 0x6a5a3a); pm.position.y = -0.13; grip.add(pm)
-  } else if (kind === 'hatchet' || kind === 'pickaxe' || kind === 'maul' || kind === 'flail' || kind === 'spade') {
-    const L = kind === 'maul' ? 0.5 : 0.44
+  } else if (kind === 'hatchet' || kind === 'pickaxe' || kind === 'mell' || kind === 'flail' || kind === 'spade') {
+    const L = kind === 'mell' ? 0.5 : 0.44
     shaft(L, 0.042)
-    const head = kind === 'maul' || kind === 'flail' ? vbox(0.14, 0.14, 0.14, 'iron', metal, 0.06)
+    const head = kind === 'mell' || kind === 'flail' ? vbox(0.14, 0.14, 0.14, 'iron', metal, 0.06)
                : kind === 'pickaxe' ? vbox(0.32, 0.04, 0.04, 'iron', metal, 0.05)
                : kind === 'spade' ? vbox(0.14, 0.16, 0.028, 'iron', metal, 0.05)
                : vbox(0.05, 0.10, 0.045, 'iron', metal, 0.05)   // the eye the haft passes through
@@ -4524,7 +4524,7 @@ function sfx (kind, vol) {
                      s2.start(t + 0.30); s2.stop(t + 1.85)
                      break }
     // ---- WHAT A BLOW SOUNDS LIKE WHEN IT LANDS, which is not what it sounds
-    // like on the way. A maul on a troll and a dagger in a wolf were one thud.
+    // like on the way. A mell on a troll and a dagger in a wolf were one thud.
     case 'hitHeavy': { const o = blip(70, 0.28, 'sine', 0.16)
                      o.frequency.exponentialRampToValueAtTime(40, t + 0.25)
                      burst(0.22, 210, 0.14, 0, 0.6, 'lowpass'); break }

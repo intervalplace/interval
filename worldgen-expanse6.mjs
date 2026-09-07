@@ -1717,13 +1717,13 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     wield: {
       'star-helm': { defence: 80 }, 'star-plate': { defence: 90 },
       'star-sword': { attack: 80 }, 'star-dagger': { attack: 80 }, 'star-spear': { attack: 80 },
-      'star-maul': { attack: 85 }, 'star-flail': { attack: 85 },
+      'star-mell': { attack: 85 }, 'star-flail': { attack: 85 },
       'star-hatchet': { woodcutting: 85 }, 'star-pickaxe': { mining: 85 },
     },
     smith: {
       'star-helm': { smithing: 80, magic: 40 }, 'star-plate': { smithing: 90, magic: 50 },
       'star-sword': { smithing: 85, magic: 45 }, 'star-dagger': { smithing: 85, magic: 48 },
-      'star-spear': { smithing: 86, magic: 46 }, 'star-maul': { smithing: 88, magic: 50 },
+      'star-spear': { smithing: 86, magic: 46 }, 'star-mell': { smithing: 88, magic: 50 },
       'star-hatchet': { smithing: 82, magic: 42 }, 'star-pickaxe': { smithing: 82, magic: 42 },
     },
   }

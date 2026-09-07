@@ -297,9 +297,14 @@
     <div id="itemname"></div>
     <div id="feed" class="stone"></div>
     <div id="sndtoggle" style="font-size:10px;color:var(--dim);cursor:pointer;user-select:none"></div>
-    <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
-      style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--gold);
-             font:12px Verdana;padding:5px 7px;outline:none">
+    <div style="display:flex;gap:4px;align-items:stretch">
+      <button id="scopeBtn" title="heard by those around you — click for far"
+        style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--dim);
+               font:11px ui-monospace,monospace;padding:5px 7px;cursor:pointer;min-width:38px">near</button>
+      <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
+        style="flex:1;min-width:0;background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--gold);
+               font:12px Verdana;padding:5px 7px;outline:none">
+    </div>
     <div id="status"></div>
   </div>
 </div>
@@ -599,7 +604,7 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 //   road tile and the wobble disappears.
 //
 //   FIGHTING. Nothing in this world does mounted combat, so a rider swinging a
-//   maul would promise a rule that does not exist. They get down, and they
+//   mell would promise a rule that does not exist. They get down, and they
 //   stay down a moment after it ends rather than popping back up between
 //   swings.
 //
@@ -620,7 +625,7 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 // is nothing to smooth, so MOUNT_LINGER and its map are gone too.
 //
 // The FIGHTING fault stays. Nothing in this world does mounted combat, so a
-// rider swinging a maul would promise a rule that does not exist -- they get
+// rider swinging a mell would promise a rule that does not exist -- they get
 // down, and stay down a moment after it ends rather than popping back up
 // between swings.
 const MOUNT_REMOUNT = 2200
@@ -2271,7 +2276,7 @@ function islesOf6() {
   // Whiting Isle (§7bu) and the Lists (§7cs) were added to the engine and
   // never to the mirror, so the window painted open sea over both -- 452
   // tiles of it. The saltern a citizen crosses to, and the duelling ground
-  // where the only honest comparison of a maul and a bare blade happens,
+  // where the only honest comparison of a mell and a bare blade happens,
   // were water on the screen and land under the feet.
   //
   // Found by the repaired §9b test (test/mirror.test.mjs). The old version of
@@ -3050,9 +3055,9 @@ function itemSprite(item) {
     // ---- the shapes (v0.66): each reads as itself at a glance ----
     // §7ap: THE GREAT MAUL. Star-metal on a heartwood haft, brimstone-quenched
     // so it comes off the anvil still smoking.
-    case 'great-maul': {
+    case 'great-mell': {
       // §7ap: THE GREAT LINE IS NOT STAR-METAL. Drawn first in star-blue, it
-      // read as a star-maul with a bigger head -- but every other great arm on
+      // read as a star-mell with a bigger head -- but every other great arm on
       // this island is near-black steel with molten orange running in the
       // cracks, because brimstone is what quenched it. The recipe said so all
       // along; only the sprite disagreed.
@@ -3309,7 +3314,7 @@ function itemSprite(item) {
       if (star) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
       if (steel) { g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(19.6, 3.4, 0.9, 4.6) }
       break }
-    case 'iron-maul': case 'steel-maul': case 'star-maul': {
+    case 'iron-mell': case 'steel-mell': case 'star-mell': {
       const star = item.startsWith('star-')
       const [head, edge] = METAL(item)
       g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
@@ -3543,8 +3548,8 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
   : undefined, has: () => true })
 // EVERYTHING THE ENGINE LETS YOU WIELD, and it is a list the window kept
 // separately and let go stale. Seven items had fallen out of it -- including
-// `star-maul`, the best melee weapon in the world, and both good bows. A
-// citizen who smithed a star-maul and clicked it in their pack did not wield
+// `star-mell`, the best melee weapon in the world, and both good bows. A
+// citizen who smithed a star-mell and clicked it in their pack did not wield
 // it: the window did not recognise the name, so it DROPPED it on the ground.
 //
 // The engine builds its set as every smithing recipe plus the four things
@@ -3574,13 +3579,13 @@ const EQUIPPABLE = new Set([
   'great-hatchet', 'great-helm', 'great-pickaxe', 'great-plate',
   'great-sword', 'handgonne', 'heartwood-bow', 'heartwood-rod',
   'heartwood-staff', 'horn', 'horn-bow', 'iron-dagger', 'iron-hatchet',
-  'iron-helm', 'iron-javelin', 'iron-maul', 'iron-pickaxe', 'iron-plate',
+  'iron-helm', 'iron-javelin', 'iron-mell', 'iron-pickaxe', 'iron-plate',
   'iron-shield', 'iron-spear', 'iron-sword', 'ironbark-rod', 'king-shroud',
   'oak-rod', 'old-chain', 'rod', 'shell-helm', 'shell-plate', 'shot',
   'sigil-bow', 'staff', 'star-dagger', 'star-flail', 'star-hatchet',
-  'star-helm', 'star-ingot', 'star-javelin', 'star-maul', 'star-pickaxe',
+  'star-helm', 'star-ingot', 'star-javelin', 'star-mell', 'star-pickaxe',
   'star-plate', 'star-shield', 'star-spear', 'star-sword', 'steel-dagger',
-  'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-maul',
+  'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-mell',
   'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
   'steel-sword', 'wand', 'wooden-bow'
 ])
@@ -3793,7 +3798,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the great maul (earthcraft 70, sorcery 34)"
+      "text": "forge the great mell (earthcraft 70, sorcery 34)"
     },
     {
       "level": 1,
@@ -3849,7 +3854,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the iron maul (earthcraft 14)"
+      "text": "forge the iron mell (earthcraft 14)"
     },
     {
       "level": 1,
@@ -3925,7 +3930,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the star maul (earthcraft 52, sorcery 30)"
+      "text": "forge the star mell (earthcraft 52, sorcery 30)"
     },
     {
       "level": 1,
@@ -3969,7 +3974,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the steel maul (earthcraft 42)"
+      "text": "forge the steel mell (earthcraft 42)"
     },
     {
       "level": 1,
@@ -4021,7 +4026,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 14,
-      "text": "forge the iron maul"
+      "text": "forge the iron mell"
     },
     {
       "level": 18,
@@ -4117,7 +4122,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 42,
-      "text": "forge the steel maul"
+      "text": "forge the steel mell"
     },
     {
       "level": 45,
@@ -4161,7 +4166,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 52,
-      "text": "forge the star maul"
+      "text": "forge the star mell"
     },
     {
       "level": 55,
@@ -4189,7 +4194,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 70,
-      "text": "forge the great maul"
+      "text": "forge the great mell"
     },
     {
       "level": 70,
@@ -4343,7 +4348,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 30,
-      "text": "forge the star maul"
+      "text": "forge the star mell"
     },
     {
       "level": 30,
@@ -4359,7 +4364,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 34,
-      "text": "forge the great maul"
+      "text": "forge the great mell"
     },
     {
       "level": 34,
@@ -4469,7 +4474,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 38,
-      "text": "take up the steel maul"
+      "text": "take up the steel mell"
     },
     {
       "level": 38,
@@ -4529,7 +4534,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 55,
-      "text": "take up the star maul"
+      "text": "take up the star mell"
     },
     {
       "level": 60,
@@ -4541,7 +4546,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 70,
-      "text": "take up the great maul"
+      "text": "take up the great mell"
     },
     {
       "level": 70,
@@ -4783,7 +4788,7 @@ const WEAPON_REACH = {
   "fire-siphon": 2,
   "gold-chain": 1,
   "great-crossbow": 6,
-  "great-maul": 1,
+  "great-mell": 1,
   "great-sword": 1,
   "handgonne": 4,
   "heartwood-bow": 3,
@@ -4791,7 +4796,7 @@ const WEAPON_REACH = {
   "horn-bow": 5,
   "iron-dagger": 1,
   "iron-javelin": 3,
-  "iron-maul": 1,
+  "iron-mell": 1,
   "iron-spear": 2,
   "iron-sword": 1,
   "old-chain": 1,
@@ -4800,12 +4805,12 @@ const WEAPON_REACH = {
   "star-dagger": 1,
   "star-flail": 1,
   "star-javelin": 3,
-  "star-maul": 1,
+  "star-mell": 1,
   "star-spear": 2,
   "star-sword": 1,
   "steel-dagger": 1,
   "steel-javelin": 3,
-  "steel-maul": 1,
+  "steel-mell": 1,
   "steel-spear": 2,
   "steel-sword": 1,
   "wand": 1,
@@ -4840,7 +4845,7 @@ const WEAPON_EVERY = {
   "fire-siphon": 3,
   "gold-chain": 1,
   "great-crossbow": 3,
-  "great-maul": 2,
+  "great-mell": 2,
   "great-sword": 2,
   "handgonne": 4,
   "heartwood-bow": 2,
@@ -4848,7 +4853,7 @@ const WEAPON_EVERY = {
   "horn-bow": 2,
   "iron-dagger": 2,
   "iron-javelin": 2,
-  "iron-maul": 2,
+  "iron-mell": 2,
   "iron-spear": 2,
   "iron-sword": 2,
   "old-chain": 1,
@@ -4857,12 +4862,12 @@ const WEAPON_EVERY = {
   "star-dagger": 2,
   "star-flail": 2,
   "star-javelin": 2,
-  "star-maul": 2,
+  "star-mell": 2,
   "star-spear": 2,
   "star-sword": 2,
   "steel-dagger": 2,
   "steel-javelin": 2,
-  "steel-maul": 2,
+  "steel-mell": 2,
   "steel-spear": 2,
   "steel-sword": 2,
   "wand": 3,
@@ -4871,7 +4876,7 @@ const WEAPON_EVERY = {
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
-// dagger, spear and maul. A window that copies a table copies it at a moment
+// dagger, spear and mell. A window that copies a table copies it at a moment
 // in time; test/identity.test.mjs holds this one to the engine's.
 // PRICED GOODS, copied from the engine's own table. Twenty-one of these had
 // drifted or were simply absent -- the whole star range, the heartwood goods,
@@ -4927,7 +4932,7 @@ const PRICES = {
   "grain": 4,
   "grave-silver": 700,
   "great-hatchet": 520,
-  "great-maul": 5200,
+  "great-mell": 5200,
   "great-pickaxe": 520,
   "gunpowder": 60,
   "heartwood": 15,
@@ -4942,7 +4947,7 @@ const PRICES = {
   "iron-hatchet": 10,
   "iron-helm": 12,
   "iron-javelin": 3,
-  "iron-maul": 22,
+  "iron-mell": 22,
   "iron-ore": 4,
   "iron-pickaxe": 10,
   "iron-plate": 30,
@@ -4974,7 +4979,7 @@ const PRICES = {
   "star-helm": 270,
   "star-ingot": 420,
   "star-javelin": 12,
-  "star-maul": 720,
+  "star-mell": 720,
   "star-pickaxe": 315,
   "star-plate": 900,
   "star-shield": 640,
@@ -4984,7 +4989,7 @@ const PRICES = {
   "steel-hatchet": 44,
   "steel-helm": 45,
   "steel-javelin": 6,
-  "steel-maul": 85,
+  "steel-mell": 85,
   "steel-pickaxe": 44,
   "steel-plate": 110,
   "steel-shield": 120,
@@ -5024,7 +5029,7 @@ const PRICES = {
 // over the result.
 // §6s: THE METAL IS THE TIER. [body, edge, sheen] for every metal a shape can
 // be made of, so a new one is a line here rather than a search through thirty
-// drawing cases -- which is exactly how steel-helm and steel-maul came to be
+// drawing cases -- which is exactly how steel-helm and steel-mell came to be
 // undrawn while the rest of the steel line was fine.
 const METAL_PALETTE = {
   iron:  ['#c9862a', '#6b4515', 'rgba(255,255,255,.25)'],
@@ -5140,15 +5145,15 @@ const WORN_STATS = {
   "iron-dagger": {acc:14, every:2},
   "iron-sword": {hit:2, every:2},
   "iron-spear": {hit:7, every:2, reach:2},
-  "iron-maul": {hit:10, acc:-12, every:2},
+  "iron-mell": {hit:10, acc:-12, every:2},
   "steel-dagger": {hit:1, acc:14, every:2},
   "steel-sword": {hit:3, every:2},
   "steel-spear": {hit:8, every:2, reach:2},
-  "steel-maul": {hit:11, acc:-12, every:2},
+  "steel-mell": {hit:11, acc:-12, every:2},
   "star-dagger": {hit:2, acc:14, every:2},
   "star-sword": {hit:4, every:2},
   "star-spear": {hit:9, every:2, reach:2},
-  "star-maul": {hit:13, acc:-12, every:2},
+  "star-mell": {hit:13, acc:-12, every:2},
   "old-chain": {hit:1, every:1},
   "gold-chain": {hit:1, every:1},
   "spade": {acc:-8, every:3},
@@ -5166,7 +5171,7 @@ const WORN_STATS = {
   "torch": {hit:1, acc:-6, every:3},
   "great-sword": {hit:5, acc:4, every:2},
   "great-crossbow": {},
-  "great-maul": {hit:16, acc:-10, every:2},
+  "great-mell": {hit:16, acc:-10, every:2},
   "crossbow": {hit:11, acc:21, every:3, reach:4},
   "sigil-bow": {hit:8, every:2, reach:5},
   "heartwood-bow": {hit:10, acc:3, every:2, reach:3},
@@ -5578,9 +5583,41 @@ const BRIDGE_TO_INPUT = (a) =>
 // domain-prefixed and the payload names the exact world. These strings
 // must match engine.js SIG_DOMAINS to the byte.
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|', DOMAIN_CHAT = 'INTERVAL_CHAT_V1|'
+// §7dx: NEAR OR FAR, and neither is a licence. `near` carries as far as this
+// world already says two people are together; `far` carries across the island.
+// The choice sticks, because a citizen who has decided they are talking to the
+// room should not have to say so every line.
+// §7dw: the ledger, read-only. Mirrors engine.js `ceilStood`; `dial.mjs`
+// carries the same arithmetic and `test/dial.test.mjs` holds them together.
+const CEIL_BINS_W = 24
+function ceilLeftOf(p, g, tick) {
+  if (!g?.ceiling || !p) return Infinity
+  const led = p.ledger
+  let stood = 0
+  if (led) {
+    const b = Math.floor(tick / (g.ceiling.window / CEIL_BINS_W))
+    const gap = b - led.at
+    if (gap < CEIL_BINS_W)
+      for (let k = 0; k < CEIL_BINS_W - gap; k++) stood += led.bins[(led.at - k + CEIL_BINS_W * 2) % CEIL_BINS_W]
+  }
+  return Math.max(0, g.ceiling.allow - stood)
+}
+let chatScope = 'near'
+try { if (localStorage.getItem('interval.scope') === 'far') chatScope = 'far' } catch {}
+function setChatScope(v) {
+  chatScope = v === 'far' ? 'far' : 'near'
+  try { localStorage.setItem('interval.scope', chatScope) } catch {}
+  const b = document.getElementById('scopeBtn')
+  if (b) { b.textContent = chatScope === 'far' ? 'far' : 'near'; b.title = chatScope === 'far' ? 'heard across the island — click for near' : 'heard by those around you — click for far' }
+}
+// A leading `/far ` or `/near ` on one line overrides for that line only, the
+// way a shout has always been a different verb rather than a different mode.
 async function signChat(text) {
   if (!curWorldId) return // no world yet: nothing to bind the signature to
-  const msg = { type: 'chat', worldId: curWorldId, playerId: ownKey.pub, tick: world?.tick ?? 0, text: String(text).slice(0, 80) }
+  let scope = chatScope, body = String(text)
+  const m = /^\/(far|near)\s+([\s\S]+)$/.exec(body)
+  if (m) { scope = m[1]; body = m[2] }
+  const msg = { type: 'chat', worldId: curWorldId, playerId: ownKey.pub, tick: world?.tick ?? 0, text: body.slice(0, 80), scope }
   const sig = toHex(await crypto.subtle.sign('Ed25519', ownKey.priv, new TextEncoder().encode(DOMAIN_CHAT + canonicalJS(msg))))
   ws.send(JSON.stringify({ type: 'rawsay', msg: { ...msg, sig } }))
 }
@@ -5632,15 +5669,51 @@ function loadTracks() {
   }
   return trackFetch
 }
+// ---- ONE PIECE AT A TIME ----
+//
+// Two bugs, and they compounded into the layering.
+//
+// FIRST: `stopMusic` nulls MUSIC immediately and then fades the element over
+// half a second before pausing it. For that half second the old piece is still
+// audible and no longer reachable through MUSIC, so anything that starts a new
+// one plays straight over the top of it. Toggling off and on inside the fade
+// did exactly that.
+//
+// SECOND: the gesture listeners below were never removed, and the `ended`
+// handler clears the latch. So once the arrival piece finished, THE NEXT CLICK
+// ANYWHERE started it again -- which is not "heard once on arrival", it is a
+// theme that ambushes you every time you finish listening to it.
+//
+// The fix is a set of everything ever created, killed outright before anything
+// new begins, plus a latch that is not cleared by `ended`.
+const _fading = new Set()
+function killMusic() {
+  for (const el of _fading) { try { el.pause(); el.src = '' } catch {} }
+  _fading.clear()
+  if (MUSIC) { try { MUSIC.pause(); MUSIC.src = '' } catch {} ; MUSIC = null }
+}
+let _musicStarting = false
+// `MUSIC` is set the instant an element is made, long before the browser has
+// agreed to play it. Only this says a sound is actually coming out, and only
+// this may be trusted to decide the gesture listeners have done their job.
+let _musicPlaying = false
 function startMusic(preferred) {
-  if (MUSIC || musicTried || !musicOn || !soundOn) return
+  if (MUSIC || _musicStarting || musicTried || !musicOn || !soundOn) return
   // No list yet: warm it, and let the NEXT gesture carry the music. Returning
   // here without latching is the whole point -- a tap that arrives before the
   // node has answered must not spend the one chance we get.
-  if (!TRACK_LIST) { loadTracks(); return }
+  // A RELOAD ARRIVES BEFORE THE LIST DOES. On a fresh page this runs with
+  // TRACK_LIST still null, so the immediate attempt cannot possibly play, and
+  // if the citizen's first click also lands before the fetch answers, that
+  // gesture is spent on nothing and the door stays silent for the whole visit.
+  // So the list ARRIVING is itself an occasion to try: by then the browser has
+  // usually seen a gesture, and if it has not, the listeners are still up.
+  if (!TRACK_LIST) { loadTracks().then((t) => { if (t && t.length) startMusic(preferred) }); return }
   const tracks = TRACK_LIST
   if (!tracks.length) return
   musicTried = true
+  _musicStarting = true
+  killMusic()   // nothing half-faded may survive into the next piece
   const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
   const name = pick(preferred) ?? pick('theme-deep') ?? tracks[0]
   if (!name) return
@@ -5653,8 +5726,14 @@ function startMusic(preferred) {
   a.loop = false
   a.volume = 0
   MUSIC = a
-  a.addEventListener('ended', () => { MUSIC = null; musicTried = false }) // the arrival is over
+  // THE ARRIVAL IS OVER, AND THE LATCH STAYS SHUT. Clearing `musicTried` here
+  // is what let the next stray click replay the theme. Arriving happens once
+  // per visit; only an explicit music toggle re-arms it.
+  a.addEventListener('ended', () => { if (MUSIC === a) MUSIC = null; _musicPlaying = false; _fading.delete(a) })
+  _fading.add(a)
   a.play().then(() => {
+    _musicStarting = false
+    _musicPlaying = true
     // come in slowly: a world should not start by shouting
     const target = 0.42
     const t0 = performance.now()
@@ -5665,7 +5744,12 @@ function startMusic(preferred) {
       if (k < 1) requestAnimationFrame(fade)
     }
     requestAnimationFrame(fade)
-  }).catch(() => { MUSIC = null; musicTried = false })   // the browser said no; fine
+  }).catch(() => { // the browser said no; fine
+    _musicStarting = false
+    if (MUSIC === a) MUSIC = null
+    _fading.delete(a)
+    musicTried = false   // a refusal is not an arrival: the next gesture may try
+  })
 }
 
 // The threshold. A loading screen's real job is not to fill a wait, it is to
@@ -5689,8 +5773,20 @@ function startMusic(preferred) {
     localStorage.setItem('interval-daylock', DAYLOCK ? 'on' : 'off')
     db.textContent = DAYLOCK ? 'day: bright' : 'day: cycle' })
 }
-for (const ev of ['pointerdown', 'keydown']) {
-  window.addEventListener(ev, () => startMusic('theme-flat'), { passive: true })
+// The first touch carries the music in, and then these come off. Left
+// attached they fire on every click for the rest of the session, which is how
+// a piece meant to be heard once became one that restarts whenever you happen
+// to click after it ends.
+{
+  const carry = () => {
+    startMusic('theme-flat')
+    // Removed only once a sound is genuinely out. Checking MUSIC here was
+    // wrong: it is set synchronously, before `play()` has been permitted, so
+    // the very first click tore down the listeners and a browser that then
+    // refused left the door silent with nothing left to try again.
+    if (_musicPlaying) for (const ev of ['pointerdown', 'keydown']) window.removeEventListener(ev, carry)
+  }
+  for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, carry, { passive: true })
 }
 // ...and TRY IMMEDIATELY, gesture or no: a browser that has learned to
 // trust this site (any returning citizen) permits it, and the door has
@@ -5704,6 +5800,7 @@ function musicFollowsSound() { if (MUSIC) MUSIC.volume = (musicOn && soundOn) ? 
 function stopMusic() {
   if (!MUSIC) return
   const a = MUSIC; MUSIC = null
+  // it stays in `_fading`, so a piece starting during the fade kills it first
   const v0 = a.volume, t0 = performance.now()
   const out = () => {
     const k = Math.min(1, (performance.now() - t0) / 500)
@@ -6092,7 +6189,7 @@ const FORGE = {
   "great-crossbow": {"star-ingot":7,"brimstone":20,"ironbark":1},
   "great-hatchet": {"magic-stone":2,"ironbark":2,"brimstone":1},
   "great-helm": {"star-ingot":4,"brimstone":12},
-  "great-maul": {"star-ingot":11,"brimstone":24,"ironbark":1},
+  "great-mell": {"star-ingot":11,"brimstone":24,"ironbark":1},
   "great-pickaxe": {"magic-stone":2,"ironbark":1,"brimstone":1},
   "great-plate": {"star-ingot":9,"brimstone":22},
   "great-sword": {"star-ingot":10,"brimstone":26,"ironbark":1},
@@ -6103,7 +6200,7 @@ const FORGE = {
   "iron-hatchet": {"iron":1,"logs":1},
   "iron-helm": {"iron":1},
   "iron-javelin": {"iron":1,"logs":1},
-  "iron-maul": {"iron":2,"logs":1},
+  "iron-mell": {"iron":2,"logs":1},
   "iron-pickaxe": {"iron":1,"logs":1},
   "iron-plate": {"iron":3},
   "iron-shield": {"iron":4,"oak-logs":1},
@@ -6119,7 +6216,7 @@ const FORGE = {
   "star-helm": {"star-ingot":10},
   "star-ingot": {"magic-stone":20},
   "star-javelin": {"star-ingot":1,"ironbark":1},
-  "star-maul": {"star-ingot":18,"ironbark":1},
+  "star-mell": {"star-ingot":18,"ironbark":1},
   "star-pickaxe": {"magic-stone":2,"iron":1,"logs":1},
   "star-plate": {"star-ingot":20},
   "star-shield": {"star-ingot":14,"ironbark":1},
@@ -6130,7 +6227,7 @@ const FORGE = {
   "steel-hatchet": {"steel":1,"oak-logs":1},
   "steel-helm": {"steel":1},
   "steel-javelin": {"steel":1,"logs":1},
-  "steel-maul": {"steel":2,"oak-logs":1},
+  "steel-mell": {"steel":2,"oak-logs":1},
   "steel-pickaxe": {"steel":1,"oak-logs":1},
   "steel-plate": {"steel":2},
   "steel-shield": {"steel":3,"ironbark":1},
@@ -6154,7 +6251,7 @@ const FORGE_REQ = {
   "great-crossbow": {"earthcraft":70,"sorcery":34},
   "great-hatchet": {"earthcraft":55},
   "great-helm": {"earthcraft":70,"sorcery":34},
-  "great-maul": {"earthcraft":70,"sorcery":34},
+  "great-mell": {"earthcraft":70,"sorcery":34},
   "great-pickaxe": {"earthcraft":55},
   "great-plate": {"earthcraft":70,"sorcery":34},
   "great-sword": {"earthcraft":70,"sorcery":34},
@@ -6165,7 +6262,7 @@ const FORGE_REQ = {
   "iron-hatchet": {"earthcraft":1},
   "iron-helm": {"earthcraft":7},
   "iron-javelin": {"earthcraft":5},
-  "iron-maul": {"earthcraft":14},
+  "iron-mell": {"earthcraft":14},
   "iron-pickaxe": {"earthcraft":1},
   "iron-plate": {"earthcraft":20},
   "iron-shield": {"earthcraft":12},
@@ -6181,7 +6278,7 @@ const FORGE_REQ = {
   "star-helm": {"earthcraft":40,"sorcery":20},
   "star-ingot": {"earthcraft":45},
   "star-javelin": {"earthcraft":46,"sorcery":26},
-  "star-maul": {"earthcraft":52,"sorcery":30},
+  "star-mell": {"earthcraft":52,"sorcery":30},
   "star-pickaxe": {"earthcraft":42,"sorcery":22},
   "star-plate": {"earthcraft":50,"sorcery":30},
   "star-shield": {"earthcraft":48},
@@ -6192,7 +6289,7 @@ const FORGE_REQ = {
   "steel-hatchet": {"earthcraft":26},
   "steel-helm": {"earthcraft":30},
   "steel-javelin": {"earthcraft":28},
-  "steel-maul": {"earthcraft":42},
+  "steel-mell": {"earthcraft":42},
   "steel-pickaxe": {"earthcraft":26},
   "steel-plate": {"earthcraft":38},
   "steel-shield": {"earthcraft":34},
@@ -6560,9 +6657,9 @@ const CALLING_LINE_W = {
 // dagger thrust drew the same little ring and nothing else.
 const SPEC_BLOWS = {
   "star-dagger": 6,
-  "star-maul": 2,
+  "star-mell": 2,
   "fire-siphon": 1,
-  "great-maul": 2,
+  "great-mell": 2,
   "horn-bow": 6,
   "handgonne": 2,
   "dragonbow": 1
@@ -6572,9 +6669,9 @@ const SPEC_BLOWS = {
 // of the great-crossbow.
 const SPEC_OF = {
   "star-dagger": "flurry",
-  "star-maul": "now",
+  "star-mell": "now",
   "fire-siphon": "now",
-  "great-maul": "now",
+  "great-mell": "now",
   "horn-bow": "flurry",
   "handgonne": "flurry",
   "dragonbow": "far"
@@ -9239,9 +9336,9 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
-    } else if (o.wepItem === 'iron-maul' || o.wepItem === 'star-maul') {
+    } else if (o.wepItem === 'iron-mell' || o.wepItem === 'star-mell') {
       // a heavy head on a short haft. It should look like it weighs something.
-      const star9 = o.wepItem === 'star-maul'
+      const star9 = o.wepItem === 'star-mell'
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
       cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
       cx.fillRect(-3.2, -6, 6.4, 4.6)
@@ -13261,15 +13358,38 @@ function panel(s) {
       const them = world.players[fid]
       const nm = them?.name ?? fid.slice(0, 6)
       const here = them && Math.max(Math.abs(me.x - them.x), Math.abs(me.y - them.y)) <= FRIEND_RANGE
+      // §7dv: WHAT THIS MAY SAY, and it is deliberately not a status light.
+      //
+      // A green dot is a claim about a person -- online, therefore available,
+      // therefore ignoring you -- and it manufactures obligation. What the
+      // world actually PUBLISHES is the stint: a promise sworn in advance,
+      // public by design, with a length on it. So the column answers the only
+      // question worth asking, which is not "are they there" but "will they
+      // still be there if I walk over".
+      //
+      // Rounded to five minutes, like the dial, and for the same reason.
+      let mark = here ? 'here' : ''
+      if (!here && them) {
+        const g = world.genesis, t = world.tick
+        const st = them.stint
+        if (st && t >= st.from && t < st.to) {
+          const left = st.to - t
+          mark = left < 300 ? 'sworn, ending' : 'sworn ~' + (Math.round(left / 300) * 5) + 'm'
+        } else if (g?.ceiling && ceilLeftOf(them, g, t) <= 0) {
+          mark = 'stood down'
+        }
+      }
       return '<div style="display:flex;justify-content:space-between;padding:1px 0">'
         + '<span style="color:' + (here ? 'var(--gold)' : 'var(--dim)') + '">' + nm + '</span>'
-        + '<span style="color:var(--dim);font-size:10px">' + (here ? 'here' : '') + '</span></div>'
+        + '<span style="color:var(--dim);font-size:10px">' + mark + '</span></div>'
     }).join('')
   }
   drawBook()
   if (!_bookWired) {
     _bookWired = true
     document.getElementById('bookbtn').onclick = () => { bookOpen = !bookOpen; drawBook() }
+    const sb = document.getElementById('scopeBtn')
+    if (sb) { sb.onclick = () => setChatScope(chatScope === 'far' ? 'near' : 'far'); setChatScope(chatScope) }
   }
   const skPanel = document.getElementById('skills')
   if (!skPanel._guideWired) {
@@ -14162,6 +14282,8 @@ const REGION_STEM = {
   'the Moor': 'theme-moor',
   'the Wilds': 'theme-wilds',
   'the Deep': 'theme-gallery',
+  // §7ea: and the dragon's isle, for the same reason the Deep has it
+  'Scaleshore': 'theme-gallery',
   // the Sea and the Bridge stay silent on purpose: a world that goes quiet at
   // the water's edge is better than one with a cue for every tile.
 }
@@ -15287,7 +15409,7 @@ cv.addEventListener('click', (e) => {
           //
           // A star-ingot is twenty magic-stone, magic-stone does not stack, and
           // the pack is twenty-eight -- so one ingot is one trip into the Wilds
-          // and back to this fire. A great maul is ELEVEN ingots: two hundred
+          // and back to this fire. A great mell is ELEVEN ingots: two hundred
           // and twenty stones, eleven journeys.
           //
           // The trade is already possible and nothing ever said so. A citizen

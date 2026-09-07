@@ -1382,9 +1382,42 @@ node.onTick = (state) => {
 function buildPracticeIsland () {
  try {
   const t0 = Date.now()
-  console.log('building the practice island (§0) — this is paid once, at startup...')
+  // §0: PAID ONCE PER FOUNDING, NOT ONCE PER RESTART.
+  //
+  // "Paid once, at startup" was true of a process and false of a node. This
+  // build is two hundred and twenty-five seconds of straight-line synchronous
+  // work on the same thread as the tick, so every restart stopped the world
+  // for nearly four minutes: no ticks proposed, no state broadcast, no input
+  // accepted, and every window that connected in that gap sat on
+  // "CONNECTING..." until it gave up. The tick-gap log said so plainly and it
+  // was read as a host stall rather than as this.
+  //
+  // The practice island is a pure function of the founding, and `noughtTag()`
+  // already names exactly that -- the nought world id and the hash of the
+  // engine that built it. So it goes to disk under that tag: an unchanged
+  // founding costs a file read, and a changed one rebuilds ONCE and never
+  // again. INTERVAL_DATA is the right home because this is derived state that
+  // must survive a replaced deploy, which is the same argument the world's
+  // own memory makes.
+  const cachePath = DATA + '/nought-' + noughtTag() + '.json'
+  try {
+    const cached = fs.readFileSync(cachePath)
+    if (cached && cached.length > 1024) {
+      noughtWorldJson = cached
+      noughtTerrain = packTerrain(node.state.genesis)
+      console.log('  practice island read from ' + cachePath + ' in '
+        + ((Date.now() - t0) / 1000).toFixed(1) + 's (' + (cached.length / 1024).toFixed(0) + ' KB)')
+      return
+    }
+  } catch { /* no cache for this founding: build it, below, and leave one */ }
+  console.log('building the practice island (§0) — this founding has not been built before,')
+  console.log('  and it stops this node for a few minutes. It is written to disk and never repeated.')
   noughtWorldJson = Buffer.from(JSON.stringify(
     E.markNoughtWorld(buildWorld(E.noughtGenesisOf(node.state.genesis)))))
+  try {
+    fs.writeFileSync(cachePath + '.tmp', noughtWorldJson)
+    fs.renameSync(cachePath + '.tmp', cachePath)   // atomic: a torn file must never be read as a world
+  } catch (e) { console.warn('  could not cache the practice island (' + e.message + '); it will be rebuilt next restart') }
   noughtTerrain = packTerrain(node.state.genesis)
   console.log('  practice island ready in ' + ((Date.now() - t0) / 1000).toFixed(1)
     + 's (' + (noughtWorldJson.length / 1024).toFixed(0) + ' KB), tag ' + noughtTag())

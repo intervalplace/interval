@@ -465,7 +465,7 @@ the full price -- which is what §6af always said and what the pool
 quietly undid.
 `now` is gated on `lastSwing <= tick`, not on the full cadence, so
 its recovery must be written ABSOLUTELY. Netting the cadence out of
-it -- as every other special requires -- let the maul fire twice as
+it -- as every other special requires -- let the mell fire twice as
 often as its own rule allowed: 208% of neutral, measured.
 
 ## §6af-iii. A Round A Blow, Not A Round A Burst
@@ -513,8 +513,8 @@ so balance stays in one place.
 
 At a shared recovery the burst is dps x recovery, so the DAGGER --
 best damage rate of anything carrying a special -- owned the biggest
-burst, while the maul, whose single blow is the largest in the world
-at seventeen, had the smallest. Backwards. The maul now buys a rarer,
+burst, while the mell, whose single blow is the largest in the world
+at seventeen, had the smallest. Backwards. The mell now buys a rarer,
 heavier commitment instead: eight blows for twenty-four intervals of
 arm, the largest burst anybody can throw and the longest hole to
 stand in afterwards. Neutral all the same.
@@ -558,18 +558,18 @@ dial for BURSTS, not for attrition -- see §6af-v.
 
 §6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
 
-`bite: 2` was set when a star-maul's hit was 7. At 13 the same multiplier
+`bite: 2` was set when a star-mell's hit was 7. At 13 the same multiplier
 makes a per-blow maximum of 46, and `now` is the special that can land ON
 TOP of an ordinary blow -- so the pair reached 104 against a citizen with
 99, measured, in about one combo in twelve hundred. A weapon that removes a
 full bar from full health in two intervals is not a gamble, it is a coin
 that sometimes deletes somebody.
 
-Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the maul
+Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the mell
 fell to 77% of its own ordinary damage. The pair is 1.5 and six.
 
 AND IT IS THE SAME PAIR ON BOTH MAULS. They were briefly 1.6/7 and 1.4/6 --
-not because a great-maul swings differently, but because each was lowered
+not because a great-mell swings differently, but because each was lowered
 only until it stopped one-shotting and then left there. `hit` already says
 one is bigger than the other (sixteen against thirteen); a second number
 saying it again is two rules for one weapon class, and a reader would go
@@ -808,7 +808,7 @@ Armour now makes you HARDER TO HIT rather than harder to hurt. The same
 duel lasts about as long -- sixty seconds against the sixty-six it took
 before -- but it reads as "miss, miss, THIRTEEN", which is a fight.
 
-It also repairs the maul without touching the maul: its whole problem was
+It also repairs the mell without touching the mell: its whole problem was
 that low accuracy was punished twice, once in the roll and again by a soak
 its slow cadence could not out-pace.
 §7l: a full star suit is helm 16 + plate 24 = 40, which is the ceiling the
@@ -914,7 +914,7 @@ beats a star-clad one (1.36 against 1.27). Two different characters, and
 the even split reaches neither.
 
 Routing by WEAPON was the obvious alternative and it is a trap: the natural
-strength weapon is the maul, second-worst damage in the world, so a citizen
+strength weapon is the mell, second-worst damage in the world, so a citizen
 would grind hundreds of hours with a weapon they do not want in order to
 fight with one they do. It also binds two questions that are not the same
 question -- what I swing, and what I am becoming -- and it has no honest
@@ -977,7 +977,7 @@ entirely and read as "force always wins". At twelve aim leads by thirty-one
 per cent at mastery; at sixteen, forty-seven; at twenty, fifty-seven. The
 trade only stays a trade at eight.
 
-## §6au. A Maul Swings At The Same Speed As Everything Else
+## §6au. A Mell Swings At The Same Speed As Everything Else
 
 > **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:2683` by `spec-stubs.mjs`.
 
@@ -987,7 +987,7 @@ trade only stays a trade at eight.
 1 + level/10 + hit, and the level term is shared, so a slower weapon can
 only buy back its lost interval through `hit` -- which is FLAT, and
 therefore distorts low levels far more than high ones. At ninety-nine the
-maul landed 3.62 a swing against a dagger's 3.83 and took half again as
+mell landed 3.62 a swing against a dagger's 3.83 and took half again as
 long to do it: 1.21 a tick against 1.92. Measured over sixty duels with
 neither citizen using a special, that is 5:55. Not situational -- broken.
 
@@ -1093,7 +1093,7 @@ this is the first thing it pulls out that a smith BURNS rather than beats.
 §6bt: seventy, where every gathering skill already has its mastery tool.
 §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
 crossbow for ranged, and nothing for strength -- which was invisible while
-mauls were gated on attack (§7ao) and glaring the moment they were not. A
+mells were gated on attack (§7ao) and glaring the moment they were not. A
 citizen who trains strength alone now has a ladder that reaches the top of
 the world like everybody else's.
 
@@ -1194,7 +1194,7 @@ still, wither, taking, rot -- have between them claimed every status worth
 having, and a seventh wearing a haft would be `flurry` and `volley` all
 over again.
 
-The domain selects itself, in the star-maul special's manner, with no
+The domain selects itself, in the star-mell special's manner, with no
 exception clause anywhere: worthless on the dragon, worthless on the
 gibbet-dead behind their rail, worse than a sword in a duel, and the only
 thing anybody wants when an incursion has fixed on a neighbour.
@@ -1205,9 +1205,9 @@ thing anybody wants when an incursion has fixed on a neighbour.
 
 6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
 
-The star-sword and the star-maul sit in the same wield band, and measured
+The star-sword and the star-mell sit in the same wield band, and measured
 against an ARMOURED citizen they were already 87 intervals against 89 -- the
-maul's -12 accuracy costing exactly what its +5 damage buys. That balance
+mell's -12 accuracy costing exactly what its +5 damage buys. That balance
 was not designed and it is remarkably tight, so anything added here has to
 preserve it.
 
@@ -1347,7 +1347,7 @@ It was written in v0.41 because nothing in this world could kill anybody,
 and a citizen with brews ate every interval and was immortal. That reason is
 long gone. What it was defended with afterwards -- that food would otherwise
 out-heal damage -- does not survive arithmetic: the old chain lands up to
-eleven EVERY interval, a maul special seventeen, the long shot thirty, and a
+eleven EVERY interval, a mell special seventeen, the long shot thirty, and a
 fish heals six. Nothing about eating has ever made a citizen unkillable
 against anything that could really hurt them.
 
@@ -1381,7 +1381,7 @@ and that asymmetry is the whole reason to fight in a pair.
 
 A flat rhythm made the heal value a RATE, and the rate is what decides a
 fight. A deep broth restored one hitpoint an interval for ever -- against the
-1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+1.11 a star-sword lands through starmetal and the 0.62 a mell does -- so the
 citizen with the stack could not be killed. Measured 0:12, and the burst
 could not close it either: a finisher that removes half a health bar is no
 answer to somebody who never falls below three quarters.
@@ -1427,7 +1427,7 @@ still decided by damage, and an endless brew stays where it was at 4:16.
 
 A flat rhythm made the heal value a RATE, and the rate is what decides a
 fight. A deep broth restored one hitpoint an interval for ever -- against the
-1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+1.11 a star-sword lands through starmetal and the 0.62 a mell does -- so the
 citizen with the stack could not be killed. Measured 0:12, and the burst
 could not close it either: a finisher that removes half a health bar is no
 answer to somebody who never falls below three quarters.
@@ -1570,13 +1570,13 @@ citizen. `shotsFired` is the gonne's counter and is reused deliberately: a
 citizen cannot wield both at once, the field is already constitutional, and
 a second counter for the same idea is how state tables rot.
 
-## §7ao. A Maul Answers To Strength
+## §7ao. A Mell Answers To Strength
 
 > **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:894` by `spec-stubs.mjs`.
 
 §7ao: A MAUL ANSWERS TO STRENGTH.
 
-Every maul was gated on ATTACK, which is the finesse stat -- and a maul is
+Every mell was gated on ATTACK, which is the finesse stat -- and a mell is
 the one weapon in the world that has no finesse: `acc: -12`, the worst
 accuracy on the table, bought with the largest blow. It was asking for the
 exact quality it does not have.
@@ -1584,7 +1584,7 @@ exact quality it does not have.
 It also left a build with nowhere to go. The spade (7al) gave strength a
 way to rise without fighting, and a citizen who took it had nothing worth
 wielding at the end of it: every weapon in the world wanted attack. A
-strength pure can pick up a maul now, which is what a strength pure would
+strength pure can pick up a mell now, which is what a strength pure would
 pick up.
 
 ## §7ap. The Third Great Arm
@@ -1594,7 +1594,7 @@ pick up.
 §6bt: seventy, where every gathering skill already has its mastery tool.
 §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
 crossbow for ranged, and nothing for strength -- which was invisible while
-mauls were gated on attack (§7ao) and glaring the moment they were not. A
+mells were gated on attack (§7ao) and glaring the moment they were not. A
 citizen who trains strength alone now has a ladder that reaches the top of
 the world like everybody else's.
 
@@ -1636,7 +1636,7 @@ nothing, and it is exempt from `clubbed` for the same reason a javelin is.
 
 §7br: FIRE ARROWS, if the archer is carrying them and nothing else.
 
-Melee already has a shape to choose between -- a maul that answers plate, a
+Melee already has a shape to choose between -- a mell that answers plate, a
 flail that goes round it, a bare blade that pays for nakedness. Ranged had
 one arrow and a ladder of bows, so the only decision an archer ever made
 was which bow they could afford.
@@ -1822,7 +1822,7 @@ kind of thing:
 
 > **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:929` by `spec-stubs.mjs`.
 
-§7cm: strength alone, and high. It is the maul's argument -- a blow, not a
+§7cm: strength alone, and high. It is the mell's argument -- a blow, not a
 roll -- and §7ao's point stands: a strength pure should have something to
 pick up at the end of the spade.
 
@@ -2026,7 +2026,7 @@ one-off, and it means a long fight has a bottom to it.
 
 A `spec` of 'now' is the right special for a siphon and the wrong one for
 a gonne: no flurry, no volley -- one sustained gout, out of rhythm,
-when you decide. It costs the arm exactly as the maul's does.
+when you decide. It costs the arm exactly as the mell's does.
 §7cx: AND A SIPHON HAS TO BEAT THE FLAIL IT COPIES.
 
 Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through star plate --

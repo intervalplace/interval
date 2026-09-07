@@ -53,7 +53,7 @@ function ensureEdHash() {
 function initCrypto() { ensureEdHash(); _selectEdBackend(); }
 const hex = (u8) => Buffer.from(u8).toString('hex');
 
-const SPEC_VERSION = '1.02';
+const SPEC_VERSION = '1.05';
 // §1c: THE INTERVAL IS A SECOND, AND IT IS THE ONE NUMBER THAT WAS INHERITED.
 //
 // Six hundred milliseconds was RuneScape's tick and it arrived here with no
@@ -517,6 +517,11 @@ const SKILLS = ['woodcraft', 'earthcraft', 'shorecraft',
 // empty ones; see the migration below.
 const EQUIP_SLOTS = ['weapon', 'head', 'body', 'offhand', 'legs'];
 const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
+  // §7dy: an empty plot in one of the two groves; it BECOMES its species when
+  // the sapling comes on, so nothing downstream needs to know it existed
+  'grove-plot',
+  // §7dz: a willow trap a citizen set in a run, filling or full
+  'eel-buck',
   // §7dg: THE SMOKERACK, and why it is not a shelf.
   //
   // The Eel Sheds were drawn with four 'v' glyphs -- shelves -- years before
@@ -893,7 +898,7 @@ const WIELD_REQS = {
   'gold-chain': { prowess: 30 }, 'bone-staff': { sorcery: 40 },
   // §7ao: A MAUL ANSWERS TO STRENGTH.
   //
-  // Every maul was gated on ATTACK, which is the finesse stat -- and a maul is
+  // Every mell was gated on ATTACK, which is the finesse stat -- and a mell is
   // the one weapon in the world that has no finesse: `acc: -12`, the worst
   // accuracy on the table, bought with the largest blow. It was asking for the
   // exact quality it does not have.
@@ -901,13 +906,13 @@ const WIELD_REQS = {
   // It also left a build with nowhere to go. The spade (7al) gave strength a
   // way to rise without fighting, and a citizen who took it had nothing worth
   // wielding at the end of it: every weapon in the world wanted attack. A
-  // strength pure can pick up a maul now, which is what a strength pure would
+  // strength pure can pick up a mell now, which is what a strength pure would
   // pick up.
-  'star-spear': { prowess: 50 }, 'star-maul': { prowess: 55 }, 'horn-bow': { marksmanship: 20 },
+  'star-spear': { prowess: 50 }, 'star-mell': { prowess: 55 }, 'horn-bow': { marksmanship: 20 },
   'hollow-bow': { marksmanship: 1 },
   'dragonbow': { marksmanship: 40 },   // it will not be drawn by a beginner
   // §6x: these shipped with NO requirement at all, which made a starmetal
-  // flail wieldable at level one while a star-maul asked for attack 25. A
+  // flail wieldable at level one while a star-mell asked for attack 25. A
   // crossbow is heavy to hold level and heavier to crank; a flail on a chain
   // is the least forgiving thing in the world to swing at anything.
   'crossbow': { marksmanship: 25 },
@@ -926,7 +931,7 @@ const WIELD_REQS = {
   // needed for balance; this one is here so that a citizen meets the choice
   // after they have met armour, not before.
   'bare-blade': { prowess: 30, prowess: 30 },
-  // §7cm: strength alone, and high. It is the maul's argument -- a blow, not a
+  // §7cm: strength alone, and high. It is the mell's argument -- a blow, not a
   // roll -- and §7ao's point stands: a strength pure should have something to
   // pick up at the end of the spade.
   'bone-spear': { prowess: 50 },
@@ -936,11 +941,11 @@ const WIELD_REQS = {
   // §6bt: seventy, where every gathering skill already has its mastery tool.
   // §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
   // crossbow for ranged, and nothing for strength -- which was invisible while
-  // mauls were gated on attack (§7ao) and glaring the moment they were not. A
+  // mells were gated on attack (§7ao) and glaring the moment they were not. A
   // citizen who trains strength alone now has a ladder that reaches the top of
   // the world like everybody else's.
   'great-sword': { prowess: 70 }, 'great-crossbow': { marksmanship: 70 },
-  'great-maul': { prowess: 70 },
+  'great-mell': { prowess: 70 },
   // §6bw: defence's last unlock was fifty and then forty-nine levels of
   // nothing -- the longest dead band in the game once the arms were fixed.
   'great-helm': { prowess: 70 }, 'great-plate': { prowess: 70 },
@@ -990,7 +995,7 @@ const WIELD_REQS = {
   'iron-shield': { prowess: 1 }, 'steel-shield': { prowess: 30 }, 'star-shield': { prowess: 48 },
   // §6am (v6): the mid arms and armour, worn at the middle of the fighting
   // road -- past a beginner, short of the fifty that straps on starmetal.
-  'steel-sword': { prowess: 35 }, 'steel-dagger': { prowess: 35 }, 'steel-spear': { prowess: 35 }, 'steel-maul': { prowess: 38 },   // §7ao
+  'steel-sword': { prowess: 35 }, 'steel-dagger': { prowess: 35 }, 'steel-spear': { prowess: 35 }, 'steel-mell': { prowess: 38 },   // §7ao
   'steel-helm': { prowess: 32 }, 'steel-plate': { prowess: 38 },
   'handgonne': { marksmanship: 90 },   // §6av
 };
@@ -1737,7 +1742,7 @@ const XP_COOK = 20;
 // and a citizen with brews ate every interval and was immortal. That reason is
 // long gone. What it was defended with afterwards -- that food would otherwise
 // out-heal damage -- does not survive arithmetic: the old chain lands up to
-// eleven EVERY interval, a maul special seventeen, the long shot thirty, and a
+// eleven EVERY interval, a mell special seventeen, the long shot thirty, and a
 // fish heals six. Nothing about eating has ever made a citizen unkillable
 // against anything that could really hurt them.
 //
@@ -1752,7 +1757,7 @@ const EAT_EVERY = 8;
 //
 // A flat rhythm made the heal value a RATE, and the rate is what decides a
 // fight. A deep broth restored one hitpoint an interval for ever -- against the
-// 1.11 a star-sword lands through starmetal and the 0.62 a maul does -- so the
+// 1.11 a star-sword lands through starmetal and the 0.62 a mell does -- so the
 // citizen with the stack could not be killed. Measured 0:12, and the burst
 // could not close it either: a finisher that removes half a health bar is no
 // answer to somebody who never falls below three quarters.
@@ -1826,7 +1831,7 @@ const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
 // arithmetic worked and the design did not: EVERYTHING ELSE IN A FIGHT IS
 // MEASURED IN TICKS AGAINST THAT BEAT, and none of it moved.
 //
-//   `rec` on every special (star-dagger 12, star-maul 8, horn-bow 13) --
+//   `rec` on every special (star-dagger 12, star-mell 8, horn-bow 13) --
 //        recovery that cost four swings began costing two.
 //   EAT_EVERY 8 and eatRhythm -- a gullet that opened once in four swings
 //        opened once in two, and the note above EAT_PER_HEAL_BREW about a
@@ -2237,10 +2242,10 @@ const BURIALS_PER_FLASK = 10;
 // expensive is a decision.
 const OFFER_HEAD = 4;              // worth * HEAD / (HEAD + given), floored below
 const OFFER_TAIL = 12;             // after this many of a kind, the rate settles
-// Four, not sixteen. At sixteen a single great-maul -- the dearest thing in the
+// Four, not sixteen. At sixteen a single great-mell -- the dearest thing in the
 // world -- carried a citizen to mourning fifty-seven in ONE act, and seventy,
 // where a mourner's gear comes home, cost fifteen gifts. A skill bought in a
-// quarter of a minute is not a devotion, it is a receipt. At four the same maul
+// quarter of a minute is not a devotion, it is a receipt. At four the same mell
 // reaches forty-four, which is defensible: it was the finest weapon there is
 // and it is gone. Seventy now asks four hundred gifts, and mastery about
 // thirty-two million coins of goods destroyed.
@@ -2416,6 +2421,14 @@ const FRIEND_CAP = 64;
 // per distinct person ever stood beside inside a stint. It is bounded because
 // state has to hash, not because acquaintance should be rationed.
 const KNOWN_CAP = 512;
+// §7dx: A GATHERING NEEDS THREE. Two citizens standing together are a
+// meeting, not a place, and naming every pair would make the announcement
+// noise. Three is the smallest number that is a crowd.
+const MOOT_MIN = 3;
+// AND A PLACE MAY BE FORGOTTEN. If no tide in roughly two days has drawn a
+// crowd anywhere, the world stops naming the last one. A world that emptied
+// out should not go on advertising a spot nobody has stood in for a year.
+const MOOT_FORGET = 180000;
 // §7bu: the two quays, and which answers which. A pair, not a network: adding a
 // third would make this a coach service and the island would stop being one.
 const FERRY_PAIR = {
@@ -2648,7 +2661,7 @@ const RECORD_FLOOR = 50;
 //   every ticks between swings (combat breathes; the chain does not)
 //   reach how far the weapon touches (1 is arm's length)
 //   acc   added to the odds of landing at all
-// A dagger lands often for little; a maul lands seldom for a lot; a spear
+// A dagger lands often for little; a mell lands seldom for a lot; a spear
 // keeps its distance; a sword asks no questions. The chain is the chain.
 // §6af: THE SPECIAL BLOW.
 //
@@ -2659,9 +2672,9 @@ const RECORD_FLOOR = 50;
 //            tick. Was 'twice' until it stopped being two, and the horn-bow
 //            briefly had 'volley', which was the same mechanic under a second
 //            name. One behaviour, one word.
-//   'now'    star-maul -- gated on a SPENT arm, so it interrupts
+//   'now'    star-mell -- gated on a SPENT arm, so it interrupts
 //   'far'    dragonbow -- the blow grows with the range it crossed
-//   'now'    star-maul    it swings whatever your arm says
+//   'now'    star-mell    it swings whatever your arm says
 //   'true'   horn-bow     the shot cannot miss
 //
 // THE COST IS THE ARM. A special spends the next cycle as well as this one,
@@ -2670,7 +2683,7 @@ const RECORD_FLOOR = 50;
 // cycles is EXACTLY damage-neutral over the exchange --
 //
 //     weapon        normal/tick   after a special
-//     star-maul          3.00          3.00
+//     star-mell          3.00          3.00
 //     star-sword         3.75          3.75
 //
 // -- so against four hundred and twenty points of dragon it buys nothing at
@@ -2688,7 +2701,7 @@ const WEAPONS = {
   // 1 + level/10 + hit, and the level term is shared, so a slower weapon can
   // only buy back its lost interval through `hit` -- which is FLAT, and
   // therefore distorts low levels far more than high ones. At ninety-nine the
-  // maul landed 3.62 a swing against a dagger's 3.83 and took half again as
+  // mell landed 3.62 a swing against a dagger's 3.83 and took half again as
   // long to do it: 1.21 a tick against 1.92. Measured over sixty duels with
   // neither citizen using a special, that is 5:55. Not situational -- broken.
   //
@@ -2700,7 +2713,7 @@ const WEAPONS = {
   // weapon, not the slow one. The alternative -- `hit: 16` to make `every: 3`
   // pay -- was measured too, and it hands a level-forty citizen 1.69 a tick
   // where the honest build gets 1.22. A flat number is a low-level number.
-  'iron-maul':   { hit: 10, every: 2, reach: 1, acc: -12 },
+  'iron-mell':   { hit: 10, every: 2, reach: 1, acc: -12 },
   // §6am (v6): the mid weapons, one notch of `hit` above bronze and one below
   // star, no special -- the special is a starmetal thing, earned with the
   // metal. A citizen who has reached the middle swings a touch harder than a
@@ -2709,11 +2722,11 @@ const WEAPONS = {
   'steel-sword':     { hit: 3, every: 2, reach: 1, acc: 0 },
   'steel-spear':     { hit: 8, every: 2, reach: 2, acc: 0 },
   // §6bt: THE STEEL MAUL, which was simply missing. Iron had one and starmetal
-  // had one and the whole middle of the game had none, so a maul-swinger went
+  // had one and the whole middle of the game had none, so a mell-swinger went
   // from attack one to fifty-five with nothing new to hold -- fifty-four
   // levels, the longest dead band of any shape in the world. Not a design; an
   // omission, found by counting.
-  'steel-maul':      { hit: 11, every: 2, reach: 1, acc: -12 },
+  'steel-mell':      { hit: 11, every: 2, reach: 1, acc: -12 },
   // §6af-vii: AND THE BURSTS WERE TUNED AGAINST NINETY-NINE FLESH.
   //
   // Every blow count and recovery in this table was set when a citizen carried
@@ -2731,23 +2744,23 @@ const WEAPONS = {
   'star-spear':    { hit: 9, every: 2, reach: 2, acc: 0 },
   // §6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
   //
-  // `bite: 2` was set when a star-maul's hit was 7. At 13 the same multiplier
+  // `bite: 2` was set when a star-mell's hit was 7. At 13 the same multiplier
   // makes a per-blow maximum of 46, and `now` is the special that can land ON
   // TOP of an ordinary blow -- so the pair reached 104 against a citizen with
   // 99, measured, in about one combo in twelve hundred. A weapon that removes a
   // full bar from full health in two intervals is not a gamble, it is a coin
   // that sometimes deletes somebody.
   //
-  // Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the maul
+  // Bite and recovery move TOGETHER or neutrality breaks: at 1.6 alone the mell
   // fell to 77% of its own ordinary damage. The pair is 1.5 and six.
   //
   // AND IT IS THE SAME PAIR ON BOTH MAULS. They were briefly 1.6/7 and 1.4/6 --
-  // not because a great-maul swings differently, but because each was lowered
+  // not because a great-mell swings differently, but because each was lowered
   // only until it stopped one-shotting and then left there. `hit` already says
   // one is bigger than the other (sixteen against thirteen); a second number
   // saying it again is two rules for one weapon class, and a reader would go
   // looking for the distinction it draws. There is none.
-  'star-maul':     { spec: 'now', blows: 2, bite: 0.9, rec: 4, hit: 13, every: 2, reach: 1, acc: -12 },   // §6af-vii
+  'star-mell':     { spec: 'whole', blows: 2, rec: 4, hit: 13, every: 2, reach: 1, acc: -12 },   // §6ag
   // 6bz: THE CHAIN KEEPS ITS OLD BLOW. Two-handed arms gained six to pay for
   // the shield, but a weapon that swings EVERY interval banks that six twice
   // as often as anything else: at hit 7 it killed a shielded swordsman in 46
@@ -2783,7 +2796,7 @@ const WEAPONS = {
   //
   // A `spec` of 'now' is the right special for a siphon and the wrong one for
   // a gonne: no flurry, no volley -- one sustained gout, out of rhythm,
-  // when you decide. It costs the arm exactly as the maul's does.
+  // when you decide. It costs the arm exactly as the mell's does.
   // §7cx: AND A SIPHON HAS TO BEAT THE FLAIL IT COPIES.
   //
   // Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through star plate --
@@ -2804,7 +2817,7 @@ const WEAPONS = {
   //
   // `bare` adds floor((40 - armourOf(you)) / 4) to maxHit -- ten when you
   // stand in nothing, nothing when you stand in a full star suit. Naked it
-  // strikes like a maul without the maul's poor accuracy; clad it is worse
+  // strikes like a mell without the mell's poor accuracy; clad it is worse
   // than an iron dagger. It is not an upgrade. It is the flail's argument
   // pointed the other way: an ANSWER, and only to one thing, and the thing it
   // answers is your own plate.
@@ -2828,7 +2841,7 @@ const WEAPONS = {
   //
   // Hit ZERO, so at full health it is worse than the iron spear a beginner
   // carries -- a two-handed stick that asks strength fifty and gives nothing
-  // back. At fifteen hitpoints it is a maul without the maul's accuracy
+  // back. At fifteen hitpoints it is a mell without the mell's accuracy
   // problem. It is ordinary until you are nearly dead and then it is the
   // largest blow in the world, and there is no way to hold the second state
   // except by being in real danger of the first.
@@ -2861,7 +2874,7 @@ const WEAPONS = {
   // having, and a seventh wearing a haft would be `flurry` and `volley` all
   // over again.
   //
-  // The domain selects itself, in the star-maul special's manner, with no
+  // The domain selects itself, in the star-mell special's manner, with no
   // exception clause anywhere: worthless on the dragon, worthless on the
   // gibbet-dead behind their rail, worse than a sword in a duel, and the only
   // thing anybody wants when an incursion has fixed on a neighbour.
@@ -2903,7 +2916,7 @@ const WEAPONS = {
   //
   // Ranged had eight weapons and every one of them was in TWO_HANDED. Melee is
   // not five points on a damage line: it is a HAND trade -- dagger and sword
-  // keep a shield, spear and maul and flail give it up for reach or weight or
+  // keep a shield, spear and mell and flail give it up for reach or weight or
   // armour -- and a star shield divides a blow by three or four, so those are
   // two different things to be. Ranged had reach, cadence and accuracy, which
   // are three points on ONE line, and no such choice at all. There was no such
@@ -3000,19 +3013,24 @@ const WEAPONS = {
   // it DOES was wrong. Restored from the numbers it carried before the
   // mastery rebuild, with `hit` scaled to the flesh of 64 (§5j).
   'great-crossbow': { hit: 12, every: 3, reach: 6, acc: 23, ranged: true, breaks: true, burns: true },
-  // §7ap: the maul line's top, and it keeps the line's whole character -- the
+  // §7ap: the mell line's top, and it keeps the line's whole character -- the
   // biggest blow in the world bought with the worst accuracy in it. `burns`
   // because every brimstone arm burns, and this one is twenty-four of it.
-  // §6af-vi: the same pair as the star-maul, and its larger `hit` is the only
+  // §6af-vi: the same pair as the star-mell, and its larger `hit` is the only
   // thing that makes it larger. Measured over three thousand combos: ceiling
   // 94 against the star's 82, and neither can delete a citizen at full health.
-  'great-maul':    { spec: 'now', blows: 2, bite: 0.75, rec: 3,   // §6af-vii
+  // §6ag: and the great one throws the same blow, because `hit` already says
+  // which is bigger. A second number saying it again is two rules for one
+  // weapon class -- the argument §6af-vii made when it collapsed the bites.
+  // `rec: 3` stays: it commits for a cycle and a half rather than two, which
+  // is the only thing left distinguishing the pair, and it is the right one.
+  'great-mell':    { spec: 'whole', blows: 2, rec: 3,   // §6ag
                      hit: 16, every: 2, reach: 1, acc: -10, breaks: true, burns: true },
-  // THE CROSSBOW (spec 6x): the maul of the ranged line.
+  // THE CROSSBOW (spec 6x): the mell of the ranged line.
   //
   // Ranged had one feel repeated three times -- wooden, horn and dragon all
   // loose every two ticks and differ only in how far and how hard. Melee has
-  // four feels: a dagger lands often for little, a maul seldom for a lot, a
+  // four feels: a dagger lands often for little, a mell seldom for a lot, a
   // spear keeps its distance, a sword asks no questions. Ranged deserved the
   // same choice.
   //
@@ -3123,7 +3141,7 @@ const ammoOf = (p) => {
   if (w?.powder) return 'shot';
   // §7br: FIRE ARROWS, if the archer is carrying them and nothing else.
   //
-  // Melee already has a shape to choose between -- a maul that answers plate, a
+  // Melee already has a shape to choose between -- a mell that answers plate, a
   // flail that goes round it, a bare blade that pays for nakedness. Ranged had
   // one arrow and a ladder of bows, so the only decision an archer ever made
   // was which bow they could afford.
@@ -3667,7 +3685,7 @@ const MOB_STATS = {
   //
   // `mends` is hitpoints the web returns each tick while the spider lives.
   // Measured, one maxed citizen in star gear puts out: chain 5.74, sword
-  // 3.40, dragonbow 3.70, maul 2.98, horn-bow 2.75, crossbow 2.31. At SIX a
+  // 3.40, dragonbow 3.70, mell 2.98, horn-bow 2.75, crossbow 2.31. At SIX a
   // lone citizen cannot win with anything, two struggle, three manage.
   //
   // It is not very dangerous and that is deliberate. Somebody must hold it,
@@ -4175,7 +4193,7 @@ const ALCH_SHARE = 3, ALCH_OF = 4;   // three quarters, in integers
 // It was also, measured, a mint: alchValue followed price, every recipe in the
 // world RAISES price (that is what a recipe is), so every craftable good was a
 // pump. Thirteen recipes in RECIPES alone paid more unmade than their parts
-// did -- iron-maul +11, bare-blade +12, iron-spear and iron-plate +8 -- and
+// did -- iron-mell +11, bare-blade +12, iron-spear and iron-plate +8 -- and
 // cooking and brewing pumped the same way. The safety rule stated above ("the
 // cap must sit below what a recipe's parts alch for") was only ever checked
 // against the star tier, where the parts happen to be dear.
@@ -4217,6 +4235,53 @@ const alchValue = (item) => (PRICES[item] ? ALCH_PAYS : 0);
 // again and it has gone over -- long enough that nobody loses a harvest they
 // meant to collect, short enough that the ground comes back.
 const CROP_ROTS_AFTER = 2160;   // §1c: thirty-six minutes, as it was
+// §7dy: THE GROVE. A ring of empty plots around each of the two stands worth
+// tending, and a tree takes two days to come on. Days rather than minutes
+// because a grove is meant to be an INVESTMENT and not a rotation -- and it
+// costs nobody any of their ninety minutes, since growth runs off the interval
+// count and asks for no presence at all.
+// §7dy: SIX HOURS, not two days, and the experience is the reason.
+//
+// Two days made a grove an ornament: a farmer could not use it, so the only
+// citizens planting would be ones doing it as a favour, and public goods that
+// need favours do not get built. At six hours a farmer sows in the morning,
+// comes back in the evening, fells and sows again -- and because the ninety
+// minutes may be split however a citizen likes, two short visits a day is a
+// perfectly ordinary way to live here.
+//
+// The experience is the crop rate, exactly. A row of grain is forty for seven
+// hundred and twenty intervals; a tree is six hours of the same arithmetic, so
+// it pays 1200 and not a point more. This is NOT a faster method. It is a
+// LOWER-ATTENTION one -- the same wage for waiting instead of clicking -- and
+// under a presence ceiling that is worth having without being worth
+// abandoning the fields for.
+//
+// What stops it dominating is that there are SIXTEEN plots in the world. The
+// whole island's grove throughput is capped at a number you can count, and
+// the ring being empty when you arrive is a race that puts people at the
+// stands -- which is what the stands were placed for.
+const TREE_GROW_TICKS = 21600;   // six hours
+// §7dz: THE EEL BUCK. §7c already said what an eel is: "you do not angle for
+// eels; you set a trap woven out of willow, leave it in the run, and come back
+// and lift it." The fiction described two acts and the mechanic was one. It is
+// two now.
+//
+// It fills off the interval count, so it costs no presence and charges no
+// patience -- you go and do something else and the fen works while you are
+// gone. Half an hour to fill, which is long enough that setting one is a plan
+// and short enough that a citizen sees their own trap pay inside one evening.
+const BUCK_FILL_TICKS = 1800;
+// A buck LEFT TOO LONG spoils: an eel dead in a trap for a day is not supper.
+// Nothing is taken for it -- the trap is simply empty again, and a citizen who
+// meant to come back and did not has lost the walk and nothing else.
+const BUCK_SPOILS_AFTER = 86400;
+// AND HOW MANY A CITIZEN MAY HAVE OUT, which is the late-game dial. One at
+// twenty, and a shorekeeper running six along the fen is a small operation --
+// which is a different life from standing at a rod, and that is the point.
+const BUCKS_AT = [[20, 1], [40, 2], [60, 3], [75, 4], [88, 5], [96, 6]];
+const bucksAllowed = (lvl) => { let n = 0; for (const [at, k] of BUCKS_AT) if (lvl >= at) n = k; return n; };
+const GROVE_PLANT_LEVEL = 45;     // hearthcraft: the higher farming this was for
+const GROVE_SPECIES = { oak: 'oak-tree', ironbark: 'ironbark-tree' };
 const GROW_TICKS_RIPE = 720;  // §1c + spec 6o: twelve minutes, seed to harvest
 // §7cz: RUBBLE, WHICH DID NOTHING AT ALL.
 //
@@ -4240,7 +4305,7 @@ const GROW_TICKS_RIPE = 720;  // §1c + spec 6o: twelve minutes, seed to harvest
 const MARL_PER_PLOT = 2;
 const GROW_TICKS_MARLED = 480;   // §1c: two thirds of twelve minutes
 const PRICES = {
-  'iron-dagger': 8, 'iron-spear': 14, 'iron-maul': 22,
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-mell': 22,
   'horn-bow': 400, 'crab-shell': 12,
   'wool': 9,   // under the shell: downland is safer than a cold harbour
   'logs': 2, 'ore': 5, 'raw-fish': 3, 'cooked-fish': 6, 'bones': 2, 'arrows': 1, 'shot': 2,
@@ -4266,7 +4331,7 @@ const PRICES = {
   'heartwood': 15, 'deep-fish': 11, 'cooked-deep-fish': 22, 'burnt-deep-fish': 1,
   // §6am (v6): the mid goods, priced between the baseline and the mastery --
   // a mid seam's hour worth more than a doorstep's, less than a master's.
-  'fire-siphon': 1450, 'hollow-bow': 45, 'great-maul': 5200,
+  'fire-siphon': 1450, 'hollow-bow': 45, 'great-mell': 5200,
   'bread': 9, 'burnt-bread': 1, 'flour': 6, 'saltpetre': 14, 'gunpowder': 60,
   'planks': 5, 'iron-ore': 4, 'holy-water': 90, 'grave-silver': 700, 'spade': 260,
   'fire-arrows': 12, 'salt-fish': 11, 'salt-deep-fish': 30, 'gold-chain': 3900, 'bone-staff': 880, 'charter': 240,
@@ -4291,14 +4356,14 @@ const PRICES = {
   // Four and a half times, on everything a master makes. A star plate is now
   // most of an hour of ordinary work rather than a coffee break, and the
   // ratios between the star goods are untouched -- they were already sound.
-  'shell-helm': 26, 'shell-plate': 68, 'steel-maul': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
-  'star-spear': 450, 'star-maul': 720,
+  'shell-helm': 26, 'shell-plate': 68, 'steel-mell': 85, 'star-sword': 540, 'star-helm': 270, 'star-plate': 900, 'king-shroud': 800,
+  'star-spear': 450, 'star-mell': 720,
   'star-hatchet': 315, 'star-pickaxe': 315, 'staff': 6, 'heartwood-staff': 495, 'wand': 6,
   // THE THREE THAT HAD NO PRICE, and so could be neither sold nor alched
   // though every one of them is made by a citizen's work. Seeds at ten so the
   // seedsman's twenty-two is the usual double; ale and broth by what they
   // mend, at about two coins a hitpoint, which is where the cooked fish sit.
-  'seeds': 10, 'ale': 8, 'broth': 10,
+  'seeds': 10, 'sapling': 40, 'ale': 8, 'broth': 10,
   // a keeper will take dragon-bones and pays what a curiosity is worth to
   // somebody who will never see the beast. THREE thousand ordinary bones fetch
   // six thousand, so five hundred is far under what the thing does: a keeper is
@@ -4325,9 +4390,31 @@ const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 // its own, and a genesis that does not gets exactly the classic numbers, so
 // the founded world is unchanged to the byte.
 function wildsRectOf(g) { return g?.geo?.wilds ?? { x0: 1, x1: 34, y0: 1, y1: 22 }; } // spec 2h
+// §7ea: THE WILDS MAY BE MORE THAN ONE PLACE.
+//
+// It was a single rectangle, which was right while it was one frontier. The
+// dragon's isle broke that: the whole of what a dragon IS here is that it
+// cannot be killed alone, so it must be fought by a band, and the band can
+// turn on you for the carcass. Move it somewhere citizens may not hunt
+// citizens and there is nothing left but a big animal. The trust is the
+// content.
+//
+// So a founding may name a LIST of rectangles and a citizen is in the Wilds if
+// they stand in any of them. A founding naming one object gets exactly the old
+// behaviour, to the byte -- the classic world is unchanged.
+//
+// And an island is a STRICTER Wilds than the frontier is. On the mainland a
+// betrayed citizen runs; here the only way off is the boat you both arrived
+// on, so a band that turns has to walk its victim back to the quay. That is
+// the same bargain the mainland Wilds offers, with the exits removed.
+const wildsRectsOf = (g) => {
+  const w = g?.geo?.wilds ?? { x0: 1, x1: 34, y0: 1, y1: 22 };
+  return Array.isArray(w) ? w : [w];
+};
 const inWilds = (g, x, y) => {
-  const r = wildsRectOf(g);
-  return x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1;
+  for (const r of wildsRectsOf(g))
+    if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1) return true;
+  return false;
 };
 // the city of Anchor (spec 2d): mob-forbidden bounds
 function cityRectOf(g) {
@@ -4367,7 +4454,7 @@ const RECIPES = {
   'iron-javelin': { iron: 1, logs: 1 },
   'steel-javelin': { steel: 1, logs: 1 },
   'star-javelin': { 'star-ingot': 1, ironbark: 1 },
-  'iron-maul': { iron: 2, logs: 1 },
+  'iron-mell': { iron: 2, logs: 1 },
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
   // fletch input, because a bow made by a fletcher belongs to fletching.
@@ -4430,7 +4517,7 @@ const RECIPES = {
   // countries stand behind every shot.
   'shot': { 'iron': 1, 'gunpowder': 1 },
   'star-spear': { 'star-ingot': 6, 'ironbark': 1 },
-  'star-maul': { 'star-ingot': 9, 'ironbark': 1 },
+  'star-mell': { 'star-ingot': 9, 'ironbark': 1 },
   // §6bt: the mastery arms. Starmetal for the body of the thing, brimstone for
   // what it does, ironbark where the wood is structural -- the same three-part
   // shape every hafted star weapon already has.
@@ -4467,10 +4554,10 @@ const RECIPES = {
   'shell-plate': { 'crab-shell': 4, 'iron': 2 },
   'great-sword': { 'star-alloy': 5, 'ironbark': 1 },
   'great-crossbow': { 'star-alloy': 4, 'ironbark': 1 },
-  'great-maul': { 'star-alloy': 6, 'ironbark': 1 },
+  'great-mell': { 'star-alloy': 6, 'ironbark': 1 },
   // WOOD WHERE THE WOOD IS STRUCTURAL, and nowhere else.
   //
-  // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a maul is
+  // A hatchet is a head and a HAFT; a spear is a point and a SHAFT; a mell is
   // weight on a handle; a crossbow has a stock. Take the wood away and there
   // is nothing to hold. But a helm and a plate are beaten out of sheet and a
   // sword is a blade with a tang -- there is no timber in any of them, and
@@ -4548,7 +4635,7 @@ const RECIPES = {
   'steel-hatchet':  { 'steel': 1, 'oak-logs': 1 },
   'steel-pickaxe':  { 'steel': 1, 'oak-logs': 1 },
   'steel-sword':    { 'steel': 1 },
-  'steel-maul':     { 'steel': 2, 'oak-logs': 1 },   // §6bt: weight on a handle
+  'steel-mell':     { 'steel': 2, 'oak-logs': 1 },   // §6bt: weight on a handle
   'steel-helm':     { 'steel': 1 },
   'steel-plate':    { 'steel': 2 },
   'steel-dagger':   { 'steel': 1 },
@@ -4784,7 +4871,7 @@ const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'star-helm': 'he
 const SMITH_REQS = {
   // THE BRONZE LADDER, which this table did not have.
   //
-  // Star has one -- helm 40, tools 42, sword 45, spear 46, plate 50, maul 52 --
+  // Star has one -- helm 40, tools 42, sword 45, spear 46, plate 50, mell 52 --
   // and bronze had nothing at all, so a citizen of smithing 1 could beat out a
   // bronze plate on their first afternoon. Worse, a window had quietly invented
   // a ladder of its own and been greying out work the world would have done.
@@ -4792,7 +4879,7 @@ const SMITH_REQS = {
   // Built on what star is built on: the material it eats and the shaping it
   // needs. A dagger is one ore and the simplest thing that cuts; a hatchet is a
   // head and an eye; a spear is a socket and a shaft; a helm is raised from
-  // sheet, which is real work; a sword wants an edge and a fuller; a maul is a
+  // sheet, which is real work; a sword wants an edge and a fuller; a mell is a
   // heavy head to haft true; a plate is the most metal and the most shaping in
   // the range.
   //
@@ -4805,8 +4892,8 @@ const SMITH_REQS = {
   'iron-javelin': { earthcraft: 5 }, 'steel-javelin': { earthcraft: 28 },
   'star-javelin': { earthcraft: 46, sorcery: 26 },
   'iron-helm': { earthcraft: 7 }, 'iron-sword': { earthcraft: 10 },
-  'iron-maul': { earthcraft: 14 }, 'iron-plate': { earthcraft: 20 },
-  'steel-maul': { earthcraft: 42 },
+  'iron-mell': { earthcraft: 14 }, 'iron-plate': { earthcraft: 20 },
+  'steel-mell': { earthcraft: 42 },
   // THE TOOLS A CITIZEN ACTUALLY USES, in the metal everything else comes in.
   //
   // Every other star thing exists and the two a working citizen holds all day
@@ -4818,7 +4905,7 @@ const SMITH_REQS = {
   'star-sword': { earthcraft: 45, sorcery: 25 },
   'star-helm': { earthcraft: 40, sorcery: 20 }, 'star-plate': { earthcraft: 50, sorcery: 30 },
   'star-dagger': { earthcraft: 45, sorcery: 28 },
-  'star-spear': { earthcraft: 46, sorcery: 26 }, 'star-maul': { earthcraft: 52, sorcery: 30 },
+  'star-spear': { earthcraft: 46, sorcery: 26 }, 'star-mell': { earthcraft: 52, sorcery: 30 },
   // §6am (v6): THE MIDDLE LADDER, between the bronze ladder and the star one,
   // and needing no magic -- mid-ore is worked cold by any smith who has come
   // far enough, where starmetal wants a transmuter's hand. Same order of entry
@@ -4859,7 +4946,7 @@ const SMITH_REQS = {
   'barb': { earthcraft: 40 },
   // §6bt: a master smith's work, and the only recipes that ask for brimstone.
   'great-sword': { earthcraft: 70, sorcery: 34 }, 'great-crossbow': { earthcraft: 70, sorcery: 34 },
-  'great-maul': { earthcraft: 70, sorcery: 34 },
+  'great-mell': { earthcraft: 70, sorcery: 34 },
   'great-helm': { earthcraft: 70, sorcery: 34 }, 'great-plate': { earthcraft: 70, sorcery: 34 },
   'shell-helm': { earthcraft: 22 }, 'shell-plate': { earthcraft: 26 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
@@ -4921,7 +5008,7 @@ const countLogs = (inv) => (inv ?? []).reduce((a, sl) => a + (isLog(sl?.item) ? 
 // duel lasts about as long -- sixty seconds against the sixty-six it took
 // before -- but it reads as "miss, miss, THIRTEEN", which is a fight.
 //
-// It also repairs the maul without touching the maul: its whole problem was
+// It also repairs the mell without touching the mell: its whole problem was
 // that low accuracy was punished twice, once in the roll and again by a soak
 // its slow cadence could not out-pace.
 // §7l: a full star suit is helm 16 + plate 24 = 40, which is the ceiling the
@@ -4965,7 +5052,7 @@ const bareBonus = (armour) => {
 //   bonus     0    2    6    7    9   10
 //
 // SEVEN AT FIFTEEN is not a coincidence and was not tuned to be one. Fifteen
-// hitpoints is the star-maul's bite -- "against a citizen at fifteen it ends
+// hitpoints is the star-mell's bite -- "against a citizen at fifteen it ends
 // the fight, because they do not get a later". The interval where this weapon
 // becomes worth carrying is the interval in which you can be deleted in one
 // blow, and the price is therefore already in the engine: to hold the bonus
@@ -4996,9 +5083,9 @@ const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plat
                  'great-helm': 12, 'great-plate': 18 };   // 6bz/6ca: no shield and no legs here  // 6bb: starmetal's equal, at two hundred times the labour  // §6ao (v6): the Gibbet King's mantle, drop-only  // §6am (v6): mid between bronze and star
 // 6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
 //
-// The star-sword and the star-maul sit in the same wield band, and measured
+// The star-sword and the star-mell sit in the same wield band, and measured
 // against an ARMOURED citizen they were already 87 intervals against 89 -- the
-// maul's -12 accuracy costing exactly what its +5 damage buys. That balance
+// mell's -12 accuracy costing exactly what its +5 damage buys. That balance
 // was not designed and it is remarkably tight, so anything added here has to
 // preserve it.
 //
@@ -5018,7 +5105,7 @@ const ARMOUR = { 'iron-helm': 8, 'iron-plate': 12, 'steel-helm': 12, 'steel-plat
 // the point -- reach and weight are bought with the off hand -- and a weapon
 // that gave a two-tile haft AND a star shield would be answering a question
 // nobody asked it.
-const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'bone-spear', 'iron-maul', 'steel-maul', 'star-maul',
+const TWO_HANDED = new Set(['iron-spear', 'steel-spear', 'star-spear', 'bone-spear', 'iron-mell', 'steel-mell', 'star-mell',
   'great-sword', 'great-crossbow',
   'star-flail', 'old-chain', 'wooden-bow', 'horn-bow', 'sigil-bow', 'heartwood-bow', 'dragonbow',
   'crossbow', 'handgonne', 'staff', 'heartwood-staff', 'goo-staff']);
@@ -5246,7 +5333,7 @@ const T = {
   // the even split reaches neither.
   //
   // Routing by WEAPON was the obvious alternative and it is a trap: the natural
-  // strength weapon is the maul, second-worst damage in the world, so a citizen
+  // strength weapon is the mell, second-worst damage in the world, so a citizen
   // would grind hundreds of hours with a weapon they do not want in order to
   // fight with one they do. It also binds two questions that are not the same
   // question -- what I swing, and what I am becoming -- and it has no honest
@@ -5372,6 +5459,17 @@ const INPUT_SCHEMAS = {
   // the decision is made at the start, when a person is fresh, not at the end,
   // when they are tired and the next thing is always cheap.
   stint: { n: T.qty },
+  // §7dy: PUT A SAPLING IN AN EMPTY PLOT OF THE GROVE.
+  //
+  // NOT `plant`. That verb already exists and sows a seed out of a pack slot
+  // (§6o), and naming this one the same silently replaced it -- the schemas
+  // are an object literal, so the later key simply won -- and farming stopped
+  // working with nothing to show for it until the canonical battery caught it.
+  // A new verb in this world is not done when the engine accepts it.
+  sapling: { nodeId: T.id },
+  // §7dz: SET a willow trap in the run beside you, and LIFT it later.
+  setbuck: {},
+  lift: { nodeId: T.id },
   // §6bv: no argument. A horn says one thing.
   sound: {},
   raise_market: {}, dismantle_market: {},
@@ -5824,10 +5922,27 @@ function isStoodDown(state, pid) {
 }
 // §7dv: WHO MAY BE HEARD AT RANGE. Both halves, and neither alone.
 function maySpeakFar(state, pid) {
+  // §7dx: A VOICE IS NOT A LICENCE ANY MORE.
+  //
+  // This required a tide up AND an open stint, on the amateur-radio analogy:
+  // receiving unrestricted, transmitting licensed. The analogy was good and
+  // the rule was wrong, and closing time is what made it wrong.
+  //
+  // When a session was unbounded, gating the far channel MANUFACTURED a
+  // scarcity that did not otherwise exist. Now presence itself is scarce --
+  // ninety minutes in any rolling day -- and the two scarcities multiplied.
+  // The far channel stands open about a sixth of all intervals, so a citizen
+  // spending their whole allowance could be heard across the island for
+  // roughly fifteen minutes of it. That is not a bounded conversation. That is
+  // mostly not being able to talk, inside a window that was already short.
+  //
+  // And it taxed the wrong thing. The ceiling bounds HOW LONG YOU ARE HERE,
+  // which is the boundary this world wanted. The tide bounded WHETHER YOU
+  // COULD BE HEARD WHILE HERE, which adds no shape and only frustration --
+  // and typing to people while the world goes on around you is most of what
+  // there is to do here.
   const p = state.players?.[pid];
-  if (!p || p.hp <= 0) return false;
-  if (!anyTideOpen(state.genesis, state.tick)) return false;
-  return stintOpen(p, state.tick);
+  return !!p && p.hp > 0;
 }
 // §7dv: WHO MAY BE HEARD NEAR. Distance, and nothing else -- no tide, no
 // stint, no licence. FOLLOW_LOSE is reused deliberately: the distance at
@@ -5972,6 +6087,13 @@ function registerTerrain(id, t) { TERRAINS[id] = t; }
 // These are coordinates, not terrain: they move no tile's walkability and so
 // are not in the geography hash. Read fresh (never cached against a tile array)
 // because the list is tiny and asked only when a citizen actually founds.
+// §7dz: IS THIS TILE WATER? Asked only when somebody sets a buck. `blocked`
+// cannot answer it -- a wall and a river are both blocked -- so a generator
+// says so itself or has no fen to fish.
+function isWaterAt(state, x, y) {
+  const t = TERRAINS[state.genesis.worldGenerator];
+  return !!(t && t.water && t.water(state.genesis, x, y));
+}
 function spanSiteAt(g, x, y) {
   const t = TERRAINS[g.worldGenerator];
   if (!t || !t.spanSites) return null;
@@ -7356,7 +7478,7 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
                            'magic-stone': 175, 'deep-broth': 150, heartwood: 210,
                            'heartwood-bow': 250, 'horn-bow': 245, 'dragon-bones': 285,
                            'star-helm': 261, 'star-dagger': 250, 'star-spear': 270,
-                           'star-sword': 283, 'star-maul': 290, 'star-plate': 300 } },
+                           'star-sword': 283, 'star-mell': 290, 'star-plate': 300 } },
            // watchfires (v0.53): high-tier Firemaking as public infrastructure.
            // A BEACON IS A PUBLIC WORK, NOT A LADDER.
            //
@@ -8620,7 +8742,7 @@ const LANDMARK_KINDS = new Set([
   }
 
   // nodes: constitutional type table, closed field set
-  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin', 'ask',
+  const NODE_FIELDS = new Set(['type', 'x', 'y', 'depletedUntil', 'expiresAt', 'plantedAt', 'by', 'species', 'sownAt', 'grove', 'setAt', 'setBy', 'text', 'readyAt', 'brewKind', 'lastUsed', 'fuelUntil', 'shelf', 'kind', 'founderKey', 'name', 'tag', 'coin', 'ask',
     // §6bp: what a dedication stone carries -- how many names it has borne,
     // and the last few of them.
     'count', 'past',
@@ -9743,20 +9865,13 @@ function validInput(state, input, ctx) {
       // which this world says you are no longer together is exactly the
       // distance at which it should refuse to say you were.
       if (Math.max(Math.abs(p.x - ft.x), Math.abs(p.y - ft.y)) > FOLLOW_LOSE) return false;
-      // §7dv: AND BOTH OF YOU MUST HAVE SAID YOU WOULD BE HERE.
-      //
-      // A world with tides gates the keeping of a name on a tide being up and
-      // on BOTH citizens standing inside a stint they swore in advance. Not
-      // to make names scarce -- to make them mean the one thing they should:
-      // that two people who each promised, separately and beforehand, to be
-      // present, then were, in the same place, at the same time.
-      //
-      // The bond does not expire when the tide turns. The contact is bounded;
-      // the record of it is not. That asymmetry is the whole point of it.
-      if (state.genesis.tide) {
-        if (!anyTideOpen(state.genesis, state.tick)) return false;
-        if (!stintOpen(p, state.tick) || !stintOpen(ft, state.tick)) return false;
-      }
+      // §7dx: AND NOTHING ELSE. The gate that stood here required a tide up
+      // and both citizens inside sworn stints. It fell for the same reason the
+      // chat gate fell: inside a ninety-minute allowance, a name you could
+      // only keep during a sixth of it is a name you mostly cannot keep, and
+      // two people who spent a whole evening together should not be told the
+      // band was shut. §7cn stands as it was written -- be near somebody
+      // living, and the name is yours.
       const fl = p.friends ?? [];
       if (fl.includes(input.targetId)) return false;
       return fl.length < FRIEND_CAP;
@@ -10085,7 +10200,7 @@ function validInput(state, input, ctx) {
 
       // §6af: 'now' interrupts your own rhythm ONCE — it does not exempt you
       // from the cost. This read `spec !== 'now'`, which skipped the arm check
-      // entirely and let the maul special EVERY TICK forever: seven to
+      // entirely and let the mell special EVERY TICK forever: seven to
       // seventeen a tick against a normal three, and the damage-neutrality
       // the whole design rests on simply did not hold for it.
       //
@@ -10140,6 +10255,39 @@ function validInput(state, input, ctx) {
       const cheb = Math.max(Math.abs(p.x - q.x), Math.abs(p.y - q.y));
       return cheb <= reachOf(p) && isRanged(p)
         && (weaponOf(p)?.noAmmo === true || p.inventory.some(sl => sl?.item === ammoOf(p)));
+    }
+    case 'setbuck': {
+      // §7dz: THE CHOICE OF RUN IS THE SKILL. A grove is fixed and public and
+      // you maintain it; a buck is placed and yours and you choose where. Same
+      // deferred shape, opposite relationship to the ground -- which is what
+      // makes the two read as different lives rather than one mechanic painted
+      // twice.
+      if (p.hp <= 0) return false;
+      const lvl = effLevel(p.skills.shorecraft);
+      if (bucksAllowed(lvl) < 1) return false;
+      if (countItem(p.inventory, 'logs') < 1) return false;   // willow, and any log is willow enough
+      // beside water, and not on top of another node
+      let wet = false;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+        if (isWaterAt(state, p.x + dx, p.y + dy)) wet = true;
+      if (!wet) return false;
+      for (const id of Object.keys(state.nodes)) {
+        const n = state.nodes[id];
+        if (n.x === p.x && n.y === p.y) return false;
+      }
+      // and no more than the level allows
+      let mine = 0;
+      for (const id of Object.keys(state.nodes))
+        if (state.nodes[id].type === 'eel-buck' && state.nodes[id].setBy === input.playerId) mine++;
+      return mine < bucksAllowed(lvl);
+    }
+    case 'lift': {
+      const n = state.nodes[input.nodeId];
+      if (!n || n.type !== 'eel-buck' || !adjacent(p, n)) return false;
+      // §7dz: ANYBODY MAY LIFT A BUCK. §7c said working an eel spot is
+      // "emptying somebody's trap" and meant it. A trap left in the fen is in
+      // the fen; the citizen who set it has a claim of habit and not of law.
+      return state.tick - n.setAt >= BUCK_FILL_TICKS;
     }
     case 'plant': {
       const sl = p.inventory[input.slot];
@@ -10380,6 +10528,17 @@ function validInput(state, input, ctx) {
       if (!sw || sw.type !== 'spanwork' || !atOrBeside(p, sw)) return false;
       if (!isInt(input.n, 1, sp.perLay)) return false;   // a signed count, bounded by the rate
       return countItem(p.inventory, 'planks') >= 1;
+    }
+    case 'sapling': {
+      // §7dy: the plot decides the species, not the sapling. A citizen cannot
+      // haul acorns to the ironbark stand and make it a mixed wood -- each of
+      // these two places is a place for ONE thing, which is the whole reason
+      // the stands are where they are and why the ring is only eight deep.
+      const n = state.nodes[input.nodeId];
+      if (!n || n.type !== 'grove-plot' || n.sownAt || !GROVE_SPECIES[n.species]) return false;
+      if (!adjacent(p, n)) return false;
+      if (effLevel(p.skills.hearthcraft) < GROVE_PLANT_LEVEL) return false;
+      return countItem(p.inventory, 'sapling') >= 1;
     }
     case 'stint': {
       // §7dv: SWEAR A LENGTH. Bounded by the founding's cap, so the far
@@ -12371,6 +12530,105 @@ function nextState(state, inputs, _legacyBeacon) {
     // §21c: only a citizen who HAS a deed is written to; the rest are read
     // and left alone, which is the whole point of the guard.
     if (s.players[pid].deed !== undefined) delete ownPlayer(s, pid).deed;
+  }
+  // §7dx: THE TIDE STILL TURNS, AND IT NO LONGER ASKS ANYBODY'S PERMISSION.
+  //
+  // With both gates gone the tide permits nothing. It is kept anyway, and the
+  // reason is worth writing down: a SCHELLING POINT is not a rule. It is a
+  // moment everybody can compute, forecast and agree on without being made to.
+  // Ninety minutes each and a world spread across every timezone would
+  // otherwise scatter people into windows that never overlap; what fixes that
+  // is not a permission but a shared hour that nobody chose and everybody can
+  // read. "At the deep tide" is a thing two strangers can agree to without
+  // either of them being able to move it.
+  //
+  // Only the LONGEST tide speaks. The short one turns twenty times a day and
+  // an announcement that frequent is not an event, it is wallpaper.
+  {
+    const _td = s.genesis.tide;
+    if (_td && _td.periods.length) {
+      const _i = _td.periods.length - 1;
+      const _now = tideUp(s.genesis, s.tick, _i), _then = tideUp(s.genesis, s.tick - 1, _i);
+      if (_now !== _then) {
+        if (_now) {
+          // §7dx: THE PLACE IS NOT AUTHORED. IT IS OBSERVED.
+          //
+          // A Schelling point wants a time AND a place. Asked to meet a
+          // stranger in a city with no way to arrange it, people converge on
+          // the station at noon: noon is the time, the station is the place,
+          // and neither was decreed. An announcement with only the hour in it
+          // leaves "where?" unanswered, so the tide reports where citizens
+          // ACTUALLY STOOD last time, and the reporting is what makes the
+          // convention.
+          //
+          // Nobody chose it. It stays the place only while people keep going,
+          // and if a few deliberately gather elsewhere for a tide or two the
+          // announcement follows them. This is a feedback loop and it is meant
+          // to be one -- but it names a POSITION, never a settlement, because
+          // settlement names live in worldgen and the engine must stay pure.
+          // The window knows what is at those coordinates and can say so.
+          const _here = Object.keys(s.players).sort().filter((id) => {
+            const q = s.players[id];
+            return q.hp > 0 && stintPresent(q, s.tick, s.genesis.stint ? s.genesis.stint.sample : SLEEP_AFTER);
+          });
+          let _best = null, _bn = 0;
+          for (const a of _here) {
+            const pa = s.players[a];
+            let n = 0;
+            for (const b of _here) {
+              const pb = s.players[b];
+              if (Math.max(Math.abs(pa.x - pb.x), Math.abs(pa.y - pb.y)) <= FOLLOW_LOSE) n++;
+            }
+            if (n > _bn) { _bn = n; _best = pa; }   // id order above makes ties deterministic
+          }
+          if (s.moot && s.tick - s.moot.at > MOOT_FORGET) delete s.moot;
+          const _m = s.moot;
+          announce(s, _m && s.tick - _m.at <= MOOT_FORGET
+            ? 'The deep tide is up. Last tide, most stood near ' + _m.x + ',' + _m.y + '.'
+            : 'The deep tide is up.');
+        } else {
+          // MEASURED AT THE CLOSE, ANNOUNCED AT THE NEXT OPENING. The first
+          // cut of this counted heads the instant the tide OPENED -- before
+          // anybody had heard the announcement -- so it recorded where people
+          // already happened to be and never where the announcement had
+          // actually drawn them. The feedback loop was severed at exactly the
+          // point that makes it a loop. It now reads the crowd the tide
+          // gathered, and reports it next time.
+          const _sample = s.genesis.stint ? s.genesis.stint.sample : SLEEP_AFTER;
+          const _here = Object.keys(s.players).sort().filter((id) => {
+            const q = s.players[id];
+            return q.hp > 0 && stintPresent(q, s.tick, _sample);
+          });
+          let _best = null, _bn = 0;
+          for (const a of _here) {
+            const pa = s.players[a];
+            let n = 0;
+            for (const b of _here) {
+              const pb = s.players[b];
+              if (Math.max(Math.abs(pa.x - pb.x), Math.abs(pa.y - pb.y)) <= FOLLOW_LOSE) n++;
+            }
+            if (n > _bn) { _bn = n; _best = pa; }   // id order above makes ties deterministic
+          }
+          if (_bn >= MOOT_MIN) s.moot = { at: s.tick, x: _best.x, y: _best.y, n: _bn };
+          announce(s, 'The deep tide has turned.');
+        }
+      }
+    }
+  }
+  // §7dy: THE GROVE COMES ON. Sixteen plots in the world, swept once an
+  // interval, and the flip is the whole mechanism: a ripe plot BECOMES a node
+  // of its own species, so gathering, tools, level gates, experience and every
+  // window that already knows how to draw an oak get this for nothing. Not one
+  // line of the gather path knows a grove exists.
+  for (const _gid of Object.keys(s.nodes).sort()) {
+    const _gn = s.nodes[_gid];
+    if (_gn.type !== 'grove-plot' || !_gn.sownAt) continue;
+    if (s.tick - _gn.sownAt < TREE_GROW_TICKS) continue;
+    const _sp = GROVE_SPECIES[_gn.species];
+    if (!_sp) continue;
+    const _own = ownNode(s, _gid);
+    _own.type = _sp; _own.grove = true; delete _own.sownAt;
+    announce(s, 'A ' + _gn.species + ' has come on in the grove.');
   }
   // §7dv: THE STINT IS SAMPLED, AND THEN IT SETTLES.
   //
@@ -14381,7 +14639,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // execute threshold at two blows and nothing at all at six -- six rolls
         // average their own spread away.
         //
-        // So the maul, whose whole identity is the largest single blow in the
+        // So the mell, whose whole identity is the largest single blow in the
         // world, becomes a HAYMAKER: two blows at two and a half times, which
         // is the same expected burst on the same recovery of ten. The dagger
         // stays a flurry. A citizen now picks a shape as well as a weapon.
@@ -14404,6 +14662,32 @@ function nextState(state, inputs, _legacyBeacon) {
           : Math.round(ord9 * bite9);
         const acc9 = hitChance256(lvl9, defL9, w9.acc ?? 0,
           w9.pierces === true ? 0 : guardOf(q)); // §6x-ii: a flail ignores steel, §5r
+        // §6ag: THE WHOLE BLOW. The mell's special, and the only one in this
+        // table that is damage-neutral BY CONSTRUCTION rather than by a
+        // measured pair of numbers.
+        //
+        // A blow rolls `styleRoll`, whose mean is (M+1)/2 for EVERY style --
+        // the inset moves the range's ends inward by the same amount at both
+        // ends, so it changes the spread and never the average. A whole blow
+        // does not roll: it lands the top of that same range, M - inset. So
+        // the chance is scaled by mean/max and the expectation is unchanged,
+        // exactly, with no constant to tune and no `bite` in the row.
+        //
+        // What it sells is VARIANCE, which is a currency no other special in
+        // this world trades in. `flurry` and `now` rearrange damage in TIME;
+        // this rearranges it in SHAPE. And it selects its own domain the same
+        // way: against four hundred points of dragon a fatter tail is worth
+        // nothing, and against a citizen one good blow from dead it is the
+        // whole fight.
+        //
+        // It waits for the arm, unlike `now`, so there is no combo to measure
+        // -- the ceiling is two whole blows and nothing may land on top of it.
+        const inset9 = styleInset(maxHit9, inp.style ?? 'even');
+        const whole9 = w9.spec === 'whole';
+        const wholeHit9 = Math.max(1, maxHit9 - inset9);
+        const accEff9 = whole9
+          ? Math.max(1, Math.round(acc9 * ((maxHit9 + 1) / 2) / wholeHit9))
+          : acc9;
         // §6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
         //
         // `twice` gave two blows for two intervals of arm: neutral, but a burst
@@ -14420,8 +14704,8 @@ function nextState(state, inputs, _legacyBeacon) {
         //
         // At a shared recovery the burst is dps x recovery, so the DAGGER --
         // best damage rate of anything carrying a special -- owned the biggest
-        // burst, while the maul, whose single blow is the largest in the world
-        // at seventeen, had the smallest. Backwards. The maul now buys a rarer,
+        // burst, while the mell, whose single blow is the largest in the world
+        // at seventeen, had the smallest. Backwards. The mell now buys a rarer,
         // heavier commitment instead: eight blows for twenty-four intervals of
         // arm, the largest burst anybody can throw and the longest hole to
         // stand in afterwards. Neutral all the same.
@@ -14445,7 +14729,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // recovery is neutral across armour), and 'true' was retired. The
           // clause outlived the name and was a trap: anything later called
           // 'true' would have quietly become unmissable.
-          if (roll(beacon, pid, 'spec' + b9) >= acc9) continue;
+          if (roll(beacon, pid, 'spec' + b9) >= accEff9) continue;
           // ARMOUR SOAKS AN ARROW, on a special exactly as on any other shot.
           //
           // This read `drawn9 ? 0`, so a drawn bow ignored armour entirely --
@@ -14459,7 +14743,10 @@ function nextState(state, inputs, _legacyBeacon) {
           // §6ap: armour is in the ROLL now, not in the damage. It subtracts
           // nothing, so a blow that lands lands whole.
           const soak9 = 0;
-          const dmg9 = Math.max(0, styleRoll(roll(beacon, pid, 'specd' + b9), maxHit9, inp.style ?? 'even') - soak9);
+          // a whole blow does not roll; that is the whole of the special
+          const dmg9 = whole9
+            ? Math.max(0, wholeHit9 - soak9)
+            : Math.max(0, styleRoll(roll(beacon, pid, 'specd' + b9), maxHit9, inp.style ?? 'even') - soak9);
           const landed9 = afterShield(q, dmg9, w9);
           // §7ca: A FLURRY IS SIX BLOWS AND SAID SO ONCE.
           //
@@ -14596,7 +14883,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // quietly undid.
         // `now` is gated on `lastSwing <= tick`, not on the full cadence, so
         // its recovery must be written ABSOLUTELY. Netting the cadence out of
-        // it -- as every other special requires -- let the maul fire twice as
+        // it -- as every other special requires -- let the mell fire twice as
         // often as its own rule allowed: 208% of neutral, measured.
         const _ev9 = w9.every ?? 2;
         // §5z: A MASTER FIGHTER'S ARM COMES BACK SOONER.
@@ -14645,6 +14932,55 @@ function nextState(state, inputs, _legacyBeacon) {
         // nothing outside the one country where blood is already legal.
         // §2b-iv: one helper, called from here AND from `special`
         strikeConsequences(s, pid, p, s.players[inp.targetId], inp.targetId);
+      }
+    } else if (inp.type === 'setbuck') {
+      const lvl = effLevel(p.skills.shorecraft);
+      let mine = 0, clash = false;
+      for (const id of Object.keys(s.nodes)) {
+        const n = s.nodes[id];
+        if (n.type === 'eel-buck' && n.setBy === pid) mine++;
+        if (n.x === p.x && n.y === p.y) clash = true;
+      }
+      let wet = false;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
+        if (isWaterAt(s, p.x + dx, p.y + dy)) wet = true;
+      if (p.hp > 0 && wet && !clash && mine < bucksAllowed(lvl) && countItem(p.inventory, 'logs') >= 1) {
+        consumeItem(p.inventory, 'logs', 1);
+        // ids are derived from the setter and the interval, so two nodes
+        // running the same inputs mint the same name for the same trap
+        const bid = 'buck-' + pid.slice(0, 8) + '-' + s.tick;
+        s.nodes[bid] = { type: 'eel-buck', x: p.x, y: p.y, setAt: s.tick, setBy: pid };
+        awardXp(p, 'shorecraft', 15, 'fisher');   // the weaving is an act like any other
+      }
+    } else if (inp.type === 'lift') {
+      const n = s.nodes[inp.nodeId];
+      if (n && n.type === 'eel-buck' && adjacent(p, n) && s.tick - n.setAt >= BUCK_FILL_TICKS) {
+        // §7dz: A TRAP LEFT TOO LONG IS EMPTY, and nothing is taken for it.
+        // An eel dead in a willow cage for a day is not supper. A citizen who
+        // meant to come back and did not has lost the walk and no more.
+        const spoiled = s.tick - n.setAt > BUCK_SPOILS_AFTER;
+        const qty = spoiled ? 0 : (effLevel(p.skills.shorecraft) >= 75 ? 3 : 2);
+        if (qty > 0 && canAddItem(p.inventory, 'eel')) {
+          addItem(p.inventory, 'eel', qty);
+          // §7dz: THE EELS BELONG TO WHOEVER PULLS THEM OUT. THE SKILL BELONGS
+          // TO WHOEVER WOVE THE TRAP AND CHOSE THE RUN.
+          //
+          // Anybody may lift a buck -- §7c said working an eel spot is
+          // "emptying somebody's trap" and meant it. But paying the lifter the
+          // experience made robbing the fen strictly better than working it:
+          // one action for a full catch against one action, one log and half an
+          // hour of waiting. That is a parasite, and the easiest thing in this
+          // world to script.
+          //
+          // So a thief gets supper and no progress. The experience is not
+          // transferred to the setter either -- it is simply gone. Paying an
+          // absent citizen would mean levels arriving while nobody is playing,
+          // and this world does not pay anybody for not being here.
+          if (n.setBy === pid) awardXp(p, 'shorecraft', 21 * qty, 'fisher');
+        }
+        // the willow comes back either way: a lifted buck is a buck you carry
+        if (canAddItem(p.inventory, 'logs')) addItem(p.inventory, 'logs', 1);
+        delete s.nodes[inp.nodeId];
       }
     } else if (inp.type === 'plant') {
       const sl = p.inventory[inp.slot];
@@ -15653,6 +15989,20 @@ function nextState(state, inputs, _legacyBeacon) {
           announce(s, (p.name ?? pid.slice(0, 6))
             + ' draws up the FIRST charter. Somebody may sail who could not.');
       }
+    } else if (inp.type === 'sapling') {
+      const n = s.nodes[inp.nodeId];
+      if (n && n.type === 'grove-plot' && !n.sownAt && GROVE_SPECIES[n.species]
+        && adjacent(p, n) && effLevel(p.skills.hearthcraft) >= GROVE_PLANT_LEVEL
+        && countItem(p.inventory, 'sapling') >= 1) {
+        consumeItem(p.inventory, 'sapling', 1);
+        ownNode(s, inp.nodeId).sownAt = s.tick;
+        // §7dy: AND THE PLANTER IS PAID AT ONCE, in the skill they were
+        // training anyway. Nobody has to be generous. A public good that needs
+        // altruism fails; one that falls out of self-interest does not. The
+        // grove is the side effect of somebody wanting a farming level.
+        // the crop rate, held exactly: 40 xp per 720 intervals of growing
+        awardXp(p, 'hearthcraft', Math.round(40 * (TREE_GROW_TICKS / GROW_TICKS_RIPE)), 'farmer');
+      }
     } else if (inp.type === 'stint') {
       // §7dv: THE OATH LANDS. Re-checked here, not trusted from mayDo: a
       // stint may have been sworn an interval ago and still be running.
@@ -16188,7 +16538,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // The `continue` skipped the WHOLE block when the citizen's arm was not
       // ready -- including the retaliation at the bottom. So the beast only
       // swung on ticks the citizen also swung, and a slow weapon made you
-      // HARDER TO HIT: pick up a maul (every 3) and a troll attacked a third
+      // HARDER TO HIT: pick up a mell (every 3) and a troll attacked a third
       // less often than it would have if you were barehanded. Defence by
       // choosing a heavy weapon, which is not a rule anybody wrote.
       //
@@ -16284,7 +16634,7 @@ function nextState(state, inputs, _legacyBeacon) {
         //
         // A FLOOR rather than a larger base, deliberately. `3 + floor(str/10)`
         // would have added two to every max hit in the world, including a
-        // master's star-maul at ninety-nine -- eleven per cent more damage in
+        // master's star-mell at ninety-nine -- eleven per cent more damage in
         // every duel, and a retune of a system that is correct at the top. The
         // floor binds only while `floor(str/10) + weapon.hit < 2`: a dagger or
         // bare hands under strength twenty, which is a newcomer and nobody
@@ -16780,8 +17130,23 @@ function nextState(state, inputs, _legacyBeacon) {
       if (isGold) depTicks = GOLD_DEPLETE_TICKS;
       // §21e: a seam that goes dark is one of the few nodes an interval writes
       // to, so it is copied here and the other ten thousand are left alone.
-      if (depTicks > 0 && roll(beacon, pid, 'deplete') % depOneIn === 0)
-        ownNode(s, p.action.nodeId).depletedUntil = s.tick + depTicks;
+      if (depTicks > 0 && roll(beacon, pid, 'deplete') % depOneIn === 0) {
+        // §7dy: A PLANTED TREE DOES NOT COME BACK BY ITSELF. The wild stands
+        // still respawn exactly as they did -- nothing anybody can do removes
+        // what worldgen placed, which is what keeps a stand from being a
+        // griefing surface. A GROWN one reverts to the empty plot it was, and
+        // drops the sapling that lets somebody start it again. The loop closes
+        // itself: felling produces the means to replant, so a bald ring is a
+        // thing people chose rather than a thing that merely happened.
+        const _fn = s.nodes[p.action.nodeId];
+        if (_fn && _fn.grove) {
+          const _o = ownNode(s, p.action.nodeId);
+          _o.type = 'grove-plot'; delete _o.grove; delete _o.depletedUntil;
+          if (canAddItem(p.inventory, 'sapling')) addItem(p.inventory, 'sapling', 1);
+        } else {
+          ownNode(s, p.action.nodeId).depletedUntil = s.tick + depTicks;
+        }
+      }
     }
   }
 
@@ -17047,6 +17412,8 @@ module.exports = {
   // to be believed.
   tideUp, tidesOpen, anyTideOpen, nextTideTurn,
   stintOpen, stintPresent, maySpeakFar, withinEarshot, KNOWN_CAP,
+  // §7dz: so a window can show where a buck may be set
+  isWaterAt, bucksAllowed, BUCK_FILL_TICKS, BUCK_SPOILS_AFTER,
   // §7dw: closing time -- a window must be able to draw the clock
   ceilingLeft, isStoodDown, ceilStood, CEIL_BINS,
   SPEC_VERSION, TICK_MS, INV_SLOTS,

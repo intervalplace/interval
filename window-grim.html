@@ -459,7 +459,7 @@ function itemSprite(item) {
       g.strokeStyle = MAT.leather.mid; g.lineWidth = 1.4                 // the binding
       g.beginPath(); g.moveTo(13.6, 14); g.lineTo(18.4, 15.4); g.stroke()
       break }
-    case 'bronze-maul': case 'star-maul': {
+    case 'bronze-mell': case 'star-mell': {
       const m = item[0] === 's' ? MAT.star : MAT.bronze
       forged([[15,8],[17,8],[17,30],[15,30]], MAT.wood)
       forged([[8,5],[24,5],[25,11],[24,17],[8,17],[7,11]], m, item[0]==='s' ? 'rgba(120,220,255,.5)' : null)
@@ -616,9 +616,9 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
   : undefined, has: () => true })
 const EQUIPPABLE = new Set([
   // kept in step with the engine by check-equip.mjs.
-  'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-maul',
+  'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-mell',
   'bronze-hatchet', 'bronze-pickaxe', 'bronze-helm', 'bronze-plate',
-  'star-sword', 'star-dagger', 'star-spear', 'star-maul',
+  'star-sword', 'star-dagger', 'star-spear', 'star-mell',
   'star-helm', 'star-plate',
   'wooden-bow', 'horn-bow', 'crossbow', 'sigil-bow', 'heartwood-bow',
   'old-chain', 'dragonbow',
@@ -1030,7 +1030,7 @@ const FORGE = {
   'bronze-spear':   { ore: 1, logs: 1 },
   'bronze-helm':    { ore: 1, logs: 1 },
   'bronze-sword':   { ore: 2, logs: 1 },
-  'bronze-maul':    { ore: 2, logs: 1 },
+  'bronze-mell':    { ore: 2, logs: 1 },
   'bronze-plate':   { ore: 3, logs: 1 },
   'crossbow':       { ore: 2, logs: 2 },
   'sigil-bow':      { 'horn-bow': 1, sigil: 3 },
@@ -1038,14 +1038,14 @@ const FORGE = {
   'star-spear':     { 'magic-stone': 2, ore: 1, logs: 1 },
   'star-dagger':    { 'magic-stone': 2, ore: 1 },
   'star-sword':     { 'magic-stone': 3, ore: 2 },
-  'star-maul':      { 'magic-stone': 3, ore: 2, logs: 1 },
+  'star-mell':      { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-flail':     { 'magic-stone': 3, ore: 2, logs: 1 },
   'star-plate':     { 'magic-stone': 4, ore: 3 },
 }
 const FORGE_REQ = {
   'star-sword': { smithing: 20, magic: 10 }, 'star-helm': { smithing: 15, magic: 5 },
   'star-plate': { smithing: 30, magic: 15 }, 'star-dagger': { smithing: 20, magic: 15 },
-  'star-spear': { smithing: 22, magic: 12 }, 'star-maul': { smithing: 28, magic: 15 },
+  'star-spear': { smithing: 22, magic: 12 }, 'star-mell': { smithing: 28, magic: 15 },
   'star-flail': { smithing: 26, magic: 14 },
   'crossbow': { smithing: 18 }, 'bronze-flail': { smithing: 8 },
   'sigil-bow': { smithing: 12, magic: 25 },
@@ -1206,7 +1206,7 @@ const huntsMe = (m, myId2, cx2, cy2) => {
 } // derived from their stats rows (skeleton: highest atk/def/hit, above the troll)
 // §6af: which weapons can strike off the rhythm, and what each one does.
 // Character for character from engine WEAPONS.
-const SPEC_OF = { 'star-dagger': 'twice', 'star-maul': 'now', 'horn-bow': 'true' }
+const SPEC_OF = { 'star-dagger': 'twice', 'star-mell': 'now', 'horn-bow': 'true' }
 const SPEC_SAYS = { twice: 'two blows in one tick', now: 'swings whatever your arm says',
                     'true': 'the shot cannot miss' }
 // ARMED, not fired. A special is a decision, so it is taken in two steps:

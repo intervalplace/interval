@@ -1173,26 +1173,21 @@ export class IntervalNode {
     if (typeof msg.text !== 'string' || msg.text.length === 0 || msg.text.length > 80) return false
     if (msg.worldId !== this.worldId) return false // §2.3: chat is world-bound
     if (!E.verifyInputSig(msg, E.SIG_DOMAINS.chat)) return false // §2.3: chat domain, never replayable as an input
-    // §7dv: A VOICE HAS A REACH, AND THE FAR ONE IS LICENSED.
+    // §7dx: A VOICE STILL HAS A REACH, AND NEITHER END OF IT IS LICENSED.
     //
-    // Chat is still not world state and still never touches a hash (§9c).
-    // What changed is that a frame now says how far it means to carry, and
-    // every node can check that claim against state it already has. `near` is
-    // never gated -- speech to somebody standing beside you is not the
-    // network, it is being somewhere. `far` needs a tide up and the speaker
-    // inside a stint they swore in advance.
+    // Chat remains auxiliary in every respect (§9c): not world state, never in
+    // a hash, its own gossip topic. `scope` remains, because near and far are
+    // genuinely different things to say -- the people around you, or the whole
+    // island. It is a CHANNEL now, not a permission.
     //
-    // The tide is checked at the frame's OWN interval, exactly, because it is
-    // a pure function of the count and gossip is slow. The stint is checked
-    // against the state this node holds now -- an approximation, and an
-    // honest one: a stint that closed in the seconds a frame spent in flight
-    // costs its speaker one message, and nothing in consensus depends on it.
+    // The gate that stood here wanted a tide up and an open stint. Closing
+    // time made it redundant and then harmful: presence is already rationed to
+    // ninety minutes, and rationing the voice inside it as well left a citizen
+    // able to be heard for a sixth of an already-short evening. Flooding is
+    // held off by what it always was -- one frame per interval per key -- and
+    // now also by the ceiling, which caps any one key at ninety minutes of
+    // saying anything at all.
     if (msg.scope !== 'near' && msg.scope !== 'far') return false
-    if (msg.scope === 'far') {
-      if (!Number.isInteger(msg.tick)) return false
-      if (!E.anyTideOpen(this.state.genesis, msg.tick)) return false
-      if (!E.stintOpen(this.state.players?.[msg.playerId], this.state.tick)) return false
-    }
     const now = Date.now()
     if (now - (this._chatLast.get(msg.playerId) ?? 0) < E.TICK_MS) return false
     if (this._chatLast.size >= LIMITS.MAX_CHAT_SENDERS && !this._chatLast.has(msg.playerId)) {
