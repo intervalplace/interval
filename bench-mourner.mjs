@@ -87,8 +87,8 @@ const bot = new Mourner(client, { name: 'ashkeeper', say })
 // wakes. A spread of kinds, because the trade is about VARIETY and a bench
 // that endowed one kind would prove nothing about the ledger.
 const ENDOWMENT = [
-  'great-maul', 'gold-plate', 'gold-legs', 'gold-helm', 'fire-siphon',
-  'star-plate', 'king-shroud', 'star-maul', 'grave-silver', 'heartwood-bow', 'horn-bow',
+  'great-mell', 'gold-plate', 'gold-legs', 'gold-helm', 'fire-siphon',
+  'star-plate', 'king-shroud', 'star-mell', 'grave-silver', 'heartwood-bow', 'horn-bow',
 ]
 let endowed = false
 function endow(s) {

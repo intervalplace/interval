@@ -67,7 +67,7 @@ const tapBtn = (i) => { press(i); frames(2); release(i); frames(2) }
 
 const state = { tick: 900, genesis: { worldW: 64, worldH: 64, genesisSeed: 'pd' },
   players: { me: { x: 20, y: 20, hp: 10, maxHp: 10, gold: 0, skills: {},
-    equipment: { weapon: { item: 'star-maul' } },
+    equipment: { weapon: { item: 'star-mell' } },
     inventory: [{ item: 'logs' }, { item: 'cooked-fish' }] } },
   mobs: { g1: { type: 'goblin', hp: 5, x: 21, y: 20 } },
   nodes: { t1: { type: 'tree', x: 19, y: 20, depletedUntil: 0 } }, ground: {} }

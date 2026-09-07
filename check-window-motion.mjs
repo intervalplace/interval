@@ -109,7 +109,7 @@ ok(top() < flying, 'and it arrives, rather than hanging there')
 frames(40)
 const n2 = top()
 const sp1 = base({ tick: 920 })
-sp1.players.pal.equipment = { weapon: { item: 'star-maul' } }
+sp1.players.pal.equipment = { weapon: { item: 'star-mell' } }
 sp1.players.pal.lastSwing = 930                 // an arm spent PAST this tick
 sp1.players.pal.action = { type: 'attack', mobId: 'g1' }
 send({ type: 'state', state: sp1, worldId: 'w' }); frames(2)
@@ -117,7 +117,7 @@ ok(top() > n2, "a neighbour's special is visible from across the field (" + n2 +
 frames(60)
 // and yours: C with a weapon that has one
 const mine2 = base({ tick: 940 })
-mine2.players.me.equipment = { weapon: { item: 'star-maul' } }
+mine2.players.me.equipment = { weapon: { item: 'star-mell' } }
 mine2.mobs.g1 = { type: 'goblin', hp: 9, x: 21, y: 20 }
 send({ type: 'state', state: mine2, worldId: 'w' }); frames(2)
 const n3 = top()

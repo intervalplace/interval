@@ -180,10 +180,10 @@ const arm = (item) => { voiced.length = 0; const w = JSON.parse(JSON.stringify(s
   count(() => tap(' '))
   return voiced.filter(v => /Hz/.test(v)).join(' ') }
 const bySteel = {}
-for (const it of ['star-maul', 'iron-dagger', 'iron-spear', 'wooden-bow', 'staff', 'iron-sword'])
+for (const it of ['star-mell', 'iron-dagger', 'iron-spear', 'wooden-bow', 'staff', 'iron-sword'])
   bySteel[it] = arm(it)
 const kinds = new Set(Object.values(bySteel))
-ok(kinds.size >= 3, 'a maul, a dagger, a spear, a bow, a staff and a sword do not all sound alike ('
+ok(kinds.size >= 3, 'a mell, a dagger, a spear, a bow, a staff and a sword do not all sound alike ('
    + Object.entries(bySteel).map(([k, v]) => k + ':' + v).join(' ') + ')')
 // ---- §THE GROUND UNDER YOUR FEET SOUNDS LIKE THE GROUND YOU CAN SEE ----
 //
@@ -261,9 +261,9 @@ const land = (weapon) => { voiced.length = 0
   send({ type: 'state', state: b, worldId: 'w' }); frames(2)
   return voiced.filter(v => /filter|Hz/.test(v)).join(' ')
 }
-const maul = land('star-maul'), dagger = land('iron-dagger'), spear = land('iron-spear')
-const distinctHits = new Set([maul, dagger, spear].filter(Boolean))
-ok(distinctHits.size >= 2, 'a maul landing, a dagger landing and a spear landing are not one thud ('
+const mell = land('star-mell'), dagger = land('iron-dagger'), spear = land('iron-spear')
+const distinctHits = new Set([mell, dagger, spear].filter(Boolean))
+ok(distinctHits.size >= 2, 'a mell landing, a dagger landing and a spear landing are not one thud ('
    + distinctHits.size + ' of 3 distinct)')
 console.log(bad ? '\n  ' + bad + ' failed'
   : '\n  ok    every deed, weapon, country and beast has a noise of its own')

@@ -68,6 +68,7 @@ const REGION_STEM = {
   'the Moor': 'theme-moor',
   'the Wilds': 'theme-wilds',
   'the Deep': 'theme-gallery',
+  'Scaleshore': 'theme-gallery',
   // the Sea and the Bridge stay silent on purpose: a world that goes quiet at
   // the water's edge is better than one with a cue for every tile.
 }

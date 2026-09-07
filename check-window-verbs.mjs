@@ -85,8 +85,8 @@ for (const b of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m
 // ---------- a world with something to do in every direction ----------
 const me = {
   x: 40, y: 40, hp: 6, maxHp: 10, gold: 250, name: '',
-  // a star-maul, because the special is only offered by a weapon that HAS one
-  equipment: { weapon: { item: 'star-maul' }, head: { item: 'iron-helm' }, body: null },
+  // a star-mell, because the special is only offered by a weapon that HAS one
+  equipment: { weapon: { item: 'star-mell' }, head: { item: 'iron-helm' }, body: null },
   bank: { logs: 12, bones: 4 },
   trade: { to: 'pal', giveSlot: 0, wantGold: 5 },
   inventory: [{ item: 'logs', qty: 3 }, { item: 'bones' }, { item: 'seeds' }, { item: 'raw-fish' },
