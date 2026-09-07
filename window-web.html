@@ -8156,7 +8156,17 @@ function onState(s, worldId, local) {
   // about which world a footstep asks permission from. Wielding and clicking
   // kept working throughout because neither goes anywhere near this lock.
   if (me && moveLock && ((me.x === moveLock.x && me.y === moveLock.y) || s.tick >= moveLock.until)) moveLock = null
-  if (!entered) { prev = s; panel(s); return } // wait at the gate
+  // §0g: ...BUT NOUGHT IS PAST THE GATE ALREADY.
+  //
+  // `entered` means TALLYHOLM accepted a spawn. A resident in Nought never has
+  // it and never will while they are there -- and everything below this line
+  // includes the walk planner: the code that turns a click on the ground into
+  // a step. So a resident could set an intent and nothing ever read it.
+  //
+  // Releasing the move lock above this was necessary and nowhere near enough;
+  // the lock was the second gate and this is the first. A practice world whose
+  // residents cannot walk is not practice.
+  if (!entered && !inNought) { prev = s; panel(s); return } // wait at the gate
   // §0e: A WINDOW MUST NOT SEND `spawn` ON ITS OWN INITIATIVE. This window used
   // to birth a soul the instant it noticed one missing, which made the crossing
   // a side effect of loading a page. The crossing is an act; it is done at the
