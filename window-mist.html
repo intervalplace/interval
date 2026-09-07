@@ -494,8 +494,20 @@ const TO_INPUT = (a) => {
   if (d === 'accept_trade') return { type: 'accept_trade', from: a.from }
   if (d === 'cancel_trade') return { type: 'cancel_trade' }
   if (d === 'attackp') return { type: 'attackp', targetId: a.targetId }
+  // §0: `drink` WAS MISSING, AND IT IS THE ONE VERB NOUGHT CANNOT DO WITHOUT.
+  //
+  // Drinking at the fountain is how a resident LEAVES the practice island, so
+  // a bridge without it told somebody standing at the water, with the crossing
+  // ripe and the prompt on screen, that nought had no wiring for the only
+  // thing they were being asked to do. Every other verb here is optional; this
+  // one is the door.
+  //
+  // `sapling`, `setbuck` and `lift` are here for the same reason the canonical
+  // battery exists: a verb the engine accepts and a window cannot send is a
+  // verb that does not really exist.
   if (['gather', 'attack', 'cook', 'eat', 'smith', 'wield', 'buy', 'sell', 'drop', 'light',
-       'bury', 'plant', 'harvest', 'invoke', 'fletch', 'deposit', 'stop', 'chat', 'recall'].includes(d)) {
+       'bury', 'plant', 'harvest', 'invoke', 'fletch', 'deposit', 'stop', 'chat', 'recall',
+       'drink', 'sapling', 'setbuck', 'lift', 'stint', 'sound', 'forage'].includes(d)) {
     const o = { type: d }
     for (const k of ['slot', 'nodeId', 'mobId', 'item', 'recipe', 'make', 'text', 'to'])
       if (a[k] !== undefined) o[k] = a[k]

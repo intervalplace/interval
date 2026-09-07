@@ -153,7 +153,19 @@
           justify-content: center; font-size: 17px; cursor: pointer; user-select: none;
           position: relative; overflow: hidden; }
   .slot:hover { outline: 1px solid var(--gold); }
-  #feed { height: 84px; overflow-y: auto; font-size: 10px; color: var(--parch); padding: 4px 6px; }
+  /* §5t-iii: THE LOG IS WHAT IS LEFT, AND IT IS NEVER NOTHING.
+     A fixed 84px in a column that overflowed meant the log was simply pushed
+     off the bottom and gone -- the panel scrolled, so it existed, but nobody
+     scrolls a panel to find out what just happened to them. It now takes the
+     remaining height and keeps a floor of its own, so the pack shrinks before
+     the log does. */
+  #feed { flex: 1 1 auto; min-height: 84px; overflow-y: auto; font-size: 10px; color: var(--parch); padding: 4px 6px; overscroll-behavior: contain; }
+  /* and the two things that must always be reachable sit at the bottom and do
+     not shrink: what just happened, and the box you answer in. */
+  #say, #sndtoggle { flex: 0 0 auto; }
+  /* the pack gives up room first: it is a grid a citizen browses, not a thing
+     they need every second. */
+  #inv { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   #feed div { margin-bottom: 1px; }
   #status { font-size: 10px; color: #8a7a5c; }
   #gate {
@@ -297,11 +309,18 @@
   <div id="panel" class="stone">
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
-  <div id="equip" style="font-size:12px;padding:4px 6px;background:var(--stone-dk);cursor:pointer"></div>
+  <!-- §5t-iii: THE GEAR LINE IS GONE. It read "Weapon: iron hatchet · Head:
+       iron helm · Body: iron plate" directly above a WORN grid showing the
+       same three things as pictures, in slots you can now tap to take them
+       off. Two tellings of one fact, and the duplicate was costing four lines
+       at the top of a panel that had run out of room for the log.
+       `#equip` stays in the markup, hidden, because the sheathe tap and a
+       good deal of panel code still write to it; it simply is not shown. -->
+  <div id="equip" style="display:none"></div>
     <div id="specbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
       color:var(--gold);letter-spacing:1px"></div>
-    <div id="stylebar" style="margin-top:3px" title="how you swing: 1 aim, 2 even, 3 force"></div>
+
     <div id="bookbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--stone-lt);cursor:pointer;
       color:var(--gold);letter-spacing:1px">SPELLS</div>
@@ -313,6 +332,9 @@
     <h2>Skills</h2><div id="skills"></div>
     <h2 id="friendsh" style="display:none">Names you keep</h2><div id="friends" style="font-size:12px"></div>
     <h2>Worn</h2><div id="worn"></div>
+    <!-- §5t-iii: and how you swing sits under the hand it applies to, rather
+         than four lines above in a header that no longer exists. -->
+    <div id="stylebar" style="margin-top:2px" title="how you swing: 1 aim, 2 even, 3 force"></div>
     <h2>Pack</h2><div id="inv"></div>
     <div id="itemname"></div>
     <div id="feed" class="stone"></div>
@@ -5507,6 +5529,13 @@ const BRIDGE_TO_INPUT = (a) =>
   // they could not drink at a well, transmute anything, choose their own face,
   // or send a mending to somebody who needed it.
   : a.do === 'drink' ? { type: 'drink' }
+  // §7dy/§7dz: the deferred acts. The canonical battery caught these missing
+  // from the SDK and nothing was checking the windows, so they were reachable
+  // from neither -- a verb the engine accepts and no window can send is a verb
+  // that does not really exist.
+  : a.do === 'sapling' ? { type: 'sapling', nodeId: a.nodeId }
+  : a.do === 'setbuck' ? { type: 'setbuck' }
+  : a.do === 'lift' ? { type: 'lift', nodeId: a.nodeId }
   // §14: the toll on the Millbrook Bridge
   : a.do === 'pay' ? { type: 'pay' }
   : a.do === 'grind' ? { type: 'grind', slot: a.slot }
