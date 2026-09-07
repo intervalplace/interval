@@ -135,10 +135,17 @@
      quarter of the panel's width each is a diagram taking more room than the
      twenty-four cells below it, and the pack was being cropped to pay for it.
      A max-width on the grid keeps the shape and gives the space back. */
+  /* §5t-v: THE BODY KEEPS ITS SHAPE WHEN IT IS BARE.
+     `justify-items: center` stops a grid item stretching, so an EMPTY slot --
+     which holds nothing but an absolutely-positioned label, and therefore has
+     no in-flow content at all -- sized itself to nothing and the whole diagram
+     folded up. It came back the moment anything was worn, which is what made
+     it look like a rendering glitch rather than a sizing rule.
+     The cells stretch now, and carry their own floor besides. */
   #worn { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
-          justify-items: center; margin-bottom: 4px;
+          justify-items: stretch; margin-bottom: 4px;
           max-width: 156px; margin-left: auto; margin-right: auto; }
-  .wslot { aspect-ratio: 1; width: 100%; background: var(--stone-dk);
+  .wslot { aspect-ratio: 1; width: 100%; min-width: 34px; min-height: 34px; background: var(--stone-dk);
            border: 1px solid var(--stone-lt); border-radius: 2px; position: relative;
            display: flex; align-items: center; justify-content: center; }
   .wslot.empty { opacity: .38; }
@@ -7141,6 +7148,10 @@ let pickLook = 0, lookSent = -1
 // than one every twelve seconds. A modulo only rations something that runs
 // exactly once per tick, and nothing here does.
 let lookTriedAt = -1
+// §6bz: a wield waiting on the interval after an unwield. One at a time: a
+// second swap before the first has landed replaces it rather than queueing,
+// because a citizen who changed their mind meant the newer one.
+let pendingWield = null
 let _releaseArmed = false   // §11b: releasing loses the route, so it asks twice
 function drawLookPreview() {
   // THE SAME lookOf THE WORLD USES. The first version of this had its own
@@ -7886,6 +7897,12 @@ function onState(s, worldId, local) {
   //
   // A face belongs to a citizen in the world. Nothing in Nought is saved, so
   // there is nothing here for a face to be saved to.
+  // §6bz: the hand is free now, so take up what was waiting for it.
+  if (pendingWield && meL && !meL.action && lastStamped <= s.tick) {
+    const pw = pendingWield; pendingWield = null
+    send({ do: 'wield', slot: pw.slot })
+    feed('You wield the ' + pw.item.replace(/-/g, ' ') + '.')
+  }
   if (!inNought && entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
       && !meL.action                          // busy: the interval is the deed's
       && lastStamped <= s.tick                // no slot already spoken for
@@ -11198,46 +11215,9 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
-      if (n.type === 'looking-glass') {
-        // §7d: the one place on the island you can change your face. The
-        // window used to do this at its own door, which meant a citizen's
-        // appearance was a menu setting; it is a journey now.
-        const meG = world.players[myId]
-        const adjG = Math.abs(meG.x - n.x) + Math.abs(meG.y - n.y) === 1
-        if (!adjG) { feed('A tall glass, clouded at the edges. You would have to stand at it.'); return }
-        // step to the next face and send it. The gate's picker is a preview
-        // screen and does not exist once you are in the world; standing at the
-        // glass, a click IS the change.
-        pickLook = (pickLook + 1) & 255
-        send({ do: 'set_look', look: pickLook })
-        lookSent = pickLook
-        feed('You look at yourself in the glass, and something about you settles differently.')
-        flashClick(n.x, n.y, false)
-        return
-      }
-      if (n.type === 'tollgate') {
-        // §14: THE BAR ON THE MILLBROOK BRIDGE. One ordinary log to the
-        // keeper and it is up for you for two minutes. The point of the toll
-        // is that you can arrive without one, so say so plainly rather than
-        // failing silently -- a gate that refuses you and does not explain is
-        // just a wall.
-        const meT = world.players[myId]
-        const adjT = Math.abs(meT.x - n.x) + Math.abs(meT.y - n.y) === 1
-        if (!adjT) { feed('The bar is down across the bridge. There is a keeper beside it.'); return }
-        const LOGKINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood']
-        const hasLog = (meT.inventory || []).some(sl => sl && sl.item === 'logs')
-        const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
-        if (!hasLog) {
-          feed(hasOther
-            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.'
-            : 'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
-          return
-        }
-        send({ do: 'pay' })
-        feed('You hand over a log. The keeper lifts the bar and goes back to the deck.')
-        flashClick(n.x, n.y, false)
-        return
-      }
+      // §7d-iv: the looking-glass and the tollgate USED TO BE HANDLED HERE,
+      // inside drawScene, and they are click handlers. See the node click
+      // handler below, where they now live.
       if (n.type === 'market') {
         // A CITIZEN'S STALL: trestles, a cloth, a post with their mark, and
         // whatever is actually on the shelf standing on the board.
@@ -15040,10 +15020,22 @@ function invClick(i) {
           + (wornOff ?? wornWeapon ?? 'gear').replace(/-/g, ' ') + ' first.')
         return
       }
+      // §6bz: TWO INPUTS MEANS TWO INTERVALS.
+      //
+      // The engine takes ONE input per key per interval, so sending the
+      // unwield and the wield together threw the second away -- the feed said
+      // both had happened and only the first did. That is worse than the
+      // silent refusal it replaced: it lied.
+      //
+      // So the unwield goes now and the wield is remembered, to be sent on the
+      // next interval that has a free slot. The feed says the first line only;
+      // the second is said when the hand is actually full.
       for (const gear of inTheWay) {
         send({ do: 'unwield', gear })
         feed('You lower the ' + (meW.equipment[gear]?.item ?? gear).replace(/-/g, ' ') + '.')
       }
+      pendingWield = { slot: +i, item: it.item }
+      return
     }
     send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.')
   }
@@ -15378,6 +15370,59 @@ cv.addEventListener('click', (e) => {
       // `depletedUntil` only ever appeared on something you gather from, so the
       // moment a well started carrying one (§6dd) clicking it answered
       // "Nothing left here." and returned before the well's own branch below.
+      // §7d-iv: MOVED OUT OF THE DRAW LOOP.
+      //
+      // These two were sitting inside `drawScene`, which runs once a FRAME.
+      // So a looking-glass anywhere in view fed "A tall glass, clouded at the
+      // edges" sixty times a second -- and, far worse, `return`ed out of
+      // drawScene every frame, so everything the scene drew after that point
+      // never ran at all. That is why a resident in Nought could wield and
+      // click and not walk: the half of the frame that reads a walk intent was
+      // beyond a return that always fired.
+      //
+      // They are click handlers -- they send inputs, they flashClick, they
+      // return to stop the click falling through. They belong here, with the
+      // rest of them.
+      if (n.type === 'looking-glass') {
+        // §7d: the one place on the island you can change your face. The
+        // window used to do this at its own door, which meant a citizen's
+        // appearance was a menu setting; it is a journey now.
+        const meG = world.players[myId]
+        const adjG = Math.abs(meG.x - n.x) + Math.abs(meG.y - n.y) === 1
+        if (!adjG) { feed('A tall glass, clouded at the edges. You would have to stand at it.'); return }
+        // step to the next face and send it. The gate's picker is a preview
+        // screen and does not exist once you are in the world; standing at the
+        // glass, a click IS the change.
+        pickLook = (pickLook + 1) & 255
+        send({ do: 'set_look', look: pickLook })
+        lookSent = pickLook
+        feed('You look at yourself in the glass, and something about you settles differently.')
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'tollgate') {
+        // §14: THE BAR ON THE MILLBROOK BRIDGE. One ordinary log to the
+        // keeper and it is up for you for two minutes. The point of the toll
+        // is that you can arrive without one, so say so plainly rather than
+        // failing silently -- a gate that refuses you and does not explain is
+        // just a wall.
+        const meT = world.players[myId]
+        const adjT = Math.abs(meT.x - n.x) + Math.abs(meT.y - n.y) === 1
+        if (!adjT) { feed('The bar is down across the bridge. There is a keeper beside it.'); return }
+        const LOGKINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood']
+        const hasLog = (meT.inventory || []).some(sl => sl && sl.item === 'logs')
+        const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
+        if (!hasLog) {
+          feed(hasOther
+            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.'
+            : 'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
+          return
+        }
+        send({ do: 'pay' })
+        feed('You hand over a log. The keeper lifts the bar and goes back to the deck.')
+        flashClick(n.x, n.y, false)
+        return
+      }
       if (n.type === 'well' && (n.depletedUntil ?? 0) > world.tick) {
         const secs = Math.max(1, Math.round((n.depletedUntil - world.tick) * 0.6))
         feed('The bucket comes up wet and empty. The well draws down again in about '
