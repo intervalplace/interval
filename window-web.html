@@ -6560,6 +6560,18 @@ function onMessage (ev) {
     // 'arraybuffer' where the socket is opened, so this decode is synchronous
     // and the handler stays exactly as simple as it was.
     m = JSON.parse(typeof ev.data === 'string' ? ev.data : new TextDecoder().decode(ev.data))
+    // WHAT THIS SOCKET IS ACTUALLY SAYING, shown at the door until the world
+    // speaks. A `hello` and then silence looks identical to a broken window
+    // from out here, and the door said "waking the world..." for both -- so
+    // the door now names the frames it has had. If this reads `hello 1` and
+    // nothing else, the window is fine and the pillar is not talking.
+    if (!curState) {
+      window._frames = window._frames || {}
+      window._frames[m.type ?? '?'] = (window._frames[m.type ?? '?'] ?? 0) + 1
+      const gi = document.getElementById('gateinfo')
+      if (gi) gi.innerHTML = 'waking the world&hellip;<br><span style="font-size:10px;opacity:.75">heard: '
+        + Object.entries(window._frames).map(([k, v]) => k + ' \u00d7' + v).join(', ') + '</span>'
+    }
   }
   catch (e) {
     _badFrames++
