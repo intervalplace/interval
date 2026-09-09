@@ -6190,7 +6190,19 @@ function stepToward(s, me, goal, reach, stampTick) {
   //
   // The local world has one citizen and no contention, so there is nothing to
   // allocate: the next interval is always free.
-  const tk = inNought ? (nought ? nought.state.tick + 1 : null) : allocTick()
+  // §0h: AND STAMPED WITH THE INTERVAL NOUGHT ACTUALLY USES.
+  //
+  // This said `tick + 1`, because Tallyholm's allocator hands out FUTURE
+  // intervals -- an input is stamped for a tick the node has not proposed yet.
+  // Nought does not work that way. `noughtDo` stamps every input with
+  // `nought.state.tick`, the CURRENT one, and the engine refuses anything else:
+  // `validInput` demands `input.tick === state.tick` exactly.
+  //
+  // So the number computed here was never the number sent. It did not break
+  // the input -- noughtDo overwrites it -- but it set `moveLock.until` to
+  // tick + 3 for a step that lands on tick, so the lock outlived the step it
+  // was guarding by three intervals, every single time.
+  const tk = inNought ? (nought ? nought.state.tick : null) : allocTick()
   // §2287: two inputs stamped on one interval annihilate, so the allocator
   // gives each deed its own tick and the line is only two deep. When it is
   // full the step is abandoned and re-planned next state -- correct, but
