@@ -6708,6 +6708,27 @@ async function connect (reason) {
   // ...and ask for bytes rather than a Blob, so a patch can be decoded in the
   // handler instead of asynchronously, out of order, after the next one.
   sock.binaryType = 'arraybuffer'
+  // A SOCKET THAT OPENS AND SAYS NOTHING IS NOT THE SAME AS A SOCKET THAT
+  // NEVER OPENED, and the door said "waking the world..." for both.
+  //
+  // The usual cause is a pillar that is founding: building the practice island
+  // blocks its event loop for minutes, so it accepts the connection and then
+  // broadcasts nothing at all. From here that is indistinguishable from a
+  // window that is broken, which is how an afternoon goes looking for a bug in
+  // the wrong place.
+  {
+    let said = false
+    const waited = setTimeout(() => {
+      if (said || curState) return
+      said = true
+      const g = document.getElementById('gateinfo')
+      if (g && !curState) g.innerHTML = 'connected, but this world has not spoken yet.<br>'
+        + '<span style="font-size:11px;opacity:.8">A node that is founding stops answering while it builds. '
+        + 'This can take a few minutes the first time after the rules change.</span>'
+    }, 12000)
+    sock.addEventListener('close', () => clearTimeout(waited))
+    sock.addEventListener('message', () => { clearTimeout(waited) }, { once: true })
+  }
   sock.onopen = () => { reconnectAt = 0; onOpen() }
   sock.onmessage = onMessage
   const drop = () => {
