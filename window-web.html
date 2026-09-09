@@ -8222,6 +8222,13 @@ function onState(s, worldId, local) {
   // shown rather than hidden.
   // §0k: A RESIDENT DOES NOT CLAIM A NAME, AND DOES EVERYTHING ELSE.
   //
+  // NOTE the `me &&` on the three naming branches. The empty `if (inNought)`
+  // this replaced was doing two jobs without saying so: skipping the chain for
+  // a resident, AND short-circuiting past `me.name` at the door, where `me` is
+  // undefined because the world holds no body for this key yet. Removing it
+  // let `!me.name` throw a TypeError out of onState on every state, so the
+  // gate never updated and the door sat on "waking the world..." for ever.
+  //
   // This was `if (inNought) { }` -- an empty branch at the head of a long
   // else-if chain, which SWALLOWED THE WHOLE CHAIN for a resident. Nine
   // branches down that chain is the walk planner. So in Nought a citizen could
@@ -8232,17 +8239,17 @@ function onState(s, worldId, local) {
   // of exactly one thing here: claiming a name in TALLYHOLM, which the three
   // branches below do. It was never true of movement. By this point `s` is the
   // practice island; walking in it is the entire purpose of the place.
-  if (!inNought && !me.name && loginName) {
+  if (!inNought && me && !me.name && loginName) {
     if (s.names?.[loginName]) {
       feed('"' + loginName + '" was claimed while you stood at the gate. You remain nameless; another name awaits your choosing.')
       loginName = ''
     } else { send({ do: 'name', name: loginName }); pendingName = loginName; loginName = '' }
   }
-  else if (!inNought && !me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
+  else if (!inNought && me && !me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
     feed('"' + pendingName + '" is taken. You remain nameless.')
     pendingName = ''
   }
-  else if (!inNought && !me.name && pendingName && !s.names?.[pendingName] && s.tick % 4 === 0) {
+  else if (!inNought && me && !me.name && pendingName && !s.names?.[pendingName] && s.tick % 4 === 0) {
     // the claim repeats, PACED: an every-tick retry once starved the
     // citizen's own legs of input slots and pinned them at spawn
     nameTries = (nameTries ?? 0) + 1
