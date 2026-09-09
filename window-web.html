@@ -7850,6 +7850,17 @@ function noughtNotice(s) {
   }
 }
 function onState(s, worldId, local) {
+  // §6dj-ii: AND IF THIS THROWS, SAY SO ON THE SCREEN.
+  //
+  // `_noteFrameErr` exists because three places in this window catch and carry
+  // on into a console a phone cannot open. onState was not one of them, and it
+  // is the worst place for a silent throw: it updates the gate, so an
+  // exception here does not look like an error, it looks like a world that
+  // never finishes waking. Twice today it was exactly that.
+  try { return _onState(s, worldId, local) }
+  catch (e) { _noteFrameErr('onState', e) }
+}
+function _onState(s, worldId, local) {
   if (local) { noughtNotice(s); fountainMark(s); if (lastLive) noughtHud(lastLive) }
   // §0: a key the world does not hold is in Nought. Everything downstream then
   // renders a resident exactly as it renders a citizen.
@@ -8211,7 +8222,19 @@ function onState(s, worldId, local) {
   // Releasing the move lock above this was necessary and nowhere near enough;
   // the lock was the second gate and this is the first. A practice world whose
   // residents cannot walk is not practice.
-  if (!entered && !inNought) { prev = s; panel(s); return } // wait at the gate
+  // §0g: PAST THE GATE ONLY WITH A BODY TO MOVE.
+  //
+  // `inNought` alone was the wrong test and it broke the door. It means "the
+  // live world does not hold my key", which is ALREADY TRUE at the door,
+  // before anyone has walked into Nought at all -- so this stopped returning
+  // there, and everything below ran with `me` undefined and threw out of
+  // onState on every state. The gate never updated: "waking the world..." for
+  // ever.
+  //
+  // What the walk planner actually needs is a practice island that exists and
+  // a body standing in it. That is `nought && me`, and it is false at the door
+  // and true the moment a resident walks in.
+  if (!entered && !(nought && me)) { prev = s; panel(s); return } // wait at the gate
   // §0e: A WINDOW MUST NOT SEND `spawn` ON ITS OWN INITIATIVE. This window used
   // to birth a soul the instant it noticed one missing, which made the crossing
   // a side effect of loading a page. The crossing is an act; it is done at the
