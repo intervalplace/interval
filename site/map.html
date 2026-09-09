@@ -478,7 +478,12 @@ function isles4() {
           // worldgen-expanse7.mjs. A chart that disagrees with the world is
           // worse than no chart: it is confidently wrong.
           { x: sh + 58, y: ey + 8, rx: 12, ry: 8, tag: 'whiting' },
-          { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' }]
+          { x: 300, y: 452, rx: 9, ry: 6, tag: 'lists' },
+          // §7ea: AND THE WORLD HAS FIVE. Scaleshore, thirty by twenty-two --
+          // about seven times Whiting's area -- in the western sea, inside the
+          // Wilds rectangle. The chart drew open water over two thousand tiles
+          // of it, which is exactly the drift the note above was written for.
+          { x: 34, y: 30, rx: 30, ry: 22, tag: 'dragon' }]
 }
 function onIsle4(x, y) {
   for (const i of isles4()) { const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry; if (dx * dx + dy * dy < 1) return true }
@@ -1662,6 +1667,8 @@ function terrainOfE4(x, y) {
 }
 // ---- the locales: names smaller than a country ----
 const LOCALES4 = [
+  // §7ea: the dragon's isle, named so the chart can label it
+  ['Scaleshore',0.038,0.059,32,24],
   ['Anchor Vale',0.50,0.50,46,30],['Watersmeet',null,null,30,20,'watersmeet'],
   ['the Barrow',null,null,34,21,'barrow'],['Oxenlea',0.37,0.58,32,22],
   ['Thornvale',0.62,0.42,30,20],['the Deepwood',0.52,0.07,54,22],
