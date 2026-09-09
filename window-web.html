@@ -8200,18 +8200,29 @@ function onState(s, worldId, local) {
   // One soul is born per interval (§5h), so a crossing may not take on the
   // first tick. We keep sending -- that is the queue at the fountain, and it is
   // shown rather than hidden.
-  if (inNought) { /* a resident: the world is not theirs to act on yet */ }
-  else if (!me.name && loginName) {
+  // §0k: A RESIDENT DOES NOT CLAIM A NAME, AND DOES EVERYTHING ELSE.
+  //
+  // This was `if (inNought) { }` -- an empty branch at the head of a long
+  // else-if chain, which SWALLOWED THE WHOLE CHAIN for a resident. Nine
+  // branches down that chain is the walk planner. So in Nought a citizen could
+  // wield, drop, gather, trade, and set any intent they liked -- the intent was
+  // recorded and the feed said so -- and nothing ever turned it into a step.
+  //
+  // The comment said the world is not theirs to act on yet, and that is true
+  // of exactly one thing here: claiming a name in TALLYHOLM, which the three
+  // branches below do. It was never true of movement. By this point `s` is the
+  // practice island; walking in it is the entire purpose of the place.
+  if (!inNought && !me.name && loginName) {
     if (s.names?.[loginName]) {
       feed('"' + loginName + '" was claimed while you stood at the gate. You remain nameless; another name awaits your choosing.')
       loginName = ''
     } else { send({ do: 'name', name: loginName }); pendingName = loginName; loginName = '' }
   }
-  else if (!me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
+  else if (!inNought && !me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
     feed('"' + pendingName + '" is taken. You remain nameless.')
     pendingName = ''
   }
-  else if (!me.name && pendingName && !s.names?.[pendingName] && s.tick % 4 === 0) {
+  else if (!inNought && !me.name && pendingName && !s.names?.[pendingName] && s.tick % 4 === 0) {
     // the claim repeats, PACED: an every-tick retry once starved the
     // citizen's own legs of input slots and pinned them at spawn
     nameTries = (nameTries ?? 0) + 1
