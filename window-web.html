@@ -8254,7 +8254,20 @@ function onState(s, worldId, local) {
       // a step is in flight: keep walking without waiting for it to land.
       // Plan the NEXT step from the tile we are about to occupy, stamped
       // for the following tick: continuous motion, no stutter, no drift.
-      if (ownKey) {
+      // §5i-ii: BUT NOT WHILE A WALK IS CARRYING US.
+      //
+      // A `walk` is one input that moves a citizen for many intervals. On the
+      // state right after it is sent the action has not landed yet -- the input
+      // is still in flight -- so `me.action` is null and the guard at the top
+      // of stepToward does not catch it. This branch then planned from the
+      // ghost and sent a SECOND walk over the top of the first, and the engine
+      // has one action slot, so the new walk replaced the old one mid-stride.
+      // Repeated every state, that is a citizen restarting their journey once a
+      // second: the stutter, and the whole saving of batching thrown away.
+      //
+      // `walkGoal` is set the moment a walk is sent, which is exactly the gap
+      // the action has not filled yet.
+      if (ownKey && !walkGoal) {
         const ghost = { ...me, x: moveLock.x, y: moveLock.y }
         // pickup and walk mean STANDING ON the goal; everything else means
         // standing beside it. Getting this wrong marched the citizen on and
@@ -14030,10 +14043,21 @@ function enterWorld() {
   // §0e: A CROSSING IS NOT COMPLETED ON A SINGLE ACTION. The first press arms
   // it and says what is about to happen; the second one does it.
   if (crossingOpen) {
-    const w0 = myWait(world)
-    if (!w0 || !w0.ripe || !keyExported()) return
+    // §0l: THE WAIT IS TALLYHOLM'S, AND SO IS THE CLOCK.
+    //
+    // `world` is the PRACTICE ISLAND while a resident is in Nought -- a
+    // different world, at its own tick, with no wait in it at all. So
+    // `myWait(world)` came back undefined, this returned silently, and the
+    // button that said "Draw from the fountain" did nothing at all, for ever,
+    // with nothing said. `allocTick` already carries a note about exactly this
+    // confusion; the crossing needed the same care and did not get it.
+    const live = (inNought && lastLive) ? lastLive : world
+    const w0 = myWait(live)
+    if (!w0) { feed('The world has not been asked to expect you yet.'); return }
+    if (!w0.ripe) { feed('The wait is not ripe yet.'); return }
+    if (!keyExported()) { feed('Export your key before you cross.'); return }
     if (!crossArmed) { crossArmed = true; updateGate(world, null); return }
-    crossSentAt = world.tick
+    crossSentAt = live.tick
     send({ do: 'spawn' })
     feed('You draw from the fountain in Anchor.')
     updateGate(world, null)
