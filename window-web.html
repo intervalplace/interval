@@ -6180,8 +6180,20 @@ function stepToward(s, me, goal, reach, stampTick) {
     }
   } else goals.add(goal.x + ',' + goal.y)
   const step = nextStep(s, me, goals)
-  if (step === null) { feed("You can't reach that."); intent = null; travelMark = null; return }
-  if (step === 'arrived') return
+  // §0j: WHY A FOOTSTEP DID NOT HAPPEN, said out loud, in Nought only.
+  //
+  // Every other verb in this window works in the practice world and walking
+  // does not, and a walk fails SILENTLY at four different places: no path, a
+  // goal already reached, no interval to stamp, or an input the engine then
+  // refuses. From outside all four look identical -- nothing happens -- which
+  // is how this survived a day of reasoning about it.
+  //
+  // One line per distinct reason, not per attempt, so it names the fault
+  // without becoming the spam it is meant to diagnose.
+  if (!window._walkWhy) window._walkWhy = ''
+  const why = (m) => { if (window._walkWhy !== m) { window._walkWhy = m; if (inNought) feed('walk: ' + m) } }
+  if (step === null) { why('no path to that tile'); feed("You can't reach that."); intent = null; travelMark = null; return }
+  if (step === 'arrived') { why('already standing there'); return }
   // §0: WHICH WORLD IS THIS STEP FOR? A footstep in Nought goes to the LOCAL
   // island and never touches Tallyholm, so allocating it out of Tallyholm's
   // two-tick line was asking the wrong world for permission -- and getting
@@ -6208,7 +6220,7 @@ function stepToward(s, me, goal, reach, stampTick) {
   // full the step is abandoned and re-planned next state -- correct, but
   // COUNTED, because a silent drop here is exactly how a background `set_look`
   // ate one footstep in five and looked like a bad connection.
-  if (tk === null) { _movesDropped++; return }
+  if (tk === null) { why('no interval to stamp (inNought=' + inNought + ' nought=' + !!nought + ')'); _movesDropped++; return }
   facing[myId] = step.dx !== 0 ? step.dx : (facing[myId] ?? 1)
   moveLock = { x: me.x + step.dx, y: me.y + step.dy, tick: tk, until: tk + 2 }
   // §5i: a straight run is ONE deed. `walk` takes its first step in the same
@@ -6220,6 +6232,7 @@ function stepToward(s, me, goal, reach, stampTick) {
     send({ do: 'walk', dx: step.dx, dy: step.dy, steps: Math.min(step.run, WALK_MAX_STEPS), _tick: tk })
   } else {
     walkGoal = null
+    why('sent move ' + step.dx + ',' + step.dy + ' at tick ' + tk)
     send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
   }
 }
