@@ -7863,7 +7863,27 @@ function onState(s, worldId, local) {
     keepAttending(s)
     // §5h admits one soul per interval, so a crossing may not take on the first
     // tick. Keep sending: that is the queue at the fountain.
-    if (crossSentAt >= 0 && s.tick - crossSentAt >= 2) { crossSentAt = s.tick; send({ do: 'spawn' }) }
+    if (crossSentAt >= 0 && s.tick - crossSentAt >= 2) {
+      // §0m: SAY WHAT THE QUEUE IS WAITING FOR.
+      //
+      // This loop re-sends `spawn` for ever until the live world holds the
+      // key, and the ONLY thing that ends it is `inNought` going false --
+      // which is computed as "Tallyholm does not hold `askAbout`". If the key
+      // being asked about is not the key that signed the spawn, the world
+      // fills with a citizen nobody is looking for and the queue never ends:
+      // "Waiting your turn at the fountain" for ever, with nothing refused
+      // and nothing said.
+      //
+      // Once every ten attempts, so it names the fault without becoming spam.
+      if (!window._crossTries) window._crossTries = 0
+      if ((window._crossTries++ % 10) === 0) {
+        const ask = realId ?? myId
+        feed('at the fountain: asking Tallyholm for ' + String(ask).slice(0, 10) + '\u2026'
+          + ' · signing with ' + String(ownKey?.pub ?? '?').slice(0, 10) + '\u2026'
+          + ' · world holds it: ' + !!(s.players && s.players[ask]))
+      }
+      crossSentAt = s.tick; send({ do: 'spawn' })
+    }
     noughtHud(s)
     if (entered) ensureNought(s)   // the door watches Tallyholm; see below
     if (!entered) updateGate(s, worldId)
