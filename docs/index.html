@@ -30,7 +30,17 @@
     display: flex; justify-content: center; align-items: flex-start;
     flex-wrap: wrap; /* v0.80: the body is a centred ROW, so the nav strip
       became a column beside the game until it was allowed to take its own line */
-    min-height: 100vh; padding: 16px;
+    /* THE PAGE DOES NOT SCROLL. The world was losing its top rows the moment
+       the panel grew taller than the viewport -- a citizen reading the log had
+       to scroll, and scrolling pushed the tiles they were standing on off the
+       screen. A window whose map moves when you read a message is not a window
+       you can play in.
+       So the page is exactly the viewport and never more, and anything too
+       tall scrolls INSIDE its own box (see #panel). `100dvh` rather than
+       `100vh` because a phone's address bar is part of the viewport until it
+       is not, and `vh` measures the larger one. */
+    height: 100dvh; max-height: 100dvh; overflow: hidden;
+    padding: 16px;
   }
   /* the frame's width, in one place (v0.80). On a large desktop the world
      is shown LARGER rather than wider: the tile count is unchanged, so the
@@ -84,10 +94,20 @@
     border-top: 2px solid var(--stone-lt); border-left: 2px solid var(--stone-lt);
     border-bottom: 2px solid var(--stone-dk); border-right: 2px solid var(--stone-dk);
   }
-  #panel { width: var(--panel-w); flex: 0 0 var(--panel-w); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+  /* the panel is the thing that scrolls, and only the panel. `min-height: 0`
+     is what lets a flex child be SHORTER than its content -- without it the
+     box grows to fit and pushes the page tall again, which is the whole bug. */
+  #panel { width: var(--panel-w); flex: 0 0 var(--panel-w); padding: 8px; display: flex; flex-direction: column; gap: 8px;
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  #frame { max-height: 100%; }
+  #view { max-height: 100%; }
   @media (max-width: 900px) {
     #frame { flex-direction: column; }
-    #panel { width: 100%; flex: 1 1 auto; }
+    /* stacked: the map keeps its aspect at the top and the panel takes the
+       rest, scrolling inside itself rather than lengthening the page. */
+    #frame { flex-direction: column; max-height: 100%; }
+    #view { flex: 0 0 auto; }
+    #panel { width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
     #skills { grid-template-columns: repeat(4, 1fr); }
     #inv { grid-template-columns: repeat(7, 1fr); }
   }
@@ -111,9 +131,21 @@
   /* §5t: WHAT A CITIZEN IS WEARING, laid out as a body rather than a list.
      The pack told you what you carried and nothing told you what you had ON;
      equipment was five fields you could only see by their effects. */
+  /* §5t-iv: the body is drawn SMALLER than the pack's cells. Five slots at a
+     quarter of the panel's width each is a diagram taking more room than the
+     twenty-four cells below it, and the pack was being cropped to pay for it.
+     A max-width on the grid keeps the shape and gives the space back. */
+  /* §5t-v: THE BODY KEEPS ITS SHAPE WHEN IT IS BARE.
+     `justify-items: center` stops a grid item stretching, so an EMPTY slot --
+     which holds nothing but an absolutely-positioned label, and therefore has
+     no in-flow content at all -- sized itself to nothing and the whole diagram
+     folded up. It came back the moment anything was worn, which is what made
+     it look like a rendering glitch rather than a sizing rule.
+     The cells stretch now, and carry their own floor besides. */
   #worn { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
-          justify-items: center; margin-bottom: 4px; }
-  .wslot { aspect-ratio: 1; width: 100%; background: var(--stone-dk);
+          justify-items: stretch; margin-bottom: 4px;
+          max-width: 156px; margin-left: auto; margin-right: auto; }
+  .wslot { aspect-ratio: 1; width: 100%; min-width: 34px; min-height: 34px; background: var(--stone-dk);
            border: 1px solid var(--stone-lt); border-radius: 2px; position: relative;
            display: flex; align-items: center; justify-content: center; }
   .wslot.empty { opacity: .38; }
@@ -133,16 +165,47 @@
           justify-content: center; font-size: 17px; cursor: pointer; user-select: none;
           position: relative; overflow: hidden; }
   .slot:hover { outline: 1px solid var(--gold); }
-  #feed { height: 84px; overflow-y: auto; font-size: 10px; color: var(--parch); padding: 4px 6px; }
+  /* §5t-iii: THE LOG IS WHAT IS LEFT, AND IT IS NEVER NOTHING.
+     A fixed 84px in a column that overflowed meant the log was simply pushed
+     off the bottom and gone -- the panel scrolled, so it existed, but nobody
+     scrolls a panel to find out what just happened to them. It now takes the
+     remaining height and keeps a floor of its own, so the pack shrinks before
+     the log does. */
+  #feed { flex: 1 1 auto; min-height: 84px; overflow-y: auto; font-size: 10px; color: var(--parch); padding: 4px 6px; overscroll-behavior: contain; }
+  /* and the two things that must always be reachable sit at the bottom and do
+     not shrink: what just happened, and the box you answer in. */
+  #say, #sndtoggle { flex: 0 0 auto; }
+  /* the pack gives up room first: it is a grid a citizen browses, not a thing
+     they need every second. */
+  #inv { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
   #feed div { margin-bottom: 1px; }
   #status { font-size: 10px; color: #8a7a5c; }
   #gate {
     position: fixed; inset: 0; z-index: 10;
-    background: radial-gradient(ellipse at center, rgba(22,18,12,.55) 0%, rgba(12,10,6,.92) 78%);
-    backdrop-filter: blur(2.5px) saturate(.8);
+    background: radial-gradient(ellipse at center, rgba(10,8,5,.10) 0%, rgba(8,6,4,.62) 80%);
+    backdrop-filter: blur(1.2px) saturate(.92);
     display: flex; align-items: center; justify-content: center;
   }
-  #gatebox { position: relative; box-shadow: 0 0 60px rgba(0,0,0,.8), 0 0 24px rgba(230,126,34,.06); }
+  /* A login screen shows scenery and nothing else. These are DOM, not
+     canvas, so the gate's blur never touched them. */
+  body.at-door #panel, body.at-door #status, body.at-door #feed,
+  body.at-door #topnav { display: none !important; }
+  body.at-door #frame { border-color: transparent !important; background: transparent !important; }
+
+  /* FULL BLEED, WITHOUT WIDENING THE VIEW.
+     fitCanvas keeps cv.width / (TILE * ZR) constant on purpose -- the keyhole
+     is the design, and a citizen on a big screen must not see half the
+     country. So the canvas is not asked to render more; it is DISPLAYED
+     larger and cropped. The bitmap stays 560x400, object-fit does the rest.
+     !important is needed because fitCanvas writes cv.style.height inline. */
+  body.at-door #world {
+    position: fixed !important; inset: 0 !important; z-index: 1 !important;
+    width: 100vw !important; height: 100vh !important; height: 100dvh !important;
+    max-width: none !important; object-fit: cover !important;
+  }
+  #gatebox { position: relative; background-color: rgba(41, 31, 18, .82);
+    backdrop-filter: blur(3px) saturate(.85);
+    box-shadow: 0 0 60px rgba(0,0,0,.55), 0 0 24px rgba(230,126,34,.06); }
   .torch {
     position: absolute; top: -26px; width: 12px; height: 26px; z-index: 2;
     background: radial-gradient(ellipse at 50% 85%, #f4d03f 0%, #e67e22 45%, transparent 72%);
@@ -211,12 +274,8 @@
     <div style="color:#6e6656;font-size:10px;letter-spacing:.14em;margin-bottom:14px;margin-top:-12px">the flat window</div>
     <div id="gateinfo">waking the world&hellip;</div>
     <input id="gatename" maxlength="12" placeholder="choose a name (optional)" autocomplete="off">
-    <div id="gatelook" style="margin:8px 0;user-select:none">
-      <button id="lookprev" type="button">&lsaquo;</button>
-      <canvas id="lookcv" width="48" height="64" style="vertical-align:middle;image-rendering:pixelated"></canvas>
-      <button id="looknext" type="button">&rsaquo;</button>
-      <div style="font-size:10px;color:var(--dim);margin-top:2px" id="looknum">appearance 1 of 256</div>
-    </div>
+    <!-- appearance is set at a looking-glass in the world, not here. The
+         door asks for a name and nothing else. -->
     <div><button id="musicbtn" type="button">music: on</button>
     <button id="daybtn" type="button">day: cycle</button></div>
     <div id="gatedetail" style="font-size:11px;color:var(--dim);margin:6px 0;user-select:none"></div>
@@ -262,11 +321,18 @@
   <div id="panel" class="stone">
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
-  <div id="equip" style="font-size:12px;padding:4px 6px;background:var(--stone-dk);cursor:pointer"></div>
+  <!-- §5t-iii: THE GEAR LINE IS GONE. It read "Weapon: iron hatchet · Head:
+       iron helm · Body: iron plate" directly above a WORN grid showing the
+       same three things as pictures, in slots you can now tap to take them
+       off. Two tellings of one fact, and the duplicate was costing four lines
+       at the top of a panel that had run out of room for the log.
+       `#equip` stays in the markup, hidden, because the sheathe tap and a
+       good deal of panel code still write to it; it simply is not shown. -->
+  <div id="equip" style="display:none"></div>
     <div id="specbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
       color:var(--gold);letter-spacing:1px"></div>
-    <div id="stylebar" style="margin-top:3px" title="how you swing: 1 aim, 2 even, 3 force"></div>
+
     <div id="bookbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--stone-lt);cursor:pointer;
       color:var(--gold);letter-spacing:1px">SPELLS</div>
@@ -278,13 +344,21 @@
     <h2>Skills</h2><div id="skills"></div>
     <h2 id="friendsh" style="display:none">Names you keep</h2><div id="friends" style="font-size:12px"></div>
     <h2>Worn</h2><div id="worn"></div>
+    <!-- §5t-iii: and how you swing sits under the hand it applies to, rather
+         than four lines above in a header that no longer exists. -->
+    <div id="stylebar" style="margin-top:2px" title="how you swing: 1 aim, 2 even, 3 force"></div>
     <h2>Pack</h2><div id="inv"></div>
     <div id="itemname"></div>
     <div id="feed" class="stone"></div>
     <div id="sndtoggle" style="font-size:10px;color:var(--dim);cursor:pointer;user-select:none"></div>
-    <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
-      style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--gold);
-             font:12px Verdana;padding:5px 7px;outline:none">
+    <div style="display:flex;gap:4px;align-items:stretch">
+      <button id="scopeBtn" title="heard by those around you — click for far"
+        style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--dim);
+               font:11px ui-monospace,monospace;padding:5px 7px;cursor:pointer;min-width:38px">near</button>
+      <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
+        style="flex:1;min-width:0;background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--gold);
+               font:12px Verdana;padding:5px 7px;outline:none">
+    </div>
     <div id="status"></div>
   </div>
 </div>
@@ -584,7 +658,7 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 //   road tile and the wobble disappears.
 //
 //   FIGHTING. Nothing in this world does mounted combat, so a rider swinging a
-//   maul would promise a rule that does not exist. They get down, and they
+//   mell would promise a rule that does not exist. They get down, and they
 //   stay down a moment after it ends rather than popping back up between
 //   swings.
 //
@@ -605,7 +679,7 @@ const onRoadE = (x, y) => roadTilesE().has(x + ',' + y)
 // is nothing to smooth, so MOUNT_LINGER and its map are gone too.
 //
 // The FIGHTING fault stays. Nothing in this world does mounted combat, so a
-// rider swinging a maul would promise a rule that does not exist -- they get
+// rider swinging a mell would promise a rule that does not exist -- they get
 // down, and stay down a moment after it ends rather than popping back up
 // between swings.
 const MOUNT_REMOUNT = 2200
@@ -2256,7 +2330,7 @@ function islesOf6() {
   // Whiting Isle (§7bu) and the Lists (§7cs) were added to the engine and
   // never to the mirror, so the window painted open sea over both -- 452
   // tiles of it. The saltern a citizen crosses to, and the duelling ground
-  // where the only honest comparison of a maul and a bare blade happens,
+  // where the only honest comparison of a mell and a bare blade happens,
   // were water on the screen and land under the feet.
   //
   // Found by the repaired §9b test (test/mirror.test.mjs). The old version of
@@ -2483,6 +2557,7 @@ function regionNameAt(x, y) {
         return t.name ?? SETTLEMENT_NAMES[i] ?? 'a settlement'
     }
     if (IS_EXPANSE4()) return localeAt4(x, y) ?? REGION_NAMES[biomeAtE4(x, y)] ?? ''
+    if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return REGION_NAMES[biomeAt6(x, y)] ?? ''
     return REGION_NAMES[biomeAtE(x, y)] ?? ''
   } catch { return '' } // a nameplate must never stop the world drawing
 }
@@ -3034,9 +3109,9 @@ function itemSprite(item) {
     // ---- the shapes (v0.66): each reads as itself at a glance ----
     // §7ap: THE GREAT MAUL. Star-metal on a heartwood haft, brimstone-quenched
     // so it comes off the anvil still smoking.
-    case 'great-maul': {
+    case 'great-mell': {
       // §7ap: THE GREAT LINE IS NOT STAR-METAL. Drawn first in star-blue, it
-      // read as a star-maul with a bigger head -- but every other great arm on
+      // read as a star-mell with a bigger head -- but every other great arm on
       // this island is near-black steel with molten orange running in the
       // cracks, because brimstone is what quenched it. The recipe said so all
       // along; only the sprite disagreed.
@@ -3293,7 +3368,7 @@ function itemSprite(item) {
       if (star) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
       if (steel) { g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(19.6, 3.4, 0.9, 4.6) }
       break }
-    case 'iron-maul': case 'steel-maul': case 'star-maul': {
+    case 'iron-mell': case 'steel-mell': case 'star-mell': {
       const star = item.startsWith('star-')
       const [head, edge] = METAL(item)
       g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
@@ -3527,8 +3602,8 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
   : undefined, has: () => true })
 // EVERYTHING THE ENGINE LETS YOU WIELD, and it is a list the window kept
 // separately and let go stale. Seven items had fallen out of it -- including
-// `star-maul`, the best melee weapon in the world, and both good bows. A
-// citizen who smithed a star-maul and clicked it in their pack did not wield
+// `star-mell`, the best melee weapon in the world, and both good bows. A
+// citizen who smithed a star-mell and clicked it in their pack did not wield
 // it: the window did not recognise the name, so it DROPPED it on the ground.
 //
 // The engine builds its set as every smithing recipe plus the four things
@@ -3558,13 +3633,13 @@ const EQUIPPABLE = new Set([
   'great-hatchet', 'great-helm', 'great-pickaxe', 'great-plate',
   'great-sword', 'handgonne', 'heartwood-bow', 'heartwood-rod',
   'heartwood-staff', 'horn', 'horn-bow', 'iron-dagger', 'iron-hatchet',
-  'iron-helm', 'iron-javelin', 'iron-maul', 'iron-pickaxe', 'iron-plate',
+  'iron-helm', 'iron-javelin', 'iron-mell', 'iron-pickaxe', 'iron-plate',
   'iron-shield', 'iron-spear', 'iron-sword', 'ironbark-rod', 'king-shroud',
   'oak-rod', 'old-chain', 'rod', 'shell-helm', 'shell-plate', 'shot',
   'sigil-bow', 'staff', 'star-dagger', 'star-flail', 'star-hatchet',
-  'star-helm', 'star-ingot', 'star-javelin', 'star-maul', 'star-pickaxe',
+  'star-helm', 'star-ingot', 'star-javelin', 'star-mell', 'star-pickaxe',
   'star-plate', 'star-shield', 'star-spear', 'star-sword', 'steel-dagger',
-  'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-maul',
+  'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-mell',
   'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
   'steel-sword', 'wand', 'wooden-bow'
 ])
@@ -3777,7 +3852,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the great maul (earthcraft 70, sorcery 34)"
+      "text": "forge the great mell (earthcraft 70, sorcery 34)"
     },
     {
       "level": 1,
@@ -3833,7 +3908,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the iron maul (earthcraft 14)"
+      "text": "forge the iron mell (earthcraft 14)"
     },
     {
       "level": 1,
@@ -3909,7 +3984,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the star maul (earthcraft 52, sorcery 30)"
+      "text": "forge the star mell (earthcraft 52, sorcery 30)"
     },
     {
       "level": 1,
@@ -3953,7 +4028,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the steel maul (earthcraft 42)"
+      "text": "forge the steel mell (earthcraft 42)"
     },
     {
       "level": 1,
@@ -4005,7 +4080,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 14,
-      "text": "forge the iron maul"
+      "text": "forge the iron mell"
     },
     {
       "level": 18,
@@ -4101,7 +4176,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 42,
-      "text": "forge the steel maul"
+      "text": "forge the steel mell"
     },
     {
       "level": 45,
@@ -4145,7 +4220,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 52,
-      "text": "forge the star maul"
+      "text": "forge the star mell"
     },
     {
       "level": 55,
@@ -4173,7 +4248,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 70,
-      "text": "forge the great maul"
+      "text": "forge the great mell"
     },
     {
       "level": 70,
@@ -4327,7 +4402,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 30,
-      "text": "forge the star maul"
+      "text": "forge the star mell"
     },
     {
       "level": 30,
@@ -4343,7 +4418,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 34,
-      "text": "forge the great maul"
+      "text": "forge the great mell"
     },
     {
       "level": 34,
@@ -4453,7 +4528,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 38,
-      "text": "take up the steel maul"
+      "text": "take up the steel mell"
     },
     {
       "level": 38,
@@ -4513,7 +4588,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 55,
-      "text": "take up the star maul"
+      "text": "take up the star mell"
     },
     {
       "level": 60,
@@ -4525,7 +4600,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 70,
-      "text": "take up the great maul"
+      "text": "take up the great mell"
     },
     {
       "level": 70,
@@ -4600,20 +4675,18 @@ const SKILL_UNLOCKS = {
 // hand-copy below it that this replaces.
 let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
 let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
-// §0: THE TABLES COME FROM THE NODE THIS WINDOW CHOSE.
-//
-// This ran as an IIFE at parse time against `/api/tables` on whatever origin
-// served the page -- which is the assumption the node resolver exists to
-// remove. A window opened from a static host, a USB stick or `file://` fetched
-// a path on nothing at all and silently kept its built-in tables, so a citizen
-// would see the wrong callings or the wrong swear level with no error.
-//
-// Called from `connect()` instead, once a node has been chosen AND checked to
-// be serving this world. `api` is a const declared further down, so this must
-// not run before then -- which is exactly what being called from connect
-// guarantees.
-async function loadTables () {
+;(async () => {
   try {
+    // §5w: the live tables come from the RESOLVED NODE, not origin-relative.
+    // A standalone window may be served from a CDN with no /api of its own, so
+    // this must go through `api()` like every other call in the file (cf.
+    // learnPeers). An origin-relative form bound it to whatever host served
+    // the page -- the exact assumption build-window.mjs refuses, and it 404s on
+    // Pages. One microtask hop lets module init finish first, so `api`/`NODE`
+    // (declared just below) exist rather than sitting in the temporal dead
+    // zone. Failure is fine: the hand-copied tables below stand in until a
+    // pillar answers.
+    await Promise.resolve()
     const r = await fetch(api('/api/tables'), { cache: 'no-cache' })
     if (!r.ok) return
     const t = await r.json()
@@ -4628,8 +4701,8 @@ async function loadTables () {
     if (t.apprenticeSlots) APPR_SLOTS = t.apprenticeSlots
     if (t.apprenticeLapse) APPR_LAPSE = t.apprenticeLapse
     if (t.apprenticeMilestones) APPR_MILES = t.apprenticeMilestones
-  } catch { /* the node's tables are an override; the built-in ones stand */ }
-}
+  } catch {}
+})()
 // §5k: the ceiling on this trade, for this citizen. Nothing unsworn passes
 // CAP_UNSWORN; once sworn your own trade has none and every other stops at
 // CAP_OTHER. A citizen who does not know this wonders why the bar stopped.
@@ -4779,7 +4852,7 @@ const WEAPON_REACH = {
   "fire-siphon": 2,
   "gold-chain": 1,
   "great-crossbow": 6,
-  "great-maul": 1,
+  "great-mell": 1,
   "great-sword": 1,
   "handgonne": 4,
   "heartwood-bow": 3,
@@ -4787,7 +4860,7 @@ const WEAPON_REACH = {
   "horn-bow": 5,
   "iron-dagger": 1,
   "iron-javelin": 3,
-  "iron-maul": 1,
+  "iron-mell": 1,
   "iron-spear": 2,
   "iron-sword": 1,
   "old-chain": 1,
@@ -4796,12 +4869,12 @@ const WEAPON_REACH = {
   "star-dagger": 1,
   "star-flail": 1,
   "star-javelin": 3,
-  "star-maul": 1,
+  "star-mell": 1,
   "star-spear": 2,
   "star-sword": 1,
   "steel-dagger": 1,
   "steel-javelin": 3,
-  "steel-maul": 1,
+  "steel-mell": 1,
   "steel-spear": 2,
   "steel-sword": 1,
   "wand": 1,
@@ -4836,7 +4909,7 @@ const WEAPON_EVERY = {
   "fire-siphon": 3,
   "gold-chain": 1,
   "great-crossbow": 3,
-  "great-maul": 2,
+  "great-mell": 2,
   "great-sword": 2,
   "handgonne": 4,
   "heartwood-bow": 2,
@@ -4844,7 +4917,7 @@ const WEAPON_EVERY = {
   "horn-bow": 2,
   "iron-dagger": 2,
   "iron-javelin": 2,
-  "iron-maul": 2,
+  "iron-mell": 2,
   "iron-spear": 2,
   "iron-sword": 2,
   "old-chain": 1,
@@ -4853,12 +4926,12 @@ const WEAPON_EVERY = {
   "star-dagger": 2,
   "star-flail": 2,
   "star-javelin": 2,
-  "star-maul": 2,
+  "star-mell": 2,
   "star-spear": 2,
   "star-sword": 2,
   "steel-dagger": 2,
   "steel-javelin": 2,
-  "steel-maul": 2,
+  "steel-mell": 2,
   "steel-spear": 2,
   "steel-sword": 2,
   "wand": 3,
@@ -4867,7 +4940,7 @@ const WEAPON_EVERY = {
 // the keeper's ledger, character for character from engine.js PRICES (spec 6l).
 // The flat window carried thirteen of these twenty-three by hand, so ten items
 // simply could not be sold in it: star gear, the horn-bow, grain, and every
-// dagger, spear and maul. A window that copies a table copies it at a moment
+// dagger, spear and mell. A window that copies a table copies it at a moment
 // in time; test/identity.test.mjs holds this one to the engine's.
 // PRICED GOODS, copied from the engine's own table. Twenty-one of these had
 // drifted or were simply absent -- the whole star range, the heartwood goods,
@@ -4923,7 +4996,7 @@ const PRICES = {
   "grain": 4,
   "grave-silver": 700,
   "great-hatchet": 520,
-  "great-maul": 5200,
+  "great-mell": 5200,
   "great-pickaxe": 520,
   "gunpowder": 60,
   "heartwood": 15,
@@ -4938,7 +5011,7 @@ const PRICES = {
   "iron-hatchet": 10,
   "iron-helm": 12,
   "iron-javelin": 3,
-  "iron-maul": 22,
+  "iron-mell": 22,
   "iron-ore": 4,
   "iron-pickaxe": 10,
   "iron-plate": 30,
@@ -4970,7 +5043,7 @@ const PRICES = {
   "star-helm": 270,
   "star-ingot": 420,
   "star-javelin": 12,
-  "star-maul": 720,
+  "star-mell": 720,
   "star-pickaxe": 315,
   "star-plate": 900,
   "star-shield": 640,
@@ -4980,7 +5053,7 @@ const PRICES = {
   "steel-hatchet": 44,
   "steel-helm": 45,
   "steel-javelin": 6,
-  "steel-maul": 85,
+  "steel-mell": 85,
   "steel-pickaxe": 44,
   "steel-plate": 110,
   "steel-shield": 120,
@@ -5020,7 +5093,7 @@ const PRICES = {
 // over the result.
 // §6s: THE METAL IS THE TIER. [body, edge, sheen] for every metal a shape can
 // be made of, so a new one is a line here rather than a search through thirty
-// drawing cases -- which is exactly how steel-helm and steel-maul came to be
+// drawing cases -- which is exactly how steel-helm and steel-mell came to be
 // undrawn while the rest of the steel line was fine.
 const METAL_PALETTE = {
   iron:  ['#c9862a', '#6b4515', 'rgba(255,255,255,.25)'],
@@ -5136,15 +5209,15 @@ const WORN_STATS = {
   "iron-dagger": {acc:14, every:2},
   "iron-sword": {hit:2, every:2},
   "iron-spear": {hit:7, every:2, reach:2},
-  "iron-maul": {hit:10, acc:-12, every:2},
+  "iron-mell": {hit:10, acc:-12, every:2},
   "steel-dagger": {hit:1, acc:14, every:2},
   "steel-sword": {hit:3, every:2},
   "steel-spear": {hit:8, every:2, reach:2},
-  "steel-maul": {hit:11, acc:-12, every:2},
+  "steel-mell": {hit:11, acc:-12, every:2},
   "star-dagger": {hit:2, acc:14, every:2},
   "star-sword": {hit:4, every:2},
   "star-spear": {hit:9, every:2, reach:2},
-  "star-maul": {hit:13, acc:-12, every:2},
+  "star-mell": {hit:13, acc:-12, every:2},
   "old-chain": {hit:1, every:1},
   "gold-chain": {hit:1, every:1},
   "spade": {acc:-8, every:3},
@@ -5162,7 +5235,7 @@ const WORN_STATS = {
   "torch": {hit:1, acc:-6, every:3},
   "great-sword": {hit:5, acc:4, every:2},
   "great-crossbow": {},
-  "great-maul": {hit:16, acc:-10, every:2},
+  "great-mell": {hit:16, acc:-10, every:2},
   "crossbow": {hit:11, acc:21, every:3, reach:4},
   "sigil-bow": {hit:8, every:2, reach:5},
   "heartwood-bow": {hit:10, acc:3, every:2, reach:3},
@@ -5185,6 +5258,12 @@ const WORN_STATS = {
   "great-plate": {armour:18}
 }
 const EQUIP_SLOTS = ['head', 'weapon', 'body', 'offhand', 'legs']
+// §6bz: which slot an item wants, for the window's own reasoning. The engine's
+// `slotOf` is the authority; this only has to be right about shields.
+const EQUIP_SLOT_OF = (item) => /-shield$/.test(item ?? '') ? 'offhand'
+  : /-helm$|hood$/.test(item ?? '') ? 'head'
+  : /-plate$|shroud$/.test(item ?? '') ? 'body'
+  : /-greaves$|-legs$/.test(item ?? '') ? 'legs' : 'weapon'
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
 const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'magic-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
@@ -5472,6 +5551,13 @@ const BRIDGE_TO_INPUT = (a) =>
   // they could not drink at a well, transmute anything, choose their own face,
   // or send a mending to somebody who needed it.
   : a.do === 'drink' ? { type: 'drink' }
+  // §7dy/§7dz: the deferred acts. The canonical battery caught these missing
+  // from the SDK and nothing was checking the windows, so they were reachable
+  // from neither -- a verb the engine accepts and no window can send is a verb
+  // that does not really exist.
+  : a.do === 'sapling' ? { type: 'sapling', nodeId: a.nodeId }
+  : a.do === 'setbuck' ? { type: 'setbuck' }
+  : a.do === 'lift' ? { type: 'lift', nodeId: a.nodeId }
   // §14: the toll on the Millbrook Bridge
   : a.do === 'pay' ? { type: 'pay' }
   : a.do === 'grind' ? { type: 'grind', slot: a.slot }
@@ -5574,9 +5660,41 @@ const BRIDGE_TO_INPUT = (a) =>
 // domain-prefixed and the payload names the exact world. These strings
 // must match engine.js SIG_DOMAINS to the byte.
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|', DOMAIN_CHAT = 'INTERVAL_CHAT_V1|'
+// §7dx: NEAR OR FAR, and neither is a licence. `near` carries as far as this
+// world already says two people are together; `far` carries across the island.
+// The choice sticks, because a citizen who has decided they are talking to the
+// room should not have to say so every line.
+// §7dw: the ledger, read-only. Mirrors engine.js `ceilStood`; `dial.mjs`
+// carries the same arithmetic and `test/dial.test.mjs` holds them together.
+const CEIL_BINS_W = 24
+function ceilLeftOf(p, g, tick) {
+  if (!g?.ceiling || !p) return Infinity
+  const led = p.ledger
+  let stood = 0
+  if (led) {
+    const b = Math.floor(tick / (g.ceiling.window / CEIL_BINS_W))
+    const gap = b - led.at
+    if (gap < CEIL_BINS_W)
+      for (let k = 0; k < CEIL_BINS_W - gap; k++) stood += led.bins[(led.at - k + CEIL_BINS_W * 2) % CEIL_BINS_W]
+  }
+  return Math.max(0, g.ceiling.allow - stood)
+}
+let chatScope = 'near'
+try { if (localStorage.getItem('interval.scope') === 'far') chatScope = 'far' } catch {}
+function setChatScope(v) {
+  chatScope = v === 'far' ? 'far' : 'near'
+  try { localStorage.setItem('interval.scope', chatScope) } catch {}
+  const b = document.getElementById('scopeBtn')
+  if (b) { b.textContent = chatScope === 'far' ? 'far' : 'near'; b.title = chatScope === 'far' ? 'heard across the island — click for near' : 'heard by those around you — click for far' }
+}
+// A leading `/far ` or `/near ` on one line overrides for that line only, the
+// way a shout has always been a different verb rather than a different mode.
 async function signChat(text) {
   if (!curWorldId) return // no world yet: nothing to bind the signature to
-  const msg = { type: 'chat', worldId: curWorldId, playerId: ownKey.pub, tick: world?.tick ?? 0, text: String(text).slice(0, 80) }
+  let scope = chatScope, body = String(text)
+  const m = /^\/(far|near)\s+([\s\S]+)$/.exec(body)
+  if (m) { scope = m[1]; body = m[2] }
+  const msg = { type: 'chat', worldId: curWorldId, playerId: ownKey.pub, tick: world?.tick ?? 0, text: body.slice(0, 80), scope }
   const sig = toHex(await crypto.subtle.sign('Ed25519', ownKey.priv, new TextEncoder().encode(DOMAIN_CHAT + canonicalJS(msg))))
   ws.send(JSON.stringify({ type: 'rawsay', msg: { ...msg, sig } }))
 }
@@ -5617,17 +5735,64 @@ let MUSIC = null, musicTried = false
 // mobs, and every other window keep true time. Purely presentational.
 let DAYLOCK = localStorage.getItem('interval-daylock') === 'on'
 const dayCyc = (c) => DAYLOCK ? 0.25 : c // 0.25 = noon, per the calendar's own comment
-async function startMusic(preferred) {
-  if (MUSIC || musicTried || !musicOn || !soundOn) return
-  musicTried = true
-  let tracks = []
-  try {
-    const r = await fetch(api('/api/audio'))
-    tracks = (await r.json()).tracks ?? []
-  } catch { return }        // no node, no music, no complaint
+let TRACK_LIST = null, trackFetch = null
+function loadTracks() {
+  if (TRACK_LIST) return Promise.resolve(TRACK_LIST)
+  if (!trackFetch) {
+    trackFetch = fetch(api('/api/audio'))
+      .then((r) => r.json())
+      .then((j) => { TRACK_LIST = j.tracks ?? []; return TRACK_LIST })
+      .catch(() => { trackFetch = null; return null })
+  }
+  return trackFetch
+}
+// ---- ONE PIECE AT A TIME ----
+//
+// Two bugs, and they compounded into the layering.
+//
+// FIRST: `stopMusic` nulls MUSIC immediately and then fades the element over
+// half a second before pausing it. For that half second the old piece is still
+// audible and no longer reachable through MUSIC, so anything that starts a new
+// one plays straight over the top of it. Toggling off and on inside the fade
+// did exactly that.
+//
+// SECOND: the gesture listeners below were never removed, and the `ended`
+// handler clears the latch. So once the arrival piece finished, THE NEXT CLICK
+// ANYWHERE started it again -- which is not "heard once on arrival", it is a
+// theme that ambushes you every time you finish listening to it.
+//
+// The fix is a set of everything ever created, killed outright before anything
+// new begins, plus a latch that is not cleared by `ended`.
+const _fading = new Set()
+function killMusic() {
+  for (const el of _fading) { try { el.pause(); el.src = '' } catch {} }
+  _fading.clear()
+  if (MUSIC) { try { MUSIC.pause(); MUSIC.src = '' } catch {} ; MUSIC = null }
+}
+let _musicStarting = false
+// `MUSIC` is set the instant an element is made, long before the browser has
+// agreed to play it. Only this says a sound is actually coming out, and only
+// this may be trusted to decide the gesture listeners have done their job.
+let _musicPlaying = false
+function startMusic(preferred) {
+  if (MUSIC || _musicStarting || musicTried || !musicOn || !soundOn) return
+  // No list yet: warm it, and let the NEXT gesture carry the music. Returning
+  // here without latching is the whole point -- a tap that arrives before the
+  // node has answered must not spend the one chance we get.
+  // A RELOAD ARRIVES BEFORE THE LIST DOES. On a fresh page this runs with
+  // TRACK_LIST still null, so the immediate attempt cannot possibly play, and
+  // if the citizen's first click also lands before the fetch answers, that
+  // gesture is spent on nothing and the door stays silent for the whole visit.
+  // So the list ARRIVING is itself an occasion to try: by then the browser has
+  // usually seen a gesture, and if it has not, the listeners are still up.
+  if (!TRACK_LIST) { loadTracks().then((t) => { if (t && t.length) startMusic(preferred) }); return }
+  const tracks = TRACK_LIST
   if (!tracks.length) return
+  musicTried = true
+  _musicStarting = true
+  killMusic()   // nothing half-faded may survive into the next piece
   const pick = (stem) => tracks.find(n => n.toLowerCase().startsWith(stem))
-  const name = pick(preferred) ?? pick('theme') ?? tracks[0]
+  const name = pick(preferred) ?? pick('theme-deep') ?? tracks[0]
   if (!name) return
   const a = new Audio('/audio/' + encodeURIComponent(name))
   // Heard ONCE, on arrival, and then the world is quiet. A piece with a shape
@@ -5638,18 +5803,30 @@ async function startMusic(preferred) {
   a.loop = false
   a.volume = 0
   MUSIC = a
-  a.addEventListener('ended', () => { MUSIC = null }) // the arrival is over
-  try { await a.play() } catch { MUSIC = null; musicTried = false; return } // the browser said no; fine
-  // come in slowly: a world should not start by shouting
-  const target = 0.42
-  const t0 = performance.now()
-  const fade = () => {
-    if (!MUSIC) return
-    const k = Math.min(1, (performance.now() - t0) / 4000)
-    MUSIC.volume = (musicOn && soundOn) ? target * k : 0
-    if (k < 1) requestAnimationFrame(fade)
-  }
-  requestAnimationFrame(fade)
+  // THE ARRIVAL IS OVER, AND THE LATCH STAYS SHUT. Clearing `musicTried` here
+  // is what let the next stray click replay the theme. Arriving happens once
+  // per visit; only an explicit music toggle re-arms it.
+  a.addEventListener('ended', () => { if (MUSIC === a) MUSIC = null; _musicPlaying = false; _fading.delete(a) })
+  _fading.add(a)
+  a.play().then(() => {
+    _musicStarting = false
+    _musicPlaying = true
+    // come in slowly: a world should not start by shouting
+    const target = 0.42
+    const t0 = performance.now()
+    const fade = () => {
+      if (!MUSIC) return
+      const k = Math.min(1, (performance.now() - t0) / 4000)
+      MUSIC.volume = (musicOn && soundOn) ? target * k : 0
+      if (k < 1) requestAnimationFrame(fade)
+    }
+    requestAnimationFrame(fade)
+  }).catch(() => { // the browser said no; fine
+    _musicStarting = false
+    if (MUSIC === a) MUSIC = null
+    _fading.delete(a)
+    musicTried = false   // a refusal is not an arrival: the next gesture may try
+  })
 }
 
 // The threshold. A loading screen's real job is not to fill a wait, it is to
@@ -5673,8 +5850,20 @@ async function startMusic(preferred) {
     localStorage.setItem('interval-daylock', DAYLOCK ? 'on' : 'off')
     db.textContent = DAYLOCK ? 'day: bright' : 'day: cycle' })
 }
-for (const ev of ['pointerdown', 'keydown']) {
-  window.addEventListener(ev, () => startMusic('theme-flat'), { once: true, passive: true })
+// The first touch carries the music in, and then these come off. Left
+// attached they fire on every click for the rest of the session, which is how
+// a piece meant to be heard once became one that restarts whenever you happen
+// to click after it ends.
+{
+  const carry = () => {
+    startMusic('theme-flat')
+    // Removed only once a sound is genuinely out. Checking MUSIC here was
+    // wrong: it is set synchronously, before `play()` has been permitted, so
+    // the very first click tore down the listeners and a browser that then
+    // refused left the door silent with nothing left to try again.
+    if (_musicPlaying) for (const ev of ['pointerdown', 'keydown']) window.removeEventListener(ev, carry)
+  }
+  for (const ev of ['pointerdown', 'keydown']) window.addEventListener(ev, carry, { passive: true })
 }
 // ...and TRY IMMEDIATELY, gesture or no: a browser that has learned to
 // trust this site (any returning citizen) permits it, and the door has
@@ -5688,6 +5877,7 @@ function musicFollowsSound() { if (MUSIC) MUSIC.volume = (musicOn && soundOn) ? 
 function stopMusic() {
   if (!MUSIC) return
   const a = MUSIC; MUSIC = null
+  // it stays in `_fading`, so a piece starting during the fade kills it first
   const v0 = a.volume, t0 = performance.now()
   const out = () => {
     const k = Math.min(1, (performance.now() - t0) / 500)
@@ -6000,8 +6190,20 @@ function stepToward(s, me, goal, reach, stampTick) {
     }
   } else goals.add(goal.x + ',' + goal.y)
   const step = nextStep(s, me, goals)
-  if (step === null) { feed("You can't reach that."); intent = null; travelMark = null; return }
-  if (step === 'arrived') return
+  // §0j: WHY A FOOTSTEP DID NOT HAPPEN, said out loud, in Nought only.
+  //
+  // Every other verb in this window works in the practice world and walking
+  // does not, and a walk fails SILENTLY at four different places: no path, a
+  // goal already reached, no interval to stamp, or an input the engine then
+  // refuses. From outside all four look identical -- nothing happens -- which
+  // is how this survived a day of reasoning about it.
+  //
+  // One line per distinct reason, not per attempt, so it names the fault
+  // without becoming the spam it is meant to diagnose.
+  if (!window._walkWhy) window._walkWhy = ''
+  const why = (m) => { if (window._walkWhy !== m) { window._walkWhy = m; if (inNought) feed('walk: ' + m) } }
+  if (step === null) { why('no path to that tile'); feed("You can't reach that."); intent = null; travelMark = null; return }
+  if (step === 'arrived') { why('already standing there'); return }
   // §0: WHICH WORLD IS THIS STEP FOR? A footstep in Nought goes to the LOCAL
   // island and never touches Tallyholm, so allocating it out of Tallyholm's
   // two-tick line was asking the wrong world for permission -- and getting
@@ -6010,13 +6212,25 @@ function stepToward(s, me, goal, reach, stampTick) {
   //
   // The local world has one citizen and no contention, so there is nothing to
   // allocate: the next interval is always free.
-  const tk = inNought ? (nought ? nought.state.tick + 1 : null) : allocTick()
+  // §0h: AND STAMPED WITH THE INTERVAL NOUGHT ACTUALLY USES.
+  //
+  // This said `tick + 1`, because Tallyholm's allocator hands out FUTURE
+  // intervals -- an input is stamped for a tick the node has not proposed yet.
+  // Nought does not work that way. `noughtDo` stamps every input with
+  // `nought.state.tick`, the CURRENT one, and the engine refuses anything else:
+  // `validInput` demands `input.tick === state.tick` exactly.
+  //
+  // So the number computed here was never the number sent. It did not break
+  // the input -- noughtDo overwrites it -- but it set `moveLock.until` to
+  // tick + 3 for a step that lands on tick, so the lock outlived the step it
+  // was guarding by three intervals, every single time.
+  const tk = inNought ? (nought ? nought.state.tick : null) : allocTick()
   // §2287: two inputs stamped on one interval annihilate, so the allocator
   // gives each deed its own tick and the line is only two deep. When it is
   // full the step is abandoned and re-planned next state -- correct, but
   // COUNTED, because a silent drop here is exactly how a background `set_look`
   // ate one footstep in five and looked like a bad connection.
-  if (tk === null) { _movesDropped++; return }
+  if (tk === null) { why('no interval to stamp (inNought=' + inNought + ' nought=' + !!nought + ')'); _movesDropped++; return }
   facing[myId] = step.dx !== 0 ? step.dx : (facing[myId] ?? 1)
   moveLock = { x: me.x + step.dx, y: me.y + step.dy, tick: tk, until: tk + 2 }
   // §5i: a straight run is ONE deed. `walk` takes its first step in the same
@@ -6028,6 +6242,7 @@ function stepToward(s, me, goal, reach, stampTick) {
     send({ do: 'walk', dx: step.dx, dy: step.dy, steps: Math.min(step.run, WALK_MAX_STEPS), _tick: tk })
   } else {
     walkGoal = null
+    why('sent move ' + step.dx + ',' + step.dy + ' at tick ' + tk)
     send({ do: 'move', dx: step.dx, dy: step.dy, _tick: tk })
   }
 }
@@ -6076,7 +6291,7 @@ const FORGE = {
   "great-crossbow": {"star-ingot":7,"brimstone":20,"ironbark":1},
   "great-hatchet": {"magic-stone":2,"ironbark":2,"brimstone":1},
   "great-helm": {"star-ingot":4,"brimstone":12},
-  "great-maul": {"star-ingot":11,"brimstone":24,"ironbark":1},
+  "great-mell": {"star-ingot":11,"brimstone":24,"ironbark":1},
   "great-pickaxe": {"magic-stone":2,"ironbark":1,"brimstone":1},
   "great-plate": {"star-ingot":9,"brimstone":22},
   "great-sword": {"star-ingot":10,"brimstone":26,"ironbark":1},
@@ -6087,7 +6302,7 @@ const FORGE = {
   "iron-hatchet": {"iron":1,"logs":1},
   "iron-helm": {"iron":1},
   "iron-javelin": {"iron":1,"logs":1},
-  "iron-maul": {"iron":2,"logs":1},
+  "iron-mell": {"iron":2,"logs":1},
   "iron-pickaxe": {"iron":1,"logs":1},
   "iron-plate": {"iron":3},
   "iron-shield": {"iron":4,"oak-logs":1},
@@ -6103,7 +6318,7 @@ const FORGE = {
   "star-helm": {"star-ingot":10},
   "star-ingot": {"magic-stone":20},
   "star-javelin": {"star-ingot":1,"ironbark":1},
-  "star-maul": {"star-ingot":18,"ironbark":1},
+  "star-mell": {"star-ingot":18,"ironbark":1},
   "star-pickaxe": {"magic-stone":2,"iron":1,"logs":1},
   "star-plate": {"star-ingot":20},
   "star-shield": {"star-ingot":14,"ironbark":1},
@@ -6114,7 +6329,7 @@ const FORGE = {
   "steel-hatchet": {"steel":1,"oak-logs":1},
   "steel-helm": {"steel":1},
   "steel-javelin": {"steel":1,"logs":1},
-  "steel-maul": {"steel":2,"oak-logs":1},
+  "steel-mell": {"steel":2,"oak-logs":1},
   "steel-pickaxe": {"steel":1,"oak-logs":1},
   "steel-plate": {"steel":2},
   "steel-shield": {"steel":3,"ironbark":1},
@@ -6138,7 +6353,7 @@ const FORGE_REQ = {
   "great-crossbow": {"earthcraft":70,"sorcery":34},
   "great-hatchet": {"earthcraft":55},
   "great-helm": {"earthcraft":70,"sorcery":34},
-  "great-maul": {"earthcraft":70,"sorcery":34},
+  "great-mell": {"earthcraft":70,"sorcery":34},
   "great-pickaxe": {"earthcraft":55},
   "great-plate": {"earthcraft":70,"sorcery":34},
   "great-sword": {"earthcraft":70,"sorcery":34},
@@ -6149,7 +6364,7 @@ const FORGE_REQ = {
   "iron-hatchet": {"earthcraft":1},
   "iron-helm": {"earthcraft":7},
   "iron-javelin": {"earthcraft":5},
-  "iron-maul": {"earthcraft":14},
+  "iron-mell": {"earthcraft":14},
   "iron-pickaxe": {"earthcraft":1},
   "iron-plate": {"earthcraft":20},
   "iron-shield": {"earthcraft":12},
@@ -6165,7 +6380,7 @@ const FORGE_REQ = {
   "star-helm": {"earthcraft":40,"sorcery":20},
   "star-ingot": {"earthcraft":45},
   "star-javelin": {"earthcraft":46,"sorcery":26},
-  "star-maul": {"earthcraft":52,"sorcery":30},
+  "star-mell": {"earthcraft":52,"sorcery":30},
   "star-pickaxe": {"earthcraft":42,"sorcery":22},
   "star-plate": {"earthcraft":50,"sorcery":30},
   "star-shield": {"earthcraft":48},
@@ -6176,7 +6391,7 @@ const FORGE_REQ = {
   "steel-hatchet": {"earthcraft":26},
   "steel-helm": {"earthcraft":30},
   "steel-javelin": {"earthcraft":28},
-  "steel-maul": {"earthcraft":42},
+  "steel-mell": {"earthcraft":42},
   "steel-pickaxe": {"earthcraft":26},
   "steel-plate": {"earthcraft":38},
   "steel-shield": {"earthcraft":34},
@@ -6341,7 +6556,33 @@ function onMessage (ev) {
   // "Unterminated string" straight out of the socket handler. Count it and
   // carry on: the next state is a second away and complete.
   let m
-  try { m = JSON.parse(ev.data) }
+  try {
+    // A ZONE PATCH ARRIVES AS BYTES, NOT AS A STRING.
+    //
+    // The pillar assembles a patch out of Buffers and sends the lot with
+    // `ws.send(Buffer.concat(frame))`. That is a BINARY frame, so the browser
+    // hands it over as a Blob or an ArrayBuffer -- and `JSON.parse` of either
+    // stringifies it first, which is how every patch this window ever received
+    // failed with `"[object Blob]" is not valid JSON` and how a window that had
+    // connected perfectly well sat on CONNECTING for ever.
+    //
+    // The bytes ARE json; only the frame type differs. `binaryType` is set to
+    // 'arraybuffer' where the socket is opened, so this decode is synchronous
+    // and the handler stays exactly as simple as it was.
+    m = JSON.parse(typeof ev.data === 'string' ? ev.data : new TextDecoder().decode(ev.data))
+    // WHAT THIS SOCKET IS ACTUALLY SAYING, shown at the door until the world
+    // speaks. A `hello` and then silence looks identical to a broken window
+    // from out here, and the door said "waking the world..." for both -- so
+    // the door now names the frames it has had. If this reads `hello 1` and
+    // nothing else, the window is fine and the pillar is not talking.
+    if (!curState) {
+      window._frames = window._frames || {}
+      window._frames[m.type ?? '?'] = (window._frames[m.type ?? '?'] ?? 0) + 1
+      const gi = document.getElementById('gateinfo')
+      if (gi) gi.innerHTML = 'waking the world&hellip;<br><span style="font-size:10px;opacity:.75">heard: '
+        + Object.entries(window._frames).map(([k, v]) => k + ' \u00d7' + v).join(', ') + '</span>'
+    }
+  }
   catch (e) {
     _badFrames++
     if (_badFrames === 1) feed('a message from the world arrived malformed (' + e.message + '); ignoring it')
@@ -6482,11 +6723,34 @@ async function connect (reason) {
     return
   }
   showNode(found)
-  loadTables()          // not awaited: the built-in tables render until it lands
   if (reason === 'reconnect') feed('Reconnected by way of ' + NODE.replace(/^https?:\/\//, '') + '.')
 
   const sock = new WebSocket(wsUrl())
   ws = sock
+  // ...and ask for bytes rather than a Blob, so a patch can be decoded in the
+  // handler instead of asynchronously, out of order, after the next one.
+  sock.binaryType = 'arraybuffer'
+  // A SOCKET THAT OPENS AND SAYS NOTHING IS NOT THE SAME AS A SOCKET THAT
+  // NEVER OPENED, and the door said "waking the world..." for both.
+  //
+  // The usual cause is a pillar that is founding: building the practice island
+  // blocks its event loop for minutes, so it accepts the connection and then
+  // broadcasts nothing at all. From here that is indistinguishable from a
+  // window that is broken, which is how an afternoon goes looking for a bug in
+  // the wrong place.
+  {
+    let said = false
+    const waited = setTimeout(() => {
+      if (said || curState) return
+      said = true
+      const g = document.getElementById('gateinfo')
+      if (g && !curState) g.innerHTML = 'connected, but this world has not spoken yet.<br>'
+        + '<span style="font-size:11px;opacity:.8">A node that is founding stops answering while it builds. '
+        + 'This can take a few minutes the first time after the rules change.</span>'
+    }, 12000)
+    sock.addEventListener('close', () => clearTimeout(waited))
+    sock.addEventListener('message', () => { clearTimeout(waited) }, { once: true })
+  }
   sock.onopen = () => { reconnectAt = 0; onOpen() }
   sock.onmessage = onMessage
   const drop = () => {
@@ -6505,7 +6769,15 @@ connect('boot')
 
 let prev = null
 let curState = null, prevState = null, stateAt = 0, curWorldId = ''
-let statePeriod = 600  // measured broadcast rhythm: states are never exactly on time
+// §3.3: ONE INTERVAL IS ONE SECOND. The world (and Nought's local mirror,
+// setInterval(noughtTick, 1000)) advances one tick per second, and VIGIL_TICKS
+// = 300 is called "five minutes" -- both say 1 tick = 1000 ms. The render clock
+// below used to divide by a hardcoded 600, a leftover from when a tick was
+// 600 ms: at a real 1000 ms cadence that made every glide finish in 600 ms,
+// overshoot to the clamp, freeze ~350 ms, and the drifting anchor snap to catch
+// up -- the lurch-pause-lurch that made walking feel hacky. It is one number.
+const TICK_MS = 1000
+let statePeriod = TICK_MS  // measured broadcast rhythm: states are never exactly on time
 let tickOffset = null  // wall-clock anchor of tick 0 (smoothed)
 let worstFrame = 0, lastFrameAt = 0, worstJitter = 0, meterAt = 0, meterText = ''
 const hitFlash = {}   // pid -> ms timestamp of last damage taken
@@ -6545,9 +6817,9 @@ const CALLING_LINE_W = {
 // dagger thrust drew the same little ring and nothing else.
 const SPEC_BLOWS = {
   "star-dagger": 6,
-  "star-maul": 2,
+  "star-mell": 2,
   "fire-siphon": 1,
-  "great-maul": 2,
+  "great-mell": 2,
   "horn-bow": 6,
   "handgonne": 2,
   "dragonbow": 1
@@ -6557,9 +6829,9 @@ const SPEC_BLOWS = {
 // of the great-crossbow.
 const SPEC_OF = {
   "star-dagger": "flurry",
-  "star-maul": "now",
+  "star-mell": "now",
   "fire-siphon": "now",
-  "great-maul": "now",
+  "great-mell": "now",
   "horn-bow": "flurry",
   "handgonne": "flurry",
   "dragonbow": "far"
@@ -6801,7 +7073,7 @@ function allocTick() {
 }
 function renderT(now) { // one clock for drawing AND clicking: what you see is what you hit
   if (tickOffset !== null && curState) {
-    const renderTick = (now - tickOffset) / 600 - 1.0
+    const renderTick = (now - tickOffset) / TICK_MS - 1.0
     return Math.min(1.15, Math.max(0, renderTick - (curState.tick - 1)))
   }
   return Math.min(1.2, (now - stateAt) / statePeriod)
@@ -6945,6 +7217,17 @@ let spellMarks = []   // { kind, x, y, tx, ty, at }
 // fifty-six citizens and one face between them. It costs nothing and can be
 // changed later; what it buys is that the person beside you is not you.
 let pickLook = 0, lookSent = -1
+// §7d-iii: the interval a face was last attempted in. `tick % 12` reads like a
+// throttle and is not one: `onState` runs on every message and every render,
+// many times a second with the SAME tick, so whenever the count sat on a
+// multiple of twelve the retry fired on every call -- twenty a second rather
+// than one every twelve seconds. A modulo only rations something that runs
+// exactly once per tick, and nothing here does.
+let lookTriedAt = -1
+// §6bz: a wield waiting on the interval after an unwield. One at a time: a
+// second swap before the first has landed replaces it rather than queueing,
+// because a citizen who changed their mind meant the newer one.
+let pendingWield = null
 let _releaseArmed = false   // §11b: releasing loses the route, so it asks twice
 function drawLookPreview() {
   // THE SAME lookOf THE WORLD USES. The first version of this had its own
@@ -6980,10 +7263,22 @@ function drawLookPreview() {
 const VIGIL_TICKS = 300, ATTEND_WINDOW = 3600   // §0: five minutes, stale after an hour
 let attendSentAt = -1, crossArmed = false, crossSentAt = -1, crossingOpen = false
 // the crossing is offered AT THE FOUNTAIN, on foot, and nowhere else.
+//
+// §0l: THE GATE ASKS TALLYHOLM, NOT NOUGHT. While a soul is in Nought, `world`
+// is the PRACTICE ISLAND -- a different world, at its own tick, that has never
+// heard the resident's real key and never carries their wait. `updateGate`
+// computes ripeness with `myWait`, so handed the practice island it always
+// falls to "the world has not seen you", disables the button, AND clears
+// `crossArmed`. That last part is why the crossing looped: every press armed
+// the cross and the very next repaint -- run against the wrong world -- disarmed
+// it, so the second press that sends `spawn` was never reachable. The wait
+// lives in the LIVE world; every gate repaint must read it from there. This is
+// the same `live` selection `enterWorld` already makes for its guard.
+function liveWorld() { return (inNought && lastLive) ? lastLive : world }
 function openCrossing() {
   crossingOpen = true
   document.getElementById('gate').style.display = ''
-  updateGate(world, null)
+  updateGate(liveWorld(), null)
 }
 function closeCrossing() {
   crossingOpen = false; crossArmed = false
@@ -7221,7 +7516,7 @@ async function ensureNought(live) {
     nought = { E: E2, state: st, key, inputs: [], wid: E2.worldId(st.genesis) }
     realId = realId ?? myId
     myId = key.playerId
-    nought.timer = setInterval(noughtTick, 600)
+    nought.timer = setInterval(noughtTick, 1000)   // §0: the SAME interval as the world. Nought running faster than Tallyholm taught a newcomer a rhythm they would have to unlearn on arrival, which is the one thing a practice world must never do.
     noughtBanner(true)
     noughtCard()
   } catch (e) {
@@ -7618,6 +7913,17 @@ function noughtNotice(s) {
   }
 }
 function onState(s, worldId, local) {
+  // §6dj-ii: AND IF THIS THROWS, SAY SO ON THE SCREEN.
+  //
+  // `_noteFrameErr` exists because three places in this window catch and carry
+  // on into a console a phone cannot open. onState was not one of them, and it
+  // is the worst place for a silent throw: it updates the gate, so an
+  // exception here does not look like an error, it looks like a world that
+  // never finishes waking. Twice today it was exactly that.
+  try { return _onState(s, worldId, local) }
+  catch (e) { _noteFrameErr('onState', e) }
+}
+function _onState(s, worldId, local) {
   if (local) { noughtNotice(s); fountainMark(s); if (lastLive) noughtHud(lastLive) }
   // §0: a key the world does not hold is in Nought. Everything downstream then
   // renders a resident exactly as it renders a citizen.
@@ -7631,9 +7937,29 @@ function onState(s, worldId, local) {
     keepAttending(s)
     // §5h admits one soul per interval, so a crossing may not take on the first
     // tick. Keep sending: that is the queue at the fountain.
-    if (crossSentAt >= 0 && s.tick - crossSentAt >= 2) { crossSentAt = s.tick; send({ do: 'spawn' }) }
+    if (crossSentAt >= 0 && s.tick - crossSentAt >= 2) {
+      // §0m: SAY WHAT THE QUEUE IS WAITING FOR.
+      //
+      // This loop re-sends `spawn` for ever until the live world holds the
+      // key, and the ONLY thing that ends it is `inNought` going false --
+      // which is computed as "Tallyholm does not hold `askAbout`". If the key
+      // being asked about is not the key that signed the spawn, the world
+      // fills with a citizen nobody is looking for and the queue never ends:
+      // "Waiting your turn at the fountain" for ever, with nothing refused
+      // and nothing said.
+      //
+      // Once every ten attempts, so it names the fault without becoming spam.
+      if (!window._crossTries) window._crossTries = 0
+      if ((window._crossTries++ % 10) === 0) {
+        const ask = realId ?? myId
+        feed('at the fountain: asking Tallyholm for ' + String(ask).slice(0, 10) + '\u2026'
+          + ' · signing with ' + String(ownKey?.pub ?? '?').slice(0, 10) + '\u2026'
+          + ' · world holds it: ' + !!(s.players && s.players[ask]))
+      }
+      crossSentAt = s.tick; send({ do: 'spawn' })
+    }
     noughtHud(s)
-    ensureNought(s)
+    if (entered) ensureNought(s)   // the door watches Tallyholm; see below
     if (!entered) updateGate(s, worldId)
     else if (crossingOpen) updateGate(s, worldId)
     // A WINDOW MUST NOT GO DARK IF NOUGHT CANNOT BE BUILT. The first run of
@@ -7679,9 +8005,27 @@ function onState(s, worldId, local) {
   // then jumps -- one step in five eaten by a message about their appearance,
   // and it cannot converge while they walk, so it does it the whole way.
   const meL = s.players?.[myId]
-  if (entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
+  // §7d-ii: AND NEVER IN NOUGHT. The guard below asks whether the engine would
+  // ACCEPT a set_look -- a citizen with no face yet, or one standing at a
+  // looking-glass. In Nought a resident has neither: the practice island has
+  // no glass, and their face is never set, so the first clause was true
+  // for ever. It retried every twelve intervals, was refused every time, and
+  // each attempt SPENT THE INPUT SLOT for that interval -- which is why a
+  // resident could wield and click and not walk, and why the feed filled with
+  // five thousand copies of one line about a tall glass.
+  //
+  // A face belongs to a citizen in the world. Nothing in Nought is saved, so
+  // there is nothing here for a face to be saved to.
+  // §6bz: the hand is free now, so take up what was waiting for it.
+  if (pendingWield && meL && !meL.action && lastStamped <= s.tick) {
+    const pw = pendingWield; pendingWield = null
+    send({ do: 'wield', slot: pw.slot })
+    feed('You wield the ' + pw.item.replace(/-/g, ' ') + '.')
+  }
+  if (!inNought && entered && meL && (meL.look ?? 0) !== pickLook && lookSent === pickLook
       && !meL.action                          // busy: the interval is the deed's
       && lastStamped <= s.tick                // no slot already spoken for
+      && lookTriedAt !== s.tick               // ...and not already, this same interval
       && (s.tick % 12) === 0
       // §7d: ...and only where the engine would ACCEPT it. Once a citizen has a
       // face, `set_look` is refused anywhere but at a looking-glass -- so this
@@ -7689,7 +8033,7 @@ function onState(s, worldId, local) {
       // A retry that can never succeed is a loop, not a retry.
       && (meL.look === undefined || Object.values(s.nodes ?? {}).some((n) => n.type === 'looking-glass'
           && Math.abs(meL.x - n.x) + Math.abs(meL.y - n.y) === 1))
-     ) { send({ do: 'set_look', look: pickLook }) }
+     ) { lookTriedAt = s.tick; send({ do: 'set_look', look: pickLook }) }
   // per-state caches (perf): water adjacency and who pins which mob
   s._waterAdj = {}
   s._waterTiles = new Set()
@@ -7899,25 +8243,61 @@ function onState(s, worldId, local) {
   if (stateAt) {
     const dt = arrivedAt - stateAt
     if (dt > 300 && dt < 1200) statePeriod = statePeriod * 0.85 + dt * 0.15
-    worstJitter = Math.max(worstJitter, Math.abs(dt - 600))
+    worstJitter = Math.max(worstJitter, Math.abs(dt - TICK_MS))
   }
   stateAt = arrivedAt
   // tick-domain clock, anchored on the FASTEST delivery ever observed:
   // late states cannot move a minimum. It drifts up 2ms per state so a
   // clock-skew or route change heals within a minute.
-  const impliedOffset = arrivedAt - s.tick * 600
+  const impliedOffset = arrivedAt - s.tick * TICK_MS
   tickOffset = tickOffset === null ? impliedOffset : Math.min(tickOffset + 2, impliedOffset)
   // after a stall (device slept, network gasped), the backlog arrives in a
   // burst. A faithful clock would REPLAY it. Nobody wants to rewatch a
   // freeze: if we have fallen more than a tick behind the present, snap to it.
-  const prospectiveT = (arrivedAt - tickOffset) / 600 - 1 - (s.tick - 1)
-  if (prospectiveT > 1.25) tickOffset = arrivedAt - s.tick * 600
+  const prospectiveT = (arrivedAt - tickOffset) / TICK_MS - 1 - (s.tick - 1)
+  if (prospectiveT > 1.25) tickOffset = arrivedAt - s.tick * TICK_MS
   if (prevState) for (const pid in s.players) {
     const o = prevState.players[pid]
     if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
   }
   const me = s.players[myId]
-  if (!entered) { prev = s; panel(s); return } // wait at the gate
+  // §0f: THE MOVE LOCK MUST BE RELEASED EVEN AT THE GATE.
+  //
+  // The lock is set when a step is sent and cleared forty lines below, once
+  // the citizen has arrived or the interval it was stamped for has passed.
+  // But the gate return sits ABOVE that line, and in Nought a resident is
+  // never `entered` -- that flag means Tallyholm accepted their spawn, which
+  // is exactly what has not happened yet. So the first click set the lock and
+  // nothing ever cleared it: one step, then frozen for the whole visit.
+  //
+  // It looked like a movement bug and was a control-flow one, which is why the
+  // tick-allocator fix above (§0, line ~6126) did not touch it -- that fix was
+  // about which world a footstep asks permission from. Wielding and clicking
+  // kept working throughout because neither goes anywhere near this lock.
+  if (me && moveLock && ((me.x === moveLock.x && me.y === moveLock.y) || s.tick >= moveLock.until)) moveLock = null
+  // §0g: ...BUT NOUGHT IS PAST THE GATE ALREADY.
+  //
+  // `entered` means TALLYHOLM accepted a spawn. A resident in Nought never has
+  // it and never will while they are there -- and everything below this line
+  // includes the walk planner: the code that turns a click on the ground into
+  // a step. So a resident could set an intent and nothing ever read it.
+  //
+  // Releasing the move lock above this was necessary and nowhere near enough;
+  // the lock was the second gate and this is the first. A practice world whose
+  // residents cannot walk is not practice.
+  // §0g: PAST THE GATE ONLY WITH A BODY TO MOVE.
+  //
+  // `inNought` alone was the wrong test and it broke the door. It means "the
+  // live world does not hold my key", which is ALREADY TRUE at the door,
+  // before anyone has walked into Nought at all -- so this stopped returning
+  // there, and everything below ran with `me` undefined and threw out of
+  // onState on every state. The gate never updated: "waking the world..." for
+  // ever.
+  //
+  // What the walk planner actually needs is a practice island that exists and
+  // a body standing in it. That is `nought && me`, and it is false at the door
+  // and true the moment a resident walks in.
+  if (!entered && !(nought && me)) { prev = s; panel(s); return } // wait at the gate
   // §0e: A WINDOW MUST NOT SEND `spawn` ON ITS OWN INITIATIVE. This window used
   // to birth a soul the instant it noticed one missing, which made the crossing
   // a side effect of loading a page. The crossing is an act; it is done at the
@@ -7926,18 +8306,36 @@ function onState(s, worldId, local) {
   // One soul is born per interval (§5h), so a crossing may not take on the
   // first tick. We keep sending -- that is the queue at the fountain, and it is
   // shown rather than hidden.
-  if (inNought) { /* a resident: the world is not theirs to act on yet */ }
-  else if (!me.name && loginName) {
+  // §0k: A RESIDENT DOES NOT CLAIM A NAME, AND DOES EVERYTHING ELSE.
+  //
+  // NOTE the `me &&` on the three naming branches. The empty `if (inNought)`
+  // this replaced was doing two jobs without saying so: skipping the chain for
+  // a resident, AND short-circuiting past `me.name` at the door, where `me` is
+  // undefined because the world holds no body for this key yet. Removing it
+  // let `!me.name` throw a TypeError out of onState on every state, so the
+  // gate never updated and the door sat on "waking the world..." for ever.
+  //
+  // This was `if (inNought) { }` -- an empty branch at the head of a long
+  // else-if chain, which SWALLOWED THE WHOLE CHAIN for a resident. Nine
+  // branches down that chain is the walk planner. So in Nought a citizen could
+  // wield, drop, gather, trade, and set any intent they liked -- the intent was
+  // recorded and the feed said so -- and nothing ever turned it into a step.
+  //
+  // The comment said the world is not theirs to act on yet, and that is true
+  // of exactly one thing here: claiming a name in TALLYHOLM, which the three
+  // branches below do. It was never true of movement. By this point `s` is the
+  // practice island; walking in it is the entire purpose of the place.
+  if (!inNought && me && !me.name && loginName) {
     if (s.names?.[loginName]) {
       feed('"' + loginName + '" was claimed while you stood at the gate. You remain nameless; another name awaits your choosing.')
       loginName = ''
     } else { send({ do: 'name', name: loginName }); pendingName = loginName; loginName = '' }
   }
-  else if (!me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
+  else if (!inNought && me && !me.name && pendingName && s.names?.[pendingName] && s.names[pendingName] !== myId) {
     feed('"' + pendingName + '" is taken. You remain nameless.')
     pendingName = ''
   }
-  else if (!me.name && pendingName && !s.names?.[pendingName] && s.tick % 4 === 0) {
+  else if (!inNought && me && !me.name && pendingName && !s.names?.[pendingName] && s.tick % 4 === 0) {
     // the claim repeats, PACED: an every-tick retry once starved the
     // citizen's own legs of input slots and pinned them at spawn
     nameTries = (nameTries ?? 0) + 1
@@ -7969,7 +8367,20 @@ function onState(s, worldId, local) {
       // a step is in flight: keep walking without waiting for it to land.
       // Plan the NEXT step from the tile we are about to occupy, stamped
       // for the following tick: continuous motion, no stutter, no drift.
-      if (ownKey) {
+      // §5i-ii: BUT NOT WHILE A WALK IS CARRYING US.
+      //
+      // A `walk` is one input that moves a citizen for many intervals. On the
+      // state right after it is sent the action has not landed yet -- the input
+      // is still in flight -- so `me.action` is null and the guard at the top
+      // of stepToward does not catch it. This branch then planned from the
+      // ghost and sent a SECOND walk over the top of the first, and the engine
+      // has one action slot, so the new walk replaced the old one mid-stride.
+      // Repeated every state, that is a citizen restarting their journey once a
+      // second: the stutter, and the whole saving of batching thrown away.
+      //
+      // `walkGoal` is set the moment a walk is sent, which is exactly the gap
+      // the action has not filled yet.
+      if (ownKey && !walkGoal) {
         const ghost = { ...me, x: moveLock.x, y: moveLock.y }
         // pickup and walk mean STANDING ON the goal; everything else means
         // standing beside it. Getting this wrong marched the citizen on and
@@ -9224,9 +9635,9 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
-    } else if (o.wepItem === 'iron-maul' || o.wepItem === 'star-maul') {
+    } else if (o.wepItem === 'iron-mell' || o.wepItem === 'star-mell') {
       // a heavy head on a short haft. It should look like it weighs something.
-      const star9 = o.wepItem === 'star-maul'
+      const star9 = o.wepItem === 'star-mell'
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
       cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
       cx.fillRect(-3.2, -6, 6.4, 4.6)
@@ -10976,46 +11387,9 @@ function drawScene(now) {
         }
         cx.globalAlpha = 1
       }
-      if (n.type === 'looking-glass') {
-        // §7d: the one place on the island you can change your face. The
-        // window used to do this at its own door, which meant a citizen's
-        // appearance was a menu setting; it is a journey now.
-        const meG = world.players[myId]
-        const adjG = Math.abs(meG.x - n.x) + Math.abs(meG.y - n.y) === 1
-        if (!adjG) { feed('A tall glass, clouded at the edges. You would have to stand at it.'); return }
-        // step to the next face and send it. The gate's picker is a preview
-        // screen and does not exist once you are in the world; standing at the
-        // glass, a click IS the change.
-        pickLook = (pickLook + 1) & 255
-        send({ do: 'set_look', look: pickLook })
-        lookSent = pickLook
-        feed('You look at yourself in the glass, and something about you settles differently.')
-        flashClick(n.x, n.y, false)
-        return
-      }
-      if (n.type === 'tollgate') {
-        // §14: THE BAR ON THE MILLBROOK BRIDGE. One ordinary log to the
-        // keeper and it is up for you for two minutes. The point of the toll
-        // is that you can arrive without one, so say so plainly rather than
-        // failing silently -- a gate that refuses you and does not explain is
-        // just a wall.
-        const meT = world.players[myId]
-        const adjT = Math.abs(meT.x - n.x) + Math.abs(meT.y - n.y) === 1
-        if (!adjT) { feed('The bar is down across the bridge. There is a keeper beside it.'); return }
-        const LOGKINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood']
-        const hasLog = (meT.inventory || []).some(sl => sl && sl.item === 'logs')
-        const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
-        if (!hasLog) {
-          feed(hasOther
-            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.'
-            : 'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
-          return
-        }
-        send({ do: 'pay' })
-        feed('You hand over a log. The keeper lifts the bar and goes back to the deck.')
-        flashClick(n.x, n.y, false)
-        return
-      }
+      // §7d-iv: the looking-glass and the tollgate USED TO BE HANDLED HERE,
+      // inside drawScene, and they are click handlers. See the node click
+      // handler below, where they now live.
       if (n.type === 'market') {
         // A CITIZEN'S STALL: trestles, a cloth, a post with their mark, and
         // whatever is actually on the shelf standing on the board.
@@ -13246,15 +13620,38 @@ function panel(s) {
       const them = world.players[fid]
       const nm = them?.name ?? fid.slice(0, 6)
       const here = them && Math.max(Math.abs(me.x - them.x), Math.abs(me.y - them.y)) <= FRIEND_RANGE
+      // §7dv: WHAT THIS MAY SAY, and it is deliberately not a status light.
+      //
+      // A green dot is a claim about a person -- online, therefore available,
+      // therefore ignoring you -- and it manufactures obligation. What the
+      // world actually PUBLISHES is the stint: a promise sworn in advance,
+      // public by design, with a length on it. So the column answers the only
+      // question worth asking, which is not "are they there" but "will they
+      // still be there if I walk over".
+      //
+      // Rounded to five minutes, like the dial, and for the same reason.
+      let mark = here ? 'here' : ''
+      if (!here && them) {
+        const g = world.genesis, t = world.tick
+        const st = them.stint
+        if (st && t >= st.from && t < st.to) {
+          const left = st.to - t
+          mark = left < 300 ? 'sworn, ending' : 'sworn ~' + (Math.round(left / 300) * 5) + 'm'
+        } else if (g?.ceiling && ceilLeftOf(them, g, t) <= 0) {
+          mark = 'stood down'
+        }
+      }
       return '<div style="display:flex;justify-content:space-between;padding:1px 0">'
         + '<span style="color:' + (here ? 'var(--gold)' : 'var(--dim)') + '">' + nm + '</span>'
-        + '<span style="color:var(--dim);font-size:10px">' + (here ? 'here' : '') + '</span></div>'
+        + '<span style="color:var(--dim);font-size:10px">' + mark + '</span></div>'
     }).join('')
   }
   drawBook()
   if (!_bookWired) {
     _bookWired = true
     document.getElementById('bookbtn').onclick = () => { bookOpen = !bookOpen; drawBook() }
+    const sb = document.getElementById('scopeBtn')
+    if (sb) { sb.onclick = () => setChatScope(chatScope === 'far' ? 'near' : 'far'); setChatScope(chatScope) }
   }
   const skPanel = document.getElementById('skills')
   if (!skPanel._guideWired) {
@@ -13759,13 +14156,27 @@ function enterWorld() {
   // §0e: A CROSSING IS NOT COMPLETED ON A SINGLE ACTION. The first press arms
   // it and says what is about to happen; the second one does it.
   if (crossingOpen) {
-    const w0 = myWait(world)
-    if (!w0 || !w0.ripe || !keyExported()) return
-    if (!crossArmed) { crossArmed = true; updateGate(world, null); return }
-    crossSentAt = world.tick
+    // §0l: THE WAIT IS TALLYHOLM'S, AND SO IS THE CLOCK.
+    //
+    // `world` is the PRACTICE ISLAND while a resident is in Nought -- a
+    // different world, at its own tick, with no wait in it at all. So
+    // `myWait(world)` came back undefined, this returned silently, and the
+    // button that said "Draw from the fountain" did nothing at all, for ever,
+    // with nothing said. `allocTick` already carries a note about exactly this
+    // confusion; the crossing needed the same care and did not get it.
+    const live = liveWorld()
+    const w0 = myWait(live)
+    if (!w0) { feed('The world has not been asked to expect you yet.'); return }
+    if (!w0.ripe) { feed('The wait is not ripe yet.'); return }
+    if (!keyExported()) { feed('Export your key before you cross.'); return }
+    // §0l: repaint from `live`, NOT `world`. `world` is the practice island in
+    // Nought, and updateGate against it clears `crossArmed` -- which turned the
+    // first press into a no-op forever. See liveWorld() above.
+    if (!crossArmed) { crossArmed = true; updateGate(live, null); return }
+    crossSentAt = live.tick
     send({ do: 'spawn' })
     feed('You draw from the fountain in Anchor.')
-    updateGate(world, null)
+    updateGate(live, null)
     return                        // Nought does not end until the world says so
   }
   if (inNought) {
@@ -14027,6 +14438,7 @@ function drawSunMap(s, now) {
   // means one place to everyone who hears it.
   {
     const rn = regionNameAt(Math.round(pxr), Math.round(pyr))
+    musicFollowsRegion(rn)   // the country, heard
     if (rn) { // an empty strip is worse than no strip
       g.fillStyle = "#181209"; g.fillRect(0, MH, MW, NAMEH)
       g.fillStyle = "#55462d"; g.fillRect(0, MH, MW, 1)
@@ -14120,6 +14532,65 @@ sndEl.addEventListener('click', () => {
   if (soundOn) { startMusic('theme-flat'); SFX.trade() }
 })
 
+// ---- region music: arrival, not atmosphere ----
+// The door theme plays once because entering the world is an arrival. Crossing
+// into the Crags is the same event at a smaller scale, so it gets the same rule:
+// heard once, then quiet. A region already heard this session stays quiet when
+// you come back through it -- you arrived there already, and a piece that greets
+// you at every crossing is not a greeting.
+//
+// Presentational only, like the daylight lock. No world state, no input, no
+// tick. Two windows standing on the same tile may be hearing different things,
+// and the world does not care.
+const REGION_STEM = {
+  'the Heartlands': 'theme-hearth', 'the Meadows': 'theme-hearth',
+  'Greenhollow': 'theme-hearth',
+  'Anchor': 'theme-anchor',
+  'Millbrook': 'theme-hearth', 'Norwick': 'theme-hearth',
+  'Thornbury': 'theme-hearth', 'Oxenford': 'theme-hearth',
+  'Hollybarrow': 'theme-hearth',
+  'the City': 'theme-hearth', 'the Market': 'theme-hearth',
+  'the Greenwood': 'theme-road', 'the Road': 'theme-road', 'Eastmere': 'theme-road',
+  'the Downs': 'theme-downs', 'the Shore': 'theme-downs',
+  'the Crags': 'theme-crags', 'the Pass': 'theme-crags',
+  'the Mountains': 'theme-crags', 'the Scree': 'theme-crags', 'Cragfoot': 'theme-crags',
+  'the Fens': 'theme-fens', 'Fenmarch': 'theme-fens',
+  'the Moor': 'theme-moor',
+  'the Wilds': 'theme-wilds',
+  'the Deep': 'theme-gallery',
+  // §7ea: and the dragon's isle, for the same reason the Deep has it
+  'Scaleshore': 'theme-gallery',
+  // the Sea and the Bridge stay silent on purpose: a world that goes quiet at
+  // the water's edge is better than one with a cue for every tile.
+}
+const REGION_HEARD = new Set()
+let regionSeen = null, regionSince = 0, regionSettled = false, regionWoke = false
+// Borders meander by design, so a citizen walking one flickers between two
+// names. Measured in wall time, not frames: this is called from the draw loop
+// and a fast machine must not arrive somewhere sooner than a slow one.
+const REGION_SETTLE_MS = 6000
+
+function musicFollowsRegion(name) {
+  if (!name) return
+  const now = performance.now()
+  if (name !== regionSeen) { regionSeen = name; regionSince = now; regionSettled = false; return }
+  if (regionSettled || now - regionSince < REGION_SETTLE_MS) return
+  regionSettled = true                       // this stay is decided, either way
+
+  // The region you WAKE in is not somewhere you arrived, it is where you were
+  // put, and the door theme already covered it.
+  if (!regionWoke) { regionWoke = true; REGION_HEARD.add(name); return }
+
+  if (REGION_HEARD.has(name)) return         // arrived here already today
+  if (!musicOn || !soundOn) return
+  const stem = REGION_STEM[name]
+  if (!stem) return
+  if (MUSIC) return                          // a piece with a destination reaches it
+  REGION_HEARD.add(name)
+  musicTried = false
+  startMusic(stem)
+}
+
 function fadeMusicOut(ms) { // the theme belongs to the DOOR: it bows out at the threshold
   const a = MUSIC; if (!a) return
   MUSIC = null // released now, so nothing restarts it
@@ -14143,6 +14614,118 @@ document.getElementById('gatebtn').addEventListener('click', () => {
   if (lookSent !== pickLook) { send({ do: 'set_look', look: pickLook }); lookSent = pickLook }
 })
 document.getElementById('gatebtn').addEventListener('click', () => fadeMusicOut(2000))
+
+// ---- the door stands in the world ---------------------------------------
+// Two wrong turns got here. First it drew miniCv scaled up -- but one pixel
+// per tile is an ABSTRACTION of the world, so blown up it is coloured
+// rectangles, because that is exactly what it is. Then it painted real ground
+// with paintGroundTile, which looked like Tallyholm but was a still life:
+// terrain and nothing living in it.
+//
+// The answer was already running. The frame loop calls drawScene from page
+// load, not from entry, so the moment a state arrives the LIVE world is
+// being drawn to #world every frame -- citizens, mobs, nodes, the day cycle,
+// all of it. A canvas laid over the top was hiding it.
+//
+// So this steers the world's own camera and gets out of the way. What waits
+// behind the gate is the world itself, at this tick, with whoever is in it.
+// You enter what you were looking at.
+const PAN_WAY = [
+  [0.22, 0.52], [0.34, 0.42], [0.44, 0.38], [0.58, 0.46],
+  [0.68, 0.62], [0.78, 0.44], [0.86, 0.32], [0.62, 0.20],
+  [0.46, 0.14], [0.34, 0.20], [0.42, 0.72], [0.48, 0.84],
+  [0.32, 0.74], [0.22, 0.52],
+]
+const PAN_SPEED = 1.25        // TILES per second. A drift, not a journey.
+
+// Until the world answers, there is nothing for drawScene to draw, and
+// 'waking the world...' over black is a poor welcome. This paints ground only
+// in that gap and hides itself the moment the real thing is available.
+const panCv = document.createElement('canvas')
+panCv.id = 'gatepan'
+panCv.style.cssText = 'position:fixed;inset:0;z-index:9;width:100%;height:100%;display:none'
+document.body.insertBefore(panCv, document.getElementById('gate'))
+const panCx = panCv.getContext('2d')
+const panGround = document.createElement('canvas')
+const panGx = panGround.getContext('2d')
+let panKey = '', panT = 0, panLast = 0, panSig = ''
+
+function panSpline(t) {
+  const n = PAN_WAY.length
+  const i = Math.floor(t) % n, f = t - Math.floor(t)
+  const p = (k) => PAN_WAY[((i + k) % n + n) % n]
+  const cr = (a, b, c, d) => {
+    const t2 = f * f, t3 = t2 * f
+    return 0.5 * ((2*b) + (-a + c)*f + (2*a - 5*b + 4*c - d)*t2 + (-a + 3*b - 3*c + d)*t3)
+  }
+  return [cr(p(-1)[0], p(0)[0], p(1)[0], p(2)[0]) * W,
+          cr(p(-1)[1], p(0)[1], p(1)[1], p(2)[1]) * H]
+}
+
+function panFrame(now) {
+  requestAnimationFrame(panFrame)
+  const g = document.getElementById('gate')
+  const atDoor = !!g && g.style.display !== 'none'
+  // A login screen shows scenery, not somebody's inventory. #panel and #status
+  // are DOM, not canvas, so the gate's blur never touched them and the skill
+  // list has been reading through it all along.
+  document.body.classList.toggle('at-door', atDoor)
+  if (!atDoor) { panCv.style.display = 'none'; panLast = 0; return }
+
+  const dt = panLast ? Math.min(0.05, (now - panLast) / 1000) : 0
+  panLast = now
+  // constant speed along the spline: step t, measure how far that moved in
+  // tiles, and rescale, so the pace is even however far apart the scenes sit
+  if (dt) {
+    const [x0, y0] = panSpline(panT)
+    const [x1, y1] = panSpline(panT + 0.001)
+    const per = Math.max(1e-4, Math.hypot(x1 - x0, y1 - y0) / 0.001)
+    panT += (PAN_SPEED * dt) / per
+  }
+  const [fx, fy] = panSpline(panT)
+
+  // drawScene only moves the camera itself when it can find you in the state,
+  // and before entering it cannot -- so cam is ours to steer, and the world
+  // renders wherever we point it. Clamped exactly as drawScene clamps.
+  cam.x = Math.max(0, Math.min(Math.max(0, W - VIEW_W), fx - VIEW_W / 2))
+  cam.y = Math.max(0, Math.min(Math.max(0, H - VIEW_H), fy - VIEW_H / 2))
+
+  if (curState && groundReady) { panCv.style.display = 'none'; return }
+
+  // ---- the waking gap: our own ground, same tiles, no life in them yet ----
+  panCv.style.display = 'block'
+  const sig = W + 'x' + H + ':' + GEN
+  if (sig !== panSig) { panSig = sig; panKey = '' }
+  const dpr = Math.min(2, window.devicePixelRatio || 1)
+  const w = Math.round(panCv.clientWidth * dpr), h = Math.round(panCv.clientHeight * dpr)
+  if (panCv.width !== w || panCv.height !== h) { panCv.width = w; panCv.height = h; panKey = '' }
+
+  const vwT = w / (TILE * dpr), vhT = h / (TILE * dpr), M = 6
+  const ox = Math.max(0, Math.floor(fx - vwT / 2) - M)
+  const oy = Math.max(0, Math.floor(fy - vhT / 2) - M)
+  const cw = Math.ceil(vwT) + M * 2 + 2, ch = Math.ceil(vhT) + M * 2 + 2
+  const key = ox + ':' + oy + ':' + cw + ':' + ch + ':' + panSig
+  if (key !== panKey) {
+    panKey = key
+    if (panGround.width !== cw * TILE) { panGround.width = cw * TILE; panGround.height = ch * TILE }
+    panGx.clearRect(0, 0, panGround.width, panGround.height)
+    panGx.save(); panGx.translate(-ox * TILE, -oy * TILE)
+    try {
+      for (let y = oy; y < Math.min(H, oy + ch); y++)
+        for (let x = ox; x < Math.min(W, ox + cw); x++) paintGroundTile(panGx, x, y)
+    } catch { panKey = '' }
+    panGx.restore()
+  }
+  panCx.setTransform(1, 0, 0, 1, 0, 0)
+  panCx.fillStyle = '#1b2a1a'; panCx.fillRect(0, 0, w, h)
+  panCx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  panCx.drawImage(panGround,
+    (ox * TILE) - (fx * TILE - vwT * TILE / 2),
+    (oy * TILE) - (fy * TILE - vhT * TILE / 2))
+  panCx.setTransform(1, 0, 0, 1, 0, 0)
+}
+requestAnimationFrame(panFrame)
+
 document.getElementById('gatebtn').addEventListener('click', enterWorld)
 document.getElementById('gatename').addEventListener('keydown', (e) => { if (e.key === 'Enter') enterWorld() })
 
@@ -14595,7 +15178,53 @@ function invClick(i) {
     }
     send({ do: 'light', slot: +i }); feed('You attempt to light a fire\u2026'); return
   }
-  if (EQUIPPABLE.has(it.item)) { send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.') }
+  if (EQUIPPABLE.has(it.item)) {
+    // §6bz: ONE PAIR OF HANDS, AND THE WINDOW SAYS THE TWO INPUTS.
+    //
+    // The engine REFUSES a wield that would silently displace -- a shield
+    // beside a haft, or a haft beside a shield -- and it is right to: an
+    // executor that guessed wrong should be told, not quietly disarmed. But a
+    // refusal with nothing said is how a bow simply did nothing when clicked,
+    // over and over, with no way to find out why.
+    //
+    // So the window does what §6bz says a citizen should do: it says so in two
+    // inputs. It takes off what is in the way, then wields. If the pack has no
+    // room for what comes off, nothing is sent and the reason is said out loud,
+    // because a full pack is a thing a citizen can go and fix.
+    const meW = world?.players?.[myId]
+    const TWO_HAND = new Set(['wooden-bow', 'horn-bow', 'heartwood-bow', 'hollow-bow', 'sigil-bow', 'dragonbow',
+      'great-sword', 'great-mell', 'great-crossbow', 'crossbow', 'star-crossbow', 'fire-siphon'])
+    const wornWeapon = meW?.equipment?.weapon?.item ?? null
+    const wornOff = meW?.equipment?.offhand?.item ?? null
+    const takingUpTwoHander = TWO_HAND.has(it.item)
+    const raisingShieldOverHaft = EQUIP_SLOT_OF(it.item) === 'offhand' && TWO_HAND.has(wornWeapon)
+    const inTheWay = takingUpTwoHander ? (wornOff ? ['offhand'] : []) : raisingShieldOverHaft ? ['weapon'] : []
+    if (inTheWay.length) {
+      const free = (meW?.inventory ?? []).filter(sl => !sl).length
+      if (free < inTheWay.length) {
+        feed('Your hands are full and so is your pack: there is no room to set down the '
+          + (wornOff ?? wornWeapon ?? 'gear').replace(/-/g, ' ') + ' first.')
+        return
+      }
+      // §6bz: TWO INPUTS MEANS TWO INTERVALS.
+      //
+      // The engine takes ONE input per key per interval, so sending the
+      // unwield and the wield together threw the second away -- the feed said
+      // both had happened and only the first did. That is worse than the
+      // silent refusal it replaced: it lied.
+      //
+      // So the unwield goes now and the wield is remembered, to be sent on the
+      // next interval that has a free slot. The feed says the first line only;
+      // the second is said when the hand is actually full.
+      for (const gear of inTheWay) {
+        send({ do: 'unwield', gear })
+        feed('You lower the ' + (meW.equipment[gear]?.item ?? gear).replace(/-/g, ' ') + '.')
+      }
+      pendingWield = { slot: +i, item: it.item }
+      return
+    }
+    send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.')
+  }
   else if (it?.item === 'cooked-fish') {
     const foe = meNow.action?.type === 'prowess' ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
@@ -14652,8 +15281,22 @@ document.getElementById('worn').addEventListener('click', (e) => {
   const w = e.target.closest('.wslot')
   if (!w) return
   const me2 = world?.players?.[myId]
-  _namedItem = me2?.equipment?.[w.dataset.worn]?.item ?? ''
+  const gear = w.dataset.worn
+  const worn = me2?.equipment?.[gear]?.item ?? ''
+  _namedItem = worn
+  // §5t-ii: AND TAPPING IT AGAIN TAKES IT OFF.
+  //
+  // Naming a thing and removing it are the two things somebody wants from a
+  // worn slot, and only the first was here -- so a citizen who had put on a
+  // helm had to find the verb somewhere else to take it off again. One tap
+  // says what it is; a second tap on the same slot removes it, which means
+  // nothing is ever unequipped by a stray click that was only asking.
+  if (!worn) { _wornTapped = null; return }
+  if (_wornTapped === gear) { _wornTapped = null; send({ do: 'unwield', gear }) }
+  else _wornTapped = gear
 })
+// which slot was last asked about, so the second tap is the one that acts
+let _wornTapped = null
 
 cv.addEventListener('click', (e) => {
   if (!world) return
@@ -14913,6 +15556,59 @@ cv.addEventListener('click', (e) => {
       // `depletedUntil` only ever appeared on something you gather from, so the
       // moment a well started carrying one (§6dd) clicking it answered
       // "Nothing left here." and returned before the well's own branch below.
+      // §7d-iv: MOVED OUT OF THE DRAW LOOP.
+      //
+      // These two were sitting inside `drawScene`, which runs once a FRAME.
+      // So a looking-glass anywhere in view fed "A tall glass, clouded at the
+      // edges" sixty times a second -- and, far worse, `return`ed out of
+      // drawScene every frame, so everything the scene drew after that point
+      // never ran at all. That is why a resident in Nought could wield and
+      // click and not walk: the half of the frame that reads a walk intent was
+      // beyond a return that always fired.
+      //
+      // They are click handlers -- they send inputs, they flashClick, they
+      // return to stop the click falling through. They belong here, with the
+      // rest of them.
+      if (n.type === 'looking-glass') {
+        // §7d: the one place on the island you can change your face. The
+        // window used to do this at its own door, which meant a citizen's
+        // appearance was a menu setting; it is a journey now.
+        const meG = world.players[myId]
+        const adjG = Math.abs(meG.x - n.x) + Math.abs(meG.y - n.y) === 1
+        if (!adjG) { feed('A tall glass, clouded at the edges. You would have to stand at it.'); return }
+        // step to the next face and send it. The gate's picker is a preview
+        // screen and does not exist once you are in the world; standing at the
+        // glass, a click IS the change.
+        pickLook = (pickLook + 1) & 255
+        send({ do: 'set_look', look: pickLook })
+        lookSent = pickLook
+        feed('You look at yourself in the glass, and something about you settles differently.')
+        flashClick(n.x, n.y, false)
+        return
+      }
+      if (n.type === 'tollgate') {
+        // §14: THE BAR ON THE MILLBROOK BRIDGE. One ordinary log to the
+        // keeper and it is up for you for two minutes. The point of the toll
+        // is that you can arrive without one, so say so plainly rather than
+        // failing silently -- a gate that refuses you and does not explain is
+        // just a wall.
+        const meT = world.players[myId]
+        const adjT = Math.abs(meT.x - n.x) + Math.abs(meT.y - n.y) === 1
+        if (!adjT) { feed('The bar is down across the bridge. There is a keeper beside it.'); return }
+        const LOGKINDS = ['logs', 'oak-logs', 'ironbark', 'heartwood']
+        const hasLog = (meT.inventory || []).some(sl => sl && sl.item === 'logs')
+        const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
+        if (!hasLog) {
+          feed(hasOther
+            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.'
+            : 'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
+          return
+        }
+        send({ do: 'pay' })
+        feed('You hand over a log. The keeper lifts the bar and goes back to the deck.')
+        flashClick(n.x, n.y, false)
+        return
+      }
       if (n.type === 'well' && (n.depletedUntil ?? 0) > world.tick) {
         const secs = Math.max(1, Math.round((n.depletedUntil - world.tick) * 0.6))
         feed('The bucket comes up wet and empty. The well draws down again in about '
@@ -15102,7 +15798,7 @@ cv.addEventListener('click', (e) => {
           //
           // A star-ingot is twenty magic-stone, magic-stone does not stack, and
           // the pack is twenty-eight -- so one ingot is one trip into the Wilds
-          // and back to this fire. A great maul is ELEVEN ingots: two hundred
+          // and back to this fire. A great mell is ELEVEN ingots: two hundred
           // and twenty stones, eleven journeys.
           //
           // The trade is already possible and nothing ever said so. A citizen
