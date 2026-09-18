@@ -6769,7 +6769,15 @@ connect('boot')
 
 let prev = null
 let curState = null, prevState = null, stateAt = 0, curWorldId = ''
-let statePeriod = 600  // measured broadcast rhythm: states are never exactly on time
+// §3.3: ONE INTERVAL IS ONE SECOND. The world (and Nought's local mirror,
+// setInterval(noughtTick, 1000)) advances one tick per second, and VIGIL_TICKS
+// = 300 is called "five minutes" -- both say 1 tick = 1000 ms. The render clock
+// below used to divide by a hardcoded 600, a leftover from when a tick was
+// 600 ms: at a real 1000 ms cadence that made every glide finish in 600 ms,
+// overshoot to the clamp, freeze ~350 ms, and the drifting anchor snap to catch
+// up -- the lurch-pause-lurch that made walking feel hacky. It is one number.
+const TICK_MS = 1000
+let statePeriod = TICK_MS  // measured broadcast rhythm: states are never exactly on time
 let tickOffset = null  // wall-clock anchor of tick 0 (smoothed)
 let worstFrame = 0, lastFrameAt = 0, worstJitter = 0, meterAt = 0, meterText = ''
 const hitFlash = {}   // pid -> ms timestamp of last damage taken
@@ -7065,7 +7073,7 @@ function allocTick() {
 }
 function renderT(now) { // one clock for drawing AND clicking: what you see is what you hit
   if (tickOffset !== null && curState) {
-    const renderTick = (now - tickOffset) / 600 - 1.0
+    const renderTick = (now - tickOffset) / TICK_MS - 1.0
     return Math.min(1.15, Math.max(0, renderTick - (curState.tick - 1)))
   }
   return Math.min(1.2, (now - stateAt) / statePeriod)
@@ -8235,19 +8243,19 @@ function _onState(s, worldId, local) {
   if (stateAt) {
     const dt = arrivedAt - stateAt
     if (dt > 300 && dt < 1200) statePeriod = statePeriod * 0.85 + dt * 0.15
-    worstJitter = Math.max(worstJitter, Math.abs(dt - 600))
+    worstJitter = Math.max(worstJitter, Math.abs(dt - TICK_MS))
   }
   stateAt = arrivedAt
   // tick-domain clock, anchored on the FASTEST delivery ever observed:
   // late states cannot move a minimum. It drifts up 2ms per state so a
   // clock-skew or route change heals within a minute.
-  const impliedOffset = arrivedAt - s.tick * 600
+  const impliedOffset = arrivedAt - s.tick * TICK_MS
   tickOffset = tickOffset === null ? impliedOffset : Math.min(tickOffset + 2, impliedOffset)
   // after a stall (device slept, network gasped), the backlog arrives in a
   // burst. A faithful clock would REPLAY it. Nobody wants to rewatch a
   // freeze: if we have fallen more than a tick behind the present, snap to it.
-  const prospectiveT = (arrivedAt - tickOffset) / 600 - 1 - (s.tick - 1)
-  if (prospectiveT > 1.25) tickOffset = arrivedAt - s.tick * 600
+  const prospectiveT = (arrivedAt - tickOffset) / TICK_MS - 1 - (s.tick - 1)
+  if (prospectiveT > 1.25) tickOffset = arrivedAt - s.tick * TICK_MS
   if (prevState) for (const pid in s.players) {
     const o = prevState.players[pid]
     if (o && s.players[pid].hp < o.hp) hitFlash[pid] = performance.now()
