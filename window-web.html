@@ -4677,7 +4677,17 @@ let SWORN_T = null, SWEAR_LEVEL = 50, CAP_UNSWORN = 50, CAP_OTHER = 70
 let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105, 110]
 ;(async () => {
   try {
-    const r = await fetch('/api/tables', { cache: 'no-cache' })
+    // §5w: the live tables come from the RESOLVED NODE, not origin-relative.
+    // A standalone window may be served from a CDN with no /api of its own, so
+    // this must go through `api()` like every other call in the file (cf.
+    // learnPeers). An origin-relative form bound it to whatever host served
+    // the page -- the exact assumption build-window.mjs refuses, and it 404s on
+    // Pages. One microtask hop lets module init finish first, so `api`/`NODE`
+    // (declared just below) exist rather than sitting in the temporal dead
+    // zone. Failure is fine: the hand-copied tables below stand in until a
+    // pillar answers.
+    await Promise.resolve()
+    const r = await fetch(api('/api/tables'), { cache: 'no-cache' })
     if (!r.ok) return
     const t = await r.json()
     if (t.sworn) { SWORN_T = t.sworn
@@ -7245,10 +7255,22 @@ function drawLookPreview() {
 const VIGIL_TICKS = 300, ATTEND_WINDOW = 3600   // §0: five minutes, stale after an hour
 let attendSentAt = -1, crossArmed = false, crossSentAt = -1, crossingOpen = false
 // the crossing is offered AT THE FOUNTAIN, on foot, and nowhere else.
+//
+// §0l: THE GATE ASKS TALLYHOLM, NOT NOUGHT. While a soul is in Nought, `world`
+// is the PRACTICE ISLAND -- a different world, at its own tick, that has never
+// heard the resident's real key and never carries their wait. `updateGate`
+// computes ripeness with `myWait`, so handed the practice island it always
+// falls to "the world has not seen you", disables the button, AND clears
+// `crossArmed`. That last part is why the crossing looped: every press armed
+// the cross and the very next repaint -- run against the wrong world -- disarmed
+// it, so the second press that sends `spawn` was never reachable. The wait
+// lives in the LIVE world; every gate repaint must read it from there. This is
+// the same `live` selection `enterWorld` already makes for its guard.
+function liveWorld() { return (inNought && lastLive) ? lastLive : world }
 function openCrossing() {
   crossingOpen = true
   document.getElementById('gate').style.display = ''
-  updateGate(world, null)
+  updateGate(liveWorld(), null)
 }
 function closeCrossing() {
   crossingOpen = false; crossArmed = false
@@ -14134,16 +14156,19 @@ function enterWorld() {
     // button that said "Draw from the fountain" did nothing at all, for ever,
     // with nothing said. `allocTick` already carries a note about exactly this
     // confusion; the crossing needed the same care and did not get it.
-    const live = (inNought && lastLive) ? lastLive : world
+    const live = liveWorld()
     const w0 = myWait(live)
     if (!w0) { feed('The world has not been asked to expect you yet.'); return }
     if (!w0.ripe) { feed('The wait is not ripe yet.'); return }
     if (!keyExported()) { feed('Export your key before you cross.'); return }
-    if (!crossArmed) { crossArmed = true; updateGate(world, null); return }
+    // §0l: repaint from `live`, NOT `world`. `world` is the practice island in
+    // Nought, and updateGate against it clears `crossArmed` -- which turned the
+    // first press into a no-op forever. See liveWorld() above.
+    if (!crossArmed) { crossArmed = true; updateGate(live, null); return }
     crossSentAt = live.tick
     send({ do: 'spawn' })
     feed('You draw from the fountain in Anchor.')
-    updateGate(world, null)
+    updateGate(live, null)
     return                        // Nought does not end until the world says so
   }
   if (inNought) {
