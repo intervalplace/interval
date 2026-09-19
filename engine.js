@@ -12466,6 +12466,17 @@ function nextState(state, inputs, _legacyBeacon) {
   if (_p2on) { _p2sections = {}; _p2cur = null; }
   _p2mark('clone');
   const s = _cloneForTick(state); // pure: never mutate caller's state (Phase 2B)
+  // §5i-iii: THE OPENING STEP IS TAKEN ONCE. A walk input takes its first step
+  // in the input phase (below) and sets an ongoing action; the ongoing-walk
+  // resolver later in THIS SAME tick would then step that fresh action a second
+  // time, moving the body TWO tiles on the interval a run begins. The total
+  // distance stayed right, so tests passed, but the opening tick jumped two
+  // tiles -- which a window can only render as a teleport (a >1-tile move is by
+  // definition not a walk). This set names the citizens who already stepped
+  // from an input this tick so the resolver leaves them be until the next one.
+  // It is a per-tick local, never part of state, so it changes no hash beyond
+  // the engine's own (the movement rule itself is what changed).
+  const _walkedThisTick = new Set();
   // §7ca: last interval's blows are last interval's. Cleared at the top, so the
   // list only ever holds what happened THIS tick and cannot accumulate into
   // state that grows without bound.
@@ -13925,7 +13936,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // Assigning `action` is also what clears whatever the citizen was doing:
       // there is one action slot, so beginning a journey ends a fight exactly
       // as a step does. The flight rule needs no separate enforcement here.
-      if ((p.rootedUntil ?? 0) <= s.tick) { p.x += inp.dx; p.y += inp.dy; }
+      if ((p.rootedUntil ?? 0) <= s.tick) { p.x += inp.dx; p.y += inp.dy; _walkedThisTick.add(pid); }
       p.action = inp.steps > 1
         ? { type: 'walk', dx: inp.dx, dy: inp.dy, remaining: inp.steps - 1 }
         : null;
@@ -16245,6 +16256,9 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const pid of Object.keys(s.players).sort()) {
     const p = s.players[pid];
     if (p.action?.type !== 'walk') continue;
+    // §5i-iii: they already took this interval's step in the input phase; a
+    // second here is the two-tile opening jump that read as a teleport.
+    if (_walkedThisTick.has(pid)) continue;
     if (p.hp <= 0 || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; }
     // the rooted keep their journey but spend the interval standing: being
     // held in place by the star-dagger is not the same as being turned back.
