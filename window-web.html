@@ -6537,6 +6537,13 @@ function vApplyTick (state, deltas) {
   }
   return state;
 }
+// §3.3: a faithful copy of a held world, so last tick's object can live on as
+// prevState while this tick advances. The world is plain JSON data (it came off
+// the wire), so structuredClone is exact; the round-trip is only a floor for a
+// browser too old to have it. It is zone-trimmed, so this is small and cheap.
+function vClone (o) {
+  try { return structuredClone(o) } catch (e) { return JSON.parse(JSON.stringify(o)) }
+}
 // A citizen who walks far enough leaves zones behind with no message saying
 // so. Sweep what is no longer watched, or the window accumulates ghosts.
 function vEvictOutside (state, watched) {
@@ -6604,9 +6611,18 @@ function onMessage (ev) {
     // A patch onto a world we do not hold yields a world with holes, so ask
     // for a snapshot instead of guessing.
     if (!_held) { try { sock.send(JSON.stringify({ type: 'resync' })) } catch (e) {} return }
-    vApplyTick(_held, m.d);
-    var _me = _held.players && _held.players[realId || myId];
-    if (_me) vEvictOutside(_held, vZonesAround(_me.x, _me.y));
+    // §3.3: advance a CLONE, not _held itself. vApplyTick merges in place, so
+    // applied to _held it overwrites the very tile the glide interpolates FROM,
+    // and prevState -- the same reference -- would already read the new tile:
+    // nothing to move across, so the body jumps a tile per patch. Cloning first
+    // leaves last tick's object whole to be prevState, exactly as a full 'state'
+    // frame is a fresh object. (A 'state' frame already worked; only patches,
+    // which are most ticks, teleported.)
+    const next = vClone(_held)
+    vApplyTick(next, m.d);
+    var _me = next.players && next.players[realId || myId];
+    if (_me) vEvictOutside(next, vZonesAround(_me.x, _me.y));
+    _held = next;
     onState(_held, _heldWorldId);
   }
   if (m.type === 'refused') {
