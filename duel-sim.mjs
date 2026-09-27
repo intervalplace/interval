@@ -13,7 +13,7 @@ for (const gap of [1,3]) {
   const A=s.players[a.playerId], B=s.players[b.playerId]
   for(const p of [A,B]){ for(const k of ['attack','strength','defence','hitpoints','ranged']) p.skills[k]=M
     p.hp=E.effLevel(M); p.consignment={from:'f',route:['t'],leg:0,items:[{item:'logs',qty:1},...Array(27).fill(null)]} }
-  A.equipment.weapon={item:'star-javelin',qty:1}; A.inventory[0]={item:'star-javelin',qty:500}
+  A.equipment.weapon={item:'quick-javelin',qty:1}; A.inventory[0]={item:'quick-javelin',qty:500}
   const before={...A.skills}
   const sign=(f)=>E.signInput({worldId:WID,playerId:a.playerId,...f},a.privateKey)
   for(let t=0;t<40;t++) s=E.nextState(s,[sign({tick:t,type:'attackp',targetId:b.playerId,style:'even'})])
@@ -74,9 +74,9 @@ function duel(archerWpn, otherWpn, startGap){
     (draw?`   (archer ${(ahp/n).toFixed(0)}hp, other ${(bhp/n).toFixed(0)}hp, ${(gapEnd/n).toFixed(1)} tiles apart)`:''))
 }
 console.log(`\n--- ${T}-interval duels, both playing to win, 20 each ---`)
-duel('horn-bow','star-sword',5)
-duel('dragonbow','star-sword',9)
-duel('crossbow','star-spear',4)
-duel('star-javelin','star-sword',3)
+duel('horn-bow','quick-sword',5)
+duel('dragonbow','quick-sword',9)
+duel('crossbow','quick-spear',4)
+duel('quick-javelin','quick-sword',3)
 duel('horn-bow','horn-bow',5)
 duel('dragonbow','horn-bow',9)

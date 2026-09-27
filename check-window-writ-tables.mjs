@@ -86,8 +86,8 @@ const frames = (n) => { for (let i = 0; i < n; i++) { CLOCK += 40
 const send = (m) => { for (const s of socks) s.onmessage({ data: JSON.stringify(m) }) }
 for (const s of socks) s.onopen && s.onopen()
 send({ type: 'hello', playerId: 'me' })
-// hold exactly what the engine says a star-ingot costs, and nothing the copy said
-const need = served.recipes['star-ingot'].need || served.recipes['star-ingot']
+// hold exactly what the engine says a quick-ingot costs, and nothing the copy said
+const need = served.recipes['quick-ingot'].need || served.recipes['quick-ingot']
 const inv = Object.entries(need).map(([item, qty]) => ({ item, qty }))
 send({ type: 'state', worldId: 'w', state: { tick: 900,
   genesis: { worldW: 64, worldH: 64, genesisSeed: 't' },
@@ -101,9 +101,9 @@ const key = (k) => { for (const f of win.keydown || []) f({ key: k, preventDefau
 const up = (k) => { for (const f of win.keyup || []) f({ key: k, preventDefault: noop }) }
 key('e'); up('e'); frames(2)                      // within reach -> the anvil
 for (let i = 0; i < 30; i++) { key('Enter'); frames(1)
-  if (sent.some(a => a.do === 'smith' && a.recipe === 'star-ingot')) break
+  if (sent.some(a => a.do === 'smith' && a.recipe === 'quick-ingot')) break
   key('ArrowDown') }
-ok(sent.some(a => a.do === 'smith' && a.recipe === 'star-ingot'),
-   'holding what the ENGINE says a star-ingot costs, the anvil offers to make one')
+ok(sent.some(a => a.do === 'smith' && a.recipe === 'quick-ingot'),
+   'holding what the ENGINE says a quick-ingot costs, the anvil offers to make one')
 console.log(bad ? '\n  ' + bad + ' failed' : '\n  ok    the numbers are the pillar\u2019s, and the window takes them')
 process.exit(bad ? 1 : 0)

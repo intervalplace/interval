@@ -215,7 +215,7 @@ export const CAPES = [
   // coastline past x=0 -- the peninsula ran off the edge of the world and was
   // cut by the frame, a hard vertical "hedge and fence" line where an island
   // should taper into sea. At +0.12 the Head is still a long, dramatic frontier
-  // cape (the endgame direction, where the dragon and the magic-stone are) but
+  // cape (the endgame direction, where the dragon and the quick-stone are) but
   // it now ENDS IN WATER, ~9 tiles inside the western margin, on every row.
   // An island ends in the sea on every side; now the Wilds do too.
   { tag: 'wildshead',  name: 'the Wilds Head', u: 180, w: 24, amt: +0.12, mark: 'broken-tower' },
@@ -2763,23 +2763,23 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // allowance to race toward and none to waste.
   g.ceiling = { window: 86400, allow: 5400, warn: 600 }
   // §6am (v6): STAR IS THE ENDGAME NOW. With a mid tier filling the middle of
-  // the road (mid-ore and mid-wood at thirty-five), star rises to where it was
-  // always meant to be -- the ninety-tier gear, forged from the magic-stone a
+  // the road (mid-ore and mid-wood at thirty-five), quick rises to where it was
+  // always meant to be -- the ninety-tier gear, forged from the quick-stone a
   // citizen carries out of the Wilds, so that reaching mastery finally buys
   // something to WEAR. The shape is the constitution's; these numbers are this
   // world's, and a v5 world (no gearReqs) keeps the old ladder to the byte.
   g.gearReqs = {
     wield: {
-      'star-helm': { defence: 80 }, 'star-plate': { defence: 90 },
-      'star-sword': { attack: 80 }, 'star-dagger': { attack: 80 }, 'star-spear': { attack: 80 },
-      'star-mell': { attack: 85 }, 'star-flail': { attack: 85 },
-      'star-hatchet': { woodcutting: 85 }, 'star-pickaxe': { mining: 85 },
+      'quick-helm': { defence: 80 }, 'quick-plate': { defence: 90 },
+      'quick-sword': { attack: 80 }, 'quick-dagger': { attack: 80 }, 'quick-spear': { attack: 80 },
+      'quick-mell': { attack: 85 }, 'quick-flail': { attack: 85 },
+      'quick-hatchet': { woodcutting: 85 }, 'quick-pickaxe': { mining: 85 },
     },
     smith: {
-      'star-helm': { smithing: 80, magic: 40 }, 'star-plate': { smithing: 90, magic: 50 },
-      'star-sword': { smithing: 85, magic: 45 }, 'star-dagger': { smithing: 85, magic: 48 },
-      'star-spear': { smithing: 86, magic: 46 }, 'star-mell': { smithing: 88, magic: 50 },
-      'star-hatchet': { smithing: 82, magic: 42 }, 'star-pickaxe': { smithing: 82, magic: 42 },
+      'quick-helm': { smithing: 80, magic: 40 }, 'quick-plate': { smithing: 90, magic: 50 },
+      'quick-sword': { smithing: 85, magic: 45 }, 'quick-dagger': { smithing: 85, magic: 48 },
+      'quick-spear': { smithing: 86, magic: 46 }, 'quick-mell': { smithing: 88, magic: 50 },
+      'quick-hatchet': { smithing: 82, magic: 42 }, 'quick-pickaxe': { smithing: 82, magic: 42 },
     },
   }
   // §6ao (v6): DURABLE NODES, so a FIXED small cluster holds any crowd. In one
@@ -2798,12 +2798,12 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // puts a mastery at 879 hours -- thirty-seven days of an executor that never
   // stops, which is what "a long time" has to mean in a world where nobody
   // sleeps. At 0.84 the same road is 290 hours.
-  g.gather = { depleteOneIn: 12, depleteTicks: 4, rateMul: 0.31, magicDepleteTicks: 40 }
+  g.gather = { depleteOneIn: 12, depleteTicks: 4, rateMul: 0.31, quickDepleteTicks: 40 }
   // §6ao (v6): citizen stalls must line the roads; alchemy is a town-and-Wilds
   // deed (never at the spawn) done with a staff in hand. Both are founding
   // choices; a world may omit either.
   g.stallsLineRoads = true
-  g.alchWhere = 'towns-and-wilds'
+  g.transmuteWhere = 'towns-and-wilds'
   // §6ao (v6): gathering needs a tool, and a newcomer wakes with just enough
   // coin (22 gold) for ONE bronze tool at the market -- a hatchet, a pickaxe,
   // or a rod (each ~20). Not two. So the first act is a walk to Millbrook, a
@@ -4261,7 +4261,7 @@ export function buildWorld(genesis) {
       const _worky = new Set()
       const WORKS = new Set(['furnace', 'sawpit', 'anvil', 'brewpot', 'watchfire', 'well',
         'altar', 'looking-glass', 'rockfall', 'tollgate', 'ossuary', 'stall', 'vault', 'store',
-        'iron-rock', 'coal-rock', 'gold-rock', 'magic-rock', 'mother-lode', 'brimstone-vent',
+        'iron-rock', 'coal-rock', 'gold-rock', 'quick-rock', 'mother-lode', 'brimstone-vent',
         'muck-heap', 'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal', 'tree',
         'oak-tree', 'ironbark-tree', 'heartwood-tree', 'gallows-oak', 'rock'])
       for (const n of Object.values(w.nodes)) {
@@ -4437,7 +4437,7 @@ export function buildWorld(genesis) {
               for (let rx = 0; rx < YARD[0].length; rx++) {
                 const ch = YARD[ry][rx], x = ox + rx, y = oy + ry
                 if (ch === '#') put('yard-w-' + rx + '-' + ry, 'wall', x, y, {})
-                // §7t: 64-HEX IDS, so `special` can name one. Its shape asks
+                // §7t: 64-HEX IDS, so `gambit` can name one. Its shape asks
                 // for hex64 -- the PvP target -- and a yard mob with an
                 // ordinary id could not be named by it without a new field or
                 // a new verb. Giving the straw men hex names costs nothing and
@@ -4602,10 +4602,10 @@ export function buildWorld(genesis) {
           for (const [ax, ay] of [[x + 2, y + 1], [x - 2, y + 1], [x + 2, y - 1]])
             if (free(ax, ay) && !blockedAt(g, ax, ay)) { put('furnace-keeper', 'keeper', ax, ay,
               { kind: 'collier', name: 'Ulf at the Bloomery' }); break }
-          // §5u: THE STAMP, in the bloomery's yard. Magic-stone shatters rather
-          // than melts, so the first rung of the starmetal chain is a weighted
+          // §5u: THE STAMP, in the bloomery's yard. Quick-stone shatters rather
+          // than melts, so the first rung of the quickmetal chain is a weighted
           // beam and not a fire -- but it belongs beside the fire, because the
-          // crags are where the magic-rock is and because a citizen carrying
+          // crags are where the quick-rock is and because a citizen carrying
           // stone down off the tops should find both on one errand.
           //
           // It stands two clear of the furnace so neither blocks the other's
@@ -4617,7 +4617,7 @@ export function buildWorld(genesis) {
               put('cragfoot-stamp', 'stamp', ax, ay, {})
               for (const [sx, sy] of [[ax, ay + 2], [ax + 2, ay], [ax - 2, ay]])
                 if (free(sx, sy) && !blockedAt(g, sx, sy)) { put('stamp-sign', 'signpost', sx, sy,
-                  { text: 'the stamp \u2014 magic-stone to grit' }); break }
+                  { text: 'the stamp \u2014 quick-stone to grit' }); break }
               break
             }
           set2 = true; break
@@ -4626,7 +4626,7 @@ export function buildWorld(genesis) {
     }
 
     // ---- THE ALTAR AT NORWICK ----
-    // §7g. Three magic-stones become a sigil, and until now that happened
+    // §7g. Three quick-stones become a sigil, and until now that happened
     // wherever the citizen was standing -- which in practice meant beside the
     // magic seam they had just mined, out in the Wilds, because that is the
     // one place the walk home is worth not making.
@@ -5011,7 +5011,7 @@ export function buildWorld(genesis) {
         // forester walks to the seam and carries the logs to the sawpit, which
         // is what a sawpit is for.
         const TIERED = new Set(['tree', 'oak-tree', 'ironbark-tree', 'heartwood-tree',
-          'gallows-oak', 'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'magic-rock',
+          'gallows-oak', 'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'quick-rock',
           'mother-lode', 'brimstone-vent'])
         let ni = 0
         for (const [type, count] of (inside.nodes ?? [])) {
@@ -5316,7 +5316,7 @@ export function buildWorld(genesis) {
       const b = biomeAt(g, x, y)
       if (b !== 'sea') area[b] = (area[b] || 0) + 1
     }
-    const RESOURCE = new Set(['tree', 'rock', 'magic-rock', 'fishing-spot'])
+    const RESOURCE = new Set(['tree', 'rock', 'quick-rock', 'fishing-spot'])
     for (const n of Object.values(w.nodes)) {
       if (RESOURCE.has(n.type)) continue
       const b = biomeAt(g, n.x, n.y)
@@ -5795,7 +5795,7 @@ export function buildWorld(genesis) {
   const B = (x, y) => biomeAt(g, x, y)
   const tree = (id, x, y) => E.addNode(w, id, 'tree', x, y)
   const rock = (id, x, y) => E.addNode(w, id, 'iron-rock', x, y)  // §6ao (v6): baseline mining is IRON
-  const mrock = (id, x, y) => E.addNode(w, id, 'magic-rock', x, y)
+  const mrock = (id, x, y) => E.addNode(w, id, 'quick-rock', x, y)
   // POROSITY. A tree ringed on all four sides by other trees can never be
   // reached -- you can only ever stand beside one -- so a dense clump has a
   // dead core. The first honest reachability pass swept 2,454 such nodes,
@@ -5979,7 +5979,7 @@ export function buildWorld(genesis) {
     const edge = brandX(g, y)
     return x < edge - Math.round(edge * 0.28)
   }
-  // magic-stone: the risk-gated endgame. Risk is the gate, not scarcity, so a
+  // quick-stone: the risk-gated endgame. Risk is the gate, not scarcity, so a
   // little more spread is fine -- but still cut hard, ~88 -> ~14.
   counts.magicWilds = clusterScatter('wdmagic', 14, deepWilds, mrock, 2, 20)
 
@@ -6011,7 +6011,7 @@ export function buildWorld(genesis) {
   counts.midFens = clusterScatter('fnmid', 5, fenShore, midfish, 1, 7)
 
   // §6ao (v6): THE TWO MASTERY SEAMS, each its own remembered place -- the third
-  // rung woodcutting and fishing were missing (mining already had magic-stone in
+  // rung woodcutting and fishing were missing (mining already had quick-stone in
   // the Wilds). Heartwood grows in the DEEP EASTERN GREENWOOD, remote and safe:
   // few need it (it makes a bow, a staff), so danger would only leave it empty;
   // its pull is the long walk to the old heart of the wood. Deep-fish is caught
@@ -6041,7 +6041,7 @@ export function buildWorld(genesis) {
   }
   counts.ironbark = clusterScatter('ibtree', 6, ironbarkStand, (id, x, y) => E.addNode(w, id, 'ironbark-tree', x, y), 1, 8)
   // The gallows-oaks and the mother lode are the same stand and the same seam
-  // as the deep Greenwood and the magic-rocks -- only in the Wilds, and paying
+  // as the deep Greenwood and the quick-rocks -- only in the Wilds, and paying
   // two to a strike. They are not a better rate; they are a wager.
   const deepWildsSeams = (x, y) => {
     if (B(x, y) !== 'wilds') return false
@@ -6085,7 +6085,7 @@ export function buildWorld(genesis) {
   counts.gallows = clusterScatter('gallow', 5, deepWildsSeams, (id, x, y) => E.addNode(w, id, 'gallows-oak', x, y), 1, 8)
   counts.motherLode = clusterScatter('mlode', 5, deepWildsSeams, (id, x, y) => E.addNode(w, id, 'mother-lode', x, y), 1, 8)
   // 6bb: THE GOLD SEAM. Remote but SAFE, and deliberately not the Wilds: the
-  // magic-rocks are dangerous wealth and gold is patient wealth, and a world
+  // quick-rocks are dangerous wealth and gold is patient wealth, and a world
   // with two of the first and none of the second only has one kind of rich
   // person in it. Far south in the crags, a long walk from anywhere, where the
   // only thing it costs you is the mastery you are not earning while you wait.
@@ -6104,8 +6104,8 @@ export function buildWorld(genesis) {
   // patient wealth in the north, because it is a REAGENT and a master smith
   // will be coming back for it, load after load, for as long as they forge.
   //
-  // Safe country, deliberately. The great arms already cost fourteen star
-  // ingots, and starmetal is Wilds work: asking the Wilds for the brimstone
+  // Safe country, deliberately. The great arms already cost fourteen quick
+  // ingots, and quickmetal is Wilds work: asking the Wilds for the brimstone
   // too would be two dangers for one weapon, which is the mistake §6av names
   // about the handgonne's powder.
   const ventCountry = (x, y) => {
@@ -6312,7 +6312,7 @@ export function buildWorld(genesis) {
   // source of the old-chain at 2/65536, the one item in the world that gold
   // cannot buy. So the rarest prize on the island sat behind the worst walk
   // in it: kill one, walk, wait. Meanwhile the skeleton-knights muster at
-  // 6.6 apiece and their star-helm is 1/200. The scarcity should live in the
+  // 6.6 apiece and their quick-helm is 1/200. The scarcity should live in the
   // drop table, where it was put on purpose, and not also in the geography,
   // where it arrived by accident.
   //
@@ -6820,7 +6820,7 @@ export function buildWorld(genesis) {
   // is not in the table and is left exactly where its drawing put it.
   {
     const GATHERABLE = new Set(['tree', 'oak-tree', 'ironbark-tree', 'heartwood-tree', 'gallows-oak',
-      'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'magic-rock', 'mother-lode', 'brimstone-vent',
+      'rock', 'iron-rock', 'coal-rock', 'gold-rock', 'quick-rock', 'mother-lode', 'brimstone-vent',
       'fishing-spot', 'eel-spot', 'deep-fish-spot', 'gibbet-shoal', 'muck-heap'])
     let cleared = 0
     for (const [id, n] of Object.entries(w.nodes)) {
@@ -7769,7 +7769,7 @@ export function buildWorld(genesis) {
   // visible keeper still trades; a shop no one can reach does not.
   {
     const BLOCK = new Set(['wall', 'fence', 'hedge', 'tree', 'rock', 'iron-rock', 'coal-rock',
-      'magic-rock', 'gold-rock', 'oak-tree', 'heartwood-tree', 'stall', 'anvil', 'vault', 'store',
+      'quick-rock', 'gold-rock', 'oak-tree', 'heartwood-tree', 'stall', 'anvil', 'vault', 'store',
       'well', 'fountain', 'hearth', 'plot', 'keeper', 'guard', 'signpost', 'banner', 'campfire'])
     const nodeAt = new Map()
     for (const n of Object.values(w.nodes)) nodeAt.set(n.x + ',' + n.y, n)
@@ -8026,7 +8026,7 @@ export function buildWorld(genesis) {
 
   // ---- final sweep: nothing gatherable where nobody can ever stand ----
   {
-    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'magic-rock'])
+    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'quick-rock'])
     // A TREE BLOCKS MOVEMENT. This set is the engine's _WALKABLE_BUILT and
     // nothing else. The first version of this sweep also skipped gatherables
     // -- reasoning, wrongly, that you only ever need to stand BESIDE a tree
@@ -8118,7 +8118,7 @@ export function buildWorld(genesis) {
   // deliberately what it did by accident: the ONLY places to gather are the
   // seams we placed. Every other tree/rock/fishing-spot becomes a look-alike
   // LANDMARK -- it still stands there, you just can't work it. The intended
-  // seams (gwtree, cgrock/iron, the coal/oak/eel seams, port fish, magic-rock)
+  // seams (gwtree, cgrock/iron, the coal/oak/eel seams, port fish, quick-rock)
   // are exempt by their id.
   {
     // §13g: AND THE SEAM TABLE. This exempted the intended seams BY ID PREFIX,

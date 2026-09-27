@@ -1,6 +1,6 @@
 // check-engine-roads.mjs — HOW LONG IS EACH ROAD, ACTUALLY?
 //
-// CALLINGS.md quotes one skill's rate ("a star axe on ironbark: 50 is ~2h, 70
+// CALLINGS.md quotes one skill's rate ("a quick axe on ironbark: 50 is ~2h, 70
 // is ~22h, 100 is ~1,800h") and every estimate since has quietly applied that
 // one number to all nine trades. It does not hold. Mourning is bone-bound and
 // came in about three times slower when it was measured; nobody had measured
@@ -189,7 +189,7 @@ const ROADS = [
     // free here. Sorcery is input-bound and the input has to be gathered.
     loop: (p) => { let i = p.inventory.findIndex(x => x?.item === 'logs')
       if (i === -1) { for (let k = 0; k < p.inventory.length; k++) p.inventory[k] = { item: 'logs', qty: 1 }; i = 0 }
-      return { type: 'alch', slot: i } } },
+      return { type: 'transmute', slot: i } } },
 
   { label: 'mourning — bones on consecrated ground', skill: 'mourning', calling: 'mourner',
     setup: (p) => { for (let i = 0; i < p.inventory.length; i++) p.inventory[i] = { item: 'bones', qty: 1 } },

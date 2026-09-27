@@ -115,8 +115,8 @@ s5.players[me.playerId].consignment = { from: 'store-1', route: ['store-1'], leg
 drive('branded, at the end of the route', s5)
 
 let s6 = fresh()
-s6.players[me.playerId].equipment.weapon = { item: 'star-javelin', qty: 1 }
-s6.players[me.playerId].inventory[1] = { item: 'star-javelin', qty: 9 }
+s6.players[me.playerId].equipment.weapon = { item: 'quick-javelin', qty: 1 }
+s6.players[me.playerId].inventory[1] = { item: 'quick-javelin', qty: 9 }
 drive('holding a javelin', s6)
 
 console.log('\n--- the bar shows what you are standing next to ---')

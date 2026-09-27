@@ -8001,7 +8001,11 @@ function validateGenesis(g) {
 // input is ever validated, so they get a dedicated, complete validator
 // (rev6 §2) IDs, names, skills, XP, HP, inventory, bank, equipment,
 // quantities, item vocabulary, and cross-entry uniqueness.
-const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'hp', 'vaults', 'inventory', 'weapon']);
+// §5k: `calling` is in this list because `xpCeiling` reads it. A crossing
+// that drops the swearing does not lose a title, it makes every hour the
+// citizen spent past level 50 illegal, and the founding then refuses the
+// state it has just built. See the note in validateImports.
+const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'hp', 'vaults', 'inventory', 'weapon', 'calling']);
 function validateImports(imported) {
   if (!Array.isArray(imported) || imported.length > MAX_ENTITIES) return 'bad imports';
   const pids = new Set(), names = new Set();
@@ -8023,6 +8027,33 @@ function validateImports(imported) {
         if (!SKILLS.includes(sk)) return 'import carries an unknown skill';
         if (!isInt(xp, 0, MAX_XP)) return 'import xp out of bounds';
       }
+    }
+    // §5k: THE SWEARING CROSSES WITH THEM, AND IS RE-EARNED AT THE DOOR.
+    //
+    // A carried citizen used to arrive with no calling at all, because this
+    // validator's field list did not admit one. `xpCeiling` reads exactly that
+    // field, so an unsworn citizen is held at level 50 in everything: a
+    // forester carried at woodcraft 70 was seated as an unsworn citizen
+    // holding 70 in a skill capped at 50, and `validateState` refused the
+    // world the founding had just finished building.
+    //
+    // It is checked here rather than trusted, against the same level the
+    // swearing itself demands, because an import is the one door into this
+    // world that no validated input ever passed through.
+    if (imp.calling !== undefined && imp.calling !== null) {
+      if (typeof imp.calling !== 'string' || !Object.prototype.hasOwnProperty.call(SWORN, imp.calling))
+        return 'import carries an unknown calling';
+      if (levelForXp(imp.skills?.[SWORN[imp.calling].skill] ?? 0) < SWEAR_LEVEL)
+        return 'import carries a calling it has not earned';
+    }
+    // AND THE CEILING IS CHECKED AT THE DOOR TOO. `validateState` already
+    // refuses a state past the ceiling and remains the backstop that matters,
+    // but it names a skill and not a citizen: the founding failed with three
+    // words and no pid, and the cause was in a different file. Asked here, the
+    // refusal points at the import that is wrong.
+    for (const [sk, xp] of Object.entries(imp.skills ?? {})) {
+      const ceil = xpCeiling({ calling: imp.calling ?? undefined, skills: imp.skills }, sk);
+      if (ceil !== Infinity && xp > ceil) return `import carries ${sk} past the ceiling`;
     }
     if (imp.inventory !== undefined) {
       if (!Array.isArray(imp.inventory) || imp.inventory.length > INV_SLOTS) return 'malformed imported inventory';
@@ -9297,6 +9328,9 @@ function seatImport(state, c, x, y) {
   addPlayer(state, c.pid, x, y);
   const p = state.players[c.pid];
   for (const k of Object.keys(p.skills)) if (c.skills?.[k] !== undefined) p.skills[k] = c.skills[k];
+  // §5k: AND THE SWEARING IS APPLIED BEFORE THE FRAME IS MEASURED, because the
+  // line below asks `maxHp` what this citizen is sworn to. Validated already.
+  if (c.calling != null) p.calling = c.calling;
   // §5j: the frame is flat and a calling may move it. It is NOT a skill.
   p.hp = Math.max(1, Math.min(c.hp ?? maxHp(p), maxHp(p)));
   // validateImports has already run: construction applies VALIDATED data

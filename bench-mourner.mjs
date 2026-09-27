@@ -88,7 +88,7 @@ const bot = new Mourner(client, { name: 'ashkeeper', say })
 // that endowed one kind would prove nothing about the ledger.
 const ENDOWMENT = [
   'great-mell', 'gold-plate', 'gold-legs', 'gold-helm', 'fire-siphon',
-  'star-plate', 'king-shroud', 'star-mell', 'grave-silver', 'heartwood-bow', 'horn-bow',
+  'quick-plate', 'king-shroud', 'quick-mell', 'grave-silver', 'heartwood-bow', 'horn-bow',
 ]
 let endowed = false
 function endow(s) {

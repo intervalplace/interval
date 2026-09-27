@@ -55,8 +55,8 @@ const OFFERABLE = Object.keys(PRICES).filter((k) => PRICES[k] > 0)
 // the arithmetic says: an axe offered is an axe that stops paying for the next
 // four hundred offerings.
 const KEEP = new Set([
-  'iron-hatchet', 'steel-hatchet', 'star-hatchet', 'great-hatchet',
-  'iron-pickaxe', 'steel-pickaxe', 'star-pickaxe', 'great-pickaxe',
+  'iron-hatchet', 'steel-hatchet', 'quick-hatchet', 'great-hatchet',
+  'iron-pickaxe', 'steel-pickaxe', 'quick-pickaxe', 'great-pickaxe',
   'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',
   'dragonbow', 'hood',
 ])
@@ -76,7 +76,7 @@ const KEEP = new Set([
 //
 //     reachable        tree 0, iron-rock 0, fishing-spot 0, oak 20, coal 20,
 //                      eel 20, muck-heap 25, ironbark 45, brimstone-vent 70
-//     shut forever     heartwood 78, deep-fish 78, magic-rock 78, gold 85,
+//     shut forever     heartwood 78, deep-fish 78, quick-rock 78, gold 85,
 //                      and every doubled Wilds place at 92
 //
 // The ceiling lands EXACTLY on the vent. Brimstone at 46 coins is the deepest
@@ -108,8 +108,8 @@ const KITCHEN = [
 ]
 
 const TOOL_FOR = {
-  hatchet: ['great-hatchet', 'star-hatchet', 'steel-hatchet', 'iron-hatchet'],
-  pickaxe: ['great-pickaxe', 'star-pickaxe', 'steel-pickaxe', 'iron-pickaxe'],
+  hatchet: ['great-hatchet', 'quick-hatchet', 'steel-hatchet', 'iron-hatchet'],
+  pickaxe: ['great-pickaxe', 'quick-pickaxe', 'steel-pickaxe', 'iron-pickaxe'],
   rod: ['heartwood-rod', 'ironbark-rod', 'oak-rod', 'rod'],
 }
 const STALL_FOR = { hatchet: ['lumber', 'iron-hatchet', 20], pickaxe: ['delve', 'iron-pickaxe', 20], rod: ['fisher', 'rod', 20] }

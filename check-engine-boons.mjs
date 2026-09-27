@@ -56,7 +56,7 @@ const spec = src.slice(src.indexOf('const _rec9'), src.indexOf('const _rec9') + 
 ok(!/blows|dmg \*|hit \*/.test(spec),
    'prowess pays in RHYTHM, not damage: dual wielding and a second blow are ' +
    'multipliers, and a multiplier in a fight is a balance problem before it is a reward')
-ok(E.MASTER_REC_NUM < E.MASTER_REC_DEN, 'the special recovers in ' +
+ok(E.MASTER_REC_NUM < E.MASTER_REC_DEN, 'the gambit recovers in ' +
    E.MASTER_REC_NUM + '/' + E.MASTER_REC_DEN + ' of the time, and the ordinary cadence is untouched')
 // the sorcery trap, written down where the next person will find it
 ok(/experience COMES FROM spending sigils/.test(src),

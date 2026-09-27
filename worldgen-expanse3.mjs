@@ -993,7 +993,7 @@ export function buildWorld(genesis) {
   const B = (x, y) => biomeAt(g, x, y)
   const tree = (id, x, y) => E.addNode(w, id, 'tree', x, y)
   const rock = (id, x, y) => E.addNode(w, id, 'rock', x, y)
-  const mrock = (id, x, y) => E.addNode(w, id, 'magic-rock', x, y)
+  const mrock = (id, x, y) => E.addNode(w, id, 'quick-rock', x, y)
 
   // clustered scatter (v0.80): grow dense patches around a few seeded centers
   // rather than dusting evenly. `clumps` centers, each a patch of roughly
@@ -1174,7 +1174,7 @@ export function buildWorld(genesis) {
   // pocket walled by water or by permanent nodes). This never touches a
   // legitimate cluster. Deterministic: same seed, same removals.
   {
-    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'magic-rock'])
+    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'quick-rock'])
     // permanent (non-gatherable) nodes block; gatherables do NOT, because
     // they can be cleared.
     const solidTile = new Set()

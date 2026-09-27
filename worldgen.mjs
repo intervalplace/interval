@@ -260,11 +260,11 @@ export function buildWorld(genesis) {
     (id, x, y) => E.addNode(w, id, 'rock', x, y))
   place('highrock', 30, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
   place('mtnrock', 24, (x, y) => inMountains(x, y), (id, x, y) => E.addNode(w, id, 'rock', x, y))
-  place('magicrock', 7, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'magic-rock', x, y))
-  place('mtnmagic', 5, (x, y) => inMountains(x, y), (id, x, y) => E.addNode(w, id, 'magic-rock', x, y))
+  place('magicrock', 7, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'quick-rock', x, y))
+  place('mtnmagic', 5, (x, y) => inMountains(x, y), (id, x, y) => E.addNode(w, id, 'quick-rock', x, y))
   // §5u: THE STAMPS, and there are only a handful. They stand where the
-  // magic-rock stands, because a crushing floor anywhere else is a floor
-  // nobody walks to -- and everybody who wants starmetal walks to one of
+  // quick-rock stands, because a crushing floor anywhere else is a floor
+  // nobody walks to -- and everybody who wants quickmetal walks to one of
   // these. Four in the highlands and two in the mountains is deliberately
   // few: a scarce PLACE is a place people meet at.
   place('stamp-high', 4, (x, y) => inHighlands(x, y) && !inCave(x, y), (id, x, y) => E.addNode(w, id, 'stamp', x, y))

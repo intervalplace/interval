@@ -37,8 +37,8 @@ replaceBlock('const FORGE_REQ = ', flat(eReq))
 replaceBlock('const PRICES = ', flat(ePri))
 
 // 2. weapon-derived tables
-const spec  = Object.fromEntries(Object.entries(eWep).filter(([,v])=>v.spec).map(([k,v])=>[k,v.spec]))
-const blows = Object.fromEntries(Object.entries(eWep).filter(([,v])=>v.spec).map(([k,v])=>[k,v.blows??1]))
+const spec  = Object.fromEntries(Object.entries(eWep).filter(([,v])=>v.gambit).map(([k,v])=>[k,v.gambit]))
+const blows = Object.fromEntries(Object.entries(eWep).filter(([,v])=>v.gambit).map(([k,v])=>[k,v.blows??1]))
 const every = Object.fromEntries(Object.entries(eWep).map(([k,v])=>[k,v.every??2]))
 const reach = Object.fromEntries(Object.entries(eWep).map(([k,v])=>[k,v.reach??1]))
 replaceBlock('const SPEC_OF = ', inOrder(spec))

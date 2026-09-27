@@ -3,10 +3,10 @@
 // A window built to look like a console that can only be played with a keyboard
 // is telling half a story. This drives a fake pad through the Gamepad API and
 // checks the whole window is reachable from it: walking, striking, reaching,
-// the special, the pack, the chart, and the panels once they are open.
+// the gambit, the pack, the chart, and the panels once they are open.
 //
 // The layout is the era's — cross acts, circle backs, square reaches, triangle
-// is the special — so a hand that has held one of these before knows most of it
+// is the gambit — so a hand that has held one of these before knows most of it
 // already. That is the thing being tested, not a preference of mine.
 //
 // Needs three.js:  npm i three@0.128.0
@@ -67,7 +67,7 @@ const tapBtn = (i) => { press(i); frames(2); release(i); frames(2) }
 
 const state = { tick: 900, genesis: { worldW: 64, worldH: 64, genesisSeed: 'pd' },
   players: { me: { x: 20, y: 20, hp: 10, maxHp: 10, gold: 0, skills: {},
-    equipment: { weapon: { item: 'star-mell' } },
+    equipment: { weapon: { item: 'quick-mell' } },
     inventory: [{ item: 'logs' }, { item: 'cooked-fish' }] } },
   mobs: { g1: { type: 'goblin', hp: 5, x: 21, y: 20 } },
   nodes: { t1: { type: 'tree', x: 19, y: 20, depletedUntil: 0 } }, ground: {} }
@@ -87,7 +87,7 @@ ok(sent.some(a => a.do === 'attack'), 'cross strikes')
 sent.length = 0; tapBtn(B.SQUARE)
 ok(sent.some(a => a.do === 'gather'), 'square reaches for what is in front of you')
 sent.length = 0; tapBtn(B.TRIANGLE)
-ok(sent.some(a => a.do === 'special'), 'triangle spends the arm on a special')
+ok(sent.some(a => a.do === 'gambit'), 'triangle spends the arm on a gambit')
 sent.length = 0; tapBtn(B.CIRCLE)
 ok(sent.some(a => a.do === 'stop'), 'circle halts')
 

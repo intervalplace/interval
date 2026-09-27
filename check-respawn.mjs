@@ -5,7 +5,7 @@ const a=E.generateIdentity()
 let s=E.newWorld(G); E.addPlayer(s,a.playerId,10,10)
 const p=()=>s.players[a.playerId]
 p().skills.attack=E.XP_TABLE[70]; p().skills.strength=E.XP_TABLE[70]; p().hp=E.effLevel(p().skills.hitpoints)
-p().equipment.weapon={item:'star-sword',qty:1}
+p().equipment.weapon={item:'quick-sword',qty:1}
 s.mobs['g1']={type:'goblin',x:11,y:10,hx:11,hy:10,hp:5,respawnAt:0}
 const sign=(f)=>E.signInput({worldId:WID,playerId:a.playerId,...f},a.privateKey)
 let bad=0; const ok=(c,m)=>{console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c)bad++}

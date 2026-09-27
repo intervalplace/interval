@@ -68,7 +68,7 @@ ok(/function gainXp/.test(src) && /xpCeiling/.test(src), 'which is one function,
 // EIGHT PER CENT gather rate, while a better axe bought thirteen times that —
 // so on ordinary logs there was no reason to buy from a master rather than
 // chop your own, and only twelve of the world's 148 gates sit above seventy.
-// Specialisation has to pay at the seam or it is only a title.
+// Gambitisation has to pay at the seam or it is only a title.
 const src2 = require('fs').readFileSync('engine.js', 'utf8')
 // §A RATE SCALES AUTOMATION, and that is why there is not one.
 //
@@ -99,7 +99,7 @@ ok(after > 2, 'so a master out-produces a capped seventy by ' + after.toFixed(2)
 
 // ---- the arithmetic that chose the numbers ----
 const hOwn = 1800, hOther = 22
-console.log('  \u00b7     at a star axe on ironbark: 50 is ~2h, ' + E.CAP_OTHER + ' is ~' + hOther +
+console.log('  \u00b7     at a quick axe on ironbark: 50 is ~2h, ' + E.CAP_OTHER + ' is ~' + hOther +
             'h, mastery ~' + hOwn + 'h')
 console.log('  \u00b7     so eight other trades \u2248 ' + Math.round(hOther * 8 / hOwn * 100) +
             '% of one mastery, which is rounding out rather than a second career')

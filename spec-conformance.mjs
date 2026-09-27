@@ -65,7 +65,7 @@ const retiringLine = (tok) => lines.some(l =>
 const unknownItems = itemish
   .filter(t => !E.ITEMS.has(t))
   .filter(t => !retiringLine(t))
-  .filter(t => /^(bronze|iron|steel|star|great|gold)-/.test(t) || t.endsWith('-ingot'))
+  .filter(t => /^(bronze|iron|steel|quick|great|gold)-/.test(t) || t.endsWith('-ingot'))
   .filter(t => !E.MOB_STATS[t] && !iter(E.NODE_TYPES).includes(t))
   .map(t => `${t}  (SPEC.md:${lineOf('`' + t + '`')})`)
 report('every equipment-like item named in SPEC exists in ITEMS', unknownItems,
@@ -96,7 +96,7 @@ report('every equipment-like item named in SPEC exists in ITEMS', unknownItems,
          'skill','node','tier','kind','style','calling'].includes(name)) continue
     // Only flag names that LOOK like gear or goods: hyphenated, or a known
     // metal tier. A bare English word in a column is prose, not a row.
-    if (!name.includes('-') && !/^(iron|steel|star|great|gold|bronze)/.test(name)) continue
+    if (!name.includes('-') && !/^(iron|steel|quick|great|gold|bronze)/.test(name)) continue
     if (!E.ITEMS.has(name) && !E.RECIPES[name] && !E.WEAPONS[name])
       bad.push(`a table row specifies "${name}", which is in no ITEMS, RECIPES or WEAPONS table`)
   }
@@ -222,7 +222,7 @@ report('every SPEC section cited by engine.js exists', dangling,
 // world no longer has, so the [LIFTED] marks come off in the right order.
 {
   const retired = {
-    'bronze': 'the bronze tier was replaced by iron/steel/star/great/gold',
+    'bronze': 'the bronze tier was replaced by iron/steel/quick/great/gold',
     'hitpoints': 'hitpoints is not a skill (§5j)',
     'woodcutting': 'merged into woodcraft (§5m)',
     'firemaking': 'merged into woodcraft (§5m)',

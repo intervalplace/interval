@@ -37,8 +37,8 @@ const ACCEPTS = new Set(LADDER)
 const VERBS = ['attend', 'spawn', 'move', 'gather', 'attack', 'cook', 'eat', 'smith', 'wield',
   'unwield', 'buy', 'drop', 'pickup', 'light', 'bury', 'plant', 'harvest', 'sell',
   'invoke', 'cast', 'fletch', 'unequip', 'deposit', 'withdraw', 'offer_trade', 'accept_trade',
-  'cancel_trade', 'chat', 'attackp', 'name', 'stop', 'special', 'survey', 'drink', 'offer',
-  'alch', 'grind', 'brew', 'collect', 'kindle', 'stoke', 'consign', 'deliver', 'release', 'pay']
+  'cancel_trade', 'chat', 'attackp', 'name', 'stop', 'gambit', 'survey', 'drink', 'offer',
+  'transmute', 'grind', 'brew', 'collect', 'kindle', 'stoke', 'consign', 'deliver', 'release', 'pay']
 
 // ---------- a browser, more or less ----------
 const noop = () => {}
@@ -85,13 +85,13 @@ for (const b of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m
 // ---------- a world with something to do in every direction ----------
 const me = {
   x: 40, y: 40, hp: 6, maxHp: 10, gold: 250, name: '',
-  // a star-mell, because the special is only offered by a weapon that HAS one
-  equipment: { weapon: { item: 'star-mell' }, head: { item: 'iron-helm' }, body: null },
+  // a quick-mell, because the gambit is only offered by a weapon that HAS one
+  equipment: { weapon: { item: 'quick-mell' }, head: { item: 'iron-helm' }, body: null },
   bank: { logs: 12, bones: 4 },
   trade: { to: 'pal', giveSlot: 0, wantGold: 5 },
   inventory: [{ item: 'logs', qty: 3 }, { item: 'bones' }, { item: 'seeds' }, { item: 'raw-fish' },
               { item: 'cooked-fish' }, { item: 'iron-sword' }, { item: 'feathers' },
-              { item: 'magic-stone' }, { item: 'sigil' }, { item: 'iron-ore', qty: 9 }, { item: 'iron', qty: 4 }]
+              { item: 'quick-stone' }, { item: 'sigil' }, { item: 'iron-ore', qty: 9 }, { item: 'iron', qty: 4 }]
 }
 const state = {
   tick: 900, genesis: { worldW: 128, worldH: 128, genesisSeed: 'verb-seed' },

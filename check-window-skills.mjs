@@ -29,7 +29,7 @@ const PAYS = {
   prowess:      [['attack', 'a blow struck'], ['attackp', 'a blow struck']],
   marksmanship: [['attack', 'a blow struck with a drawn weapon']],
   sorcery:      [['invoke', 'a sigil pressed'], ['cast', 'an anchor spoken'],
-                 ['alch', 'transmuting'], ['still', 'the stilling']],
+                 ['transmute', 'transmuting'], ['still', 'the stilling']],
   mourning:     [['offer', 'offered at an ossuary']],
   wayfaring:    [['survey', 'a marker surveyed'], ['deliver', 'a consignment run'],
                  ['charter', 'a chart drawn up']]

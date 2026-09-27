@@ -12,7 +12,7 @@ const setOf = (src, name) => { const i = src.indexOf(name); const a = src.indexO
   return new Set(Function('return ' + src.slice(a, j+1))()) }
 let bad = 0
 const ok = (c,m) => { console.log((c?'  ok  ':'  FAIL')+'  '+m); if(!c) bad++ }
-const JAV = ['iron-javelin','steel-javelin','star-javelin']
+const JAV = ['iron-javelin','steel-javelin','quick-javelin']
 const eW = grab(E,'const WEAPONS = ')
 const wEquip = setOf(W,'const EQUIPPABLE = new Set(')
 const wRanged = setOf(W,'const RANGED_ITEMS = new Set(')
@@ -66,10 +66,10 @@ for (const [label, eName, wName] of [
 }
 const eW2 = grab(E, 'const WEAPONS = ')
 const wSpec = ev(blk(W, 'const SPEC_OF = '))
-const eSpec = Object.fromEntries(Object.entries(eW2).filter(([, v]) => v.spec).map(([k, v]) => [k, v.spec]))
-ok(JSON.stringify(eSpec) === JSON.stringify(wSpec), `specials: ${JSON.stringify(wSpec)}`)
+const eSpec = Object.fromEntries(Object.entries(eW2).filter(([, v]) => v.gambit).map(([k, v]) => [k, v.gambit]))
+ok(JSON.stringify(eSpec) === JSON.stringify(wSpec), `gambits: ${JSON.stringify(wSpec)}`)
 const wSays = ev(blk(W, 'const SPEC_SAYS = '))
-ok(Object.values(eSpec).every(sp => sp in wSays), 'every special shape has a caption')
+ok(Object.values(eSpec).every(sp => sp in wSays), 'every gambit shape has a caption')
 
 console.log('\n--- the keeper is out of the goods trade ---')
 ok(!/do: 'sell'/.test(W), 'the window never sends `sell`')
@@ -90,7 +90,7 @@ console.log('\n--- every node type answers a click ---')
   // gatherables fall through to the gather path on purpose; everything else
   // that falls through says "You begin gathering." and sends a refused input
   const GATHERABLE = new Set(['tree','oak-tree','ironbark-tree','heartwood-tree','gallows-oak','rock',
-    'iron-rock','coal-rock','magic-rock','mother-lode','brimstone-vent','gold-rock','fishing-spot',
+    'iron-rock','coal-rock','quick-rock','mother-lode','brimstone-vent','gold-rock','fishing-spot',
     'eel-spot','deep-fish-spot','gibbet-shoal','muck-heap','rockfall','plot'])
   const mute = nt.filter((t) => !seen.has(t) && !GATHERABLE.has(t))
   ok(!mute.length, `types with no click branch: ${mute.join(', ') || 'none'}`)
@@ -131,7 +131,7 @@ console.log('\n--- a fight is visible ---')
   const eW3 = grab(E, 'const WEAPONS = ')
   const wBlows = ev(blk(W, 'const SPEC_BLOWS = '))
   const wEvery = ev(blk(W, 'const WEAPON_EVERY = '))
-  const eBlows = Object.fromEntries(Object.entries(eW3).filter(([, v]) => v.spec).map(([k, v]) => [k, v.blows ?? 1]))
+  const eBlows = Object.fromEntries(Object.entries(eW3).filter(([, v]) => v.gambit).map(([k, v]) => [k, v.blows ?? 1]))
   ok(JSON.stringify(eBlows) === JSON.stringify(wBlows), `blow counts: ${JSON.stringify(wBlows)}`)
   const everyDrift = Object.entries(eW3).filter(([k, v]) => wEvery[k] !== (v.every ?? 2)).map(([k]) => k)
   ok(!everyDrift.length, `cadences match the engine${everyDrift.length ? ' — DRIFT ' + everyDrift.join(',') : ''}`)
@@ -140,7 +140,7 @@ console.log('\n--- a fight is visible ---')
       .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
     ok(!/'wooden-bow'/.test(tracer), 'the arrow tracer is not pinned to one bow')
   }
-  for (const k of ['volley', 'specialhit'])
+  for (const k of ['volley', 'gambithit'])
     ok(new RegExp(`kind === '${k}'`).test(W) && new RegExp(`kind: '${k}'`).test(W),
       `\`${k}\` is both raised and drawn`)
 }

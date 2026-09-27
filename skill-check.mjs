@@ -100,9 +100,9 @@ check('every skill has a calling', E.SKILLS.filter(s => !E.CALLINGS[s]).map(s =>
 // 4d. every REQUIREMENT names a real trade
 // SMITH_REQS was checked from the start; WIELD_REQS was not, and it carried
 // forty items gated on woodcutting, mining, fishing, attack, strength and
-// defence -- plus two on `star-alloy`, an ITEM name left by a regex that hit
+// defence -- plus two on `quick-alloy`, an ITEM name left by a regex that hit
 // three tables at once. A gate naming a skill that does not exist compares
-// against undefined and can never be passed: the whole star and great tiers
+// against undefined and can never be passed: the whole quick and great tiers
 // were unwieldable and nothing said so.
 {
   const bad = []

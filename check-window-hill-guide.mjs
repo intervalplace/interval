@@ -2,7 +2,7 @@
 //
 // Every gate in this world is a number in a table. NODE_GATE says an ironbark
 // wants woodcraft 45. WIELD_REQS says a steel pickaxe wants earthcraft 10.
-// SMITH_REQS says a star-ingot wants earthcraft 45 and sorcery 25. None of it
+// SMITH_REQS says a quick-ingot wants earthcraft 45 and sorcery 25. None of it
 // was anywhere a person could see: they could only find out by walking to a
 // tree and being refused, with no reason given, and then reading the engine.
 //

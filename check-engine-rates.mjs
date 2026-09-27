@@ -1,6 +1,6 @@
 // CALLINGS.md, for the engine: IS ANY TRADE AN OUTLIER NOBODY CHOSE?
 //
-// CALLINGS.md quotes one rate ("a star axe on ironbark: 50 is ~2h, 70 is ~22h,
+// CALLINGS.md quotes one rate ("a quick axe on ironbark: 50 is ~2h, 70 is ~22h,
 // 100 is ~1,800h") and every tuning argument since has applied it to all nine
 // trades. Measured, the fast route of each trade runs 1.3 to 4.6 xp an
 // interval -- so the quote is true of three trades and wrong about six.
@@ -61,7 +61,7 @@ const TRADES = [
     (p) => { for (let i = 0; i < p.inventory.length; i++) p.inventory[i] = { item: 'logs', qty: 1 } },
     (p) => { let i = p.inventory.findIndex(x => x?.item === 'logs')
       if (i === -1) { for (let k = 0; k < p.inventory.length; k++) p.inventory[k] = { item: 'logs', qty: 1 }; i = 0 }
-      return { type: 'alch', slot: i } }],
+      return { type: 'transmute', slot: i } }],
   ['mourning', 'mourner',
     (p) => { for (let i = 0; i < p.inventory.length; i++) p.inventory[i] = { item: 'bones', qty: 1 } },
     (p) => { let i = p.inventory.findIndex(x => x?.item === 'bones')

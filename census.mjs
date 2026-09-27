@@ -43,7 +43,7 @@ for (const [t, n] of Object.entries(byType).sort((a, b) => b[1] - a[1]))
   console.log('    ' + t.padEnd(16) + String(n).padStart(6))
 
 // ---- 3. RESOURCE / GATHERING NODES: the economy, by kind ----
-const GATHER = new Set(['tree', 'rock', 'fishing-spot', 'magic-rock',
+const GATHER = new Set(['tree', 'rock', 'fishing-spot', 'quick-rock',
   'oak-tree', 'ironbark-tree', 'heartwood-tree', 'gallows-oak',
   'iron-rock', 'coal-rock', 'gold-rock', 'mother-lode', 'brimstone-vent',
   'eel-spot', 'deep-fish-spot', 'gibbet-shoal'])
@@ -68,7 +68,7 @@ const SKILL_OF = {
   tree: 'woodcutting', 'oak-tree': 'woodcutting', 'ironbark-tree': 'woodcutting',
   'heartwood-tree': 'woodcutting', 'gallows-oak': 'woodcutting',
   rock: 'mining', 'iron-rock': 'mining', 'coal-rock': 'mining', 'gold-rock': 'mining',
-  'magic-rock': 'mining', 'mother-lode': 'mining', 'brimstone-vent': 'mining',
+  'quick-rock': 'mining', 'mother-lode': 'mining', 'brimstone-vent': 'mining',
   'fishing-spot': 'fishing', 'eel-spot': 'fishing', 'deep-fish-spot': 'fishing', 'gibbet-shoal': 'fishing',
 }
 for (const skill of ['woodcutting', 'mining', 'fishing']) {
@@ -82,7 +82,7 @@ for (const skill of ['woodcutting', 'mining', 'fishing']) {
   }
 }
 
-// ---- 4. SPECIAL / SCARCE SEAMS: the doubled Wilds seams + gold ----
+// ---- 4. GAMBIT / SCARCE SEAMS: the doubled Wilds seams + gold ----
 console.log('\nSCARCE & DOUBLED SEAMS (the risk-priced masters):')
 for (const k of ['gallows-oak', 'mother-lode', 'gibbet-shoal', 'gold-rock', 'deep-fish-spot']) {
   const rec = gather[k]

@@ -362,7 +362,7 @@ export function buildWorld(genesis) {
   const B = (x, y) => biomeAt(g, x, y)
   const tree = (id, x, y) => E.addNode(w, id, 'tree', x, y)
   const rock = (id, x, y) => E.addNode(w, id, 'rock', x, y)
-  const mrock = (id, x, y) => E.addNode(w, id, 'magic-rock', x, y)
+  const mrock = (id, x, y) => E.addNode(w, id, 'quick-rock', x, y)
 
   const counts = { waymarks: _waymarks }
   // DENSITY is the constant, not the count: every census below was

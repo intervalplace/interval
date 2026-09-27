@@ -170,7 +170,7 @@ export class IntervalClient {
   //
   // A bot is a citizen here -- an executor runs a full node and its deeds feed
   // the beacon -- so a verb the SDK cannot express is a verb half the
-  // population cannot use. `drink`, `alch` and `set_look` all shipped into the
+  // population cannot use. `drink`, `transmute` and `set_look` all shipped into the
   // engine without one, which quietly made them window-only features in a
   // world that does not have window-only features.
   drink() { return this.#send({ type: 'drink' }) }
@@ -190,14 +190,14 @@ export class IntervalClient {
   lay(nodeId, n = 1) { return this.#send({ type: 'lay', nodeId, n }) }
   // §7j: grain to flour, beside a mill
   grind(slot) { return this.#send({ type: 'grind', slot }) }
-  alch(slot) { return this.#send({ type: 'alch', slot }) }
+  transmute(slot) { return this.#send({ type: 'transmute', slot }) }
   setLook(look) { return this.#send({ type: 'set_look', look }) }
   // and the four the SDK never spoke, which an audit turned up alongside
   // them. `restore` and `archive` are a node's business rather than a
-  // citizen's, but `still` and `special` are things a citizen DOES, and a bot
-  // that cannot root an opponent or spend a special is fighting with one hand.
+  // citizen's, but `still` and `gambit` are things a citizen DOES, and a bot
+  // that cannot root an opponent or spend a gambit is fighting with one hand.
   still(target) { return this.#send({ type: 'still', target }) }
-  special(targetId, style = 'even') { return this.#send({ type: 'special', targetId, style }) }
+  gambit(targetId, style = 'even') { return this.#send({ type: 'gambit', targetId, style }) }
   mendp(target) { return this.#send({ type: 'mendp', target }) }
   // ---- trading with another citizen ----
   // The SDK could not do this at all: a script could buy from a keeper and

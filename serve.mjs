@@ -330,6 +330,10 @@ if (canResume) {
     GENESIS.imported = Object.entries(old.players).filter(([, p]) => lived(p)).map(([pid, p]) => ({
       pid, skills: p.skills, name: E.isValidName(p.name) ? p.name : null, // constitutional or nothing (rev5 §3)
       hp: p.hp, // (rescued again from the comment a bad merge swallowed it into)
+      // §5k: AND WHAT THEY SWORE. Without this the crossing seats everyone as
+      // an unsworn citizen, whose ceiling is level 50 in every skill, and the
+      // new world refuses itself the moment anybody carried has passed it.
+      calling: p.calling ?? null,
       // §6g: A CROSSING CARRIES GOODS, NOT GEOGRAPHY. Vaults are keyed by
       // bank node id, and the ids of a world that no longer exists name
       // nothing. So the shelves are summed into one map on the way out and
@@ -1176,7 +1180,7 @@ function handle(ws, buf) {
     else if (a.do === 'cancel_trade') client.cancelTrade()
     else if (a.do === 'chat') { if (client.chat) client.chat(String(a.text)) }
     else if (a.do === 'attackp') { if (client.attackp) client.attackp(String(a.targetId)) }
-    else if (a.do === 'special') { if (client.special) client.special(String(a.targetId)) }
+    else if (a.do === 'gambit') { if (client.gambit) client.gambit(String(a.targetId)) }
     else if (a.do === 'swear') { if (client.swear) client.swear(String(a.calling),
       a.attester === undefined ? undefined : String(a.attester)) }
     else if (a.do === 'teach') { if (client.teach) client.teach(String(a.to)) }
@@ -1184,7 +1188,7 @@ function handle(ws, buf) {
     // ---- §6dj: THE WORDS THE LADDER WAS NOT CARRYING ----
     //
     // Everything below already existed twice over: the engine has an input for
-    // each (`inp.type === 'survey'`, `'alch'`, `'brew'` …), sdk.mjs has a
+    // each (`inp.type === 'survey'`, `'transmute'`, `'brew'` …), sdk.mjs has a
     // method for each, and window-web sends most of them. Only this ladder was
     // missing, so they were dropped in silence — and two whole SKILLS were
     // unreachable by any window as a result: `mourning` is paid by `offer` at
@@ -1197,7 +1201,7 @@ function handle(ws, buf) {
     else if (a.do === 'survey') { if (client.survey) client.survey() }
     else if (a.do === 'drink') { if (client.drink) client.drink() }
     else if (a.do === 'offer') { if (client.offerAtOssuary) client.offerAtOssuary(a.slot | 0) }
-    else if (a.do === 'alch') { if (client.alch) client.alch(a.slot | 0) }
+    else if (a.do === 'transmute') { if (client.transmute) client.transmute(a.slot | 0) }
     else if (a.do === 'grind') { if (client.grind) client.grind(a.slot | 0) }
     else if (a.do === 'still') { if (client.still) client.still(String(a.target)) }
     else if (a.do === 'mendp') { if (client.mendp) client.mendp(String(a.target)) }

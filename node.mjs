@@ -1036,7 +1036,7 @@ export class IntervalNode {
     }
     this.p2p = await createLibp2p({
       ...(peerPriv ? { privateKey: peerPriv } : {}),
-      addresses: { listen: [this.listen ?? '/ip4/0.0.0.0/tcp/0'] }, // dialable by default: a mesh of mutes is a star
+      addresses: { listen: [this.listen ?? '/ip4/0.0.0.0/tcp/0'] }, // dialable by default: a mesh of mutes is a quick
       transports: [tcp()],
       connectionEncrypters: [noise()],
       streamMuxers: [yamux()],

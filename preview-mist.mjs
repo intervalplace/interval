@@ -363,7 +363,7 @@ if (process.env.MENU) {
   }
   state.players.me.inventory = [{ item: 'logs', qty: 3 }, { item: 'bones' }, { item: 'raw-fish' },
     { item: 'cooked-fish' }, { item: 'iron-sword' }, { item: 'seeds' }, { item: 'iron', qty: 4 },
-    { item: 'magic-stone' }]
+    { item: 'quick-stone' }]
   send({ type: 'state', state, worldId: 'a1b2c3d4e5' })
   for (let i = 0; i < 4; i++) { CLOCK += 40; for (const fn of raf.splice(0, raf.length)) fn(CLOCK) }
   const press = (k) => { for (const f of winHandlers.keydown || []) f({ key: k, preventDefault: () => {}, shiftKey: false }) }

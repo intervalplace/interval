@@ -220,7 +220,7 @@ try { await withTimeout(node.dial(pillarAddr), 8000, 'pillar') } catch {
 // book peers are gossip redundancy, not a boot dependency — dial in the background
 for (const a of book) bgDial(a, 'book')
 
-// ---- the mesh, not the star: dial every peer the pillar knows, and keep
+// ---- the mesh, not the quick: dial every peer the pillar knows, and keep
 // looking. If the pillar dies, the world keeps talking around the hole.
 const dialedPeers = new Set([node.peerId()]) // never dial ourselves
 // A mesh that fails silently looks exactly like a mesh with nobody in it. Both

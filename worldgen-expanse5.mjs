@@ -2538,7 +2538,7 @@ export function buildWorld(genesis) {
       const b = biomeAt(g, x, y)
       if (b !== 'sea') area[b] = (area[b] || 0) + 1
     }
-    const RESOURCE = new Set(['tree', 'rock', 'magic-rock', 'fishing-spot'])
+    const RESOURCE = new Set(['tree', 'rock', 'quick-rock', 'fishing-spot'])
     for (const n of Object.values(w.nodes)) {
       if (RESOURCE.has(n.type)) continue
       const b = biomeAt(g, n.x, n.y)
@@ -2947,7 +2947,7 @@ export function buildWorld(genesis) {
   const B = (x, y) => biomeAt(g, x, y)
   const tree = (id, x, y) => E.addNode(w, id, 'tree', x, y)
   const rock = (id, x, y) => E.addNode(w, id, 'rock', x, y)
-  const mrock = (id, x, y) => E.addNode(w, id, 'magic-rock', x, y)
+  const mrock = (id, x, y) => E.addNode(w, id, 'quick-rock', x, y)
   // POROSITY. A tree ringed on all four sides by other trees can never be
   // reached -- you can only ever stand beside one -- so a dense clump has a
   // dead core. The first honest reachability pass swept 2,454 such nodes,
@@ -3116,7 +3116,7 @@ export function buildWorld(genesis) {
   // source of the old-chain at 2/65536, the one item in the world that gold
   // cannot buy. So the rarest prize on the island sat behind the worst walk
   // in it: kill one, walk, wait. Meanwhile the skeleton-knights muster at
-  // 6.6 apiece and their star-helm is 1/200. The scarcity should live in the
+  // 6.6 apiece and their quick-helm is 1/200. The scarcity should live in the
   // drop table, where it was put on purpose, and not also in the geography,
   // where it arrived by accident.
   //
@@ -4218,7 +4218,7 @@ export function buildWorld(genesis) {
 
   // ---- final sweep: nothing gatherable where nobody can ever stand ----
   {
-    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'magic-rock'])
+    const GATHER = new Set(['rock', 'tree', 'fishing-spot', 'quick-rock'])
     // A TREE BLOCKS MOVEMENT. This set is the engine's _WALKABLE_BUILT and
     // nothing else. The first version of this sweep also skipped gatherables
     // -- reasoning, wrongly, that you only ever need to stand BESIDE a tree

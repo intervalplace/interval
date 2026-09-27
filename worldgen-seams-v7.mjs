@@ -19,7 +19,7 @@
 // The seams were made few and findable on purpose -- 94 nodes where the old
 // scatter had 653 -- and the reason was that scarcity only makes a MEETING
 // PLACE if there is one place. Three tiers had drifted into two and three
-// clusters apiece: iron in three, magic-rock in two, the plain tree in three.
+// clusters apiece: iron in three, quick-rock in two, the plain tree in three.
 // That is not scarcity, it is the same scarcity divided, and it buys nothing.
 //
 // Nineteen nodes moved into their tier's main cluster. The plain tree keeps
@@ -84,20 +84,20 @@ export const SEAMS = [
   { type: 'ironbark-tree', x: 593, y: 61 },
   { type: 'ironbark-tree', x: 594, y: 61 },
   { type: 'ironbark-tree', x: 594, y: 62 },
-  { type: 'magic-rock', x: 132, y: 330 },
-  { type: 'magic-rock', x: 133, y: 331 },
-  { type: 'magic-rock', x: 133, y: 333 },
-  { type: 'magic-rock', x: 134, y: 330 },
-  { type: 'magic-rock', x: 134, y: 332 },
-  { type: 'magic-rock', x: 135, y: 331 },
-  { type: 'magic-rock', x: 135, y: 333 },
-  { type: 'magic-rock', x: 135, y: 330 },
-  { type: 'magic-rock', x: 133, y: 330 },
-  { type: 'magic-rock', x: 135, y: 332 },
-  { type: 'magic-rock', x: 133, y: 332 },
-  { type: 'magic-rock', x: 136, y: 329 },
-  { type: 'magic-rock', x: 135, y: 329 },
-  { type: 'magic-rock', x: 134, y: 329 },
+  { type: 'quick-rock', x: 132, y: 330 },
+  { type: 'quick-rock', x: 133, y: 331 },
+  { type: 'quick-rock', x: 133, y: 333 },
+  { type: 'quick-rock', x: 134, y: 330 },
+  { type: 'quick-rock', x: 134, y: 332 },
+  { type: 'quick-rock', x: 135, y: 331 },
+  { type: 'quick-rock', x: 135, y: 333 },
+  { type: 'quick-rock', x: 135, y: 330 },
+  { type: 'quick-rock', x: 133, y: 330 },
+  { type: 'quick-rock', x: 135, y: 332 },
+  { type: 'quick-rock', x: 133, y: 332 },
+  { type: 'quick-rock', x: 136, y: 329 },
+  { type: 'quick-rock', x: 135, y: 329 },
+  { type: 'quick-rock', x: 134, y: 329 },
   { type: 'mother-lode', x: 166, y: 249 },
   { type: 'mother-lode', x: 166, y: 251 },
   { type: 'mother-lode', x: 167, y: 250 },

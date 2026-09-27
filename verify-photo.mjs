@@ -101,7 +101,7 @@ async function main() {
       + imgHash.slice(0, 16) + '…, the claim names ' + String(obj.img).slice(0, 16) + '…', { plate: obj })
 
   // 2. does the signature hold? Same function the state machine uses to
-  //    decide whether a deed was authorized. No special case for photos.
+  //    decide whether a deed was authorized. No gambit case for photos.
   if (!E.verifyInputSig({ ...obj, sig }, E.SIG_DOMAINS.photo))
     fail('the signature does not hold for this claim', { plate: obj })
 

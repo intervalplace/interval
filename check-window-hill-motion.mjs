@@ -73,7 +73,7 @@ send({ type: 'state', state: w1, worldId: 'w' }); frames(2)
 ok(top() > before, 'a neighbour at an anvil throws sparks (' + before + ' \u2192 ' + top() + ')')
 
 // ---- every deed word the engine has must throw SOMETHING ----
-const DEEDS = ['alch', 'unmake', 'seal', 'char', 'unload', 'rifle', 'haul', 'dedicate', 'grave',
+const DEEDS = ['transmute', 'unmake', 'seal', 'char', 'unload', 'rifle', 'haul', 'dedicate', 'grave',
   'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke', 'fletch', 'smith', 'plant',
   'harvest', 'cook', 'light', 'kindle', 'still', 'found', 'lay', 'cast', 'recall', 'pickup',
   'drop', 'buy', 'deposit', 'withdraw']
@@ -105,25 +105,25 @@ const flying = top()
 frames(30)
 ok(top() < flying, 'and it arrives, rather than hanging there')
 
-// ---- §6af: a special is not an ordinary swing ----
+// ---- §6af: a gambit is not an ordinary swing ----
 frames(40)
 const n2 = top()
 const sp1 = base({ tick: 920 })
-sp1.players.pal.equipment = { weapon: { item: 'star-mell' } }
+sp1.players.pal.equipment = { weapon: { item: 'quick-mell' } }
 sp1.players.pal.lastSwing = 930                 // an arm spent PAST this tick
 sp1.players.pal.action = { type: 'attack', mobId: 'g1' }
 send({ type: 'state', state: sp1, worldId: 'w' }); frames(2)
-ok(top() > n2, "a neighbour's special is visible from across the field (" + n2 + ' \u2192 ' + top() + ')')
+ok(top() > n2, "a neighbour's gambit is visible from across the field (" + n2 + ' \u2192 ' + top() + ')')
 frames(60)
 // and yours: C with a weapon that has one
 const mine2 = base({ tick: 940 })
-mine2.players.me.equipment = { weapon: { item: 'star-mell' } }
+mine2.players.me.equipment = { weapon: { item: 'quick-mell' } }
 mine2.mobs.g1 = { type: 'goblin', hp: 9, x: 21, y: 20 }
 send({ type: 'state', state: mine2, worldId: 'w' }); frames(2)
 const n3 = top()
 for (const f of win.keydown || []) f({ key: 'c', preventDefault: noop, shiftKey: false })
 frames(2)
-ok(top() > n3, 'your own special throws its own shape (' + n3 + ' \u2192 ' + top() + ')')
+ok(top() > n3, 'your own gambit throws its own shape (' + n3 + ' \u2192 ' + top() + ')')
 
 // ---- §6am: WORK THAT RUNS ON. A gather is an action, not a deed: it keeps
 // going by itself. The window must keep working, not freeze mid-swing.

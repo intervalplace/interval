@@ -120,7 +120,7 @@ const blocks = {}
     `\`giveItems\` is not redundant with \`giveSlots\`. It is the record of what`,
     `was advertised, and \`tradeFits()\` re-checks the offerer's inventory`,
     `against it at accept time. Without it, emptiness is guarded but`,
-    `**substitution is not**: the buyer agrees to a \`star-sword\` and receives`,
+    `**substitution is not**: the buyer agrees to a \`quick-sword\` and receives`,
     `an \`iron-dagger\`. An offer whose goods no longer match what was`,
     `advertised does not partially apply — it does not apply at all.`,
   ].join('\n')
@@ -164,7 +164,7 @@ const blocks = {}
 
 // ---- weapons -------------------------------------------------------------
 // Hand-written stat tables are how §6x came to specify a `bronze-flail` that
-// exists nowhere, beside a `star-flail` whose numbers were three releases old.
+// exists nowhere, beside a `quick-flail` whose numbers were three releases old.
 // A table that describes a thing completely and describes it wrongly is worse
 // than a gap: an implementer builds exactly what it says.
 {
