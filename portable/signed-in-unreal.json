@@ -1,0 +1,13 @@
+{
+ "playerId": "fff9246ad3f5825307fae536403b85f497e58e743b4651145f2df0eb1b494276",
+ "input": {
+  "worldId": "a4de408dc51d2528",
+  "tick": 1,
+  "playerId": "fff9246ad3f5825307fae536403b85f497e58e743b4651145f2df0eb1b494276",
+  "type": "walk",
+  "dx": 1,
+  "dy": 0,
+  "steps": 1,
+  "sig": "2a3545d7e44ca021d86692b0738bd95af0bf5ad1c7c5fe09cad1f7ae99f657a2c6a18dc5aa174fe8d1f6716cc78820dd83a7d73631ba7cbb45e27c4fae03b401"
+ }
+}
