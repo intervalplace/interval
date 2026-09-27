@@ -39,7 +39,7 @@
   <p id="findnote" style="color:var(--dim);font-size:12px;margin:6px 0 0"></p>
   <p class="maplegend"><b>Anchor</b> holds the center; the <b>Brandline</b> stones mark where the
   law of the Wilds begins. The <b>Ridge</b> now runs sea to sea and is crossed at its two passes
-  or not at all &mdash; and the <b>South Pass</b> is shut, filled with a rockfall that a
+  or not at all: and the <b>South Pass</b> is shut, filled with a rockfall that a
   generation of citizens may dig through. Nineteen <b>meres, tarns and pools</b> lie inland, and
   five becks run off the high ground into the Great River and the sea. One island in the
   northwest appears on no road and carries no label. It is drawn faithfully.</p>
@@ -64,12 +64,12 @@
 // byte for byte, exactly as every window does. If this copy drifts, this
 // page is in breach on the same terms they are.
 // ---------------------------------------------------------------------
-// terrain-mirror.js — the window's copy of the world's own geography.
+// terrain-mirror.js: the window's copy of the world's own geography.
 //
 // This file used to exist THREE TIMES: once inside window-web.html, once
 // inside window-3d.html, once inside window-photo.html, ~1,300 lines each,
-// pasted. The copies had not yet disagreed about a single tile — 210,432
-// were checked — but they had already drifted in two places that simply
+// pasted. The copies had not yet disagreed about a single tile, 210,432
+// were checked, but they had already drifted in two places that simply
 // had not bitten yet:
 //
 //   * window-photo's copy had a RENDERING function (buildBridges, which
@@ -143,7 +143,7 @@ function seedNumC() {
   // hash that is not FNV-1a, and the two disagree: the river moved
   // twenty-seven tiles east and ran straight through Anchor's market square.
   // Freezing an input must not change the function.
-  const src = V7() ? V7_SEED : GSEED
+  const src = V7() ? V7_SEED: GSEED
   let h = 0
   for (let i = 0; i < src.length; i++) h = Math.imul(h ^ src.charCodeAt(i), 2654435761) | 0
   return (_seedNumC = h >>> 0)
@@ -256,19 +256,19 @@ function fordE(x, y) { // mirror of fordAt: the road crosses, and every main str
 // (no atan2. ECMA-262 leaves it implementation-defined), the borders that
 // are features, the road graph, and the fords painted as bridges.
 function angleOf3(dx, dy) {
-  const ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy
+  const ax = dx < 0 ? -dx: dx, ay = dy < 0 ? -dy: dy
   if (ax === 0 && ay === 0) return 0
-  if (dx > 0 && dy >= 0) return ax >= ay ? (ay / ax) * 45 : 90 - (ax / ay) * 45
-  if (dx <= 0 && dy > 0) return ay > ax ? 90 + (ax / ay) * 45 : 180 - (ay / ax) * 45
-  if (dx < 0 && dy <= 0) return ax >= ay ? 180 + (ay / ax) * 45 : 270 - (ax / ay) * 45
-  return ay > ax ? 270 + (ax / ay) * 45 : 360 - (ay / ax) * 45
+  if (dx > 0 && dy >= 0) return ax >= ay ? (ay / ax) * 45: 90 - (ax / ay) * 45
+  if (dx <= 0 && dy > 0) return ay > ax ? 90 + (ax / ay) * 45: 180 - (ay / ax) * 45
+  if (dx < 0 && dy <= 0) return ax >= ay ? 180 + (ay / ax) * 45: 270 - (ax / ay) * 45
+  return ay > ax ? 270 + (ax / ay) * 45: 360 - (ay / ax) * 45
 }
 function coastR3(u0) {
   const u = ((u0 % 360) + 360) % 360
   let r = 0.80 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
   const bump = (c, w2, amt) => {
-    const d1 = u - c < 0 ? c - u : u - c
-    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    const d1 = u - c < 0 ? c - u: u - c
+    const d = d1 < 360 - d1 ? d1: 360 - d1
     if (d < w2) r += amt * (1 - d / w2)
   }
   bump(180, 28, +0.18); bump(150, 12, -0.09); bump(210, 12, -0.09)
@@ -304,9 +304,9 @@ const treeY3 = (x) => Math.round(H * 0.30 + meander(312, x, 44, 11))
 const fenY3 = (x) => Math.round(H * 0.71 + meander(313, x, 44, 9))
 const passes3 = () => [Math.round(H * 0.37), Math.round(H * 0.655)]
 function onRidge3(x, y) {
-  const rx = ridgeX3(y); const d = x - rx < 0 ? rx - x : x - rx
+  const rx = ridgeX3(y); const d = x - rx < 0 ? rx - x: x - rx
   if (d > 2) return false
-  for (const p of passes3()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
+  for (const p of passes3()) { const pd = y - p < 0 ? p - y: y - p; if (pd < 4) return false }
   if (y < treeY3(x) - 8) return false
   if (inSeaBase3(x, y)) return false
   return true
@@ -315,21 +315,21 @@ const riverX3 = (y) => Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + m
 const confY3 = () => Math.round(H * 0.63)
 function marchWY3(x) {
   const cyy = confY3(); const reach = riverX3(cyy) - 8 - x
-  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  const t = reach < 0 ? 0: reach > 70 ? 1: reach / 70
   return cyy + Math.round(meander(25, x, 36, 12) * t)
 }
 function inRiver3(x, y) {
   const srcY = Math.round(H * 0.115)
   if (y >= srcY) {
-    const rx = riverX3(y); const d = x - rx < 0 ? rx - x : x - rx
-    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    const rx = riverX3(y); const d = x - rx < 0 ? rx - x: x - rx
+    if (d <= (y > H * 0.82 ? 2: 1)) return true
     if (y > H * 0.84) {
-      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3)); const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3)); const d2 = x - dx2 < 0 ? dx2 - x: x - dx2
       if (d2 <= 1) return true
     }
   }
   if (x < riverX3(confY3()) - 1 && x > brandX3(y) - 16) {
-    const my = marchWY3(x); const d3 = y - my < 0 ? my - y : y - my
+    const my = marchWY3(x); const d3 = y - my < 0 ? my - y: y - my
     if (d3 <= 1) return true
   }
   return false
@@ -440,8 +440,8 @@ function coastR4(u0) {
   const u = ((u0 % 360) + 360) % 360
   let r = 0.78 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
   const bump = (c, w2, amt) => {
-    const d1 = u - c < 0 ? c - u : u - c
-    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    const d1 = u - c < 0 ? c - u: u - c
+    const d = d1 < 360 - d1 ? d1: 360 - d1
     if (d < w2) r += amt * (1 - d / w2)
   }
   for (const c of CAPES4) bump(c.u, c.w, c.amt)
@@ -505,7 +505,7 @@ const inSea4 = (x, y) => {
   const hit = _sea4[i]
   if (hit) return hit === 2
   const v = inSeaBase4(x, y) && !onIsle4(x, y)
-  _sea4[i] = v ? 2 : 1
+  _sea4[i] = v ? 2: 1
   return v
 }
 // STRAIGHT, and exactly where the law is. Mirrors worldgen-expanse4.brandX:
@@ -555,9 +555,9 @@ function biomeAtE4(x, y) {
 const ridgeX4 = (y) => Math.round(W * 0.695 + meander(311, y, 30, 11))
 const passes4 = () => [Math.round(H * 0.34), Math.round(H * 0.62)]
 function onRidge4(x, y) {
-  const rx = ridgeX4(y), d = x - rx < 0 ? rx - x : x - rx
+  const rx = ridgeX4(y), d = x - rx < 0 ? rx - x: x - rx
   if (d > 2) return false
-  for (const p of passes4()) { const pd = y - p < 0 ? p - y : y - p; if (pd < 4) return false }
+  for (const p of passes4()) { const pd = y - p < 0 ? p - y: y - p; if (pd < 4) return false }
   if (!V7() && biomeAtE4(x, y) === 'greenwood') return false   // v7: the ridge no longer sinks beneath the wood
   // v7: THE RIDGE RUNS SEA TO SEA. Under v6 it sank beneath the Greenwood and
   // died away before the bay, so 241 of the island's 433 land rows had no
@@ -576,7 +576,7 @@ function riverX4(y) { return Math.floor(W / 2) + Math.round(meander(21, y, 52, 3
 const confY4 = () => Math.round(H * 0.63)
 function marchWY4(x) {
   const cyy = confY4(), reach = riverX4(cyy) - 8 - x
-  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  const t = reach < 0 ? 0: reach > 70 ? 1: reach / 70
   return cyy + Math.round(meander(25, x, 36, 12) * t)
 }
 // THE RIVER, REMEMBERED. Two meanders and a march branch, recomputed on every
@@ -590,22 +590,22 @@ function inRiver4(x, y) {
   const hit = _riv4[i]
   if (hit) return hit === 2
   const v = _inRiver4raw(x, y)
-  _riv4[i] = v ? 2 : 1
+  _riv4[i] = v ? 2: 1
   return v
 }
 function _inRiver4raw(x, y) {
   const srcY = Math.round(H * 0.105)
   if (y >= srcY) {
-    const rx = riverX4(y), d = x - rx < 0 ? rx - x : x - rx
-    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    const rx = riverX4(y), d = x - rx < 0 ? rx - x: x - rx
+    if (d <= (y > H * 0.82 ? 2: 1)) return true
     if (y > H * 0.84) {
       const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3))
-      const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      const d2 = x - dx2 < 0 ? dx2 - x: x - dx2
       if (d2 <= 1) return true
     }
   }
   if (x < riverX4(confY4()) - 1 && x > brandX4(y) - 16) {
-    const my = marchWY4(x), d3 = y - my < 0 ? my - y : y - my
+    const my = marchWY4(x), d3 = y - my < 0 ? my - y: y - my
     if (d3 <= 1) return true
   }
   return false
@@ -635,7 +635,7 @@ const isWater4 = (x, y) => {
   const hit = _wet4[i]
   if (hit) return hit === 2
   const w = inSea4(x, y) || inRiver4(x, y) || inLake4(x, y)
-  _wet4[i] = w ? 2 : 1
+  _wet4[i] = w ? 2: 1
   return w
 }
 function bridges4() {
@@ -983,7 +983,7 @@ function planConnected4(rows, cx, cy) {
   const pw = rows[0].length, ph = rows.length
   const x0 = cx - (pw >> 1), y0 = cy - (ph >> 1)
   const at = (x, y) => { const rx = x - x0, ry = y - y0
-    return (rx < 0 || ry < 0 || rx >= pw || ry >= ph) ? null : rows[ry][rx] }
+    return (rx < 0 || ry < 0 || rx >= pw || ry >= ph) ? null: rows[ry][rx] }
   const openAt = (x, y) => { const ch = at(x, y)
     if (ch === null) return false
     if (ch === '=') return true            // decking is footing
@@ -1224,7 +1224,7 @@ function routeCost4(x, y) {
   if (x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return -1
   const b = biomeAtE4(x, y)
   if (b === 'sea') return -1
-  if (isWater4(x, y)) return onBridge4(x, y) ? 10 : -1
+  if (isWater4(x, y)) return onBridge4(x, y) ? 10: -1
   if (onBarrow4(x, y) || onRidge4(x, y)) return -1
   let c = BIOME_COST4[b] ?? 14
   const hm = handmadeAt(x, y)                       // and the things somebody put here
@@ -1282,7 +1282,7 @@ function routePath4(ax, ay, bx, by, laid) {
       // ever differ the windows draw roads the engine does not have.
       let step = (d[0] && d[1]) ? Math.round(c * 1.4) : c
       const up = elevAt(esalt, nx, ny) - elevAt(esalt, x, y)
-      const climb = up > 0 ? up * 6 : 0
+      const climb = up > 0 ? up * 6: 0
       // ROADS BRAID: two fifths of the cost on ground already road. Identical
       // to the generator, including the order the segments are laid in.
       if (laid && laid.has(nx + ',' + ny)) step = Math.round(step * 0.68)
@@ -1783,7 +1783,7 @@ function terrainOfE(x, y) {
 // region is a pure function of the world, identical in every window, so
 // "meet me at the fens edge" means one place to everyone. ----
 
-// ---- the keepers' names (v0.79): mirrored from worldgen keeperName ,
+// ---- the keepers' names (v0.79): mirrored from worldgen keeperName,
 // same SHA-256, same list, precomputed once at boot, identical in every
 // window. Maud is Maud everywhere, and no byte of state stores her. ----
 const KEEPER_NAMES = ['Maud', 'Aldric', 'Bess', 'Corwin', 'Delia', 'Edmund', 'Ffion', 'Gareth',
@@ -1956,7 +1956,7 @@ const BAYS6 = [
 ]
 function angleOf6(dx, dy) {
   // mirror of worldgen-expanse3.mjs angleOf (v6 imports it): degrees, atan2-free
-  // is not required — the generator uses Math.atan2 here? verify: it uses angleOf
+  // is not required: the generator uses Math.atan2 here? verify: it uses angleOf
   // from expanse3, which the mirror already has as angleOf3.
   return angleOf3(dx, dy)
 }
@@ -1964,8 +1964,8 @@ function coastR6(u0) {
   const u = ((u0 % 360) + 360) % 360
   let r = 0.78 + meander(301, u / 5, 10, 12) / 130 + meander(302, u / 5, 4, 6) / 160
   const bump = (c, w, amt) => {
-    const d1 = u - c < 0 ? c - u : u - c
-    const d = d1 < 360 - d1 ? d1 : 360 - d1
+    const d1 = u - c < 0 ? c - u: u - c
+    const d = d1 < 360 - d1 ? d1: 360 - d1
     if (d < w) r += amt * (1 - d / w)
   }
   for (const c of CAPES6) bump(c.u, c.w, c.amt)
@@ -2043,24 +2043,24 @@ const confY6 = () => Math.round(H * 0.63)
 function marchWY6(x) {
   const cyy = confY6()
   const reach = riverX6(cyy) - 8 - x
-  const t = reach < 0 ? 0 : reach > 70 ? 1 : reach / 70
+  const t = reach < 0 ? 0: reach > 70 ? 1: reach / 70
   return cyy + Math.round(meander(25, x, 36, 12) * t)
 }
 function inRiver6(x, y) {
   const srcY = Math.round(H * SRC_YF6)
   if (y >= srcY) {
     const rx = riverX6(y)
-    const d = x - rx < 0 ? rx - x : x - rx
-    if (d <= (y > H * 0.82 ? 2 : 1)) return true
+    const d = x - rx < 0 ? rx - x: x - rx
+    if (d <= (y > H * 0.82 ? 2: 1)) return true
     if (y > H * 0.84) {
       const dx2 = rx - 7 + Math.round(meander(27, y, 9, 3))
-      const d2 = x - dx2 < 0 ? dx2 - x : x - dx2
+      const d2 = x - dx2 < 0 ? dx2 - x: x - dx2
       if (d2 <= 1) return true
     }
   }
   if (x < riverX6(confY6()) - 1 && x > brandX6(y) - 16) {
     const my = marchWY6(x)
-    const d3 = y - my < 0 ? my - y : y - my
+    const d3 = y - my < 0 ? my - y: y - my
     if (d3 <= 1) return true
   }
   return false
@@ -2117,7 +2117,7 @@ function inland7(x, y) {
     const ALL7 = [...W7, [c0.x, c0.y, 24, 13, 'mere']]
     for (let i = 0; i < ALL7.length; i++) {
       const [cx, cy, rx, ry, kind] = ALL7[i]
-      const k = kind === 'tarn' ? 0.10 : kind === 'pond' ? 0.20 : kind === 'moss' ? 0.26 : 0.34
+      const k = kind === 'tarn' ? 0.10: kind === 'pond' ? 0.20: kind === 'moss' ? 0.26: 0.34
       const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
       const ph = M.map((m) => ((thashE(i, m, 907) % 1000) / 1000) * Math.PI * 2)
       const pad = Math.ceil(Math.max(rx, ry) * (1 + k)) + 2
@@ -2475,8 +2475,8 @@ function labelPoints() {
         if (inSea4(x, y)) continue
         const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2)
         const u = angleOf3(dx, dy)
-        const d1 = u - c.u < 0 ? c.u - u : u - c.u
-        const d = d1 < 360 - d1 ? d1 : 360 - d1
+        const d1 = u - c.u < 0 ? c.u - u: u - c.u
+        const d = d1 < 360 - d1 ? d1: 360 - d1
         if (d > c.w) continue
         const r2 = dx * dx + dy * dy
         if (r2 > br2) { br2 = r2; best = { n: c.name, x, y } }
@@ -2630,7 +2630,7 @@ function drawLabels() {
     if (seaAt(x - tilesHalf, y)) { align = 'left'; sx = (x - view.x) * view.z - 4 }
     else if (seaAt(x + tilesHalf, y)) { align = 'right'; sx = (x - view.x) * view.z + 4 }
     if (sx < -120 || sy < -20 || sx > cv.width + 120 || sy > cv.height + 20) return
-    let rx = align === 'left' ? sx : align === 'right' ? sx - w : sx - w / 2
+    let rx = align === 'left' ? sx: align === 'right' ? sx - w: sx - w / 2
     let r = { x: rx, y: sy - 10, w, h: 12 }
     if (mayNudge && collides(r)) { // clear air in EITHER direction: on a
       // south shore, stepping only down walks the name into the sea
@@ -2673,7 +2673,7 @@ cv.addEventListener('wheel', e => {
   e.preventDefault()
   const r = cv.getBoundingClientRect(), k = cv.width / r.width
   const mx = view.x + (e.clientX - r.left) * k / view.z, my = view.y + (e.clientY - r.top) * k / view.z
-  view.z = Math.min(8, Math.max(1, view.z * (e.deltaY < 0 ? 1.2 : 1 / 1.2)))
+  view.z = Math.min(8, Math.max(1, view.z * (e.deltaY < 0 ? 1.2: 1 / 1.2)))
   view.x = mx - (e.clientX - r.left) * k / view.z; view.y = my - (e.clientY - r.top) * k / view.z
   blit()
 }, { passive: false })

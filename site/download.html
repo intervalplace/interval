@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Unreal window: Interval</title>
+<meta name="description" content="A downloadable client that draws the island in three dimensions. It holds no key, connects to whichever node you choose, and computes nothing about the world itself.">
+<link rel="stylesheet" href="/site/site.css"></head><body>
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
+  <h1>The Unreal window</h1>
+  <p class="thesis">The same island, drawn properly.</p>
+
+  <p class="lede">Every other window into this world is a web page, which is
+  most of what makes them good: nothing is installed and nothing can be taken
+  away from you. This one is a download, because a renderer of this size is not
+  a web page. What it buys is the island in three dimensions, with weather, an
+  hour of the day that passes, and people you can see coming down the road.</p>
+
+  <div class="playbox">
+    <a class="playbtn" href="/download/interval-mac.zip">DOWNLOAD FOR macOS</a>
+    <div class="playsub">Apple silicon. You also need
+      <a href="https://nodejs.org">Node 18 or newer</a>, which the bridge runs on.</div>
+  </div>
+
+  <h2>It comes in two pieces, and that is the point</h2>
+
+  <p class="lede">Inside the download are <b>the window</b> and <b>the bridge</b>.
+  The window draws pixels. It holds no key, signs nothing, and knows no rule of
+  this world: it is told what to draw and it draws it. The bridge holds the key
+  that is you, talks to a node, and answers the window's questions.</p>
+
+  <p class="lede">So your key never goes near the game. It is a file on your own
+  machine, written the first time you play, and the title card tells you exactly
+  where it is. Back it up and you can carry your citizen to another computer;
+  lose it and there is nobody to ask for it back, because there is nobody.</p>
+
+  <div class="rule"><b>Double-click <code>interval.command</code>.</b> It starts
+  the bridge, opens the window, and stops the bridge again when you quit. The
+  first time, it asks which node to talk to and remembers the answer.</div>
+
+  <h2>Which node</h2>
+
+  <p class="lede">There is no authoritative server, so there is no address this
+  has to point at. <code>interval.place</code> is simply a node that is usually
+  up, and it is the default for that reason and no other. Run your own and put
+  its address in instead: the island is the same, computed from the same
+  founding by the same rules, and your key does not move because it was never
+  there. You are choosing who you ask, not where your account lives.</p>
+
+  <p class="lede">Change it any time with <code>choose node.command</code>,
+  beside the launcher.</p>
+
+  <h2>What it does not do yet</h2>
+
+  <p class="lede">macOS only for now. What it will do is everything: the world
+  allows ninety verbs, and every one of them that a window is permitted to
+  reach can be reached here with a mouse. Eight are things the world does to
+  you rather than things you do, and five more no window can reach at all:
+  two the world refuses outright in this founding, two that ask for a merkle
+  path over the ledger, and the vigil in Nought, which you cross rather than
+  click. The count is measured against the engine's own tables rather
+  than guessed.</p>
+
+  <p class="lede">A citizen may be in the world ninety minutes a day. That is
+  not a limit this window imposes; it is in the rules, and every window obeys
+  it. Before you cross, you are in <b>Nought</b>: the same island, computed
+  privately by your own machine, where nothing is recorded and nothing is
+  scarce. Walk to the fountain when you are ready to cross over. You only get
+  to do that once.</p>
+
+  <p class="lede"><a href="/play">The browser windows</a> need no download at
+  all and are the right place to start if you are unsure.</p>
+</main></div>
+</body></html>
