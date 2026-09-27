@@ -559,6 +559,7 @@ const PAGES = { '/': 'index.html', '/quickstart': 'quickstart.html',
                 '/manual': 'manual.html', '/hiscores': 'hiscores.html',
                 '/board': 'board.html',
                 '/play': 'windows.html', '/windows': 'windows.html',
+                '/download': 'download.html',
                 '/map': 'map.html', '/marks': 'marks.html' }
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript',
                png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp',
@@ -981,6 +982,28 @@ const server = http.createServer((req, res) => {
       const f = path.slice(6).replace(/[^a-z0-9.-]/g, '')
       const ext = f.split('.').pop()
       return sendFile('./site/' + f, MIME[ext] ?? 'text/plain')
+    }
+    // ---- THE CLIENT ITSELF ----
+    //
+    // A built window is the better part of a gigabyte, so it is not in this
+    // repository and never will be: Tools/client.sh drops it in ./downloads
+    // and it is served from there.
+    //
+    // NOT ./dist, which is the PUBLISHED SITE -- CNAME, index.html, peers.json
+    // -- and would have carried a 670 MB archive into a GitHub Pages deploy
+    // that allows a hundred megabytes a file.
+    //
+    // A node with no downloads/ serves the page and not the file, which is the
+    // honest answer: an operator who has not built a client does not have one
+    // to give away, and saying so beats a broken link.
+    if (path.startsWith('/download/')) {
+      const f = path.slice(10).replace(/[^a-zA-Z0-9._-]/g, '')
+      if (!f || !fs.existsSync('./downloads/' + f)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' })
+        return res.end('this node has no built client to hand. '
+          + 'See Tools/client.sh, or ask whoever runs it.')
+      }
+      return sendFile('./downloads/' + f, 'application/zip')
     }
     if (PAGES[path]) return sendFile('./site/' + PAGES[path], 'text/html')
     { // root assets: the chart of Tallyholm and its kin live in ./site
