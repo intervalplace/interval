@@ -17,6 +17,9 @@
 import fs from 'fs'
 import path from 'path'
 import E from './engine.js'
+// registers every generator with the engine, as serve.mjs does; without it
+// validateGenesis refuses any non-default world as "not registered"
+import './worldgen-any.mjs'
 E.initCrypto()
 
 const DATA = (process.env.INTERVAL_DATA || '.').replace(/\/$/, '')
