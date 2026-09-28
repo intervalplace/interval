@@ -506,3 +506,61 @@ pre code { color: var(--parch); }
   .thesis { font-size: 16px; }
   .places b { min-width: 0; display: block; }
 }
+
+/* ---- THE CONTRAST, which is the front page's whole argument ---- */
+/*
+ * Two columns: what every other world does to you, and what this one cannot.
+ * Side by side rather than one after the other, because the point is the
+ * COMPARISON and a reader who has to hold the first half in their head while
+ * reading the second is doing the work the layout should have done.
+ *
+ * On a phone they stack, and the left column keeps its rule so the pairing
+ * survives: each "them" line is followed by its own "here" line.
+ */
+.against { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px;
+  margin: 26px 0 30px; }
+.against > div { display: flex; flex-direction: column; gap: 16px; }
+.against h3 { font: 600 11px/1 Georgia, serif; letter-spacing: .14em;
+  text-transform: uppercase; margin: 0 0 4px; }
+.against .them h3 { color: #8d7f6d; }
+.against .here h3 { color: var(--gold); }
+.against p { margin: 0; font-size: 14px; line-height: 1.5; }
+.against .them p { color: #9b8f7e; }
+.against .here p { color: var(--parch); }
+.against .here b { color: var(--gold-hi); }
+@media (max-width: 620px) {
+  .against { grid-template-columns: 1fr; gap: 0; }
+  .against .them { gap: 0; }
+  .against .them p { margin-bottom: 6px; }
+  .against .here p { margin-bottom: 18px; padding-left: 14px;
+    border-left: 2px solid rgba(190,150,70,.45); }
+}
+
+/* ---- AND WHAT IT IS NOT ---- */
+/*
+ * The most persuasive block on the page and the one that keeps it from being
+ * marketing. Set plainly and small: it is not a warning, it is a description.
+ */
+.isnot { margin: 30px 0 8px; padding: 18px 20px;
+  border: 1px solid rgba(190,150,70,.22); border-radius: 4px;
+  background: rgba(0,0,0,.14); }
+.isnot h3 { font: 600 11px/1 Georgia, serif; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--gold); margin: 0 0 10px; }
+.isnot p { margin: 0 0 7px; font-size: 13.5px; color: var(--dim); line-height: 1.5; }
+.isnot p:last-child { margin-bottom: 0; }
+.isnot b { color: var(--parch); font-weight: 600; }
+
+/* The second line under a call to action: quieter than the first, because it
+   is the alternative and not the offer. */
+.playsub.lesser { margin-top: 14px; font-size: 11.5px; opacity: .85; }
+/* THE ONE LINE ON THIS PAGE THAT GRANTS RATHER THAN PROTECTS.
+   Everything in the two columns below is a harm that cannot happen to you.
+   This is the opposite and it is the answer to a question the two buttons
+   above it raise: if there are two windows, which one is the real one. So it
+   sits with them rather than in the columns, set a shade brighter than the
+   line above it and given a rule to separate it from the choice it is about
+   rather than from the argument that follows. */
+.playsub.neither { margin: 16px auto 0; max-width: 46ch; font-size: 12px;
+  color: var(--dim, #8a7d68); padding-top: 14px;
+  border-top: 1px solid rgba(198,148,30,.20); }
+.playsub.neither b { color: var(--parch, #d6c49c); font-weight: 600; }
