@@ -1639,7 +1639,7 @@ function strikeConsequences(s, pid, p, target, targetId) {
   const already = (target.brandedUntil ?? 0) > s.tick;
   const swingingBack = target.action?.type === 'attackp' && target.action.targetId === pid;
   if (!swingingBack && !already) p.brandedUntil = s.tick + BRAND_TICKS;
-  if (target.hp > 0 && target.action?.type !== 'attackp' && target.action?.type !== 'attack')
+  if (target.health > 0 && target.action?.type !== 'attackp' && target.action?.type !== 'attack')
     // §21c: the ANSWER is written into somebody who did not act this interval,
     // so the target has to be owned before it lands. Every other write here is
     // to `p`, who is already owned by the loop that called this.
@@ -1732,7 +1732,7 @@ const ROOT_TICKS = 3, ROOT_IMMUNE = 10, ROOT_CD = 120;
 const XP_COOK = 20;
 // v0.73: the gullet has its own rhythm, as the arm does (§6b, lastSwing).
 // Without one, a citizen ate every interval while the fight held, and broth
-// heals 5 against a skeleton-knight's 2 hp per interval at absolute maximum:
+// heals 5 against a skeleton-knight's 2 health per interval at absolute maximum:
 // nobody carrying brews could die, so death, the Wilds and the brand were all
 // decoration. Eating mid-fight stays legal, as §6m intends. It simply has a
 // rate now, and that rate is what makes a beast dangerous to the unready.
@@ -1945,7 +1945,7 @@ function spillDrops(s, beacon, pid, p, m, mid, stats) {
 function platedFromDeath(q) {
   if (q.equipment?.body?.item !== 'great-plate') return false;
   q.equipment.body = null;          // shattered, not dropped: it is gone
-  q.hp = 1;
+  q.health = 1;
   return true;
 }
 function helmedFromRoot(q) {
@@ -3209,7 +3209,7 @@ const GUN_NOISE = 8;
 const BURST_ONE_IN = 24;
 function gunshotHeard(s, pid, p) {
   for (const m of Object.values(s.mobs)) {
-    if (m.hp <= 0) continue;
+    if (m.health <= 0) continue;
     // §6cz: an incursion NEVER changes who it is fixed on -- not for a gunshot,
     // not for a blow. It came for one citizen and it answers only them.
     if (m.type === 'incursion') continue;
@@ -3398,7 +3398,7 @@ const hitOf = (p, t) => {
   if (clubbed(p, t)) return 0;
   const w = weaponOf(p);
   return (w?.hit ?? 0) + callingHit(p) + styleOf(p).hit
-    + (w?.desperate === true ? desperateBonus(p.hp, maxHp(p)) : 0);
+    + (w?.desperate === true ? desperateBonus(p.health, maxHealth(p)) : 0);
 };
 const accOf = (p, t) => (weaponOf(p)?.acc ?? 0) + styleOf(p).acc + (clubbed(p, t) ? CLUB_ACC : 0);
 const inReach = (p, t) => {
@@ -3471,7 +3471,7 @@ const MOB_STATS = {
   // §6aa: `aggro` is how many tiles away a beast will notice you and come.
   // A goblin sees three -- close enough to matter on a road, far enough short
   // of the eighteen a citizen can see that nothing charges out of the dark.
-  goblin: { maxHp: 5, atk: 1, def: 1, maxHit: 1, respawn: 16, aggro: 3,
+  goblin: { maxHealth: 5, atk: 1, def: 1, maxHit: 1, respawn: 16, aggro: 3,
             drops: [{ item: 'bones' }, { item: 'ore', chance: 16384 }, { item: 'seeds', chance: 16384 },
                     { item: 'forage', chance: 20480 }] },
   // §7b: THE SCREE-IMP. Something small lives in the rockfall at the South
@@ -3489,19 +3489,19 @@ const MOB_STATS = {
   // a receipt. Whoever wants one swings a pick at the fall like everybody
   // else. The imp is conjured of the country like the incursion faces are, so
   // it leaves no bones either -- it leaves the noise it was made to make.
-  'scree-imp': { maxHp: 6, atk: 2, def: 3, maxHit: 1, respawn: 60, aggro: 2, harmless: true,
+  'scree-imp': { maxHealth: 6, atk: 2, def: 3, maxHit: 1, respawn: 60, aggro: 2, harmless: true,
             drops: [] },
-  wolf:   { maxHp: 8, atk: 2, def: 2, maxHit: 2, respawn: 150, aggro: 5,   // a wolf hunts
+  wolf:   { maxHealth: 8, atk: 2, def: 2, maxHit: 2, respawn: 150, aggro: 5,   // a wolf hunts
             drops: [{ item: 'bones' }, { item: 'bones', chance: 24576 }, { item: 'forage', chance: 16384 }] },
   // v0.75: the old-chain falls at 2/65536, one troll in 32,768, which is some
   // nine days of an executor farming trolls without pause. It is the only item
   // in the world with no price at any store, so it can never be sold to a
   // keeper and only ever passes between citizens. The best weapon here is the
   // one thing gold cannot be turned into except by asking someone who has one.
-  troll:  { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4,
+  troll:  { maxHealth: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4,
             drops: [{ item: 'bones' }, { item: 'ore' }, { item: 'iron-plate', chance: 6144 },
                     { item: 'old-chain', chance: 2 }] },
-  bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
+  bear:   { maxHealth: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3,  // territorial, not a hunter
             drops: [{ item: 'bones' }, { item: 'bones', chance: 32768 }, { item: 'iron-hatchet', chance: 4096 },
                     { item: 'horn-bow', chance: 66 }, { item: 'forage', chance: 22938 }] },
   // the skeleton-knight (v0.42): a horned, shield-bearing warrior of the frontier.
@@ -3533,7 +3533,7 @@ const MOB_STATS = {
   // defence is paid for in risk and only in risk. Something that cannot hurt
   // you cannot teach you to be hurt. Attack and hitpoints, honestly earned;
   // defence, not at all.
-  'shore-crab': { maxHp: 90, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90, aggro: 4, harmless: true,
+  'shore-crab': { maxHealth: 90, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90, aggro: 4, harmless: true,
                   drops: [{ item: 'crab-shell' }, { item: 'raw-fish', chance: 8192 }] },
   // THE SHEEP (spec 6ag). The Downs is downland: twenty-two thousand tiles
   // of it, twenty-eight living things on it, and a locale in the middle
@@ -3560,9 +3560,9 @@ const MOB_STATS = {
   // Enormous hitpoints so they are never actually felled, no aggro, harmless,
   // and def 1 so they are hit nearly every swing -- you came to read a number,
   // not to roll for it.
-  dummy: { maxHp: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
+  dummy: { maxHealth: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
     dummy: true, drops: [] },
-  butt: { maxHp: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
+  butt: { maxHealth: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
     dummy: true, ranged: true, drops: [] },
   // §7ah: A COUNTRY WANTS A CREATURE OF ITS OWN.
   //
@@ -3579,18 +3579,18 @@ const MOB_STATS = {
   //
   // BOAR -- the Greenwood. Heavy, short-sighted, and it charges: the one beast
   // in the wood that comes at a citizen rather than waiting to be found.
-  boar: { maxHp: 55, atk: 16, def: 12, maxHit: 5, every: 3, respawn: 110, aggro: 3,
+  boar: { maxHealth: 55, atk: 16, def: 12, maxHit: 5, every: 3, respawn: 110, aggro: 3,
     drops: [{ item: 'bones' }, { item: 'raw-fish', chance: 8192 }] },
   // MOUNTAIN-GOAT -- the Crags. HARMLESS, which is the point: the island had
   // exactly two things a pure could train on and both were at sea level.
-  'mountain-goat': { maxHp: 45, atk: 3, def: 10, maxHit: 1, every: 4, respawn: 100,
+  'mountain-goat': { maxHealth: 45, atk: 3, def: 10, maxHit: 1, every: 4, respawn: 100,
     harmless: true, drops: [{ item: 'bones' }] },
   // CARRION-CROW -- the Moor, which held the Gibbet King and nothing else at
   // all. Weak alone and always in numbers, over a country of graves.
-  'carrion-crow': { maxHp: 14, atk: 10, def: 5, maxHit: 2, every: 2, respawn: 70, aggro: 4,
+  'carrion-crow': { maxHealth: 14, atk: 10, def: 5, maxHit: 2, every: 2, respawn: 70, aggro: 4,
     drops: [{ item: 'bones', chance: 8192 }] },
   // FEN-ADDER -- the Fens. Small, low, and it bites hard for its size.
-  'fen-adder': { maxHp: 22, atk: 20, def: 6, maxHit: 6, every: 4, respawn: 90, aggro: 2,
+  'fen-adder': { maxHealth: 22, atk: 20, def: 6, maxHit: 6, every: 4, respawn: 90, aggro: 2,
     drops: [{ item: 'bones', chance: 12288 }] },
   // BARROW-WIGHT -- the Moor again, and the reason to be careful there. It is
   // what the Moorgrave is full of, if anybody had dug.
@@ -3614,7 +3614,7 @@ const MOB_STATS = {
   // the world that is ranged-only for BOTH sides.
   //
   // It never wanders, because it cannot. It hurls what comes to hand.
-  'gibbet-dead': { maxHp: 120, atk: 40, def: 30, maxHit: 11, every: 4, respawn: 300, aggro: 6,
+  'gibbet-dead': { maxHealth: 120, atk: 40, def: 30, maxHit: 11, every: 4, respawn: 300, aggro: 6,
             hurls: 4, rooted: true,
             drops: [{ item: 'bones' }, { item: 'grave-silver', chance: 655 },
                     { item: 'arrows', chance: 26214 },
@@ -3643,18 +3643,18 @@ const MOB_STATS = {
   // It also gives the Crags' hardest seam somewhere its output is REQUIRED
   // rather than merely valuable. Brimstone has been the fuel of the fire-siphon
   // since §6da and nothing has ever needed the fire-siphon.
-  'quencher': { maxHp: 60, atk: 30, def: 20, maxHit: 7, every: 3, respawn: 220, aggro: 4,
+  'quencher': { maxHealth: 60, atk: 30, def: 20, maxHit: 7, every: 3, respawn: 220, aggro: 4,
     unlit: true,
     drops: [{ item: 'bones' }, { item: 'brimstone', chance: 8192 },
             { item: 'grave-silver', chance: 4096 }] },
-  'barrow-wight': { maxHp: 95, atk: 34, def: 26, maxHit: 9, every: 3, respawn: 200, aggro: 5,
+  'barrow-wight': { maxHealth: 95, atk: 34, def: 26, maxHit: 9, every: 3, respawn: 200, aggro: 5,
     warded: true,
     drops: [{ item: 'bones' }, { item: 'grave-silver', chance: 3072 },
             // §7al: THE SPADE. What a thing that lives in graves would be
             // carrying, and the only tool in the world that pays STRENGTH.
             { item: 'spade', chance: 6144 },
             { item: 'iron', chance: 4096 }] },
-  sheep: { maxHp: 40, atk: 2, def: 8, maxHit: 1, every: 4, respawn: 120, harmless: true,
+  sheep: { maxHealth: 40, atk: 2, def: 8, maxHit: 1, every: 4, respawn: 120, harmless: true,
            drops: [{ item: 'wool' }, { item: 'wool', chance: 16384 }] },
   // THE SIREN (spec 6ac). The third thing, and the only one that FORBIDS a
   // party. The dragon needs one because you die alone; the spider needs one
@@ -3666,7 +3666,7 @@ const MOB_STATS = {
   // gates. What breaks the tie is the one thing she cannot copy, which is
   // that you brought food and she did not.
   //
-  // `maxHp` and `atk` here are only a floor for an unarmed opponent; almost
+  // `maxHealth` and `atk` here are only a floor for an unarmed opponent; almost
   // everything about her is read from the citizen at `bound` time.
   //
   // `aggro` is what a beast can PERCEIVE, and she needs one or she perceives
@@ -3683,7 +3683,7 @@ const MOB_STATS = {
   // camped without pause she mints under two a day. And she cannot be farmed
   // asleep: she copies your levels, your weapon and your quiver, so the fight
   // is exactly even at any level, forever.
-  'siren': { maxHp: 60, atk: 20, def: 20, maxHit: 6, every: 2, respawn: 1200,
+  'siren': { maxHealth: 60, atk: 20, def: 20, maxHit: 6, every: 2, respawn: 1200,
              aggro: 10, mirrors: true,
              drops: [{ item: 'graver', chance: GRAVER_DROP }] },
   // THE SPIDER (spec 6ab). The second thing that cannot be done alone, and
@@ -3714,7 +3714,7 @@ const MOB_STATS = {
   // people is the whole supply of goo staffs in the world, forever, less
   // whatever dies in the Wilds holding one. That scarcity IS the balance of
   // both its verbs; neither of them needed a number.
-  'great-spider': { maxHp: 300, atk: 48, def: 18, maxHit: 18, every: 3,
+  'great-spider': { maxHealth: 300, atk: 48, def: 18, maxHit: 18, every: 3,
                     respawn: 36000, aggro: 6, mends: 6,
                     drops: [{ item: 'goo-staff', chance: GOO_STAFF_DROP }] },
   // THE DRAGON (spec 6w). One of them. Not a kind of thing that spawns in the
@@ -3774,7 +3774,7 @@ const MOB_STATS = {
   // up with a breath that comes every five. Measured, walking in from ten
   // tiles in full quick with sixteen broth: one falls, two win at 113 ticks
   // -- sixty-eight seconds, and hard -- three win at 64.
-  dragon: { maxHp: 420, atk: 115, def: 24, maxHit: 28, every: 4, meleeOnly: true,
+  dragon: { maxHealth: 420, atk: 115, def: 24, maxHit: 28, every: 4, meleeOnly: true,
             aggro: 9, breath: 5, breathHit: 14, breathEvery: 5,
             // TWELVE HOURS, because the bow now lives exactly as long as the
             // dragon is dead. At six it changed hands fourteen hundred times a
@@ -3861,14 +3861,14 @@ const MOB_STATS = {
   // band §6by set for the four things that are supposed to be dangerous. It is
   // not a boss. It is a hard beast in bad ground that four hundred and forty
   // eight people will each want a piece of.
-  'mere-lamprey': { maxHp: 44, atk: 62, def: 15, maxHit: 8, every: 2, respawn: 400,
+  'mere-lamprey': { maxHealth: 44, atk: 62, def: 15, maxHit: 8, every: 2, respawn: 400,
             aggro: 3, finite: LAMPREY_LIVES,
             // Every kill leaves spit. No chance roll anywhere: a finite source
             // whose drop is also a lottery would put the island's total supply
             // at the mercy of variance, and the supply is the whole design.
             // 448 kills, 448 spit, 224 barbs, forever.
             drops: [{ item: 'lamprey-spit' }, { item: 'bones' }] },
-  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
+  'skeleton-knight': { maxHealth: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5,   // the Wilds is dangerous in itself now
             drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 12288 },            // scavenged metal
                     { item: 'quick-helm', chance: 328 }, { item: 'hollow-bow', chance: 131 }] },    // rare: the horned helm itself
@@ -3879,7 +3879,7 @@ const MOB_STATS = {
   // never the point, the gathering is. High HP so the fight LASTS; a leash so
   // it can be led toward help or lost; and it despawns on a timer so an
   // unanswered one is a story ("it came, none came, it left") and never a
-  // permanent fixture. Its maxHp and def are SCALED to the target at spawn by
+  // permanent fixture. Its maxHealth and def are SCALED to the target at spawn by
   // the event step; these are the floor a level-one target would face.
   // §6bv: AND WHOEVER PUTS ONE DOWN MAY GET THE HORN. The incursion exists so
   // that "the neighbours notice and come" -- it fixes on one citizen and takes
@@ -3893,7 +3893,7 @@ const MOB_STATS = {
   // but a single blow can no longer be frightening. Its drops are chosen PER
   // FACE (see INCURSION_FACE_DROPS) -- and no bones: a woodwraith or a drownling
   // is conjured of the country, not a beast with a skeleton to leave.
-  'incursion': { maxHp: 120, atk: 30, def: 8, maxHit: 4, respawn: 0, aggro: 6,
+  'incursion': { maxHealth: 120, atk: 30, def: 8, maxHit: 4, respawn: 0, aggro: 6,
             drops: [{ item: 'horn', chance: HORN_DROP }] },
   // §6ao (v6): THE RISEN, and THE GIBBET KING. The Moor was dead space -- goblins
   // and wolves already found in three other countries, and nothing of its own.
@@ -3903,7 +3903,7 @@ const MOB_STATS = {
   // he makes them (see the mob step), aggro'd at whoever came, so a citizen
   // fights THROUGH them to reach him. When he falls or the citizen leaves, the
   // risen he called crumble back into the moor.
-  'risen': { maxHp: 12, atk: 22, def: 3, maxHit: 5, respawn: 0, aggro: 6, summoned: true,
+  'risen': { maxHealth: 12, atk: 22, def: 3, maxHit: 5, respawn: 0, aggro: 6, summoned: true,
              drops: [{ item: 'bones' }] },
   // THE GIBBET KING (spec 6ao). One of him, like the dragon -- a thing that IS
   // in the Moor, not a kind that spawns. He does not chase and he barely strikes;
@@ -3912,7 +3912,7 @@ const MOB_STATS = {
   // He is stationary at his gibbet. Defeating him quiets the Moor until he rises
   // again. His drop is worth the crossing: the shroud, a rare ranged-magic piece,
   // and always the bones of a king.
-  'gibbet-king': { maxHp: 200, atk: 55, def: 16, maxHit: 22, every: 4, respawn: 9000,
+  'gibbet-king': { maxHealth: 200, atk: 55, def: 16, maxHit: 22, every: 4, respawn: 9000,
              aggro: 8, raises: true, raiseEvery: 5, raiseCap: 4, meleeOnly: true,
              drops: [{ item: 'bones' }, { item: 'bones' }, { item: 'quick-stone', chance: 8192 },
                      { item: 'king-shroud', chance: 400 }] },
@@ -4377,18 +4377,26 @@ const PRICES = {
   // seedsman's twenty-two is the usual double; ale and broth by what they
   // mend, at about two coins a hitpoint, which is where the cooked fish sit.
   'seeds': 10, 'sapling': 40, 'ale': 8, 'broth': 10,
-  // a keeper will take dragon-bones and pays what a curiosity is worth to
-  // somebody who will never see the beast. THREE thousand ordinary bones fetch
-  // six thousand, so five hundred is far under what the thing does: a keeper is
-  // the worst buyer in the world for it and a mourner the best, which is how
-  // every Wilds good in this table is priced.
+  // §6l: NOBODY BUYS THIS, OR ANYTHING. `case 'sell'` is repealed and a keeper
+  // buys nothing, so this is what a STALL ASKS for one and never what a
+  // citizen is paid. The note here used to say a keeper "will take
+  // dragon-bones and pays what a curiosity is worth", which described a trade
+  // this world stopped having; it reached the printed handbook before anybody
+  // caught it.
+  //
+  // The number still does real work: PRAYER_KEEP saves the dearest PRICED
+  // thing a citizen carries, so a price is what makes a thing savable. Five
+  // hundred against six thousand for the bones themselves says plainly that
+  // the beast is worth more to a mourner than to any stall.
   'dragon-bones': 500,
-  // §7cm: a keeper will take a bone spear, and pays for the bones rather than
-  // the work -- two dragon-bones is a thousand and the haft is nothing. Priced
-  // rather than unpriced ON PURPOSE: PRAYER_KEEP saves "the dearest PRICED
-  // thing you carry", and a weapon whose entire argument is about being nearly
-  // dead must be a thing prayer can be asked to save. It just cannot be asked
-  // to save it from snapping.
+  // §7cm: priced for the bones rather than the work -- two dragon-bones is a
+  // thousand and the haft is nothing. Nobody buys it: see the note above, and
+  // §6l, which repealed selling altogether.
+  //
+  // Priced rather than unpriced ON PURPOSE: PRAYER_KEEP saves "the dearest
+  // PRICED thing you carry", and a weapon whose entire argument is about being
+  // nearly dead must be a thing prayer can be asked to save. It just cannot be
+  // asked to save it from snapping.
   'bone-spear': 900,
   // §7cn: and what a fixed supply is worth at a stall, which is not what it is
   // worth to a citizen. The keeper does not know there are only two hundred.
@@ -5061,7 +5069,7 @@ const bareBonus = (armour) => {
 //
 // Squaring puts the whole bonus in the last few points of life.
 //
-//   hp/max   99   50   25   15    5    1
+//   health/max   99   50   25   15    5    1
 //   bonus     0    2    6    7    9   10
 //
 // SEVEN AT FIFTEEN is not a coincidence and was not tuned to be one. Fifteen
@@ -5071,9 +5079,9 @@ const bareBonus = (armour) => {
 // blow, and the price is therefore already in the engine: to hold the bonus
 // you must stand inside somebody else's execute window. Nothing new had to be
 // invented to pay for it, which is the same sentence §7l ends on.
-const desperateBonus = (hp, maxHp) => {
-  if (!(maxHp > 0)) return 0;
-  const t = Math.max(0, Math.min(1, (maxHp - hp) / maxHp));
+const desperateBonus = (health, maxHealth) => {
+  if (!(maxHealth > 0)) return 0;
+  const t = Math.max(0, Math.min(1, (maxHealth - health) / maxHealth));
   return Math.round(10 * t * t);
 };
 // §7cm: and what it costs to swing a thing made of bone. One in 2,048 blows,
@@ -5813,16 +5821,30 @@ function isAwake(p, tick) {
 // made against it -- signed in advance, for a length they name before they
 // know what will happen in it.
 //
-// The tide gates one thing: a voice at RANGE. Speech to the person standing
-// next to you is never gated, because that is not the network, that is being
-// somewhere, and being somewhere is the one thing this world has always said
-// a script cannot do. What the tide opens is the far channel -- and the
-// stint is the licence to use it. Present by declaration, and the band up.
+// THE TIDE GATES NOTHING AT ALL, and that is deliberate.
 //
-// It gates NOTHING ELSE. No yield rises in a tide, no seam gives more, no
-// blow lands harder. The moment a tide pays, a citizen declares stints for
-// the pay and the length they name stops being what they meant. Then it is
-// a raid night with a different word on it.
+// It used to open a voice at RANGE: speech to somebody beside you was always
+// free, and the far channel waited for a tide with a stint as the licence to
+// use it. That was removed. A citizen may only be played ninety minutes a
+// day, and gating speech on top of that doubles a constraint the world meant
+// to impose once -- it made two scarcities out of one and the second one only
+// stopped people talking.
+//
+// `anyTideOpen` survives as an export and is called from nowhere. It is kept
+// because a window may reasonably want to draw the tide; nothing in the rules
+// consults it. If a later founding wants to gate something on a tide, this is
+// the function for it, and the burden is on that founding to say why a second
+// limit earns its place.
+//
+// AND IT MUST NEVER PAY. No yield rises in a tide, no seam gives more, no blow
+// lands harder. The moment a tide pays, a citizen declares stints for the pay
+// and the length they name stops being what they meant. Then it is a raid
+// night with a different word on it.
+//
+// What the tide IS, now, is a clock everybody can read and nobody can move:
+// see §7dx, where the longest one announces itself and names where people
+// actually stood. That is a Schelling point, and it is the whole of the
+// feature.
 //
 // A tide is up when `tick % period < open`. Periods are meant to be chosen
 // coprime and unrelated to any day, so the windows precess: a citizen who
@@ -5965,7 +5987,7 @@ function maySpeakFar(state, pid) {
   // and typing to people while the world goes on around you is most of what
   // there is to do here.
   const p = state.players?.[pid];
-  return !!p && p.hp > 0;
+  return !!p && p.health > 0;
 }
 // §7dv: WHO MAY BE HEARD NEAR. Distance, and nothing else -- no tide, no
 // stint, no licence. FOLLOW_LOSE is reused deliberately: the distance at
@@ -6333,7 +6355,7 @@ const effLevel = (xp) => Math.min(levelForXp(xp), MASTERY);
 //
 // So a death now leaves a WOUND: one point off the frame, permanently, until
 // it is carried somewhere and put down. Since §5j the frame is FLAT and no
-// skill feeds it, so the wound is simply subtracted from HP_FLAT. It was a
+// skill feeds it, so the wound is simply subtracted from HEALTH_FLAT. It was a
 // second number even when hitpoints existed, for the same reason it is one
 // now: xp is a record of what you have done and nothing may edit it backwards,
 // so a wound could never be taken out of the skill itself.
@@ -6375,9 +6397,9 @@ const WOUND_FLOOR = 10;
 // dragon hits twenty-eight, so it takes three landed blows to fell an unwounded
 // citizen and two on one who is carrying a full ten of wounds. Enough margin to
 // react, not enough to be careless.
-const HP_FLAT = 64;
-function maxHp(p) {
-  const nat = HP_FLAT + callingHpBonus(p);
+const HEALTH_FLAT = 64;
+function maxHealth(p) {
+  const nat = HEALTH_FLAT + callingHpBonus(p);
   return Math.max(Math.min(nat, WOUND_FLOOR), nat - Math.min(p.wounds ?? 0, WOUND_MAX));
 }
 // Callings are not sworn yet (§5k, coming): every citizen carries the same
@@ -6385,7 +6407,7 @@ function maxHp(p) {
 // to ONE function and not a hunt through the combat code.
 function callingHpBonus(p) {
   const c = p?.calling;
-  return (typeof c === 'string' && Object.prototype.hasOwnProperty.call(SWORN, c)) ? SWORN[c].hp : 0;
+  return (typeof c === 'string' && Object.prototype.hasOwnProperty.call(SWORN, c)) ? SWORN[c].health : 0;
 }
 
 // ---------- who a citizen is (spec 10, v0.55) ----------
@@ -6613,29 +6635,29 @@ const CALLINGS = {
 // This is what the merges were for. A skill says how much you can do; a
 // calling says what you are.
 //
-// `hp` is the flesh a calling carries against HP_FLAT (§5j). Only prowess
+// `health` is the flesh a calling carries against HEALTH_FLAT (§5j). Only prowess
 // spends it, because only prowess has two answers to the same question: the
 // berserker trades frame for the arm, the warden the reverse, and the fighter
 // takes neither bargain. Every other calling is 0 -- a cook is not tougher
 // than a fisher, and pretending otherwise would make swearing a stat check.
 const SWORN = {
-  forester:     { skill: 'woodcraft',    hp: 0 },
-  firekeeper:   { skill: 'woodcraft',    hp: 0 },
-  fletcher:     { skill: 'woodcraft',    hp: 0 },
-  miner:        { skill: 'earthcraft',   hp: 0 },
-  smith:        { skill: 'earthcraft',   hp: 0 },
-  fisher:       { skill: 'shorecraft',   hp: 0 },
-  cook:         { skill: 'shorecraft',   hp: 0 },
-  farmer:       { skill: 'hearthcraft',  hp: 0 },
-  brewer:       { skill: 'hearthcraft',  hp: 0 },
-  berserker:    { skill: 'prowess',      hp: -16 },   // §5k-ii
-  warden:       { skill: 'prowess',      hp: 16 },   // §5k-iii
-  fighter:      { skill: 'prowess',      hp: 0 },
-  mourner:      { skill: 'mourning',     hp: 0 },
-  archer:       { skill: 'marksmanship', hp: 0 },
-  alchemist:    { skill: 'sorcery',      hp: 0 },
-  cartographer: { skill: 'wayfaring',    hp: 0 },
-  runner:       { skill: 'wayfaring',    hp: 0 },
+  forester:     { skill: 'woodcraft',    health: 0 },
+  firekeeper:   { skill: 'woodcraft',    health: 0 },
+  fletcher:     { skill: 'woodcraft',    health: 0 },
+  miner:        { skill: 'earthcraft',   health: 0 },
+  smith:        { skill: 'earthcraft',   health: 0 },
+  fisher:       { skill: 'shorecraft',   health: 0 },
+  cook:         { skill: 'shorecraft',   health: 0 },
+  farmer:       { skill: 'hearthcraft',  health: 0 },
+  brewer:       { skill: 'hearthcraft',  health: 0 },
+  berserker:    { skill: 'prowess',      health: -16 },   // §5k-ii
+  warden:       { skill: 'prowess',      health: 16 },   // §5k-iii
+  fighter:      { skill: 'prowess',      health: 0 },
+  mourner:      { skill: 'mourning',     health: 0 },
+  archer:       { skill: 'marksmanship', health: 0 },
+  alchemist:    { skill: 'sorcery',      health: 0 },
+  cartographer: { skill: 'wayfaring',    health: 0 },
+  runner:       { skill: 'wayfaring',    health: 0 },
 };
 // §5k: A CALLING IS NOT A BET PLACED BLIND.
 //
@@ -7610,7 +7632,7 @@ function sameWorld(a, b) {
 
 // ---------- state validation (final-fixes brief, Priority 1/4) ----------
 // A checkpoint is untrusted bytes until proven otherwise. Two layers:
-// consensus-critical structures (coordinates, hp, skills, inventory, bank,
+// consensus-critical structures (coordinates, health, skills, inventory, bank,
 // equipment, ground, mobs, nodes, names, genesis) are validated strictly,
 // field by field, against the shapes the engine actually writes; every
 // remaining gameplay field passes a bounded-value walk (safe integers,
@@ -8005,7 +8027,7 @@ function validateGenesis(g) {
 // that drops the swearing does not lose a title, it makes every hour the
 // citizen spent past level 50 illegal, and the founding then refuses the
 // state it has just built. See the note in validateImports.
-const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'hp', 'vaults', 'inventory', 'weapon', 'calling']);
+const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'health', 'vaults', 'inventory', 'weapon', 'calling']);
 function validateImports(imported) {
   if (!Array.isArray(imported) || imported.length > MAX_ENTITIES) return 'bad imports';
   const pids = new Set(), names = new Set();
@@ -8020,7 +8042,7 @@ function validateImports(imported) {
       if (names.has(imp.name)) return 'duplicate imported name';
       names.add(imp.name);
     }
-    if (imp.hp !== undefined && !isInt(imp.hp, 0, 100000)) return 'import hp out of bounds';
+    if (imp.health !== undefined && !isInt(imp.health, 0, 100000)) return 'import health out of bounds';
     if (imp.skills !== undefined) {
       if (!imp.skills || typeof imp.skills !== 'object') return 'malformed imported skills';
       for (const [sk, xp] of Object.entries(imp.skills)) {
@@ -8288,7 +8310,7 @@ const LANDMARK_KINDS = new Set([
   'rubble-heap',
   'window-arch',
 ]); // (rev4 §11): defined ONCE, above
-  const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'vaults', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
+  const PLAYER_REQUIRED = ['x', 'y', 'skills', 'health', 'equipment', 'vaults', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
     'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastTransmute', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
@@ -8419,7 +8441,7 @@ const LANDMARK_KINDS = new Set([
       if (filled === 0) return 'an empty consignment cannot stand';
     }
     if (p.look !== undefined && !isInt(p.look, 0, 255)) return 'look out of bounds';
-    if (!isInt(p.hp, 0, 100000)) return 'player hp out of bounds';
+    if (!isInt(p.health, 0, 100000)) return 'player health out of bounds';
     // §6c-ii: a wound is bounded by the rule that makes it; a tally is not
     // bounded by anything but the citizen's willingness to keep dying.
     if (p.wounds !== undefined && !isInt(p.wounds, 0, WOUND_MAX)) return 'wounds out of bounds';
@@ -8742,16 +8764,16 @@ const LANDMARK_KINDS = new Set([
     if (!/^[a-z0-9_-]{1,96}$/i.test(mid)) return 'malformed mob id';
     if (!m || typeof m !== 'object') return 'malformed mob';
     if (typeof m.type !== 'string' || !(m.type in MOB_STATS)) return 'unknown mob type';
-    for (const rk of ['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y']) if (!(rk in m)) return 'mob missing ' + rk;
+    for (const rk of ['health', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y']) if (!(rk in m)) return 'mob missing ' + rk;
     // §6aa: a beast that acts on its own needs two things it never needed
     // while it only ever answered a blow -- a clock of its own, so its swing
     // rate is its own and not the citizen's, and a memory of who hit it, so a
     // passive creature still fights back.
-    for (const mk of Object.keys(m)) if (!['hp', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'heard', 'bound', 'quiver', 'burnUntil',
+    for (const mk of Object.keys(m)) if (!['health', 'hx', 'hy', 'respawnAt', 'type', 'x', 'y', 'rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'stillAt', 'lastSwing', 'mad', 'heard', 'bound', 'quiver', 'burnUntil',
       // §6ao (v6): the incursion carries a scaled body and its bounds -- a
-      // maxHp and def scaled to its target, the tick it must be gone by, its
+      // maxHealth and def scaled to its target, the tick it must be gone by, its
       // leash and the tile it came from. Only an 'incursion' may bear them.
-      'maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit',
+      'maxHealth', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit',
       // §6ao (v6): the Gibbet King's clock (lastRaise) and the mark a risen
       // carries back to the King who called it (raisedBy).
       'lastRaise', 'raisedBy',
@@ -8764,11 +8786,11 @@ const LANDMARK_KINDS = new Set([
         return 'only a finite beast bears ' + fk;
     if (m.slain !== undefined && !isInt(m.slain, 0, 1000000)) return 'mob slain out of bounds';
     if (m.spent !== undefined && !isInt(m.spent, 0, 1)) return 'mob spent out of bounds';
-    for (const ik of ['maxHp', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit']) if (m[ik] !== undefined && m.type !== 'incursion') return 'only an incursion bears ' + ik;
+    for (const ik of ['maxHealth', 'def', 'goneBy', 'leash', 'spawnX', 'spawnY', 'face', 'maxHit']) if (m[ik] !== undefined && m.type !== 'incursion') return 'only an incursion bears ' + ik;
     if (m.lastRaise !== undefined && m.type !== 'gibbet-king') return 'only the Gibbet King raises';
     if (m.raisedBy !== undefined && m.type !== 'risen') return 'only a risen is raised';
     for (const ik of ['goneBy']) if (m[ik] !== undefined && !isInt(m[ik], 0, MAX_TIME)) return 'incursion ' + ik + ' out of bounds';
-    for (const ik of ['maxHp', 'def', 'leash', 'spawnX', 'spawnY', 'maxHit']) if (m[ik] !== undefined && !isInt(m[ik], 0, 200000)) return 'incursion ' + ik + ' out of bounds';
+    for (const ik of ['maxHealth', 'def', 'leash', 'spawnX', 'spawnY', 'maxHit']) if (m[ik] !== undefined && !isInt(m[ik], 0, 200000)) return 'incursion ' + ik + ' out of bounds';
     for (const tk of ['rootedUntil', 'rootImmuneUntil', 'stilledUntil', 'stillImmuneUntil', 'lastSwing', 'burnUntil']) if (m[tk] !== undefined && !isInt(m[tk], 0, MAX_TIME)) return 'mob ' + tk + ' out of bounds';
     if (m.mad !== undefined && (typeof m.mad !== 'string' || !/^[0-9a-f]{64}$/.test(m.mad))) return 'malformed mob grudge';
     // §6ac: whom she has taken, and the arrows she took with them
@@ -8776,7 +8798,7 @@ const LANDMARK_KINDS = new Set([
     if (m.quiver !== undefined && !isInt(m.quiver, 0, 100000)) return 'siren quiver out of bounds';
     if (!isInt(m.x, 0, W - 1) || !isInt(m.y, 0, H - 1)) return 'mob out of bounds';
     if (!isInt(m.hx, 0, W - 1) || !isInt(m.hy, 0, H - 1)) return 'mob home out of bounds';
-    if (!Number.isSafeInteger(m.hp) || m.hp < -1000 || m.hp > 100000) return 'mob hp out of bounds';
+    if (!Number.isSafeInteger(m.health) || m.health < -1000 || m.health > 100000) return 'mob health out of bounds';
     if (!isInt(m.respawnAt, 0, MAX_TIME)) return 'mob respawn out of bounds';
   }
 
@@ -9329,10 +9351,10 @@ function seatImport(state, c, x, y) {
   const p = state.players[c.pid];
   for (const k of Object.keys(p.skills)) if (c.skills?.[k] !== undefined) p.skills[k] = c.skills[k];
   // §5k: AND THE SWEARING IS APPLIED BEFORE THE FRAME IS MEASURED, because the
-  // line below asks `maxHp` what this citizen is sworn to. Validated already.
+  // line below asks `maxHealth` what this citizen is sworn to. Validated already.
   if (c.calling != null) p.calling = c.calling;
   // §5j: the frame is flat and a calling may move it. It is NOT a skill.
-  p.hp = Math.max(1, Math.min(c.hp ?? maxHp(p), maxHp(p)));
+  p.health = Math.max(1, Math.min(c.health ?? maxHealth(p), maxHealth(p)));
   // validateImports has already run: construction applies VALIDATED data
   // directly, because silent per-field filtering would let two implementations
   // disagree about which validated citizen got what.
@@ -9352,9 +9374,9 @@ function addPlayer(state, playerId, x, y) {
     x, y,
     skills: Object.fromEntries(SKILLS.map(sk => [sk, 0])),
     // §5j: a citizen wakes whole. This was 10 because hitpoints began at level
-    // 10 and hp was that level; the frame is flat now, so a literal 10 would
+    // 10 and health was that level; the frame is flat now, so a literal 10 would
     // have every newcomer opening their eyes at a sixth of their strength.
-    hp: HP_FLAT,
+    health: HEALTH_FLAT,
     equipment: Object.fromEntries(EQUIP_SLOTS.map((k) => [k, null])),   // 6bz: from the one list
     vaults: {},
     lastInput: state.tick,
@@ -9375,7 +9397,7 @@ function addPlayer(state, playerId, x, y) {
 }
 
 function addMob(state, mobId, type, x, y) {
-  state.mobs[mobId] = { type, x, y, hx: x, hy: y, hp: MOB_STATS[type].maxHp, respawnAt: 0 };
+  state.mobs[mobId] = { type, x, y, hx: x, hy: y, health: MOB_STATS[type].maxHealth, respawnAt: 0 };
 }
 
 function addNode(state, nodeId, type, x, y, extra) {
@@ -9579,7 +9601,7 @@ function canStep(state, ctx, p, dx, dy) {
       // a living beast holds its tile (v0.79): you do not walk THROUGH a
       // troll, you deal with it, the troll bars the way. (Two bodies in
       // one square was how a fisher came to fight from inside a troll.)
-      for (const m of Object.values(state.mobs)) if (m.hp > 0 && m.x === nx && m.y === ny) return false;
+      for (const m of Object.values(state.mobs)) if (m.health > 0 && m.x === nx && m.y === ny) return false;
       // §14: ...except a toll gate, for a citizen who has paid. The gate is a
       // node like any other and bars the deck like any other; what `pay` buys
       // is a window in which it does not bar it FOR YOU. Everybody else still
@@ -9651,7 +9673,7 @@ function validInput(state, input, ctx) {
     return true;   // the path is checked against the LIVE root at application
   }
   if (!p) return false;
-  if (p.hp <= 0) return false; // the dead act on nothing (v0.41)
+  if (p.health <= 0) return false; // the dead act on nothing (v0.41)
   if ((p.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot act (v0.80)
   // §7dw: THE STOOD DOWN ACT ON NOTHING EITHER, and the placement of this line
   // is the whole of the rule. It sits at the one gate every input passes, so
@@ -9799,7 +9821,7 @@ function validInput(state, input, ctx) {
     case 'drink': {
       // §6dd: a dry well restores nothing. See the resolver for why the timer
       // sits on the NODE and not on the citizen.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       {
         // §6c-ii: THE WELLSPRING IS DRUNK FROM LIKE ANY OTHER WATER.
         //
@@ -9904,7 +9926,7 @@ function validInput(state, input, ctx) {
       // for a target, and to know whose consignment you are looking at.
       if (input.targetId === input.playerId) return false;
       const ft = state.players[input.targetId];
-      if (!ft || ft.hp <= 0) return false;
+      if (!ft || ft.health <= 0) return false;
       // §7cn: AND YOU MUST BE WHERE THEY ARE.
       //
       // The first cut needed only that they exist, which made the list a
@@ -9961,7 +9983,7 @@ function validInput(state, input, ctx) {
       if (countItem(p.inventory, 'sigil') < WITHER_SIGILS) return false;
       const wq = state.players[input.targetId], wm = state.mobs[input.targetId];
       const wt = wq ?? wm;
-      if (!wt || wt.hp <= 0) return false;
+      if (!wt || wt.health <= 0) return false;
       if (wq && !mayStrike(state, p, wq)) return false;
       if ((wt.witheredUntil ?? 0) > state.tick) return false;
       return Math.max(Math.abs(p.x - wt.x), Math.abs(p.y - wt.y)) <= WITHER_REACH;
@@ -9973,10 +9995,10 @@ function validInput(state, input, ctx) {
       if (countItem(p.inventory, 'sigil') < TAKING_SIGILS) return false;
       const kq = state.players[input.targetId], km = state.mobs[input.targetId];
       const kt = kq ?? km;
-      if (!kt || kt.hp <= 0) return false;
+      if (!kt || kt.health <= 0) return false;
       if (kq && !mayStrike(state, p, kq)) return false;
       // ...and nothing to take, if you are already whole
-      if (p.hp >= maxHp(p)) return false;
+      if (p.health >= maxHealth(p)) return false;
       if (state.tick - (p.lastTaking ?? -TAKING_EVERY) < TAKING_EVERY) return false;   // §7cl
       return Math.max(Math.abs(p.x - kt.x), Math.abs(p.y - kt.y)) <= TAKING_REACH;
     }
@@ -9987,7 +10009,7 @@ function validInput(state, input, ctx) {
       if (countItem(p.inventory, 'sigil') < ROT_SIGILS) return false;
       const rq = state.players[input.targetId], rm = state.mobs[input.targetId];
       const rt = rq ?? rm;
-      if (!rt || rt.hp <= 0) return false;
+      if (!rt || rt.health <= 0) return false;
       if (rq && !mayStrike(state, p, rq)) return false;
       if ((rt.rottingUntil ?? 0) > state.tick) return false;   // it is already in them
       return Math.max(Math.abs(p.x - rt.x), Math.abs(p.y - rt.y)) <= ROT_REACH;
@@ -10002,7 +10024,7 @@ function validInput(state, input, ctx) {
       const q = state.players[input.targetId];
       const m = state.mobs[input.targetId];
       const tgt = q ?? m;
-      if (!tgt || tgt.hp <= 0) return false;
+      if (!tgt || tgt.health <= 0) return false;
       if (q && !mayStrike(state, p, q)) return false;
       return Math.max(Math.abs(p.x - tgt.x), Math.abs(p.y - tgt.y)) <= WAKING_REACH;
     }
@@ -10020,7 +10042,7 @@ function validInput(state, input, ctx) {
       // by six, and every one of the six pressed the button.
       if (input.targetId === input.playerId) return false;
       const t = state.players[input.targetId];
-      if (!t || t.hp <= 0) return false;
+      if (!t || t.health <= 0) return false;
       return true;
     }
     case 'unfollow':
@@ -10075,7 +10097,7 @@ function validInput(state, input, ctx) {
       if ((p.brandedUntil ?? 0) > state.tick) return false;   // a brand is not sailed away from
       if (state.tick - (p.lastSwing ?? -SAIL_AFTER_BLOW) < SAIL_AFTER_BLOW) return false;
       for (const q2 of Object.values(state.players)) {
-        if (q2 === p || q2.hp <= 0) continue;
+        if (q2 === p || q2.health <= 0) continue;
         if (q2.action?.type === 'attackp' && q2.action.targetId
             && state.players[q2.action.targetId] === p
             && state.tick - (q2.lastSwing ?? -SAIL_AFTER_BLOW) < SAIL_AFTER_BLOW) return false;
@@ -10219,7 +10241,7 @@ function validInput(state, input, ctx) {
     case 'attack': {
       const m = state.mobs[input.mobId];
       if (m && (m.stilledUntil ?? 0) > state.tick) return false; // the stilled cannot be struck (v0.80)
-      if (!m || m.hp <= 0) return false;
+      if (!m || m.health <= 0) return false;
       // §6ac: SHE TAKES ONE AT A TIME.
       //
       // Refused at the door rather than merely ignored, so a citizen learns
@@ -10280,11 +10302,11 @@ function validInput(state, input, ctx) {
       // shape that already fits is worth more than a tidier name.
       const dm = state.mobs[input.targetId];
       if (dm) {
-        if (dm.hp <= 0 || !MOB_STATS[dm.type]?.dummy) return false;
+        if (dm.health <= 0 || !MOB_STATS[dm.type]?.dummy) return false;
         return inReach(p, dm);
       }
       const q9 = state.players[input.targetId];
-      if (!q9 || q9.hp <= 0 || input.targetId === input.playerId) return false;
+      if (!q9 || q9.health <= 0 || input.targetId === input.playerId) return false;
       if ((q9.stilledUntil ?? 0) > state.tick || (p.stilledUntil ?? 0) > state.tick) return false;
       if (!mayStrike(state, p, q9)) return false;   // §11d: the Wilds, or two consignments
       // §6df: A BURST SPENDS A ROUND A BLOW, and it must be paid for before it
@@ -10301,7 +10323,7 @@ function validInput(state, input, ctx) {
       // 7.1: player state has no playerId field; compare against the input's
       // own id or self-attack slips through as (undefined === target) === false
       const q = state.players[input.targetId];
-      if (!q || q.hp <= 0 || input.targetId === input.playerId) return false;
+      if (!q || q.health <= 0 || input.targetId === input.playerId) return false;
       // §11d: THE WILDS, OR TWO CONSIGNMENTS. The Wilds is a rectangle where
       // the law thins (§2g); a consignment is that same thinning carried on a
       // body, by consent, and it reaches wherever that body goes. BOTH must
@@ -10319,7 +10341,7 @@ function validInput(state, input, ctx) {
       // deferred shape, opposite relationship to the ground -- which is what
       // makes the two read as different lives rather than one mechanic painted
       // twice.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const lvl = effLevel(p.skills.shorecraft);
       if (bucksAllowed(lvl) < 1) return false;
       if (countItem(p.inventory, 'logs') < 1) return false;   // willow, and any log is willow enough
@@ -10394,7 +10416,7 @@ function validInput(state, input, ctx) {
       if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
       const t = state.players[input.target];
       if (!t || input.target === playerId) return false;
-      if (t.hp <= 0 || (t.deadUntil ?? 0) > state.tick) return false;
+      if (t.health <= 0 || (t.deadUntil ?? 0) > state.tick) return false;
       return Math.max(Math.abs(p.x - t.x), Math.abs(p.y - t.y)) <= MENDP_RANGE;
     }
     case 'still': {
@@ -10403,7 +10425,7 @@ function validInput(state, input, ctx) {
       if (p.inventory.filter(sl => sl?.item === 'sigil').length < STILL_SIGILS) return false;
       if ((p.stillCdUntil ?? 0) > state.tick) return false;
       const tm = state.mobs[input.target];
-      if (tm) return tm.hp > 0 && (tm.stillImmuneUntil ?? 0) <= state.tick
+      if (tm) return tm.health > 0 && (tm.stillImmuneUntil ?? 0) <= state.tick
         && Math.max(Math.abs(p.x - tm.x), Math.abs(p.y - tm.y)) <= STILL_RANGE;
       const tp = state.players[input.target];
       if (tp) return input.target !== playerId && isAwake(tp, state.tick) && (tp.deadUntil ?? 0) <= state.tick
@@ -10412,7 +10434,7 @@ function validInput(state, input, ctx) {
       return false;
     }
     case 'raise_market': {
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       if (marketsOwnedBy(state, ctx, input.playerId) >= MARKET_OWNED) return false;
       // §6ao (v6): A STALL LINES THE ROAD -- and it must be REFUSED here, not
@@ -10460,7 +10482,7 @@ function validInput(state, input, ctx) {
       // pile of somebody's spoil within five tiles. The stave that used to do
       // this is the alchemy pace tool and had no business carrying a verb
       // that destroys another citizen's goods.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       if (p.equipment?.weapon?.item !== 'goo-staff') return false;
       if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
       const gr = state.ground?.[input.groundId];
@@ -10481,7 +10503,7 @@ function validInput(state, input, ctx) {
       //   ONCE, EVER. `sealSpent` outlives the seal itself.
       //
       //   NOT ALREADY SEALED, which follows from the above but is cheap to say.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       if (p.equipment?.weapon?.item !== 'goo-staff') return false;
       if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
       const gr = state.ground?.[input.groundId];
@@ -10495,7 +10517,7 @@ function validInput(state, input, ctx) {
       // hot enough to char wood instead of merely burning it. That is also
       // what makes this social: the charrer needs a fire, and below firemaking
       // eighty they cannot keep one, so the wood goes to somebody else's.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const wt = state.genesis.watch;
       if (!wt || wt.charWood === undefined) return false;
       const wf = state.nodes?.[input.nodeId];
@@ -10505,13 +10527,13 @@ function validInput(state, input, ctx) {
       return countItem(p.inventory, 'ironbark') >= wt.charWood;
     }
     case 'haul': {
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const bw = state.nodes?.[input.nodeId];
       if (!bw || bw.type !== 'bellwork' || !atOrBeside(p, bw)) return false;
       return true;
     }
     case 'rifle': {
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const hd = state.nodes?.[input.nodeId];
       if (!hd || hd.type !== 'hoard' || !atOrBeside(p, hd)) return false;
       if (p.barrowed === true) return false;      // §7dp: once in a life
@@ -10520,7 +10542,7 @@ function validInput(state, input, ctx) {
     }
     case 'unload': {
       // §6bq: at the cart or beside it, and a slot free to put the thing in.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const ct = state.nodes?.[input.nodeId];
       if (!ct || ct.type !== 'cart' || !atOrBeside(p, ct)) return false;
       if (!ct.shelf || Object.keys(ct.shelf).length === 0) return false;
@@ -10543,7 +10565,7 @@ function validInput(state, input, ctx) {
       // citizen who has not claimed a name has nothing to cut. The price is
       // read from the stone at THIS interval, and the signed `pay` is a
       // ceiling, never the charge.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const st = state.nodes?.[input.nodeId];
       if (!st || st.type !== 'dedication' || !atOrBeside(p, st)) return false;
       if (!p.name) return false;
@@ -10558,7 +10580,7 @@ function validInput(state, input, ctx) {
       // spanwork there yet, begins the work. Standing ON it (not beside it) is
       // the whole design: the builder is exposed in the water, on the one tile
       // a saboteur most wants to deny them.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const sp = state.genesis.span;
       if (!sp) return false;
       // the founder stands on the crossing itself
@@ -10578,7 +10600,7 @@ function validInput(state, input, ctx) {
       // reaching the goal. `n` is how many the citizen means to lay this
       // interval; the handler banks the lesser of that, what they carry, what
       // the rate allows, and what the pool still needs.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const sp = state.genesis.span;
       if (!sp) return false;
       const sw = state.nodes?.[input.nodeId];
@@ -10606,7 +10628,7 @@ function validInput(state, input, ctx) {
       // One stint at a time. A citizen who is inside one cannot swear over
       // it: the promise you are keeping is the promise you made, and there
       // is no verb here for quietly extending it while it runs.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       const sn = state.genesis.stint;
       if (!sn) return false;
       if (!isInt(input.n, 1, sn.cap)) return false;
@@ -10623,7 +10645,7 @@ function validInput(state, input, ctx) {
       // There is no level on it, no skill, no standing. Nothing about who you
       // are qualifies you to give somebody else a name; you either have the
       // chisel and the friend or you do not.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       if (!p.inventory.some((sl) => sl?.item === 'graver')) return false;
       const st = state.nodes?.[input.nodeId];
       if (!st || st.type !== 'landmark' || !GRAVABLE.has(st.kind)) return false;
@@ -10631,7 +10653,7 @@ function validInput(state, input, ctx) {
       if (!atOrBeside(p, st)) return false;
       if (input.target === input.playerId) return false;   // NEVER YOUR OWN
       const q = state.players?.[input.target];
-      if (!q || q.hp <= 0 || !q.name) return false;
+      if (!q || q.health <= 0 || !q.name) return false;
       return atOrBeside(q, st);                        // both of you, at the stone
     }
     case 'sound': {
@@ -10640,24 +10662,24 @@ function validInput(state, input, ctx) {
       // No level, no cooldown of its own beyond the one deed an interval every
       // citizen already has, and no cost but the shield you are not wearing.
       // A horn that asked for anything would be a horn people saved.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       return p.equipment?.offhand?.item === 'horn';
     }
     case 'consign': {
       // §11b: BESIDE A STORE, WHICH IS THE ENTIRE DISCIPLINE. Stores stand
       // inside walled towns, so a consignment may be taken up or put down only
       // somewhere safe. On the road the choice has already been made.
-      if (p.hp <= 0 || p.consignment) return false;
+      if (p.health <= 0 || p.consignment) return false;
       if (!haulTownIdAt(state, ctx, p)) return false;
       return input.slots.every((i) => !!p.inventory[i]);
     }
     case 'release': {
-      if (p.hp <= 0 || !p.consignment) return false;
+      if (p.health <= 0 || !p.consignment) return false;
       return !!haulTownIdAt(state, ctx, p);
     }
     case 'deliver': {
       // sells ONE slot of the container, at the last town of the drawn route.
-      if (p.hp <= 0 || !p.consignment) return false;
+      if (p.health <= 0 || !p.consignment) return false;
       if ((p.brandedUntil ?? 0) > state.tick) return false;   // §2b: nor for a hauler
       if (!haulAtEnd(p.consignment)) return false;
       const sl = p.consignment.items[input.slot];
@@ -10679,7 +10701,7 @@ function validInput(state, input, ctx) {
       // of standing still in the open. Nothing new is needed to price it: the
       // tick does it. The choice is carry it out or stand and convert, and
       // standing still in dangerous country is a real thing to choose.
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       if (effLevel(p.skills.sorcery) < TRANSMUTE_REQ) return false;
       // §6ao (v6): WHERE, AND WITH WHAT. A founding may say alchemy is a thing
       // done in TOWNS (but not at the spawn, so a newcomer must step out into
@@ -10744,7 +10766,7 @@ function validInput(state, input, ctx) {
         // down mid-cast. Elsewhere it is redundant with the waystones and
         // refused. (A world without `transmuteWhere`/v6 flags keeps the old §2k rule:
         // no recall out of the Wilds.)
-        if (p.hp <= 0) return false;
+        if (p.health <= 0) return false;
         if ((p.rootedUntil ?? 0) > state.tick) return false;   // §6v: they cannot move, even to flee
         // 6ch: NOT OUT OF THE WILDS. EVER.
         //
@@ -10773,7 +10795,7 @@ function validInput(state, input, ctx) {
       return false;
     }
     case 'survey': { // stand on a marker to survey it (v0.50)
-      if (p.hp <= 0) return false;
+      if (p.health <= 0) return false;
       return (state.markers ?? []).some(m => m.x === p.x && m.y === p.y);
     }
     // 6ci: a chart opens nothing; it is sold, not spent.
@@ -10785,7 +10807,7 @@ function validInput(state, input, ctx) {
       return hasAdjacentNode(state, ctx, p, 'ossuary');
     }
     case 'build_brewpot': {
-      if (p.hp <= 0 || !state.genesis.brew) return false;
+      if (p.health <= 0 || !state.genesis.brew) return false;
       const bc = state.genesis.brew;
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
       if (!hasAdjacentNode(state, ctx, p, 'hearth')) return false;
@@ -10855,7 +10877,7 @@ function validInput(state, input, ctx) {
     }
     case 'kindle': { // raise a great fire: high-tier Firemaking (v0.53)
       const wt = state.genesis.watch;
-      if (!wt || p.hp <= 0) return false;
+      if (!wt || p.health <= 0) return false;
       if (effLevel(p.skills.woodcraft) < wt.level) return false;
       if (countLogs(p.inventory) < wt.kindleLogs) return false;   // kindling is wood; coal will not catch
       if (nodeExistsAt(state, ctx, p.x, p.y)) return false;
@@ -11082,7 +11104,7 @@ function validInput(state, input, ctx) {
       if (typeof g2.by === 'string' && g2.by !== input.playerId && input.confirm !== true) return false;
       // FORAGE IS EATEN WHERE IT LIES. No slot is needed because it never
       // enters a pack, and a full pack is no reason to be unable to eat.
-      if (g2.item === 'forage') return p.hp > 0;
+      if (g2.item === 'forage') return p.health > 0;
       // 7.4: execution merges arrows into an existing quiver, so validation
       // must accept that path too, a full pack still has room in the quiver
       if (g2.item === 'arrows' && p.inventory.some(sl => sl?.item === 'arrows')) return true;
@@ -11244,7 +11266,7 @@ let _cloneOverride = null;   // test hook; null = env/default
 //   - the full suite at 182/27 in fast, dirty, cow and detect alike, with
 //     byte-identical failing sets
 //   - the one incompatibility, in test/agreement.test.mjs, was the TEST being
-//     wrong: it simulated a corrupt node by writing `hp` in place, which under
+//     wrong: it simulated a corrupt node by writing `health` in place, which under
 //     sharing corrupts the lineage it measures against. Swapping the reference
 //     instead corrupts exactly one state, which is what it always meant.
 function _cloneModeName() { return _cloneOverride ?? process.env.INTERVAL_CLONE ?? 'dirty'; }
@@ -11458,7 +11480,7 @@ function _cloneForTick(state) {
     // something it was not doing before.
     //
     // `test/agreement.test.mjs` found this within minutes of the mode existing:
-    // it simulates a corrupted node by writing `state.players[x].hp = 9` into a
+    // it simulates a corrupted node by writing `state.players[x].health = 9` into a
     // finalized state, which under sharing corrupts the lineage it was meant to
     // be measured against. The test is right and the mode is right; they are
     // simply incompatible, and the incompatibility is the whole warning.
@@ -12376,15 +12398,15 @@ function stepEvents(s, beacon, _ctx) {
   for (const mid of Object.keys(s.mobs).sort()) {
     const m = s.mobs[mid];
     if (m.type !== 'incursion') continue;
-    if (m.hp <= 0 || (m.goneBy !== undefined && s.tick >= m.goneBy)) delete s.mobs[mid];
+    if (m.health <= 0 || (m.goneBy !== undefined && s.tick >= m.goneBy)) delete s.mobs[mid];
   }
 
   // ---- 2. the incursion (a shared fight) --------------------------------
   const present = Object.keys(s.players).sort().filter(pid => {
     const p = s.players[pid];
-    return p && p.hp > 0 && !p.deadUntil && isAwake(p, s.tick);
+    return p && p.health > 0 && !p.deadUntil && isAwake(p, s.tick);
   });
-  const liveIncursions = Object.values(s.mobs).filter(m => m.type === 'incursion' && m.hp > 0).length;
+  const liveIncursions = Object.values(s.mobs).filter(m => m.type === 'incursion' && m.health > 0).length;
   if (present.length > 0 && liveIncursions < (ev.maxAtOnce ?? 1)) {
     const denom = Math.max(1, ev.oneInPerCitizen ?? 200000);
     const chance = Math.min(0xffffffff, Math.floor((0xffffffff / denom) * present.length));
@@ -12399,7 +12421,7 @@ function stepEvents(s, beacon, _ctx) {
       // day the skills merged.
       const combat = Math.max(1, 2 * effLevel(t.skills.prowess)
         + effLevel(t.skills.marksmanship) + effLevel(t.skills.sorcery));
-      const scaleHp = Math.round(base.maxHp + combat * (ev.hpPerCombat ?? 6));
+      const scaleHp = Math.round(base.maxHealth + combat * (ev.hpPerCombat ?? 6));
       const scaleDef = Math.round(base.def + combat * (ev.defPerCombat ?? 0.4));
       let sx = t.x, sy = t.y, seated = false;
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1],[2,0],[-2,0],[0,2],[0,-2]]) {
@@ -12420,14 +12442,14 @@ function stepEvents(s, beacon, _ctx) {
         // and not a missed event -- §6bv already says an unanswered incursion
         // is a story, and an unspawned one costs a citizen nothing.
         if (inTown(s, _ctx, nx, ny)) continue;
-        if (Object.values(s.mobs).some(m => m.hp > 0 && m.x === nx && m.y === ny)) continue;
+        if (Object.values(s.mobs).some(m => m.health > 0 && m.x === nx && m.y === ny)) continue;
         sx = nx; sy = ny; seated = true; break;
       }
       if (seated) {
         const iid = 'incursion-' + s.tick;
         addMob(s, iid, 'incursion', sx, sy);
         const m = s.mobs[iid];
-        m.maxHp = scaleHp; m.hp = scaleHp; m.def = scaleDef;
+        m.maxHealth = scaleHp; m.health = scaleHp; m.def = scaleDef;
         // §6cz: ITS BLOW SCALES TO THE ONE IT CAME FOR -- and since §5j this
         // scaling is DEAD, deliberately left standing.
         //
@@ -12444,7 +12466,7 @@ function stepEvents(s, beacon, _ctx) {
         // Left in place rather than replaced with the constant: a calling moves
         // the frame (§5k, the berserker at forty-eight) and the day one moves it
         // far enough, this starts working again on its own.
-        const tgtHp = Math.max(1, maxHp(t));
+        const tgtHp = Math.max(1, maxHealth(t));
         m.maxHit = Math.max(1, Math.min(base.maxHit, Math.round(tgtHp / 10)));
         m.mad = tid;
         // §6ao (v6): THE LIFETIME MUST OUTLAST A SOLO KILL. The despawn is for
@@ -12539,12 +12561,12 @@ function nextState(state, inputs, _legacyBeacon) {
   // cannot follow anybody back.
   for (const bag of [s.players, s.mobs]) {
     for (const [_oid, _o] of Object.entries(bag)) {
-      if (!_o || _o.hp <= 0 || (_o.rottingUntil ?? 0) <= s.tick) continue;
+      if (!_o || _o.health <= 0 || (_o.rottingUntil ?? 0) <= s.tick) continue;
       if (s.tick % ROT_EVERY !== 0) continue;
-      _o.hp -= ROT_BITE;
+      _o.health -= ROT_BITE;
       const _caster = s.players[_o.rotBy];
       if (_caster) gainXp(_caster, 'sorcery', ROT_BITE);
-      if (_o.hp <= 0) { delete _o.rottingUntil; delete _o.rotBy; }
+      if (_o.health <= 0) { delete _o.rottingUntil; delete _o.rotBy; }
     }
   }
   const _ctx = buildTickContext(s);
@@ -12563,9 +12585,9 @@ function nextState(state, inputs, _legacyBeacon) {
   // whole point of the thing, and it never copies an action, because a follow
   // that swings for you is a bot with extra steps.
   for (const [_pid, _p] of Object.entries(s.players)) {
-    if (!_p.following || _p.hp <= 0) continue;
+    if (!_p.following || _p.health <= 0) continue;
     const _t = s.players[_p.following];
-    if (!_t || _t.hp <= 0) { delete _p.following; continue; }
+    if (!_t || _t.health <= 0) { delete _p.following; continue; }
     const _d = Math.max(Math.abs(_t.x - _p.x), Math.abs(_t.y - _p.y));
     if (_d > FOLLOW_LOSE) { delete _p.following; continue; }
     if (_d <= 1) continue;                       // already at their shoulder
@@ -12579,7 +12601,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (blockingNodeAt(s, _ctx, _nx, _ny)) continue;
     let _occupied = false;
     for (const _m of Object.values(s.mobs))
-      if (_m.hp > 0 && _m.x === _nx && _m.y === _ny) { _occupied = true; break; }
+      if (_m.health > 0 && _m.x === _nx && _m.y === _ny) { _occupied = true; break; }
     if (_occupied) continue;
     _p.x = _nx; _p.y = _ny;
     _p.action = null;              // THE FLIGHT RULE. A step is a step. (2b-i)
@@ -12637,7 +12659,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // The window knows what is at those coordinates and can say so.
           const _here = Object.keys(s.players).sort().filter((id) => {
             const q = s.players[id];
-            return q.hp > 0 && stintPresent(q, s.tick, s.genesis.stint ? s.genesis.stint.sample : SLEEP_AFTER);
+            return q.health > 0 && stintPresent(q, s.tick, s.genesis.stint ? s.genesis.stint.sample : SLEEP_AFTER);
           });
           let _best = null, _bn = 0;
           for (const a of _here) {
@@ -12665,7 +12687,7 @@ function nextState(state, inputs, _legacyBeacon) {
           const _sample = s.genesis.stint ? s.genesis.stint.sample : SLEEP_AFTER;
           const _here = Object.keys(s.players).sort().filter((id) => {
             const q = s.players[id];
-            return q.hp > 0 && stintPresent(q, s.tick, _sample);
+            return q.health > 0 && stintPresent(q, s.tick, _sample);
           });
           let _best = null, _bn = 0;
           for (const a of _here) {
@@ -12728,7 +12750,7 @@ function nextState(state, inputs, _legacyBeacon) {
         const bin = ceilBin(s.tick, s.genesis);
         for (const id of _ids) {
           const q = s.players[id];
-          if (q.hp <= 0 || !stintPresent(q, s.tick, _sn.sample)) continue;
+          if (q.health <= 0 || !stintPresent(q, s.tick, _sn.sample)) continue;
           const own = ownPlayer(s, id);
           let at = own.ledger?.at ?? bin;
           let bins = own.ledger ? [...own.ledger.bins] : new Array(CEIL_BINS).fill(0);
@@ -12752,7 +12774,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (s.tick % _sn.sample === 0) {
         const _in = _ids.filter((id) => {
           const q = s.players[id];
-          return q.hp > 0 && stintOpen(q, s.tick) && stintPresent(q, s.tick, _sn.sample);
+          return q.health > 0 && stintOpen(q, s.tick) && stintPresent(q, s.tick, _sn.sample);
         });
         for (const a of _in) {
           const pa = s.players[a];
@@ -12872,7 +12894,7 @@ function nextState(state, inputs, _legacyBeacon) {
   // hearth deep in the Smother is a checkpoint made of nothing at all.
   for (const _pid of Object.keys(s.players).sort()) {
     const _q = s.players[_pid];
-    if (_q.hp <= 0) continue;
+    if (_q.health <= 0) continue;
     if (!countItem(_q.inventory, 'torch') && _q.equipment?.weapon?.item !== 'torch') continue;
     if (!(hasAdjacentNode(s, _ctx, _q, _FIRE_TYPES) || fireOnTile(s, _ctx, _q.x, _q.y))) continue;
     _q.torchUntil = s.tick + TORCH_TICKS;
@@ -12965,7 +12987,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (_n.type === 'furnace') {
       if (s.tick < (_n.fuelUntil ?? 0) && _n.stokedBy !== undefined) {
         const _f = s.players[_n.stokedBy];
-        if (_f && _f.hp > 0 && Math.max(Math.abs(_f.x - _n.x), Math.abs(_f.y - _n.y)) <= WATCH_TEND_RANGE)
+        if (_f && _f.health > 0 && Math.max(Math.abs(_f.x - _n.x), Math.abs(_f.y - _n.y)) <= WATCH_TEND_RANGE)
           awardXp(_f, 'earthcraft', FURNACE_BURN_XP, 'smith');
       }
       continue;
@@ -12990,7 +13012,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // miss. What a public fire pays is the stoke, to whoever stokes it, and
       // `stoke` already pays the feeder at anybody's fire.
       const _k = _n.by === undefined ? null : s.players[_n.by];
-      if (_k && _k.hp > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE)
+      if (_k && _k.health > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE)
         awardXp(_k, 'woodcraft', _wt.burnXp, 'firekeeper');
     }
     // ...and it does not rot away when it goes out. A citizen's fire that has
@@ -13003,10 +13025,10 @@ function nextState(state, inputs, _legacyBeacon) {
 
   // the dead return (spec §6c, v0.41): processed at tick start
   for (const pl2 of Object.values(s.players)) {
-    if (pl2.hp <= 0 && pl2.deadUntil !== undefined && s.tick >= pl2.deadUntil) {
+    if (pl2.health <= 0 && pl2.deadUntil !== undefined && s.tick >= pl2.deadUntil) {
       const sp2 = spawnOf(s.genesis);
       pl2.x = sp2.x; pl2.y = sp2.y;
-      pl2.hp = maxHp(pl2);
+      pl2.health = maxHealth(pl2);
       delete pl2.deadUntil;
     }
   }
@@ -13019,9 +13041,9 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const rid of Object.keys(s.mobs)) {
     const r = s.mobs[rid];
     if (!r || r.type !== 'risen') continue;
-    if (r.hp <= 0) { delete s.mobs[rid]; continue; }   // a risen put down is gone
+    if (r.health <= 0) { delete s.mobs[rid]; continue; }   // a risen put down is gone
     const king = r.raisedBy ? s.mobs[r.raisedBy] : null;
-    if (!king || king.hp <= 0) { delete s.mobs[rid]; }
+    if (!king || king.health <= 0) { delete s.mobs[rid]; }
   }
   // §7cn: THE DOOR THAT SHUTS. Before anything rises, a beast that has been
   // spent stops rising -- forever, with no node, no flag on the terrain and no
@@ -13038,7 +13060,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (_fin === undefined || (_lm.spent ?? 0) === 1) continue;
     if ((_lm.slain ?? 0) < _fin) continue;
     _lm.spent = 1;
-    _lm.hp = 0;
+    _lm.health = 0;
     _lm.respawnAt = MAX_TIME;
     const _left = Object.values(s.mobs)
       .filter(x => MOB_STATS[x.type]?.finite !== undefined && (x.spent ?? 0) === 0).length;
@@ -13055,11 +13077,11 @@ function nextState(state, inputs, _legacyBeacon) {
   }
   for (const m of Object.values(s.mobs)) {
     if ((m.spent ?? 0) === 1) continue;   // §7cn: spent things do not rise
-    if (m.hp <= 0 && m.respawnAt <= s.tick) {
+    if (m.health <= 0 && m.respawnAt <= s.tick) {
       // §6ao (v6): a summoned risen does not come back on its own -- only the
       // King raises more. (It is cleaned up by the crumble pass / stays dead.)
       if (MOB_STATS[m.type]?.summoned) continue;
-      m.hp = MOB_STATS[m.type].maxHp;
+      m.health = MOB_STATS[m.type].maxHealth;
       m.x = m.hx; m.y = m.hy; // the dead come back where they belong
       // §3.3: AND THEY COME BACK WITHOUT THE GRUDGE.
       //
@@ -13140,7 +13162,7 @@ function nextState(state, inputs, _legacyBeacon) {
         || MOB_STATS[s.mobs[mid]?.type]?.rooted) continue;
 
     const m = s.mobs[mid];
-    if (m.hp <= 0 || pinned.has(mid) || (m.rootedUntil ?? 0) > s.tick || (m.stilledUntil ?? 0) > s.tick) continue;
+    if (m.health <= 0 || pinned.has(mid) || (m.rootedUntil ?? 0) > s.tick || (m.stilledUntil ?? 0) > s.tick) continue;
     if (roll(beacon, mid, 'wander') >= 48) continue;
     const [dx, dy] = [[0, -1], [1, 0], [0, 1], [-1, 0]][roll(beacon, mid, 'dir') % 4];
     const nx = m.x + dx, ny = m.y + dy;
@@ -13176,7 +13198,7 @@ function nextState(state, inputs, _legacyBeacon) {
     const liveIds = [];
     for (const pid of Object.keys(s.players).sort()) {
       const p = s.players[pid];
-      if (!p || p.hp <= 0 || p.deadUntil) continue;
+      if (!p || p.health <= 0 || p.deadUntil) continue;
       if (!isAwake(p, s.tick)) continue;   // the world does not hunt the absent
       liveIds.push(pid);
       const k = ((p.y / CB) | 0) * 4096 + ((p.x / CB) | 0);
@@ -13240,14 +13262,14 @@ function nextState(state, inputs, _legacyBeacon) {
     // fight: cut faster than the web knits.
     for (const mid of Object.keys(s.mobs).sort()) {
       const m = s.mobs[mid];
-      if (!m || m.hp <= 0) continue;
+      if (!m || m.health <= 0) continue;
       const st = MOB_STATS[m.type];
       if (!st?.mends) continue;
-      if (m.hp < st.maxHp) m.hp = Math.min(st.maxHp, m.hp + st.mends);
+      if (m.health < st.maxHealth) m.health = Math.min(st.maxHealth, m.health + st.mends);
     }
     if (liveIds.length) for (const mid of Object.keys(s.mobs).sort()) {
       const m = s.mobs[mid];
-      if (!m || m.hp <= 0) continue;
+      if (!m || m.health <= 0) continue;
       if ((m.stilledUntil ?? 0) > s.tick) continue;   // the truce holds beasts too
       // §7t: A DUMMY NEVER COMES FOR ANYBODY. `harmless` already meant its
       // blows never land -- but it still chose a target, still walked toward
@@ -13371,7 +13393,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // coming, so nobody can hold her by logging off
         if (st.mirrors && m.bound !== undefined) {
           const b = s.players[m.bound];
-          if (!b || b.hp <= 0 || b.deadUntil || !isAwake(b, s.tick)
+          if (!b || b.health <= 0 || b.deadUntil || !isAwake(b, s.tick)
               || Math.max(Math.abs(b.x - m.x), Math.abs(b.y - m.y)) > 24) {
             delete m.bound; delete m.quiver;
           }
@@ -13392,7 +13414,7 @@ function nextState(state, inputs, _legacyBeacon) {
         const alive = [];
         for (const oid of Object.keys(s.mobs)) {
           const o = s.mobs[oid];
-          if (o && o.hp > 0 && o.type === 'risen' && o.raisedBy === mid) alive.push(oid);
+          if (o && o.health > 0 && o.type === 'risen' && o.raisedBy === mid) alive.push(oid);
         }
         // §6cx (v6): the mantle slows him. Against a citizen who wears his own
         // shroud, the Gibbet King raises the dead at HALF his rate -- the
@@ -13408,7 +13430,7 @@ function nextState(state, inputs, _legacyBeacon) {
             const rx = m.x + dx, ry = m.y + dy;
             if (rx < 1 || ry < 1 || rx >= s.genesis.worldW - 1 || ry >= s.genesis.worldH - 1) continue;
             if (terrainBlocked(s.genesis, rx, ry) || nodeExistsAt(s, _ctx, rx, ry)) continue;
-            if (Object.values(s.mobs).some(o => o.hp > 0 && o.x === rx && o.y === ry)) continue;
+            if (Object.values(s.mobs).some(o => o.health > 0 && o.x === rx && o.y === ry)) continue;
             const rid = 'risen-' + mid + '-' + s.tick;
             addMob(s, rid, 'risen', rx, ry);
             s.mobs[rid].raisedBy = mid;
@@ -13497,11 +13519,11 @@ function nextState(state, inputs, _legacyBeacon) {
           const soak = 0;
           const hit = canBreathe ? (st.breathHit ?? st.maxHit)
                     : (mirrorHit !== null ? mirrorHit : (m.maxHit ?? st.maxHit));
-          target.hp -= afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak));   // 6bz
+          target.health -= afterShield(target, Math.max(1, 1 + (roll(beacon, mid, 'mobdmg') % hit) - soak));   // 6bz
           // §6bw: and it holds against a beast exactly as it holds against a
           // citizen. A rule that saved you from people but not from the dragon
           // would be a rule about PvP wearing armour's clothes.
-          if (target.hp <= 0 && platedFromDeath(target))
+          if (target.health <= 0 && platedFromDeath(target))
             announce(s, (target.name ?? 'A citizen') + "'s plate shatters, and holds.");
           // §2g EXTENDED TO THE BEASTS: A STRUCK CITIZEN STRIKES BACK.
           //
@@ -13523,11 +13545,11 @@ function nextState(state, inputs, _legacyBeacon) {
           // matter. NO COMBAT ACTION OF THEIR OWN, so a deliberate fight with
           // something else is never hijacked. And flight still works: moving
           // clears the action, exactly as it does above.
-          if (target.hp > 0 && target.action?.type !== 'attack'
+          if (target.health > 0 && target.action?.type !== 'attack'
               && target.action?.type !== 'attackp') {
             target.action = { type: 'attack', mobId: mid, since: s.tick + 1, style: 'even' };
           }
-          if (target.hp <= 0) {
+          if (target.health <= 0) {
             // §6w: THE BOW SURVIVES ITS BEARER.
             //
             // Every other route by which the bow leaves a citizen resets
@@ -13545,7 +13567,7 @@ function nextState(state, inputs, _legacyBeacon) {
               s.bowOut = false;
               announce(s, 'The DRAGONBOW has gone back to the Wilds; its bearer fell.');
             }
-            target.hp = 0;
+            target.health = 0;
             spillHoods(s, target, tid ?? 'v');   // §6ax: before the pack goes
             const kept9 = prayerKeeps(target, s.tick, s.genesis, s);
             target.inventory = Array(INV_SLOTS).fill(null);
@@ -13677,12 +13699,12 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const q2 of Object.values(s.players)) {
     if (!q2.burnUntil) continue;
     if (s.tick >= q2.burnUntil) { delete q2.burnUntil; continue; }
-    if (q2.hp > 1 && s.tick % BURN_EVERY === 0) q2.hp = Math.max(1, q2.hp - 1);
+    if (q2.health > 1 && s.tick % BURN_EVERY === 0) q2.health = Math.max(1, q2.health - 1);
   }
   for (const m2 of Object.values(s.mobs ?? {})) {
     if (!m2.burnUntil) continue;
-    if (s.tick >= m2.burnUntil || m2.hp <= 0) { delete m2.burnUntil; continue; }
-    if (m2.hp > 1 && s.tick % BURN_EVERY === 0) m2.hp = Math.max(1, m2.hp - 1);
+    if (s.tick >= m2.burnUntil || m2.health <= 0) { delete m2.burnUntil; continue; }
+    if (m2.health > 1 && s.tick % BURN_EVERY === 0) m2.health = Math.max(1, m2.health - 1);
   }
   // §6bn: THE VIGIL, checked before the ground forgets and never after.
   //
@@ -13700,7 +13722,7 @@ function nextState(state, inputs, _legacyBeacon) {
   for (const g2 of Object.values(s.ground)) {
     if (!g2.sealedBy) continue;
     const keeper = s.players[g2.sealedBy];
-    const holds = keeper && keeper.hp > 0
+    const holds = keeper && keeper.health > 0
       && keeper.equipment?.weapon?.item === 'goo-staff'
       && Math.max(Math.abs(g2.x - keeper.x), Math.abs(g2.y - keeper.y)) <= SEAL_RANGE;
     if (holds) g2.expiresAt = s.tick + SEAL_KEEPS_FRESH;
@@ -14072,7 +14094,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'haul') {
       const bw = s.nodes?.[inp.nodeId];
-      if (bw && bw.type === 'bellwork' && p.hp > 0 && atOrBeside(p, bw)) {
+      if (bw && bw.type === 'bellwork' && p.health > 0 && atOrBeside(p, bw)) {
         // §7du: a hand goes on the rope and stays there for BELL_HOLD
         // intervals. Three at once is a PULL; anything less is the water
         // winning, which it does silently and without malice.
@@ -14152,7 +14174,7 @@ function nextState(state, inputs, _legacyBeacon) {
         }
       }
     } else if (inp.type === 'sound') {
-      if (p.equipment?.offhand?.item === 'horn' && p.hp > 0) {
+      if (p.equipment?.offhand?.item === 'horn' && p.health > 0) {
         // WHERE, NOT WHO IS IN TROUBLE. The world says the country and the
         // tile; it does not say why, because a horn cannot say why. Whoever
         // comes is deciding to come on almost nothing, which is the whole
@@ -14170,7 +14192,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const gi = p.inventory.findIndex((sl) => sl?.item === 'graver');
       if (st && q && gi !== -1 && st.type === 'landmark' && GRAVABLE.has(st.kind)
           && !st.name && atOrBeside(p, st) && atOrBeside(q, st)
-          && inp.target !== pid && q.hp > 0 && q.name) {
+          && inp.target !== pid && q.health > 0 && q.name) {
         p.inventory[gi] = null;                        // the chisel is spent
         st.name = q.name;
         // BOTH NAMES IN THE TELLING, ONE ON THE STONE. The giver is announced
@@ -14237,7 +14259,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // history opened -- who laid it, and when.
       const sp = s.genesis.span;
       const site = sp ? spanSiteAt(s.genesis, inp.x, inp.y) : null;
-      if (sp && site && p.hp > 0 && p.x === inp.x && p.y === inp.y
+      if (sp && site && p.health > 0 && p.x === inp.x && p.y === inp.y
           && !nodeExistsAt(s, _ctx, inp.x, inp.y)
           && countItem(p.inventory, 'planks') >= 1) {
         consumeItem(p.inventory, 'planks', 1);
@@ -14269,7 +14291,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // hands, the interval -- so it is owned at its binding, once, rather
       // than at each of the writes below.
       const sw = s.nodes?.[inp.nodeId] === undefined ? undefined : ownNode(s, inp.nodeId);
-      if (sp && sw && sw.type === 'spanwork' && p.hp > 0 && atOrBeside(p, sw)
+      if (sp && sw && sw.type === 'spanwork' && p.health > 0 && atOrBeside(p, sw)
           && isInt(inp.n, 1, sp.perLay) && countItem(p.inventory, 'planks') >= 1) {
         const room = Math.max(0, sw.need - sw.laid);
         const lay = Math.min(inp.n, countItem(p.inventory, 'planks'), sp.perLay, room);
@@ -14362,9 +14384,9 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'mendp') {
       const si = p.inventory.findIndex((sl) => sl?.item === 'sigil');
       const t = s.players[inp.target];
-      if (si !== -1 && t && t.hp > 0) {
+      if (si !== -1 && t && t.health > 0) {
         p.inventory[si] = null;
-        t.hp = Math.min(maxHp(t), t.hp + 20);
+        t.health = Math.min(maxHealth(t), t.health + 20);
         gainXp(p, 'sorcery', XP_SPEND_SIGIL);
         if (claimFirst(s, 'mendp', pid)) announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to mend somebody who was not themselves.');
       }
@@ -14587,13 +14609,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // gambit validated against a dummy and then quietly did nothing. That
       // is the second time in this founding: the furnace did it too.)
       const dmm = s.mobs[inp.targetId];
-      if (dmm && dmm.hp > 0 && w9?.gambit && MOB_STATS[dmm.type]?.dummy && inReach(p, dmm)) {
+      if (dmm && dmm.health > 0 && w9?.gambit && MOB_STATS[dmm.type]?.dummy && inReach(p, dmm)) {
         const lvl9 = effLevel(p.skills.prowess);
         const hit9 = Math.max(MIN_MAX_HIT,
           1 + Math.floor(effLevel(p.skills.prowess) / 10) + (w9.hit ?? 0) + callingHit(p) + styleOf(p).hit
           + (w9.bare === true ? bareBonus(armourOf(p)) : 0));
         const dmg9 = 1 + (roll(Buffer.from(s.beacon, 'hex'), pid, 'spec|' + inp.targetId) % hit9);
-        dmm.hp = Math.max(0, dmm.hp - dmg9);
+        dmm.health = Math.max(0, dmm.health - dmg9);
         teachMelee(p, dmg9, inp.style ?? 'even', s.tick, cadenceOf(p, w9.every ?? 2), true);
         // the arm is spent the same way an ordinary swing spends it -- there
         // is no `armUntil` field in this constitution and inventing one put an
@@ -14603,7 +14625,7 @@ function nextState(state, inputs, _legacyBeacon) {
         return s;
       }
       let q = s.players[inp.targetId];
-      if (q && q.hp > 0 && w9?.gambit && mayStrike(s, p, q)) {   // §11d
+      if (q && q.health > 0 && w9?.gambit && mayStrike(s, p, q)) {   // §11d
         // §2b-iv: the mark and the answer, BEFORE the blow -- so a gambit that
         // kills outright still brands, and the victim's own answer is set even
         // if they do not live to swing it. Hitting somebody is hitting somebody
@@ -14617,7 +14639,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // that first write for the victim -- it brands and sets their answer --
         // so every line after it held a pointer to a discarded object. Each
         // blow of the gambit was rolled, computed and applied to a ghost: the
-        // damage was right, the hp went down, and the state that got hashed
+        // damage was right, the health went down, and the state that got hashed
         // never saw it. EVERY gambit in the world dealt exactly nothing,
         // melee and drawn alike, while still spending the arm and the arrows.
         //
@@ -14837,8 +14859,8 @@ function nextState(state, inputs, _legacyBeacon) {
           // way to show six numbers is for the engine to have said six.
           if (!Array.isArray(q.blows)) q.blows = [];
           q.blows.push(landed9);
-          q.hp -= landed9;   // 6bz, §6bt
-          if (q.hp <= 0 && platedFromDeath(q))   // §6bw: the plate says no, once
+          q.health -= landed9;   // 6bz, §6bt
+          if (q.health <= 0 && platedFromDeath(q))   // §6bw: the plate says no, once
             announce(s, (q.name ?? 'A citizen') + "'s plate shatters, and holds.");
           if (w9?.burns === true && dmg9 > 0) catchFire(q, s.tick, null);   // §6bu
           // §6as-ii: split exactly as an ordinary melee blow splits. A gambit
@@ -14846,8 +14868,8 @@ function nextState(state, inputs, _legacyBeacon) {
           // number their own gambit scores from.
           if (drawn9) gainXp(p, 'marksmanship', dmg9);   // 6br
           else teachMelee(p, dmg9, inp.style ?? 'even', s.tick, cadenceOf(p, w9.every ?? 2));   // §6as-iii, §6di
-          if (q.hp <= 0) {
-            q.hp = 0;
+          if (q.health <= 0) {
+            q.health = 0;
             // what a mourner carries through, decided BEFORE the pack spills
             const keptQ = prayerKeeps(q, s.tick, s.genesis, s);
             // §2g: the pack spills where they fall, exactly as any PvP death --
@@ -14982,7 +15004,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'attackp') {
       const q = s.players[inp.targetId];
-      if (q && q.hp > 0 && mayStrike(s, p, q)) {   // §11d
+      if (q && q.health > 0 && mayStrike(s, p, q)) {   // §11d
         // repeating an order you are already carrying out changes nothing:
         // the rhythm belongs to the fight, not to how often you ask for it
         p.action = (p.action?.type === 'attackp' && p.action.targetId === inp.targetId
@@ -15019,7 +15041,7 @@ function nextState(state, inputs, _legacyBeacon) {
       let wet = false;
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]])
         if (isWaterAt(s, p.x + dx, p.y + dy)) wet = true;
-      if (p.hp > 0 && wet && !clash && mine < bucksAllowed(lvl) && countItem(p.inventory, 'logs') >= 1) {
+      if (p.health > 0 && wet && !clash && mine < bucksAllowed(lvl) && countItem(p.inventory, 'logs') >= 1) {
         consumeItem(p.inventory, 'logs', 1);
         // ids are derived from the setter and the interval, so two nodes
         // running the same inputs mint the same name for the same trap
@@ -15245,7 +15267,7 @@ function nextState(state, inputs, _legacyBeacon) {
         p.inventory[si] = null;
         // §7ck: and a mend closes nothing on the withered
         if ((p.witheredUntil ?? 0) <= s.tick)
-          p.hp = Math.min(maxHp(p), p.hp + 20); // v0.41: a strong heal (+20), not a full reset, keeps mend premium without making sigil-stackers unkillable
+          p.health = Math.min(maxHealth(p), p.health + 20); // v0.41: a strong heal (+20), not a full reset, keeps mend premium without making sigil-stackers unkillable
         // §6m-iv: AND IT SPENDS THE ARM, as a meal does.
         //
         // A cooked fish restores six and costs a swing. A mending restored
@@ -15633,7 +15655,7 @@ function nextState(state, inputs, _legacyBeacon) {
             // water nor the beast that holds its tile, so a fire on the
             // bank could shove its maker into the river.
             if (terrainBlocked(s.genesis, nx, ny)) continue;
-            if (Object.values(s.mobs).some(m2 => m2.hp > 0 && m2.x === nx && m2.y === ny)) continue;
+            if (Object.values(s.mobs).some(m2 => m2.health > 0 && m2.x === nx && m2.y === ny)) continue;
             if (nodeExistsAt(s, _ctx, nx, ny)) continue;
             p.x = nx; p.y = ny;
             break;
@@ -15810,7 +15832,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (onTile && g2.item === 'forage') {
         // eaten where it lies. No slot, no gullet cooldown -- its worth is the
         // moment it is taken, and it is gone either way.
-        p.hp = Math.min(maxHp(p), p.hp + FORAGE_HEAL);
+        p.health = Math.min(maxHealth(p), p.health + FORAGE_HEAL);
         if (_fromAnother) p.aided = true;
         delete s.ground[inp.groundId];
       } else if (onTile && ex !== -1) {                // the quiver (6n): arrows pool
@@ -16082,7 +16104,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // §7dv: THE OATH LANDS. Re-checked here, not trusted from mayDo: a
       // stint may have been sworn an interval ago and still be running.
       const sn = s.genesis.stint;
-      if (sn && p.hp > 0 && isInt(inp.n, 1, sn.cap) && !stintOpen(p, s.tick)) {
+      if (sn && p.health > 0 && isInt(inp.n, 1, sn.cap) && !stintOpen(p, s.tick)) {
         p.stint = { from: s.tick, to: s.tick + inp.n, kept: 0, met: {} };
         p.sworn = (p.sworn ?? 0) + inp.n;   // what was promised, all told, and it only rises
         announce(s, (p.name ?? pid.slice(0, 6)) + ' swears a stint of ' + inp.n + '.');
@@ -16110,7 +16132,7 @@ function nextState(state, inputs, _legacyBeacon) {
         announce(s, (p.name ?? pid.slice(0, 6)) + ' is the FIRST to read what the dead kept.');
     } else if (inp.type === 'withering') {
       const wt = s.players[inp.targetId] ?? s.mobs[inp.targetId];
-      if (wt && wt.hp > 0 && (wt.witheredUntil ?? 0) <= s.tick) {
+      if (wt && wt.health > 0 && (wt.witheredUntil ?? 0) <= s.tick) {
         consumeItem(p.inventory, 'sigil', WITHER_SIGILS);
         wt.witheredUntil = s.tick + WITHER_TICKS;
         gainXp(p, 'sorcery', WITHER_SIGILS * XP_SPEND_SIGIL);
@@ -16122,17 +16144,17 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'taking') {
       const kt = s.players[inp.targetId] ?? s.mobs[inp.targetId];
-      const cap = maxHp(p);
+      const cap = maxHealth(p);
       // §7ck: a withered caster cannot be filled by a taking either -- the
       // spell still costs them and still hurts the target, because the life
       // leaves whether or not there is anywhere for it to go.
-      if (kt && kt.hp > 0 && p.hp < cap) {
+      if (kt && kt.health > 0 && p.health < cap) {
         const withered = (p.witheredUntil ?? 0) > s.tick;
         consumeItem(p.inventory, 'sigil', TAKING_SIGILS);
         // it moves across: never more than they have, never more than you lack
-        const moved = Math.min(TAKING_BITE, kt.hp, cap - p.hp);
-        kt.hp -= moved;
-        if (!withered) p.hp += moved;
+        const moved = Math.min(TAKING_BITE, kt.health, cap - p.health);
+        kt.health -= moved;
+        if (!withered) p.health += moved;
         gainXp(p, 'sorcery', moved * 2);
         p.lastTaking = s.tick;   // §7cl
         p.action = null;
@@ -16141,7 +16163,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
     } else if (inp.type === 'rot') {
       const rt = s.players[inp.targetId] ?? s.mobs[inp.targetId];
-      if (rt && rt.hp > 0 && (rt.rottingUntil ?? 0) <= s.tick) {
+      if (rt && rt.health > 0 && (rt.rottingUntil ?? 0) <= s.tick) {
         consumeItem(p.inventory, 'sigil', ROT_SIGILS);
         rt.rottingUntil = s.tick + ROT_TICKS;
         rt.rotBy = pid;
@@ -16154,18 +16176,18 @@ function nextState(state, inputs, _legacyBeacon) {
       // world does. A band that can hold a group still and hit all of them at
       // once is the whole reason to walk to an ossuary.
       const tgt = s.players[inp.targetId] ?? s.mobs[inp.targetId];
-      if (tgt && tgt.hp > 0) {
+      if (tgt && tgt.health > 0) {
         consumeItem(p.inventory, 'sigil', WAKING_SIGILS);
         const lvlw = effLevel(p.skills.sorcery);
         let struck = 0;
         const hitOne = (o, oid) => {
-          if (!o || o.hp <= 0) return;
+          if (!o || o.health <= 0) return;
           const d = Math.max(Math.abs(o.x - tgt.x), Math.abs(o.y - tgt.y));
           if (d > 1) return;
           if (s.players[oid] && oid !== inp.targetId && !mayStrike(s, p, o)) return;
           if (oid === pid) return;                       // never yourself
           const dmg = Math.max(0, styleRoll(roll(beacon, pid, 'wake' + oid), WAKING_HIT, 'even'));
-          o.hp -= dmg; struck++;
+          o.health -= dmg; struck++;
           gainXp(p, 'sorcery', dmg);
         };
         for (const [oid, o] of Object.entries(s.players)) hitOne(o, oid);
@@ -16238,7 +16260,7 @@ function nextState(state, inputs, _legacyBeacon) {
         delete p.wounds;
         announce(s, (p.name ?? pid.slice(0, 6)) + ' has come back whole.');
       }
-      p.hp = maxHp(p);
+      p.health = maxHealth(p);
       // §6dd: AND THE WELL RUNS DRY BEHIND YOU.
       //
       // Spending the arm (below) stopped a citizen at a well from drinking AND
@@ -16313,7 +16335,7 @@ function nextState(state, inputs, _legacyBeacon) {
     // §5i-iii: they already took this interval's step in the input phase; a
     // second here is the two-tile opening jump that read as a teleport.
     if (_walkedThisTick.has(pid)) continue;
-    if (p.hp <= 0 || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; }
+    if (p.health <= 0 || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; }
     // the rooted keep their journey but spend the interval standing: being
     // held in place by the quick-dagger is not the same as being turned back.
     if ((p.rootedUntil ?? 0) > s.tick) continue;
@@ -16352,7 +16374,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // mistake as the ward and the smelt rule. A weapon that needs fuel needs
       // it against everything.
       if (fuelledAndDry(p)) { p.action = null; continue; }
-      const both = q && q.hp > 0 && mayStrike(s, p, q);   // §11d
+      const both = q && q.health > 0 && mayStrike(s, p, q);   // §11d
       // §6b: PVP USES THE SAME GEOMETRY AS EVERYTHING ELSE.
       //
       // This was hardcoded to `wooden-bow` and a literal reach of 4, so every
@@ -16474,8 +16496,8 @@ function nextState(state, inputs, _legacyBeacon) {
           if (firingFire(p) && dmg > 0 && s.players[p.action.targetId]
               && armourOf(s.players[p.action.targetId]) < FIRE_CATCH_ARMOUR)
             catchFire(s.players[p.action.targetId], s.tick, null);
-          q.hp -= afterShield(q, dmg, weaponOf(p));   // 6bz, §6bt
-          if (q.hp <= 0 && platedFromDeath(q))   // §6bw
+          q.health -= afterShield(q, dmg, weaponOf(p));   // 6bz, §6bt
+          if (q.health <= 0 && platedFromDeath(q))   // §6bw
             announce(s, (q.name ?? 'A citizen') + "'s plate shatters, and holds.");
           if (weaponOf(p)?.burns === true && dmg > 0) catchFire(q, s.tick, null);   // §6bu
           burnFuel(p);   // §7am: the siphon drinks
@@ -16489,7 +16511,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // threw on every PvP blow: a ReferenceError in the middle of the
           // only fight this world takes seriously. A citizen is never a dummy.
           else teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2), false);
-          if (q.hp > 0 && p.equipment.weapon?.item === 'quick-dagger'
+          if (q.health > 0 && p.equipment.weapon?.item === 'quick-dagger'
               && (p.rootCdUntil ?? 0) <= s.tick && (q.rootedUntil ?? 0) <= s.tick && (q.rootImmuneUntil ?? 0) <= s.tick) {
             p.rootCdUntil = s.tick + ROOT_CD;                    // the dagger sleeps either way
             if (helmedFromRoot(q)) {                             // §6bw: the helm says no, once
@@ -16499,11 +16521,11 @@ function nextState(state, inputs, _legacyBeacon) {
               q.rootImmuneUntil = s.tick + ROOT_TICKS + ROOT_IMMUNE; // then briefly unfreezable
             }
           }
-          if (q.hp > 0 && q.action?.type !== 'attackp' && q.action?.type !== 'attack') {
+          if (q.health > 0 && q.action?.type !== 'attackp' && q.action?.type !== 'attack') {
             q.action = { type: 'attackp', targetId: pid, since: s.tick + 1, style: 'even' }; // struck: strikes back
           }
-          if (q.hp <= 0) {
-            q.hp = 0; // a killing blow that overshoots still leaves a body at nought (v0.53)
+          if (q.health <= 0) {
+            q.health = 0; // a killing blow that overshoots still leaves a body at nought (v0.53)
             // slain in the Wilds (spec 2g): the pack spills where they fall,
             // and the body lies beside it awhile (v0.41)
             // what a mourner carries through, decided BEFORE the pack spills
@@ -16601,7 +16623,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const m = s.mobs[p.action.mobId];
       const stats0 = m && MOB_STATS[m.type];
       const stats = (stats0 && m.def !== undefined) ? { ...stats0, def: m.def } : stats0;   // §6ao (v6): incursion carries a scaled def
-      if (!m || m.hp <= 0) { p.action = null; continue; }
+      if (!m || m.health <= 0) { p.action = null; continue; }
       if ((m.stilledUntil ?? 0) > s.tick || (p.stilledUntil ?? 0) > s.tick) { p.action = null; continue; } // the truce ends the fight, it does not pause it (v0.80)
       // §7am: a dry siphon does not light. The action ends rather than swinging
       // for nothing, so a citizen finds out at once instead of wondering.
@@ -16681,7 +16703,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // answer whichever hand you fight with.
           const dmg = (stats?.unlit === true && weaponOf(p)?.burns !== true)
             ? 0 : 1 + (roll(beacon, pid, 'dmg') % maxHit);
-          m.hp -= dmg;
+          m.health -= dmg;
           if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         burnFuel(p);   // §7am: the siphon drinks
           teachRanged(p, dmg, MOB_STATS[m?.type]?.dummy === true);   // 6br, §7t
@@ -16730,8 +16752,8 @@ function nextState(state, inputs, _legacyBeacon) {
         // discount.
         const unlit = stats?.unlit === true && weaponOf(p)?.burns !== true;
         const dmg = unlit ? 0 : warded ? 1 : 1 + (roll(beacon, pid, 'dmg') % maxHit);
-        m.hp -= dmg;
-        if (stats?.warded === true && m.hp <= 0 && countItem(p.inventory, 'holy-water') >= 1)
+        m.health -= dmg;
+        if (stats?.warded === true && m.health <= 0 && countItem(p.inventory, 'holy-water') >= 1)
           consumeItem(p.inventory, 'holy-water', 1);
         if (weaponOf(p)?.burns === true) catchFire(m, s.tick, stats);   // §6bu
         // §7cn: AND A BARB BITES ALL ROUND. The same blow, already rolled,
@@ -16752,12 +16774,12 @@ function nextState(state, inputs, _legacyBeacon) {
           for (const oid of Object.keys(s.mobs).sort()) {
             if (oid === p.action.mobId) continue;
             const o = s.mobs[oid];
-            if (!o || o.hp <= 0 || MOB_STATS[o.type]?.dummy === true) continue;
+            if (!o || o.health <= 0 || MOB_STATS[o.type]?.dummy === true) continue;
             if (!inReach(p, o)) continue;
             // §7cn-ii: AND A CLEAVE MAY NOT SPEND WHAT IT CANNOT PAY FOR.
             //
             // A cleaved beast dies without dropping: the loot block below is
-            // inside the named target's `hp <= 0`, and only the named target
+            // inside the named target's `health <= 0`, and only the named target
             // ever reaches it. For an ordinary wolf that is the weapon's price
             // -- it kills more and loots less. For a FINITE beast it was a hole
             // in the floor of the economy: a lamprey has 448 lives in the whole
@@ -16770,8 +16792,8 @@ function nextState(state, inputs, _legacyBeacon) {
             // nothing" -- it is not reached. Its life is spent only by a blow
             // aimed at it, which is the blow that pays.
             if (MOB_STATS[o.type]?.finite !== undefined) continue;
-            o.hp -= dmg;
-            if (o.hp <= 0) {
+            o.health -= dmg;
+            if (o.health <= 0) {
               // §7cn-iii: a body is a body. The same loop, the same tally.
               spillDrops(s, beacon, pid, p, o, oid, MOB_STATS[o.type]);
               o.respawnAt = s.tick + (MOB_STATS[o.type]?.respawn ?? 60);
@@ -16809,7 +16831,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // resulting citizen dealt 0.73 a tick where a trained one deals 1.79.
         teachMelee(p, dmg, p.action.style, s.tick, cadenceOf(p, weaponOf(p)?.every ?? 2),
           MOB_STATS[m?.type]?.dummy === true);   // §7t: a dummy stops teaching at YARD_CAP
-        if (m.hp > 0 && p.equipment.weapon?.item === 'quick-dagger'
+        if (m.health > 0 && p.equipment.weapon?.item === 'quick-dagger'
             && (p.rootCdUntil ?? 0) <= s.tick && (m.rootedUntil ?? 0) <= s.tick && (m.rootImmuneUntil ?? 0) <= s.tick) {
           m.rootedUntil = s.tick + ROOT_TICKS;
           m.rootImmuneUntil = s.tick + ROOT_TICKS + ROOT_IMMUNE;
@@ -16819,7 +16841,7 @@ function nextState(state, inputs, _legacyBeacon) {
       }
       }   // armReady
 
-      if (m.hp <= 0) {
+      if (m.health <= 0) {
         // §7cn: A FINITE BEAST COUNTS ITS OWN DEATHS. The tally lives on the
         // body, not in a global -- so it survives a checkpoint, it is visible
         // to every mirror that can already read a mob, and seven lampreys wear
@@ -17255,13 +17277,13 @@ function nextState(state, inputs, _legacyBeacon) {
     // food, it stops it working, and the mending resumes when the door opens.
     if ((q.witheredUntil ?? 0) > s.tick) continue;
     if ((q.deadUntil ?? 0) > s.tick) continue;
-    if (q.hp <= 0) continue;
+    if (q.health <= 0) continue;
     const pay = Math.min(q.fedRate ?? 1, q.fedLeft);
-    const cap = maxHp(q);
+    const cap = maxHealth(q);
     // Healing that would overflow the frame is still SPENT. A citizen who eats
     // at full health has eaten; the alternative is a food that hangs unspent
     // for ever and mends at the exact moment of the next blow.
-    q.hp = Math.min(cap, q.hp + pay);
+    q.health = Math.min(cap, q.health + pay);
     q.fedLeft -= pay;
     if (q.fedLeft <= 0) { delete q.fedLeft; delete q.fedRate; }
   }
@@ -17270,7 +17292,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (m2.stillAt === undefined) continue;
     if (s.tick < m2.stillAt) continue;
     delete m2.stillAt;
-    if (m2.hp <= 0) continue;
+    if (m2.health <= 0) continue;
     m2.stilledUntil = s.tick + STILL_WAND_TICKS;
   }
 
@@ -17543,5 +17565,5 @@ module.exports = {
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
-  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHp, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHealth, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

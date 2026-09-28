@@ -329,7 +329,11 @@ if (canResume) {
     // commits to them, and worldgen applies them on every node identically
     GENESIS.imported = Object.entries(old.players).filter(([, p]) => lived(p)).map(([pid, p]) => ({
       pid, skills: p.skills, name: E.isValidName(p.name) ? p.name : null, // constitutional or nothing (rev5 §3)
-      hp: p.hp, // (rescued again from the comment a bad merge swallowed it into)
+      // BOTH SPELLINGS, and only here. Every checkpoint written before
+      // the rename says `hp`; this is the one place a world built under
+      // the old rules is read by the new ones, so it is the one place
+      // that has to know the old word.
+      health: p.health ?? p.hp,
       // §5k: AND WHAT THEY SWORE. Without this the crossing seats everyone as
       // an unsworn citizen, whose ceiling is level 50 in every skill, and the
       // new world refuses itself the moment anybody carried has passed it.
@@ -617,7 +621,7 @@ const server = http.createServer((req, res) => {
       halted: node.agreement?.halted ?? false,
       awake: Object.values(node.state.players).filter(p => E.isAwake(p, node.state.tick)).length,
       players: Object.keys(node.state.players).length,
-      mobs: Object.values(node.state.mobs).filter(m => m.hp > 0).length })
+      mobs: Object.values(node.state.mobs).filter(m => m.health > 0).length })
     if (path === '/api/announce' && req.method === 'POST') {
       // a peer announces its LISTENING port; we pair it with the address
       // we OBSERVED it calling from. Self-reported IPs lie; sockets do not.

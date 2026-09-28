@@ -1282,7 +1282,7 @@ function spellsAt (me, other, id, bIsMob) {
   if (saying(me, 'still') && sorcery >= SPELL.stillLevel
       && sigils >= SPELL.stillSigils
       && (me.stillCdUntil ?? 0) <= (held?.tick ?? 0)
-      && other.hp > 0 && (other.stillImmuneUntil ?? 0) <= (held?.tick ?? 0)
+      && other.health > 0 && (other.stillImmuneUntil ?? 0) <= (held?.tick ?? 0)
       && near <= SPELL.stillRange) {
     out.push('still')
   }
@@ -1291,7 +1291,7 @@ function spellsAt (me, other, id, bIsMob) {
   if (!bIsMob && saying(me, 'mendp')
       && me.equipment?.weapon?.item === 'wand'
       && sorcery >= SPELL.mendLevel && sigils >= 1
-      && other.hp > 0 && (other.witheredUntil ?? 0) <= (held?.tick ?? 0)
+      && other.health > 0 && (other.witheredUntil ?? 0) <= (held?.tick ?? 0)
       && (other.deadUntil ?? 0) <= (held?.tick ?? 0)
       && id !== ID.playerId && near <= SPELL.mendRange) {
     out.push('mendp')
@@ -1301,7 +1301,7 @@ function spellsAt (me, other, id, bIsMob) {
 
 function mayDoTo (me, other, id) {
   const out = []
-  if (!me || !other || other.hp <= 0) return out
+  if (!me || !other || other.health <= 0) return out
   // §5c: an offer may be made to anybody; taking one needs adjacency, and
   // that is answered by `tradeNow`, not here.
   out.push('offer_trade')
@@ -1592,7 +1592,7 @@ function pushFrame () {
         // the world's clock: zero means it is over.
         //
         // These are conditions, not actions. They say what somebody IS, not
-        // what they are doing, which is why they sit beside `hp` rather than
+        // what they are doing, which is why they sit beside `health` rather than
         // beside `action`.
         ...(() => {
           const now = held?.tick ?? 0
