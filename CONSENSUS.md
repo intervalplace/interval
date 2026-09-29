@@ -783,6 +783,74 @@ threat is no longer only crashes.
 machine needs. Every witness must be running before the first tick: a witness
 absent at founding is not a founding witness and can never become one.
 
+## Keeping a witness (custody, backup, handing it on)
+
+The set is immutable; the people running it are not. A witness is a private
+key in a file, and the world has no idea who holds it. It can be copied to a
+second machine, kept in a safe, or given to somebody else, and the world
+carries on without noticing. "The witness set can never change" means nobody
+can add or evict a witness, not that only the founder may ever run one.
+
+That distinction is the whole difference between a world that stops when its
+founder does and a world that does not. Three things follow, and none of them
+is in the protocol, because none of them can be:
+
+**Back up every witness key off its machine.** A lost key is not a crash. A
+crashed witness comes back and reloads its locks from disk; a lost key is
+permanently one witness fewer, and if the effective set drops below quorum the
+world stops with no appeal and no fix. Losing the key is the only failure in
+this document that cannot be recovered by waiting.
+
+**Keep the certified chain in more than one place.** Verifying the history
+needs no witness alive: the genesis, the certified blocks and the witness
+public keys are enough, and the signatures do not expire. But somebody has to
+still have the bytes. A chain nobody kept a copy of is not verifiable, it is
+gone, and that is a storage problem rather than a consensus one.
+
+**Write down where the keys are.** A world meant to run for decades will
+outlast the memory of which machine held witness 2. Whoever inherits the
+project inherits it as files, and a key nobody can find is a key that is lost.
+
+A world founded with one witness on one disk lasts exactly as long as that
+disk. This is the argument for three, and it is not about uptime.
+
+**A witness key cannot be published.** The reasoning that it could is sound
+as far as it goes: a witness has no authority over the rules, the rules are
+fixed by the hashes in the worldId, and a node running different ones is
+flagged and ignored. So the key looks like it only confers the chore of
+keeping the clock, and publishing it looks like a way to recruit whoever is
+willing.
+
+It fails for a reason that has nothing to do with attackers. A witness key is
+not a permission slip, it is a single running identity, and the safety core
+(§4) is a lock held per key on one machine's disk: one bundle hash per tick,
+ever, across all rounds. Two well-meaning volunteers who both start a witness
+with the same published key have two disks and two locks. They see different
+inputs, they bundle them differently, and they both sign, on the first tick.
+That is equivocation by definition, with no malice anywhere in it. The more
+people answer the call, the faster the world breaks.
+
+The attacker case only makes it worse, and the arithmetic is unforgiving.
+Conflicting certificates need `2q - n` double-signing witnesses. At `n=1, q=1`
+that is one, and at `n=3, q=2` it is also one: in either world a single
+published key lets anybody certify two different histories for the same tick
+and hand one to each half of the network. Both carry a valid quorum
+certificate. A node syncing fresh cannot tell which is the world, because the
+signature was the only thing that ever made one history the history. The rules
+being fixed settles what a given ordered run of inputs produces. It does not
+settle which run happened, and choosing that is the entire job a witness does.
+
+Even where the set has room for it (`n=7, q=5` tolerates two liars, so one
+published key cannot fork it) publishing spends a tolerance that is gone
+forever, since the set is immutable and the key cannot be revoked.
+
+What is meant to be public is everything else: the node software, the
+constitution, the certified chain, and the ability of anyone at all to run a
+full node, verify every tick and keep a copy. That is the part that makes the
+record outlive its operators. Keeping the clock alive is a different problem
+and it is solved by giving distinct keys to distinct people, before founding,
+because a witness absent at founding can never become one.
+
 ## The board (Class C, outside the world)
 
 The board at `/board` is a website, not part of the world: nothing about it is

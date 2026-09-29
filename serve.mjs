@@ -18,8 +18,9 @@ import E from './engine.js'
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
-import { buildWorld, foundGenesis, roadDataOf } from './worldgen-any.mjs'
+import { buildWorld, foundGenesis, roadDataOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
+import { carry, provenance } from './crossing.mjs'
 import { zoneDeltas, worldDelta, zoneFull, zonesAround, makeTracker, ZONE } from './view.mjs'
 
 // ---- the boot server: something to look at while the world is founded ----
@@ -165,7 +166,6 @@ const P2P_PORT = Number(process.env.INTERVAL_P2P_PORT || 4600)
 // ---- persistence across restarts and updates ----
 // Same rules → resume the same world from checkpoint.
 // Changed rules → found a NEW world whose genesis imports the citizens.
-const KNOWN_ITEMS = E.ITEMS // ONE constitutional item registry (rev5 §4) — engine, validator, and imports all share it
 let AUDIO_WARNED = false
 const announced = new Map() // peerId -> { addr, at }: the mesh directory
 let GENESIS, migrated = 0
@@ -317,47 +317,19 @@ if (canResume) {
   const old = savedCp?.state ?? (savedCp === null && saved && fs.existsSync(CP_FILE)
     ? (() => { try { return JSON.parse(fs.readFileSync(CP_FILE)).state } catch { return null } })() : null)
   if (old?.players) {
-    // the founding carries everyone who LIVED: a name, any xp beyond
-    // birth, anything owned. Pure ghosts (spawned once, did nothing,
-    // never returned) rest in the old world's history.
-    const lived = (p) => p.name
-      || Object.entries(p.skills).some(([k, xp]) => k !== 'hitpoints' ? xp > 0 : xp > 1154)
-      || (p.inventory ?? []).some(Boolean)
-      || Object.keys(p.vaults ?? {}).length > 0
-      || p.equipment?.weapon
-    // imports are FOUNDING data: they live inside the genesis, the worldId
-    // commits to them, and worldgen applies them on every node identically
-    GENESIS.imported = Object.entries(old.players).filter(([, p]) => lived(p)).map(([pid, p]) => ({
-      pid, skills: p.skills, name: E.isValidName(p.name) ? p.name : null, // constitutional or nothing (rev5 §3)
-      // BOTH SPELLINGS, and only here. Every checkpoint written before
-      // the rename says `hp`; this is the one place a world built under
-      // the old rules is read by the new ones, so it is the one place
-      // that has to know the old word.
-      health: p.health ?? p.hp,
-      // §5k: AND WHAT THEY SWORE. Without this the crossing seats everyone as
-      // an unsworn citizen, whose ceiling is level 50 in every skill, and the
-      // new world refuses itself the moment anybody carried has passed it.
-      calling: p.calling ?? null,
-      // §6g: A CROSSING CARRIES GOODS, NOT GEOGRAPHY. Vaults are keyed by
-      // bank node id, and the ids of a world that no longer exists name
-      // nothing. So the shelves are summed into one map on the way out and
-      // worldgen seats the total at the counter nearest where the citizen
-      // wakes. Founding data does not expire with the world that held it; the
-      // building it sat in does.
-      vaults: (() => {
-        const flat = {}
-        for (const vault of Object.values(p.vaults ?? {}))
-          for (const [it, q] of Object.entries(vault ?? {}))
-            if (KNOWN_ITEMS.has(it)) flat[it] = (flat[it] ?? 0) + q
-        return flat
-      })(),
-      inventory: (p.inventory ?? []).filter(sl => sl && KNOWN_ITEMS.has(sl.item)),
-      weapon: p.equipment?.weapon && KNOWN_ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
-    }))
+    // THE CROSSING (crossing.mjs). Who lived, and what they carry. It was
+    // inline here for its whole life, which is why nothing could test the one
+    // piece of code that runs at the moment a world ends and cannot be tried
+    // again. It is exercised by test/afterlife.test.mjs now.
+    GENESIS.imported = carry(old.players)
     migrated = GENESIS.imported.length
-    // provenance: the genesis commits to WHICH attested state carried them
-    if (savedCp?.worldId && savedCp?.stateHash && Number.isInteger(savedCp?.tick))
-      GENESIS.importedFrom = { worldId: savedCp.worldId, stateHash: savedCp.stateHash, tick: savedCp.tick }
+    // provenance: the genesis commits to WHICH attested state carried them,
+    // and only when that state really hashes to the hash being claimed. The
+    // crossing is generous about who comes; the attestation is not.
+    const from = provenance(savedCp)
+    if (from) GENESIS.importedFrom = from
+    else if (migrated) console.warn('  (carrying ' + migrated + ' citizen(s) from an UNATTESTED checkpoint:'
+      + ' the new world records no provenance, because the saved state does not hash to the hash it carries)')
   } else if (Array.isArray(saved?.genesis?.imported) && saved.genesis.imported.length) {
     // the last world died YOUNG: it never lived to its first checkpoint,
     // so there is no living state to carry — but its FOUNDING carried
@@ -391,6 +363,17 @@ if (canResume) {
     + ' \u00b7 checkpoint ' + (savedCp ? 'present (tick ' + savedCp.tick + ')'
       : fs.existsSync(CP_FILE) ? 'present-but-unreadable' : 'ABSENT')
     + ' \u00b7 carrying ' + (GENESIS.imported?.length ?? 0) + ' citizen(s)')
+  // AND THE COUNTRY MUST BE ABLE TO SEAT THEM. The first two expanses predate
+  // seatImport: they would build a perfectly valid world with nobody in it and
+  // report nothing, losing everyone at the one moment the world was trying to
+  // save them. Refused here, before a line is written, rather than discovered
+  // afterwards by a citizen who no longer exists.
+  if (GENESIS.imported?.length && !seatsImports(WORLD_GEN)) {
+    console.error('refusing to found: ' + WORLD_GEN + ' cannot seat imported citizens, and '
+      + GENESIS.imported.length + ' are being carried. Found on a generator that seats them'
+      + ' (INTERVAL_GEN), or the crossing loses every one of them silently.')
+    process.exit(1)
+  }
   // the checkpoint is ARCHIVED, never merely deleted: it may be the
   // last copy of somebody's life
   try {
@@ -567,11 +550,15 @@ const PAGES = { '/': 'index.html', '/quickstart': 'quickstart.html',
                 '/manual': 'manual.html', '/hiscores': 'hiscores.html',
                 '/board': 'board.html',
                 '/play': 'windows.html', '/windows': 'windows.html',
-                '/download': 'download.html',
+                '/download': 'download.html', '/shop': 'shop.html',
                 '/map': 'map.html', '/marks': 'marks.html' }
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript',
                png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp',
-               svg: 'image/svg+xml', ico: 'image/x-icon' }
+               svg: 'image/svg+xml', ico: 'image/x-icon',
+               // the handbook, which the manual and shop pages both link. It
+               // was falling through to text/plain, so a browser rendered four
+               // megabytes of PDF as characters instead of opening it.
+               pdf: 'application/pdf' }
 
 const server = http.createServer((req, res) => {
   const path = req.url.split('?')[0]
@@ -581,6 +568,30 @@ const server = http.createServer((req, res) => {
       genesis: node.genesis, peerId: node.peerId(), p2pPort: P2P_PORT,
       note: 'run join.mjs against this URL to enter this world with your own node and keys',
     })
+
+    // THE WORLD'S AFTERLIFE. A world stops when quorum is permanently gone,
+    // and the only continuation is a successor world whose genesis `imported`
+    // carries the citizens from the last certified checkpoint (CONSENSUS.md
+    // §9). That path is already automatic above: point a node at a checkpoint
+    // whose world it cannot resume and it seats every citizen who lived.
+    //
+    // But it needs the checkpoint, and until this endpoint existed the only
+    // copy was on the founder's disk. A world meant to outlive the people
+    // running it cannot keep its own continuation in one place. Served raw and
+    // unmodified so anyone can rehash it and check `stateHash` themselves.
+    if (path === '/api/checkpoint') {
+      if (!fs.existsSync(CP_FILE)) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'no checkpoint saved yet' }))
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Content-Length': fs.statSync(CP_FILE).size,
+      })
+      return fs.createReadStream(CP_FILE).pipe(res)
+    }
+
     // THE ROADS THIS WORLD ACTUALLY HAS. Computed once here, from the founded
     // genesis, by the same router that laid them -- so every window draws the
     // real network (ring, passes, bridges) instead of guessing. Cached: roads

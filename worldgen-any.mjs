@@ -60,6 +60,27 @@ export function buildWorld(genesis) {
   return generatorFor(genesis).buildWorld(genesis)
 }
 
+// CAN THIS COUNTRY SEAT THE PEOPLE WHO CROSS INTO IT?
+//
+// A refound carries citizens in `genesis.imported` and the generator is what
+// actually stands them on the ground. The first two expanses predate
+// `seatImport` and have no line that reads `imported` at all, so a world
+// founded on either with citizens carried builds a country with nobody in it
+// and says nothing: everyone who ever played would be silently lost at the one
+// moment the world was trying to save them.
+//
+// They are not fixed, because they exist to rebuild worlds that already
+// happened and a generator that builds a different state from the same genesis
+// is no longer that generator. They are refused instead, at founding, before
+// anything is written. Anything added here must seat imports.
+const SEATS_IMPORTS = new Set([
+  'interval-classic-v1',
+  'interval-expanse-v3', 'interval-expanse-v4', 'interval-expanse-v5',
+  'interval-expanse-v6', 'interval-expanse-v7',
+])
+export const seatsImports = (genId) => SEATS_IMPORTS.has(genId)
+export const generatorIds = () => Object.keys(GENERATORS)
+
 // THE ROADS, AS DATA. Every window used to re-derive the road network for
 // itself, and a window that lacked a generator's road logic fell back to
 // straight lines out of the capital -- the real network (the ring, the passes,

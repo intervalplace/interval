@@ -84,7 +84,7 @@ for (const b of [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m
 
 // ---------- a world with something to do in every direction ----------
 const me = {
-  x: 40, y: 40, hp: 6, maxHp: 10, gold: 250, name: '',
+  x: 40, y: 40, health: 6, maxHealth: 10, gold: 250, name: '',
   // a quick-mell, because the gambit is only offered by a weapon that HAS one
   equipment: { weapon: { item: 'quick-mell' }, head: { item: 'iron-helm' }, body: null },
   bank: { logs: 12, bones: 4 },
@@ -95,12 +95,12 @@ const me = {
 }
 const state = {
   tick: 900, genesis: { worldW: 128, worldH: 128, genesisSeed: 'verb-seed' },
-  players: { me, pal: { x: 41, y: 40, hp: 9, maxHp: 10, name: 'bram', inventory: [{ item: 'rope' }],
+  players: { me, pal: { x: 41, y: 40, health: 9, maxHealth: 10, name: 'bram', inventory: [{ item: 'rope' }],
                         trade: { to: 'me', giveSlot: 0, wantGold: 3 } } },
-  mobs: { m1: { type: 'goblin', hp: 4, x: 39, y: 40 } },
+  mobs: { m1: { type: 'goblin', health: 4, x: 39, y: 40 } },
   // everything a citizen could be standing beside, all at once. Contrived, but
   // the point is to reach every deed, and every one of these is gated on place.
-  nodes: { n1: { type: 'tree', x: 40, y: 39 }, n2: { type: 'bank', x: 41, y: 41 },
+  nodes: { n1: { type: 'tree', x: 40, y: 39 }, n2: { type: 'vault', x: 41, y: 41 },
            n3: { type: 'stall', kind: 'arms', x: 39, y: 41 }, n4: { type: 'anvil', x: 39, y: 39 },
            n5: { type: 'waystone', x: 41, y: 39 }, n6: { type: 'plot', x: 40, y: 41 },
            n7: { type: 'campfire', x: 40, y: 40 }, n8: { type: 'looking-glass', x: 41, y: 41 },

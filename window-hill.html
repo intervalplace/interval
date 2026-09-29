@@ -1897,7 +1897,7 @@ function makeNode (n) {
     case 'watchfire': { const g = new THREE.Group()
       const post = box(0.34, 2.2, 0.34, 'bark', 0xffffff, 0.1); post.position.y = 1.1; g.add(post)
       const f = makeFire(1.5, 8.5); f.position.y = 2.1; g.add(f); return g }
-    case 'bank':   return makeHouse(3.0, 2.6, 'stone', 'thatch', 0xd8b13c)
+    case 'vault':   return makeHouse(3.0, 2.6, 'stone', 'thatch', 0xd8b13c)
     case 'store': case 'market': case 'stall': return makeHouse(2.6, 2.2, 'plank', 'thatch', 0xe8c8d8)
     case 'smith':  { const g = makeHouse(2.6, 2.2, 'stone', 'thatch', 0xe2703a)
       const ch = box(0.5, 1.2, 0.5, 'stone'); ch.position.set(0.8, 2.9, 0); g.add(ch); return g }
@@ -3145,7 +3145,7 @@ function options () {
   for (const { id } of nodesNear(['plot', 'plant'])) out.push({ label: 'harvest',
     go: () => { const nd = world.nodes[id]; work('reap', nd.x, nd.y)
                 act({ do: 'harvest', nodeId: id }) } })
-  for (const { id } of nodesNear(['bank'])) out.push({ label: 'the bank', go: () => openMenu(bankMenu()), stay: 1 })
+  for (const { id } of nodesNear(['vault'])) out.push({ label: 'the vault', go: () => openMenu(bankMenu()), stay: 1 })
   for (const { n } of nodesNear(['stall', 'store', 'market'])) out.push({ label: 'the counter', go: () => openMenu(stallMenu(n)), stay: 1 })
   for (const { } of nodesNear(['anvil', 'smith'])) out.push({ label: 'the anvil', go: () => openMenu(forgeMenu()), stay: 1 })
   // §6ch: THE STONES ARE GONE, AND SO IS THE OFFER.
@@ -3396,7 +3396,7 @@ function deedsFor (i, item) {
   const rows = [], notes = []
   const at = (t) => nodesNear(t).length > 0
   const fire = at(['fire', 'campfire', 'watchfire', 'brewpot'])
-  const bank = at(['bank']), counter = at(['stall', 'store', 'market'])
+  const bank = at(['vault']), counter = at(['stall', 'store', 'market'])
   const plot = at(['plot', 'plant']), anvil = at(['anvil', 'smith'])
   const folk = citizensNear()
   const WORKED = { cook: 'stir', light: 'stoop', bury: 'stoop', plant: 'stoop', fletch: 'stir', eat: 'eat' }
@@ -3615,7 +3615,13 @@ function drawIcon (x, y, item) {                     // 16x16, whole pixels only
 }
 
 function bankMenu () {
-  const me = meNow(), bank = (me && me.bank) || {}
+  const me = meNow()
+  // §6g: the shelf is at the COUNTER you are standing beside, not one
+  // balance reachable from any branch. This read a flat `me.bank`, a field
+  // the repeal removed, so the vault was always empty and every withdraw
+  // row was missing. `me.vaults` is keyed by the counter's node id.
+  const here = nodesNear(['vault'])[0]
+  const bank = (here && me && me.vaults && me.vaults[here.id]) || {}
   const rows = []
   const held = ((me && me.inventory) || []).filter(Boolean).length
   // one word, not twelve: the engine has `deposit_all` and the ladder carries it
@@ -3625,7 +3631,7 @@ function bankMenu () {
     rows.push({ label: 'withdraw ' + nice(item), hint: 'x' + qty, stay: 1,
                 act: () => act({ do: 'withdraw', item, qty: 1 }) })
   if (rows.length === 1) rows.push({ label: '(the vault is empty)', dim: 1 })
-  return { title: 'THE BANK', rows }
+  return { title: 'THE VAULT', rows }
 }
 function stallMenu (node) {
   const me = meNow()

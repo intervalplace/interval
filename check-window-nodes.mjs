@@ -25,7 +25,7 @@ const DUMP = process.argv[2] || '/tmp/live-world.json'
 // the types a real expanse contains. If no dump is to hand, the list this was
 // measured against, so the check still means something on a fresh clone.
 const FALLBACK = ['wall', 'landmark', 'hedge', 'plot', 'rampart', 'fence', 'signpost', 'hearth',
-  'keeper', 'railing', 'campfire', 'rockfall', 'banner', 'well', 'guard', 'quick-rock', 'bank',
+  'keeper', 'railing', 'campfire', 'rockfall', 'banner', 'well', 'guard', 'quick-rock', 'vault',
   'store', 'iron-rock', 'dedication', 'tree', 'fishing-spot', 'muck-heap', 'stall', 'gallows-oak',
   'coal-rock', 'heartwood-tree', 'ironbark-tree', 'oak-tree', 'salt-pan', 'eel-spot', 'mother-lode',
   'smokerack', 'ferry', 'brimstone-vent', 'gibbet-shoal', 'gold-rock', 'deep-fish-spot', 'fountain',
@@ -76,7 +76,7 @@ send({ type: 'hello', playerId: 'me' })
 // then describe what got built: how many meshes, and of what size
 const shapeOf = (type) => {
   const st = { tick: 900, genesis: { worldW: 64, worldH: 64, genesisSeed: 'nd' },
-    players: { me: { x: 20, y: 20, hp: 10, maxHp: 10, gold: 0, inventory: [], skills: {} } },
+    players: { me: { x: 20, y: 20, health: 10, maxHealth: 10, gold: 0, inventory: [], skills: {} } },
     mobs: {}, nodes: { one: { type, x: 21, y: 20, depletedUntil: 0 } }, ground: {} }
   send({ type: 'state', state: st, worldId: 'w' }); frames(4)
   const o = scene.children.find(c => c.userData && c.userData.kind === type)

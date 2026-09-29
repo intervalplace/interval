@@ -93,12 +93,12 @@ ok(seen.frames > 0, 'it draws before it has a world (' + seen.frames + ' passes)
 
 const state = {
   tick: 1200, genesis: { worldW: 128, worldH: 128, genesisSeed: 'check-seed' },
-  players: { me: { x: 40, y: 40, hp: 7, maxHp: 10, gold: 42, name: 'ada',
+  players: { me: { x: 40, y: 40, health: 7, maxHealth: 10, gold: 42, name: 'ada',
                    inventory: [{ item: 'iron-hatchet' }, { item: 'logs' }] },
-             pal: { x: 42, y: 41, hp: 9, maxHp: 10, name: 'bram', inventory: [] } },
-  mobs: { m1: { type: 'goblin', hp: 4, x: 41, y: 40 }, m2: { type: 'wolf', hp: 8, x: 38, y: 43 },
-          m3: { type: 'dragon', hp: 400, x: 44, y: 44 }, m4: { type: 'a-thing-with-no-name', hp: 3, x: 39, y: 39 } },
-  nodes: Object.fromEntries(['tree', 'rock', 'campfire', 'bank', 'fishing-spot', 'plot', 'well', 'signpost',
+             pal: { x: 42, y: 41, health: 9, maxHealth: 10, name: 'bram', inventory: [] } },
+  mobs: { m1: { type: 'goblin', health: 4, x: 41, y: 40 }, m2: { type: 'wolf', health: 8, x: 38, y: 43 },
+          m3: { type: 'dragon', health: 400, x: 44, y: 44 }, m4: { type: 'a-thing-with-no-name', health: 3, x: 39, y: 39 } },
+  nodes: Object.fromEntries(['tree', 'rock', 'campfire', 'vault', 'fishing-spot', 'plot', 'well', 'signpost',
     'brewpot', 'wall', 'watchfire', 'cart', 'guard', 'anvil', 'dummy', 'rockfall', 'a-thing-with-no-name']
     .map((t, i) => ['n' + i, { type: t, x: 36 + (i % 8), y: 38 + ((i / 8) | 0) }])),
   ground: { g1: { item: 'bones', x: 40, y: 41 } }
@@ -132,7 +132,7 @@ const close = seen.main.children.filter((o) => o !== ground &&
 ok(close.length >= 8, 'and the country is laid out around them (' + close.length + ' within seven tiles)')
 
 // a tick later: a death, a demolition, and the middle of the night
-state.tick = 2280; state.mobs.m1.hp = 0; delete state.nodes.n0; state.players.me.x = 41; state.players.me.hp = 3
+state.tick = 2280; state.mobs.m1.health = 0; delete state.nodes.n0; state.players.me.x = 41; state.players.me.health = 3
 send({ type: 'state', state, worldId: 'abcdef0123' })
 try { frames(40, 4000); ok(true, 'it survives a death, a demolition and nightfall') }
 catch (e) { ok(false, 'nightfall: ' + e.message) }

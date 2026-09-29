@@ -320,6 +320,80 @@ page('', `
       ${T('APPRENTICE_MILESTONES', []).join(', ') || String(NUM('MASTERY'))},
       so a high-level master can teach more people.`)}`)
 
+// ---- TEACHING ----
+//
+// THE RULE THE BOOK LEFT OUT WAS THE ONE THAT MATTERS. The page above says
+// mastery is a number and hands out apprentice slots, which reads as though
+// reaching the number is the end of it. It is not: reaching it makes a citizen
+// ELIGIBLE, and what makes them a master is having raised somebody else to
+// their own swearing. That is the single largest thing a person can do in this
+// world and a reader could finish the book without learning it existed.
+//
+// It also explains the four words a reader will hear other people use about
+// each other, which were nowhere in the book either.
+page('', `
+  ${h('Teaching')}
+  ${pd(`Reaching ${NUM('MASTERY')} in your own craft does not make you a
+      master. It makes you eligible. You become a master by raising somebody
+      else to their own swearing, and until you have, you are not one.`)}
+  ${p(`It cannot be done alone and it cannot be ground out: it needs another
+      citizen to reach ${NUM('SWEAR_LEVEL')} and swear, and they have to agree
+      to be taken on in the first place.`)}
+  <table class="tight rites">
+    <tr><td class="k">newcomer</td><td>Unsworn, and nobody has taken them on.</td></tr>
+    <tr><td class="k">apprentice</td><td>Unsworn, but a master has taken them on.</td></tr>
+    <tr><td class="k">journeyman</td><td>Sworn to a trade.</td></tr>
+    <tr><td class="k">master</td><td>At ${NUM('MASTERY')}, and has raised somebody.</td></tr>
+  </table>
+  ${orn}
+  ${p(`A master holds
+      <b>${T('APPRENTICE_MILESTONES', []).length || 3}</b> places at most, and
+      an apprentice who swears frees their own place. One who simply stops
+      coming back releases it after about
+      ${Math.round((CONST('APPRENTICE_LAPSE') / 3600))} hours.`)}
+  ${p(`Whoever raised you is recorded against your swearing and stays there.
+      It cannot be traded, lost or undone.`)}
+  ${orn}
+  ${p(`<i>A master takes ${NUM('MASTER_YIELD')} where anyone else takes one,
+      and where there is nothing to double, their weapon comes back a quarter
+      sooner.</i>`)}`)
+
+// ---- THE THINGS THERE IS ONLY ONE OF ----
+//
+// THREE FAMILIES THAT ARE NOT WORDS. Every other object in this book is
+// interchangeable: one log is any log, and the vocabulary pages list them all.
+// These three are not in that vocabulary at all, because each one carries the
+// citizen it was made for and the interval it was made on, so there is no such
+// thing as "a hood" -- there are as many markets as there are hoods, each with
+// one thing in it.
+//
+// It is the world's answer to a problem it cannot otherwise solve: nothing
+// here ends a supply and nothing forgets one, so any rare thing that IS
+// interchangeable accumulates forever and is hoarded from the day its rule is
+// read. Nobody can corner what nobody can substitute.
+page('', `
+  ${h('The things there is only one of')}
+  ${pd(`Everything in the pages that follow is interchangeable: one log is any
+      log. Three things are not. Each carries whose it was and the interval it
+      was made on, and no two are the same object.`)}
+  <table class="tight rites">
+    <tr><td class="k">a wayfarer's hood</td>
+        <td>Given for walking every trade. It has no defence and no price, and
+            it survives the death that takes everything else.</td></tr>
+    <tr><td class="k">a fall stone</td>
+        <td>The last rock off a boulder somebody finished. The same rock as any
+            rubble; the difference is who broke it and when.</td></tr>
+    <tr><td class="k">an attuned chart</td>
+        <td>An ordinary chart bound to one waystone.</td></tr>
+  </table>
+  ${orn}
+  ${p(`None of them can be bought from a keeper, because a keeper deals in
+      kinds and these have no kind. They change hands between people or not at
+      all.`)}
+  ${p(`<i>What one is worth is decided years after it is made, by whose name
+      turns out to be on it. That cannot be known in advance and cannot be run
+      ahead of.</i>`)}`)
+
 // ---- 7. what you can carry
 page('', `
   ${h('Carrying')}
@@ -333,6 +407,38 @@ page('', `
     ${(T('EQUIP_SLOTS').length ? T('EQUIP_SLOTS') : keys('EQUIP_SLOTS'))
       .map((s) => `<tr><td class="k">${esc(title(s))}</td><td></td></tr>`).join('')}
   </table>`)
+
+// ---- WHERE THINGS ARE KEPT, AND WHAT THE STORE IS FOR ----
+//
+// TWO GAPS FOUND THE SAME WAY, by counting how often the book says a word the
+// world says often. `vault` appeared nowhere at all, which left a reader with
+// twelve pack slots and no idea that anywhere else exists to put anything.
+// `consignment` and `haul` appeared nowhere either, and between them they are
+// the whole remaining purpose of a store.
+//
+// THE STORE DOES NOT TRADE, and the engine is emphatic: "the store keeps its
+// counter and loses its trade. It is where a consignment is signed, carried
+// to, and discharged, and nothing else." An earlier draft of this book had
+// keepers buying things, which was wrong and reached print.
+page('', `
+  ${h('Keeping')}
+  ${pd(`Your pack holds ${NUM('INV_SLOTS')} things and that is all you can
+      carry. Everything else lives in a vault, and a vault belongs to the
+      counter it stands at: what you put away in one town is in that town, not
+      waiting for you in the next one.`)}
+  ${p(`You may hold up to <b>${CONST('VAULT_MAX')}</b> of them, one per
+      counter. Crafting only ever reads your pack, never a vault, so what you
+      take out before you leave is what you have.`)}
+  ${orn}
+  ${h('Hauling')}
+  ${p(`A store buys nothing and sells nothing. What it does is sign a
+      consignment: goods entered at one counter, carried by you, and given up
+      at another. The route may run to <b>8</b> stops.`)}
+  ${p(`It pays in wayfaring, not in coin, and it pays by the tile and by how
+      much of the load you are carrying. A long road with a full pack is the
+      whole of the wage.`)}
+  ${p(`<i>The consignment is not your pack. It is a second container the bank
+      cannot reach and you cannot eat out of.</i>`)}`)
 
 // ---- 8 onward: the vocabulary, with every word's picture beside it
 //
@@ -454,8 +560,9 @@ for (const [kind, heading] of GROUPS) {
       ${n === pages.length - 1
         ? `${orn}${p(`<i>Where a craft is named beside the family, the number is
             the level you need to hold the thing. Everywhere else it is what a
-            stall pays for one, and blank means stalls do not buy it. A + means
-            it takes both hands, so no shield.</i>`)}`
+            stall ASKS for one, and blank means no stall sells it. Nothing in
+            this world buys anything off you. A + means it takes both hands, so
+            no shield.</i>`)}`
         : ''}`)
   })
 }
@@ -536,6 +643,36 @@ page('', `
   ${p(`<i>What each spell does, and what it costs, is not listed here.</i>`)}
   ${p(`No spell from either book works on the Lists.`)}`)
 
+// ---- WHAT A SPELL LEAVES BEHIND ----
+//
+// THE HALF THE BOOK HAD NOT MENTIONED. The two pages above are the casting.
+// These are the conditions the world then carries on whoever it landed on,
+// and they are the half a reader meets first, because it happens TO them
+// before they ever open a spellbook. A citizen held in place by a stranger
+// they cannot see, with nothing in the book about it, has been given a bug
+// rather than a rule.
+//
+// The window draws all six now, which is what makes them worth naming here: a
+// reader can look at somebody and match what they see to a word on this page.
+page('', `
+  ${h('What a spell leaves on you')}
+  ${pd(`A spell is cast in one interval and is over. What it leaves on the
+      person it hit is not, and there are six of these. You will meet them
+      before you ever cast anything.`)}
+  <table class="tight rites">
+    <tr><td class="k">stilled</td><td>You cannot strike. It wears off.</td></tr>
+    <tr><td class="k">rooted</td><td>You cannot move from where you stand.</td></tr>
+    <tr><td class="k">burning</td><td>You lose health every interval until it goes out.</td></tr>
+    <tr><td class="k">rotting</td><td>The same, slower, and it came from the barrow book.</td></tr>
+    <tr><td class="k">withered</td><td>Your blows land for less while it lasts.</td></tr>
+    <tr><td class="k">branded</td><td>A mark on you that others can see.</td></tr>
+  </table>
+  ${orn}
+  ${p(`Each of them ends by itself after a number of intervals. Nothing you
+      carry removes one early, and dying does not clear them either.`)}
+  ${p(`<i>You can see all six on somebody from across a square, which is the
+      only warning this world gives you that a stranger has already cast.</i>`)}`)
+
 // ---- DYING ----
 //
 // THE BIGGEST HOLE IN THIS BOOK. Nothing in it said what happens when you are
@@ -562,10 +699,10 @@ page('', `
   ${orn}
   ${h('What can be saved')}
   ${p(`At mourning ${CONST('PRAYER_KEEP')} the most valuable priced thing
-      you are carrying survives your death. Only priced things: the ore, the
-      blades, the plate. What this world is really worth keeping is not on any
-      price list, and a sigil, a chart or an old chain is exactly as losable as
-      it always was.`)}
+      you are carrying survives your death. Priced means a stall somewhere
+      asks a price for it: the ore, the blades, the plate. What this world is
+      really worth keeping is on no such list, and a sigil, a chart or an old
+      chain is exactly as losable as it always was.`)}
   ${p(`Somebody with a goo-staff can also seal your dropped pack where it
       lies, which holds it for you and stops it rotting. See the spells.`)}`)
 
@@ -589,6 +726,60 @@ page('', `
   ${p(`It is for a fight that is only about the fight. With the magic gone and
       nothing else in the way, a mell and a bare blade can be compared
       honestly.`)}`)
+
+// ---- THE TIDE ----
+//
+// THE MOST IMPORTANT THING THE BOOK DID NOT SAY. Speaking to somebody far
+// away is gated on the tide, and a reader who does not know that concludes
+// the world is empty: they call out, nothing answers, and there is no message
+// anywhere explaining that the channel is shut.
+//
+// It is also the one appointment this world has. Everybody can compute the
+// deep tide, nobody can move it, and "at the deep tide" is therefore a thing
+// two strangers can agree on without either of them being able to cheat. That
+// is worth a page in a book people will hold while they are not playing.
+//
+// THE NUMBERS ARE READ, NOT WRITTEN. `g.tide` carries the periods and the
+// windows, so this page changes with the island rather than describing a
+// founding that has been superseded.
+const TIDE = (() => {
+  // READ OUT OF THE GENERATOR'S OWN SOURCE, for the same reason `CONST` reads
+  // engine.js: building a whole genesis to learn three numbers takes a minute
+  // and a half, and copying them here would make this page a description of
+  // a founding rather than of the island.
+  const src = readFileSync(HERE + 'worldgen-expanse7.mjs', 'utf8')
+  const m = src.match(/g\.tide\s*=\s*\{\s*periods:\s*\[([^\]]*)\]\s*,\s*opens:\s*\[([^\]]*)\]/)
+  if (!m) throw new Error('the generator no longer sets a tide the book can read')
+  const nums = (t) => t.split(',').map((x) => Number(x.trim())).filter((n) => n > 0)
+  const t = { periods: nums(m[1]), opens: nums(m[2]) }
+  if (!t.periods.length || t.periods.length !== t.opens.length) {
+    throw new Error('this world has no tide; the book must not describe one')
+  }
+  const mins = (n) => n >= 60 ? `${Math.round(n / 60)} hours` : `${Math.round(n)} minutes`
+  return t.periods.map((per, i) => ({
+    every: mins(per / 60), open: mins(t.opens[i] / 60),
+  }))
+})()
+page('', `
+  ${h('The tide')}
+  ${pd(`The tide is the world's own clock, worked out from the interval count
+      and nothing else. It is the same for everybody everywhere, nobody chose
+      it, and nobody can move it.`)}
+  ${p(`There are <b>${TIDE.length}</b> of them, turning at their own speeds.
+      They gate nothing and cost nothing: what they are for is that anyone can
+      say when the next one falls.`)}
+  <table class="tight rites">
+    ${TIDE.map((t, i) => `<tr><td class="k">${i === TIDE.length - 1
+      ? 'the deep tide' : 'tide ' + (i + 1)}</td>
+      <td>up for ${t.open}, every ${t.every}</td></tr>`).join('')}
+  </table>
+  ${orn}
+  ${p(`Only the deep tide is announced, and the announcement says where people
+      actually stood at the last one. Nobody chose that place either: it stays
+      the place only while people keep going there.`)}
+  ${p(`<i>This is the closest thing the world has to an appointment. "At the
+      deep tide" is something two strangers can agree on without either of
+      them being able to move it.</i>`)}`)
 
 // ---- GAMBITS ----
 //
@@ -660,7 +851,7 @@ page('', `
       blow in the world at the end of its nine tiles. The range is the whole
       of its damage, not an addition to it.`)}
   ${p(`A report is the handgonne alone. Its burst was scaled down when a
-      citizen's flesh became a flat sixty-four, and all of the damage went into
+      citizen's health became a flat sixty-four, and all of the damage went into
       the single shot: the hardest blow in the world, and the least accurate.
       It is the only gambit more likely to miss than to land.`)}
   ${p(`What a gambit costs is not the same for every weapon. The recovery is
@@ -718,8 +909,9 @@ for (let i = 0; i < KEEPERS.length; i += 16) {
   const part = KEEPERS.slice(i, i + 16)
   page('', `
     ${h(i ? 'The keepers (continued)' : 'The keepers')}
-    ${i ? '' : p(`Every town has some. They buy and sell, and each one deals in
-        one thing only.`)}
+    ${i ? '' : p(`Every town has some. Each one sells one thing only, and none
+        of them buys anything: there is nobody in this world who will take an
+        item off you for coin.`)}
     <table class="tight keepers">
       ${part.map(([kind, name]) => `<tr>
         <td class="k">${esc(say(name))}</td>
@@ -752,17 +944,108 @@ for (let i = 0; i < RE.length; i += MADE_PER) {
 }
 
 // ---- creatures
+//
+// A LIST OF NAMES IS NOT A BESTIARY. This was twenty-four words in two columns
+// and it told a reader nothing they could act on: a goblin and a dragon looked
+// like the same kind of fact. The numbers that matter are how much it takes to
+// put one down, how hard it hits back, and whether it will start.
+//
+// WHAT IS LEFT OUT IS DELIBERATE, and it is the same omission the gathering
+// and keeper pages make: not where any of them lives. Attack and defence are
+// left out too, because a citizen has no way to read either from the outside
+// and a number you cannot check is decoration.
+//
+// The practice targets are held back for the note at the end. They have a
+// hundred thousand health and hit for nothing, which in a table of real
+// creatures is noise standing where the worst thing in the world should be.
+// THE ONES WITH A RULE OF THEIR OWN ARE NOT LISTED TWICE.
+//
+// They had a page of their own AND a row in the table over the page, which is
+// the same seven names in two places saying two halves of one thing. A reader
+// who met a quencher had to find it twice to learn what it takes to kill and
+// that steel does not touch it.
+//
+// So they come out of the general table and their own page carries their
+// numbers. Nothing is lost and nothing is said twice.
+const OWN_RULE = ['quencher', 'barrow-wight', 'great-spider', 'dragon',
+                  'gibbet-dead', 'gibbet-king', 'siren']
 const MOBS = Object.entries(T('MOB_STATS'))
-for (let i = 0; i < MOBS.length; i += 24) {
+  .filter(([, st]) => st && st.dummy !== true)
+  .filter(([m]) => !OWN_RULE.includes(m))
+  // BY WHAT IT DOES TO YOU, hardest blow first, so the page reads as a ladder
+  // and the thing at the top is the thing to be afraid of. Sorted by name it
+  // put the dragon between the crow and the fen adder.
+  .sort((a, b) => (b[1].maxHit ?? 0) - (a[1].maxHit ?? 0)
+                  || (b[1].maxHp ?? 0) - (a[1].maxHp ?? 0))
+const DUMMIES = Object.entries(T('MOB_STATS')).filter(([, st]) => st && st.dummy === true)
+// EIGHT, NOT FIFTEEN. Fifteen fitted on one page while the creatures were a
+// name and three numbers. With a picture beside each one the rows are half
+// again as tall and the page ran 113px past its box, which clips silently.
+//
+// The answer is two pages rather than smaller pictures: a creature shown at
+// five millimetres is a smudge, and the whole point of adding the art was that
+// a reader meets twenty-two names and no faces. Two pages of DIFFERENT
+// creatures is not the redundancy that was just taken out of this chapter --
+// that was the same seven names appearing twice.
+const MOBS_PER = 8
+for (let i = 0; i < MOBS.length; i += MOBS_PER) {
+  const part = MOBS.slice(i, i + MOBS_PER)
   page('', `
     ${h(i ? 'Creatures (continued)' : 'Creatures')}
-    <div class="beasts">
-      ${MOBS.slice(i, i + 24).map(([m]) => `<span>${esc(say(m))}</span>`).join('')}
-    </div>
-    ${i + 24 >= MOBS.length
+    ${i ? '' : p(`How much health it has, the hardest it can hit you, and
+        whether it will come for you unprovoked.`)}
+    <table class="tight beastly">
+      <tr><th class="em">&nbsp;</th><th class="k">&nbsp;</th><th>health</th><th>hardest blow</th><th>comes for you</th></tr>
+      ${part.map(([m, st]) => `<tr>
+        <td class="em">${pic(m)}</td>
+        <td class="k">${esc(say(m))}</td>
+        <td class="lv">${st.maxHp}</td>
+        <td class="lv">${st.maxHit}</td>
+        <td class="lv">${st.harmless === true || !st.aggro ? 'no' : 'yes'}</td></tr>`).join('')}
+    </table>
+    ${i + MOBS_PER >= MOBS.length
       ? `${orn}${p('<i>This book does not say where they live.</i>')}`
       : ''}`)
 }
+
+// ---- and the ones that do not fight like the rest
+//
+// SIX OF THEM ANSWER TO SOMETHING OTHER THAN A GOOD WEAPON, and a reader who
+// does not know walks up to a quencher with a steel sword and does no damage
+// at all -- not a little, none -- with nothing on screen to say why. That is
+// the single most frustrating thing this world can do to somebody, and it is
+// one paragraph to prevent.
+page('', `
+  ${h('The ones with a rule of their own')}
+  ${pd(`Most things answer to a good weapon and enough patience. These answer
+      to something else, and the world will not tell you what: it simply
+      refuses, with nothing on screen to say why.`)}
+  <table class="tight ruled">
+    <tr><th class="em">&nbsp;</th><th class="k">&nbsp;</th><th>health</th><th>blow</th><th>&nbsp;</th></tr>
+    ${[['quencher', `Takes nothing at all from a weapon that does not burn. Not
+         reduced: nothing. Bring fire or do not go.`],
+       ['barrow-wight', `Every blow lands for one unless you are carrying holy
+         water. The flask is spent when the wight falls.`],
+       ['great-spider', `Its web mends it faster than one person can cut.`],
+       ['dragon', `Struck only from right beside it, so a bow or a spear does
+         nothing, and it breathes.`],
+       ['gibbet-dead', `Cannot move and cannot be reached. It throws what
+         comes to hand, and is fought at four tiles or not at all.`],
+       ['gibbet-king', `Raises the dead while you fight it, and is struck only
+         from beside it.`],
+       ['siren', `Answers only whoever started with her. Nobody can help you
+         and you cannot help anybody.`]].map(([m, why]) => {
+      const st = T('MOB_STATS')[m]
+      if (!st) throw new Error(`the book names ${m}, which this world has not`)
+      return `<tr>
+        <td class="em">${pic(m)}</td>
+        <td class="k">${esc(say(m))}</td>
+        <td class="lv">${st.maxHp}</td>
+        <td class="lv">${st.maxHit}</td>
+        <td>${why}</td></tr>`
+    }).join('')}
+  </table>${DUMMIES.length ? p(`<i>There are also ${DUMMIES.length} practice
+      targets in town. They never fight back and never die.</i>`) : ''}`)
 
 // ---- the last page
 page('last', `
@@ -855,6 +1138,34 @@ td { padding: 1.2mm 0; vertical-align: middle; }
 .rites td.lv, .ground td.lv { width: 11mm; color: #8a6a22; text-align: right;
   padding-right: 3mm; font-size: 9.5pt; }
 .rites td.k { width: 34mm; }
+/* The creatures that answer to something other than a good weapon: a name, two
+   numbers, and the sentence that says what to bring. The prose column carries
+   most of the width because the numbers are two digits and the sentence is the
+   point of the page. */
+.ruled td.em, .ruled th.em { width: 9mm; padding-right: 0; }
+.ruled td.k, .ruled th.k { width: 22mm; font-weight: 600; }
+.ruled td.lv { width: 12mm; color: #8a6a22; text-align: right; padding-right: 3mm; }
+.ruled th { font-size: 8.5pt; font-weight: 600; text-align: right;
+  padding-right: 3mm; padding-bottom: 1mm; color: #6b5636; }
+.ruled th.k { text-align: left; }
+/* 1.0mm, not 1.4: seven rows of prose and the page ran 22px long. The row
+   padding is the cheapest 6mm on it and costs nothing a reader would notice,
+   where a smaller type size would. The --check pass settled the number.
+   (No backticks in here: this whole stylesheet is a template literal.) */
+.ruled td { font-size: 9pt; padding: 1.0mm 0; }
+/* And the general table, which is a name and three numbers. */
+.beastly td.lv, .beastly th { width: 22mm; text-align: right; padding-right: 4mm; }
+.beastly th { font-size: 8.5pt; font-weight: 600; padding-bottom: 1mm;
+  color: #6b5636; }
+.beastly td.em, .beastly th.em { width: 10mm; padding-right: 0; }
+.beastly td.k, .beastly th.k { width: 28mm; text-align: left; padding-right: 0; }
+.beastly td.lv { color: #8a6a22; font-size: 9.5pt; }
+/* 1.0mm rather than the 1.2mm every other table uses. Fifteen creatures and a
+   header is sixteen rows, and at 1.2mm the page ran 22px past its box, which
+   clips silently. Two tenths of a millimetre a side is 24px back across the
+   table and is not visible beside the tables on either page. Measured with
+   the --check pass, not guessed. */
+.beastly td, .beastly th { padding: 1.0mm 0; }
 .ground td.em { width: 9mm; }
 .ground td.k { width: 32mm; font-weight: 600; }
 .ground td { font-size: 9.5pt; }
@@ -1010,8 +1321,14 @@ if (process.argv.includes('--check')) {
   })
   document.title = 'OVERFLOW ' + (over.length ? over.join(' | ') : 'none')
 </script>`)
+  // A BUFFER BIG ENOUGH FOR THE BOOK. `--dump-dom` returns the whole document,
+  // and every illustration in it is an inlined base64 data URI -- so the dump
+  // grows with the artwork and blew past Node's one-megabyte default the day
+  // the creatures got their pictures. It failed as `spawnSync ... ENOBUFS`,
+  // which names the buffer and not the book and reads like a broken Chrome.
   const dom = execFileSync(chrome, ['--headless', '--disable-gpu', '--dump-dom',
-    '--virtual-time-budget=4000', pathToFileURL(probe).href], { encoding: 'utf8' })
+    '--virtual-time-budget=4000', pathToFileURL(probe).href],
+    { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
   const m = dom.match(/OVERFLOW ([^<]*)/)
   console.log('pages that do not fit: ' + (m ? m[1] : 'could not measure'))
 }
