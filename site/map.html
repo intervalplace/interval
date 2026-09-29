@@ -30,19 +30,23 @@
   <p>This map is not a picture. The island below is <b>computed in your browser from the
   seed</b>, by the same functions every window uses and every node verifies: if this chart
   and the world ever disagreed, one of them would be in breach of the constitution.
-  Drag to pan, scroll or pinch to zoom, and the land will tell you where you are.</p>
+  Drag to pan, scroll or pinch to zoom.</p>
+
+  <p>It draws <b>the land only</b>. The sea, the rivers, the meres and what grows where:
+  everything you could learn by standing on a piece of ground and looking at it. No roads,
+  no towns, no keepers, no markets, and no names. Those are not rules, they are the world,
+  and the world is found rather than published. The handbook says the same on every page it
+  could have listed them on.</p>
   <div id="chartwrap">
     <canvas id="chart" width="896" height="512"></canvas>
     <div id="growing">the island is growing from the seed&hellip;</div>
     <div id="whereis"></div>
   </div>
   <p id="findnote" style="color:var(--dim);font-size:12px;margin:6px 0 0"></p>
-  <p class="maplegend"><b>Anchor</b> holds the center; the <b>Brandline</b> stones mark where the
-  law of the Wilds begins. The <b>Ridge</b> now runs sea to sea and is crossed at its two passes
-  or not at all: and the <b>South Pass</b> is shut, filled with a rockfall that a
-  generation of citizens may dig through. Nineteen <b>meres, tarns and pools</b> lie inland, and
-  five becks run off the high ground into the Great River and the sea. One island in the
-  northwest appears on no road and carries no label. It is drawn faithfully.</p>
+  <p class="maplegend">The <b>Ridge</b> runs sea to sea and is crossed at its two passes or
+  not at all. Nineteen <b>meres, tarns and pools</b> lie inland, and five becks run off the high
+  ground into the Great River and the sea. Where the passes are, which of them is shut, and what
+  stands beside any of it are things to find out.</p>
   <p class="maplegend">generator <code>interval-expanse-v7</code> &middot; rules <code>7d510cbe03f6d15d&hellip;</code>
   &middot; the island is frozen: every founding under v7 stands on this same Tallyholm, whatever
   seed its ledger carries, so a chart drawn once is true in every world</p>
@@ -1758,27 +1762,14 @@ function localeAt4(x, y) {
 
 
 
-function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return terrainOfE6(x, y)
-  if (IS_EXPANSE4()) return terrainOfE4(x, y)
-  if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
-  if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
-  // the fords, mirrored from the truth: the road pays for its
-  // crossings, and every town's main street crosses on pilings. These
-  // return 'bridge', so buildBridges erects a real deck over each.
-  if (isWaterE(x, y)) {
-    if (onRoadE(x, y)) return 'bridge'
-    for (const st of ssE()) {
-      const x0 = st.x - (st.w >> 1), x1 = st.x + (st.w >> 1)
-      const y0 = st.y - (st.h >> 1), y1 = st.y + (st.h >> 1)
-      if (x >= x0 && x <= x1 && y >= y0 && y <= y1 && (x === st.x || y === st.y)) return 'bridge'
-    }
-  }
-  if (inPoolE(x, y) || Math.abs(x - riverXE(y)) <= 1) return 'river'
-  for (const t2 of ssE()) if (Math.abs(x - t2.x) <= (t2.w >> 1) && Math.abs(y - t2.y) <= (t2.h >> 1)) return 'cobble'
-  if (onRoadE(x, y)) return 'trail'
-  return biomeAtE(x, y)
-}
+// NOTE: an older `terrainOfE` stood here. There were two declarations of the
+// same name in this file and the LATER one wins for the whole scope, so this
+// one had never run: it lacked the v6/v7 dispatch entirely and would have
+// drawn the wrong island if the order had ever changed. A page that is correct
+// only because of source order is one edit from being wrong, and the duplicate
+// also made the script unparseable in strict mode, which is why nothing could
+// test it. Removed; the live one is below.
+
 // ---- the countries by their names, mirrored from /play (spec 9d): a
 // region is a pure function of the world, identical in every window, so
 // "meet me at the fens edge" means one place to everyone. ----
@@ -2222,6 +2213,44 @@ function terrainOfE6(x, y) {
 }
 
 
+// ---- THE LAND WITHOUT THE WORKS ON IT ----
+//
+// This chart used to draw the roads, the paved streets of every town and the
+// brandstones, and then write the towns' and the landmarks' names over the top.
+// That is the whole of what the handbook deliberately refuses to say: it tells
+// you on several pages that it will not say where anything is, and the reason
+// it gives is that none of it is a rule, so the printed book carries no
+// advantage to buy. The chart then gave it all away two clicks later.
+//
+// This is not an attempt at a secret. The generator is in the repository and
+// anybody who wants the towns can run it and have them in five minutes. What
+// it settles is whether the world's own front door hands them over. A map a
+// player made and shared is the culture this world is built to leave room for;
+// a map the world ships is the world answering its own questions.
+//
+// So the terrain is read through this, which returns what the ground would be
+// if nobody had built on it. Sea, river, lake and biome survive, because they
+// are what you see by standing there. Roads, paving and bridges do not.
+const BUILT = new Set(['trail', 'cobble', 'gravel', 'chalk', 'peat', 'causey',
+                       'bridge', 'flag'])
+function groundUnder(x, y) {
+  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return biomeAt6(x, y)
+  if (IS_EXPANSE4()) return biomeAtE4(x, y)
+  if (GEN === 'interval-expanse-v3') {
+    const b3 = biomeAtE3(x, y)
+    return b3 === 'heartlands' ? 'meadow' : b3    // the tile palette's old key
+  }
+  return biomeAtE(x, y)
+}
+function terrainNatural(x, y) {
+  const t = terrainOfE(x, y)
+  if (!BUILT.has(t)) return t
+  // a bridge and a causey STAND OVER WATER: take the work away and the water
+  // is still there, so these become river rather than whatever the bank is.
+  if (t === 'bridge' || t === 'causey') return 'river'
+  return groundUnder(x, y)
+}
+
 function terrainOfE(x, y) {
   if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return terrainOfE6(x, y)
   if (IS_EXPANSE4()) return terrainOfE4(x, y)
@@ -2305,8 +2334,11 @@ function blit() {
   ctx.setTransform(view.z, 0, 0, view.z, -view.x * view.z, -view.y * view.z)
   ctx.imageSmoothingEnabled = false
   ctx.drawImage(buf, 0, 0)
-  drawLabels()
-  drawMark() // the reader's own mark rides the same view
+  // NO NAMES AND NO TOWN DOTS. `drawLabels` is kept below and nothing calls
+  // it: it is where the naming and collision rules live and it is worth
+  // keeping, but a name on this chart is an answer.
+  drawMark() // the reader's own mark rides the same view, and is not an answer:
+             // where YOU are is something you already know
 }
 // the island grows row by row, so the seed is seen doing its work
 let row = 0
@@ -2340,17 +2372,21 @@ function packColour(css) {
 function growRows() {
   if (!_img) { _img = bctx.createImageData(W, H); _pix = new Uint32Array(_img.data.buffer) }
   const t0 = performance.now()
-  const noRoads = V4() && !ROADS_READY
   while (row < H && performance.now() - t0 < 24) {
     const base = row * W
     for (let x = 0; x < W; x++)
-      _pix[base + x] = packColour(PAL[noRoads ? terrainNoRoads4(x, row) : terrainOfE(x, row)])
+      _pix[base + x] = packColour(PAL[terrainNatural(x, row)])
     row++
   }
   bctx.putImageData(_img, 0, 0)
   blit()
   if (row < H) requestAnimationFrame(growRows)
-  else { document.getElementById('growing').remove(); drawStones(); if (V4()) requestAnimationFrame(growRoads) }
+  // ONE PASS NOW. The second pass painted the routed roads over the land and
+  // `drawStones` marked the brandline; both are things somebody built, and
+  // both are answers. They are left in the file because they are the honest
+  // record of what this chart used to be, and because anything that wants to
+  // draw roads reads the same functions.
+  else document.getElementById('growing').remove()
 }
 // the second pass: the routed roads, once. Budgeted the same way, so the
 // page stays alive while the router works.

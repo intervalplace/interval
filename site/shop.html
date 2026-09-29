@@ -1,0 +1,224 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The shop: Interval</title>
+<meta name="description" content="Things you can hold: the handbook on paper, a blank ledger to keep your own notes in, and the island's coastline as a shirt, a print and a sheet of stickers. All at cost.">
+<link rel="stylesheet" href="/site/site.css">
+<style>
+/* One column on a phone, two on a tablet, three on a desk. The picture is the
+   size of the thing rather than a thumbnail: somebody deciding whether to own
+   an object wants to see the object. */
+.goods { display: grid; grid-template-columns: 1fr; gap: 30px; margin: 22px 0 10px; }
+@media (min-width: 640px) { .goods { grid-template-columns: 1fr 1fr; } }
+@media (min-width: 1000px) { .goods { grid-template-columns: 1fr 1fr 1fr; } }
+.good { display: flex; flex-direction: column; }
+.good img { width: 100%; align-self: center; border-radius: 2px;
+  box-shadow: 0 6px 22px rgba(0,0,0,.55); background: rgba(0,0,0,.2); }
+/* The coast is a dark line and the site is darker, so it needs paper under it.
+   These rules follow the one above deliberately: same specificity, later wins. */
+.good img.paper { background: #f4ecda; }
+.good img.inset { padding: 14px 12px; }
+.good h2 { margin-top: 15px; }
+.good p { font-size: 13px; }
+/* The price reads as a fact, not a pitch: no strike-through, no "only". */
+.price { font-family: 'Cinzel', Georgia, serif; color: var(--gold-hi);
+  font-size: 14.5px; letter-spacing: .05em; margin: 12px 0 0; }
+.price small { font-family: inherit; color: var(--dim); font-size: 11.5px;
+  letter-spacing: 0; display: block; margin-top: 3px; }
+/* A button that is not open yet says so rather than looking clickable, and it
+   is the same shape as the real one so the page does not move when it opens. */
+.good .playbtn { font-size: 15px; padding: 11px 0; margin-top: 12px;
+  text-align: center; letter-spacing: .08em; }
+.playbtn.shut { pointer-events: none; opacity: .4; filter: saturate(.25);
+  box-shadow: 0 3px 0 #1a1409; }
+.shopnote { text-align: center; font-size: 12px; color: var(--dim); margin: 4px 0 20px; }
+</style>
+</head><body>
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
+  <h1>The shop</h1>
+  <p class="thesis">Things you can hold.</p>
+
+  <p class="lede">Nothing in this world costs money and nothing in it ever
+  will. There is no account to buy, no item to buy, and no way at all to turn
+  money into an advantage over somebody who has none. That is a rule, fixed in
+  the founding along with the rest of them, and not a policy anybody can change
+  their mind about later.</p>
+
+  <p class="lede">This page sells objects instead. They are here because a thing
+  you can hand to somebody does what a link cannot, and because a book is better
+  on paper. Everything is sold at what it costs to make and post. Nothing is
+  added on top and nothing here funds the world, because the world does not need
+  funding.</p>
+
+  <div class="goods">
+
+    <div class="good">
+      <img src="/site/handbook-cover.png"
+           alt="The cover of the interval handbook: the word INTERVAL, A HANDBOOK
+                beneath it, and the world's founding id.">
+      <h2>The handbook</h2>
+      <p>Twenty pages, A5, saddle stitched. It says what the world is made of:
+      the nine crafts, the seventeen trades you can swear to, why nothing
+      outside your own trade passes seventy, what a pack holds, what a shield
+      costs, what lives here.</p>
+      <p>Every number in it is generated from the rules rather than written
+      beside them, and the last page carries the founding hash. A world whose
+      rules cannot change is a world a printed book can describe without going
+      out of date.</p>
+      <p>It does not say where anything is, what to do, or how to get rich.
+      None of that is a rule, so none of it is in the book.</p>
+      <p class="price" data-price="book">at cost, plus postage
+        <small>set when the shop opens</small></p>
+      <a class="playbtn shut" data-buy="book" href="#">THE HANDBOOK</a>
+      <p style="margin-top:12px"><a href="/site/handbook.pdf">The same book as a
+      PDF</a> is free, as it always has been, and so is the file to print it
+      yourself.</p>
+    </div>
+
+    <div class="good">
+      <img class="paper" src="/site/ledger-endpaper.svg"
+           alt="The ledger's endpaper: the island printed faint, with ruled
+                lines over it to write on.">
+      <h2>The blank ledger</h2>
+      <p>The handbook refuses to tell you where anything is. This is where you
+      write it down.</p>
+      <p>A hundred and sixty ruled pages, A5, the same board and cloth as the
+      handbook. The island is printed faint on the endpapers with the ruling
+      over it, so you can mark a place and still write beside it. Nothing else
+      is printed inside. The first page has a line for your citizen's name.</p>
+      <p>No two of them will say the same thing, and none is worth anything to
+      anybody who has not walked the same ground. That is the whole reason the
+      handbook withholds it: so that this one is yours.</p>
+      <p class="price" data-price="ledger">at cost, plus postage
+        <small>set when the shop opens</small></p>
+      <a class="playbtn shut" data-buy="ledger" href="#">THE LEDGER</a>
+    </div>
+
+    <div class="good">
+      <img class="paper inset" src="/site/coastline.svg"
+           alt="The island's coastline, traced from the world's own geography:
+                the shore, its rivers and its lakes, with no names on it.">
+      <h2>The shirt</h2>
+      <p>The island's coastline, printed small on the chest. No name on it, no
+      logo, and nothing that explains itself. It is a shape that means nothing
+      to anybody who has not walked it.</p>
+      <p>The outline is traced from the world's own geography rather than drawn
+      to look like a map. It is the shore the generator laid down at the
+      founding, read back from the rule that decides where water is, with the
+      rivers and lakes it actually has. Nothing is stylised and nothing is moved
+      to make it a better shape.</p>
+      <p class="price" data-price="shirt">at cost, plus postage
+        <small>set when the shop opens</small></p>
+      <a class="playbtn shut" data-buy="shirt" href="#">THE SHIRT</a>
+    </div>
+
+    <div class="good">
+      <img class="paper" src="/site/stickers.svg"
+           alt="A sheet of six stickers, each the island in silhouette.">
+      <h2>Stickers</h2>
+      <p>Six to a sheet, the island in silhouette, about fifty millimetres
+      across. The lakes are holes in it and the rivers cut in from the shore,
+      because they do.</p>
+      <p>This is the cheapest thing here and the one most likely to reach
+      somebody who has never heard of any of it. A shirt is seen by the people
+      in the room. A sticker goes on a laptop and stays there.</p>
+      <p class="price" data-price="stickers">at cost, plus postage
+        <small>set when the shop opens</small></p>
+      <a class="playbtn shut" data-buy="stickers" href="#">THE STICKERS</a>
+    </div>
+
+    <div class="good">
+      <img class="paper inset" src="/site/coastline.svg"
+           alt="The coastline as a print: the shore, the rivers and the lakes,
+                and nothing else.">
+      <h2>The print</h2>
+      <p>The same coastline, on paper, large. It is drawn as vector rather than
+      as a picture, so it is the same at any size the printer will run.</p>
+      <p>There are no names on it and no marks, which makes it the one thing
+      here that is a map and gives nothing away. Whether it is the island or a
+      shape depends entirely on whether you have been there.</p>
+      <p class="price" data-price="print">at cost, plus postage
+        <small>set when the shop opens</small></p>
+      <a class="playbtn shut" data-buy="print" href="#">THE PRINT</a>
+    </div>
+
+  </div>
+
+  <p class="shopnote" id="shopnote">Not open yet. Each of these goes live the
+    moment there is somewhere for it to point.</p>
+
+  <h2>Why sell anything at all</h2>
+
+  <p class="lede">Because everything else here disappears when the last machine
+  stops. The rules survive that and so does the record, but only for whoever
+  still has a copy. A book on a shelf is a copy somebody keeps without meaning
+  to, and it is the one form of this world that needs no computer to be read.</p>
+
+  <p class="lede">And because a world nobody can buy their way into is worth
+  saying out loud. A sticker says it to one person at a time, which is slower
+  than an advertisement and lasts longer.</p>
+
+  <div class="rule"><b>Printed on demand.</b> Nothing is stocked and nothing is
+  warehoused. The printer takes the money, makes the thing and posts it. What
+  reaches this project is nothing, which is the arrangement that keeps the rule
+  at the top of this page true.</div>
+
+  <h2>The artwork is yours too</h2>
+
+  <p class="lede">The coastline on the shirt, the stickers and the print is a
+  file in the repository, and so is the tool that made it. Run
+  <code>node coastline.mjs</code> against a founding record and you get the same
+  three files: the line, the endpaper and the sticker sheet. They will match,
+  because the geography is a pure function of the genesis and is hashed into
+  it.</p>
+
+  <p class="lede">So you can take these to your own printer and skip this page.
+  That is not a loophole. It is the same arrangement as the handbook, which has
+  always been free to print, and buying one has always been for people who would
+  rather not.</p>
+
+  <h2>Print the handbook yourself</h2>
+
+  <p class="lede">It is imposed for saddle stitching already: A4, double sided,
+  landscape, flipping on the short edge, folded in half with two staples in the
+  crease. Ten minutes and some paper. <a href="/manual">The handbook page</a>
+  has the file and the rest of the instructions.</p>
+</main></div>
+
+<script>
+// ---- THE ADDRESSES THIS PAGE NEEDS, AND NOTHING ELSE ----
+//
+// The page is finished; what it lacks is somewhere to send people. Fill a `url`
+// in and that item's button opens by itself. Leaving one empty is not a bug:
+// the button stays visibly shut and says so, which is honest, rather than
+// looking clickable and going nowhere.
+//
+// `price` is shown exactly as written, so it carries its own currency and is
+// free to say "5 GBP plus postage" or anything else. It is deliberately not
+// computed: a price this page invented would be a price nobody promised.
+const SHOP = {
+  book:     { url: '', price: '' },
+  ledger:   { url: '', price: '' },
+  shirt:    { url: '', price: '' },
+  stickers: { url: '', price: '' },
+  print:    { url: '', price: '' },
+}
+
+let anyOpen = false
+for (const [what, it] of Object.entries(SHOP)) {
+  const line = document.querySelector(`[data-price="${what}"]`)
+  if (line && it.price) line.innerHTML = it.price +
+    '<small>at cost, plus postage. Nothing on top.</small>'
+  const btn = document.querySelector(`[data-buy="${what}"]`)
+  if (btn && it.url) {
+    btn.href = it.url
+    btn.rel = 'noopener'
+    btn.classList.remove('shut')
+    anyOpen = true
+  }
+}
+if (anyOpen) {
+  document.getElementById('shopnote').textContent =
+    'The printer takes the order and posts it. Nothing reaches this project.'
+}
+</script>
+</body></html>

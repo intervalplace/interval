@@ -1,0 +1,174 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Manual: Interval</title>
+<meta name="description" content="Everything the world knows about itself: the nine trades, standing and calling, the island, and how a world holds itself up without a server.">
+<link rel="stylesheet" href="/site/site.css"><script src="/site/items.js" defer></script></head><body>
+<svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The rename from eighteen skills to nine
+     mapped several old icons onto each new id, and SVG uses only the first
+     symbol with a given id -- so nine drawings were shipping dead while
+     wayfaring had no icon at all. One per trade now, in SKILLS order. --><symbol id="sk-woodcraft" viewBox="0 0 10 10"><rect x="5" y="1" width="1" height="1" fill="#7f8790"/><rect x="6" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="1" height="1" fill="#7f8790"/><rect x="5" y="2" width="4" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="1" height="1" fill="#7f8790"/><rect x="4" y="3" width="5" height="1" fill="#b9c0c8"/><rect x="3" y="4" width="1" height="1" fill="#8a6f45"/><rect x="4" y="4" width="1" height="1" fill="#7f8790"/><rect x="5" y="4" width="3" height="1" fill="#b9c0c8"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="1" y="6" width="1" height="1" fill="#8a6f45"/><rect x="1" y="7" width="1" height="1" fill="#8a6f45"/><rect x="0" y="8" width="1" height="1" fill="#8a6f45"/></symbol><symbol id="sk-earthcraft" viewBox="0 0 10 10"><rect x="2" y="1" width="6" height="1" fill="#b9c0c8"/><rect x="1" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="4" y="2" width="2" height="1" fill="#8a6f45"/><rect x="7" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="3" width="2" height="1" fill="#8a6f45"/><rect x="8" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="4" y="4" width="2" height="1" fill="#8a6f45"/><rect x="4" y="5" width="2" height="1" fill="#8a6f45"/><rect x="4" y="6" width="2" height="1" fill="#8a6f45"/><rect x="4" y="7" width="2" height="1" fill="#8a6f45"/><rect x="4" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-shorecraft" viewBox="0 0 10 10"><rect x="3" y="2" width="3" height="1" fill="#4a6fa5"/><rect x="2" y="3" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="3" width="1" height="1" fill="#4a6fa5"/><rect x="1" y="4" width="2" height="1" fill="#4a6fa5"/><rect x="3" y="4" width="1" height="1" fill="#304a74"/><rect x="4" y="4" width="5" height="1" fill="#4a6fa5"/><rect x="2" y="5" width="5" height="1" fill="#4a6fa5"/><rect x="8" y="5" width="1" height="1" fill="#4a6fa5"/><rect x="3" y="6" width="3" height="1" fill="#4a6fa5"/></symbol><symbol id="sk-hearthcraft" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="6" y="1" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="2" width="5" height="1" fill="#4e7a2e"/><rect x="3" y="3" width="3" height="1" fill="#4e7a2e"/><rect x="4" y="4" width="1" height="1" fill="#4e7a2e"/><rect x="4" y="5" width="1" height="1" fill="#4e7a2e"/><rect x="2" y="6" width="6" height="1" fill="#6a5434"/><rect x="1" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="7" width="6" height="1" fill="#8a6f45"/><rect x="8" y="7" width="1" height="1" fill="#6a5434"/><rect x="2" y="8" width="6" height="1" fill="#6a5434"/></symbol><symbol id="sk-prowess" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="1" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="2" width="2" height="1" fill="#b9c0c8"/><rect x="3" y="3" width="2" height="1" fill="#b9c0c8"/><rect x="1" y="4" width="7" height="1" fill="#e2b63e"/><rect x="3" y="5" width="2" height="1" fill="#8a6f45"/><rect x="3" y="6" width="2" height="1" fill="#8a6f45"/><rect x="2" y="7" width="4" height="1" fill="#e2b63e"/></symbol><symbol id="sk-mourning" viewBox="0 0 10 10"><rect x="1" y="1" width="2" height="1" fill="#ded6be"/><rect x="7" y="1" width="2" height="1" fill="#ded6be"/><rect x="0" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="2" width="2" height="1" fill="#a89e88"/><rect x="3" y="2" width="1" height="1" fill="#ded6be"/><rect x="6" y="2" width="1" height="1" fill="#ded6be"/><rect x="7" y="2" width="2" height="1" fill="#a89e88"/><rect x="9" y="2" width="1" height="1" fill="#ded6be"/><rect x="1" y="3" width="8" height="1" fill="#ded6be"/><rect x="2" y="4" width="6" height="1" fill="#ded6be"/><rect x="1" y="5" width="8" height="1" fill="#ded6be"/><rect x="0" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="6" width="2" height="1" fill="#a89e88"/><rect x="3" y="6" width="1" height="1" fill="#ded6be"/><rect x="6" y="6" width="1" height="1" fill="#ded6be"/><rect x="7" y="6" width="2" height="1" fill="#a89e88"/><rect x="9" y="6" width="1" height="1" fill="#ded6be"/><rect x="1" y="7" width="2" height="1" fill="#ded6be"/><rect x="7" y="7" width="2" height="1" fill="#ded6be"/></symbol><symbol id="sk-marksmanship" viewBox="0 0 10 10"><rect x="3" y="0" width="2" height="1" fill="#8a6f45"/><rect x="1" y="1" width="2" height="1" fill="#8a6f45"/><rect x="6" y="1" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="2" width="1" height="1" fill="#8a6f45"/><rect x="6" y="2" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="3" width="1" height="1" fill="#8a6f45"/><rect x="6" y="3" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="4" width="1" height="1" fill="#8a6f45"/><rect x="3" y="4" width="7" height="1" fill="#b9c0c8"/><rect x="0" y="5" width="1" height="1" fill="#8a6f45"/><rect x="6" y="5" width="1" height="1" fill="#b9c0c8"/><rect x="0" y="6" width="1" height="1" fill="#8a6f45"/><rect x="6" y="6" width="1" height="1" fill="#b9c0c8"/><rect x="1" y="7" width="2" height="1" fill="#8a6f45"/><rect x="6" y="7" width="1" height="1" fill="#b9c0c8"/><rect x="3" y="8" width="2" height="1" fill="#8a6f45"/></symbol><symbol id="sk-sorcery" viewBox="0 0 10 10"><rect x="4" y="0" width="1" height="1" fill="#e2b63e"/><rect x="4" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="4" y="2" width="1" height="1" fill="#e2b63e"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="3" width="3" height="1" fill="#e2b63e"/><rect x="0" y="4" width="9" height="1" fill="#e2b63e"/><rect x="3" y="5" width="3" height="1" fill="#e2b63e"/><rect x="2" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="6" width="1" height="1" fill="#e2b63e"/><rect x="6" y="6" width="1" height="1" fill="#e2b63e"/><rect x="4" y="7" width="1" height="1" fill="#e2b63e"/><rect x="4" y="8" width="1" height="1" fill="#e2b63e"/></symbol><symbol id="sk-wayfaring" viewBox="0 0 10 10"><rect x="2" y="0" width="5" height="1" fill="#e2b63e"/><rect x="2" y="1" width="1" height="1" fill="#e2b63e"/><rect x="3" y="1" width="3" height="1" fill="#a68428"/><rect x="6" y="1" width="1" height="1" fill="#e2b63e"/><rect x="2" y="2" width="1" height="1" fill="#e2b63e"/><rect x="3" y="2" width="3" height="1" fill="#a68428"/><rect x="6" y="2" width="1" height="1" fill="#e2b63e"/><rect x="2" y="3" width="5" height="1" fill="#e2b63e"/><rect x="2" y="4" width="1" height="1" fill="#8a6f45"/><rect x="2" y="5" width="1" height="1" fill="#8a6f45"/><rect x="2" y="6" width="1" height="1" fill="#8a6f45"/><rect x="2" y="7" width="1" height="1" fill="#8a6f45"/><rect x="1" y="8" width="5" height="1" fill="#8a6f45"/></symbol></svg>
+<script src="/site/nav.js"></script>
+<div class="page"><main class="stone">
+  <h1>The Manual</h1>
+  <p class="thesis">Everything the world knows about itself.</p>
+
+  <h2>The world in one paragraph</h2>
+  <p>Interval is deterministic: fixed rules, integer arithmetic, time in
+  one-second intervals. Every node computes the same next state from the same
+  inputs, so nobody is the referee. A quorum of witnesses named in the
+  constitution certifies each interval, they recompute the transition
+  themselves and attest to the <i>result</i>, not to the proposal, so a
+  finalized interval carries a proof anyone can check against the founding
+  record alone. Under a network split the world <b>stops finalizing rather than
+  fork</b>. A stopped world, never two. The rules live in <code>SPEC.md</code>,
+  the constitution; the finality machinery in <code>CONSENSUS.md</code>.
+  Changing either founds a new world, and nobody is ever force-updated.</p>
+
+  <div class="rule">The world&rsquo;s name is the hash of its constitution. A node
+  whose copy hashes differently is playing a different game and is refused at
+  the door: not as a version check, but because it literally is a
+  different world.</div>
+
+  <h2>The nine trades</h2>
+  <p>Levels run 1 to 100 on a curve that is cheap to begin and ruinous to
+  finish. The first fifty levels cost about a third of what the last seven do,
+  and mastery at 100 is 37,503,873 experience. The final level alone is near a
+  seventh of the whole ascent, so a citizen can sit in sight of it for a very
+  long time while everybody watches. Master all nine and the world hears of
+  it.</p>
+  <p>A trade here is a <b>whole trade</b>, not half of one. Nothing about the
+  world said that felling a tree and burning it were two crafts, or that the
+  citizen who digs the ore should have to hand it to somebody else to be
+  useful: so they don't.</p>
+  <table>
+    <tr><th>Trade</th><th>Kind</th><th>How it trains</th></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-woodcraft"/></svg>Woodcraft</td><td>Craft</td><td>Fell trees for logs; saw them into planks at a pit; cut them into bows, staves and arrows; and light what is left. The axe, the bench and the fire are one trade.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-earthcraft"/></svg>Earthcraft</td><td>Craft</td><td>Work the seam and the metal both: ore and coal from the rock, iron and steel at a burning furnace, gear at an anvil. At earthcraft 70 the magic-rocks of the high country open.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-shorecraft"/></svg>Shorecraft</td><td>Craft</td><td>The rod and the pan. Fish the water's edge, then cook, smoke or salt what you landed: nobody fishes in order to carry a raw fish home.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-hearthcraft"/></svg>Hearthcraft</td><td>Craft</td><td>The field and the pot. Sow, grow, harvest and grind; ferment grain into ale and fish into broth at a brewpot you raised yourself.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-prowess"/></svg>Prowess</td><td>Arms</td><td>One ladder for the whole of close fighting. A landed blow pays it and so does wearing one. Style, <i>aim</i>, <i>force</i> or <i>even</i>, decides how the blow lands, not what it teaches.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-marksmanship"/></svg>Marksmanship</td><td>Arms</td><td>Every drawn arm: bow, crossbow, handgonne, javelin. Distance is the whole of the trade.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-sorcery"/></svg>Sorcery</td><td>Arms</td><td>The trade of refusing combat. <i>Alch</i> a thing into coin and practice from your first log; later press three magic-stones into a sigil and cast <i>mend</i>, <i>anchor</i> or <i>still</i>.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-wayfaring"/></svg>Wayfaring</td><td>Road</td><td>Going out and coming back. Ground seen for the first time pays it, and so does weight carried across ground you have. Both halves of the road are one trade.</td></tr>
+    <tr><td><svg class="skico" width="18" height="18" viewBox="0 0 10 10"><use href="#sk-mourning"/></svg>Mourning</td><td>Mourning</td><td>The only trade paid in what it cost you. Offer a priced thing on consecrated ground and it is gone: the ledger records what it was worth, and the same gift twice is worth less. At 70 the dearest priced thing you carry survives your death.</td></tr>
+  </table>
+
+  <h2>Standing and calling</h2>
+  <p><b>Standing</b> is the sum of your level in all nine trades. It privileges
+  nobody: a wayfarer who never draws a sword and a warden who never brews are
+  measured by one rule. Mastery is a milestone, not a ceiling: a citizen
+  who keeps going keeps rising, and the only real limit is how large a number
+  the world will hold.</p>
+
+  <p><b>Calling</b> is what you <b>swear</b>. It was once computed from whichever
+  trade you had most experience in, and that stopped being possible when nine
+  trades replaced eighteen skills: one number cannot tell a berserker from a
+  warden, or a farmer from a brewer. So it is a word you say about yourself, at
+  level thirty in the trade it belongs to, and <b>it cannot be put down</b>.
+  There are seventeen.</p>
+
+  <table>
+    <tr><th>Trade</th><th>Callings</th></tr>
+    <tr><td>woodcraft</td><td>forester &middot; firekeeper &middot; fletcher</td></tr>
+    <tr><td>earthcraft</td><td>miner &middot; smith</td></tr>
+    <tr><td>shorecraft</td><td>fisher &middot; cook</td></tr>
+    <tr><td>hearthcraft</td><td>farmer &middot; brewer</td></tr>
+    <tr><td>prowess</td><td>fighter &middot; berserker &middot; warden</td></tr>
+    <tr><td>marksmanship</td><td>archer</td></tr>
+    <tr><td>sorcery</td><td>alchemist</td></tr>
+    <tr><td>wayfaring</td><td>cartographer &middot; runner</td></tr>
+    <tr><td>mourning</td><td>mourner</td></tr>
+  </table>
+
+  <p>Swearing is not only a label. A sworn calling learns <b>half again</b> from
+  its own work and <b>half as much</b> from a sibling&rsquo;s, so a forester is
+  quickest at the trees and slowest at the bench. The three callings of prowess
+  are paid in flesh instead of in rate: a <b>berserker</b> takes a smaller frame,
+  a <b>warden</b> a larger one and a harder guard. Being unsworn is a choice and
+  not a waiting room: an unsworn citizen trains everything at par,
+  forever, and some will.</p>
+
+  <h2>The body</h2>
+  <p>Every citizen has the same frame: <b>sixty-four</b>, from the first
+  interval to the last. It does not grow with a skill, because when it did, a
+  citizen who had never been in danger was harder to kill than one who had,
+  purely for having swung more.</p>
+  <p>What progresses instead is <b>being hit</b>. Armour is not a subtraction
+  from damage; it is in the roll. A citizen in star plate is not shrugging blows
+  off, they are being <i>missed</i>. Against the same attacker, the difference
+  between nothing and a full star suit is a fivefold change in how long you last: and no change at all in how hard you are struck when it lands.</p>
+
+  <div class="rule"><b>Death.</b> Your pack is gone; your trades, name and coin
+  survive. You also take a <b>wound</b>, one permanent point off the frame, to a
+  maximum of ten. Wounds are cleared only at the <b>wellspring</b>, which is not
+  in any town.</div>
+
+  <h3>Mending</h3>
+  <p>Food is a <b>rate</b>. Its value is the total it will pay and its kind
+  decides how fast: the preserved and the brewed mend one an interval, cooked
+  food two, and a cooked deep-water fish three, which is the quickest mending in
+  the world. Nothing arrives in the interval it is swallowed, and eating twice
+  takes the larger debt rather than the sum: so a full pack of fish is not
+  a second health bar.</p>
+  <p>Three things restore at once, and each is paid for differently. A
+  <b>well</b> is a place: full, free, instant, and then dry for a hundred
+  intervals for everybody. <b>Mend</b> is a person: a sorcerer casts it on
+  somebody else. <b>Forage</b> is the ground: eaten where it lies, impossible to
+  carry, and it rots.</p>
+
+  <h2>Carrying, and where things live</h2>
+  <p>A pack is <b>twelve slots</b>. It is not storage; it is the ceiling on what
+  one piece of work may cost, which is why recipes are deep rather than bulky.</p>
+  <p>Every counting house is <b>its own vault</b>. Ore banked in the Crags is in
+  the Crags. There is no counter anywhere on the island from which a citizen can
+  reach the whole of what they own, and that is the rule that makes hauling a
+  job somebody will pay for. A vault holds eight thousand of any one kind, so a
+  career at one seam eventually has to move, sell, or walk.</p>
+
+  <h2>The island</h2>
+  <p>Tallyholm, seven countries. A tally is the split stick whose two halves
+  prove each other.</p>
+  <div class="places">
+    <div><b>Greenwood</b> Timber and the sawpits. Where most citizens learn a first trade.</div>
+    <div><b>Heartlands</b> Fields, towns, the seedsman, the roads that join everything.</div>
+    <div><b>Downs</b> Open grazing, twenty-eight living things, and long sight lines.</div>
+    <div><b>Moor</b> The gibbet, and the king who stands at it raising the dead he sends.</div>
+    <div><b>Crags</b> The seams. Iron, coal, and above earthcraft seventy the magic-rock.</div>
+    <div><b>Fens</b> Deep water and what lives in it. The best fishing and the worst footing.</div>
+    <div><b>Wilds</b> The best ore, the skeleton-knights, the dragon. Nothing here helps you: no forage grows, and no town will take you in.</div>
+  </div>
+  <p>Ten towns, two passes through a Ridge that runs sea to sea, the
+  southern one shut behind a rockfall the island may dig through together, nineteen meres and tarns inland, and one island in the northwest that
+  appears on no road and carries no label.
+  <a href="/map">The living map</a> is computed in your browser from the founding
+  seed by the same functions every node verifies.</p>
+
+  <h2>The economy</h2>
+  <p>Prices are not set by anybody. A keeper buys at a floor and a stall is
+  whatever a citizen asks. A <b>stall</b> costs ten planks and two iron-ore, twelve slots, the whole of a pack, so it cannot be carried with
+  anything else, takes twenty intervals of standing still to raise, and
+  is one to a citizen. It is the only market that works while you are asleep.</p>
+  <p><b>Mourning</b> is the only trade paid in what it cost you. Offer a priced
+  thing on consecrated ground and it is destroyed; the ledger records what it was
+  worth, and the same gift twice is worth less. It is the one ladder that
+  converts wealth into progress instead of time, which is why the callings that
+  never fight can still climb.</p>
+
+  <h2>Scripts</h2>
+  <p>Automation is expected and permitted. An executor runs its own node like
+  everyone else, so the same program grinding timber is also verifying every
+  interval and enforcing the constitution on itself. Nothing here is priced to
+  punish patience, because a script does not mind waiting and the whole of that
+  cost would land on the person. What a script cannot do is <b>be somewhere</b>:
+  the scarce thing in this world is presence, and no amount of clicking buys
+  more of it.</p>
+
+  <h2>Leaving</h2>
+  <p>A citizen may cross to any world founded on a constitution they accept,
+  carrying their trades, their name and their goods: goods arrive at the
+  counter nearest where they wake, since the vaults of a world that no longer
+  exists name nothing. Founding data does not expire with the world that held
+  it.</p>
+  <p>This is what governance looks like here. There are no votes. If you dislike
+  a rule, you write the world you would rather live in and see who crosses. The
+  constitution is short enough to read and the whole engine is one file.</p>
+</main></div></body></html>

@@ -48,7 +48,8 @@ function addFootLink() {
   <p class="footlink">
     <a href="/quickstart">how to begin</a> &middot;
     <a href="/manual">the handbook</a> &middot;
-    <a href="/download">the window</a><br>
+    <a href="/download">the window</a> &middot;
+    <a href="/shop">the shop</a><br>
     the world's constitution and every line that runs it:
     <a href="https://github.com/intervalplace/interval" id="ghlink">github.com/intervalplace/interval</a></p>
 </div>`)

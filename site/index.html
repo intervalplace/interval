@@ -83,4 +83,42 @@
       and be standing in Anchor in ten seconds.</div>
   </div>
 </main></div>
+<script>
+// ---- THE PAGE HAS TO SAY WHAT INTERVAL IT IS ----
+//
+// The restructure kept every id the old front page filled -- `tick`, `s-awake`,
+// `s-souls`, `s-settled`, `worldid` -- and dropped the twenty lines that filled
+// them, so the page sat on its placeholder dots for ever and a visitor could
+// not tell a running world from a dead one. `/api/world` never stopped
+// answering; nothing was asking it.
+//
+// A world that runs on rules rather than servers should be able to prove it is
+// still counting, to anybody, without them installing anything.
+async function poll() {
+  const put = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v }
+  try {
+    const r = await fetch('/api/world')
+    const j = await r.json()
+    put('tick', String(j.tick).padStart(9, '0'))
+    put('s-awake', (j.awake ?? j.players ?? 0).toLocaleString())
+    put('s-souls', (j.players ?? 0).toLocaleString())
+    put('s-settled', Math.round(j.finalizedTick ?? j.tick).toLocaleString())
+    const w = document.getElementById('worldid')
+    if (w && j.worldId) {
+      // The world's name is its constitution's hash. Short, because sixty-four
+      // characters would bury the page; in full on hover for anyone actually
+      // checking it against their own node.
+      w.textContent = 'world ' + String(j.worldId).slice(0, 12) + '\u2026'
+      w.title = j.worldId
+    }
+    put('ticklabel', j.halted ? 'the world is halted' : '')
+  } catch {
+    put('ticklabel', 'world unreachable. Is a node running?')
+  }
+}
+poll()
+// A tick is a second, so a little under one keeps the number honest without
+// asking the node more often than it has anything new to say.
+setInterval(poll, 1200)
+</script>
 </body></html>

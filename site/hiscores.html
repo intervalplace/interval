@@ -17,7 +17,7 @@
 <div class="page"><main class="stone">
   <h1>Hiscores</h1>
   <p class="tagline">Every rank on this page is cryptographically provable. No exceptions,
-  no appeals — and nobody to appeal to. A rank here is arithmetic anybody can redo from
+  no appeals: and nobody to appeal to. A rank here is arithmetic anybody can redo from
   signed inputs and certified history, so it is yours rather than this server's, and it
   crosses with you into any world founded on the same constitution.</p>
   <div id="finder">
@@ -43,7 +43,7 @@
   <p>A first is spent the day it is won. A record cannot be: somebody always
   walks it faster, and the board is as alive in year twenty as on the first
   day. Every one of these is the number of intervals a citizen took to climb
-  from level fifty to ninety-nine in one skill — and this world can PROVE
+  from level fifty to ninety-nine in one skill: and this world can PROVE
   them. Ticks are deterministic, inputs are signed and the history is
   certified, so a time here is arithmetic anybody can redo, not a claim you
   are asked to believe.</p>
@@ -104,7 +104,7 @@ try {
 // did. Nothing unsworn passes fifty, so the widest unsworn citizen stands at
 // 450; a sworn one stands at their own trade plus a near-constant 560, because
 // the other eight are pinned at seventy. So standing is now mostly a slower
-// reading of the trade board — kept because the waystones and the hood are
+// reading of the trade board: kept because the waystones and the hood are
 // tuned against it (§6ao, §6ax), not because it ranks anything the nine do not.
 // A citizen is introduced by their CALLING though, and a calling had no board
 // at all: the best brewer alive had no way to learn that they were.
@@ -237,7 +237,7 @@ function drawBoard(j) {
 
   // §5x: THE RAISED BOARD. `raised` is the only number in this world that
   // measures a thing a citizen did FOR SOMEBODY ELSE, and it is minted only by
-  // an apprentice reaching their own swearing — a master cannot collect them by
+  // an apprentice reaching their own swearing: a master cannot collect them by
   // taking forty people on and walking away.
   //
   // It is the natural home of the endgame §5x built: a master of Interval is
@@ -337,7 +337,7 @@ function rankIn(players, skill, pid) {
     .filter(x => x.xp > 0)
     .sort((a, b) => b.xp - a.xp)
   const i = ranked.findIndex(x => x.pid === pid)
-  return i === -1 ? null : i + 1
+  return i === -1 ? null: i + 1
 }
 
 function drawCitizen(j) {
@@ -476,7 +476,7 @@ function wireBoard() {
   for (const b of el.querySelectorAll('.pgb')) {
     b.onclick = () => {
       if (b.dataset.pg === 'back') { PROFILE = null }
-      else PAGE += (b.dataset.pg === 'next' ? 1 : -1)
+      else PAGE += (b.dataset.pg === 'next' ? 1: -1)
       if (LAST) drawBoard(LAST)
       document.getElementById('picker')?.scrollIntoView({ block: 'nearest' })
     }
@@ -504,7 +504,7 @@ function wireBoard() {
 // the shape of every silent disagreement in this codebase: correct because a
 // caller remembered. The pair is validated where it is READ instead.
 function activeCalling () {
-  return (CALLINGS_OF[VIEW] ?? []).includes(CALLING) ? CALLING : null
+  return (CALLINGS_OF[VIEW] ?? []).includes(CALLING) ? CALLING: null
 }
 
 function population (j) {
@@ -626,7 +626,7 @@ async function loadFirsts() {
       return
     }
     // the plain honours before the masteries, each in the order the world set it
-    const rank = (f) => (f.key.startsWith('master:') ? 1 : 0)
+    const rank = (f) => (f.key.startsWith('master:') ? 1: 0)
     got.sort((a, b) => rank(a) - rank(b) || a.key.localeCompare(b.key))
     let html = '<table><tr><th>Deed</th><th>First citizen</th></tr>'
     for (const f of got) {
@@ -712,7 +712,7 @@ async function loadRaces() {
     // 2 tells it backwards. Settled races sit at the top because they are the
     // permanent part, then the live races by how far each leader has climbed,
     // then the ones nobody has started.
-    const rank = (x) => x.settled ? 3 : (x.name ? 2 : 1)
+    const rank = (x) => x.settled ? 3: (x.name ? 2: 1)
     const climbed = (x) => (x.pct ?? 0) * 1000 + (x.level ?? 0)
     const ordered = rs.slice().sort((a, b) =>
       rank(b) - rank(a) || climbed(b) - climbed(a) || a.skill.localeCompare(b.skill))

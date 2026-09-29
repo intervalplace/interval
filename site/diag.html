@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>interval — door check</title>
+<title>interval, door check</title>
 <style>
   body { background:#12100b; color:#cbbfa4; font:15px/1.5 ui-monospace,Menlo,Consolas,monospace;
          margin:0; padding:14px 12px 60px; }
@@ -13,7 +13,7 @@
   button { font:13px ui-monospace,monospace; background:#291f12; color:#c9a227;
            border:1px solid #6e5433; padding:9px 12px; margin:6px 6px 0 0; }
 </style>
-<h1>INTERVAL — DOOR CHECK</h1>
+<h1>INTERVAL, DOOR CHECK</h1>
 <div id="out"></div>
 <div class="row">
   <button id="clear">forget node + world</button>
@@ -53,33 +53,33 @@ async function run () {
       line('worldId reported', String(liveWorld), liveWorld ? 'ok' : 'bad')
       if (liveWorld === null) line('VERDICT', 'no worldId field: pickNode still accepts this', 'warn')
     }
-  } catch (e) { line('GET /api/world', 'FAILED — ' + e.name + ' ' + e.message, 'bad') }
+  } catch (e) { line('GET /api/world', 'FAILED: ' + e.name + ' ' + e.message, 'bad') }
 
   // the skip rule, spelled out
   if (world && liveWorld && world !== liveWorld) {
     line('VERDICT', 'MISMATCH. Your browser remembers a different world, so the '
       + 'node is skipped and the chip stays on searching. Tap "forget node + world".', 'bad')
   } else if (world && liveWorld) {
-    line('world match', 'yes — not the cause', 'ok')
+    line('world match', 'yes: not the cause', 'ok')
   }
 
   // ---- 2. audio listing ---------------------------------------------------
   try {
     const r = await fetch(NODE_URL + '/api/audio', { cache: 'no-store' })
     const j = await r.json()
-    line('GET /api/audio', r.status + ' — ' + (j.tracks?.length ?? 0) + ' tracks', r.ok ? 'ok' : 'bad')
-  } catch (e) { line('GET /api/audio', 'FAILED — ' + e.message, 'bad') }
+    line('GET /api/audio', r.status + ': ' + (j.tracks?.length ?? 0) + ' tracks', r.ok ? 'ok' : 'bad')
+  } catch (e) { line('GET /api/audio', 'FAILED: ' + e.message, 'bad') }
 
   // ---- 3. can the audio FILE itself be fetched? ---------------------------
-  // startMusic builds new Audio('/audio/' + name) — ORIGIN-relative, not via
+  // startMusic builds new Audio('/audio/' + name): ORIGIN-relative, not via
   // the node. On a page served from somewhere else that is a different host.
   try {
     const r = await fetch('/audio/theme-deep.m4a', { method: 'GET', headers: { Range: 'bytes=0-99' } })
     line('GET /audio/theme-deep.m4a (origin-relative)',
          r.status + ' ' + (r.headers.get('content-type') || ''), r.ok ? 'ok' : 'bad')
     if (!r.ok) line('VERDICT', 'The track list loads but the FILE does not. '
-      + 'startMusic uses an origin-relative path — that is why there is no music.', 'bad')
-  } catch (e) { line('GET /audio/... ', 'FAILED — ' + e.message, 'bad') }
+      + 'startMusic uses an origin-relative path: that is why there is no music.', 'bad')
+  } catch (e) { line('GET /audio/... ', 'FAILED: ' + e.message, 'bad') }
 
   // ---- 4. the websocket, which is a separate step -------------------------
   await new Promise((res) => {
@@ -87,10 +87,10 @@ async function run () {
     let done = false
     const finish = (msg, cls) => { if (done) return; done = true; line('WebSocket ' + url, msg, cls); res() }
     let sock
-    try { sock = new WebSocket(url) } catch (e) { return finish('threw — ' + e.message, 'bad') }
+    try { sock = new WebSocket(url) } catch (e) { return finish('threw, ' + e.message, 'bad') }
     const t0 = performance.now()
     sock.onopen  = () => { finish('OPEN in ' + Math.round(performance.now() - t0) + 'ms', 'ok'); try { sock.close() } catch {} }
-    sock.onerror = () => finish('ERROR — the host answers HTTP but will not upgrade. '
+    sock.onerror = () => finish('ERROR, the host answers HTTP but will not upgrade. '
       + 'That is a reverse-proxy setting, not the window.', 'bad')
     sock.onclose = () => finish('closed before opening', 'bad')
     setTimeout(() => finish('timed out after 8s', 'bad'), 8000)
@@ -103,7 +103,7 @@ document.getElementById('clear').onclick = () => {
   for (const k of ['interval-node', 'interval-world', 'interval-peers']) {
     try { localStorage.removeItem(k) } catch {}
   }
-  line('cleared', 'node, world and peers forgotten — reopen the door now', 'ok')
+  line('cleared', 'node, world and peers forgotten: reopen the door now', 'ok')
 }
 document.getElementById('again').onclick = run
 run()

@@ -29,12 +29,50 @@
      the fastest way to say so is a file size next to a name. -->
 <p class="spec" style="text-align:center;max-width:46em;margin:0 auto 18px;font-size:12px">
   There is no server to connect to, so there is nothing between you and the
-  world but the page itself. A window is <b>one HTML file</b>: it holds the
-  rules, the map and the art, computes every interval on your own machine, and
-  needs about <b>120 KB</b> of world state to know where everybody is.
-  Nothing is installed and nothing is stored anywhere but here.
+  world but the window itself. Each one holds the rules, the map and the art,
+  computes every interval on your own machine, and needs about <b>120 KB</b> of
+  world state to know where everybody is. The browser windows are literally
+  <b>one HTML file</b> and install nothing. The Unreal window is a download,
+  because a renderer that size is not a web page: it draws the same
+  island, from the same rules, and holds your key no more than the others do.
 </p>
 <div class="doors">
+    <div class="door">
+      <figure>
+        <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
+          <!-- the unreal window: a town from above, with a roof and a road -->
+          <defs>
+            <linearGradient id="uw-sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#7d9450"/><stop offset="1" stop-color="#5d7439"/>
+            </linearGradient>
+          </defs>
+          <rect x="6" y="20" width="138" height="128" fill="url(#uw-sky)"/>
+          <!-- the road, running away to the corner -->
+          <path d="M6 132 L62 62 L84 62 L48 148 L6 148 Z" fill="#9b9282"/>
+          <path d="M20 132 L66 74 L74 74 L38 140 Z" fill="#a8a08f" opacity=".5"/>
+          <!-- a hall, roof first, because that is what a top-down view is -->
+          <path d="M84 52 L122 38 L144 58 L106 74 Z" fill="#8a6a42"/>
+          <path d="M84 52 L106 74 L106 98 L84 78 Z" fill="#6d5334"/>
+          <path d="M106 74 L144 58 L144 82 L106 98 Z" fill="#7d603c"/>
+          <!-- a second roof, further off -->
+          <path d="M28 44 L58 32 L76 48 L46 62 Z" fill="#7f6340"/>
+          <!-- the citizen, small, because the camera is high -->
+          <ellipse cx="62" cy="116" rx="11" ry="5" fill="#000" opacity=".22"/>
+          <rect x="58" y="96" width="8" height="18" rx="3" fill="#3b4250"/>
+          <circle cx="62" cy="92" r="5" fill="#d8b784"/>
+          <!-- and the one gold rule the interface is made of -->
+          <rect x="6" y="20" width="138" height="128" fill="none" stroke="#d6a84a" stroke-width="2"/>
+        </svg>
+      </figure>
+      <h3>The Unreal window</h3>
+      <p class="kind">the island in three dimensions, from over your shoulder</p>
+      <p class="spec">
+        <b>a download</b> &middot; macOS &middot; the world drawn properly:
+        weather, an hour of the day, and people you can see coming<br>
+        it brings its own bridge; your key stays on your machine
+      </p>
+      <a class="enter" href="/download">Download</a>
+    </div>
     <div class="door">
       <figure>
         <svg width="150" height="168" viewBox="0 0 150 168" aria-hidden="true">
@@ -58,7 +96,7 @@
         </svg>
       </figure>
       <h3>The flat window</h3>
-      <p class="kind">tiles, from above &mdash; start here if unsure</p>
+      <p class="kind">tiles, from above: start here if unsure</p>
       <p class="spec">
         <b>467 KB</b>, one page &middot; 2D canvas &middot; runs in any browser since 2015<br>
         works well on a phone
