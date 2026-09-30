@@ -20,7 +20,20 @@
 // ever disagree, this file is the thing that has to give: the frame is
 // the truth about what you will see.
 
-const DAY = 2400, TICK_MS = 600
+// AND THE INTERVAL IS A SECOND. This said 600 and the engine has said 1000
+// since the interval was lengthened, so every wait this file reported was
+// forty per cent short: "golden in five minutes" meant eight. Nothing in the
+// LIGHT was wrong, because the sun is a function of `tick % DAY` and never
+// touches this, which is why it survived so long: only `asWait` reads it, and
+// a forecast that is confidently early is harder to notice than one that is
+// obviously broken.
+//
+// It stays a literal rather than an import, because this file is deliberately
+// dependency-free: window-photo.html loads it in a browser and verify-photo
+// loads it with no world. `test/constants.test.mjs` asserts it against the
+// engine's own value instead, so a copy that drifts is a failing test rather
+// than a quietly wrong number.
+const DAY = 2400, TICK_MS = 1000
 const tileHash = (x, y, salt) => {
   let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
   h = (h ^ (h >> 13)) >>> 0; h = (h * 1274126177) >>> 0

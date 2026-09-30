@@ -24,6 +24,10 @@
 // It is the citizen. Copy it between machines and you are the same soul in
 // another vessel; lose it and that citizen is gone, same as any other window.
 
+import fs from 'node:fs'
+// pbcopy and pbpaste, which are how a citizen crosses from the browser to
+// here without the key ever passing through Unreal. See `carry-out` below.
+import { execFileSync } from 'node:child_process'
 import { nodeHost } from './host-node.mjs'
 import * as TM from './terrain-mirror.mjs'
 import { generatorFor } from './worldgen-any.mjs'
@@ -2024,6 +2028,120 @@ HOST.door(PORT, (ws) => {
       }
       const r = act({ type: 'spawn' })
       answer(r.ok ? 'crossing into the world' : r.why, r.ok)
+      return
+    }
+    // ---- CARRYING A CITIZEN BETWEEN WINDOWS ----
+    //
+    // Somebody starts in the browser because it costs nothing, gets a few
+    // levels, and then downloads this window. Without these they are a
+    // stranger here: the bridge mints a fresh key on first run and their
+    // browser citizen stays in the browser.
+    //
+    // THE KEY DOES NOT CROSS THIS SOCKET, IN EITHER DIRECTION. That is the one
+    // rule this whole file exists to keep: Unreal is given no way to sign, so
+    // a compromised .uproject cannot act as you. Handing the window the key so
+    // it could show it to somebody would throw that away for a convenience.
+    //
+    // So the clipboard is the courier and the bridge is the only thing that
+    // touches the key. The window sends a verb and is told what happened. It
+    // never sees a byte of the secret, and it does not need to: the person
+    // pastes into the browser themselves.
+    //
+    // The two formats are one key in two coats, which window-web.html's own
+    // importer already says: PKCS8 for Ed25519 is the raw 32-byte seed behind
+    // a fixed 16-byte prefix, so `interval-key-v1.<pkcs8>.<pub>` and this
+    // bridge's `{playerId, privateKey}` convert without either side deciding
+    // anything.
+    if (m.k === 'carry-out' || m.k === 'carry-in') {
+      const said = (ok, why, who) => ws.send(JSON.stringify(
+        { k: 'carry', of: m.k === 'carry-out' ? 'out' : 'in', ok, why, who }))
+      const PK8 = '302e020100300506032b657004220420'
+      if (m.k === 'carry-out') {
+        const str = 'interval-key-v1.' + PK8
+          + Buffer.from(ID.privateKey).toString('hex') + '.' + ID.playerId
+        // A FILE ALWAYS, THE CLIPBOARD WHERE THERE IS ONE. The clipboard is
+        // the whole convenience, but a person whose pbcopy is missing should
+        // not be told their citizen cannot leave: the file is the answer that
+        // always works, and it says where it is.
+        const beside = KEYFILE.replace(/\.json$/, '') + '-carry.txt'
+        let wrote = false
+        try { fs.writeFileSync(beside, str + '\n'); wrote = true }
+        catch { /* reported below: the clipboard may still have carried it */ }
+        let clipped = false
+        try {
+          if (process.platform === 'darwin') {
+            execFileSync('pbcopy', { input: str })
+            clipped = true
+          }
+        } catch { /* the file is still there */ }
+        if (!wrote && !clipped) { said(false, 'could not write the key anywhere', null); return }
+        said(true, clipped
+          ? 'this citizen is on your clipboard. Paste it into the browser window\u2019s "import key".'
+          : 'written to ' + beside + '. Open it and paste the line into the browser window\u2019s "import key".',
+          ID.playerId)
+        return
+      }
+      // CARRYING ONE IN. Read the clipboard here rather than being handed a
+      // string: a string the window could send is a string the window has.
+      let raw = ''
+      try {
+        if (process.platform !== 'darwin') throw new Error('no clipboard on this platform yet')
+        raw = String(execFileSync('pbpaste')).trim()
+      } catch (e) {
+        said(false, 'cannot read the clipboard here (' + (e.message ?? e) + ')', null); return
+      }
+      // THE SECRET MUST BE EXACTLY THIRTY-TWO BYTES, and that is checked HERE.
+      //
+      // `importIdentity` derives the public key and compares it, but only
+      // `if (privateKey.length === 32)` -- which is right for the engine,
+      // because it also has to admit the legacy formats `loadOrCreateIdentity`
+      // migrates. It means a SHORT key skips the proof entirely, and this
+      // accepted one: a paste truncated to four bytes was written over a
+      // living citizen and reported as success, because nothing between the
+      // clipboard and the file ever asked how long it was.
+      //
+      // A key that cannot sign is worse than no key. The door is strict here
+      // rather than the engine being made strict everywhere, because the
+      // engine's looseness is load-bearing and this door's is not.
+      let record = null
+      const v1 = /^interval-key-v1\.([0-9a-f]+)\.([0-9a-f]{64})$/.exec(raw)
+      if (v1 && v1[1].length === PK8.length + 64 && v1[1].startsWith(PK8)) {
+        record = { playerId: v1[2], privateKey: v1[1].slice(PK8.length) }
+      } else if (raw.startsWith('{')) {
+        try {
+          const j = JSON.parse(raw)
+          if (/^[0-9a-f]{64}$/.test(j.privateKey ?? '') && /^[0-9a-f]{64}$/.test(j.playerId ?? ''))
+            record = { playerId: j.playerId, privateKey: j.privateKey }
+        } catch {}
+      }
+      if (record && !/^[0-9a-f]{64}$/.test(record.privateKey)) record = null
+      if (!record) { said(false, 'that is not an interval key. Copy it from the browser window first.', null); return }
+      // AND IT MUST PROVE ITSELF. `importIdentity` derives the public key from
+      // the secret and refuses a pair that does not match, so a mistyped or
+      // truncated paste cannot quietly overwrite a citizen with a dead one.
+      try { E.importIdentity(record) }
+      catch (e) { said(false, 'that key does not prove itself: ' + (e.message ?? e), null); return }
+      if (record.playerId === ID.playerId) { said(true, 'that is already who you are', ID.playerId); return }
+      // THE ONE THIS REPLACES IS KEPT. Overwriting a key file is deleting a
+      // citizen, and doing it silently because somebody had the wrong thing on
+      // their clipboard is the one mistake here that cannot be undone.
+      try {
+        const aside = KEYFILE.replace(/\.json$/, '') + '-' + ID.playerId.slice(0, 8) + '.json'
+        if (!fs.existsSync(aside)) fs.copyFileSync(KEYFILE, aside)
+      } catch { /* best effort: the write below is the important one */ }
+      try {
+        HOST.writeKey(KEYFILE, { playerId: record.playerId, privateKey: record.privateKey,
+          note: 'THIS FILE IS THE CITIZEN. Back it up; do not commit it.' })
+      } catch (e) { said(false, 'could not write ' + KEYFILE + ': ' + (e.message ?? e), null); return }
+      console.log('[bridge] carried in ' + record.playerId.slice(0, 12) + '\u2026 (was '
+        + ID.playerId.slice(0, 12) + '\u2026); restart to become them')
+      // NOT A LIVE SWAP. `ID` is read once at startup and every signature,
+      // every subscription and the pillar's own idea of who is connected hang
+      // off it. Changing it under a running session would mean reconnecting as
+      // somebody else halfway through a tick, and a half-swapped identity is a
+      // worse bug than an extra restart.
+      said(true, 'this citizen is yours now. Close interval and open it again to become them.',
+        record.playerId)
       return
     }
     if (m.k === 'do') {

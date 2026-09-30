@@ -75,6 +75,19 @@ export const dims = () => ({ W, H, GEN, GSEED })
 // exists precisely so the windows cannot drift apart, the fix belongs here.
 const IS_EXPANSE4 = () => GEN === 'interval-expanse-v4' || GEN === 'interval-expanse-v5'
 
+// AND V7 CHANGED THE SEATING, NOT THE LAND.
+//
+// worldgen-expanse7's own header says it in its first line: v6's land is v6's
+// land -- the coast, the countries, the river, the ridge, the barrow, the lake
+// and every plan are byte-for-byte what they were. v7 moves towns off each
+// other and stalls back inside their walls; it does not move one tile of
+// ground. So terrainOfE6 is correct for both, and the ONLY thing that made a
+// v7 world render as the v1 expanse was `GEN === 'interval-expanse-v6'`
+// failing a string comparison -- the identical mistake IS_EXPANSE4 exists to
+// document, one founding later. settlementsE6 was already reached for v7 (see
+// ssE), which is why a v7 window drew the right towns on the wrong island.
+const IS_EXPANSE6 = () => GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7'
+
 export const tileHash = (x, y, salt) => {
   let h = (x * 374761393 + y * 668265263 + salt * 1442695041) >>> 0
   h = (h ^ (h >> 13)) >>> 0; h = (h * 1274126177) >>> 0
@@ -124,7 +137,7 @@ function settlementsE() {
   // where they stand; the chart and the world cannot disagree about something
   // neither of them is computing twice.
   if (GIVEN_SS) return GIVEN_SS
-  if (GEN === 'interval-expanse-v6' || GEN === 'interval-expanse-v7') return settlementsE6()
+  if (IS_EXPANSE6()) return settlementsE6()
   if (IS_EXPANSE4()) return settlementsE4()
   if (GEN === 'interval-expanse-v3') return settlementsE3()
   const cx = Math.floor(W / 2), cy = Math.floor(H / 2)
@@ -1867,7 +1880,7 @@ function terrainOfE6(x, y) {
 }
 
 function terrainOfE(x, y) {
-  if (GEN === 'interval-expanse-v6') return terrainOfE6(x, y)
+  if (IS_EXPANSE6()) return terrainOfE6(x, y)
   if (IS_EXPANSE4()) return terrainOfE4(x, y)
   if (GEN === 'interval-expanse-v3') return terrainOfE3(x, y)
   if (inSeaE(x, y)) return fordE(x, y) ? 'bridge' : 'sea'
