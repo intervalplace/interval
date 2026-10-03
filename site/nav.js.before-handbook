@@ -28,7 +28,6 @@ document.body.insertAdjacentHTML('afterbegin', `
   <nav class="stone">
     <a href="/">Interval</a>
     <a href="/play">Play</a>
-    <a href="/manual">Handbook</a>
     <a href="/hiscores">Hiscores</a>
     <a href="/board">Board</a>
     <a href="/map">Map</a>
@@ -47,6 +46,7 @@ function addFootLink() {
   document.body.insertAdjacentHTML('beforeend', `
 <div class="page">
   <p class="footlink">
+    <a href="/quickstart">how to begin</a> &middot;
     <a href="/manual">the handbook</a> &middot;
     <a href="/download">the window</a> &middot;
     <a href="/shop">the shop</a><br>

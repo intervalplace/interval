@@ -75,8 +75,27 @@ nav.stone a {
   font-size: 11.5px;
   text-decoration: none;
 }
-nav.stone a:hover { color: var(--bk-ink); text-decoration: underline; }
-nav.stone a.here { color: var(--bk-ink); font-weight: 600; }
+/* THE FILL HAD TO GO WITH THE COLOUR, AND DID NOT.
+ *
+ * site.css paints the current page and the hovered link as `background:
+ * stone-dk; color: #fff` -- a dark tab with white letters, which is right on a
+ * near-black page. This sheet overrode the COLOUR to dark ink and left the
+ * background alone, so the tab you are actually on rendered as dark ink on a
+ * dark fill: a solid black block where the word should be. The page you are
+ * reading was the one word in the nav you could not read.
+ *
+ * On paper the current page is not a tab. It is the one that is not a link. */
+nav.stone a:hover {
+  background: none;
+  color: var(--bk-ink);
+  text-decoration: underline;
+}
+nav.stone a.here {
+  background: none;
+  color: var(--bk-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
 
 /* THE PAGE ITSELF, inside the book's double frame: an outer rule and a
  * hairline a shade in from it. That pair is what says "book" before a word of
@@ -491,7 +510,29 @@ tr.mine td { background: rgba(138, 106, 34, .10); box-shadow: none; }
  * are looking for arrives cut into pieces by the thing meant to mark it. */
 tr.mine td:first-child { box-shadow: inset 2px 0 0 var(--bk-rule); }
 tr.mine td:nth-child(2) { color: var(--bk-brown); }
+/* ---- THE BOARD'S STRIPES, WHICH WERE PAINTING OVER THE NAMES ----
+ *
+ * site.css stripes the board's even rows and gives the SECOND column -- the
+ * names -- a fill of its own, because that column is sticky: the board scrolls
+ * sideways under it, so it has to be opaque or the numbers slide under the
+ * names. On a near-black page `#3f382e` is a shade off the page and does that
+ * job invisibly. On paper it is a black bar across every other name, and the
+ * hiscores arrived with half the citizens blacked out.
+ *
+ * The earlier fix here said `#board td:nth-child(2)` and quietly lost: the
+ * striping rule is `#board tr:nth-child(even) td:nth-child(2)`, which carries
+ * one more pseudo-class and therefore wins. Specificity, not order.
+ *
+ * So both are answered, and the sticky column is given the colour the row
+ * actually shows rather than plain paper -- `#eee5d0` is the stripe flattened
+ * onto the page, so the stripe runs unbroken across all four columns instead
+ * of stopping dead at the names. */
+#board tr:nth-child(even) td { background: rgba(138, 106, 34, .055); }
 #board th:nth-child(2), #board td:nth-child(2) { background: var(--bk-paper); }
+#board tr:nth-child(even) td:nth-child(2) { background: #eee5d0; }
+#board tr:hover td { background: rgba(138, 106, 34, .10); }
+#board tr:hover td:nth-child(2) { background: #eae0c8; }
+#board th { color: var(--bk-brown); }
 .nameb { color: var(--bk-ink); }
 .footer, #findnote { color: var(--bk-quiet); }
 
