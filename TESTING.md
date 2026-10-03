@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.5 · protocol spec v1.05 · consensus spec v1.9 · rules hash
-`6cde7f4e2631a1af…`.
+`df504ccae64e528b…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,9 +10,9 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 401 tests across:
+`node --test test/*.test.mjs`, 444 tests across:
 
-- `leak.test.mjs` — §21c: no write reaches the caller's state. Exercises the
+- `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
   following), which is precisely where the rest of the suite had no coverage
   and four such writes survived undetected.
@@ -40,14 +40,6 @@ possible executions.
   equality), identity-keyed state-hash memoization (memo equals the flat
   canonical hash, never crosses objects, never enters state), and the
   nextState purity discipline the memo relies on
-- `rulechange.test.mjs`, that a changed constitution or founding parameter is a
-  different world before any tick runs, and that a citizen who rewrites the
-  engine computes a state no honest witness will certify.
-- `world-freeze.test.mjs`, the founded country, pinned. A generator name is a
-  promise that the name builds that landscape forever; this fails loudly if the
-  promise is broken, so a silent divergence becomes a deliberate fork.
-- `windows-sane.test.mjs`, the checks a browser would have made: that no window
-  calls a name nothing defines, which is how two shipped bugs began.
 - `identity.test.mjs`, standing and calling (spec 10): proof that both windows
   derive a citizen's identity, and the XP curve beneath it, exactly as the
   engine does, past mastery included.
@@ -63,6 +55,91 @@ possible executions.
   answer (randomized query differentials, multi-match ordering, maintained
   context equals a fresh rebuild, indexed/unindexed and Phase-1/Phase-2
   transitions hash identically on every tick)
+- Three suites this list used to name are gone: the rule-change tests were
+  folded into `founding.test.mjs`, the world freeze into `expanse.test.mjs`,
+  and the window sanity checks became `windows.exist.test.mjs`. They are
+  dropped rather than kept as a courtesy, because a document that names a file
+  nobody can open is the thing this list exists to prevent.
+- `founding.test.mjs` (§21e), that a world survives its own serialization: the
+  node-bytes memo is keyed by object identity, so anything that edits a node in
+  place after canonicalisation leaves the memo holding the old bytes
+- `afterlife.test.mjs`, a world stops and its citizens cross into the next one
+- `grove-and-buck.test.mjs` (§7dy, §7dz), the grove's plots and the eel buck
+- `stint.test.mjs` (§7dv), the tide and the stint
+- `ceiling.test.mjs` (§7dw), closing time
+- `span.test.mjs` (§14d), the wild span, founded plank by plank and contested
+- `vault.test.mjs` (§6g), that vaults are local and stay local
+- `incursion.test.mjs` (§6ao), one body wearing faces, no face stronger than
+  another, and never seated in a town
+- `food.test.mjs` (§6m-vii), food as a rate, measured as a simulated exchange
+- `constants.test.mjs`, the fault where a table changed and its readers did not
+- `archive.test.mjs` (spec 5g), the merkle archive driven adversarially
+- `storage.test.mjs`, the storage backends, byte-for-byte interchangeable
+- `mirror.test.mjs`, the window's copy of the geography against the world's,
+  tile for tile across every generator a world could still be standing in
+- `dial.test.mjs`, that `dial.mjs` duplicates the tide and ceiling arithmetic
+  without drifting from it
+- `window.test.mjs`, the faults that hide in the web window: a retired skill
+  name, a duplicate key in an object literal, a drifted threshold
+- `windows.exist.test.mjs`, that every window the router offers is on disk
+- `site.test.mjs`, that the hiscores board's ranking and its label agree
+- `site.content.test.mjs`, the FACTS in the site's prose against the engine
+- `prose.test.mjs`, the two rules nothing was enforcing: that
+  `spec-conformance.mjs` passes (it was never run by anything, which is how
+  fifteen divergences sat in the report unactioned), and that no long dash
+  survives anywhere this project writes
+- `engines.test.mjs`, two checks on the one thing in this project that is not
+  exact arithmetic. The generator uses `Math.sin`, `Math.cos`, `Math.atan2` and
+  `Math.hypot` in about fifty places, and ECMAScript does not require any of
+  them to be correctly rounded: V8 and JavaScriptCore really do return different
+  doubles for these calls. **The §2s check runs always** and is cheap:
+  it reads the terrain files and holds every transcendental in them to the three
+  cases §2s allows, which is what would have caught the lake shoreline. **The
+  cross-engine build is opt-in**, because it founds the world twice and takes
+  about eighty seconds: `npm run check:engines` builds the island under node and
+  under JavaScriptCore and compares the ground, the settlements and the roads.
+  It skips where there is no second engine to ask.
+- `mourning.test.mjs` (§5m), what a dying citizen keeps, through the real death
+  site rather than a faked `health = 0`: nothing below seventy, the dearest
+  priced thing at seventy, the two dearest at mastery. All three were [] for
+  every citizen in every world until `skills.prayer` was corrected to
+  `skills.mourning`.
+- `light.test.mjs` (§7dq), what counts as carrying a light, as a table: the
+  Smother's mouth refuses anybody who is not lit and the quenchers inside take
+  nothing from a weapon that does not burn, so this one boolean decides both
+  whether a citizen may go in and whether going in is any use. The torch's
+  timer was defeated twice by two different routes.
+- `cave.test.mjs` (§7dq), the chain that makes the Smother dark: the place names
+  a ground, the generator returns it, `cave` is a name the window already draws,
+  the mouth is inside it and the fellside outside is not. Four links, all of
+  them broken until now, and the only symptom of any of them breaking again is
+  that a cave looks like a hill.
+- `web.test.mjs` (§6ab-ii), that the great-spider's web knits faster while
+  nobody is tangled in it. Its seat is the one place in the world that can be
+  shot from ground it can never reach, and the arithmetic says that never broke
+  the promise that one citizen cannot take it: a lone archer's 3.70 loses to a
+  web of six for ever. What it broke was "somebody must hold it". The reach that
+  decides is the SPIDER's, not the citizen's, which is the fault the file exists
+  to pin: written against `inReach` an archer nine tiles off would have counted
+  as holding the thing they were avoiding.
+- `cries.test.mjs` (§9f), that the world announces the deep tide's turn and that
+  the bridge carries every announcement to the Unreal window. `announce()` has
+  seventy-four call sites and the browser windows read them off the world state;
+  the Unreal window is handed a curated frame that never carried the list, so it
+  was silent for all of them. That mattered most for the tide, because §14i cut
+  three tides to one on the grounds that the announcement IS the feature.
+- `deeds.test.mjs` (§6bc), what the world writes down about an act that finishes
+  inside one interval. The list held only the deeds that PAY, so a gambit, the
+  four spells of the barrow book, swearing a calling, sailing and every craft at
+  a workshop were invisible to anybody standing beside them. The Unreal window
+  keys both a figure's animation and its sound off that word, and had fifty-four
+  clips and sixteen noises authored for verbs the world could never name.
+- `signs.test.mjs` (§7ds), that the island is signposted and every settlement
+  names itself on a post. Two hundred and ten nodes carry authored words and the
+  window had never shown one: a node's options come from the engine's affordance
+  table and nothing in the engine reads a sign, so a window waiting to be told
+  waited for ever. The nine wordless posts are pinned at nine so the number
+  cannot grow quietly.
 - `adversarial.test.mjs`, the adversarial battery as CI (see below)
 - `errors.test.mjs`, typed protocol error codes: startup refusals and
   halts carry stable `ERR_*`/`HALT_*` codes with evidence

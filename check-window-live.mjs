@@ -3,8 +3,8 @@
 // Every other check for this window feeds it a state I made up. This one boots
 // the real pillar on the real generator, asks for the routes the window asks
 // for, opens a real socket, and drives the real window code against whatever
-// expanse-v7 actually is today. It cannot prove the window LOOKS right — only a
-// browser can do that — but it proves the wiring: the route is served, the
+// expanse-v7 actually is today. It cannot prove the window LOOKS right: only a
+// browser can do that, but it proves the wiring: the route is served, the
 // founding is served, the socket says hello, the state arrives, and the scene
 // gets built out of it.
 //
@@ -59,7 +59,7 @@ for (const u of routes) {
     const body = await r.arrayBuffer()
     got[u] = { status: r.status, n: body.byteLength, buf: body }
     ok(r.ok && body.byteLength > 0, u.padEnd(24) + r.status + '  ' + body.byteLength + ' bytes')
-  } catch (e) { ok(false, u + ' — ' + e.message) }
+  } catch (e) { ok(false, u + ', ' + e.message) }
 }
 ok(/window-mist|THE MIST WINDOW/.test(Buffer.from(got['/play/mist'].buf).toString('utf8', 0, 4000)),
    '/play/mist really is the mist window')
@@ -78,7 +78,7 @@ ok(/window-mist|THE MIST WINDOW/.test(Buffer.from(got['/play/mist'].buf).toStrin
   E2.addPlayer(st, key.playerId, sp.x, sp.y)
   E2.nameNoughtBody(st, key.playerId)
   ok(!!st.players[key.playerId], 'a body stands on it at ' + sp.x + ',' + sp.y)
-  // walk one step, locally, on the browser engine — the thing Nought does
+  // walk one step, locally, on the browser engine: the thing Nought does
   let s2 = st
   const wid = E2.worldId(st.genesis)
   const inp = E2.signInput({ worldId: wid, playerId: key.playerId, tick: s2.tick, type: 'move', dx: 1, dy: 0 },

@@ -1,8 +1,8 @@
-// Interval SDK v0.6 — Layer 2: the window-maker.
+// Interval SDK v0.6: Layer 2: the window-maker.
 // A clean client library between the node (layer 1: constitution +
 // consensus) and any renderer (layer 3: terminal, web, spreadsheet…).
 // The SDK knows nothing about pixels; renderers know nothing about
-// gossip. Humans and bots use this exact same interface — that is the
+// gossip. Humans and bots use this exact same interface: that is the
 // bot-indifference doctrine made concrete.
 
 import E from './engine.js'
@@ -10,7 +10,7 @@ import E from './engine.js'
 export class IntervalClient {
   constructor({ node, identity }) {
     this.node = node
-    this.identity = identity        // { playerId, privateKey } — your key IS your character
+    this.identity = identity        // { playerId, privateKey }, your key IS your character
   }
 
   // ---- reading the world (all state is public and verifiable) ----
@@ -21,7 +21,7 @@ export class IntervalClient {
   get me() { return this.node.state.players[this.identity.playerId] ?? null }
   get peers() { return this.node.p2p.getConnections().length }
   get worldId() { return this.node.worldId }                      // the COMPLETE world ID (fix brief §2)
-  get worldIdShort() { return this.node.worldId.slice(0, 12) }    // display only — never for protocol use
+  get worldIdShort() { return this.node.worldId.slice(0, 12) }    // display only, never for protocol use
 
   players() {
     return Object.entries(this.world.players).map(([pid, p]) => ({
@@ -35,10 +35,10 @@ export class IntervalClient {
 
   // ---- acting in the world (signed inputs, one per tick) ----
   #send(fields) {
-    // §2.3: worldId is inside the signed payload — this action is valid in
+    // §2.3: worldId is inside the signed payload, this action is valid in
     // exactly one world, and the signature enforces it
     // pre-freeze §5: ONE shared normalizer builds the object that gets
-    // signed — equivalent requests always produce byte-identical
+    // signed: equivalent requests always produce byte-identical
     // canonical bytes (e.g. an item trade without wantGold gains
     // wantGold: 0 here, not in some client's private convention)
     const canon = E.normalizeInput(fields)
@@ -214,12 +214,12 @@ export class IntervalClient {
   // §6dj: SWEARING TO A CALLING. The engine has had this since it had skills:
   // at SWEAR_LEVEL in a trade you may swear to one of its callings, and
   // `p.calling !== undefined` refuses a second one FOREVER. That is a mastery
-  // cap already written and already enforced — one trade a citizen, chosen
+  // cap already written and already enforced: one trade a citizen, chosen
   // once. Nothing could reach it: no sdk method, no route, so no citizen has
   // ever sworn to anything and every one of them is a generalist by accident.
   // §5m: a swearing may name the master who took you on. The mark is minted by
   // FINISHING and only by finishing, and it carries the calling rather than the
-  // person — it survives a change of name, and it says what was passed on.
+  // person: it survives a change of name, and it says what was passed on.
   swear(calling, attester) { return this.#send(attester === undefined
     ? { type: 'swear', calling } : { type: 'swear', calling, attester }) }
   // a master takes a citizen on. Consent is a signed input of its own: a master
@@ -227,7 +227,7 @@ export class IntervalClient {
   teach(to) { return this.#send({ type: 'teach', to }) }
   part(who) { return this.#send({ type: 'part', who }) }
   // §6dj: AND THE LAST FOUR TRADES THE SDK COULD NOT SPEAK. A chart drawn up
-  // into a charter, a shaft nocked, a log sawn, an ore smelted — four inputs
+  // into a charter, a shaft nocked, a log sawn, an ore smelted: four inputs
   // the engine has always validated and no script could ever send.
   charter(slot) { return this.#send({ type: 'charter', slot }) }
   nock(slot) { return this.#send({ type: 'nock', slot }) }

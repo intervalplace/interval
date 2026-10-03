@@ -67,7 +67,7 @@ parentPort?.on('message', (m) => {
 
 const PAGE = () => `<!doctype html><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Interval — founding</title>
+<title>Interval: founding</title>
 <style>
  html,body{margin:0;height:100%;background:#14110b;color:#c9a227;
    font:13px Verdana,Geneva,sans-serif;display:flex;align-items:center;justify-content:center}
@@ -84,7 +84,7 @@ const PAGE = () => `<!doctype html><meta charset="utf-8">
   <div class="sub">This node is founding its world.</div>
   <div class="bar"><div class="fill" id="f"></div></div>
   <div class="stage" id="s">starting</div>
-  <div class="note">Paid once, at startup. The world itself is already running —
+  <div class="note">Paid once, at startup. The world itself is already running:
     if you are in a hurry, any other peer will serve you now.</div>
 </div>
 <script>
@@ -98,8 +98,8 @@ setInterval(async () => {
       const n = j.live && j.live.tick
       document.getElementById('f').style.width = '100%'
       document.getElementById('s').textContent = n
-        ? 'This world is live at interval ' + n.toLocaleString() + '.'
-        : 'This world is live.'
+        ? 'This world is live at interval ' + n.toLocaleString() + '.':
+        'This world is live.'
       return setTimeout(() => location.reload(), 900)
     }
     document.getElementById('f').style.width = (j.pct || 0) + '%'

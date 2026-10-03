@@ -1,9 +1,26 @@
-// terrain-mirror.js — the window's copy of the world's own geography.
+// §7eb: THE INLAND WATERS ARE IMPORTED, NOT COPIED.
+//
+// This file carries no imports on purpose -- window-diablo.html inlines it
+// "byte for byte, exports stripped" -- and that rule is being broken here
+// deliberately, once, for the nineteen meres, tarns and pools.
+//
+// The alternative was a hand copy of a 195-line table of coordinates. The
+// whole character of this file is that a hand copy of the geography is how
+// three isles went missing and how `window-3d`'s landmark registry fell
+// thirteen nouns behind; adding the largest hand copy yet to the file written
+// to end hand copies would be an odd way to fix it. An import cannot drift.
+//
+// `window-3d.html` imports this module in the browser, so the water module is
+// served beside it and resolves. `window-diablo.html`'s inlined copy needs the
+// tables pasted in, and its copy is already not byte-for-byte.
+import { WATERS, BECKS, BECK_FORDS, SHAPE_K } from './worldgen-water-v7.mjs'
+
+// terrain-mirror.js: the window's copy of the world's own geography.
 //
 // This file used to exist THREE TIMES: once inside window-web.html, once
 // inside window-3d.html, once inside window-photo.html, ~1,300 lines each,
-// pasted. The copies had not yet disagreed about a single tile — 210,432
-// were checked — but they had already drifted in two places that simply
+// pasted. The copies had not yet disagreed about a single tile: 210,432
+// were checked, but they had already drifted in two places that simply
 // had not bitten yet:
 //
 //   * window-photo's copy had a RENDERING function (buildBridges, which
@@ -47,7 +64,7 @@ export function configure(opts = {}) {
   _wet4 = null; _wetFor = null; _sea4 = null; _riv4 = null; _seaFor = null
   _roadBmp = null; _roadBmpFor = null
   _seedNumC = null
-  _bayShore6 = null; _ss6 = null
+  _bayShore6 = null; _ss6 = null; _inland6 = null
   _ssE = null
   _roadSet = null
   _ss3 = null
@@ -95,10 +112,31 @@ export const tileHash = (x, y, salt) => {
 }
 
 let _seedNumC = null, _ssE = null, _bayShore6 = null
+// §7eb: THE SEVENTH EXPANSE IS ONE ISLAND, WHATEVER SEED FOUNDED IT.
+//
+// `worldgen-expanse7.mjs` forces every terrain hash through
+// `ISLE(g) = {...g, genesisSeed: TALLYHOLM_SEED}` -- 'solo-50' -- so that
+// "every founding under v7 stands on this same Tallyholm, whatever seed its
+// ledger carries". The site's own map legend says exactly that. The mirror did
+// not know, and hashed from the world's real seed.
+//
+// So on the live world, founded as `solo-542`, the country computed Tallyholm
+// and every window drew a DIFFERENT ISLAND: 45,402 tiles in 458,752, about one
+// in ten, with twenty-six thousand of them ground the world has and the window
+// painted as open sea. The chart's own line -- that if it and the world ever
+// disagreed one of them would be in breach of the constitution -- was false by
+// a tenth of the map, and had been for as long as any world was founded under
+// a seed that was not 'solo-50'.
+//
+// Everything terrain hashes goes through here, so this is the one place it has
+// to be said. The settlement and road seeds below are untouched: those are
+// TOLD by the pillar, not derived.
+const TALLYHOLM_SEED = 'solo-50'
 function seedNumC() {
   if (_seedNumC !== null) return _seedNumC
+  const seed = GEN === 'interval-expanse-v7' ? TALLYHOLM_SEED : GSEED
   let h = 0
-  for (let i = 0; i < GSEED.length; i++) h = Math.imul(h ^ GSEED.charCodeAt(i), 2654435761) | 0
+  for (let i = 0; i < seed.length; i++) h = Math.imul(h ^ seed.charCodeAt(i), 2654435761) | 0
   return (_seedNumC = h >>> 0)
 }
 function thashE(x, y, k) {
@@ -1702,7 +1740,7 @@ const BAYS6 = [
 ]
 function angleOf6(dx, dy) {
   // mirror of worldgen-expanse3.mjs angleOf (v6 imports it): degrees, atan2-free
-  // is not required — the generator uses Math.atan2 here? verify: it uses angleOf
+  // is not required: the generator uses Math.atan2 here? verify: it uses angleOf
   // from expanse3, which the mirror already has as angleOf3.
   return angleOf3(dx, dy)
 }
@@ -1732,17 +1770,55 @@ function bayShoreX6(y) {
   for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase6(x, y)) { sx = x; break }
   _bayShore6.set(y, sx); return sx
 }
-function islesOf6() {
+// §7eb: V6 AND V7 DO NOT SHARE A COASTLINE, and `IS_EXPANSE6()` covers both.
+//
+// The mirror had two isles for both foundings. v6 has two and v7 has five --
+// Whiting Isle, the Lists and the Dragon's Isle -- so three places a citizen
+// can stand on were open sea in every window reading this file, on the live
+// world. The chart says outright that if it and the world disagreed one of
+// them would be in breach; it had been disagreeing about three islands.
+//
+// Giving BOTH foundings the v7 list was the obvious fix and it was wrong in
+// the other direction: a v6 world would have gained three islands it does not
+// have, and a wobbling shore where its generator draws a clean ellipse.
+// `test/mirror.test.mjs` caught that in the same run that caught the missing
+// three, which is the whole argument for the test existing.
+const ISLES6_V6 = () => {
   const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
   return [
     { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
     { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
   ]
 }
+const ISLES6_V7 = () => {
+  const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
+  return [
+    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+    { x: sh + 58, y: ey + 8, rx: 12, ry: 8 },        // Whiting
+    { x: 300, y: 452, rx: 9, ry: 6 },                // the Lists
+    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
+    { x: 34, y: 30, rx: 30, ry: 22 },                // the Dragon's Isle
+  ]
+}
+const IS_V7 = () => GEN === 'interval-expanse-v7'
+function islesOf6() { return IS_V7() ? ISLES6_V7() : ISLES6_V6() }
+// The shore, mirroring `isleR` in worldgen-expanse7.mjs: same harmonics, same
+// divisors, same trig-free `angleOf`. v6's isles keep the plain ellipse its
+// own generator draws.
+function isleR6(i, u0) {
+  const u = ((u0 % 360) + 360) % 360
+  const tag = 7100 + i.x * 7 + i.y
+  return 1 + meander(tag, u / 6, 6, 11) / 55 + meander(tag + 1, u / 6, 3, 5) / 150
+}
 function onIsle6(x, y) {
+  const wobbles = IS_V7()
   for (const i of islesOf6()) {
     const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry
-    if (dx * dx + dy * dy < 1) return true
+    const d2 = dx * dx + dy * dy
+    if (!wobbles) { if (d2 < 1) return true; continue }
+    if (d2 < 0.45) return true
+    if (d2 >= 1.7) continue
+    if (d2 < isleR6(i, angleOf6(dx, dy)) ** 2) return true
   }
   return false
 }
@@ -1780,7 +1856,15 @@ function biomeAt6(x, y) {
   if (x <= brandX6(y)) return 'wilds'
   return regionAt6(x, y)
 }
-const SRC_YF6 = 0.105
+// §7eb: THE RIVER'S SOURCE MOVED NORTH IN v7 AND THE MIRROR STAYED PUT.
+//
+// v6 starts the Great River at 0.105 of the world's height and v7 at 0.06 --
+// on a 512-tall island, y=54 against y=31. The mirror had v6's number for
+// both, so on a v7 world it drew twenty-two rows of greenwood over the river's
+// whole head: 66 tiles, the last disagreement left after the frozen seed and
+// the inland waters were settled, and precisely the band the test named
+// (x 424-432, y 32-53).
+const SRC_YF6 = () => (GEN === 'interval-expanse-v7' ? 0.06 : 0.105)
 function riverX6(y) {
   return Math.floor(W / 2) + Math.round(meander(21, y, 52, 30) + meander(22, y, 16, 6))
 }
@@ -1792,7 +1876,7 @@ function marchWY6(x) {
   return cyy + Math.round(meander(25, x, 36, 12) * t)
 }
 function inRiver6(x, y) {
-  const srcY = Math.round(H * SRC_YF6)
+  const srcY = Math.round(H * SRC_YF6())
   if (y >= srcY) {
     const rx = riverX6(y)
     const d = x - rx < 0 ? rx - x : x - rx
@@ -1811,9 +1895,78 @@ function inRiver6(x, y) {
   return false
 }
 function lakeC6() { return { x: Math.round(W * 0.745), y: Math.round(H * 0.21) } }
+// §7eb: NINETEEN WATERS, NOT ONE, AND NONE OF THEM AN ELLIPSE.
+//
+// The mirror knew Stillwater, as a perfect ellipse, and nothing else: no
+// Barrow Mere, no Millpond, no Oxenmere, no tarn, and not one of the becks
+// running off the high ground. That was 5,600 tiles of the v7 island where the
+// world has water and the window drew dry land -- somebody walking onto a mere
+// the window never painted.
+//
+// This is `inlandSet` out of worldgen-expanse7.mjs, kept identical on purpose,
+// down to Stillwater joining the table rather than keeping its own rule. The
+// generator's own note says why: the first attempt there DELETED THE LAKE by
+// leaving `inLake` reading a set the lake had not been added to.
+//
+// IT USED TO USE `Math.sin` AND `Math.atan2`, and the note here used to say so
+// and end "worth raising against the generator", because the terrain rules
+// (§2s) forbid both for exactly the reason they are forbidden: two engines may
+// round them differently and geography is law. The mirror's job is to AGREE,
+// never to be safer than the thing it mirrors, so it could not be fixed from
+// this side.
+//
+// It was raised, and the generator changed: `inlandSet` draws its shorelines
+// with `meander` and `angleOf` now, the same two the isles and the coast have
+// always used. This follows, with the same constants, for the same reason it
+// carried the old ones.
+let _inland6 = null
+function inlandSet6() {
+  if (_inland6) return _inland6
+  const set = new Set()
+  const ALL = [...WATERS,
+    { x: lakeC6().x, y: lakeC6().y, rx: 24, ry: 13, kind: 'mere', name: 'Stillwater' }]
+  for (let wi = 0; wi < ALL.length; wi++) {
+    const w2 = ALL[wi]
+    const k = SHAPE_K[w2.kind] ?? 0.24
+    const tag = 9100 + wi * 13
+    const rAt = (a, x, y) => {
+      const u = ((a % 360) + 360) % 360
+      return 1
+        + k * meander(tag, u / 6, 6, 11) / 13
+        + k * meander(tag + 1, u / 6, 3, 5) / 40
+        + ((thashE(x, y, 911) % 100) / 100 - 0.5) * 0.05
+    }
+    const pad = Math.ceil(Math.max(w2.rx, w2.ry) * (1 + k)) + 2
+    for (let y = w2.y - pad; y <= w2.y + pad; y++)
+      for (let x = w2.x - pad; x <= w2.x + pad; x++) {
+        const dx = (x - w2.x) / w2.rx, dy = (y - w2.y) / w2.ry
+        const d = Math.sqrt(dx * dx + dy * dy)
+        if (d === 0) { set.add(x + ',' + y); continue }
+        if (d < rAt(angleOf6(dx, dy), x, y)) set.add(x + ',' + y)
+      }
+  }
+  for (const b of BECKS) {
+    for (let i = 0; i < b.path.length - 1; i++) {
+      let [x, y] = b.path[i]; const [tx, ty] = b.path[i + 1]
+      let guard = 0
+      while ((x !== tx || y !== ty) && guard++ < 400) {
+        set.add(x + ',' + y)
+        if (Math.abs(tx - x) >= Math.abs(ty - y)) x += Math.sign(tx - x)
+        else y += Math.sign(ty - y)
+      }
+    }
+    const last = b.path[b.path.length - 1]; set.add(last[0] + ',' + last[1])
+  }
+  for (const [x, y] of BECK_FORDS) set.delete(x + ',' + y)
+  return (_inland6 = set)
+}
 function inLake6(x, y) {
-  const c = lakeC6(), dx = (x - c.x) / 24, dy = (y - c.y) / 13
-  return dx * dx + dy * dy < 1
+  // v6 has Stillwater alone and keeps its ellipse; the table above is v7's.
+  if (GEN !== 'interval-expanse-v7') {
+    const c = lakeC6(), dx = (x - c.x) / 24, dy = (y - c.y) / 13
+    return dx * dx + dy * dy < 1
+  }
+  return inlandSet6().has(x + ',' + y)
 }
 const isWater6 = (x, y) => inSea6(x, y) || inRiver6(x, y) || inLake6(x, y)
 

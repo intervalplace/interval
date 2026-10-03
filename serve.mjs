@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Interval serve v0.9 — the browser bridge.
+// Interval serve v0.9: the browser bridge.
 // Runs a solo world node + a WebSocket bridge + serves the reference
 // graphical window. The browser is a pure layer-3 window: it receives
 // state each tick and sends intents; the bridge signs them with the
 // local identity (browser-side keys arrive with the light-client
-// milestone — for localhost this custody model is honest).
+// milestone: for localhost this custody model is honest).
 //   usage: node serve.mjs [name]   then open http://localhost:8787
 
 import fs from 'fs'
@@ -118,7 +118,7 @@ console.warn = (...a) => { if (typeof a[0] === 'string') _tap(a[0]); _warn(...a)
 const SEED = 'solo-' + (process.env.INTERVAL_SEED || 'world')
 // which country the next founding raises: INTERVAL_GEN=interval-expanse-v1
 // for the meandering trails, seven settlements, and the great river.
-// Only consulted at FOUNDING — a running world keeps the generator in
+// Only consulted at FOUNDING: a running world keeps the generator in
 // its genesis forever, because the genesis is the world.
 // SPEC §2l/§9d: new foundings use the FIFTH expanse. v5 keeps every acre of
 // v4's land and changes only how much furniture stands on it -- half the
@@ -134,13 +134,13 @@ const RULES_HASH = rulesHash(new URL('./', import.meta.url))
 // possible moment, because by then both sides have a history they believe in.
 const ENGINE_HASH = E.declareEngine(fs.readFileSync(new URL('./engine.js', import.meta.url), 'utf8'))
 // founding dimensions: 0 means 'the generator's own calibrated scale'
-// (expanse 640x400 per SPEC §2l, classic 320x200 per §2j) — override
+// (expanse 640x400 per SPEC §2l, classic 320x200 per §2j): override
 // with INTERVAL_W / INTERVAL_H only when you know why
 const WORLD_W = Number(process.env.INTERVAL_W) || 0
 const WORLD_H = Number(process.env.INTERVAL_H) || 0
 // ---- INTERVAL_DATA (v0.78): the world's MEMORY lives where deploys
-// cannot reach it. Every wipe this world has suffered — the lost
-// citizens, twice — traced to one cause: checkpoints and identities
+// cannot reach it. Every wipe this world has suffered: the lost
+// citizens, twice: traced to one cause: checkpoints and identities
 // sat inside the deploy directory, and a fresh unpack starts soulless.
 // Point INTERVAL_DATA at a persistent path (a volume, a home dir,
 // anywhere the deploy does not touch) and the class of loss ends.
@@ -178,7 +178,7 @@ try { if (fs.existsSync(CP_FILE)) savedCp = JSON.parse(fs.readFileSync(CP_FILE))
 // ---- the founding witness (fix brief Milestone 4, Phase 9) ----
 // The pillar is a witness, not an authority: it proposes and attests to
 // interval bundles like any other witness. Its witness key is a founding
-// fact — listed in genesis, immutable for this world. Extra witnesses
+// fact: listed in genesis, immutable for this world. Extra witnesses
 // and the quorum can be set at founding via env:
 //   INTERVAL_WITNESSES=pub1,pub2   INTERVAL_QUORUM=2
 const WITNESS = E.loadOrCreateIdentity(fs, DATA + '/identities/witness-pillar.json')
@@ -188,7 +188,7 @@ const EXTRA_WITNESSES = (process.env.INTERVAL_WITNESSES || '').split(',').map(s 
 // Genesis is consensus identity and is IMMUTABLE after founding. We resume
 // the same world only if the rules, the seed, and the clock all still fit.
 // A long sleep no longer rebases anchorMs (that mutated the world's
-// identity in place); it founds a NEW world — new anchor, new worldId —
+// identity in place); it founds a NEW world: new anchor, new worldId,
 // whose genesis imports the citizens.
 // How long this world may go unattended before it is abandoned and refounded.
 //
@@ -228,7 +228,7 @@ if (canResume) {
   GENESIS = saved.genesis
   const behind = gapOf(GENESIS)
   // v0.78: the idle-world replay must NEVER manufacture ticks the
-  // witness already finalized — an empty replay across a finalized span
+  // witness already finalized: an empty replay across a finalized span
   // rewrites signed history with fabricated silence, and once it
   // checkpoints, the true ancestor is gone. If a frontier lies at or
   // ahead of the state, stand down: the agreement layer recovers those
@@ -302,8 +302,8 @@ if (canResume) {
   // floor((n-1)/3); the quorum is then the safe minimum 2f+1 unless an
   // explicit (larger, still valid) quorum is requested.
   GENESIS.byzantineTolerance = Number.isInteger(Number(process.env.INTERVAL_FAULT_TOLERANCE))
-    ? Number(process.env.INTERVAL_FAULT_TOLERANCE)
-    : E.maxByzantine(nWit)
+    ? Number(process.env.INTERVAL_FAULT_TOLERANCE):
+    E.maxByzantine(nWit)
   const fWit = GENESIS.byzantineTolerance
   GENESIS.quorum = Math.max(E.minQuorumFor(nWit, fWit),
     Math.min(nWit, Number(process.env.INTERVAL_QUORUM) || 0))
@@ -311,7 +311,7 @@ if (canResume) {
   // 2q-n>f): an unsafe configuration is refused at founding, not discovered
   // at forking.
   if (!E.byzantineSafe(nWit, GENESIS.quorum, fWit)) {
-    console.error(`refusing to found a Byzantine-unsafe world: n=${nWit}, q=${GENESIS.quorum}, f=${fWit} — need n>=3f+1, q>=2f+1, 2q-n>f`)
+    console.error(`refusing to found a Byzantine-unsafe world: n=${nWit}, q=${GENESIS.quorum}, f=${fWit}, need n>=3f+1, q>=2f+1, 2q-n>f`)
     process.exit(1)
   }
   const old = savedCp?.state ?? (savedCp === null && saved && fs.existsSync(CP_FILE)
@@ -332,7 +332,7 @@ if (canResume) {
       + ' the new world records no provenance, because the saved state does not hash to the hash it carries)')
   } else if (Array.isArray(saved?.genesis?.imported) && saved.genesis.imported.length) {
     // the last world died YOUNG: it never lived to its first checkpoint,
-    // so there is no living state to carry — but its FOUNDING carried
+    // so there is no living state to carry, but its FOUNDING carried
     // citizens, and founding data does not expire with the world that
     // held it. They pass through to this founding unchanged. (This is
     // how a citizen survives two refounds in one evening.)
@@ -345,7 +345,7 @@ if (canResume) {
       + ' citizen(s) from the previous FOUNDING record instead)')
   }
   // the operator's door: INTERVAL_IMPORT=path.json supplies a founding
-  // import list by hand — for recovering citizens a lost checkpoint (or a
+  // import list by hand: for recovering citizens a lost checkpoint (or a
   // lost deploy) orphaned. Read only when nothing else carried anyone.
   if (!(GENESIS.imported?.length) && process.env.INTERVAL_IMPORT) {
     try {
@@ -360,8 +360,8 @@ if (canResume) {
   // FORENSICS: the founding names its sources, so the next mystery
   // explains itself in one log line instead of costing a day
   console.warn('FOUNDING sources: world.json ' + (saved ? 'present' : 'ABSENT')
-    + ' \u00b7 checkpoint ' + (savedCp ? 'present (tick ' + savedCp.tick + ')'
-      : fs.existsSync(CP_FILE) ? 'present-but-unreadable' : 'ABSENT')
+    + ' \u00b7 checkpoint ' + (savedCp ? 'present (tick ' + savedCp.tick + ')':
+      fs.existsSync(CP_FILE) ? 'present-but-unreadable' : 'ABSENT')
     + ' \u00b7 carrying ' + (GENESIS.imported?.length ?? 0) + ' citizen(s)')
   // AND THE COUNTRY MUST BE ABLE TO SEAT THEM. The first two expanses predate
   // seatImport: they would build a perfectly valid world with nobody in it and
@@ -918,7 +918,7 @@ const server = http.createServer((req, res) => {
       // music is large and never changes: let it cache, unlike the windows.
       // And it must speak RANGE: iOS Safari's media stack probes with
       // byte-ranges and refuses players that answer a whole file to a
-      // partial question — which is a door with music behind it and
+      // partial question, which is a door with music behind it and
       // silence in front.
       const range = req.headers.range
       const base = { 'Content-Type': AUDIO_MIME[ext], 'Cache-Control': 'public, max-age=86400',
@@ -1205,7 +1205,7 @@ function handle(ws, buf) {
     // Everything below already existed twice over: the engine has an input for
     // each (`inp.type === 'survey'`, `'transmute'`, `'brew'` …), sdk.mjs has a
     // method for each, and window-web sends most of them. Only this ladder was
-    // missing, so they were dropped in silence — and two whole SKILLS were
+    // missing, so they were dropped in silence, and two whole SKILLS were
     // unreachable by any window as a result: `mourning` is paid by `offer` at
     // an ossuary and `wayfaring` by `survey` and `deliver`. A citizen could
     // not have found out why; there was nothing to see.
@@ -1320,8 +1320,8 @@ node.onTick = (state) => {
   // of memory after three and a half hours: 2 GB of heap, dead.
   //
   // readyState 1 means OPEN. It does not mean the far end is reading. A phone
-  // that went into a tunnel, a laptop that slept, a tab that was backgrounded
-  // — all stay OPEN for minutes while `send()` quietly queues into the
+  // that went into a tunnel, a laptop that slept, a tab that was backgrounded:
+  // all stay OPEN for minutes while `send()` quietly queues into the
   // socket's buffer. At six hundred kilobytes a tick, ten times a minute, one
   // stalled client is a third of a gigabyte an hour.
   //
@@ -1404,7 +1404,7 @@ node.onTick = (state) => {
     + (DROP_ABOVE / 1048576) + 'MB at tick ' + state.tick)
   else if (skipped && state.tick % 100 === 0) console.warn('[backpressure] '
     + skipped + ' behind at tick ' + state.tick + ', worst ' + (worst / 1048576).toFixed(1)
-    + 'MB of ' + (DROP_ABOVE / 1048576) + 'MB — skipping until they drain')
+    + 'MB of ' + (DROP_ABOVE / 1048576) + 'MB: skipping until they drain')
 }
 
 // §0: BUILD THE PRACTICE ISLAND BEFORE ANYONE ASKS FOR IT.
@@ -1452,7 +1452,7 @@ function buildPracticeIsland () {
       return
     }
   } catch { /* no cache for this founding: build it, below, and leave one */ }
-  console.log('building the practice island (§0) — this founding has not been built before,')
+  console.log('building the practice island (§0), this founding has not been built before,')
   console.log('  and it stops this node for a few minutes. It is written to disk and never repeated.')
   noughtWorldJson = Buffer.from(JSON.stringify(
     E.markNoughtWorld(buildWorld(E.noughtGenesisOf(node.state.genesis)))))
@@ -1520,7 +1520,7 @@ await releaseBootPort()
 verifyWindows()
 server.listen(HTTP_PORT, () => {
   console.log('Interval is live: http://localhost:' + HTTP_PORT + '  (site, game, hiscores, API)')
-  console.log('peers may join via join.mjs — p2p port ' + P2P_PORT + ', peer ' + node.peerId())
+  console.log('peers may join via join.mjs, p2p port ' + P2P_PORT + ', peer ' + node.peerId())
   // next turn of the loop: the listen callback has returned, the socket is
   // accepting, and anything that arrives during the build waits instead of
   // being refused.

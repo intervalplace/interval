@@ -53,13 +53,13 @@ for (let i = 0; i < nodes.length; i++)
     await nodes[j].dial(nodes[i].addr())
 
 // wait until every node actually sees all other peers subscribed to the
-// input topic — publishing before the mesh forms silently drops messages
+// input topic: publishing before the mesh forms silently drops messages
 const meshReady = () => nodes.every(n =>
   n.p2p.services.pubsub.getSubscribers(n.topics.inputs).length >= nodes.length - 1)
 for (let i = 0; i < 100 && !meshReady(); i++) await new Promise(r => setTimeout(r, 200))
 if (!meshReady()) { console.log('mesh failed to form'); process.exit(1) }
 
-console.log(`Interval v0.3 — ${nodes.length} libp2p nodes, world ${RULES_HASH.slice(0, 12)}…`)
+console.log(`Interval v0.3, ${nodes.length} libp2p nodes, world ${RULES_HASH.slice(0, 12)}…`)
 console.log(`peers: ${nodes.map(n => `${n.name}=${n.peerId().slice(0, 8)}…`).join(' ')}`)
 console.log('')
 

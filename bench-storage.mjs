@@ -3,7 +3,7 @@
 // synthetic finality history at a requested scale and measures the operations
 // that matter for multi-year operation: append throughput, indexed lookup,
 // startup validation (structural + bounded cert), a full integrity check, and
-// consistent online backup. "Storage is not consensus" — the synthetic records
+// consistent online backup. "Storage is not consensus": the synthetic records
 // are structurally valid but not signature-bearing, so this measures STORAGE,
 // not cryptography (bounded cert verification is measured separately with real
 // certs in the test suite).
@@ -33,7 +33,7 @@ const mkRecord = (t) => ({
 
 function ms(fn) { const t0 = process.hrtime.bigint(); const r = fn(); return { r, ms: Number(process.hrtime.bigint() - t0) / 1e6 } }
 
-console.log(`# storage benchmark — backend=${backend}, ticks=${ticks.toLocaleString()}`)
+console.log(`# storage benchmark, backend=${backend}, ticks=${ticks.toLocaleString()}`)
 console.log(`# dir=${dir}`)
 
 const open = () => backend === 'sqlite' ? sqliteFinalityStore(dbPath, { worldId }) : finalityIndexStore(dbPath)
@@ -41,7 +41,7 @@ let store = open()
 
 // --- append throughput ---
 // Production appends one record per tick (600ms apart), each its own fsynced
-// transaction — so per-append latency (~1ms) is what matters live and is
+// transaction, so per-append latency (~1ms) is what matters live and is
 // measured in the test suite. HERE we measure raw STORAGE throughput by
 // batching into transactions, which is what a bulk import / migration sees.
 {

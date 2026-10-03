@@ -20,6 +20,10 @@
     "sdk-test": "node --test test/sdk.test.mjs",
     "evidence": "bash freeze-evidence.sh",
     "test:unit": "node run-tests.mjs",
+    "check:engines": "INTERVAL_CROSS_ENGINE=1 node --test test/engines.test.mjs",
+    "check:exact": "node worldgen-exact.mjs --verbose",
+    "check:skills": "node skill-check.mjs",
+    "check:safespot": "node check-safespot.mjs",
     "test:adversarial:ci": "node run-tests.mjs --only adversarial",
     "test:adversarial:full": "node advsim.mjs all 3 30000",
     "storage:health": "node storage-ops.mjs health",
@@ -49,7 +53,7 @@
   "protocol": {
     "specVersion": "1.05",
     "consensusVersion": "1.9",
-    "rulesHash": "6cde7f4e2631a1af"
+    "rulesHash": "df504ccae64e528b"
   },
   "engines": {
     "node": ">=22.5.0"

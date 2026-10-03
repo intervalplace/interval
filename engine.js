@@ -575,11 +575,11 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // Greenwood, a miner the Wilds, a fisher the water; a mourner had a verb and
   // no destination, and buried wherever their feet happened to be.
   'rampart', 'ossuary', 'house',
-  // §6bq: THE CART. What a burst consignment becomes -- not twenty-eight piles
+  // §6bq: THE CART. What a burst consignment becomes -- not twelve piles
   // on one tile but ONE thing standing in the road, unloaded a slot at a time
   // by whoever stops. It is a node and not ground because ground forgets in a
   // hundred intervals and a spilled caravan should be an event people can walk
-  // to, and because a heap of twenty-eight is a race for whoever clicks first.
+  // to, and because a heap of twelve is a race for whoever clicks first.
   'cart',
   // §6bp: THE DEDICATION STONE. Cut stone with one name on it, bought and
   // outbid. It grants nothing. It is the only thing in this world a citizen
@@ -587,7 +587,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   'dedication',
   // §6am (v6): THE MIDDLE OF THE ROAD GETS A GROUND OF ITS OWN.
   //
-  // Two tiers only -- bronze at one, quick and the master yields at the far end
+  // Two tiers only -- iron at one, quick and the master yields at the far end
   // -- left the whole middle of every gathering skill as featureless slope: a
   // place a citizen passed through in an afternoon and never stood in. The
   // fix is not a better log from the same trunk (that has no PLACE); it is a
@@ -607,7 +607,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   'muck-heap',
   // 6bb: THE GOLD SEAM. Not a tier of mining -- a lottery inside it.
   'gold-rock',
-  // 6bc: the woodcutting ladder. Ironbark is a wood; the gallows-oak is a
+  // 6bc: the woodcraft ladder. Ironbark is a wood; the gallows-oak is a
   // PLACE -- the same heartwood, twice a strike, in the country that kills.
   'ironbark-tree', 'gallows-oak',
   // 6bd: mining's own gallows-oak -- the same stone, twice a strike, deeper in
@@ -624,7 +624,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // Nothing in v6 or v7 seats a waystone, so restoring the type widens
   // validation and moves no tile in any living world.
   'waystone',
-  // §7a: THE ROCKFALL. Nine boulders standing in the throat of the South Pass,
+  // §12c: THE ROCKFALL. Nine boulders standing in the throat of the South Pass,
   // where a road still runs and no longer arrives. They are NODES, not
   // terrain, which is the whole reason this can exist: a node blocks its tile
   // (it is not in _WALKABLE_BUILT) and a node can be removed, so citizens can
@@ -636,7 +636,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // it. It blocks its tile like any node, and the `pay` verb lifts it for the
   // citizen who paid -- for a while, and for them only.
   'tollgate',
-  // §7a: THE WILD SPAN, in its two states. The mirror of the rockfall: where a
+  // §14d: THE WILD SPAN, in its two states. The mirror of the rockfall: where a
   // rockfall is a NODE that blocks a tile the geography left open, a span is a
   // node that OPENS a tile the geography left blocked -- a deck over the one
   // beck in the Wilds. Both are nodes and not terrain for the same reason and
@@ -677,7 +677,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // rings, that everybody hears, that nobody can un-ring, and that carries the
   // names of whoever was on the rope.
   'bellwork', 'bell',
-  // §7d: THE LOOKING GLASS. A citizen's first face is free, at the door. To
+  // §13j: THE LOOKING GLASS. A citizen's first face is free, at the door. To
   // change it afterwards you go and look at yourself in something, and there
   // is one of them on the island.
   // §7p: THE FURNACE. Ore becomes metal here and nowhere else on the island.
@@ -726,7 +726,7 @@ const DEPLETE_TICKS = 8;
 // are the ones where they meet.
 //
 // And it made gathering mostly walking. The nearest other tree is 2.8 tiles
-// off, so at woodcutting 57 with a bronze axe a log was 2.3 intervals of
+// off, so at woodcraft 57 with an iron axe a log was 2.3 intervals of
 // cutting and 2.8 of shuffling to the next trunk -- fifty-five per cent of the
 // work was travel between things that are identical.
 //
@@ -791,7 +791,7 @@ const NODE_YIELD = {
   // It costs 14% off the road (879 hours to 754), which rateMul takes back.
   // The old shape was 25/45/65 and a 13.8x shortcut; this is 1.2x.
   'tree':         { item: 'logs',        skill: 'woodcraft', xp: 20, hard: 1 },
-  // §7q: RETIRED. This is the bronze-age rock and the world places none of
+  // §7q: RETIRED. This is the one-tier rock from before iron, and the world places none of
   // them -- `worldgen-expanse7` scatters iron-rock, coal-rock, gold-rock,
   // quick-rock and mother-lode, and no plain `rock` at all. Its entry stays so
   // an old saved world still validates; its numbers mean nothing, and a
@@ -799,7 +799,7 @@ const NODE_YIELD = {
   // stand. (It paid 35 where every live node pays 20-24; that gap was never
   // reachable.)
   'rock':         { item: 'ore',         skill: 'earthcraft',      xp: 35, hard: 1 },
-  // §7a: a boulder pays a piece of itself and almost no experience. Nobody
+  // §12c: a boulder pays a piece of itself and almost no experience. Nobody
   // should be able to train on the South Pass -- the reason to strike it is
   // that it is in the way, and the day it stops being in the way is the point.
   'rockfall':     { item: 'rubble',      skill: 'earthcraft',      xp: 1, hard: 1 },
@@ -824,9 +824,9 @@ const NODE_YIELD = {
   'muck-heap':      { item: 'saltpetre', skill: 'hearthcraft', xp: 24, hard: 4 },
   'eel-spot':  { item: 'eel',      skill: 'shorecraft',     xp: 21, hard: 2 },
   // §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
-  // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is bronze
-  // still (bronze is iron worked simply here), and STEEL is iron quenched with
-  // coal. v6 places iron-rock, never the old rock, so v5's ore is untouched.
+  // v6 mines IRON where v5 mined generic 'ore'; the baseline gear is iron
+  // worked simply, and STEEL is iron quenched with coal. v6 places iron-rock,
+  // never the old rock, so v5's ore is untouched.
   // §7p: THE SEAM GIVES ORE, NOT A FINISHED BAR. It gave `iron` -- metal,
   // ready for the anvil -- so the deepest supply chain in the world was also
   // the shortest: strike the rock, walk to the forge, done. Ore now, and the
@@ -836,8 +836,8 @@ const NODE_YIELD = {
   //
   // The first cut of this pointed it at `ore`, which was WRONG and worth
   // recording: `ore` is the generic of the first founding, what the plain
-  // `rock` gives, from when there was one tier and it was bronze. Iron ore is
-  // not that, and a seam that gave the retired generic would have made bronze
+  // `rock` gives, from when there was one tier and it was iron. Iron ore is
+  // not that, and a seam that gave the retired generic would have made iron
   // stock and iron stock the same substance.
   'iron-rock': { item: 'iron-ore', skill: 'earthcraft',      xp: 20, hard: 1 },
   // §6ao (v6): the mastery seams, each its own place. Heartwood from the deep
@@ -864,13 +864,13 @@ const NODE_YIELD = {
 // (tick % 2400), not wall-clock authority: but its only effect was
 // mandatory waiting, and waiting is the one cost this world rejects.
 // The stones price the sigil; the sky is for the windows to paint.
-// v0.41: strength must be earned before it is worn. Smithing gated the
-// forge; nothing gated the arm. Bronze stays free: the door is open.
+// v0.41: strength must be earned before it is worn. Earthcraft gated the
+// forge; nothing gated the arm. Iron stays free: the door is open.
 const WIELD_REQS = {
-  // §6ae: STARMETAL IS A LATE THING, not a slightly better shirt.
+  // §6ae: QUICKMETAL IS A LATE THING, not a slightly better shirt.
   //
   // It was wieldable at attack 20 and defence 15-30 -- a fifth of the way up
-  // a ninety-nine scale -- so bronze was what newcomers wore for an hour and
+  // a ninety-nine scale -- so iron was what newcomers wore for an hour and
   // quick was what everybody wore forever. With only two tiers in the world,
   // the second one has to mean something.
   //
@@ -890,12 +890,37 @@ const WIELD_REQS = {
   'steel-hatchet': { woodcraft: 10 }, 'steel-pickaxe': { earthcraft: 10 }, 'oak-rod': { shorecraft: 10 }, 'ironbark-rod': { shorecraft: 30 }, 'heartwood-rod': { shorecraft: 70 },
   'quick-hatchet': { woodcraft: 30 }, 'quick-pickaxe': { earthcraft: 30 },
   // 6bc: the felling axe -- a quickmetal head on an ironbark haft, and the last
-  // thing woodcutting asks for. It needs the Wilds (the head) and the deep
+  // thing woodcraft asks for. It needs the Wilds (the head) and the deep
   // Greenwood (the haft), so the peaceful half of the trade and the dangerous
   // half have to meet, exactly as the heartwood bow makes them.
   'great-hatchet': { woodcraft: 70 }, 'great-pickaxe': { earthcraft: 70 },
-  'quick-sword': { prowess: 50 }, 'quick-dagger': { prowess: 50 }, 'old-chain': { prowess: 30 },
-  'gold-chain': { prowess: 30 }, 'bone-staff': { sorcery: 40 },
+  'quick-sword': { prowess: 50 }, 'quick-dagger': { prowess: 50 },
+  // §6bp: THE CHAINS ARE SWORN-ONLY, and they are the reason the band above
+  // seventy exists in this skill at all.
+  //
+  // They were 30, which is below even the ceiling an UNSWORN citizen lives
+  // under, so the best melee weapon in the world was the one thing somebody
+  // who never chose a trade could pick up and use. And they are the best for a
+  // reason that is not obvious from the table: every other weapon here strikes
+  // once in two intervals and the chains strike every one, so with damage at
+  // `1 + floor(prowess/10) + hit` a chain does not hit hard, it DOUBLES THE
+  // VALUE OF EVERY PROWESS LEVEL ITS BEARER OWNS. At ninety-nine it lands six
+  // a tick with no accuracy penalty, second only to a great-mell that pays ten
+  // accuracy for the privilege.
+  //
+  // Ninety puts it where the handgonne already is for marksmanship: past the
+  // seventy a sworn citizen reaches in any skill that is not their own, so
+  // only a berserker, a warden or a fighter can ever hold one. That was the
+  // gap. Prowess topped out at seventy -- great-sword, great-mell, both helms
+  // and both plates -- which is exactly the ceiling for a skill you did NOT
+  // swear to, so the three fighting callings earned thirty levels that bought
+  // no equipment at all. Marksmanship and sorcery both used that band already.
+  //
+  // At two in sixty-five thousand off a troll, most citizens who find one
+  // still cannot use it. That is not a loss: it is a thing to sell to somebody
+  // who can, which is an economy rather than a trophy.
+  'old-chain': { prowess: 90 },
+  'gold-chain': { prowess: 90 }, 'bone-staff': { sorcery: 40 },
   // §7ao: A MAUL ANSWERS TO STRENGTH.
   //
   // Every mell was gated on ATTACK, which is the finesse stat -- and a mell is
@@ -919,7 +944,7 @@ const WIELD_REQS = {
   // §6dg: a thrown arm asks the bow-arm, one notch under the weapon it shares
   // a forge with -- and quick asks the same fifty every quick arm asks.
   'iron-javelin': { marksmanship: 1 }, 'steel-javelin': { marksmanship: 15 }, 'quick-javelin': { marksmanship: 50 },
-  // §6x: THE FLAIL IS STARMETAL ONLY. `pierces` ignores an entire defensive
+  // §6x: THE FLAIL IS QUICKMETAL ONLY. `pierces` ignores an entire defensive
   // system, and on a starter weapon that meant a level-ten citizen with two
   // ore beat a quick-clad one more efficiently than a quick-sword does. It is
   // the answer to armour, and it belongs to people who have earned armour.
@@ -948,7 +973,19 @@ const WIELD_REQS = {
   'great-mell': { prowess: 70 },
   // §6bw: defence's last unlock was fifty and then forty-nine levels of
   // nothing -- the longest dead band in the game once the arms were fixed.
-  'great-helm': { prowess: 70 }, 'great-plate': { prowess: 70 },
+  // §6bp: AND THE GREAT SET IS SWORN-ONLY TOO, at eighty.
+  //
+  // Seventy is the ceiling for a skill that is not your calling, so gear at
+  // seventy is gear anybody who swore anything can wear. Eighty is inside the
+  // band only a fighting calling reaches, and it sits evenly between the great
+  // weapons at seventy and the chains at ninety instead of crowding either.
+  //
+  // The armour and not the weapons, because of what this set IS: a great-plate
+  // shatters to save its wearer from a death and a great-helm from a rooting,
+  // which is why they soak less than a quick-plate that costs thirty levels
+  // less. A life bought once is the strongest thing worn in this world and it
+  // should cost more than a sword does.
+  'great-helm': { prowess: 80 }, 'great-plate': { prowess: 80 },
   // and fifteen, where a citizen fighting crabs had worn the same iron since
   // their first afternoon and would go on wearing it until thirty-two.
   'shell-helm': { prowess: 15 }, 'shell-plate': { prowess: 15 },
@@ -972,7 +1009,7 @@ const WIELD_REQS = {
   // and eighty-five is where the stilling lives; a second thing there would
   // dilute the one capstone magic has.
   //
-  // What actually keeps this staff rare is that somebody must reach fletching
+  // What actually keeps this staff rare is that somebody must reach woodcraft
   // ninety and spend two heartwood on it. The level only has to say what kind
   // of thing it is, and seventy says "a serious tool" where forty said "not
   // quite a beginner".
@@ -1025,7 +1062,7 @@ const STORE_SELLS = {};
 // always the same. "The axe man in Greenhollow" becomes a fact a citizen
 // knows, and a fact you know is worth more than the coin it costs.
 //
-// Deliberately narrow, and deliberately humble. Bronze only -- no quick gear,
+// Deliberately narrow, and deliberately humble. Iron only -- no quick gear,
 // nothing rare, nothing a citizen will still be buying in a month. The point
 // is not to be useful forever. The point is to be somewhere.
 //
@@ -1116,23 +1153,38 @@ function skillUnlocks() {
   // magic, from its first spell to its last
   add('sorcery', TRANSMUTE_REQ, 'transmute');                                      // 6bv: what a thing is worth unmade is TRANSMUTE_PAYS
   add('sorcery', MEND_REQ, 'mend');                                           // 6bv: that a wand sends it is for a wand-bearer to find
-  add('sorcery', ROT_LEVEL, 'the rot \u2014 from the barrow-work');            // §7cg
-  add('sorcery', TAKING_LEVEL, 'the taking \u2014 from the barrow-work');       // §7ci
-  add('sorcery', WAKING_LEVEL, 'the waking \u2014 from the barrow-work');
-  add('sorcery', WITHER_LEVEL, 'the withering \u2014 from the barrow-work');    // §7ck       // §7ce
+  add('sorcery', ROT_LEVEL, 'the rot, from the barrow-work');            // §7cg
+  add('sorcery', TAKING_LEVEL, 'the taking, from the barrow-work');       // §7ci
+  add('sorcery', WAKING_LEVEL, 'the waking, from the barrow-work');
+  add('sorcery', WITHER_LEVEL, 'the withering, from the barrow-work');    // §7ck       // §7ce
   add('sorcery', STILL_LEVEL, 'the stilling');                                // 6bv: what it does, and what it costs, are the caster's to learn
   // prayer, which does one thing and then does it twice
   add('mourning', PRAYER_KEEP, 'the dearest priced thing you carry survives your death');
   add('mourning', PRAYER_KEEP_TWO, 'the two dearest do');
-  // and the tables, so a new recipe needs no new line here
+  // and the tables, so a new recipe needs no new line here.
+  //
+  // THE `smithing` KEY IS GONE AND THIS WAS STILL ASKING FOR IT. SMITH_REQS
+  // keys on real skills now -- earthcraft, woodcraft, sorcery -- so
+  // `req.smithing ?? 1` fell through to 1 for every single recipe, and the
+  // guide told a citizen who had just arrived that they could forge all
+  // sixty-three smithable things at earthcraft ONE, with the real requirement
+  // printed beside it in brackets. The second loop was adding the true line as
+  // well, so the gate was never actually wrong; what was wrong was the guide,
+  // which is the one place in this world a citizen is promised the truth about
+  // what a level opens (§6bv).
+  //
+  // One line per requirement, each naming the others, and no primary skill:
+  // a recipe asking earthcraft 34 and woodcraft 55 is two things to aim at and
+  // neither is the lesser.
   for (const [item, req] of Object.entries(SMITH_REQS)) {
-    const words = Object.entries(req).filter(([k]) => k !== 'smithing')
-      .map(([k, v]) => k + ' ' + v);
-    add('earthcraft', req.smithing ?? 1,
-      'forge the ' + item.replace(/-/g, ' ') + (words.length ? ' (' + words.join(', ') + ')' : ''));
-    for (const [k, v] of Object.entries(req)) if (k !== 'smithing') add(k, v, 'forge the ' + item.replace(/-/g, ' '));
+    const forge = 'forge the ' + item.replace(/-/g, ' ');
+    for (const [k, v] of Object.entries(req)) {
+      const others = Object.entries(req).filter(([k2]) => k2 !== k)
+        .map(([k2, v2]) => k2 + ' ' + v2);
+      add(k, v, forge + (others.length ? ' (' + others.join(', ') + ')' : ''));
+    }
   }
-  // firemaking's one threshold lives in the genesis rather than a constant,
+  // woodcraft's one threshold lives in the genesis rather than a constant,
   // because a founding chooses it; the default is the one every world so far
   // has used, and a window with a genesis to hand may say the real number.
   add('woodcraft', 80, 'kindle a watchfire');                              // 6bv: that the country sees it is the point of raising one
@@ -1200,9 +1252,9 @@ const STALL_SELLS = {
   // and a stall selling them from nothing at any price undoes that in an
   // afternoon: there is no stock to run out and no cooldown that would not be
   // one more field in every hash forever. So the fletcher sells the bow and a
-  // citizen makes their own shafts, which is what fletching is for.
+  // citizen makes their own shafts, which is what the fletch input is for.
   // the fletcher sells the stave as well as the bow. Both are shaped wood, and
-  // a citizen who has not yet trained fletching should still be able to buy the
+  // a citizen who has not yet trained woodcraft should still be able to buy the
   // tool of a trade they HAVE trained -- that is what a stall is for.
   bows:   { 'wooden-bow': 16, 'staff': 12, 'wand': 12 },
   // THE ONLY SOURCE OF SEED IN THE WORLD, and deliberately one place. Dearer
@@ -1264,7 +1316,7 @@ for (const k of Object.keys(STALL_SELLS)) if (!STALL_KINDS.includes(k)) throw ne
 // This was written for a citizen at FOUR HITPOINTS -- when hitpoints were a
 // skill and a newcomer had ten, so six off the ground was most of them. §5j
 // made the frame flat at sixty-four and nothing in the hunting country can
-// bring anybody near four: a goblin lands half a hitpoint an interval and
+// bring anybody near four: a goblin lands half a point of health an interval and
 // would need two minutes of unanswered swinging. The citizen this was written
 // for does not exist any more.
 //
@@ -1346,7 +1398,12 @@ const FORAGE_ROTS = 50;
 // had been that way since the seam table was rewritten. This is the same fault
 // as the room list that outlived its town (7bd) and the buildLogs key that
 // outlived planks (7cp): a table changed, and the things that read it did not.
-const MARKET_PLANKS = 10, MARKET_ORE = 2;   // §6al: twelve slots, the whole pack
+// §6al: twelve slots, the whole pack. ONE DECLARATION EACH, because anything
+// that reads a constant out of this source reads `const NAME = <digits>;` and
+// a pair on one line is invisible to it: the handbook could not print what a
+// stall costs, which is a rule, and said nothing rather than guessing.
+const MARKET_PLANKS = 10;
+const MARKET_ORE = 2;
 const MARKET_RAISE = 20;                  // intervals of standing still
 const MARKET_STOCK = 200;                 // one good, this many of it
 const MARKET_OWNED = 1;                   // one each, like the seedsman
@@ -1420,7 +1477,7 @@ const VAULT_CAP = SHELF_CAP;   // §6g: per kind per vault. A vault holds what a
 // It is not raised to make quick gear late; the market does that badly anyway,
 // since quick-stone is priced at twenty and any citizen may buy it. It is
 // raised so that MINING has a country at the end of its road, the way
-// woodcutting has heartwood and fishing has the deep water.
+// woodcraft has heartwood and shorecraft has the deep water.
 const QUICK_ROCK_MINING = 78;  // 6bd: the heartwood's number, for the heartwood's place in the road
 // §6am (v6): the mid seams open at the middle of the road -- past the point a
 // citizen has decided what they are, well short of the ninety that takes
@@ -1451,7 +1508,7 @@ const GOLD_ONE_IN = 16384;      // one strike in this many intervals: 2h44m
 // and the lot itself, out of roll16's 65,536. 65536/16384 = 4.
 const GOLD_THRESHOLD = 65536 / GOLD_ONE_IN;
 const GOLD_DEPLETE_TICKS = 0;   // a seam that yields this seldom never sleeps
-// §7a: THE SOUTH PASS IS A CALENDAR, NOT A LABOUR POOL.
+// §12c: THE SOUTH PASS IS A CALENDAR, NOT A LABOUR POOL.
 //
 // A threshold denominated in effort is denominated in the one currency a
 // scripted world has without limit: twenty executors would chip the pass out
@@ -1553,14 +1610,14 @@ const GATHER_BASE = 30, GATHER_SLOPE_DEN = 10, GATHER_CAP = 130;
 // 6bc: ONE TABLE FOR EVERY GATE, so a skill can be tuned without touching its
 // neighbours. This replaced three separate mechanisms -- a shared MID_TIER
 // constant, a shared MASTER_YIELD, and two hand-written ifs -- which is how
-// woodcutting's middle and fishing's middle came to be the same number for no
+// woodcraft's middle and shorecraft's middle came to be the same number for no
 // reason anybody chose.
 const NODE_GATE = {
   'oak-tree':        { skill: 'woodcraft', level: 20 },
   'ironbark-tree':   { skill: 'woodcraft', level: 45 },
   'heartwood-tree':  { skill: 'woodcraft', level: 78 },
   'gallows-oak':     { skill: 'woodcraft', level: 92 },
-  // 6bd: mining, matched rung for rung to woodcutting. Coal is the SAFE middle
+  // 6bd: earthcraft, matched rung for rung to woodcraft. Coal is the SAFE middle
   // and holds the road from thirty to seventy-eight, because a skill whose only
   // way up ran through the Wilds would be a fighting skill wearing a pick.
   'coal-rock':       { skill: 'earthcraft',      level: 20 },
@@ -1593,14 +1650,59 @@ const MID_TIER_GATE_SKILL = { 'oak-tree': 'woodcraft', 'coal-rock': 'earthcraft'
 // cleared at the top of the next. Fourteen bytes, on the interval they act,
 // against a citizen record of six hundred. Every window reads it; no window
 // has to be clever enough to infer it from a skill going up.
-const DEEDS = ['transmute', 'unmake', 'seal', 'char', 'unload', 'rifle', 'haul', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'forage', 'mendp', 'invoke',
+const DEEDS = ['transmute', 'unmake', 'seal', 'char', 'unload', 'rifle', 'haul', 'dedicate', 'grave', 'sound', 'drink', 'eat', 'bury', 'mendp', 'invoke',
   'fletch', 'smith', 'plant', 'harvest', 'cook', 'light', 'kindle', 'still',
-  // §7a: FOUND lays the first plank of a wild span; LAY adds to the pool. Both
+  // §14d: FOUND lays the first plank of a wild span; LAY adds to the pool. Both
   // are woodwork done in the open, both pay and both end whatever else was
   // running -- a citizen banking planks on a contested crossing is not also
   // quietly felling a tree somewhere.
   'found', 'lay',
-  'cast', 'recall', 'pickup', 'drop', 'buy', 'deposit', 'withdraw'];   // §6l: `sell` is repealed
+  // §6ch: `recall` stood here too. The waystones are gone and `mayDo` answers
+  // it `false` for everyone forever, so no input of that type is ever applied
+  // and the world could never have written the word down.
+  'cast', 'pickup', 'drop', 'buy', 'deposit', 'withdraw',   // §6l: `sell` is repealed
+  // AND THE THIRTY-TWO THAT WERE STILL PRIVATE, which was most of what a body
+  // does. The list above was written for the deeds that pay, and everything
+  // else a citizen performs in one interval went unrecorded: a gambit, all
+  // four of the barrow book's spells, swearing a calling, drawing a bow,
+  // sailing, every craft at a workshop and every act at a market stall.
+  //
+  // It is not an abstract loss. The window keys a figure's ANIMATION and its
+  // SOUND off this word, so a verb that is not here cannot be drawn or heard,
+  // and both tables had grown rows for verbs that could never arrive. Fifty-
+  // four motions and sixteen noises were written, wired, and unreachable: a
+  // citizen's gambit was four careful clips and five synthesised blows that
+  // nothing could ever play, and the whole barrow book was cast in silence
+  // with no figure moving. Nobody noticed because the audits counted the rows
+  // in the tables rather than asking whether the world could ever name them.
+  //
+  // WHAT IS STILL LEFT OUT, and on purpose. Trading, banking a pack whole,
+  // friending, following, naming yourself, reading a chart, archiving, and the
+  // three halves of an apprenticeship. Those are either talk or bookkeeping,
+  // and two of them are nobody else's business: who you befriend and what you
+  // call yourself are not acts a bystander watches you perform. `attack`,
+  // `attackp`, `gather` and `raise_market` are left out for the opposite
+  // reason -- they set an `action`, which the world already shows.
+  'gambit',
+  'rot', 'taking', 'waking', 'withering',
+  'swear', 'stint', 'turn', 'survey', 'charter',
+  'wield', 'unwield', 'nock', 'sail',
+  'brew', 'build_brewpot', 'dismantle', 'stoke', 'collect',
+  'grind', 'saw', 'smelt', 'setbuck', 'lift', 'sapling',
+  'consign', 'deliver', 'pay', 'deposit_all',
+  'stock_market', 'take_market', 'dismantle_market',
+  // and three more that a bystander plainly watches happen: goods given up at
+  // an ossuary, a consignment coming home into the pack, and a trade closing
+  // between two people standing in front of each other. `offer_trade` and
+  // `cancel_trade` are not here, because an offer is a thing said rather than
+  // a thing done, and only the acceptance moves anything.
+  'offer', 'release', 'accept_trade',
+  // AND ONE WORD HERE IS NOT A VERB. `forage` is the only deed the world names
+  // for itself rather than copying off an input: taking it arrives as `pickup`
+  // and is nothing like one, so the handler overwrites the word. It is listed
+  // because this is the list of what a citizen can be seen to do, and stooping
+  // to eat something off the ground is one of those things.
+  'forage'];
 const DEED_SET = new Set(DEEDS);
 
 // §6am: YOU CANNOT BE PAID TWICE FOR ONE INTERVAL.
@@ -1693,7 +1795,7 @@ function markDeath(q) {
 // thing a citizen carries survives their death.
 //
 // Priced is the whole of the design. A store's price list is the set of
-// ordinary goods -- ore, a bronze sword, a cooked fish, a plate. The things
+// ordinary goods -- ore, an iron sword, a cooked fish, a plate. The things
 // that make this world worth a decade are NOT on it: the old chain, the
 // dragonbow, a sigil, a chart. Those are traded between citizens and priced
 // by nobody, and they stay exactly as losable as they have always been.
@@ -1756,14 +1858,14 @@ const EAT_EVERY = 8;
 // §6m-v: A RICHER MEAL IS A LONGER ONE.
 //
 // A flat rhythm made the heal value a RATE, and the rate is what decides a
-// fight. A deep broth restored one hitpoint an interval for ever -- against the
+// fight. A deep broth restored one point of health an interval for ever -- against the
 // 1.11 a quick-sword lands through quickmetal and the 0.62 a mell does -- so the
 // citizen with the stack could not be killed. Measured 0:12, and the burst
 // could not close it either: a finisher that removes half a health bar is no
 // answer to somebody who never falls below three quarters.
 //
 // So the gullet asks in proportion to what it was given. Every food now
-// restores the SAME half-hitpoint an interval over time, and the heal value
+// restores the SAME half a point an interval over time, and the heal value
 // buys something better than throughput: it buys the SIZE of one swallow, which
 // is how a wounded citizen leaves an execute window in a single interval.
 // A deep fish is still the best food in the world -- it lifts you ten in one
@@ -1771,7 +1873,7 @@ const EAT_EVERY = 8;
 //
 // Below the weakest weapon in the world by a clear margin, so food lengthens a
 // fight and never decides one.
-// Tenths of an interval of gullet per hitpoint restored. At 25 every food
+// Tenths of an interval of gullet per point of health restored. At 25 every food
 // sustains 0.40 a tick, comfortably under the 1.11 a quick-sword lands through
 // quickmetal. Measured with both citizens fed and quick-clad: at the old flat
 // rhythm a pair with stacked broth STALLED -- sixteen fights of three thousand
@@ -1794,7 +1896,7 @@ const EAT_EVERY = 8;
 // briskly; brews pool to a million in one slot and may not. Measured at 12/25:
 // a long armoured fight runs a citizen dry a third of the time, a short one is
 // still decided by damage, and an endless brew stays where it was at 4:16.
-const EAT_PER_HEAL_FOOD = 12;    // bounded by twenty-eight slots
+const EAT_PER_HEAL_FOOD = 12;    // bounded by the twelve slots of the pack
 const EAT_PER_HEAL_BREW = 25;    // bounded by nothing
 const eatRhythm = (item) => Math.max(EAT_EVERY,
   Math.ceil(healOf(item) * (STACKABLE.has(item) ? EAT_PER_HEAL_BREW : EAT_PER_HEAL_FOOD) / 10));
@@ -1836,7 +1938,7 @@ const STILL_RANGE = 6;      // a spell of sight, not touch: it outranges the bow
 //   EAT_EVERY 8 and eatRhythm -- a gullet that opened once in four swings
 //        opened once in two, and the note above EAT_PER_HEAL_BREW about a
 //        fight running a citizen dry a third of the time stopped being true.
-//   MEND_EVERY 25 -- twenty hitpoints every twelve swings became every six.
+//   MEND_EVERY 25 -- twenty health every twelve swings became every six.
 //   ROOT_TICKS 3 and STILL_TICKS 6 -- a hold measured in swings halved.
 //
 // Halving the beat doubled the strength of every gambit, every meal, every
@@ -1872,6 +1974,10 @@ const MIN_MAX_HIT = 3;   // 6bu: the smallest blow anybody can be capable of
 //   name, so it is a rule and not an exception -- and so that any beast a
 //   later founding gives a web is covered by the same sentence.
 const BURN_TICKS = 8;    // intervals alight after the last landed blow
+// §6ab-ii: how much harder a web knits while nothing is caught in it. A
+// multiplier rather than a number, so a founding that gives a beast a
+// different web gets a proportionate answer instead of this one's.
+const WEB_UNHELD = 4;
 // §7dr: HOW LONG A TORCH LASTS, and why it going out is the best part.
 //
 // It turns the cave into a clock without adding a single system. A citizen goes
@@ -2118,7 +2224,7 @@ const SEED_FROM_HARVEST = 1;
 // and the deep fish from the shallows, both at ninety, and the two heartwood
 // things a fletcher of ninety may make
 // 6be: MASTER_YIELD IS GONE. It gated heartwood and the deep fish at one
-// number, which is exactly how woodcutting's mastery and fishing's mastery
+// number, which is exactly how woodcraft's mastery and shorecraft's mastery
 // came to be the same level for no reason anybody chose. NODE_GATE took both
 // jobs; the constant survived, naming nothing, which is how a reader two
 // months from now comes to believe the deep water asks for ninety.
@@ -2186,7 +2292,7 @@ const XP_SMELT_BAR = 18;
 // §7ai: ten bones to a flask
 // §7cy: how many hands a work remembers, and for how long
 const WORKED_KEEP = 5, WORKED_FADE = 6000;
-// §7a: how many of the last hands a wild span keeps on its monument. The pool's
+// §14d: how many of the last hands a wild span keeps on its monument. The pool's
 // thousands stand for the anonymous crowd; these are the names shown beside the
 // count -- the recent carriers -- alongside the one who laid the first plank.
 // Ten, and it never fades: a span's roll is history, not a live tracker.
@@ -2273,7 +2379,7 @@ const BOOKS = {
   // gate belongs in ONE table rather than at six call sites: I gated the four
   // spells I happened to grep for and a caster on the barrow book could still
   // heal and still unmake.
-  // ...and CHAR IS NOT A SPELL. It wants a lit watchfire and a FIREMAKING
+  // ...and CHAR IS NOT A SPELL. It wants a lit watchfire and a WOODCRAFT
   // level and no sigil at all -- it is what a fire-tender does to wood, and I
   // gated a fire-tender's verb behind a spellbook because it lives in the same
   // switch as the ones that are. The list is the six that spend a sigil:
@@ -2288,7 +2394,25 @@ const BOOKS = {
   //   anchor    the recall to Anchor        (cast: anchor)
   //
   // Every one of them refuses, repairs or unmakes. Not one hurts anybody.
-  common: new Set(['still', 'seal', 'transmute', 'mend', 'mendp', 'unmake', 'anchor']),
+  // §6bq: ANCHOR IS GONE, and the world has no voluntary teleport left.
+  //
+  // It sent a caster to the spawn for one sigil, and it was the only thing in
+  // either book that neither refuses, repairs nor unmakes anything: it skipped
+  // a walk. In a world whose whole texture is that distance costs real time,
+  // and which had already repealed the waystones and left `recall` permanently
+  // refused for exactly that reason, keeping one voluntary teleport was a
+  // half-finished decision. Half-removing teleportation is worse than either
+  // end of it.
+  //
+  // THE DEAD STILL RETURN TO THE SPAWN, and that is not the same rule. One is
+  // travel and the other is what death means here: the spawn is where souls
+  // arrive, so it is where they arrive again. Nobody uses it to travel,
+  // because death drops everything a citizen is carrying -- and the citizen
+  // who most wants to skip a long walk home is the one carrying a full pack,
+  // which is why they are going home. The two sentences now sit beside each
+  // other without contradicting: there is no teleportation in this world, and
+  // the dead return to where souls arrive.
+  common: new Set(['still', 'seal', 'transmute', 'mend', 'mendp', 'unmake']),
   barrow: new Set(['waking', 'rot', 'taking', 'withering']),
 };
 const speaks = (p, verb, state) =>
@@ -2344,7 +2468,7 @@ const ROT_TICKS = 24, ROT_EVERY = 3, ROT_BITE = 3;
 // so a `smoke` block there is a constitutional change to a table that has
 // nothing to do with eels. These are the same shape as ROT_TICKS above.
 //
-// THE WINDOW IS THE LOAD-BEARING NUMBER. §7e made the inn's pot hold nothing
+// THE WINDOW IS THE LOAD-BEARING NUMBER. §8a made the inn's pot hold nothing
 // so that no citizen could sit on it, and four racks world-wide is exactly
 // the case that rule feared. The answer is not the public-pot trick -- the
 // scarcity here IS the design -- it is a clock on BOTH ends: a rack finishes,
@@ -2364,7 +2488,7 @@ const SMOKE_TICKS = 4500, SMOKE_WINDOW = 3000, XP_SMOKE = 30;
 // answer the same question differently rather than better.
 //
 // It heals LESS and has NO leash: what it costs is not time but somebody else.
-// A mend closes your wounds out of nothing; a taking moves the hitpoints across
+// A mend closes your wounds out of nothing; a taking moves the health across
 // -- exactly what it does to them is what it does for you, so it can never heal
 // more than they had left, and against a corpse or a full-strength caster it
 // does nothing at all.
@@ -2382,10 +2506,10 @@ const TAKING_LEVEL = 60, TAKING_SIGILS = 2, TAKING_REACH = 3, TAKING_BITE = 8;
 // and the withering makes one IMPOSSIBLE TO SURVIVE BY THE USUAL MEANS.
 //
 // For sixteen intervals the marked citizen cannot be healed. Not by food, not
-// by a mend, not by a taking, not by anything. Their hitpoints only go down.
+// by a mend, not by a taking, not by anything. Their health only goes down.
 //
 // It is terrifying because in a fight in this world, EATING IS HOW YOU LIVE --
-// twenty-eight slots of cooked fish is what a duel is made of -- and this shuts
+// twelve slots of cooked fish is what a duel is made of -- and this shuts
 // that door while the blows keep landing. And it is the perfect price for what
 // the book gave up: a caster who surrendered the mending of anybody, including
 // themselves, gets in exchange the power to deny it to everybody.
@@ -2398,7 +2522,7 @@ const WITHER_LEVEL = 88, WITHER_SIGILS = 4, WITHER_REACH = 2, WITHER_TICKS = 16;
 // A citizen submits ONE input an interval, so nothing can be cast twice in the
 // same tick -- but nothing stopped the WAKING going off every single interval
 // forever, nine damage to a whole clump for three sigils, or the TAKING moving
-// eight hitpoints a tick with no leash whatsoever. The common book has leashes
+// eight health a tick with no leash whatsoever. The common book has leashes
 // everywhere: MEND_EVERY 25, STILL_CD 150. I gave the new book none, and wrote
 // in the SPEC that the taking has "no leash at all" as though that were the
 // design rather than an omission.
@@ -2512,7 +2636,13 @@ const SPADE_STRENGTH = 1.4;
 // Written as a literal because SWEAR_LEVEL is declared far below this line --
 // the same ordering trap that let HP_START_XP drift two levels when the curve
 // was replaced. skill-check.mjs asserts the two stay equal, so it cannot rot.
-const LABOUR_PROWESS_CAP = 30;   // === SWEAR_LEVEL
+//
+// IT WAS 30 AND THE RULE SAYS 50. The assertion was there, correct, and
+// `skill-check.mjs` is in no npm script and no test: it had been reporting
+// "LABOUR_PROWESS_CAP is 30 but SWEAR_LEVEL is 50" to nobody. Labour stopped
+// twenty levels short of the door it is meant to reach, so the farmer who digs
+// their way to a calling could not, which is the one story §5r-iii tells.
+const LABOUR_PROWESS_CAP = 50;   // === SWEAR_LEVEL
 // §7r: one coal buys the furnace this many intervals of heat, and it will not
 // bank more than the cap -- so a fire cannot be stoked once and left for a
 // week, and there is a reason for somebody to be standing there.
@@ -2535,7 +2665,7 @@ const LABOUR_PROWESS_CAP = 30;   // === SWEAR_LEVEL
 // Coal was strictly the worse material. It substituted for charcoal as fuel
 // ONE FOR ONE, and charcoal also had a monopoly on gunpowder -- which is
 // correct and should stay, because real powder wants charcoal and coal's
-// sulphur makes a bad one. So a woodcutter at firemaking 60 could do
+// sulphur makes a bad one. So a woodcutter at woodcraft 60 could do
 // everything a coal miner could, plus one thing more, and coal existed to be
 // the option you took when you could not be bothered.
 //
@@ -2576,7 +2706,7 @@ const HOUSE_POT_XP = 1.05;   // §7j: the Lantern's five per cent
 //
 // A deep fish already brewed -- into ordinary broth, five, the same as any
 // fish out of the shallows, so a master fisher's catch was worth no more in a
-// pot than a beginner's. This is the same shape as woodcutting ninety giving
+// pot than a beginner's. This is the same shape as woodcraft ninety giving
 // heartwood where a lesser axe gives logs.
 //
 // EIGHT, and not ten, because the cooked deep fish must stay worth cooking:
@@ -2621,13 +2751,6 @@ const BREW_MASTER = 90, DRAUGHTS_MASTER = 2, DRAUGHTS_PER_POT = 1;
 const EXPLORE_MASTER = 90;
 // 6bq: one more rumour for every this-many citizens awake, and a ceiling.
 const SURVEY_PER_MARKER = 4, SURVEY_K_MAX = 256;
-// Hitpoints level 10, as a LEVEL rather than as a number that happened to mean
-// level 10 under the curve of the day. Written as a literal because XP_TABLE is
-// declared far below this line, and guarded by an invariant in skill-check.mjs
-// that fails if it ever stops matching XP_TABLE[10] -- which is exactly how it
-// drifted: the curve was replaced, 1154 quietly became level 12, and every
-// citizen born after that started with two extra hitpoints nobody granted them.
-const HP_START_XP = 677; // === XP_TABLE[10]
 
 // §7dk: THE RECORD BAND -- fifty to ninety-nine.
 //
@@ -2667,7 +2790,7 @@ const RECORD_FLOOR = 50;
 // §6af: THE GAMBIT BLOW.
 //
 // Three of them, and each is ONE legible thing you could describe in a
-// sentence — not a number tuned for a burst meta:
+// sentence, not a number tuned for a burst meta:
 //
 //   'flurry' quick-dagger, horn-bow -- several blows land in one tick. Was
 //            'twice' until it stopped being two, and the horn-bow briefly had
@@ -2700,7 +2823,7 @@ const RECORD_FLOOR = 50;
 //     quick-sword         3.75          3.75
 //
 // -- so against four hundred and twenty points of dragon it buys nothing at
-// all, and against a citizen at fifteen hitpoints it ends the fight, because
+// all, and against a citizen at fifteen health it ends the fight, because
 // they do not get a later. It needs no rule confining it to PvP: the cost
 // confines it, and a mechanic that selects its own domain is worth more than
 // an exception clause that says the same thing arbitrarily.
@@ -2727,7 +2850,7 @@ const WEAPONS = {
   // pay -- was measured too, and it hands a level-forty citizen 1.69 a tick
   // where the honest build gets 1.22. A flat number is a low-level number.
   'iron-mell':   { hit: 10, every: 2, reach: 1, acc: -12 },
-  // §6am (v6): the mid weapons, one notch of `hit` above bronze and one below
+  // §6am (v6): the mid weapons, one notch of `hit` above iron and one below
   // quick, no gambit -- the gambit is a quickmetal thing, earned with the
   // metal. A citizen who has reached the middle swings a touch harder than a
   // beginner and a touch softer than a master, which is exactly the middle.
@@ -2814,7 +2937,7 @@ const WEAPONS = {
   //
   // Measured at hit 3, every 3: 1.34 a tick bare and 1.39 through quick plate --
   // against a quick-flail, which pierces the same way, at 2.23 and 2.29. The
-  // flail wants no fuel, no smithing 62, no attack 60 and no 1450 gold, so the
+  // flail wants no fuel, no earthcraft 62, no attack 60 and no 1450 gold, so the
   // siphon was strictly dominated by a cheaper weapon that does its trick
   // better. Nothing about `burns` closes that: a fire is one point every four
   // intervals for eight, which is two points that cannot land the last blow --
@@ -2854,7 +2977,7 @@ const WEAPONS = {
   //
   // Hit ZERO, so at full health it is worse than the iron spear a beginner
   // carries -- a two-handed stick that asks strength fifty and gives nothing
-  // back. At fifteen hitpoints it is a mell without the mell's accuracy
+  // back. At fifteen health it is a mell without the mell's accuracy
   // problem. It is ordinary until you are nearly dead and then it is the
   // largest blow in the world, and there is no way to hold the second state
   // except by being in real danger of the first.
@@ -2988,7 +3111,7 @@ const WEAPONS = {
   // nothing, and it is exempt from `clubbed` for the same reason a javelin is.
   'hollow-bow':    { hit: 2, every: 2, reach: 3, acc: -10, ranged: true,
                      noAmmo: true, selfAmmo: true },
-  // §6bt: THE GREAT ARMS. Level seventy, where woodcutting, mining and fishing
+  // §6bt: THE GREAT ARMS. Level seventy, where woodcraft, earthcraft and shorecraft
   // each got a mastery tool and combat got nothing at all -- attack's last
   // unlock was fifty-five and then forty-four levels of nothing to want.
   //
@@ -3016,7 +3139,7 @@ const WEAPONS = {
   'torch':         { hit: 1, every: 3, reach: 1, acc: -6, burns: true },
   'great-sword':   { hit: 5, every: 2, reach: 1, acc: 4, breaks: true, burns: true },
   // §7dq: THE STATS, NOT THE RECIPE. This line held `{ 'quick-alloy': 4 }` --
-  // the great-crossbow's SMITHING RECIPE, pasted into the weapon table over
+  // the great-crossbow's FORGE RECIPE, pasted into the weapon table over
   // its stats. The weapon therefore had no hit, no cadence, no reach and no
   // `ranged` flag: `reachOf` fell to 1, so a six-tile crossbow could only be
   // fired at somebody standing on top of you, it drew no arrows because
@@ -3073,7 +3196,7 @@ const WEAPONS = {
   'sigil-bow':     { hit: 8, every: 2, reach: 5, acc: 0, ranged: true, thrift: true },
   // §6ad: THE HEARTWOOD BOW, and the only good bow anybody can MAKE.
   //
-  // Every other is found, imbued, forged or unique -- fletching topped out at
+  // Every other is found, imbued, forged or unique -- woodcraft topped out at
   // a beginner's stick. This one is crafted, and it is not a tier above the
   // horn-bow but a choice against it: MORE damage, LESS reach than any bow in
   // the world. Three puts you inside a goblin's senses and a troll's, so you
@@ -3200,10 +3323,10 @@ const GUN_NOISE = 8;
 // DEED a citizen chooses the moment of, the beacon for tick T is public during
 // T, and `every: 4` leaves three intervals of slack -- so a gonneman reads the
 // lot, sees that this interval would burst the barrel, and waits one. The gonne
-// would have been permanent, and the whole reason it exists -- a smithing
+// would have been permanent, and the whole reason it exists -- an earthcraft
 // capstone with demand that does not end -- would have gone with it.
 //
-// So it is counted, exactly as cooking, firemaking and loot are: a per-citizen
+// So it is counted, exactly as cooking, kindling and loot are: a per-citizen
 // tally that grants the burst at the constitutional rate in a fixed order no
 // timing can bend. Same rate, no dice, nothing to read ahead.
 const BURST_ONE_IN = 24;
@@ -3423,7 +3546,7 @@ const inReach = (p, t) => {
 // fifty. Everything after that -- thirty more levels, better armour, any
 // shield anybody ever forges -- buys precisely nothing in the field.
 //
-// So the Gibbet King, a two-hundred-hitpoint boss on a ninety-minute respawn
+// So the Gibbet King, a boss of two hundred health on a ninety-minute respawn
 // guarding the only king-shroud in the world, dealt 0.027 damage an interval.
 // It needed SIXTY-ONE MINUTES to kill anybody, and could not have killed a
 // citizen who walked away to make tea. The great-spider was little better at
@@ -3474,7 +3597,7 @@ const MOB_STATS = {
   goblin: { maxHealth: 5, atk: 1, def: 1, maxHit: 1, respawn: 16, aggro: 3,
             drops: [{ item: 'bones' }, { item: 'ore', chance: 16384 }, { item: 'seeds', chance: 16384 },
                     { item: 'forage', chance: 20480 }] },
-  // §7b: THE SCREE-IMP. Something small lives in the rockfall at the South
+  // §12d: THE SCREE-IMP. Something small lives in the rockfall at the South
   // Pass and objects to being dug out of it. It hits for one, it cannot
   // follow you past the stones, and at any level above the first week it is
   // simply a noise -- which is the point. What made the dark wizards on the
@@ -3529,10 +3652,15 @@ const MOB_STATS = {
   //
   // It KEEPS its aggro, so they come to you and you can gather three at once.
   //
-  // And it gives NO DEFENCE, which is the same rule that governs the archer:
-  // defence is paid for in risk and only in risk. Something that cannot hurt
-  // you cannot teach you to be hurt. Attack and hitpoints, honestly earned;
-  // defence, not at all.
+  // And it cannot hurt you, which is the same rule that governs the archer's
+  // butt: a thing that swings and never lands is a target, not an opponent.
+  //
+  // This paragraph used to argue that such a creature taught attack and
+  // hitpoints but no DEFENCE, because defence was paid for in risk. §5j left
+  // one combat number, and nothing in this engine has paid for being hit
+  // since: `harmless` costs a citizen no experience at all now. What it still
+  // buys is the thing it was really for -- somewhere to swing that cannot
+  // kill you -- and that is why the emptiest port on the island has one.
   'shore-crab': { maxHealth: 90, atk: 8, def: 14, maxHit: 2, every: 3, respawn: 90, aggro: 4, harmless: true,
                   drops: [{ item: 'crab-shell' }, { item: 'raw-fish', chance: 8192 }] },
   // THE SHEEP (spec 6ag). The Downs is downland: twenty-two thousand tiles
@@ -3544,20 +3672,20 @@ const MOB_STATS = {
   // crab keeps its aggro on purpose -- it walks at you so you can gather
   // three at once. A sheep that walked at you would not be a sheep. With no
   // aggro it never starts anything, and `harmless` means that if you start
-  // it, it swings and never lands and teaches no defence for it.
+  // it, it swings and never lands.
   //
-  // The hitpoints are the whole balance and they are not decoration. Safe
-  // country plus a quick kill is a training dummy, and this world's position
-  // is that standing is paid for in time: a five-hitpoint sheep in the
-  // safest country on the island would be the cheapest attack experience in
-  // the world. Forty, at defence eight, makes a sheep about a minute's work
+  // The health is the whole balance and it is not decoration. Safe country
+  // plus a quick kill is a training dummy, and this world's position is that
+  // standing is paid for in time: a sheep with five health in the safest
+  // country on the island would be the cheapest prowess in the world. Forty,
+  // at defence eight, makes a sheep about a minute's work
   // -- livestock, not a dummy -- which is the same reason the crab is ninety.
   // §7t: THE YARD. A dummy and a butt are MOBS, not furniture, and that is the
   // whole trick: `attack`, `attackp`'s gambits, a drawn bow and the damage
   // readout all work on them already, unchanged. A new verb would have had to
   // reimplement combat badly beside the real one.
   //
-  // Enormous hitpoints so they are never actually felled, no aggro, harmless,
+  // Enormous health so they are never actually felled, no aggro, harmless,
   // and def 1 so they are hit nearly every swing -- you came to read a number,
   // not to roll for it.
   dummy: { maxHealth: 100000, atk: 1, def: 1, maxHit: 0, every: 8, respawn: 1, harmless: true,
@@ -3696,7 +3824,7 @@ const MOB_STATS = {
   // somebody good enough with enough broth. This cannot be soloed by anybody,
   // ever, which is a stronger thing for a world to say.
   //
-  // `mends` is hitpoints the web returns each tick while the spider lives.
+  // `mends` is health the web returns each tick while the spider lives.
   // Measured, one maxed citizen in quick gear puts out: chain 5.74, sword
   // 3.40, dragonbow 3.70, mell 2.98, horn-bow 2.75, crossbow 2.31. At SIX a
   // lone citizen cannot win with anything, two struggle, three manage.
@@ -3752,7 +3880,7 @@ const MOB_STATS = {
   // It could only be struck from a tile beside it and it was PASSIVE, so the
   // fight began when somebody walked up to the largest creature in the world
   // and hit it, and it did nothing until then. That is not a dragon, it is a
-  // rock with four hundred and twenty hitpoints.
+  // rock with four hundred and twenty health.
   //
   // Now the approach costs. It notices at nine tiles and breathes from six,
   // so a party arrives already hurt and somebody has to survive the walk --
@@ -3802,7 +3930,7 @@ const MOB_STATS = {
             respawn: 43200,
             // §6ai: WHAT A DRAGON IS WORTH TO THE PEOPLE WHO KILLED IT.
             //
-            // Four hundred and twenty hitpoints, twenty-eight a blow, and it
+            // Four hundred and twenty health, twenty-eight a blow, and it
             // dropped two bones and an ore -- less than a skeleton knight. It
             // is not a fight one citizen wins, and everything it gave was a
             // bow that ONE of them could carry and that goes home in twelve
@@ -3829,7 +3957,7 @@ const MOB_STATS = {
   // §7cn: THE MERE-LAMPREY, and the first creature in this world that can be
   // USED UP.
   //
-  // §7a opened a door that can never be shut again: the South Pass, dug out by
+  // §12c opened a door that can never be shut again: the South Pass, dug out by
   // whoever swung, and "every citizen who arrives afterwards lives in the world
   // they made and cannot join them in making it. That is a one-way door and it
   // is meant to be." This is the same door pointed the other way -- a thing the
@@ -3853,7 +3981,7 @@ const MOB_STATS = {
   // villain anywhere in it.
   //
   // AND WHAT IT LEAVES IS WALKABLE. When the last one is gone the mere is still
-  // there and still empty. §7a's best line is that the road to the South Pass
+  // there and still empty. §12c's best line is that the road to the South Pass
   // still ARRIVES at rock; a reed-bed you can wade into with nothing in it says
   // more than a reed-bed that was never drawn.
   //
@@ -3932,11 +4060,34 @@ const MOB_STATS = {
 // the same sigil; they teach the same thing.
 const XP_SPEND_SIGIL = 20;
 const MEND_REQ = 50;
+// §6bq: AND MENDING SOMEBODY ELSE ASKS FOR A CALLING.
+//
+// `mendp` borrowed MEND_REQ, so healing another citizen cost exactly what
+// healing yourself costs: fifty, which is the ceiling an UNSWORN citizen lives
+// under. Anybody at all could be a team's healer, and the weaker of the two
+// spells was the gated one -- a mender who is not the one being hit is worth
+// more than one who is, because casting spends your own arm and theirs is
+// still swinging. The engine's own note on mending calls two prepared citizens
+// unable to resolve a fight "the binding constraint on the top of this world",
+// and that was about the version you cast on yourself.
+//
+// Seventy-five is past the seventy a sworn citizen reaches in any skill that
+// is not their own, so only an alchemist can ever cast it. It also answers
+// `waking` at seventy-five in the other book: the turned caster's way of
+// putting another body into a fight, against the common caster's way of
+// keeping one there. Same height, opposite books, opposite methods. And it
+// leaves ten clear levels below the stilling at eighty-five, so the capstone
+// stays the capstone.
+//
+// THE COST, said plainly: a wand now does nothing for a common caster until
+// seventy-five, where before it had a job from fifty. That is the price of
+// making a healer a specialist rather than a decision anybody can make.
+const MENDP_REQ = 75;
 // §6ao: A MENDING HAS A RHYTHM.
 //
 // It healed twenty, cost a sigil, and had no rate at all -- one cast an
 // interval, for as many sigils as the pack held. Twenty-seven sigils is five
-// hundred and forty extra hitpoints; measured against the best weapon in the
+// hundred and forty extra health; measured against the best weapon in the
 // world, survival went from thirty intervals to a hundred and eighty-four.
 //
 // A mender cannot WIN, because casting spends the arm. But two prepared
@@ -3965,7 +4116,7 @@ const MENDP_RANGE = 4;
 //
 // §6bn: THE INSTRUMENT MOVED. It was the heartwood stave, and the heartwood
 // stave is the ALCHEMY PACE staff -- two intervals against three, the whole
-// reason to walk to fletching ninety. So the fastest tool for the day's work
+// reason to walk to woodcraft ninety. So the fastest tool for the day's work
 // also carried the one verb that destroys another citizen's goods, and every
 // alchemy master was armed with it whether or not they ever wanted to be.
 // Nobody chose `unmake`; it arrived with the tool they were carrying anyway.
@@ -4067,7 +4218,7 @@ const TRANSMUTE_REQ = 1;
 // chopping is 521,378 and mining is 372,413. Alchemy would have been the
 // slowest skill on the island by a factor of two, for no reason anyone chose.
 //
-// At twenty-five it sits exactly where woodcutting and burying do. An hour of
+// At twenty-five it sits exactly where woodcraft and mourning do. An hour of
 // transmuting is worth an hour of chopping, which is the only defensible answer
 // when there is nothing about the act that says it should be worth more.
 // 6bo: TWENTY, whatever the item -- and the flatness was already right.
@@ -4135,7 +4286,7 @@ const transmuteXpFor = (item) => Math.max(XP_ALCH, Math.round((PRICES[item] ?? 0
 // is the same shape as `lastAte`, which has guarded the gullet since v0.41.
 // A STAFF IS A TOOL, AND MAGIC WAS THE TRADE WITHOUT ONE.
 //
-// Woodcutting has a hatchet, mining a pickaxe, and alchemy -- the working-day
+// Woodcraft has a hatchet, earthcraft a pickaxe, and alchemy -- the working-day
 // half of magic -- had nothing in the hand. A staff is not a decoration
 // looking for a purpose; it is the missing member of that set, and it earns
 // its place the same way the others do: more work in an hour, never more
@@ -4151,7 +4302,7 @@ const transmuteXpFor = (item) => Math.max(XP_ALCH, Math.round((PRICES[item] ?? 0
 // THREE CADENCES, BECAUSE TWO STAVES THAT DO THE SAME THING ARE ONE STAFF.
 //
 // The first version gave both staves two intervals, so a heartwood stave --
-// two heartwood and fletching ninety -- did exactly what a stave cut from one
+// two heartwood and woodcraft ninety -- did exactly what a stave cut from one
 // log does. That is not a mastery reward, it is an expensive duplicate.
 //
 // Four bare-handed, three with a stave, two with a heartwood one. Every step
@@ -4274,7 +4425,7 @@ const CROP_ROTS_AFTER = 2160;   // §1c: thirty-six minutes, as it was
 // the ring being empty when you arrive is a race that puts people at the
 // stands -- which is what the stands were placed for.
 const TREE_GROW_TICKS = 21600;   // six hours
-// §7dz: THE EEL BUCK. §7c already said what an eel is: "you do not angle for
+// §7dz: THE EEL BUCK. §13h already said what an eel is: "you do not angle for
 // eels; you set a trap woven out of willow, leave it in the run, and come back
 // and lift it." The fiction described two acts and the mechanic was one. It is
 // two now.
@@ -4335,7 +4486,7 @@ const PRICES = {
   // eighty turns an eleven-gold deep fish into twenty-two, a smith of fifty
   // turns ninety-five in materials into two hundred. The fletcher took FOUR
   // AND A HALF -- three heartwood at nine became a bow worth a hundred and
-  // twenty -- so the value of woodcutting ninety, the longest road in the
+  // twenty -- so the value of woodcraft ninety, the longest road in the
   // world, was being collected by somebody else's trade.
   //
   // At fifteen the bow is 120 against 45 of timber, which is a fletcher's
@@ -4361,7 +4512,7 @@ const PRICES = {
   // THE TOP OF THE WORLD COSTS WHAT IT IS WORTH.
   //
   // A quick plate was two hundred, which is seven minutes of a beginner's
-  // chopping -- the best armour on the island, needing smithing fifty, magic
+  // chopping -- the best armour on the island, needing earthcraft fifty, magic
   // thirty and four stones carried out of the Wilds, priced at seven minutes.
   // The purse fixes what a coin is worth; it does nothing about what a plate
   // is worth in LOGS, and two hundred was a hundred logs.
@@ -4478,7 +4629,7 @@ const RECIPES = {
   'iron-mell': { iron: 2, logs: 1 },
   'sigil-bow': { 'horn-bow': 1, sigil: 3 },     // imbued, not made
   // §6ad: the heartwood bow is NOT here. It is fletched at the bench, by the
-  // fletch input, because a bow made by a fletcher belongs to fletching.
+  // fletch input, because a bow made by a fletcher belongs to woodcraft.
   'crossbow': { 'iron': 2, logs: 2 },              // a steel prod and a wooden stock
   'quick-flail': { 'quick-ingot': 8, 'ironbark': 1 },
   // §7am: brass, brimstone and a haft. The Crags pay for it.
@@ -4585,13 +4736,13 @@ const RECIPES = {
   // asking for a log to make a breastplate was carpentry.
   //
   // It also settles a disagreement between the metals that had no reason to
-  // exist: a quick sword needed no wood while a bronze one did.
+  // exist: a quick sword needed no wood while an iron one did.
   'iron-sword':   { iron: 2 },
   'iron-hatchet': { iron: 1, logs: 1 },
   'iron-pickaxe': { iron: 1, logs: 1 },
   'iron-helm':    { iron: 1 },
   'iron-plate':   { iron: 3 },
-  // 6bw: STARMETAL IS SMELTED NOW, AND A SET IS AN HOUR OF THE WILDS.
+  // 6bw: QUICKMETAL IS SMELTED NOW, AND A SET IS AN HOUR OF THE WILDS.
   //
   // A full set was FIFTY-NINE SECONDS of mining -- six quick-stone and four
   // iron. The eighteen seams on this island hold about twenty-nine miners and
@@ -4643,7 +4794,7 @@ const RECIPES = {
   'quick-hatchet':   { 'quick-stone': 2, 'iron': 1, logs: 1 },
   'quick-pickaxe':   { 'quick-stone': 2, 'iron': 1, logs: 1 },
   // §6am (v6): THE MIDDLE TIER, forged and fletched from what the mid seams
-  // give. It stands to quick exactly as bronze stands to it: the same shapes,
+  // give. It stands to quick exactly as iron stands to it: the same shapes,
   // a rung down, made of mid-ore and mid-wood instead of quick-stone and
   // quickmetal. Wood only where wood is structural, the same rule as above --
   // a haft, a shaft, a handle, a stock; never a breastplate. The tools take
@@ -4662,7 +4813,7 @@ const RECIPES = {
   'steel-dagger':   { 'steel': 1 },
   'steel-spear':    { 'steel': 1, 'oak-logs': 1 },
   // 6bb: THE GOLD LADDER. Five nuggets to a bar because thirty-five loose
-  // nuggets will not fit in a pack of twenty-eight -- the bar is compression,
+  // nuggets will not fit in a pack of twelve -- the bar is compression,
   // not currency, and there is no mint anywhere in it. Eight bars to a helm
   // and twelve to a plate: forty nuggets and sixty, a hundred for the set,
   // which is two hundred and seventy-three hours of seam.
@@ -4751,7 +4902,7 @@ const ITEMS = new Set([
   'bread', 'burnt-bread', 'flour', 'saltpetre', 'gunpowder', 'planks', 'iron-ore',
   'fire-arrows',
   'holy-water', 'grave-silver', 'spade', 'salt-fish', 'salt-deep-fish', 'charter',
-  // §7a: RUBBLE. What the South Pass gives up, one piece at a time. It smelts
+  // §12c: RUBBLE. What the South Pass gives up, one piece at a time. It smelts
   // into nothing, builds nothing, and opens nothing -- like `chart` its whole
   // worth is that you were there, and unlike `chart` it cannot even be sold.
   // A world where a script can do the digging is a world where the digging is
@@ -4825,7 +4976,7 @@ const ITEMS = new Set([
   'brimstone',
   // §6bo: charcoal. Wood burnt down at a watchfire until what is left is
   // nearly all fire. It is coal in every recipe that asks for coal, and it is
-  // the only thing firemaking has ever MADE.
+  // the only thing woodcraft has ever MADE.
   'charcoal',
   // §6bn: what the great-spider gives up. It is not made and no keeper prices
   // it, so it is never bought, never kept by a mourner's prayer, and never
@@ -4886,15 +5037,15 @@ const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'quick-helm': 'h
 // the first level requirements (spec 6q): an unearned hammer strikes nothing
 // §6ae: THE FORGE AGREES WITH THE ARM.
 //
-// These disagreed with themselves: quick-plate was forgeable at smithing 30
+// These disagreed with themselves: quick-plate was forgeable at earthcraft 30
 // and wearable at defence 50, so a citizen could fill a bank with gear they
 // could not put on. A tier should be one wall, not two at different heights.
 const SMITH_REQS = {
-  // THE BRONZE LADDER, which this table did not have.
+  // THE IRON LADDER, which this table did not have.
   //
   // Quick has one -- helm 40, tools 42, sword 45, spear 46, plate 50, mell 52 --
-  // and bronze had nothing at all, so a citizen of smithing 1 could beat out a
-  // bronze plate on their first afternoon. Worse, a window had quietly invented
+  // and iron had nothing at all, so a citizen of earthcraft 1 could beat out a
+  // iron plate on their first afternoon. Worse, a window had quietly invented
   // a ladder of its own and been greying out work the world would have done.
   //
   // Built on what quick is built on: the material it eats and the shaping it
@@ -4906,7 +5057,7 @@ const SMITH_REQS = {
   //
   // The orders differ between the metals and that is right: in each, the entry
   // is whatever is CHEAPEST to make, and in quick that is the helm while in
-  // bronze it is the dagger.
+  // iron it is the dagger.
   'iron-dagger': { earthcraft: 1 }, 'iron-hatchet': { earthcraft: 1 },
   'iron-pickaxe': { earthcraft: 1 }, 'iron-spear': { earthcraft: 5 },
   // §6dg: a socket and a shaft, the same as a spear, at each tier
@@ -4927,14 +5078,14 @@ const SMITH_REQS = {
   'quick-helm': { earthcraft: 40, sorcery: 20 }, 'quick-plate': { earthcraft: 50, sorcery: 30 },
   'quick-dagger': { earthcraft: 45, sorcery: 28 },
   'quick-spear': { earthcraft: 46, sorcery: 26 }, 'quick-mell': { earthcraft: 52, sorcery: 30 },
-  // §6am (v6): THE MIDDLE LADDER, between the bronze ladder and the quick one,
+  // §6am (v6): THE MIDDLE LADDER, between the iron ladder and the quick one,
   // and needing no magic -- mid-ore is worked cold by any smith who has come
   // far enough, where quickmetal wants a transmuter's hand. Same order of entry
-  // as bronze: the dagger and the tools are cheapest, the plate the most work.
+  // as iron: the dagger and the tools are cheapest, the plate the most work.
   'steel-dagger': { earthcraft: 25 }, 'steel-hatchet': { earthcraft: 26 }, 'steel-pickaxe': { earthcraft: 26 },
   'steel-spear': { earthcraft: 28 },
   'steel-helm': { earthcraft: 30 }, 'steel-sword': { earthcraft: 32 }, 'steel-plate': { earthcraft: 38 },
-  // §6av: smithing reached 52 and stopped, so forty-seven levels bought
+  // §6av: earthcraft reached 52 and stopped, so forty-seven levels bought
   // nothing. The gonne is the capstone, and because it BURSTS the demand does
   // not end with the first one.
   'handgonne': { earthcraft: 90 }, 'shot': { earthcraft: 50 },   // §7i: no magic in a gonne
@@ -4956,7 +5107,7 @@ const SMITH_REQS = {
   'quick-flail': { earthcraft: 50, sorcery: 29 },
   'fire-siphon': { earthcraft: 62 },
   'bare-blade': { earthcraft: 34 },   // §7l: steel-tier work, provisional
-  // §7cm: BONE IS FLETCHING'S WORK, as the bone staff already is at 45. A
+  // §7cm: BONE IS WOODCRAFT'S WORK, as the bone staff already is at 45. A
   // smith would be the obvious hand and it is the wrong one: nothing here is
   // forged, and the skill that shapes bone into a shaft in this world is the
   // one that shapes it into arrows.
@@ -4972,14 +5123,14 @@ const SMITH_REQS = {
   'shell-helm': { earthcraft: 22 }, 'shell-plate': { earthcraft: 26 },
   // §6y: THE SIGIL-BOW. Not made -- IMBUED. You bring a horn-bow that already
   // works and three sigils, and you bind them to the limbs, which is why the
-  // magic asked for is higher than the smithing.
+  // magic asked for is higher than the earthcraft.
   'sigil-bow': { earthcraft: 12, sorcery: 25 },
   };
 // §6ad: A LOG IS A LOG.
 //
-// At woodcutting 90 a tree gives heartwood instead of logs, which would strand
+// At woodcraft 90 a tree gives heartwood instead of logs, which would strand
 // a master woodcutter if anything asked for `logs` by name -- and seventeen
-// places do: kindling a campfire, feeding a watchfire, seven smithing
+// places do: kindling a campfire, feeding a watchfire, seven earthcraft
 // recipes, the wooden-bow. Written out seventeen times that is seventeen
 // chances to miss one, and the one you miss is a skill somebody can no longer
 // train. So it is asked once, here.
@@ -5073,7 +5224,7 @@ const bareBonus = (armour) => {
 //   bonus     0    2    6    7    9   10
 //
 // SEVEN AT FIFTEEN is not a coincidence and was not tuned to be one. Fifteen
-// hitpoints is the quick-mell's bite -- "against a citizen at fifteen it ends
+// health is the quick-mell's bite -- "against a citizen at fifteen it ends
 // the fight, because they do not get a later". The interval where this weapon
 // becomes worth carrying is the interval in which you can be deleted in one
 // blow, and the price is therefore already in the engine: to hold the bonus
@@ -5208,7 +5359,7 @@ function hitChance256(atkLvl, defLvl, weaponAcc, armour) {
 }
 // §6am (v6): a founding may LIFT a tier. The shape -- what is forged, worn, and
 // in what order -- is constitutional; the LEVELS a world guards them behind are
-// that world's own, exactly as firemaking's watchfire threshold and brewing's
+// that world's own, exactly as woodcraft's watchfire threshold and hearthcraft's
 // ferment already are. `genesis.gearReqs = { wield:{item:{skill:lv}}, smith:{...} }`
 // overrides the static ladder for the named items only. A genesis that names none
 // (every world v1-v5) gets the static tables to the byte.
@@ -5238,7 +5389,7 @@ const PICKS = ['iron-pickaxe', 'steel-pickaxe', 'quick-pickaxe', 'great-pickaxe'
 //
 // `GATHER_TOOLS.fishing` asked for a `rod`, and `rod` was not in ITEMS. It did
 // not exist, could not exist, and no keeper sold it. The only real rod was the
-// oak-rod, which asks fishing 35 to hold and smithing 24 to forge -- so in a
+// oak-rod, which asks shorecraft 35 to hold and earthcraft 24 to forge -- so in a
 // tool-gated founding a newcomer could never take their FIRST FISH, and every
 // road out of that was blocked by the skill it was blocking. Fishing was
 // simply shut.
@@ -5257,7 +5408,7 @@ const TOOL_FOR = { tree: AXES, rock: PICKS,
                    'coal-rock': PICKS,
                    'iron-rock': PICKS,
                    'gold-rock': PICKS, 'mother-lode': PICKS,  // §6ao (v6): baseline iron
-                   // §7a: a pick and nothing else. There is deliberately no
+                   // §12c: a pick and nothing else. There is deliberately no
                    // entry in NODE_GATE for the rockfall: the whole island is
                    // meant to be able to take a swing at it, including the
                    // citizen who arrived this morning.
@@ -5265,13 +5416,13 @@ const TOOL_FOR = { tree: AXES, rock: PICKS,
                    'heartwood-tree': AXES,
                    'deep-fish-spot': RODS, 'gibbet-shoal': RODS,
                    'fishing-spot': RODS,
-                   // §7c: no entry for 'eel-spot' -- a rod is not a bonus at a
+                   // §13h: no entry for 'eel-spot' -- a rod is not a bonus at a
                    // trap either. A better rod does not lift a buck faster.
                    };
 // §6ao (v6): which tools satisfy the tool-gate for each gathering skill. Any
 // tier of the right tool opens the door; a better one only works faster. The
 // baseline fishing tool is the plain `rod` (shaped from logs, sold at market);
-// woodcutting and mining take the bronze tool a newcomer buys with their coin.
+// woodcraft and earthcraft take the iron tool a newcomer buys with their coin.
 const GATHER_TOOLS = {
   woodcraft: new Set(AXES),
   earthcraft: new Set(PICKS),
@@ -5279,7 +5430,7 @@ const GATHER_TOOLS = {
 };
 const TOOL_BONUS = { 'iron-hatchet': 24, 'iron-pickaxe': 24,
                      // §6am (v6): the mid tool sits between the two it stands
-                     // between -- better than bronze, short of quick -- so a
+                     // between -- better than iron, short of quick -- so a
                      // citizen who has reached the middle has a tool to reach
                      // for, and quick is still the thing worth the whole road.
                      'steel-hatchet': 34, 'steel-pickaxe': 34, 'rod': 24, 'oak-rod': 34, 'ironbark-rod': 44, 'heartwood-rod': 54,
@@ -5317,7 +5468,7 @@ const T = {
   // part of the verb, stated either way, and there is exactly one
   // serialisation of each intent.
   bool: (v) => v === true || v === false || 'must be true or false',
-  // §7a: a world coordinate. A found names the tile it stands on, so the input
+  // §14d: a world coordinate. A found names the tile it stands on, so the input
   // carries an x and a y; bounded generously (the widest world is far under
   // this) and never negative, which is all the shape gate can know without the
   // genesis. The handler checks it is an actual crossing site.
@@ -5337,7 +5488,7 @@ const T = {
   itemOrNull: (v) => v === null || ITEMS.has(v) || 'must be a constitutional item or null',
   recipe: (v) => (typeof v === 'string' && v in RECIPES) || 'must be a constitutional recipe',
   gear: (v) => EQUIP_SLOTS.includes(v) || 'must be an equipment slot name',
-  spell: (v) => ['anchor', 'mend'].includes(v) || 'must be a constitutional spell',
+  spell: (v) => ['mend'].includes(v) || 'must be a constitutional spell',   // §6bq: anchor repealed
   make: (v) => ['bow', 'arrows', 'heartwood-bow', 'staff', 'heartwood-staff', 'wand',
                 'rod', 'oak-rod', 'ironbark-rod', 'heartwood-rod',   // 6bk: a rod is shaped wood
                 'torch'].includes(v)   // §7dt: a log and a knife
@@ -5419,6 +5570,20 @@ const INPUT_SCHEMAS = {
   withering: { targetId: T.id },   // §7ck: and the last thing anybody learns
   befriend: { targetId: T.id },    // §7cm: keep somebody's name
   unfriend: { targetId: T.id },
+  // §5w: AND APPRENTICESHIP, WHICH HAD NO SHAPE AT ALL.
+  //
+  // The third time. `teach` and `part` had a rule in validate() and an effect
+  // in apply() and no line here, so `validateInputShape` answered "unknown
+  // input type" and no node would carry one: a master could not take anybody
+  // on and neither party could end it, in any world ever founded. SPEC §5w
+  // tabulates both verbs, so a reimplementer would have built them and been
+  // right, and this engine would have refused them.
+  //
+  // It is the same fault the note below records for `drink` and `set_look`,
+  // found the same way: by asking the constitution what verbs exist and
+  // checking each against this table rather than reading the switch.
+  teach: { to: T.id },
+  part: { who: T.id },
   charter: { slot: T.slot },   // §7cv: draw a crossing up from a chart
   waking: { targetId: T.id },   // §7ce: and what the second book has in it
   light: { slot: T.slot }, bury: { slot: T.slot }, deposit: { slot: T.slot },
@@ -5467,7 +5632,7 @@ const INPUT_SCHEMAS = {
   // and spends nothing. Two citizens may bid on one stone in one interval;
   // the loser must not be charged for a name they did not get.
   dedicate: { nodeId: T.id, pay: T.nonnegInt },
-  // §7a: FOUND names the crossing tile (x, y) the citizen stands on; LAY names
+  // §14d: FOUND names the crossing tile (x, y) the citizen stands on; LAY names
   // the spanwork and how many planks to bank this interval (bounded by the rate
   // in the handler, but the count itself is a positive quantity here).
   found: { x: T.coord, y: T.coord },
@@ -5582,11 +5747,11 @@ function normalizeInput(fields) {
 // 6bh: TWENTY A UNIT, AND NO TABLE AT ALL.
 //
 // What was here counted `ore` and `quick-stone` and nothing else -- and the
-// bronze and steel ladders were WRITTEN IN `iron` AND `coal`, which the table
+// iron and steel ladders were WRITTEN IN `iron` AND `coal`, which the table
 // had never heard of. So in the world as shipped, an iron plate, a steel
 // plate, a steel sword, every tool a citizen actually uses and the whole
 // middle of the trade taught NOTHING. Thirty levels of recipes paying zero,
-// and the only way to learn smithing at all was quickmetal out of the Wilds.
+// and the only way to learn earthcraft at all was quickmetal out of the Wilds.
 // Renaming ore to iron (so that v6's quick ladder could be forged from metal
 // v6 actually mines) extended the same silence to quick.
 //
@@ -5606,13 +5771,13 @@ function normalizeInput(fields) {
 // ever learn this trade at the gold seam, which is right: gold is for wearing).
 // 6br: ONE LESSON A WOUND, AND THE SPLIT KEPT HONEST.
 //
-// (This function was lost for a revision when the smithing table above it was
+// (This function was lost for a revision when the earthcraft table above it was
 // rewritten -- it sat between two constants that were replaced together, and
 // nothing caught it, because not one test in the suite lands a melee blow.
 // Every swing in the world would have thrown. It is restored here, rescaled.)
 //
-// Four experience a point of damage made attack and strength the two fastest
-// masteries on the island by a factor of nine -- ninety-six hours each against
+// Before §5j, four experience a point of damage made attack and strength the
+// two fastest masteries on the island by a factor of nine -- ninety-six hours each against
 // eight hundred and eighty everywhere else -- while hitpoints, at one a point,
 // rode along at exactly a quarter for no reason anybody chose.
 //
@@ -5700,7 +5865,7 @@ function teachMelee(p, dmg, style, tick, every, dummy) {
 // asked what it was shooting.
 //
 // MOB_STATS.butt is `dummy: true, ranged: true, maxHit: 0` with a hundred
-// thousand hitpoints, so marksmanship could be taken the whole way to mastery
+// thousand health, so marksmanship could be taken the whole way to mastery
 // at a post that cannot hurt you. Measured before this existed: the dummy paid
 // 0 from level 30 on, and the butt paid 2.2 / 2.8 / 3.2 / 4.1 at levels
 // 30 / 50 / 70 / 90 -- the second fastest road in the world, in perfect safety.
@@ -5716,7 +5881,7 @@ function teachRanged(p, dmg, dummy) {
   gainXp(p, 'marksmanship', dmg * XP_BLOW_SHARE);   // §5j-ii, as in reach
 }
 const XP_SMITH_PER_UNIT = 20;
-// 6bk: AND THE SAME TWENTY AT THE BENCH. Fletching had its own private scale --
+// 6bk: AND THE SAME TWENTY AT THE BENCH. Woodcraft had its own private scale --
 // five for arrows, twelve for a wand, fifteen for a bow, a hundred and twenty
 // for the heartwood pair -- so the same skill paid its worst route a
 // twenty-fourth of its best. Arrows at five were the slowest experience
@@ -6079,7 +6244,7 @@ function isNought(state) {
 // banner it was asked to draw and one that rewrites the world's own signposts
 // to hide something, and the second is not carelessness. It is forgery, and it
 // is visible to anybody who stands at the same post in another window.
-const NOUGHT_POST = 'NOUGHT — not the world. Nothing here is kept.';
+const NOUGHT_POST = 'NOUGHT: not the world. Nothing here is kept.';
 // A body in Nought is NAMED, and named the same thing every time.
 //
 // A name is drawn wherever a citizen is drawn -- over the body, in the panel,
@@ -6126,7 +6291,7 @@ function markNoughtWorld(state) {
 }
 
 function registerTerrain(id, t) { TERRAINS[id] = t; }
-// §7a: the wild crossing sites a generator declares, as data. A tile the engine
+// §14d: the wild crossing sites a generator declares, as data. A tile the engine
 // will permit a `found` on, and the name the finished span bears. A generator
 // with no wild crossings returns none, and the engine offers no span there.
 // These are coordinates, not terrain: they move no tile's walkability and so
@@ -6230,7 +6395,7 @@ function crossingBlocked(state, p, fx, fy, tx, ty) {
 // What the predicate is allowed to know about a citizen. A NARROW VIEW ON
 // PURPOSE: terrain may ask what somebody is carrying and which way they are
 // facing, and may not ask their name, their standing, their skills or their
-// hitpoints. Ground does not know who you are, and a gate that let it would be
+// health. Ground does not know who you are, and a gate that let it would be
 // a rule wearing terrain's clothes.
 function crossingView(p, tick) {
   let carried = 0;
@@ -6253,9 +6418,35 @@ function crossingView(p, tick) {
   // at all. It is compared against the interval, like every other clock here.
   const torch = (countItem(p.inventory, 'torch') > 0 || p?.equipment?.weapon?.item === 'torch')
     && (p.torchUntil ?? 0) > (tick ?? 0);
-  const lit = torch || arrows || (!!w?.burns && !(w.fuel && countItem(p.inventory, w.fuel) < 1));
+  // ...AND THE WEAPON TABLE WAS DEFEATING THAT. A torch is in WEAPONS with
+  // `burns: true`, because swung at a quencher it IS a burning weapon. So the
+  // clause below saw `burns` and answered lit, whatever the clock above said:
+  // the timer the note over `torch` describes as "the whole point of the item"
+  // did nothing at all, for the second time, by a different route. A citizen
+  // who had ever held a torch walked into the Smother for ever.
+  //
+  // A torch's burning is its own clock and is decided ABOVE. Everything else
+  // that burns does so because of what it is -- a great sword is quenched in
+  // brimstone and stays quenched -- and the siphon asks for fuel in the pack.
+  const held = p?.equipment?.weapon?.item;
+  const alwaysBurns = !!w?.burns && held !== 'torch';
+  const lit = torch || arrows
+    || (alwaysBurns && !(w.fuel && countItem(p.inventory, w.fuel) < 1));
   return { carried, slots: INV_SLOTS, lit };
 }
+// §7dq-iii: AND A WINDOW HAS TO KNOW, so there is one definition and not two.
+//
+// `lit` decides whether the Smother's mouth lets a citizen through, and until
+// now it existed only inside `crossingView` -- computed for the terrain
+// predicate, used once, thrown away. A window needs the same answer for a
+// different reason: the cave is dark, the light a citizen carries is what they
+// see by, and a torch BURNS DOWN, so the thing is a clock and not a state.
+//
+// A window that worked it out for itself would be reimplementing the rule: the
+// weapon table's `burns`, the siphon's fuel, fire-arrows counting as a light,
+// and the torch's timer. Four things, in a client, drifting. This is the same
+// argument the terrain makes and it gets the same answer: ask, do not copy.
+function carriesLight(p, tick) { return crossingView(p, tick).lit; }
 const spawnOf = (g) => (TERRAINS[g.worldGenerator] && TERRAINS[g.worldGenerator].spawn
   ? TERRAINS[g.worldGenerator].spawn(g)
   : { x: Math.floor(g.worldW / 2), y: Math.floor(g.worldH / 2) });
@@ -6368,19 +6559,23 @@ const effLevel = (xp) => Math.min(levelForXp(xp), MASTERY);
 //                  you die, and every citizen trends to unplayable given
 //                  enough intervals. A capped debt is friction; an uncapped
 //                  one is a countdown.
-//   WOUND_FLOOR -- and never below a novice's frame. A citizen at hitpoints
-//                  10 is already at the floor and cannot be wounded at all,
-//                  which is deliberate: the people who die most are the
-//                  people who have just arrived, and a rule that lands
-//                  hardest on whoever is still learning the world is a rule
-//                  that teaches them to go away.
+//   WOUND_FLOOR -- and never below ten. Wounds subtract from the frame and
+//                  stop there, so the worst a citizen can be carrying is
+//                  fifty-four of sixty-four and they are never reduced to
+//                  something that cannot survive a single blow.
 //
-// It bites hardest in the middle -- around hitpoints 30 to 60, ten points is
-// a fifth to a third of you -- which is exactly the band with something to
-// lose and nowhere safe to lose it.
+// This paragraph argued the floor as "never below a NOVICE's frame", which was
+// true while the frame grew with a skill: a citizen at ten could not be
+// wounded at all, and the rule landed softest on whoever had just arrived.
+// §5j made the frame flat, so there is no novice's frame to be below and the
+// floor is simply ten for everybody. The clamp is unchanged; what it protects
+// is now the end of a long run of deaths rather than the start of a citizen.
+//
+// Ten of sixty-four is a sixth of a citizen, which is the dragon's blow and
+// a little more: enough to feel across a fight, not enough to end one.
 const WOUND_MAX = 10;
 const WOUND_FLOOR = 10;
-// §5j: HITPOINTS IS NOT A SKILL, AND FLESH IS NOT AN ACHIEVEMENT.
+// §5j: HITPOINTS WAS A SKILL AND IS NOT ONE NOW, AND FLESH IS NOT AN ACHIEVEMENT.
 //
 // It rose off damage DEALT, alongside attack and strength, which made it a
 // fourth number measuring the same event twice. Worse, it meant a citizen who
@@ -6429,14 +6624,14 @@ function callingHpBonus(p) {
 //
 // §5k REPEALED THE PREMISE. Nothing unsworn passes fifty and nothing outside
 // your own trade passes seventy, so the widest citizen this world now allows
-// stands at 8x70 + their own trade — about 660 — and 1200 is not reachable by
+// stands at 8x70 + their own trade: about 660, and 1200 is not reachable by
 // any path at all. The hood had quietly stopped existing.
 //
 // Worse than the arithmetic: the hood was the GENERALIST'S reward, and §5k
 // abolished the generalist. So this is not a number that needed lowering, it is
 // a mark whose meaning had to be re-fixed.
 //
-// It still says you went everywhere — everywhere just means something else now.
+// It still says you went everywhere: everywhere just means something else now.
 // 600 is every trade taken as far as the ceiling allows and a little of your
 // own on top: about forty-eight hours of work, real but not a second career.
 // The rest of §6ax stands unchanged: the threshold buys a sybil toll and a
@@ -6536,10 +6731,12 @@ const WAYSTONE_TIER = {
   wildsdeep: 700, cragshigh: 600,
 };
 // 6ch: waystoneStandingFor removed with the stones.
-// CALLING is the profession a citizen is best at, as a word. Hitpoints is
-// excluded: it is a consequence of fighting rather than a trade, and it starts
-// at 10, so without this every citizen would be born a fighter. Ties fall to
-// the constitutional skill order, so the answer is the same on every node.
+// CALLING is the profession a citizen is best at, as a word. Ties fall to the
+// constitutional skill order, so the answer is the same on every node.
+//
+// This used to exclude hitpoints, which began at level 10 and would otherwise
+// have made every citizen a born fighter. §5j deleted that skill, so there is
+// nothing to exclude and the nine below are the whole of it.
 const CALLINGS = {
   // §5n: WOODWRIGHT. The axe, the bench and the fire were one trade split
   // three ways: you fell a tree to shape it or to burn it, and nobody fells
@@ -6702,7 +6899,7 @@ const XP_SIBLING_NUM = 1, XP_SIBLING_DEN = 2;   // your sibling's: half
 // many callings you may HOLD, which restrains no training at all.
 //
 // The curve cannot fix this. Under a world where the grind is scripted, curve
-// length measures uptime and not commitment — doubling it buys six months of
+// length measures uptime and not commitment: doubling it buys six months of
 // waiting for the same writ. A CEILING is the one limit a script cannot
 // out-wait, and so it is the only real limit this world has.
 //
@@ -6734,12 +6931,12 @@ const MASTER_REC_NUM = 3, MASTER_REC_DEN = 4;       // a quarter off the gambit
 // §5y: WHAT THE TAIL PAST A HUNDRED IS FOR.
 //
 // Your own trade has no ceiling and XP_TABLE runs to 171, so there is no
-// completion state — but the levels did nothing except count. Measured from the
+// completion state, but the levels did nothing except count. Measured from the
 // gather formula, 105 is a month past mastery, 110 is three, 120 is sixteen. So
 // milestones live at 105 and 110; anything at 120 is decoration for people who
 // will never see it.
 //
-// They must not multiply throughput — the same argument that killed the calling
+// They must not multiply throughput: the same argument that killed the calling
 // rate: a rate scales automation, and past-mastery play is the most automated
 // play there is. So the tail buys CAPACITY FOR OTHER PEOPLE instead. A very deep
 // master is visibly a school.
@@ -6754,7 +6951,7 @@ function slotsFor(p) {
 // §5w: THE GRADES, AND WHY 'APPRENTICE' MOVED.
 //
 // Apprentice used to mean "below fifty", which is a number, and everyone was
-// one by default — a word that applies to everybody describes nobody. It now
+// one by default: a word that applies to everybody describes nobody. It now
 // means SOMEBODY TOOK YOU ON: a state another citizen consented to, and one
 // they are spending a slot on. What everyone starts as is a newcomer.
 //
@@ -6765,7 +6962,7 @@ function slotsFor(p) {
 // §5x: THE RITUAL. YOU ARE NOT A MASTER UNTIL YOU HAVE MADE ONE.
 //
 // Reaching MASTERY makes a citizen ELIGIBLE. What makes them a master is having
-// raised somebody to their own swearing — the old guild rule, where a
+// raised somebody to their own swearing: the old guild rule, where a
 // journeyman stayed a journeyman until the craft admitted them, and admission
 // was a piece of work laid before it. Here the piece of work is a person.
 //
@@ -6781,7 +6978,7 @@ function slotsFor(p) {
 //   · It makes the endgame social by construction. A master of Interval is not
 //     a person with nine hundred hours; it is a line of people.
 //
-// An alt can do it — two hours to fifty and a swearing before yourself — and
+// An alt can do it: two hours to fifty and a swearing before yourself, and
 // that is the correct price rather than a hole. It is also LEGIBLE: the
 // lineage is signed and public, and a master whose only apprentice appears
 // nowhere else has told everybody what they did.
@@ -6824,8 +7021,8 @@ function xpCeiling(p, skill) {
   return XP_TABLE[CAP_UNSWORN + 1] - 1;
 }
 // §EVERY GAIN PASSES THROUGH HERE. There were eighteen places that wrote
-// `gainXp(p, 'x', y` directly — prowess on a blow landed, marksmanship on a shot,
-// sorcery on a sigil spent — so a ceiling in awardXp alone would have left the
+// `gainXp(p, 'x', y` directly: prowess on a blow landed, marksmanship on a shot,
+// sorcery on a sigil spent, so a ceiling in awardXp alone would have left the
 // combat skills uncapped, which is precisely the wrong hole to leave open.
 function gainXp(p, skill, xp) {
   if (!(xp > 0) || !p || !p.skills) return;
@@ -7186,7 +7383,7 @@ function _backendVerify(pubBytes, payloadBuf, sigBytes) {
 // Sized to the protocol's real working set, not a round number. A node holds
 // inputs for up to MAX_PENDING_TICKS (64) distinct future ticks, each admitting
 // up to MAX_INPUTS_PER_BUNDLE (4096) inputs: 262,144 signatures may legitimately
-// be live at once. At 16384 the cache thrashed above ~1500 acting citizens —
+// be live at once. At 16384 the cache thrashed above ~1500 acting citizens:
 // every eviction re-ran an ed25519 verify inside the tick, which is precisely
 // what verifying-on-arrival exists to avoid, and it dragged replay throughput
 // below the live rate (a catching-up peer could never converge). Doubled for
@@ -7524,14 +7721,14 @@ function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH 
                            'heartwood-bow': 250, 'horn-bow': 245, 'dragon-bones': 285,
                            'quick-helm': 261, 'quick-dagger': 250, 'quick-spear': 270,
                            'quick-sword': 283, 'quick-mell': 290, 'quick-plate': 300 } },
-           // watchfires (v0.53): high-tier Firemaking as public infrastructure.
+           // watchfires (v0.53): high-tier Woodcraft as public infrastructure.
            // A BEACON IS A PUBLIC WORK, NOT A LADDER.
            //
            // At two hundred a log the watchfire paid EIGHT TIMES what the very
-           // logs it eats pay in woodcutting, and five times an ordinary fire:
+           // logs it eats pay in woodcraft, and five times an ordinary fire:
            // thirty-seven hours to ninety-nine against two hundred and
            // ninety-five for the axe that fed it. It was not a way of doing
-           // firemaking, it was the only way, and it broke the rule the rest of
+           // woodcraft, it was the only way, and it broke the rule the rest of
            // this world keeps -- a master gets MORE from an hour, never a
            // shorter road.
            //
@@ -7725,7 +7922,7 @@ function boundedValue(v, depth = 0) {
 // whatever any other hash says, and refusing to check it does not prevent
 // that fork -- it only delays the discovery from the handshake to whenever
 // somebody happens to exercise the difference. Measured: the same signed
-// input, one tick, produced smithing xp 40 on one build and NaN on another,
+// input, one tick, produced earthcraft xp 40 on one build and NaN on another,
 // with both agreeing on every other hash they check.
 //
 // NORMALISATION. Hashing the raw file would mean a typo fixed in a COMMENT
@@ -7760,7 +7957,7 @@ const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs',
 const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'transmuteWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought',
   // §6bp: what the first name on a stone costs, and how the price climbs
   'dedication',
-  // §7a: the wild span -- pool size, plank rate, and the woodwork it pays
+  // §14d: the wild span -- pool size, plank rate, and the woodwork it pays
   'span',
   // §7dv: the tide (the world's windows, the same for everyone) and the stint
   // (a citizen's promise made against one). A founding may have both, or
@@ -7835,7 +8032,7 @@ function validateGenesis(g) {
     if (!bw || typeof bw !== 'object' || Object.keys(bw).sort().join(',') !== 'buildOre,buildPlanks,decayTicks,ferment,potCap,xpPerBatch') return 'non-constitutional genesis.brew';
     for (const bk of ['ferment', 'potCap', 'xpPerBatch', 'buildPlanks', 'buildOre', 'decayTicks']) if (!isInt(bw[bk], 0, 1e12)) return `genesis.brew.${bk} out of bounds`;
   }
-  // §7a: THE WILD SPAN. `pool` is the planks a span needs to open; `perLay` is
+  // §14d: THE WILD SPAN. `pool` is the planks a span needs to open; `perLay` is
   // how many a citizen may bank in one interval (bounded so a crossing is a
   // campaign, not a click); `xpPerPlank` is the woodwork the founder and every
   // hauler earns. A world with no wild crossings omits this and offers no
@@ -8195,7 +8392,7 @@ const LANDMARK_KINDS = new Set([
   // Downs. Twelve words instead of two.
   // §7u: THE TREES THAT ARE NOT TIMBER. Every tree on this island was a thing
   // you could chop, so the countryside could only be wooded where the world
-  // wanted woodcutting. These are landmarks -- no verb reaches them -- so a
+  // wanted woodcraft. These are landmarks -- no verb reaches them -- so a
   // country can have trees the way a country does: willows where the water is,
   // dead ones where the land turned, pines on the high ground, and an AVENUE,
   // which is the only one of them that says a person did it on purpose.
@@ -8415,7 +8612,7 @@ const LANDMARK_KINDS = new Set([
     // reason a name is: so that everyone looking at a citizen sees the same
     // citizen (spec 5a's own argument, applied to a face).
     // §11a: THE CONSIGNMENT IS STATE, so the validator must know its shape as
-    // exactly as it knows a pack's. A container of twenty-eight slots per
+    // exactly as it knows a pack's. A container of twelve slots per
     // citizen is real bytes in every checkpoint and every hash.
     if (p.consignment !== undefined && p.consignment !== null) {
       const c = p.consignment;
@@ -8457,8 +8654,8 @@ const LANDMARK_KINDS = new Set([
     //
     // `gainXp` clamps every award, and `gainXp` never runs on a checkpoint that
     // was handed to us. A peer could carry a citizen at a hundred in three
-    // trades, and this function — the only thing standing between a foreign
-    // state and our own — would have waved it through, because MAX_XP is the
+    // trades, and this function: the only thing standing between a foreign
+    // state and our own: would have waved it through, because MAX_XP is the
     // only bound it knew about. The executor would then never re-derive it: the
     // citizen simply IS past the ceiling, for ever.
     //
@@ -8470,7 +8667,7 @@ const LANDMARK_KINDS = new Set([
       const ceil = xpCeiling(p, sk);
       if (ceil !== Infinity && p.skills[sk] > ceil) return `${sk} past the ceiling`;
     }
-    // inventory: the exact constitutional slot count (28), always
+    // inventory: the exact constitutional slot count (12), always
     if (!Array.isArray(p.inventory) || p.inventory.length !== INV_SLOTS) return 'inventory length is not constitutional';
     for (const sl of p.inventory) if (!isSlot(sl)) return 'malformed inventory slot';
     // §6g: A VAULT PER COUNTER. `p.vaults` is a map from vault NODE ID to that
@@ -8524,13 +8721,13 @@ const LANDMARK_KINDS = new Set([
       }
     }
     for (const tk of ['brandedUntil', 'deadUntil', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'lastSwing', 'lastAte', 'shotsFired', 'burnUntil', 'paidUntil']) if (p[tk] !== undefined && !isInt(p[tk], 0, MAX_TIME)) return `${tk} out of bounds`;
-    // §6m-vii: the mending debt is hitpoints and a rate, not ticks. Bounded by
+    // §6m-vii: the mending debt is health and a rate, not ticks. Bounded by
     // the richest food in the world and by the fastest, so neither can be
     // forged into an unbounded regeneration by a malformed checkpoint.
     if (p.fedLeft !== undefined && !isInt(p.fedLeft, 1, 64)) return 'fedLeft out of bounds';
     if (p.fedRate !== undefined && !isInt(p.fedRate, 1, 8)) return 'fedRate out of bounds';
     if ((p.fedRate !== undefined) !== (p.fedLeft !== undefined)) return 'a mending rate without its debt';
-    // §7e: the brew a citizen has going at the inn's pot
+    // §8a: the brew a citizen has going at the inn's pot
     // §7ai: burials toward the next flask
     if (p.buried !== undefined && !isInt(p.buried, 0, 1000000)) return 'malformed burial count';
     // §7bs: the shaft on the string
@@ -8732,7 +8929,7 @@ const LANDMARK_KINDS = new Set([
     }
     // §6o: A CROP BELONGS TO THE CITIZEN, NOT TO THE GROUND.
     //
-    // What is sown was recorded on the PLOT — one `plantedAt`, one `by` — so
+    // What is sown was recorded on the PLOT: one `plantedAt`, one `by`, so
     // a plot was a thing exactly one person could use, and a citizen who
     // planted and never returned held that ground until it went over. With a
     // hundred and ninety plots and any number of citizens, farming was a
@@ -8822,7 +9019,7 @@ const LANDMARK_KINDS = new Set([
     // §6bp: what a dedication stone carries -- how many names it has borne,
     // and the last few of them.
     'count', 'past',
-    // §7a: how many strikes the rockfall has taken. Monotonic, which is the
+    // §12c: how many strikes the rockfall has taken. Monotonic, which is the
     // safest thing there is to put in a ledger that replays.
     'struck',
     // §7du: the bell -- how many pulls it has taken, and who has a hand on the
@@ -8833,9 +9030,9 @@ const LANDMARK_KINDS = new Set([
     // §7m/§7r: the reservoir holder for a rockfall's fall-stone, and whoever
     // is minding the furnace
     'claim', 'stokedBy', 'worked',
-    // §7a: THE WILD SPAN. Its pool (`laid` of `need`), its history (`foundBy`/
+    // §14d: THE WILD SPAN. Its pool (`laid` of `need`), its history (`foundBy`/
     // `foundAt`, the last hands via `by`/`lastAt`, the recent carriers in
-    // `hands`), its toll (`dead`), and — once finished — how it closed
+    // `hands`), its toll (`dead`), and: once finished, how it closed
     // (`doneBy`/`doneAt`/`tookTicks`). `name` and `by` are shared with the set
     // above; these are the fields a crossing adds.
     'laid', 'need', 'foundBy', 'foundAt', 'lastAt', 'dead', 'hands', 'doneBy', 'doneAt', 'tookTicks']);
@@ -8926,7 +9123,7 @@ const LANDMARK_KINDS = new Set([
       if (n.type !== 'rockfall') return 'claim on a node that keeps none';
       if (typeof n.claim !== 'string' || !HEX64.test(n.claim)) return 'malformed node claim';
     }
-    // §7a: THE WILD SPAN, unfinished or finished. A spanwork is a rising pool
+    // §14d: THE WILD SPAN, unfinished or finished. A spanwork is a rising pool
     // with a history; a span is the same record, closed. The invariants are
     // arithmetic so two nodes cannot disagree about how far a crossing has come:
     // laid never exceeds need, a finished span has laid at least need and bears
@@ -9001,7 +9198,7 @@ const LANDMARK_KINDS = new Set([
       if (!n.shelf || Object.keys(n.shelf).length === 0) return 'an empty cart is not a thing';
     }
     if (n.type === 'spanwork' || n.type === 'span') {
-      // §7a: fully checked in the span block above -- its `by` is the last
+      // §14d: fully checked in the span block above -- its `by` is the last
       // hands, not plot ownership, so it must be claimed here or the generic
       // guard below (which reads any stray `by` as a mislaid plot owner) would
       // reject every valid crossing. Same shape of exemption cart/brewpot get.
@@ -9044,7 +9241,7 @@ const LANDMARK_KINDS = new Set([
     } else if (n.type === 'smokerack') {
       // §7dg: A RACK IS THE PRIVATE-POT SHAPE, not the inn-pot shape.
       //
-      // The brew lives ON THE NODE, which is the opposite of what §7e chose
+      // The brew lives ON THE NODE, which is the opposite of what §8a chose
       // for the Lantern, and the difference is the point. The inn has ONE pot
       // for the whole island, so a citizen sitting on it denies everybody; the
       // sheds have FOUR racks and the scarcity is the design. What stops a
@@ -9071,7 +9268,7 @@ const LANDMARK_KINDS = new Set([
           || n.coin !== undefined || n.name !== undefined || n.shelf !== undefined)
         return 'a rack carries foreign metadata';
     } else if (n.type === 'brewpot') { // a brewpot is owned; it may be idle or fermenting (v0.51)
-      // §7e: ...unless the WORLD owns it. A brewpot a citizen raised is theirs
+      // §8a: ...unless the WORLD owns it. A brewpot a citizen raised is theirs
       // and works for them alone, which is right for a thing somebody built.
       // The one at the Lantern was not built by anybody: it is the inn's, it
       // has no `by`, and it works for whoever is standing at it -- the same
@@ -9092,7 +9289,7 @@ const LANDMARK_KINDS = new Set([
       if (n.lastUsed !== undefined && !isInt(n.lastUsed, 0, MAX_TIME)) return 'brewpot lastUsed out of bounds';
       if (n.plantedAt !== undefined) return 'brewpot carries plot metadata';
     } else if (n.type === 'watchfire') { // owned public light, fed by logs (v0.53)
-      // §7e: and the same for the clamp at Greenhollow, which the wood keeps
+      // §8a: and the same for the clamp at Greenhollow, which the wood keeps
       // rather than any one collier.
       if (n.by !== undefined) {
         if (typeof n.by !== 'string' || !HEX64.test(n.by)) return 'watchfire without a keeper';
@@ -9208,7 +9405,7 @@ const LANDMARK_KINDS = new Set([
       if (n.type !== 'keeper' && n.type !== 'crier' && n.type !== 'dedication'
           && n.type !== 'landmark' && n.type !== 'spanwork' && n.type !== 'span') return 'a name belongs to a keeper';
       if (n.type === 'landmark' && !GRAVABLE.has(n.kind)) return 'a name cut into scenery';
-      // §7a: a span's name is a PLACE name, like a crier's line or a stone's --
+      // §14d: a span's name is a PLACE name, like a crier's line or a stone's --
       // it comes from the founding's crossing table, not from a citizen, so it
       // is not length-checked as a keeper name here (the span block above bounds
       // it). Every other named node is a citizen or keeper name, capped at 32.
@@ -9381,7 +9578,7 @@ function addPlayer(state, playerId, x, y) {
     vaults: {},
     lastInput: state.tick,
     // §6ao (v6): a newcomer wakes with just enough coin for ONE tool at the
-    // market -- a bronze axe, a rod, or a pickaxe -- and nothing over. So the
+    // market -- an iron axe, a rod, or a pickaxe -- and nothing over. So the
     // first thing a citizen does is walk to Millbrook, CHOOSE a trade, buy the
     // tool, and start; and to buy the second tool they must gather and SELL the
     // first. It turns the empty-handed tree-hug outside the spawn into an
@@ -9439,7 +9636,7 @@ function tradeFits(offerer, acceptor, trade) {
     if (!it) return false;                 // the offer no longer holds
     // §6q: and it must still be WHAT WAS ADVERTISED. Emptiness was already
     // guarded; substitution was not, which is the whole of the bait-and-
-    // switch: the buyer paid for a quick-sword and received a iron-dagger.
+    // switch: the buyer paid for a quick-sword and received an iron-dagger.
     if (it.item !== advertised[i].item || (it.qty ?? 1) !== advertised[i].qty) return false;
     incoming.push(it);
   }
@@ -9587,7 +9784,7 @@ function canStep(state, ctx, p, dx, dy) {
       if (nx < 1 || nx >= state.genesis.worldW - 1 || ny < 1 || ny >= state.genesis.worldH - 1) return false;
       // the water is law where the generator says so (terrain registry):
       // rivers and the sea bar the way, and their fords are law too
-      // §7a: ...unless a FINISHED SPAN stands on the water. A span is decking a
+      // §14d: ...unless a FINISHED SPAN stands on the water. A span is decking a
       // citizen built, and decking is water you can walk on -- for everyone,
       // which is what makes it a bridge and not a toll. An unfinished spanwork
       // grants nothing: it blocks its tile as the beck does, so this refuses
@@ -9691,7 +9888,7 @@ function validInput(state, input, ctx) {
     // §5k: swear once, having done the work. There is no forswearing: a
     // calling that could be put down would be a loadout, and the whole point
     // of the word is that it costs something to say.
-    // §5w: TEACH — a master takes a citizen on. Consent is a signed input of
+    // §5w: TEACH, a master takes a citizen on. Consent is a signed input of
     // its own, mirroring `offer_trade`: the offer is parked on the OFFERER, and
     // the other party completes it. A master cannot be volunteered.
     case 'teach': {
@@ -9710,7 +9907,7 @@ function validInput(state, input, ctx) {
     }
     case 'part': {                    // §5w: either party may end an apprenticeship
       // NOT 'release': the consignment already owns that word, and a second
-      // case with the same label would have shadowed it silently — the kind of
+      // case with the same label would have shadowed it silently: the kind of
       // collision a switch never reports.
       if (input.who === undefined) return false;
       const other = state.players[input.who];
@@ -9726,7 +9923,7 @@ function validInput(state, input, ctx) {
       if (levelForXp(p.skills?.[c.skill] ?? 0) < SWEAR_LEVEL) return false;
       // §5w: AN ATTESTED SWEARING. A citizen may name the master who took them
       // on, and the mark goes into the record for ever. Unattested swearing
-      // stays legal — the first forester has nobody to attest them, and anyone
+      // stays legal: the first forester has nobody to attest them, and anyone
       // playing at an empty hour would otherwise be stuck. The mark is the
       // reward; its absence is not a wall.
       if (input.attester !== undefined) {
@@ -9776,7 +9973,7 @@ function validInput(state, input, ctx) {
         // Wielded settles it, and it costs what a pickaxe already costs an
         // alchemist: a citizen working a seam is carrying no sword.
         const need = GATHER_TOOLS[y.skill];
-        // §7c: AN EEL BUCK IS NOT A ROD. You do not angle for eels; you set a
+        // §13h: AN EEL BUCK IS NOT A ROD. You do not angle for eels; you set a
         // trap woven out of willow, leave it in the run, and come back and lift
         // it. The racks standing at the Eel Sheds and out along the fen ARE the
         // bucks -- they were already built as furniture -- so working an eel
@@ -9875,7 +10072,7 @@ function validInput(state, input, ctx) {
       return countItem(p.inventory, 'planks') >= TOLL_PLANKS;
     }
     case 'smelt': {
-      // §7p: SMELTING IS NOT SMITHING, AND THE WORLD SHOULD SAY SO.
+      // §7p: SMELTING IS NOT FORGING, AND THE WORLD SHOULD SAY SO.
       //
       // These were briefly one verb -- `smith`, refusing bars anywhere but the
       // furnace -- because it saved teaching two windows and the SDK a new
@@ -10122,7 +10319,7 @@ function validInput(state, input, ctx) {
     case 'saw': {
       // §7q: A ROUND LOG IS NOT A PLANK.
       //
-      // Woodcutting went tree straight to use, like mining before the furnace,
+      // Woodcraft went tree straight to use, like earthcraft before the furnace,
       // and the difference is that a plank already had THREE buyers waiting: a
       // citizen's stall, a citizen's brewpot, and the deck of the Millbrook
       // Bridge -- whose keeper is mending it, and you cannot plank a bridge
@@ -10148,7 +10345,7 @@ function validInput(state, input, ctx) {
       // costs fifty standing because names are scarce and permanent; there is
       // only one of each. Faces are not scarce.
       if (!isInt(input.look, 0, 255)) return false;
-      // §7d: YOUR FIRST FACE IS FREE. Anybody who has not chosen one yet may
+      // §13j: YOUR FIRST FACE IS FREE. Anybody who has not chosen one yet may
       // choose at the door, because arriving in a world you cannot see
       // yourself in is a poor way to begin.
       if (p.look === undefined) return true;
@@ -10277,7 +10474,7 @@ function validInput(state, input, ctx) {
       const w9 = WEAPONS[p.equipment?.weapon?.item];
       if (!w9?.gambit) return false;
 
-      // §6af: 'now' interrupts your own rhythm ONCE — it does not exempt you
+      // §6af: 'now' interrupts your own rhythm ONCE, it does not exempt you
       // from the cost. This read `gambit !== 'now'`, which skipped the arm check
       // entirely and let the mell gambit EVERY TICK forever: seven to
       // seventeen a tick against a normal three, and the damage-neutrality
@@ -10363,7 +10560,7 @@ function validInput(state, input, ctx) {
     case 'lift': {
       const n = state.nodes[input.nodeId];
       if (!n || n.type !== 'eel-buck' || !adjacent(p, n)) return false;
-      // §7dz: ANYBODY MAY LIFT A BUCK. §7c said working an eel spot is
+      // §7dz: ANYBODY MAY LIFT A BUCK. §13h said working an eel spot is
       // "emptying somebody's trap" and meant it. A trap left in the fen is in
       // the fen; the citizen who set it has a claim of habit and not of law.
       return state.tick - n.setAt >= BUCK_FILL_TICKS;
@@ -10412,7 +10609,7 @@ function validInput(state, input, ctx) {
       // whole part in a fight is keeping somebody else standing. Which is the
       // most anti-combat thing magic could possibly do.
       if (p.equipment?.weapon?.item !== 'wand') return false;
-      if (effLevel(p.skills.sorcery) < MEND_REQ) return false;
+      if (effLevel(p.skills.sorcery) < MENDP_REQ) return false;
       if (!p.inventory.some((sl) => sl?.item === 'sigil')) return false;
       const t = state.players[input.target];
       if (!t || input.target === playerId) return false;
@@ -10515,7 +10712,7 @@ function validInput(state, input, ctx) {
       // gone; a watchfire is a thing somebody KEEPS, interval after interval,
       // and a fire that has been fed for hours is the only fire on this island
       // hot enough to char wood instead of merely burning it. That is also
-      // what makes this social: the charrer needs a fire, and below firemaking
+      // what makes this social: the charrer needs a fire, and below woodcraft
       // eighty they cannot keep one, so the wood goes to somebody else's.
       if (p.health <= 0) return false;
       const wt = state.genesis.watch;
@@ -10552,7 +10749,7 @@ function validInput(state, input, ctx) {
       //
       // Otherwise the cart is the footrace §6bx forbids, one tier up. A thief
       // buys cargo, seals it, walks the road, wins a fight -- and a bystander
-      // standing beside the wreck bearing nothing lifts twenty-eight slots at
+      // standing beside the wreck bearing nothing lifts twelve slots at
       // no risk, having accepted none of it. Everyone may still WATCH, which
       // is most of what makes a robbery on the road worth doing at all.
       if (!p.consignment && !inWilds(state.genesis, p.x, p.y)) return false;
@@ -10575,7 +10772,7 @@ function validInput(state, input, ctx) {
       return input.pay >= price && (p.gold ?? 0) >= price;
     }
     case 'found': {
-      // §7a: LAY THE FIRST PLANK OF A WILD SPAN. A citizen standing ON a
+      // §14d: LAY THE FIRST PLANK OF A WILD SPAN. A citizen standing ON a
       // declared crossing tile, carrying at least one plank, with no span or
       // spanwork there yet, begins the work. Standing ON it (not beside it) is
       // the whole design: the builder is exposed in the water, on the one tile
@@ -10594,7 +10791,7 @@ function validInput(state, input, ctx) {
       return countItem(p.inventory, 'planks') >= 1;
     }
     case 'lay': {
-      // §7a: ADD TO THE POOL. A citizen at or beside an unfinished spanwork,
+      // §14d: ADD TO THE POOL. A citizen at or beside an unfinished spanwork,
       // bearing planks, banks up to `perLay` of them. The pool only ever rises;
       // there is no verb that lowers it, and none that finishes it but this one
       // reaching the goal. `n` is how many the citizen means to lay this
@@ -10745,45 +10942,9 @@ function validInput(state, input, ctx) {
       return true;
     }
     case 'cast': {
-      if (input.spell === 'anchor') {
-        if (!speaks(p, 'anchor', state)) return false;   // §7cf
-        // §2k and §6v: ANCHOR IS A RECALL, and answers to both rules.
-        //
-        // It checked only that the caster held a sigil, so for three
-        // quick-stones you got the escape `recall` explicitly forbids -- out
-        // of the Wilds, mid-fight -- and it cancelled a quick-dagger root,
-        // which is that weapon's only advantage over the quick-sword and sits
-        // behind a 120-tick cooldown.
-        //
-        // §2k names `recall`, but the sentence gives the reason: magic will
-        // not carry you out of danger you chose to enter. Anchor is magic and
-        // the Wilds is that danger.
-        // §6ao (v6): ANCHOR IS THE WILDS ESCAPE. With waystones carrying normal
-        // town-to-town travel, the anchor-recall has one purpose left, and it is
-        // the one magic was first for -- getting OUT of a fight you have chosen
-        // to enter. So a v6 founding REVERSES the old rule: anchor may be cast
-        // ONLY in the Wilds, to flee to the capital, at the risk of being cut
-        // down mid-cast. Elsewhere it is redundant with the waystones and
-        // refused. (A world without `transmuteWhere`/v6 flags keeps the old §2k rule:
-        // no recall out of the Wilds.)
-        if (p.health <= 0) return false;
-        if ((p.rootedUntil ?? 0) > state.tick) return false;   // §6v: they cannot move, even to flee
-        // 6ch: NOT OUT OF THE WILDS. EVER.
-        //
-        // `anchorIsWildsEscape` INVERTED this rule: with it set the anchor
-        // worked ONLY from the Wilds, so the one country where anybody may
-        // strike you was also the one country you could leave instantly, for
-        // the price of a sigil you were already carrying in order to fight.
-        // Every consequence the Wilds exists to impose -- the walk in, the
-        // walk out, the decision whether to keep going with a full pack --
-        // was answered by a keystroke.
-        //
-        // The flag is still accepted from an older founding so such a genesis
-        // still parses; it now decides nothing. The rule underneath was always
-        // the right one.
-        if (inWilds(state.genesis, p.x, p.y)) return false;
-        return p.inventory.some((sl) => sl?.item === 'sigil');
-      }
+      // §6bq: the anchor's gate stood here and is repealed with the spell.
+      // `cast` now carries one spell, the mending; `still`, `seal`, `unmake`
+      // and the barrow four are verbs of their own.
       if (input.spell === 'mend' && !speaks(p, 'mend', state)) return false;   // §7cf
       if (input.spell === 'mend') // v0.41: the same sigil, a deeper use
         // §6ao: the rhythm is checked HERE too. Accepting the input and then
@@ -10846,7 +11007,7 @@ function validInput(state, input, ctx) {
           : (bp.by === input.playerId && bp.readyAt === undefined);
       }
       if (!sl || !(sl.item === 'grain' || isRawFood(sl.item))) return false;
-      // §7e: the inn's pot -- ownerless -- ferments for whoever is standing at
+      // §8a: the inn's pot -- ownerless -- ferments for whoever is standing at
       // it, and the brew rides on the CITIZEN. One at a time each, and no
       // citizen can occupy it against another.
       if (bp.by === undefined) return p.brewing === undefined;
@@ -10897,7 +11058,7 @@ function validInput(state, input, ctx) {
       // anyone standing there may smelt. That is the watchfire's design
       // exactly -- the one public work in the world -- and it makes a JOB out
       // of a vending machine: somebody feeds the fire while the crowd smelts,
-      // and is paid in smithing for doing it.
+      // and is paid in earthcraft for doing it.
       if (wf?.type === 'furnace') {
         const sl2 = p.inventory[input.slot];
         return atOrBeside(p, wf) && !!sl2 && (sl2.item === 'coal' || sl2.item === 'charcoal');
@@ -10918,10 +11079,10 @@ function validInput(state, input, ctx) {
       // §6ad: THE HEARTWOOD BOW IS FLETCHED, NOT FORGED.
       //
       // It was in RECIPES with a `fletching: 90` gate, which made it a bow
-      // you MAKE AT AN ANVIL while fletching heartwood by hand still gave a
+      // you MAKE AT AN ANVIL while shaping heartwood by hand still gave a
       // beginner's wooden bow. The one crafted bow in the world, forged. Its
-      // whole point is that fletching finally has a summit, so it belongs at
-      // the bench with the rest of the fletcher's work.
+      // whole point is that woodcraft finally has a summit, so it belongs at
+      // the bench with the rest of the bowyer's work.
       // §7dt: A TORCH IS A LOG AND NOTHING ELSE.
       //
       // Deliberately the cheapest thing anybody makes: no level, no second
@@ -11120,7 +11281,7 @@ function validInput(state, input, ctx) {
       // stack to a million in one slot, so the pack never empties.
       //
       // Measured, mirror duel at ninety-nine in full quickmetal: even without
-      // food it is 5:3, a coin flip. With a stack of ALE -- four hitpoints, the
+      // food it is 5:3, a coin flip. With a stack of ALE -- four health, the
       // cheapest thing anybody can brew -- it is 0:8. Whoever brought the stack
       // simply won, which is exactly the failure §6m-ii predicted in its own
       // comment while the code deleted the rule that prevented it.
@@ -11364,14 +11525,14 @@ class CowLeak extends Error {}
 function _detectNode(orig, id) {
   return new Proxy(orig, {
     set: (_t, k) => { throw new CowLeak(`write leaked to the caller's state: nodes[${id}].${String(k)} `
-      + `— this site must go through ownNode(s, id) before writing (§21e)`); },
+      + `: this site must go through ownNode(s, id) before writing (§21e)`); },
     deleteProperty: (_t, k) => { throw new CowLeak(`delete leaked to the caller's state: nodes[${id}].${String(k)} (§21e)`); },
   });
 }
 function _detectPlayer(orig, pid) {
   const bang = (k) => {
     throw new CowLeak(`write leaked to the caller's state: players[${pid}].${String(k)} `
-      + `— this site must go through ownPlayer(s, pid) before writing (§21c)`);
+      + `: this site must go through ownPlayer(s, pid) before writing (§21c)`);
   };
   const wrapChild = (key, val) => (val === null || typeof val !== 'object') ? val
     : new Proxy(val, { set: (_t, k) => bang(`${key}.${String(k)}`),
@@ -11551,7 +11712,7 @@ function addIndexedNode(s, ctx, nodeId, node) {
   let ty = ctx.byType.get(node.type); if (!ty) ctx.byType.set(node.type, ty = []); ty.push(nodeId);
   if (node.type === 'brewpot') ctx.brewBy.set(node.by, (ctx.brewBy.get(node.by) || 0) + 1);
 }
-// §7a: change a node's TYPE in place, keeping its id, its tile, and its seq.
+// §14d: change a node's TYPE in place, keeping its id, its tile, and its seq.
 // A spanwork that reaches its pool becomes a span without moving or being
 // re-sequenced -- anything that referenced the node still finds it, and two
 // nodes that ran the same inputs keep the same node order. Only the byType
@@ -11614,14 +11775,14 @@ function nodeExistsAt(state, ctx, x, y) { // any node occupies the tile
 //
 // Everything the container held goes onto one node standing where the hauler
 // fell. It does NOT go on the ground: a ground pile is a hundred intervals and
-// a race, and twenty-eight of them on one tile is the largest heap in the
+// a race, and twelve of them on one tile is the largest heap in the
 // world for `worthRank` to sort and the least interesting thirty seconds
 // anybody could have. A cart is a thing you walk to, and it gives up one slot
 // at a time to whoever is standing there.
 function spillConsignment(s, ctx, q, qid) {
   if (!q.consignment) return;
   // §5z: A MASTER RUNNER DOES NOT SPILL. The other five boons are rewards; this
-  // one is a PROTECTION, because wayfaring's output is not a stack of things —
+  // one is a PROTECTION, because wayfaring's output is not a stack of things:
   // it is arriving. Death already costs the walk back from the founding, and
   // for a runner it also cost the load, which is the one trade where dying
   // undoes hours of somebody else's goods rather than your own minutes.
@@ -11681,7 +11842,7 @@ const _WALKABLE_BUILT = new Set(['smokerack', 'brewpot', 'watchfire', 'fire', 'm
   // Ploughed ground is walked over. You stand in one furrow to work the next,
   // exactly as nothing in this engine strikes the tile it stands on, and the
   // hedge round the furlong still says where the field ends.
-  // §7a: a FINISHED span is decking, and decking is water you can walk on. The
+  // §14d: a FINISHED span is decking, and decking is water you can walk on. The
   // spanwork it grew from is deliberately NOT here -- an unfinished bridge bars
   // its tile exactly as the beck under it does, which is the entire reason the
   // crossing is worth fighting over before it is done.
@@ -11720,7 +11881,22 @@ function prayerKeeps(p, tick, genesis, state) {
   // held back, and anybody may take it from you at no cost to themselves. The
   // Brand does not punish. It withdraws a protection, and lets the world do
   // the rest.
-  const lv = effLevel(p?.skills?.prayer ?? 0);
+  // §5m: `prayer` BECAME `mourning` AND THIS LINE DID NOT.
+  //
+  // `p.skills.prayer` is undefined in every world ever founded, so `lv` was
+  // `effLevel(0)`, which is 1, so the test below (`lv < PRAYER_KEEP`) was true
+  // for everybody and this function returned an empty list to every citizen
+  // who ever died. A mourner at ninety-nine kept nothing.
+  //
+  // Mourning grants no power: the guide says so, and the ONE thing it buys is
+  // written two lines down -- the dearest priced thing you carry survives your
+  // death, and at mastery the two dearest do. That was the whole of the trade's
+  // reward and none of it has ever been paid. The only thing that worked was
+  // the king-shroud, which is a rare drop and spares its wearer by a separate
+  // path, so the failure looked like "the shroud is good" rather than like a
+  // bug. `skill-check.mjs` has reported this read since it was written and
+  // nothing ran it.
+  const lv = effLevel(p?.skills?.mourning ?? 0);
   if (!p) return [];
   // §6cx (v6): the king-shroud is death's own mantle. Two ways it carries you:
   //  1. IT KEEPS ITSELF. Worn, the shroud survives your death and returns to
@@ -11794,7 +11970,7 @@ function tollGateAt(state, ctx, x, y) {
   for (const id of ta) if (state.nodes[id].type === 'tollgate') return true;
   return false;
 }
-// §7a: is there FINISHED decking on this tile? A `span` opens the water it
+// §14d: is there FINISHED decking on this tile? A `span` opens the water it
 // stands on for everyone; a `spanwork` (still building) does not, and is not
 // consulted here. This is the mirror of tollGateAt: the gate refuses all but
 // the payer, the span admits all.
@@ -11805,7 +11981,7 @@ function spanDeckAt(state, ctx, x, y) {
   for (const id of ta) if (state.nodes[id].type === 'span') return true;
   return false;
 }
-// §7a: A DEATH ON THE CROSSING IS PART OF THE CROSSING'S STORY. When a citizen
+// §14d: A DEATH ON THE CROSSING IS PART OF THE CROSSING'S STORY. When a citizen
 // falls on the tile a spanwork (or a finished span) stands on, the toll in dead
 // rises by one and never falls. It is the saboteurs' monument, the counter to
 // the builders' plank count: a span opened with eighty dead on it was walked
@@ -11911,7 +12087,7 @@ function haulSlotsFilled(c) {
 // destroyed, it is TAKEN.
 //
 // So the multiplier is not paying for the walk. It is paying for having made
-// yourself worth ambushing. A citizen carrying twenty-eight quick plates is a
+// yourself worth ambushing. A citizen carrying twelve quick plates is a
 // different proposition on the road from one carrying logs, and the table is
 // what compensates them for it. Distance alone would pay the coward and the
 // mark the same, which is the one thing this skill must not do.
@@ -12122,7 +12298,7 @@ function spillShelf(s2, mk) {
 // where they were left.
 //
 // Keyed by NODE ID, because a vault must be the same vault tomorrow and node
-// ids are pure functions of the seed (§9b). Coordinates would move if a town
+// ids are pure functions of the seed (§2s). Coordinates would move if a town
 // were ever redrawn; a name would collide across countries.
 // Returns the KEY, not the node: `s.nodes[id] = node` and the node itself
 // carries no id. Iterates in the same order as `adjacentNodeOf` deliberately --
@@ -12362,7 +12538,7 @@ function claimLast(s, key, pid) {
 
 // NO NON-FINITE NUMBER MAY ENTER THE STATE.
 //
-// The smithing NaN was one arithmetic slip away from killing a world, and it
+// The earthcraft NaN was one arithmetic slip away from killing a world, and it
 // got all the way to consensus because nothing looked. `canonical()` throwing
 // mid-attestation is a terrible failure mode whatever caused it: the world
 // keeps running and stops being able to describe itself. This turns that
@@ -13005,7 +13181,7 @@ function nextState(state, inputs, _legacyBeacon) {
     // SITS, which is the only version of this that puts a person in a place.
     // Owning two is still allowed; nobody can sit at both.
     if (s.tick < (_n.fuelUntil ?? 0)) {
-      // §7e: an OWNERLESS fire pays nobody for burning. The clamp at
+      // §8a: an OWNERLESS fire pays nobody for burning. The clamp at
       // Greenhollow is the wood's, not a firekeeper's, so there is no `by` to
       // credit and this loop simply finds nobody -- which is the wanted
       // behaviour written down rather than left to a lookup that happens to
@@ -13047,12 +13223,12 @@ function nextState(state, inputs, _legacyBeacon) {
   }
   // §7cn: THE DOOR THAT SHUTS. Before anything rises, a beast that has been
   // spent stops rising -- forever, with no node, no flag on the terrain and no
-  // change to `blockedAt`, which is the same discipline §7a needed for the
+  // change to `blockedAt`, which is the same discipline §14d needed for the
   // rockfall and for the same reason: `geographyHash` covers the founding and
   // a citizen may never make it disagree.
   //
   // The body is NOT deleted. It is marked `spent` and left lying at its post
-  // with no hitpoints, so a mirror still draws a reed-bed with something dead
+  // with no health, so a mirror still draws a reed-bed with something dead
   // in it and a citizen who walks out there finds the place rather than an
   // empty tile that never explains itself.
   for (const [_lid, _lm] of Object.entries(s.mobs).sort()) {
@@ -13116,8 +13292,8 @@ function nextState(state, inputs, _legacyBeacon) {
       //
       // This answers the objection the old rule was written against -- "if it
       // rots on a clock, nobody needs to hunt the holder, they just wait."
-      // Waiting does not get you the bow. It gets you a four-hundred-and-
-      // twenty hitpoint dragon that hits for twenty-eight, standing between
+      // Waiting does not get you the bow. It gets you a dragon with four
+      // hundred and twenty health that hits for twenty-eight, standing between
       // you and the bow exactly as it did the first time. The clock hands it
       // back to the DRAGON, never to the patient.
       //
@@ -13260,12 +13436,55 @@ function nextState(state, inputs, _legacyBeacon) {
     // Before anything else, because a citizen should watch their damage being
     // undone rather than discover afterwards that it was. This is the whole
     // fight: cut faster than the web knits.
+    //
+    // §6ab-ii: AND IT KNITS FASTER WHILE NOBODY IS TANGLED IN IT.
+    //
+    // The spider sits on the one seat in the world that can be shot from
+    // ground it can never reach. Measured, that did not break the promise
+    // above it: a lone archer's best sustained output is the dragonbow's 3.70
+    // against the web's six, so one citizen on a safe rock shoots for ever and
+    // the spider never dies. What it broke was the other half of the design --
+    // "somebody must hold it, but the fight is a sum, not a gauntlet". Two or
+    // three bows at range made it a sum and nothing else, and nobody held
+    // anything.
+    //
+    // The answer is the web itself rather than a rule about arrows. A web
+    // nobody is caught in is a web doing its work; a citizen standing in it is
+    // tearing it while they fight. So the mend is its full rate until somebody
+    // steps into reach, and the rate undisturbed is past what any plausible
+    // number of archers can shoot through -- twenty-four against a best bow of
+    // 3.70 would want seven dragonbows, and the world has one.
+    //
+    // WHAT IT DOES NOT CHANGE, which is the point. With somebody in reach the
+    // number is six, exactly as before: one citizen still cannot win with
+    // anything, two still struggle, three still manage. Archers matter MORE
+    // rather than less, because a holder plus two bows clears six comfortably
+    // where the holder alone cannot.
+    //
+    // ADJACENT, NOT `inReach`. `inReach` is the CITIZEN's weapon reach, and a
+    // dragonbow reaches nine -- so an archer safe-spotting would have counted
+    // as holding the thing they were avoiding. The web is disturbed where the
+    // SPIDER can bite you, which is the four tiles beside it, and standing
+    // there is the risk the whole fight is built on.
+    //
+    // A RULE, NOT AN EXCEPTION. Gated on the `mends` property like the burn
+    // rule above it, so any beast a later founding gives a web is covered by
+    // the same sentence without naming the spider.
     for (const mid of Object.keys(s.mobs).sort()) {
       const m = s.mobs[mid];
       if (!m || m.health <= 0) continue;
       const st = MOB_STATS[m.type];
       if (!st?.mends) continue;
-      if (m.health < st.maxHealth) m.health = Math.min(st.maxHealth, m.health + st.mends);
+      if (m.health >= st.maxHealth) continue;
+      // The answer is the same whichever order the citizens are read in, so
+      // this does not sort: it is "is there anybody", not "who".
+      let held = false;
+      for (const qid of Object.keys(s.players)) {
+        const q = s.players[qid];
+        if (q && q.health > 0 && adjacent(q, m)) { held = true; break; }
+      }
+      const knit = held ? st.mends : st.mends * WEB_UNHELD;
+      m.health = Math.min(st.maxHealth, m.health + knit);
     }
     if (liveIds.length) for (const mid of Object.keys(s.mobs).sort()) {
       const m = s.mobs[mid];
@@ -13485,8 +13704,9 @@ function nextState(state, inputs, _legacyBeacon) {
         const every = canBreathe ? (st.breathEvery ?? st.every ?? MOB_EVERY) : (st.every ?? MOB_EVERY);
         if (s.tick - (m.lastSwing ?? -64) < every) continue;
         m.lastSwing = s.tick;
-        // §6z: a harmless creature swings and never lands, and teaches no
-        // defence for it. Risk is the only thing that trains that skill.
+        // §6z: a harmless creature swings and never lands. Nothing in this
+        // world pays for being hit (§5j), so this costs the target nothing
+        // but the blow they were never going to take.
         if (st.harmless) continue;
         const defLvl = effLevel(target.skills.prowess);
         // mirrored: her accuracy is the citizen's own attack against their own
@@ -13502,13 +13722,13 @@ function nextState(state, inputs, _legacyBeacon) {
         if (canBreathe || roll(beacon, mid, 'mobatk') < Tm) {   // §6x: a breath cannot be dodged
           // §6x: armour turns a blow aside, and a breath goes round it. Fire
           // does not care how much steel is between it and you.
-          // §6ae: STARMETAL TURNS FIRE. Bronze does not.
+          // §6ae: QUICKMETAL TURNS FIRE. Iron does not.
           //
           // Fire ignores armour the way a flail does -- except quickmetal,
           // which is why it is worth reaching fifty for. This is the property
           // that makes the second tier a TIER rather than a slightly better
           // shirt: a full quick suit is the thing you wear to the one fight
-          // that matters, and bronze is simply not admitted to it.
+          // that matters, and iron is simply not admitted to it.
           //
           // Half soak against fire, not full: it turns the flame, it does not
           // pretend the flame is not there.
@@ -13587,7 +13807,7 @@ function nextState(state, inputs, _legacyBeacon) {
             // §6c-ii: THE WOUND AND THE TALLY. Every death, from any hand.
             markDeath(target);
             target.deadUntil = s.tick + DEATH_TICKS;
-            tallySpanDeath(s, _ctx, target.x, target.y);   // §7a: a death on the crossing is the crossing's story
+            tallySpanDeath(s, _ctx, target.x, target.y);   // §14d: a death on the crossing is the crossing's story
             delete m.mad;
           }
         } else {
@@ -13951,13 +14171,13 @@ function nextState(state, inputs, _legacyBeacon) {
       // §5w: A SWEARING ENDS EVERY APPRENTICESHIP IT WAS IN, whoever attested
       // it and whatever trade it was to.
       //
-      // An apprentice is by definition unsworn — `teach` refuses anyone who
-      // already has a calling — so the moment a citizen swears, no
+      // An apprentice is by definition unsworn: `teach` refuses anyone who
+      // already has a calling, so the moment a citizen swears, no
       // apprenticeship they are in can still be live. This closes them all,
       // including the case that leaked: a citizen taken on by a forester who
-      // walks off and swears MINER, unattested. That is entirely their right
-      // — the apprentice promised nothing, and the master consented to teach,
-      // not to be owed — but it used to leave the master's slot held by
+      // walks off and swears MINER, unattested. That is entirely their right:
+      // the apprentice promised nothing, and the master consented to teach,
+      // not to be owed, but it used to leave the master's slot held by
       // somebody who could never be taught again until the lapse ran out.
       for (const other of Object.values(s.players)) {
         if (!other.apprentices) continue;
@@ -13969,7 +14189,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // §5w: THE MARK IS MINTED BY FINISHING, and only by finishing. A master
       // cannot collect lineages by taking on forty people and walking away:
       // each one holds a slot until they get there. The apprenticeship closes
-      // in the same breath — it does not end so much as turn into the
+      // in the same breath: it does not end so much as turn into the
       // permanent thing.
       if (inp.attester !== undefined) {
         const m = s.players[inp.attester];
@@ -14253,7 +14473,7 @@ function nextState(state, inputs, _legacyBeacon) {
           + (st.past?.length ? ' It bore ' + st.past[0] + ' before.' : ''));
       }
     } else if (inp.type === 'found') {
-      // §7a: THE FIRST PLANK. Re-checked here, not trusted from mayDo: another
+      // §14d: THE FIRST PLANK. Re-checked here, not trusted from mayDo: another
       // citizen may have founded this same tile an interval ago, or walked onto
       // it, in between. A span begins with one plank banked and its whole
       // history opened -- who laid it, and when.
@@ -14280,7 +14500,7 @@ function nextState(state, inputs, _legacyBeacon) {
         announce(s, (p.name ?? pid.slice(0, 6)) + ' has laid the first plank of ' + site.name + '.');
       }
     } else if (inp.type === 'lay') {
-      // §7a: ADD TO THE POOL, and it only rises. The lesser of what the citizen
+      // §14d: ADD TO THE POOL, and it only rises. The lesser of what the citizen
       // signed for, what they carry, what the rate allows, and what the span
       // still needs. When the last plank lands the spanwork becomes a span --
       // decking, walkable, public forever -- and keeps every line of its
@@ -14519,7 +14739,7 @@ function nextState(state, inputs, _legacyBeacon) {
       //
       // This counted SLOTS holding the item and then nulled whole slots to pay
       // the cost. For a bar that is the same thing -- bars do not stack -- but
-      // several smithing inputs DO: shot, flour, arrows, javelins. A recipe
+      // several earthcraft inputs DO: shot, flour, arrows, javelins. A recipe
       // asking for one unit of a stacked good was told the citizen had one
       // (one slot), then took the entire stack for it. A hundred shot bought a
       // single forging.
@@ -14673,7 +14893,7 @@ function nextState(state, inputs, _legacyBeacon) {
           if (w9?.noAmmo !== true) {
             if (countItem(p.inventory, ammoOf(p)) < need9) { p.action = null; continue; }
             // §5z: A MASTER ARCHER'S ARROWS COME BACK. Not two arrows and not more
-      // damage — both of those are multipliers, and a multiplier in a fight is
+      // damage: both of those are multipliers, and a multiplier in a fight is
       // a balance problem before it is a reward. This is a MATERIAL saving, the
       // same shape as a master gatherer's double yield, and it is bounded: you
       // can never end a fight with more arrows than you began it with.
@@ -14847,7 +15067,7 @@ function nextState(state, inputs, _legacyBeacon) {
           const landed9 = afterShield(q, dmg9, w9);
           // §7ca: A FLURRY IS SIX BLOWS AND SAID SO ONCE.
           //
-          // The window makes a hit splat by DIFFING hitpoints between ticks, so
+          // The window makes a hit splat by DIFFING health between ticks, so
           // six blows landing in one interval come out as a single number. All
           // the information exists here and is thrown away at the door: a
           // dagger's flurry of 3,0,5,2,0,4 reads as 14, and a citizen cannot
@@ -14957,7 +15177,7 @@ function nextState(state, inputs, _legacyBeacon) {
             q.action = null; q.trade = null; q.deadUntil = s.tick + DEATH_TICKS;
             // §6c-ii: THE WOUND AND THE TALLY. Every death, from any hand.
             markDeath(q);
-            tallySpanDeath(s, _ctx, q.x, q.y);   // §7a
+            tallySpanDeath(s, _ctx, q.x, q.y);   // §14d
             break;
           }
         }
@@ -14985,15 +15205,15 @@ function nextState(state, inputs, _legacyBeacon) {
         const _ev9 = w9.every ?? 2;
         // §5z: A MASTER FIGHTER'S ARM COMES BACK SOONER.
         //
-        // Prowess has no seam and no recipe, so there is no yield to double —
+        // Prowess has no seam and no recipe, so there is no yield to double:
         // and the two obvious boons both fail the test the other five pass.
         // Dual wielding and a second blow are MULTIPLIERS, and a multiplier in
         // a fight is a balance problem before it is a reward: it changes what a
         // master does to another citizen, not what a master is worth.
         //
         // Recovery is rhythm rather than damage. A master hits exactly as hard
-        // as anyone else and no more often in the ordinary exchange — the
-        // cadence gate below is untouched — but the GAMBIT, the once-in-a-while
+        // as anyone else and no more often in the ordinary exchange: the
+        // cadence gate below is untouched, but the GAMBIT, the once-in-a-while
         // blow this trade is defined by, is ready again a quarter sooner. It is
         // visible to whoever they are fighting, which is the point.
         const _rec9 = Math.max(1, Math.round((w9.rec ?? (2 * _ev9)) *
@@ -15062,7 +15282,7 @@ function nextState(state, inputs, _legacyBeacon) {
           // §7dz: THE EELS BELONG TO WHOEVER PULLS THEM OUT. THE SKILL BELONGS
           // TO WHOEVER WOVE THE TRAP AND CHOSE THE RUN.
           //
-          // Anybody may lift a buck -- §7c said working an eel spot is
+          // Anybody may lift a buck -- §13h said working an eel spot is
           // "emptying somebody's trap" and meant it. But paying the lifter the
           // experience made robbing the fen strictly better than working it:
           // one action for a full catch against one action, one log and half an
@@ -15177,16 +15397,16 @@ function nextState(state, inputs, _legacyBeacon) {
       // §11a already says the cargo was COMMITTED TO THE ROAD. This is where
       // the commitment is discharged: the goods leave the world, the hauler is
       // paid in the only currency this profession was ever meant to earn, and
-      // no village counter has to be able to afford twenty-eight plates.
+      // no village counter has to be able to afford twelve plates.
       //
       // Three things follow, and all three are wanted. The experience is
       // unrationed, so §11g becomes true. Hauling becomes the largest GOODS
-      // sink in the world -- twenty-eight to a trip against alchemy's one --
+      // sink in the world -- twelve to a trip against alchemy's one --
       // which is the matched half of a mint denominated in gathering (§6dc):
       // one skill makes gold out of time, the other spends goods for distance.
       // And the cargo's material value now belongs to the THIEF: a hauler who
       // arrives earns experience, a hauler who is robbed hands somebody
-      // twenty-eight slots of real goods. The cart (§6bq) is worth more than
+      // twelve slots of real goods. The cart (§6bq) is worth more than
       // the delivery, which is the asymmetry §11d was always reaching for.
       if (c && haulAtEnd(c) && sl && st0) {
         // §11e: WEIGHT OVER DISTANCE. Paid per slot as it lands, so a partial
@@ -15275,23 +15495,11 @@ function nextState(state, inputs, _legacyBeacon) {
         // to the stilling, not to this. So the best heal in the world was also
         // the only free one, which is backwards.
         //
-        // One rule covers both: whatever restores YOUR OWN hitpoints spends
+        // One rule covers both: whatever restores YOUR OWN health spends
         // your arm. Being mended by somebody else stays free to the wounded,
         // and that asymmetry is the whole reason to fight in a pair.
         p.lastSwing = Math.max(p.lastSwing ?? 0, s.tick);
         gainXp(p, 'sorcery', XP_SPEND_SIGIL);   // 6bo
-      } else if (inp.spell === 'anchor' && si !== -1) {
-        p.inventory[si] = null;
-        // v0.80: anchor comes HOME. The old target (cx, 7) was the classic
-        // generator's plaza, on Tallyholm, y=7 is open sea off the north
-        // coast, and every cast stranded the caster on the waves. The fixed
-        // point is the REGISTERED spawn: whatever world this is, anchor
-        // returns you to where souls arrive.
-        const sp9 = spawnOf(s.genesis);
-        p.x = sp9.x; p.y = sp9.y;
-        p.action = null;
-        p.trade = null;
-        gainXp(p, 'sorcery', XP_SPEND_SIGIL);   // 6bo: an anchor spends the same sigil a mend does
       }
     } else if (inp.type === 'survey') {
       const mi = (s.markers ?? []).findIndex(m => m.x === p.x && m.y === p.y);
@@ -15346,7 +15554,7 @@ function nextState(state, inputs, _legacyBeacon) {
         const worth = PRICES[kind] * OFFER_XP_PER_COIN;
         const n = Math.min(already, OFFER_TAIL);   // the rate settles; it does not vanish
         // §5z: A MASTER MOURNER'S OFFERING COUNTS DOUBLE. Mourning has no
-        // seam and no recipe — the offering IS its yield — so this is the same
+        // seam and no recipe: the offering IS its yield, so this is the same
         // "two where others take one" the gathering trades have, applied to the
         // one thing the trade produces. It doubles what the act is WORTH, not
         // how often it may be made: a citizen still gives up one thing at a
@@ -15408,7 +15616,7 @@ function nextState(state, inputs, _legacyBeacon) {
           : (sl.item === 'deep-fish' && effLevel(p.skills.hearthcraft) >= DEEP_BROTH_BREW)
             ? 'deep-broth' : 'broth';
         if (publicPot) {
-          // §7e: the inn's pot holds nothing. The brew is the CITIZEN's, the
+          // §8a: the inn's pot holds nothing. The brew is the CITIZEN's, the
           // way a crop is, so the one pot serves everybody at once and no
           // citizen can sit on it.
           p.brewing = { kind, readyAt: s.tick + s.genesis.brew.ferment };
@@ -15525,7 +15733,7 @@ function nextState(state, inputs, _legacyBeacon) {
         if (sl2 !== -1) p.inventory[sl2] = { item: 'heartwood-bow', qty: 1 };
         awardXp(p, 'woodcraft', XP_FLETCH_PER_UNIT * 4, 'fletcher');   // 6bk: 3 heartwood + a sigil
       // §7bx: THE HOLLOW BOW IS NOT MADE. It was four bones and a log at
-      // fletching 12 -- an hour's work for a weapon that removes the arrow
+      // woodcraft 12 -- an hour's work for a weapon that removes the arrow
       // economy from training altogether. A bow that needs no ammunition is a
       // large thing to hand out for the price of a log, however poor its
       // numbers are, because what it costs is not damage: it is the SUPPLY
@@ -15555,7 +15763,7 @@ function nextState(state, inputs, _legacyBeacon) {
 
       // §6ah: AND A SIGIL IN THE BINDING.
       //
-      // Fletching's endgame -- the finest bow and the finest stave in the world
+      // Woodcraft's endgame -- the finest bow and the finest stave in the world
       // -- was made from two logs by somebody who never left the safe country.
       // Every other thing of that rank costs the Wilds: quick gear eats stones,
       // and every spell eats sigils, which ARE stones. The heartwood line ate
@@ -15613,7 +15821,7 @@ function nextState(state, inputs, _legacyBeacon) {
         //
         // They were forged at an ANVIL, which is carpentry done by a smith: a
         // rod is a shaft and a line and has no metal in it anywhere. It also
-        // left fletching -- the wood trade -- with four things to make while
+        // left woodcraft -- the wood trade -- with four things to make while
         // the metal trade had thirty, and made the one tool a fisher needs
         // wait on a skill they have no other reason to train.
         consumeItem(p.inventory, sl.item, 2);
@@ -15835,6 +16043,16 @@ function nextState(state, inputs, _legacyBeacon) {
         p.health = Math.min(maxHealth(p), p.health + FORAGE_HEAL);
         if (_fromAnother) p.aided = true;
         delete s.ground[inp.groundId];
+        // §6ba: AND THE WORLD SAYS WHAT HAPPENED, not which input carried it.
+        // This arrives as `pickup` because that is the verb a citizen sends,
+        // and nothing about it is a pickup: forage never enters the pack, it
+        // cannot be held, banked, traded or priced, and taking it is eating
+        // it. Filing it as an ordinary pickup threw that away, so a citizen
+        // stooping to eat in the middle of a fight looked like somebody
+        // pocketing a log. The deed is overwritten here, after the act, which
+        // is the only point at which the world knows which of the three
+        // branches above it took.
+        p.deed = 'forage';
       } else if (onTile && ex !== -1) {                // the quiver (6n): arrows pool
         p.inventory[ex].qty += g2.qty ?? 1;
         if (_fromAnother) p.aided = true;
@@ -15855,7 +16073,7 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'eat') {
       const slot = p.inventory[inp.slot];
       // §7ck: ...unless the door is shut. A withered citizen cannot be healed
-      // by anything, and food is the door that matters: twenty-eight slots of
+      // by anything, and food is the door that matters: twelve slots of
       // cooked fish is what a duel in this world is made of.
       const heal = !slot ? 0 : ((p.witheredUntil ?? 0) > s.tick ? 0 : healOf(slot.item));
       if (heal > 0 && s.tick - (p.lastAte ?? -1024) >= eatRhythm(slot.item)) {   // §6m-iii, §6m-v
@@ -15870,7 +16088,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // thing stopping food from out-healing damage" -- which is a rate
         // limit bolted onto a burst, and the burst is the part that was wrong.
         //
-        // A food's healing is now its DURATION at one hitpoint an interval.
+        // A food's healing is now its DURATION at one point of health an interval.
         // The totals are untouched, so nothing in the item table, the cook's
         // ladder or the brewer's economy is rebalanced by this: a cooked fish
         // is still six, taken six intervals at one. What changes is that the
@@ -15878,7 +16096,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // accumulates, disengaging is the counter, and `anchor` has a job.
         //
         // THE DEBT AND THE RATE, not an end tick. A rate that does not divide
-        // its total evenly would lose or invent hitpoints at the last interval,
+        // its total evenly would lose or invent health at the last interval,
         // so what is remembered is how much is still owed.
         //
         // MORE WINS, and it does not stack. Eating again takes the LARGER
@@ -15907,7 +16125,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // their pack first.
         //
         // A MENDING FROM SOMEBODY ELSE COSTS THE WOUNDED NOTHING, and that is
-        // deliberate: twenty hitpoints and they never break rhythm. Fighting
+        // deliberate: twenty health and they never break rhythm. Fighting
         // in a pair should be worth something that fighting alone is not.
         p.lastSwing = Math.max(p.lastSwing ?? -EAT_EVERY, s.tick);
         // §7dg: AND SMOKE STOPS ROT.
@@ -16283,7 +16501,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // costs you your arm for the interval to make it.
       const wl = findAdjacentNode(s, _ctx, p, 'well');
       if (wl) wl.depletedUntil = s.tick + WELL_DRY;
-      // §6m: WHATEVER RESTORES YOUR OWN HITPOINTS SPENDS YOUR ARM -- and this
+      // §6m: WHATEVER RESTORES YOUR OWN HEALTH SPENDS YOUR ARM -- and this
       // was the one deed that restored them and spent nothing.
       //
       // It is the largest heal in the world (to FULL), it has no cooldown, and
@@ -16613,7 +16831,7 @@ function nextState(state, inputs, _legacyBeacon) {
             q.deadUntil = s.tick + DEATH_TICKS;
             // §6c-ii: THE WOUND AND THE TALLY. Every death, from any hand.
             markDeath(q);
-            tallySpanDeath(s, _ctx, q.x, q.y);   // §7a
+            tallySpanDeath(s, _ctx, q.x, q.y);   // §14d
           }
         }
       }
@@ -16766,8 +16984,9 @@ function nextState(state, inputs, _legacyBeacon) {
         // would make the weapon worse than a sword at the exact moment it did
         // the only thing it exists for.
         //
-        // AND IT TEACHES NOTHING EXTRA. `teachMelee` and the hitpoints credit
-        // below are scored once, off the named target. A weapon that trained
+        // AND IT TEACHES NOTHING EXTRA. `teachMelee` is scored once, off the
+        // named target, and there is no second credit: §5j left one combat
+        // number and a blow pays it once. A weapon that trained
         // you six times an interval in a lair of crows would be the fastest
         // ladder in the world; this is a weapon about a crowd, not a farm.
         if (weaponOf(p)?.cleaves === true) {
@@ -16897,7 +17116,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // a kind tick comes round. That turns a one-in-thirty-two drop into a
         // certainty for anyone willing to wait twenty seconds, which is not a
         // rare drop at all. Loot is therefore COUNTED, exactly as cooking and
-        // firemaking are: the tally is per citizen and per drop, so the rate is
+        // kindling are: the tally is per citizen and per drop, so the rate is
         // the promised rate and no timing can bend it.
         // §6cz: an incursion's drops are chosen by the FACE it wore, and the
         // tally key carries the face so each face's rate is counted on its own.
@@ -17002,9 +17221,9 @@ function nextState(state, inputs, _legacyBeacon) {
     // reward that only works while you cannot afford it is not a reward.
     //
     // At 176 the cap binds only for a master WITH the good tool, which is the
-    // right place for it: bare-handed 7.8 days to ninety-nine, bronze 6.5,
+    // right place for it: bare-handed 7.8 days to ninety-nine, iron 6.5,
     // quick 5.4 -- so the tool is worth sixteen per cent of a week's work, and
-    // worth smithing.
+    // worth the forging.
     // §6ao (v6): THE BLOOM pays for ATTENDANCE, like a watchfire. Every tick a
     // citizen is working the bloomed node -- whether or not this tick's gather
     // lands -- they earn a little bonus XP in that skill. It is a reason to
@@ -17038,7 +17257,7 @@ function nextState(state, inputs, _legacyBeacon) {
     //
     // And worse: A RATE SCALES AUTOMATION. This world ships a window for
     // writing the citizen, and a writ collects a rate multiplier better than a
-    // person does — it never stops. So a rate bonus rewards most exactly the
+    // person does: it never stops. So a rate bonus rewards most exactly the
     // play the ceiling was built to blunt, which is an argument against it that
     // has nothing to do with prices.
     //
@@ -17095,8 +17314,8 @@ function nextState(state, inputs, _legacyBeacon) {
       // Yield rather than rate, because yield shows in the WORLD instead of on
       // the clock: a master's hour is visibly worth buying, and the pack fills
       // at twice the speed without the strikes coming any faster. It applies
-      // only in the trade they swore to — breadth is capped at seventy and can
-      // never reach this — so it is the first thing in the world that only a
+      // only in the trade they swore to: breadth is capped at seventy and can
+      // never reach this, so it is the first thing in the world that only a
       // master has, and it is why anybody would want one.
       const _master = masterOf(p, y.skill);
       const _qty = (y.qty ?? 1) * (_master ? MASTER_YIELD : 1);
@@ -17121,10 +17340,11 @@ function nextState(state, inputs, _legacyBeacon) {
       // go through their logs and confirm it. THIS WORLD CAN SETTLE IT IN ONE
       // COMPARISON, for ever, and it costs one small integer.
       //
-      // Half the genre is already free here: a ten-hitpoint citizen reads 1154
-      // experience because that is where hitpoints begins and nothing else ever
-      // paid them; one defence reads zero; never cast a spell reads zero magic.
-      // Every "pure" is a DERIVED fact of state that anybody can check.
+      // Half of what the genre argues about is already free here: a citizen
+      // who has never fought reads zero prowess, one who has never cast reads
+      // zero sorcery, and one who worked the shore and nothing else reads
+      // nine numbers of which eight are zero. Every "pure" is a DERIVED fact
+      // of state that anybody can check.
       //
       // What is NOT visible in a skill number is METHOD -- only the small net,
       // only the shallow seam -- and this is the whole of what method costs. It
@@ -17139,19 +17359,25 @@ function nextState(state, inputs, _legacyBeacon) {
       // monotonic facts and leaves the inventing to citizens.
       if (!p.top) p.top = {};
       if ((p.top[y.skill] ?? 0) < _hard) p.top[y.skill] = _hard;
-      // §7al: THE SPADE PAYS STRENGTH, AND IT IS THE ONLY THING THAT DOES
+      // §7al: THE SPADE PAYS PROWESS, AND IT IS THE ONLY THING THAT DOES
       // WITHOUT A FIGHT.
       //
-      // Strength came from melee and from nowhere else, so a citizen who
-      // wanted to be strong had to want to be a fighter -- and every point of
-      // it dragged hitpoints along, which is exactly what a pure is trying not
-      // to take. Digging is the obvious answer and this world already has two
-      // things worth digging: the muck heaps of the farm country and the
-      // rockfall shutting the South Pass.
+      // Prowess came from melee and from nowhere else, so a citizen who
+      // wanted a strong arm had to want to be a fighter, and the only arm in
+      // the world was a fighter's. Digging is the obvious answer and this
+      // world already has two things worth digging: the muck heaps of the
+      // farm country and the rockfall shutting the South Pass.
       //
-      // A spade in the hand instead of a sword: it turns a shift at either into
-      // strength. It is a poor weapon, it comes off a wight one time in six
-      // thousand, and it asks a citizen to give up their weapon slot to use it.
+      // A spade in the hand instead of a sword: it turns a shift at either
+      // into prowess. It is a poor weapon, it comes off a barrow-wight about
+      // one kill in eleven, and it asks a citizen to give up their weapon slot
+      // to use it.
+      //
+      // THAT NUMBER WAS WRITTEN AS "one time in six thousand" HERE AND IN §26,
+      // and it is 6144 out of a DROP_DEN of 65536, which is one in ten point
+      // seven. Five hundred and sixty times out. It is also COUNTED rather than
+      // rolled, so it is exactly one in eleven and not a gamble. A wight is a
+      // real fight at ninety-five health, which is the cost; finding one is not.
       if (weaponOf(p)?.digs === true && DIGGABLE.has(n.type)) {
         // §5r-iii: the arm still grows, up to the door of a calling.
         if (effLevel(p.skills.prowess) < LABOUR_PROWESS_CAP)
@@ -17162,7 +17388,7 @@ function nextState(state, inputs, _legacyBeacon) {
         // spade is for strength. What it digs comes out at the same rate as
         // hands, and the citizen pays their weapon slot for the muscle.
       }
-      // §7a: THE BOULDER REMEMBERS. Every other node in this world forgets a
+      // §12c: THE BOULDER REMEMBERS. Every other node in this world forgets a
       // strike the moment it pays for it; the rockfall keeps a count, and when
       // the count is met the stone is gone for good and the way through the
       // South Pass is open to everyone who comes after. It is the only thing
@@ -17265,7 +17491,7 @@ function nextState(state, inputs, _legacyBeacon) {
     q.stilledUntil = s.tick + STILL_WAND_TICKS;
     if (q.action !== undefined) q.action = null;
   }
-  // §6m-vii: THE MENDING OF THE FED, one hitpoint an interval while the window
+  // §6m-vii: THE MENDING OF THE FED, one point of health an interval while the window
   // is open. Sorted, like every other pass here: the order two nodes apply this
   // in must be the same order or they compute different worlds.
   for (const pid of Object.keys(s.players).sort()) {
@@ -17390,7 +17616,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // §6w: THE BOW COMES HOME WHEN ITS HOLDER STOPS COMING.
       //
       // Forgetting requires being empty-handed, and somebody holding the bow
-      // is by definition not — so a citizen could lock the finest thing in
+      // is by definition not, so a citizen could lock the finest thing in
       // the world forever by simply never logging in again. Measured: a
       // hundred thousand ticks absent, still holding it, `bowOut` still true.
       //
@@ -17398,7 +17624,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // been worse. The bow's whole power is that WHO HAS IT changes by
       // blood: if it rots on a clock, nobody needs to hunt the holder, they
       // just wait. This keeps the question social and answers only the case
-      // that has no answer — an active holder keeps it as long as they can
+      // that has no answer: an active holder keeps it as long as they can
       // defend it, and an absent one loses it on the same six hours
       // everything else in this world is measured by.
       //
@@ -17514,6 +17740,8 @@ module.exports = {
   stintOpen, stintPresent, maySpeakFar, withinEarshot, KNOWN_CAP,
   // §7dz: so a window can show where a buck may be set
   isWaterAt, bucksAllowed, BUCK_FILL_TICKS, BUCK_SPOILS_AFTER,
+  // §7dq-iii: so a window can ask whether a citizen is carrying a light
+  carriesLight,
   // §7dw: closing time -- a window must be able to draw the clock
   ceilingLeft, isStoodDown, ceilStood, CEIL_BINS,
   SPEC_VERSION, TICK_MS, INV_SLOTS,

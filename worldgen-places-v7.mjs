@@ -321,6 +321,13 @@ export const PLACES_V7 = {
   // country shows through, and a ring of corners is not a ring.
   smother: {
     name: 'the Smother', locale: 'cragscar', floors: false,
+    // §7dq-ii: AND IT IS A CAVE, WHICH IT HAD NO WAY OF SAYING. `floors: false`
+    // is right -- nobody laid a floor in here -- but it meant every tile
+    // answered `crags`, the same as the fellside outside the mouth, so no
+    // window could know it was underground and the dark this place is built
+    // around was never drawn. `ground` names the surface; `floors` still
+    // decides whether a room was BUILT.
+    ground: 'cave',
     // §7ds: A BOARD OUTSIDE, because a wall with no explanation is a puzzle
     // box and not a place.
     //

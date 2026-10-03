@@ -1807,14 +1807,14 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
 const SIGN_TEXT = {
   anchor: 'Anchor, on Tallyholm',
   greenhollow: 'Greenhollow. We fell timber and post no guard. '
-    + 'The wood was here first and keeps its own hours \u2014 go armed or go home.',
+    + 'The wood was here first and keeps its own hours: go armed or go home.',
   norwick: 'Norwick, the garrison. West of here the road ends and the law with it.',
   hollybarrow: 'Hollybarrow. Plots, a well, and nothing worth stealing.',
   cragfoot: 'Cragfoot. The seam and a hard country. Mine here; the anvil is at Thornbury.',
   eastmere: 'Eastmere, on the water. Listen along the strand before you walk it.',
   fenmarch: 'Fenmarch. The ground is not where it looks.',
   oxenford: 'Oxenford, on the ford. The road west runs from here; keep the peace yourself.',
-  millbrook: 'Millbrook, the market. The arms, the armour, the bows and the axe \u2014 near everything keeps here. For a rod ask the port; for seed, the farm.',
+  millbrook: 'Millbrook, the market. The arms, the armour, the bows and the axe: near everything keeps here. For a rod ask the port; for seed, the farm.',
   thornbury: 'Thornbury, the forge. The one anvil on Tallyholm; bring ore and bring patience.',
 }
 
@@ -4740,7 +4740,7 @@ export function buildWorld(genesis) {
       const town = townOfNode(n)
       if (town && town.tag === 'thornbury') continue   // the one true smith stays
       const line = (town && SIGN_TEXT[town.tag]) || (town ? town.name : 'a town on Tallyholm')
-      // §21e: replaced, not edited — see worldgen-expanse7 and test/founding.
+      // §21e: replaced, not edited, see worldgen-expanse7 and test/founding.
       const { kind: _drop, ...rest } = n
       w.nodes[id] = {
         ...rest,

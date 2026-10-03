@@ -246,8 +246,8 @@
      own region function, so "the Fens" means one place in both windows.
      The river stopped being a chain of squares: each water tile is a
      disc now, overlapping its neighbours into one sheet and rounding
-     off wherever the run ends. And the town walls face along their run
-    , a segment with a north-south neighbour but no east-west one turns
+     off wherever the run ends. And the town walls face along their run,
+    a segment with a north-south neighbour but no east-west one turns
      a quarter, so the short side of a town reads as a wall and not a
      row of broadside planks.
 
@@ -261,8 +261,8 @@
      water and turns to face whoever looks. The lanterns earned their
      moths, three small lives each that cannot leave the glass alone,
      and that shelter when it rains. And two nights in every nine, by
-     the tick's own calendar, a comet hangs low with its tail streaming
-    , every window on earth sees the same visitor on the same
+     the tick's own calendar, a comet hangs low with its tail streaming,
+    every window on earth sees the same visitor on the same
      evenings, because the tick, as always, decides.
 
      Then the compass told the truth, and the legs answered the keys.
@@ -774,8 +774,8 @@ function signBanner() { // a spectator should KNOW they are spectating
 }
 const allocTick = () => {
   // at most two ticks of lookahead. The stamp only ever CLIMBED here, and
-  // nothing brought it back: if the world went backward — reconnecting to
-  // an earlier state, or a node refounded with a fresh, lower-tick world —
+  // nothing brought it back: if the world went backward, reconnecting to
+  // an earlier state, or a node refounded with a fresh, lower-tick world,
   // the allocator was stranded in a future that never arrived, and every
   // step was refused forever while the citizen still turned to face the
   // goal (the "ring shows, nothing moves" bug). The reference /play window
@@ -789,52 +789,50 @@ const allocTick = () => {
   return t2
 }
 const BRIDGE = (a) =>
-    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
-  : a.do === 'spawn' ? { type: 'spawn' }
-  // stop: put down what you are doing. Every window should be able to say it.
-  : a.do === 'stop' ? { type: 'stop' }
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
-  : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'eat' ? { type: 'eat', slot: a.slot }
-  : a.do === 'drop' ? { type: 'drop', slot: a.slot }
-  : a.do === 'wield' ? { type: 'wield', slot: a.slot }
-  : a.do === 'cook' ? { type: 'cook', slot: a.slot }
-  : a.do === 'light' ? { type: 'light', slot: a.slot }
-  : a.do === 'bury' ? { type: 'bury', slot: a.slot }
-  : a.do === 'plant' ? { type: 'plant', slot: a.slot }
-  : a.do === 'sell' ? { type: 'sell', slot: a.slot }
-  : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
+  a.do === 'spawn' ? { type: 'spawn' }
+  // stop: put down what you are doing. Every window should be able to say it.:
+  a.do === 'stop' ? { type: 'stop' }:
+  a.do === 'attack' ? { type: 'attack', mobId: a.mobId }:
+  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
+  a.do === 'eat' ? { type: 'eat', slot: a.slot }:
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }:
+  a.do === 'wield' ? { type: 'wield', slot: a.slot }:
+  a.do === 'cook' ? { type: 'cook', slot: a.slot }:
+  a.do === 'light' ? { type: 'light', slot: a.slot }:
+  a.do === 'bury' ? { type: 'bury', slot: a.slot }:
+  a.do === 'plant' ? { type: 'plant', slot: a.slot }:
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
-  : a.do === 'buy' ? { type: 'buy', item: a.item }
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
-  : a.do === 'unwield' ? { type: 'unwield', gear: a.gear }
-  : a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
-  : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
-  : a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }
-  : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
-  : a.do === 'attune' ? { type: 'attune', nodeId: a.nodeId }
-  : a.do === 'recall' ? { type: 'recall', to: a.to }
-  : a.do === 'invoke' ? { type: 'invoke' }
-  : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
-  : a.do === 'still' ? { type: 'still', target: a.target }
-  : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
-  : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
-  : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
-  : a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }
-  : a.do === 'kindle' ? { type: 'kindle' }
-  : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'claim_name' ? { type: 'claim_name', name: a.name }
-  : a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlot: a.giveSlot, wantItem: a.wantItem, wantGold: a.wantGold }
-  : a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }
-  : a.do === 'cancel_trade' ? { type: 'cancel_trade' }
-  : null
+  // failure -- a window that cannot ask must not be able to answer.:
+  a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
+  a.do === 'buy' ? { type: 'buy', item: a.item }:
+  a.do === 'withdraw' ? { type: 'withdraw', item: a.item }:
+  a.do === 'unwield' ? { type: 'unwield', gear: a.gear }:
+  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
+  a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
+  a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }:
+  a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }:
+  a.do === 'recall' ? { type: 'recall', to: a.to }:
+  a.do === 'invoke' ? { type: 'invoke' }:
+  a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }:
+  a.do === 'still' ? { type: 'still', target: a.target }:
+  a.do === 'survey' ? { type: 'survey' }:
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }:
+  a.do === 'build_brewpot' ? { type: 'build_brewpot' }:
+  a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }:
+  a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }:
+  a.do === 'kindle' ? { type: 'kindle' }:
+  a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'claim_name' ? { type: 'claim_name', name: a.name }:
+  a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlot: a.giveSlot, wantItem: a.wantItem, wantGold: a.wantGold }:
+  a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
+  a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
+  null
 // must match engine.js SIG_DOMAINS.input to the byte (fix brief §2.3)
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|'
 let curWorldId = ''
@@ -904,7 +902,7 @@ fillLight.position.set(-14, 10, -16); scene.add(fillLight)
 // bakes EVERY light into EVERY lit material's shader: 204 point lights
 // (57 of them shadow-casting, six cube faces each, every frame) blew
 // past MAX_TEXTURE_IMAGE_UNITS on real GPUs, the standard materials
-// never compiled, and the world's bodies simply did not draw — floating
+// never compiled, and the world's bodies simply did not draw, floating
 // nameplates over the void. Every glow now registers a PROXY (an
 // Object3D that speaks PointLight: .color .intensity .distance .decay,
 // so all the flicker code downstream is none the wiser); each frame the
@@ -2052,7 +2050,7 @@ function buildGround(s0) {
   // ---- THE MASKS: this function once asked "is this tile water /
   // shore / near-water" through a string-keyed Set, building "x,y"
   // strings ~thirteen times per height sample, 2.3 MILLION samples on a
-  // big founding — 52 seconds of frozen main thread before the door
+  // big founding, 52 seconds of frozen main thread before the door
   // opened. Every per-tile truth is now computed ONCE into typed
   // arrays, and the samplers read integers. ----
   const NT = W * H
@@ -2550,9 +2548,9 @@ function buildGround(s0) {
       const big = (tileHash(i, salt, 62) % 100) < 4 // the great lights: a handful, twice the size
       sz[i] = (szLo + (tileHash(i, salt, 63) % 1000) / 1000 * (szHi - szLo)) * (big ? 2.1 : 1)
       const roll = tileHash(i, salt, 64) % 100
-      const c3 = roll < 14 ? [1.0, 0.83, 0.62]      // the old red suns
-        : roll < 36 ? [0.72, 0.83, 1.0]              // the blue giants
-          : [0.90, 0.94, 1.0]                        // and everyone else, white
+      const c3 = roll < 14 ? [1.0, 0.83, 0.62]      // the old red suns:
+        roll < 36 ? [0.72, 0.83, 1.0]              // the blue giants:
+          [0.90, 0.94, 1.0]                        // and everyone else, white
       cl[i * 3] = c3[0]; cl[i * 3 + 1] = c3[1]; cl[i * 3 + 2] = c3[2]
     }
     return { tw, sz, cl }
@@ -2805,7 +2803,7 @@ function wallCensus3(s) {
   }
   // ---- town vs castle, by COMPOUND. The founder lays walls as separate
   // rectangular enclosures: one great rampart around the whole town, and
-  // dozens of smaller walled compounds inside it — halls, yards, the
+  // dozens of smaller walled compounds inside it, halls, yards, the
   // market. Rendering every one as fortress stone is what made "a castle
   // full of smaller castles". So: find the connected components; the
   // largest (the rampart) keeps its battlements, and every smaller
@@ -3222,7 +3220,7 @@ function nodeMesh(n) {
     if (sh3 && sh3.building) {
       // part of an interior walled compound, not the town rampart: raise
       // a timber-and-stone house here. A block of these reads as the
-      // town's built quarter — halls, homes, the market — instead of a
+      // town's built quarter: halls, homes, the market, instead of a
       // ring of battlements.
       return townHouse(n, std, metalN, cast)
     }
@@ -3963,8 +3961,8 @@ function renderTrade(s) {
     html5 += '<div style="margin-bottom:4px">offer to <b style="color:#f2ecd8">' + pName(s, tradeTo) + '</b> , give:</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
       (me2.inventory ?? []).map((sl6, i6) => sl6
-        ? '<img src="' + iconUrl(sl6.item) + '" data-tg="' + i6 + '" style="width:26px;height:26px;image-rendering:pixelated;cursor:pointer;border:2px solid ' + (i6 === tradeGive ? '#ffcc33' : '#4e4436') + ';border-radius:4px;background:rgba(0,0,0,.4)">'
-        : '').join('') + '</div>'
+        ? '<img src="' + iconUrl(sl6.item) + '" data-tg="' + i6 + '" style="width:26px;height:26px;image-rendering:pixelated;cursor:pointer;border:2px solid ' + (i6 === tradeGive ? '#ffcc33' : '#4e4436') + ';border-radius:4px;background:rgba(0,0,0,.4)">':
+        '').join('') + '</div>'
     if (tradeGive >= 0 && me2.inventory?.[tradeGive]) {
       html5 += '<div style="margin:6px 0 3px">for:</div>' +
         '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">' +
@@ -4008,8 +4006,8 @@ function renderCommerce(s) {
       bp.dataset.sig = sig
       const entries = Object.entries(Object.values(me2.vaults ?? {}).reduce((t, sh) => { for (const [i, n] of Object.entries(sh ?? {})) t[i] = (t[i] ?? 0) + n; return t }, {})).filter(([, n2]) => n2 > 0)
       bp.innerHTML = '<div style="text-align:center;color:#ffcc33;font-weight:bold;border-bottom:1px solid #6b5d43;padding-bottom:4px;margin-bottom:5px">\ud83c\udfe6 the bank</div>' +
-        (entries.length ? entries.map(([it, n2]) => itemRow(it, ' \u00d7 ' + n2, rowBtn('take', 'data-w="' + it + '"'))).join('')
-          : '<div style="color:#8a8474;text-align:center;padding:6px 0">the vault stands empty</div>') +
+        (entries.length ? entries.map(([it, n2]) => itemRow(it, ' \u00d7 ' + n2, rowBtn('take', 'data-w="' + it + '"'))).join(''):
+          '<div style="color:#8a8474;text-align:center;padding:6px 0">the vault stands empty</div>') +
         '<div style="color:#8a8474;margin-top:6px;font-size:10px">select an item below and press <b style="color:#d9cfb8">deposit</b> to store it</div>'
     }
   }
@@ -4055,8 +4053,8 @@ function renderCommerce(s) {
       gp.innerHTML = '<div style="text-align:center;color:#ffcc33;font-weight:bold;border-bottom:1px solid #6b5d43;padding-bottom:4px;margin-bottom:5px">\ud83d\udee1 the gear</div>' +
         ['weapon', 'head', 'body'].map((sl4) => {
           const eq = me2.equipment?.[sl4]
-          return eq ? itemRow(eq.item, ' <span style="color:#8a8474">(' + sl4 + ')</span>', rowBtn('remove', 'data-ug="' + sl4 + '"'))
-            : '<div style="display:flex;align-items:center;gap:7px;margin:4px 0;color:#6e6656"><span style="width:24px;height:24px;border:1px dashed #4e4436;border-radius:4px;display:inline-block"></span><span>' + sl4 + ': bare</span></div>'
+          return eq ? itemRow(eq.item, ' <span style="color:#8a8474">(' + sl4 + ')</span>', rowBtn('remove', 'data-ug="' + sl4 + '"')):
+            '<div style="display:flex;align-items:center;gap:7px;margin:4px 0;color:#6e6656"><span style="width:24px;height:24px;border:1px dashed #4e4436;border-radius:4px;display:inline-block"></span><span>' + sl4 + ': bare</span></div>'
         }).join('')
     }
   }
@@ -4866,9 +4864,9 @@ function syncBeings(s, prev) {
       if (m.userData.rigged) { // clips crossfade; missing clips get body english
         const fighting2 = thing.action?.type === 'attack' || thing.action?.type === 'attackp'
         const working2 = thing.action?.type === 'gather'
-        const want2 = (fighting2 && m.userData.acts.fight) ? 'fight'
-          : (working2 && m.userData.acts.work) ? 'work'
-          : moving ? 'walk' : 'idle'
+        const want2 = (fighting2 && m.userData.acts.fight) ? 'fight':
+          (working2 && m.userData.acts.work) ? 'work':
+          moving ? 'walk' : 'idle'
         if (want2 !== m.userData.mode && m.userData.acts[want2]) {
           const from2 = m.userData.acts[m.userData.mode], to2 = m.userData.acts[want2]
           to2.reset().play()
@@ -4956,10 +4954,10 @@ function syncBeings(s, prev) {
         }
         if (m.userData.trail) { // the arc of the whip, drawn in light
           const lk = lookOf(wep0)
-          const win = lk.style === 'heave' ? [0.55, 0.34] : lk.style === 'quick' ? [0.16, 0.24]
-            : lk.style === 'thrust' ? [0.40, 0.20] : [0.42, 0.33]
-          const amp = lk.style === 'heave' ? 0.62 : lk.style === 'quick' ? 0.34
-            : lk.style === 'thrust' ? 0.20 : 0.45
+          const win = lk.style === 'heave' ? [0.55, 0.34] : lk.style === 'quick' ? [0.16, 0.24]:
+            lk.style === 'thrust' ? [0.40, 0.20] : [0.42, 0.33]
+          const amp = lk.style === 'heave' ? 0.62 : lk.style === 'quick' ? 0.34:
+            lk.style === 'thrust' ? 0.20 : 0.45
           const whipK = exch && !lk.ranged
             ? Math.max(0, Math.sin(Math.min(1, Math.max(0, (t2 - win[0]) / win[1])) * Math.PI)) : 0
           m.userData.trail.material.opacity = whipK * amp
@@ -5066,14 +5064,14 @@ function syncBeings(s, prev) {
         // arms: counter-swing on the walk; the off arm counterbalances
         // the strike; the rod is held with a fisherman's patience
         const idleSw = Math.sin(nowMs / 1700 + an.seed) * 0.045
-        m.userData.arms[0].rotation.x = fighting ? (-0.55 + strikeT2 * 0.75)
-          : (working && !fishingW) ? (-0.25 - imp * 0.15)
-            : fishingW ? -0.9
-              : -s5 * 0.5 * mvA + idleSw
-        m.userData.arms[1].rotation.x = fighting ? strikeA
-          : (working && !fishingW) ? chopA
-            : fishingW ? (-1.3 + Math.sin(nowMs / 1300 + an.seed) * 0.05) // the cast held out over the water
-              : s5 * 0.5 * mvA + idleSw
+        m.userData.arms[0].rotation.x = fighting ? (-0.55 + strikeT2 * 0.75):
+          (working && !fishingW) ? (-0.25 - imp * 0.15):
+            fishingW ? -0.9:
+              -s5 * 0.5 * mvA + idleSw
+        m.userData.arms[1].rotation.x = fighting ? strikeA:
+          (working && !fishingW) ? chopA:
+            fishingW ? (-1.3 + Math.sin(nowMs / 1300 + an.seed) * 0.05) // the cast held out over the water:
+              s5 * 0.5 * mvA + idleSw
         // the felling swing owns the lateral axis; every other state
         // hands it back at zero so the arms hang honest
         m.userData.arms[1].rotation.z = treeWork ? chopZ : 0
@@ -5153,8 +5151,8 @@ function syncBeings(s, prev) {
           snd('thud', m.position)
           m.userData.flashAt = performance.now() // and FELT: flash, flinch,
           m.userData.flinch = Math.min(1, dmg2 / 4) // and, close by, the camera shudders
-          camShake = Math.min(1, camShake + (id === myId ? 0.4 + dmg2 * 0.08
-            : Math.max(0, 0.22 - camera.position.distanceTo(m.position) * 0.03)))
+          camShake = Math.min(1, camShake + (id === myId ? 0.4 + dmg2 * 0.08:
+            Math.max(0, 0.22 - camera.position.distanceTo(m.position) * 0.03)))
           if (thing.hp <= 0 && id === myId) snd('gong', m.position)
         }
         if (m.userData.lastHp !== thing.hp) { m.userData.lastHp = thing.hp; paintHp(m.userData.hpbar, Math.max(0, Math.min(1, fr))) }
@@ -5416,8 +5414,8 @@ function updateDoor3(st2, wid2) {
     + ' \u00b7 world ' + String(wid2 ?? '').slice(0, 12) + '\u2026'
   const be = document.getElementById('gate3dbtn')
   if (be) be.textContent = me2
-    ? 'Enter as ' + (me2.name ?? 'citizen ' + ownKey.pub.slice(0, 6) + '\u2026')
-    : 'Enter the world'
+    ? 'Enter as ' + (me2.name ?? 'citizen ' + ownKey.pub.slice(0, 6) + '\u2026'):
+    'Enter the world'
   const nm2 = document.getElementById('gate3dname')
   if (nm2) nm2.style.display = me2?.name ? 'none' : 'block'
 }
@@ -5476,10 +5474,10 @@ ws.onmessage = async (ev) => {
       const me9 = m.state.players[ownKey.pub]
       const asleep = m.state.tick - (me9.lastInput ?? m.state.tick)
       const s9 = Math.round(asleep * 0.6)
-      const t9 = (me9.lastInput ?? 0) === 0 || asleep < 8 ? null
-        : s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day'
-        : s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour'
-        : s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
+      const t9 = (me9.lastInput ?? 0) === 0 || asleep < 8 ? null:
+        s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day':
+        s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour':
+        s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
       feed(t9 === null ? 'You wake in Tallyholm for the first time.' : 'You wake. You slept for ' + t9 + '; the world did not.')
     }
     if (entered && pendingName3 && ownKey && m.state.players?.[ownKey.pub]
@@ -5763,10 +5761,7 @@ setInterval(() => { // one greedy step per tick: the deluxe window keeps its leg
     const atOrBeside = dManh <= 1
     if (atOrBeside && USABLE.has(nd.type)) {
       const slotOf = (item) => me.inventory.findIndex(sl => sl?.item === item)
-      if (nd.type === 'waystone') {
-        if (!(me.attuned ?? []).includes(workTarget)) { send({ do: 'attune', nodeId: workTarget }); feed('you learn the stone') }
-        else feed('you already know this stone')
-      } else if (nd.type === 'watchfire') {
+      if (nd.type === 'watchfire') {
         const li = slotOf('logs')
         if (li !== -1) { send({ do: 'stoke', nodeId: workTarget, slot: li }); feed('you feed the watchfire') }
         else feed((nd.fuelUntil ?? 0) > world.tick ? 'it burns. it wants wood to keep burning' : 'cold ash. it wants wood')
@@ -5949,7 +5944,7 @@ function animate(now) {
   const graze = clamp01((sunH - 0.015) / 0.11)
   sun.intensity = (0.06 + day * 1.02) * (0.25 + graze * 0.75)
   // storybook grade: the sun keeps a golden cast all day instead of
-  // burning to white at noon — warmer hue, and a lightness that tops out
+  // burning to white at noon, warmer hue, and a lightness that tops out
   // below paper-white so midday reads as a long amber afternoon
   sun.color.setHSL(0.085 - day * 0.010, 0.62 - day * 0.16, 0.46 + day * 0.24)
   // the shadow side is warmed too: a hair of amber in the ambient and a
@@ -6464,9 +6459,9 @@ function animate(now) {
         const sel = i2 === selSlot
         const rare = sl && /^star-|^magic-stone$|^sigil$/.test(sl.item) // starlight leaks through the slot
         html2 += '<span data-slot="' + i2 + '" style="background:linear-gradient(rgba(30,24,16,.9),rgba(12,10,7,.94));border:2px solid ' + (sel ? '#ffcc33' : rare ? '#3a8ab0' : '#6b5d43') + ';' +
-          (sel ? 'box-shadow:0 0 10px rgba(255,204,51,.45), inset 0 1px 0 rgba(255,255,255,.08);'
-            : rare ? 'box-shadow:0 0 8px rgba(92,224,255,.35), inset 0 1px 0 rgba(255,255,255,.08);'
-              : 'box-shadow:inset 0 1px 0 rgba(255,255,255,.06);') +
+          (sel ? 'box-shadow:0 0 10px rgba(255,204,51,.45), inset 0 1px 0 rgba(255,255,255,.08);':
+            rare ? 'box-shadow:0 0 8px rgba(92,224,255,.35), inset 0 1px 0 rgba(255,255,255,.08);':
+              'box-shadow:inset 0 1px 0 rgba(255,255,255,.06);') +
           'width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;position:relative;border-radius:6px;cursor:pointer">' +
           (sl ? '<img src="' + itemSprite(sl.item).toDataURL() + '" style="width:28px;height:28px;image-rendering:pixelated;pointer-events:none">' : '') +
           (sl && (sl.qty ?? 1) > 1 ? '<span style="position:absolute;bottom:0;right:2px;color:#ffcc33;font-size:10px;font-weight:bold;pointer-events:none;text-shadow:0 1px 2px #000">' + sl.qty + '</span>' : '') +
@@ -6545,12 +6540,12 @@ function animate(now) {
 // The photo window makes stills and takes them out of the world. This
 // one does the other thing no ordinary client can: it runs the world
 // BACKWARDS. Interval is a deterministic state machine, so a tick is
-// not a moment that has gone — it is a value, and a value can be held
+// not a moment that has gone: it is a value, and a value can be held
 // up and looked at again from anywhere. Every other MMO's "replay" is
 // a video file. This is the state.
 //
 // What you get: a tape of everything since you opened the window, a
-// transport to scrub it, and a camera that will follow ANY citizen —
+// transport to scrub it, and a camera that will follow ANY citizen,
 // including none, if you would rather just stand there and watch.
 //
 // The one rule, and it is the whole ethic of the thing: WHILE YOU ARE
@@ -6624,8 +6619,8 @@ function rpCycleSubject(d) {
   let idx = list.findIndex((p) => p.id === cur)
   idx = idx < 0 ? (d > 0 ? 0 : list.length - 1) : idx + d
   RP.subject = (idx < 0 || idx >= list.length) ? null : list[idx].id
-  feed(RP.subject ? 'following ' + (list.find((p) => p.id === RP.subject)?.name ?? '\u2026')
-                  : 'following your own body')
+  feed(RP.subject ? 'following ' + (list.find((p) => p.id === RP.subject)?.name ?? '\u2026'):
+                  'following your own body')
   rpPaint()
 }
 

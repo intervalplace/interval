@@ -1,6 +1,6 @@
 // §5k, for the engine: THE CEILING IS A PROPERTY OF THE STATE.
 //
-// `gainXp` clamps every award — and `gainXp` never runs on a checkpoint that
+// `gainXp` clamps every award, and `gainXp` never runs on a checkpoint that
 // was handed to us. `validateState` is the only thing standing between a
 // foreign state and our own, and it bounded skills by MAX_XP alone. So a peer
 // could carry a citizen at a hundred in three trades and it would have been
@@ -42,7 +42,7 @@ if (!st0) {
   const src0 = require('fs').readFileSync('engine.js', 'utf8')
   const vs0 = src0.slice(src0.indexOf('function validateState'), src0.indexOf('function validateState') + 40000)
   ok(/xpCeiling\(p, sk\)/.test(vs0),
-     'and validateState asks that same function \u2014 so a hostile checkpoint carrying ' +
+     'and validateState asks that same function, so a hostile checkpoint carrying ' +
      'a citizen past it is refused, not merely never produced')
   ok(/past the ceiling/.test(vs0), 'with its own reason, beside \'calling not earned\'')
   console.log(bad ? '\n  ' + bad + ' failed'
@@ -77,7 +77,7 @@ ok(!refused(withCitizen({ calling: 'forester' },
 const src = require('fs').readFileSync('engine.js', 'utf8')
 const vs = src.slice(src.indexOf('function validateState'))
 ok(/xpCeiling\(p, sk\)/.test(vs.slice(0, 40000)),
-   'validateState asks xpCeiling \u2014 the same function gainXp clamps with, not a second copy')
+   'validateState asks xpCeiling, the same function gainXp clamps with, not a second copy')
 console.log(bad ? '\n  ' + bad + ' failed'
   : '\n  ok    what the rules forbid is unrepresentable, not merely unreachable')
 process.exit(bad ? 1 : 0)

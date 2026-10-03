@@ -67,6 +67,6 @@ if (typeof E.awardXp === 'function') {
   console.log('  skip  awardXp is not exported, so the bury path cannot be checked from here')
 }
 
-console.log(bad ? '\nFAIL — ' + bad + ' claim(s) the prose makes are no longer true'
-                : '\nok — the bury notes still describe the engine')
+console.log(bad ? '\nFAIL, ' + bad + ' claim(s) the prose makes are no longer true':
+                '\nok, the bury notes still describe the engine')
 process.exit(bad ? 1 : 0)

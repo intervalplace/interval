@@ -209,8 +209,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>INTERVAL · the photo window</title>
-<style>
-  :root { --gold: #e2b63e; --parch: #d9d3c0; --dim: #8a8578; --ink: rgba(12,11,9,.78) }
+<style>:
+  root { --gold: #e2b63e; --parch: #d9d3c0; --dim: #8a8578; --ink: rgba(12,11,9,.78) }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent }
   html, body { margin: 0; height: 100%; overflow: hidden; background: #07090c;
     font: 14px/1.35 ui-monospace, Menlo, Consolas, monospace; color: var(--parch);
@@ -649,60 +649,60 @@ const allocTick = () => {
   return t2
 }
 const BRIDGE = (a) =>
-    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
-  : a.do === 'spawn' ? { type: 'spawn' }
-  // stop: put down what you are doing. Every window should be able to say it.
-  : a.do === 'stop' ? { type: 'stop' }
+    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
+  a.do === 'spawn' ? { type: 'spawn' }
+  // stop: put down what you are doing. Every window should be able to say it.:
+  a.do === 'stop' ? { type: 'stop' }
   // §6as-iii: every combat verb carries the STYLE it is swung in -- aim,
   // even or force. A citizen picks it once and forgets it, so the bridge
-  // fills it from `combatStyle` rather than asking at every call site.
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
-  : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'eat' ? { type: 'eat', slot: a.slot }
-  : a.do === 'drop' ? { type: 'drop', slot: a.slot }
-  : a.do === 'wield' ? { type: 'wield', slot: a.slot }
-  : a.do === 'cook' ? { type: 'cook', slot: a.slot }
-  : a.do === 'light' ? { type: 'light', slot: a.slot }
-  : a.do === 'bury' ? { type: 'bury', slot: a.slot }
-  : a.do === 'plant' ? { type: 'plant', slot: a.slot }
+  // fills it from `combatStyle` rather than asking at every call site.:
+  a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }:
+  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
+  a.do === 'eat' ? { type: 'eat', slot: a.slot }:
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }:
+  a.do === 'wield' ? { type: 'wield', slot: a.slot }:
+  a.do === 'cook' ? { type: 'cook', slot: a.slot }:
+  a.do === 'light' ? { type: 'light', slot: a.slot }:
+  a.do === 'bury' ? { type: 'bury', slot: a.slot }:
+  a.do === 'plant' ? { type: 'plant', slot: a.slot }
   // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a stall
   // and sells from it. §6ch: `attune` went with the waystones. Both lines are
   // gone rather than kept, because a bridge line for a verb the world refuses
-  // is a button that does nothing and says nothing.
-  : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  // is a button that does nothing and says nothing.:
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
-  : a.do === 'buy' ? { type: 'buy', item: a.item }
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }   // §7: a withdrawal names its number
-  : a.do === 'unwield' ? { type: 'unwield', gear: a.gear }
-  : a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
-  : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
-  : a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }
-  : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
-  : a.do === 'recall' ? { type: 'recall', to: a.to }
-  : a.do === 'invoke' ? { type: 'invoke' }
-  : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
-  : a.do === 'still' ? { type: 'still', target: a.target }
-  : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
-  // §6af: the special, which this window could not send at all
-  : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }
-  : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
-  : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
-  : a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }
-  : a.do === 'kindle' ? { type: 'kindle' }
-  : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'claim_name' ? { type: 'claim_name', name: a.name }
-  // §7: an offer names SLOTS, not a slot -- a citizen may put up a handful
-  : a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots ?? [a.giveSlot], wantItem: a.wantItem, wantGold: a.wantGold }
-  : a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }
-  : a.do === 'cancel_trade' ? { type: 'cancel_trade' }
-  : null
+  // failure -- a window that cannot ask must not be able to answer.:
+  a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
+  a.do === 'buy' ? { type: 'buy', item: a.item }:
+  a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }   // §7: a withdrawal names its number:
+  a.do === 'unwield' ? { type: 'unwield', gear: a.gear }:
+  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
+  a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
+  a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }:
+  a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }:
+  a.do === 'recall' ? { type: 'recall', to: a.to }:
+  a.do === 'invoke' ? { type: 'invoke' }:
+  a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }:
+  a.do === 'still' ? { type: 'still', target: a.target }:
+  a.do === 'survey' ? { type: 'survey' }:
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
+  // §6af: the special, which this window could not send at all:
+  a.do === 'special' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }:
+  a.do === 'build_brewpot' ? { type: 'build_brewpot' }:
+  a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }:
+  a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }:
+  a.do === 'kindle' ? { type: 'kindle' }:
+  a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'claim_name' ? { type: 'claim_name', name: a.name }
+  // §7: an offer names SLOTS, not a slot -- a citizen may put up a handful:
+  a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots ?? [a.giveSlot], wantItem: a.wantItem, wantGold: a.wantGold }:
+  a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
+  a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
+  null
 // must match engine.js SIG_DOMAINS.input to the byte (fix brief §2.3)
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|'
 let curWorldId = ''
@@ -2089,7 +2089,7 @@ function pinPhoto() {
 // takes anything OUT of it. A frame leaves here carrying, inside the
 // PNG's own bytes, an Ed25519 statement by a named citizen: at tick T,
 // in world W, standing on tile (x,y), with the eye HERE and pointed
-// THERE, the world looked like this — and "this" is pinned by a
+// THERE, the world looked like this, and "this" is pinned by a
 // SHA-256 of the pixels, so the claim cannot be moved onto another
 // picture. The world is deterministic, so anyone holding the seed can
 // re-derive the frame and hold it up against the print.
@@ -2345,8 +2345,8 @@ const showPlate = (res) => {
     + (res.ok ? 'THE PLATE HOLDS' : 'NOT A GOOD PLATE') + '</h3>'
     + '<div class="why">' + (res.ok
       ? 'This picture is what it says it is. The signature covers both the '
-        + 'claim and the pixels, so neither can be swapped for the other.'
-      : res.why) + '</div>'
+        + 'claim and the pixels, so neither can be swapped for the other.':
+      res.why) + '</div>'
     + (pl ? '<dl>'
       + row('citizen', pl.playerId ? pl.playerId.slice(0, 32) + '&hellip;' : '&mdash;')
       + row('world', pl.worldId || '&mdash;')
@@ -3074,8 +3074,8 @@ function carveBlob(seed, kind) {
   for (let i = 0; i < pos.count; i++) {
     v.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize()
     const h1 = cell(v.x, v.y, v.z, 1), h2 = cell(v.x * 2.2, v.y * 2.2, v.z * 2.2, 2)
-    const d = kind === 'canopy' ? 0.74 + 0.2 * h1 + 0.1 * h2
-      : 0.7 + 0.24 * h1 + 0.09 * h2
+    const d = kind === 'canopy' ? 0.74 + 0.2 * h1 + 0.1 * h2:
+      0.7 + 0.24 * h1 + 0.09 * h2
     pos.setXYZ(i, v.x * d, v.y * d * (kind === 'canopy' ? 0.92 : 0.78), v.z * d)
     let r2, g2, b2
     if (kind === 'canopy') {
@@ -3206,8 +3206,8 @@ const curtainSlit = () => stoneGeo('curtainSlit', () => [
 ])
 // the drum: a turn, an end, or the punctuation of a long run
 // a drum that clears the curtain by half a man is a bump in the line.
-// From across a valley, through fog, a corner has to ANNOUNCE the turn
-// , so the shaft carries another two thirds and the crown goes with it.
+// From across a valley, through fog, a corner has to ANNOUNCE the turn,
+// so the shaft carries another two thirds and the crown goes with it.
 const towerStone = (v = 0) => stoneGeo('tower' + v, () => [
   cyl(0.50, 0.68, 3.12, 10, 0, 1.19, 0),  // the drum, battered at the foot
   cyl(0.72, 0.55, 0.16, 10, 0, 2.83, 0),  // the corbel course, where it flares
@@ -4123,8 +4123,8 @@ function nodeBody(n) {
     const lf1 = tint ? tintedMat(tint.leaf) : mats.leaf1
     const lf2 = tint ? tintedMat(tint.lit) : mats.leaf2
     const blob = tint ? tintedMat(tint.leaf, 0.88, { vertexColors: true }) : mats.leafBlob
-    const barkM = n.type === 'ironbark-tree' ? tintedMat(0x2a2f2c, 0.95)
-      : n.type === 'gallows-oak' ? tintedMat(0x2a1c20, 0.95) : mats.bark
+    const barkM = n.type === 'ironbark-tree' ? tintedMat(0x2a2f2c, 0.95):
+      n.type === 'gallows-oak' ? tintedMat(0x2a1c20, 0.95) : mats.bark
     if (hsh % 5 < 2) {
       // a pine: bare trunk, three skirts of needle, narrower as it climbs
       add(new THREE.Mesh(new THREE.CylinderGeometry(0.05 * grow, 0.14 * grow, 1.9 * grow, 7), barkM), 0, 0.9 * grow)
@@ -4878,8 +4878,8 @@ function beastBody(color, scale, kind) {
     ear.castShadow = true; g.add(ear)
   }
   const tail = kind === 'wolf'
-    ? new THREE.Mesh(new THREE.ConeGeometry(0.055 * scale, 0.4 * scale, 7), darkFur) // the brush
-    : new THREE.Mesh(new THREE.CapsuleGeometry(0.035 * scale, 0.08 * scale, 3, 6), fur)
+    ? new THREE.Mesh(new THREE.ConeGeometry(0.055 * scale, 0.4 * scale, 7), darkFur) // the brush:
+    new THREE.Mesh(new THREE.CapsuleGeometry(0.035 * scale, 0.08 * scale, 3, 6), fur)
   tail.position.set(0, 0.48 * scale * bulk, -0.42 * scale)
   tail.rotation.x = -0.9
   g.add(tail)
@@ -7060,9 +7060,9 @@ function strideOf(g) {
   // it. I had it upside down: wolves and bears were taking 32% too many
   // steps for the distance, which is the same skate I came here to kill,
   // introduced by the fix for it.
-  const s = g.__quad ? 4 * (g.__quad.bodyH ?? 0.45) * Math.sin(0.55) * 1.15 * sc
-    : g.__adventurer ? (2 / DUTY) * stepHalf(g)
-      : 4 * RIG.thighY * (g.__legScale ?? 0.8) * Math.sin(0.55) * sc
+  const s = g.__quad ? 4 * (g.__quad.bodyH ?? 0.45) * Math.sin(0.55) * 1.15 * sc:
+    g.__adventurer ? (2 / DUTY) * stepHalf(g):
+      4 * RIG.thighY * (g.__legScale ?? 0.8) * Math.sin(0.55) * sc
   g.__stride = Math.max(0.25, s)
   return g.__stride
 }
@@ -7277,8 +7277,8 @@ function animateBeing(g, thing, id, dt, now, t) {
       // the beat combat is actually resolved on, wound up and brought
       // down, with a breath of scatter so a pack is not a metronome.
       const b0 = Math.min(1, Math.max(0, t2 + Math.sin(an.seed * 7) * 0.05))
-      const sw0 = b0 < 0.5 ? -0.6 - (b0 / 0.5) * 1.5
-        : 0.5 - Math.max(0, 1 - (b0 - 0.5) / 0.35) * 2.6
+      const sw0 = b0 < 0.5 ? -0.6 - (b0 / 0.5) * 1.5:
+        0.5 - Math.max(0, 1 - (b0 - 0.5) / 0.35) * 2.6
       g.userData.arms[0].rotation.x = fighting0 ? sw0 : -s5 * 0.45 * mvA
       g.userData.arms[1].rotation.x = fighting0 ? (0.2 + Math.max(0, -sw0) * 0.12) : s5 * 0.45 * mvA
     }
@@ -7291,8 +7291,8 @@ function animateBeing(g, thing, id, dt, now, t) {
   const working = thing.action?.type === 'gather'
   const nd2 = working ? s.nodes?.[thing.action.nodeId] : null
   const fishingW = famOf(nd2?.type) === 'fishing-spot'
-  const foe = thing.action?.type === 'attack' ? s.mobs?.[thing.action.mobId]
-    : thing.action?.type === 'attackp' ? s.players?.[thing.action.targetId] : null
+  const foe = thing.action?.type === 'attack' ? s.mobs?.[thing.action.mobId]:
+    thing.action?.type === 'attackp' ? s.players?.[thing.action.targetId] : null
   if (foe) g.userData.foePos = { x: foe.x, y: foe.y }
   const look0 = lookOf(thing.equipment?.weapon?.item)
   // an exchange is a LANDED blow: the swing plays only when the wound
@@ -7380,15 +7380,15 @@ function animateBeing(g, thing, id, dt, now, t) {
     // exactly on a tick boundary; every other time the light swept
     // through on a clock of its own. Both read the strike now.
     const lk = look0
-    const win = lk.style === 'heave' ? [0.55, 0.34] : lk.style === 'quick' ? [0.16, 0.24]
-      : lk.style === 'thrust' ? [0.40, 0.20] : lk.style === 'whip' ? [0.30, 0.32] : [0.42, 0.33]
-    const amp = lk.style === 'heave' ? 0.62 : lk.style === 'quick' ? 0.34
-      : lk.style === 'thrust' ? 0.20 : lk.style === 'whip' ? 0.52 : 0.45
+    const win = lk.style === 'heave' ? [0.55, 0.34] : lk.style === 'quick' ? [0.16, 0.24]:
+      lk.style === 'thrust' ? [0.40, 0.20] : lk.style === 'whip' ? [0.30, 0.32] : [0.42, 0.33]
+    const amp = lk.style === 'heave' ? 0.62 : lk.style === 'quick' ? 0.34:
+      lk.style === 'thrust' ? 0.20 : lk.style === 'whip' ? 0.52 : 0.45
     const whipK = exch && !lk.ranged
       ? Math.max(0, Math.sin(Math.min(1, Math.max(0, (strikeP - win[0]) / win[1])) * Math.PI)) : 0
     g.userData.trail.material.opacity = whipK * amp
-    g.userData.trail.scale.setScalar(lk.style === 'heave' ? 1.35 : lk.style === 'quick' ? 0.7
-      : lk.style === 'whip' ? 1.15 : 1)
+    g.userData.trail.scale.setScalar(lk.style === 'heave' ? 1.35 : lk.style === 'quick' ? 0.7:
+      lk.style === 'whip' ? 1.15 : 1)
     g.userData.trail.rotation.x = -0.7 + strikeP * 1.5
   }
   if (exch && strikeP > (STYLE_HIT[look0.style] ?? 0.55) && an.shotTick !== s.tick) {
@@ -7571,15 +7571,15 @@ function animateBeing(g, thing, id, dt, now, t) {
     if (it && it.visible && it.userData.carry !== undefined)
       it.rotation.x = it.userData.carry + (it.userData.guard - it.userData.carry) * an.fightK
   }
-  g.userData.arms[0].rotation.x = drawing ? (-1.34 + drawK * 0.58)
-    : fighting ? (-0.55 + strikeT2 * 0.75)
-    : (working && !fishingW) ? (-0.25 - imp * 0.15)
-      : fishingW ? -0.9
-        : -s5 * 0.5 * mvA + idleSw
-  g.userData.arms[1].rotation.x = fighting ? strikeA
-    : (working && !fishingW) ? chopA
-      : fishingW ? (-1.3 + Math.sin(now / 1300 + an.seed) * 0.05)
-        : s5 * 0.5 * mvA + idleSw
+  g.userData.arms[0].rotation.x = drawing ? (-1.34 + drawK * 0.58):
+    fighting ? (-0.55 + strikeT2 * 0.75):
+    (working && !fishingW) ? (-0.25 - imp * 0.15):
+      fishingW ? -0.9:
+        -s5 * 0.5 * mvA + idleSw
+  g.userData.arms[1].rotation.x = fighting ? strikeA:
+    (working && !fishingW) ? chopA:
+      fishingW ? (-1.3 + Math.sin(now / 1300 + an.seed) * 0.05):
+        s5 * 0.5 * mvA + idleSw
   g.userData.arms[1].rotation.z = treeWork ? chopZ : (g.userData.arms[1].userData.restZ ?? 0)
   g.userData.arms[0].rotation.z = treeWork ? -chopZ * 0.22 : (g.userData.arms[0].userData.restZ ?? 0)
   // hips and shoulders trade against each other through the spine: the
@@ -7591,10 +7591,10 @@ function animateBeing(g, thing, id, dt, now, t) {
   if (g.userData.hatchet?.visible) g.userData.hatchet.rotation.y = treeWork ? -1.35 : 0
   // the string hand takes the nock to the cheek: the elbow does most of
   // a draw, and the bow arm holds all but straight while it happens
-  g.userData.arms[0].userData.joint.rotation.x = drawing ? (-0.22 - drawK * 1.95)
-    : -0.14 - Math.max(0, -s5) * 0.3 * mvA
-  g.userData.arms[1].userData.joint.rotation.x = drawing ? -0.12
-    : (fighting || working) ? -0.5 : -0.14 - Math.max(0, s5) * 0.3 * mvA
+  g.userData.arms[0].userData.joint.rotation.x = drawing ? (-0.22 - drawK * 1.95):
+    -0.14 - Math.max(0, -s5) * 0.3 * mvA
+  g.userData.arms[1].userData.joint.rotation.x = drawing ? -0.12:
+    (fighting || working) ? -0.5 : -0.14 - Math.max(0, s5) * 0.3 * mvA
 
   // the head is its own animal
   const hg = g.userData.headGrp
@@ -8348,8 +8348,8 @@ function octant(vx, vz) {
 const PATH_CAP = 6000
 function firstStep(sx, sy, txg, tyg, stopAdjacent) {
   const goal = (x, y) => stopAdjacent
-    ? (Math.abs(x - txg) + Math.abs(y - tyg) <= 1)
-    : (x === txg && y === tyg)
+    ? (Math.abs(x - txg) + Math.abs(y - tyg) <= 1):
+    (x === txg && y === tyg)
   if (goal(sx, sy)) return null
   const seen = new Map()          // tile -> the first step that reaches it
   const q = [[sx, sy, null]]
@@ -8434,8 +8434,8 @@ function actOnTick() {
   if (huntTarget || workTarget || walkGoal) {
     if (here === walkWasAt) walkStuck++; else { walkStuck = 0; walkWasAt = here }
     if (walkStuck >= 4) {
-      const what = workTarget ? (world.nodes?.[workTarget]?.type ?? 'work')
-        : huntTarget ? (world.mobs?.[huntTarget]?.type ?? 'beast') : 'that place'
+      const what = workTarget ? (world.nodes?.[workTarget]?.type ?? 'work'):
+        huntTarget ? (world.mobs?.[huntTarget]?.type ?? 'beast') : 'that place'
       feed('no way through to the ' + what + ' from here')
       huntTarget = null; workTarget = null; walkGoal = null; walkStuck = 0
       return
@@ -8685,8 +8685,8 @@ function updateDoor(st2, wid2) {
     + ' \u00b7 world ' + String(wid2 ?? '').slice(0, 12) + '\u2026'
   const be = document.getElementById('enter')
   if (be) be.textContent = me2
-    ? 'Enter as ' + (me2.name ?? 'citizen ' + ownKey.pub.slice(0, 6) + '\u2026')
-    : 'Enter the world'
+    ? 'Enter as ' + (me2.name ?? 'citizen ' + ownKey.pub.slice(0, 6) + '\u2026'):
+    'Enter the world'
   const nm2 = document.getElementById('doorname')
   if (nm2) nm2.style.display = me2?.name ? 'none' : 'block'
   const ke = document.getElementById('doorkey')
@@ -8727,12 +8727,12 @@ function pickShot(nowMs, focusV, fighting, walking, nightish) {
   let wyrm = null, wd = 1e9
   for (const gm of vis.mob.values())
     if (gm.__dragon && gm.visible) { const d3 = gm.position.distanceTo(focusV); if (d3 < wd) { wyrm = gm; wd = d3 } }
-  const type = (wyrm && wd < 40) ? 'wyrm'
-    : (fighting && mobT) ? 'arena'
-    : (fire && fd < 11 && r < 0.4) ? 'hearth'
-    : (walking && r < 0.55) ? 'lead'
-    : (nightish && r < 0.3) ? 'low'
-    : r < 0.3 ? 'crane' : r < 0.62 ? 'dolly' : r < 0.86 ? 'long' : 'low'
+  const type = (wyrm && wd < 40) ? 'wyrm':
+    (fighting && mobT) ? 'arena':
+    (fire && fd < 11 && r < 0.4) ? 'hearth':
+    (walking && r < 0.55) ? 'lead':
+    (nightish && r < 0.3) ? 'low':
+    r < 0.3 ? 'crane' : r < 0.62 ? 'dolly' : r < 0.86 ? 'long' : 'low'
   const S = { type, t0: nowMs, az, dur: 8000, fov: 36 }
   if (type === 'wyrm') { S.dur = 11000; S.fov = 26; S.azB = az + (r < 0.5 ? 0.4 : -0.4); S.wyrm = wyrm }
   if (type === 'dolly') { S.dur = 8000; S.fov = 34; S.azB = az + (r < 0.5 ? 0.55 : -0.55) }
@@ -8861,8 +8861,8 @@ document.getElementById('verbs').addEventListener('click', (e) => {
     const mine = vis.player.get(ownKey?.pub)
     if (mine) mine.visible = !povMode
     camera.fov = povMode ? 68 : 46; camera.updateProjectionMatrix()
-    feed(povMode ? 'behind your own eyes now; drag to look, tap the world to go'
-                 : 'the window steps back behind the shoulder')
+    feed(povMode ? 'behind your own eyes now; drag to look, tap the world to go':
+                 'the window steps back behind the shoulder')
     return
   }
   if (v === 'tune') {
@@ -8960,8 +8960,8 @@ document.getElementById('verbs').addEventListener('click', (e) => {
           + (me2 ? '-' + me2.x + 'x' + me2.y : '') + '.png'
         a.click()
         feed(stamped
-          ? 'a photograph, tick ' + shotTick + ', signed &mdash; it can be checked by anyone'
-          : 'a photograph, tick ' + shotTick + ' (unsigned: no key in this window)')
+          ? 'a photograph, tick ' + shotTick + ', signed &mdash; it can be checked by anyone':
+          'a photograph, tick ' + shotTick + ' (unsigned: no key in this window)')
       } catch (e8) { __report('shot: ' + (e8?.message ?? e8)) }
     })
     renderer.setPixelRatio(pr); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight)
@@ -9083,9 +9083,9 @@ ws.onmessage = (ev) => {
       if ((me9.lastInput ?? 0) === 0 || asleep < 8) feed('You wake in Tallyholm for the first time.')
       else {
         const s9 = Math.round(asleep * 0.6)
-        const t9 = s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day'
-          : s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour'
-          : s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
+        const t9 = s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day':
+          s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour':
+          s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
         feed('You wake. You slept for ' + t9 + '; the world did not.')
       }
     }
@@ -9108,9 +9108,9 @@ ws.onmessage = (ev) => {
         cb.style.display = soul ? '' : 'none'
         if (soul) {
           const w = myWait(m.state)
-          cb.textContent = !w?.ripe ? 'WAIT'
-            : !keyExported() ? 'EXPORT KEY'
-            : crossArmed ? 'CONFIRM' : 'CROSS'
+          cb.textContent = !w?.ripe ? 'WAIT':
+            !keyExported() ? 'EXPORT KEY':
+            crossArmed ? 'CONFIRM' : 'CROSS'
         }
       }
     }
@@ -9249,8 +9249,8 @@ function frame() {
   // each dawn gets its date card, subtitled by the season
   if (world && entered && dayIdx !== lastDayShown && dayF > 0.02 && dayF < 0.45) {
     lastDayShown = dayIdx
-    const seasonWord = winAmt > 0.5 ? 'deep winter' : autAmt > 0.5 ? 'autumn'
-      : sprAmt > 0.5 ? 'spring' : 'high summer'
+    const seasonWord = winAmt > 0.5 ? 'deep winter' : autAmt > 0.5 ? 'autumn':
+      sprAmt > 0.5 ? 'spring' : 'high summer'
     showTitle(seasonWord, 'day ' + dayIdx)
   }
   if (!seasonBase.leaf) seasonBase.leaf = [mats.leaf0, mats.leaf1, mats.leaf2, mats.leafBlob].map((m2) => m2.color.clone())
@@ -9436,8 +9436,8 @@ function frame() {
   }
   // speed widens the eye a touch; a blow or a close thunderclap shakes it
   const mySpd = Math.min(1.6, meVis?.__speed ?? 0)
-  const fovT = (cine && dirShot) ? dirShot.fov
-    : povMode ? fovOfFocal(focalMM()) + mySpd * 4.5 * (1 - spyZoom) : 46
+  const fovT = (cine && dirShot) ? dirShot.fov:
+    povMode ? fovOfFocal(focalMM()) + mySpd * 4.5 * (1 - spyZoom) : 46
   if (Math.abs(camera.fov - fovT) > 0.02) {
     camera.fov += (fovT - camera.fov) * Math.min(1, dt * 3)
     camera.updateProjectionMatrix()
@@ -9496,8 +9496,8 @@ function frame() {
     vu.uLightCol.value.copy(sunUp ? sun.color : moon.color)
     vu.uDens.value = (0.028 + rainAmt * 0.03 + overcast * 0.018 + warm * 0.035 + nightAmt * 0.02) * TUNE.volDens
     const volT = !vu.tShadow.value ? 0 : sunUp
-      ? (0.55 + warm * 1.0) * dayAmt * (1 - overcast * 0.8) + flash * 0.4
-      : nightAmt * 0.26 * (1 - overcast * 0.7)
+      ? (0.55 + warm * 1.0) * dayAmt * (1 - overcast * 0.8) + flash * 0.4:
+      nightAmt * 0.26 * (1 - overcast * 0.7)
     vu.uAmt.value += (volT * TUNE.vol - vu.uAmt.value) * Math.min(1, dt * 4)
   }
   // the cumulus deck rides the same weather, the same wind, the same
@@ -9516,8 +9516,8 @@ function frame() {
     cu.uAmt.value += ((dayAmt + nightAmt * 0.55) * 0.92 * TUNE.cloud - cu.uAmt.value) * Math.min(1, dt * 2)
   }
   const rayTarget = ((volPass && volPass.enabled) || !inFrame) ? 0 : sunUp
-    ? (0.16 + warm * 0.55) * dayAmt * (1 - overcast) + flash * 0.25
-    : nightAmt * 0.1 * (1 - overcast * 0.7)
+    ? (0.16 + warm * 0.55) * dayAmt * (1 - overcast) + flash * 0.25:
+    nightAmt * 0.1 * (1 - overcast * 0.7)
   raysPass.uniforms.uAmt.value += (rayTarget - raysPass.uniforms.uAmt.value) * Math.min(1, dt * 5)
   raysPass.uniforms.uTint.value.setHSL(sunUp ? 0.09 - warm * 0.045 : 0.62, sunUp ? 0.55 + warm * 0.2 : 0.35, 0.55)
   // the lens confesses: ghosts walk the axis while the light is in frame
@@ -9954,8 +9954,8 @@ function frame() {
   perfEMA += (dt * 1000 - perfEMA) * 0.14
   if (now - lastPerfAt > 700) {
     lastPerfAt = now
-    const want = perfEMA > 26 ? Math.max(0.55, pxScale - 0.14)
-      : perfEMA < 14.5 ? Math.min(1, pxScale + 0.06) : pxScale
+    const want = perfEMA > 26 ? Math.max(0.55, pxScale - 0.14):
+      perfEMA < 14.5 ? Math.min(1, pxScale + 0.06) : pxScale
     if (Math.abs(want - pxScale) > 0.005) {
       pxScale = want
       const pr2 = QPR() * pxScale
@@ -10264,8 +10264,8 @@ function frame() {
   for (const [id2, gsh] of vis.mob) {
     const lb = gsh.userData.lb; if (!lb) continue
     const d = camera.position.distanceTo(gsh.position)
-    const o = (cine ? 0 : 1) * (id2 === huntTarget ? 1
-      : 1 - Math.min(1, Math.max(0, (d - 3) / 2.5)))
+    const o = (cine ? 0 : 1) * (id2 === huntTarget ? 1:
+      1 - Math.min(1, Math.max(0, (d - 3) / 2.5)))
     lb.visible = o > 0.03
     lb.material.opacity = o * 0.9
   }

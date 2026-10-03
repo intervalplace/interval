@@ -2,7 +2,7 @@
 //
 // Countersigned swearing. A master may take an unsworn citizen on; the swearing
 // that follows may name them, and the mark goes into the record for ever. It
-// buys no rate, no level and no ceiling — the reward is entirely reputational,
+// buys no rate, no level and no ceiling: the reward is entirely reputational,
 // and it is the one kind of reputation that cannot be faked, because it is a
 // signature in a replayable log rather than a claim.
 //
@@ -62,7 +62,7 @@ ok(/p\.sworn_by = \{ by: inp\.attester, calling: m\.calling/.test(src),
 ok(/delete m\.apprentices\[inp\.playerId\]/.test(src),
    'and the apprenticeship closes in the same breath: it turns into the mark')
 ok(/m\.raised = \(m\.raised \?\? 0\) \+ 1/.test(src),
-   'the master\u2019s count rises only then \u2014 not when they take somebody on')
+   'the master\u2019s count rises only then, not when they take somebody on')
 const teachApply = src.slice(src.indexOf("} else if (inp.type === 'teach')"), src.indexOf("} else if (inp.type === 'part')"))
 ok(!/raised/.test(teachApply) && !/sworn_by/.test(teachApply),
    'so taking forty people on and walking away mints nothing')
@@ -71,15 +71,15 @@ ok(!/raised/.test(teachApply) && !/sworn_by/.test(teachApply),
 //
 // Three ways it can go, and one of them used to leak. An apprentice is by
 // definition unsworn (`teach` refuses anyone with a calling), so the moment
-// they swear, no apprenticeship they are in can still be live — whoever
+// they swear, no apprenticeship they are in can still be live: whoever
 // attested it and whatever trade it was to.
 ok(/mc\.skill !== c\.skill\) return false/.test(src),
-   'attested, to another TRADE: refused \u2014 a forester cannot vouch for a miner')
+   'attested, to another TRADE: refused, a forester cannot vouch for a miner')
 const swearApply = src.slice(src.indexOf('      p.calling = inp.calling;'),
                              src.indexOf("} else if (inp.type === 'walk')"))
 ok(/for \(const other of Object\.values\(s\.players\)\)/.test(swearApply) &&
    /delete other\.apprentices\[inp\.playerId\]/.test(swearApply),
-   'unattested, to another trade: allowed \u2014 and it still frees the master\u2019s slot')
+   'unattested, to another trade: allowed, and it still frees the master\u2019s slot')
 ok(swearApply.indexOf('for (const other of') < swearApply.indexOf('if (inp.attester !== undefined)'),
    'the closing happens for EVERY swearing, not only the attested one')
 console.log('  \u00b7     an apprentice promised nothing: the master consented to teach,')
@@ -110,7 +110,7 @@ ok(E.gradeOf(st, student) === 'newcomer', 'and a forgotten apprenticeship lapses
 // ---- §5x: THE RITUAL. YOU ARE NOT A MASTER UNTIL YOU HAVE MADE ONE ----
 //
 // Reaching MASTERY makes a citizen eligible; raising somebody to their own
-// swearing is what admits them — the old guild rule, where the piece of work
+// swearing is what admits them: the old guild rule, where the piece of work
 // laid before the craft is here a person. It is uniform across nine trades
 // (five of which have no deep node and no dear recipe to build a quest around),
 // it cannot be ground because it needs another citizen's own two hours, and it
@@ -124,14 +124,14 @@ ok(E.gradeOf(world({ d: deep }), deep) === 'master',
 ok(E.callingOf ? /^master /.test(E.callingOf(deep)) : true,
    'and the public name says so too')
 ok(typeof E.isProven === 'function' && !/p\.proven/.test(src),
-   'proof is DERIVED from `raised`, which only finishing mints \u2014 nothing new is stored, ' +
+   'proof is DERIVED from `raised`, which only finishing mints, nothing new is stored, ' +
    'so no citizen can be handed it')
 
 // ---- §5y: and what the tail past a hundred is for ----
 //
 // 105 is a month past mastery, 110 is three, 120 is sixteen. They must not
-// multiply throughput — a rate scales automation, and past-mastery play is the
-// most automated there is — so the tail buys CAPACITY FOR OTHER PEOPLE.
+// multiply throughput: a rate scales automation, and past-mastery play is the
+// most automated there is, so the tail buys CAPACITY FOR OTHER PEOPLE.
 ok(Array.isArray(E.APPRENTICE_MILESTONES) && E.APPRENTICE_MILESTONES[0] === E.MASTERY,
    'the first slot arrives at mastery: ' + JSON.stringify(E.APPRENTICE_MILESTONES))
 ok(E.APPRENTICE_MILESTONES.every((m) => m <= 110),

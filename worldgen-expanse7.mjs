@@ -339,10 +339,84 @@ export function islesOf(g) {
     { x: 34, y: 30, rx: 30, ry: 22, tag: 'dragon' },
   ]
 }
+// §7eb: AN ISLE HAS A SHORE, not a circumference.
+//
+// This was `dx*dx + dy*dy < 1` and nothing else, so every isle in the world
+// was a flawless ellipse. It reads as exactly what it is -- a formula rather
+// than a place -- and it is the more obvious the smaller the isle, because a
+// nine-by-six rock is entirely outline.
+//
+// THE MAINLAND ALREADY SOLVED THIS. `coastR` gives the big island its shape by
+// taking a base radius and adding two `meander` harmonics keyed on the bearing,
+// and `meander` is hash-based with a smoothstep between whole numbers: exact
+// arithmetic, no `Math.sin` in it. `angleOf` is trig-free for the same reason.
+// Geography is hashed into the founding, and two nodes whose trigonometry
+// disagrees in the last place would build two different worlds.
+//
+// THAT IS TRUE OF THE COAST AND IT IS NOT TRUE OF THIS FILE. `inlandSet` draws
+// every mere, tarn and pool with `Math.sin` and `Math.atan2`, and the roughly
+// fifty places that seat a prop or scatter a cluster use `Math.cos`, `Math.sin`
+// and `Math.hypot`. The sentence that used to stand here said "no `Math.sin`
+// anywhere", which was never true of anything but `coastR` and `meander`.
+//
+// MEASURED, BECAUSE THE CLAIM IS CHECKABLE AND WAS NOT BEING CHECKED. V8 and
+// JavaScriptCore, the two engines this project ships on, do return different
+// doubles for these calls: hash a hundred and forty thousand of them and the
+// two engines disagree. What saves the fifty is that none of them keeps the
+// double. Every one rounds to a tile, which is half a unit of cushion, or
+// compares two distances between tiles, which is integers underneath.
+//
+// THE ONE THAT KEPT IT WAS THE LAKE SHORELINE. `inlandSet` drew every mere and
+// pool with five sine harmonics and asked `d < rAt(atan2(dy, dx), x, y)`: two
+// doubles compared raw, deciding water. It had eleven orders of margin and
+// would never have said so if it had not. It is `meander` and `angleOf` now,
+// like everything else that decides where the ground stops.
+//
+// So the two engines build a byte-identical island: all 458,752 tiles, every
+// settlement, every road. `test/engines.test.mjs` runs both and compares, and
+// `worldgen-exact.mjs` holds every call in these files to the three cases §2s
+// allows.
+//
+// So an isle gets the same treatment as the island it sits beside, at a
+// smaller scale: one coarse harmonic for the headlands and one fine for the
+// bites out of them.
+//
+// AND THE WOBBLE ONLY EVER ADDS. Every tile that was land stays land, which is
+// not an aesthetic choice: the shrine, the tally-half, the Lists and both
+// ferry quays are seated by `islesOf` coordinates, and an inward wobble could
+// drop any of them into the sea and strand a landmark nobody can reach.
+export function isleR(g, i, u0) {
+  const u = ((u0 % 360) + 360) % 360
+  // keyed on the isle's own position so two isles never share a coastline
+  const tag = 7100 + i.x * 7 + i.y
+  // IT CUTS IN AS WELL AS OUT, and that is what makes it a coast.
+  //
+  // Two passes were outward-only, to guarantee that nothing already seated on
+  // an isle could be stranded in water. The result was an outline convex at
+  // every point, which is a blob: a coast is made of the bays, not the capes.
+  //
+  // What makes cutting in safe is that nothing is seated where it could be
+  // cut. The shrine and the tally-half sit at the isle's CENTRE, and `onIsle`
+  // keeps a core of solid ground that the shore can never reach. Both ferry
+  // quays are FOUND rather than fixed -- the seater walks in from the isle's
+  // western edge until it meets ground it can stand on -- so they follow
+  // whatever shape this makes.
+  return 1
+    + meander(g, tag, u / 6, 6, 11) / 55        // the headlands and the bays
+    + meander(g, tag + 1, u / 6, 3, 5) / 150    // and the roughness on both
+}
 export function onIsle(g, x, y) {
   for (const i of islesOf(g)) {
     const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry
-    if (dx * dx + dy * dy < 1) return true
+    const d2 = dx * dx + dy * dy
+    // THE CORE IS NEVER SEA. The shore reaches in as far as 0.77 of the
+    // nominal radius at its deepest bay, so two thirds is ground the wobble
+    // cannot touch -- which is what lets the shrine and the tally-half sit at
+    // the centre of an isle whose outline nobody chose.
+    if (d2 < 0.45) return true
+    if (d2 >= 1.7) continue                    // nothing wobbles this far
+    const r = isleR(g, i, angleOf(dx, dy))
+    if (d2 < r * r) return true
   }
   return false
 }
@@ -695,12 +769,30 @@ function inlandSet(g) {
     // compass. The high terms (7, 11) are what put an inlet and a spit on a
     // shoreline, and the last term breaks the rim so it is crenellated tile to
     // tile rather than swept.
-    const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
-    const ph = M.map((m) => ((thash(g, wi, m, 907) % 1000) / 1000) * Math.PI * 2)
+    // §2s: THE SHORELINE IS THE ONE PLACE A RAW DOUBLE DECIDED A TILE.
+    //
+    // This was five `Math.sin` harmonics over a phase, read by
+    // `d < rAt(Math.atan2(dy, dx), x, y)`: a comparison of two doubles with
+    // nothing rounding either, deciding whether a tile is a pool or dry
+    // ground, which is hashed into the founding. §2s forbids exactly that, and
+    // the measured margin was eleven orders of magnitude wide, so it had never
+    // gone wrong and never would have told anybody if it had.
+    //
+    // THE ISLES ALREADY SOLVED IT, three hundred lines up. `isleR` gives an
+    // isle its coast with two `meander` harmonics keyed on the bearing, and
+    // `angleOf` gives the bearing without trigonometry: hashed control points
+    // joined by a smoothstep, exact arithmetic, every engine the same answer by
+    // construction rather than by measurement. A mere is an isle inside out.
+    //
+    // Same two harmonics as `isleR`, scaled by the kind's `k` so a tarn stays
+    // tighter than a mere, and the per-tile roughness kept as it was.
+    const tag = 9100 + wi * 13
     const rAt = (a, x, y) => {
-      let r = 1
-      for (let i = 0; i < M.length; i++) r += k * A[i] * Math.sin(M[i] * a + ph[i])
-      return r + ((thash(g, x, y, 911) % 100) / 100 - 0.5) * 0.05
+      const u = ((a % 360) + 360) % 360
+      return 1
+        + k * meander(g, tag, u / 6, 6, 11) / 13       // the lobes and the bays
+        + k * meander(g, tag + 1, u / 6, 3, 5) / 40    // and the bite out of them
+        + ((thash(g, x, y, 911) % 100) / 100 - 0.5) * 0.05
     }
     const pad = Math.ceil(Math.max(w2.rx, w2.ry) * (1 + k)) + 2
     for (let y = w2.y - pad; y <= w2.y + pad; y++)
@@ -708,7 +800,7 @@ function inlandSet(g) {
         const dx = (x - w2.x) / w2.rx, dy = (y - w2.y) / w2.ry
         const d = Math.sqrt(dx * dx + dy * dy)
         if (d === 0) { set.add(x + ',' + y); continue }
-        if (d < rAt(Math.atan2(dy, dx), x, y)) set.add(x + ',' + y)
+        if (d < rAt(angleOf(dx, dy), x, y)) set.add(x + ',' + y)
       }
   }
   // the becks, joined tile to tile. A beck leaves a FORD wherever a road
@@ -1063,7 +1155,7 @@ export function bridgesOf(g) {
 // close enough to bridge, and where a bridge is NOT built until citizens build
 // it, plank by plank, against whoever would rather it never stood.
 //
-// Scarce ON PURPOSE (§7a is the whole design note): ONE site, and one only.
+// Scarce ON PURPOSE (§14d is the whole design note): ONE site, and one only.
 // A second crossing relieves the pressure on the first -- two bridges means
 // neither is THE crossing, and the contest deflates. With a single wild span,
 // that one tile is the one contested place in the Wilds: whoever holds it holds
@@ -1190,10 +1282,15 @@ export function onBridge(g, x, y) {
 // goes round it, and the bends come from the land rather than from a wobble
 // laid over the top.
 //
-// INTEGERS ONLY, and no Math.sin. This value feeds the router's frontier, and
-// the router's contract (spec 9b) is that two nodes computing the same world
-// get the same road to the tile. Trigonometry is not bit-identical across
-// engines; a 32-bit integer hash is.
+// INTEGERS ONLY, and no Math.sin IN THIS FUNCTION. This value feeds the
+// router's frontier, and the router's contract (§2s) is that two nodes
+// computing the same world get the same road to the tile. Trigonometry is not
+// bit-identical across engines; a 32-bit integer hash is.
+//
+// Elsewhere in this file trigonometry IS used, and the note above `isleR`
+// records what that costs and what is checked to keep it safe. The rule here
+// is the stricter one because a road is a path and a path compounds: a tile
+// chosen differently sends the whole route somewhere else.
 
 // ---------------------------------------------------------------------------
 // THE LIE OF THE LAND
@@ -2366,6 +2463,54 @@ function townPaved(rows, rx, ry, tag) {
   const c = rows[ry]?.[rx];
   return c === ',' && !isIndoor(tag, rows, rx, ry, PLAN_ROOMS);
 }
+// §7dq-ii: A PLACE MAY NAME ITS OWN GROUND, AND THE SMOTHER HAS TO.
+//
+// `floors` was the only thing a place could say about what is underfoot, and it
+// says one of two things: a roofed room lays `floor`, and anything else lets
+// the country show through. That is right for the Nine Stones and the Boneyard,
+// which are ruins with the moor in them.
+//
+// It is wrong for a cave. The Smother has rock over it, not sky, and with
+// `floors: false` every tile in it answered `crags` exactly like the fellside
+// outside the mouth -- so no window could tell it was underground, and the
+// whole place is written around being dark. Its own note says the mouth needs
+// no marker because "the dark either side of it is the marker", and there was
+// no dark: the window drew a cave as a patch of hillside with eight creatures
+// standing on it, in daylight, taking no damage from anything, with nothing
+// said about why.
+//
+// So a place may name a ground, and naming one is the whole of it: the bridge
+// already forwards whatever this function returns, `cave` has been in the
+// window's tile list since it was written, and a surface the window knows is a
+// surface it can light differently.
+const _placeGroundMemo = new Map()
+function placeGroundTiles(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  let hit = _placeGroundMemo.get(k)
+  if (!hit) {
+    hit = new Map()
+    for (const P of placeSeatsOf(g)) {
+      if (!P.ground) continue
+      for (let ry = 0; ry < P.h; ry++) {
+        for (let rx = 0; rx < P.w; rx++) {
+          // every drawn tile of the place, floor and wall alike: a cave's walls
+          // are the same rock as its floor and a window shades them together.
+          // '~' is nothing, and the country shows through it as it always did.
+          if (P.rows[ry][rx] === '~') continue
+          hit.set((P.x0 + rx) + ',' + (P.y0 + ry), P.ground)
+        }
+      }
+    }
+    _placeGroundMemo.set(k, hit)
+  }
+  return hit
+}
+/** the ground a place claims for this tile, or null. Exported so a window can
+ *  ask whether a citizen is standing underground without carrying a copy of
+ *  where the caves are. */
+export function placeGroundAt(g, x, y) {
+  return placeGroundTiles(g).get(x + ',' + y) ?? null
+}
 export function groundKindAt(g, x, y) {
   // DECKING IS DECKING. A window asks the ground what it is; over a bridge,
   // a beck plank or a quay the answer is boards, not "nothing, it is water".
@@ -2374,6 +2519,9 @@ export function groundKindAt(g, x, y) {
   if (onBridge(g, x, y)) return 'bridge'
   // §7bv: a Set lookup, not a scan of thousands of one-tile rects
   if (loneRoomTiles(g).has(x + ',' + y)) return 'floor'
+  // §7dq-ii: and a place that named its ground, before the country is asked
+  const claimed = placeGroundTiles(g).get(x + ',' + y)
+  if (claimed) return claimed
   if (isWater(g, x, y)) return null
   const sts = settlementsOf(g)
   for (const st of sts) {
@@ -2430,8 +2578,26 @@ export function groundKindAt(g, x, y) {
           // A market town is paved where people walk and where they trade.
           // Between the backs of two houses it is grass, exactly as it is
           // everywhere else on the island.
-          if (townPaved(rows, rx, ry, st.tag)) return onRoad(g, x, y) ? 'cobble' : 'flag'
-          return onRoad(g, x, y) ? 'trail' : null
+          // §7au-ii: THE ROAD IS PAVED THROUGH THE TOWN, NOT SPECKLED ACROSS IT.
+          //
+          // This asked the town's plan first and the road second, and the two
+          // do not agree about where a street is: the plan draws the lanes and
+          // the King's road is a spline laid centuries earlier. Where the
+          // spline clipped a drawn lane you got a cobble; where it did not, you
+          // got a dirt trail. Millbrook came out as fifty tiles of flagstone
+          // with TWO cobbles in the middle of its high street, single cobbles
+          // speckled round the market, and a dirt track cutting diagonally
+          // across the square. That is not a carriageway and a footway, it is
+          // noise, and it is what "cobblestone and flagstone is mixed" means.
+          //
+          // The road goes first now. A road through a town is the high street
+          // and it is cobbled from end to end; the plan's lanes are the footway
+          // and they are flagged; between the backs of two houses it is grass,
+          // as it was. The distinction the rule was reaching for survives and
+          // is finally visible, because the cobble is continuous.
+          if (onRoad(g, x, y)) return 'cobble'
+          if (townPaved(rows, rx, ry, st.tag)) return 'flag'
+          return null
         }
         // and the paving reaches only as far as the town does
         if (!townPaved(rows, rx, ry, st.tag)) return onRoad(g, x, y) ? 'trail' : null
@@ -2640,7 +2806,7 @@ E.registerTerrain(GENERATOR_ID, {
   // §7k: and the ground, so the engine can tell a market square from a verge.
   // stallGroundOk asks this; without it the square is just more flagstone.
   ground: (g, x, y) => groundKindAt(g, x, y),
-  // §7a: THE WILD CROSSINGS, AS DATA. Where a citizen may found a span. These
+  // §14d: THE WILD CROSSINGS, AS DATA. Where a citizen may found a span. These
   // are coordinates, not terrain -- they change no tile's walkability and so do
   // not enter the geography hash. The engine reads them to permit a `found`,
   // and to name the monument a finished span bears. A generator with no wild
@@ -2651,8 +2817,8 @@ E.registerTerrain(GENERATOR_ID, {
   // This field is not new and it is not decoration: it is what routed every
   // road in the world. `elevAt` charges six for every unit a step climbs, which
   // is why the roads follow valley floors, contour along hillsides and arrive
-  // at passes rather than summits. The hills are already TRUE — they are the
-  // reason the roads wander — and every window has been drawing flat ground
+  // at passes rather than summits. The hills are already TRUE: they are the
+  // reason the roads wander, and every window has been drawing flat ground
   // underneath a winding road and disagreeing with the world about why it winds.
   //
   // Served on a four-tile lattice, because the field's finest octave is eight
@@ -2711,34 +2877,56 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
     norwick: { x0: nw.x - 12, x1: nw.x + 12, y0: nw.y - 9, y1: nw.y + 9 },
   }
   g.watch = { level: 60, kindleLogs: 10, perLog: 420, cap: 12600, xpPerLog: 200, burnXp: 1, maxOwned: 4, decayTicks: 432000 }
-  // §7a: THE WILD SPAN. Ten thousand planks to open one crossing, and no more
+  // §14d: THE WILD SPAN. Ten thousand planks to open one crossing, and no more
   // than five may be banked in any one interval -- so even an unopposed span is
   // an afternoon's hauling, and an opposed one is the campaign the design wants.
   // The pool only rises (there is no verb that lowers it); saboteurs suppress
   // the RATE by killing carriers before they bank, never the total. A plank
   // banked is a plank kept, for as long as the world lasts.
   g.span = { pool: 10000, perLay: 5, xpPerPlank: 6 }
-  // §7dv: THE TIDE. Three windows, computed from the interval count, the same
-  // for everyone. The periods are prime and pairwise coprime, and each is
-  // chosen so that `86400 mod P` leaves a small remainder: the windows walk
-  // the wall clock by 2.3, 5.9 and 20 minutes a day, completing a full circuit
-  // in 31, 49 and 36 days. That range is the whole reason these three numbers
-  // and not others. 43201 is prettier and drifts two seconds a day -- a
-  // fifty-nine year cycle, so whoever draws four in the morning keeps it for
-  // life, which is the unfairness of a raid schedule arriving without anybody
-  // choosing it. Faster drift and the world is merely chaotic.
+  // §7dv: THE TIDE. One window, computed from the interval count, the same for
+  // everyone, and it is the whole of the feature.
   //
-  // The far channel stands open 16.7% of all intervals. The longest stretch
-  // with every tide shut is sixty-six minutes. An hour at the world catches a
-  // window 94% of the time, and half an hour catches one 61% of the time --
-  // which is the point: sitting down is not the same as being heard, and some
-  // evenings the answer is no.
+  // THERE WERE THREE AND TWO OF THEM DID NOTHING. A six-minute window twenty
+  // times a day, a fifteen-minute one five times, and this one. They were
+  // chosen when the tide GATED SPEECH at range, and the case for three was a
+  // coverage argument: the far channel stood open 16.7% of all intervals, an
+  // hour at the world caught a window 94% of the time, and the longest stretch
+  // with everything shut was sixty-six minutes. Every one of those numbers was
+  // about whether a citizen could be HEARD.
   //
-  // The three have different characters and that is deliberate. Six minutes,
-  // twenty times a day, is the quick check -- is anybody about. Fifteen
-  // minutes, five times a day, is a conversation. Thirty minutes, twice a day,
-  // is the one worth arranging to meet inside.
-  g.tide = { periods: [4327, 17351, 43801], opens: [360, 900, 1800] }
+  // §7dx repealed that gate, because a world that already allows ninety
+  // minutes a day was making two scarcities out of one and the second only
+  // stopped people talking. The coverage argument went with it and nobody
+  // noticed, so the two short tides stayed: computed every interval, validated
+  // by the constitution, printed in the handbook as "tide 1" and "tide 2", and
+  // read by nothing. The announcement has only ever looked at the longest.
+  //
+  // WITH NO GATE, COVERAGE IS THE WRONG QUESTION. You do not need to be inside
+  // a tide. You need to be able to say "at the deep tide" to a stranger and
+  // have them know when that is, and three of them makes that sentence
+  // ambiguous rather than more available. One unmistakable time is the feature;
+  // the rest was answering a question that is no longer asked.
+  //
+  // WHY THESE TWO NUMBERS AND NOT PRETTIER ONES. The tide turns every 43801
+  // seconds, so two turns take 87602 -- twelve hundred and two seconds, twenty
+  // minutes, longer than a day. The window therefore slips twenty minutes
+  // later every day and goes right round the twelve-hour cycle in thirty-six.
+  // 43200 would be exactly twice a day for ever, so whoever drew four in the
+  // morning would keep four in the morning for life, which is the unfairness
+  // of a raid schedule arriving without anybody choosing it.
+  //
+  // (The old note here said `86400 mod P` was the drift. It is not: for this
+  // period that leaves 42599 seconds and means nothing. The rule of thumb was
+  // written for the two short tides, which turn many times a day, and it was
+  // carried onto the long one where it does not hold.)
+  //
+  // Thirty minutes open is long enough to arrive late and still find people.
+  //
+  // THE SCHEMA STILL ALLOWS EIGHT. A later founding may want more, and the
+  // burden is on that founding to say what they are for; this world ships one
+  // because one is what it uses.
+  g.tide = { periods: [43801], opens: [1800] }
   // §7dv: THE STINT. `cap` is two hours: longer than any single tide, so a
   // promise spans several and a citizen who swore one is reachable across
   // them, and short enough that being heard all day means saying so again --
@@ -2862,14 +3050,14 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
 const SIGN_TEXT = {
   anchor: 'Anchor, on Tallyholm',
   greenhollow: 'Greenhollow. We fell timber and post no guard. '
-    + 'The wood was here first and keeps its own hours \u2014 go armed or go home.',
+    + 'The wood was here first and keeps its own hours: go armed or go home.',
   norwick: 'Norwick, the garrison. West of here the road ends and the law with it.',
   hollybarrow: 'Hollybarrow. Plots, a well, and nothing worth stealing.',
   cragfoot: 'Cragfoot. The seam and a hard country. Mine here; the anvil is at Thornbury.',
   eastmere: 'Eastmere, on the water. Listen along the strand before you walk it.',
   fenmarch: 'Fenmarch. The ground is not where it looks.',
   oxenford: 'Oxenford, on the ford. The road west runs from here; keep the peace yourself.',
-  millbrook: 'Millbrook, the market. The arms, the armour, the bows and the axe \u2014 near everything keeps here. For a rod ask the port; for seed, the farm.',
+  millbrook: 'Millbrook, the market. The arms, the armour, the bows and the axe: near everything keeps here. For a rod ask the port; for seed, the farm.',
   thornbury: 'Thornbury, the forge. The one anvil on Tallyholm; bring ore and bring patience.',
   // A village's sign says what the village is FOR, because four cottages and a
   // well do not tell you, and a town's does not have to.
@@ -3553,11 +3741,33 @@ export function buildWorld(genesis) {
   }
   { // Shrine Isle
     const isle = islesOf(g)[0]
+    // §6bp-ii: A SEAT THAT CANNOT FIND GROUND HAS TO SAY SO.
+    //
+    // This tried eleven tiles in a sparse star and then returned, silently, and
+    // `tally-isle` -- the other half of the First Tally, the monument that
+    // carries the founder's own key -- has not been on the island since. The
+    // half at Anchor seats fine, so the world has had ONE half of a thing whose
+    // whole meaning is that there are two, and nothing reported it: a landmark
+    // that is simply absent looks exactly like a landmark nobody has walked to.
+    //
+    // Two changes, and the second matters more. The ring widens to six, which
+    // is well inside the isle's own radius and inside the core `onIsle` keeps
+    // solid. And a seat that still finds nothing WARNS, in the same voice the
+    // rest of this founding warns in -- a prop with no ground, a resident with
+    // nowhere to stand -- so the next one is noticed in the log instead of a
+    // year later by somebody counting monuments.
     const seat = (id, type, dx, dy, extra) => {
-      for (let rad = 0; rad <= 3; rad++) for (const [ox, oy] of [[0,0],[1,0],[0,1],[-1,0],[0,-1],[rad,rad],[-rad,-rad]]) {
-        const x = isle.x + dx + ox, y = isle.y + dy + oy
-        if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && onIsle(g, x, y)) { put(id, type, x, y, extra); return }
+      for (let rad = 0; rad <= 6; rad++) {
+        for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1],
+          [rad, rad], [-rad, -rad], [rad, -rad], [-rad, rad],
+          [rad, 0], [-rad, 0], [0, rad], [0, -rad]]) {
+          const x = isle.x + dx + ox, y = isle.y + dy + oy
+          if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && onIsle(g, x, y)) {
+            put(id, type, x, y, extra); return
+          }
+        }
       }
+      console.warn('WORLDGEN: ' + id + ' found no ground on Shrine Isle')
     }
     seat('tally-isle', 'landmark', -2, -2, { kind: 'tally-half', founderKey: g.founderKey })
     seat('shrine-hearth', 'campfire', 3, 0)
@@ -3626,7 +3836,7 @@ export function buildWorld(genesis) {
     // and a sign at the near end, because a road that stops needs to say why
     for (const dx of [-6, 6]) {
       const x = bestX + dx
-      if (free(x, southPass)) { put('rockfall-sign' + dx, 'signpost', x, southPass, { text: 'the South Pass \u2014 shut' }); break }
+      if (free(x, southPass)) { put('rockfall-sign' + dx, 'signpost', x, southPass, { text: 'the South Pass, shut' }); break }
     }
     // §7b: and something lives in it. Two scree-imps, which hit for one and
     // cannot follow you out of the throat: the pass should have a NOISE in it,
@@ -3917,7 +4127,7 @@ export function buildWorld(genesis) {
       put('inn-brewpot', 'brewpot', ix, iy, {})
       for (const [dx, dy] of [[1, 2], [2, 2], [-2, 1], [4, 1]]) {
         const x = inn[0] + dx, y = inn[1] + dy
-        if (free(x, y)) { put('inn-sign', 'signpost', x, y, { text: 'the Lantern \u2014 the pot is the house\u2019s' }); break }
+        if (free(x, y)) { put('inn-sign', 'signpost', x, y, { text: 'the Lantern, the pot is the house\u2019s' }); break }
       }
     } else console.warn('WORLDGEN: no inn to put the public pot in')
 
@@ -3942,7 +4152,7 @@ export function buildWorld(genesis) {
               { kind: 'collier', name: 'Hal the Collier' }); break }
           for (const [ax, ay] of [[x, y - 2], [x + 2, y], [x - 2, y]])
             if (free(ax, ay)) { put('clamp-sign', 'signpost', ax, ay,
-              { text: 'the charcoal clamp \u2014 feed it ironbark' }); break }
+              { text: 'the charcoal clamp, feed it ironbark' }); break }
           seated = true; break
         }
       if (!seated) console.warn('WORLDGEN: no ground for the charcoal clamp')
@@ -4125,10 +4335,10 @@ export function buildWorld(genesis) {
         if (quay && land) {
           put('ferry-wilds', 'ferry', quay[0], quay[1], {})
           put('wilds-quay-sign', 'signpost', quay[0], quay[1] + 1,
-            { text: 'The boat out \u2014 nobody here is bound to keep faith with you' })
+            { text: 'The boat out, nobody here is bound to keep faith with you' })
           put('ferry-dragon', 'ferry', land[0], land[1], {})
           put('dragon-quay-sign', 'signpost', land[0], land[1] + 1,
-            { text: 'The boat home \u2014 if you are still standing' })
+            { text: 'The boat home, if you are still standing' })
 
 
         }
@@ -4157,7 +4367,7 @@ export function buildWorld(genesis) {
         if (put2) {
           put('ferry-whiting', 'ferry', put2[0], put2[1], {})
           put('whiting-sign', 'signpost', put2[0], put2[1] + 1,
-            { text: 'Whiting Isle \u2014 the boat home' })
+            { text: 'Whiting Isle, the boat home' })
           // (the deep water itself is in the seam table, at the isle's own
           // coordinates -- see worldgen-seams-v7)
           for (const [dx, dy, k] of [[2, -3, 'withy-stack'], [3, 2, 'eel-rack'], [-2, 3, 'log-pile']])
@@ -4222,7 +4432,7 @@ export function buildWorld(genesis) {
         if (lq) {
           put('ferry-lists', 'ferry', lq[0], lq[1], {})
           put('lists-sign', 'signpost', lq[0], lq[1] + 1,
-            { text: 'The Lists \u2014 no plate, no book, no grace. The boat home.' })
+            { text: 'The Lists, no plate, no book, no grace. The boat home.' })
           // a ring of standing stones: the ground says what it is
           for (let a = 0; a < 8; a++) {
             const x = Math.round(li.x + Math.cos(a * 0.785) * 5)
@@ -4247,7 +4457,7 @@ export function buildWorld(genesis) {
         if (fq) {
           put('ferry-fenmarch', 'ferry', fq[0], fq[1], {})
           put('lists-quay-sign', 'signpost', fq[0], fq[1] + 1,
-            { text: 'the boat to the Lists \u2014 it will not take you in armour' })
+            { text: 'the boat to the Lists, it will not take you in armour' })
         }
       }
     }
@@ -4517,7 +4727,7 @@ export function buildWorld(genesis) {
                 put('sawpit-' + k + '-' + ax, 'landmark', ax, ay, { kind: k })
             for (const [ax, ay] of [[x, y - 2], [x + 2, y], [x - 2, y]])
               if (free(ax, ay)) { put('sawpit-sign', 'signpost', ax, ay,
-                { text: 'the sawpit \u2014 logs to planks' }); break }
+                { text: 'the sawpit, logs to planks' }); break }
             set3 = true; break
           }
         if (!set3) console.warn('WORLDGEN: no ground at the Sawyer\u2019s Camp for the sawpit')
@@ -4598,7 +4808,7 @@ export function buildWorld(genesis) {
               put('furn-' + k, 'landmark', ax, ay, { kind: k })
           for (const [ax, ay] of [[x, y + 4], [x + 4, y + 3], [x - 4, y + 3]])
             if (free(ax, ay) && !blockedAt(g, ax, ay)) { put('furnace-sign', 'signpost', ax, ay,
-              { text: 'the bloomery \u2014 ore and coal to iron' }); break }
+              { text: 'the bloomery, ore and coal to iron' }); break }
           for (const [ax, ay] of [[x + 2, y + 1], [x - 2, y + 1], [x + 2, y - 1]])
             if (free(ax, ay) && !blockedAt(g, ax, ay)) { put('furnace-keeper', 'keeper', ax, ay,
               { kind: 'collier', name: 'Ulf at the Bloomery' }); break }
@@ -4617,7 +4827,7 @@ export function buildWorld(genesis) {
               put('cragfoot-stamp', 'stamp', ax, ay, {})
               for (const [sx, sy] of [[ax, ay + 2], [ax + 2, ay], [ax - 2, ay]])
                 if (free(sx, sy) && !blockedAt(g, sx, sy)) { put('stamp-sign', 'signpost', sx, sy,
-                  { text: 'the stamp \u2014 quick-stone to grit' }); break }
+                  { text: 'the stamp, quick-stone to grit' }); break }
               break
             }
           set2 = true; break
@@ -4697,7 +4907,7 @@ export function buildWorld(genesis) {
       // room nobody enters
       for (const [dx, dy] of [[0, 6], [0, 7], [-4, 0], [4, 0], [0, -6], [0, -7], [-4, 4], [4, 4]]) {
         const x = gx + dx, y = gy + dy
-        if (free(x, y)) { put('glass-sign', 'signpost', x, y, { text: 'the glass \u2014 look at yourself' }); break }
+        if (free(x, y)) { put('glass-sign', 'signpost', x, y, { text: 'the glass, look at yourself' }); break }
       }
     } else console.warn('WORLDGEN: no room for the looking glass at ' + gx + ',' + gy)
   }
@@ -4738,7 +4948,7 @@ export function buildWorld(genesis) {
           if (q.x === gx && q.y === y) delete w.nodes[id]
         bar.push([gx, y])
       }
-      for (const [x, y] of bar) put('toll-millbrook-' + y, 'tollgate', x, y, { text: 'the Millbrook Bridge \u2014 one log' })
+      for (const [x, y] of bar) put('toll-millbrook-' + y, 'tollgate', x, y, { text: 'the Millbrook Bridge, one log' })
       // the keeper, on the first dry ground east of the bar
       let seated = false
       for (let dx = 1; dx <= 8 && !seated; dx++) for (const dy of [0, -1, 1]) {
@@ -4750,7 +4960,7 @@ export function buildWorld(genesis) {
       for (const dx of [-4, 4]) {
         const x = gx + dx, y = gy
         if (inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y) && !blockedAt(g, x, y)) {
-          put('toll-sign' + dx, 'signpost', x, y, { text: 'the bridge is kept \u2014 a log to cross' })
+          put('toll-sign' + dx, 'signpost', x, y, { text: 'the bridge is kept, a log to cross' })
         }
       }
       if (!bar.length) console.warn('WORLDGEN: the Millbrook Bridge took no toll gate')
@@ -8294,6 +8504,53 @@ export function buildWorld(genesis) {
       if (!cut) { console.warn('WORLDGEN: ' + stranded.length + ' ploughed tiles are shut in and no hedge will open them'); break }
     }
     if (opened) console.warn('WORLDGEN: opened ' + opened + ' way(s) into sealed fields')
+  }
+
+  // ---- §6bp-ii: THE FIRST TALLY HAS TWO HALVES, AND ONE HAD GONE ----
+  //
+  // A tally stick is split and both halves are kept, which is the whole of what
+  // the monument means: one at Anchor, one across the water on Shrine Isle,
+  // and the founder's own key cut into the isle's half. The island has been
+  // carrying ONE half since v7 was written.
+  //
+  // It was seated and then swept. Probed: `tally-isle` goes in where it should
+  // and is gone by the time the founding returns, and a landmark is CLEARABLE
+  // by more than one later pass -- the plough clears scrub, a holding sweeps
+  // its yard, a place corrects what it finds. Every one of those is right about
+  // what it is for and none of them knows a tally from a tree stump. Chasing
+  // the single line that took it would fix this founding and not the next
+  // sweep somebody adds.
+  //
+  // So it is seated HERE, last, after every pass that clears ground, which is
+  // the discipline this file already states: "the later pass corrects what it
+  // finds." And it is CHECKED, because a unique monument quietly absent looks
+  // exactly like a unique monument nobody has walked to.
+  {
+    const halves = Object.entries(w.nodes).filter(([, n]) => n.kind === 'tally-half')
+    const onIsleHalf = halves.some(([id]) => id === 'tally-isle')
+    if (!onIsleHalf) {
+      const isle = islesOf(g)[0]
+      let laid = false
+      for (let rad = 0; rad <= 8 && !laid; rad++) {
+        for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [-1, 0], [0, -1],
+          [rad, rad], [-rad, -rad], [rad, -rad], [-rad, rad],
+          [rad, 0], [-rad, 0], [0, rad], [0, -rad]]) {
+          const x = isle.x - 2 + ox, y = isle.y - 2 + oy
+          if (!inB(x, y) || isWater(g, x, y) || !onIsle(g, x, y)) continue
+          if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+          put('tally-isle', 'landmark', x, y,
+            { kind: 'tally-half', founderKey: g.founderKey })
+          laid = true
+          break
+        }
+      }
+      if (!laid) console.warn('WORLDGEN: the First Tally has only one half -- '
+        + 'no ground on Shrine Isle would take the other')
+    }
+    const now = Object.values(w.nodes).filter((n) => n.kind === 'tally-half').length
+    if (now !== 2) {
+      console.warn('WORLDGEN: ' + now + ' half(s) of the First Tally, and there are two')
+    }
   }
 
   return w

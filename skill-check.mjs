@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// skill-check.mjs — invariants that must hold after any change to SKILLS.
+// skill-check.mjs: invariants that must hold after any change to SKILLS.
 //
 // Merging a skill touches four surfaces that do not fail loudly on their own:
 // the SKILLS list, the tables that name skills (NODE_GATE, SMITH_REQS,
 // CALLINGS), the code that reads or writes `p.skills.X`, and the states that
 // worldgen and addPlayer produce. A miss in any one of them produces a world
-// that mostly works — a gate nobody can pass, a skill that silently never
+// that mostly works: a gate nobody can pass, a skill that silently never
 // gains, a state that validates today and not after the next spawn.
 //
 // This checks all four against each other, and then runs a live world to see
@@ -61,27 +61,29 @@ check('every skill has a calling', E.SKILLS.filter(s => !E.CALLINGS[s]).map(s =>
 
 // 4. no dangling `skills.X` for a name no longer in SKILLS
 {
+  // A COMMENT MAY NAME A SKILL THIS WORLD NO LONGER HAS, and §0-i says so: the
+  // record of what was repealed is worth keeping, and the note above the
+  // waking clamp exists precisely to say that it "read `p.skills.hitpoints`, a
+  // skill §5j deleted". Scanning the raw source reported that sentence as a
+  // live read for as long as this check has existed, which is one reason
+  // nobody ran it twice. Only code is held to the rule.
+  const code = src.split('\n').filter((l) => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
   const bad = []
-  for (const m of src.matchAll(/skills\.([a-z]+)\b/g))
+  for (const m of code.matchAll(/skills\??\.([a-z]+)\b/g))
     if (!SKILLS.has(m[1]) && !['every','some','map','filter','forEach'].includes(m[1]))
       bad.push(`engine.js reads skills.${m[1]}, which is not a skill`)
   check('no reference to a skill that no longer exists', [...new Set(bad)])
 }
 
-// 4b. constants that encode a LEVEL must still encode that level
-// HP_START_XP was written as 1154 because that was hitpoints level 10 under
-// the curve of the day. Replacing the curve turned it into level 12 silently:
-// no test failed, nothing threw, every citizen born afterwards simply had two
-// hitpoints nobody granted them. Any constant that means "level N" has to be
-// checked against the table, not trusted to stay true.
-{
-  const bad = []
-  const m = src.match(/const HP_START_XP = (\d+);/)
-  if (!m) bad.push('HP_START_XP not found — has it been renamed?')
-  else if (Number(m[1]) !== E.XP_TABLE[10])
-    bad.push(`HP_START_XP is ${m[1]}, which is level ${E.levelForXp(Number(m[1]))}, not level 10 (${E.XP_TABLE[10]})`)
-  check('constants that encode a level still encode it', bad)
-}
+// 4b. (was: constants that encode a LEVEL must still encode that level)
+//
+// HP_START_XP was the only one, and it is gone. It held the experience a
+// citizen woke with in the hitpoints skill; §5j deleted the skill and made the
+// frame flat, and no line in the engine had asked for the value since. What
+// this check reported, to nobody, was that the dead constant was ALSO wrong:
+// 677 against an XP_TABLE[10] of 676, off by one from a curve change nothing
+// had noticed. A value nobody reads, guarded by a check nobody runs, drifting
+// against a table. All three are gone; HISTORY.md keeps the scar.
 
 // 4c. the labour cap is the swearing threshold, and must stay so
 // §5r-iii lets a spade build prowess only as far as a calling may be sworn.
@@ -91,7 +93,7 @@ check('every skill has a calling', E.SKILLS.filter(s => !E.CALLINGS[s]).map(s =>
 {
   const bad = []
   const m = src.match(/const LABOUR_PROWESS_CAP = (\d+);/)
-  if (!m) bad.push('LABOUR_PROWESS_CAP not found — renamed?')
+  if (!m) bad.push('LABOUR_PROWESS_CAP not found: renamed?')
   else if (Number(m[1]) !== E.SWEAR_LEVEL)
     bad.push(`LABOUR_PROWESS_CAP is ${m[1]} but SWEAR_LEVEL is ${E.SWEAR_LEVEL}`)
   check('labour reaches exactly the swearing threshold', bad)
@@ -140,7 +142,7 @@ check('every skill has a calling', E.SKILLS.filter(s => !E.CALLINGS[s]).map(s =>
     // no direct write AND no table entry that would route xp to them
     const inGate = src.includes(`skill: '${sk}'`)
     const inReqs = Object.values(E.SMITH_REQS).some(r => sk in r)
-    if (!writes && !inGate && !inReqs) bad.push(`${sk}: no direct xp write, no gate, no requirement — is it reachable?`)
+    if (!writes && !inGate && !inReqs) bad.push(`${sk}: no direct xp write, no gate, no requirement, is it reachable?`)
   }
   check('every skill is reachable by some path', bad)
 }
@@ -163,5 +165,5 @@ check('every skill has a calling', E.SKILLS.filter(s => !E.CALLINGS[s]).map(s =>
   check('a world runs twenty ticks and hashes identically', bad)
 }
 
-console.log(`\n${fails === 0 ? `PASS — ${E.SKILLS.length} skills, all consistent` : `FAIL — ${fails} problems`}`)
+console.log(`\n${fails === 0 ? `PASS, ${E.SKILLS.length} skills, all consistent` : `FAIL, ${fails} problems`}`)
 process.exit(fails === 0 ? 0 : 1)

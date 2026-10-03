@@ -1,4 +1,4 @@
-// unreal-bridge.mjs — the Unreal window's half that lives in JavaScript.
+// unreal-bridge.mjs: the Unreal window's half that lives in JavaScript.
 //
 // WHY THIS FILE EXISTS AT ALL, rather than a C++ reimplementation inside the
 // engine plugin: terrain-mirror.mjs opens by explaining that the geography
@@ -16,7 +16,7 @@
 //
 // Layering, in the terms sdk.mjs already uses: this is layer 2.5. The pillar
 // is layer 1, this process speaks its WS protocol as an adopted external key
-// exactly as window-photo.html does, and Unreal is layer 3 — pixels only.
+// exactly as window-photo.html does, and Unreal is layer 3: pixels only.
 //
 //   node unreal-bridge.mjs --pillar https://interval.place --port 7777
 //
@@ -35,6 +35,16 @@ import { generatorFor } from './worldgen-any.mjs'
 // other world should lose the ridge, not fall over. See `ridge` in the
 // terrain chunk below.
 let _onRidge = null
+// §7dn/§7dq: THE TWO THRESHOLDS, which are the only tiles on the island the
+// ground itself refuses a citizen. Taken from the generator, like everything
+// else here, so a redrawing of the barrow or the cave moves them.
+let _smotherDoor = null, _squeeze = null, _squeezeCarry = 3
+try {
+  const M = await import('./worldgen-expanse7.mjs')
+  _smotherDoor = M.smotherDoorOf ?? null
+  _squeeze = M.squeezeOf ?? null
+  if (typeof M.SQUEEZE_CARRY === 'number') _squeezeCarry = M.SQUEEZE_CARRY
+} catch { /* a founding on another generator has neither */ }
 try { ({ onRidge: _onRidge } = await import('./worldgen-expanse7.mjs')) } catch { _onRidge = null }
 import { applyTick, evictOutside, zonesAround } from './view.mjs'
 // THE SKY IS ARITHMETIC ON THE INTERVAL COUNT, and it already exists. It is
@@ -199,6 +209,23 @@ async function announceWorld () {
     callings: Object.fromEntries(Object.entries(E.SWORN ?? {})
       .map(([name, c]) => [name, c.skill])),
     swearLevel: E.SWEAR_LEVEL ?? 50,
+    // ---- AND WHAT EACH KEEPER IS, IN THE WORLD'S OWN WORDS ----
+    //
+    // A hundred and fifty-seven keepers stand on the island. Each has a name
+    // the world gave it -- Ivo, Delia, Joan -- and eighty-one also have a
+    // `kind`, which `CALLING_NAMES` turns into a trade: "the banker", "the axe
+    // man", "the fletcher". The window knew the name and not the trade, so a
+    // citizen walking through Anchor saw a street of people called things and
+    // no way of telling which one takes a deposit.
+    //
+    // NO KEEPER CARRIES WORDS. Signposts, landmarks and tollgates do, and
+    // reading them was the missing half of §7ds; a keeper does not, and should
+    // not -- a line of dialogue on a node is a conversation this world has no
+    // mechanism for and no need of. What a keeper HAS is a name and a trade,
+    // and both are facts the world already states. That is what the window can
+    // say, and it is enough: "Delia, the banker" tells a player everything the
+    // node is for.
+    keepers: E.CALLING_NAMES ?? {},
     // AND WHAT A NAME COSTS. §5a: names are scarce and permanent -- there is
     // one of each, for ever -- so the world asks for standing before it will
     // take one. A window that showed the line to everybody would be showing
@@ -728,7 +755,7 @@ function terrainAt (x, y) {
 // AND THE LIST GROWS BY ITSELF. The order above is only the one Unreal gets
 // to warm its material instances against; the day the generator returns a
 // terrain nobody here has heard of, it is appended and every connected
-// editor is told. The alternative — a hand-maintained enum on the C++ side —
+// editor is told. The alternative: a hand-maintained enum on the C++ side,
 // is how the settlement tables drifted twenty-seven tiles under v7.
 // Whether this tile is on the island's spine. The generator wants the world's
 // size and nothing else about it.
@@ -787,7 +814,7 @@ function terrainChunk (x0, y0, w, h, skirt = 0) {
   // the bridge holds the world knowledge and Unreal holds the pixels.
   const ridge = new Uint8Array(sw * sh)
   // THE SCATTER PLANE. Decoration has to agree between citizens too. Not
-  // because the constitution says so — a fern is not consensus — but because
+  // because the constitution says so: a fern is not consensus, but because
   // "meet me by the crooked oak" is a sentence people say, and a window that
   // rolled its own dice for placement makes it a lie. tileHash is the same
   // pure function the generator uses, so every Unreal window scatters the
@@ -835,7 +862,7 @@ function terrainChunk (x0, y0, w, h, skirt = 0) {
 }
 
 // ---------- the world we hold ----------
-// Snapshot then deltas, applied with view.mjs's own applyTick — the same
+// Snapshot then deltas, applied with view.mjs's own applyTick: the same
 // function the pillar's fan-out was written against, not a shim copied out
 // of a window. Removals before upserts, or a citizen crossing a zone
 // boundary vanishes while still standing there (view.mjs, §applyTick).
@@ -1439,7 +1466,7 @@ function underfoot () {
     out.push('survey')
   }
 
-  // §7a: THE FIRST PLANK OF A WILD SPAN.
+  // §14d: THE FIRST PLANK OF A WILD SPAN.
   //
   // `found` reads like the grandest verb in the world and is nothing of the
   // kind: it is laying the first plank of a bridge, and it names an x and a y
@@ -1463,9 +1490,41 @@ function underfoot () {
   return out
 }
 
+// ---- §9f: WHAT THE WORLD CRIES OUT ----
+//
+// `announce()` is how this world says a thing to everybody at once: a dragon
+// risen, the last lamprey dead, a stall fallen, every first and every mastery,
+// and -- since the tide was cut to one -- the deep tide turning, which is the
+// whole of what that feature is for.
+//
+// Seventy-four of them, and the Unreal window heard none. The browser windows
+// read `state.announce` straight off the world because they HAVE the world;
+// this one is given a curated frame and nothing in it carried the list. So the
+// deluxe client was the only window where the tide did nothing visible at all.
+//
+// WATERMARKED, OR A CITIZEN ARRIVES TO AN HOUR OF OLD NEWS. The world keeps
+// the last `ANNOUNCE_KEEP` cries in state, so the first state a bridge sees is
+// a backlog. The browser window solves this by setting the mark to the tick it
+// joined on and only speaking what happens after; this does the same, in the
+// one place it can be done once.
+let _criedTo = null
+function pushCries () {
+  if (!held || !Array.isArray(held.announce)) return
+  if (_criedTo === null) { _criedTo = held.tick; return }   // joined: history is not news
+  for (const a of held.announce) {
+    if (!a || typeof a.text !== 'string') continue
+    if (!(a.tick > _criedTo && a.tick <= held.tick)) continue
+    sendUE({ k: 'cry', text: a.text, tick: a.tick })
+  }
+  _criedTo = Math.max(_criedTo, held.tick)
+}
+
 function pushFrame () {
   if (!held || held.tick === lastTick) return
   lastTick = held.tick
+  // BEFORE THE FRAME, so a cry about a thing arrives with the interval the
+  // thing happened on rather than one behind it.
+  pushCries()
   const me = meNow()
   sendFrameUE({
     k: 'frame',
@@ -1486,6 +1545,83 @@ function pushFrame () {
     place: (() => {
       try { return me ? (TM.regionNameAt(me.x | 0, me.y | 0) ?? '') : '' }
       catch { return '' }
+    })(),
+    // ---- AND WHETHER THE CITIZEN IS CARRYING A LIGHT, AND WHAT IS UNDERFOOT ----
+    //
+    // §7dq: the Smother is a dark cave with eight quenchers in it, steel does
+    // nothing to them, and its mouth refuses anybody who is not carrying
+    // something burning. The whole place is written around the dark: its own
+    // note says the mouth needs no marker because "the dark either side of it
+    // is the marker". The window had no way to know any of it -- not that the
+    // ground was a cave, not whether the citizen held a light, not why a swing
+    // did nothing -- so it drew a patch of hillside in daylight.
+    //
+    // `lit` comes from the engine (§7dq-iii) rather than being worked out here,
+    // because the rule has four parts -- the weapon table's `burns`, the
+    // siphon's fuel, fire-arrows, and the torch's clock -- and a second copy of
+    // a four-part rule in a client is the drift this bridge exists to refuse.
+    // A torch BURNS DOWN, so this is a per-interval answer and not a flag.
+    lit: (() => {
+      try { return me ? !!E.carriesLight(held.players[boot.playerId], held.tick) : false }
+      catch { return false }
+    })(),
+    // The surface the citizen is standing on, by name. `cave` is the one the
+    // window darkens for; everything else it already draws.
+    //
+    // NOT `underfoot` AND NOT `ground`, BOTH OF WHICH ARE ALREADY KEYS HERE:
+    // `underfoot` is the verbs that may be done on this tile and `ground` is
+    // the chunk's ground map. Two keys of one name in an object literal and the
+    // later one simply wins -- the exact fault the note over INPUT_SCHEMAS
+    // records for `sapling`, where "farming stopped working with nothing to
+    // show for it". Written as `underfoot` first, this would have deleted the
+    // list that lets a citizen kindle a watchfire, raise a stall or survey a
+    // marker, and nothing would have said so. `surface` is what the generator
+    // calls it: "groundKindAt is a SURFACE, not a classification".
+    surface: (() => {
+      try { return me ? (terrainAt(me.x | 0, me.y | 0) ?? '') : '' }
+      catch { return '' }
+    })(),
+    // ---- §7dn/§7dq: AND WHAT THE GROUND AHEAD WILL ASK ----
+    //
+    // Two tiles on the island refuse a citizen, and the ground does the
+    // refusing: the squeeze into the Whitechalk barrow takes nobody carrying
+    // more than three slots, and the Smother's mouth takes nobody without a
+    // light. The engine simply does not move you, which in the window reads as
+    // an invisible wall -- you walk at it, nothing happens, and there is no
+    // error because nothing went wrong.
+    //
+    // SAID ON APPROACH RATHER THAN AFTER THE FACT. A refusal arriving once the
+    // step has failed explains a thing that already looks broken; a sentence
+    // when you are standing in front of it is the board outside the Smother
+    // doing its job one tile closer. §7ds: "a wall with no explanation is a
+    // puzzle box and not a place".
+    //
+    // Only within two tiles, because this is a frame field and the island has
+    // four hundred and fifty thousand tiles that ask nothing at all.
+    threshold: (() => {
+      try {
+        if (!me || !GEN) return null
+        const near = (t) => t && Math.max(Math.abs(t.x - me.x), Math.abs(t.y - me.y)) <= 2
+        let carried = 0
+        for (const sl of (held.players?.[boot.playerId]?.inventory ?? [])) if (sl) carried++
+        const lit = E.carriesLight
+          ? !!E.carriesLight(held.players[boot.playerId], held.tick) : false
+        const door = _smotherDoor ? _smotherDoor(GG) : null
+        if (near(door)) {
+          return { x: door.x, y: door.y, asks: 'light', may: lit,
+            says: lit ? 'The dark gives way to what you are carrying.'
+                      : 'It will not let you in without a light.' }
+        }
+        const sq = _squeeze ? _squeeze(GG) : null
+        if (near(sq)) {
+          const may = carried <= _squeezeCarry
+          return { x: sq.x, y: sq.y, asks: 'room', may, slots: _squeezeCarry, carried,
+            says: may ? 'You can get through this with what you are carrying.'
+                      : 'The gap is too tight for a full pack. '
+                        + _squeezeCarry + ' slots, no more.' }
+        }
+        return null
+      } catch { return null }
     })(),
     birth: birthOf(),
     // §6g: the bank counter within reach, and its contents. See `vaultHere`.
@@ -1846,7 +1982,7 @@ function connectPillar () {
 // THE ONLY PLACE A SIGNATURE IS MADE. Unreal sends a noun and a couple of
 // integers; this builds the canonical input through the engine's own
 // normalizer and signs it. Nothing here invents a field, renames one, or
-// supplies a default — normalizeInput does that, so equivalent requests from
+// supplies a default: normalizeInput does that, so equivalent requests from
 // this window and from /play produce byte-identical canonical bytes.
 // IS THIS DEED EVEN THE RIGHT SHAPE? Asked with the world's own function.
 //
@@ -2009,7 +2145,7 @@ HOST.door(PORT, (ws) => {
       // WHETHER THIS IS AN ANSWER OR A REFUSAL, said in the message.
       //
       // All four of these went out on the refusal channel, so a knock that
-      // WORKED was announced to the citizen as "refused: enter — knocking:
+      // WORKED was announced to the citizen as "refused: enter, knocking:
       // the wait starts now". Every word of that is true except the first,
       // and the first is the one a reader believes.
       const answer = (why, ok) => ws.send(JSON.stringify({

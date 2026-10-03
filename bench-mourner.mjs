@@ -98,7 +98,7 @@ function endow(s) {
   let i = 1
   for (const item of ENDOWMENT) { if (i < p.inventory.length) p.inventory[i++] = { item, qty: 1 } }
   p.gold = 200
-  say('[bench] endowed with ' + ENDOWMENT.length + ' kinds — a hand on the scales, and the only one')
+  say('[bench] endowed with ' + ENDOWMENT.length + ' kinds, a hand on the scales, and the only one')
 }
 
 console.log('interval bench: the mourner')
@@ -117,7 +117,7 @@ for (let t = 0; t < TICKS; t++) {
   if (p && p.calling && !sworn) {
     sworn = p.calling
     console.log('\n  >>> SWORN: ' + p.calling + ' at interval ' + node.state.tick
-      + ' — ' + E.levelForXp(p.skills.mourning) + ' mourning, and it can never be put down\n')
+      + ', ' + E.levelForXp(p.skills.mourning) + ' mourning, and it can never be put down\n')
   }
   if (t % 250 === 0) console.log('  ' + bot.report())
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// spec-tables.mjs — generate SPEC.md's mechanical tables FROM the engine.
+// spec-tables.mjs: generate SPEC.md's mechanical tables FROM the engine.
 //
 // §2n makes the engine the law and SPEC.md prose ABOUT the law. Prose about
 // the law that is maintained by hand beside the law will drift from it, and
@@ -31,13 +31,13 @@ const require = createRequire(import.meta.url)
 const E = require(path.resolve(here, 'engine.js'))
 const SPEC = path.resolve(here, 'SPEC.md')
 
-const mode = process.argv.includes('--write') ? 'write'
-           : process.argv.includes('--check') ? 'check' : 'print'
+const mode = process.argv.includes('--write') ? 'write':
+           process.argv.includes('--check') ? 'check' : 'print'
 
 const ing = (r) => Object.entries(r).map(([k, v]) => `${v} \`${k}\``).join(' + ')
 const reqs = (n) => {
   const r = E.SMITH_REQS[n]
-  return r ? Object.entries(r).map(([sk, lv]) => `${sk} ${lv}`).join(', ') : '—'
+  return r ? Object.entries(r).map(([sk, lv]) => `${sk} ${lv}`).join(', ') : ','
 }
 
 const blocks = {}
@@ -83,7 +83,7 @@ const blocks = {}
     ``,
     `| Slot | Items |`,
     `|---|---|`,
-    ...E.EQUIP_SLOTS.map(s => `| \`${s}\` | ${(bySlot[s] || []).map(i => `\`${i}\``).join(', ') || '—'} |`),
+    ...E.EQUIP_SLOTS.map(s => `| \`${s}\` | ${(bySlot[s] || []).map(i => `\`${i}\``).join(', ') || ','} |`),
   ].join('\n')
 }
 
@@ -113,8 +113,8 @@ const blocks = {}
     `| \`wantItem\` | item or null | |`,
     `| \`wantGold\` | int ≥ 0 | |`,
     ``,
-    `\`wantItem\` and \`wantGold\` are both written out always — \`wantItem: null\``,
-    `or \`wantGold: 0\` — because omission is not a representation. Exactly one`,
+    `\`wantItem\` and \`wantGold\` are both written out always, \`wantItem: null\``,
+    `or \`wantGold: 0\`, because omission is not a representation. Exactly one`,
     `of them is a live demand (item XOR positive gold).`,
     ``,
     `\`giveItems\` is not redundant with \`giveSlots\`. It is the record of what`,
@@ -122,7 +122,7 @@ const blocks = {}
     `against it at accept time. Without it, emptiness is guarded but`,
     `**substitution is not**: the buyer agrees to a \`quick-sword\` and receives`,
     `an \`iron-dagger\`. An offer whose goods no longer match what was`,
-    `advertised does not partially apply — it does not apply at all.`,
+    `advertised does not partially apply: it does not apply at all.`,
   ].join('\n')
 }
 
@@ -177,7 +177,7 @@ const blocks = {}
     if (v.acc !== undefined) bits.push(`acc ${v.acc}`)
     for (const flag of ['pierces','bare','desperate','breaks','burns','drawnAt'])
       if (v[flag] !== undefined && v[flag] !== false) bits.push(v[flag] === true ? flag : `${flag} ${v[flag]}`)
-    const r = req ? Object.entries(req).map(([sk, lv]) => `${sk} ${lv}`).join(', ') : '—'
+    const r = req ? Object.entries(req).map(([sk, lv]) => `${sk} ${lv}`).join(', ') : ','
     return `| \`${w}\` | ${bits.join(' · ')} | ${r} |`
   }).join('\n')
   blocks.weapons = [

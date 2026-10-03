@@ -1,4 +1,4 @@
-// spec-stubs.mjs — TURN INVISIBLE GAPS INTO VISIBLE DRAFTS.
+// spec-stubs.mjs: TURN INVISIBLE GAPS INTO VISIBLE DRAFTS.
 //
 // `spec-conformance.mjs` reports 136 sections that engine.js cites and SPEC.md
 // does not have. That check is right and its wording is the point: "a rule whose
@@ -13,7 +13,7 @@
 // law rather than an implementation note.
 //
 // So this does not write law. It drafts, from the engine's own words, and marks
-// every draft DERIVED — NOT YET RATIFIED. That leaves a human editing prose
+// every draft DERIVED, NOT YET RATIFIED. That leaves a human editing prose
 // instead of hunting for it, and it is the same move spec-tables.mjs already
 // makes for the tables: the generated thing is honest about being generated.
 //
@@ -27,7 +27,31 @@
 import { readFileSync, writeFileSync } from 'fs'
 
 const WRITE = process.argv.includes('--write')
-const engine = readFileSync(new URL('./engine.js', import.meta.url), 'utf8')
+
+// THE GENERATOR CITES THE CONSTITUTION TOO, and nothing had ever checked it.
+//
+// This read engine.js and only engine.js, so forty-one sections cited from the
+// worldgen files pointed nowhere and no report said so: §7bd from four files,
+// §7z from two, the whole §7a-to-§7b run that draws the shire. Geography is law
+// (§2q) and the generator is where that law is implemented, so a dangling
+// citation there is exactly as bad as one in the engine and was simply out of
+// sight.
+//
+// Ordered with engine.js first so that where two files cite the same section,
+// the engine's argument is the one drafted: the engine says what a rule IS and
+// a generator says where it was applied.
+const SOURCES = ['engine.js', 'worldgen-expanse7.mjs', 'worldgen-places-v7.mjs',
+  'worldgen-water-v7.mjs', 'worldgen-villages-v7.mjs', 'worldgen-camps-v7.mjs',
+  'worldgen-seams-v7.mjs', 'worldgen-shire-v6.mjs', 'worldgen-shire.mjs',
+  'terrain-mirror.mjs']
+const engine = SOURCES.map((f) => {
+  let text
+  try { text = readFileSync(new URL('./' + f, import.meta.url), 'utf8') }
+  catch { return '' }
+  // A BANNER PER FILE, so a drafted section says where its argument came from
+  // and `engine.js:1234` does not point into the wrong file.
+  return '// ---- SOURCE: ' + f + ' ----\n' + text
+}).join('\n')
 const specRaw = readFileSync(new URL('./SPEC.md', import.meta.url), 'utf8')
 
 // IT MUST BE IDEMPOTENT, AND THE FIRST VERSION WAS NOT.
@@ -49,12 +73,15 @@ const hasHeading = (sec) =>
   new RegExp('^#+\\s*' + sec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[.\\s]', 'm').test(spec)
 
 const lines = engine.split('\n')
-const first = new Map()                       // section -> line index of first citation
+const sites = new Map()                       // section -> every line that cites it
 for (let i = 0; i < lines.length; i++) {
-  for (const m of lines[i].matchAll(CITE)) if (!first.has(m[1])) first.set(m[1], i)
+  for (const m of lines[i].matchAll(CITE)) {
+    if (!sites.has(m[1])) sites.set(m[1], [])
+    sites.get(m[1]).push(i)
+  }
 }
 
-const missing = [...first.keys()].filter((s) => !hasHeading(s))
+const missing = [...sites.keys()].filter((s) => !hasHeading(s))
 
 // ---- pull the argument out of the engine -----------------------------------
 // The comment block a citation sits in is the draft. Walk out from the citation
@@ -75,15 +102,76 @@ function argumentAt(i) {
   return lines.slice(a, b + 1).map(strip)
 }
 
-/** the first shouty phrase in a block is its thesis; the engine writes that way */
-function titleOf(body) {
-  for (const l of body) {
-    const m = l.match(/([A-Z][A-Z ,'’-]{8,})/)
-    if (m) return m[1].trim().replace(/[,\s]+$/, '').toLowerCase()
-      .replace(/(^|\s)\S/g, (c) => c.toUpperCase())
+// THE FIRST CITATION IS USUALLY THE WORST ONE, which is why the drafts read the
+// way they did. A section is cited wherever the rule is touched, and the first
+// touch is nearly always a one-line note on a table entry or an export list:
+// §7dz is cited nine times and its first is `a willow trap a citizen set in a
+// run, filling or full`, next to a node name. The block that ARGUES the rule is
+// elsewhere -- for §7dz, four thousand lines later, opening `THE EEL BUCK`.
+// Drafting from the first citation produced forty sections titled `undrafted`
+// or a truncated half-sentence, and bodies to match.
+//
+// So every site is considered and the best one wins. The engine writes a rule
+// the same way every time: `§7dz: THE EEL BUCK.` -- the section sign, a colon,
+// then the thesis in capitals. That shape is the strongest signal there is that
+// this site DEFINES the rule rather than mentioning it, and it holds for 201 of
+// the 254 sections engine.js cites. Among the sites that have it, the longest
+// block wins, because length here is argument.
+const thesisRe = (sec) =>
+  new RegExp('§' + sec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    + ':\\s*([A-Z][A-Z0-9 ,\'\u2019-]{6,})')
+
+function bestSite(sec) {
+  const re = thesisRe(sec)
+  let best = null, bestScore = -1
+  for (const i of sites.get(sec)) {
+    const body = argumentAt(i)
+    // a definition site beats a mention; among equals, the longer argument wins
+    const score = (body.some((l) => re.test(l)) ? 1e6 : 0) + body.join(' ').length
+    if (score > bestScore) { bestScore = score; best = i }
   }
-  for (const l of body) if (l.trim() && !/^§/.test(l.trim())) return l.trim().slice(0, 70)
+  return best
+}
+
+/** `file.mjs:line`, walking back to the banner the joiner put in */
+function whence(i) {
+  let file = SOURCES[0], at = i
+  for (let k = i; k >= 0; k--) {
+    const m = lines[k].match(/^\/\/ ---- SOURCE: (\S+) ----$/)
+    if (m) { file = m[1]; at = i - k; break }
+  }
+  return file + ':' + at
+}
+
+/** the thesis the engine states after the section sign; the engine writes that way */
+function titleOf(sec, body) {
+  const re = thesisRe(sec)
+  for (const l of body) {
+    const m = l.match(re)
+    if (m) return cap(m[1])
+  }
+  // no thesis of its own: any shouty phrase in the block it was argued in
+  for (const l of body) {
+    const m = l.match(/([A-Z][A-Z ,\'\u2019-]{8,})/)
+    if (m) return cap(m[1])
+  }
+  // and failing that, a whole first sentence of prose -- never a code line, and
+  // never a truncation, because half a sentence as a heading reads as damage.
+  for (const l of body) {
+    const t = l.trim()
+    if (!t || /^§/.test(t) || /[=;{}()]|^\W/.test(t)) continue
+    const stop = t.search(/[.!?](\s|$)/)
+    return cap(stop > 0 ? t.slice(0, stop) : t)
+  }
   return 'undrafted'
+}
+
+function cap(s) {
+  // the engine often runs the thesis straight into the sentence after it --
+  // `§6cg: THE RECORDS -- one row a citizen` -- and a heading ending in a
+  // dangling dash reads as a truncation even when nothing was cut.
+  return s.trim().replace(/[\s,-]+$/, '').toLowerCase()
+    .replace(/(^|\s)\S/g, (c) => c.toUpperCase())
 }
 
 // ---- order them the way a constitution is ordered ---------------------------
@@ -103,16 +191,17 @@ out.push('     comment, not a decision that this is law. Edit, cut, or promote t
 out.push('     Re-run `node spec-stubs.mjs --write` to refresh the ones still untouched. -->')
 out.push('')
 for (const sec of missing) {
-  const body = argumentAt(first.get(sec))
+  const at = bestSite(sec)
+  const body = argumentAt(at)
   const parent = sec.match(/^(\d+[a-z]*)-/)
   // SPEC headings carry no section sign -- "## 6r. The chain", not "## §6r." --
   // and the first cut of this file wrote the sign. Conformance kept reporting
   // the sections missing after they had been spliced in, because the detector
   // and the writer disagreed about the format by one character.
-  out.push('## ' + sec + '. ' + titleOf(body))
+  out.push('## ' + sec + '. ' + titleOf(sec, body))
   out.push('')
-  out.push('> **DERIVED — NOT YET RATIFIED.** Drafted from `engine.js:'
-    + (first.get(sec) + 1) + '` by `spec-stubs.mjs`.'
+  out.push('> **DERIVED, NOT YET RATIFIED.** Drafted from `' + whence(at)
+    + '` by `spec-stubs.mjs`.'
     + (parent && hasHeading(parent[1]) ? ' Amends §' + parent[1] + '.' : ''))
   out.push('')
   for (const l of body) out.push(l.length ? l : '')
@@ -122,7 +211,7 @@ const text = out.join('\n')
 
 if (!WRITE) {
   writeFileSync(new URL('./SPEC-STUBS.md', import.meta.url), text)
-  console.log('wrote SPEC-STUBS.md — ' + missing.length + ' sections drafted, none ratified')
+  console.log('wrote SPEC-STUBS.md: ' + missing.length + ' sections drafted, none ratified')
   console.log('review, then `node spec-stubs.mjs --write` to splice into SPEC.md')
 } else {
   if (!specRaw.includes(B)) {

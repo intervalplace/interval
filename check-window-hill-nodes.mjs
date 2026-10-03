@@ -1,15 +1,15 @@
 // §6dj, for the mist window: DOES EVERY THING IN THE WORLD LOOK LIKE ITSELF.
 //
 // `makeNode` has a default: an unknown type becomes a grey stone with a cap on
-// it. That default is right — a window must draw SOMETHING for a thing the
-// world invented after it was written — but it is also where detail goes to
+// it. That default is right: a window must draw SOMETHING for a thing the
+// world invented after it was written, but it is also where detail goes to
 // die quietly. Twenty-one node types were falling through it, including every
 // ore seam in the world: an iron rock, a coal rock, a gold rock and a
 // mother-lode were the same grey stone, so walking to a particular seam had no
 // point, because you could not tell it from any other.
 //
 // This reads the node types out of a real world dump and checks each one gets a
-// body of its own — and that the bodies actually DIFFER, since a switch case
+// body of its own, and that the bodies actually DIFFER, since a switch case
 // that returns the same shape is no better than the default.
 //
 //   node check-window-nodes.mjs [/tmp/live-world.json]
@@ -102,7 +102,7 @@ for (const t of TYPES) {
   else if (sig) { (dupes.get(sig) || dupes.set(sig, []).get(sig)).push(t) }
 }
 ok(generic.length === 0, TYPES.length - generic.length + ' of ' + TYPES.length +
-   ' node types have a body of their own' + (generic.length ? ' \u2014 generic: ' + generic.join(' ') : ''))
+   ' node types have a body of their own' + (generic.length ? ', generic: ' + generic.join(' ') : ''))
 const collided = [...dupes.values()].filter(v => v.length > 1)
 console.log('  \u00b7     ' + shapes.size + ' types built; ' + collided.length + ' groups share a silhouette' +
             (collided.length ? ':\n        ' + collided.map(v => v.join('=')).join('\n        ') : ''))

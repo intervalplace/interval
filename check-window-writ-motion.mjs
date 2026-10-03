@@ -2,12 +2,12 @@
 //
 // `deed` is one word in the state, set on the interval an accepted input lands,
 // and it is set for EVERY citizen. A window that reads it only for its own soul
-// leaves everyone else working in perfect silence — standing at an anvil with
+// leaves everyone else working in perfect silence: standing at an anvil with
 // nothing happening, drawing a bow with no arrow crossing the ground.
 //
 // This drives real state diffs past the window and counts what got ADDED TO THE
-// SCENE: particles, rings, things in flight. Not what was sent — the verb check
-// does that — but what a person standing there would see.
+// SCENE: particles, rings, things in flight. Not what was sent: the verb check
+// does that, but what a person standing there would see.
 //
 // Needs three.js:  npm i three@0.128.0
 
@@ -88,7 +88,7 @@ for (const d of DEEDS) {
   send({ type: 'state', state: w2, worldId: 'w' }); frames(1)
 }
 ok(silent.length === 0, 'all ' + DEEDS.length + ' engine deeds throw something' +
-   (silent.length ? ' \u2014 silent: ' + silent.join(' ') : ''))
+   (silent.length ? ', silent: ' + silent.join(' ') : ''))
 
 // ---- a shot crosses the ground ----
 frames(30)

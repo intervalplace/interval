@@ -5,12 +5,12 @@ const XP99 = 13034431, POTS = 4, TICK_S = 0.6;
 const TEND_SECONDS = 60; // collect+restart 4 clustered pots at the brewhouse (~1 min)
 
 console.log("KEY DYNAMIC: a pot ferments ONCE, then sits ready until you collect+restart it.");
-console.log("So batches/day = (tends/day) x pots — as long as ferment < your tending gap.\n");
+console.log("So batches/day = (tends/day) x pots, as long as ferment < your tending gap.\n");
 
 console.log("=== batches/day by tending cadence (ferment must be < the gap) ===");
 for (const tends of [2, 3, 4, 6]) {
   const gapH = 24 / tends;
-  console.log(`  tend ${tends}x/day (every ${gapH}h): ${tends * POTS} batches/day  (needs ferment < ${gapH}h — our 30-60min qualifies)`);
+  console.log(`  tend ${tends}x/day (every ${gapH}h): ${tends * POTS} batches/day  (needs ferment < ${gapH}h, our 30-60min qualifies)`);
 }
 
 console.log("\n=== if we chase '70 ACTIVE hours' (tending time only) ===");

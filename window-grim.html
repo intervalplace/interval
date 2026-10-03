@@ -12,12 +12,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Interval — the grim window</title>
+<title>Interval: the grim window</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&display=swap" rel="stylesheet">
-<style>
-  :root {
+<style>:
+  root {
     /* the old names keep their jobs; only the world behind them darkens */
     --stone: #171013; --stone-dk: #100a0d; --stone-lt: #3a2a1c;
     --gold: #c79b3b; --gold-hi: #f0cf7a; --parch: #cbb794; --dim: #8a7358;
@@ -612,8 +612,8 @@ function itemSprite(item) {
   return ICON_CV[item] = c
 }
 const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
-  ? '<img src="' + itemSprite(item).toDataURL() + '" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle">'
-  : undefined, has: () => true })
+  ? '<img src="' + itemSprite(item).toDataURL() + '" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle">':
+  undefined, has: () => true })
 const EQUIPPABLE = new Set([
   // kept in step with the engine by check-equip.mjs.
   'bronze-sword', 'bronze-dagger', 'bronze-spear', 'bronze-mell',
@@ -624,7 +624,7 @@ const EQUIPPABLE = new Set([
   'old-chain', 'dragonbow',
   'star-flail',
 ])
-// >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) — character for
+// >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10), character for
 // character the same in every window and in engine.js. test/identity.test.mjs
 // extracts this block from each window and compares it against the engine, so
 // no window can quietly invent its own idea of what a citizen is again.
@@ -693,8 +693,8 @@ let lastFeed = { text: '', at: 0 }
 let uid = localStorage.getItem('interval-uid')
 if (!uid) {
   // crypto.randomUUID requires HTTPS/localhost; plain http needs a fallback
-  uid = (crypto.randomUUID ? crypto.randomUUID()
-        : Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
+  uid = (crypto.randomUUID ? crypto.randomUUID():
+        Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
   localStorage.setItem('interval-uid', uid)
 }
 const ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host)
@@ -734,48 +734,48 @@ async function ownIdentity() {
 }
 
 const BRIDGE_TO_INPUT = (a) =>
-    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
-  : a.do === 'spawn' ? { type: 'spawn' }
-  : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId }
-  : a.do === 'eat' ? { type: 'eat', slot: a.slot }
-  : a.do === 'drop' ? { type: 'drop', slot: a.slot }
+    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
+  a.do === 'spawn' ? { type: 'spawn' }:
+  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
+  a.do === 'attack' ? { type: 'attack', mobId: a.mobId }:
+  a.do === 'eat' ? { type: 'eat', slot: a.slot }:
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
-  : a.do === 'wield' ? { type: 'wield', slot: a.slot }
-  : a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }
-  : a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
-  : a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
-  : a.do === 'offer' ? { type: 'offer', to: a.to, slot: a.slot }
-  : a.do === 'accept' ? { type: 'accept', from: a.from, slot: a.slot }
-  : a.do === 'decline' ? { type: 'decline' }
-  : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item }
-  : a.do === 'light' ? { type: 'light', slot: a.slot }
-  : a.do === 'bury' ? { type: 'bury', slot: a.slot }
-  : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
-  : a.do === 'invoke' ? { type: 'invoke' }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }
-  : a.do === 'sell' ? { type: 'sell', slot: a.slot }
-  : a.do === 'plant' ? { type: 'plant', slot: a.slot }
-  : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
-  : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
-  : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }
-  : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
-  : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
-  : a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }
-  : a.do === 'kindle' ? { type: 'kindle' }
-  : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'cook' ? { type: 'cook', slot: a.slot }
-  : a.do === 'stop' ? { type: 'stop' }
-  : a.do === 'unequip' ? { type: 'unwield', gear: a.gear }
-  : null
+  // failure -- a window that cannot ask must not be able to answer.:
+  a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
+  a.do === 'wield' ? { type: 'wield', slot: a.slot }:
+  a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }:
+  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
+  a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens:
+  a.do === 'offer' ? { type: 'offer', to: a.to, slot: a.slot }:
+  a.do === 'accept' ? { type: 'accept', from: a.from, slot: a.slot }:
+  a.do === 'decline' ? { type: 'decline' }:
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }:
+  a.do === 'withdraw' ? { type: 'withdraw', item: a.item }:
+  a.do === 'light' ? { type: 'light', slot: a.slot }:
+  a.do === 'bury' ? { type: 'bury', slot: a.slot }:
+  a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
+  a.do === 'invoke' ? { type: 'invoke' }:
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId }:
+  a.do === 'sell' ? { type: 'sell', slot: a.slot }:
+  a.do === 'plant' ? { type: 'plant', slot: a.slot }:
+  a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }:
+  a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }:
+  a.do === 'survey' ? { type: 'survey' }:
+  a.do === 'read_chart' ? { type: 'read_chart', slot: a.slot }:
+  a.do === 'build_brewpot' ? { type: 'build_brewpot' }:
+  a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }:
+  a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }:
+  a.do === 'kindle' ? { type: 'kindle' }:
+  a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'cook' ? { type: 'cook', slot: a.slot }:
+  a.do === 'stop' ? { type: 'stop' }:
+  a.do === 'unequip' ? { type: 'unwield', gear: a.gear }:
+  null
 
 // signature domains + worldId (fix brief §2.3): the signed bytes are
 // domain-prefixed and the payload names the exact world. These strings
@@ -1020,7 +1020,7 @@ function stepToward(s, me, goal, reach, stampTick) {
 // your pack. Right when the anvil offered a tool or a bronze sword, wrong now
 // it offers eighteen. Six were reachable at all.
 //
-// The same menu as the flat window, in the grim frame — Cinzel, the gold
+// The same menu as the flat window, in the grim frame: Cinzel, the gold
 // rule, stone panels lit from the upper left. Not a port with the colours
 // changed: a panel that belongs to this program.
 const FORGE = {
@@ -1108,8 +1108,8 @@ function openForge(me) {
         + (ok ? '#e8d9b8' : '#5f5548') + '">' + k.replace(/-/g, ' ') + '</span>'
         + '<span style="float:right;color:#6b5842;font-size:11px">' + cost + '</span>'
       if (!ok) html += '<div style="clear:both;font-size:10px;margin-top:4px">'
-        + bl.map((b) => '<span style="color:' + (b.kind === 'skill' ? '#a31f18'
-          : b.kind === 'room' ? '#8c1f1f' : '#6b5842') + '">' + b.text + '</span>')
+        + bl.map((b) => '<span style="color:' + (b.kind === 'skill' ? '#a31f18':
+          b.kind === 'room' ? '#8c1f1f' : '#6b5842') + '">' + b.text + '</span>')
           .join('<span style="color:#3a2a1c"> \u00b7 </span>') + '</div>'
       html += '<div style="clear:both"></div></div>'
     }
@@ -1156,7 +1156,7 @@ const bubbles = {}    // pid -> { text, at } speech bubbles
 const mobFacing = {}  // mobId -> -1 left / 1 right
 // §6ad: the same material system the inventory uses, in world scope. The
 // MAT table inside the icon switch is local to it; this is the world's copy,
-// and the two must not drift — a cairn in the pack and a cairn on the ground
+// and the two must not drift: a cairn in the pack and a cairn on the ground
 // should be cut from the same stone.
 const GMAT = {
   stone:   { dk: '#1a1a1e', mid: '#3a3a40', hi: '#5a5a62', rim: '#8a8a94' },
@@ -1168,7 +1168,7 @@ const GMAT = {
   char:    { dk: '#0f0a0c', mid: '#241a1e', hi: '#3a2a2e', rim: '#4a3438' },
   glass:   { dk: '#12202a', mid: '#22384a', hi: '#3a5a72', rim: '#6a9ab8' },
 }
-// one light, upper-left — the same rule as the forge, so the world and the
+// one light, upper-left, the same rule as the forge, so the world and the
 // pack are lit by the same sun
 function forgedAt(pts, m) {
   poly(pts, m.mid, m.dk)
@@ -1351,13 +1351,13 @@ function updateGate(s, worldId) {
   const btn = document.getElementById('gatebtn')
   btn.disabled = !myId
   btn.textContent = me
-    ? 'Enter as ' + (me.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026')
-    : 'Enter the world'
+    ? 'Enter as ' + (me.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026'):
+    'Enter the world'
   document.getElementById('gatename').style.display = (me?.name) ? 'none' : 'block'
   const keyEl = document.getElementById('gatekey')
   if (keyEl) keyEl.textContent = ownKey
-    ? 'your key lives in this browser and never leaves it (' + ownKey.pub.slice(0, 8) + '\u2026)'
-    : myId ? 'identity held by the pillar for you (key ' + myId.slice(0, 8) + '\u2026)' : ''
+    ? 'your key lives in this browser and never leaves it (' + ownKey.pub.slice(0, 8) + '\u2026)':
+    myId ? 'identity held by the pillar for you (key ' + myId.slice(0, 8) + '\u2026)' : ''
   validateGateName(s)
 }
 
@@ -1372,7 +1372,7 @@ function onState(s, worldId) {
   for (const n of Object.values(s.nodes)) {
     if (n.type !== 'fishing-spot') continue
     // O(1) Set lookups, not an O(n) scan per neighbour. On the epic world (~800
-    // water tiles) the old scan was ~4M ops per state — enough to fall behind the
+    // water tiles) the old scan was ~4M ops per state: enough to fall behind the
     // pillar's tick, so every stamped input was stale and silently rejected.
     const has = (x, y) => s._waterTiles.has(x + ',' + y)
     s._waterAdj[n.x + ',' + n.y] = { n: has(n.x, n.y - 1), s: has(n.x, n.y + 1), e: has(n.x + 1, n.y), w: has(n.x - 1, n.y) }
@@ -1399,7 +1399,7 @@ function onState(s, worldId) {
     // §6af: A SPECIAL LOOKS LIKE ONE.
     //
     // It resolves off the rhythm and produces damage, so without a mark it is
-    // an ordinary hit — the same illegibility as the undrawn fire. Nothing new
+    // an ordinary hit, the same illegibility as the undrawn fire. Nothing new
     // is needed in the state: a citizen whose `lastSwing` jumped PAST this
     // tick has spent their arm on a special, because no ordinary swing ever
     // does that.
@@ -1439,7 +1439,7 @@ function onState(s, worldId) {
     buildGround()
   }
   prevState = curState; curState = s; curWorldId = worldId
-  // queue any milestone cries that happened since we last looked — but never
+  // queue any milestone cries that happened since we last looked, but never
   // replay history from before we joined (first state sets the watermark)
   if (_lastAnnounceTick === null) _lastAnnounceTick = s.tick
   for (const a of s.announce ?? []) if (a.tick > _lastAnnounceTick && a.tick <= s.tick) announceQueue.push(a.text)
@@ -1508,10 +1508,10 @@ function onState(s, worldId) {
     // from a position that is about to change sent the citizen in great
     // staircase circles, and slipped gathers in one tile off target.
     if (moveLock && ((me.x === moveLock.x && me.y === moveLock.y) || s.tick >= moveLock.until)) moveLock = null
-    const goal = (intent.kind === 'walk' ? intent
-      : intent.kind === 'pickup' ? s.ground[intent.id]
-      : intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]
-      : (s.nodes[intent.id] ?? s.mobs[intent.id]))
+    const goal = (intent.kind === 'walk' ? intent:
+      intent.kind === 'pickup' ? s.ground[intent.id]:
+      intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]:
+      (s.nodes[intent.id] ?? s.mobs[intent.id]))
     if (!goal) { intent = null }
     else if (moveLock) {
       // a step is in flight: keep walking without waiting for it to land.
@@ -1604,10 +1604,10 @@ function onState(s, worldId) {
     if (me.hp > old.hp && !died) { // name what actually left the pack
       const gone = (it) => old.inventory.filter(sl => sl?.item === it).length
                          > me.inventory.filter(sl => sl?.item === it).length
-      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth'
-                 : gone('ale') ? 'the ale' : null
-      feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.'
-                : 'You recover ' + (me.hp - old.hp) + '.')
+      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth':
+                 gone('ale') ? 'the ale' : null
+      feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.':
+                'You recover ' + (me.hp - old.hp) + '.')
       SFX.eat()
     }
     // announce what landed in the inventory this tick
@@ -2664,7 +2664,7 @@ function tileShade(x, y) {
 const ground = document.createElement('canvas')
 let groundReady = false
 // paint ONE ground tile into context g at its world position. We no longer
-// pre-render the entire world into a single offscreen canvas — at 320x200 that
+// pre-render the entire world into a single offscreen canvas: at 320x200 that
 // canvas is ~100 megapixels and silently fails on mobile Safari (the black
 // screen). Instead drawScene paints only the on-screen tiles each frame.
 function paintGroundTile(g, x, y) {
@@ -2766,7 +2766,7 @@ function paintGroundTile(g, x, y) {
 function buildGround() { groundReady = true } // mobile-safe: ground now paints per visible tile each frame
 // ...but painting every tile every frame is expensive in HD (all those grass
 // strokes). So we bake a viewport-sized patch into `ground` and only re-bake it
-// when the camera crosses a tile — blitting the rest of the time. Small canvas
+// when the camera crosses a tile: blitting the rest of the time. Small canvas
 // (never the whole world), cheap frames.
 let gCacheKey = ''
 function ensureGroundCache() {
@@ -2816,10 +2816,10 @@ function drawCitizen(X, Y, o) {
   // it staggers, weapon dropped low: attack and defence finally read apart.
   const striking = o.anim === 'fight' && !o.shooting && !hurt
   const strikeT = striking ? Math.max(0, Math.sin(renderT(now) * Math.PI)) : 0
-  const swing = hurt && o.anim === 'fight' ? -0.35
-    : striking
-    ? (o.exchange ? strikeT * 1.2 : 0.25 + Math.sin(now / 600) * 0.08)
-    : o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
+  const swing = hurt && o.anim === 'fight' ? -0.35:
+    striking
+    ? (o.exchange ? strikeT * 1.2 : 0.25 + Math.sin(now / 600) * 0.08):
+    o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
   const lunge = striking && o.exchange ? strikeT * 4 * o.face : 0
   X += lunge; Y += bob
   const F = o.face
@@ -2885,8 +2885,8 @@ function drawCitizen(X, Y, o) {
   if (o.cape) {
     const sway = Math.sin(o.now / 420 + X) * 1.6 + (o.anim === 'walk' ? Math.sin(o.now / 130) * 2.2 : 0)
     const capeC = o.cape.radiant
-      ? 'hsl(' + Math.round((o.now / 30) % 360) + ',70%,45%)'
-      : o.cape.color
+      ? 'hsl(' + Math.round((o.now / 30) % 360) + ',70%,45%)':
+      o.cape.color
     const CF = o.face ?? 1
     poly([[X + 20 - CF * 6, Y + 15], [X + 20 - CF * 9, Y + 16],
           [X + 20 - CF * (10 + Math.abs(sway)), Y + 30 + sway * 0.4],
@@ -2951,7 +2951,7 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
       cx.fillStyle = '#c9862a'; cx.fillRect(F > 0 ? 0.5 : -4.5, -1, 4, 3.4)
     } else if (o.wepItem === 'star-dagger') {
-      // a short starmetal blade — cyan, gleaming, half a sword
+      // a short starmetal blade, cyan, gleaming, half a sword
       cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.7, 0, 1.4, 6)
       cx.fillStyle = '#dffaff'; cx.fillRect(-0.35, 0, 0.7, 6)
       cx.fillStyle = '#3a5a6a'; cx.fillRect(-2, -1, 4, 1.4)
@@ -3344,7 +3344,7 @@ function drawScene(now) {
         for (let r2 = 0; r2 < 4; r2++) cx.fillRect(X + 5, Y + 9 + r2 * 7, 30, 2.2)
         // §6o: A ROW IS THE CITIZEN'S OWN.
         //
-        // This read `n.plantedAt` — the plot's. A crop now belongs to whoever
+        // This read `n.plantedAt`, the plot's. A crop now belongs to whoever
         // sowed it, so the ground carries nothing and every citizen sees only
         // what THEY put in it. Somebody else's wheat is not your wheat, and
         // the same tilled square is empty to you and ripe to them.
@@ -3412,16 +3412,16 @@ function drawScene(now) {
           tone(180, 0.22, { type: 'sawtooth', vol: 0.04 })
         } })
         opts.push({ label: lit ? 'leave it burning (' + mins + ' min of wood)' : 'it has gone cold', act: () => {
-          feed(lit ? 'The watchfire burns. Its light is nobody\u2019s and everybody\u2019s.'
-                   : 'Cold ash. It wants wood.')
+          feed(lit ? 'The watchfire burns. Its light is nobody\u2019s and everybody\u2019s.':
+                   'Cold ash. It wants wood.')
         } })
         chooseAction(opts); return
       }
       // ---- §6ad: THE LANDMARKS, IN THIS LIGHT ----
       //
       // Grim drew NONE of them. Nine hundred and sixty-six things on the
-      // island — every skep, cairn, mill, barricade, gibbet, the dragon's
-      // burn, the spider's web — rendered as nothing at all, so this window
+      // island: every skep, cairn, mill, barricade, gibbet, the dragon's
+      // burn, the spider's web, rendered as nothing at all, so this window
       // showed an emptier world than the one it was connected to.
       //
       // Drawn here through the same material system as the inventory: one
@@ -3721,7 +3721,7 @@ function drawScene(now) {
           cx.beginPath(); cx.arc(X + 20, Y + 18, 15 - sw * 4, -0.9, 0.9); cx.stroke()
         }
       }
-      // §6aa: IT HAS SEEN YOU. Not an eye here but a MARK — a rune of notice
+      // §6aa: IT HAS SEEN YOU. Not an eye here but a MARK: a rune of notice
       // that burns above whatever has taken an interest, brighter and beating
       // faster when it is coming for you by name.
       if (meP && huntsMe(m, myId, meP.x, meP.y)) {
@@ -3731,8 +3731,8 @@ function drawScene(now) {
         cx.save()
         cx.shadowColor = coming ? 'rgba(232,72,58,.9)' : 'rgba(199,155,59,.5)'
         cx.shadowBlur = coming ? 10 : 5
-        cx.strokeStyle = coming ? 'rgba(232,72,58,' + (0.6 + 0.4 * beat) + ')'
-                                : 'rgba(199,155,59,' + (0.35 + 0.25 * beat) + ')'
+        cx.strokeStyle = coming ? 'rgba(232,72,58,' + (0.6 + 0.4 * beat) + ')':
+                                'rgba(199,155,59,' + (0.35 + 0.25 * beat) + ')'
         cx.lineWidth = coming ? 2 : 1.4
         cx.beginPath()                                   // a downward chevron: it is above you
         cx.moveTo(X + 13, my2 - 4); cx.lineTo(X + 20, my2 + 3); cx.lineTo(X + 27, my2 - 4)
@@ -3801,7 +3801,7 @@ function drawScene(now) {
         cx.fillStyle = engaged ? '#ff8a2a' : '#c4561a'      // two coals
         cx.beginPath(); cx.arc(HX - F * 2, HY - 1, 2.4, 0, 7); cx.fill()
         cx.restore()
-        // THE FIRE — the only real colour here
+        // THE FIRE, the only real colour here
         {
           const meD = s.players?.[myId]
           const since = s.tick - (m.lastSwing ?? -99)
@@ -4075,11 +4075,11 @@ function drawScene(now) {
       if (tgt) facing[pid] = tgt.x !== p.x ? Math.sign(tgt.x - p.x) : (facing[pid] ?? 1)
     } else if (o && p.x !== o.x) facing[pid] = Math.sign(p.x - o.x)
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
-    const anim = moving ? 'walk' : p.action?.type === 'gather' ? 'gather'
-               : p.action?.type === 'attack' ? 'fight' : 'idle'
+    const anim = moving ? 'walk' : p.action?.type === 'gather' ? 'gather':
+               p.action?.type === 'attack' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
-    const tool = workNode?.type === 'fishing-spot' ? 'rod'
-               : (workNode?.type === 'rock' || workNode?.type === 'magic-rock') ? 'pick' : 'axe'
+    const tool = workNode?.type === 'fishing-spot' ? 'rod':
+               (workNode?.type === 'rock' || workNode?.type === 'magic-rock') ? 'pick' : 'axe'
     const wep = p.equipment?.weapon?.item
     const bronzeTool = (workNode?.type === 'tree' && wep === 'bronze-hatchet')
                     || ((workNode?.type === 'rock' || workNode?.type === 'magic-rock') && wep === 'bronze-pickaxe')
@@ -4088,7 +4088,7 @@ function drawScene(now) {
     layer.push({ z: Z(iy, 4), draw: () => {
       if (dying) {
         // the fall (spec 6c): the body tips where it fell and fades, and a pale
-        // soul lifts away — the 5 ticks the world holds its breath.
+        // soul lifts away, the 5 ticks the world holds its breath.
         const prog = Math.max(0, Math.min(1, (s.tick + t - deadStart) / 5))
         const fx = px(ix) + 20, fy = py(iy) + 34
         cx.save()
@@ -4128,7 +4128,7 @@ function drawScene(now) {
       if ((p.rootedUntil ?? 0) > s.tick) rootBind(px(ix), py(iy))
       if ((p.brandedUntil ?? 0) > s.tick) {
         // The Brand (spec 6u): a citizen who struck the unprovoked in the Wilds
-        // wears a hot-iron mark. No mechanical weight — the state records it, the
+        // wears a hot-iron mark. No mechanical weight: the state records it, the
         // window paints it, the rest of us decide what it means.
         const bp = 0.5 + Math.sin(now / 300) * 0.5
         cx.save(); cx.globalAlpha = 0.22 + bp * 0.18 // a red stain at the feet, seen from afar
@@ -4160,7 +4160,7 @@ function drawScene(now) {
   for (const item of layer) item.draw()
 
   // hit splats: the red star of damage, 700ms
-  // several marks can land on one tile in one tick — three beasts, or two
+  // several marks can land on one tile in one tick, three beasts, or two
   // and a miss. Drawn at the same point they are one mark, so they fan.
   {
     const cluster = new Map()
@@ -4262,7 +4262,7 @@ function drawScene(now) {
         cx.beginPath(); cx.arc(EX, EY - 4, 3 + (p2 - 0.75) * 40, 0, 7); cx.fill() }
       cx.globalAlpha = 1
     } else if (ef.kind === 'mend') {
-      // knit whole: a warm GREEN pulse + a plus of light + rising motes —
+      // knit whole: a warm GREEN pulse + a plus of light + rising motes,
       // unmistakable mid-fight, never confused with the cyan of a spell
       cx.globalAlpha = (1 - p2) * 0.9
       cx.strokeStyle = '#5ef08a'; cx.lineWidth = 2.5
@@ -4398,8 +4398,8 @@ function drawScene(now) {
     glWarm = duskiness * (rising ? 1 : -0.9) // the shader grades the hours
     if (!GLON && duskiness > 0.02) {
       cx.fillStyle = rising
-        ? 'rgba(224,140,40,' + (duskiness * 0.15) + ')'
-        : 'rgba(120,70,170,' + (duskiness * 0.14) + ')'
+        ? 'rgba(224,140,40,' + (duskiness * 0.15) + ')':
+        'rgba(120,70,170,' + (duskiness * 0.14) + ')'
       cx.fillRect(0, 0, cv.width / ZR, cv.height / ZR)
     }
   }
@@ -4441,8 +4441,8 @@ function drawScene(now) {
       const R = isFire ? 60 : 40
       const grad2 = cx.createRadialGradient(fx, fy, 4, fx, fy, R)
       grad2.addColorStop(0, isFire
-        ? 'rgba(230,126,34,' + (darkness * 0.3) + ')'
-        : 'rgba(120,210,255,' + (darkness * 0.22) + ')')
+        ? 'rgba(230,126,34,' + (darkness * 0.3) + ')':
+        'rgba(120,210,255,' + (darkness * 0.22) + ')')
       grad2.addColorStop(1, isFire ? 'rgba(230,126,34,0)' : 'rgba(120,210,255,0)')
       cx.fillStyle = grad2; cx.beginPath(); cx.arc(fx, fy, R, 0, 7); cx.fill()
     }
@@ -4461,8 +4461,8 @@ function drawScene(now) {
   }
   if (!GLON) { cx.fillStyle = vignette; cx.fillRect(0, 0, cv.width / ZR, cv.height / ZR) }
 
-  const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk'
-              : cyc < 0.94 ? 'night' : 'dawn'
+  const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk':
+              cyc < 0.94 ? 'night' : 'dawn'
   cx.fillStyle = 'rgba(217,201,163,.75)'; cx.font = '10px Verdana'; cx.textAlign = 'left'
   cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + '  \u00b7  tick ' + s.tick + '  \u00b7  ' + phase + '  \u00b7  ' + BUILD + meterText, 6, cv.height - 6)
 }
@@ -4492,13 +4492,13 @@ function panel(s) {
   document.getElementById('hpfill').style.setProperty('--hpv', Math.max(0, Math.min(100, 100 * me.hp / maxHp)) + '%')
   document.getElementById('hptext').textContent = 'HP ' + me.hp + ' / ' + maxHp
   const trainingNode = me.action?.nodeId ? s.nodes[me.action.nodeId] : null
-  const training = me.action?.type === 'attack' ? 'attack'
-    : trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
+  const training = me.action?.type === 'attack' ? 'attack':
+    trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
   document.getElementById('skills').innerHTML = Object.entries(me.skills)
     .map(([k, xp]) => {
       const lvl = XP_TO_LVL(xp)
-      const pct = lvl >= 99 ? 100
-        : Math.floor(100 * (xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl]))
+      const pct = lvl >= 99 ? 100:
+        Math.floor(100 * (xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl]))
       const hot = k === training
       return '<div' + (hot ? ' style="outline:1px solid var(--gold)"' : '') + '>'
         + k + ' <b style="' + (lvl >= 99 ? 'color:#e2b63e;text-shadow:0 0 6px rgba(226,182,62,.5)' : '') + '">' + lvl + '</b>'
@@ -4515,8 +4515,8 @@ function panel(s) {
     .map((it, i) => '<div class="slot" data-i="' + i + '" title="' + (it ? it.item : '') + '">'
       + (it ? (ICONS[it.item] ?? '?')
         + (it.qty > 1 ? '<div style="position:absolute;bottom:1px;right:2.4px;font-size:8px;color:#ffe08a">' + it.qty + '</div>' : '')
-        + '<div style="position:absolute;top:1.4px;left:2.4px;right:1px;font-size:6.4px;color:#9a8c6a;line-height:1;overflow:hidden;white-space:nowrap;text-align:left">' + it.item.replace(/-/g, ' ') + '</div>'
-        : '')
+        + '<div style="position:absolute;top:1.4px;left:2.4px;right:1px;font-size:6.4px;color:#9a8c6a;line-height:1;overflow:hidden;white-space:nowrap;text-align:left">' + it.item.replace(/-/g, ' ') + '</div>':
+        '')
       + '</div>').join('')
   }
   // trade offers: incoming (accept) and outgoing (cancel)
@@ -4529,8 +4529,8 @@ function panel(s) {
     offers.push('<div class="stone" style="padding:5px 7px;margin-top:4px">'
       + '<b style="color:var(--gold)">' + (p.name ?? pid.slice(0, 6)) + '</b> offers '
       + giveItem.replace('-', ' ') + ' for your ' + p.trade.wantItem.replace('-', ' ') + ' '
-      + (haveWant ? '<button data-accept="' + pid + '">accept</button>'
-                  : '<span style="color:var(--dim)">(you have none)</span>')
+      + (haveWant ? '<button data-accept="' + pid + '">accept</button>':
+                  '<span style="color:var(--dim)">(you have none)</span>')
       + '</div>')
   }
   if (me.trade) {
@@ -4551,20 +4551,20 @@ function panel(s) {
     vaultEl.innerHTML = '<b style="color:var(--gold)">Your vault</b> <span style="color:var(--dim)">(tap inventory to deposit)</span><br>'
       + (vaulted.length
         ? vaulted.map(([item, q]) => '<button data-wd="' + item + '" style="margin:3px 3px 0 0">'
-            + (ICONS[item] ?? '') + ' ' + item.replace('-', ' ') + ' \u00d7' + q + '</button>').join('')
-        : '<span style="color:var(--dim)">empty. Your fortune starts here</span>')
+            + (ICONS[item] ?? '') + ' ' + item.replace('-', ' ') + ' \u00d7' + q + '</button>').join(''):
+        '<span style="color:var(--dim)">empty. Your fortune starts here</span>')
   } else vaultEl.style.display = 'none'
 
   const wep = me.equipment?.weapon
   let gearLine = wep
-    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>'
-    : 'Weapon: <span style="color:var(--dim)">bare hands</span>'
+    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>':
+    'Weapon: <span style="color:var(--dim)">bare hands</span>'
   const hd = me.equipment.head, bd = me.equipment.body
   if (hd || bd) gearLine += '<br>' + [hd && ('Head: ' + hd.item.replace(/-/g, ' ')),
     bd && ('Body: ' + bd.item.replace(/-/g, ' '))].filter(Boolean).join(' \u00b7 ')
   document.getElementById('equip').innerHTML = gearLine
   // §6af: the control appears only when the weapon in hand HAS a special, and
-  // says what it does — a button labelled 'special' teaches nothing.
+  // says what it does, a button labelled 'special' teaches nothing.
   {
     const sb = document.getElementById('specbtn')
     const kind = SPEC_OF[me.equipment?.weapon?.item]
@@ -4589,8 +4589,8 @@ function panel(s) {
     '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE KEEPER BUYS:</div>'
     + me.inventory.map((sl, i) => sl && PRICES_C[sl.item]
       ? '<button data-sell="' + i + '" style="margin:1px;background:#1b1013;color:#d8b061;border:1px solid #4a2e18;padding:3px 6px;font-family:Georgia,serif;font-size:10px;cursor:pointer">'
-        + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 ' + (PRICES_C[sl.item] * (sl.qty ?? 1)) + 'g</button>'
-      : '').join('')
+        + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 ' + (PRICES_C[sl.item] * (sl.qty ?? 1)) + 'g</button>':
+      '').join('')
   sellBar.onclick = (e) => {
     const i = e.target?.dataset?.sell
     if (i !== undefined) { send({ do: 'sell', slot: +i }); feed('The keeper counts out your coin.') }
@@ -4645,8 +4645,8 @@ function validateGateName(s) {
     btn.disabled = !myId
     const me2 = world?.players[myId]
     btn.textContent = me2
-      ? 'Enter as ' + (me2.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026')
-      : 'Enter the world'
+      ? 'Enter as ' + (me2.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026'):
+      'Enter the world'
   }
 }
 document.getElementById('gatename').addEventListener('input', () => validateGateName(world))
@@ -4738,7 +4738,7 @@ sunCv.style.cssText = "position:absolute;right:8px;top:8px;pointer-events:none"
 cv.parentNode.appendChild(sunCv)
 const sunCtx = sunCv.getContext("2d")
 // the level-up banner rides its OWN overlay, appended last so it sits above BOTH
-// the GL layer and the minimap — no more banner trapped behind the map.
+// the GL layer and the minimap, no more banner trapped behind the map.
 const bannerCv = document.createElement("canvas")
 bannerCv.width = 1120; bannerCv.height = 800
 bannerCv.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;background:transparent;image-rendering:pixelated"
@@ -4748,7 +4748,7 @@ function drawBanner(now) {
   const g = bannerCtx
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.clearRect(0, 0, 1120, 800)
-  // global milestone cries take the stage first — they outrank a personal level-up
+  // global milestone cries take the stage first, they outrank a personal level-up
   if (!announceShow && announceQueue.length) announceShow = { text: announceQueue.shift(), at: now }
   if (announceShow && now - announceShow.at >= 4800) announceShow = null
   if (announceShow) {
@@ -4938,7 +4938,7 @@ function invClick(i) {
     chooseAction([
       { label: 'read chart (attune to ' + wsName + ')', act: () => {
         send({ do: 'read_chart', slot: +i })
-        feed('You read the chart. The way to ' + wsName + ' opens to you — you may recall there now.')
+        feed('You read the chart. The way to ' + wsName + ' opens to you: you may recall there now.')
         tone(600, 0.25, { type: 'sine', vol: 0.045 }); tone(900, 0.3, { type: 'sine', vol: 0.04, at: 0.08 })
       } },
       { label: 'keep', act: () => feed('A surveyed chart to ' + wsName + '. Worth something to someone who would rather not walk.') },
@@ -5101,9 +5101,9 @@ cv.addEventListener('click', (e) => {
       } else if (el2 >= 1200) {
         intent = { kind: 'harvest', id }
       } else {
-        feed(el2 < 400 ? 'A sprout. The interval provides, slowly.'
-          : el2 < 800 ? 'Green rows, knee-high. Patience.'
-          : 'Flowering. Nearly.')
+        feed(el2 < 400 ? 'A sprout. The interval provides, slowly.':
+          el2 < 800 ? 'Green rows, knee-high. Patience.':
+          'Flowering. Nearly.')
         return
       }
       return
@@ -5237,7 +5237,7 @@ cv.addEventListener('click', (e) => {
         for (let r2 = 0; r2 < 4; r2++) cx.fillRect(X + 5, Y + 9 + r2 * 7, 30, 2.2)
         // §6o: A ROW IS THE CITIZEN'S OWN.
         //
-        // This read `n.plantedAt` — the plot's. A crop now belongs to whoever
+        // This read `n.plantedAt`, the plot's. A crop now belongs to whoever
         // sowed it, so the ground carries nothing and every citizen sees only
         // what THEY put in it. Somebody else's wheat is not your wheat, and
         // the same tilled square is empty to you and ripe to them.
@@ -5292,7 +5292,7 @@ cv.addEventListener('click', (e) => {
         if (n.by !== myId) { feed('This brewpot belongs to another brewer.'); return }
         if (!adj(n) && !(me.x === n.x && me.y === n.y)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; return }
         if (n.readyAt !== undefined && (world?.tick ?? 0) >= n.readyAt) { send({ do: 'collect', nodeId: id }); feed('You draw off the finished ' + (n.brewKind ?? 'brew') + '.'); return }
-        if (n.readyAt !== undefined) { feed('Still fermenting \\u2014 come back when it\\u2019s ready.'); return }
+        if (n.readyAt !== undefined) { feed('Still fermenting \, come back when it\\u2019s ready.'); return }
         const gi = me.inventory.findIndex(s => s?.item === 'grain'), fi = me.inventory.findIndex(s => s?.item === 'raw-fish')
         const opts = []
         if (gi !== -1) opts.push({ label: 'brew ale (grain)', act: () => { send({ do: 'brew', nodeId: id, slot: gi }); feed('You set grain to ferment. Ale, in time.') } })

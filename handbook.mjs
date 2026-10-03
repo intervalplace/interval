@@ -438,7 +438,18 @@ page('', `
       much of the load you are carrying. A long road with a full pack is the
       whole of the wage.`)}
   ${p(`<i>The consignment is not your pack. It is a second container the bank
-      cannot reach and you cannot eat out of.</i>`)}`)
+      cannot reach and you cannot eat out of.</i>`)}
+  ${orn}
+  ${h('Your own stall')}
+  ${p(`A keeper's counter is not the only place goods change hands. You may
+      raise a stall of your own: <b>${CONST('MARKET_PLANKS')}</b> planks and
+      <b>${CONST('MARKET_ORE')}</b> iron ore, and
+      <b>${CONST('MARKET_RAISE')}</b> intervals of standing still while you
+      build it. One each.`)}
+  ${p(`It holds one kind of good, up to <b>${CONST('MARKET_STOCK')}</b> of it,
+      at whatever price you set. Anybody may buy from it while you are
+      elsewhere, and the coin waits for you to come and take it. Left untouched
+      it falls down.`)}`)
 
 // ---- 8 onward: the vocabulary, with every word's picture beside it
 //
@@ -608,7 +619,7 @@ const SPELL_IS = {
 const UNLOCKS = typeof E.skillUnlocks === 'function' ? E.skillUnlocks() : {}
 const RUNG = {}
 for (const r of UNLOCKS.sorcery ?? []) {
-  const w = String(r.text).replace(/^the /, '').split('\u2014')[0].trim()
+  const w = String(r.text).replace(/^the /, '').split(',')[0].trim()
   if (RUNG[w] == null) RUNG[w] = r.level
 }
 // THE LADDER NAMES THE RITE AND THE BOOK NAMES THE VERB, and they are not
@@ -765,18 +776,21 @@ page('', `
   ${pd(`The tide is the world's own clock, worked out from the interval count
       and nothing else. It is the same for everybody everywhere, nobody chose
       it, and nobody can move it.`)}
-  ${p(`There are <b>${TIDE.length}</b> of them, turning at their own speeds.
-      They gate nothing and cost nothing: what they are for is that anyone can
-      say when the next one falls.`)}
+  ${p(`It gates nothing and costs nothing. What it is for is that anyone can
+      say when the next one falls, and be right.`)}
   <table class="tight rites">
-    ${TIDE.map((t, i) => `<tr><td class="k">${i === TIDE.length - 1
-      ? 'the deep tide' : 'tide ' + (i + 1)}</td>
+    ${TIDE.map((t, i) => `<tr><td class="k">${TIDE.length === 1
+      ? 'the deep tide' : i === TIDE.length - 1 ? 'the deep tide' : 'tide ' + (i + 1)}</td>
       <td>up for ${t.open}, every ${t.every}</td></tr>`).join('')}
   </table>
   ${orn}
-  ${p(`Only the deep tide is announced, and the announcement says where people
+  ${p(`It is announced when it turns, and the announcement says where people
       actually stood at the last one. Nobody chose that place either: it stays
       the place only while people keep going there.`)}
+  ${p(`It does not fall at the same hour twice. Two turns are twenty minutes
+      longer than a day, so it slips twenty minutes later each day and works
+      right round the clock in thirty-six. No part of the world is permanently
+      asleep when it falls.`)}
   ${p(`<i>This is the closest thing the world has to an appointment. "At the
       deep tide" is something two strangers can agree on without either of
       them being able to move it.</i>`)}`)
@@ -861,7 +875,19 @@ page('', `
   ${p(`Each kind is meant to pay that cost back in its own coin. A flurry pays
       in blows, a whole in size, a now in timing, a far in distance.`)}
   ${p(`Master your own craft and the arm comes back a quarter sooner, which is
-      what prowess gives instead of hitting harder.`)}`)
+      what prowess gives instead of hitting harder.`)}
+  ${orn}
+  ${h('Eating')}
+  ${p(`Food is a <b>rate</b>, not a burst. A meal does not jump your health up
+      the moment you swallow it: it mends you steadily over the intervals that
+      follow, and a richer meal simply mends for longer.`)}
+  ${p(`What the better food buys is the SIZE of one swallow. That is what gets
+      a wounded citizen out of reach of a finisher in a single interval, and
+      it is why the best food in the world is worth carrying even though
+      everything heals at much the same speed.`)}
+  ${p(`And a meal spends the arm. Eating is not fighting: the interval you
+      spend on it is an interval you did not swing in, which is the whole of
+      what stops anybody eating their way through a duel.`)}`)
 
 // ---- GATHERING ----
 //
@@ -1026,7 +1052,10 @@ page('', `
          reduced: nothing. Bring fire or do not go.`],
        ['barrow-wight', `Every blow lands for one unless you are carrying holy
          water. The flask is spent when the wight falls.`],
-       ['great-spider', `Its web mends it faster than one person can cut.`],
+       ['great-spider', `Its web mends it faster than one person can cut, and
+         four times faster again while nobody is standing beside it. Somebody
+         has to hold it. Shooting it from a place it cannot reach does nothing
+         at all, however many of you there are.`],
        ['dragon', `Struck only from right beside it, so a bow or a spear does
          nothing, and it breathes.`],
        ['gibbet-dead', `Cannot move and cannot be reached. It throws what
@@ -1046,6 +1075,70 @@ page('', `
     }).join('')}
   </table>${DUMMIES.length ? p(`<i>There are also ${DUMMIES.length} practice
       targets in town. They never fight back and never die.</i>`) : ''}`)
+
+// ---- AND THE NINE THINGS THE BOOK NEVER NAMED ----
+//
+// Found by auditing the engine's own tables against this book's output rather
+// than by waiting for somebody to notice: every one of the hundred and five
+// PRICED items was in here, and nine things the world has but does not price
+// were not. A keeper sets the price, so a thing nobody sells fell through a
+// list built from what things cost.
+//
+// They are not odds and ends. The torch is the clock the whole cave runs on;
+// the four masks are the only thing in this world a citizen may take exactly
+// once; forage is the one thing on the ground that cannot be picked up, which
+// a reader will otherwise discover by clicking it and watching it vanish.
+//
+// CONST AND NOT T, WHICH THIS PAGE GOT WRONG ONCE. `T` falls back to an empty
+// object, so a constant the engine does not export under that name prints as
+// `undefined` and the press does not stop -- which is precisely what the note
+// over `T` warns about, and it happened here the first time this page was
+// written. The four numbers below are plain constants inside engine.js, and
+// `CONST` reads them out of the source and throws if they are not there.
+//
+// EVERY ONE OF THESE IS A RULE YOU CANNOT PLAY YOUR WAY TO. That is the test
+// this book is held to: it says what cannot be worked out, and leaves what can
+// be worked out to be worked out.
+page('', `
+  ${h('Things nobody sells')}
+  ${pd(`A keeper will buy most of what this world makes, and what follows has
+      no price because no keeper will take it. Some of it cannot be carried at
+      all. None of it can be worked out by trying.`)}
+  <table class="tight ruled">
+    ${[['torch', `Burns for ${CONST('TORCH_TICKS')} intervals from the moment it is
+         lit, and burns them whether it is in your hand or in your pack. The
+         Smother will not let you in without a light, and it asks only on the
+         way in: you may always walk out and light another, and the walk is
+         what it costs you.`],
+       ['forage', `Left by a goblin, a wolf or a bear about a third of the time
+         they fall. It cannot be picked up, carried, banked, traded or priced.
+         Click it where it lies and it is eaten on the spot for
+         ${CONST('FORAGE_HEAL')} hitpoints, needing no free slot and no gullet. It
+         rots in ${CONST('FORAGE_ROTS')} intervals, which is half of what anything
+         else on the ground lasts. Nothing in the Wilds leaves it.`],
+       ['the four masks', `A hart, a wolf, a raven and a hare, on a shelf in the
+         barrow. A citizen may take <b>one of them in their whole life</b> and
+         the world remembers which. They defend nothing whatever; wearing one
+         costs you a helm, and that is their only price. Anyone wearing a
+         second has been given it, and being given anything shows on every
+         board for ever.`],
+       ['graver', `A chisel off the siren, one kill in
+         ${Math.round(65536 / CONST('GRAVER_DROP'))}. With it you may cut
+         <b>somebody else's</b> name into a standing thing: never your own, and
+         never twice, because a name once cut is cut. No level, no trade and no
+         standing qualifies you. You either have the chisel and the friend or
+         you do not.`],
+       ['cinder-crown', `One dragon in thirty-two. It is worn on the head, it
+         defends nothing, and it does nothing at all. It is the only object in
+         this world whose entire purpose is that somebody can see you have
+         one.`],
+       ['burnt fish', `What cooking gives you when it fails, which at first is
+         most of the time. It feeds nobody and sells for nothing. The rate
+         falls as shorecraft rises, so the failures are the lesson.`],
+      ].map(([k, why]) => `<tr>
+        <td class="k">${esc(k)}</td>
+        <td>${why}</td></tr>`).join('')}
+  </table>`)
 
 // ---- the last page
 page('last', `

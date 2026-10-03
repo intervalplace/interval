@@ -1,8 +1,8 @@
-// Interval v0.6 demo — the full new-player journey + the first trade.
+// Interval v0.6 demo: the full new-player journey + the first trade.
 // Alice and Bob exist in genesis with items. Charlie does NOT exist
 // anywhere: his node late-joins the running world (corroborated
 // checkpoints), then he SPAWNS via a constitutional input, walks, and
-// gathers — a complete stranger becoming a citizen of a world already
+// gathers: a complete stranger becoming a citizen of a world already
 // in motion. Meanwhile alice and bob execute the first atomic trade.
 
 import fs from 'fs'
@@ -47,7 +47,7 @@ async function tick(actions = async () => {}) {
   return new Set(hashes).size === 1
 }
 
-console.log(`Interval v0.6 — world ${RULES_HASH.slice(0, 12)}… (third constitution, third world)`)
+console.log(`Interval v0.6, world ${RULES_HASH.slice(0, 12)}… (third constitution, third world)`)
 let ok = true
 
 // ticks 1-2: the first trade
@@ -73,9 +73,9 @@ for (let i = 0; i < 100 && !ready(nodes); i++) await sleep(200)
 const pc = new IntervalClient({ node: Cnode, identity: charlie })
 console.log(`charlie exists in world before spawning: ${pc.me ? 'yes ✗' : 'no ✓'}`)
 
-// tick 4: charlie spawns — a signed constitutional input like any other
+// tick 4: charlie spawns, a signed constitutional input like any other
 ok &= await tick(() => pc.enter())
-console.log(`tick 4: charlie spawns at (${pc.me?.x},${pc.me?.y}) — visible on nodeA too: ${A.state.players[charlie.playerId] ? '✓' : '✗'}`)
+console.log(`tick 4: charlie spawns at (${pc.me?.x},${pc.me?.y}), visible on nodeA too: ${A.state.players[charlie.playerId] ? '✓' : '✗'}`)
 
 // tick 5: names his fresh identity, walks toward the tree
 ok &= await tick(() => pc.claimName('charlie'))

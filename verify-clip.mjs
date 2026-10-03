@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// verify-clip.mjs — read a signed clip from the deep window's theatre.
+// verify-clip.mjs: read a signed clip from the deep window's theatre.
 //
 //   node verify-clip.mjs clip.json
 //   node verify-clip.mjs clip.json --pillar https://interval.place
@@ -125,7 +125,7 @@ function report(out, asJson) {
   console.log('')
   console.log('    To watch it, a pillar must replay the range. Every pillar')
   console.log('    can: that is what a pillar is. Unlike a video file, this')
-  console.log('    cannot be cut without ceasing to verify \u2014 the only thing')
+  console.log('    cannot be cut without ceasing to verify: the only thing')
   console.log('    it asserts is which ticks, and the ticks are not its own.')
   console.log('')
 }

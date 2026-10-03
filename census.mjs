@@ -1,4 +1,4 @@
-// census.mjs — compute the entire world tile for tile, with every resource node.
+// census.mjs: compute the entire world tile for tile, with every resource node.
 import E from './engine.js'
 import * as V6 from './worldgen-expanse6.mjs'
 
@@ -13,10 +13,10 @@ const valid = E.validateState(w)
 const det = g.geographyHash === g2.geographyHash
 
 console.log('='.repeat(64))
-console.log('TALLYHOLM — FULL WORLD CENSUS')
+console.log('TALLYHOLM, FULL WORLD CENSUS')
 console.log('  seed:', SEED, ' generator: interval-expanse-v6 ', W + '\u00d7' + H)
 console.log('  geographyHash:', g.geographyHash)
-console.log('  valid:', valid ? 'YES' : ('NO — ' + valid), ' | deterministic:', det)
+console.log('  valid:', valid ? 'YES' : ('NO, ' + valid), ' | deterministic:', det)
 console.log('  total nodes:', Object.keys(w.nodes).length)
 console.log('='.repeat(64))
 
@@ -48,8 +48,8 @@ const GATHER = new Set(['tree', 'rock', 'fishing-spot', 'quick-rock',
   'iron-rock', 'coal-rock', 'gold-rock', 'mother-lode', 'brimstone-vent',
   'eel-spot', 'deep-fish-spot', 'gibbet-shoal'])
 // a node's gather-kind is its `kind` if set, else its `type`
-const gatherKind = (n) => (n.kind && GATHER.has(n.kind)) ? n.kind
-  : (GATHER.has(n.type) ? n.type : null)
+const gatherKind = (n) => (n.kind && GATHER.has(n.kind)) ? n.kind:
+  (GATHER.has(n.type) ? n.type : null)
 
 const gather = {}          // kind -> { count, biomes: {biome: n} }
 for (const n of Object.values(w.nodes)) {
@@ -86,7 +86,7 @@ for (const skill of ['woodcutting', 'mining', 'fishing']) {
 console.log('\nSCARCE & DOUBLED SEAMS (the risk-priced masters):')
 for (const k of ['gallows-oak', 'mother-lode', 'gibbet-shoal', 'gold-rock', 'deep-fish-spot']) {
   const rec = gather[k]
-  console.log('    ' + k.padEnd(16) + (rec ? rec.count + ' placed' : '0 — NOT PLACED'))
+  console.log('    ' + k.padEnd(16) + (rec ? rec.count + ' placed' : '0, NOT PLACED'))
 }
 
 // ---- 5. FACILITIES: where you sell/bank/craft ----

@@ -52,7 +52,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>Interval — the lantern window</title>
+<title>Interval, the lantern window</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -60,8 +60,8 @@
   /* The whole window is one canvas. This stylesheet exists to hold the door
      open (the gate below), to kill every browser affordance that would break
      the illusion, and to name the palette once so the canvas code and the
-     gate cannot drift apart. */
-  :root {
+     gate cannot drift apart. */:
+  root {
     --void:    #050406;   /* the pitch behind the world */
     --crypt:   #0d0a0c;   /* panel field */
     --stone:   #221c18;   /* carved stone */
@@ -222,7 +222,7 @@
       <canvas id="gface" width="132" height="176"></canvas>
       <div class="facebtns">
         <button id="gprev" title="Previous">&lsaquo;</button>
-        <span id="glook">—</span>
+        <span id="glook">:</span>
         <button id="gnext" title="Next">&rsaquo;</button>
       </div>
     </div>
@@ -248,12 +248,12 @@
 // disagree about where the Fens end. If this copy drifts, this window is in
 // breach and should be refused at the door.
 // ==========================================================================
-// terrain-mirror.js — the window's copy of the world's own geography.
+// terrain-mirror.js: the window's copy of the world's own geography.
 //
 // This file used to exist THREE TIMES: once inside window-web.html, once
 // inside window-3d.html, once inside window-photo.html, ~1,300 lines each,
-// pasted. The copies had not yet disagreed about a single tile — 210,432
-// were checked — but they had already drifted in two places that simply
+// pasted. The copies had not yet disagreed about a single tile: 210,432
+// were checked, but they had already drifted in two places that simply
 // had not bitten yet:
 //
 //   * window-photo's copy had a RENDERING function (buildBridges, which
@@ -344,17 +344,21 @@ function inland7(x, y) {
     for (let i = 0; i < ALL7.length; i++) {
       const [cx, cy, rx, ry, kind] = ALL7[i]
       const k = kind === 'tarn' ? 0.10 : kind === 'pond' ? 0.20 : kind === 'moss' ? 0.26 : 0.34
-      const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
-      const ph = M.map((m) => ((thashE(i, m, 907) % 1000) / 1000) * Math.PI * 2)
+      // §2s: the generator drew these with five `Math.sin` harmonics and a
+      // raw comparison, and this window copied it faithfully, as it must. The
+      // generator is `meander` and `angleOf` now, so this is too. Same two
+      // harmonics as the isles and the coast, same constants as `inlandSet`.
+      const tag = 9100 + i * 13
       const pad = Math.ceil(Math.max(rx, ry) * (1 + k)) + 2
       for (let y2 = cy - pad; y2 <= cy + pad; y2++) for (let x2 = cx - pad; x2 <= cx + pad; x2++) {
         const dx = (x2 - cx) / rx, dy = (y2 - cy) / ry
         const d = Math.sqrt(dx * dx + dy * dy)
         if (d === 0) { _w7.add(x2 + ',' + y2); continue }
-        const a = Math.atan2(dy, dx)
-        let r = 1
-        for (let q = 0; q < M.length; q++) r += k * A[q] * Math.sin(M[q] * a + ph[q])
-        r += ((thashE(x2, y2, 911) % 100) / 100 - 0.5) * 0.05
+        const u = ((angleOf6(dx, dy) % 360) + 360) % 360
+        const r = 1
+          + k * meander(tag, u / 6, 6, 11) / 13
+          + k * meander(tag + 1, u / 6, 3, 5) / 40
+          + ((thashE(x2, y2, 911) % 100) / 100 - 0.5) * 0.05
         if (d < r) _w7.add(x2 + ',' + y2)
       }
     }
@@ -1838,8 +1842,8 @@ function keeperRole4(st, id, n) {
       if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
       near[q.type] = true
     }
-    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.hearth ? 'town' : 'town'
+    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith':
+         near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
   return role
@@ -1895,8 +1899,8 @@ function terrainOfE4(x, y) {
     if (hm && !onRoad4(x, y)) {
       const inTown = settlementsE4().some((t) =>
         Math.abs(x - t.x) < (t.w >> 1) && Math.abs(y - t.y) < (t.h >> 1))
-      if (!inTown) return hm.kind === 'copse' ? 'forest'
-                        : hm.kind === 'mire' ? 'fens' : 'scree'
+      if (!inTown) return hm.kind === 'copse' ? 'forest':
+                        hm.kind === 'mire' ? 'fens' : 'scree'
     }
   }
   for (const t of settlementsE4()) {
@@ -2059,7 +2063,7 @@ const BAYS6 = [
 ]
 function angleOf6(dx, dy) {
   // mirror of worldgen-expanse3.mjs angleOf (v6 imports it): degrees, atan2-free
-  // is not required — the generator uses Math.atan2 here? verify: it uses angleOf
+  // is not required, the generator uses Math.atan2 here? verify: it uses angleOf
   // from expanse3, which the mirror already has as angleOf3.
   return angleOf3(dx, dy)
 }
@@ -2090,17 +2094,55 @@ function bayShoreX6(y) {
   for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase6(x, y)) { sx = x; break }
   _bayShore6.set(y, sx); return sx
 }
-function islesOf6() {
+// §7eb: V6 AND V7 DO NOT SHARE A COASTLINE, and `IS_EXPANSE6()` covers both.
+//
+// The mirror had two isles for both foundings. v6 has two and v7 has five --
+// Whiting Isle, the Lists and the Dragon's Isle -- so three places a citizen
+// can stand on were open sea in every window reading this file, on the live
+// world. The chart says outright that if it and the world disagreed one of
+// them would be in breach; it had been disagreeing about three islands.
+//
+// Giving BOTH foundings the v7 list was the obvious fix and it was wrong in
+// the other direction: a v6 world would have gained three islands it does not
+// have, and a wobbling shore where its generator draws a clean ellipse.
+// `test/mirror.test.mjs` caught that in the same run that caught the missing
+// three, which is the whole argument for the test existing.
+const ISLES6_V6 = () => {
   const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
   return [
     { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
     { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
   ]
 }
+const ISLES6_V7 = () => {
+  const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
+  return [
+    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+    { x: sh + 58, y: ey + 8, rx: 12, ry: 8 },        // Whiting
+    { x: 300, y: 452, rx: 9, ry: 6 },                // the Lists
+    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
+    { x: 34, y: 30, rx: 30, ry: 22 },                // the Dragon's Isle
+  ]
+}
+const IS_V7 = () => GEN === 'interval-expanse-v7'
+function islesOf6() { return IS_V7() ? ISLES6_V7() : ISLES6_V6() }
+// The shore, mirroring `isleR` in worldgen-expanse7.mjs: same harmonics, same
+// divisors, same trig-free `angleOf`. v6's isles keep the plain ellipse its
+// own generator draws.
+function isleR6(i, u0) {
+  const u = ((u0 % 360) + 360) % 360
+  const tag = 7100 + i.x * 7 + i.y
+  return 1 + meander(tag, u / 6, 6, 11) / 55 + meander(tag + 1, u / 6, 3, 5) / 150
+}
 function onIsle6(x, y) {
+  const wobbles = IS_V7()
   for (const i of islesOf6()) {
     const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry
-    if (dx * dx + dy * dy < 1) return true
+    const d2 = dx * dx + dy * dy
+    if (!wobbles) { if (d2 < 1) return true; continue }
+    if (d2 < 0.45) return true
+    if (d2 >= 1.7) continue
+    if (d2 < isleR6(i, angleOf6(dx, dy)) ** 2) return true
   }
   return false
 }
@@ -2778,8 +2820,8 @@ function armsOf(tag) {
 // window computes this only to SHOW it -- the engine decides what is paid.
 const ALCH_REQ = 1
 const ALCH_EVERY_BARE = 4, ALCH_EVERY_STAFF = 3, ALCH_EVERY_HEART = 2
-const alchEveryFor = (p) => p?.equipment?.weapon?.item === 'heartwood-staff' ? ALCH_EVERY_HEART
-  : p?.equipment?.weapon?.item === 'staff' ? ALCH_EVERY_STAFF : ALCH_EVERY_BARE
+const alchEveryFor = (p) => p?.equipment?.weapon?.item === 'heartwood-staff' ? ALCH_EVERY_HEART:
+  p?.equipment?.weapon?.item === 'staff' ? ALCH_EVERY_STAFF : ALCH_EVERY_BARE
 // four coins, whatever it was (spec 2g). It was three quarters of the price,
 // which made alchemy the one uncapped mint in a world that had just given its
 // keepers a bounded purse.
@@ -2960,8 +3002,8 @@ let entered = false, pendingName = ''
 
 let uid = localStorage.getItem('interval-uid')
 if (!uid) {
-  uid = (crypto.randomUUID ? crypto.randomUUID()
-        : Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
+  uid = (crypto.randomUUID ? crypto.randomUUID():
+        Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
   localStorage.setItem('interval-uid', uid)
 }
 
@@ -3071,82 +3113,81 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === '3') setCombatStyle('force')
 })
 const BRIDGE_TO_INPUT = (a) =>
-    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
-  : a.do === 'spawn' ? { type: 'spawn' }
-  : a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
-  : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  // §7p/§7q: the furnace and the sawpit
-  : a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }
-  : a.do === 'saw' ? { type: 'saw' }
-  : a.do === 'nock' ? { type: 'nock', slot: a.slot }
-  : a.do === 'follow' ? { type: 'follow', targetId: a.targetId }
-  : a.do === 'turn' ? { type: 'turn' }
-  : a.do === 'waking' ? { type: 'waking', targetId: a.targetId }
-  : a.do === 'rot' ? { type: 'rot', targetId: a.targetId }
-  : a.do === 'taking' ? { type: 'taking', targetId: a.targetId }
-  : a.do === 'withering' ? { type: 'withering', targetId: a.targetId }
-  : a.do === 'befriend' ? { type: 'befriend', targetId: a.targetId }
-  : a.do === 'unfriend' ? { type: 'unfriend', targetId: a.targetId }
-  : a.do === 'charter' ? { type: 'charter', slot: a.slot }
-  : a.do === 'unfollow' ? { type: 'unfollow' }
-  : a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
-  : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }   // §6af
-  : a.do === 'eat' ? { type: 'eat', slot: a.slot }
-  : a.do === 'drop' ? { type: 'drop', slot: a.slot }
+    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
+  a.do === 'spawn' ? { type: 'spawn' }:
+  a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth:
+  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
+  // §7p/§7q: the furnace and the sawpit:
+  a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }:
+  a.do === 'saw' ? { type: 'saw' }:
+  a.do === 'nock' ? { type: 'nock', slot: a.slot }:
+  a.do === 'follow' ? { type: 'follow', targetId: a.targetId }:
+  a.do === 'turn' ? { type: 'turn' }:
+  a.do === 'waking' ? { type: 'waking', targetId: a.targetId }:
+  a.do === 'rot' ? { type: 'rot', targetId: a.targetId }:
+  a.do === 'taking' ? { type: 'taking', targetId: a.targetId }:
+  a.do === 'withering' ? { type: 'withering', targetId: a.targetId }:
+  a.do === 'befriend' ? { type: 'befriend', targetId: a.targetId }:
+  a.do === 'unfriend' ? { type: 'unfriend', targetId: a.targetId }:
+  a.do === 'charter' ? { type: 'charter', slot: a.slot }:
+  a.do === 'unfollow' ? { type: 'unfollow' }:
+  a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }:
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }:
+  a.do === 'special' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }   // §6af: the engine's word for the burst
+  a.do === 'eat' ? { type: 'eat', slot: a.slot }:
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
-  : a.do === 'wield' ? { type: 'wield', slot: a.slot }
-  : a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }
-  : a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
-  : a.do === 'cook' ? { type: 'cook', slot: a.slot }
-  : a.do === 'light' ? { type: 'light', slot: a.slot }
-  : a.do === 'bury' ? { type: 'bury', slot: a.slot }
-  : a.do === 'plant' ? { type: 'plant', slot: a.slot }
-  : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
-  : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
-  : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
-  : a.do === 'mendp' ? { type: 'mendp', target: a.target }
-  : a.do === 'alch' ? { type: 'alch', slot: a.slot }
-  : a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }
-  : a.do === 'seal' ? { type: 'seal', groundId: a.groundId }
-  : a.do === 'raise_market' ? { type: 'raise_market' }
-  : a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }
-  : a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }
-  : a.do === 'take_market' ? { type: 'take_market' }
-  : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
-  : a.do === 'drink' ? { type: 'drink' }
-  : a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
+  // failure -- a window that cannot ask must not be able to answer.:
+  a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
+  a.do === 'wield' ? { type: 'wield', slot: a.slot }:
+  a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }:
+  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
+  a.do === 'cook' ? { type: 'cook', slot: a.slot }:
+  a.do === 'light' ? { type: 'light', slot: a.slot }:
+  a.do === 'bury' ? { type: 'bury', slot: a.slot }:
+  a.do === 'plant' ? { type: 'plant', slot: a.slot }:
+  a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }:
+  a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }:
+  a.do === 'mendp' ? { type: 'mendp', target: a.target }:
+  a.do === 'alch' ? { type: 'transmute', slot: a.slot }:   // the engine's word for it
+  a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }:
+  a.do === 'seal' ? { type: 'seal', groundId: a.groundId }:
+  a.do === 'raise_market' ? { type: 'raise_market' }:
+  a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }:
+  a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }:
+  a.do === 'take_market' ? { type: 'take_market' }:
+  a.do === 'dismantle_market' ? { type: 'dismantle_market' }:
+  a.do === 'drink' ? { type: 'drink' }:
+  a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
   // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
-  // one, so a window that omits it silently stops being able to use a vault.
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }
-  : a.do === 'deposit_all' ? { type: 'deposit_all' }
-  : a.do === 'buy' ? { type: 'buy', item: a.item }
-  : a.do === 'sell' ? { type: 'sell', slot: a.slot }
-  : a.do === 'name' ? { type: 'claim_name', name: a.name }
-  : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
-  : a.do === 'invoke' ? { type: 'invoke' }
-  : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
-  : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
-  : a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }
-  : a.do === 'kindle' ? { type: 'kindle' }
-  : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'char' ? { type: 'char', nodeId: a.nodeId }
-  : a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }
-  : a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }
-  : a.do === 'still' ? { type: 'still', target: a.target }
-  : a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
-                         wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }
-  : a.do === 'accept' ? { type: 'accept_trade', from: a.from }
-  : a.do === 'cancel' ? { type: 'cancel_trade' }
-  : a.do === 'stop' ? { type: 'stop' }
-  : null
+  // one, so a window that omits it silently stops being able to use a vault.:
+  a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }:
+  a.do === 'deposit_all' ? { type: 'deposit_all' }:
+  a.do === 'buy' ? { type: 'buy', item: a.item }:
+  a.do === 'name' ? { type: 'claim_name', name: a.name }:
+  a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }:
+  a.do === 'invoke' ? { type: 'invoke' }:
+  a.do === 'survey' ? { type: 'survey' }:
+  a.do === 'build_brewpot' ? { type: 'build_brewpot' }:
+  a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }:
+  a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }:
+  a.do === 'kindle' ? { type: 'kindle' }:
+  a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'char' ? { type: 'char', nodeId: a.nodeId }:
+  a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }:
+  a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }:
+  a.do === 'still' ? { type: 'still', target: a.target }:
+  a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
+                         wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }:
+  a.do === 'accept' ? { type: 'accept_trade', from: a.from }:
+  a.do === 'cancel' ? { type: 'cancel_trade' }:
+  a.do === 'stop' ? { type: 'stop' }:
+  null
 
 let ws = null, reconnectAt = 0
 function connect() {
@@ -3205,7 +3246,7 @@ function connect() {
           + '. (If it says the verb is unknown, the world was founded before the rule.)', 'warn')
       }
       const transient = /occupied|blocked|adjacent|reach|tick/i.test(m.why ?? '')
-      say('Refused: ' + (m.of ?? '?') + (m.why ? ' \u2014 ' + m.why : '')
+      say('Refused: ' + (m.of ?? '?') + (m.why ? ', ' + m.why : '')
         + (transient ? ' (try again)' : ''), 'warn')
       return
     }
@@ -3547,8 +3588,8 @@ function tileArt(kind, v) {
   // light and shadow with no hue of its own, which lets the colour underneath
   // be blended across neighbours -- and the lattice stops existing.
   const grn = (k, a) => k >= 1
-    ? 'rgba(255,238,206,' + clamp((k - 1) * .85 * (a ?? 1), 0, 1).toFixed(3) + ')'
-    : 'rgba(0,0,0,' + clamp((1 - k) * .95 * (a ?? 1), 0, 1).toFixed(3) + ')'
+    ? 'rgba(255,238,206,' + clamp((k - 1) * .85 * (a ?? 1), 0, 1).toFixed(3) + ')':
+    'rgba(0,0,0,' + clamp((1 - k) * .95 * (a ?? 1), 0, 1).toFixed(3) + ')'
   const speck = (n, kk, aa, sz) => {
     for (let i = 0; i < n; i++) {
       const x = R() * TW, y = R() * TH
@@ -3767,9 +3808,9 @@ const ROCK_PAINT = {
 function paintTree(g, W, H, R, style, tint) {
   const cx = W / 2, base = H - 6
   const dead = style === 'dead' || style === 'burnt'
-  const trunkC = style === 'burnt' ? ['#191413', '#2a2220', '#0d0a0a']
-               : dead ? ['#2e281f', '#463c2e', '#191512']
-               : (tint && tint.bark) || ['#2c241a', '#463829', '#161109']
+  const trunkC = style === 'burnt' ? ['#191413', '#2a2220', '#0d0a0a']:
+               dead ? ['#2e281f', '#463c2e', '#191512']:
+               (tint && tint.bark) || ['#2c241a', '#463829', '#161109']
   groundShadow(g, cx + 4, base - 2, 26, 11, .55)
   const th = 30 + R() * 16
   // trunk with a root flare, drawn as a tapered polygon rather than a rectangle
@@ -3842,10 +3883,10 @@ function paintRock(g, W, H, R, style, tint) {
     const a = (i / n) * Math.PI * 2
     top.push([cx + Math.cos(a) * w * (.7 + R() * .4), base - h + Math.sin(a) * w * .34 * (.7 + R() * .4)])
   }
-  const body = (tint && tint.body) ? tint.body
-             : style === 'magic' ? ['#3a3a4c', '#4c4c64', '#22222e']
-             : style === 'dark' ? ['#2b2825', '#3d3934', '#171514']
-             : ['#3a352e', '#4e4840', '#1f1c19']
+  const body = (tint && tint.body) ? tint.body:
+             style === 'magic' ? ['#3a3a4c', '#4c4c64', '#22222e']:
+             style === 'dark' ? ['#2b2825', '#3d3934', '#171514']:
+             ['#3a352e', '#4e4840', '#1f1c19']
   // the mass: sides first, then the lit cap
   poly(g, [...top.map(p => [p[0], p[1]]), ...top.slice().reverse().map(p => [p[0] * .96 + cx * .04, base])], body[0])
   poly(g, top, body[1])
@@ -4159,8 +4200,8 @@ function humanoid(g, cx, base, o) {
       const lamb = Math.cos(((t0 + t1) / 2 - .3) * 2.2)
       poly(g, [[xa, mTop], [xb, mTop], [hb, mHem], [ha, mHem]], K.colour)
       poly(g, [[xa, mTop], [xb, mTop], [hb, mHem], [ha, mHem]],
-        lamb > 0 ? 'rgba(255,246,220,' + (lamb * .18).toFixed(2) + ')'
-                 : 'rgba(0,0,0,' + Math.min(.40, -lamb * .5).toFixed(2) + ')')
+        lamb > 0 ? 'rgba(255,246,220,' + (lamb * .18).toFixed(2) + ')':
+                 'rgba(0,0,0,' + Math.min(.40, -lamb * .5).toFixed(2) + ')')
       if (i2 === 1 || i2 === 3) {                 // cloth does not crease evenly
         g.strokeStyle = 'rgba(0,0,0,.26)'; g.lineWidth = 1
         g.beginPath(); g.moveTo(xa, mTop); g.lineTo(ha, mHem); g.stroke()
@@ -4311,8 +4352,8 @@ function humanoid(g, cx, base, o) {
       const cx2 = cx + shW * .85 + hunch, cy2 = shY + 3 * s
       g.save(); g.globalCompositeOperation = 'lighter'
       const cols = o.trail.kind === 'work'
-        ? ['rgba(255,226,160,', 'rgba(255,246,214,']
-        : ['rgba(196,226,255,', 'rgba(255,255,255,']
+        ? ['rgba(255,226,160,', 'rgba(255,246,214,']:
+        ['rgba(196,226,255,', 'rgba(255,255,255,']
       g.strokeStyle = cols[0] + (.42 * strong).toFixed(2) + ')'
       g.lineWidth = (7 + bulk * 3) * s * strong
       g.beginPath(); g.arc(cx2, cy2, R2 * 1.55, wa - 1.15, wa); g.stroke()
@@ -4473,20 +4514,20 @@ const METAL = {
   shell:     ['#a8532c', '#c2683a', '#5e2a14'],
   great:     ['#3c352e', '#6d6153', '#15120f'],
 }
-const metalOf = (item) => item?.startsWith('shell-') ? METAL.shell
-  : item?.startsWith('great-') ? METAL.great
-  : item?.startsWith('star-') ? METAL.star
-  : item?.startsWith('iron-') ? METAL.iron
-  : item === 'dragonbow' ? METAL.dragon
-  : item?.includes('heartwood') ? METAL.heartwood
-  : item === 'old-chain' ? METAL.iron
-  : METAL.wood
+const metalOf = (item) => item?.startsWith('shell-') ? METAL.shell:
+  item?.startsWith('great-') ? METAL.great:
+  item?.startsWith('star-') ? METAL.star:
+  item?.startsWith('iron-') ? METAL.iron:
+  item === 'dragonbow' ? METAL.dragon:
+  item?.includes('heartwood') ? METAL.heartwood:
+  item === 'old-chain' ? METAL.iron:
+  METAL.wood
 
 function drawWeapon(g, hx, hy, a, s, item, drawAmt) {
   if (!item) return
   const m = metalOf(item)
-  const long = /sword|spear|mell|flail/.test(item) ? (item.includes('spear') ? 26 : 20)
-             : /axe|pick|rod/.test(item) ? 18 : 13
+  const long = /sword|spear|mell|flail/.test(item) ? (item.includes('spear') ? 26 : 20):
+             /axe|pick|rod/.test(item) ? 18 : 13
   // ALONG THE ARM, NOT ACROSS IT. This was `a - 1.35`, which is seventy-seven
   // degrees off the forearm: at rest the blade pointed up and BACK over the
   // shoulder, into the torso, and the pauldron drawn afterwards finished the
@@ -5945,9 +5986,9 @@ function drawFlame(g, cx, base, t, size, seed) {
     // Wider than it is tall at the base, and the pale core kept small: a
     // narrow column of near-white is a plasma jet, not a fire, and bloom
     // exaggerates whatever it is given.
-    g.fillStyle = p < .18 ? 'rgba(255,226,150,' + (.7 - p) + ')'
-      : p < .58 ? 'rgba(244,138,34,' + (.74 - p * .55) + ')'
-      : 'rgba(158,46,12,' + (.46 - p * .38) + ')'
+    g.fillStyle = p < .18 ? 'rgba(255,226,150,' + (.7 - p) + ')':
+      p < .58 ? 'rgba(244,138,34,' + (.74 - p * .55) + ')':
+      'rgba(158,46,12,' + (.46 - p * .38) + ')'
     g.beginPath(); g.ellipse(x, y, w * .70, w * .80, 0, 0, 7); g.fill()
   }
   for (let i = 0; i < 4; i++) {              // cinders leaving
@@ -6148,8 +6189,8 @@ function itemIcon(item) {
     // cheap metal; it is a crab's back banded on with iron.
     if (item === 'shell-helm' || item === 'shell-plate') {
       const tall = item === 'shell-plate'
-      poly(g, tall ? [[cx-10,cy-11],[cx+10,cy-11],[cx+9,cy+12],[cx-9,cy+12]]
-                   : [[cx-9,cy+7],[cx-8,cy-3],[cx,cy-10],[cx+8,cy-3],[cx+9,cy+7]], '#a8532c', '#5e2a14', 1)
+      poly(g, tall ? [[cx-10,cy-11],[cx+10,cy-11],[cx+9,cy+12],[cx-9,cy+12]]:
+                   [[cx-9,cy+7],[cx-8,cy-3],[cx,cy-10],[cx+8,cy-3],[cx+9,cy+7]], '#a8532c', '#5e2a14', 1)
       g.fillStyle = '#c2683a'
       for (let i = 0; i < (tall ? 4 : 3); i++) {
         g.beginPath(); g.ellipse(cx, cy - (tall ? 7 : 5) + i * (tall ? 5.4 : 4), (tall ? 9 : 7.6) - i * 0.8, 2.3, 0, Math.PI, 0); g.fill()
@@ -6166,8 +6207,8 @@ function itemIcon(item) {
       const beat = 0.6 + Math.sin(t / 560 + item.length) * 0.22
       const emb = (a) => 'rgba(255,' + Math.round(96 + 40 * beat) + ',' + Math.round(24 * beat) + ',' + a + ')'
       g.fillStyle = emb('0.07'); g.beginPath(); g.arc(cx, cy - 1, tall ? 12 : 9, 0, 7); g.fill()
-      poly(g, tall ? [[cx-10,cy-11],[cx+10,cy-11],[cx+9,cy+12],[cx-9,cy+12]]
-                   : [[cx-9,cy+8],[cx-9,cy-3],[cx,cy-11],[cx+9,cy-3],[cx+9,cy+8]], '#3c352e', '#15120f', 1)
+      poly(g, tall ? [[cx-10,cy-11],[cx+10,cy-11],[cx+9,cy+12],[cx-9,cy+12]]:
+                   [[cx-9,cy+8],[cx-9,cy-3],[cx,cy-11],[cx+9,cy-3],[cx+9,cy+8]], '#3c352e', '#15120f', 1)
       g.strokeStyle = '#6d6153'; g.lineWidth = 1.3
       g.beginPath()
       if (tall) { g.moveTo(cx - 10, cy - 11); g.lineTo(cx + 10, cy - 11) }
@@ -7854,8 +7895,8 @@ function lashAt(k) {
   // clamp the base: 1 - .58/.58 lands at -2.2e-16, and a negative base to a
   // fractional power is NaN -- which then travels quietly into a coordinate
   // and draws nothing at all
-  return t < .42 ? Math.pow(t / .42, .65)
-                 : Math.pow(Math.max(0, 1 - (t - .42) / .58), 1.5)
+  return t < .42 ? Math.pow(t / .42, .65):
+                 Math.pow(Math.max(0, 1 - (t - .42) / .58), 1.5)
 }
 const liftAt = (x, y) => {
   const k = terrainOf(x, y)
@@ -8241,8 +8282,8 @@ function drawNode(g, n, sx, sy, t, hot) {
       // (and the gallows-oak keeps the wilds 'dead' silhouette + a noose); a
       // plain tree falls to the biome/hash style as before.
       const tint = TREE_PAINT[n.type] || null
-      const style = n.type === 'gallows-oak' ? 'dead'
-                  : b === 'wilds' ? 'dead' : (hs % 5 === 0 ? 'pine' : 'leafy')
+      const style = n.type === 'gallows-oak' ? 'dead':
+                  b === 'wilds' ? 'dead' : (hs % 5 === 0 ? 'pine' : 'leafy')
       g.drawImage(sprite('tree' + (n.type) + style + (hs % 6), 120, 122, (gg, W2, H2, R) => paintTree(gg, W2, H2, R, style, tint)),
         sx - 60, sy - 122 + 20)
       return
@@ -8293,8 +8334,8 @@ function drawNode(g, n, sx, sy, t, hot) {
       const p = (t / 900 + hs) % 1
       // §6cz: each shoal its own water -- deep-fish darker, gibbet a dead violet
       const wt = tintOf(n.type)
-      const ripple = n.type === 'gibbet-shoal' ? '180,150,210'
-                   : n.type === 'deep-fish-spot' ? '110,150,200' : '150,196,214'
+      const ripple = n.type === 'gibbet-shoal' ? '180,150,210':
+                   n.type === 'deep-fish-spot' ? '110,150,200' : '150,196,214'
       g.fillStyle = wt && wt.water ? hexA(wt.water, .62) : 'rgba(10,20,28,.62)'
       diamond(g, sx - 32, sy - 16, 3); g.fill()
       g.strokeStyle = 'rgba(' + ripple + ',' + (.34 * (1 - p)) + ')'; g.lineWidth = 1.4
@@ -8937,15 +8978,15 @@ function drawNode(g, n, sx, sy, t, hot) {
       const dress = trade ? TRADE_DRESS[trade] : null
       humanoid(g, sx, sy, {
         scale: .96, cloak: role === 'guard' ? '#3a2020' : null,
-        tunic: dress ? dress.tunic
-          : role === 'smith' ? '#332b22' : role === 'guard' ? '#3d2523' : '#3a3226',
+        tunic: dress ? dress.tunic:
+          role === 'smith' ? '#332b22' : role === 'guard' ? '#3d2523' : '#3a3226',
         apron: dress ? dress.apron : null,
         boots: '#241d16', hair: dress ? dress.hair : '#2e2418',
         helm: role === 'guard' ? '#5a5246' : null,
         seed: hs & 0xffff,
         step: role === 'guard'
-          ? Math.sin(t2 * .33 + hs) * .10 + Math.sin(t2 * .11) * .06   // weight, shifted
-          : Math.sin(t2 * .6) * .2,
+          ? Math.sin(t2 * .33 + hs) * .10 + Math.sin(t2 * .11) * .06   // weight, shifted:
+          Math.sin(t2 * .6) * .2,
         lean: role === 'guard' ? watchLean(n.x, n.y) : 0,
         // A SMITH WITH NO ANVIL IS JUST A MAN HOLDING A HAMMER.
         //
@@ -8961,9 +9002,9 @@ function drawNode(g, n, sx, sy, t, hot) {
           drawWeapon(gg, hx, hy, a, sc, dress.tool, 0) : null,
         badge: trade ? STALL_GLYPH[trade] : null,
         swing: (role === 'smith' && anvilBeside(n.x, n.y))
-          ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5      // striking, on the beat
-          : role === 'smith' ? -0.15 + Math.sin(t2 * .5) * .06
-          : -0.4 + Math.sin(t2 * .9) * .12,
+          ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5      // striking, on the beat:
+          role === 'smith' ? -0.15 + Math.sin(t2 * .5) * .06:
+          -0.4 + Math.sin(t2 * .9) * .12,
         weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'iron-spear')
               // A GUARD DOES NOT WANDER, BUT HE IS NOT A BOLLARD EITHER.
         //
@@ -8978,8 +9019,8 @@ function drawNode(g, n, sx, sy, t, hot) {
               // which is why a smith standing beside a citizen at a tree read as
               // ONE figure with two arms -- a sword in one and an axe swinging in
               // the other. Two overlapping sprites, and the wrong tool in one of
-              // them made the overlap legible as a single impossible body.
-              : role === 'smith' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'hammer') : null,
+              // them made the overlap legible as a single impossible body.:
+              role === 'smith' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'hammer') : null,
       })
       return
     }
@@ -9088,9 +9129,9 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   let bowDraw = 0, chainLash = 0, pickBite = 0
   const swAt = swingAt.get('p' + id)
   const swK = swAt ? (performance.now() - swAt) / SWING_MS : 2
-  const arc = (k) => k < .30 ? -0.45 - (k / .30) * 0.95          // back
-             : k < .56 ? -1.40 + ((k - .30) / .26) * 2.15        // through
-             : 0.75 - ((k - .56) / .44) * 1.20                   // and down to rest
+  const arc = (k) => k < .30 ? -0.45 - (k / .30) * 0.95          // back:
+             k < .56 ? -1.40 + ((k - .30) / .26) * 2.15        // through:
+             0.75 - ((k - .56) / .44) * 1.20                   // and down to rest
   let swingVal
   if (spK <= 1) {
     if (sp.kind === 'twice') {
@@ -9099,8 +9140,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
       swingVal = -0.4 + Math.sin(a1 * Math.PI) * 1.35 + Math.sin(a2 * Math.PI) * 1.35
     } else if (sp.kind === 'now') {
       // a mell: three quarters of the animation is the wind-up
-      swingVal = spK < .62 ? -0.4 - (spK / .62) * 1.5
-               : -1.9 + ((spK - .62) / .38) * 3.6
+      swingVal = spK < .62 ? -0.4 - (spK / .62) * 1.5:
+               -1.9 + ((spK - .62) / .38) * 3.6
     } else {
       // the shot that cannot miss: draw, hold, loose
       swingVal = spK < .55 ? -0.4 - (spK / .55) * .5 : -0.9 + ((spK - .55) / .45) * 1.1
@@ -9159,9 +9200,9 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
       // So: a slow lift high over the shoulder, a fast drop, and then a pause
       // with the head buried while they work it loose.
       const k = clamp(ph / .8, 0, 1)
-      swingVal = k < .46 ? -0.5 - (k / .46) * 1.25        // up, and slowly
-        : k < .62 ? -1.75 + ((k - .46) / .16) * 2.35      // driven down, fast
-        : 0.60 - ((k - .62) / .38) * 1.10                 // and worked loose
+      swingVal = k < .46 ? -0.5 - (k / .46) * 1.25        // up, and slowly:
+        k < .62 ? -1.75 + ((k - .46) / .16) * 2.35      // driven down, fast:
+        0.60 - ((k - .62) / .38) * 1.10                 // and worked loose
       pickBite = k >= .62 && k < .86 ? 1 : 0
     } else swingVal = arc(clamp(ph / .8, 0, 1))
   }
@@ -9181,8 +9222,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   // has no blow to land.
   const raiseE = act === 'raise'
     ? (Math.sin((curState?.tick ?? 0) * 0.7 + t * 1.2) + 1) / 2 : 0
-  const effort = act === 'raise' ? raiseE
-    : working ? clamp((swingVal + 1.5) / 2.4, 0, 1) : 0
+  const effort = act === 'raise' ? raiseE:
+    working ? clamp((swingVal + 1.5) / 2.4, 0, 1) : 0
   const workLean = working ? Math.sin(effort * Math.PI) * .55 + effort * .25 : 0
   const workDip = working ? Math.sin(effort * Math.PI) * .30 : 0
   // A CAST IS MADE WITH THE WHOLE BODY.
@@ -9202,10 +9243,10 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   const dozeDip = sleeping ? 1.15 : 0
   const dozeLean = sleeping ? .18 : 0
   const castE = (myDeed?.pose === 'cast' && isMe) ? clamp((performance.now() - myDeed.at) / myDeed.dur, 0, 1) : 0
-  const castLean = castE === 0 ? 0
-    : castE < .34 ? -(castE / .34) * .40
-    : castE < .62 ? -.40 + Math.sin((castE - .34) * 18) * .04
-    : -.40 + ((castE - .62) / .38) * .78
+  const castLean = castE === 0 ? 0:
+    castE < .34 ? -(castE / .34) * .40:
+    castE < .62 ? -.40 + Math.sin((castE - .34) * 18) * .04:
+    -.40 + ((castE - .62) / .38) * .78
   const castDip = castE === 0 ? 0 : Math.sin(clamp((castE - .55) / .45, 0, 1) * Math.PI) * .34
   // a pick is driven with the back and the knees, not the arm: while the head
   // is buried the citizen is bent over it
@@ -9218,8 +9259,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
       switch (myDeed.pose) {
         case 'kneel':   crouch = e; pitch = e * .7; swingVal = -0.5 + e * 1.35; break
         case 'lean':    pitch = e; swingVal = -0.5 + e * .8; break
-        case 'strike':  swingVal = dk < .45 ? -0.5 - (dk / .45) * .95
-                                 : -1.45 + ((dk - .45) / .55) * 2.5; pitch = e * .4; break
+        case 'strike':  swingVal = dk < .45 ? -0.5 - (dk / .45) * .95:
+                                 -1.45 + ((dk - .45) / .55) * 2.5; pitch = e * .4; break
         case 'whittle': crouch = e * .35; swingVal = -0.6 + Math.sin(dk * 18) * .35; break
         case 'drink':   swingVal = -1.25 - e * .45; break
         case 'cast':
@@ -9230,9 +9271,9 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
           // comes forward over it as it falls; the lean and the dip below do
           // that, and they are what makes it look like effort rather than
           // gesture.
-          swingVal = e < .34 ? -0.5 - (e / .34) * 1.35
-            : e < .62 ? -1.85 + Math.sin((e - .34) * 22) * .07
-            : -1.85 + ((e - .62) / .38) * 1.35
+          swingVal = e < .34 ? -0.5 - (e / .34) * 1.35:
+            e < .62 ? -1.85 + Math.sin((e - .34) * 22) * .07:
+            -1.85 + ((e - .62) / .38) * 1.35
           break
         case 'offer':   swingVal = -0.5 + e * .95; pitch = e * .3; break
         case 'raise':   swingVal = -1.55 - e * .5; crouch = -e * .35; break
@@ -9248,8 +9289,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   // towards you is allowed to hit you where you stand.
   const hauling9 = !!p.consignment
   const rideLift = (curState && p.hp > 0 && mountedNow(id, p, performance.now()))
-    ? mount(g, sx, sy, { scale: sc ?? 1, face: f[0] >= 0 ? 1 : -1, moving, step: t * 6.5, hauling: hauling9 })
-    : 0
+    ? mount(g, sx, sy, { scale: sc ?? 1, face: f[0] >= 0 ? 1 : -1, moving, step: t * 6.5, hauling: hauling9 }):
+    0
   if (hauling9 && !rideLift) {
     // roped crates on the back, behind the body
     const s9 = sc ?? 1, FB = f[0] >= 0 ? -1 : 1
@@ -9284,8 +9325,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
     pitch: pitch + workLean + biteDip * .4 + castLean + dozeLean,
     cloak: isMe ? '#6e1f19' : '#2a2a38',
     coat: isMe ? '#4a1512' : '#242430',
-    plate: body === 'gold-plate' ? ['#e8b93a', '#7a5a10']
-         : star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
+    plate: body === 'gold-plate' ? ['#e8b93a', '#7a5a10']:
+         star ? ['#9db4cc', '#4a5a70'] : body ? ['#8a6a34', '#3f2f14'] : ['#4a4034', '#251f18'],
     tunic: body ? (star ? '#7d90a8' : '#6a5230') : '#3a3226',
     tunicLit: 'rgba(255,240,214,.12)',
     boots: '#241d16', hair: away ? '#241a10' : '#2e2418',
@@ -10329,8 +10370,8 @@ function drawScene(now) {
   L.globalCompositeOperation = 'destination-out'
   for (const [lx, ly, lr, li, warm, isLantern] of lights) {
     const flick = isLantern
-      ? 1 + Math.sin(now / 130) * .034 + Math.sin(now / 57) * .02 + Math.sin(now / 311) * .028
-      : 1 + Math.sin(now / 90 + lx) * .05
+      ? 1 + Math.sin(now / 130) * .034 + Math.sin(now / 57) * .02 + Math.sin(now / 311) * .028:
+      1 + Math.sin(now / 90 + lx) * .05
     const rr = lr * flick
     const gr = L.createRadialGradient(lx, ly, 0, lx, ly, rr)
     gr.addColorStop(0, 'rgba(0,0,0,' + li + ')')
@@ -10500,8 +10541,8 @@ function drawScene(now) {
 
 // ---- words for things -----------------------------------------------------
 const wordy = (item) => item === 'chart'   // 6ci
-  ? 'chart of ' + item.slice(6).replace(/-/g, ' ')
-  : String(item ?? '').replace(/-/g, ' ')
+  ? 'chart of ' + item.slice(6).replace(/-/g, ' '):
+  String(item ?? '').replace(/-/g, ' ')
 // RARITY IS REAL HERE. I had this wrong and flattened it.
 //
 // There are no affixes and no rarity roll, so nothing is graded at the moment
@@ -10896,8 +10937,8 @@ function drawChart(g, now) {
   g.restore()
   g.font = 'italic 11.5px Georgia, serif'
   g.fillStyle = 'rgba(70,53,32,.6)'
-  g.fillText((me ? me.x + ' \u00b7 ' + me.y + '   \u2014   ' : '') + 'tick ' + s.tick
-    + '   \u2014   drag to move the sheet, scroll to zoom, R to find yourself',
+  g.fillText((me ? me.x + ' \u00b7 ' + me.y + ',   ' : '') + 'tick ' + s.tick
+    + ',   drag to move the sheet, scroll to zoom, R to find yourself',
     VW / 2, oy + bh - 10)
 }
 // ===========================================================================
@@ -11492,8 +11533,8 @@ function drawPanel(g, now) {
     // EVERY loop gets a tip, full or empty. Four numbered boxes with nothing in
     // them and no explanation is a puzzle, not an interface.
     regions.push({ x: bx, y: beltY, w: BS, h: BS, act: { t: 'belt', i: i2 },
-                   tip: b ? { title: wordy(b.item), sub: 'Press ' + (i2 + 1) + ' to eat it \u00b7 restores health' }
-                          : { title: 'Belt loop ' + (i2 + 1), sub: 'Cooked fish, ale and broth land here on their own' } })
+                   tip: b ? { title: wordy(b.item), sub: 'Press ' + (i2 + 1) + ' to eat it \u00b7 restores health' }:
+                          { title: 'Belt loop ' + (i2 + 1), sub: 'Cooked fish, ale and broth land here on their own' } })
     g.font = '600 8px Cinzel, Georgia, serif'; g.textAlign = 'left'
     g.fillStyle = 'rgba(141,125,99,.7)'
     g.fillText(String(i2 + 1), bx + 3, beltY + 10)
@@ -11515,9 +11556,9 @@ function drawPanel(g, now) {
     // says the distance rather than the name -- there is no point telling an
     // archer they have a long shot without telling them how long it is.
     const far = kind === 'far' && q ? Math.max(Math.abs(me.x - q.x), Math.abs(me.y - q.y)) : 0
-    const why = !kind ? (wep ? 'no special on this weapon' : 'bare hands')
-      : !q ? 'no citizen targeted' : !wilds ? 'only in the Wilds'
-      : kind === 'far' ? (far <= 2 ? 'too close to matter' : far + ' tiles') : kind
+    const why = !kind ? (wep ? 'no special on this weapon' : 'bare hands'):
+      !q ? 'no citizen targeted' : !wilds ? 'only in the Wilds':
+      kind === 'far' ? (far <= 2 ? 'too close to matter' : far + ' tiles') : kind
     const sx2 = bx0 + 4 * (BS + gap) + gap, sy2 = beltY
     const hot = inRect(mouse, sx2, sy2, BS, BS)
     slotFrame(g, sx2, sy2, BS, hot && ready)
@@ -11627,8 +11668,8 @@ function drawPack(g, now) {
   const fy = gy + 4 * (S + GAP) + 12
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'
   g.font = '11.5px Georgia, serif'; g.fillStyle = giveTo ? '#e8d199' : '#8d7d63'
-  g.fillText(giveTo ? 'Click what you will offer. Escape to withdraw.'
-                    : 'Left click to use. Right click for everything else.', x + 20, fy + 12)
+  g.fillText(giveTo ? 'Click what you will offer. Escape to withdraw.':
+                    'Left click to use. Right click for everything else.', x + 20, fy + 12)
   const free = 28 - (me.inventory ?? []).filter(Boolean).length
   g.fillStyle = free ? '#8d7d63' : '#c98b5a'
   g.fillText(free + ' slot' + (free === 1 ? '' : 's') + ' free', x + 20, fy + 30)
@@ -11719,8 +11760,8 @@ function drawCitizen(g, now) {
     regions.push({ x: sx2, y: sy2 - 4, w: colW - 12, h: 22,
                    act: has ? { t: 'guide', skill: sk } : { t: 'noop' },
                    tip: { title: sk + ' \u00b7 level ' + lv + (pr.mastered ? '  \u00b7  mastered' : ''),
-                          sub: has ? 'click to see what it buys'
-                             : pr.toNext.toLocaleString() + ' xp to ' + (lv + 1) } })
+                          sub: has ? 'click to see what it buys':
+                             pr.toNext.toLocaleString() + ' xp to ' + (lv + 1) } })
   })
 }
 
@@ -11750,8 +11791,8 @@ function drawMyStall(g) {
   g.font = '12px Georgia, serif'; g.fillStyle = '#cdbb99'
   g.fillText(good ? qty + ' \u00d7 ' + wordy(good) : 'Nothing on the shelf', x + 26, y + 56)
   g.fillStyle = mk.ask > 0 ? '#b0913f' : '#7a6a52'
-  g.fillText(mk.ask > 0 ? 'asking ' + mk.ask + ' gold each'
-    : 'unpriced \u2014 nothing is for sale until you name a price', x + 26, y + 76)
+  g.fillText(mk.ask > 0 ? 'asking ' + mk.ask + ' gold each':
+    'unpriced, nothing is for sale until you name a price', x + 26, y + 76)
   g.fillStyle = '#8a7d68'
   g.fillText('taken so far: ' + (mk.coin ?? 0) + ' gold', x + 26, y + 96)
 
@@ -12694,8 +12735,8 @@ function lookAt(n) {
     const owner = n.by === myId
     const good = n.shelf ? Object.keys(n.shelf)[0] : null
     const qty = good ? n.shelf[good] : 0
-    if (!good) return owner ? 'Your stall. Empty, and waiting for something to sell.'
-                            : 'A stall, and nothing on it.'
+    if (!good) return owner ? 'Your stall. Empty, and waiting for something to sell.':
+                            'A stall, and nothing on it.'
     return (owner ? 'Your stall: ' : 'A stall: ') + qty + ' ' + wordy(good).toLowerCase()
       + (n.ask > 0 ? ' at ' + n.ask + ' gold each.' : ', unpriced, so nothing is for sale.')
   }
@@ -12759,8 +12800,8 @@ function buildMenu(px2, py2, target) {
     if (n.type === 'furnace') {
       const lit = (n.fuelUntil ?? 0) > (curState?.tick ?? 0)
       const coal = (me.inventory ?? []).findIndex((sl) => sl?.item === 'coal' || sl?.item === 'charcoal')
-      items.push({ label: coal < 0 ? 'Stoke the furnace (you have no coal)'
-        : (lit ? 'Feed the furnace' : 'Light the furnace'),
+      items.push({ label: coal < 0 ? 'Stoke the furnace (you have no coal)':
+        (lit ? 'Feed the furnace' : 'Light the furnace'),
         dim: coal < 0, run: () => { send({ do: 'stoke', nodeId: target.id, slot: coal })
           say(lit ? 'You feed the fire.' : 'The bloom catches.') } })
       // §7co: ...and STEEL, which was missing. Three of the four smelts were
@@ -12820,10 +12861,10 @@ function buildMenu(px2, py2, target) {
         const hot = (n.fuelUntil ?? 0) > (curState?.tick ?? 0)
         const lv = XP_TO_LVL(me.skills?.firemaking ?? 0)
         items.push({
-          label: !hot ? 'Char ironbark (the fire is cold)'
-               : lv < wt9.charLevel ? 'Char ironbark (needs firemaking ' + wt9.charLevel + ')'
-               : bark < wt9.charWood ? 'Char ironbark (needs ' + wt9.charWood + ', you have ' + bark + ')'
-               : 'Char ' + wt9.charWood + ' ironbark to charcoal (2 logs of its burn)',
+          label: !hot ? 'Char ironbark (the fire is cold)':
+               lv < wt9.charLevel ? 'Char ironbark (needs firemaking ' + wt9.charLevel + ')':
+               bark < wt9.charWood ? 'Char ironbark (needs ' + wt9.charWood + ', you have ' + bark + ')':
+               'Char ' + wt9.charWood + ' ironbark to charcoal (2 logs of its burn)',
           dim: !hot || lv < wt9.charLevel || bark < wt9.charWood,
           run: () => { send({ do: 'char', nodeId: target.id })
             say('You bank the ironbark into the heart of the fire.', 'good') } })
@@ -12847,16 +12888,16 @@ function buildMenu(px2, py2, target) {
       // the price is the only thing about this that is ever in doubt.
       const dg = curState?.genesis?.dedication
       const price9 = dg ? Math.floor(dg.floor + (dg.floor * (n.count ?? 0)) / dg.stepDen) : null
-      items.push({ label: n.name ? '\u201c' + n.name + '\u201d \u2014 ' + (n.coin ?? 0) + ' gold'
-                                 : 'Blank stone', dim: true, run: () => {} })
+      items.push({ label: n.name ? '\u201c' + n.name + '\u201d, ' + (n.coin ?? 0) + ' gold':
+                                 'Blank stone', dim: true, run: () => {} })
       if (n.past?.length)
         items.push({ label: 'Before them: ' + n.past.join(', '), dim: true, run: () => {} })
       if (price9 !== null && n.by !== myId) {
         const canPay = (me.gold ?? 0) >= price9 && !!me.name
         items.push({
-          label: !me.name ? 'Cut your name (you have no name)'
-               : !canPay ? 'Cut your name (' + price9 + ' gold, you have ' + (me.gold ?? 0) + ')'
-               : 'Cut your name into it (' + price9 + ' gold, burnt)',
+          label: !me.name ? 'Cut your name (you have no name)':
+               !canPay ? 'Cut your name (' + price9 + ' gold, you have ' + (me.gold ?? 0) + ')':
+               'Cut your name into it (' + price9 + ' gold, burnt)',
           dim: !canPay,
           run: () => { send({ do: 'dedicate', nodeId: target.id, pay: price9 })
             say('You pay ' + price9 + ' gold to have your name cut. It buys nothing but this.', 'good') } })
@@ -12915,9 +12956,9 @@ function buildMenu(px2, py2, target) {
     // the menu should say so, because a citizen deciding whether to chase a
     // raider is deciding exactly this and cannot see the rule.
     const theyAreMarked = (q.brandedUntil ?? 0) > (curState?.tick ?? 0)
-    items.push({ label: !wilds ? 'Attack them (only in the Wilds)'
-                   : theyAreMarked ? 'Attack them (marked \u2014 no Brand, and prayer will not save them)'
-                   : 'Attack them (this will mark you: no keeper, no stone, no prayer)',
+    items.push({ label: !wilds ? 'Attack them (only in the Wilds)':
+                   theyAreMarked ? 'Attack them (marked, no Brand, and prayer will not save them)':
+                   'Attack them (this will mark you: no keeper, no stone, no prayer)',
                  dim: !wilds,
                  run: () => send({ do: 'attackp', targetId: target.id }) })
     items.push({ label: spec ? 'Special attack' : 'Special attack (needs a weapon with one)',
@@ -12943,7 +12984,7 @@ function buildMenu(px2, py2, target) {
     // pack rather than guessing: the next slot you click is the offer.
     items.push({ label: 'Offer them something', run: () => {
       giveTo = target.id; paneRight = 'pack'
-      say('Choose what to offer ' + (q.name || 'them') + ' \u2014 or press Escape.', 'dim')
+      say('Choose what to offer ' + (q.name || 'them') + ', or press Escape.', 'dim')
     } })
     items.push({ label: 'Accept their offer', run: () => send({ do: 'accept', from: target.id }) })
     items.push({ label: 'Withdraw my offer', dim: !me.trade, run: () => send({ do: 'cancel' }) })
@@ -12981,14 +13022,14 @@ function buildMenu(px2, py2, target) {
       // Walking to a thing you cannot lift is a wasted trip, and the window
       // knows before you set off.
       const mine9 = gi.by === myId
-      const seal9 = gi.sealedBy ? (mine9 ? ' \u2014 sealed for you' : ' \u2014 sealed, not yours') : ''
-      items.push({ label: (gi.item === 'forage' ? 'Eat the forage where it lies'
-                     : (here.length > 1 ? 'Take the ' + wordy(gi.item).toLowerCase() : 'Take it')
+      const seal9 = gi.sealedBy ? (mine9 ? ', sealed for you' : ', sealed, not yours') : ''
+      items.push({ label: (gi.item === 'forage' ? 'Eat the forage where it lies':
+                     (here.length > 1 ? 'Take the ' + wordy(gi.item).toLowerCase() : 'Take it')
                        + ((gi.qty ?? 1) > 1 ? ' (' + gi.qty + ')' : '')) + seal9,
                    dim: !!gi.sealedBy && !mine9,
                    run: gi.sealedBy && !mine9
-                     ? () => say('It is sealed for whoever dropped it. Your hand closes on nothing.', 'dim')
-                     : go('pickup', gid, gi.x, gi.y) })
+                     ? () => say('It is sealed for whoever dropped it. Your hand closes on nothing.', 'dim'):
+                     go('pickup', gid, gi.x, gi.y) })
     }
     if (here.length > SHOW)
       items.push({ label: '\u2026' + (here.length - shown.length) + ' more beneath (show them)',
@@ -13016,15 +13057,15 @@ function buildMenu(px2, py2, target) {
           ? { label: 'Seal the ' + sWhat + ' for whoever dropped it (a sigil)',
               run: () => { send({ do: 'seal', groundId: sealable[0] })
                 say('You seal the ' + sWhat + ' where it lies. Only the hand that dropped it '
-                  + 'may lift it, and only while you stand here.', 'good') } }
-          : { label: 'Seal the ' + sWhat + ' (needs a sigil)', dim: true,
+                  + 'may lift it, and only while you stand here.', 'good') } }:
+          { label: 'Seal the ' + sWhat + ' (needs a sigil)', dim: true,
               run: () => say('You have no sigil to spend.', 'dim') })
       }
       items.push(hasSigil
         ? { label: 'Unmake the ' + what + ' (a sigil)',
             run: () => { send({ do: 'unmake', groundId: dgid })
-              say('You unmake the ' + what + ' where it lies. Nobody will have it now.', 'good') } }
-        : { label: 'Unmake the ' + what + ' (needs a sigil)', dim: true,
+              say('You unmake the ' + what + ' where it lies. Nobody will have it now.', 'good') } }:
+        { label: 'Unmake the ' + what + ' (needs a sigil)', dim: true,
             run: () => say('You have no sigil to spend.', 'dim') })
     }
   }
@@ -13060,8 +13101,8 @@ function buildSlotMenu(px2, py2, i) {
     const need = wieldBlockers(me, it)
     items.push(need.length
       ? { label: 'Wield it (' + need.map((r) => r.skill + ' ' + r.level).join(', ') + ')',
-          run: () => say('You have not the ' + need[0].skill + ' for it yet.', 'dim') }
-      : { label: 'Wield it', run: () => useSlot(i) })
+          run: () => say('You have not the ' + need[0].skill + ' for it yet.', 'dim') }:
+      { label: 'Wield it', run: () => useSlot(i) })
   }
   if (/^(cooked-fish|cooked-deep-fish|ale|broth)$/.test(it)) items.push({ label: 'Eat it', run: () => useSlot(i) })
   if (it === 'raw-fish' || it === 'deep-fish') items.push({ label: 'Cook it', run: () => send({ do: 'cook', slot: i }) })
@@ -13097,7 +13138,9 @@ function buildSlotMenu(px2, py2, i) {
     // the hood stay in your hands whatever you click.
     items.push({ label: 'Vault everything', run: () => send({ do: 'deposit_all' }) })
   }
-  if (near('store') && PRICES[it]) items.push({ label: 'Sell it \u00b7 ' + (PRICES[it] * (sl.qty ?? 1)) + 'g', run: () => send({ do: 'sell', slot: i }) })
+  // §6l: THE KEEPER IS OUT OF THE GOODS TRADE. `sell` was repealed and this
+  // line outlived it, offering a price the engine would never pay. A citizen
+  // raises a stall (§6al) and sells from it.
   // ALCHEMY, anywhere -- including where there is no store to walk to, which
   // is the point of it.
   //
@@ -13114,12 +13157,12 @@ function buildSlotMenu(px2, py2, i) {
     const ml = XP_TO_LVL(me.skills?.magic ?? 0)
     const paid = alchValue(it)     // one from the stack, never the stack
     items.push({
-      label: ml < ALCH_REQ ? 'Transmute (magic ' + ALCH_REQ + ')'
-        : paid > 0 ? 'Transmute (' + paid + ' gold)' : 'Transmute (for the practice)',
+      label: ml < ALCH_REQ ? 'Transmute (magic ' + ALCH_REQ + ')':
+        paid > 0 ? 'Transmute (' + paid + ' gold)' : 'Transmute (for the practice)',
       dim: ml < ALCH_REQ,
       run: () => {
         const since = (curState?.tick ?? 0) - (me.lastAlch ?? -99)
-        if (since < alchEveryFor(me)) { say('Not yet \u2014 the last one is still coming apart.', 'dim'); return }
+        if (since < alchEveryFor(me)) { say('Not yet, the last one is still coming apart.', 'dim'); return }
         send({ do: 'alch', slot: i }); SFX.pane()
       },
     })
@@ -13211,11 +13254,11 @@ function pickWorld(p) {
   const SCENERY = new Set(['wall', 'rampart', 'fence', 'hedge', 'banner'])
   for (const [id, n] of Object.entries(s.nodes ?? {})) {
     if (SCENERY.has(n.type)) continue
-    const big = BUILDING_KINDS[n.type] ? [-60, 60, -110, 20]
-      : (n.type === 'vault' || n.type === 'store') ? [-32, 32, -34, 18]
-      : famOf(n.type) === 'tree' ? [-30, 30, -80, 16]
-      : famOf(n.type) === 'fishing-spot' ? [-30, 30, -14, 14]
-      : [-28, 28, -56, 14]
+    const big = BUILDING_KINDS[n.type] ? [-60, 60, -110, 20]:
+      (n.type === 'vault' || n.type === 'store') ? [-32, 32, -34, 18]:
+      famOf(n.type) === 'tree' ? [-30, 30, -80, 16]:
+      famOf(n.type) === 'fishing-spot' ? [-30, 30, -14, 14]:
+      [-28, 28, -56, 14]
     test('node', id, n, n.x, n.y, big)
   }
   if (!cands.length) return null
@@ -13249,7 +13292,7 @@ function primaryClick(p, isRight) {
   if (!inNought && !hitRegion(p)) {
     const pk0 = pickWorld(p)
     if (pk0 && pk0.kind === 'node' && s.nodes[pk0.id]?.type === 'fountain') {
-      say('The fountain. You came through here, and it will not take you again \u2014 it takes nobody twice.', 'dim')
+      say('The fountain. You came through here, and it will not take you again: it takes nobody twice.', 'dim')
       say('Somebody is standing in Nought right now, looking at this same water, in an Anchor with nothing in it.', 'dim')
       return
     }
@@ -13342,7 +13385,7 @@ function primaryClick(p, isRight) {
     const lv9 = me9 ? XP_TO_LVL(me9.skills?.mining ?? 0) : 0
     if (lv9 < MAGIC_ROCK_MINING) {
       say('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
-          + ' opens the magic-rocks of the Wilds \u2014 you have ' + lv9 + '.')
+          + ' opens the magic-rocks of the Wilds: you have ' + lv9 + '.')
       return
     }
   }
@@ -13378,7 +13421,7 @@ function runRegion(r, isRight) {
     const me2 = myId && curState?.players?.[myId]
     const t2 = me2?.action?.type === 'attackp' ? me2.action.targetId : null
     const q2 = t2 && curState?.players?.[t2]
-    if (!q2) { say('Target a citizen first \u2014 the special is theirs alone.', 'warn'); return }
+    if (!q2) { say('Target a citizen first, the special is theirs alone.', 'warn'); return }
     fireSpecial(t2, q2.x, q2.y); return
   }
   if (a.t === 'belt') {
@@ -13439,7 +13482,7 @@ function pumpIntent() {
   if ((s.tick ?? 0) - intent.since > intent.budget) {
     const d = (me1 && intent.x !== undefined)
       ? Math.max(Math.abs(me1.x - intent.x), Math.abs(me1.y - intent.y)) : '?'
-    say('Gave up \u2014 ' + intent.budget + ' steps and still ' + d + ' away'
+    say('Gave up, ' + intent.budget + ' steps and still ' + d + ' away'
       + (intent.refused ? ', ' + intent.refused + ' refused' : '') + '.', 'warn')
     travelMark = { x: intent.x, y: intent.y, at: performance.now(), fail: true }
     intent = null
@@ -13675,7 +13718,7 @@ function onState(s, worldId, local) {
       entered = true
       gate.classList.add('gone')
       SFX.ctx(); fadeMusicOut(2200)
-      say('Tallyholm. The same coastline, the same streets, the same fountain \u2014 and everything a hundred people did to it while you waited.', 'good')
+      say('Tallyholm. The same coastline, the same streets, the same fountain, and everything a hundred people did to it while you waited.', 'good')
       say('You will not see it empty again. Nobody does, twice.', 'good')
       if (pendingName) setTimeout(() => send({ do: 'name', name: pendingName }), 1400)
     } else if (!entered) updateNoughtGate(s)
@@ -13694,8 +13737,8 @@ function onState(s, worldId, local) {
       settlements: Array.isArray(s.genesis?.settlements) && s.genesis.settlements.length
         ? s.genesis.settlements.map((t) => ({ tag: t.tag,
             name: t.name ?? (t.tag ? t.tag[0].toUpperCase() + t.tag.slice(1) : ''),
-            x: t.x, y: t.y, w: t.w, h: t.h }))
-        : undefined })
+            x: t.x, y: t.y, w: t.w, h: t.h })):
+        undefined })
     // THE ROADS COME FROM THE WORLD, NOT A GUESS. Fetch the tiles the founding
     // node actually laid; until they arrive roadTilesE() draws its placeholder,
     // and the moment they do, every road and bridge redraws from the real
@@ -13881,11 +13924,11 @@ function reconcile(was, me, s) {
     } else if (xn > xw) lastXpSkill = sk
     if (XP_TO_LVL(xn) > XP_TO_LVL(xw)) {
       const nl = XP_TO_LVL(xn)
-      say(sk.toUpperCase() + ' \u2014 level ' + nl + '.', 'good')
+      say(sk.toUpperCase() + ', level ' + nl + '.', 'good')
       popNumber(me.x, me.y, 'LEVEL ' + nl, '#ffe9a8', true)
       levelBanner = { skill: sk, lv: nl, at: performance.now(),
-                      note: nl >= 99 ? 'mastered \u00b7 the world will hear of it'
-                          : nl === 50 ? 'halfway to mastery' : null }
+                      note: nl >= 99 ? 'mastered \u00b7 the world will hear of it':
+                          nl === 50 ? 'halfway to mastery' : null }
       SFX.level(); flashGold = 1
       shake = Math.max(shake, 2)
     }
@@ -14009,7 +14052,7 @@ window.addEventListener('keydown', (e) => {
     const t2 = me2?.action?.type === 'attackp' ? me2.action.targetId : null
     const q2 = t2 && curState?.players?.[t2]
     if (q2) fireSpecial(t2, q2.x, q2.y)
-    else say('Target a citizen first \u2014 the special is theirs alone.', 'warn')
+    else say('Target a citizen first, the special is theirs alone.', 'warn')
   }
   else if (k >= '1' && k <= '4') {
     const b = beltMap[+k - 1]
@@ -14154,7 +14197,7 @@ function drawCounter(g) {
       act: owed > purse ? { t: 'nope' } : { t: 'sell', slot: i } })
   }
   drawLedger(g, 'The Counter \u00b7 purse ' + purse + 'g', rows,
-    'The shelf is empty. A store holds only what citizens bring in \u2014 sell '
+    'The shelf is empty. A store holds only what citizens bring in: sell '
     + 'something here, or find a stall for goods made new.')
 }
 
@@ -14172,7 +14215,6 @@ runRegion = function (r, isRight) {
   if (a.t === 'buystall') { send({ do: 'buy', item: a.item }); SFX.pane(); return }
   // 6ch: there is no recall.
   if (a.t === 'buy') { send({ do: 'buy', item: a.item }); SFX.gold(); return }
-  if (a.t === 'sell') { send({ do: 'sell', slot: a.slot }); SFX.gold(); return }
   return _runRegion(r, isRight)
 }
 
@@ -14296,10 +14338,10 @@ function frame(now) {
       // house and does no particular job.
       if (hover.e.type === 'keeper' || hover.e.type === 'smith' || hover.e.type === 'guard' || hover.e.type === 'crier') {
         const who = hover.e.name || residentName(hover.e)
-        const call = hover.e.kind ? CALLING_NAME[hover.e.kind]
-          : hover.e.type === 'smith' ? 'the smith'
-          : hover.e.type === 'crier' ? 'the town crier'
-          : hover.e.type === 'guard' ? 'the guard' : null
+        const call = hover.e.kind ? CALLING_NAME[hover.e.kind]:
+          hover.e.type === 'smith' ? 'the smith':
+          hover.e.type === 'crier' ? 'the town crier':
+          hover.e.type === 'guard' ? 'the guard' : null
         tipAt = { title: who, sub: call ? titleCase(call.replace(/^the /, '')) : null, col: '#d9c9a0' }
       } else {
         // the window names what it DREW: a `house` node is a fireplace
@@ -14320,8 +14362,8 @@ function frame(now) {
     cx.save(); cx.letterSpacing = '1.5px'
     cx.fillText(connected
       ? ('TICK ' + (s?.tick ?? 0) + (usingRelay ? '  \u00b7  RELAYED' : '  \u00b7  SIGNED HERE')
-         + (hiq() ? '' : '  \u00b7  Q FOR BLOOM'))
-      : 'NO SIGNAL', VW - 14, 18)
+         + (hiq() ? '' : '  \u00b7  Q FOR BLOOM')):
+      'NO SIGNAL', VW - 14, 18)
     cx.restore()
 
     drawCursor(cx)
@@ -14601,7 +14643,7 @@ async function ensureNought() {
     noughtBanner(true)
     noughtCard()
   } catch (e) {
-    say('This window could not build the practice island (' + e.message + '). You are watching Tallyholm from outside it \u2014 you cannot act there yet, but your wait is running and you can still cross.', 'warn')
+    say('This window could not build the practice island (' + e.message + '). You are watching Tallyholm from outside it: you cannot act there yet, but your wait is running and you can still cross.', 'warn')
   } finally { noughtLoading = false }
 }
 function endNought() {
@@ -14651,8 +14693,8 @@ function noughtTick() {
       nought.stumbled = true
       const bad = noughtBadPath(nought.state)
       say('Nought stumbled: ' + e.message, 'warn')
-      say(bad.length ? ('the offending value is at ' + bad.join(' and '))
-        : 'nothing in the state looks wrong to a walk \u2014 it may be in an input', 'warn')
+      say(bad.length ? ('the offending value is at ' + bad.join(' and ')):
+        'nothing in the state looks wrong to a walk, it may be in an input', 'warn')
       if (!bad.length && ins.length) {
         const b2 = ins.map((i, n) => noughtBadPath(i, 'input[' + n + ']')).filter(x => x.length)
         if (b2.length) say('...it is in an input: ' + b2.map(x => x.join(', ')).join(' | '), 'warn')
@@ -14699,17 +14741,17 @@ function noughtCard() {
   d.innerHTML = '<div style="max-width:460px;background:#120f0b;border:1px solid #4a3f2e;'
     + 'padding:20px 22px;font:13px/1.65 ui-monospace,monospace;color:#cdbf9f">'
     + '<div style="font-size:11px;letter-spacing:.2em;color:#e0a94a;text-transform:uppercase;margin-bottom:12px">You are not in the world yet</div>'
-    + '<p style="margin:0 0 11px"><b style="color:#e8dcc0">There are two worlds here.</b> Tallyholm is the real one \u2014 it has other people in it, '
+    + '<p style="margin:0 0 11px"><b style="color:#e8dcc0">There are two worlds here.</b> Tallyholm is the real one, it has other people in it, '
     + 'it has been running for a while, and everything that happens there is permanent.</p>'
     + '<p style="margin:0 0 11px">You are in the other one. It is called <b style="color:#e8dcc0">Nought</b>: a practice copy of the same island, '
     + 'where <b style="color:#e0a94a">nothing is saved and nothing can be lost</b>. Think of it as the tutorial.</p>'
-    + '<p style="margin:0 0 11px">Other people are here too, on their way in \u2014 everyone arrives through this. '
+    + '<p style="margin:0 0 11px">Other people are here too, on their way in, everyone arrives through this. '
     + 'You each have your own copy of the island, so you can see one another walking about but not much more than that.</p>'
-    + '<p style="margin:0 0 11px">Everything works exactly as it does in the real world \u2014 same rules, same speed, same danger \u2014 but none of it is recorded. '
+    + '<p style="margin:0 0 11px">Everything works exactly as it does in the real world, same rules, same speed, same danger, but none of it is recorded. '
     + 'You can die for free. When you cross you start over with nothing, no matter how long you stayed or what you got.</p>'
     + '<p style="margin:0 0 11px">So use it. You have every tool and plenty of gold. Chop, mine, fish, fight something far too big for you.</p>'
-    + '<p style="margin:0 0 16px;color:#9a8f78">In about ten minutes you can cross. Walk to the <b style="color:#cdbf9f">fountain in Anchor</b> \u2014 '
-    + 'the town you are standing in \u2014 and click it. That happens once and cannot be undone.</p>'
+    + '<p style="margin:0 0 16px;color:#9a8f78">In about ten minutes you can cross. Walk to the <b style="color:#cdbf9f">fountain in Anchor</b>, '
+    + 'the town you are standing in, and click it. That happens once and cannot be undone.</p>'
     + '<p style="margin:0 0 16px;padding:9px 11px;background:#0d0b08;border-left:2px solid #5d4e37;color:#9a8f78">'
     + '<b style="color:#cdbf9f">Not sure you believe any of that?</b><br>'
     + 'Look your key up on any pillar\u2019s hiscores, or open a second window. You are not there. That check needs no trust in this page.</p>'
@@ -14737,14 +14779,14 @@ function fountainMark(st) {
   }
   const dx = f.x - me.x, dy = f.y - me.y
   const d = Math.max(Math.abs(dx), Math.abs(dy))
-  const dir = d === 0 ? 'here'
-    : (Math.abs(dy) > Math.abs(dx) * 2 ? (dy < 0 ? 'north' : 'south')
-      : Math.abs(dx) > Math.abs(dy) * 2 ? (dx < 0 ? 'west' : 'east')
-        : (dy < 0 ? 'north' : 'south') + (dx < 0 ? 'west' : 'east'))
+  const dir = d === 0 ? 'here':
+    (Math.abs(dy) > Math.abs(dx) * 2 ? (dy < 0 ? 'north' : 'south'):
+      Math.abs(dx) > Math.abs(dy) * 2 ? (dx < 0 ? 'west' : 'east'):
+        (dy < 0 ? 'north' : 'south') + (dx < 0 ? 'west' : 'east'))
   fountainEl.style.display = ''
   fountainEl.innerHTML = d <= 1
-    ? '<b style="color:#e0a94a">the fountain \u00b7 click it to leave</b>'
-    : 'the way out: fountain, ' + d + ' tiles ' + dir
+    ? '<b style="color:#e0a94a">the fountain \u00b7 click it to leave</b>':
+    'the way out: fountain, ' + d + ' tiles ' + dir
 }
 let bannerEl = null
 // §0: THE OTHER RESIDENTS. Everyone in Nought computes their own island, so
@@ -14900,9 +14942,9 @@ function noughtHud(s) {
   hudEl.innerHTML = '<b style="color:#e0a94a">You are not in Tallyholm yet.</b> '
     + who + ' there now, at tick ' + (s.tick ?? 0).toLocaleString() + '.'
     + '<br><span style="color:#9a8f78">'
-    + (left === null ? 'Asking the world to expect you\u2026'
-      : left === 0 ? 'You can cross now \u2014 the fountain in Anchor.'
-      : 'You can cross in ' + wordFor(left) + '.')
+    + (left === null ? 'Asking the world to expect you\u2026':
+      left === 0 ? 'You can cross now, the fountain in Anchor.':
+      'You can cross in ' + wordFor(left) + '.')
     + '</span>'
 }
 // the crossing is offered AT THE FOUNTAIN, on foot, and nowhere else
@@ -14927,16 +14969,16 @@ function updateNoughtGate(s) {
   } else if (!w || !w.ripe) {
     gEnter.disabled = true
     gEnter.textContent = w && !w.stale
-      ? 'The world will admit you in ' + wordFor(VIGIL_TICKS - w.age)
-      : 'Waiting for the world to see you\u2026'
+      ? 'The world will admit you in ' + wordFor(VIGIL_TICKS - w.age):
+      'Waiting for the world to see you\u2026'
     if (gWhy) gWhy.textContent = w && !w.stale
-      ? 'You are in Nought: the island unwalked, before anyone. Nothing you do here is in the world.'
-      : 'The world has not seen you yet.'
+      ? 'You are in Nought: the island unwalked, before anyone. Nothing you do here is in the world.':
+      'The world has not seen you yet.'
     crossArmed = false
   } else if (!out) {
     gEnter.disabled = true
     gEnter.textContent = 'Take your key before you cross'
-    if (gWhy) gWhy.textContent = 'Your key IS your citizen. Copy it out of this browser first \u2014 there is no other copy and no way back to one.'
+    if (gWhy) gWhy.textContent = 'Your key IS your citizen. Copy it out of this browser first: there is no other copy and no way back to one.'
   } else if (!crossArmed) {
     gEnter.disabled = false
     gEnter.textContent = 'Draw from the fountain'
@@ -15045,8 +15087,8 @@ function refreshGate() {
     gEnter.textContent = 'Enter as ' + myId.slice(0, 6)
     const st = standingOf(me)
     gWhy.textContent = st >= 50
-      ? 'You have standing ' + st + ' \u2014 enough to claim a name, once and forever.'
-      : 'You have walked here before. A name asks for 50 standing; you have ' + st + '.'
+      ? 'You have standing ' + st + ', enough to claim a name, once and forever.':
+      'You have walked here before. A name asks for 50 standing; you have ' + st + '.'
   } else {
     label.textContent = 'Name yourself'
     gName.style.display = ''
@@ -15070,8 +15112,8 @@ function drawFace() {
   if (!gFace) return
   const fg = gFace.getContext('2d')
   const me = myId && curState?.players?.[myId]
-  const n = pickLook ?? (Number.isInteger(me?.look) ? me.look
-    : (hash32(String(myId ?? 'x')) & 255))
+  const n = pickLook ?? (Number.isInteger(me?.look) ? me.look:
+    (hash32(String(myId ?? 'x')) & 255))
   const L = lookOf({ look: n }, myId)
   fg.setTransform(1, 0, 0, 1, 0, 0)
   fg.clearRect(0, 0, gFace.width, gFace.height)
@@ -15137,8 +15179,8 @@ function reconcileLook(s) {
 
 function nudgeLook(d) {
   const me = myId && curState?.players?.[myId]
-  const cur = pickLook ?? (Number.isInteger(me?.look) ? me.look
-    : (hash32(String(myId ?? 'x')) & 255))
+  const cur = pickLook ?? (Number.isInteger(me?.look) ? me.look:
+    (hash32(String(myId ?? 'x')) & 255))
   pickLook = (cur + d + LOOK_COUNT) % LOOK_COUNT
   localStorage.setItem('interval-look', String(pickLook))
   drawFace()

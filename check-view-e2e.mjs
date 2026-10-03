@@ -82,5 +82,5 @@ for(let k=0;k<120;k++){
 console.log('intervals: 120, resyncs exercised: '+resyncs)
 console.log('entities checked in view: '+checked)
 console.log('nodes held by window: '+Object.keys(held.nodes).length+' of '+Object.keys(st.nodes).length+' (whole island)')
-console.log(bad===0?'PASS — window matches pillar':'FAIL — '+bad+' mismatches')
+console.log(bad===0?'PASS, window matches pillar':'FAIL, '+bad+' mismatches')
 process.exit(bad===0?0:1)

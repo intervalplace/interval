@@ -4,7 +4,7 @@
 // will one day tell a citizen a sword costs four iron when the world wants
 // five. When this was measured, twenty of the mist window's fifty-eight forge
 // costs had drifted from `engine.js`: it offered recipes that could not be made,
-// hid ones that could, and named two ingredients — `steel-ingot` — that do not
+// hid ones that could, and named two ingredients: `steel-ingot`, that do not
 // exist in the world at all.
 //
 // The cure is not a better copy. `serve.mjs` now serves `/api/tables` straight
@@ -42,7 +42,7 @@ const drift = Object.keys(FALLBACK).filter(k => {
 })
 console.log('  \u00b7     the window\u2019s built-in copy differs from the engine in ' +
             drift.length + ' of ' + Object.keys(FALLBACK).length +
-            ' recipes \u2014 which is the whole reason for /api/tables')
+            ' recipes, which is the whole reason for /api/tables')
 
 // ---- 3. does the window actually take what it is served? ----
 const noop = () => {}

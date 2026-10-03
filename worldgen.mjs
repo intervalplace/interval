@@ -39,9 +39,9 @@ export function buildWorld(genesis) {
   const gerr = E.validateGenesis(genesis)
   if (gerr) throw new Error('refusing to build a world from an invalid genesis: ' + gerr)
   if (genesis.worldGenerator !== GENERATOR_ID)
-    throw new Error(`this genesis names generator ${JSON.stringify(genesis.worldGenerator)}; this node implements ${GENERATOR_ID} — refusing to guess at another generator's world`)
+    throw new Error(`this genesis names generator ${JSON.stringify(genesis.worldGenerator)}; this node implements ${GENERATOR_ID}, refusing to guess at another generator's world`)
   if (genesis.worldW < WORLDGEN_MIN.w || genesis.worldH < WORLDGEN_MIN.h)
-    throw new Error(`worldgen requires at least ${WORLDGEN_MIN.w}x${WORLDGEN_MIN.h} (got ${genesis.worldW}x${genesis.worldH}) — the procedural layout does not fit smaller worlds`)
+    throw new Error(`worldgen requires at least ${WORLDGEN_MIN.w}x${WORLDGEN_MIN.h} (got ${genesis.worldW}x${genesis.worldH}), the procedural layout does not fit smaller worlds`)
   const w = E.newWorld(genesis)
   const W = genesis.worldW, H = genesis.worldH
   const trailY = Math.floor(H / 2)
@@ -319,10 +319,10 @@ export function buildWorld(genesis) {
 
 
   // rev6 §4: every accepted genesis produces a constitutionally valid
-  // initial state — proven here, at the source, with the exact invariant
+  // initial state: proven here, at the source, with the exact invariant
   // named on failure. A generator bug becomes an aborted founding, never
   // a world whose own checkpoints are unloadable.
   const serr = E.validateState(w)
-  if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') — founding aborted')
+  if (serr) throw new Error('worldgen produced an invalid state (' + serr + '): founding aborted')
   return w
 }

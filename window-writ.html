@@ -1,10 +1,10 @@
 <!doctype html>
-<!-- WRIT — a citizen you write instead of steer.
+<!-- WRIT: a citizen you write instead of steer.
 
      Every other window puts your hand on the world. This one puts a WRIT in
      the world's hand: one function, called once per interval, returning one
      deed. That signature is not a design choice, it is the engine's own rule
-     made into a shape you cannot hold wrongly — you cannot write a citizen who
+     made into a shape you cannot hold wrongly: you cannot write a citizen who
      acts twice in a tick, because the function returns once.
 
        export default function decide (world, me) {
@@ -141,13 +141,13 @@ const FAR = (() => {
   return Math.max(10, Math.min(64, m ? +m[1] : 13))   // ground enough to close the board in weather
 })()
 // ============================================================================
-//  1. THE WIRE — identical handshake to window-web and window-pocket.
+//  1. THE WIRE: identical handshake to window-web and window-pocket.
 //     uid in localStorage, auth by uid, act by verbs, full-state broadcasts.
 // ============================================================================
 let uid = localStorage.getItem('interval-uid')
 if (!uid) {
-  uid = (crypto.randomUUID ? crypto.randomUUID()
-        : Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
+  uid = (crypto.randomUUID ? crypto.randomUUID():
+        Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
   localStorage.setItem('interval-uid', uid)
 }
 let ws = null, myId = null, world = null, worldId = '', connected = false
@@ -160,13 +160,13 @@ let liveState = null            // the REAL world, even while Nought is running
 // §0c: THE WAIT, AND THREE THINGS THIS WINDOW HAD WRONG ABOUT IT.
 //
 //   1. The vigil is VIGIL_TICKS = 300, not a thousand. The engine's own note
-//      says it: "It was a thousand ticks when an interval was 600ms — ten
+//      says it: "It was a thousand ticks when an interval was 600ms, ten
 //      minutes. The interval became a second and nobody moved this, so the
 //      wait quietly became seventeen." Somebody then moved it to five.
 //   2. TICK_MS is 1000. It was 600 when most of the engine was written and
 //      every comment in there still argues at 600.
 //   3. An attendance ages out after ATTEND_WINDOW, and re-knocking RESTARTS
-//      the wait — so knocking again because a number looked large is how you
+//      the wait, so knocking again because a number looked large is how you
 //      make a ripe soul wait another five minutes.
 //
 // Between them this window showed a ten-minute countdown for a five-minute
@@ -297,8 +297,8 @@ function onState (s) {
     const sw = q.lastSwing ?? -9
     if (sw > s.tick && sw !== (lastSwingOf.get(pid) ?? -9) && pid !== myId) {
       const a3 = q.action
-      const tg = a3 && (a3.type === 'attack' ? (s.mobs || {})[a3.mobId]
-                      : a3.type === 'attackp' ? (s.players || {})[a3.targetId] : null)
+      const tg = a3 && (a3.type === 'attack' ? (s.mobs || {})[a3.mobId]:
+                      a3.type === 'attackp' ? (s.players || {})[a3.targetId] : null)
       specialFx(SPEC_OF[wieldOf(q)] || 'now', q.x, q.y, tg ? tg.x : q.x, tg ? tg.y : q.y, false)
     }
     lastSwingOf.set(pid, sw)
@@ -321,8 +321,8 @@ function onState (s) {
       if (tgt) {
         const d = Math.max(Math.abs(tgt.x - q.x), Math.abs(tgt.y - q.y))
         const hurt = act2.type === 'attack'
-          ? (wasHp.get(act2.mobId) !== undefined && tgt.hp < wasHp.get(act2.mobId))
-          : (lastPlayerHp.get(act2.targetId) !== undefined && tgt.hp < lastPlayerHp.get(act2.targetId))
+          ? (wasHp.get(act2.mobId) !== undefined && tgt.hp < wasHp.get(act2.mobId)):
+          (lastPlayerHp.get(act2.targetId) !== undefined && tgt.hp < lastPlayerHp.get(act2.targetId))
         if (d > 1 && hurt && lastShot.get(key) !== s.tick) {
           if (lastShot.size > 400) lastShot.clear()   // a ledger of pairs, not of people
           lastShot.set(key, s.tick)
@@ -367,11 +367,11 @@ function onState (s) {
 }
 
 // ============================================================================
-//  1b. NOUGHT — §0. Ten minutes is a long time to look at a world you cannot
+//  1b. NOUGHT: §0. Ten minutes is a long time to look at a world you cannot
 //      touch, so the pillar serves a PRACTICE of it: a founding state and a
 //      packed terrain table, which this window runs on its own engine, in this
 //      browser, at the engine's own TICK_MS. Nothing that happens there reaches the
-//      world. Everything below this line — camera, fog, beasts, panels — cannot
+//      world. Everything below this line: camera, fog, beasts, panels, cannot
 //      tell the difference and does not need to. What tells the PERSON is a
 //      banner that never leaves the screen, and that is deliberate.
 // ============================================================================
@@ -413,8 +413,8 @@ async function ensureNought () {
     // relative specifier would ask for /play/engine-browser.mjs and 404.
     const mod = await import('/engine-browser.mjs')
     const E2 = await mod.loadEngine('/engine.js')
-    // THE GROUND FIRST. The engine fails closed on an unregistered generator
-    // — every tile reads blocked — so a Nought without this is an island you
+    // THE GROUND FIRST. The engine fails closed on an unregistered generator:
+    // every tile reads blocked, so a Nought without this is an island you
     // cannot take one step on.
     const [tRes, mRes, wRes] = await Promise.all([
       fetch('/nought/terrain.bin', { cache: 'no-cache' }),
@@ -441,8 +441,8 @@ async function ensureNought () {
     E2.nameNoughtBody(st, key.playerId)
     nought = { E: E2, state: st, key, inputs: [], wid: E2.worldId(st.genesis) }
     myId = key.playerId
-    // §0: A PRACTICE OF THE WORLD RUNS AT THE WORLD'S SPEED. This was 600ms —
-    // the interval the engine was written at, not the one it runs at — so the
+    // §0: A PRACTICE OF THE WORLD RUNS AT THE WORLD'S SPEED. This was 600ms:
+    // the interval the engine was written at, not the one it runs at, so the
     // practice island ran two thirds faster than the country it is a practice
     // of, and everything you learned there about how long a thing takes was
     // wrong. The engine says what an interval is; ask it.
@@ -482,7 +482,7 @@ function noughtDo (a) {
 }
 
 // ============================================================================
-//  1c. THE CHART-TABLE — §a map you have to stand still to read.
+//  1c. THE CHART-TABLE: §a map you have to stand still to read.
 //
 //  Not a corner minimap. The whole argument of this window is that you can see
 //  eleven tiles, and a panel showing forty of them hands back exactly what the
@@ -492,7 +492,7 @@ function noughtDo (a) {
 //  is the same reason a special blow costs your next arm.
 //
 //  IT IS NOT AN ITEM AND IT IS NOT A CLAIM. `chart` is a real thing in this
-//  world and it is NOT this — the engine says so flatly: "It opens no doors.
+//  world and it is NOT this: the engine says so flatly: "It opens no doors.
 //  Nobody travels by it." It is what a master wayfarer makes by walking, and
 //  the raw material of a charter. Using it as a navigation aid would have this
 //  window asserting an item does something the world says it does not.
@@ -506,7 +506,7 @@ function noughtDo (a) {
 //
 //  And the NAMES are yours. A signpost carries its text on the wire and this
 //  window was throwing it away. Walk past one and it is inked onto your map
-//  for good — so the plate starts as bare geography and fills as you actually
+//  for good, so the plate starts as bare geography and fills as you actually
 //  go places. Those marks live in this browser, not in the world: they are
 //  your reckoning of where you have been, and no other window can see them.
 // ============================================================================
@@ -564,7 +564,7 @@ function inkNearby () {
 }
 
 // ============================================================================
-//  1d. THE WRIT — one function, called once an interval, returning one deed.
+//  1d. THE WRIT: one function, called once an interval, returning one deed.
 //
 //  The signature is the engine's rule made into a shape. A writ CANNOT act
 //  twice in a tick because it returns once; it cannot outpace a person because
@@ -574,7 +574,7 @@ function inkNearby () {
 //
 //  It runs in a Worker with fetch, XMLHttpRequest, WebSocket and importScripts
 //  DELETED before the writ is reached. It is handed a state and returns a deed.
-//  It cannot touch the socket, the page or the network — the same bargain every
+//  It cannot touch the socket, the page or the network: the same bargain every
 //  window in this project makes. It can only ask.
 // ============================================================================
 const WRIT_DEFAULT = `// A citizen you write instead of steer.
@@ -691,7 +691,7 @@ function startWrit () {
       writWaiting = false
       for (const l of (m.lines || [])) logLine('   \u00b7 ' + l, 'say')
       if (m.err) { logLine('tick ' + m.at + '  \u2716 ' + m.err, 'bad'); return }
-      if (!m.deed) { logLine('tick ' + m.at + '  \u2014 stood still', 'tick'); return }
+      if (!m.deed) { logLine('tick ' + m.at + ', stood still', 'tick'); return }
       writDeeds++
       act(m.deed)
       logLine('tick ' + m.at + '  \u2192 ' + m.deed.do +
@@ -702,7 +702,7 @@ function startWrit () {
   WORKER.onerror = (e) => { logLine('the writ threw: ' + (e.message || 'unknown'), 'bad') }
   WORKER.postMessage({ kind: 'writ', src })
   writRunning = true; writSkipped = 0; writDeeds = 0
-  logLine('\u2014 running \u2014', 'say')
+  logLine(', running,', 'say')
 }
 function stopWrit () {
   if (WORKER) { try { WORKER.terminate() } catch {} }
@@ -723,7 +723,7 @@ function askWrit (s) {
 }
 
 // ============================================================================
-//  2. THE ROOM — canvases, sizes, and the 320x240 the whole thing lives in.
+//  2. THE ROOM: canvases, sizes, and the 320x240 the whole thing lives in.
 // ============================================================================
 const glc = document.getElementById('gl'), hudc = document.getElementById('hud')
 const hx = hudc.getContext('2d')
@@ -765,7 +765,7 @@ function sizeUp () {
 addEventListener('resize', sizeUp)
 
 // ============================================================================
-//  3. INPUT — mouselook under pointer lock, WASD onto the grid, one deed
+//  3. INPUT: mouselook under pointer lock, WASD onto the grid, one deed
 //     per tick. The world moves in whole tiles; the camera does not.
 // ============================================================================
 const keys = Object.create(null)
@@ -806,7 +806,7 @@ const tap = document.getElementById('tap')
 // ---- THE DOOR MUSIC. The threshold has a theme, the same one the photo
 // window opens with: browsers permit sound only after a touch, so it begins on
 // the first one, plays while you stand at the door reading the keys, and CARRIES
-// YOU IN — on entering it ducks under the world's own wind rather than stopping,
+// YOU IN, on entering it ducks under the world's own wind rather than stopping,
 // because a piece with somewhere to go is allowed to get there. One preference
 // across every window: `interval-music` in localStorage.
 let DOORMUSIC = null, doorMusicTried = false, doorTarget = 0.42
@@ -947,13 +947,13 @@ function walkDir () {
 }
 
 // ============================================================================
-//  3b. THE PAD — a window that looks like a console should be playable like
+//  3b. THE PAD: a window that looks like a console should be playable like
 //      one. The Gamepad API needs no permission and no library: poll it, read
 //      two sticks and sixteen buttons, and stop asking for a pointer lock the
 //      moment one is being held.
 //
 //      The layout is the era's, not a modern shooter's. Cross acts, circle
-//      goes back, square reaches, triangle is the special — the same places
+//      goes back, square reaches, triangle is the special: the same places
 //      those four have been since 1994, so a hand that has held one of these
 //      before already knows three quarters of it.
 // ============================================================================
@@ -1022,7 +1022,7 @@ function padMenu () {
 let padStick = false
 
 // ============================================================================
-//  4. NUMBERS — one hash, used for everything the ground does. Deterministic
+//  4. NUMBERS: one hash, used for everything the ground does. Deterministic
 //     from the world seed, so two mist windows on the same tile see the same
 //     lump of earth. Nothing here is protocol; all of it is repeatable.
 // ============================================================================
@@ -1047,7 +1047,7 @@ const groundH = (tx, ty) => landH(tx, ty) +
                             (vnoise(tx * 0.9, ty * 0.9) - 0.5) * 0.18
 
 // ============================================================================
-//  5. TEXTURES — 64px, sixteen colours, no mipmaps, nearest. Painted here
+//  5. TEXTURES: 64px, sixteen colours, no mipmaps, nearest. Painted here
 //     rather than shipped, so the whole window stays one file.
 // ============================================================================
 function mkTex (n, draw, opts) {
@@ -1061,7 +1061,7 @@ function mkTex (n, draw, opts) {
   if (opts && opts.clamp) t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping
   return t
 }
-// a 4-bit palette, dithered — the way a 1997 artist would have fit it in VRAM
+// a 4-bit palette, dithered: the way a 1997 artist would have fit it in VRAM
 function speckle (g, n, pal, density) {
   g.fillStyle = pal[0]; g.fillRect(0, 0, n, n)
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
@@ -1193,8 +1193,8 @@ TEX.flame = mkTex(128, (g, n) => {          // four frames of fire, 32px apiece
         heat -= hash2(x + f * 37, y + f * 11) * 0.26
         heat -= Math.pow(1 - t, 2.0) * 0.60           // the tip frays into sparks
         if (heat < 0.18) continue
-        g.fillStyle = heat > 0.93 ? '#fff6d8' : heat > 0.76 ? '#ffd772'
-                    : heat > 0.56 ? '#f79a2c' : heat > 0.36 ? '#e2571a' : '#96280f'
+        g.fillStyle = heat > 0.93 ? '#fff6d8' : heat > 0.76 ? '#ffd772':
+                    heat > 0.56 ? '#f79a2c' : heat > 0.36 ? '#e2571a' : '#96280f'
         g.fillRect(ox + x, y, 1, 1)
       }
     }
@@ -1277,7 +1277,7 @@ TEX.mist = mkTex(64, (g, n) => {
 // could hold very few pages at once and swapping them mid-frame was worse
 // THE GROUND PAGE. Eight countries and a road, and the pillar says which is
 // which: `country` is a byte per tile in the terrain table it already serves,
-// and this window was picking its ground out of hash noise instead — so the
+// and this window was picking its ground out of hash noise instead, so the
 // fens, the moor and the heartlands were all the same sage-green field, and a
 // road with two hundred signposts along it looked like grass.
 //
@@ -1328,7 +1328,7 @@ TEX.terrain = mkTex(256, (g, n) => {
 }, { clamp: true })
 
 // ============================================================================
-//  6. THE MACHINE — a renderer with the manners of a 1994 GPU. Everything is
+//  6. THE MACHINE: a renderer with the manners of a 1994 GPU. Everything is
 //     drawn with one shader: snapped vertices, affine UVs, vertex light,
 //     vertex fog. Then the whole frame is dithered down to 15 bits.
 // ============================================================================
@@ -1347,7 +1347,7 @@ let isoYaw = Math.PI / 4                  // and a quarter turn, turned in quart
 let isoYawTo = isoYaw
 // HOW WIDE THE BOARD IS, and it is not the same question as how much ground
 // exists. Sized to the whole built radius, twenty-two tiles across, a troll is
-// twenty pixels and a fight is legible only through its hitsplats — which is
+// twenty pixels and a fight is legible only through its hitsplats, which is
 // the mist window's fault in reverse: too much country and not enough of what
 // is happening in it. Sixteen tiles is still four times the area a keyhole
 // gives you, and a citizen is a citizen rather than a mark.
@@ -1543,7 +1543,7 @@ sunMat.uniforms.uFogNear = { value: 1e6 }; sunMat.uniforms.uFogFar = { value: 1e
 const sun = new THREE.Mesh(sunGeo, sunMat); scene.add(sun)
 
 // ============================================================================
-//  7. THE GROUND — a lump of earth under the tile grid. The tiles are the
+//  7. THE GROUND: a lump of earth under the tile grid. The tiles are the
 //     protocol's; the lumps are this window's, hashed off the world seed so
 //     every mist window trips over the same root.
 // ============================================================================
@@ -1551,7 +1551,7 @@ const R = FAR                                      // tiles of ground built arou
 const SPAN = R * 2 + 1
 // §6dj: THE LAND HAS A HEIGHT, AND IT ALWAYS DID.
 //
-// `elevAt` in the generator is what routed every road in this world — it
+// `elevAt` in the generator is what routed every road in this world, it
 // charges six for each unit a step climbs, which is why the roads follow
 // valley floors, contour along hillsides, and arrive at passes rather than
 // summits. The hills were already true. Every window has been drawing flat
@@ -1605,7 +1605,7 @@ scene.add(groundMesh)
 
 let builtAt = null, clutter = null
 // §WHAT KIND OF GROUND IS THIS. Asked by the ground builder for a texture and
-// by the footstep for a noise, and it must be ONE function or the two drift —
+// by the footstep for a noise, and it must be ONE function or the two drift:
 // which they had. The ear was still deciding from the hash noise the ground
 // used before the pillar started serving a terrain table, so a citizen could
 // stand on visibly tilled earth and hear grass, or cross the fens to the sound
@@ -1630,7 +1630,7 @@ function cellAt (tx, ty) {
 
 // §GROUND CLUTTER, IN TWO BUFFERS.
 //
-// The first version built two meshes per tuft with a fresh geometry each — six
+// The first version built two meshes per tuft with a fresh geometry each, six
 // hundred cards a step, allocated and thrown away every time a citizen crossed
 // a tile, and the frame budget went from 22ms to 64. A field of grass is a
 // thousand identical quads: that is not a thousand objects, it is one buffer.
@@ -1737,7 +1737,7 @@ function buildGround (ctx, cty) {
 }
 
 // ============================================================================
-//  8. THINGS — every node, beast, citizen and dropped item, in as few
+//  8. THINGS: every node, beast, citizen and dropped item, in as few
 //     triangles as the era allowed. Boxes, mostly. Boxes were fine.
 // ============================================================================
 const matCache = new Map()
@@ -2075,8 +2075,8 @@ function makeNode (n) {
   const t = n.type
   switch (t) {
     // A WOOD IS NOT ONE TREE. The world grows six kinds and this window drew
-    // two: an ironbark and an oak were the same trunk, and heartwood — the
-    // thing a great-hatchet is made of — was a grey marker.
+    // two: an ironbark and an oak were the same trunk, and heartwood, the
+    // thing a great-hatchet is made of, was a grey marker.
     case 'tree': return makeTree(false)
     // and they differ in SHAPE, not only in tint: an ironbark is a spar, an oak
     // is broad, a heartwood is squat and heavy. A wood you can read at eleven
@@ -2184,10 +2184,10 @@ function makeNode (n) {
       g.add(soil)
       // \u00a71c: seed to harvest is 720 ticks, and `plantedAt` says when it was sown.
       // The crop is therefore as tall as the world says it is, and it is ripe
-      // when the world says it is ripe \u2014 not always the same six sticks.
+      // when the world says it is ripe, not always the same six sticks.
       const sown = n.plantedAt
-      const grow = sown === undefined ? 1
-        : Math.max(0, Math.min(1, (((world && world.tick) ?? 0) - sown) / GROW_RIPE))
+      const grow = sown === undefined ? 1:
+        Math.max(0, Math.min(1, (((world && world.tick) ?? 0) - sown) / GROW_RIPE))
       if (sown !== undefined && grow <= 0.02) return g          // freshly pressed earth
       const ripe = grow >= 1
       const hgt = 0.1 + grow * 0.62
@@ -2810,7 +2810,7 @@ function lvl (xp) {
 let hurtFlash = 0, deathAt = -1
 // §A LEVEL WAS ONE LINE IN THE CORNER, in the same grey as everything else the
 // feed says, gone in four seconds. A level is the only thing in this world that
-// is PERMANENT — hours of a trade, and it never goes back down — and it was
+// is PERMANENT: hours of a trade, and it never goes back down, and it was
 // being reported like a footstep.
 //
 // So it takes the middle of the frame, and it says what it OPENED. The window
@@ -2835,7 +2835,7 @@ function levelUp (skill, lvl, me) {
   }
 }
 // §6c: THE DEAD RETURN, AND NOBODY HAS TO ASK. Five intervals after you fall,
-// the world puts you back at the founding spawn with your health whole — it is
+// the world puts you back at the founding spawn with your health whole: it is
 // processed at the top of a tick and needs no input at all. This window was
 // offering a dead citizen a `wake` that sent `spawn`, which is the input for a
 // soul NOT IN THE WORLD and is refused for one who is: a button that did
@@ -2863,7 +2863,7 @@ function topple (id, m) {
 //
 //  `p.deed` is one word in the state, set on the interval an accepted input
 //  lands, and it is set for EVERYBODY. A window that reads it only for its own
-//  citizen leaves every other soul in the world working in perfect silence —
+//  citizen leaves every other soul in the world working in perfect silence:
 //  standing at an anvil with nothing happening, drawing a bow with no arrow.
 //  So the whole world's work is read, and every deed throws something.
 //
@@ -2965,7 +2965,7 @@ function deedFx (deed, x, y) {
 }
 
 // ============================================================================
-//  9. KEEPING UP — the world arrives as tiles; the scene keeps the handful
+//  9. KEEPING UP: the world arrives as tiles; the scene keeps the handful
 //     of them the fog allows, and drops the rest.
 // ============================================================================
 const live = { nodes: new Map(), mobs: new Map(), players: new Map(), ground: new Map() }
@@ -3076,7 +3076,7 @@ function sync () {
 //  what you mean. An overhead one has no face, so it aims with the mouse, and
 //  the whole question is which tile a pixel is standing on. With an
 //  orthographic camera that is one unproject and one plane intersection, and it
-//  is exact — no picking, no ray against every mesh, and it costs nothing.
+//  is exact: no picking, no ray against every mesh, and it costs nothing.
 // ============================================================================
 const _ray = new THREE.Vector3(), _dir = new THREE.Vector3(), _hit = new THREE.Vector3()
 function tileUnder (px, py) {
@@ -3134,7 +3134,7 @@ function walkOn () {
 }
 
 // ============================================================================
-// 10. DEEDS — every verb the pillar accepts, reachable from inside the fog.
+// 10. DEEDS: every verb the pillar accepts, reachable from inside the fog.
 //
 //     serve.mjs takes thirty-two: attend spawn move gather attack cook eat
 //     smith wield unwield buy recall drop pickup light bury plant harvest
@@ -3208,7 +3208,7 @@ const PRICES = {}
 let SMITH_REQS = {}      // §the levels a recipe wants, from the pillar
 let WIELD_REQS = {}, NODE_GATE = {}, NODE_YIELD = {}, GATHER_TOOLS = {}, SKILL_LIST = []
 // §7p: THE BAR IS MADE AT THE FURNACE, THE TOOL AT THE ANVIL. Every bar in the
-// world is a SMELT — ore and fuel into metal, at a fire hot enough to run it —
+// world is a SMELT: ore and fuel into metal, at a fire hot enough to run it,
 // and the anvil is where metal is BEATEN INTO A SHAPE. The guide called all of
 // it 'forge', so it was telling a citizen to make iron at an anvil that refuses
 // it, and §7p's whole point is that the anvil at Thornbury is two hundred and
@@ -3220,8 +3220,8 @@ let SMELTED = new Set(), MOBS = {}
 // At SWEAR_LEVEL in a trade you may swear to one of its callings, and the
 // engine refuses a second one forever: `p.calling !== undefined` and that is
 // the end of it. It is a mastery cap that was written before any of these
-// windows existed and that nothing could ever reach — no sdk method, no route
-// — so every citizen in the world is a generalist by accident rather than by
+// windows existed and that nothing could ever reach: no sdk method, no route,
+// so every citizen in the world is a generalist by accident rather than by
 // choice.
 //
 // A window must be very careful with a deed like this. Everything else here is
@@ -3232,7 +3232,7 @@ let SWORN = {}, CALLINGS = {}, SWEAR_LEVEL = 50, MASTERY = 100
 let CAP_UNSWORN = 50, CAP_OTHER = 70
 let MASTER_YIELD = 2, GATHER_CALLING = {}
 // §5p: WHAT A MASTERY PAYS, IN THIS TRADE. Nine trades, nine boons, and none of
-// them a throughput multiplier. These are WORDS for a rule the engine holds —
+// them a throughput multiplier. These are WORDS for a rule the engine holds:
 // the window cannot grant one, and a citizen reading it is reading a promise
 // the pillar keeps.
 const BOON = {
@@ -3249,7 +3249,7 @@ const BOON = {
 let APPRENTICE_SLOTS = 3, APPRENTICE_LAPSE = 43200, APPRENTICE_MILESTONES = [100, 105, 110]
 // §the band a number sits in, which is what a person actually wants to know
 // §5n: A HUNDRED ALONE IS A JOURNEYMAN. The craft admits you when you have
-// raised somebody to their own swearing — the piece of work laid before it is a
+// raised somebody to their own swearing: the piece of work laid before it is a
 // person. And §5m moved `apprentice`: it means taken on, not "below fifty".
 const GRADE = (lv, me) => {
   if (!me || !me.calling) return 'newcomer'
@@ -3297,7 +3297,7 @@ const FORGE = {
 // ONE PASS OVER THE COUNTRY, NOT FIFTEEN A FRAME.
 //
 // `nodesNear` walked all ten thousand nodes, `options` called it a dozen times,
-// and the HUD called `options` EVERY FRAME — a hundred and forty thousand
+// and the HUD called `options` EVERY FRAME, a hundred and forty thousand
 // iterations and thirteen ten-thousand-entry arrays allocated, sixty times a
 // second, to answer a question that only changes when the citizen moves. The
 // window was costing 59ms a frame against a 33ms budget: seventeen frames a
@@ -3348,10 +3348,10 @@ function options () {
   }
   for (const { id, n } of nodesNear([...GATHERABLE])) out.push({
     at: n,
-    label: n.type === 'fishing-spot' ? 'fish' : n.type === 'salt-pan' ? 'rake salt'
-         : n.type.includes('tree') || n.type === 'gallows-oak' ? 'chop' : 'mine',
-    go: () => { work(n.type === 'fishing-spot' || n.type === 'salt-pan' ? 'cast'
-                     : n.type.includes('tree') || n.type === 'gallows-oak' ? 'chop' : 'mine',
+    label: n.type === 'fishing-spot' ? 'fish' : n.type === 'salt-pan' ? 'rake salt':
+         n.type.includes('tree') || n.type === 'gallows-oak' ? 'chop' : 'mine',
+    go: () => { work(n.type === 'fishing-spot' || n.type === 'salt-pan' ? 'cast':
+                     n.type.includes('tree') || n.type === 'gallows-oak' ? 'chop' : 'mine',
                      n.x, n.y)
                 act({ do: 'gather', nodeId: id }) } })
   for (const { id } of nodesNear(['plot', 'plant'])) out.push({ label: 'harvest',
@@ -3362,8 +3362,8 @@ function options () {
   for (const { } of nodesNear(['anvil', 'smith'])) out.push({ label: 'the anvil', go: () => openMenu(forgeMenu()), stay: 1 })
   // §6ch: THE STONES ARE GONE, AND SO IS THE OFFER.
   //
-  // This listed `['waystone', 'landmark']`, so EVERY landmark in the world — a
-  // house, a mill, a scarecrow — offered "the waystone", and the menu behind it
+  // This listed `['waystone', 'landmark']`, so EVERY landmark in the world, a
+  // house, a mill, a scarecrow, offered "the waystone", and the menu behind it
   // offered four recalls. The engine's validator is `case 'recall': return
   // false;` with no condition on it: not one of those rows could ever have
   // done anything, at any time, anywhere.
@@ -3378,7 +3378,7 @@ function options () {
   // world, and a window that cannot draw it would leave a hole in the ground.
   for (const { } of nodesNear(['looking-glass', 'dedication'])) out.push({ label: 'invoke', go: () => { work('stir'); sfx('craft'); act({ do: 'invoke' }) } })
   // ---- \u00a76dj: the deeds this pillar was dropping, now that it carries them ----
-  // A marker is surveyed by STANDING ON IT — not beside it — and `state.markers`
+  // A marker is surveyed by STANDING ON IT, not beside it, and `state.markers`
   // says where they are, so the window need not guess.
   if ((Array.isArray(world.markers) ? world.markers : []).some((m) => m && m.x === me.x && m.y === me.y))
     out.push({ label: 'survey this marker', go: () => { work('stir'); act({ do: 'survey' }) } })
@@ -3458,7 +3458,7 @@ const aimScore = (me, e) => { const dx = e.x - me.x, dy = e.y - me.y, l = Math.h
 // ONE PLACE THAT MOVES THE HANDS. Every deed that touches the world goes
 // through it, so nothing can be added later that happens invisibly.
 // A MAUL AND A DAGGER WERE SWINGING IDENTICALLY. The window already knows what
-// is in the hand — it builds the viewmodel from it — so a blow should be the
+// is in the hand: it builds the viewmodel from it, so a blow should be the
 // blow that weapon makes: a mell is wound back and dropped, a dagger is three
 // inches and back, a spear is a thrust down the line of it, a bow is a draw and
 // a release. The engine agrees these are different things; it gives them
@@ -3487,11 +3487,11 @@ const SWING_OF = (item) => {
 }
 function work (kind, atX, atY) {
   swingT = 0; swingKind = kind
-  sfx(kind === 'chop' ? 'chop' : kind === 'mine' ? 'mine' : kind === 'cast' ? 'splash'
-      : kind === 'reap' ? 'chop' : kind === 'stoop' ? 'pickup' : kind === 'eat' ? 'eat'
-      : kind === 'stir' ? 'craft'
-      : kind === 'heavy' ? 'heave' : kind === 'quick' ? 'flick' : kind === 'thrust' ? 'thrust'
-      : kind === 'loose' ? 'draw' : kind === 'sweep' ? 'sweep' : kind === 'cut' ? 'cut' : 'swing')
+  sfx(kind === 'chop' ? 'chop' : kind === 'mine' ? 'mine' : kind === 'cast' ? 'splash':
+      kind === 'reap' ? 'chop' : kind === 'stoop' ? 'pickup' : kind === 'eat' ? 'eat':
+      kind === 'stir' ? 'craft':
+      kind === 'heavy' ? 'heave' : kind === 'quick' ? 'flick' : kind === 'thrust' ? 'thrust':
+      kind === 'loose' ? 'draw' : kind === 'sweep' ? 'sweep' : kind === 'cut' ? 'cut' : 'swing')
   // your own hand throws its chips NOW, not on the tick after. Everyone else's
   // arrive with the state, which is the only honest way to learn about them.
   const me = meNow(); if (!me) return
@@ -3583,7 +3583,7 @@ function claimName () {
 // panel offered `deposit` beside a fish in the middle of a wood and greyed it
 // out with an excuse, which is the same failure as fog that hides nothing:
 // the window was showing a possibility the world does not contain. What the
-// place does not allow is not dimmed, it is absent — and the panel says
+// place does not allow is not dimmed, it is absent, and the panel says
 // instead, in grey and under the list, what a different place would allow.
 const EDIBLE = /^(cooked-|broth$|bread$|berries$|mushroom|apple|pie$|stew$|honey$|cake$|fruit)/
 const RAWFOOD = /(^raw-|-fish$|^shrimps$|^meat$|^crab-meat$|^egg)/
@@ -3636,8 +3636,8 @@ function deedsFor (i, item) {
     rows.push({ label: 'invoke', act: () => { spellFx('invoke'); act({ do: 'invoke' }) } })
     rows.push({ label: 'cast: return to anchor', act: () => { spellFx('anchor')
       act({ do: 'cast', spell: 'anchor' }); say('you speak the founding moment.') } })
-    // NO MENDING HERE, AND NO SENDING IT. The engine has both — `cast` takes a
-    // spell name and `mendp` takes a target — but THIS PILLAR'S act ladder maps
+    // NO MENDING HERE, AND NO SENDING IT. The engine has both: `cast` takes a
+    // spell name and `mendp` takes a target, but THIS PILLAR'S act ladder maps
     // every cast to an anchor and does not take `mendp` at all. Offering either
     // would be the exact fault this window forbids everywhere else: a deed on
     // the panel that the world cannot perform. If serve.mjs grows the verbs,
@@ -3663,7 +3663,7 @@ function deedsFor (i, item) {
     D('smelt', { do: 'smelt', recipe: item.replace('-ore', '') })
   else if (/-ore$/.test(item)) notes.push('smelt: needs a furnace')
   // §7cf: these three are spoken, and the engine will not hear them from a
-  // citizen who cannot speak. Offered anyway — the pillar decides, as always.
+  // citizen who cannot speak. Offered anyway: the pillar decides, as always.
   if (item === 'sigil') {
     for (const { id, p } of citizensNear())
       rows.push({ label: 'mend ' + (p.name || 'stranger'), act: () => { const m2 = meNow()
@@ -3688,7 +3688,7 @@ function deedsFor (i, item) {
 }
 
 // EVERY SPELL LOOKS LIKE SOMETHING. Sorcery in this world is invisible on the
-// wire — `cast` is one word — so the window gives each one a shape of its own:
+// wire: `cast` is one word, so the window gives each one a shape of its own:
 // a rising column for an anchor, motes drawn inward for a mending, an outward
 // ring for an invocation. All from the same one-bit page.
 function spellFx (spell) {
@@ -3735,7 +3735,7 @@ function packDeeds () {
 
 // ---- a small painted icon for every kind of thing, in the era's palette ----
 // EVERY ITEM WEARS ITS OWN FACE. Seventeen pictures were doing the work of a
-// hundred and four, and eighteen items had no picture at all — a charter, a
+// hundred and four, and eighteen items had no picture at all: a charter, a
 // keg of ale and a king's shroud were the same brown bundle. Thirty-six shapes
 // now, and the metal tint separates iron from steel from star within each, so
 // a full pack reads at a glance instead of being a wall of the same box.
@@ -3778,9 +3778,9 @@ const ICON = (item) => {
   if (/(gold|coin|silver)/.test(item)) return 'coin'
   return 'bundle'
 }
-const METAL = (item) => /^star/.test(item) ? '#c8d8f0' : /^gold/.test(item) ? '#d8b13c'
-  : /^steel/.test(item) ? '#c0c6cc' : /^bone/.test(item) ? '#d8d0b0'
-  : /^great/.test(item) ? '#b08ae0' : /^horn/.test(item) ? '#cfc0a0' : '#9aa0a6'
+const METAL = (item) => /^star/.test(item) ? '#c8d8f0' : /^gold/.test(item) ? '#d8b13c':
+  /^steel/.test(item) ? '#c0c6cc' : /^bone/.test(item) ? '#d8d0b0':
+  /^great/.test(item) ? '#b08ae0' : /^horn/.test(item) ? '#cfc0a0' : '#9aa0a6'
 function drawIcon (x, y, item) {                     // 16x16, whole pixels only
   const R = (a, b, w, h, c) => { hx.fillStyle = c; hx.fillRect(x + a, y + b, w, h) }
   const m = METAL(item)
@@ -3884,8 +3884,8 @@ function forgeMenu () {
   for (const t of short.slice(0, 4)) rows.push({ label: t, dim: 1 })
   if (!rows.length) rows.push({ label: '(nothing in the pack will take a hammer)', dim: 1 })
   return { title: 'THE ANVIL', rows,
-           foot: TABLES_LIVE ? 'the anvil shows only what you can make'
-                             : 'costs from this window\u2019s own copy \u00b7 may be stale' }
+           foot: TABLES_LIVE ? 'the anvil shows only what you can make':
+                             'costs from this window\u2019s own copy \u00b7 may be stale' }
 }
 function selfMenu () {
   const me = meNow()
@@ -3896,7 +3896,7 @@ function selfMenu () {
     rows.push({ label: gear + ': ' + (it ? nice(it) : 'nothing'), dim: !it, stay: 1,
       hint: it ? 'put away' : '', act: () => { act({ do: 'unequip', gear }); act({ do: 'unwield', gear }) } })
   }
-  // §6dj: not a list of numbers — a list of what the numbers OPEN
+  // §6dj: not a list of numbers, a list of what the numbers OPEN
   rows.push({ label: 'your hand, and what it opens', stay: 1, act: () => openMenu(skillMenu()) })
   // §5m: WHO TOOK YOU ON, AND WHO YOU HAVE TAKEN ON. A lineage is the one kind
   // of reputation in this world that cannot be claimed: it is a signature in a
@@ -3908,8 +3908,8 @@ function selfMenu () {
       act: () => { const r = []
         r.push({ label: lin ? 'raised by a ' + nice(lin.calling) : 'you swore alone', dim: 1 })
         if (lin) r.push({ label: nameOf(lin.by), hint: 'tick ' + lin.at, dim: 1 })
-        r.push({ label: me.raised ? 'you have raised ' + me.raised
-          : 'you have raised nobody yet', dim: 1 })
+        r.push({ label: me.raised ? 'you have raised ' + me.raised:
+          'you have raised nobody yet', dim: 1 })
         if (me.calling && SWORN[me.calling]) {
           const at2 = lvl((me.skills || {})[SWORN[me.calling].skill] || 0)
           if (at2 >= MASTERY && !(me.raised ?? 0))
@@ -4069,7 +4069,7 @@ function packKey (k) {
 }
 
 // ============================================================================
-// 11. THE HANDS — a viewmodel, drawn in its own little world so it can never
+// 11. THE HANDS: a viewmodel, drawn in its own little world so it can never
 //     clip through a wall. It is enormous, because they always were.
 // ============================================================================
 let vmGroup = null, vmItem = ''
@@ -4084,16 +4084,16 @@ function buildViewmodel (item) {
   if (vmGroup) vmScene.remove(vmGroup)
   vmGroup = new THREE.Group()
   const kind = WEAPON(item)
-  const metal = item && (item.startsWith('star') ? 0xc8d8f0 : item.startsWith('gold') ? 0xd8b13c
-              : item.startsWith('steel') ? 0xc0c6cc : item.startsWith('bone') ? 0xd8d0b0 : 0x9aa0a6)
+  const metal = item && (item.startsWith('star') ? 0xc8d8f0 : item.startsWith('gold') ? 0xd8b13c:
+              item.startsWith('steel') ? 0xc0c6cc : item.startsWith('bone') ? 0xd8d0b0 : 0x9aa0a6)
   // everything is built standing on the grip, pointing up +Y, and the whole
   // group is then swung out to the corner. It is far too big for the hand,
   // which is how it was.
   const grip = new THREE.Group(); vmGroup.add(grip)
   // A HAND, NOT A BLOCK. It was one box with three knuckle-cubes stuck to it,
   // and at 320x240 a slab of flat tan an inch from the eye reads as a crate.
-  // What makes a hand read at this size is not detail — there is no room for
-  // detail — it is the DARK GAPS between four separate fingers curled over the
+  // What makes a hand read at this size is not detail: there is no room for
+  // detail, it is the DARK GAPS between four separate fingers curled over the
   // haft, and a wrist that is a different colour from the skin.
   const palm = vbox(0.125, 0.115, 0.15, 'skin', 0xd8a87c, 0.04)
   palm.position.set(0, -0.015, 0.03); grip.add(palm)
@@ -4127,13 +4127,13 @@ function buildViewmodel (item) {
   } else if (kind === 'hatchet' || kind === 'pickaxe' || kind === 'mell' || kind === 'flail' || kind === 'spade') {
     const L = kind === 'mell' ? 0.5 : 0.44
     shaft(L, 0.042)
-    const head = kind === 'mell' || kind === 'flail' ? vbox(0.14, 0.14, 0.14, 'iron', metal, 0.06)
-               : kind === 'pickaxe' ? vbox(0.32, 0.04, 0.04, 'iron', metal, 0.05)
-               : kind === 'spade' ? vbox(0.14, 0.16, 0.028, 'iron', metal, 0.05)
-               : vbox(0.05, 0.10, 0.045, 'iron', metal, 0.05)   // the eye the haft passes through
+    const head = kind === 'mell' || kind === 'flail' ? vbox(0.14, 0.14, 0.14, 'iron', metal, 0.06):
+               kind === 'pickaxe' ? vbox(0.32, 0.04, 0.04, 'iron', metal, 0.05):
+               kind === 'spade' ? vbox(0.14, 0.16, 0.028, 'iron', metal, 0.05):
+               vbox(0.05, 0.10, 0.045, 'iron', metal, 0.05)   // the eye the haft passes through
     head.position.y = L * 0.88; grip.add(head)
     // §AN AXE IS ITS HEAD. This was a 0.055-wide box with a 0.085 bit beside it
-    // on a 0.44 shaft — at 320x240, in the corner of the eye, that is a thin
+    // on a 0.44 shaft: at 320x240, in the corner of the eye, that is a thin
     // brown stick with a nub, which is the silhouette of a BOW. Reported as
     // exactly that from real play.
     //
@@ -4169,7 +4169,7 @@ function buildViewmodel (item) {
   } else if (kind === 'bow' || kind === 'crossbow') {
     // ONE CONTINUOUS STAVE, not three sticks near each other. Seven short
     // segments walked along an arc: the riser, where the hand is, sits deepest
-    // AWAY from the archer, and the limbs come back toward the tips — which is
+    // AWAY from the archer, and the limbs come back toward the tips, which is
     // what makes the straight string on the near side read as a drawn bow
     // rather than a wire laid across a branch.
     for (let i = -3; i <= 3; i++) {
@@ -4206,8 +4206,8 @@ function buildViewmodel (item) {
   } else {
     const knuckle = vbox(0.15, 0.07, 0.16, 'skin', 0xffffff, 0.05); knuckle.position.y = 0.08; grip.add(knuckle)
   }
-  vmPose = VM_POSE[kind === 'crossbow' || kind === 'handgonne' ? 'gonne'
-                 : kind === 'javelin' ? 'spear' : kind] || VM_POSE.default
+  vmPose = VM_POSE[kind === 'crossbow' || kind === 'handgonne' ? 'gonne':
+                 kind === 'javelin' ? 'spear' : kind] || VM_POSE.default
   vmRest()
   vmScene.add(vmGroup)
   vmItem = item || ''
@@ -4242,7 +4242,7 @@ function wieldedItem () {
 buildViewmodel('')
 
 // ============================================================================
-// 12. SOUND — no samples. Four oscillators and a bucket of noise, which is
+// 12. SOUND: no samples. Four oscillators and a bucket of noise, which is
 //     roughly the budget a disc had left after the textures, and which is why
 //     everything from that era is made of the same six sounds pitched
 //     differently. The ambience is not one drone: it is a wind that thickens
@@ -4276,7 +4276,7 @@ function audioUp () {
 // the hour and the weather reach the ear as well as the eye
 // WHAT YOU ARE WALKING ON. A footstep was one noise everywhere: the same dull
 // thud on a road, in a fen and through a wheat field. The window already knows
-// the tile — it picked a texture for it — so the ear may as well know too.
+// the tile: it picked a texture for it, so the ear may as well know too.
 // §THE GROUND UNDER YOUR FEET, AS THE PILLAR HAS IT. The same cell the ground
 // took its texture from picks the noise, so the eight countries of this world
 // are eight surfaces: the fens squelch, the downs crunch on chalk, a road is
@@ -4369,7 +4369,7 @@ function nightcall () {                      // an owl, or something with more l
 // §BEASTS HAVE VOICES, AND IN THIS WINDOW THAT IS NOT DECORATION.
 //
 // You can see eleven tiles. Everything else you know about where you are, you
-// know by ear — so a world where the wolves are silent is a world where the
+// know by ear, so a world where the wolves are silent is a world where the
 // only warning is the one that arrives too late. A beast that growls at nine
 // tiles is a beast you can walk around.
 //
@@ -4463,7 +4463,7 @@ function sfx (kind, vol) {
     case 'eat':    burst(0.09, 480, 0.08, 0, 1.5); burst(0.08, 380, 0.07, 0.13, 1.5); break
     // §THE FLAT WINDOW'S FANFARE, note for note.
     //
-    // Lifted from window-web's `SFX.levelup` — the same five tones, the same
+    // Lifted from window-web's `SFX.levelup`, the same five tones, the same
     // triangle wave, the same envelope: a soft attack of eight milliseconds and
     // an exponential fall, which is what makes it a chime and not a beep. C, E,
     // G, then the octave held long with the fifth still ringing underneath it.
@@ -4644,7 +4644,7 @@ function sfx (kind, vol) {
   }
 }
 // ============================================================================
-// 13. THE PANEL — drawn at the same 320x240 as everything else, in the only
+// 13. THE PANEL: drawn at the same 320x240 as everything else, in the only
 //     two fonts the machine has: a courier, and rectangles.
 // ============================================================================
 const DIGITS = ['111101101101111', '010110010010111', '111001111100111', '111001111001111',
@@ -4701,13 +4701,13 @@ function drawHud (now) {
     const ripe = waitAge(liveState) >= VIGIL_TICKS
     hx.fillStyle = 'rgba(10,14,10,0.6)'; hx.fillRect(0, RH - 9, RW, 9)
     hx.textAlign = 'center'
-    txt(ripe ? 'THE WAIT IS RIPE \u00b7 PRESS E TO CROSS INTO THE WORLD'
-             : 'THE WORLD OPENS IN ' + waitLeft(), RW >> 1, RH - 2, ripe ? '#e2d6a0' : '#8f9c84', ripe)
+    txt(ripe ? 'THE WAIT IS RIPE \u00b7 PRESS E TO CROSS INTO THE WORLD':
+             'THE WORLD OPENS IN ' + waitLeft(), RW >> 1, RH - 2, ripe ? '#e2d6a0' : '#8f9c84', ripe)
     hx.textAlign = 'left'
   } else if (!ghost && connected && myId && !me && liveState) {
     hx.textAlign = 'center'
-    txt(waitAge(liveState) >= VIGIL_TICKS ? 'PRESS E TO CROSS INTO THE WORLD'
-        : 'THE WORLD OPENS IN ' + waitLeft(), RW >> 1, 22, '#e2a04a', true)
+    txt(waitAge(liveState) >= VIGIL_TICKS ? 'PRESS E TO CROSS INTO THE WORLD':
+        'THE WORLD OPENS IN ' + waitLeft(), RW >> 1, 22, '#e2a04a', true)
     hx.textAlign = 'left'
   }
 
@@ -4789,8 +4789,8 @@ function drawHud (now) {
       const fade = age < 0.25 ? age / 0.25 : age > 3.4 ? Math.max(0, (4.2 - age) / 0.8) : 1
       const rise = Math.min(1, age / 0.5)
       const cy = Math.round(RH * 0.30 - rise * 6)
-      const rows = banner.opened.length ? banner.opened.slice(0, 2)
-        : banner.next ? ['next: ' + banner.next[1] + ' at ' + banner.next[0]] : []
+      const rows = banner.opened.length ? banner.opened.slice(0, 2):
+        banner.next ? ['next: ' + banner.next[1] + ' at ' + banner.next[0]] : []
       const h = 30 + rows.length * 9
       const w = Math.max(96, 24 + banner.skill.length * 6,
                          ...rows.map((r) => 16 + r.length * 6))
@@ -4889,9 +4889,9 @@ function drawHud (now) {
 // ---- THE RECKONING: what a skill is FOR ----
 //
 // §6dj: A CITIZEN SHOULD NOT HAVE TO READ THE ENGINE TO PLAY. Every gate in
-// this world is a number in a table — NODE_GATE says an ironbark wants
+// this world is a number in a table: NODE_GATE says an ironbark wants
 // woodcraft 45, WIELD_REQS says a steel pickaxe wants earthcraft 10,
-// SMITH_REQS says a star-ingot wants earthcraft 45 and sorcery 25 — and none
+// SMITH_REQS says a star-ingot wants earthcraft 45 and sorcery 25, and none
 // of it was anywhere a person could see. They could only find out by walking
 // to a tree and being refused, with no reason given.
 //
@@ -4934,8 +4934,8 @@ function skillMenu () {
   })
   if (!rows.length) rows.push({ label: '(the pillar served no skills)', dim: 1 })
   return { title: 'YOUR HAND', rows,
-           foot: TABLES_LIVE ? 'every line read off the pillar\u2019s own tables'
-                             : 'the pillar served no tables; this is guesswork' }
+           foot: TABLES_LIVE ? 'every line read off the pillar\u2019s own tables':
+                             'the pillar served no tables; this is guesswork' }
 }
 // §A GUIDE THAT ONLY KNOWS THE CRAFTING TABLES KNOWS HALF THE WORLD. A hollow
 // bow is forged at woodcraft 12 AND carried by gibbet-dead and skeleton-knights,
@@ -4978,9 +4978,9 @@ function oneSkillMenu (skill) {
   // cannot read what they cannot see.
   const mine0 = me && me.calling
   const own = mine0 && SWORN[mine0] && SWORN[mine0].skill === skill
-  const ceilTxt = own ? 'no ceiling: yours'
-    : mine0 ? 'stops at ' + CAP_OTHER + ', sworn elsewhere'
-    : 'stops at ' + CAP_UNSWORN + ' until you swear'
+  const ceilTxt = own ? 'no ceiling: yours':
+    mine0 ? 'stops at ' + CAP_OTHER + ', sworn elsewhere':
+    'stops at ' + CAP_UNSWORN + ' until you swear'
   // §5k: WHAT SWEARING BUYS, said beside the choice rather than left to be
   // discovered. A ceiling on its own is only a punishment; the reason to swear
   // is that the work itself pays more, and a citizen deciding cannot see that
@@ -4995,7 +4995,7 @@ function oneSkillMenu (skill) {
   if (tools && tools.length)
     rows.push({ label: 'in hand: ' + nice(tools[0]) + (tools.length > 1 ? ' or better' : ''), dim: 1 })
   // §what this skill gives, behind a row of its own. The guide exists to answer
-  // "what does this open" — the seams and their experience are reference, and
+  // "what does this open": the seams and their experience are reference, and
   // reference was pushing the answer off the bottom of the panel.
   {
     const yr = []
@@ -5013,7 +5013,7 @@ function oneSkillMenu (skill) {
   // §5m: THE CALLINGS THIS TRADE OPENS, behind one row of their own.
   //
   // They were listed inline, and with the boon and the ceiling and five yields
-  // above them the page ran to twelve rows before the first unlock — of which
+  // above them the page ran to twelve rows before the first unlock, of which
   // nine are visible, so the unlocks were simply off the bottom. A citizen
   // cannot read what they cannot see. Callings are a DECISION rather than
   // reference, so they get a page of their own, and the unlocks come back up.
@@ -5024,7 +5024,7 @@ function oneSkillMenu (skill) {
     hint: mine && SWORN[mine] && SWORN[mine].skill === skill ? mine : '',
     act: () => { const rows = []
     for (const [name, c] of callings) {
-      if (mine === name) { rows.push({ label: name + '  \u2014 sworn', hint: 'yours', dim: 1 }); continue }
+      if (mine === name) { rows.push({ label: name + ', sworn', hint: 'yours', dim: 1 }); continue }
       if (mine) { rows.push({ label: name, hint: 'sworn to ' + mine, dim: 1 }); continue }
       if (at < SWEAR_LEVEL) { rows.push({ label: name, hint: 'at ' + SWEAR_LEVEL, dim: 1 }); continue }
       rows.push({ label: 'swear to ' + name, hint: 'once', stay: 1,
@@ -5100,7 +5100,7 @@ function drawMap (now) {
     hx.fillRect(ox + px, oy + py, 1, 1)
   }
   hx.strokeStyle = '#6a5a3a'; hx.strokeRect(ox - 0.5, oy - 0.5, pw + 1, ph + 1)
-  // the towns as the founder seated them — not as this window guesses
+  // the towns as the founder seated them, not as this window guesses
   for (const t of MAP.settlements) {
     const px = ox + Math.round(t.x / S), py = oy + Math.round(t.y / S)
     hx.fillStyle = '#3a2a18'
@@ -5188,7 +5188,7 @@ function drawPack (now) {
 }
 
 // ============================================================================
-// 14. ATTRACT — with no pillar to talk to, the window will not sit blank.
+// 14. ATTRACT: with no pillar to talk to, the window will not sit blank.
 //     None of this is the world. It says so at the top of the screen.
 // ============================================================================
 let ghost = false, ghostTile = [32, 32], ghostT = 0
@@ -5197,9 +5197,9 @@ function ghostWorld () {
   for (let i = 0; i < 260; i++) {
     const x = 6 + ((hash2(i, 101) * 52) | 0), y = 6 + ((hash2(i, 102) * 52) | 0)
     const r = hash2(i, 103)
-    const type = r < 0.62 ? 'tree' : r < 0.72 ? 'rock' : r < 0.78 ? 'elder-tree'
-               : r < 0.83 ? 'waystone' : r < 0.87 ? 'campfire' : r < 0.9 ? 'house'
-               : r < 0.93 ? 'signpost' : r < 0.96 ? 'well' : 'fishing-spot'
+    const type = r < 0.62 ? 'tree' : r < 0.72 ? 'rock' : r < 0.78 ? 'elder-tree':
+               r < 0.83 ? 'waystone' : r < 0.87 ? 'campfire' : r < 0.9 ? 'house':
+               r < 0.93 ? 'signpost' : r < 0.96 ? 'well' : 'fishing-spot'
     nodes['g' + i] = { type, x, y }
   }
   for (let i = 0; i < 14; i++) {
@@ -5215,18 +5215,18 @@ setTimeout(() => {
 }, 1800)
 
 // ============================================================================
-// 15. THE LOOP — thirty frames a second, because that is what it was.
+// 15. THE LOOP: thirty frames a second, because that is what it was.
 // ============================================================================
 const camPos = new THREE.Vector3(0, EYE, 0)
 let bob = 0, stepAcc = 0, lastAnchor = '', lastToil = 0
 // ---------------------------------------------------------------------------
-//  THE STRIDE — §5: A STEP IS A STEP.
+//  THE STRIDE, §5: A STEP IS A STEP.
 //
 //  This window spent its first month HIDING the tick. The camera chased the
 //  citizen's tile with a per-frame lerp, a head-bob ran on a free sine, and the
 //  footfalls came off a timer that had nothing to do with where the feet were.
 //  The result was a continuous glide over a world that does not move
-//  continuously — and a glide over a one-second interval does not read as
+//  continuously, and a glide over a one-second interval does not read as
 //  smooth, it reads as LAG. The window was papering over the protocol's rhythm
 //  because the genre it borrowed from promised control the world never gives.
 //
@@ -5239,14 +5239,14 @@ let bob = 0, stepAcc = 0, lastAnchor = '', lastToil = 0
 // A SINGLE STEP AND A JOURNEY WANT DIFFERENT THINGS, and the window can tell
 // them apart. One deliberate step wants to SNAP: you pressed a key, the world
 // answered, and a quarter-second stride says so. But two hundred of those
-// crossing the fens is a strobe — moving a quarter of the time and frozen for
-// the rest — and stillness that long stops reading as deliberate and starts
+// crossing the fens is a strobe: moving a quarter of the time and frozen for
+// the rest, and stillness that long stops reading as deliberate and starts
 // reading as broken.
 //
 // So: if the last stride finished long ago, this is a step, and it is hard. If
 // strides are arriving back to back, this is WALKING, and it stretches to fill
 // the interval so one flows into the next. Both still ARRIVE, which is the
-// thing the old per-frame lerp never did — an exponential chase is permanently
+// thing the old per-frame lerp never did: an exponential chase is permanently
 // behind the citizen it is following, and being permanently behind at a
 // one-second interval is exactly what reads as lag.
 const STRIDE_STEP = 260                  // one deliberate step: hard, and done
@@ -5262,7 +5262,7 @@ const _v = new THREE.Vector3(), _fv = new THREE.Vector3(), _sv = new THREE.Vecto
 const sunDir = new THREE.Vector3(0.5, 0.8, 0.3)
 const DAY = 2400        // the deep window's day, to the tick: 40 minutes at TICK_MS
 // GROW_TICKS_RIPE is 720, and at an interval of a second that is the twelve
-// minutes the engine's comment claims. It was SEVEN at 600ms — the crop timing
+// minutes the engine's comment claims. It was SEVEN at 600ms: the crop timing
 // in this window happened to be right only because the engine's number moved
 // when the interval did. Left as a constant with the arithmetic written down,
 // so the next person to change TICK_MS can see what it breaks.
@@ -5340,7 +5340,7 @@ function step (dt, now) {
   } else {
     const tileKey = Math.round(ax) + ',' + Math.round(ay)
     if (tileKey !== strideTile) {                // the world moved you: take the step
-      // ARE YOU WALKING? Not "did the last stride just end" — at a one-second
+      // ARE YOU WALKING? Not "did the last stride just end", at a one-second
       // interval every stride ends three quarters of a second before the next
       // begins, so by that measure nobody is ever walking. The question is
       // whether the WORLD moved you last interval too, which covers a held key,
@@ -5446,7 +5446,7 @@ function step (dt, now) {
     }
   }
   for (const [, o] of live.ground) { o.rotation.y += dt * 1.6; o.position.y = o.userData.tgt.y + Math.sin(now / 420) * 0.06 }
-  // billboards: flames, nameplates, straw men — all turn to face the eye
+  // billboards: flames, nameplates, straw men, all turn to face the eye
   scene.updateMatrixWorld(true)
   if (fires.length > 64) for (let i = fires.length - 1; i >= 0; i--) if (!fires[i].parent) fires.splice(i, 1)
   if (mists.length > 64) for (let i = mists.length - 1; i >= 0; i--) if (!mists[i].parent) mists.splice(i, 1)
@@ -5541,7 +5541,7 @@ function step (dt, now) {
     o.position.y = o.userData.tgt.y + k * 0.12
   }
   // ---- WORK THAT RUNS ON ----
-  // §6am: a gather is an action, not a deed — it costs one input and then goes
+  // §6am: a gather is an action, not a deed, it costs one input and then goes
   // on by itself for as long as the seam lasts. The window animated the first
   // swing and then froze, holding an axe an inch from a tree it was supposedly
   // felling. `p.action` says what is still happening; read it and keep working.
@@ -5552,8 +5552,8 @@ function step (dt, now) {
       lastToil = now
       if (act2.type === 'gather') {
         const n2 = (world.nodes || {})[act2.nodeId]
-        if (n2 && placed(n2)) { work(n2.type === 'fishing-spot' || n2.type === 'salt-pan' ? 'cast'
-                     : n2.type.includes('tree') || n2.type === 'gallows-oak' ? 'chop' : 'mine',
+        if (n2 && placed(n2)) { work(n2.type === 'fishing-spot' || n2.type === 'salt-pan' ? 'cast':
+                     n2.type.includes('tree') || n2.type === 'gallows-oak' ? 'chop' : 'mine',
                      n2.x, n2.y) }
       } else if (act2.type === 'attack' || act2.type === 'attackp') {
         work(SWING_OF(wieldOf(meNow2)))
@@ -5576,14 +5576,14 @@ function step (dt, now) {
   const w = wieldedItem()
   if (w !== vmItem) buildViewmodel(w)
   if (vmGroup) {
-    if (swingT >= 0) { swingT += dt * (swingKind === 'cast' || swingKind === 'loose' ? 1.6
-                       : swingKind === 'stir' ? 2.2 : swingKind === 'heavy' ? 2.1
-                       : swingKind === 'quick' ? 4.4 : swingKind === 'sweep' ? 2.6 : 3.0)
+    if (swingT >= 0) { swingT += dt * (swingKind === 'cast' || swingKind === 'loose' ? 1.6:
+                       swingKind === 'stir' ? 2.2 : swingKind === 'heavy' ? 2.1:
+                       swingKind === 'quick' ? 4.4 : swingKind === 'sweep' ? 2.6 : 3.0)
                        if (swingT > 1) swingT = -1 }
     const sw = swingT >= 0 ? Math.sin(swingT * Math.PI) : 0
     // the hands ride the stride, not a sine of their own
-    const bobY2 = strideT < 1 ? -Math.sin(strideT * Math.PI) * (walking ? 0.026 : 0.045)
-                              : Math.sin(bob) * 0.006
+    const bobY2 = strideT < 1 ? -Math.sin(strideT * Math.PI) * (walking ? 0.026 : 0.045):
+                              Math.sin(bob) * 0.006
     // each kind of work has its own arc: an axe comes overhead, a pick comes
     // down and across, a rod goes out and waits, a stoop drops out of frame
     let px = vmPose.p[0], py = vmPose.p[1] + bobY2, pz = vmPose.p[2]
@@ -5672,7 +5672,7 @@ function worldYaw (o) { let y = 0, p = o; while (p && p !== scene) { y += p.rota
   if (box) box.value = saved || WRIT_DEFAULT
   const btn = (id, fn) => { const b = document.getElementById(id); if (b) b.addEventListener('click', fn) }
   btn('run', () => { startWrit(); audioUp() })
-  btn('halt', () => { stopWrit(); logLine('\u2014 halted \u2014', 'say') })
+  btn('halt', () => { stopWrit(); logLine(', halted,', 'say') })
   btn('wipe', () => { if (box) box.value = WRIT_DEFAULT
     try { localStorage.removeItem('interval-writ') } catch {}
     logLine('the writ is back to the one it came with', 'say') })
@@ -5686,9 +5686,9 @@ function worldYaw (o) { let y = 0, p = o; while (p && p !== scene) { y += p.rota
   })
   setInterval(() => {
     const st = document.getElementById('stat'); if (!st) return
-    st.textContent = !writRunning ? 'idle'
-      : writErr ? 'the writ will not read'
-      : writDeeds + ' deeds \u00b7 ' + writSkipped + ' missed'
+    st.textContent = !writRunning ? 'idle':
+      writErr ? 'the writ will not read':
+      writDeeds + ' deeds \u00b7 ' + writSkipped + ' missed'
   }, 500)
 }
 

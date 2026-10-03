@@ -1,12 +1,12 @@
 // §6dj, for the mist window: WHAT IF THE WORLD IS NOT WELL-FORMED.
 //
-// A window that throws stops drawing. Not a wrong pixel — a black screen and
+// A window that throws stops drawing. Not a wrong pixel: a black screen and
 // a console nobody is reading. The pillar this was built against sends none of
 // the states below, but a peer node, an older engine or a newer one might, and
 // a window is not entitled to assume the world it is shown is tidy.
 //
 // Thirty malformed states, each one then USED: panels opened, keys pressed,
-// deeds attempted — because half the reads of the world happen in a panel and
+// deeds attempted, because half the reads of the world happen in a panel and
 // a state that renders can still explode the moment somebody presses TAB.
 //
 // Needs three.js:  npm i three@0.128.0
@@ -88,7 +88,7 @@ for(const [name, st] of Object.entries(cases)){
   for(const k of ['Tab','e','q','r','m',' ','c','Escape','Escape']){ try{key(k);up(k)}catch(e){thrown.push('key '+k+': '+e.message)} }
   frames(4)
   for(const k of ['Escape','Escape']){ key(k);up(k) }
-  if(thrown.length){ bad++; console.log('  FAIL  '+name+' \u2014 '+[...new Set(thrown)].slice(0,2).join(' | ')) }
+  if(thrown.length){ bad++; console.log('  FAIL  '+name+', '+[...new Set(thrown)].slice(0,2).join(' | ')) }
   else console.log('  ok    '+name)
 }
 console.log(bad? '\n  '+bad+' of '+Object.keys(cases).length+' malformed states broke it'

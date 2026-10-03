@@ -303,7 +303,7 @@ export const VILLAGES = [
 // still read them in a year. A village's sign says what the village is FOR,
 // because that is the one thing a citizen cannot guess from four cottages.
 export const VILLAGE_SIGNS = {
-  eelmarsh: 'Eelmarsh. Four racks and no bank \u2014 what you smoke here you carry out yourself.',
+  eelmarsh: 'Eelmarsh. Four racks and no bank: what you smoke here you carry out yourself.',
   oxenlea: 'Oxenlea. Grain to flour, and the wheel is still off the tower.',
   watersmeet: 'Watersmeet. Boats, and a ferryman with no ferry. Ask Gilbert what he is building.',
   kingswood: 'Woodwardstead. Beorn keeps the wood and the lodge fire. Fell nothing without asking.',

@@ -1705,7 +1705,7 @@ export function makeExpanse5Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
 const SIGN_TEXT = {
   anchor: 'Anchor, on Tallyholm',
   greenhollow: 'Greenhollow. We fell timber and post no guard. '
-    + 'The wood was here first and keeps its own hours \u2014 go armed or go home.',
+    + 'The wood was here first and keeps its own hours: go armed or go home.',
   norwick: 'Norwick, the garrison. West of here the road ends and the law with it.',
   hollybarrow: 'Hollybarrow. Plots, a well, and nothing worth stealing.',
   cragfoot: 'Cragfoot. Two anvils and a hard country. Bring ore or bring coin.',

@@ -2,7 +2,7 @@
 
 *A world with a constitution instead of an owner.*
 
-*Release 1.0.5 · protocol spec v1.05 · consensus spec v1.9 · rules hash `6cde7f4e2631a1af`…
+*Release 1.0.5 · protocol spec v1.05 · consensus spec v1.9 · rules hash `df504ccae64e528b`…
 These four move together; a change to any one of them is a new release, and a
 change to the constitution is a new world.*
 
@@ -13,7 +13,7 @@ here happened on one. Any machine running the same rules computes the same
 world; a machine that disagrees has, by definition, broken them, and is ignored.
 
 Your citizen is a keypair. Every action is an Ed25519-signed input and the
-signature is the authorization — no session, no account, no server grant stands
+signature is the authorization: no session, no account, no server grant stands
 between you and your soul. Keys are made locally and never leave the device.
 Lose the key, lose the citizen. Hold it, and every window into the world is
 equally yours, because the citizen was never the session.
@@ -43,7 +43,7 @@ straight in. One soul, any vessel.
 ## What kind of world it is
 
 **Nine trades, and none of them ranks you.** A citizen is introduced by their
-**standing** — the sum of all nine — and by a **calling** sworn at level thirty
+**standing**: the sum of all nine, and by a **calling** sworn at level thirty
 in the trade it belongs to, which can never be put down. Fighting is one trade
 of nine. Sorcery is the trade of refusing combat. Mourning is the only trade
 paid in what it cost you: every other converts time into levels, and that one
@@ -51,7 +51,7 @@ converts wealth, and the goods are gone.
 
 **Every citizen has the same frame,** sixty-four, from the first interval to the
 last. What progresses is not how much you can absorb but how often you are
-missed — armour is in the roll, not subtracted from the blow. A master in star
+missed: armour is in the roll, not subtracted from the blow. A master in star
 plate is not shrugging hits off. Death takes your pack, leaves your trades, name
 and coin, and adds a **wound**: one permanent point off the frame, cleared only
 at a wellspring that is not in any town.
@@ -78,8 +78,8 @@ npm install
 INTERVAL_DATA=/var/interval-data INTERVAL_SEED=my-world node serve.mjs
 ```
 
-**`INTERVAL_DATA` is the one setting that matters.** World memory — checkpoints,
-identities, witness safety — lives there. Unset, it lives inside the deploy
+**`INTERVAL_DATA` is the one setting that matters.** World memory, checkpoints,
+identities, witness safety, lives there. Unset, it lives inside the deploy
 directory, and a replaced deploy is a wiped world; the server warns loudly about
 this at boot. Set it to a persistent path, put it in your service unit
 (`Environment=INTERVAL_DATA=/var/interval-data`), and never think about it
@@ -88,7 +88,7 @@ applies to nothing.
 
 `INTERVAL_SEED` names the founding. Booting a new seed founds a new world, and
 citizens of the old one cross into it carrying their trades, names, wounds and
-goods — goods arrive at the counter nearest where they wake, since the vaults of
+goods: goods arrive at the counter nearest where they wake, since the vaults of
 a world that no longer exists name nothing. Founding data does not expire with
 the world that held it. Old founding records and checkpoints are archived, never
 deleted. If disaster leaves you with a frontier and no matching state,
@@ -114,8 +114,8 @@ and does not want to.
 
 Consensus safety is exercised by a seeded, deterministic adversarial simulator
 (`npm run advsim`): honest witnesses under packet loss, delay, reordering,
-duplication and timed partitions, alongside Byzantine witnesses — equivocating
-proposers, lying attesters, replayers, garbage floods — and crash-restart
+duplication and timed partitions, alongside Byzantine witnesses, equivocating
+proposers, lying attesters, replayers, garbage floods, and crash-restart
 recovery from durable stores. Three surfaces cover it, all enumerated in
 [TESTING.md](TESTING.md): the CI battery (`test/adversarial.test.mjs`, 15 tests,
 every scenario at one seed plus convergence and determinism checks), the
@@ -142,7 +142,7 @@ order:
 | [HISTORY.md](HISTORY.md) | what was tried and repealed. Binds nothing, and is hashed anyway, because a constitution that can quietly drop its own record is not a record |
 
 A node that hashes any of them differently is playing a different game and is
-refused at the door — not as a version check, but because it literally is a
+refused at the door, not as a version check, but because it literally is a
 different world. [CONSENSUS.md](CONSENSUS.md) governs how independent witnesses
 agree: quorum-signed finality certificates for every interval, a per-witness
 safety frontier that refuses to re-sign history, and certified recovery for any
@@ -160,8 +160,8 @@ whole.
 
 ## The world
 
-Tallyholm is an island of ten towns and seven countries — the Greenwood, the
-Heartlands, the Downs, the Moor, the Crags, the Fens and the Wilds — run through
+Tallyholm is an island of ten towns and seven countries: the Greenwood, the
+Heartlands, the Downs, the Moor, the Crags, the Fens and the Wilds, run through
 the same pure functions in every window. It has monuments older than its towns:
 an oak that cannot be cut, a bell tower drowned to its shoulders, a wreck
 implying a sea worth sailing. None of them will be explained.
@@ -169,8 +169,8 @@ implying a sea worth sailing. None of them will be explained.
 Its keepers stand at their counters from the founding on, every one named by a
 hash except the wizard, who chose his own. It has fenced fields, worksites where
 each country's trade gathers, an inn on the north road whose yard is waiting for
-its first brewer, two passes through a Ridge that runs sea to sea — the southern
-one shut behind a rockfall the island may dig through together — and a race for
+its first brewer, two passes through a Ridge that runs sea to sea: the southern
+one shut behind a rockfall the island may dig through together, and a race for
 each of the nine trades, each winnable exactly once, the winner named for as
 long as the world lasts. One island in the northwest appears on no road and
 carries no label. It is drawn faithfully.
@@ -211,7 +211,7 @@ the release tuple itself. It fails if this README's banner drifts from
 It also now checks the things that used to drift silently: that a recipe can be
 held in one pack, that the client reads no skill the engine retired, that no
 page states a repealed number. Those faults were all found by hand, and each one
-had been true for months — a stall nobody could raise, a spell nobody could
+had been true for months: a stall nobody could raise, a spell nobody could
 cast, a pack size four documents disagreed about. Anything stated twice will
 eventually be stated two ways, so the second statement gets a test.
 
@@ -229,7 +229,7 @@ for proving a persistent world could live in a browser and reach anyone;
 economy; and the whole MUD tradition for the deterministic tick.
 
 None of it is copied and this is not affiliated with any of their makers. This
-section used to gesture at an era instead — the browser and cartridge years, no
-live-ops, discrete time — which names influences without naming them. A project
+section used to gesture at an era instead: the browser and cartridge years, no
+live-ops, discrete time, which names influences without naming them. A project
 whose central claim is that rules should be legible ought to be legible about
 where its own came from.
