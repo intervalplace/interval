@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hiscores: Interval</title>
-<link rel="stylesheet" href="/site/site.css"></head><body>
+<link rel="stylesheet" href="/site/site.css"><link rel="stylesheet" href="/site/paper.css"></head><body>
 <svg id="skillsprite" xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true"><!-- §5m: ONE SYMBOL PER TRADE. The merge from eighteen skills to nine
      mapped several old icons onto each new id, and SVG uses only the first
      symbol with a given id -- so nine drawings were shipping dead while
@@ -264,7 +264,7 @@ function drawBoard(j) {
       html += '<tr' + (isMine(p) ? ' class="mine"' : '') + '><td class="rank">' + rank + '</td>'
         + '<td>' + nameCell(p) + '</td>'
         + '<td><b style="color:var(--gold)">' + (p.raised ?? 0) + '</b></td>'
-        + '<td style="color:var(--dim)">' + (p.sworn ?? p.calling ?? '\u2014') + '</td></tr>'
+        + '<td style="color:var(--dim)">' + (p.sworn ?? p.calling ?? ',') + '</td></tr>'
     }
     el.innerHTML = html + '</table>' + pager(rows.length)
     wireBoard()
@@ -552,7 +552,7 @@ function wireUnaided() {
   if (!told) {
     b.disabled = true
     b.title = 'This pillar does not report it yet'
-    b.textContent = 'unaided \u2014 this pillar does not say'
+    b.textContent = 'unaided: this pillar does not say'
     return
   }
   if (!all.length) {
@@ -686,7 +686,7 @@ function loadRecordsInto(el, j) {
   el.innerHTML = html + '</table>'
     + '<p style="font-size:11px;color:var(--dim);margin-top:10px">'
     + 'Intervals from level fifty to ninety-nine. Three kept per board, for ever. '
-    + 'A citizen keeps their own time whether or not it placed \u2014 look them up '
+    + 'A citizen keeps their own time whether or not it placed: look them up '
     + 'above. Raw data: <code>GET /api/records</code>.</p>'
   wireBoard()
 }

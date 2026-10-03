@@ -8,29 +8,20 @@
 <style>
   /* the chart holds its shape inside the stone; it pans, it does not escape */
   #chartwrap { position: relative; margin: 10px 0 6px; }
-  /* A PRINTED CHART IS PART OF THE PAGE, NOT A PANEL ON IT. The two-pixel
-     dark border and the near-black fill were the frame a screen needs; on
-     paper they make a window cut into the sheet. A hairline and the paper's
-     own colour underneath, so the chart sits in the text block the way a plate
-     sits in a book. */
   #chart { display: block; width: 100%; height: auto; image-rendering: pixelated;
-    background: #f4ecda; border: .6px solid rgba(138,106,34,.55);
-    cursor: grab; touch-action: none; }
+    background: var(--ink); border: 2px solid var(--stone-dk); cursor: grab; touch-action: none; }
   #chart.dragging { cursor: grabbing; }
-  /* the coordinate readout: a note in the margin of the plate, not a tooltip */
-  #whereis { position: absolute; left: 10px; bottom: 10px; padding: 3px 9px;
-    background: rgba(244,236,218,.88); color: #2f2418;
-    font: italic 13px "Iowan Old Style", Palatino, Georgia, serif;
-    border: .6px solid rgba(138,106,34,.45); pointer-events: none; }
+  #whereis { position: absolute; left: 10px; bottom: 10px; padding: 4px 10px;
+    background: rgba(11,7,3,.82); color: var(--parch); font-size: 12px; border: 1px solid var(--stone-dk);
+    pointer-events: none; }
   #growing { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-    color: #6d6049; font: italic 14px "Iowan Old Style", Palatino, Georgia, serif;
-    letter-spacing: 1px; pointer-events: none; }
-  .maplegend { font-size: 13px; color: #6d6049; }
-  .maplegend b { color: #6b4f16; font-weight: bold; }
+    color: var(--dim); font-size: 12px; letter-spacing: 1px; pointer-events: none; }
+  .maplegend { font-size: 11.5px; color: var(--dim); }
+  .maplegend b { color: var(--gold); font-weight: bold; }
 </style>
 </head>
 <body>
-<script src="/site/nav.js"></script>
+<script src="/nav.js"></script>
 <div class="page">
 <main class="stone">
   <div class="torch l"></div><div class="torch r"></div>
@@ -56,7 +47,7 @@
   not at all. Nineteen <b>meres, tarns and pools</b> lie inland, and five becks run off the high
   ground into the Great River and the sea. Where the passes are, which of them is shut, and what
   stands beside any of it are things to find out.</p>
-  <p class="maplegend">generator <code>interval-expanse-v7</code> &middot; rules <code>df504ccae64e528b&hellip;</code>
+  <p class="maplegend">generator <code>interval-expanse-v7</code> &middot; rules <code>6a02b292a190ef92&hellip;</code>
   &middot; the island is frozen: every founding under v7 stands on this same Tallyholm, whatever
   seed its ledger carries, so a chart drawn once is true in every world</p>
 </main>
@@ -2353,49 +2344,30 @@ async function chartTheLiveWorld() {
     } catch (e) { /* keep the placeholder */ }
   } catch (e) { /* offline or pre-founding: the provisional chart stands */ }
 }
-// ---- THE CHART IS PRINTED NOW, SO EVERY VALUE IS INVERTED ----
-//
-// This palette was built for a near-black page, where land reads brightest
-// against a dark sea. The site is paper and the same values make a dark
-// rectangle sitting on a page of type, which is the one thing on this page
-// that still looks like a screenshot of a game.
-//
-// Printing inverts the whole arrangement and not just the lightness. On a dark
-// page the sea must be dark enough that the land stays the brightest thing; on
-// paper the sea is the PALEST thing and the land is tinted, because that is how
-// the eye separates figure from ground when the ground is already light. The
-// relationships the old comments argued for are all kept, with their sense
-// flipped: chalk is still the ground furthest from the rest, now by being
-// nearly the paper itself; the moor is still the colour you cannot name; a
-// copse is still only a few steps from the ground it stands in, so it reads as
-// woodland rather than as a hole punched in the Heartlands.
 const PAL = {
-  // The sea is a wash, not a void and not a block. Light enough that the
-  // island is plainly the subject, cool enough and just dark enough against
-  // cream that the coastline is a shore rather than the edge of the paper.
-  sea: '#ccd8e2', shoal: '#bccbd9', river: '#8da8c2', bridge: '#9a7a3f',
-  cobble: '#bcb39b', flag: '#c3bba3', gravel: '#cbc5b5', sand: '#e4d8b4', trail: '#c6a257', mountain: '#b5afa3',
-  wilds: '#c0ab8d', greenwood: '#93a877', crags: '#c1bbad', fens: '#b2bf99', meadow: '#ccd2a3',
-  heartlands: '#ccd2a3', downs: '#dcd7a7', moor: '#bcb0c0',
-  chalk: '#ebe6cc', peat: '#a79380', causey: '#cec8ac', floor: '#c5a77b',
-  forest: '#9aae7d', scree: '#c7c1b3',
-}
-// AND THE INK THE CHART IS LETTERED IN. These were a dozen hex literals spread
-// through the drawing code, every one of them chosen against black: a pale
-// blue mark, a yellow dot for you, cream region names, and a near-black halo
-// behind every label so it could be read over the sea. On paper each of those
-// is the wrong end of its own contrast, and the halo in particular is a black
-// smear under every name. Named here so the page letters itself from one place.
-const INK = {
-  ink: '#2f2418',        // the darkest thing on the chart, as type is
-  quiet: '#6d6049',      // a place name, which defers to a town's
-  town: '#6b4f16',       // a town, which does not
-  region: '77, 63, 40',  // a country's name, laid over the ground at low opacity
-  halo: 'rgba(244, 236, 218, .9)',   // paper behind a label, not shadow under it
-  you: '#8a6a22',        // the one mark that is allowed to be gold
-  youGlow: 'rgba(138, 106, 34, .20)',
-  find: '47, 36, 24',    // the ring that goes out when you search for somebody
-  stone: '#8b7d63',      // a brandstone on pale ground
+  // THE SEA IS WATER, NOT A VOID. At #0a0a10 it was the page background, so
+  // the island floated in nothing and the coastline was the edge of the world
+  // rather than a shore. Held dark enough that the land still reads brightest,
+  // and blue enough that it is plainly the sea.
+  sea: '#16263f', shoal: '#1e3048', river: '#1e3048', bridge: '#8a6a33',
+  cobble: '#403828', flag: '#3a3226', gravel: '#5c5648', sand: '#8a7a54', trail: '#7a602a', mountain: '#4a443a',
+  wilds: '#423221', greenwood: '#2a3a1c', crags: '#484034', fens: '#343e28', meadow: '#4e542e',
+  // the fourth founding. The chart runs darker than the window, so these are
+  // the same two hues held down to the same value range: chalk stays the
+  // brightest ground, heather stays the one you cannot quite put a name to.
+  heartlands: '#4e542e', downs: '#6e6c42', moor: '#3a3140',
+  // the country roads, in the chart's darker register
+  chalk: '#9a9464', peat: '#4a3f38', causey: '#6a6752', floor: '#6b5335',
+  // THE PLACED THINGS have their own ground -- twenty copses, mires and scree
+  // fans somebody chose and set down. They returned 'forest' and 'scree' and
+  // this palette had neither, so a fifth of the island's hand-work drew as
+  // nothing at all. Held to the chart's darker register like everything else.
+  // A COPSE IS A STAND OF TREES, NOT A DOT. At #22301a these read as dark
+  // blobs punched into the Heartlands -- twenty of them, and the eye went
+  // straight to them instead of to the roads they exist to bend. Held a few
+  // steps from the ground they sit in, so they read as woodland: something you
+  // notice when you look, not before.
+  forest: '#3d4626', scree: '#565044',
 }
 const buf = document.createElement('canvas'); buf.width = W; buf.height = H
 const bctx = buf.getContext('2d')
@@ -2486,7 +2458,7 @@ function growRoads(now) {
 }
 function drawStones() {
   // the brandstones, drawn as the land carries them: one every fourteenth row
-  bctx.fillStyle = INK.stone
+  bctx.fillStyle = '#685c46'
   for (let y = 4; y < H - 4; y += 14) {
     const x = V4() ? brandX4(y) : brandX3(y)
     const wet = V4() ? isWater4(x, y) : isWater3(x, y)
@@ -2659,15 +2631,15 @@ function drawFind() { // the sought citizen: a cool ring, never the gold one
   if (sx < -40 || sy < -40 || sx > cv.width + 40 || sy > cv.height + 40) return
   const t = (performance.now() % 1600) / 1600
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.strokeStyle = 'rgba(' + INK.find + ',' + (0.75 - t * 0.55) + ')'
+  ctx.strokeStyle = 'rgba(214,224,236,' + (0.75 - t * 0.55) + ')'
   ctx.lineWidth = 2
   ctx.beginPath(); ctx.arc(sx, sy, 5 + t * 16, 0, 7); ctx.stroke()
-  ctx.fillStyle = INK.ink
+  ctx.fillStyle = '#d6e0ec'
   ctx.beginPath(); ctx.arc(sx, sy, 3.2, 0, 7); ctx.fill()
   const label = (FIND_NAME ?? String(FIND_ID).slice(0, 8) + '\u2026') + ((FIND_MARK.hp ?? 1) <= 0 ? ' (fallen)' : '')
   ctx.font = 'bold 11px Verdana'; ctx.textAlign = 'center'
-  ctx.fillStyle = INK.halo; ctx.fillText(label, sx + 1, sy - 11)
-  ctx.fillStyle = INK.ink; ctx.fillText(label, sx, sy - 12)
+  ctx.fillStyle = 'rgba(5,3,1,.85)'; ctx.fillText(label, sx + 1, sy - 11)
+  ctx.fillStyle = '#d6e0ec'; ctx.fillText(label, sx, sy - 12)
 }
 function drawMark() {
   drawFind()
@@ -2678,14 +2650,14 @@ function drawMark() {
   const ph = (performance.now() % 900) / 900
   const r = Math.max(2.5, view.z * 0.9) + Math.sin(ph * Math.PI * 2) * 1.1
   ctx.beginPath(); ctx.arc(sx, sy, r + 3, 0, Math.PI * 2)
-  ctx.fillStyle = INK.youGlow; ctx.fill()
+  ctx.fillStyle = 'rgba(255,232,58,0.18)'; ctx.fill()
   ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2)
-  ctx.fillStyle = INK.you; ctx.fill()
-  ctx.strokeStyle = INK.ink; ctx.lineWidth = 1; ctx.stroke()
+  ctx.fillStyle = '#ffe83a'; ctx.fill()
+  ctx.strokeStyle = '#2c2216'; ctx.lineWidth = 1; ctx.stroke()
   const label = (ME_NAME ?? 'you') + ((ME_MARK.hp ?? 1) <= 0 ? ' (fallen)' : '')
   ctx.font = 'bold 11px Verdana'; ctx.textAlign = 'center'
-  ctx.fillStyle = INK.halo; ctx.fillText(label, sx + 1, sy - r - 5 + 1)
-  ctx.fillStyle = INK.you; ctx.fillText(label, sx, sy - r - 5)
+  ctx.fillStyle = 'rgba(5,3,1,.85)'; ctx.fillText(label, sx + 1, sy - r - 5 + 1)
+  ctx.fillStyle = '#ffe83a'; ctx.fillText(label, sx, sy - r - 5)
 }
 function drawLabels() {
   const lp = labelPoints()
@@ -2700,7 +2672,7 @@ function drawLabels() {
     for (const rl of regionLabels()) {
       const sx = (rl.x - view.x) * view.z, sy = (rl.y - view.y) * view.z
       if (sx < -100 || sy < -30 || sx > cv.width + 100 || sy > cv.height + 30) continue
-      ctx.fillStyle = 'rgba(' + INK.region + ',' + rAlpha + ')'
+      ctx.fillStyle = 'rgba(240,228,200,' + rAlpha + ')'
       ctx.fillText(rl.n, sx, sy)
     }
     ctx.restore()
@@ -2752,17 +2724,17 @@ function drawLabels() {
     }
     claimed.push(r)
     ctx.textAlign = align
-    ctx.fillStyle = INK.halo; ctx.fillText(n, sx + 1, sy + 1)
+    ctx.fillStyle = 'rgba(5,3,1,.85)'; ctx.fillText(n, sx + 1, sy + 1)
     ctx.fillStyle = fill; ctx.fillText(n, sx, sy)
     ctx.textAlign = 'center'
   }
   for (const t of lp.towns) { // towns first: their names own their ground
     const sx = (t.x - view.x) * view.z, sy = (t.y - view.y) * view.z
-    ctx.fillStyle = INK.town; ctx.fillRect(sx - 2, sy - 2, 4, 4)
+    ctx.fillStyle = '#e2b63e'; ctx.fillRect(sx - 2, sy - 2, 4, 4)
     claimed.push({ x: sx - 4, y: sy - 4, w: 8, h: 8 })
-    put(t.n, t.x, t.y, INK.town, 'bold 11px Verdana', false)
+    put(t.n, t.x, t.y, '#e2b63e', 'bold 11px Verdana', false)
   }
-  for (const p of lp.places) put(p.n, p.x, p.y, INK.quiet, 'italic 10px Verdana', true)
+  for (const p of lp.places) put(p.n, p.x, p.y, '#d6c49c', 'italic 10px Verdana', true)
 }
 // pan and zoom: pointer events cover mouse and touch alike
 let drag = null

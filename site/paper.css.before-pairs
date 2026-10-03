@@ -1,0 +1,337 @@
+/* ---- THE SITE DRESSED AS THE BOOK, NOT AS A CLIENT ----
+ *
+ * `site.css` opens by saying what it is: "the reference window's aesthetic,
+ * page-sized". It was right to, once. The 2D window was the only way in and a
+ * site that looked like it was a site that looked like interval.
+ *
+ * The Unreal window is the main one now, so the site is dressed as a client
+ * that is not. That is what reads as dated -- not the Verdana, not the bevels.
+ *
+ * AND THE ANSWER IS NOT THE OTHER CLIENT. Wearing the Unreal window's palette
+ * is the obvious move and the weaker one: ink boards and a gold rule are tuned
+ * for a dark viewport with a world behind them, and a page of prose in a
+ * browser in daylight is not that. A website that looks like the game's HUD is
+ * also a very well-worn move.
+ *
+ * It is dressed as the HANDBOOK. That is the most confident thing this project
+ * has made, it is print-native so it reads as a page rather than as a port, and
+ * nobody else ships a saddle-stitched A5 manual with the world's hash on the
+ * last page. Paper also does not date the way a web style does, which is the
+ * real answer to "it will feel old again in two years".
+ *
+ * EVERY VALUE HERE IS THE BOOK'S OWN. The paper, the ink, the brown of a
+ * heading, the hairline inside the frame, the ornament with a lozenge set in
+ * it: all lifted from `handbook.mjs` rather than picked again. If the book is
+ * retuned, these are the numbers to copy.
+ *
+ * Loaded by index.html ALONE, after site.css, so the nav keeps working and no
+ * other page moves while this one is being judged.
+ */
+:root {
+  /* PREFIXED, BECAUSE site.css OWNS THE PLAIN NAMES. Its `--ink` is the
+   * near-black the old page stood on and several of its rules still read it;
+   * redefining that here changed things on this page nobody had asked to
+   * change. These are the book's values under names of their own. */
+  --bk-paper: #f4ecda;
+  --bk-ink: #2f2418;
+  --bk-brown: #6b4f16;
+  --bk-rule: #8a6a22;
+  --bk-quiet: #6d6049;
+  --bk-foxing: rgba(176, 150, 102, .14);
+}
+
+/* THE GROUND. The book's paper, and the same soft foxing in the corners: three
+ * radials, which is enough to stop a flat fill reading as a flat fill and few
+ * enough to cost nothing. */
+body {
+  background: var(--bk-paper);
+  background-image:
+    radial-gradient(60vmin 46vmin at 14% 8%, var(--bk-foxing), transparent 70%),
+    radial-gradient(52vmin 40vmin at 88% 72%, rgba(176, 150, 102, .12), transparent 70%),
+    radial-gradient(40vmin 34vmin at 58% 40%, rgba(150, 122, 78, .07), transparent 70%);
+  background-attachment: fixed;
+  color: var(--bk-ink);
+  font: 17px/1.62 "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, serif;
+  padding: 14px 12px 56px;
+}
+
+/* THE NAV IS A RUNNING HEAD, which is what a book has at the top of a page
+ * instead of a toolbar. Small caps, letter-spaced, a rule under it, and no box
+ * at all: a bar with a border round it is a web page's furniture. */
+nav.stone {
+  background: none;
+  border: 0;
+  border-bottom: 1px solid rgba(138, 106, 34, .45);
+  display: flex;
+  gap: 26px;
+  justify-content: center;
+  padding: 0 0 9px;
+  margin-bottom: 22px;
+}
+nav.stone a {
+  color: var(--bk-brown);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 11.5px;
+  text-decoration: none;
+}
+nav.stone a:hover { color: var(--bk-ink); text-decoration: underline; }
+nav.stone a.here { color: var(--bk-ink); font-weight: 600; }
+
+/* THE PAGE ITSELF, inside the book's double frame: an outer rule and a
+ * hairline a shade in from it. That pair is what says "book" before a word of
+ * it is read, and it is the one piece of chrome on the whole page. */
+main.stone {
+  background: none;
+  border: 0;
+  position: relative;
+  padding: 44px 46px 40px;
+  max-width: 820px;
+  margin: 0 auto;
+}
+main.stone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1.4px solid var(--bk-rule);
+  pointer-events: none;
+}
+main.stone::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border: .6px solid rgba(138, 106, 34, .55);
+  pointer-events: none;
+}
+
+/* THE TORCHES GO. They were the window's brackets either side of a stone
+ * title, and there is nothing to bracket on paper. */
+.torch { display: none; }
+
+/* THE TITLE, set as the book's cover sets it: wide letter-spacing, light
+ * weight, centred, and no rule above or below it. A line over a title and a
+ * line under it is the motif this project already decided reads as generic,
+ * and the frame is doing that work anyway. */
+/* THE TITLE WAS INVISIBLE AND NOT MISSING. site.css paints it with a gold
+ * gradient clipped to the glyphs and `-webkit-text-fill-color: transparent`,
+ * which wins over `color` whatever the specificity -- so killing the gradient
+ * here left a transparent fill and a page with no name on it. The fill has to
+ * be put back explicitly, and the drop-shadow filter with it. */
+h1 {
+  font: 400 44px/1.1 "Iowan Old Style", Palatino, Georgia, serif;
+  letter-spacing: 11px;
+  text-align: center;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: #2a2015;
+  color: #2a2015;
+  filter: none;
+  text-shadow: none;
+  margin: 2px 0 4px;
+  padding: 0;
+  border: 0;
+}
+
+/* THE COAST, which is the one picture the book allows itself: the island's
+ * shape and nothing on it. It is drawn from the generator, so it cannot be out
+ * of date, and it is the only image on this page. */
+h1 + .thesis::before {
+  content: "";
+  display: block;
+  /* 889 by 464 in the file, so the box is cut to the same ratio: a box of any
+   * other shape letterboxes inside `contain` and the coast floats in a gap. */
+  width: min(320px, 64%);
+  height: 167px;
+  margin: 14px auto 20px;
+  background: url("/site/coastline.svg") center/contain no-repeat;
+  opacity: .72;
+}
+
+.thesis {
+  text-align: center;
+  font-size: 19px;
+  color: var(--bk-ink);
+  margin-bottom: 18px;
+  text-shadow: none;
+}
+.thesis b { color: var(--bk-brown); }
+
+/* A CHAPTER OPENS WITH A DROP CAP, exactly as the book's do. */
+.lede {
+  font-size: 17px;
+  color: var(--bk-ink);
+  margin-bottom: 26px;
+}
+.lede::first-letter {
+  float: left;
+  font-size: 50px;
+  line-height: 40px;
+  padding: 4px 8px 0 0;
+  color: var(--bk-rule);
+  font-weight: 600;
+}
+
+/* THE WORLD'S OWN COUNT, set as a book sets a figure: the number large and
+ * quiet, the word under it in small caps. Not a dashboard tile. */
+.tick {
+  font: 400 30px/1.2 "Iowan Old Style", Palatino, Georgia, serif;
+  letter-spacing: 5px;
+  text-align: center;
+  color: var(--bk-brown);
+  background: none;
+  border: 0;
+  padding: 10px 0 2px;
+  text-shadow: none;
+}
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 42px;
+  border: 0;
+  background: none;
+  padding: 4px 0 0;
+}
+.stat { background: none; border: 0; padding: 0; text-align: center; }
+.stat .k {
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  font-size: 10.5px;
+  color: var(--bk-quiet);
+}
+.stat .v { font-size: 20px; color: var(--bk-ink); }
+.worldid, .ticklabel {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--bk-quiet);
+  letter-spacing: .6px;
+  padding-top: 6px;
+}
+
+/* ---- THE ORNAMENT, WHICH IS HOW THE BOOK DIVIDES ANYTHING ----
+ * A rule with a lozenge set into the middle of it. `handbook.mjs`: "A rule
+ * across a page is a document; a rule with something set into the middle of it
+ * is a book." Used here instead of the window's stone separators. */
+.against, .isnot, .playbox { position: relative; }
+.against::before, .isnot::before, .playbox::before {
+  content: "\25C6";
+  display: block;
+  text-align: center;
+  color: var(--bk-rule);
+  font-size: 11px;
+  margin: 30px auto 22px;
+  width: 100%;
+  border-top: .6px solid rgba(138, 106, 34, .55);
+  line-height: 0;
+  padding-top: 0;
+  transform: translateY(-.5em);
+  background: var(--bk-paper);
+}
+
+/* THE TWO COLUMNS stay two columns, because the comparison is the argument.
+ * What goes is the pair of boxes: on paper a column is a column, told apart by
+ * its heading and a rule between them.
+ *
+ * IT IS A GRID IN site.css AND IT STAYS ONE. The first cut set `display: flex`
+ * here, which left the ornament `::before` as a third ITEM in the row: the two
+ * columns of argument were squeezed into a third of the width each and came
+ * out one word per line. The ornament spans the whole row instead. */
+.against {
+  gap: 0 34px;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.against::before { grid-column: 1 / -1; }
+.them, .here {
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.here { border-left: .6px solid rgba(138, 106, 34, .4); padding-left: 32px; }
+.them p, .here p, .isnot p { margin-bottom: 11px; }
+
+/* ---- AND THE TWO COLUMNS SWAP WEIGHT, WHICH THEY HAD TO ----
+ *
+ * site.css gives `.them` a dim grey and `.here` the parchment cream, and on a
+ * near-black page that is exactly right: the dim column recedes and the bright
+ * one is the argument. Put the same two colours on PAPER and it inverts. Cream
+ * on cream is almost nothing, so the column making the case for this world was
+ * the hardest thing on the page to read, while the column listing what every
+ * other world does to you was the darkest and heaviest. The page argued
+ * against itself.
+ *
+ * Matched at `.against .them p` because that is the shape site.css uses and a
+ * bare `.them` loses to it. Ink for the case being made, and a grey a shade
+ * lighter for the case being answered. */
+.against .them p, .against .them h3 { color: var(--bk-quiet); }
+.against .here p { color: var(--bk-ink); }
+.against .here b, .against .here h3 { color: var(--bk-brown); }
+.against .them h3 { border-bottom-color: rgba(109, 96, 73, .35); }
+
+h2, h3 {
+  font: 600 13px/1.4 "Iowan Old Style", Palatino, Georgia, serif;
+  text-transform: uppercase;
+  letter-spacing: 1.7px;
+  color: var(--bk-brown);
+  border-bottom: .6px solid rgba(138, 106, 34, .5);
+  padding-bottom: 5px;
+  margin-bottom: 12px;
+  background: none;
+  text-shadow: none;
+}
+
+.isnot { background: none; border: 0; padding: 0; }
+/* THE SAME INVERSION AS THE COLUMNS, one section down. site.css dims this
+ * block's prose because on a near-black page a dim grey recedes politely; on
+ * paper it goes to nothing and the five things this world is NOT -- which is
+ * the most honest writing on the page -- came out as the faintest. */
+.isnot p { color: var(--bk-ink); }
+.isnot b, .here b { color: var(--bk-brown); }
+
+/* THE DOOR. A printed book's call to action is a line of type and a rule, not
+ * a button with a glow on it -- but this one is a door and has to look like
+ * one, so it keeps its weight and loses the bevel: ink on paper, boxed in the
+ * same hairline as everything else. */
+.playbox { text-align: center; }
+.playbtn {
+  display: inline-block;
+  font: 600 15px/1 "Iowan Old Style", Palatino, Georgia, serif;
+  letter-spacing: 3.4px;
+  text-transform: uppercase;
+  color: var(--bk-paper);
+  background: var(--bk-rule);
+  border: 0;
+  padding: 15px 34px;
+  text-decoration: none;
+  text-shadow: none;
+  box-shadow: none;
+}
+.playbtn:hover { background: #6b4f16; }
+.playsub {
+  font-size: 13.5px;
+  color: var(--bk-quiet);
+  margin: 14px auto 0;
+  max-width: 54ch;
+}
+.playsub.lesser { font-size: 12.5px; margin-top: 10px; }
+.playsub a, .lede a, .here a, .isnot a { color: var(--bk-brown); }
+
+/* THE FOOT LINK nav.js appends, which site.css styles as a stone strip. */
+.foot, .foot a { color: var(--bk-quiet); }
+.foot { border: 0; background: none; }
+
+@media (max-width: 680px) {
+  body { font-size: 16px; padding: 10px 8px 44px; }
+  main.stone { padding: 26px 20px 28px; }
+  h1 { font-size: 31px; letter-spacing: 6px; }
+  .against { flex-direction: column; gap: 4px; }
+  .here { border-left: 0; padding-left: 0; }
+  .here::before {
+    content: "\25C6";
+    display: block; text-align: center; color: var(--bk-rule);
+    font-size: 10px; margin: 20px 0 16px;
+  }
+  .stats { gap: 24px; }
+  nav.stone { gap: 15px; }
+}

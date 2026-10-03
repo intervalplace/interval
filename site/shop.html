@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The shop: Interval</title>
 <meta name="description" content="Things you can hold: the handbook on paper, a blank ledger to keep your own notes in, and the island's coastline as a shirt, a print and a sheet of stickers. All at cost.">
-<link rel="stylesheet" href="/site/site.css">
+<link rel="stylesheet" href="/site/site.css"><link rel="stylesheet" href="/site/paper.css">
 <style>
 /* One column on a phone, two on a tablet, three on a desk. The picture is the
    size of the thing rather than a thumbnail: somebody deciding whether to own
@@ -10,8 +10,17 @@
 @media (min-width: 640px) { .goods { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 1000px) { .goods { grid-template-columns: 1fr 1fr 1fr; } }
 .good { display: flex; flex-direction: column; }
-.good img { width: 100%; align-self: center; border-radius: 2px;
-  box-shadow: 0 6px 22px rgba(0,0,0,.55); background: rgba(0,0,0,.2); }
+/* EVERY PLATE THE SAME SIZE, THE OBJECT INSIDE IT AT ITS OWN PROPORTIONS.
+   A book cover is tall, a ledger endpaper and a coastline are wide, so sizing
+   each picture to its own content put the three headings on three different
+   lines and the row read as three things that had been dropped rather than
+   laid out. A printed catalogue gives every item the same plate and lets the
+   object sit inside it; that is what `contain` in a fixed box is.
+   The shadow goes with it: a 55% black drop was right under a near-black page
+   and on paper it is a bruise. */
+.good img { width: 100%; height: 300px; object-fit: contain;
+  align-self: center; border-radius: 2px;
+  box-shadow: 0 2px 10px rgba(60, 44, 18, .18); background: none; }
 /* The coast is a dark line and the site is darker, so it needs paper under it.
    These rules follow the one above deliberately: same specificity, later wins. */
 .good img.paper { background: #f4ecda; }
@@ -56,7 +65,7 @@
            alt="The cover of the interval handbook: the word INTERVAL, A HANDBOOK
                 beneath it, and the world's founding id.">
       <h2>The handbook</h2>
-      <p>Twenty pages, A5, saddle stitched. It says what the world is made of:
+      <p>Forty-four pages, A5, saddle stitched. It says what the world is made of:
       the nine crafts, the seventeen trades you can swear to, why nothing
       outside your own trade passes seventy, what a pack holds, what a shield
       costs, what lives here.</p>

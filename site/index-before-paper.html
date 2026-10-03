@@ -1,9 +1,9 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Interval: nobody can ban you, patch you, or switch you off</title>
 <meta name="description" content="A persistent world with no company behind it. The rules cannot change, no one can ban you, and there is no server to shut down. Play in your browser.">
-<link rel="stylesheet" href="/site/site.css"><link rel="stylesheet" href="/site/paper.css"><script src="/site/items.js" defer></script></head><body>
+<link rel="stylesheet" href="/site/site.css"><script src="/site/items.js" defer></script></head><body>
 <script src="/site/nav.js"></script>
-<div class="page"><main class="stone cover">
+<div class="page"><main class="stone">
   <div class="torch l"></div><div class="torch r"></div>
   <h1>INTERVAL</h1>
 
@@ -23,51 +23,36 @@
   <div class="worldid" id="worldid"></div>
   <div class="ticklabel" id="ticklabel"></div>
 
-  <!-- THE ARGUMENT, PAIRED.
-     This was two independent stacks, and it is not two lists: every complaint
-     on the left has its answer directly opposite on the right. Because the
-     answers run longer than the complaints, the two columns drifted out of
-     step, and by the fourth row "your account is theirs" sat opposite the
-     wrong reply. The tall empty space at the foot of the left column was the
-     symptom people noticed; losing the pairing was the actual cost.
-     Each pair is one grid row now, so a complaint and its answer are always
-     level, and the slack falls as small even gaps between rows. -->
   <div class="against">
-    <h3 class="them">Every other world</h3>
-    <h3 class="here">Interval</h3>
-
-    <p class="them">Somebody decides what counts as cheating, and it changes
-      when it suits them. Third-party clients were bannable until the day they
-      were not.</p>
-    <p class="here">There is no somebody. <b>You cannot make the world lie</b>,
-      and everything else is just playing. Botting is not cheating here. It is
-      another way to play.</p>
-
-    <p class="them">A patch turns the thing you spent a year building into
-      something else, and there is no appeal.</p>
-    <p class="here"><b>The rules cannot change.</b> They were fixed when the
-      world was founded and no one, including us, can alter them now.</p>
-
-    <p class="them">One day it shuts down. Every hour anybody ever spent in it
-      goes at the same moment.</p>
-    <p class="here"><b>There is nothing to shut down.</b> The world is computed
-      by the machines of the people in it. If we vanish, it keeps its tick.</p>
-
-    <p class="them">Your account is theirs. They can take it back.</p>
-    <p class="here"><b>Nobody holds anything of yours.</b> There is no account,
-      because there is nobody to keep one.</p>
-
-    <p class="them">Somebody moderates you, by rules they wrote about people
-      like you.</p>
-    <p class="here">No moderator, no appeal, and no one above you. <b>Only the
-      rules, and they are the same for everybody.</b></p>
-
-    <p class="them">The picture is theirs as well. You see the world through
-      the client they wrote, and you are not allowed to write another.</p>
-    <p class="here"><b>Nobody owns the picture either.</b> The world knows who
-      is where and what they are holding; drawing it is not in the rules. If
-      you do not like our window, write your own and it counts exactly the
-      same.</p>
+    <div class="them">
+      <h3>Every other world</h3>
+      <p>Somebody decides what counts as cheating, and it changes when it
+        suits them. Third-party clients were bannable until the day they
+        were not.</p>
+      <p>A patch turns the thing you spent a year building into something
+        else, and there is no appeal.</p>
+      <p>One day it shuts down. Every hour anybody ever spent in it goes
+        at the same moment.</p>
+      <p>Your account is theirs. They can take it back.</p>
+      <p>Somebody moderates you, by rules they wrote about people like you.</p>
+    </div>
+    <div class="here">
+      <h3>Interval</h3>
+      <p>There is no somebody. <b>You cannot make the world lie</b>, and
+        everything else is just playing. Botting is not cheating here. It is
+        another way to play.</p>
+      <p><b>The rules cannot change.</b> They were fixed when the world was
+        founded and no one, including us, can alter them now.</p>
+      <p><b>There is nothing to shut down.</b> The world is computed by the
+        machines of the people in it. If we vanish, it keeps its tick.</p>
+      <p><b>Nobody holds anything of yours.</b> There is no account, because
+        there is nobody to keep one.</p>
+      <p>No moderator, no appeal, and no one above you. <b>Only the rules,
+        and they are the same for everybody.</b></p>
+      <p><b>Nobody owns the picture either.</b> The world knows who is where
+        and what they are holding; drawing it is not in the rules. If you do
+        not like our window, write your own and it counts exactly the same.</p>
+    </div>
   </div>
 
   <div class="isnot">
@@ -85,21 +70,10 @@
       hands, and every window obeys it.</p>
   </div>
 
-  <!-- THE DOOR GOES TO A WINDOW, NOT TO A LIST OF THEM.
-     This pointed at `/play`, which is the chooser, while the line underneath
-     it promised you would be standing in Anchor in ten seconds. You were not:
-     you were reading six names and deciding. A door that opens onto a menu is
-     not the door this sentence describes, and the sentence is the honest half.
-     `/play/flat` is the 2D reference window, which is the browser client.
-     The chooser is still a click away and still says what it says: no window
-     here is authoritative, and anybody may write their own. That is worth a
-     page. It is not worth standing between somebody and the island. -->
   <div class="playbox">
-    <a class="playbtn" href="/play/flat">GO AND SEE IT</a>
+    <a class="playbtn" href="/play">GO AND SEE IT</a>
     <div class="playsub">The browser window opens in a new tab and you are
       standing in Anchor in ten seconds. Nothing to install, no account.</div>
-    <div class="playsub lesser">There are <a href="/play">other windows</a>, and
-      none of them is the real one. The world does not know which you are using.</div>
     <div class="playsub lesser">There is also <a href="/download">a window you
       download</a>, which draws the island in three dimensions with weather and
       an hour of the day that passes. macOS today.</div>
