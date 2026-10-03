@@ -568,3 +568,48 @@ tr.mine td:nth-child(2) { color: var(--bk-brown); }
 }
 .stab:hover { border-color: var(--bk-rule); color: var(--bk-ink); }
 .stab.on { background: var(--bk-rule); border-color: var(--bk-rule); color: var(--bk-paper); }
+
+/* ---- THE TWO DOORS ----
+ *
+ * The homepage asked one question with one button and explained the other half
+ * in a paragraph underneath, set smaller than the rest. The choice is browser
+ * or download; it is two buttons now, side by side, and they share a width so
+ * neither reads as the real one and the other as a footnote.
+ *
+ * ON A PHONE THEY STACK, and the browser one is first because it is the one
+ * that costs nothing. A row of two buttons at 360px is two buttons with four
+ * letters each.
+ */
+.playbox.twin {
+  display: flex;
+  gap: 26px;
+  justify-content: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.playbox.twin .door { flex: 1 1 300px; max-width: 360px; }
+.playbox.twin .playbtn {
+  display: block;
+  padding: 15px 18px;
+  font-size: 14px;
+  letter-spacing: 2.6px;
+}
+.playbox.twin .playsub { margin-top: 12px; max-width: none; font-size: 13px; }
+/* THE DIMENSION, SAID QUIETLY. It is the difference between the two and it is
+ * not the name of either, so it sits on the button at half weight rather than
+ * shouting 2D at somebody who has not yet been told what either door is. */
+.dim2 {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 7px;
+  border: .6px solid rgba(244, 236, 218, .45);
+  border-radius: 2px;
+  font-size: 10.5px;
+  letter-spacing: 1.6px;
+  vertical-align: 2px;
+  opacity: .85;
+}
+@media (max-width: 620px) {
+  .playbox.twin { gap: 16px; }
+  .playbox.twin .door { flex: 1 1 100%; max-width: none; }
+}

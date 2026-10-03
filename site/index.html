@@ -85,25 +85,30 @@
       hands, and every window obeys it.</p>
   </div>
 
-  <!-- THE DOOR GOES TO A WINDOW, NOT TO A LIST OF THEM.
-     This pointed at `/play`, which is the chooser, while the line underneath
-     it promised you would be standing in Anchor in ten seconds. You were not:
-     you were reading six names and deciding. A door that opens onto a menu is
-     not the door this sentence describes, and the sentence is the honest half.
-     `/play/flat` is the 2D reference window, which is the browser client.
-     The chooser is still a click away and still says what it says: no window
-     here is authoritative, and anybody may write their own. That is worth a
-     page. It is not worth standing between somebody and the island. -->
-  <div class="playbox">
-    <a class="playbtn" href="/play/flat">GO AND SEE IT</a>
-    <div class="playsub">The browser window opens in a new tab and you are
-      standing in Anchor in ten seconds. Nothing to install, no account.</div>
-    <div class="playsub lesser">There are <a href="/play">other windows</a>, and
-      none of them is the real one. The world does not know which you are using.</div>
-    <div class="playsub lesser">There is also <a href="/download">a window you
-      download</a>, which draws the island in three dimensions with weather and
-      an hour of the day that passes. macOS today.</div>
+  <!-- TWO DOORS, BECAUSE THERE ARE TWO.
+     This was one big button and three paragraphs under it: the browser line,
+     a line about the other windows, and a line about the download. The thing
+     you could actually choose between was buried in the third paragraph, set
+     smaller than the rest, and read as an afterthought rather than as the
+     other half of the question.
+     The choice is browser or download, so it is two buttons, and each says
+     which it is. The dimension is on the button because that IS the
+     difference: one is drawn flat and immediately, the other properly and
+     after a download. -->
+  <div class="playbox twin">
+    <div class="door">
+      <a class="playbtn" href="/play/flat">PLAY IN BROWSER <span class="dim2">2D</span></a>
+      <div class="playsub">Nothing to install and no account. You are standing
+        in Anchor in ten seconds.</div>
+    </div>
+    <div class="door">
+      <a class="playbtn" href="/download">DOWNLOAD THE WINDOW <span class="dim2">3D</span></a>
+      <div class="playsub">The island in three dimensions, with weather and an
+        hour of the day that passes. macOS.</div>
+    </div>
   </div>
+  <div class="playsub lesser">Neither is the real one. The world does not know
+    which you are using, and there are <a href="/windows">others</a>.</div>
 </main></div>
 <script>
 // ---- THE PAGE HAS TO SAY WHAT INTERVAL IT IS ----
