@@ -1,13 +1,13 @@
 // §6dj, for every window: THE ONE CHOICE THAT DOES NOT COME BACK.
 //
 // At SWEAR_LEVEL in a trade a citizen may swear to one of its callings, and the
-// engine refuses a second forever — `p.calling !== undefined` and that is the
+// engine refuses a second forever: `p.calling !== undefined` and that is the
 // end of it. A mastery cap written before any of these windows existed, that
 // nothing could reach: no sdk method, no route, so every citizen in the world
 // was a generalist by accident rather than by choice.
 //
 // A window must be careful with a deed like this. Everything else here is
-// reversible — drop a thing, unwield it, walk back. This cannot be undone by
+// reversible: drop a thing, unwield it, walk back. This cannot be undone by
 // anybody, including the pillar. So this checks three things: that it is
 // offered when it CAN happen, that it is not offered when it cannot, and that
 // it is never one keystroke away.
@@ -153,7 +153,7 @@ ok(/sworn/i.test(done), 'and is told which one is theirs')
 // ---- 5. and the window may not invent one ----
 //
 // §SOME NAMES ARE NOT ONLY CALLINGS. `smith` is a calling, a node the world puts
-// on a tile, AND a verb — so finding it in the file proves nothing. Only names
+// on a tile, AND a verb, so finding it in the file proves nothing. Only names
 // that are callings and nothing else can answer this question, and the engine
 // knows which those are.
 const src = readFileSync(FILE, 'utf8')
@@ -168,6 +168,6 @@ ok(i0 > 0 && /Object\.entries\(SWORN\)/.test(region),
    'the calling rows are built by walking SWORN, not a list in this file')
 const named = Object.keys(E.SWORN).filter(c => new RegExp("'" + c + "'").test(region))
 ok(named.length === 0, 'and not one calling name is written into them'
-   + (named.length ? ' \u2014 found ' + named.join(' ') : ''))
+   + (named.length ? ', found ' + named.join(' ') : ''))
 console.log(bad ? '\n  ' + bad + ' failed' : '\n  ok    a calling is offered where it can happen, and never by accident')
 process.exit(bad ? 1 : 0)

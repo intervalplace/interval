@@ -31,7 +31,7 @@ run () {
 
 # ---- environment & versions ----
 {
-  echo "# Interval — Protocol-Freeze Evidence"
+  echo "# Interval, Protocol-Freeze Evidence"
   echo ""
   echo "Generated: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
   echo ""
@@ -141,7 +141,7 @@ ADV_COUNT=$(node manifest.mjs --json 2>/dev/null | node -e "const m=JSON.parse(r
 run "Adversarial CI battery (${ADV_COUNT} tests)" "adversarial-ci.log" \
   node run-tests.mjs --only adversarial
 
-run "Adversarial battery — all ${SCEN_COUNT} scenarios × ${SCEN_SEEDS} seed × $((SCEN_MS/1000))s (sample)" "advsim-all.log" \
+run "Adversarial battery: all ${SCEN_COUNT} scenarios × ${SCEN_SEEDS} seed × $((SCEN_MS/1000))s (sample)" "advsim-all.log" \
   node advsim.mjs all ${SCEN_SEEDS} ${SCEN_MS}
 
 run "Large-history storage benchmark (1M ticks, SQLite)" "bench-1M.log" \

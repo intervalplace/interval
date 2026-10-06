@@ -40,6 +40,7 @@
 //   node handbook.mjs --pdf      and asks Chrome to print it
 import E from './engine.js'
 import * as WG from './worldgen-expanse7.mjs'
+import * as TM from './terrain-mirror.mjs'
 import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
@@ -72,11 +73,93 @@ const T = (k, fallback = {}) => E[k] ?? fallback
 // as `NUM`: if the constant is not there under that name, the book does not
 // print rather than printing a remembered value.
 let _src = null
+// §7dw: WHAT THE ALLOWANCE ACTUALLY IS, out of the generator's own source for
+// the same reason the tide is: founding a world to learn four numbers takes a
+// minute and a half, and writing them here again would make this page a
+// description of a founding rather than of the world.
+//
+// The page said "ninety minutes a day" and "you are done for the day", and
+// both halves were wrong. It is a ROLLING window with no midnight in it, and
+// the end of it is not being done: nothing is taken, the body stands where it
+// stood, and it can still talk.
+// §5r-iv: HOW MANY COUNTRIES THE ISLAND HAS, not counting the sea, which
+// nobody stands in. The generator names them, so the book counts rather than
+// claiming a number.
+const COUNTRIES = (() => {
+  const named = Object.keys(WG.COUNTRY_NAMES ?? {}).filter((k) => k !== 'sea')
+  if (!named.length) throw new Error('the generator names no countries for the book to count')
+  return named.length
+})()
+
+// §6c: WHERE THE DEAD COME BACK, named by the generator rather than typed.
+// The founding fixes the spawn and the generator names the ground it is on, so
+// this is the same word the chart uses and the same word the window puts in
+// the plate over a body.
+const RETURN_TO = (() => {
+  try {
+    const g = E.makeGenesis('handbook', 'a'.repeat(64), 0, 896, 512)
+    g.worldGenerator = 'interval-expanse-v7'
+    const sp = E.spawnOf(g)
+    if (!sp) return ''
+    TM.configure({ generator: g.worldGenerator, seed: g.genesisSeed ?? '',
+                   worldW: g.worldW, worldH: g.worldH })
+    return TM.regionNameAt(sp.x | 0, sp.y | 0) ?? ''
+  } catch { return '' }
+})()
+
+const CEIL = (() => {
+  const src = readFileSync(HERE + 'worldgen-expanse7.mjs', 'utf8')
+  const m = src.match(/g\.ceiling\s*=\s*\{([^}]*)\}/)
+  if (!m) throw new Error('the generator no longer sets a ceiling the book can read')
+  const num = (k) => {
+    const n = m[1].match(new RegExp(k + '\\s*:\\s*(\\d+)'))
+    if (!n) throw new Error('the generator\'s ceiling has no ' + k)
+    return Number(n[1])
+  }
+  const st = src.match(/g\.stint\s*=\s*\{[^}]*sample:\s*(\d+)/)
+  // Intervals into the words a person uses (§1c: an interval is a second), in
+  // TWO shapes, because they are not used in the same kind of sentence. A span
+  // is counted -- "90 minutes in any 24 hours" -- and a block is a unit the
+  // sentence puts its own article in front of: "once a minute has passed".
+  // One helper gave both and the page read "in any a day" and "once a a
+  // minute".
+  const span = (n) => {
+    if (n % 3600 === 0) return (n / 3600) + (n === 3600 ? ' hour' : ' hours')
+    if (n % 60 === 0) return (n / 60) + (n === 60 ? ' minute' : ' minutes')
+    return n + ' intervals'
+  }
+  const unit = (n) => {
+    if (n === 60) return 'minute'
+    if (n === 3600) return 'hour'
+    if (n % 60 === 0) return (n / 60) + ' minutes'
+    return n + ' intervals'
+  }
+  // The ledger keeps its own clock, falling back to the promise's where a
+  // founding set none. See §7dw-ii.
+  let block = null
+  try { block = num('sample') } catch { block = st ? Number(st[1]) : null }
+  if (!block) throw new Error('the book cannot say how the allowance is charged')
+  return {
+    allow: span(num('allow')), window: span(num('window')),
+    warn: span(num('warn')), block: unit(block),
+  }
+})()
+
 const CONST = (name) => {
   _src ??= readFileSync(HERE + 'engine.js', 'utf8')
-  const m = _src.match(new RegExp('\\bconst ' + name + '\\s*=\\s*(-?\\d+)\\s*;'))
-  if (!m) throw new Error(`engine.js has no const ${name}: the handbook must not invent one`)
-  return Number(m[1])
+  // TWO TO A STATEMENT IS NORMAL IN THE ENGINE, and this used to require a
+  // semicolon straight after the number -- so `const FURNACE_PER_COAL = 540,
+  // FURNACE_PER_CHARCOAL = 360;` yielded the second and threw on the first,
+  // and the handbook could not state how long a coal burns. The terminator is
+  // a comma or a semicolon now, and a declarator after the first is read
+  // without its own `const`.
+  const direct = _src.match(
+    new RegExp('\\bconst\\s+' + name + '\\s*=\\s*(-?\\d+)\\s*[,;]'))
+  if (direct) return Number(direct[1])
+  const later = _src.match(
+    new RegExp('\\bconst\\s[^;\\n]*?,\\s*' + name + '\\s*=\\s*(-?\\d+)\\s*[,;]'))
+  if (later) return Number(later[1])
+  throw new Error(`engine.js has no const ${name}: the handbook must not invent one`)
 }
 
 const NUM = (k) => {
@@ -270,9 +353,37 @@ page('', `
       pause when you log off.`)}
   ${orn}
   ${h('Ninety minutes')}
-  ${p(`You can play one citizen for ninety minutes a day. This is in the
-      rules, so every window enforces it.`)}
-  ${p(`When the ninety minutes are used up, you are done for the day.`)}`)
+  ${pd(`One citizen may stand in the world for ${CEIL.allow} in any
+      ${CEIL.window}. It is in the rules, so every window enforces it and no
+      window can be talked out of it.`)}
+  ${p(`It is <b>not</b> a day. There is no midnight and no reset: that window
+      rolls, so the time you spent comes back gradually as it falls behind you
+      rather than all at once at an hour somebody else picked. There is
+      nothing to use up before it expires and nothing to race for.`)}
+  ${p(`Only what you DO spends it. The world counts you present if you have
+      acted within the last ${CEIL.block}, or if something you set going is
+      still running, and it charges you for that whole ${CEIL.block}. Standing
+      about costs nothing once a ${CEIL.block} has gone by, and closing the
+      window costs nothing at all.`)}
+  ${p(`You are told ${CEIL.warn} before it closes.`)}
+`)
+
+page('', `
+  ${h('Closing time')}
+  ${pd(`When it is spent you are not thrown out and nothing is taken from you.
+      No craft falls, no vault empties, no ground is lost. Your citizen stands
+      where they stood, holding what they held.`)}
+  ${p(`What you cannot do is act. Every deed is refused at the one gate they
+      all pass through, so there is nothing to look for and nothing that slips
+      past it.`)}
+  ${p(`You can still <b>talk</b>, near and across the island, and you can
+      still be talked to. The end of a day's work is not the end of the
+      evening.`)}
+  ${p(`As the window rolls, the time comes back and you may act again. Nobody
+      has to let you back in.`)}
+  ${p(`<i>A second pair of keys is not a way around this. It is the price of
+      it: new keys are a new citizen, with no crafts, no standing, no calling,
+      no name and no vault.</i>`)}`)
 
 // ---- 5. the crafts
 const SK = bySkill()
@@ -290,8 +401,19 @@ page('', `
 // ---- 6. mastery
 page('', `
   ${h('Swearing to a trade')}
-  ${p(`You can swear to one trade once you reach <b>${NUM('SWEAR_LEVEL')}</b> in
-      its craft. It is the only craft you can master.`)}
+  ${pd(`You can swear to one trade once you have done two things: reached
+      <b>${NUM('SWEAR_LEVEL')}</b> in its craft, and stood in
+      <b>${NUM('SWEAR_COUNTRIES')}</b> of the island's ${COUNTRIES} countries.
+      It is the only craft you can ever master.`)}
+  ${p(`The second half is there because the first comes quickly. Reaching
+      ${NUM('SWEAR_LEVEL')} in a craft takes under two hours of work and can be
+      done standing at one rock, and this is the only choice in a citizen's
+      life that cannot be taken back. So the world asks you to have seen
+      something of it first. It keeps the count itself as you walk; you do not
+      have to tell it anything.`)}
+  ${p(`Neither the Wilds nor the Moor is needed. ${NUM('SWEAR_COUNTRIES')} is
+      the peaceful island, all of it, so nobody has to be hunted to take up a
+      trade.`)}
   <table class="tight">
     <tr><td class="k">Unsworn</td><td>nothing passes ${NUM('CAP_UNSWORN')}</td></tr>
     <tr><td class="k">Outside your trade</td><td>nothing passes ${NUM('CAP_OTHER')}</td></tr>
@@ -303,14 +425,58 @@ page('', `
 `)
 
 page('', `
-  ${h('The titles')}
-  ${p(`What a master of each craft is called.`)}
-  <table class="tight">
-    ${Object.entries(T('CALLINGS')).map(([skill, name]) =>
-      `<tr><td class="k">${esc(title(skill))}</td><td>${esc(say(name))}</td></tr>`).join('')}
-  </table>
+  ${h('Being taken on')}
+  ${pd(`Swearing costs nothing and happens wherever you are. It takes no
+      interval, interrupts nothing, and needs no altar and no official: saying
+      what you are is not an action, and a citizen halfway through a journey
+      does not stop to say it.`)}
+  ${p(`When you swear you may <b>name the master who taught you</b>. They have
+      to be standing with you, they have to be a master of the same craft at
+      ${NUM('MASTERY')}, and they have to have taken you on and not let it
+      lapse: an apprenticeship is forgotten after
+      ${Math.round(CONST('APPRENTICE_LAPSE') / 3600)} hours.`)}
+  ${p(`Naming one is <b>optional</b>, and swearing alone is a real swearing.
+      The first woodwright on the island had nobody to name, and anyone playing
+      at a quiet hour would otherwise be stuck waiting for a master to wake up.
+      The mark is a reward; its absence is not a wall.`)}
   ${orn}
+  ${p(`What the mark does is make masters. Reaching ${NUM('MASTERY')} in your
+      own craft only makes you <i>eligible</i>; you become a master when
+      somebody you took on swears, and names you. That cannot be done alone
+      and cannot be ground out.`)}
+  ${p(`Swearing also ends every apprenticeship you were in, whoever took you
+      on and whatever trade it was to. You may be taken on by a forester, walk
+      off and swear miner: you promised nothing, and your master consented to
+      teach rather than to be owed.`)}
+`)
+
+page('', `
+  ${h('What you are called')}
+  ${pd(`Until you swear you are a <b>newcomer</b>, however good you are at
+      anything. The world does not name you after your best craft, because
+      before you swear you are not of that trade: that is the whole of what
+      swearing is for.`)}
+  ${p(`If a master has taken you on you are an <b>apprentice</b> instead, which
+      is worth knowing about a stranger: somebody is teaching them, and you can
+      ask who.`)}
+  ${p(`Once you swear, the word becomes your <b>calling</b> and never changes
+      again. A smith who spends a year at the trees is still a smith.`)}
+  <table class="tight">
+    <tr><td class="k">newcomer</td><td>Unsworn, and nobody has taken them on.</td></tr>
+    <tr><td class="k">apprentice</td><td>Unsworn, but a master has taken them on.</td></tr>
+    <tr><td class="k">journeyman</td><td>Sworn to a trade.</td></tr>
+    <tr><td class="k">master</td><td>At ${NUM('MASTERY')}, and has raised somebody.</td></tr>
+  </table>
+`)
+
+page('', `
   ${h('Past mastery')}
+  ${p(`<b>master</b> goes in front of your word once you have mastered the
+      craft <i>and</i> raised somebody to their own swearing: the number alone
+      does not buy it.`)}
+  ${p(`There is no title for mastering everything, because there is no
+      mastering everything. One craft to a citizen is the whole of the rule,
+      and the caps hold you to it.`)}
   ${p(`Mastery is a power cap, not a level cap. Everything in the world uses
       your level or ${NUM('MASTERY')}, whichever is lower, so nothing you do
       gets stronger past it. Levels carry on to
@@ -393,6 +559,38 @@ page('', `
   ${p(`<i>What one is worth is decided years after it is made, by whose name
       turns out to be on it. That cannot be known in advance and cannot be run
       ahead of.</i>`)}`)
+
+page('', `
+  ${h('The fires')}
+  ${pd(`Bars are run at a furnace and the furnace has to be burning. A cold
+      one is a pile of stone and will smelt nothing, however much ore you are
+      carrying.`)}
+  ${p(`Coal or charcoal feeds it, one piece at a time. A coal is worth
+      ${CONST('FURNACE_PER_COAL')} intervals of heat and a charcoal
+      ${CONST('FURNACE_PER_CHARCOAL')}, and it will not hold more than
+      ${CONST('FURNACE_CAP')} intervals however much you put in. A fire cannot
+      be filled once and left for a week.`)}
+  ${p(`Anyone may feed anyone's fire. You earn
+      ${CONST('XP_STOKE_FURNACE')} earthcraft for the piece you put in, at
+      your own fire or a stranger's, and whoever fed it last earns a little
+      every interval it goes on burning. Feeding a full fire still spends the
+      fuel and still pays you.`)}
+  ${p(`The watchfire is the other public fire. It takes logs or coal, and
+      ironbark and coal burn three times as long as an ordinary log.`)}
+`)
+
+page('', `
+  ${h('Who works here')}
+  ${pd(`A work remembers the last ${CONST('WORKED_KEEP')} people who used it
+      and how long ago, and tells you when you stand beside it. The anvil, the
+      furnace, the sawpit and the mill keep this, and so does each fire, for
+      whoever fed it or burned it down for charcoal.`)}
+  ${p(`It forgets a name after ${CONST('WORKED_FADE')} intervals.`)}
+  ${p(`This is the only thing in the world that will tell you who else does
+      what you do. It says who works here; it does not say where they are, and
+      there is no list anywhere of who is about. You still have to walk to the
+      furnace to find out who works the furnace, and then go and find them.`)}
+`)
 
 // ---- 7. what you can carry
 page('', `
@@ -604,7 +802,15 @@ const COMMON = bookOf('common'), BARROW = bookOf('barrow')
 // What each one is FOR, in the world's own words where it has them. The levels
 // come from the ladder; a spell the ladder does not name has none of its own.
 const SPELL_IS = {
-  transmute: 'turn a thing into money', unmake: 'take a thing apart',
+  // WHERE THE GATE IS AN OBJECT AND NOT A LEVEL, THE TABLE HAS TO SAY SO.
+  // Two of the common book's six have no rung at all, so their level column is
+  // blank -- which read as "castable from the first interval" and is the
+  // opposite of the truth: both want the goo-staff, which falls from the
+  // great-spider one kill in eight, and the spider cannot be taken alone.
+  // They are the hardest spells in the book to reach and the table showed them
+  // as the easiest.
+  transmute: 'turn a thing into money',
+  unmake: 'take a thing apart, with the goo-staff',
   mend: 'close your own wounds', mendp: "close somebody else's, with a wand",
   still: 'hold a fight still',
   // NOT "shut a way", which is what the engine's own summary comment still
@@ -612,9 +818,34 @@ const SPELL_IS = {
   // brought along: what it does is lock a dead citizen's dropped pack so only
   // they can pick it up, and hold off the rot while it lasts. Read from the
   // handler, not from the note above it.
-  seal: "hold a dropped pack for whoever lost it",
+  seal: 'hold a dropped pack for whoever lost it, with the goo-staff',
   anchor: 'the recall to Anchor',
-  waking: '', rot: '', taking: '', withering: '',
+  // ---- AND THE BARROW BOOK, WHICH SAID NOTHING AT ALL ----
+  //
+  // These four were four blank cells and a line underneath admitting it:
+  // "what each spell does, and what it costs, is not listed here." The common
+  // book described every one of its six, so the book was being coy about
+  // exactly half of sorcery and plain about the other half.
+  //
+  // THAT IS THE WRONG THING TO WITHHOLD. §: the handbook states what a player
+  // cannot discover by playing and leaves what they would work out to be
+  // worked out -- and a spell on the far side of a level you have not reached
+  // is the definition of something you cannot find out by trying. Worse, it
+  // throws away what a spell list is FOR. Reading what a spell will do years
+  // before you can cast it is most of the pleasure of a spellbook; a reader
+  // who never reaches eighty-eight should still have spent the time wanting
+  // the withering.
+  //
+  // Read off the handlers rather than the comments beside them, and said in
+  // the number of words the common book uses for its own.
+  rot: 'they rot where they stand: three off them every third interval for '
+    + 'twenty-four, and every bite of it teaches you',
+  taking: 'take eight of their life and keep it. You must be hurt to cast it, '
+    + 'and it is the only healing this book has',
+  waking: 'strike the one you name and everything standing against them, nine '
+    + 'apiece, from six tiles off',
+  withering: 'for sixteen intervals nothing can mend them. Not food, not a '
+    + 'spell, not a well: the door is simply shut',
 }
 const UNLOCKS = typeof E.skillUnlocks === 'function' ? E.skillUnlocks() : {}
 const RUNG = {}
@@ -630,7 +861,18 @@ for (const r of UNLOCKS.sorcery ?? []) {
 const RITE_OF = { transmute: 'transmute', still: 'stilling', mendp: 'mend' }
 const rungOf = (v) => RUNG[v] ?? RUNG[RITE_OF[v] ?? ''] ?? ''
 
-const spellRows = (list) => list.map((v) => `<tr>
+// ---- AND BOTH BOOKS ARE READ IN THE ORDER YOU GET THEM ----
+//
+// They were printed in the order the engine happens to list them, which is the
+// order they were written. A spellbook is a ladder: the first thing a reader
+// wants to know is what they can cast now and what the next one costs them, and
+// that question cannot be answered by a table in authoring order.
+//
+// A spell with no rung is castable from the first interval, so it sorts first
+// rather than last -- an empty cell means no level, not an unknown one.
+const spellRows = (list) => [...list]
+  .sort((a, b) => (Number(rungOf(a)) || 0) - (Number(rungOf(b)) || 0))
+  .map((v) => `<tr>
     <td class="lv">${rungOf(v)}</td>
     <td class="k">${esc(say(v))}</td>
     <td>${esc(SPELL_IS[v] ?? '')}</td></tr>`).join('')
@@ -651,7 +893,8 @@ page('', `
   ${p(`The other spellbook. These are the ones that harm.`)}
   <table class="tight rites">${spellRows(BARROW)}</table>
   ${orn}
-  ${p(`<i>What each spell does, and what it costs, is not listed here.</i>`)}
+  ${p(`<i>A sigil is spent either way. The barrow book costs more of them: one
+      for the rot, four for the withering.</i>`)}
   ${p(`No spell from either book works on the Lists.`)}`)
 
 // ---- WHAT A SPELL LEAVES BEHIND ----
@@ -693,9 +936,13 @@ page('', `
   ${pd(`When you are killed you drop everything you were carrying. It lies on
       the ground where you fell, for anyone to pick up, and it rots after a
       while like anything else left out.`)}
-  ${p(`The world pauses over you for ${CONST('DEATH_TICKS')} intervals and then
-      you are up again. Nothing is taken from your crafts: levels do not fall
-      here, and there is no penalty beyond the loss of what you had on you.`)}
+  ${p(`The world pauses over you for ${CONST('DEATH_TICKS')} intervals and
+      then gives you back whole${RETURN_TO ? `, at ${RETURN_TO}` : ''},
+      wherever on the island you fell. Nothing is taken from your crafts:
+      levels do not fall here, and there is no penalty beyond the loss of
+      what you had on you.`)}
+  ${p(`Which is also the long way home. Dying in the Wilds costs you what you
+      were carrying and the walk back out.`)}
 `)
 
 page('', `
@@ -732,11 +979,16 @@ page('', `
       middle of casting it.`)}
   ${orn}
   ${h('The Lists')}
-  ${p(`An isle off Fenmarch, reached by boat. Anybody may strike anybody, and
+  ${pd(`An isle off Fenmarch, reached by boat. Anybody may strike anybody, and
       no spell from either book works at all.`)}
-  ${p(`It is for a fight that is only about the fight. With the magic gone and
-      nothing else in the way, a mell and a bare blade can be compared
-      honestly.`)}`)
+  ${p(`The first crossing needs a <b>charter</b>, spent on the way out. After
+      that you are chartered for life, and the island is told.`)}
+  ${p(`A charter is drawn from a chart by a wayfarer at
+      ${CONST('CHARTER_LEVEL')}; a chart is what a surveyor of
+      ${CONST('EXPLORE_MASTER')} brings home. The way onto the Lists runs
+      through somebody else's mastery.`)}
+  ${p(`It is for a fight that is only about the fight: with the magic gone, a
+      mell and a bare blade can be compared honestly.`)}`)
 
 // ---- THE TIDE ----
 //
@@ -1099,6 +1351,39 @@ page('', `
 // EVERY ONE OF THESE IS A RULE YOU CANNOT PLAY YOUR WAY TO. That is the test
 // this book is held to: it says what cannot be worked out, and leaves what can
 // be worked out to be worked out.
+// ---- WHAT DYING COSTS, WHICH THE BOOK NEVER SAID ----
+//
+// This lived on the quickstart page and nowhere else, and the quickstart is
+// going: it was the makers telling a reader what to do with their first hour,
+// which is the one thing this project says it will not do. The map page puts it
+// best -- the world "is found rather than published".
+//
+// But the wound is not strategy. It is the only permanent penalty in this
+// world, it cannot be discovered by playing (you simply get weaker and are
+// never told why), and there is exactly one cure, which is not in a town and
+// which nobody will tell you the location of. Deleting the page without moving
+// this would have taken the world's one irreversible rule off the site
+// altogether, which is the opposite of what the book is for.
+page('', `
+  ${h('What dying costs')}
+  ${pd(`You wake at the spawn. Everything in your pack is gone and anybody may
+      take it from where you fell. Your trades, your name, your standing and
+      your coin survive, which is why selling to a keeper is how a day's work
+      stops being something you can lose.`)}
+  ${p(`<b>And you take a wound.</b> One permanent point off your frame, every
+      time, to a limit of <b>${CONST('WOUND_MAX')}</b>. Nothing you can carry
+      and no amount of resting gives it back. An ordinary well restores your
+      health to full and does not touch it.`)}
+  ${p(`<b>One thing in the world clears them, and it clears all of them at
+      once.</b> It is a wellspring. There is no second way, it is not in any
+      town, and this book will not say where it is: that is the one scarcity
+      here that cannot be read out of the founding, and telling you would spend
+      it. The world announces that somebody has come back whole, so you will
+      know it has been found.`)}
+  ${orn}
+  ${p(`<i>A citizen at the limit has ${CONST('WOUND_MAX')} points fewer than
+      one who has never died, for as long as they go without finding it.</i>`)}`)
+
 page('', `
   ${h('Things nobody sells')}
   ${pd(`A keeper will buy most of what this world makes, and what follows has
@@ -1139,6 +1424,44 @@ page('', `
         <td class="k">${esc(k)}</td>
         <td>${why}</td></tr>`).join('')}
   </table>`)
+
+page('', `
+  ${h('If this world stops')}
+  ${pd(`A world keeps its interval because its witnesses sign each one. If they
+      all stop, the clock stops with them. Nothing about this can be worked out
+      by playing, so it is written here.`)}
+  ${p(`Your citizen is not held by anybody else. A file is kept for you beside
+      your key, every ten minutes, and it holds your whole record: your levels,
+      your money, your pack, your name, what you swore, the countries you have
+      walked and the people you know. In the browser it is kept in the browser,
+      and there is a button to save a copy off it. The file cannot be edited.
+      Add a level to it and it stops matching the mark the world signed, and
+      then it is worth nothing.`)}
+  ${orn}
+  ${p(`Anybody may found a world that continues this one. It must use the same
+      rules, the same seed and the same island, and it names one mark: the one
+      this world ended on. It does not name you, or anybody. That is what lets
+      it be founded by somebody who holds nothing of yours.`)}
+  ${p(`You come back by bringing your file. Ask any node for your way in, which
+      is a few hundred bytes it will give to anyone, and then say that you are
+      coming home. The way in goes stale as soon as somebody else comes home,
+      so ask for it when you need it rather than keeping it. The file is the
+      part worth keeping.`)}
+  ${p(`You do not have to do any of that by hand. When nothing answers for your
+      world, the window asks every node it has ever spoken to where the world
+      went, checks the answer against the founding your own file carries, and
+      goes there. It will tell you before it moves you. If somebody hands you
+      an address, use it: being told by a person is still better than taking
+      the first answer, because the window can check that a world is the same
+      world and cannot check that it is the one everybody else went to.`)}
+  ${p(`<b>One file, one homecoming.</b> You may come back once, and what you
+      bring is what a crossing brings: your levels, your money, your goods,
+      your name if nobody here has taken it, and every tally that only ever
+      grew. Where you were standing does not cross, and neither does anything
+      you left on the ground. You wake where newcomers wake.`)}
+  ${orn}
+  ${p(`<i>So a world can stop and the line of it cannot. There is nothing to
+      shut down that would take your citizen with it.</i>`)}`)
 
 // ---- the last page
 page('last', `

@@ -2,7 +2,7 @@
 //
 // `canonicalNodes` memoises a node's bytes by object identity. Anything that
 // edits a node IN PLACE after the world has been canonicalised leaves the memo
-// holding what the node used to be — so the built world and its own
+// holding what the node used to be, so the built world and its own
 // round-trip hash differently, and a node that checkpoints and reloads computes
 // a different world from one that stayed up.
 //
@@ -10,7 +10,7 @@
 // `validateState(w)` had already populated the memo: the waystone conversion,
 // the crier conversion, and the pass that turns real trees into scenery. That
 // last one is the reason the island has schelling points for resources and
-// decorative oaks everywhere else, so it is not going away — it just has to
+// decorative oaks everywhere else, so it is not going away: it just has to
 // replace nodes instead of editing them.
 //
 // Nothing round-tripped a FRESHLY BUILT world before this, which is why the
@@ -26,7 +26,7 @@ import E from '../engine.js'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
 // The full island costs ~80s to build. The invariant is about node REPLACEMENT
-// discipline, which a source check catches instantly and on every generator —
+// discipline, which a source check catches instantly and on every generator:
 // so this suite reads the code, and the expensive build is exercised by
 // `npm run test:founding` (below) when the generators change.
 test('no generator edits a node in place', () => {
@@ -63,7 +63,7 @@ test('a built world hashes the same as its own round-trip', () => {
   E.stateHash(w)                                 // populates the NODE memo
   // The shape of every worldgen late pass: change what a node IS. Replaced,
   // not edited. The STATE is a fresh object too, because `stateHash` memoises
-  // by state identity as well — its own comment says any in-place change must
+  // by state identity as well: its own comment says any in-place change must
   // happen before the state is first hashed, and every engine call site
   // replaces rather than mutates.
   const w2 = { ...w, nodes: { ...w.nodes,
@@ -89,7 +89,7 @@ test('editing a node in place is what breaks it', () => {
   const mode = process.env.INTERVAL_CLONE || 'cow'
   if (mode === 'cow' || mode === 'dirty') {
     assert.notEqual(built, rt,
-      'in-place editing after hashing diverges — this is why generators replace')
+      'in-place editing after hashing diverges, this is why generators replace')
   } else {
     assert.equal(built, rt, 'with the memo off, in-place editing is harmless')
   }

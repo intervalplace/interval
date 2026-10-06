@@ -1,9 +1,9 @@
-// Interval demo 6 — certified interval bundles over a REAL libp2p mesh.
+// Interval demo 6: certified interval bundles over a REAL libp2p mesh.
 // Three witnesses (quorum 2) and one observer. The world advances only
 // through quorum-attested bundles:
-//   phase 1: all three witnesses live — intervals finalize each round 0
-//   phase 2: one witness dies — fallback rounds keep the world moving
-//   phase 3: a second witness dies — quorum is unreachable and the world
+//   phase 1: all three witnesses live, intervals finalize each round 0
+//   phase 2: one witness dies, fallback rounds keep the world moving
+//   phase 3: a second witness dies, quorum is unreachable and the world
 //            HALTS rather than forking. A stopped world, never two.
 import fs from 'fs'
 import E from './engine.js'
@@ -38,8 +38,8 @@ nodes.forEach(n => n.startTicking())
 const mover = setInterval(() => {
   const s = nodes[3].state
   const inp = s.players[alice.playerId]
-    ? { worldId: nodes[3].worldId, tick: s.tick, playerId: alice.playerId, type: 'move', dx: 1, dy: 0 }
-    : { worldId: nodes[3].worldId, tick: s.tick, playerId: alice.playerId, type: 'spawn' }
+    ? { worldId: nodes[3].worldId, tick: s.tick, playerId: alice.playerId, type: 'move', dx: 1, dy: 0 }:
+    { worldId: nodes[3].worldId, tick: s.tick, playerId: alice.playerId, type: 'spawn' }
   nodes[3].submitInput(E.signInput(inp, alice.privateKey)).catch(() => {})
 }, 600)
 
@@ -49,19 +49,19 @@ const report = (label) => {
   console.log(`${label}  ${line}`)
 }
 
-console.log('\n— phase 1: full witness set —')
+console.log('\n, phase 1: full witness set,')
 await sleep(6000); report('t+6s ')
 const p1ok = nodes.every(n => n.state.tick >= 5)
 const rounds1 = nodes[3].agreement.latestRecord?.round
 
-console.log('\n— phase 2: witness w0 dies; fallback rounds carry the world —')
+console.log('\n, phase 2: witness w0 dies; fallback rounds carry the world,')
 await nodes[0].stop()
 const t2 = nodes[3].state.tick
 await sleep(8000); report('t+14s')
 const p2ok = nodes.slice(1).every(n => n.state.tick > t2 && !n.agreement.halted)
 const usedFallback = [...nodes[3].agreement.finalizedLog.values()].some(r => r.round > 0)
 
-console.log('\n— phase 3: witness w1 dies; quorum unreachable — the world STOPS, it does not fork —')
+console.log('\n, phase 3: witness w1 dies; quorum unreachable, the world STOPS, it does not fork,')
 await nodes[1].stop()
 const t3a = { w2: nodes[2].state.tick, obs: nodes[3].state.tick }
 await sleep(5000); report('t+19s')

@@ -14,7 +14,7 @@ ws.on('message', (d) => {
     const k = n.kind ? `${n.type}.${n.kind}` : n.type
     tally[k] = (tally[k] || 0) + 1
   }
-  console.log(`ME ${me.x},${me.y} — ${near} nodes within 22 tiles:`)
+  console.log(`ME ${me.x},${me.y}, ${near} nodes within 22 tiles:`)
   for (const [k, c] of Object.entries(tally).sort((a,b)=>b[1]-a[1])) console.log(`  ${String(c).padStart(4)}  ${k}`)
   process.exit(0)
 })

@@ -236,6 +236,6 @@ test('nextState never mutates its caller: per-entity spot checks', () => {
   assert.equal(E.canonical(w), snapshot)  // caller state byte-identical
   assert.equal(E.stateHash(w), hw)
   // and mutating the RESULT cannot reach back into the caller
-  next.players[id.playerId].hp = 1
+  next.players[id.playerId].health = 1
   assert.equal(E.canonical(w), snapshot)
 })

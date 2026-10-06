@@ -57,7 +57,7 @@ const TRADES = [
   ['woodcraft', 'forester', (p) => tool(p, 'iron-hatchet'), gath('tree')],
   ['earthcraft', 'miner', (p) => tool(p, 'iron-pickaxe'), gath('rock')],
   ['shorecraft', 'fisher', (p) => tool(p, 'rod'), gath('spot')],
-  ['sorcery', 'alchemist',
+  ['sorcery', 'sorcerer',
     (p) => { for (let i = 0; i < p.inventory.length; i++) p.inventory[i] = { item: 'logs', qty: 1 } },
     (p) => { let i = p.inventory.findIndex(x => x?.item === 'logs')
       if (i === -1) { for (let k = 0; k < p.inventory.length; k++) p.inventory[k] = { item: 'logs', qty: 1 }; i = 0 }
@@ -79,15 +79,15 @@ const bound = new Set(['mourning', 'sorcery'])
 const tick = Object.entries(rates).filter(([k]) => !bound.has(k)).map(([, v]) => v)
 const lo = Math.min(...tick), hi = Math.max(...tick)
 ok(hi / lo < 2, 'the tick-bound trades stay within 2x of each other (' + lo.toFixed(1)
-  + ' to ' + hi.toFixed(1) + ') — one rate for all of them is a fair approximation')
+  + ' to ' + hi.toFixed(1) + '), one rate for all of them is a fair approximation')
 ok(tick.every(r => r > 1 && r < 8), 'no tick-bound trade is free or stalled')
 ok(rates.mourning > rates.woodcraft * 4,
   'burying is a CEILING, not a rate: it pays ' + (rates.mourning / rates.woodcraft).toFixed(0)
   + 'x a gatherer per interval, and the hunting that supplies it is the road')
 ok(rates.mourning === Math.floor(E.XP_BURY_CONSECRATED * 3 / 2),
-  'a sworn mourner is paid the own-calling rate for a burial (§5q) — ' + rates.mourning
+  'a sworn mourner is paid the own-calling rate for a burial (§5q), ' + rates.mourning
   + ', not ' + E.XP_BURY_CONSECRATED)
 
-console.log(bad ? '\nFAIL — ' + bad + ' rate(s) have moved out of the band'
-                : '\nok — no trade is an outlier nobody chose')
+console.log(bad ? '\nFAIL, ' + bad + ' rate(s) have moved out of the band':
+                '\nok, no trade is an outlier nobody chose')
 process.exit(bad ? 1 : 0)

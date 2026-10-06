@@ -2,7 +2,7 @@
 //
 // The mist window is first person and stays that way: there is no drone shot of
 // this country because no citizen has ever had one. So "what does the whole
-// world look like in this style" is answered the only honest way — by standing
+// world look like in this style" is answered the only honest way: by standing
 // in twelve places and looking, and putting the twelve frames side by side.
 //
 //   node montage.mjs out.png            (uses /tmp/live-world.json)

@@ -1,8 +1,8 @@
 # Publishing the window
 
 The page and the world fail separately, and that is the whole point. A pillar is
-one machine. If it goes down the world does not — other sovereign peers are
-computing it right now — but until the page lives somewhere else, there is
+one machine. If it goes down the world does not: other sovereign peers are
+computing it right now, but until the page lives somewhere else, there is
 nowhere to load a client from to look at it.
 
 This publishes the client to GitHub Pages, on a domain you own, from the same
@@ -18,7 +18,7 @@ repository the source lives in.
     Type: CNAME     Name: play     Value: intervalplace.github.io.
 
 (The trailing dot matters on some providers. Use `www`-style CNAME, not an A
-record — Pages changes IPs.)
+record: Pages changes IPs.)
 
 **2. Turn on Pages.** In the repository: **Settings → Pages → Build and
 deployment → Source: GitHub Actions.** Not "Deploy from a branch."
@@ -49,7 +49,7 @@ nobody has to take anyone's word for anything.
 
 ## Afterwards
 
-Pushing a change to `window-web.html` republishes. Nothing else triggers it — a
+Pushing a change to `window-web.html` republishes. Nothing else triggers it: a
 docs commit should not move an 811 KB file.
 
 To publish by hand, or with different fallback nodes:
@@ -60,7 +60,7 @@ To publish by hand, or with different fallback nodes:
 
 The file beside the page. It is how a fresh browser on a public machine finds a
 live node when every baked address is down, and it shares a failure domain with
-the PAGE rather than with the world — if you can load the window, you can load
+the PAGE rather than with the world: if you can load the window, you can load
 the list.
 
 The build will not overwrite one that already exists, so edit

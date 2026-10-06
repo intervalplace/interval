@@ -1,4 +1,4 @@
-// haultune.mjs — DERIVE `perTileSlot` FROM THIS WORLD'S GEOMETRY.
+// haultune.mjs: DERIVE `perTileSlot` FROM THIS WORLD'S GEOMETRY.
 //
 // 6bs names this file as what produced the constant: "DERIVED FROM THIS WORLD'S
 // GEOMETRY by haultune.mjs, exactly as survey's constants are, and not a
@@ -84,7 +84,7 @@ for (let per = 1; per <= 400; per++) {
 const mult = H.mult ?? {}
 const lo = Math.min(...Object.values(mult)), hi = Math.max(...Object.values(mult))
 
-console.log('haultune — ' + stores.length + ' stores, ' + routes.length + ' drawable routes')
+console.log('haultune, ' + stores.length + ' stores, ' + routes.length + ' drawable routes')
 console.log('  mean ' + mean.toFixed(0) + ' tiles, median ' + routes[routes.length >> 1]
   + ', range ' + routes[0] + '–' + routes[routes.length - 1])
 console.log('  legs ' + (H.legMin ?? 1) + '–' + (H.legMax ?? 3) + ', pack ' + E.INV_SLOTS

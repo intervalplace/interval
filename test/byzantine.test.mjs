@@ -1,4 +1,4 @@
-// Byzantine Safety Upgrade — the constitutional fault model. Quorum
+// Byzantine Safety Upgrade: the constitutional fault model. Quorum
 // INTERSECTION (2q>n) is not enough: the intersection can be a single
 // witness who, if Byzantine, forks. The constitution fixes a threshold f
 // and requires n>=3f+1, q>=2f+1, 2q-n>f, so every intersection holds >=f+1
@@ -20,7 +20,7 @@ test('quorum mathematics: byzantineSafe / minQuorumFor / maxByzantine', () => {
   assert.ok(E.byzantineSafe(4, 3, 1))
   assert.ok(E.byzantineSafe(7, 5, 2))
   assert.ok(E.byzantineSafe(10, 7, 3))
-  // the brief's reject case: n=5 q=3 f=1 — intersection can be ONE witness
+  // the brief's reject case: n=5 q=3 f=1, intersection can be ONE witness
   assert.ok(!E.byzantineSafe(5, 3, 1), 'n=5 q=3 f=1 is Byzantine-unsafe (single-witness intersection)')
   // minimum safe quorum is 2f+1 for MINIMAL witness sets (n = 3f+1)
   assert.equal(E.minQuorumFor(4, 1), 3)
@@ -118,7 +118,7 @@ test('historical conflicting certificates: identical accepted, conflicting halts
 
   // a CONFLICTING but individually-valid certificate → halt with both as
   // evidence. We forge one by re-signing a different bundle for tick 1 as
-  // the (sole) witness — in a 1-witness world this witness IS the quorum,
+  // the (sole) witness: in a 1-witness world this witness IS the quorum,
   // so a second valid cert with a different bundle is genuine equivocation.
   const priorState = build() // state at tick 1's start (tick 0 already ran once)
   // reconstruct the state that preceded tick 1
@@ -177,7 +177,7 @@ test('conflicting-certificate halt evidence verifies cryptographically', async (
 
 test('accountable failure: conflicting signatures remain attributable', () => {
   // even beyond the fault model, a conflicting certificate names its
-  // signers — the evidence attributes the violation to specific witnesses
+  // signers: the evidence attributes the violation to specific witnesses
   const w1 = E.generateIdentity()
   const worldId = 'ab'.repeat(32)
   const s0hash = 'c'.repeat(64)
@@ -358,7 +358,7 @@ test('finality index IDENTICAL append is idempotent (no halt, no error)', () => 
   ag.drive()
   assert.equal(ag.halted, false)
   const n1 = appended.length
-  // re-committing the same tick (idempotent) must not halt — simulate by
+  // re-committing the same tick (idempotent) must not halt: simulate by
   // calling commit path again is internal; instead assert the append count
   // reflects one entry per finalized tick
   assert.ok(n1 >= 1 && new Set(appended).size === appended.length, 'one append per tick, no duplicates')
@@ -443,7 +443,7 @@ test('recovery after an index-persist halt: frontier durable, index valid, lock 
     assert.equal(ag.haltCode, HALT.FINALITY_INDEX_PERSIST_FAILED)
     assert.equal(holder.state.tick, okTick, 'state did not advance past the failed append')
     // ordering: the frontier persists BEFORE the index append, so on the
-    // failed tick the frontier durably advanced but state did NOT — recovery
+    // failed tick the frontier durably advanced but state did NOT: recovery
     // resumes from a certified checkpoint at or past the frontier
     assert.ok(durableStore(frontierFile).load(), 'frontier is durable')
     assert.equal(realIndex.validate({ worldId }), null, 'the finality index is clean and validates for restart')
@@ -491,7 +491,7 @@ test('the durable finality store enforces immutability itself (not just the call
   // first append wins
   const first = idx.append(rec('b'.repeat(64), 'c'.repeat(64)))
   assert.equal(first.tick, 5)
-  // identical append is idempotent — returns the existing entry, no duplicate line
+  // identical append is idempotent: returns the existing entry, no duplicate line
   const again = idx.append(rec('b'.repeat(64), 'c'.repeat(64)))
   assert.equal(again.bundleHash, first.bundleHash)
   const raw = fs2.readFileSync(f, 'utf8').trim().split('\n')

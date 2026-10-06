@@ -11,11 +11,14 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 // Suites live beside engine.js in the repo. In this archive they are in
 // test/, so root walks up one. Delete this line when you drop them in.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const src = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+const require_ = createRequire(import.meta.url)
+const E = require_(path.join(root, 'engine.js'))
 
 const num = (n) => {
   const m = src.match(new RegExp(`\\b${n}\\s*=\\s*(\\d+)`))
@@ -123,7 +126,7 @@ test('a bulk add that will not fit takes nothing', () => {
 
 test('every ammunition stacks', () => {
   const { STACKABLE } = sandbox()
-  const ammo = ['arrows', 'shot', 'fire-arrows', 'iron-javelin', 'steel-javelin', 'star-javelin']
+  const ammo = ['arrows', 'shot', 'fire-arrows', 'iron-javelin', 'steel-javelin', 'quick-javelin']
   const bad = ammo.filter((a) => src.includes(`'${a}'`) && !STACKABLE.has(a))
   assert.deepEqual(bad, [], `the pack is the magazine; these do not stack: ${bad}`)
 })
@@ -170,4 +173,58 @@ test('every trade has its callings listed', () => {
     .matchAll(/'([a-z]+)'/g)].map((m) => m[1])
   const missing = trades.filter((t) => !new RegExp(`^\\s*${t}:`, 'm').test(table))
   assert.deepEqual(missing, [], `trades absent from CALLINGS_OF: ${missing}`)
+})
+
+// THE SKY'S OWN COPY OF THE INTERVAL.
+//
+// `sky.mjs` is deliberately dependency-free -- a browser loads it and so does
+// a verifier with no world -- so it declares TICK_MS itself. It said 600 for
+// however long the interval has been a second, and every wait it reported was
+// forty per cent short: "golden in five minutes" meant eight. The light was
+// never wrong, because the sun is a function of `tick % DAY`; only `asWait`
+// reads the constant, which is why nobody caught it.
+test('the sky agrees with the engine about how long an interval is', async () => {
+  const sky = await import('../sky.mjs')
+  // this suite reads engine.js as SOURCE rather than importing it, so the
+  // engine's own number is taken the same way every other check here takes one
+  const engineTick = +src.match(/\bTICK_MS\s*=\s*(\d+)/)[1]
+  assert.equal(sky.TICK_MS, engineTick,
+    'sky.mjs has its own copy of TICK_MS and it has drifted from the engine')
+})
+
+// A VERB NEEDS THREE THINGS, AND THE THIRD IS THE ONE THAT GETS FORGOTTEN.
+//
+// engine.js says it in its own words above INPUT_SCHEMAS: "EVERY VERB MUST BE
+// DECLARED HERE, AND TWICE I FORGOT. A verb needs three things to exist: a
+// shape in this table, a rule in validate(), and an effect in apply(). `drink`
+// and `set_look` were given the last two and not the first, so normalizeInput
+// rejected them before any rule was ever consulted."
+//
+// It happened a third time, to `teach` and `part`. Both had a rule and an
+// effect, neither had a shape, so `validateInputShape` answered "unknown input
+// type" and no node would carry one: in every world ever founded, a master
+// could not take an apprentice on and neither party could end it. SPEC §5w
+// tabulates both verbs, so anybody building from the constitution would have
+// written them and been refused.
+//
+// The failure is silent in the worst way: the message a citizen gets is the
+// same one a world too old to have the verb gives, so it reads as a version
+// problem rather than a missing line.
+test('every verb the engine will rule on has a shape to arrive in', () => {
+  // ASKED OF THE ENGINE, NOT OF ITS SOURCE. Two attempts to read the keys out
+  // of INPUT_SCHEMAS by pattern both got it wrong, in opposite directions:
+  // several entries are declared two to a line, and several hold arrow
+  // functions full of braces and colons. `validateInputShape` already answers
+  // the exact question, and its answer is the one that matters.
+  const base = {
+    playerId: 'a'.repeat(64), worldId: 'b'.repeat(64), tick: 1, sig: 'c'.repeat(128),
+  }
+  const ruled = new Set([...src.matchAll(/^\s{4}case '([a-z_]+)':/gm)].map((m) => m[1]))
+  assert.ok(ruled.size > 40, `expected the engine's verb switch; found ${ruled.size} cases`)
+
+  const shapeless = [...ruled]
+    .filter((v) => E.validateInputShape({ ...base, type: v }) === 'unknown input type')
+    .sort()
+  assert.deepEqual(shapeless, [],
+    `these have a rule and no shape, so nothing can ever send one: ${shapeless.join(', ')}`)
 })

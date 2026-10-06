@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// compare-phase2.mjs — Phase 2E deterministic old-versus-new replay.
+// compare-phase2.mjs: Phase 2E deterministic old-versus-new replay.
 //
 // Loads the frozen Phase 1 engine (bench/phase1-engine.cjs) and the Phase 2
 // engine (engine.js) into one process, feeds both the identical
@@ -71,6 +71,6 @@ for (let t = 0; t < ticks; t++) {
 
 const verrOld = OLD.validateState(sOld), verrNew = NEW.validateState(sNew)
 if (verrOld || verrNew) { console.error('FAIL: final state invalid:', verrOld, verrNew); process.exit(1) }
-console.log(`PASS: ${ticks} ticks x ${pop} citizens (${profile}/${workload}) — every admission verdict and`)
+console.log(`PASS: ${ticks} ticks x ${pop} citizens (${profile}/${workload}), every admission verdict and`)
 console.log(`every per-tick state hash identical across engines. ${inputsSeen} inputs judged (${invalidSeen} invalid),`)
 console.log(`final hash ${NEW.stateHash(sNew)}`)

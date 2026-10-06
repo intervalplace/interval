@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// compare-equivalence.mjs — Phase 1E deterministic old-versus-new replay.
+// compare-equivalence.mjs: Phase 1E deterministic old-versus-new replay.
 //
 // Loads the pre-optimization engine (bench/baseline-engine.cjs) and the
 // optimized engine (engine.js) into one process, feeds both the identical
@@ -76,7 +76,7 @@ for (let t = 0; t < ticks; t++) {
 const verrOld = OLD.validateState(sOld), verrNew = NEW.validateState(sNew)
 if (verrOld || verrNew) { console.error('FAIL: final state invalid:', verrOld, verrNew); process.exit(1) }
 
-console.log(`PASS: ${ticks} ticks × ${pop} citizens — every admission verdict and every per-tick`)
+console.log(`PASS: ${ticks} ticks × ${pop} citizens, every admission verdict and every per-tick`)
 console.log(`state hash identical across engines. ${inputsSeen} inputs judged (${invalidSeen} invalid),`)
 console.log(`final hash ${NEW.stateHash(sNew)}`)
 console.log('new-engine counters:', JSON.stringify(NEW.perfStats()))

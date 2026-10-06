@@ -34,7 +34,7 @@ function hashImpl() {
       };
       return _hashImpl;
     }
-  } catch { /* not Node — fall through to noble */ }
+  } catch { /* not Node, fall through to noble */ }
   // browser/bundler path: pure-JS noble hashes
   const noble = require('@noble/hashes/sha2.js');
   _hashImpl = { sha256: noble.sha256, sha512: noble.sha512 };
@@ -47,7 +47,7 @@ function ensureEdHash() {
   if (!_sha512wired) { ed.hashes.sha512 = nobleSha512; _sha512wired = true; }
 }
 // public: any code using @noble/ed25519 directly (e.g. a simulator minting
-// keys) must call this once so ed25519 has its sha512 — the engine wires it
+// keys) must call this once so ed25519 has its sha512: the engine wires it
 // lazily now, rather than at import time, to stay race-free across Node
 // versions (§7).
 function initCrypto() { ensureEdHash(); }
@@ -61,7 +61,7 @@ const INV_SLOTS = 28;
 // engine throw that operators classify.
 const ENGINE_ERR = { CORRUPT_IDENTITY: 'ERR_CORRUPT_IDENTITY' };
 function engineThrow(code, message) { const e = new Error(message); e.code = code; e.name = 'IntervalError'; throw e; }
-// Constitutional tables (rev4 brief §11): ONE shared source — execution,
+// Constitutional tables (rev4 brief §11): ONE shared source, execution,
 // validation, and tests all reference these. A validator with its own
 // copy of the constitution eventually disagrees with the engine (it
 // happened: signpost text), so neither may define these locally.
@@ -72,7 +72,7 @@ const NODE_TYPES = ['tree', 'rock', 'magic-rock', 'fishing-spot', 'plot',
   'waystone', 'bank', 'anvil', 'campfire', 'fire', 'guard', 'house', 'signpost', 'smith', 'store', 'wall', 'well', 'brewpot'];
 // The constitutional NAME rule (spec §5a) as ONE shared validator (rev5
 // §3): claim_name input validation, checkpoint validation, imports, and
-// the registry all call this — never a private regex.
+// the registry all call this, never a private regex.
 function isValidName(name) {
   return typeof name === 'string' && /^[a-z0-9-]{1,12}$/.test(name)
     && !name.startsWith('-') && !name.endsWith('-');
@@ -98,7 +98,7 @@ const STORE_SELLS = { seeds: 15 }; // farming no longer waits on goblin luck
 const MAGIC_ROCK_MINING = 10; // the vein refuses an unpracticed pick
 const DEATH_TICKS = 5; // the world holds its breath; windows may grieve
 const BRAND_TICKS = 1500; // strike first in the Wilds, wear it 15 minutes
-// the star-dagger's root (v0.49): rare and expensive by design — a 3-tick
+// the star-dagger's root (v0.49): rare and expensive by design, a 3-tick
 // freeze on a 120-tick leash, and a 10-tick immunity after so no one is
 // chain-frozen. Landing it is a decision, not a rhythm.
 const ROOT_TICKS = 3, ROOT_IMMUNE = 10, ROOT_CD = 120;
@@ -117,11 +117,11 @@ const MOB_STATS = {
   bear:   { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220,
             drops: [{ item: 'bones' }, { item: 'bones', chance: 128 }, { item: 'bronze-hatchet', chance: 16 }] },
   // the skeleton-knight (v0.42): a horned, shield-bearing warrior of the frontier.
-  // Seldom alone — they muster in warbands in and around the Wilds. The round
+  // Seldom alone, they muster in warbands in and around the Wilds. The round
   // shield makes them hard to strike (high def); the longsword bites back. And
   // their bones are rich: a fallen knight gives up twice what a lesser thing does.
   'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120,
-            drops: [{ item: 'bones' }, { item: 'bones' },   // double bones — the warrior's due
+            drops: [{ item: 'bones' }, { item: 'bones' },   // double bones, the warrior's due
                     { item: 'ore', chance: 48 },            // scavenged metal
                     { item: 'star-helm', chance: 5 }] },    // rare: the horned helm itself
 };
@@ -183,7 +183,7 @@ const TOOL_FOR = { tree: 'bronze-hatchet', rock: 'bronze-pickaxe' };
 
 // Canonical signed-input schemas (pre-freeze §1–§4): every semantic
 // action has EXACTLY one accepted signed representation. The shape
-// validator has one responsibility — accept only structurally canonical
+// validator has one responsibility: accept only structurally canonical
 // protocol inputs: exact base fields with exact formats, exact per-action
 // fields with exact primitive types, constitutional vocabularies, and
 // canonical null/zero conventions. State-dependent questions (does the
@@ -210,7 +210,7 @@ const INPUT_SCHEMAS = {
   attack: { mobId: T.id },
   attackp: { targetId: T.hex64 },
   recall: { to: T.id },
-  // pre-freeze §1: BOTH demand fields, always, explicitly — the canonical
+  // pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
   // item trade carries wantGold: 0; the canonical gold trade carries
   // wantItem: null. Omission is not a representation.
   offer_trade: { to: T.hex64, giveSlot: T.slot, wantItem: T.itemOrNull, wantGold: T.nonnegInt },
@@ -253,7 +253,7 @@ function validateInputShape(input) {
     if (r !== true) return `field ${k} on ${input.type} ${r}`;
   }
   // canonical demand convention (pre-freeze §1): exactly one of a
-  // constitutional item XOR positive gold — structural, because it is
+  // constitutional item XOR positive gold, structural, because it is
   // about REPRESENTATION, not about the world
   if (input.type === 'offer_trade'
     && (input.wantItem !== null) === (input.wantGold > 0)) return 'trade must want exactly one of item or gold';
@@ -323,7 +323,7 @@ const effLevel = (xp) => Math.min(levelForXp(xp), 99);
 
 // Canonical encoding (CONSENSUS.md §2): recursively key-sorted JSON over
 // null, booleans, FINITE numbers, strings, arrays, and plain objects.
-// Anything else is rejected loudly — a hash over silently-coerced data is
+// Anything else is rejected loudly, a hash over silently-coerced data is
 // a consensus bug waiting for its tick.
 function canonical(obj) {
   if (obj === undefined) throw new Error('canonical: undefined is not encodable');
@@ -431,8 +431,8 @@ function inputsDigest(inputs) {
 }
 function delayChain(prevBeacon, digest) {
   // PURE in (prevBeacon, digest): a bounded memo changes no output ever.
-  // Every witness computes the SAME chain for the same proposed bundle —
-  // once when attesting, again when replaying a finality record — and an
+  // Every witness computes the SAME chain for the same proposed bundle,
+  // once when attesting, again when replaying a finality record, and an
   // in-process multi-node simulation computes it once per node. Cache it.
   const key = prevBeacon.toString('hex') + '|' + digest.toString('hex');
   const hit = delayChain._memo.get(key);
@@ -476,22 +476,22 @@ function roll(beacon, playerId, tag) {
 const WORLD_GENERATORS = new Set(['interval-classic-v1']);
 
 function makeGenesis(genesisSeed, rulesHash, anchorMs = 0, worldW = 320, worldH = 200) {
-  // rev7 §7: defaults are the CANONICAL world dimensions — the old 14x8
+  // rev7 §7: defaults are the CANONICAL world dimensions, the old 14x8
   // default predated the classic generator and misled (it is below the
   // generator's floor). Every field defaulted: a genesis with an
   // undefined member is not canonically encodable (see canonical()).
   return { specVersion: SPEC_VERSION, rulesHash, genesisSeed, anchorMs, worldW, worldH,
            worldGenerator: 'interval-classic-v1',
            // exploration (v0.50): calibrated for THIS world's geometry by its own
-           // survey-sim — NOT a universal curve. A larger world founds its own.
+           // survey-sim, NOT a universal curve. A larger world founds its own.
            survey: { k: 8, base: 40, perTile: 10, max: 1800 },
            // brewing (v0.51): a profession rate-limited by fermentation; constants
-           // are THIS world's, in the founding record — a larger world tunes its own.
+           // are THIS world's, in the founding record, a larger world tunes its own.
            brew: { ferment: 4500, potCap: 4, xpPerBatch: 13500, buildLogs: 4, buildOre: 2, decayTicks: 432000 } };
 }
 
 // Fix brief §2.1: the world identifier is the hash of the COMPLETE
-// canonical genesis — seed, anchor, dimensions, imports, everything
+// canonical genesis, seed, anchor, dimensions, imports, everything
 // consensus-relevant. A constitution prefix identifies rules; this
 // identifies one exact founded world. Never truncated for protocol use;
 // a short prefix is display-only.
@@ -520,19 +520,19 @@ function importIdentity(obj) {
 function loadOrCreateIdentity(fs, file) {
   // rev6 §8: three cases, never blurred. MISSING → create. A SUPPORTED
   // legacy format → migrate (preserved aside). CORRUPT → refuse startup:
-  // silently regenerating a key silently loses the identity it named —
+  // silently regenerating a key silently loses the identity it named,
   // for a witness key, that is losing a founding role forever.
   if (fs.existsSync(file)) {
     let parsed;
     try { parsed = JSON.parse(fs.readFileSync(file)) } catch (e) {
-      engineThrow(ENGINE_ERR.CORRUPT_IDENTITY, `identity file ${file} is corrupt (${e.message}) — refusing to regenerate over it; restore it from backup or remove it EXPLICITLY to mint a new identity`);
+      engineThrow(ENGINE_ERR.CORRUPT_IDENTITY, `identity file ${file} is corrupt (${e.message}), refusing to regenerate over it; restore it from backup or remove it EXPLICITLY to mint a new identity`);
     }
     let id;
     try { id = importIdentity(parsed) } catch (e) {
-      engineThrow(ENGINE_ERR.CORRUPT_IDENTITY, `identity file ${file} is not a usable identity (${e.message}) — refusing to regenerate over it; restore or remove it explicitly`);
+      engineThrow(ENGINE_ERR.CORRUPT_IDENTITY, `identity file ${file} is not a usable identity (${e.message}), refusing to regenerate over it; restore or remove it explicitly`);
     }
     if (id.privateKey.length === 32) return id; // raw ed25519 secret
-    // pre-noble pkcs8 format: a SUPPORTED migration — preserve and re-mint
+    // pre-noble pkcs8 format: a SUPPORTED migration, preserve and re-mint
     fs.renameSync(file, file + '.old-format');
   }
   const id = generateIdentity();
@@ -563,7 +563,7 @@ function sameWorld(a, b) {
 // equipment, ground, mobs, nodes, names, genesis) are validated strictly,
 // field by field, against the shapes the engine actually writes; every
 // remaining gameplay field passes a bounded-value walk (safe integers,
-// short strings, shallow objects) so no field — present or future — can
+// short strings, shallow objects) so no field, present or future, can
 // smuggle in NaN, giant blobs, or unencodable types. Returns error|null.
 const MAX_ENTITIES = 100000;
 const MAX_XP = 1e12;
@@ -607,7 +607,7 @@ const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs',
 const GENESIS_OPTIONAL = new Set(['witnesses', 'quorum', 'byzantineTolerance', 'imported', 'survey', 'brew']);
 
 // Does THIS implementation support the named generator? (pre-freeze §9:
-// a separate question from structural validity — the seam matters once
+// a separate question from structural validity, the seam matters once
 // alternate deterministic generators exist.)
 function supportsWorldGenerator(name) { return WORLD_GENERATORS.has(name); }
 
@@ -620,7 +620,7 @@ function supportsWorldGenerator(name) { return WORLD_GENERATORS.has(name); }
 // witnesses it might contain by a majority), AND 2q-n > f, i.e.
 // q > (n+f)/2 (any two quorums intersect in > f witnesses). The second
 // dominates once n > 3f+1, so 2f+1 alone is unsafe for non-minimal witness
-// sets — take the max of both floors.
+// sets: take the max of both floors.
 function minQuorumFor(n, f) {
   return Math.max(2 * f + 1, Math.floor((n + f) / 2) + 1);
 }
@@ -632,7 +632,7 @@ function byzantineSafe(n, q, f) {
 
 function validateGenesis(g) {
   if (!g || typeof g !== 'object') return 'genesis not an object';
-  // pre-freeze §7: an EXACT schema — a key execution ignores still changes
+  // pre-freeze §7: an EXACT schema, a key execution ignores still changes
   // the worldId, minting a distinct founding identity with identical
   // behavior. One founding record, one representation.
   for (const k of GENESIS_REQUIRED) if (!(k in g)) return `genesis missing ${k}`;
@@ -647,8 +647,8 @@ function validateGenesis(g) {
     if (!bw || typeof bw !== 'object' || Object.keys(bw).sort().join(',') !== 'buildLogs,buildOre,decayTicks,ferment,potCap,xpPerBatch') return 'non-constitutional genesis.brew';
     for (const bk of ['ferment', 'potCap', 'xpPerBatch', 'buildLogs', 'buildOre', 'decayTicks']) if (!isInt(bw[bk], 0, 1e12)) return `genesis.brew.${bk} out of bounds`;
   }
-  // pre-freeze §8 + Byzantine upgrade: the witnessed-world triple —
-  // witnesses, quorum, byzantineTolerance — comes together or not at all.
+  // pre-freeze §8 + Byzantine upgrade: the witnessed-world triple,
+  // witnesses, quorum, byzantineTolerance, comes together or not at all.
   const witnessedKeys = ['witnesses', 'quorum', 'byzantineTolerance'].filter(k => k in g);
   if (witnessedKeys.length !== 0 && witnessedKeys.length !== 3)
     return 'witnesses, quorum, and byzantineTolerance must be supplied together';
@@ -695,7 +695,7 @@ function validateGenesis(g) {
 
 // Imported citizens are FOUNDING data: they enter the world before any
 // input is ever validated, so they get a dedicated, complete validator
-// (rev6 §2) — IDs, names, skills, XP, HP, inventory, bank, equipment,
+// (rev6 §2), IDs, names, skills, XP, HP, inventory, bank, equipment,
 // quantities, item vocabulary, and cross-entry uniqueness.
 const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'hp', 'bank', 'inventory', 'weapon']);
 function validateImports(imported) {
@@ -757,7 +757,7 @@ function validateState(state) {
   if (totalEntities > MAX_ENTITIES) return 'aggregate entity count exceeds bounds'; // rev5 §8
 
   // ---- constitutional tables (final brief §7): the validator accepts
-  // exactly what THIS engine writes — nothing missing, nothing extra ----
+  // exactly what THIS engine writes, nothing missing, nothing extra ----
   const SKILL_SET = SKILLS;                 // shared constitutional tables
   const NODE_TYPE_SET = new Set(NODE_TYPES); // (rev4 §11): defined ONCE, above
   const PLAYER_REQUIRED = ['x', 'y', 'skills', 'hp', 'equipment', 'bank', 'lastInput', 'gold', 'inventory', 'action', 'name', 'trade'];
@@ -794,7 +794,7 @@ function validateState(state) {
     if (!isInt(t.giveSlot, 0, INV_SLOTS - 1)) return 'malformed trade slot';
     if (t.wantItem !== null && !isItemName(t.wantItem)) return 'malformed trade item';
     if (!isInt(t.wantGold, 0, MAX_QTY)) return 'malformed trade gold';
-    // rev7 §1: the SAME XOR invariant as validInput — a persisted trade
+    // rev7 §1: the SAME XOR invariant as validInput, a persisted trade
     // wants exactly one of an item or positive gold
     if ((t.wantItem !== null) === (t.wantGold > 0)) return 'trade must want exactly one of item or gold';
     return null;
@@ -808,7 +808,7 @@ function validateState(state) {
       if (!PLAYER_REQUIRED.includes(k) && !PLAYER_OPTIONAL.has(k)) return `unknown player field ${k}`;
     if (!isInt(p.x, 0, W - 1) || !isInt(p.y, 0, H - 1)) return 'player out of bounds';
     if (!isInt(p.hp, 0, 100000)) return 'player hp out of bounds';
-    // skills: the COMPLETE constitutional set, exactly — a missing skill is
+    // skills: the COMPLETE constitutional set, exactly, a missing skill is
     // as hostile as an unknown one (both change transition behavior)
     if (!p.skills || typeof p.skills !== 'object') return 'player has no skills';
     const skeys = Object.keys(p.skills).sort();
@@ -831,7 +831,7 @@ function validateState(state) {
       const worn = p.equipment[eq];
       if (!isSlot(worn)) return 'malformed equipment slot';
       if (worn !== null) {
-        // rev7 §2: the SHARED slotOf() decides where an item belongs —
+        // rev7 §2: the SHARED slotOf() decides where an item belongs,
         // a helm in the weapon slot is as malformed as an unknown item
         if (!EQUIPPABLE.has(worn.item)) return 'equipped item is not equippable';
         if (slotOf(worn.item) !== eq) return `equipped item in the wrong slot (${worn.item} belongs in ${slotOf(worn.item)})`;
@@ -892,7 +892,7 @@ function validateState(state) {
     if (!isInt(n.x, 0, W - 1) || !isInt(n.y, 0, H - 1)) return 'node out of bounds';
     if (!isInt(n.depletedUntil ?? 0, 0, MAX_TIME)) return 'node depletion out of bounds';
     // type-specific rules (rev6 §6): each field belongs to exactly the
-    // node kinds the engine gives it to — ownership metadata on a static
+    // node kinds the engine gives it to, ownership metadata on a static
     // resource node is as malformed as a fire that never expires
     if (n.expiresAt !== undefined) {
       if (n.type !== 'fire') return 'only fires expire';
@@ -923,7 +923,7 @@ function validateState(state) {
     }
   }
 
-  // ground entries: OBJECTS with a closed field set — { item, qty?, x, y,
+  // ground entries: OBJECTS with a closed field set, { item, qty?, x, y,
   // expiresAt }; qty is absent on mob drops
   for (const [gid, g] of Object.entries(state.ground)) {
     if (typeof gid !== 'string' || gid.length > 80) return 'malformed ground id';
@@ -935,7 +935,7 @@ function validateState(state) {
     if (!isInt(g.expiresAt, 0, MAX_TIME)) return 'ground expiry out of bounds';
   }
 
-  // names: validated in BOTH directions (brief §9) — every registry entry
+  // names: validated in BOTH directions (brief §9), every registry entry
   // points at a player wearing that exact name, and every named player is
   // registered under it
   for (const [name, pid] of Object.entries(state.names)) {
@@ -1047,7 +1047,7 @@ function validInput(state, input) {
   if (input.tick !== state.tick) return false;
   // fix brief §2.3: an input signed for World A is meaningless in World B.
   // The worldId is inside the signed payload, so this check is enforced
-  // by the signature itself — forging it invalidates the sig.
+  // by the signature itself, forging it invalidates the sig.
   if (input.worldId !== worldId(state.genesis)) return false;
   if (!verifyInputSig(input)) return false;
   const p = state.players[input.playerId];
@@ -1062,7 +1062,7 @@ function validInput(state, input) {
       // the hedge is law (spec 2c): the outer ring is impassable
       if (nx < 1 || nx >= state.genesis.worldW - 1 || ny < 1 || ny >= state.genesis.worldH - 1) return false;
       // nodes are impassable (§5): you fish beside the water, not in it
-      return !Object.values(state.nodes).some(n => n.x === nx && n.y === ny && n.type !== 'brewpot'); // brewpots are walkable — no wall-ins (v0.52)
+      return !Object.values(state.nodes).some(n => n.x === nx && n.y === ny && n.type !== 'brewpot'); // brewpots are walkable, no wall-ins (v0.52)
     }
     case 'gather': {
       const n = state.nodes[input.nodeId];
@@ -1078,7 +1078,7 @@ function validInput(state, input) {
     case 'stop':
       return true;
     case 'recall': {
-      // spec 2k: recall to any waystone you have walked to. Never from the Wilds —
+      // spec 2k: recall to any waystone you have walked to. Never from the Wilds:
       // magic will not carry you out of danger you chose to enter.
       if (p.hp <= 0 || inWilds(p.x, p.y)) return false;
       const ws = state.nodes[input.to];
@@ -1244,7 +1244,7 @@ function validInput(state, input) {
       const g2 = state.ground[input.groundId];
       if (!g2 || g2.x !== p.x || g2.y !== p.y) return false;
       // 7.4: execution merges arrows into an existing quiver, so validation
-      // must accept that path too — a full pack still has room in the quiver
+      // must accept that path too, a full pack still has room in the quiver
       if (g2.item === 'arrows' && p.inventory.some(sl => sl?.item === 'arrows')) return true;
       return firstFreeSlot(p.inventory) !== -1;
     }
@@ -1310,7 +1310,7 @@ function nextState(state, inputs, _legacyBeacon) {
   const beacon = Buffer.from(s.beacon, 'hex');
 
   // snapshot who has already mastered what, so the end-of-tick pass can tell who
-  // CROSSED a threshold this tick — regardless of which of the 18 XP sites paid it
+  // CROSSED a threshold this tick, regardless of which of the 18 XP sites paid it
   const _preMaster = {};
   for (const _pid in s.players) {
     const _done = new Set();
@@ -1329,7 +1329,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (s.tick - (s.markers[_i].bornAt ?? s.tick) > MARKER_LIFE) s.markers[_i] = surveyMarker(s, _i, 'life');
   while (s.markers.length < _K) s.markers.push(surveyMarker(s, s.markers.length, 'fill'));
   // brewpots abandoned past the decay window crumble, returning their tile to the
-  // commons — the world stays open to newcomers; active pots reset the clock (v0.52)
+  // commons, the world stays open to newcomers; active pots reset the clock (v0.52)
   const _decay = s.genesis.brew?.decayTicks ?? 0;
   if (_decay > 0) for (const [_nid, _n] of Object.entries(s.nodes))
     if (_n.type === 'brewpot' && s.tick - (_n.lastUsed ?? 0) > _decay) delete s.nodes[_nid];
@@ -1388,7 +1388,7 @@ function nextState(state, inputs, _legacyBeacon) {
     if (inp.type === 'spawn') { const sp = spawnOf(s.genesis); addPlayer(s, pid, sp.x, sp.y); continue; }
     const p = s.players[pid];
     if (p) p.lastInput = s.tick; // presence (spec 5e)
-    if (p) { // spec 2k: attune to a waystone you stand beside — the road remembers who walked it
+    if (p) { // spec 2k: attune to a waystone you stand beside, the road remembers who walked it
       for (const [nid, n] of Object.entries(s.nodes)) {
         if (n.type === 'waystone' && Math.abs(n.x - p.x) + Math.abs(n.y - p.y) === 1) {
           if (!p.attuned) p.attuned = [];
@@ -1415,7 +1415,7 @@ function nextState(state, inputs, _legacyBeacon) {
     } else if (inp.type === 'stop') {
       p.action = null;
     } else if (inp.type === 'offer_trade') {
-      // the shape gate guarantees both demand fields, canonically — the
+      // the shape gate guarantees both demand fields, canonically, the
       // persisted trade is the signed trade, verbatim (pre-freeze §12)
       p.trade = { to: inp.to, giveSlot: inp.giveSlot, wantItem: inp.wantItem, wantGold: inp.wantGold };
     } else if (inp.type === 'cancel_trade') {
@@ -1534,7 +1534,7 @@ function nextState(state, inputs, _legacyBeacon) {
       const si = p.inventory.findIndex(sl => sl?.item === 'sigil');
       if (inp.spell === 'mend' && si !== -1) {
         p.inventory[si] = null;
-        p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + 20); // v0.41: a strong heal (+20), not a full reset — keeps mend premium without making sigil-stackers unkillable
+        p.hp = Math.min(effLevel(p.skills.hitpoints), p.hp + 20); // v0.41: a strong heal (+20), not a full reset, keeps mend premium without making sigil-stackers unkillable
         p.skills.magic += 40;
       } else if (inp.spell === 'anchor' && si !== -1) {
         p.inventory[si] = null;
@@ -1670,7 +1670,7 @@ function nextState(state, inputs, _legacyBeacon) {
       if (it) {
         p.inventory[inp.slot] = null;
         const gid = 'g' + s.tick + '-' + pid.slice(0, 8) + '-' + inp.slot;
-        // 7.2: the whole slot falls, quantity intact — 17 arrows dropped
+        // 7.2: the whole slot falls, quantity intact, 17 arrows dropped
         // are 17 arrows on the ground, matching death drops and pickup
         s.ground[gid] = { item: it.item, qty: it.qty ?? 1, x: p.x, y: p.y, expiresAt: s.tick + 100 };
       }
@@ -1747,10 +1747,10 @@ function nextState(state, inputs, _legacyBeacon) {
         const Tp = clamp(128 + 4 * (lvl2 - defL), 16, 240);
         if (roll(beacon, pid, 'atk') < Tp) {
           const maxHit = 1 + Math.floor(lvl2 / (bowDrawn2 ? 12 : 10))
-            + (!bowDrawn2 ? (p.equipment.weapon?.item === 'bronze-sword' ? 2
-              : p.equipment.weapon?.item === 'star-sword' ? 4
-              : p.equipment.weapon?.item === 'star-dagger' ? 2
-              : p.equipment.weapon?.item === 'old-chain' ? 1 : 0) : 0);
+            + (!bowDrawn2 ? (p.equipment.weapon?.item === 'bronze-sword' ? 2:
+              p.equipment.weapon?.item === 'star-sword' ? 4:
+              p.equipment.weapon?.item === 'star-dagger' ? 2:
+              p.equipment.weapon?.item === 'old-chain' ? 1 : 0) : 0);
           const soak = (q.equipment.head ? SOAK(q.equipment.head.item) : 0) + (q.equipment.body ? SOAK(q.equipment.body.item) : 0);
           const dmg = Math.max(0, 1 + (roll(beacon, pid, 'dmg') % maxHit) - soak);
           q.hp -= dmg;
@@ -1812,10 +1812,10 @@ function nextState(state, inputs, _legacyBeacon) {
       const T = clamp(128 + 4 * (atkLvl - stats.def), 16, 240);
       if (roll(beacon, pid, 'atk') < T) {
         const maxHit = 1 + Math.floor(atkLvl / 10)
-          + (p.equipment.weapon?.item === 'bronze-sword' ? 2
-            : p.equipment.weapon?.item === 'star-sword' ? 4
-            : p.equipment.weapon?.item === 'star-dagger' ? 2
-            : p.equipment.weapon?.item === 'old-chain' ? 1 : 0);
+          + (p.equipment.weapon?.item === 'bronze-sword' ? 2:
+            p.equipment.weapon?.item === 'star-sword' ? 4:
+            p.equipment.weapon?.item === 'star-dagger' ? 2:
+            p.equipment.weapon?.item === 'old-chain' ? 1 : 0);
         const dmg = 1 + (roll(beacon, pid, 'dmg') % maxHit);
         m.hp -= dmg;
         p.skills.attack += 4 * dmg;

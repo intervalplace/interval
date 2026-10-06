@@ -108,7 +108,7 @@ for (const f of ['README.md', 'CONSENSUS.md']) expect(f, `Release ${manifest.rel
 expect('README.md', `spec v${manifest.specVersion}`, 'spec version')
 expect('CONSENSUS.md', `Consensus Specification v${manifest.consensusVersion}`, 'consensus version')
 // the separate "Implementation release" line (this drifted: it said 0.22.7
-// while the banner said 0.23.0 — banner-only checks missed it)
+// while the banner said 0.23.0: banner-only checks missed it)
 expect('CONSENSUS.md', `version \`${manifest.release}\``, 'CONSENSUS implementation-release line')
 expect('SPEC.md', `Specification v${manifest.specVersion}`, 'spec version')
 // TESTING.md header banner (previously drifted unchecked)
@@ -162,7 +162,7 @@ if (!process.argv.includes('--no-evidence')) {
 // automatic stale-version sweep: no doc may reference a release/consensus/spec
 // version OTHER than the current one (outside historical changelog sections).
 // This is the backstop that catches drift the targeted checks above don't name
-// explicitly — e.g. the CONSENSUS "Implementation release" line that slipped.
+// explicitly: e.g. the CONSENSUS "Implementation release" line that slipped.
 {
   // known prior versions that must not appear as current references
   const staleReleases = ['0.22.7', '0.22.6', '0.22.5', '0.21.0', '0.20.0']

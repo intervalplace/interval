@@ -1,6 +1,6 @@
 // Interval worldgen: THE EXPANSE (interval-expanse-v1).
 //
-// The classic world says "a safe town, then danger" — a radial gradient, the
+// The classic world says "a safe town, then danger": a radial gradient, the
 // same in every direction, which is why it can be large without ever becoming
 // a place you *know*. The expanse says something else: **every direction means
 // something.** North is wood, east is stone, south is water, west is danger,
@@ -38,7 +38,7 @@ export function seedNum(g) {
 // NOT Math.sin: ECMA-262 leaves the transcendentals implementation-defined, so
 // two engines may differ in the last place, and one tile of disagreement about
 // where the river runs is two different worlds. A meander is built instead from
-// hashed control points, smoothly joined — which is also closer to how water
+// hashed control points, smoothly joined, which is also closer to how water
 // and footpaths actually behave than a sine wave is.
 export function meander(g, tag, u, seg, amp) {
   const k = Math.floor(u / seg)
@@ -105,7 +105,7 @@ export const rectOf = (s) => ({
   y0: s.y - (s.h >> 1), y1: s.y + (s.h >> 1),
 })
 
-// Roads: every road leads to Anchor. Spokes, not a maze — a world you can
+// Roads: every road leads to Anchor. Spokes, not a maze: a world you can
 // navigate by memory. Roads carry no nodes, so they cost the tick nothing.
 // Where a trail bends, and what it bends around. A path that wanders for no
 // reason is noise; a path that wanders around a boulder is a landmark, and
@@ -168,7 +168,7 @@ export const onRoad = (g, x, y) => roadTilesOf(g).has(x + ',' + y)
 // ---------- the five countries ----------
 // ---- the fords: where a citizen may cross the water. The road pays
 // for its crossings, and inside a town the MAIN STREET (the gate axes
-// through the settlement's heart) crosses on pilings — which is what
+// through the settlement's heart) crosses on pilings, which is what
 // the watergate lore was always promising. Everywhere else the water
 // bars the way. ----
 export function fordAt(g, x, y) {
@@ -181,7 +181,7 @@ export function fordAt(g, x, y) {
   return false
 }
 // spawn stands on dry ground: the center if it is dry, else the
-// nearest dry tile by a deterministic ring search — every node walks
+// nearest dry tile by a deterministic ring search: every node walks
 // the same rings in the same order and finds the same shore.
 export function spawnDry(g) {
   const cx = Math.floor(g.worldW / 2), cy = Math.floor(g.worldH / 2)
@@ -195,7 +195,7 @@ export function spawnDry(g) {
     }
   return { x: cx, y: cy }
 }
-// the country teaches the engine to walk it: registered, not imported —
+// the country teaches the engine to walk it: registered, not imported,
 // the engine stays generator-agnostic, and a node that loads this
 // module is a node that implements this country.
 E.registerTerrain(GENERATOR_ID, {
@@ -430,7 +430,7 @@ export function buildWorld(genesis) {
   for (const [tag, x, y] of frontier) putWaystone('waystone-' + tag, x, y)
 
   const serr = E.validateState(w)
-  if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') — founding aborted')
+  if (serr) throw new Error('worldgen produced an invalid state (' + serr + '), founding aborted')
   w._composition = counts
   return w
 }

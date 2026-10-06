@@ -6,7 +6,7 @@
 // was anywhere a person could see: they could only find out by walking to a
 // tree and being refused, with no reason given, and then reading the engine.
 //
-// The guide is DERIVED, never written — every line read off the tables the
+// The guide is DERIVED, never written: every line read off the tables the
 // pillar serves, which are the engine's own. This checks that: that it says
 // what the engine says, and that when the engine changes, the guide changes
 // with it rather than going quietly stale like a hand-written one would.
@@ -95,7 +95,7 @@ const page = drawn.join(' | ')
 ok(/WOODCRAFT/.test(page), 'and woodcraft opens a page of its own')
 
 // the numbers must be the ENGINE's, not a story
-// §THE PAGE SHOWS THE FIRST UNLOCKS, and the rest are a scroll away — which is
+// §THE PAGE SHOWS THE FIRST UNLOCKS, and the rest are a scroll away, which is
 // correct: the guide answers "what is next", not "recite the table". So the
 // question is not whether one particular gate is on the first screen, it is
 // whether whatever IS on it carries the ENGINE's number. An assertion naming
@@ -117,7 +117,7 @@ ok(/logs/i.test(page) && /xp/i.test(page), 'and what a tree gives, and what it t
 
 // ---- §7p: THE BAR IS MADE AT THE FURNACE, THE TOOL AT THE ANVIL ----
 // The guide called every SMITH_REQS entry a forge, and all five SMELTED recipes
-// have one — so it was telling a citizen to make iron at an anvil that refuses
+// have one, so it was telling a citizen to make iron at an anvil that refuses
 // it, and §7p's whole point is that the anvil at Thornbury is 238 tiles from
 // the furnace at Cragfoot. That is a long way to carry ore on a window's word.
 // §READ EVERY SKILL'S PAGE, not one and hope. An assertion that passes because

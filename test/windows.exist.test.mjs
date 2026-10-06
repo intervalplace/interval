@@ -1,7 +1,7 @@
 // EVERY WINDOW THE ROUTER OFFERS MUST BE ON DISK.
 //
 // A missing window does not fail loudly. `sendFile` cannot find it, logs one
-// line nobody is watching, and answers 404 as `text/plain` — and a browser
+// line nobody is watching, and answers 404 as `text/plain`, and a browser
 // handed text/plain at a URL ending `/mist` does not show an error, it saves a
 // file called `mist.txt`. Every other window still works, so the fault looks
 // like it lives in the one window rather than in the deploy.

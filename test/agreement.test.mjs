@@ -90,7 +90,7 @@ test('an input on opposite sides of the local boundary still yields ONE finalize
   const recs = net.nodes.map(n => n._holder.finalized[0])
   assert.equal(new Set(recs.map(r => r.bundleHash)).size, 1, 'one canonical bundle')
   assert.equal(new Set(recs.map(r => r.resultingStateHash)).size, 1, 'one certified result')
-  // the input applied everywhere IF the proposer had it, nowhere otherwise —
+  // the input applied everywhere IF the proposer had it, nowhere otherwise:
   // and since a is not guaranteed proposer, assert only cross-node equality
   const xs = net.nodes.map(n => n._holder.state.players[alice.playerId].x)
   assert.equal(new Set(xs).size, 1)
@@ -126,7 +126,7 @@ test('proposer disappears: the next deterministic round finalizes', () => {
 })
 
 test('short partition converges by rebroadcast; a multi-round lock split stalls WITHOUT forking (H2)', () => {
-  // A: the proposer is briefly cut off — its lock rebroadcast converges everyone
+  // A: the proposer is briefly cut off, its lock rebroadcast converges everyone
   const netA = makeNet()
   netA.partition = () => true
   netA.run(E.TICK_MS + 100)                    // round 0 proposer proposed + locked; nobody else saw it
@@ -138,13 +138,13 @@ test('short partition converges by rebroadcast; a multi-round lock split stalls 
   const hA = netA.nodes.map(n => n._holder.finalized[0].resultingStateHash)
   assert.equal(new Set(hA).size, 1, 'one chain')
 
-  // B: total isolation through THREE rounds — every witness locks its own
+  // B: total isolation through THREE rounds, every witness locks its own
   // bundle. 1-1-1 can never reach quorum 2: the tick stalls permanently.
   // CONSENSUS.md §8 H2: liveness is sacrificed, never safety.
   const netB = makeNet()
   netB.partition = () => true
   // rounds now open with EXPONENTIAL backoff (adversarial-sim finding):
-  // round r starts at due + roundStartMs(r) — run until round 2 has opened
+  // round r starts at due + roundStartMs(r): run until round 2 has opened
   netB.run(E.TICK_MS + P.roundStartMs(2) + 200)
   assert.equal(netB.nodes.filter(n => n.lock).length, 3, 'three witnesses, three locks')
   assert.equal(new Set(netB.nodes.map(n => n.lock.bundleHash)).size, 3, 'all on different bundles')
@@ -154,7 +154,7 @@ test('short partition converges by rebroadcast; a multi-round lock split stalls 
     assert.equal(n._holder.state.tick, 0, `${n.name} stays at tick 0: locks are never released`)
     assert.equal(n.halted, false, 'a stall is not a halt')
   }
-  // and no witness ever signed two hashes for the tick — count signatures
+  // and no witness ever signed two hashes for the tick: count signatures
   for (const n of netB.nodes)
     for (const [bh, m] of n.atts)
       for (const w of netB.nodes.filter(x => x.witnessKey))
@@ -162,7 +162,7 @@ test('short partition converges by rebroadcast; a multi-round lock split stalls 
           assert.equal(bh === w.lock.bundleHash, true, 'every signature matches its signer\'s lock')
 })
 
-test('equivocation: X to half the witnesses, Y to the other half — one deterministic outcome', () => {
+test('equivocation: X to half the witnesses, Y to the other half, one deterministic outcome', () => {
   const net = makeNet()
   const [a, b, c] = net.nodes
   const X = net.sign({ tick: 0, type: 'move', dx: 1, dy: 0 })
@@ -172,7 +172,7 @@ test('equivocation: X to half the witnesses, Y to the other half — one determi
   net.run(2 * E.TICK_MS)
   // no conflicting state finalizes; the engine's duplicate rule excludes the
   // player when the certified bundle carries both versions, and applies one
-  // version when the proposer saw only one — either way, ONE certified result
+  // version when the proposer saw only one: either way, ONE certified result
   const recs = net.nodes.map(n => n._holder.finalized[0])
   assert.equal(new Set(recs.map(r => r.resultingStateHash)).size, 1)
   const xs = net.nodes.map(n => n._holder.state.players[alice.playerId].x)
@@ -246,13 +246,13 @@ test('local mismatch with a certified result halts the node instead of forking i
   const rec = net.nodes[0]._holder.finalized[0]
   // simulate a corrupted local implementation: the observer's state drifted
   // §21c: REPLACE the citizen, do not write into them. Under a clone that
-  // shares untouched citizens between consecutive states, writing `hp` in place
+  // shares untouched citizens between consecutive states, writing `health` in place
   // reaches backwards into the very lineage this test measures the corruption
   // against. Swapping the reference corrupts exactly this state and nothing
   // else, which is what "this node's local implementation drifted" means, and
   // it behaves identically under every clone mode.
   obs._holder.state.players[alice.playerId] =
-    { ...obs._holder.state.players[alice.playerId], hp: 9 }
+    { ...obs._holder.state.players[alice.playerId], health: 9 }
   obs.prevHash = E.stateHash(obs._holder.state)
   const fake = JSON.parse(JSON.stringify(rec))
   fake.previousStateHash = obs.prevHash // lineage matches its (corrupt) state…

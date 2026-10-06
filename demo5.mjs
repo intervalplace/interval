@@ -1,7 +1,7 @@
-// Interval v0.10 demo — surviving a stall.
+// Interval v0.10 demo: surviving a stall.
 // Three self-driving nodes on the arithmetic clock. Node C freezes for
-// several ticks (a laptop lid closes, a network blips) while A and B —
-// and the players on them — carry on. C wakes behind, fetches the ticks
+// several ticks (a laptop lid closes, a network blips) while A and B:
+// and the players on them: carry on. C wakes behind, fetches the ticks
 // it missed from A's input log, REPLAYS them deterministically, rejoins
 // the lockstep, and ends the run in perfect agreement.
 
@@ -43,13 +43,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms))
 await sleep((GENESIS.anchorMs - Date.now()) + 4 * E.TICK_MS + 100)
 C.stopTicking()
 const frozeAt = C.state.tick
-console.log(`C freezes at tick ${frozeAt} — the world does not wait`)
+console.log(`C freezes at tick ${frozeAt}, the world does not wait`)
 
 // A and B keep going for 6 more ticks; C's buffers rot like a real crash
 await sleep(6 * E.TICK_MS)
 C.inputBuffer.clear()
 const behind = A.state.tick - C.state.tick
-console.log(`C wakes at tick ${C.state.tick}, world is at ${A.state.tick} — ${behind} ticks behind`)
+console.log(`C wakes at tick ${C.state.tick}, world is at ${A.state.tick}, ${behind} ticks behind`)
 
 // recovery: replay the missed history from A's log, then rejoin the clock
 await C.catchUpFrom(A.addr(), A.state.tick)

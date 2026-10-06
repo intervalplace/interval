@@ -32,7 +32,7 @@ test('the founded world stays inside the measured performance envelope', () => {
   // with 1,000 citizens. Growing past what was measured is not a founding.
   assert.ok(nodes <= 3772, `expanse has ${nodes} nodes, above the measured envelope of 3772`)
   assert.ok(mobs <= 331, `expanse has ${mobs} mobs, above the measured envelope of 331`)
-  assert.ok(nodes > 2500, `expanse has only ${nodes} nodes — the country is too thin`)
+  assert.ok(nodes > 2500, `expanse has only ${nodes} nodes: the country is too thin`)
 })
 
 test('every country is present and none swallows the map', () => {
@@ -45,7 +45,7 @@ test('every country is present and none swallows the map', () => {
   for (const b of ['wilds', 'greenwood', 'crags', 'fens', 'heartlands']) {
     const share = (seen[b] ?? 0) / total
     assert.ok(share > 0.08, `${b} is only ${(share * 100).toFixed(1)}% of the map`)
-    assert.ok(share < 0.40, `${b} is ${(share * 100).toFixed(1)}% of the map — it has swallowed the world`)
+    assert.ok(share < 0.40, `${b} is ${(share * 100).toFixed(1)}% of the map, it has swallowed the world`)
   }
 })
 

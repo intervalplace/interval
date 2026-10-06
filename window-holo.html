@@ -40,7 +40,7 @@
   Squeeze to re-place. Tap the <b>cyan orb</b> (or press F) to cycle
   table &rarr; <b>world atlas</b> &rarr; life-size. On the atlas, tap anywhere in the
   country and your citizen treks there while you watch your ember crawl.
-  Every thud, chop, and fanfare is synthesized — no audio files. Press M to mute.
+  Every thud, chop, and fanfare is synthesized: no audio files. Press M to mute.
   No headset? Drag to look, click to act.</span>
 </div>
 <div id="feed"></div>
@@ -65,11 +65,11 @@ const feed = (t) => { feedEl.textContent = t; setTimeout(() => { if (feedEl.text
 addEventListener('error', (e) => { feedEl.textContent = '[err] ' + (e.message ?? e.type) })
 
 // ---------------------------------------------------------------- identity
-// Same wire, same domain string, same stored key as the other windows —
+// Same wire, same domain string, same stored key as the other windows,
 // to the byte. A citizen is a keypair, not a window.
-const canonicalJS = (o) => o === null || typeof o !== 'object' ? JSON.stringify(o)
-  : Array.isArray(o) ? '[' + o.map(canonicalJS).join(',') + ']'
-  : '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + canonicalJS(o[k])).join(',') + '}'
+const canonicalJS = (o) => o === null || typeof o !== 'object' ? JSON.stringify(o):
+  Array.isArray(o) ? '[' + o.map(canonicalJS).join(',') + ']':
+  '{' + Object.keys(o).sort().map(k => JSON.stringify(k) + ':' + canonicalJS(o[k])).join(',') + '}'
 const toHex = (b) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('')
 const fromHex = (h) => new Uint8Array(h.match(/../g).map(x => parseInt(x, 16)))
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|'
@@ -134,9 +134,9 @@ ws.onopen = async () => {
   if (ownKey) {
     ws.send(JSON.stringify({ type: 'adopt', pub: ownKey.pub }))
     $('keyline').textContent = 'your key: ' + ownKey.pub.slice(0, 12) + '… (held by this browser, shared with /play)'
-  } else { stat('⚠ spectating — ' + signErr); feed('this window cannot sign: spectating') }
+  } else { stat('⚠ spectating, ' + signErr); feed('this window cannot sign: spectating') }
 }
-ws.onclose = () => stat('disconnected — refresh to rejoin')
+ws.onclose = () => stat('disconnected, refresh to rejoin')
 let lastTickN = -1
 ws.onmessage = (ev) => {
   const m = JSON.parse(ev.data)
@@ -194,7 +194,7 @@ let mode = 'table' // 'table' | 'map' | 'life'
 let center = { x: 0, y: 0 }
 const tileToLocal = (x, y) => ({ lx: (x - center.x) * TILE, lz: (y - center.y) * TILE })
 const inView = (x, y) => Math.abs(x - center.x) <= HALF && Math.abs(y - center.y) <= HALF
-// deterministic per-id jitter, so no two trees stand alike — and every
+// deterministic per-id jitter, so no two trees stand alike, and every
 // window that computes this sees the SAME forest
 const jitter = (id, n = 1) => { let h = 2166136261; const s = id + '|' + n; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return ((h >>> 0) % 1000) / 1000 }
 
@@ -316,7 +316,7 @@ function fordE(x, y) { // mirror of fordAt: the road crosses, and every main str
 }
 // ---- the third expanse (interval-expanse-v3): the island, mirrored ----
 // An exact mirror of worldgen-expanse3.mjs: the coast by octant arithmetic
-// (no atan2 — ECMA-262 leaves it implementation-defined), the borders that
+// (no atan2, ECMA-262 leaves it implementation-defined), the borders that
 // are features, the road graph, and the fords painted as bridges.
 function angleOf3(dx, dy) {
   const ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy
@@ -1261,8 +1261,8 @@ function keeperRole4(st, id, n) {
       if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
       near[q.type] = true
     }
-    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.house ? 'town' : 'town'
+    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith':
+         near.house ? 'town' : 'town'
   }
   _roleCache.set(id, role)
   return role
@@ -1485,7 +1485,7 @@ const WATER_COL = { sea: '#1f5a8a', river: '#3a86c0' }
 const _autumnC = new THREE.Color(0xa8722a)
 
 // ═══ THE THEATER: the world made audible and its blows made visible.
-// Every sound is synthesized — a world made of rules makes its sounds
+// Every sound is synthesized, a world made of rules makes its sounds
 // out of math. The voices are /deluxe's, ported note for note; the
 // choreography of when they fire is this window's own.
 const WEAPON_LOOK = {
@@ -1497,7 +1497,7 @@ const WEAPON_LOOK = {
   'wooden-bow': { every: 2, ranged: true }, 'horn-bow': { every: 2, ranged: true },
 }
 const lookOf = (it) => WEAPON_LOOK[it] ?? { every: 2, ranged: false }
-// >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) — character for
+// >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10), character for
 // character the same in every window and in engine.js. test/identity.test.mjs
 // extracts this block from each window and compares it against the engine, so
 // no window can quietly invent its own idea of what a citizen is again.
@@ -1605,7 +1605,7 @@ function wakeAudio() {
   }
   if (AC?.state === 'suspended') AC.resume().catch(() => {})
 }
-// the world falls quiet with distance — GAME distance, in tiles, so the
+// the world falls quiet with distance, GAME distance, in tiles, so the
 // table and the life-size world sound the same: a blow eighteen tiles
 // off is a whisper on both.
 function snd(kind, tx, ty) {
@@ -1645,7 +1645,7 @@ function snd(kind, tx, ty) {
       o.frequency.exponentialRampToValueAtTime(70, t0 + 0.06)
       g2.gain.setValueAtTime(0.2, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08)
       o.start(t0); o.stop(t0 + 0.09); burst(2400, 'highpass', 0.05, 0.16)
-    } else if (kind === 'clink') { // stone rings back — this window's own voice
+    } else if (kind === 'clink') { // stone rings back, this window's own voice
       o.type = 'triangle'; o.frequency.setValueAtTime(940, t0)
       o.frequency.exponentialRampToValueAtTime(620, t0 + 0.05)
       g2.gain.setValueAtTime(0.13, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09)
@@ -1672,7 +1672,7 @@ function snd(kind, tx, ty) {
       o.frequency.exponentialRampToValueAtTime(60, t0 + 0.9)
       g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 1)
       o.start(t0); o.stop(t0 + 1)
-    } else if (kind === 'level') { // THE fanfare, the one — ported note for note
+    } else if (kind === 'level') { // THE fanfare, the one, ported note for note
       const note = (f, dur, vol2, at) => {
         const o2 = AC.createOscillator(), ng = AC.createGain()
         o2.type = 'triangle'; o2.frequency.setValueAtTime(f, t0 + at)
@@ -1954,7 +1954,7 @@ function makeCitizen() {
   for (const ex of [-0.05, 0.05]) { // the eyes: dots of life
     g.add(at(new THREE.Mesh(new THREE.SphereGeometry(T * 0.016, 6, 5), new THREE.MeshBasicMaterial({ color: 0x14100a })), T * ex, T * 1.09, T * 0.125))
   }
-  // hair: a cap always; a tail, a bun, a beard — toggled by the key
+  // hair: a cap always; a tail, a bun, a beard, toggled by the key
   const cap = at(new THREE.Mesh(new THREE.SphereGeometry(T * 0.14, 10, 9, 0, Math.PI * 2, 0, Math.PI * 0.60), M(0xffffff)), 0, T * 1.115, -T * 0.033)
   cap.scale.set(1, 1, 0.96); g.add(cap); hairParts.push(cap)
   const tail = at(new THREE.Mesh(new THREE.CylinderGeometry(T * 0.03, T * 0.014, T * 0.22, 6), M(0xffffff)), 0, T * 1.02, -T * 0.12, -0.4, 0, 0)
@@ -2089,8 +2089,8 @@ function dressCitizen(g, pub, mine, p, s) { // all derived, none random, all fro
 function makeMob(type) {
   const g = new THREE.Group()
   const biped = type === 'troll' || type === 'goblin' || type === 'skeleton-knight'
-  const col = type === 'troll' ? 0x6f8a4a : type === 'bear' ? 0x6b4a2e : type === 'wolf' ? 0x777d88
-    : type === 'skeleton-knight' ? 0xd8d2c2 : 0xb0503c
+  const col = type === 'troll' ? 0x6f8a4a : type === 'bear' ? 0x6b4a2e : type === 'wolf' ? 0x777d88:
+    type === 'skeleton-knight' ? 0xd8d2c2 : 0xb0503c
   const sz = T * (type === 'troll' ? 0.72 : type === 'bear' ? 0.62 : 0.5)
   const dcol = new THREE.Color(col).multiplyScalar(biped ? 0.8 : 1)
   if (biped) {
@@ -2141,7 +2141,7 @@ function makeMob(type) {
 }
 
 // ---- THE ATLAS: all of it at once. The country painted pixel-per-tile
-// into a texture (exact — the same pure functions, evaluated everywhere)
+// into a texture (exact: the same pure functions, evaluated everywhere)
 // and draped over a relief mesh whose heights are the land's, exaggerated
 // so the Crags read as the wall they are. Built once per genesis; the
 // terrain is a founding fact and founding facts hold still.
@@ -2322,8 +2322,8 @@ function onTick() {
     if (e.obj.userData.blobs) { // the crown wears its country and its year
       const tv = 0.85 + jitter(id, 4) * 0.3                 // no two trees one green
       const autumn = jitter(id, 5) < 0.1                     // one tree in ten turned early
-      const shift = biome === 'greenwood' ? [0.02, -0.06] : biome === 'fens' ? [-0.06, -0.04]
-        : biome === 'wilds' ? [0, -0.16] : [0, 0]
+      const shift = biome === 'greenwood' ? [0.02, -0.06] : biome === 'fens' ? [-0.06, -0.04]:
+        biome === 'wilds' ? [0, -0.16] : [0, 0]
       for (const b of e.obj.userData.blobs) {
         const c2 = b.material.color.copy(b.userData.base).multiplyScalar(tv)
         c2.offsetHSL(shift[0], shift[1] * 2, biome === 'greenwood' ? -0.02 : 0)
@@ -2404,7 +2404,7 @@ let goal = null, lastPos = '', stuck = 0
 function walkTick(me) {
   if (!me || !goal) return
   const pos = me.x + ',' + me.y
-  if (pos === lastPos) { if (++stuck > 10) { goal = null; stuck = 0; feed("can't reach that from here — the straight way is blocked"); return } }
+  if (pos === lastPos) { if (++stuck > 10) { goal = null; stuck = 0; feed("can't reach that from here, the straight way is blocked"); return } }
   else { lastPos = pos; stuck = 0 }
   const adj = Math.abs(me.x - goal.x) + Math.abs(me.y - goal.y) === 1
   const here = me.x === goal.x && me.y === goal.y
@@ -2432,7 +2432,7 @@ function act(hit) {
     goal = { x: tx, y: ty }
     const me2 = world?.players?.[ownKey.pub]
     const dist = me2 ? Math.max(Math.abs(tx - me2.x), Math.abs(ty - me2.y)) : 0
-    feed('trekking to ' + tx + ',' + ty + (dist ? ' — ' + dist + ' tiles as the crow flies' : ''))
+    feed('trekking to ' + tx + ',' + ty + (dist ? ', ' + dist + ' tiles as the crow flies' : ''))
     return
   }
   if (!ownKey) { feed('spectating: this window cannot sign'); return }
@@ -2478,7 +2478,7 @@ function setMode(m) {
   if (m === 'map') {
     ownAnim = null
     buildAtlas()
-    if (!atlasMesh) { feed('the atlas knows only the Expanse — this world has no map yet'); return setMode('table') }
+    if (!atlasMesh) { feed('the atlas knows only the Expanse, this world has no map yet'); return setMode('table') }
     rig.scale.setScalar(1)
     base.visible = true
     lifeOrb.visible = false; mapOrb.visible = true
@@ -2500,7 +2500,7 @@ function setMode(m) {
     tableOrb.visible = false; lifeOrb.visible = true
     scene.fog = new THREE.Fog(0x0a0c12, LIFE_TILE_M * 4, LIFE_TILE_M * (HALF + 1)) // the world fades before it ends
     if (!renderer.xr.isPresenting) { camera.position.set(0, 1.6, 0.001); flatLook.pitch = -0.15; flatLook.yaw = 0 }
-    feed('life size — tap the ground ahead to walk; tap the orb to shrink it back')
+    feed('life size: tap the ground ahead to walk; tap the orb to shrink it back')
   } else {
     ownAnim = null
     board.position.set(0, 0, 0)
@@ -2580,7 +2580,7 @@ if (xrOk) {
   })
   renderer.xr.addEventListener('sessionend', () => { hitTestSource = null; if (mode === 'table') flatPlace() })
 } else {
-  $('enter').innerHTML = '<span style="opacity:.7">WebXR AR not available here — flat preview below. On HoloLens 2, open this page in Edge.</span>'
+  $('enter').innerHTML = '<span style="opacity:.7">WebXR AR not available here, flat preview below. On HoloLens 2, open this page in Edge.</span>'
 }
 
 // ------------------------------------------------- flat fallback (desktop)
@@ -2657,8 +2657,8 @@ renderer.setAnimationLoop((t, frame) => {
       const { lx, lz } = tileToLocal(p.x, p.y)
       const moving = a.tx !== a.fx || a.ty !== a.fy
       const ease = moving
-        ? tileTop(a.fx, a.fy) + (tileTop(a.tx, a.ty) - tileTop(a.fx, a.fy)) * Math.min(1, p.k) // climb the land as you cross it
-        : tileTop(a.tx, a.ty)
+        ? tileTop(a.fx, a.fy) + (tileTop(a.tx, a.ty) - tileTop(a.fx, a.fy)) * Math.min(1, p.k) // climb the land as you cross it:
+        tileTop(a.tx, a.ty)
       a.obj.position.set(lx, ease + (moving && p.k < 1 ? Math.sin(p.k * Math.PI * 2) * TILE * 0.03 : 0), lz)
       if (p.k < 1 && moving) a.obj.rotation.y = Math.atan2(a.tx - a.fx, a.ty - a.fy)
       // the stride itself: joints swing while the tile is being crossed
@@ -2675,8 +2675,8 @@ renderer.setAnimationLoop((t, frame) => {
           if (a.deed.kind === 'work') {
             const fishing = a.deed.tool === 'fishing-spot' || a.deed.tool === 'pond'
             const chop = fishing
-              ? Math.sin(now * 0.003) * 0.12 - 0.5                       // the rod waits
-              : Math.sin(now * 0.009) * 0.75 - 1.1                       // the axe falls
+              ? Math.sin(now * 0.003) * 0.12 - 0.5                       // the rod waits:
+              Math.sin(now * 0.009) * 0.75 - 1.1                       // the axe falls
             u.arms[1].rotation.x = chop
             u.arms[1].userData.joint.rotation.x = Math.max(0, -Math.sin(now * 0.009)) * 0.5
             // the work keeps its own time: a sound each time the swing lands

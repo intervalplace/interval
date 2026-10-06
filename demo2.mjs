@@ -1,4 +1,4 @@
-// Interval v0.4 demo — names, persistence, late join.
+// Interval v0.4 demo: names, persistence, late join.
 // Three nodes run the world. Alice claims the name "alice"; Bob tries to
 // steal it and is refused by the constitution. Checkpoints persist to
 // disk every tick. At tick 6 a brand-new node joins mid-world: it fetches
@@ -49,7 +49,7 @@ const meshReady = (ns) => ns.every(n =>
 for (let i = 0; i < 100 && !meshReady(nodes); i++) await new Promise(r => setTimeout(r, 200))
 if (!meshReady(nodes)) { console.log('mesh failed'); process.exit(1) }
 
-console.log(`Interval v0.4 — world ${RULES_HASH.slice(0, 12)}… (new constitution, new world)`)
+console.log(`Interval v0.4, world ${RULES_HASH.slice(0, 12)}… (new constitution, new world)`)
 console.log('')
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -64,7 +64,7 @@ async function runTick() {
     await A.submitInput(E.signInput({ worldId: WID, tick, playerId: alice.playerId, type: 'gather', nodeId: 'tree-1' }, alice.privateKey))
   }
   if (tick === 3) {
-    // bob tries to take alice's name — the constitution says no
+    // bob tries to take alice's name: the constitution says no
     await B.submitInput(E.signInput({ worldId: WID, tick, playerId: bob.playerId, type: 'claim_name', name: 'alice' }, bob.privateKey))
   } else if (!bP.action) {
     await B.submitInput(E.signInput({ worldId: WID, tick, playerId: bob.playerId, type: 'gather', nodeId: 'rock-1' }, bob.privateKey))

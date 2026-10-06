@@ -113,7 +113,7 @@ console.log('\n--- the skill guide ---')
     const b = (w[k] ?? []).map(([l, t]) => l + '|' + t).join(';')
     if (a !== b) drift.push(k)
   }
-  ok(!drift.length, `every gate matches the engine${drift.length ? ' — DRIFT in ' + drift.join(',') : ''}`)
+  ok(!drift.length, `every gate matches the engine${drift.length ? ', DRIFT in ' + drift.join(',') : ''}`)
   ok(/data-skill="/.test(W), 'skill rows are clickable')
   ok(/function openSkillGuide/.test(W), 'the guide panel exists')
   const ORDER = ev(blk(W, 'const SKILL_ORDER = ', '[', ']'))
@@ -121,7 +121,7 @@ console.log('\n--- the skill guide ---')
   const noted = ev(blk(W, 'const SKILL_NOTE = '))
   const unexplained = noGate.filter((k) => !(k in noted))
   ok(!unexplained.length,
-    `skills that gate nothing say so: ${noGate.join(', ')}${unexplained.length ? ' — UNEXPLAINED ' + unexplained.join(',') : ''}`)
+    `skills that gate nothing say so: ${noGate.join(', ')}${unexplained.length ? ', UNEXPLAINED ' + unexplained.join(',') : ''}`)
 }
 
 
@@ -134,7 +134,7 @@ console.log('\n--- a fight is visible ---')
   const eBlows = Object.fromEntries(Object.entries(eW3).filter(([, v]) => v.gambit).map(([k, v]) => [k, v.blows ?? 1]))
   ok(JSON.stringify(eBlows) === JSON.stringify(wBlows), `blow counts: ${JSON.stringify(wBlows)}`)
   const everyDrift = Object.entries(eW3).filter(([k, v]) => wEvery[k] !== (v.every ?? 2)).map(([k]) => k)
-  ok(!everyDrift.length, `cadences match the engine${everyDrift.length ? ' — DRIFT ' + everyDrift.join(',') : ''}`)
+  ok(!everyDrift.length, `cadences match the engine${everyDrift.length ? ', DRIFT ' + everyDrift.join(',') : ''}`)
   {
     const tracer = W.slice(W.indexOf('loosed arrows fly'), W.indexOf('loosed arrows fly') + 1400)
       .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')

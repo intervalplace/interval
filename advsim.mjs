@@ -1,7 +1,7 @@
 // Interval adversarial simulator (pre-freeze brief: "sustained adversarial
 // multi-node simulation"). A deterministic, seeded, event-driven network
-// of IntervalAgreement nodes under a HOSTILE transport — delay, reorder,
-// duplicate, loss, asymmetric partitions — plus Byzantine witnesses:
+// of IntervalAgreement nodes under a HOSTILE transport: delay, reorder,
+// duplicate, loss, asymmetric partitions: plus Byzantine witnesses:
 // equivocating proposers, lying attesters, replayers, garbage floods, and
 // crash-restart witnesses recovering from durable stores.
 //
@@ -27,7 +27,7 @@ const ed = require('@noble/ed25519')
 
 const RULES = 'c'.repeat(64)
 
-// DETERMINISTIC identities: the seed must pin the ENTIRE run — witness
+// DETERMINISTIC identities: the seed must pin the ENTIRE run, witness
 // keys decide the worldId, the worldId decides the proposer schedule, and
 // the proposer schedule decides every race. Random keys made "the same
 // seed" a different experiment each invocation.
@@ -79,7 +79,7 @@ class Heap {
 // checking that fields are present. `ctx` supplies the world binding:
 //   { genesis, worldId, verifyCert(cert), verifyAtt(att), replay(bundle,prevState?) }
 // Each Byzantine halt's evidence is checked against what the protocol would
-// actually conclude — signatures, witness identities, uniqueness, quorum,
+// actually conclude: signatures, witness identities, uniqueness, quorum,
 // deterministic replay, and the resulting state hash.
 export function verifyHaltEvidence(h, ctx = {}) {
   const verifyCert = ctx.verifyCert ?? (() => null)
@@ -91,11 +91,11 @@ export function verifyHaltEvidence(h, ctx = {}) {
   switch (h.code) {
     case HALT.CONFLICTING_CERTIFICATES:
       // two independently-valid certificates for one finalized tick that
-      // DISAGREE — cryptographic, not structural
+      // DISAGREE: cryptographic, not structural
       if (!ev.ours || !ev.conflicting) return 'missing the two conflicting certificates'
       if (ev.ours.tick !== ev.conflicting.tick) return 'certificates are for different ticks'
       if (ev.ours.bundleHash === ev.conflicting.bundleHash && ev.ours.resultingStateHash === ev.conflicting.resultingStateHash)
-        return 'the two certificates agree — no conflict'
+        return 'the two certificates agree, no conflict'
       if (verifyCert(ev.ours)) return 'our retained certificate does not verify'
       if (verifyCert(ev.conflicting)) return 'the conflicting certificate does not verify'
       return null
@@ -107,7 +107,7 @@ export function verifyHaltEvidence(h, ctx = {}) {
       // naming the certified result; (2) local replay of the bundle must
       // actually produce a DIFFERENT hash.
       if (!ev.bundle || !ev.localResult || !ev.certifiedResult) return 'missing bundle/localResult/certifiedResult'
-      if (ev.localResult === ev.certifiedResult) return 'localResult equals certifiedResult — no mismatch'
+      if (ev.localResult === ev.certifiedResult) return 'localResult equals certifiedResult, no mismatch'
       const atts = ev.certifyingAttestations
       if (!Array.isArray(atts)) return 'missing certifying attestations'
       if (genesis && atts.length < genesis.quorum) return `only ${atts.length} attestations, need a quorum of ${genesis.quorum}`
@@ -123,7 +123,7 @@ export function verifyHaltEvidence(h, ctx = {}) {
       if (ctx.replay) {
         const replayed = ctx.replay(ev.bundle)
         if (replayed == null) return 'replay could not be performed'
-        if (replayed === ev.certifiedResult) return 'replay matches the certified result — no mismatch'
+        if (replayed === ev.certifiedResult) return 'replay matches the certified result, no mismatch'
         if (replayed !== ev.localResult) return 'replay disagrees with the recorded localResult'
       }
       return null
@@ -137,9 +137,9 @@ export function verifyHaltEvidence(h, ctx = {}) {
       if (ctx.worldId && ev.a.worldId !== ctx.worldId) return 'bundles are not for this world'
       if (ev.a.tick !== ev.b.tick) return 'bundles are for different ticks'
       if (ev.a.round !== ev.b.round) return 'bundles are for different rounds'
-      if (ev.a.proposer !== ev.b.proposer) return 'bundles have different proposers — not equivocation'
+      if (ev.a.proposer !== ev.b.proposer) return 'bundles have different proposers, not equivocation'
       if (ctx.genesis && !ctx.genesis.witnesses.includes(ev.a.proposer)) return 'the proposer is not a constitutional witness'
-      if (ctx.bundleHash && ctx.bundleHash(ev.a) === ctx.bundleHash(ev.b)) return 'the two bundles are identical — no equivocation'
+      if (ctx.bundleHash && ctx.bundleHash(ev.a) === ctx.bundleHash(ev.b)) return 'the two bundles are identical, no equivocation'
       if (ctx.verifyBundle) {
         if (!ctx.verifyBundle(ev.a)) return 'bundle A carries an invalid proposer signature'
         if (!ctx.verifyBundle(ev.b)) return 'bundle B carries an invalid proposer signature'
@@ -155,10 +155,10 @@ export function verifyHaltEvidence(h, ctx = {}) {
       if (ctx.replay) {
         const replayed = ctx.replay(ev.record.bundle ?? ev.record)
         if (replayed == null) return 'replay could not be performed from the previous certified state'
-        if (replayed === ev.record.resultingStateHash) return 'a fresh replay matches the certified result — no mismatch'
+        if (replayed === ev.record.resultingStateHash) return 'a fresh replay matches the certified result: no mismatch'
         if (replayed !== ev.localResult) return 'fresh replay disagrees with the recorded localResult'
       } else if (ev.localResult === (ev.certified ?? ev.record.resultingStateHash)) {
-        return 'local replay matches the certified result — no mismatch'
+        return 'local replay matches the certified result, no mismatch'
       }
       return null
 
@@ -170,7 +170,7 @@ export function verifyHaltEvidence(h, ctx = {}) {
       if (verifyCert(ev.record)) return 'the certified record does not verify (cannot attribute the halt)'
       if (ctx.validateBundle) {
         const revErr = ctx.validateBundle(ev.record)
-        if (!revErr) return 're-validation found the bundle VALID — the recorded invalidity does not reproduce'
+        if (!revErr) return 're-validation found the bundle VALID: the recorded invalidity does not reproduce'
       } else if (!ev.bundleError) {
         return 'no bundle validation error recorded and no re-validator available'
       }
@@ -188,7 +188,7 @@ export function verifyHaltEvidence(h, ctx = {}) {
       // proof: the index already holds a DIFFERENT record for the same tick
       if (!ev.indexed || !ev.committing) return 'missing the indexed vs committing records'
       if (ev.indexed.bundleHash === ev.committing.bundleHash && ev.indexed.resultingStateHash === ev.committing.resultingStateHash)
-        return 'the indexed and committing records agree — no corruption'
+        return 'the indexed and committing records agree, no corruption'
       return null
 
     default:
@@ -225,18 +225,18 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
   genesis.quorum = cfg.q
   // Byzantine Safety Upgrade: each scenario declares its fault threshold f
   // (default: the largest the (n,q) pair safely carries). Scenarios with
-  // Byzantine actors must configure n,q,f so byzantineSafe holds — a config
+  // Byzantine actors must configure n,q,f so byzantineSafe holds: a config
   // that cannot tolerate the actors it spawns is a scenario bug.
   genesis.byzantineTolerance = cfg.f ?? (() => {
     for (let f = E.maxByzantine(cfg.n); f >= 0; f--) if (E.byzantineSafe(cfg.n, cfg.q, f)) return f
     return 0
   })()
   // a scenario must not spawn more Byzantine actors than its constitution
-  // tolerates — otherwise it tests behavior OUTSIDE the model, and a fork
+  // tolerates: otherwise it tests behavior OUTSIDE the model, and a fork
   // there would be expected, not a bug. Guard against that silently.
   const byzCount = (cfg.byzantine ?? []).length
   if (byzCount > genesis.byzantineTolerance)
-    throw new Error(`scenario ${name} spawns ${byzCount} Byzantine actors but n=${cfg.n},q=${cfg.q},f=${genesis.byzantineTolerance} only tolerates ${genesis.byzantineTolerance} — reconfigure n,q,f`)
+    throw new Error(`scenario ${name} spawns ${byzCount} Byzantine actors but n=${cfg.n},q=${cfg.q},f=${genesis.byzantineTolerance} only tolerates ${genesis.byzantineTolerance}: reconfigure n,q,f`)
   const worldId = E.worldId(genesis)
   const build = () => {
     const s = E.newWorld(genesis)
@@ -251,10 +251,10 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
   for (const b of cfg.byzantine ?? []) honest.delete(wkeys[b.index].playerId)
 
   const nodes = [] // { name, agreement|null (null while crashed), holder, stores, witnessKey, byz }
-  const partitions = [] // { a:Set, b:Set, until } — a↔b severed
+  const partitions = [] // { a:Set, b:Set, until }, a↔b severed
 
   // The harness distinguishes MODELLED failures from UNEXPECTED ones by
-  // typed ERROR CODE, and — Byzantine upgrade §7 — by CONTEXT. A recovery
+  // typed ERROR CODE, and: Byzantine upgrade §7, by CONTEXT. A recovery
   // refusal (rollback, stale-checkpoint, corrupt-store) is legitimate ONLY
   // when a node is restarting from durable stores; the very same code thrown
   // during steady-state message delivery or drive() is a bug. Scoping the
@@ -271,7 +271,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
     ERR.CORRUPT_IDENTITY,
   ])
   // message delivery and steady-state drive tolerate NO protocol error:
-  // deliver-context codes must be empty. (A halt is not an exception — it is
+  // deliver-context codes must be empty. (A halt is not an exception: it is
   // a recorded state, checked separately in S4.)
   const EXPECTED_BY_CONTEXT = { restart: RESTART_CODES, deliver: new Set(), drive: new Set(), event: new Set() }
   const isExpectedIn = (context, e) =>
@@ -289,7 +289,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
     && ((p.a.has(from) && p.b.has(to)) || (p.b.has(from) && p.a.has(to))))
 
   function deliverAll(fromName, kind, obj) {
-    // record what left the sender — the double-sign detector watches the WIRE
+    // record what left the sender: the double-sign detector watches the WIRE
     if (kind === 'attestation') wire.attestations.push(JSON.parse(JSON.stringify(obj)))
     if (kind === 'bundle') wire.bundles.push(JSON.parse(JSON.stringify(obj)))
     if (kind === 'finality') wire.finality.push({ at: clock, rec: JSON.parse(JSON.stringify(obj)) })
@@ -305,7 +305,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
           const t = nodes.find(x => x.name === n.name)
           if (!t?.agreement) return
           const msg = JSON.parse(bytes)
-          // §7: message delivery is the 'deliver' context — a protocol error
+          // §7: message delivery is the 'deliver' context, a protocol error
           // here is never expected (unlike a recovery refusal on restart)
           guard(`deliver ${kind}→${n.name}`, () => {
             if (kind === 'bundle') t.agreement.onBundle(msg)
@@ -443,8 +443,8 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
           const nA = E.nextState(st, A.inputs), nB = E.nextState(st, B.inputs)
           deliverAll(me.name, 'bundle', A)
           deliverAll(me.name, 'bundle', B)
-          deliverAll(me.name, 'attestation', P.makeAttestation({ worldId, tick, round, bundleHash: P.bundleHash(A), resultingStateHash: E.stateHash(nA), witness: key }))
-          deliverAll(me.name, 'attestation', P.makeAttestation({ worldId, tick, round, bundleHash: P.bundleHash(B), resultingStateHash: E.stateHash(nB), witness: key }))
+          deliverAll(me.name, 'attestation', P.makeAttestation({ worldId, tick, round, bundleHash: P.bundleHash(A), resultingStateHash: E.stateHash(nA), livingRoot: nA.livingRoot ?? null, witness: key }))
+          deliverAll(me.name, 'attestation', P.makeAttestation({ worldId, tick, round, bundleHash: P.bundleHash(B), resultingStateHash: E.stateHash(nB), livingRoot: nB.livingRoot ?? null, witness: key }))
         }
         if (b.kind === 'liar') {
           // attest a corrupted result for whatever honest bundle is current
@@ -490,7 +490,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
 
   // Finality regossip: real gossipsub re-shares recent messages across the
   // mesh, so a node that missed a record while partitioned receives it once
-  // links heal. Model that — each live witness periodically re-emits its
+  // links heal. Model that: each live witness periodically re-emits its
   // latest finality record; a caught-up node ignores it, a behind node
   // buffers/applies it. Without this, a single dropped record strands a
   // node forever, which is a transport artifact, not a protocol property.
@@ -566,7 +566,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
   for (const [t, m] of byTick)
     if (new Set(m.values()).size > 1) violations.push(`S1 FORK at tick ${t}: ${JSON.stringify([...m])}`)
 
-  // S2: no honest witness signed two hashes for one tick — judged on the WIRE
+  // S2: no honest witness signed two hashes for one tick, judged on the WIRE
   const signed = new Map()
   for (const a of wire.attestations) {
     if (!a || typeof a !== 'object') continue // garbage actors publish garbage; the checker reads evidence, not promises
@@ -602,10 +602,10 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
     if (!hasByz)
       violations.push(`S4 UNJUSTIFIED HALT: ${n.name} halted [${h.code}] (${h.reason}) with no Byzantine actor in the scenario`)
     if (!ALL_HALT.has(h.code))
-      violations.push(`S4 UNCLASSIFIED HALT: ${n.name} halted with an unrecognized code (${h.code ?? 'NONE'}) — implementation error, not a protocol halt`)
+      violations.push(`S4 UNCLASSIFIED HALT: ${n.name} halted with an unrecognized code (${h.code ?? 'NONE'}), implementation error, not a protocol halt`)
     if (BYZANTINE_HALTS.has(h.code) && (!h.evidence || Object.keys(h.evidence).length === 0))
       violations.push(`S4 EVIDENCE-FREE BYZANTINE HALT: ${n.name} halted [${h.code}] without supporting evidence`)
-    // §5 (rigor): the evidence must actually PROVE the reported condition —
+    // §5 (rigor): the evidence must actually PROVE the reported condition,
     // not merely be present. Verify the specific proof each halt code makes.
     const proofErr = verifyHaltEvidence(h, {
       genesis, worldId,
@@ -614,7 +614,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
       verifyBundle: (b) => P.verifyBundleSig(b),
       bundleHash: (b) => P.bundleHash(b),
       // re-run bundle validation against the state the record claims to
-      // extend (proposer selection included) — used to independently confirm
+      // extend (proposer selection included): used to independently confirm
       // a certified-invalid-bundle halt rather than trusting its error string
       validateBundle: (record) => {
         try {
@@ -625,7 +625,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
         } catch (e) { return e.message }
       },
       // deterministic replay of a bundle against the previous state hash it
-      // claims — recompute the resulting hash exactly as a witness would
+      // claims: recompute the resulting hash exactly as a witness would
       replay: (bundle) => {
         try {
           const base = n.holder?.replayStates?.get(bundle.previousStateHash)
@@ -635,11 +635,11 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
       },
     })
     if (proofErr)
-      violations.push(`S4 UNPROVEN HALT: ${n.name} halted [${h.code}] but its evidence does not prove it — ${proofErr}`)
+      violations.push(`S4 UNPROVEN HALT: ${n.name} halted [${h.code}] but its evidence does not prove it, ${proofErr}`)
   }
 
   // any unexpected exception during the run fails the scenario (brief §3)
-  for (const he of harnessErrors) violations.push(`HARNESS: unexpected exception — ${he}`)
+  for (const he of harnessErrors) violations.push(`HARNESS: unexpected exception, ${he}`)
 
   // ---- liveness measurement (brief §4): min/max frontier + spread ----
   const heights = honestNodes.map(n => (n.agreement ?? n.shadow)?.getState?.().tick ?? n.holder.state.tick)
@@ -659,12 +659,12 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
   const allHonestAlive = honestNodes.filter(n => n.witnessKey).every(n => n.agreement && !n.agreement.halted)
   const healed = !partitionActive && allHonestAlive && !hasByz
   // A scenario may demand EXACT convergence (requiredSpread: 0) rather than
-  // the generic bounded-divergence threshold. The `heal` scenario — fault
-  // burst, then a long quiet tail — asserts spread 0: every healthy node
+  // the generic bounded-divergence threshold. The `heal` scenario: fault
+  // burst, then a long quiet tail: asserts spread 0: every healthy node
   // reaches the SAME finalized frontier, not merely a close one.
   const requiredSpread = cfg.requiredSpread ?? 3
   if (healed && spread > requiredSpread)
-    violations.push(`CONVERGENCE: healthy honest nodes diverge by ${spread} finalized ticks (min ${minFrontier}, max ${maxFrontier}) — this scenario requires spread ≤ ${requiredSpread}`)
+    violations.push(`CONVERGENCE: healthy honest nodes diverge by ${spread} finalized ticks (min ${minFrontier}, max ${maxFrontier}), this scenario requires spread ≤ ${requiredSpread}`)
 
   const frontier = Math.max(0, ...heights)
   const crashes = nodes.reduce((s, n) => s + n.crashes, 0)
@@ -677,7 +677,7 @@ export function runScenario(name, cfg, seed, durationMs, quiet = true) {
 // ---------- scenarios ----------
 export const SCENARIOS = {
   // minTicks is the SLOWEST honest node's finalized floor (convergence).
-  // maxTicks is the fastest node's floor (the world advanced at all) — used
+  // maxTicks is the fastest node's floor (the world advanced at all): used
   // where a fault may legitimately leave one node mid-recovery at cutoff.
   benign:    { n: 4, q: 3, loss: 0.00, minDelay: 5,  maxDelay: 40,  dup: 0.00, minTicks: 15 },
   lossy:     { n: 4, q: 3, loss: 0.25, minDelay: 10, maxDelay: 900, dup: 0.30, minTicks: 2 },
@@ -687,14 +687,14 @@ export const SCENARIOS = {
   liar:      { n: 4, q: 3, loss: 0.05, minDelay: 5,  maxDelay: 100, dup: 0.05, byzantine: [{ index: 1, kind: 'liar' }], minTicks: 3 },
   replayer:  { n: 4, q: 3, loss: 0.05, minDelay: 5,  maxDelay: 100, dup: 0.10, byzantine: [{ index: 2, kind: 'replayer' }], minTicks: 3 },
   garbage:   { n: 4, q: 3, loss: 0.05, minDelay: 5,  maxDelay: 100, dup: 0.05, byzantine: [{ index: 3, kind: 'garbage' }], minTicks: 3 },
-  // chaos: n=7, q=5, f=2 — two Byzantine actors are now WITHIN the
+  // chaos: n=7, q=5, f=2, two Byzantine actors are now WITHIN the
   // constitutional threshold (n>=3f+1=7, q>=2f+1=5, 2q-n=3>2), so the
   // scenario tests the model's guarantee rather than operating outside it.
   chaos:     { n: 7, q: 5, f: 2, loss: 0.20, minDelay: 10, maxDelay: 700, dup: 0.25, crashRate: 0.35, maxDowntime: 2500,
                partitionRate: 0.4, maxPartitionMs: 2500,
                byzantine: [{ index: 0, kind: 'equivocator' }, { index: 6, kind: 'garbage' }], maxTicks: 0 },
   // heal: a burst of early partitions, then a long quiet tail. By the end
-  // the network is healthy and the CONVERGENCE invariant must hold — every
+  // the network is healthy and the CONVERGENCE invariant must hold: every
   // honest node finalized the same frontier (spread ≤ 3), and the slowest
   // still cleared a floor. This is the brief's "healed nodes must converge".
   heal:      { n: 4, q: 3, loss: 0.10, minDelay: 5, maxDelay: 200, dup: 0.10,
@@ -705,13 +705,13 @@ export const SCENARIOS = {
   // at the edge of what the configuration tolerates.
   'byzantine-max': { n: 7, q: 5, f: 2, loss: 0.05, minDelay: 5, maxDelay: 120, dup: 0.10,
                byzantine: [{ index: 0, kind: 'equivocator' }, { index: 6, kind: 'equivocator' }], minTicks: 0 },
-  // lockstorm: the frontier case — equivocation TIMED WITH an early partition
+  // lockstorm: the frontier case, equivocation TIMED WITH an early partition
   // burst (a la `heal`) so honest witnesses lock conflicting bundle hashes
   // across rounds, then a long quiet tail. The vote-lock is never released
   // except by finalization, so this is precisely where a permanent wedge could
   // hide. The model's promise is narrow but absolute: no fork (S1), no
   // double-sign (S2), and any honest halt carries standalone-verifiable
-  // evidence (S3/S4). Liveness is REPORTED, not required — a provable halt is
+  // evidence (S3/S4). Liveness is REPORTED, not required: a provable halt is
   // an acceptable outcome here; a silent fork is not.
   lockstorm: { n: 7, q: 5, f: 2, loss: 0.10, minDelay: 5, maxDelay: 200, dup: 0.10,
                partitionRate: 0.7, maxPartitionMs: 2000, partitionUntilMs: 9000,
@@ -736,8 +736,8 @@ if (isMain) {
       // convergence promise); maxTicks bounds the FASTEST (a "the world
       // advanced" promise) where a fault may leave a node mid-recovery
       const live = 'minTicks' in cfg
-        ? r.minFrontier >= cfg.minTicks
-        : r.maxFrontier >= (cfg.maxTicks ?? 0)
+        ? r.minFrontier >= cfg.minTicks:
+        r.maxFrontier >= (cfg.maxTicks ?? 0)
       const ok = r.violations.length === 0 && live
       if (!ok) failed++
       const haltStr = r.halted.map(h => `${h.name}:${h.code ?? 'NONE'}`).join(',')
@@ -755,7 +755,7 @@ if (isMain) {
         const got = usingMin ? r.minFrontier : r.maxFrontier
         const want = usingMin ? cfg.minTicks : (cfg.maxTicks ?? 0)
         console.log(`    LIVENESS below floor: ${usingMin ? 'slowest' : 'fastest'} honest node reached `
-          + `${got}, floor is ${want} (${usingMin ? 'minTicks' : 'maxTicks'}) — investigate`)
+          + `${got}, floor is ${want} (${usingMin ? 'minTicks' : 'maxTicks'}), investigate`)
         // A seed is a fixed CRASH SCHEDULE, not a fixed scenario. The proposer
         // is derived from previousStateHash, so any change to the shape of
         // state -- a merged skill, an added field -- reshuffles proposer order
@@ -765,6 +765,6 @@ if (isMain) {
       }
     }
   }
-  console.log(`\n${totalRuns - failed}/${totalRuns} runs upheld the freeze criterion` + (failed ? ' — FAILURES PRESENT' : ''))
+  console.log(`\n${totalRuns - failed}/${totalRuns} runs upheld the freeze criterion` + (failed ? ': FAILURES PRESENT' : ''))
   process.exit(failed ? 1 : 0)
 }

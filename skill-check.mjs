@@ -51,13 +51,27 @@ check('SKILLS is a clean set', [
   for (const [item, reqs] of Object.entries(E.SMITH_REQS))
     for (const sk of Object.keys(reqs))
       if (!SKILLS.has(sk)) bad.push(`SMITH_REQS['${item}'] requires '${sk}', which is not a skill`)
-  for (const sk of Object.keys(E.CALLINGS))
-    if (!SKILLS.has(sk)) bad.push(`CALLINGS names '${sk}', which is not a skill`)
+  // §5k-iii: `CALLINGS` is gone -- the nine generic craft words, which no
+  // citizen can be called since the unsworn became newcomers. `SWORN` is the
+  // table that matters and it names a skill per calling, so it gets the check.
+  for (const [calling, v] of Object.entries(E.SWORN))
+    if (!SKILLS.has(v?.skill)) bad.push(`SWORN['${calling}'] is of '${v?.skill}', which is not a skill`)
   check('every table naming a skill names a real one', bad)
 }
 
-// 3. every skill has a calling (nothing is unnameable)
-check('every skill has a calling', E.SKILLS.filter(s => !E.CALLINGS[s]).map(s => `${s} has no calling`))
+// 3. every skill has a calling (no craft is a dead end)
+//
+// This used to ask whether every skill had a generic word in `CALLINGS`, which
+// told you only that somebody had named it. The question worth asking is
+// whether every craft is a trade a citizen can actually SWEAR to: a skill with
+// no calling can be trained to seventy and never mastered by anybody, which
+// would make it the one craft in the world with no endgame -- and nothing
+// before this would have said so.
+{
+  const opens = new Set(Object.values(E.SWORN).map(v => v?.skill))
+  check('every skill has a calling somebody can swear',
+    E.SKILLS.filter(s => !opens.has(s)).map(s => `${s} opens no calling: nobody can ever master it`))
+}
 
 // 4. no dangling `skills.X` for a name no longer in SKILLS
 {

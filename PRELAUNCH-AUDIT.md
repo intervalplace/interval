@@ -9,7 +9,7 @@ launch, what would it cost?*
 
 ---
 
-## FIXED — would have forced a fork or a divergence
+## FIXED, would have forced a fork or a divergence
 
 ### 1. `Math.pow` in the level curve (fixed, v0.60)
 
@@ -72,7 +72,7 @@ announces it.
 
 Fixed by freezing the founded world: `test/world-freeze.test.mjs` pins
 the worldId and the founded state hash. If either moves, the failure says
-so in those terms — the question is never "update the hash", it is "did I
+so in those terms: the question is never "update the hash", it is "did I
 mean to change the world?"
 
 Pre-launch the answer may be yes, and the new hash is recorded
@@ -131,7 +131,7 @@ split the world.
 So the priority order for the remaining audit is A and B only: the state
 transition, the generators, and the constitution that describes them.
 
-## VERIFIED SOUND — checked, no action
+## VERIFIED SOUND, checked, no action
 
 - **The state transition is free of implementation-defined math.** Zero
   transcendentals in `engine.js`. `effLevel` caps at 99 and the table is
@@ -172,11 +172,11 @@ number in the spec matches the engine.
 
 **Considered and rejected: raising `MAX_XP`.** There is room (the curve
 accumulates 4x experience, so the safe limit is about 2.25x10^15), but
-the gain is imaginary — nobody reaches 10^12 — and the cost is real:
+the gain is imaginary, nobody reaches 10^12, and the cost is real:
 larger values push the accumulator toward the boundary where exactness
 fails. A bound at four centuries of play is not a bound anyone meets.
 
-## OPEN — decisions better made before launch than after
+## OPEN: decisions better made before launch than after
 
 ### A. Prayer does nothing (design decision, not a bug)
 
@@ -226,7 +226,7 @@ held its size to within 0.00% between tick 400 and tick 1,000, kept
 `validateState` valid throughout, and showed no accumulation in nodes,
 ground items, or announcements. Nothing leaks per tick.
 
-## FINDING — `LOTS_N` is a consensus-critical hardware tuning constant
+## FINDING: `LOTS_N` is a consensus-critical hardware tuning constant
 
 Profiling a tick showed **55% of the time in SHA-256 and 21% in garbage
 collection**, which looked like a performance bug. It is not. It is the

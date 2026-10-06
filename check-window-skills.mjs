@@ -9,7 +9,7 @@
 //   2. does the mist window offer it?                        (the window)
 //
 // The order matters. Where the answer to (1) is no, the window is right not to
-// offer it — a deed the pillar drops is a deed that cannot happen, and showing
+// offer it: a deed the pillar drops is a deed that cannot happen, and showing
 // it would be the same fault as offering `deposit` in a wood.
 //
 // No three.js needed: this reads the three files.
@@ -46,7 +46,7 @@ for (const [skill, ways] of Object.entries(PAYS)) {
   for (const [v] of blocked) pillarGaps.add(v)
   const how = ok ? live[0][1] : ways[0][1]
   console.log('  ' + (ok ? ' ok  ' : ' NO  ') + skill.padEnd(13) + how.padEnd(33) +
-              (routed(ways[0][0]) ? '  yes  ' : '  no   ') + (ok ? '  yes' : '  \u2014'))
+              (routed(ways[0][0]) ? '  yes  ' : '  no   ') + (ok ? '  yes' : ','))
   if (!ok) unreachable++
 }
 console.log('')

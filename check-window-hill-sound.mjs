@@ -21,7 +21,7 @@ const noop = () => {}
 const built = []          // every node the window asks the audio graph for
 // COUNTING NODES IS NOT LISTENING. An earlier version of this check compared
 // how many audio nodes a deed built, and chopping and mining both build two
-// bursts and a blip — the counts matched and the check only ever passed because
+// bursts and a blip: the counts matched and the check only ever passed because
 // a stray footstep happened to inflate one of them. What tells them apart is
 // what the nodes are SET TO, so the parameters are recorded instead.
 const voiced = []
@@ -134,7 +134,7 @@ const mine = count(() => tap('e'))
 const mineVoice = voiced.filter(v => /Hz/.test(v)).join(' ')
 ok(mine >= 6, 'mining is steel on stone, with a ring after it (' + mine + ' nodes)')
 ok(chopVoice !== '' && mineVoice !== '' && chopVoice !== mineVoice,
-   'and it is not the same noise as chopping \u2014 chop ' + chopVoice.slice(0, 34) +
+   'and it is not the same noise as chopping, chop ' + chopVoice.slice(0, 34) +
    ' vs mine ' + mineVoice.slice(0, 34))
 send({ type: 'state', state, worldId: 'w' }); frames(2)
 const hit = count(() => tap(' '))

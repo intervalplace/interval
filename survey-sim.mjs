@@ -10,7 +10,7 @@ const TICKS_PER_HOUR = 3600_000 / TICK_MS; // 6000
 const TARGET_HOURS = 120;
 const TARGET_XP_PER_HOUR = XP99 / TARGET_HOURS;
 
-// a small seeded PRNG — stands in for the beacon for MEASURING geometry
+// a small seeded PRNG: stands in for the beacon for MEASURING geometry
 // (the engine will place markers from the real beacon; the statistics match)
 function rng(seed) { let a = seed >>> 0; return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 

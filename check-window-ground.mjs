@@ -1,7 +1,7 @@
 // §6dj, for the mist window: DOES THE GROUND AGREE WITH THE PILLAR.
 //
 // The chart-table fetched `blocked`, `road` and `country` and drew a map from
-// them — and then the 3D ground ignored all three and picked its texture out of
+// them, and then the 3D ground ignored all three and picked its texture out of
 // hash noise. So a lake looked like grass and you walked at it and were blocked
 // with no warning; a road with two hundred signposts along it looked like a
 // field; and the fens, the moor and the heartlands were the same sage-green.

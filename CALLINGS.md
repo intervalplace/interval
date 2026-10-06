@@ -1,4 +1,4 @@
-# §5k — the calling, the ceiling, and what a mastery is worth
+# §5k: the calling, the ceiling, and what a mastery is worth
 
 ## The correction this began with
 
@@ -19,8 +19,8 @@ function."* The hook was there. The policy was not.
 
 ## Why a ceiling, and not a longer curve
 
-Where the grind is scripted — and this world ships a window for writing the
-script — **curve length measures uptime, not commitment.** Doubling it buys six
+Where the grind is scripted, and this world ships a window for writing the
+script: **curve length measures uptime, not commitment.** Doubling it buys six
 months of waiting for the same writ. A ceiling is the one limit a script cannot
 out-wait, and so it is the only real limit this world has.
 
@@ -32,7 +32,7 @@ sworn, any other   70. Enough to round out and to fight with;
 ```
 
 Chosen against the real cost of a level, measured from the engine's own gather
-formula — a roll out of 65,536, a node retiring about one pull in four, and the
+formula: a roll out of 65,536, a node retiring about one pull in four, and the
 walk to the next one. At a star axe on ironbark: **50 is ~2h, 70 is ~22h, 100 is
 ~1,800h.** Eight other trades at 70 is about a tenth of one mastery, which is
 rounding out. At 80 it would have been a quarter, which is a second career.
@@ -41,17 +41,17 @@ rounding out. At 80 it would have been a quarter, which is a second career.
 
 ## One gate
 
-Eighteen places wrote `p.skills.x += y` directly — prowess on a blow landed,
+Eighteen places wrote `p.skills.x += y` directly: prowess on a blow landed,
 marksmanship on a shot, sorcery on a sigil spent. A ceiling in `awardXp` alone
 would have left the **combat** skills uncapped, which is precisely the wrong
 hole. All nineteen gains now pass `gainXp`, which clamps to `xpCeiling`. Both
 are exported: a window wants to say *"you cannot pass seventy here"* without
 knowing why, so the rule is a query rather than a number to copy.
 
-## A mastery is a yield — and a calling is NOT a rate
+## A mastery is a yield, and a calling is NOT a rate
 
 The ceiling alone was not an economy. Measured against the same formula,
-**thirty levels of mastery bought an eight per cent rate** — while a better axe
+**thirty levels of mastery bought an eight per cent rate**, while a better axe
 bought thirteen times that. So on ordinary logs there was no reason to buy from
 a master rather than chop your own, and only **twelve of the world's 148 gates**
 sit above seventy.
@@ -69,7 +69,7 @@ A calling briefly multiplied the gather rate 3/2, on exactly that reasoning.
 * **A rate scales automation.** This world ships a window for writing the
   citizen, and a writ collects a multiplier better than a person does because it
   never stops. A rate bonus therefore rewards most exactly the play the ceiling
-  was built to blunt — an argument that has nothing to do with prices and is
+  was built to blunt: an argument that has nothing to do with prices and is
   worse than the price one.
 
 So there is **one lever, not two**:
@@ -83,11 +83,11 @@ A master out-produces a capped seventy by **2.16x** on yield alone. Whether that
 is enough is a tuning question and there are no players yet: ship one lever,
 watch a real market, add the second only if masters turn out not to matter.
 
-## §5w — teaching, and a mark only finishing can mint
+## §5w, teaching, and a mark only finishing can mint
 
 A master may take an unsworn citizen on; the swearing that follows may name
 them, and the mark goes into the record for ever. It buys **no rate, no level
-and no ceiling**. The reward is entirely reputational — and it is the one kind
+and no ceiling**. The reward is entirely reputational, and it is the one kind
 of reputation that cannot be faked, because it is a signature in a replayable
 log rather than a claim.
 
@@ -97,7 +97,7 @@ teach(to)               a master takes a citizen on. Consent is a signed input
                         volunteered.
 swear(calling, attester) the student may name a master whose apprenticeship is
                         live and who is standing here.
-part(who)               either party may end it. NOT `release` — the
+part(who)               either party may end it. NOT `release`: the
                         consignment already owns that word, and a second case
                         with the same label would have shadowed it silently.
 ```
@@ -110,7 +110,7 @@ the tick it happened.
 
 The apprenticeship does not so much end as **turn into the permanent thing**:
 the swearing closes it in the same breath that mints the lineage. Which means
-the only clock needed is for the student who drifts away and never comes back —
+the only clock needed is for the student who drifts away and never comes back:
 `APPRENTICE_LAPSE`, twelve hours of intervals, after which the slot is free.
 
 Two rulings worth writing down:
@@ -125,16 +125,16 @@ Two rulings worth writing down:
 
 Three ways it can go, and one of them leaked.
 
-* **Attested, to another trade** — refused. A forester cannot vouch for a miner;
+* **Attested, to another trade**: refused. A forester cannot vouch for a miner;
   the validator requires the attester share the student's trade.
-* **Attested, same trade** — the mark is minted and the slot freed.
-* **Unattested, to any trade** — allowed, and this is the one that leaked. It
+* **Attested, same trade**: the mark is minted and the slot freed.
+* **Unattested, to any trade**, allowed, and this is the one that leaked. It
   used to leave the master holding a slot occupied by somebody now sworn, who
   `teach` would refuse for ever, until the twelve-hour lapse ran out.
 
 A swearing now ends **every** apprenticeship it was in, whoever attested it and
-whatever trade it was to. An apprentice is by definition unsworn — `teach`
-refuses anyone with a calling — so the moment they swear, none of it can still
+whatever trade it was to. An apprentice is by definition unsworn: `teach`
+refuses anyone with a calling, so the moment they swear, none of it can still
 be live.
 
 The ruling behind it: **an apprentice promised nothing.** The master consented
@@ -148,7 +148,7 @@ the reward; its absence is not a wall.
 ### The grades moved with it
 
 `apprentice` used to mean *below fifty*, which is a number, and everyone was one
-by default — a word that applies to everybody describes nobody.
+by default: a word that applies to everybody describes nobody.
 
 ```
 newcomer     unsworn, unattached          what everyone starts as
@@ -161,10 +161,10 @@ master       at MASTERY in their trade
 words. `check-engine-teaching.mjs` drives all of it, including that a forgotten
 apprenticeship lapses back to newcomer.
 
-## §5x — the ritual: you are not a master until you have made one
+## §5x: the ritual: you are not a master until you have made one
 
 Reaching `MASTERY` makes a citizen **eligible**. What admits them is having
-raised somebody to their own swearing — the old guild rule, where a journeyman
+raised somebody to their own swearing: the old guild rule, where a journeyman
 stayed a journeyman until the craft accepted a piece of work laid before it.
 Here the piece of work is a person.
 
@@ -172,7 +172,7 @@ Why this rather than a quest:
 
 * **It is uniform.** Nine trades, no hand-authored tasks, nothing to keep in
   step with the tables. Five of the nine have no deep node and no dear recipe to
-  build a quest around at all — measured, not assumed.
+  build a quest around at all: measured, not assumed.
 * **It cannot be ground.** It needs another citizen to reach fifty and swear,
   which is theirs to do and not yours.
 * **It is done once, ever**, so there is no point automating it: writing a
@@ -180,7 +180,7 @@ Why this rather than a quest:
 * **It makes the endgame social by construction.** A master of Interval is not a
   person with nine hundred hours; it is a line of people.
 
-An alt can do it — two hours to fifty and a swearing before yourself — and that
+An alt can do it, two hours to fifty and a swearing before yourself, and that
 is the correct price rather than a hole. It is also **legible**: the lineage is
 signed and public, and a master whose only apprentice appears nowhere else has
 told everybody what they did.
@@ -189,7 +189,7 @@ told everybody what they did.
 finishing, so proof is *derived*: `isProven(p)` is `raised >= 1`. No citizen can
 be handed it, and there is no field to migrate.
 
-## §5y — what the tail past a hundred is for
+## §5y: what the tail past a hundred is for
 
 Your own trade has no ceiling and `XP_TABLE` runs to 171, so there is no
 completion state; but the levels did nothing except count. Measured from the
@@ -197,7 +197,7 @@ gather formula: **105 is a month past mastery, 110 is three, 120 is sixteen.**
 So the milestones are 100 / 105 / 110, and nothing lives past 110 where nobody
 would see it.
 
-They must not multiply throughput — the same argument that killed the calling
+They must not multiply throughput, the same argument that killed the calling
 rate, and it is stronger here, because past-mastery play is the most automated
 play there is. So **the tail buys capacity for other people**: one apprentice
 slot at each milestone. A very deep master is visibly a school.
@@ -208,7 +208,7 @@ used. Note that `teach` checks MASTERY **xp**, not the master *grade*, so there
 is no deadlock: reach a hundred, take somebody on, raise them, and the craft
 admits you.
 
-## §5z — what a mastery is worth, in every trade
+## §5z, what a mastery is worth, in every trade
 
 §5k paid the four gathering trades a double yield and left the other five with
 nothing to double: mourning has no seam, prowess no recipe, and marksmanship,
@@ -234,7 +234,7 @@ Three judgements worth recording:
 * **Not two arrows, and not dual wielding.** Both are multipliers, and a
   multiplier in a fight is a balance problem before it is a reward: it changes
   what a master does to another citizen rather than what a master is worth.
-  Arrow recovery is a *material* saving — the same shape as the double yield,
+  Arrow recovery is a *material* saving, the same shape as the double yield,
   and bounded, since you can never end a fight with more than you began with.
 * **Not "a master casts without spending the sigil."** It has a trap: sorcery's
   experience *comes from* spending sigils (`XP_SPEND_SIGIL`), so a master who
@@ -253,7 +253,7 @@ admitted for is a number rewarding itself.**
 ### And the guide had to be reorganised for it
 
 With the boon, the ceiling, five seams and three callings above them, a skill
-page ran to twelve rows before the first unlock — of which nine are visible, so
+page ran to twelve rows before the first unlock: of which nine are visible, so
 the unlocks were simply off the bottom. A citizen cannot read what they cannot
 see. Seams and callings now sit behind a row each; the unlocks, which are what
 the guide is *for*, come back up where they can be seen.
@@ -269,9 +269,9 @@ the guide is *for*, come back up where they can be seen.
   kindles never goes out, a span they lay never rots), and authority over the
   map (found a settlement that joins the served `settlements` table, so every
   window forever draws a place with your name on it).
-* **The live pillar has not been booted since the merge.** It refounds correctly
-  — changing `engine.js` changes its hash, so a world founded under the old
-  build cannot be continued — and it got as far as writing a new checkpoint
+* **The live pillar has not been booted since the merge.** It refounds correctly,
+changing `engine.js` changes its hash, so a world founded under the old
+  build cannot be continued, and it got as far as writing a new checkpoint
   before the sandbox ran out of time. `node serve.mjs`, wait for *"Interval is
   live"*, then `curl localhost:8787/api/tables` is the first thing to run.
 
@@ -290,12 +290,12 @@ calling name written into a window.
 that §5k shrank.
 
 **`HOOD_STANDING` was 1200 and had become unreachable.** The widest citizen the
-rules now allow stands at 8&times;70 plus their own trade — about 660. Worse than
+rules now allow stands at 8&times;70 plus their own trade, about 660. Worse than
 the arithmetic: the hood was explicitly the *generalist's* peer to the cape
 (*"the cape says you went far in one thing; the hood says you went
 everywhere"*), and §5k abolished the generalist. It is **600** now: every trade
 taken as far as the ceiling allows, about forty-eight hours. The rest of §6ax is
-untouched — the threshold was always only a sybil toll and a pace.
+untouched: the threshold was always only a sybil toll and a pace.
 
 **Standing is no longer the generalists' board.** Once sworn, 560 of it is a
 constant, so it reads as one trade's level plus a fixed number. Kept because the
@@ -307,7 +307,7 @@ and `sworn_by` per citizen. It is the only number here that measures a thing a
 citizen did for somebody else, it is minted only by an apprentice finishing, and
 every entry is backed by signatures anybody may replay.
 
-**Callings do not need a board of their own** — they already have one, as a
+**Callings do not need a board of their own**: they already have one, as a
 filter under the trade, and the reasoning in `site/hiscores.html` still holds:
 seventeen equal buttons is a wall, and a berserker and a warden take opposite
 bargains that one column measures neither of. What changed is that the filter

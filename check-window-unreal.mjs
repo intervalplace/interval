@@ -1,4 +1,4 @@
-// check-window-unreal.mjs — hold the Unreal window to the one rule that
+// check-window-unreal.mjs: hold the Unreal window to the one rule that
 // makes it a window and not a rumour.
 //
 // Every other check-window-*.mjs compares the window's COPY of a table to

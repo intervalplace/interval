@@ -284,6 +284,7 @@
     <div class="keyrow">
       <button type="button" class="keybtn" data-ik="export">export key</button>
       <button type="button" class="keybtn" data-ik="import">import key</button>
+      <button type="button" class="keybtn" data-ik="proof">save citizen</button>
     </div>
   </div>
 </div>
@@ -3719,21 +3720,11 @@ function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
   const q = BigInt(Math.floor(lvl / 7)), r = lvl % 7
   return lvl + Number((300n * (1n << q) * POW2_SEVENTHS[r]) >> 96n)
 }
-// §10: character for character from the engine's CALLINGS. A window that
-// invents a word here is a window that calls a citizen something the world
-// does not. Three were wrong: `strength` and `hauling` had no word at all
-// (a berserker or a runner rendered as `undefined`), and `magic` said
-// sigilist where the constitution says alchemist.
-// §5n-§5r: the nine trades, character for character from the engine's CALLINGS.
-// This was the SEVENTEEN-skill table from before the collapse -- woodcutting,
-// mining, attack, strength, defence and eleven more, none of which are skills
-// any more. Every lookup missed, so the window called every citizen in the
-// world 'undefined' beside their name.
-const CALLINGS = {
-  woodcraft: 'woodwright', earthcraft: 'smith', shorecraft: 'shorekeeper',
-  mourning: 'mourner', marksmanship: 'archer', sorcery: 'alchemist',
-  wayfaring: 'wayfarer', hearthcraft: 'hearthkeeper', prowess: 'fighter',
-}
+// §5k-iii: the nine generic craft words are gone from the engine and from
+// here. No citizen can be called a woodwright or a shorekeeper any more: what
+// you are called is a rank until you swear and your calling after. The map of
+// which callings a craft opens is CALLINGS_OF below, built from the world's
+// own SWORN table.
 // §6bv: WHAT OPENS, AND AT WHAT LEVEL. Generated from the engine's own
 // `skillUnlocks()`, which has existed and been exported this whole time and
 // which no window ever called -- so the only way to find out what a level was
@@ -4521,7 +4512,7 @@ const CALLINGS_OF = {
   hearthcraft: ['farmer', 'brewer'],
   prowess: ['fighter', 'berserker', 'warden'],
   marksmanship: ['archer'],
-  sorcery: ['alchemist'],
+  sorcery: ['sorcerer'],
   wayfaring: ['cartographer', 'runner'],
   mourning: ['mourner'],
 }
@@ -4550,20 +4541,33 @@ function standingOf(p) { // the sum of true levels: mastery is a milestone, not 
   for (const sk of SKILL_ORDER) n += XP_TO_LVL(p?.skills?.[sk] ?? 0)
   return n
 }
-function callingOf(p) { // the trade you have the most experience in, as a word
-  let best = null, bestXp = -1
-  for (const sk of SKILL_ORDER) {
-    if (sk === 'prowess') continue
-    const xp = p?.skills?.[sk] ?? 0
-    if (xp > bestXp) { bestXp = xp; best = sk }
+function callingOf(p) { // what the world calls this citizen, exactly as engine.js does
+  // §5k: THE SWORN WORD IS THE ANSWER. It is what the citizen SAID, and
+  // nothing they do afterwards edits it.
+  //
+  // §5k-ii: AND AN UNSWORN CITIZEN IS A NEWCOMER. This window named them after
+  // whichever craft they had most experience in, out of a `CALLINGS` table
+  // that predates swearing, and did not handle the sworn case at all -- so a
+  // sworn forester read `woodwright` here and `forester` everywhere else. The
+  // fallback is gone from the engine for two reasons: nobody is a smith before
+  // they swear, and five of those words are also callings, so the word could
+  // not be told from an oath.
+  if (typeof p?.calling === 'string' && p.calling) {
+    // `typeof` rather than a bare read: test/identity.test.mjs evaluates this
+    // block on its own, where the table the window loads at runtime does not
+    // exist, and an undeclared name is a ReferenceError that optional chaining
+    // does not catch.
+    const sk = (typeof SWORN_T !== 'undefined' && SWORN_T) ? SWORN_T[p.calling]?.skill : undefined
+    const deep = sk ? (p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY] : false
+    // §5n: the word is earned by raising somebody, not by the number alone
+    return (deep && (p?.raised ?? 0) >= 1 ? 'master ' : '') + p.calling
   }
-  if (best === null || XP_TO_LVL(bestXp) <= 1) return 'newcomer'
-  // §4b: MASTERY IS ONE HUNDRED. This read XP_TABLE[99] -- the old ceiling --
-  // so the window called a citizen a master one whole level early, and named
-  // Master of Interval before the last level of any trade was done.
-  if (SKILL_ORDER.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY])) return 'Master of Interval'
-  // mastery is the milestone the world announces, so the calling says it
-  return (bestXp >= XP_TABLE[MASTERY] ? 'master ' : '') + CALLINGS[best]
+  // §5k-iii: MASTER OF INTERVAL IS GONE, because §5k's caps made it
+  // impossible. An unsworn citizen is held to level fifty in everything and a
+  // sworn one to seventy outside their own trade, and the engine REFUSES a
+  // state with all nine at a hundred. A window must not offer a title the
+  // world will not let anybody hold.
+  return 'newcomer'
 }
 // the mobs, character for character from engine.js MOB_STATS (spec 6c). A
 // window cannot ask the world how hard a troll hits: the state carries a mob's
@@ -5408,7 +5412,11 @@ const BRIDGE_TO_INPUT = (a) =>
   // `attester` is optional: an unattested swearing stays legal (§5w), and the
   // first forester has nobody to attest them.:
   a.do === 'swear' ? (a.attester === undefined
-      ? { type: 'swear', calling: a.calling }:
+      // §5w: the attester is a DECLARED field now and empty means nobody.
+      // It was omitted entirely for an unattested swearing, which this
+      // constitution has no room for: every declared field is required, so
+      // the omission became `missing field attester on swear`.
+      ? { type: 'swear', calling: a.calling, attester: '' }:
       { type: 'swear', calling: a.calling, attester: a.attester }):
   a.do === 'teach' ? { type: 'teach', to: a.to }:
   a.do === 'part' ? { type: 'part', who: a.who }:
@@ -6548,6 +6556,31 @@ async function connect (reason) {
   if (gen !== wsGen) return                        // a newer connect() overtook us
   if (!found) {
     showNode(null)
+    // §9b-iii: nothing answers for this world. Before settling into a retry
+    // loop for ever, ask whether it ENDED and something continues it.
+    const heir = await findSuccessorWeb()
+    if (gen !== wsGen) return
+    if (heir) {
+      // SAID OUT LOUD, in both places a citizen is looking. Moving somebody
+      // between worlds quietly is the one thing this client must never do, and
+      // a successor is still a different world even though it is checked to be
+      // the same rules and the same island.
+      feed('The world you were a citizen of has stopped. A world that continues it '
+         + 'is running at ' + heir.node.replace(/^https?:\/\//, '') + ', under the same '
+         + 'rules on the same island. Going there, and your own record is what '
+         + 'will let you back in.')
+      const g0 = document.getElementById('gateinfo')
+      if (g0) g0.innerHTML = 'the world you played has ended.<br>'
+        + '<span style="font-size:11px;opacity:.8">A world continuing it was found at '
+        + heir.node.replace(/^https?:\/\//, '') + ': same rules, same island, checked '
+        + 'against the founding your own file carries. Entering it now.</span>'
+      try {
+        localStorage.setItem('interval-node', heir.node)
+        localStorage.setItem('interval-world', heir.worldId)
+      } catch {}
+      setTimeout(() => { if (gen === wsGen) connect('successor') }, 1200)
+      return
+    }
     feed('No node is answering for this world. Retrying\u2026')
     setTimeout(() => { if (gen === wsGen) connect('retry') }, 5000)
     return
@@ -8004,6 +8037,9 @@ function _onState(s, worldId, local) {
   if (s.genesis && (W !== s.genesis.worldW || !groundReady)) {
     W = s.genesis.worldW; H = s.genesis.worldH
     GEN = s.genesis.worldGenerator ?? GEN; GSEED = s.genesis.genesisSeed ?? ''
+    // §9b-iii: and if this founding continues another, walk back in. Guards
+    // itself, and is silent in every world that continues nothing.
+    comeHomeWeb(s.genesis).catch(() => {})
     // TOLD BEATS DERIVED. The pillar knows where it put the towns; take that
     // rather than re-deriving it here. Everything downstream reads ssE() --
     // the paving, the wall tint, the minimap, the "you are in Anchor" panel --
@@ -9426,7 +9462,7 @@ function drawCitizen(X, Y, o) {
     } else if (o.wepItem === 'staff' || o.wepItem === 'heartwood-staff') {
       // A STAVE IS LEANED ON. It runs BELOW the hand to the ground and above
       // it to about the shoulder -- a walking stick, not a flagpole. There was
-      // no branch for it at all, so an alchemist carried an invisible staff.
+      // no branch for it at all, so a sorcerer carried an invisible staff.
       const heart9 = o.wepItem === 'heartwood-staff'
       cx.fillStyle = heart9 ? '#7a5a2a' : '#4a3a22'
       cx.fillRect(-0.8, -11, 1.6, 23)
@@ -14188,7 +14224,10 @@ function drawBanner(now) {
   if (announceShow && now - announceShow.at >= 4800) announceShow = null
   if (announceShow) {
     const a = (now - announceShow.at) / 4800
-    const grand = /FIRST|Master of Interval/.test(announceShow.text)
+    // §5k-iii: `Master of Interval` dropped out of this test with the title.
+    // The world no longer announces it -- the caps made it impossible -- so the
+    // alternative could only ever fail to match. A FIRST is still grand.
+    const grand = /FIRST/.test(announceShow.text)
     const bw = grand ? 760 : 620, bh = 78, bx2 = (1120 - bw) / 2, by2 = 16
     g.globalAlpha = a < 0.9 ? 1 : (1 - a) / 0.1
     g.fillStyle = grand ? "#2a1c10" : "#332a1c"; g.fillRect(bx2, by2, bw, bh)
@@ -15236,7 +15275,7 @@ cv.addEventListener('click', (e) => {
     // A MENDING, SENT. A wand sends what a bare hand keeps: a sigil spent to
     // heal somebody four tiles off. Offered everywhere, because helping
     // somebody is not a thing the Wilds should gate -- and this window could
-    // not do it at all, so an alchemist here had a wand and no use for it.
+    // not do it at all, so a sorcerer here had a wand and no use for it.
     const mendOpt = (() => {
       const wand = me.equipment?.weapon?.item === 'wand'
       const sig = (me.inventory ?? []).some(sl => sl?.item === 'sigil')
@@ -16067,8 +16106,364 @@ async function importOwnKey() {
   localStorage.setItem('interval-ownkey', JSON.stringify({ pk8: m9[1], pub: m9[2] }))
   location.reload()
 }
+// ---- §5g-ii: THE CITIZEN'S OWN PROOF, IN A BROWSER ----
+//
+// A desktop player's bridge writes this beside their key. A browser player has
+// no filesystem and, more to the point, cannot BUILD it: the path is a walk
+// over every living citizen and this window holds no such tree. So the node
+// serves it, at /api/proof.
+//
+// WHICH WOULD BE TRUSTING THE NODE, except that the bundle proves itself. The
+// record folds through the path to a root the world's own certificate covers,
+// so the fold is replicated here and a bundle that does not fold is refused
+// and not kept. A node cannot hand you a flattering version of yourself.
+//
+// THE CONVENTION IS `_smtFold`'S, level for level: the bitmap is indexed by
+// depth, the siblings are consumed from the leaf upwards, an absent sibling is
+// the empty subtree of that height, and the bit decides which side. Signatures
+// are not the only thing in this window that must agree with the engine to the
+// byte.
+const SMT_DEPTH_W = 64
+let _emptyW = null
+const sha256hex = async (str) =>
+  toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)))
+async function emptyTableW () {
+  if (_emptyW) return _emptyW
+  const e = [await sha256hex('interval:smt:empty')]
+  for (let d = 1; d <= SMT_DEPTH_W; d++)
+    e.push(await sha256hex('interval:smt:node' + e[d - 1] + e[d - 1]))
+  _emptyW = e
+  return e
+}
+const smtBitW = (pid, d) => (parseInt(pid[Math.floor(d / 4)], 16) >> (3 - (d % 4))) & 1
+async function provesLivingWeb (root, pid, record, path) {
+  if (!root || !pid || !record || !path || typeof path.bits !== 'string') return false
+  if (path.bits.length !== SMT_DEPTH_W || !Array.isArray(path.sibs)) return false
+  const EMPTY_W = await emptyTableW()
+  const digest = await sha256hex(canonicalJS(record))
+  let h = await sha256hex('interval:smt:leaf' + pid + digest), used = 0
+  for (let d = SMT_DEPTH_W - 1; d >= 0; d--) {
+    let sib
+    if (path.bits[d] === '1') {
+      if (used >= path.sibs.length) return false
+      sib = path.sibs[used++]
+      if (!/^[0-9a-f]{64}$/.test(sib)) return false
+    } else { sib = EMPTY_W[SMT_DEPTH_W - 1 - d] }
+    h = smtBitW(pid, d) ? await sha256hex('interval:smt:node' + sib + h)
+                        : await sha256hex('interval:smt:node' + h + sib)
+  }
+  if (used !== path.sibs.length) return false      // one form only
+  return h === root
+}
+
+// ---------- the seal, checked in the browser ----------
+//
+// The fold above proves a record reaches a root. It does not prove the root
+// was ever real, and a root nobody vouched for is one the server could have
+// invented. So the signatures come with the proof and are checked HERE,
+// against the witness list in the founding, the same way the desktop does it.
+//
+// This window verifies Ed25519 already (it signs every input), so there is
+// nothing to add but the payload: the domain string, then the canonical form
+// of exactly the fields the witness signed. MIND THE OFF-BY-ONE -- an
+// attestation's tick is the interval the bundle applied AT, so the state it
+// sealed is the one after.
+const ATT_DOMAIN_W = 'INTERVAL_ATTESTATION_V1|'
+const ATT_V_W = 3
+async function attOkW (a) {
+  try {
+    const core = {
+      v: a.v, worldId: a.worldId, tick: a.tick, round: a.round,
+      bundleHash: a.bundleHash, resultingStateHash: a.resultingStateHash,
+      livingRoot: a.livingRoot ?? null, witness: a.witness,
+    }
+    const pubk = await crypto.subtle.importKey('raw', IK_hex(a.witness), { name: 'Ed25519' }, false, ['verify'])
+    return await crypto.subtle.verify('Ed25519', pubk, IK_hex(a.sig),
+      new TextEncoder().encode(ATT_DOMAIN_W + canonicalJS(core)))
+  } catch { return false }
+}
+async function sealOkW (genesis, worldId, seal, root, tick) {
+  if (!seal || typeof seal !== 'object') return false
+  if (seal.worldId !== worldId) return false
+  if (seal.livingRoot !== root) return false
+  if (tick !== undefined && seal.tick !== tick) return false
+  const quorum = genesis?.quorum | 0
+  const allowed = new Set(genesis?.witnesses ?? [])
+  if (!quorum || !Array.isArray(seal.attestations) || seal.attestations.length < quorum) return false
+  const seen = new Set()
+  let round = null
+  for (const a of seal.attestations) {
+    if (!a || a.v !== ATT_V_W || a.worldId !== worldId) return false
+    if (a.tick + 1 !== seal.tick) return false
+    if (a.livingRoot !== seal.livingRoot) return false
+    if (!allowed.has(a.witness) || seen.has(a.witness)) return false
+    if (round === null) round = a.round
+    else if (a.round !== round) return false
+    seen.add(a.witness)
+    if (!await attOkW(a)) return false
+  }
+  return seen.size >= quorum
+}
+
+// KEPT IN localStorage, which is the same durability the KEY already has in
+// this window: it survives a reload and a restart, and it dies with cleared
+// site data. §0e already treats that as not good enough on its own for a key,
+// which is why there is an export button; the proof gets one for the same
+// reason, and for a browser player it is the whole of their archive.
+async function keepProofWeb () {
+  try {
+    if (!ownKey) return
+    const base = localStorage.getItem('interval-node')
+    if (!base) return
+    const r = await fetch(base + '/api/proof?pid=' + ownKey.pub, { cache: 'no-store' })
+    if (!r.ok) return
+    const b = await r.json()
+    if (b.playerId !== ownKey.pub) return
+    if (!await provesLivingWeb(b.livingRoot, b.playerId, b.record, b.path)) {
+      console.warn('[interval] a served proof did not fold; not keeping it')
+      return
+    }
+    // A world with witnesses must hand over their signatures. An unsealed
+    // proof from such a world is kept only if we have nothing at all, and it
+    // never replaces a sealed one, because the server offering it is the same
+    // server whose word the seal exists to do without.
+    const wits = (b.genesis?.witnesses ?? []).length
+    const sealed = wits > 0 && await sealOkW(b.genesis, b.worldId, b.seal, b.livingRoot, b.tick)
+    if (wits > 0 && !sealed) {
+      let had = null
+      try { had = JSON.parse(localStorage.getItem('interval-proof') ?? 'null') } catch {}
+      if (had && had.seal) {
+        console.warn('[interval] a served proof came unsealed; keeping the sealed one')
+        return
+      }
+      console.warn('[interval] a served proof came unsealed; keeping it anyway, for want of better')
+    }
+    const first = !localStorage.getItem('interval-proof')
+    localStorage.setItem('interval-proof', JSON.stringify(b))
+    // Said once, the first time. A browser player has no file to stumble
+    // across, so if nobody tells them the proof exists they will never know
+    // there was anything to save.
+    if (first && typeof feed === 'function') feed(sealed
+      ? 'Your citizen is kept, and sealed by the witnesses of this founding. '
+        + 'Use "save citizen" to keep a copy off this browser: it will seat you '
+        + 'in whatever world continues this one.'
+      : 'Your citizen is kept in this browser. No witness has sealed it yet, so '
+        + 'for now it stands on this node alone.')
+  } catch { /* best effort, every ten minutes */ }
+}
+// ---------- §9b-iii: WHERE DID THE WORLD GO? ----------
+//
+// Everything else about succession assumed a citizen already knew which world
+// continues theirs. Nothing told them. A line nobody can find is a line nobody
+// inherits, so this goes and looks.
+//
+// It asks every node it has ever heard of, which after one successful
+// connection is every pillar of the old world that served browsers. The answer
+// is UNTRUSTED, and that is what makes it safe to ask strangers: it is checked
+// against the founding in this citizen's own kept file, and `eligibleW` demands
+// the same rules, the same engine, the same island, no backdating, and either a
+// month of silence or a quorum of the old world's own witnesses. A node that
+// lies sends nobody anywhere.
+async function findSuccessorWeb () {
+  let kept
+  try { kept = JSON.parse(localStorage.getItem('interval-proof') ?? 'null') } catch { return null }
+  if (!kept?.genesis || !kept.worldId) return null
+  const ask = async (cand) => {
+    const c = new AbortController()
+    const t = setTimeout(() => c.abort(), 5000)
+    try {
+      const r = await fetch(cand + '/api/successor?of=' + kept.worldId, { signal: c.signal, cache: 'no-store' })
+      if (!r.ok) return null
+      const j = await r.json()
+      const why = await acceptSuccessorW(kept.genesis, j)
+      if (why) {
+        console.warn('[interval] ' + cand + ' offered a successor that is not one: ' + why)
+        return null
+      }
+      const wid = await sha256hex(canonicalJS(j.genesis))
+      // A node answering for itself IS the address. A relayed note names one,
+      // and naming an address is the whole content of a note.
+      const at = (j.how === 'told' && typeof j.node === 'string' && /^https?:\/\//.test(j.node))
+        ? j.node.replace(/\/$/, '') : cand
+      return { node: at, worldId: wid, genesis: j.genesis }
+    } catch { return null } finally { clearTimeout(t) }
+  }
+  const results = nodeCandidates().map(ask)
+  for (const r of results) { const got = await r; if (got) return got }
+  return null
+}
+
+// ---------- §9b-iii: COMING HOME, WITHOUT BEING ASKED ----------
+//
+// If this world continues the one our kept citizen came from, there is exactly
+// one thing to do with the file, and making somebody find a button for it
+// would be this window failing them at the only moment the whole mechanism
+// exists for. So it happens by itself, once.
+//
+// The path is asked for fresh every time, because it went stale the moment
+// anybody else came home. It is public and worthless to forge: a wrong one is
+// refused by the root, which is why it can be asked of any node at all.
+// IS THIS REALLY THE SAME WORLD? Mirrors `protocol.mjs:continuation`, and for
+// the same reason the fold is mirrored here: the window must be able to refuse
+// on its own. Anybody may found a successor, so without this the first to
+// found one gets to change whatever they like and be inherited anyway, because
+// that is where everybody's friends went. The kept file carries the founding
+// this citizen lived under, which is everything the check needs.
+const TICK_MS_W = 1000
+// §9b-iii: and the other half of the question, which is not whether the world
+// is the same but whether it was entitled to begin. The danger is an EAGER
+// successor rather than a hostile one: founded while the old world's witnesses
+// are merely offline for an afternoon, it splits the people in it. So either a
+// month of silence has passed, or the old world's own witnesses have signed
+// this one's id.
+const HANDOVER_DOMAIN_W = 'INTERVAL_HANDOVER_V1|'
+const ABANDON_GAP_MS_W = 30 * 24 * 60 * 60 * 1000
+async function handoverOkW (oldG, successorId, sigs) {
+  if (!Array.isArray(sigs) || !sigs.length) return 'no handover'
+  const quorum = oldG?.quorum | 0
+  if (!quorum) return 'the world that ended had no witnesses to hand anything over'
+  const allowed = new Set(oldG.witnesses ?? [])
+  const oldId = await sha256hex(canonicalJS(oldG))
+  const seen = new Set()
+  for (const h of sigs) {
+    if (!h || typeof h !== 'object') return 'malformed handover'
+    if (h.v !== ATT_V_W) return 'handover wrong protocol version'
+    if (h.worldId !== oldId) return 'a handover from another world'
+    if (h.successor !== successorId) return 'a handover naming another successor'
+    if (!allowed.has(h.witness)) return 'a handover from somebody who was not a witness'
+    if (seen.has(h.witness)) return 'the same witness counted twice'
+    seen.add(h.witness)
+    try {
+      const core = { v: h.v, worldId: h.worldId, successor: h.successor, witness: h.witness }
+      const pubk = await crypto.subtle.importKey('raw', IK_hex(h.witness), { name: 'Ed25519' }, false, ['verify'])
+      if (!await crypto.subtle.verify('Ed25519', pubk, IK_hex(h.sig),
+        new TextEncoder().encode(HANDOVER_DOMAIN_W + canonicalJS(core)))) return 'bad handover signature'
+    } catch { return 'bad handover signature' }
+  }
+  if (seen.size < quorum) return 'short of a quorum of the old world\u2019s witnesses'
+  return null
+}
+// Mirrors `protocol.mjs:acceptSuccessor`. An offer arrives from a stranger, so
+// the id must be the hash of the FOUNDING OFFERED: otherwise a liar could pair
+// a world everybody trusts with the address of a world they control.
+async function acceptSuccessorW (keptGenesis, offer) {
+  if (!offer || typeof offer !== 'object') return 'malformed offer'
+  if (!offer.genesis || typeof offer.genesis !== 'object') return 'the offer carries no founding'
+  const wid = await sha256hex(canonicalJS(offer.genesis))
+  if (offer.worldId !== undefined && offer.worldId !== wid)
+    return 'the offer names an id that is not the hash of the founding it carries'
+  const handover = Array.isArray(offer.handover) ? offer.handover
+    : offer.handover?.signatures ?? null
+  return await eligibleW(keptGenesis, offer.genesis, handover)
+}
+async function eligibleW (oldG, newG, handover) {
+  const same = await continuationW(oldG, newG)
+  if (same) return same
+  if (handover) {
+    const bad = await handoverOkW(oldG, await sha256hex(canonicalJS(newG)), handover)
+    if (!bad) return null
+    return 'handover: ' + bad
+  }
+  const ended = (oldG.anchorMs ?? 0) + newG.from.tick * TICK_MS_W
+  const waited = Date.now() - ended
+  if (waited < ABANDON_GAP_MS_W) {
+    const left = Math.ceil((ABANDON_GAP_MS_W - waited) / 86400000)
+    return 'founded too soon: the world it continues fell silent less than a month ago ('
+      + left + ' day(s) to go, or a handover from its witnesses)'
+  }
+  return null
+}
+async function continuationW (oldG, newG) {
+  if (!oldG || !newG) return 'malformed founding'
+  const from = newG.from
+  if (!from) return 'this world continues nothing'
+  if (from.worldId !== await sha256hex(canonicalJS(oldG))) return 'this world continues a different one'
+  if (newG.rulesHash !== oldG.rulesHash) return 'the rules are not the same rules'
+  if ((oldG.engineHash ?? null) !== (newG.engineHash ?? null)) return 'a different engine'
+  if (newG.worldGenerator !== oldG.worldGenerator) return 'a different island'
+  if (newG.genesisSeed !== oldG.genesisSeed) return 'a different island'
+  if (newG.worldW !== oldG.worldW || newG.worldH !== oldG.worldH) return 'a different island'
+  if (oldG.geographyHash && newG.geographyHash && oldG.geographyHash !== newG.geographyHash)
+    return 'a different island'
+  const ended = (oldG.anchorMs ?? 0) + from.tick * TICK_MS_W
+  if ((newG.anchorMs ?? 0) < ended) return 'founded before the world it continues had ended'
+  return null
+}
+
+let cameHomeWeb = false
+async function comeHomeWeb (gen) {
+  if (cameHomeWeb || !ownKey || !gen?.from || !curWorldId) return
+  const base = localStorage.getItem('interval-node')
+  if (!base) return
+  cameHomeWeb = true                   // one attempt per visit, whatever happens
+  let kept
+  try { kept = JSON.parse(localStorage.getItem('interval-proof') ?? 'null') } catch { return }
+  if (!kept || kept.playerId !== ownKey.pub) return
+  if (kept.worldId !== gen.from.worldId) return
+  if (kept.seal && kept.genesis && !await sealOkW(kept.genesis, kept.worldId, kept.seal,
+      kept.livingRoot, kept.tick)) {
+    feed('The citizen kept in this browser does not verify. Entering as a newcomer.')
+    return
+  }
+  let handover = null
+  try {
+    const hr = await fetch(base + '/api/handover', { cache: 'no-store' })
+    if (hr.ok) { const hj = await hr.json(); handover = Array.isArray(hj) ? hj : hj?.signatures ?? null }
+  } catch { /* there was none */ }
+  const notSame = await eligibleW(kept.genesis, gen, handover)
+  if (notSame) {
+    feed('This world claims to continue the one your citizen came from, and it may '
+       + 'not: ' + notSame + '. Your citizen keeps. You are a newcomer here.')
+    return
+  }
+  let way
+  try {
+    const r = await fetch(base + '/api/home?pid=' + ownKey.pub, { cache: 'no-store' })
+    if (!r.ok) throw new Error(String(r.status))
+    way = await r.json()
+  } catch {
+    feed('This world continues the one your citizen came from, but this node cannot '
+       + 'hand you the way in yet. Your citizen keeps.')
+    return
+  }
+  const tk = allocTick()
+  if (tk === null) { cameHomeWeb = false; return }
+  const input = { worldId: curWorldId, tick: tk, playerId: ownKey.pub,
+    type: 'restore', record: kept.record, path: way.path }
+  const sig = toHex(await crypto.subtle.sign('Ed25519', ownKey.priv,
+    new TextEncoder().encode(DOMAIN_INPUT + canonicalJS(input))))
+  ws.send(JSON.stringify({ type: 'raw', input: { ...input, sig } }))
+  feed('You are coming home. This world continues the one you were a citizen of, '
+     + 'and your own record is what lets you back in.')
+}
+
+function saveProofWeb () {
+  const raw = localStorage.getItem('interval-proof')
+  if (!raw) { alert('no proof kept yet. Enter the world and give it a few minutes.'); return }
+  try {
+    const who = (JSON.parse(raw).playerId ?? 'citizen').slice(0, 8)
+    if (!JSON.parse(raw).seal) alert('Saving an UNSEALED citizen: it folds to this '
+      + 'world\u2019s root, but no witness has signed that root, so it stands on '
+      + 'this node alone. Come back in a few minutes for a sealed one.')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }))
+    a.download = 'interval-citizen-' + who + '.json'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  } catch (e) { alert('could not save: ' + (e.message ?? e)) }
+}
+// §1c: ten minutes, the same cadence the desktop bridge keeps, and one soon
+// after arriving so a new citizen is not unarchived for ten minutes.
+setTimeout(keepProofWeb, 20000)
+setInterval(keepProofWeb, 600000)
+
 for (const b9 of document.querySelectorAll('[data-ik]'))
-  b9.addEventListener('click', (e9) => { e9.stopPropagation(); (b9.dataset.ik === 'export' ? exportOwnKey : importOwnKey)() })
+  b9.addEventListener('click', (e9) => {
+    e9.stopPropagation()
+    if (b9.dataset.ik === 'export') return exportOwnKey()
+    if (b9.dataset.ik === 'proof') return saveProofWeb()
+    return importOwnKey()
+  })
 </script>
 </body>
 </html>

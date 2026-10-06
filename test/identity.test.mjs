@@ -39,11 +39,25 @@ function windowImpl(file, lvlName) {
   const html = read(file)
   const start = html.indexOf('// ---- who a citizen is (spec 10)')
   assert.ok(start > 0, `${file} is missing the identity block`)
-  // the block ends at the calling's last return; the old anchor
-  // ('return best === null') no longer appears in the window at all, so the
-  // slice came back empty and every assertion died on 'not defined'.
-  const end = html.indexOf('\n', html.indexOf('+ CALLINGS[best]', start))
-  const block = html.slice(start, html.indexOf('}', end) + 1)
+  // THE BLOCK ENDS WHERE `callingOf` CLOSES, FOUND BY COUNTING BRACES.
+  //
+  // This has been anchored on a string from the last line of that function
+  // twice, and broken twice: first on `return best === null`, then on
+  // `+ CALLINGS[best]` when §5k-ii deleted the craft-name fallback. Both times
+  // the slice came back short and every assertion died on 'not defined', which
+  // reads like the window being broken rather than the test.
+  //
+  // A brace count cannot drift with the prose. It is the same walk the bridge
+  // uses to read a verb's branch out of engine.js.
+  const fn = html.indexOf('function callingOf', start)
+  assert.ok(fn > 0, `${file} is missing callingOf`)
+  let i = html.indexOf('{', fn), depth = 0, end = i
+  for (; i < html.length; i++) {
+    if (html[i] === '{') { depth++ }
+    else if (html[i] === '}') { depth--; if (depth === 0) { end = i; break } }
+  }
+  assert.ok(end > fn, `${file}'s callingOf does not close`)
+  const block = html.slice(start, end + 1)
   // The window's own XP curve comes along, so a wrong curve fails here too.
   // This looked for `const XP_TABLE = (() =>` -- a generated form the window
   // does not use; it carries a literal array. indexOf returned -1, the slice

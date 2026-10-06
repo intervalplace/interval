@@ -1,4 +1,4 @@
-// Interval join v0.17: the foreign node — combat variant.
+// Interval join v0.17: the foreign node, combat variant.
 // Same peer model as join.mjs (own node, own keys, no custodian), but the
 // example executor here trains combat instead of woodcutting: hunt the
 // best available mob, walk over and collect what it drops (SPEC §6e:
@@ -96,7 +96,7 @@ const step = (me2, goal, reach = true) => {
 // at higher attack/defence, hit-chance vs weaker mobs is already capped and
 // their retaliation is already floored (SPEC §6b's clamp(128±4*delta,16,240)
 // saturates fast), so there's no real safety reason left to fight goblins
-// over trolls/bears — only a strictly worse XP/kill and worse drop table.
+// over trolls/bears: only a strictly worse XP/kill and worse drop table.
 // Rank by mob "value" first, distance second, instead of pure nearest.
 const MOB_PRIORITY = { troll: 4, bear: 3, wolf: 2, goblin: 1 }
 
@@ -110,8 +110,8 @@ const nearestMob = (s, p) => Object.entries(s.mobs)
 
 // SPEC §6e: kills leave ground items on the mob's tile instead of landing
 // in the killer's inventory, and they expire (100 ticks, ~60s) if nobody
-// walks over and picks them up. Look only nearby — our own kill's loot is
-// always within a step or two — so we don't send the bot on cross-map
+// walks over and picks them up. Look only nearby: our own kill's loot is
+// always within a step or two, so we don't send the bot on cross-map
 // scavenger hunts for other players' drops.
 const PICKUP_RADIUS = 4
 const nearestGround = (s, p) => Object.entries(s.ground)
@@ -121,8 +121,8 @@ const nearestGround = (s, p) => Object.entries(s.ground)
 
 // wield gear as soon as we're carrying it, but only where it's an
 // unambiguous upgrade: helm/plate just fill an empty slot (pure armor
-// soak, §6i), while sword is the only weapon-slot item worth auto-wearing
-// — hatchet/pickaxe map to the same weapon slot and would silently cost
+// soak, §6i), while sword is the only weapon-slot item worth auto-wearing:
+// hatchet/pickaxe map to the same weapon slot and would silently cost
 // us the sword's +2 max hit for a gathering bonus this bot never uses.
 const wieldUpgrade = (p) => {
   if (!p.equipment.head) {
@@ -162,7 +162,7 @@ client.onTick((s) => {
   if (bonesSlot !== -1) return client.bury(bonesSlot)
 
   // 3. collect anything our (or a nearby) kill left on the ground before
-  // it expires — walk onto the tile (pickup requires standing on it, not
+  // it expires: walk onto the tile (pickup requires standing on it, not
   // just being adjacent) and take it
   if (firstFreeSlot(p.inventory) !== -1) {
     const ground = nearestGround(s, p)

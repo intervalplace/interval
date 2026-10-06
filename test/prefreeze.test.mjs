@@ -1,4 +1,4 @@
-// Pre-freeze brief §13–§17 — the canonicality batteries.
+// Pre-freeze brief §13–§17: the canonicality batteries.
 // Freeze criterion under test: every semantic action, founding record,
 // and persistent state has exactly ONE accepted representation.
 import { test } from 'node:test'
@@ -35,7 +35,9 @@ const CANON = {
   walk: { dx: 1, dy: 0, steps: 12 },   // §5i: a journey is one deed
   stamp: { slot: 0 },                   // §5u: the crushing floor
   offer: { slot: 0 },                   // §5v: what is given up
-  swear: { calling: 'warden' },        // §5k: the word a citizen says
+  // §5k/§5w: the word a citizen says, and who attested it -- empty for
+  // nobody, because this constitution has no optional fields.
+  swear: { calling: 'warden', attester: '' },
   gather: { nodeId: 'tree-1' }, harvest: { nodeId: 'plot-1' },
   attack: { mobId: 'gob-1' }, attackp: { targetId: 'ab'.repeat(32) },
   recall: { to: 'ws-east' },
@@ -48,7 +50,7 @@ const CANON = {
   bury: { slot: 4 }, deposit: { slot: 5 }, drop: { slot: 6 }, eat: { slot: 7 }, cook: { slot: 8 },
   unwield: { gear: 'weapon' },
   buy: { item: 'logs' }, withdraw: { item: 'ore', qty: 1 },
-  cast: { spell: 'anchor' },
+  cast: { spell: 'mend' },
   fletch: { slot: 0, make: 'bow' },
   pickup: { groundId: 'g-1', confirm: false },
   claim_name: { name: 'ada' },
@@ -133,7 +135,7 @@ test('§15 genesis canonicality matrix', () => {
     [{ ...g, worldGenerator: 'interval-hexcrawl-v9' }, /unknown world generator/],
     [{ ...g, witnesses: [w1.playerId, w1.playerId], quorum: 2, byzantineTolerance: 0 }, /duplicate witness/],
     [{ ...g, quorum: 0 }, /quorum out of range|Byzantine-unsafe/],
-    // n=4, q=2, f=0: 2q-n=0, not > f — Byzantine-unsafe (also fails 2q>n)
+    // n=4, q=2, f=0: 2q-n=0, not > f, Byzantine-unsafe (also fails 2q>n)
     [{ ...g, witnesses: [w1.playerId, alice.playerId, bob.playerId, 'ab'.repeat(32)], quorum: 2, byzantineTolerance: 0 }, /Byzantine-unsafe/],
     [(() => { const x = { ...g }; delete x.rulesHash; return x })(), /genesis missing rulesHash/],
   ]
@@ -199,7 +201,7 @@ test('§17 transition closure across EVERY input type on one living world', () =
   inv[0] = { item: 'logs', qty: 3 }; inv[1] = { item: 'seeds', qty: 1 }
   inv[2] = { item: 'raw-fish', qty: 1 }; inv[3] = { item: 'bones', qty: 2 }
   inv[4] = { item: 'ore', qty: 5 }; inv[5] = { item: 'iron-helm', qty: 1 }
-  inv[6] = { item: 'cooked-fish', qty: 1 }; inv[7] = { item: 'magic-stone', qty: 3 }
+  inv[6] = { item: 'cooked-fish', qty: 1 }; inv[7] = { item: 'quick-stone', qty: 3 }
   inv[8] = { item: 'sigil', qty: 1 }
   s.players[alice.playerId].gold = 50
   // v0.70: A NAME COSTS TIME -- claim_name asks for NAME_STANDING before it
@@ -233,7 +235,7 @@ test('§17 transition closure across EVERY input type on one living world', () =
   step(alice, { type: 'fletch', slot: 0, make: 'bow' })
   step(alice, { type: 'bury', slot: 3 })
   step(alice, { type: 'invoke' })
-  step(alice, { type: 'cast', spell: 'anchor' })
+  step(alice, { type: 'cast', spell: 'mend' })
   step(alice, { type: 'recall', to: 'ws-east' }) // dead-or-unattuned: a lawful no-op
   step(alice, { type: 'drop', slot: 0 })
   step(alice, { type: 'pickup', groundId: Object.keys(s.ground)[0] ?? 'g-none', confirm: false })

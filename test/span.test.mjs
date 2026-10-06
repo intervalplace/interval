@@ -1,4 +1,4 @@
-// §7a: THE WILD SPAN. A bridge the citizens build together over the one beck in
+// §14d: THE WILD SPAN. A bridge the citizens build together over the one beck in
 // the Wilds -- founded plank by plank, contested by whoever would rather it
 // never stood, and recorded as a monument once it opens. These tests cover the
 // lifecycle (found -> lay -> open -> cross), the accumulate-only rule, the rate

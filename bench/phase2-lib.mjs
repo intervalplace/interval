@@ -1,4 +1,4 @@
-// phase2-lib.mjs — Phase 2A deterministic scenario construction.
+// phase2-lib.mjs: Phase 2A deterministic scenario construction.
 //
 // Adds to the Phase 1 harness (bench-lib.mjs):
 //   - two world PROFILES: 'current' (the canonical 320x200 classic world)
@@ -201,7 +201,7 @@ export function buildPopulation(E, state, n, workload) {
   for (let t = 0; t + 1 < traders.length; t += 2) {
     const a = traders[t], b = traders[t + 1]
     // move b beside a (b's spot was a stride tile; beside-a tile may collide
-    // with another citizen's tile only if adjacent stride tiles were used —
+    // with another citizen's tile only if adjacent stride tiles were used:
     // stride step is 3, so a.x+1 is never another spot)
     const bx = a.x + 1, by = a.y
     if (bx < g.worldW - 1 && !Object.values(state.nodes).some(nd => nd.x === bx && nd.y === by)) {

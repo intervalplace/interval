@@ -21,6 +21,7 @@ import { IntervalClient } from './sdk.mjs'
 import { buildWorld, foundGenesis, roadDataOf, seatsImports } from './worldgen-any.mjs'
 import { readFounding, writeFounding } from './worldcache.mjs'
 import { carry, provenance } from './crossing.mjs'
+import { IncomingTree } from './incoming.mjs'
 import { zoneDeltas, worldDelta, zoneFull, zonesAround, makeTracker, ZONE } from './view.mjs'
 
 // ---- the boot server: something to look at while the world is founded ----
@@ -321,7 +322,10 @@ if (canResume) {
     // inline here for its whole life, which is why nothing could test the one
     // piece of code that runs at the moment a world ends and cannot be tried
     // again. It is exercised by test/afterlife.test.mjs now.
-    GENESIS.imported = carry(old.players)
+    // THE OLD FOUNDING GOES WITH IT, so `lived` can tell money somebody earned
+    // from the purse every newcomer wakes with. Without it a citizen whose only
+    // asset was gold did not cross at all (crossing.mjs, `lived`).
+    GENESIS.imported = carry(old.players, old.genesis)
     migrated = GENESIS.imported.length
     // provenance: the genesis commits to WHICH attested state carried them,
     // and only when that state really hashes to the hash being claimed. The
@@ -391,6 +395,122 @@ if (canResume) {
 }
 
 let node
+// ---- §9b-iii: PATHS HOME, FOR A WORLD THAT CONTINUES ANOTHER ----
+//
+// A citizen of the world that stopped comes back by bringing their own record
+// and a path against the root this founding inherited. Spending a leaf moves
+// that root, so the first person home invalidates everybody else's kept path,
+// and somebody has to be able to rebuild them. This pillar does, if it is
+// given the leaves.
+//
+// The file is PUBLIC and holds no secrets: one id and one digest per citizen
+// of the old world. A wrong path is refused by the root, so there is nothing
+// here anybody could abuse by reading it, and nothing to protect by refusing
+// to serve it. Cut it with `node incoming.mjs <checkpoint.json>`.
+//
+// If the file is missing, or builds a different root than this world's genesis
+// names, the route below says so and serves nothing. A path that will be
+// refused at the door is worse than no path, because whoever gets it is left
+// wondering whether their citizen survived.
+let homeTree = null, homeWhy = 'this world continues no other'
+let homeSpent = -1           // how many had come home when this was last written
+
+// WHO HAS COME HOME, WRITTEN DOWN. The leaves never change, so this list is the
+// whole of the tree's mutable state: leaves plus this, and a service is back.
+// Written whenever it grows, which is at most once an interval, and a list of
+// ids is a few kilobytes at any population worth the name.
+//
+// Public, and uninteresting to forge: whoever reads it rebuilds the tree and
+// checks the root, so a wrong list is refused rather than believed.
+const SPENTFILE = () => DATA + '/incoming-spent.json'
+function keepHomeSpent () {
+  if (!homeTree) return
+  const list = homeTree.spentList()
+  if (list.length === homeSpent) return
+  try {
+    fs.writeFileSync(SPENTFILE(), JSON.stringify({
+      v: 1,
+      note: 'Citizens of the world this one continues who have already come home.',
+      worldId: E.worldId(node.state.genesis),
+      livingRoot: node.state.incomingRoot ?? null,
+      spent: list,
+    }, null, 1) + '\n')
+    homeSpent = list.length
+  } catch { /* the tree still works; only a restart pays for this */ }
+}
+
+function openHomeTree () {
+  const from = node?.state?.genesis?.from
+  if (!from) return
+  const f = DATA + '/incoming-leaves.json'
+  if (!fs.existsSync(f)) { homeWhy = 'nobody here holds the leaves of the world this one continues'; return }
+  try {
+    const raw = JSON.parse(fs.readFileSync(f, 'utf8'))
+    const t = new IncomingTree(raw.leaves ?? [])
+    if (t.root() !== from.livingRoot) {
+      homeWhy = 'the leaves here build a different root than this founding names'
+      return
+    }
+    // WHAT THIS NODE KNEW LAST TIME. The leaves are the world as it ended, so
+    // the tree begins at the founding's root; every citizen who has come home
+    // since has had their leaf spent, and from the root alone that is not
+    // recoverable once there is more than one of them. So it is remembered
+    // instead, and CHECKED on the way back in: `adopt` keeps a list only if it
+    // rebuilds the root this world is actually holding.
+    let ready = false
+    try {
+      if (fs.existsSync(SPENTFILE())) {
+        const kept = JSON.parse(fs.readFileSync(SPENTFILE(), 'utf8'))
+        ready = t.adopt(kept.spent ?? [], node.state)
+      }
+    } catch { /* an unreadable note is no note */ }
+    // Nothing remembered, or it was one interval stale: `follow` closes a
+    // single step, which is the ordinary case for a node that was just running.
+    if (!ready) ready = t.follow(node.state)
+    if (!ready) {
+      homeWhy = 'this node does not know which citizens have already come home; '
+        + 'asking the other nodes of this world'
+      // Somebody already running a service can simply say, and what they say is
+      // judged by the root rather than believed. Not awaited: the route says
+      // honestly that it has nothing, and starts answering when this lands.
+      borrowHomeSpent(t).catch(() => {})
+      return
+    }
+    homeTree = t
+    homeWhy = ''
+    keepHomeSpent()
+    console.log('[incoming] ' + t.size + ' citizens of ' + String(from.worldId).slice(0, 12)
+      + '\u2026 may come home through this node')
+  } catch (e) { homeWhy = 'the leaves could not be read: ' + (e.message ?? e) }
+}
+
+// Ask the other pillars of this world who has come home. Any of them will do and
+// none of them is trusted: `adopt` rebuilds the tree with what they say and keeps
+// it only if it reaches the root this world is holding. So this is not a trusted
+// channel, it is a shortcut past arithmetic nobody can do alone.
+async function borrowHomeSpent (t) {
+  const peers = [...announced.values()].map((e) => e.window).filter(Boolean)
+  for (const at of peers) {
+    try {
+      const r = await fetch(at.replace(/\/+$/, '') + '/api/incoming',
+        { signal: AbortSignal.timeout(5000) })
+      if (!r.ok) continue
+      const j = await r.json()
+      if (!t.adopt(j.spent ?? [], node.state)) continue
+      homeTree = t
+      homeWhy = ''
+      keepHomeSpent()
+      console.log('[incoming] ' + at + ' said who has come home and the root agrees: '
+        + t.size + ' still to come')
+      return
+    } catch { /* next */ }
+  }
+  homeWhy = 'this node does not know which citizens have already come home, and no '
+    + 'other node of this world could tell it'
+}
+// §5g-ii: how often the pillar volunteers the seal over the living. Matches
+// the cadence the clients save their own proof at, in unreal-bridge.mjs.
+const SEAL_EVERY = 600        // ten minutes of intervals
 let noughtWorldJson = null   // §0: the founding state, built once, never changing
 // A tag that changes when anything a window caches changes: the practice
 // world's own id, plus the engine that builds it. Either moving is a different
@@ -546,10 +666,17 @@ function hiscores() {
   }).sort((a, b) => b.total - a.total || b.xp - a.xp)
 }
 
-const PAGES = { '/': 'index.html', '/quickstart': 'quickstart.html',
+// §: `/quickstart` stood here and the page is gone. It told a reader what to do
+// with their first hour -- walk to water, cook what you caught, fight something
+// small -- which is the one thing this project says it will not do: the map page
+// puts it as "the world is found rather than published", and the handbook says
+// outright that it does not say what to do or how to get rich. The one rule on
+// it that nobody could discover by playing, the wound and the wellspring, moved
+// into the book before the page went.
+const PAGES = { '/': 'index.html',
                 '/manual': 'manual.html', '/hiscores': 'hiscores.html',
                 '/board': 'board.html',
-                '/play': 'windows.html', '/windows': 'windows.html',
+                '/windows': 'windows.html',
                 '/download': 'download.html', '/shop': 'shop.html',
                 '/map': 'map.html', '/marks': 'marks.html' }
 const MIME = { html: 'text/html', css: 'text/css', js: 'text/javascript',
@@ -579,6 +706,208 @@ const server = http.createServer((req, res) => {
     // copy was on the founder's disk. A world meant to outlive the people
     // running it cannot keep its own continuation in one place. Served raw and
     // unmodified so anyone can rehash it and check `stateHash` themselves.
+    // §5g-ii: A CITIZEN'S OWN PROOF OF THEMSELVES.
+    //
+    // A desktop player's bridge writes this beside their key every ten
+    // minutes. A browser player has no filesystem, so they cannot build it:
+    // the path is a walk over every living citizen and the window holds no
+    // such tree. The node does, so it serves it.
+    //
+    // WHAT MAKES THIS SAFE TO BE SERVED BY SOMEBODY ELSE. The bundle proves
+    // itself. The record folds through the path to a root the world's own
+    // certificate covers, so a node that served a doctored one would be caught
+    // by the holder the moment they checked it, and the window does check. It
+    // is evidence, not a favour.
+    //
+    // It is PUBLIC, like the boards, and deliberately so: a citizen's skills,
+    // name and calling are on every nameplate and hiscore already. The one
+    // thing it never contains is a private key, which the world has never held.
+    if (path === '/api/proof') {
+      // The handler splits the path off by hand (line above), so the query
+      // is read the same way rather than by introducing a URL object here.
+      const q = new URLSearchParams(req.url.split('?')[1] ?? '')
+      const pid = q.get('pid') ?? ''
+      const who = node.state?.players?.[pid]
+      if (!/^[0-9a-f]{64}$/.test(pid) || !who) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'no such living citizen' }))
+      }
+      const root = node.state.livingRoot ?? (E.livingRootOf ? E.livingRootOf(node.state) : null)
+      const proofPath = E.livingPathOf ? E.livingPathOf(node.state, pid) : null
+      if (!root || !proofPath) {
+        res.writeHead(503, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'this world keeps no root over the living' }))
+      }
+      // NEVER SERVED UNCHECKED. A proof that does not fold is worse than none,
+      // because whoever keeps it believes they are safe.
+      if (E.provesLiving && !E.provesLiving(root, pid, who, proofPath)) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'the proof did not fold; refusing to serve it' }))
+      }
+      // §5g-ii: and the seal, which is the half a citizen cannot compute for
+      // themselves. Without it the file says "this record folds to root R",
+      // which is true of any root they like. With it, it says the witnesses of
+      // this founding put their names to R at this interval.
+      const seal = node.seal && node.seal.tick === node.state.tick
+        && node.seal.livingRoot === root ? node.seal : null
+      return json({
+        v: 1,
+        note: 'THIS IS YOUR CITIZEN, PROVED. Keep it. It cannot be edited: the '
+          + 'world certified the root this folds to.',
+        worldId: E.worldId(node.state.genesis),
+        tick: node.state.tick,
+        livingRoot: root,
+        playerId: pid,
+        record: who,
+        path: proofPath,
+        seal,
+        genesis: node.state.genesis,
+      })
+    }
+
+    if (path === '/api/home') {
+      const q = new URLSearchParams(req.url.split('?')[1] ?? '')
+      const pid = q.get('pid') ?? ''
+      if (!/^[0-9a-f]{64}$/.test(pid)) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'name a citizen' }))
+      }
+      if (!homeTree) {
+        res.writeHead(503, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: homeWhy }))
+      }
+      const home = homeTree.path(pid)
+      if (!home) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'no such citizen in the world this one continues, '
+          + 'or they have already come home' }))
+      }
+      return json({
+        v: 1,
+        note: 'The way home. File a `restore` carrying your own record and this '
+          + 'path. The path goes stale the moment anybody else comes home, so '
+          + 'ask again rather than keeping it; the record is the part worth keeping.',
+        worldId: E.worldId(node.state.genesis),
+        from: node.state.genesis.from,
+        livingRoot: node.state.incomingRoot ?? node.state.genesis.from.livingRoot,
+        playerId: pid,
+        path: home,
+      })
+    }
+
+    if (path === '/api/incoming') {
+      // §9b-iii: who has already come home. One node asks another when it
+      // cannot work this out alone, which is any node that starts after more
+      // than one citizen has returned: from the root by itself the spent set is
+      // only recoverable a single step at a time.
+      //
+      // NOT A TRUSTED CHANNEL. Whoever asks rebuilds the tree with this and
+      // keeps it only if it reaches the root their own world is holding, so a
+      // hostile list, a stale list and an honest one are told apart by one hash
+      // comparison. That is why it can be served to anybody at all.
+      if (!node?.state?.genesis?.from) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'this world continues no other' }))
+      }
+      if (!homeTree) {
+        res.writeHead(503, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: homeWhy }))
+      }
+      return json({
+        v: 1,
+        worldId: E.worldId(node.state.genesis),
+        from: node.state.genesis.from,
+        livingRoot: node.state.incomingRoot ?? null,
+        spent: homeTree.spentList(),
+        waiting: homeTree.size,
+        note: 'Rebuild the tree with this and check the root before you believe it.',
+      })
+    }
+
+    if (path === '/api/successor') {
+      // §9b-iii: WHERE DID THE WORLD GO?
+      //
+      // Everything else about succession assumes a citizen already knows which
+      // world continues theirs. Nothing told them, and that was the largest
+      // hole left in the claim: a line nobody can find is a line nobody
+      // inherits.
+      //
+      // So a node answers one question: do you know of a world that continues
+      // this one? Two ways it can know, and it says which:
+      //
+      //   `self`  this node IS running such a world, and hands over its own
+      //           founding and the handover beside it, if there was one.
+      //   `told`  somebody left a note here (`successor.json`) naming one.
+      //           A node relays it without vouching for it.
+      //
+      // NEITHER IS TRUSTED, and that is what makes it safe to ask strangers.
+      // The answer is checked by whoever asked, against the founding their own
+      // kept file carries: `protocol.mjs:eligible` demands the same rules, the
+      // same engine, the same island, no backdating, and either a month of
+      // silence or a quorum of the old world's own witnesses. A node that
+      // lies sends a citizen nowhere, because the citizen's client refuses
+      // it. The worst a liar achieves is wasting a request.
+      const q = new URLSearchParams(req.url.split('?')[1] ?? '')
+      const of = q.get('of') ?? ''
+      if (!/^[0-9a-f]{64}$/.test(of)) {
+        res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'name the world you are looking for' }))
+      }
+      const mine = node?.state?.genesis
+      if (mine?.from?.worldId === of) {
+        let handover = null
+        try {
+          const hf = DATA + '/handover.json'
+          if (fs.existsSync(hf)) handover = JSON.parse(fs.readFileSync(hf, 'utf8'))
+        } catch { /* a note that cannot be read is no note */ }
+        return json({
+          v: 1, how: 'self', of,
+          worldId: E.worldId(mine),
+          genesis: mine,
+          handover: Array.isArray(handover) ? handover : handover?.signatures ?? null,
+          // NO ADDRESS OF ITS OWN HERE. Whoever asked this question already
+          // holds the address they asked it at, and a self-reported one could
+          // only be a lie or a mistake. A relayed note (`told`) names an
+          // address because that is the whole content of a note.
+          note: 'This world continues the one you named. Check it against the '
+            + 'founding your own file carries before you believe it.',
+        })
+      }
+      // a note left here by somebody who knew
+      try {
+        const nf = DATA + '/successor.json'
+        if (fs.existsSync(nf)) {
+          const told = JSON.parse(fs.readFileSync(nf, 'utf8'))
+          if (told?.of === of) return json({ v: 1, how: 'told', ...told,
+            note: 'Somebody left this note here. This node does not vouch for it.' })
+        }
+      } catch { /* likewise */ }
+      res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+      return res.end(JSON.stringify({ error: 'this node knows of no world continuing that one' }))
+    }
+
+    if (path === '/api/handover') {
+      // §9b-iii: the graceful ending, if there was one. A quorum of the
+      // PREDECESSOR's witnesses signing this world's id, which is what lets a
+      // successor be founded without waiting out the month of silence.
+      //
+      // Served from a file rather than from the genesis, and it cannot be in
+      // the genesis: a handover signs the worldId, and the worldId is the hash
+      // of the genesis, so putting it inside would be circular. It is checked
+      // by whoever reads it, against the founding their own file carries, so
+      // this node is only a courier.
+      const f = DATA + '/handover.json'
+      if (!fs.existsSync(f)) {
+        res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'no handover here: this world was not handed the line' }))
+      }
+      try { return json(JSON.parse(fs.readFileSync(f, 'utf8'))) }
+      catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
+        return res.end(JSON.stringify({ error: 'the handover here could not be read: ' + (e.message ?? e) }))
+      }
+    }
+
     if (path === '/api/checkpoint') {
       if (!fs.existsSync(CP_FILE)) {
         res.writeHead(404, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
@@ -894,7 +1223,16 @@ const server = http.createServer((req, res) => {
     }
     // /play is the doorway: a window is a choice, and the choice is shown.
     // The old paths keep working, since links live longer than layouts.
-    if (path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
+    // §: AND `/play` PLAYS. It used to serve the chooser, so the word PLAY in
+    // the nav opened a page listing six renderers and asked you to pick one
+    // before you had seen the island -- a decision with nothing behind it. The
+    // homepage's door was moved off the chooser and the nav was left behind,
+    // which made the site disagree with itself about what the first click does.
+    //
+    // There are two doors and they are both on the homepage: play here, or
+    // download the window that draws it properly. The chooser is neither; it
+    // is an argument, and it still stands at `/windows`.
+    if (path === '/play' || path === '/play/flat' || path === '/window-web') return sendFile('./window-web.html', 'text/html')
     if (path === '/play/deep' || path === '/deluxe') return sendFile('./window-3d.html', 'text/html')
     if (path === '/play/mist' || path === '/mist') return sendFile('./window-mist.html', 'text/html')
     if (path === '/play/hill' || path === '/hill') return sendFile('./window-hill.html', 'text/html')
@@ -962,7 +1300,10 @@ const server = http.createServer((req, res) => {
         keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
         // §the callings: which trades a skill opens, what they are called, the
         // level they want, and the ceiling. A window may not invent a calling.
-        sworn: E.SWORN, callings: E.CALLINGS, swearLevel: E.SWEAR_LEVEL, mastery: E.MASTERY,
+        // §5k-iii: `callings` went with the table. It was the nine generic
+        // craft words, which no citizen can be called any more; `sworn` is
+        // what a page wants and always was.
+        sworn: E.SWORN, swearLevel: E.SWEAR_LEVEL, mastery: E.MASTERY,
         // §5k: what a citizen may not become. Unsworn nothing passes the first;
         // sworn, your own trade has no ceiling and every other stops at the second.
         capUnsworn: E.CAP_UNSWORN, capOther: E.CAP_OTHER,
@@ -1272,8 +1613,25 @@ const SPAWN_ZONES = (() => {
 })()
 
 let lastTickAt = 0
+// §9b-iii: open the way home, if this world continues another and somebody
+// here holds the leaves. Done once the node exists and before the first tick,
+// so a citizen who asks on the first interval gets an answer.
+openHomeTree()
+
 node.onTick = (state) => {
   const nowT = Date.now()
+  // §9b-iii: keep the inherited tree in step with who has come home. It is
+  // CHECKED rather than assumed: `follow` returns false when the tree it holds
+  // no longer builds the world's own root, and then this node stops offering
+  // paths instead of offering wrong ones.
+  if (homeTree) {
+    if (homeTree.follow(state)) keepHomeSpent()
+    else {
+      console.warn('[incoming] out of step with the world at tick ' + state.tick + ': serving no more paths')
+      homeTree = null
+      homeWhy = 'this node has fallen out of step with the inherited tree'
+    }
+  }
   if (lastTickAt && nowT - lastTickAt > 1500) {
     console.warn('[tick-gap] ' + (nowT - lastTickAt) + 'ms between broadcasts at tick ' + state.tick + ': the event loop or host stalled')
   }
@@ -1366,6 +1724,12 @@ node.onTick = (state) => {
     if (!patched.has(ws) || needsSnapshot.has(ws)) {
       snapJson ??= snapshot()
       ws.send(snapJson)
+      // §5g-ii: and a seal straight away, so a citizen who plays for five
+      // minutes still leaves with something sealed rather than waiting for the
+      // ten-minute cadence to come round.
+      if (node?.seal && node.seal.tick === state.tick) {
+        try { ws.send(JSON.stringify({ type: 'rootseal', seal: node.seal })) } catch {}
+      }
       patched.add(ws); needsSnapshot.delete(ws)
       // a snapshot holds the whole island, so every zone counts as already
       // held and the next patch is pure delta
@@ -1395,6 +1759,27 @@ node.onTick = (state) => {
     for (let i = 0; i < parts.length; i++) { if (i) frame.push(P_SEP); frame.push(parts[i]) }
     frame.push(P_CLOSE)
     ws.send(Buffer.concat(frame))
+  }
+  // ---- §5g-ii: THE SEAL RIDES THE SAME SOCKET ----
+  //
+  // A client can compute the root and its own path from the state it already
+  // holds. It cannot produce the witnesses' signatures over that root, and
+  // that is precisely the half that makes a kept proof worth anything after
+  // this world has stopped. So the pillar volunteers it, on the cadence the
+  // clients save at, rather than waiting to be asked: a few hundred bytes
+  // every ten minutes against a state measured in hundreds of kilobytes.
+  // NAMED `rootseal` AND NOT `seal` ON PURPOSE: `seal` is already a deed in
+  // this world (closing dropped goods where they lie, §6bn) and it arrives on
+  // this same socket as `{ type: 'seal', groundId }` going the other way. Two
+  // different things under one name on one wire is a bug waiting for someone
+  // to read the code quickly.
+  if (node?.seal && node.seal.tick === state.tick && (state.tick % SEAL_EVERY) === 0) {
+    const sj = JSON.stringify({ type: 'rootseal', seal: node.seal })
+    for (const ws of sockets.keys()) {
+      if (ws.readyState !== 1) continue
+      if ((ws.bufferedAmount ?? 0) > SKIP_ABOVE) continue
+      try { ws.send(sj) } catch { /* a socket that cannot take 400 bytes is gone */ }
+    }
   }
   // say HOW FAR behind, not just that somebody is. A socket 2MB back is a
   // client that hiccuped and will catch up on the next tick; one at 15MB is

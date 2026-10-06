@@ -1,0 +1,29 @@
+# The built client is the better part of a gigabyte and is produced by
+# Tools/client.sh. dist/ is the published site and is NOT ignored.
+downloads/
+node_modules/
+
+# A CITIZEN IS A PRIVATE KEY. These files ARE people: anybody who reads one
+# holds that citizen for ever, and there is no recovering them. The ones in
+# this repository's history are throwaways from before the public founding and
+# are left alone; nothing new joins them.
+unreal-key*.json
+*-proof.json
+*-peers.json
+identities/
+
+# The world's memory, which belongs to whoever is running a node and not to
+# the rules. A checkpoint is a snapshot of a particular world at a particular
+# interval; the constitution is what makes it reproducible.
+checkpoints/
+witness-safety/
+*.lock
+*.frontier
+
+# Editor backups. Written beside a file before a risky change and worth
+# nothing once the change is green.
+*.before-*
+*.bak
+
+.DS_Store
+*.log

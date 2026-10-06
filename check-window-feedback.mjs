@@ -5,8 +5,8 @@
 // there whole, a crop was the same six sticks from sowing to harvest. A window
 // that reports a fight as a line of text in the corner is not showing a fight.
 //
-// This drives real state diffs past the window and checks the SCENE changed
-// — not that a message was sent, which the other checks already prove.
+// This drives real state diffs past the window and checks the SCENE changed,
+// not that a message was sent, which the other checks already prove.
 //
 // Needs three.js:  npm i three@0.128.0
 
@@ -83,7 +83,7 @@ const after=meshCount()
 ok(during>after,'a dead beast topples before it goes ('+during+' \u2192 '+after+')')
 // ---- §A LEVEL IS THE ONLY PERMANENT THING IN THIS WORLD, and it used to be
 // reported like a footstep: one grey line in the corner, gone in four seconds.
-// It takes the middle of the frame now, and it says what it OPENED — read off
+// It takes the middle of the frame now, and it says what it OPENED: read off
 // the same served tables the skill guide uses, so it cannot claim an unlock the
 // world does not have.
 const drew = []

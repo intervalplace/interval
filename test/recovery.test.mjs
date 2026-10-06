@@ -1,4 +1,4 @@
-// Rev4 brief, Priority 6 — recovery-safety failure injection.
+// Rev4 brief, Priority 6: recovery-safety failure injection.
 // A safety record that cannot be READ is trouble, not absence.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -190,5 +190,5 @@ test('failure AFTER frontier persistence halts forward: the frontier is never ro
   assert.equal(agB.halted, true)
   assert.match(agB.haltReason, /post-finality callback failed/)
   assert.equal(hB.state.tick, 1, 'state adoption completed before the callback')
-  assert.equal(frontierMem.tick, 0, 'frontier kept — recovery is a certified checkpoint, never a rollback')
+  assert.equal(frontierMem.tick, 0, 'frontier kept, recovery is a certified checkpoint, never a rollback')
 })

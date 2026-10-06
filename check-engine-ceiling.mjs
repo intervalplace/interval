@@ -1,6 +1,6 @@
 // §5k, for the engine: WHAT A CITIZEN MAY NOT BECOME.
 //
-// A calling used to be a bonus and nothing else — 1.5x on your own trade, 0.5x
+// A calling used to be a bonus and nothing else: 1.5x on your own trade, 0.5x
 // on a sibling of it, every OTHER trade untouched. So an unsworn citizen could
 // master all nine at full rate and lose only the bonus, and a sworn one could do
 // the same. `p.calling !== undefined` caps how many callings you may HOLD, which
@@ -11,8 +11,8 @@
 // writ. A ceiling is the one limit a script cannot out-wait.
 //
 // This drives real xp through the real engine and reads the skills back out.
-// Eighteen places wrote `p.skills.x += y` directly — prowess on a blow landed,
-// marksmanship on a shot, sorcery on a sigil spent — so a ceiling in `awardXp`
+// Eighteen places wrote `p.skills.x += y` directly: prowess on a blow landed,
+// marksmanship on a shot, sorcery on a sigil spent, so a ceiling in `awardXp`
 // alone would have left the COMBAT skills uncapped, which is the wrong hole.
 // Every one of those is checked here by name.
 
@@ -35,7 +35,7 @@ const cit = (calling) => ({ x: 5, y: 5, hp: 10, maxHp: 10, inventory: [], callin
 
 // §CALL THE ENGINE'S OWN GATE. An earlier version of this check re-implemented
 // the rule here and asserted against its own copy, which proves nothing except
-// that two pieces of arithmetic agree — and one of them was written by the same
+// that two pieces of arithmetic agree, and one of them was written by the same
 // hand five minutes earlier. `gainXp` is exported now and this drives it.
 const huge = T[120] || T[T.length - 1]
 const pour = (p, skill, xp) => { E.gainXp(p, skill, xp); return p.skills[skill] }
@@ -65,7 +65,7 @@ ok(/function gainXp/.test(src) && /xpCeiling/.test(src), 'which is one function,
 // ---- §5k: A CALLING IS A RATE, AND A MASTERY IS A YIELD ----
 //
 // The ceiling alone was not an economy. Thirty levels of mastery bought an
-// EIGHT PER CENT gather rate, while a better axe bought thirteen times that —
+// EIGHT PER CENT gather rate, while a better axe bought thirteen times that:
 // so on ordinary logs there was no reason to buy from a master rather than
 // chop your own, and only twelve of the world's 148 gates sit above seventy.
 // Gambitisation has to pay at the seam or it is only a title.
@@ -77,7 +77,7 @@ const src2 = require('fs').readFileSync('engine.js', 'utf8')
 // a citizen: more supply is undercut supply, the price falls until the
 // advantage is competed away, and all that is left is cheaper logs. And worse,
 // a writ collects a rate multiplier better than a person does, because it never
-// stops — so a rate rewards most exactly the play the ceiling was built to
+// stops, so a rate rewards most exactly the play the ceiling was built to
 // blunt. One lever, not two, until a real market says otherwise.
 ok(E.CALLING_RATE_NUM === undefined && !/rateMul \*= /.test(src2),
    'a calling does not multiply the gather rate: a rate scales automation')

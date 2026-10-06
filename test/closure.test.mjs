@@ -1,4 +1,4 @@
-// Rev6 brief — closure between execution, validation, and genesis.
+// Rev6 brief: closure between execution, validation, and genesis.
 // The property under test: valid state + accepted inputs → nextState →
 // validateState(next) === null. Execution may never mint a state its own
 // validator rejects.
@@ -52,7 +52,7 @@ test('PROPERTY: hundreds of accepted transitions never produce a state the valid
     const p = s.players[id.playerId]
     if (!p) return sign(id, { type: 'attend' })
     const nodes = Object.entries(s.nodes)
-    const mobs = Object.entries(s.mobs).filter(([, m]) => m.hp > 0)
+    const mobs = Object.entries(s.mobs).filter(([, m]) => m.health > 0)
     const near = ([, o]) => Math.abs(o.x - p.x) + Math.abs(o.y - p.y) <= 6
     const kind = Math.floor(rnd() * 12)
     switch (kind) {
@@ -115,7 +115,7 @@ test('trade closure: exactly one of constitutional item XOR positive gold', () =
   assert.equal(applied({ wantItem: null, wantGold: 0 }), null, 'neither refused')
   assert.equal(applied({ wantItem: null, wantGold: -3 }), null, 'negative gold refused')
   assert.equal(applied({ wantItem: null, wantGold: 2.5 }), null, 'fractional gold refused')
-  // pre-freeze §1: OMISSION is not a representation — both demand fields, always
+  // pre-freeze §1: OMISSION is not a representation, both demand fields, always
   assert.equal(applied({ wantGold: 5 }), null, 'omitted wantItem refused')
   assert.equal(applied({ wantItem: 'logs' }), null, 'omitted wantGold refused')
   assert.ok(applied({ wantItem: null, wantGold: 5 }), 'canonical gold trade accepted')
@@ -139,7 +139,7 @@ test('imported citizens: complete validation before world construction', () => {
     [[{ pid: pidA, skills: { juggling: 5 } }], /unknown skill/],
     [[{ pid: pidA, inventory: [{ item: 'logs', qty: 0 }] }], /inventory slot/],
     [[{ pid: pidA, weapon: { item: 'logs', qty: 1 } }], /not equippable/],
-    [[{ pid: pidA, hp: -2 }], /hp out of bounds/],
+    [[{ pid: pidA, health: -2 }], /health out of bounds/],
     [[{ pid: pidA, favouriteColour: 'red' }], /unknown field/],
   ]
   for (const [imported, want] of cases)
@@ -148,7 +148,7 @@ test('imported citizens: complete validation before world construction', () => {
   // (self-validating) → citizen present with all their goods
   const g = mkGenesis('imports-world')
   g.imported = [{
-    pid: pidA, name: 'old-hand', hp: 30,
+    pid: pidA, name: 'old-hand', health: 30,
     skills: { woodcraft: 5000, prowess: 5000 },   // §5j/§5n
     inventory: [{ item: 'logs', qty: 7 }, null, { item: 'iron-sword', qty: 1 }],
     vaults: { ore: 100, arrows: 250 },   // §6g: an IMPORT is flat

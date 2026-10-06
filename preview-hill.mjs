@@ -1,4 +1,4 @@
-// preview-mist.mjs — look at the mist window without a browser.
+// preview-mist.mjs: look at the mist window without a browser.
 //
 // This loads window-hill.html for real (real three.js, real geometry, real
 // materials, real textures) and then rasterises the scene IN SOFTWARE using

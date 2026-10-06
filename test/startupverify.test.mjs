@@ -1,6 +1,6 @@
 // Phase-1 freeze §2: bounded startup verification is the GENERIC default.
 // An omitted `startupVerifyRecentN` must resolve to the shared bounded
-// constant everywhere — direct IntervalNode construction included — never to
+// constant everywhere: direct IntervalNode construction included, never to
 // full-history (Infinity) verification. Infinity is an explicit audit opt-in.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'

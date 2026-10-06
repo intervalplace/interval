@@ -305,6 +305,123 @@ function _smtWith(pid, digest, path) {
   return _smtFold(pid, digest === null ? _EMPTY[0] : _smtLeaf(pid, digest), path);
 }
 
+// ---------- §5g-ii: THE ROOT OVER THE LIVING ----------
+//
+// The archive root exists so that archived citizens cost the tick nothing: the
+// engine never holds that tree, because whoever wants something out of it
+// brings the path and the root judges it.
+//
+// The LIVING had no root at all, and that was the hole under everything else.
+// A world's state is hashed whole by `stateHash`, which yields no inclusion
+// proof, so a citizen could not demonstrate what they were without somebody
+// producing the entire state. That put a world's continuity back on whoever
+// still held a full checkpoint, which does not scale and is exactly the
+// dependency the archive root was invented to remove.
+//
+// WHY THIS COSTS NO STATE. The reason the engine cannot hold the archive tree
+// does not apply here: the living are ALREADY in the state, every one of them,
+// under `players`. A root over them is therefore pure computation over data
+// the tick already carries, not a second copy of anything.
+//
+// WHAT IT BUYS. Every living citizen, at every interval, has a proof available
+// of exactly what they were -- their own record and a few hundred bytes of
+// path -- which any node can check against a root that the world's own
+// certificate covers. They can keep it themselves. A world that dies suddenly
+// therefore costs nobody their life, and a citizen can return to a successor
+// years later carrying their own evidence, with nobody holding anything on
+// their behalf.
+//
+// THE CONVENTION IS `_smtFold`'S, exactly. The levels, the empty-sibling
+// heights and the left/right rule are all taken from it rather than restated,
+// because a root built one way and proved another is a root that proves
+// nothing. `test/livingroot.test.mjs` holds the two against each other.
+function _smtBuild(items, d) {
+  if (items.length === 0) return _EMPTY[SMT_DEPTH - d];
+  if (items.length === 1) {
+    // One occupant: fold its leaf up to this depth against empty siblings,
+    // which is what `_smtFold` does with a path of all zeroes.
+    const [pid, leaf] = items[0];
+    let h = leaf;
+    for (let k = SMT_DEPTH - 1; k >= d; k--) {
+      const sib = _EMPTY[SMT_DEPTH - 1 - k];
+      h = _smtBit(pid, k) ? _smtNode(sib, h) : _smtNode(h, sib);
+    }
+    return h;
+  }
+  const L = [], R = [];
+  for (const it of items) (_smtBit(it[0], d) ? R : L).push(it);
+  return _smtNode(_smtBuild(L, d + 1), _smtBuild(R, d + 1));
+}
+// The digest a citizen's record hashes to, which is the archive's own rule so
+// that one proof shape serves both roots and `restore` needs no second case.
+const _recordDigest = (rec) => sha256(Buffer.from(canonical(rec))).toString('hex');
+
+// ---- GENERIC OVER A LEAF LIST ----
+//
+// There are two trees over citizens now: the root over the living, built every
+// interval from the players, and the INHERITED root a successor carries, which
+// is the predecessor's final living root with each returned citizen's leaf
+// emptied (§9b-iii). Nobody can hold the second one inside the tick, so
+// somebody holds it outside -- `incoming.mjs` -- and builds paths out of it.
+//
+// That is a second place building the same tree, which is how two
+// implementations come to disagree about one citizen's route. So the build and
+// the path are written ONCE, over a plain list of `[playerId, digest]`, and
+// the living root is one caller of them.
+const _leaves = (pairs) => pairs.map(([pid, dg]) => [pid, _smtLeaf(pid, dg)]);
+function rootOfLeaves(pairs) { return _smtBuild(_leaves(pairs), 0); }
+function provesDigest(root, pid, digest, path) { return _smtProves(root, pid, digest, path); }
+
+function _livingPairs(state) {
+  // Sorted, because this writes canonical state: two nodes must build the
+  // identical tree from the identical players.
+  return Object.keys(state.players ?? {}).sort()
+    .map((pid) => [pid, _recordDigest(state.players[pid])]);
+}
+function livingRootOf(state) { return rootOfLeaves(_livingPairs(state)); }
+
+// THE PATH A CITIZEN KEEPS. The engine never needs this -- it builds roots and
+// judges paths -- but a client holding a state must be able to hand a person
+// their own evidence, and that is the whole point of the root. Compressed the
+// way `_smtFold` expects: a bitmap of which levels have a non-empty sibling,
+// then only those siblings.
+function pathInLeaves(pairs, pid) {
+  const items = _leaves(pairs);
+  if (!items.some(([k]) => k === pid)) return null;
+  const bits = [], sibs = [];
+  let here = items;
+  for (let d = 0; d < SMT_DEPTH; d++) {
+    const L = [], R = [];
+    for (const it of here) (_smtBit(it[0], d) ? R : L).push(it);
+    const mine = _smtBit(pid, d) ? R : L, other = _smtBit(pid, d) ? L : R;
+    const sib = _smtBuild(other, d + 1);
+    if (sib === _EMPTY[SMT_DEPTH - 1 - d]) { bits.push('0') }
+    else { bits.push('1'); sibs.push(sib) }
+    here = mine;
+  }
+  // `_smtFold` INDEXES the bitmap by depth -- it reads `bits[d]` -- so the
+  // bitmap stays in depth order. It CONSUMES the siblings from the deepest
+  // level upwards, so those are reversed. Getting this backwards builds a root
+  // nothing can prove against, which is why the test below folds one against
+  // the other rather than trusting the reasoning.
+  return { bits: bits.join(''), sibs: sibs.reverse() };
+}
+function livingPathOf(state, pid) { return pathInLeaves(_livingPairs(state), pid); }
+
+// DOES THIS RECORD BELONG TO THIS ROOT? The one question a successor, a
+// window or a stranger ever needs to ask of a citizen's own file. It is the
+// archive's own test with the archive's own digest, so a proof made against
+// either root is checked the same way.
+//
+// This is what stops a citizen editing their own file: the record hashes into
+// the leaf, the leaf folds up the path, and the fold has to arrive at a root
+// the world already certified. Add a level to a skill and the leaf changes and
+// the fold lands somewhere else. "A wrong path proves nothing and does
+// nothing."
+function provesLiving(root, pid, record, path) {
+  return _smtProves(root, pid, _recordDigest(record), path);
+}
+
 // ---------- §0b: the attendance buffer ----------
 // Entries are [tick, playerId-prefix], ascending by tick, appended in canonical
 // id order within a tick and pruned from the front by age. One entry per key:
@@ -4072,7 +4189,7 @@ const MEND_REQ = 50;
 // and that was about the version you cast on yourself.
 //
 // Seventy-five is past the seventy a sworn citizen reaches in any skill that
-// is not their own, so only an alchemist can ever cast it. It also answers
+// is not their own, so only a sorcerer can ever cast it. It also answers
 // `waking` at seventy-five in the other book: the turned caster's way of
 // putting another body into a fight, against the common caster's way of
 // keeping one there. Same height, opposite books, opposite methods. And it
@@ -4102,7 +4219,7 @@ const MENDP_RANGE = 4;
 // §6aj: UNMAKING AT RANGE, which is denial and not theft.
 //
 // A citizen falls and their pack spills; the one who felled them walks over to
-// take it. Five tiles away, an alchemist with a heartwood stave burns a sigil
+// take it. Five tiles away, a sorcerer with a heartwood stave burns a sigil
 // and the pile is simply GONE -- the plate, the sword, the stones. Nobody gets
 // them. The caster least of all: no coin comes of it, because the thing was
 // unmade rather than sold, and unmaking somebody else's spoil should never be
@@ -4296,7 +4413,7 @@ const transmuteXpFor = (item) => Math.max(XP_ALCH, Math.round((PRICES[item] ?? 0
 //
 // AND IT COSTS THE WEAPON HAND. That is the whole of the balance and it needed
 // no new rule: a staff is wielded, so a citizen carrying one is carrying no
-// sword. An alchemist walking the Wilds with a full pack is choosing between
+// sword. A sorcerer walking the Wilds with a full pack is choosing between
 // converting faster and being able to fight, which is exactly the choice the
 // pickaxe already asks of a miner.
 // THREE CADENCES, BECAUSE TWO STAVES THAT DO THE SAME THING ARE ONE STAFF.
@@ -4325,8 +4442,8 @@ const TRANSMUTE_SHARE = 3, TRANSMUTE_OF = 4;   // three quarters, in integers
 // the other quarter from an infinite purse. Once keepers had a bounded float,
 // alchemy became the one uncapped mint left in the world -- and worse, one
 // that scales with what you feed it. Measured against the island's whole money
-// supply of twenty coin an interval: an alchemist unmaking heartwood makes
-// five and a half, and an alchemist unmaking quick plates makes THREE HUNDRED
+// supply of twenty coin an interval: a sorcerer unmaking heartwood makes
+// five and a half, and a sorcerer unmaking quick plates makes THREE HUNDRED
 // AND THIRTY-EIGHT. One citizen would have out-minted every keeper on the
 // island seventeen times over.
 //
@@ -5539,8 +5656,24 @@ const INPUT_SCHEMAS = {
   // §5v: what is given up, and never got back.
   offer: { slot: T.slot },
   // §5k: the word a citizen says about themselves.
+  // §5w: AND WHO ATTESTED IT, WHICH WAS NEVER A FIELD.
+  //
+  // `mayDo` has checked `input.attester` since §5w was written and the
+  // executor has recorded a lineage from it, and it was not in this schema --
+  // so every declared field being required meant an attested swearing was
+  // refused as `unknown field attester on swear` before either of them ran.
+  // Nobody could attest anybody, ever, and `raised` could never be credited.
+  //
+  // DECLARED, AND EMPTY FOR NOBODY. There are no optional fields in this
+  // constitution -- the note under `walk` says so -- so the absence of a
+  // master is stated rather than implied. An unattested swearing is still a
+  // real swearing (the first forester has nobody to name, and anyone playing
+  // at a quiet hour would otherwise be stuck); it says so with an empty
+  // string, which no identity can be.
   swear: { calling: (v) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(SWORN, v))
-    || 'must be a constitutional calling' },
+    || 'must be a constitutional calling',
+    attester: (v) => v === '' || (typeof v === 'string' && HEX64.test(v))
+    || 'must be a master\'s id, or empty for nobody' },
   // §5i: a direction and a count. Both always present; there are no optional
   // fields in this constitution.
   walk: { dx: T.unit, dy: T.unit, steps: (v) => (Number.isInteger(v) && v >= 1 && v <= WALK_MAX_STEPS) || 'must be 1..' + WALK_MAX_STEPS + ' steps' },
@@ -6731,90 +6864,25 @@ const WAYSTONE_TIER = {
   wildsdeep: 700, cragshigh: 600,
 };
 // 6ch: waystoneStandingFor removed with the stones.
-// CALLING is the profession a citizen is best at, as a word. Ties fall to the
-// constitutional skill order, so the answer is the same on every node.
+// §5k-iii: THE NINE GENERIC CRAFT WORDS ARE GONE.
 //
-// This used to exclude hitpoints, which began at level 10 and would otherwise
-// have made every citizen a born fighter. §5j deleted that skill, so there is
-// nothing to exclude and the nine below are the whole of it.
-const CALLINGS = {
-  // §5n: WOODWRIGHT. The axe, the bench and the fire were one trade split
-  // three ways: you fell a tree to shape it or to burn it, and nobody fells
-  // one for the sake of holding logs. 'forester', 'fletcher' and 'firekeeper'
-  // are parked until §5k, where they come back as things a citizen swears.
-  woodcraft: 'woodwright',
-  // §5o: SMITH. The pick and the anvil were one trade split at the pithead --
-  // ore has no use unmelted, and nobody digs for the sake of holding rock. The
-  // word for the whole of it is the one the anvil already had. 'miner' is
-  // parked until §5k.
-  earthcraft: 'smith',
-  // §5m: SHOREKEEPER. The rod and the fire over the sand were one errand
-  // pretending to be two -- nobody fishes in order to carry raw fish home.
-  // 'fisher' and 'cook' are parked with 'farmer' and 'brewer' until §5k.
-  shorecraft: 'shorekeeper',
-  mourning: 'mourner', marksmanship: 'archer',
-  // ALCHEMIST, not sigilist.
-  //
-  // 'sigilist' was true when every use of magic needed a sigil, and three
-  // stones from the Wilds bought one. Alchemy is now where magic begins and
-  // how it is trained, so most citizens who hold this calling will have
-  // reached it without ever pressing a sigil in their lives. A calling names
-  // what somebody DOES; this one had come to name a thing they had not done.
-  sorcery: 'alchemist',
-  // §5p: WAYFARER. Exploration and hauling were the same trade counted twice:
-  // one measures ground never seen, the other weight moved across ground you
-  // have. Both are the road, and this world already says the road is real.
-  //
-  // 'waycraft' and 'tradecraft' were both wrong. Neither is a CRAFT -- nothing
-  // is made -- and 'tradecraft' is an English word already spoken for: it means
-  // espionage, and hauling is not trading. The word for going out and coming
-  // back is the one that has always meant it.
-  //
-  // CARTOGRAPHER and RUNNER are parked with the rest until §5k, where the
-  // mapper and the carrier become two things a road-worker may swear rather
-  // than two numbers that happened to rise separately.
-  wayfaring: 'wayfarer',
-  // §5l: HEARTHKEEPER, for now, and only for now.
-  //
-  // Farming and brewing were a field and a pot, and a citizen who did both was
-  // two trades wearing one apron. They are one skill: the hearth is where the
-  // grain ends up either way. But 'farmer' and 'brewer' are good words that
-  // name real work, and neither survives a derived calling now that one number
-  // covers both -- the same loss §5j took on berserker and warden.
-  //
-  // They come back sworn (§5k). HEARTHKEEPER is the honest word until then:
-  // it names what the skill actually is rather than picking one of its halves
-  // and quietly demoting the other.
-  hearthcraft: 'hearthkeeper',
-  // §5j: FIGHTER, for now, and only for now.
-  //
-  // Attack, strength and defence were three skills and three callings --
-  // fighter, berserker, warden -- and the note that used to sit here observed
-  // that those name a STYLE, not a trade. That was the tell. They are one
-  // skill now, so the derived calling can no longer tell a berserker from a
-  // warden, and this table renders the only word left.
-  //
-  // The three names are not lost, they are waiting: a calling becomes a thing
-  // a citizen SWEARS rather than a thing derived from whichever number is
-  // highest, and berserker and warden come back the day it does (§5k). Until
-  // then every fighter reads as a fighter, which is honest -- nothing in the
-  // state currently distinguishes them.
-  prowess: 'fighter',
-
-  // 6cd: RUNNER, and the same hole the note above describes, still open.
-  //
-  // §6as caught that strength had no word and rendered as the string
-  // "undefined" wherever a calling was shown. Hauling has had none SINCE IT WAS
-  // WRITTEN: it is the twelfth skill in the constitution and never reached this
-  // table, so any citizen whose deepest trade is the road has been nameless in
-  // every window and on the hiscores from the day the skill existed.
-  //
-  // RUNNER, not carter or porter. A carter has a cart and a porter works a
-  // quay; this citizen walks the roads with what somebody paid them to walk it
-  // with, under the one law in the world that lets anybody strike them for it
-  // (§11d). The word should say the running, not the load.
-
-};
+// `CALLINGS` named one word per craft -- woodwright, smith, shorekeeper,
+// mourner, archer, alchemist, wayfarer, hearthkeeper, fighter -- and was what
+// a citizen was called before §5k gave them an oath to swear. Its own comments
+// said the finer words were "parked until §5k, where they come back as things
+// a citizen swears", and they did: `SWORN` holds seventeen of them.
+//
+// It outlived its purpose badly. FIVE of the nine are also callings somebody
+// can swear, so the word could not be told from an oath -- `serve.mjs` had to
+// ship the raw oath beside it because "a citizen who swore it and a citizen
+// who merely has the most experience there read identically". And once
+// `callingOf` stopped guessing a trade for the unsworn, the other four could
+// no longer be anybody at all: nothing in the world could ever be called a
+// woodwright, a shorekeeper, a wayfarer or a hearthkeeper.
+//
+// Removed rather than left sitting, because a table nothing reads is read by
+// the next person as law. What a citizen is called is `callingOf`; which
+// trades a craft opens is `SWORN`.
 // Chosen by EXPERIENCE, not by level. Levels are a step function of xp, so the
 // skill with the most experience always holds the highest level too: comparing
 // xp settles ties between equal levels the way a citizen expects, and gives the
@@ -6852,7 +6920,7 @@ const SWORN = {
   fighter:      { skill: 'prowess',      health: 0 },
   mourner:      { skill: 'mourning',     health: 0 },
   archer:       { skill: 'marksmanship', health: 0 },
-  alchemist:    { skill: 'sorcery',      health: 0 },
+  sorcerer:     { skill: 'sorcery',      health: 0 },
   cartographer: { skill: 'wayfaring',    health: 0 },
   runner:       { skill: 'wayfaring',    health: 0 },
 };
@@ -6865,6 +6933,37 @@ const SWORN = {
 // By thirty a citizen knows what the trade feels like, and the choice is
 // theirs rather than the tutorial's.
 const SWEAR_LEVEL = 50;
+// §5r-iv: AND HOW MUCH OF THE ISLAND A CITIZEN MUST HAVE SEEN FIRST.
+//
+// Swearing is the one irreversible decision in a life here. It fixes the only
+// craft that may ever reach a hundred, and §5k caps every other at seventy for
+// ever. Measured against the levelling curve, level fifty arrives after about
+// an hour and three quarters of work -- a bit over one day's allowance -- so a
+// citizen could be asked to choose their calling on their second evening,
+// having stood at one rock the whole time and seen nothing of the island.
+//
+// A LEVEL IS THE WRONG PREREQUISITE FOR THIS, and raising it would not help:
+// grinding one craft to sixty-five teaches a citizen nothing about the other
+// eight, and the thing they lack is not practice but acquaintance with the
+// world they are choosing a place in.
+//
+// So the second half of the door is TRAVEL. The island has seven countries a
+// citizen can stand in, and they must have stood in this many before they may
+// swear. It cannot be ground in one spot, which is the whole point, and the
+// world records it as they walk rather than asking them to declare it.
+//
+// FIVE, and not seven, because two of the seven are the Wilds and the Moor --
+// where anybody may hunt anybody, and where the King's dead walk. A door that
+// required those would send every newcomer somewhere they will be killed in
+// order to take up a trade. Five is exactly the peaceful island, all of it,
+// and leaves the dangerous two as a choice rather than a toll.
+//
+// Measured on the founded island: the cheapest tour of five countries from the
+// spawn is 392 tiles, about six and a half minutes of pure walking, through
+// the Heartlands, the Downs, the Fens, the Greenwood and the Crags. That is
+// not a chore; it is one afternoon's wandering, and a citizen who has done it
+// knows where the furnace is.
+const SWEAR_COUNTRIES = 5;
 
 // §5q: A CALLING IS FASTEST AT ITS OWN WORK.
 //
@@ -6877,7 +6976,7 @@ const SWEAR_LEVEL = 50;
 //
 // It applies ONLY where the merge created siblings -- woodcraft, earthcraft,
 // shorecraft, hearthcraft, wayfaring. A trade with one calling has nothing to
-// tell apart, so an alchemist is neither faster nor slower at sorcery; their
+// tell apart, so a sorcerer is neither faster nor slower at sorcery; their
 // word buys standing and not a rate. Prowess is likewise untouched here,
 // because berserker and warden are not two ACTIVITIES -- they are two bargains
 // over the same one, and they are paid in flesh (§5j).
@@ -6996,18 +7095,40 @@ function masterOf(p, skill) {
   if (levelForXp(p.skills?.[skill] ?? 0) < MASTERY) return false;
   return isProven(p);
 }
-function gradeOf(state, p) {
+function gradeOf(state, p, pid) {
   if (typeof p?.calling === 'string' && Object.prototype.hasOwnProperty.call(SWORN, p.calling)) {
     const sk = SWORN[p.calling].skill;
     const deep = (p.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY];
     // §a journeyman until the craft admits them
     return deep && isProven(p) ? 'master' : 'journeyman';
   }
-  for (const m of Object.values(state?.players ?? {})) {
-    const ap = m?.apprentices;
-    if (!ap) continue;
-    for (const [who, at] of Object.entries(ap))
-      if (who === p?.id && state.tick - at <= APPRENTICE_LAPSE) return 'apprentice';
+  // §5x-ii: WHICH CITIZEN THIS IS, WITHOUT RELYING ON A FIELD THEY DO NOT HAVE.
+  //
+  // This compared a master's apprentice list against `p.id`, and a player
+  // object in this world carries no `id`: they are the KEYS of `state.players`
+  // and nothing copies the key onto the value. So the comparison was
+  // `who === undefined`, 'apprentice' could never be returned, and a citizen a
+  // master had taken on read `newcomer` for ever -- while the handbook
+  // documented apprentice as one of the four ranks.
+  //
+  // It worked from `serve.mjs` alone, because that one caller happens to know
+  // to pass `{ ...p, id: pid }`, and nothing said it had to; `mourner.mjs`
+  // passes a bare player and has been getting the wrong answer.
+  //
+  // So the id is a parameter now, and when it is not given it is found: by the
+  // caller's own `id` if they still set one, and otherwise by looking up which
+  // key of `state.players` holds this very object.
+  let who_ = pid ?? p?.id;
+  if (who_ === undefined && state?.players) {
+    for (const [k, v] of Object.entries(state.players)) if (v === p) { who_ = k; break; }
+  }
+  if (who_ !== undefined) {
+    for (const m of Object.values(state?.players ?? {})) {
+      const ap = m?.apprentices;
+      if (!ap) continue;
+      const at = ap[who_];
+      if (at !== undefined && state.tick - at <= APPRENTICE_LAPSE) return 'apprentice';
+    }
   }
   return 'newcomer';
 }
@@ -7057,28 +7178,44 @@ function callingOf(p) {
     // §5n: the word is earned by raising somebody, not by the number alone
     return (((p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY] && isProven(p)) ? 'master ' : '') + p.calling;
   }
-  let best = null, bestXp = -1;
-  for (const sk of SKILLS) {
-    const xp = p?.skills?.[sk] ?? 0;
-    if (xp > bestXp) { bestXp = xp; best = sk; }
-  }
-  if (best === null || levelForXp(bestXp) <= 1) return 'newcomer';
-  // 6cg: ALL EIGHTEEN -- this said 'all sixteen', written when it was true and
-  // never touched again as strength and hauling joined the constitution. The
-  // CODE was always right (it reads SKILLS, so the race has always counted
-  // every skill there is); only the sentence beside it was two behind, which
-  // is the more dangerous of the two states -- a wrong comment is believed.
-  // The same condition the world announces as Master of Interval.
-  // Written now, while nobody is near it, because every rule change is a fork
-  // and the day someone approaches this is the worst possible day to need one.
-  if (SKILLS.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY])) return 'Master of Interval';
-  // Mastery is the one milestone this world already stops to announce, so the
-  // calling says it. Note what needs no extra rule: since the calling is the
-  // MOST-experienced trade, a citizen who has mastered anything has at least
-  // that much experience in their calling, so the word turns to master exactly
-  // when they have mastered something. Past mastery it does not change again;
-  // standing carries the rest.
-  return (bestXp >= XP_TABLE[MASTERY] ? 'master ' : '') + CALLINGS[best];
+  // §5k-ii: AND AN UNSWORN CITIZEN IS A NEWCOMER, whatever they are good at.
+  //
+  // This used to name them after whichever craft they had the most experience
+  // in -- `woodwright`, `smith`, `shorekeeper` -- out of `CALLINGS`, a table
+  // that predates swearing. Two things were wrong with it.
+  //
+  // IT SAID SOMETHING UNTRUE. Nobody is a smith before they swear: that is the
+  // whole of what §5k introduced, and the word a citizen is called should not
+  // claim a trade they have not taken.
+  //
+  // AND IT WAS AMBIGUOUS, because five of those words are also callings
+  // somebody can swear. `serve.mjs` found this the hard way and had to send
+  // the raw oath beside the word to tell them apart: "a citizen who swore it
+  // and a citizen who merely has the most experience there read identically".
+  // Every consumer had to carry a second field; the one that did not -- the
+  // name plate over a head -- simply showed the ambiguous word.
+  //
+  // The world already has a vocabulary for the unsworn and it is not the craft
+  // names: `gradeOf` returns newcomer, apprentice, journeyman, master, and the
+  // handbook documents those four. A caller who wants to tell a newcomer from
+  // an apprentice asks for the grade, which needs the state; this function has
+  // only the citizen, so it answers with the honest floor.
+  //
+  // §5k-iii: AND MASTER OF INTERVAL IS GONE, because §5k made it impossible.
+  //
+  // It meant every craft in the world at a hundred, and it was written when a
+  // citizen could train all of them freely. The caps repealed it without
+  // anybody noticing: `xpCeiling` holds an unsworn citizen to level fifty in
+  // everything and a sworn one to seventy outside their own trade, and the
+  // ceiling is enforced in `validateState`, not merely on the award. So a
+  // state with all nine at a hundred is not rare, it is UNCONSTITUTIONAL --
+  // measured, `validateState` refuses it with "earthcraft past the ceiling"
+  // for a sworn citizen and "woodcraft past the ceiling" for an unsworn one.
+  //
+  // This is not a row that wanted wiring. One mastery to a citizen is the
+  // whole of what §5k is for, and a title for mastering everything is the
+  // opposite of it. The announcement went with it.
+  return 'newcomer';
 }
 
 // ---------- canonical encoding & hashing ----------
@@ -7811,7 +7948,7 @@ function loadOrCreateIdentity(fs, file) {
 }
 
 function newWorld(genesis) {
-  return {
+  const st = {
     genesis,
     tick: 0,
     players: {},
@@ -7821,6 +7958,22 @@ function newWorld(genesis) {
     ground: {},
     markers: [],
   };
+  // §9b-iii: A WORLD THAT CONTINUES ANOTHER STARTS HOLDING ITS ROOT.
+  //
+  // The genesis names the root the predecessor ended on, and the worldId
+  // commits to it, so it cannot be edited afterwards by anyone. But the way
+  // back in has to SPEND a citizen's place in that tree, exactly as an
+  // archive restore does, or one proof would seat the same person twice: come
+  // back, be archived after a long absence, come back again on the same file,
+  // and the goods exist twice.
+  //
+  // A genesis is immutable, so the tree cannot be emptied there. The state
+  // takes a copy at founding, and the restore below empties the leaf in THAT.
+  // The genesis keeps the claim; the state keeps the ledger of who has used
+  // it. Both are one hash, so neither grows with the number of people who
+  // ever come home.
+  if (genesis?.from?.livingRoot) st.incomingRoot = genesis.from.livingRoot;
+  return st;
 }
 
 function sameWorld(a, b) {
@@ -7954,7 +8107,7 @@ function normaliseSource(src) {
 function engineHashOf(src) { return sha256(Buffer.from(normaliseSource(src), 'utf8')).toString('hex'); }
 
 const GENESIS_REQUIRED = ['specVersion', 'rulesHash', 'genesisSeed', 'anchorMs', 'worldGenerator', 'worldW', 'worldH'];
-const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'transmuteWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought',
+const GENESIS_OPTIONAL = new Set(['engineHash', 'witnesses', 'quorum', 'byzantineTolerance', 'imported', 'importedFrom', 'from', 'survey', 'brew', 'watch', 'geo', 'geographyHash', 'founderKey', 'gearReqs', 'events', 'gather', 'stallsLineRoads', 'transmuteWhere', 'haul', 'toolGated', 'newcomerGold', 'waystoneStandingReq', 'anchorIsWildsEscape', 'nought',
   // §6bp: what the first name on a stone costs, and how the price climbs
   'dedication',
   // §14d: the wild span -- pool size, plank rate, and the woodwork it pays
@@ -8085,8 +8238,16 @@ function validateGenesis(g) {
   // citizen may stand, `warn` how long before the floor the world says so.
   if (g.ceiling !== undefined) {
     const ce = g.ceiling;
-    if (!ce || typeof ce !== 'object' || Object.keys(ce).sort().join(',') !== 'allow,warn,window') return 'non-constitutional genesis.ceiling';
+    // §7dw-ii: `sample` is OPTIONAL, and that is not politeness about schemas.
+    // A genesis is immutable, so a world founded before the ceiling had its own
+    // clock has no such field and must stay computable for ever; it falls back
+    // to the stint's sample, which is what it was founded under.
+    const _ck = Object.keys(ce).sort().join(',');
+    if (!ce || typeof ce !== 'object'
+        || (_ck !== 'allow,warn,window' && _ck !== 'allow,sample,warn,window'))
+      return 'non-constitutional genesis.ceiling';
     for (const ck of ['window', 'allow', 'warn']) if (!isInt(ce[ck], 1, 1e9)) return `genesis.ceiling.${ck} out of bounds`;
+    if (ce.sample !== undefined && !isInt(ce.sample, 1, 1e9)) return 'genesis.ceiling.sample out of bounds';
     // The window must divide into bins evenly or the ledger drifts.
     if (ce.window % CEIL_BINS !== 0) return 'genesis.ceiling.window must divide into bins';
     // A ceiling at or above its own window is not a ceiling.
@@ -8094,8 +8255,62 @@ function validateGenesis(g) {
     if (ce.warn >= ce.allow) return 'genesis.ceiling.warn must fall inside the allowance';
     // Closing time is announced or it is a trapdoor. A world may set the
     // notice short; it may not set it to nothing.
-    if (!g.stint) return 'genesis.ceiling requires genesis.stint (the sample is the ledger clock)';
-    if (g.ceiling.window / CEIL_BINS < g.stint.sample) return 'genesis.ceiling bins finer than the sample';
+    if (!g.stint) return 'genesis.ceiling requires genesis.stint (which keeps the fallback clock)';
+    // §7dw-ii: THE LEDGER KEEPS ITS OWN CLOCK NOW, SEPARATE FROM THE PROMISE.
+    //
+    // Both ran on `stint.sample`, and only one of them wanted to. The stint is
+    // sampled coarsely on purpose -- "a promise measured to the interval
+    // invites the citizen to watch a clock" -- and the ledger inherited that
+    // without the argument applying to it. A sample charges a citizen for the
+    // WHOLE block it finds them in, so at five minutes a two-minute visit to
+    // look at your crops cost five, and a citizen could lose most of an
+    // allowance to a handful of short visits.
+    //
+    // Finer is strictly fairer here, and it cannot be gamed in the other
+    // direction either: the presence lookback equals the sample period, so
+    // there is no quiet gap between blocks to act inside.
+    //
+    // IT IS NOT EXACT, AND THE IMPRECISION ROUNDS AGAINST THE CITIZEN. The
+    // lookback is inclusive, so a burst landing on a sample boundary is caught
+    // by that sample and by the next one and costs TWO blocks rather than one.
+    // Measured, not reasoned: one step costs 10 of a 10-interval sample when
+    // it falls mid-block and 20 when it falls on the edge. Left alone, because
+    // the lookback is shared with the promise and tightening it there would
+    // quietly shorten every stint; the honest fix for the cost was to make the
+    // block small, which is this. At five minutes the rough edge was worth up
+    // to ten minutes of somebody's day; at one it is worth two.
+    const _cs = ce.sample ?? g.stint.sample;
+    if (ce.allow % _cs !== 0) return 'genesis.ceiling.allow must divide into samples';
+    if (g.ceiling.window / CEIL_BINS < _cs) return 'genesis.ceiling bins finer than the sample';
+  }
+  // §6am-ii: A GEAR GATE MUST NAME A SKILL THE WORLD HAS.
+  //
+  // `gearReqs` was in the optional list and validated nowhere, so a founding
+  // could gate the endgame on a skill that does not exist -- and v7 did, for
+  // six of them, from before the nine crafts were named. A requirement on a
+  // skill nobody can have is `effLevel(undefined) >= 80`, which is `1 >= 80`,
+  // so the whole quick tier was unwieldable and unforgeable by anybody and
+  // nothing anywhere said so.
+  //
+  // This is the third time that rename has cost a rule, so it is checked at
+  // the door rather than found again by hand.
+  if (g.gearReqs !== undefined) {
+    const gr = g.gearReqs;
+    if (!gr || typeof gr !== 'object' || Array.isArray(gr)) return 'non-constitutional genesis.gearReqs';
+    for (const kind of Object.keys(gr)) {
+      if (kind !== 'wield' && kind !== 'smith') return 'genesis.gearReqs knows only wield and smith';
+      const table = gr[kind];
+      if (!table || typeof table !== 'object' || Array.isArray(table)) return `malformed genesis.gearReqs.${kind}`;
+      for (const item of Object.keys(table)) {
+        if (!ITEMS.has(item)) return `genesis.gearReqs.${kind} names no such thing: ${item}`;
+        const req = table[item];
+        if (!req || typeof req !== 'object' || Array.isArray(req)) return `malformed gear gate on ${item}`;
+        for (const sk of Object.keys(req)) {
+          if (!SKILLS.includes(sk)) return `gear gate on ${item} names no such craft: ${sk}`;
+          if (!isInt(req[sk], 1, MASTERY)) return `gear gate on ${item} is out of bounds`;
+        }
+      }
+    }
   }
   if (g.geo !== undefined) {
     const ge = g.geo;
@@ -8213,6 +8428,27 @@ function validateGenesis(g) {
     const e = validateImports(g.imported);
     if (e) return e;
   }
+  // §9b-iii: WHAT THIS WORLD CONTINUES, if it continues anything.
+  //
+  // `importedFrom` above says where a founder read a list of citizens from.
+  // This says something stronger and smaller: the root over the living that
+  // the predecessor ended on, which is all a successor needs to let every one
+  // of its citizens back in one at a time, for ever, without anybody holding
+  // anybody else's data. Three fields and no more, so the worldId commits to
+  // exactly this claim and nothing can be slipped in beside it.
+  //
+  // SUCCESSION.md is the argument; this is the door it comes through.
+  if (g.from !== undefined) {
+    const f = g.from;
+    if (!f || typeof f !== 'object' || Object.keys(f).sort().join(',') !== 'livingRoot,tick,worldId')
+      return 'non-constitutional genesis.from';
+    if (!/^[0-9a-f]{64}$/.test(f.worldId)) return 'malformed from worldId';
+    if (!/^[0-9a-f]{64}$/.test(f.livingRoot)) return 'malformed from living root';
+    if (!isInt(f.tick, 1, MAX_TIME)) return 'from tick out of bounds';
+    // A WORLD CANNOT CONTINUE ITSELF. Without this a founder could name their
+    // own world's root and hand every citizen a second copy of themselves.
+    if (f.worldId === worldId(g)) return 'a world cannot continue itself';
+  }
   return null;
 }
 
@@ -8224,7 +8460,68 @@ function validateGenesis(g) {
 // that drops the swearing does not lose a title, it makes every hour the
 // citizen spent past level 50 illegal, and the founding then refuses the
 // state it has just built. See the note in validateImports.
-const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'health', 'vaults', 'inventory', 'weapon', 'calling']);
+// §9b-ii: AND THE RECORD OF WHAT HAPPENED, which a crossing used not to carry.
+// Every one of these is a tally or a list that only ever grew, so carrying it
+// is continuing a life rather than editing one. Position, health and the ground
+// are the new world's business and are deliberately absent.
+const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'health', 'vaults', 'inventory', 'weapon', 'calling',
+  'gold', 'deaths', 'raised', 'chartered', 'sworn_by', 'walked', 'sworn', 'stood', 'friends', 'known']);
+// §9b-iii: AND THE PROJECTION ITSELF, WHICH USED TO LIVE IN `crossing.mjs`.
+//
+// There are now TWO doors a citizen can come through from a world that
+// stopped. A founder reads a whole checkpoint and seats everyone in the
+// genesis (`crossing.mjs:carry`), or one citizen arrives on their own, months
+// later, holding a record the inherited root proves (`restore`, below). Both
+// have to answer "what crosses" IDENTICALLY, or a citizen's goods depend on
+// which way they came back, and a second implementation of this list is how
+// that happens.
+//
+// So it is one function, and it lives here, beside the field list it must
+// agree with. `crossing.mjs` maps over it; the restore handler calls it for
+// one. ABSENT, NOT UNDEFINED: a genesis is canonically encoded and the
+// encoder refuses `undefined` outright, so a record nobody has is a key that
+// is not there.
+function carriedFrom(pid, p) {
+  const out = {
+    pid,
+    skills: p.skills,
+    name: isValidName(p.name) ? p.name : null,
+    // BOTH SPELLINGS, and only here: every checkpoint written before the
+    // rename says `hp`, and this is the one place old rules are read by new.
+    health: p.health ?? p.hp,
+    calling: p.calling ?? null,
+    // §6g: A CROSSING CARRIES GOODS, NOT GEOGRAPHY. The shelves are summed
+    // into one map; the building they stood in is not what crossed.
+    vaults: (() => {
+      const flat = {};
+      for (const vault of Object.values(p.vaults ?? {}))
+        for (const [it, q] of Object.entries(vault ?? {}))
+          if (ITEMS.has(it)) flat[it] = (flat[it] ?? 0) + q;
+      return flat;
+    })(),
+    inventory: (p.inventory ?? []).filter((sl) => sl && ITEMS.has(sl.item)),
+    weapon: p.equipment?.weapon && ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
+  };
+  const put = (k, v) => { if (v !== undefined && v !== null) out[k] = v; };
+  // GOLD IS A NUMBER, not an item, so it once fell through the vault filter
+  // above and a life's savings went with it. Person and shelves, summed.
+  put('gold', ((p.gold ?? 0) + Object.values(p.vaults ?? {})
+    .reduce((n, v) => n + (v?.gold ?? 0), 0)) || undefined);
+  put('deaths', p.deaths || undefined);
+  put('raised', p.raised || undefined);
+  put('sworn', p.sworn || undefined);
+  put('stood', p.stood || undefined);
+  put('chartered', p.chartered === true ? true : undefined);
+  // §5w: the TICK is deliberately not carried: it belongs to a clock that has
+  // stopped, and a large number in a young world reads as the future.
+  put('sworn_by', p.sworn_by && p.calling
+    ? { by: p.sworn_by.by, calling: p.sworn_by.calling, at: 0 } : undefined);
+  put('walked', Array.isArray(p.walked) && p.walked.length ? [...p.walked].sort() : undefined);
+  put('friends', Array.isArray(p.friends) && p.friends.length ? [...p.friends] : undefined);
+  put('known', Array.isArray(p.known) && p.known.length ? [...p.known].sort() : undefined);
+  return out;
+}
+
 function validateImports(imported) {
   if (!Array.isArray(imported) || imported.length > MAX_ENTITIES) return 'bad imports';
   const pids = new Set(), names = new Set();
@@ -8273,6 +8570,47 @@ function validateImports(imported) {
     for (const [sk, xp] of Object.entries(imp.skills ?? {})) {
       const ceil = xpCeiling({ calling: imp.calling ?? undefined, skills: imp.skills }, sk);
       if (ceil !== Infinity && xp > ceil) return `import carries ${sk} past the ceiling`;
+    }
+    // §9b-ii: AND THE RECORD. Each of these is a tally or a list that only
+    // ever grew in the world it came from, which is why it may cross at all.
+    // Checked at the door with the same bounds `validateState` holds them to,
+    // because an import is the one way into this world that no signed input
+    // ever passed through.
+    if (imp.gold !== undefined && !isInt(imp.gold, 0, MAX_QTY)) return 'import gold out of bounds';
+    if (imp.deaths !== undefined && !isInt(imp.deaths, 0, 1e12)) return 'import death tally out of bounds';
+    if (imp.raised !== undefined && !isInt(imp.raised, 0, MAX_TIME)) return 'import raised out of bounds';
+    if (imp.sworn !== undefined && !isInt(imp.sworn, 0, MAX_TIME)) return 'import sworn out of bounds';
+    if (imp.stood !== undefined && !isInt(imp.stood, 0, MAX_TIME)) return 'import stood out of bounds';
+    if (imp.chartered !== undefined && imp.chartered !== true) return 'import carries a malformed charter mark';
+    if (imp.sworn_by !== undefined) {
+      const sb = imp.sworn_by;
+      if (!sb || typeof sb !== 'object' || Array.isArray(sb)) return 'import carries a malformed lineage';
+      if (typeof sb.by !== 'string' || !HEX64.test(sb.by)) return 'import lineage without a master';
+      if (!Object.prototype.hasOwnProperty.call(SWORN, sb.calling)) return 'import lineage with no calling';
+      if (!isInt(sb.at, 0, MAX_TIME)) return 'import lineage out of time';
+      // §5w: a lineage is a record OF a swearing. Without one it is a claim
+      // about nothing, and `validateState` would refuse the seated citizen.
+      if (imp.calling === undefined || imp.calling === null) return 'import lineage without a swearing';
+    }
+    if (imp.walked !== undefined) {
+      if (!Array.isArray(imp.walked) || imp.walked.length > 16) return 'import carries malformed travels';
+      let last = '';
+      for (const c of imp.walked) {
+        if (typeof c !== 'string' || !/^[a-z-]{1,24}$/.test(c)) return 'import carries a malformed country';
+        if (c <= last) return 'import travels out of order or repeated';
+        last = c;
+      }
+    }
+    for (const [key, cap, sorted] of [['friends', FRIEND_CAP, false], ['known', KNOWN_CAP, true]]) {
+      const list = imp[key];
+      if (list === undefined) continue;
+      if (!Array.isArray(list) || list.length > cap) return `import carries a malformed ${key} list`;
+      let prev = '';
+      for (const id of list) {
+        if (!(typeof id === 'string' && /^[a-z0-9_-]{1,96}$/i.test(id))) return `import carries a malformed ${key} id`;
+        if (sorted && !(prev < id)) return `import ${key} must be sorted and distinct`;
+        prev = id;
+      }
     }
     if (imp.inventory !== undefined) {
       if (!Array.isArray(imp.inventory) || imp.inventory.length > INV_SLOTS) return 'malformed imported inventory';
@@ -8511,6 +8849,52 @@ const LANDMARK_KINDS = new Set([
   const PLAYER_OPTIONAL = new Set(['hooded', 'crops', 'attuned', 'brandedUntil', 'cooksTried', 'deadUntil',
     // §6c-ii: the wound the dead leave, and the tally that never falls
     'calling', 'offered', 'wounds', 'deaths', 'lightsTried', 'rootedUntil', 'rootImmuneUntil', 'rootCdUntil', 'stilledUntil', 'stillImmuneUntil', 'stillCdUntil', 'slain', 'lastSwing', 'lastAte', 'look', 'lastTransmute', 'stillAt', 'deed', 'lastMend', 'shotsFired', 'consignment', 'paidUntil', 'brewing', 'buried', 'nocked', 'blows', 'following', 'book', 'rottingUntil', 'rotBy', 'witheredUntil', 'fedLeft', 'fedRate', 'lastTaking', 'lastWaking', 'friends', 'chartered',
+    // §5r-iv: the countries this citizen has stood in, which is half the door
+    // to a calling
+    'walked',
+    // §5w/§5x: THE TEACHING, WHICH THE VALIDATOR WROTE RULES FOR AND NEVER
+    // ADMITTED.
+    //
+    // All three of these are written by the engine -- `teach` parks an
+    // apprenticeship on the master, an attested swearing records the pupil's
+    // lineage and credits the master's tally -- and all three have full
+    // validation blocks below. They were simply never added to this list, so
+    // `validateState` refused them as unknown fields.
+    //
+    // That is not a cosmetic gap. The closure property this project holds
+    // itself to is `validateState(nextState(...)) === null`, so the FIRST time
+    // anybody took on an apprentice or swore with an attester, the world wrote
+    // state its own validator forbids and every node would halt. §5x's whole
+    // endgame -- "you become a master by raising somebody else to their own
+    // swearing" -- could not be reached, and `isProven` was false for
+    // everybody, so no citizen could ever be called a master.
+    //
+    // It survived because the property test that would have caught it cannot
+    // reach here: an attested swearing needs a master at a hundred with a live
+    // apprentice, which is a hundred hours of play away from a random walk.
+    'raised', 'sworn_by', 'apprentices',
+    // §9b-iii: THE INTERVAL THEY CAME HOME AT, for a citizen who walked back in
+    // from the world this one continues.
+    //
+    // Written by `restore` against the inherited root, and written for the
+    // benefit of whoever has to SERVE the way home. Coming home spends a leaf
+    // out of the inherited tree, so a path service must know who has already
+    // returned or it cannot build anybody else a path. From the root alone that
+    // is recoverable one step at a time and no further, which left a service
+    // unable to start late.
+    //
+    // With this it is a pure function of the state every node already holds:
+    // whoever carries it came home. No file to keep, no peer to ask, and no
+    // history to replay -- and replaying the certificates was the obvious
+    // answer and the wrong one, because it needs the very history a node
+    // starting cold does not have.
+    //
+    // It does NOT cross a crossing (`carriedFrom` leaves it out), because it is
+    // a fact about this world's inherited tree rather than about the citizen's
+    // life. It DOES survive being archived, since an archived record is kept
+    // whole, so a citizen who comes home, goes absent and is put away still
+    // counts as having come home when they return.
+    'returned',
     // §7dv: the open promise, the settled records, and the two tallies that
     // hold the gap between what was sworn and what was stood
     'stint', 'stints', 'sworn', 'stood',
@@ -8783,6 +9167,18 @@ const LANDMARK_KINDS = new Set([
     // §7dw: THE LEDGER. Bins of presence, and the bin the last one landed in.
     // Bounded by construction: it is the same twenty-four integers forever, no
     // matter how long a citizen stands the world.
+    // §5r-iv: the countries stood in. A short, sorted, distinct list of the
+    // world's own country names, and nothing else: it is half the door to a
+    // calling, so a forged one would buy a calling that was never earned.
+    if (p.walked !== undefined) {
+      if (!Array.isArray(p.walked) || p.walked.length > 16) return 'malformed travels';
+      let last = '';
+      for (const c of p.walked) {
+        if (typeof c !== 'string' || !/^[a-z-]{1,24}$/.test(c)) return 'malformed country';
+        if (c <= last) return 'travels out of order or repeated';
+        last = c;
+      }
+    }
     if (p.ledger !== undefined) {
       const led = p.ledger;
       if (!led || typeof led !== 'object' || Object.keys(led).sort().join(',') !== 'at,bins') return 'malformed ledger';
@@ -8902,6 +9298,7 @@ const LANDMARK_KINDS = new Set([
       if (p.calling === undefined) return 'lineage without a swearing';
     }
     if (p.raised !== undefined && !isInt(p.raised, 0, MAX_TIME)) return 'raised out of bounds';
+    if (p.returned !== undefined && !isInt(p.returned, 0, MAX_TIME)) return 'returned out of bounds';
     if (p.calling !== undefined) {
       if (typeof p.calling !== 'string' || !Object.prototype.hasOwnProperty.call(SWORN, p.calling)) return 'unknown calling';
       const _cs = SWORN[p.calling].skill;
@@ -9106,6 +9503,19 @@ const LANDMARK_KINDS = new Set([
     // It says who works here; it does not say where they are. You still have to
     // go to the furnace to learn who works the furnace, and you still have to
     // find them yourself.
+    //
+    // WHICH WORKS REMEMBER. The four where something is made -- the anvil, the
+    // furnace, the sawpit and the mill -- and both fires, the furnace and the
+    // watchfire, whenever somebody feeds one or burns it down for charcoal.
+    //
+    // The fires were missing, and that was the wrong way round for the whole
+    // purpose of this. A smith who smelted an hour ago tells you nothing you
+    // need to know. Whoever has been feeding the fire tells you whether it will
+    // still be alight when you get there and whether to bring coal, which is
+    // the one thing on this island that genuinely has to be arranged between
+    // people who cannot see each other. `stokedBy` kept the LAST hand only and
+    // the next person to feed it overwrote them, so one name was all anybody
+    // could ever read and it was gone a minute later.
     if (n.worked !== undefined) {
       if (!Array.isArray(n.worked) || n.worked.length > WORKED_KEEP) return 'malformed work log';
       for (const w of n.worked) {
@@ -9436,6 +9846,24 @@ const LANDMARK_KINDS = new Set([
     if (typeof state.archiveRoot !== 'string' || !HEX64.test(state.archiveRoot))
       return 'malformed archive root';
   }
+  // §9b-iii: and the inherited root, what is left of it. A copy of
+  // `genesis.from.livingRoot` with every returned citizen's leaf emptied.
+  if (state.incomingRoot !== undefined) {
+    if (typeof state.incomingRoot !== 'string' || !HEX64.test(state.incomingRoot))
+      return 'malformed inherited root';
+  }
+  // §5g-ii: and the root over the living. SHAPE ONLY, deliberately.
+  //
+  // Recomputing it here would cost every validation what the tick itself
+  // pays, and it would buy nothing: the root is derived, so a node that lies
+  // about it produces a different `stateHash`, which the certificate covers
+  // and divergence detection catches. It is checked for being a hash because
+  // a state arriving over the wire has not been through the tick that built
+  // it.
+  if (state.livingRoot !== undefined) {
+    if (typeof state.livingRoot !== 'string' || !HEX64.test(state.livingRoot))
+      return 'malformed living root';
+  }
 
   // §0a/§0b: the tideline and the attendance. Both are fixed-ceiling structures
   // and both are checked for their ceiling here, because a state that arrives
@@ -9563,6 +9991,25 @@ function seatImport(state, c, x, y) {
     if (bid) { p.vaults[bid] = {}; for (const [it, q] of carried) p.vaults[bid][it] = q; }
   }
   if (c.name != null) { state.names[c.name] = c.pid; p.name = c.name; }
+  // §9b-ii: AND THE RECORD OF A LIFE ALREADY LIVED.
+  //
+  // Applied directly, like everything above it: `validateImports` has run, and
+  // silent per-field filtering here is how two implementations come to
+  // disagree about which validated citizen got what.
+  //
+  // GOLD IS SEATED ON THE PERSON, not back into a vault. The crossing sums
+  // what they carried and what they had banked, because a bank is a building
+  // and the building is not what crossed -- the money is.
+  if (c.gold) p.gold = c.gold;
+  if (c.deaths) p.deaths = c.deaths;
+  if (c.raised) p.raised = c.raised;
+  if (c.sworn) p.sworn = c.sworn;
+  if (c.stood) p.stood = c.stood;
+  if (c.chartered === true) p.chartered = true;
+  if (c.sworn_by) p.sworn_by = { by: c.sworn_by.by, calling: c.sworn_by.calling, at: c.sworn_by.at };
+  if (c.walked?.length) p.walked = [...c.walked];
+  if (c.friends?.length) p.friends = [...c.friends];
+  if (c.known?.length) p.known = [...c.known];
   return true;
 }
 
@@ -9921,12 +10368,16 @@ function validInput(state, input, ctx) {
       if (!Object.prototype.hasOwnProperty.call(SWORN, input.calling)) return false;
       const c = SWORN[input.calling];
       if (levelForXp(p.skills?.[c.skill] ?? 0) < SWEAR_LEVEL) return false;
+      // §5r-iv: and they must have seen something of the island first. See the
+      // note beside SWEAR_COUNTRIES for why this is travel and not a level.
+      if ((p.walked?.length ?? 0) < SWEAR_COUNTRIES) return false;
       // §5w: AN ATTESTED SWEARING. A citizen may name the master who took them
       // on, and the mark goes into the record for ever. Unattested swearing
       // stays legal: the first forester has nobody to attest them, and anyone
       // playing at an empty hour would otherwise be stuck. The mark is the
       // reward; its absence is not a wall.
-      if (input.attester !== undefined) {
+      // §5w: empty means nobody, which is legal. See the schema.
+      if (input.attester) {
         const m = state.players[input.attester];
         if (!m || input.attester === input.playerId) return false;
         if (!adjacent(p, m)) return false;                    // in the same place
@@ -9971,7 +10422,7 @@ function validInput(state, input, ctx) {
         // disagreeing about what holding it means.
         //
         // Wielded settles it, and it costs what a pickaxe already costs an
-        // alchemist: a citizen working a seam is carrying no sword.
+        // sorcerer: a citizen working a seam is carrying no sword.
         const need = GATHER_TOOLS[y.skill];
         // §13h: AN EEL BUCK IS NOT A ROD. You do not angle for eels; you set a
         // trap woven out of willow, leave it in the run, and come back and lift
@@ -12160,9 +12611,13 @@ function stallGroundOk(s2, x, y) {
 
 // §7cy: the same search, answering with the NODE. `hasAdjacentNode` returns a
 // boolean and the work log needs the thing itself to write on.
-function adjacentNodeOf(state, ctx, p, type) {
+function adjacentNodeOf(state, ctx, p, type, pred) {
+  // The predicate is for the works identified by their KIND rather than their
+  // type: a mill is a `landmark` whose kind is `mill`, and `hasAdjacentNode`
+  // has taken a predicate for that reason since it was written. This one had
+  // not, so the mill could be asked about and never handed over.
   for (const n of Object.values(state.nodes))
-    if (n.type === type && adjacent(p, n)) return n;
+    if (n.type === type && adjacent(p, n) && (!pred || pred(n))) return n;
   return null;
 }
 function hasAdjacentNode(state, ctx, p, typeOrSet, pred) {
@@ -12917,29 +13372,40 @@ function nextState(state, inputs, _legacyBeacon) {
     const _sn = s.genesis.stint;
     if (_sn) {
       const _ids = Object.keys(s.players).sort();      // id order: this writes canonical state
-      // §7dw: THE LEDGER, on the same cadence and BEFORE the stint tally, so a
-      // citizen who crosses the floor this interval crosses it once. Presence
-      // is counted whether or not a stint is open: a ceiling that only counted
-      // sworn intervals would be escaped by never swearing.
+      // §7dw: THE LEDGER, BEFORE the stint tally, so a citizen who crosses the
+      // floor this interval crosses it once. Presence is counted whether or not
+      // a stint is open: a ceiling that only counted sworn intervals would be
+      // escaped by never swearing.
+      //
+      // §7dw-ii: ON ITS OWN CLOCK. It ran on the promise's sample, which is
+      // coarse on purpose for the promise's own reasons and merely blunt here:
+      // a sample charges the whole block it finds a citizen in, so at five
+      // minutes a two-minute visit cost five. See the note beside the
+      // validator. Falls back to the promise's sample for a world founded
+      // before the ceiling had a clock of its own.
       const _ce = s.genesis.ceiling;
-      if (_ce && s.tick % _sn.sample === 0) {
+      const _cs = _ce ? (_ce.sample ?? _sn.sample) : _sn.sample;
+      if (_ce && s.tick % _cs === 0) {
         const bin = ceilBin(s.tick, s.genesis);
         for (const id of _ids) {
           const q = s.players[id];
-          if (q.health <= 0 || !stintPresent(q, s.tick, _sn.sample)) continue;
+          // THE LOOKBACK IS THE BLOCK. Equal to the sample period, so the
+          // blocks tile the timeline: every block holding an input is charged
+          // exactly once, and there is no quiet gap between them to act in.
+          if (q.health <= 0 || !stintPresent(q, s.tick, _cs)) continue;
           const own = ownPlayer(s, id);
           let at = own.ledger?.at ?? bin;
           let bins = own.ledger ? [...own.ledger.bins] : new Array(CEIL_BINS).fill(0);
           const gap = bin - at;
           if (gap >= CEIL_BINS) bins = new Array(CEIL_BINS).fill(0);
           else for (let k = 1; k <= gap; k++) bins[(at + k) % CEIL_BINS] = 0;   // zero what rolled past
-          bins[bin % CEIL_BINS] += _sn.sample;
+          bins[bin % CEIL_BINS] += _cs;
           own.ledger = { at: bin, bins };
           // CLOSING TIME IS ANNOUNCED OR IT IS A TRAPDOOR. The whole of what a
           // bounded session did was that you knew it was coming and roughly
           // when. The stopping was never the part that worked.
           const left = Math.max(0, _ce.allow - ceilStood(own, s.genesis, s.tick));
-          const was = left + _sn.sample;
+          const was = left + _cs;
           if (left <= 0 && was > 0) {
             announce(s, (q.name ?? id.slice(0, 6)) + ' stands down.');
           } else if (left > 0 && left <= _ce.warn && was > _ce.warn) {
@@ -13150,6 +13616,35 @@ function nextState(state, inputs, _legacyBeacon) {
   // watchfires (v0.53): while a fire burns it pays its keeper a slow trickle, the
   // light is public, the vigil is theirs. A fire long cold crumbles to ash.
   const _wt = s.genesis.watch;
+  // §7dw-iii: ATTENDANCE PAY REQUIRES SOMEBODY TO BE ATTENDING.
+  //
+  // This is the second time this rule has had to learn the same lesson. It
+  // once paid a firekeeper every interval their beacon burned, "anywhere in
+  // the world, asleep, in another country -- twelve thousand experience a
+  // cycle for having once lit something", and the fix was to require them to
+  // be NEXT TO IT. That fixed the place and left the person: a body stays
+  // standing where it stood after the window is closed, so a citizen could
+  // feed the furnace, step one tile, shut the client and go to bed earning an
+  // experience an interval for the hour the fire holds -- and the ceiling
+  // never charged them for it, because the ceiling counts inputs and there
+  // were none.
+  //
+  // So it is the world's own measure of presence, the one the promise uses: an
+  // input within the last sample, or an action still running, which is what
+  // keeps somebody watching a pickaxe from having to jog the keys. A citizen
+  // who has done nothing at all for five minutes is indistinguishable from
+  // one who walked away, and the engine says so itself: "a world cannot see
+  // somebody walk away from a keyboard. What it can see is that no input
+  // arrived."
+  //
+  // AND NOT THE STOOD DOWN. They have spent their day; the world has stopped
+  // transacting with them, and paying them to stand beside a fire would be
+  // the ceiling's one hole.
+  const _tending = (st, pid, q) => {
+    const _s = st.genesis.stint;
+    if (!_s) return true;                       // a world with no promise keeps no clock
+    return stintPresent(q, st.tick, _s.sample) && !isStoodDown(st, pid);
+  };
   if (_wt) for (const [_nid, _n] of Object.entries(s.nodes)) {
     // §7r: THE FURNACE PAYS FOR ATTENDANCE TOO, and for the same reason the
     // watchfire does: a fire is somewhere a person SITS. A stoke is a moment's
@@ -13163,7 +13658,8 @@ function nextState(state, inputs, _legacyBeacon) {
     if (_n.type === 'furnace') {
       if (s.tick < (_n.fuelUntil ?? 0) && _n.stokedBy !== undefined) {
         const _f = s.players[_n.stokedBy];
-        if (_f && _f.health > 0 && Math.max(Math.abs(_f.x - _n.x), Math.abs(_f.y - _n.y)) <= WATCH_TEND_RANGE)
+        if (_f && _f.health > 0 && Math.max(Math.abs(_f.x - _n.x), Math.abs(_f.y - _n.y)) <= WATCH_TEND_RANGE
+            && _tending(s, _n.stokedBy, _f))
           awardXp(_f, 'earthcraft', FURNACE_BURN_XP, 'smith');
       }
       continue;
@@ -13188,7 +13684,8 @@ function nextState(state, inputs, _legacyBeacon) {
       // miss. What a public fire pays is the stoke, to whoever stokes it, and
       // `stoke` already pays the feeder at anybody's fire.
       const _k = _n.by === undefined ? null : s.players[_n.by];
-      if (_k && _k.health > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE)
+      if (_k && _k.health > 0 && Math.max(Math.abs(_k.x - _n.x), Math.abs(_k.y - _n.y)) <= WATCH_TEND_RANGE
+          && _tending(s, _n.by, _k))
         awardXp(_k, 'woodcraft', _wt.burnXp, 'firekeeper');
     }
     // ...and it does not rot away when it goes out. A citizen's fire that has
@@ -14050,14 +14547,55 @@ function nextState(state, inputs, _legacyBeacon) {
       // else this tick has already done to it
       const live = s.archiveRoot ?? EMPTY_ROOT;
       const digest = sha256(Buffer.from(canonical(inp.record))).toString('hex');
-      if (!_smtProves(live, inp.playerId, digest, inp.path)) continue;
-      const nr = _smtWith(inp.playerId, null, inp.path);
-      if (nr === null) continue;
-      const rec = _deepCloneJson(inp.record);
-      rec.lastInput = s.tick;
-      s.players[inp.playerId] = rec;
-      s.archiveRoot = nr;
-      if (s.archiveRoot === EMPTY_ROOT) delete s.archiveRoot;
+      if (_smtProves(live, inp.playerId, digest, inp.path)) {
+        const nr = _smtWith(inp.playerId, null, inp.path);
+        if (nr === null) continue;
+        const rec = _deepCloneJson(inp.record);
+        rec.lastInput = s.tick;
+        s.players[inp.playerId] = rec;
+        s.archiveRoot = nr;
+        if (s.archiveRoot === EMPTY_ROOT) delete s.archiveRoot;
+        continue;
+      }
+      // ---------- §9b-iii: OR FROM THE WORLD BEFORE THIS ONE ----------
+      //
+      // The same deed, the same shape, a different tree. A citizen whose
+      // world lost its quorum holds their own record and a path against the
+      // root that world ended on, and this founding's genesis named that root
+      // (`genesis.from`). So they walk back in on their own, months later,
+      // without the founder having read them out of a checkpoint and without
+      // anybody holding anybody else's data.
+      //
+      // NOT SEATED RAW. The record above came out of THIS world's own
+      // archive, so it is already a citizen of here. This one is not: it
+      // holds a position on another clock, an action half finished, a deed
+      // from an interval that no longer exists. It goes through the same door
+      // a founder's import does -- `carriedFrom`, then `validateImports`,
+      // then `seatImport` -- because what crosses must not depend on which
+      // way a citizen came.
+      //
+      // AND THE LEAF IS SPENT, in the state's copy of the tree. The genesis
+      // keeps the claim and cannot be edited; the state keeps the record of
+      // who has used it. Without this, a citizen could come home, go absent
+      // long enough to be archived, and come home again on the same file.
+      if (!s.incomingRoot) continue;
+      if (!_smtProves(s.incomingRoot, inp.playerId, digest, inp.path)) continue;
+      const back = _smtWith(inp.playerId, null, inp.path);
+      if (back === null) continue;
+      const imp = carriedFrom(inp.playerId, inp.record);
+      // The name they had may be taken by somebody who got here first. A
+      // citizen is not refused entry over it: they come in unnamed and may
+      // claim another, which is what the naming deed is for.
+      if (imp.name != null && s.names[imp.name] && s.names[imp.name] !== inp.playerId) imp.name = null;
+      if (validateImports([imp]) !== null) continue;
+      const sp = spawnOf(s.genesis);
+      if (!seatImport(s, imp, sp.x, sp.y)) continue;
+      ownPlayer(s, inp.playerId).lastInput = s.tick;
+      // and WHEN, so that whoever serves the way home can work out who has
+      // already taken theirs from the state alone. See `PLAYER_OPTIONAL`.
+      ownPlayer(s, inp.playerId).returned = s.tick;
+      s.incomingRoot = back;
+      if (s.incomingRoot === EMPTY_ROOT) delete s.incomingRoot;
       continue;
     }
     if (inp.type === 'archive') {
@@ -14191,7 +14729,7 @@ function nextState(state, inputs, _legacyBeacon) {
       // each one holds a slot until they get there. The apprenticeship closes
       // in the same breath: it does not end so much as turn into the
       // permanent thing.
-      if (inp.attester !== undefined) {
+      if (inp.attester) {
         const m = s.players[inp.attester];
         if (m) {
           // the CALLING, not the person: it survives a change of name, and it
@@ -14310,6 +14848,10 @@ function nextState(state, inputs, _legacyBeacon) {
         // citizen's fire and not alone in a field: it takes their fuel, and
         // they earn nothing for it but the company and whatever was arranged.
         wf.fuelUntil = Math.max(s.tick, (wf.fuelUntil ?? 0) - wt.perLog * wt.charBurn);
+        // §7cy: and charring is working the fire, in the plainest sense --
+        // it is somebody standing at it spending its heat. Whoever arrives
+        // next to feed it should be able to see who has been burning it down.
+        noteWork(wf, pid, s.tick);
         awardXp(p, 'woodcraft', wt.charXp, 'firekeeper');
       }
     } else if (inp.type === 'haul') {
@@ -15703,6 +16245,17 @@ function nextState(state, inputs, _legacyBeacon) {
         wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + burn,
           s.tick + FURNACE_CAP);
         wf.stokedBy = pid;   // §7r: whoever fed it last is the one minding it
+        // §7cy: AND FEEDING A FIRE IS WORKING IT.
+        //
+        // The work log was written at the three places something is MADE --
+        // the anvil, the furnace, the sawpit -- and not at the one place
+        // something is KEPT. That is the wrong way round for what the log is
+        // for: a smith who smelted an hour ago tells you nothing you need,
+        // and whoever has been feeding the fire tells you whether it will
+        // still be burning when you get there. `stokedBy` already records the
+        // last hand, but one name is not a trace, and it is overwritten by
+        // the next person before anybody can read it.
+        noteWork(wf, pid, s.tick);
         awardXp(p, 'earthcraft', XP_STOKE_FURNACE, 'smith');   // the fireman earns, at anybody's fire
       } else if (wf && wf.type === 'watchfire' && atOrBeside(p, wf) && sl
           && (isLog(sl.item) || sl.item === 'coal') && wt) {   // §7dd
@@ -15714,6 +16267,10 @@ function nextState(state, inputs, _legacyBeacon) {
         // The experience is unchanged (a log pays a log); what changes is how
         // long the country can see the fire.
         wf.fuelUntil = Math.min(Math.max(wf.fuelUntil ?? 0, s.tick) + wt.perLog * (BURN_MULT[sl.item] ?? 1), s.tick + wt.cap);
+        // §7cy: and the same for the watchfire, which is the one public work
+        // in the world and therefore the one where knowing who is tending it
+        // matters most. A fire nobody has fed for an hour is about to go out.
+        noteWork(wf, pid, s.tick);
         awardXp(p, 'woodcraft', wt.xpPerLog, 'firekeeper'); // the feeder earns, even at another's fire
       }
     } else if (inp.type === 'fletch') {
@@ -16453,6 +17010,11 @@ function nextState(state, inputs, _legacyBeacon) {
       if (sl2 && sl2.item === 'grain' && hasAdjacentNode(s, _ctx, p, 'landmark', (n) => n.kind === 'mill')) {
         removeItem(p.inventory, inp.slot, 1);
         addItem(p.inventory, 'flour', 1);
+        // §7cy: a mill is a work, the same as the sawpit and the anvil, and it
+        // kept no record of who had been at it. There is one mill to a
+        // settlement, so the queue for it is a real thing to coordinate.
+        { const ml = adjacentNodeOf(s, _ctx, p, 'landmark', (n) => n.kind === 'mill');
+          if (ml) noteWork(ml, pid, s.tick); }
         awardXp(p, 'hearthcraft', XP_GRIND, 'farmer');
       }
     } else if (inp.type === 'drink') {
@@ -16562,6 +17124,37 @@ function nextState(state, inputs, _legacyBeacon) {
     p.action = p.action.remaining > 1
       ? { type: 'walk', dx: p.action.dx, dy: p.action.dy, remaining: p.action.remaining - 1 }
       : null;
+  }
+
+  // §5r-iv: AND WHERE EVERYBODY HAS BEEN.
+  //
+  // Half the door to a calling is travel (see SWEAR_COUNTRIES), so the world
+  // keeps the countries a citizen has stood in. Written here, after the step
+  // and the walk have both settled, so it reads where they ACTUALLY ended the
+  // interval -- and written for every living citizen rather than only for the
+  // ones who moved, which also catches the ground somebody is put down on by
+  // a death, a crossing or a founding.
+  //
+  // It is a short list of the world's own country names, never a map: seven
+  // strings at the very most, where a tile-by-tile record would be fifty-seven
+  // kilobytes a citizen in a state that has to hash every interval.
+  //
+  // The sea is skipped. Nobody stands in it, and a citizen on a ferry has not
+  // visited the water.
+  {
+    const _tt = TERRAINS[s.genesis.worldGenerator];
+    if (_tt && _tt.country) {
+      for (const pid of Object.keys(s.players).sort()) {
+        const q = s.players[pid];
+        if (!q || q.health <= 0) continue;
+        const where = _tt.country(s.genesis, q.x, q.y);
+        if (!where || where === 'sea') continue;
+        const been = q.walked ?? [];
+        if (been.includes(where)) continue;
+        // Sorted, so two nodes replaying the same inputs write the same bytes.
+        ownPlayer(s, pid).walked = [...been, where].sort();
+      }
+    }
   }
 
   // resolve ongoing actions (spec §6, §6b), canonical order.
@@ -17580,11 +18173,11 @@ function nextState(state, inputs, _legacyBeacon) {
         else announce(s, _nm + ' has mastered ' + _sk + '.');
       }
     }
-    // total mastery: newly crossed the last of all 14 skills this tick
-    if (_newMastery && _pre.size < SKILLS.length && SKILLS.every(_sk => _p.skills[_sk] >= _M)) {
-      if (claimFirst(s, 'totalmaster', _pid)) announce(s, _nm + ' is the FIRST ever Master of Interval.');
-      else announce(s, _nm + ' has become a Master of Interval.');
-    }
+    // §5k-iii: THE TOTAL-MASTERY ANNOUNCEMENT IS GONE. It fired when a citizen
+    // crossed the last of every skill, which §5k's caps made impossible: a
+    // state holding all nine at mastery is refused by `validateState`. The
+    // comment beside it still said "all 14 skills", from a world with
+    // fourteen, which is how long it had been unreachable and unread.
     // firsts derivable from the state itself (v0.48)
     if (inWilds(s.genesis, _p.x, _p.y) && claimFirst(s, 'wilds', _pid))
       announce(s, _nm + ' is the FIRST to set foot in the Wilds.');
@@ -17697,7 +18290,22 @@ function nextState(state, inputs, _legacyBeacon) {
   // §21: unwrap the copy-on-write proxies. A citizen nobody wrote to comes out
   // as the ORIGINAL object, which is what makes an unchanged citizen free to
   // hash next interval. A no-op in every other clone mode.
-  return _cloneModeName() === 'cow' ? _cowSettle(s) : s;
+  const _settled = _cloneModeName() === 'cow' ? _cowSettle(s) : s;
+  // §5g-ii: AND THE ROOT OVER THE LIVING, last, after the interval has
+  // settled, because it hashes the records as they finally stand.
+  //
+  // It is a state field and not a player field, so it never enters its own
+  // leaves and there is nothing circular to unpick.
+  //
+  // COST, MEASURED rather than assumed: 2.7ms at eighteen citizens, 58ms at a
+  // thousand, 264ms at five thousand, against a one-second interval. So it is
+  // free at the size any world has been and wants the incremental form -- a
+  // cache of the tree, updating only the leaves that changed -- somewhere
+  // around a thousand citizens. That is a different piece of work and the
+  // numbers above are why it is not this one.
+  const _lr = livingRootOf(_settled);
+  if (_lr === EMPTY_ROOT) { delete _settled.livingRoot } else { _settled.livingRoot = _lr }
+  return _settled;
 }
 
 module.exports = {
@@ -17793,5 +18401,8 @@ module.exports = {
   canonical, EMPTY_ROOT, SMT_DEPTH,
   CALLING_NAMES, KEEPER_KINDS, skillUnlocks, worthRank,
   normaliseSource, engineHashOf, declareEngine, engineHash,
-  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, CALLINGS, SWORN, SWEAR_LEVEL, maxHealth, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  // §5g-ii: the root over the living, the path a citizen keeps, and the one
+  // question anybody asks of that path.
+  livingRootOf, livingPathOf, provesLiving, recordDigest: _recordDigest, rootOfLeaves, pathInLeaves, provesDigest, EMPTY_ROOT,
+  MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, SWORN, SWEAR_LEVEL, SWEAR_COUNTRIES, maxHealth, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, carriedFrom, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
 };

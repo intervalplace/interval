@@ -61,13 +61,13 @@ halted_now () { curl -s localhost:$PORT/api/world | node -e 'process.stdin.on("d
 
 # ---- phase 1: all three witnesses live ----
 T1=$(tick_now); sleep 6; T2=$(tick_now)
-echo "— phase 1 (3 witnesses): tick $T1 → $T2  $([ "$T2" -gt "$T1" ] 2>/dev/null && echo ADVANCING || echo STALLED)"
+echo ", phase 1 (3 witnesses): tick $T1 → $T2  $([ "$T2" -gt "$T1" ] 2>/dev/null && echo ADVANCING || echo STALLED)"
 P1=$([ "$T2" -gt "$T1" ] 2>/dev/null && echo ok || echo fail)
 
 # ---- phase 2: kill w3; 2 of 3 still makes quorum 2 ----
 pkill -f "join.mjs http://localhost:$PORT w3node" 2>/dev/null
 sleep 16; T3=$(tick_now)  # generous window: lock-split convergence under load (documented H2 latency)
-echo "— phase 2 (killed w3, 2 live): tick $T2 → $T3  $([ "$T3" -gt "$T2" ] 2>/dev/null && echo ADVANCING || echo STALLED)"
+echo ", phase 2 (killed w3, 2 live): tick $T2 → $T3  $([ "$T3" -gt "$T2" ] 2>/dev/null && echo ADVANCING || echo STALLED)"
 P2=$([ "$T3" -gt "$T2" ] 2>/dev/null && echo ok || echo fail)
 
 # ---- phase 3: restart w3 INTO the live world; it re-syncs and resumes ----
@@ -75,14 +75,14 @@ P2=$([ "$T3" -gt "$T2" ] 2>/dev/null && echo ok || echo fail)
 # carries it to the frontier, then it attests again)
 start_w3
 sleep 18; T4=$(tick_now)
-echo "— phase 3 (restarted w3 into live world): tick $T3 → $T4  $([ "$T4" -gt "$T3" ] 2>/dev/null && echo RESUMED || echo STALLED)"
+echo ", phase 3 (restarted w3 into live world): tick $T3 → $T4  $([ "$T4" -gt "$T3" ] 2>/dev/null && echo RESUMED || echo STALLED)"
 P3=$([ "$T4" -gt "$T3" ] 2>/dev/null && echo ok || echo fail)
 
 # ---- phase 4: kill w2 AND w3; quorum 2 unreachable with 1 → HALT, no fork ----
 pkill -f "join.mjs http://localhost:$PORT w2node" 2>/dev/null
 pkill -f "join.mjs http://localhost:$PORT w3node" 2>/dev/null
 sleep 8; T5=$(tick_now)
-echo "— phase 4 (killed both, 1 live): tick $T4 → $T5  $([ "$T5" -le "$((T4+2))" ] 2>/dev/null && echo HALTED || echo "still moving?")"
+echo ", phase 4 (killed both, 1 live): tick $T4 → $T5  $([ "$T5" -le "$((T4+2))" ] 2>/dev/null && echo HALTED || echo "still moving?")"
 HALTFLAG=$(halted_now)
 echo "    pillar reports halted=$HALTFLAG (a stopped world, never a forked one)"
 P4=$([ "$T5" -le "$((T4+2))" ] 2>/dev/null && echo ok || echo fail)

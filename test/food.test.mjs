@@ -13,7 +13,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const src = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
 const num = (n) => +src.match(new RegExp(`\\b${n} = (\\d+)`))[1]
 
-const HP_FLAT = num('HP_FLAT')
+const HEALTH_FLAT = num('HEALTH_FLAT')
 const HEAL_FISH = num('HEAL_FISH')
 const EAT_EVERY = num('EAT_EVERY')
 const FOODS = {
@@ -31,9 +31,9 @@ const eat = (p, item, heal) => {
   if (heal > (p.fedLeft ?? 0)) { p.fedLeft = heal; p.fedRate = FEED_RATE(item) }
 }
 const regen = (p) => {
-  if (!(p.fedLeft > 0) || p.hp <= 0) return
+  if (!(p.fedLeft > 0) || p.health <= 0) return
   const pay = Math.min(p.fedRate ?? 1, p.fedLeft)
-  p.hp = Math.min(HP_FLAT, p.hp + pay)
+  p.health = Math.min(HEALTH_FLAT, p.health + pay)
   p.fedLeft -= pay
   if (p.fedLeft <= 0) { delete p.fedLeft; delete p.fedRate }
 }
@@ -42,10 +42,10 @@ test('every food heals exactly what it always healed', () => {
   // The rate changes the SHAPE, never the total -- which is why no item, ladder
   // or price is rebalanced by any of this.
   for (const [item, heal] of Object.entries(FOODS)) {
-    const p = { hp: HP_FLAT - heal, fedLeft: 0 }
+    const p = { health: HEALTH_FLAT - heal, fedLeft: 0 }
     eat(p, item, heal)
     for (let i = 0; i < heal + 4; i++) regen(p)
-    assert.equal(p.hp, HP_FLAT, `${item} must still be worth ${heal}`)
+    assert.equal(p.health, HEALTH_FLAT, `${item} must still be worth ${heal}`)
     assert.equal(p.fedLeft, undefined, `${item} must pay its debt off exactly`)
   }
 })
@@ -53,10 +53,10 @@ test('every food heals exactly what it always healed', () => {
 test('a rate that does not divide its total pays the remainder and stops', () => {
   // cooked-eel is seven at two an interval: 2,2,2,1 and done. An end-tick
   // window could not express that without losing or inventing a hitpoint.
-  const p = { hp: 1, fedLeft: 0 }
+  const p = { health: 1, fedLeft: 0 }
   eat(p, 'cooked-eel', 7)
   const paid = []
-  for (let i = 0; i < 6; i++) { const before = p.hp; regen(p); paid.push(p.hp - before) }
+  for (let i = 0; i < 6; i++) { const before = p.health; regen(p); paid.push(p.health - before) }
   assert.deepEqual(paid, [2, 2, 2, 1, 0, 0])
 })
 
@@ -70,22 +70,22 @@ test('the tiers actually feel different', () => {
 })
 
 test('none of it arrives in the interval it was swallowed', () => {
-  const p = { hp: 10, fedLeft: 0 }
+  const p = { health: 10, fedLeft: 0 }
   eat(p, 'cooked-fish', HEAL_FISH)
-  assert.equal(p.hp, 10, 'eating restores nothing at the moment of eating')
+  assert.equal(p.health, 10, 'eating restores nothing at the moment of eating')
   regen(p)
-  assert.equal(p.hp, 12, 'a cooked fish mends two an interval, starting the next one')
+  assert.equal(p.health, 12, 'a cooked fish mends two an interval, starting the next one')
 })
 
 test('eating twice takes the larger debt, never the sum', () => {
-  const p = { hp: 1, fedLeft: 0 }
+  const p = { health: 1, fedLeft: 0 }
   eat(p, 'cooked-fish', HEAL_FISH)
   eat(p, 'cooked-fish', HEAL_FISH)
   assert.equal(p.fedLeft, HEAL_FISH, 'debts must not accumulate')
 })
 
 test('a lesser food cannot cut a greater mending short', () => {
-  const p = { hp: 1, fedLeft: 0 }
+  const p = { health: 1, fedLeft: 0 }
   eat(p, 'cooked-deep-fish', 10)
   eat(p, 'ale', 4)
   assert.equal(p.fedLeft, 10, 'the greater debt stands')
@@ -128,7 +128,7 @@ test('the withered door is shut to the rate as well as the burst', () => {
 test('no resolver restores a food value in one interval', () => {
   // The claim is about FOOD, not about bursts in general -- forage, mend and
   // the well are each paid for and each stay instant. See the burst-set test.
-  assert.equal([...src.matchAll(/p\.hp = Math\.min\(p\.hp \+ heal/g)].length, 0)
+  assert.equal([...src.matchAll(/p\.health = Math\.min\(p\.health \+ heal/g)].length, 0)
   assert.match(src, /p\.fedLeft = heal/, 'eating opens a debt instead')
 })
 
@@ -136,19 +136,36 @@ test('no resolver restores a food value in one interval', () => {
 // Each is paid for differently -- a place, a person, the ground -- and a fourth
 // added quietly would undo the reason the rate exists at all.
 test('exactly three things restore hitpoints at once', () => {
-  const sites = [...src.matchAll(/(\w+)\.hp = Math\.min\((maxHp\([^)]*\)|cap|st\.maxHp), \1\.hp \+ ([^)]+)\)/g)]
-    .map((m) => m[3].trim())
-  // `pay` is the mending rate; `st.mends` is a beast healing itself.
-  const playerBursts = sites.filter((x) => x !== 'pay' && x !== 'st.mends')
+  const sites = [...src.matchAll(/(\w+)\.health = Math\.min\((maxHealth\([^)]*\)|cap|st\.maxHealth), \1\.health \+ ([^)]+)\)/g)]
+    .map((m) => ({ cap: m[2], by: m[3].trim() }))
+  // A BEAST IS TOLD APART BY ITS CEILING, NOT BY THE WORD IT HEALS BY.
+  //
+  // This used to exclude the literal text `st.mends`, which worked until the
+  // web gained a second rate and wrote `knit` instead -- and then the test
+  // failed as though a fourth way to heal a CITIZEN had appeared, which is the
+  // one thing it exists to catch. A false alarm on this test is worse than
+  // most, because the next person to see it will reach for the filter.
+  //
+  // A citizen's ceiling comes from `maxHealth()`, which knows about callings
+  // and wounds; a beast's comes from its row in the stats table. That is a
+  // difference nobody can rename away.
+  const bursts = sites.filter((x) => x.cap !== 'st.maxHealth').map((x) => x.by)
+  // `pay` is the mending RATE, which is the thing all of this is measured
+  // against rather than one of the bursts.
+  const playerBursts = bursts.filter((x) => x !== 'pay')
   assert.deepEqual(playerBursts.sort(), ['20', '20', 'FORAGE_HEAL'],
     'the well (a place), mend x2 (a person), forage (the ground) -- and nothing else')
+  // and the beasts, which are allowed to heal and are not a fourth door
+  const beastHeals = sites.filter((x) => x.cap === 'st.maxHealth').map((x) => x.by)
+  assert.ok(beastHeals.length >= 1 && beastHeals.every((x) => /mends|knit/.test(x)),
+    'a beast ceiling should only ever be reached by a web: ' + beastHeals.join(', '))
 })
 
 test('forage is a burst and food is not', () => {
   // Forage is eaten where it lies and cannot be carried, so it is a PLACE the
   // way the well is. Routing it through the debt would make it food that
   // happens to be free, and there is already food.
-  assert.match(src, /p\.hp = Math\.min\(maxHp\(p\), p\.hp \+ FORAGE_HEAL\)/)
+  assert.match(src, /p\.health = Math\.min\(maxHealth\(p\), p\.health \+ FORAGE_HEAL\)/)
   assert.ok(!/FORAGE_HEAL[\s\S]{0,200}fedLeft/.test(src), 'forage does not open a debt')
 })
 

@@ -30,7 +30,7 @@ test('every face is the same body', () => {
   // event would stop being "a thing walks out of the dark" and start being a
   // bestiary a citizen has to learn before deciding whether to answer a call.
   const faces = src.match(/const INCURSION_FACE_DROPS = \{([\s\S]*?)\n\};/)[1]
-  for (const bad of ['maxHp', 'atk', 'def', 'maxHit', 'aggro']) {
+  for (const bad of ['maxHealth', 'atk', 'def', 'maxHit', 'aggro']) {
     assert.ok(!faces.includes(bad), `a face must not carry ${bad}`)
   }
   const named = [...faces.matchAll(/^\s{2}'?([a-z-]+)'?:/gm)].map((m) => m[1])

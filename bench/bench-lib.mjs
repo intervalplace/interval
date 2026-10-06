@@ -1,4 +1,4 @@
-// bench-lib.mjs — deterministic scenario construction for the Phase 1
+// bench-lib.mjs: deterministic scenario construction for the Phase 1
 // engine-scaling harness (perf brief 1A). Everything here is derived from
 // fixed seeds: the same population always yields the same world, the same
 // keys, the same input stream, and therefore the same final state hash.
@@ -59,7 +59,7 @@ export function populate(E, state, n) {
 //    (invalid: exercises rejection + negative caching);
 //  - every 53rd citizen re-sends its previous signed input on a 5-tick
 //    cycle (stale tick: invalid at validInput, and byte-identical to a
-//    previously seen message — exercises positive dedup paths).
+//    previously seen message: exercises positive dedup paths).
 export function inputsForTick(E, ids, worldId, tick, prevByPlayer) {
   const out = []
   for (let i = 0; i < ids.length; i++) {

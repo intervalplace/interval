@@ -1164,7 +1164,7 @@ It also gives this world something it has never had: a citizen whose
 whole part in a fight is keeping somebody else standing. Which is the
 most anti-combat thing magic could be asked to do.
 
-**A staff is the tool of the alchemist.** Woodcutting has a hatchet
+**A staff is the tool of the sorcerer.** Woodcutting has a hatchet
 and mining a pickaxe; alchemy is the working half of magic and had
 nothing in the hand. A `staff` is fletched from a log, and a
 `heartwood-staff` from two heartwood at fletching ninety. Bare-handed
@@ -1175,7 +1175,7 @@ road. The fletcher's stall sells the plain stave, so a citizen who has
 not trained fletching may still buy the tool of a trade they have.
 
 Its cost is the hand it fills. A staff is wielded, so a citizen
-carrying one carries no sword -- an alchemist crossing the Wilds with
+carrying one carries no sword -- a sorcerer crossing the Wilds with
 a full pack chooses between converting faster and being able to fight,
 which is the same choice a pickaxe already asks of a miner. Nothing
 else was needed to price it.
@@ -1214,7 +1214,7 @@ An arrow pays four like everything else and is unmade for the
 practice, which is the honest worth of unmaking an arrow. Alchemy has no purse -- there is no keeper in the
 Wilds -- so a payment that followed the item's price would be the one
 uncapped mint in the world, and one that grew with what it was fed:
-an alchemist unmaking star plates would coin three hundred and
+a sorcerer unmaking star plates would coin three hundred and
 thirty-eight an interval against the island's whole supply of twenty.
 Four coins cannot outrun anything.
 
@@ -3922,7 +3922,7 @@ than a thing computed behind their back.
 | `prowess` | fighter, berserker, warden |
 | `mourning` | mourner |
 | `marksmanship` | archer |
-| `sorcery` | alchemist |
+| `sorcery` | sorcerer |
 | `wayfaring` | cartographer, runner |
 
 **It is not a bet placed blind.** §10 already refused to bind a trade
@@ -4239,7 +4239,7 @@ fisher, farmer, as against the one who works it afterwards.
 
 **It applies only where the merge created siblings**: woodcraft,
 earthcraft, shorecraft, hearthcraft, wayfaring. A trade with one calling
-has nothing to tell apart, so an alchemist is neither faster nor slower
+has nothing to tell apart, so a sorcerer is neither faster nor slower
 at sorcery; their word buys standing and not a rate. Prowess is likewise
 untouched: berserker and warden are not two activities but two bargains
 over the same one, and they are paid in flesh (§5j).
@@ -4256,17 +4256,22 @@ middle, and nothing about the world said those were two crafts, nobody
 fells a tree for the sake of holding logs, nobody digs for the sake of
 holding rock, nobody fishes in order to carry a raw fish home.
 
-| trade | was | calling (interim) |
-|---|---|---|
-| `woodcraft` | woodcutting + firemaking + fletching | woodwright |
-| `earthcraft` | mining + smithing | smith |
-| `shorecraft` | fishing + cooking | shorekeeper |
-| `hearthcraft` | farming + brewing | hearthkeeper |
-| `prowess` | attack + strength + defence + hitpoints | fighter |
-| `mourning` | prayer | mourner |
-| `marksmanship` | ranged | archer |
-| `sorcery` | magic | alchemist |
-| `wayfaring` | exploration + hauling | wayfarer |
+| trade | was |
+|---|---|
+| `woodcraft` | woodcutting + firemaking + fletching |
+| `earthcraft` | mining + smithing |
+| `shorecraft` | fishing + cooking |
+| `hearthcraft` | farming + brewing |
+| `prowess` | attack + strength + defence + hitpoints |
+| `mourning` | prayer |
+| `marksmanship` | ranged |
+| `sorcery` | magic |
+| `wayfaring` | exploration + hauling |
+
+This table carried a third column, the one generic word each trade's
+holder was called before anybody could swear anything. It was headed
+*interim* and the interim ended: §5k repealed the derived calling and
+§5k-iii records the nine words it held.
 
 Every gate, tool and requirement moves with its skill and none is
 re-tuned: the oak still opens at twenty, the coal at twenty, the eel at
@@ -5097,24 +5102,20 @@ There is deliberately **no combat level.** Combat is three skills of
 sixteen. A world whose countries are wood, stone, water, danger, and
 home does not rank its people by their capacity for violence.
 
-**Calling** is the trade a citizen has the most **experience** in,
-rendered as a word: forester, miner, fisher, cook, smith, firekeeper,
-mourner, archer, alchemist, farmer, fletcher, fighter, warden,
-cartographer, brewer.
+**Calling** is what a citizen has SWORN, and nothing else. It is not
+inferred from their numbers. A citizen who has sworn nothing is a
+**newcomer**, however much experience they hold, and a citizen who has
+sworn is called that word for life.
 
-Experience, not level, is what decides it. Levels are a step function of
-experience, so the trade with the most experience always holds the
-highest level as well: comparing experience gives the same answer
-wherever the levels differ, and settles a tie between two equal levels
-the way the citizen expects, in favour of the one they are further
-along. Two skills at level 8 are not really equal to the person who
-spent the evening at one of them. Only a tie in raw experience falls to
-the constitutional skill order, so every node still answers identically.
-
-Hitpoints is excluded, being a consequence of fighting rather than a
-trade, and starting at 10: without that exclusion every citizen would
-be born a fighter. A citizen whose every trade is still level 1 has no
-calling yet and is a **newcomer**.
+**The derived calling was repealed by §5k.** Until then a calling was
+read off the numbers: the trade with the most experience, rendered as a
+word, with ties falling to the constitutional skill order. Nine generic
+words existed for it and are listed in §5k-iii. The rule was repealed
+the reason §5k gives: being unsworn is a choice rather than a waiting
+room, so inferring somebody's calling from their experience hands them a
+title they never took. The finer words were not lost; §5k brought them
+back as the seventeen things a citizen may swear, and the generic ones
+went with the rule.
 
 A citizen who has mastered all sixteen has a calling of their own:
 **Master of Interval**, the same condition the world announces. It is
@@ -12135,7 +12136,7 @@ edit, cut, or promote. **Nothing in this appendix is law.** Promoting a draft
 means moving it into the body above and deleting it from here.
 
 <!-- BEGIN GENERATED: stubs -->
-<!-- 192 sections drafted by spec-stubs.mjs from engine.js.
+<!-- 199 sections drafted by spec-stubs.mjs from engine.js.
      Every one of them is DERIVED, NOT RATIFIED: the words are the engine's
      comment, not a decision that this is law. Edit, cut, or promote them.
      Re-run `node spec-stubs.mjs --write` to refresh the ones still untouched. -->
@@ -12184,7 +12185,7 @@ their count because the thing they measure should stretch with the world.
 
 ## 2b-iv. The Mark And The Answer, In One Place
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1677` by `spec-stubs.mjs`. Amends §2b.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1839` by `spec-stubs.mjs`. Amends §2b.
 
 §6am: YOU CANNOT BE PAID TWICE FOR ONE INTERVAL.
 
@@ -12220,7 +12221,7 @@ that it did not.
 
 ## 2b-v. Content-addressed
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15032` by `spec-stubs.mjs`. Amends §2b.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15666` by `spec-stubs.mjs`. Amends §2b.
 
 §2b-v: CONTENT-ADDRESSED, like every other ground key here.
 
@@ -12239,7 +12240,7 @@ killer's and delete other people's kills on purpose.
 
 ## 4b-ii. Every Hour Figure Written Above This Line Is Historical
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6458` by `spec-stubs.mjs`. Amends §4b.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6640` by `spec-stubs.mjs`. Amends §4b.
 
 §4b-ii: EVERY HOUR FIGURE WRITTEN ABOVE THIS LINE IS HISTORICAL.
 
@@ -12272,9 +12273,44 @@ Measured against this curve, at a second an interval, with a pack of twelve:
 Six trades inside 1.75x of each other, after a skill collapse, a doubled
 interval and a flat sixty-four flesh. Nobody tuned that; it fell out.
 
+## 5g-ii. The Root Over The Living
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:308` by `spec-stubs.mjs`. Amends §5g.
+
+---------- §5g-ii: THE ROOT OVER THE LIVING ----------
+
+The archive root exists so that archived citizens cost the tick nothing: the
+engine never holds that tree, because whoever wants something out of it
+brings the path and the root judges it.
+
+The LIVING had no root at all, and that was the hole under everything else.
+A world's state is hashed whole by `stateHash`, which yields no inclusion
+proof, so a citizen could not demonstrate what they were without somebody
+producing the entire state. That put a world's continuity back on whoever
+still held a full checkpoint, which does not scale and is exactly the
+dependency the archive root was invented to remove.
+
+WHY THIS COSTS NO STATE. The reason the engine cannot hold the archive tree
+does not apply here: the living are ALREADY in the state, every one of them,
+under `players`. A root over them is therefore pure computation over data
+the tick already carries, not a second copy of anything.
+
+WHAT IT BUYS. Every living citizen, at every interval, has a proof available
+of exactly what they were -- their own record and a few hundred bytes of
+path -- which any node can check against a root that the world's own
+certificate covers. They can keep it themselves. A world that dies suddenly
+therefore costs nobody their life, and a citizen can return to a successor
+years later carrying their own evidence, with nobody holding anything on
+their behalf.
+
+THE CONVENTION IS `_smtFold`'S, exactly. The levels, the empty-sibling
+heights and the left/right rule are all taken from it rather than restated,
+because a root built one way and proved another is a root that proves
+nothing. `test/livingroot.test.mjs` holds the two against each other.
+
 ## 5i-iii. The Opening Step Is Taken Once
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12665` by `spec-stubs.mjs`. Amends §5i.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13169` by `spec-stubs.mjs`. Amends §5i.
 
 §5i-iii: THE OPENING STEP IS TAKEN ONCE. A walk input takes its first step
 in the input phase (below) and sets an ongoing action; the ongoing-walk
@@ -12289,7 +12325,7 @@ the engine's own (the movement rule itself is what changed).
 
 ## 5j-ii. And The Merge Did Not Need Paying For
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5779` by `spec-stubs.mjs`. Amends §5j.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5961` by `spec-stubs.mjs`. Amends §5j.
 
 §5j: ONE BLOW, ONE PAYMENT. Attack, strength and hitpoints were three
 numbers rising off the same event -- a landed blow paid the aim, the arm,
@@ -12329,7 +12365,7 @@ stay findable. See check-engine-rates.mjs.
 
 ## 5k-ii. And A Berserker Has To Be Worth Being
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3375` by `spec-stubs.mjs`. Amends §5k.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3541` by `spec-stubs.mjs`. Amends §5k.
 
 §7cm: `desperate` rides in hitOf so it reaches EVERY path -- citizens,
 beasts and the yard butt alike -- rather than being added at each call site
@@ -12406,41 +12442,74 @@ They also win closer: sixteen flesh left on an average win against a
 fighter's twenty-one. Powerful and fragile, in the numbers rather than the
 name.
 
-## 5k-iii. And The Warden Is Sharpened To Match
+## 5k-iii. The Nine Generic Craft Words Are Gone
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3408` by `spec-stubs.mjs`. Amends §5k.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6867` by `spec-stubs.mjs`. Amends §5k.
 
-§5k-iii: AND THE WARDEN IS SHARPENED TO MATCH.
+6ch: waystoneStandingFor removed with the stones.
+§5k-iii: THE NINE GENERIC CRAFT WORDS ARE GONE.
 
-The berserker was doubled (§5k-ii) and the warden was left where it was, so
-one end of the axis had conviction and the other did not: sixteen flesh
-given up against eight gained. Doubling the warden too restores the symmetry
-and widens the whole axis from 1.50x to 1.67x between the extremes.
+`CALLINGS` named one word per craft -- woodwright, smith, shorekeeper,
+mourner, archer, alchemist, wayfarer, hearthkeeper, fighter -- and was what
+a citizen was called before §5k gave them an oath to swear. Its own comments
+said the finer words were "parked until §5k, where they come back as things
+a citizen swears", and they did: `SWORN` holds seventeen of them.
 
-Win rates are unmoved -- 60:60 against a fighter bare, 58:62 in plate, and
-still losing narrowly to a berserker in a straight duel -- because a longer
-fight and a smaller blow cancel, exactly as they did for the berserker. What
-changes is the execute window, which is where a calling is actually felt:
+It outlived its purpose badly. FIVE of the nine are also callings somebody
+can swear, so the word could not be told from an oath -- `serve.mjs` had to
+ship the raw oath beside it because "a citizen who swore it and a citizen
+who merely has the most experience there read identically". And once
+`callingOf` stopped guessing a trade for the unsworn, the other four could
+no longer be anybody at all: nothing in the world could ever be called a
+woodwright, a shorekeeper, a wayfarer or a hearthkeeper.
 
-  berserker  48 flesh -> the biggest gambit in the world is 96% of them
-  fighter    64                                              72%
-  warden     80                                              58%
+Removed rather than left sitting, because a table nothing reads is read by
+the next person as law. What a citizen is called is `callingOf`; which
+trades a craft opens is `SWORN`.
+Chosen by EXPERIENCE, not by level. Levels are a step function of xp, so the
+skill with the most experience always holds the highest level too: comparing
+xp settles ties between equal levels the way a citizen expects, and gives the
+identical answer everywhere else. Ties in raw xp fall to the constitutional
+skill order, so every node still answers the same.
+§5k: THE CALLINGS A CITIZEN MAY SWEAR.
 
-A warden is the only citizen a haymaker cannot take from half health, and a
-berserker is the only one it can take from full. That is the axis.
+Nine trades, seventeen callings. Merging the skills (§5m) took ten good
+words out of the world -- forester, firekeeper, fletcher, miner, fisher,
+cook, farmer, brewer, berserker, warden -- because a DERIVED calling cannot
+tell a berserker from a warden once one number covers both. They come back
+here, and they come back better: as a thing a citizen says about themselves
+rather than a thing computed from whichever of their numbers is highest.
 
-## 5n. Woodwright
+This is what the merges were for. A skill says how much you can do; a
+calling says what you are.
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6692` by `spec-stubs.mjs`.
+`health` is the flesh a calling carries against HEALTH_FLAT (§5j). Only prowess
+spends it, because only prowess has two answers to the same question: the
+berserker trades frame for the arm, the warden the reverse, and the fighter
+takes neither bargain. Every other calling is 0 -- a cook is not tougher
+than a fisher, and pretending otherwise would make swearing a stat check.
 
-§5n: WOODWRIGHT. The axe, the bench and the fire were one trade split
-three ways: you fell a tree to shape it or to burn it, and nobody fells
-one for the sake of holding logs. 'forester', 'fletcher' and 'firekeeper'
-are parked until §5k, where they come back as things a citizen swears.
+## 5n. And The Fire Earns Its Keeper When Somebody Cooks At It
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16825` by `spec-stubs.mjs`.
+
+§7s: AND THE FIRE EARNS ITS KEEPER WHEN SOMEBODY COOKS AT IT.
+
+Without this the quayside fire is a charity. A firekeeper stands in
+the Greenwood because that is where the logs are; asking him to
+carry them to the docks and burn them for other people's dinners is
+asking him to work for nothing, and he will not, and the fire will
+never be there. He needs the crowd to be his income.
+
+So a cook at a citizen's fire pays that citizen. Site your fire
+where the fishermen are and the fishermen pay for it -- the same
+bargain as a stall on a road, which is sited for the traffic and for
+no other reason. This is what makes "fire plz" a thing somebody
+WANTS to hear.
 
 ## 5o. A Master Presses Two Sigils From The Same Three Stones
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15344` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15978` by `spec-stubs.mjs`.
 
 §5z: A MASTER PRESSES TWO SIGILS FROM THE SAME THREE STONES.
 
@@ -12451,26 +12520,44 @@ and be quietly frozen out of the tail past a hundred that §5o just
 gave a purpose. Pressing two keeps the spending, and the earning,
 and is the same "two where others take one" every other trade has.
 
-## 5p. Wayfarer
+## 5r-iv. And How Much Of The Island A Citizen Must Have Seen First
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6715` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6936` by `spec-stubs.mjs`. Amends §5r.
 
-§5p: WAYFARER. Exploration and hauling were the same trade counted twice:
-one measures ground never seen, the other weight moved across ground you
-have. Both are the road, and this world already says the road is real.
+§5r-iv: AND HOW MUCH OF THE ISLAND A CITIZEN MUST HAVE SEEN FIRST.
 
-'waycraft' and 'tradecraft' were both wrong. Neither is a CRAFT -- nothing
-is made -- and 'tradecraft' is an English word already spoken for: it means
-espionage, and hauling is not trading. The word for going out and coming
-back is the one that has always meant it.
+Swearing is the one irreversible decision in a life here. It fixes the only
+craft that may ever reach a hundred, and §5k caps every other at seventy for
+ever. Measured against the levelling curve, level fifty arrives after about
+an hour and three quarters of work -- a bit over one day's allowance -- so a
+citizen could be asked to choose their calling on their second evening,
+having stood at one rock the whole time and seen nothing of the island.
 
-CARTOGRAPHER and RUNNER are parked with the rest until §5k, where the
-mapper and the carrier become two things a road-worker may swear rather
-than two numbers that happened to rise separately.
+A LEVEL IS THE WRONG PREREQUISITE FOR THIS, and raising it would not help:
+grinding one craft to sixty-five teaches a citizen nothing about the other
+eight, and the thing they lack is not practice but acquaintance with the
+world they are choosing a place in.
+
+So the second half of the door is TRAVEL. The island has seven countries a
+citizen can stand in, and they must have stood in this many before they may
+swear. It cannot be ground in one spot, which is the whole point, and the
+world records it as they walk rather than asking them to declare it.
+
+FIVE, and not seven, because two of the seven are the Wilds and the Moor --
+where anybody may hunt anybody, and where the King's dead walk. A door that
+required those would send every newcomer somewhere they will be killed in
+order to take up a trade. Five is exactly the peaceful island, all of it,
+and leaves the dangerous two as a choice rather than a toll.
+
+Measured on the founded island: the cheapest tour of five countries from the
+spawn is 392 tiles, about six and a half minutes of pure walking, through
+the Heartlands, the Downs, the Fens, the Greenwood and the Crags. That is
+not a chore; it is one afternoon's wandering, and a citizen who has done it
+knows where the furnace is.
 
 ## 5w. The Grades, And Why 'apprentice' Moved
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6902` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7050` by `spec-stubs.mjs`.
 
 §5w: THE GRADES, AND WHY 'APPRENTICE' MOVED.
 
@@ -12512,7 +12599,7 @@ finishing, so proof is derived, and no citizen can be given it.
 
 ## 5x. The Ritual
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6913` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7061` by `spec-stubs.mjs`.
 
 §5w: THE GRADES, AND WHY 'APPRENTICE' MOVED.
 
@@ -12552,9 +12639,30 @@ nowhere else has told everybody what they did.
 Nothing new is stored. `raised` already exists and is already minted only by
 finishing, so proof is derived, and no citizen can be given it.
 
+## 5x-ii. Which Citizen This Is, Without Relying On A Field They Do Not Have
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7105` by `spec-stubs.mjs`.
+
+§5x-ii: WHICH CITIZEN THIS IS, WITHOUT RELYING ON A FIELD THEY DO NOT HAVE.
+
+This compared a master's apprentice list against `p.id`, and a player
+object in this world carries no `id`: they are the KEYS of `state.players`
+and nothing copies the key onto the value. So the comparison was
+`who === undefined`, 'apprentice' could never be returned, and a citizen a
+master had taken on read `newcomer` for ever -- while the handbook
+documented apprentice as one of the four ranks.
+
+It worked from `serve.mjs` alone, because that one caller happens to know
+to pass `{ ...p, id: pid }`, and nothing said it had to; `mourner.mjs`
+passes a bare player and has been getting the wrong answer.
+
+So the id is a parameter now, and when it is not given it is found: by the
+caller's own `id` if they still set one, and otherwise by looking up which
+key of `state.players` holds this very object.
+
 ## 5y. What The Tail Past A Hundred Is For
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6882` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7030` by `spec-stubs.mjs`.
 
 §5w: TEACHING. A master may take a citizen on, and the swearing that follows
 carries the master's mark for ever.
@@ -12579,7 +12687,7 @@ master is visibly a school.
 
 ## 5z. A Master Fighter's Arm Comes Back Sooner
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15114` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15748` by `spec-stubs.mjs`.
 
 §5z: A MASTER FIGHTER'S ARM COMES BACK SOONER.
 
@@ -12597,7 +12705,7 @@ visible to whoever they are fighting, which is the point.
 
 ## 6af-ii. The Cost
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15093` by `spec-stubs.mjs`. Amends §6af.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15727` by `spec-stubs.mjs`. Amends §6af.
 
 THE COST: the arm is spent for this cycle AND the next
 §6af-ii: THE COST, and it must be the cost the VALIDATOR quoted.
@@ -12623,7 +12731,7 @@ often as its own rule allowed: 208% of neutral, measured.
 
 ## 6af-iii. A Burst Is A Compression, And The Pause Is Its Price
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14916` by `spec-stubs.mjs`. Amends §6af.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15550` by `spec-stubs.mjs`. Amends §6af.
 
 §6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
 
@@ -12660,7 +12768,7 @@ blow and its gambit can never share a moment.
 
 ## 6af-iv. And The Heavy Weapon Commits Harder
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14928` by `spec-stubs.mjs`. Amends §6af.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15562` by `spec-stubs.mjs`. Amends §6af.
 
 §6af-iii: A BURST IS A COMPRESSION, AND THE PAUSE IS ITS PRICE.
 
@@ -12697,7 +12805,7 @@ blow and its gambit can never share a moment.
 
 ## 6af-v. And Blow Count Is The Variance Of A Burst
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14857` by `spec-stubs.mjs`. Amends §6af.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15491` by `spec-stubs.mjs`. Amends §6af.
 
 §6af-v: AND BLOW COUNT IS THE VARIANCE OF A BURST.
 
@@ -12716,7 +12824,7 @@ stays a flurry. A citizen now picks a shape as well as a weapon.
 
 ## 6af-vi. And A Haymaker May Not Be A One-shot
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2832` by `spec-stubs.mjs`. Amends §6af.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2998` by `spec-stubs.mjs`. Amends §6af.
 
 §6af-vi: AND A HAYMAKER MAY NOT BE A ONE-SHOT.
 
@@ -12739,7 +12847,7 @@ looking for the distinction it draws. There is none.
 
 ## 6af-vii. And The Bursts Were Tuned Against Ninety-nine Flesh
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2817` by `spec-stubs.mjs`. Amends §6af.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2983` by `spec-stubs.mjs`. Amends §6af.
 
 §6af-vii: AND THE BURSTS WERE TUNED AGAINST NINETY-NINE FLESH.
 
@@ -12756,7 +12864,7 @@ fight somebody was already losing, never enough to end one they were not.
 
 ## 6ah. And A Sigil In The Binding
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15672` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16321` by `spec-stubs.mjs`.
 
 §6ah: AND A SIGIL IN THE BINDING.
 
@@ -12773,7 +12881,7 @@ somebody who goes in -- which is the whole point.
 
 ## 6ai. What A Dragon Is Worth To The People Who Killed It
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3882` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4048` by `spec-stubs.mjs`.
 
 §6ai: WHAT A DRAGON IS WORTH TO THE PEOPLE WHO KILLED IT.
 
@@ -12791,12 +12899,12 @@ fourteen hundred hours -- a reason to come here.
 
 ## 6aj. Unmaking At Range
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4053` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4219` by `spec-stubs.mjs`.
 
 §6aj: UNMAKING AT RANGE, which is denial and not theft.
 
 A citizen falls and their pack spills; the one who felled them walks over to
-take it. Five tiles away, an alchemist with a heartwood stave burns a sigil
+take it. Five tiles away, a sorcerer with a heartwood stave burns a sigil
 and the pile is simply GONE -- the plate, the sword, the stones. Nobody gets
 them. The caster least of all: no coin comes of it, because the thing was
 unmade rather than sold, and unmaking somebody else's spoil should never be
@@ -12825,7 +12933,7 @@ whole of what its four hundred and ninety-five gold buys.
 
 ## 6ak. A Tree Does Not End At One Log
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:721` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:838` by `spec-stubs.mjs`.
 
 §6ak: A TREE DOES NOT END AT ONE LOG.
 
@@ -12846,7 +12954,7 @@ average, sometimes one, sometimes nine -- which is how a tree behaves.
 
 ## 6al. A Stall Nobody Tends Falls Down
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13070` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13585` by `spec-stubs.mjs`.
 
 §6al: A STALL NOBODY TENDS FALLS DOWN, and its shelf spills where it
 stood. Three days. The state is public, so everybody can read the clock
@@ -12856,7 +12964,7 @@ other guests may kill you.
 
 ## 6am. You Cannot Be Paid Twice For One Interval
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1663` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1825` by `spec-stubs.mjs`.
 
 §6am: YOU CANNOT BE PAID TWICE FOR ONE INTERVAL.
 
@@ -12890,9 +12998,39 @@ So the mark and the answer live here, and BOTH paths call it. A future third
 way of hurting somebody will call it too, or it will be obvious in review
 that it did not.
 
+## 6am-ii. And The Skills Have The Names The World Uses
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2986` by `spec-stubs.mjs`.
+
+§6am (v6): STAR IS THE ENDGAME NOW. With a mid tier filling the middle of
+the road (mid-ore and mid-wood at thirty-five), quick rises to where it was
+always meant to be -- the ninety-tier gear, forged from the quick-stone a
+citizen carries out of the Wilds, so that reaching mastery finally buys
+something to WEAR. The shape is the constitution's; these numbers are this
+world's, and a v5 world (no gearReqs) keeps the old ladder to the byte.
+§6am-ii: AND THE SKILLS HAVE THE NAMES THE WORLD USES.
+
+This table named six skills that do not exist: `defence`, `attack`,
+`woodcutting`, `mining`, `smithing` and `magic`, from before the nine
+crafts were named. A requirement on a skill a citizen cannot have reads
+`effLevel(undefined)`, which is ONE, so every line of it was `1 >= 80` and
+false for ever.
+
+The whole quick tier was therefore unobtainable: measured, a citizen with
+every one of the nine skills at two hundred million experience could not
+wield a quick-sword, while an iron one went straight into their hand. The
+endgame gear this founding exists to introduce -- "so that reaching
+mastery finally buys something to WEAR" -- could not be worn or forged by
+anybody, and nothing said so.
+
+It is the third time this exact rename has bitten: §5r-iii lost twenty
+levels of labour the same way, and mourning's own `PRAYER_KEEP` read a
+skill called `prayer`. `validateGenesis` refuses an unknown skill here
+now, so it is the last time.
+
 ## 6an. The Deep Broth
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2656` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2822` by `spec-stubs.mjs`.
 
 §6an: THE DEEP BROTH, and why it is eight rather than ten.
 
@@ -12913,7 +13051,7 @@ cooking as a trade. A deep fish makes ONE draught; there is no second in it.
 
 ## 6ao. Not In A Town
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12558` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13062` by `spec-stubs.mjs`.
 
 §6ao: NOT IN A TOWN. The incursion's whole job is that neighbours
 notice and come, and it hits softly so they safely can -- but a town
@@ -12931,7 +13069,7 @@ is a story, and an unspawned one costs a citizen nothing.
 
 ## 6ap. Armour Is Not A Subtraction
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5123` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5289` by `spec-stubs.mjs`.
 
 §6ap: ARMOUR IS NOT A SUBTRACTION.
 
@@ -12967,7 +13105,7 @@ iron keeps two. The choice is now the one the design promised: bare, or not.
 
 ## 6ap-ii. And The Beasts Are Rolled For The Same Way
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16828` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17523` by `spec-stubs.mjs`.
 
 §6ap-ii: AND THE BEASTS ARE ROLLED FOR THE SAME WAY.
 
@@ -12979,7 +13117,7 @@ Wilds. The same steel cannot mean two things.
 
 ## 6aq. Repealed
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5254` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5420` by `spec-stubs.mjs`.
 
 §6aq (REPEALED, v0.87): STEEL IS NOT TAXED, AND NEVER NEEDED TO BE.
 
@@ -13006,7 +13144,7 @@ you harder to hit rather than harder to hurt, and that fix stands on its own.
 
 ## 6as. Strength Is Its Own Skill
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:498` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:615` by `spec-stubs.mjs`.
 
 §11: HAULING IS THE EIGHTEENTH SKILL (v0.87).
 
@@ -13036,7 +13174,7 @@ empty ones; see the migration below.
 
 ## 6as-ii. Strength'
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16838` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17533` by `spec-stubs.mjs`.
 
 §6as-ii: and the blow is STRENGTH's here too, or the only place to
 raise a max hit would be on other citizens.
@@ -13061,7 +13199,7 @@ else. Buy a sword and it has never applied to you.
 
 ## 6as-iii. Where The Lesson Goes Is The Citizen's Choice, Not The Weapon's
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5449` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5615` by `spec-stubs.mjs`.
 
 §6as-iii: WHERE THE LESSON GOES IS THE CITIZEN'S CHOICE, NOT THE WEAPON'S.
 
@@ -13081,7 +13219,7 @@ answer for the flail, the chain or the wand.
 
 ## 6as-iv. Style Shapes The Blow, Not Its Size
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3197` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3363` by `spec-stubs.mjs`.
 
 §6as-iv: STYLE SHAPES THE BLOW, NOT ITS SIZE.
 
@@ -13103,7 +13241,7 @@ dial for BURSTS, not for attrition -- see §6af-v.
 
 ## 6as-v. Eight, And Each Style Wins Somewhere
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3438` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3604` by `spec-stubs.mjs`.
 
 §5s: STYLE IS THE SWING, NOT THE SCHOOL.
 
@@ -13138,7 +13276,7 @@ trade only stays a trade at eight.
 
 ## 6au. A Maul Swings At The Same Speed As Everything Else
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2785` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2951` by `spec-stubs.mjs`.
 
 §6au: A MAUL SWINGS AT THE SAME SPEED AS EVERYTHING ELSE.
 
@@ -13161,7 +13299,7 @@ where the honest build gets 1.22. A flat number is a low-level number.
 
 ## 6av. The Handgonne
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3177` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3343` by `spec-stubs.mjs`.
 
 THE DRAGONBOW (spec 6w). There is one, and there will only ever be one.
 Reach 9 is the whole weapon: nothing else in the world touches past five,
@@ -13197,7 +13335,7 @@ was `hit: 30`.
 
 ## 6av-ii. The Noise Belongs To The Gunshot, Not To Every Blow
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13487` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14076` by `spec-stubs.mjs`.
 
 §6av-ii: THE NOISE BELONGS TO THE GUNSHOT, NOT TO EVERY BLOW.
 
@@ -13218,7 +13356,7 @@ perceives, which is what §6aa says and what the ladder needs.
 
 ## 6ax. A Vault Will Not Take A Hood
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15824` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16473` by `spec-stubs.mjs`.
 
 §6ax: A VAULT WILL NOT TAKE A HOOD.
 
@@ -13247,7 +13385,7 @@ cost fell on the person and none of it on the thing §8 worries about.
 
 ## 6ba. The Lots Are Drawn From This Tick's Deeds, Not The Last One's
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12973` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13488` by `spec-stubs.mjs`.
 
 §6ba: THE LOTS ARE DRAWN FROM THIS TICK'S DEEDS, NOT THE LAST ONE'S.
 
@@ -13277,7 +13415,7 @@ place, and only a founding may change where.
 
 ## 6bb. A Wider Lot, Because One Byte Cannot Say 'rare'
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7528` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7714` by `spec-stubs.mjs`.
 
 §6bb: A WIDER LOT, BECAUSE ONE BYTE CANNOT SAY 'RARE'.
 
@@ -13299,7 +13437,7 @@ different tag.
 
 ## 6bk. One Bone In
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15715` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16364` by `spec-stubs.mjs`.
 
 §6bk: ONE BONE IN, one lesson -- so take ONE, not the slot. This
 nulled the whole slot, which is right for a bone (they do not stack)
@@ -13310,7 +13448,7 @@ today and cannot become a hole later.
 
 ## 6bp-ii. The First Tally Has Two Halves, And One Had Gone
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:8487` by `spec-stubs.mjs`. Amends §6bp.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:8597` by `spec-stubs.mjs`. Amends §6bp.
 
 ---- §6bp-ii: THE FIRST TALLY HAS TWO HALVES, AND ONE HAD GONE ----
 
@@ -13334,7 +13472,7 @@ exactly like a unique monument nobody has walked to.
 
 ## 6br. And She Gives Up The Graver
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3757` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3923` by `spec-stubs.mjs`.
 
 THE SIREN (spec 6ac). The third thing, and the only one that FORBIDS a
 party. The dragon needs one because you die alone; the spider needs one
@@ -13366,7 +13504,7 @@ is exactly even at any level, forever.
 
 ## 6bs. The Brimstone Vents
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:6290` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:6400` by `spec-stubs.mjs`.
 
 §6bs: THE BRIMSTONE VENTS. The southern crags, where the iron and the coal
 already are -- brimstone belongs with the working seams and not with the
@@ -13380,7 +13518,7 @@ about the handgonne's powder.
 
 ## 6bt. The Great Arms
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3065` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3231` by `spec-stubs.mjs`.
 
 §6bt: THE GREAT ARMS. Level seventy, where woodcraft, earthcraft and shorecraft
 each got a mastery tool and combat got nothing at all -- attack's last
@@ -13410,7 +13548,7 @@ answers the dark before level sixty. `burns` is the whole of its worth.
 
 ## 6bu. Brimstone Catches, And The Fire Never Lands The Last Blow
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1906` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2068` by `spec-stubs.mjs`.
 
 §6bu: BRIMSTONE CATCHES, AND THE FIRE NEVER LANDS THE LAST BLOW.
 
@@ -13440,7 +13578,7 @@ TWO RULES MAKE IT CONSTITUTIONAL, and without either it could not exist:
 
 ## 6bv. And Whoever Puts One Down May Get The Horn
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3963` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4129` by `spec-stubs.mjs`.
 
 §6ao (v6): THE INCURSION. A thing that walks out of the dark, fixes on ONE
 citizen, and takes a while to put down -- long enough that the neighbours
@@ -13466,7 +13604,7 @@ is conjured of the country, not a beast with a skeleton to leave.
 
 ## 6bv-ii. And What It Teaches Follows What Came Apart
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4189` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4355` by `spec-stubs.mjs`.
 
 §6bv-ii: AND WHAT IT TEACHES FOLLOWS WHAT CAME APART.
 
@@ -13507,7 +13645,7 @@ called from the apply path, long after both exist.)
 
 ## 6by. The Mere-lamprey
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3940` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4106` by `spec-stubs.mjs`.
 
 §7cn: THE MERE-LAMPREY, and the first creature in this world that can be
 USED UP.
@@ -13547,7 +13685,7 @@ eight people will each want a piece of.
 
 ## 6bz. Two Hands Or One, And What The Off Hand Holds
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5227` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5393` by `spec-stubs.mjs`.
 
 6bz: TWO HANDS OR ONE, AND WHAT THE OFF HAND HOLDS.
 
@@ -13576,7 +13714,7 @@ nobody asked it.
 
 ## 6cg. The Records
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12416` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12920` by `spec-stubs.mjs`.
 
 §7dk: THE RECORDS -- the one prize on this island that never runs out.
 
@@ -13620,7 +13758,7 @@ is what an island with an economy is FOR.
 
 ## 6ch. By Nodeid
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12183` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12687` by `spec-stubs.mjs`.
 
 reference: every matching node, BY NODEID -- the same canonical order the
 indexed path below uses.
@@ -13638,7 +13776,7 @@ the comparison ran over an empty list and agreed with itself.
 
 ## 6cz. Its Blow Scales To The One It Came For
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12580` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13084` by `spec-stubs.mjs`.
 
 §6cz: ITS BLOW SCALES TO THE ONE IT CAME FOR -- and since §5j this
 scaling is DEAD, deliberately left standing.
@@ -13659,7 +13797,7 @@ far enough, this starts working again on its own.
 
 ## 6cz-ii. The Hollow Bow Is Not Made
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4589` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4755` by `spec-stubs.mjs`.
 
 §7bq: bone and gut. A fletcher's first bow, and it costs no metal at all.
 §6cz-ii: THE HOLLOW BOW IS NOT MADE. It was `{ bones: 4, logs: 1 }` at
@@ -13681,7 +13819,7 @@ the only build the world offers them. Steel, and not much of it.
 
 ## 6cz-iii. Twelve Hours, And It Is A Floor Rather Than A Rate
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3866` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4032` by `spec-stubs.mjs`.
 
 TWELVE HOURS, because the bow now lives exactly as long as the
 dragon is dead. At six it changed hands fourteen hundred times a
@@ -13709,7 +13847,7 @@ engine's.
 
 ## 6dj. The Height Of The Land, As Data
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2815` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2839` by `spec-stubs.mjs`.
 
 §6dj: THE HEIGHT OF THE LAND, AS DATA.
 
@@ -13730,7 +13868,7 @@ question for the spec and the engine, not for this table.
 
 ## 6m-ii. And It Costs A Swing
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16006` by `spec-stubs.mjs`. Amends §6m.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16665` by `spec-stubs.mjs`. Amends §6m.
 
 §6m-ii: AND IT COSTS A SWING.
 
@@ -13757,7 +13895,7 @@ in a pair should be worth something that fighting alone is not.
 
 ## 6m-iii. The Gullet Rhythm Is Repealed
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1796` by `spec-stubs.mjs`. Amends §6m.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1958` by `spec-stubs.mjs`. Amends §6m.
 
 v0.73: the gullet has its own rhythm, as the arm does (§6b, lastSwing).
 Without one, a citizen ate every interval while the fight held, and broth
@@ -13784,7 +13922,7 @@ The value stays for old states, which carry `lastAte`, and for nothing else.
 
 ## 6m-iv. And It Spends The Arm
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15399` by `spec-stubs.mjs`. Amends §6m.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16033` by `spec-stubs.mjs`. Amends §6m.
 
 §6m-iv: AND IT SPENDS THE ARM, as a meal does.
 
@@ -13799,7 +13937,7 @@ and that asymmetry is the whole reason to fight in a pair.
 
 ## 6m-v. A Richer Meal Is A Longer One
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1813` by `spec-stubs.mjs`. Amends §6m.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1975` by `spec-stubs.mjs`. Amends §6m.
 
 §6m-v: A RICHER MEAL IS A LONGER ONE.
 
@@ -13845,7 +13983,7 @@ still decided by damage, and an endless brew stays where it was at 4:16.
 
 ## 6m-vi. A Pack Runs Out
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1839` by `spec-stubs.mjs`. Amends §6m.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2001` by `spec-stubs.mjs`. Amends §6m.
 
 §6m-v: A RICHER MEAL IS A LONGER ONE.
 
@@ -13891,7 +14029,7 @@ still decided by damage, and an endless brew stays where it was at 4:16.
 
 ## 6t. Take Back Out Of A Bank
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5433` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5599` by `spec-stubs.mjs`.
 
 §6t: a chart is a thing a citizen can hold, so it is a thing they can
 take back out of a bank. `deposit` takes a SLOT and `isItemName` accepts
@@ -13901,7 +14039,7 @@ survey reward, from two gates disagreeing about what an item is.
 
 ## 6x-ii. And The Accuracy Is A Ratio, Not A Clamp
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5290` by `spec-stubs.mjs`. Amends §6x.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5456` by `spec-stubs.mjs`. Amends §6x.
 
 §6ap: AND THE ACCURACY IS A RATIO, NOT A CLAMP.
 
@@ -13931,7 +14069,7 @@ always meant, expressed in the new currency.
 
 ## 6y. The Sigil-bow Spends Half The Arrows
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16794` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17489` by `spec-stubs.mjs`.
 
 §6y: THE SIGIL-BOW SPENDS HALF THE ARROWS.
 
@@ -13965,7 +14103,7 @@ a mort-house and a mourner and yews at the corners. Somebody dug these.
 
 ## 7ac. Iron Railing
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:685` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:802` by `spec-stubs.mjs`.
 
 §7ac: IRON RAILING. A rampart is a war wall -- earth and stone, the thing
 Norwick's garrison stands behind -- and the Moorgrave was drawn with one
@@ -13975,7 +14113,7 @@ through it, which is most of what a graveyard wall is for.
 
 ## 7af. The Generic Scatter Is Off
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:7533` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:7643` by `spec-stubs.mjs`.
 
 §7af: THE GENERIC SCATTER IS OFF.
 
@@ -13998,7 +14136,7 @@ and everything inside a drawing.
 
 ## 7ag. A Waymark Is For A Junction, Not For Every Wiggle
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5576` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5686` by `spec-stubs.mjs`.
 
 ---- what the trails go around ----
 §7ag: A WAYMARK IS FOR A JUNCTION, NOT FOR EVERY WIGGLE.
@@ -14070,7 +14208,7 @@ Downs is doing a job.
 
 ## 7ai. Ten Burials Make A Flask
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15801` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16450` by `spec-stubs.mjs`.
 
 §7ai: TEN BURIALS MAKE A FLASK.
 
@@ -14104,7 +14242,7 @@ A tight radius, so they stay in the pens they belong to.
 
 ## 7ak. A Few, Not A Ring
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:6673` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:6783` by `spec-stubs.mjs`.
 
 §7ak: A FEW, NOT A RING. Forty-six were raised around the mound's edge
 and they came out shoulder to shoulder -- a fence of skeletons, which
@@ -14115,7 +14253,7 @@ frightening than forty, because forty is obviously a farm.
 
 ## 7al. The Spade Pays Prowess, And It Is The Only Thing That Does
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17260` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17955` by `spec-stubs.mjs`.
 
 §7al: THE SPADE PAYS PROWESS, AND IT IS THE ONLY THING THAT DOES
 WITHOUT A FIGHT.
@@ -14139,7 +14277,7 @@ real fight at ninety-five health, which is the cost; finding one is not.
 
 ## 7am. The Siphon
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2862` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3028` by `spec-stubs.mjs`.
 
 §7am: THE SIPHON. A brass tube on a pump, and what comes out of it sticks
 and keeps burning.
@@ -14182,7 +14320,7 @@ weapon that pierces AND burns, and the only one that drinks brimstone.
 
 ## 7ao. A Maul Answers To Strength
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:924` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1041` by `spec-stubs.mjs`.
 
 §7ao: A MAUL ANSWERS TO STRENGTH.
 
@@ -14199,7 +14337,7 @@ pick up.
 
 ## 7ap. The Third Great Arm
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:967` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1084` by `spec-stubs.mjs`.
 
 §6bt: seventy, where every gathering skill already has its mastery tool.
 §7ap: THE THIRD GREAT ARM. The great tier had a sword for attack and a
@@ -14266,7 +14404,7 @@ drawing was wrong, and a door nobody chose still beats a sealed room.
 
 ## 7ar. A Street Is Drawn, Not Inferred
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2439` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2463` by `spec-stubs.mjs`.
 
 §7ar: A STREET IS DRAWN, NOT INFERRED.
 
@@ -14367,7 +14505,7 @@ the answer: more unkept rooms than stalls, so the order cannot matter.
 
 ## 7au. And Only The Lanes Are Flagged
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2571` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2595` by `spec-stubs.mjs`.
 
 §7au: AND ONLY THE LANES ARE FLAGGED. This returned 'flag' for
 EVERY remaining tile in Millbrook's rect -- fifty-two by
@@ -14399,7 +14537,7 @@ is finally visible, because the cobble is continuous.
 
 ## 7au-ii. The Road Is Paved Through The Town, Not Speckled Across It
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2581` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2605` by `spec-stubs.mjs`.
 
 §7au: AND ONLY THE LANES ARE FLAGGED. This returned 'flag' for
 EVERY remaining tile in Millbrook's rect -- fifty-two by
@@ -14431,7 +14569,7 @@ is finally visible, because the cobble is continuous.
 
 ## 7ax. And A House Somebody Already Lives In Is Not A Shop
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:7654` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:7764` by `spec-stubs.mjs`.
 
 §7ax: AND A HOUSE SOMEBODY ALREADY LIVES IN IS NOT A SHOP.
 
@@ -14474,7 +14612,7 @@ nine rooms left unkept for the roster's stalls.
 
 ## 7b. Cannot Follow You Out Of The Throat: The Pass Should Have A Noise In It
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:3819` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:3887` by `spec-stubs.mjs`.
 
 §7b: and something lives in it. Two scree-imps, which hit for one and
 cannot follow you out of the throat: the pass should have a NOISE in it,
@@ -14853,7 +14991,7 @@ the answer: more unkept rooms than stalls, so the order cannot matter.
 
 ## 7bq. The Hollow Bow
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3042` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3208` by `spec-stubs.mjs`.
 
 §7bq: THE HOLLOW BOW, and the asymmetry it answers.
 
@@ -14879,7 +15017,7 @@ nothing, and it is exempt from `clubbed` for the same reason a javelin is.
 
 ## 7br. Fire Arrows
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3229` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3395` by `spec-stubs.mjs`.
 
 §7br: FIRE ARROWS, if the archer is carrying them and nothing else.
 
@@ -14900,7 +15038,7 @@ fire carries only fire.
 
 ## 7bs. Which Shaft Is On The String
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10256` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10756` by `spec-stubs.mjs`.
 
 §7bs: WHICH SHAFT IS ON THE STRING.
 
@@ -14964,7 +15102,7 @@ isle is FOR is unfinished, and that is the next thing to do.
 
 ## 7bv. This Line Is Seventy Per Cent Of The Founding
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:6399` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:6509` by `spec-stubs.mjs`.
 
 §7bv: THIS LINE IS SEVENTY PER CENT OF THE FOUNDING.
 
@@ -14982,7 +15120,7 @@ scan stands and the measurement is written down instead.
 
 ## 7bw. Salting Is Cooking Without A Fire
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16051` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16710` by `spec-stubs.mjs`.
 
 §7i/§7j: FLOUR BECOMES BREAD, on the same tally as every other cook.
 Grain goes to the mill first (see `grind`); a loaf is two steps and a
@@ -15008,7 +15146,7 @@ the common bite: it is a poor fish however you keep it.
 
 ## 7bx. The Hollow Bow Is Not Made
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15643` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16292` by `spec-stubs.mjs`.
 
 §7bx: THE HOLLOW BOW IS NOT MADE. It was four bones and a log at
 woodcraft 12 -- an hour's work for a weapon that removes the arrow
@@ -15023,7 +15161,7 @@ for never buying another shaft.
 
 ## 7by. The Gold Chain
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4800` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4966` by `spec-stubs.mjs`.
 
 §7by: THE GOLD CHAIN. Gold armour is quick armour's equal in defence and
 nothing more -- a pure cosmetic, worn because it is worth being seen in.
@@ -15036,7 +15174,7 @@ version cast in gold. Same numbers exactly. Somebody will carry it.
 
 ## 7c. undrafted
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12004` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12504` by `spec-stubs.mjs`.
 
 §11e: TILES. Chebyshev between store tiles, exactly as survey XP is paid by
 chebyshev to the anchor (§7c). A walk graph would be truer and cannot be
@@ -15044,7 +15182,7 @@ computed every interval by every node; this can.
 
 ## 7ca. A Flurry Is Six Blows And Said So Once
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14976` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15610` by `spec-stubs.mjs`.
 
 §7ca: A FLURRY IS SIX BLOWS AND SAID SO ONCE.
 
@@ -15061,7 +15199,7 @@ way to show six numbers is for the engine to have said six.
 
 ## 7cb. The Gibbet-dead
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3688` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3854` by `spec-stubs.mjs`.
 
 BARROW-WIGHT -- the Moor again, and the reason to be careful there. It is
 what the Moorgrave is full of, if anybody had dug.
@@ -15088,7 +15226,7 @@ It never wanders, because it cannot. It hurls what comes to hand.
 
 ## 7cd. Fall In
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12701` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13205` by `spec-stubs.mjs`.
 
 §7cd: FALL IN -- the step, and everything that breaks it.
 
@@ -15106,7 +15244,7 @@ that swings for you is a bot with extra steps.
 
 ## 7ce. The Second Book
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10110` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10610` by `spec-stubs.mjs`.
 
 §7ce: THE SECOND BOOK.
 
@@ -15126,7 +15264,7 @@ like everybody else.
 
 ## 7cf. Two Books, And Nothing In Both
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2313` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2479` by `spec-stubs.mjs`.
 
 §7cf: TWO BOOKS, AND NOTHING IN BOTH.
 
@@ -15146,7 +15284,7 @@ to change their mind.
 
 ## 7cg. The Rot
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2387` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2553` by `spec-stubs.mjs`.
 
 §7cg: THE ROT, and where the barrow book's rungs actually go.
 
@@ -15173,7 +15311,7 @@ exact inverse of the fire arrow, where plate counts double.
 
 ## 7ci. The Taking
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2434` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2600` by `spec-stubs.mjs`.
 
 §7ci: THE TAKING, priced against the mend it replaces.
 
@@ -15194,7 +15332,7 @@ it, and this world charges for the worse thing.
 
 ## 7cj. The Bone Staff
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2973` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3139` by `spec-stubs.mjs`.
 
 §7cj: THE BONE STAFF. Not a better weapon -- a worse one.
 
@@ -15212,7 +15350,7 @@ carry a spell, and it is the only thing that will.
 
 ## 7ck. The Withering
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2451` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2617` by `spec-stubs.mjs`.
 
 §7ck: THE WITHERING, and what an endgame spell has to be the inverse OF.
 
@@ -15236,7 +15374,7 @@ sigils, two tiles -- you must be close enough to be in the fight yourself.
 
 ## 7cl. And The Barrow Book Had No Cadence At All
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2471` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2637` by `spec-stubs.mjs`.
 
 §7cl: AND THE BARROW BOOK HAD NO CADENCE AT ALL.
 
@@ -15261,7 +15399,7 @@ kind of thing:
 
 ## 7cm. The Desperate Curve
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5159` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5325` by `spec-stubs.mjs`.
 
 §7cm: THE DESPERATE CURVE. `bare` pays you for what you are not wearing;
 `desperate` pays you for what you have already lost. They are the same
@@ -15291,7 +15429,7 @@ invented to pay for it, which is the same sentence §7l ends on.
 
 ## 7cn. The Mere-lamprey
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3908` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4074` by `spec-stubs.mjs`.
 
 §7cn: THE MERE-LAMPREY, and the first creature in this world that can be
 USED UP.
@@ -15331,7 +15469,7 @@ eight people will each want a piece of.
 
 ## 7cn-ii. And A Cleave May Not Spend What It Cannot Pay For
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16896` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17591` by `spec-stubs.mjs`.
 
 §7cn-ii: AND A CLEAVE MAY NOT SPEND WHAT IT CANNOT PAY FOR.
 
@@ -15351,7 +15489,7 @@ aimed at it, which is the blow that pays.
 
 ## 7cn-iii. What A Corpse Leaves
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1967` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2133` by `spec-stubs.mjs`.
 
 §6bw: THE TWO REFUSALS.
 
@@ -15396,7 +15534,7 @@ apart in the first place, which is the fault §11h is about.
 
 ## 7cp. A Built Thing Is Built Of Boards
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1373` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1490` by `spec-stubs.mjs`.
 
 ---------------------------------------------------------------------------
 A CITIZEN'S STALL
@@ -15458,7 +15596,7 @@ stall costs, which is a rule, and said nothing rather than guessing.
 
 ## 7cs. The Lists
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2515` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2681` by `spec-stubs.mjs`.
 
 §7cs: THE LISTS. What the isle refuses.
 
@@ -15481,7 +15619,7 @@ check when you sail rather than a check every interval forever.
 
 ## 7ct. And The Boat Is Not An Escape Hatch
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10233` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10733` by `spec-stubs.mjs`.
 
 §7ct: AND THE BOAT IS NOT AN ESCAPE HATCH.
 
@@ -15497,7 +15635,7 @@ are in is a fight you are in.
 
 ## 7cu. An Isle Is Ground, And Had None
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2643` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2667` by `spec-stubs.mjs`.
 
 §7cu: AN ISLE IS GROUND, AND HAD NONE.
 
@@ -15513,7 +15651,7 @@ nothing on it is allowed to grow.
 
 ## 7cv. The Charter
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2538` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2704` by `spec-stubs.mjs`.
 
 §7cv: THE CHARTER, and why it is not a chart.
 
@@ -15535,7 +15673,7 @@ sold to people about to lose everything they carry.
 
 ## 7cw. A Charter Is Spent Once, And You Are Chartered For Good
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10214` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10714` by `spec-stubs.mjs`.
 
 §7cw: A CHARTER IS SPENT ONCE, AND YOU ARE CHARTERED FOR GOOD.
 
@@ -15557,7 +15695,7 @@ each time.)
 
 ## 7cx. And A Siphon Has To Beat The Flail It Copies
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2887` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3053` by `spec-stubs.mjs`.
 
 §7am: THE SIPHON. A brass tube on a pump, and what comes out of it sticks
 and keeps burning.
@@ -15600,7 +15738,7 @@ weapon that pierces AND burns, and the only one that drinks brimstone.
 
 ## 7cy. The Hands That Have Been Here
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:9048` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:9494` by `spec-stubs.mjs`.
 
 §7cy: THE HANDS THAT HAVE BEEN HERE.
 
@@ -15615,9 +15753,22 @@ It says who works here; it does not say where they are. You still have to
 go to the furnace to learn who works the furnace, and you still have to
 find them yourself.
 
+WHICH WORKS REMEMBER. The four where something is made -- the anvil, the
+furnace, the sawpit and the mill -- and both fires, the furnace and the
+watchfire, whenever somebody feeds one or burns it down for charcoal.
+
+The fires were missing, and that was the wrong way round for the whole
+purpose of this. A smith who smelted an hour ago tells you nothing you
+need to know. Whoever has been feeding the fire tells you whether it will
+still be alight when you get there and whether to bring coal, which is
+the one thing on this island that genuinely has to be arranged between
+people who cannot see each other. `stokedBy` kept the LAST hand only and
+the next person to feed it overwrote them, so one name was all anybody
+could ever read and it was gone a minute later.
+
 ## 7cz. Rubble, Which Did Nothing At All
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4401` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4567` by `spec-stubs.mjs`.
 
 §7cz: RUBBLE, WHICH DID NOTHING AT ALL.
 
@@ -15641,7 +15792,7 @@ that was previously a way to waste a pickaxe.
 
 ## 7d. The Looking Glass
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4867` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4977` by `spec-stubs.mjs`.
 
 ================= THE LOOKING GLASS =================
 
@@ -15659,7 +15810,7 @@ Schelling point like the seams, and the walk is the whole point of it.
 
 ## 7da. Iron Ore, Because
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1389` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:1506` by `spec-stubs.mjs`.
 
 ---------------------------------------------------------------------------
 A CITIZEN'S STALL
@@ -15721,7 +15872,7 @@ stall costs, which is a rule, and said nothing rather than guessing.
 
 ## 7dc. Coal Burns Longer Than Charcoal, And Is Now Worth Mining
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2614` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2780` by `spec-stubs.mjs`.
 
 §7r: one coal buys the furnace this many intervals of heat, and it will not
 bank more than the cap -- so a fire cannot be stoked once and left for a
@@ -15763,7 +15914,7 @@ being stoked once and left for a week.
 
 ## 7dd. And Coal Banks A Watchfire
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5094` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5260` by `spec-stubs.mjs`.
 
 §7dd: AND COAL BANKS A WATCHFIRE. Six seams feed ONE furnace, which is why
 coal is thirty times oversupplied -- the demand does not grow with the number
@@ -15782,7 +15933,7 @@ burner supplies the gunner, and none of the three can do the others' work.
 
 ## 7dg. Smoking, And The Window
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2411` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2577` by `spec-stubs.mjs`.
 
 §7dg: SMOKING, AND THE WINDOW.
 
@@ -15809,7 +15960,7 @@ own has been short of.
 
 ## 7dh. A Lane Ends At A Village
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:1653` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:1677` by `spec-stubs.mjs`.
 
 §7dh: A LANE ENDS AT A VILLAGE. IT DOES NOT GO THROUGH THE KITCHEN.
 
@@ -15840,7 +15991,7 @@ Pure arithmetic on seats that already exist, so no cycle and no hash draw.
 
 ## 7di. The Scene Nouns
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8390` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8777` by `spec-stubs.mjs`.
 
 §7di: THE SCENE NOUNS (worldgen-scenes-v7).
 
@@ -15863,7 +16014,7 @@ adds texture to the world without adding a rule to the world.
 
 ## 7dj. Gravable
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8440` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8827` by `spec-stubs.mjs`.
 
 §7dj: and four that exist only because the obvious word already has a job.
 A stone-heap is not a cairn, a way-post is not a milestone, a slag-lump is
@@ -15874,7 +16025,7 @@ cosmetic and nothing else, so scenery gets its own words.
 
 ## 7dk. The Records
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12387` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12891` by `spec-stubs.mjs`.
 
 §7dk: THE RECORDS -- the one prize on this island that never runs out.
 
@@ -15955,7 +16106,7 @@ came out.
 
 ## 7dm. The High-water Mark
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17233` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:17928` by `spec-stubs.mjs`.
 
 §7dm: THE HIGH-WATER MARK -- the hardest rung this citizen has ever
 worked in this skill.
@@ -15985,7 +16136,7 @@ monotonic facts and leaves the inventing to citizens.
 
 ## 7dn. The Squeeze
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2214` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2238` by `spec-stubs.mjs`.
 
 §7dn: THE SQUEEZE -- the mouth of the Chalk Barrow, and the one piece of
 ground on Tallyholm that asks a question before it lets somebody through.
@@ -16031,7 +16182,7 @@ would lock the cave behind gear, where this locks it behind forethought.
 
 ## 7do. A Hoard
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:538` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:655` by `spec-stubs.mjs`.
 
 §7do: A HOARD. Grave goods, in a barrow, behind a squeeze.
 
@@ -16045,7 +16196,7 @@ hole in the ground with things in it that somebody was buried with.
 
 ## 7dp. Four Masks, And A Citizen Takes One
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4988` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5098` by `spec-stubs.mjs`.
 
 §7dn: RUIN IN A SHAPE. Four glyphs, and between them a citizen can
 read what a building USED TO BE.
@@ -16079,7 +16230,7 @@ made in the dark, three slots deep, past the knight.
 
 ## 7dq. And The Smother's Mouth Asks For Fire
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2245` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2269` by `spec-stubs.mjs`.
 
 §7dn: THE SQUEEZE -- the mouth of the Chalk Barrow, and the one piece of
 ground on Tallyholm that asks a question before it lets somebody through.
@@ -16125,7 +16276,7 @@ would lock the cave behind gear, where this locks it behind forethought.
 
 ## 7dq-ii. A Place May Name Its Own Ground, And The Smother Has To
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2466` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2490` by `spec-stubs.mjs`.
 
 §7dq-ii: A PLACE MAY NAME ITS OWN GROUND, AND THE SMOTHER HAS TO.
 
@@ -16150,7 +16301,7 @@ surface it can light differently.
 
 ## 7dq-iii. And A Window Has To Know
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6388` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6570` by `spec-stubs.mjs`.
 
 §7dq-iii: AND A WINDOW HAS TO KNOW, so there is one definition and not two.
 
@@ -16188,7 +16339,7 @@ ring.
 
 ## 7ds. And Near The Door, Where There Is One
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5083` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5193` by `spec-stubs.mjs`.
 
 a board at the near edge, because a place with no name is scenery
 
@@ -16203,7 +16354,7 @@ gap first. A warning nobody passes is not a warning.
 
 ## 7dt. A Torch Is A Log And Nothing Else
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:11037` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:11537` by `spec-stubs.mjs`.
 
 §6ad: THE HEARTWOOD BOW IS FLETCHED, NOT FORGED.
 
@@ -16223,7 +16374,7 @@ hat. One log, one torch, and the cost is that it burns out.
 
 ## 7du. The Drowned Bell
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:661` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:778` by `spec-stubs.mjs`.
 
 §7du: THE DROWNED BELL, and the one raising on this island that CANNOT be
 done alone.
@@ -16244,52 +16395,56 @@ Once in the world's life. When it comes up it is a BELL: a thing that
 rings, that everybody hears, that nobody can un-ring, and that carries the
 names of whoever was on the rope.
 
-## 7dv. The Tide, And The Stint
+## 7dv. The Tide
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:5931` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2911` by `spec-stubs.mjs`.
 
-§7dv: THE TIDE, AND THE STINT.
+§7dv: THE TIDE. One window, computed from the interval count, the same for
+everyone, and it is the whole of the feature.
 
-Two things, and they are not the same thing. The TIDE is the world's
-weather: a set of windows computed from the interval count and nothing
-else, the same for every citizen, readable forward and backward forever.
-Nobody chose it and nobody can move it. The STINT is a citizen's promise
-made against it -- signed in advance, for a length they name before they
-know what will happen in it.
+THERE WERE THREE AND TWO OF THEM DID NOTHING. A six-minute window twenty
+times a day, a fifteen-minute one five times, and this one. They were
+chosen when the tide GATED SPEECH at range, and the case for three was a
+coverage argument: the far channel stood open 16.7% of all intervals, an
+hour at the world caught a window 94% of the time, and the longest stretch
+with everything shut was sixty-six minutes. Every one of those numbers was
+about whether a citizen could be HEARD.
 
-THE TIDE GATES NOTHING AT ALL, and that is deliberate.
+§7dx repealed that gate, because a world that already allows ninety
+minutes a day was making two scarcities out of one and the second only
+stopped people talking. The coverage argument went with it and nobody
+noticed, so the two short tides stayed: computed every interval, validated
+by the constitution, printed in the handbook as "tide 1" and "tide 2", and
+read by nothing. The announcement has only ever looked at the longest.
 
-It used to open a voice at RANGE: speech to somebody beside you was always
-free, and the far channel waited for a tide with a stint as the licence to
-use it. That was removed. A citizen may only be played ninety minutes a
-day, and gating speech on top of that doubles a constraint the world meant
-to impose once -- it made two scarcities out of one and the second one only
-stopped people talking.
+WITH NO GATE, COVERAGE IS THE WRONG QUESTION. You do not need to be inside
+a tide. You need to be able to say "at the deep tide" to a stranger and
+have them know when that is, and three of them makes that sentence
+ambiguous rather than more available. One unmistakable time is the feature;
+the rest was answering a question that is no longer asked.
 
-`anyTideOpen` survives as an export and is called from nowhere. It is kept
-because a window may reasonably want to draw the tide; nothing in the rules
-consults it. If a later founding wants to gate something on a tide, this is
-the function for it, and the burden is on that founding to say why a second
-limit earns its place.
+WHY THESE TWO NUMBERS AND NOT PRETTIER ONES. The tide turns every 43801
+seconds, so two turns take 87602 -- twelve hundred and two seconds, twenty
+minutes, longer than a day. The window therefore slips twenty minutes
+later every day and goes right round the twelve-hour cycle in thirty-six.
+43200 would be exactly twice a day for ever, so whoever drew four in the
+morning would keep four in the morning for life, which is the unfairness
+of a raid schedule arriving without anybody choosing it.
 
-AND IT MUST NEVER PAY. No yield rises in a tide, no seam gives more, no blow
-lands harder. The moment a tide pays, a citizen declares stints for the pay
-and the length they name stops being what they meant. Then it is a raid
-night with a different word on it.
+(The old note here said `86400 mod P` was the drift. It is not: for this
+period that leaves 42599 seconds and means nothing. The rule of thumb was
+written for the two short tides, which turn many times a day, and it was
+carried onto the long one where it does not hold.)
 
-What the tide IS, now, is a clock everybody can read and nobody can move:
-see §7dx, where the longest one announces itself and names where people
-actually stood. That is a Schelling point, and it is the whole of the
-feature.
+Thirty minutes open is long enough to arrive late and still find people.
 
-A tide is up when `tick % period < open`. Periods are meant to be chosen
-coprime and unrelated to any day, so the windows precess: a citizen who
-gets the bad one this week does not get it next week, and no hour of any
-clock anywhere is permanently the hour this world is dead.
+THE SCHEMA STILL ALLOWS EIGHT. A later founding may want more, and the
+burden is on that founding to say what they are for; this world ships one
+because one is what it uses.
 
 ## 7dw. Closing Time
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6022` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6204` by `spec-stubs.mjs`.
 
 §7dw: CLOSING TIME.
 
@@ -16317,9 +16472,66 @@ therefore accurate to within one bin, which is the right trade: an exact
 rolling sum would want a stamp per sample and hundreds of integers per
 citizen in a state that has to hash.
 
+## 7dw-ii. The Ledger Keeps Its Own Clock Now, Separate From The Promise
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8259` by `spec-stubs.mjs`.
+
+§7dw-ii: THE LEDGER KEEPS ITS OWN CLOCK NOW, SEPARATE FROM THE PROMISE.
+
+Both ran on `stint.sample`, and only one of them wanted to. The stint is
+sampled coarsely on purpose -- "a promise measured to the interval
+invites the citizen to watch a clock" -- and the ledger inherited that
+without the argument applying to it. A sample charges a citizen for the
+WHOLE block it finds them in, so at five minutes a two-minute visit to
+look at your crops cost five, and a citizen could lose most of an
+allowance to a handful of short visits.
+
+Finer is strictly fairer here, and it cannot be gamed in the other
+direction either: the presence lookback equals the sample period, so
+there is no quiet gap between blocks to act inside.
+
+IT IS NOT EXACT, AND THE IMPRECISION ROUNDS AGAINST THE CITIZEN. The
+lookback is inclusive, so a burst landing on a sample boundary is caught
+by that sample and by the next one and costs TWO blocks rather than one.
+Measured, not reasoned: one step costs 10 of a 10-interval sample when
+it falls mid-block and 20 when it falls on the edge. Left alone, because
+the lookback is shared with the promise and tightening it there would
+quietly shorten every stint; the honest fix for the cost was to make the
+block small, which is this. At five minutes the rough edge was worth up
+to ten minutes of somebody's day; at one it is worth two.
+
+## 7dw-iii. Attendance Pay Requires Somebody To Be Attending
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:13619` by `spec-stubs.mjs`.
+
+§7dw-iii: ATTENDANCE PAY REQUIRES SOMEBODY TO BE ATTENDING.
+
+This is the second time this rule has had to learn the same lesson. It
+once paid a firekeeper every interval their beacon burned, "anywhere in
+the world, asleep, in another country -- twelve thousand experience a
+cycle for having once lit something", and the fix was to require them to
+be NEXT TO IT. That fixed the place and left the person: a body stays
+standing where it stood after the window is closed, so a citizen could
+feed the furnace, step one tile, shut the client and go to bed earning an
+experience an interval for the hour the fire holds -- and the ceiling
+never charged them for it, because the ceiling counts inputs and there
+were none.
+
+So it is the world's own measure of presence, the one the promise uses: an
+input within the last sample, or an action still running, which is what
+keeps somebody watching a pickaxe from having to jog the keys. A citizen
+who has done nothing at all for five minutes is indistinguishable from
+one who walked away, and the engine says so itself: "a world cannot see
+somebody walk away from a keyboard. What it can see is that no input
+arrived."
+
+AND NOT THE STOOD DOWN. They have spent their day; the world has stopped
+transacting with them, and paying them to stand beside a fire would be
+the ceiling's one hole.
+
 ## 7dx. A Voice Is Not A Licence Any More
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6086` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:6268` by `spec-stubs.mjs`.
 
 §7dx: A VOICE IS NOT A LICENCE ANY MORE.
 
@@ -16343,7 +16555,7 @@ there is to do here.
 
 ## 7dy. The Grove
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4353` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4519` by `spec-stubs.mjs`.
 
 §7dy: THE GROVE. A ring of empty plots around each of the two stands worth
 tending, and a tree takes two days to come on. Days rather than minutes
@@ -16373,7 +16585,7 @@ stands -- which is what the stands were placed for.
 
 ## 7dz. The Eels Belong To Whoever Pulls Them Out
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15190` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15824` by `spec-stubs.mjs`.
 
 §7dz: THE EELS BELONG TO WHOEVER PULLS THEM OUT. THE SKILL BELONGS
 TO WHOEVER WOVE THE TRAP AND CHOSE THE RUN.
@@ -16392,7 +16604,7 @@ and this world does not pay anybody for not being here.
 
 ## 7e. One Thing You Can Only Do There
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4085` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4153` by `spec-stubs.mjs`.
 
 ================= ONE THING YOU CAN ONLY DO THERE =================
 
@@ -16439,7 +16651,7 @@ the evening or nobody makes the trip twice.
 
 ## 7ea-ii. And The Isle Is Swept Last
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:8182` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:8292` by `spec-stubs.mjs`.
 
 §7dy: THE RINGS GO LAST. Placed mid-build they encircled where the
 ironbark stood at the time, and a later pass moved the stand seventy-five
@@ -16507,7 +16719,7 @@ drop any of them into the sea and strand a landmark nobody can reach.
 
 ## 7f. One Trade To A House, And Never In The Doorway
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:7720` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:7830` by `spec-stubs.mjs`.
 
 §7f: ONE TRADE TO A HOUSE, AND NEVER IN THE DOORWAY.
 
@@ -16525,13 +16737,13 @@ free sides, in and out, which is why it passed.
 
 ## 7g. The Altar
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:711` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:828` by `spec-stubs.mjs`.
 
 §7g: THE ALTAR. Three quick-stones become a sigil here and nowhere else.
 
 ## 7h. Who Lives Here
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4140` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4208` by `spec-stubs.mjs`.
 
 ---- WHO LIVES HERE ----
 §7h. Thirty-nine rooms held a bed, a hearth and nobody. The answer is
@@ -16547,7 +16759,7 @@ building three separate times.
 
 ## 7i. A Gonne Is Not A Magic Item
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4617` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4783` by `spec-stubs.mjs`.
 
 §6av: quickmetal, because that is where the scarcity already lives -- a
 quick-stone is mined in the WILDS, so every one has survived a trip
@@ -16566,7 +16778,7 @@ two bottlenecks for one weapon; it is now zero.
 
 ## 7j. Flour Becomes Bread
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16048` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16707` by `spec-stubs.mjs`.
 
 §7i/§7j: FLOUR BECOMES BREAD, on the same tally as every other cook.
 Grain goes to the mill first (see `grind`); a loaf is two steps and a
@@ -16592,7 +16804,7 @@ the common bite: it is a poor fish however you keep it.
 
 ## 7j-ii. Bread Is The Hearth's, Not The Shore's
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16078` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16737` by `spec-stubs.mjs`.
 
 §7j-ii: BREAD IS THE HEARTH'S, NOT THE SHORE'S.
 
@@ -16610,7 +16822,7 @@ the baker of Anchor without the engine's help.
 
 ## 7k. And The Square Itself Is Plaza
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2546` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:2570` by `spec-stubs.mjs`.
 
 §6cz: MILLBROOK IS A MARKET, AND A MARKET IS PAVED. The market's
 drawing is spacious -- shops with a plaza between them -- and
@@ -16629,7 +16841,7 @@ and the only such ground on Tallyholm.
 
 ## 7l. The Bare-blade
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2903` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3069` by `spec-stubs.mjs`.
 
 §7l: THE BARE-BLADE. Its damage is what you are NOT wearing.
 
@@ -16657,7 +16869,7 @@ that has always fitted the fighting is ber-serkr: BARE of shirt.)
 
 ## 7m. The Fall-stone
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7818` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8020` by `spec-stubs.mjs`.
 
 §7m: THE FALL-STONE. Rubble is what the mountain gives everybody; a
 fall-stone is what it gives the citizen who finished a boulder. Same rock,
@@ -16680,7 +16892,7 @@ first week, and the seam is deleted afterwards. Nothing issues another.
 
 ## 7n. A Field Is Not A Wall
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:11786` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:12286` by `spec-stubs.mjs`.
 
 §7n: A FIELD IS NOT A WALL. A plot blocked its tile, so a block of them
 was a solid mass and only the outer ring could be stood beside -- and
@@ -16699,7 +16911,7 @@ crossing is worth fighting over before it is done.
 
 ## 7o. And The Country Speaks Its Own Vocabulary
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5605` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5715` by `spec-stubs.mjs`.
 
 §6ao (v6): a waymark is TEXTURE at a road bend, not a gatherable node.
 It used to drop a tree or a rock at every bend -- eighty scattered
@@ -16724,7 +16936,7 @@ instead of two.
 
 ## 7p. The Seam Gives Ore, Not A Finished Bar
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:830` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:947` by `spec-stubs.mjs`.
 
 §6ao (v6): the clean mining chain -- iron (baseline) -> coal (mid) -> steel.
 v6 mines IRON where v5 mined generic 'ore'; the baseline gear is iron
@@ -16745,7 +16957,7 @@ stock and iron stock the same substance.
 
 ## 7p-ii. Count The Units, Not The Slots, And Spend Only What Is Asked
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14646` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15280` by `spec-stubs.mjs`.
 
 §7p-ii: COUNT THE UNITS, NOT THE SLOTS, AND SPEND ONLY WHAT IS ASKED.
 
@@ -16758,7 +16970,7 @@ single forging.
 
 ## 7p-iii. What A Recipe Costs, Paid In One Place
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:9668` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10164` by `spec-stubs.mjs`.
 
 Removes qty units from a slot; clears the slot when it empties.
 Returns true if the slot held at least qty units.
@@ -16779,7 +16991,7 @@ logs before heartwood.
 
 ## 7q. A Round Log Is Not A Plank
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10271` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:10771` by `spec-stubs.mjs`.
 
 §7q: A ROUND LOG IS NOT A PLANK.
 
@@ -16795,7 +17007,7 @@ a sawyer standing in it and nothing to saw since the day it was drawn.
 
 ## 7r. The Furnace Burns Too, And Somebody Has To Keep It Lit
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:11000` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:11500` by `spec-stubs.mjs`.
 
 §7r: THE FURNACE BURNS TOO, AND SOMEBODY HAS TO KEEP IT LIT.
 
@@ -16813,7 +17025,7 @@ and is paid in earthcraft for doing it.
 
 ## 7s. And A Lit Public Fire Cooks As Well As A Hearth
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16128` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16787` by `spec-stubs.mjs`.
 
 6bf: a proper hearth forgives a cook what a field fire does not
 §7s: AND A LIT PUBLIC FIRE COOKS AS WELL AS A HEARTH.
@@ -16835,7 +17047,7 @@ no, and the keeper's fee needs the node itself
 
 ## 7t. The Yard
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3634` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:3800` by `spec-stubs.mjs`.
 
 THE SHEEP (spec 6ag). The Downs is downland: twenty-two thousand tiles
 of it, twenty-eight living things on it, and a locale in the middle
@@ -16865,7 +17077,7 @@ not to roll for it.
 
 ## 7u. The Trees That Are Not Timber
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8344` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8731` by `spec-stubs.mjs`.
 
 ---- and the nouns the world was short of ----
 
@@ -16901,7 +17113,7 @@ which is the only one of them that says a person did it on purpose.
 
 ## 7v. A Deck Is A Rectangle
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:1214` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:1238` by `spec-stubs.mjs`.
 
 §7v: A DECK IS A RECTANGLE.
 
@@ -16920,7 +17132,7 @@ wins. A bridge is one shape.
 
 ## 7w. A Shed Round The Fire, And The Approaches Left Clear
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4749` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:4859` by `spec-stubs.mjs`.
 
 §7w: A SHED ROUND THE FIRE, AND THE APPROACHES LEFT CLEAR.
 
@@ -16939,7 +17151,7 @@ middle where the crowd can reach it from three sides at once.
 
 ## 7x. And Steel Is A Bar
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4791` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:4957` by `spec-stubs.mjs`.
 
 §7x: AND STEEL IS A BAR. It was the last incoherent corner: every other
 metal in the world is smelted, and steel gear was forged straight out of
@@ -16950,7 +17162,7 @@ other, and the coal is the furnace's fire, per §7r.
 
 ## 7y. A Place Outranks A Field It Was Drawn Through
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5037` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5147` by `spec-stubs.mjs`.
 
 §7y: A PLACE OUTRANKS A FIELD IT WAS DRAWN THROUGH.
 
@@ -16966,7 +17178,7 @@ stamped over half a shire. The plough gives way.
 
 ## 7z. A Place May Not Seed A Tier
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5187` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `worldgen-expanse7.mjs:5297` by `spec-stubs.mjs`.
 
 §7z: A PLACE MAY NOT SEED A TIER.
 
@@ -17018,7 +17230,7 @@ town a newcomer reaches is a second point somebody chose.
 
 ## 8a. Smoking, And The Window
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2422` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:2588` by `spec-stubs.mjs`.
 
 §7dg: SMOKING, AND THE WINDOW.
 
@@ -17045,7 +17257,7 @@ own has been short of.
 
 ## 8e. The Clamp
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7702` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:7888` by `spec-stubs.mjs`.
 
 §6bo: THE CLAMP. Ten ironbark charred at a burning
 watchfire make one charcoal. The constants live here
@@ -17053,9 +17265,52 @@ because §8e says a shape is constitutional and a number
 is a founding's: a world that finds ten too dear founds
 itself with eight and forks nothing.
 
+## 9b-ii. And The Record Of What Happened
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:8463` by `spec-stubs.mjs`. Amends §9b.
+
+Imported citizens are FOUNDING data: they enter the world before any
+input is ever validated, so they get a dedicated, complete validator
+(rev6 §2) IDs, names, skills, XP, HP, inventory, bank, equipment,
+quantities, item vocabulary, and cross-entry uniqueness.
+§5k: `calling` is in this list because `xpCeiling` reads it. A crossing
+that drops the swearing does not lose a title, it makes every hour the
+citizen spent past level 50 illegal, and the founding then refuses the
+state it has just built. See the note in validateImports.
+§9b-ii: AND THE RECORD OF WHAT HAPPENED, which a crossing used not to carry.
+Every one of these is a tally or a list that only ever grew, so carrying it
+is continuing a life rather than editing one. Position, health and the ground
+are the new world's business and are deliberately absent.
+
+## 9b-iii. Or From The World Before This One
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14560` by `spec-stubs.mjs`. Amends §9b.
+
+---------- §9b-iii: OR FROM THE WORLD BEFORE THIS ONE ----------
+
+The same deed, the same shape, a different tree. A citizen whose
+world lost its quorum holds their own record and a path against the
+root that world ended on, and this founding's genesis named that root
+(`genesis.from`). So they walk back in on their own, months later,
+without the founder having read them out of a checkpoint and without
+anybody holding anybody else's data.
+
+NOT SEATED RAW. The record above came out of THIS world's own
+archive, so it is already a citizen of here. This one is not: it
+holds a position on another clock, an action half finished, a deed
+from an interval that no longer exists. It goes through the same door
+a founder's import does -- `carriedFrom`, then `validateImports`,
+then `seatImport` -- because what crosses must not depend on which
+way a citizen came.
+
+AND THE LEAF IS SPENT, in the state's copy of the tree. The genesis
+keeps the claim and cannot be edited; the state keeps the record of
+who has used it. Without this, a citizen could come home, go absent
+long enough to be archived, and come home again on the same file.
+
 ## 21d-ii. Has To Be Re-read, Because It Is No Longer The Same
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:14762` by `spec-stubs.mjs`. Amends §21d.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15396` by `spec-stubs.mjs`. Amends §21d.
 
 §21d-ii: AND `q` HAS TO BE RE-READ, BECAUSE IT IS NO LONGER THE SAME
 OBJECT.
@@ -17074,7 +17329,7 @@ phase, where the target is already owned.
 
 ## 2287. Interval To Stop Them Equivocating -- Signing Two Different Futures
 
-> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15866` by `spec-stubs.mjs`.
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:16515` by `spec-stubs.mjs`.
 
 §7.3a: and the pack, in one deed. §2287 gives a citizen one INPUT an
 interval to stop them equivocating -- signing two different futures

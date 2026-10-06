@@ -160,8 +160,8 @@ const UNREACHABLE = new Set(['ECONNREFUSED', 'EHOSTUNREACH', 'ENETUNREACH', 'ETI
 process.on('uncaughtException', (e) => {
   const code = e?.code ?? e?.message
   console.log('[net] ' + (UNREACHABLE.has(code)
-    ? 'a peer address would not answer (' + code + '); most nodes sit behind a router'
-    : 'a connection died rudely (' + code + ')') + '; the interval continues')
+    ? 'a peer address would not answer (' + code + '); most nodes sit behind a router':
+    'a connection died rudely (' + code + ')') + '; the interval continues')
 })
 process.on('unhandledRejection', (e) =>
   console.log('[net] a promise died rudely (' + (e?.code ?? e?.message ?? e) + '); the interval continues'))
@@ -232,7 +232,7 @@ if (W_ARG) {
   if ((info.genesis.witnesses ?? []).includes(wk.playerId)) {
     witnessKey = wk
     console.log(`witness key accepted: ${wk.playerId.slice(0, 12)}…`)
-  } else console.log(`witness key ${wk.playerId.slice(0, 12)}… is not in this world's founding set — opening as observer`)
+  } else console.log(`witness key ${wk.playerId.slice(0, 12)}… is not in this world's founding set, opening as observer`)
 }
 const node = await new IntervalNode({
   peerKeyFile: 'identities/peer-door-' + host + '.json',
@@ -269,7 +269,7 @@ const pillarAddr0 = multiaddr(`/${proto}/${host}/tcp/${info.p2pPort}/p2p/${info.
 let pillarUp = true
 try { await withTimeout(node.dial(pillarAddr0), 8000, 'pillar') }
 catch { pillarUp = false; console.log('[door] that world\'s door did not answer in time; the book remembers ' + book.length + ' other(s)') }
-for (const a of book) {   // background — book peers are redundancy, not a boot dependency
+for (const a of book) {   // background: book peers are redundancy, not a boot dependency
   withTimeout(node.dial(multiaddr(a)), 8000, 'book').then(() => {}).catch(() => {})
 }
 
@@ -300,7 +300,7 @@ meshUp(); setInterval(meshUp, 20000)   // don't await the first sweep
 // stall or a missed proposal is repaired by replay rather than by drift.
 const pillarAddr = pillarAddr0
 // Sync from the LIVE pillar alone first (allowSingle), timeout-guarded so a
-// stale book address fed to syncFromPeers — which dials sources sequentially —
+// stale book address fed to syncFromPeers, which dials sources sequentially:
 // cannot hang the boot. Fall back to book sources one at a time.
 let synced = false
 if (pillarUp) {

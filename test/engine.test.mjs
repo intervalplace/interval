@@ -1,4 +1,4 @@
-// Interval regression tests — fix brief Milestones 1 & 2.
+// Interval regression tests: fix brief Milestones 1 & 2.
 // Run with: node --test test/
 import { test } from 'node:test'
 import assert from 'node:assert/strict'

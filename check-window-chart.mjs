@@ -4,7 +4,7 @@
 // eleven tiles, and a panel showing forty hands back exactly what the fog took.
 // So the map takes the screen and you cannot walk while it is open. This checks
 // that it does, that it draws the ground the PILLAR serves rather than anything
-// the window invented, and — the part that matters — that it does not pretend
+// the window invented, and: the part that matters, that it does not pretend
 // to be the `chart` item. The engine is flat about what a chart is: "It opens
 // no doors. Nobody travels by it."
 //

@@ -5,8 +5,8 @@
 // checks the whole window is reachable from it: walking, striking, reaching,
 // the gambit, the pack, the chart, and the panels once they are open.
 //
-// The layout is the era's — cross acts, circle backs, square reaches, triangle
-// is the gambit — so a hand that has held one of these before knows most of it
+// The layout is the era's: cross acts, circle backs, square reaches, triangle
+// is the gambit, so a hand that has held one of these before knows most of it
 // already. That is the thing being tested, not a preference of mine.
 //
 // Needs three.js:  npm i three@0.128.0

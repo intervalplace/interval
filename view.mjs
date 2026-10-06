@@ -1,4 +1,4 @@
-// view.mjs — zone-sharded state deltas for thin windows.
+// view.mjs: zone-sharded state deltas for thin windows.
 //
 // THE PROBLEM. serve.mjs sends the whole state to every socket every interval.
 // The payload is ~838 KB empty and grows with population (~497 B per citizen),
@@ -8,7 +8,7 @@
 // THE SHAPE OF THE FIX. Two independent observations:
 //
 //   1. Almost nothing changes between intervals. Nodes are 92% of the payload
-//      and their type/x/y are immutable — only `depletedUntil` moves, on at
+//      and their type/x/y are immutable: only `depletedUntil` moves, on at
 //      most a few dozen of the 144 gatherables. A delta is 5-40x smaller.
 //
 //   2. A window only renders what is near its citizen. It does not need the
@@ -18,8 +18,8 @@
 // costs O(clients x view) of SERIALIZATION, which is worse. So we do both, and
 // we shard by ZONE: the world is cut into fixed tiles, one delta message is
 // built per zone per interval, and every client is sent the 9 zone messages
-// covering its view. Serialization is O(zones) — a constant, 112 for Tallyholm
-// — and per-socket cost falls to a memcpy of an already-built buffer.
+// covering its view. Serialization is O(zones): a constant, 112 for Tallyholm,
+// and per-socket cost falls to a memcpy of an already-built buffer.
 //
 // Zones are FIXED and world-anchored, never per-player, which is what keeps
 // the message count constant as population grows.
@@ -193,7 +193,7 @@ export function worldDelta(tracker, next) {
 //
 // ORDER MATTERS, and getting it wrong is silent. An entity that crosses a zone
 // boundary is `changed` in its new zone and listed in `...Gone` for its old
-// one. A client watching BOTH zones (the common case — they are neighbours)
+// one. A client watching BOTH zones (the common case: they are neighbours)
 // that applied messages in arrival order would add the entity from the new
 // zone and then delete it from the old one, and the citizen would vanish from
 // the window while still standing there in the world.

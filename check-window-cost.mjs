@@ -6,7 +6,7 @@
 // this check exists for.
 //
 // It found one. `nodesNear` walked all ten thousand nodes, `options` called it a
-// dozen times, and the HUD called `options` every frame — a hundred and forty
+// dozen times, and the HUD called `options` every frame: a hundred and forty
 // thousand iterations and thirteen ten-thousand-entry arrays allocated sixty
 // times a second, to answer a question that changes only when the citizen moves.
 // The window cost 59ms a frame against a 33ms budget: seventeen frames a second,

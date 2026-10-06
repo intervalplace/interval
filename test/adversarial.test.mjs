@@ -2,14 +2,26 @@
 //   node advsim.mjs all 3 30000
 // ). Every scenario asserts the freeze criterion: S1 no fork, S2 no
 // honest double-sign, S3 every committed cert verifies, S4 halts only
-// under Byzantine presence — plus a liveness floor where the model
+// under Byzantine presence: plus a liveness floor where the model
 // promises progress.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { runScenario, SCENARIOS } from '../advsim.mjs'
 
+// The liveness floor is the SLOWEST honest node's finalized height, and a run
+// of N simulated seconds can finalize at most N-1 ticks: TICK_MS is 1000 and
+// tick 1 is not due until the first second has passed, so there is nothing to
+// propose at t=0. `benign` asked for 12 out of a 12000ms run, which is that
+// ceiling plus one and could never have been reached.
+//
+// It is a fencepost, not a regression, and the other scenarios prove it: liar,
+// replayer and garbage all run 12000ms WITH an adversary present and reach
+// exactly 11 as well. A benign net that had genuinely slowed would sit below
+// them rather than level with them. So 11 here is both the floor and the
+// theoretical maximum, which makes it the strongest true claim available: a
+// healthy network finalizes every tick it is given, from the first one it can.
 const runs = [
-  ['benign', 12000, 12],       // healthy net: brisk finality
+  ['benign', 12000, 11],       // healthy net: brisk finality, every tick that exists
   ['lossy', 15000, 2],         // 25% loss, 900ms delays: slow, never wrong
   ['crashes', 15000, 0],       // crash-restart storm incl. the durable-vote window
   ['partitions', 15000, 0],    // repeated asymmetric splits, healing
@@ -34,7 +46,7 @@ for (const [name, dur, floor] of runs) {
 
 test('healed honest nodes converge to the same finalized frontier (spread 0)', () => {
   // after the partition burst ends, the quiet tail must bring every honest
-  // node to the SAME finalized height — the finality buffer + regossip
+  // node to the SAME finalized height: the finality buffer + regossip
   // catch-up path is what makes a behind node reach the frontier
   for (const seed of [7919, 15838, 23757]) {
     const r = runScenario('heal', SCENARIOS.heal, seed, 25000)
@@ -53,7 +65,7 @@ test('the requiredSpread mechanism: heal demands 0, other healed scenarios use t
   assert.ok(benign.healed && benign.spread === 0, 'benign happens to converge exactly too')
   // and a heal run that (hypothetically) diverged would be flagged: prove
   // the check fires by asserting the violation text names the required bound
-  // when spread would exceed it — we confirm the passing path names 0
+  // when spread would exceed it: we confirm the passing path names 0
   for (const seed of [7919]) {
     const r = runScenario('heal', SCENARIOS.heal, seed, 25000)
     const conv = r.violations.filter(v => v.includes('CONVERGENCE'))

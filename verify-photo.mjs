@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// verify-photo.mjs — read the plate off an Interval photograph.
+// verify-photo.mjs: read the plate off an Interval photograph.
 //
 //   node verify-photo.mjs shot.png
 //   node verify-photo.mjs shot.png --pillar https://interval.place
@@ -21,7 +21,7 @@
 //      A photograph is verified exactly like an axe swing.
 //
 // What this does NOT prove on its own is that the citizen was really
-// standing there at that tick — that is a question for the world, not
+// standing there at that tick: that is a question for the world, not
 // the file. Pass --pillar and it will be asked. The full answer needs a
 // pillar that will replay to an arbitrary tick; see the note at the end.
 

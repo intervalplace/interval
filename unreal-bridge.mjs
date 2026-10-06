@@ -53,6 +53,7 @@ import { applyTick, evictOutside, zonesAround } from './view.mjs'
 // nouns behind. A window that computed its own weather would be a window
 // where it rains when nobody else is getting wet.
 import { skyAt } from './sky.mjs'
+import * as P from './protocol.mjs'
 
 // ---------- the machine underneath ----------
 //
@@ -84,7 +85,12 @@ const E = HOST.engine()
 
 // ---------- arguments ----------
 const arg = (name, dflt) => HOST.option(name, dflt)
-const PILLAR = (arg('pillar', 'http://localhost:8080')).replace(/\/+$/, '')
+// NOT A CONSTANT ANY MORE. §9b-iii: if the world this citizen belongs to has
+// ended, the bridge may follow the line to the world that continues it, which
+// is at a different address. The player's own choice is still what it starts
+// from, and the move is only ever to a founding this citizen's own file can
+// verify.
+let PILLAR = (arg('pillar', 'http://localhost:8080')).replace(/\/+$/, '')
 const PORT = +arg('port', 7777)
 const KEYFILE = arg('key', './unreal-key.json')
 
@@ -109,10 +115,38 @@ const ID = loadIdentity()
 console.log('[bridge] citizen ' + ID.playerId.slice(0, 12) + '…')
 
 // ---------- what the world says about itself ----------
-const getJson = async (p) => {
-  const r = await fetch(PILLAR + p)
-  if (!r.ok) throw new Error(p + ' -> ' + r.status)
-  return r.json()
+// ---- A NODE THAT IS BUSY IS NOT A NODE THAT IS GONE ----
+//
+// This threw on the first bad status and nothing caught it, so a single 503
+// killed the bridge with a Node stack trace while the window sat there saying
+// "no bridge: start unreal-bridge.mjs" -- which is true, unhelpful, and blames
+// the wrong thing. It happened on a live launch: the node was mid-boot, the
+// citizen was told to go and start a program that had just died.
+//
+// A node restarts. It refounds, it checkpoints, it gets a burst of callers.
+// Every one of those is a few seconds of 503 or 502, and none of them is a
+// reason to throw the client away -- least of all in a world whose whole claim
+// is that no single machine is load-bearing.
+//
+// WAITED OUT, NOT RETRIED BLINDLY. A 404 means this node does not have that
+// endpoint and never will, so it fails at once; only the "come back later"
+// statuses are worth waiting on, and the wait grows so that a node which is
+// genuinely down is not hammered by everyone who wanted to play.
+const BUSY = new Set([502, 503, 504, 429])
+const napMs = (n) => Math.min(8000, 400 * 2 ** n)
+const getJson = async (p, tries = 6) => {
+  let last = null
+  for (let n = 0; n < tries; n++) {
+    let r
+    try { r = await fetch(PILLAR + p) }
+    catch (e) { last = e; await new Promise((go) => setTimeout(go, napMs(n))); continue }
+    if (r.ok) return r.json()
+    last = new Error(p + ' -> ' + r.status)
+    if (!BUSY.has(r.status)) throw last
+    if (n === 0) console.log('[bridge] the node is busy (' + r.status + ' on ' + p + '); waiting')
+    await new Promise((go) => setTimeout(go, napMs(n)))
+  }
+  throw last
 }
 
 const boot = {}
@@ -125,6 +159,12 @@ async function announceWorld () {
   ])
   const G = g.genesis
   GG = G
+  // §9b-iii: remember who else serves this world, while there is still a world
+  // to ask. These addresses are what the bridge has left to ask "where did the
+  // world go?" if this one ever stops answering, so they are learned at the
+  // only moment they are available: now. Not awaited, and failure is silent:
+  // the directory is a convenience, never a requirement.
+  getJson('/api/peers', 1).then((pj) => keepPeers(pj?.windows)).catch(() => {})
   // Refuses loudly rather than growing a different island and calling it this
   // one -- the same refusal worldgen-any makes for a node that cannot build a
   // founding it has been handed.
@@ -155,6 +195,30 @@ async function announceWorld () {
     affords: (AFFORDS = affordances()),
     // ...and the same for what is in a citizen's pack.
     itemAffords: itemAffordances(),
+    // ...and, for the two verbs that name a place AND a slot, what each place
+    // will actually take. See `fuelsByNode`.
+    takesAt: fuelsByNode(),
+    // ---- AND WHERE THE DEAD COME BACK ----
+    //
+    // §6c: the world returns a citizen to the founding's own spawn, whole. The
+    // window could not say so: it knew somebody was dead and not where they
+    // were about to be, so the five intervals a death lasts had nothing in
+    // them but a body on the ground.
+    //
+    // Announced once rather than sent every interval, because it is a fact
+    // about the FOUNDING and cannot move: the genesis fixes the spawn, and a
+    // world that changed where the dead return would be a different world.
+    //
+    // Named with the generator's own naming, the same call that names the
+    // place a citizen is standing in, so the word in the death plate is the
+    // word on the chart and in everybody else's chat.
+    returnTo: (() => {
+      try {
+        const sp = E.spawnOf(G)
+        if (!sp) return null
+        return { x: sp.x, y: sp.y, place: TM.regionNameAt(sp.x | 0, sp.y | 0) ?? '' }
+      } catch { return null }
+    })(),
     // ---- AND WHICH VERBS WANT A LEVEL BEFORE THEY ARE WORTH OFFERING ----
     //
     // A menu shows only what is possible. Most of that is settled by whether
@@ -209,6 +273,14 @@ async function announceWorld () {
     callings: Object.fromEntries(Object.entries(E.SWORN ?? {})
       .map(([name, c]) => [name, c.skill])),
     swearLevel: E.SWEAR_LEVEL ?? 50,
+    // §5r-iv: ...and how much of the island must have been seen as well. A
+    // calling asks for travel beside the practice, so the menu has to know
+    // both or it draws a row the world refuses.
+    swearCountries: E.SWEAR_COUNTRIES ?? 0,
+    // §5k: ...and what swearing COSTS, so the page can say it before the
+    // click. Every craft outside a citizen's own trade stops here for ever,
+    // which is the whole weight of the decision and was nowhere on screen.
+    capOther: E.CAP_OTHER ?? 0,
     // ---- AND WHAT EACH KEEPER IS, IN THE WORLD'S OWN WORDS ----
     //
     // A hundred and fifty-seven keepers stand on the island. Each has a name
@@ -336,6 +408,8 @@ let AFFORDS = {}
 // The spellbooks, kept after they are announced: the frame needs them to say
 // which spells may be cast at a body.
 let BOOKS_HELD = {}
+// §5x-ii: who is somebody's apprentice, rebuilt once per frame. See `players`.
+let _apprentices = new Set()
 
 function verbTargets () {
   const src = HOST.source('engine.js')
@@ -589,6 +663,79 @@ function verbLevels () {
   return out
 }
 
+// WHAT EACH PLACE TAKES, FOR A VERB THAT NAMES BOTH A PLACE AND A SLOT.
+//
+// `stoke` and `brew` are the only two deeds in the world whose schema wants a
+// node AND a pack slot, and they belong to the PLACE: a citizen points at the
+// fire and is asked which fuel. That is this window's own idiom -- one line
+// that opens a list -- and it is also the only arrangement in which the wrong
+// fire cannot be fed by accident.
+//
+// For the list to show only what will work, the window has to know that a
+// furnace burns coal and charcoal while a watchfire takes coal or any log, and
+// that a brewpot will have grain, saltpetre or a raw catch while a smokerack
+// wants an eel. That is five facts across two verbs, which is exactly the kind
+// of table that is right the day it is typed and wrong the day the engine
+// changes. So it is read off the handlers.
+//
+// HOW. Each verb's branch is cut out the way `affordances` cuts them, then the
+// branch is split again at every `x.type === 'nodetype'` -- which is how the
+// sub-branch for each place opens -- and the items tested in each piece are
+// collected. A predicate standing for a whole family is resolved from its own
+// definition, so `isLog` brings all four woods and a fifth wood planted later
+// arrives here without this function being touched.
+function fuelsByNode () {
+  const src = HOST.source('engine.js')
+  const types = new Set(E.NODE_TYPES)
+
+  // THE PREDICATES THAT STAND FOR A FAMILY. `isRawFood` names its three
+  // fishes outright; `isLog` defers to `LOG_KINDS`, so the array is resolved
+  // too. Anything else is left alone rather than guessed at.
+  const family = {}
+  for (const m of src.matchAll(/const (is[A-Z][A-Za-z]*) = \(item\) =>([^;]+);/g)) {
+    const named = [...m[2].matchAll(/'([a-z-]+)'/g)].map((x) => x[1])
+    if (named.length) { family[m[1]] = named; continue }
+    const via = m[2].match(/([A-Z_][A-Z_0-9]*)\.includes/)
+    if (!via) continue
+    const arr = src.match(new RegExp('const ' + via[1] + ' = \\[([^\\]]*)\\]'))
+    if (arr) family[m[1]] = [...arr[1].matchAll(/'([a-z-]+)'/g)].map((x) => x[1])
+  }
+
+  // THE SCHEMAS, WITHOUT DEPENDING ON WHEN THIS IS CALLED. `SCHEMA` is filled
+  // in a line above the announcement that uses this, so reading it directly
+  // worked and would have broken the first time the two moved apart.
+  const fields = (Object.keys(SCHEMA.fields ?? {}).length
+    ? SCHEMA : verbTargets()).fields ?? {}
+
+  const marks = [...src.matchAll(/inp\.type === '([a-z_0-9]+)'/g)]
+  const out = {}
+  for (let i = 0; i < marks.length; i++) {
+    const verb = marks[i][1]
+    // Only the verbs that name a place AND a slot; everything else either has
+    // no slot to choose or no place to choose it at.
+    const want = fields[verb] ?? []
+    if (!want.includes('slot') || !want.includes('nodeId')) continue
+    const body = src.slice(marks[i].index,
+      i + 1 < marks.length ? marks[i + 1].index : src.length)
+    const cuts = [...body.matchAll(/\w+\??\.type === '([a-z-]+)'/g)]
+    for (let c = 0; c < cuts.length; c++) {
+      const place = cuts[c][1]
+      if (!types.has(place)) continue
+      const piece = body.slice(cuts[c].index,
+        c + 1 < cuts.length ? cuts[c + 1].index : body.length)
+      const takes = new Set((out[verb] ?? {})[place] ?? [])
+      for (const m of piece.matchAll(/\w+\??\.item === '([a-z-]+)'/g)) takes.add(m[1])
+      for (const m of piece.matchAll(/(is[A-Z][A-Za-z]*)\(\w+\??\.item\)/g)) {
+        for (const it of family[m[1]] ?? []) takes.add(it)
+      }
+      if (takes.size) {
+        (out[verb] ||= {})[place] = [...takes].sort()
+      }
+    }
+  }
+  return out
+}
+
 function itemAffordances () {
   const src = HOST.source('engine.js')
   const out = {}
@@ -624,7 +771,15 @@ function itemAffordances () {
   //                                 one and asked about the other
   //   transmute    anything PRICED    -- the world's own list, 105 items long, and
   //                                 the reason a whole trade exists
-  for (const log of ['logs', 'oak-logs', 'ironbark', 'heartwood']) add(log, 'light')
+  // THE LOGS, OUT OF THE ENGINE'S OWN LIST. This was the four names written
+  // again here, which is right until a fifth wood is planted. `LOG_KINDS` is
+  // not exported, so it is read from the source the same way the schemas and
+  // the affordances are.
+  const LOGS = (() => {
+    const m = src.match(/const LOG_KINDS = \[([^\]]*)\]/)
+    return m ? [...m[1].matchAll(/'([a-z-]+)'/g)].map((x) => x[1]) : []
+  })()
+  for (const log of LOGS) add(log, 'light')
   for (const shaft of ['arrows', 'fire-arrows']) add(shaft, 'nock')
   add('grain', 'grind')
   for (const bone of ['bones', 'dragon-bones']) add(bone, 'bury')
@@ -644,6 +799,15 @@ function itemAffordances () {
   // test belongs where every other one does: beside the row, with the number
   // read out of the engine rather than guessed.
   add('chart', 'charter')
+
+  // THE FUEL IS NOT LISTED HERE, DELIBERATELY. `stoke` and `brew` name a node
+  // as well as a slot, and a verb like that belongs to the PLACE: you point at
+  // the fire and it asks which fuel. Offered on the coal instead, a citizen
+  // standing between a furnace and a watchfire could feed the wrong one --
+  // "wouldn't it be better to have stoke on the furnace and fire instead of on
+  // the item? That way it wouldn't be possible to mistakenly stoke the wrong
+  // node". So what each fire takes is derived per NODE TYPE instead; see
+  // `fuelsByNode`.
 
   // ---- AND WHAT A THING CAN BE MADE INTO ----
   //
@@ -1169,6 +1333,45 @@ function tradeNow () {
 //
 // The ADJACENCY is the engine's (§5, orthogonal). The window is told the
 // answer and never the rule.
+// WHO HAS BEEN WORKING HERE, SAID BY NAME.
+//
+// §7cy: a work remembers its last five hands and forgets each after
+// WORKED_FADE intervals. What the engine keeps is a player id and the tick,
+// which is the right thing to keep and no use to a window: whoever fed the
+// furnace half an hour ago may be nowhere near it now, so the window cannot
+// look the name up among the people it can see.
+//
+// The bridge can, because it holds the whole world. So the log is resolved
+// here into names and how long ago, which is the question somebody standing at
+// a cold furnace is actually asking: is anybody keeping this going, and should
+// I bother.
+//
+// The ids are NOT passed on beside the names. A window has no use for them and
+// the plainer the frame the better.
+function handsOn (nodes) {
+  const now = held?.tick ?? 0
+  const out = {}
+  for (const [id, n] of Object.entries(nodes)) {
+    if (!Array.isArray(n?.worked) || n.worked.length === 0) { out[id] = n; continue }
+    const { worked, ...rest } = n
+    out[id] = { ...rest,
+      // AN OBJECT KEYED BY POSITION, NOT AN ARRAY. The window flattens a
+      // frame's nested OBJECTS into dotted fields and does not descend into
+      // arrays, so a list would arrive as a blob of condensed JSON for
+      // somebody to parse by hand. Keyed, it arrives as `hands.0.who` and
+      // `hands.0.ago` like every other field.
+      //
+      // Newest first, which is the order the engine keeps them in. How long
+      // ago is a COUNT OF INTERVALS: turning that into minutes is wording,
+      // and wording belongs in the window.
+      hands: Object.fromEntries(worked.map((w, i) => [i, {
+        who: held?.players?.[w.who]?.name ?? String(w.who ?? '').slice(0, 6),
+        ago: Math.max(0, now - (w.at ?? 0)),
+      }])) }
+  }
+  return out
+}
+
 function verbsBeside () {
   const me = meNow()
   if (!me || !held) return []
@@ -1519,12 +1722,218 @@ function pushCries () {
   _criedTo = Math.max(_criedTo, held.tick)
 }
 
+// ---- THE FRAME GOES FIRST, AND THAT IS NOT A PREFERENCE ----
+//
+// The cries were sent at the TOP of this function, so that a cry arrived on
+// the interval the thing happened rather than one behind it. That reasoning
+// was fine and the placement was a bug, because `sendFrameUE` skips any client
+// whose socket still has bytes in it:
+//
+//     if (c.bufferedAmount > 0 || ...) { skipped++; continue }
+//
+// `sendUE` writes to the same socket and does not wait. So every cry left
+// something in the buffer at the exact moment the frame was attempted, and the
+// frame was dropped -- by the announcement it was supposed to arrive beside.
+// A world that announces on any regular footing therefore froze the window
+// solid: one frame, then nothing, for ever, with the log faithfully reporting
+// skipped frames as though the window were slow.
+//
+// The frame is the world. A cry is a line of text about it, it is one interval
+// late at worst, and nobody can tell. Send the frame, then talk.
+// ---------- §5g-ii: THE CITIZEN'S OWN COPY OF THEMSELVES ----------
+//
+// Until this, a player's client kept exactly one thing on disk: the key. So
+// every copy of the game was a CLIENT and none of them was an ARCHIVE, and a
+// world's survival rested entirely on somebody's server still being up. That
+// is the wrong shape for a world that claims nothing can be shut down: a
+// prepaid server is a countdown, where a file many people hold survives as
+// long as any single copy does.
+//
+// What makes this possible rather than merely desirable is the root over the
+// living (§5g-ii). A citizen's record plus a path against that root is proof
+// of exactly what they were, checkable by anyone, forgeable by nobody: edit a
+// level and the leaf changes and the fold no longer reaches a root the world
+// certified. So the client can be handed its own data without being trusted
+// with it.
+//
+// SELF-SUFFICIENT ON PURPOSE. The genesis travels with it, which is most of
+// the bytes, because the point is that ONE person's file is enough to found
+// the successor and let everyone else walk in with theirs. A proof that needs
+// somebody else's file first would just move the dependency.
+//
+// NOT IN NOUGHT. The practice island keeps nothing and nothing there is real,
+// so a proof from it would be a proof of nothing.
+//
+// AND IT IS SEALED. The root and the path are both computed from the state
+// this process already holds, so on their own they say no more than "this
+// record folds to a root I chose". The witnesses' signatures over that root
+// are the half a client cannot manufacture, and the pillar volunteers them on
+// this same cadence (serve.mjs, SEAL_EVERY). So the proof is written when the
+// seal lands, not when the frame does: an unsealed file would look like
+// insurance and be worth nothing.
+//
+// A world founded with no witnesses at all can never produce a seal. There the
+// proof is still kept, unsealed and saying so, because a solo world's own
+// state is the only authority there was.
+const PROOF_EVERY = 600;      // §1c: ten minutes of intervals
+let _proofAt = -1;
+function keepProof (seal = null) {
+  try {
+    if (!held || inNought()) return
+    const me = held.players?.[ID.playerId]
+    if (!me) return
+    if (_proofAt >= 0 && (held.tick % PROOF_EVERY) !== 0) return
+    const root = held.livingRoot ?? (E.livingRootOf ? E.livingRootOf(held) : null)
+    if (!root || !E.livingPathOf) return
+    const path = E.livingPathOf(held, ID.playerId)
+    if (!path) return
+    // CHECKED BEFORE IT IS KEPT. A proof that does not fold is worse than
+    // none: it would sit on disk looking like insurance.
+    if (E.provesLiving && !E.provesLiving(root, ID.playerId, me, path)) return
+    const g = GG ?? boot.genesis ?? null
+    const sealed = seal && seal.tick === held.tick && seal.livingRoot === root ? seal : null
+    const proof = {
+      v: 2,
+      note: sealed
+        ? 'THIS IS YOUR CITIZEN, PROVED AND SEALED. Keep it. It cannot be '
+          + 'edited: the witnesses of this founding signed the root it folds to.'
+        : 'THIS IS YOUR CITIZEN, PROVED BUT UNSEALED. It folds to this world\u2019s '
+          + 'root, and no witness has signed that root, so it stands on this '
+          + 'node alone.',
+      worldId: boot.worldId ?? null,
+      tick: held.tick,
+      livingRoot: root,
+      playerId: ID.playerId,
+      record: me,
+      path,
+      seal: sealed,
+      genesis: g,
+    }
+    // CHECKED AS A WHOLE before it is kept, the same way the fold is: the
+    // sentence the file makes is the one that gets verified, not its parts.
+    if (sealed && g && P.verifyKeptProof(proof)) return
+    fs.writeFileSync(KEYFILE.replace(/\.json$/, '') + '-proof.json',
+      JSON.stringify(proof, null, 1) + '\n')
+    // SAID ONCE, THE FIRST TIME. A citizen should know the file exists and
+    // where it is, because it is the only thing of theirs that outlives this
+    // world. Repeating it every ten minutes would turn it into noise, and the
+    // one thing worse than not knowing is being told so often you stop
+    // reading.
+    if (_proofAt < 0) sendUE({ k: 'cry', tick: held.tick, text: sealed
+      ? 'Your citizen is kept, and sealed by the witnesses of this founding. '
+        + 'The file sits beside your key. It is yours: it will seat you in '
+        + 'whatever world continues this one.'
+      : 'Your citizen is kept, beside your key. No witness has sealed it, so '
+        + 'it stands on this node alone.' })
+    _proofAt = held.tick
+  } catch { /* best effort: a client that cannot write is still a client */ }
+}
+
+// ---------- §9b-iii: COMING HOME, WITHOUT BEING ASKED ----------
+//
+// A citizen whose world lost its quorum holds a file: their own record, which
+// cannot be forged or edited, and a path, which went stale the moment anybody
+// else came home. If this world continues the one that file came from, there
+// is exactly one thing to do with it, and making somebody find a menu item for
+// it would be the window failing them at the only moment this whole mechanism
+// exists for.
+//
+// So it happens by itself, once, on arrival:
+//
+//   1. this world's founding names another (`genesis.from`), and
+//   2. the proof beside our key is from that same world, and
+//   3. we are not already standing in this world.
+//
+// Then ask the node for a current path -- public, free, and worthless to
+// forge, because the root refuses a wrong one -- and file the deed. If
+// anything is missing we say so once and play on as a newcomer, because a
+// citizen locked out of a world while their file is examined is worse than a
+// citizen who has to ask.
+let _cameHome = false
+async function comeHome () {
+  if (_cameHome || inNought()) return
+  const from = (GG ?? boot.genesis)?.from
+  if (!from || !held || held.players?.[ID.playerId]) return
+  _cameHome = true                      // one attempt per run, whatever happens
+  const file = KEYFILE.replace(/\.json$/, '') + '-proof.json'
+  if (!fs.existsSync(file)) return
+  let kept
+  try { kept = JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return }
+  if (kept.playerId !== ID.playerId) return
+  if (kept.worldId !== from.worldId) {
+    console.log('[bridge] the citizen kept here is from another world; entering as a newcomer')
+    return
+  }
+  // THE SEAL IS CHECKED FIRST, and against the founding that signed it rather
+  // than against this one. If it does not hold, the file is not evidence of
+  // anything and filing it would only be refused.
+  if (kept.seal && kept.genesis && P.verifyKeptProof(kept)) {
+    console.warn('[bridge] the kept citizen does not verify; entering as a newcomer')
+    return
+  }
+  // AND IS THIS REALLY THE SAME WORLD? Anybody may found a successor, so the
+  // first to found one would otherwise get to change whatever they liked and
+  // be inherited anyway, because that is where everybody's friends went. The
+  // kept file carries the founding this citizen lived under, so their own
+  // client can check: same rules, same engine, same island, not backdated.
+  // A world that fails this is not refused the citizen anything; it simply
+  // does not get to claim them.
+  // AND WAS IT ENTITLED TO BEGIN? A month of silence, or the old world's own
+  // witnesses signing this one's id. The handover is a courier's file on the
+  // node, not part of the founding: it signs the worldId, and the worldId is
+  // the hash of the founding, so it could not be inside it.
+  let handover = null
+  try { handover = await getJson('/api/handover', 1) } catch { /* there was none */ }
+  const notSame = P.eligible(kept.genesis, GG ?? boot.genesis,
+    { handover: Array.isArray(handover) ? handover : handover?.signatures ?? null })
+  if (notSame) {
+    console.warn('[bridge] this world is not a continuation of the one your citizen '
+      + 'came from (' + notSame + '); entering as a newcomer')
+    sendUE({ k: 'cry', tick: held.tick, text: 'This world claims to continue the one '
+      + 'your citizen came from, and it may not: ' + notSame + '. Your file keeps. '
+      + 'You are a newcomer here.' })
+    return
+  }
+  let way
+  try { way = await getJson('/api/home?pid=' + ID.playerId, 2) }
+  catch (e) {
+    console.warn('[bridge] no way home from this node (' + (e.message ?? e) + '): '
+      + 'another node may hold the leaves of the old world')
+    sendUE({ k: 'cry', tick: held.tick, text: 'This world continues the one your citizen '
+      + 'came from, but no node here can hand you the way in yet. Your file keeps.' })
+    return
+  }
+  const r = act({ type: 'restore', record: kept.record, path: way.path })
+  if (!r?.ok) {
+    console.warn('[bridge] could not file the homecoming: ' + (r?.why ?? 'unknown'))
+    return
+  }
+  console.log('[bridge] coming home: filed a restore against ' + String(way.livingRoot).slice(0, 12) + '…')
+  sendUE({ k: 'cry', tick: held.tick, text: 'You are coming home. This world continues the '
+    + 'one you were a citizen of, and your own record is what lets you back in.' })
+}
+
 function pushFrame () {
   if (!held || held.tick === lastTick) return
+  // §5x-ii: WHO HAS BEEN TAKEN ON, worked out ONCE for the whole frame.
+  //
+  // A master keeps the list, so "is this citizen somebody's apprentice" means
+  // reading every master's -- which done per citizen would be a scan of the
+  // world per citizen per interval. One pass here, a set lookup after.
+  //
+  // §5w: an apprenticeship is forgotten after APPRENTICE_LAPSE, so a stale
+  // entry is not a pupil.
+  {
+    const lapse = E.APPRENTICE_LAPSE ?? Infinity
+    const found = new Set()
+    for (const m of Object.values(held.players ?? {})) {
+      for (const [who, at] of Object.entries(m?.apprentices ?? {})) {
+        if ((held.tick ?? 0) - at <= lapse) found.add(who)
+      }
+    }
+    _apprentices = found
+  }
   lastTick = held.tick
-  // BEFORE THE FRAME, so a cry about a thing arrives with the interval the
-  // thing happened on rather than one behind it.
-  pushCries()
   const me = meNow()
   sendFrameUE({
     k: 'frame',
@@ -1694,8 +2103,31 @@ function pushFrame () {
     // changes how standing is counted changes it in one place.
     players: Object.fromEntries(Object.entries(held.players ?? {}).map(
       ([id, p]) => [id, { ...p,
-        calling: E.callingOf(p) ?? '',
+        // §5k-ii: THE WORD OVER A HEAD, which is the calling once they have
+        // sworn and the RANK before that.
+        //
+        // `callingOf` answers for the citizen alone and so cannot tell a
+        // newcomer from an apprentice: knowing somebody has been taken on
+        // means looking at every master's list, which needs the world. So the
+        // bridge joins the two, because the plate wants one word and this is
+        // the half of the job that holds the whole state.
+        //
+        // Worth having rather than flattening to `newcomer`: "somebody is
+        // teaching this person" is a thing you can act on, and the question it
+        // invites -- who by -- is a conversation.
+        calling: (typeof p.calling === 'string' && p.calling)
+          ? (E.callingOf(p) ?? '')
+          : (_apprentices.has(id) ? 'apprentice' : (E.callingOf(p) ?? '')),
         standing: E.standingOf(p) ?? 0,
+        // §5r-iv: HOW MANY COUNTRIES THIS CITIZEN HAS STOOD IN, as a number.
+        //
+        // `walked` rides along in the spread above as the world's own list,
+        // which is the right thing to send, and arrives in the window as a
+        // blob of JSON because a frame's nested OBJECTS are flattened into
+        // dotted fields and arrays are not. The menu only wants the count --
+        // it is half the door to a calling -- so the count is sent too,
+        // derived here for the same reason `standing` is.
+        countries: p.walked?.length ?? 0,
         // ---- AND WHETHER THEY HAVE MASTERED IT ----
         //
         // Derived here for the same reason `calling` and `standing` are: the
@@ -1769,12 +2201,20 @@ function pushFrame () {
               && Math.abs((meNow()?.y ?? 0) - m.y) <= 24)
           ? spellsAt(meNow(), m, id, true).join(' ') : undefined }])),
     ground: held.ground ?? {},
-    nodes: held.nodes ?? {},
+    nodes: handsOn(held.nodes ?? {}),
     weather: held.weather ?? null,
     // What the light is doing, from the shared ladder. Flat numbers, so a
     // window can point a sun at them without knowing what a season is.
     sky: skyAt(held.tick),
   })
+  // AFTER, for the reason written over this function.
+  pushCries()
+  // AND LAST OF ALL, the citizen's own copy of themselves. After the frame has
+  // gone out, so keeping an archive can never delay drawing one: the window is
+  // what somebody is looking at and this is for a year from now.
+  // A witnessed world writes its proof when the seal lands (see keepProof).
+  // Without witnesses no seal is ever coming, so the frame is all there is.
+  if (!((GG ?? boot.genesis)?.witnesses?.length)) keepProof()
 }
 
 // ---------- §0: NOUGHT, THE PRACTICE OF THE WORLD ----------
@@ -1919,6 +2359,10 @@ function connectPillar () {
       held = live
       watched = { has: () => true }   // a snapshot holds the whole island
       pushFrame()
+      // §9b-iii: and if this world continues the one our citizen came from,
+      // walk back in. Guards itself: one attempt per run, and silent in every
+      // world that continues nothing, which is every world so far.
+      comeHome().catch((e) => console.warn('[bridge] homecoming failed: ' + (e.message ?? e)))
       return
     }
     if (m.type === 'patch') {
@@ -1932,6 +2376,7 @@ function connectPillar () {
       pushFrame()
       return
     }
+    if (m.type === 'rootseal') { keepProof(m.seal); return }
     if (m.type === 'hello') { console.log('[bridge] adopted as ' + String(m.playerId).slice(0, 12) + '…'); return }
     // §refusals are out of band and non-consensus: the window gets to see its
     // own errors. Unreal shows them; it does not reason about them.
@@ -2294,7 +2739,121 @@ HOST.door(PORT, (ws) => {
 })
 console.log('[bridge] unreal door on ws://127.0.0.1:' + PORT)
 
-await announceWorld()
+// ---- AND IF THE WORLD WILL NOT ANSWER, SAY SO TO THE WINDOW ----
+//
+// This was a bare top-level await. When it threw, the process died -- and the
+// door on 7777 had ALREADY been opened a line earlier, so the window had
+// something to talk to right up until it did not, and fell back to "no bridge:
+// start unreal-bridge.mjs". The one thing that was not wrong was the bridge:
+// it had started, connected, and been told 503 by a node that was mid-boot.
+//
+// The bridge stays up now. It keeps the door, says what actually happened in
+// words a person can act on, and goes on trying -- so a citizen who launches
+// during a refounding watches it come good instead of reading a stack trace
+// about a file they were told to start and already had.
+// ---------- §9b-iii: WHERE DID THE WORLD GO? ----------
+//
+// Every other part of succession assumed this citizen already knew which world
+// continues theirs. Nothing told them, and a line nobody can find is a line
+// nobody inherits.
+//
+// So when the node will not answer at all, ask whether the world ENDED. The
+// nodes to ask are the ones this bridge learned from the world while it was
+// alive (`/api/peers` gives the addresses that serve windows), kept in a file
+// beside the key so they survive the world they came from.
+//
+// THE ANSWER IS UNTRUSTED. It is checked against the founding in this citizen's
+// own kept proof, and `eligible` demands the same rules, the same engine, the
+// same island, no backdating, and either a month of silence or a quorum of the
+// old world's own witnesses. A node that lies sends nobody anywhere.
+const PEERFILE = () => KEYFILE.replace(/\.json$/, '') + '-peers.json'
+function keepPeers (list) {
+  try {
+    const urls = (list ?? []).filter((u) => typeof u === 'string' && /^https?:\/\//.test(u))
+      .map((u) => u.replace(/\/+$/, ''))
+    if (!urls.length) return
+    fs.writeFileSync(PEERFILE(), JSON.stringify({
+      v: 1,
+      note: 'Addresses this citizen has seen serve a world. Kept so that if the '
+        + 'world ends there is somebody left to ask where it went.',
+      urls: [...new Set(urls)].slice(0, 32),
+    }, null, 1) + '\n')
+  } catch { /* a convenience, never a requirement */ }
+}
+function knownNodes () {
+  const out = [PILLAR]
+  try {
+    const f = PEERFILE()
+    if (fs.existsSync(f)) {
+      const j = JSON.parse(fs.readFileSync(f, 'utf8'))
+      for (const u of j.urls ?? []) if (typeof u === 'string') out.push(u.replace(/\/+$/, ''))
+    }
+  } catch { /* likewise */ }
+  return [...new Set(out)]
+}
+
+async function findSuccessor () {
+  let kept
+  try {
+    const f = KEYFILE.replace(/\.json$/, '') + '-proof.json'
+    if (!fs.existsSync(f)) return null
+    kept = JSON.parse(fs.readFileSync(f, 'utf8'))
+  } catch { return null }
+  if (!kept?.genesis || !kept.worldId || kept.playerId !== ID.playerId) return null
+
+  const ask = async (cand) => {
+    try {
+      const r = await fetch(cand + '/api/successor?of=' + kept.worldId,
+        { signal: AbortSignal.timeout(5000) })
+      if (!r.ok) return null
+      const j = await r.json()
+      const why = P.acceptSuccessor(kept.genesis, j)
+      if (why) {
+        console.warn('[bridge] ' + cand + ' offered a successor that is not one: ' + why)
+        return null
+      }
+      const wid = E.worldId(j.genesis)
+      // A node answering for itself IS the address; a relayed note names one.
+      const at = (j.how === 'told' && typeof j.node === 'string' && /^https?:\/\//.test(j.node))
+        ? j.node.replace(/\/+$/, '') : cand
+      return { node: at, worldId: wid }
+    } catch { return null }
+  }
+
+  const cands = knownNodes()
+  const flying = cands.map(ask)
+  for (const f of flying) { const got = await f; if (got) return got }
+  return null
+}
+
+async function reachTheWorld () {
+  for (let n = 0; ; n++) {
+    try { await announceWorld(); return }
+    catch (e) {
+      const why = String(e?.message ?? e)
+      console.warn('[bridge] the world did not answer: ' + why)
+      sendUE({ k: 'refused', of: 'world', why: PILLAR + ' did not answer (' + why
+        + '). Still trying; this node may be starting up or refounding.' })
+      // §9b-iii: and once it has been quiet for a while, ask whether it ended.
+      // Not on the first failure: a node that is founding stops answering for
+      // minutes, and declaring a world dead because it is busy would walk a
+      // citizen out of a world that was coming back.
+      if (n >= 3) {
+        const heir = await findSuccessor()
+        if (heir) {
+          console.log('[bridge] the world has ended; one continuing it answers at ' + heir.node)
+          sendUE({ k: 'refused', of: 'world', why: 'The world you were a citizen of has '
+            + 'stopped. A world that continues it is running at ' + heir.node + ', under the '
+            + 'same rules on the same island. Going there; your own record is what will let '
+            + 'you back in.' })
+          PILLAR = heir.node
+        }
+      }
+      await new Promise((go) => setTimeout(go, Math.min(30000, 3000 * 2 ** Math.min(n, 3))))
+    }
+  }
+}
+await reachTheWorld()
 await refreshDoor()
 // The finalized tick moves on the pillar's own schedule, not ours; five
 // seconds is often enough to see it fall behind and never often enough to

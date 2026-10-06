@@ -3,7 +3,7 @@
 // A 3D window can look right and still be a cage: if the only verbs reachable
 // are the ones the builder remembered, the window is a lie about the world it
 // claims to show. serve.mjs accepts thirty-two deeds. This walks the window's
-// own menus with synthetic keystrokes — the same keys a citizen presses — and
+// own menus with synthetic keystrokes: the same keys a citizen presses, and
 // records what actually goes out on the socket, then checks the two lists
 // against each other.
 //
@@ -32,7 +32,7 @@ const ACCEPTS = new Set(LADDER)
 
 // The CORE: the deeds a citizen cannot play without, which this window must
 // reach or it is not a window you can live in. The rest of the ladder is
-// reported below but not required — some of it needs a state this check cannot
+// reported below but not required: some of it needs a state this check cannot
 // stage (a span half-built, a furnace lit, a goo-staff in hand).
 const VERBS = ['attend', 'spawn', 'move', 'gather', 'attack', 'cook', 'eat', 'smith', 'wield',
   'unwield', 'buy', 'drop', 'pickup', 'light', 'bury', 'plant', 'harvest', 'sell',
@@ -184,7 +184,7 @@ delete me.consignment
 for (const s of socks) s.onmessage({ data: JSON.stringify({ type: 'state', state, worldId: 'verbtest01' }) })
 frames(2)
 
-// and again as a soul who is NOT IN THE WORLD, because that — not death — is
+// and again as a soul who is NOT IN THE WORLD, because that, not death: is
 // what `spawn` is for. §6c stands a dead citizen up without being asked, so a
 // window that offers a corpse a `wake` is offering a deed the world refuses.
 esc()

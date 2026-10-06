@@ -1,4 +1,4 @@
-// Final-fixes brief, Priority 6 — persistence and recovery tests.
+// Final-fixes brief, Priority 6: persistence and recovery tests.
 // Every persistent engine object appears in at least one round-trip.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -142,7 +142,7 @@ test('proposer equivocation: live conflicts poison, stale-lineage conflicts only
   const p0 = [w1, w2, w3].find(k => k.playerId === P.proposerFor(world.genesis, world.worldId, judge.prevHash, 0, 0))
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: judge.prevHash, inputs: [], witness: p0 })
   // a conflicting SIGNED bundle with an alien lineage (e.g. replayed junk):
-  // evidence, but not poisoning — round 0 can still proceed with A
+  // evidence, but not poisoning: round 0 can still proceed with A
   const stale = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: 'a'.repeat(64), inputs: [], witness: p0 })
   judge.onBundle(A)
   judge.onBundle(stale)
@@ -196,7 +196,7 @@ test('full persistent-state round-trip: actions, trades, equipment, banks, fires
   step([sign(world, alice, { tick: s.tick, type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: 'grain', wantGold: 0 })]) // trade offer
   step([sign(world, alice, { tick: s.tick, type: 'claim_name', name: 'alice-brave' })]) // names registry
   step([sign(world, bob, { tick: s.tick, type: 'attack', mobId: 'rat-1' })])               // combat action
-  for (let i = 0; i < 4; i++) step([])                                                     // let combat tick, mob hp drops
+  for (let i = 0; i < 4; i++) step([])                                                     // let combat tick, mob health drops
   assert.ok(s.players[alice.playerId].name === 'alice-brave')
   assert.equal(s.names['alice-brave'], alice.playerId, 'names validated in both directions')
   // a corrupted registry direction is caught

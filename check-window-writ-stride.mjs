@@ -4,12 +4,12 @@
 // citizen's tile with a per-frame lerp, the head-bob ran on a free sine, and
 // the footfalls came off a timer that had nothing to do with where the feet
 // were. That is a continuous glide over a world that does not move
-// continuously — and a glide over a one-second interval does not read as
+// continuously, and a glide over a one-second interval does not read as
 // smooth, it reads as LAG.
 //
 // A grid crawler snaps: the step is short and hard and finished long before the
 // next one is allowed, so the stillness between steps is stillness rather than
-// waiting. This checks the arithmetic of that — the step completes well inside
+// waiting. This checks the arithmetic of that: the step completes well inside
 // the interval, it ARRIVES rather than easing forever, and between steps the
 // camera is actually still.
 //
@@ -73,7 +73,7 @@ const dest = home + 2                             // one tile is TILE = 2 metres
 let arrivedMs = null
 for (let i = 0; i < 40; i++) { frames(1)
   if (arrivedMs === null && Math.abs(cam.position.x - dest) < 0.02) arrivedMs = (i + 1) * FRAME }
-ok(arrivedMs !== null, 'a step actually arrives (' + (arrivedMs ?? '\u2014') + 'ms)')
+ok(arrivedMs !== null, 'a step actually arrives (' + (arrivedMs ?? ',') + 'ms)')
 ok(arrivedMs !== null && arrivedMs < 400,
    'and it lands well inside the one-second interval, not across it')
 

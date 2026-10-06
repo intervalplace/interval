@@ -46,12 +46,12 @@ replaceBlock('const SPEC_BLOWS = ', inOrder(blows))
 replaceBlock('const WEAPON_EVERY = ', flat(every))
 replaceBlock('const WEAPON_REACH = ', flat(reach))
 
-// 3. RANGED_ITEMS — every engine weapon flagged ranged
+// 3. RANGED_ITEMS: every engine weapon flagged ranged
 const ranged = Object.entries(eWep).filter(([,v])=>v.ranged).map(([k])=>k).sort()
 replaceBlock('const RANGED_ITEMS = new Set(',
   '[\n' + ranged.map(k=>'  '+JSON.stringify(k)).join(',\n') + '\n]', '[', ']')
 
-// 4. SKILL_UNLOCKS — engine {level,text} -> window [level,text]
+// 4. SKILL_UNLOCKS: engine {level,text} -> window [level,text]
 const u = eng.skillUnlocks()
 const su = '{\n' + Object.keys(u).sort().map(k =>
   '  ' + JSON.stringify(k) + ': [\n' +

@@ -3,7 +3,7 @@
 ## Why the readme was the website
 
 `.github/workflows/publish-window.yml` was not in the repository, so Pages fell
-back to **Deploy from a branch** — which only offers `/` or `/docs`. Root has no
+back to **Deploy from a branch**, which only offers `/` or `/docs`. Root has no
 `index.html`, so Jekyll rendered `README.md` as the site. That is the page in
 your screenshot, banner and all.
 
@@ -11,7 +11,7 @@ your screenshot, banner and all.
 
 ### A. GitHub Actions (recommended)
 The workflow is in this zip. Commit it, then
-**Settings → Pages → Source: `GitHub Actions`** — not "Deploy from a branch".
+**Settings → Pages → Source: `GitHub Actions`**, not "Deploy from a branch".
 Layout stops mattering.
 
 ### B. Deploy from a branch
@@ -23,7 +23,7 @@ Rebuild either at any time:
     node build-window.mjs --out=docs --domain=play.interval.place
     node build-window.mjs --domain=play.interval.place        # dist/, for Actions
 
-`.nojekyll` is now emitted too — otherwise Pages runs Jekyll over a branch
+`.nojekyll` is now emitted too, otherwise Pages runs Jekyll over a branch
 deploy, which ignores paths starting with an underscore and rewrites others. An
 odd thing to let happen to a client whose whole claim is that its bytes are
 checkable.
@@ -36,14 +36,14 @@ checkable.
 
 **1. The rename reached the engine and not the generators.** `NODE_TYPES` had
 only `vault`, but `worldgen.mjs` and `worldgen-expanse{,2,3,4,5}.mjs` still
-emitted `'bank'` — so **six of the eight registered generators could not found a
+emitted `'bank'`, so **six of the eight registered generators could not found a
 world at all**: *"worldgen produced an invalid state (unknown node type)."*
 Also fixed in `census`, `check-seeds`, `check-window*`, `preview-*`,
 `measure-world`, `site/map.html`, and five windows.
 
 **2. The one-hitpoint crossing was still live in four generators.**
 `worldgen.mjs` and `expanse3/4/5` each kept their own copy of the crossing,
-clamping `hp` with `E.levelForXp(p.skills.hitpoints)` — a skill §5j deleted, so
+clamping `hp` with `E.levelForXp(p.skills.hitpoints)`: a skill §5j deleted, so
 `levelForXp(undefined)` is 1. An imported citizen woke at **one hitpoint**, and
 those generators never seated a vault, so a crossing's goods vanished. All four
 now delegate to `E.seatImport`.
@@ -62,7 +62,7 @@ so it was certifying a prefix no node computes.
 ## One of your own changes
 
 `window-web.html` gained a `/api/tables` fetch that ran as a parse-time IIFE
-against the page's own origin — the assumption the node resolver exists to
+against the page's own origin: the assumption the node resolver exists to
 remove. On a static host it fetched a path on nothing and silently kept the
 built-in tables, so a citizen would see the wrong callings or swear level with
 no error. It is now `loadTables()`, called from `connect()` once a node has been

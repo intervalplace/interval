@@ -1,4 +1,4 @@
-// Interval join v0.17: the foreign node — combat variant.
+// Interval join v0.17: the foreign node, combat variant.
 // Same peer model as join.mjs (own node, own keys, no custodian), but the
 // example executor here trains combat instead of woodcutting: attack the
 // nearest mob, bury the bones it drops, repeat. No fleeing, no banking,

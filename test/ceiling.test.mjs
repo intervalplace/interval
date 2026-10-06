@@ -1,14 +1,14 @@
 // §7dw: CLOSING TIME.
 //
-// A rolling ceiling on how much of the world one citizen may stand. Not a day
-// — a day needs a wall clock, and every midnight anybody could pick is
+// A rolling ceiling on how much of the world one citizen may stand. Not a day:
+// a day needs a wall clock, and every midnight anybody could pick is
 // dinnertime for somebody else. A rolling window has no calendar, nothing to
 // hoard, and nothing to race toward.
 //
 // These tests cover the ledger's arithmetic, the announcement, the stand-down
 // at the single gate every input passes, that NOTHING IS TAKEN when it lands,
 // that the window rolls a citizen back in, that presence is counted whether or
-// not a stint is open — and that two engines replaying the same inputs agree
+// not a stint is open, and that two engines replaying the same inputs agree
 // on the interval a citizen stood down.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -163,7 +163,7 @@ test('closing time is announced before it lands, not at it', () => {
     'the notice is roughly the notice: a bounded session works because you knew it was coming')
 })
 
-test('the stood down act on nothing — at the one gate every input passes', () => {
+test('the stood down act on nothing, at the one gate every input passes', () => {
   const g = genesis()
   const alice = E.generateIdentity()
   let s = worldWith(g, [alice])
@@ -184,10 +184,10 @@ test('NOTHING IS TAKEN when closing time lands', () => {
   const alice = E.generateIdentity()
   let s = worldWith(g, [alice])
   const before = s.players[alice.playerId]
-  const snap = { hp: before.hp, gold: before.gold, inv: JSON.stringify(before.inventory), skills: JSON.stringify(before.skills), x: before.x, y: before.y }
+  const snap = { health: before.health, gold: before.gold, inv: JSON.stringify(before.inventory), skills: JSON.stringify(before.skills), x: before.x, y: before.y }
   s = run(s, g, [alice], ALLOW + 3 * SAMPLE)
   const after = s.players[alice.playerId]
-  assert.equal(after.hp, snap.hp, 'no health')
+  assert.equal(after.health, snap.health, 'no health')
   assert.equal(after.gold, snap.gold, 'no coin')
   assert.equal(JSON.stringify(after.inventory), snap.inv, 'no pack')
   assert.equal(JSON.stringify(after.skills), snap.skills, 'no skill')

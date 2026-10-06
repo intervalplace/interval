@@ -1,9 +1,9 @@
-# Phase 2 Engine Scaling — Results Report
+# Phase 2 Engine Scaling: Results Report
 
 Release under test: interval 0.23.0 (phase-1-freeze + Phase 2), spec 0.52,
 Node v22.22.2. All measurements from `bench/bench-phase2.mjs` (deterministic
 seeded scenarios; raw JSON in `bench/p2-*.json`). Hardware: the container
-this campaign ran in — absolute numbers will differ on release hardware;
+this campaign ran in, absolute numbers will differ on release hardware;
 ratios and hash equalities will not. The frozen Phase 1 engine is preserved
 verbatim at `bench/phase1-engine.cjs` and is the differential reference for
 every equivalence claim below.
@@ -13,19 +13,19 @@ every equivalence claim below.
 1. **Protocol-aware state clone** (`cloneStateForTick`, Phase 2B). `nextState`
    no longer begins with `JSON.parse(JSON.stringify(state))`. The replacement
    is a direct schema-aware structural copy: players (skills, inventory
-   slots, equipment, bank, action, trade, attuned — every nested mutable
+   slots, equipment, bank, action, trade, attuned, every nested mutable
    object copied), nodes/mobs/ground entity maps, markers, announcements,
    names, firsts; unknown fields fall to a generic deep copy that mirrors
    JSON round-trip semantics exactly (objects drop `undefined`-valued keys,
    arrays map `undefined` to `null`). The genesis object is classified
    immutable-and-safe-to-share and is the only shared reference; a
    deep-frozen-genesis campaign in `test/phase2.test.mjs` proves nothing
-   ever writes it. No proxies, no copy-on-write, no libraries — the
+   ever writes it. No proxies, no copy-on-write, no libraries: the
    recommended simplicity boundary held, and the optional lazy-cloning
    fallback was **not needed** (see measurements).
 2. **Minimal per-tick node indexes** (`buildTickContext`, Phase 2C). Two
    process-local contexts per transition: one over the pre-state (serving
-   `validInput`'s spatial checks — the pre-state is never mutated during a
+   `validInput`'s spatial checks, the pre-state is never mutated during a
    tick, so one build serves every input) and one over the working clone,
    maintained exclusively through the centralized `addIndexedNode` /
    `deleteIndexedNode` helpers. Exactly the three indexes the brief named:
@@ -59,7 +59,7 @@ stores/anvils. It is built with the engine's own constructors and passes
 gatherers, bankers, fighters, cooks, farmers, trade pairs), **fully active**
 (every citizen submits every tick), **adversarial-valid** (correctly signed,
 shaped, tick-current inputs rotated to maximize spatial-check, inventory,
-and object-creation/expiry work — plants with no plot, sells/buys with no
+and object-creation/expiry work, plants with no plot, sells/buys with no
 store, brewpot builds, fire lighting).
 
 ## Phase 2B: the clone experiment, as ordered
@@ -74,10 +74,10 @@ store, brewpot builds, fire lighting).
 | `cloneStateForTick` | 8.5 | ba8b4a7e… (identical) |
 
 `structuredClone` is canonically correct but **slower than the JSON round
-trip** on these states — measured and rejected, per the brief's "do not
+trip** on these states, measured and rejected, per the brief's "do not
 assume it is faster." The schema-aware clone was adopted. Note what
 measurement also showed: at these state sizes the clone was **not** the
-dominant cost — the broad scans were (below). The brief's own final
+dominant cost, the broad scans were (below). The brief's own final
 principle ("measure the actual cost") governed.
 
 ## Phase 2C: what the scans actually cost
@@ -112,8 +112,8 @@ ordinary workload** (the primary configuration):
 | 1,000 | 1,716 / 2,055 ms | **245 / 309 ms** | 0.3× → **2.5×** | yes |
 | 2,000 | 3,276 / 3,739 ms | **447 / 495 ms** | 0.2× → **1.3×** | yes |
 
-Expanded world, other workloads (Phase 2, median / p95): fully active —
-1,000: 256 / 367 ms, 2,000: 469 / 533 ms; adversarial-valid — 1,000:
+Expanded world, other workloads (Phase 2, median / p95): fully active,
+1,000: 256 / 367 ms, 2,000: 469 / 533 ms; adversarial-valid, 1,000:
 262 / **291** ms, 2,000: 488 / 563 ms.
 
 Current world, ordinary (Phase 1 → Phase 2 median): 100: 115 → 63 ms;
@@ -140,19 +140,19 @@ admission signature verification (p95 137 ms at 1,000; 282 ms at 2,000).
   frozen-genesis campaign (licenses the one shared reference); all clone
   modes transition-identical on every tick; 4,000-query randomized index
   differentials against the reference scans; multi-match adjacency ordering
-  (insertion order deliberately different from tile order — the indexed
+  (insertion order deliberately different from tile order, the indexed
   path selects the same object); maintained context equals a fresh rebuild
   after adds/deletes; indexed vs unindexed transitions hash-identical on
   every tick across all three workloads; decay/expiry through the
   centralized helpers; and a Phase-1-binary lockstep smoke.
 - **Adversarial CI battery**: 14/15. The one failure (`crashes` convergence
   spread) **fails identically under the pristine Phase 1 engine on this
-  machine** (A/B verified again this campaign) — the same container-timing
+  machine** (A/B verified again this campaign): the same container-timing
   sensitivity documented in the Phase 1 report. Re-run on release hardware.
 - **Cross-binary differential campaigns** (`bench/compare-phase2.mjs`,
   Phase 1 binary vs Phase 2 binary, one process, identical histories):
   expanded world × {ordinary, active, adversarial} at 60 citizens × 60
-  ticks, and current world ordinary at 100 citizens × 120 ticks — every
+  ticks, and current world ordinary at 100 citizens × 120 ticks, every
   admission verdict and every per-tick resulting state hash identical;
   final states constitutionally valid. The pre-Phase-1 anchor also still
   holds: `bench/compare-equivalence.mjs` (v0.2-era baseline engine vs this
@@ -172,40 +172,40 @@ admission signature verification (p95 137 ms at 1,000; 282 ms at 2,000).
   are covered by dedicated unit and differential tests.
 - **Mixed-version witness campaign**: in-process lockstep equivalence is
   done (above). The two-binary 100k-tick live campaign on release hardware
-  and real network topology remains for release infra — as does the
+  and real network topology remains for release infra: as does the
   **still-pending Phase 1 live witness campaign** the Phase 1 report
   flagged; run both there (Phase 1 binary and Phase 2 binary as
   co-witnesses of one world).
 
 ## Acceptance criteria (scaling brief)
 
-- expanded target-world benchmark exists — **yes** (`phase2-lib.mjs`; raw
+- expanded target-world benchmark exists, **yes** (`phase2-lib.mjs`; raw
   data retained: `p2-baseline-phase1-{current,expanded}.json`,
   `p2-final-*.json`)
-- input state untouched by `nextState` — **yes** (deep-frozen-input tests,
+- input state untouched by `nextState`, **yes** (deep-frozen-input tests,
   all clone modes)
-- new clone canonically identical to the Phase 1 clone — **yes**
+- new clone canonically identical to the Phase 1 clone, **yes**
   (byte-asserted on every fixture and every benchmark final hash)
-- derived indexes never enter canonical state / checkpoints / hashes —
+- derived indexes never enter canonical state / checkpoints / hashes,
   **yes** (contexts are locals of `nextState`; nothing writes them to `s`;
   canonical encodings byte-compared throughout)
-- indexed and scan-based queries return identical results — **yes**
+- indexed and scan-based queries return identical results, **yes**
   (randomized differentials + whole-transition hash equality)
-- node index ordering preserves current semantics — **yes** (seq-ordered
+- node index ordering preserves current semantics, **yes** (seq-ordered
   selection; dedicated multi-match ordering tests)
 - every node mutation inside `nextState` goes through the centralized
-  helpers — **yes** (build, light, decay, expiry, dismantle; grep-verified
+  helpers, **yes** (build, light, decay, expiry, dismantle; grep-verified
   no direct `s.nodes` writes remain in the transition)
-- all existing unit tests pass, none weakened or removed — **yes** (185/185;
+- all existing unit tests pass, none weakened or removed, **yes** (185/185;
   the only doc edit is the TESTING.md count the manifest check demands)
-- all new differential tests pass — **yes**
-- adversarial simulations show no Phase 2 regression — **14/15; the failing
+- all new differential tests pass, **yes**
+- adversarial simulations show no Phase 2 regression, **14/15; the failing
   scenario fails identically pre-change on this hardware → release infra**
-- old/new replay hashes match after every tick — **yes**
-- mixed-version witnesses finalize identical histories — **in-process
+- old/new replay hashes match after every tick, **yes**
+- mixed-version witnesses finalize identical histories, **in-process
   lockstep done; live two-binary campaign → release infra**
-- memory bounded during long replay — **yes**
-- no explicitly deferred work entered the implementation — **yes**
+- memory bounded during long replay, **yes**
+- no explicitly deferred work entered the implementation, **yes**
 
 ## Honest outcome classification
 
@@ -213,7 +213,7 @@ On this container, for the expanded target world at 1,000 active citizens:
 p95 total engine work is **309 ms (ordinary)**, **291 ms (adversarial-
 valid)**, **367 ms (fully active)** against the ≤ 300 ms target; medians
 245–262 ms against the preferred ≤ 220 ms; replay 2.3–2.5× real time
-(target ≥ 2× — met); memory bounded; no event-loop stalls attributable to
+(target ≥ 2×, met); memory bounded; no event-loop stalls attributable to
 clone or index construction (clone + index build ≈ 8 ms/tick).
 
 Classification: **Operationally Viable, at the threshold of Goal Reached.**
@@ -223,7 +223,7 @@ replay comfortably above real time; but the fully-active p95 (367 ms) does
 not clear the reserved-headroom bar here, so Goal Reached is not claimed.
 Re-measure on target release hardware before deciding; the classification
 may move to Goal Reached there without any code change. 2,000 citizens
-(headroom evidence only): median 447–488 ms, p95 495–563 ms — inside the
+(headroom evidence only): median 447–488 ms, p95 495–563 ms, inside the
 live tick even at double the target population.
 
 ## The brief's seven stop-condition questions
@@ -238,21 +238,21 @@ live tick even at double the target population.
    not justified.
 4. **Percentage in broad scans?** ~0% of node scans remain (17,916/tick →
    0). Remaining full-collection iteration: expiry/decay walks and the
-   per-player mastery snapshot, together ~6 ms/tick at 1,000 — below any
+   per-player mastery snapshot, together ~6 ms/tick at 1,000, below any
    deferred-index threshold.
 5. **Largest cost center now?** Admission signature verification (p95
-   137 ms at 1,000, 282 ms at 2,000) — Phase 1 territory; parallel
+   137 ms at 1,000, 282 ms at 2,000): Phase 1 territory; parallel
    verification is explicitly deferred. Inside `nextState`: the beacon
    delay chain (~35 ms), which is constitutional.
 6. **Enough headroom for the expanded world?** At 1,000 citizens, ~300 ms
    of a 600 ms tick remains for networking/agreement/finality/checkpoints
-   on this container — the intended reserve, marginally. At 2,000, ~100 ms
+   on this container: the intended reserve, marginally. At 2,000, ~100 ms
    remains: viable but without reserve.
 7. **Is another phase justified by an actual constraint?** Not by the
    engine at 1,000 citizens. If the target moves beyond ~1,500–2,000, or
    release-hardware admission measurements show verification crowding the
    tick, the next real constraint is signature-verification throughput
-   (parallel verification), then incremental hashing — both currently
+   (parallel verification), then incremental hashing: both currently
    deferred. Do not continue into Phase 3 without that evidence.
 
 ## Housekeeping

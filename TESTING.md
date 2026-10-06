@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
-Release 1.0.5 · protocol spec v1.05 · consensus spec v1.9 · rules hash
-`df504ccae64e528b…`.
+Release 1.0.5 · protocol spec v1.05 · consensus spec v1.10 · rules hash
+`1e7bde91977d9d2b…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 444 tests across:
+`node --test test/*.test.mjs`, 516 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -18,6 +18,63 @@ possible executions.
   and four such writes survived undetected.
 
 - `engine.test.mjs`, pure state-machine transitions
+- `proofweb.test.mjs`, §5g-ii: the browser's fold held against the engine's.
+  A browser player cannot build their own proof, so the node serves it and
+  the window checks the fold before keeping it. If that fold drifts the
+  window silently refuses every honest proof and nobody is told.
+- `livingroot.test.mjs`, §5g-ii: a root over the LIVING, not only the
+  archived. Every citizen can prove what they were from their own record and
+  a few hundred bytes of path, and cannot edit it: the leaf changes and the
+  fold no longer reaches a root the world certified. Also the SEAL: the
+  witnesses sign the root on its own, so move the root and the signature
+  dies, a relay cannot swap it on a certificate in flight, and the whole
+  sentence a kept proof makes is checkable from the founding alone.
+- `incoming.test.mjs`, §9b-iii: the inherited tree, held outside the tick.
+  Spending a leaf moves the root, so the first citizen home invalidates
+  everybody else's kept path, and `incoming.mjs` is what rebuilds them. It
+  holds no key: a wrong path is refused by the root, so the only thing it must
+  never do is hand out a path that looks good and is not, and a service that
+  has fallen out of step says so and serves nothing. A service starting late
+  starts cold reads who has come home off the citizens themselves, since a
+  homecoming writes the interval on the citizen, and checks the derivation by
+  rebuilding the tree. Where the citizens cannot say, because one came home and
+  has since been archived, a single spend is proved against the root; several
+  are not guessed at. A list borrowed from another node is checked the same way:
+  an empty list, a list one short, the right length with the wrong people and a
+  list that is not a list are each refused by one hash comparison, and a
+  stranger's name in an otherwise correct list is filtered as noise.
+
+- `succession.test.mjs`, §9b-iii: the OTHER way back from a world that
+  stopped. A successor's genesis names one root and nothing about the
+  population, and each citizen walks back in on their own record and path. A
+  doctored record is refused, a stranger's path is refused, one proof seats one
+  citizen once, and what crosses is identical to what a founder's import would
+  have carried, because both doors now call the same projection. It also holds
+  WHO MAY CONTINUE A WORLD: a successor must be the same rules, the same engine
+  and the same island, and must either wait a month of silence or be handed the
+  line by a quorum of the old world's own witnesses. Both are a citizen's
+  questions, answered by their own client from the founding their kept file
+  carries, and the browser's copy of that decision is held against the
+  protocol's in `proofweb.test.mjs`. And WHERE THE WORLD WENT: an offer of a
+  successor arrives from a stranger, so the id must be the hash of the founding
+  offered, or a liar could pair a world everybody would accept with the address
+  of one they control.
+
+- `crossing.test.mjs`, §9b-ii: a crossing carries what happened. It used to
+  drop all money (gold is a number, so it fell through the vault's item
+  filter), the death tally, `raised`, lineage, travels and every name known.
+- `calling.test.mjs`, §5r-iv: a calling asks for travel as well as practice.
+  Level fifty arrives in under two hours, so without the second half a
+  citizen could swear their one lifelong trade from one rock.
+- `attendance.test.mjs`, §7dw-iii: a burning fire pays only a citizen who
+  is actually there. It had leaked twice, once on place and once on person;
+  the second let somebody stoke, quit, and earn for the hour it burned.
+- `worklog.test.mjs`, §7cy: a work records the hands that have been on it.
+  The fires recorded nothing, which is the case the log exists for: whoever
+  has been feeding one is the only way to know it will still be alight.
+- `reachable.test.mjs`, every verb a place affords can be filed from some
+  row of the window's menus. `stoke` and `brew` are the two deeds that name
+  both a node and a slot, and both were offered and silently discarded.
 - `wound.test.mjs`, the wound the dead leave, the tally, and the wellspring (§6c-ii)
 - `node.test.mjs`, libp2p node boundary
 - `agreement.test.mjs`, proposer rotation, quorum, lock discipline

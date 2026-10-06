@@ -1,4 +1,4 @@
-// Final freeze brief §1 — version references must agree. package.json is
+// Final freeze brief §1: version references must agree. package.json is
 // the single source of truth for the release tuple; every doc and the
 // engine constant must match it. This test fails the moment they drift.
 import { test } from 'node:test'
@@ -17,7 +17,7 @@ test('package.json declares the release tuple', () => {
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/)
   assert.ok(pkg.protocol, 'package.json has a protocol block')
   assert.equal(pkg.protocol.specVersion, '1.05')
-  assert.equal(pkg.protocol.consensusVersion, '1.9')
+  assert.equal(pkg.protocol.consensusVersion, '1.10')
 })
 
 test('engine SPEC_VERSION matches the declared spec version', () => {
@@ -69,7 +69,7 @@ test('README adversarial and scenario counts match the manifest', () => {
 
 test('TESTING.md banner matches the release tuple', () => {
   // this banner previously drifted (Release 0.21.0 / consensus v1.8) because
-  // nothing asserted it — every version reference in TESTING.md's header must
+  // nothing asserted it: every version reference in TESTING.md's header must
   // now track package.json exactly.
   const testing = read('TESTING.md')
   assert.ok(testing.includes(`Release ${pkg.version}`), 'TESTING.md cites the package version')
@@ -103,6 +103,26 @@ test('rules hash in docs matches sha256(SPEC.md)', () => {
   const prefix = actual.slice(0, 16)
   assert.ok(read('CONSENSUS.md').includes(prefix), 'CONSENSUS cites the current rules-hash prefix')
   assert.equal(pkg.protocol.rulesHash, prefix, 'package.json rulesHash matches SPEC.md')
+
+  // AND THE SITE, which quotes it too and was not checked. `site/map.html`
+  // carried a hash sixteen characters long that belonged to no world this
+  // engine computes, on the page that says in its own first paragraph that if
+  // the chart and the world disagreed, one of them would be in breach of the
+  // constitution. A stale hash there is not a typo: it is the page's own claim
+  // about which rules it was drawn under, and it was the wrong rules.
+  //
+  // Any 16-hex run on a site page is one of these. Nothing else on the site is
+  // written that way, and if something ever is, this will say so and it can be
+  // excluded deliberately rather than by accident.
+  const siteDir = path.join(root, 'site')
+  for (const f of fs.readdirSync(siteDir)) {
+    if (!f.endsWith('.html') || f.includes('before') || f.startsWith('probe-')) continue
+    const t = fs.readFileSync(path.join(siteDir, f), 'utf8')
+    for (const m of t.matchAll(/\b([0-9a-f]{16})\b/g)) {
+      assert.equal(m[1], prefix,
+        `site/${f} cites rules hash ${m[1]}; the constitution hashes to ${prefix}`)
+    }
+  }
 })
 
 // --- Phase-1 freeze §3: docs match the source tree, counts from a manifest ---

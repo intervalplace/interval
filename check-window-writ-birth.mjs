@@ -2,7 +2,7 @@
 //
 // §0b/§0c: birth is two phases. A window that sends `attend` and `spawn` in
 // the same breath gets the spawn refused for ten minutes and shows the person
-// nothing at all — press the key, nothing happens, no reason given. This
+// nothing at all: press the key, nothing happens, no reason given. This
 // window did exactly that until it didn't. The test stands a new soul at the
 // door and checks it knocks, waits like everyone, and crosses only when it may.
 //

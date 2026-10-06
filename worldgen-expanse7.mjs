@@ -746,6 +746,31 @@ export function inRiver(g, x, y) {
   return false
 }
 export function lakeC(g) { return { x: Math.round(g.worldW * 0.745), y: Math.round(g.worldH * 0.21) } }
+
+// EVERY INLAND WATER, STILLWATER INCLUDED, IN ONE LIST.
+//
+// `WATERS` is the hand-drawn table and Stillwater is not in it: it is the
+// island's oldest water and was built from its own centre. `inlandSet` already
+// knew to append it -- "it joins the table rather than keeping its own rule --
+// which is also one fewer place for the two to disagree" -- but it appended it
+// to a LOCAL list, so every other reader of `WATERS` still could not see the
+// biggest lake on the island. Two things were wrong because of it:
+//
+//   `waterNameAt` returned null over Stillwater, so the one water everybody
+//   knows by name was the one water the world could not name.
+//
+//   The willows did not grow. The rule says in as many words "WILLOWS take the
+//   water: Stillwater's shore and the becks that feed it", loops the meres and
+//   tarns, and Stillwater is a mere that was not in the list it loops -- so the
+//   shore of the island's great lake had none, while nine smaller meres did.
+//
+// So the appending happens once, here, and the three readers share it. The
+// comment on `inlandSet` warned about exactly this: the first attempt at
+// unifying them DELETED THE LAKE by leaving one reader on a stale list.
+export function inlandWaters(g) {
+  return [...WATERS,
+    { x: lakeC(g).x, y: lakeC(g).y, rx: 24, ry: 13, kind: 'mere', name: 'Stillwater' }]
+}
 // THE INLAND WATERS. Stillwater, and the hand-drawn meres, tarns, pools and
 // becks of worldgen-water-v7.mjs. Memoised as a tile set because this is asked
 // once per tile per render and the ellipses are not free.
@@ -759,8 +784,7 @@ function inlandSet(g) {
   // which is also one fewer place for the two to disagree, and the first
   // attempt at this DELETED THE LAKE by leaving `inLake` reading a set the
   // lake had not been added to.
-  const ALL = [...WATERS,
-    { x: lakeC(g).x, y: lakeC(g).y, rx: 24, ry: 13, kind: 'mere', name: 'Stillwater' }]
+  const ALL = inlandWaters(g)
   for (let wi = 0; wi < ALL.length; wi++) {
     const w2 = ALL[wi]
     const k = SHAPE_K[w2.kind] ?? 0.24
@@ -836,7 +860,7 @@ export function inLake(g, x, y) {
   return inlandSet(g).has(x + ',' + y)
 }
 export function waterNameAt(g, x, y) {
-  for (const w2 of WATERS) {
+  for (const w2 of inlandWaters(g)) {
     const dx = (x - w2.x) / (w2.rx + 1), dy = (y - w2.y) / (w2.ry + 1)
     if (dx * dx + dy * dy < 1) return w2.name
   }
@@ -2949,25 +2973,47 @@ export function makeExpanse7Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   //
   // The window rolls rather than resetting at any midnight, so there is no
   // allowance to race toward and none to waste.
-  g.ceiling = { window: 86400, allow: 5400, warn: 600 }
+  // §7dw-ii: CHARGED BY THE MINUTE, not by the five. A sample charges the whole
+  // block it finds a citizen in, so the block size is how much a short visit
+  // can cost beyond what it took. Ninety blocks across the allowance.
+  g.ceiling = { window: 86400, allow: 5400, warn: 600, sample: 60 }
   // §6am (v6): STAR IS THE ENDGAME NOW. With a mid tier filling the middle of
   // the road (mid-ore and mid-wood at thirty-five), quick rises to where it was
   // always meant to be -- the ninety-tier gear, forged from the quick-stone a
   // citizen carries out of the Wilds, so that reaching mastery finally buys
   // something to WEAR. The shape is the constitution's; these numbers are this
   // world's, and a v5 world (no gearReqs) keeps the old ladder to the byte.
+  // §6am-ii: AND THE SKILLS HAVE THE NAMES THE WORLD USES.
+  //
+  // This table named six skills that do not exist: `defence`, `attack`,
+  // `woodcutting`, `mining`, `smithing` and `magic`, from before the nine
+  // crafts were named. A requirement on a skill a citizen cannot have reads
+  // `effLevel(undefined)`, which is ONE, so every line of it was `1 >= 80` and
+  // false for ever.
+  //
+  // The whole quick tier was therefore unobtainable: measured, a citizen with
+  // every one of the nine skills at two hundred million experience could not
+  // wield a quick-sword, while an iron one went straight into their hand. The
+  // endgame gear this founding exists to introduce -- "so that reaching
+  // mastery finally buys something to WEAR" -- could not be worn or forged by
+  // anybody, and nothing said so.
+  //
+  // It is the third time this exact rename has bitten: §5r-iii lost twenty
+  // levels of labour the same way, and mourning's own `PRAYER_KEEP` read a
+  // skill called `prayer`. `validateGenesis` refuses an unknown skill here
+  // now, so it is the last time.
   g.gearReqs = {
     wield: {
-      'quick-helm': { defence: 80 }, 'quick-plate': { defence: 90 },
-      'quick-sword': { attack: 80 }, 'quick-dagger': { attack: 80 }, 'quick-spear': { attack: 80 },
-      'quick-mell': { attack: 85 }, 'quick-flail': { attack: 85 },
-      'quick-hatchet': { woodcutting: 85 }, 'quick-pickaxe': { mining: 85 },
+      'quick-helm': { prowess: 80 }, 'quick-plate': { prowess: 90 },
+      'quick-sword': { prowess: 80 }, 'quick-dagger': { prowess: 80 }, 'quick-spear': { prowess: 80 },
+      'quick-mell': { prowess: 85 }, 'quick-flail': { prowess: 85 },
+      'quick-hatchet': { woodcraft: 85 }, 'quick-pickaxe': { earthcraft: 85 },
     },
     smith: {
-      'quick-helm': { smithing: 80, magic: 40 }, 'quick-plate': { smithing: 90, magic: 50 },
-      'quick-sword': { smithing: 85, magic: 45 }, 'quick-dagger': { smithing: 85, magic: 48 },
-      'quick-spear': { smithing: 86, magic: 46 }, 'quick-mell': { smithing: 88, magic: 50 },
-      'quick-hatchet': { smithing: 82, magic: 42 }, 'quick-pickaxe': { smithing: 82, magic: 42 },
+      'quick-helm': { earthcraft: 80, sorcery: 40 }, 'quick-plate': { earthcraft: 90, sorcery: 50 },
+      'quick-sword': { earthcraft: 85, sorcery: 45 }, 'quick-dagger': { earthcraft: 85, sorcery: 48 },
+      'quick-spear': { earthcraft: 86, sorcery: 46 }, 'quick-mell': { earthcraft: 88, sorcery: 50 },
+      'quick-hatchet': { earthcraft: 82, sorcery: 42 }, 'quick-pickaxe': { earthcraft: 82, sorcery: 42 },
     },
   }
   // §6ao (v6): DURABLE NODES, so a FIXED small cluster holds any crowd. In one
@@ -4505,13 +4551,55 @@ export function buildWorld(genesis) {
         return true
       }
       // WILLOWS take the water: Stillwater's shore and the becks that feed it.
-      for (const W of WATERS) {
+      // Through `inlandWaters`, because Stillwater is not in `WATERS` and this
+      // loop named it as the example while never being handed it.
+      for (const W of inlandWaters(g)) {
         if (W.kind !== 'mere' && W.kind !== 'tarn') continue
-        for (let a = 0; a < 14; a++) {
-          const th = (a / 14) * Math.PI * 2
-          const x = Math.round(W.x + Math.cos(th) * (W.rx + 2))
-          const y = Math.round(W.y + Math.sin(th) * (W.ry + 2))
-          if ((thash(g, x, y, 131) % 3) === 0) tree(x, y, 'willow')
+        // AS MANY TRIES AS THE SHORE IS LONG. This walked fourteen points round
+        // every water whatever its size, which is dense on a tarn you can see
+        // across and threadbare on Stillwater: the same fourteen tries spread
+        // over a shoreline four times longer, a third of them refused by the
+        // hash and more by the ground, left the island's great lake with two
+        // trees on it.
+        //
+        // One try every four tiles of shore instead, and never fewer than the
+        // fourteen the small waters already had, so the big waters get tries in
+        // proportion to how much shore they have. Note that changing the count
+        // moves every sample point, so this is not a pure addition: the trees
+        // round the smaller waters shuffle as well as multiply.
+        const round_ = Math.PI * (W.rx + W.ry)
+        const tries = Math.max(14, Math.round(round_ / 4))
+        for (let a = 0; a < tries; a++) {
+          const th = (a / tries) * Math.PI * 2
+          if ((thash(g, Math.round(W.x + Math.cos(th) * (W.rx + 2)),
+                       Math.round(W.y + Math.sin(th) * (W.ry + 2)), 131) % 3) !== 0) continue
+          // AND A LITTLE BACK FROM THE WATER IF THE WATERLINE IS TAKEN.
+          //
+          // Stillwater has a village on its shore, and a tree is refused inside
+          // a settlement, on a lane, against a field and on a gatherable --
+          // all of which are right. The effect was that the one water with
+          // people living on it was the one water with no trees: nine smaller
+          // meres in open country got their willows and the great lake got
+          // none, which is the opposite of what the rule was for.
+          //
+          // So the angle is kept and the distance gives. Measured on the ring
+          // at Stillwater: of twenty-nine tries the hash allowed seven, and
+          // six of those were refused on ground that looks perfectly open --
+          // because a settlement refuses a tree across its whole RECTANGLE and
+          // not merely where its buildings stand, and there is a village on
+          // that shore.
+          //
+          // Six tiles of slack, which is enough to clear a lakeside village
+          // and still be a tree by the water. NOT by relaxing the settlement
+          // gate, which is the other way to fix this and the wrong one: these
+          // trees are laid after the sealed-enclosure sweep and block their
+          // tile, so a willow inside a village can shut the doorway the sweep
+          // just opened.
+          for (let out = 2; out <= 8; out++) {
+            const x = Math.round(W.x + Math.cos(th) * (W.rx + out))
+            const y = Math.round(W.y + Math.sin(th) * (W.ry + out))
+            if (tree(x, y, 'willow')) break
+          }
         }
       }
       // DEAD TREES where the land turned: the Wilds and the Moor.

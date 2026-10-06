@@ -1,4 +1,4 @@
-// Freeze & storage brief §7 — storage backends. "Storage is not consensus":
+// Freeze & storage brief §7: storage backends. "Storage is not consensus":
 // these tests prove the SQLite backend is byte-for-byte interchangeable with
 // the flat-file store at the protocol level, that migration preserves every
 // record, and that the exclusive process lock prevents a second live witness

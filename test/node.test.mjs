@@ -1,4 +1,4 @@
-// Node-layer regression tests — checkpoint envelope validation (§2.5, §6.4)
+// Node-layer regression tests: checkpoint envelope validation (§2.5, §6.4)
 // and message bounds (§5). Constructs IntervalNode without starting libp2p.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -19,7 +19,7 @@ test('checkpoint envelope: valid passes, forgeries are named and refused', () =>
   assert.equal(n.validateCheckpoint({ ...good, tick: good.tick + 5 }), 'tick inconsistent')
 
   const tampered = JSON.parse(JSON.stringify(good))
-  tampered.state.players['x'.repeat(64)] = { hp: 1 }
+  tampered.state.players['x'.repeat(64)] = { health: 1 }
   assert.equal(n.validateCheckpoint(tampered), 'state hash mismatch')
 
   const otherWorld = new IntervalNode({

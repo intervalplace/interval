@@ -168,7 +168,7 @@ if (W_ARG) {
   if ((info.genesis.witnesses ?? []).includes(wk.playerId)) {
     witnessKey = wk
     console.log(`witness key accepted: ${wk.playerId.slice(0, 12)}… (in the founding set)`)
-  } else console.log(`witness key ${wk.playerId.slice(0, 12)}… is NOT in this world's founding set — joining as observer`)
+  } else console.log(`witness key ${wk.playerId.slice(0, 12)}… is NOT in this world's founding set, joining as observer`)
 }
 
 // 4. own node: sync the world, then march in lockstep
@@ -200,7 +200,7 @@ const remember = (a) => {
 // full TCP timeout. Awaiting dials sequentially means ONE such peer stalls the
 // whole boot and startTicking() is never reached. So: every network await
 // races a timer, gossip dials fire in the background, and only the checkpoint
-// sync sits on the critical path — and even that falls through rather than hang.
+// sync sits on the critical path, and even that falls through rather than hang.
 const withTimeout = (p, ms, label) => Promise.race([
   Promise.resolve(p),
   new Promise((_, rej) => setTimeout(() => rej(new Error('timeout ' + ms + 'ms (' + label + ')')), ms)),
@@ -217,7 +217,7 @@ try { await withTimeout(node.dial(pillarAddr), 8000, 'pillar') } catch {
   pillarUp = false
   console.log('[join] the pillar did not answer in time; the book remembers ' + book.length + ' door(s)')
 }
-// book peers are gossip redundancy, not a boot dependency — dial in the background
+// book peers are gossip redundancy, not a boot dependency: dial in the background
 for (const a of book) bgDial(a, 'book')
 
 // ---- the mesh, not the quick: dial every peer the pillar knows, and keep
@@ -295,11 +295,11 @@ async function meshUp() {
       })
   }
 }
-// don't await the first sweep — it only needs to have STARTED; the interval repeats it
+// don't await the first sweep: it only needs to have STARTED; the interval repeats it
 meshUp()
 setInterval(meshUp, 60000)
 // sync from the LIVE pillar alone (allowSingle), timeout-guarded so a stale book
-// address fed to syncFromPeers — which dials its sources sequentially — cannot
+// address fed to syncFromPeers, which dials its sources sequentially: cannot
 // hang the boot. Fall back to book sources one at a time; if nothing corroborates
 // in time, rise from the founding and let certified catch-up pull us forward.
 let synced = false
@@ -316,7 +316,7 @@ else console.log('[sync] no checkpoint adopted; rising from the founding and cat
 node.startTicking()
 
 // Milestone 5: if we drift behind the finalized frontier (stall, missed
-// proposals), recover by CERTIFIED replay — every fetched record carries
+// proposals), recover by CERTIFIED replay: every fetched record carries
 // its own quorum proof and is recomputed locally before adoption.
 if (node.agreement) setInterval(async () => {
   const behind = node.scheduledTick - node.state.tick

@@ -1,9 +1,9 @@
-# Phase 1 Engine Scaling — Results Report
+# Phase 1 Engine Scaling: Results Report
 
 Release under test: interval 0.23.0 (phase-1-freeze), spec 0.52, Node v22.22.2.
 All measurements from `bench/bench-engine.mjs` (deterministic seeded scenarios;
 raw JSON in `bench/baseline-*.json` and `bench/after-*.json`). Hardware: the
-container this campaign ran in — absolute numbers will differ on release
+container this campaign ran in, absolute numbers will differ on release
 hardware; ratios and hash equalities will not.
 
 ## What changed
@@ -43,7 +43,7 @@ Median engine work per tick (admission verify + prev/post stateHash + nextState)
 Speedup on median tick: 3.6× / 5.0× / 4.7× / 5.7×.
 
 Counters at 500 citizens (30 ticks): sig-cache hit rate 72% (35,262 hits /
-13,566 misses — the admission→state-machine double verification now costs one
+13,566 misses, the admission→state-machine double verification now costs one
 curve operation), native calls 13,566, fallback calls 47 (= exactly the invalid
 inputs in the stream), state-hash hit rate ~48% (the second hash of each object
 is free), zero evictions below 2,000 citizens.
@@ -57,11 +57,11 @@ is free), zero evictions below 2,000 citizens.
 - **Full unit suite**: 173/173 pass (`node run-tests.mjs`).
 - **Adversarial CI battery**: 14/15 pass. The one failure (`crashes`
   convergence spread 24 > 3) **fails identically under the pristine
-  pre-optimization engine on this machine** (A/B, two runs each) — it is a
+  pre-optimization engine on this machine** (A/B, two runs each): it is a
   container-timing sensitivity, not a Phase 1 regression; your attached
   freeze evidence shows it passing on release hardware. Re-run there.
 - **Deterministic old-vs-new replay** (`bench/compare-equivalence.mjs`):
-  two campaigns — 300 ticks × 100 citizens and 60 ticks × 500 citizens,
+  two campaigns, 300 ticks × 100 citizens and 60 ticks × 500 citizens,
   ~54,000 inputs including corrupted signatures, stale duplicates, and idle
   citizens. Every admission verdict and every per-tick resulting state hash
   identical across engines; both final states constitutionally valid.
@@ -72,28 +72,28 @@ is free), zero evictions below 2,000 citizens.
 
 Every criterion met on this machine, with two environment notes:
 
-- native and fallback Ed25519 agree — **yes** (KAT at startup + parity tests)
-- malformed inputs retain existing behavior — **yes**
-- `validInput` still performs signature verification — **yes** (tested)
-- signature cache bounded and process-local — **yes**
-- state-hash cache uses object identity — **yes**
-- canonical state encoding unchanged — **yes** (byte-asserted)
-- every old fixture produces the same state hash — **yes**
-- all unit tests pass — **yes** (173/173)
-- all adversarial simulations pass — **14/15 here; the failing scenario also
+- native and fallback Ed25519 agree, **yes** (KAT at startup + parity tests)
+- malformed inputs retain existing behavior, **yes**
+- `validInput` still performs signature verification, **yes** (tested)
+- signature cache bounded and process-local, **yes**
+- state-hash cache uses object identity, **yes**
+- canonical state encoding unchanged, **yes** (byte-asserted)
+- every old fixture produces the same state hash, **yes**
+- all unit tests pass, **yes** (173/173)
+- all adversarial simulations pass, **14/15 here; the failing scenario also
   fails pre-change on this hardware → re-run on release hardware**
-- deterministic old/new replay matches at every tick — **yes**
-- mixed-version witnesses finalize identical histories — **in-process
+- deterministic old/new replay matches at every tick, **yes**
+- mixed-version witnesses finalize identical histories, **in-process
   lockstep equivalence done here; the two-binary 100k-tick live campaign
   needs your real network topology → run on release infra** (old and new
   builds as co-witnesses of one world)
-- benchmark results documented — **yes** (this file + JSON)
-- no deferred optimization entered the implementation — **yes**
+- benchmark results documented, **yes** (this file + JSON)
+- no deferred optimization entered the implementation, **yes**
 
 ## The brief's five stop-condition questions
 
 1. **What fits comfortably in the tick budget?** With the p95 ≤ 300 ms
-   safety target: **~300–400 active citizens** (500 sits at p95 433 ms —
+   safety target: **~300–400 active citizens** (500 sits at p95 433 ms,
    inside the 600 ms budget but without the reserved headroom). Versus
    ~100 before. The world's own resource capacity (~150–200) is now the
    *lower* of the two limits again.
@@ -102,7 +102,7 @@ Every criterion met on this machine, with two environment notes:
    and the per-entity/per-player scans (~0.6 ms per citizen-tick at 500).
    Verification is down to ~14% of the tick; hashing ~4%.
 3. **Is replay comfortably faster than real time?** At ≤ 500 citizens, yes
-   (2.3–9.2×). At 1,000+ it hovers near 1× — populations beyond ~700 would
+   (2.3–9.2×). At 1,000+ it hovers near 1×: populations beyond ~700 would
    need Phase 2 (cheap clone) before stalled witnesses can rely on catch-up.
 4. **Does measured capacity satisfy the intended initial world?** Yes, with
    margin: the current world sustains ~150–200 players by resources; the

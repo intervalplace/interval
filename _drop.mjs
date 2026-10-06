@@ -11,7 +11,7 @@ ws.on('message', (d) => {
     const away = Math.max(Math.abs(o.x - me.x), Math.abs(o.y - me.y))
     if (away <= 3) near.push(`${away} tiles  ${id}  ${o.item ?? JSON.stringify(o)} @${o.x},${o.y}`)
   }
-  console.log(`ME ${me.x},${me.y} hp ${me.hp} — loot on the ground:`)
+  console.log(`ME ${me.x},${me.y} hp ${me.hp}, loot on the ground:`)
   console.log(near.length ? near.join('\n') : '  nothing within 3 tiles')
   process.exit(0)
 })

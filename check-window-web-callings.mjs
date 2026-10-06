@@ -1,7 +1,7 @@
 // §5k/§5w, for window-web: THE FLAT WINDOW CAN SAY IT TOO.
 //
 // window-web has named the callings in its skill guide since the guide was
-// written, from a hand copy of a table the engine owns — and had no line in its
+// written, from a hand copy of a table the engine owns, and had no line in its
 // act ladder for `swear`, so no citizen could ever say one. It also knew
 // nothing of the ceiling, so a citizen would have watched a bar stop at fifty
 // and concluded the world was broken.
@@ -48,7 +48,7 @@ for (const m of src.slice(src.indexOf('const CALLINGS_OF = {'), src.indexOf('}',
 const real = {}
 for (const [name, c] of Object.entries(E.SWORN)) (real[c.skill] ??= []).push(name)
 // §ORDER IS NOT DRIFT. The engine lists prowess as berserker/warden/fighter and
-// the window as fighter/berserker/warden — the same three callings, and the
+// the window as fighter/berserker/warden: the same three callings, and the
 // guide prints them as a set. Comparing sequence would have reported a drift
 // that is not one, and a check that cries wolf gets ignored the day it is right.
 const same = (a, b) => [...(a || [])].sort().join() === [...(b || [])].sort().join()

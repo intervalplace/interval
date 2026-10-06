@@ -1,4 +1,4 @@
-// Remaining-fixes brief, Priority 6 — the consensus-safety test batch.
+// Remaining-fixes brief, Priority 6: the consensus-safety test batch.
 // Every test here corresponds to a rule in CONSENSUS.md.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -110,7 +110,8 @@ test('LOCK-3: a restarted witness reloads its vote and never signs a rival bundl
   w9.onBundle(B)
   assert.equal(w9._sink.filter(m => m.kind === 'attestation' && m.obj.bundleHash === P.bundleHash(B)).length, 0, 'after restart: rebroadcast only, never a second vote')
   // the restarted witness still helps finalize its ORIGINAL vote
-  const others = [w1, w3].map(wk => P.makeAttestation({ worldId: world.worldId, tick: 0, round: 0, bundleHash: P.bundleHash(A), resultingStateHash: w9.proposals.get(P.bundleHash(A))?.rsh ?? E.stateHash(E.nextState(w9._holder.state, [])), witness: wk }))
+  const after = E.nextState(w9._holder.state, [])
+  const others = [w1, w3].map(wk => P.makeAttestation({ worldId: world.worldId, tick: 0, round: 0, bundleHash: P.bundleHash(A), resultingStateHash: w9.proposals.get(P.bundleHash(A))?.rsh ?? E.stateHash(after), livingRoot: after.livingRoot ?? null, witness: wk }))
   w9.onBundle(JSON.parse(JSON.stringify(A))) // re-verify A after restart
   for (const a of others) w9.onAttestation(a)
   assert.equal(w9._holder.state.tick, 1, 'the original vote finalizes')
@@ -226,8 +227,8 @@ test('engine: canonical rejects non-encodable values; validateState rejects host
     [s => { s.players[alice.playerId].inventory = s.players[alice.playerId].inventory.slice(0, E.INV_SLOTS - 1) }, /inventory length/],
     [s => { s.players[alice.playerId].vaults = { 'vault-1': { 'DROP TABLE': 3 } } }, /vault item/],
     [s => { s.tick = 1.5 }, /bad tick/],
-    [s => { s.mobs.evil = { type: 'goblin', x: 5, y: 5, hx: 5, hy: 5, hp: NaN, respawnAt: 0 } }, /mob hp/],
-    [s => { s.mobs.evil = { type: 'rat', x: 5, y: 5, hx: 5, hy: 5, hp: 3, respawnAt: 0 } }, /unknown mob type/],
+    [s => { s.mobs.evil = { type: 'goblin', x: 5, y: 5, hx: 5, hy: 5, health: NaN, respawnAt: 0 } }, /mob health/],
+    [s => { s.mobs.evil = { type: 'rat', x: 5, y: 5, hx: 5, hy: 5, health: 3, respawnAt: 0 } }, /unknown mob type/],
   ]
   for (const [mutate, want] of cases) {
     const s = world.build()

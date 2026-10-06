@@ -3,7 +3,7 @@
 // §6c: five intervals after you fall the world puts you back at the founding
 // with your health whole. It is processed at the top of a tick and needs no
 // input at all. This window used to offer a dead citizen a `wake` that sent
-// `spawn` — the input for a soul NOT in the world, refused for one who is —
+// `spawn`: the input for a soul NOT in the world, refused for one who is,
 // so on the single screen where a person most needs telling what is happening,
 // it showed an unchanged HUD with the bar at zero and a button that did
 // nothing. What they need is the count, and that the count is not theirs.

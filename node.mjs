@@ -1,4 +1,4 @@
-// Interval node v0.3 — the networked constitution.
+// Interval node v0.3: the networked constitution.
 // Wraps the deterministic engine in a libp2p gossipsub mesh:
 //   - signed inputs are gossiped on the world's input topic
 //   - every node advances the world in lockstep on the tick schedule
@@ -62,7 +62,7 @@ export async function readAll(source, maxBytes) {
   for await (const c of source) {
     const b = c.subarray ? c.subarray() : Buffer.from(c)
     total += b.length
-    if (total > maxBytes) throw new Error(`stream exceeded ${maxBytes} bytes — aborted`)
+    if (total > maxBytes) throw new Error(`stream exceeded ${maxBytes} bytes, aborted`)
     chunks.push(b)
   }
   return Buffer.concat(chunks)
@@ -70,7 +70,7 @@ export async function readAll(source, maxBytes) {
 
 // A small durable JSON store (final-fixes brief §4): write tmp → fsync tmp
 // → atomic rename → fsync the DIRECTORY (the rename itself must survive
-// power loss, not just the bytes) — restrictive permissions throughout.
+// power loss, not just the bytes): restrictive permissions throughout.
 // Used for witness vote locks and the finality frontier.
 export function fsyncDir(dir, { strict = false } = {}) {
   try {
@@ -78,9 +78,9 @@ export function fsyncDir(dir, { strict = false } = {}) {
     try { fs.fsyncSync(dfd) } finally { fs.closeSync(dfd) }
   } catch (e) {
     // rev4 brief §4: for CONSENSUS records (locks, frontier) a rename that
-    // may not survive power loss is a silent safety hole — propagate. For
+    // may not survive power loss is a silent safety hole: propagate. For
     // non-consensus artifacts (checkpoints, archives) best-effort stands.
-    if (strict) throw new Error(`directory fsync failed for ${dir}: ${e.message} — this platform cannot host a production witness`)
+    if (strict) throw new Error(`directory fsync failed for ${dir}: ${e.message}, this platform cannot host a production witness`)
   }
 }
 
@@ -89,19 +89,19 @@ export function fsyncDir(dir, { strict = false } = {}) {
 // safety state can race before durable records update, so an honestly-operated
 // witness could double-sign.
 //
-// SCOPE — this is a LOCAL-HOST kernel lock, NOT a distributed lock. We bind a
+// SCOPE: this is a LOCAL-HOST kernel lock, NOT a distributed lock. We bind a
 // Unix-domain socket at <safetyBase>/process.lock.sock; the kernel guarantees
 // exclusive ownership of a live socket address ON THAT HOST (a second bind
 // fails with EADDRINUSE) and releases it automatically when the holder dies.
 // The supported operating model (production brief §1, Option A) is therefore:
 //   • one witness identity == one host;
 //   • witness safety directories live on LOCAL, non-shared storage;
-//   • shared/NFS safety directories are UNSUPPORTED — a Unix socket bound on
+//   • shared/NFS safety directories are UNSUPPORTED: a Unix socket bound on
 //     host A does not exclude a process on host B against the same NFS path,
 //     so cross-host exclusivity requires fencing the old host on failover.
 // Within a host this is a true kernel lock, not a PID file: no PID guessing,
 // no unsafe reclamation. The only stale state is the pathname entry a dead
-// process leaves behind; we resolve it SAFELY by first trying to CONNECT — a
+// process leaves behind; we resolve it SAFELY by first trying to CONNECT: a
 // successful connect proves a live holder (refuse); a refused connect
 // (ECONNREFUSED) proves the socket is dead and the path can be unlinked and
 // rebound. An .info file is written for operator visibility only.
@@ -135,7 +135,7 @@ export async function acquireProcessLock(sockPath, identity = null) {
   const infoFile = sockPath.replace(/\.sock$/, '') + '.info'
   // §1 Option A: the lock is host-local. If the safety directory sits on a
   // known NETWORK filesystem (NFS/SMB/etc.), the host-local socket cannot
-  // provide cross-host exclusivity — warn loudly, since this is an operating
+  // provide cross-host exclusivity: warn loudly, since this is an operating
   // model violation, not a code bug.
   try {
     if (fs.statfsSync) {
@@ -145,7 +145,7 @@ export async function acquireProcessLock(sockPath, identity = null) {
         console.error(`WARNING: witness safety directory appears to be on a NETWORK filesystem (fs magic 0x${(magic >>> 0).toString(16)}). The witness process lock is HOST-LOCAL and cannot prevent a second witness on another host sharing this path. Move the safety directory to local storage (one witness identity == one host).`)
       }
     }
-  } catch { /* statfs unsupported or path absent — best-effort */ }
+  } catch { /* statfs unsupported or path absent: best-effort */ }
   const bind = () => new Promise((resolve, reject) => {
     const server = net.createServer()
     server.once('error', reject)
@@ -180,7 +180,7 @@ export async function acquireProcessLock(sockPath, identity = null) {
         err.code = 'ERR_WITNESS_LOCK_COLLISION'
         throw err
       }
-      const err = new Error(`witness process lock ${sockPath} is held by a live process${who} — refusing to start a second witness for this (worldId, witnessId)`)
+      const err = new Error(`witness process lock ${sockPath} is held by a live process${who}: refusing to start a second witness for this (worldId, witnessId)`)
       err.code = 'ERR_WITNESS_LOCK_HELD'
       throw err
     }
@@ -246,21 +246,21 @@ export function durableStore(file) {
       let raw
       try { raw = fs.readFileSync(file) } catch (e) {
         if (e.code === 'ENOENT') return null
-        throw new Error(`safety record ${file} is unreadable (${e.code ?? e.message}) — refusing to treat it as absent; inspect the file`)
+        throw new Error(`safety record ${file} is unreadable (${e.code ?? e.message}), refusing to treat it as absent; inspect the file`)
       }
       try { return JSON.parse(raw.toString()) } catch (e) {
-        throwCoded(ERR.CORRUPT_SAFETY_RECORD, `safety record ${file} is corrupt (${e.message}) — refusing to treat it as absent; preserve and inspect the file`)
+        throwCoded(ERR.CORRUPT_SAFETY_RECORD, `safety record ${file} is corrupt (${e.message}), refusing to treat it as absent; preserve and inspect the file`)
       }
     },
     // Spent safety records retire into a HISTORY JOURNAL with unique,
     // content-addressed names (final brief §5): `<file>.history/<tick>-
-    // <bundleHash>.json` — never overwritten, rename fsynced, pruned to a
+    // <bundleHash>.json`: never overwritten, rename fsynced, pruned to a
     // bounded window so the journal cannot grow without limit.
     archive: (name = String(Date.now())) => {
       const dir = file + '.history'
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
       fs.renameSync(file, path.join(dir, name.replace(/[^a-zA-Z0-9._-]/g, '_') + '.json'))
-      // rev6 §7: STRICT fsync — an archival durability failure cannot hurt
+      // rev6 §7: STRICT fsync, an archival durability failure cannot hurt
       // consensus (the frontier is already durable) but it must SURFACE:
       // the throw lands in the agreement layer's log, never in silence
       fsyncDir(dir, { strict: true })
@@ -273,7 +273,7 @@ export function durableStore(file) {
 }
 
 // An append-only finality INDEX (final pre-freeze brief §2): durable,
-// forensic record of every finalized tick — tick, bundle hash, resulting
+// forensic record of every finalized tick: tick, bundle hash, resulting
 // state hash, certificate hash, and (optionally) the full certificate. This
 // outlives the bounded in-memory history so conflicting historical
 // certificates can be detected after any retention window, and after a
@@ -315,7 +315,7 @@ export function finalityIndexStore(file, { keepFullCert = true } = {}) {
   }
   return {
     // Append one finalized record's index entry. The STORE enforces the
-    // per-(worldId, tick) immutability invariant (final pre-freeze §2) — its
+    // per-(worldId, tick) immutability invariant (final pre-freeze §2): its
     // correctness does not depend on the caller checking first:
     //   • first append for a tick        → written and returned
     //   • identical append for that tick  → idempotent, returns the existing entry
@@ -327,7 +327,7 @@ export function finalityIndexStore(file, { keepFullCert = true } = {}) {
         const prior = readAt(existing.start, existing.len)
         if (prior.bundleHash === record.bundleHash && prior.resultingStateHash === record.resultingStateHash)
           return prior // idempotent: history already holds this exact commitment
-        const e = new Error(`finality index: refusing to overwrite tick ${record.tick} — history is immutable (indexed ${prior.bundleHash.slice(0, 8)}…→${prior.resultingStateHash.slice(0, 8)}…, attempted ${record.bundleHash.slice(0, 8)}…→${record.resultingStateHash.slice(0, 8)}…)`)
+        const e = new Error(`finality index: refusing to overwrite tick ${record.tick}, history is immutable (indexed ${prior.bundleHash.slice(0, 8)}…→${prior.resultingStateHash.slice(0, 8)}…, attempted ${record.bundleHash.slice(0, 8)}…→${record.resultingStateHash.slice(0, 8)}…)`)
         e.conflict = { indexed: prior, committing: { tick: record.tick, bundleHash: record.bundleHash, resultingStateHash: record.resultingStateHash } }
         throw e
       }
@@ -366,7 +366,7 @@ export function finalityIndexStore(file, { keepFullCert = true } = {}) {
         if (!line) continue
         let e
         try { e = JSON.parse(line) } catch (err) {
-          throwCoded(ERR.CORRUPT_SAFETY_RECORD, `finality index ${file} has a corrupt entry (${err.message}) — preserve and inspect`)
+          throwCoded(ERR.CORRUPT_SAFETY_RECORD, `finality index ${file} has a corrupt entry (${err.message}), preserve and inspect`)
         }
         if (e.tick === tick) found = e // last write wins (append order)
       }
@@ -439,7 +439,7 @@ export function finalityIndexStore(file, { keepFullCert = true } = {}) {
 
 // Production finality store on SQLite (freeze & storage brief §2), behind the
 // EXACT same interface as the flat-file store: { get, append, latestTick,
-// validate, close }. "Storage is not consensus" — this changes only how the
+// validate, close }. "Storage is not consensus": this changes only how the
 // same protocol records are persisted, never the records, hashes, signatures,
 // or replay semantics. It provides atomic transactions, an indexed primary
 // key on (world_id, tick), a uniqueness constraint that enforces append-only
@@ -487,7 +487,7 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
     },
     append: (record) => {
       // §3 strict world binding: a world-bound store requires every record to
-      // identify its world — via the top-level worldId or its bundle.worldId
+      // identify its world: via the top-level worldId or its bundle.worldId
       // (certificates always carry the bundle). A record that identifies NO
       // world, or a DIFFERENT world, is rejected: cross-world contamination
       // could mask a conflicting certificate. A store with no configured
@@ -495,12 +495,12 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
       const recWorld = record.worldId ?? record.bundle?.worldId ?? null
       if (wid) {
         if (recWorld == null) {
-          const e = new Error(`sqlite finality store for world ${String(wid).slice(0, 8)}… refuses a record with no world ID — production records must be world-bound`)
+          const e = new Error(`sqlite finality store for world ${String(wid).slice(0, 8)}… refuses a record with no world ID: production records must be world-bound`)
           e.code = 'ERR_WORLD_MISMATCH'
           throw e
         }
         if (recWorld !== wid) {
-          const e = new Error(`sqlite finality store for world ${String(wid).slice(0, 8)}… refuses a record for world ${String(recWorld).slice(0, 8)}… — cross-world contamination`)
+          const e = new Error(`sqlite finality store for world ${String(wid).slice(0, 8)}… refuses a record for world ${String(recWorld).slice(0, 8)}…, cross-world contamination`)
           e.code = 'ERR_WORLD_MISMATCH'
           throw e
         }
@@ -517,7 +517,7 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
             return toEntry(existing) // idempotent
           }
           db.exec('ROLLBACK')
-          const e = new Error(`sqlite finality store: refusing to overwrite (world ${String(rid).slice(0, 8)}…, tick ${record.tick}) — history is immutable`)
+          const e = new Error(`sqlite finality store: refusing to overwrite (world ${String(rid).slice(0, 8)}…, tick ${record.tick}), history is immutable`)
           e.conflict = { indexed: { tick: existing.tick, bundleHash: existing.bundle_hash, resultingStateHash: existing.state_hash }, committing: { tick: record.tick, bundleHash: record.bundleHash, resultingStateHash: record.resultingStateHash } }
           throw e
         }
@@ -542,19 +542,19 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
       // signature verification) is bounded to the recent tail. Sealed older
       // records were fully verified when first accepted and cannot change.
       const total = (w
-        ? db.prepare('SELECT COUNT(*) AS c FROM finality WHERE world_id = ?').get(w)
-        : db.prepare('SELECT COUNT(*) AS c FROM finality').get()).c
+        ? db.prepare('SELECT COUNT(*) AS c FROM finality WHERE world_id = ?').get(w):
+        db.prepare('SELECT COUNT(*) AS c FROM finality').get()).c
       // cheap structural scan on all rows: malformed hashes or ticks anywhere
       const bad = (w
-        ? db.prepare("SELECT tick FROM finality WHERE world_id = ? AND (tick < 0 OR length(bundle_hash) != 64 OR length(state_hash) != 64 OR length(certificate_hash) != 64) LIMIT 1").get(w)
-        : db.prepare("SELECT tick FROM finality WHERE (tick < 0 OR length(bundle_hash) != 64 OR length(state_hash) != 64 OR length(certificate_hash) != 64) LIMIT 1").get())
+        ? db.prepare("SELECT tick FROM finality WHERE world_id = ? AND (tick < 0 OR length(bundle_hash) != 64 OR length(state_hash) != 64 OR length(certificate_hash) != 64) LIMIT 1").get(w):
+        db.prepare("SELECT tick FROM finality WHERE (tick < 0 OR length(bundle_hash) != 64 OR length(state_hash) != 64 OR length(certificate_hash) != 64) LIMIT 1").get())
       if (bad) return `malformed row at tick ${bad.tick}`
       // expensive tail: parse + re-hash (+ optional cert verify) on the newest N
       const tailN = Number.isFinite(verifyRecentN) ? Math.min(verifyRecentN, total) : total
       if (tailN > 0) {
         const tail = w
-          ? db.prepare('SELECT * FROM finality WHERE world_id = ? ORDER BY tick DESC LIMIT ?').all(w, tailN)
-          : db.prepare('SELECT * FROM finality ORDER BY tick DESC LIMIT ?').all(tailN)
+          ? db.prepare('SELECT * FROM finality WHERE world_id = ? ORDER BY tick DESC LIMIT ?').all(w, tailN):
+          db.prepare('SELECT * FROM finality ORDER BY tick DESC LIMIT ?').all(tailN)
         for (const row of tail) {
           let cert
           try { cert = JSON.parse(Buffer.from(row.certificate).toString('utf8')) } catch { return `unparseable certificate at tick ${row.tick}` }
@@ -576,8 +576,8 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
       const stat = (p) => { try { return fs.statSync(p).size } catch { return 0 } }
       const rowCount = db.prepare('SELECT COUNT(*) AS c FROM finality').get().c
       const maxT = wid
-        ? db.prepare('SELECT MAX(tick) AS m FROM finality WHERE world_id = ?').get(wid)
-        : db.prepare('SELECT MAX(tick) AS m FROM finality').get()
+        ? db.prepare('SELECT MAX(tick) AS m FROM finality WHERE world_id = ?').get(wid):
+        db.prepare('SELECT MAX(tick) AS m FROM finality').get()
       let freeBytes = null
       try { const s = fs.statfsSync ? fs.statfsSync(path.dirname(file)) : null; if (s) freeBytes = s.bavail * s.bsize } catch { /* not all platforms */ }
       return {
@@ -592,7 +592,7 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
         freeDiskBytes: freeBytes,
       }
     },
-    // §8 consistent online backup via VACUUM INTO — safe while the store is
+    // §8 consistent online backup via VACUUM INTO: safe while the store is
     // live (does not require copying the file or stopping finalization).
     backup: (destPath) => {
       db.exec(`VACUUM INTO '${destPath.replace(/'/g, "''")}'`)
@@ -606,14 +606,14 @@ export function sqliteFinalityStore(file, { worldId = null, durability = {} } = 
 // resolve node:sqlite lazily and give a clear error if unavailable
 function requireSqlite() {
   try { return createRequire(import.meta.url)('node:sqlite') }
-  catch (e) { throw new Error('node:sqlite is unavailable in this runtime (need Node >= 22.5 with SQLite) — use finalityIndexStore (flat-file) instead: ' + e.message) }
+  catch (e) { throw new Error('node:sqlite is unavailable in this runtime (need Node >= 22.5 with SQLite), use finalityIndexStore (flat-file) instead: ' + e.message) }
 }
 
 // One-time migration from the flat-file finality index to SQLite (§2). It
 // validates every source record, verifies certificate hashes, rejects
 // conflicting ticks, inserts transactionally, verifies the row count, and
 // preserves the original log as an immutable backup. It never reinterprets
-// protocol data — it copies verified records verbatim.
+// protocol data: it copies verified records verbatim.
 export function migrateFlatFileToSqlite(flatFile, sqliteFile, { worldId = null, verifyCert = null } = {}) {
   // §5 fully atomic migration: validate source → build a TEMP database →
   // verify row counts, content hashes, and integrity → atomically replace the
@@ -626,7 +626,7 @@ export function migrateFlatFileToSqlite(flatFile, sqliteFile, { worldId = null, 
   for (const line of raw.split('\n')) { if (line) entries.push(JSON.parse(line)) }
 
   // refuse to clobber an existing destination silently
-  if (fs.existsSync(sqliteFile)) throw new Error(`migration aborted: destination ${sqliteFile} already exists — move it aside first`)
+  if (fs.existsSync(sqliteFile)) throw new Error(`migration aborted: destination ${sqliteFile} already exists, move it aside first`)
 
   const tmpFile = sqliteFile + '.migrating.' + process.pid
   // clean any leftover temp from a previous crashed attempt
@@ -688,7 +688,7 @@ export class IntervalNode {
   constructor(opts) {
     this.genesis = opts.genesis
     // rev7 §3: the node validates its OWN founding boundary BEFORE any
-    // world is built — never assume the caller (or an injected
+    // world is built: never assume the caller (or an injected
     // buildWorld) already did
     {
       const gerr = E.validateGenesis(this.genesis)
@@ -706,7 +706,7 @@ export class IntervalNode {
     this._verifyWorkers = opts.verifyWorkers ?? Number(process.env.INTERVAL_VERIFY_WORKERS ?? 0)
     this.tamper = opts.tamper || null
     // pre-freeze §6: EVERY builder result is validated the moment it
-    // returns — never conditioned on tick, never assumed. A valid
+    // returns: never conditioned on tick, never assumed. A valid
     // checkpoint may replace this state afterward through the normal
     // checkpoint-verification path.
     // §0: THE FOUNDING CACHE.
@@ -726,9 +726,9 @@ export class IntervalNode {
     this.state = _cached ?? opts.buildWorld(opts.genesis)
     {
       const serr = E.validateState(this.state)
-      if (serr) throwCoded(ERR.INVALID_BUILT_STATE, `buildWorld produced an invalid state (${serr}) — refusing to run`)
+      if (serr) throwCoded(ERR.INVALID_BUILT_STATE, `buildWorld produced an invalid state (${serr}): refusing to run`)
       if (E.canonical(this.state.genesis) !== E.canonical(this.genesis))
-        throwCoded(ERR.INVALID_BUILT_STATE, 'buildWorld embedded a DIFFERENT genesis than the one supplied — refusing to run on an ambiguous founding')
+        throwCoded(ERR.INVALID_BUILT_STATE, 'buildWorld embedded a DIFFERENT genesis than the one supplied, refusing to run on an ambiguous founding')
     }
     // Written only after it has passed, so a cache can never hold a state this
     // node would itself refuse.
@@ -767,7 +767,7 @@ export class IntervalNode {
     // §2: bounded startup verification is the GENERIC default. An omitted
     // value resolves to the shared bounded constant (not Infinity). Infinity
     // is an explicit audit opt-in; 0 disables cert re-verification (structure
-    // is still checked on every row). `?? ` — not `||` — so an explicit 0 is
+    // is still checked on every row). `?? `, not `||`, so an explicit 0 is
     // honored rather than falling back to the default.
     this.startupVerifyRecentN = opts.startupVerifyRecentN ?? DEFAULT_STARTUP_VERIFY_RECENT_N
     this._lastCheckpointTick = -1
@@ -785,7 +785,7 @@ export class IntervalNode {
     if (this.checkpointFile && fs.existsSync(this.checkpointFile)) {
       // rev4 brief §8: a MISSING checkpoint is a fresh boot; an EXISTING
       // one that is unreadable or invalid is evidence of trouble. A
-      // witness must never silently recreate genesis over it — a fresh
+      // witness must never silently recreate genesis over it: a fresh
       // tick-0 state under a durable frontier is precisely the rollback
       // the frontier exists to refuse, so fail here, with the better
       // message, and preserve the file. Observers may resynchronize.
@@ -793,7 +793,7 @@ export class IntervalNode {
       try { cp = JSON.parse(fs.readFileSync(this.checkpointFile)) } catch (e) { cperr = 'unreadable: ' + e.message }
       if (!cperr) cperr = this.validateCheckpoint(cp)
       if (cperr) {
-        if (opts.witnessKey) throwCoded(ERR.INVALID_CHECKPOINT, `witness checkpoint ${this.checkpointFile} is invalid (${cperr}) — refusing to recreate state over it; preserve the file, then restore a valid checkpoint or sync a certified one`)
+        if (opts.witnessKey) throwCoded(ERR.INVALID_CHECKPOINT, `witness checkpoint ${this.checkpointFile} is invalid (${cperr}), refusing to recreate state over it; preserve the file, then restore a valid checkpoint or sync a certified one`)
         this.log.push(`[${this.name}] disk checkpoint rejected (${cperr}); founding fresh state (observer will re-sync)`)
       } else {
         this.state = cp.state
@@ -807,16 +807,16 @@ export class IntervalNode {
     // A genesis WITH a witness set is an authoritative world: nothing
     // finalizes except through quorum-attested bundles, and the local
     // timer only paces proposals. A genesis WITHOUT one runs the legacy
-    // optimistic mode (spec §9e) — kept for the early demos, never for
+    // optimistic mode (spec §9e): kept for the early demos, never for
     // an authoritative network.
     this.agreement = null
     this.witnessKey = opts.witnessKey ?? null
     if (Array.isArray(this.genesis.witnesses)) {
       // CONSENSUS.md §4 / LOCK-1: the vote lock must be ON DISK before the
       // attestation is broadcast. The frontier file (CONSENSUS.md §6.3)
-      // guards the other direction: a restart from a stale checkpoint —
-      // which would re-sign already-finalized history — refuses to start.
-      // rev5 §1: safety records live in a WORLD-NAMESPACED directory —
+      // guards the other direction: a restart from a stale checkpoint,
+      // which would re-sign already-finalized history: refuses to start.
+      // rev5 §1: safety records live in a WORLD-NAMESPACED directory,
       //   <safetyDir>/<worldId>/{active-lock.json, frontier.json,
       //                          active-lock.json.history/}
       // so reusing a filesystem path across worlds cannot cross records.
@@ -828,8 +828,8 @@ export class IntervalNode {
         // safety directory. Observers (no witnessKey) keep the flat
         // world-namespaced layout.
         safetyBase = this.witnessKey
-          ? path.join(opts.safetyDir, this.worldId, this.witnessKey.playerId)
-          : path.join(opts.safetyDir, this.worldId)
+          ? path.join(opts.safetyDir, this.worldId, this.witnessKey.playerId):
+          path.join(opts.safetyDir, this.worldId)
         fs.mkdirSync(safetyBase, { recursive: true, mode: 0o700 })
         // §1: an exclusive process-lifetime lock for this (worldId,
         // witnessId). A second live process for the same identity is refused
@@ -837,7 +837,7 @@ export class IntervalNode {
         // attestation and race the first into a double-sign.
         // §1/§2: a TRUE kernel-held exclusive lock for this (worldId,
         // witnessId), acquired in start() BEFORE the agreement layer begins
-        // driving — a second live process for the same identity is refused,
+        // driving: a second live process for the same identity is refused,
         // so it can never emit an attestation and race the first into a
         // double-sign. We only record the path here (acquisition is async).
         if (this.witnessKey && opts.exclusiveProcessLock !== false) {
@@ -858,31 +858,31 @@ export class IntervalNode {
         }
       }
       const lockStore = opts.lockStore
-        ?? (safetyBase ? durableStore(path.join(safetyBase, 'active-lock.json'))
-          : opts.lockFile ? durableStore(opts.lockFile) : null)
+        ?? (safetyBase ? durableStore(path.join(safetyBase, 'active-lock.json')):
+          opts.lockFile ? durableStore(opts.lockFile) : null)
       const frontierStore = opts.frontierStore
-        ?? (safetyBase ? durableStore(path.join(safetyBase, 'frontier.json'))
-          : opts.frontierFile ? durableStore(opts.frontierFile)
-            : opts.lockFile ? durableStore(opts.lockFile.replace(/\.lock$/, '') + '.frontier') : null)
+        ?? (safetyBase ? durableStore(path.join(safetyBase, 'frontier.json')):
+          opts.frontierFile ? durableStore(opts.frontierFile):
+            opts.lockFile ? durableStore(opts.lockFile.replace(/\.lock$/, '') + '.frontier') : null)
       // append-only durable finality index (§2): forensic history for
       // conflicting-certificate detection beyond the in-memory window. The
-      // backend is selectable behind one interface — "storage is not
+      // backend is selectable behind one interface: "storage is not
       // consensus". SQLite is the default EVERYWHERE (production brief §2);
       // 'flatfile' is the explicit dev/compat option. Unknown values are
       // rejected rather than silently falling back.
       const backend = opts.finalityBackend ?? 'sqlite'
       if (backend !== 'sqlite' && backend !== 'flatfile')
-        throwCoded(ERR.INVALID_BACKEND, `unknown finalityBackend '${backend}' — expected 'sqlite' (default) or 'flatfile'`)
+        throwCoded(ERR.INVALID_BACKEND, `unknown finalityBackend '${backend}': expected 'sqlite' (default) or 'flatfile'`)
       const finalityIndexStore_ = opts.finalityIndexStore
         ?? (safetyBase
           ? (backend === 'sqlite'
-            ? sqliteFinalityStore(path.join(safetyBase, 'finality.db'), { worldId: this.worldId })
-            : finalityIndexStore(path.join(safetyBase, 'finality-index.ndjson')))
-          : opts.finalityIndexFile ? finalityIndexStore(opts.finalityIndexFile) : null)
+            ? sqliteFinalityStore(path.join(safetyBase, 'finality.db'), { worldId: this.worldId }):
+            finalityIndexStore(path.join(safetyBase, 'finality-index.ndjson'))):
+          opts.finalityIndexFile ? finalityIndexStore(opts.finalityIndexFile) : null)
       // §1 recovery: with sparse checkpoints the loaded snapshot can sit
       // BEHIND the durable frontier. Finality certificates preserve every
       // transition, so replay the certified records from (checkpoint+1) up to
-      // the frontier — each verified and re-executed byte-for-byte — BEFORE
+      // the frontier: each verified and re-executed byte-for-byte, BEFORE
       // the agreement's frontier check runs. This turns "checkpoint behind
       // frontier" from a refusal into a fast, certified catch-up.
       if (this.witnessKey && frontierStore && finalityIndexStore_) {
@@ -897,8 +897,8 @@ export class IntervalNode {
         getState: () => this.state,
         setState: (next) => { this.state = next },
         publish: (kind, obj) => {
-          const topic = kind === 'bundle' ? this.topics.bundles
-            : kind === 'attestation' ? this.topics.attestations : this.topics.finality
+          const topic = kind === 'bundle' ? this.topics.bundles:
+            kind === 'attestation' ? this.topics.attestations : this.topics.finality
           this.p2p?.services.pubsub.publish(topic, Buffer.from(JSON.stringify(obj))).catch(() => {})
         },
         onFinalized: (record) => this.afterFinalize(record),
@@ -912,13 +912,18 @@ export class IntervalNode {
   // with a valid quorum proof. Windows act from the finalized one.
   get finalizedTick() { return this.state.tick }
   get scheduledTick() {
-    return this.agreement ? this.agreement.scheduledTick()
-      : Math.max(0, Math.floor((Date.now() - this.genesis.anchorMs) / E.TICK_MS))
+    return this.agreement ? this.agreement.scheduledTick():
+      Math.max(0, Math.floor((Date.now() - this.genesis.anchorMs) / E.TICK_MS))
   }
 
   // Every finalization: bookkeeping that legacy advanceTick used to do.
   afterFinalize(record) {
     const hash = record.resultingStateHash
+    // §5g-ii: keep the seal over the living for the interval just committed.
+    // Only the quorum's signatures are kept, not the bundle: a few hundred
+    // bytes, and the one thing a citizen's own proof cannot manufacture.
+    if (record.livingRoot) this.seal = P.makeSeal(this.worldId, record)
+    else this.seal = null
     this.myHashes.set(record.tick + 1, hash)
     this.checkDivergence(record.tick + 1)
     const horizon = this.state.tick - LIMITS.MAX_HASH_HISTORY_TICKS
@@ -937,8 +942,8 @@ export class IntervalNode {
   }
 
   // Fix brief §2.5 / §6.4 / Phase 9: a checkpoint is adopted only if its
-  // envelope is internally consistent, bound to this exact world, and —
-  // in a witnessed world — carries a valid quorum finality proof for its
+  // envelope is internally consistent, bound to this exact world, and:
+  // in a witnessed world: carries a valid quorum finality proof for its
   // state. Returns an error string, or null when valid.
   validateCheckpoint(cp) {
     if (!cp || typeof cp !== 'object' || !cp.state) return 'malformed'
@@ -947,13 +952,13 @@ export class IntervalNode {
     if (!Number.isInteger(cp.tick) || cp.state.tick !== cp.tick) return 'tick inconsistent'
     if (typeof cp.stateHash !== 'string' || !/^[0-9a-f]{64}$/.test(cp.stateHash)) return 'malformed state hash'
     if (E.stateHash(cp.state) !== cp.stateHash) return 'state hash mismatch'
-    // Priority 5: never replay from a structurally hostile state — bounds,
+    // Priority 5: never replay from a structurally hostile state, bounds,
     // shapes, and safe integers are checked before the state touches the engine
     const serr = E.validateState(cp.state)
     if (serr) return 'invalid state: ' + serr
     if (Array.isArray(this.genesis.witnesses) && cp.tick > 0) {
       // Phase 9: trust is the proof carried by the bytes, not the server
-      // that sent them. Tick 0 needs no proof — genesis is reproducible.
+      // that sent them. Tick 0 needs no proof: genesis is reproducible.
       const proof = cp.finalityProof
       if (!proof) return 'no finality proof'
       const perr = P.verifyFinalityProof(this.genesis, this.worldId, proof)
@@ -968,7 +973,7 @@ export class IntervalNode {
   // replaying certified finalized records. Each record is verified against
   // genesis and re-executed deterministically; the resulting hash must match
   // the certificate. This is the "restart from checkpoint + replay" path that
-  // makes sparse checkpoints safe — state reaches the frontier before the
+  // makes sparse checkpoints safe: state reaches the frontier before the
   // agreement layer decides whether it may sign.
   _replayCheckpointToFrontier(frontierStore, finalityIndex) {
     let f
@@ -989,10 +994,10 @@ export class IntervalNode {
       const perr = P.verifyFinalityProof(this.genesis, this.worldId, cert)
       if (perr) throw new Error(`recovery: certified record at tick ${tick} does not verify (${perr})`)
       if (E.stateHash(this.state) !== cert.previousStateHash)
-        throw new Error(`recovery: state hash at tick ${tick} does not match the certified previous-state hash — checkpoint and finality history disagree`)
+        throw new Error(`recovery: state hash at tick ${tick} does not match the certified previous-state hash, checkpoint and finality history disagree`)
       const next = E.nextState(this.state, cert.bundle.inputs)
       if (E.stateHash(next) !== cert.resultingStateHash)
-        throw new Error(`recovery: replay at tick ${tick} produced a different state than certified — refusing to resume on divergent history`)
+        throw new Error(`recovery: replay at tick ${tick} produced a different state than certified, refusing to resume on divergent history`)
       this.state = next
       this._resumedProof = cert
     }
@@ -1001,14 +1006,14 @@ export class IntervalNode {
 
   async start() {
     // §2: acquire the exclusive kernel-held witness lock BEFORE anything
-    // else — before networking, before the agreement drives — so a duplicate
+    // else: before networking, before the agreement drives, so a duplicate
     // process is rejected before it can touch the network or sign.
     if (this._processLockPath && !this._processLock) {
       this._processLock = await acquireProcessLock(this._processLockPath, this._processLockIdentity)
     }
     // §2 fail-safe startup: from here on, any failure must release EVERY
     // partially-initialized resource (lock, SQLite, libp2p) so a restart can
-    // immediately re-acquire — a half-started witness must not linger holding
+    // immediately re-acquire: a half-started witness must not linger holding
     // exclusivity or a socket.
     try {
       return await this._startInner()
@@ -1063,8 +1068,8 @@ export class IntervalNode {
     ps.addEventListener('message', (evt) => this.onMessage(evt))
     // serve recent input history for catch-up (spec §9b)
     await this.p2p.handle(this.ticklogProto, async ({ stream }) => {
-      // remaining-fixes brief §8: a request may span many transport chunks
-      // — and §7: it may also be hostile in size. Read fully, bounded.
+      // remaining-fixes brief §8: a request may span many transport chunks,
+      // and §7: it may also be hostile in size. Read fully, bounded.
       let reqBuf
       try { reqBuf = await readAll(stream.source, LIMITS.MAX_REQUEST_BYTES) } catch { return }
       let req; try { req = JSON.parse(reqBuf.toString()) } catch { return }
@@ -1074,7 +1079,7 @@ export class IntervalNode {
       const out = []
       let bytes = 0
       if (this.agreement) {
-        // Milestone 5: catch-up material is CERTIFIED bundles — each entry
+        // Milestone 5: catch-up material is CERTIFIED bundles, each entry
         // carries its own quorum proof, so the server earns no trust
         for (let t = req.from; t < to && out.length < P.AGREEMENT.MAX_CATCHUP_RECORDS; t++) {
           const rec = this.agreement.finalizedLog.get(t)
@@ -1106,7 +1111,7 @@ export class IntervalNode {
 
   // Late join (spec §9a). In a witnessed world a checkpoint carries a
   // quorum finality proof, so ONE peer is enough: we verify the proof,
-  // not the peer (fix brief Phase 9 — "verify a proof carried by bytes
+  // not the peer (fix brief Phase 9: "verify a proof carried by bytes
   // from any server"). In legacy worlds, >=2 corroborating peers remain
   // required (allowSingle accepts founder-trust explicitly).
   async syncFromPeers(addrs, opts = {}) {
@@ -1119,17 +1124,17 @@ export class IntervalNode {
       const buf = await readAll(stream.source, LIMITS.MAX_CHECKPOINT_BYTES)
       cps.push(JSON.parse(buf.toString()))
     }
-    // fix brief §2.5: matching bytes are not enough — every checkpoint must
+    // fix brief §2.5: matching bytes are not enough, every checkpoint must
     // be bound to THIS world (worldId, byte-identical genesis, consistent
     // envelope, quorum proof where the world has witnesses)
     for (const cp of cps) {
       const err = this.validateCheckpoint(cp)
-      if (err) throwCoded(ERR.CHECKPOINT_REJECTED, 'checkpoint rejected: ' + err + ' — refusing to adopt')
+      if (err) throwCoded(ERR.CHECKPOINT_REJECTED, 'checkpoint rejected: ' + err + ', refusing to adopt')
     }
     const hashes = cps.map(cp => cp.stateHash)
     const ticks = cps.map(cp => cp.tick)
     if (new Set(hashes).size !== 1 || new Set(ticks).size !== 1) {
-      throwCoded(ERR.CHECKPOINT_UNCORROBORATED, 'checkpoint corroboration failed: peers disagree — refusing to adopt')
+      throwCoded(ERR.CHECKPOINT_UNCORROBORATED, 'checkpoint corroboration failed: peers disagree, refusing to adopt')
     }
     this.adoptState(cps[0].state, cps[0].finalityProof)
     this.myHashes.set(this.state.tick, hashes[0])
@@ -1228,11 +1233,11 @@ export class IntervalNode {
   onMessage(evt) {
     const { topic, data } = evt.detail
     // fix brief §5.3: check size BEFORE parsing or allocating anything
-    const cap = topic === this.chatTopic ? LIMITS.MAX_CHAT_BYTES
-      : topic === this.topics.bundles ? P.AGREEMENT.MAX_BUNDLE_BYTES
-      : topic === this.topics.attestations ? P.AGREEMENT.MAX_ATTESTATION_BYTES
-      : topic === this.topics.finality ? P.AGREEMENT.MAX_FINALITY_BYTES
-      : LIMITS.MAX_GOSSIP_BYTES
+    const cap = topic === this.chatTopic ? LIMITS.MAX_CHAT_BYTES:
+      topic === this.topics.bundles ? P.AGREEMENT.MAX_BUNDLE_BYTES:
+      topic === this.topics.attestations ? P.AGREEMENT.MAX_ATTESTATION_BYTES:
+      topic === this.topics.finality ? P.AGREEMENT.MAX_FINALITY_BYTES:
+      LIMITS.MAX_GOSSIP_BYTES
     if (data.length > cap) return
     let msg
     try { msg = JSON.parse(Buffer.from(data).toString()) } catch { return }
@@ -1269,7 +1274,7 @@ export class IntervalNode {
       // ---- VERIFY ON ARRIVAL, NOT AT TICK TIME ----
       //
       // The engine verifies every signature inside nextState, and at two
-      // thousand acting citizens that is 328 ms of a 600 ms tick — the
+      // thousand acting citizens that is 328 ms of a 600 ms tick: the
       // single largest cost in the whole thing, and it lands in the worst
       // possible moment: the instant the tick must run.
       //
@@ -1284,7 +1289,7 @@ export class IntervalNode {
       // happens. A forged signature caches as false and is still refused.
       //
       // Measured: with the cache warm, nextState at 2,000 falls from 796 ms
-      // to 310 ms. The verification did not get cheaper — it stopped
+      // to 310 ms. The verification did not get cheaper: it stopped
       // happening inside the tick.
       //
       // It is also the natural place to parallelise: a pool of workers can
@@ -1297,7 +1302,7 @@ export class IntervalNode {
     if (topic === this.topics.hashes) {
       const { tick, hash } = msg
       // remaining-fixes brief §9: NEVER trust an identity supplied inside
-      // the JSON — bind the announcement to the transport identity. Gossip
+      // the JSON: bind the announcement to the transport identity. Gossip
       // messages are StrictSign'd by libp2p, so evt.detail.from is the
       // authenticated ORIGINATOR, unforgeable by relays. These
       // announcements are DIAGNOSTICS ONLY (divergence flags in the UI):
@@ -1320,7 +1325,7 @@ export class IntervalNode {
     for (const [peer, hash] of this.peerHashes.get(tick) || []) {
       if (hash !== mine && !this.divergent.has(peer)) {
         this.divergent.set(peer, tick)
-        this.log.push(`[${this.name}] DIVERGENCE: peer ${peer.slice(0, 8)}… broke the rules at tick ${tick} — ignoring their world`)
+        this.log.push(`[${this.name}] DIVERGENCE: peer ${peer.slice(0, 8)}… broke the rules at tick ${tick}, ignoring their world`)
       }
     }
   }
@@ -1341,7 +1346,7 @@ export class IntervalNode {
 
   // LEGACY optimistic mode only (worlds without a witness set): advance
   // on the local timer. In an authoritative world nothing finalizes on a
-  // timer — the agreement layer owns finalization, and this is a bug.
+  // timer: the agreement layer owns finalization, and this is a bug.
   async advanceTick() {
     if (this.agreement) throw new Error('advanceTick is forbidden in a witnessed world: finality comes from quorum, not the clock')
     const tick = this.state.tick
@@ -1362,7 +1367,7 @@ export class IntervalNode {
     this.inputBuffer.delete(tick)
     this.checkDivergence(tick + 1)
 
-    // §5.5: prune history maps by finalized tick — bounded memory forever
+    // §5.5: prune history maps by finalized tick, bounded memory forever
     const horizon = this.state.tick - LIMITS.MAX_HASH_HISTORY_TICKS
     for (const t of this.myHashes.keys()) if (t < horizon) this.myHashes.delete(t)
     for (const t of this.peerHashes.keys()) if (t < horizon) this.peerHashes.delete(t)
@@ -1371,7 +1376,7 @@ export class IntervalNode {
     // persist checkpoint OFF the tick path, through the serialized writer
     // (fix brief §6): one write at a time, newest snapshot wins, crash-safe
     // rename, and failures are logged instead of swallowed. §1: only every
-    // `checkpointInterval` finalized ticks — finality certificates already
+    // `checkpointInterval` finalized ticks: finality certificates already
     // record every transition, so checkpoints exist purely to speed recovery.
     if (this.checkpointFile && this.state.tick - this._lastCheckpointTick >= this.checkpointInterval) {
       this._lastCheckpointTick = this.state.tick
@@ -1409,7 +1414,7 @@ export class IntervalNode {
   //  - errors surface in the log instead of vanishing
   queueCheckpoint() {
     // §1: once shutdown begins, no NEW checkpoint may be queued by normal
-    // operation — the only checkpoint after that point is the single final
+    // operation: the only checkpoint after that point is the single final
     // one written via _queueCheckpointInternal() before exclusivity releases.
     if (this._shuttingDown) return
     this._queueCheckpointInternal()
@@ -1449,7 +1454,7 @@ export class IntervalNode {
             console.error(`[${this.name}] checkpoint write FAILED (${this._cpFailures}x): ${e.message}`)
           }
           await fs.promises.rm(tmp, { force: true }).catch(() => {})
-          // during shutdown a write failure must FAIL CLOSED — the drain
+          // during shutdown a write failure must FAIL CLOSED: the drain
           // needs to see it, not have it swallowed as best-effort.
           if (this._shuttingDown) { fatal = e; break }
         }
@@ -1468,14 +1473,14 @@ export class IntervalNode {
   // it deterministically. In a witnessed world each fetched entry is a
   // certified finality record: the proof is verified, the bundle is
   // replayed locally, and the certified result is demanded byte-for-byte
-  // (fix brief §3.4 — never adopt raw state).
+  // (fix brief §3.4: never adopt raw state).
   async catchUpFrom(addr, targetTick) {
     while (this.state.tick < targetTick) {
       const before = this.state.tick
       const stream = await this.p2p.dialProtocol(addr, this.ticklogProto)
       await stream.sink([Buffer.from(JSON.stringify({ from: this.state.tick, to: targetTick }))])
       const log = JSON.parse((await readAll(stream.source, LIMITS.MAX_REPLAY_RESPONSE_BYTES)).toString())
-      if (!log.length) throw new Error('peer log does not reach back to tick ' + this.state.tick + ' — re-sync from checkpoint instead')
+      if (!log.length) throw new Error('peer log does not reach back to tick ' + this.state.tick + ', re-sync from checkpoint instead')
       if (this.agreement) {
         for (const rec of log) {
           if (rec.tick !== this.state.tick) continue
@@ -1497,7 +1502,7 @@ export class IntervalNode {
   }
 
   // The shared clock (spec §2). In a witnessed world the schedule only
-  // PACES proposals — finalization is quorum evidence (Milestone 4). In
+  // PACES proposals: finalization is quorum evidence (Milestone 4). In
   // legacy mode it finalizes locally (spec §9e, prototype only).
   startTicking() {
     if (this.agreement) { this.agreement.start(); return }
@@ -1525,7 +1530,7 @@ export class IntervalNode {
   //   2. mark shutting-down so no NEW checkpoint can be queued
   //   3. queue a final checkpoint if the state moved since the last one
   //   4. DRAIN all checkpoint I/O (in-flight AND pending) to genuine
-  //      completion — no timeout, no continue-anyway
+  //      completion: no timeout, no continue-anyway
   //   5. close SQLite (flush + release the db)
   //   6. release the process lock (exclusivity ends here)
   //   7. stop networking
@@ -1608,7 +1613,7 @@ export class IntervalNode {
   }
 
   // Wait for all checkpoint work (in-flight write AND any pending snapshot)
-  // to finish, by awaiting the writer's completion signal — never a timer.
+  // to finish, by awaiting the writer's completion signal: never a timer.
   // If the writer starts again while we wait (a race with a late queue), we
   // loop until it is genuinely idle.
   async _drainCheckpoint() {

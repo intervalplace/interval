@@ -1,7 +1,7 @@
 // §6dj, for the writ window: CAN A WRIT BREAK THE RULE IT IS SHAPED BY.
 //
 // Every other window is checked for what it SHOWS. This one's central claim is
-// a constraint — one function, called once an interval, returning one deed —
+// a constraint: one function, called once an interval, returning one deed,
 // and a constraint is only worth anything if it holds against somebody trying.
 // So this check is adversarial: it hands the window writs that return arrays,
 // that throw, that never return, that ask for verbs the pillar does not take,
@@ -96,7 +96,7 @@ ok(r.deed && r.deed.do === 'stop', 'and so is WebSocket')
 const ladder = new Set([...readFileSync('serve.mjs', 'utf8').matchAll(/a\.do === '([a-z_]+)'/g)].map(m => m[1]))
 r = await ask('function decide(){ return {do:"become_king"} }', world, me)
 ok(r.deed && !ladder.has(r.deed.do),
-   'a writ may ASK for a verb the pillar does not carry \u2014 and the pillar drops it, as it would from any window')
+   'a writ may ASK for a verb the pillar does not carry, and the pillar drops it, as it would from any window')
 ok(/writWaiting/.test(src) && /missed it/.test(src),
    'and a writ that has not answered by the next tick misses that interval rather than queueing')
 

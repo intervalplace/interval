@@ -14,12 +14,12 @@
 //     beside them. Now the wall yields to the road, wherever the road
 //     arrives.
 //   - **The country is thicker.** The first greenwood held one tree per
-//     hundred tiles — a wood that was mostly the idea of a wood. Densities
+//     hundred tiles: a wood that was mostly the idea of a wood. Densities
 //     roughly double across the wild countries, and the beasts with them.
 //     Measured, not assumed: see test/expanse2.test.mjs for the envelope
 //     this founding was benchmarked into.
 //   - **Rest on the road.** Each spoke carries a wayside hearth near its
-//     midpoint — light and cooked food halfway through the long walk.
+//     midpoint: light and cooked food halfway through the long walk.
 //
 // Per PRELAUNCH-AUDIT §6, this ships as a NEW GENERATOR ID: the first
 // expanse's worlds keep their country, and a divergence is an announcement,
@@ -37,7 +37,7 @@ export const WORLDGEN_MIN = { w: 256, h: 160 }
 // the river towns sit six tiles east of the river's centerline at their own
 // latitude (the river runs along their western streets, inside the walls,
 // entering through watergates), and Eastmere's southeast corner opens on the
-// bay. Positions remain pure in the founding record — riverX is seed-pure —
+// bay. Positions remain pure in the founding record: riverX is seed-pure,
 // so every node and every window agrees where the towns stand.
 export function settlementsOf(g) {
   const W = g.worldW, H = g.worldH
@@ -109,7 +109,7 @@ export function roadTilesOf(g) {
 export const onRoad = (g, x, y) => roadTilesOf(g).has(x + ',' + y)
 
 // Fords: crossings exist where the road crosses and along every town's main
-// street — same law as the first expanse. What v2 adds is not a new crossing
+// street: same law as the first expanse. What v2 adds is not a new crossing
 // but a visible one: windows paint every ford tile as planks (a bridge), so a
 // crossing the rules permit is a crossing the eye can find.
 export function fordAt(g, x, y) {
@@ -201,7 +201,7 @@ export function buildWorld(genesis) {
     // A town's essentials step aside from the water rather than drown: if a
     // fixed offset lands in the river (the river towns are ON the river now),
     // the building takes the nearest free dry tile inside the walls, by a
-    // deterministic ring search — every node seats the same bank on the same
+    // deterministic ring search: every node seats the same bank on the same
     // ground. The first expanse skipped a drowned offset silently, which is
     // how a town could quietly lose its bank.
     const placeNear = (id, type, dx, dy, extra) => {
@@ -378,7 +378,7 @@ export function buildWorld(genesis) {
   for (const [tag, x, y] of frontier) putWaystone('waystone-' + tag, x, y)
 
   const serr = E.validateState(w)
-  if (serr) throw new Error('worldgen produced an invalid state (' + serr + ') — founding aborted')
+  if (serr) throw new Error('worldgen produced an invalid state (' + serr + '), founding aborted')
   w._composition = counts
   return w
 }

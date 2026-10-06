@@ -35,8 +35,8 @@ for (let d = 40; d <= 120 && dbl === null; d++) {
   if (t.length === T.length && t.every((v, i) => v === T[i])) dbl = d / 10
 }
 ok(dbl !== null, dbl !== null
-  ? 'every entry is reproduced by the documented expression, doubling every ' + dbl + ' levels'
-  : 'NO doubling period reproduces the shipped table — a literal has been hand-edited, '
+  ? 'every entry is reproduced by the documented expression, doubling every ' + dbl + ' levels':
+  'NO doubling period reproduces the shipped table, a literal has been hand-edited, '
     + 'or the expression above it no longer describes it')
 
 if (dbl !== null) {
@@ -52,14 +52,14 @@ if (dbl !== null) {
     sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
     forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 }
   const words = (t) => t.toLowerCase().split(/[\s-]+/).filter((x) => x !== 'and')
-    .reduce((a, w) => w === 'hundred' ? { ...a, h: (a.n || 1) * 100, n: 0 }
-      : { ...a, n: (a.n || 0) + (UNITS[w] ?? 0) }, { h: 0, n: 0 })
+    .reduce((a, w) => w === 'hundred' ? { ...a, h: (a.n || 1) * 100, n: 0 }:
+      { ...a, n: (a.n || 0) + (UNITS[w] ?? 0) }, { h: 0, n: 0 })
   const src = readFileSync(new URL('./engine.js', import.meta.url), 'utf8')
   const m = src.match(/([a-z][a-z\s-]*?) levels sit above mastery/i)
   const claimed = m ? (() => { const v = words(m[1]); return v.h + v.n })() : null
   ok(claimed === above, m
-    ? 'the note says ' + m[1] + ' levels sit above mastery, and there are ' + above
-    : 'the note no longer states how many levels sit above mastery')
+    ? 'the note says ' + m[1] + ' levels sit above mastery, and there are ' + above:
+    'the note no longer states how many levels sit above mastery')
 }
 
 // the two claims the pacing rests on, in the only unit that means anything now
@@ -72,6 +72,6 @@ console.log('  ·     at ' + REF + ' xp/interval: 50 in ' + day(50).toFixed(1)
   + 'd, 70 in ' + Math.round(day(70)) + 'd, mastery in ' + Math.round(day(100))
   + 'd (' + (day(100) / 365).toFixed(1) + ' years of perfect attendance)')
 
-console.log(bad ? '\nFAIL — ' + bad + ' claim(s) about the curve are no longer true'
-                : '\nok — the curve is the curve its comment describes')
+console.log(bad ? '\nFAIL, ' + bad + ' claim(s) about the curve are no longer true':
+                '\nok, the curve is the curve its comment describes')
 process.exit(bad ? 1 : 0)

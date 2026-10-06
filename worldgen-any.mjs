@@ -51,7 +51,7 @@ export function generatorFor(genesis) {
   const g = GENERATORS[genesis.worldGenerator]
   if (!g) throw new Error(
     `this genesis names generator ${JSON.stringify(genesis.worldGenerator)}, which this node does not implement `
-    + `(it knows: ${Object.keys(GENERATORS).join(', ')}) — refusing to guess at another world's landscape`)
+    + `(it knows: ${Object.keys(GENERATORS).join(', ')}), refusing to guess at another world's landscape`)
   return g
 }
 
@@ -97,8 +97,8 @@ export function roadDataOf(genesis) {
   const tiles = [...gen.roadTilesOf(genesis)]
   const isWater = gen.isWater
   const bridges = (typeof isWater === 'function')
-    ? tiles.filter((k) => { const c = k.indexOf(','); return isWater(genesis, +k.slice(0, c), +k.slice(c + 1)) })
-    : []
+    ? tiles.filter((k) => { const c = k.indexOf(','); return isWater(genesis, +k.slice(0, c), +k.slice(c + 1)) }):
+    []
   const bends = (typeof gen.roadBendsOf === 'function') ? gen.roadBendsOf(genesis) : []
   return { tiles, bridges, bends }
 }

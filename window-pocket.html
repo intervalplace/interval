@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- POCKET — an Interval window for handhelds.
+<!-- POCKET: an Interval window for handhelds.
      640x480, d-pad first, no mouse anywhere. Speaks the pillar's real
      protocol: auth by uid, act by 'do' verbs, full-state broadcasts.
      Serve it from the pillar: add to serve.mjs
@@ -24,8 +24,8 @@
 // ---------- identity & socket (window-web's exact handshake) ----------
 let uid = localStorage.getItem('interval-uid')
 if (!uid) {
-  uid = (crypto.randomUUID ? crypto.randomUUID()
-        : Array.from({length:32}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join(''))
+  uid = (crypto.randomUUID ? crypto.randomUUID():
+        Array.from({length:32}, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random()*36)]).join(''))
   localStorage.setItem('interval-uid', uid)
 }
 let ws = null, myId = null, world = null, worldId = '', connected = false, lastStateAt = 0
@@ -263,7 +263,7 @@ function draw(now) {
   // top HUD
   px(0,0,640,HUD_H,'#221610'); px(0,HUD_H-2,640,2,'#4a3323')
   cx.font='11px monospace'; cx.textAlign='left'; cx.fillStyle='#a8906e'
-  if (!connected) cx.fillText('NO SIGNAL \u2014 the world waits', 8, 18)
+  if (!connected) cx.fillText('NO SIGNAL, the world waits', 8, 18)
   else if (!s)    cx.fillText('listening for the world\u2026', 8, 18)
   else {
     cx.fillStyle='#f0dfc0'
@@ -309,7 +309,7 @@ function draw(now) {
     }
     if (me && (me.deadUntil ?? 0) > s.tick) {
       px(0,HUD_H,640,VH*T,'#000000aa'); cx.fillStyle='#c93a2e'; cx.font='16px monospace'; cx.textAlign='center'
-      cx.fillText('you fell \u2014 waking at tick ' + me.deadUntil, 320, 220)
+      cx.fillText('you fell, waking at tick ' + me.deadUntil, 320, 220)
     }
     if (!me && connected && myId) {
       px(0,HUD_H,640,VH*T,'#00000088'); cx.fillStyle='#f0dfc0'; cx.font='14px monospace'; cx.textAlign='center'
@@ -330,13 +330,13 @@ function draw(now) {
     px(120,80,400,320,'#221610ee'); cx.strokeStyle='#4a3323'; cx.lineWidth=2; cx.strokeRect(120,80,400,320)
     cx.font='11px monospace'; cx.textAlign='left'
     if (mode==='menu') {
-      cx.fillStyle='#a8906e'; cx.fillText('SATCHEL \u2014 A: use \u00b7 B: close', 136, 102)
+      cx.fillStyle='#a8906e'; cx.fillText('SATCHEL, A: use \u00b7 B: close', 136, 102)
       menuItems().forEach((it,i) => {
         cx.fillStyle = i===menuIdx ? '#e2703a' : '#f0dfc0'
         cx.fillText((i===menuIdx?'> ':'  ') + it.t, 136, 124 + i*16)
       })
     } else {
-      cx.fillStyle='#a8906e'; cx.fillText('CLAIM NAME \u2014 \u2191\u2193 letter \u00b7 \u2192 add \u00b7 \u2190 del \u00b7 A confirm', 136, 102)
+      cx.fillStyle='#a8906e'; cx.fillText('CLAIM NAME, \u2191\u2193 letter \u00b7 \u2192 add \u00b7 \u2190 del \u00b7 A confirm', 136, 102)
       cx.fillStyle='#f0dfc0'; cx.font='20px monospace'
       cx.fillText(nameBuf + '[' + CHARSET[nameChar] + ']', 136, 150)
       cx.font='11px monospace'

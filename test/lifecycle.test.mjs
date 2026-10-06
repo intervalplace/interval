@@ -9,9 +9,11 @@ import path from 'path'
 import E from '../engine.js'
 import { buildWorld } from '../worldgen.mjs'
 import { IntervalNode, acquireProcessLock, processLockPathFor } from '../node.mjs'
+import { shortTmp } from './tmpdir.mjs'
 
 const RULES = E.sha256(fs.readFileSync(new URL('../SPEC.md', import.meta.url))).toString('hex')
-const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p))
+// short enough that the witness process lock fits in a socket path (tmpdir.mjs)
+const tmp = (p) => shortTmp(p)
 
 function witnessGenesis(seed) {
   const w1 = E.generateIdentity()
@@ -167,7 +169,7 @@ test('shutdown waits for an ALREADY-IN-FLIGHT checkpoint write to finish', async
 test('shutdown waits for a checkpoint write LONGER than the old 10s timeout', async () => {
   // the old implementation released the lock after 10s regardless; the new one
   // must wait for genuine completion however long it takes. We simulate a
-  // 200ms write and assert stop() does not return early — the mechanism is the
+  // 200ms write and assert stop() does not return early: the mechanism is the
   // same regardless of duration (a completion promise, not a deadline).
   const dir = tmp('drain-long-')
   const node = await (await mkNode(dir)).start()
@@ -219,7 +221,7 @@ test('no checkpoint files are written after the process lock is released', async
   await new Promise(r => setTimeout(r, 200))
   await node.stop()
   // capture the checkpoint dir mtime after shutdown, then confirm nothing
-  // changes it — the gate makes post-shutdown queueCheckpoint a no-op
+  // changes it: the gate makes post-shutdown queueCheckpoint a no-op
   const cpDir = path.dirname(path.join(dir, 'cp.json'))
   const before = fs.readdirSync(cpDir).map(n => { try { return n + ':' + fs.statSync(path.join(cpDir, n)).mtimeMs } catch { return n } }).sort()
   node.queueCheckpoint()
@@ -246,7 +248,7 @@ test('shutdown FAILS CLOSED (lock retained) if the final checkpoint cannot be wr
   }
   try {
     await assert.rejects(node.stop(), e => e.code === 'ERR_SHUTDOWN_CHECKPOINT_FAILED')
-    // the lock is STILL HELD — exclusivity was not released behind a failed write
+    // the lock is STILL HELD: exclusivity was not released behind a failed write
     assert.ok(node._processLock, 'process lock retained after fail-closed shutdown')
   } finally {
     fs.promises.open = origOpen

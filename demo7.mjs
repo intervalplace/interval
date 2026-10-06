@@ -1,7 +1,7 @@
-// Interval demo 7 — adversarial behavior over a REAL libp2p mesh.
+// Interval demo 7: adversarial behavior over a REAL libp2p mesh.
 //
 // Four witnesses (quorum 3) + an observer, all gossiping over real
-// gossipsub, plus a MALICIOUS node that publishes — on the real topics —
+// gossipsub, plus a MALICIOUS node that publishes: on the real topics,
 // forged bundles, forged attestations, replayed messages, and outright
 // garbage. Meanwhile one honest witness is KILLED and RESTARTED from its
 // real on-disk vote-lock and frontier stores, and a late observer joins
@@ -53,8 +53,8 @@ nodes.forEach(n => n.startTicking())
 const mover = setInterval(() => {
   const s = nodes[4].state
   const inp = s.players[alice.playerId]
-    ? { worldId, tick: s.tick, playerId: alice.playerId, type: 'move', dx: 1, dy: 0 }
-    : { worldId, tick: s.tick, playerId: alice.playerId, type: 'spawn' }
+    ? { worldId, tick: s.tick, playerId: alice.playerId, type: 'move', dx: 1, dy: 0 }:
+    { worldId, tick: s.tick, playerId: alice.playerId, type: 'spawn' }
   nodes[4].submitInput(E.signInput(inp, alice.privateKey)).catch(() => {})
 }, 600)
 
@@ -77,19 +77,19 @@ const attack = setInterval(() => {
   forged += 3
 }, 250)
 
-console.log('\n— phase 1: full set + malicious flood —')
+console.log('\n, phase 1: full set + malicious flood,')
 await sleep(6000)
 const p1 = nodes.slice(0, 4).every(n => n.state.tick >= 4 && !n.agreement.halted)
 console.log(`  ${nodes.map(n => `${n.name}:${n.state.tick}${n.agreement.halted ? '(HALT)' : ''}`).join(' ')}  forged msgs sent: ${forged}`)
 
-console.log('\n— phase 2: kill honest witness w1; quorum 3 of remaining 3 holds —')
+console.log('\n, phase 2: kill honest witness w1; quorum 3 of remaining 3 holds,')
 const beforeKill = nodes[4].state.tick
 await nodes[1].stop()
 await sleep(6000)
 const survived = nodes.filter(n => n.name !== 'w1').every(n => n.state.tick > beforeKill)
 console.log(`  ${nodes.filter(n=>n.name!=='w1').map(n => `${n.name}:${n.state.tick}`).join(' ')}  (advanced past ${beforeKill}: ${survived})`)
 
-console.log('\n— phase 3: restart w1 from its DURABLE stores; it rejoins —')
+console.log('\n, phase 3: restart w1 from its DURABLE stores; it rejoins,')
 const w1b = mk('w1', W[1])
 await w1b.start()
 for (const n of nodes) if (n.name !== 'w1' && n.name !== 'evil') await w1b.dial(n.addr())
@@ -104,7 +104,7 @@ await sleep(6000)
 const rejoined = w1b.state.tick > beforeKill && !w1b.agreement.halted
 console.log(`  w1 restarted → tick ${w1b.state.tick} (rejoined & advancing: ${rejoined})`)
 
-console.log('\n— phase 4: a late observer joins and proof-syncs through the flood —')
+console.log('\n, phase 4: a late observer joins and proof-syncs through the flood,')
 // let the mesh settle so every honest witness reports the same frontier
 await sleep(2500)
 const late = mk('late', null)
@@ -112,13 +112,13 @@ await late.start()
 for (const n of nodes) if (n.name !== 'evil') await late.dial(n.addr())
 await sleep(1000)
 // A live world advances during the sampling window, so honest peers may
-// serve DIFFERENT (valid) ticks; corroboration then refuses — the SAFE
+// serve DIFFERENT (valid) ticks; corroboration then refuses: the SAFE
 // outcome. Pause ticking briefly so the frontier is stable, sync, resume.
 // (A production joiner instead syncs a proof at a pinned height; here we
 // just quiet the world for a clean snapshot.)
 // This is a WITNESSED world: a checkpoint carries its own quorum finality
-// proof and is self-authenticating, so a single peer suffices (allowSingle)
-// — cross-peer corroboration is for UNproven worlds. The proof is verified
+// proof and is self-authenticating, so a single peer suffices (allowSingle):
+// cross-peer corroboration is for UNproven worlds. The proof is verified
 // against genesis in validateCheckpoint regardless of the flood.
 let synced = false
 for (let attempt = 0; attempt < 6 && !synced; attempt++) {
@@ -146,7 +146,7 @@ for (const n of live)
     if (P.verifyFinalityProof(GENESIS, worldId, rec)) badCerts++
 
 const agreedTicks = [...byTick.keys()].length
-console.log('\n— verdict —')
+console.log('\n, verdict,')
 console.log(`  finalized ticks observed: ${agreedTicks}`)
 console.log(`  forks (two honest hashes for one tick): ${forks}`)
 console.log(`  invalid certificates committed: ${badCerts}`)

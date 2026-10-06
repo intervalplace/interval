@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// recover.mjs (v0.78) — certified reconstruction from the accountability store.
+// recover.mjs (v0.78): certified reconstruction from the accountability store.
 //
 // When every checkpoint is lost, fabricated, or forked, ONE source of
 // truth remains: the finality index, where every finalized tick sits as
 // a quorum-signed certificate carrying its input bundle. This tool
 // rebuilds the world from genesis, replays every certified tick (each
 // replay checked against its attested hash), and writes the resulting
-// state as checkpoints/web.json — the exact finalized present, bit for
+// state as checkpoints/web.json: the exact finalized present, bit for
 // bit. No history is re-signed; nothing is trusted that is not proved.
 //
 // Usage:  INTERVAL_DATA=/path node recover.mjs
@@ -46,11 +46,11 @@ const surveyed = witnessDirs.map((d) => {
 for (const sv of surveyed) console.log('witness ' + sv.d.slice(0, 12) + '…: '
   + (sv.tick >= 0 ? 'frontier tick ' + sv.tick + ' (' + sv.hash.slice(0, 8) + '…)' : 'no frontier'))
 const want = process.env.INTERVAL_WITNESS
-const pick = want ? surveyed.find((sv) => sv.d.startsWith(want))
-  : surveyed.reduce((a, b) => (b.tick > (a?.tick ?? -1) ? b : a), null)
+const pick = want ? surveyed.find((sv) => sv.d.startsWith(want)):
+  surveyed.reduce((a, b) => (b.tick > (a?.tick ?? -1) ? b : a), null)
 if (!pick || pick.tick < 0) { console.error('no usable frontier' + (want ? ' for witness ' + want : '')); process.exit(1) }
 if (surveyed.filter((sv) => sv.tick >= 0).length > 1)
-  console.log('MULTIPLE branches found — recovering the furthest (' + pick.d.slice(0, 12) + '…). Set INTERVAL_WITNESS to choose the other.')
+  console.log('MULTIPLE branches found, recovering the furthest (' + pick.d.slice(0, 12) + '…). Set INTERVAL_WITNESS to choose the other.')
 const wdir = path.join(wroot, pick.d)
 const frontier = pick.f
 const target = frontier.tick
@@ -65,7 +65,7 @@ let lastRec = null
 for (let t = state.tick + 1; t <= target; t++) {
   const entry = index.get(t)
   const rec = entry?.cert ?? entry
-  if (!rec?.bundle) { console.error('no certificate stored for tick ' + t + ' — cannot reconstruct past it'); process.exit(1) }
+  if (!rec?.bundle) { console.error('no certificate stored for tick ' + t + ', cannot reconstruct past it'); process.exit(1) }
   const perr = P.verifyFinalityProof(genesis, worldId, rec)
   if (perr) { console.error('tick ' + t + ': stored certificate invalid: ' + perr); process.exit(1) }
   if (rec.previousStateHash !== ph) { console.error('tick ' + t + ': lineage break (cert expects ' + String(rec.previousStateHash).slice(0, 8) + '…, replay is at ' + ph.slice(0, 8) + '…)'); process.exit(1) }
@@ -85,4 +85,4 @@ fs.writeFileSync(CP_FILE + '.tmp', JSON.stringify({
   finalityProof: lastRec, // the quorum record certifying exactly this state
 })) // node's own checkpointEnvelope shape, hash-sealed, proof attached
 fs.renameSync(CP_FILE + '.tmp', CP_FILE)
-console.log('checkpoint written: ' + CP_FILE + ' — boot serve normally; it will resume AT the frontier.')
+console.log('checkpoint written: ' + CP_FILE + ', boot serve normally; it will resume AT the frontier.')

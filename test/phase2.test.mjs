@@ -2,7 +2,7 @@
 // These tests assert that Phase 2 changed COSTS, never ANSWERS: the clone is
 // byte-equivalent to the JSON round trip, the indexes return exactly what the
 // reference scans return, and whole transitions hash identically with every
-// combination of clone mode and index mode — and against the frozen Phase 1
+// combination of clone mode and index mode, and against the frozen Phase 1
 // binary (bench/phase1-engine.cjs).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -20,7 +20,7 @@ const canon = E.canonical
 // ---------- fixtures ----------
 
 // A small world (fast) decorated so that EVERY optional state field the
-// engine can ever write is present somewhere — not just an ordinary new
+// engine can ever write is present somewhere, not just an ordinary new
 // world (brief, "Clone Correctness Tests").
 function richState() {
   const g = E.makeGenesis('phase2-rich', 'b'.repeat(64), 0, 64, 48)
@@ -50,7 +50,7 @@ function richState() {
   p2.rootedUntil = 100; p2.rootImmuneUntil = 120; p2.rootCdUntil = 400
   p2.brandedUntil = 900; p2.lastInput = 40
   p3.action = { type: 'attackp', targetId: pids[1], since: 42, style: 'even' }
-  p4.hp = 0; p4.deadUntil = 60
+  p4.health = 0; p4.deadUntil = 60
   // nodes: planted plot, brewing brewpot, burning fire
   // §21e: REPLACE the node, do not write into it. Canonical bytes are memoised
   // against a node's own object, on the same reasoning that memoises a state's
@@ -157,12 +157,12 @@ test('clone independence: deep mutations of the clone never reach the source', (
   p.skills.mining += 999
   p.inventory[0].qty = 4444
   p.inventory[2] = { item: 'ore', qty: 1 }
-  p.equipment.weapon.item = 'star-sword'
+  p.equipment.weapon.item = 'quick-sword'
   p.action.nodeId = 'nope'
   p.trade.wantGold = 77
   p.attuned.push('phantom')
   p.vaults.ore = 999
-  p.x = 1; p.hp = 1
+  p.x = 1; p.health = 1
   const nid = Object.keys(c.nodes)[0]
   c.nodes[nid].x = 63
   c.nodes['bp-rich'].readyAt = 1
@@ -170,7 +170,7 @@ test('clone independence: deep mutations of the clone never reach the source', (
   c.nodes['new-node'] = { type: 'tree', x: 5, y: 5, depletedUntil: 0 }
   Object.values(c.ground)[0].qty = 999
   c.ground['g-new'] = { item: 'logs', x: 9, y: 9, expiresAt: 1 }
-  c.mobs[Object.keys(c.mobs)[0]].hp = -5
+  c.mobs[Object.keys(c.mobs)[0]].health = -5
   c.markers[0].x = 2; c.markers[1].ws = 'gone'
   c.announce[0].text = 'tampered'
   c.announce.push({ tick: 1, text: 'extra' })
@@ -255,7 +255,7 @@ test('ordering (2D): with multiple matching adjacent nodes, the indexed path sel
   // two unplanted plots and two waystones around one player, inserted in an
   // order chosen to differ from tile order
   E.addNode(s, 'zz-plot-late', 'plot', 21, 20)  // east
-  E.addNode(s, 'aa-plot-early', 'plot', 19, 20) // west — inserted AFTER the east one
+  E.addNode(s, 'aa-plot-early', 'plot', 19, 20) // west, inserted AFTER the east one
   E.addNode(s, 'ws-late', 'waystone', 20, 19)
   E.addNode(s, 'ws-early', 'waystone', 20, 21)
   const p = { x: 20, y: 20 }
@@ -336,7 +336,7 @@ test('brewpot decay and fire expiry through the centralized helpers, indexes on 
 // about the Phase 2 *optimizations* being behaviour-neutral, and it is only
 // meaningful while the live engine implements the same ruleset. Once the
 // constitution deliberately moves on, a divergence here is the rules changing,
-// not the optimization breaking — so the claim is pinned to the ruleset it was
+// not the optimization breaking, so the claim is pinned to the ruleset it was
 // made about rather than quietly re-based against a moving reference.
 const P1_SPEC = '0.52'
 const p1Comparable = E.SPEC_VERSION === P1_SPEC

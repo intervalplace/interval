@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Storage operations tooling (production brief §8). Operates on a witness's
-// SQLite finality store WITHOUT touching consensus — health snapshot, integrity
+// SQLite finality store WITHOUT touching consensus: health snapshot, integrity
 // checks, consistent online backup, and restore verification. "Storage is not
 // consensus": nothing here changes a protocol record.
 //

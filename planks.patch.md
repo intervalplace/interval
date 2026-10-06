@@ -1,4 +1,4 @@
-# `planks` do not stack — the engine changes
+# `planks` do not stack: the engine changes
 
 Four edits to `engine.js`. Line numbers are against release 0.99.0.
 
@@ -10,7 +10,7 @@ Four edits to `engine.js`. Line numbers are against release 0.99.0.
 existing* stack. The placement path wrote `{ item, qty }` into a single slot
 regardless, so any non-stackable added in bulk silently stacked. Five call
 sites did exactly that, and one of them (`dismantle_market`) returned
-thirty-two planks in one slot — a pack cap that a build-and-unbuild loop
+thirty-two planks in one slot: a pack cap that a build-and-unbuild loop
 could walk straight through.
 
 Non-stackable now means one unit per slot, everywhere, and the add is
@@ -64,7 +64,7 @@ atomic: it takes the room it needs or it takes nothing.
 +}
 ```
 
-## 3. `saw` — the gate asked about one plank and delivered two
+## 3. `saw`: the gate asked about one plank and delivered two
 
 Both the validator (9134) and the resolver (14542) must ask for `SAW_YIELD`.
 
@@ -94,7 +94,7 @@ literally true: it costs the whole pack and cannot be carried with anything
 else. It stays dearer than the brewpot (`buildPlanks: 8, buildOre: 2`), which
 preserves the ordering the old sixteen-logs-to-four recipe had. What it does
 not preserve is the wood: five logs sawn, against sixteen felled. Restoring
-that cost needs a `spanwork`-shaped incremental raise, not a bigger number —
+that cost needs a `spanwork`-shaped incremental raise, not a bigger number:
 a recipe payable in one trip is capped by the pack, and that is §5t's whole
 argument for depth over bulk.
 
@@ -118,7 +118,7 @@ and the materials vanish. The stall is deleted either way.
 ```
 
 `dropAt` is a stand-in for whatever `spillShelf` already uses to put goods on
-a tile — wire it to that, so a dismantled stall spills by exactly the rule its
+a tile: wire it to that, so a dismantled stall spills by exactly the rule its
 own shelf does.
 
 The same overflow exists at `13861` (brewpot, half the boards back) and

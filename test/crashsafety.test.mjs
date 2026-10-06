@@ -1,7 +1,7 @@
-// Final brief, Priority 1/2/5 — crash-safety failure injection.
+// Final brief, Priority 1/2/5: crash-safety failure injection.
 // The frontier must fail CLOSED: if finality cannot be recorded durably,
 // the witness halts with its vote lock intact, and a restart can only
-// rebroadcast — never produce a second vote.
+// rebroadcast: never produce a second vote.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'fs'
@@ -55,10 +55,13 @@ test('frontier persistence fails CLOSED: halt, lock intact, no advance; restart 
   const A = P.makeBundle({ worldId: world.worldId, tick: 0, round: 0, previousStateHash: ag.prevHash, inputs: [], witness: p0 })
   ag.onBundle(A)
   const rsh = ag.proposals.get(P.bundleHash(A)).rsh
-  // a second attestation completes quorum — finality is REACHED, but the
+  // §5g-ii: a vote that does not name the same root does not count, so an
+  // attestation written by hand has to name it, exactly as a witness would.
+  const lr = ag.proposals.get(P.bundleHash(A)).lr
+  // a second attestation completes quorum: finality is REACHED, but the
   // frontier cannot be recorded: the witness must halt, not proceed
   const otherKey = [w1, w3].find(k => k.playerId !== p0.playerId) ?? w1
-  ag.onAttestation(P.makeAttestation({ worldId: world.worldId, tick: 0, round: 0, bundleHash: P.bundleHash(A), resultingStateHash: rsh, witness: otherKey }))
+  ag.onAttestation(P.makeAttestation({ worldId: world.worldId, tick: 0, round: 0, bundleHash: P.bundleHash(A), resultingStateHash: rsh, livingRoot: lr, witness: otherKey }))
   assert.equal(ag.halted, true, 'halted on frontier persistence failure')
   assert.match(ag.haltReason, /frontier persist failed/)
   assert.equal(h.state.tick, 0, 'the state did NOT advance')
@@ -66,7 +69,7 @@ test('frontier persistence fails CLOSED: halt, lock intact, no advance; restart 
   assert.equal(lockMem.bundleHash, P.bundleHash(A), 'the durable lock is intact')
 
   // restart after the disk is fixed: the lock restores, a rival bundle is
-  // refused, and the original vote can still finalize — no second vote ever
+  // refused, and the original vote can still finalize: no second vote ever
   frontierBroken = false
   const h2 = { state: build(world), clock: 2 * E.TICK_MS + 100 }
   const ag2 = mk(world, w2, h2, { lockStore, frontierStore })
@@ -76,7 +79,7 @@ test('frontier persistence fails CLOSED: halt, lock intact, no advance; restart 
   ag2.onBundle(rival)
   assert.equal((h2.sink ?? []).filter(m => m.kind === 'attestation' && m.obj.bundleHash === P.bundleHash(rival)).length, 0, 'restart cannot produce another vote')
   ag2.onBundle(JSON.parse(JSON.stringify(A)))
-  ag2.onAttestation(P.makeAttestation({ worldId: world.worldId, tick: 0, round: 0, bundleHash: P.bundleHash(A), resultingStateHash: rsh, witness: otherKey }))
+  ag2.onAttestation(P.makeAttestation({ worldId: world.worldId, tick: 0, round: 0, bundleHash: P.bundleHash(A), resultingStateHash: rsh, livingRoot: lr, witness: otherKey }))
   assert.equal(h2.state.tick, 1, 'the ORIGINAL vote finalizes once the disk works')
   assert.equal(frontierMem.tick, 0, 'and the frontier now records it')
 })
@@ -91,7 +94,7 @@ test('same-height impostor state is refused at restart (frontier hash check)', (
   assert.equal(h.state.tick, 1)
   // an impostor at the SAME height: right tick, wrong bytes
   const impostor = JSON.parse(JSON.stringify(h.state))
-  impostor.players[alice.playerId].hp = 1
+  impostor.players[alice.playerId].health = 1
   assert.throws(() => mk(world, w1, { state: impostor, clock: 800 }, { frontierStore }),
     /frontier mismatch.*same-height impostor/s)
   // the REAL state resumes fine
@@ -162,7 +165,7 @@ test('exact engine invariants: actions, trades, equipment, skills, mob/node tabl
 
 test('the FULL worldgen world validates: every node type and extra the generator writes', () => {
   // the validator must be proven against real generator output, not toy
-  // states — this exact gap once made a live pillar refuse its own
+  // states: this exact gap once made a live pillar refuse its own
   // checkpoint (signpost text was an "unknown node field")
   const g = E.makeGenesis('full-map', RULES, 0, 320, 200)
   g.witnesses = [w1.playerId]; g.quorum = 1; g.byzantineTolerance = 0

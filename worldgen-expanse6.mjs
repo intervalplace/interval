@@ -1713,18 +1713,25 @@ export function makeExpanse6Genesis(genesisSeed, rulesHash, anchorMs = 0, W = 89
   // citizen carries out of the Wilds, so that reaching mastery finally buys
   // something to WEAR. The shape is the constitution's; these numbers are this
   // world's, and a v5 world (no gearReqs) keeps the old ladder to the byte.
+  // §6am-ii: THE SKILLS HAVE THE NAMES THE WORLD USES. This named six crafts
+  // that do not exist -- `defence`, `attack`, `woodcutting`, `mining`,
+  // `smithing` and `magic`, from before the nine were named -- and a gate on a
+  // skill nobody can have reads `effLevel(undefined) >= 80`, which is
+  // `1 >= 80`, false for ever. The whole quick tier was unwieldable and
+  // unforgeable by anybody here as well as in v7. `validateGenesis` refuses an
+  // unknown craft now, which is what found this one.
   g.gearReqs = {
     wield: {
-      'quick-helm': { defence: 80 }, 'quick-plate': { defence: 90 },
-      'quick-sword': { attack: 80 }, 'quick-dagger': { attack: 80 }, 'quick-spear': { attack: 80 },
-      'quick-mell': { attack: 85 }, 'quick-flail': { attack: 85 },
-      'quick-hatchet': { woodcutting: 85 }, 'quick-pickaxe': { mining: 85 },
+      'quick-helm': { prowess: 80 }, 'quick-plate': { prowess: 90 },
+      'quick-sword': { prowess: 80 }, 'quick-dagger': { prowess: 80 }, 'quick-spear': { prowess: 80 },
+      'quick-mell': { prowess: 85 }, 'quick-flail': { prowess: 85 },
+      'quick-hatchet': { woodcraft: 85 }, 'quick-pickaxe': { earthcraft: 85 },
     },
     smith: {
-      'quick-helm': { smithing: 80, magic: 40 }, 'quick-plate': { smithing: 90, magic: 50 },
-      'quick-sword': { smithing: 85, magic: 45 }, 'quick-dagger': { smithing: 85, magic: 48 },
-      'quick-spear': { smithing: 86, magic: 46 }, 'quick-mell': { smithing: 88, magic: 50 },
-      'quick-hatchet': { smithing: 82, magic: 42 }, 'quick-pickaxe': { smithing: 82, magic: 42 },
+      'quick-helm': { earthcraft: 80, sorcery: 40 }, 'quick-plate': { earthcraft: 90, sorcery: 50 },
+      'quick-sword': { earthcraft: 85, sorcery: 45 }, 'quick-dagger': { earthcraft: 85, sorcery: 48 },
+      'quick-spear': { earthcraft: 86, sorcery: 46 }, 'quick-mell': { earthcraft: 88, sorcery: 50 },
+      'quick-hatchet': { earthcraft: 82, sorcery: 42 }, 'quick-pickaxe': { earthcraft: 82, sorcery: 42 },
     },
   }
   // §6ao (v6): DURABLE NODES, so a FIXED small cluster holds any crowd. In one

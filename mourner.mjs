@@ -124,7 +124,7 @@ export class Mourner {
     this.say = say
     this.cal = { ...PRIOR, num: 1, den: 1, sure: false }
     this.seen = { mourning: 0 }
-    this.lastOffer = null            // { kind, given, xpBefore } — the calibration probe
+    this.lastOffer = null            // { kind, given, xpBefore }, the calibration probe
     this.obs = []                    // what the ledger actually paid, per gift
     this.errand = null
     this.phase = 'enter'
@@ -230,15 +230,15 @@ export class Mourner {
         }
       }
     }
-    if (!fits.length) { if (!this._noFit) { this._noFit = true; this.note('no curve in the family explains the ledger — staying on the prior') } return }
+    if (!fits.length) { if (!this._noFit) { this._noFit = true; this.note('no curve in the family explains the ledger, staying on the prior') } return }
     const heads = [...new Set(fits.map((f) => f.head))]
     const tails = [...new Set(fits.map((f) => f.tail))]
     if (heads.length === 1) {
       const was = this.cal.head, confirmed = this.cal.sure
       this.cal.head = heads[0]; this.cal.sure = true
       if (!confirmed) this.note(was === heads[0]
-        ? `the head is ${heads[0]} — the prior held, and now it is measured`
-        : `the head is ${heads[0]}, not the ${was} I assumed`)
+        ? `the head is ${heads[0]}, the prior held, and now it is measured`:
+        `the head is ${heads[0]}, not the ${was} I assumed`)
     }
     const rates = [...new Set(fits.map((f) => f.num + '/' + f.den))]
     if (rates.length === 1 && this.cal.num + '/' + this.cal.den !== rates[0]) {
@@ -250,8 +250,8 @@ export class Mourner {
       const was = this.cal.tail
       this.cal.tail = tails[0]; this.cal.tailSure = true
       this.note(was === tails[0]
-        ? `the rate settles after ${tails[0]} of a kind, as assumed`
-        : `the rate settles after ${tails[0]}, not ${was}`)
+        ? `the rate settles after ${tails[0]} of a kind, as assumed`:
+        `the rate settles after ${tails[0]}, not ${was}`)
     }
   }
 
@@ -407,8 +407,8 @@ export class Mourner {
     if (p.calling === undefined && mourn >= E.SWEAR_LEVEL) {
       const master = this.attesterNear(s, p)
       this.say(master
-        ? `swearing MOURNER, attested by ${c.displayName(master)}`
-        : 'swearing MOURNER, unattested — there was nobody to vouch, and that is legal (§5w)')
+        ? `swearing MOURNER, attested by ${c.displayName(master)}`:
+        'swearing MOURNER, unattested, there was nobody to vouch, and that is legal (§5w)')
       // §5q: swearing CHANGES THE RATE -- `awardXp` tags an offering
       // 'mourner', so once sworn the same gift teaches half again as much.
       // Every observation taken before this moment describes a different
@@ -422,7 +422,7 @@ export class Mourner {
       const pupil = this.pupilNear(s, p)
       if (pupil) {
         this.taught.add(pupil)
-        this.say(`offering to teach ${c.displayName(pupil)} — this is the one thing here I cannot do alone`)
+        this.say(`offering to teach ${c.displayName(pupil)}: this is the one thing here I cannot do alone`)
         return c.teach(pupil)
       }
     }
@@ -567,7 +567,7 @@ export class Mourner {
     const eta = rate ? Math.round(left / rate) : Infinity
     return [
       `tick ${this.c.tick}`,
-      `${p.name ?? '—'} ${grade}${p.calling ? ' (' + p.calling + ')' : ''}`,
+      `${p.name ?? ','} ${grade}${p.calling ? ' (' + p.calling + ')' : ''}`,
       `mourning ${lvl} (${xp})`,
       `${this.gifts} gifts of ${kinds} kinds`,
       `${this.spent} coins burned`,

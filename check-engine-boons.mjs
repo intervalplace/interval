@@ -27,23 +27,23 @@ const cit = (calling, skill, lv, raised) => ({ calling, raised, skills: { [skill
 ok(typeof E.masterOf === 'function', 'there is one question, and it is a function')
 ok(E.masterOf(cit('fighter', 'prowess', 100, 1), 'prowess'), 'a proven master of the trade: yes')
 ok(!E.masterOf(cit('fighter', 'prowess', 100, 0), 'prowess'),
-   'a hundred but never admitted (\u00a75n): NO \u2014 a boon nobody was admitted for is a number rewarding itself')
+   'a hundred but never admitted (\u00a75n): NO, a boon nobody was admitted for is a number rewarding itself')
 ok(!E.masterOf(cit('fighter', 'prowess', 99, 1), 'prowess'), 'admitted but not yet at a hundred: no')
 ok(!E.masterOf(cit('fighter', 'prowess', 100, 1), 'woodcraft'), 'and never in a trade they did not swear to')
 
 // ---- every trade is paid, and paid in its own coin ----
 const site = (re) => re.test(src)
-ok(site(/const _master = masterOf\(p, y\.skill\)/), 'gathering \u2014 two where others take one')
+ok(site(/const _master = masterOf\(p, y\.skill\)/), 'gathering, two where others take one')
 ok(site(/if \(!masterOf\(p, 'marksmanship'\)\) consumeItem/),
-   'marksmanship \u2014 an arrow that hits is an arrow you keep')
+   'marksmanship, an arrow that hits is an arrow you keep')
 ok(site(/masterOf\(p, 'sorcery'\) \? MASTER_YIELD : 1/),
-   'sorcery \u2014 three stones press two sigils')
+   'sorcery, three stones press two sigils')
 ok(site(/masterOf\(p, 'mourning'\) \? MASTER_YIELD : 1/),
-   'mourning \u2014 an offering counts double')
+   'mourning, an offering counts double')
 ok(site(/if \(masterOf\(q, 'wayfaring'\)\) return;/),
-   'wayfaring \u2014 a master runner does not spill')
+   'wayfaring, a master runner does not spill')
 ok(site(/masterOf\(p, 'prowess'\) \? MASTER_REC_NUM : MASTER_REC_DEN/),
-   'prowess \u2014 the arm comes back a quarter sooner')
+   'prowess, the arm comes back a quarter sooner')
 const paid = new Set()
 for (const m of src.matchAll(/masterOf\((?:p|q), '([a-z]+)'\)/g)) paid.add(m[1])
 paid.add('woodcraft'); paid.add('earthcraft'); paid.add('shorecraft'); paid.add('hearthcraft')

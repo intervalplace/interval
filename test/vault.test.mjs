@@ -7,6 +7,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { carry } from '../crossing.mjs'
 
 // Suites live beside engine.js in the repo. In this archive they are in
 // test/, so root walks up one. Delete this line when you drop them in.
@@ -30,7 +31,7 @@ const api = new Function(`
   return { _clonePlayer, adjacentVaultId, vaultAt }`)()
 
 const player = () => ({
-  x: 5, y: 5, hp: 64, skills: { woodcraft: 0 }, inventory: [null, null],
+  x: 5, y: 5, health: 64, skills: { woodcraft: 0 }, inventory: [null, null],
   equipment: {}, vaults: { foldvault: { logs: 40 }, anchorvault: { 'iron-ore': 7 } },
   gold: 0, action: null, name: null, trade: null, lastInput: 0,
 })
@@ -86,9 +87,27 @@ test('the gate and the resolver ask the same function', () => {
 })
 
 test('the crossing carries goods and not geography', () => {
+  // The flattening moved twice: out of serve.mjs into crossing.mjs, where it
+  // could be called without starting a node, and then into the engine as
+  // §9b-iii `carriedFrom`, because a citizen can now also come back through
+  // `restore` and the two doors must not disagree. So this asks the question
+  // of the BEHAVIOUR rather than of whichever file currently holds the lines:
+  // an anchor on source text has broken twice in this suite already.
+  const twoShelves = {
+    skills: { woodcraft: 400 }, name: 'rowan', health: 64, inventory: [], equipment: {},
+    vaults: { 'vault-millbrook': { logs: 4, gold: 100 }, 'vault-norwick': { logs: 3, iron: 2 } },
+    gold: 7,
+  }
+  const [out] = carry({ ['a'.repeat(64)]: twoShelves })
+  assert.deepEqual(out.vaults, { logs: 7, iron: 2 },
+    'the shelves are summed into one flat map on the way out, and the buildings are not carried')
+  assert.equal(out.gold, 107, 'and gold comes off the shelves onto the person')
   const serve = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
-  assert.match(serve, /Object\.values\(p\.vaults \?\? \{\}\)/,
-    'serve.mjs sums the vaults into one flat map on the way out')
+  // matched loosely on purpose: this asserts that serve.mjs DELEGATES rather
+  // than keeping its own copy of the projection, and the argument list is not
+  // the thing being asserted. Pinning it exactly broke this test when the old
+  // founding started travelling with the players (`lived` needs the purse).
+  assert.match(serve, /\bcarry\(old\.players\b/, 'and serve.mjs delegates to it rather than keeping a copy')
 
   // §9: THE SEATING IS ONE FUNCTION. It was copied into six generators, which
   // is how the landing vault reached exactly one of them -- every other world
@@ -126,22 +145,22 @@ const deposit = (vault, item, qty) => {
 }
 
 test('a vault fills to the cap and the remainder stays in the pack', () => {
-  const v = { 'magic-stone': VAULT_CAP - 10 }
-  const r = deposit(v, 'magic-stone', 50)
+  const v = { 'quick-stone': VAULT_CAP - 10 }
+  const r = deposit(v, 'quick-stone', 50)
   assert.equal(r.moved, 10, 'as much as fits')
   assert.equal(r.left, 40, 'and the rest is still carried')
-  assert.equal(v['magic-stone'], VAULT_CAP)
+  assert.equal(v['quick-stone'], VAULT_CAP)
 })
 
 test('a full vault takes nothing and says so', () => {
-  const v = { 'magic-stone': VAULT_CAP }
-  assert.deepEqual(deposit(v, 'magic-stone', 12), { moved: 0, left: 12 })
+  const v = { 'quick-stone': VAULT_CAP }
+  assert.deepEqual(deposit(v, 'quick-stone', 12), { moved: 0, left: 12 })
 })
 
 test('the cap is per kind, not per vault', () => {
   // Filling on ore must not stop a citizen banking a sword at the same counter.
-  const v = { 'magic-stone': VAULT_CAP }
-  assert.equal(deposit(v, 'star-sword', 1).moved, 1)
+  const v = { 'quick-stone': VAULT_CAP }
+  assert.equal(deposit(v, 'quick-sword', 1).moved, 1)
 })
 
 test('the gate refuses exactly when the resolver would move nothing', () => {
@@ -180,7 +199,13 @@ test('nothing live still calls a vault a bank', () => {
     .filter((f) => /\.(js|mjs|html)$/.test(f) && !f.startsWith('window-diablo'))
   const bad = []
   for (const f of files) {
+    // Code only, on the same principle as the seatImport check above: a
+    // comment may NAME the repealed word to explain what was repealed and why
+    // the code beside it changed. That is how a fix documents itself, and a
+    // rule that forbids even saying the old name pushes the explanation out of
+    // the file where it is needed.
     const t = fs.readFileSync(path.join(root, f), 'utf8')
+      .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n')
     for (const [re, why] of [
       [/'bank'/g, "node type 'bank'"],
       [/\.bank\b(?!er|ed|ing|able)/g, 'the field .bank'],
@@ -195,10 +220,18 @@ test('every rules-hash call site uses the shared module', () => {
   // The constitution is three documents. Six files hashed SPEC.md alone, so a
   // pillar and a joining peer would have computed different worlds -- and
   // play.mjs founded a solo world nobody could cross out of.
+  // Reading SPEC.md is not the offence; HASHING it alone is. `spec-stubs.mjs`
+  // reads it to splice section stubs into it, which is the whole job of the
+  // tool and has nothing to do with any world's identity. The check asked the
+  // easier question and flagged it, which is how a rule people trust starts
+  // getting ignored. It asks the real one now: a file that both reads SPEC.md
+  // and hashes something, without going through the shared module.
   const bad = []
   for (const f of fs.readdirSync(root).filter((x) => x.endsWith('.mjs'))) {
     const t = fs.readFileSync(path.join(root, f), 'utf8')
-    if (/readFileSync\(new URL\('\.\/SPEC\.md'/.test(t)) bad.push(f)
+    if (!/readFileSync\(new URL\('\.\/SPEC\.md'/.test(t)) continue
+    if (/from '\.\/rules-hash\.mjs'/.test(t)) continue
+    if (/createHash|sha256|rulesHash/.test(t)) bad.push(f)
   }
   assert.deepEqual(bad, [], `these hash SPEC.md alone: ${bad}`)
 })

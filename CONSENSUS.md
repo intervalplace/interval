@@ -1,6 +1,6 @@
-# Interval Consensus Specification v1.9 (Byzantine Safety Upgrade)
+# Interval Consensus Specification v1.10 (Byzantine Safety Upgrade)
 
-*Release 1.0.5 · protocol spec v1.05 · rules hash `df504ccae64e528b`…`*
+*Release 1.0.5 · protocol spec v1.05 · rules hash `1e7bde91977d9d2b`…`*
 
 **Certified Interval Bundles, the agreement protocol for authoritative worlds.**
 
@@ -129,18 +129,39 @@ signature-valid, for this world, for this tick.
 **Attestation**, one witness's vote:
 
 ```
-{ v, worldId, tick, round, bundleHash, resultingStateHash, witness, sig }
+{ v, worldId, tick, round, bundleHash, resultingStateHash, livingRoot,
+  witness, sig }
 ```
 
 domain `INTERVAL_ATTESTATION_V1|`. `resultingStateHash` is the hash the
 witness itself computed by applying the bundle to its finalized state.
+`livingRoot` is the root over the living (SPEC.md §5g-ii) of that same
+computed state, or `null` where the world holds no citizens. It is signed
+separately although `resultingStateHash` already covers it, because a flat
+hash over a state yields no inclusion proof: signing the root on its own is
+what lets a citizen prove their own record was in the world without anybody
+producing the state. A witness never signs a root it did not compute, and
+`null` is a value, not an omission.
 
 **FinalityRecord**, the portable proof:
 
 ```
-{ tick, round, previousStateHash, bundleHash, resultingStateHash,
+{ tick, round, previousStateHash, bundleHash, resultingStateHash, livingRoot,
   bundle, attestations[] }
 ```
+
+**Seal**, a finality record's quorum with the bundle dropped:
+
+```
+{ worldId, tick, livingRoot, attestations[] }
+```
+
+a few hundred bytes saying *root R stood over the living at interval N of
+world W, and these witnesses signed it.* `verifyLivingSeal(genesis, worldId,
+seal)` checks one against a founding and nothing else: no state, no
+checkpoint, and no node still running. A seal's `tick` is the interval of the
+state, which is one past the attestations' own `tick` (`sealTickOf`). A seal
+MUST NOT mix rounds. SUCCESSION.md depends on this.
 
 **VoteLock**, a witness's durable promise (§4):
 `{ format: "interval-witness-lock-v1", worldId, tick, bundleHash, bundle,
@@ -317,9 +338,15 @@ transition itself**, then applies the locking rule. A witness never
 signs a `resultingStateHash` it did not compute.
 
 **Finality.** Tick `t` is FINAL when `q` distinct witnesses attest the
-same `(bundleHash, resultingStateHash)` with attestation `round` equal
-to the bundle's round. The record is assembled from the bundle plus any
+same `(bundleHash, resultingStateHash, livingRoot)` with attestation `round`
+equal to the bundle's round. The record is assembled from the bundle plus any
 `q` such attestations.
+
+An attestation agreeing on the result but not on the root is NOT counted and
+is NOT a mismatch: the result hash covers the root, so agreement there means
+the two nodes computed the same state and differ only in how they summarised
+it, which is an old build rather than a fork. It does not halt the world; it
+simply cannot be used in this node's certificate.
 
 **Mismatch = halt.** A node MUST halt when: (a) `q` witnesses certify a
 `resultingStateHash` for a bundle that differs from the node's own

@@ -1,4 +1,4 @@
-// sky.mjs — the light, which is a pure function of the tick.
+// sky.mjs: the light, which is a pure function of the tick.
 //
 // Sun elevation and azimuth off `tick % DAY`, weather hashed off the
 // constitutional day, seasons off `dayIdx % 28`. Nothing here touches a
@@ -8,9 +8,9 @@
 // game can: its weather is a decision someone made at runtime, and this
 // is arithmetic that was true before anyone opened a window.
 //
-// This file exists because it was briefly written TWICE — once in
+// This file exists because it was briefly written TWICE: once in
 // window-photo.html to draw the forecast, once in verify-photo.mjs to
-// read a photograph's plate back — and two transcriptions of the same
+// read a photograph's plate back, and two transcriptions of the same
 // ladder is exactly how window-3d's terrain mirror fell thirteen nouns
 // behind. A verified photograph that names light the window never
 // showed is a lie told by the verifier, which is worse than no
@@ -80,7 +80,7 @@ function skyAt(tick) {
 // reaches the forecast.
 //
 // The sun rises at dayF 0 and sets at 0.5, so daylight is the FIRST HALF
-// of the constitutional day and 'morning' is dayF < 0.25 — not < 0.5,
+// of the constitutional day and 'morning' is dayF < 0.25, not < 0.5,
 // which is every daylit minute there is.
 function lightOf(s) {
   const rising = s.dayF < 0.25 || s.dayF >= 0.75

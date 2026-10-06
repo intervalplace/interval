@@ -1,4 +1,4 @@
-// migrate-checkpoint.mjs — normalise a checkpoint's player equipment to the
+// migrate-checkpoint.mjs: normalise a checkpoint's player equipment to the
 // current EQUIP_SLOTS (weapon, head, body, offhand, legs). Fills any missing
 // slot with null so a world founded under a 3-slot engine (or corrupted by the
 // pre-fix death-reset bug) loads cleanly under the 5-slot engine.

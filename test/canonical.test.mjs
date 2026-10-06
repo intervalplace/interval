@@ -1,4 +1,4 @@
-// Rev7 brief — one canonical representation of every valid input, every
+// Rev7 brief: one canonical representation of every valid input, every
 // valid persistent state, and every valid founding record.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -43,7 +43,7 @@ test('trade XOR is enforced in PERSISTED state, exactly as at the input', () => 
 test('equipment slot correctness: the shared slotOf() rules every layer', () => {
   const genesis = mkGenesis('slot-world')
   assert.equal(E.slotOf('iron-helm'), 'head')
-  assert.equal(E.slotOf('star-plate'), 'body')
+  assert.equal(E.slotOf('quick-plate'), 'body')
   assert.equal(E.slotOf('iron-sword'), 'weapon')
   const wearing = (eq, item) => {
     const s = base(genesis)
@@ -52,7 +52,7 @@ test('equipment slot correctness: the shared slotOf() rules every layer', () => 
   }
   assert.match(wearing('weapon', 'iron-helm'), /wrong slot.*belongs in head/)
   assert.match(wearing('head', 'iron-sword'), /wrong slot.*belongs in weapon/)
-  assert.match(wearing('weapon', 'star-plate'), /wrong slot.*belongs in body/)
+  assert.match(wearing('weapon', 'quick-plate'), /wrong slot.*belongs in body/)
   assert.match(wearing('head', 'logs'), /not equippable/)
   assert.equal(wearing('head', 'iron-helm'), null)
   assert.equal(wearing('weapon', 'old-chain'), null)
@@ -73,9 +73,9 @@ test('IntervalNode enforces its own boundaries: genesis, built state, and genesi
     /refusing to run on an invalid genesis/)
   const genesis = mkGenesis('boundary-world')
   // a builder that returns an INVALID state is caught at the node boundary
-  const badBuilder = (g) => { const s = E.newWorld(g); E.addPlayer(s, alice.playerId, 5, 5); s.players[alice.playerId].hp = -5; return s }
+  const badBuilder = (g) => { const s = E.newWorld(g); E.addPlayer(s, alice.playerId, 5, 5); s.players[alice.playerId].health = -5; return s }
   assert.throws(() => new IntervalNode({ genesis, buildWorld: badBuilder, name: 'x', allowEphemeralStores: true }),
-    /buildWorld produced an invalid state.*hp out of bounds/s)
+    /buildWorld produced an invalid state.*health out of bounds/s)
   // a builder that embeds a DIFFERENT genesis is refused as ambiguous
   const swapBuilder = () => base(mkGenesis('some-other-world'))
   assert.throws(() => new IntervalNode({ genesis, buildWorld: swapBuilder, name: 'x', allowEphemeralStores: true }),
@@ -122,12 +122,12 @@ test('canonical input schemas: one serialized form per action, at every gate', (
     wield: { slot: 0 }, plant: { slot: 0 }, light: { slot: 0 },
     bury: { slot: 0 }, deposit: { slot: 0 }, drop: { slot: 0 }, eat: { slot: 0 },
     cook: { slot: 0 }, unwield: { gear: 'weapon' }, buy: { item: 'logs' },
-    withdraw: { item: 'logs', qty: 1 }, cast: { spell: 'anchor' },
+    withdraw: { item: 'logs', qty: 1 }, cast: { spell: 'mend' },
     fletch: { slot: 0, make: 'bow' }, pickup: { groundId: 'g', confirm: false }, claim_name: { name: 'ada' },
   }
   for (const [type, fields] of Object.entries(canon))
     assert.equal(E.validateInputShape(sign({ type, ...fields })), null, `${type} canonical form accepted`)
-  // the item-form of a trade is canonical too — with its explicit zero
+  // the item-form of a trade is canonical too: with its explicit zero
   assert.equal(E.validateInputShape(sign({ type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: 'logs', wantGold: 0 })), null)
 })
 

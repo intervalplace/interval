@@ -52,8 +52,8 @@
   "release": "phase-1-freeze",
   "protocol": {
     "specVersion": "1.05",
-    "consensusVersion": "1.9",
-    "rulesHash": "df504ccae64e528b"
+    "consensusVersion": "1.10",
+    "rulesHash": "1e7bde91977d9d2b"
   },
   "engines": {
     "node": ">=22.5.0"

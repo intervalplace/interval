@@ -1,4 +1,4 @@
-// verify-pool.mjs — parallel arrival-time signature verification.
+// verify-pool.mjs: parallel arrival-time signature verification.
 //
 // NON-CONSENSUS, and that claim is load-bearing enough to state precisely.
 //
@@ -14,7 +14,7 @@
 // safe to parallelise when the tick itself never can be.
 //
 // Why it matters: verification measured 388 ms of an 850 ms tick at 5,000
-// acting citizens — the largest single component, and the only large one that
+// acting citizens: the largest single component, and the only large one that
 // is embarrassingly parallel. Nothing else in the tick may be split at all.
 //
 // Degrades to inline verification when a pool is not available or not wanted:
@@ -53,7 +53,7 @@ export class VerifyPool {
   #onFault = null
 
   // size: worker count. 0 or 1 disables the pool entirely and verification
-  // stays inline, which is correct on a single core — a thread hop per input
+  // stays inline, which is correct on a single core: a thread hop per input
   // costs more than the verify it is trying to move.
   constructor(enginePath, size = Math.max(0, (os.availableParallelism?.() ?? os.cpus().length) - 1)) {
     this.#enginePath = enginePath
@@ -94,7 +94,7 @@ export class VerifyPool {
     const chunks = this.#split(inputs, this.#workers.length)
     const results = await Promise.all(chunks.map(c => this.#run(c)))
     // Seed the verdicts into the engine's memo. This is a Map write per input,
-    // NOT a verify — the ed25519 work already happened off-thread, and seeding
+    // NOT a verify: the ed25519 work already happened off-thread, and seeding
     // rather than re-verifying here is the whole reason the pool is worth
     // having. Re-calling verifyInputSig would move the work back onto the main
     // thread and buy exactly nothing.

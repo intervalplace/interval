@@ -2,8 +2,8 @@
 
 The window's architecture is one sentence: **the bridge holds the key and all
 world knowledge; Unreal holds only pixels.** On a desktop the bridge is a Node
-process beside the game. On iOS there can be no such process — the platform
-will neither ship Node nor let an app start an interpreter — so the bridge has
+process beside the game. On iOS there can be no such process: the platform
+will neither ship Node nor let an app start an interpreter, so the bridge has
 to run *inside* the app, in the JavaScript engine iOS already has.
 
 That is JavaScriptCore, and macOS ships the same engine with a shell, so the
@@ -32,7 +32,7 @@ different island is not looking at this world.
 
 ### The landscape, which is the hard half
 
-`expanse7`'s real founding — the six public values any node will hand over —
+`expanse7`'s real founding: the six public values any node will hand over,
 built on a phone's engine and on a node, and every derived thing compared:
 
 ```
@@ -45,8 +45,8 @@ road hash                 f73d4cd0          f73d4cd0
 ```
 
 The road hash is the one to look at. Where a road runs is the most derived
-thing this generator produces — a cost field over the whole island, routed,
-smoothed, and laid — and it comes out tile for tile the same.
+thing this generator produces: a cost field over the whole island, routed,
+smoothed, and laid, and it comes out tile for tile the same.
 
 **`engine.js` is never transpiled.** The host hands its source across as text
 and it is compiled by `new Function`, byte for byte as it is on disk. That is
@@ -55,7 +55,7 @@ which rules made it.
 
 ## What the host has to provide
 
-Six things, and the list is closed — see `shim.js`, which says why for each.
+Six things, and the list is closed, see `shim.js`, which says why for each.
 
 - `require`, for two modules, and it must **fail** for `'crypto'` so the
   engine takes its own portable path. It is written to; that is not a hack.
@@ -66,7 +66,7 @@ Six things, and the list is closed — see `shim.js`, which says why for each.
 - `crypto.getRandomValues`, for minting a key and nothing else. On iOS that is
   `SecRandomCopyBytes`. There is no fallback and it throws without one: a key
   from a weak source is a citizen anybody can become.
-- `console`, which the rules never use and the generator does — it counts the
+- `console`, which the rules never use and the generator does, it counts the
   scenes it laid and the residents who had nowhere to stand. A host that wants
   those lines is given them; one that does not gets a console that swallows
   them, because whether anybody is listening must not change the island.
@@ -80,21 +80,21 @@ Six things, and the list is closed — see `shim.js`, which says why for each.
 there is one and through noble when there is not, and the two branches were not
 given the same argument: Node's wraps its input in `Buffer.from(buf)` first and
 noble's does not. Nothing noticed while the portable path was only ever a
-browser, because a browser never runs the landscape — and the generator hashes
+browser, because a browser never runs the landscape, and the generator hashes
 strings constantly, because naming a town's keeper is a hash of their town and
 their trade. `boot.mjs` encodes it, which is a host adapting its libraries to
 the engine rather than the other way round.
 
 `readUInt16BE` is not optional. The engine reads four bytes out of a digest
 seven times; the **landscape** reads two bytes out of one a hundred and
-thirty-three times — every wander of a river, every bend of a road, every
+thirty-three times: every wander of a river, every bend of a road, every
 jitter of a tree. A shim written against the engine alone will build a world
 and refuse to build an island.
 
 ## How the landscape is loaded, and why not with a bundler
 
 The world layer is twenty-four ES modules, and eight of them do
-`import E from './engine.js'` — a *default* import of a CommonJS file. Node
+`import E from './engine.js'`: a *default* import of a CommonJS file. Node
 synthesises that default; a plain ES loader does not, and it fails at LINK
 time, before a line of anybody's code runs, so no runtime fallback rescues it.
 
@@ -108,8 +108,8 @@ exactly the thing this project keeps refusing.
 So `esm.js` is a module loader, in the open, in about two hundred lines. It is
 **not general**: it handles the syntax these twenty-four files actually use and
 throws by name on anything else rather than guessing. The vocabulary was
-counted before it was written — every import and export line in all
-twenty-four — and it is small:
+counted before it was written: every import and export line in all
+twenty-four, and it is small:
 
     import * as ns from './x.mjs'        import D from './engine.js'
     import { a, b as c } from './x.mjs'  (over several lines, with comments)
@@ -117,7 +117,7 @@ twenty-four — and it is small:
     export { a, b as c } from './x.mjs'
 
 There is no `export default`, no `export class`, no `export let`, no
-`export *`, and no cycle anywhere in the graph — all five checked, because a
+`export *`, and no cycle anywhere in the graph, all five checked, because a
 cycle is the one thing a require-shaped loader gets wrong that a real one does
 not. Exports are **getters**, so a binding stays live; imports are **hoisted**,
 because these files put imports in the middle of themselves and a real loader
@@ -126,7 +126,7 @@ evaluates them all first.
 Two of the four cases were missed by the first survey and threw on the first
 run: a re-export in `worldgen-shire-v6.mjs`, and comments inside
 `terrain-mirror.mjs`'s export list. That is the argument for failing loudly on
-unknown syntax instead of skipping a line nobody recognised — a loader that
+unknown syntax instead of skipping a line nobody recognised: a loader that
 shrugged would have produced an island quietly missing a table.
 
 Everything in the world layer goes through **one** loader and so out of one
@@ -221,7 +221,7 @@ read-only accessor and assigning over it threw before anything else installed.
 
 `unreal-bridge.mjs` is nineteen hundred lines and almost none of it is about
 Node. Everything it knew about the machine underneath is now one object with
-six entries — `host-node.mjs`:
+six entries: `host-node.mjs`:
 
 | | |
 |---|---|
@@ -233,8 +233,8 @@ six entries — `host-node.mjs`:
 | `every` / `after` / `stop` | a clock |
 | `engine()` | the rules themselves. On a desktop a CommonJS require; in an app the source out of the bundle, compiled as it is, because the SHA of those bytes is what a founding records |
 
-Everything else in that file — what a tile is made of, what a verb needs, which
-deeds a citizen may be offered, where the land lies — is world knowledge and is
+Everything else in that file: what a tile is made of, what a verb needs, which
+deeds a citizen may be offered, where the land lies, is world knowledge and is
 about nothing but the world. `globalThis.__intervalHost`, set before the file
 loads, replaces the lot.
 
@@ -249,10 +249,10 @@ window walked a citizen across the Heartlands with deeds signed as before.
 
 ## What is left
 
-1. ~~bundle the ESM world layer~~ — done, and with no bundler: `esm.js`
-2. ~~the host interface~~ — done: `host-node.mjs`, seven entries, and the
+1. ~~bundle the ESM world layer~~: done, and with no bundler: `esm.js`
+2. ~~the host interface~~: done: `host-node.mjs`, seven entries, and the
    bridge makes no Node call at all
-3. ~~run the bridge itself~~ — done: it mints a citizen, reads the world,
+3. ~~run the bridge itself~~: done: it mints a citizen, reads the world,
    opens its door and answers a window's request for ground with the same
    bytes a node sends
 
@@ -265,6 +265,6 @@ certificate.
    becomes a packaging detail rather than a debugging session on a phone. It
    supplies the two stand-ins above for real: `fetch` over Unreal's HTTP
    module and `dial` over its WebSockets module.
-5. touch: tap for the default deed, long press for the menu — the interaction
+5. touch: tap for the default deed, long press for the menu, the interaction
    model already implies it
 6. iOS packaging, and a device to run it on

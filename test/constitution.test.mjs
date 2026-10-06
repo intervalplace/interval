@@ -1,4 +1,4 @@
-// Rev5 brief, Priority 4 — constitutional strictness and recovery
+// Rev5 brief, Priority 4: constitutional strictness and recovery
 // namespacing. One name rule, one item registry, no dangling references,
 // and safety records that refuse to serve the wrong world.
 import { test } from 'node:test'
@@ -37,7 +37,7 @@ const mk = (world, holder, extra = {}) => new IntervalAgreement({
   log: (l) => (holder.logs ??= []).push(l), allowEphemeralStores: true, ...extra,
 })
 
-test('safety records for ANOTHER world refuse startup — never silently ignored', () => {
+test('safety records for ANOTHER world refuse startup, never silently ignored', () => {
   const worldA = makeWorld('world-a')
   const worldB = makeWorld('world-b')
   assert.notEqual(worldA.worldId, worldB.worldId)
@@ -139,7 +139,7 @@ test('relational validation: no dangling references are constitutionally permitt
     mutate(s)
     assert.match(E.validateState(s) ?? 'VALID', want)
   }
-  // POSITIVE: resolved references validate — a live fight, a live trade, a real attunement
+  // POSITIVE: resolved references validate, a live fight, a live trade, a real attunement
   const s = build(world)
   E.addPlayer(s, bob.playerId, 6, 5)
   s.players[alice.playerId].action = { type: 'attack', mobId: 'gob-1', since: 0, style: 'even' }

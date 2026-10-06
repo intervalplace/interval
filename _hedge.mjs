@@ -12,7 +12,7 @@ ws.on('message', (d) => {
     out.push([away, id, n.x, n.y])
   }
   out.sort((a, b) => a[0] - b[0])
-  console.log(`ME ${me.x},${me.y} — nearest oaks:`)
+  console.log(`ME ${me.x},${me.y}, nearest oaks:`)
   for (const [a, id, x, y] of out.slice(0, 6)) console.log(`  ${a} tiles  ${id}  @${x},${y}`)
   process.exit(0)
 })

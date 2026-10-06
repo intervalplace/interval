@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// long-replay-phase2.mjs — Phase 2E long-replay campaign (scaled).
+// long-replay-phase2.mjs: Phase 2E long-replay campaign (scaled).
 //
 // Runs a long deterministic history through the Phase 2 engine, and:
 //   - every REF_EVERY ticks, replays that single tick in test-only reference

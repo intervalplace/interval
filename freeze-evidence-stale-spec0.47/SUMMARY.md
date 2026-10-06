@@ -1,4 +1,4 @@
-# Interval — Protocol-Freeze Evidence
+# Interval: Protocol-Freeze Evidence
 
 Generated: 2026-07-16T19:58:28Z
 
@@ -36,7 +36,7 @@ package.json sha256:  676eac8d441a4330c3b655fcb12ffbb7ee573039e70551919d6cea3ef6
 | Node interop (race-free import) | 0 | interop.log |
 | Unit + property suite (auto-discovered) | 0 | unit-suite.log |
 | Adversarial CI battery | 0 | adversarial-ci.log |
-| Adversarial battery — 11 scenarios × 1 seed × 11s | 0 | advsim-all.log |
+| Adversarial battery, 11 scenarios × 1 seed × 11s | 0 | advsim-all.log |
 | Large-history benchmark (1M ticks) | 0 | bench-1M.log |
 | Consensus liveness/economy demo | 0 | demo.log |
 | In-process multi-witness demo (demo6) | 0 | demo6.log |
@@ -67,7 +67,7 @@ benchmarks       1 (bench-storage.mjs)
   online backup: 1481 ms  (372.1 MB)
 ```
 
-## Phase 1 freeze criterion — met
+## Phase 1 freeze criterion, met
 - shutdown drains checkpoint I/O to completion before releasing exclusivity (no timeout; fails closed)
 - bounded startup verification is the generic default (shared constant everywhere)
 - official test command runs every suite (auto-discovering runner)

@@ -1,9 +1,9 @@
-// Interval v0.7 demo — the shared clock + persistent identity.
+// Interval v0.7 demo: the shared clock + persistent identity.
 // No external tick driver anywhere: both nodes compute the schedule from
 // genesis (anchorMs + N*600) and advance INDEPENDENTLY. Players act via
 // onTick through the SDK, like a real interactive client would. If the
 // arithmetic clock works, two self-driving nodes stay in perfect lockstep.
-// Also: bob's identity is saved and reloaded — same key, same character.
+// Also: bob's identity is saved and reloaded, same key, same character.
 
 import fs from 'fs'
 import E from './engine.js'
@@ -63,6 +63,6 @@ const agree = A.myHashes.get(t) === B.myHashes.get(t)
 console.log(`self-driving nodes reached tick ${A.state.tick}/${B.state.tick}, agree at tick ${t}: ${agree ? 'YES ✓' : 'NO ✗'}`)
 const aP = A.state.players[alice.playerId], bP = A.state.players[bob.playerId]
 console.log(`alice: named "${aP?.name}", ${aP?.inventory.filter(Boolean).length ?? 0} logs · bob: ${bP?.inventory.filter(Boolean).length ?? 0} ore`)
-console.log(`run demo4 again: bob will return with the SAME playerId — same character, forever`)
+console.log(`run demo4 again: bob will return with the SAME playerId, same character, forever`)
 await A.stop(); await B.stop()
 process.exit(agree ? 0 : 1)

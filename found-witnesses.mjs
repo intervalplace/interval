@@ -1,4 +1,4 @@
-// found-witnesses.mjs — prepare the witness set for a world, BEFORE founding it.
+// found-witnesses.mjs: prepare the witness set for a world, BEFORE founding it.
 //
 //   node found-witnesses.mjs 3
 //

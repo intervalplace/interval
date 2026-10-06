@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// bench-engine.mjs — Phase 1A deterministic engine-scaling benchmark.
+// bench-engine.mjs: Phase 1A deterministic engine-scaling benchmark.
 //
 // Measures, per population, the per-tick cost of:
-//   verify  — admission-style signature verification of every input
-//   hash    — stateHash of the pre-state and of the post-state
-//   next    — nextState execution (which re-validates inputs internally)
+//   verify: admission-style signature verification of every input
+//   hash: stateHash of the pre-state and of the post-state
+//   next: nextState execution (which re-validates inputs internally)
 // plus total tick time, ticks/sec, replay ticks/sec, replay speedup
 // relative to the live 600 ms cadence, and the final state hash (the
 // cross-build equivalence anchor).
@@ -74,7 +74,7 @@ for (const n of pops) {
   const r0 = process.hrtime.bigint()
   for (let t = 0; t < ticks; t++) rs = E.nextState(rs, history[t])
   const replayMs = ms(process.hrtime.bigint() - r0)
-  if (E.stateHash(rs) !== finalHash) throw new Error('replay diverged from live run — determinism bug')
+  if (E.stateHash(rs) !== finalHash) throw new Error('replay diverged from live run, determinism bug')
 
   const row = {
     population: n, ticks,
@@ -86,7 +86,7 @@ for (const n of pops) {
     perf: typeof E.perfStats === 'function' ? E.perfStats() : null,
   }
   results.push(row)
-  console.log(`\npopulation ${n} (${ticks} ticks) — final hash ${finalHash.slice(0, 16)}…`)
+  console.log(`\npopulation ${n} (${ticks} ticks), final hash ${finalHash.slice(0, 16)}…`)
   console.log('  component      median      p95      max   (ms)')
   for (const [k, v] of [['verify', row.verify], ['hash', row.hash], ['nextState', row.next], ['tick total', row.total]])
     console.log(`  ${k.padEnd(11)}${fmt(v.median)} ${fmt(v.p95)} ${fmt(v.max)}`)

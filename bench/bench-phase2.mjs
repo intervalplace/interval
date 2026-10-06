@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// bench-phase2.mjs — Phase 2A deterministic engine-scaling benchmark.
+// bench-phase2.mjs: Phase 2A deterministic engine-scaling benchmark.
 //
 // Extends the Phase 1 harness with world profiles, workloads, and (when the
 // engine under test exposes them) nextState section timings and scan/index

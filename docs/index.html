@@ -12,8 +12,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interval</title>
-<style>
-  :root {
+<style>:
+  root {
     --stone: #291f12; --stone-dk: #191108; --stone-lt: #55462d;
     --gold: #c6941e; --gold-hi: #e2b63e; --parch: #d6c49c; --dim: #94805a;
     --hp: #c0392b; --hpbg: #4a1008;
@@ -45,8 +45,8 @@
   /* the frame's width, in one place (v0.80). On a large desktop the world
      is shown LARGER rather than wider: the tile count is unchanged, so the
      view stays as close and sprite-forward as it is on a phone, and the
-     panel grows with it instead of staying a narrow strip beside a huge map. */
-  :root { --frame-w: min(96vw, 1180px); --panel-w: 232px; }
+     panel grows with it instead of staying a narrow strip beside a huge map. */:
+  root { --frame-w: min(96vw, 1180px); --panel-w: 232px; }
   @media (min-width: 1500px) { :root { --frame-w: min(94vw, 1560px); --panel-w: 300px; } }
   @media (min-width: 2100px) { :root { --frame-w: min(92vw, 1880px); --panel-w: 340px; } }
   #frame { display: flex; gap: 0; border: 3px solid var(--stone-dk); width: var(--frame-w); }
@@ -284,6 +284,7 @@
     <div class="keyrow">
       <button type="button" class="keybtn" data-ik="export">export key</button>
       <button type="button" class="keybtn" data-ik="import">import key</button>
+      <button type="button" class="keybtn" data-ik="proof">save citizen</button>
     </div>
   </div>
 </div>
@@ -352,7 +353,7 @@
     <div id="feed" class="stone"></div>
     <div id="sndtoggle" style="font-size:10px;color:var(--dim);cursor:pointer;user-select:none"></div>
     <div style="display:flex;gap:4px;align-items:stretch">
-      <button id="scopeBtn" title="heard by those around you — click for far"
+      <button id="scopeBtn" title="heard by those around you, click for far"
         style="background:var(--stone-dk);border:1px solid var(--stone-lt);color:var(--dim);
                font:11px ui-monospace,monospace;padding:5px 7px;cursor:pointer;min-width:38px">near</button>
       <input id="say" maxlength="80" placeholder="say something…" autocomplete="off"
@@ -419,12 +420,12 @@ try { const z = parseInt(localStorage.getItem('interval.zoom') ?? '', 10)
 // byte for byte, exactly as every other window does. If this copy drifts,
 // this window is in breach on the same terms they are.
 // ---------------------------------------------------------------------
-// terrain-mirror.js — the window's copy of the world's own geography.
+// terrain-mirror.js: the window's copy of the world's own geography.
 //
 // This file used to exist THREE TIMES: once inside window-web.html, once
 // inside window-3d.html, once inside window-photo.html, ~1,300 lines each,
-// pasted. The copies had not yet disagreed about a single tile — 210,432
-// were checked — but they had already drifted in two places that simply
+// pasted. The copies had not yet disagreed about a single tile: 210,432
+// were checked, but they had already drifted in two places that simply
 // had not bitten yet:
 //
 //   * window-photo's copy had a RENDERING function (buildBridges, which
@@ -515,17 +516,21 @@ function inland7(x, y) {
     for (let i = 0; i < ALL7.length; i++) {
       const [cx, cy, rx, ry, kind] = ALL7[i]
       const k = kind === 'tarn' ? 0.10 : kind === 'pond' ? 0.20 : kind === 'moss' ? 0.26 : 0.34
-      const M = [2, 3, 5, 7, 11], A = [0.55, 0.30, 0.20, 0.12, 0.07]
-      const ph = M.map((m) => ((thashE(i, m, 907) % 1000) / 1000) * Math.PI * 2)
+      // §2s: the generator drew these with five `Math.sin` harmonics and a
+      // raw comparison, and this window copied it faithfully, as it must. The
+      // generator is `meander` and `angleOf` now, so this is too. Same two
+      // harmonics as the isles and the coast, same constants as `inlandSet`.
+      const tag = 9100 + i * 13
       const pad = Math.ceil(Math.max(rx, ry) * (1 + k)) + 2
       for (let y2 = cy - pad; y2 <= cy + pad; y2++) for (let x2 = cx - pad; x2 <= cx + pad; x2++) {
         const dx = (x2 - cx) / rx, dy = (y2 - cy) / ry
         const d = Math.sqrt(dx * dx + dy * dy)
         if (d === 0) { _w7.add(x2 + ',' + y2); continue }
-        const a = Math.atan2(dy, dx)
-        let r = 1
-        for (let q = 0; q < M.length; q++) r += k * A[q] * Math.sin(M[q] * a + ph[q])
-        r += ((thashE(x2, y2, 911) % 100) / 100 - 0.5) * 0.05
+        const u = ((angleOf6(dx, dy) % 360) + 360) % 360
+        const r = 1
+          + k * meander(tag, u / 6, 6, 11) / 13
+          + k * meander(tag + 1, u / 6, 3, 5) / 40
+          + ((thashE(x2, y2, 911) % 100) / 100 - 0.5) * 0.05
         if (d < r) _w7.add(x2 + ',' + y2)
       }
     }
@@ -2072,8 +2077,8 @@ function keeperRole4(st, id, n) {
       if (Math.abs(q.x - n.x) > 2 || Math.abs(q.y - n.y) > 2) continue
       near[q.type] = true
     }
-    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith'
-         : near.hearth ? 'town' : 'town'
+    role = near.vault ? 'clerk' : near.store ? 'shop' : near.anvil ? 'smith':
+         near.hearth ? 'town' : 'town'
   }
   _roleCache.set(id, role)
   return role
@@ -2129,8 +2134,8 @@ function terrainOfE4(x, y) {
     if (hm && !onRoad4(x, y)) {
       const inTown = settlementsE4().some((t) =>
         Math.abs(x - t.x) < (t.w >> 1) && Math.abs(y - t.y) < (t.h >> 1))
-      if (!inTown) return hm.kind === 'copse' ? 'forest'
-                        : hm.kind === 'mire' ? 'fens' : 'scree'
+      if (!inTown) return hm.kind === 'copse' ? 'forest':
+                        hm.kind === 'mire' ? 'fens' : 'scree'
     }
   }
   for (const t of ssE()) {
@@ -2293,7 +2298,7 @@ const BAYS6 = [
 ]
 function angleOf6(dx, dy) {
   // mirror of worldgen-expanse3.mjs angleOf (v6 imports it): degrees, atan2-free
-  // is not required — the generator uses Math.atan2 here? verify: it uses angleOf
+  // is not required, the generator uses Math.atan2 here? verify: it uses angleOf
   // from expanse3, which the mirror already has as angleOf3.
   return angleOf3(dx, dy)
 }
@@ -2324,30 +2329,55 @@ function bayShoreX6(y) {
   for (let x = W - 4; x >= Math.floor(W / 2); x--) if (!inSeaBase6(x, y)) { sx = x; break }
   _bayShore6.set(y, sx); return sx
 }
-function islesOf6() {
-  // §9b: FOUR ISLANDS, and this table had two.
-  //
-  // Whiting Isle (§7bu) and the Lists (§7cs) were added to the engine and
-  // never to the mirror, so the window painted open sea over both -- 452
-  // tiles of it. The saltern a citizen crosses to, and the duelling ground
-  // where the only honest comparison of a mell and a bare blade happens,
-  // were water on the screen and land under the feet.
-  //
-  // Found by the repaired §9b test (test/mirror.test.mjs). The old version of
-  // that test could not locate the mirror block at all and reported it as
-  // missing, so nothing had checked this since the isles went in.
+// §7eb: V6 AND V7 DO NOT SHARE A COASTLINE, and `IS_EXPANSE6()` covers both.
+//
+// The mirror had two isles for both foundings. v6 has two and v7 has five --
+// Whiting Isle, the Lists and the Dragon's Isle -- so three places a citizen
+// can stand on were open sea in every window reading this file, on the live
+// world. The chart says outright that if it and the world disagreed one of
+// them would be in breach; it had been disagreeing about three islands.
+//
+// Giving BOTH foundings the v7 list was the obvious fix and it was wrong in
+// the other direction: a v6 world would have gained three islands it does not
+// have, and a wobbling shore where its generator draws a clean ellipse.
+// `test/mirror.test.mjs` caught that in the same run that caught the missing
+// three, which is the whole argument for the test existing.
+const ISLES6_V6 = () => {
   const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
   return [
-    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },   // the shrine isle
-    { x: sh + 58, y: ey + 8,  rx: 12, ry: 8 },   // §7bu Whiting Isle: the salt pans
-    { x: Math.round(W * 0.335), y: Math.round(H * 0.883), rx: 9, ry: 6 },  // §7cs the Lists
-    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },   // Farshore
+    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
   ]
 }
+const ISLES6_V7 = () => {
+  const ey = emY6(), sh = bayShoreX6(ey) ?? Math.round(W * 0.7)
+  return [
+    { x: sh + 20, y: ey + 24, rx: 10, ry: 7 },
+    { x: sh + 58, y: ey + 8, rx: 12, ry: 8 },        // Whiting
+    { x: 300, y: 452, rx: 9, ry: 6 },                // the Lists
+    { x: Math.round(W * 0.175), y: Math.round(H * 0.09), rx: 8, ry: 5 },
+    { x: 34, y: 30, rx: 30, ry: 22 },                // the Dragon's Isle
+  ]
+}
+const IS_V7 = () => GEN === 'interval-expanse-v7'
+function islesOf6() { return IS_V7() ? ISLES6_V7() : ISLES6_V6() }
+// The shore, mirroring `isleR` in worldgen-expanse7.mjs: same harmonics, same
+// divisors, same trig-free `angleOf`. v6's isles keep the plain ellipse its
+// own generator draws.
+function isleR6(i, u0) {
+  const u = ((u0 % 360) + 360) % 360
+  const tag = 7100 + i.x * 7 + i.y
+  return 1 + meander(tag, u / 6, 6, 11) / 55 + meander(tag + 1, u / 6, 3, 5) / 150
+}
 function onIsle6(x, y) {
+  const wobbles = IS_V7()
   for (const i of islesOf6()) {
     const dx = (x - i.x) / i.rx, dy = (y - i.y) / i.ry
-    if (dx * dx + dy * dy < 1) return true
+    const d2 = dx * dx + dy * dy
+    if (!wobbles) { if (d2 < 1) return true; continue }
+    if (d2 < 0.45) return true
+    if (d2 >= 1.7) continue
+    if (d2 < isleR6(i, angleOf6(dx, dy)) ** 2) return true
   }
   return false
 }
@@ -2576,7 +2606,7 @@ const inWildsC = (x, y) => {
 // §11d: AND A CONSIGNMENT CARRIES THE WILDS WITH IT. `mayStrike` in the engine
 // is two clauses and this window only ever knew one, so two haulers standing on
 // a town road -- the case §11d was written to create -- could not raise a hand
-// at each other from here. The special could be fired, because that path never
+// at each other from here. The gambit could be fired, because that path never
 // asked; an ordinary blow could not, because this did. One citizen was struck
 // off the rhythm and could not strike back, which is not a fight, and it is not
 // what the rule says either.
@@ -2758,9 +2788,9 @@ function itemSprite(item) {
       g.beginPath(); g.moveTo(10, 22); g.lineTo(14, 18); g.stroke()
       g.fillStyle = '#cfe2e6'; g.beginPath(); g.arc(23, 8, 2.6, 0, 7); g.fill()
       g.fillStyle = 'rgba(160,206,224,.45)'; g.beginPath(); g.arc(23, 8, 6, 0, 7); g.fill(); break
-    // §6bt: THE GREAT LINE. Not starmetal in another colour.
+    // §6bt: THE GREAT LINE. Not quickmetal in another colour.
     //
-    // Starmetal is cold and pale and clean -- compressed night, drawn with a
+    // Quickmetal is cold and pale and clean -- compressed night, drawn with a
     // blue rim light. This is the opposite thing: brimstone-worked iron that
     // never finished cooling. Dark slag, a body cracked with heat that shows
     // through from INSIDE, a sulphur crust at the joins, and a haft bound in
@@ -2862,8 +2892,8 @@ function itemSprite(item) {
       }
       break
     }
-    case 'star-hatchet': case 'star-pickaxe': {
-      const pick = item === 'star-pickaxe'
+    case 'quick-hatchet': case 'quick-pickaxe': {
+      const pick = item === 'quick-pickaxe'
       g.strokeStyle = '#5a4630'; g.lineWidth = 3
       g.beginPath(); g.moveTo(10, 28); g.lineTo(20, 8); g.stroke()
       g.fillStyle = '#8fa8c4'
@@ -2946,7 +2976,7 @@ function itemSprite(item) {
       g.fillStyle = '#8a939d'; g.fillRect(18.4, 16.6, 3, 1.6)        // the band
       g.fillStyle = 'rgba(255,180,90,.5)'; g.beginPath(); g.arc(20.4, 15.6, 1.5, 0, 6.3); g.fill()
       break }
-    case 'magic-stone':
+    case 'quick-stone':
       pl([[16,3],[26,16],[16,29],[6,16]], '#8ce0ff', '#2a7d9e')
       pl([[16,3],[16,29],[6,16]], 'rgba(255,255,255,.28)')
       g.fillStyle = '#e0f6ff'; g.fillRect(14, 12, 3, 3); break
@@ -2967,7 +2997,7 @@ function itemSprite(item) {
         g.beginPath(); g.moveTo(gx3 + 2, 5 + off); g.lineTo(gx3 + 2, 13 + off); g.stroke()
       }
       break
-    case 'star-sword':
+    case 'quick-sword':
       pl([[16,3],[20,7],[11,20],[8,17]], '#8ce0ff', '#2a7d9e')
       g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(14.4, 6.5, 1.6, 6)
       g.fillStyle = '#8a5a2a'; g.fillRect(6, 19, 9, 3.4)
@@ -3026,7 +3056,7 @@ function itemSprite(item) {
     // case below was carrying its own pair of hex literals, which is why the
     // steel line kept arriving half-drawn: adding a metal meant finding every
     // shape by hand and missing two.
-    case 'iron-helm': case 'steel-helm': case 'star-helm': case 'gold-helm': {
+    case 'iron-helm': case 'steel-helm': case 'quick-helm': case 'gold-helm': {
       const [lo, hi, sheen] = METAL(item)
       pl([[7,20],[7,13],[16,6],[25,13],[25,20]], lo, hi)
       g.fillStyle = sheen; g.fillRect(9, 9.5, 14, 2)
@@ -3035,7 +3065,7 @@ function itemSprite(item) {
     // borrowed the HELM's outline through ICON_ALIAS -- so a citizen carrying
     // an iron shield and an iron helm saw the same picture twice in one pack,
     // and could not tell at a glance which slot they were about to fill.
-    case 'iron-shield': case 'steel-shield': case 'star-shield': {
+    case 'iron-shield': case 'steel-shield': case 'quick-shield': {
       const [lo, hi, sheen] = METAL(item)
       pl([[8,5],[24,5],[24,17],[16,28],[8,17]], lo, hi)     // a heater: flat top, point below
       g.strokeStyle = hi; g.lineWidth = 1.6                  // the rim, all round
@@ -3048,7 +3078,7 @@ function itemSprite(item) {
       break }
     // AND GREAVES, which drew as a CUIRASS. Legs are a pair and a plate is
     // one piece; nothing about the two silhouettes should agree.
-    case 'iron-legs': case 'steel-legs': case 'star-legs': case 'gold-legs': {
+    case 'gold-legs': {   // the only legs this world has; iron, steel and quick ones were drawn here and never existed
       const [lo, hi, sheen] = METAL(item)
       pl([[8,4],[24,4],[25,10],[21,29],[17,29],[16,15],[15,29],[11,29],[7,10]], lo, hi)
       g.fillStyle = hi; g.fillRect(8, 8.4, 16, 1.8)          // the belt
@@ -3078,7 +3108,7 @@ function itemSprite(item) {
     // taken by the dragon off someone who came to kill it and was burned for
     // trying. It must read REGAL and BURNED, never craftable: the crown points
     // (gold, tarnished) say king, the scorch and the ember in the eye-slot say
-    // how he died. Not starmetal, not iron in another colour -- an OLD thing
+    // how he died. Not quickmetal, not iron in another colour -- an OLD thing
     // out of a hoard, gold gone dull and metal gone dark with soot.
     case 'cinder-crown': {
       const dark = '#2b2622', darkLo = '#151210', soot = '#0e0c0a'
@@ -3101,7 +3131,7 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(0,0,0,.4)'
       pl([[8,24],[8,16],[11,20],[10,24]], 'rgba(0,0,0,.4)', null)
       break }
-    case 'iron-plate': case 'steel-plate': case 'star-plate': case 'gold-plate': {
+    case 'iron-plate': case 'steel-plate': case 'quick-plate': case 'gold-plate': {
       const [lo, hi, sheen] = METAL(item)
       pl([[9,6],[23,6],[26,12],[24,26],[8,26],[6,12]], lo, hi)
       g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(15.2, 6, 1.6, 20)
@@ -3111,7 +3141,7 @@ function itemSprite(item) {
     // so it comes off the anvil still smoking.
     case 'great-mell': {
       // §7ap: THE GREAT LINE IS NOT STAR-METAL. Drawn first in star-blue, it
-      // read as a star-mell with a bigger head -- but every other great arm on
+      // read as a quick-mell with a bigger head -- but every other great arm on
       // this island is near-black steel with molten orange running in the
       // cracks, because brimstone is what quenched it. The recipe said so all
       // along; only the sprite disagreed.
@@ -3330,7 +3360,7 @@ function itemSprite(item) {
       for (let k = 0; k < 5; k++) g.fillRect(14.2, 22.6 + k * 1.5, 3.6, 1.0)
       g.fillStyle = '#33281a'; g.fillRect(14.0, 29.6, 4.0, 1.6)              // pommel knot
       break }
-    case 'iron-dagger': case 'star-dagger': {
+    case 'iron-dagger': case 'quick-dagger': {
       const star = item.startsWith('star-')
       const blade = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
       pl([[15,26],[17,26],[18,12],[16,5],[14,12]], blade, edge)   // short leaf blade
@@ -3338,7 +3368,7 @@ function itemSprite(item) {
       g.fillStyle = '#3b2a16'; g.fillRect(15, 27.6, 2, 3.4)        // stub grip
       if (star) { g.fillStyle = 'rgba(120,220,255,.35)'; g.fillRect(15.4, 8, 1.2, 16) }
       break }
-    case 'iron-spear': case 'star-spear': {
+    case 'iron-spear': case 'quick-spear': {
       const star = item.startsWith('star-')
       const head = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
       g.strokeStyle = '#7a5124'; g.lineWidth = 2.6                 // the long haft
@@ -3353,7 +3383,7 @@ function itemSprite(item) {
     // than raked back like the long spears, so the two never read as the same
     // weapon in a pack. A leather grip at the balance point says thrown, and
     // steel gets a bright collar the way the rest of the steel line does.
-    case 'iron-javelin': case 'steel-javelin': case 'star-javelin': {
+    case 'iron-javelin': case 'steel-javelin': case 'quick-javelin': {
       const star = item.startsWith('star-'), steel = item.startsWith('steel-')
       const head = star ? '#c8f0ff' : steel ? '#dfe6ee' : '#e4ddc9'
       const edge = star ? '#54a8cc' : steel ? '#8794a4' : '#9a927e'
@@ -3368,7 +3398,7 @@ function itemSprite(item) {
       if (star) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
       if (steel) { g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(19.6, 3.4, 0.9, 4.6) }
       break }
-    case 'iron-mell': case 'steel-mell': case 'star-mell': {
+    case 'iron-mell': case 'steel-mell': case 'quick-mell': {
       const star = item.startsWith('star-')
       const [head, edge] = METAL(item)
       g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
@@ -3437,10 +3467,10 @@ function itemSprite(item) {
       g.fillStyle = 'rgba(255,160,50,' + (0.6 + 0.4 * glow) + ')'
       g.beginPath(); g.arc(17, 16, 1.8 + glow * 0.8, 0, 7); g.fill()
       break }
-    case 'iron-flail': case 'star-flail': {
+    case 'quick-flail': {   // §6x: the flail is quickmetal only; there is no iron one
       // a head on a CHAIN, and the chain is the whole point: it goes round
       // the plate rather than through it
-      const st2 = item === 'star-flail'
+      const st2 = item === 'quick-flail'
       const haft = st2 ? '#5a4f6b' : '#6b5330'
       const iron = st2 ? '#b9a9d6' : '#8a8078'
       g.fillStyle = haft; g.fillRect(11, 14, 3.4, 17)          // the haft
@@ -3598,12 +3628,12 @@ function itemSprite(item) {
   return ICON_CV[item] = c
 }
 const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
-  ? '<img src="' + itemSprite(item).toDataURL() + '" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle">'
-  : undefined, has: () => true })
+  ? '<img src="' + itemSprite(item).toDataURL() + '" style="width:24px;height:24px;image-rendering:pixelated;vertical-align:middle">':
+  undefined, has: () => true })
 // EVERYTHING THE ENGINE LETS YOU WIELD, and it is a list the window kept
 // separately and let go stale. Seven items had fallen out of it -- including
-// `star-mell`, the best melee weapon in the world, and both good bows. A
-// citizen who smithed a star-mell and clicked it in their pack did not wield
+// `quick-mell`, the best melee weapon in the world, and both good bows. A
+// citizen who smithed a quick-mell and clicked it in their pack did not wield
 // it: the window did not recognise the name, so it DROPPED it on the ground.
 //
 // The engine builds its set as every smithing recipe plus the four things
@@ -3636,9 +3666,9 @@ const EQUIPPABLE = new Set([
   'iron-helm', 'iron-javelin', 'iron-mell', 'iron-pickaxe', 'iron-plate',
   'iron-shield', 'iron-spear', 'iron-sword', 'ironbark-rod', 'king-shroud',
   'oak-rod', 'old-chain', 'rod', 'shell-helm', 'shell-plate', 'shot',
-  'sigil-bow', 'staff', 'star-dagger', 'star-flail', 'star-hatchet',
-  'star-helm', 'star-ingot', 'star-javelin', 'star-mell', 'star-pickaxe',
-  'star-plate', 'star-shield', 'star-spear', 'star-sword', 'steel-dagger',
+  'sigil-bow', 'staff', 'quick-dagger', 'quick-flail', 'quick-hatchet',
+  'quick-helm', 'quick-ingot', 'quick-javelin', 'quick-mell', 'quick-pickaxe',
+  'quick-plate', 'quick-shield', 'quick-spear', 'quick-sword', 'steel-dagger',
   'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-mell',
   'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
   'steel-sword', 'wand', 'wooden-bow'
@@ -3690,21 +3720,11 @@ function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
   const q = BigInt(Math.floor(lvl / 7)), r = lvl % 7
   return lvl + Number((300n * (1n << q) * POW2_SEVENTHS[r]) >> 96n)
 }
-// §10: character for character from the engine's CALLINGS. A window that
-// invents a word here is a window that calls a citizen something the world
-// does not. Three were wrong: `strength` and `hauling` had no word at all
-// (a berserker or a runner rendered as `undefined`), and `magic` said
-// sigilist where the constitution says alchemist.
-// §5n-§5r: the nine trades, character for character from the engine's CALLINGS.
-// This was the SEVENTEEN-skill table from before the collapse -- woodcutting,
-// mining, attack, strength, defence and eleven more, none of which are skills
-// any more. Every lookup missed, so the window called every citizen in the
-// world 'undefined' beside their name.
-const CALLINGS = {
-  woodcraft: 'woodwright', earthcraft: 'smith', shorecraft: 'shorekeeper',
-  mourning: 'mourner', marksmanship: 'archer', sorcery: 'alchemist',
-  wayfaring: 'wayfarer', hearthcraft: 'hearthkeeper', prowess: 'fighter',
-}
+// §5k-iii: the nine generic craft words are gone from the engine and from
+// here. No citizen can be called a woodwright or a shorekeeper any more: what
+// you are called is a rank until you swear and your calling after. The map of
+// which callings a craft opens is CALLINGS_OF below, built from the world's
+// own SWORN table.
 // §6bv: WHAT OPENS, AND AT WHAT LEVEL. Generated from the engine's own
 // `skillUnlocks()`, which has existed and been exported this whole time and
 // which no window ever called -- so the only way to find out what a level was
@@ -3739,10 +3759,6 @@ const SKILL_UNLOCKS = {
       "text": "take up the steel hatchet"
     },
     {
-      "level": 12,
-      "text": "forge the hollow bow"
-    },
-    {
       "level": 20,
       "text": "the oak groves open to your axe"
     },
@@ -3752,7 +3768,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 30,
-      "text": "take up the star hatchet"
+      "text": "take up the quick hatchet"
     },
     {
       "level": 45,
@@ -3798,91 +3814,7 @@ const SKILL_UNLOCKS = {
   "earthcraft": [
     {
       "level": 1,
-      "text": "forge the barb (earthcraft 40)"
-    },
-    {
-      "level": 1,
-      "text": "forge the bare blade (earthcraft 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the bone spear (woodcraft 55)"
-    },
-    {
-      "level": 1,
-      "text": "forge the bone staff (woodcraft 45)"
-    },
-    {
-      "level": 1,
-      "text": "forge the crossbow (earthcraft 18)"
-    },
-    {
-      "level": 1,
-      "text": "forge the fire siphon (earthcraft 62)"
-    },
-    {
-      "level": 1,
-      "text": "forge the gold bar (earthcraft 40)"
-    },
-    {
-      "level": 1,
-      "text": "forge the gold chain (earthcraft 70)"
-    },
-    {
-      "level": 1,
-      "text": "forge the gold helm (earthcraft 75)"
-    },
-    {
-      "level": 1,
-      "text": "forge the gold legs (earthcraft 80)"
-    },
-    {
-      "level": 1,
-      "text": "forge the gold plate (earthcraft 85)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great crossbow (earthcraft 70, sorcery 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great hatchet (earthcraft 55)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great helm (earthcraft 70, sorcery 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great mell (earthcraft 70, sorcery 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great pickaxe (earthcraft 55)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great plate (earthcraft 70, sorcery 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the great sword (earthcraft 70, sorcery 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the handgonne (earthcraft 90)"
-    },
-    {
-      "level": 1,
-      "text": "forge the hollow bow (woodcraft 12)"
-    },
-    {
-      "level": 1,
       "text": "forge the iron"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron (earthcraft 1)"
     },
     {
       "level": 1,
@@ -3890,167 +3822,11 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 1,
-      "text": "forge the iron dagger (earthcraft 1)"
-    },
-    {
-      "level": 1,
       "text": "forge the iron hatchet"
     },
     {
       "level": 1,
-      "text": "forge the iron hatchet (earthcraft 1)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron helm (earthcraft 7)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron javelin (earthcraft 5)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron mell (earthcraft 14)"
-    },
-    {
-      "level": 1,
       "text": "forge the iron pickaxe"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron pickaxe (earthcraft 1)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron plate (earthcraft 20)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron shield (earthcraft 12)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron spear (earthcraft 5)"
-    },
-    {
-      "level": 1,
-      "text": "forge the iron sword (earthcraft 10)"
-    },
-    {
-      "level": 1,
-      "text": "forge the shell helm (earthcraft 22)"
-    },
-    {
-      "level": 1,
-      "text": "forge the shell plate (earthcraft 26)"
-    },
-    {
-      "level": 1,
-      "text": "forge the shot (earthcraft 50)"
-    },
-    {
-      "level": 1,
-      "text": "forge the sigil bow (earthcraft 12, sorcery 25)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star alloy (earthcraft 48, sorcery 28)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star dagger (earthcraft 45, sorcery 28)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star flail (earthcraft 50, sorcery 29)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star grit (earthcraft 42, sorcery 22)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star hatchet (earthcraft 42, sorcery 22)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star helm (earthcraft 40, sorcery 20)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star ingot (earthcraft 45, sorcery 25)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star javelin (earthcraft 46, sorcery 26)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star mell (earthcraft 52, sorcery 30)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star pickaxe (earthcraft 42, sorcery 22)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star plate (earthcraft 50, sorcery 30)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star shield (earthcraft 48)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star spear (earthcraft 46, sorcery 26)"
-    },
-    {
-      "level": 1,
-      "text": "forge the star sword (earthcraft 45, sorcery 25)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel (earthcraft 30)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel dagger (earthcraft 25)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel hatchet (earthcraft 26)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel helm (earthcraft 30)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel javelin (earthcraft 28)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel mell (earthcraft 42)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel pickaxe (earthcraft 26)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel plate (earthcraft 38)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel shield (earthcraft 34)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel spear (earthcraft 28)"
-    },
-    {
-      "level": 1,
-      "text": "forge the steel sword (earthcraft 32)"
     },
     {
       "level": 5,
@@ -4078,7 +3854,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 12,
-      "text": "forge the sigil bow"
+      "text": "forge the sigil bow (sorcery 25)"
     },
     {
       "level": 14,
@@ -4134,7 +3910,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 30,
-      "text": "take up the star pickaxe"
+      "text": "take up the quick pickaxe"
     },
     {
       "level": 32,
@@ -4162,19 +3938,19 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 40,
-      "text": "forge the star helm"
+      "text": "forge the quick helm (sorcery 20)"
     },
     {
       "level": 42,
-      "text": "forge the star grit"
+      "text": "forge the quick grit (sorcery 22)"
     },
     {
       "level": 42,
-      "text": "forge the star hatchet"
+      "text": "forge the quick hatchet (sorcery 22)"
     },
     {
       "level": 42,
-      "text": "forge the star pickaxe"
+      "text": "forge the quick pickaxe (sorcery 22)"
     },
     {
       "level": 42,
@@ -4182,47 +3958,47 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 45,
-      "text": "forge the star dagger"
+      "text": "forge the quick dagger (sorcery 28)"
     },
     {
       "level": 45,
-      "text": "forge the star ingot"
+      "text": "forge the quick ingot (sorcery 25)"
     },
     {
       "level": 45,
-      "text": "forge the star sword"
+      "text": "forge the quick sword (sorcery 25)"
     },
     {
       "level": 46,
-      "text": "forge the star javelin"
+      "text": "forge the quick javelin (sorcery 26)"
     },
     {
       "level": 46,
-      "text": "forge the star spear"
+      "text": "forge the quick spear (sorcery 26)"
     },
     {
       "level": 48,
-      "text": "forge the star alloy"
+      "text": "forge the quick alloy (sorcery 28)"
     },
     {
       "level": 48,
-      "text": "forge the star shield"
+      "text": "forge the quick shield"
+    },
+    {
+      "level": 50,
+      "text": "forge the quick flail (sorcery 29)"
+    },
+    {
+      "level": 50,
+      "text": "forge the quick plate (sorcery 30)"
     },
     {
       "level": 50,
       "text": "forge the shot"
     },
     {
-      "level": 50,
-      "text": "forge the star flail"
-    },
-    {
-      "level": 50,
-      "text": "forge the star plate"
-    },
-    {
       "level": 52,
-      "text": "forge the star mell"
+      "text": "forge the quick mell (sorcery 30)"
     },
     {
       "level": 55,
@@ -4242,23 +4018,23 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 70,
-      "text": "forge the great crossbow"
+      "text": "forge the great crossbow (sorcery 34)"
     },
     {
       "level": 70,
-      "text": "forge the great helm"
+      "text": "forge the great helm (sorcery 34)"
     },
     {
       "level": 70,
-      "text": "forge the great mell"
+      "text": "forge the great mell (sorcery 34)"
     },
     {
       "level": 70,
-      "text": "forge the great plate"
+      "text": "forge the great plate (sorcery 34)"
     },
     {
       "level": 70,
-      "text": "forge the great sword"
+      "text": "forge the great sword (sorcery 34)"
     },
     {
       "level": 70,
@@ -4274,7 +4050,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 78,
-      "text": "the magic-rocks of the Wilds open to your pick"
+      "text": "the quick-rocks of the Wilds open to your pick"
     },
     {
       "level": 80,
@@ -4352,7 +4128,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 20,
-      "text": "forge the star helm"
+      "text": "forge the quick helm (earthcraft 40)"
     },
     {
       "level": 20,
@@ -4360,75 +4136,75 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 22,
-      "text": "forge the star grit"
+      "text": "forge the quick grit (earthcraft 42)"
     },
     {
       "level": 22,
-      "text": "forge the star hatchet"
+      "text": "forge the quick hatchet (earthcraft 42)"
     },
     {
       "level": 22,
-      "text": "forge the star pickaxe"
+      "text": "forge the quick pickaxe (earthcraft 42)"
     },
     {
       "level": 25,
-      "text": "forge the sigil bow"
+      "text": "forge the quick ingot (earthcraft 45)"
     },
     {
       "level": 25,
-      "text": "forge the star ingot"
+      "text": "forge the quick sword (earthcraft 45)"
     },
     {
       "level": 25,
-      "text": "forge the star sword"
+      "text": "forge the sigil bow (earthcraft 12)"
     },
     {
       "level": 26,
-      "text": "forge the star javelin"
+      "text": "forge the quick javelin (earthcraft 46)"
     },
     {
       "level": 26,
-      "text": "forge the star spear"
+      "text": "forge the quick spear (earthcraft 46)"
     },
     {
       "level": 28,
-      "text": "forge the star alloy"
+      "text": "forge the quick alloy (earthcraft 48)"
     },
     {
       "level": 28,
-      "text": "forge the star dagger"
+      "text": "forge the quick dagger (earthcraft 45)"
     },
     {
       "level": 29,
-      "text": "forge the star flail"
+      "text": "forge the quick flail (earthcraft 50)"
     },
     {
       "level": 30,
-      "text": "forge the star mell"
+      "text": "forge the quick mell (earthcraft 52)"
     },
     {
       "level": 30,
-      "text": "forge the star plate"
+      "text": "forge the quick plate (earthcraft 50)"
     },
     {
       "level": 34,
-      "text": "forge the great crossbow"
+      "text": "forge the great crossbow (earthcraft 70)"
     },
     {
       "level": 34,
-      "text": "forge the great helm"
+      "text": "forge the great helm (earthcraft 70)"
     },
     {
       "level": 34,
-      "text": "forge the great mell"
+      "text": "forge the great mell (earthcraft 70)"
     },
     {
       "level": 34,
-      "text": "forge the great plate"
+      "text": "forge the great plate (earthcraft 70)"
     },
     {
       "level": 34,
-      "text": "forge the great sword"
+      "text": "forge the great sword (earthcraft 70)"
     },
     {
       "level": 40,
@@ -4436,7 +4212,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 40,
-      "text": "the rot — from the barrow-work"
+      "text": "the rot, from the barrow-work"
     },
     {
       "level": 50,
@@ -4444,7 +4220,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 60,
-      "text": "the taking — from the barrow-work"
+      "text": "the taking, from the barrow-work"
     },
     {
       "level": 70,
@@ -4456,7 +4232,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 75,
-      "text": "the waking — from the barrow-work"
+      "text": "the waking, from the barrow-work"
     },
     {
       "level": 85,
@@ -4464,7 +4240,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 88,
-      "text": "the withering — from the barrow-work"
+      "text": "the withering, from the barrow-work"
     }
   ],
   "mourning": [
@@ -4499,14 +4275,6 @@ const SKILL_UNLOCKS = {
     {
       "level": 30,
       "text": "take up the bare blade"
-    },
-    {
-      "level": 30,
-      "text": "take up the gold chain"
-    },
-    {
-      "level": 30,
-      "text": "take up the old chain"
     },
     {
       "level": 30,
@@ -4554,11 +4322,11 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 45,
-      "text": "take up the star helm"
+      "text": "take up the quick helm"
     },
     {
       "level": 48,
-      "text": "take up the star shield"
+      "text": "take up the quick shield"
     },
     {
       "level": 50,
@@ -4570,27 +4338,27 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 50,
-      "text": "take up the star dagger"
+      "text": "take up the quick dagger"
     },
     {
       "level": 50,
-      "text": "take up the star plate"
+      "text": "take up the quick plate"
     },
     {
       "level": 50,
-      "text": "take up the star spear"
+      "text": "take up the quick spear"
     },
     {
       "level": 50,
-      "text": "take up the star sword"
+      "text": "take up the quick sword"
     },
     {
       "level": 55,
-      "text": "take up the star flail"
+      "text": "take up the quick flail"
     },
     {
       "level": 55,
-      "text": "take up the star mell"
+      "text": "take up the quick mell"
     },
     {
       "level": 60,
@@ -4598,19 +4366,27 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 70,
-      "text": "take up the great helm"
-    },
-    {
-      "level": 70,
       "text": "take up the great mell"
     },
     {
       "level": 70,
+      "text": "take up the great sword"
+    },
+    {
+      "level": 80,
+      "text": "take up the great helm"
+    },
+    {
+      "level": 80,
       "text": "take up the great plate"
     },
     {
-      "level": 70,
-      "text": "take up the great sword"
+      "level": 90,
+      "text": "take up the gold chain"
+    },
+    {
+      "level": 90,
+      "text": "take up the old chain"
     }
   ],
   "marksmanship": [
@@ -4648,7 +4424,7 @@ const SKILL_UNLOCKS = {
     },
     {
       "level": 50,
-      "text": "take up the star javelin"
+      "text": "take up the quick javelin"
     },
     {
       "level": 70,
@@ -4736,20 +4512,20 @@ const CALLINGS_OF = {
   hearthcraft: ['farmer', 'brewer'],
   prowess: ['fighter', 'berserker', 'warden'],
   marksmanship: ['archer'],
-  sorcery: ['alchemist'],
+  sorcery: ['sorcerer'],
   wayfaring: ['cartographer', 'runner'],
   mourning: ['mourner'],
 }
 const SKILL_NOTE = {
-  woodcraft: 'The axe, the bench and the fire. Fell, saw, fletch and light \u2014 one trade, because nobody fells a tree for the sake of holding logs.',
+  woodcraft: 'The axe, the bench and the fire. Fell, saw, fletch and light: one trade, because nobody fells a tree for the sake of holding logs.',
   earthcraft: 'The seam and the anvil. Ore has no use unmelted, and the one who went to the crags for it should not have to hand it over to make it useful.',
   shorecraft: 'The rod and the pan. Nobody fishes in order to carry a raw fish home.',
-  hearthcraft: 'The field and the pot. The grain ends up at the hearth either way. (Your brewing pot is not this level \u2014 it is a thing you raised.)',
+  hearthcraft: 'The field and the pot. The grain ends up at the hearth either way. (Your brewing pot is not this level: it is a thing you raised.)',
   prowess: 'One ladder for the whole of close fighting. A blow you land pays it and so does one you wear. Your frame is FLAT at sixty-four: it is not a skill and never rises.',
-  marksmanship: 'Every drawn arm \u2014 bow, crossbow, handgonne, javelin. Distance is the trade.',
+  marksmanship: 'Every drawn arm, bow, crossbow, handgonne, javelin. Distance is the trade.',
   sorcery: 'The trade of refusing combat. It gates the sigil spells, below.',
   wayfaring: 'Going out and coming back. Ground never seen pays it; so does weight carried across ground you have. Gates one thing, below.',
-  mourning: 'The only trade paid in what it COST you. An offering is gone \u2014 nobody gets it \u2014 and the same gift twice is worth less. What it buys is what survives you.',
+  mourning: 'The only trade paid in what it COST you. An offering is gone: nobody gets it, and the same gift twice is worth less. What it buys is what survives you.',
 }
 // §5m: THE NINE, in the engine's SKILLS order. This carried all eighteen old
 // names mapped onto the new ones, so it listed woodcraft three times, prowess
@@ -4765,20 +4541,33 @@ function standingOf(p) { // the sum of true levels: mastery is a milestone, not 
   for (const sk of SKILL_ORDER) n += XP_TO_LVL(p?.skills?.[sk] ?? 0)
   return n
 }
-function callingOf(p) { // the trade you have the most experience in, as a word
-  let best = null, bestXp = -1
-  for (const sk of SKILL_ORDER) {
-    if (sk === 'prowess') continue
-    const xp = p?.skills?.[sk] ?? 0
-    if (xp > bestXp) { bestXp = xp; best = sk }
+function callingOf(p) { // what the world calls this citizen, exactly as engine.js does
+  // §5k: THE SWORN WORD IS THE ANSWER. It is what the citizen SAID, and
+  // nothing they do afterwards edits it.
+  //
+  // §5k-ii: AND AN UNSWORN CITIZEN IS A NEWCOMER. This window named them after
+  // whichever craft they had most experience in, out of a `CALLINGS` table
+  // that predates swearing, and did not handle the sworn case at all -- so a
+  // sworn forester read `woodwright` here and `forester` everywhere else. The
+  // fallback is gone from the engine for two reasons: nobody is a smith before
+  // they swear, and five of those words are also callings, so the word could
+  // not be told from an oath.
+  if (typeof p?.calling === 'string' && p.calling) {
+    // `typeof` rather than a bare read: test/identity.test.mjs evaluates this
+    // block on its own, where the table the window loads at runtime does not
+    // exist, and an undeclared name is a ReferenceError that optional chaining
+    // does not catch.
+    const sk = (typeof SWORN_T !== 'undefined' && SWORN_T) ? SWORN_T[p.calling]?.skill : undefined
+    const deep = sk ? (p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY] : false
+    // §5n: the word is earned by raising somebody, not by the number alone
+    return (deep && (p?.raised ?? 0) >= 1 ? 'master ' : '') + p.calling
   }
-  if (best === null || XP_TO_LVL(bestXp) <= 1) return 'newcomer'
-  // §4b: MASTERY IS ONE HUNDRED. This read XP_TABLE[99] -- the old ceiling --
-  // so the window called a citizen a master one whole level early, and named
-  // Master of Interval before the last level of any trade was done.
-  if (SKILL_ORDER.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[MASTERY])) return 'Master of Interval'
-  // mastery is the milestone the world announces, so the calling says it
-  return (bestXp >= XP_TABLE[MASTERY] ? 'master ' : '') + CALLINGS[best]
+  // §5k-iii: MASTER OF INTERVAL IS GONE, because §5k's caps made it
+  // impossible. An unsworn citizen is held to level fifty in everything and a
+  // sworn one to seventy outside their own trade, and the engine REFUSES a
+  // state with all nine at a hundred. A window must not offer a title the
+  // world will not let anybody hold.
+  return 'newcomer'
 }
 // the mobs, character for character from engine.js MOB_STATS (spec 6c). A
 // window cannot ask the world how hard a troll hits: the state carries a mob's
@@ -4830,14 +4619,14 @@ const RANGED_ITEMS = new Set([
   "horn-bow",
   "iron-javelin",
   "sigil-bow",
-  "star-javelin",
+  "quick-javelin",
   "steel-javelin",
   "wooden-bow"
 ])   // §6dg
 // §6dg: what a weapon draws FROM. A bow wants arrows, a gonne wants shot, and a
 // javelin wants more javelins -- the engine's `ammoOf`, which answers with the
 // weapon's own name when it is `selfAmmo`.
-const SELF_AMMO = new Set(['iron-javelin', 'steel-javelin', 'star-javelin'])
+const SELF_AMMO = new Set(['iron-javelin', 'steel-javelin', 'quick-javelin'])
 const ammoForItem = (it) => SELF_AMMO.has(it) ? it : (it === 'handgonne' ? 'shot' : 'arrows')
 const hasAmmoFor = (me, it) => me.inventory.some((sl) => sl?.item === ammoForItem(it))
 // how far each weapon strikes, character for character from engine WEAPONS.
@@ -4868,12 +4657,12 @@ const WEAPON_REACH = {
   "old-chain": 1,
   "sigil-bow": 5,
   "spade": 1,
-  "star-dagger": 1,
-  "star-flail": 1,
-  "star-javelin": 3,
-  "star-mell": 1,
-  "star-spear": 2,
-  "star-sword": 1,
+  "quick-dagger": 1,
+  "quick-flail": 1,
+  "quick-javelin": 3,
+  "quick-mell": 1,
+  "quick-spear": 2,
+  "quick-sword": 1,
   "steel-dagger": 1,
   "steel-javelin": 3,
   "steel-mell": 1,
@@ -4925,12 +4714,12 @@ const WEAPON_EVERY = {
   "old-chain": 1,
   "sigil-bow": 2,
   "spade": 3,
-  "star-dagger": 2,
-  "star-flail": 2,
-  "star-javelin": 2,
-  "star-mell": 2,
-  "star-spear": 2,
-  "star-sword": 2,
+  "quick-dagger": 2,
+  "quick-flail": 2,
+  "quick-javelin": 2,
+  "quick-mell": 2,
+  "quick-spear": 2,
+  "quick-sword": 2,
   "steel-dagger": 2,
   "steel-javelin": 2,
   "steel-mell": 2,
@@ -5025,7 +4814,7 @@ const PRICES = {
   "king-shroud": 800,
   "lamprey-spit": 90,
   "logs": 2,
-  "magic-stone": 20,
+  "quick-stone": 20,
   "oak-logs": 6,
   "oak-rod": 40,
   "ore": 5,
@@ -5041,16 +4830,16 @@ const PRICES = {
   "shot": 2,
   "spade": 260,
   "staff": 6,
-  "star-hatchet": 315,
-  "star-helm": 270,
-  "star-ingot": 420,
-  "star-javelin": 12,
-  "star-mell": 720,
-  "star-pickaxe": 315,
-  "star-plate": 900,
-  "star-shield": 640,
-  "star-spear": 450,
-  "star-sword": 540,
+  "quick-hatchet": 315,
+  "quick-helm": 270,
+  "quick-ingot": 420,
+  "quick-javelin": 12,
+  "quick-mell": 720,
+  "quick-pickaxe": 315,
+  "quick-plate": 900,
+  "quick-shield": 640,
+  "quick-spear": 450,
+  "quick-sword": 540,
   "steel-dagger": 40,
   "steel-hatchet": 44,
   "steel-helm": 45,
@@ -5106,8 +4895,8 @@ const METAL_PALETTE = {
 const METAL = (it) => METAL_PALETTE[(it || '').split('-')[0]] ?? METAL_PALETTE.iron
 const ICON_ALIAS = {
   'oak-logs': 'logs', 'ironbark': 'logs', 'heartwood': 'logs',
-  'iron': 'ore', 'coal': 'ore', 'magic-stone': 'ore', 'gold-ore': 'ore',
-  'steel': 'ore', 'star-ingot': 'ore', 'gold-bar': 'ore',
+  'iron': 'ore', 'coal': 'ore', 'quick-stone': 'ore', 'gold-ore': 'ore',
+  'steel': 'ore', 'quick-ingot': 'ore', 'gold-bar': 'ore',
   'eel': 'raw-fish', 'deep-fish': 'raw-fish',
   'cooked-eel': 'cooked-fish', 'cooked-deep-fish': 'cooked-fish',
   'burnt-eel': 'burnt-fish', 'burnt-deep-fish': 'burnt-fish',
@@ -5116,15 +4905,15 @@ const ICON_ALIAS = {
   // shields, greaves, helms and cuirasses now draw themselves in their own
   // metal; the aliases that pointed a shield at a helm are gone.
   // king-shroud now has its own sprite (a hooded mantle); no longer aliased.
-  'great-hatchet': 'star-hatchet', 'great-pickaxe': 'star-pickaxe',
+  'great-hatchet': 'quick-hatchet', 'great-pickaxe': 'quick-pickaxe',
   'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
   'steel-sword': 'iron-sword',
   'steel-dagger': 'iron-dagger', 'steel-spear': 'iron-spear',
 }
 const ICON_TINT = {
   'oak-logs': '#6b4a22', 'ironbark': '#3f5a3a', 'heartwood': '#b08a3e',
-  'coal': '#2c2c2e', 'magic-stone': '#8ce0ff', 'gold-ore': '#ffd23f',
-  'gold-bar': '#ffd23f', 'star-ingot': '#8ce0ff', 'steel': '#b9c0c8',
+  'coal': '#2c2c2e', 'quick-stone': '#8ce0ff', 'gold-ore': '#ffd23f',
+  'gold-bar': '#ffd23f', 'quick-ingot': '#8ce0ff', 'steel': '#b9c0c8',
   'eel': '#4a6b3a', 'deep-fish': '#2f4f7a',
   'cooked-eel': '#7a6b3a', 'cooked-deep-fish': '#8a6f45',
   'deep-broth': '#3a5a6b',
@@ -5143,7 +4932,7 @@ const NODE_FAMILY = {
   'tree': 'tree', 'oak-tree': 'tree', 'ironbark-tree': 'tree',
   'heartwood-tree': 'tree', 'gallows-oak': 'tree',
   'rock': 'rock', 'iron-rock': 'rock', 'coal-rock': 'rock', 'gold-rock': 'rock',
-  'magic-rock': 'magic-rock', 'mother-lode': 'magic-rock',
+  'quick-rock': 'quick-rock', 'mother-lode': 'quick-rock',
   'fishing-spot': 'fishing-spot', 'eel-spot': 'fishing-spot',
   'deep-fish-spot': 'fishing-spot', 'gibbet-shoal': 'fishing-spot',
 }
@@ -5184,14 +4973,14 @@ const NODE_NAME = {
   'tree': 'tree', 'oak-tree': 'oak', 'ironbark-tree': 'ironbark',
   'heartwood-tree': 'heartwood', 'gallows-oak': 'gallows oak',
   'rock': 'rock', 'iron-rock': 'iron', 'coal-rock': 'coal', 'gold-rock': 'gold',
-  'magic-rock': 'magic stone', 'mother-lode': 'mother lode',
+  'quick-rock': 'magic stone', 'mother-lode': 'mother lode',
   'brimstone-vent': 'brimstone', 'muck-heap': 'muck heap', 'rockfall': 'rockfall',
   // §7db-ii: and a fishing spot is not "shorecraft". There are FOUR, they yield
   // three different fish, and I named the family instead of the thing -- which
   // is the exact fault the labels were added to fix, committed in the table
   // that fixes it. A name has to say what you get.
   'fishing-spot': 'fish', 'eel-spot': 'eels', 'deep-fish-spot': 'deep fish',
-  'gibbet-shoal': 'the shoal \u2014 deep fish, two to a cast', 'salt-pan': 'salt pans',
+  'gibbet-shoal': 'the shoal, deep fish, two to a cast', 'salt-pan': 'salt pans',
 }
 const NAME_RANGE = 7   // as far as you could read a thing by looking at it
 // §5i: mirrors engine WALK_MAX_STEPS. The engine refuses anything longer, so a
@@ -5216,10 +5005,10 @@ const WORN_STATS = {
   "steel-sword": {hit:3, every:2},
   "steel-spear": {hit:8, every:2, reach:2},
   "steel-mell": {hit:11, acc:-12, every:2},
-  "star-dagger": {hit:2, acc:14, every:2},
-  "star-sword": {hit:4, every:2},
-  "star-spear": {hit:9, every:2, reach:2},
-  "star-mell": {hit:13, acc:-12, every:2},
+  "quick-dagger": {hit:2, acc:14, every:2},
+  "quick-sword": {hit:4, every:2},
+  "quick-spear": {hit:9, every:2, reach:2},
+  "quick-mell": {hit:13, acc:-12, every:2},
   "old-chain": {hit:1, every:1},
   "gold-chain": {hit:1, every:1},
   "spade": {acc:-8, every:3},
@@ -5229,10 +5018,10 @@ const WORN_STATS = {
   "barb": {hit:4, acc:8, every:2},
   "wand": {acc:-20, every:3},
   "bone-staff": {acc:-26, every:3},
-  "star-flail": {hit:9, acc:-6, every:2, pierces:1},
+  "quick-flail": {hit:9, acc:-6, every:2, pierces:1},
   "iron-javelin": {hit:2, every:2, reach:3},
   "steel-javelin": {hit:3, every:2, reach:3},
-  "star-javelin": {hit:4, every:2, reach:3},
+  "quick-javelin": {hit:4, every:2, reach:3},
   "hollow-bow": {hit:2, acc:-10, every:2, reach:3},
   "torch": {hit:1, acc:-6, every:3},
   "great-sword": {hit:5, acc:4, every:2},
@@ -5249,8 +5038,8 @@ const WORN_STATS = {
   "iron-plate": {armour:12},
   "steel-helm": {armour:12},
   "steel-plate": {armour:18},
-  "star-helm": {armour:16},
-  "star-plate": {armour:24},
+  "quick-helm": {armour:16},
+  "quick-plate": {armour:24},
   "king-shroud": {armour:22},
   "gold-helm": {armour:16},
   "gold-plate": {armour:24},
@@ -5262,13 +5051,13 @@ const WORN_STATS = {
 const EQUIP_SLOTS = ['head', 'weapon', 'body', 'offhand', 'legs']
 // §6bz: which slot an item wants, for the window's own reasoning. The engine's
 // `slotOf` is the authority; this only has to be right about shields.
-const EQUIP_SLOT_OF = (item) => /-shield$/.test(item ?? '') ? 'offhand'
-  : /-helm$|hood$/.test(item ?? '') ? 'head'
-  : /-plate$|shroud$/.test(item ?? '') ? 'body'
-  : /-greaves$|-legs$/.test(item ?? '') ? 'legs' : 'weapon'
+const EQUIP_SLOT_OF = (item) => /-shield$/.test(item ?? '') ? 'offhand':
+  /-helm$|hood$/.test(item ?? '') ? 'head':
+  /-plate$|shroud$/.test(item ?? '') ? 'body':
+  /-greaves$|-legs$/.test(item ?? '') ? 'legs' : 'weapon'
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
-const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'magic-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
+const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'quick-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
 // §6: A MAGIC-ROCK ASKS FOR MINING 70, and neither window knew it. A citizen
 // walked to the glowing rock, clicked it, and NOTHING happened -- the engine
 // refused the gather at the door and the refusal is silent, so the rock simply
@@ -5300,8 +5089,8 @@ let lastFeed = { text: '', at: 0 }
 let uid = localStorage.getItem('interval-uid')
 if (!uid) {
   // crypto.randomUUID requires HTTPS/localhost; plain http needs a fallback
-  uid = (crypto.randomUUID ? crypto.randomUUID()
-        : Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
+  uid = (crypto.randomUUID ? crypto.randomUUID():
+        Array.from({ length: 32 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join(''))
   localStorage.setItem('interval-uid', uid)
 }
 // ---------------------------------------------------------------------------
@@ -5500,7 +5289,7 @@ async function ownIdentity() {
 // -- and it shapes the BLOW, narrow and dependable against wild and swingy.
 // The mean is identical, so no style is stronger and none is a trap; they are
 // differently useful, and the difference is worth about twenty points of
-// execute threshold on a two-blow special and nothing at all on a six.
+// execute threshold on a two-blow gambit and nothing at all on a six.
 //
 // It is read here rather than passed at every call site because a citizen
 // chooses it once and then forgets it, the way they choose which way to face.
@@ -5544,119 +5333,128 @@ window.addEventListener('keydown', (e) => {
 })
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
-  // §5i: a journey is one deed. Direction and count; the world walks the rest.
-  : a.do === 'walk' ? { type: 'walk', dx: a.dx, dy: a.dy, steps: a.steps }
-  : a.do === 'spawn' ? { type: 'spawn' }
-  : a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
+  // §5i: a journey is one deed. Direction and count; the world walks the rest.:
+  a.do === 'walk' ? { type: 'walk', dx: a.dx, dy: a.dy, steps: a.steps }:
+  a.do === 'spawn' ? { type: 'spawn' }:
+  a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
   // v0.82: the four verbs this window could not send. A window that cannot
   // express a verb is a window whose citizens cannot do that thing at all --
   // they could not drink at a well, transmute anything, choose their own face,
-  // or send a mending to somebody who needed it.
-  : a.do === 'drink' ? { type: 'drink' }
+  // or send a mending to somebody who needed it.:
+  a.do === 'drink' ? { type: 'drink' }
   // §7dy/§7dz: the deferred acts. The canonical battery caught these missing
   // from the SDK and nothing was checking the windows, so they were reachable
   // from neither -- a verb the engine accepts and no window can send is a verb
-  // that does not really exist.
-  : a.do === 'sapling' ? { type: 'sapling', nodeId: a.nodeId }
-  : a.do === 'setbuck' ? { type: 'setbuck' }
-  : a.do === 'lift' ? { type: 'lift', nodeId: a.nodeId }
-  // §14: the toll on the Millbrook Bridge
-  : a.do === 'pay' ? { type: 'pay' }
-  : a.do === 'grind' ? { type: 'grind', slot: a.slot }
-  : a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }
-  : a.do === 'saw' ? { type: 'saw' }
-  : a.do === 'nock' ? { type: 'nock', slot: a.slot }
-  : a.do === 'follow' ? { type: 'follow', targetId: a.targetId }
-  : a.do === 'turn' ? { type: 'turn' }
-  : a.do === 'waking' ? { type: 'waking', targetId: a.targetId }
-  : a.do === 'rot' ? { type: 'rot', targetId: a.targetId }
-  : a.do === 'taking' ? { type: 'taking', targetId: a.targetId }
-  : a.do === 'withering' ? { type: 'withering', targetId: a.targetId }
-  : a.do === 'befriend' ? { type: 'befriend', targetId: a.targetId }
-  : a.do === 'unfriend' ? { type: 'unfriend', targetId: a.targetId }
-  : a.do === 'charter' ? { type: 'charter', slot: a.slot }
-  : a.do === 'unfollow' ? { type: 'unfollow' }
-  : a.do === 'alch' ? { type: 'alch', slot: a.slot }
-  : a.do === 'set_look' ? { type: 'set_look', look: a.look }
-  : a.do === 'mendp' ? { type: 'mendp', target: a.target }
-  : a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }
-  : a.do === 'seal' ? { type: 'seal', groundId: a.groundId }
-  : a.do === 'raise_market' ? { type: 'raise_market' }
-  : a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }
-  : a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }
-  : a.do === 'take_market' ? { type: 'take_market' }
-  : a.do === 'dismantle_market' ? { type: 'dismantle_market' }
-  : a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  : a.do === 'prowess' ? { type: 'prowess', mobId: a.mobId, style: a.style ?? combatStyle }
-  : a.do === 'eat' ? { type: 'eat', slot: a.slot }
-  : a.do === 'drop' ? { type: 'drop', slot: a.slot }
+  // that does not really exist.:
+  a.do === 'sapling' ? { type: 'sapling', nodeId: a.nodeId }:
+  a.do === 'setbuck' ? { type: 'setbuck' }:
+  a.do === 'lift' ? { type: 'lift', nodeId: a.nodeId }
+  // §14: the toll on the Millbrook Bridge:
+  a.do === 'pay' ? { type: 'pay' }:
+  a.do === 'grind' ? { type: 'grind', slot: a.slot }:
+  a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }:
+  a.do === 'saw' ? { type: 'saw' }:
+  a.do === 'nock' ? { type: 'nock', slot: a.slot }:
+  a.do === 'follow' ? { type: 'follow', targetId: a.targetId }:
+  a.do === 'turn' ? { type: 'turn' }:
+  a.do === 'waking' ? { type: 'waking', targetId: a.targetId }:
+  a.do === 'rot' ? { type: 'rot', targetId: a.targetId }:
+  a.do === 'taking' ? { type: 'taking', targetId: a.targetId }:
+  a.do === 'withering' ? { type: 'withering', targetId: a.targetId }:
+  a.do === 'befriend' ? { type: 'befriend', targetId: a.targetId }:
+  a.do === 'unfriend' ? { type: 'unfriend', targetId: a.targetId }:
+  a.do === 'charter' ? { type: 'charter', slot: a.slot }:
+  a.do === 'unfollow' ? { type: 'unfollow' }:
+  a.do === 'alch' ? { type: 'transmute', slot: a.slot }:   // the engine's word for it
+  a.do === 'set_look' ? { type: 'set_look', look: a.look }:
+  a.do === 'mendp' ? { type: 'mendp', target: a.target }:
+  a.do === 'unmake' ? { type: 'unmake', groundId: a.groundId }:
+  a.do === 'seal' ? { type: 'seal', groundId: a.groundId }:
+  a.do === 'raise_market' ? { type: 'raise_market' }:
+  a.do === 'stock_market' ? { type: 'stock_market', slot: a.slot | 0 }:
+  a.do === 'price_market' ? { type: 'price_market', ask: a.ask | 0 }:
+  a.do === 'take_market' ? { type: 'take_market' }:
+  a.do === 'dismantle_market' ? { type: 'dismantle_market' }:
+  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
+  // §5j RENAMED THE SKILL AND NOT THE VERB. `prowess` is what attack, strength
+  // and defence became as a LADDER; the input is still `attack`, and sending the
+  // skill's name got "unknown input type" from every node, so a citizen in this
+  // window could not strike a beast at all.
+  a.do === 'prowess' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }:
+  a.do === 'eat' ? { type: 'eat', slot: a.slot }:
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }
   // §7dk: `confirm` is required on every pickup and only CHECKED when the
   // pile belongs to another citizen. An ordinary pickup sends false and
-  // nothing about it changes.
-  : a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
-  : a.do === 'wield' ? { type: 'wield', slot: a.slot }
-  : a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }
-  : a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
+  // nothing about it changes.:
+  a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
+  a.do === 'wield' ? { type: 'wield', slot: a.slot }:
+  a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }:
+  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
   // trade and recall: the flat window could do neither, so the window most
   // people meet first was the one that could not buy from a person or walk
-  // home. giveSlots is a list since v0.69: a whole pack in one exchange.
-  : a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
-                         wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }
-  : a.do === 'accept' ? { type: 'accept_trade', from: a.from }
-  : a.do === 'cancel' ? { type: 'cancel_trade' }
-  : a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
-  : a.do === 'offer' ? { type: 'offer', to: a.to, slot: a.slot }
-  : a.do === 'accept' ? { type: 'accept', from: a.from, slot: a.slot }
-  : a.do === 'decline' ? { type: 'decline' }
-  : a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  // home. giveSlots is a list since v0.69: a whole pack in one exchange.:
+  a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
+                         wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }:
+  a.do === 'accept' ? { type: 'accept_trade', from: a.from }:
+  a.do === 'cancel' ? { type: 'cancel_trade' }:
+  a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens:
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
   // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
-  // one, so a window that omits it silently stops being able to use a vault.
-  : a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }
-  : a.do === 'deposit_all' ? { type: 'deposit_all' }
-  : a.do === 'light' ? { type: 'light', slot: a.slot }
-  : a.do === 'bury' ? { type: 'bury', slot: a.slot }
-  : a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }
-  : a.do === 'invoke' ? { type: 'invoke' }
+  // one, so a window that omits it silently stops being able to use a vault.:
+  a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }:
+  a.do === 'deposit_all' ? { type: 'deposit_all' }:
+  a.do === 'light' ? { type: 'light', slot: a.slot }:
+  a.do === 'bury' ? { type: 'bury', slot: a.slot }:
+  a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
+  a.do === 'invoke' ? { type: 'invoke' }
   // §5k/§5w: the calling was named in this window's guide since it was written
   // and there was no line here for saying it, so no citizen could ever swear.
   // `attester` is optional: an unattested swearing stays legal (§5w), and the
-  // first forester has nobody to attest them.
-  : a.do === 'swear' ? (a.attester === undefined
-      ? { type: 'swear', calling: a.calling }
-      : { type: 'swear', calling: a.calling, attester: a.attester })
-  : a.do === 'teach' ? { type: 'teach', to: a.to }
-  : a.do === 'part' ? { type: 'part', who: a.who }
-  : a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
-  // §6af: the window sent `special` from the ring menu and the bridge had no
-  // line for it, so it answered 'no wiring for special yet' and swallowed the
-  // only interesting decision in a fight.
-  : a.do === 'special' ? { type: 'special', targetId: a.targetId, style: a.style ?? combatStyle }
-  : a.do === 'buy' ? { type: 'buy', item: a.item }
+  // first forester has nobody to attest them.:
+  a.do === 'swear' ? (a.attester === undefined
+      // §5w: the attester is a DECLARED field now and empty means nobody.
+      // It was omitted entirely for an unattested swearing, which this
+      // constitution has no room for: every declared field is required, so
+      // the omission became `missing field attester on swear`.
+      ? { type: 'swear', calling: a.calling, attester: '' }:
+      { type: 'swear', calling: a.calling, attester: a.attester }):
+  a.do === 'teach' ? { type: 'teach', to: a.to }:
+  a.do === 'part' ? { type: 'part', who: a.who }:
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
+  // §6af: the window sent `gambit` from the ring menu and the bridge had no
+  // line for it, so it answered 'no wiring for gambit yet' and swallowed the
+  // only interesting decision in a fight. IT THEN DID IT AGAIN, one layer down:
+  // the verb was renamed `gambit` in the engine and this line kept sending
+  // `gambit`, which `validateInputShape` answers with "unknown input type", so
+  // the burst was dead in this window and nowhere else. The SDK, the bridge and
+  // the server had all moved.:
+  a.do === 'gambit' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }:
+  a.do === 'buy' ? { type: 'buy', item: a.item }
   // §11b: the counter. None of the three had a line here, so the eighteenth
-  // skill could not be reached from this window at all.
-  : a.do === 'consign' ? { type: 'consign', slots: a.slots }
-  : a.do === 'release' ? { type: 'release' }
-  : a.do === 'deliver' ? { type: 'deliver', slot: a.slot }
-  : a.do === 'plant' ? { type: 'plant', slot: a.slot }
-  : a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }
-  : a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }
-  : a.do === 'still' ? { type: 'still', target: a.target }
-  : a.do === 'survey' ? { type: 'survey' }
-  : a.do === 'build_brewpot' ? { type: 'build_brewpot' }
-  : a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }
-  : a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }
-  : a.do === 'kindle' ? { type: 'kindle' }
-  : a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }
-  : a.do === 'char' ? { type: 'char', nodeId: a.nodeId }
-  : a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }
-  : a.do === 'grave' ? { type: 'grave', nodeId: a.nodeId, target: a.target }
-  : a.do === 'sound' ? { type: 'sound' }
-  : a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }
-  : a.do === 'cook' ? { type: 'cook', slot: a.slot }
-  : a.do === 'stop' ? { type: 'stop' }
-  : a.do === 'unequip' ? { type: 'unwield', gear: a.gear }
-  : null
+  // skill could not be reached from this window at all.:
+  a.do === 'consign' ? { type: 'consign', slots: a.slots }:
+  a.do === 'release' ? { type: 'release' }:
+  a.do === 'deliver' ? { type: 'deliver', slot: a.slot }:
+  a.do === 'plant' ? { type: 'plant', slot: a.slot }:
+  a.do === 'harvest' ? { type: 'harvest', nodeId: a.nodeId }:
+  a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }:
+  a.do === 'still' ? { type: 'still', target: a.target }:
+  a.do === 'survey' ? { type: 'survey' }:
+  a.do === 'build_brewpot' ? { type: 'build_brewpot' }:
+  a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'collect' ? { type: 'collect', nodeId: a.nodeId }:
+  a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }:
+  a.do === 'kindle' ? { type: 'kindle' }:
+  a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
+  a.do === 'char' ? { type: 'char', nodeId: a.nodeId }:
+  a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }:
+  a.do === 'grave' ? { type: 'grave', nodeId: a.nodeId, target: a.target }:
+  a.do === 'sound' ? { type: 'sound' }:
+  a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }:
+  a.do === 'cook' ? { type: 'cook', slot: a.slot }:
+  a.do === 'stop' ? { type: 'stop' }:
+  a.do === 'unequip' ? { type: 'unwield', gear: a.gear }:
+  null
 
 // signature domains + worldId (fix brief §2.3): the signed bytes are
 // domain-prefixed and the payload names the exact world. These strings
@@ -5687,7 +5485,7 @@ function setChatScope(v) {
   chatScope = v === 'far' ? 'far' : 'near'
   try { localStorage.setItem('interval.scope', chatScope) } catch {}
   const b = document.getElementById('scopeBtn')
-  if (b) { b.textContent = chatScope === 'far' ? 'far' : 'near'; b.title = chatScope === 'far' ? 'heard across the island — click for near' : 'heard by those around you — click for far' }
+  if (b) { b.textContent = chatScope === 'far' ? 'far' : 'near'; b.title = chatScope === 'far' ? 'heard across the island, click for near' : 'heard by those around you, click for far' }
 }
 // A leading `/far ` or `/near ` on one line overrides for that line only, the
 // way a shout has always been a different verb rather than a different mode.
@@ -6057,9 +5855,9 @@ function askTake(g2, alreadyAided, onYes) {
     + '<div style="color:#d9c98a;font-weight:600;letter-spacing:.06em;margin-bottom:10px">'
     + 'THESE ARE ' + esc(String(who).toUpperCase()) + '\u2019S</div>'
     + '<div>' + esc(who) + ' left ' + esc(what) + ' here. You can take them.</div>'
-    + (alreadyAided ? ''
-      : '<div style="margin-top:12px;color:#c98a3a">You have never taken a thing from another '
-        + 'citizen. Taking these ends that \u2014 for this world, for good, and it cannot be '
+    + (alreadyAided ? '':
+      '<div style="margin-top:12px;color:#c98a3a">You have never taken a thing from another '
+        + 'citizen. Taking these ends that: for this world, for good, and it cannot be '
         + 'undone.</div>')
     + '<div style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end">'
     + '<button id="_askNo" style="background:#171410;color:#8d8168;border:1px solid #2c2619;'
@@ -6263,10 +6061,10 @@ function stepToward(s, me, goal, reach, stampTick) {
 function nudgeIntent () {
   if (inNought || !curState || !intent || moveLock) return
   const meNow = curState.players[myId]; if (!meNow) return
-  const g = intent.kind === 'walk' ? intent
-    : intent.kind === 'pickup' ? curState.ground[intent.id]
-    : intent.kind === 'meet' || intent.kind === 'pvpattack' ? curState.players[intent.id]
-    : (curState.nodes[intent.id] ?? curState.mobs[intent.id])
+  const g = intent.kind === 'walk' ? intent:
+    intent.kind === 'pickup' ? curState.ground[intent.id]:
+    intent.kind === 'meet' || intent.kind === 'pvpattack' ? curState.players[intent.id]:
+    (curState.nodes[intent.id] ?? curState.mobs[intent.id])
   if (!g || (meNow.x === g.x && meNow.y === g.y)) return
   stepToward(curState, meNow, g, intent.kind !== 'walk' && intent.kind !== 'pickup')
 }
@@ -6274,10 +6072,10 @@ function nudgeIntent () {
 // §6ad: THE FORGE MENU.
 //
 // This used to GUESS. A cascade of if-elses picked one recipe from your pack
-// and made it — which was right when the anvil offered a tool or a iron
+// and made it, which was right when the anvil offered a tool or a iron
 // sword, and is not right now that it offers eighteen. Six were reachable at
 // all, and there was no way to ask for a particular one: a citizen with ore,
-// logs and magic-stone got a star-plate whether or not that is what they
+// logs and quick-stone got a quick-plate whether or not that is what they
 // wanted.
 //
 // So: every recipe, always shown, grouped by material. And the important part
@@ -6291,8 +6089,8 @@ function nudgeIntent () {
 // which is most of the value of building this at all. The failing clause is
 // coloured, not the whole row.
 // §6dj: GENERATED FROM engine.js RECIPES. The window kept its own forge and it
-// had drifted back to a v5 snapshot: `star-sword` still cost three magic-stone
-// and two ore where the engine goes through `star-ingot`, the whole STEEL TIER
+// had drifted back to a v5 snapshot: `quick-sword` still cost three quick-stone
+// and two ore where the engine goes through `quick-ingot`, the whole STEEL TIER
 // was absent so the anvil could not make any of it, and the ingredient names
 // were `ore` where the engine says `iron`. Anybody at this anvil was reading a
 // list of things that had not been true for a dozen releases.
@@ -6312,13 +6110,13 @@ const FORGE = {
   "gold-helm": {"gold-bar":6},
   "gold-legs": {"gold-bar":8},
   "gold-plate": {"gold-bar":16},
-  "great-crossbow": {"star-ingot":7,"brimstone":20,"ironbark":1},
-  "great-hatchet": {"magic-stone":2,"ironbark":2,"brimstone":1},
-  "great-helm": {"star-ingot":4,"brimstone":12},
-  "great-mell": {"star-ingot":11,"brimstone":24,"ironbark":1},
-  "great-pickaxe": {"magic-stone":2,"ironbark":1,"brimstone":1},
-  "great-plate": {"star-ingot":9,"brimstone":22},
-  "great-sword": {"star-ingot":10,"brimstone":26,"ironbark":1},
+  "great-crossbow": {"quick-ingot":7,"brimstone":20,"ironbark":1},
+  "great-hatchet": {"quick-stone":2,"ironbark":2,"brimstone":1},
+  "great-helm": {"quick-ingot":4,"brimstone":12},
+  "great-mell": {"quick-ingot":11,"brimstone":24,"ironbark":1},
+  "great-pickaxe": {"quick-stone":2,"ironbark":1,"brimstone":1},
+  "great-plate": {"quick-ingot":9,"brimstone":22},
+  "great-sword": {"quick-ingot":10,"brimstone":26,"ironbark":1},
   "handgonne": {"iron":9,"ironbark":1,"brimstone":2},
   "hollow-bow": {"bones":4,"logs":1},
   "iron": {"iron-ore":2},
@@ -6336,18 +6134,18 @@ const FORGE = {
   "shell-plate": {"crab-shell":4,"iron":2},
   "shot": {"iron":1,"gunpowder":1},
   "sigil-bow": {"horn-bow":1,"sigil":3},
-  "star-dagger": {"star-ingot":8},
-  "star-flail": {"star-ingot":15,"ironbark":1},
-  "star-hatchet": {"magic-stone":2,"iron":1,"logs":1},
-  "star-helm": {"star-ingot":10},
-  "star-ingot": {"magic-stone":20},
-  "star-javelin": {"star-ingot":1,"ironbark":1},
-  "star-mell": {"star-ingot":18,"ironbark":1},
-  "star-pickaxe": {"magic-stone":2,"iron":1,"logs":1},
-  "star-plate": {"star-ingot":20},
-  "star-shield": {"star-ingot":14,"ironbark":1},
-  "star-spear": {"star-ingot":12,"ironbark":1},
-  "star-sword": {"star-ingot":12},
+  "quick-dagger": {"quick-ingot":8},
+  "quick-flail": {"quick-ingot":15,"ironbark":1},
+  "quick-hatchet": {"quick-stone":2,"iron":1,"logs":1},
+  "quick-helm": {"quick-ingot":10},
+  "quick-ingot": {"quick-stone":20},
+  "quick-javelin": {"quick-ingot":1,"ironbark":1},
+  "quick-mell": {"quick-ingot":18,"ironbark":1},
+  "quick-pickaxe": {"quick-stone":2,"iron":1,"logs":1},
+  "quick-plate": {"quick-ingot":20},
+  "quick-shield": {"quick-ingot":14,"ironbark":1},
+  "quick-spear": {"quick-ingot":12,"ironbark":1},
+  "quick-sword": {"quick-ingot":12},
   "steel": {"iron":1},
   "steel-dagger": {"steel":1},
   "steel-hatchet": {"steel":1,"oak-logs":1},
@@ -6398,18 +6196,18 @@ const FORGE_REQ = {
   "shell-plate": {"earthcraft":26},
   "shot": {"earthcraft":50},
   "sigil-bow": {"earthcraft":12,"sorcery":25},
-  "star-dagger": {"earthcraft":45,"sorcery":28},
-  "star-flail": {"earthcraft":50,"sorcery":29},
-  "star-hatchet": {"earthcraft":42,"sorcery":22},
-  "star-helm": {"earthcraft":40,"sorcery":20},
-  "star-ingot": {"earthcraft":45},
-  "star-javelin": {"earthcraft":46,"sorcery":26},
-  "star-mell": {"earthcraft":52,"sorcery":30},
-  "star-pickaxe": {"earthcraft":42,"sorcery":22},
-  "star-plate": {"earthcraft":50,"sorcery":30},
-  "star-shield": {"earthcraft":48},
-  "star-spear": {"earthcraft":46,"sorcery":26},
-  "star-sword": {"earthcraft":45,"sorcery":25},
+  "quick-dagger": {"earthcraft":45,"sorcery":28},
+  "quick-flail": {"earthcraft":50,"sorcery":29},
+  "quick-hatchet": {"earthcraft":42,"sorcery":22},
+  "quick-helm": {"earthcraft":40,"sorcery":20},
+  "quick-ingot": {"earthcraft":45},
+  "quick-javelin": {"earthcraft":46,"sorcery":26},
+  "quick-mell": {"earthcraft":52,"sorcery":30},
+  "quick-pickaxe": {"earthcraft":42,"sorcery":22},
+  "quick-plate": {"earthcraft":50,"sorcery":30},
+  "quick-shield": {"earthcraft":48},
+  "quick-spear": {"earthcraft":46,"sorcery":26},
+  "quick-sword": {"earthcraft":45,"sorcery":25},
   "steel": {"earthcraft":30},
   "steel-dagger": {"earthcraft":25},
   "steel-hatchet": {"earthcraft":26},
@@ -6466,7 +6264,7 @@ function openForge(me) {
   // line, the great line, the gold line and the shields the moment they landed.
   const tiers = [['iron', (k) => k.startsWith('iron-')],
                  ['steel', (k) => k.startsWith('steel-')],
-                 ['starmetal', (k) => k.startsWith('star-')],
+                 ['quickmetal', (k) => k.startsWith('quick-')],
                  ['great', (k) => k.startsWith('great-')],
                  ['gold', (k) => k.startsWith('gold-')]]
   const claimed = new Set()
@@ -6735,7 +6533,7 @@ function showNode (found) {
     el.onclick = () => {
       const cur = NODE
       const next = prompt('Read the world from which node?\n\n'
-        + 'Any peer of this world will do — a pillar, or a door you run yourself\n'
+        + 'Any peer of this world will do: a pillar, or a door you run yourself\n'
         + '(node door.mjs, then http://localhost:8788).', cur)
       if (!next || next === cur) return
       try { localStorage.setItem('interval-node', next.replace(/\/$/, '')) } catch {}
@@ -6851,13 +6649,13 @@ const CALLING_LINE_W = {
   collier: 'He burns the stack slow, and sleeps beside it so it stays slow.',
   wizard: 'He was here before the stones were, and says so often.',
 }
-// §6dg/§6af: how many blows each special throws, and whether it is loosed or
+// §6dg/§6af: how many blows each gambit throws, and whether it is loosed or
 // swung -- generated from engine.js WEAPONS. The window knew the NAME of a
-// special and nothing about its shape, so a six-arrow flurry and a single
+// gambit and nothing about its shape, so a six-arrow flurry and a single
 // dagger thrust drew the same little ring and nothing else.
 const SPEC_BLOWS = {
-  "star-dagger": 6,
-  "star-mell": 2,
+  "quick-dagger": 6,
+  "quick-mell": 2,
   "fire-siphon": 1,
   "great-mell": 2,
   "horn-bow": 6,
@@ -6865,11 +6663,11 @@ const SPEC_BLOWS = {
   "dragonbow": 1
 }
 // §6dj: generated from engine.js WEAPONS. It still named `true` for the
-// horn-bow -- a special that was retired two revisions ago -- and knew nothing
+// horn-bow -- a gambit that was retired two revisions ago -- and knew nothing
 // of the great-crossbow.
 const SPEC_OF = {
-  "star-dagger": "flurry",
-  "star-mell": "now",
+  "quick-dagger": "flurry",
+  "quick-mell": "now",
   "fire-siphon": "now",
   "great-mell": "now",
   "horn-bow": "flurry",
@@ -6883,7 +6681,7 @@ const SPEC_SAYS = {
   haymaker: 'one blow, and it lands like several',
   far: 'reaches further than it should',
 }
-// ARMED, not fired. A special is a decision, so it is taken in two steps:
+// ARMED, not fired. A gambit is a decision, so it is taken in two steps:
 // arm it, then choose who. That also means one control works for a mouse and
 // a thumb alike, and you cannot spend your arm by misclicking.
 let specArmed = false
@@ -7394,8 +7192,8 @@ function updateGate(s, worldId) {
     if (!w || !w.ripe) {
       btn.disabled = true
       btn.textContent = w && !w.stale
-        ? 'The world will admit you in ' + wordFor(VIGIL_TICKS - w.age)
-        : 'Waiting for the world to see you\u2026'
+        ? 'The world will admit you in ' + wordFor(VIGIL_TICKS - w.age):
+        'Waiting for the world to see you\u2026'
       crossArmed = false
     } else if (!exported) {
       btn.disabled = true
@@ -7437,16 +7235,16 @@ function updateGate(s, worldId) {
   if (det) det.innerHTML = crossArmed && crossingOpen
     ? '<b>Everything you hold and everything you learned in Nought ends here.</b><br>'
       + 'This key can never be in Nought again, in this world, ever.<br>'
-      + 'The key is the only thing that crosses.'
-    : crossingOpen ? (nl ?? '')
-    : (me && !inNought) ? ''
-    : 'Tallyholm, unwalked. Nothing here is in the world, nothing here is lost, '
+      + 'The key is the only thing that crosses.':
+    crossingOpen ? (nl ?? ''):
+    (me && !inNought) ? '':
+    'Tallyholm, unwalked. Nothing here is in the world, nothing here is lost, '
       + 'and nothing here can hurt you. The fountain in Anchor is the way out.'
   document.getElementById('gatename').style.display = (me?.name) ? 'none' : 'block'
   const keyEl = document.getElementById('gatekey')
   if (keyEl) keyEl.textContent = ownKey
-    ? 'your key lives in this browser and never leaves it (' + ownKey.pub.slice(0, 8) + '\u2026)'
-    : myId ? 'identity held by the pillar for you (key ' + myId.slice(0, 8) + '\u2026)' : ''
+    ? 'your key lives in this browser and never leaves it (' + ownKey.pub.slice(0, 8) + '\u2026)':
+    myId ? 'identity held by the pillar for you (key ' + myId.slice(0, 8) + '\u2026)' : ''
   validateGateName(s)
 }
 
@@ -7560,7 +7358,7 @@ async function ensureNought(live) {
     noughtBanner(true)
     noughtCard()
   } catch (e) {
-    feed('This window could not build the practice island (' + e.message + '). You are watching Tallyholm from outside it \u2014 you cannot act there yet, but your wait is running and you can still cross.')
+    feed('This window could not build the practice island (' + e.message + '). You are watching Tallyholm from outside it: you cannot act there yet, but your wait is running and you can still cross.')
   } finally { noughtLoading = false }
 }
 function endNought() {
@@ -7617,7 +7415,7 @@ function noughtTick() {
       nought.stumbled = true
       const bad = noughtBadPath(nought.state)
       feed('Nought stumbled: ' + e.message)
-      feed(bad.length ? ('the offending value is at ' + bad.join(' and ')) : 'nothing in the state looks wrong to a walk \u2014 it may be in an input')
+      feed(bad.length ? ('the offending value is at ' + bad.join(' and ')) : 'nothing in the state looks wrong to a walk, it may be in an input')
       if (!bad.length && ins.length) {
         const b2 = ins.map((i, n) => noughtBadPath(i, 'input[' + n + ']')).filter(x => x.length)
         if (b2.length) feed('...it is in an input: ' + b2.map(x => x.join(', ')).join(' | '))
@@ -7698,9 +7496,9 @@ function noughtHud(s) {
     '<b style="color:#e8c06a">You are not in Tallyholm yet.</b> '
     + who + ' there now, at tick ' + (s.tick ?? 0).toLocaleString() + '.'
     + '<br><span style="color:#9a8f78">'
-    + (left === null ? 'Asking the world to expect you\u2026'
-      : left === 0 ? 'You can cross now \u2014 the fountain in Anchor.'
-      : 'You can cross in ' + wordFor(left) + '.')
+    + (left === null ? 'Asking the world to expect you\u2026':
+      left === 0 ? 'You can cross now, the fountain in Anchor.':
+      'You can cross in ' + wordFor(left) + '.')
     + '</span>'
 }
 
@@ -7726,17 +7524,17 @@ function noughtCard() {
   d.innerHTML = '<div style="max-width:460px;background:#14110d;border:1px solid #4a3f2e;'
     + 'padding:20px 22px;font:13px/1.65 ui-monospace,monospace;color:#cdbf9f">'
     + '<div style="font-size:11px;letter-spacing:.2em;color:#e0a94a;text-transform:uppercase;margin-bottom:12px">You are not in the world yet</div>'
-    + '<p style="margin:0 0 11px"><b style="color:#e8dcc0">There are two worlds here.</b> Tallyholm is the real one \u2014 it has other people in it, '
+    + '<p style="margin:0 0 11px"><b style="color:#e8dcc0">There are two worlds here.</b> Tallyholm is the real one, it has other people in it, '
     + 'it has been running for a while, and everything that happens there is permanent.</p>'
     + '<p style="margin:0 0 11px">You are in the other one. It is called <b style="color:#e8dcc0">Nought</b>: a practice copy of the same island, '
     + 'where <b style="color:#e0a94a">nothing is saved and nothing can be lost</b>. Think of it as the tutorial.</p>'
-    + '<p style="margin:0 0 11px">Other people are here too, on their way in \u2014 everyone arrives through this. '
+    + '<p style="margin:0 0 11px">Other people are here too, on their way in, everyone arrives through this. '
     + 'You each have your own copy of the island, so you can see one another walking about but not much more than that.</p>'
-    + '<p style="margin:0 0 11px">Everything works exactly as it does in the real world \u2014 same rules, same speed, same danger \u2014 but none of it is recorded. '
+    + '<p style="margin:0 0 11px">Everything works exactly as it does in the real world, same rules, same speed, same danger, but none of it is recorded. '
     + 'You can die for free. When you cross you start over with nothing, no matter how long you stayed or what you got.</p>'
     + '<p style="margin:0 0 11px">So use it. You have every tool and plenty of gold. Chop, mine, fish, fight something far too big for you.</p>'
-    + '<p style="margin:0 0 16px;color:#9a8f78">In about ten minutes you can cross. Walk to the <b style="color:#cdbf9f">fountain in Anchor</b> \u2014 '
-    + 'the town you are standing in \u2014 and click it. That happens once and cannot be undone.</p>'
+    + '<p style="margin:0 0 16px;color:#9a8f78">In about ten minutes you can cross. Walk to the <b style="color:#cdbf9f">fountain in Anchor</b>, '
+    + 'the town you are standing in, and click it. That happens once and cannot be undone.</p>'
     + '<p style="margin:0 0 16px;padding:9px 11px;background:#0d0b08;border-left:2px solid #5d4e37;color:#9a8f78">'
     + '<b style="color:#cdbf9f">Not sure you believe any of that?</b><br>'
     + 'Look your key up on any pillar\u2019s hiscores, or open a second window. You are not there. That check needs no trust in this page.</p>'
@@ -7767,14 +7565,14 @@ function fountainMark(st) {
   }
   const dx = f.x - me.x, dy = f.y - me.y
   const d = Math.max(Math.abs(dx), Math.abs(dy))
-  const dir = d === 0 ? 'here'
-    : (Math.abs(dy) > Math.abs(dx) * 2 ? (dy < 0 ? 'north' : 'south')
-      : Math.abs(dx) > Math.abs(dy) * 2 ? (dx < 0 ? 'west' : 'east')
-        : (dy < 0 ? 'north' : 'south') + (dx < 0 ? 'west' : 'east'))
+  const dir = d === 0 ? 'here':
+    (Math.abs(dy) > Math.abs(dx) * 2 ? (dy < 0 ? 'north' : 'south'):
+      Math.abs(dx) > Math.abs(dy) * 2 ? (dx < 0 ? 'west' : 'east'):
+        (dy < 0 ? 'north' : 'south') + (dx < 0 ? 'west' : 'east'))
   fountainEl.style.display = ''
   fountainEl.innerHTML = d <= 1
-    ? '<b style="color:#e0a94a">the fountain \u00b7 click it to leave</b>'
-    : 'the way out: fountain, ' + d + ' tiles ' + dir
+    ? '<b style="color:#e0a94a">the fountain \u00b7 click it to leave</b>':
+    'the way out: fountain, ' + d + ' tiles ' + dir
 }
 
 // §0: THE OTHER RESIDENTS. Everyone in Nought computes their own island, so
@@ -7923,7 +7721,7 @@ function noughtNudge(s) {
   const moved = me.x !== nought.x0 || me.y !== nought.y0
   if (!saidOnce.move && t > 25 && !moved) {
     saidOnce.move = 1
-    feed('Click the ground to walk. This is the practice world \u2014 nothing here counts, so go and look at something.')
+    feed('Click the ground to walk. This is the practice world: nothing here counts, so go and look at something.')
   }
   if (!saidOnce.kit && t > 45) {
     saidOnce.kit = 1
@@ -7941,7 +7739,7 @@ function noughtNotice(s) {
   const lvl = Object.values(me.skills ?? {}).some(v => (typeof v === 'object' ? v.level ?? 0 : v) > 0)
   if (lvl && !saidOnce.xp) {
     saidOnce.xp = 1
-    feed('That experience is real experience, under the real rules \u2014 and it is NOT being recorded. It stays in Nought when you cross.')
+    feed('That experience is real experience, under the real rules, and it is NOT being recorded. It stays in Nought when you cross.')
   }
   if (!saidOnce.pack && (me.inventory ?? []).filter(Boolean).length >= 8) {
     saidOnce.pack = 1
@@ -8024,7 +7822,7 @@ function _onState(s, worldId, local) {
     entered = true
     document.getElementById('gate').style.display = 'none'
     noughtHud(null)
-    feed('Tallyholm. The same coastline, the same streets, the same fountain \u2014 and everything a hundred people did to it while you waited.')
+    feed('Tallyholm. The same coastline, the same streets, the same fountain, and everything a hundred people did to it while you waited.')
     feed('You will not see it empty again. Nobody does, twice.')
     feed('Nothing you did there came with you. That was the arrangement.')
   }
@@ -8147,13 +7945,13 @@ function _onState(s, worldId, local) {
     //
     // It resolves off the rhythm and produces damage, so without a mark it is
     // an ordinary hit. Nothing new is needed in the state: a citizen whose
-    // `lastSwing` jumped PAST this tick has spent their arm on a special,
+    // `lastSwing` jumped PAST this tick has spent their arm on a gambit,
     // because no ordinary swing ever does that.
     for (const [pid2, p2] of Object.entries(s.players)) {
       const was9 = prev.players?.[pid2]?.lastSwing ?? -9
       if (!((p2.lastSwing ?? -9) > s.tick && (p2.lastSwing ?? -9) !== was9)) continue
       const at9 = performance.now()
-      effects.push({ kind: 'special', x: p2.x, y: p2.y, at: at9 })
+      effects.push({ kind: 'gambit', x: p2.x, y: p2.y, at: at9 })
       // §6af: AND IT MAKES A NOISE. A flurry that arrives in silence is a
       // health bar falling on its own. The rising third says "off the rhythm";
       // the volley below counts itself out loud.
@@ -8182,7 +7980,7 @@ function _onState(s, worldId, local) {
         for (let k = 0; k < n2; k++)
           thud(0.045, mine9 ? 0.06 : 0.05, k * 0.06, true)
       }
-      effects.push({ kind: 'specialhit', x: tgt2.x, y: tgt2.y, n: n2, at: at9 })
+      effects.push({ kind: 'gambithit', x: tgt2.x, y: tgt2.y, n: n2, at: at9 })
       // and it lands. Being on the receiving end is the louder of the two: a
       // citizen who is being hit should hear it before they read the number.
       const hitMe9 = act2 && act2.targetId === myId
@@ -8194,7 +7992,7 @@ function _onState(s, worldId, local) {
     // A beast that swings and misses produced nothing at all on screen, so
     // three of them taking turns read as one attacking occasionally. The
     // swing arc on the beast says A SWING HAPPENED; this says WHAT IT DID,
-    // and they are different questions — with three on you the arcs tell you
+    // and they are different questions: with three on you the arcs tell you
     // how much is coming and the splats tell you how much is landing.
     //
     // A miss is inferred rather than announced: a beast swung this tick
@@ -8264,7 +8062,7 @@ function _onState(s, worldId, local) {
   // beside it, exactly as a personal level-up does.
   for (const a of s.announce ?? []) if (a.tick > _lastAnnounceTick && a.tick <= s.tick) {
     // ANCHORED on the mastery phrasing, not a loose substring. 'prowess'
-    // appears in 'attacked', 'earthcraft' in 'the mining camp is lost' — a naive
+    // appears in 'attacked', 'earthcraft' in 'the mining camp is lost': a naive
     // `includes` would put a pickaxe on an announcement about a camp. The
     // world names a skill in exactly one sentence shape, so match that.
     const m9 = /\bmaster(?:ed|s|y of)?\s+([a-z]+)/i.exec(a.text)
@@ -8398,10 +8196,10 @@ function _onState(s, worldId, local) {
     // from a position that is about to change sent the citizen in great
     // staircase circles, and slipped gathers in one tile off target.
     if (moveLock && ((me.x === moveLock.x && me.y === moveLock.y) || s.tick >= moveLock.until)) moveLock = null
-    const goal = (intent.kind === 'walk' ? intent
-      : intent.kind === 'pickup' ? s.ground[intent.id]
-      : intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]
-      : (s.nodes[intent.id] ?? s.mobs[intent.id]))
+    const goal = (intent.kind === 'walk' ? intent:
+      intent.kind === 'pickup' ? s.ground[intent.id]:
+      intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]:
+      (s.nodes[intent.id] ?? s.mobs[intent.id]))
     if (!goal) { intent = null }
     else if (moveLock) {
       // a step is in flight: keep walking without waiting for it to land.
@@ -8540,10 +8338,10 @@ function _onState(s, worldId, local) {
     if (me.hp > old.hp && !died) { // name what actually left the pack
       const gone = (it) => old.inventory.filter(sl => sl?.item === it).length
                          > me.inventory.filter(sl => sl?.item === it).length
-      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth'
-                 : gone('ale') ? 'the ale' : null
-      feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.'
-                : 'You recover ' + (me.hp - old.hp) + '.')
+      const food = gone('cooked-fish') ? 'the fish' : gone('broth') ? 'the broth':
+                 gone('ale') ? 'the ale' : null
+      feed(food ? 'You eat ' + food + '. It heals ' + (me.hp - old.hp) + '.':
+                'You recover ' + (me.hp - old.hp) + '.')
       SFX.eat()
     }
     // announce what landed in the inventory this tick
@@ -8553,7 +8351,7 @@ function _onState(s, worldId, local) {
   // §6dg
   'iron-javelin': 'You draw the iron out and socket three short shafts. Three javelins.',
   'steel-javelin': 'You draw the steel out and socket three short shafts. Three javelins.',
-  'star-javelin': 'The starmetal takes the shape without complaint. Three javelins.',
+  'quick-javelin': 'The quickmetal takes the shape without complaint. Three javelins.',
   'iron-helm': 'You hammer out a iron helm.',
   'iron-plate': 'You hammer out a iron platebody.', 'logs': 'You get some logs.', 'ore': 'You manage to mine some ore.',
                    'raw-fish': 'You catch a fish!', 'cooked-fish': 'Nicely cooked.',
@@ -8617,8 +8415,8 @@ function _onState(s, worldId, local) {
       const tid = old.action.mobId
       if (s.mobs[tid]?.hp > 0) {
         feed(SELF_AMMO.has(me.equipment?.weapon?.item)
-          ? 'Your last javelin is in your hand. You close!'
-          : 'Your quiver is empty. You close to melee!')
+          ? 'Your last javelin is in your hand. You close!':
+          'Your quiver is empty. You close to melee!')
         intent = { kind: 'prowess', id: tid }
       }
     }
@@ -8715,7 +8513,7 @@ function _onState(s, worldId, local) {
     }
   } catch (err) {
     // §6dj: THIS SWALLOWED THE HIT SPLATS. Everything a citizen SEES about a
-    // fight is computed in this block -- splats, misses, the special's mark --
+    // fight is computed in this block -- splats, misses, the gambit's mark --
     // and a throw anywhere in it skips all of the rest in silence. A fight then
     // looks like nothing happening while health drops, which is exactly what it
     // looked like. Recovered, still, but no longer quietly.
@@ -9168,8 +8966,8 @@ function w_hash32(str) {
 function lookOf(pidOrPlayer, maybeId) {
   const p = (pidOrPlayer && typeof pidOrPlayer === 'object') ? pidOrPlayer : null
   const id = p ? maybeId : pidOrPlayer
-  const n = Number.isInteger(p?.look) ? (p.look & 255)
-    : (Number.isInteger(maybeId) ? (maybeId & 255) : (w_hash32(String(id ?? 'x')) & 255))
+  const n = Number.isInteger(p?.look) ? (p.look & 255):
+    (Number.isInteger(maybeId) ? (maybeId & 255) : (w_hash32(String(id ?? 'x')) & 255))
   return {
     n,
     skin: W_SKINS[n & 7],
@@ -9239,8 +9037,8 @@ function drawCitizen(X, Y, o) {
     for (let k = 0; k < tiers; k++) {
       cx.fillStyle = k === 1 ? '#7a5a34' : '#6b4a2c'
       cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 20 - k * 4.4, 6.5, 4.2)
-      cx.fillStyle = rich ? 'rgba(226,182,62,.85)'             // a gold strap
-        : fat ? 'rgba(190,150,70,.5)' : 'rgba(0,0,0,.28)'      // ...or plain rope
+      cx.fillStyle = rich ? 'rgba(226,182,62,.85)'             // a gold strap:
+        fat ? 'rgba(190,150,70,.5)' : 'rgba(0,0,0,.28)'      // ...or plain rope
       cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 21.4 - k * 4.4, 6.5, 0.9)
     }
     cx.fillStyle = '#3a2a1a'                                   // the strap over the shoulder
@@ -9360,10 +9158,10 @@ function drawCitizen(X, Y, o) {
   // it staggers, weapon dropped low: attack and defence finally read apart.
   const striking = o.anim === 'fight' && !o.shooting && !hurt
   const strikeT = striking ? Math.max(0, Math.sin(renderT(now) * Math.PI)) : 0
-  const swing = hurt && o.anim === 'fight' ? -0.35
-    : striking
-    ? (o.exchange ? strikeT * 1.2 : 0.25 + Math.sin(now / 600) * 0.08)
-    : o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
+  const swing = hurt && o.anim === 'fight' ? -0.35:
+    striking
+    ? (o.exchange ? strikeT * 1.2 : 0.25 + Math.sin(now / 600) * 0.08):
+    o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
   const lunge = striking && o.exchange ? strikeT * 4 * o.face : 0
   X += lunge; Y += bob
   const F = o.face
@@ -9374,7 +9172,7 @@ function drawCitizen(X, Y, o) {
   if (HD && shadowLen > 0.5) cx.ellipse(X + 20 + sunDirX * (4 + shadowLen) * 0.7, Y + 35, 8 + shadowLen, 2.6, 0, 0, 7)
   else cx.ellipse(X + 20, Y + 35, 8, 2.6, 0, 0, 7)
   cx.fill()
-  // starmetal hums: a soft cyan breath around whoever wears the sky
+  // quickmetal hums: a soft cyan breath around whoever wears the sky
   if (o.starHelm || o.starPlate || o.starSword) {
     const hum = 0.07 + (Math.sin(o.now / 620) + 1) * 0.035
     const gg = cx.createRadialGradient(X + 20, Y + 18, 4, X + 20, Y + 18, 22)
@@ -9429,8 +9227,8 @@ function drawCitizen(X, Y, o) {
   if (o.cape) {
     const sway = Math.sin(o.now / 420 + X) * 1.6 + (o.anim === 'walk' ? Math.sin(o.now / 130) * 2.2 : 0)
     const capeC = o.cape.radiant
-      ? 'hsl(' + Math.round((o.now / 30) % 360) + ',70%,45%)'
-      : o.cape.color
+      ? 'hsl(' + Math.round((o.now / 30) % 360) + ',70%,45%)':
+      o.cape.color
     const CF = o.face ?? 1
     poly([[X + 20 - CF * 6, Y + 15], [X + 20 - CF * 9, Y + 16],
           [X + 20 - CF * (10 + Math.abs(sway)), Y + 30 + sway * 0.4],
@@ -9513,11 +9311,11 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(X + 22 + CF, Y + 18, 1.6, 10)
     } else {
     const shell9 = o.bodyItem === 'shell-plate', great9 = o.bodyItem === 'great-plate'
-    cx.fillStyle = great9 ? '#3c352e' : shell9 ? '#a8532c'
-      : o.goldPlate ? '#e8b93a' : o.starPlate ? '#5cb8d9' : '#a3743a'
+    cx.fillStyle = great9 ? '#3c352e' : shell9 ? '#a8532c':
+      o.goldPlate ? '#e8b93a' : o.starPlate ? '#5cb8d9' : '#a3743a'
     cx.fillRect(X + 13.5, Y + 16.5, 13, 6.5)
-    cx.fillStyle = great9 ? 'rgba(109,97,83,.9)' : shell9 ? 'rgba(255,220,190,.35)'
-      : o.goldPlate ? 'rgba(255,244,190,.60)' : o.starPlate ? 'rgba(224,246,255,.45)' : 'rgba(255,255,255,.18)'
+    cx.fillStyle = great9 ? 'rgba(109,97,83,.9)' : shell9 ? 'rgba(255,220,190,.35)':
+      o.goldPlate ? 'rgba(255,244,190,.60)' : o.starPlate ? 'rgba(224,246,255,.45)' : 'rgba(255,255,255,.18)'
     cx.fillRect(X + 13.5, Y + 16.5, 13, 1.4)
     if (great9) {   // the seam it will give way along, breathing
       const beat9 = 0.6 + Math.sin(now / 560) * 0.22
@@ -9560,10 +9358,10 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = '#6b5433'; cx.fillRect(hx9 - 1, hy9 + 1.6, 1.4, 2)
   } else if (o.shield) {
     const sx = X + (F > 0 ? 9.5 : 27.5), sy = Y + 17.5 + swing
-    const face = o.shield === 'star-shield' ? '#5cb8d9'
-               : o.shield === 'steel-shield' ? '#9aa3ac' : '#8a6a3e'
-    const rim  = o.shield === 'star-shield' ? '#2b6d86'
-               : o.shield === 'steel-shield' ? '#5d646b' : '#4d3a1e'
+    const face = o.shield === 'quick-shield' ? '#5cb8d9':
+               o.shield === 'steel-shield' ? '#9aa3ac' : '#8a6a3e'
+    const rim  = o.shield === 'quick-shield' ? '#2b6d86':
+               o.shield === 'steel-shield' ? '#5d646b' : '#4d3a1e'
     poly([[sx, sy], [sx + 6, sy - 1.4], [sx + 6, sy + 7], [sx + 3, sy + 10.5], [sx, sy + 7]], face, rim)
     cx.fillStyle = 'rgba(255,255,255,.22)'
     cx.fillRect(sx + 1, sy + 0.6, 1.6, 6.4)
@@ -9621,22 +9419,22 @@ function drawCitizen(X, Y, o) {
     } else if (o.wepItem === 'iron-hatchet') {
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
       cx.fillStyle = '#c9862a'; cx.fillRect(F > 0 ? 0.5 : -4.5, -1, 4, 3.4)
-    } else if (o.wepItem === 'star-dagger') {
-      // a short starmetal blade, cyan, gleaming, half a sword
+    } else if (o.wepItem === 'quick-dagger') {
+      // a short quickmetal blade, cyan, gleaming, half a sword
       cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.7, 0, 1.4, 6)
       cx.fillStyle = '#dffaff'; cx.fillRect(-0.35, 0, 0.7, 6)
       cx.fillStyle = '#3a5a6a'; cx.fillRect(-2, -1, 4, 1.4)
     } else if (o.wepItem === 'iron-dagger') {
       cx.fillStyle = '#c9862a'; cx.fillRect(-0.7, 0, 1.4, 5.5)
       cx.fillStyle = '#5c4023'; cx.fillRect(-1.8, -1, 3.6, 1.4)
-    } else if (o.wepItem === 'star-sword') {
+    } else if (o.wepItem === 'quick-sword') {
       cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.9, 0, 1.8, 9)
       cx.fillStyle = '#dffaff'; cx.fillRect(-0.4, 0, 0.8, 9)
       cx.fillStyle = '#3a5a6a'; cx.fillRect(-2.4, -1, 4.8, 1.6)
     } else if (o.wepItem === 'staff' || o.wepItem === 'heartwood-staff') {
       // A STAVE IS LEANED ON. It runs BELOW the hand to the ground and above
       // it to about the shoulder -- a walking stick, not a flagpole. There was
-      // no branch for it at all, so an alchemist carried an invisible staff.
+      // no branch for it at all, so a sorcerer carried an invisible staff.
       const heart9 = o.wepItem === 'heartwood-staff'
       cx.fillStyle = heart9 ? '#7a5a2a' : '#4a3a22'
       cx.fillRect(-0.8, -11, 1.6, 23)
@@ -9669,23 +9467,23 @@ function drawCitizen(X, Y, o) {
       cx.beginPath(); cx.arc(0, -3.5, 1.5, 0, 7); cx.fill()
       cx.fillStyle = 'rgba(160,206,224,.45)'
       cx.beginPath(); cx.arc(0, -3.5, 3, 0, 7); cx.fill()
-    } else if (o.wepItem === 'iron-spear' || o.wepItem === 'star-spear') {
+    } else if (o.wepItem === 'iron-spear' || o.wepItem === 'quick-spear') {
       // a long haft carried upright: it is taller than the citizen
-      const star9 = o.wepItem === 'star-spear'
+      const star9 = o.wepItem === 'quick-spear'
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
-    } else if (o.wepItem === 'iron-mell' || o.wepItem === 'star-mell') {
+    } else if (o.wepItem === 'iron-mell' || o.wepItem === 'quick-mell') {
       // a heavy head on a short haft. It should look like it weighs something.
-      const star9 = o.wepItem === 'star-mell'
+      const star9 = o.wepItem === 'quick-mell'
       cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
       cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
       cx.fillRect(-3.2, -6, 6.4, 4.6)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       cx.fillRect(-3.2, -6, 6.4, 1.4)
-    } else if (o.wepItem === 'iron-flail' || o.wepItem === 'star-flail') {
+    } else if (o.wepItem === 'quick-flail') {
       // haft, chain, spiked head -- the chain is the point of the thing
-      const star9 = o.wepItem === 'star-flail'
+      const star9 = o.wepItem === 'quick-flail'
       cx.fillStyle = star9 ? '#5a4f6b' : '#5c4023'; cx.fillRect(-0.8, 0, 1.6, 9)
       cx.strokeStyle = star9 ? '#b9a9d6' : '#8a8078'; cx.lineWidth = 0.9
       cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(F > 0 ? 2.6 : -2.6, -4); cx.stroke()
@@ -9760,11 +9558,11 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = '#e6c25a'; cx.fillRect(X + 19.6, Y + 1.4, 0.9, 3)        // the glint
   } else if (o.helm) { // metal over the brow; the barber weeps
     const shellH = o.headItem === 'shell-helm', greatH = o.headItem === 'great-helm'
-    cx.fillStyle = greatH ? '#3c352e' : shellH ? '#a8532c'
-      : o.goldHelm ? '#e8b93a' : o.starHelm ? '#5cb8d9' : '#a3743a'
+    cx.fillStyle = greatH ? '#3c352e' : shellH ? '#a8532c':
+      o.goldHelm ? '#e8b93a' : o.starHelm ? '#5cb8d9' : '#a3743a'
     cx.fillRect(X + 14.5, Y + 5, 11, 4.6)
-    cx.fillStyle = greatH ? 'rgba(109,97,83,.9)' : shellH ? 'rgba(255,220,190,.35)'
-      : o.goldHelm ? 'rgba(255,244,190,.65)' : o.starHelm ? 'rgba(224,246,255,.5)' : 'rgba(255,255,255,.2)'
+    cx.fillStyle = greatH ? 'rgba(109,97,83,.9)' : shellH ? 'rgba(255,220,190,.35)':
+      o.goldHelm ? 'rgba(255,244,190,.65)' : o.starHelm ? 'rgba(224,246,255,.5)' : 'rgba(255,255,255,.2)'
     cx.fillRect(X + 14.5, Y + 5, 11, 1.2)
     if (greatH) {   // §6bw: a slot to see through, and the seam beside it
       cx.fillStyle = '#0e0c0a'; cx.fillRect(X + 15.6, Y + 7.4, 8.8, 1.5)
@@ -9887,7 +9685,7 @@ function drawScene(now) {
     cx.fillStyle = 'rgba(0,0,0,.25)'
     cx.beginPath(); cx.ellipse(X + 20, Y + 33, rx, rx * 0.34, 0, 0, 7); cx.fill()
   }
-  // held fast by the star-dagger: crystalline cyan shards bind the feet
+  // held fast by the quick-dagger: crystalline cyan shards bind the feet
   const rootBind = (X, Y) => {
     const pulse = 0.6 + 0.4 * Math.sin(now / 150)
     cx.save()
@@ -11250,8 +11048,8 @@ function drawScene(now) {
           }
         }
       }
-      if (famOf(n.type) === 'magic-rock') {
-        // §6cz: the magic-rock glows BLUE; the mother-lode -- the doubled master
+      if (famOf(n.type) === 'quick-rock') {
+        // §6cz: the quick-rock glows BLUE; the mother-lode -- the doubled master
         // seam -- glows VIOLET and richer, so you can tell the prize from afar.
         const mother = n.type === 'mother-lode'
         shadow(X, Y, 10)
@@ -11259,8 +11057,8 @@ function drawScene(now) {
         poly([[X+8,Y+30],[X+14,Y+18],[X+24,Y+15],[X+32,Y+22],[X+29,Y+31],[X+11,Y+32]], dep ? '#3a3a44' : (mother ? '#4a3a5c' : '#4a4a5c'), '#1c1c26')
         if (!dep) {
           const cores = mother
-            ? ['rgba(200,140,255,', 'rgba(210,160,255,', 'rgba(180,120,240,']
-            : ['rgba(120,220,255,', 'rgba(140,235,255,', 'rgba(170,160,255,']
+            ? ['rgba(200,140,255,', 'rgba(210,160,255,', 'rgba(180,120,240,']:
+            ['rgba(120,220,255,', 'rgba(140,235,255,', 'rgba(170,160,255,']
           cx.fillStyle = cores[0] + (0.25 + pulse * 0.3) + ')'
           poly([[X+16,Y+14],[X+20,Y+4],[X+24,Y+13],[X+20,Y+18]], cores[1] + (0.55 + pulse * 0.4) + ')')
           poly([[X+24,Y+18],[X+29,Y+11],[X+31,Y+19]], cores[2] + (0.5 + pulse * 0.4) + ')')
@@ -11859,7 +11657,7 @@ function drawScene(now) {
         for (let r2 = 0; r2 < 4; r2++) cx.fillRect(X + 5, Y + 9 + r2 * 7, 30, 2.2)
         // §6o: A ROW IS THE CITIZEN'S OWN.
         //
-        // This read `n.plantedAt` — the plot's. A crop now belongs to whoever
+        // This read `n.plantedAt`, the plot's. A crop now belongs to whoever
         // sowed it, so the ground carries nothing and every citizen sees only
         // what THEY put in it. Somebody else's wheat is not your wheat, and
         // the same tilled square is empty to you and ripe to them.
@@ -12049,8 +11847,8 @@ function drawScene(now) {
       }
       cx.font = 'bold 7px Verdana'; cx.textAlign = 'center'
       const st = MOB_STATS[m.type]
-      const plate = st ? (m.type + '  ' + m.hp + '/' + st.maxHp + ' hp  hits ' + st.maxHit)
-                       : m.type
+      const plate = st ? (m.type + '  ' + m.hp + '/' + st.maxHp + ' hp  hits ' + st.maxHit):
+                       m.type
       cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillText(plate, X + 20.7, Y - 2.3)
       cx.fillStyle = '#ffe08a'; cx.fillText(plate, X + 20, Y - 3)
       const hop = engaged ? Math.abs(Math.sin(now / 160)) * 2 : Math.sin(now / 700 + m.x) * 0.7
@@ -12158,8 +11956,8 @@ function drawScene(now) {
           const t2 = ((now / (1400 + k * 380)) + k * 0.25) % 1
           const bx = HX - F * (11 + t2 * 16), by = HY + 3 - t2 * 7
           cx.fillStyle = engaged
-            ? 'rgba(255,' + (90 + k * 34) + ',' + (20 + k * 10) + ',' + (0.55 * (1 - t2)) + ')'
-            : 'rgba(158,148,140,' + (0.20 * (1 - t2)) + ')'
+            ? 'rgba(255,' + (90 + k * 34) + ',' + (20 + k * 10) + ',' + (0.55 * (1 - t2)) + ')':
+            'rgba(158,148,140,' + (0.20 * (1 - t2)) + ')'
           cx.beginPath(); cx.arc(bx, by, 1.8 + t2 * (engaged ? 6 : 4.5), 0, 7); cx.fill()
         }
 
@@ -12226,7 +12024,7 @@ function drawScene(now) {
         // SHE WEARS THE FACE OF WHOEVER TOOK HER.
         //
         // Every other creature here looks like itself. She looks like a
-        // citizen — the same silhouette, the same proportions — and that is
+        // citizen: the same silhouette, the same proportions, and that is
         // the whole idea, so it has to be the first thing you see. When she
         // is bound she takes that citizen's colours; unbound she is the
         // colour of the water she came out of.
@@ -12538,7 +12336,7 @@ function drawScene(now) {
       }
       if (m.type === 'dummy' || m.type === 'butt') {
         // §7t: THE YARD. Not creatures -- a straw man on a post and a bound
-        // straw butt. They are mobs so that `attack`, the specials and a drawn
+        // straw butt. They are mobs so that `attack`, the gambits and a drawn
         // bow all work on them unchanged, but nothing about them should read
         // as alive: no eyes, no idle sway, and they never move.
         if (m.type === 'dummy') {
@@ -12885,30 +12683,30 @@ function drawScene(now) {
       // §feel: turn the instant a target is chosen, not a tick later when the
       // first step lands. The body still moves on the world's clock, but a click
       // reads as heard the moment you make it -- which is most of the felt lag.
-      const _fg = intent.kind === 'walk' ? intent
-        : intent.kind === 'pickup' ? s.ground[intent.id]
-        : intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]
-        : (s.nodes[intent.id] ?? s.mobs[intent.id])
+      const _fg = intent.kind === 'walk' ? intent:
+        intent.kind === 'pickup' ? s.ground[intent.id]:
+        intent.kind === 'meet' || intent.kind === 'pvpattack' ? s.players[intent.id]:
+        (s.nodes[intent.id] ?? s.mobs[intent.id])
       if (_fg && _fg.x !== p.x) facing[pid] = Math.sign(_fg.x - p.x)
     }
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
     // raising a stall reads as work, not as standing still: a builder who
       // looked idle would be indistinguishable from somebody asleep
-      const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather'
-        : p.action?.type === 'gather' ? 'gather'
-               : p.action?.type === 'prowess' ? 'fight' : 'idle'
+      const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather':
+        p.action?.type === 'gather' ? 'gather':
+               p.action?.type === 'prowess' ? 'fight' : 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
     // §7an: A SPADE IS NOT A HATCHET. Digging a muck heap drew the citizen
     // swinging an axe -- the fallback -- so the one trade that pays a farmer
     // looked exactly like felling a tree, and the spade that pays STRENGTH
     // looked like nothing at all.
-    const tool = famOf(workNode?.type) === 'fishing-spot' ? 'rod'
-               : workNode?.type === 'muck-heap' || workNode?.type === 'rockfall'
-                 ? (p.equipment?.weapon?.item === 'spade' ? 'spade' : 'hands')
-               : (famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'magic-rock') ? 'pick' : 'axe'
+    const tool = famOf(workNode?.type) === 'fishing-spot' ? 'rod':
+               workNode?.type === 'muck-heap' || workNode?.type === 'rockfall'
+                 ? (p.equipment?.weapon?.item === 'spade' ? 'spade' : 'hands'):
+               (famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'quick-rock') ? 'pick' : 'axe'
     const wep = p.equipment?.weapon?.item
     const ironTool = (famOf(workNode?.type) === 'tree' && wep === 'iron-hatchet')
-                    || ((famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'magic-rock') && wep === 'iron-pickaxe')
+                    || ((famOf(workNode?.type) === 'rock' || famOf(workNode?.type) === 'quick-rock') && wep === 'iron-pickaxe')
     const awake = isAwake(p, s.tick)
     const dying = p.hp <= 0, deadStart = (p.deadUntil ?? s.tick) - 5
     if ((p.stilledUntil ?? 0) > s.tick) layer.push({ z: Z(iy, 5), draw: () => { // the truce, over a citizen
@@ -12931,7 +12729,7 @@ function drawScene(now) {
         cx.globalAlpha = 1 - prog * 0.75
         drawCitizen(px(ix), py(iy), { now, pid, player: p, face: facing[pid] ?? 1, anim: 'idle', tool,
           mine: pid === myId, cape: capeOf(p), helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
-          starHelm: p.equipment?.head?.item === 'star-helm', starPlate: p.equipment?.body?.item === 'star-plate',
+          starHelm: p.equipment?.head?.item === 'quick-helm', starPlate: p.equipment?.body?.item === 'quick-plate',
           headItem: p.equipment?.head?.item ?? null, bodyItem: p.equipment?.body?.item ?? null,
           hooded: !!p.hooded,
           crown: p.equipment?.head?.item === 'cinder-crown',   // §6da
@@ -12971,7 +12769,7 @@ function drawScene(now) {
       exchange: (p.action?.type === 'prowess' || p.action?.type === 'attackp')
         && (p.equipment?.weapon?.item === 'old-chain' || (s.tick - (p.action.since ?? 0)) % 2 === 0),
       chain: p.equipment?.weapon?.item === 'old-chain',
-      starSword: p.equipment?.weapon?.item === 'star-sword',
+      starSword: p.equipment?.weapon?.item === 'quick-sword',
       cape: capeOf(p),
       // EVERY BOW IS A BOW. This read `=== 'wooden-bow'`, so a citizen
       // holding a horn-bow, a crossbow, a sigil-bow or the dragonbow was
@@ -12983,8 +12781,8 @@ function drawScene(now) {
         && (() => { const t2 = p.action.mobId ? s.mobs[p.action.mobId] : s.players[p.action.targetId]
           return t2 && Math.abs(p.x - t2.x) + Math.abs(p.y - t2.y) > 1 })(),
       helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
-      starHelm: p.equipment?.head?.item === 'star-helm',
-      starPlate: p.equipment?.body?.item === 'star-plate',
+      starHelm: p.equipment?.head?.item === 'quick-helm',
+      starPlate: p.equipment?.body?.item === 'quick-plate',
       // §6da: the cinder-crown is its own head-branch, not a generic helm
       crown: p.equipment?.head?.item === 'cinder-crown',
       // 6ce: the off hand and the legs
@@ -13051,7 +12849,7 @@ function drawScene(now) {
   // and wrong for a flurry: forty points arrived, flashed once, and were gone
   // before a citizen looked up. A splat now lasts in proportion to what it
   // says, to a ceiling, so the number that mattered is the number you can read.
-  // hit splats: the red star of damage — and a pale nought for a blow
+  // hit splats: the red star of damage, and a pale nought for a blow
   // that found nothing, which is the difference between armour working and
   // the world being broken
   // SPLATS THAT ARRIVE TOGETHER MUST NOT SIT ON TOP OF EACH OTHER.
@@ -13059,7 +12857,7 @@ function drawScene(now) {
   // Three beasts can set about one citizen, and with the miss nought there
   // are now up to three marks landing on the same tile in the same tick.
   // Drawn at the same point they are one mark, and the citizen sees a single
-  // hit where three things happened — which is the same illegibility the
+  // hit where three things happened, which is the same illegibility the
   // arcs and noughts were added to cure.
   //
   // Fanned at draw time rather than at push time, so it works however many
@@ -13092,10 +12890,10 @@ function drawScene(now) {
     // §7ca: a burst opens wider than an ordinary cluster -- six numbers at
     // thirteen apart overlap, and a flurry that reads as a smear is no better
     // than the one number it replaced.
-    const spread = sp.fan !== undefined ? sp.fan * 1.6
-      : of > 1 ? ((n - (of - 1) / 2) * 13) : 0
-    const lift = sp.burst ? Math.abs(sp.fan ?? 0) * 0.5 + 3
-      : of > 1 ? Math.abs(n - (of - 1) / 2) * 4 : 0
+    const spread = sp.fan !== undefined ? sp.fan * 1.6:
+      of > 1 ? ((n - (of - 1) / 2) * 13) : 0
+    const lift = sp.burst ? Math.abs(sp.fan ?? 0) * 0.5 + 3:
+      of > 1 ? Math.abs(n - (of - 1) / 2) * 4 : 0
     const SX = px(sp.x) + 20 + spread, SY = py(sp.y) + 18 - lift - age / 90
     cx.globalAlpha = age > life - 200 ? (life - age) / 200 : 1
     // a MISS is a pale ring, not a red star: the shape says at a glance
@@ -13123,7 +12921,7 @@ function drawScene(now) {
 
   // rites: brief particle truths
   for (let i = effects.length - 1; i >= 0; i--) {
-    if (effects[i].kind === 'special') {
+    if (effects[i].kind === 'gambit') {
       const ef = effects[i], ag = now - ef.at
       if (ag > 620) { effects.splice(i, 1); continue }
       const t9 = ag / 620
@@ -13144,9 +12942,9 @@ function drawScene(now) {
       continue
     }
     const ef = effects[i]
-    const life = ef.kind === 'arrowshot' ? 380 : ef.kind === 'click' ? 420
-      : ef.kind === 'volley' ? 260 + ((ef.n ?? 1) - 1) * 60 + 80
-      : ef.kind === 'specialhit' ? 700 : 800
+    const life = ef.kind === 'arrowshot' ? 380 : ef.kind === 'click' ? 420:
+      ef.kind === 'volley' ? 260 + ((ef.n ?? 1) - 1) * 60 + 80:
+      ef.kind === 'gambithit' ? 700 : 800
     const age = now - ef.at
     if (age > life) { effects.splice(i, 1); continue }
     const p2 = age / life
@@ -13301,7 +13099,7 @@ function drawScene(now) {
         cx.restore()
       }
       cx.globalAlpha = 1
-    } else if (ef.kind === 'specialhit') {
+    } else if (ef.kind === 'gambithit') {
       // and it lands: a struck ring at the TARGET, one tick mark per blow
       // around it, so the person being hit can see what hit them.
       const t4 = age / 700
@@ -13505,10 +13303,10 @@ function drawScene(now) {
         cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       if (n.type === 'watchfire' && n.fuelUntil > s.tick) push(n.x, n.y, 0.62, 0.95 + glNight * 0.6, [1, 0.68, 0.3])
       else if (n.type === 'campfire' || (n.type === 'fire' && n.expiresAt > s.tick)) push(n.x, n.y, 0.26, 0.75 + glNight * 0.5, [1, 0.62, 0.24])
-      else if (famOf(n.type) === 'magic-rock' && n.depletedUntil <= s.tick) push(n.x, n.y, 0.13, 0.4, [0.4, 0.85, 1])
+      else if (famOf(n.type) === 'quick-rock' && n.depletedUntil <= s.tick) push(n.x, n.y, 0.13, 0.4, [0.4, 0.85, 1])
     }
     for (const p of Object.values(s.players)) {
-      if (p.equipment?.head?.item === 'star-helm' || p.equipment?.body?.item === 'star-plate' || p.equipment?.weapon?.item === 'star-sword')
+      if (p.equipment?.head?.item === 'quick-helm' || p.equipment?.body?.item === 'quick-plate' || p.equipment?.weapon?.item === 'quick-sword')
         push(p.x, p.y, 0.11, 0.3, [0.55, 0.88, 1])
     }
   }
@@ -13518,8 +13316,8 @@ function drawScene(now) {
     glWarm = duskiness * (rising ? 1 : -0.9) // the shader grades the hours
     if (!GLON && duskiness > 0.02) {
       cx.fillStyle = rising
-        ? 'rgba(224,140,40,' + (duskiness * 0.15) + ')'
-        : 'rgba(120,70,170,' + (duskiness * 0.14) + ')'
+        ? 'rgba(224,140,40,' + (duskiness * 0.15) + ')':
+        'rgba(120,70,170,' + (duskiness * 0.14) + ')'
       cx.fillRect(0, 0, cv.width / ZR, cv.height / ZR)
     }
   }
@@ -13543,7 +13341,7 @@ function drawScene(now) {
         cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       const isWatch = n.type === 'watchfire' && n.fuelUntil > s.tick
       const isFire = n.type === 'campfire' || n.type === 'fire' || isWatch
-      const isGlow = famOf(n.type) === 'magic-rock' && n.depletedUntil <= s.tick
+      const isGlow = famOf(n.type) === 'quick-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
@@ -13562,15 +13360,15 @@ function drawScene(now) {
         cam.x + Math.ceil(cv.width / (TILE * ZR)) + 8,
         cam.y + Math.ceil(cv.height / (TILE * ZR)) + 8)) {
       const isFire = n.type === 'campfire' || n.type === 'fire'
-      const isGlow = famOf(n.type) === 'magic-rock' && n.depletedUntil <= s.tick
+      const isGlow = famOf(n.type) === 'quick-rock' && n.depletedUntil <= s.tick
       if (!isFire && !isGlow) continue
       const fx = px(n.x - cam.x) + 20, fy = py(n.y - cam.y) + (isFire ? 24 : 20)
       if (fx < -120 || fx > cv.width + 120 || fy < -120 || fy > cv.height + 120) continue
       const R = isFire ? 60 : 40
       const grad2 = cx.createRadialGradient(fx, fy, 4, fx, fy, R)
       grad2.addColorStop(0, isFire
-        ? 'rgba(230,126,34,' + (darkness * 0.3) + ')'
-        : 'rgba(120,210,255,' + (darkness * 0.22) + ')')
+        ? 'rgba(230,126,34,' + (darkness * 0.3) + ')':
+        'rgba(120,210,255,' + (darkness * 0.22) + ')')
       grad2.addColorStop(1, isFire ? 'rgba(230,126,34,0)' : 'rgba(120,210,255,0)')
       cx.fillStyle = grad2; cx.beginPath(); cx.arc(fx, fy, R, 0, 7); cx.fill()
     }
@@ -13589,8 +13387,8 @@ function drawScene(now) {
   }
   if (!GLON) { cx.fillStyle = vignette; cx.fillRect(0, 0, cv.width / ZR, cv.height / ZR) }
 
-  const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk'
-              : cyc < 0.94 ? 'night' : 'dawn'
+  const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk':
+              cyc < 0.94 ? 'night' : 'dawn'
   cx.fillStyle = 'rgba(217,201,163,.75)'; cx.font = '10px Verdana'; cx.textAlign = 'left'
   cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + '  \u00b7  tick ' + s.tick + '  \u00b7  ' + phase + '  \u00b7  ' + BUILD + meterText, 6, cv.height - 6)
 }
@@ -13638,13 +13436,13 @@ function panel(s) {
   document.getElementById('hpfill').style.width = (100 * me.hp / maxHp) + '%'
   document.getElementById('hptext').textContent = 'HP ' + me.hp + ' / ' + maxHp
   const trainingNode = me.action?.nodeId ? s.nodes[me.action.nodeId] : null
-  const training = me.action?.type === 'prowess' ? 'prowess'
-    : trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
+  const training = me.action?.type === 'prowess' ? 'prowess':
+    trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
   document.getElementById('skills').innerHTML = Object.entries(me.skills)
     .map(([k, xp]) => {
       const lvl = XP_TO_LVL(xp)
-      const pct = lvl >= 99 ? 100
-        : Math.floor(100 * (xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl]))
+      const pct = lvl >= 99 ? 100:
+        Math.floor(100 * (xp - XP_TABLE[lvl]) / (XP_TABLE[lvl + 1] - XP_TABLE[lvl]))
       const hot = k === training
       return '<div data-skill="' + k + '" style="cursor:pointer'
         + (hot ? ';outline:1px solid var(--gold)' : '') + '">'
@@ -13721,8 +13519,8 @@ function panel(s) {
     .map((it, i) => '<div class="slot" data-i="' + i + '" title="' + (it ? it.item : '') + '">'
       + (it ? (ICONS[it.item] ?? '?')
         + (it.qty > 1 ? '<div style="position:absolute;bottom:1px;right:2.4px;font-size:8px;color:#ffe08a">' + it.qty + '</div>' : '')
-        + '<div style="position:absolute;top:1.4px;left:2.4px;right:1px;font-size:6.4px;color:#9a8c6a;line-height:1;overflow:hidden;white-space:nowrap;text-align:left">' + it.item.replace(/-/g, ' ') + '</div>'
-        : '')
+        + '<div style="position:absolute;top:1.4px;left:2.4px;right:1px;font-size:6.4px;color:#9a8c6a;line-height:1;overflow:hidden;white-space:nowrap;text-align:left">' + it.item.replace(/-/g, ' ') + '</div>':
+        '')
       + '</div>').join('')
   }
   // §5t: the named thing, with its numbers. `Green Mace of the Outlander /
@@ -13783,8 +13581,8 @@ function panel(s) {
     offers.push('<div class="stone" style="padding:5px 7px;margin-top:4px">'
       + '<b style="color:var(--gold)">' + (p.name ?? pid.slice(0, 6)) + '</b> offers '
       + giveItem.replace('-', ' ') + ' for your ' + p.trade.wantItem.replace('-', ' ') + ' '
-      + (haveWant ? '<button data-accept="' + pid + '">accept</button>'
-                  : '<span style="color:var(--dim)">(you have none)</span>')
+      + (haveWant ? '<button data-accept="' + pid + '">accept</button>':
+                  '<span style="color:var(--dim)">(you have none)</span>')
       + '</div>')
   }
   if (me.trade) {
@@ -13816,20 +13614,20 @@ function panel(s) {
             + (ICONS[item] ?? '') + ' ' + item.replace('-', ' ') + ' \u00d7' + q + '</button>'
             + (q > 1 ? '<button data-wdall="' + item + '" title="withdraw all ' + q + '"'
                 + ' style="margin-left:-1px;padding:0 5px;color:#a89a7c">all</button>' : '')
-            + '</span>').join('')
-        : '<span style="color:var(--dim)">empty. Your fortune starts here</span>')
+            + '</span>').join(''):
+        '<span style="color:var(--dim)">empty. Your fortune starts here</span>')
   } else vaultEl.style.display = 'none'
 
   const wep = me.equipment?.weapon
   let gearLine = wep
-    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>'
-    : 'Weapon: <span style="color:var(--dim)">bare hands</span>'
+    ? 'Weapon: ' + (ICONS[wep.item] ?? '') + ' ' + wep.item.replace('-', ' ') + ' <span style="color:var(--dim)">(tap to sheathe)</span>':
+    'Weapon: <span style="color:var(--dim)">bare hands</span>'
   const hd = me.equipment.head, bd = me.equipment.body
   if (hd || bd) gearLine += '<br>' + [hd && ('Head: ' + hd.item.replace(/-/g, ' ')),
     bd && ('Body: ' + bd.item.replace(/-/g, ' '))].filter(Boolean).join(' \u00b7 ')
   document.getElementById('equip').innerHTML = gearLine
-  // §6af: the control appears only when the weapon in hand HAS a special, and
-  // says what it does — a button labelled 'special' teaches nothing.
+  // §6af: the control appears only when the weapon in hand HAS a gambit, and
+  // says what it does, a button labelled 'gambit' teaches nothing.
   {
     const sb = document.getElementById('specbtn')
     const kind = SPEC_OF[me.equipment?.weapon?.item]
@@ -13846,8 +13644,8 @@ function panel(s) {
       sb.style.fontWeight = specArmed ? '700' : ''
       sb.style.letterSpacing = specArmed ? '.04em' : ''
       sb.textContent = (specArmed
-        ? '\u25b8 ARMED \u2014 strike a target, or tap again to stand down'
-        : 'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
+        ? '\u25b8 ARMED, strike a target, or tap again to stand down':
+        'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
     }
   }
     + '<br>Gold: <b style="color:#e2b63e">' + (me.gold ?? 0) + '</b> ' + ICONS['gold-coin']
@@ -13885,13 +13683,13 @@ function panel(s) {
       + '<div style="color:#a89a7c;font-size:10px;margin:0 0 3px">Seal a consignment and the road '
       + 'is committed: you cannot bank it, you cannot recall, and anyone else carrying one may strike you.</div>'
       + ((me.inventory ?? []).some(Boolean)
-        ? '<button data-consign="1" style="' + BTN + '">seal your pack into a consignment</button>'
-        : '<span style="color:#8a7f68;font-size:10px">Nothing in your pack to consign.</span>')
-    : '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER \u00b7 '
+        ? '<button data-consign="1" style="' + BTN + '">seal your pack into a consignment</button>':
+        '<span style="color:#8a7f68;font-size:10px">Nothing in your pack to consign.</span>'):
+    '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER \u00b7 '
       + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard \u00b7 '
       + '<b style=\"color:#f0c860\">' + haulWorth.toLocaleString() + '</b> at stake'
-      + (atEnd ? ' \u00b7 <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>'
-               : ' \u00b7 leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
+      + (atEnd ? ' \u00b7 <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>':
+               ' \u00b7 leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
       + (atEnd ? '' : '<div style="color:#e2b63e;font-size:11px;margin:0 0 4px">Next: '
           + (haulNext(s, myHaul) ?? 'the next counter')
           + ((myHaul.route ?? []).length > 1
@@ -13899,17 +13697,17 @@ function panel(s) {
           + '</div>')
       + (atEnd
         ? (((me.brandedUntil ?? 0) > s.tick)
-          ? '<span style="color:#d08a5a;font-size:10px">Branded. No counter will take a delivery from you yet.</span>'
-          : '<div style="color:#a89a7c;font-size:10px;margin:0 0 3px">Discharging is not selling: the goods '
+          ? '<span style="color:#d08a5a;font-size:10px">Branded. No counter will take a delivery from you yet.</span>':
+          '<div style="color:#a89a7c;font-size:10px;margin:0 0 3px">Discharging is not selling: the goods '
             + 'leave the world and you are paid in hauling alone.</div>'
             + (myHaul.items ?? []).map((sl, k) => sl && PRICES_C[sl.item]
               ? '<button data-deliver="' + k + '" style="margin:1px;background:#3a3126;color:#e8d9a0;'
                 + 'border:1px solid #6e5433;padding:3px 6px;font-family:inherit;font-size:10px;cursor:pointer">'
-                + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 discharge</button>'
-              : '').join(''))
-        : '<span style="color:#8a7f68;font-size:10px">Carry it to the last town on the route.</span>')
+                + sl.item.replace(/-/g, ' ') + (sl.qty > 1 ? ' \u00d7' + sl.qty : '') + ' \u2192 discharge</button>':
+              '').join('')):
+        '<span style="color:#8a7f68;font-size:10px">Carry it to the last town on the route.</span>')
       + '<button data-release="1" style="' + BTN + ';border-color:#a33">set the container down'
-      + ' \u2014 the route is lost</button>')
+      + ', the route is lost</button>')
   // §6al: YOUR OWN STALL, tended from the bar. Stock is ONE WAY: there is no
   // button to take it back because there is no verb to take it back, and a
   // pane that implied otherwise would be lying about the rules.
@@ -13923,7 +13721,7 @@ function panel(s) {
       && (!good || sl.item === good) && qty < 200)
     sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">YOUR STALL: '
       + (good ? qty + ' \u00d7 ' + good.replace(/-/g, ' ') : 'empty')
-      + (mk.ask > 0 ? ' at ' + mk.ask + 'g' : ' \u2014 UNPRICED, nothing sells')
+      + (mk.ask > 0 ? ' at ' + mk.ask + 'g' : ', UNPRICED, nothing sells')
       + ' \u00b7 taken ' + (mk.coin ?? 0) + 'g</div>'
       + (canPut ? '<button data-stallput="1" style="' + BTN + '">put something on it</button>' : '')
       + '<button data-stallask="-10" style="' + BTN + '">price -10</button>'
@@ -13980,7 +13778,7 @@ function panel(s) {
       const slots = (me.inventory ?? []).map((sl, k) => sl ? k : -1).filter((k) => k >= 0)
       if (!slots.length) { feed('Nothing in your pack to consign.'); return }
       send({ do: 'consign', slots })
-      feed('Sealed. The road is committed \u2014 and so are you.')
+      feed('Sealed. The road is committed, and so are you.')
       return
     }
     if (e.target?.dataset?.release !== undefined) {
@@ -13989,7 +13787,7 @@ function panel(s) {
       // down should not quietly undo an hour of walking.
       if (!_releaseArmed) {
         _releaseArmed = true
-        feed('That forfeits the route you have walked \u2014 the next consignment draws a new one. '
+        feed('That forfeits the route you have walked: the next consignment draws a new one. '
           + 'Tap again to set it down.')
         setTimeout(() => { _releaseArmed = false }, 6000)
         return
@@ -14040,19 +13838,19 @@ function panel(s) {
     const d9 = dest9 ? Math.abs(me.x - dest9.x) + Math.abs(me.y - dest9.y) : null
     const bear9 = dest9
       ? ((Math.abs(dest9.y - me.y) > Math.abs(dest9.x - me.x))
-          ? (dest9.y < me.y ? 'north' : 'south') : (dest9.x < me.x ? 'west' : 'east'))
-      : ''
+          ? (dest9.y < me.y ? 'north' : 'south') : (dest9.x < me.x ? 'west' : 'east')):
+      ''
     hb.innerHTML = 'CARRYING \u00b7 ' + load9 + ' slot' + (load9 === 1 ? '' : 's')
       + (haulAtEndC(c9)
-        ? ' \u00b7 <b style="color:#8ce08c">discharge here at ' + (haulLast(s, c9) ?? 'this counter') + '</b>'
-        : '<br><span style="color:#e8d9a0">Next: the counter at ' + (haulNext(s, c9) ?? '?') + '</span>'
+        ? ' \u00b7 <b style="color:#8ce08c">discharge here at ' + (haulLast(s, c9) ?? 'this counter') + '</b>':
+        '<br><span style="color:#e8d9a0">Next: the counter at ' + (haulNext(s, c9) ?? '?') + '</span>'
           + '<span style="color:#8a7f68"> \u00b7 leg ' + ((c9.leg ?? 0) + 1) + ' of '
           + (c9.route ?? []).length + ' \u00b7 discharge at ' + (haulLast(s, c9) ?? '?') + '</span>'
-          + (d9 === null ? ''
-            : d9 <= 1
-              ? '<br><span style="color:#8ce08c">You are beside it. Take one step, or any deed, and the leg counts.</span>'
-              : '<br><span style="color:#a89a7c;font-size:10px">' + d9 + ' tiles ' + bear9
-                + ' \u2014 stand directly beside that counter (not on it, not corner-on).</span>'))
+          + (d9 === null ? '':
+            d9 <= 1
+              ? '<br><span style="color:#8ce08c">You are beside it. Take one step, or any deed, and the leg counts.</span>':
+              '<br><span style="color:#a89a7c;font-size:10px">' + d9 + ' tiles ' + bear9
+                + ', stand directly beside that counter (not on it, not corner-on).</span>'))
       + '<br><span style="color:#a89a7c;font-size:10px">No bank, no recall. Anyone else carrying may strike you.</span>'
   }
   document.getElementById('status').textContent =
@@ -14066,8 +13864,8 @@ document.getElementById('specbtn').addEventListener('click', (e) => {
   specArmed = !specArmed
   // §7cc: and say so, so it is in the feed as well as under your thumb
   feed(specArmed
-    ? 'You set yourself \u2014 the next blow is a special. Tap again to stand down.'
-    : 'You stand down. The next blow is an ordinary one.')
+    ? 'You set yourself, the next blow is a gambit. Tap again to stand down.':
+    'You stand down. The next blow is an ordinary one.')
 })
 document.getElementById('equip').addEventListener('click', () => {
   if (world?.players[myId]?.equipment?.weapon) { send({ do: 'unwield' }); feed('You sheathe your weapon.') }
@@ -14104,8 +13902,8 @@ function openSkillGuide(skill) {
     // know they stop at fifty will think the world broke
     + (() => { const m = world && world.players && world.players[myId]
         const cap = capOfSkill(m, skill)
-        return cap === 0 ? ' \u00b7 <span style="color:#e2b63e">no ceiling: yours</span>'
-          : ' \u00b7 stops at ' + cap + (m && m.calling ? ', sworn elsewhere' : ' until you swear') })()
+        return cap === 0 ? ' \u00b7 <span style="color:#e2b63e">no ceiling: yours</span>':
+          ' \u00b7 stops at ' + cap + (m && m.calling ? ', sworn elsewhere' : ' until you swear') })()
     + (toNext === null ? ' \u00b7 mastered' : ' \u00b7 ' + toNext.toLocaleString() + ' to ' + (lvl + 1))
     + '</div>'
   if (SKILL_NOTE[skill]) {
@@ -14134,7 +13932,7 @@ function openSkillGuide(skill) {
   // is deliberately incomplete, and saying so is part of the design.
   html += '<div style="color:#6e6355;font-size:9px;margin-top:10px;line-height:1.5;border-top:1px solid #3a3126;padding-top:6px">'
     + 'Gates only. What a seam YIELDS, how often the rare thing answers, what a '
-    + 'blow is worth \u2014 those are not here, and they are not hidden either. '
+    + 'blow is worth: those are not here, and they are not hidden either. '
     + 'Stand at a tree and count.</div>'
   box.innerHTML = html
   document.getElementById('view')?.parentNode?.appendChild(box) ?? document.body.appendChild(box)
@@ -14177,8 +13975,8 @@ function validateGateName(s) {
     btn.disabled = !myId
     const me2 = world?.players[myId]
     btn.textContent = me2
-      ? 'Enter as ' + (me2.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026')
-      : 'Enter the world'
+      ? 'Enter as ' + (me2.name ?? 'citizen ' + myId.slice(0, 6) + '\u2026'):
+      'Enter the world'
   }
 }
 document.getElementById('gatename').addEventListener('input', () => validateGateName(world))
@@ -14195,9 +13993,9 @@ function tellArrival() {
   if (inNought) return
   if ((me9.lastInput ?? 0) === 0 || asleep < 8) { feed('You wake in Tallyholm for the first time.'); return }
   const s9 = Math.round(asleep * 0.6)
-  const t9 = s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day'
-    : s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour'
-    : s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
+  const t9 = s9 >= 172800 ? Math.round(s9 / 86400) + ' days' : s9 >= 86400 ? 'a day':
+    s9 >= 7200 ? Math.round(s9 / 3600) + ' hours' : s9 >= 3600 ? 'an hour':
+    s9 >= 120 ? Math.round(s9 / 60) + ' minutes' : 'a moment'
   feed('You wake. You slept for ' + t9 + '; the world did not.')
 }
 function enterWorld() {
@@ -14339,7 +14137,7 @@ sunCv.addEventListener('pointerup', (e2) => {
     ? (localeAt4(gx, gy) ?? '') : ''
   const mins = Math.hypot(gx - me.x, gy - me.y) * 0.6 / 60
   feed('Setting out' + (where ? ' for ' + where : '')
-    + (mins >= 0.3 ? ' \u2014 about ' + mins.toFixed(1) + ' minutes\u2019 walk' : '') + '.')
+    + (mins >= 0.3 ? ', about ' + mins.toFixed(1) + ' minutes\u2019 walk' : '') + '.')
 })
 // the level-up banner rides its OWN overlay, appended last so it sits above BOTH
 // the GL layer and the minimap, no more banner trapped behind the map.
@@ -14352,7 +14150,7 @@ const bannerCtx = bannerCv.getContext("2d")
 //
 // The skill panel already draws sixteen pixel glyphs, as <symbol id="sk-*">
 // in an inline SVG sheet. The banner is a canvas and cannot <use> them
-// directly — so each is rasterised ONCE into a small offscreen canvas, by
+// directly, so each is rasterised ONCE into a small offscreen canvas, by
 // reading the symbol's own <rect> elements. No new art, no second source of
 // truth: if the panel's axe changes, the banner's axe changes with it.
 const _skIco = new Map()
@@ -14392,13 +14190,16 @@ function drawBanner(now) {
   // global milestone cries take the stage first, they outrank a personal level-up
   if (!announceShow && announceQueue.length) {
     const nx = announceQueue.shift()
-    announceShow = typeof nx === 'string' ? { text: nx, skill: null, at: now }
-                                          : { text: nx.text, skill: nx.skill, at: now }
+    announceShow = typeof nx === 'string' ? { text: nx, skill: null, at: now }:
+                                          { text: nx.text, skill: nx.skill, at: now }
   }
   if (announceShow && now - announceShow.at >= 4800) announceShow = null
   if (announceShow) {
     const a = (now - announceShow.at) / 4800
-    const grand = /FIRST|Master of Interval/.test(announceShow.text)
+    // §5k-iii: `Master of Interval` dropped out of this test with the title.
+    // The world no longer announces it -- the caps made it impossible -- so the
+    // alternative could only ever fail to match. A FIRST is still grand.
+    const grand = /FIRST/.test(announceShow.text)
     const bw = grand ? 760 : 620, bh = 78, bx2 = (1120 - bw) / 2, by2 = 16
     g.globalAlpha = a < 0.9 ? 1 : (1 - a) / 0.1
     g.fillStyle = grand ? "#2a1c10" : "#332a1c"; g.fillRect(bx2, by2, bw, bh)
@@ -14793,7 +14594,7 @@ document.getElementById('vault').addEventListener('click', (e) => {
     // the rest stays banked, which is the engine's own rule.
     const have = shelfHere(world, world?.players?.[myId])[allItem] ?? 1
     send({ do: 'withdraw', item: allItem, qty: have })
-    feed('You withdraw what will fit \u2014 ' + have + ' ' + allItem.replace('-', ' ') + '.')
+    feed('You withdraw what will fit, ' + have + ' ' + allItem.replace('-', ' ') + '.')
   }
 })
 
@@ -14869,7 +14670,7 @@ function socialOpts(pid, p, me) {
     out.push({ label: 'remember ' + nm, act: () => {
       if (d > FRIEND_RANGE) {
         feed('You have not been anywhere with ' + nm + '. To keep somebody\u2019s name you must '
-          + 'have stood where they were standing \u2014 within twelve tiles, which is as far as '
+          + 'have stood where they were standing: within twelve tiles, which is as far as '
           + 'you can follow them before you lose them. They are ' + d + ' away.')
         return
       }
@@ -14882,7 +14683,7 @@ function socialOpts(pid, p, me) {
   } else {
     out.push({ label: 'fall in behind ' + nm, act: () => {
       send({ do: 'follow', targetId: pid })
-      feed('You fall in behind ' + nm + '. Your feet, not your sword \u2014 what they strike is still yours to strike.') } })
+      feed('You fall in behind ' + nm + '. Your feet, not your sword: what they strike is still yours to strike.') } })
   }
   return out
 }
@@ -14894,7 +14695,7 @@ function socialOpts(pid, p, me) {
 // A citizen who walked to an ossuary, turned to the barrow-work and gave up five
 // spells got four they could not cast.
 //
-// It follows the special-attack button, which already works this way and which
+// It follows the gambit button, which already works this way and which
 // citizens already understand: ARM a spell, then pick what it lands on. The
 // panel shows the book you are actually reading, greys what you cannot speak,
 // and says WHY -- the level, the sigils, the staff.
@@ -14905,7 +14706,7 @@ const SPELLBOOK = {
     { v: 'mend',   name: 'mend',       lvl: 50, sigils: 1, on: 'self',
       says: 'your own wounds, +20, once in twenty-five' },
     { v: 'mendp',  name: 'mend other', lvl: 50, sigils: 1, on: 'citizen', wand: 'wand',
-      says: 'somebody else\u2019s \u2014 a wand sends what a bare hand keeps' },
+      says: 'somebody else\u2019s, a wand sends what a bare hand keeps' },
     { v: 'still',  name: 'the stilling', lvl: 85, sigils: 3, on: 'citizen',
       says: 'the fight simply stops' },
   ],
@@ -14913,9 +14714,9 @@ const SPELLBOOK = {
     { v: 'rot',       name: 'the rot',       lvl: 40, sigils: 1, on: 'any', wand: 'bone-staff',
       says: 'nothing now; twenty-four intervals of decay, and plate does not stop it' },
     { v: 'taking',    name: 'the taking',    lvl: 60, sigils: 2, on: 'any', wand: 'bone-staff',
-      says: 'eight of their life becomes yours \u2014 once in twelve' },
+      says: 'eight of their life becomes yours, once in twelve' },
     { v: 'waking',    name: 'the waking',    lvl: 75, sigils: 3, on: 'any', wand: 'bone-staff',
-      says: 'your mark and everything standing round it \u2014 once in forty' },
+      says: 'your mark and everything standing round it, once in forty' },
     { v: 'withering', name: 'the withering', lvl: 88, sigils: 4, on: 'any', wand: 'bone-staff',
       says: 'sixteen intervals in which nothing will heal them' },
   ],
@@ -14962,8 +14763,8 @@ function drawBook() {
       if (sp.on === 'self') { send({ do: 'cast', spell: 'mend' }); feed('You close your own wounds.'); return }
       if (sp.on === 'item') { feed('Tap what you want to transmute, in your pack.'); return }
       spellArmed = (spellArmed && spellArmed.v === sp.v) ? null : sp
-      feed(spellArmed ? 'You hold ' + sp.name + ' ready. Tap what it lands on.'
-        : 'You let ' + sp.name + ' go.')
+      feed(spellArmed ? 'You hold ' + sp.name + ' ready. Tap what it lands on.':
+        'You let ' + sp.name + ' go.')
       drawBook()
     }
   })
@@ -15002,8 +14803,8 @@ function whoWorksHere(n) {
   const t = world?.tick ?? 0
   const ago = (k) => {
     const d = t - k
-    return d < 60 ? 'just now' : d < 600 ? Math.round(d / 60) + ' minutes ago'
-      : Math.round(d / 600) / 10 + ' hours ago'
+    return d < 60 ? 'just now' : d < 600 ? Math.round(d / 60) + ' minutes ago':
+      Math.round(d / 600) / 10 + ' hours ago'
   }
   const names = w.map((e) => (world.players[e.who]?.name ?? e.who.slice(0, 6)) + ' (' + ago(e.at) + ')')
   feed('Hands that have been here: ' + names.join(', ') + '.')
@@ -15021,7 +14822,7 @@ function invClick(i) {
   // §7cz: rubble is marl, and a citizen holding it should be told what it is for
   if (it.item === 'rubble') {
     feed('Broken stone. Spread two on a row when you sow and the crop comes on in '
-      + 'two thirds the time \u2014 it drains the ground and warms it. It is the only '
+      + 'two thirds the time: it drains the ground and warms it. It is the only '
       + 'thing a miner makes that a farmer wants.')
     return
   }
@@ -15029,7 +14830,7 @@ function invClick(i) {
     chooseAction([
       { label: 'draw it up as a charter (for the boat to the Lists)', act: () => {
         send({ do: 'charter', slot: Number(i) })
-        feed('You draw the crossing up. Somebody may sail who could not \u2014 and pay you for it.') } },
+        feed('You draw the crossing up. Somebody may sail who could not, and pay you for it.') } },
       { label: 'keep the chart', act: () => feed('A chart. It opens no doors; it says where a thing is.') },
     ])
     return
@@ -15038,8 +14839,8 @@ function invClick(i) {
     if ((meNow.nocked ?? 'arrows') !== it.item) {
       send({ do: 'nock', slot: Number(i) })
       feed(it.item === 'fire-arrows'
-        ? 'You set a fire arrow on the string. It flies shorter, and it will not touch plate.'
-        : 'You set an ordinary shaft on the string.')
+        ? 'You set a fire arrow on the string. It flies shorter, and it will not touch plate.':
+        'You set an ordinary shaft on the string.')
       return
     }
   }
@@ -15050,7 +14851,7 @@ function invClick(i) {
   // every log click a silent deposit and the menu seemed to die).
   // Their menus gain a deposit option instead; plain goods still
   // deposit in one click, the banker's old convenience.
-  const MENU_ITEMS = new Set(['logs', 'bones', 'sigil', 'magic-stone', 'arrows', 'ale'])
+  const MENU_ITEMS = new Set(['logs', 'bones', 'sigil', 'quick-stone', 'arrows', 'ale'])
   const hasMenu = MENU_ITEMS.has(it.item) || it.item === 'chart' // v0.80: a merge left CHART_PREFIX undeclared here, and a bare undefined identifier THROWS: every inventory click died on it
   if (nearVault && !hasMenu) { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.'); return }
   const bankOpt = nearVault ? [{ label: 'deposit in bank', act: () => { send({ do: 'deposit', slot: +i }); feed('You deposit the ' + it.item.replace('-', ' ') + '.') } }] : []
@@ -15063,8 +14864,8 @@ function invClick(i) {
     act: () => { send({ do: 'alch', slot: +i })
       feed('It comes apart' + (alchPay > 0 ? ' for ' + alchPay + ' gold.' : '.') + ' A keeper would have paid more.') },
   }]
-  if (it.item === 'magic-stone') {
-    const count = me.inventory.filter(sl => sl?.item === 'magic-stone').length
+  if (it.item === 'quick-stone') {
+    const count = me.inventory.filter(sl => sl?.item === 'quick-stone').length
     chooseAction([
       { label: 'invoke sigil (' + count + '/3 stones)', act: () => {
         if (count < 3) { feed('Three stones make a sigil. You carry ' + count + '.'); return }
@@ -15133,12 +14934,12 @@ function invClick(i) {
         send({ do: 'bury', slot: +i })
         const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
           && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
-        feed(oss ? 'You lay the dragon in the ossuary. The ground here is consecrated.'
-                 : 'You bury the dragon. The earth takes it as it takes everything.') } },
-      { label: canHaft ? 'haft a BONE SPEAR (2 bones + 1 ironbark)'
-                       : 'haft a bone spear \u2014 ' + (fl < 55 ? 'fletching 55 (you have ' + fl + ')'
-                         : have < 2 ? 'you have ' + have + ' of 2 bones'
-                         : 'you need an ironbark haft'),
+        feed(oss ? 'You lay the dragon in the ossuary. The ground here is consecrated.':
+                 'You bury the dragon. The earth takes it as it takes everything.') } },
+      { label: canHaft ? 'haft a BONE SPEAR (2 bones + 1 ironbark)':
+                       'haft a bone spear, ' + (fl < 55 ? 'fletching 55 (you have ' + fl + ')':
+                         have < 2 ? 'you have ' + have + ' of 2 bones':
+                         'you need an ironbark haft'),
         act: () => {
           if (!canHaft) { feed('Not yet. A bone spear is two dragon-bones, an ironbark haft and fletching 55.'); return }
           send({ do: 'smith', recipe: 'bone-spear' })
@@ -15146,7 +14947,7 @@ function invClick(i) {
              + 'and then it is the largest blow in the world. It will snap, and there is no mending it.') } },
       { label: 'what are these worth?', act: () => feed('Five hundred at a counter, and a keeper who does not '
         + 'know what else they are for. Buried they are the fastest prayer on the island. Hafted they are a spear '
-        + 'that grows as you fail \u2014 and prayer will not save a thing that breaks in your hand.') },
+        + 'that grows as you fail, and prayer will not save a thing that breaks in your hand.') },
       ...bankOpt, ...alchOpt,
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You set the dragon down.') } },
     ]); return
@@ -15154,24 +14955,24 @@ function invClick(i) {
   // §7cn: WHAT A LAMPREY LEAVES, and how much of it there will ever be.
   if (it.item === 'lamprey-spit') {
     const sp = (me.inventory ?? []).filter(x => x?.item === 'lamprey-spit').length
-    const st = (me.inventory ?? []).filter(x => x?.item === 'steel-ingot').length
+    const st = (me.inventory ?? []).filter(x => x?.item === 'steel').length
     const sm = lvl('earthcraft')
     const canMake = sp >= 2 && st >= 1 && sm >= 40
     const alive = Object.values(world?.mobs ?? {})
       .filter(x => x.type === 'mere-lamprey' && (x.spent ?? 0) === 0).length
     chooseAction([
-      { label: canMake ? 'set a BARB (2 spit + 1 steel ingot)'
-                       : 'set a barb \u2014 ' + (sm < 40 ? 'smithing 40 (you have ' + sm + ')'
-                         : sp < 2 ? 'you have ' + sp + ' of 2 spit' : 'you need a steel ingot'),
+      { label: canMake ? 'set a BARB (2 spit + 1 steel)':
+                       'set a barb, ' + (sm < 40 ? 'earthcraft 40 (you have ' + sm + ')':
+                         sp < 2 ? 'you have ' + sp + ' of 2 spit' : 'you need a bar of steel'),
         act: () => {
-          if (!canMake) { feed('A barb is two measures of spit, one steel ingot and smithing 40.'); return }
+          if (!canMake) { feed('A barb is two measures of spit, one bar of steel and earthcraft 40.'); return }
           send({ do: 'smith', recipe: 'barb' })
-          feed('You work the spit into the ring. It bites all round \u2014 every beast within reach, '
+          feed('You work the spit into the ring. It bites all round: every beast within reach, '
              + 'one swing. Worthless in a duel; the only answer anybody has to a crowd.') } },
       { label: 'how much is left?', act: () => feed(alive > 0
         ? alive + (alive === 1 ? ' lamprey is left in the world.' : ' lampreys are left in the world.')
-          + ' When they are gone there is no more spit, and no more barbs than the ones that exist.'
-        : 'The meres are empty. Every barb that will ever exist already exists.') },
+          + ' When they are gone there is no more spit, and no more barbs than the ones that exist.':
+        'The meres are empty. Every barb that will ever exist already exists.') },
       ...bankOpt, ...alchOpt,
       { label: 'drop', act: () => { send({ do: 'drop', slot: +i }); feed('You set the horn down. There is not much of this.') } },
     ]); return
@@ -15182,8 +14983,8 @@ function invClick(i) {
         // consecrated ground pays a quarter more, and says so
         const oss = Object.values(world.nodes).some(n => n.type === 'ossuary'
           && Math.abs(meNow.x - n.x) <= 1 && Math.abs(meNow.y - n.y) <= 1)
-        feed(oss ? 'You lay the bones in the ossuary. The ground here is consecrated.'
-                 : 'You bury the bones. The earth accepts them.') } },
+        feed(oss ? 'You lay the bones in the ossuary. The ground here is consecrated.':
+                 'You bury the bones. The earth accepts them.') } },
       { label: 'fletch arrows', act: () => send({ do: 'fletch', slot: +i, make: 'arrows' }) },
       ...bankOpt, ...alchOpt,
     ]); return
@@ -15244,7 +15045,7 @@ function invClick(i) {
     // because a full pack is a thing a citizen can go and fix.
     const meW = world?.players?.[myId]
     const TWO_HAND = new Set(['wooden-bow', 'horn-bow', 'heartwood-bow', 'hollow-bow', 'sigil-bow', 'dragonbow',
-      'great-sword', 'great-mell', 'great-crossbow', 'crossbow', 'star-crossbow', 'fire-siphon'])
+      'great-sword', 'great-mell', 'great-crossbow', 'crossbow', 'fire-siphon'])
     const wornWeapon = meW?.equipment?.weapon?.item ?? null
     const wornOff = meW?.equipment?.offhand?.item ?? null
     const takingUpTwoHander = TWO_HAND.has(it.item)
@@ -15372,7 +15173,7 @@ cv.addEventListener('click', (e) => {
         const d = Math.round(Math.hypot(wx - meM.x, wy - meM.y))
         const where = (typeof localeAt4 === 'function' && IS_EXPANSE4())
           ? (localeAt4(wx, wy) ?? '') : ''
-        feed('Setting out' + (where ? ' for ' + where : '') + ' \u2014 about '
+        feed('Setting out' + (where ? ' for ' + where : '') + ', about '
           + (d * 0.6 / 60).toFixed(1) + ' minutes\u2019 walk.')
       }
       return
@@ -15438,7 +15239,7 @@ cv.addEventListener('click', (e) => {
     const { id: pid, p } = best
     if (specArmed && SPEC_OF[me.equipment?.weapon?.item]) {
       specArmed = false
-      send({ do: 'special', targetId: pid })
+      send({ do: 'gambit', targetId: pid })
       feed('You strike off the rhythm.')
       return
     }
@@ -15446,7 +15247,7 @@ cv.addEventListener('click', (e) => {
     // A MENDING, SENT. A wand sends what a bare hand keeps: a sigil spent to
     // heal somebody four tiles off. Offered everywhere, because helping
     // somebody is not a thing the Wilds should gate -- and this window could
-    // not do it at all, so an alchemist here had a wand and no use for it.
+    // not do it at all, so a sorcerer here had a wand and no use for it.
     const mendOpt = (() => {
       const wand = me.equipment?.weapon?.item === 'wand'
       const sig = (me.inventory ?? []).some(sl => sl?.item === 'sigil')
@@ -15475,7 +15276,7 @@ cv.addEventListener('click', (e) => {
       ]); return
     }
     // §7cq: an armed spell lands on whoever you tapped, whatever else the tap
-    // would have offered -- the same way an armed special does.
+    // would have offered -- the same way an armed gambit does.
     if (spellArmed) { castArmed(pid, p); return }
     if (mendOpt.length) {
       const nm3 = p.name ?? pid.slice(0, 6)
@@ -15527,7 +15328,7 @@ cv.addEventListener('click', (e) => {
       chooseAction([
         ...here.slice(0, 10).map(([gid2, g3]) => ({
           label: 'take the ' + g3.item.replace(/-/g, ' ') + ((g3.qty ?? 1) > 1 ? ' (' + g3.qty + ')' : '')
-            + (g3.sealedBy ? (g3.by === myId ? ' \u2014 sealed for you' : ' \u2014 sealed, not yours') : ''),
+            + (g3.sealedBy ? (g3.by === myId ? ', sealed for you' : ', sealed, not yours') : ''),
           act: () => {
             if (g3.sealedBy && g3.by !== myId) {
               feed('It is sealed for whoever dropped it. Your hand closes on nothing.'); return }
@@ -15594,9 +15395,9 @@ cv.addEventListener('click', (e) => {
       } else if (el2 >= 1200) {
         intent = { kind: 'harvest', id }
       } else {
-        feed(el2 < 400 ? 'A sprout. The interval provides, slowly.'
-          : el2 < 800 ? 'Green rows, knee-high. Patience.'
-          : 'Flowering. Nearly.')
+        feed(el2 < 400 ? 'A sprout. The interval provides, slowly.':
+          el2 < 800 ? 'Green rows, knee-high. Patience.':
+          'Flowering. Nearly.')
         return
       }
       return
@@ -15652,8 +15453,8 @@ cv.addEventListener('click', (e) => {
         const hasOther = (meT.inventory || []).some(sl => sl && LOGKINDS.includes(sl.item))
         if (!hasLog) {
           feed(hasOther
-            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.'
-            : 'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
+            ? 'The keeper looks at what you are carrying and shakes his head. Ordinary logs mend a deck.':
+            'The keeper wants a log for the deck. You have none, and the long way round is two minutes.')
           return
         }
         send({ do: 'pay' })
@@ -15673,7 +15474,7 @@ cv.addEventListener('click', (e) => {
           && n.type !== 'hearth' && n.type !== 'waystone' && n.depletedUntil > world.tick) {
         feed({ 'tree': 'The tree is felled. It will regrow.',
                'rock': 'The rock is mined out. Give it a moment.',
-               'magic-rock': 'The hum has gone out of it. It will come back.',
+               'quick-rock': 'The hum has gone out of it. It will come back.',
                'fishing-spot': "The fish aren't biting here yet." }[n.type] ?? 'Nothing left here.')
         return
       }
@@ -15695,7 +15496,7 @@ cv.addEventListener('click', (e) => {
         send({ do: 'drink' })
         // §6dd: it restores you to full and spends your arm, and the well is
         // dry behind you for a hundred intervals
-        feed('You drink. The cold of it goes all the way down, and you are whole \u2014 '
+        feed('You drink. The cold of it goes all the way down, and you are whole: '
           + 'and the well is drawn down behind you.')
         flashClick(n.x, n.y, false)
         return
@@ -15756,8 +15557,8 @@ cv.addEventListener('click', (e) => {
         tone(52, 1.4, { type: 'sine', vol: 0.04, at: 0.2 })
         feed(onBarrow
           ? 'You close the barrow-work. The waking, the rot and the taking are gone; '
-            + 'the stilling, the mending, the sealing, the alching and the recall come back.'
-          : 'You turn to the barrow-work. The stilling, the mending, the sealing, the alching '
+            + 'the stilling, the mending, the sealing, the alching and the recall come back.':
+          'You turn to the barrow-work. The stilling, the mending, the sealing, the alching '
             + 'and the recall are closed to you. What is left will not refuse a fight.')
         flashClick(n.x, n.y, false); return
       }
@@ -15765,7 +15566,7 @@ cv.addEventListener('click', (e) => {
       //
       // `dummy` and `butt` are in NODE_TYPES *and* in MOB_STATS, and the engine
       // note says why: "a dummy and a butt are MOBS, not furniture, and that is
-      // the whole trick" -- attack, the specials, a drawn bow and the damage
+      // the whole trick" -- attack, the gambits, a drawn bow and the damage
       // readout all work on them unchanged. So a click on the frame finds the
       // thing standing in it and swings at that, rather than sending a refused
       // input and saying nothing.
@@ -15773,8 +15574,8 @@ cv.addEventListener('click', (e) => {
         const tgt = Object.entries(world.mobs ?? {})
           .find(([, m]) => m.x === n.x && m.y === n.y && m.hp > 0)
         const bow = RANGED_ITEMS.has(meNow?.equipment?.weapon?.item)
-        if (!tgt) { feed(n.type === 'butt' ? 'An archery butt. Straw and canvas, and nothing in it.'
-                                           : 'A pell of oak. Nobody has set a dummy on it.'); return }
+        if (!tgt) { feed(n.type === 'butt' ? 'An archery butt. Straw and canvas, and nothing in it.':
+                                           'A pell of oak. Nobody has set a dummy on it.'); return }
         if (n.type === 'butt' && !bow) {
           feed('A butt takes an ARROW. Wield a bow and it will teach you the first rungs of ranged; '
              + 'the pell beside it is the one you hit with steel.'); return }
@@ -15812,8 +15613,8 @@ cv.addEventListener('click', (e) => {
           if (ci === -1) { feed('The furnace is cold, and you have no coal to light it.'); return }
           // §7dc: and say which fuel is which, since they are no longer the same
           const isCoal = meF.inventory[ci]?.item === 'coal'
-          feed(isCoal ? 'Coal. It burns half again as long as charcoal in a furnace.'
-            : 'Charcoal. It burns clean, but coal burns longer here \u2014 keep the charcoal for powder.')
+          feed(isCoal ? 'Coal. It burns half again as long as charcoal in a furnace.':
+            'Charcoal. It burns clean, but coal burns longer here: keep the charcoal for powder.')
           send({ do: 'stoke', nodeId: id, slot: ci }); feed('The bloom catches.')
           flashClick(n.x, n.y, false); return
         }
@@ -15829,7 +15630,7 @@ cv.addEventListener('click', (e) => {
         const SMELTS = [
           { r: 'iron',       needs: { 'iron-ore': 2 },     says: 'Two of ore run down into a bar.' },
           { r: 'steel',      needs: { 'iron': 1 },         says: 'The bar goes back in, and comes out steel.' },
-          { r: 'star-ingot', needs: { 'magic-stone': 20 }, says: 'Twenty stones, and one ingot of starmetal.' },
+          { r: 'quick-ingot', needs: { 'quick-stone': 20 }, says: 'Twenty stones, and one ingot of quickmetal.' },
           { r: 'gold-bar',   needs: { 'gold-ore': 5 },     says: 'The gold runs.' },   // GOLD_ORE_PER_BAR
         ]
         const can = SMELTS.filter((sm) =>
@@ -15848,7 +15649,7 @@ cv.addEventListener('click', (e) => {
         else {
           // §7cx: AND SAY THAT IT IS A JOB TWO PEOPLE DO.
           //
-          // A star-ingot is twenty magic-stone, magic-stone does not stack, and
+          // A quick-ingot is twenty quick-stone, quick-stone does not stack, and
           // the pack is twenty-eight -- so one ingot is one trip into the Wilds
           // and back to this fire. A great mell is ELEVEN ingots: two hundred
           // and twenty stones, eleven journeys.
@@ -15861,16 +15662,16 @@ cv.addEventListener('click', (e) => {
           // the thing that mentions it.
           whoWorksHere(n)
         const sm = XP_TO_LVL(meF.skills?.earthcraft ?? 0)   // §5m: smithing is earthcraft
-          const stones = have('magic-stone')
+          const stones = have('quick-stone')
           if (stones >= 20 && sm < 45)
-            feed('You have the stones and not the craft \u2014 twenty make one ingot, and it '
-              + 'wants smithing 45. Somebody standing at this fire could smelt them for you.')
+            feed('You have the stones and not the craft, twenty make one ingot, and it '
+              + 'wants earthcraft 45. Somebody standing at this fire could smelt them for you.')
           else if (sm >= 45 && stones < 20)
-            feed('You could work this fire and have nothing to put in it. Twenty magic-stone '
-              + 'make one star-ingot, and they come out of the Wilds. Somebody who walks there '
+            feed('You could work this fire and have nothing to put in it. Twenty quick-stone '
+              + 'make one quick-ingot, and they come out of the Wilds. Somebody who walks there '
               + 'would carry them, if you smelted for them.')
           else
-            feed('It burns. Two of iron-ore make a bar, a bar makes steel, twenty magic-stone '
+            feed('It burns. Two of iron-ore make a bar, a bar makes steel, twenty quick-stone '
               + 'make an ingot, five of gold-ore make gold. Or bring coal to keep it going.')
         }
         flashClick(n.x, n.y, false); return
@@ -15886,7 +15687,7 @@ cv.addEventListener('click', (e) => {
         // and the brewpot, and nothing else in the world makes them.
         if (!(meS.inventory || []).some(sl => sl?.item === 'logs')) {
           feed('Bring logs. A log gives two boards, and boards are what the bridge-keeper '
-            + 'takes as toll \u2014 and what a stall and a brewpot are built from.')
+            + 'takes as toll, and what a stall and a brewpot are built from.')
           return
         }
         send({ do: 'saw' }); feed('Two boards off the log.')
@@ -15907,7 +15708,7 @@ cv.addEventListener('click', (e) => {
         const meA = world.players[myId]
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
           feed('A low stone altar, worn smooth.'); return }
-        const stones = (meA.inventory || []).reduce((a, sl) => a + (sl?.item === 'magic-stone' ? (sl.qty ?? 1) : 0), 0)
+        const stones = (meA.inventory || []).reduce((a, sl) => a + (sl?.item === 'quick-stone' ? (sl.qty ?? 1) : 0), 0)
         if (stones < 3) { feed('The altar wants three magic-stones. You have ' + stones + '.'); return }
         send({ do: 'invoke' }); feed('The stones go dark in your hands, and the sigil is made.')
         flashClick(n.x, n.y, false); return
@@ -15968,8 +15769,8 @@ cv.addEventListener('click', (e) => {
         flashClick(n.x, n.y, false)
         if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('You make for the counter.'); return }
         feed(me.consignment
-          ? 'The counter. Discharge what you carried, or set the container down.'
-          : 'The counter. Seal a consignment here and the road is committed.')
+          ? 'The counter. Discharge what you carried, or set the container down.':
+          'The counter. Seal a consignment here and the road is committed.')
         return
       }
       if (n.type === 'watchfire') {
@@ -15998,13 +15799,13 @@ cv.addEventListener('click', (e) => {
                 send({ do: 'char', nodeId: id })
                 feed('You bank the ironbark into the heart of the fire. It will come out as charcoal.')
                 tone(90, 0.5, { type: 'sawtooth', vol: 0.05 })
-              } }
-            : { label: 'char ironbark (needs ' + wt9.charWood + ', you have ' + bark9 + ')',
+              } }:
+            { label: 'char ironbark (needs ' + wt9.charWood + ', you have ' + bark9 + ')',
                 act: () => feed('Not enough ironbark. A clamp wants ' + wt9.charWood + ' at once.') })
         }
         opts.push({ label: lit ? 'leave it burning (' + mins + ' min of wood)' : 'it has gone cold', act: () => {
-          feed(lit ? 'The watchfire burns. Its light is nobody\u2019s and everybody\u2019s.'
-                   : 'Cold ash. It wants wood.')
+          feed(lit ? 'The watchfire burns. Its light is nobody\u2019s and everybody\u2019s.':
+                   'Cold ash. It wants wood.')
         } })
         chooseAction(opts); return
       }
@@ -16035,23 +15836,23 @@ cv.addEventListener('click', (e) => {
         const dg = world?.genesis?.dedication
         const price9 = dg ? Math.floor(dg.floor + (dg.floor * (n.count ?? 0)) / dg.stepDen) : null
         const opts = []
-        opts.push({ label: n.name ? 'read it: ' + n.name + ', for ' + (n.coin ?? 0) + ' gold'
-                                  : 'read it: no name on it yet',
+        opts.push({ label: n.name ? 'read it: ' + n.name + ', for ' + (n.coin ?? 0) + ' gold':
+                                  'read it: no name on it yet',
           act: () => feed(n.name
             ? '\u201c' + n.name + '\u201d, cut deep. ' + (n.coin ?? 0) + ' gold, and the gold is gone.'
-              + (n.past?.length ? ' Before them: ' + n.past.join(', ') + '.' : '')
-            : 'Blank stone. Nobody has wanted it enough yet.') })
+              + (n.past?.length ? ' Before them: ' + n.past.join(', ') + '.' : ''):
+            'Blank stone. Nobody has wanted it enough yet.') })
         if (price9 !== null && n.by !== myId) {
           const canPay = (me.gold ?? 0) >= price9 && !!me.name
           opts.push(canPay
             ? { label: 'cut your name into it (' + price9 + ' gold, burnt)', act: () => {
                 send({ do: 'dedicate', nodeId: id, pay: price9 })
                 feed('You pay ' + price9 + ' gold to have your name cut. It buys you nothing but this.')
-              } }
-            : { label: !me.name ? 'cut your name (you have no name yet)'
-                                : 'cut your name (' + price9 + ' gold, you have ' + (me.gold ?? 0) + ')',
-                act: () => feed(!me.name ? 'A stone bears a name. Claim one first.'
-                                         : 'Not enough gold. The stone does not haggle.') })
+              } }:
+            { label: !me.name ? 'cut your name (you have no name yet)':
+                                'cut your name (' + price9 + ' gold, you have ' + (me.gold ?? 0) + ')',
+                act: () => feed(!me.name ? 'A stone bears a name. Claim one first.':
+                                         'Not enough gold. The stone does not haggle.') })
         } else if (n.by === myId) {
           opts.push({ label: 'it already bears your name', act: () =>
             feed('Yours, until somebody wants it more.') })
@@ -16075,8 +15876,8 @@ cv.addEventListener('click', (e) => {
         const housePot = n.by === undefined
         if (!housePot && n.by !== myId) { feed('This brewpot belongs to another brewer.'); return }
         if (!adj(n) && !(me.x === n.x && me.y === n.y)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; return }
-        const mine = housePot ? me.brewing
-          : (n.readyAt !== undefined ? { kind: n.brewKind, readyAt: n.readyAt } : undefined)
+        const mine = housePot ? me.brewing:
+          (n.readyAt !== undefined ? { kind: n.brewKind, readyAt: n.readyAt } : undefined)
         if (mine && (world?.tick ?? 0) >= mine.readyAt) {
           send({ do: 'collect', nodeId: id }); feed('You draw off the finished ' + (mine.kind ?? 'brew') + '.'); return }
         if (mine) { feed('Still fermenting. Come back when it is ready.'); return }
@@ -16120,8 +15921,8 @@ cv.addEventListener('click', (e) => {
         const call9 = n.kind && CALLING_NAMES[n.kind]
         const who9 = call9 ? nm9 + ', ' + call9 : nm9
         const line9 = (n.kind && CALLING_LINE_W[n.kind])
-          ? CALLING_LINE_W[n.kind]
-          : ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',
+          ? CALLING_LINE_W[n.kind]:
+          ['\u201cFine day for it.\u201d', '\u201cMind the step.\u201d',
              '\u201cBeen here since the founding, and I\u2019ll be here after you.\u201d'][tileHash(n.x, n.y, 3) % 3]
         feed(who9 + ': ' + line9)
         flashClick(n.x, n.y, false)
@@ -16137,7 +15938,7 @@ cv.addEventListener('click', (e) => {
           // twice, and it stands in the busiest square in Tallyholm doing
           // nothing at all. It needs no rule to be a memorial; it needs
           // somebody to say so.
-          feed('The fountain. You came through here, and it will not take you again \u2014 it takes nobody twice.')
+          feed('The fountain. You came through here, and it will not take you again: it takes nobody twice.')
           feed('Somebody is standing in Nought right now, looking at this same water, in an Anchor with nothing in it.')
           return
         }
@@ -16148,8 +15949,8 @@ cv.addEventListener('click', (e) => {
       }
       if (n.type === 'landmark' && n.kind === 'tally-half') {
         feed(n.founderKey
-          ? 'Half of the first tally. Its other half stands in Anchor\u2019s plaza, near where souls arrive, and each proves the other. Along the grain, the founder\u2019s whole key, cut small: ' + n.founderKey + '.'
-          : 'Half of the first tally. Its other half stands across the water, on Shrine Isle, and each proves the other.')
+          ? 'Half of the first tally. Its other half stands in Anchor\u2019s plaza, near where souls arrive, and each proves the other. Along the grain, the founder\u2019s whole key, cut small: ' + n.founderKey + '.':
+          'Half of the first tally. Its other half stands across the water, on Shrine Isle, and each proves the other.')
         flashClick(n.x, n.y, false)
         return
       }
@@ -16175,11 +15976,11 @@ cv.addEventListener('click', (e) => {
         feed('Your pack is full: bank it, drop it, or use it.')
         return
       }
-      if (famOf(n.type) === 'magic-rock') {
+      if (famOf(n.type) === 'quick-rock') {
         const lv = XP_TO_LVL(me.skills?.earthcraft ?? 0)   // §5m: mining is earthcraft
         if (lv < MAGIC_ROCK_MINING) {
           feed('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
-               + ' opens the magic-rocks of the Wilds \u2014 you have ' + lv + '.')
+               + ' opens the magic-rocks of the Wilds: you have ' + lv + '.')
           flashClick(n.x, n.y, false)
           return
         }
@@ -16277,8 +16078,101 @@ async function importOwnKey() {
   localStorage.setItem('interval-ownkey', JSON.stringify({ pk8: m9[1], pub: m9[2] }))
   location.reload()
 }
+// ---- §5g-ii: THE CITIZEN'S OWN PROOF, IN A BROWSER ----
+//
+// A desktop player's bridge writes this beside their key. A browser player has
+// no filesystem and, more to the point, cannot BUILD it: the path is a walk
+// over every living citizen and this window holds no such tree. So the node
+// serves it, at /api/proof.
+//
+// WHICH WOULD BE TRUSTING THE NODE, except that the bundle proves itself. The
+// record folds through the path to a root the world's own certificate covers,
+// so the fold is replicated here and a bundle that does not fold is refused
+// and not kept. A node cannot hand you a flattering version of yourself.
+//
+// THE CONVENTION IS `_smtFold`'S, level for level: the bitmap is indexed by
+// depth, the siblings are consumed from the leaf upwards, an absent sibling is
+// the empty subtree of that height, and the bit decides which side. Signatures
+// are not the only thing in this window that must agree with the engine to the
+// byte.
+const SMT_DEPTH_W = 64
+let _emptyW = null
+const sha256hex = async (str) =>
+  toHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)))
+async function emptyTableW () {
+  if (_emptyW) return _emptyW
+  const e = [await sha256hex('interval:smt:empty')]
+  for (let d = 1; d <= SMT_DEPTH_W; d++)
+    e.push(await sha256hex('interval:smt:node' + e[d - 1] + e[d - 1]))
+  _emptyW = e
+  return e
+}
+const smtBitW = (pid, d) => (parseInt(pid[Math.floor(d / 4)], 16) >> (3 - (d % 4))) & 1
+async function provesLivingWeb (root, pid, record, path) {
+  if (!root || !pid || !record || !path || typeof path.bits !== 'string') return false
+  if (path.bits.length !== SMT_DEPTH_W || !Array.isArray(path.sibs)) return false
+  const EMPTY_W = await emptyTableW()
+  const digest = await sha256hex(canonicalJS(record))
+  let h = await sha256hex('interval:smt:leaf' + pid + digest), used = 0
+  for (let d = SMT_DEPTH_W - 1; d >= 0; d--) {
+    let sib
+    if (path.bits[d] === '1') {
+      if (used >= path.sibs.length) return false
+      sib = path.sibs[used++]
+      if (!/^[0-9a-f]{64}$/.test(sib)) return false
+    } else { sib = EMPTY_W[SMT_DEPTH_W - 1 - d] }
+    h = smtBitW(pid, d) ? await sha256hex('interval:smt:node' + sib + h)
+                        : await sha256hex('interval:smt:node' + h + sib)
+  }
+  if (used !== path.sibs.length) return false      // one form only
+  return h === root
+}
+
+// KEPT IN localStorage, which is the same durability the KEY already has in
+// this window: it survives a reload and a restart, and it dies with cleared
+// site data. §0e already treats that as not good enough on its own for a key,
+// which is why there is an export button; the proof gets one for the same
+// reason, and for a browser player it is the whole of their archive.
+async function keepProofWeb () {
+  try {
+    if (!ownKey) return
+    const base = localStorage.getItem('interval-node')
+    if (!base) return
+    const r = await fetch(base + '/api/proof?pid=' + ownKey.pub, { cache: 'no-store' })
+    if (!r.ok) return
+    const b = await r.json()
+    if (b.playerId !== ownKey.pub) return
+    if (!await provesLivingWeb(b.livingRoot, b.playerId, b.record, b.path)) {
+      console.warn('[interval] a served proof did not fold; not keeping it')
+      return
+    }
+    localStorage.setItem('interval-proof', JSON.stringify(b))
+  } catch { /* best effort, every ten minutes */ }
+}
+function saveProofWeb () {
+  const raw = localStorage.getItem('interval-proof')
+  if (!raw) { alert('no proof kept yet. Enter the world and give it a few minutes.'); return }
+  try {
+    const who = (JSON.parse(raw).playerId ?? 'citizen').slice(0, 8)
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([raw], { type: 'application/json' }))
+    a.download = 'interval-citizen-' + who + '.json'
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  } catch (e) { alert('could not save: ' + (e.message ?? e)) }
+}
+// §1c: ten minutes, the same cadence the desktop bridge keeps, and one soon
+// after arriving so a new citizen is not unarchived for ten minutes.
+setTimeout(keepProofWeb, 20000)
+setInterval(keepProofWeb, 600000)
+
 for (const b9 of document.querySelectorAll('[data-ik]'))
-  b9.addEventListener('click', (e9) => { e9.stopPropagation(); (b9.dataset.ik === 'export' ? exportOwnKey : importOwnKey)() })
+  b9.addEventListener('click', (e9) => {
+    e9.stopPropagation()
+    if (b9.dataset.ik === 'export') return exportOwnKey()
+    if (b9.dataset.ik === 'proof') return saveProofWeb()
+    return importOwnKey()
+  })
 </script>
 </body>
 </html>

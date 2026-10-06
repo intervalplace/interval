@@ -135,14 +135,14 @@ test('a buck left too long is empty, and nothing is taken for it', () => {
   const setter = E.generateIdentity()
   let s = atShore(g, [setter])
   const sp = s.players[setter.playerId]
-  const hp = sp.hp, gold = sp.gold
+  const health = sp.health, gold = sp.gold
   s.nodes['buck-test-4'] = { type: 'eel-buck', x: sp.x + 1, y: sp.y, setAt: 0, setBy: setter.playerId }
   s.tick = E.BUCK_SPOILS_AFTER + 100
   const eelsBefore = E.countItem(sp.inventory, 'eel')
   s = E.nextState(s, [sign(g, setter)({ tick: s.tick, type: 'lift', nodeId: 'buck-test-4' })])
   const after = s.players[setter.playerId]
   assert.equal(E.countItem(after.inventory, 'eel'), eelsBefore, 'an eel dead in a cage for a day is not supper')
-  assert.equal(after.hp, hp, 'and no health is taken')
+  assert.equal(after.health, health, 'and no health is taken')
   assert.equal(after.gold, gold, 'nor coin')
   assert.equal(s.nodes['buck-test-4'], undefined, 'the trap comes out of the water either way')
 })

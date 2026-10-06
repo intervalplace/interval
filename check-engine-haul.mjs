@@ -74,17 +74,17 @@ const cp = claim ? Number(claim[1].replace(/,/g, '')) : null
 const cd = claim ? Number(claim[2].replace(/,/g, '')) : null
 ok(cp !== null && Math.abs(hoursPlain - cp) / cp < 0.2,
   claim ? 'the note claims ' + cp + ' hours for plain cargo to 99; the engine pays '
-    + Math.round(hoursPlain) + ' (6bj moved the curve and this argument stayed put)'
-    : 'the note no longer states the hours it was tuned to')
+    + Math.round(hoursPlain) + ' (6bj moved the curve and this argument stayed put)':
+    'the note no longer states the hours it was tuned to')
 ok(cd !== null && Math.abs(hoursDear - cd) / cd < 0.2,
-  claim ? 'the note claims ' + cd + ' for dear cargo; the engine pays ' + Math.round(hoursDear)
-    : 'the note no longer states the dear-cargo hours')
+  claim ? 'the note claims ' + cd + ' for dear cargo; the engine pays ' + Math.round(hoursDear):
+    'the note no longer states the dear-cargo hours')
 
 // ---- the tool it cites has to exist ----------------------------------------
 ok(existsSync(new URL('./haultune.mjs', import.meta.url)),
-  'haultune.mjs exists — the note names it as what derived perTileSlot, and a '
+  'haultune.mjs exists, the note names it as what derived perTileSlot, and a '
   + 'derivation nobody can re-run is how the hours above went stale')
 
-console.log(bad ? '\nFAIL — ' + bad + ' claim(s) the haul note makes are no longer true'
-                : '\nok — the haul note still describes the engine')
+console.log(bad ? '\nFAIL, ' + bad + ' claim(s) the haul note makes are no longer true':
+                '\nok, the haul note still describes the engine')
 process.exit(bad ? 1 : 0)

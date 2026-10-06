@@ -1,5 +1,5 @@
 // Typed protocol error codes (final freeze brief §3/§4). Safety-critical
-// failures — refused startups, rejected recoveries, and halts — carry a
+// failures: refused startups, rejected recoveries, and halts, carry a
 // stable CODE, not just a message. The adversarial harness and any operator
 // tooling classify by code; the human-readable message is for people. A
 // throw or halt without a recognized code is, by definition, unexpected.
@@ -54,7 +54,7 @@ export const ALL_HALT = new Set(Object.values(HALT))
 // configuration ALWAYS resolves to this bounded value, never to Infinity.
 // Infinity is an explicit full-history AUDIT mode, never a silent fallback.
 // This bounds only CERTIFICATE verification; structural + hash integrity is
-// still checked on every retained row (a separate, cheap scan) — database
+// still checked on every retained row (a separate, cheap scan): database
 // integrity checking is kept distinct from recent-tail cert verification.
 export const DEFAULT_STARTUP_VERIFY_RECENT_N = 10000
 

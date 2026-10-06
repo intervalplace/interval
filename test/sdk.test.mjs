@@ -1,4 +1,4 @@
-// Freeze-final brief §4 — the official client held to the canonical
+// Freeze-final brief §4: the official client held to the canonical
 // standard: every public SDK action emits an input the canonical validator
 // accepts, the gold-trade path works, and malformed calls are refused
 // before signing rather than producing a junk input.
@@ -26,7 +26,7 @@ test('every public SDK action emits a canonical signed input', () => {
   c.drop(0); c.pickup('g-1'); c.light(0); c.bury(0); c.fletch(0, 'bow'); c.attackp(other)
   // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a
   // stall (§6al) and sells from it. The helper went with the verb.
-  c.plant(0); c.harvest('plot-1'); c.invoke(); c.cast('anchor'); c.unequip('weapon')
+  c.plant(0); c.harvest('plot-1'); c.invoke(); c.cast('mend'); c.unequip('weapon')
   // §6cj: `recall` and `read_chart` stay in the engine's schemas so an old
   // client is REFUSED rather than desynced, but both always fail now -- the
   // waystones are gone (§6ch). The SDK offers no method that can only ever
@@ -69,7 +69,7 @@ test('gold and item trade helpers each normalize to the canonical XOR form', () 
 
 test('malformed SDK calls are refused before signing, not turned into junk inputs', () => {
   const { c } = client()
-  // unknown item, bad slot, unknown spell, non-constitutional name — each
+  // unknown item, bad slot, unknown spell, non-constitutional name: each
   // must throw at normalizeInput rather than emit a signed non-canonical input
   assert.throws(() => c.offerTradeForItem(other, 0, 'sword-of-doom'), /item/)
   assert.throws(() => c.buy('sword-of-doom'), /item/)

@@ -232,7 +232,7 @@ test('the world does not punish the gap between sworn and stood, it declines to 
   // they WERE there, for that much. Everything after is silence.
   assert.equal(p.stood, g.stint.sample, 'and so is the standing: one sample, and no more')
   assert.ok(p.stood < 40, 'far short of what was promised')
-  assert.equal(p.hp > 0, true, 'and nothing was taken for the difference')
+  assert.equal(p.health > 0, true, 'and nothing was taken for the difference')
   assert.equal(E.validateState(s) ?? 'OK', 'OK')
 })
 

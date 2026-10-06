@@ -2,7 +2,7 @@
 // place on the island that puts a debt down.
 //
 // What these tests are actually defending is the CLAMP. The obvious version
-// of this rule — lose a point every time you die — is a spiral: dying makes
+// of this rule: lose a point every time you die, is a spiral: dying makes
 // you easier to kill, which makes you die. Every assertion about WOUND_MAX
 // and the floor below is an assertion that the spiral cannot start.
 import { test } from 'node:test'
@@ -20,8 +20,8 @@ const bob = E.generateIdentity()
 // suite set `skills.hitpoints` to a level-40 experience and expected frames of
 // 39 and 30; it has been red since the merge, asserting a world that no longer
 // exists. The clamp it defends is unchanged -- dying must not make you easier
-// to kill -- so the assertions are re-derived from HP_FLAT rather than dropped.
-const FLAT = E.maxHp({ skills: {}, wounds: 0 })
+// to kill -- so the assertions are re-derived from HEALTH_FLAT rather than dropped.
+const FLAT = E.maxHealth({ skills: {}, wounds: 0 })
 
 function world() {
   const w = E.newWorld(GENESIS)
@@ -32,14 +32,14 @@ function world() {
 const sign = (fields, who = alice) =>
   E.signInput({ worldId: WID, playerId: who.playerId, ...fields }, who.privateKey)
 
-// The engine does not export maxHp (nothing outside it needs to compute a
+// The engine does not export maxHealth (nothing outside it needs to compute a
 // frame), so the tests read it the way the world does: kill a citizen, wait
 // out DEATH_TICKS, and see what they come back with.
 function dieAndReturn(s, id, ticks = 8) {
-  s.players[id].hp = 0
+  s.players[id].health = 0
   s.players[id].deadUntil = s.tick + 5
   // the wound is written at the death SITE, not at the respawn, so a test
-  // that fakes hp = 0 must fake the mark too. Tests that go through combat
+  // that fakes health = 0 must fake the mark too. Tests that go through combat
   // (below) exercise the real path.
   s.players[id].deaths = (s.players[id].deaths ?? 0) + 1
   if ((s.players[id].wounds ?? 0) < 10) s.players[id].wounds = (s.players[id].wounds ?? 0) + 1
@@ -54,7 +54,7 @@ test('a death leaves one point off the frame, and the respawn honours it', () =>
   const p = s.players[alice.playerId]
   assert.equal(p.wounds, 1, 'one death, one wound')
   assert.equal(p.deaths, 1, 'and one on the tally')
-  assert.equal(p.hp, FLAT - 1, 'returns one point down, not whole')
+  assert.equal(p.health, FLAT - 1, 'returns one point down, not whole')
 })
 
 test('the wound caps at ten: the spiral cannot start', () => {
@@ -62,9 +62,9 @@ test('the wound caps at ten: the spiral cannot start', () => {
   s = E.nextState(s, [])
   for (let i = 0; i < 25; i++) s = dieAndReturn(s, alice.playerId)
   const p = s.players[alice.playerId]
-  assert.equal(p.wounds, 10, 'twenty-five deaths, ten points — no further')
+  assert.equal(p.wounds, 10, 'twenty-five deaths, ten points, no further')
   assert.equal(p.deaths, 25, 'the tally, however, counts every one')
-  assert.equal(p.hp, FLAT - 10, 'the frame bottoms out at natural minus ten')
+  assert.equal(p.health, FLAT - 10, 'the frame bottoms out at natural minus ten')
 })
 
 test('WOUND_FLOOR no longer protects anybody, and does not need to', () => {
@@ -82,10 +82,10 @@ test('WOUND_FLOOR no longer protects anybody, and does not need to', () => {
   for (let i = 0; i < 6; i++) s = dieAndReturn(s, alice.playerId)
   const p = s.players[alice.playerId]
   assert.equal(p.deaths, 6, 'the deaths are recorded')
-  assert.equal(p.hp, FLAT - 6, 'a newcomer takes the same six a master would')
+  assert.equal(p.health, FLAT - 6, 'a newcomer takes the same six a master would')
   // Ten wounds is the cap (§6c-ii); a fully wounded frame still clears the
   // floor of ten by a wide margin, which is the whole point.
-  assert.ok(E.maxHp({ skills: {}, wounds: 99 }) > 10,
+  assert.ok(E.maxHealth({ skills: {}, wounds: 99 }) > 10,
     'even a fully wounded frame never reaches the floor')
 })
 
@@ -99,26 +99,26 @@ test('the wellspring puts the whole debt down in one visit', () => {
   // spring goes beside wherever the world put them back
   const pw = s.players[alice.playerId]
   E.addNode(s, 'spring-1', 'landmark', pw.x, pw.y + 1, { kind: 'wellspring' })
-  s.players[alice.playerId].hp = 12
+  s.players[alice.playerId].health = 12
   s = E.nextState(s, [sign({ tick: s.tick, type: 'drink' })])
 
   const p = s.players[alice.playerId]
   assert.equal(p.wounds, undefined, 'all four, not one')
-  assert.equal(p.hp, FLAT, 'and restored to the whole frame')
+  assert.equal(p.health, FLAT, 'and restored to the whole frame')
   assert.equal(p.deaths, 4, 'the tally is not a debt and does not clear')
 })
 
-test('an ordinary well restores hp and does NOT touch the wound', () => {
+test('an ordinary well restores health and does NOT touch the wound', () => {
   let s = world()
   s = E.nextState(s, [])
   s = dieAndReturn(s, alice.playerId)
   const pw = s.players[alice.playerId]
   E.addNode(s, 'well-1', 'well', pw.x, pw.y + 1)
-  s.players[alice.playerId].hp = 5
+  s.players[alice.playerId].health = 5
   s = E.nextState(s, [sign({ tick: s.tick, type: 'drink' })])
   const p = s.players[alice.playerId]
   assert.equal(p.wounds, 1, 'a well is not the spring')
-  assert.equal(p.hp, FLAT - 1, 'and it fills the wounded frame, not the natural one')
+  assert.equal(p.health, FLAT - 1, 'and it fills the wounded frame, not the natural one')
 })
 
 test('the wellspring never runs dry (no depletedUntil, unlike a well)', () => {
@@ -126,12 +126,12 @@ test('the wellspring never runs dry (no depletedUntil, unlike a well)', () => {
   E.addNode(s, 'spring-1', 'landmark', 5, 6, { kind: 'wellspring' })
   s = E.nextState(s, [])
   Object.assign(s.players[alice.playerId], { x: 5, y: 5 })
-  s.players[alice.playerId].hp = 3
+  s.players[alice.playerId].health = 3
   s = E.nextState(s, [sign({ tick: s.tick, type: 'drink' })])
-  assert.equal(s.players[alice.playerId].hp, FLAT)
-  s.players[alice.playerId].hp = 3
+  assert.equal(s.players[alice.playerId].health, FLAT)
+  s.players[alice.playerId].health = 3
   s = E.nextState(s, [sign({ tick: s.tick, type: 'drink' })])
-  assert.equal(s.players[alice.playerId].hp, FLAT, 'a second drink in a row still works')
+  assert.equal(s.players[alice.playerId].health, FLAT, 'a second drink in a row still works')
 })
 
 test('a real PvP kill writes the wound and the tally through the engine path', () => {
@@ -142,7 +142,7 @@ test('a real PvP kill writes the wound and the tally through the engine path', (
   assert.equal(s.players[alice.playerId].action?.type, 'attackp', 'the fight actually started')
   // swing until bob falls; the death SITE writes the wound, not this test
   for (let i = 0; i < 400 && s.players[bob.playerId].deaths === undefined; i++) {
-    s.players[bob.playerId].hp = Math.min(s.players[bob.playerId].hp, 2)
+    s.players[bob.playerId].health = Math.min(s.players[bob.playerId].health, 2)
     s = E.nextState(s, [])
   }
   const v = s.players[bob.playerId]
@@ -154,7 +154,7 @@ test('wounds and deaths survive a checkpoint round-trip', () => {
   let s = world()
   s = E.nextState(s, [])
   for (let i = 0; i < 3; i++) s = dieAndReturn(s, alice.playerId)
-  // `dieAndReturn` writes hp and wounds DIRECTLY into the state between ticks.
+  // `dieAndReturn` writes health and wounds DIRECTLY into the state between ticks.
   // The copy-on-write layer never observes that, so `canonical` keeps walking
   // the untouched target while property access sees the poke, and the object
   // permanently disagrees with itself about a state no tick ever produced --

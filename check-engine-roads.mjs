@@ -1,4 +1,4 @@
-// check-engine-roads.mjs — HOW LONG IS EACH ROAD, ACTUALLY?
+// check-engine-roads.mjs: HOW LONG IS EACH ROAD, ACTUALLY?
 //
 // CALLINGS.md quotes one skill's rate ("a quick axe on ironbark: 50 is ~2h, 70
 // is ~22h, 100 is ~1,800h") and every estimate since has quietly applied that
@@ -12,7 +12,7 @@
 // Travel is deliberately excluded: this measures the RATE, and geography is a
 // separate multiplier that belongs in a separate number.
 //
-// The days columns use genesis.ceiling — a citizen may act for `allow`
+// The days columns use genesis.ceiling: a citizen may act for `allow`
 // intervals in `window`, so a "day" here is 5,400 intervals and not 86,400.
 // Every road below is quoted in the only unit that now matters, which is
 // calendar time under closing time.
@@ -121,16 +121,16 @@ const gatherLoop = (id) => (p) => dropFull(p) ?? { type: 'gather', nodeId: id }
 const tools = (p, ...items) => { let i = 0; for (const it of items) p.inventory[i++] = { item: it, qty: 1 } }
 
 const ROADS = [
-  { label: 'woodcraft — an axe on a tree', skill: 'woodcraft', calling: 'forester',
+  { label: 'woodcraft, an axe on a tree', skill: 'woodcraft', calling: 'forester',
     setup: (p) => { tools(p, 'iron-hatchet'); p.equipment = { weapon: { item: 'iron-hatchet' } } },
     loop: gatherLoop('tree') },
-  { label: 'earthcraft — a pick on iron', skill: 'earthcraft', calling: 'miner',
+  { label: 'earthcraft, a pick on iron', skill: 'earthcraft', calling: 'miner',
     setup: (p) => { tools(p, 'iron-pickaxe'); p.equipment = { weapon: { item: 'iron-pickaxe' } } },
     loop: gatherLoop('rock') },
-  { label: 'shorecraft — a rod on a shoal', skill: 'shorecraft', calling: 'fisher',
+  { label: 'shorecraft, a rod on a shoal', skill: 'shorecraft', calling: 'fisher',
     setup: (p) => { tools(p, 'rod'); p.equipment = { weapon: { item: 'rod' } } },
     loop: gatherLoop('spot') },
-  { label: 'prowess — a steel sword, a live beast', skill: 'prowess', calling: 'fighter',
+  { label: 'prowess, a steel sword, a live beast', skill: 'prowess', calling: 'fighter',
     // §7t: A DUMMY TEACHES THE FIRST RUNGS AND NOTHING AFTER -- `teachMelee`
     // pays nothing past YARD_CAP (20), because "levels come from things that
     // hit back". So the yard cannot measure this road; it has to be a real mob,
@@ -163,13 +163,13 @@ const ROADS = [
       if (m && m.hp <= 0) { m.hp = E.MOB_STATS.troll.maxHp; m.respawnAt = 0; m.x = p.x + 1; m.y = p.y }
       if (p.action) return null
       return s.mobs?.m0?.hp > 0 ? { type: 'attack', mobId: 'm0', style: 'even' } : null } },
-  { label: 'marksmanship — a bow on the butt', skill: 'marksmanship', calling: 'archer',
+  { label: 'marksmanship, a bow on the butt', skill: 'marksmanship', calling: 'archer',
     setup: (p, s) => { p.inventory[0] = { item: 'wooden-bow', qty: 1 }
       p.inventory[1] = { item: 'arrows', qty: 5000 }
       p.equipment = { weapon: { item: 'wooden-bow' } }
       E.addMob(s, 'bt', 'butt', SP.x - 2, SP.y) },
     loop: (p, s) => (!p.action && s.mobs?.bt) ? { type: 'attack', mobId: 'bt', style: 'even' } : null },
-  { label: 'hearthcraft — four plots, standing', skill: 'hearthcraft', calling: 'farmer',
+  { label: 'hearthcraft, four plots, standing', skill: 'hearthcraft', calling: 'farmer',
     setup: (p) => { p.x = SP.x; p.y = SP.y + 4; p.inventory[0] = { item: 'seeds', qty: 200 } },
     // `plant` sows, `harvest` reaps 720 intervals later, and THE SEED COMES
     // BACK -- so this road is not seed-bound at all. It is bound by
@@ -183,7 +183,7 @@ const ROADS = [
       const free = ['plot-n', 'plot-s', 'plot-e', 'plot-w'].some(id => !(p.crops?.[id] > 0))
       return (seed !== -1 && free) ? { type: 'plant', slot: seed } : null } },
 
-  { label: 'sorcery — unmaking, pack kept full', skill: 'sorcery', calling: 'alchemist',
+  { label: 'sorcery, unmaking, pack kept full', skill: 'sorcery', calling: 'sorcerer',
     setup: (p) => { for (let i = 0; i < p.inventory.length; i++) p.inventory[i] = { item: 'logs', qty: 1 } },
     // Like mourning, this measures the CEILING: the things being unmade are
     // free here. Sorcery is input-bound and the input has to be gathered.
@@ -191,7 +191,7 @@ const ROADS = [
       if (i === -1) { for (let k = 0; k < p.inventory.length; k++) p.inventory[k] = { item: 'logs', qty: 1 }; i = 0 }
       return { type: 'transmute', slot: i } } },
 
-  { label: 'mourning — bones on consecrated ground', skill: 'mourning', calling: 'mourner',
+  { label: 'mourning, bones on consecrated ground', skill: 'mourning', calling: 'mourner',
     setup: (p) => { for (let i = 0; i < p.inventory.length; i++) p.inventory[i] = { item: 'bones', qty: 1 } },
     loop: (p) => { let i = p.inventory.findIndex(s => s?.item === 'bones')
       // bones are FREE here on purpose: this measures the ceiling of the bury
@@ -203,9 +203,9 @@ const ROADS = [
 // ---- report -----------------------------------------------------------------
 const T = E.XP_TABLE
 const days = (xp, rate) => rate > 0 ? xp / rate / ALLOW : Infinity
-const fmt = (d) => !Number.isFinite(d) ? '   —' : d < 10 ? d.toFixed(1) : String(Math.round(d))
+const fmt = (d) => !Number.isFinite(d) ? ',' : d < 10 ? d.toFixed(1) : String(Math.round(d))
 
-console.log('measuring yard — ' + N + ' intervals a trade, every facility adjacent, travel excluded')
+console.log('measuring yard, ' + N + ' intervals a trade, every facility adjacent, travel excluded')
 console.log('')
 console.log('THESE ARE YARD RATES: the ceiling a citizen can CONSUME, with the input always')
 console.log('in reach. What the founded island SUPPLIES is a different number -- run with')
@@ -240,8 +240,8 @@ for (const r of ROADS) {
   out.push({ ...r, rates, rate: rates[0], starved: starved.some(Boolean) })
   console.log(r.label.padEnd(38)
     + (starved.some(Boolean)
-      ? '  STARVED — the yard ran dry, so this is not a rate'
-      : rates.map(x => x.toFixed(1)).join('/').padStart(20)
+      ? '  STARVED, the yard ran dry, so this is not a rate':
+      rates.map(x => x.toFixed(1)).join('/').padStart(20)
         + fmt(roadTo(rates, 50)).padStart(7)
         + fmt(roadTo(rates, 70)).padStart(7)
         + fmt(roadTo(rates, 100)).padStart(8)))
@@ -307,5 +307,5 @@ if (WORLD) {
   }
   const pro = out.find((o) => o.skill === 'prowess')
   if (pro && !pro.starved) console.log('  a fighter consumes ' + pro.rates[2].toFixed(1)
-    + ' — so out there combat is bound by the SWING, not by what is standing near you')
+    + ', so out there combat is bound by the SWING, not by what is standing near you')
 }

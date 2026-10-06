@@ -1,4 +1,4 @@
-// crossing.mjs — WHAT A CITIZEN CARRIES OUT OF A WORLD THAT STOPPED.
+// crossing.mjs: WHAT A CITIZEN CARRIES OUT OF A WORLD THAT STOPPED.
 //
 // A world halts permanently when quorum is gone, and the only continuation is
 // a successor world whose genesis `imported` seats the citizens of the last
@@ -24,7 +24,7 @@
 // and nothing can be tried again.
 import E from './engine.js'
 
-// ONE constitutional item registry (rev5 §4) — engine, validator and imports
+// ONE constitutional item registry (rev5 §4): engine, validator and imports
 // all share it, so a crossing can never invent an item the new world lacks.
 const KNOWN_ITEMS = E.ITEMS
 
@@ -36,43 +36,61 @@ const KNOWN_ITEMS = E.ITEMS
 // flat, but a checkpoint written before then starts every citizen at 1154 xp
 // in it, so reading a pre-rename world needs the threshold or every ghost in
 // it looks like somebody who lived.
-export const lived = (p) => Boolean(
+// MONEY COUNTS, AND IT DID NOT.
+//
+// §9b-ii fixed a crossing dropping everybody's gold: the vault filter kept
+// KNOWN_ITEMS and gold is a number, so a life's savings fell through a test
+// written to strip unknown goods. This is the same fault one level up. The
+// money crossed after that fix; the PERSON still did not, because this test
+// never looked at it. A citizen who sold everything they owned and was
+// standing on four thousand gold with no name, no levels and an empty pack was
+// a ghost by this reckoning, and a crossing left them behind entirely.
+//
+// Gold cannot simply be added to the list, which is presumably why it was not:
+// every newcomer wakes with `genesis.newcomerGold` (§6ao), so any-gold-at-all
+// would make every ghost look like somebody who lived. What counts is money
+// they did not wake with, so the purse has to be known, and `carry` is given
+// the founding to read it from.
+//
+// WITHOUT A FOUNDING this behaves as it always did and ignores gold, because
+// guessing the purse would be worse: too low and every ghost crosses, too high
+// and the fault stays. Callers that have the old genesis pass it, which is
+// every caller that matters. With one, the purse is exact: the field if the
+// founding sets it, and zero if it does not, since that is what `addPlayer`
+// gives a newcomer either way.
+export const lived = (p, newcomerGold = null) => Boolean(
   p.name
   || Object.entries(p.skills ?? {}).some(([k, xp]) => (k !== 'hitpoints' ? xp > 0 : xp > 1154))
   || (p.inventory ?? []).some(Boolean)
   || Object.keys(p.vaults ?? {}).length > 0
   || p.equipment?.weapon
+  || (newcomerGold !== null && (p.gold ?? 0) > newcomerGold)
 )
 
 // WHAT THEY BRING. Imports are FOUNDING data: they live inside the genesis,
 // the worldId commits to them, and worldgen applies them on every node
 // identically, so this has to be a pure function of the old state.
-export function carry(players) {
-  return Object.entries(players ?? {}).filter(([, p]) => lived(p)).map(([pid, p]) => ({
-    pid,
-    skills: p.skills,
-    name: E.isValidName(p.name) ? p.name : null,   // constitutional or nothing (rev5 §3)
-    // BOTH SPELLINGS, and only here. Every checkpoint written before the
-    // rename says `hp`; this is the one place a world built under the old
-    // rules is read by the new ones, so it is the one place that has to know
-    // the old word.
-    health: p.health ?? p.hp,
-    // §5k: AND WHAT THEY SWORE. See the note at the top of this file.
-    calling: p.calling ?? null,
-    // §6g: A CROSSING CARRIES GOODS, NOT GEOGRAPHY. The shelves are summed
-    // into one map on the way out, and worldgen seats the total at the counter
-    // nearest where the citizen wakes. Founding data does not expire with the
-    // world that held it; the building it sat in does.
-    vaults: (() => {
-      const flat = {}
-      for (const vault of Object.values(p.vaults ?? {}))
-        for (const [it, q] of Object.entries(vault ?? {}))
-          if (KNOWN_ITEMS.has(it)) flat[it] = (flat[it] ?? 0) + q
-      return flat
-    })(),
-    inventory: (p.inventory ?? []).filter(sl => sl && KNOWN_ITEMS.has(sl.item)),
-    weapon: p.equipment?.weapon && KNOWN_ITEMS.has(p.equipment.weapon.item) ? p.equipment.weapon : null,
-  }))
+export function carry(players, genesis = null) {
+  // ONE ANSWER TO "WHAT CROSSES", and it is the engine's (§9b-iii:
+  // `carriedFrom`). This function used to hold the projection itself, which
+  // was fine while a founder reading a checkpoint was the only way back from a
+  // world that stopped. It is not any more: a citizen can also `restore` on
+  // their own months later, against the root their successor's genesis names,
+  // and if that door and this one disagreed about gold or callings or who
+  // taught whom, then what a citizen got back would depend on how they came.
+  //
+  // So the list lives beside `IMPORT_FIELDS`, which is the list it has to
+  // satisfy, and this is a filter and a map over it. WHO comes is still a
+  // question for this file: `lived` is about a world's history rather than
+  // about the constitution.
+  // A FOUNDING ALWAYS DETERMINES THE PURSE. `newcomerGold` is optional in a
+  // genesis, and `addPlayer` reads it as `?? 0`, so a founding without the
+  // field wakes its newcomers penniless and every coin is money they earned.
+  // Absent is therefore zero, not unknown. Unknown is only the case where no
+  // founding was handed over at all.
+  const purse = genesis ? (Number.isInteger(genesis.newcomerGold) ? genesis.newcomerGold : 0) : null
+  return Object.entries(players ?? {}).filter(([, p]) => lived(p, purse))
+    .map(([pid, p]) => E.carriedFrom(pid, p))
 }
 
 // WHERE THEY CAME FROM. The genesis commits to WHICH attested state carried

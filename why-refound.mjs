@@ -1,4 +1,4 @@
-// why-refound.mjs — run this in the node's directory to learn why the world
+// why-refound.mjs: run this in the node's directory to learn why the world
 // started over. It reads the saved founding record and checkpoint and reports
 // each resume condition separately, because "tick 0 again" has several causes
 // and they have very different consequences.

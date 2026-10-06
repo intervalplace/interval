@@ -1,4 +1,4 @@
-// Final freeze brief §3/§4 — typed protocol error codes. Safety-critical
+// Final freeze brief §3/§4: typed protocol error codes. Safety-critical
 // refusals and halts carry a stable CODE (classified structurally, not by
 // message text), and Byzantine halts carry supporting evidence.
 import { test } from 'node:test'
@@ -91,7 +91,7 @@ test('node-level refusals are coded: genesis, built state, checkpoint', () => {
   let e = grab(() => new IntervalNode({ genesis: { worldW: 64 }, buildWorld, name: 'x' }))
   assert.equal(e.code, ERR.INVALID_GENESIS)
 
-  const badBuilder = (g) => { const s = E.newWorld(g); E.addPlayer(s, alice.playerId, 5, 5); s.players[alice.playerId].hp = -5; return s }
+  const badBuilder = (g) => { const s = E.newWorld(g); E.addPlayer(s, alice.playerId, 5, 5); s.players[alice.playerId].health = -5; return s }
   e = grab(() => new IntervalNode({ genesis, buildWorld: badBuilder, name: 'x', allowEphemeralStores: true }))
   assert.equal(e.code, ERR.INVALID_BUILT_STATE)
 
@@ -129,7 +129,7 @@ test('a Byzantine halt is structural: code + reason + supporting evidence', () =
     bundle, bundleHash: P.bundleHash(bundle), resultingStateHash: 'f'.repeat(64), attestations }
   const res = ag.onFinality(forgedRecord)
   // it either rejects the proof outright (bad cert) or halts on replay
-  // mismatch; both are legitimate — if it halted, the halt is structural
+  // mismatch; both are legitimate: if it halted, the halt is structural
   if (ag.halted) {
     assert.ok(ALL_HALT.has(ag.haltCode), `halt code ${ag.haltCode} is recognized`)
     assert.ok(typeof ag.haltReason === 'string' && ag.haltReason.length > 0)
@@ -171,7 +171,7 @@ test('halt evidence must PROVE the reported halt condition (§4/§5 rigor)', asy
   assert.match(verifyHaltEvidence({ code: HALT.CERTIFIED_RESULT_MISMATCH,
     evidence: { bundle: {}, localResult: 'b'.repeat(64), certifiedResult: 'a'.repeat(64), certifyingAttestations: [{ witness: 'w0', resultingStateHash: 'a'.repeat(64), round: 0 }, { witness: 'w1', resultingStateHash: 'c'.repeat(64), round: 0 }, { witness: 'w2', resultingStateHash: 'a'.repeat(64), round: 0 }] } }, ctx), /does not name the certified result/)
 
-  // PROPOSER_EQUIVOCATION: §6 — same world/tick/round/proposer, different bundles
+  // PROPOSER_EQUIVOCATION: §6, same world/tick/round/proposer, different bundles
   const wid = 'ab'.repeat(32)
   const eqCtx = { worldId: wid, genesis: { witnesses: ['w0'] }, bundleHash: (b) => JSON.stringify(b), verifyBundle: () => true }
   assert.match(verifyHaltEvidence({ code: HALT.PROPOSER_EQUIVOCATION, evidence: { a: { worldId: wid, tick: 0, proposer: 'w0', round: 0 }, b: { worldId: wid, tick: 0, proposer: 'w1', round: 0 } } }, eqCtx), /different proposers/)
@@ -181,7 +181,7 @@ test('halt evidence must PROVE the reported halt condition (§4/§5 rigor)', asy
   // invalid proposer signature fails
   assert.match(verifyHaltEvidence({ code: HALT.PROPOSER_EQUIVOCATION, evidence: { a: { worldId: wid, tick: 0, proposer: 'w0', round: 0, inputs: [] }, b: { worldId: wid, tick: 0, proposer: 'w0', round: 0, inputs: ['x'] } } }, { ...eqCtx, verifyBundle: () => false }), /invalid proposer signature/)
 
-  // CERTIFIED_INVALID_BUNDLE: §7 — re-validation must independently find it invalid
+  // CERTIFIED_INVALID_BUNDLE: §7, re-validation must independently find it invalid
   assert.match(verifyHaltEvidence({ code: HALT.CERTIFIED_INVALID_BUNDLE, evidence: { record: {} } }), /no bundle validation error/)
   assert.equal(verifyHaltEvidence({ code: HALT.CERTIFIED_INVALID_BUNDLE, evidence: { record: {}, bundleError: 'unknown proposer' } }), null)
   // with a re-validator that finds the bundle VALID, the halt does not reproduce

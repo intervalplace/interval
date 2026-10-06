@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Auto-discovering test runner (Phase-1 final freeze §1). The official test
-// command must execute EVERY non-adversarial suite — a manually maintained
+// command must execute EVERY non-adversarial suite: a manually maintained
 // file list silently drops new suites (as it did for lifecycle and
 // startupverify). This runner discovers all `test/*.test.mjs` files at run
 // time, so adding a test file cannot bypass CI.

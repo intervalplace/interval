@@ -9,7 +9,7 @@ const t = {}; for (const n of Object.values(w.nodes)) t[n.type] = (t[n.type] ?? 
 const m = {}; for (const q of Object.values(w.mobs)) m[q.type] = (m[q.type] ?? 0) + 1
 const bio = {}; for (let y = 1; y < G.worldH - 1; y += 2) for (let x = 1; x < G.worldW - 1; x += 2) { const b = biomeAt(G, x, y); bio[b] = (bio[b] ?? 0) + 1 }
 const tot = Object.values(bio).reduce((a, b) => a + b, 0)
-console.log(`interval-expanse-v1 — ${G.worldW}x${G.worldH}, built in ${ms} ms`)
+console.log(`interval-expanse-v1, ${G.worldW}x${G.worldH}, built in ${ms} ms`)
 console.log(`nodes ${Object.keys(w.nodes).length} / envelope 3772   mobs ${Object.keys(w.mobs).length} / envelope 331`)
 console.log('\nnodes by type:'); for (const [k, v] of Object.entries(t).sort((a, b) => b[1] - a[1])) console.log(`  ${k.padEnd(14)} ${v}`)
 console.log('\nmobs by type:'); for (const [k, v] of Object.entries(m).sort((a, b) => b[1] - a[1])) console.log(`  ${k.padEnd(18)} ${v}`)
