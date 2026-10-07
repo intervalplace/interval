@@ -1928,11 +1928,11 @@ of this world swings on two.
 
 > from engine.js:614-618
 
-§7ac: IRON RAILING. A rampart is a war wall -- earth and stone, the thing
-Norwick's garrison stands behind -- and the Moorgrave was drawn with one
-because it was the only long boundary the vocabulary had. A churchyard is
-not a fort. Railing blocks like a wall and reads like a fence: you can see
-through it, which is most of what a graveyard wall is for.
+§7ac: IRON RAILING. A palisade is a town's defence work -- the thing
+Norwick keeps a watch on -- and the Moorgrave was drawn with one because it
+was the only long boundary the vocabulary had. A churchyard is not a fort.
+Railing blocks like a wall and reads like a fence: you can see through it,
+which is most of what a graveyard wall is for.
 
 ## 7ah. A country wants a creature of its own  [LIFTED]
 
@@ -4005,7 +4005,7 @@ XP is a non-negative integer. Levels come from the constitutional curve
 64 constitutional node types. A node of any other type is
 contraband and the state carrying it is invalid.
 
-`altar`, `anvil`, `bank`, `banner`, `bell`, `bellwork`, `brewpot`, `brimstone-vent`, `butt`, `campfire`, `cart`, `coal-rock`, `crier`, `dedication`, `deep-fish-spot`, `dummy`, `eel-spot`, `fence`, `ferry`, `fire`, `fishing-spot`, `fountain`, `furnace`, `gallows-oak`, `gibbet-shoal`, `gold-rock`, `guard`, `hearth`, `heartwood-tree`, `hedge`, `hoard`, `house`, `iron-rock`, `ironbark-tree`, `keeper`, `landmark`, `looking-glass`, `magic-rock`, `market`, `mother-lode`, `muck-heap`, `oak-tree`, `ossuary`, `plot`, `railing`, `rampart`, `rock`, `rockfall`, `salt-pan`, `sawpit`, `signpost`, `smith`, `smokerack`, `span`, `spanwork`, `stall`, `stamp`, `store`, `tollgate`, `tree`, `wall`, `watchfire`, `waystone`, `well`.
+`altar`, `anvil`, `bank`, `banner`, `bell`, `bellwork`, `brewpot`, `brimstone-vent`, `butt`, `campfire`, `cart`, `coal-rock`, `crier`, `dedication`, `deep-fish-spot`, `dummy`, `eel-spot`, `fence`, `ferry`, `fire`, `fishing-spot`, `fountain`, `furnace`, `gallows-oak`, `gibbet-shoal`, `gold-rock`, `guard`, `hearth`, `heartwood-tree`, `hedge`, `hoard`, `house`, `iron-rock`, `ironbark-tree`, `keeper`, `landmark`, `looking-glass`, `magic-rock`, `market`, `mother-lode`, `muck-heap`, `oak-tree`, `ossuary`, `palisade`, `plot`, `railing`, `rock`, `rockfall`, `salt-pan`, `sawpit`, `signpost`, `smith`, `smokerack`, `span`, `spanwork`, `stall`, `stamp`, `store`, `tollgate`, `tree`, `wall`, `watchfire`, `waystone`, `well`.
 <!-- END GENERATED: nodes -->
 
 ### 20.3 Weapons

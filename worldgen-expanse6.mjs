@@ -4763,19 +4763,19 @@ export function buildWorld(genesis) {
   // §6cz (v6): THE ROAD PASSES THROUGH A GATE, NOT THROUGH A HOUSE. The router
   // lays its paths from town centre to town centre BEFORE the walls are drawn,
   // so a boundary can come down across the road. Where that boundary is a town's
-  // RAMPART -- the fortified curtain of a walled town -- a road meeting it is a
+  // PALISADE -- the fortified curtain of a walled town -- a road meeting it is a
   // gate, so open it. A garden HEDGE or FENCE the same. But a plain house WALL
   // is a building, and a road clipping a house does NOT license tearing the
   // house open: the first version opened every wall a road touched and left the
   // market towns looking like ruins, their houses gutted where a lane passed.
   // So houses are LEFT WHOLE -- the road runs up to the wall and around it, the
   // way a lane meets a building in any real town -- and only true boundaries
-  // (rampart, hedge, fence) are opened into the gates they are meant to have.
+  // (palisade, hedge, fence) are opened into the gates they are meant to have.
   // Loose decor that strayed onto the open road (a croft, a peat-stack, a
   // landmark) is still simply removed.
   {
     const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market'])
-    const OPENABLE = new Set(['rampart', 'hedge', 'fence'])           // a boundary: a road here is a gate
+    const OPENABLE = new Set(['palisade', 'hedge', 'fence'])           // a boundary: a road here is a gate
     // §0e: the FOUNTAIN is a fixture, not decor. It stands in Anchor's street
     // by design and the road sweep would otherwise clear it as loose ornament
     // -- which it was, until it became the one door out of Nought.

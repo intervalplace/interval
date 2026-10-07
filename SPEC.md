@@ -1658,15 +1658,31 @@ and a citizen's name for their neighbour should not depend on which
 door they came in by. A window that renders different words is wrong
 on the same terms as one that draws the Fens in the wrong place.
 
-**A rampart is not a house wall.** `rampart` is the node a fortified
+**A palisade is not a house wall.** `palisade` is the node a fortified
 town is built of: it blocks exactly as a `wall` does, nothing is
 walkable about it, and it carries no roof. The town drawings have
 always told the two apart -- `%` for a town's outer work, `#` for a
 building -- and the legend flattened both, so four hundred and
-seventy-eight tiles of curtain across Anchor, Norwick, Thornbury and
+seventy-eight tiles of boundary across Anchor, Norwick, Thornbury and
 Cragfoot stood as domestic masonry. Nothing about movement changes.
 What changes is that a citizen can tell a wall they live behind from a
 wall they shelter behind.
+
+**And the node is called what it looks like.** This was `rampart` until
+now, and a rampart is earth and stone: the thing a garrison stands
+behind. Every window drew it that way, and none of them ever made it
+look like anything but a castle dropped round a market town. The
+drawing was changed to what a town of this size would actually have
+raised -- split oak, driven, pointed at the top -- and at that moment
+the world's own word for it became wrong.
+
+That is a rule, not a nicety. The paragraph above about `CALLING_NAMES`
+settles it: the world fixes the NAME of a thing and a window may not
+disagree, which cuts both ways. A window that draws timber where the
+constitution says stone is wrong in exactly the way a window that
+renders a different word is wrong. So either the drawing goes back to
+stone or the word follows the drawing, and the word is the cheaper of
+the two to be honest about.
 
 **A harmless creature may still come at you.** Beasts only set about a
 citizen in the Wilds, the Crags and the Moor -- the settled country
@@ -2601,7 +2617,7 @@ The table below is GENERATED from the engine. Do not edit by hand: run
 66 constitutional node types. A node of any other type is
 contraband and the state carrying it is invalid.
 
-`altar`, `anvil`, `banner`, `bell`, `bellwork`, `brewpot`, `brimstone-vent`, `butt`, `campfire`, `cart`, `coal-rock`, `crier`, `dedication`, `deep-fish-spot`, `dummy`, `eel-buck`, `eel-spot`, `fence`, `ferry`, `fire`, `fishing-spot`, `fountain`, `furnace`, `gallows-oak`, `gibbet-shoal`, `gold-rock`, `grove-plot`, `guard`, `hearth`, `heartwood-tree`, `hedge`, `hoard`, `house`, `iron-rock`, `ironbark-tree`, `keeper`, `landmark`, `looking-glass`, `market`, `mother-lode`, `muck-heap`, `oak-tree`, `ossuary`, `plot`, `quick-rock`, `railing`, `rampart`, `rock`, `rockfall`, `salt-pan`, `sawpit`, `signpost`, `smith`, `smokerack`, `span`, `spanwork`, `stall`, `stamp`, `store`, `tollgate`, `tree`, `vault`, `wall`, `watchfire`, `waystone`, `well`.
+`altar`, `anvil`, `banner`, `bell`, `bellwork`, `brewpot`, `brimstone-vent`, `butt`, `campfire`, `cart`, `coal-rock`, `crier`, `dedication`, `deep-fish-spot`, `dummy`, `eel-buck`, `eel-spot`, `fence`, `ferry`, `fire`, `fishing-spot`, `fountain`, `furnace`, `gallows-oak`, `gibbet-shoal`, `gold-rock`, `grove-plot`, `guard`, `hearth`, `heartwood-tree`, `hedge`, `hoard`, `house`, `iron-rock`, `ironbark-tree`, `keeper`, `landmark`, `looking-glass`, `market`, `mother-lode`, `muck-heap`, `oak-tree`, `ossuary`, `palisade`, `plot`, `quick-rock`, `railing`, `rock`, `rockfall`, `salt-pan`, `sawpit`, `signpost`, `smith`, `smokerack`, `span`, `spanwork`, `stall`, `stamp`, `store`, `tollgate`, `tree`, `vault`, `wall`, `watchfire`, `waystone`, `well`.
 <!-- END GENERATED: nodes -->
 
 A node is `{type, x, y, depletedUntil}`. Types: `tree`, `rock`,
@@ -7880,7 +7896,7 @@ knew nothing about the towns already seated, and determinism is not the same
 as correctness: the same dice, thrown the same way, at every founding.
 
 Measured over 150 v6 foundings: **9.3% put two towns' walls through each
-other**, and the narrowest field between two ramparts was **minus seven
+other**, and the narrowest field between two palisades was **minus seven
 tiles**. Millbrook was in every collision, because its nominal seat was
 `riverX + 16`: a number chosen when its drawing was 28 tiles wide. The v6
 market square made it 52, and the dry-spiral shoved the town fifteen to twenty
@@ -9245,9 +9261,9 @@ a mean of 2.10 ticks and exactly the weapon's cadence. What was fast was
 
 ### 61a. Iron railing
 
-The Moorgrave was drawn with `rampart` because it was the only long boundary
-the vocabulary had. **A rampart is a war wall**: earth and stone, the thing
-Norwick's garrison stands behind, and a churchyard is not a fort.
+The Moorgrave was drawn with the town-boundary node because it was the only
+long boundary the vocabulary had. **That node is a town's defence work**: the
+thing Norwick keeps a watch on, and a churchyard is not a fort.
 
 `railing` blocks like a wall and reads like a fence: uprights, a top rail, and
 daylight between them. **You can see through it, which is most of what a
@@ -12049,7 +12065,7 @@ a plot is planted, a furnace is fed, a spanwork takes planks, and
 scenery is where a missed write would be quietest: a wall nobody looks
 at, mutated once, wrong in every state that shares it afterwards.
 
-**8,671 of the 10,515 nodes are scenery**, walls, hedges, ramparts,
+**8,671 of the 10,515 nodes are scenery**, walls, hedges, palisades,
 fences, railings, banners, signposts, landmarks, which never change and
 are copied and serialised sixty times a minute regardless. Caching their
 canonical bytes the way §21b caches citizens takes the floor from 150 ms
@@ -14105,11 +14121,11 @@ a mort-house and a mourner and yews at the corners. Somebody dug these.
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:802` by `spec-stubs.mjs`.
 
-§7ac: IRON RAILING. A rampart is a war wall -- earth and stone, the thing
-Norwick's garrison stands behind -- and the Moorgrave was drawn with one
-because it was the only long boundary the vocabulary had. A churchyard is
-not a fort. Railing blocks like a wall and reads like a fence: you can see
-through it, which is most of what a graveyard wall is for.
+§7ac: IRON RAILING. A palisade is a town's defence work -- the thing
+Norwick keeps a watch on -- and the Moorgrave was drawn with one because it
+was the only long boundary the vocabulary had. A churchyard is not a fort.
+Railing blocks like a wall and reads like a fence: you can see through it,
+which is most of what a graveyard wall is for.
 
 ## 7af. The Generic Scatter Is Off
 
@@ -15972,8 +15988,8 @@ Sheds and took the fourth rack with it. Three racks in the world, four in
 the drawing, and no warning anywhere.
 
 A town does not meet this. Its outer work is '%', and layPlan's gate rule
-lets a rampart yield to a road wherever the traffic really arrives. A
-village has no rampart -- it is four cottages and a well, drawn in '#',
+lets a palisade yield to a road wherever the traffic really arrives. A
+village has no palisade -- it is four cottages and a well, drawn in '#',
 and a house's wall holds: "a road clipping the corner of somebody's
 kitchen is not a doorway, it is a hole."
 

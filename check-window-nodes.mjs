@@ -24,7 +24,7 @@ let THREE; try { THREE = require('three') } catch { console.log('  skip  no thre
 const DUMP = process.argv[2] || '/tmp/live-world.json'
 // the types a real expanse contains. If no dump is to hand, the list this was
 // measured against, so the check still means something on a fresh clone.
-const FALLBACK = ['wall', 'landmark', 'hedge', 'plot', 'rampart', 'fence', 'signpost', 'hearth',
+const FALLBACK = ['wall', 'landmark', 'hedge', 'plot', 'palisade', 'fence', 'signpost', 'hearth',
   'keeper', 'railing', 'campfire', 'rockfall', 'banner', 'well', 'guard', 'quick-rock', 'vault',
   'store', 'iron-rock', 'dedication', 'tree', 'fishing-spot', 'muck-heap', 'stall', 'gallows-oak',
   'coal-rock', 'heartwood-tree', 'ironbark-tree', 'oak-tree', 'salt-pan', 'eel-spot', 'mother-lode',

@@ -38,7 +38,7 @@
      edge. The inventory icons got repainted with one outline, one
      light, and a glow for anything the stars touched. The pyramids on
      the skyline became mountains: displaced, snow-capped, two ranks
-     deep, with a ridged rampart at the border and raycast crags on its
+     deep, with a ridged palisade at the border and raycast crags on its
      slopes. And on the clear midnights the tick chooses, an aurora
      waves over the north, and every window sees the same lights.
 
@@ -2651,7 +2651,7 @@ function buildGround(s0) {
   }
   const tileH = (t2, gx, gy) => {
     if (t2 === 'mountain') {
-      // the rampart: taller toward the world's rim, ridged along its run,
+      // the palisade: taller toward the world's rim, ridged along its run,
       // so the border reads as a range and not a rumpled carpet
       const edge = Math.max(0, 8 - gy) / 8
       const ridge = Math.abs(Math.sin(gx * 0.5 + (tileHash(Math.floor(gx / 5), 0, 55) % 100) / 30))

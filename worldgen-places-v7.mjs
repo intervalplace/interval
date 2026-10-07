@@ -25,7 +25,7 @@
 // oddities, not settlements with an economy:
 //
 //   #  wall           a standing wall, timber or stone
-//   %  rampart        heavy stone: towers, folds, old works
+//   %  palisade        heavy stone: towers, folds, old works
 //   ,  floor          an interior with boards (registered in loneRooms)
 //   .  open           reserved ground: no scatter, no floor
 //   !  standing stone
@@ -144,7 +144,7 @@ export const PLACES_V7 = {
   },
   // §7dn: THE RUINED TOWER, redrawn so you can read what it was.
   //
-  // It was an octagon of rampart with a hearth in the middle and one gap for a
+  // It was an octagon of palisade with a hearth in the middle and one gap for a
   // door: a shape, but not a RUIN -- a ruin drawn as an unbroken ring is just a
   // small fort, and the only thing it said about its own history was that it
   // had none.
@@ -430,7 +430,7 @@ export const PLACES_V7 = {
   //
   // Why the drawing is what it is:
   //
-  //   HEDGE, NOT WALL OR RAMPART. Every other enclosure here is defensive --
+  //   HEDGE, NOT WALL OR PALISADE. Every other enclosure here is defensive --
   //   the Barrow's ring, the folds' drystone. A hedge is what you plant round
   //   a garden. The downs are lawful and nothing here needs keeping out.
   //

@@ -3295,7 +3295,7 @@ function wallComponents(st) {
     const grand = members.length >= GRAND_WALL || bw > ROOM_MAX || bd > ROOM_MAX
     // a tile or two on its own is nobody's building: it is the low wall
     // round a yard, and it should be plain stone and knee-high
-    const kind = grand ? 'rampart' : members.length <= 2 ? 'garden' : 'house'
+    const kind = grand ? 'palisade' : members.length <= 2 ? 'garden' : 'house'
     // a ROOM is a closed ring, not a blob and not a stub: its tile count
     // should sit near the perimeter of its own bounding box, give or
     // take a doorway. Anything else keeps its walls but goes unroofed.
@@ -4409,7 +4409,7 @@ function nodeBody(n) {
     cap.castShadow = true; wgG.add(cap)
     g.userData.ghostH = 1.0
   } else if (n.type === 'wall' && n.wallKind === 'house') {
-    // A ROOM, not a rampart. Battlements on the four sides of a baker's
+    // A ROOM, not a palisade. Battlements on the four sides of a baker's
     // shop are what made a fortified town read as castles inside a
     // castle; a building wants timber, plaster and a roof over it.
     const [, rot] = wallShape(n)
@@ -4652,9 +4652,9 @@ function nodeBody(n) {
         Math.cos(a4) * 0.34, 0.05, Math.sin(a4) * 0.34)
     }
     regLamp(g, new THREE.PointLight(0xff5a14, 1.8, 4), 0, 0.3, 0)
-  } else if (n.type === 'rampart') {
+  } else if (n.type === 'palisade') {
     // A COUNTRY'S EDGE, and by count the biggest thing this window was
-    // not drawing: 481 of them, every one a placeholder cairn. A rampart
+    // not drawing: 481 of them, every one a placeholder cairn. A palisade
     // is not a town wall -- it is an earth bank with a timber palisade on
     // its crest, and it should read as a LINE across country from a long
     // way off, which is the entire reason it exists.
@@ -7844,7 +7844,7 @@ function syncNodes(s, budget) {
     // a wall's costume depends on the size of the thing it belongs to,
     // so a wall built or broken can change its neighbours' minds
     const par = parish.get(id)
-    const wallKind = par ? par.kind : 'rampart'
+    const wallKind = par ? par.kind : 'palisade'
     if (g && g.userData.type === 'wall' && g.userData.wallKind !== wallKind) { scene.remove(g); vis.node.delete(id); g = null }
     if (!g || g.userData.type !== n.type) {
       if (d2 > BR2) continue              // not yet worth carving

@@ -71,7 +71,7 @@ export const LEGEND_V6 = { ...LEGEND_BASE_FOR_V6, U: 'fountain' }
 // and it stands in Anchor. A second one would be a second door that does not
 // open, and every window would have to explain why.
 export const PLANS5_V6 = {
-  // ANCHOR. Every building is a ROOM with a door. The rampart and the keep
+  // ANCHOR. Every building is a ROOM with a door. The palisade and the keep
   // curtain are % -- massive stone; the buildings are # -- timber. The bank
   // hall holds three booths behind one door, which is what a bank is.
   anchor: [
@@ -299,7 +299,7 @@ export const PLANS5_V6 = {
   ],
 
 
-  // THORNBURY: the manor behind a rampart, the village at its gate.
+  // THORNBURY: the manor behind a palisade, the village at its gate.
   thornbury: [
     // §7bb: THE FORGE TOWN.
     //
@@ -447,7 +447,7 @@ export const PLANS5_V6 = {
   ],
 
   // CRAGFOOT: three shelves, six doors, one stair. The retaining walls are
-  // ramparts because that is what they are: the hill held back.
+  // palisades because that is what they are: the hill held back.
   cragfoot: [
     // §7bc: THE MINING TOWN, CUT INTO THE CRAG.
     //
@@ -556,7 +556,7 @@ export const PLANS5_V6 = {
     '           ##### ===                ',
   ],
 
-  // NORWICK: the doubled west rampart, four barracks behind it.
+  // NORWICK: the doubled west palisade, four barracks behind it.
   norwick: [
     // §7bl: THE GARRISON AND THE MONASTERY.
     //

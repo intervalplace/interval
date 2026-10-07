@@ -1,6 +1,6 @@
 # Interval Consensus Specification v1.10 (Byzantine Safety Upgrade)
 
-*Release 1.0.5 · protocol spec v1.05 · rules hash `1e7bde91977d9d2b`…`*
+*Release 1.0.5 · protocol spec v1.05 · rules hash `12b581753fe7f0de`…`*
 
 **Certified Interval Bundles, the agreement protocol for authoritative worlds.**
 
@@ -450,8 +450,8 @@ generator bug aborts founding with the violated invariant named.
 **Round schedule, exponential backoff (adversarial-sim finding).**
 Round *r* for a tick opens at `due + ROUND_TIMEOUT_MS · (2^min(r,CAP) −
 1)` (CAP = 6), not at flat multiples. Under heavy loss and delay, flat
-600 ms rounds mint a fresh competing proposal faster than lock
-rebroadcast can converge the earliest one, and honest lock splits (H2)
+rounds at the 600 ms this timeout was then set to mint a fresh competing
+proposal faster than lock rebroadcast can converge the earliest one, and honest lock splits (H2)
 stall ticks within seconds. Geometric windows give rebroadcast time to
 converge before a new proposer authors a rival. This is a pure liveness
 change: the first-valid-bundle locking rule, and therefore safety, is

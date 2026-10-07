@@ -1730,14 +1730,14 @@ function spawnDry4() {
   return { x: a.x, y: a.y }
 }
 
-// RAMPART OR BUILDING? The state cannot say -- the engine allows a kind only
+// PALISADE OR BUILDING? The state cannot say -- the engine allows a kind only
 // on a landmark, and rightly, since the difference is purely visual and the
 // geography hash should not care about it. But the window carries the plans
 // and the seats, so it can look the answer up: '%' in a town's drawing is a
-// rampart, '#' is a building wall. Everything outside a plan -- brandstones,
+// palisade, '#' is a building wall. Everything outside a plan -- brandstones,
 // the Delving's quarry, a ruin on the moor -- is bare stone.
 // A 'U' in a plan is a well node the window paints as a fountain. Same
-// lookup as the ramparts, same reason: the difference is visual, so it must
+// lookup as the palisades, same reason: the difference is visual, so it must
 // not touch the state.
 const _fountCache = new Map()
 function isFountain4(x, y) {
@@ -1859,7 +1859,7 @@ const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   'scorched-ring','glass-stone','burnt-tree',
   'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
 const _rampCache = new Map()
-function isRampart4(x, y) {
+function isPalisade4(x, y) {
   const k = x + ',' + y
   const hit = _rampCache.get(k)
   if (hit !== undefined) return hit
@@ -1905,7 +1905,7 @@ function terrainOfE4(x, y) {
   }
   for (const t of settlementsE4()) {
     // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
-    // inclusive test claimed the rampart line itself as town ground and
+    // inclusive test claimed the palisade line itself as town ground and
     // painted seven tiles of trail as cobble.
     if (Math.abs(x - t.x) >= (t.w >> 1) || Math.abs(y - t.y) >= (t.h >> 1)) continue
     // INDOORS? Ask the drawing, exactly as groundKindAt does. ',' is a room's
@@ -7904,7 +7904,7 @@ const liftAt = (x, y) => {
   return NODE_LIFT[k] ?? 0
 }
 // anything that fences a thing in joins to anything else that does
-const BARRIERS = new Set(['fence', 'hedge', 'hurdle', 'barricade', 'wall', 'rampart'])
+const BARRIERS = new Set(['fence', 'hedge', 'hurdle', 'barricade', 'wall', 'palisade'])
 function barrierMask(x, y) {
   let m = 0
   if (BARRIERS.has(nodeKindAt.get((x + 1) + ',' + y))) m |= 1
@@ -7998,7 +7998,7 @@ const _door = new Map()
 function doorwayAt(x, y) {
   const k = x + ',' + y
   const hit = _door.get(k); if (hit !== undefined) return hit
-  const wall = (a, b) => { const t2 = nodeKindAt.get(a + ',' + b); return t2 === 'wall' || t2 === 'rampart' }
+  const wall = (a, b) => { const t2 = nodeKindAt.get(a + ',' + b); return t2 === 'wall' || t2 === 'palisade' }
   const floor = (a, b) => { const t2 = terrainOf(a, b)
     return t2 === 'floor' || t2 === 'inn' || t2 === 'smith' || t2 === 'fisher'
         || t2 === 'shep' || t2 === 'clerk' || t2 === 'wizard' }
@@ -8088,7 +8088,7 @@ function doorSwing(key, want, t) {
 function roofHint(x, y) {
   const k = nodeKindAt.get(x + ',' + y)
   // NOTHING LIVES BEHIND A CURTAIN WALL, so it oversails nothing. Eaves on a
-  // rampart would put a roofline on a battlement.
+  // palisade would put a roofline on a battlement.
   if (k !== 'wall') return 0
   // which way is the inside? the side with floor on it
   let inside = 0
@@ -8650,7 +8650,7 @@ function drawNode(g, n, sx, sy, t, hot) {
       }), sx - 46, sy - 88 + 26)
       return
     }
-    case 'rampart': {
+    case 'palisade': {
       // A CURTAIN WALL, and it should read as one from across a field.
       //
       // Half again the height of a house wall, dressed stone in courses rather
@@ -8658,7 +8658,7 @@ function drawNode(g, n, sx, sy, t, hot) {
       // thicker at the foot than at the head, the way anything built to be
       // shoved against is. No eaves: nothing lives behind it.
       const rs = (n.x * 31 + n.y * 17) & 3
-      g.drawImage(sprite('rampart' + rs, 84, 104, (gg, W2, H2) => {
+      g.drawImage(sprite('palisade' + rs, 84, 104, (gg, W2, H2) => {
         const c2 = W2 / 2, b = H2 - 6
         groundShadow(gg, c2 + 5, b - 4, 30, 13, .58)
         const hgt = 46, HW2 = 30, batter = 4
@@ -12454,7 +12454,7 @@ function indexNodes(s) {
   for (const n of Object.values(s.nodes ?? {})) {
     if (!WALKABLE_BUILT.has(n.type)) nodeTiles.add(n.x + ',' + n.y)
     nodeKindAt.set(n.x + ',' + n.y, n.type)
-    if (n.type === 'wall' || n.type === 'rampart') wallTiles.add(n.x + ',' + n.y)
+    if (n.type === 'wall' || n.type === 'palisade') wallTiles.add(n.x + ',' + n.y)
   }
 }
 // engine WEAPONS.every, character for character. The window needs it only to
@@ -12743,7 +12743,7 @@ function lookAt(n) {
   if (n.type === 'ossuary') return 'The ossuary. Bones laid here are worth more than bones laid in a field.'
   if (n.type === 'well') return 'A well. Cold, and deep enough that drinking from it sets you right.'
   if (n.type === 'wall') return 'A wall. Somebody built this, course by course.'
-  if (n.type === 'rampart') return 'A curtain wall. Dressed stone, battered at the foot, and old.'
+  if (n.type === 'palisade') return 'A palisade. Oak stakes, split and driven, with the tops cut to a point.'
   if (n.type === 'hedge') return 'A hedge, laid and grown thick.'
   if (n.type === 'fence') return 'A fence, of split rails.'
   return wordy(k) + '.'
@@ -13251,7 +13251,7 @@ function pickWorld(p) {
   // They are still THERE: they block, they are drawn, they turn a fence into
   // an enclosure. They simply do not answer when spoken to, the way a wall
   // in any other game does not.
-  const SCENERY = new Set(['wall', 'rampart', 'fence', 'hedge', 'banner'])
+  const SCENERY = new Set(['wall', 'palisade', 'fence', 'hedge', 'banner'])
   for (const [id, n] of Object.entries(s.nodes ?? {})) {
     if (SCENERY.has(n.type)) continue
     const big = BUILDING_KINDS[n.type] ? [-60, 60, -110, 20]:

@@ -99,7 +99,7 @@ export const VILLAGE_LANDMARK_KIND = { kingswood: 'avenue-oak' }
 // own validatePlan (a ragged row throws) and checkPlanConnected (a room you
 // cannot walk into throws).
 //
-//   %  rampart      #  wall        "  hedge      f  fence
+//   %  palisade      #  wall        "  hedge      f  fence
 //   ,  floor        .  open street ' ' terrain wins
 //   o  well         h  hearth      *  campfire   i  signpost
 //   e  table        d  bed         v  shelf      q  barrel

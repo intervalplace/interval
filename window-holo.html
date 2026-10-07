@@ -1149,14 +1149,14 @@ function spawnDry4() {
   return { x: a.x, y: a.y }
 }
 
-// RAMPART OR BUILDING? The state cannot say -- the engine allows a kind only
+// PALISADE OR BUILDING? The state cannot say -- the engine allows a kind only
 // on a landmark, and rightly, since the difference is purely visual and the
 // geography hash should not care about it. But the window carries the plans
 // and the seats, so it can look the answer up: '%' in a town's drawing is a
-// rampart, '#' is a building wall. Everything outside a plan -- brandstones,
+// palisade, '#' is a building wall. Everything outside a plan -- brandstones,
 // the Delving's quarry, a ruin on the moor -- is bare stone.
 // A 'U' in a plan is a well node the window paints as a fountain. Same
-// lookup as the ramparts, same reason: the difference is visual, so it must
+// lookup as the palisades, same reason: the difference is visual, so it must
 // not touch the state.
 const _fountCache = new Map()
 function isFountain4(x, y) {
@@ -1272,7 +1272,7 @@ const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
   'charcoal-clamp','log-pile','spoil-heap','cut-face','bone-pile',
   'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall'])
 const _rampCache = new Map()
-function isRampart4(x, y) {
+function isPalisade4(x, y) {
   const k = x + ',' + y
   const hit = _rampCache.get(k)
   if (hit !== undefined) return hit
@@ -1293,7 +1293,7 @@ function terrainOfE4(x, y) {
   if (inRiver4(x, y) || inLake4(x, y)) return fordE4(x, y) ? 'bridge' : 'river'
   for (const t of settlementsE4()) {
     // STRICTLY inside, matching groundKindAt's `x > r.x0 && x < r.x1`. The
-    // inclusive test claimed the rampart line itself as town ground and
+    // inclusive test claimed the palisade line itself as town ground and
     // painted seven tiles of trail as cobble.
     if (Math.abs(x - t.x) >= (t.w >> 1) || Math.abs(y - t.y) >= (t.h >> 1)) continue
     // INDOORS? Ask the drawing, exactly as groundKindAt does. ',' is a room's

@@ -675,7 +675,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // master surveyor should come home with something to sell. It had simply
   // spent that idea on a door.
   'vault', 'anvil', 'campfire', 'fire', 'guard', 'hearth', 'signpost', 'smith', 'crier', 'store', 'wall', 'well', 'fountain', 'brewpot', 'watchfire', 'banner', 'stall', 'market',
-  // §2g: A RAMPART IS NOT A HOUSE WALL.
+  // §2g: A PALISADE IS NOT A HOUSE WALL.
   //
   // The town drawings have always distinguished them -- '%' is a town's outer
   // work, '#' is a building -- and the legend flattened both to `wall`, so
@@ -691,7 +691,7 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // Prayer was the only skill with nowhere to go. A woodcutter has the
   // Greenwood, a miner the Wilds, a fisher the water; a mourner had a verb and
   // no destination, and buried wherever their feet happened to be.
-  'rampart', 'ossuary', 'house',
+  'palisade', 'ossuary', 'house',
   // §6bq: THE CART. What a burst consignment becomes -- not twelve piles
   // on one tile but ONE thing standing in the road, unloaded a slot at a time
   // by whoever stops. It is a node and not ground because ground forgets in a
@@ -799,11 +799,11 @@ const NODE_TYPES = ['landmark', 'keeper', 'fence', 'hedge', 'tree', 'rock', 'qui
   // is one of them on the island.
   // §7p: THE FURNACE. Ore becomes metal here and nowhere else on the island.
   'furnace',
-  // §7ac: IRON RAILING. A rampart is a war wall -- earth and stone, the thing
-  // Norwick's garrison stands behind -- and the Moorgrave was drawn with one
-  // because it was the only long boundary the vocabulary had. A churchyard is
-  // not a fort. Railing blocks like a wall and reads like a fence: you can see
-  // through it, which is most of what a graveyard wall is for.
+  // §7ac: IRON RAILING. A palisade is a town's defence work -- the thing
+  // Norwick keeps a watch on -- and the Moorgrave was drawn with one because it
+  // was the only long boundary the vocabulary had. A churchyard is not a fort.
+  // Railing blocks like a wall and reads like a fence: you can see through it,
+  // which is most of what a graveyard wall is for.
   'railing',
   // §7bu: A FERRY IS NOT A WAYSTONE.
   //
@@ -7252,13 +7252,13 @@ function callingOf(p) {
 // who is written to becomes a different object and simply misses.
 const _canonPlayerCache = new WeakMap();
 // §21e: nodes get the same memo, for a bigger reason. On the real world 8,671
-// of 10,515 nodes are scenery -- walls, hedges, ramparts, signposts -- that
+// of 10,515 nodes are scenery -- walls, hedges, palisades, signposts -- that
 // never change, and re-serialising them is most of the 150 ms an interval costs
 // before a single citizen exists.
 const _canonNodeCache = new WeakMap();
 function canonicalNodes(nodes) {
   // §21e: 8,671 of the real world's 10,515 nodes are scenery -- walls, hedges,
-  // ramparts, signposts -- that never change and were re-serialised sixty times
+  // palisades, signposts -- that never change and were re-serialised sixty times
   // a minute regardless. Caching their bytes takes the floor from 136 ms to
   // 108 ms.
   //
@@ -12040,7 +12040,7 @@ const _masterySnap = new WeakMap();
 // Measured on the world that will actually be founded -- 896x512, 10,515 nodes
 // -- an interval costs 150 ms before a single citizen exists, and 33 ms per
 // thousand citizens after. The floor is the problem, not the crowd, and
-// EIGHT THOUSAND SIX HUNDRED of those nodes are walls, hedges, ramparts,
+// EIGHT THOUSAND SIX HUNDRED of those nodes are walls, hedges, palisades,
 // fences, railings, banners, signposts and landmarks: scenery that has never
 // changed and never will, re-copied and re-serialised sixty times a minute.
 //

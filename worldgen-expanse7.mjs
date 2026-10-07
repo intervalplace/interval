@@ -25,7 +25,7 @@
 //   2. NO STALL STANDS OUTSIDE ITS OWN TOWN. When a market's drawing had no
 //      spare house, the seater walked a ring OUTSIDE the walls and put the
 //      trader on the verge -- Millbrook's delver ended up a tile north of the
-//      rampart, in a field. A market square is reserved open ground INSIDE the
+//      palisade, in a field. A market square is reserved open ground INSIDE the
 //      walls and is exactly where a stall belongs; it is now searched before
 //      anyone is sent outdoors, and the outdoor ring survives only as a last
 //      resort that no seed in the sweep reaches.
@@ -1684,8 +1684,8 @@ function laneSeatsOf(towns, salt) {
 // the drawing, and no warning anywhere.
 //
 // A town does not meet this. Its outer work is '%', and layPlan's gate rule
-// lets a rampart yield to a road wherever the traffic really arrives. A
-// village has no rampart -- it is four cottages and a well, drawn in '#',
+// lets a palisade yield to a road wherever the traffic really arrives. A
+// village has no palisade -- it is four cottages and a well, drawn in '#',
 // and a house's wall holds: "a road clipping the corner of somebody's
 // kitchen is not a doorway, it is a hole."
 //
@@ -3136,6 +3136,34 @@ export function buildWorld(genesis) {
   const free = (x, y) => inB(x, y) && !taken.has(key(x, y)) && !isWater(g, x, y)
     && !onRidge(g, x, y) && !onBarrow(g, x, y) && !onRoad(g, x, y) && !fordAt(g, x, y) && !inAnySettlement(x, y)
 
+  // ---- AND A TILE YOU COULD ACTUALLY STAND BESIDE ----
+  //
+  // `free` asks whether a tile is dry, and a tile can be dry and still be a
+  // spit one tile wide with water on three sides of it. The Anchor Vale
+  // marker post was seated on exactly that -- lake west, river east, lake
+  // south -- and every window drew it as a signpost standing in a river,
+  // because from any angle that is what it is.
+  //
+  // It is NOT a general fault and this is deliberately not a general rule.
+  // Measured over the whole founding, 85 nodes have two or more wet sides and
+  // almost all of them are meant to: fishing spots, eel spots, the deep seams,
+  // the gibbet shoal, the ferry, the salt pans, the drowned landmarks, and a
+  // bridge's tollgate with water on all four. Tightening `free` itself would
+  // move all of those for the sake of four that look silly.
+  //
+  // So this is for the things a traveller WALKS UP TO and reads or sits at. A
+  // marker post and a wayside fire want ground, and ground means at least
+  // three dry sides: a tile with two is a corner you can reach, a tile with
+  // one is a spit.
+  const firm = (x, y) => {
+    if (!free(x, y)) return false
+    let dry = 0
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (inB(x + dx, y + dy) && !isWater(g, x + dx, y + dy)) dry++
+    }
+    return dry >= 3
+  }
+
   const _spawn0 = spawnDry(g)
   const _main = new Set([_spawn0.x + ',' + _spawn0.y])
   {
@@ -3570,14 +3598,41 @@ export function buildWorld(genesis) {
   let locN = 0
   for (const L of localesOf(g)) {
     let seated = false
-    for (let rad = 0; rad < 44 && !seated; rad++)
-      for (let dy = -rad; dy <= rad && !seated; dy++) for (let dx = -rad; dx <= rad; dx++) {
-        if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-        const x = L.x + dx, y = L.y + dy
-        if (!free(x, y)) continue
-        put('locale-' + L.tag, 'signpost', x, y, { text: L.name })
-        seated = true; locN++; break
-      }
+    // FIRM GROUND IF THERE IS ANY, AND ANY GROUND IF THERE IS NOT.
+    //
+    // Asking for firm ground alone cost Cragfoot Scar its post: there is no
+    // tile within forty-four of it that is both free and has three dry sides,
+    // so the loop simply ran out and the locale went unnamed. A named place
+    // with nothing to name it is a worse fault than the one being fixed --
+    // it is the exact shape of §7's "a thing that is in the world and
+    // invisible in it" -- and it would have gone unnoticed, because nothing
+    // counts posts.
+    //
+    // So the rule is a PREFERENCE. Sweep for firm ground; if the whole sweep
+    // finds none, sweep again for any ground at all and stand the post there.
+    for (const [want, reach] of [[firm, 44], [free, 60]]) {
+      for (let rad = 0; rad < reach && !seated; rad++)
+        for (let dy = -rad; dy <= rad && !seated; dy++) for (let dx = -rad; dx <= rad; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+          const x = L.x + dx, y = L.y + dy
+          if (!want(x, y)) continue
+          put('locale-' + L.tag, 'signpost', x, y, { text: L.name })
+          seated = true; locN++; break
+        }
+      if (seated) break
+    }
+    // AND IT SAYS SO WHEN IT CANNOT. This could always fail -- the sweep has
+    // always been bounded -- and when it did, the locale simply had no post
+    // and nothing anywhere said a word about it. Cragfoot Scar lost its post
+    // to a one-line change in what counts as ground, and the only reason
+    // anybody found out is that the two foundings happened to be counted
+    // against each other by hand.
+    //
+    // Everything else in this generator that falls short reports it: the
+    // residents who had nowhere to stand, the lock-up pieces that did not
+    // fit, the field that only laid five tiles of thirty. A named place with
+    // nothing to name it belongs on that list.
+    if (!seated) console.warn('WORLDGEN: ' + L.name + ' got no marker post')
   }
 
   // ---- the Brandline stones ----
@@ -4217,7 +4272,7 @@ export function buildWorld(genesis) {
     // building three separate times.
     {
       const wallAt4 = (x, y) => Object.values(w.nodes).some((q) =>
-        q.x === x && q.y === y && (q.type === 'wall' || q.type === 'rampart'))
+        q.x === x && q.y === y && (q.type === 'wall' || q.type === 'palisade'))
       let seated = 0, refused = 0
       for (let i = 0; i < RESIDENTS.length; i++) {
         const r = RESIDENTS[i]
@@ -4944,7 +4999,7 @@ export function buildWorld(genesis) {
         if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
         // not in a doorway, and not where it seals the room
         const wallAt2 = (ax, ay) => Object.values(w.nodes).some((q) =>
-          q.x === ax && q.y === ay && (q.type === 'wall' || q.type === 'rampart'))
+          q.x === ax && q.y === ay && (q.type === 'wall' || q.type === 'palisade'))
         if ((wallAt2(x - 1, y) && wallAt2(x + 1, y)) || (wallAt2(x, y - 1) && wallAt2(x, y + 1))) continue
         put('norwick-altar', 'altar', x, y, {})
         set = true; break
@@ -5062,7 +5117,7 @@ export function buildWorld(genesis) {
   // door. See the note at the top of that file for why that is the shape.
   {
     const PLACE_NODE = {
-      '#': ['wall'], '%': ['rampart'], 'R': ['railing'],
+      '#': ['wall'], '%': ['palisade'], 'R': ['railing'],
       // §7cb: 'Z' seats the caged dead rather than a node -- see below
       '!': ['landmark', { kind: 'standing-stone' }],
       // §7ab: the Moorgrave's furniture. A grave and a yew are LANDMARKS --
@@ -5476,6 +5531,22 @@ export function buildWorld(genesis) {
   for (const { tag, path } of routedPathsOf(g)) {
     const PL = path.length
     if (PL < 24) continue
+    // A MILESTONE THAT SAYS WHAT THE LAST ONE SAID IS NOT A MILESTONE.
+    //
+    // The text is the two nearest towns in LEAGUES, and a league is forty
+    // tiles, so `max(1, round(d / 40))` reads "1" anywhere inside sixty tiles
+    // of a town. Anchor and Millbrook are closer together than that, so every
+    // milestone on the road between them printed `Anchor 1 - Millbrook 1`, and
+    // the road carried three of them saying it in turn. A traveller passing
+    // all three learns nothing from the second or the third, and worse, each
+    // one asserts they are equidistant when they are plainly walking.
+    //
+    // Rather than invent a finer unit -- a league is a league, and halves of
+    // one on a signpost read as arithmetic rather than as a road -- a stone
+    // simply has to have something new to say. Where it would repeat its
+    // neighbour it is not placed, and the road between two close towns gets
+    // the one stone that is true instead of three that are not.
+    let saidLast = null
     // ...and one every SIXTY tiles rather than every thirty-five. The milestones
     // (every other stop) still fall about every two minutes' walk, which is the
     // job they do; the sights between them are now something you come across
@@ -5492,10 +5563,11 @@ export function buildWorld(genesis) {
       if (k % 2 === 1) {
         const nt = nearestTowns(bx, by)
         const txt = nt.map(({ s, d }) => s.name + ' ' + Math.max(1, Math.round(d / LEAGUE))).join(' \u00b7 ')
+        if (txt === saidLast) continue
         let placed = false
         for (const side of [2, -2, 3, -3, 4, -4]) {
           const x = Math.round(bx + nx * side), y = Math.round(by + ny * side)
-          if (free(x, y)) { put('mile-' + (mileN++), 'signpost', x, y, { text: txt }); placed = true; break }
+          if (free(x, y)) { put('mile-' + (mileN++), 'signpost', x, y, { text: txt }); placed = true; saidLast = txt; break }
         }
         if (placed) continue
       }
@@ -5754,7 +5826,7 @@ export function buildWorld(genesis) {
     for (let rad = 2; rad <= 7 && !placed; rad++)
       for (let dy = -rad; dy <= rad && !placed; dy++) for (let dx = -rad; dx <= rad; dx++) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-        if (free(m[0] + dx, m[1] + dy)) { put('wayrest-' + (wr++), 'campfire', m[0] + dx, m[1] + dy); placed = true; break }
+        if (firm(m[0] + dx, m[1] + dy)) { put('wayrest-' + (wr++), 'campfire', m[0] + dx, m[1] + dy); placed = true; break }
       }
   }
 
@@ -7841,7 +7913,7 @@ export function buildWorld(genesis) {
         // sides. `freeSides >= 2` cannot see that -- a doorway has exactly two
         // free sides, in and out, which is why it passed.
         const wallAt = (x, y) => Object.values(w.nodes)
-          .some((q) => q.x === x && q.y === y && (q.type === 'wall' || q.type === 'rampart'))
+          .some((q) => q.x === x && q.y === y && (q.type === 'wall' || q.type === 'palisade'))
         const isDoorway = (x, y) => (wallAt(x - 1, y) && wallAt(x + 1, y))
                                  || (wallAt(x, y - 1) && wallAt(x, y + 1))
         const stallNear = (x, y) => Object.values(w.nodes).some((q) =>
@@ -7855,7 +7927,7 @@ export function buildWorld(genesis) {
         const indoors = (x, y) => {
           let n2 = 0
           for (const [dx2, dy2] of [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]])
-            if (Object.values(w.nodes).some((q) => (q.type === 'wall' || q.type === 'rampart')
+            if (Object.values(w.nodes).some((q) => (q.type === 'wall' || q.type === 'palisade')
               && q.x === x + dx2 && q.y === y + dy2)) n2++
           return n2 >= 2
         }
@@ -7934,7 +8006,7 @@ export function buildWorld(genesis) {
       //
       // When the drawing had no spare house left, v6 went straight out to a
       // ring OUTSIDE the town and stood the trader on the verge -- Millbrook's
-      // delver ended up a tile north of the rampart, in a field, in a town
+      // delver ended up a tile north of the palisade, in a field, in a town
       // whose whole eastern half is a reserved, paved, empty market square.
       // A stall belongs on that square. Walk the town's own open ground first,
       // nearest the centre outward, and only leave by the gate if the town
@@ -8224,19 +8296,19 @@ export function buildWorld(genesis) {
   // §6cz (v6): THE ROAD PASSES THROUGH A GATE, NOT THROUGH A HOUSE. The router
   // lays its paths from town centre to town centre BEFORE the walls are drawn,
   // so a boundary can come down across the road. Where that boundary is a town's
-  // RAMPART -- the fortified curtain of a walled town -- a road meeting it is a
+  // PALISADE -- the fortified curtain of a walled town -- a road meeting it is a
   // gate, so open it. A garden HEDGE or FENCE the same. But a plain house WALL
   // is a building, and a road clipping a house does NOT license tearing the
   // house open: the first version opened every wall a road touched and left the
   // market towns looking like ruins, their houses gutted where a lane passed.
   // So houses are LEFT WHOLE -- the road runs up to the wall and around it, the
   // way a lane meets a building in any real town -- and only true boundaries
-  // (rampart, hedge, fence) are opened into the gates they are meant to have.
+  // (palisade, hedge, fence) are opened into the gates they are meant to have.
   // Loose decor that strayed onto the open road (a croft, a peat-stack, a
   // landmark) is still simply removed.
   {
     const WALKABLE = new Set(['brewpot', 'watchfire', 'fire', 'market'])
-    const OPENABLE = new Set(['rampart', 'hedge', 'fence'])           // a boundary: a road here is a gate
+    const OPENABLE = new Set(['palisade', 'hedge', 'fence'])           // a boundary: a road here is a gate
     // §0e: the FOUNTAIN is a fixture, not decor. It stands in Anchor's street
     // by design and the road sweep would otherwise clear it as loose ornament
     // -- which it was, until it became the one door out of Nought.
@@ -8477,6 +8549,7 @@ export function buildWorld(genesis) {
       // a hash put down. Unlisted ids rank 0, which is where the scatter goes.
       : id.startsWith('hold') || id.startsWith('scene-') ? 2 : id.startsWith('field-') ? 1 : 0
     const seen3 = new Map()
+    const gone = []
     let evicted = 0
     for (const [id, n] of Object.entries(w.nodes)) {
       const k = n.x + ',' + n.y
@@ -8484,9 +8557,19 @@ export function buildWorld(genesis) {
       if (prev === undefined) { seen3.set(k, id); continue }
       const loser = RANK(id) > RANK(prev) ? prev : id
       const winner = loser === id ? prev : id
+      gone.push(loser + ' (' + w.nodes[loser].type + ') to ' + winner)
       delete w.nodes[loser]; seen3.set(k, winner); evicted++
     }
-    if (evicted) console.warn('WORLDGEN: ' + evicted + ' node(s) shared a tile; the drawn thing kept it')
+    // AND IT SAYS WHICH ONES. The count alone was not enough to find anything
+    // by: Cragfoot Scar's marker post was seated, reported as seated, and then
+    // deleted here, and all anybody could see was that the number four had not
+    // changed. A node that leaves the world at the last step is exactly the
+    // kind of loss that needs a name attached, because every earlier count
+    // still says it is there.
+    if (evicted) {
+      console.warn('WORLDGEN: ' + evicted + ' node(s) shared a tile; the drawn thing kept it')
+      for (const line of gone) console.warn('WORLDGEN:   dropped ' + line)
+    }
   }
 
   // ================= NO ENCLOSURE MAY BE SEALED =================
@@ -8639,6 +8722,47 @@ export function buildWorld(genesis) {
     if (now !== 2) {
       console.warn('WORLDGEN: ' + now + ' half(s) of the First Tally, and there are two')
     }
+  }
+
+  // ---- AND THE MARKER POSTS, FOR THE SAME REASON AND BY THE SAME METHOD ----
+  //
+  // The locales are seated in the middle of this file and the posts are then
+  // at the mercy of every pass that comes after. Cragfoot Scar's was placed,
+  // counted as placed, and was not in the finished world: something between
+  // there and here took it, and the only way anybody noticed was two foundings
+  // counted against each other by hand.
+  //
+  // Chasing which pass took it would fix this founding and not the next sweep
+  // somebody adds -- which is the argument the First Tally above already makes
+  // and wins. So the posts are checked HERE, last, after every pass that
+  // clears ground, and a locale that lost one gets another.
+  //
+  // A locale with no post is not cosmetic. "Up on Bleakfell" is a bearing
+  // somebody learns by walking, and §61b's rule is that a thing in the world
+  // and invisible in it is a fault. Fourteen of fifteen is the sort of number
+  // nothing counts and everybody lives with.
+  {
+    let reseated = 0
+    for (const L of localesOf(g)) {
+      if (w.nodes['locale-' + L.tag]) continue
+      let again = false
+      for (const [want, reach] of [[firm, 44], [free, 60]]) {
+        for (let rad = 0; rad < reach && !again; rad++)
+          for (let dy = -rad; dy <= rad && !again; dy++) for (let dx = -rad; dx <= rad; dx++) {
+            if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+            const x = L.x + dx, y = L.y + dy
+            if (!want(x, y)) continue
+            // Nothing else may be standing here: every pass that clears ground
+            // has already run, so what is on a tile now is what stays on it.
+            if (Object.values(w.nodes).some((q) => q.x === x && q.y === y)) continue
+            put('locale-' + L.tag, 'signpost', x, y, { text: L.name })
+            again = true; reseated++; break
+          }
+        if (again) break
+      }
+      if (!again) console.warn('WORLDGEN: ' + L.name + ' has no marker post and no ground for one')
+    }
+    if (reseated) console.warn('WORLDGEN: ' + reseated + ' marker post(s) reseated after the sweeps')
   }
 
   return w

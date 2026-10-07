@@ -31,7 +31,7 @@
      edge. The inventory icons got repainted with one outline, one
      light, and a glow for anything the stars touched. The pyramids on
      the skyline became mountains: displaced, snow-capped, two ranks
-     deep, with a ridged rampart at the border and raycast crags on its
+     deep, with a ridged palisade at the border and raycast crags on its
      slopes. And on the clear midnights the tick chooses, an aurora
      waves over the north, and every window sees the same lights.
 
@@ -282,7 +282,7 @@
 
      Then the eye learned the elevation the feet already knew. The
      camera had orbited sea level while every body stood on the actual
-     ground, walk the rampart and the rig sank beneath the world's
+     ground, walk the palisade and the rig sank beneath the world's
      skin, the floor turning to see-through sky, water adrift, black
      shadow-blobs, a citizen's nameplate huge against the void. The
      whole rig rides the walker's TRUE height now: the orbit centers
@@ -2074,7 +2074,7 @@ function buildGround(s0) {
   const shoreOf = (gx, gy) => shoreMask[Math.min(H - 1, Math.max(0, gy)) * W + Math.min(W - 1, Math.max(0, gx))] === 1
   const tileH = (t2, gx, gy) => {
     if (t2 === 'mountain') {
-      // the rampart: taller toward the world's rim, ridged along its run,
+      // the palisade: taller toward the world's rim, ridged along its run,
       // so the border reads as a range and not a rumpled carpet
       const edge = Math.max(0, 8 - gy) / 8
       const ridge = Math.abs(Math.sin(gx * 0.5 + (tileHash(Math.floor(gx / 5), 0, 55) % 100) / 30))
@@ -2802,11 +2802,11 @@ function wallCensus3(s) {
     SHAPE3[k] = { shape: shape, lie: lie }
   }
   // ---- town vs castle, by COMPOUND. The founder lays walls as separate
-  // rectangular enclosures: one great rampart around the whole town, and
+  // rectangular enclosures: one great palisade around the whole town, and
   // dozens of smaller walled compounds inside it, halls, yards, the
   // market. Rendering every one as fortress stone is what made "a castle
   // full of smaller castles". So: find the connected components; the
-  // largest (the rampart) keeps its battlements, and every smaller
+  // largest (the palisade) keeps its battlements, and every smaller
   // compound is a BUILDING whose wall tiles become timber-and-stone house
   // walls with a roof, not another curtain of merlons. ----
   const _compId = {}
@@ -2826,11 +2826,11 @@ function wallCensus3(s) {
       }
       compSize[cid] = sz; cid++
     }
-    // the rampart is the largest component; anything smaller is a building
-    let rampart = 0
-    for (let i = 1; i < compSize.length; i++) if (compSize[i] > compSize[rampart]) rampart = i
+    // the palisade is the largest component; anything smaller is a building
+    let palisade = 0
+    for (let i = 1; i < compSize.length; i++) if (compSize[i] > compSize[palisade]) palisade = i
     for (const k of WALLS3) {
-      const isBuilding = _compId[k] !== rampart && compSize[_compId[k]] <= 80
+      const isBuilding = _compId[k] !== palisade && compSize[_compId[k]] <= 80
       SHAPE3[k].building = isBuilding
     }
   }
@@ -3218,7 +3218,7 @@ function nodeMesh(n) {
   } else if (n.type === 'wall') {
     const sh3 = SHAPE3[n.x + ',' + n.y]
     if (sh3 && sh3.building) {
-      // part of an interior walled compound, not the town rampart: raise
+      // part of an interior walled compound, not the town palisade: raise
       // a timber-and-stone house here. A block of these reads as the
       // town's built quarter: halls, homes, the market, instead of a
       // ring of battlements.
@@ -3240,7 +3240,7 @@ function nodeMesh(n) {
         fl.position.set(0.2, 4.3, 0); fl.rotation.y = (tileHash(n.x, n.y, 62) % 60) / 20; g.add(fl)
       }
     } else {
-      // the town rampart: shortened and warmed from cold white to a sandy
+      // the town palisade: shortened and warmed from cold white to a sandy
       // town stone, so the enclosing wall reads as a market town's
       // defences rather than a palace
       const cu = cast(new THREE.Mesh(curtain3(), std(0x8a7d68)))
@@ -6347,7 +6347,7 @@ function animate(now) {
   // the rig rides the GROUND the feet ride: the orbit, the look, and the
   // collision ray all start from the elevation under the walker, the
   // beings stood on the actual ground while the eye orbited sea level,
-  // and on the rampart that put the camera under the world's skin
+  // and on the palisade that put the camera under the world's skin
   const gY = me ? Math.max(-0.12, groundYAt(mix, miy)) : 0
   camDesired.set(fx + Math.sin(camAz) * cr2, gY + cy2, fz + Math.cos(camAz) * cr2)
   // camera collision: the eye stays above the hills and out of the ground

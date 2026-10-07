@@ -29,10 +29,10 @@
 // ---------------------------------------------------------------------
 const LEGEND_BASE = {
   // TWO KINDS OF WALL, one node type. The engine is explicit that "only a
-  // landmark bears a kind", so a rampart and a cottage wall are the same
+  // landmark bears a kind", so a palisade and a cottage wall are the same
   // node in the state -- and they must be, or the geography hash would care
   // about something purely visual. The DISTINCTION lives in the drawing:
-  // '%' is a rampart (the town wall, a keep's curtain, a manor's), '#' is a
+  // '%' is a palisade (the town wall, a keep's curtain, a manor's), '#' is a
   // building wall. Windows carry the plans already, so they can look up
   // which is which and draw stone or timber accordingly. Without this a
   // town of twenty walk-in buildings looks like twenty castles inside a
@@ -41,11 +41,11 @@ const LEGEND_BASE = {
   //
   // '%' is a town's outer work and '#' is a building, and every plan has used
   // them that way -- but this table mapped both to `wall`, so four hundred and
-  // seventy-eight tiles of rampart across four towns drew as house masonry.
+  // seventy-eight tiles of palisade across four towns drew as house masonry.
   //
-  // `rampart` is a node type of its own now; it blocks exactly as a wall does
+  // `palisade` is a node type of its own now; it blocks exactly as a wall does
   // and carries no roof, because nothing lives behind a curtain wall.
-  '%': 'rampart',        // rampart: massive, battlemented, a town's edge
+  '%': 'palisade',        // palisade: massive, battlemented, a town's edge
   '#': 'wall',        // building: timber and plaster, domestic
   '"': 'hedge',       'f': 'fence',
   'B': 'vault',        'S': 'store',       'A': 'anvil',   's': 'smith',
@@ -64,7 +64,7 @@ const LEGEND_BASE = {
                       // landmark kinds and a new one would move the rules
                       // hash for something purely visual. The windows carry
                       // the plans, so they look up the 'U' and draw a basin
-                      // instead of a windlass. Same trick as the ramparts.
+                      // instead of a windlass. Same trick as the palisades.
 }
 export const LEGEND = LEGEND_BASE
 // ',' is INTERIOR FLOOR. Open ground like '.', reserved so nothing scatters
@@ -101,7 +101,7 @@ export const QUAY = '='
 // where souls arrive.
 // ---------------------------------------------------------------------
 export const PLANS = {
-  // ANCHOR. Every building is a ROOM with a door. The rampart and the keep
+  // ANCHOR. Every building is a ROOM with a door. The palisade and the keep
   // curtain are % -- massive stone; the buildings are # -- timber. The bank
   // hall holds three booths behind one door, which is what a bank is.
   anchor: [
@@ -194,7 +194,7 @@ export const PLANS = {
     ' ..#######............#######...... ',
     '                                    ',
   ],
-  // THORNBURY: the manor behind a rampart, the village at its gate.
+  // THORNBURY: the manor behind a palisade, the village at its gate.
   thornbury: [
     '                                  ',
     ' ................................ ',
@@ -280,7 +280,7 @@ export const PLANS = {
     '      T           T             ',
   ],
   // CRAGFOOT: three shelves, six doors, one stair. The retaining walls are
-  // ramparts because that is what they are: the hill held back.
+  // palisades because that is what they are: the hill held back.
   cragfoot: [
     '                            ',
     '                            ',
@@ -340,7 +340,7 @@ export const PLANS = {
     '                ===                 ',
     '                ===                 ',
   ],
-  // NORWICK: the doubled west rampart, four barracks behind it.
+  // NORWICK: the doubled west palisade, four barracks behind it.
   norwick: [
     '%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%',
     '%.%..............................%',
@@ -404,7 +404,7 @@ export const PLANS = {
 // from the SAME object -- so every shop moved, every bank added and every
 // quarter redrawn was silently rewriting the fourth founding as well. v4's
 // geography hash had already drifted from ad3a1868 to eb020214 before the
-// rampart change made it throw and the shared state came to light.
+// palisade change made it throw and the shared state came to light.
 //
 // SPEC 9c is not a style note. A frozen generator must build a frozen
 // world: a citizen who walked v4's Anchor must be able to walk it again in
@@ -413,7 +413,7 @@ export const PLANS = {
 // wants to change, it changes here.
 // ---------------------------------------------------------------------
 export const PLANS5 = {
-  // ANCHOR. Every building is a ROOM with a door. The rampart and the keep
+  // ANCHOR. Every building is a ROOM with a door. The palisade and the keep
   // curtain are % -- massive stone; the buildings are # -- timber. The bank
   // hall holds three booths behind one door, which is what a bank is.
   anchor: [
@@ -506,7 +506,7 @@ export const PLANS5 = {
     ' .################################. ',
     '                                    ',
   ],
-  // THORNBURY: the manor behind a rampart, the village at its gate.
+  // THORNBURY: the manor behind a palisade, the village at its gate.
   thornbury: [
     '                                  ',
     ' ................................ ',
@@ -592,7 +592,7 @@ export const PLANS5 = {
     '      T           T             ',
   ],
   // CRAGFOOT: three shelves, six doors, one stair. The retaining walls are
-  // ramparts because that is what they are: the hill held back.
+  // palisades because that is what they are: the hill held back.
   cragfoot: [
     '                            ',
     '                            ',
@@ -652,7 +652,7 @@ export const PLANS5 = {
     '                ===                 ',
     '                ===                 ',
   ],
-  // NORWICK: the doubled west rampart, four barracks behind it.
+  // NORWICK: the doubled west palisade, four barracks behind it.
   norwick: [
     '%%%%%%%%%%%%%%%%..%%%%%%%%%%%%%%%%',
     '%.%..............................%',
@@ -803,7 +803,7 @@ export const PLAN_ROOMS = {
 // drawing through everything except a building wall '#', and whatever the
 // flood never reaches is inside a building.
 //
-// Ramparts '%' are deliberately passable to this flood. A town wall encloses
+// Palisades '%' are deliberately passable to this flood. A town wall encloses
 // a town, not a room; if it blocked, the whole of Anchor would be indoors.
 // THE ROOM TABLE IS A PARAMETER TOO, and for the third time on this page the
 // reason is the same: this file is FROZEN and it does not know about tables
@@ -957,7 +957,7 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
       // decking (see quayTilesOfPlan), so the ground under it is lawful
       // and the sweep will not carry it off as unreachable.
       if (isWater(g, x, y) && LEGEND[ch] !== 'fishing-spot') continue
-      // A RAMPART YIELDS TO A ROAD, the way a wall yields to water.
+      // A PALISADE YIELDS TO A ROAD, the way a wall yields to water.
       //
       // A drawing does not know where the water went, and it does not know
       // where the roads came in either. The gates were drawn where the
@@ -967,7 +967,7 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
       // the north-east trail met unbroken wall and had to follow it round.
       //
       // So the gate is wherever the road actually arrives. This is the
-      // rampart ONLY ('%'): a house's wall ('#') holds, because a road
+      // palisade ONLY ('%'): a house's wall ('#') holds, because a road
       // clipping the corner of somebody's kitchen is not a doorway, it is
       // a hole. Both glyphs mean 'wall' to the engine; only the drawing
       // knows which is a town's edge and which is a room's.

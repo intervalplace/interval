@@ -108,7 +108,7 @@ const state = {
            n11: { type: 'ossuary', x: 40, y: 41 }, n12: { type: 'brewpot', x: 39, y: 39 },
            n13: { type: 'furnace', x: 41, y: 41 }, n14: { type: 'watchfire', x: 39, y: 41 },
            n15: { type: 'smokerack', x: 40, y: 39 }, n16: { type: 'ferry', x: 41, y: 39 },
-           n17: { type: 'rampart', x: 39, y: 40 } },
+           n17: { type: 'palisade', x: 39, y: 40 } },
   markers: [{ x: 40, y: 40 }],          // §survey: you stand ON one, not beside it
   ground: { g1: { item: 'bones', x: 40, y: 40 } }
 }

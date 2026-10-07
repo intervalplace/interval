@@ -2120,8 +2120,8 @@ function makeNode (n) {
       const s = box(0.26, 0.5, 0.26, 'bark', 0x6a5030); s.position.y = 0.3; g.add(s); return g }
     case 'wall': { const m = box(TILE, 2.4, TILE, 'stone', 0xffffff, 0.08)
       m.position.y = 1.2; return m }
-    // a rampart is earth and stake, not dressed stone: it reads lower and rougher
-    case 'rampart': { const g = new THREE.Group()
+    // a palisade is earth and stake, not dressed stone: it reads lower and rougher
+    case 'palisade': { const g = new THREE.Group()
       const bank = new THREE.Mesh(paint(new THREE.CylinderGeometry(TILE * 0.62, TILE * 0.78, 1.5, 4), 0x6a5a3a, 0.12), mat('terrain'))
       bank.rotation.y = Math.PI / 4; bank.position.y = 0.75; g.add(bank)
       for (let i = 0; i < 4; i++) { const st = box(0.16, 1.1, 0.16, 'bark', 0x5a4526, 0.1)
@@ -2946,14 +2946,14 @@ const DEED_FX = {
   chop: ['chip', 9], harvest: ['chip', 7], fletch: ['chip', 6], lay: ['chip', 6], found: ['chip', 8],
   smith: ['spark', 12], kindle: ['spark', 10], light: ['spark', 10], char: ['spark', 8],
   cook: ['spark', 6], unload: ['chip', 4], haul: ['chip', 3], rifle: ['chip', 4],
-  alch: ['mote', 12], unmake: ['mote', 12], seal: ['mote', 14], invoke: ['mote', 14],
+  transmute: ['mote', 12], unmake: ['mote', 12], seal: ['mote', 14], invoke: ['mote', 14],
   cast: ['mote', 16], recall: ['mote', 18], mendp: ['mote', 12], still: ['mote', 16],
   dedicate: ['mote', 10], sound: ['mote', 8],
   drink: ['drop', 6], forage: ['chip', 5], eat: ['chip', 4],
   bury: ['chip', 8], grave: ['chip', 8], plant: ['chip', 6],
   pickup: ['chip', 3], drop: ['chip', 3], buy: ['spark', 4], deposit: ['spark', 4], withdraw: ['spark', 4]
 }
-const RINGED = new Set(['cast', 'recall', 'seal', 'invoke', 'still', 'mendp', 'alch', 'unmake', 'dedicate'])
+const RINGED = new Set(['cast', 'recall', 'seal', 'invoke', 'still', 'mendp', 'transmute', 'unmake', 'dedicate'])
 function deedFx (deed, x, y) {
   const f = DEED_FX[deed]
   if (!f) return
@@ -3404,7 +3404,7 @@ function options () {
   }
   for (const { } of nodesNear(['ferry', 'toll']))
     out.push({ label: 'pay the toll', go: () => { act({ do: 'pay' }); sfx('coin') } })
-  for (const { } of nodesNear(['span', 'rampart']))
+  for (const { } of nodesNear(['span', 'palisade']))
     out.push({ label: 'lay a plank', go: () => { work('chop'); act({ do: 'lay' }) } })
   // a stall of your own: raise it where there is room, then stock, price, take
   const mine = Object.entries(world.nodes || {}).find(([, n]) => n && placed(n) &&
@@ -3674,7 +3674,7 @@ function deedsFor (i, item) {
   }
   if (at(['mill'])) D('grind', { do: 'grind', slot: i })
   else if (/(grain|wheat|barley)/.test(item)) notes.push('grind: needs a mill')
-  if (/(sigil|magic-stone|stones|gold|star|great)/.test(item)) D('transmute', { do: 'alch', slot: i })
+  if (/(sigil|magic-stone|stones|gold|star|great)/.test(item)) D('transmute', { do: 'transmute', slot: i })
   if (bank) D('deposit', { do: 'deposit', slot: i }, 'into the vault.')
   else if (/^(gold|star|great|sigil)/.test(item)) notes.push('store: needs a bank')
   if (counter) D('sell', { do: 'sell', slot: i })

@@ -2150,8 +2150,8 @@ function makeNode (n) {
       const s = box(0.26, 0.5, 0.26, 'bark', 0x6a5030); s.position.y = 0.3; g.add(s); return g }
     case 'wall': { const m = box(TILE, 2.4, TILE, 'stone', 0xffffff, 0.08)
       m.position.y = 1.2; return m }
-    // a rampart is earth and stake, not dressed stone: it reads lower and rougher
-    case 'rampart': { const g = new THREE.Group()
+    // a palisade is earth and stake, not dressed stone: it reads lower and rougher
+    case 'palisade': { const g = new THREE.Group()
       const bank = new THREE.Mesh(paint(new THREE.CylinderGeometry(TILE * 0.62, TILE * 0.78, 1.5, 4), 0x6a5a3a, 0.12), mat('terrain'))
       bank.rotation.y = Math.PI / 4; bank.position.y = 0.75; g.add(bank)
       for (let i = 0; i < 4; i++) { const st = box(0.16, 1.1, 0.16, 'bark', 0x5a4526, 0.1)
@@ -3363,7 +3363,7 @@ function options () {
   }
   for (const { } of nodesNear(['ferry', 'toll']))
     out.push({ label: 'pay the toll', go: () => { act({ do: 'pay' }); sfx('coin') } })
-  for (const { } of nodesNear(['span', 'rampart']))
+  for (const { } of nodesNear(['span', 'palisade']))
     out.push({ label: 'lay a plank', go: () => { work('chop'); act({ do: 'lay' }) } })
   // a stall of your own: raise it where there is room, then stock, price, take
   const mine = Object.entries(world.nodes || {}).find(([, n]) => n && placed(n) &&
