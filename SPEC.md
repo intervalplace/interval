@@ -2562,12 +2562,24 @@ The **state hash** is SHA-256 of the canonical JSON encoding.
 The genesis object is
 `{specVersion, rulesHash, genesisSeed, anchorMs, worldW, worldH,
 worldGenerator}`. `worldGenerator` names the deterministic generator
-that founds this world, `"interval-classic-v1"` or
-`"interval-expanse-v1"` (§2t), `"interval-expanse-v2"` (§2u), or
-`"interval-expanse-v3"` (§2v), or `"interval-expanse-v6"` (§2o), the sixth expanse being the canonical
-choice for new foundings, so a founding record can never be ambiguous about
-which world it founds; a node that does not implement the named
-generator refuses to build the world rather than guessing. The genesis schema is EXACT: the seven
+that founds this world. The accepted names are exactly
+`"interval-classic-v1"`, `"interval-expanse-v1"` (§2t),
+`"interval-expanse-v2"` (§2u), `"interval-expanse-v3"` (§2v),
+`"interval-expanse-v4"`, `"interval-expanse-v5"`,
+`"interval-expanse-v6"` (§2o) and `"interval-expanse-v7"` (§12), the
+SEVENTH expanse being the canonical choice for new foundings. A founding
+record can therefore never be ambiguous about which world it founds; a node
+that does not implement the named generator refuses to build the world rather
+than guessing.
+
+**This list was wrong, and it is the one place being wrong costs most.**
+It named five of the eight the engine accepts, left out the seventh
+entirely, and called the sixth canonical -- while every founding this
+world has had for some time has been v7. An implementation built from
+this paragraph alone, which is exactly what §1 invites somebody to
+build, would have refused to found or join the running world and had no
+way to discover why. A constitution that cannot be implemented from its
+own text is not doing the job it exists for. The genesis schema is EXACT: the seven
 fields above plus the optional fields `witnesses`/`quorum`/`imported`/
 `importedFrom`, `importedFrom = {worldId, stateHash, tick}` names the
 attested state the import list was carried from; the worldId commits
