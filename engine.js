@@ -7067,14 +7067,14 @@ function slotsFor(p) {
 //
 // Why this and not a quest:
 //
-//   · It is UNIFORM. Nine trades, no hand-authored tasks, nothing to keep in
+//  , It is UNIFORM. Nine trades, no hand-authored tasks, nothing to keep in
 //     step with the tables. Five of the nine have no deep node and no dear
 //     recipe to build a quest around at all.
-//   · It cannot be ground. It needs another citizen to reach fifty and swear,
+//  , It cannot be ground. It needs another citizen to reach fifty and swear,
 //     which is theirs to do and not yours.
-//   · It is done ONCE, ever, so there is no point automating it: writing a
+//  , It is done ONCE, ever, so there is no point automating it: writing a
 //     script for a thing you do once costs more than doing it.
-//   · It makes the endgame social by construction. A master of Interval is not
+//  , It makes the endgame social by construction. A master of Interval is not
 //     a person with nine hundred hours; it is a line of people.
 //
 // An alt can do it: two hours to fifty and a swearing before yourself, and
@@ -8772,6 +8772,13 @@ const LANDMARK_KINDS = new Set([
   //
   // Nothing about them changes except that they are now themselves.
   'skep', 'cairn', 'boundary-stone', 'skull-pile',
+  // AND THE ONE THAT WAS MISSED. Four stones stand at the corners of every
+  // bridge, so a crossing can be seen from across a field. They were left as
+  // `standing-stone` when the other eight were given their own words, and so
+  // a marker at a ford in ploughed country was drawn as a megalith: the whole
+  // fault the paragraph above describes, surviving in the one place nobody
+  // looked. A bridge-stone is a marker. It is not a monument.
+  'bridge-stone',
   'web',   // §6ab: what mends the spider
 
   // §7di: THE SCENE NOUNS (worldgen-scenes-v7).
@@ -13905,7 +13912,7 @@ function nextState(state, inputs, _legacyBeacon) {
     // country IS, and now the map says so.
     //
     // Measured worst case, beasts able to reach one tile:
-    //   heartlands 1 · moor 2 · wilds 7 · crags 15
+    //   heartlands 1, moor 2, wilds 7, crags 15
     // NOTHING SETS ABOUT A SLEEPING CITIZEN.
     //
     // Death drops everything. A citizen whose client has dropped, or who put

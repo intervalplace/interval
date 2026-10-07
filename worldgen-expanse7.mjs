@@ -3957,7 +3957,7 @@ export function buildWorld(genesis) {
   for (const b of bridgesOf(g)) {
     for (const [dx, dy] of [[-4, -2], [4, -2], [-4, 2], [4, 2]]) {
       const x = b.x + dx, y = b.y + dy
-      if (free(x, y)) { put('brmark-' + b.tag + dx + dy, 'landmark', x, y, { kind: 'standing-stone' }) }
+      if (free(x, y)) { put('brmark-' + b.tag + dx + dy, 'landmark', x, y, { kind: 'bridge-stone' }) }
     }
     for (const [dx, dy] of [[-5, 0], [5, 0]]) {
       const x = b.x + dx, y = b.y + dy
@@ -4086,6 +4086,12 @@ export function buildWorld(genesis) {
       for (const blk of sys) {
         const x0 = st.x + blk.dx, y0 = st.y + blk.dy
         let laid = 0, want = 0
+        // AND WHY NOT, when it falls short. The warning below has said for a
+        // while that a field laid five tiles of thirty, and said nothing about
+        // which of the six refusals did it -- so the only way to act on it was
+        // to re-run the generator by hand with prints in the loop. A tally
+        // costs nothing and turns the complaint into an instruction.
+        const why = { blocked: 0, water: 0, lane: 0, road: 0, town: 0, taken: 0 }
         for (let ry = 0; ry < blk.rows.length; ry++) {
           const row = blk.rows[ry]
           for (let rx = 0; rx < row.length; rx++) {
@@ -4093,8 +4099,11 @@ export function buildWorld(genesis) {
             if (ch === '~' || ch === ' ' || ch === '.' || ch === 'g') continue
             want++
             const x = x0 + rx, y = y0 + ry
-            if (blockedAt(g, x, y) || isWater(g, x, y) || onLane(g, x, y) || onRoad(g, x, y)) continue
-            if (inAnySettlement(x, y)) continue
+            if (blockedAt(g, x, y)) { why.blocked++; continue }
+            if (isWater(g, x, y)) { why.water++; continue }
+            if (onLane(g, x, y)) { why.lane++; continue }
+            if (onRoad(g, x, y)) { why.road++; continue }
+            if (inAnySettlement(x, y)) { why.town++; continue }
             // PLOUGHING CLEARS THE GROUND. `free` refuses any tile that already
             // holds anything, so a furlong laid over the country's own scatter
             // came out moth-eaten -- and Greenhollow's assarts, which are by
@@ -4107,7 +4116,7 @@ export function buildWorld(genesis) {
               if (CLEARABLE.has(q.type) && q.kind !== 'standing-stone') { delete w.nodes[oid]; continue }
               occupied = true
             }
-            if (occupied) continue
+            if (occupied) { why.taken++; continue }
             const spec = ch === 'T' ? ['landmark', { kind: 'stump' }] : FIELD_NODE[ch]
             if (!spec) continue
             put('field-' + st.tag + '-' + (k++), spec[0], x, y, spec[1] ?? {})
@@ -4119,7 +4128,9 @@ export function buildWorld(genesis) {
         // and the founding should say so rather than quietly ploughing a pond
         if (want && laid / want < 0.35)
           console.warn('WORLDGEN: ' + st.name + ' field at +' + blk.dx + ',' + blk.dy
-            + ' only laid ' + laid + ' of ' + want + ' tiles')
+            + ' only laid ' + laid + ' of ' + want + ' tiles; refused by '
+            + Object.entries(why).filter(([, n]) => n > 0)
+                .sort((a, b) => b[1] - a[1]).map(([k, n]) => k + ' ' + n).join(', '))
       }
     }
     _holdCount = built; _fieldCount = fields
@@ -5562,7 +5573,7 @@ export function buildWorld(genesis) {
       const h = H32('wayside|' + tag, k)
       if (k % 2 === 1) {
         const nt = nearestTowns(bx, by)
-        const txt = nt.map(({ s, d }) => s.name + ' ' + Math.max(1, Math.round(d / LEAGUE))).join(' \u00b7 ')
+        const txt = nt.map(({ s, d }) => s.name + ' ' + Math.max(1, Math.round(d / LEAGUE))).join(', ')
         if (txt === saidLast) continue
         let placed = false
         for (const side of [2, -2, 3, -3, 4, -4]) {
@@ -5985,7 +5996,7 @@ export function buildWorld(genesis) {
       put('moorwatch-g1', 'guard', px - 2, py); put('moorwatch-g2', 'guard', px + 2, py)
       put('kpr-camp-moorwatch', 'keeper', px, py - 1, { name: keeperName('camp', 'moorwatch') })
       put('moorwatch-house', 'hearth', px - 2, py - 2)
-      sput('moorwatch-sign', 'signpost', px, py + 4, { text: 'the Moorwatch \u00b7 the Brand lies west' })
+      sput('moorwatch-sign', 'signpost', px, py + 4, { text: 'the Moorwatch, the Brand lies west' })
       // §6ao (v6): the Moorwatch marks the way but no longer speeds it -- a
       // standing stone, not a waystone, so the moor is still crossed on foot.
       put('waystone-moorwatch', 'landmark', px + 6, py, { kind: 'standing-stone' })
@@ -6048,7 +6059,7 @@ export function buildWorld(genesis) {
     // yard, and the sign where a traveler on the road can read it
     put('inn-well', 'well', rx0 - 2, ry0 + 2)
     put('inn-hearth', 'campfire', rx0 + RW + 1, ry0 + 2)
-    put('inn-sign', 'signpost', door, ry0 + RH + 1, { text: 'the Lantern \u00b7 rest, traveler' })
+    put('inn-sign', 'signpost', door, ry0 + RH + 1, { text: 'the Lantern, rest here' })
     }
   }
 
@@ -6968,7 +6979,7 @@ export function buildWorld(genesis) {
       const sy = seat.y + 2
       if (free(seat.x, sy) && !blockedAt(g, seat.x, sy) && !isWater(g, seat.x, sy)) {
         taken.add(key(seat.x, sy))
-        put('siren-sign', 'signpost', seat.x, sy, { text: 'the strand sings \u00b7 she takes one at a time' })
+        put('siren-sign', 'signpost', seat.x, sy, { text: 'the strand sings, she takes one at a time' })
       }
       counts.siren = Math.round(Math.abs(bestScore))
     }
@@ -7042,8 +7053,58 @@ export function buildWorld(genesis) {
       const sx = seat.x, sy = seat.y + 12
       if (free(sx, sy) && !blockedAt(g, sx, sy) && !isWater(g, sx, sy)) {
         taken.add(key(sx, sy))
-        put('spider-sign', 'signpost', sx, sy, { text: 'the wood ends here \u00b7 go back or go together' })
+        put('spider-sign', 'signpost', sx, sy, { text: 'the wood ends here, go back or go together' })
       }
+      // ---- THE ROAD IN, AND WHAT IS LEFT ON IT ----
+      //
+      // The wood does not warn you once. Walking north toward her you pass a
+      // holding that failed, then the sign of the one who said why and was not
+      // believed, then a post that tells you what to count, then the post that
+      // tells you to bring somebody. Four warnings, and she is behind the last
+      // of them.
+      //
+      // PROSPER IS A HOLDING THAT DID NOT. The name is the hopeful kind people
+      // give ground they are about to break their backs on: Wheal Prosper is a
+      // real Cornish mine and there are a dozen more like it. The joke is that
+      // the reason this one failed is a quarter of a mile up the road, and
+      // nothing here says so. There is a cold hearth, a cart with a wheel off,
+      // the stumps of the trees they cleared, a hurdle nobody mends, and a
+      // name post still standing. It is a mile inside the Greenwood and there
+      // is no road to it any more.
+      //
+      // The posts are seated like everything else here: ask for a tile, take
+      // the nearest one that will have it, and say so if none will.
+      // (named `seated`/`missed`, NOT `onRoad`: there is an exported `onRoad`
+      //  predicate in this module and a counter of that name would shadow it.)
+      let seated = 0, missed = 0
+      const lay = (id, type, dx, dy, props) => {
+        for (let r = 0; r < 4; r++) {
+          for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++) {
+            if (Math.max(Math.abs(ox), Math.abs(oy)) !== r) continue
+            const x = seat.x + dx + ox, y = seat.y + dy + oy
+            if (!free(x, y) || blockedAt(g, x, y) || isWater(g, x, y)) continue
+            taken.add(key(x, y)); put(id, type, x, y, props); seated++
+            return true
+          }
+        }
+        missed++
+        return false
+      }
+      lay('spider-count', 'signpost', 0, 19,
+          { text: 'count the legs, then go back' })
+      lay('spider-told', 'signpost', 2, 25,
+          { text: 'I said it was in there, and nobody came back' })
+      lay('prosper-post', 'signpost', -1, 30, { text: 'Prosper' })
+      lay('prosper-hearth', 'landmark', 1, 31, { kind: 'crude-hearth' })
+      lay('prosper-cart', 'landmark', -3, 32, { kind: 'broken-cart' })
+      lay('prosper-rut', 'landmark', 0, 34, { kind: 'wheel-rut' })
+      lay('prosper-hurdle', 'landmark', 3, 30, { kind: 'hurdle' })
+      lay('prosper-stump-a', 'landmark', -2, 28, { kind: 'stump' })
+      lay('prosper-stump-b', 'landmark', 2, 28, { kind: 'stump' })
+      lay('prosper-stump-c', 'landmark', 4, 33, { kind: 'stump' })
+      if (missed) console.warn('WORLDGEN: the road into the Greenwood is ' + missed
+        + ' short of its ' + (seated + missed) + ' pieces')
+
       // A WEB THAT DID NOT BUILD IS A BUG, NOT A VARIATION. It failed silently
       // for as long as she has existed because nothing ever asked.
       if (strands < 8) console.warn('WORLDGEN: the great spider has only ' + strands
@@ -7119,7 +7180,7 @@ export function buildWorld(genesis) {
       if (free(st.x, sy) && !blockedAt(g, st.x, sy) && !isWater(g, st.x, sy)) {
         taken.add(key(st.x, sy))
         put('lamprey-sign', 'signpost', st.x, sy,
-          { text: 'seven mouths in the meres \u00b7 there will not be more' })
+          { text: 'seven mouths in the meres, there will not be more' })
       }
     }
     // SEVEN OR THE WORLD IS WRONG. The supply of every barb that will ever
@@ -7169,7 +7230,7 @@ export function buildWorld(genesis) {
         if (free(sx, sy) && !blockedAt(g, sx, sy) && !isWater(g, sx, sy)) {
           taken.add(key(sx, sy))
           put('dragon-warning', 'signpost', sx, sy,
-            { text: 'no further \u00b7 the scales turn arrows \u00b7 come with company or not at all' })
+            { text: 'no further. the scales turn arrows, come with company or not at all' })
           break
         }
       }
@@ -7278,7 +7339,7 @@ export function buildWorld(genesis) {
     const sx = seat.x, sy = seat.y + (PH >> 1) + 3
     if (free(sx, sy) && !blockedAt(g, sx, sy)) {
       taken.add(key(sx, sy))
-      put('pensign', 'signpost', sx, sy, { text: 'the Goblin Pound  \u00b7  do not feed them' })
+      put('pensign', 'signpost', sx, sy, { text: 'the Goblin Pound, do not feed them' })
     }
     counts.goblinPound = gp
   }
@@ -7352,7 +7413,7 @@ export function buildWorld(genesis) {
       for (const [dx, dy] of [[-5,1],[5,0],[-4,-3],[4,-3],[1,3]]) L(t+'-st'+dx+dy, cx+dx, cy+dy, 'stump')
       L(t+'-lp', cx - 1, cy - 4, 'log-pile'); L(t+'-lp2', cx + 2, cy - 4, 'log-pile')
       N(t+'-fire', cx, cy, 'campfire'); N(t+'-k', cx + 1, cy + 1, 'keeper', { name: keeperName(t, 'burner') })
-      N(t+'-sign', cx, cy + 4, 'signpost', { text: 'the charcoal camp \u00b7 burnt slow since the founding' })
+      N(t+'-sign', cx, cy + 4, 'signpost', { text: 'the charcoal camp, burnt slow since the founding' })
     })
 
     // THE DROWNED VILLAGE -- the Fens took it back
@@ -7366,7 +7427,7 @@ export function buildWorld(genesis) {
       }
       for (const [dx, dy] of [[-5,3],[4,3],[0,4]]) L(t+'-er'+dx, cx+dx, cy+dy, 'eel-rack')
       L(t+'-bell', cx, cy, 'drowned-bell')
-      N(t+'-sign', cx + 1, cy + 5, 'signpost', { text: 'they called it Merewick \u00b7 the fen calls it nothing' })
+      N(t+'-sign', cx + 1, cy + 5, 'signpost', { text: 'they called it Merewick, the fen calls it nothing' })
     })
 
     // THE QUARRY FACE -- the Crags, cut
@@ -7375,7 +7436,7 @@ export function buildWorld(genesis) {
       for (const [dx, dy] of [[-4,1],[-1,2],[2,1],[4,2],[0,3]]) L(t+'-sp'+dx+dy, cx+dx, cy+dy, 'spoil-heap')
       L(t+'-cart', cx + 3, cy + 3, 'cart')
       N(t+'-k', cx, cy + 1, 'keeper', { name: keeperName(t, 'quarryman') })
-      N(t+'-sign', cx - 1, cy + 4, 'signpost', { text: 'the quarry \u00b7 mind the face' })
+      N(t+'-sign', cx - 1, cy + 4, 'signpost', { text: 'the quarry, mind the face' })
     })
 
     // THE GIBBET CROSSROADS -- the Moor, and a fire kept against it
@@ -7383,7 +7444,7 @@ export function buildWorld(genesis) {
       L(t+'-g1', cx, cy - 2, 'gibbet'); L(t+'-g2', cx + 2, cy - 1, 'gibbet')
       for (const [dx, dy] of [[-3,1],[3,2]]) L(t+'-bp'+dx, cx+dx, cy+dy, 'bone-pile')
       N(t+'-fire', cx, cy + 1, 'campfire'); N(t+'-guard', cx + 1, cy + 2, 'guard')
-      N(t+'-sign', cx - 1, cy + 3, 'signpost', { text: 'the gibbet crossing \u00b7 the Brand is west' })
+      N(t+'-sign', cx - 1, cy + 3, 'signpost', { text: 'the gibbet crossing, the Brand is west' })
     })
 
     // THE SHEEP DRIVE -- the Downs
@@ -7393,7 +7454,7 @@ export function buildWorld(genesis) {
       L(t+'-hay', cx + 4, cy, 'haystack'); L(t+'-hay2', cx + 5, cy + 1, 'haystack')
       L(t+'-cart', cx - 6, cy + 1, 'cart')
       N(t+'-k', cx, cy, 'keeper', { name: keeperName(t, 'drover') })
-      N(t+'-sign', cx - 1, cy + 5, 'signpost', { text: 'the drove road \u00b7 shut the hurdles behind you' })
+      N(t+'-sign', cx - 1, cy + 5, 'signpost', { text: 'the drove road, shut the hurdles behind you' })
     })
 
     // THE TROLL CAMP -- the Wilds, and nobody keeping it

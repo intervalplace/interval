@@ -4,8 +4,8 @@
      oblique tiles, polygon trees, stone-bevel UI chrome, gold-on-brown
      text, a 4x7 inventory grid. This is ONE window among many possible:
      the protocol has no authoritative aesthetic; every client is a reskin.
-     Click ground to walk · click tree/rock/water to gather · click a
-     goblin to fight · click fire (with raw fish) to cook · click cooked
+     Click ground to walk, click tree/rock/water to gather, click a
+     goblin to fight, click fire (with raw fish) to cook, click cooked
      fish in inventory to eat. -->
 <html>
 <head>
@@ -322,8 +322,8 @@
   <div id="panel" class="stone">
     <h2 id="whoami">connecting…</h2>
     <div id="hpbar"><div id="hpfill"></div><div id="hptext"></div></div>
-  <!-- §5t-iii: THE GEAR LINE IS GONE. It read "Weapon: iron hatchet · Head:
-       iron helm · Body: iron plate" directly above a WORN grid showing the
+  <!-- §5t-iii: THE GEAR LINE IS GONE. It read "Weapon: iron hatchet, Head:
+       iron helm, Body: iron plate" directly above a WORN grid showing the
        same three things as pictures, in slots you can now tap to take them
        off. Two tellings of one fact, and the duplicate was costing four lines
        at the top of a panel that had run out of room for the log.
@@ -6082,8 +6082,8 @@ function nudgeIntent () {
 // is not the list, it is WHY a row is closed to you. There are five different
 // reasons, and a row that simply greys out teaches none of them:
 //
-//     materials · smithing level · MAGIC level (seven star recipes want both)
-//     a full pack · and the sigil-bow, whose input is itself a crafted item
+//     materials, smithing level, MAGIC level (seven star recipes want both)
+//     a full pack, and the sigil-bow, whose input is itself a crafted item
 //
 // A row that says `smithing 28 (you have 22)` teaches the whole progression,
 // which is most of the value of building this at all. The failing clause is
@@ -6290,7 +6290,7 @@ function openForge(me) {
       // and WHY not, clause by clause
       if (!ok) html += '<div style="clear:both;font-size:10px;margin-top:3px">'
         + bl.map((b) => '<span style="color:' + (b.kind === 'skill' ? '#c98b5a' : b.kind === 'room' ? '#a8446a' : '#8a8078')
-          + '">' + b.text + '</span>').join('<span style="color:#5a5348"> \u00b7 </span>') + '</div>'
+          + '">' + b.text + '</span>').join('<span style="color:#5a5348">, </span>') + '</div>'
       html += '<div style="clear:both"></div></div>'
     }
   }
@@ -6491,7 +6491,7 @@ function onMessage (ev) {
     const where = sp ? localeAt4(sp.x, sp.y) : null
     const far = (sp && mine) ? Math.max(Math.abs(sp.x - mine.x), Math.abs(sp.y - mine.y)) > 24 : false
     feed('<span style="color:#fff">' + m.name + '</span>'
-      + (where ? '<span style="color:' + (far ? '#8a8170' : '#b9a97e') + '"> \u00b7 '
+      + (where ? '<span style="color:' + (far ? '#8a8170' : '#b9a97e') + '">, '
           + where + '</span>' : '')
       + '<span style="color:#fff">:</span> '
       + (far ? '<span style="color:#a89a7c">' : '') + m.text.replace(/</g, '&lt;') + (far ? '</span>' : ''))
@@ -7207,7 +7207,7 @@ function updateGate(s, worldId) {
   const souls = Object.keys(s.players).length
   const awakeN = Object.values(s.players).filter(p => isAwake(p, s.tick)).length
   document.getElementById('gateinfo').textContent =
-    'interval ' + s.tick.toLocaleString() + ' \u00b7 ' + awakeN + ' awake of ' + souls + ' soul' + (souls === 1 ? '' : 's') + ' \u00b7 world ' + (worldId ?? '').slice(0, 12) + '\u2026'
+    'interval ' + s.tick.toLocaleString() + ', ' + awakeN + ' awake of ' + souls + ' soul' + (souls === 1 ? '' : 's') + ', world ' + (worldId ?? '').slice(0, 12) + '\u2026'
   const btn = document.getElementById('gatebtn')
   keepAttending(s)
   const w = myWait(s)
@@ -7596,7 +7596,7 @@ function fountainMark(st) {
         (dy < 0 ? 'north' : 'south') + (dx < 0 ? 'west' : 'east'))
   fountainEl.style.display = ''
   fountainEl.innerHTML = d <= 1
-    ? '<b style="color:#e0a94a">the fountain \u00b7 click it to leave</b>':
+    ? '<b style="color:#e0a94a">the fountain, click it to leave</b>':
     'the way out: fountain, ' + d + ' tiles ' + dir
 }
 
@@ -7727,7 +7727,7 @@ function noughtBanner(on) {
     document.body.appendChild(bannerEl)
   }
   bannerEl.style.display = ''
-  bannerEl.textContent = 'practice world \u00b7 not tallyholm \u00b7 nothing here is saved, nothing here is lost'
+  bannerEl.textContent = 'practice world, not tallyholm, nothing here is saved, nothing here is lost'
 }
 // said once each, when it would actually mean something
 // NUDGES, TIED TO WHAT HAS HAPPENED, NOT TO A CLOCK.
@@ -7816,8 +7816,8 @@ function _onState(s, worldId, local) {
       if ((window._crossTries++ % 10) === 0) {
         const ask = realId ?? myId
         feed('at the fountain: asking Tallyholm for ' + String(ask).slice(0, 10) + '\u2026'
-          + ' · signing with ' + String(ownKey?.pub ?? '?').slice(0, 10) + '\u2026'
-          + ' · world holds it: ' + !!(s.players && s.players[ask]))
+          + ', signing with ' + String(ownKey?.pub ?? '?').slice(0, 10) + '\u2026'
+          + ', world holds it: ' + !!(s.players && s.players[ask]))
       }
       crossSentAt = s.tick; send({ do: 'spawn' })
     }
@@ -13336,7 +13336,7 @@ function drawScene(now) {
   }
 
   // ---- day/night: a pure function of the shared tick ----
-  const cyc = dayCyc((((s.tick + t) % DAY) / DAY))          // 0 dawn · .25 noon · .5 dusk · .75 midnight
+  const cyc = dayCyc((((s.tick + t) % DAY) / DAY))          // 0 dawn, .25 noon, .5 dusk, .75 midnight
   const brightness = (Math.sin(cyc * Math.PI * 2) + 1) / 2
   const darkness = (1 - brightness) * 0.58
   if (HD) { // the sun writes the shadows: long at the golden hours, gone at noon
@@ -13446,7 +13446,7 @@ function drawScene(now) {
   const phase = cyc < 0.06 ? 'dawn' : cyc < 0.44 ? 'day' : cyc < 0.56 ? 'dusk':
               cyc < 0.94 ? 'night' : 'dawn'
   cx.fillStyle = 'rgba(217,201,163,.75)'; cx.font = '10px Verdana'; cx.textAlign = 'left'
-  cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + '  \u00b7  tick ' + s.tick + '  \u00b7  ' + phase + '  \u00b7  ' + BUILD + meterText, 6, cv.height - 6)
+  cx.fillText('world ' + curWorldId.slice(0, 12) + '\u2026' + ', tick ' + s.tick + ', ' + phase + ', ' + BUILD + meterText, 6, cv.height - 6)
 }
 fitCanvas()
 requestAnimationFrame(function frame(now) {
@@ -13456,7 +13456,7 @@ requestAnimationFrame(function frame(now) {
   if (lastFrameAt) worstFrame = Math.max(worstFrame, now - lastFrameAt)
   lastFrameAt = now
   if (now - meterAt > 2000) { // meter: worst frame gap + broadcast jitter, 2s window
-    meterText = '  \u00b7  frame ' + Math.round(worstFrame) + 'ms  \u00b7  jit \u00b1' + Math.round(worstJitter) + 'ms'
+    meterText = ', frame ' + Math.round(worstFrame) + 'ms, jit \u00b1' + Math.round(worstJitter) + 'ms'
     worstFrame = 0; worstJitter = 0; meterAt = now
   } _guarded('the world view', () => drawScene(now)); requestAnimationFrame(frame) })
 
@@ -13680,7 +13680,7 @@ function panel(s) {
     'Weapon: <span style="color:var(--dim)">bare hands</span>'
   const hd = me.equipment.head, bd = me.equipment.body
   if (hd || bd) gearLine += '<br>' + [hd && ('Head: ' + hd.item.replace(/-/g, ' ')),
-    bd && ('Body: ' + bd.item.replace(/-/g, ' '))].filter(Boolean).join(' \u00b7 ')
+    bd && ('Body: ' + bd.item.replace(/-/g, ' '))].filter(Boolean).join(', ')
   document.getElementById('equip').innerHTML = gearLine
   // §6af: the control appears only when the weapon in hand HAS a gambit, and
   // says what it does, a button labelled 'gambit' teaches nothing.
@@ -13701,7 +13701,7 @@ function panel(s) {
       sb.style.letterSpacing = specArmed ? '.04em' : ''
       sb.textContent = (specArmed
         ? '\u25b8 ARMED, strike a target, or tap again to stand down':
-        'SPECIAL \u00b7 ' + SPEC_SAYS[kind])
+        'SPECIAL, ' + SPEC_SAYS[kind])
     }
   }
     + '<br>Gold: <b style="color:#e2b63e">' + (me.gold ?? 0) + '</b> ' + ICONS['gold-coin']
@@ -13741,15 +13741,15 @@ function panel(s) {
       + ((me.inventory ?? []).some(Boolean)
         ? '<button data-consign="1" style="' + BTN + '">seal your pack into a consignment</button>':
         '<span style="color:#8a7f68;font-size:10px">Nothing in your pack to consign.</span>'):
-    '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER \u00b7 '
-      + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard \u00b7 '
+    '<div style="color:var(--gold);font-size:11px;margin:4px 0 2px">THE COUNTER, '
+      + haulLoad + ' slot' + (haulLoad === 1 ? '' : 's') + ' aboard, '
       + '<b style=\"color:#f0c860\">' + haulWorth.toLocaleString() + '</b> at stake'
-      + (atEnd ? ' \u00b7 <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>':
-               ' \u00b7 leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
+      + (atEnd ? ', <b style="color:#8ce08c">AT THE END OF THE ROUTE</b>':
+               ', leg ' + ((myHaul.leg ?? 0) + 1) + ' of ' + (myHaul.route ?? []).length) + '</div>'
       + (atEnd ? '' : '<div style="color:#e2b63e;font-size:11px;margin:0 0 4px">Next: '
           + (haulNext(s, myHaul) ?? 'the next counter')
           + ((myHaul.route ?? []).length > 1
-            ? ' <span style="color:#8a7f68">\u00b7 discharge at ' + (haulLast(s, myHaul) ?? '?') + '</span>' : '')
+            ? ' <span style="color:#8a7f68">, discharge at ' + (haulLast(s, myHaul) ?? '?') + '</span>' : '')
           + '</div>')
       + (atEnd
         ? (((me.brandedUntil ?? 0) > s.tick)
@@ -13778,7 +13778,7 @@ function panel(s) {
     sellBar.innerHTML += '<div style="color:var(--gold);font-size:11px;margin:6px 0 2px">YOUR STALL: '
       + (good ? qty + ' \u00d7 ' + good.replace(/-/g, ' ') : 'empty')
       + (mk.ask > 0 ? ' at ' + mk.ask + 'g' : ', UNPRICED, nothing sells')
-      + ' \u00b7 taken ' + (mk.coin ?? 0) + 'g</div>'
+      + ', taken ' + (mk.coin ?? 0) + 'g</div>'
       + (canPut ? '<button data-stallput="1" style="' + BTN + '">put something on it</button>' : '')
       + '<button data-stallask="-10" style="' + BTN + '">price -10</button>'
       + '<button data-stallask="-1" style="' + BTN + '">-1</button>'
@@ -13896,12 +13896,12 @@ function panel(s) {
       ? ((Math.abs(dest9.y - me.y) > Math.abs(dest9.x - me.x))
           ? (dest9.y < me.y ? 'north' : 'south') : (dest9.x < me.x ? 'west' : 'east')):
       ''
-    hb.innerHTML = 'CARRYING \u00b7 ' + load9 + ' slot' + (load9 === 1 ? '' : 's')
+    hb.innerHTML = 'CARRYING, ' + load9 + ' slot' + (load9 === 1 ? '' : 's')
       + (haulAtEndC(c9)
-        ? ' \u00b7 <b style="color:#8ce08c">discharge here at ' + (haulLast(s, c9) ?? 'this counter') + '</b>':
+        ? ', <b style="color:#8ce08c">discharge here at ' + (haulLast(s, c9) ?? 'this counter') + '</b>':
         '<br><span style="color:#e8d9a0">Next: the counter at ' + (haulNext(s, c9) ?? '?') + '</span>'
-          + '<span style="color:#8a7f68"> \u00b7 leg ' + ((c9.leg ?? 0) + 1) + ' of '
-          + (c9.route ?? []).length + ' \u00b7 discharge at ' + (haulLast(s, c9) ?? '?') + '</span>'
+          + '<span style="color:#8a7f68">, leg ' + ((c9.leg ?? 0) + 1) + ' of '
+          + (c9.route ?? []).length + ', discharge at ' + (haulLast(s, c9) ?? '?') + '</span>'
           + (d9 === null ? '':
             d9 <= 1
               ? '<br><span style="color:#8ce08c">You are beside it. Take one step, or any deed, and the leg counts.</span>':
@@ -13948,9 +13948,9 @@ function openSkillGuide(skill) {
     + 'font:12px Verdana;color:#e2d6b8'
   const toNext = lvl >= MASTERY ? null : XP_TABLE[lvl + 1] - xp
   let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-    + '<b style="color:#e2b63e">' + skill.toUpperCase() + ' \u00b7 ' + lvl + '</b>'
+    + '<b style="color:#e2b63e">' + skill.toUpperCase() + ', ' + lvl + '</b>'
     + (CALLINGS_OF[skill] ? '<span style="color:#8a7f68;font-size:10px;margin-left:8px">'
-      + CALLINGS_OF[skill].join(' \u00b7 ') + '</span>' : '')
+      + CALLINGS_OF[skill].join(', ') + '</span>' : '')
     + '<span id="skgx" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
     + '<div style="color:#8a7f68;font-size:10px;margin-bottom:8px">'
     + xp.toLocaleString() + ' experience'
@@ -13958,9 +13958,9 @@ function openSkillGuide(skill) {
     // know they stop at fifty will think the world broke
     + (() => { const m = world && world.players && world.players[myId]
         const cap = capOfSkill(m, skill)
-        return cap === 0 ? ' \u00b7 <span style="color:#e2b63e">no ceiling: yours</span>':
-          ' \u00b7 stops at ' + cap + (m && m.calling ? ', sworn elsewhere' : ' until you swear') })()
-    + (toNext === null ? ' \u00b7 mastered' : ' \u00b7 ' + toNext.toLocaleString() + ' to ' + (lvl + 1))
+        return cap === 0 ? ', <span style="color:#e2b63e">no ceiling: yours</span>':
+          ', stops at ' + cap + (m && m.calling ? ', sworn elsewhere' : ' until you swear') })()
+    + (toNext === null ? ', mastered' : ', ' + toNext.toLocaleString() + ' to ' + (lvl + 1))
     + '</div>'
   if (SKILL_NOTE[skill]) {
     html += '<div style="color:#a89a7c;font-size:10px;margin:0 0 8px;line-height:1.5">'
@@ -14796,7 +14796,7 @@ function drawBook() {
   btn.style.display = 'block'
   btn.textContent = (bookOpen ? '\u25be ' : '\u25b8 ')
     + (book === 'barrow' ? 'THE BARROW-WORK' : 'SPELLS')
-    + (spellArmed ? ' \u00b7 ' + spellArmed.name + ' ARMED' : '')
+    + (spellArmed ? ', ' + spellArmed.name + ' ARMED' : '')
   btn.style.borderColor = spellArmed ? 'var(--gold)' : 'var(--stone-lt)'
   btn.style.background = spellArmed ? '#3a2a12' : 'var(--stone-dk)'
   pan.style.display = bookOpen ? 'block' : 'none'

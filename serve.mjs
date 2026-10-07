@@ -286,7 +286,7 @@ if (canResume) {
     console.warn('')
     console.warn('REFOUNDING: the saved world ' + String(saved.worldId ?? '').slice(0, 12)
       + '\u2026 cannot be continued by this build.')
-    for (const w of why) console.warn('  \u00b7 ' + w)
+    for (const w of why) console.warn(' , ' + w)
     console.warn('  Citizens are imported into the new world; the tick count starts again.')
     console.warn('  The old world is not lost. Run the release it was founded under to continue it.')
     console.warn('')
@@ -364,9 +364,9 @@ if (canResume) {
   // FORENSICS: the founding names its sources, so the next mystery
   // explains itself in one log line instead of costing a day
   console.warn('FOUNDING sources: world.json ' + (saved ? 'present' : 'ABSENT')
-    + ' \u00b7 checkpoint ' + (savedCp ? 'present (tick ' + savedCp.tick + ')':
+    + ', checkpoint ' + (savedCp ? 'present (tick ' + savedCp.tick + ')':
       fs.existsSync(CP_FILE) ? 'present-but-unreadable' : 'ABSENT')
-    + ' \u00b7 carrying ' + (GENESIS.imported?.length ?? 0) + ' citizen(s)')
+    + ', carrying ' + (GENESIS.imported?.length ?? 0) + ' citizen(s)')
   // AND THE COUNTRY MUST BE ABLE TO SEAT THEM. The first two expanses predate
   // seatImport: they would build a perfectly valid world with nobody in it and
   // report nothing, losing everyone at the one moment the world was trying to
@@ -579,7 +579,7 @@ try {
   throw e
 }
 
-console.log(`witnessed world ${node.worldId.slice(0, 12)}… · ${GENESIS.witnesses.length} witness(es), quorum ${GENESIS.quorum} · this witness ${WITNESS.playerId.slice(0, 12)}…`)
+console.log(`witnessed world ${node.worldId.slice(0, 12)}…, ${GENESIS.witnesses.length} witness(es), quorum ${GENESIS.quorum}, this witness ${WITNESS.playerId.slice(0, 12)}…`)
 if (migrated) console.log(`world refounded (rules changed, clock lapsed, or checkpoint invalid): ${migrated} citizen(s) crossed into world ${node.worldId.slice(0, 12)}…`)
 {
   const gap = node.scheduledTick - node.state.tick

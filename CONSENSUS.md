@@ -1,6 +1,6 @@
 # Interval Consensus Specification v1.10 (Byzantine Safety Upgrade)
 
-*Release 1.0.5 · protocol spec v1.05 · rules hash `4cbf903bee7dd6b5`…`*
+*Release 1.0.5, protocol spec v1.05, rules hash `4cbf903bee7dd6b5`…`*
 
 **Certified Interval Bundles, the agreement protocol for authoritative worlds.**
 
@@ -383,9 +383,9 @@ same H2 territory that justified-lock-upgrades would address.
 
 ### 6.1 Bundle validation (against local state `S`)
 
-version · worldId · `tick = S.tick` · `round ≥ 0` ·
-`previousStateHash = stateHash(S)` · proposer is `proposer(t, r)` ·
-proposer signature · inputs sorted, unique, ≤ 2/player, ≤ cap · every
+version, worldId, `tick = S.tick`, `round ≥ 0`,
+`previousStateHash = stateHash(S)`, proposer is `proposer(t, r)`,
+proposer signature, inputs sorted, unique, ≤ 2/player, ≤ cap, every
 input signature-valid, for this world and tick.
 
 ### 6.2 Finality record verification (`verifyFinalityProof`)

@@ -11,18 +11,18 @@
      in it is a real one, reproduced on purpose rather than filtered on
      afterwards:
 
-       · a 320x240 framebuffer, scaled up with hard edges and no blur
-       · vertices snapped to that grid, so everything shimmers as it moves
-       · AFFINE texture mapping: no perspective correction, so floors
+      , a 320x240 framebuffer, scaled up with hard edges and no blur
+      , vertices snapped to that grid, so everything shimmers as it moves
+      , AFFINE texture mapping: no perspective correction, so floors
          swim and long walls fold. This is the signature of the machine.
-       · per-vertex Gouraud light and per-vertex fog, computed once per
+      , per-vertex Gouraud light and per-vertex fog, computed once per
          corner and smeared across the triangle
-       · 16-colour 64px textures, nearest sampled, no mipmaps, so the
+      , 16-colour 64px textures, nearest sampled, no mipmaps, so the
          distance sparkles
-       · a 5:5:5 output with a 4x4 ordered dither, exactly where the
+      , a 5:5:5 output with a 4x4 ordered dither, exactly where the
          hardware put it
-       · one-bit alpha. A leaf is there or it is not.
-       · 30 frames a second, and the fog does the rest
+      , one-bit alpha. A leaf is there or it is not.
+      , 30 frames a second, and the fog does the rest
 
      What it does NOT do is lie. Where a citizen stands, what they carry,
      what they are fighting and what it costs are read off the same
@@ -43,7 +43,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<title>interval · mist</title>
+<title>interval, mist</title>
 <style>
   html, body { margin:0; padding:0; height:100%; background:#000; overflow:hidden;
                font-family: "Courier New", monospace; color:#9fb08a; }
@@ -70,10 +70,10 @@
   <canvas id="hud"></canvas>
   <div id="tap"><span>
     <b>THE MIST WINDOW</b>
-    move: W A S D &nbsp;·&nbsp; look: mouse &nbsp;·&nbsp; strike: click
-    reach: E &nbsp;·&nbsp; satchel: TAB &nbsp;·&nbsp; yourself: Q &nbsp;·&nbsp; special: C
-    trade: R &nbsp;·&nbsp; speak: T &nbsp;·&nbsp; special: C
-    the chart-table: M &nbsp;·&nbsp; halt: X &nbsp;·&nbsp; name: N
+    move: W A S D &nbsp;,&nbsp; look: mouse &nbsp;,&nbsp; strike: click
+    reach: E &nbsp;,&nbsp; satchel: TAB &nbsp;,&nbsp; yourself: Q &nbsp;,&nbsp; special: C
+    trade: R &nbsp;,&nbsp; speak: T &nbsp;,&nbsp; special: C
+    the chart-table: M &nbsp;,&nbsp; halt: X &nbsp;,&nbsp; name: N
     <b>click to enter the fog</b>
     <u id="padline">or press any button on a controller</u>
     <i id="doormusic">music: on</i>
@@ -116,9 +116,9 @@ let dirty = true
 // drawn to carry.
 //
 // TWO THINGS SURVIVED, because neither was ever about an era:
-//   · the ground clutter, at this machine's fidelity, a field with grass in it
+//  , the ground clutter, at this machine's fidelity, a field with grass in it
 //     beats a bare green plane at any resolution
-//   · the height of the land, which is the world's own data and was never a
+//  , the height of the land, which is the world's own data and was never a
 //     rendering choice at all
 // HOW FAR YOU CAN SEE IS AN OPINION, AND AN OPINION SHOULD BE TESTABLE. Eleven
 // tiles is this window's argument and the fog is the argument's whole defence,
@@ -695,10 +695,10 @@ function sizeUp () {
   // §THE FRAME DOES NOT HAVE TO FILL THE SCREEN, and on a large one it should
   // not. Two faults, and the second is the real one:
   //
-  //   · UNCAPPED. On a 1440p display this came out at six times, so a 320x240
+  //  , UNCAPPED. On a 1440p display this came out at six times, so a 320x240
   //     picture was drawn at 1920x1440 and every texel was a six-pixel square.
   //     The dither stops reading as a texture and starts reading as a grid.
-  //   · FRACTIONAL. `min(aw/RW, ah/RH)` is almost never a whole number, and a
+  //  , FRACTIONAL. `min(aw/RW, ah/RH)` is almost never a whole number, and a
   //     fractional scale under `image-rendering: pixelated` gives UNEVEN
   //     pixels, some texels five wide, some six, in bands across the frame.
   //     That is not a preference, it is a defect, and it is invisible in a
@@ -3559,9 +3559,9 @@ const SORCEROUS = /(^sigil$|magic-stone|^stones$)/
 const SPEC_OF = { 'star-dagger': 'flurry', 'horn-bow': 'flurry', handgonne: 'flurry',
                   'star-mell': 'now', 'fire-siphon': 'now', 'great-mell': 'now',
                   dragonbow: 'far' }
-const SPEC_SAYS = { flurry: 'a flurry \u00b7 several blows in one breath',
-                    now: 'now \u00b7 it swings whatever your arm says',
-                    far: 'far \u00b7 the blow grows with the ground it crossed' }
+const SPEC_SAYS = { flurry: 'a flurry, several blows in one breath',
+                    now: 'now, it swings whatever your arm says',
+                    far: 'far, the blow grows with the ground it crossed' }
 const EQUIPPABLE = /(sword|blade|dagger|hatchet|pickaxe|mell|flail|spear|javelin|bow|staff|wand|rod|spade|helm|plate|shield|legs|chain|crown|crossbow|handgonne|siphon|barb)/
 function deedsFor (i, item) {
   const rows = [], notes = []
@@ -3810,7 +3810,7 @@ function stallMenu (node) {
   const stock = STALL_SELLS[node.kind] || {}
   const rows = []
   for (const [item, price] of Object.entries(stock)) {
-    if (((me && me.gold) ?? 0) < price) { rows.push({ label: nice(item), hint: price + 'g \u00b7 short', dim: 1 }); continue }
+    if (((me && me.gold) ?? 0) < price) { rows.push({ label: nice(item), hint: price + 'g, short', dim: 1 }); continue }
     rows.push({ label: 'buy ' + nice(item), hint: price + 'g', stay: 1,
                 act: () => { act({ do: 'buy', item }); sfx('coin'); say('you buy the ' + nice(item) + '.') } })
   }
@@ -3845,7 +3845,7 @@ function forgeMenu () {
   if (!rows.length) rows.push({ label: '(nothing in the pack will take a hammer)', dim: 1 })
   return { title: 'THE ANVIL', rows,
            foot: TABLES_LIVE ? 'the anvil shows only what you can make':
-                             'costs from this window\u2019s own copy \u00b7 may be stale' }
+                             'costs from this window\u2019s own copy, may be stale' }
 }
 function selfMenu () {
   const me = meNow()
@@ -3932,7 +3932,7 @@ function offerMenu (toId, p, slot, item) {
     { label: 'give it away', act: () => { act({ do: 'offer_trade', to: toId, giveSlot: slot, wantGold: 0 })
         say('offered as a gift.') } }
   ]
-  return { title: 'OFFER \u00b7 ' + (p.name || 'STRANGER').toUpperCase(), rows,
+  return { title: 'OFFER, ' + (p.name || 'STRANGER').toUpperCase(), rows,
            foot: 'left/right changes the price' }
 }
 function tradeMenu () {
@@ -4644,7 +4644,7 @@ function drawHud (now) {
   // top left: where and when
   txt('TICK ' + (world ? world.tick : 0), 5, 11, '#8f9c84')
   if (worldId) txt(worldId.slice(0, 8), 5, 21, '#5f6a58')
-  if (ghost) txt('NO SIGNAL \u00b7 ATTRACT', RW - 105, 11, '#c98a6a', true)
+  if (ghost) txt('NO SIGNAL, ATTRACT', RW - 105, 11, '#c98a6a', true)
   else if (!connected) txt('LINK LOST', RW - 60, 11, '#c25a4a', true)
   // §0a: A PRACTICE OF THE WORLD SAYS SO, ALWAYS, WHERE THE EYE ALREADY IS.
   // Not a card you dismiss, not a tint you stop noticing: a bar across the top
@@ -4652,12 +4652,12 @@ function drawHud (now) {
   if (nought && nought !== 'failed') {
     hx.fillStyle = 'rgba(80,40,16,0.72)'; hx.fillRect(0, 0, RW, 9)
     hx.textAlign = 'center'
-    txt('NOUGHT \u00b7 A PRACTICE OF THE WORLD \u00b7 NOTHING HERE IS REAL', RW >> 1, 7, '#f0c07a', true)
+    txt('NOUGHT, A PRACTICE OF THE WORLD, NOTHING HERE IS REAL', RW >> 1, 7, '#f0c07a', true)
     hx.textAlign = 'left'
     const ripe = waitAge(liveState) >= VIGIL_TICKS
     hx.fillStyle = 'rgba(10,14,10,0.6)'; hx.fillRect(0, RH - 9, RW, 9)
     hx.textAlign = 'center'
-    txt(ripe ? 'THE WAIT IS RIPE \u00b7 PRESS E TO CROSS INTO THE WORLD':
+    txt(ripe ? 'THE WAIT IS RIPE, PRESS E TO CROSS INTO THE WORLD':
              'THE WORLD OPENS IN ' + waitLeft(), RW >> 1, RH - 2, ripe ? '#e2d6a0' : '#8f9c84', ripe)
     hx.textAlign = 'left'
   } else if (!ghost && connected && myId && !me && liveState) {
@@ -4698,7 +4698,7 @@ function drawHud (now) {
       txt(nice(m.type).toUpperCase() + '  ' + m.hp + ' HP', RW >> 1, 30, '#c25a4a', true); hx.textAlign = 'left' }
     else { const c = citizensNear()
       if (c.length) { hx.textAlign = 'center'
-        txt((c[0].p.name || 'STRANGER').toUpperCase() + '   [R] TRADE  \u00b7  RMB STRIKE', RW >> 1, 30, '#9ab0c8')
+        txt((c[0].p.name || 'STRANGER').toUpperCase() + '   [R] TRADE, RMB STRIKE', RW >> 1, 30, '#9ab0c8')
         hx.textAlign = 'left' } }
     // anyone offering you a bargain says so without being asked
     for (const [, p] of Object.entries((world && world.players) || {}))
@@ -4782,8 +4782,8 @@ function drawHud (now) {
     hx.fillStyle = '#0a0e0a'; hx.fillRect(mid - 76, cy - 6, 152, 30)
     hx.fillStyle = '#1c2a18'; hx.fillRect(mid - 74, cy - 4, 148, 26)
     txt('REACHING THE PILLAR' + dots, mid, cy + 6, '#c8bb8a', true)
-    txt(connected ? 'connected \\u00b7 waiting for the world':
-        t0 > 20 ? 'still trying \\u00b7 the pillar may be founding':
+    txt(connected ? 'connected \, waiting for the world':
+        t0 > 20 ? 'still trying \, the pillar may be founding':
         'opening the door', mid, cy + 17, '#6a7f5e')
     hx.textAlign = 'left'
   }
@@ -4824,7 +4824,7 @@ function drawHud (now) {
     }
     if (rows.length > VIS) { hx.textAlign = 'right'
       txt((menu.idx + 1) + '/' + rows.length, x + W - 6, y + H - 3, '#5f6a58'); hx.textAlign = 'left' }
-    txt(menu.foot || '\u2191\u2193 pick \u00b7 ENTER do \u00b7 BKSP back \u00b7 ESC out', x + 6, y + H - 3, '#6a7562')
+    txt(menu.foot || '\u2191\u2193 pick, ENTER do, BKSP back, ESC out', x + 6, y + H - 3, '#6a7562')
   }
   // the hand: drawn at this resolution, not the browser's
   if (paused() && mx > -50) {
@@ -4965,7 +4965,7 @@ function oneSkillMenu (skill) {
   // discovered. A ceiling on its own is only a punishment; the reason to climb
   // is the one thing at the top that nobody capped at seventy can ever have.
   if (BOON[skill])
-    rows.push({ label: (own && at >= MASTERY && (me && me.raised) ? '\u00b7 ' : 'a master: ') +
+    rows.push({ label: (own && at >= MASTERY && (me && me.raised) ? ', ' : 'a master: ') +
       BOON[skill], dim: 1 })
   const tools = GATHER_TOOLS[skill]
   if (tools && tools.length)
@@ -4983,7 +4983,7 @@ function oneSkillMenu (skill) {
                   hint: y.xp + ' xp', dim: 1 })
     }
     if (yr.length) rows.push({ label: 'what it gives (' + yr.length + ')', stay: 1,
-      act: () => openMenu({ title: skill.toUpperCase() + ' \u00b7 SEAMS', rows: yr,
+      act: () => openMenu({ title: skill.toUpperCase() + ', SEAMS', rows: yr,
         foot: 'what each place gives, and what it teaches' }) })
   }
   // §5m: THE CALLINGS THIS TRADE OPENS, behind one row of their own.
@@ -5027,7 +5027,7 @@ function oneSkillMenu (skill) {
           ] }) })
     }
 
-      openMenu({ title: skill.toUpperCase() + ' \u00b7 CALLINGS', rows,
+      openMenu({ title: skill.toUpperCase() + ', CALLINGS', rows,
         foot: mine ? 'you are sworn ' + mine : 'one, ever, and nothing undoes it' }) } })
   const shut = ups.filter(([lv]) => lv > at)
   const open = ups.filter(([lv]) => lv <= at)
@@ -5036,8 +5036,8 @@ function oneSkillMenu (skill) {
   if (open.length) rows.push({ label: '- already yours -', dim: 1 })
   for (const [lv, what] of open.slice(-8)) rows.push({ label: what, hint: 'lvl ' + lv, dim: 1 })
   if (rows.length <= 1) rows.push({ label: 'nothing in the world gates on this', dim: 1 })
-  return { title: skill.toUpperCase() + '  \u00b7  ' + GRADE(at, me2).toUpperCase() + ' ' + at, rows,
-           foot: ceilTxt + ' \u00b7 ' + xp + ' xp \u00b7 \u2191\u2193 read' }
+  return { title: skill.toUpperCase() + ', ' + GRADE(at, me2).toUpperCase() + ' ' + at, rows,
+           foot: ceilTxt + ', ' + xp + ' xp, \u2191\u2193 read' }
 }
 
 // ---- THE CHART-TABLE, drawn as ink on vellum ----
@@ -5106,10 +5106,10 @@ function drawMap (now) {
   }
   txt('THE CHART-TABLE', 8, 14, '#3a2a18', true)
   hx.textAlign = 'right'
-  txt(MAP.w + '\u00d7' + MAP.h + '  \u00b7  ' + Object.keys(MARKS).length + ' MARKS', RW - 8, 14, '#6a5a3a')
+  txt(MAP.w + '\u00d7' + MAP.h + ', ' + Object.keys(MARKS).length + ' MARKS', RW - 8, 14, '#6a5a3a')
   hx.textAlign = 'center'
   txt(me ? 'YOU STAND AT ' + me.x + ', ' + me.y : 'NOT IN THE WORLD YET', RW >> 1, RH - 19, '#6a5a3a')
-  txt('SIGNPOSTS INK AS YOU PASS \u00b7 M TO CLOSE', RW >> 1, RH - 9, '#8a7a5a')
+  txt('SIGNPOSTS INK AS YOU PASS, M TO CLOSE', RW >> 1, RH - 9, '#8a7a5a')
   hx.textAlign = 'left'
 }
 
@@ -5159,8 +5159,8 @@ function drawPack (now) {
     ry += 10
   })
   // what a DIFFERENT place would allow, said in grey and offered nowhere
-  notes.forEach((n) => { if (ry > y + H - 12) return; txt('\u00b7 ' + n, dx, ry, '#5f6a58'); ry += 9 })
-  txt('\u2190\u2191\u2192\u2193 pick \u00b7 ENTER \u00b7 TAB out', x + 6, y + H - 4, '#6a7562')
+  notes.forEach((n) => { if (ry > y + H - 12) return; txt(', ' + n, dx, ry, '#5f6a58'); ry += 9 })
+  txt('\u2190\u2191\u2192\u2193 pick, ENTER, TAB out', x + 6, y + H - 4, '#6a7562')
 }
 
 // ============================================================================

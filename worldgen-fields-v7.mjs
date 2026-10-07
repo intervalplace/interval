@@ -95,15 +95,31 @@ export const FIELDS_V7 = {
   anchor: [
     { dx: -48, dy: -13, rows: FURLONG },
     { dx: -49, dy: 2, rows: FURLONG },
-    { dx: -12, dy: 20, rows: CLOSE },
+    // NOT -12,+20: a third of it was inside the capital's own rect.
+    { dx: 0, dy: 21, rows: CLOSE },
     { dx: 30, dy: -20, rows: HALF_FURLONG },
     { dx: 29, dy: -3, rows: FURLONG },
     { dx: -20, dy: 28, rows: HALF_FURLONG },
   ],
   // THE MARKET. It buys more than it grows, but the mill has to be fed.
   millbrook: [
-    { dx: -8, dy: -23, rows: HALF_FURLONG },
-    { dx: 22, dy: 14, rows: CLOSE },
+    // NOT -8,-23 either. This one never tripped the founding's own warning --
+    // it laid 25 of 67, which is 37% and the warning fires under 35 -- so for
+    // every run of this world Millbrook's largest field has been two thirds
+    // inside its own town, and what stood outside was the ragged third. That
+    // is the field that gets reported as "a couple of plots, it looks
+    // unfinished", and the warning was never going to find it. The check that
+    // did is cheap and does not need a world built: see the note in
+    // worldgen-expanse7.mjs over the refusal tally.
+    { dx: 8, dy: 21, rows: HALF_FURLONG },
+    // NOT +22,+14: that is INSIDE the town. Millbrook's rect is 52 by 36 about
+    // its centre, so a close at +22 starts at x+22 and runs to x+30 -- the far
+    // half of its own market square. The founding said so every time it ran
+    // ("only laid 5 of 30 tiles") and did not say why until the generator was
+    // taught to name the refusal: town 24, road 1. Due south clears the wall
+    // by two tiles and lays all thirty, which is what a close is for -- a
+    // small enclosed field hard against the town rather than a furlong out.
+    { dx: 0, dy: 21, rows: CLOSE },
     { dx: 30, dy: -22, rows: FURLONG },
     // NOT -30,+6: that is the Millbrook Bridge road and the river bank.
     // Millbrook's west side is river, road and bridge; its second furlong

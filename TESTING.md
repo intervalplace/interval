@@ -1,6 +1,6 @@
 # Interval. Testing & Freeze Evidence
 
-Release 1.0.5 · protocol spec v1.05 · consensus spec v1.10 · rules hash
+Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
 `4cbf903bee7dd6b5…`.
 
 This document states exactly what is tested, with what inputs, for how
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 516 tests across:
+`node --test test/*.test.mjs`, 518 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -134,6 +134,8 @@ possible executions.
 - `storage.test.mjs`, the storage backends, byte-for-byte interchangeable
 - `mirror.test.mjs`, the window's copy of the geography against the world's,
   tile for tile across every generator a world could still be standing in
+- `fields.test.mjs`, that every hand-drawn furlong and close lies on ground
+  that will take it, rather than inside its own town
 - `dial.test.mjs`, that `dial.mjs` duplicates the tide and ceiling arithmetic
   without drifting from it
 - `window.test.mjs`, the faults that hide in the web window: a retired skill
