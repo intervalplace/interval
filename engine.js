@@ -448,8 +448,8 @@ function _attLive(state, pid) {
   return age >= 0 && age <= ATTEND_WINDOW;
 }
 // RIPE: live, and old enough. The window between VIGIL_TICKS and ATTEND_WINDOW
-// is the seventeen minutes in which a resident may cross; before it they are too
-// early, after it the wait is stale and must be kept again.
+// is the fifty-five minutes in which a resident may cross; before it they are
+// too early, after it the wait is stale and must be kept again.
 function _attRipe(state, pid) {
   const age = _attAge(state, pid);
   return age >= VIGIL_TICKS && age <= ATTEND_WINDOW;
@@ -580,12 +580,19 @@ const ATTEND_WINDOW = 3600;           // an attendance ages out after an hour
 const ATTEND_CHARS = 16;              // 64 bits of playerId per entry
 // ATTEND_WINDOW must exceed VIGIL_TICKS or an attendance would mature at the
 // instant it expired. The difference is the window in which a resident may
-// cross: ripe at seventeen minutes, stale at thirty-three, and kept again after. It
-// is also what caps the buffer -- ATTEND_PER_TICK * ATTEND_WINDOW entries,
-// four thousand of them, about a hundred kilobytes, forever.
+// cross: ripe at five minutes, stale at an hour, and kept again after. It is
+// also what caps the buffer -- ATTEND_PER_TICK * ATTEND_WINDOW entries, seven
+// thousand two hundred of them, about 180 KB, forever.
+//
+// These numbers said seventeen minutes and thirty-three, and four thousand
+// entries. They were right when the vigil was 1000 ticks and the window 2000;
+// the constants moved to 300 and 3600 and the prose did not. A comment that
+// states a number the code no longer holds is worse than no comment, because
+// it is read and believed: the window above says five minutes in as many
+// words, and three places here said seventeen.
 const ATTEND_MAX = ATTEND_PER_TICK * ATTEND_WINDOW;
 // Grinding a 64-bit prefix collision would let one key spend another's wait.
-// It saves the grinder seventeen minutes and costs them 2^32 keys; the attack is
+// It saves the grinder five minutes and costs them 2^32 keys; the attack is
 // slower than the queue it skips.
 
 // THE TIDELINE. The world's own short memory: the finalized state hash of
