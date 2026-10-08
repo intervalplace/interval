@@ -1192,8 +1192,13 @@ export function bridgesOf(g) {
 //
 // A site is { x, y, name }. The name is what the finished span is called, and
 // what its monument bears.
+// `from` is the NEAR BANK, as an offset from the site. It is what makes the
+// site a jetty rather than a ford: a citizen walks out onto the tile from that
+// bank and can step back only to it, so they may stand in the water and build
+// and still not be across. Without it the bare site is a free crossing, and a
+// beck anybody can step over is a beck no one would ever bridge.
 export const SPAN_SITES = [
-  { x: 172, y: 291, name: 'the Drowning Span' },   // the beck's narrows, deep in the Wilds
+  { x: 172, y: 291, name: 'the Drowning Span', from: { dx: -1, dy: 0 } },   // the beck's narrows, deep in the Wilds
 ]
 export function spanSiteAt(g, x, y) {
   for (const s of SPAN_SITES) if (s.x === x && s.y === y) return s
@@ -2955,7 +2960,7 @@ E.registerTerrain(GENERATOR_ID, {
   // not enter the geography hash. The engine reads them to permit a `found`,
   // and to name the monument a finished span bears. A generator with no wild
   // crossings omits this and the engine offers none.
-  spanSites: (g) => SPAN_SITES.map((s) => ({ x: s.x, y: s.y, name: s.name })),
+  spanSites: (g) => SPAN_SITES.map((s) => ({ x: s.x, y: s.y, name: s.name, from: s.from })),
   // §6dj: THE HEIGHT OF THE LAND, AS DATA.
   //
   // This field is not new and it is not decoration: it is what routed every

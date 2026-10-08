@@ -10251,7 +10251,37 @@ function canStep(state, ctx, p, dx, dy) {
       // grants nothing: it blocks its tile as the beck does, so this refuses
       // the move and the crossing stays contested until the last plank is laid.
       if (terrainBlocked(state.genesis, nx, ny)) {
-        if (!spanDeckAt(state, ctx, nx, ny)) return false;
+        if (!spanDeckAt(state, ctx, nx, ny)) {
+          // §14d: ...and a BARE CROSSING SITE may be STOOD ON, because the
+          // spec requires it: `found` demands "standing on a crossing site,
+          // not beside it, on it, exposed in the water where a saboteur most
+          // wants to deny you". This refused that move, so the one contested
+          // place in the Wilds could never be contested: you could not stand
+          // on the tile, and you cannot found without standing on it. The
+          // span's own tests never caught it because they place the citizen
+          // with `addPlayer` and never walk.
+          //
+          // IT IS A JETTY, NOT A FORD. The site is reached from its NEAR BANK
+          // only and may be left only back to it, so a citizen may stand in
+          // the water and build and still not be across. Allowing it from
+          // both banks would make the bare site a free crossing, and a beck
+          // anybody can step over is a beck nobody would ever bridge. The two
+          // vaults of the Wilds are still joined only by a finished span.
+          //
+          // A spanwork in progress blocks outright, as §14d says: "a pool of
+          // planks standing on the water tile, blocking it exactly as the
+          // beck does".
+          const site = spanSiteAt(state.genesis, nx, ny);
+          if (!site || !site.from) return false;
+          if (nodeExistsAt(state, ctx, nx, ny)) return false;
+          if (p.x !== nx + site.from.dx || p.y !== ny + site.from.dy) return false;
+        }
+      }
+      // and off a bare site only the way you came onto it
+      {
+        const here = spanSiteAt(state.genesis, p.x, p.y);
+        if (here && here.from && !spanDeckAt(state, ctx, p.x, p.y)
+            && (nx !== p.x + here.from.dx || ny !== p.y + here.from.dy)) return false;
       }
       // §7dl: ...and then whether THIS citizen may make THIS crossing. The one
       // place in the engine where terrain is asked about a person.

@@ -157,9 +157,19 @@ test('a finished span carries everyone across; an unfinished one carries no one'
   const signA = signer(g, alice), signB = signer(g, bob)
   const bobEast = () => signB({ tick: s.tick, type: 'move', dx: 1, dy: 0 })
 
-  // before any span: bob cannot step east onto the water tile
-  const t = step(s, [bobEast()])
-  assert.equal(t.players[bob.playerId].x, SITE.x - 1, 'no one crosses open water')
+  // before any span: bob may step out ONTO the site, because §14d requires a
+  // founder to stand on it, but he cannot get ACROSS. This assertion used to
+  // read `x === SITE.x - 1` and call it "no one crosses open water", which
+  // conflated standing with crossing and encoded the bug that made the whole
+  // section unreachable: the engine refused the step onto the tile, so nobody
+  // could found anything and the one contested place in the Wilds could never
+  // be contested. What must stay true is that the BECK still bars the way.
+  {
+    const onto = step(s, [bobEast()])
+    assert.equal(onto.players[bob.playerId].x, SITE.x, 'the near bank reaches the jetty')
+    const over = step(onto, [signB({ tick: onto.tick, type: 'move', dx: 1, dy: 0 })])
+    assert.equal(over.players[bob.playerId].x, SITE.x, 'and no one crosses open water')
+  }
 
   // build it to completion
   s = step(s, [signA({ tick: s.tick, type: 'found', x: SITE.x, y: SITE.y })])
@@ -212,4 +222,97 @@ test('the span sites are on water in the Wilds, and there are few of them', () =
     assert.equal(E.terrainBlocked(g, site.x, site.y), true, 'every site is water before it is bridged')
     assert.equal(E.inWilds(g, site.x, site.y), true, 'every site is in the Wilds')
   }
+})
+
+// ---- AND A CITIZEN MUST BE ABLE TO WALK THERE ----
+//
+// Every test above places the builder on the crossing with `addPlayer` and
+// then founds. Nothing in a real world does that: a citizen arrives on foot.
+// The engine refused the step onto the site for anybody without a FINISHED
+// span already standing on it, so the one contested place in the Wilds could
+// never be contested, and these tests passed throughout by teleporting over
+// the bug they were meant to catch.
+//
+// The site is a JETTY: out from its near bank and back, never across.
+function onFoot (g, who, from) {
+  const s = E.newWorld(g)
+  E.addPlayer(s, who.playerId, from.x, from.y)
+  s.players[who.playerId].inventory[0] = { item: 'planks', qty: 40 }
+  return s
+}
+const at = (s, who) => s.players[who.playerId]
+
+test('a citizen can WALK onto a bare crossing site from its near bank', () => {
+  const g = genesis()
+  const site = E.TERRAINS[g.worldGenerator].spanSites(g)[0]
+  assert.ok(site.from, 'a site declares the bank it is reached from')
+  const alice = E.generateIdentity()
+  const near = { x: site.x + site.from.dx, y: site.y + site.from.dy }
+  let s = onFoot(g, alice, near)
+  s = step(s, [signer(g, alice)({ tick: s.tick, type: 'walk',
+    dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  assert.deepEqual({ x: at(s, alice).x, y: at(s, alice).y }, { x: site.x, y: site.y },
+    'the founder walks out and stands in the water')
+})
+
+test('and cannot cross: the far bank stays unreachable until a span stands', () => {
+  const g = genesis()
+  const site = E.TERRAINS[g.worldGenerator].spanSites(g)[0]
+  const far = { x: site.x - site.from.dx, y: site.y - site.from.dy }
+  // on from the far side is refused
+  const bob = E.generateIdentity()
+  let s = onFoot(g, bob, far)
+  s = step(s, [signer(g, bob)({ tick: s.tick, type: 'walk',
+    dx: site.from.dx, dy: site.from.dy, steps: 1 })])
+  assert.deepEqual({ x: at(s, bob).x, y: at(s, bob).y }, far, 'a site is reached from one bank only')
+  // and standing on it, the far bank is still refused
+  const cara = E.generateIdentity()
+  let t = onFoot(g, cara, { x: site.x, y: site.y })
+  t = step(t, [signer(g, cara)({ tick: t.tick, type: 'walk',
+    dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  assert.deepEqual({ x: at(t, cara).x, y: at(t, cara).y }, { x: site.x, y: site.y },
+    'a bare site is a jetty, not a ford: the beck still bars the way')
+})
+
+test('a citizen who walks there can found, and the spanwork then blocks the tile', () => {
+  const g = genesis()
+  const site = E.TERRAINS[g.worldGenerator].spanSites(g)[0]
+  const near = { x: site.x + site.from.dx, y: site.y + site.from.dy }
+  const alice = E.generateIdentity()
+  const sign = signer(g, alice)
+  let s = onFoot(g, alice, near)
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  s = step(s, [sign({ tick: s.tick, type: 'found', x: site.x, y: site.y })])
+  assert.ok(spanworkId(s), 'the walk and the first plank are one errand')
+  // back to the bank, and the work now bars the tile as the beck did
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: site.from.dx, dy: site.from.dy, steps: 1 })])
+  const back = { x: at(s, alice).x, y: at(s, alice).y }
+  assert.deepEqual(back, near, 'you come off a jetty the way you went on')
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  assert.deepEqual({ x: at(s, alice).x, y: at(s, alice).y }, near,
+    'an unfinished spanwork grants nothing: it blocks its tile as the beck does')
+})
+
+test('a finished span is decking: walked onto AND across, by anybody', () => {
+  const g = genesis(10, 5)
+  const site = E.TERRAINS[g.worldGenerator].spanSites(g)[0]
+  const near = { x: site.x + site.from.dx, y: site.y + site.from.dy }
+  const far = { x: site.x - site.from.dx, y: site.y - site.from.dy }
+  const alice = E.generateIdentity()
+  const sign = signer(g, alice)
+  let s = onFoot(g, alice, near)
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  s = step(s, [sign({ tick: s.tick, type: 'found', x: site.x, y: site.y })])
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: site.from.dx, dy: site.from.dy, steps: 1 })])
+  for (let i = 0; i < 20 && !spanId(s); i++) {
+    const id = spanworkId(s)
+    if (!id) break
+    s = step(s, [sign({ tick: s.tick, type: 'lay', nodeId: id, n: 5 })])
+  }
+  assert.ok(spanId(s), 'the pool fills and the work becomes a span')
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  assert.deepEqual({ x: at(s, alice).x, y: at(s, alice).y }, { x: site.x, y: site.y }, 'onto the deck')
+  s = step(s, [sign({ tick: s.tick, type: 'walk', dx: -site.from.dx, dy: -site.from.dy, steps: 1 })])
+  assert.deepEqual({ x: at(s, alice).x, y: at(s, alice).y }, far,
+    'and across: the two vaults of the Wilds are joined, which is the whole point')
 })
