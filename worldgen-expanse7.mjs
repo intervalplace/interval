@@ -2696,7 +2696,25 @@ export function groundKindAt(g, x, y) {
       default:      return 'trail'
     }
   }
-  if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) return 'sand'
+  // ---- A RIVERBANK IS NOT A BEACH ----
+  //
+  // Every tile touching water got 'sand', which is the seaside: bright, pale,
+  // and two tiles wide either side. The Great River is three tiles across, so
+  // a river corridor came out as more beach than water, and photographed from
+  // above it reads as a sandy track with a trickle down it. Beside a lake, in
+  // the same frame, the lake reads as water and the river does not.
+  //
+  // The sea keeps its sand. A bank that only ever touches a river or a beck
+  // gets shingle, which this generator already knows (Whiting is a shore of
+  // it) and every window already draws. The test is deliberately asymmetric:
+  // if ANY neighbour is open sea the tile is a beach, because 'sand' is what
+  // seats the Wreck and that must not move.
+  if (isWater(g, x + 1, y) || isWater(g, x - 1, y) || isWater(g, x, y + 1) || isWater(g, x, y - 1)) {
+    const sea = inSea(g, x + 1, y) || inSea(g, x - 1, y) || inSea(g, x, y + 1) || inSea(g, x, y - 1)
+    if (sea) return 'sand'
+    const riv = inRiver(g, x + 1, y) || inRiver(g, x - 1, y) || inRiver(g, x, y + 1) || inRiver(g, x, y - 1)
+    return riv ? 'shingle' : 'sand'
+  }
   // §7cu: AN ISLE IS GROUND, AND HAD NONE.
   //
   // This fell through to null on every isle tile, and a window paints null as
