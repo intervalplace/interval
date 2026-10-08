@@ -2080,10 +2080,78 @@ export function inQuietQuarter(g, x, y) {
   return false
 }
 
+// ---- THE DROWNED BELL STANDS IN THE WATER, AND IS REACHED BY PLANKS ----
+//
+// Its own drawing calls it "a chapel tower sunk to its shoulders in the fen",
+// and the seat for it says in as many words that a bell which drowned belongs
+// in the water. Then the search skipped every water tile, because somebody has
+// to STAND on the bell's tile to put a hand on the rope, and a tile in the fen
+// is a tile nobody can reach. So it was seated on dry bank, and what the window
+// drew was an intact chapel tower standing in a meadow with its roof on: the
+// tallest thing on the island, in good repair, with a quest attached to it
+// about a bell nobody can get out.
+//
+// The answer is the one the quays and the causeway already use. A tile in the
+// water can be stood on if the world says it is decking, so the bell gets a
+// short run of planks out from the bank. It is in the fen, it is reachable,
+// and both of those are now true for the same reason.
+//
+// DECLARED, not seated. `seatLandmark` consults `free`, which depends on what
+// has already been placed, so it is not a pure function of the founding and
+// `groundKindAt` could never ask it. This walks out from the same nominal
+// point using nothing but the water, exactly as `causewayTilesOf` does.
+//
+// It must NOT ask `blockedAt`: that asks `fordAt`, which asks this, and the
+// three of them would call each other for ever.
+const _bellMemo = new Map()
+export function bellSeatOf (g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const hit = _bellMemo.get(k)
+  if (hit !== undefined) return hit
+  const nx = Math.round(g.worldW * 0.56), ny = Math.round(g.worldH * 0.86)
+  let seat = null
+  seek: for (let rad = 1; rad < 80 && !seat; rad++) {
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
+      const x = nx + dx, y = ny + dy
+      if (x < 2 || y < 2 || x >= g.worldW - 2 || y >= g.worldH - 2) continue
+      if (!isWater(g, x, y)) continue
+      // it stands OFF the bank, not against it: at least two tiles of water
+      // on the way in, or the planks are a doorstep rather than a walk
+      for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        for (let span = 2; span <= 5; span++) {
+          let wet = true
+          for (let i = 1; i < span; i++) if (!isWater(g, x + ax * i, y + ay * i)) wet = false
+          if (!wet) continue
+          if (isWater(g, x + ax * span, y + ay * span)) continue
+          seat = { x, y, ax, ay, span }
+          break seek
+        }
+      }
+    }
+  }
+  _bellMemo.set(k, seat)
+  return seat
+}
+// the bell's tile and the planks back to the bank, which are decking and are
+// walked on like any other decking
+const _bellWalkMemo = new Map()
+export function bellWalkOf (g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const hit = _bellWalkMemo.get(k)
+  if (hit) return hit
+  const set = new Set()
+  const s = bellSeatOf(g)
+  if (s) for (let i = 0; i < s.span; i++) set.add((s.x + s.ax * i) + ',' + (s.y + s.ay * i))
+  _bellWalkMemo.set(k, set)
+  return set
+}
+
 export function fordAt(g, x, y) {
   if (onBridge(g, x, y)) return true // the bridge deck itself is walkable
   if (causewayTilesOf(g).has(x + ',' + y)) return true
   if (quayTilesOf(g).has(x + ',' + y)) return true // the piers are decking
+  if (bellWalkOf(g).has(x + ',' + y)) return true // the planks out to the bell
   for (const s of settlementsOf(g)) {
     const r = rectOf(s)
     if (x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1 && (x === s.x || y === s.y)) return true
@@ -2574,6 +2642,7 @@ export function groundKindAt(g, x, y) {
   // becks and the quays and the five river crossings, and the causeway is none
   // of those. Boards, for the same reason the jetties are boards.
   if (causewayTilesOf(g).has(x + ',' + y)) return 'bridge'
+  if (bellWalkOf(g).has(x + ',' + y)) return 'bridge'
   // §7bv: a Set lookup, not a scan of thousands of one-tile rects
   if (loneRoomTiles(g).has(x + ',' + y)) return 'floor'
   // §7dq-ii: and a place that named its ground, before the country is asked
@@ -3720,18 +3789,15 @@ export function buildWorld(genesis) {
   // country a thing is in, so this stood on dry fen -- a drowned bell on a
   // meadow, which says nothing at all. Walk out from the seat until the
   // water is within two tiles, and put it there.
-  { let p = seatLandmark(Math.round(W * 0.56), Math.round(H * 0.86), 'fens')
-    const nearWet = (x, y) => { for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
-      if (isWater(g, x + dx, y + dy)) return true; return false }
-    if (!nearWet(p.x, p.y)) {
-      seekBell: for (let rad = 1; rad < 60; rad++)
-        for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue
-          const x = p.x + dx, y = p.y + dy
-          if (isWater(g, x, y) || blockedAt(g, x, y) || !free(x, y)) continue
-          if (nearWet(x, y)) { p = { x, y }; break seekBell }
-        }
-    }
+  { // §7du: IN the fen now, on the planks declared by `bellSeatOf`. The old
+    // search did the opposite of what the line above it says: it skipped every
+    // water tile and settled the bell on dry bank, because a tile in the water
+    // was a tile nobody could stand on to pull the rope. It is decking now, so
+    // it is both. Falls back to the dry seat if the fen has no room for it,
+    // which no founding has yet managed.
+    const bs = bellSeatOf(g)
+    let p = bs ? { x: bs.x, y: bs.y }
+               : seatLandmark(Math.round(W * 0.56), Math.round(H * 0.86), 'fens')
     // §7du: NOT A LANDMARK ANY MORE. It was scenery -- a bell you could read a
     // name off and nothing else -- while its own drawing had said for four
     // versions that the bell is still in there and nobody has worked out how
