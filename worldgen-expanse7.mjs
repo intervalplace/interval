@@ -2203,6 +2203,47 @@ export function keeperName(tag, role) {
   return KEEPER_NAMES[h[0] % KEEPER_NAMES.length]
 }
 
+// AND WHAT THEY DO. Seventy-six of the island's hundred and fifty-seven keepers
+// stood in the towns with a name and no calling: twenty-six names between them,
+// Ulric and Osric and Sim each turning up five times, every one of them saying
+// "Fine day for it." The engine's own note beside KEEPER_KINDS called this out
+// when there were fifty-nine of them, and the residents pass fixed the ones it
+// could reach by hand. The town plans were never reached.
+//
+// Nothing is invented here. `layPlan` already decides the trade from what the
+// keeper stands beside, and three of its four answers are a calling already:
+// beside the strongbox is a banker, beside the counter a merchant, beside the
+// anvil an armourer.
+const CALLING_BESIDE = { clerk: 'banker', shop: 'merchant', smith: 'armour' }
+
+// The fourth answer is "town": somebody who lives here. A single calling for
+// all of them would trade one kind of sameness for another, so the calling is
+// drawn from what this PARTICULAR town is for. A mine town is colliers and
+// quarriers, a port is fishers, a garrison is watchmen. Hashed on the same tag
+// the name is hashed on, so it is stable and every window agrees.
+//
+// Every word below is already in the engine's KEEPER_KINDS. No new vocabulary.
+const TOWNSFOLK = {
+  capital:  ['innkeeper', 'brewer', 'mourner', 'watchman', 'merchant', 'drover', 'miller'],
+  market:   ['drover', 'shepherd', 'miller', 'merchant', 'brewer', 'innkeeper'],
+  crossing: ['miller', 'brewer', 'drover', 'innkeeper', 'watchman', 'toll'],
+  forge:    ['collier', 'quarrier', 'arms', 'armour', 'watchman', 'innkeeper'],
+  farm:     ['shepherd', 'seed', 'beekeeper', 'drover', 'miller', 'brewer'],
+  timber:   ['sawyer', 'lumber', 'collier', 'innkeeper', 'watchman'],
+  mine:     ['quarrier', 'collier', 'delver', 'innkeeper', 'watchman'],
+  port:     ['fisher', 'brewer', 'innkeeper', 'merchant', 'sawyer'],
+  garrison: ['watchman', 'arms', 'armour', 'innkeeper', 'mourner'],
+  village:  ['shepherd', 'brewer', 'beekeeper', 'seed', 'drover', 'innkeeper'],
+}
+
+export function planCalling(trade, tag, townKind) {
+  const beside = CALLING_BESIDE[trade]
+  if (beside) return beside
+  const pool = TOWNSFOLK[townKind] ?? TOWNSFOLK.village
+  const h = E.sha256('calling|' + tag)
+  return pool[h[0] % pool.length]
+}
+
 // THE INN NEEDS ITS WHOLE FOOTPRINT.
 //
 // The old seat checked five tiles and then a seven-by-five room was laid over
@@ -3328,7 +3369,9 @@ export function buildWorld(genesis) {
     // nine of those round a village is nine seam-table entries that were never
     // in the seam table. §7z: A PLACE MAY NOT SEED A TIER.
     const _laid = layPlan(planCtx, s.tag, ALL_PLANS[s.tag], s.x, s.y, 'plan-' + s.tag,
-      { nameKeeper: (k) => keeperName(k, 'plan'), legend: VILLAGE_LEGEND,
+      { nameKeeper: (k) => keeperName(k, 'plan'),
+        keeperCalling: (trade, tag) => planCalling(trade, tag, s.kind),
+        legend: VILLAGE_LEGEND,
         ...(VILLAGE_LANDMARK_KIND[s.tag] ? { landmarkKind: VILLAGE_LANDMARK_KIND[s.tag] } : {}) })
     // §7dh: A VILLAGE MUST BE LAID WHOLE.
     //

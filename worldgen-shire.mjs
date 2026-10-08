@@ -923,6 +923,13 @@ export function checkPlanConnected(name, rows, cx, cy, ctx, legend = LEGEND) {
 export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
   const { g, E, w, taken, key, inB, isWater, reserve, onRoad } = ctx
   const nameKeeper = opts.nameKeeper
+  // A CALLING, NOT ONLY A NAME. The block below already works out what trade a
+  // keeper follows from what they stand beside, and until now it spent that
+  // answer on salting the name hash and threw it away. So the window had a
+  // name and no job, and a banker, a shepherd and somebody's neighbour all
+  // sounded alike. Opt-in, like `legend`: a caller that passes nothing is
+  // bit-for-bit unmoved.
+  const keeperCalling = opts.keeperCalling
   // §0e (v6): THE LEGEND IS A PARAMETER, defaulting to this file's own.
   //
   // The plans here are frozen -- v1 through v5 hash on them -- and so is what
@@ -1000,7 +1007,13 @@ export function layPlan(ctx, name, rows, cx, cy, idPrefix, opts = {}) {
           if (t2 === 'anvil') { trade = 'smith'; break }
           if (t2 === 'hearth') trade = 'town'
         }
-        extra = { name: nameKeeper(name + '|' + trade + '|' + rx + ',' + ry) }
+        const tag = name + '|' + trade + '|' + rx + ',' + ry
+        extra = { name: nameKeeper(tag) }
+        // and what they do, from the same answer the name was salted with
+        if (keeperCalling) {
+          const calling = keeperCalling(trade, tag)
+          if (calling) extra.kind = calling
+        }
       }
       E.addNode(w, idPrefix + '-' + (i++), type, x, y, extra)
       taken.add(key(x, y))
