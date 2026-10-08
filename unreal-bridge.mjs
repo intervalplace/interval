@@ -150,6 +150,10 @@ const getJson = async (p, tries = 6) => {
 }
 
 const boot = {}
+// Set while the bridge is reading a replaced world in. Nothing may be signed
+// against `boot.worldId` in that window, because it is the old world's id
+// until `announceWorld` finishes.
+let rebooting = false
 async function announceWorld () {
   const [g, tables, settlements, roads, world] = await Promise.all([
     getJson('/api/genesis'), getJson('/api/tables'),
@@ -2353,6 +2357,48 @@ function connectPillar () {
   up.on('message', (buf) => {
     let m; try { m = JSON.parse(buf) } catch { return }
     if (m.type === 'state') {
+      // ---- THE WORLD UNDER THE BRIDGE CAN BE REPLACED WHILE IT RUNS ----
+      //
+      // `boot.worldId` is fetched once, at startup, and every deed this bridge
+      // signs is stamped with it. A refound mints a NEW world id, and a bridge
+      // that was running before the refound goes on signing for the world that
+      // no longer exists. The pillar drops those deeds without a word, because
+      // they are addressed to somewhere else.
+      //
+      // Nothing anywhere said so. `act()` reported success, because the send
+      // succeeded, and the comment two hundred lines below this one promises
+      // that is the one failure this bridge exists to make impossible. It was
+      // not: a bridge left running across a refound could knock at the world
+      // for ever. The knock went out, the world never heard it, the birth
+      // state stayed `unknown`, the window knocked again four seconds later
+      // and the citizen could never be born. That is a window that looks like
+      // it is working and is not.
+      //
+      // The snapshot carries the world id, so the bridge can simply ask on
+      // every one of them. `announceWorld` is the whole boot and is safe to
+      // run again: it refetches the genesis, the tables, the settlements and
+      // the roads, and reconfigures the mirror.
+      if (m.worldId && boot.worldId && m.worldId !== boot.worldId && !rebooting) {
+        rebooting = true
+        console.warn('[bridge] the world was replaced under us: booted '
+          + String(boot.worldId).slice(0, 12) + '… but the pillar now serves '
+          + String(m.worldId).slice(0, 12) + '…; rebooting')
+        sendUE({ k: 'refused', of: 'world', why: 'this world was refounded; '
+          + 'the bridge is reading the new one in' })
+        // The practice island was grown from the OLD genesis, so it is dropped
+        // rather than kept: it is a rehearsal of a world that is gone. Not
+        // `endNought`, which says "you are in the world" and would be a lie.
+        if (nought && nought !== 'failed' && nought.timer) HOST.stop(nought.timer)
+        nought = null
+        live = null; held = null; lastTick = -1
+        announceWorld().then(() => {
+          console.log('[bridge] world ' + String(boot.worldId).slice(0, 12) + '… read in')
+          up?.send(JSON.stringify({ type: 'resync' }))
+        }).catch((e) => {
+          console.warn('[bridge] could not read the new world in: ' + (e?.message ?? e))
+        }).finally(() => { rebooting = false })
+        return
+      }
       live = m.state
       minding()
       if (inNought()) return          // the window is on the practice island
@@ -2454,6 +2500,9 @@ function wrongShape (input) {
 
 function act (fields) {
   if (!held) return { ok: false, why: 'no world yet' }
+  // A deed signed now would carry the dead world's id and be dropped in
+  // silence, which is the exact failure the state handler above describes.
+  if (rebooting) return { ok: false, why: 'this world was refounded; reading the new one in' }
   // §0: NOTHING DONE IN NOUGHT REACHES THE WORLD. A resident's deeds go to
   // their own engine and are signed against their own world id, which the
   // country refuses by construction. The two exceptions are the knock and the
