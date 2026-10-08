@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 522 tests across:
+`node --test test/*.test.mjs`, 524 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -100,6 +100,14 @@ possible executions.
 - `identity.test.mjs`, standing and calling (spec 10): proof that both windows
   derive a citizen's identity, and the XP curve beneath it, exactly as the
   engine does, past mastery included.
+- `nokeys.test.mjs`, no tracked file carries a citizen. A citizen is a private
+  key, so a key in a public repository is not a leak that can be tidied up: it
+  is a person given away. `unreal-key.json` sat on the public remote carrying
+  one, with its own note reading "do not commit it", while `.gitignore` had
+  listed it the whole time and made no difference, because an ignore rule does
+  not untrack a file that is already tracked. `.gitignore` says what must not
+  be ADDED; this asks `git ls-files` what is CARRIED, and matches the key value
+  rather than the field name, since the engine says `privateKey` constantly.
 - `expanse.test.mjs`, the expanse world (spec 9a): determinism, the measured
   node/mob envelope, every country present, nothing founded on water, and the
   proof that window-web's integer terrain mirror matches the engine tile for
