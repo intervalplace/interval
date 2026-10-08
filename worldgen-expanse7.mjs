@@ -1869,21 +1869,25 @@ export function roadTilesOf(g) {
   const hit = _roadMemo.get(key)
   if (hit) return hit
   const set = new Set()
+  // ---- A ROAD IS TWO TILES WIDE, EXCEPT WHERE THE SECOND ONE IS SEA ----
+  //
+  // The router will not path through water: `onRoad`'s cost says non-bridge
+  // water is impassable, so every tile it CHOOSES is dry. The widening did not
+  // ask. Along a shore the second tile fell in the tide, and a road tile on
+  // unbridged water is a tile with no ground kind and no footing: thirteen of
+  // them, at five places, each one a step of road hanging over the sea beside
+  // a perfectly good coast road. One tile wide at the water's edge is what a
+  // coast road actually is.
   for (const { path } of routedPathsOf(g))
-    for (const [x, y] of path) { set.add(x + ',' + y); set.add((x + 1) + ',' + y) }
-  // the causeway is still a drawn line: it crosses open sea, where no
-  // router can go, on decking that exists because we say it does.
-  for (const [a, b, tag] of roadSegsOf(g)) {
-    if (tag !== CAUSEWAY_TAG) continue
-    const vx = b.x - a.x, vy = b.y - a.y
-    const L = Math.sqrt(vx * vx + vy * vy)
-    if (L < 1) continue
-    const steps = Math.ceil(L * 2)
-    for (let stp = 0; stp <= steps; stp++) {
-      const t = stp / steps
-      const px = Math.round(a.x + vx * t), py = Math.round(a.y + vy * t)
-      set.add(px + ',' + py); set.add((px + 1) + ',' + py)
+    for (const [x, y] of path) {
+      set.add(x + ',' + y)
+      if (!isWater(g, x + 1, y) || fordAt(g, x + 1, y)) set.add((x + 1) + ',' + y)
     }
+  // the causeway is still a drawn line: it crosses open sea, where no router
+  // can go, on decking that exists because we say it does. It rides the SAME
+  // centreline the decking is laid from, so the road cannot wander off it.
+  for (const [px, py] of causewayLineOf(g)) {
+    set.add(px + ',' + py); set.add((px + 1) + ',' + py)
   }
   _roadMemo.set(key, set)
   return set
@@ -1915,12 +1919,27 @@ export const onRoad = (g, x, y) => roadTilesOf(g).has(x + ',' + y)
 // first draft made them scarce enough to strand Shrine Isle, whose causeway
 // IS a crossing and was being treated as ordinary road over open sea. A
 // scarcity rule has to know its own exceptions.
-const _cwMemo = new Map()
-export function causewayTilesOf(g) {
+// ---- THE CAUSEWAY IS DRAWN ONCE ----
+//
+// It was drawn twice. This one MEANDERS, with a taper into each bank, which is
+// what a causeway heaped through a tide looks like. `roadTilesOf` drew its own
+// STRAIGHT line between the same two points -- and the two agreed only at the
+// ends, where the taper takes the meander to nothing. Everywhere in between
+// the road lay on open sea a tile or two off the decking that was supposed to
+// carry it, so `fordAt` said no, `blockedAt` said blocked, `groundKindAt`
+// returned null, and a window paints a nameless tile as SEA (§7cu).
+//
+// The result was twenty-eight tiles of road to Shrine Isle that could not be
+// seen and could not be walked, with the two ends of it working perfectly.
+// This is the three-copies-of-the-geography fault the mirror exists to stop,
+// in miniature: the centreline is computed HERE, once, and both the decking
+// and the road that rides on it are derived from it.
+const _cwLineMemo = new Map()
+export function causewayLineOf(g) {
   const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
-  const hit = _cwMemo.get(k)
+  const hit = _cwLineMemo.get(k)
   if (hit) return hit
-  const set = new Set()
+  const out = []
   for (const [a, b, tag] of roadSegsOf(g)) {
     if (tag !== CAUSEWAY_TAG) continue
     const vx = b.x - a.x, vy = b.y - a.y
@@ -1932,12 +1951,22 @@ export function causewayTilesOf(g) {
       const t = stp / steps
       const taper = Math.min(1, Math.min(t, 1 - t) * 6)
       const o = meander(g, tag, t * L, 26, 8) * taper
-      const px = Math.round(a.x + vx * t + nx * o)
-      const py = Math.round(a.y + vy * t + ny * o)
-      // the causeway is two tiles wide and forgives a tile either side, so
-      // a walker never falls off a rounding error into the sea
-      for (let ex = -1; ex <= 2; ex++) for (let ey = -1; ey <= 1; ey++) set.add((px + ex) + ',' + (py + ey))
+      out.push([Math.round(a.x + vx * t + nx * o), Math.round(a.y + vy * t + ny * o)])
     }
+  }
+  _cwLineMemo.set(k, out)
+  return out
+}
+const _cwMemo = new Map()
+export function causewayTilesOf(g) {
+  const k = g.genesisSeed + ':' + g.worldW + 'x' + g.worldH
+  const hit = _cwMemo.get(k)
+  if (hit) return hit
+  const set = new Set()
+  for (const [px, py] of causewayLineOf(g)) {
+    // the causeway is two tiles wide and forgives a tile either side, so
+    // a walker never falls off a rounding error into the sea
+    for (let ex = -1; ex <= 2; ex++) for (let ey = -1; ey <= 1; ey++) set.add((px + ex) + ',' + (py + ey))
   }
   _cwMemo.set(k, set)
   return set
@@ -2541,6 +2570,10 @@ export function groundKindAt(g, x, y) {
   // Every window mirrored this from the generator and painted the sea, so the
   // jetties at Eastmere came out as three fishing marks on an empty tide.
   if (onBridge(g, x, y)) return 'bridge'
+  // AND THE CAUSEWAY, which the line above never covered: `onBridge` knows the
+  // becks and the quays and the five river crossings, and the causeway is none
+  // of those. Boards, for the same reason the jetties are boards.
+  if (causewayTilesOf(g).has(x + ',' + y)) return 'bridge'
   // §7bv: a Set lookup, not a scan of thousands of one-tile rects
   if (loneRoomTiles(g).has(x + ',' + y)) return 'floor'
   // §7dq-ii: and a place that named its ground, before the country is asked
