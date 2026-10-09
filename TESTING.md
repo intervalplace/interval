@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 524 tests across:
+`node --test test/*.test.mjs`, 525 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -100,6 +100,13 @@ possible executions.
 - `identity.test.mjs`, standing and calling (spec 10): proof that both windows
   derive a citizen's identity, and the XP curve beneath it, exactly as the
   engine does, past mastery included.
+- `rooms.test.mjs`, every drawn room is a declared room. PLAN_ROOMS answers
+  both "where may a stall stand" and, through `isIndoor`, "is this tile inside
+  a building", and the paving reads the second. A room left off the table is
+  one the world calls outdoors: no floor, no roof, and whatever the drawing put
+  in it standing in a walled box open to the sky. §7bd fixed this once and left
+  slivers behind, so thirty-one rooms across nine towns were still half out in
+  the weather. A fix that has come back once is a test, not a note.
 - `nokeys.test.mjs`, no tracked file carries a citizen. A citizen is a private
   key, so a key in a public repository is not a leak that can be tidied up: it
   is a person given away. `unreal-key.json` sat on the public remote carrying
