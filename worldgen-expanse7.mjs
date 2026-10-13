@@ -2828,7 +2828,20 @@ export function groundKindAt(g, x, y) {
     const sea = inSea(g, x + 1, y) || inSea(g, x - 1, y) || inSea(g, x, y + 1) || inSea(g, x, y - 1)
     if (sea) return 'sand'
     const riv = inRiver(g, x + 1, y) || inRiver(g, x - 1, y) || inRiver(g, x, y + 1) || inRiver(g, x, y - 1)
-    return riv ? 'shingle' : 'sand'
+    // AND STANDING WATER GETS THE COUNTRY IT LIES IN.
+    //
+    // The note above says the sea keeps its sand, and then the fallback handed
+    // sand to everything that was not a river: every mere, tarn, moss pool and
+    // fen channel on the island. Two hundred and thirty-nine tiles of bright
+    // seaside beach inside the FENS, which is peat and reed and standing water
+    // and the last place on the island that should have a beach in it. Found
+    // by photographing the regions, which is the only way it ever would have
+    // been: no table is wrong, the rule simply had one answer too few.
+    //
+    // Null is the country itself, so a pool in a fen has fen to its edge, a
+    // tarn on the moor has peat, and a pond in a meadow has grass. That is
+    // what standing water looks like everywhere except at the sea.
+    return riv ? 'shingle' : null
   }
   // §7cu: AN ISLE IS GROUND, AND HAD NONE.
   //
