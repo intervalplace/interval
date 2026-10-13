@@ -2687,7 +2687,25 @@ export function groundKindAt(g, x, y) {
   // AND THE CAUSEWAY, which the line above never covered: `onBridge` knows the
   // becks and the quays and the five river crossings, and the causeway is none
   // of those. Boards, for the same reason the jetties are boards.
-  if (causewayTilesOf(g).has(x + ',' + y)) return 'bridge'
+  // ...BUT ONLY WHERE THERE IS WATER UNDER IT. The causeway is a ROAD that
+  // happens to cross water on its way, and this called the whole run boards.
+  // Measured on the founding: 203 causeway tiles, 68 over water, 15 abutting
+  // it, and 120 lying on open downs with no water within two tiles. Those
+  // hundred and twenty drew as a raft of decking in the middle of dry grass,
+  // which is what it looks like from the air: "what looks like bridge or
+  // terrace or something randomly placed on grass".
+  //
+  // The abutments are included on purpose. A deck that stops at the exact
+  // waterline has no bank to land on, which is the fault the quays had.
+  //
+  // PASSABILITY IS NOT TOUCHED. `blockedAt` still asks causewayTilesOf for
+  // the whole run, so the causeway still carries a walker over the water. This
+  // is only what the ground is CALLED; where it is dry it falls through to the
+  // country below and takes that country's road surface, which is what a
+  // causeway on dry land is.
+  if (causewayTilesOf(g).has(x + ',' + y)
+    && (isWater(g, x, y) || isWater(g, x - 1, y) || isWater(g, x + 1, y)
+     || isWater(g, x, y - 1) || isWater(g, x, y + 1))) return 'bridge'
   if (bellWalkOf(g).has(x + ',' + y)) return 'bridge'
   // §7bv: a Set lookup, not a scan of thousands of one-tile rects
   if (loneRoomTiles(g).has(x + ',' + y)) return 'floor'

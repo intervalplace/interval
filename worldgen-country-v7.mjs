@@ -195,7 +195,18 @@ export const COUNTRY_SEATS = [
 // land -- the first tile of each is dry ground.
 export const QUAYS = [
   // the north jetty: out of the shingle at 664,362, past the fishing marks
-  { name: 'the North Quay', path: [[664, 362], [665, 361], [665, 360], [665, 359], [666, 358], [667, 357]] },
+  //
+  // AND IT RAN BACK ASHORE. The coast here falls away to the south-east and
+  // this walked north-west, so it crossed two tiles of sea at 665,361 and
+  // 665,360 and then climbed out again: 665,359, 666,358 and 667,357 are all
+  // dry downs. Three tiles of decking laid across a grass headland, which is
+  // the same complaint the causeway drew and from the air looks the same way.
+  //
+  // The note above this list says a jetty that does not touch the shore is a
+  // raft. This is the other end of that: a jetty that does not leave it.
+  // Turned to follow the water out instead, keeping the dry first tile that
+  // makes it reachable, and every tile after it is sea.
+  { name: 'the North Quay', path: [[664, 362], [665, 362], [666, 361], [667, 361], [668, 360], [669, 360]] },
   // and the working quay, off the bank below the town
   { name: 'the Fish Quay', path: [[666, 368], [667, 367], [668, 366], [669, 365], [670, 364], [671, 363]] },
 ]
