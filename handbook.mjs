@@ -1763,8 +1763,7 @@ page('', `
   ${p(`You come back by bringing your file. Ask any node for your way in, which
       is a few hundred bytes it will give to anyone, and then say that you are
       coming home. The way in goes stale as soon as somebody else comes home,
-      so ask for it when you need it rather than keeping it. The file is the
-      part worth keeping.`)}
+      so ask for it when you need it rather than keeping it.`)}
   ${p(`<i>Your file is the part worth keeping.</i>`)}`)
 
 // THE HOMECOMING IS ITS OWN PAGE, for the same reason Eating is. This ran
