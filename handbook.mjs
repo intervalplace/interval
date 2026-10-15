@@ -1357,6 +1357,19 @@ page('', `
       spend on it is an interval you did not swing in, which is the whole of
       what stops anybody eating their way through a duel.`)}`)
 
+// ---- AND A TABLE THAT SPILLS IS SPLIT EVENLY, NOT GREEDILY ----
+//
+// Filling each page to its limit and letting the remainder fall onto the last
+// one is how a chapter ends on a stub. The recipes ran 14, 14, 14, 14 and
+// then THREE, and the gathering ran 11 and then 7 when 9 and 9 would have sat
+// inside the same limit.
+//
+// `per` stays what it is: the most rows that FIT, which is a fact about the
+// page and is measured. This only decides how to spread the rows over the
+// number of pages that many implies, which is a question about how the thing
+// reads. Same page count, same limit, no stub.
+const evenly = (n, per) => (n <= per ? per : Math.ceil(n / Math.ceil(n / per)))
+
 // ---- GATHERING ----
 //
 // The KINDS, never the places. What a rock is, what comes out of it and what
@@ -1366,10 +1379,12 @@ const YIELD = T('NODE_YIELD'), GATE = T('NODE_GATE')
 const ground = Object.entries(YIELD).sort((a, b) =>
   (a[1].skill ?? '').localeCompare(b[1].skill ?? '') ||
   ((GATE[a[0]]?.level ?? 1) - (GATE[b[0]]?.level ?? 1)))
-// Fourteen rows to a page, for the same reason the recipes take fourteen: the
-// illustration sets the height and eighteen ran off the bottom by sixty
-// millimetres. `--check` is what says so.
-const GROUND_PER = 11
+// Eleven rows is what FITS: the illustration sets the height and eighteen ran
+// off the bottom by sixty millimetres. `--check` is what says so. How many
+// actually go on a page is `evenly`, which keeps the same page count and
+// spreads the rows across it: eighteen went 11 and 7 and now go 9 and 9.
+const GROUND_FITS = 11
+const GROUND_PER = evenly(ground.length, GROUND_FITS)
 for (let gi = 0; gi < ground.length; gi += GROUND_PER) {
 const groundPart = ground.slice(gi, gi + GROUND_PER)
 page('', `
@@ -1424,7 +1439,12 @@ const RE = Object.entries(T('RECIPES'))
 // sets the row height here, not the type, so a recipe row is about ten
 // millimetres and fourteen of them is what fits under a heading.
 // `node handbook.mjs --check` is what says so.
-const MADE_PER = 14
+//
+// And fourteen is what FITS, not what goes on a page. Greedy, fifty-nine
+// recipes came out 14, 14, 14, 14 and then THREE, so the chapter ended on a
+// stub. `evenly` keeps the five pages and spreads them 12, 12, 12, 12, 11.
+const MADE_FITS = 14
+const MADE_PER = evenly(RE.length, MADE_FITS)
 for (let i = 0; i < RE.length; i += MADE_PER) {
   const part = RE.slice(i, i + MADE_PER)
   page('', `
@@ -1505,7 +1525,11 @@ const DUMMIES = Object.entries(T('MOB_STATS')).filter(([, st]) => st && st.dummy
 // a reader meets twenty-two names and no faces. Two pages of DIFFERENT
 // creatures is not the redundancy that was just taken out of this chapter --
 // that was the same seven names appearing twice.
-const MOBS_PER = 8
+// Eight is what fits, and `evenly` decides how many actually go on a page.
+// Fifteen creatures come out 8 and 7 either way; it is here so that adding a
+// creature cannot silently leave a page with one on it.
+const MOBS_FITS = 8
+const MOBS_PER = evenly(MOBS.length, MOBS_FITS)
 for (let i = 0; i < MOBS.length; i += MOBS_PER) {
   const part = MOBS.slice(i, i + MOBS_PER)
   page('', `
