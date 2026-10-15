@@ -166,6 +166,15 @@ img.big { width: 36mm; height: 36mm; object-fit: contain;
   margin: 5mm 0 2mm; }
 .pack i { display: block; height: 11mm; border: .7pt solid rgba(138,106,34,.55);
   background: rgba(176,150,102,.10); border-radius: .8mm; }
+/* THE SAME BOX THE PACK GETS, and the same size: a worn slot holds one item
+   exactly as a pack slot does. Stretched across the column it read as a
+   banner to write a sentence on. 18mm is what a pack slot comes out at --
+   118.5mm of column less five 2mm gaps, over six. */
+.worn { display: grid; grid-template-columns: 26mm 18mm; gap: 2mm;
+  justify-content: start; align-items: center; margin: 5mm 0 2mm; }
+.worn b { font-weight: 600; }
+.worn i { display: block; height: 11mm; border: .7pt solid rgba(138,106,34,.55);
+  background: rgba(176,150,102,.10); border-radius: .8mm; }
 
 .fill { margin-bottom: 7mm; }
 .fill .lbl { display: block; font-size: 8.5pt; letter-spacing: 1pt;
@@ -766,13 +775,6 @@ img.big { width: 36mm; height: 36mm; object-fit: contain;
   <p>It cannot be done alone and it cannot be ground out: it needs another
       citizen to reach 50 and swear, and they have to agree
       to be taken on in the first place.</p>
-  <table class="tight rites">
-    <tr><td class="k">newcomer</td><td>Unsworn, and nobody has taken them on.</td></tr>
-    <tr><td class="k">apprentice</td><td>Unsworn, but a master has taken them on.</td></tr>
-    <tr><td class="k">journeyman</td><td>Sworn to a trade.</td></tr>
-    <tr><td class="k">master</td><td>At 100, and has raised somebody.</td></tr>
-  </table>
-  <div class="orn"><span></span><b>&#9670;</b><span></span></div>
   <p>A master holds
       <b>3</b> places at most, and
       an apprentice who swears frees their own place. One who simply stops
@@ -1003,14 +1005,17 @@ img.big { width: 36mm; height: 36mm; object-fit: contain;
   <div class="half "><div class="body">
   <h2>Carrying</h2>
   <p>Your pack holds <b>12</b> items. Crafting only uses
-      what is in your pack, never what is in the bank, so you have to decide
+      what is in your pack, never what is in a vault, so you have to decide
       what to take before you leave town.</p>
   <div class="pack"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <div class="orn"><span></span><b>&#9670;</b><span></span></div>
   <h2>Worn</h2>
-  <table class="tight">
-    <tr><td class="k">Weapon</td><td></td></tr><tr><td class="k">Head</td><td></td></tr><tr><td class="k">Body</td><td></td></tr><tr><td class="k">Offhand</td><td></td></tr><tr><td class="k">Legs</td><td></td></tr>
-  </table></div><div class="num">15</div></div>
+  <!-- A SLOT IS DRAWN AS A SLOT, both times. The pack above is twelve empty
+       boxes to write into and the worn slots were five bare words with an
+       empty table cell beside them, so one page said the same thing two
+       ways: half of it looked like something to fill in and half of it
+       looked like a list that had lost its right-hand column. -->
+  <div class="worn"><b>Weapon</b><i></i><b>Head</b><i></i><b>Body</b><i></i><b>Offhand</b><i></i><b>Legs</b><i></i></div></div><div class="num">15</div></div>
 </div>
 <div class="sheet">
   <div class="half "><div class="body">
@@ -1030,7 +1035,7 @@ img.big { width: 36mm; height: 36mm; object-fit: contain;
   <p>It pays in wayfaring, not in coin, and it pays by the tile and by how
       much of the load you are carrying. A long road with a full pack is the
       whole of the wage.</p>
-  <p><i>The consignment is not your pack. It is a second container the bank
+  <p><i>The consignment is not your pack. It is a second container a vault
       cannot reach and you cannot eat out of.</i></p></div><div class="num">16</div></div>
   <div class="half "><div class="body">
   <h2>Gathering (continued)</h2>

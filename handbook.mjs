@@ -527,8 +527,15 @@ page('', `
 // their own swearing. That is the single largest thing a person can do in this
 // world and a reader could finish the book without learning it existed.
 //
-// It also explains the four words a reader will hear other people use about
-// each other, which were nowhere in the book either.
+// IT DOES NOT ALSO LIST THE FOUR WORDS. It did, in a table identical to the
+// one on "What you are called" two pages earlier, down to the wording of all
+// four rows: a reader met newcomer, apprentice, journeyman and master, turned
+// two pages and met them again. That is the same fault taken out of the
+// bestiary, where seven creatures had a page of their own AND a row in the
+// general table.
+//
+// The words belong where a reader is being told what they are called. This
+// page is about raising somebody, so it is left to say that and nothing else.
 page('', `
   ${h('Teaching')}
   ${pd(`Reaching ${NUM('MASTERY')} in your own craft does not make you a
@@ -537,13 +544,6 @@ page('', `
   ${p(`It cannot be done alone and it cannot be ground out: it needs another
       citizen to reach ${NUM('SWEAR_LEVEL')} and swear, and they have to agree
       to be taken on in the first place.`)}
-  <table class="tight rites">
-    <tr><td class="k">newcomer</td><td>Unsworn, and nobody has taken them on.</td></tr>
-    <tr><td class="k">apprentice</td><td>Unsworn, but a master has taken them on.</td></tr>
-    <tr><td class="k">journeyman</td><td>Sworn to a trade.</td></tr>
-    <tr><td class="k">master</td><td>At ${NUM('MASTERY')}, and has raised somebody.</td></tr>
-  </table>
-  ${orn}
   ${p(`A master holds
       <b>${T('APPRENTICE_MILESTONES', []).length || 3}</b> places at most, and
       an apprentice who swears frees their own place. One who simply stops
@@ -628,15 +628,18 @@ page('', `
 page('', `
   ${h('Carrying')}
   ${p(`Your pack holds <b>${NUM('INV_SLOTS')}</b> items. Crafting only uses
-      what is in your pack, never what is in the bank, so you have to decide
+      what is in your pack, never what is in a vault, so you have to decide
       what to take before you leave town.`)}
   <div class="pack">${Array.from({ length: NUM('INV_SLOTS') }, () => '<i></i>').join('')}</div>
   ${orn}
   ${h('Worn')}
-  <table class="tight">
-    ${(T('EQUIP_SLOTS').length ? T('EQUIP_SLOTS') : keys('EQUIP_SLOTS'))
-      .map((s) => `<tr><td class="k">${esc(title(s))}</td><td></td></tr>`).join('')}
-  </table>`)
+  <!-- A SLOT IS DRAWN AS A SLOT, both times. The pack above is twelve empty
+       boxes to write into and the worn slots were five bare words with an
+       empty table cell beside them, so one page said the same thing two
+       ways: half of it looked like something to fill in and half of it
+       looked like a list that had lost its right-hand column. -->
+  <div class="worn">${(T('EQUIP_SLOTS').length ? T('EQUIP_SLOTS') : keys('EQUIP_SLOTS'))
+    .map((s) => `<b>${esc(title(s))}</b><i></i>`).join('')}</div>`)
 
 // ---- WHERE THINGS ARE KEPT, AND WHAT THE STORE IS FOR ----
 //
@@ -667,7 +670,7 @@ page('', `
   ${p(`It pays in wayfaring, not in coin, and it pays by the tile and by how
       much of the load you are carrying. A long road with a full pack is the
       whole of the wage.`)}
-  ${p(`<i>The consignment is not your pack. It is a second container the bank
+  ${p(`<i>The consignment is not your pack. It is a second container a vault
       cannot reach and you cannot eat out of.</i>`)}`)
 
 // ---- AND THE STALL GETS THE PAGE IT NEEDS ----
@@ -1738,6 +1741,15 @@ img.big { width: 36mm; height: 36mm; object-fit: contain;
 .pack { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2mm;
   margin: 5mm 0 2mm; }
 .pack i { display: block; height: 11mm; border: .7pt solid rgba(138,106,34,.55);
+  background: rgba(176,150,102,.10); border-radius: .8mm; }
+/* THE SAME BOX THE PACK GETS, and the same size: a worn slot holds one item
+   exactly as a pack slot does. Stretched across the column it read as a
+   banner to write a sentence on. 18mm is what a pack slot comes out at --
+   118.5mm of column less five 2mm gaps, over six. */
+.worn { display: grid; grid-template-columns: 26mm 18mm; gap: 2mm;
+  justify-content: start; align-items: center; margin: 5mm 0 2mm; }
+.worn b { font-weight: 600; }
+.worn i { display: block; height: 11mm; border: .7pt solid rgba(138,106,34,.55);
   background: rgba(176,150,102,.10); border-radius: .8mm; }
 
 .fill { margin-bottom: 7mm; }
