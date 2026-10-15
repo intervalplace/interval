@@ -41,7 +41,6 @@
 import E from './engine.js'
 import * as WG from './worldgen-expanse7.mjs'
 import * as TM from './terrain-mirror.mjs'
-import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -51,7 +50,23 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // not be weighed from a folder called "Unreal Projects".
 const HERE = fileURLToPath(new URL('.', import.meta.url))
 const ART = HERE + '../interval/Art/Icons/'
-const WORLD = createHash('sha256').update(readFileSync(HERE + 'engine.js')).digest('hex')
+// ---- THE NAME ON THE COVER IS THE WORLD'S NAME, NOT THIS FILE'S CHECKSUM ----
+//
+// This was `sha256` of engine.js's RAW BYTES, and that is not what the world
+// calls itself. The engine normalises its source before hashing -- comments
+// stripped, every run of whitespace collapsed -- and `engineHashOf` is the
+// number that goes in the genesis and that every node agrees on.
+//
+// So the cover read 5f5c9fa33396 while the world the book describes is
+// 636f904be2295385, and the two would never be reconciled by anybody holding
+// both. Worse for a printed thing: editing a COMMENT in engine.js changed the
+// name on the cover and did not change the world at all, so two copies of one
+// world could carry two names.
+//
+// The whole premise at the top of this file is that a copy of this book
+// records a world that cannot move under it. It has to be the world's own
+// number or it records nothing.
+const WORLD = E.engineHashOf(readFileSync(HERE + 'engine.js', 'utf8'))
 
 // ---------------------------------------------------------------------------
 // THE WORLD'S OWN WORDS, ASKED FOR RATHER THAN REMEMBERED
