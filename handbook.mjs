@@ -274,14 +274,31 @@ const coast = () => {
       if (WG.inSea(g, x, y)) { x++; continue }
       const from = x
       while (x < WORLD_W && !WG.inSea(g, x, y)) x++
-      // A HAIR OVER ONE TALL, so the rows overlap. At exactly one the
-      // renderer antialiases each row's edge against the next and the island
-      // comes out striped like corrugated iron.
-      out.push(`<rect x="${from}" y="${y}" width="${x - from}" height="1.04"/>`)
+      // ONE SUBPATH PER RUN OF LAND, all in a single path. See below.
+      out.push(`M${from} ${y}h${x - from}v1h${from - x}z`)
     }
   }
+  // ---- ONE PATH, NOT FIVE HUNDRED RECTANGLES ----
+  //
+  // The island used to be a <rect> per run and it came out STRIPED, like
+  // corrugated iron, on the cover of a printed book. The cause is not the
+  // geometry: every separate SVG element is rasterised and composited on its
+  // own, so two rectangles that share an edge each cover their own half of
+  // the boundary pixel and the two halves do not add back up to one. A seam
+  // is left on every row, 512 of them.
+  //
+  // It was first patched by making each row 1.04 tall so the rows overlap.
+  // That hides it at the size the thing was looked at and no further: on the
+  // cover the whole island is about 250px, each row is half a pixel, and the
+  // stripes came back. A fix that depends on the size it is viewed at is not
+  // a fix.
+  //
+  // Subpaths of ONE path are different: the renderer works out coverage for
+  // the union and fills it once, so there is no interior edge to antialias
+  // against. The rows can be exactly one tall again, which is also the true
+  // coast rather than a coast 4% too fat.
   return `<svg class="coast" viewBox="0 0 ${WORLD_W} ${WORLD_H}"
-     xmlns="http://www.w3.org/2000/svg"><g fill="#2e2418">${out.join('')}</g></svg>`
+     xmlns="http://www.w3.org/2000/svg"><path fill="#2e2418" d="${out.join('')}"/></svg>`
 }
 
 // ---------------------------------------------------------------------------
@@ -1670,15 +1687,33 @@ td { padding: 1.2mm 0; vertical-align: middle; }
 /* ON PAPER A SPRITE NEEDS WEIGHT. These were drawn to sit in a dark inventory
    slot at thirty-two pixels; on cream at seven millimetres they washed out to
    nothing. Contrast, a little more colour, and a shadow under them so they sit
-   ON the page rather than float above it. */
+   ON the page rather than float above it.
+
+   AND AN EDGE, BECAUSE A CONTACT SHADOW IS NOT ONE. The shadow is offset, so
+   it falls on two sides and leaves the other two touching bare paper. Nothing
+   dark minds. The pale half of the pack does: measured against #f4ecda, the
+   hollow bow differs from the paper by 48 of a possible 765 and only 4% of it
+   differs by enough to see at all, and the bone pile, the wool, the skull
+   pile, the bones, the chart, the flour and both salt fish are not far
+   behind. Printed, they were a white object on cream and a reader could not
+   tell there was a picture there.
+
+   Contrast does not reach them either: it pushes midtones apart about grey
+   and a near-white object only goes whiter. What separates white from cream
+   is a CONTOUR, so there are two tight shadows at no offset, which trace the
+   alpha all the way round. The dark items are unchanged by them. */
 img.ico, span.ico { width: 7.6mm; height: 7.6mm; display: inline-block;
   object-fit: contain; vertical-align: middle;
   filter: contrast(1.18) saturate(1.05) brightness(.94)
-          drop-shadow(.25mm .35mm .3mm rgba(70,52,28,.45)); }
+          drop-shadow(0 0 .16mm rgba(72,54,30,.75))
+          drop-shadow(0 0 .32mm rgba(72,54,30,.35))
+          drop-shadow(.25mm .35mm .3mm rgba(70,52,28,.40)); }
 .crafts img.ico { width: 10mm; height: 10mm; }
 img.big { width: 36mm; height: 36mm; object-fit: contain;
   filter: contrast(1.14) saturate(1.02)
-          drop-shadow(.4mm .5mm .5mm rgba(70,52,28,.4)); }
+          drop-shadow(0 0 .22mm rgba(72,54,30,.70))
+          drop-shadow(0 0 .5mm rgba(72,54,30,.30))
+          drop-shadow(.4mm .5mm .5mm rgba(70,52,28,.36)); }
 .plateart { text-align: center; margin-top: 7mm; }
 
 /* The vocabulary: a picture, a name and a price, two to a row. */
