@@ -1405,28 +1405,81 @@ page('', `
 
 // ---- THE KEEPERS ----
 //
-// Twenty-three kinds of them, and the world names each one itself in
-// `CALLING_NAMES`: the axe man, the delver, the bridge-keeper. Nothing in the
-// book said they existed, which left a reader with no idea who in a town will
-// take a thing off them or sell them one.
+// SEVEN OF THEM SELL. THE OTHER SIXTEEN ARE PEOPLE.
+//
+// This was one table of twenty-three rows under the sentence "Every town has
+// some. Each one sells one thing only", and that sentence was true of seven
+// of them. `CALLING_NAMES` holds two different things under one roof: the
+// stall kinds, which are `STALL_SELLS`, and the callings a townsperson can
+// simply BE -- a shepherd, a miller, a watchman, a mourner. A shepherd sells
+// nothing. The page said they all did.
+//
+// It also printed THE DELVER TWICE, because `delve` and `delver` are two keys
+// with one display name: the stall and the calling. The second table leaves
+// out any name the first has already given, so the book says each one once.
+//
+// AND SAYING IT WRONG COST THE WORLD ITS SHAPE. Seven stalls on the whole
+// island, one of each kind, is the design and it is load-bearing: thin
+// provision is what makes the anvil and the market town places where people
+// meet. A reader told that twenty-three kinds of keeper all sell one thing
+// each comes away believing every town is a row of shops, which is the exact
+// opposite of the world they are about to walk into.
 //
 // WHAT they deal in is a rule; WHERE any of them stands is not, and is not
 // here.
-const KEEPERS = Object.entries(T('CALLING_NAMES'))
-if (!KEEPERS.length) throw new Error('this world has no keepers; the book names a thing that is gone')
-for (let i = 0; i < KEEPERS.length; i += 16) {
-  const part = KEEPERS.slice(i, i + 16)
+const SELLS = T('STALL_SELLS')
+const NAMES = T('CALLING_NAMES')
+if (!Object.keys(NAMES).length) throw new Error('this world has no keepers; the book names a thing that is gone')
+if (!Object.keys(SELLS).length) throw new Error('no stall in this world sells anything; the book names a trade that is gone')
+const nameOf = (k) => {
+  const n = NAMES[k]
+  if (!n) throw new Error(`the world has a stall kind it does not name: ${k}`)
+  return n
+}
+const STALLS = Object.entries(SELLS)
+page('', `
+  ${h(`The ${word(STALLS.length)} who sell`)}
+  ${pd(`A stall is an institution rather than a shop: there is one of each
+      kind on the island, not one in each town. None of them buys anything
+      either. There is nobody in this world who will take an item off you for
+      coin.`)}
+  <table class="tight keepers">
+    ${STALLS.map(([kind, what]) => {
+      const list = what instanceof Set ? [...what] : (Array.isArray(what) ? what : Object.keys(what ?? {}))
+      return `<tr>
+        <td class="em">${pic(list[0])}</td>
+        <td class="k">${esc(say(nameOf(kind)))}</td>
+        <td>${list.map((i) => esc(say(i))).join(', ')}</td></tr>`
+    }).join('')}
+  </table>
+  ${orn}
+  ${p(`<i>Everything on this page is the first rung of its line. A stall is
+      where a trade begins, and nothing past the beginning is for sale
+      anywhere: the rest of it is made, or it changes hands between
+      people.</i>`)}`)
+
+// ---- AND THE CALLINGS, WHICH SELL NOTHING ----
+//
+// Texture rather than trade. Giving the people in a town something to BE
+// costs the world nothing and disperses nobody; giving every town somewhere
+// to BUY would cost it a meeting place.
+const SOLD = new Set(STALLS.map(([k]) => nameOf(k)))
+const CALLINGS = Object.entries(NAMES)
+  .filter(([k, n]) => !SELLS[k] && !SOLD.has(n))
+  .map(([, n]) => n)
+const CALL_FITS = 16
+const CALL_PER = evenly(CALLINGS.length, CALL_FITS)
+for (let i = 0; i < CALLINGS.length; i += CALL_PER) {
+  const part = CALLINGS.slice(i, i + CALL_PER)
   page('', `
-    ${h(i ? 'The keepers (continued)' : 'The keepers')}
-    ${i ? '' : p(`Every town has some. Each one sells one thing only, and none
-        of them buys anything: there is nobody in this world who will take an
-        item off you for coin.`)}
+    ${h(i ? 'The callings (continued)' : 'The callings')}
+    ${i ? '' : p(`The rest of what a townsperson can be. None of these keeps a
+        stall and none of them sells anything: they are what somebody in a
+        town IS, and knowing the word is how you know who to ask.`)}
     <table class="tight keepers">
-      ${part.map(([kind, name]) => `<tr>
-        <td class="k">${esc(say(name))}</td>
-        <td>${esc(say(kind))}</td></tr>`).join('')}
+      ${part.map((n) => `<tr><td class="k">${esc(say(n))}</td></tr>`).join('')}
     </table>
-    ${i + 16 >= KEEPERS.length
+    ${i + CALL_PER >= CALLINGS.length
       ? `${orn}${p('<i>Which town has which, and where they stand in it, this book does not say.</i>')}`
       : ''}`)
 }
