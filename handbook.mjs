@@ -651,10 +651,18 @@ page('', `
       much of the load you are carrying. A long road with a full pack is the
       whole of the wage.`)}
   ${p(`<i>The consignment is not your pack. It is a second container the bank
-      cannot reach and you cannot eat out of.</i>`)}
-  ${orn}
+      cannot reach and you cannot eat out of.</i>`)}`)
+
+// ---- AND THE STALL GETS THE PAGE IT NEEDS ----
+//
+// Keeping, hauling and raising a stall were one page and it ran 132px past its
+// box, which clips in silence: a reader lost the stall's price and the fact
+// that an untended one falls down. The three are not one subject anyway. Where
+// your things live and what a store is for belong together; owning a counter
+// of your own is a thing you decide to do.
+page('', `
   ${h('Your own stall')}
-  ${p(`A keeper's counter is not the only place goods change hands. You may
+  ${pd(`A keeper's counter is not the only place goods change hands. You may
       raise a stall of your own: <b>${CONST('MARKET_PLANKS')}</b> planks and
       <b>${CONST('MARKET_ORE')}</b> iron ore, and
       <b>${CONST('MARKET_RAISE')}</b> intervals of standing still while you
@@ -1142,8 +1150,14 @@ page('', `
   ${p(`Each kind is meant to pay that cost back in its own coin. A flurry pays
       in blows, a whole in size, a now in timing, a far in distance.`)}
   ${p(`Master your own craft and the arm comes back a quarter sooner, which is
-      what prowess gives instead of hitting harder.`)}
-  ${orn}
+      what prowess gives instead of hitting harder.`)}`)
+
+// EATING IS ITS OWN PAGE. It used to finish the gambits page, which ran 309px
+// past the frame -- and the frame CLIPS, so a reader lost the last paragraph
+// of the gambits and the whole of this. Found by `node handbook.mjs --check`,
+// which measures every page against its box and is the only reason anybody
+// would ever know: an overflowing page looks finished, it just stops.
+page('', `
   ${h('Eating')}
   ${p(`Food is a <b>rate</b>, not a burst. A meal does not jump your health up
       the moment you swallow it: it mends you steadily over the intervals that
@@ -1260,6 +1274,30 @@ for (let i = 0; i < RE.length; i += MADE_PER) {
 //
 // So they come out of the general table and their own page carries their
 // numbers. Nothing is lost and nothing is said twice.
+// A CREATURE'S OWN NUMBER, AND IT STOPS THE PRESS LIKE EVERY OTHER NUMBER.
+//
+// Both tables below read `st.maxHp` for years and MOB_STATS has never had a
+// `maxHp`: the key is `maxHealth`. So every creature in the book printed the
+// literal word "undefined" in its health column, on the creature pages and on
+// the page of the ones with a rule of their own, and the sort that breaks a
+// tie on health was comparing 0 with 0.
+//
+// It survived a page-by-page read because "undefined" is a word of about the
+// width a two-digit number wants and sits in a column of its own. It was found
+// by printing the table and looking at it, which is the only instrument that
+// was ever going to find it.
+//
+// NUM and CONST already refuse to invent a number the world does not have.
+// This is the same refusal for a field of a creature, so the next renamed key
+// fails the build instead of printing itself.
+const ST = (st, key, who) => {
+  const v = st[key]
+  if (typeof v !== 'number') {
+    throw new Error(`${who} has no ${key}: the handbook must not invent one`)
+  }
+  return v
+}
+
 const OWN_RULE = ['quencher', 'barrow-wight', 'great-spider', 'dragon',
                   'gibbet-dead', 'gibbet-king', 'siren']
 const MOBS = Object.entries(T('MOB_STATS'))
@@ -1268,8 +1306,8 @@ const MOBS = Object.entries(T('MOB_STATS'))
   // BY WHAT IT DOES TO YOU, hardest blow first, so the page reads as a ladder
   // and the thing at the top is the thing to be afraid of. Sorted by name it
   // put the dragon between the crow and the fen adder.
-  .sort((a, b) => (b[1].maxHit ?? 0) - (a[1].maxHit ?? 0)
-                  || (b[1].maxHp ?? 0) - (a[1].maxHp ?? 0))
+  .sort((a, b) => ST(b[1], 'maxHit', b[0]) - ST(a[1], 'maxHit', a[0])
+                  || ST(b[1], 'maxHealth', b[0]) - ST(a[1], 'maxHealth', a[0]))
 const DUMMIES = Object.entries(T('MOB_STATS')).filter(([, st]) => st && st.dummy === true)
 // EIGHT, NOT FIFTEEN. Fifteen fitted on one page while the creatures were a
 // name and three numbers. With a picture beside each one the rows are half
@@ -1292,8 +1330,8 @@ for (let i = 0; i < MOBS.length; i += MOBS_PER) {
       ${part.map(([m, st]) => `<tr>
         <td class="em">${pic(m)}</td>
         <td class="k">${esc(say(m))}</td>
-        <td class="lv">${st.maxHp}</td>
-        <td class="lv">${st.maxHit}</td>
+        <td class="lv">${ST(st, 'maxHealth', m)}</td>
+        <td class="lv">${ST(st, 'maxHit', m)}</td>
         <td class="lv">${st.harmless === true || !st.aggro ? 'no' : 'yes'}</td></tr>`).join('')}
     </table>
     ${i + MOBS_PER >= MOBS.length
@@ -1336,8 +1374,8 @@ page('', `
       return `<tr>
         <td class="em">${pic(m)}</td>
         <td class="k">${esc(say(m))}</td>
-        <td class="lv">${st.maxHp}</td>
-        <td class="lv">${st.maxHit}</td>
+        <td class="lv">${ST(st, 'maxHealth', m)}</td>
+        <td class="lv">${ST(st, 'maxHit', m)}</td>
         <td>${why}</td></tr>`
     }).join('')}
   </table>${DUMMIES.length ? p(`<i>There are also ${DUMMIES.length} practice
@@ -1462,6 +1500,14 @@ page('', `
       coming home. The way in goes stale as soon as somebody else comes home,
       so ask for it when you need it rather than keeping it. The file is the
       part worth keeping.`)}
+  ${p(`<i>Your file is the part worth keeping.</i>`)}`)
+
+// THE HOMECOMING IS ITS OWN PAGE, for the same reason Eating is. This ran
+// 303px past the frame, and the frame clips: a reader lost the window's part
+// in all of it and the whole of what a homecoming brings, which is the one
+// passage in the book somebody would actually need under their hand.
+page('', `
+  ${h('Coming home')}
   ${p(`You do not have to do any of that by hand. When nothing answers for your
       world, the window asks every node it has ever spoken to where the world
       went, checks the answer against the founding your own file carries, and
@@ -1533,6 +1579,14 @@ body { font: 10.5pt/1.52 "Iowan Old Style", Palatino, "Palatino Linotype", Georg
    measurement rather than an opinion. 210mm of page less 17mm of padding top
    and bottom, less a little room above the folio. */
 .body { height: 172mm; overflow: hidden; }
+/* NO PHANTOM SPACE AT THE FOOT OF A PAGE. A paragraph's bottom margin is
+   meant to separate it from what follows, and at the end of a page nothing
+   follows. Left in, it counts toward the page's height: the bestiary's last
+   page was reported as running 10px past its box while every word on it sat
+   4px INSIDE the frame, which sent somebody looking for a line to cut that
+   did not need cutting. Taking it off makes --check measure what a reader
+   can actually lose. */
+.body > *:last-child { margin-bottom: 0; }
 
 h1 { font-size: 33pt; letter-spacing: 6pt; text-align: center; font-weight: 400;
   margin-top: 4mm; color: #2a2015; }
