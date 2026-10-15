@@ -5124,6 +5124,29 @@ const ITEMS = new Set([
                  // which is exactly what crab-shell is: this world does not
                  // need every drop to be an input to something.
   'sigil-bow',
+  // §6bf: THE SAPLING AND THE HOLLOW BOW, WHICH THE WORLD MINTED AND COULD
+  // NOT HOLD. The same fault as the `rod` above, found the same way and twice
+  // over.
+  //
+  // Felling a GROWN grove reverts the plot and hands back a sapling, and the
+  // note there says why: "felling produces the means to replant, so a bald
+  // ring is a thing people chose rather than a thing that merely happened."
+  // The sapling is priced at 40, planting consumes one, and it was not in
+  // this set -- so `carriedFrom` dropped it out of the inventory at a
+  // crossing and `offer` refused it. The loop the comment describes closed
+  // only for a citizen who never crossed.
+  //
+  // The hollow bow is a weapon with wield reqs, combat stats, a price of 45
+  // and a place in two drop tables, and it was not here either: a citizen who
+  // had one equipped lost it to the `weapon:` line of the same function,
+  // which reads `ITEMS.has(...) ? ... : null`.
+  //
+  // Both were found from the HANDBOOK, which builds its vocabulary out of
+  // PRICES, RECIPES, EQUIPPABLE and STACKABLE and so is a wider net than this
+  // set: it printed a sapling with no picture beside it, because the icon
+  // pipeline takes its list from ITEMS and had never heard of one.
+  // `test/items.test.mjs` is that comparison, run every time.
+  'sapling', 'hollow-bow',
   ...Object.keys(RECIPES),
 ]);
 const EQUIP_SLOT = { 'iron-helm': 'head', 'iron-plate': 'body', 'quick-helm': 'head', 'quick-plate': 'body', 'king-shroud': 'body',

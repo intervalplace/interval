@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 525 tests across:
+`node --test test/*.test.mjs`, 530 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -143,6 +143,12 @@ possible executions.
 - `vault.test.mjs` (§6g), that vaults are local and stay local
 - `incursion.test.mjs` (§6ao), one body wearing faces, no face stronger than
   another, and never seated in a town
+- `items.test.mjs` (§6bf), that everything the world prices, equips, stacks,
+  makes or hands to a citizen is in ITEMS. A word that is not is an item the
+  world can mint and cannot keep: `carriedFrom` strips it out of the pack at a
+  crossing and nulls it out of the weapon hand. It had happened three times --
+  `rod`, `sapling`, `hollow-bow` -- and the last two were found by the
+  handbook printing a sapling with no picture beside it
 - `food.test.mjs` (§6m-vii), food as a rate, measured as a simulated exchange
 - `constants.test.mjs`, the fault where a table changed and its readers did not
 - `archive.test.mjs` (spec 5g), the merkle archive driven adversarially
