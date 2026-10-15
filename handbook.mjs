@@ -1098,8 +1098,9 @@ page('', `
   ${p(`The world pauses over you for ${CONST('DEATH_TICKS')} intervals and
       then gives you back whole${RETURN_TO ? `, at ${RETURN_TO}` : ''},
       wherever on the island you fell. Nothing is taken from your crafts:
-      levels do not fall here, and there is no penalty beyond the loss of
-      what you had on you.`)}
+      levels do not fall here, and no trade, name or standing is touched.`)}
+  ${p(`It does leave a <b>wound</b>, which is permanent and does not heal with
+      rest. One thing in the world clears them. See what dying costs.`)}
   ${p(`Which is also the long way home. Dying in the Wilds costs you what you
       were carrying and the walk back out.`)}
 `)
@@ -1703,9 +1704,9 @@ page('', `
 
 page('', `
   ${h('Things nobody sells')}
-  ${pd(`A keeper will buy most of what this world makes, and what follows has
-      no price because no keeper will take it. Some of it cannot be carried at
-      all. None of it can be worked out by trying.`)}
+  ${pd(`A price is what a stall ASKS for a thing. Nothing here has one: no
+      stall sells it, some of it cannot be carried at all, and none of it can
+      be worked out by trying.`)}
   <table class="tight ruled">
     ${[['torch', `Burns for ${CONST('TORCH_TICKS')} intervals from the moment it is
          lit, and burns them whether it is in your hand or in your pack. The
