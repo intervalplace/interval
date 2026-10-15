@@ -558,12 +558,30 @@ page('', `
 
 // ---- THE THINGS THERE IS ONLY ONE OF ----
 //
-// THREE FAMILIES THAT ARE NOT WORDS. Every other object in this book is
+// TWO FAMILIES THAT ARE NOT WORDS. Every other object in this book is
 // interchangeable: one log is any log, and the vocabulary pages list them all.
-// These three are not in that vocabulary at all, because each one carries the
+// These two are not in that vocabulary at all, because each one carries the
 // citizen it was made for and the interval it was made on, so there is no such
 // thing as "a hood" -- there are as many markets as there are hoods, each with
 // one thing in it.
+//
+// ---- AND THE THIRD WAS REPEALED ----
+//
+// This page listed an ATTUNED CHART, "an ordinary chart bound to one
+// waystone". §6ch took the waystones out of the world and the note over
+// NODE_TYPES says what went with them: "Gone with them: `recall`, attunement,
+// and the waystone rumour. What STAYS is the chart, as a GOOD rather than a
+// key." `CHART_PREFIX` is declared in engine.js and used nowhere, nothing
+// mints one, and `read_chart` answers false because "a chart opens nothing;
+// it is sold, not spent."
+//
+// It never fitted the sentence above it either. A fall stone is
+// `fallstone:<citizen>:<tick>` and a hood is the same shape; an attuned chart
+// was `chart:<nodeid>`, which carries neither whose it was nor when. The page
+// said all three carry both.
+//
+// A chart is still in the world and still worth money. It is on the goods
+// pages with the other things a keeper prices, which is where a good belongs.
 //
 // It is the world's answer to a problem it cannot otherwise solve: nothing
 // here ends a supply and nothing forgets one, so any rare thing that IS
@@ -572,7 +590,7 @@ page('', `
 page('', `
   ${h('The things there is only one of')}
   ${pd(`Everything in the pages that follow is interchangeable: one log is any
-      log. Three things are not. Each carries whose it was and the interval it
+      log. Two things are not. Each carries whose it was and the interval it
       was made on, and no two are the same object.`)}
   <table class="tight rites">
     <tr><td class="k">a wayfarer's hood</td>
@@ -581,8 +599,6 @@ page('', `
     <tr><td class="k">a fall stone</td>
         <td>The last rock off a boulder somebody finished. The same rock as any
             rubble; the difference is who broke it and when.</td></tr>
-    <tr><td class="k">an attuned chart</td>
-        <td>An ordinary chart bound to one waystone.</td></tr>
   </table>
   ${orn}
   ${p(`None of them can be bought from a keeper, because a keeper deals in
@@ -626,8 +642,8 @@ page('', `
 
 // ---- 7. what you can carry
 //
-// A SHEET TO FILL IN, NOT A SECOND TELLING. This page used to open by saying
-// the pack holds twelve and that crafting reads the pack and never a vault,
+// A SHEET TO FILL IN, NOT A SECOND TELLING. This page used to open by giving
+// the size of a pack and the rule that crafting reads it and never a vault,
 // and the Keeping page overleaf says both again at more length. One page
 // apart, a reader was told the same two things twice and the boxes below them
 // were left with nothing to say for themselves. Keeping is where the rule
@@ -917,8 +933,14 @@ for (const [kind, heading] of GROUPS) {
 //
 // A whole calling was absent from this book, and then the first attempt at it
 // printed SEVEN, because it read the level ladder and the ladder names only
-// the milestones. There are eleven, in two books, and `engine.js` says so
+// the milestones. There are ten, in two books, and `engine.js` says so
 // plainly in `BOOKS`.
+//
+// IT SAID ELEVEN HERE UNTIL §6bq REPEALED `anchor`, which is the one spell
+// that neither refused, repaired nor unmade anything: it skipped a walk. The
+// count on the page was right the whole time because it is counted rather
+// than typed; only this comment was out of date, which is the argument for
+// counting in the first place.
 //
 // READ OUT OF THE SOURCE, because `BOOKS` is not exported: the engine keeps
 // it private and `speaks()` is the only way in. The handbook already holds
@@ -1102,6 +1124,25 @@ page('', `
       lies, which holds it for you and stops it rotting. See the spells.`)}`)
 
 // ---- WHERE THE RULES CHANGE ----
+// ---- AND THE WAY OUT IS NOT A SPELL, BECAUSE THERE IS NO SPELL ----
+//
+// This page told a reader that "the recall is the one spell that works
+// there and it goes to Anchor". There is no recall. §6ch repealed the
+// waystones and `recall` answers false at the gate for every citizen
+// everywhere: the case survives only so that an old client sending the
+// input is REFUSED rather than desynced. The resolver below it is dead
+// code, and even that dead code reads `!inWilds(...)` -- so the one rule
+// the book stated about escaping the Wilds was wrong twice over.
+//
+// §6bq then took `anchor` out of the common book for the same reason: it
+// was the only spell in either book that neither refused, repaired nor
+// unmade anything, and half-removing teleportation is worse than either
+// end of it.
+//
+// This is the worst class of error this book can make. A reader who learns
+// it walks into the Wilds with a full pack believing they can leave, and
+// the page that says so is the page about the one place where nobody is
+// coming to help.
 page('', `
   ${h('The Wilds')}
   ${pd(`Most of the island is ordinary ground, where nobody may strike you
@@ -1111,9 +1152,9 @@ page('', `
       the mother lode, the deep water, the gallows-oaks. You cannot reach the
       end of any craft without going, and every trip back is carrying
       something worth taking.`)}
-  ${p(`Magic will not carry you out of it either. The recall is the one spell
-      that works there and it goes to Anchor, and you may be cut down in the
-      middle of casting it.`)}
+  ${p(`Magic will not carry you out of it, and nothing else will: this world
+      has no way to step out of one place and into another. You walk out of
+      the Wilds or you die in them.`)}
   ${orn}
   ${h('The Lists')}
   ${pd(`An isle off Fenmarch, reached by boat. Anybody may strike anybody, and

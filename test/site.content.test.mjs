@@ -72,9 +72,18 @@ test('the trade count in prose is the engine\'s', () => {
 
 test('the pack size in prose is the engine\'s', () => {
   assert.equal(num('INV_SLOTS'), 12)
-  // the book prints the constant rather than a word, so it cannot go stale
-  assert.match(handbook(), /Your pack holds <b>\$\{NUM\('INV_SLOTS'\)\}<\/b> items/)
-  assert.equal(/twenty-eight slots/.test(handbook()), false)
+  // THE CONSTANT, NOT THE SENTENCE. The book prints the figure the engine
+  // holds rather than a word, so it cannot go stale -- that is the rule, and
+  // it is all this is entitled to check. It used to pin the whole clause,
+  // `Your pack holds <b>${NUM('INV_SLOTS')}</b> items`, which locks the
+  // WORDING: moving the statement onto the Keeping page, beside the vault it
+  // is about, broke the test while the book went on reading the number out of
+  // the engine exactly as before.
+  const book = handbook()
+  assert.match(book, /pack holds[^`]{0,40}\$\{NUM\('INV_SLOTS'\)\}/)
+  // and it is never typed out, as a numeral or as a word
+  assert.equal(/pack holds\s+(?:a\s+)?(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|sixteen|twenty)\b/i.test(book), false)
+  assert.equal(/twenty-eight slots/.test(book), false)
 })
 
 test('the stall cost in prose is the engine\'s', () => {
