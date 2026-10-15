@@ -625,11 +625,18 @@ page('', `
 `)
 
 // ---- 7. what you can carry
+//
+// A SHEET TO FILL IN, NOT A SECOND TELLING. This page used to open by saying
+// the pack holds twelve and that crafting reads the pack and never a vault,
+// and the Keeping page overleaf says both again at more length. One page
+// apart, a reader was told the same two things twice and the boxes below them
+// were left with nothing to say for themselves. Keeping is where the rule
+// belongs, because it goes on to say what a vault is. This page is the sheet.
 page('', `
   ${h('Carrying')}
-  ${p(`Your pack holds <b>${NUM('INV_SLOTS')}</b> items. Crafting only uses
-      what is in your pack, never what is in a vault, so you have to decide
-      what to take before you leave town.`)}
+  ${p(`<b>${NUM('INV_SLOTS')}</b> for what you carry and one for each thing
+      you wear. Write in what your citizen keeps on them, the way you would
+      the inside cover of anything worth keeping.`)}
   <div class="pack">${Array.from({ length: NUM('INV_SLOTS') }, () => '<i></i>').join('')}</div>
   ${orn}
   ${h('Worn')}
@@ -722,12 +729,61 @@ const ALL = [...new Set([
 // A page is a run of UNITS: a family's name, or one word of the vocabulary.
 // Packed by height rather than by count, because a heading and a word are not
 // the same size and counting rows is how three pages ran off the bottom.
-const LABEL_MM = 8.0, CELL_MM = 5.4, ROOM_MM = 148
+//
+// ---- AND THE HEIGHTS ARE MEASURED, NOT ESTIMATED ----
+//
+// All three numbers here were guesses and all three were wrong, in the same
+// direction, so every vocabulary page broke early and "Made things" spilled
+// one word -- `steel` -- onto a page of its own with the closing note under
+// it and four fifths of the leaf blank.
+//
+// What the browser actually reports for these pages:
+//
+//   a row of cells    9.30mm   guessed at 5.4 PER CELL
+//   a family's name   9.28mm   guessed at 8.0
+//   the room          158.0mm  guessed at 148
+//   the closing note  31.0mm   guessed at 26
+//
+// The cell is the one that mattered. `.cell` is `width: 50%` in a wrapping
+// flex row, so TWO of them share one row -- and the packer was charging each
+// cell as though they stacked. A family of two came out about right by luck
+// and everything else did not: an odd member, or the long `Other` run of
+// single words, was charged twice what it takes.
+//
+// The two heights were FITTED to seven real grids rather than read off one
+// element, because `getBoundingClientRect` leaves margins out and a family's
+// name is mostly margin: measured on its own it is 5.62mm and it occupies
+// 9.28. Setting the packer to the 5.62 overran four pages at once. Fitting
+// says a name costs what a row of words costs, to within a tenth, so the
+// model is simply one row per unit -- which is also what the page looks like.
+//
+// ROOM_MM is 153 and not the 158 that was measured, because the fit is good
+// to about two millimetres a row and a page of sixteen rows can gather that
+// up. The margin is what `--check` is for: at 155 one page ran three pixels
+// over, at 153 none of them do.
+const LABEL_MM = 9.4, ROW_MM = 9.4, ROOM_MM = 153
 // The closing note and its ornament only appear on the LAST page of a section,
 // so that page has less room than the others. Packing every page the same and
 // then adding four lines of italic to the end of one is how page twelve ran
 // off the bottom by twenty pixels.
-const NOTE_MM = 26
+const NOTE_MM = 31
+// Cells pack two to a row and a family's name takes a row of its own, so a
+// page's height is not the sum of its units. Each page is measured on its own
+// because every page starts a fresh grid, and a family carried over the leaf
+// therefore starts a fresh row.
+// A LABEL IS TOLD FROM A WORD BY ITS `fam` FLAG, never by its height. The two
+// now measure the same, which is the whole finding above, so the old test
+// `u.mm === LABEL_MM` called every word a family's name and the packer put
+// one word on each page.
+const heightOf = (units) => {
+  let mm = 0
+  let run = 0
+  for (const u of units) {
+    if (u.fam) { mm += Math.ceil(run / 2) * ROW_MM + LABEL_MM; run = 0 }
+    else run++
+  }
+  return mm + Math.ceil(run / 2) * ROW_MM
+}
 // ---- WHICH FIGURE A PAGE SHOWS ----
 //
 // Not the same one everywhere, because the useful fact is not the same
@@ -747,15 +803,18 @@ const figure = (it) => {
 // column of blanks would be worse than a mark.
 const TWO = T('TWO_HANDED') instanceof Set ? T('TWO_HANDED')
   : new Set(Object.keys(T('TWO_HANDED')))
-const cell = (it) => ({ mm: CELL_MM, html: `<div class="cell">${pic(it)}<span class="nm">${
+const cell = (it) => ({ mm: ROW_MM, fam: false, html: `<div class="cell">${pic(it)}<span class="nm">${
   esc(say(it))}${TWO.has(it) ? '<b class="two">+</b>' : ''}</span><span class="n">${
   figure(it)}</span></div>` })
 // AND THE CRAFT GOES ON THE FAMILY, not in every cell. Six different crafts
 // gate wielding, so a bare number would be ambiguous; but a family is all one
 // weapon in five grades, so every member of it answers to the same craft and
 // saying it once is enough.
-const label = (t, craft) => ({ mm: LABEL_MM,
+const label = (t, craft) => ({ mm: LABEL_MM, fam: true,
   html: `<div class="fam">${esc(t)}${craft ? `<i>${esc(craft)}</i>` : ''}</div>` })
+
+// Stands for one word of the vocabulary when asking how tall a page WOULD be.
+const cellsized = { mm: ROW_MM, fam: false, html: '' }
 
 const GROUPS = [['arms', 'Arms'], ['armour', 'Armour'], ['made', 'Made things'], ['goods', 'Goods']]
 for (const [kind, heading] of GROUPS) {
@@ -780,30 +839,65 @@ for (const [kind, heading] of GROUPS) {
   // AND SPLIT WHERE IT FITS, never leaving a family's name at the foot of a
   // page with its members overleaf.
   const pages = [[]]
-  const tall = [0]
-  let used = 0
-  for (let i = 0; i < units.length; i++) {
-    const u = units[i]
-    const orphan = u.mm === LABEL_MM && used + u.mm + CELL_MM * 2 > ROOM_MM
-    if (used + u.mm > ROOM_MM || orphan) { pages.push([]); tall.push(0); used = 0 }
-    pages[pages.length - 1].push(u)
-    used += u.mm
-    tall[tall.length - 1] = used
+  for (const u of units) {
+    const here = pages[pages.length - 1]
+    const next = [...here, u]
+    // A family's name needs at least one row of its own members under it, or
+    // it is a heading at the foot of a page and its words are overleaf.
+    const orphan = u.fam
+      && heightOf([...next, cellsized, cellsized]) > ROOM_MM
+    if (here.length && (heightOf(next) > ROOM_MM || orphan)) pages.push([u])
+    else here.push(u)
   }
   // AND THE LAST PAGE MAKES ROOM FOR THE NOTE. Whatever will not fit beside it
   // goes over the leaf, taking its family's name with it rather than stranding
   // the name on one page and its members on the next.
-  while (tall[tall.length - 1] > ROOM_MM - NOTE_MM && pages[pages.length - 1].length > 1) {
+  const strandedLabel = (pg) => pg.length && pg[pg.length - 1].fam
+  while (pages.length && heightOf(pages[pages.length - 1]) > ROOM_MM - NOTE_MM
+         && pages[pages.length - 1].length > 1) {
     const moved = [pages[pages.length - 1].pop()]
-    while (pages[pages.length - 1].length &&
-           pages[pages.length - 1][pages[pages.length - 1].length - 1].mm === LABEL_MM) {
+    while (strandedLabel(pages[pages.length - 1])) {
       moved.unshift(pages[pages.length - 1].pop())
     }
-    tall[tall.length - 1] -= moved.reduce((a, u) => a + u.mm, 0)
-    if (pages[pages.length - 1].length === 0) { pages.pop(); tall.pop() }
+    if (pages[pages.length - 1].length === 0) pages.pop()
     pages.push(moved)
-    tall.push(moved.reduce((a, u) => a + u.mm, 0))
-    if (tall[tall.length - 1] <= ROOM_MM - NOTE_MM) break
+    if (heightOf(moved) <= ROOM_MM - NOTE_MM) break
+  }
+  // ---- AND THEN THE LAST TWO PAGES ARE EVENED UP ----
+  //
+  // Packing greedily and then pushing off whatever the note displaces leaves
+  // the last page with exactly as much as it was forced to take, which for
+  // "Made things" was one word: `steel`, alone above four lines of italic,
+  // with the page before it 27mm short of full. Nothing was too long. The
+  // section simply did not divide.
+  //
+  // So words are handed BACK across the break while that leaves both pages
+  // legal and makes them more nearly equal. A section that spills by one row
+  // now breaks near its middle, which is what anybody setting two facing
+  // pages would do by hand.
+  if (pages.length > 1) {
+    for (;;) {
+      const a = pages[pages.length - 2]
+      const b = pages[pages.length - 1]
+      if (a.length < 2) break
+      const moved = [a[a.length - 1]]
+      let at = a.length - 1
+      // a word carried back takes its family's name with it, or the name is
+      // left at the foot of the page with nothing under it.
+      while (at > 0 && a[at - 1].fam) { moved.unshift(a[--at]) }
+      const left = a.slice(0, at)
+      const right = [...moved, ...b]
+      if (!left.length || heightOf(right) > ROOM_MM - NOTE_MM) break
+      // THE NOTE COUNTS AS PART OF THE LAST PAGE. Comparing the two grids
+      // alone evened up the words and left the last page 31mm longer than
+      // the one facing it, which is the same lopsided spread the balancing
+      // exists to prevent, only the other way round.
+      const gapNow = Math.abs(heightOf(a) - (heightOf(b) + NOTE_MM))
+      const gapThen = Math.abs(heightOf(left) - (heightOf(right) + NOTE_MM))
+      if (gapThen >= gapNow) break
+      pages[pages.length - 2] = left
+      pages[pages.length - 1] = right
+    }
   }
   pages.forEach((units_, n) => {
     page('', `
