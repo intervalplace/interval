@@ -1248,12 +1248,44 @@ if (!gambits.length) {
 // at. The first draft said a whole-body blow was "one blow with everything in
 // it", which is a feeling rather than a rule and told a reader nothing they
 // could act on.
+// ---- AND THERE ARE FIVE OF THEM, NOT FOUR ----
+//
+// This table had four rows and the page was headed "The four kinds", while
+// the table OVERLEAF -- which is built from the world rather than typed --
+// listed five words across seven weapons: far, flurry, now, report and whole.
+// A reader counted five on one page and was told four on the next, and the
+// missing one, `report`, had a paragraph of its own three inches below the
+// heading that denied it existed.
+//
+// That is what a hand-written gloss beside a generated table will always do
+// eventually. The gloss has to be written by hand -- it is the book's
+// sentence about what a move FEELS like, and no table holds that -- so what
+// is checked instead is that there is one for every kind the world has, and
+// the heading counts them rather than claiming a number.
 const GAMBIT_IS = {
   flurry: 'several blows in one go, each rolled to hit as usual',
   whole: "one blow at the weapon's hardest, and harder to land",
   now: 'does not wait for your arm after an ordinary swing',
   far: 'the damage comes from the range, not the weapon',
+  report: 'one shot carrying all of it, and the least likely to land',
 }
+// A KIND WITH NO GLOSS STOPS THE PRESS, like every other fact in here. The
+// alternative is a page that silently describes four fifths of a mechanic.
+{
+  const has = new Set(gambits.map(([, g]) => String(g.gambit)))
+  const missing = [...has].filter((k) => !GAMBIT_IS[k]).sort()
+  if (missing.length) {
+    throw new Error(`the world has gambits this book cannot describe: ${missing.join(', ')}`)
+  }
+  const extra = Object.keys(GAMBIT_IS).filter((k) => !has.has(k)).sort()
+  if (extra.length) {
+    throw new Error(`the book describes gambits no weapon has: ${extra.join(', ')}`)
+  }
+}
+// Small numbers as words, because "The 5 kinds" is a spreadsheet heading.
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+               'eight', 'nine', 'ten', 'eleven', 'twelve']
+const word = (n) => WORDS[n] ?? String(n)
 page('', `
   ${h('Gambits')}
   ${p(`Seven weapons have a move of their own. Blows is how many it lands.
@@ -1285,7 +1317,7 @@ page('', `
 `)
 
 page('', `
-  ${h('The four kinds')}
+  ${h(`The ${word(Object.keys(GAMBIT_IS).length)} kinds`)}
   <table class="tight kinds">
     ${Object.entries(GAMBIT_IS).map(([k, t]) =>
       `<tr><td class="k">${esc(k)}</td><td>${esc(t)}</td></tr>`).join('')}
@@ -1295,9 +1327,9 @@ page('', `
       blow in the world at the end of its nine tiles. The range is the whole
       of its damage, not an addition to it.`)}
   ${p(`A report is the handgonne alone. Its burst was scaled down when a
-      citizen's health became a flat sixty-four, and all of the damage went into
-      the single shot: the hardest blow in the world, and the least accurate.
-      It is the only gambit more likely to miss than to land.`)}
+      citizen's health became a flat sixty-four, and all of the damage went
+      into the single shot: the hardest blow in the world, and the only gambit
+      more likely to miss than to land.`)}
   ${p(`What a gambit costs is not the same for every weapon. The recovery is
       measured against that weapon's own swing, so the cost column on the
       previous page is how many ordinary blows you gave up for it: four for a
