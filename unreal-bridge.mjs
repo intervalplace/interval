@@ -2774,6 +2774,20 @@ HOST.door(PORT, (ws) => {
         record.playerId)
       return
     }
+    // ---- WHAT THE WINDOW HAS TO SAY, WRITTEN DOWN WHERE IT CAN BE READ ----
+    //
+    // A Shipping Mac build has no UE_LOG at all, it is sandboxed so its own
+    // file writes land in a container, and its stdout belongs to launchd when
+    // somebody double-clicks it. So the window has no way to tell a player
+    // anything -- which is how it drew the whole island at once for months
+    // while the warning that said so could not be printed.
+    //
+    // This process has none of those problems: it is not sandboxed, and the
+    // launcher already prints where its log is. So the window says it here.
+    if (m.k === 'say') {
+      console.log('[window] ' + String(m.text ?? '').slice(0, 400))
+      return
+    }
     if (m.k === 'do') {
       const { k, ...fields } = m
       // WHAT THE WINDOW ACTUALLY SENT, verbatim. A deed that works when typed
