@@ -5961,6 +5961,57 @@ setInterval(() => {
 }, 5000)
 let lastCancelAt = 0
 const BUILD = 'b79'  // stamp: if your screen says an older build, hard-refresh
+// ===========================================================================
+// WHAT A CITIZEN IS SEEN TO BE DOING
+//
+// THE FIGHT ANIMATION HAD NEVER PLAYED. The chooser asked
+// `p.action?.type === 'prowess'`, and `prowess` is a SKILL, not an action:
+// the engine only ever sets four ongoing actions -- attack, attackp, gather
+// and raise -- and `prowess` is this window's own outgoing word for swinging
+// at a mob, translated to `attack` by BRIDGE_TO_INPUT before it leaves. So a
+// citizen in a fight stood there breathing, weapon down, from the day the
+// line was written.
+//
+// AND THE WORLD ONLY TELLS YOU FOUR THINGS. `action` carries the deed a
+// citizen is still in the middle of, and there are four. Everything else --
+// cooking, smithing, brewing, planting, burying, praying -- is instantaneous
+// in the engine and leaves no trace in the state at all, so no window can
+// read it off another citizen.
+//
+// What a window CAN do is remember what IT just sent, which is what the
+// Unreal window does: see `Doing` in IntervalBridgeSubsystem.h, held for a
+// little over one interval. That covers the person playing, which is the one
+// whose hands anybody is watching. Everybody else keeps the four.
+const DOING_MS = 1150
+let _doing = null, _doingAt = 0
+// The world's own verb on the left; nothing here invents a word.
+const DOING_ANIM = {
+  // at a bench, a forge, an anvil: both hands, short and repeated
+  smith: 'craft', mendp: 'craft', unmake: 'craft', transmute: 'craft',
+  fletch: 'craft', nock: 'craft', saw: 'craft', grave: 'craft',
+  seal: 'craft', char: 'craft', dismantle: 'craft', build_brewpot: 'craft',
+  // over a fire or a pot: stooped, one hand working
+  cook: 'tend', brew: 'tend', smelt: 'tend', grind: 'tend', kindle: 'tend',
+  light: 'tend', stoke: 'tend', bury: 'tend', rot: 'tend',
+  // down at the ground
+  plant: 'kneel', sapling: 'kneel', harvest: 'kneel', lay: 'kneel',
+  setbuck: 'kneel', collect: 'kneel', survey: 'kneel', stamp: 'kneel',
+  // arms up
+  cast: 'cast', invoke: 'cast', swear: 'cast', dedicate: 'cast',
+  sound: 'cast', teach: 'cast', found: 'cast',
+  // carrying
+  haul: 'haul', unload: 'haul', consign: 'haul', deliver: 'haul', stock_market: 'haul',
+}
+// What the window calls a verb on its way out, where that differs from the
+// engine's word. BRIDGE_TO_INPUT is the one place that knows, so this is read
+// off the action AFTER translation wherever it can be.
+const doingSeen = (verb) => {
+  const a = DOING_ANIM[verb]
+  if (!a) return
+  _doing = a; _doingAt = performance.now()
+}
+const doingNow = () => (performance.now() - _doingAt) < DOING_MS ? _doing : null
+
 const send = a => {
   // §0: NOTHING A RESIDENT DOES IS IN THE WORLD. Movement is local and stays
   // local; the two verbs that are genuinely a resident's -- knocking and
@@ -5970,6 +6021,11 @@ const send = a => {
   // §0: A RESIDENT'S DEEDS GO TO THE LOCAL WORLD, not to this one. `attend`
   // and `spawn` are the only two things a soul in Nought says to Tallyholm.
   if (inNought && !NOUGHT_ALLOWED.has(a.do)) { noughtDo(a); return }
+  // WHAT WE JUST DID, REMEMBERED HERE AND NOWHERE ELSE. Hooked at the one
+  // place every deed passes through, so a verb wired next session is animated
+  // the day it is wired. The engine's word is what the input carries, not the
+  // window's outgoing name for it.
+  { const inp = BRIDGE_TO_INPUT(a); if (inp && inp.type) doingSeen(inp.type) }
   if (ws.readyState !== 1) return
   if (ownKey && a.do === 'chat') { signChat(a.text); return }
   if (ownKey && BRIDGE_TO_INPUT(a)) { signAndSend(a); return }
@@ -9382,6 +9438,10 @@ function drawCitizen(X, Y, o) {
     cx.beginPath(); cx.ellipse(X + 20, Y + 33, 4, 1.6, 0, 0, 7); cx.fill()
   }
   const bob = o.anim === 'idle' ? Math.sin(now / 600) * 0.8 : 0
+  // A STOOP, because an arm alone does not read as work. Kneeling drops the
+  // whole body; tending and crafting lean it; hauling settles it under the
+  // weight. Nothing here moves the feet, so it composes with the walk.
+  const STOOP = { kneel: 5.5, tend: 2.2, craft: 1.4, haul: 1.8 }[o.anim] ?? 0
   const step = o.anim === 'walk' ? Math.sin(now / 110) : 0
   const hurt = (o.now - (hitFlash[o.pid] ?? -9999)) < 320
   const recoil = hurt ? (1 - (o.now - (hitFlash[o.pid] ?? 0)) / 320) : 0
@@ -9396,7 +9456,7 @@ function drawCitizen(X, Y, o) {
     ? (o.exchange ? strikeT * 1.2 : 0.25 + Math.sin(now / 600) * 0.08):
     o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
   const lunge = striking && o.exchange ? strikeT * 4 * o.face : 0
-  X += lunge; Y += bob
+  X += lunge; Y += bob + STOOP
   const F = o.face
 
   // shadow: in high detail it leans away from the sun and stretches at the golden hours
@@ -9605,7 +9665,24 @@ function drawCitizen(X, Y, o) {
   const ax = X + (F > 0 ? 25 : 12), ay = Y + 17
   cx.save()
   cx.translate(ax + 1.5, ay + 1)
-  cx.rotate(F * (o.anim === 'gather' ? -0.6 + swing * 0.9 : (o.anim === 'fight' && !o.shooting) ? -0.3 + swing * 1.1 : 0.15))
+  // §7e: FIVE MORE BODIES, so that a deed is not mimed as standing still.
+  // Each is one arm angle and one tempo; the tool in the hand is drawn below
+  // and is unchanged. See DOING_ANIM for which of the world's verbs reach
+  // which of these.
+  const WORK = {
+    //        swing from   to       how fast
+    craft:  [ -0.45,  0.55,  170 ],   // a hammer at a bench: short and quick
+    tend:   [  0.25,  0.70,  520 ],   // stirring a pot or feeding a fire
+    kneel:  [  0.15,  0.95,  420 ],   // reaching down to the ground
+    cast:   [ -1.35, -1.05,  900 ],   // arms up, barely moving
+    haul:   [  0.55,  0.62,  800 ],   // holding a load against the body
+  }[o.anim]
+  const workSwing = WORK
+    ? WORK[0] + (WORK[1] - WORK[0]) * (0.5 + 0.5 * Math.sin(o.now / WORK[2]))
+    : 0
+  cx.rotate(F * (WORK ? workSwing
+    : o.anim === 'gather' ? -0.6 + swing * 0.9
+    : (o.anim === 'fight' && !o.shooting) ? -0.3 + swing * 1.1 : 0.15))
   cx.fillStyle = skin; cx.fillRect(-1.5, 0, 3, 9)
   const metal = o.starSword && o.anim === 'fight' ? '#8ce0ff' : o.ironTool ? '#c9862a' : '#8a8a82'
   if (o.anim === 'gather' && o.tool === 'rod') { // fishing rod: long, thin, line down
@@ -13118,9 +13195,16 @@ function drawScene(now) {
     const moving = o && (p.x !== o.x || p.y !== o.y) && t < 1
     // raising a stall reads as work, not as standing still: a builder who
       // looked idle would be indistinguishable from somebody asleep
-      const anim = moving ? 'walk' : p.action?.type === 'raise' ? 'gather':
-        p.action?.type === 'gather' ? 'gather':
-               p.action?.type === 'prowess' ? 'fight' : 'idle'
+      // §7e: `attack` and `attackp` are what the engine sets; `prowess` is
+      // this window's outgoing word and never comes back in a state, so the
+      // test that used to be here could not be true and the fight animation
+      // never ran once.
+      const act = p.action?.type
+      const anim = act === 'attack' || act === 'attackp' ? 'fight':
+        moving ? 'walk':
+        act === 'gather' || act === 'raise' ? 'gather':
+        // and, for the person playing, whatever they just filed
+        (pid === myId && doingNow()) || 'idle'
     const workNode = p.action?.nodeId ? s.nodes[p.action.nodeId] : null
     // §7an: A SPADE IS NOT A HATCHET. Digging a muck heap drew the citizen
     // swinging an axe -- the fallback -- so the one trade that pays a farmer

@@ -88,5 +88,55 @@ const bellE = /BELL_PULLS = (\d+)/.exec(fs.readFileSync('engine.js', 'utf8'))
 ok(bellW && bellE && bellW[1] === bellE[1],
    `BELL_PULLS ${bellW?.[1]} matches the engine's ${bellE?.[1]}`)
 
+// ---- AND THE ANIMATION CHOOSER TESTS FOR ACTIONS THAT EXIST ----
+//
+// It used to test `action.type === 'prowess'`, which the engine never sets --
+// prowess is a skill -- so the fight animation could not run. Anything the
+// chooser compares an action against must be a type the engine actually
+// writes, or it is dead code that looks alive.
+const engineSrc = fs.readFileSync('engine.js', 'utf8')
+const realActs = new Set([...engineSrc.matchAll(/\.action = \{\s*type: '([a-z_]+)'/g)].map((m) => m[1]))
+const chooser = (() => {
+  const a = W.indexOf('const anim = ')
+  return a < 0 ? '' : W.slice(a, W.indexOf('\n', W.indexOf("'idle'", a)))
+})()
+const tested = [...chooser.matchAll(/act === '([a-z_]+)'/g)].map((m) => m[1])
+const ghosts = tested.filter((t) => !realActs.has(t))
+ok(tested.length > 0, `the chooser tests ${tested.length} action types`)
+ok(!ghosts.length, `every one is an action the engine sets` +
+   (ghosts.length ? `, GHOSTS ${ghosts.join(',')}` : ''))
+ok(realActs.has('attack') && tested.includes('attack'), 'a fight is drawn as a fight')
+
+// ---- AND EVERY ANIMATION THE VERB TABLE NAMES IS ONE THE BODY CAN DRAW ----
+const doingSrc = (() => {
+  const a = W.indexOf('const DOING_ANIM = {')
+  return a < 0 ? '' : W.slice(a, W.indexOf('\n}', a))
+})()
+const named = new Set([...doingSrc.matchAll(/: '([a-z]+)'/g)].map((m) => m[1]))
+const bodies = new Set([...W.matchAll(/^\s{4}([a-z]+):\s*\[\s*-?[\d.]+,/gm)].map((m) => m[1]))
+const noBodyFor = [...named].filter((a) => !bodies.has(a))
+// And every verb on the left of that table must be one the engine accepts,
+// or it is an animation that can never be reached.
+// NOT EVERY VERB HAS AN `inp.type ===` OF ITS OWN. `stamp` is dispatched
+// through the TEACHES set and has none, so an extraction that looks only for
+// the comparison calls it a typo. This is the union, and it is why the first
+// run of this check reported a verb that is perfectly real.
+const engineVerbs = new Set([...engineSrc.matchAll(/inp\.type === '([a-z_]+)'/g)].map((m) => m[1]))
+{
+  const t = engineSrc.indexOf('const TEACHES = new Set([')
+  if (t >= 0) for (const m of engineSrc.slice(t, engineSrc.indexOf(']', t)).matchAll(/'([a-z_]+)'/g)) engineVerbs.add(m[1])
+}
+// EVERY pair, not the first on each line: the table puts several to a line
+// and an anchored regex checked ten of thirty-five, which is the shape of
+// test that passes while the thing it guards is broken.
+const verbsNamed = [...doingSrc.matchAll(/([a-z_]+):\s*'[a-z]+'/g)].map((m) => m[1])
+const notVerbs = verbsNamed.filter((v) => !engineVerbs.has(v))
+ok(verbsNamed.length > 0, `${verbsNamed.length} verbs are given a working animation`)
+ok(!notVerbs.length, 'every one is a verb the engine accepts' +
+   (notVerbs.length ? `, NOT VERBS ${notVerbs.join(',')}` : ''))
+ok(named.size > 0, `the verb table names ${named.size} working animations`)
+ok(!noBodyFor.length, 'each of them has a body to draw' +
+   (noBodyFor.length ? `, MISSING ${noBodyFor.join(',')}` : ''))
+
 console.log(bad ? `\n${bad} FAILED` : '\nall good')
 process.exit(bad ? 1 : 0)
