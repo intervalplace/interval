@@ -3622,6 +3622,48 @@ function itemSprite(item) {
       g.strokeStyle = '#8ce0ff'; g.lineWidth = 1.6
       g.beginPath(); g.arc(16, 16, 7, 0.6, 5.2); g.stroke()
       g.fillStyle = '#8ce0ff'; g.fillRect(14.6, 8, 2.8, 2.8); break
+    case 'gold-bar':
+    case 'quick-ingot':
+    case 'steel': {
+      // A CAST BAR, NOT A LUMP. These three aliased to `ore` and were drawn
+      // as rock with a colour over them, which is what a bar is not: it has
+      // been smelted, poured and turned out of a mould, and the flat top and
+      // the draft angle on the sides are the whole of how you know.
+      const [lit, dark, shine] =
+        item === 'gold-bar' ? METAL_PALETTE.gold :
+        item === 'quick-ingot' ? METAL_PALETTE.star : METAL_PALETTE.steel
+      pl([[4,22],[9,15],[25,15],[30,22]], lit, dark)        // the top face
+      pl([[4,22],[30,22],[28,27],[6,27]], dark)             // the front, in shadow
+      g.fillStyle = shine
+      pl([[7,20.4],[10.5,16.6],[18,16.6],[14,20.4]], shine) // one struck highlight
+      break
+    }
+    case 'rod':
+    case 'oak-rod':
+    case 'ironbark-rod':
+    case 'heartwood-rod': {
+      // A FISHING ROD. All four aliased to `staff`, so every rod in the world
+      // was drawn as a wizard's stave with a glowing orb on the end -- which
+      // is the same mistake this project already made once in three
+      // dimensions, where fishing was a citizen kneeling with a SPEAR.
+      //
+      // What says rod and not staff: it tapers, it has a line, and the line
+      // has something on the end of it.
+      const wood = item === 'heartwood-rod' ? '#b08a3e' :
+                   item === 'ironbark-rod' ? '#3f5a3a' :
+                   item === 'oak-rod' ? '#6b4a22' : '#7a5c32'
+      g.strokeStyle = wood; g.lineWidth = 3.2; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(6, 28); g.lineTo(13, 17); g.stroke()   // the butt, thick
+      g.lineWidth = 1.6
+      g.beginPath(); g.moveTo(13, 17); g.lineTo(24, 4); g.stroke()   // the tip, thin
+      g.lineCap = 'butt'
+      g.fillStyle = '#4a3a22'; g.save(); g.translate(8.5, 24.5)
+      g.rotate(-0.99); g.fillRect(-2, -3.4, 4, 6.8); g.restore()     // the grip
+      g.strokeStyle = 'rgba(236,240,244,.85)'; g.lineWidth = 0.9
+      g.beginPath(); g.moveTo(24, 4); g.quadraticCurveTo(27, 14, 25, 23); g.stroke()
+      pl([[24,23],[26.6,23],[25.3,28]], '#c9c2b2', '#6b6558')        // and what it ends in
+      break
+    }
     // §7e: THE NINETEEN THAT CAME OUT AS A BROWN SQUARE.
     //
     // Counted rather than remembered: the engine has 132 item words and the
@@ -3813,6 +3855,25 @@ function itemSprite(item) {
     }
     default:
       g.fillStyle = '#6e5433'; g.fillRect(8, 8, 16, 16)
+  }
+  // §7e: AND THE TINT, WHICH WAS COMPUTED AND THROWN AWAY.
+  //
+  // `const _tint = iconTintOf(item)` sat at the top of this function and was
+  // never read again, so the whole ICON_TINT table -- twenty entries -- did
+  // nothing. Seven words alias to `ore` and every one of them drew as the
+  // same grey lump: iron, coal, steel, gold ore, gold bar, quick stone and
+  // quick ingot were one picture. Reported from the sheet, in those words:
+  // "coal ore and gold bar look identical".
+  //
+  // `source-atop` rather than a flat fill, so the shading underneath survives
+  // and a tinted lump still reads as a lump.
+  if (_tint) {
+    g.save()
+    g.globalCompositeOperation = 'source-atop'
+    g.globalAlpha = 0.62
+    g.fillStyle = _tint
+    g.fillRect(0, 0, 32, 32)
+    g.restore()
   }
   return ICON_CV[item] = c
 }
@@ -5087,33 +5148,39 @@ const METAL_PALETTE = {
 }
 const METAL = (it) => METAL_PALETTE[(it || '').split('-')[0]] ?? METAL_PALETTE.iron
 const ICON_ALIAS = {
-  'oak-logs': 'logs', 'ironbark': 'logs', 'heartwood': 'logs',
-  'iron': 'ore', 'coal': 'ore', 'quick-stone': 'ore', 'gold-ore': 'ore',
-  'steel': 'ore', 'quick-ingot': 'ore', 'gold-bar': 'ore',
-  'eel': 'raw-fish', 'deep-fish': 'raw-fish',
-  'cooked-eel': 'cooked-fish', 'cooked-deep-fish': 'cooked-fish',
-  'burnt-eel': 'burnt-fish', 'burnt-deep-fish': 'burnt-fish',
-  'deep-broth': 'broth',
-  'rod': 'staff', 'oak-rod': 'staff', 'ironbark-rod': 'staff', 'heartwood-rod': 'staff',
+  'oak-logs': 'logs', 'ironbark': 'logs', 'iron': 'ore', 'coal': 'ore', 'gold-ore': 'ore',
+  // §7e: `steel`, `quick-ingot` and `gold-bar` are NOT HERE ANY MORE. They
+  // are cast bars and were being drawn as rock with a colour over them; they
+  // have their own case now. An alias beats a case -- the word is rewritten
+  // before the switch sees it -- so leaving these here would have made the
+  // new drawing dead code that looks alive.
+  'eel': 'raw-fish', 'cooked-eel': 'cooked-fish', 'burnt-eel': 'burnt-fish', 'deep-broth': 'broth',
+  // §7e: THE FOUR RODS ARE NOT HERE ANY MORE either. Pointed at `staff`,
+  // every fishing rod in the world was a wizard's stave with a glowing orb on
+  // the end. They have their own case.
   // shields, greaves, helms and cuirasses now draw themselves in their own
   // metal; the aliases that pointed a shield at a helm are gone.
   // king-shroud now has its own sprite (a hooded mantle); no longer aliased.
-  'great-hatchet': 'quick-hatchet', 'great-pickaxe': 'quick-pickaxe',
   'steel-hatchet': 'iron-hatchet', 'steel-pickaxe': 'iron-pickaxe',
   'steel-sword': 'iron-sword',
   'steel-dagger': 'iron-dagger', 'steel-spear': 'iron-spear',
+  // §7e: SEVEN WORDS CAME OUT OF THIS TABLE, and every one of them already
+  // had a drawing of its own further down: heartwood, quick-stone, the three
+  // deep fish, the great hatchet and the great pickaxe. An alias is applied
+  // BEFORE the switch, so each of those drawings was dead the moment the
+  // alias was written -- somebody drew a deep fish and the table went on
+  // handing out a river fish. check-window-web-art.mjs refuses this now.
+
 }
 const ICON_TINT = {
-  'oak-logs': '#6b4a22', 'ironbark': '#3f5a3a', 'heartwood': '#b08a3e',
-  'coal': '#2c2c2e', 'quick-stone': '#8ce0ff', 'gold-ore': '#ffd23f',
-  'gold-bar': '#ffd23f', 'quick-ingot': '#8ce0ff', 'steel': '#b9c0c8',
-  'eel': '#4a6b3a', 'deep-fish': '#2f4f7a',
-  'cooked-eel': '#7a6b3a', 'cooked-deep-fish': '#8a6f45',
-  'deep-broth': '#3a5a6b',
-  'oak-rod': '#6b4a22', 'ironbark-rod': '#3f5a3a', 'heartwood-rod': '#b08a3e',
-  'king-shroud': '#5a3340',
-  'steel-hatchet': '#b9c0c8', 'steel-pickaxe': '#b9c0c8', 'steel-sword': '#b9c0c8',
+  'oak-logs': '#6b4a22', 'ironbark': '#3f5a3a', 'coal': '#2c2c2e', 'gold-ore': '#ffd23f',
+    'eel': '#4a6b3a', 'cooked-eel': '#7a6b3a', 'deep-broth': '#3a5a6b',
+    'steel-hatchet': '#b9c0c8', 'steel-pickaxe': '#b9c0c8', 'steel-sword': '#b9c0c8',
   'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
+  // And five came out of this one for the same reason: a tint is for a word
+  // that BORROWS a drawing. Laid over a drawing of its own it is a second
+  // coat of paint on a thing already the right colour.
+
 }
 // §7m: THE FALL-STONE draws as itself, and every hood-shaped id resolves the
 // same way -- these are per-citizen ids, not item names, so a table cannot hold

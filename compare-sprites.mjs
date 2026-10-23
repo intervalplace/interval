@@ -29,7 +29,10 @@ const OUT = process.env.OUT || '/private/tmp/claude-501/-Users-matsjulner-Docume
 const SHOW = [
   'iron-hatchet', 'iron-sword', 'quick-sword', 'wooden-bow', 'iron-shield',
   'steel-helm', 'logs', 'ore', 'coal', 'gold-bar',
-  'ale', 'cooked-fish', 'horn', 'seeds', 'rod',
+  'ale', 'cooked-fish', 'horn', 'seeds', 'rod', 'heartwood-rod',
+  // the three that were reported as one picture, and the dead drawings the
+  // check found beside them
+  'coal', 'quick-stone', 'deep-fish', 'heartwood', 'great-hatchet',
   // drawn for the first time today
   'bread', 'flour', 'planks', 'torch', 'chart', 'graver', 'sapling', 'wolf-mask',
 ]

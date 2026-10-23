@@ -61,6 +61,28 @@ const noSprite = items.filter((w) => !cased.has(w) && !alias[w]
 ok(!noSprite.length, `all ${items.length} items have a sprite` +
    (noSprite.length ? `, MISSING ${noSprite.join(',')}` : ''))
 
+// ---- AN ALIAS MUST NOT SHADOW A DRAWING ----
+//
+// `item = iconAliasOf(item)` runs BEFORE the switch, so a word that has both
+// an alias and a case of its own never reaches its case: the drawing is dead
+// code that looks alive. That is how four fishing rods came to be drawn as
+// wizards' staves even after somebody drew a rod.
+const shadowed = Object.keys(alias).filter((w) => cased.has(w))
+ok(!shadowed.length, 'no alias shadows a drawing of its own' +
+   (shadowed.length ? `, SHADOWED ${shadowed.join(',')}` : ''))
+
+// ---- AND THE TINT TABLE IS ACTUALLY READ ----
+//
+// It was not. `const _tint = iconTintOf(item)` sat at the top of itemSprite
+// and was never used again, so twenty tints did nothing and seven words that
+// alias to `ore` were one identical grey lump.
+ok(/_tint\b[\s\S]{0,4000}globalCompositeOperation/.test(spriteSrc),
+   'the tint it works out is applied to the sprite')
+const tinted = Object.keys(tableOf('ICON_TINT'))
+const tintDead = tinted.filter((w) => cased.has(w))
+ok(!tintDead.length, `all ${tinted.length} tints land on a borrowed drawing` +
+   (tintDead.length ? `, DOUBLE-TINTED ${tintDead.join(',')}` : ''))
+
 // ---- EVERY CREATURE HAS A BODY ----
 // The goblin is the fallback at the end of the chain, deliberately, so it is
 // the one word allowed to have no test of its own.
