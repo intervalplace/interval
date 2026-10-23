@@ -2697,6 +2697,14 @@ function itemSprite(item) {
     for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0], pts[i][1])
     g.closePath(); g.fillStyle = fill; g.fill()
     if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1.4; g.stroke() } }
+  // An eel: one long body down the diagonal, a dorsal fin running most of its
+  // length, and no tail fan. Drawn as a filled path rather than a thick line
+  // so the head can be blunter than the tail.
+  const eelBody = (belly, back) => {
+    pl([[3,10],[7,8],[13,12],[20,17],[27,21],[29,25],[26,26],[19,22],[12,17],[6,13]], belly, back)
+    pl([[6,8.5],[12,12.5],[19,17.5],[26,21.5],[25,23],[18,19],[11,14],[5,10]], back)
+    g.fillStyle = '#10100c'; g.fillRect(5.6, 9.6, 1.8, 1.8)
+  }
   const fishBody = (belly, back) => {
     pl([[4,16],[10,10],[20,9],[26,14],[26,18],[20,23],[10,22]], belly, back)
     pl([[26,14],[31,9],[31,23],[26,18]], back)
@@ -2717,6 +2725,9 @@ function itemSprite(item) {
     case 'raw-fish': fishBody('#7da5c9', '#3a6b96'); break
     case 'cooked-fish': fishBody('#d9a05e', '#96622a'); break
     case 'burnt-fish': fishBody('#4a4440', '#2a2624'); break
+    case 'eel': eelBody('#6b8a4a', '#3a5226'); break
+    case 'cooked-eel': eelBody('#c99a52', '#8a6227'); break
+    case 'burnt-eel': eelBody('#43423a', '#262520'); break
     case 'ale':
       g.fillStyle = '#6b5a3a'; g.fillRect(11, 12, 12, 15) // tankard
       g.fillStyle = '#caa23e'; g.fillRect(12, 14, 10, 12)  // ale
@@ -2734,6 +2745,30 @@ function itemSprite(item) {
       g.fillStyle = '#e8e4d0'
       for (const [bx, by] of [[7,20],[11,24],[21,8],[25,12]]) { g.beginPath(); g.arc(bx, by, 3.2, 0, 7); g.fill() }
       break
+    // §7f: DRAGON-BONES, which this window had never drawn. The only word in
+    // the world with no picture at all, and not a minor one: it is priced at
+    // 500 against 2 for a set of ordinary bones, it is what a bone-spear is
+    // made of, and burying it is worth its own experience. A tint over the
+    // crossed femurs would have been the wrong answer anyway, because what
+    // makes a thing dragon is the skull, not the colour.
+    case 'dragon-bones': {
+      const bone = '#efe7cf', edge = '#8f8872', lit = '#f7f3e6'
+      // the skull in profile, snout to the left, jaw hinged at the back
+      pl([[3,20],[7,15.5],[14,12],[21,11],[26,15],[25,22],[16,23],[8,22.5]], bone, edge)
+      g.fillStyle = lit                                        // the brow, catching light
+      pl([[13,12.8],[21,11.8],[24,14.4],[15,15.6]], lit)
+      g.fillStyle = '#2a2620'                                  // the socket, and the nostril
+      g.beginPath(); g.ellipse(19, 16.4, 2.3, 1.7, -0.2, 0, 7); g.fill()
+      g.fillRect(6.6, 17.6, 1.6, 1.4)
+      g.strokeStyle = bone; g.lineWidth = 2.6; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(22, 11.2); g.quadraticCurveTo(28, 8, 29.4, 3.4); g.stroke()
+      g.lineWidth = 1.8                                        // the second horn, behind
+      g.beginPath(); g.moveTo(24.6, 13); g.quadraticCurveTo(29, 11, 30.4, 7.8); g.stroke()
+      g.fillStyle = bone                                       // teeth along the lower jaw
+      for (const tx of [6.4, 9.2, 12, 14.8]) pl([[tx,22.2],[tx+2,22.2],[tx+1,25.4]], bone)
+      g.lineCap = 'butt'
+      break
+    }
     case 'iron-sword':
       pl([[16,3],[20,7],[11,20],[8,17]], '#c9c2b2', '#6b6558')
       g.fillStyle = '#8a5a2a'; g.fillRect(6, 19, 9, 3.4)
@@ -3140,7 +3175,7 @@ function itemSprite(item) {
     // §7ap: THE GREAT MAUL. Star-metal on a heartwood haft, brimstone-quenched
     // so it comes off the anvil still smoking.
     case 'great-mell': {
-      // §7ap: THE GREAT LINE IS NOT STAR-METAL. Drawn first in star-blue, it
+      // §7ap: THE GREAT LINE IS NOT QUICK-METAL. Drawn first in quick-blue, it
       // read as a quick-mell with a bigger head -- but every other great arm on
       // this island is near-black steel with molten orange running in the
       // cracks, because brimstone is what quenched it. The recipe said so all
@@ -3361,32 +3396,32 @@ function itemSprite(item) {
       g.fillStyle = '#33281a'; g.fillRect(14.0, 29.6, 4.0, 1.6)              // pommel knot
       break }
     case 'iron-dagger': case 'quick-dagger': {
-      const star = item.startsWith('star-')
-      const blade = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
+      const quick = item.startsWith('quick-')
+      const blade = quick ? '#c8f0ff' : '#e4ddc9', edge = quick ? '#54a8cc' : '#9a927e'
       pl([[15,26],[17,26],[18,12],[16,5],[14,12]], blade, edge)   // short leaf blade
       g.fillStyle = '#5c4023'; g.fillRect(13.5, 25.5, 5, 2.4)      // guard
       g.fillStyle = '#3b2a16'; g.fillRect(15, 27.6, 2, 3.4)        // stub grip
-      if (star) { g.fillStyle = 'rgba(120,220,255,.35)'; g.fillRect(15.4, 8, 1.2, 16) }
+      if (quick) { g.fillStyle = 'rgba(120,220,255,.35)'; g.fillRect(15.4, 8, 1.2, 16) }
       break }
     case 'iron-spear': case 'quick-spear': {
-      const star = item.startsWith('star-')
-      const head = star ? '#c8f0ff' : '#e4ddc9', edge = star ? '#54a8cc' : '#9a927e'
+      const quick = item.startsWith('quick-')
+      const head = quick ? '#c8f0ff' : '#e4ddc9', edge = quick ? '#54a8cc' : '#9a927e'
       g.strokeStyle = '#7a5124'; g.lineWidth = 2.6                 // the long haft
       g.beginPath(); g.moveTo(9, 30); g.lineTo(21, 8); g.stroke()
       g.strokeStyle = '#5c3d1b'; g.lineWidth = 1
       g.beginPath(); g.moveTo(9, 30); g.lineTo(21, 8); g.stroke()
       pl([[21,8],[24,1],[26,9],[22,11]], head, edge)               // narrow point
       g.fillStyle = '#4a4a52'; g.fillRect(18.5, 10.5, 4.6, 2.2)    // collar
-      if (star) { g.fillStyle = 'rgba(120,220,255,.4)'; g.fillRect(22.6, 3, 1, 6) }
+      if (quick) { g.fillStyle = 'rgba(120,220,255,.4)'; g.fillRect(22.6, 3, 1, 6) }
       break }
     // §6dg: THE JAVELIN. A spear's head on a short shaft, drawn upright rather
     // than raked back like the long spears, so the two never read as the same
     // weapon in a pack. A leather grip at the balance point says thrown, and
     // steel gets a bright collar the way the rest of the steel line does.
     case 'iron-javelin': case 'steel-javelin': case 'quick-javelin': {
-      const star = item.startsWith('star-'), steel = item.startsWith('steel-')
-      const head = star ? '#c8f0ff' : steel ? '#dfe6ee' : '#e4ddc9'
-      const edge = star ? '#54a8cc' : steel ? '#8794a4' : '#9a927e'
+      const quick = item.startsWith('quick-'), steel = item.startsWith('steel-')
+      const head = quick ? '#c8f0ff' : steel ? '#dfe6ee' : '#e4ddc9'
+      const edge = quick ? '#54a8cc' : steel ? '#8794a4' : '#9a927e'
       g.strokeStyle = '#7a5124'; g.lineWidth = 2.2                 // short shaft
       g.beginPath(); g.moveTo(13, 30); g.lineTo(18, 9); g.stroke()
       g.strokeStyle = '#5c3d1b'; g.lineWidth = 0.9
@@ -3395,17 +3430,17 @@ function itemSprite(item) {
       g.fillStyle = '#4a4a52'; g.fillRect(16.2, 10.6, 4.2, 1.9)    // collar
       g.fillStyle = '#3b2a16'; g.fillRect(14.4, 18, 3.4, 4.6)      // the grip
       g.fillStyle = 'rgba(255,255,255,.16)'; g.fillRect(14.6, 18.4, 1, 3.8)
-      if (star) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
+      if (quick) { g.fillStyle = 'rgba(120,220,255,.42)'; g.fillRect(20, 3, 1, 5.4) }
       if (steel) { g.fillStyle = 'rgba(255,255,255,.34)'; g.fillRect(19.6, 3.4, 0.9, 4.6) }
       break }
     case 'iron-mell': case 'steel-mell': case 'quick-mell': {
-      const star = item.startsWith('star-')
+      const quick = item.startsWith('quick-')
       const [head, edge] = METAL(item)
       g.strokeStyle = '#6b4720'; g.lineWidth = 3                   // heavy haft
       g.beginPath(); g.moveTo(11, 30); g.lineTo(18, 14); g.stroke()
       pl([[9,15],[20,9],[25,15],[23,20],[12,21]], head, edge)      // the great block
       g.fillStyle = edge; g.fillRect(12.5, 12.5, 3, 7)             // banded face
-      if (star) { g.fillStyle = 'rgba(140,225,255,.4)'; g.fillRect(19, 11, 2, 8) }
+      if (quick) { g.fillStyle = 'rgba(140,225,255,.4)'; g.fillRect(19, 11, 2, 8) }
       if (item.startsWith('steel-')) { g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(19, 11, 2, 8) }
       g.fillStyle = '#3b2a16'; g.fillRect(9.5, 28, 3.4, 3.4)       // butt
       break }
@@ -3624,6 +3659,7 @@ function itemSprite(item) {
       g.fillStyle = '#8ce0ff'; g.fillRect(14.6, 8, 2.8, 2.8); break
     case 'gold-bar':
     case 'quick-ingot':
+    case 'iron':
     case 'steel': {
       // A CAST BAR, NOT A LUMP. These three aliased to `ore` and were drawn
       // as rock with a colour over them, which is what a bar is not: it has
@@ -3631,7 +3667,8 @@ function itemSprite(item) {
       // the draft angle on the sides are the whole of how you know.
       const [lit, dark, shine] =
         item === 'gold-bar' ? METAL_PALETTE.gold :
-        item === 'quick-ingot' ? METAL_PALETTE.star : METAL_PALETTE.steel
+        item === 'quick-ingot' ? METAL_PALETTE.quick :
+        item === 'iron' ? METAL_PALETTE.iron : METAL_PALETTE.steel
       pl([[4,22],[9,15],[25,15],[30,22]], lit, dark)        // the top face
       pl([[4,22],[30,22],[28,27],[6,27]], dark)             // the front, in shadow
       g.fillStyle = shine
@@ -3802,8 +3839,8 @@ function itemSprite(item) {
     case 'quick-grit':
     case 'quick-alloy': {
       // The quick tier is the cold blue everything else in this window uses
-      // for it; see METAL_PALETTE.star. Grit is grains, alloy is a billet.
-      const [lit, dark, shine] = METAL_PALETTE.star
+      // for it; see METAL_PALETTE.quick. Grit is grains, alloy is a billet.
+      const [lit, dark, shine] = METAL_PALETTE.quick
       if (item === 'quick-grit') {
         for (const s of [[10,21,4.4],[18,23,3.6],[16,14,4.8],[23,18,3.2]]) {
           pl([[s[0], s[1]-s[2]], [s[0]+s[2]*0.8, s[1]], [s[0], s[1]+s[2]*0.7], [s[0]-s[2]*0.8, s[1]]], lit, dark)
@@ -5143,18 +5180,29 @@ const PRICES = {
 const METAL_PALETTE = {
   iron:  ['#c9862a', '#6b4515', 'rgba(255,255,255,.25)'],
   steel: ['#dfe6ee', '#8794a4', 'rgba(255,255,255,.34)'],
-  star:  ['#5cb8d9', '#2a7d9e', 'rgba(255,255,255,.35)'],
+  quick: ['#5cb8d9', '#2a7d9e', 'rgba(255,255,255,.35)'],
   gold:  ['#ffd23f', '#a8781a', 'rgba(255,255,255,.42)'],
 }
 const METAL = (it) => METAL_PALETTE[(it || '').split('-')[0]] ?? METAL_PALETTE.iron
 const ICON_ALIAS = {
-  'oak-logs': 'logs', 'ironbark': 'logs', 'iron': 'ore', 'coal': 'ore', 'gold-ore': 'ore',
+  'oak-logs': 'logs', 'ironbark': 'logs', 'coal': 'ore', 'gold-ore': 'ore',
+  // §7f: `iron` IS NOT HERE ANY MORE, and `iron-ore` is here instead. The
+  // world smelts two `iron-ore` into one `iron`, so `iron` is a BAR and was
+  // being drawn as the lump it came out of, while `iron-ore` -- the thing an
+  // iron-rock actually yields -- had no drawing in this window at all. A
+  // citizen mining and smelting saw one picture for both ends of the work.
+  'iron-ore': 'ore',
   // §7e: `steel`, `quick-ingot` and `gold-bar` are NOT HERE ANY MORE. They
   // are cast bars and were being drawn as rock with a colour over them; they
   // have their own case now. An alias beats a case -- the word is rewritten
   // before the switch sees it -- so leaving these here would have made the
   // new drawing dead code that looks alive.
-  'eel': 'raw-fish', 'cooked-eel': 'cooked-fish', 'burnt-eel': 'burnt-fish', 'deep-broth': 'broth',
+  'deep-broth': 'broth',
+  // §7f: THE THREE EELS ARE NOT HERE ANY MORE. Pointed at the three fish and
+  // tinted, an eel was a river fish in another colour -- and burnt-eel had no
+  // tint at all, so the two burnt words were one picture. An eel is a long
+  // thing; that is the only thing anybody knows about an eel. It has its own
+  // body now, and all three read as eel at a glance.
   // §7e: THE FOUR RODS ARE NOT HERE ANY MORE either. Pointed at `staff`,
   // every fishing rod in the world was a wizard's stave with a glowing orb on
   // the end. They have their own case.
@@ -5174,7 +5222,8 @@ const ICON_ALIAS = {
 }
 const ICON_TINT = {
   'oak-logs': '#6b4a22', 'ironbark': '#3f5a3a', 'coal': '#2c2c2e', 'gold-ore': '#ffd23f',
-    'eel': '#4a6b3a', 'cooked-eel': '#7a6b3a', 'deep-broth': '#3a5a6b',
+  'iron-ore': '#9c6b4a',          // §7f: rust, against the plain rock's grey
+    'deep-broth': '#3a5a6b',
     'steel-hatchet': '#b9c0c8', 'steel-pickaxe': '#b9c0c8', 'steel-sword': '#b9c0c8',
   'steel-dagger': '#b9c0c8', 'steel-spear': '#b9c0c8',
   // And five came out of this one for the same reason: a tint is for a word

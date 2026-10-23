@@ -44,6 +44,7 @@ import * as TM from './terrain-mirror.mjs'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { spriteDataUri, beastDataUri } from './sprite-svg.mjs'
 
 // The path, not the URL's pathname: a directory with a space in it arrives
 // percent-encoded and `readFileSync` takes it literally, so the world could
@@ -195,13 +196,59 @@ const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt
 // put on a memory stick and printed at somebody else's work. A book that
 // loses its illustrations the moment it leaves this folder is not a book.
 const seen = new Map()
+// ---- THE ITEMS ARE DRAWN, NOT PHOTOGRAPHED ----
+//
+// This used to inline a PNG from Art/Icons for every picture in the book: the
+// thing as it stands in the Unreal window, rendered to 512 and composed down
+// to 128, then printed at 7.6mm. Three faults with that, and the first is the
+// one that decided it.
+//
+// THE ART WAS BORROWED. Art/Icons is photographs of third-party CC0 meshes,
+// so the book's look was assembled from somebody else's kits and no two kits
+// agree about scale, light or how shiny iron is. The browser window draws its
+// own items in canvas paths, and those were authored here, for this world,
+// all in one hand. A page of them is coherent in a way a page of photographs
+// of borrowed models cannot be.
+//
+// THE ANGLE WAS THE CAMERA'S OPINION. A photographed mesh is at whatever
+// angle the icon camera happened to hold it, and at fingernail size an axe
+// seen nearly end-on is a brown smudge. A drawing is at the angle that says
+// axe, because that is the only reason to draw it.
+//
+// AND IT IS VECTOR. The sprites contain no bitmap at all -- 1,200 lines of
+// paths pinned to a 32-unit box only by `c.width = 32` -- so sprite-svg.mjs
+// replays them as SVG and the press gets the press's resolution instead of
+// 128 pixels stretched over 7.6mm. The whole world's art is 59KB of paths
+// against 20MB of PNGs, and sharper.
+//
+// Art/Icons is still here and still used for any word the window has no
+// drawing for, and Art/Icons-rendered-backup-2026-10-23 keeps the set as it
+// was on the day this changed.
+const ITEM = new Set(E.ITEMS instanceof Set ? [...E.ITEMS] : Object.keys(E.ITEMS || {}))
+// Counted, and printed at the end of a run: a page that quietly lost its
+// illustration is the fault this is here to catch.
+const DREW = { drawn: [], beast: [], shot: [], none: [] }
+// The bestiary is drawn by the window too, off the same creature chain the
+// window draws the world with, at full health and in its neutral pose.
+const MOB = E.MOB_STATS ?? {}
 const art = (name) => {
   if (!name) return null
   if (seen.has(name)) return seen.get(name)
-  const f = ART + name + '.png'
-  const uri = existsSync(f)
-    ? 'data:image/png;base64,' + readFileSync(f).toString('base64')
-    : null
+  // Only a word the world actually has as an item: itemSprite will happily
+  // lend an unknown word its family's drawing, which is right in a pack and
+  // wrong in a book, where a creature asking for a picture would be handed
+  // some piece of tackle whose name begins the same way.
+  let uri = ITEM.has(name) ? spriteDataUri(name) : null
+  if (uri) DREW.drawn.push(name)
+  if (!uri && MOB[name]) {
+    uri = beastDataUri(name)
+    if (uri) DREW.beast.push(name)
+  }
+  if (!uri) {
+    const f = ART + name + '.png'
+    uri = existsSync(f) ? 'data:image/png;base64,' + readFileSync(f).toString('base64') : null
+    ;(uri ? DREW.shot : DREW.none).push(name)
+  }
   seen.set(name, uri)
   return uri
 }
@@ -2076,6 +2123,10 @@ body { background: #4b4234; padding: 8mm; }
 writeFileSync(HERE + 'site/handbook-proof.html', proof)
 console.log(`${P.length} pages, ${sheets.length} sheets, ${
   [...seen.values()].filter(Boolean).length} illustrations`)
+console.log(`${DREW.drawn.length} items and ${DREW.beast.length} creatures drawn by the window, ${
+  DREW.shot.length} photographed from a mesh${
+  DREW.shot.length ? ': ' + [...new Set(DREW.shot)].join(' ') : ''}`)
+if (DREW.none.length) console.log(`NO PICTURE AT ALL: ${[...new Set(DREW.none)].join(' ')}`)
 
 // ---- DOES ANY PAGE RUN OFF THE BOTTOM ----
 //
