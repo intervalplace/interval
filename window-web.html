@@ -3622,6 +3622,195 @@ function itemSprite(item) {
       g.strokeStyle = '#8ce0ff'; g.lineWidth = 1.6
       g.beginPath(); g.arc(16, 16, 7, 0.6, 5.2); g.stroke()
       g.fillStyle = '#8ce0ff'; g.fillRect(14.6, 8, 2.8, 2.8); break
+    // §7e: THE NINETEEN THAT CAME OUT AS A BROWN SQUARE.
+    //
+    // Counted rather than remembered: the engine has 132 item words and the
+    // switch above had a drawing for 90 of them, with 23 more borrowing one
+    // through ICON_ALIAS or their family head. The remaining nineteen fell to
+    // `default`, which is `fillRect(8, 8, 16, 16)` in brown -- so a loaf of
+    // bread, a sack of flour, a lit torch and all four masks were the same
+    // featureless block in the pack, and a citizen could not tell them apart.
+    //
+    // They are not obscure words. `bread`, `flour`, `planks`, `torch` and
+    // `gunpowder` were not mentioned ANYWHERE in this file.
+    case 'bread':
+    case 'burnt-bread': {
+      const burnt = item === 'burnt-bread'
+      pl([[5,21],[7,13],[16,9],[25,13],[27,21],[23,25],[9,25]],
+         burnt ? '#4a3a2a' : '#d8a85e', burnt ? '#201810' : '#8a5f28')
+      g.strokeStyle = burnt ? '#1a1410' : '#8a5f28'; g.lineWidth = 1.4
+      for (const dx of [-5, 0, 5]) {
+        g.beginPath(); g.moveTo(14 + dx, 12.5); g.lineTo(18 + dx, 17.5); g.stroke()
+      }
+      if (burnt) { g.fillStyle = '#0d0a08'
+        for (const p of [[10,20],[19,22],[23,17]]) { g.beginPath(); g.arc(p[0], p[1], 1.3, 0, 7); g.fill() } }
+      break
+    }
+    case 'flour': {
+      // A SACK, not a heap: flour is carried in one and a heap of white reads
+      // as snow at this size.
+      pl([[9,12],[23,12],[26,26],[6,26]], '#e4dcc6', '#9a8f74')
+      pl([[12,6],[20,6],[23,12],[9,12]], '#d2c8ae', '#9a8f74')
+      g.strokeStyle = '#8a7f66'; g.lineWidth = 1.6
+      g.beginPath(); g.moveTo(11, 11); g.lineTo(21, 11); g.stroke()
+      g.fillStyle = 'rgba(255,255,255,.55)'
+      g.beginPath(); g.ellipse(13, 18, 2.6, 1.4, -.3, 0, 7); g.fill()
+      break
+    }
+    case 'planks': {
+      // Sawn boards, stacked. The pale cut face is what says sawn rather than
+      // felled; `logs` above keeps the bark.
+      for (let i = 0; i < 3; i++) {
+        const y = 10 + i * 5
+        pl([[4, y + 2], [26, y - 1], [28, y + 3], [6, y + 6]], '#d8b87a', '#8a6a3a')
+        g.strokeStyle = 'rgba(90,60,25,.35)'; g.lineWidth = 1
+        g.beginPath(); g.moveTo(7, y + 3.4); g.lineTo(25, y + 0.9); g.stroke()
+      }
+      break
+    }
+    case 'charcoal': {
+      // Angular and matt, with one dull sheen. Coal borrows `ore` and is
+      // round and wet-looking; charcoal is neither.
+      pl([[6,20],[11,11],[17,14],[14,24]], '#2a2724', '#100e0c')
+      pl([[15,13],[23,9],[27,17],[19,22]], '#332f2b', '#100e0c')
+      g.fillStyle = 'rgba(190,200,210,.22)'
+      pl([[17,12],[22,10],[23,13],[18,15]], 'rgba(190,200,210,.22)')
+      break
+    }
+    case 'rubble': {
+      for (const s of [[7,19,5.2],[16,22,4.2],[20,14,5.8],[12,13,3.6]]) {
+        pl([[s[0]-s[2], s[1]+s[2]*0.5], [s[0]-s[2]*0.4, s[1]-s[2]],
+            [s[0]+s[2], s[1]-s[2]*0.3], [s[0]+s[2]*0.3, s[1]+s[2]*0.8]],
+           '#9a948c', '#55514b')
+      }
+      break
+    }
+    case 'saltpetre': {
+      // Crystals: flat faces and hard edges, cold white. Flour is the warm
+      // soft one and they must not be the same picture.
+      for (const s of [[10,20,4.6],[18,22,3.8],[16,13,5.2],[23,17,3.4]]) {
+        pl([[s[0], s[1]-s[2]], [s[0]+s[2]*0.8, s[1]], [s[0], s[1]+s[2]*0.7], [s[0]-s[2]*0.8, s[1]]],
+           '#eef2f6', '#9fb0bf')
+      }
+      break
+    }
+    case 'gunpowder': {
+      // A dark grain, poured. Not charcoal: finer, greyer, and it catches a
+      // little light because of the petre in it.
+      pl([[5,25],[10,16],[16,13],[22,16],[27,25]], '#3a3630', '#17150f')
+      g.fillStyle = 'rgba(220,226,232,.5)'
+      for (const p of [[11,21],[15,18],[19,20],[22,23],[14,23]]) {
+        g.beginPath(); g.arc(p[0], p[1], 0.9, 0, 7); g.fill()
+      }
+      break
+    }
+    case 'smoked-eel': {
+      // Kippered: dry, dark and bent, which is how a smoked eel hangs. The
+      // raw one borrows `raw-fish` and is wet and silver.
+      g.strokeStyle = '#4a2f18'; g.lineWidth = 5.4; g.lineCap = 'round'
+      g.beginPath(); g.moveTo(6, 23); g.quadraticCurveTo(16, 6, 26, 19); g.stroke()
+      g.strokeStyle = '#6b4524'; g.lineWidth = 2.2
+      g.beginPath(); g.moveTo(7, 22); g.quadraticCurveTo(16, 8, 25, 19); g.stroke()
+      g.lineCap = 'butt'
+      g.fillStyle = '#100c08'; g.beginPath(); g.arc(25.6, 19.6, 1.2, 0, 7); g.fill()
+      break
+    }
+    case 'torch': {
+      g.fillStyle = '#5c4023'
+      g.save(); g.translate(14, 20); g.rotate(0.32); g.fillRect(-2, -2, 4, 14); g.restore()
+      g.fillStyle = 'rgba(255,170,60,.35)'
+      g.beginPath(); g.arc(17, 11, 8.5, 0, 7); g.fill()
+      pl([[17,2],[21,10],[17,15],[13,10]], '#ffb43c')
+      pl([[17,5],[19.6,10.5],[17,13.6],[14.4,10.5]], '#ffe9a8')
+      break
+    }
+    case 'chart': {
+      // An unrolled sheet with a coast on it, because that is what a chart of
+      // this world is: see `read_chart` in the engine.
+      pl([[5,7],[27,5],[28,25],[6,27]], '#e8dcb8', '#9a8a5e')
+      g.strokeStyle = '#4a6b86'; g.lineWidth = 1.5
+      g.beginPath(); g.moveTo(8, 21); g.quadraticCurveTo(14, 13, 12, 9)
+      g.quadraticCurveTo(20, 12, 25, 9); g.stroke()
+      g.strokeStyle = 'rgba(120,96,56,.6)'; g.lineWidth = 1
+      g.beginPath(); g.moveTo(8, 24); g.lineTo(24, 22.6); g.stroke()
+      g.fillStyle = '#9a3a2a'
+      g.beginPath(); g.moveTo(20, 17); g.lineTo(23, 19); g.lineTo(20, 20); g.closePath(); g.fill()
+      break
+    }
+    case 'graver': {
+      // A short handle and a fine point: the tool `grave` is filed with, and
+      // it must not read as a dagger. The handle is the big end.
+      pl([[6,22],[13,15],[17,19],[10,26]], '#5c4023', '#2e1f0e')
+      g.strokeStyle = '#c9c2b2'; g.lineWidth = 2.6
+      g.beginPath(); g.moveTo(15, 17); g.lineTo(24, 8); g.stroke()
+      pl([[23,7],[27,5],[26,10]], '#e8e2d4', '#8a8478')
+      break
+    }
+    case 'sapling': {
+      // A young tree with its root ball, which is what is carried; `tree` is
+      // a node and is drawn in the world, not in a pack.
+      g.fillStyle = '#5a4428'
+      g.beginPath(); g.ellipse(16, 25, 7, 4.2, 0, 0, 7); g.fill()
+      g.strokeStyle = '#6b5a32'; g.lineWidth = 2.2
+      g.beginPath(); g.moveTo(16, 24); g.lineTo(16, 11); g.stroke()
+      pl([[16,13],[9,9],[15,7]], '#5d8a41', '#33502a')
+      pl([[16,16],[24,12],[17,10]], '#6f9e4c', '#33502a')
+      break
+    }
+    case 'quick-grit':
+    case 'quick-alloy': {
+      // The quick tier is the cold blue everything else in this window uses
+      // for it; see METAL_PALETTE.star. Grit is grains, alloy is a billet.
+      const [lit, dark, shine] = METAL_PALETTE.star
+      if (item === 'quick-grit') {
+        for (const s of [[10,21,4.4],[18,23,3.6],[16,14,4.8],[23,18,3.2]]) {
+          pl([[s[0], s[1]-s[2]], [s[0]+s[2]*0.8, s[1]], [s[0], s[1]+s[2]*0.7], [s[0]-s[2]*0.8, s[1]]], lit, dark)
+        }
+        g.fillStyle = shine
+        g.beginPath(); g.arc(16, 13, 1.6, 0, 7); g.fill()
+      } else {
+        pl([[5,18],[12,12],[27,12],[27,20],[20,26],[5,26]], lit, dark)
+        pl([[5,18],[12,12],[27,12],[20,18]], shine)
+      }
+      break
+    }
+    case 'hart-mask':
+    case 'wolf-mask':
+    case 'raven-mask':
+    case 'hare-mask': {
+      // FOUR MASKS, AND THEY MUST NOT BE ONE PICTURE. They are worn on the
+      // head and a citizen choosing between them in a pack can only go by the
+      // sprite, so each gets the one feature that names the animal.
+      const face = (fill, stroke) => {
+        pl([[11,10],[21,10],[23,17],[16,25],[9,17]], fill, stroke)
+        g.fillStyle = '#17120c'
+        g.beginPath(); g.arc(13.2, 16, 1.5, 0, 7); g.fill()
+        g.beginPath(); g.arc(18.8, 16, 1.5, 0, 7); g.fill()
+      }
+      if (item === 'hart-mask') {
+        g.strokeStyle = '#8a6a3a'; g.lineWidth = 1.6
+        for (const s of [-1, 1]) {
+          g.beginPath(); g.moveTo(16 + s * 4, 10); g.lineTo(16 + s * 7, 3); g.stroke()
+          g.beginPath(); g.moveTo(16 + s * 5.5, 6.5); g.lineTo(16 + s * 9.5, 6); g.stroke()
+        }
+        face('#a9793f', '#5e4118')
+      } else if (item === 'wolf-mask') {
+        pl([[10,11],[8,4],[14,8]], '#6e6a62', '#38352f')
+        pl([[22,11],[24,4],[18,8]], '#6e6a62', '#38352f')
+        face('#8a867c', '#3d3a34')
+        pl([[13,22],[19,22],[16,27]], '#55514a', '#2a2724')
+      } else if (item === 'raven-mask') {
+        face('#2f3338', '#14171a')
+        pl([[16,19],[29,24],[16,25]], '#1b1d20', '#0a0b0c')
+      } else {
+        g.strokeStyle = '#b8a894'; g.lineWidth = 3.4; g.lineCap = 'round'
+        g.beginPath(); g.moveTo(13, 10); g.lineTo(10, 2); g.stroke()
+        g.beginPath(); g.moveTo(19, 10); g.lineTo(22, 2); g.stroke()
+        g.lineCap = 'butt'
+        face('#cdbda6', '#7d6e58')
+      }
+      break
+    }
     default:
       g.fillStyle = '#6e5433'; g.fillRect(8, 8, 16, 16)
   }
@@ -3685,6 +3874,10 @@ const EQUIPPABLE = new Set([
 const HP_FLAT = 64
 // copied from the engine's SWORN table, not guessed: a warden carries +16,
 // and this said 8, so every warden's health bar was drawn eight short
+// HOW MANY PULLS RAISE A BELL. Copied from the engine, where it is
+// BELL_PULLS, and held to it by check-window-web-art.mjs so it cannot drift:
+// the bellwork's progress bar is a lie the moment this and the engine differ.
+const BELL_PULLS = 12
 const CALLING_HP = { berserker: -16, warden: 16 }
 const maxHpOf = (p) => HP_FLAT + (CALLING_HP[p?.calling] ?? 0)
 // §4b: MASTERY IS ONE HUNDRED, declared beside the curve it belongs to. It sat
@@ -5332,24 +5525,36 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === '3') setCombatStyle('force')
 })
 const BRIDGE_TO_INPUT = (a) =>
-    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }
-  // §5i: a journey is one deed. Direction and count; the world walks the rest.:
+    a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
+  // §5i: a journey is one deed. Direction and count; the world walks the rest.
+  //
+  // THE COLON WAS INSIDE THIS COMMENT, and had been since 3 October. A ternary
+  // whose `:` is commented out is not a slow path or a wrong answer: it is a
+  // SyntaxError, the whole script block fails to parse, and nothing in this
+  // window runs at all. The page came up blank for eighteen days.
+  //
+  // Nothing caught it because nothing ever parsed this file. Every check in
+  // this directory reads it as TEXT -- `readFileSync` and a regular
+  // expression -- so they all went on passing, cheerfully comparing tables
+  // inside a document no browser could execute. check-window-web-art.mjs
+  // parses it now, which is the cheapest test in the project and the one that
+  // mattered most.
   a.do === 'walk' ? { type: 'walk', dx: a.dx, dy: a.dy, steps: a.steps }:
   a.do === 'spawn' ? { type: 'spawn' }:
-  a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth
+  a.do === 'attend' ? { type: 'attend' }: // §0b: the first half of a birth
   // v0.82: the four verbs this window could not send. A window that cannot
   // express a verb is a window whose citizens cannot do that thing at all --
   // they could not drink at a well, transmute anything, choose their own face,
-  // or send a mending to somebody who needed it.:
-  a.do === 'drink' ? { type: 'drink' }
+  // or send a mending to somebody who needed it.
+  a.do === 'drink' ? { type: 'drink' }:
   // §7dy/§7dz: the deferred acts. The canonical battery caught these missing
   // from the SDK and nothing was checking the windows, so they were reachable
   // from neither -- a verb the engine accepts and no window can send is a verb
-  // that does not really exist.:
+  // that does not really exist.
   a.do === 'sapling' ? { type: 'sapling', nodeId: a.nodeId }:
   a.do === 'setbuck' ? { type: 'setbuck' }:
-  a.do === 'lift' ? { type: 'lift', nodeId: a.nodeId }
-  // §14: the toll on the Millbrook Bridge:
+  a.do === 'lift' ? { type: 'lift', nodeId: a.nodeId }:
+  // §14: the toll on the Millbrook Bridge
   a.do === 'pay' ? { type: 'pay' }:
   a.do === 'grind' ? { type: 'grind', slot: a.slot }:
   a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }:
@@ -5382,35 +5587,35 @@ const BRIDGE_TO_INPUT = (a) =>
   // window could not strike a beast at all.
   a.do === 'prowess' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }:
   a.do === 'eat' ? { type: 'eat', slot: a.slot }:
-  a.do === 'drop' ? { type: 'drop', slot: a.slot }
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }:
   // §7dk: `confirm` is required on every pickup and only CHECKED when the
   // pile belongs to another citizen. An ordinary pickup sends false and
-  // nothing about it changes.:
+  // nothing about it changes.
   a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
   a.do === 'wield' ? { type: 'wield', slot: a.slot }:
   a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }:
-  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }
+  a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
   // trade and recall: the flat window could do neither, so the window most
   // people meet first was the one that could not buy from a person or walk
-  // home. giveSlots is a list since v0.69: a whole pack in one exchange.:
+  // home. giveSlots is a list since v0.69: a whole pack in one exchange.
   a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
                          wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }:
   a.do === 'accept' ? { type: 'accept_trade', from: a.from }:
   a.do === 'cancel' ? { type: 'cancel_trade' }:
-  a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens:
-  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  a.do === 'name' ? { type: 'claim_name', name: a.name }: // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }:
   // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
-  // one, so a window that omits it silently stops being able to use a vault.:
+  // one, so a window that omits it silently stops being able to use a vault.
   a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }:
   a.do === 'deposit_all' ? { type: 'deposit_all' }:
   a.do === 'light' ? { type: 'light', slot: a.slot }:
   a.do === 'bury' ? { type: 'bury', slot: a.slot }:
   a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
-  a.do === 'invoke' ? { type: 'invoke' }
+  a.do === 'invoke' ? { type: 'invoke' }:
   // §5k/§5w: the calling was named in this window's guide since it was written
   // and there was no line here for saying it, so no citizen could ever swear.
   // `attester` is optional: an unattested swearing stays legal (§5w), and the
-  // first forester has nobody to attest them.:
+  // first forester has nobody to attest them.
   a.do === 'swear' ? (a.attester === undefined
       // §5w: the attester is a DECLARED field now and empty means nobody.
       // It was omitted entirely for an unattested swearing, which this
@@ -5420,18 +5625,18 @@ const BRIDGE_TO_INPUT = (a) =>
       { type: 'swear', calling: a.calling, attester: a.attester }):
   a.do === 'teach' ? { type: 'teach', to: a.to }:
   a.do === 'part' ? { type: 'part', who: a.who }:
-  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }:
   // §6af: the window sent `gambit` from the ring menu and the bridge had no
   // line for it, so it answered 'no wiring for gambit yet' and swallowed the
-  // only interesting decision in a fight. IT THEN DID IT AGAIN, one layer down:
+  // only interesting decision in a fight. IT THEN DID IT AGAIN, one layer down
   // the verb was renamed `gambit` in the engine and this line kept sending
   // `gambit`, which `validateInputShape` answers with "unknown input type", so
   // the burst was dead in this window and nowhere else. The SDK, the bridge and
   // the server had all moved.:
   a.do === 'gambit' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }:
-  a.do === 'buy' ? { type: 'buy', item: a.item }
+  a.do === 'buy' ? { type: 'buy', item: a.item }:
   // §11b: the counter. None of the three had a line here, so the eighteenth
-  // skill could not be reached from this window at all.:
+  // skill could not be reached from this window at all.
   a.do === 'consign' ? { type: 'consign', slots: a.slots }:
   a.do === 'release' ? { type: 'release' }:
   a.do === 'deliver' ? { type: 'deliver', slot: a.slot }:
@@ -9065,7 +9270,7 @@ function drawCitizen(X, Y, o) {
     for (let k = 0; k < tiers; k++) {
       cx.fillStyle = k === 1 ? '#7a5a34' : '#6b4a2c'
       cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 20 - k * 4.4, 6.5, 4.2)
-      cx.fillStyle = rich ? 'rgba(226,182,62,.85)'             // a gold strap:
+      cx.fillStyle = rich ? 'rgba(226,182,62,.85)': // a gold strap
         fat ? 'rgba(190,150,70,.5)' : 'rgba(0,0,0,.28)'      // ...or plain rope
       cx.fillRect(X + 16 + FB * 7 - 2.5, Y + 21.4 - k * 4.4, 6.5, 0.9)
     }
@@ -9928,6 +10133,131 @@ function drawScene(now) {
         cx.fillStyle = '#6b5433'
         cx.fillRect(X + 4, Y + 8, 3, 14); cx.fillRect(X + 25, Y + 8, 3, 14)
         cx.fillRect(X + 2, Y + 10, 28, 2.5); cx.fillRect(X + 2, Y + 16, 28, 2.5)
+        return
+      }
+      // §7e: THE EIGHT THE WINDOW HAD NEVER HEARD OF.
+      //
+      // Counted against the engine's own NODE_TYPES: of 66 kinds the world
+      // stands up, these eight were not named ANYWHERE in this file, so they
+      // fell through to the generic marker. Two of them are the largest
+      // things a town ever builds together -- a bell and a span -- and both
+      // carry a count of how far along they are, which is the whole point of
+      // them and was invisible.
+      if (n.type === 'bellwork' || n.type === 'bell') {
+        // A frame, a bell, and a rope that hands take hold of. `pulls` rises
+        // as the town pulls; at BELL_PULLS the bellwork becomes a bell.
+        const done = n.type === 'bell'
+        const pulls = n.pulls ?? 0
+        const hands = Object.keys(n.holding ?? {}).length
+        shadow(X, Y, 13)
+        cx.fillStyle = '#4e4338'
+        poly([[X+8,Y+34],[X+12,Y+34],[X+19,Y+9],[X+16,Y+9]], '#4e4338', '#2b241c')
+        poly([[X+28,Y+34],[X+32,Y+34],[X+24,Y+9],[X+21,Y+9]], '#4e4338', '#2b241c')
+        cx.fillStyle = '#5d5146'; cx.fillRect(X + 14, Y + 7, 12, 3)
+        // the bell itself, brighter once it is finished
+        const sway = done ? Math.sin(now / 700) * 0.14 : 0
+        cx.save(); cx.translate(X + 20, Y + 10); cx.rotate(sway)
+        poly([[-7,13],[-5,2],[5,2],[7,13]], done ? '#c9a23a' : '#7d7466', done ? '#7a5f16' : '#473f34')
+        cx.fillStyle = done ? '#e0bd55' : '#8d8475'; cx.fillRect(-7.6, 12, 15.2, 2.6)
+        cx.fillStyle = done ? '#7a5f16' : '#473f34'
+        cx.beginPath(); cx.arc(0, 15.4, 1.8, 0, 7); cx.fill()      // the clapper
+        cx.restore()
+        if (!done) {
+          // the rope, and how many hands are on it right now
+          cx.strokeStyle = hands ? '#c9a86a' : '#8a7c62'; cx.lineWidth = hands ? 2.2 : 1.4
+          cx.beginPath(); cx.moveTo(X + 20, Y + 24); cx.lineTo(X + 20 + Math.sin(now / 320) * hands, Y + 33); cx.stroke()
+          // and how far along the work is, which is the thing worth seeing
+          cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillRect(X + 6, Y - 4, 28, 3.4)
+          cx.fillStyle = '#c9a23a'
+          cx.fillRect(X + 6, Y - 4, 28 * Math.max(0, Math.min(1, pulls / BELL_PULLS)), 3.4)
+        }
+        return
+      }
+      if (n.type === 'spanwork' || n.type === 'span') {
+        // A crossing a town lays together: `laid` of `need`, and a name.
+        const done = n.type === 'span'
+        const part = Math.max(0, Math.min(1, (n.laid ?? 0) / Math.max(1, n.need ?? 1)))
+        shadow(X, Y, 14)
+        // the piers stand first, then the deck grows across them
+        cx.fillStyle = '#6b6258'
+        cx.fillRect(X + 5, Y + 20, 5, 14); cx.fillRect(X + 30, Y + 20, 5, 14)
+        const w = 30 * (done ? 1 : part)
+        cx.fillStyle = done ? '#8d8172' : '#766c5f'
+        cx.fillRect(X + 5, Y + 16, w, 5)
+        cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(X + 5, Y + 16, w, 1.6)
+        if (!done) {
+          cx.strokeStyle = 'rgba(210,196,160,.5)'; cx.lineWidth = 1; cx.setLineDash([3, 3])
+          cx.beginPath(); cx.moveTo(X + 5 + w, Y + 18.5); cx.lineTo(X + 35, Y + 18.5); cx.stroke()
+          cx.setLineDash([])
+          cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillRect(X + 6, Y - 4, 28, 3.4)
+          cx.fillStyle = '#8fae5c'; cx.fillRect(X + 6, Y - 4, 28 * part, 3.4)
+        } else {
+          // a rail, so a finished span reads as something you walk over
+          cx.fillStyle = '#5d5449'
+          cx.fillRect(X + 5, Y + 12, 30, 1.8)
+          for (let i = 0; i < 5; i++) cx.fillRect(X + 7 + i * 7, Y + 12, 1.8, 5)
+        }
+        return
+      }
+      if (n.type === 'grove-plot') {
+        // A sown bed, not a field: `species` says which tree is coming up and
+        // `sownAt` whether anything is in it yet.
+        shadow(X, Y, 10)
+        cx.fillStyle = '#4a3827'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 27, 13, 6.5, 0, 0, 7); cx.fill()
+        cx.strokeStyle = 'rgba(30,22,14,.5)'; cx.lineWidth = 1
+        for (const dy of [-2, 1, 4]) { cx.beginPath(); cx.moveTo(X + 9, Y + 27 + dy); cx.lineTo(X + 31, Y + 27 + dy); cx.stroke() }
+        if (n.sownAt) {
+          for (const dx of [-7, 0, 7]) {
+            cx.strokeStyle = '#6b5a32'; cx.lineWidth = 1.6
+            cx.beginPath(); cx.moveTo(X + 20 + dx, Y + 26); cx.lineTo(X + 20 + dx, Y + 19); cx.stroke()
+            poly([[X+20+dx,Y+21],[X+16+dx,Y+17],[X+20+dx,Y+16]], '#5d8a41', '#33502a')
+            poly([[X+20+dx,Y+23],[X+24+dx,Y+19],[X+20+dx,Y+18]], '#6f9e4c', '#33502a')
+          }
+        }
+        return
+      }
+      if (n.type === 'eel-buck') {
+        // A wicker trap, set in the water and tied to the bank.
+        shadow(X, Y, 9)
+        cx.fillStyle = 'rgba(120,160,170,.25)'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 28, 14, 6, 0, 0, 7); cx.fill()
+        poly([[X+10,Y+26],[X+14,Y+16],[X+26,Y+16],[X+30,Y+26]], '#9a8a6a', '#5e4f32')
+        cx.strokeStyle = 'rgba(70,56,30,.7)'; cx.lineWidth = 1
+        for (const ry of [18, 21, 24]) { cx.beginPath(); cx.moveTo(X + 11, Y + ry); cx.lineTo(X + 29, Y + ry); cx.stroke() }
+        for (const rx of [14, 20, 26]) { cx.beginPath(); cx.moveTo(X + rx, Y + 16); cx.lineTo(X + rx, Y + 26); cx.stroke() }
+        poly([[X+16,Y+16],[X+20,Y+10],[X+24,Y+16]], '#8a7a56', '#5e4f32')   // the throat
+        cx.strokeStyle = '#7a6a48'; cx.lineWidth = 1.4
+        cx.beginPath(); cx.moveTo(X + 20, Y + 11); cx.lineTo(X + 33, Y + 6); cx.stroke()
+        return
+      }
+      if (n.type === 'hoard') {
+        // A stash with a shelf, like a cart or a stall: a chest, banded.
+        shadow(X, Y, 11)
+        poly([[X+7,Y+30],[X+7,Y+18],[X+33,Y+18],[X+33,Y+30]], '#6b4f2c', '#38270f')
+        poly([[X+7,Y+18],[X+11,Y+12],[X+29,Y+12],[X+33,Y+18]], '#7d5e36', '#38270f')
+        cx.fillStyle = '#4a4036'
+        cx.fillRect(X + 12, Y + 12, 3, 18); cx.fillRect(X + 25, Y + 12, 3, 18)
+        cx.fillStyle = '#c9a23a'; cx.fillRect(X + 18.4, Y + 19, 3.2, 4.4)
+        cx.fillStyle = '#2b241c'; cx.fillRect(X + 19.4, Y + 20.4, 1.2, 2)
+        return
+      }
+      if (n.type === 'stamp') {
+        // §5u: the crushing floor. A stone bed and a shod beam that falls on
+        // it; the beam is what makes it a stamp and not a millstone.
+        shadow(X, Y, 12)
+        cx.fillStyle = '#6e685e'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 29, 14, 6.5, 0, 0, 7); cx.fill()
+        cx.fillStyle = '#56504a'
+        cx.beginPath(); cx.ellipse(X + 20, Y + 28, 9, 4, 0, 0, 7); cx.fill()
+        const fall = Math.abs(Math.sin(now / 460)) * 5
+        cx.fillStyle = '#4e4338'; cx.fillRect(X + 18, Y + 6 + fall, 4, 16)
+        cx.fillStyle = '#8a8276'; cx.fillRect(X + 15.5, Y + 20 + fall, 9, 4)
+        cx.fillStyle = '#4e4338'; cx.fillRect(X + 8, Y + 4, 24, 3)
+        if (fall > 4.2) {
+          cx.fillStyle = 'rgba(190,182,168,.4)'
+          cx.beginPath(); cx.ellipse(X + 20, Y + 27, 11, 3.5, 0, 0, 7); cx.fill()
+        }
         return
       }
       if (n.type === 'smokerack') {
@@ -12702,6 +13032,46 @@ function drawScene(now) {
         cx.fillStyle = '#a040c0'; cx.fillRect(X + 6, Y - 10, 28 * Math.max(0, m.hp / (m.maxHp || 200)), 3.4)
         return
       }
+      if (m.type === 'quencher') {
+        // §7e: IT WAS BEING DRAWN AS A GOBLIN. The chain below ends in the
+        // goblin's body with no test on it, so every creature without a
+        // branch of its own is a goblin -- which is a sound fallback and a
+        // silent one. The quencher was the only word still taking it, so a
+        // citizen met a green imp with a club where the world had put a
+        // slime. The Unreal window draws it off `Slime`; this is that.
+        const squash = Math.sin(now / 520 + m.x) * 0.16 + (engaged ? Math.abs(Math.sin(now / 150)) * 0.14 : 0)
+        const w = 13 * (1 + squash), h = 11 * (1 - squash * 0.8)
+        const cxm = X + 20, cym = Y + 30 - h
+        cx.save()
+        cx.globalAlpha = 0.82
+        // the body: a dome that settles, flat on the ground
+        cx.fillStyle = '#3f8f86'
+        cx.beginPath()
+        cx.moveTo(cxm - w, Y + 31)
+        cx.quadraticCurveTo(cxm - w, cym - h * 0.9, cxm, cym - h)
+        cx.quadraticCurveTo(cxm + w, cym - h * 0.9, cxm + w, Y + 31)
+        cx.closePath(); cx.fill()
+        cx.strokeStyle = '#1f554f'; cx.lineWidth = 1.4; cx.stroke()
+        // what it has swallowed, darker and slower than the skin
+        cx.globalAlpha = 0.5; cx.fillStyle = '#17403c'
+        cx.beginPath(); cx.ellipse(cxm + Math.sin(now / 900) * 3, cym - h * 0.25, 4.2, 3.2, 0, 0, 7); cx.fill()
+        cx.globalAlpha = 1
+        // the wet highlight, which is most of what says slime
+        cx.fillStyle = 'rgba(214,248,244,.55)'
+        cx.beginPath(); cx.ellipse(cxm - w * 0.38, cym - h * 0.45, 3.4, 2.2, -0.4, 0, 7); cx.fill()
+        // eyes afloat in it
+        cx.fillStyle = '#0d2a27'
+        cx.beginPath(); cx.arc(cxm - 3.6 + MF * 1.2, cym - h * 0.1, 1.6, 0, 7); cx.fill()
+        cx.beginPath(); cx.arc(cxm + 3.6 + MF * 1.2, cym - h * 0.1, 1.6, 0, 7); cx.fill()
+        cx.restore()
+        cx.fillStyle = '#4a1008'; cx.fillRect(X + 13, Y + 14, 14, 3)
+        cx.fillStyle = '#c0392b'
+        cx.fillRect(X + 13, Y + 14, 14 * Math.max(0, m.hp / (MOB_STATS.quencher?.maxHp ?? 12)), 3)
+        return
+      }
+      // THE GOBLIN IS ALSO THE FALLBACK. Anything that reaches here has no
+      // branch of its own and is drawn as a goblin, which is deliberate and
+      // was silent: see the quencher just above, which took it for months.
       // the goblin: two-tone body, ears, club
       poly([[X+20,Y+11-hop],[X+28,Y+20-hop],[X+24,Y+34],[X+16,Y+34],[X+12,Y+20-hop]], '#4e7d2a', '#2c4a15')
       poly([[X+20,Y+13-hop],[X+25,Y+21-hop],[X+22,Y+33],[X+18,Y+33],[X+15,Y+21-hop]], '#5c8f35')
