@@ -405,3 +405,64 @@ test('every landmark drawing is behind a gate that names it', () => {
   assert.deepEqual(namedNotDrawn, [],
     'the gate lets these in and the chain has nothing for them: ' + namedNotDrawn.join(', '))
 })
+
+// ---- A WALL IS THE SAME WALL WHICHEVER WAY IT RUNS ----
+//
+// A run across was seventeen thick and the same wall running down was
+// twenty-eight, because the sideways measurement and the end-on one came
+// from different numbers. Every building had a narrow band along the top and
+// a broad slab down the side with a jog where they met. A run down also
+// stopped seventeen short at its ends, where a run across stops six, so a
+// column of wall tiles read as separate blocks.
+//
+// The geometry is four lines. This runs them, for every way the neighbours
+// can be, instead of reading them.
+test('a wall is the same thickness whichever way it runs', () => {
+  const a = win.indexOf('const thick = ramp ? ')
+  assert.ok(a > 0, 'the wall geometry is gone or renamed')
+  const b = win.indexOf('const y1 =', a)
+  const src = win.slice(a, win.indexOf('\n', b))
+  const geom = new Function('ramp', 'wl', 'wr', 'wu', 'wd', 'X', 'Y',
+    src + '\n    return { x0, x1, y0, y1, vert }')
+
+  for (const ramp of [false, true]) {
+    const T = ramp ? 22 : 17
+    const across = geom(ramp, true, true, false, false, 0, 0)     // middle of a run across
+    const down = geom(ramp, false, false, true, true, 0, 0)       // middle of a run down
+    assert.equal(across.y1 - across.y0, T, (ramp ? 'palisade' : 'wall') + ' across')
+    assert.equal(down.x1 - down.x0, T,
+      (ramp ? 'palisade' : 'wall') + ' down is ' + (down.x1 - down.x0) + ' thick, across is ' + T)
+    assert.equal(across.x1 - across.x0, 40, 'a middle tile reaches both its edges')
+    assert.equal(down.y1 - down.y0, 40, 'and so does a middle tile of a run down')
+
+    // the strip of a run down is centred, so it meets the next tile squarely
+    assert.equal(down.x0 + down.x1, 40, 'a run down sits down the middle of its tiles')
+
+    // and a run ends the same way whichever way it runs
+    const capAcross = geom(ramp, false, true, false, false, 0, 0)
+    const capDown = geom(ramp, false, false, false, true, 0, 0)
+    assert.equal(capAcross.x0, capDown.y0,
+      'a run across stops ' + capAcross.x0 + ' short at its end and a run down stops ' + capDown.y0)
+  }
+
+  // nothing ever draws itself inside out
+  for (const wl of [0, 1]) for (const wr of [0, 1]) for (const wu of [0, 1]) for (const wd of [0, 1]) {
+    const g = geom(false, !!wl, !!wr, !!wu, !!wd, 0, 0)
+    assert.ok(g.x1 > g.x0 && g.y1 > g.y0, `a wall with neighbours ${wl}${wr}${wu}${wd} has no body`)
+  }
+})
+
+// ---- A SIGNPOST SAYS WHERE IT IS ----
+//
+// All 216 of them read "ANCHOR / EAST / WEST", painted into the drawing, in
+// fourteen countries. The world has carried the right words the whole time:
+// 207 signpost nodes hold `text` naming 144 distinct places.
+test('a signpost reads the world, not three words painted into the drawing', () => {
+  const a = win.indexOf("if (n.type === 'signpost') {")
+  assert.ok(a > 0, 'the signpost drawing is gone or renamed')
+  const body = win.slice(a, win.indexOf('\n      }\n', a))
+  assert.ok(body.includes('n.text'), 'the signpost must read the words the world put on it')
+  const painted = [...body.matchAll(/fillText\(\s*'([^']+)'/g)].map((m) => m[1])
+  assert.deepEqual(painted, [],
+    'a signpost paints these words on every post in the world: ' + painted.join(', '))
+})

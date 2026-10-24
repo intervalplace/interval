@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 544 tests across:
+`node --test test/*.test.mjs`, 546 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -164,8 +164,10 @@ possible executions.
   tables the window has to copy because a browser file cannot import the
   engine (which weapons take both hands, and which slot a thing is worn in),
   that the world's `health` is translated into the window's `hp` at the one
-  door every state comes through, and that no landmark drawing sits behind a
-  gate that does not name it
+  door every state comes through, that no landmark drawing sits behind a gate
+  that does not name it, that a wall is the same thickness whichever way it
+  runs, and that a signpost reads the words the world put on it rather than
+  three painted into the drawing
 - `hands.test.mjs`, one pair of hands, played rather than read: a shield
   cannot go up beside a two-handed weapon and a two-handed weapon cannot go up
   beside a shield, so the window says the two inputs instead. Crosses every
