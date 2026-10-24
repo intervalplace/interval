@@ -257,3 +257,60 @@ test('the chart draws the same inland waters as the world', () => {
       `site/map.html says "${m[1]} becks" and the world has ${BECKS.length}`)
   }
 })
+
+// ---- ONE PAIR OF HANDS, AND THE TWO TABLES THAT DECIDE IT ----
+//
+// The engine refuses a wield that would displace something the citizen did
+// not ask to put down: a shield beside a two-handed weapon, or a weapon that
+// takes both hands beside a raised shield. The window's job is to say the two
+// inputs instead -- lower the shield, then wield -- and to say out loud when
+// the pack has no room for what comes off.
+//
+// It can only do that if it agrees with the engine about WHICH weapons take
+// both hands and WHICH slot a thing goes in. It did not. Its list of
+// two-handed weapons had eleven words where the engine has twenty-one, and
+// every spear, every mell, every staff, the quick flail, the old chain and
+// the handgonne were missing from it. For those thirteen, clicking to wield
+// with a shield up sent a wield the engine threw away, and nothing happened
+// and nothing was said: exactly the silent refusal the window's own comment
+// says it exists to prevent.
+//
+// Neither table can be imported into a browser file, so both are copied, and
+// these two tests are what keeps the copies honest.
+const setFrom = (src, name) => {
+  const m = src.match(new RegExp('const ' + name + ' = new Set\\(\\[([\\s\\S]*?)\\]\\)'))
+  assert.ok(m, `${name} not found`)
+  return new Set([...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]))
+}
+const tableFrom = (src, name) => {
+  const i = src.indexOf('const ' + name + ' = {')
+  assert.ok(i >= 0, `${name} not found`)
+  const body = src.slice(i, src.indexOf('\n}', i))
+  const o = {}
+  for (const m of body.matchAll(/'([^']+)':\s*'(\w+)'/g)) o[m[1]] = m[2]
+  return o
+}
+
+test('the window knows the same weapons take both hands as the engine does', () => {
+  const mine = setFrom(win, 'TWO_HANDED')
+  const theirs = setFrom(eng, 'TWO_HANDED')
+  assert.ok(theirs.size > 15, 'the engine list was not read: this test would pass on nothing')
+  const missing = [...theirs].filter((w) => !mine.has(w))
+  const extra = [...mine].filter((w) => !theirs.has(w))
+  assert.deepEqual(missing, [],
+    'the window would send a wield the engine refuses, and say nothing, for: ' + missing.join(', '))
+  assert.deepEqual(extra, [],
+    'the window would lower a shield that could have stayed up, for: ' + extra.join(', '))
+})
+
+test('the window puts every piece of gear in the slot the engine does', () => {
+  const mine = tableFrom(win, 'EQUIP_SLOT')
+  const theirs = tableFrom(eng, 'EQUIP_SLOT')
+  assert.ok(Object.keys(theirs).length > 15, 'the engine table was not read')
+  const wrong = Object.entries(theirs)
+    .filter(([w, slot]) => (mine[w] ?? 'weapon') !== slot)
+    .map(([w, slot]) => `${w} belongs in the ${slot}, the window says ${mine[w] ?? 'weapon'}`)
+  assert.deepEqual(wrong, [], wrong.join('; '))
+  const invented = Object.keys(mine).filter((w) => !theirs[w])
+  assert.deepEqual(invented, [], 'the window slots gear the engine has never heard of: ' + invented.join(', '))
+})

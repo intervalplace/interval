@@ -5360,10 +5360,50 @@ const WORN_STATS = {
 const EQUIP_SLOTS = ['head', 'weapon', 'body', 'offhand', 'legs']
 // §6bz: which slot an item wants, for the window's own reasoning. The engine's
 // `slotOf` is the authority; this only has to be right about shields.
-const EQUIP_SLOT_OF = (item) => /-shield$/.test(item ?? '') ? 'offhand':
-  /-helm$|hood$/.test(item ?? '') ? 'head':
-  /-plate$|shroud$/.test(item ?? '') ? 'body':
-  /-greaves$|-legs$/.test(item ?? '') ? 'legs' : 'weapon'
+// §7f: THE SLOT IS A TABLE, NOT A SPELLING. This read the slot off the end of
+// the word -- anything ending `-shield` went in the off hand, anything ending
+// `-helm` on the head -- and the engine has never worked that way: it has a
+// table, and six equippable words in it are not named after their slot.
+//
+//   horn          the engine puts it in the OFF HAND, this called it a weapon
+//   cinder-crown  on the head, called a weapon
+//   hart-mask, wolf-mask, raven-mask, hare-mask    all four, the same
+//
+// The horn is the one that bit. A horn is an off-hand thing, so the engine
+// refuses it beside a two-handed weapon; this window thought it was a weapon,
+// sent a plain wield, and the engine threw it away with nothing said.
+//
+// Copied character for character from engine.js EQUIP_SLOT, like MOB_STATS
+// above it, and test/window.test.mjs holds the two together.
+const EQUIP_SLOT = {
+  'iron-helm': 'head', 'quick-helm': 'head', 'steel-helm': 'head', 'shell-helm': 'head',
+  'great-helm': 'head', 'gold-helm': 'head', 'cinder-crown': 'head', 'hart-mask': 'head',
+  'wolf-mask': 'head', 'raven-mask': 'head', 'hare-mask': 'head',
+  'iron-plate': 'body', 'quick-plate': 'body', 'king-shroud': 'body', 'steel-plate': 'body',
+  'shell-plate': 'body', 'great-plate': 'body', 'gold-plate': 'body',
+  'gold-legs': 'legs',
+  'iron-shield': 'offhand', 'steel-shield': 'offhand', 'quick-shield': 'offhand',
+  'horn': 'offhand',
+}
+// A hood and a fall-stone are made words rather than listed ones: the engine
+// knows them by their shape and puts both on the head.
+const EQUIP_SLOT_OF = (item) =>
+  /^(hood|fallstone):[0-9a-f]{64}:[0-9]{1,15}$/.test(item ?? '') ? 'head'
+  : (EQUIP_SLOT[item ?? ''] ?? 'weapon')
+// §7f: and the twenty-one weapons that take both hands, from the same place.
+// This window carried its own list of ELEVEN inside a click handler. It was
+// missing every spear, every mell, every staff, the quick flail, the old
+// chain and the handgonne -- thirteen weapons -- so clicking to take one up
+// with a shield raised sent a wield the engine refused, and nothing happened
+// and nothing was said. It also held three the engine does not: hollow-bow,
+// great-mell and fire-siphon, so taking one of those up lowered a shield that
+// could have stayed raised.
+const TWO_HANDED = new Set([
+  'iron-spear', 'steel-spear', 'quick-spear', 'bone-spear', 'iron-mell', 'steel-mell',
+  'quick-mell', 'great-sword', 'great-crossbow', 'quick-flail', 'old-chain', 'wooden-bow',
+  'horn-bow', 'sigil-bow', 'heartwood-bow', 'dragonbow', 'crossbow', 'handgonne', 'staff',
+  'heartwood-staff', 'goo-staff'
+])
 const famOf  = (t) => NODE_FAMILY[t] ?? t
 const tintOf = (t) => NODE_TINT[t] ?? null
 const SKILL_OF_NODE = { 'tree': 'woodcraft', 'rock': 'earthcraft', 'quick-rock': 'earthcraft', 'fishing-spot': 'shorecraft' }
@@ -15670,12 +15710,10 @@ function invClick(i) {
     // room for what comes off, nothing is sent and the reason is said out loud,
     // because a full pack is a thing a citizen can go and fix.
     const meW = world?.players?.[myId]
-    const TWO_HAND = new Set(['wooden-bow', 'horn-bow', 'heartwood-bow', 'hollow-bow', 'sigil-bow', 'dragonbow',
-      'great-sword', 'great-mell', 'great-crossbow', 'crossbow', 'fire-siphon'])
     const wornWeapon = meW?.equipment?.weapon?.item ?? null
     const wornOff = meW?.equipment?.offhand?.item ?? null
-    const takingUpTwoHander = TWO_HAND.has(it.item)
-    const raisingShieldOverHaft = EQUIP_SLOT_OF(it.item) === 'offhand' && TWO_HAND.has(wornWeapon)
+    const takingUpTwoHander = TWO_HANDED.has(it.item)
+    const raisingShieldOverHaft = EQUIP_SLOT_OF(it.item) === 'offhand' && TWO_HANDED.has(wornWeapon)
     const inTheWay = takingUpTwoHander ? (wornOff ? ['offhand'] : []) : raisingShieldOverHaft ? ['weapon'] : []
     if (inTheWay.length) {
       const free = (meW?.inventory ?? []).filter(sl => !sl).length

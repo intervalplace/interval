@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 530 tests across:
+`node --test test/*.test.mjs`, 541 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -160,7 +160,15 @@ possible executions.
 - `dial.test.mjs`, that `dial.mjs` duplicates the tide and ceiling arithmetic
   without drifting from it
 - `window.test.mjs`, the faults that hide in the web window: a retired skill
-  name, a duplicate key in an object literal, a drifted threshold
+  name, a duplicate key in an object literal, a drifted threshold, and the two
+  tables the window has to copy because a browser file cannot import the
+  engine: which weapons take both hands, and which slot a thing is worn in
+- `hands.test.mjs`, one pair of hands, played rather than read: a shield
+  cannot go up beside a two-handed weapon and a two-handed weapon cannot go up
+  beside a shield, so the window says the two inputs instead. Crosses every
+  equippable word with every state the hands can be in and checks the window
+  sends only wields the engine will take: it was sending 29 it would not, and
+  saying nothing when they were refused
 - `windows.exist.test.mjs`, that every window the router offers is on disk
 - `site.test.mjs`, that the hiscores board's ranking and its label agree
 - `site.content.test.mjs`, the FACTS in the site's prose against the engine
