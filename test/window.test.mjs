@@ -314,3 +314,94 @@ test('the window puts every piece of gear in the slot the engine does', () => {
   const invented = Object.keys(mine).filter((w) => !theirs[w])
   assert.deepEqual(invented, [], 'the window slots gear the engine has never heard of: ' + invented.join(', '))
 })
+
+// ---- THE WORLD SAYS `health` AND THE WINDOW SAYS `hp` ----
+//
+// The engine renamed the field and said so in its own code: `health: p.health
+// ?? p.hp`, noting that every checkpoint written before the rename says `hp`.
+// Nothing on the wire translates, and this window reads `.hp` in sixty-eight
+// places and `.health` in none. So every creature's plate read "goblin
+// undefined/5 hp", every health bar was a rectangle of NaN width and painted
+// nothing, and `me.hp <= 0` was false for ever, which is the window never
+// noticing you had died.
+//
+// Nothing caught it because every fixture in this folder hands the window a
+// player written `{ hp: 10, maxHp: 10 }`. The test below refuses to do that:
+// it builds a player and a creature with the ENGINE, and puts the window's own
+// door function in front of them.
+test('the window turns the world\'s health into its own hp, at the door', async () => {
+  const E = (await import('../engine.js')).default
+  const g = E.makeGenesis('words', 'a'.repeat(64), 0, 40, 30)
+  const st = E.newWorld(g)
+  const who = E.generateIdentity()
+  E.addPlayer(st, who.playerId, 5, 5)
+  const p = st.players[who.playerId]
+  // the premise: if this ever stops being true the translation is the bug
+  assert.equal(p.hp, undefined, 'the engine does not write hp; if it does again, drop the translation')
+  assert.equal(typeof p.health, 'number', 'the engine writes health')
+  st.mobs = { m1: { type: 'goblin', x: 6, y: 5, health: 3 } }
+
+  // the window's door, lifted and run: not a regular expression about it
+  const src = win.slice(win.indexOf('function intervalOwnWords'))
+  const body = src.slice(0, src.indexOf('\n}') + 2)
+  assert.ok(body.includes('health'), 'the door must read the world\'s word')
+  const door = new Function('maxHpOf', 'MOB_STATS', body + '\n    return intervalOwnWords')(
+    () => 64, { goblin: { maxHp: 5 } })
+  door(st)
+
+  assert.equal(st.players[who.playerId].hp, p.health, 'a citizen\'s health reaches the window')
+  assert.equal(st.mobs.m1.hp, 3, 'and a creature\'s does too')
+  assert.equal(st.mobs.m1.maxHp, 5, 'with the most it could have, for the bar to be a fraction of')
+  assert.ok(Number.isFinite(20 * (st.mobs.m1.hp / st.mobs.m1.maxHp)),
+    'the health bar must have a width that is a number: NaN paints nothing at all')
+})
+
+test('every state the window draws comes through that door', () => {
+  // A full state and a patched one are two paths, and both end at onState.
+  // If a third ever appears it must translate too, so this counts them.
+  const doors = [...win.matchAll(/onState\(/g)].length
+  assert.ok(doors >= 2, 'onState is the door')
+  const call = win.indexOf('function onState(')
+  const first = win.slice(call, call + 400)
+  assert.ok(first.includes('intervalOwnWords'),
+    'onState must translate before anything downstream reads a health')
+})
+
+// ---- A DRAWING BEHIND A GATE THAT DOES NOT NAME IT IS NOT A DRAWING ----
+//
+// The landmark art is a chain of eighty-seven branches behind one door:
+// `if (n.type === 'landmark' && LM18.has(n.kind))`. The door named
+// thirty-two of them. The other fifty-five were written, correct, and
+// unreachable, and the kinds they drew fell past to the end of the next
+// chain, whose final else is a broken tower.
+//
+// Seventy-one per cent of every landmark on the island was ruined masonry:
+// 464 pines, 304 oaks, 247 wind-thorns, 199 willows, 150 dead trees. An
+// orchard outside Anchor was three blocks of rubble in a row.
+//
+// This is the same shape of fault as an item alias shadowing a sprite, and
+// the same shape as a window table that drifted from the engine's: something
+// written, something that decides whether it is reached, and nothing holding
+// the two together. This holds them together.
+test('every landmark drawing is behind a gate that names it', () => {
+  const i = win.indexOf('const LM18 = new Set([')
+  assert.ok(i > 0, 'the landmark gate is gone or renamed')
+  const gate = new Set([...win.slice(i, win.indexOf('])', i)).matchAll(/'([^']+)'/g)].map((m) => m[1]))
+  const a = win.indexOf("if (n.type === 'landmark' && LM18.has(n.kind)) {")
+  const b = win.indexOf("if (n.type === 'landmark') {", a)
+  assert.ok(a > 0 && b > a, 'the landmark chain is gone or renamed')
+  const drawn = [...new Set([...win.slice(a, b).matchAll(/K === '([^']+)'/g)].map((m) => m[1]))]
+  assert.ok(drawn.length > 50, 'the chain was not read: this test would pass on nothing')
+
+  const shutOut = drawn.filter((k) => !gate.has(k))
+  assert.deepEqual(shutOut, [],
+    shutOut.length + ' landmark kinds have a drawing the gate does not name, so they are '
+    + 'painted as a broken tower instead: ' + shutOut.join(', '))
+
+  // and the other way: a name in the gate with no drawing behind it enters
+  // the chain, matches no branch, and comes out the far side drawn as
+  // nothing at all, which is worse than the tower.
+  const namedNotDrawn = [...gate].filter((k) => !drawn.includes(k))
+  assert.deepEqual(namedNotDrawn, [],
+    'the gate lets these in and the chain has nothing for them: ' + namedNotDrawn.join(', '))
+})

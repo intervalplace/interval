@@ -2084,15 +2084,46 @@ function keeperRole4(st, id, n) {
   return role
 }
 // the eighteen nouns added at the fourth founding, which have their own art
-const LM18 = new Set(['table','bed','shelf','barrel','crate','stump',
-  'charcoal-clamp','log-pile','spoil-heap','cut-face','bone-pile',
-  'crude-hearth','gibbet','cart','haystack','hurdle','eel-rack','sunken-wall',
-  // the thirteen added when the world stopped repeating itself: four that
-  // were always here wearing 'standing-stone' because nothing else had a
-  // name for them, and nine new places
-  'skep','cairn','boundary-stone','skull-pile',
-  'scorched-ring','glass-stone','burnt-tree',
-  'mill','milestone','scarecrow','barricade','siege-engine','cave-mouth'])
+// §7f: THE GATE ON THE LANDMARK ART, AND WHAT IT WAS SHUTTING OUT.
+//
+// This is the door to a chain of eighty-seven drawings, and it named
+// thirty-two of them. The other fifty-five were written, correct, and
+// unreachable: the chain is only entered for a kind in this set, so a kind
+// with a drawing but no name here fell past it to the end of the NEXT chain,
+// whose final else is the broken tower.
+//
+// Seventy-one per cent of every landmark on the island was drawn as ruined
+// masonry. Four hundred and sixty-four pines, three hundred and four oaks,
+// two hundred and forty-seven wind-thorns, a hundred and ninety-nine
+// willows, a hundred and fifty dead trees: all of them grey stumps of wall.
+// An orchard outside Anchor was three identical blocks of ruin standing in a
+// row where three pear trees are.
+//
+// The old comment on this set said the point of adding the art was that
+// "seventy per cent of what a citizen passed was a wall, a tree or a rock".
+// It was seventy-one per cent again, and the art to fix it was already here.
+//
+// Found by sweeping the island and looking: see sweep.mjs. Held by a test in
+// test/window.test.mjs, which reads the branches out of the chain and
+// refuses any that this set does not name. Add a drawing, add it here, or
+// the test says so.
+const LM18 = new Set([
+  'haystack', 'charcoal-clamp', 'table', 'bed', 'shelf', 'barrel', 'crate',
+  'stump', 'log-pile', 'spoil-heap', 'cut-face', 'bone-pile', 'crude-hearth',
+  'gibbet', 'cart', 'hurdle', 'eel-rack', 'sunken-wall', 'web', 'grave',
+  'yew', 'willow', 'dead-tree', 'pine', 'avenue-oak', 'old-oak-lm',
+  'apple-tree', 'pear-tree', 'thorn', 'wind-thorn', 'windfall', 'peat-stack',
+  'withy-stack', 'dew-mark', 'sheep-skull', 'charcoal-ring', 'skep',
+  'half-wall', 'window-arch', 'rubble-heap', 'stone-heap', 'way-post',
+  'slag-lump', 'hay-wain', 'scaffold', 'chopping-block', 'wood-chips',
+  'sawhorse', 'trestle', 'wheel-rut', 'daub-mark', 'tally-post', 'reeds',
+  'upturned-boat', 'fish-trap', 'staithe', 'dew-pond', 'sheep-hurdle',
+  'wool-snag', 'salt-lick', 'peat-cut', 'turf-stack', 'bog-pool', 'ore-heap',
+  'shot-hole', 'ladder', 'bench', 'flowerbed', 'topiary', 'birdbath',
+  'gazebo-post', 'ash-heap', 'broken-cart', 'fallen-stone', 'rag-tree',
+  'cairn', 'boundary-stone', 'skull-pile', 'scorched-ring', 'glass-stone',
+  'burnt-tree', 'mill', 'milestone', 'scarecrow', 'barricade',
+  'siege-engine', 'cave-mouth'])
 const _rampCache = new Map()
 function isPalisade4(x, y) {
   const k = x + ',' + y
@@ -8192,7 +8223,44 @@ function noughtNotice(s) {
     feed('An hour in Nought. Worth saying plainly again: none of this is in the world, and none of it will be.')
   }
 }
+// §7f: THE WORLD SAYS `health`. THIS WINDOW SAYS `hp`, SIXTY-EIGHT TIMES.
+//
+// The engine renamed it, and said so in its own code: `health: p.health ?? p.hp`,
+// with the note that "every checkpoint written before the rename says hp".
+// Nothing on the wire translates. serve.mjs reads `m.health` and sends the
+// state as it stands, so this window has been reading a field that is not
+// there, everywhere, for as long as the rename is old.
+//
+// What that looked like, and nobody saw it because the checks in this folder
+// all hand the window fixtures that say `hp`:
+//
+//   every creature's name plate read "goblin undefined/5 hp hits 1"
+//   every creature's health bar was `20 * (undefined / 5)` wide, which is NaN,
+//     and a rect of NaN width paints nothing, so no bar was ever drawn
+//   `me.hp <= 0` is false for ever, so the window never knew you had died
+//   `m.hp <= 0` is false for ever, so a felled beast went on hunting you
+//
+// Found by sweeping the island and reading the pictures: the plate over a
+// goblin in Eelmarsh said `undefined` in letters an inch high.
+//
+// TRANSLATED AT THE DOOR rather than renamed in sixty-eight places. Every
+// state this window draws, whole or patched, live or Nought, arrives through
+// onState: one place, one line each, and the window goes on saying `hp`
+// inside exactly as it does for MOB_STATS, whose fields it also renames.
+function intervalOwnWords(s) {
+  if (!s) return s
+  for (const p of Object.values(s.players ?? {})) {
+    if (p && p.hp === undefined) p.hp = p.health ?? 0
+    if (p && p.maxHp === undefined) p.maxHp = maxHpOf(p)
+  }
+  for (const m of Object.values(s.mobs ?? {})) {
+    if (m && m.hp === undefined) m.hp = m.health ?? 0
+    if (m && m.maxHp === undefined) m.maxHp = MOB_STATS[m.type]?.maxHp ?? 1
+  }
+  return s
+}
 function onState(s, worldId, local) {
+  intervalOwnWords(s)
   // §6dj-ii: AND IF THIS THROWS, SAY SO ON THE SCREEN.
   //
   // `_noteFrameErr` exists because three places in this window catch and carry

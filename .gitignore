@@ -27,3 +27,4 @@ witness-safety/
 
 .DS_Store
 *.log
+sweep-out/
