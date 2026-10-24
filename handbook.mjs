@@ -866,8 +866,24 @@ const figure = (it) => {
 // column of blanks would be worse than a mark.
 const TWO = T('TWO_HANDED') instanceof Set ? T('TWO_HANDED')
   : new Set(Object.keys(T('TWO_HANDED')))
+// SAID, NOT SYMBOLISED. This was a bare `+`, and a footnote at the bottom of
+// the page explaining what a `+` meant: a legend the reader has to carry back
+// up to the row. The words are on the row now and the footnote only has to
+// say the consequence, which is that a thing held in both hands leaves no
+// hand for a shield.
+//
+// NOT `(2H)`. That was the first suggestion and it is tidier down a column,
+// but 2H is shorthand carried in from other games, and the reader this book
+// is for is holding a printed manual rather than remembering an MMO. The
+// whole reason for moving off `+` was that a symbol has to be learned before
+// it says anything, and `(2H)` has the same fault in fewer characters. The
+// plain words fit on every row including `great crossbow`, measured, so
+// there was nothing to trade.
+//
+// Set HANDBOOK_TWO to try another wording without editing this.
+const TWO_MARK = process.env.HANDBOOK_TWO ?? 'both hands'
 const cell = (it) => ({ mm: ROW_MM, fam: false, html: `<div class="cell">${pic(it)}<span class="nm">${
-  esc(say(it))}${TWO.has(it) ? '<b class="two">+</b>' : ''}</span><span class="n">${
+  esc(say(it))}${TWO.has(it) ? `<b class="two">${esc(TWO_MARK)}</b>` : ''}</span><span class="n">${
   figure(it)}</span></div>` })
 // AND THE CRAFT GOES ON THE FAMILY, not in every cell. Six different crafts
 // gate wielding, so a bare number would be ambiguous; but a family is all one
@@ -970,8 +986,8 @@ for (const [kind, heading] of GROUPS) {
         ? `${orn}${p(`<i>Where a craft is named beside the family, the number is
             the level you need to hold the thing. Everywhere else it is what a
             stall ASKS for one, and blank means no stall sells it. Nothing in
-            this world buys anything off you. A + means it takes both hands, so
-            no shield.</i>`)}`
+            this world buys anything off you. A thing marked <b>both hands</b>
+            leaves you none for a shield.</i>`)}`
         : ''}`)
   })
 }
@@ -2020,7 +2036,8 @@ img.big { width: 36mm; height: 36mm; object-fit: contain;
    line and not as a coincidence of alphabet. */
 .fam i { float: right; font-style: normal; text-transform: none;
   letter-spacing: 0; color: #9a8158; font-size: 8pt; }
-.cell .two { color: #8a6a22; font-weight: 400; padding-left: .6mm; }
+.cell .two { color: #9a7c3a; font-weight: 400; font-size: 8pt;
+  padding-left: 1.3mm; white-space: nowrap; }
 .fam { width: 100%; font-size: 8.5pt; letter-spacing: 1.2pt; text-transform: uppercase;
   color: #8a6a22; margin: 3mm 0 1mm; padding-bottom: .8mm;
   border-bottom: .4pt solid rgba(138,106,34,.35); }
