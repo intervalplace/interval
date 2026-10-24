@@ -128,6 +128,85 @@ function carriedThroughRenames(list) {
       + ' merge accounts for it. If that is wrong, STOP and say so before anybody plays.)')
   }
 
+  // ---- AND THE GOODS, WHICH ARE SMALLER THAN THEY WERE ----
+  //
+  // The pack is twelve slots and was twenty-eight, so a record written then
+  // is simply too long: `malformed imported inventory`. carriedFrom already
+  // answers this for the checkpoint door, by keeping the ITEMS and not the
+  // empty slots, and this is that answer at the founding door.
+  //
+  // The same thing happens to a word the world has since retired: a vault of
+  // something that is not an item any more, or a weapon that has become an
+  // off-hand thing and no longer belongs in the hand. Each is named as it
+  // goes, because a citizen opening their pack to find it lighter deserves
+  // better than silence.
+  const items = E.ITEMS instanceof Set ? E.ITEMS : new Set(Object.keys(E.ITEMS ?? {}))
+  const goodSlot = (sl) => sl && typeof sl === 'object' && items.has(sl.item)
+    && Number.isInteger(sl.qty) && sl.qty > 0
+  const gone = new Map()        // item -> how many carried records lost it
+  const handed = new Map()      // item -> how many came out of the hand into the pack
+  const overfull = []           // pid -> how many slots would not fit
+  out = out.map((r) => {
+    if (!r || typeof r !== 'object') return r
+    const o = { ...r }
+    if (Array.isArray(o.inventory)) {
+      const kept = []
+      for (const sl of o.inventory) {
+        if (sl === null || sl === undefined) continue       // an empty slot is not a good
+        if (!goodSlot(sl)) { gone.set(sl?.item ?? '(malformed)', (gone.get(sl?.item ?? '(malformed)') ?? 0) + 1); continue }
+        kept.push({ item: sl.item, qty: sl.qty })
+      }
+      if (kept.length > E.INV_SLOTS) {
+        overfull.push(String(o.pid).slice(0, 8) + '\u2026 (' + (kept.length - E.INV_SLOTS) + ')')
+        kept.length = E.INV_SLOTS
+      }
+      o.inventory = kept
+    }
+    if (o.vaults && typeof o.vaults === 'object') {
+      const v = {}
+      for (const [it, q] of Object.entries(o.vaults)) {
+        if (!items.has(it) || !Number.isInteger(q) || q < 1) {
+          gone.set(it, (gone.get(it) ?? 0) + 1); continue
+        }
+        v[it] = q
+      }
+      o.vaults = v
+    }
+    if (o.weapon && typeof o.weapon === 'object') {
+      // It must still be a thing, and it must still belong in the hand. A
+      // thing that has merely MOVED slot is not lost: a horn is an off-hand
+      // thing now and was a weapon, and it is still the citizen's, so it goes
+      // in the pack rather than out of the world.
+      if (!goodSlot(o.weapon)) {
+        gone.set(o.weapon.item ?? '(malformed weapon)', (gone.get(o.weapon.item ?? '(malformed weapon)') ?? 0) + 1)
+        o.weapon = null
+      } else if (E.slotOf(o.weapon.item) !== 'weapon') {
+        const moved = o.weapon
+        o.weapon = null
+        if (Array.isArray(o.inventory) && o.inventory.length < E.INV_SLOTS) {
+          o.inventory = [...o.inventory, moved]
+          handed.set(moved.item, (handed.get(moved.item) ?? 0) + 1)
+        } else {
+          gone.set(moved.item, (gone.get(moved.item) ?? 0) + 1)
+        }
+      }
+    }
+    return o
+  })
+  for (const [it, n] of gone) {
+    console.warn('  (took `' + it + '` out of ' + n + ' carried record(s): this world has no such thing,'
+      + ' or no longer keeps it there)')
+  }
+  for (const [it, n] of handed) {
+    console.warn('  (`' + it + '` is not held in the hand in this world, so it went into the pack'
+      + ' in ' + n + ' carried record(s))')
+  }
+  if (overfull.length) {
+    console.warn('  (the pack is ' + E.INV_SLOTS + ' slots and these carried more than fit, so the'
+      + ' overflow was left behind: ' + overfull.slice(0, 8).join(', ')
+      + (overfull.length > 8 ? ' and ' + (overfull.length - 8) + ' more' : '') + ')')
+  }
+
   // Then whatever else this constitution has never heard of. The engine is
   // asked rather than copied, so there is no second list of field names here
   // to drift from the one that decides.

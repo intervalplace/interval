@@ -580,3 +580,67 @@ test('a citizen written in the eighteen crosses into the nine with their life in
     'a citizen who never swore is held to §5k exactly, because an import over it does not cross at all')
   assert.equal(E.levelForXp(u.skills.prowess), 50)
 })
+
+// ---- THE PACK IS TWELVE SLOTS AND WAS TWENTY-EIGHT ----
+//
+//     FOUNDING: the carried citizens do not satisfy this constitution:
+//               malformed imported inventory
+//
+// A record written when the pack was twenty-eight is simply too long for a
+// world whose pack is twelve, nulls and all. carriedFrom already answers this
+// for the checkpoint door, by carrying the ITEMS and not the empty slots, and
+// this is that answer at the founding door.
+//
+// The same goes for a word the world has retired, which can sit in a pack, in
+// a vault or in the hand. And for a thing that merely MOVED: a horn is an
+// off-hand thing now and was a weapon, and it is still the citizen's.
+test('a pack from a wider world is carried as its goods, not its empty slots', () => {
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const a = src.indexOf('const CARRY_RENAMED = {')
+  const b = src.indexOf('\nfunction carriedThroughRenames', a)
+  const door = new Function('E', 'console',
+    src.slice(a, src.indexOf('\n}\n', b) + 3) + '\nreturn carriedThroughRenames')(E, { warn () {}, error () {} })
+
+  const wide = Array(28).fill(null)
+  wide[0] = { item: 'iron-sword', qty: 1 }
+  wide[9] = { item: 'logs', qty: 40 }
+  wide[21] = { item: 'bronze-sword', qty: 1 }        // §5m-era: no such thing now
+  const old = [{
+    pid: PID('a'), name: 'alder', calling: 'warden', health: 41,
+    skills: { prowess: 112570 }, inventory: wide,
+    weapon: { item: 'horn', qty: 1 },                 // a weapon then, an off-hand thing now
+    vaults: { 'oak-logs': 15, 'bronze-bar': 9 },
+  }]
+  assert.equal(E.validateImports(old), 'malformed imported inventory',
+    'the premise: this is the error the live node printed')
+
+  const [c] = door(old)
+  assert.equal(E.validateImports([c]), null, E.validateImports([c]))
+  assert.ok(c.inventory.length <= E.INV_SLOTS, 'it fits the pack this world gives them')
+  assert.deepEqual(c.inventory.filter((s) => s.item === 'iron-sword'), [{ item: 'iron-sword', qty: 1 }],
+    'what they were carrying is still carried')
+  assert.deepEqual(c.inventory.filter((s) => s.item === 'logs'), [{ item: 'logs', qty: 40 }],
+    'with its quantity')
+  assert.equal(c.inventory.some((s) => s.item === 'bronze-sword'), false,
+    'and a thing this world has never heard of does not cross')
+  assert.deepEqual(c.vaults, { 'oak-logs': 15 }, 'the vault is held to this world’s items too')
+  assert.equal(c.weapon, null, 'a horn is not held in the hand in this world')
+  assert.ok(c.inventory.some((s) => s.item === 'horn'),
+    'but it is still theirs, so it goes in the pack rather than out of the world')
+})
+
+test('a pack too full even of real goods leaves the overflow, and says so', () => {
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const a = src.indexOf('const CARRY_RENAMED = {')
+  const b = src.indexOf('\nfunction carriedThroughRenames', a)
+  const said = []
+  const door = new Function('E', 'console',
+    src.slice(a, src.indexOf('\n}\n', b) + 3) + '\nreturn carriedThroughRenames')(E, { warn: (m) => said.push(m), error () {} })
+
+  const many = Array.from({ length: E.INV_SLOTS + 6 }, () => ({ item: 'logs', qty: 1 }))
+  const [c] = door([{ pid: PID('c'), health: 40, skills: {}, inventory: many }])
+  assert.equal(E.validateImports([c]), null, E.validateImports([c]))
+  assert.equal(c.inventory.length, E.INV_SLOTS, 'exactly what the pack holds')
+  assert.ok(said.some((m) => /left behind/.test(String(m))),
+    'and the node says that something was left behind, rather than dropping it in silence')
+})
