@@ -15,6 +15,59 @@ import { makeBoard } from './board.mjs'
 import http from 'http'
 import { WebSocketServer } from 'ws'
 import E from './engine.js'
+
+// ---- WHAT A FOUNDING RECORD STILL SAYS IN AN OLDER DIALECT ----
+//
+// One rename so far, and the engine already records it: carriedFrom reads
+// `p.health ?? p.hp` and notes that "every checkpoint written before the
+// rename says hp". Add the next one here when it happens, and the records
+// written today will still found a world in five years.
+const CARRY_RENAMED = { hp: 'health' }
+
+function carriedThroughRenames(list) {
+  if (!Array.isArray(list) || !list.length) return list
+  const said = []
+  let out = list.map((r) => {
+    if (!r || typeof r !== 'object') return r
+    const o = { ...r }
+    for (const [was, now] of Object.entries(CARRY_RENAMED)) {
+      if (!(was in o)) continue
+      if (o[now] === undefined) o[now] = o[was]
+      delete o[was]
+      if (!said.includes(was)) said.push(was)
+    }
+    return o
+  })
+  for (const was of said) {
+    console.warn('  (a carried record still says `' + was + '`, which this world calls `'
+      + CARRY_RENAMED[was] + '`: read across)')
+  }
+  // Then whatever else this constitution has never heard of. The engine is
+  // asked rather than copied, so there is no second list of field names here
+  // to drift from the one that decides.
+  for (let pass = 0; pass < 32; pass++) {
+    const bad = E.validateImports(out)
+    if (!bad) return out
+    const m = /^import carries unknown field (.+)$/.exec(bad)
+    if (!m) {
+      // not a field this build has retired: a malformed record, which is a
+      // different thing and is still refused, loudly, by the genesis check.
+      console.error('FOUNDING: the carried citizens do not satisfy this constitution: ' + bad)
+      return out
+    }
+    const field = m[1]
+    let n = 0
+    out = out.map((r) => {
+      if (!r || !(field in r)) return r
+      n++
+      const o = { ...r }; delete o[field]; return o
+    })
+    console.warn('  (dropped `' + field + '` from ' + n + ' carried record(s):'
+      + ' this constitution does not carry it)')
+    if (!n) return out
+  }
+  return out
+}
 import { IntervalNode } from './node.mjs'
 import { DEFAULT_STARTUP_VERIFY_RECENT_N } from './errors.mjs'
 import { IntervalClient } from './sdk.mjs'
@@ -348,6 +401,43 @@ if (canResume) {
     console.warn('  (no checkpoint survived; carrying the ' + migrated
       + ' citizen(s) from the previous FOUNDING record instead)')
   }
+  // A FOUNDING RECORD OUTLIVES THE WORDS IT WAS WRITTEN IN.
+  //
+  // A founding carries its citizens forward unchanged, deliberately: that is
+  // how somebody survives two refoundings in one evening. But "unchanged"
+  // means a record written by an older release arrives at a newer
+  // constitution, and this project has renamed a field since. A citizen's
+  // health was `hp` and is `health` now; engine.js says so itself, where
+  // carriedFrom reads `p.health ?? p.hp` and notes that "every checkpoint
+  // written before the rename says hp".
+  //
+  // That note covered the checkpoint door and not this one. So a node whose
+  // checkpoint had expired, carrying 147 citizens out of a founding record
+  // written before the rename, refused to start at all:
+  //
+  //     IntervalError: refusing to run on an invalid genesis:
+  //                    import carries unknown field hp
+  //
+  // Not a world that founded badly: a world that would not found. The
+  // citizens were in the file the whole time and the only thing wrong with
+  // them was the spelling of one word.
+  //
+  // Translated here, at the door, rather than by widening what the
+  // constitution accepts. The engine stays strict about the shape of an
+  // import, which is what makes it something every node can agree on.
+  //
+  // AND THE ENGINE IS ASKED, NOT COPIED. `validateImports` is the engine's
+  // own answer about what crosses; a second list of field names here would
+  // be one more thing to drift. Anything this constitution does not carry is
+  // named in the log and dropped, because the alternative is a world that
+  // cannot be founded and 147 people who are not in it.
+  // ABSENT, NOT UNDEFINED. A genesis is canonically encoded and the encoder
+  // refuses `undefined` outright, so a founding that carried nobody must not
+  // gain the key at all. Assigning the result unconditionally set it to
+  // undefined and every world with no imports then failed to found with
+  // "canonical: undefined is not encodable".
+  if (GENESIS.imported?.length) GENESIS.imported = carriedThroughRenames(GENESIS.imported)
+
   // the operator's door: INTERVAL_IMPORT=path.json supplies a founding
   // import list by hand: for recovering citizens a lost checkpoint (or a
   // lost deploy) orphaned. Read only when nothing else carried anyone.
@@ -355,8 +445,8 @@ if (canResume) {
     try {
       const hand = JSON.parse(fs.readFileSync(process.env.INTERVAL_IMPORT))
       if (Array.isArray(hand) && hand.length) {
-        GENESIS.imported = hand
-        migrated = hand.length
+        GENESIS.imported = carriedThroughRenames(hand)
+        migrated = GENESIS.imported.length
         console.warn('  (INTERVAL_IMPORT: carrying ' + migrated + ' citizen(s) by the operator\u2019s hand)')
       }
     } catch (e) { console.error('INTERVAL_IMPORT unreadable: ' + e.message); process.exit(1) }

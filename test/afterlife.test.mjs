@@ -354,3 +354,69 @@ test('a world dies and its citizens wake up in the next one', { skip: SKIP_E2E, 
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+// ---- AND A FOUNDING RECORD OUTLIVES THE WORDS IT WAS WRITTEN IN ----
+//
+// A founding carries its citizens forward unchanged, which is how somebody
+// survives two refoundings in one evening. But "unchanged" means a record
+// written by an older release arrives at a newer constitution, and this
+// project has renamed a field: health was `hp` and is `health` now.
+//
+// A live node refused to start over it. Its checkpoint had expired, so the
+// founding fell back to carrying 147 citizens out of the previous FOUNDING
+// record, which predated the rename:
+//
+//     IntervalError: refusing to run on an invalid genesis:
+//                    import carries unknown field hp
+//
+// Not a world that founded badly: a world that would not found at all, with
+// 147 people in the file and nothing wrong with them but the spelling of one
+// word. engine.js already knew about the rename, in carriedFrom, which reads
+// `p.health ?? p.hp` and notes that every checkpoint written before it says
+// `hp`. That note covered the checkpoint door and not the founding one.
+//
+// The translation lives in serve.mjs, at the door, so the constitution stays
+// strict about the shape of an import. It is lifted out of the source here
+// rather than copied, because a copy is one more thing to drift.
+test('a founding record written before the rename still founds a world', () => {
+  const src = fs.readFileSync(new URL('../serve.mjs', import.meta.url), 'utf8')
+  const a = src.indexOf('const CARRY_RENAMED = {')
+  assert.ok(a > 0, 'the rename table is gone or renamed')
+  const b = src.indexOf('\nfunction carriedThroughRenames', a)
+  const end = src.indexOf('\n}\n', b) + 3
+  const door = new Function('E', 'console',
+    src.slice(a, end) + '\nreturn carriedThroughRenames')(E, { warn () {}, error () {} })
+
+  const pid = 'a'.repeat(64)
+  const old = [{ pid, name: 'ada', hp: 7, gold: 12, skills: { woodcraft: 100 } }]
+
+  // the premise: this is the error the live node actually printed
+  assert.equal(E.validateImports(old), 'import carries unknown field hp',
+    'if the engine starts accepting hp again, this door is no longer needed')
+
+  const carried = door(old)
+  assert.equal(E.validateImports(carried) ?? 'accepted', 'accepted',
+    'the record must satisfy the constitution after the door')
+  assert.equal(carried[0].health, 7, 'the health crosses, under the name this world uses')
+  assert.equal(carried[0].hp, undefined, 'and not also under the old one')
+  assert.equal(carried[0].name, 'ada', 'the citizen is otherwise untouched')
+  assert.equal(carried[0].gold, 12)
+  assert.deepEqual(carried[0].skills, { woodcraft: 100 })
+})
+
+test('a field no constitution has ever carried is named and dropped, not fatal', () => {
+  const src = fs.readFileSync(new URL('../serve.mjs', import.meta.url), 'utf8')
+  const a = src.indexOf('const CARRY_RENAMED = {')
+  const b = src.indexOf('\nfunction carriedThroughRenames', a)
+  const end = src.indexOf('\n}\n', b) + 3
+  const said = []
+  const door = new Function('E', 'console',
+    src.slice(a, end) + '\nreturn carriedThroughRenames')(E, { warn: (m) => said.push(m), error: (m) => said.push(m) })
+
+  const carried = door([{ pid: 'b'.repeat(64), name: 'bram', health: 9, favouriteColour: 'green' }])
+  assert.equal(E.validateImports(carried) ?? 'accepted', 'accepted')
+  assert.equal(carried[0].favouriteColour, undefined, 'dropped')
+  assert.equal(carried[0].health, 9, 'and everything the world does carry is still there')
+  assert.ok(said.some((m) => String(m).includes('favouriteColour')),
+    'and the log names it, because a citizen quietly losing something is the fault to avoid')
+})
