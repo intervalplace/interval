@@ -503,3 +503,80 @@ test('a saved world this build cannot read is refounded, not crashed into',
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })
+
+// ---- §5m: EIGHTEEN SKILLS BECAME NINE, AND THE RECORDS SAY THE OLD WORDS ----
+//
+// The live node got past the renamed health field and stopped again:
+//
+//     IntervalError: refusing to run on an invalid genesis:
+//                    import carries an unknown skill
+//
+// which does not say which skill, in 147 records. SPEC.md carries the mapping
+// itself, in a markdown table under "written as / read as", and says the old
+// names are left standing in the prose "because rewriting them would falsify
+// the record of what was decided and when". A founding record is the same
+// situation: old words, real lives.
+//
+// So the table in serve.mjs is held to the one in SPEC.md, and both are held
+// to the engine's own list of skills. A merge nobody wrote down is a merge
+// that silently deletes somebody's experience.
+test('the skill merge serve.mjs carries out is the one SPEC.md wrote down', () => {
+  const spec = fs.readFileSync(path.join(root, 'SPEC.md'), 'utf8')
+  const head = spec.indexOf('| written as | read as |')
+  assert.ok(head > 0, 'SPEC.md no longer carries the written-as/read-as table')
+  const fromSpec = {}
+  for (const line of spec.slice(head).split('\n').slice(2)) {
+    const m = /^\|\s*([^|]+?)\s*\|\s*`([^`]+)`\s*\|$/.exec(line.trim())
+    if (!m) break
+    for (const was of m[1].split(',').map((w) => w.trim())) fromSpec[was] = m[2]
+  }
+  assert.ok(Object.keys(fromSpec).length >= 15,
+    'read ' + Object.keys(fromSpec).length + ' old names out of SPEC.md; expected the eighteen')
+
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const a = src.indexOf('const SKILLS_MERGED = {')
+  assert.ok(a > 0, 'serve.mjs no longer carries the merge')
+  const mine = new Function(src.slice(a, src.indexOf('\n}', a) + 2) + '\nreturn SKILLS_MERGED')()
+
+  assert.deepEqual(mine, fromSpec,
+    'the merge in serve.mjs and the table in SPEC.md disagree about what an old record means')
+  // and every destination is a skill this engine actually has
+  for (const now of new Set(Object.values(mine))) {
+    assert.ok(E.SKILLS.includes(now), now + ' is not one of this engine’s skills')
+  }
+  // nothing maps a current skill away from itself
+  for (const was of Object.keys(mine)) {
+    assert.ok(!E.SKILLS.includes(was), was + ' is a skill this world still has; it must not be merged away')
+  }
+})
+
+test('a citizen written in the eighteen crosses into the nine with their life intact', () => {
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const a = src.indexOf('const CARRY_RENAMED = {')
+  const b = src.indexOf('\nfunction carriedThroughRenames', a)
+  const door = new Function('E', 'console',
+    src.slice(a, src.indexOf('\n}\n', b) + 3) + '\nreturn carriedThroughRenames')(E, { warn () {}, error () {} })
+
+  const at70 = 112570          // a shade over level 70
+  const sworn = [{
+    pid: PID('a'), name: 'alder', calling: 'warden', health: 41,
+    skills: { attack: at70, strength: at70, defence: at70, hitpoints: at70, mining: 46698 },
+  }]
+  const [c] = door(sworn)
+  assert.equal(E.validateImports([c]), null, E.validateImports([c]))
+  assert.equal(c.skills.attack, undefined, 'the old word is gone')
+  assert.equal(c.skills.prowess, at70 * 4,
+    'and the four grinds are added up, not picked from: keeping the best throws away three lives')
+  assert.equal(c.skills.earthcraft, 46698, 'mining is earthcraft now')
+  assert.equal(E.levelForXp(c.skills.prowess), 82,
+    'the curve is logarithmic, so four skills at seventy come out at eighty-two, not two hundred and eighty')
+
+  // and the ceiling is the constitution's, not a number serve.mjs invented
+  const unsworn = [{ pid: PID('b'), name: 'bram', health: 40,
+    skills: { attack: at70, strength: at70, defence: at70, hitpoints: at70 } }]
+  const [u] = door(unsworn)
+  assert.equal(E.validateImports([u]), null, E.validateImports([u]))
+  assert.equal(u.skills.prowess, E.xpCeiling({ calling: undefined, skills: u.skills }, 'prowess'),
+    'a citizen who never swore is held to §5k exactly, because an import over it does not cross at all')
+  assert.equal(E.levelForXp(u.skills.prowess), 50)
+})

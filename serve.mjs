@@ -24,6 +24,33 @@ import E from './engine.js'
 // written today will still found a world in five years.
 const CARRY_RENAMED = { hp: 'health' }
 
+// ---- §5m: EIGHTEEN SKILLS BECAME NINE, AND A CITIZEN'S LIFE IS IN THEM ----
+//
+// SPEC.md carries this table itself, under "written as / read as", and says
+// the old names are left standing in the prose "because rewriting them would
+// falsify the record of what was decided and when". A founding record written
+// before the merge is the same situation: the words are old and the life they
+// describe is real. test/afterlife.test.mjs reads the table out of SPEC.md and
+// refuses this one if the two ever disagree.
+//
+// THE EXPERIENCE IS ADDED UP, NOT PICKED FROM. Four skills merged into
+// prowess, and a fighter who ground attack and strength and defence was doing
+// one thing in this world's accounting. Keeping only the best of them throws
+// away three quarters of that life. The curve makes adding them fair rather
+// than generous, because it is logarithmic: four skills at level 70 come out
+// at level 82, not 280, and the ceiling in §5k still applies when they play.
+const SKILLS_MERGED = {
+  woodcutting: 'woodcraft', firemaking: 'woodcraft', fletching: 'woodcraft',
+  mining: 'earthcraft', smithing: 'earthcraft',
+  fishing: 'shorecraft', cooking: 'shorecraft',
+  farming: 'hearthcraft', brewing: 'hearthcraft',
+  attack: 'prowess', strength: 'prowess', defence: 'prowess', hitpoints: 'prowess',
+  prayer: 'mourning',
+  ranged: 'marksmanship',
+  magic: 'sorcery',
+  exploration: 'wayfaring', hauling: 'wayfaring',
+}
+
 function carriedThroughRenames(list) {
   if (!Array.isArray(list) || !list.length) return list
   const said = []
@@ -42,6 +69,65 @@ function carriedThroughRenames(list) {
     console.warn('  (a carried record still says `' + was + '`, which this world calls `'
       + CARRY_RENAMED[was] + '`: read across)')
   }
+  // ---- and the skills, which are the part that matters ----
+  const known = new Set(E.SKILLS)
+  const merged = new Map()        // old name -> how many records carried it
+  const lost = new Map()          // name -> total experience thrown away
+  out = out.map((r) => {
+    if (!r || !r.skills || typeof r.skills !== 'object') return r
+    if (Object.keys(r.skills).every((k) => known.has(k))) return r
+    const sk = {}
+    for (const [name, xp] of Object.entries(r.skills)) {
+      const n = Number.isFinite(xp) ? xp : 0
+      if (known.has(name)) { sk[name] = (sk[name] ?? 0) + n; continue }
+      const now = SKILLS_MERGED[name]
+      if (now) {
+        sk[now] = (sk[now] ?? 0) + n
+        merged.set(name, (merged.get(name) ?? 0) + 1)
+      } else {
+        lost.set(name, (lost.get(name) ?? 0) + n)
+      }
+    }
+    return { ...r, skills: sk }
+  })
+  // AND THE CEILING, WHICH IS THE CONSTITUTION'S OWN ANSWER ABOUT HOW MUCH A
+  // CITIZEN MAY CARRY. §5k holds an unsworn citizen to level fifty in
+  // everything and a sworn one to seventy outside their own trade, and
+  // validateImports refuses anything over it at this very door. So summing
+  // can put a fighter past what may cross, and the choice is to shed the
+  // excess or to carry nobody. `xpCeiling` is asked rather than a number
+  // written here, because it is the rule, and it already depends on whether
+  // they swore and to what.
+  const shed = new Map()
+  out = out.map((r) => {
+    if (!r || !r.skills) return r
+    let cut = false
+    const sk = { ...r.skills }
+    for (const [name, xp] of Object.entries(sk)) {
+      const ceil = E.xpCeiling({ calling: r.calling ?? undefined, skills: sk }, name)
+      if (ceil !== Infinity && xp > ceil) {
+        shed.set(name, (shed.get(name) ?? 0) + (xp - ceil))
+        sk[name] = ceil
+        cut = true
+      }
+    }
+    return cut ? { ...r, skills: sk } : r
+  })
+  for (const [was, n] of merged) {
+    console.warn('  (' + n + ' carried record(s) counted `' + was + '` experience into `'
+      + SKILLS_MERGED[was] + '`: ' + E.SKILLS.length + ' skills now, and this world has no ' + was + ')')
+  }
+  for (const [name, xp] of shed) {
+    console.warn('  (held `' + name + '` down to the ceiling in ' + xp
+      + ' experience across the carried records: \u00a75k is what a citizen may hold,'
+      + ' and an import over it does not cross at all)')
+  }
+  for (const [name, xp] of lost) {
+    console.warn('  (dropped the skill `' + name + '` from the carried records, '
+      + xp + ' experience in all: no skill of this world is named that and no'
+      + ' merge accounts for it. If that is wrong, STOP and say so before anybody plays.)')
+  }
+
   // Then whatever else this constitution has never heard of. The engine is
   // asked rather than copied, so there is no second list of field names here
   // to drift from the one that decides.
