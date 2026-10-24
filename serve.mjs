@@ -680,8 +680,21 @@ if (canResume) {
   } catch {}
   fs.rmSync(CP_FILE, { force: true })
   if (saved?.genesis) { // the old founding record is history, not debris
-    try { fs.writeFileSync(DATA + '/checkpoints/world-' + String(E.worldId(saved.genesis)).slice(0, 12) + '.json',
-      JSON.stringify({ genesis: saved.genesis })) } catch {}
+    const keep = 'world-' + String(E.worldId(saved.genesis)).slice(0, 12) + '.json'
+    try {
+      fs.writeFileSync(DATA + '/checkpoints/' + keep, JSON.stringify({ genesis: saved.genesis }))
+      // AND SAY WHERE IT WENT. Everything the crossing changes on the way
+      // past is announced above: a field read across, experience counted into
+      // a merged skill, a level held down to the ceiling, goods left behind.
+      // Every one of those lines is somebody asking "and what did it say
+      // BEFORE?", and the answer is this file. It was already being written
+      // and was never mentioned, so the question cost a search of the disk.
+      console.warn('  (the record these citizens were read from is kept, exactly as it was,'
+        + ' at checkpoints/' + keep + ')')
+    } catch (e) {
+      console.error('  (COULD NOT keep the old founding record: ' + e.message
+        + '. What the crossing changed cannot be checked against what it changed FROM.)')
+    }
   }
   fs.writeFileSync(WORLD_FILE, JSON.stringify({ genesis: GENESIS }))
 }
