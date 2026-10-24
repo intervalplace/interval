@@ -269,7 +269,39 @@ const cpValidFor = (g) => savedCp && savedCp.worldId === E.worldId(g)
   && E.stateHash(savedCp.state) === savedCp.stateHash
 const gapOf = (g) => Math.floor((Date.now() - g.anchorMs) / E.TICK_MS) - cpTick
 
+// IS THE SAVED WORLD STILL A WORLD THIS BUILD CAN READ?
+//
+// Everything else in `canResume` asks whether the saved world is the same
+// world this node means to run. This asks something earlier: whether this
+// build can read its founding record at all.
+//
+// A world founded before a constitutional field was renamed carries citizens
+// written in the old word, and this build's validator refuses them. That is
+// not a damaged file and not the wrong world: it is a world under rules this
+// release no longer has, which is exactly what a refounding is for.
+//
+// It was not asked, so the node sailed past every check, decided to resume,
+// announced a fourteen-minute replay, and then threw out of the middle of
+// worldgen with a stack trace:
+//
+//     Error: refusing to build a world from an invalid genesis:
+//            import carries unknown field hp
+//
+// AND THE SAVED GENESIS IS NOT REPAIRED. A world's id is the hash of its
+// whole genesis, imported citizens included, so rewriting one word in it
+// would hand back a DIFFERENT world wearing the same data: every signed
+// input refused, every other node disagreeing, and nothing saying why. The
+// old record is left exactly as it is and the world is founded again, which
+// is the honest cost and the one the operator can see.
+//
+// Only the imports are checked here, not the whole genesis: validateGenesis
+// builds the world to hash its geography, which takes seconds and is the
+// work this is trying to decide whether to do.
+const importsRefused = (g) => (Array.isArray(g?.imported) && g.imported.length)
+  ? E.validateImports(g.imported) : null
+
 const canResume = saved
+  && !importsRefused(saved.genesis)
   && saved.genesis.rulesHash === RULES_HASH
   && saved.genesis.genesisSeed === SEED
   && (saved.genesis.worldGenerator ?? 'interval-classic-v1') === WORLD_GEN
@@ -332,6 +364,11 @@ if (canResume) {
         + ' (identities/witness-pillar.json may have been lost or regenerated)')
     if (savedCp && !cpValidFor(saved.genesis))
       why.push('the checkpoint does not belong to the saved world, or is damaged')
+    const impBad = importsRefused(saved.genesis)
+    if (impBad)
+      why.push('this build cannot read the saved world\u2019s founding record ('
+        + impBad + '): a field was renamed since it was founded, and its id is'
+        + ' the hash of that record, so it cannot be corrected in place')
     const g0 = gapOf(saved.genesis)
     if (g0 > REFOUND_GAP)
       why.push('nothing ran this world for ' + Math.round(g0 * E.TICK_MS / 60000)

@@ -420,3 +420,86 @@ test('a field no constitution has ever carried is named and dropped, not fatal',
   assert.ok(said.some((m) => String(m).includes('favouriteColour')),
     'and the log names it, because a citizen quietly losing something is the fault to avoid')
 })
+
+// ---- AND THE OTHER DOOR: A SAVED WORLD THIS BUILD CANNOT READ ----
+//
+// The translation above is for a founding that is STARTING OVER. It does not
+// help a node that means to CONTINUE. There, the saved genesis is the world's
+// identity: its id is the hash of that record, imported citizens included. So
+// a field renamed since it was founded cannot be corrected in place, because
+// correcting it hands back a different world wearing the same data.
+//
+// `canResume` asked whether the saved world was the same world this node
+// meant to run, in six ways, and never whether this build could read it. So
+// the node sailed past every check, decided to resume, announced a fourteen
+// minute replay, and threw out of the middle of worldgen:
+//
+//     Error: refusing to build a world from an invalid genesis:
+//            import carries unknown field hp
+//
+// It is asked now, and the answer is a refounding with the reason said out
+// loud, which is what the operator can actually act on. This plays it: found
+// a world, carry a citizen into a second one, write the old word back into
+// the saved record, and start the node again on the same seed.
+test('a saved world this build cannot read is refounded, not crashed into',
+  { skip: SKIP_E2E, timeout: 240000 }, async () => {
+  const dir = shortTmp('oldword-')
+  const cp = path.join(dir, 'checkpoints', 'web.json')
+  const worldFile = path.join(dir, 'checkpoints', 'world.json')
+  const port = 9300 + (process.pid % 200)
+  const ports = (s) => ({ INTERVAL_SEED: s, INTERVAL_HTTP_PORT: String(port), INTERVAL_P2P_PORT: String(port + 1000) })
+  try {
+    await runNode(dir, ports('one'),
+      () => fs.existsSync(cp) && JSON.parse(fs.readFileSync(cp, 'utf8')).tick >= 2)
+
+    // somebody lives in it, so the next founding has a citizen to carry
+    const before = JSON.parse(fs.readFileSync(cp, 'utf8'))
+    before.state.players[PID('a')] = aCitizen()
+    before.stateHash = E.stateHash(before.state)
+    fs.writeFileSync(cp, JSON.stringify(before))
+
+    // a second world, which writes a founding record carrying that citizen
+    await runNode(dir, ports('two'), () => {
+      if (!fs.existsSync(worldFile)) return false
+      try { return JSON.parse(fs.readFileSync(worldFile, 'utf8')).genesis?.genesisSeed === 'solo-two' }
+      catch { return false }
+    })
+    const saved = JSON.parse(fs.readFileSync(worldFile, 'utf8'))
+    assert.equal(saved.genesis.imported.length, 1, 'the second world carried the citizen')
+    assert.equal(saved.genesis.imported[0].health, aCitizen().health, 'written in this world’s word')
+
+    // --- now the record is an older release's. One word, and this build can
+    // no longer read the world it founded.
+    saved.genesis.imported = saved.genesis.imported.map((c) => {
+      const o = { ...c, hp: c.health }; delete o.health; return o
+    })
+    fs.writeFileSync(worldFile, JSON.stringify(saved))
+    fs.rmSync(cp, { force: true })   // no checkpoint, so the founding falls back to this record
+
+    // the same seed, so every other reason to start over is absent: before
+    // this was asked, the node resumed, promised a replay, and threw
+    const log = await runNode(dir, ports('two'), () => {
+      if (!fs.existsSync(worldFile)) return false
+      try {
+        const g = JSON.parse(fs.readFileSync(worldFile, 'utf8')).genesis
+        return g?.imported?.[0]?.health !== undefined
+      } catch { return false }
+    })
+
+    assert.match(log, /REFOUNDING/, 'it started the world over rather than throwing')
+    assert.match(log, /cannot read the saved world/,
+      'and said that the saved founding record is the reason')
+    assert.doesNotMatch(log, /refusing to build a world from an invalid genesis/,
+      'the stack trace out of worldgen is what this test exists to prevent')
+
+    // and the citizen came through the rename into the new world
+    const g2 = JSON.parse(fs.readFileSync(worldFile, 'utf8')).genesis
+    assert.equal(g2.imported.length, 1, 'nobody was lost on the way')
+    assert.equal(g2.imported[0].pid, PID('a'))
+    assert.equal(g2.imported[0].health, aCitizen().health, 'read across into this world’s word')
+    assert.equal(g2.imported[0].hp, undefined, 'and not carried under both')
+    assert.equal(E.validateImports(g2.imported), null, 'the new founding record satisfies the constitution')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
