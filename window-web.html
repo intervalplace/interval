@@ -9170,6 +9170,204 @@ const lerp = (a, b, t) => a + (b - a) * t
 const teleported = (a, b) => Math.abs(a.x - b.x) > 1 || Math.abs(a.y - b.y) > 1
 const lerpPos = (o, n, t) => (!o || teleported(o, n))
   ? { x: n.x, y: n.y } : { x: lerp(o.x, n.x, t), y: lerp(o.y, n.y, t) }
+
+// ---- ONE DRAWING OF A WEAPON, USED WHEREVER IT IS HELD ----
+//
+// §7f: the fight pose had a SECOND set of weapon drawings, written when it
+// stopped drawing a sword for everything. So a citizen carrying a mell held
+// one mell and swung a different one: the weapon changed shape the moment
+// they raised it, which is the fault that replaced the first fault.
+//
+// This is the only drawing now. The origin is the HAND and the weapon hangs
+// down the +y axis from it, which is what the carried pose already assumed,
+// so the fight pose simply translates to the hand and calls the same lines.
+// A weapon is a weapon whether it is riding your hip or coming down on a
+// troll.
+function heldWeapon (cx, it, F, now) {
+  const o = { wepItem: it }
+    if (o.wepItem === 'iron-sword') {
+      cx.fillStyle = '#c9862a'; cx.fillRect(-0.8, 0, 1.6, 8)
+      cx.fillStyle = '#5c4023'; cx.fillRect(-2.2, -1, 4.4, 1.6)
+    } else if (o.wepItem === 'iron-pickaxe') {
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
+      cx.strokeStyle = '#c9862a'; cx.lineWidth = 2
+      cx.beginPath(); cx.arc(0, 0, 3.4, 3.4, 6.1); cx.stroke()
+    } else if (o.wepItem === 'iron-hatchet') {
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
+      cx.fillStyle = '#c9862a'; cx.fillRect(F > 0 ? 0.5 : -4.5, -1, 4, 3.4)
+    } else if (o.wepItem === 'quick-dagger') {
+      // a short quickmetal blade, cyan, gleaming, half a sword
+      cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.7, 0, 1.4, 6)
+      cx.fillStyle = '#dffaff'; cx.fillRect(-0.35, 0, 0.7, 6)
+      cx.fillStyle = '#3a5a6a'; cx.fillRect(-2, -1, 4, 1.4)
+    } else if (o.wepItem === 'iron-dagger') {
+      cx.fillStyle = '#c9862a'; cx.fillRect(-0.7, 0, 1.4, 5.5)
+      cx.fillStyle = '#5c4023'; cx.fillRect(-1.8, -1, 3.6, 1.4)
+    } else if (o.wepItem === 'quick-sword') {
+      cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.9, 0, 1.8, 9)
+      cx.fillStyle = '#dffaff'; cx.fillRect(-0.4, 0, 0.8, 9)
+      cx.fillStyle = '#3a5a6a'; cx.fillRect(-2.4, -1, 4.8, 1.6)
+    } else if (o.wepItem === 'staff' || o.wepItem === 'heartwood-staff') {
+      // A STAVE IS LEANED ON. It runs BELOW the hand to the ground and above
+      // it to about the shoulder -- a walking stick, not a flagpole. There was
+      // no branch for it at all, so a sorcerer carried an invisible staff.
+      const heart9 = o.wepItem === 'heartwood-staff'
+      cx.fillStyle = heart9 ? '#7a5a2a' : '#4a3a22'
+      cx.fillRect(-0.8, -11, 1.6, 23)
+      cx.fillStyle = '#2a2114'; cx.fillRect(-1.1, -2, 2.2, 3)     // the binding
+      cx.fillStyle = '#3a352c'; cx.fillRect(-1, 10, 2, 2)          // the ferrule
+      cx.fillStyle = heart9 ? '#8a6a34' : '#5a4626'
+      cx.beginPath(); cx.ellipse(0, -12, 1.8, 2.2, 0, 0, 7); cx.fill()
+      cx.fillStyle = 'rgba(232,204,120,.45)'
+      cx.beginPath(); cx.arc(0, -12, 3.4, 0, 7); cx.fill()
+    } else if (o.wepItem === 'goo-staff') {
+      // §6bn: leaned on like the other staves, but it is DARK and the head is
+      // wet -- a citizen holding one is legible across the field, which is the
+      // point. You should be able to see who is carrying it before the fight.
+      cx.fillStyle = '#2f3326'; cx.fillRect(-0.8, -11, 1.6, 23)
+      cx.fillStyle = '#5e6b46'; cx.fillRect(-1.1, -3, 2.2, 1.2)   // the silk binding
+      cx.fillStyle = '#3a352c'; cx.fillRect(-1, 10, 2, 2)          // the ferrule
+      cx.fillStyle = 'rgba(150,214,120,.38)'
+      cx.beginPath(); cx.arc(0, -12.2, 3.4, 0, 7); cx.fill()
+      cx.fillStyle = '#7fbf5a'
+      cx.beginPath(); cx.ellipse(0, -12.2, 1.7, 2.0, 0, 0, 7); cx.fill()
+      cx.fillStyle = '#bfe89a'
+      cx.beginPath(); cx.ellipse(-0.5, -12.9, .6, .75, 0, 0, 7); cx.fill()
+      cx.fillStyle = '#7fbf5a'                                     // the drip
+      cx.beginPath(); cx.ellipse(0.5, -8.6, .55, .9, 0, 0, 7); cx.fill()
+    } else if (o.wepItem === 'wand') {
+      // short, carried, tipped pale
+      cx.fillStyle = '#4a3a22'; cx.fillRect(-0.7, -3, 1.4, 10)
+      cx.fillStyle = '#2a2114'; cx.fillRect(-1, 2, 2, 2.6)
+      cx.fillStyle = '#cfe2e6'
+      cx.beginPath(); cx.arc(0, -3.5, 1.5, 0, 7); cx.fill()
+      cx.fillStyle = 'rgba(160,206,224,.45)'
+      cx.beginPath(); cx.arc(0, -3.5, 3, 0, 7); cx.fill()
+    } else if (o.wepItem === 'iron-spear' || o.wepItem === 'quick-spear') {
+      // a long haft carried upright: it is taller than the citizen
+      const star9 = o.wepItem === 'quick-spear'
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
+      cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
+      poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
+    } else if (o.wepItem === 'iron-mell' || o.wepItem === 'quick-mell') {
+      // a heavy head on a short haft. It should look like it weighs something.
+      const star9 = o.wepItem === 'quick-mell'
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
+      cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
+      cx.fillRect(-3.2, -6, 6.4, 4.6)
+      cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
+      cx.fillRect(-3.2, -6, 6.4, 1.4)
+    } else if (o.wepItem === 'quick-flail') {
+      // haft, chain, spiked head -- the chain is the point of the thing
+      const star9 = o.wepItem === 'quick-flail'
+      cx.fillStyle = star9 ? '#5a4f6b' : '#5c4023'; cx.fillRect(-0.8, 0, 1.6, 9)
+      cx.strokeStyle = star9 ? '#b9a9d6' : '#8a8078'; cx.lineWidth = 0.9
+      cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(F > 0 ? 2.6 : -2.6, -4); cx.stroke()
+      cx.fillStyle = star9 ? '#b9a9d6' : '#8a8078'
+      cx.beginPath(); cx.arc(F > 0 ? 3.4 : -3.4, -5.4, 2.2, 0, 7); cx.fill()
+      cx.fillStyle = star9 ? '#d8ccf0' : '#a8a09a'
+      for (let k = 0; k < 4; k++) { const a9 = k / 4 * Math.PI * 2
+        cx.fillRect((F > 0 ? 3.4 : -3.4) + Math.cos(a9) * 2.4 - 0.4, -5.4 + Math.sin(a9) * 2.4 - 0.4, 0.9, 0.9) }
+    } else if (o.wepItem === 'old-chain') {
+      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.1
+      cx.beginPath(); cx.moveTo(0, 0)
+      cx.quadraticCurveTo(F * 3, 4, 0, 8); cx.stroke()
+      cx.fillStyle = '#6e675c'
+      for (const cy9 of [1.5, 4, 6.5]) { cx.beginPath(); cx.arc(F * 1.2, cy9, 1.1, 0, 7); cx.fill() }
+    } else if (o.wepItem === 'crossbow') {
+      // carried flat across the back: a stock and a prod
+      cx.fillStyle = '#6b5330'; cx.fillRect(-1, -1, 2, 9)
+      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.4
+      cx.beginPath(); cx.moveTo(-4, 1); cx.quadraticCurveTo(0, 3.4, 4, 1); cx.stroke()
+      cx.strokeStyle = '#c9c1b6'; cx.lineWidth = 0.7
+      cx.beginPath(); cx.moveTo(-4, 1); cx.lineTo(0, 5); cx.lineTo(4, 1); cx.stroke()
+    } else if (o.wepItem === 'handgonne') {
+      // §6av: A HAND CANNON, carried muzzle-down across the body. It had no
+      // held sprite at all and fell through every branch, so the loudest thing
+      // in the world was invisible in the hand that held it. Wood stock, a
+      // grey barrel, and a lit match at the touch-hole -- the match is what
+      // says this is about to go off.
+      cx.fillStyle = '#6b5330'; cx.fillRect(-1.1, 0, 2.2, 9)          // the stock
+      cx.save(); cx.rotate(F > 0 ? -0.5 : 0.5)
+      cx.fillStyle = '#5a616b'; cx.fillRect(-1.4, -9, 2.8, 9)         // the barrel
+      cx.fillStyle = '#3a4048'; cx.fillRect(-1.4, -9, 2.8, 1.4)       // the muzzle
+      cx.fillStyle = '#8a939d'; cx.fillRect(-1.8, -2.6, 3.6, 1.3)     // the band
+      const glow = 0.55 + Math.sin(now / 220) * 0.35
+      cx.fillStyle = 'rgba(255,170,70,' + glow.toFixed(2) + ')'       // the match, burning
+      cx.beginPath(); cx.arc(1.9, -3.4, 1.1, 0, 7); cx.fill()
+      cx.restore()
+    } else if (RANGED_ITEMS.has(o.wepItem)) {
+      // a bow slung: horn brown, sigil blue-lit, dragon bone-pale
+      const dbow = o.wepItem === 'dragonbow', sbow = o.wepItem === 'sigil-bow'
+      cx.strokeStyle = dbow ? '#d8d0b8' : sbow ? '#7a6d4a' : '#6b5330'
+      cx.lineWidth = dbow ? 1.8 : 1.4
+      cx.beginPath(); cx.moveTo(-1, -6); cx.quadraticCurveTo(F * 4.4, 1, -1, 8); cx.stroke()
+      cx.strokeStyle = dbow ? 'rgba(255,190,110,.9)' : '#c9c1b6'; cx.lineWidth = 0.6
+      cx.beginPath(); cx.moveTo(-1, -6); cx.lineTo(-1, 8); cx.stroke()
+      if (dbow) { cx.fillStyle = 'rgba(255,150,50,.5)'
+        cx.beginPath(); cx.arc(0, 1, 4.4, 0, 7); cx.fill() }
+      if (sbow) { cx.fillStyle = 'rgba(150,190,240,.55)'
+        for (const sy9 of [-3, 1, 5]) { cx.beginPath(); cx.arc(F * 1.4, sy9, 1.1, 0, 7); cx.fill() } }
+    } else {
+      // §7f: AND A FAMILY, FOR THE FOURTEEN WITH NO LINE OF THEIR OWN.
+      //
+      // Twenty weapons were named here and the world has thirty-seven, so
+      // fourteen were drawn as NOTHING: every steel arm, the great sword and
+      // the great mell, the bare blade, the bone spear, the bone staff, the
+      // spade, the torch, the barb, the gold chain, the fire-siphon. A
+      // citizen carrying any of them carried an empty hand, and now that the
+      // fight pose uses this same drawing, swung one too.
+      //
+      // A family is enough: the world's names say what a thing IS and what it
+      // is made of, so a `steel-spear` is a spear in steel without anybody
+      // writing a steel spear. The twenty above keep their own art; this
+      // catches the rest rather than leaving them invisible.
+      const m9 = /^(iron|steel|quick|gold|great|bone|shell)-/.exec(it)
+      const lit = { iron: '#c9862a', steel: '#dfe6ee', quick: '#5cb8d9', gold: '#ffd23f',
+        great: '#3a3630', bone: '#e8e4d0', shell: '#a8532c' }[m9 ? m9[1] : ''] ?? '#b8b8b0'
+      const wood = '#5c4023'
+      if (/-sword$|^bare-blade$/.test(it)) {
+        cx.fillStyle = wood; cx.fillRect(-2.2, -1, 4.4, 1.6)
+        cx.fillStyle = lit; cx.fillRect(-0.9, 0.4, 1.8, /^great-/.test(it) ? 10 : 8)
+      } else if (/-dagger$/.test(it)) {
+        cx.fillStyle = wood; cx.fillRect(-1.8, -1, 3.6, 1.4)
+        cx.fillStyle = lit; cx.fillRect(-0.7, 0.2, 1.4, 5.5)
+      } else if (/-spear$|^barb$/.test(it)) {
+        cx.fillStyle = wood; cx.fillRect(-0.8, -4, 1.6, 13)
+        cx.fillStyle = lit
+        cx.beginPath(); cx.moveTo(0, -8); cx.lineTo(1.8, -3.5); cx.lineTo(-1.8, -3.5); cx.closePath(); cx.fill()
+      } else if (/-mell$/.test(it)) {
+        cx.fillStyle = wood; cx.fillRect(-0.8, -1, 1.6, 7)
+        cx.fillStyle = lit; cx.fillRect(-3.4, 5, 6.8, 4)
+        cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(-3.4, 5, 6.8, 1.2)
+      } else if (/staff$/.test(it)) {
+        cx.fillStyle = it === 'bone-staff' ? '#e8e4d0' : wood
+        cx.fillRect(-0.8, -5, 1.6, 14)
+        cx.fillStyle = it === 'bone-staff' ? '#cdbfa6' : '#8ce0ff'
+        cx.beginPath(); cx.arc(0, -6.4, 1.9, 0, 7); cx.fill()
+      } else if (/chain$/.test(it)) {
+        cx.strokeStyle = lit; cx.lineWidth = 1.2
+        const sw = Math.sin(now / 150) * 2
+        cx.beginPath(); cx.moveTo(0, 0); cx.quadraticCurveTo(sw, 4, sw * 1.5, 8); cx.stroke()
+        cx.fillStyle = lit; cx.beginPath(); cx.arc(sw * 1.5, 9.2, 2, 0, 7); cx.fill()
+      } else if (it === 'spade') {
+        cx.fillStyle = wood; cx.fillRect(-0.8, -1, 1.6, 8)
+        cx.fillStyle = '#9aa2ae'; cx.fillRect(-2.6, 6.5, 5.2, 4)
+      } else if (it === 'torch') {
+        cx.fillStyle = wood; cx.fillRect(-0.8, 0, 1.6, 8)
+        const fl = 0.6 + Math.sin(now / 120) * 0.4
+        cx.fillStyle = 'rgba(255,' + Math.round(150 + 70 * fl) + ',50,' + (0.6 + 0.3 * fl).toFixed(2) + ')'
+        cx.beginPath(); cx.ellipse(0, -2, 1.9, 3 + fl * 1.4, 0, 0, 7); cx.fill()
+      } else if (it === 'fire-siphon') {
+        cx.fillStyle = '#4a4036'; cx.fillRect(-1.4, -1, 2.8, 8)
+        cx.fillStyle = '#8a939d'; cx.fillRect(-1.9, 6.4, 3.8, 2.2)
+        const fl = 0.6 + Math.sin(now / 110) * 0.4
+        cx.fillStyle = 'rgba(255,' + Math.round(130 + 70 * fl) + ',40,' + (0.55 + 0.35 * fl).toFixed(2) + ')'
+        cx.beginPath(); cx.ellipse(0, 10.4, 2, 3 + fl * 1.6, 0, 0, 7); cx.fill()
+      }
+    }
+}
+
 function poly(pts, fill, stroke) {
   cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
   for (const p of pts.slice(1)) cx.lineTo(p[0], p[1])
@@ -10087,198 +10285,30 @@ function drawCitizen(X, Y, o) {
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 9)
     cx.fillStyle = metal; cx.fillRect(F > 0 ? 1 : -6, 14, 5, 4)
   } else if (o.anim === 'fight') {
-    // §7f: A FIGHT IS FOUGHT WITH THE THING IN YOUR HAND.
+    // §7f: AND IT IS THE SAME WEAPON HE WAS CARRYING.
     //
-    // This drew a blade and a crossguard for EVERY weapon in the world. A
-    // mell, a spear, a flail, a bow, a hand cannon: all of them swung a
-    // sword, and the only thing that changed was whether the metal was iron
-    // or quick. The window has a drawing for each of these already, used
-    // when the weapon is merely carried, and the moment it mattered most was
-    // the moment it was thrown away.
+    // This drew a blade and a crossguard for every weapon in the world, and
+    // the first repair gave it a SECOND set of drawings of its own. Both are
+    // wrong in the same way: a citizen carrying a mell held one mell and
+    // swung another, so the thing in his hand changed shape the moment he
+    // raised it.
     //
-    // Drawn from the fist down the arm's own angle, so each keeps the swing
-    // the pose gives it. The families are the engine's shapes: a haft with a
-    // weight on it, a shaft with a point, a head on a helve, a chain, a
-    // stave, and a blade, which is now one weapon among several rather than
-    // the only one.
-    const it9 = o.wepItem || ''
-    const lit9 = o.sword ? '#c9862a' : o.starSword ? '#8ce0ff' : '#b8b8b0'
-    const haft9 = '#5c4023'
-    // Everything here hangs from the HAND, which is at 7.4, and stops well
-    // before the ground. The first cut reused the old sword's reach of
-    // twenty-two, which on a thin blade reads as a blade and on a maul put
-    // a block of iron flat on the floor beside the citizen's boots.
-    if (/-mell$/.test(it9)) {                       // a maul: short haft, heavy head
-      cx.fillStyle = haft9; cx.fillRect(-1, 7, 2, 8)
-      cx.fillStyle = it9.startsWith('great') ? '#3a3630' : lit9
-      cx.fillRect(-4.2, 14, 8.4, 5.4)
-      cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(-4.2, 14, 8.4, 1.5)
-    } else if (/-spear$|^bone-spear$/.test(it9)) {   // a long shaft, and the point beyond the hand
-      cx.fillStyle = haft9; cx.fillRect(-0.9, -5, 1.8, 23)
-      cx.fillStyle = it9 === 'bone-spear' ? '#e8e4d0' : lit9
-      cx.beginPath(); cx.moveTo(0, -12); cx.lineTo(2.4, -4); cx.lineTo(-2.4, -4); cx.closePath(); cx.fill()
-    } else if (/-hatchet$|-pickaxe$/.test(it9)) {    // a head on a helve
-      cx.fillStyle = haft9; cx.fillRect(-1, 7, 2, 10)
-      cx.fillStyle = lit9
-      if (/-pickaxe$/.test(it9)) {
-        cx.strokeStyle = lit9; cx.lineWidth = 2.6
-        cx.beginPath(); cx.arc(0, 15, 4.6, -0.7, 0.7); cx.stroke()
-      } else cx.fillRect(1, 12.5, 5.2, 4.2)
-    } else if (/-flail$|^old-chain$/.test(it9)) {    // a haft, a length of chain, a weight
-      cx.fillStyle = haft9; cx.fillRect(-1, 7, 2, 7)
-      cx.strokeStyle = '#8a8a92'; cx.lineWidth = 1.1
-      const sw9 = Math.sin(o.now / 140) * 2.6
-      cx.beginPath(); cx.moveTo(0, 14); cx.quadraticCurveTo(sw9, 17, sw9 * 1.6, 20); cx.stroke()
-      cx.fillStyle = it9 === 'quick-flail' ? '#8ce0ff' : '#6e6e76'
-      cx.beginPath(); cx.arc(sw9 * 1.6, 21.4, 2.5, 0, 7); cx.fill()
-    } else if (/staff$|^wand$/.test(it9)) {          // a stave, and whatever is bound to its head
-      cx.fillStyle = it9 === 'heartwood-staff' ? '#b08a3e' : haft9
-      cx.fillRect(-0.9, -5, 1.8, 25)
-      cx.fillStyle = it9 === 'goo-staff' ? '#7dbb45' : '#8ce0ff'
-      cx.beginPath(); cx.arc(0, -7, 2.4, 0, 7); cx.fill()
-    } else if (it9 === 'fire-siphon') {              // a tube, and the flame at its mouth
-      cx.fillStyle = '#4a4036'; cx.fillRect(-1.6, 5, 3.2, 10)
-      cx.fillStyle = '#8a939d'; cx.fillRect(-2.2, 14, 4.4, 2.6)
-      const fl9 = 0.6 + Math.sin(o.now / 110) * 0.4
-      cx.fillStyle = 'rgba(255,' + Math.round(130 + 70 * fl9) + ',40,' + (0.55 + 0.35 * fl9).toFixed(2) + ')'
-      cx.beginPath(); cx.ellipse(0, 18.4, 2.3, 3.4 + fl9 * 1.8, 0, 0, 7); cx.fill()
-    } else if (RANGED_ITEMS.has(it9)) {
-      // a bow or a gun is held, not swung: the stance above has it, and an
-      // arm waving a second weapon under it is how the archer came to be
-      // carrying a sword as well
-    } else {                                         // a blade, which is what it always drew
-      cx.fillStyle = haft9; cx.fillRect(-2.6, 7, 5.2, 1.8)        // the guard, at the hand
-      cx.fillStyle = lit9; cx.fillRect(-1, 8.6, 2, o.sword ? 12 : 10)
+    // There is one drawing of each weapon now, and this is it, translated to
+    // the hand. A bow is the exception and draws nothing here: the archer's
+    // stance above already holds it, and an arm swinging a second weapon
+    // underneath is how the archer came to be carrying a sword as well.
+    if (o.wepItem && !RANGED_ITEMS.has(o.wepItem)) {
+      cx.save(); cx.translate(0, 7.4)
+      heldWeapon(cx, o.wepItem, F, o.now)
+      cx.restore()
     }
   }
+
   cx.restore()
   if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.ironTool)) {
     // whatever you wield rides at the hip, for all to see
     cx.save(); cx.translate(X + (F > 0 ? 13 : 27), Y + 24); cx.rotate(F * 0.7)
-    if (o.wepItem === 'iron-sword') {
-      cx.fillStyle = '#c9862a'; cx.fillRect(-0.8, 0, 1.6, 8)
-      cx.fillStyle = '#5c4023'; cx.fillRect(-2.2, -1, 4.4, 1.6)
-    } else if (o.wepItem === 'iron-pickaxe') {
-      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
-      cx.strokeStyle = '#c9862a'; cx.lineWidth = 2
-      cx.beginPath(); cx.arc(0, 0, 3.4, 3.4, 6.1); cx.stroke()
-    } else if (o.wepItem === 'iron-hatchet') {
-      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 9)
-      cx.fillStyle = '#c9862a'; cx.fillRect(F > 0 ? 0.5 : -4.5, -1, 4, 3.4)
-    } else if (o.wepItem === 'quick-dagger') {
-      // a short quickmetal blade, cyan, gleaming, half a sword
-      cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.7, 0, 1.4, 6)
-      cx.fillStyle = '#dffaff'; cx.fillRect(-0.35, 0, 0.7, 6)
-      cx.fillStyle = '#3a5a6a'; cx.fillRect(-2, -1, 4, 1.4)
-    } else if (o.wepItem === 'iron-dagger') {
-      cx.fillStyle = '#c9862a'; cx.fillRect(-0.7, 0, 1.4, 5.5)
-      cx.fillStyle = '#5c4023'; cx.fillRect(-1.8, -1, 3.6, 1.4)
-    } else if (o.wepItem === 'quick-sword') {
-      cx.fillStyle = '#8ce0ff'; cx.fillRect(-0.9, 0, 1.8, 9)
-      cx.fillStyle = '#dffaff'; cx.fillRect(-0.4, 0, 0.8, 9)
-      cx.fillStyle = '#3a5a6a'; cx.fillRect(-2.4, -1, 4.8, 1.6)
-    } else if (o.wepItem === 'staff' || o.wepItem === 'heartwood-staff') {
-      // A STAVE IS LEANED ON. It runs BELOW the hand to the ground and above
-      // it to about the shoulder -- a walking stick, not a flagpole. There was
-      // no branch for it at all, so a sorcerer carried an invisible staff.
-      const heart9 = o.wepItem === 'heartwood-staff'
-      cx.fillStyle = heart9 ? '#7a5a2a' : '#4a3a22'
-      cx.fillRect(-0.8, -11, 1.6, 23)
-      cx.fillStyle = '#2a2114'; cx.fillRect(-1.1, -2, 2.2, 3)     // the binding
-      cx.fillStyle = '#3a352c'; cx.fillRect(-1, 10, 2, 2)          // the ferrule
-      cx.fillStyle = heart9 ? '#8a6a34' : '#5a4626'
-      cx.beginPath(); cx.ellipse(0, -12, 1.8, 2.2, 0, 0, 7); cx.fill()
-      cx.fillStyle = 'rgba(232,204,120,.45)'
-      cx.beginPath(); cx.arc(0, -12, 3.4, 0, 7); cx.fill()
-    } else if (o.wepItem === 'goo-staff') {
-      // §6bn: leaned on like the other staves, but it is DARK and the head is
-      // wet -- a citizen holding one is legible across the field, which is the
-      // point. You should be able to see who is carrying it before the fight.
-      cx.fillStyle = '#2f3326'; cx.fillRect(-0.8, -11, 1.6, 23)
-      cx.fillStyle = '#5e6b46'; cx.fillRect(-1.1, -3, 2.2, 1.2)   // the silk binding
-      cx.fillStyle = '#3a352c'; cx.fillRect(-1, 10, 2, 2)          // the ferrule
-      cx.fillStyle = 'rgba(150,214,120,.38)'
-      cx.beginPath(); cx.arc(0, -12.2, 3.4, 0, 7); cx.fill()
-      cx.fillStyle = '#7fbf5a'
-      cx.beginPath(); cx.ellipse(0, -12.2, 1.7, 2.0, 0, 0, 7); cx.fill()
-      cx.fillStyle = '#bfe89a'
-      cx.beginPath(); cx.ellipse(-0.5, -12.9, .6, .75, 0, 0, 7); cx.fill()
-      cx.fillStyle = '#7fbf5a'                                     // the drip
-      cx.beginPath(); cx.ellipse(0.5, -8.6, .55, .9, 0, 0, 7); cx.fill()
-    } else if (o.wepItem === 'wand') {
-      // short, carried, tipped pale
-      cx.fillStyle = '#4a3a22'; cx.fillRect(-0.7, -3, 1.4, 10)
-      cx.fillStyle = '#2a2114'; cx.fillRect(-1, 2, 2, 2.6)
-      cx.fillStyle = '#cfe2e6'
-      cx.beginPath(); cx.arc(0, -3.5, 1.5, 0, 7); cx.fill()
-      cx.fillStyle = 'rgba(160,206,224,.45)'
-      cx.beginPath(); cx.arc(0, -3.5, 3, 0, 7); cx.fill()
-    } else if (o.wepItem === 'iron-spear' || o.wepItem === 'quick-spear') {
-      // a long haft carried upright: it is taller than the citizen
-      const star9 = o.wepItem === 'quick-spear'
-      cx.fillStyle = '#5c4023'; cx.fillRect(-0.7, -12, 1.4, 20)
-      cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
-      poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
-    } else if (o.wepItem === 'iron-mell' || o.wepItem === 'quick-mell') {
-      // a heavy head on a short haft. It should look like it weighs something.
-      const star9 = o.wepItem === 'quick-mell'
-      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
-      cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
-      cx.fillRect(-3.2, -6, 6.4, 4.6)
-      cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
-      cx.fillRect(-3.2, -6, 6.4, 1.4)
-    } else if (o.wepItem === 'quick-flail') {
-      // haft, chain, spiked head -- the chain is the point of the thing
-      const star9 = o.wepItem === 'quick-flail'
-      cx.fillStyle = star9 ? '#5a4f6b' : '#5c4023'; cx.fillRect(-0.8, 0, 1.6, 9)
-      cx.strokeStyle = star9 ? '#b9a9d6' : '#8a8078'; cx.lineWidth = 0.9
-      cx.beginPath(); cx.moveTo(0, 0); cx.lineTo(F > 0 ? 2.6 : -2.6, -4); cx.stroke()
-      cx.fillStyle = star9 ? '#b9a9d6' : '#8a8078'
-      cx.beginPath(); cx.arc(F > 0 ? 3.4 : -3.4, -5.4, 2.2, 0, 7); cx.fill()
-      cx.fillStyle = star9 ? '#d8ccf0' : '#a8a09a'
-      for (let k = 0; k < 4; k++) { const a9 = k / 4 * Math.PI * 2
-        cx.fillRect((F > 0 ? 3.4 : -3.4) + Math.cos(a9) * 2.4 - 0.4, -5.4 + Math.sin(a9) * 2.4 - 0.4, 0.9, 0.9) }
-    } else if (o.wepItem === 'old-chain') {
-      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.1
-      cx.beginPath(); cx.moveTo(0, 0)
-      cx.quadraticCurveTo(F * 3, 4, 0, 8); cx.stroke()
-      cx.fillStyle = '#6e675c'
-      for (const cy9 of [1.5, 4, 6.5]) { cx.beginPath(); cx.arc(F * 1.2, cy9, 1.1, 0, 7); cx.fill() }
-    } else if (o.wepItem === 'crossbow') {
-      // carried flat across the back: a stock and a prod
-      cx.fillStyle = '#6b5330'; cx.fillRect(-1, -1, 2, 9)
-      cx.strokeStyle = '#8a8078'; cx.lineWidth = 1.4
-      cx.beginPath(); cx.moveTo(-4, 1); cx.quadraticCurveTo(0, 3.4, 4, 1); cx.stroke()
-      cx.strokeStyle = '#c9c1b6'; cx.lineWidth = 0.7
-      cx.beginPath(); cx.moveTo(-4, 1); cx.lineTo(0, 5); cx.lineTo(4, 1); cx.stroke()
-    } else if (o.wepItem === 'handgonne') {
-      // §6av: A HAND CANNON, carried muzzle-down across the body. It had no
-      // held sprite at all and fell through every branch, so the loudest thing
-      // in the world was invisible in the hand that held it. Wood stock, a
-      // grey barrel, and a lit match at the touch-hole -- the match is what
-      // says this is about to go off.
-      cx.fillStyle = '#6b5330'; cx.fillRect(-1.1, 0, 2.2, 9)          // the stock
-      cx.save(); cx.rotate(F > 0 ? -0.5 : 0.5)
-      cx.fillStyle = '#5a616b'; cx.fillRect(-1.4, -9, 2.8, 9)         // the barrel
-      cx.fillStyle = '#3a4048'; cx.fillRect(-1.4, -9, 2.8, 1.4)       // the muzzle
-      cx.fillStyle = '#8a939d'; cx.fillRect(-1.8, -2.6, 3.6, 1.3)     // the band
-      const glow = 0.55 + Math.sin(now / 220) * 0.35
-      cx.fillStyle = 'rgba(255,170,70,' + glow.toFixed(2) + ')'       // the match, burning
-      cx.beginPath(); cx.arc(1.9, -3.4, 1.1, 0, 7); cx.fill()
-      cx.restore()
-    } else if (RANGED_ITEMS.has(o.wepItem)) {
-      // a bow slung: horn brown, sigil blue-lit, dragon bone-pale
-      const dbow = o.wepItem === 'dragonbow', sbow = o.wepItem === 'sigil-bow'
-      cx.strokeStyle = dbow ? '#d8d0b8' : sbow ? '#7a6d4a' : '#6b5330'
-      cx.lineWidth = dbow ? 1.8 : 1.4
-      cx.beginPath(); cx.moveTo(-1, -6); cx.quadraticCurveTo(F * 4.4, 1, -1, 8); cx.stroke()
-      cx.strokeStyle = dbow ? 'rgba(255,190,110,.9)' : '#c9c1b6'; cx.lineWidth = 0.6
-      cx.beginPath(); cx.moveTo(-1, -6); cx.lineTo(-1, 8); cx.stroke()
-      if (dbow) { cx.fillStyle = 'rgba(255,150,50,.5)'
-        cx.beginPath(); cx.arc(0, 1, 4.4, 0, 7); cx.fill() }
-      if (sbow) { cx.fillStyle = 'rgba(150,190,240,.55)'
-        for (const sy9 of [-3, 1, 5]) { cx.beginPath(); cx.arc(F * 1.4, sy9, 1.1, 0, 7); cx.fill() } }
-    }
+    heldWeapon(cx, o.wepItem, F, now)
     cx.restore()
   }
   // head: skin, hair cap, eye toward facing

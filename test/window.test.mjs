@@ -664,17 +664,16 @@ test('a fight is fought with the weapon in hand, not with a sword every time', (
   const i = win.indexOf("} else if (o.anim === 'fight') {")
   assert.ok(i > 0, 'the fight pose is gone or renamed')
   const body = win.slice(i, win.indexOf('\n  }', i))
-  assert.ok(body.includes('o.wepItem'),
-    'the fight pose does not look at what is being held, so it draws one thing for everything')
 
-  // every family the engine has must be reachable in that pose
-  const families = {
-    mell: /-mell\$\/|-mell\$/, spear: /spear/, hatchet: /hatchet/,
-    flail: /flail/, staff: /staff/, siphon: /fire-siphon/,
-  }
-  for (const [name, re] of Object.entries(families)) {
-    assert.ok(re.test(body), 'a ' + name + ' is still drawn as something else in a fight')
-  }
+  // It drew a blade and a crossguard for every weapon in the world. The cure
+  // is NOT a second set of drawings here, which was the first attempt and
+  // made the weapon change shape the moment it was raised: it is the one
+  // drawing, translated to the hand.
+  assert.ok(/heldWeapon\(cx,/.test(body),
+    'the fight pose must use the same drawing as the hip, or the weapon changes when you raise it')
+  assert.ok(!/fillRect\(-[\d.]+, [\d.]+, [\d.]+, 1[0-9]/.test(body),
+    'the fight pose is drawing weapon-sized shapes of its own again')
+
   // and a bow is not swung at all: the archer's stance already holds it
   assert.ok(body.includes('RANGED_ITEMS'),
     'an archer swings a second weapon under their bow unless the pose knows better')
@@ -688,15 +687,6 @@ test('a fight is fought with the weapon in hand, not with a sword every time', (
   const limb = win.slice(arm, arm + 1400)
   assert.ok(/tunicDk/.test(limb), 'the sleeve must read against the body, so it is the tunic\u2019s own dark')
   assert.ok(/arc\(0, 7\.4/.test(limb), 'there must be a hand where the weapon begins')
-
-  // nothing a citizen swings may reach past their own feet, which stand at 35
-  // measured from the figure's top. The arm hangs from 18, so anything longer
-  // than seventeen from the shoulder is lying on the ground beside them.
-  const reaches = [...body.matchAll(/fillRect\(-?[\d.]+, ([\d.]+), [\d.]+, ([\d.]+)\)/g)]
-    .map((m) => +m[1] + +m[2])
-  const tooLong = reaches.filter((r) => r > 21)
-  assert.deepEqual(tooLong, [],
-    'a weapon reaching ' + tooLong.join(', ') + ' from the shoulder ends up on the floor')
 })
 
 // ---- `prowess` IS A SKILL, AND THE WORLD NEVER PUTS IT IN `action.type` ----
@@ -743,4 +733,60 @@ test('no live line asks whether an action is `prowess`, which it never is', () =
     assert.ok(/inAFight\(/.test(seg),
       name + ' does not ask whether this is a fight, so fighting a creature draws nothing')
   }
+})
+
+// ---- EVERY WEAPON IS DRAWN, AND IT IS THE SAME ONE IN BOTH HANDS ----
+//
+// The fight pose used to draw a sword for everything. The first repair gave
+// it a SECOND set of drawings of its own, which is the same fault wearing
+// better clothes: a citizen carried one mell and swung a different one, so
+// the thing in his hand changed shape the moment he raised it. There is one
+// drawing now and both poses call it.
+//
+// Which then showed what that one drawing was missing. Twenty weapons were
+// named in it and the world has thirty-seven, so fourteen were drawn as
+// NOTHING, in the hand and at the hip alike: every steel arm, the great
+// sword, the great mell, the bare blade, the bone spear, the bone staff, the
+// spade, the torch, the barb, the gold chain, the fire-siphon.
+//
+// This runs the drawing rather than reading it: a context that counts what it
+// is asked to paint, once per weapon the world has.
+test('every weapon the world has is drawn by the one drawing', async () => {
+  const a = win.indexOf('function heldWeapon (cx, it, F, now) {')
+  assert.ok(a > 0, 'the one weapon drawing is gone or renamed')
+  const fn = win.slice(a, win.indexOf('\n}\n', a) + 2)
+  const r = win.indexOf('const RANGED_ITEMS = new Set([')
+  const ranged = win.slice(r, win.indexOf('])', r) + 2)
+  // the drawing leans on one helper of the window's own, so it is lifted too
+  // rather than stubbed: a stub that draws nothing would make every weapon
+  // look silent and this test would then report the opposite of the truth
+  const ph = win.indexOf('const poly9 = ')
+  assert.ok(ph > 0, 'poly9 is gone or renamed')
+  const poly9 = win.slice(ph, win.indexOf('\n', win.indexOf('cx.fill()', ph)))
+  const draw = new Function(ranged + '\n' + poly9 + '\n' + fn + '\nreturn heldWeapon')()
+
+  // a context that paints nothing and remembers being asked
+  const pen = () => {
+    let n = 0
+    const noop = () => { n++ }
+    const cx = new Proxy({ get strokes () { return n } }, {
+      get: (t, k) => (k === 'strokes' ? n : noop),
+      set: () => true,
+    })
+    return cx
+  }
+
+  const silent = []
+  for (const it of Object.keys(E.WEAPONS)) {
+    const cx = pen()
+    draw(cx, it, 1, 1000)
+    if (cx.strokes < 2) silent.push(it)
+  }
+  assert.deepEqual(silent, [],
+    silent.length + ' weapons are drawn as nothing at all, in the hand and at the hip: '
+      + silent.join(', '))
+
+  // and both poses must reach it, or they will drift apart again
+  assert.equal((win.match(/heldWeapon\(cx,/g) || []).length, 2,
+    'the carried pose and the fight pose must both call the one drawing')
 })
