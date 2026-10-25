@@ -1066,3 +1066,92 @@ test('the trade panel reads both sides of the table', () => {
   assert.match(code, /if \(meNow\.trade && tableToggle\(i\)\) return/,
     'a pack tap while a table is open must put the thing up')
 })
+
+// ---- WHAT THE ISLAND SWEEP FOUND ----
+//
+// `sweep.mjs` stands the real window up in a real browser, hands it the real
+// island and photographs 136 places. These are the faults that came back, and
+// a check for each, so the next sweep does not find them again.
+
+test('a palisade joins a palisade', () => {
+  // The neighbour index was built from `type === 'wall'` alone, while the
+  // branch that reads it serves walls AND palisades. So no palisade ever saw
+  // a neighbour: every tile of a town's curtain wall drew as a capped,
+  // outlined block, and a run of forty read as forty posts in a row.
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const idx = code.match(/function wallAt\(st, x, y\) \{[\s\S]*?\n\}/)
+  assert.ok(idx, 'the wall neighbour index is gone or renamed')
+  assert.ok(!/q\.type === 'wall'/.test(idx[0]),
+    'the index tests one type again, so palisades have stopped joining up')
+  const joins = code.match(/const JOINS = new Set\(\[([^\]]*)\]\)/)
+  assert.ok(joins, 'the set of types that join a wall is gone')
+  for (const t of ['wall', 'palisade']) {
+    assert.ok(joins[1].includes(`'${t}'`), `${t} must join a wall`)
+  }
+})
+
+test('a fence knows which way it runs', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const at = code.indexOf("if (n.type === 'fence') {")
+  assert.ok(at > 0, 'the fence drawing is gone or renamed')
+  const body = code.slice(at, code.indexOf("if (n.type === ", at + 30))
+  // it asks about all four neighbours, and draws a different shape downwards
+  for (const side of ['n.x - 1, n.y', 'n.x + 1, n.y', 'n.x, n.y - 1', 'n.x, n.y + 1']) {
+    assert.ok(body.includes(`fenceAt(s, ${side})`), `the fence never asks about ${side}`)
+  }
+  assert.match(body, /const down = \(fu \|\| fd\) && !\(fl \|\| fr\)/,
+    'a run with neighbours above and below must be drawn down the tile')
+})
+
+test('every landmark the window gates is one it can draw', () => {
+  // §7f: the gate on the landmark art shut fifty-five drawings out once
+  // already. The sweep found an eleventh thing it was shutting out:
+  // `bridge-stone`, which stands at the end of every span.
+  const gate = win.match(/const LM18 = new Set\(\[([\s\S]*?)\]\)/)
+  assert.ok(gate, 'the landmark gate is gone or renamed')
+  const gated = [...gate[1].matchAll(/'([a-z0-9-]+)'/g)].map((m) => m[1])
+  assert.equal(gated.length, new Set(gated).size, 'a kind is gated twice')
+  assert.ok(gated.includes('bridge-stone'), 'bridge-stone is gated out again')
+  // and every gated kind has a branch that names it in the drawing chain
+  const chain = win.slice(win.indexOf("n.type === 'landmark' && LM18.has(n.kind)"))
+  const missing = gated.filter((k) => !new RegExp(`K === '${k}'`).test(chain)
+    && !new RegExp(`'${k}'`).test(chain))
+  assert.deepEqual(missing, [], `gated but never drawn: ${missing.join(', ')}`)
+})
+
+test('a keeper is what the world says they are', () => {
+  // All 158 keepers on the island carry their calling. The window read none
+  // of it: the role came from scraps of the node id and from whatever stood
+  // within two tiles, so the collier at his charcoal ring and the beekeeper
+  // among the skeps both came out as the same anonymous brown figure.
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const fn = code.slice(code.indexOf('function keeperRole4('))
+  const body = fn.slice(0, fn.indexOf('\nfunction ', 10))
+  assert.match(body, /n\.kind/, 'the keeper drawing asks the world nothing again')
+  const table = code.match(/const KEEPER_ROLE = \{([\s\S]*?)\n\}/)
+  assert.ok(table, 'the table from calling to look is gone')
+  const callings = [...table[1].matchAll(/([a-z]+):\s*'([a-z]+)'/g)]
+  assert.ok(callings.length >= 20, `only ${callings.length} callings have a look`)
+  // every look the table names is one the drawing actually has a palette for
+  const palette = code.match(/const T = \{([\s\S]*?)\}\[role\]/)
+  assert.ok(palette, 'the keeper palette is gone')
+  const looks = new Set([...palette[1].matchAll(/^\s*([a-z]+):/gm)].map((m) => m[1]))
+  const orphans = [...new Set(callings.map((m) => m[2]))]
+    .filter((r) => !looks.has(r) && r !== 'wizard')
+  assert.deepEqual(orphans, [], `a calling points at a look with no palette: ${orphans.join(', ')}`)
+})
+
+test('a coast wears sand whichever way it faces', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const at = code.indexOf('const wt = curState?._waterTiles')
+  assert.ok(at > 0, 'the shoreline is gone or renamed')
+  const body = code.slice(at, at + 700)
+  // one question, asked four times. Two of the four used to leave out the sea.
+  assert.match(body, /const wet = \(qx, qy\) =>/, 'the four sides ask different questions again')
+  const asked = (body.match(/if \(wet\(/g) ?? []).length
+  assert.equal(asked, 4, `a side of the coast is unasked: ${asked} of 4`)
+})

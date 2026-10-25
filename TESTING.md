@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 592 tests across:
+`node --test test/*.test.mjs`, 597 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -181,7 +181,17 @@ possible executions.
   equippable word with every state the hands can be in and checks the window
   sends only wields the engine will take: it was sending 29 it would not, and
   saying nothing when they were refused
-- `windows.exist.test.mjs`, that every window the router offers is on disk
+- `windows.exist.test.mjs`, that every window the router offers is on disk,
+  and that every one of them PARSES: four were blank pages when that check
+  was written, for a ternary whose colon had ended up inside a comment
+- the island sweep's findings, in `window.test.mjs`: that a palisade joins
+  a palisade (the neighbour index read one type and the branch served two,
+  so a curtain wall drew as a row of separate posts), that a fence knows
+  which way it runs, that every gated landmark has a drawing, that a
+  keeper's look comes from the calling the world gave them rather than
+  from scraps of their id, and that a coast wears sand on all four sides.
+  The slow half is `check-window-words.mjs`, which founds the whole island
+  and reports every word in it the window names nowhere
 - `site.test.mjs`, that the hiscores board's ranking and its label agree
 - `site.content.test.mjs`, the FACTS in the site's prose against the engine
 - `prose.test.mjs`, the two rules nothing was enforcing: that

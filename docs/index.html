@@ -2081,14 +2081,40 @@ function isFountain4(x, y) {
 // loop asks four times per wall and a full node scan per query would be
 // thousands of scans a frame.
 let _wallSet = null, _wallTick = -1
+// §7f-ii: A PALISADE JOINS A PALISADE.
+//
+// This indexed `type === 'wall'` and nothing else, while the drawing branch
+// that reads it serves walls AND palisades. So no palisade ever saw a
+// neighbour: every tile of a town's curtain wall was drawn as a capped,
+// outlined block standing on its own, and a run of forty of them read as
+// forty separate posts in a row with daylight between each. The whole reason
+// the branch asks about neighbours is to stop exactly that, and for the
+// palisade it had never once fired.
+//
+// A gate is in the set because a gateway is a hole in a wall rather than the
+// end of one: the wall on either side should run up to it, not cap off.
+const JOINS = new Set(['wall', 'palisade', 'gate'])
 function wallAt(st, x, y) {
   if (!st || !st.nodes) return false
   if (_wallTick !== st.tick || _wallSet === null) {
     _wallSet = new Set()
-    for (const k in st.nodes) { const q = st.nodes[k]; if (q.type === 'wall') _wallSet.add(q.x + ',' + q.y) }
+    for (const k in st.nodes) { const q = st.nodes[k]; if (JOINS.has(q.type)) _wallSet.add(q.x + ',' + q.y) }
     _wallTick = st.tick
   }
   return _wallSet.has(x + ',' + y)
+}
+// and the same question for the lighter boundaries, which join each other
+// and anything heavier. One index, rebuilt when the interval changes.
+let _fenceSet = null, _fenceTick = -1
+const FENCE_JOINS = new Set(['fence', 'hedge', 'wall', 'palisade', 'gate'])
+function fenceAt(st, x, y) {
+  if (!st || !st.nodes) return false
+  if (_fenceTick !== st.tick || _fenceSet === null) {
+    _fenceSet = new Set()
+    for (const k in st.nodes) { const q = st.nodes[k]; if (FENCE_JOINS.has(q.type)) _fenceSet.add(q.x + ',' + q.y) }
+    _fenceTick = st.tick
+  }
+  return _fenceSet.has(x + ',' + y)
 }
 // WHICH DOOR IS THE BANK'S? From outside, a bank and a cottage are both a
 // brown room -- you only learn which is which by standing on the booth. Real
@@ -2145,7 +2171,36 @@ function shopDoors4(st) {
 // the plans placed the keeper it has none, so read the room: whatever this
 // person is standing beside is what they do.
 const _roleCache = new Map()
+// §7f-ii: THE WORLD SAYS WHAT A KEEPER IS, AND THIS WAS GUESSING.
+//
+// All 158 keepers on the island carry `kind`: watchman, collier, beekeeper,
+// drover, miller, toll, twenty-three callings in all. Not one of them was
+// read. The role came from scraps of the node's ID and from what happened to
+// be standing within two tiles, so the collier at his charcoal ring, the
+// beekeeper among the skeps and the bridge-keeper at his toll all came out
+// as `town`: the same anonymous brown figure, in a world that had already
+// said who each of them was.
+//
+// This is the signpost fault again -- the window reading its own guess
+// instead of the world's own word -- and the same answer: ask the world
+// first, and keep the guessing only for a keeper that arrives without a
+// calling, which no longer happens here and might in another founding.
+const KEEPER_ROLE = {
+  watchman: 'watch', toll: 'watch',
+  merchant: 'shop', miller: 'miller', seed: 'shop',
+  banker: 'clerk',
+  brewer: 'inn', innkeeper: 'inn',
+  collier: 'collier', sawyer: 'forest', lumber: 'forest', bows: 'forest',
+  mourner: 'mourner',
+  shepherd: 'shep', drover: 'shep',
+  beekeeper: 'bee',
+  fisher: 'fisher',
+  quarrier: 'smith', delver: 'smith', delve: 'smith',
+  arms: 'smith', armour: 'smith',
+  wizard: 'wizard',
+}
 function keeperRole4(st, id, n) {
+  if (n && n.kind && KEEPER_ROLE[n.kind]) return KEEPER_ROLE[n.kind]
   // §7ae: THE YARDMASTER. Every keeper on this island is an unarmed brown
   // figure, and one of them teaches people to fight. A newcomer meets him
   // before they have anything, so he ought to look like the reason to stay --
@@ -2214,7 +2269,7 @@ const LM18 = new Set([
   'wool-snag', 'salt-lick', 'peat-cut', 'turf-stack', 'bog-pool', 'ore-heap',
   'shot-hole', 'ladder', 'bench', 'flowerbed', 'topiary', 'birdbath',
   'gazebo-post', 'ash-heap', 'broken-cart', 'fallen-stone', 'rag-tree',
-  'cairn', 'boundary-stone', 'skull-pile', 'scorched-ring', 'glass-stone',
+  'cairn', 'boundary-stone', 'bridge-stone', 'skull-pile', 'scorched-ring', 'glass-stone',
   'burnt-tree', 'mill', 'milestone', 'scarecrow', 'barricade',
   'siege-engine', 'cave-mouth'])
 const _rampCache = new Map()
@@ -9763,14 +9818,21 @@ function paintGroundTile(g, x, y) {
     // The flat checkerboard becomes ground you could stub a toe on.
     g.fillStyle = 'rgba(255,255,255,.045)'; g.fillRect(px(x), py(y), TILE, 2.4)
     g.fillStyle = 'rgba(0,0,0,.05)'; g.fillRect(px(x), py(y) + TILE - 2.4, TILE, 2.4)
-    // shorelines: land wears a sand rim wherever water touches it
+    // shorelines: land wears a sand rim wherever water touches it.
+    //
+    // ALL FOUR SIDES ASK THE SAME QUESTION. Two of them tested inland water
+    // AND the sea; the other two tested only inland water, so a beach with
+    // the sea above it or to its left had no sand on that side and the rim
+    // stopped dead halfway round a bay. Nothing about a coast cares which
+    // way it faces.
     const wt = curState?._waterTiles
     if (wt && !wt.has(x + ',' + y) && terrainOf(x, y) !== 'sea') {
+      const wet = (qx, qy) => wt.has(qx + ',' + qy) || terrainOf(qx, qy) === 'sea'
       g.fillStyle = '#b8a260'
-      if (wt.has(x + ',' + (y + 1)) || terrainOf(x, y + 1) === 'sea') g.fillRect(px(x), py(y) + TILE - 4, TILE, 4)
-      if (wt.has(x + ',' + (y - 1))) g.fillRect(px(x), py(y), TILE, 4)
-      if (wt.has((x + 1) + ',' + y) || terrainOf(x + 1, y) === 'sea') g.fillRect(px(x) + TILE - 4, py(y), 4, TILE)
-      if (wt.has((x - 1) + ',' + y)) g.fillRect(px(x), py(y), 4, TILE)
+      if (wet(x, y + 1)) g.fillRect(px(x), py(y) + TILE - 4, TILE, 4)
+      if (wet(x, y - 1)) g.fillRect(px(x), py(y), TILE, 4)
+      if (wet(x + 1, y)) g.fillRect(px(x) + TILE - 4, py(y), 4, TILE)
+      if (wet(x - 1, y)) g.fillRect(px(x), py(y), 4, TILE)
     }
     // bridge planks: the road crossing the water on timber
     if (terrainOf(x, y) === 'bridge') {
@@ -10823,6 +10885,13 @@ function drawScene(now) {
           forest: { coat: '#3a5c30', trim: '#26401f', hair: '#33291c' },
           fisher: { coat: '#436373', trim: '#2d444f', hair: '#3a3a34' },
           town:   { coat: '#6b4a33', trim: '#4a3222', hair: '#3d2f22' },
+          // §7f-ii: and the five callings the world names most often, which
+          // until now all wore the same brown coat as everybody else
+          watch:  { coat: '#4b5260', trim: '#343944', hair: '#2e2922' },
+          mourner:{ coat: '#3a3540', trim: '#272330', hair: '#2a2622' },
+          collier:{ coat: '#38322c', trim: '#241f1b', hair: '#1d1915' },
+          bee:    { coat: '#b0a683', trim: '#8a8064', hair: '#4a4030' },
+          miller: { coat: '#cfc6ab', trim: '#a79d84', hair: '#4a4030' },
         }[role] ?? { coat: '#6b4a33', trim: '#4a3222', hair: '#3d2f22' }
         // the body, planted on the shadow
         cx.fillStyle = T.coat; cx.fillRect(X + 14, B + 16, 12, 14)
@@ -10832,6 +10901,10 @@ function drawScene(now) {
         if (role === 'smith') { cx.fillStyle = '#2a2118'; cx.fillRect(X + 15, B + 18, 10, 12) }
         if (role === 'clerk') { cx.fillStyle = '#e8e2c8'; cx.fillRect(X + 21, B + 17, 8, 9)
                                 cx.fillStyle = '#8a6d1f'; cx.fillRect(X + 21, B + 17, 8, 2) }
+        if (role === 'watch') { cx.fillStyle = '#8d949e'; cx.fillRect(X + 15, B + 17, 10, 10)
+                                cx.fillStyle = '#6f7681'; cx.fillRect(X + 15, B + 17, 3, 10) }
+        if (role === 'miller') { cx.fillStyle = 'rgba(255,255,255,.35)'
+                                 cx.fillRect(X + 14, B + 16, 12, 5) }
         cx.fillStyle = SKIN; cx.fillRect(X + 15.5, B + 8, 9, 9)
         cx.fillStyle = T.hair; cx.fillRect(X + 15, B + 6, 10, 4)
         // THE HEAD: every trade a different outline
@@ -10851,6 +10924,21 @@ function drawScene(now) {
           cx.fillStyle = '#25304d'; cx.fillRect(X + 14, B + 4, 12, 3.5)
         } else if (role === 'smith') {               // a soot band
           cx.fillStyle = '#2a2118'; cx.fillRect(X + 14.5, B + 5, 11, 3)
+        } else if (role === 'watch') {               // a kettle helm, and a brim
+          cx.fillStyle = '#9aa2ae'; cx.fillRect(X + 13, B + 4, 14, 3)
+          cx.fillRect(X + 15, B + 0.5, 10, 4)
+        } else if (role === 'mourner') {             // a deep hood, and no face in it
+          poly([[X + 12, B + 12], [X + 28, B + 12], [X + 20, B - 3]], '#2a2630')
+          cx.fillStyle = '#17141a'; cx.fillRect(X + 16.5, B + 7, 7, 6)
+        } else if (role === 'bee') {                 // a veil over a wide brim
+          cx.fillStyle = '#e4ddc4'; cx.fillRect(X + 10, B + 4, 20, 3)
+          cx.fillRect(X + 15, B + 0.5, 10, 4)
+          cx.fillStyle = 'rgba(232,226,200,.55)'; cx.fillRect(X + 14, B + 6, 12, 10)
+        } else if (role === 'miller') {              // flour on everything, cap included
+          cx.fillStyle = '#efe8d2'; cx.fillRect(X + 14, B + 3.5, 12, 3.5)
+        } else if (role === 'collier') {             // a hood, and the face under it is black
+          poly([[X + 13, B + 10], [X + 27, B + 10], [X + 20, B - 1]], '#2b2621')
+          cx.fillStyle = '#4a4038'; cx.fillRect(X + 16.5, B + 8, 7, 7)
         }
         // and the prop, big enough to see: full height where it can be
         if (role === 'shep') {
@@ -10871,13 +10959,79 @@ function drawScene(now) {
           for (let i2 = 0; i2 < 5; i2++) { cx.beginPath()
             cx.moveTo(X + 27 + i2 * 1.5, B + 14); cx.lineTo(X + 25 + i2 * 1.5, B + 28); cx.stroke() }
           cx.beginPath(); cx.moveTo(X + 27, B + 20); cx.lineTo(X + 33, B + 19); cx.stroke()
+        } else if (role === 'watch') {               // a spear, butt on the ground
+          cx.fillStyle = '#5a4632'; cx.fillRect(X + 29, B + 2, 2.4, 29)
+          poly([[X + 30.2, B - 4], [X + 33, B + 3], [X + 27.4, B + 3]], '#b9c0c8', '#5c636c')
+        } else if (role === 'mourner') {             // a spade, which is the whole calling
+          cx.fillStyle = '#5a4632'; cx.fillRect(X + 28, B + 9, 2.4, 16)
+          cx.fillStyle = '#8a8a92'; cx.fillRect(X + 26, B + 24, 6.4, 7)
+        } else if (role === 'bee') {                 // a skep under one arm
+          cx.fillStyle = '#c9a86a'
+          cx.beginPath(); cx.ellipse(X + 30, B + 25, 5.5, 6, 0, Math.PI, 0); cx.fill()
+          cx.fillRect(X + 24.5, B + 25, 11, 5)
+          cx.strokeStyle = 'rgba(90,70,40,.7)'; cx.lineWidth = 0.9
+          cx.beginPath(); cx.moveTo(X + 25, B + 22); cx.lineTo(X + 35, B + 22)
+          cx.moveTo(X + 25, B + 26); cx.lineTo(X + 35, B + 26); cx.stroke()
+        } else if (role === 'miller') {              // a sack, bulging
+          cx.fillStyle = '#cfc2a0'
+          cx.beginPath(); cx.ellipse(X + 30, B + 25, 5.5, 7, 0, 0, 7); cx.fill()
+          cx.fillStyle = '#a79878'; cx.fillRect(X + 27, B + 17, 6, 3)
+        } else if (role === 'collier') {             // a long rake for the clamp
+          cx.strokeStyle = '#4a3c2a'; cx.lineWidth = 2.2
+          cx.beginPath(); cx.moveTo(X + 31, B + 31); cx.lineTo(X + 27, B + 4); cx.stroke()
+          cx.fillStyle = '#4a3c2a'; cx.fillRect(X + 23, B + 3, 9, 2.4)
         }
         return
       }
       if (n.type === 'fence') {
-        cx.fillStyle = '#6b5433'
-        cx.fillRect(X + 4, Y + 8, 3, 14); cx.fillRect(X + 25, Y + 8, 3, 14)
-        cx.fillRect(X + 2, Y + 10, 28, 2.5); cx.fillRect(X + 2, Y + 16, 28, 2.5)
+        // A FENCE KNOWS WHICH WAY IT RUNS, exactly as a wall does (§7f).
+        //
+        // Every fence drew the same two posts and two horizontal rails, so a
+        // run going NORTH-SOUTH was a column of little gates facing the
+        // wrong way: twelve disconnected rails stacked up, with daylight
+        // between every one of them. A sheepfold is four sides of one fence
+        // and it read as two sides of fence and two rows of litter.
+        //
+        // The rails now run ALONG the fence and reach the tile edge on any
+        // side that continues, so a run is one line and a corner mitres
+        // itself. Same question the wall asks, same answer.
+        const fl = fenceAt(s, n.x - 1, n.y), fr = fenceAt(s, n.x + 1, n.y)
+        const fu = fenceAt(s, n.x, n.y - 1), fd = fenceAt(s, n.x, n.y + 1)
+        const down = (fu || fd) && !(fl || fr)
+        // Two rails along the run and a post in every tile, which is what
+        // gives a paling fence its rhythm from above. Without the posts the
+        // run reads as two wires; without the rails reaching the tile edge
+        // it reads as a row of separate hurdles.
+        // A RAIL NEEDS AN EDGE, or it disappears on ground its own colour.
+        // The fence crossing the sand road outside Anchor vanished: only the
+        // darker posts came through, so the run read as two loose stakes
+        // standing in the road with nothing between them.
+        const POST = '#54401f', RAIL = '#8a6f44', EDGE = 'rgba(38,28,14,.5)'
+        if (down) {
+          const y0f = fu ? Y : Y + 5, hf = (fd ? TILE : TILE - 5) - (fu ? 0 : 5)
+          cx.fillStyle = EDGE
+          cx.fillRect(X + 13, y0f, 5.2, hf); cx.fillRect(X + 21, y0f, 5.2, hf)
+          cx.fillStyle = RAIL
+          cx.fillRect(X + 14, y0f, 3.2, hf)
+          cx.fillRect(X + 22, y0f, 3.2, hf)
+          cx.fillStyle = POST
+          cx.fillRect(X + 12, Y + 18, 16, 3.4)                 // the post this tile stands on
+          if (!fu) cx.fillRect(X + 12, Y + 5, 16, 3.4)
+          if (!fd) cx.fillRect(X + 12, Y + TILE - 8, 16, 3.4)
+        } else {
+          const x0f = fl ? X : X + 5, wf = (fr ? TILE : TILE - 5) - (fl ? 0 : 5)
+          cx.fillStyle = EDGE
+          cx.fillRect(x0f, Y + 13, wf, 5.2); cx.fillRect(x0f, Y + 21, wf, 5.2)
+          cx.fillStyle = RAIL
+          cx.fillRect(x0f, Y + 14, wf, 3.2)
+          cx.fillRect(x0f, Y + 22, wf, 3.2)
+          cx.fillStyle = POST
+          cx.fillRect(X + 18, Y + 12, 3.4, 16)
+          if (!fl) cx.fillRect(X + 5, Y + 12, 3.4, 16)
+          if (!fr) cx.fillRect(X + TILE - 8, Y + 12, 3.4, 16)
+        }
+        // and a corner gets its post, or the two runs meet in mid air
+        if ((fl || fr) && (fu || fd)) { cx.fillStyle = POST; cx.fillRect(X + 16, Y + 16, 8, 8) }
         return
       }
       // §7e: THE EIGHT THE WINDOW HAD NEVER HEARD OF.
@@ -11777,6 +11931,26 @@ function drawScene(now) {
           cx.strokeStyle = 'rgba(40,36,30,.55)'; cx.lineWidth = 1.1
           cx.beginPath(); cx.moveTo(X+17, Y+16); cx.lineTo(X+23, Y+16)
           cx.moveTo(X+20, Y+16); cx.lineTo(X+20, Y+24); cx.stroke()
+        } else if (K === 'bridge-stone') {
+          // §7f-ii: ELEVEN OF THESE STOOD ON THE ISLAND AND NONE WAS DRAWN.
+          //
+          // Not named in LM18 and not named anywhere else in this file, so
+          // every one fell past the gate and came out as the generic marker.
+          // They sit at the ends of the spans, which makes them the first
+          // thing a citizen sees at a crossing.
+          //
+          // A cutwater: a squared block with a pointed nose, the stone a
+          // bridge stands on, worn pale where the water runs at it.
+          shadow(X, Y, 10)
+          poly([[X+11,Y+30],[X+11,Y+16],[X+20,Y+9],[X+29,Y+16],[X+29,Y+30]], '#8a8378', '#39352e')
+          cx.fillStyle = 'rgba(255,255,255,.12)'
+          poly([[X+11,Y+16],[X+20,Y+9],[X+20,Y+30],[X+11,Y+30]], 'rgba(255,255,255,.10)')
+          // the courses, two of them, and a waterline stain across the foot
+          cx.strokeStyle = 'rgba(40,36,30,.45)'; cx.lineWidth = 1.1
+          cx.beginPath()
+          cx.moveTo(X+11, Y+21); cx.lineTo(X+29, Y+21)
+          cx.moveTo(X+11, Y+26); cx.lineTo(X+29, Y+26); cx.stroke()
+          cx.fillStyle = 'rgba(60,80,70,.28)'; cx.fillRect(X+11, Y+27, 18, 3)
         } else if (K === 'skull-pile') {
           shadow(X, Y, 10)
           for (const [sx, sy, r] of [[14,28,5],[26,28,5],[20,25,5.4],[20,17,6]]) {
@@ -12846,10 +13020,47 @@ function drawScene(now) {
         cx.fillStyle = '#8c5a2a'; cx.fillRect(X + 22, Y + 16, 6, 3)
       }
       if (n.type === 'plot') {
-        // tilled rows; then the crop, staged purely by elapsed ticks (spec 6o)
-        cx.fillStyle = '#4a3520'; cx.fillRect(X + 4, Y + 6, 32, 28)
-        cx.fillStyle = '#3a2a18'
-        for (let r2 = 0; r2 < 4; r2++) cx.fillRect(X + 5, Y + 9 + r2 * 7, 30, 2.2)
+        // TURNED EARTH, NOT A PALLET OF PLANKS.
+        //
+        // This was a hard-edged rectangle of #4a3520 with four crisp
+        // two-pixel bars across it, which is a drawing of decking. Fifty-four
+        // of them in the field outside Anchor read as a timber yard somebody
+        // had stacked in a meadow, and the same mistake has been found once
+        // before in the other window.
+        //
+        // Three things tell soil from boards: the colour is a loam brown
+        // rather than a timber one, the edge is broken by clods instead of
+        // being ruled, and the furrows are soft and uneven. A bed is a thing
+        // somebody turned over with a spade an hour ago.
+        const seed = tileHash(n.x, n.y, 11)
+        // THE WHOLE TILE, and a mid loam rather than a timber brown. The bed
+        // was inset four pixels all round and drawn two shades darker than
+        // the grass it sits in, which is what made it an OBJECT lying on the
+        // field instead of a piece of the field somebody had turned over.
+        cx.fillStyle = '#6b533a'
+        cx.fillRect(X, Y + 2, TILE, TILE - 4)
+        // the edge is broken, because a spade does not rule a line
+        for (let c3 = 0; c3 < 9; c3++) {
+          const ex = X + c3 * 4.6
+          cx.fillStyle = '#6b533a'
+          cx.beginPath(); cx.ellipse(ex + 2, Y + 2.5, 3.4, 2.6, 0, 0, 7); cx.fill()
+          cx.beginPath(); cx.ellipse(ex, Y + TILE - 2.5, 3.4, 2.6, 0, 0, 7); cx.fill()
+        }
+        // the furrows: shallow, uneven, and nothing like a plank seam
+        cx.strokeStyle = 'rgba(70,52,32,.40)'; cx.lineWidth = 3.4
+        for (let r2 = 0; r2 < 4; r2++) {
+          const fy = Y + 8 + r2 * 8 + ((seed >> (r2 * 2)) % 3) * 0.6
+          cx.beginPath()
+          cx.moveTo(X - 1, fy)
+          cx.quadraticCurveTo(X + 20, fy + ((seed >> r2) % 3) - 1, X + 41, fy)
+          cx.stroke()
+        }
+        // and the crumb the spade turned up, catching the light on the crests
+        for (let c3 = 0; c3 < 10; c3++) {
+          cx.fillStyle = c3 % 3 ? 'rgba(154,124,84,.40)' : 'rgba(86,66,44,.45)'
+          cx.fillRect(X + 2 + (tileHash(n.x, n.y, 40 + c3) % 35),
+                      Y + 4 + (tileHash(n.x, n.y, 50 + c3) % 31), 2.4, 1.8)
+        }
         // §6o: A ROW IS THE CITIZEN'S OWN.
         //
         // This read `n.plantedAt`, the plot's. A crop now belongs to whoever
