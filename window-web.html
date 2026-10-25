@@ -6245,6 +6245,30 @@ const BUILD = 'b79'  // stamp: if your screen says an older build, hard-refresh
 // Unreal window does: see `Doing` in IntervalBridgeSubsystem.h, held for a
 // little over one interval. That covers the person playing, which is the one
 // whose hands anybody is watching. Everybody else keeps the four.
+// §7f: AND NINE MORE PLACES WERE STILL ASKING THE WRONG QUESTION.
+//
+// The note above was written when the fight ANIMATION was fixed, and only
+// the animation was fixed. Nine other lines went on testing
+// `action.type === 'prowess'`, which is never true, and every one of them is
+// a thing that simply did not happen when you fought a creature:
+//
+//   no citizen was ever drawn SWINGING at a monster. `exchange` decides the
+//     full strike, so a fighter stood in the small ready guard for ever
+//   no archer was ever drawn HOLDING THEIR BOW at one, because `shooting`
+//     asked the same question, which is why a bow could not be seen
+//   the skill panel did not know you were training prowess
+//   an arrow was not drawn flying when marksmanship went up
+//   nothing was said when your foe fell, or when your quiver ran dry
+//   eating mid-fight did not put you back on the thing you were fighting
+//
+// All of it worked against another CITIZEN, because `attackp` is in each of
+// those tests beside the word that is not an action. Fighting a person was
+// drawn; fighting a beast was not, and nearly everything anybody fights
+// here is a beast.
+//
+// Named, so the next person asks it in words rather than by remembering.
+const inAFight = (a) => a?.type === 'attack' || a?.type === 'attackp'
+const onACreature = (a) => a?.type === 'attack'
 const DOING_MS = 1150
 let _doing = null, _doingAt = 0
 // The world's own verb on the left; nothing here invents a word.
@@ -8917,7 +8941,7 @@ function _onState(s, worldId, local) {
       if (k === 'earthcraft' && me.skills[k] > old.skills[k]) SFX.smith()
       if (k === 'woodcraft' && me.skills[k] > old.skills[k]) SFX.fire()
       if (k === 'marksmanship' && me.skills[k] > old.skills[k]) {
-        const foe = me.action?.type === 'prowess' ? world.mobs?.[me.action.mobId] : null
+        const foe = onACreature(me.action) ? world.mobs?.[me.action.mobId] : null
         if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x, y1: foe.y, at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
         tone(880, 0.06, { type: 'triangle', vol: 0.05 }); tone(240, 0.1, { type: 'square', vol: 0.03, at: 0.05 }) // the string, then the thud
       }
@@ -8936,7 +8960,7 @@ function _onState(s, worldId, local) {
     { const oldArr = old.inventory.reduce((a2, sl) => a2 + (sl?.item === 'arrows' ? sl.qty : 0), 0)
       const newArr = me.inventory.reduce((a2, sl) => a2 + (sl?.item === 'arrows' ? sl.qty : 0), 0)
       if (newArr < oldArr && me.skills.marksmanship === old.skills.marksmanship) { // loosed and MISSED: seen and heard, softer
-        const foe = me.action?.type === 'prowess' ? world.mobs?.[me.action.mobId] : null
+        const foe = onACreature(me.action) ? world.mobs?.[me.action.mobId] : null
         if (foe) { arrowShots.push({ x0: me.x, y0: me.y, x1: foe.x + 0.6, y1: foe.y - 0.4, at: performance.now() }); if (arrowShots.length > 6) arrowShots.shift() }
         tone(880, 0.05, { type: 'triangle', vol: 0.04 })
       } }
@@ -9015,7 +9039,7 @@ function _onState(s, worldId, local) {
     if (iDied && intent !== null) { intent = null }
 
     // an archer's quiver ran dry mid-fight: close to melee (spec 6n spirit)
-    if (old.action?.type === 'prowess' && !me.action
+    if (onACreature(old.action) && !me.action
         && RANGED_ITEMS.has(me.equipment?.weapon?.item)   // §6dg: any drawn arm, not just the first bow
         && !hasAmmoFor(me, me.equipment?.weapon?.item)) {
       const tid = old.action.mobId
@@ -9107,7 +9131,7 @@ function _onState(s, worldId, local) {
     }
     if (me.skills.woodcraft > old.skills.woodcraft) feed('The fire catches. It will burn for a minute.')
     // your foe fell → its loot is lying there
-    if (old.action?.type === 'prowess') {
+    if (onACreature(old.action)) {
       const mob = s.mobs[old.action.mobId], mobOld = prev.mobs[old.action.mobId]
       if (mob && mobOld?.hp > 0 && mob.hp <= 0) feed('The ' + mob.type + ' falls. Its drops lie where it fell.')
     }
@@ -13732,7 +13756,7 @@ function drawScene(now) {
       if (!awake) cx.globalAlpha = 0.55
       drawCitizen(px(ix), py(iy), {
         now, pid, player: p, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
-      exchange: (p.action?.type === 'prowess' || p.action?.type === 'attackp')
+      exchange: inAFight(p.action)
         && (p.equipment?.weapon?.item === 'old-chain' || (s.tick - (p.action.since ?? 0)) % 2 === 0),
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'quick-sword',
@@ -13743,7 +13767,7 @@ function drawScene(now) {
       // the world was invisible on the person carrying it.
       bow: RANGED_ITEMS.has(p.equipment?.weapon?.item),
       shooting: RANGED_ITEMS.has(p.equipment?.weapon?.item) && p.action
-        && (p.action.type === 'prowess' || p.action.type === 'attackp')
+        && inAFight(p.action)
         && (() => { const t2 = p.action.mobId ? s.mobs[p.action.mobId] : s.players[p.action.targetId]
           return t2 && Math.abs(p.x - t2.x) + Math.abs(p.y - t2.y) > 1 })(),
       helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
@@ -14415,7 +14439,7 @@ function panel(s) {
   document.getElementById('hpfill').style.width = (100 * me.hp / maxHp) + '%'
   document.getElementById('hptext').textContent = 'HP ' + me.hp + ' / ' + maxHp
   const trainingNode = me.action?.nodeId ? s.nodes[me.action.nodeId] : null
-  const training = me.action?.type === 'prowess' ? 'prowess':
+  const training = inAFight(me.action) ? 'prowess':
     trainingNode ? SKILL_OF_NODE[trainingNode.type] : null
   document.getElementById('skills').innerHTML = Object.entries(me.skills)
     .map(([k, xp]) => {
@@ -16055,13 +16079,13 @@ function invClick(i) {
     send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace('-', ' ') + '.')
   }
   else if (it?.item === 'cooked-fish') {
-    const foe = meNow.action?.type === 'prowess' ? meNow.action.mobId : null
+    const foe = onACreature(meNow.action) ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
     if (foe) { intent = { kind: 'prowess', id: foe }; feed('You wolf it down and raise your sword again.') }
     else feed('You eat the fish.')
   }
   else if (it?.item === 'ale' || it?.item === 'broth') {
-    const foe = meNow.action?.type === 'prowess' ? meNow.action.mobId : null
+    const foe = onACreature(meNow.action) ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
     if (foe) { intent = { kind: 'prowess', id: foe }; feed('You down it and fight on.') }
     else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.' : 'You sip the broth. Warmth returns.')

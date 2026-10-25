@@ -679,3 +679,49 @@ test('a fight is fought with the weapon in hand, not with a sword every time', (
   assert.ok(body.includes('RANGED_ITEMS'),
     'an archer swings a second weapon under their bow unless the pose knows better')
 })
+
+// ---- `prowess` IS A SKILL, AND THE WORLD NEVER PUTS IT IN `action.type` ----
+//
+// The engine sets four ongoing actions and only four: attack, attackp,
+// gather, raise. `prowess` is this window's own outgoing word for swinging
+// at a creature, translated to `attack` before it leaves. A line that tests
+// `action.type === 'prowess'` is therefore never true, and fails silently.
+//
+// This was found once, fixed in the animation chooser, and documented in a
+// comment. NINE other lines went on asking it, and each is a thing that did
+// not happen when you fought a beast:
+//
+//   nobody was drawn swinging at one, because `exchange` asked it
+//   no archer was drawn holding their bow at one, because `shooting` did
+//   the skill panel did not know you were training prowess
+//   no arrow was drawn when marksmanship went up
+//   nothing was said when your foe fell, or when your quiver ran dry
+//   eating mid-fight did not put you back on what you were fighting
+//
+// All of it worked against another CITIZEN, because `attackp` sits beside
+// the dead word in every one of those tests. Fighting a person was drawn.
+// Fighting a beast was not, and nearly everything anybody fights is a beast.
+test('no live line asks whether an action is `prowess`, which it never is', () => {
+  const engineSets = new Set([...fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+    .matchAll(/\.action = \{ type: '([^']+)'/g)].map((m) => m[1]))
+  assert.ok(engineSets.size >= 3, 'the engine was not read')
+  assert.ok(!engineSets.has('prowess'),
+    'the engine now sets prowess as an action: if so, every line below was right all along')
+
+  const live = win.split('\n')
+    .map((l, n) => [n + 1, l])
+    .filter(([, l]) => /action\??\.type === 'prowess'/.test(l))
+    .filter(([, l]) => !/^\s*(\/\/|\*)/.test(l))     // the notes about this fault may say it
+  assert.deepEqual(live.map(([n]) => n), [],
+    live.length + ' live lines test an action type the world never sets: '
+      + live.map(([n, l]) => n + ': ' + l.trim().slice(0, 60)).join(' | '))
+
+  // and the two that decide whether a fight is DRAWN must accept both kinds
+  for (const name of ['exchange:', 'shooting:']) {
+    const i = win.indexOf(name)
+    assert.ok(i > 0, name + ' is gone or renamed')
+    const seg = win.slice(i, i + 260)
+    assert.ok(/inAFight\(/.test(seg),
+      name + ' does not ask whether this is a fight, so fighting a creature draws nothing')
+  }
+})
