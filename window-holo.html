@@ -2657,7 +2657,7 @@ renderer.setAnimationLoop((t, frame) => {
       const { lx, lz } = tileToLocal(p.x, p.y)
       const moving = a.tx !== a.fx || a.ty !== a.fy
       const ease = moving
-        ? tileTop(a.fx, a.fy) + (tileTop(a.tx, a.ty) - tileTop(a.fx, a.fy)) * Math.min(1, p.k) // climb the land as you cross it:
+        ? tileTop(a.fx, a.fy) + (tileTop(a.tx, a.ty) - tileTop(a.fx, a.fy)) * Math.min(1, p.k): // climb the land as you cross it
         tileTop(a.tx, a.ty)
       a.obj.position.set(lx, ease + (moving && p.k < 1 ? Math.sin(p.k * Math.PI * 2) * TILE * 0.03 : 0), lz)
       if (p.k < 1 && moving) a.obj.rotation.y = Math.atan2(a.tx - a.fx, a.ty - a.fy)
@@ -2675,7 +2675,7 @@ renderer.setAnimationLoop((t, frame) => {
           if (a.deed.kind === 'work') {
             const fishing = a.deed.tool === 'fishing-spot' || a.deed.tool === 'pond'
             const chop = fishing
-              ? Math.sin(now * 0.003) * 0.12 - 0.5                       // the rod waits:
+              ? Math.sin(now * 0.003) * 0.12 - 0.5:                      // the rod waits
               Math.sin(now * 0.009) * 0.75 - 1.1                       // the axe falls
             u.arms[1].rotation.x = chop
             u.arms[1].userData.joint.rotation.x = Math.max(0, -Math.sin(now * 0.009)) * 0.5

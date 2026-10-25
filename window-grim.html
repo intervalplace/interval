@@ -739,17 +739,17 @@ const BRIDGE_TO_INPUT = (a) =>
   a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
   a.do === 'attack' ? { type: 'attack', mobId: a.mobId }:
   a.do === 'eat' ? { type: 'eat', slot: a.slot }:
-  a.do === 'drop' ? { type: 'drop', slot: a.slot }
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }:
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.:
+  // failure -- a window that cannot ask must not be able to answer.
   a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
   a.do === 'wield' ? { type: 'wield', slot: a.slot }:
   a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }:
   a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
-  a.do === 'name' ? { type: 'claim_name', name: a.name } // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens:
+  a.do === 'name' ? { type: 'claim_name', name: a.name }: // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
   a.do === 'offer' ? { type: 'offer', to: a.to, slot: a.slot }:
   a.do === 'accept' ? { type: 'accept', from: a.from, slot: a.slot }:
   a.do === 'decline' ? { type: 'decline' }:

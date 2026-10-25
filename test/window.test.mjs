@@ -964,3 +964,81 @@ test('a weapon being aimed is drawn in front of the body holding it', () => {
   const head = win.indexOf('// head: skin, hair cap, eye toward facing')
   assert.ok(head > aimed, 'the head must be drawn after the weapon, not behind it')
 })
+
+// ---- A VERB THE TABLE CANNOT TRANSLATE IS A VERB NOBODY CAN DO ----
+//
+// `BRIDGE_TO_INPUT` turns the window's own word for a deed into the engine's
+// input. `send()` consults it twice: once to remember what was done, and once
+// to decide whether a citizen holding their own key can SIGN the deed. If the
+// table has no line for the word, an own-key citizen falls through to the
+// unsigned path, and serve.mjs drops unsigned acts from an external without a
+// word, because externals speak in signatures alone.
+//
+// Trade had been in exactly that state. The table said 'offer', 'accept' and
+// 'cancel'; the trade panel and the offers list send 'offer_trade',
+// 'accept_trade' and 'cancel_trade'. A node-held citizen traded fine, since
+// the node's ladder reads the raw action, so the fault was invisible to
+// anybody testing with a hosted citizen, and total for everybody else.
+test('every word a window sends is one its own table can translate', () => {
+  const served = [...fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+    .matchAll(/sendFile\('\.\/(window-[a-z0-9-]+\.html)'/g)].map((m) => m[1])
+  const lost = []
+  for (const f of new Set(served)) {
+    const p = path.join(root, f)
+    if (!fs.existsSync(p)) continue
+    // comments explain what the table used to say, so neither a line in it nor
+    // a word being sent may be read out of one
+    const code = fs.readFileSync(p, 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+    const table = new Set([...code.matchAll(/a\.do === '([a-z_]+)'/g)].map((m) => m[1]))
+    if (!table.size) continue                 // a window with no table of its own
+    // only what goes through `send`. A window that builds its own act frame for
+    // the relay is deliberately not signing it and is not this test's business.
+    const sent = new Set([...code.matchAll(/send\(\{\s*do:\s*'([a-z_]+)'/g)].map((m) => m[1]))
+    for (const d of [...sent].sort()) if (!table.has(d)) lost.push(`${f} sends \`${d}\``)
+  }
+  assert.deepEqual(lost, [], `sent but untranslatable, so unsignable: ${lost.join(', ')}`)
+})
+
+// ---- AND THE TRADE VERBS, RUN RATHER THAN READ ----
+//
+// The test above compares names. This one evaluates the window's own table
+// with the arguments its trade panel actually passes, and hands the result to
+// the engine's shape gate. It is the only check here that would catch the
+// other half of the same fault: the panel names one slot (`giveSlot`) and the
+// engine has wanted a list (`giveSlots`) since v0.69, so a line that
+// translated the word and forwarded the wrong field would still refuse every
+// offer, and refuse it at the node where nobody in the window can see it.
+import vm from 'node:vm'
+
+test('the trade panel builds offers the engine will take', () => {
+  const src = win.match(/const BRIDGE_TO_INPUT = \(a\) =>[\s\S]*?\n {2}null\n/)
+  assert.ok(src, 'the translation table is gone or renamed')
+  const ctx = vm.createContext({ combatStyle: 'even' })
+  vm.runInContext(src[0] + '\n; globalThis.T = BRIDGE_TO_INPUT;', ctx)
+
+  const base = {
+    playerId: 'a'.repeat(64), worldId: 'b'.repeat(64), tick: 7, sig: 'c'.repeat(128),
+  }
+  const them = 'd'.repeat(64)
+  // exactly what openTrade and the offers list send
+  const said = [
+    { do: 'offer_trade', to: them, giveSlot: 3, wantItem: 'logs' },
+    { do: 'accept_trade', from: them },
+    { do: 'cancel_trade' },
+  ]
+  for (const a of said) {
+    const inp = ctx.T(a)
+    assert.ok(inp, `the table has no line for ${a.do}, so it cannot be signed`)
+    // the gate answers null when it is content and a sentence when it is not
+    const why = E.validateInputShape({ ...base, ...inp })
+    assert.equal(why ?? null, null, `${a.do} builds an input the engine refuses: ${why}`)
+  }
+  // and an offer names a LIST of slots, whichever way the panel said it.
+  // Copied out of the table's own realm first: an array built in there has a
+  // different Array.prototype, and strict deepEqual holds that against it.
+  assert.deepEqual([...ctx.T(said[0]).giveSlots], [3])
+  assert.deepEqual([...ctx.T({ ...said[0], giveSlot: undefined, giveSlots: [1, 2] }).giveSlots],
+    [1, 2])
+})

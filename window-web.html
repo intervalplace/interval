@@ -5840,10 +5840,22 @@ const BRIDGE_TO_INPUT = (a) =>
   // trade and recall: the flat window could do neither, so the window most
   // people meet first was the one that could not buy from a person or walk
   // home. giveSlots is a list since v0.69: a whole pack in one exchange.
-  a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
+  //
+  // AND THE THREE NAMES HERE WERE NOT THE NAMES THE WINDOW SENDS. This table
+  // said 'offer', 'accept' and 'cancel'; openTrade and the offers list send
+  // 'offer_trade', 'accept_trade' and 'cancel_trade', which are the node
+  // ladder's words in serve.mjs. A citizen whose key the node holds was fine,
+  // because that ladder reads the raw action. A citizen holding their OWN key
+  // was not: send() signs only what this table can translate, and an external
+  // speaks to a node in signatures alone, so an unsigned act is dropped on
+  // arrival without a word. Trade was simply impossible for them, and there
+  // was nothing to see. The field is singular where the window sends one slot
+  // and the engine still wants the list.
+  a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to,
+                         giveSlots: a.giveSlots ?? [a.giveSlot | 0],
                          wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }:
-  a.do === 'accept' ? { type: 'accept_trade', from: a.from }:
-  a.do === 'cancel' ? { type: 'cancel_trade' }:
+  a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
+  a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
   a.do === 'name' ? { type: 'claim_name', name: a.name }: // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
   a.do === 'deposit' ? { type: 'deposit', slot: a.slot }:
   // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without

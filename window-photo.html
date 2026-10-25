@@ -650,12 +650,12 @@ const allocTick = () => {
 }
 const BRIDGE = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
-  a.do === 'spawn' ? { type: 'spawn' }
-  // stop: put down what you are doing. Every window should be able to say it.:
-  a.do === 'stop' ? { type: 'stop' }
+  a.do === 'spawn' ? { type: 'spawn' }:
+  // stop: put down what you are doing. Every window should be able to say it.
+  a.do === 'stop' ? { type: 'stop' }:
   // §6as-iii: every combat verb carries the STYLE it is swung in -- aim,
   // even or force. A citizen picks it once and forgets it, so the bridge
-  // fills it from `combatStyle` rather than asking at every call site.:
+  // fills it from `combatStyle` rather than asking at every call site.
   a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }:
   a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
   a.do === 'eat' ? { type: 'eat', slot: a.slot }:
@@ -664,20 +664,20 @@ const BRIDGE = (a) =>
   a.do === 'cook' ? { type: 'cook', slot: a.slot }:
   a.do === 'light' ? { type: 'light', slot: a.slot }:
   a.do === 'bury' ? { type: 'bury', slot: a.slot }:
-  a.do === 'plant' ? { type: 'plant', slot: a.slot }
+  a.do === 'plant' ? { type: 'plant', slot: a.slot }:
   // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a stall
   // and sells from it. §6ch: `attune` went with the waystones. Both lines are
   // gone rather than kept, because a bridge line for a verb the world refuses
-  // is a button that does nothing and says nothing.:
-  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }
+  // is a button that does nothing and says nothing.
+  a.do === 'deposit' ? { type: 'deposit', slot: a.slot }:
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.:
+  // failure -- a window that cannot ask must not be able to answer.
   a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
   a.do === 'buy' ? { type: 'buy', item: a.item }:
-  a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }   // §7: a withdrawal names its number:
+  a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }:  // §7: a withdrawal names its number
   a.do === 'unwield' ? { type: 'unwield', gear: a.gear }:
   a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
   a.do === 'fletch' ? { type: 'fletch', slot: a.slot, make: a.make }:
@@ -688,8 +688,8 @@ const BRIDGE = (a) =>
   a.do === 'cast' ? { type: 'cast', spell: a.spell ?? 'anchor' }:
   a.do === 'still' ? { type: 'still', target: a.target }:
   a.do === 'survey' ? { type: 'survey' }:
-  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }
-  // §6af: the special, which this window could not send at all:
+  a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }:
+  // §6af: the special, which this window could not send at all
   a.do === 'special' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }:
   a.do === 'build_brewpot' ? { type: 'build_brewpot' }:
   a.do === 'brew' ? { type: 'brew', nodeId: a.nodeId, slot: a.slot }:
@@ -697,8 +697,12 @@ const BRIDGE = (a) =>
   a.do === 'dismantle' ? { type: 'dismantle', nodeId: a.nodeId }:
   a.do === 'kindle' ? { type: 'kindle' }:
   a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
-  a.do === 'claim_name' ? { type: 'claim_name', name: a.name }
-  // §7: an offer names SLOTS, not a slot -- a citizen may put up a handful:
+  a.do === 'claim_name' ? { type: 'claim_name', name: a.name }:
+  // the first half of a birth. This window asks for it on its own opening
+  // screen and had no line here to say it with, so a citizen holding their
+  // own key could not knock.
+  a.do === 'attend' ? { type: 'attend' }:
+  // §7: an offer names SLOTS, not a slot -- a citizen may put up a handful
   a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots ?? [a.giveSlot], wantItem: a.wantItem, wantGold: a.wantGold }:
   a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
   a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
@@ -4878,7 +4882,7 @@ function beastBody(color, scale, kind) {
     ear.castShadow = true; g.add(ear)
   }
   const tail = kind === 'wolf'
-    ? new THREE.Mesh(new THREE.ConeGeometry(0.055 * scale, 0.4 * scale, 7), darkFur) // the brush:
+    ? new THREE.Mesh(new THREE.ConeGeometry(0.055 * scale, 0.4 * scale, 7), darkFur): // the brush
     new THREE.Mesh(new THREE.CapsuleGeometry(0.035 * scale, 0.08 * scale, 3, 6), fur)
   tail.position.set(0, 0.48 * scale * bulk, -0.42 * scale)
   tail.rotation.x = -0.9
@@ -9091,7 +9095,7 @@ ws.onmessage = (ev) => {
     }
     if (entered && pendingName && ownKey && m.state.players?.[ownKey.pub]
       && !m.state.players[ownKey.pub].name) {
-      send({ do: 'name', name: pendingName }); pendingName = ''
+      send({ do: 'claim_name', name: pendingName }); pendingName = ''
     }
     // §0b/§0g: KNOCK, do not push. `attend` is a request to be seen and is
     // safe to repeat; `spawn` is the birth itself and is never ours to send.

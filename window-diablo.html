@@ -3115,9 +3115,9 @@ window.addEventListener('keydown', (e) => {
 const BRIDGE_TO_INPUT = (a) =>
     a.do === 'move' ? { type: 'move', dx: a.dx, dy: a.dy }:
   a.do === 'spawn' ? { type: 'spawn' }:
-  a.do === 'attend' ? { type: 'attend' }   // §0b: the first half of a birth:
-  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }
-  // §7p/§7q: the furnace and the sawpit:
+  a.do === 'attend' ? { type: 'attend' }:  // §0b: the first half of a birth
+  a.do === 'gather' ? { type: 'gather', nodeId: a.nodeId }:
+  // §7p/§7q: the furnace and the sawpit
   a.do === 'smelt' ? { type: 'smelt', recipe: a.recipe }:
   a.do === 'saw' ? { type: 'saw' }:
   a.do === 'nock' ? { type: 'nock', slot: a.slot }:
@@ -3133,14 +3133,14 @@ const BRIDGE_TO_INPUT = (a) =>
   a.do === 'unfollow' ? { type: 'unfollow' }:
   a.do === 'attack' ? { type: 'attack', mobId: a.mobId, style: a.style ?? combatStyle }:
   a.do === 'attackp' ? { type: 'attackp', targetId: a.targetId, style: a.style ?? combatStyle }:
-  a.do === 'special' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }   // §6af: the engine's word for the burst
+  a.do === 'special' ? { type: 'gambit', targetId: a.targetId, style: a.style ?? combatStyle }:  // §6af: the engine's word for the burst
   a.do === 'eat' ? { type: 'eat', slot: a.slot }:
-  a.do === 'drop' ? { type: 'drop', slot: a.slot }
+  a.do === 'drop' ? { type: 'drop', slot: a.slot }:
   // §7dk: `confirm` is required on every pickup and only CHECKED when the pile
   // belongs to another citizen. This window has no confirmation dialogue yet, so
   // it takes only what is safe to take: an unconfirmed pickup of somebody else's
   // goods is refused by the engine and nothing happens, which is the correct
-  // failure -- a window that cannot ask must not be able to answer.:
+  // failure -- a window that cannot ask must not be able to answer.
   a.do === 'pickup' ? { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }:
   a.do === 'wield' ? { type: 'wield', slot: a.slot }:
   a.do === 'unwield' ? { type: 'unwield', gear: a.gear ?? 'weapon' }:
@@ -3162,9 +3162,13 @@ const BRIDGE_TO_INPUT = (a) =>
   a.do === 'take_market' ? { type: 'take_market' }:
   a.do === 'dismantle_market' ? { type: 'dismantle_market' }:
   a.do === 'drink' ? { type: 'drink' }:
-  a.do === 'look' ? { type: 'set_look', look: a.look | 0 }
+  a.do === 'look' ? { type: 'set_look', look: a.look | 0 }:
+  // the mill and the Millbrook toll. Both are offered in this window's own
+  // ring menu and neither had a line here, so pressing them did nothing.
+  a.do === 'grind' ? { type: 'grind', slot: a.slot }:
+  a.do === 'pay' ? { type: 'pay' }:
   // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
-  // one, so a window that omits it silently stops being able to use a vault.:
+  // one, so a window that omits it silently stops being able to use a vault.
   a.do === 'withdraw' ? { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }:
   a.do === 'deposit_all' ? { type: 'deposit_all' }:
   a.do === 'buy' ? { type: 'buy', item: a.item }:
@@ -8985,7 +8989,7 @@ function drawNode(g, n, sx, sy, t, hot) {
         helm: role === 'guard' ? '#5a5246' : null,
         seed: hs & 0xffff,
         step: role === 'guard'
-          ? Math.sin(t2 * .33 + hs) * .10 + Math.sin(t2 * .11) * .06   // weight, shifted:
+          ? Math.sin(t2 * .33 + hs) * .10 + Math.sin(t2 * .11) * .06:  // weight, shifted
           Math.sin(t2 * .6) * .2,
         lean: role === 'guard' ? watchLean(n.x, n.y) : 0,
         // A SMITH WITH NO ANVIL IS JUST A MAN HOLDING A HAMMER.
@@ -9002,10 +9006,10 @@ function drawNode(g, n, sx, sy, t, hot) {
           drawWeapon(gg, hx, hy, a, sc, dress.tool, 0) : null,
         badge: trade ? STALL_GLYPH[trade] : null,
         swing: (role === 'smith' && anvilBeside(n.x, n.y))
-          ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5      // striking, on the beat:
+          ? -0.9 + Math.abs(Math.sin(t2 * 2.2)) * 1.5:     // striking, on the beat
           role === 'smith' ? -0.15 + Math.sin(t2 * .5) * .06:
           -0.4 + Math.sin(t2 * .9) * .12,
-        weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'iron-spear')
+        weapon: role === 'guard' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'iron-spear'):
               // A GUARD DOES NOT WANDER, BUT HE IS NOT A BOLLARD EITHER.
         //
         // Wandering would be a lie: a node's tile is consensus state, and a
@@ -9019,7 +9023,7 @@ function drawNode(g, n, sx, sy, t, hot) {
               // which is why a smith standing beside a citizen at a tree read as
               // ONE figure with two arms -- a sword in one and an axe swinging in
               // the other. Two overlapping sprites, and the wrong tool in one of
-              // them made the overlap legible as a single impossible body.:
+              // them made the overlap legible as a single impossible body.
               role === 'smith' ? (gg2, hx, hy, a, sc) => drawWeapon(gg2, hx, hy, a, sc, 'hammer') : null,
       })
       return
@@ -9129,8 +9133,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
   let bowDraw = 0, chainLash = 0, pickBite = 0
   const swAt = swingAt.get('p' + id)
   const swK = swAt ? (performance.now() - swAt) / SWING_MS : 2
-  const arc = (k) => k < .30 ? -0.45 - (k / .30) * 0.95          // back:
-             k < .56 ? -1.40 + ((k - .30) / .26) * 2.15        // through:
+  const arc = (k) => k < .30 ? -0.45 - (k / .30) * 0.95:         // back
+             k < .56 ? -1.40 + ((k - .30) / .26) * 2.15:       // through
              0.75 - ((k - .56) / .44) * 1.20                   // and down to rest
   let swingVal
   if (spK <= 1) {
@@ -9200,8 +9204,8 @@ function drawPlayer(g, id, p, sx, sy, t, isMe, sc) {
       // So: a slow lift high over the shoulder, a fast drop, and then a pause
       // with the head buried while they work it loose.
       const k = clamp(ph / .8, 0, 1)
-      swingVal = k < .46 ? -0.5 - (k / .46) * 1.25        // up, and slowly:
-        k < .62 ? -1.75 + ((k - .46) / .16) * 2.35      // driven down, fast:
+      swingVal = k < .46 ? -0.5 - (k / .46) * 1.25:       // up, and slowly
+        k < .62 ? -1.75 + ((k - .46) / .16) * 2.35:     // driven down, fast
         0.60 - ((k - .62) / .38) * 1.10                 // and worked loose
       pickBite = k >= .62 && k < .86 ? 1 : 0
     } else swingVal = arc(clamp(ph / .8, 0, 1))
@@ -12831,7 +12835,7 @@ function buildMenu(px2, py2, target) {
     if (n.type === 'looking-glass') {
       items.push({ label: 'Look at yourself', run: () => {
         const nl = (((me.look ?? 0) + 1) & 255)
-        send({ do: 'set_look', look: nl }); say('Something about you settles differently.') } })
+        send({ do: 'look', look: nl }); say('Something about you settles differently.') } })
     }
     if (n.type === 'altar') {
       const st9 = (me.inventory ?? []).reduce((a, sl) => a + (sl?.item === 'magic-stone' ? (sl.qty ?? 1) : 0), 0)
