@@ -816,3 +816,52 @@ test('the bow a citizen draws is the bow they are holding', () => {
   assert.ok(new Set(limbs).size >= 4,
     'the stance paints ' + new Set(limbs).size + ' colours: every bow still looks alike')
 })
+
+// ---- A WEAPON MOVES THE WAY ITS KIND MOVES, AND A GAMBIT IS NOT A JAB ----
+//
+// Every arm swung the same arc: rest a little back, come through about sixty
+// degrees, return. A dagger, a two-handed maul and a spear were one motion,
+// and a GAMBIT was that same motion again, so the only thing saying anything
+// unusual had happened was a ring thrown over the citizen's head.
+//
+// And an archer had no motion tied to the shot at all. The string's pull was
+// `sin(now / 300)`, a wall clock running whether or not anything was being
+// shot, so the bow breathed in and out for ever and the arrow never left.
+test('each family of weapon swings its own arc, and a gambit swings further', () => {
+  const i = win.indexOf('const SWING_OF = (it) =>')
+  assert.ok(i > 0, 'every weapon swings the same arc again')
+  const table = win.slice(i, win.indexOf('\n  const striking', i))
+  const arcs = [...table.matchAll(/\[\s*(-?[\d.]+),\s*([\d.]+),\s*(\d+)\]/g)]
+    .map((m) => [+m[1], +m[2], +m[3]])
+  assert.ok(arcs.length >= 4, 'read ' + arcs.length + ' arcs; expected one per family')
+  assert.equal(new Set(arcs.map((a) => a.join())).size, arcs.length,
+    'two families are given the same arc, so they move identically')
+
+  // a thrust goes FORWARD rather than round: whichever family lunges most
+  // must turn least, or a spear is just a short sword
+  const mostLunge = arcs.reduce((a, b) => (b[2] > a[2] ? b : a))
+  const mostTurn = arcs.reduce((a, b) => (b[1] > a[1] ? b : a))
+  assert.notDeepEqual(mostLunge, mostTurn,
+    'the weapon that reaches furthest also turns furthest: nothing here is a thrust')
+
+  // and a gambit is the same motion taken further, not a second animation
+  const body = win.slice(win.indexOf('const gam9 = striking'), win.indexOf('const lean', i))
+  assert.ok(/gam9/.test(body), 'a gambit is drawn exactly like an ordinary blow again')
+  assert.ok(/gam9 \? 1\.[0-9]/.test(win.slice(i, i + 4000)),
+    'a gambit must take the arc further, or it cannot be told from a jab')
+})
+
+test('a bow is drawn and loosed on the beat, not wobbled at by a wall clock', () => {
+  const i = win.indexOf('const shotT =')
+  assert.ok(i > 0, 'the bow is back on a clock of its own')
+  const seg = win.slice(i, i + 700)
+  assert.ok(/renderT\(/.test(seg), 'the draw must follow the interval the shot lands on')
+  assert.ok(/o\.exchange|o\.gambit/.test(seg), 'and only when there is a shot to loose')
+  assert.ok(/loosed/.test(seg), 'the arrow must actually leave the string')
+
+  // the old wall clock must be gone from the stance
+  const a = win.indexOf("} else if (o.shooting) {")
+  const stance = win.slice(a, win.indexOf('\n  } else if (o.bow)', a))
+  assert.ok(!/const pull = \(Math\.sin\(o\.now/.test(stance),
+    'the pull is a wall clock again, so the string breathes and nothing is ever loosed')
+})

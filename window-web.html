@@ -9988,13 +9988,45 @@ function drawCitizen(X, Y, o) {
   // combat breathes (spec 6m), and so does the body: a full strike on the
   // exchange tick, a ready guard between. A hurt body does not strike:
   // it staggers, weapon dropped low: attack and defence finally read apart.
+  // §7f: A WEAPON MOVES THE WAY ITS KIND MOVES.
+  //
+  // Every arm swung the same arc: rest a little back, come through about
+  // sixty degrees, return. A dagger and a two-handed maul and a spear were
+  // one motion, and a GAMBIT was that same motion again, so the only thing
+  // saying anything had happened was the ring thrown over the citizen's
+  // head.
+  //
+  // Five families, because that is how many ways these weapons are actually
+  // used. A maul comes from above and the whole body goes with it. A spear
+  // barely turns at all and goes FORWARD instead, which is what a thrust is.
+  // A flail travels further than the arm does. A blade is the old arc, now
+  // one of several rather than the only one.
+  //
+  //                        rest    through   lunge
+  const SWING_OF = (it) =>
+    /-mell$|-hatchet$|-pickaxe$/.test(it) ? [-1.25, 2.20, 5] :
+    /-spear$|^bone-spear$|^barb$/.test(it) ? [-0.10, 0.34, 10] :
+    /-flail$|chain$/.test(it) ? [-0.95, 2.60, 3] :
+    /staff$|^wand$|^fire-siphon$/.test(it) ? [-0.55, 1.25, 3] :
+                                             [-0.30, 1.10, 4]
   const striking = o.anim === 'fight' && !o.shooting && !hurt
-  const strikeT = striking ? Math.max(0, Math.sin(renderT(now) * Math.PI)) : 0
+  // A gambit is the same motion taken further and harder: it starts further
+  // back, comes through more, and leans the body further in. Nothing here
+  // invents a second animation, because a gambit is not a different act.
+  const gam9 = striking && o.gambit
+  const strikeT = striking
+    ? Math.max(0, Math.sin(Math.pow(renderT(now), gam9 ? 0.72 : 1) * Math.PI))
+    : 0
   const swing = hurt && o.anim === 'fight' ? -0.35:
     striking
-    ? (o.exchange ? strikeT * 1.2 : 0.25 + Math.sin(now / 600) * 0.08):
+    // the arc's own size lives in SWING_OF now, so this is a plain 0..1 of
+    // how far through the blow we are. A gambit comes off the rhythm, so it
+    // does not wait for an exchange tick to be drawn.
+    ? ((o.exchange || gam9) ? strikeT : 0.25 + Math.sin(now / 600) * 0.08):
     o.anim === 'gather' ? Math.sin(now / (o.tool === 'rod' ? 700 : 200)) : 0
-  const lunge = striking && o.exchange ? strikeT * 4 * o.face : 0
+  const ARC9 = SWING_OF(o.wepItem || '')
+  const lunge = striking && (o.exchange || gam9)
+    ? strikeT * ARC9[2] * (gam9 ? 1.5 : 1) * o.face : 0
   X += lunge; Y += bob + STOOP
   const F = o.face
 
@@ -10076,7 +10108,23 @@ function drawCitizen(X, Y, o) {
       : heart8 ? '#b08a3e' : hollow8 ? '#cdbfa6' : '#6b5330'
     const span8 = xbow8 ? 5.5 : dbow8 ? 9.5 : horn8 ? 8.5 : 8
     const thick8 = dbow8 ? 3 : xbow8 ? 2.2 : 2.6
-    const pull = (Math.sin(o.now / 300) + 1) / 2
+    // §7f: AND A BOW IS DRAWN AND LOOSED, not wobbled at.
+    //
+    // The pull was `sin(now / 300)`: a wall clock, running whether or not
+    // anything was being shot, so the string breathed in and out for ever
+    // and the arrow never actually LEFT. An archer had no animation tied to
+    // the shot at all, which is why they looked like they were doing
+    // nothing while the arrows piled into the target.
+    //
+    // It follows the beat now. The string comes back over the first two
+    // thirds of the interval the shot lands on, then snaps: the limbs
+    // straighten, the arrow is gone, and the next interval starts again. A
+    // bow between shots keeps a light hold, which is a person waiting rather
+    // than a person at rest.
+    const shotT = (o.exchange || o.gambit) ? renderT(o.now) : -1
+    const loosed = shotT >= 0.66
+    const pull = shotT < 0 ? 0.22 + Math.sin(o.now / 620) * 0.07
+      : loosed ? 0 : shotT / 0.66
     cx.strokeStyle = limb8; cx.lineWidth = thick8
     cx.beginPath(); cx.arc(X + 20 + BF * 9, Y + 18, span8,
       BF > 0 ? -1.35 : 1.79, BF > 0 ? 1.35 : 4.49); cx.stroke()
@@ -10091,9 +10139,19 @@ function drawCitizen(X, Y, o) {
     const sy2 = Y + 18 + Math.sin(1.35) * span8
     const nockX = X + 20 + BF * (9 - 5 * pull)
     cx.beginPath(); cx.moveTo(sx1, sy1); cx.lineTo(nockX, Y + 18); cx.lineTo(sx2, sy2); cx.stroke()
-    // and what is on the string: an arrow, except where the bow is its own
-    cx.strokeStyle = dbow8 ? '#e8c08a' : '#8a5a2a'; cx.lineWidth = 1.6
-    cx.beginPath(); cx.moveTo(nockX, Y + 18); cx.lineTo(X + 20 + BF * 12, Y + 18); cx.stroke()
+    // and what is on the string: an arrow, until it is loosed and gone
+    if (!loosed) {
+      cx.strokeStyle = dbow8 ? '#e8c08a' : '#8a5a2a'; cx.lineWidth = 1.6
+      cx.beginPath(); cx.moveTo(nockX, Y + 18); cx.lineTo(X + 20 + BF * 12, Y + 18); cx.stroke()
+    } else {
+      // the string still ringing, a moment after
+      const ring = (shotT - 0.66) / 0.34
+      cx.strokeStyle = 'rgba(230,226,210,' + (0.5 * (1 - ring)).toFixed(2) + ')'
+      cx.lineWidth = 1.4
+      const wob = Math.sin(ring * 22) * 2 * (1 - ring)
+      cx.beginPath(); cx.moveTo(sx1, sy1)
+      cx.lineTo(X + 20 + BF * (9 + wob), Y + 18); cx.lineTo(sx2, sy2); cx.stroke()
+    }
     if (dbow8) {   // the dragonbow burns at the nock
       cx.fillStyle = 'rgba(255,150,50,.5)'
       cx.beginPath(); cx.arc(X + 20 + BF * 9, Y + 18, 4.4, 0, 7); cx.fill()
@@ -10277,7 +10335,9 @@ function drawCitizen(X, Y, o) {
     : 0
   cx.rotate(F * (WORK ? workSwing
     : o.anim === 'gather' ? -0.6 + swing * 0.9
-    : (o.anim === 'fight' && !o.shooting) ? -0.3 + swing * 1.1 : 0.15))
+    : (o.anim === 'fight' && !o.shooting)
+      ? ARC9[0] * (gam9 ? 1.25 : 1) + swing * ARC9[1] * (gam9 ? 1.3 : 1)
+    : 0.15))
   // §7f: AN ARM, SO THE WEAPON IS HELD RATHER THAN FLOATING.
   //
   // This was three pixels of skin, nine long, hanging against a tunic of
@@ -13846,6 +13906,11 @@ function drawScene(now) {
         now, pid, player: p, face: facing[pid] ?? 1, anim, tool, mine: pid === myId,
       exchange: inAFight(p.action)
         && (p.equipment?.weapon?.item === 'old-chain' || (s.tick - (p.action.since ?? 0)) % 2 === 0),
+      // §7f: AND WHETHER THIS BLOW IS A GAMBIT. The same thing the ring is
+      // thrown for: an arm spent PAST the clock, which no ordinary swing
+      // ever does. The body did not know, so a gambit was swung exactly like
+      // any other blow and only the ring said otherwise.
+      gambit: (p.lastSwing ?? -9) > s.tick,
       chain: p.equipment?.weapon?.item === 'old-chain',
       starSword: p.equipment?.weapon?.item === 'quick-sword',
       cape: capeOf(p),
