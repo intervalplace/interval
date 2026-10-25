@@ -620,3 +620,62 @@ test('the window says gambit, which is the word this world uses', () => {
   assert.ok(!/\bSPEC_(BLOWS|OF|SAYS)\b/.test(win), 'a gambit table is still named for the retired word')
   assert.ok(/GAMBIT, /.test(win), 'the button must name the thing it fires')
 })
+
+// ---- WHAT A WEAPON LOOKS LIKE, AND WHAT IT LOOSES ----
+//
+// Three faults in one place, all of them one shape standing in for many.
+//
+// A fight drew a blade and a crossguard for EVERY weapon in the world. A
+// mell, a spear, a flail, a bow, a hand cannon: all of them swung a sword,
+// and the only thing that varied was whether the metal was iron or quick.
+// The window already had a drawing for each, used when the weapon is merely
+// carried, and threw it away at the moment it mattered most.
+//
+// Everything ranged was given the archer's stance, string and all, so the
+// handgonne drew a bowstring. And the volley drew one projectile for all of
+// them, so the handgonne then loosed a feathered arrow out of that bow.
+test('what a ranged weapon looses is what the engine says it loads', () => {
+  const setOf = (name) => {
+    const i = win.indexOf(`const ${name} = new Set([`)
+    assert.ok(i > 0, name + ' is gone or renamed')
+    // both quote styles: RANGED_ITEMS is written with double quotes and the
+    // two beside it with single, and reading only one kind returned an empty
+    // set that then agreed with everything asked of it
+    return new Set([...win.slice(i, win.indexOf('])', i))
+      .matchAll(/'([^']+)'|"([^"]+)"/g)].map((m) => m[1] ?? m[2]))
+  }
+  const shot = setOf('SHOT_WEAPONS'), thrown = setOf('THROWN_ITEMS'), ranged = setOf('RANGED_ITEMS')
+
+  const theirs = Object.entries(E.WEAPONS).filter(([, w]) => w && w.ranged)
+  assert.ok(theirs.length > 5, 'the engine list was not read')
+  const powder = theirs.filter(([, w]) => w.powder).map(([k]) => k)
+  assert.ok(powder.length, 'the engine has no powder weapon: this test is testing nothing')
+  assert.deepEqual([...shot].sort(), powder.sort(),
+    'the window fires shot from a different set of weapons than the engine loads powder into')
+  for (const k of [...shot, ...thrown]) {
+    assert.ok(ranged.has(k), k + ' looses something but the window does not count it as ranged')
+  }
+  // and nothing that fires shot may also be drawn drawing a bowstring
+  const i = win.indexOf('if (o.shooting && SHOT_WEAPONS.has(o.wepItem))')
+  assert.ok(i > 0, 'a gun is drawn as a bow again')
+})
+
+test('a fight is fought with the weapon in hand, not with a sword every time', () => {
+  const i = win.indexOf("} else if (o.anim === 'fight') {")
+  assert.ok(i > 0, 'the fight pose is gone or renamed')
+  const body = win.slice(i, win.indexOf('\n  }', i))
+  assert.ok(body.includes('o.wepItem'),
+    'the fight pose does not look at what is being held, so it draws one thing for everything')
+
+  // every family the engine has must be reachable in that pose
+  const families = {
+    mell: /-mell\$\/|-mell\$/, spear: /spear/, hatchet: /hatchet/,
+    flail: /flail/, staff: /staff/, siphon: /fire-siphon/,
+  }
+  for (const [name, re] of Object.entries(families)) {
+    assert.ok(re.test(body), 'a ' + name + ' is still drawn as something else in a fight')
+  }
+  // and a bow is not swung at all: the archer's stance already holds it
+  assert.ok(body.includes('RANGED_ITEMS'),
+    'an archer swings a second weapon under their bow unless the pose knows better')
+})

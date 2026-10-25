@@ -4976,6 +4976,16 @@ const poly9 = (cx, pts) => { cx.beginPath(); cx.moveTo(pts[0][0], pts[0][1])
   for (const q of pts.slice(1)) cx.lineTo(q[0], q[1]); cx.closePath(); cx.fill() }
 const mobMaxHp = (type) => MOB_STATS[type]?.maxHp ?? 1
 // anything a citizen draws rather than swings (engine WEAPONS `ranged: true`)
+// §7f: AND WHAT EACH OF THEM LOOSES. Everything ranged was drawn drawing a
+// bowstring and loosing a feathered shaft, because there was one shape for
+// all of them: the handgonne, which the engine marks `powder: true` and
+// which the world loads with `shot`, fired arrows out of a bow.
+//
+// Three kinds, which is what the engine has: a bow looses an arrow, a
+// handgonne fires shot, and a javelin IS the thing thrown. Copied from
+// engine.js WEAPONS and held to it by test/window.test.mjs.
+const SHOT_WEAPONS = new Set(['handgonne'])
+const THROWN_ITEMS = new Set(['iron-javelin', 'steel-javelin', 'quick-javelin'])
 const RANGED_ITEMS = new Set([
   "crossbow",
   "dragonbow",
@@ -8567,7 +8577,7 @@ function _onState(s, worldId, local) {
       if (!tgt2) continue
       if (RANGED_ITEMS.has(w2) && Math.max(Math.abs(p2.x - tgt2.x), Math.abs(p2.y - tgt2.y)) > 1) {
         effects.push({ kind: 'volley', x: p2.x, y: p2.y, tx: tgt2.x, ty: tgt2.y,
-          n: n2, self: mine9, at: at9 })
+          n: n2, self: mine9, shot: SHOT_WEAPONS.has(w2), at: at9 })
         // one thwip per shaft, on the same 60ms stagger the drawing uses, so
         // you can COUNT them -- six is a different sound from two.
         for (let k = 0; k < n2; k++)
@@ -9804,7 +9814,25 @@ function drawCitizen(X, Y, o) {
     const tipY = o.exchange && strikeT > 0.15 ? hy + 2 : hy + 12
     cx.beginPath(); cx.arc(tipX, tipY, 2.2, 0, 7); cx.fill()
   }
-  if (o.shooting) { // the archer's stance: bow forward, string drawn
+  if (o.shooting && SHOT_WEAPONS.has(o.wepItem)) {
+    // §7f: A GUN IS NOT A BOW. Everything ranged was given the archer's
+    // stance, string and all, so the handgonne was drawn drawing a bowstring
+    // and then loosing an arrow from it. It is levelled, not drawn: a stock
+    // against the shoulder, a barrel out along the line of sight, and the
+    // match burning at the touch-hole, which is the thing that says it is
+    // about to go off.
+    const BF = o.face ?? 1
+    const bx = X + 20, by = Y + 17
+    cx.save(); cx.translate(bx, by); cx.scale(BF, 1)
+    cx.fillStyle = '#6b5330'; cx.fillRect(-6, -1.4, 7, 3.4)          // the stock
+    cx.fillStyle = '#5a616b'; cx.fillRect(0, -1.6, 13, 3.2)          // the barrel
+    cx.fillStyle = '#3a4048'; cx.fillRect(12, -1.6, 1.6, 3.2)        // the muzzle
+    cx.fillStyle = '#8a939d'; cx.fillRect(4, -2, 1.4, 4)             // the band
+    const gl = 0.55 + Math.sin(o.now / 220) * 0.35
+    cx.fillStyle = 'rgba(255,170,70,' + gl.toFixed(2) + ')'
+    cx.beginPath(); cx.arc(1.4, -2.4, 1.1, 0, 7); cx.fill()          // the match
+    cx.restore()
+  } else if (o.shooting) { // the archer's stance: bow forward, string drawn
     const BF = o.face ?? 1
     const pull = (Math.sin(o.now / 300) + 1) / 2
     cx.strokeStyle = '#5c4023'; cx.lineWidth = 2.6
@@ -10018,9 +10046,66 @@ function drawCitizen(X, Y, o) {
   } else if (o.anim === 'gather') { // hatchet
     cx.fillStyle = '#5c4023'; cx.fillRect(-1, 8, 2, 9)
     cx.fillStyle = metal; cx.fillRect(F > 0 ? 1 : -6, 14, 5, 4)
-  } else if (o.anim === 'fight') { // sword: iron gleams if forged
-    cx.fillStyle = o.sword ? '#c9862a' : '#b8b8b0'; cx.fillRect(-1, 8, 2, o.sword ? 14 : 12)
-    cx.fillStyle = '#5c4023'; cx.fillRect(-3, 8, 6, 2)
+  } else if (o.anim === 'fight') {
+    // §7f: A FIGHT IS FOUGHT WITH THE THING IN YOUR HAND.
+    //
+    // This drew a blade and a crossguard for EVERY weapon in the world. A
+    // mell, a spear, a flail, a bow, a hand cannon: all of them swung a
+    // sword, and the only thing that changed was whether the metal was iron
+    // or quick. The window has a drawing for each of these already, used
+    // when the weapon is merely carried, and the moment it mattered most was
+    // the moment it was thrown away.
+    //
+    // Drawn from the fist down the arm's own angle, so each keeps the swing
+    // the pose gives it. The families are the engine's shapes: a haft with a
+    // weight on it, a shaft with a point, a head on a helve, a chain, a
+    // stave, and a blade, which is now one weapon among several rather than
+    // the only one.
+    const it9 = o.wepItem || ''
+    const lit9 = o.sword ? '#c9862a' : o.starSword ? '#8ce0ff' : '#b8b8b0'
+    const haft9 = '#5c4023'
+    if (/-mell$/.test(it9)) {                       // a maul: short haft, heavy head
+      cx.fillStyle = haft9; cx.fillRect(-1, 8, 2, 11)
+      cx.fillStyle = it9.startsWith('great') ? '#3a3630' : lit9
+      cx.fillRect(-4.5, 17, 9, 6)
+      cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(-4.5, 17, 9, 1.6)
+    } else if (/-spear$|^bone-spear$/.test(it9)) {   // a long shaft, and the point beyond the hand
+      cx.fillStyle = haft9; cx.fillRect(-0.9, -4, 1.8, 24)
+      cx.fillStyle = it9 === 'bone-spear' ? '#e8e4d0' : lit9
+      cx.beginPath(); cx.moveTo(0, -11); cx.lineTo(2.4, -3); cx.lineTo(-2.4, -3); cx.closePath(); cx.fill()
+    } else if (/-hatchet$|-pickaxe$/.test(it9)) {    // a head on a helve
+      cx.fillStyle = haft9; cx.fillRect(-1, 8, 2, 12)
+      cx.fillStyle = lit9
+      if (/-pickaxe$/.test(it9)) {
+        cx.strokeStyle = lit9; cx.lineWidth = 2.6
+        cx.beginPath(); cx.arc(0, 18, 5, -0.7, 0.7); cx.stroke()
+      } else cx.fillRect(1, 15, 5.5, 4.5)
+    } else if (/-flail$|^old-chain$/.test(it9)) {    // a haft, a length of chain, a weight
+      cx.fillStyle = haft9; cx.fillRect(-1, 8, 2, 8)
+      cx.strokeStyle = '#8a8a92'; cx.lineWidth = 1.1
+      const sw9 = Math.sin(o.now / 140) * 2.6
+      cx.beginPath(); cx.moveTo(0, 16); cx.quadraticCurveTo(sw9, 20, sw9 * 1.6, 24); cx.stroke()
+      cx.fillStyle = it9 === 'quick-flail' ? '#8ce0ff' : '#6e6e76'
+      cx.beginPath(); cx.arc(sw9 * 1.6, 25.6, 2.6, 0, 7); cx.fill()
+    } else if (/staff$|^wand$/.test(it9)) {          // a stave, and whatever is bound to its head
+      cx.fillStyle = it9 === 'heartwood-staff' ? '#b08a3e' : haft9
+      cx.fillRect(-0.9, -5, 1.8, 25)
+      cx.fillStyle = it9 === 'goo-staff' ? '#7dbb45' : '#8ce0ff'
+      cx.beginPath(); cx.arc(0, -7, 2.4, 0, 7); cx.fill()
+    } else if (it9 === 'fire-siphon') {              // a tube, and the flame at its mouth
+      cx.fillStyle = '#4a4036'; cx.fillRect(-1.6, 4, 3.2, 14)
+      cx.fillStyle = '#8a939d'; cx.fillRect(-2.2, 16, 4.4, 3)
+      const fl9 = 0.6 + Math.sin(o.now / 110) * 0.4
+      cx.fillStyle = 'rgba(255,' + Math.round(130 + 70 * fl9) + ',40,' + (0.55 + 0.35 * fl9).toFixed(2) + ')'
+      cx.beginPath(); cx.ellipse(0, 21, 2.4, 4 + fl9 * 2, 0, 0, 7); cx.fill()
+    } else if (RANGED_ITEMS.has(it9)) {
+      // a bow or a gun is held, not swung: the stance above has it, and an
+      // arm waving a second weapon under it is how the archer came to be
+      // carrying a sword as well
+    } else {                                         // a blade, which is what it always drew
+      cx.fillStyle = lit9; cx.fillRect(-1, 8, 2, o.sword ? 14 : 12)
+      cx.fillStyle = haft9; cx.fillRect(-3, 8, 6, 2)
+    }
   }
   cx.restore()
   if (o.wepItem && o.anim !== 'fight' && !(o.anim === 'gather' && o.ironTool)) {
@@ -13973,10 +14058,23 @@ function drawScene(now) {
         const ay3 = fy3 + (ty3 - fy3) * t3 + Math.sin(perp) * sp
         cx.save(); cx.translate(ax3, ay3); cx.rotate(ang3)
         cx.globalAlpha = Math.min(1, (1 - t3) * 3)
-        cx.strokeStyle = ef.self ? '#c9a86a' : '#d08a5a'; cx.lineWidth = 1.8
-        cx.beginPath(); cx.moveTo(-7, 0); cx.lineTo(4, 0); cx.stroke()
-        cx.fillStyle = '#e6e2d2'
-        cx.beginPath(); cx.moveTo(7, 0); cx.lineTo(2, -2.2); cx.lineTo(2, 2.2); cx.closePath(); cx.fill()
+        if (ef.shot) {
+          // §7f: A HANDGONNE DOES NOT FIRE ARROWS. It fires `shot`, which is
+          // what the world calls it and what the recipe makes: lead, a ball
+          // of it, with the powder's smoke behind. Every ranged weapon loosed
+          // a feathered shaft because this drew one shape for all of them.
+          cx.fillStyle = 'rgba(210,205,195,' + (0.45 * (1 - t3)).toFixed(2) + ')'
+          cx.beginPath(); cx.ellipse(-9, 0, 9, 2.6, 0, 0, 7); cx.fill()   // the smoke it drags
+          cx.fillStyle = '#4a4a50'
+          cx.beginPath(); cx.arc(0, 0, 2.3, 0, 7); cx.fill()              // the ball
+          cx.fillStyle = 'rgba(255,255,255,.45)'
+          cx.beginPath(); cx.arc(-0.7, -0.7, 0.9, 0, 7); cx.fill()
+        } else {
+          cx.strokeStyle = ef.self ? '#c9a86a' : '#d08a5a'; cx.lineWidth = 1.8
+          cx.beginPath(); cx.moveTo(-7, 0); cx.lineTo(4, 0); cx.stroke()
+          cx.fillStyle = '#e6e2d2'
+          cx.beginPath(); cx.moveTo(7, 0); cx.lineTo(2, -2.2); cx.lineTo(2, 2.2); cx.closePath(); cx.fill()
+        }
         cx.restore()
       }
       cx.globalAlpha = 1
