@@ -323,3 +323,56 @@ test('the printed handbook names everything the world has', () => {
   assert.deepEqual(unnamed, [],
     'the world has these beasts and the book never names them: ' + unnamed.join(', '))
 })
+
+// ---- THE RACE IS TO MASTERY, AND MASTERY IS ONE HUNDRED ----
+//
+// §4b says it and the engine exports it: MASTERY = 100. The race board took
+// XP_TABLE[99], so a citizen standing at ninety-nine was shown as 100% of the
+// way with nothing left to go, when they are 89% of the way with 376,436
+// still to climb. The comment beside the line said "mastery: 13,034,431",
+// which is not XP_TABLE[99] either: it was wrong about the number it was
+// already using, which is how it went unnoticed.
+test('the race board measures the climb against mastery, not against 99', () => {
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const i = src.indexOf("if (path === '/api/races')")
+  assert.ok(i > 0, 'the race board is gone or renamed')
+  // comments stripped: the note explaining this fault names the old
+  // expression, and the first run of this test duly failed on it
+  const body = src.slice(i, src.indexOf('\n    if (path ===', i + 10))
+    .split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n')
+  assert.ok(!/XP_TABLE\[99\]/.test(body),
+    'the board measures the last climb against level 99 again')
+  assert.ok(/XP_TABLE\[E\.MASTERY\]|XP_TABLE\[MASTERY\]/.test(body),
+    'the target must be asked of the engine, which is the only thing that knows it')
+  assert.equal(E.MASTERY, 100, 'if mastery moves, this board and this test move with it')
+})
+
+// ---- AND SOMEBODY CAN ARRIVE ALREADY HOLDING IT ----
+//
+// `master:<skill>` is claimed on CROSSING mastery, so a citizen carried into
+// a refounded world at a hundred arrives above the line and never crosses
+// it. Measured: a world founded with a master in it records nobody, for
+// ever. The world is right about that, since nobody did it there. The board
+// was not: it showed the race unclaimed with that citizen at 100% and
+// nothing to go, which reads as a race that broke.
+test('a world founded with a master in it leaves the first unclaimed', () => {
+  const xpAt = (lv) => { let x = 0; while (E.levelForXp(x) < lv) x++; return x }
+  const g = E.makeGenesis('carried', 'a'.repeat(64), 0, 40, 30)
+  g.imported = [{ pid: 'a'.repeat(64), name: 'alder', calling: 'forester',
+    health: 64, skills: { woodcraft: xpAt(E.MASTERY) } }]
+  assert.equal(E.validateImports(g.imported), null, 'the premise: such a citizen may cross')
+  let s = E.newWorld(g)
+  if (E.seatImport) E.seatImport(s, g.imported[0], 5, 5)
+  for (let i = 0; i < 4; i++) s = E.nextState(s, [])
+  assert.equal((s.firsts ?? {})['master:woodcraft'], undefined,
+    'if the engine starts claiming this, the board no longer needs to explain it')
+
+  // so the board must SAY that, rather than show an empty race at 100%
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const i = src.indexOf("if (path === '/api/races')")
+  const body = src.slice(i, src.indexOf('\n    if (path ===', i + 10))
+  assert.ok(/carried: true/.test(body),
+    'the board does not tell a race nobody ran from a race nobody has won')
+  const page = fs.readFileSync(path.join(root, 'site/hiscores.html'), 'utf8')
+  assert.ok(/x\.carried/.test(page), 'and the page does not show it')
+})

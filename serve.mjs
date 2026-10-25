@@ -1387,12 +1387,36 @@ const server = http.createServer((req, res) => {
         }
         if (!bestPid || bestXp <= 0) return { skill: sk, settled: false, name: null }
         const level = lvl(bestXp)
-        // how far along the LAST step, which is the one worth watching
-        const at99 = E.XP_TABLE[99] // mastery: 13,034,431
-        const toGo = Math.max(0, at99 - bestXp)
+        // §7f: MASTERY IS ONE HUNDRED, and this measured against ninety-nine.
+        //
+        // §4b says it plainly and the engine exports it: `MASTERY = 100`. The
+        // board took XP_TABLE[99], so a citizen standing at ninety-nine was
+        // shown as 100% of the way and nothing left to go, when they are 89%
+        // of the way with 376,436 still to climb. The comment beside it said
+        // "mastery: 13,034,431", which is not XP_TABLE[99] either: it was
+        // wrong about the number it was already using.
+        //
+        // Asked of the engine now, so it cannot be wrong twice.
+        const atMastery = E.XP_TABLE[E.MASTERY]
+        const toGo = Math.max(0, atMastery - bestXp)
+        // §7f: AND SOMEBODY CAN ARRIVE ALREADY HOLDING IT.
+        //
+        // `master:<skill>` is claimed on CROSSING mastery, so a citizen
+        // carried into a refounded world at a hundred arrives above the line
+        // and never crosses it. The world is right to record nobody: nobody
+        // did it HERE. But the board then showed the race as unclaimed with
+        // that citizen at 100% and nothing to go, for ever, which reads as a
+        // race that broke rather than one that was never run.
+        //
+        // Said plainly instead. A race somebody walked into already won is
+        // not a race anybody can run, and the board should say which it is.
+        if (bestXp >= atMastery) {
+          return { skill: sk, settled: false, carried: true, name: nameOf(bestPid),
+                   playerId: bestPid, level, xp: bestXp, toGo: 0, pct: 100 }
+        }
         return { skill: sk, settled: false, name: nameOf(bestPid), playerId: bestPid,
                  level, xp: bestXp, toGo,
-                 pct: Math.max(0, Math.min(100, Math.round((bestXp / at99) * 100))) }
+                 pct: Math.max(0, Math.min(100, Math.round((bestXp / atMastery) * 100))) }
       })
       return json({ tick: node.state.tick, worldId: node.worldId, races })
     }
