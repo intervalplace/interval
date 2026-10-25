@@ -790,3 +790,29 @@ test('every weapon the world has is drawn by the one drawing', async () => {
   assert.equal((win.match(/heldWeapon\(cx,/g) || []).length, 2,
     'the carried pose and the fight pose must both call the one drawing')
 })
+
+// ---- AND EVERY BOW WAS THE SAME BOW ----
+//
+// The archer's stance drew one brown limb and one pale string whatever was
+// being shot, so the horn-bow, the dragonbow, the sigil-bow and the plain
+// wooden bow were one picture: the rarest arm in the world looked like the
+// first one anybody is handed. The CARRIED drawing has told them apart for a
+// long time. The drawn one never did.
+test('the bow a citizen draws is the bow they are holding', () => {
+  const i = win.indexOf("} else if (o.shooting) {")
+  assert.ok(i > 0, 'the archer stance is gone or renamed')
+  const stance = win.slice(i, win.indexOf('\n  } else if (o.bow)', i))
+  assert.ok(stance.includes('o.wepItem'),
+    'the stance does not look at which bow it is, so every bow is the same bow')
+
+  // the ones the world makes a point of: each must be told from the others
+  for (const [name, re] of [
+    ['dragonbow', /dragonbow/], ['sigil-bow', /sigil-bow/], ['a crossbow', /crossbow\$\/|crossbow/],
+  ]) {
+    assert.ok(re.test(stance), name + ' is drawn as a plain wooden bow again')
+  }
+  // and the limb colour must actually vary, not be one constant
+  const limbs = [...stance.matchAll(/'#[0-9a-f]{6}'/g)].map((m) => m[0])
+  assert.ok(new Set(limbs).size >= 4,
+    'the stance paints ' + new Set(limbs).size + ' colours: every bow still looks alike')
+})

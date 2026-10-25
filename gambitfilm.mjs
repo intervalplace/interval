@@ -60,7 +60,14 @@ function sceneFor (item) {
   // and the moment itself: the arm spent PAST the clock, and a target named
   s.tick = 601
   p.lastSwing = 606
-  p.action = { type: 'attack', mobId: 'm1' }
+  // AND ON AN EXCHANGE TICK, or there is no swing to film.
+  //
+  // A blow lands every other interval, and the window draws the full strike
+  // only on the tick it lands: `(tick - action.since) % 2 === 0`. The scene
+  // carried no `since`, so it defaulted to zero, 601 is odd, and every film
+  // so far caught the citizen on the OFF beat, standing in the small ready
+  // guard. The swing was there the whole time and was never pointed at.
+  p.action = { type: 'attack', mobId: 'm1', since: 601, style: 'even' }
   return { me, before, after: JSON.parse(JSON.stringify(s)) }
 }
 
