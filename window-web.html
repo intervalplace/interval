@@ -375,7 +375,7 @@
        `#equip` stays in the markup, hidden, because the sheathe tap and a
        good deal of panel code still write to it; it simply is not shown. -->
   <div id="equip" style="display:none"></div>
-    <div id="specbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
+    <div id="gambitbtn" style="display:none;font-size:11px;padding:4px 6px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--edge,#4a2e18);cursor:pointer;
       color:var(--gold);letter-spacing:1px"></div>
 
@@ -7192,38 +7192,55 @@ const CALLING_LINE_W = {
 // swung -- generated from engine.js WEAPONS. The window knew the NAME of a
 // gambit and nothing about its shape, so a six-arrow flurry and a single
 // dagger thrust drew the same little ring and nothing else.
-const SPEC_BLOWS = {
-  "quick-dagger": 6,
+// §7f: THE WORD IS GAMBIT. SPEC.md is flat about it: the burst is `gambit`
+// everywhere, and was called something else before. The old word had
+// survived here in the one place a player reads it, on the button itself.
+//
+// AND ALL THREE TABLES HAD DRIFTED FROM THE ENGINE. They say they are
+// generated from WEAPONS, and they were not regenerated:
+//
+//   the quick-mell and the great-mell are `whole` and this said `now`
+//   the handgonne is `report` and this said `flurry`
+//   a quick-dagger flurry is FOUR blows and this drew six
+//   a horn-bow flurry is THREE and this drew six, with six thwips to count
+//
+// So a horn-bow gambit threw six arrows across a clearing for three that
+// were rolled, and the button described the wrong thing for three weapons
+// out of seven. test/window.test.mjs holds all three to the engine now, the
+// same way the two-handed list and the equip slots are held.
+const GAMBIT_BLOWS = {
+  "quick-dagger": 4,
   "quick-mell": 2,
   "fire-siphon": 1,
   "great-mell": 2,
-  "horn-bow": 6,
-  "handgonne": 2,
+  "horn-bow": 3,
+  "handgonne": 1,
   "dragonbow": 1
 }
-// §6dj: generated from engine.js WEAPONS. It still named `true` for the
-// horn-bow -- a gambit that was retired two revisions ago -- and knew nothing
-// of the great-crossbow.
-const SPEC_OF = {
+const GAMBIT_OF = {
   "quick-dagger": "flurry",
-  "quick-mell": "now",
+  "quick-mell": "whole",
   "fire-siphon": "now",
-  "great-mell": "now",
+  "great-mell": "whole",
   "horn-bow": "flurry",
-  "handgonne": "flurry",
+  "handgonne": "report",
   "dragonbow": "far"
 }
-// §6dj: the shapes the engine actually has. `twice` and `true` were retired.
-const SPEC_SAYS = {
-  flurry: 'a burst of blows, one round each',
-  now: 'swings the moment your arm is ready',
-  haymaker: 'one blow, and it lands like several',
-  far: 'reaches further than it should',
+// The five shapes the engine has, each said in its own words rather than the
+// engine's. `haymaker` was never one of them, and `whole` and `report` were
+// missing, so the two mells and the handgonne were described as something
+// they are not.
+const GAMBIT_SAYS = {
+  flurry: 'several blows land in one go',
+  whole: 'one blow at its hardest, and it waits for the arm',
+  now: 'cuts in the moment your arm is spent, and pays for it after',
+  far: 'the blow grows with the distance it crossed',
+  report: 'one shot, with everything in it',
 }
 // ARMED, not fired. A gambit is a decision, so it is taken in two steps:
 // arm it, then choose who. That also means one control works for a mouse and
 // a thumb alike, and you cannot spend your arm by misclicking.
-let specArmed = false
+let gambitArmed = false
 const splats = []     // { x, y, amount, at } damage made visible
 const effects = []    // { kind, x, y, at } rites and works made visible
 // what each deed looks like from across a clearing. Only kinds this window can
@@ -8517,7 +8534,7 @@ function _onState(s, worldId, local) {
         splats.push({ x: p2.x, y: p2.y, amount: o2.hp - p2.hp, at: performance.now() })
       }
     }
-    // §6af: A SPECIAL LOOKS LIKE ONE.
+    // §6af: A GAMBIT LOOKS LIKE ONE.
     //
     // It resolves off the rhythm and produces damage, so without a mark it is
     // an ordinary hit. Nothing new is needed in the state: a citizen whose
@@ -8533,7 +8550,7 @@ function _onState(s, worldId, local) {
       // the volley below counts itself out loud.
       const mine9 = pid2 === myId
       tone(mine9 ? 300 : 240, 0.16, { type: 'square', vol: mine9 ? 0.07 : 0.05, glide: mine9 ? 520 : 400 })
-      // §6af: A SPECIAL LOOKS LIKE ONE -- AND LIKE HOW MANY.
+      // §6af: A GAMBIT LOOKS LIKE ONE -- AND LIKE HOW MANY.
       //
       // The ring above is thrown at the STRIKER, which tells the striker
       // something they already know and tells the struck nothing at all. A
@@ -8544,7 +8561,7 @@ function _onState(s, worldId, local) {
       // So: the volley flies, one shaft per blow, staggered; and the mark lands
       // where it lands. The count is the engine's own `blows`.
       const w2 = p2.equipment?.weapon?.item
-      const n2 = SPEC_BLOWS[w2] ?? 1
+      const n2 = GAMBIT_BLOWS[w2] ?? 1
       const act2 = p2.action
       const tgt2 = act2 ? (act2.mobId ? s.mobs[act2.mobId] : s.players[act2.targetId]) : null
       if (!tgt2) continue
@@ -14493,23 +14510,23 @@ function panel(s) {
   // §6af: the control appears only when the weapon in hand HAS a gambit, and
   // says what it does, a button labelled 'gambit' teaches nothing.
   {
-    const sb = document.getElementById('specbtn')
-    const kind = SPEC_OF[me.equipment?.weapon?.item]
-    if (!kind) { sb.style.display = 'none'; specArmed = false }
+    const sb = document.getElementById('gambitbtn')
+    const kind = GAMBIT_OF[me.equipment?.weapon?.item]
+    if (!kind) { sb.style.display = 'none'; gambitArmed = false }
     else {
       sb.style.display = 'block'
       // §7cc: ARMED SHOULD LOOK ARMED. A slightly darker brown and the word
       // "ARMED" is not a state you notice in a fight -- and the tap that arms
       // it already toggles, so a citizen who did not notice cannot tell whether
       // the next tap arms or disarms. Make it unmissable and say how to undo it.
-      sb.style.background = specArmed ? '#8a2f14' : 'var(--stone-dk)'
-      sb.style.color = specArmed ? '#ffe9c0' : ''
-      sb.style.boxShadow = specArmed ? '0 0 0 2px #e2b63e, 0 0 14px rgba(226,182,62,.55)' : ''
-      sb.style.fontWeight = specArmed ? '700' : ''
-      sb.style.letterSpacing = specArmed ? '.04em' : ''
-      sb.textContent = (specArmed
+      sb.style.background = gambitArmed ? '#8a2f14' : 'var(--stone-dk)'
+      sb.style.color = gambitArmed ? '#ffe9c0' : ''
+      sb.style.boxShadow = gambitArmed ? '0 0 0 2px #e2b63e, 0 0 14px rgba(226,182,62,.55)' : ''
+      sb.style.fontWeight = gambitArmed ? '700' : ''
+      sb.style.letterSpacing = gambitArmed ? '.04em' : ''
+      sb.textContent = (gambitArmed
         ? '\u25b8 ARMED, strike a target, or tap again to stand down':
-        'SPECIAL, ' + SPEC_SAYS[kind])
+        'GAMBIT, ' + GAMBIT_SAYS[kind])
     }
   }
     + '<br>Gold: <b style="color:#e2b63e">' + (me.gold ?? 0) + '</b> ' + ICONS['gold-coin']
@@ -14721,13 +14738,13 @@ function panel(s) {
     me.action ? 'busy: ' + me.action.type : 'idle: click the world'
 }
 
-document.getElementById('specbtn').addEventListener('click', (e) => {
+document.getElementById('gambitbtn').addEventListener('click', (e) => {
   e.stopPropagation()
   const me9 = world?.players?.[myId]
-  if (!me9 || !SPEC_OF[me9.equipment?.weapon?.item]) return
-  specArmed = !specArmed
+  if (!me9 || !GAMBIT_OF[me9.equipment?.weapon?.item]) return
+  gambitArmed = !gambitArmed
   // §7cc: and say so, so it is in the feed as well as under your thumb
-  feed(specArmed
+  feed(gambitArmed
     ? 'You set yourself, the next blow is a gambit. Tap again to stand down.':
     'You stand down. The next blow is an ordinary one.')
 })
@@ -16099,8 +16116,8 @@ cv.addEventListener('click', (e) => {
   }
   if (best?.kind === 'citizen') {
     const { id: pid, p } = best
-    if (specArmed && SPEC_OF[me.equipment?.weapon?.item]) {
-      specArmed = false
+    if (gambitArmed && GAMBIT_OF[me.equipment?.weapon?.item]) {
+      gambitArmed = false
       send({ do: 'gambit', targetId: pid })
       feed('You strike off the rhythm.')
       return

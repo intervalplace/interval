@@ -551,3 +551,72 @@ test('the sound switch plays the region you are in, not the door theme', () => {
       sw + ' still reaches for the door theme when the sound comes back on')
   }
 })
+
+// ---- THE GAMBITS, AND THE THREE TABLES THAT DESCRIBE THEM ----
+//
+// The window keeps copies of the engine's gambit data because a browser file
+// cannot import engine.js: which weapons have one, how many blows it is, and
+// what to call it on the button. All three said they were generated from
+// WEAPONS and none of them had been regenerated:
+//
+//   the quick-mell and the great-mell are `whole` and the window said `now`
+//   the handgonne is `report` and the window said `flurry`
+//   a quick-dagger flurry is four blows and the window drew six
+//   a horn-bow flurry is three and the window drew six, with six thwips
+//
+// The blow count is not decoration: it is the number of arrows drawn flying
+// and the number of sounds played, so a horn-bow gambit threw six shafts for
+// three that were rolled.
+test('the window knows the same gambits as the engine, and how many blows each is', () => {
+  const table = (name) => {
+    const i = win.indexOf(`const ${name} = {`)
+    assert.ok(i > 0, name + ' is gone or renamed')
+    const body = win.slice(i, win.indexOf('\n}', i))
+    const o = {}
+    for (const m of body.matchAll(/"([^"]+)":\s*("?[\w-]+"?)/g)) o[m[1]] = JSON.parse(m[2].replace(/^(\w)/, '"$1').replace(/(\w)$/, '$1"').replace(/^""(.*)""$/, '"$1"'))
+    return o
+  }
+  const jsonTable = (name) => {
+    const i = win.indexOf(`const ${name} = {`)
+    const body = win.slice(i + `const ${name} = `.length, win.indexOf('\n}', i) + 2)
+    return JSON.parse(body)
+  }
+  const blows = jsonTable('GAMBIT_BLOWS')
+  const of = jsonTable('GAMBIT_OF')
+
+  const theirs = Object.entries(E.WEAPONS).filter(([, w]) => w && w.gambit)
+  assert.ok(theirs.length >= 5, 'the engine list was not read: this would pass on nothing')
+
+  for (const [item, w] of theirs) {
+    assert.equal(of[item], w.gambit,
+      `${item} is a ${w.gambit} gambit and the window calls it ${of[item]}`)
+    const n = w.blows ?? (w.gambit === 'flurry' ? 2 : 1)
+    assert.equal(blows[item], n,
+      `${item} strikes ${n} time(s) and the window draws ${blows[item]}`)
+  }
+  const invented = Object.keys(of).filter((k) => !E.WEAPONS[k]?.gambit)
+  assert.deepEqual(invented, [], 'the window gives a gambit to weapons that have none: ' + invented.join(', '))
+  const missed = theirs.map(([k]) => k).filter((k) => !of[k])
+  assert.deepEqual(missed, [], 'these have a gambit the window has never heard of: ' + missed.join(', '))
+})
+
+test('every gambit the engine has is a gambit the window can describe', () => {
+  const i = win.indexOf('const GAMBIT_SAYS = {')
+  assert.ok(i > 0, 'the button has nothing to say')
+  const said = new Set([...win.slice(i, win.indexOf('\n}', i)).matchAll(/^\s*(\w+):/gm)].map((m) => m[1]))
+  const kinds = new Set(Object.values(E.WEAPONS).filter((w) => w && w.gambit).map((w) => w.gambit))
+  const undescribed = [...kinds].filter((k) => !said.has(k))
+  assert.deepEqual(undescribed, [],
+    'the button would read "GAMBIT, undefined" for: ' + undescribed.join(', '))
+  const stale = [...said].filter((k) => !kinds.has(k))
+  assert.deepEqual(stale, [], 'these shapes no longer exist in the engine: ' + stale.join(', '))
+})
+
+test('the window says gambit, which is the word this world uses', () => {
+  // SPEC.md: the burst is `gambit` everywhere. The old word survived on the
+  // button itself, which is the one place a player reads it.
+  const shown = [...win.matchAll(/['"]([A-Z]{4,})[,:]? ['"+]/g)].map((m) => m[1])
+  assert.ok(!shown.includes('SPECIAL'), 'the button still shows the retired word')
+  assert.ok(!/\bSPEC_(BLOWS|OF|SAYS)\b/.test(win), 'a gambit table is still named for the retired word')
+  assert.ok(/GAMBIT, /.test(win), 'the button must name the thing it fires')
+})
