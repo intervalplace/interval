@@ -225,7 +225,12 @@ console.log('\n' + films.length + ' gambits filmed -> ' + OUT + '/gambits.html')
 //
 // The seven are laid into one grid here rather than written as seven files,
 // because the whole question is how they differ from each other.
-const CELL_W = 470, CELL_H = 240, COLS = 2, PAD = 8, LABEL = 22
+// The cell size is adjustable because the file has to arrive: a four
+// megabyte picture is refused or quietly downscaled by some of the things
+// that will open it, and a gambit that cannot be seen is the whole problem
+// this was made to solve.
+const CELL_W = +(process.env.FILM_CELL_W ?? 470), CELL_H = Math.round(CELL_W * 240 / 470)
+const COLS = +(process.env.FILM_COLS ?? 2), PAD = 8, LABEL = 22
 const gw = COLS * CELL_W + (COLS + 1) * PAD
 const rows = Math.ceil(films.length / COLS)
 const gh = rows * (CELL_H + LABEL) + (rows + 1) * PAD
@@ -279,4 +284,14 @@ if (gframes.length) {
   writeFileSync(OUT + '/gambits.png', buf)
   console.log('a moving picture of all seven -> ' + OUT + '/gambits.png  ('
     + Math.round(buf.length / 1024) + ' KB)')
+
+  // AND THE SAME THING AS A GIF, which is the only moving format every
+  // previewer on earth actually plays. The page needed script and got none;
+  // the APNG was correct and was shown as its first frame anyway. A moving
+  // picture is only moving in the thing that opens it.
+  const { gif } = await import('./gif.mjs')
+  const g2 = gif(gframes.map((u) => Buffer.from(u.split(',')[1], 'base64')),
+    { delayMs: STEP_MS, holdLast: 700 })
+  writeFileSync(OUT + '/gambits.gif', g2)
+  console.log('and as a gif -> ' + OUT + '/gambits.gif  (' + Math.round(g2.length / 1024) + ' KB)')
 }
