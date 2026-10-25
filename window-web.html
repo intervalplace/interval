@@ -9250,13 +9250,19 @@ function heldWeapon (cx, it, F, now) {
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
       poly9(cx, [[-1.8, -12], [0, -17], [1.8, -12]])
     } else if (o.wepItem === 'iron-mell' || o.wepItem === 'quick-mell') {
-      // a heavy head on a short haft. It should look like it weighs something.
+      // §7f: A MELL HELD BY ITS HEAD. Every weapon in this chain grips at the
+      // origin and reaches DOWN the +y axis; the mell alone put its head at
+      // -6, above the hand, with the haft sticking out past it. At the hip,
+      // rotated, that read as a maul worn on the belt and nobody looked
+      // twice. In the fist it is a man holding the heavy end.
+      //
+      // A heavy head on a short haft. It should look like it weighs something.
       const star9 = o.wepItem === 'quick-mell'
-      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -2, 1.6, 11)
+      cx.fillStyle = '#5c4023'; cx.fillRect(-0.8, -1, 1.6, 8)
       cx.fillStyle = star9 ? '#5cb8d9' : '#a3743a'
-      cx.fillRect(-3.2, -6, 6.4, 4.6)
+      cx.fillRect(-3.2, 6.4, 6.4, 4.6)
       cx.fillStyle = star9 ? '#8ce0ff' : '#c9862a'
-      cx.fillRect(-3.2, -6, 6.4, 1.4)
+      cx.fillRect(-3.2, 6.4, 6.4, 1.4)
     } else if (o.wepItem === 'quick-flail') {
       // haft, chain, spiked head -- the chain is the point of the thing
       const star9 = o.wepItem === 'quick-flail'
@@ -10005,7 +10011,11 @@ function drawCitizen(X, Y, o) {
   //                        rest    through   lunge
   const SWING_OF = (it) =>
     /-mell$|-hatchet$|-pickaxe$/.test(it) ? [-1.25, 2.20, 5] :
-    /-spear$|^bone-spear$|^barb$/.test(it) ? [-0.10, 0.34, 10] :
+    // a thrust is a LEVEL arm driven forward, not a swing: the rest angle
+    // is near the horizontal (zero points at the ground) and almost all of
+    // the movement is the lunge. Left at -0.10 the spear pointed at his own
+    // boots while he stepped into the troll.
+    /-spear$|^bone-spear$|^barb$/.test(it) ? [-1.32, 0.30, 11] :
     /-flail$|chain$/.test(it) ? [-0.95, 2.60, 3] :
     /staff$|^wand$|^fire-siphon$/.test(it) ? [-0.55, 1.25, 3] :
                                              [-0.30, 1.10, 4]
@@ -10014,8 +10024,17 @@ function drawCitizen(X, Y, o) {
   // back, comes through more, and leans the body further in. Nothing here
   // invents a second animation, because a gambit is not a different act.
   const gam9 = striking && o.gambit
+  // §7f: AND A FLURRY IS FOUR BLOWS, SO IT IS FOUR SWINGS.
+  //
+  // A quick-dagger gambit rolls four, a horn-bow three, and the arm made ONE
+  // movement for any of them: the marks landed four at a time over a citizen
+  // who had swung once. The count is the engine's own, already copied here
+  // for the number of arrows drawn flying, so the arm counts the same way.
+  // The interval is divided by the blows and the swing repeats inside it.
+  const blows9 = gam9 ? (GAMBIT_BLOWS[o.wepItem] ?? 1) : 1
+  const beat9 = blows9 > 1 ? (renderT(now) * blows9) % 1 : renderT(now)
   const strikeT = striking
-    ? Math.max(0, Math.sin(Math.pow(renderT(now), gam9 ? 0.72 : 1) * Math.PI))
+    ? Math.max(0, Math.sin(Math.pow(beat9, gam9 ? 0.72 : 1) * Math.PI))
     : 0
   const swing = hurt && o.anim === 'fight' ? -0.35:
     striking
@@ -10121,7 +10140,11 @@ function drawCitizen(X, Y, o) {
     // straighten, the arrow is gone, and the next interval starts again. A
     // bow between shots keeps a light hold, which is a person waiting rather
     // than a person at rest.
-    const shotT = (o.exchange || o.gambit) ? renderT(o.now) : -1
+    // a flurry of arrows is that many draws, on the same count the shafts
+    // are drawn flying by
+    const nShot8 = o.gambit ? (GAMBIT_BLOWS[o.wepItem] ?? 1) : 1
+    const shotT = (o.exchange || o.gambit)
+      ? (nShot8 > 1 ? (renderT(o.now) * nShot8) % 1 : renderT(o.now)) : -1
     const loosed = shotT >= 0.66
     const pull = shotT < 0 ? 0.22 + Math.sin(o.now / 620) * 0.07
       : loosed ? 0 : shotT / 0.66
@@ -10397,6 +10420,16 @@ function drawCitizen(X, Y, o) {
     // underneath is how the archer came to be carrying a sword as well.
     if (o.wepItem && !RANGED_ITEMS.has(o.wepItem)) {
       cx.save(); cx.translate(0, 7.4)
+      // §7f: A SPEAR IS CARRIED UPRIGHT AND THRUST POINT-FIRST.
+      //
+      // The drawing is the CARRY: a spear stands taller than the citizen
+      // with its point above the shoulder, which is right walking down a
+      // road and wrong in a fight. Without turning it, a citizen lunged ten
+      // pixels forward holding a spear vertically beside his ear.
+      //
+      // Turned, not redrawn. It is the same spear in the same hand, held
+      // the other way, which is what a person does with a spear.
+      if (/-spear$|^bone-spear$/.test(o.wepItem)) { cx.rotate(Math.PI); cx.translate(0, 4) }
       heldWeapon(cx, o.wepItem, F, o.now)
       cx.restore()
     }

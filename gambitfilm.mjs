@@ -35,8 +35,15 @@ const RANGED = new Set(['crossbow', 'dragonbow', 'great-crossbow', 'handgonne',
 const gambits = Object.entries(E.WEAPONS).filter(([, w]) => w && w.gambit)
   .map(([item, w]) => ({ item, kind: w.gambit, blows: w.blows ?? (w.gambit === 'flurry' ? 2 : 1) }))
 const only = process.argv[2]
-const plan = only ? gambits.filter((g) => g.item === only) : gambits
-if (!plan.length) { console.log('no such gambit. have: ' + gambits.map((g) => g.item).join(', ')); process.exit(1) }
+// Any weapon by name, not just the ones with a gambit: an ordinary blow is
+// worth filming too, and it is the only way to see whether a spear is
+// thrust point-first or carried over the shoulder while it stabs.
+const plan = only
+  ? (gambits.filter((g) => g.item === only).length
+      ? gambits.filter((g) => g.item === only)
+      : (E.WEAPONS[only] ? [{ item: only, kind: 'plain blow', blows: 1 }] : []))
+  : gambits
+if (!plan.length) { console.log('no such weapon. gambits: ' + gambits.map((g) => g.item).join(', ')); process.exit(1) }
 
 // one small world per weapon, with somebody to use it on
 function sceneFor (item) {

@@ -865,3 +865,83 @@ test('a bow is drawn and loosed on the beat, not wobbled at by a wall clock', ()
   assert.ok(!/const pull = \(Math\.sin\(o\.now/.test(stance),
     'the pull is a wall clock again, so the string breathes and nothing is ever loosed')
 })
+
+// ---- A FLURRY IS FOUR BLOWS, SO IT IS FOUR SWINGS ----
+//
+// A quick-dagger gambit rolls four and a horn-bow three, and the arm made
+// ONE movement for either: four marks landed on a target over a citizen who
+// had swung once.
+test('a flurry swings as many times as it has blows', () => {
+  const i = win.indexOf('const blows9 =')
+  assert.ok(i > 0, 'the arm does not count the blows again')
+  const seg = win.slice(i, i + 420)
+  assert.ok(/GAMBIT_BLOWS/.test(seg),
+    'the count must be the engine’s own, the same one the arrows are drawn by')
+  assert.ok(/% 1/.test(seg), 'the interval must be divided by the blows, or it is still one swing')
+  // and the bow counts the same way
+  const b = win.indexOf('const nShot8 =')
+  assert.ok(b > 0, 'a flurry of arrows is still one draw')
+  assert.ok(/GAMBIT_BLOWS/.test(win.slice(b, b + 260)), 'and off the same count')
+})
+
+// ---- AND NOBODY HOLDS A WEAPON BY ITS HEAD ----
+//
+// Every weapon in the one drawing grips at the origin and reaches DOWN the
+// +y axis. The mell alone put its head at -6, above the hand, with the haft
+// sticking out past it. Worn at the hip, rotated, that read as a maul on a
+// belt and nobody looked twice; in the fist it is a man holding the heavy
+// end. This runs the drawing and asks where the weight ended up.
+test('a weapon reaches away from the hand, not back through it', async () => {
+  const a = win.indexOf('function heldWeapon (cx, it, F, now) {')
+  const fn = win.slice(a, win.indexOf('\n}\n', a) + 2)
+  const r = win.indexOf('const RANGED_ITEMS = new Set([')
+  const ranged = win.slice(r, win.indexOf('])', r) + 2)
+  const ph = win.indexOf('const poly9 = ')
+  const poly9 = win.slice(ph, win.indexOf('\n', win.indexOf('cx.fill()', ph)))
+  const draw = new Function(ranged + '\n' + poly9 + '\n' + fn + '\nreturn heldWeapon')()
+
+  // a context that remembers where it was asked to paint
+  const spans = (it) => {
+    const ys = []
+    const cx = new Proxy({}, {
+      get: (t, k) => {
+        if (k === 'fillRect') return (x, y, w, h) => ys.push(y, y + h)
+        if (k === 'arc') return (x, y) => ys.push(y)
+        if (k === 'ellipse') return (x, y) => ys.push(y)
+        if (k === 'moveTo' || k === 'lineTo') return (x, y) => ys.push(y)
+        return () => {}
+      },
+      set: () => true,
+    })
+    draw(cx, it, 1, 1000)
+    return ys
+  }
+
+  // a stave is gripped in the middle and a bow across its belly, so those are
+  // not held by one end at all. Everything else hangs from the hand.
+  const twoEnded = (it) => /staff$|^wand$|^handgonne$|bow$|crossbow$/.test(it)
+  // The drawing is the CARRY orientation. A weapon whose weight sits above
+  // the grip is one that is carried over the shoulder, and the fight pose
+  // must then TURN it: a spear stands upright on a road and leads with its
+  // point in a fight, and that is one spear held two ways, not two spears.
+  const fi = win.indexOf("} else if (o.anim === 'fight') {")
+  const fight = win.slice(fi, win.indexOf('\n  }', fi))
+  const turned = (it) => {
+    const m = /if \((\/[^/]+\/)\.test\(o\.wepItem\)\) \{ cx\.rotate\(Math\.PI\)/.exec(fight)
+    if (!m) return false
+    // eslint-disable-next-line no-new-func
+    return new Function('it', 'return (' + m[1] + ').test(it)')(it)
+  }
+  const wrong = []
+  for (const it of Object.keys(E.WEAPONS)) {
+    if (twoEnded(it)) continue
+    const ys = spans(it)
+    if (!ys.length) continue
+    const below = Math.max(...ys), above = -Math.min(...ys)
+    if (above > below && !turned(it)) {
+      wrong.push(it + ' (reaches ' + above.toFixed(1) + ' back and ' + below.toFixed(1)
+        + ' forward, and the fight pose does not turn it)')
+    }
+  }
+  assert.deepEqual(wrong, [], 'held by the wrong end: ' + wrong.join(', '))
+})
