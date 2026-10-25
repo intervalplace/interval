@@ -10042,7 +10042,23 @@ function drawCitizen(X, Y, o) {
   cx.rotate(F * (WORK ? workSwing
     : o.anim === 'gather' ? -0.6 + swing * 0.9
     : (o.anim === 'fight' && !o.shooting) ? -0.3 + swing * 1.1 : 0.15))
-  cx.fillStyle = skin; cx.fillRect(-1.5, 0, 3, 9)
+  // §7f: AN ARM, SO THE WEAPON IS HELD RATHER THAN FLOATING.
+  //
+  // This was three pixels of skin, nine long, hanging against a tunic of
+  // roughly its own darkness. At the size a citizen is actually drawn it
+  // could not be seen, so the weapon below it read as a stick floating in
+  // front of a man standing with his arms down: the swing was working and
+  // there was nothing to connect it to.
+  //
+  // A sleeve in the tunic's own dark, then a hand at the end of it, and the
+  // weapon starts where the hand is. Three shapes instead of one, and the
+  // eye follows shoulder to hand to haft.
+  cx.fillStyle = tunicDk
+  cx.fillRect(-2.1, -1, 4.2, 7)                       // the sleeve, off the shoulder
+  cx.fillStyle = tunic
+  cx.fillRect(-2.1, -1, 4.2, 1.4)                     // its lit edge
+  cx.fillStyle = skin
+  cx.beginPath(); cx.arc(0, 7.4, 2.3, 0, 7); cx.fill()   // the hand, where the haft begins
   const metal = o.starSword && o.anim === 'fight' ? '#8ce0ff' : o.ironTool ? '#c9862a' : '#8a8a82'
   if (o.anim === 'gather' && o.tool === 'rod') { // fishing rod: long, thin, line down
     cx.rotate(F * -0.5)
@@ -10088,47 +10104,51 @@ function drawCitizen(X, Y, o) {
     const it9 = o.wepItem || ''
     const lit9 = o.sword ? '#c9862a' : o.starSword ? '#8ce0ff' : '#b8b8b0'
     const haft9 = '#5c4023'
+    // Everything here hangs from the HAND, which is at 7.4, and stops well
+    // before the ground. The first cut reused the old sword's reach of
+    // twenty-two, which on a thin blade reads as a blade and on a maul put
+    // a block of iron flat on the floor beside the citizen's boots.
     if (/-mell$/.test(it9)) {                       // a maul: short haft, heavy head
-      cx.fillStyle = haft9; cx.fillRect(-1, 8, 2, 11)
+      cx.fillStyle = haft9; cx.fillRect(-1, 7, 2, 8)
       cx.fillStyle = it9.startsWith('great') ? '#3a3630' : lit9
-      cx.fillRect(-4.5, 17, 9, 6)
-      cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(-4.5, 17, 9, 1.6)
+      cx.fillRect(-4.2, 14, 8.4, 5.4)
+      cx.fillStyle = 'rgba(255,255,255,.14)'; cx.fillRect(-4.2, 14, 8.4, 1.5)
     } else if (/-spear$|^bone-spear$/.test(it9)) {   // a long shaft, and the point beyond the hand
-      cx.fillStyle = haft9; cx.fillRect(-0.9, -4, 1.8, 24)
+      cx.fillStyle = haft9; cx.fillRect(-0.9, -5, 1.8, 23)
       cx.fillStyle = it9 === 'bone-spear' ? '#e8e4d0' : lit9
-      cx.beginPath(); cx.moveTo(0, -11); cx.lineTo(2.4, -3); cx.lineTo(-2.4, -3); cx.closePath(); cx.fill()
+      cx.beginPath(); cx.moveTo(0, -12); cx.lineTo(2.4, -4); cx.lineTo(-2.4, -4); cx.closePath(); cx.fill()
     } else if (/-hatchet$|-pickaxe$/.test(it9)) {    // a head on a helve
-      cx.fillStyle = haft9; cx.fillRect(-1, 8, 2, 12)
+      cx.fillStyle = haft9; cx.fillRect(-1, 7, 2, 10)
       cx.fillStyle = lit9
       if (/-pickaxe$/.test(it9)) {
         cx.strokeStyle = lit9; cx.lineWidth = 2.6
-        cx.beginPath(); cx.arc(0, 18, 5, -0.7, 0.7); cx.stroke()
-      } else cx.fillRect(1, 15, 5.5, 4.5)
+        cx.beginPath(); cx.arc(0, 15, 4.6, -0.7, 0.7); cx.stroke()
+      } else cx.fillRect(1, 12.5, 5.2, 4.2)
     } else if (/-flail$|^old-chain$/.test(it9)) {    // a haft, a length of chain, a weight
-      cx.fillStyle = haft9; cx.fillRect(-1, 8, 2, 8)
+      cx.fillStyle = haft9; cx.fillRect(-1, 7, 2, 7)
       cx.strokeStyle = '#8a8a92'; cx.lineWidth = 1.1
       const sw9 = Math.sin(o.now / 140) * 2.6
-      cx.beginPath(); cx.moveTo(0, 16); cx.quadraticCurveTo(sw9, 20, sw9 * 1.6, 24); cx.stroke()
+      cx.beginPath(); cx.moveTo(0, 14); cx.quadraticCurveTo(sw9, 17, sw9 * 1.6, 20); cx.stroke()
       cx.fillStyle = it9 === 'quick-flail' ? '#8ce0ff' : '#6e6e76'
-      cx.beginPath(); cx.arc(sw9 * 1.6, 25.6, 2.6, 0, 7); cx.fill()
+      cx.beginPath(); cx.arc(sw9 * 1.6, 21.4, 2.5, 0, 7); cx.fill()
     } else if (/staff$|^wand$/.test(it9)) {          // a stave, and whatever is bound to its head
       cx.fillStyle = it9 === 'heartwood-staff' ? '#b08a3e' : haft9
       cx.fillRect(-0.9, -5, 1.8, 25)
       cx.fillStyle = it9 === 'goo-staff' ? '#7dbb45' : '#8ce0ff'
       cx.beginPath(); cx.arc(0, -7, 2.4, 0, 7); cx.fill()
     } else if (it9 === 'fire-siphon') {              // a tube, and the flame at its mouth
-      cx.fillStyle = '#4a4036'; cx.fillRect(-1.6, 4, 3.2, 14)
-      cx.fillStyle = '#8a939d'; cx.fillRect(-2.2, 16, 4.4, 3)
+      cx.fillStyle = '#4a4036'; cx.fillRect(-1.6, 5, 3.2, 10)
+      cx.fillStyle = '#8a939d'; cx.fillRect(-2.2, 14, 4.4, 2.6)
       const fl9 = 0.6 + Math.sin(o.now / 110) * 0.4
       cx.fillStyle = 'rgba(255,' + Math.round(130 + 70 * fl9) + ',40,' + (0.55 + 0.35 * fl9).toFixed(2) + ')'
-      cx.beginPath(); cx.ellipse(0, 21, 2.4, 4 + fl9 * 2, 0, 0, 7); cx.fill()
+      cx.beginPath(); cx.ellipse(0, 18.4, 2.3, 3.4 + fl9 * 1.8, 0, 0, 7); cx.fill()
     } else if (RANGED_ITEMS.has(it9)) {
       // a bow or a gun is held, not swung: the stance above has it, and an
       // arm waving a second weapon under it is how the archer came to be
       // carrying a sword as well
     } else {                                         // a blade, which is what it always drew
-      cx.fillStyle = lit9; cx.fillRect(-1, 8, 2, o.sword ? 14 : 12)
-      cx.fillStyle = haft9; cx.fillRect(-3, 8, 6, 2)
+      cx.fillStyle = haft9; cx.fillRect(-2.6, 7, 5.2, 1.8)        // the guard, at the hand
+      cx.fillStyle = lit9; cx.fillRect(-1, 8.6, 2, o.sword ? 12 : 10)
     }
   }
   cx.restore()

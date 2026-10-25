@@ -678,6 +678,25 @@ test('a fight is fought with the weapon in hand, not with a sword every time', (
   // and a bow is not swung at all: the archer's stance already holds it
   assert.ok(body.includes('RANGED_ITEMS'),
     'an archer swings a second weapon under their bow unless the pose knows better')
+
+  // AND THERE IS AN ARM TO HOLD IT WITH. The arm was three pixels of skin
+  // against a tunic of its own darkness, invisible at the size a citizen is
+  // drawn, so the weapon read as a stick floating in front of a man standing
+  // with his arms down: the swing worked and nothing connected it to him.
+  const arm = win.indexOf('AN ARM, SO THE WEAPON IS HELD')
+  assert.ok(arm > 0, 'the arm is back to being a bare sliver of skin')
+  const limb = win.slice(arm, arm + 1400)
+  assert.ok(/tunicDk/.test(limb), 'the sleeve must read against the body, so it is the tunic\u2019s own dark')
+  assert.ok(/arc\(0, 7\.4/.test(limb), 'there must be a hand where the weapon begins')
+
+  // nothing a citizen swings may reach past their own feet, which stand at 35
+  // measured from the figure's top. The arm hangs from 18, so anything longer
+  // than seventeen from the shoulder is lying on the ground beside them.
+  const reaches = [...body.matchAll(/fillRect\(-?[\d.]+, ([\d.]+), [\d.]+, ([\d.]+)\)/g)]
+    .map((m) => +m[1] + +m[2])
+  const tooLong = reaches.filter((r) => r > 21)
+  assert.deepEqual(tooLong, [],
+    'a weapon reaching ' + tooLong.join(', ') + ' from the shoulder ends up on the floor')
 })
 
 // ---- `prowess` IS A SKILL, AND THE WORLD NEVER PUTS IT IN `action.type` ----
