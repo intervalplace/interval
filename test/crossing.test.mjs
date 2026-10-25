@@ -194,3 +194,147 @@ test('a citizen whose only asset is money still crosses', () => {
   assert.equal(carry(players).length, 0,
     'and with no founding to read the purse from, gold is ignored exactly as before')
 })
+
+// ---- §9b-iv: AND THE RACES THEY WON ----
+//
+// The nine races are the nine entries in a world's honours roll that name a
+// citizen who climbed a skill to mastery before anybody else alive. The roll
+// died with the world, and `master:<skill>` fires only on CROSSING mastery,
+// so after a refounding: the person who actually ran the race lost their
+// name, and the next citizen to cross in the new world was announced as the
+// FIRST EVER to do a thing somebody standing beside them had already done.
+//
+// Measured before the fix, in exactly these two steps, and both were true.
+//
+// A refounding is not a new world. It is this one continuing on new ground,
+// which the successor's genesis says in its own identity, and a change of
+// island must not take a name off a board.
+
+// Someone who crossed mastery the hard way, in a world about to stop.
+function aRaceWon(skill = 'woodcraft') {
+  const g = E.makeGenesis('race-test', RULES, 0, 40, 30)
+  const s = E.newWorld(g)
+  const won = E.generateIdentity()
+  E.addPlayer(s, won.playerId, 5, 5)
+  const p = s.players[won.playerId]
+  p.skills[skill] = E.XP_TABLE[E.MASTERY]
+  p.calling = 'forester'
+  p.name = 'alder'
+  s.names.alder = won.playerId
+  // what the engine writes when the race is claimed, which `claimFirst` and
+  // the mastery block do together
+  p.firstToMaster = [skill]
+  s.firsts = { ['master:' + skill]: won.playerId }
+  return { g, s, won, p }
+}
+
+test('a race crosses with the citizen who won it', () => {
+  const { s, won } = aRaceWon()
+  const out = carry(s.players)[0]
+  assert.deepEqual(out.firstToMaster, ['woodcraft'],
+    'the one honour that is about the climb rather than about the island')
+  assert.equal(E.validateImports([out]), null)
+})
+
+test('and the successor world seats it back onto its own roll', () => {
+  const { s } = aRaceWon()
+  const g2 = E.makeGenesis('race-successor', RULES, 0, 40, 30)
+  g2.imported = carry(s.players)
+  const s2 = E.newWorld(g2)
+  for (const c of g2.imported) assert.ok(E.seatImport(s2, c, 5, 5))
+  assert.equal((s2.firsts ?? {})['master:woodcraft'], g2.imported[0].pid,
+    'the new world knows who was first, because the person who was is standing in it')
+  assert.deepEqual(s2.players[g2.imported[0].pid].firstToMaster, ['woodcraft'])
+  assert.equal(E.validateState(s2), null)
+})
+
+test('and nobody in the new world can be announced as first after them', () => {
+  // the whole point: the title is not re-won by whoever next crosses
+  const { s } = aRaceWon()
+  const g2 = E.makeGenesis('race-successor-2', RULES, 0, 40, 30)
+  g2.imported = carry(s.players)
+  const s2 = E.newWorld(g2)
+  for (const c of g2.imported) E.seatImport(s2, c, 5, 5)
+  const latecomer = E.generateIdentity()
+  E.addPlayer(s2, latecomer.playerId, 9, 5)
+  assert.equal((s2.firsts ?? {})['master:woodcraft'], g2.imported[0].pid,
+    'still the citizen who ran it, whoever else arrives')
+})
+
+test('a race has one winner, and a founding that says otherwise is refused', () => {
+  const a = aRaceWon(), b = aRaceWon()
+  const twice = [carry(a.s.players)[0], carry(b.s.players)[0]]
+  twice[1].pid = 'c'.repeat(64)      // two different citizens, one race
+  twice[1].name = 'brann'
+  assert.equal(E.validateImports(twice), 'two imports claim the same race',
+    'a tie is not broken quietly at seating time; the founding is refused')
+})
+
+test('and a claimed race must be a mastered one', () => {
+  const { s } = aRaceWon()
+  const out = carry(s.players)[0]
+  out.skills = { ...out.skills, woodcraft: E.XP_TABLE[E.MASTERY] - 1 }
+  assert.equal(E.validateImports([out]), 'import claims a race it has not mastered',
+    'an import that won a race it never finished describes somebody who never existed')
+})
+
+test('the citizen’s copy and the world’s roll must agree', () => {
+  const { s, won } = aRaceWon()
+  // a state where the roll names somebody else
+  s.firsts = { 'master:woodcraft': 'd'.repeat(64) }
+  assert.equal(E.validateState(s), 'firstToMaster disagrees with the honours roll',
+    'two answers to who was first is not a state this world will run')
+})
+
+test('the island’s own firsts stay behind', () => {
+  // `wilds` and `quickgear` are facts about a particular island and a
+  // particular forge. A refounding can move both, and a new island's Wilds
+  // really have never been walked.
+  const { s, won } = aRaceWon()
+  s.firsts.wilds = won.playerId
+  s.firsts.quickgear = won.playerId
+  const out = carry(s.players)[0]
+  assert.deepEqual(out.firstToMaster, ['woodcraft'])
+  assert.ok(!('firsts' in out), 'a crossing carries no honours roll of its own')
+})
+
+// AND THE ENGINE REALLY WRITES IT, through the deed rather than beside it.
+//
+// Every test above seats `firstToMaster` by hand, which proves the crossing
+// carries it and proves nothing about whether anybody is ever given one. The
+// mark is written in the mastery block, which runs on the pre-write snapshot
+// `ownPlayer` takes, so it can only be reached by a citizen who gains the
+// experience INSIDE a tick. Burying bones is the cheapest such deed: it needs
+// one item and no geography.
+test('crossing mastery in play writes the mark on the citizen', async () => {
+  await E.initCrypto?.()
+  const g = E.makeGenesis('race-live', RULES, 0, 40, 30)
+  const wid = E.worldId(g)
+  let s = E.newWorld(g)
+  const first = await E.generateIdentity()
+  const second = await E.generateIdentity()
+  for (const [who, nm, x] of [[first, 'alder', 5], [second, 'brann', 7]]) {
+    E.addPlayer(s, who.playerId, x, 5)
+    const p = s.players[who.playerId]
+    p.name = nm; s.names[nm] = who.playerId
+    p.calling = 'mourner'
+    p.skills.mourning = E.XP_TABLE[E.MASTERY] - 1    // one deed short
+    p.inventory[0] = { item: 'bones', qty: 1 }
+  }
+  const bury = (who) => E.signInput(
+    { worldId: wid, playerId: who.playerId, tick: s.tick, type: 'bury', slot: 0 }, who.privateKey)
+
+  s = E.nextState(s, [bury(first)])
+  for (let i = 0; i < 2; i++) s = E.nextState(s, [])
+  assert.equal(s.firsts['master:mourning'], first.playerId, 'the roll names who crossed')
+  assert.deepEqual(s.players[first.playerId].firstToMaster, ['mourning'],
+    'and so does the citizen, which is the copy that travels')
+  assert.equal(E.validateState(s), null)
+
+  s = E.nextState(s, [bury(second)])
+  for (let i = 0; i < 2; i++) s = E.nextState(s, [])
+  assert.equal(s.firsts['master:mourning'], first.playerId, 'a first is claimed once')
+  assert.equal(s.players[second.playerId].firstToMaster, undefined,
+    'the second to master a skill was not the first to master it')
+  assert.equal(E.validateState(s), null)
+})

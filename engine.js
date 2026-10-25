@@ -8495,7 +8495,9 @@ function validateGenesis(g) {
 // is continuing a life rather than editing one. Position, health and the ground
 // are the new world's business and are deliberately absent.
 const IMPORT_FIELDS = new Set(['pid', 'skills', 'name', 'health', 'vaults', 'inventory', 'weapon', 'calling',
-  'gold', 'deaths', 'raised', 'chartered', 'sworn_by', 'walked', 'sworn', 'stood', 'friends', 'known']);
+  'gold', 'deaths', 'raised', 'chartered', 'sworn_by', 'walked', 'sworn', 'stood', 'friends', 'known',
+  // §9b-iv: the races this citizen won. See the note beside `claimFirst`.
+  'firstToMaster']);
 // §9b-iii: AND THE PROJECTION ITSELF, WHICH USED TO LIVE IN `crossing.mjs`.
 //
 // There are now TWO doors a citizen can come through from a world that
@@ -8549,11 +8551,30 @@ function carriedFrom(pid, p) {
   put('walked', Array.isArray(p.walked) && p.walked.length ? [...p.walked].sort() : undefined);
   put('friends', Array.isArray(p.friends) && p.friends.length ? [...p.friends] : undefined);
   put('known', Array.isArray(p.known) && p.known.length ? [...p.known].sort() : undefined);
+  // §9b-iv: AND THE RACES THEY WON, which is the one honour that crosses.
+  //
+  // `began` deliberately does not cross: a clock that started in a world which
+  // no longer exists is not a clock, and the records are per-world for that
+  // reason. A FIRST is not a clock. It is the fact that this person, before
+  // anybody else alive, climbed a skill to the top, and that happened whatever
+  // ground they are standing on now.
+  //
+  // The world's other firsts stay behind on purpose. The first into the Wilds
+  // and the first to bear quick-forged gear are facts about an island and a
+  // forge, and a refounding can move both; a new island's Wilds really have
+  // never been walked. Only the nine races are about the climb.
+  put('firstToMaster', Array.isArray(p.firstToMaster) && p.firstToMaster.length
+    ? [...p.firstToMaster].sort() : undefined);
   return out;
 }
 
 function validateImports(imported) {
   if (!Array.isArray(imported) || imported.length > MAX_ENTITIES) return 'bad imports';
+  // §9b-iv: a race has ONE winner, and the founding is where that is settled.
+  // Two carried citizens both claiming the first woodcraft is not a tie to be
+  // broken quietly at seating time; it is a founding that contradicts itself,
+  // and the only safe answer is to refuse it where it can still be fixed.
+  const raced = new Set();
   const pids = new Set(), names = new Set();
   for (const imp of imported) {
     if (!imp || typeof imp !== 'object') return 'malformed import';
@@ -8629,6 +8650,23 @@ function validateImports(imported) {
         if (typeof c !== 'string' || !/^[a-z-]{1,24}$/.test(c)) return 'import carries a malformed country';
         if (c <= last) return 'import travels out of order or repeated';
         last = c;
+      }
+    }
+    // §9b-iv: AND THE RACES THEY WON. Checked against the skills in this same
+    // import rather than taken on trust: a citizen who crossed holding the
+    // first woodcraft is carrying woodcraft at mastery, by construction, and
+    // an import that says otherwise is describing somebody who never existed.
+    if (imp.firstToMaster !== undefined) {
+      const fm = imp.firstToMaster;
+      if (!Array.isArray(fm) || fm.length > SKILLS.length) return 'import carries a malformed race list';
+      let prev = '';
+      for (const sk of fm) {
+        if (!SKILLS.includes(sk)) return 'import claims a race in a skill that does not exist';
+        if (!(prev < sk)) return 'import races must be sorted and distinct';
+        prev = sk;
+        if ((imp.skills?.[sk] ?? 0) < XP_TABLE[MASTERY]) return 'import claims a race it has not mastered';
+        if (raced.has(sk)) return 'two imports claim the same race';
+        raced.add(sk);
       }
     }
     for (const [key, cap, sorted] of [['friends', FRIEND_CAP, false], ['known', KNOWN_CAP, true]]) {
@@ -8946,7 +8984,11 @@ const LANDMARK_KINDS = new Set([
     // went and got help
     'began', 'aided', 'bands', 'barrowed', 'torchUntil',
     // §7dm: the hardest rung ever worked, per skill
-    'top']);
+    'top',
+    // §9b-iv: the skills this citizen was the FIRST in the world ever to
+    // master. The world's own copy is `s.firsts`; this is the citizen's, and
+    // it is the one that crosses a refounding.
+    'firstToMaster']);
   const isId = (v) => typeof v === 'string' && /^[a-z0-9_-]{1,96}$/i.test(v);
 
   // Relational rule (rev5 §5), decided explicitly: NO stale references are
@@ -9311,6 +9353,23 @@ const LANDMARK_KINDS = new Set([
           || Object.keys(v).sort().join(',') !== 'aided,took') return 'a malformed band';
         if (!isInt(v.took, 0, MAX_TIME)) return 'a band out of bounds';
         if (typeof v.aided !== 'boolean') return 'a band must say whether it was aided';
+      }
+    }
+    // §9b-iv: `firstToMaster` -- the skills this citizen was the first in this
+    // world ever to master. Sorted and distinct so that two nodes encode it
+    // identically, and HELD TO THE INDEX: the world's `firsts` is what
+    // `claimFirst` tests, so a citizen's copy that disagreed with it would put
+    // two different answers to "who was first" in the same state.
+    if (p.firstToMaster !== undefined) {
+      const fm = p.firstToMaster;
+      if (!Array.isArray(fm) || fm.length > SKILLS.length) return 'firstToMaster must be a list of skills';
+      let prev = '';
+      for (const sk of fm) {
+        if (!SKILLS.includes(sk)) return 'firstToMaster names a skill that does not exist';
+        if (!(prev < sk)) return 'firstToMaster must be sorted and distinct';
+        prev = sk;
+        if ((p.skills?.[sk] ?? 0) < XP_TABLE[MASTERY]) return 'firstToMaster names a skill not mastered';
+        if ((state.firsts ?? {})['master:' + sk] !== pid) return 'firstToMaster disagrees with the honours roll';
       }
     }
     // §5k: a sworn calling must be one that exists AND one this citizen could
@@ -10047,6 +10106,22 @@ function seatImport(state, c, x, y) {
   if (c.walked?.length) p.walked = [...c.walked];
   if (c.friends?.length) p.friends = [...c.friends];
   if (c.known?.length) p.known = [...c.known];
+  // §9b-iv: AND THE RACES THEY WON, seated into the world's own honours roll
+  // so that one state holds one answer to "who was first".
+  //
+  // ONLY WHAT CAN STILL BE CLAIMED. At a founding everybody is seated at once
+  // and `validateImports` has already refused two claims on one race, so this
+  // takes everything. The other door is `restore`, months later, and by then a
+  // citizen who climbed the whole way HERE may hold it. A first is claimed
+  // once in a world and never taken off anybody, so the one who ran it here
+  // keeps it and the returning citizen comes home without that title. Their
+  // own copy is trimmed to match, because a citizen's record that disagreed
+  // with the roll is two answers to the same question.
+  if (c.firstToMaster?.length) {
+    const kept = [];
+    for (const sk of c.firstToMaster) if (claimFirst(state, 'master:' + sk, c.pid)) kept.push(sk);
+    if (kept.length) p.firstToMaster = kept.sort();
+  }
   return true;
 }
 
@@ -18236,7 +18311,24 @@ function nextState(state, inputs, _legacyBeacon) {
       if (_p.skills[_sk] >= _M && !_pre.has(_sk)) {
         _newMastery = true;
         recordBand(s, _p, _pid, _sk);
-        if (claimFirst(s, 'master:' + _sk, _pid)) announce(s, _nm + ' is the FIRST citizen ever to master ' + _sk + '.');
+        if (claimFirst(s, 'master:' + _sk, _pid)) {
+          // §9b-iv: AND THE MARK GOES ON THE CITIZEN, not only in the index.
+          //
+          // `s.firsts` is the world's honours roll and dies with the world.
+          // A refounding is not a new world: it is this one continuing on new
+          // ground, which `genesis.from` says in the successor's own identity.
+          // With the mark only in the index, the person who actually ran the
+          // race lost their name at every refounding, and the next citizen to
+          // cross in the new world was announced as the first ever to do a
+          // thing somebody standing beside them had already done.
+          //
+          // So it is written where a crossing can carry it. The index stays,
+          // because it is what answers "who holds this" in one lookup and what
+          // `claimFirst` tests; the citizen's copy is what travels.
+          if (!_p.firstToMaster) _p.firstToMaster = [];
+          if (!_p.firstToMaster.includes(_sk)) { _p.firstToMaster.push(_sk); _p.firstToMaster.sort(); }
+          announce(s, _nm + ' is the FIRST citizen ever to master ' + _sk + '.');
+        }
         else announce(s, _nm + ' has mastered ' + _sk + '.');
       }
     }

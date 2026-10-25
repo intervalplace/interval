@@ -17375,6 +17375,51 @@ keeps the claim and cannot be edited; the state keeps the record of
 who has used it. Without this, a citizen could come home, go absent
 long enough to be archived, and come home again on the same file.
 
+## 9b-iv. And The Races They Won
+
+> **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js` by hand. Amends §9b.
+
+---------- 9b-iv: AND THE RACES THEY WON ----------
+
+A world keeps an honours roll (`firsts`) of things that happened in it for
+the first time, and the nine races are the nine entries in it that name a
+citizen who climbed a skill to mastery before anybody else alive.
+
+The roll dies with the world, and that was right for every entry in it but
+these nine. A refounding is not a new world: it is this one continuing on new
+ground, and the successor's genesis says so in its own identity
+(`genesis.from`). With the mark held only in the roll, the person who
+actually ran the race lost their name at every refounding, and the next
+citizen to cross in the new world was announced as the first ever to do a
+thing somebody standing beside them had already done.
+
+So the mark is written on the CITIZEN as well, as `firstToMaster`, and that
+is what crosses. A crossing carries it (`carriedFrom`), the founding seats it
+back into the new world's roll (`seatImport`), and the two must agree:
+`validateState` refuses a state in which a citizen's copy and the roll give
+different answers to who was first.
+
+THE WORLD'S OTHER FIRSTS STAY BEHIND, on purpose. The first into the Wilds
+and the first to bear quick-forged gear are facts about an island and a
+forge, and a refounding can move both; a new island's Wilds really have never
+been walked. Only the nine races are about the climb, and only the climb
+belongs to the person who made it.
+
+A RACE HAS ONE WINNER. Two carried citizens claiming the same race is a
+founding that contradicts itself, and `validateImports` refuses it where it
+can still be corrected. At the other door, a citizen restoring on their own
+months later, the race may already have been run and won HERE; a first is
+claimed once in a world and is never taken off anybody, so the one who ran it
+here keeps it and the returning citizen comes home without that title.
+
+A citizen who does not cross takes the title with them. The race reopens,
+because an honours roll that names people who are not here is naming ghosts.
+
+AND THE RECORDS ARE UNTOUCHED. `began` still does not cross: a clock that
+started in a world which no longer exists is not a clock. The race is the
+thing that can be won once; the record -- fastest from fifty to mastery -- is
+the thing that stays open for ever, and it is per-world for that reason.
+
 ## 21d-ii. Has To Be Re-read, Because It Is No Longer The Same
 
 > **DERIVED, NOT YET RATIFIED.** Drafted from `engine.js:15463` by `spec-stubs.mjs`. Amends §21d.

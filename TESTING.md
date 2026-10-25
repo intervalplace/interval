@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
-`4cbf903bee7dd6b5…`.
+`c9b666045635336a…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 574 tests across:
+`node --test test/*.test.mjs`, 582 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -60,9 +60,12 @@ possible executions.
   offered, or a liar could pair a world everybody would accept with the address
   of one they control.
 
-- `crossing.test.mjs`, §9b-ii: a crossing carries what happened. It used to
-  drop all money (gold is a number, so it fell through the vault's item
-  filter), the death tally, `raised`, lineage, travels and every name known.
+- `crossing.test.mjs`, §9b-ii and §9b-iv: a crossing carries what happened.
+  It used to drop all money (gold is a number, so it fell through the
+  vault's item filter), the death tally, `raised`, lineage, travels and
+  every name known. It also dropped the nine races, so the citizen who
+  climbed a skill to the top first lost their name at every refounding and
+  the next one to cross in the new world was announced in their place.
 - `calling.test.mjs`, §5r-iv: a calling asks for travel as well as practice.
   Level fifty arrives in under two hours, so without the second half a
   citizen could swear their one lifelong trade from one rock.

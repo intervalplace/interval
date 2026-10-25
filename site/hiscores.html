@@ -720,12 +720,19 @@ async function loadRaces() {
     let html = '<table><tr><th>Skill</th><th>Standing</th><th>Closest</th></tr>'
     for (const x of ordered) {
       if (x.settled) {
+        // A race the winner carried across a refounding is still won, and by
+        // the person who ran it. Saying where they ran it is the whole point:
+        // the island may be new, the climb was not.
         html += '<tr><td>' + skMark(x.skill) + x.skill + '</td>'
           + '<td style="color:#ffcc33;font-weight:bold">mastered</td>'
-          + '<td><b style="color:var(--gold)">' + x.name + '</b> was first</td></tr>'
+          + '<td><b style="color:var(--gold)">' + x.name + '</b> was first'
+          + (x.carriedIn ? '<span style="color:var(--dim)">, and carried it here</span>' : '')
+          + '</td></tr>'
       } else if (x.carried) {
-        // somebody arrived already at mastery, so this race was never run
-        // here: see the note in serve.mjs /api/races
+        // A world founded before the race travelled with its winner: somebody
+        // stands at mastery and the roll names nobody. Nothing can fix that
+        // after the fact, so the board says which it is rather than showing an
+        // open race with a citizen at 100% in it.
         html += '<tr><td>' + skMark(x.skill) + x.skill + '</td>'
           + '<td style="color:var(--dim)">not run here</td>'
           + '<td><b style="color:var(--gold)">' + x.name + '</b> '

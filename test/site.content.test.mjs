@@ -349,13 +349,17 @@ test('the race board measures the climb against mastery, not against 99', () => 
 
 // ---- AND SOMEBODY CAN ARRIVE ALREADY HOLDING IT ----
 //
-// `master:<skill>` is claimed on CROSSING mastery, so a citizen carried into
-// a refounded world at a hundred arrives above the line and never crosses
-// it. Measured: a world founded with a master in it records nobody, for
-// ever. The world is right about that, since nobody did it there. The board
-// was not: it showed the race unclaimed with that citizen at 100% and
-// nothing to go, which reads as a race that broke.
-test('a world founded with a master in it leaves the first unclaimed', () => {
+// §9b-iv now carries the race itself: a citizen who won one brings
+// `firstToMaster` with them and the founding seats it back onto the new
+// world's roll, so the usual case is a settled race with a name on it.
+//
+// This is the OTHER case, and it does not go away. An import that carries no
+// race, because it was written before §9b-iv or because its citizen never won
+// one, still arrives at mastery without crossing it, and the roll still names
+// nobody. The world is right about that: nobody did it there. The board was
+// not, and showed the race unclaimed with that citizen at 100% and nothing to
+// go, which reads as a race that broke.
+test('a master carried in without their race leaves the first unclaimed', () => {
   const xpAt = (lv) => { let x = 0; while (E.levelForXp(x) < lv) x++; return x }
   const g = E.makeGenesis('carried', 'a'.repeat(64), 0, 40, 30)
   g.imported = [{ pid: 'a'.repeat(64), name: 'alder', calling: 'forester',

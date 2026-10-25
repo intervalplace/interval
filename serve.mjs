@@ -1377,9 +1377,20 @@ const server = http.createServer((req, res) => {
       // race still running names whoever is closest and how far they have come.
       const firsts = node.state.firsts ?? {}
       const nameOf = (pid) => node.state.players[pid]?.name ?? pid.slice(0, 12) + '\u2026'
+      // §9b-iv: and whether the winner won it HERE or carried it in. The
+      // genesis is the only thing that knows, and it is the thing that cannot
+      // be edited: an import either listed that race at the founding or it did
+      // not, and the worldId commits to which.
+      const carriedIn = new Map()
+      for (const imp of node.state.genesis?.imported ?? [])
+        for (const sk of imp.firstToMaster ?? []) carriedIn.set(sk, imp.pid)
       const races = E.SKILLS.map((sk) => {
         const wonBy = firsts['master:' + sk]
-        if (wonBy) return { skill: sk, settled: true, name: nameOf(wonBy), playerId: wonBy }
+        if (wonBy) {
+          const row = { skill: sk, settled: true, name: nameOf(wonBy), playerId: wonBy }
+          if (carriedIn.get(sk) === wonBy) row.carriedIn = true
+          return row
+        }
         let bestPid = null, bestXp = -1
         for (const [pid, p] of Object.entries(node.state.players)) {
           const xp = p.skills[sk] ?? 0
