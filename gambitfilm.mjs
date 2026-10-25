@@ -145,6 +145,9 @@ for (const g of plan) {
   const page = OUT + '/page-' + g.item + '.html'
   writeFileSync(page, WIN.replace('<head>', '<head>' + BEFORE).replace('</body>', AFTER + '</body>'))
   const dom = execFileSync(CHROME, ['--headless', '--disable-gpu', '--dump-dom', '--hide-scrollbars',
+    // the view is a fixed number of TILES whatever the screen, so the scale
+    // factor buys sharpness and nothing else: the same fight, twice the pixels
+    '--force-device-scale-factor=2',
     '--virtual-time-budget=20000', '--window-size=1200,900', pathToFileURL(page).href],
     { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 })
   const title = (/<title>([^<]*)<\/title>/.exec(dom) || [, ''])[1]
@@ -211,3 +214,69 @@ ${films.map((f, k) => `<div class="f"><img data-k="${k}" src="${f.frames[0]}">
 `
 writeFileSync(OUT + '/gambits.html', html)
 console.log('\n' + films.length + ' gambits filmed -> ' + OUT + '/gambits.html')
+
+// ---- AND ONE MOVING PICTURE, WHICH NEEDS NOTHING TO RUN IT ----
+//
+// The player above cycles the frames in script, and the first thing it was
+// opened in did not run script: it stood there showing one still, which looks
+// exactly like a working picture of a broken animation. So the film is also
+// assembled as an APNG, which moves because it is an image rather than
+// because something ran.
+//
+// The seven are laid into one grid here rather than written as seven files,
+// because the whole question is how they differ from each other.
+const CELL_W = 470, CELL_H = 240, COLS = 2, PAD = 8, LABEL = 22
+const gw = COLS * CELL_W + (COLS + 1) * PAD
+const rows = Math.ceil(films.length / COLS)
+const gh = rows * (CELL_H + LABEL) + (rows + 1) * PAD
+const gridPage = OUT + '/grid.html'
+writeFileSync(gridPage, `<!doctype html><meta charset="utf-8"><title>grid</title>
+<canvas id="g" width="${gw}" height="${gh}"></canvas>
+<script>
+  const FILMS = ${JSON.stringify(films.map((f) => ({ item: f.item, kind: f.kind, blows: f.blows, frames: f.frames })))}
+  const g = document.getElementById('g').getContext('2d')
+  const load = (src) => new Promise((r) => { const im = new Image(); im.onload = () => r(im); im.src = src })
+  ;(async () => {
+    const imgs = []
+    for (const f of FILMS) imgs.push(await Promise.all(f.frames.map(load)))
+    const out = []
+    for (let fr = 0; fr < ${FRAMES}; fr++) {
+      g.fillStyle = '#141008'; g.fillRect(0, 0, ${gw}, ${gh})
+      FILMS.forEach((f, k) => {
+        const cx = ${PAD} + (k % ${COLS}) * (${CELL_W} + ${PAD})
+        const cy = ${PAD} + Math.floor(k / ${COLS}) * (${CELL_H} + ${LABEL} + ${PAD})
+        g.fillStyle = '#e2b63e'; g.font = 'bold 13px Verdana'; g.textAlign = 'left'
+        g.fillText(f.item.replace(/-/g, ' ') + '  \u00b7  ' + f.kind + ', ' + f.blows
+          + ' blow' + (f.blows === 1 ? '' : 's'), cx + 2, cy + 14)
+        g.drawImage(imgs[k][fr % imgs[k].length], cx, cy + ${LABEL}, ${CELL_W}, ${CELL_H})
+        g.strokeStyle = '#3d3220'; g.lineWidth = 1
+        g.strokeRect(cx + 0.5, cy + ${LABEL} + 0.5, ${CELL_W} - 1, ${CELL_H} - 1)
+      })
+      out.push(document.getElementById('g').toDataURL('image/png'))
+    }
+    const box = document.createElement('div'); box.id = 'grid'
+    box.textContent = out.join('|')
+    document.body.appendChild(box)
+    document.title = 'GRIDDONE ' + out.length
+  })()
+</script>`)
+const gdom = execFileSync(CHROME, ['--headless', '--disable-gpu', '--dump-dom', '--hide-scrollbars',
+  '--allow-file-access-from-files', '--virtual-time-budget=40000',
+  '--window-size=' + (gw + 40) + ',' + (gh + 40), pathToFileURL(gridPage).href],
+  { encoding: 'utf8', maxBuffer: 1024 * 1024 * 1024 })
+const gtitle = (/<title>([^<]*)<\/title>/.exec(gdom) || [, ''])[1]
+const gbox = /<div id="grid">([\s\S]*?)<\/div>/.exec(gdom)
+const gframes = gbox ? gbox[1].split('|').filter((u) => u.startsWith('data:image/png')) : []
+console.log('grid: ' + gtitle + ', ' + gframes.length + ' composed frames')
+if (gframes.length) {
+  const { apng, readBackCheck } = await import('./apng.mjs')
+  const buf = apng(gframes.map((u) => Buffer.from(u.split(',')[1], 'base64')),
+    { delayMs: STEP_MS, holdLast: 700 })
+  // read back before writing: a malformed APNG shows its first frame and
+  // stands there, which looks exactly like a working picture of a still
+  const why = readBackCheck(buf)
+  if (why) { console.error('the animation is malformed: ' + why); process.exit(1) }
+  writeFileSync(OUT + '/gambits.png', buf)
+  console.log('a moving picture of all seven -> ' + OUT + '/gambits.png  ('
+    + Math.round(buf.length / 1024) + ' KB)')
+}
