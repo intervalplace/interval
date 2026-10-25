@@ -945,3 +945,22 @@ test('a weapon reaches away from the hand, not back through it', async () => {
   }
   assert.deepEqual(wrong, [], 'held by the wrong end: ' + wrong.join(', '))
 })
+
+// ---- WHAT YOU ARE AIMING IS IN FRONT OF YOU ----
+//
+// The aiming stance was drawn before the body, so the tunic was painted over
+// it. A bow is a thin arc reaching past the citizen and survived that; a hand
+// cannon is a solid thing held across the chest, and all that showed was the
+// few pixels of barrel sticking out past his shoulder.
+test('a weapon being aimed is drawn in front of the body holding it', () => {
+  const aimed = win.indexOf('the weapon being AIMED, in front of the body')
+  assert.ok(aimed > 0, 'the aiming stance is gone or renamed')
+  const tunic = win.indexOf('// tunic (trapezoid, slight lean while working)')
+  assert.ok(tunic > 0, 'the body is gone or renamed')
+  assert.ok(aimed > tunic,
+    'the aimed weapon is painted before the body again, so the body covers it')
+
+  // and the head still goes over everything, which is what makes it a head
+  const head = win.indexOf('// head: skin, hair cap, eye toward facing')
+  assert.ok(head > aimed, 'the head must be drawn after the weapon, not behind it')
+})
