@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
-`c9b666045635336a…`.
+`efe1eb77afb231f9…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,14 +10,18 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 582 tests across:
+`node --test test/*.test.mjs`, 592 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
   following), which is precisely where the rest of the suite had no coverage
   and four such writes survived undetected.
 
-- `engine.test.mjs`, pure state-machine transitions
+- `engine.test.mjs`, pure state-machine transitions, and §5c-ii the table:
+  the switch (changing your side after the other has agreed), the
+  substitution (wielding an advertised slot in the settling tick), the
+  gift, walking away mid-trade, and that standing up clears your own side
+  and nobody else's
 - `proofweb.test.mjs`, §5g-ii: the browser's fold held against the engine's.
   A browser player cannot build their own proof, so the node serves it and
   the window checks the fold before keeping it. If that fold drifts the

@@ -60,8 +60,8 @@ makes this proposal cheap.
 
 ### Property by consent: trades. Lost must become DELAYED.
 
-`offer_trade` and `accept_trade` are the only deeds where goods change hands by
-agreement. The protection is not a longer deadline, it is **evidence**: an
+§5c-ii's table (`trade` and `settle`) is the only place where goods change
+hands by agreement. The protection is not a longer deadline, it is **evidence**: an
 accepted trade carries both parties' signatures, so either party can re-file it
 at a later interval. A missed deadline is then a delay and never a loss, and no
 rewind is required to honour it.
@@ -112,8 +112,8 @@ can simply make again. No property moves and nothing is destroyed.
    rather than required.
 2. The close rule, replacing the quorum's certificate as the thing that makes
    an interval final.
-3. Co-signed trades: `accept_trade` carries the offer and both signatures, and
-   is re-filable until it lands or the offer is withdrawn.
+3. Co-signed trades: the second `settle` carries the table and both
+   signatures, and is re-filable until it lands or one of them stands up.
 4. Divergence detection kept exactly as it is, and an input-exchange resync
    path to replace "refound" as the first answer to disagreement.
 5. Deterministic successor selection, which is wanted either way, because a

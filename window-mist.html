@@ -489,10 +489,11 @@ const TO_INPUT = (a) => {
   if (d === 'pickup') return { type: 'pickup', groundId: a.groundId, confirm: a.confirm === true }
   if (d === 'withdraw') return { type: 'withdraw', item: a.item, qty: a.qty ?? 1 }
   if (d === 'cast') return { type: 'cast', spell: a.spell ?? 'anchor' }
-  if (d === 'offer_trade') return { type: 'offer_trade', to: a.to,
-    giveSlots: [a.giveSlot | 0], wantItem: a.wantItem ?? null, wantGold: a.wantGold | 0 }
-  if (d === 'accept_trade') return { type: 'accept_trade', from: a.from }
-  if (d === 'cancel_trade') return { type: 'cancel_trade' }
+  // §5c-ii: one side of a table, replaced whole; and the two words that
+  // settle it or stand up from it
+  if (d === 'trade') return { type: 'trade', with: a.with, slots: a.slots || [], gold: a.gold | 0 }
+  if (d === 'settle') return { type: 'settle' }
+  if (d === 'untrade') return { type: 'untrade' }
   if (d === 'attackp') return { type: 'attackp', targetId: a.targetId }
   // §0: `drink` WAS MISSING, AND IT IS THE ONE VERB NOUGHT CANNOT DO WITHOUT.
   //
@@ -3098,8 +3099,8 @@ function sync () {
 //
 //     serve.mjs takes thirty-two: attend spawn move gather attack cook eat
 //     smith wield unwield buy recall drop pickup light bury plant harvest
-//     sell invoke cast fletch unequip deposit withdraw offer_trade
-//     accept_trade cancel_trade chat attackp name stop. All of them are here.
+//     sell invoke cast fletch unequip deposit withdraw trade settle
+//     untrade chat attackp name stop. All of them are here.
 //     None of them are invented: where this window offers a deed it sends the
 //     same message the flat window sends, and the pillar decides.
 // ============================================================================
@@ -3640,9 +3641,11 @@ function deedsFor (i, item) {
   if (counter) D('sell', { do: 'sell', slot: i })
   else notes.push('sell: needs a counter')
   if (anvil && FORGE[item]) D('work it at the anvil', { do: 'smith', recipe: item })
-  for (const { id, p } of folk) rows.push({ label: 'offer to ' + (p.name || 'stranger'), stay: 1,
-    act: () => openMenu(offerMenu(id, p, i, item)) })
-  if (!folk.length) notes.push('give: needs a neighbour')
+  // §5c-ii: a pack row opens the TABLE with that person. What goes on it
+  // is chosen there, because a side of a table is a list rather than one thing.
+  for (const { id, p } of folk) rows.push({ label: 'trade with ' + (p.name || 'stranger'), stay: 1,
+    act: () => openMenu(tableMenu(id, p)) })
+  if (!folk.length) notes.push('trade: needs a neighbour')
   D('drop', { do: 'drop', slot: i }, 'you set down the ' + nice(item) + '.')
   return { rows, notes }
 }
@@ -3917,38 +3920,75 @@ function selfMenu () {
   if (me && !me.name) rows.push({ label: 'claim a name', act: claimName })
   return { title: 'YOURSELF', rows, foot: me ? ('hp ' + me.hp + '/' + (me.maxHp ?? 10) + '  gold ' + (me.gold ?? 0)) : '' }
 }
-function offerMenu (toId, p, slot, item) {
-  let gold = 10
-  const rows = [
-    { label: 'ask gold: ' + gold, stay: 1, adjust: (d, row) => { gold = Math.max(0, gold + d * 5); row.label = 'ask gold: ' + gold },
-      act: () => { act({ do: 'offer_trade', to: toId, giveSlot: slot, wantGold: gold })
-        say('offered ' + nice(item) + ' to ' + (p.name || 'a stranger') + ' for ' + gold + 'g.') } },
-    { label: 'ask for an item\u2026', act: () => {
-        document.exitPointerLock && document.exitPointerLock()
-        const w = (prompt('what do you want for the ' + nice(item) + '?') || '').trim().toLowerCase()
-        if (!w) return
-        act({ do: 'offer_trade', to: toId, giveSlot: slot, wantItem: w })
-        say('offered ' + nice(item) + ' for ' + nice(w) + '.') } },
-    { label: 'give it away', act: () => { act({ do: 'offer_trade', to: toId, giveSlot: slot, wantGold: 0 })
-        say('offered as a gift.') } }
-  ]
-  return { title: 'OFFER, ' + (p.name || 'STRANGER').toUpperCase(), rows,
-           foot: 'left/right changes the price' }
-}
-function tradeMenu () {
-  const me = meNow()
+function tableMenu (toId, p) {
+  // §5c-ii: THE TABLE. Two citizens sit at it, each puts up what they like,
+  // each says yes, and any change clears both acceptances. What was here was a
+  // one-sided offer: you named one thing you gave and one thing you wanted,
+  // and the other side could only take it or not.
+  const me = meNow() || {}
+  const who = p.name || 'a stranger'
+  const mine = (me.trade && me.trade.with === toId) ? me.trade : null
+  const theirs = (p.trade && p.trade.with === myId) ? p.trade : null
   const rows = []
-  // anyone who has put an offer to you has it standing on their own record
-  for (const [id, p] of Object.entries((world && world.players) || {})) {
-    if (!p.trade || p.trade.to !== myId) continue
-    const gs = p.trade.giveSlots ?? (p.trade.giveSlot != null ? [p.trade.giveSlot] : [])
-    const giving = gs.map(sx => nice(((p.inventory || [])[sx] || {}).item || 'something')).join(', ')
-    const want = p.trade.wantItem ? nice(p.trade.wantItem) : (p.trade.wantGold ?? 0) + ' gold'
-    rows.push({ label: 'accept ' + (p.name || 'stranger') + ': ' + giving, hint: 'for ' + want,
-      act: () => { act({ do: 'accept_trade', from: id }); say('done.') } })
+  if (!mine) {
+    rows.push({ label: 'sit down with ' + who,
+      act: () => { act({ do: 'trade', with: toId, slots: [], gold: 0 })
+                   say('you sit down with ' + who + '.') } })
+    return { title: 'TRADE, ' + who.toUpperCase(), rows,
+             foot: theirs ? 'they are already at the table' : 'nothing moves until you both accept' }
   }
-  if (me && me.trade) rows.push({ label: 'withdraw your offer',
-    act: () => { act({ do: 'cancel_trade' }); say('you take the offer back.') } })
+  const up = (mine.slots || []).slice()
+  const put = (slots, gold) => act({ do: 'trade', with: toId,
+    slots: slots.slice().sort((x, y) => x - y), gold: gold | 0 })
+  ;(me.inventory || []).forEach((sl, i) => {
+    if (!sl) return
+    const on = up.indexOf(i) !== -1
+    rows.push({ label: (on ? 'take back ' : 'put up ') + nice(sl.item), stay: 1,
+      act: () => { put(on ? up.filter((x) => x !== i) : up.concat([i]), mine.gold || 0)
+                   say(on ? 'you take it back.' : 'you put it on the table.') } })
+  })
+  let coin = mine.gold || 0
+  rows.push({ label: 'put up coin: ' + coin, stay: 1,
+    adjust: (d, row) => { coin = Math.max(0, Math.min(me.gold || 0, coin + d * 5))
+                          row.label = 'put up coin: ' + coin },
+    act: () => { put(up, coin); say('you put ' + coin + ' coin up.') } })
+  if (theirs) {
+    const giving = (theirs.items || []).map((g) => nice(g.item)).join(', ')
+    rows.push({ label: who + ' gives: ' + (giving || 'nothing')
+      + ((theirs.gold || 0) ? (giving ? ' and ' : '') + theirs.gold + ' coin' : ''),
+      hint: theirs.settled ? 'accepted' : 'not accepted', dim: 1 })
+    rows.push(mine.settled
+      ? { label: 'you have accepted. Change your mind',
+          act: () => { put(up, mine.gold || 0); say('you take your acceptance back.') } }
+      : { label: 'accept this trade',
+          act: () => { act({ do: 'settle' }); say('you accept.') } })
+  } else {
+    rows.push({ label: '(waiting for ' + who + ' to sit down)', dim: 1 })
+  }
+  rows.push({ label: 'leave the table',
+    act: () => { act({ do: 'untrade' }); say('you stand up.') } })
+  return { title: 'TRADE, ' + who.toUpperCase(), rows,
+           foot: 'any change clears both acceptances' }
+}
+
+function tradeMenu () {
+  const rows = []
+  // §5c-ii: anybody sitting at a table with me, and the one I am at
+  for (const [id, p] of Object.entries((world && world.players) || {})) {
+    if (!p.trade || p.trade.with !== myId) continue
+    const giving = (p.trade.items || []).map((g) => nice(g.item)).join(', ')
+    rows.push({ label: (p.name || 'stranger') + ' is at the table: ' + (giving || 'nothing'),
+      hint: (p.trade.gold || 0) ? p.trade.gold + ' coin' : '', stay: 1,
+      act: () => openMenu(tableMenu(id, p)) })
+  }
+  {
+    const me0 = meNow()
+    const w = me0 && me0.trade && me0.trade.with
+    const p0 = w && world && world.players && world.players[w]
+    if (p0 && !rows.some((r) => r.label.indexOf(p0.name || 'stranger') === 0))
+      rows.push({ label: 'your table with ' + (p0.name || 'a stranger'), stay: 1,
+        act: () => openMenu(tableMenu(w, p0)) })
+  }
   const near = citizensNear()
   // §5m: a master may take an unsworn citizen on. Only offered where it can
   // happen: sworn, at MASTERY, with a slot free, and them not yet sworn.
@@ -3968,10 +4008,9 @@ function tradeMenu () {
                      say('you take them on.') } })
     }
   }
-  for (const { id, p } of near) rows.push({ label: 'offer something to ' + (p.name || 'stranger'), stay: 1,
-    act: () => openMenu({ title: 'GIVE WHAT?', rows: ((meNow() || {}).inventory || []).map((sl, i) => sl
-      ? { label: nice(sl.item), stay: 1, act: () => openMenu(offerMenu(id, p, i, sl.item)) } : null).filter(Boolean) }) })
-  if (!rows.length) rows.push({ label: '(nobody is trading with you)', dim: 1 })
+  for (const { id, p } of near) rows.push({ label: 'sit down with ' + (p.name || 'stranger'), stay: 1,
+    act: () => openMenu(tableMenu(id, p)) })
+  if (!rows.length) rows.push({ label: '(nobody is near enough to trade with)', dim: 1 })
   return { title: 'TRADE', rows }
 }
 
@@ -4700,10 +4739,10 @@ function drawHud (now) {
       if (c.length) { hx.textAlign = 'center'
         txt((c[0].p.name || 'STRANGER').toUpperCase() + '   [R] TRADE, RMB STRIKE', RW >> 1, 30, '#9ab0c8')
         hx.textAlign = 'left' } }
-    // anyone offering you a bargain says so without being asked
+    // anyone sitting down at a table with you says so without being asked
     for (const [, p] of Object.entries((world && world.players) || {}))
-      if (p.trade && p.trade.to === myId) { hx.textAlign = 'center'
-        txt('[R]  ' + (p.name || 'someone').toUpperCase() + ' OFFERS A TRADE', RW >> 1, 42, '#d8b13c', true)
+      if (p.trade && p.trade.with === myId) { hx.textAlign = 'center'
+        txt('[R]  ' + (p.name || 'someone').toUpperCase() + ' IS AT A TABLE WITH YOU', RW >> 1, 42, '#d8b13c', true)
         hx.textAlign = 'left'; break }
   }
   // ---- HITSPLATS. Projected by hand, because they belong to the world and

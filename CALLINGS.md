@@ -93,8 +93,8 @@ log rather than a claim.
 
 ```
 teach(to)               a master takes a citizen on. Consent is a signed input
-                        of its own, mirroring offer_trade: a master cannot be
-                        volunteered.
+                        of its own, the way a table needs both citizens sitting
+                        at it: a master cannot be volunteered.
 swear(calling, attester) the student may name a master whose apprenticeship is
                         live and who is standing here.
 part(who)               either party may end it. NOT `release`: the

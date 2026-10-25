@@ -155,12 +155,21 @@ report('every recipe tabulated in SPEC exists in RECIPES', badRecipes,
     'A recipe whose ingredients cannot be carried is uncraftable regardless of its ingredient list.')
 }
 
+const engineSrc = fs.readFileSync(path.resolve(here, 'engine.js'), 'utf8')
 // ---- 3. persisted trade shape ------------------------------------------
 // The single most divergence-prone structure: it is persisted, therefore
 // hashed, therefore consensus-critical. SPEC must name every field exactly.
-const TRADE_FIELDS = ['to', 'giveSlots', 'giveItems', 'wantItem', 'wantGold']
+// READ OFF THE ENGINE, not written down twice. This was a hand-kept list of
+// five field names, and when the one-sided offer became the table (§5c-ii) it
+// went on asserting that SPEC must name `giveSlots` -- a field the engine no
+// longer has -- which is the drift this check exists to catch, performed by
+// the check itself. `validTrade` states the shape in one line; that line is
+// the list.
+const TRADE_FIELDS = (engineSrc.match(/!== '([a-z,]+)'\) return 'malformed trade shape'/) ?? [, ''])[1]
+  .split(',').filter(Boolean)
+if (!TRADE_FIELDS.length) throw new Error('cannot find the persisted trade shape in engine.js')
 const missingTradeFields = TRADE_FIELDS
-  .filter(f => !spec.includes(f))
+  .filter(f => !spec.includes('`' + f + '`'))
   .map(f => `${f}: required by engine.js validateState, absent from SPEC.md`)
 report('every persisted trade field is named in SPEC', missingTradeFields,
   'A trade offer built to SPEC is rejected by the engine; the shapes must match exactly.')
@@ -177,7 +186,6 @@ for (const [label, values] of [
 // ---- 5. dangling internal citations ------------------------------------
 // engine.js cites SPEC sections by number. A citation pointing at an unrelated
 // section is how a rule loses its constitutional basis without anyone noticing.
-const engineSrc = fs.readFileSync(path.resolve(here, 'engine.js'), 'utf8')
 const cited = new Set()
 for (const m of engineSrc.matchAll(/§\s?(\d+[a-z]{0,3}(?:-[iv]+)?)\b/g)) {
   if (Number(m[1]) >= 1000) continue // a line number, not a section

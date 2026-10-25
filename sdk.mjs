@@ -111,10 +111,17 @@ export class IntervalClient {
     const a = Array.isArray(v) ? v.slice() : [v]
     return [...new Set(a)].sort((x, y) => x - y)
   }
-  offerTradeForItem(to, giveSlots, wantItem) { return this.#send({ type: 'offer_trade', to, giveSlots: this.#slots(giveSlots), wantItem, wantGold: 0 }) }
-  offerTradeForGold(to, giveSlots, wantGold) { return this.#send({ type: 'offer_trade', to, giveSlots: this.#slots(giveSlots), wantItem: null, wantGold }) }
-  acceptTrade(from) { return this.#send({ type: 'accept_trade', from }) }
-  cancelTrade() { return this.#send({ type: 'cancel_trade' }) }
+  // §5c-ii: THE TABLE. `trade` sits me down opposite somebody and says what is
+  // on my side of it, and saying it again replaces my side, so changing what
+  // is up is the same call. `settle` accepts the table as it stands, and both
+  // sides settled is the exchange. Any change clears both acceptances, so the
+  // switch -- change your side the instant the other has agreed -- cannot be
+  // performed, and a side with nothing on it is a gift.
+  trade(withWhom, slots = [], gold = 0) {
+    return this.#send({ type: 'trade', with: withWhom, slots: this.#slots(slots), gold })
+  }
+  settle() { return this.#send({ type: 'settle' }) }
+  untrade() { return this.#send({ type: 'untrade' }) }
   cook(slot) { return this.#send({ type: 'cook', slot }) }
   // §6as-iii: style is 'even' (the split), 'aim' (attack) or 'force' (strength)
   attack(mobId, style = 'even') { return this.#send({ type: 'attack', mobId, style }) }
@@ -203,12 +210,9 @@ export class IntervalClient {
   // The SDK could not do this at all: a script could buy from a keeper and
   // never from a person, in a world whose whole economy insists the only
   // sensible buyer is another citizen.
-  offer(to, giveSlots, { item = null, gold = 0 } = {}) {
-    return this.#send({ type: 'offer_trade', to, giveSlots, wantItem: item, wantGold: gold })
-  }
-  // §6dj: AND THE OTHER KIND OF OFFERING. `offer()` above is a bargain struck
-  // with a person; this is a thing given up at an ossuary, and it is the only
-  // thing in the world that pays `mourning`. The SDK had no word for it, so no
+  // §6dj: AND THE OTHER KIND OF OFFERING. A bargain struck with a person is
+  // `trade` and `settle` above; this is a thing given up at an ossuary, and it
+  // is the only thing in the world that pays `mourning`. The SDK had no word for it, so no
   // script and no window could mourn, and the skill sat at its floor forever.
   offerAtOssuary(slot) { return this.#send({ type: 'offer', slot }) }
   // §6dj: SWEARING TO A CALLING. The engine has had this since it had skills:
@@ -233,8 +237,6 @@ export class IntervalClient {
   nock(slot) { return this.#send({ type: 'nock', slot }) }
   saw(slot) { return this.#send({ type: 'saw', slot }) }
   smelt(recipe) { return this.#send({ type: 'smelt', recipe }) }
-  accept(from) { return this.#send({ type: 'accept_trade', from }) }
-  cancelTrade() { return this.#send({ type: 'cancel_trade' }) }
 
   // ---- a citizen's own stall ----
   // raise() begins twenty intervals of standing still; moving or swinging

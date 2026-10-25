@@ -79,12 +79,29 @@ test('no write reaches the caller\'s state: a beast choosing a victim', () => {
   assert.equal(leak, null, leak ?? '')
 })
 
-test('no write reaches the caller\'s state: an offered trade', () => {
+test('no write reaches the caller\'s state: sitting down at a table', () => {
   const leak = underDetector(Object.assign(() => world(), {
     inputs: (s, ids) => [sign(ids[0], {
-      type: 'offer_trade', to: ids[1].playerId, giveSlots: [0],
-      giveItems: [{ item: 'logs', qty: 3 }], wantItem: 'ore', wantGold: 0,
+      type: 'trade', with: ids[1].playerId, slots: [0], gold: 0,
     }, s)],
+  }))
+  assert.equal(leak, null, leak ?? '')
+})
+
+// §5c-ii: AND THE ONE THAT REACHES ACROSS THE TABLE ON PURPOSE.
+//
+// Settling writes to the other citizen: their goods leave their pack, their
+// coin changes, and a `trade` from either side clears the acceptance on the
+// other. Those writes are the deed. What must not happen is a write that
+// escapes the owned copy, which is exactly what this detector watches for.
+test('no write reaches the caller\'s state: settling a table', () => {
+  const leak = underDetector(Object.assign(() => world(), {
+    inputs: (s, ids) => [
+      sign(ids[0], { type: 'trade', with: ids[1].playerId, slots: [0], gold: 0 }, s),
+      sign(ids[1], { type: 'trade', with: ids[0].playerId, slots: [], gold: 1 }, s),
+      sign(ids[0], { type: 'settle' }, s),
+      sign(ids[1], { type: 'settle' }, s),
+    ],
   }))
   assert.equal(leak, null, leak ?? '')
 })

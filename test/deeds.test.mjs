@@ -77,7 +77,7 @@ test('nothing a bystander would plainly see is left unrecorded', () => {
   for (const v of ['gambit', 'rot', 'taking', 'waking', 'withering',
                    'swear', 'wield', 'unwield', 'nock', 'sail', 'turn',
                    'smelt', 'saw', 'grind', 'brew', 'stoke', 'survey',
-                   'pay', 'consign', 'deliver', 'accept_trade']) {
+                   'pay', 'consign', 'deliver', 'settle']) {
     assert.ok(VERBS.has(v), v + ' is no longer a verb; this list needs revising')
     assert.ok(deeds.has(v), v + ' is a thing anybody watching would see, and the world does not write it down')
   }

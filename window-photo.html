@@ -703,9 +703,12 @@ const BRIDGE = (a) =>
   // own key could not knock.
   a.do === 'attend' ? { type: 'attend' }:
   // §7: an offer names SLOTS, not a slot -- a citizen may put up a handful
-  a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots ?? [a.giveSlot], wantItem: a.wantItem, wantGold: a.wantGold }:
-  a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
-  a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
+  // §5c-ii: one side of a table, replaced whole, and the two words that
+  // settle it or stand up from it. This window has no trade screen of its own;
+  // the lines are here so that one can be written without the verb being lost.
+  a.do === 'trade' ? { type: 'trade', with: a.with, slots: a.slots ?? [], gold: a.gold ?? 0 }:
+  a.do === 'settle' ? { type: 'settle' }:
+  a.do === 'untrade' ? { type: 'untrade' }:
   null
 // must match engine.js SIG_DOMAINS.input to the byte (fix brief §2.3)
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|'

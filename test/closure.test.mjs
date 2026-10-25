@@ -61,15 +61,15 @@ test('PROPERTY: hundreds of accepted transitions never produce a state the valid
       case 4: { const m = pick(mobs.filter(near)) ?? (mobs.length ? pick(mobs) : null); return m ? sign(id, { type: 'attack', mobId: m[0] }) : sign(id, { type: 'stop' }) }
       case 5: { const slot = p.inventory.findIndex(Boolean); return slot === -1 ? sign(id, { type: 'stop' }) : sign(id, { type: 'drop', slot }) }
       case 6: { const g = Object.keys(s.ground)[0]; return g ? sign(id, { type: 'pickup', groundId: g, confirm: false }) : sign(id, { type: 'move', dx: 1, dy: 0 }) }
-      case 7: { const other = pick(players.filter(o => o !== id && s.players[o.playerId])); const slot = p.inventory.findIndex(Boolean); return (other && slot !== -1) ? sign(id, { type: 'offer_trade', to: other.playerId, giveSlots: [slot], ...(rnd() < 0.5 ? { wantItem: pick([...E.ITEMS]), wantGold: 0 } : { wantItem: null, wantGold: 1 + Math.floor(rnd() * 5) }) }) : sign(id, { type: 'stop' }) }
-      case 8: { const from = pick(players.filter(o => o !== id)); return sign(id, { type: 'accept_trade', from: from.playerId }) }
+      case 7: { const other = pick(players.filter(o => o !== id && s.players[o.playerId])); const slot = p.inventory.findIndex(Boolean); return other ? sign(id, { type: 'trade', with: other.playerId, slots: slot === -1 || rnd() < 0.3 ? [] : [slot], gold: rnd() < 0.5 ? 0 : 1 + Math.floor(rnd() * 5) }) : sign(id, { type: 'stop' }) }
+      case 8: return sign(id, { type: 'settle' })
       case 9: return sign(id, { type: 'claim_name', name: 'p' + id.playerId.slice(0, 6) })
       case 10: { const slot = p.inventory.findIndex(sl => sl && sl.item === 'cooked-fish'); return slot === -1 ? sign(id, { type: 'move', dx: 0, dy: 1 }) : sign(id, { type: 'eat', slot }) }
       // each verb carries the fields its schema names: bury takes a slot,
       // unwield a gear, and the other two nothing. Sprinkling an optional slot
       // over all four was fine when the schemas were looser; they are not now.
       default: {
-        const v = pick(['stop', 'bury', 'cancel_trade', 'unwield'])
+        const v = pick(['stop', 'bury', 'untrade', 'unwield'])
         if (v === 'bury') return sign(id, { type: v, slot: Math.floor(rnd() * E.INV_SLOTS) })
         if (v === 'unwield') return sign(id, { type: v, gear: pick(['weapon', 'head', 'body']) })
         return sign(id, { type: v })
@@ -97,7 +97,11 @@ test('PROPERTY: hundreds of accepted transitions never produce a state the valid
   assert.ok(Object.keys(s.players).length === 3, 'everyone spawned')
 })
 
-test('trade closure: exactly one of constitutional item XOR positive gold', () => {
+// §5c-ii: the XOR this test was written for is repealed with the one-sided
+// offer: a side of a table says what is ON it, and a citizen may put up goods,
+// coin, both, or nothing. What still has to close is that every state a table
+// can put the world into is one the validator accepts.
+test('table closure: every side the engine accepts leaves a valid state', () => {
   const genesis = mkGenesis('trade-world')
   const worldId = E.worldId(genesis)
   const [a, b] = players
@@ -105,26 +109,32 @@ test('trade closure: exactly one of constitutional item XOR positive gold', () =
     const s = E.newWorld(genesis)
     E.addPlayer(s, a.playerId, 5, 5); E.addPlayer(s, b.playerId, 6, 5)
     s.players[a.playerId].inventory[0] = { item: 'logs', qty: 1 }
+    s.players[a.playerId].gold = 50
     return s
   }
-  const offer = (extra) => E.signInput({ worldId, playerId: a.playerId, tick: 0, type: 'offer_trade', to: b.playerId, giveSlots: [0], ...extra }, a.privateKey)
-  const applied = (extra) => E.nextState(base(), [offer(extra)]).players[a.playerId].trade
+  const side = (extra) => E.signInput({ worldId, playerId: a.playerId, tick: 0,
+    type: 'trade', with: b.playerId, slots: [0], gold: 0, ...extra }, a.privateKey)
+  const applied = (extra) => E.nextState(base(), [side(extra)]).players[a.playerId].trade
 
-  assert.equal(applied({ wantItem: 'sword-of-doom', wantGold: 0 }), null, 'unknown item refused')
-  assert.equal(applied({ wantItem: 'logs', wantGold: 5 }), null, 'both refused')
-  assert.equal(applied({ wantItem: null, wantGold: 0 }), null, 'neither refused')
-  assert.equal(applied({ wantItem: null, wantGold: -3 }), null, 'negative gold refused')
-  assert.equal(applied({ wantItem: null, wantGold: 2.5 }), null, 'fractional gold refused')
-  // pre-freeze §1: OMISSION is not a representation, both demand fields, always
-  assert.equal(applied({ wantGold: 5 }), null, 'omitted wantItem refused')
-  assert.equal(applied({ wantItem: 'logs' }), null, 'omitted wantGold refused')
-  assert.ok(applied({ wantItem: null, wantGold: 5 }), 'canonical gold trade accepted')
-  // EVERY constitutional item is tradeable in canonical form, and every
-  // accepted trade produces a state the validator accepts
+  assert.equal(applied({ gold: -3 }), null, 'negative coin refused')
+  assert.equal(applied({ gold: 2.5 }), null, 'fractional coin refused')
+  assert.equal(applied({ gold: 9999 }), null, 'coin the citizen does not hold is refused')
+  assert.equal(applied({ slots: [1] }), null, 'an empty slot is not a smaller side')
+  assert.equal(applied({ slots: [0, 0] }), null, 'the same slot twice is refused')
+  assert.equal(applied({ with: a.playerId }), null, 'nobody trades with themselves')
+  assert.ok(applied({}), 'goods and no coin')
+  assert.ok(applied({ slots: [], gold: 5 }), 'coin and no goods')
+  assert.ok(applied({ gold: 5 }), 'both at once, which the old offer could not say')
+  assert.ok(applied({ slots: [], gold: 0 }), 'nothing at all: sitting down, and a gift')
+
+  // EVERY constitutional item can go on a table, and every side the engine
+  // takes produces a state the validator accepts
   for (const it of E.ITEMS) {
-    const s = E.nextState(base(), [offer({ wantItem: it, wantGold: 0 })])
-    assert.equal(s.players[a.playerId].trade?.wantItem, it, `${it} accepted`)
-    assert.equal(E.validateState(s), null, `state with ${it} trade validates`)
+    const s0 = base()
+    s0.players[a.playerId].inventory[0] = { item: it, qty: 1 }
+    const s1 = E.nextState(s0, [side({})])
+    assert.deepEqual(s1.players[a.playerId].trade?.items, [{ item: it, qty: 1 }], `${it} goes up`)
+    assert.equal(E.validateState(s1), null, `a table holding ${it} validates`)
   }
 })
 

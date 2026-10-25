@@ -44,7 +44,8 @@ function richState() {
   // state a tick was computed from and the one it produced would be a fork.
   p1.vaults = { 'vault-1': { ore: 4, logs: 9 }, 'vault-2': { 'iron-ore': 2 } }
   p1.action = { type: 'gather', nodeId: Object.keys(s.nodes)[0] }
-  p1.trade = { to: pids[1], giveSlots: [0], giveItems: [{ item: 'arrows', qty: 17 }], wantItem: 'logs', wantGold: 0 }   // v0.69 multi-slot + advertised goods
+  // §5c-ii: one side of a table, with the goods named as well as the slots
+  p1.trade = { with: pids[1], slots: [0], items: [{ item: 'arrows', qty: 17 }], gold: 0, settled: false }
   p1.lightsTried = { logs: 7 }; p1.cooksTried = { 'raw-fish': 3 }   // per-item tallies, not scalars
   p2.action = { type: 'attack', mobId, since: 41, style: 'even' }   // style is part of the action
   p2.rootedUntil = 100; p2.rootImmuneUntil = 120; p2.rootCdUntil = 400
@@ -159,7 +160,7 @@ test('clone independence: deep mutations of the clone never reach the source', (
   p.inventory[2] = { item: 'ore', qty: 1 }
   p.equipment.weapon.item = 'quick-sword'
   p.action.nodeId = 'nope'
-  p.trade.wantGold = 77
+  p.trade.gold = 77
   p.attuned.push('phantom')
   p.vaults.ore = 999
   p.x = 1; p.health = 1

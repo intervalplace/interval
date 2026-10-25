@@ -1867,13 +1867,10 @@ function handle(ws, buf) {
     else if (a.do === 'unequip') client.unequip(['weapon','head','body'].includes(a.gear) ? a.gear : 'weapon')
     else if (a.do === 'deposit') client.deposit(a.slot | 0)
     else if (a.do === 'withdraw') client.withdraw(String(a.item))
-    else if (a.do === 'offer_trade') {
-      // canonical demand: an item OR positive gold, never both (pre-freeze §1)
-      if (a.wantGold != null && (a.wantItem == null || a.wantItem === '')) client.offerTradeForGold(String(a.to), a.giveSlot | 0, a.wantGold | 0)
-      else client.offerTradeForItem(String(a.to), a.giveSlot | 0, String(a.wantItem))
-    }
-    else if (a.do === 'accept_trade') client.acceptTrade(String(a.from))
-    else if (a.do === 'cancel_trade') client.cancelTrade()
+    // §5c-ii: the table. One side of it per call, replaced whole.
+    else if (a.do === 'trade') client.trade(String(a.with), Array.isArray(a.slots) ? a.slots : [], a.gold | 0)
+    else if (a.do === 'settle') client.settle()
+    else if (a.do === 'untrade') client.untrade()
     else if (a.do === 'chat') { if (client.chat) client.chat(String(a.text)) }
     else if (a.do === 'attackp') { if (client.attackp) client.attackp(String(a.targetId)) }
     else if (a.do === 'gambit') { if (client.gambit) client.gambit(String(a.targetId)) }

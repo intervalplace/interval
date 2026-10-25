@@ -829,9 +829,9 @@ const BRIDGE = (a) =>
   a.do === 'kindle' ? { type: 'kindle' }:
   a.do === 'stoke' ? { type: 'stoke', nodeId: a.nodeId, slot: a.slot }:
   a.do === 'claim_name' ? { type: 'claim_name', name: a.name }:
-  a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to, giveSlot: a.giveSlot, wantItem: a.wantItem, wantGold: a.wantGold }:
-  a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
-  a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
+  a.do === 'trade' ? { type: 'trade', with: a.with, slots: a.slots ?? [], gold: a.gold ?? 0 }:
+  a.do === 'settle' ? { type: 'settle' }:
+  a.do === 'untrade' ? { type: 'untrade' }:
   null
 // must match engine.js SIG_DOMAINS.input to the byte (fix brief §2.3)
 const DOMAIN_INPUT = 'INTERVAL_INPUT_V1|'
@@ -3944,50 +3944,69 @@ const itemRow = (item, mid, right) => '<div style="display:flex;align-items:cent
 // want (an item OR gold, the engine insists on exactly one), and the
 // offer stands in the state itself until accepted or withdrawn. Their
 // offers to you appear the moment the state carries them. ----
-let tradeTo = null, tradeGive = -1
+let tradeTo = null
 const pName = (s, pid) => s.players[pid]?.name ?? '(unnamed)'
 function renderTrade(s) {
+  // §5c-ii: THE TABLE. Both sides of it, in the same icons the pack uses.
+  // What was here built a one-sided offer -- one slot given, one thing or one
+  // sum asked -- and showed the other side a sentence with an accept button.
   const tp = document.getElementById('tradepanel')
   const me2 = ownKey && s.players[ownKey.pub]
   if (!tp || !me2) return
-  const incoming = Object.entries(s.players).filter(([pid, p2]) => pid !== myId && p2.trade && p2.trade.to === myId)
-  let html5 = ''
-  if (me2.trade) { // my standing offer
-    const gs = me2.inventory?.[me2.trade.giveSlot]
-    html5 += '<div style="margin:4px 0">your offer to <b style="color:#f2ecd8">' + pName(s, me2.trade.to) + '</b>: ' +
-      (gs ? gs.item : '?') + ' for ' + (me2.trade.wantGold ? me2.trade.wantGold + 'g' : me2.trade.wantItem) + '</div>' +
-      '<div style="text-align:center">' + rowBtn('withdraw offer', 'data-tc="1"') + '</div>'
-  } else if (tradeTo && s.players[tradeTo]) { // the builder
-    html5 += '<div style="margin-bottom:4px">offer to <b style="color:#f2ecd8">' + pName(s, tradeTo) + '</b> , give:</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:4px">' +
-      (me2.inventory ?? []).map((sl6, i6) => sl6
-        ? '<img src="' + iconUrl(sl6.item) + '" data-tg="' + i6 + '" style="width:26px;height:26px;image-rendering:pixelated;cursor:pointer;border:2px solid ' + (i6 === tradeGive ? '#ffcc33' : '#4e4436') + ';border-radius:4px;background:rgba(0,0,0,.4)">':
-        '').join('') + '</div>'
-    if (tradeGive >= 0 && me2.inventory?.[tradeGive]) {
-      html5 += '<div style="margin:6px 0 3px">for:</div>' +
-        '<div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">' +
-        '<input id="twgold" type="number" min="1" placeholder="gold" style="width:58px;background:rgba(0,0,0,.45);border:1px solid #6b5d43;border-radius:4px;color:#f2ecd8;font:11px Verdana;padding:4px">' +
-        rowBtn('ask gold', 'data-tog="1"') +
-        '<input id="twitem" type="text" placeholder="item name" style="width:82px;background:rgba(0,0,0,.45);border:1px solid #6b5d43;border-radius:4px;color:#f2ecd8;font:11px Verdana;padding:4px">' +
-        rowBtn('ask item', 'data-toi="1"') + '</div>'
-    }
-    html5 += '<div style="text-align:center;margin-top:5px">' + rowBtn('never mind', 'data-tn="1"') + '</div>'
+  const pic = (item, px) => '<img src="' + iconUrl(item) + '" style="width:' + px + 'px;height:' + px
+    + 'px;image-rendering:pixelated;vertical-align:middle">'
+  const side = (p3, t, mine) => {
+    const goods = (t?.items ?? []).map((g, k) => '<span' + (mine ? ' data-tdown="' + t.slots[k] + '"' : '')
+      + ' style="display:inline-block;position:relative;margin:0 3px 3px 0;' + (mine ? 'cursor:pointer;' : '')
+      + 'border:2px solid #4e4436;border-radius:4px;background:rgba(0,0,0,.4);padding:1px">'
+      + pic(g.item, 24) + (g.qty > 1 ? '<i style="position:absolute;bottom:0;right:1px;font-size:8px;font-style:normal;color:#ffe08a">' + g.qty + '</i>' : '')
+      + '</span>').join('')
+    const coin = (t?.gold ?? 0) ? '<b style="color:#ffe27a">' + t.gold + 'g</b>' : ''
+    return '<div style="margin:4px 0;padding:4px;border:1px solid ' + (t?.settled ? '#6d8a46' : '#4e4436') + ';border-radius:4px">'
+      + '<div style="font-size:9px;letter-spacing:1px;color:#a89a7c">' + (mine ? 'YOU GIVE' : 'THEY GIVE')
+      + (t?.settled ? ' <span style="color:#9bc46a">ACCEPTED</span>' : '') + '</div>'
+      + (goods + coin || '<span style="color:#8a8474;font-size:10px">nothing</span>') + '</div>'
   }
-  for (const [pid, p2] of incoming) { // their offers to me
-    const gs2 = p2.inventory?.[p2.trade.giveSlot]
-    html5 += '<div style="border-top:1px solid #6b5d43;margin-top:6px;padding-top:5px"><b style="color:#f2ecd8">' + pName(s, pid) + '</b> offers ' +
-      (gs2 ? '<img src="' + iconUrl(gs2.item) + '" style="width:18px;height:18px;image-rendering:pixelated;vertical-align:middle"> ' + gs2.item : '?') +
-      ' for <b style="color:#ffe27a">' + (p2.trade.wantGold ? p2.trade.wantGold + 'g' : p2.trade.wantItem) + '</b>' +
-      '<div style="text-align:center;margin-top:4px">' + rowBtn('accept', 'data-ta="' + pid + '"') + ' <span style="color:#8a8474;font-size:9px">(stand beside them)</span></div></div>'
+  let html5 = ''
+  if (me2.trade) {
+    const them = s.players[me2.trade.with]
+    const open = them?.trade?.with === myId
+    html5 += '<div style="margin-bottom:3px">at the table with <b style="color:#f2ecd8">'
+      + pName(s, me2.trade.with) + '</b></div>'
+      + side(me2, me2.trade, true)
+      + (open ? side(them, them.trade, false)
+              : '<div style="color:#8a8474;font-size:10px;margin:4px 0">waiting for them to sit down</div>')
+      + '<div style="display:flex;gap:4px;align-items:center;margin:4px 0">'
+      + '<input id="tgold" type="number" min="0" value="' + me2.trade.gold + '" style="width:58px;background:rgba(0,0,0,.45);border:1px solid #6b5d43;border-radius:4px;color:#f2ecd8;font:11px Verdana;padding:4px">'
+      + rowBtn('put up coin', 'data-tcoin="1"') + '</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
+      + (me2.inventory ?? []).map((sl6, i6) => sl6 && !me2.trade.slots.includes(i6)
+          ? '<img src="' + iconUrl(sl6.item) + '" data-tup="' + i6 + '" style="width:26px;height:26px;image-rendering:pixelated;cursor:pointer;border:2px solid #4e4436;border-radius:4px;background:rgba(0,0,0,.4)">'
+          : '').join('') + '</div>'
+      + '<div style="text-align:center;margin-top:5px">'
+      + (open ? (me2.trade.settled ? rowBtn('change your mind', 'data-tunsettle="1"')
+                                   : rowBtn('accept this trade', 'data-tsettle="1"')) + ' ' : '')
+      + rowBtn('leave', 'data-tc="1"') + '</div>'
+  } else {
+    for (const [pid, p2] of Object.entries(s.players)) {
+      if (pid === myId || p2.trade?.with !== myId) continue
+      html5 += '<div style="border-top:1px solid #6b5d43;margin-top:6px;padding-top:5px"><b style="color:#f2ecd8">'
+        + pName(s, pid) + '</b> wants to trade'
+        + '<div style="text-align:center;margin-top:4px">' + rowBtn('sit down', 'data-tsit="' + pid + '"')
+        + ' <span style="color:#8a8474;font-size:9px">(stand beside them)</span></div></div>'
+    }
+    if (tradeTo && s.players[tradeTo]) {
+      html5 += '<div style="margin-bottom:4px">sit down with <b style="color:#f2ecd8">' + pName(s, tradeTo) + '</b>?</div>'
+        + '<div style="text-align:center">' + rowBtn('sit down', 'data-tsit="' + tradeTo + '"') + ' '
+        + rowBtn('never mind', 'data-tn="1"') + '</div>'
+    }
   }
   tp.style.display = html5 ? 'block' : 'none'
-  if (html5) {
-    const goldPrev = tp.querySelector('#twgold')?.value, itemPrev = tp.querySelector('#twitem')?.value
-    if (tp.dataset.sig !== html5) { tp.dataset.sig = html5; tp.innerHTML =
-      '<div style="text-align:center;color:#ffcc33;font-weight:bold;border-bottom:1px solid #6b5d43;padding-bottom:4px;margin-bottom:5px">\u2696 trade</div>' + html5
-      if (goldPrev) tp.querySelector('#twgold') && (tp.querySelector('#twgold').value = goldPrev)
-      if (itemPrev) tp.querySelector('#twitem') && (tp.querySelector('#twitem').value = itemPrev)
-    }
+  if (html5 && tp.dataset.sig !== html5) {
+    const goldPrev = tp.querySelector('#tgold')?.value
+    tp.dataset.sig = html5
+    tp.innerHTML = '<div style="text-align:center;color:#ffcc33;font-weight:bold;border-bottom:1px solid #6b5d43;padding-bottom:4px;margin-bottom:5px">\u2696 trade</div>' + html5
+    if (goldPrev && tp.querySelector('#tgold')) tp.querySelector('#tgold').value = goldPrev
   }
 }
 function renderCommerce(s) {
@@ -4226,25 +4245,25 @@ function buildSkillsUI() {
   tp.style.right = ''; tp.style.left = '50%'; tp.style.transform = 'translateX(-50%)'; tp.style.top = ''
   tp.style.bottom = '34vh'; tp.style.width = '248px'; tp.style.zIndex = '31'
   tp.addEventListener('click', (e) => {
-    const tg = e.target.closest('[data-tg]')
-    if (tg) { tradeGive = Number(tg.dataset.tg); renderTrade(world); return }
-    if (e.target.closest('[data-tn]')) { tradeTo = null; tradeGive = -1; renderTrade(world); return }
-    if (e.target.closest('[data-tc]')) { send({ do: 'cancel_trade' }); return }
-    const ta = e.target.closest('[data-ta]')
-    if (ta) { send({ do: 'accept_trade', from: ta.dataset.ta }); return }
-    if (e.target.closest('[data-tog]')) {
-      const gv = Number(tp.querySelector('#twgold')?.value)
-      if (!Number.isInteger(gv) || gv < 1) { feed('name a whole number of gold'); return }
-      send({ do: 'offer_trade', to: tradeTo, giveSlot: tradeGive, wantItem: null, wantGold: gv })
-      tradeTo = null; tradeGive = -1
-      return
+    const me3 = ownKey && world?.players?.[ownKey.pub]
+    const sit = e.target.closest('[data-tsit]')
+    if (sit) { tradeTo = null; send({ do: 'trade', with: sit.dataset.tsit, slots: [], gold: 0 }); return }
+    if (e.target.closest('[data-tn]')) { tradeTo = null; renderTrade(world); return }
+    if (e.target.closest('[data-tc]')) { send({ do: 'untrade' }); return }
+    if (!me3?.trade) return
+    const put = (slots, gold) => send({ do: 'trade', with: me3.trade.with,
+      slots: slots.slice().sort((x, y) => x - y), gold })
+    const up = e.target.closest('[data-tup]'), down = e.target.closest('[data-tdown]')
+    if (up) { put(me3.trade.slots.concat([Number(up.dataset.tup)]), me3.trade.gold); return }
+    if (down) { put(me3.trade.slots.filter((i) => i !== Number(down.dataset.tdown)), me3.trade.gold); return }
+    if (e.target.closest('[data-tcoin]')) {
+      const gv = Math.max(0, Number(tp.querySelector('#tgold')?.value) | 0)
+      put(me3.trade.slots, gv); return
     }
-    if (e.target.closest('[data-toi]')) {
-      const wi = (tp.querySelector('#twitem')?.value ?? '').trim().toLowerCase()
-      if (!wi) { feed('name the item you want') ; return }
-      send({ do: 'offer_trade', to: tradeTo, giveSlot: tradeGive, wantItem: wi, wantGold: 0 })
-      tradeTo = null; tradeGive = -1
-    }
+    if (e.target.closest('[data-tsettle]')) { send({ do: 'settle' }); return }
+    // there is no verb for taking an acceptance back, because touching the
+    // table IS taking it back: the same side sent again clears both
+    if (e.target.closest('[data-tunsettle]')) put(me3.trade.slots, me3.trade.gold)
   })
 }
 function renderSkills(me2) {
@@ -5619,7 +5638,7 @@ const pick = (cxp, cyp) => {
     walkGoal = null; huntTarget = null; workTarget = null; pickTarget = null
     if (tgt.kind === 'mob') { huntTarget = tgt.id; feed('you go for it') }
     else if (tgt.kind === 'ground') { pickTarget = tgt.id; feed('you go to take it') }
-    else if (tgt.kind === 'player') { tradeTo = tgt.id; tradeGive = -1; feed('you hail them'); renderTrade(world); return }
+    else if (tgt.kind === 'player') { tradeTo = tgt.id; feed('you hail them'); renderTrade(world); return }
     else { workTarget = tgt.id; feed('you make for it') }
     goalRing.material.color.set(0xe86e3a) // ember means acting
     goalRing.visible = true

@@ -202,6 +202,55 @@
           position: relative; overflow: hidden;
           border: 1px solid var(--edge); border-radius: 2px; }
   .slot:hover { outline: 1px solid var(--gold); }
+  /* §5c-ii: THE TABLE. One board, one gold rule, the same item pictures the
+     pack draws, and both sides of the bargain visible at once on a phone. */
+  /* FLEX-NONE, and it is not decoration. The panel is a flex column, so every
+     child defaults to shrinkable: when the column overflows -- which on a
+     phone it always does -- a child with `overflow: hidden` is squeezed to a
+     few pixels and silently hides everything in it. The table came up as an
+     empty strip between SPELLS and SKILLS, in the DOM, display:block, eight
+     thousand characters of content, and nought pixels tall. */
+  #trade { font-size: 12px; margin-top: 3px; background: var(--board); flex: none;
+           border: 1px solid var(--edge); border-radius: 4px; overflow: hidden; }
+  #trade .tbar { display: flex; align-items: center; gap: 6px; padding: 5px 7px;
+                 background: var(--stone-dk); border-bottom: 1px solid var(--gold);
+                 color: var(--parch); letter-spacing: .4px; }
+  #trade .tbar b { color: var(--gold); }
+  #trade .tbar .tbtn { margin-left: auto; }
+  #trade .tside { padding: 5px 7px; border-bottom: 1px solid var(--edge); }
+  #trade .tside.tyes { background: rgba(120, 150, 70, .10); }
+  #trade .thead { display: flex; align-items: baseline; gap: 6px; font-size: 10px;
+                  letter-spacing: 1px; text-transform: uppercase; color: var(--dim); }
+  #trade .thead b { color: var(--parch); }
+  #trade .tok { margin-left: auto; color: #9bc46a; }
+  #trade .twait { margin-left: auto; color: var(--dim); }
+  #trade .tgoods { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; min-height: 30px;
+                   align-items: center; }
+  #trade .tgood { position: relative; width: 30px; height: 30px; display: flex;
+                  align-items: center; justify-content: center; background: var(--stone-dk);
+                  border: 1px solid var(--edge); border-radius: 2px; }
+  #trade .tside .tgood[data-tup] { cursor: pointer; }
+  #trade .tside .tgood[data-tup]:hover { outline: 1px solid var(--gold); }
+  /* a thing that has left the pack since it went up: the engine will refuse
+     the exchange, so the window must not draw it as though it will not */
+  #trade .tgone { opacity: .35; border-color: #7a2b1e; }
+  #trade .tqty { position: absolute; bottom: 0; right: 2px; font-size: 8px;
+                 font-style: normal; color: #ffe08a; }
+  #trade .tnil { color: var(--dim); font-size: 10px; }
+  #trade .trow { display: flex; align-items: center; gap: 5px; padding: 5px 7px; }
+  #trade .tcoinrow { color: var(--dim); font-size: 10px; letter-spacing: 1px;
+                     text-transform: uppercase; }
+  #trade .tnum { width: 62px; background: var(--stone-dk); color: #e2b63e;
+                 border: 1px solid var(--edge); border-radius: 2px; padding: 2px 4px;
+                 font: inherit; font-size: 12px; text-align: right; }
+  #trade .tbtn { background: var(--stone-dk); color: var(--parch); cursor: pointer;
+                 border: 1px solid var(--edge); border-radius: 3px; padding: 3px 9px;
+                 font: inherit; font-size: 11px; }
+  #trade .tbtn:hover { border-color: var(--gold); color: var(--gold); }
+  #trade .tbig { flex: 1; padding: 7px; letter-spacing: 1px; }
+  #trade .tyesbtn { color: #9bc46a; border-color: #4d5f33; }
+  #trade .twarn { color: #d08a4a; font-size: 11px; }
+  #trade .tnote { padding: 0 7px 6px; color: var(--dim); font-size: 9px; line-height: 1.4; }
   /* §5t-iii: THE LOG IS WHAT IS LEFT, AND IT IS NEVER NOTHING.
      A fixed 84px in a column that overflowed meant the log was simply pushed
      off the bottom and gone -- the panel scrolled, so it existed, but nobody
@@ -384,8 +433,7 @@
       color:var(--gold);letter-spacing:1px">SPELLS</div>
     <div id="bookpanel" style="display:none;font-size:11px;margin-top:2px;
       background:var(--stone-dk);border:1px solid var(--stone-lt)"></div>
-  <div id="trade" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
-  <div id="offers" style="font-size:12px"></div>
+  <div id="trade" style="display:none"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
     <h2>Skills</h2><div id="skills"></div>
     <h2 id="friendsh" style="display:none">Names you keep</h2><div id="friends" style="font-size:12px"></div>
@@ -5839,23 +5887,20 @@ const BRIDGE_TO_INPUT = (a) =>
   a.do === 'smith' ? { type: 'smith', recipe: a.recipe }:
   // trade and recall: the flat window could do neither, so the window most
   // people meet first was the one that could not buy from a person or walk
-  // home. giveSlots is a list since v0.69: a whole pack in one exchange.
+  // home. §5c-ii: a side of a table names a LIST of slots and an amount of
+  // coin, and may be empty, which is how a citizen gives something away.
   //
-  // AND THE THREE NAMES HERE WERE NOT THE NAMES THE WINDOW SENDS. This table
-  // said 'offer', 'accept' and 'cancel'; openTrade and the offers list send
-  // 'offer_trade', 'accept_trade' and 'cancel_trade', which are the node
-  // ladder's words in serve.mjs. A citizen whose key the node holds was fine,
-  // because that ladder reads the raw action. A citizen holding their OWN key
-  // was not: send() signs only what this table can translate, and an external
-  // speaks to a node in signatures alone, so an unsigned act is dropped on
-  // arrival without a word. Trade was simply impossible for them, and there
-  // was nothing to see. The field is singular where the window sends one slot
-  // and the engine still wants the list.
-  a.do === 'offer_trade' ? { type: 'offer_trade', to: a.to,
-                         giveSlots: a.giveSlots ?? [a.giveSlot | 0],
-                         wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }:
-  a.do === 'accept_trade' ? { type: 'accept_trade', from: a.from }:
-  a.do === 'cancel_trade' ? { type: 'cancel_trade' }:
+  // AND THE NAMES HERE MUST BE THE NAMES THE WINDOW SENDS. This table once
+  // said 'offer', 'accept' and 'cancel' while the trade panel sent the node
+  // ladder's words. A citizen whose key the node holds was fine, because that
+  // ladder reads the raw action. A citizen holding their OWN key was not:
+  // send() signs only what this table can translate, and an external speaks
+  // to a node in signatures alone, so an unsigned act was dropped on arrival
+  // without a word, and trade was simply impossible for them with nothing to
+  // see. `window.test.mjs` compares the two lists now.
+  a.do === 'trade' ? { type: 'trade', with: a.with, slots: a.slots ?? [], gold: a.gold ?? 0 }:
+  a.do === 'settle' ? { type: 'settle' }:
+  a.do === 'untrade' ? { type: 'untrade' }:
   a.do === 'name' ? { type: 'claim_name', name: a.name }: // the engine's word since v0.4; a guessed translation cost weeks of nameless citizens
   a.do === 'deposit' ? { type: 'deposit', slot: a.slot }:
   // §7.3a: withdraw names a QUANTITY now -- the shape check refuses it without
@@ -9113,29 +9158,28 @@ function _onState(s, worldId, local) {
     const wasV = vaultTotals(old.vaults), nowV = vaultTotals(me.vaults)
     for (const item in wasV) if ((nowV[item] ?? 0) < wasV[item]) withdrawn.add(item)
 
-    // trade settlement beats the generic gain messages, on BOTH sides
+    // §5c-ii: a settled table beats the generic gain messages, and there is
+    // one path now rather than two, because both citizens leave a table the
+    // same way: the whole of it goes at once, on both sides, in one interval.
     let tradeItem = null
-    if (old.trade && !me.trade && (b[old.trade.wantItem] || 0) > (a[old.trade.wantItem] || 0)) {
-      tradeItem = old.trade.wantItem   // I offered; they accepted
-      SFX.trade()
-      feed('Trade complete: you received ' + tradeItem.replace('-', ' ') + '. Pleasure doing business.')
-    }
-    if (old.trade && !me.trade && tradeItem === null
-        && performance.now() - lastCancelAt > 3000) {
-      feed('Your offer is gone: declined, or the goods moved.')
-    }
-    if (old.trade && !me.trade) document.getElementById('trade').style.display = 'none'
-    for (const [pid2, pOld] of Object.entries(prev.players)) {
-      if (pid2 === myId || !pOld.trade || pOld.trade.to !== myId) continue
-      if (s.players[pid2]?.trade) continue // still open: not settled
-      // giveSlotS, an array: the same singular read that hid every offer
-      const _og = pOld.trade.giveSlots ?? (pOld.trade.giveSlot != null ? [pOld.trade.giveSlot] : [])
-      const gi = _og.map(i => pOld.inventory[i]?.item).find(Boolean)
-      if (gi && (b[gi] || 0) > (a[gi] || 0)) {
-        tradeItem = gi                  // I accepted; the goods arrived
+    const tableGone = old.trade && !me.trade
+    if (tableGone) {
+      const theirs = (old.trade.with && prev.players[old.trade.with]?.trade) || null
+      const came = []
+      if (theirs) for (let k = 0; k < (theirs.items ?? []).length; k++) came.push(theirs.items[k].item)
+      const got = came.filter((it) => (b[it] || 0) > (a[it] || 0))
+      if (got.length) {
+        tradeItem = got[0]
         SFX.trade()
-        feed('Trade complete: you received ' + gi.replace('-', ' ') + '.')
+        feed('Trade done: you received ' + [...new Set(got)].map((x) => x.replace(/-/g, ' ')).join(', ')
+          + '. Pleasure doing business.')
+      } else if ((me.gold ?? 0) > (old.gold ?? 0)) {
+        SFX.trade()
+        feed('Trade done: ' + ((me.gold ?? 0) - (old.gold ?? 0)) + ' coin.')
+      } else if (performance.now() - lastCancelAt > 3000) {
+        feed('The table is gone: they stood up, or the goods moved.')
       }
+      document.getElementById('trade').style.display = 'none'
     }
     for (const item in b) if ((b[item] || 0) > (a[item] || 0) && item !== tradeItem && !withdrawn.has(item) && !died) {
       if (GAIN[item]) feed(GAIN[item])
@@ -14644,7 +14688,9 @@ function panel(s) {
   const sig = JSON.stringify([me.hp, me.name, me.skills, me.inventory, me.equipment, me.gold, nearStoreSig,
     nearBarSig, me.consignment, me.brandedUntil ?? 0,
     me.vaults, me.trade,
-    Object.values(s.players).filter(p => p.trade?.to === myId).map(p => [p.trade, p.name])])
+    // §5c-ii: and the OTHER side of the table, whoever is at one with me,
+    // because the panel draws their goods and their acceptance too
+    Object.values(s.players).filter(p => p.trade?.with === myId).map(p => [p.trade, p.name, p.x, p.y])])
   if (sig === panelSig) return
   panelSig = sig
   document.getElementById('whoami').textContent = me.name ?? '(unnamed)'
@@ -14781,34 +14827,20 @@ function panel(s) {
     }).join('')
   }
 
-  // trade offers: incoming (accept) and outgoing (cancel)
-  const offers = []
-  for (const [pid, p] of Object.entries(s.players)) {
-    if (pid === myId || p.trade?.to !== myId) continue
-    // the engine stores giveSlotS: an ARRAY. This read `giveSlot`, singular,
-    // which is undefined -- so inventory[undefined] was undefined and every
-    // incoming offer hit the `continue` below and vanished. The offer landed
-    // in the world correctly the whole time; nobody was ever shown it.
-    const gslots = p.trade.giveSlots ?? (p.trade.giveSlot != null ? [p.trade.giveSlot] : [])
-    const giveNames = gslots.map(i => p.inventory[i]?.item).filter(Boolean)
-    if (!giveNames.length) continue
-    const giveItem = giveNames.join(' + ')
-    const haveWant = me.inventory.some(sl => sl && sl.item === p.trade.wantItem)
-    offers.push('<div class="stone" style="padding:5px 7px;margin-top:4px">'
-      + '<b style="color:var(--gold)">' + (p.name ?? pid.slice(0, 6)) + '</b> offers '
-      + giveItem.replace('-', ' ') + ' for your ' + p.trade.wantItem.replace('-', ' ') + ' '
-      + (haveWant ? '<button data-accept="' + pid + '">accept</button>':
-                  '<span style="color:var(--dim)">(you have none)</span>')
-      + '</div>')
-  }
-  if (me.trade) {
-    const _gs = me.trade.giveSlots ?? (me.trade.giveSlot != null ? [me.trade.giveSlot] : [])
-    const gi = _gs.map(i => me.inventory[i]?.item).filter(Boolean).join(' + ') || '?'
-    offers.push('<div style="padding:4px 7px;margin-top:4px;background:var(--stone-dk)">your offer: '
-      + gi.replace('-', ' ') + ' for ' + me.trade.wantItem.replace('-', ' ')
-      + ' <button data-cancel="1">cancel</button></div>')
-  }
-  document.getElementById('offers').innerHTML = offers.join('')
+  // §5c-ii: THE TABLE, BOTH SIDES OF IT.
+  //
+  // What was here was a sentence. One citizen built a one-sided offer out of
+  // two dropdowns, and the other was shown a line of text with an accept
+  // button on the end of it: "alder offers logs for your iron ore". You could
+  // not see what you were getting, you could not put anything up yourself,
+  // you could not ask for two things or for goods AND coin, and you could not
+  // simply give somebody something.
+  //
+  // Now both citizens sit at one table, each sees the whole of it drawn in
+  // the same item pictures the pack uses, and each says yes to it. A change
+  // to either side clears both acceptances, so there is no moment at which
+  // what you agreed to can become something else.
+  drawTable(s, me)
 
   // the vault: visible while standing at a bank
   const vaultEl = document.getElementById('vault')
@@ -15155,26 +15187,127 @@ function openSkillGuide(skill) {
   box.querySelector('#skgx').onclick = () => box.remove()
 }
 
+// §5c-ii: SITTING DOWN WITH SOMEBODY.
+//
+// Opening is the same deed as putting something up, with nothing up yet, so
+// there is one verb and the window never has to ask the world twice.
 function openTrade(pid) {
   const me = world?.players[myId], them = world?.players[pid]
   if (!me || !them) return
-  const mine = me.inventory.map((sl, i) => sl ? { i, item: sl.item } : null).filter(Boolean)
-  if (!mine.length) { feed('You have nothing to offer.'); return }
-  const theirs = [...new Set(them.inventory.filter(Boolean).map(sl => sl.item))]
-  if (!theirs.length) { feed((them.name ?? 'They') + ' carries nothing you could ask for.'); return }
+  send({ do: 'trade', with: pid, slots: [], gold: 0 })
+  feed('You sit down with ' + (them.name ?? pid.slice(0, 6))
+    + '. Tap anything in your pack to put it on the table.')
+}
+
+// How much coin I have put up. Kept here rather than read back out of the
+// world, because the stepper has to answer a tap before the next interval
+// arrives or it feels broken; every change is sent, and the world's own
+// number is what the table draws.
+let _tableGold = 0
+
+function tableSlots(me) { return (me?.trade?.slots ?? []).slice() }
+
+// Putting a thing on the table and taking it off again are the same tap, and
+// both are my whole side sent again.
+function tableToggle(i) {
+  const me = world?.players?.[myId]
+  if (!me?.trade) return false
+  const slot = Number(i)
+  const have = tableSlots(me)
+  const at = have.indexOf(slot)
+  if (at === -1) have.push(slot); else have.splice(at, 1)
+  have.sort((a, b) => a - b)
+  send({ do: 'trade', with: me.trade.with, slots: have, gold: _tableGold })
+  const it = me.inventory[slot]
+  feed(at === -1
+    ? 'You put ' + (it ? it.item.replace(/-/g, ' ') : 'it') + ' on the table.'
+    : 'You take ' + (it ? it.item.replace(/-/g, ' ') : 'it') + ' back.')
+  return true
+}
+
+function tableCoin(n) {
+  const me = world?.players?.[myId]
+  if (!me?.trade) return
+  _tableGold = Math.max(0, Math.min(me.gold ?? 0, Math.round(n) || 0))
+  send({ do: 'trade', with: me.trade.with, slots: tableSlots(me), gold: _tableGold })
+}
+
+// one side of the table, drawn the way the pack is drawn
+function tableSide(p, side, who, mine) {
+  const goods = (side?.slots ?? []).map((i, k) => {
+    const held = p.inventory[i]
+    const said = side.items?.[k]
+    // the side names what was in the slot when it went up, and the engine
+    // holds the pack to that list before anything moves. If they no longer
+    // agree, this side does not stand, and saying so is better than drawing
+    // a picture of something that will not be handed over.
+    const gone = !held || !said || held.item !== said.item || (held.qty ?? 1) !== said.qty
+    return '<span class="tgood' + (gone ? ' tgone' : '') + '"' + (mine ? ' data-tup="' + i + '"' : '')
+      + ' title="' + (said ? said.item.replace(/-/g, ' ') : '') + '">'
+      + (said ? (ICONS[said.item] ?? '?') : '?')
+      + (said && said.qty > 1 ? '<i class="tqty">' + said.qty + '</i>' : '') + '</span>'
+  })
+  const coin = side?.gold ? '<span class="tgood tcoin">' + ICONS['gold-coin']
+    + '<i class="tqty">' + side.gold + '</i></span>' : ''
+  return '<div class="tside' + (side?.settled ? ' tyes' : '') + '">'
+    + '<div class="thead"><b>' + who + '</b>'
+    + (side?.settled ? '<span class="tok">accepted</span>'
+                     : '<span class="twait">has not accepted</span>') + '</div>'
+    + '<div class="tgoods">' + (goods.join('') + coin
+       || '<span class="tnil">' + (mine ? 'nothing yet' : 'nothing') + '</span>') + '</div>'
+    + '</div>'
+}
+
+function drawTable(s, me) {
   const box = document.getElementById('trade')
-  box.style.display = 'block'
-  box.innerHTML = '<b style="color:var(--gold)">Trade with ' + (them.name ?? pid.slice(0, 6)) + '</b><br>'
-    + 'give <select id="tgive">' + mine.map(o => '<option value="' + o.i + '">' + o.item.replace('-', ' ') + '</option>').join('') + '</select> '
-    + 'for <select id="twant">' + theirs.map(it => '<option value="' + it + '">' + it.replace('-', ' ') + '</option>').join('') + '</select> '
-    + '<button id="toffer">offer</button> <button id="tclose">close</button>'
-  document.getElementById('toffer').onclick = () => {
-    send({ do: 'offer_trade', to: pid, giveSlot: +document.getElementById('tgive').value,
-           wantItem: document.getElementById('twant').value })
-    feed('You make your offer. Now they must accept.')
-    box.style.display = 'none'
+  const nameOf = (pid) => s.players[pid]?.name ?? pid.slice(0, 6)
+
+  // nobody at a table of mine: the only thing to draw is somebody asking
+  if (!me.trade) {
+    const asking = Object.entries(s.players).find(([pid, p]) => pid !== myId && p.trade?.with === myId)
+    if (!asking) { box.style.display = 'none'; box.innerHTML = ''; return }
+    box.style.display = 'block'
+    box.innerHTML = '<div class="tbar"><b>' + nameOf(asking[0]) + '</b> wants to trade</div>'
+      + '<div class="trow"><button class="tbtn tbig" data-tsit="' + asking[0] + '">sit down</button></div>'
+    return
   }
-  document.getElementById('tclose').onclick = () => { box.style.display = 'none' }
+
+  box.style.display = 'block'
+  const them = s.players[me.trade.with]
+  const theirName = nameOf(me.trade.with)
+  if (!them) {
+    box.innerHTML = '<div class="tbar">that citizen is gone'
+      + '<button class="tbtn" data-tleave="1">leave</button></div>'
+    return
+  }
+  // I have sat down and they have not. An invitation, from my side of it.
+  if (them.trade?.with !== myId) {
+    box.innerHTML = '<div class="tbar">waiting for <b>' + theirName + '</b> to sit down'
+      + '<button class="tbtn" data-tleave="1">leave</button></div>'
+      + '<div class="tnote">They have been asked. Nothing moves until you both accept.</div>'
+    return
+  }
+
+  const near = Math.abs(me.x - them.x) + Math.abs(me.y - them.y) <= 1
+  _tableGold = me.trade.gold
+  box.innerHTML = '<div class="tbar">Trading with <b>' + theirName + '</b>'
+      + '<button class="tbtn" data-tleave="1">leave</button></div>'
+    + tableSide(me, me.trade, 'you give', true)
+    + tableSide(them, them.trade, theirName + ' gives', false)
+    + '<div class="trow tcoinrow">coin '
+      + '<button class="tbtn" data-tcoin="-10">\u2212</button>'
+      + '<input id="tgold" class="tnum" inputmode="numeric" value="' + me.trade.gold + '">'
+      + '<button class="tbtn" data-tcoin="10">+</button>'
+      + '<span class="tnil">of ' + (me.gold ?? 0) + '</span></div>'
+    + '<div class="trow">'
+      + (!near
+        ? '<span class="twarn">too far apart. Stand next to each other.</span>'
+        : me.trade.settled
+          ? '<button class="tbtn tbig tyesbtn" data-tunsettle="1">you have accepted. Change your mind</button>'
+          : '<button class="tbtn tbig" data-tsettle="1">accept this trade</button>')
+    + '</div>'
+    + '<div class="tnote">Tap anything in your pack to put it up or take it back. '
+      + 'Any change clears both acceptances.</div>'
 }
 
 function validateGateName(s) {
@@ -15814,10 +15947,40 @@ document.getElementById('vault').addEventListener('click', (e) => {
   }
 })
 
-document.getElementById('offers').addEventListener('click', (e) => {
-  const acc = e.target.dataset.accept
-  if (acc) { send({ do: 'accept_trade', from: acc }); feed('You accept the offer.') }
-  else if (e.target.dataset.cancel) { lastCancelAt = performance.now(); send({ do: 'cancel_trade' }); feed('You withdraw your offer.') }
+// §5c-ii: the table answers taps. Everything on it is one of mine to change
+// or one button, and nothing here moves goods: only `settle` does that, and
+// only when both sides have said yes.
+document.getElementById('trade').addEventListener('click', (e) => {
+  const d = e.target.closest('[data-tsit],[data-tleave],[data-tsettle],[data-tunsettle],[data-tcoin],[data-tup]')
+  if (!d) return
+  const me = world?.players?.[myId]
+  if (d.dataset.tsit) { openTrade(d.dataset.tsit); return }
+  if (d.dataset.tleave) {
+    lastCancelAt = performance.now()
+    send({ do: 'untrade' }); feed('You stand up from the table.'); return
+  }
+  if (!me?.trade) return
+  if (d.dataset.tsettle) {
+    send({ do: 'settle' })
+    feed('You accept. If they accept it as it stands, the exchange is done.')
+    return
+  }
+  if (d.dataset.tunsettle) {
+    // the same side again, which is what clears an acceptance. There is no
+    // verb for taking one back, because touching the table is taking it back.
+    send({ do: 'trade', with: me.trade.with, slots: tableSlots(me), gold: me.trade.gold })
+    feed('You take your acceptance back.')
+    return
+  }
+  if (d.dataset.tcoin) { tableCoin((me.trade.gold ?? 0) + Number(d.dataset.tcoin)); return }
+  if (d.dataset.tup !== undefined) tableToggle(d.dataset.tup)
+})
+document.getElementById('trade').addEventListener('change', (e) => {
+  if (e.target.id === 'tgold') tableCoin(Number(e.target.value))
+})
+document.getElementById('trade').addEventListener('keydown', (e) => {
+  e.stopPropagation()   // while typing a number, the world hears nothing
+  if (e.key === 'Enter' && e.target.id === 'tgold') { tableCoin(Number(e.target.value)); e.target.blur() }
 })
 
 document.getElementById('say').addEventListener('keydown', (e) => {
@@ -16030,6 +16193,12 @@ function invClick(i) {
   const meNow = world.players[myId]
   const it = meNow?.inventory[i]
   if (!it) return
+  // §5c-ii: WHILE A TABLE IS OPEN, A TAP PUTS THE THING ON IT.
+  //
+  // The pack is already on the screen and already the thing a citizen taps,
+  // so the table borrows it rather than drawing a second pack inside itself
+  // on a phone that has no room for one. Tapping again takes it back.
+  if (meNow.trade && tableToggle(i)) return
   // §7bs: TAP A QUIVER TO NOCK IT. An archer carrying both kinds shoots
   // whatever ammoOf prefers, and there is no way to reorder a pack in this
   // world -- so the choice has to be an act. Tapping arrows puts them on the

@@ -193,7 +193,7 @@ test('full persistent-state round-trip: actions, trades, equipment, banks, fires
   const step = (inputs) => { s = E.nextState(s, inputs); const e = E.validateState(s); assert.equal(e, null, `tick ${s.tick}: ${e}`) }
   step([sign(world, alice, { tick: s.tick, type: 'gather', nodeId: 'tree-1' })])           // action set
   step([sign(world, alice, { tick: s.tick, type: 'wield', slot: 1 })])                     // equipment
-  step([sign(world, alice, { tick: s.tick, type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: 'grain', wantGold: 0 })]) // trade offer
+  step([sign(world, alice, { tick: s.tick, type: 'trade', with: bob.playerId, slots: [0], gold: 0 })]) // a side of a table
   step([sign(world, alice, { tick: s.tick, type: 'claim_name', name: 'alice-brave' })]) // names registry
   step([sign(world, bob, { tick: s.tick, type: 'attack', mobId: 'rat-1' })])               // combat action
   for (let i = 0; i < 4; i++) step([])                                                     // let combat tick, mob health drops

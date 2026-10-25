@@ -30,7 +30,9 @@ const base = (genesis) => {
 
 // the canonical representation of every action, in one table
 const CANON = {
-  spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
+  spawn: {}, stop: {}, invoke: {},
+  // §5c-ii: the table. A side of it, accepting it, and standing up.
+  settle: {}, untrade: {},
   move: { dx: 1, dy: 0 },
   walk: { dx: 1, dy: 0, steps: 12 },   // §5i: a journey is one deed
   stamp: { slot: 0 },                   // §5u: the crushing floor
@@ -41,8 +43,7 @@ const CANON = {
   gather: { nodeId: 'tree-1' }, harvest: { nodeId: 'plot-1' },
   attack: { mobId: 'gob-1' }, attackp: { targetId: 'ab'.repeat(32) },
   recall: { to: 'ws-east' },
-  offer_trade: { to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 0 },
-  accept_trade: { from: 'ab'.repeat(32) },
+  trade: { with: 'ab'.repeat(32), slots: [0], gold: 0 },
   smith: { recipe: 'iron-sword' },
   // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a stall
   // (§6al) and sells from it.
@@ -62,8 +63,8 @@ const CANON = {
   lift: { nodeId: 'buck-1' },
 }
 // one representative corruption of each kind, per action where applicable
-const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, giveSlots: '0', wantItem: 9, wantGold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }
-const BAD_ID = { nodeId: 'has spaces!', mobId: 'x'.repeat(80), targetId: 'AB'.repeat(32), to: 'has spaces!', from: 'not hex!', groundId: '"; drop', name: '-lead' }
+const WRONG_TYPE = { dx: '1', nodeId: 7, mobId: {}, targetId: 123, to: 42, with: 42, slots: '0', gold: '5', from: null, recipe: 3, slot: 1.5, gear: 0, item: [], spell: true, make: 'bows', groundId: 9, name: 12, dy: null }
+const BAD_ID = { nodeId: 'has spaces!', mobId: 'x'.repeat(80), targetId: 'AB'.repeat(32), to: 'has spaces!', with: 'not hex!', from: 'not hex!', groundId: '"; drop', name: '-lead' }
 
 test('§13 canonical action battery: exactly one accepted representation per action', () => {
   const worldId = E.worldId(mkGenesis('battery'))
@@ -100,13 +101,15 @@ test('§13 canonical action battery: exactly one accepted representation per act
       assert.notEqual(E.validateInputShape(raw({ type, ...fields, [k]: BAD_ID[k] })), null, `${type}: ${k} format checked`)
     }
   }
-  // trade-specific equivalence killers (§1): the alternates are dead
-  const tr = (extra) => E.validateInputShape(raw({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], ...extra }))
-  assert.match(tr({ wantItem: 'logs' }), /missing field wantGold/)
-  assert.match(tr({ wantGold: 5 }), /missing field wantItem/)
-  assert.match(tr({ wantItem: 'logs', wantGold: 5 }), /exactly one/)
-  assert.match(tr({ wantItem: null, wantGold: 0 }), /exactly one/)
-  assert.equal(tr({ wantItem: null, wantGold: 5 }), null)
+  // §5c-ii: table-specific equivalence killers. There is no demand field to
+  // hold to an XOR any more; what is still exactly one form is the side: both
+  // fields present, the slots ascending and distinct, and empty allowed.
+  const tr = (extra) => E.validateInputShape(raw({ type: 'trade', with: 'ab'.repeat(32), ...extra }))
+  assert.match(tr({ slots: [0] }), /missing field gold/)
+  assert.match(tr({ gold: 5 }), /missing field slots/)
+  assert.match(tr({ slots: [1, 0], gold: 0 }), /ascending and unique/)
+  assert.match(tr({ slots: [0, 0], gold: 0 }), /ascending and unique/)
+  assert.equal(tr({ slots: [], gold: 0 }), null, 'a side with nothing on it is one form, not none')
 })
 
 test('§14 builder boundaries: every builder result is validated, whatever its tick', () => {
@@ -148,21 +151,20 @@ test('§15 genesis canonicality matrix', () => {
 
 test('§16 SDK normalization: equivalent requests → byte-identical signed objects', () => {
   // shared-normalizer identity, straight from the engine
-  const a = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs' })
-  const b = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 0 })
+  const a = E.normalizeInput({ type: 'trade', with: 'ab'.repeat(32), slots: [0] })
+  const b = E.normalizeInput({ type: 'trade', with: 'ab'.repeat(32), slots: [0], gold: 0 })
   assert.equal(E.canonical(a), E.canonical(b), 'omitted zero and explicit zero are the same bytes')
-  assert.equal(a.wantGold, 0)
-  const c = E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantGold: 5 })
-  assert.equal(c.wantItem, null)
-  assert.throws(() => E.normalizeInput({ type: 'offer_trade', to: 'ab'.repeat(32), giveSlots: [0], wantItem: 'logs', wantGold: 5 }), /exactly one/)
+  assert.equal(a.gold, 0)
+  const c = E.normalizeInput({ type: 'trade', with: 'ab'.repeat(32), gold: 5 })
+  assert.deepEqual(c.slots, [], 'an omitted side is an empty one, not an absent one')
   assert.throws(() => E.normalizeInput({ type: 'move', dx: 1, dy: 0, memo: 'x' }), /unknown field memo/)
   // …and through the SDK itself: the object actually SIGNED is canonical
   const genesis = mkGenesis('sdk-world')
   const captured = []
   const stubNode = { worldId: E.worldId(genesis), state: { tick: 4 }, submitInput: (i) => { captured.push(i); return Promise.resolve() } }
   const client = new IntervalClient({ node: stubNode, identity: alice })
-  client.offerTradeForItem(bob.playerId, 0, 'logs')
-  assert.equal(captured[0].wantGold, 0, 'the SDK signed the canonical zero')
+  client.trade(bob.playerId, 0)
+  assert.equal(captured[0].gold, 0, 'the SDK signed the canonical zero')
   assert.equal(E.validateInputShape(captured[0]), null, 'the SDK output passes the shape gate verbatim')
   assert.equal(E.verifyInputSig(captured[0]), true)
 })
@@ -217,10 +219,14 @@ test('§17 transition closure across EVERY input type on one living world', () =
   step(alice, { type: 'attackp', targetId: bob.playerId })
   step(alice, { type: 'stop' })
   step(alice, { type: 'claim_name', name: 'ada' })
-  step(alice, { type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantGold: 3 })
-  step(bob, { type: 'accept_trade', from: alice.playerId })
-  step(alice, { type: 'offer_trade', to: bob.playerId, giveSlots: [3], wantItem: 'grain' })
-  step(alice, { type: 'cancel_trade' })
+  // §5c-ii: a whole table, from sitting down to the exchange, and one more
+  // sat down and stood up again
+  step(alice, { type: 'trade', with: bob.playerId, slots: [0], gold: 0 })
+  step(bob, { type: 'trade', with: alice.playerId, slots: [], gold: 0 })
+  step(alice, { type: 'settle' })
+  step(bob, { type: 'settle' })
+  step(alice, { type: 'trade', with: bob.playerId, slots: [3], gold: 0 })
+  step(alice, { type: 'untrade' })
   step(alice, { type: 'wield', slot: 5 })      // helm → head
   step(alice, { type: 'unwield', gear: 'head' })
   step(alice, { type: 'deposit', slot: 4 })    // one ore to the bank

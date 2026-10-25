@@ -27,17 +27,32 @@ const base = (genesis) => {
   return s
 }
 
-test('trade XOR is enforced in PERSISTED state, exactly as at the input', () => {
-  const genesis = mkGenesis('xor-world')
-  const t = (wantItem, wantGold) => {
+// §5c-ii: the XOR this test was written for is repealed with the one-sided
+// offer. A side of a table has no demand field; it says what is ON it, which
+// may be goods, or coin, or both, or nothing at all. What is still exact, and
+// still consensus-critical because it is persisted and therefore hashed, is
+// the shape: five keys, and the goods named one per slot.
+test('a persisted side of a table is exactly five keys', () => {
+  const genesis = mkGenesis('table-world')
+  const t = (side) => {
     const s = base(genesis)
-    s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem, wantGold }
+    s.players[alice.playerId].trade = side
     return E.validateState(s)
   }
-  assert.match(t('logs', 5), /exactly one of item or gold/)
-  assert.match(t(null, 0), /exactly one of item or gold/)
-  assert.equal(t('logs', 0), null, 'item-only trade accepted')
-  assert.equal(t(null, 5), null, 'gold-only trade accepted')
+  const whole = { with: bob.playerId, slots: [0], items: [{ item: 'logs', qty: 1 }], gold: 0, settled: false }
+  assert.equal(t(whole), null, 'goods and no coin')
+  assert.equal(t({ ...whole, slots: [], items: [], gold: 5 }), null, 'coin and no goods')
+  assert.equal(t({ ...whole, gold: 5 }), null, 'both: a side is not a demand')
+  assert.equal(t({ ...whole, slots: [], items: [] }), null, 'nothing at all, which is a gift')
+  assert.match(t({ ...whole, extra: 1 }), /malformed trade shape/)
+  const { gold, ...noGold } = whole
+  assert.match(t(noGold), /malformed trade shape/)
+  assert.match(t({ ...whole, items: [] }), /malformed trade goods/, 'one named good per named slot')
+  assert.match(t({ ...whole, with: alice.playerId.replace(/.$/, 'f').slice(0, 64) }),
+    /missing partner/)
+  assert.match(t({ ...whole, settled: 'yes' }), /settled or it is not/)
+  assert.match(t({ ...whole, slots: [1, 0], items: [{ item: 'logs', qty: 1 }, { item: 'logs', qty: 1 }] }),
+    /ascending and unique/)
 })
 
 test('equipment slot correctness: the shared slotOf() rules every layer', () => {
@@ -109,12 +124,11 @@ test('canonical input schemas: one serialized form per action, at every gate', (
   assert.match(E.validateInputShape(raw({ type: 'teleport' })), /unknown input type/)
   // every canonical form is accepted by the shape gate
   const canon = {
-    spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
+    spawn: {}, stop: {}, invoke: {}, settle: {}, untrade: {},
     move: { dx: 1, dy: 0 }, walk: { dx: 1, dy: 0, steps: 12 },
     gather: { nodeId: 'n' }, harvest: { nodeId: 'n' },
     attack: { mobId: 'm' }, attackp: { targetId: bob.playerId }, recall: { to: 'ws' },
-    offer_trade: { to: bob.playerId, giveSlots: [0], wantItem: null, wantGold: 1 },
-    accept_trade: { from: bob.playerId }, smith: { recipe: 'iron-sword' },
+    trade: { with: bob.playerId, slots: [0], gold: 1 }, smith: { recipe: 'iron-sword' },
     // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a
     // stall and sells from it. §6ch: the waystones are gone, so `recall` only
     // ever fails, but its schema stays so an old client is refused rather than
@@ -127,8 +141,9 @@ test('canonical input schemas: one serialized form per action, at every gate', (
   }
   for (const [type, fields] of Object.entries(canon))
     assert.equal(E.validateInputShape(sign({ type, ...fields })), null, `${type} canonical form accepted`)
-  // the item-form of a trade is canonical too: with its explicit zero
-  assert.equal(E.validateInputShape(sign({ type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: 'logs', wantGold: 0 })), null)
+  // §5c-ii: and a side with NOTHING on it is canonical too, which is how a
+  // citizen sits down before deciding, and how a citizen gives something away
+  assert.equal(E.validateInputShape(sign({ type: 'trade', with: bob.playerId, slots: [], gold: 0 })), null)
 })
 
 test('banks are sparse: zero is absence in execution, validation, and imports', () => {

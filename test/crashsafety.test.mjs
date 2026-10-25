@@ -140,8 +140,8 @@ test('exact engine invariants: actions, trades, equipment, skills, mob/node tabl
     [s => { s.players[alice.playerId].action = { type: 'dance' } }, /unknown action type/],
     [s => { s.players[alice.playerId].action = { type: 'gather', nodeId: 'tree-1', extra: 1 } }, /malformed gather action/],
     [s => { s.players[alice.playerId].action = { type: 'attack', mobId: 'm1' } }, /malformed attack action/],
-    [s => { s.players[alice.playerId].trade = { to: 'zz', giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0 } }, /malformed trade partner/],
-    [s => { s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 0, bonus: 1 } }, /malformed trade shape/],
+    [s => { s.players[alice.playerId].trade = { with: 'zz', slots: [0], items: [{ item: 'logs', qty: 1 }], gold: 0, settled: false } }, /malformed trade partner/],
+    [s => { s.players[alice.playerId].trade = { with: bob.playerId, slots: [0], items: [{ item: 'logs', qty: 1 }], gold: 0, settled: false, bonus: 1 } }, /malformed trade shape/],
     [s => { s.players[alice.playerId].equipment.ring = null }, /non-constitutional equipment/],
     [s => { delete s.players[alice.playerId].equipment.head }, /non-constitutional equipment/],
     // §5j: `magic` is not a skill any more -- deleting it removed nothing and
@@ -175,14 +175,24 @@ test('the FULL worldgen world validates: every node type and extra the generator
   assert.ok(Object.keys(s.mobs).length > 0 && Object.keys(s.nodes).length > 50, 'a real map, not a toy')
 })
 
-test('gold-only trade offers no longer crash the state hash (undefined never enters state)', () => {
+// §5c-ii: the fault this guarded was an absent field becoming `undefined` in
+// persisted state, which the canonical encoder refuses outright, so the whole
+// world stopped hashing. The one-sided offer is repealed and a side of a table
+// has no optional field left -- but a side with NOTHING on it is now legal,
+// and an empty list is the exact shape that invites the same mistake.
+test('an empty side of a table hashes (undefined never enters state)', () => {
   const world = makeWorld()
   let s = build(world)
   E.addPlayer(s, bob.playerId, 6, 5)
   s.players[alice.playerId].inventory[0] = { item: 'logs', qty: 1 }
-  const offer = E.signInput({ worldId: world.worldId, playerId: alice.playerId, tick: 0, type: 'offer_trade', to: bob.playerId, giveSlots: [0], wantItem: null, wantGold: 5 }, alice.privateKey)
-  s = E.nextState(s, [offer])
-  assert.equal(s.players[alice.playerId].trade.wantItem, null, 'absent wantItem becomes null, not undefined')
+  s.players[alice.playerId].gold = 5
+  const sit = E.signInput({ worldId: world.worldId, playerId: alice.playerId, tick: 0,
+    type: 'trade', with: bob.playerId, slots: [], gold: 5 }, alice.privateKey)
+  s = E.nextState(s, [sit])
+  const t = s.players[alice.playerId].trade
+  assert.deepEqual(t.slots, [], 'an empty side is an empty list, not an absent one')
+  assert.deepEqual(t.items, [])
+  assert.equal(t.settled, false, 'written out, because omission is not a representation')
   assert.doesNotThrow(() => E.stateHash(s))
   assert.equal(E.validateState(s), null)
 })

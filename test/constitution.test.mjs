@@ -101,7 +101,7 @@ test('ONE constitutional item registry: unknown items are contraband everywhere'
     [s => { s.players[alice.playerId].vaults['vault-1'] = { [forged]: 5 } }, /vault item/],
     [s => { s.players[alice.playerId].equipment.weapon = { item: forged, qty: 1 } }, /equipment slot/],
     [s => { s.ground.g1 = { item: forged, qty: 1, x: 1, y: 1, expiresAt: 9 } }, /ground item/],
-    [s => { E.addPlayer(s, bob.playerId, 6, 5); s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: forged, wantGold: 0 } }, /trade item/],
+    [s => { E.addPlayer(s, bob.playerId, 6, 5); s.players[alice.playerId].trade = { with: bob.playerId, slots: [0], items: [{ item: forged, qty: 1 }], gold: 0, settled: false } }, /trade good item/],
   ]
   for (const [mutate, want] of cases) {
     const s = build(world)
@@ -127,7 +127,7 @@ test('relational validation: no dangling references are constitutionally permitt
     [s => { s.players[alice.playerId].action = { type: 'attack', mobId: 'ghost-mob', since: 0, style: 'even' } }, /references a missing mob/],
     [s => { s.players[alice.playerId].action = { type: 'gather', nodeId: 'ghost-node' } }, /references a missing node/],
     [s => { s.players[alice.playerId].action = { type: 'attackp', targetId: bob.playerId, since: 0, style: 'even' } }, /references a missing player/],
-    [s => { s.players[alice.playerId].trade = { to: bob.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: null, wantGold: 1 } }, /missing partner/],
+    [s => { s.players[alice.playerId].trade = { with: bob.playerId, slots: [0], items: [{ item: 'logs', qty: 1 }], gold: 1, settled: false } }, /missing partner/],
     // §6ch: THE WAYSTONES ARE GONE, so there is no stone for an attunement to
     // dangle from and no rule left to break. `attuned` survives as a bounded
     // list -- that is all the constitution still says about it, so that is all
@@ -144,7 +144,7 @@ test('relational validation: no dangling references are constitutionally permitt
   E.addPlayer(s, bob.playerId, 6, 5)
   s.players[alice.playerId].action = { type: 'attack', mobId: 'gob-1', since: 0, style: 'even' }
   s.players[alice.playerId].attuned = ['ws-east']
-  s.players[bob.playerId].trade = { to: alice.playerId, giveSlots: [0], giveItems: [{ item: 'logs', qty: 1 }], wantItem: 'logs', wantGold: 0 }
+  s.players[bob.playerId].trade = { with: alice.playerId, slots: [0], items: [{ item: 'logs', qty: 1 }], gold: 0, settled: false }
   assert.equal(E.validateState(s), null)
 })
 

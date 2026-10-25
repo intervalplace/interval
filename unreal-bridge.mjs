@@ -1277,47 +1277,46 @@ function vaultHere () {
   return null
 }
 
-// §5c: THE TRADE STANDING BETWEEN TWO PEOPLE, FROM BOTH SIDES.
+// §5c-ii: THE TABLE BETWEEN TWO PEOPLE, FROM BOTH SIDES.
 //
-// `accept_trade` names WHO offered, and the offer lives on the OTHER
-// citizen's record -- `o.trade`, not yours -- so a window has no way to know
-// it exists by looking at the citizen it is drawing. It is the one deed in
-// this world whose precondition is written entirely on somebody else.
+// Each citizen holds their own side -- `p.trade`, with `with` naming the other
+// -- so half of what a window has to draw is written on somebody else's
+// record. A window looking only at the citizen it is drawing cannot see what
+// it is being offered, which is why trade was once unreachable from the
+// Unreal window: not for want of a button, but because nothing on this side
+// of the socket knew there was anything to press.
 //
-// Which is why it was unreachable: not for want of a button, but because
-// nothing on this side of the socket knew there was anything to press. So the
-// bridge looks, because looking at everybody is world knowledge and this is
-// where world knowledge lives.
-//
-// Only from somebody ADJACENT, because that is the engine's own condition for
-// accepting one (§5c) -- an offer from across the island is not a thing a
-// citizen can take, and showing it would be a button that cannot work.
+// So the bridge looks, because looking at everybody is world knowledge and
+// this is where world knowledge lives. It reports the table as one object:
+// my side, their side, whether each has accepted, and whether they are still
+// within reach, which is the engine's own condition for settling one.
 function tradeNow () {
   const me = meNow()
   if (!me || !held) return null
-  const words = (slots, from) => (slots ?? [])
-    .map((sl) => from.inventory?.[sl]?.item)
-    .filter(Boolean)
-  const mine = me.trade
-    ? { to: me.trade.to,
-        toName: held.players?.[me.trade.to]?.name ?? String(me.trade.to).slice(0, 8),
-        give: words(me.trade.giveSlots, me),
-        wantItem: me.trade.wantItem ?? null,
-        wantGold: me.trade.wantGold ?? 0 }
-    : null
-  let offered = null
-  for (const [id, other] of Object.entries(held.players ?? {})) {
-    if (id === ID.playerId || !other.trade) continue
-    if (other.trade.to !== ID.playerId) continue
-    if (Math.abs(me.x - other.x) + Math.abs(me.y - other.y) !== 1) continue
-    offered = { from: id,
-      name: other.name ?? id.slice(0, 8),
-      give: words(other.trade.giveSlots, other),
-      wantItem: other.trade.wantItem ?? null,
-      wantGold: other.trade.wantGold ?? 0 }
-    break
+  if (!me.trade) {
+    // nobody at a table of mine. The only thing to report is an invitation.
+    for (const [id, other] of Object.entries(held.players ?? {})) {
+      if (id === ID.playerId || other.trade?.with !== ID.playerId) continue
+      return { asking: { from: id, name: other.name ?? id.slice(0, 8) } }
+    }
+    return null
   }
-  return (mine || offered) ? { mine, offered } : null
+  const sideOf = (side) => ({
+    goods: (side?.items ?? []).map((g) => ({ item: g.item, qty: g.qty })),
+    gold: side?.gold ?? 0,
+    settled: side?.settled === true,
+  })
+  const withId = me.trade.with
+  const them = held.players?.[withId] ?? null
+  const open = them?.trade?.with === ID.playerId
+  return {
+    with: withId,
+    name: them?.name ?? String(withId).slice(0, 8),
+    open,
+    near: !!them && Math.abs(me.x - them.x) + Math.abs(me.y - them.y) === 1,
+    mine: sideOf(me.trade),
+    theirs: open ? sideOf(them.trade) : null,
+  }
 }
 
 // WHAT THE PLACE YOU ARE STANDING IN CAN BE USED FOR.
@@ -1540,9 +1539,9 @@ function spellsAt (me, other, id, bIsMob) {
 function mayDoTo (me, other, id) {
   const out = []
   if (!me || !other || other.health <= 0) return out
-  // §5c: an offer may be made to anybody; taking one needs adjacency, and
-  // that is answered by `tradeNow`, not here.
-  out.push('offer_trade')
+  // §5c-ii: sitting down at a table needs adjacency, which the engine checks
+  // and `tradeNow` reports. Offered to anybody near enough to stand beside.
+  if (Math.abs(me.x - other.x) + Math.abs(me.y - other.y) === 1) out.push('trade')
   const near = Math.max(Math.abs(me.x - other.x), Math.abs(me.y - other.y))
   const friends = me.friends ?? []
   // §7cm/§7cn: a name you keep, and only of somebody you have been WITH --

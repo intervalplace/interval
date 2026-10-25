@@ -1817,10 +1817,11 @@ const DEEDS = ['transmute', 'unmake', 'seal', 'char', 'unload', 'rifle', 'haul',
   'stock_market', 'take_market', 'dismantle_market',
   // and three more that a bystander plainly watches happen: goods given up at
   // an ossuary, a consignment coming home into the pack, and a trade closing
-  // between two people standing in front of each other. `offer_trade` and
-  // `cancel_trade` are not here, because an offer is a thing said rather than
-  // a thing done, and only the acceptance moves anything.
-  'offer', 'release', 'accept_trade',
+  // between two people standing in front of each other. §5c-ii: `trade` and
+  // `untrade` are not here, because sitting down at a table and putting
+  // something on it is a thing said rather than a thing done, and only the
+  // settling moves anything.
+  'offer', 'release', 'settle',
   // AND ONE WORD HERE IS NOT A VERB. `forage` is the only deed the world names
   // for itself rather than copying off an input: taking it arrives as `pickup`
   // and is nothing like one, so the handler overwrites the word. It is listed
@@ -5598,6 +5599,18 @@ const T = {
   // v0.69: a trade names one or more of the offerer's slots. Ordered, unique,
   // never empty, never longer than the pack: canonical so two nodes reading
   // the same offer always read the same offer.
+  // §5c-ii: a side of a table may hold NOTHING. One citizen putting goods up
+  // and asking for nothing back is a gift, which this world had no way to
+  // express: the old offer demanded an item or coin in return, so the only way
+  // to give somebody something was to drop it on the ground and hope.
+  slotListOrNone: (v) => {
+    if (!Array.isArray(v) || v.length > INV_SLOTS) return 'must be 0..' + INV_SLOTS + ' inventory slots';
+    for (let i = 0; i < v.length; i++) {
+      if (!Number.isInteger(v[i]) || v[i] < 0 || v[i] >= INV_SLOTS) return 'must be inventory slot indexes';
+      if (i > 0 && v[i] <= v[i - 1]) return 'slots must be ascending and unique';
+    }
+    return true;
+  },
   slotList: (v) => {
     if (!Array.isArray(v) || v.length === 0 || v.length > INV_SLOTS) return 'must be 1..' + INV_SLOTS + ' inventory slots';
     for (let i = 0; i < v.length; i++) {
@@ -5678,7 +5691,31 @@ const INPUT_SCHEMAS = {
   // §0b: the first half of a birth. It carries nothing: the world records
   // WHEN, and that is the whole content of the deed.
   attend: {},
-  spawn: {}, stop: {}, cancel_trade: {}, invoke: {},
+  spawn: {}, stop: {}, invoke: {},
+  // §5c-ii: THE TABLE. Three verbs where there were three, and both sides see
+  // the whole of it.
+  //
+  // What was here was a one-sided posted offer: `offer_trade` named what you
+  // gave and ONE thing you wanted, `accept_trade` took it or did not, and the
+  // citizen being offered to had no way to put anything up, to ask for
+  // something else, or to see what they were getting before they agreed. They
+  // got a sentence. There was also no way to GIVE: the demand field had to
+  // name an item or positive coin, so a gift was impossible.
+  //
+  // `trade` says I am at the table with you and this is my side of it, and it
+  // replaces my side entirely, so changing what is up is the same verb again.
+  // `settle` says I accept the table AS IT STANDS. Both sides settled, and
+  // the world does the exchange at that tick.
+  //
+  // THE CHANGE CLEARS BOTH ACCEPTANCES, which is the whole of the protection
+  // and the reason there is no second confirmation screen. The classic switch
+  // -- change your side the instant the other has agreed -- cannot be
+  // performed, because touching the table un-agrees everybody. A screen you
+  // have to read twice is a worse guard than a rule that makes the attack
+  // impossible.
+  trade: { with: T.hex64, slots: T.slotListOrNone, gold: T.nonnegInt },
+  settle: {},
+  untrade: {},
   still: { target: T.id },
   move: { dx: T.unit, dy: T.unit },
   // §5u: the crushing floor. There is no verb for raising one -- see below.
@@ -5719,8 +5756,6 @@ const INPUT_SCHEMAS = {
   // pre-freeze §1: BOTH demand fields, always, explicitly, the canonical
   // item trade carries wantGold: 0; the canonical gold trade carries
   // wantItem: null. Omission is not a representation.
-  offer_trade: { to: T.hex64, giveSlots: T.slotList, wantItem: T.itemOrNull, wantGold: T.nonnegInt },
-  accept_trade: { from: T.hex64 },
   smith: { recipe: T.recipe },
   wield: { slot: T.slot }, plant: { slot: T.slot },   // §6l: `sell` repealed
   nock: { slot: T.slot },   // §7bs: which shaft is on the string
@@ -5868,11 +5903,10 @@ function validateInputShape(input) {
     const r = check(input[k]);
     if (r !== true) return `field ${k} on ${input.type} ${r}`;
   }
-  // canonical demand convention (pre-freeze §1): exactly one of a
-  // constitutional item XOR positive gold, structural, because it is
-  // about REPRESENTATION, not about the world
-  if (input.type === 'offer_trade'
-    && (input.wantItem !== null) === (input.wantGold > 0)) return 'trade must want exactly one of item or gold';
+  // §5c-ii: the canonical demand convention lived here -- exactly one of a
+  // constitutional item XOR positive gold -- and it had exactly one subject,
+  // `offer_trade`, which is repealed. A table says what is on it; there is no
+  // demand field left to hold to a shape.
   return null;
 }
 
@@ -5893,9 +5927,11 @@ function normalizeInput(fields) {
   for (const k of Object.keys(schema)) {
     let v = fields[k];
     if (v === undefined || v === null) { // canonical null/zero fills
-      if (fields.type === 'offer_trade' && k === 'wantItem') v = null;
-      else if (fields.type === 'offer_trade' && k === 'wantGold') v = 0;
-      else if (k === 'style') v = 'even';   // §6as-iii: the default is the split
+      if (k === 'style') v = 'even';   // §6as-iii: the default is the split
+      // §5c-ii: a side of a table with nothing on it is a gift, and both of
+      // its fields are canonically empty rather than missing
+      else if (fields.type === 'trade' && k === 'slots') v = [];
+      else if (fields.type === 'trade' && k === 'gold') v = 0;
       else if (v === undefined) throw new Error(`normalizeInput: missing field ${k} on ${fields.type}`);
     }
     if (typeof v === 'number' && Object.is(v, -0)) v = 0;
@@ -5903,8 +5939,6 @@ function normalizeInput(fields) {
     if (r !== true) throw new Error(`normalizeInput: field ${k} on ${fields.type} ${r}`);
     out[k] = v;
   }
-  if (fields.type === 'offer_trade' && (out.wantItem !== null) === (out.wantGold > 0))
-    throw new Error('normalizeInput: trade must want exactly one of item or gold');
   return out;
 }
 // 6bh: TWENTY A UNIT, AND NO TABLE AT ALL.
@@ -9026,34 +9060,36 @@ const LANDMARK_KINDS = new Set([
     return null;
   };
 
+  // §5c-ii: ONE SIDE OF A TABLE. Both citizens hold one, each naming the
+  // other, and the table is open only when they name each other.
   const validTrade = (t, s2) => {
     if (t === null) return null;
     if (!t || typeof t !== 'object') return 'malformed trade';
-    if (Object.keys(t).sort().join(',') !== 'giveItems,giveSlots,to,wantGold,wantItem') return 'malformed trade shape';
-    if (typeof t.to !== 'string' || !HEX64.test(t.to)) return 'malformed trade partner';
-    if (!s2.players[t.to]) return 'trade references a missing partner';
-    // v0.69: a stored offer names one or more slots, ascending and unique, so
-    // the same offer is the same bytes on every node
-    if (!Array.isArray(t.giveSlots) || t.giveSlots.length === 0 || t.giveSlots.length > INV_SLOTS)
-      return 'malformed trade slots';
-    for (let i = 0; i < t.giveSlots.length; i++) {
-      if (!isInt(t.giveSlots[i], 0, INV_SLOTS - 1)) return 'malformed trade slot';
-      if (i > 0 && t.giveSlots[i] <= t.giveSlots[i - 1]) return 'trade slots must be ascending and unique';
+    if (Object.keys(t).sort().join(',') !== 'gold,items,settled,slots,with') return 'malformed trade shape';
+    if (typeof t.with !== 'string' || !HEX64.test(t.with)) return 'malformed trade partner';
+    if (!s2.players[t.with]) return 'trade references a missing partner';
+    // the slots named are ascending and unique, so one side of a table is the
+    // same bytes on every node. EMPTY IS LEGAL: a side with nothing on it is
+    // a citizen giving, or a citizen who has sat down and not decided yet.
+    if (!Array.isArray(t.slots) || t.slots.length > INV_SLOTS) return 'malformed trade slots';
+    for (let i = 0; i < t.slots.length; i++) {
+      if (!isInt(t.slots[i], 0, INV_SLOTS - 1)) return 'malformed trade slot';
+      if (i > 0 && t.slots[i] <= t.slots[i - 1]) return 'trade slots must be ascending and unique';
     }
-    // the advertised goods, one per named slot, in the same order
-    if (!Array.isArray(t.giveItems) || t.giveItems.length !== t.giveSlots.length)
-      return 'malformed trade goods';
-    for (const gi of t.giveItems) {
+    // §6q: AND WHAT WAS IN THEM WHEN IT WENT UP, one per named slot, in the
+    // same order. A side that named only addresses committed to nothing, and
+    // a citizen whose id sorts first could `wield` an advertised slot in the
+    // settling tick, keep the sword, and hand over whatever was on their hip.
+    // The exchange holds the pack to this list before anything moves.
+    if (!Array.isArray(t.items) || t.items.length !== t.slots.length) return 'malformed trade goods';
+    for (const gi of t.items) {
       if (!gi || typeof gi !== 'object' || Array.isArray(gi)) return 'malformed trade good';
       if (Object.keys(gi).sort().join(',') !== 'item,qty') return 'malformed trade good shape';
       if (!isItemName(gi.item)) return 'malformed trade good item';
       if (!isInt(gi.qty, 1, MAX_QTY)) return 'malformed trade good qty';
     }
-    if (t.wantItem !== null && !isItemName(t.wantItem)) return 'malformed trade item';
-    if (!isInt(t.wantGold, 0, MAX_QTY)) return 'malformed trade gold';
-    // rev7 §1: the SAME XOR invariant as validInput, a persisted trade
-    // wants exactly one of an item or positive gold
-    if ((t.wantItem !== null) === (t.wantGold > 0)) return 'trade must want exactly one of item or gold';
+    if (!isInt(t.gold, 0, MAX_QTY)) return 'malformed trade gold';
+    if (typeof t.settled !== 'boolean') return 'a trade is settled or it is not';
     return null;
   };
 
@@ -10184,44 +10220,55 @@ function countItem(inv, item) {
 // moment of the swap: the slot their own payment leaves behind is free by
 // then, and a stackable item needs no slot at all if they already hold some.
 // A trade that cannot land whole must not begin (§5c).
-function tradeFits(offerer, acceptor, trade) {
-  const slots = Array.isArray(trade.giveSlots) ? trade.giveSlots : [];
-  if (!slots.length) return false;
-  const incoming = [];
-  const advertised = Array.isArray(trade.giveItems) ? trade.giveItems : null;
-  if (!advertised || advertised.length !== slots.length) return false;
-  for (let i = 0; i < slots.length; i++) {
-    const it = offerer.inventory[slots[i]];
-    if (!it) return false;                 // the offer no longer holds
-    // §6q: and it must still be WHAT WAS ADVERTISED. Emptiness was already
-    // guarded; substitution was not, which is the whole of the bait-and-
-    // switch: the buyer paid for a quick-sword and received an iron-dagger.
-    if (it.item !== advertised[i].item || (it.qty ?? 1) !== advertised[i].qty) return false;
-    incoming.push(it);
+// §5c-ii: WHAT IS ACTUALLY ON THIS SIDE OF THE TABLE, right now.
+//
+// The side names slots and what was in them when it went up. Anything that
+// has moved since -- wielded, eaten, dropped, traded away -- and this side no
+// longer stands. Returns null rather than throwing, because "the offer has
+// changed" is an ordinary answer and both the gate and the exchange ask it.
+function sideOf(p, side) {
+  if (!side) return null;
+  const out = [];
+  for (let i = 0; i < side.slots.length; i++) {
+    const held = p.inventory[side.slots[i]];
+    if (!held) return null;                                  // the slot is empty
+    const said = side.items[i];
+    if (held.item !== said.item || (held.qty ?? 1) !== said.qty) return null;  // §6q
+    out.push({ item: held.item, qty: held.qty ?? 1 });
   }
-  // a copy of what the acceptor's pack looks like once their payment leaves
-  const inv = acceptor.inventory.slice();
-  if (!trade.wantGold) {
-    const j = inv.findIndex(sl => sl && sl.item === trade.wantItem);
-    if (j === -1) return false;
-    // v0.80: only ONE unit leaves. A stack of more than one keeps its slot
-    // (and its remainder), so the slot frees only when the payment was the
-    // last unit. tradeFits must see exactly the room the swap will make.
-    if ((inv[j].qty ?? 1) > 1) inv[j] = { item: inv[j].item, qty: (inv[j].qty ?? 1) - 1 };
-    else inv[j] = null;
-  }
-  let free = 0;
-  for (const sl of inv) if (!sl) free++;
-  const held = new Set(inv.filter(Boolean).map(sl => sl.item));
-  for (const it of incoming) {
-    if (STACKABLE.has(it.item) && held.has(it.item)) continue; // pools, no slot
-    if (free === 0) return false;
-    free--;
-    held.add(it.item);
-  }
-  return true;
+  if ((p.gold ?? 0) < side.gold) return null;                // the coin is spent
+  return out;
 }
 
+// §5c: A TRADE IS WHOLE OR IT DOES NOT HAPPEN, so the room on BOTH sides is
+// measured before anything moves. Each citizen's pack is modelled as it will
+// be once their own side has left it and the other's has arrived.
+function tradeFits(a, b) {
+  const mine = sideOf(a, a.trade), theirs = sideOf(b, b.trade);
+  if (mine === null || theirs === null) return false;
+  const roomFor = (p, going, coming) => {
+    const inv = p.inventory.slice();
+    for (const i of going) inv[i] = null;
+    let free = 0;
+    for (const sl of inv) if (!sl) free++;
+    const held = new Set(inv.filter(Boolean).map((sl) => sl.item));
+    for (const it of coming) {
+      if (STACKABLE.has(it.item) && held.has(it.item)) continue;   // pools, no slot
+      if (free === 0) return false;
+      free--;
+      held.add(it.item);
+    }
+    return true;
+  };
+  return roomFor(a, a.trade.slots, theirs) && roomFor(b, b.trade.slots, mine);
+}
+
+// A table is OPEN only when both citizens are sitting at it and each names
+// the other. One citizen naming somebody who has not sat down is an
+// invitation, and an invitation moves nothing.
+function tradeOpen(a, b, aPid, bPid) {
+  return !!a?.trade && !!b?.trade && a.trade.with === bPid && b.trade.with === aPid;
+}
 function canAddItem(inv, item) {
   if (STACKABLE.has(item) && inv.some(sl => sl?.item === item)) return true;
   return firstFreeSlot(inv) !== -1;
@@ -10478,8 +10525,9 @@ function validInput(state, input, ctx) {
     // calling that could be put down would be a loadout, and the whole point
     // of the word is that it costs something to say.
     // §5w: TEACH, a master takes a citizen on. Consent is a signed input of
-    // its own, mirroring `offer_trade`: the offer is parked on the OFFERER, and
-    // the other party completes it. A master cannot be volunteered.
+    // its own: the teaching is parked on the MASTER and the pupil completes
+    // it, the way a table needs both citizens sitting at it. A master cannot
+    // be volunteered.
     case 'teach': {
       const t = state.players[input.to];
       if (!t || input.to === input.playerId) return false;
@@ -10959,29 +11007,35 @@ function validInput(state, input, ctx) {
       if (standingOf(p) < NAME_STANDING) return false; // v0.70: a name costs time
       return !(name in state.names) && p.name === null;
     }
-    case 'offer_trade': {
-      const t = state.players[input.to];
-      if (!t || input.to === input.playerId) return false;
-      // every named slot must actually hold something. An offer that promises
-      // an empty slot is not a smaller offer, it is a malformed one.
-      if (!Array.isArray(input.giveSlots) || input.giveSlots.length === 0) return false;
-      for (const sl of input.giveSlots) if (!p.inventory[sl]) return false;
-      // structural canonicality (both demand fields explicit, item XOR
-      // positive gold) already passed the shape gate; this case is purely
-      // state-dependent now (pre-freeze §4)
-      return true;
+    case 'trade': {
+      // §5c-ii: sitting down at a table with somebody, and saying what is on
+      // my side of it. Both are the same deed, because changing my side is
+      // sitting down again with something else on it.
+      const t = state.players[input.with];
+      if (!t || input.with === input.playerId) return false;
+      if (p.health <= 0 || t.health <= 0) return false;
+      // WITHIN REACH. A table is two people standing in front of each other,
+      // which is what makes it a thing a bystander can watch happen. It is
+      // checked again when the exchange settles, because either of them may
+      // have walked away in between.
+      if (!adjacent(p, t)) return false;
+      // every named slot must actually hold something. A side that promises
+      // an empty slot is not a smaller side, it is a malformed one.
+      for (const sl of input.slots) if (!p.inventory[sl]) return false;
+      return (p.gold ?? 0) >= input.gold;
     }
-    case 'accept_trade': {
-      const o = state.players[input.from];
-      if (!o || !o.trade || o.trade.to !== input.playerId) return false;
+    case 'settle': {
+      // I accept the table as it stands. Both sides must be at it, both still
+      // within reach, and the whole exchange must FIT before anything moves
+      // (§5c: a trade is whole or it does not happen).
+      const o = state.players[p.trade?.with];
+      if (!o || !tradeOpen(p, o, input.playerId, p.trade.with)) return false;
+      if (p.health <= 0 || o.health <= 0) return false;
       if (!adjacent(p, o)) return false;
-      // a trade is whole or it does not happen (§5c), so the room must be
-      // there BEFORE anything moves
-      if (!tradeFits(o, p, o.trade)) return false;
-      if (o.trade.wantGold) return (p.gold ?? 0) >= o.trade.wantGold;
-      return p.inventory.some(s => s && s.item === o.trade.wantItem);
+      if (p.trade.settled) return false;           // said once is said
+      return tradeFits(p, o);
     }
-    case 'cancel_trade':
+    case 'untrade':
       return p.trade !== null;
     case 'buy': {
       // §6al: A CITIZEN'S STALL FIRST, if you are stood at one and it has the
@@ -11849,8 +11903,9 @@ function validInput(state, input, ctx) {
       // under somebody's finger is as likely to be a stranger's as their own,
       // and one wrong tap at hour nine hundred should not be able to end a run.
       //
-      // `accept_trade` needs no such gate: it already has a counterparty, an
-      // offer and a deliberate press. Nobody accepts a trade by accident.
+      // `settle` needs no such gate: it already has a counterparty, a table
+      // with both sides on it, and a deliberate press from each of them.
+      // Nobody settles a trade by accident.
       //
       // The act stays irreversible. It simply stops being possible by mistake,
       // which is the difference between a rule that is harsh and one that is
@@ -15309,98 +15364,100 @@ function nextState(state, inputs, _legacyBeacon) {
       p.action = { type: 'gather', nodeId: inp.nodeId };
     } else if (inp.type === 'stop') {
       p.action = null;
-    } else if (inp.type === 'offer_trade') {
-      // the shape gate guarantees both demand fields, canonically, the
-      // persisted trade is the signed trade, verbatim (pre-freeze §12)
-      // §6q: AN OFFER NAMES WHAT IT GIVES, not merely where it sits.
+    } else if (inp.type === 'trade') {
+      // §5c-ii: MY SIDE OF THE TABLE, replaced whole.
       //
-      // A stored offer was {to, giveSlots, wantItem, wantGold} -- addresses
-      // with no commitment to their contents. Inputs apply in canonical
-      // playerId order, so an offerer whose id sorts first could WIELD the
-      // advertised slot in the settling tick: `wield` swaps the equipped item
-      // into that slot, so they keep the sword, take the gold, and hand over
-      // whatever was on their hip. The acceptance guard checked only that the
-      // slot was not empty.
-      //
-      // That is not a gamble either. Ordering is fixed and public per pair,
-      // so an attacker knows before they start which victims are exploitable,
-      // and can mint keys until they sort low.
-      p.trade = { to: inp.to, giveSlots: inp.giveSlots.slice(),
-                  giveItems: inp.giveSlots.map((sl) => {
+      // §6q: A SIDE NAMES WHAT IT PUTS UP, not merely where it sits. A stored
+      // offer used to be addresses with no commitment to their contents.
+      // Inputs apply in canonical playerId order, so a citizen whose id sorts
+      // first could WIELD an advertised slot in the settling tick: `wield`
+      // swaps the equipped item into that slot, so they keep the sword, take
+      // the payment, and hand over whatever was on their hip. That is not a
+      // gamble either: ordering is fixed and public per pair, so an attacker
+      // knows before they start which victims are exploitable, and can mint
+      // keys until they sort low.
+      p.trade = { with: inp.with, slots: inp.slots.slice(),
+                  items: inp.slots.map((sl) => {
                     const it = p.inventory[sl];
                     return { item: it.item, qty: it.qty ?? 1 };
                   }),
-                  wantItem: inp.wantItem, wantGold: inp.wantGold };
-    } else if (inp.type === 'cancel_trade') {
+                  gold: inp.gold, settled: false };
+      // AND TOUCHING THE TABLE UN-AGREES EVERYBODY. This is the whole of the
+      // protection against the switch -- change your side the instant the
+      // other has agreed -- and the reason there is no second confirmation
+      // screen. A screen you have to read twice is a worse guard than a rule
+      // that makes the attack impossible.
+      const other = s.players[inp.with];
+      if (other?.trade?.with === pid && other.trade.settled) ownPlayer(s, inp.with).trade.settled = false;
+    } else if (inp.type === 'untrade') {
+      // Only my own side. A citizen who stands up leaves the table; they do
+      // not reach across it and clear somebody else's record, and the other
+      // side can see perfectly well that nobody is sitting opposite.
       p.trade = null;
-    } else if (inp.type === 'accept_trade') {
-      // re-validate against the NEW state (§5c): all-or-nothing. Everything is
-      // checked before anything moves, so a trade that cannot complete leaves
-      // both packs exactly as they were.
-      // §7dk: AID IS A THING YOU WENT AND GOT.
-      //
-      // Not "help happened near you". A citizen who is mended by a passing
-      // stranger has done nothing and chosen nothing, and a flag that a
-      // stranger can set is not a measurement -- it is a way to end somebody
-      // else's nine-hundred-hour run by being kind at them. So `aided` is set
-      // ONLY by acts the citizen initiates, and there are exactly four:
-      //
-      //   accept_trade   you accepted
-      //   pickup         of another citizen's goods -- you reached down
-      //   unload         another citizen's cart -- you opened their shelf
-      //   buy            from another citizen's market
-      //
-      // NOT `mendp`, which is cast on you. NOT a stall (§6l: the world's own
-      // stock, made from nothing, gold destroyed -- there is no citizen behind
-      // it). NOT `take_market`, which takes from your OWN stall. NOT the toll,
-      // which spends your own planks.
-      //
-      // AND NOT SHARED INFRASTRUCTURE, which is the line that matters most.
-      // Smelting at a furnace somebody else is stoking, crossing a bridge
-      // somebody built, walking a pass dug out of the South rockfalls, reading
-      // a chart drawn by a stranger: none of that is aid. If it were, the
-      // unaided board would be a board for citizens who refuse to use the
-      // island, and §52 -- the ingot run, the fire-keeper, the gravedigger and
-      // the wight-hunter -- would become the thing that disqualifies you. That
-      // is exactly backwards. The best design on this island must not be the
-      // one that voids your record.
-      //
-      // ONE WAY, FOREVER. A flag that can be washed off is worth nothing, and
-      // a hiscore that says THIS CITIZEN NEVER TOOK A THING FROM ANOTHER SOUL
-      // is only worth reading if there was no way back.
-      const o = s.players[inp.from];
-      if (o && o.trade && o.trade.to === pid && adjacent(p, o) && tradeFits(o, p, o.trade)) {
-        p.aided = true;
-        const slots = o.trade.giveSlots;
-        const goods = slots.map(sl => o.inventory[sl]);
-        if (o.trade.wantGold) { // v0.41: coin settles like any item
-          if ((p.gold ?? 0) >= o.trade.wantGold) {
-            p.gold -= o.trade.wantGold;
-            o.gold = (o.gold ?? 0) + o.trade.wantGold;
-            for (const sl of slots) o.inventory[sl] = null;
-            for (const g of goods) addItem(p.inventory, g.item, g.qty ?? 1);
-            o.trade = null;
-          }
-        } else {
-          const j = p.inventory.findIndex(sl => sl && sl.item === o.trade.wantItem);
-          if (j !== -1) {
-            // v0.80: pay ONE unit, never the whole stack. The offer names an
-            // item, not a quantity, so one unit is the only price the
-            // acceptor can see; taking their entire stack of arrows or food
-            // was theft-by-deception. A stackable keeps its remainder.
-            const src = p.inventory[j];
-            const payment = { item: src.item, qty: 1 };
-            if ((src.qty ?? 1) > 1) src.qty -= 1; else p.inventory[j] = null;
-            for (const sl of slots) o.inventory[sl] = null;
-            // the payment lands in the first slot the goods vacated (or pools
-            // if the offerer already holds that stackable), so a trade never
-            // needs room the offerer did not just make
-            if (STACKABLE.has(payment.item)) { addItem(o.inventory, payment.item, 1); }
-            else { o.inventory[slots[0]] = payment; }
-            for (const g of goods) addItem(p.inventory, g.item, g.qty ?? 1);
-            o.trade = null;
-          }
-        }
+    } else if (inp.type === 'settle') {
+      const otherPid = p.trade?.with;
+      const o = otherPid ? s.players[otherPid] : null;
+      if (o && tradeOpen(p, o, pid, otherPid) && adjacent(p, o)
+          && p.health > 0 && o.health > 0 && !p.trade.settled && tradeFits(p, o)) {
+        p.trade = { ...p.trade, settled: true };
+        if (!o.trade.settled) continue;      // waiting on them
+        // ---- BOTH HAVE SAID YES. The exchange, whole or not at all. ----
+        //
+        // Re-measured against the state as it is NOW (§5c), because inputs
+        // apply in order and the interval between the two acceptances is a
+        // whole interval in which anything could have happened. Everything is
+        // checked before anything moves, so a trade that cannot complete
+        // leaves both packs exactly as they were.
+        const ow = ownPlayer(s, otherPid);
+        const mine = sideOf(p, p.trade), theirs = sideOf(ow, ow.trade);
+        if (mine === null || theirs === null || !tradeFits(p, ow)) continue;
+        // §7dk: AID IS A THING YOU WENT AND GOT.
+        //
+        // Not "help happened near you". A citizen mended by a passing stranger
+        // has done nothing and chosen nothing, and a flag a stranger can set
+        // is not a measurement -- it is a way to end somebody else's
+        // nine-hundred-hour run by being kind at them. So `aided` is set ONLY
+        // by acts the citizen initiates, and there are exactly four:
+        //
+        //   settle    you sat at a table and agreed to it
+        //   pickup    of another citizen's goods -- you reached down
+        //   unload    another citizen's cart -- you opened their shelf
+        //   buy       from another citizen's market
+        //
+        // BOTH SIDES OF A TABLE, which the one-sided offer could not say. It
+        // marked only the acceptor, because only the acceptor had acted; here
+        // two citizens each sat down and each said yes, and whoever RECEIVES
+        // anything has taken a thing from another soul. Somebody who puts
+        // goods up and takes nothing back has given, and giving is not aid.
+        //
+        // NOT `mendp`, which is cast on you. NOT a stall (§6l: the world's own
+        // stock, made from nothing, gold destroyed -- there is no citizen
+        // behind it). NOT `take_market`, which takes from your OWN stall. NOT
+        // the toll, which spends your own planks.
+        //
+        // AND NOT SHARED INFRASTRUCTURE, which is the line that matters most.
+        // Smelting at a furnace somebody else is stoking, crossing a bridge
+        // somebody built, reading a chart drawn by a stranger: none of that is
+        // aid. If it were, the unaided board would be a board for citizens who
+        // refuse to use the island, and §52 -- the ingot run, the fire-keeper,
+        // the gravedigger and the wight-hunter -- would become the thing that
+        // disqualifies you. That is exactly backwards.
+        //
+        // ONE WAY, FOREVER. A flag that can be washed off is worth nothing,
+        // and a hiscore that says THIS CITIZEN NEVER TOOK A THING FROM ANOTHER
+        // SOUL is only worth reading if there was no way back.
+        if (theirs.length || ow.trade.gold) p.aided = true;
+        if (mine.length || p.trade.gold) ow.aided = true;
+        // out of both packs first, so neither side can be paid into a slot the
+        // other has not vacated yet
+        for (const sl of p.trade.slots) p.inventory[sl] = null;
+        for (const sl of ow.trade.slots) ow.inventory[sl] = null;
+        p.gold = (p.gold ?? 0) - p.trade.gold + ow.trade.gold;
+        ow.gold = (ow.gold ?? 0) - ow.trade.gold + p.trade.gold;
+        for (const g of theirs) addItem(p.inventory, g.item, g.qty);
+        for (const g of mine) addItem(ow.inventory, g.item, g.qty);
+        p.trade = null;
+        ow.trade = null;
       }
     } else if (inp.type === 'attack') {
       p.action = (p.action?.type === 'attack' && p.action.mobId === inp.mobId

@@ -1006,13 +1006,12 @@ test('every word a window sends is one its own table can translate', () => {
 // The test above compares names. This one evaluates the window's own table
 // with the arguments its trade panel actually passes, and hands the result to
 // the engine's shape gate. It is the only check here that would catch the
-// other half of the same fault: the panel names one slot (`giveSlot`) and the
-// engine has wanted a list (`giveSlots`) since v0.69, so a line that
-// translated the word and forwarded the wrong field would still refuse every
-// offer, and refuse it at the node where nobody in the window can see it.
+// other half of the same fault: a line that translated the word and forwarded
+// the wrong field would still be refused at the node, where nobody in the
+// window can see it.
 import vm from 'node:vm'
 
-test('the trade panel builds offers the engine will take', () => {
+test('the trade panel builds a table the engine will take', () => {
   const src = win.match(/const BRIDGE_TO_INPUT = \(a\) =>[\s\S]*?\n {2}null\n/)
   assert.ok(src, 'the translation table is gone or renamed')
   const ctx = vm.createContext({ combatStyle: 'even' })
@@ -1022,11 +1021,13 @@ test('the trade panel builds offers the engine will take', () => {
     playerId: 'a'.repeat(64), worldId: 'b'.repeat(64), tick: 7, sig: 'c'.repeat(128),
   }
   const them = 'd'.repeat(64)
-  // exactly what openTrade and the offers list send
+  // §5c-ii: exactly what the panel, the pack tap and the coin stepper send
   const said = [
-    { do: 'offer_trade', to: them, giveSlot: 3, wantItem: 'logs' },
-    { do: 'accept_trade', from: them },
-    { do: 'cancel_trade' },
+    { do: 'trade', with: them, slots: [], gold: 0 },        // sitting down
+    { do: 'trade', with: them, slots: [0, 3], gold: 0 },    // two things up
+    { do: 'trade', with: them, slots: [], gold: 120 },      // coin and no goods
+    { do: 'settle' },
+    { do: 'untrade' },
   ]
   for (const a of said) {
     const inp = ctx.T(a)
@@ -1035,10 +1036,33 @@ test('the trade panel builds offers the engine will take', () => {
     const why = E.validateInputShape({ ...base, ...inp })
     assert.equal(why ?? null, null, `${a.do} builds an input the engine refuses: ${why}`)
   }
-  // and an offer names a LIST of slots, whichever way the panel said it.
+  // a side is a LIST of slots and an amount of coin, and both may be empty.
   // Copied out of the table's own realm first: an array built in there has a
   // different Array.prototype, and strict deepEqual holds that against it.
-  assert.deepEqual([...ctx.T(said[0]).giveSlots], [3])
-  assert.deepEqual([...ctx.T({ ...said[0], giveSlot: undefined, giveSlots: [1, 2] }).giveSlots],
-    [1, 2])
+  assert.deepEqual([...ctx.T(said[1]).slots], [0, 3])
+  assert.equal(ctx.T(said[2]).gold, 120)
+  assert.deepEqual([...ctx.T(said[0]).slots], [])
+})
+
+// ---- AND THE PANEL DRAWS BOTH SIDES OF IT ----
+//
+// The old panel was two dropdowns and a sentence: you could not see what you
+// were getting, put anything up yourself, ask for two things, or give. Reading
+// the window as text cannot prove the drawing is good, but it can prove the
+// panel reads the OTHER citizen's side at all, which is the thing that was
+// structurally missing rather than merely ugly.
+test('the trade panel reads both sides of the table', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const draw = code.slice(code.indexOf('function drawTable('))
+  assert.ok(draw.startsWith('function drawTable('), 'the table panel is gone or renamed')
+  const body = draw.slice(0, draw.indexOf('\nfunction ', 10))
+  assert.match(body, /them\.trade/, 'the panel must draw the other side, not only mine')
+  assert.match(body, /settled/, 'and whether they have accepted')
+  assert.match(body, /tableSide\(me[\s\S]*tableSide\(them/,
+    'mine first, then theirs, so the two are read in the same order every time')
+  // and the pack is what puts things on it, rather than a second pack drawn
+  // inside the panel on a phone that has no room for one
+  assert.match(code, /if \(meNow\.trade && tableToggle\(i\)\) return/,
+    'a pack tap while a table is open must put the thing up')
 })

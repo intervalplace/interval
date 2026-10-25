@@ -3186,10 +3186,10 @@ const BRIDGE_TO_INPUT = (a) =>
   a.do === 'unload' ? { type: 'unload', nodeId: a.nodeId }:
   a.do === 'dedicate' ? { type: 'dedicate', nodeId: a.nodeId, pay: a.pay | 0 }:
   a.do === 'still' ? { type: 'still', target: a.target }:
-  a.do === 'offer' ? { type: 'offer_trade', to: a.to, giveSlots: a.giveSlots,
-                         wantItem: a.wantItem ?? null, wantGold: a.wantGold ?? 0 }:
-  a.do === 'accept' ? { type: 'accept_trade', from: a.from }:
-  a.do === 'cancel' ? { type: 'cancel_trade' }:
+  // §5c-ii: one side of a table, replaced whole
+  a.do === 'trade' ? { type: 'trade', with: a.with, slots: a.slots ?? [], gold: a.gold ?? 0 }:
+  a.do === 'settle' ? { type: 'settle' }:
+  a.do === 'untrade' ? { type: 'untrade' }:
   a.do === 'stop' ? { type: 'stop' }:
   null
 
@@ -11645,7 +11645,7 @@ function drawPack(g, now) {
   regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
   regions.push({ x, y, w: PANE_W, h: PANE_H, act: { t: 'panebg' } })
   carve(g, x, y, PANE_W, PANE_H)
-  plate(g, x + 14, y + 14, PANE_W - 28, giveTo ? 'Choose an offer' : 'The Pack')
+  plate(g, x + 14, y + 14, PANE_W - 28, giveTo ? 'What goes on the table' : 'The Pack')
   regions.push({ x: x + PANE_W - 34, y: y + 12, w: 24, h: 24, act: { t: 'close', which: 'right' } })
   g.font = '700 13px Cinzel, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'
   g.fillStyle = inRect(mouse, x + PANE_W - 34, y + 12, 24, 24) ? '#e8d199' : '#6a5220'
@@ -11672,7 +11672,7 @@ function drawPack(g, now) {
   const fy = gy + 4 * (S + GAP) + 12
   g.textAlign = 'left'; g.textBaseline = 'alphabetic'
   g.font = '11.5px Georgia, serif'; g.fillStyle = giveTo ? '#e8d199' : '#8d7d63'
-  g.fillText(giveTo ? 'Click what you will offer. Escape to withdraw.':
+  g.fillText(giveTo ? 'Click to put up or take back. Escape when done.':
                     'Left click to use. Right click for everything else.', x + 20, fy + 12)
   const free = 28 - (me.inventory ?? []).filter(Boolean).length
   g.fillStyle = free ? '#8d7d63' : '#c98b5a'
@@ -12984,14 +12984,19 @@ function buildMenu(px2, py2, target) {
                    dim: sig < 3, run: () => {
                      send({ do: 'still', target: target.id })
                      addFx('still', q.x, q.y, q.x, q.y, 700); SFX.still() } }) }
-    // TRADE. Choosing what to give needs the pack open, so the menu arms the
-    // pack rather than guessing: the next slot you click is the offer.
-    items.push({ label: 'Offer them something', run: () => {
+    // §5c-ii: THE TABLE. Sitting down opens the pack, because what goes on
+    // your side of it is chosen there: every slot you click goes up, and
+    // clicking it again takes it back.
+    const atTable = me.trade && me.trade.with === target.id
+    items.push({ label: atTable ? 'Put something on the table' : 'Sit down and trade', run: () => {
+      if (!atTable) send({ do: 'trade', with: target.id, slots: [], gold: 0 })
       giveTo = target.id; paneRight = 'pack'
-      say('Choose what to offer ' + (q.name || 'them') + ', or press Escape.', 'dim')
+      say('Click what you will put up for ' + (q.name || 'them') + ', or press Escape.', 'dim')
     } })
-    items.push({ label: 'Accept their offer', run: () => send({ do: 'accept', from: target.id }) })
-    items.push({ label: 'Withdraw my offer', dim: !me.trade, run: () => send({ do: 'cancel' }) })
+    items.push({ label: 'Accept this trade',
+      dim: !(atTable && q.trade && q.trade.with === myId && !me.trade.settled),
+      run: () => send({ do: 'settle' }) })
+    items.push({ label: 'Leave the table', dim: !me.trade, run: () => send({ do: 'untrade' }) })
   } else if (target.kind === 'ground') {
     // A PILE IS NOT ONE THING.
     //
@@ -13434,14 +13439,18 @@ function runRegion(r, isRight) {
   }
   if (a.t === 'slot') {
     if (giveTo) {
+      // §5c-ii: the pack stays armed, because a side of a table is a LIST.
+      // Clicking a slot puts it up; clicking it again takes it back; Escape
+      // stops choosing without leaving the table.
       const me2 = myId && curState?.players?.[myId]
       const sl = me2?.inventory?.[a.i]
-      const to = giveTo; giveTo = null; paneRight = null
+      if (!me2?.trade || me2.trade.with !== giveTo) { giveTo = null; return }
       if (!sl) { say('Nothing in that slot.', 'warn'); return }
-      const ask = window.prompt('Ask how much gold for the ' + wordy(sl.item) + '?  (0 is a gift)', '0')
-      if (ask === null) { say('Offer withdrawn.', 'dim'); return }
-      send({ do: 'offer', to, giveSlots: [a.i], wantItem: null, wantGold: Math.max(0, parseInt(ask, 10) || 0) })
-      say('Offered: ' + wordy(sl.item) + '.', 'good')
+      const up = me2.trade.slots.slice()
+      const at = up.indexOf(a.i)
+      if (at === -1) up.push(a.i); else up.splice(at, 1)
+      send({ do: 'trade', with: giveTo, slots: up.sort((x, y) => x - y), gold: me2.trade.gold })
+      say((at === -1 ? 'On the table: ' : 'Taken back: ') + wordy(sl.item) + '.', at === -1 ? 'good' : 'dim')
       return
     }
     if (isRight) { menu = buildSlotMenu(mouse.x, mouse.y, a.i); return }
@@ -14049,7 +14058,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'f') { togglePane('forge'); SFX.pane() }
   else if (e.key === 'Tab') { showChart = !showChart; if (showChart) chartRecentre(); e.preventDefault() }
   else if (e.key === 'Enter') { openSay(); e.preventDefault() }
-  else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('Offer withdrawn.', 'dim') } else if (menu) menu = null; else if (paneModal) paneModal = null; else if (anyPaneOpen()) { paneLeft = paneRight = null } else if (showChart) showChart = false; else intent = null }
+  else if (e.key === 'Escape') { if (giveTo) { giveTo = null; say('You stop choosing.', 'dim') } else if (menu) menu = null; else if (paneModal) paneModal = null; else if (anyPaneOpen()) { paneLeft = paneRight = null } else if (showChart) showChart = false; else intent = null }
   else if (k === ' ') { paneLeft = paneRight = paneModal = null; showChart = false; e.preventDefault() }
   else if (k === '5') {
     const me2 = myId && curState?.players?.[myId]

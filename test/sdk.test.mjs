@@ -21,8 +21,8 @@ test('every public SDK action emits a canonical signed input', () => {
   const { c, captured } = client()
   // one call per public action helper
   c.move(1, 0); c.gather('tree-1'); c.stop(); c.claimName('ada'); c.spawn()
-  c.offerTradeForItem(other, 0, 'logs'); c.offerTradeForGold(other, 0, 5)
-  c.acceptTrade(other); c.cancelTrade(); c.cook(0); c.attack('gob-1'); c.eat(0)
+  c.trade(other, 0, 5); c.settle(); c.untrade()
+  c.cook(0); c.attack('gob-1'); c.eat(0)
   c.drop(0); c.pickup('g-1'); c.light(0); c.bury(0); c.fletch(0, 'bow'); c.attackp(other)
   // §6l: `sell` is repealed -- a keeper buys nothing; a citizen raises a
   // stall (§6al) and sells from it. The helper went with the verb.
@@ -33,7 +33,7 @@ test('every public SDK action emits a canonical signed input', () => {
   // return a rejection, so this asks for none.
   c.deposit(0); c.withdraw('logs'); c.smith('iron-sword'); c.wield(0); c.buy('logs')
 
-  assert.equal(captured.length, 28)
+  assert.equal(captured.length, 27)
   const types = new Set()
   for (const input of captured) {
     assert.equal(E.validateInputShape(input), null, `${input.type} is non-canonical: ${E.validateInputShape(input)}`)
@@ -41,37 +41,37 @@ test('every public SDK action emits a canonical signed input', () => {
     types.add(input.type)
   }
   // the SDK covers every constitutional input type
-  const SCHEMA_TYPES = ['spawn', 'stop', 'cancel_trade', 'invoke', 'move', 'gather',
-    'harvest', 'attack', 'attackp', 'offer_trade', 'accept_trade', 'smith',
+  const SCHEMA_TYPES = ['spawn', 'stop', 'untrade', 'invoke', 'move', 'gather',
+    'harvest', 'attack', 'attackp', 'trade', 'settle', 'smith',
     'wield', 'plant', 'light', 'bury', 'deposit', 'drop', 'eat', 'cook',
     'unwield', 'buy', 'withdraw', 'cast', 'fletch', 'pickup', 'claim_name']
   for (const t of SCHEMA_TYPES) assert.ok(types.has(t), `no SDK helper emits ${t}`)
 })
 
-test('gold and item trade helpers each normalize to the canonical XOR form', () => {
+// §5c-ii: the XOR these helpers normalized to is repealed with the one-sided
+// offer. A side of a table carries goods, coin, both, or neither, and what
+// still has to hold is that the SDK writes one serialized form for it.
+test('a side of a table normalizes to one canonical form', () => {
   const { c, captured } = client()
-  c.offerTradeForItem(other, 3, 'raw-fish')
-  c.offerTradeForGold(other, 3, 12)
-  const [item, gold] = captured
-  // item form: explicit wantGold: 0
-  assert.equal(item.wantItem, 'raw-fish'); assert.equal(item.wantGold, 0)
-  assert.equal(E.validateInputShape(item), null)
-  // gold form: explicit wantItem: null
-  assert.equal(gold.wantItem, null); assert.equal(gold.wantGold, 12)
-  assert.equal(E.validateInputShape(gold), null)
-  // both are byte-canonical: an item helper called with the same args twice
-  // produces identical signed bytes
+  c.trade(other, 3, 12)
+  c.trade(other, [5, 1, 5], 0)      // out of order and repeated
+  c.trade(other)                    // nothing at all, which is a gift
+  const [one, two, bare] = captured
+  assert.deepEqual(one.slots, [3]); assert.equal(one.gold, 12)
+  assert.deepEqual(two.slots, [1, 5], 'ascending and distinct, whatever the caller said')
+  assert.deepEqual(bare.slots, []); assert.equal(bare.gold, 0)
+  for (const inp of [one, two, bare]) assert.equal(E.validateInputShape(inp), null)
+  // byte-canonical: the same call twice signs the same bytes
   const { c: c2, captured: cap2 } = client()
-  c2.offerTradeForItem(other, 3, 'raw-fish')
+  c2.trade(other, 3, 12)
   const strip = ({ sig, ...rest }) => rest
-  assert.equal(E.canonical(strip(item)), E.canonical(strip(cap2[0])))
+  assert.equal(E.canonical(strip(one)), E.canonical(strip(cap2[0])))
 })
 
 test('malformed SDK calls are refused before signing, not turned into junk inputs', () => {
   const { c } = client()
   // unknown item, bad slot, unknown spell, non-constitutional name: each
   // must throw at normalizeInput rather than emit a signed non-canonical input
-  assert.throws(() => c.offerTradeForItem(other, 0, 'sword-of-doom'), /item/)
   assert.throws(() => c.buy('sword-of-doom'), /item/)
   assert.throws(() => c.cast('fireball'), /spell/)
   // the message names every make the constitution allows, and there are more
@@ -81,9 +81,9 @@ test('malformed SDK calls are refused before signing, not turned into junk input
   assert.throws(() => c.wield(99), /slot/)
   assert.throws(() => c.smith('adamant-sword'), /recipe/)
   assert.throws(() => c.unequip('boots'), /equipment slot/)
-  // a gold trade for zero or negative is not a canonical demand
-  assert.throws(() => c.offerTradeForGold(other, 0, 0), /exactly one of item or gold/)
-  assert.throws(() => c.offerTradeForGold(other, 0, -5), /nonnegative|exactly one/)
+  // §5c-ii: coin on a table is a count, and a negative count is not one
+  assert.throws(() => c.trade(other, 0, -5), /nonnegative/)
+  assert.throws(() => c.trade(other, 99, 0), /inventory slot/)
 })
 
 test('the obsolete no-argument unwield() is gone; unequip(gear) is the canonical helper', () => {

@@ -36,8 +36,8 @@ const ACCEPTS = new Set(LADDER)
 // stage (a span half-built, a furnace lit, a goo-staff in hand).
 const VERBS = ['attend', 'spawn', 'move', 'gather', 'attack', 'cook', 'eat', 'smith', 'wield',
   'unwield', 'buy', 'drop', 'pickup', 'light', 'bury', 'plant', 'harvest', 'sell',
-  'invoke', 'cast', 'fletch', 'unequip', 'deposit', 'withdraw', 'offer_trade', 'accept_trade',
-  'cancel_trade', 'chat', 'attackp', 'name', 'stop', 'gambit', 'survey', 'drink', 'offer',
+  'invoke', 'cast', 'fletch', 'unequip', 'deposit', 'withdraw', 'trade', 'settle',
+  'untrade', 'chat', 'attackp', 'name', 'stop', 'gambit', 'survey', 'drink', 'offer',
   'transmute', 'grind', 'brew', 'collect', 'kindle', 'stoke', 'consign', 'deliver', 'release', 'pay']
 
 // ---------- a browser, more or less ----------
@@ -229,7 +229,7 @@ for (let i = 0; i < 12; i++) {
 esc(); explore(() => tap('z'), []); esc(); explore(() => tap('e'), []); esc(); explore(() => tap('r'), [])
 const PLACED = { deposit: 'a bank', withdraw: 'a bank', sell: 'a counter', buy: 'a counter',
                  smith: 'an anvil', cook: 'a fire', plant: 'tilled ground',
-                 offer_trade: 'a neighbour', recall: 'a waystone' }
+                 trade: 'a neighbour', recall: 'a waystone' }
 console.log('\n  in an empty field, ' + sent.length + ' deeds were still offered\n')
 let leaked = 0
 for (const [v, needs] of Object.entries(PLACED)) {
