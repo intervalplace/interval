@@ -12,9 +12,24 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interval</title>
-<style>:
-  root {
+<style>
+  /* §7f: THE COLON WAS ON THE OTHER SIDE OF THE TAG.
+     This read `<style>:` and then `root {` on the next line, which is the
+     selector `: root`: a pseudo-class may not have whitespace after its
+     colon, so the browser threw the whole block away and EVERY custom
+     property in this window was undefined. Ninety-one `var(--x)` uses
+     across the file, every one of them resolving to nothing.
+     What that looked like: a pack of twelve slots with no background and no
+     border, on a page the same colour, reported as "pack slots are not
+     showing up on mobile". They were all there, and so was the gear panel,
+     and so was the board the whole HUD is supposed to sit on. */
+  :root {
     --stone: #291f12; --stone-dk: #191108; --stone-lt: #55462d;
+    /* §7f: THE EDGE OF AN EMPTY BOX, which is the whole of whether a pack
+       looks like a pack. An empty slot was #191108 sitting on a #14100a
+       page: five units out of 255, invisible on a phone and reported as
+       "pack slots are not showing up on mobile". They were all there. */
+    --edge: #3d3220; --board: #241b10;
     --gold: #c6941e; --gold-hi: #e2b63e; --parch: #d6c49c; --dim: #94805a;
     --hp: #c0392b; --hpbg: #4a1008;
   }
@@ -46,7 +61,11 @@
      is shown LARGER rather than wider: the tile count is unchanged, so the
      view stays as close and sprite-forward as it is on a phone, and the
      panel grows with it instead of staying a narrow strip beside a huge map. */:
-  root { --frame-w: min(96vw, 1180px); --panel-w: 232px; }
+  /* and the same fault again, eight lines down: this one holds the width of
+     the frame and the panel, so on anything narrower than 1500px (the first
+     media query that spells :root correctly) the window had no width to lay
+     itself out in, and ran off the side of a phone. */
+  :root { --frame-w: min(96vw, 1180px); --panel-w: 232px; }
   @media (min-width: 1500px) { :root { --frame-w: min(94vw, 1560px); --panel-w: 300px; } }
   @media (min-width: 2100px) { :root { --frame-w: min(92vw, 1880px); --panel-w: 340px; } }
   #frame { display: flex; gap: 0; border: 3px solid var(--stone-dk); width: var(--frame-w); }
@@ -97,8 +116,14 @@
   /* the panel is the thing that scrolls, and only the panel. `min-height: 0`
      is what lets a flex child be SHORTER than its content -- without it the
      box grows to fit and pushes the page tall again, which is the whole bug. */
+  /* A BOARD, NOT A VOID. The panel had no background of its own, so every
+     small dark box in it sat directly on the page and had nothing to be
+     darker THAN. One step up for the board and the recesses read as
+     recesses: the same ink-board look, with the depth it was supposed to
+     have all along. */
   #panel { width: var(--panel-w); flex: 0 0 var(--panel-w); padding: 8px; display: flex; flex-direction: column; gap: 8px;
-    min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    background: var(--board); }
   #frame { max-height: 100%; }
   #view { max-height: 100%; }
   @media (max-width: 900px) {
@@ -109,7 +134,12 @@
     #view { flex: 0 0 auto; }
     #panel { width: 100%; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
     #skills { grid-template-columns: repeat(4, 1fr); }
-    #inv { grid-template-columns: repeat(7, 1fr); }
+    /* §7f: and the pack's columns are NOT set here, eighteen lines above the
+       rule they are meant to override. Two rules of equal weight, and the
+       later one wins, so this said seven and the base rule below said four
+       and four is what a phone got: slots a hundred and eight pixels across,
+       three rows of them. The override is at the foot of this stylesheet
+       now, after the rule it overrides. */
   }
   #panel h2 { font-size: 11px; letter-spacing: 1px; color: var(--parch); text-transform: uppercase; }
   #hpbar { height: 14px; background: var(--hpbg); position: relative; }
@@ -148,7 +178,13 @@
   .wslot { aspect-ratio: 1; width: 100%; min-width: 34px; min-height: 34px; background: var(--stone-dk);
            border: 1px solid var(--stone-lt); border-radius: 2px; position: relative;
            display: flex; align-items: center; justify-content: center; }
-  .wslot.empty { opacity: .38; }
+  /* An empty slot is a slot with nothing in it, not a slot that is barely
+     there. This faded the whole box to 38%, which took the outline with it,
+     so the five places gear goes could not be found when they were empty:
+     exactly when a citizen needs to find them. The box keeps its edge and
+     the LABEL does the fading. */
+  .wslot.empty { background: var(--stone-dk); border-color: var(--edge); }
+  .wslot.empty .wlabel { opacity: .62; }
   .wslot .wlabel { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 6px;
                    color: var(--dim); text-align: center; letter-spacing: .02em; }
   /* head sits centre-top, body centre, the hands either side of it, legs below:
@@ -163,7 +199,8 @@
   #itemname .stat { color: var(--dim); font-size: 10px; display: block; }
   .slot { aspect-ratio: 1; background: var(--stone-dk); display: flex; align-items: center;
           justify-content: center; font-size: 17px; cursor: pointer; user-select: none;
-          position: relative; overflow: hidden; }
+          position: relative; overflow: hidden;
+          border: 1px solid var(--edge); border-radius: 2px; }
   .slot:hover { outline: 1px solid var(--gold); }
   /* §5t-iii: THE LOG IS WHAT IS LEFT, AND IT IS NEVER NOTHING.
      A fixed 84px in a column that overflowed meant the log was simply pushed
@@ -175,9 +212,17 @@
   /* and the two things that must always be reachable sit at the bottom and do
      not shrink: what just happened, and the box you answer in. */
   #say, #sndtoggle { flex: 0 0 auto; }
-  /* the pack gives up room first: it is a grid a citizen browses, not a thing
-     they need every second. */
-  #inv { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+  /* The pack gives up room first: it is a grid a citizen browses, not a
+     thing they need every second. But `min-height: 0` let it give up ALL of
+     it: measured on a phone the pack was 442 wide and ZERO high, which is
+     how twelve slots that were all present in the document came to be
+     reported as "pack slots are not showing up on mobile". It keeps two rows
+     now, and the panel scrolls, which it was already set up to do. */
+  #inv { flex: 0 1 auto; min-height: 74px; overflow-y: auto; }
+  /* AFTER the base rule, which is the whole point: see the note in the
+     phone block above. Seven across on a phone, so twelve slots are two
+     rows rather than three, and each one is a thumb's width. */
+  @media (max-width: 900px) { #inv { grid-template-columns: repeat(7, 1fr); } }
   #feed div { margin-bottom: 1px; }
   #status { font-size: 10px; color: #8a7a5c; }
   #gate {
@@ -6078,10 +6123,31 @@ function stopMusic() {
   }
   requestAnimationFrame(out)
 }
+// §7f: TURNING THE SOUND BACK ON IS NOT ARRIVING AT THE DOOR.
+//
+// Both switches played `theme-flat`, which is the door's piece: the one that
+// greets you on the way in. So a citizen standing in Millbrook who turned
+// the sound off and on again heard the opening theme, in Millbrook, hours
+// later. The window already knows what belongs where -- REGION_STEM, and
+// `regionSeen` for where you are standing -- and neither switch asked it.
+//
+// It also respects the two places this world keeps quiet on purpose: the Sea
+// and the Bridge have no stem, and turning the sound on there now plays
+// nothing rather than falling back to the door.
+function startMusicHere() {
+  // at the door there is only one piece, and it is the door's
+  if (!entered) { musicTried = false; startMusic('theme-flat'); return true }
+  const stem = regionSeen ? REGION_STEM[regionSeen] : null
+  if (!stem) return false
+  REGION_HEARD.add(regionSeen)    // you have heard this one now
+  musicTried = false
+  startMusic(stem)
+  return true
+}
 function setMusic(on) {
   musicOn = on
   localStorage.setItem('interval-music', on ? 'on' : 'off')
-  if (on) { musicTried = false; startMusic('theme-flat') } else stopMusic()
+  if (on) startMusicHere(); else stopMusic()
   const b = document.getElementById('musicbtn')
   if (b) { b.textContent = on ? 'music: on' : 'music: off'; b.dataset.on = on ? '1' : '0' }
 }
@@ -15179,7 +15245,7 @@ sndEl.addEventListener('click', () => {
   soundOn = !soundOn
   localStorage.setItem('interval-sound', soundOn ? 'on' : 'off')
   wakeAudio(); sndLabel(); musicFollowsSound()
-  if (soundOn) { startMusic('theme-flat'); SFX.trade() }
+  if (soundOn) { startMusicHere(); SFX.trade() }
 })
 
 // ---- region music: arrival, not atmosphere ----

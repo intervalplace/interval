@@ -466,3 +466,88 @@ test('a signpost reads the world, not three words painted into the drawing', () 
   assert.deepEqual(painted, [],
     'a signpost paints these words on every post in the world: ' + painted.join(', '))
 })
+
+// ---- THE STYLESHEET HAS TO PARSE, AND :root IS WHERE IT STARTS ----
+//
+// Reported as "pack slots are not showing up on mobile". They were all in
+// the document. The stylesheet opened `<style>:` with `root {` on the next
+// line, which is the selector `: root`, and a pseudo-class may not have
+// whitespace after its colon: the browser threw the block away and every one
+// of the ninety-one `var(--x)` uses in this window resolved to nothing. A
+// second one, eight lines down, had lost its colon outright and held the
+// width of the frame and the panel.
+//
+// A rule that does not parse fails silently and looks like a design choice,
+// so this checks the thing itself: every custom property the file USES must
+// be defined by a selector that actually selects the root.
+test('every colour and width the window asks for is actually defined', () => {
+  // comments stripped first: a property NAMED in a note about this very
+  // fault is not a property the page asks for, and the first run of this
+  // test duly failed on its own explanation
+  const css = win.slice(win.indexOf('<style>'), win.indexOf('</style>'))
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+  const used = new Set([...css.matchAll(/var\((--[a-z0-9-]+)\)/g)].map((m) => m[1]))
+  assert.ok(used.size > 10, 'read ' + used.size + ' custom properties; the stylesheet was not found')
+
+  // defined ONLY by a well-formed :root, which is what the browser requires
+  const defined = new Set()
+  for (const m of css.matchAll(/:root\s*\{([^}]*)\}/g)) {
+    for (const d of m[1].matchAll(/(--[a-z0-9-]+)\s*:/g)) defined.add(d[1])
+  }
+  const orphans = [...used].filter((v) => !defined.has(v))
+  assert.deepEqual(orphans, [],
+    orphans.length + ' properties are used and never defined by a :root that parses: ' + orphans.join(', '))
+
+  // and the near miss that caused it: a declaration block for the root that
+  // is not spelled `:root`
+  assert.doesNotMatch(css, /<style>\s*:\s*\n/, 'the colon belongs to :root, not to the <style> tag')
+  assert.doesNotMatch(css, /\n\s*root\s*\{/, 'a block selecting `root` is not a block selecting `:root`')
+})
+
+// ---- AND THE PACK MUST HAVE A FLOOR ----
+//
+// `#inv { flex: 0 1 auto; min-height: 0 }` in a flex column that runs out of
+// room lets the pack give up ALL of its height: measured on a phone it was
+// 442 wide and ZERO high. The log below it already keeps a floor of its own
+// and that is why it survived.
+//
+// The phone column override was also written EIGHTEEN LINES ABOVE the base
+// rule it overrides. Two rules of equal weight, and the later one wins, so a
+// phone got four columns of hundred-and-eight-pixel slots.
+test('the pack keeps a floor, and its phone columns win the cascade', () => {
+  const css = win.slice(win.indexOf('<style>'), win.indexOf('</style>'))
+  const floor = /#inv\s*\{[^}]*min-height:\s*(\d+)px/.exec(css)
+  assert.ok(floor && +floor[1] > 0,
+    '#inv must keep a floor, or the pack is crushed to nothing before the log is')
+
+  // the last rule to set the pack's columns must be the phone one
+  const sets = [...css.matchAll(/#inv\s*\{[^}]*grid-template-columns:\s*repeat\((\d+)/g)]
+  assert.ok(sets.length >= 2, 'expected a base rule and a phone override')
+  const last = sets[sets.length - 1]
+  assert.equal(last[1], '7', 'the phone override must come last, or the base rule wins on a phone')
+  const before = css.slice(0, last.index)
+  assert.ok(/@media[^{]*max-width[^{]*\{[^@]*$/.test(before.slice(-200)) || css.slice(last.index - 120, last.index).includes('max-width'),
+    'and it must be inside the phone media query')
+})
+
+// ---- TURNING THE SOUND ON IS NOT ARRIVING AT THE DOOR ----
+//
+// Both switches played `theme-flat`, the piece that greets you on the way in,
+// so a citizen in Millbrook who toggled the sound heard the opening theme
+// hours after entering. The window already knows what belongs where.
+test('the sound switch plays the region you are in, not the door theme', () => {
+  const a = win.indexOf('function startMusicHere')
+  assert.ok(a > 0, 'the switch no longer asks where you are')
+  const body = win.slice(a, win.indexOf('\n}', a))
+  assert.ok(body.includes('REGION_STEM'), 'it must read the region table')
+  assert.ok(body.includes('entered'), 'except at the door, where there is only the one piece')
+
+  // and neither switch may go straight to the door's theme any more
+  for (const sw of ['function setMusic', "sndEl.addEventListener('click'"]) {
+    const i = win.indexOf(sw)
+    assert.ok(i > 0, sw + ' is gone or renamed')
+    const b = win.slice(i, i + 420)
+    assert.ok(!/startMusic\('theme-flat'\)/.test(b),
+      sw + ' still reaches for the door theme when the sound comes back on')
+  }
+})
