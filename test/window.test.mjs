@@ -1304,3 +1304,115 @@ test('the window and the engine agree which craft a calling masters', () => {
   for (const c of Object.keys(winOf)) if (!E.SWORN[c]) bad.push(`${c}: the window has it and the engine does not`)
   assert.deepEqual(bad, [], bad.join('; '))
 })
+
+// ---- EVERY DEED A CITIZEN CAN DO, THE WINDOW CAN SEND ----
+//
+// Counted against the engine's own schemas: of the inputs it validates, eight
+// were things a CITIZEN does and no window the router offers could build one.
+// Not window-web, not hill, mist, writ, 3d, photo, diablo or holo. The serve
+// ladder carried three of them, so the plumbing was half laid and nothing
+// ever asked.
+//
+// Three are exempt and say so in the engine's own margin: `archive` and
+// `restore` are a node's business rather than a citizen's, and `recall` can
+// only ever fail now that the waystones are gone (§6ch) -- its schema is kept
+// so an old client is REFUSED rather than desynced.
+test('the flat window can build every input a citizen may send', () => {
+  const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+  const block = eng.slice(eng.indexOf('const INPUT_SCHEMAS'), eng.indexOf('function validateInputShape'))
+  // the schema table's own keys, at its own indent. `sig` and `tick` sit in
+  // the same object and are field validators rather than verbs.
+  const types = [...new Set([...block.matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]))]
+    .filter((t) => !['sig', 'tick'].includes(t))
+  assert.ok(types.length > 60, `found ${types.length} input types, which cannot be right`)
+  const NODES_BUSINESS = new Set(['archive', 'restore'])
+  const ALWAYS_REFUSED = new Set(['recall'])
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const built = new Set([...code.matchAll(/\{ type: '([a-z_]+)'/g)].map((m) => m[1]))
+  const lost = types.filter((t) => !built.has(t) && !NODES_BUSINESS.has(t) && !ALWAYS_REFUSED.has(t))
+  assert.deepEqual(lost, [], `the engine takes these from a citizen and this window cannot say them: ${lost.join(', ')}`)
+})
+
+// AND EACH OF THEM HAS SOMEWHERE TO BE PRESSED.
+//
+// A line in the translation table is not a button. These eight were wired to
+// the places they are done: the crushing floor, the bellwork, the hoard, the
+// quay, the spanwork, the crossing site itself, the ossuary, and the citizen's
+// own column for the promise.
+test('the eight new deeds are reachable from somewhere in the window', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const WHERE = {
+    stamp: "n.type === 'stamp'",
+    haul: "n.type === 'bellwork'",
+    rifle: "n.type === 'hoard'",
+    sail: "n.type === 'ferry'",
+    lay: "n.type === 'spanwork'",
+    found: 'spanSiteAt4',
+    offer: "do: 'offer'",
+    stint: "do: 'stint'",
+  }
+  const missing = []
+  for (const [verb, mark] of Object.entries(WHERE)) {
+    if (!code.includes(mark)) missing.push(`${verb}: no ${mark}`)
+    if (!new RegExp(`do: '${verb}'`).test(code)) missing.push(`${verb}: nothing sends it`)
+  }
+  assert.deepEqual(missing, [], missing.join('; '))
+})
+
+test('the window knows the same crossing sites the generator lays', async () => {
+  // the window inlines these for the same reason it inlines the v7 water: one
+  // file, no imports. Held to the generator so the two cannot drift.
+  const WG = await import('../worldgen-expanse7.mjs')
+  const blk = win.match(/const SPAN_SITES = \[([\s\S]*?)\n\]/)
+  assert.ok(blk, 'the window’s crossing sites are gone or renamed')
+  const mine = [...blk[1].matchAll(/x: (\d+), y: (\d+)/g)].map((m) => m[1] + ',' + m[2]).sort()
+  const theirs = WG.SPAN_SITES.map((s) => s.x + ',' + s.y).sort()
+  assert.deepEqual(mine, theirs, 'the window offers a crossing the generator does not lay, or misses one')
+  // and the rate, which the window offers as a choice
+  const per = Number(win.match(/const PER_LAY = (\d+)/)[1])
+  const g = WG.makeExpanse7Genesis('rate', 'a'.repeat(64), 0, 896, 512)
+  assert.equal(per, g.span.perLay, 'the window offers a different number of planks than the founding allows')
+})
+
+test('the drowned bell comes up as the town pulls', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const at = code.indexOf("n.type === 'bellwork' || n.type === 'bell'")
+  assert.ok(at > 0, 'the bellwork drawing is gone or renamed')
+  const body = code.slice(at, at + 4200)
+  // the bell's own height IS the progress: it was a bar under a bell that
+  // hung in the same place from the first pull to the last.
+  assert.match(body, /const deep = \d+(\.\d+)? \* \(1 - part\)/,
+    'the bell no longer rises as the work goes on')
+  assert.match(body, /translate\(X \+ 20, Y \+ \d+ \+ deep/, 'the rise is computed and not used')
+  assert.match(body, /const water = Y/, 'the marsh is gone, so there is nothing for it to come out of')
+  // and the hands, which is what a citizen standing at the rope needs to know
+  assert.match(body, /BELL_HANDS/, 'the window no longer says how many hands a pull wants')
+  // held to the engine, like the pulls beside it
+  const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
+  const m = eng.match(/const BELL_HANDS = (\d+), BELL_HOLD = (\d+), BELL_PULLS = (\d+)/)
+  assert.equal(Number(win.match(/const BELL_HANDS = (\d+)/)[1]), Number(m[1]))
+  assert.equal(Number(win.match(/const BELL_PULLS = (\d+)/)[1]), Number(m[3]))
+})
+
+// ---- A MENU OPENS WHERE YOU PRESSED ----
+//
+// `chooseAction` opened at the pointer only when `_menuAt` was set, and the
+// one thing that set it was the RIGHT-click handler. Every left-click menu
+// came out as a row of buttons above the pack, a long way from the tree or
+// the citizen you had just touched, and on a phone there is no right button
+// to get the better behaviour with.
+test('a menu opens under the thing that was pressed', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  assert.match(code, /_pressAt = \{ x: e\.clientX, y: e\.clientY \}/,
+    'the window has stopped remembering where the press landed')
+  assert.match(code, /const where = at \?\? _menuAt \?\? _pressAt/,
+    'chooseAction no longer falls back to the press position')
+  // and floatMenu still folds back over the pointer near an edge
+  const fm = code.slice(code.indexOf('function floatMenu('))
+  assert.match(fm.slice(0, 1400), /Math\.min\(at\.x, innerWidth - r\.width/,
+    'a menu near the edge hangs off the window again')
+})

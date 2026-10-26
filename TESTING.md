@@ -10,14 +10,19 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 604 tests across:
+`node --test test/*.test.mjs`, 611 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
   following), which is precisely where the rest of the suite had no coverage
   and four such writes survived undetected.
 
-- `engine.test.mjs`, pure state-machine transitions, and §5c-ii the table:
+- `engine.test.mjs`, pure state-machine transitions; §5u the crushing floor,
+  where `stamp` had a schema, a place in DEEDS and a floor standing on the
+  island, and no gate and no executor, so a signed canonical input was
+  accepted and did nothing while `quick-grit` sat in RECIPES and the first
+  rung of the quickmetal chain was beaten at the one anvil; and §5c-ii the
+  table:
   the switch (changing your side after the other has agreed), the
   substitution (wielding an advertised slot in the settling tick), the
   gift, walking away mid-trade, and that standing up clears your own side
@@ -184,6 +189,18 @@ possible executions.
 - `windows.exist.test.mjs`, that every window the router offers is on disk,
   and that every one of them PARSES: four were blank pages when that check
   was written, for a ternary whose colon had ended up inside a comment
+- in `window.test.mjs`, that the flat window can build every input a CITIZEN
+  may send. Eight could not be built by any window the router offers: the
+  two bridge verbs, the bellwork rope, the barrow hoard, the boat, the
+  ossuary offering, the promise and the crushing floor. Each now has a
+  place it is pressed, and a test that it does.
+- in `window.test.mjs`, that the drowned bell RISES as the town pulls. The
+  engine has always had the work; the window drew a bar under a bell that
+  hung in one place from the first pull to the last.
+- in `window.test.mjs`, that a menu opens under the thing that was pressed.
+  `chooseAction` opened at the pointer only for a right-click, and a phone
+  has no right button, so every menu on a phone came out as a row above
+  the pack.
 - in `window.test.mjs`, §4c-ii the cape: that it is the GRADE and not a
   level. Two of its three steps could never happen, because §5k caps every
   skill outside a citizen's sworn calling at seventy, so exactly one can

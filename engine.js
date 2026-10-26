@@ -2413,6 +2413,27 @@ const XP_STAMP = 14;
 // metal is a different act from metal into a shape, and this is the whole of
 // the difference in the rules.
 const SMELTED = new Set(['iron', 'steel', 'quick-ingot', 'quick-alloy', 'gold-bar']);   // §5u: grit is STAMPED, not smelted
+// §5u: AND THE LINE ABOVE WAS THE ONLY PLACE THAT SAID SO.
+//
+// `stamp` had a schema, a place in DEEDS and six crushing floors standing on
+// the island, and no gate and no executor: a signed, canonical `stamp` input
+// was accepted and did nothing at all. Meanwhile `quick-grit` sat in RECIPES
+// like any other forging, so the first rung of the quickmetal chain was
+// beaten at the ONE anvil, beside everything else a smith makes.
+//
+// That is precisely the outcome §5u is written to prevent. Its whole argument
+// is that the rung exists "to put more of the world between a citizen and
+// what they want", and that a floor sited for convenience "would delete the
+// journey the tier was added to create". The six floors are in the crags
+// because the quick-rock is; crushing at the anvil meant nobody ever went.
+//
+// So the anvil refuses it, the crushing floor takes it, and the floors stop
+// being scenery.
+const STAMPED = new Set(['quick-grit']);
+// §5u states both numbers: five quick-stone into one quick-grit. The
+// experience is the forging rate for the same recipe, because it IS the same
+// work moved to the place the constitution puts it, and it pays earthcraft.
+const STAMP_STONE = 5, STAMP_GRIT = 1;
 const XP_SMELT_BAR = 18;
 // §7ai: ten bones to a flask
 // §7cy: how many hands a work remembers, and for how long
@@ -11775,6 +11796,9 @@ function validInput(state, input, ctx) {
       // §7p: a bar is not smithed. `smelt` is its own verb (below) and this
       // one refuses the recipes that belong to it.
       if (SMELTED.has(input.recipe)) return false;
+      // §5u: and a rock is not smithed either. Magic-stone does not melt, it
+      // shatters, and it shatters under a weighted beam in the crags.
+      if (STAMPED.has(input.recipe)) return false;
       if (!hasAdjacentNode(state, ctx, p, 'anvil')) return false;
       const req = reqOverride(state.genesis, 'smith', input.recipe) ?? SMITH_REQS[input.recipe];
       if (req && !Object.entries(req).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
@@ -11784,6 +11808,26 @@ function validInput(state, input, ctx) {
       const have = (item) => p.inventory.filter(sl => sl
         && (sl.item === item || (item === 'coal' && sl.item === 'charcoal'))).length;
       return Object.entries(r).every(([item, qty]) => have(item) >= qty);
+    }
+    case 'stamp': {
+      // §5u: THE CRUSHING FLOOR. Five quick-stone become one quick-grit
+      // beside a stamp and nowhere else, and it pays earthcraft: the rock is
+      // not metal yet, and whoever walked to the high country for it should
+      // not have to hand it to a smith to make it useful.
+      //
+      // The slot names a quick-stone so a mis-tap on something else is
+      // refused rather than guessed at. The other four are counted out of the
+      // pack, exactly as the anvil counts a recipe's ingredients.
+      if (p.health <= 0) return false;
+      const sl5 = p.inventory[input.slot];
+      if (!Number.isInteger(input.slot) || sl5?.item !== 'quick-stone') return false;
+      if (!hasAdjacentNode(state, ctx, p, 'stamp')) return false;
+      const req5 = reqOverride(state.genesis, 'smith', 'quick-grit') ?? SMITH_REQS['quick-grit'];
+      if (req5 && !Object.entries(req5).every(([sk, lv]) => effLevel(p.skills[sk]) >= lv)) return false;
+      if (countItem(p.inventory, 'quick-stone') < STAMP_STONE) return false;
+      // the five leave the pack before the one arrives, so the room is there
+      // by construction: nothing to check that a full pack could fail.
+      return true;
     }
     case 'wield': {
       const sl = p.inventory[input.slot];
@@ -15510,6 +15554,21 @@ function nextState(state, inputs, _legacyBeacon) {
         // citizen, one ordinary input, and the world can never again prove
         // anything about itself while continuing to tick.
         awardXp(p, 'earthcraft', XP_SMITH_FOR(inp.recipe, r), 'smith');
+      }
+    } else if (inp.type === 'stamp') {
+      // §5u: five quick-stone under the beam, one quick-grit out, earthcraft
+      // paid. Re-checked here against the state as it is NOW, like every
+      // other maker: the gate ran an interval ago and a citizen may have
+      // spent the stones since.
+      const sl5 = p.inventory[inp.slot]
+      if (sl5?.item === 'quick-stone'
+          && hasAdjacentNode(s, _ctx, p, 'stamp')
+          && countItem(p.inventory, 'quick-stone') >= STAMP_STONE) {
+        consumeItem(p.inventory, 'quick-stone', STAMP_STONE);
+        addItem(p.inventory, 'quick-grit', STAMP_GRIT);
+        // the same lesson the anvil used to pay for it, in the trade whose
+        // high country the citizen walked to
+        awardXp(p, 'earthcraft', XP_SMITH_FOR('quick-grit', RECIPES['quick-grit']), 'smith');
       }
     } else if (inp.type === 'wield') {
       const sl = p.inventory[inp.slot];

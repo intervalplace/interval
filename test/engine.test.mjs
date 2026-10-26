@@ -300,3 +300,59 @@ test('a table will not take coin a citizen does not hold', () => {
   s = step(s, [sit(alice, bob.playerId, [], 50, 1)])
   assert.equal(s.players[alice.playerId].trade.gold, 50, 'all of it is allowed')
 })
+
+// ---------- §5u: THE CRUSHING FLOOR ----------
+//
+// `stamp` had a schema, a place in DEEDS, and a crushing floor standing on
+// the island. It had NO gate and NO executor: a signed, canonical `stamp`
+// input was accepted and did nothing at all. Meanwhile `quick-grit` sat in
+// RECIPES like any other forging, so the first rung of the quickmetal chain
+// was beaten at the ONE anvil beside everything else a smith makes.
+//
+// That is precisely the outcome §5u is written to prevent. Its argument is
+// that the rung exists "to put more of the world between a citizen and what
+// they want", and that a floor sited for convenience "would delete the
+// journey the tier was added to create".
+test('magic-stone shatters at a stamp and nowhere else', async () => {
+  await E.initCrypto?.()
+  const base = (node, stones = 5, lvl = 80) => {
+    const s = world()
+    const p = s.players[alice.playerId]
+    p.calling = 'smith'
+    p.skills.earthcraft = E.XP_TABLE[lvl]; p.skills.sorcery = E.XP_TABLE[60]
+    for (let i = 0; i < stones; i++) p.inventory[i] = { item: 'quick-stone', qty: 1 }
+    if (node) E.addNode(s, 'n-1', node, 5, 6)
+    return s
+  }
+  const held = (s) => s.players[alice.playerId].inventory.filter(Boolean).map((x) => x.item)
+
+  // the anvil refuses it: a rock is not smithed
+  const atAnvil = step(base('anvil'), [sign({ tick: 0, type: 'smith', recipe: 'quick-grit' })])
+  assert.ok(!held(atAnvil).includes('quick-grit'), 'the anvil is crushing rock again')
+  // and so does the furnace: it does not melt
+  const atFurnace = step(base('furnace'), [sign({ tick: 0, type: 'smelt', recipe: 'quick-grit' })])
+  assert.ok(!held(atFurnace).includes('quick-grit'), 'the furnace is melting magic-stone')
+
+  // the floor takes it: five stones in, one grit out, earthcraft paid
+  const before = base('stamp')
+  const after = step(before, [sign({ tick: 0, type: 'stamp', slot: 0 })])
+  const p = after.players[alice.playerId]
+  assert.deepEqual(held(after), ['quick-grit'], 'five stones should become one grit')
+  assert.ok(p.skills.earthcraft > before.players[alice.playerId].skills.earthcraft,
+    'the rock is not metal yet, and the walk to the high country should pay')
+  assert.equal(E.validateState(after), null)
+
+  // four is not five, and nowhere is not a floor
+  assert.deepEqual(held(step(base('stamp', 4), [sign({ tick: 0, type: 'stamp', slot: 0 })])).length, 4)
+  assert.deepEqual(held(step(base(null), [sign({ tick: 0, type: 'stamp', slot: 0 })])).length, 5)
+})
+
+test('the whole quickmetal chain hangs off the floor', () => {
+  // §5u is the first rung: everything above it needs grit, so if the floor
+  // does not work the mastery tier is unreachable by anybody.
+  assert.deepEqual(E.RECIPES['quick-grit'], { 'quick-stone': 5 })
+  assert.deepEqual(E.RECIPES['quick-ingot'], { 'quick-grit': 8 })
+  const needsIngot = Object.entries(E.RECIPES)
+    .filter(([, r]) => 'quick-ingot' in r || 'quick-alloy' in r).map(([k]) => k)
+  assert.ok(needsIngot.length >= 1, 'nothing is made of quickmetal, which cannot be right')
+})

@@ -436,6 +436,11 @@
   <div id="trade" style="display:none"></div>
   <div id="vault" style="display:none;font-size:12px;padding:6px;background:var(--stone-dk)"></div>
     <h2>Skills</h2><div id="skills"></div>
+    <!-- §7dv: your own promise sits above the names, because this column is
+         where a promise is READ. The window showed everybody else's stint and
+         gave no way to swear one. -->
+    <div id="mystint" style="font-size:11px;color:var(--dim);cursor:pointer;
+      padding:3px 0;border-bottom:1px solid var(--edge);margin-bottom:3px"></div>
     <h2 id="friendsh" style="display:none">Names you keep</h2><div id="friends" style="font-size:12px"></div>
     <h2>Worn</h2><div id="worn"></div>
     <!-- §5t-iii: and how you swing sits under the hand it applies to, rather
@@ -4172,6 +4177,9 @@ const HP_FLAT = 64
 // BELL_PULLS, and held to it by check-window-web-art.mjs so it cannot drift:
 // the bellwork's progress bar is a lie the moment this and the engine differ.
 const BELL_PULLS = 12
+// §7du: and how many hands make a pull. The drawing shows them filling up, so
+// a citizen standing at the rope alone can see what it is still waiting for.
+const BELL_HANDS = 3
 const CALLING_HP = { berserker: -16, warden: 16 }
 const maxHpOf = (p) => HP_FLAT + (CALLING_HP[p?.calling] ?? 0)
 // §4b: MASTERY IS ONE HUNDRED, declared beside the curve it belongs to. It sat
@@ -5975,6 +5983,32 @@ const BRIDGE_TO_INPUT = (a) =>
   // to a node in signatures alone, so an unsigned act was dropped on arrival
   // without a word, and trade was simply impossible for them with nothing to
   // see. `window.test.mjs` compares the two lists now.
+  // §7f-iii: THE EIGHT DEEDS NO WINDOW COULD SEND.
+  //
+  // Counted against the engine's own schemas: of the seventy-four inputs it
+  // validates, eight are things a CITIZEN does and no window the router
+  // offers could build one. Not window-web, not hill, mist, writ, 3d, photo,
+  // diablo or holo. The serve ladder carried three of them, so the plumbing
+  // was half laid and nothing ever asked.
+  //
+  //   found, lay   the bridge. SPEC §14d calls a contested span a campaign
+  //                rather than a match, and it could not be begun
+  //   haul         the bellwork rope, which is how a town gets its bell
+  //   rifle        a barrow hoard, once in a life
+  //   sail         the boat
+  //   offer        goods given up at an ossuary: one of the two roads that
+  //                pay mourning, and the one the arithmetic recommends
+  //   stint        swearing a length of presence
+  //   stamp        the crushing floor (§5u), which the engine did not
+  //                implement either until today
+  a.do === 'found' ? { type: 'found', x: a.x | 0, y: a.y | 0 }:
+  a.do === 'lay' ? { type: 'lay', nodeId: a.nodeId, n: a.n | 0 }:
+  a.do === 'haul' ? { type: 'haul', nodeId: a.nodeId }:
+  a.do === 'rifle' ? { type: 'rifle', nodeId: a.nodeId, item: a.item }:
+  a.do === 'sail' ? { type: 'sail' }:
+  a.do === 'offer' ? { type: 'offer', slot: a.slot }:
+  a.do === 'stint' ? { type: 'stint', n: a.n | 0 }:
+  a.do === 'stamp' ? { type: 'stamp', slot: a.slot }:
   a.do === 'trade' ? { type: 'trade', with: a.with, slots: a.slots ?? [], gold: a.gold ?? 0 }:
   a.do === 'settle' ? { type: 'settle' }:
   a.do === 'untrade' ? { type: 'untrade' }:
@@ -7652,8 +7686,29 @@ function renderT(now) { // one clock for drawing AND clicking: what you see is w
 // fault this project keeps finding, and a menu that disagrees with the bar
 // would be a citizen learning two worlds.
 let _menuAt = null   // set for the length of one right-click, read here only
+// §5t-iv: A MENU BELONGS UNDER THE THING YOU TOUCHED.
+//
+// This opened at the pointer only when `_menuAt` was set, and the one thing
+// that set it was the RIGHT-click handler. Every left-click menu therefore
+// came out as a row of buttons shoved in above the pack, which is a long way
+// from the tree, the citizen or the slot you had just pressed: you tap
+// something at the top of the screen and the answer appears at the bottom,
+// and on a phone there is no right button to get the better behaviour with.
+//
+// So the window remembers where the last press landed, whichever button it
+// was and whether it was a finger. `floatMenu` already folds a menu back over
+// the pointer near an edge, so this needed no new drawing, only the position
+// it had been throwing away.
+//
+// The bar below stays as the fallback for a menu opened by something that is
+// not a press at all -- a keyboard shortcut, or the world itself asking.
+let _pressAt = null
+addEventListener('pointerdown', (e) => {
+  if (e.target.closest('#ctxmenu')) return
+  _pressAt = { x: e.clientX, y: e.clientY }
+}, true)
 function chooseAction(opts, at) {
-  const where = at ?? _menuAt
+  const where = at ?? _menuAt ?? _pressAt
   if (where) return floatMenu(opts, where)
   const bar = document.getElementById('choosebar') ?? (() => {
     const d = document.createElement('div'); d.id = 'choosebar'
@@ -7745,6 +7800,17 @@ const MASKS = {
     ears: [[15.4, -1.6, 3, 9.4], [21.6, -1.6, 3, 9.4]],
   },
 }
+// §14d: THE SPAN, AND THE ONE PLACE IT MAY BE BEGUN.
+//
+// `genesis.span` carries the rate and the pool; where a crossing may be
+// founded is the GENERATOR's, and this window already inlines its own copy of
+// the v7 water for the same reason -- a single file with no imports. Held to
+// `worldgen-expanse7.mjs` by test/window.test.mjs, exactly as the water is.
+const PER_LAY = 5
+const SPAN_SITES = [
+  { x: 172, y: 291, name: 'the Drowning Span' },
+]
+const spanSiteAt4 = (x, y) => SPAN_SITES.find((s) => s.x === x && s.y === y) ?? null
 const CAPE_COLORS = {
   woodcraft: '#2f7d2f',     // the greenwood
   earthcraft: '#b06a2a',    // hot iron
@@ -11155,32 +11221,95 @@ function drawScene(now) {
       // carry a count of how far along they are, which is the whole point of
       // them and was invisible.
       if (n.type === 'bellwork' || n.type === 'bell') {
-        // A frame, a bell, and a rope that hands take hold of. `pulls` rises
-        // as the town pulls; at BELL_PULLS the bellwork becomes a bell.
+        // §7du/§7f-iii: THE DROWNED BELL COMING UP OUT OF THE MARSH.
+        //
+        // The engine has always had this: three hands on one rope at the same
+        // moment is a pull, twelve pulls and the bellwork becomes a bell, and
+        // the world announces THE DROWNED BELL IS UP. The window drew a frame
+        // with a progress bar under it and the bell hanging in place the
+        // whole time, so the one thing the work is ABOUT -- a bell climbing
+        // out of the water an inch at a time over a town's afternoon -- was
+        // the one thing you could not see.
+        //
+        // Now the bell's own height is the progress bar. It starts sunk to
+        // the crown with the marsh closed over it and rises with the pulls,
+        // and the water draws down its side as it comes. Nothing else needed
+        // to change: `pulls` was already in the state, and already drawn, as
+        // a bar nobody would read twice.
         const done = n.type === 'bell'
         const pulls = n.pulls ?? 0
         const hands = Object.keys(n.holding ?? {}).length
+        const part = done ? 1 : Math.max(0, Math.min(1, pulls / BELL_PULLS))
         shadow(X, Y, 13)
+        // the frame it will hang in, which stands from the first day
         cx.fillStyle = '#4e4338'
         poly([[X+8,Y+34],[X+12,Y+34],[X+19,Y+9],[X+16,Y+9]], '#4e4338', '#2b241c')
         poly([[X+28,Y+34],[X+32,Y+34],[X+24,Y+9],[X+21,Y+9]], '#4e4338', '#2b241c')
         cx.fillStyle = '#5d5146'; cx.fillRect(X + 14, Y + 7, 12, 3)
-        // the bell itself, brighter once it is finished
-        const sway = done ? Math.sin(now / 700) * 0.14 : 0
-        cx.save(); cx.translate(X + 20, Y + 10); cx.rotate(sway)
-        poly([[-7,13],[-5,2],[5,2],[7,13]], done ? '#c9a23a' : '#7d7466', done ? '#7a5f16' : '#473f34')
-        cx.fillStyle = done ? '#e0bd55' : '#8d8475'; cx.fillRect(-7.6, 12, 15.2, 2.6)
-        cx.fillStyle = done ? '#7a5f16' : '#473f34'
-        cx.beginPath(); cx.arc(0, 15.4, 1.8, 0, 7); cx.fill()      // the clapper
+        // HOW HIGH IT HANGS. Sunk to the crown at nought, in the frame at one.
+        // The numbers are the bell's own: it is drawn from -7 to +13 about
+        // its hanging point, so a drop of twelve puts all but the crown under
+        // a water line at Y+25, and nought drop stands it clear.
+        const deep = 12 * (1 - part)
+        // a hand on the rope hauls it a little and the water lets it back:
+        // the bell is never quite still while anybody is holding on
+        const strain = hands ? Math.sin(now / 160) * (0.6 + hands * 0.35) : 0
+        const sway = done ? Math.sin(now / 700) * 0.14 : (hands ? Math.sin(now / 240) * 0.05 : 0)
+        cx.save(); cx.translate(X + 20, Y + 8 + deep - strain); cx.rotate(sway)
+        // A WET BRONZE, NOT A GREY. The unfinished bell was #7d7466 drawn
+        // between two #4e4338 frame legs on a dark marsh: at forty pixels it
+        // read as nothing at all, so the thing climbing out of the water was
+        // invisible and only the finished gold one could be seen. Dull,
+        // tarnished, and plainly a bell.
+        poly([[-8,13],[-5.5,1],[5.5,1],[8,13]], done ? '#c9a23a' : '#9d8f63',
+             done ? '#7a5f16' : '#3f3626')
+        cx.fillStyle = done ? '#e0bd55' : '#b4a678'; cx.fillRect(-8.6, 12, 17.2, 2.8)
+        // the shoulder catches what light there is, which is what tells a
+        // curved thing from a flat one
+        cx.fillStyle = done ? 'rgba(255,240,170,.35)' : 'rgba(238,228,190,.22)'
+        cx.fillRect(-5, 2.4, 3.4, 10)
+        cx.fillStyle = done ? '#7a5f16' : '#3f3626'
+        cx.beginPath(); cx.arc(0, 15.4, 1.9, 0, 7); cx.fill()      // the clapper
         cx.restore()
         if (!done) {
+          // THE MARSH, drawn OVER the bell so the part still under it is
+          // under it. The line recedes as the work goes on, which is the
+          // whole of the progress anybody needs to read.
+          const water = Y + 25
+          cx.fillStyle = 'rgba(58,72,54,.72)'
+          cx.fillRect(X + 2, water, 36, Y + 39 - water)
+          // the surface, and the ring a strained rope puts across it
+          cx.strokeStyle = 'rgba(150,172,132,.5)'; cx.lineWidth = 1.2
+          for (let r = 0; r < 2; r++) {
+            const w2 = 10 + r * 7 + (hands ? (Math.sin(now / 300 + r) + 1) * 3 : 0)
+            cx.beginPath(); cx.ellipse(X + 20, water + 1.5, w2, 2.2 + r * 0.6, 0, 0, 7); cx.stroke()
+          }
           // the rope, and how many hands are on it right now
-          cx.strokeStyle = hands ? '#c9a86a' : '#8a7c62'; cx.lineWidth = hands ? 2.2 : 1.4
-          cx.beginPath(); cx.moveTo(X + 20, Y + 24); cx.lineTo(X + 20 + Math.sin(now / 320) * hands, Y + 33); cx.stroke()
-          // and how far along the work is, which is the thing worth seeing
-          cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillRect(X + 6, Y - 4, 28, 3.4)
-          cx.fillStyle = '#c9a23a'
-          cx.fillRect(X + 6, Y - 4, 28 * Math.max(0, Math.min(1, pulls / BELL_PULLS)), 3.4)
+          cx.strokeStyle = hands ? '#c9a86a' : '#8a7c62'; cx.lineWidth = hands ? 2.4 : 1.4
+          cx.beginPath(); cx.moveTo(X + 20, Y + 8 + deep - strain)
+          cx.lineTo(X + 20 + Math.sin(now / 320) * hands, Y + 37); cx.stroke()
+          // and how many hands it still wants, said in hands rather than a bar
+          if (hands) {
+            cx.fillStyle = hands >= BELL_HANDS ? '#c9a23a' : '#8a7c62'
+            for (let h = 0; h < BELL_HANDS; h++) {
+              cx.globalAlpha = h < hands ? 1 : 0.28
+              cx.fillRect(X + 13 + h * 5, Y - 8, 3.4, 3.4)
+            }
+            cx.globalAlpha = 1
+          }
+          cx.fillStyle = 'rgba(0,0,0,.45)'; cx.fillRect(X + 6, Y - 3, 28, 2.6)
+          cx.fillStyle = '#c9a23a'; cx.fillRect(X + 6, Y - 3, 28 * part, 2.6)
+        } else {
+          // IT IS UP, AND IT RINGS. Two rings going out, on the bell's own
+          // swing, so a finished bell is the loudest thing in its town.
+          const beat = (now / 700) % (Math.PI * 2)
+          for (let r = 0; r < 2; r++) {
+            const t4 = ((now / 1400 + r * 0.5) % 1)
+            cx.strokeStyle = 'rgba(226,182,62,' + (0.35 * (1 - t4)).toFixed(2) + ')'
+            cx.lineWidth = 1.6
+            cx.beginPath(); cx.arc(X + 20, Y + 20, 8 + t4 * 22, 0, 7); cx.stroke()
+          }
+          void beat
         }
         return
       }
@@ -15061,6 +15190,38 @@ function panel(s) {
   //
   // What it CAN say is whether somebody is in front of you right now, because
   // you can see that with your eyes anyway.
+  // §7dv/§7f-iii: AND YOUR OWN PROMISE, which the window could read on
+  // everybody else and not make for you. A stint is a length of presence
+  // sworn in advance and public by design; one at a time, bounded by the
+  // founding's cap, and there is no verb for quietly extending one while it
+  // runs, so the window offers it only when none is open.
+  {
+    const ms = document.getElementById('mystint')
+    const cap = world.genesis?.stint?.cap ?? 0
+    const st = me.stint
+    const open = st && world.tick >= st.from && world.tick < st.to
+    if (!cap) { ms.style.display = 'none' } else {
+      ms.style.display = 'block'
+      if (open) {
+        const left = st.to - world.tick
+        ms.textContent = 'you are sworn for about ' + (Math.max(5, Math.round(left / 300) * 5)) + ' more minutes'
+        ms.onclick = () => feed('The promise you are keeping is the promise you made. '
+          + 'There is no verb for quietly extending it while it runs.')
+      } else {
+        ms.textContent = 'swear a length of presence'
+        ms.onclick = () => {
+          // the three lengths anybody means, each bounded by the founding
+          const mins = [15, 30, 60].map((m) => Math.min(cap, m * 100)).filter((n, i, a) => a.indexOf(n) === i)
+          chooseAction([
+            ...mins.map((n) => ({ label: 'swear ' + Math.round(n / 100) + ' minutes',
+              act: () => { send({ do: 'stint', n })
+                feed('You swear ' + Math.round(n / 100) + ' minutes. Anybody who keeps your name can see it.') } })),
+            { label: 'not now', act: () => {} },
+          ])
+        }
+      }
+    }
+  }
   {
     const fh = document.getElementById('friendsh'), fp = document.getElementById('friends')
     const mine = me.friends ?? []
@@ -17103,6 +17264,30 @@ cv.addEventListener('click', (e) => {
     }
   }
 
+  // §14d: THE CROSSING SITE, which is a tile and not a node until somebody
+  // lays the first plank. Standing ON it is the whole design -- the founder is
+  // exposed in the water, on the one tile a saboteur most wants to deny them
+  // -- so the window walks you there and then offers it.
+  {
+    const site = spanSiteAt4(x, y)
+    if (site && !Object.values(world.nodes).some((q) => q.x === x && q.y === y)) {
+      const onIt = me.x === x && me.y === y
+      const planks = me.inventory.filter((sl) => sl?.item === 'planks').length
+      if (!onIt) {
+        intent = { kind: 'walk', x, y }
+        feed(site.name + '. The narrows. A span begins with somebody standing in the water.')
+        return
+      }
+      if (!planks) { feed('You are standing on ' + site.name + ' with no planks. It begins with one.'); return }
+      chooseAction([
+        { label: 'lay the first plank of ' + site.name,
+          act: () => { send({ do: 'found', x, y })
+            feed('You lay the first plank. The work is begun, and nothing takes it back down.') } },
+        { label: 'not yet', act: () => {} },
+      ])
+      return
+    }
+  }
   for (const [id, n] of Object.entries(world.nodes))
     if (n.type === 'plot' && n.x === x && n.y === y) {
       flashClick(x, y, true)
@@ -17271,7 +17456,32 @@ cv.addEventListener('click', (e) => {
           feed('The ossuary. Bones laid here are worth more than bones laid in a field.')
           return
         }
+        // §5v/§7f-iii: AND THE OFFERING, which is what an ossuary is FOR.
+        //
+        // This branch sent `turn` on sight and nothing else, so the one deed
+        // that gives goods up here -- the road to mourning that costs wealth
+        // rather than bones, and the better rate of the two -- had no button
+        // in any window. A menu, because turning to the barrow-work and
+        // giving a thing up for ever are not the same press.
         const onBarrow = (meO.book ?? 'common') === 'barrow'
+        const worth = (sl) => PRICES[sl.item] ?? 0
+        const givable = (meO.inventory ?? [])
+          .map((sl, i) => (sl && worth(sl) > 0 ? { i, item: sl.item, p: worth(sl) } : null))
+          .filter(Boolean).sort((a, b) => b.p - a.p).slice(0, 6)
+        chooseAction([
+          ...givable.map((o) => ({ label: 'give up the ' + o.item.replace(/-/g, ' ') + ' (' + o.p + ')',
+            act: () => { send({ do: 'offer', slot: o.i })
+              spellMarks.push({ kind: 'turn', x: n.x, y: n.y, at: performance.now() })
+              tone(64, 1.3, { type: 'sine', vol: 0.05 })
+              feed('You give the ' + o.item.replace(/-/g, ' ')
+                + ' up. Nobody gets it. That is the whole of what it is worth.') } })),
+          ...(givable.length ? [] : [{ label: '(nothing here is worth giving up)', act: () => {} }]),
+          { label: onBarrow ? 'close the barrow-work' : 'turn to the barrow-work',
+            act: () => turnAtOssuary(n, onBarrow) },
+        ])
+        return
+      }
+      function turnAtOssuary(n, onBarrow) {
         send({ do: 'turn' })
         // §7cr: the ossuary answers -- a ring going IN, not out
         spellMarks.push({ kind: 'turn', x: n.x, y: n.y, at: performance.now() })
@@ -17282,7 +17492,87 @@ cv.addEventListener('click', (e) => {
             + 'the stilling, the mending, the sealing, the alching and the recall come back.':
           'You turn to the barrow-work. The stilling, the mending, the sealing, the alching '
             + 'and the recall are closed to you. What is left will not refuse a fight.')
+        flashClick(n.x, n.y, false)
+      }
+      // ---- §7f-iii: THE PLACES THE EIGHT DEEDS ARE DONE ----
+      //
+      // Each follows the shape every other work in this window uses: walk if
+      // you are not beside it, act if you are, and say what happened.
+      if (n.type === 'stamp') {
+        // §5u: five quick-stone under the weighted beam, one quick-grit out.
+        // Six floors in the crags and no verb could reach them.
+        if (!adj(n)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('A crushing floor: a weighted beam under a roof. Magic-stone does not melt, it shatters.')
+          return
+        }
+        const stones = me.inventory.filter((sl) => sl?.item === 'quick-stone').length
+        const slot = me.inventory.findIndex((sl) => sl?.item === 'quick-stone')
+        if (stones < 5) {
+          feed('The beam wants five quick-stone at a time. You have ' + stones + '.')
+          flashClick(n.x, n.y, false); return
+        }
+        send({ do: 'stamp', slot })
+        tone(90, 0.5, { type: 'square', vol: 0.06 })
+        feed('The beam comes down. Five stones go to grit, and the hum goes out of them.')
         flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'bellwork' || n.type === 'bell') {
+        if (!adj(n)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed(n.type === 'bell' ? 'The bell.' : 'The bellwork. It wants hands on the rope.')
+          return
+        }
+        if (n.type === 'bell') { send({ do: 'sound' }); feed('You pull. The bell goes out over the whole town.')
+          flashClick(n.x, n.y, false); return }
+        send({ do: 'haul', nodeId: id })
+        tone(120, 0.7, { type: 'sine', vol: 0.05 })
+        feed('You take hold of the rope and pull. It is a town\u2019s work, not one citizen\u2019s.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'hoard') {
+        // §7dp: once in a life, and never again. A menu rather than a tap,
+        // because `barrowed` is permanent and a mis-tap must not spend it.
+        if (!adj(n)) {
+          intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('A barrow hoard. Whatever is in it, you may take from it once in your life.')
+          return
+        }
+        if (me.barrowed === true) { feed('You have had your one reach into a barrow. There is not a second.'); return }
+        const shelf = Object.entries(n.shelf ?? {}).filter(([, q]) => q > 0)
+        if (!shelf.length) { feed('The hoard is empty. Somebody was here first.'); return }
+        chooseAction([
+          ...shelf.map(([item, q]) => ({ label: 'take the ' + item.replace(/-/g, ' ') + ' (' + q + ')',
+            act: () => { send({ do: 'rifle', nodeId: id, item })
+              feed('You take the ' + item.replace(/-/g, ' ') + '. The barrow is shut to you for good.') } })),
+          { label: 'leave it', act: () => feed('You leave the hoard where it is. It keeps.') },
+        ])
+        return
+      }
+      if (n.type === 'ferry') {
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }; feed('A quay, and a boat at it.'); return }
+        send({ do: 'sail' })
+        feed('You step aboard. The boat takes you across.')
+        flashClick(n.x, n.y, false); return
+      }
+      if (n.type === 'spanwork') {
+        // §14d: the pool only rises. `perLay` is the rate, and the window
+        // offers the whole of it or one, because those are the two things
+        // anybody means.
+        if (!adj(n)) { intent = { kind: 'walk', x: n.x, y: n.y + 1 }
+          feed('The span, unbuilt: a pool of planks standing in the water.'); return }
+        const planks = me.inventory.filter((sl) => sl?.item === 'planks').length
+        if (!planks) { feed('The work wants planks and you have none. A plank banked is a plank kept.'); return }
+        const rate = Math.min(planks, PER_LAY)
+        chooseAction([
+          { label: 'lay ' + rate + ' plank' + (rate === 1 ? '' : 's'),
+            act: () => { send({ do: 'lay', nodeId: id, n: rate })
+              feed('You vault ' + rate + ' onto the work. Nothing takes them off it again.') } },
+          ...(rate > 1 ? [{ label: 'lay one', act: () => { send({ do: 'lay', nodeId: id, n: 1 })
+              feed('One plank onto the work.') } }] : []),
+          { label: 'not now', act: () => {} },
+        ])
+        return
       }
       // §7t: THE TRAINING YARD, which this window did not know existed.
       //
