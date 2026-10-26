@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 597 tests across:
+`node --test test/*.test.mjs`, 600 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -193,7 +193,10 @@ possible executions.
   The slow half is `check-window-words.mjs`, which founds the whole island
   and reports every word in it the window names nowhere
 - `site.test.mjs`, that the hiscores board's ranking and its label agree
-- `site.content.test.mjs`, the FACTS in the site's prose against the engine
+- `site.content.test.mjs`, the FACTS in the site's prose against the engine,
+  that the site's art is generated from window-web rather than copied by
+  hand (`site-art.mjs --check`), and that every page the router offers
+  loads only assets that are on disk
 - `prose.test.mjs`, the two rules nothing was enforcing: that
   `spec-conformance.mjs` passes (it was never run by anything, which is how
   fifteen divergences sat in the report unactioned), and that no long dash

@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import E from '../engine.js'
 
 // Suites live beside engine.js in the repo. In this archive they are in
@@ -379,4 +379,58 @@ test('a master carried in without their race leaves the first unclaimed', () => 
     'the board does not tell a race nobody ran from a race nobody has won')
   const page = fs.readFileSync(path.join(root, 'site/hiscores.html'), 'utf8')
   assert.ok(/x\.carried/.test(page), 'and the page does not show it')
+})
+
+// ---- THE ART ON THE PAPER IS THE WINDOW'S OWN ----
+//
+// `site/items.js` was a hand-copied subset of window-web's drawing code:
+// a hundred and fifteen lines transcribed once. Two pages loaded it and
+// NOTHING on any page used it -- not one `data-item` in the whole site --
+// so it was dead, and had it not been dead it would have gone stale, which
+// is the worse of the two. The handbook had already solved this: lift the
+// drawing out of window-web on every run so the pictures and the window
+// cannot drift. `site-art.mjs` does the same for the site.
+test('the site’s art is generated from the window, and is current', () => {
+  const r = spawnSync(process.execPath, [path.join(root, 'site-art.mjs'), '--check'],
+    { encoding: 'utf8', timeout: 120000 })
+  assert.equal(r.status, 0, `site/art.js is stale: run \`node site-art.mjs\`\n${r.stderr}${r.stdout}`)
+})
+
+test('the art names only things this world has', () => {
+  const art = fs.readFileSync(path.join(root, 'site/art.js'), 'utf8')
+  const blob = JSON.parse(art.slice(art.indexOf('{'), art.lastIndexOf('}\n// paint') + 1))
+  assert.ok(blob.plate.length >= 8, 'the plate is empty')
+  for (const [it] of blob.plate) {
+    assert.ok(E.ITEMS.has(it), `the plate shows ${it}, which this world has not got`)
+    assert.ok(blob.items[it], `${it} is on the plate with no picture`)
+  }
+  for (const [b] of blob.beastPlate) {
+    assert.ok(E.MOB_STATS[b], `the plate shows ${b}, which this world has not got`)
+    assert.ok(blob.beasts[b], `${b} is on the plate with no picture`)
+  }
+})
+
+// ---- AND EVERY PAGE THE ROUTER OFFERS LOADS ONLY FILES THAT EXIST ----
+//
+// Removing the dead `items.js` is exactly the move that leaves a page asking
+// for a script that is no longer there, which a browser answers with silence.
+// Checked over the pages the ROUTER names, because those are the ones anybody
+// can open; the `*-before-*.html` snapshots are kept deliberately and are
+// nobody's door.
+test('every page the router offers loads only assets that are on disk', () => {
+  const src = fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+  const block = src.slice(src.indexOf('const PAGES = {'), src.indexOf('const MIME'))
+  const pages = [...block.matchAll(/'([a-z-]+\.html)'/g)].map((m) => m[1])
+  assert.ok(pages.length >= 8, `found ${pages.length} routed pages`)
+  const missing = []
+  for (const f of new Set(pages)) {
+    const p = path.join(root, 'site', f)
+    if (!fs.existsSync(p)) { missing.push(`${f} is routed and not on disk`); continue }
+    const html = fs.readFileSync(p, 'utf8')
+    for (const m of html.matchAll(/(?:src|href)="(\/site\/[^"]+)"/g)) {
+      const asset = path.join(root, m[1].replace(/^\/site\//, 'site/'))
+      if (!fs.existsSync(asset)) missing.push(`${f} asks for ${m[1]}, which is not there`)
+    }
+  }
+  assert.deepEqual(missing, [], missing.join('\n'))
 })

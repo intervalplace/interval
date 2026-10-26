@@ -61,20 +61,38 @@ body {
 nav.stone {
   background: none;
   border: 0;
-  border-bottom: 1px solid rgba(138, 106, 34, .45);
+  /* THE SHADOW WAS STILL THERE, and it was the whole problem.
+   *
+   * site.css paints `.card, .stone { box-shadow: 0 2px 14px rgba(0,0,0,.35) }`,
+   * and this sheet cleared the fill and the border and never touched the
+   * shadow. A transparent box still casts one, so the running head rendered
+   * as a floating slab hovering above the sheet: furniture, belonging to
+   * neither the paper nor the window, which is exactly how it read.
+   *
+   * A running head has no box. It has a rule under it, and the rule belongs
+   * to the page rather than to the words. */
+  box-shadow: none;
+  /* The double rule echoes the sheet's own double frame below it, so the head
+   * and the page are made of the same two lines. */
+  border-bottom: 3px double rgba(138, 106, 34, .55);
   display: flex;
-  gap: 26px;
+  gap: 0;
   justify-content: center;
-  padding: 0 0 9px;
-  margin-bottom: 22px;
+  padding: 0 0 7px;
+  margin: 2px auto 24px;
+  max-width: 860px;
 }
 nav.stone a {
   color: var(--bk-brown);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
-  font-size: 11.5px;
+  letter-spacing: 2.2px;
+  font-size: 11px;
   text-decoration: none;
+  padding: 0 15px;
 }
+/* a thin separator BETWEEN the words, the way a printed contents line is set,
+ * rather than six tabs with gaps between them */
+nav.stone a + a { border-left: 1px solid rgba(138, 106, 34, .3); }
 /* THE FILL HAD TO GO WITH THE COLOUR, AND DID NOT.
  *
  * site.css paints the current page and the hovered link as `background:
@@ -90,11 +108,21 @@ nav.stone a:hover {
   color: var(--bk-ink);
   text-decoration: underline;
 }
+/* ON PAPER THE CURRENT PAGE IS NOT A TAB: it is the one that is not a link.
+ * Marked by weight and by a short rule under the word itself, which is the
+ * printed way of saying "you are here" and costs no box. */
 nav.stone a.here {
   background: none;
   color: var(--bk-ink);
   font-weight: 600;
   text-decoration: none;
+  position: relative;
+}
+nav.stone a.here::after {
+  content: '';
+  position: absolute;
+  left: 15px; right: 15px; bottom: -4px;
+  border-bottom: 2px solid var(--bk-rule);
 }
 
 /* THE PAGE ITSELF, inside the book's double frame: an outer rule and a
@@ -447,6 +475,58 @@ h2, h3 {
 .playsub.lesser { font-size: 12.5px; margin-top: 10px; }
 .playsub a, .lede a, .here a, .isnot a { color: var(--bk-brown); }
 
+/* ---- THE PLATE ----
+ *
+ * A book shows you the thing. Every picture in here is the window's own
+ * drawing, replayed into SVG by `site-art.mjs`, so the page cannot promise a
+ * sword that is not the sword. Set as a plate rather than as a gallery: a
+ * ruled band, a caption under each, nothing that hovers or lifts.
+ */
+.plate { margin: 34px 0 6px; }
+.plate h3 {
+  font-size: 12px;
+  letter-spacing: 2.4px;
+  text-transform: uppercase;
+  color: var(--bk-brown);
+  border-bottom: 1px solid rgba(138, 106, 34, .35);
+  padding-bottom: 5px;
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+.plategrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px 14px;
+}
+.plategrid figure { margin: 0; display: flex; gap: 10px; align-items: flex-start; }
+.plategrid img {
+  width: 38px; height: 38px;
+  flex: none;
+  image-rendering: pixelated;
+  /* a plate's pictures sit ON the paper, so they take the paper's own slight
+   * warmth under them rather than a card */
+  background: rgba(176, 150, 102, .10);
+  border: 1px solid rgba(138, 106, 34, .22);
+  padding: 3px;
+}
+.plategrid figcaption { display: flex; flex-direction: column; line-height: 1.34; }
+.plategrid figcaption b {
+  font-variant: small-caps;
+  letter-spacing: .6px;
+  font-size: 15px;
+  color: var(--bk-ink);
+  font-weight: 600;
+}
+.plategrid figcaption span { font-size: 12.5px; color: var(--bk-quiet); }
+.platenote {
+  font-size: 12.5px;
+  color: var(--bk-quiet);
+  font-style: italic;
+  margin: 14px 0 0;
+}
+.beastplate { margin-top: 26px; }
+.beastplate .plategrid img { background: rgba(120, 100, 70, .13); }
+
 /* THE FOOT LINK nav.js appends, which site.css styles as a stone strip. */
 .foot, .foot a { color: var(--bk-quiet); }
 .foot { border: 0; background: none; }
@@ -466,7 +546,14 @@ h2, h3 {
    * down the left. */
   .against .them { padding-right: 0; }
   .stats { gap: 24px; }
-  nav.stone { gap: 15px; }
+  /* A RUNNING HEAD ON A PHONE IS STILL A RUNNING HEAD. site.css turns the nav
+   * into a three-column grid of tabs below 480px, which is a toolbar again
+   * and takes a third of the screen before the world's name appears. It wraps
+   * as a line of words instead, the way a contents line wraps. */
+  nav.stone { display: flex; flex-wrap: wrap; row-gap: 4px; }
+  nav.stone a { padding: 0 9px; font-size: 10.5px; letter-spacing: 1.6px; }
+  nav.stone a.here::after { left: 9px; right: 9px; }
+  .plategrid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 13px 10px; }
 }
 
 /* ---- A TABLE OF RANKS IS A LEDGER ----
@@ -612,4 +699,14 @@ tr.mine td:nth-child(2) { color: var(--bk-brown); }
 @media (max-width: 620px) {
   .playbox.twin { gap: 16px; }
   .playbox.twin .door { flex: 1 1 100%; max-width: none; }
+}
+
+/* site.css lays the nav out as a three-column grid below 480px. That is the
+ * right answer for six tabs and the wrong one for a running head, which wraps
+ * as a line of words. Stated at site.css's own breakpoint, 560px, so neither
+ * sheet has to guess which loaded last. */
+@media (max-width: 560px) {
+  nav.stone { display: flex; grid-template-columns: none; }
+  nav.stone a { padding: 0 8px; font-size: 10px; letter-spacing: 1.2px; }
+  nav.stone a.here::after { left: 8px; right: 8px; }
 }
