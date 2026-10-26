@@ -2449,15 +2449,34 @@ function xpStepAt(lvl) { // floor(lvl + 300 * 2^(lvl/7)), exactly
   const q = BigInt(Math.floor(lvl / 7)), r = lvl % 7
   return lvl + Number((300n * (1n << q) * POW2_SEVENTHS[r]) >> 96n)
 }
+// §5m: THE NINE, AND THIS WINDOW STILL HAD THE EIGHTEEN.
+//
+// Eighteen skills were merged into nine. Every name in these tables was a
+// retired one, so `p.skills.woodcutting` was undefined everywhere, which
+// reads as nought: this window's standing was nought for everybody, its
+// calling was always the first skill in the list, and its cape could never
+// appear at all because no citizen has any experience in a skill that does
+// not exist.
+const SKILL_ORDER = ['woodcraft', 'earthcraft', 'shorecraft', 'hearthcraft',
+  'prowess', 'marksmanship', 'sorcery', 'mourning', 'wayfaring']
+// one representative calling per craft, for the word under a name. The whole
+// roster is in the engine's SWORN table; a window only needs to say what
+// somebody mostly is.
 const CALLINGS = {
-  woodcutting: 'forester', mining: 'miner', fishing: 'fisher', cooking: 'cook',
-  smithing: 'smith', firemaking: 'firekeeper', prayer: 'mourner', ranged: 'archer',
-  magic: 'sorcerer', farming: 'farmer', fletching: 'fletcher', attack: 'fighter',
-  defence: 'warden', exploration: 'cartographer', brewing: 'brewer',
+  woodcraft: 'forester', earthcraft: 'smith', shorecraft: 'fisher',
+  hearthcraft: 'farmer', prowess: 'fighter', marksmanship: 'archer',
+  sorcery: 'sorcerer', mourning: 'mourner', wayfaring: 'cartographer',
 }
-const SKILL_ORDER = ['woodcutting', 'mining', 'fishing', 'cooking', 'smithing',
-  'firemaking', 'prayer', 'ranged', 'magic', 'farming', 'fletching', 'attack',
-  'defence', 'hitpoints', 'exploration', 'brewing']
+// which craft a sworn calling masters, so the cape can ask
+const SWORN_SKILL = {
+  forester: 'woodcraft', firekeeper: 'woodcraft', fletcher: 'woodcraft',
+  miner: 'earthcraft', smith: 'earthcraft',
+  fisher: 'shorecraft', cook: 'shorecraft',
+  farmer: 'hearthcraft', brewer: 'hearthcraft',
+  fighter: 'prowess', berserker: 'prowess', warden: 'prowess',
+  archer: 'marksmanship', sorcerer: 'sorcery', mourner: 'mourning',
+  cartographer: 'wayfaring', runner: 'wayfaring',
+}
 function standingOf(p) { // the sum of true levels: mastery is a milestone, not a ceiling
   let n = 0
   for (const sk of SKILL_ORDER) n += XP_TO_LVL(p?.skills?.[sk] ?? 0)
@@ -2471,10 +2490,13 @@ function callingOf(p) { // the trade you have the most experience in, as a word
     if (xp > bestXp) { bestXp = xp; best = sk }
   }
   if (best === null || XP_TO_LVL(bestXp) <= 1) return 'newcomer'
-  // all eighteen: what the world announces as Master of Interval
-  if (SKILL_ORDER.every(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])) return 'Master of Interval'
-  // mastery is the milestone the world announces, so the calling says it
-  return (bestXp >= XP_TABLE[99] ? 'master ' : '') + CALLINGS[best]
+  // §4c-ii/§5x: 'master' is not a level. It is a hundred in the calling you
+  // SWORE to, and having raised somebody else to their own swearing. The
+  // 'Master of Interval' line is gone with it: §5k caps every skill outside
+  // your calling at seventy, so nobody can hold them all.
+  const sworn = typeof p?.calling === 'string' ? SWORN_SKILL[p.calling] : null
+  const isMaster = sworn && (p?.skills?.[sworn] ?? 0) >= XP_TABLE[100] && (p?.raised ?? 0) >= 1
+  return (isMaster ? 'master ' : '') + (p?.calling ?? CALLINGS[best])
 }
 // the mobs, character for character from engine.js MOB_STATS (spec 6c). A
 // window cannot ask the world how hard a troll hits: the state carries a mob's
@@ -2693,7 +2715,10 @@ const SKILL_OF_NODE = { 'tree': 'woodcutting', 'rock': 'mining', 'fishing-spot':
 // wakes at hitpoints level 10. A citizen who has trained to 20 would have seen
 // the life orb read `18 / 10` -- over-full, and wrong in the one place a
 // citizen looks when it matters.
-const maxHpOf = (p) => Math.max(1, XP_TO_LVL(p?.skills?.hitpoints ?? 0))
+// §5j: THE FRAME IS FLAT AND IS NOT A SKILL. `hitpoints` was merged away with
+// the other nine, so this read undefined, called it nought and gave every
+// citizen in this window a maximum of one.
+const maxHpOf = (p) => p?.maxHp ?? 64
 
 // ---------------------------------------------------------------------------
 // THE MASTERY CAPE (spec 4c)
@@ -2714,22 +2739,31 @@ const maxHpOf = (p) => Math.max(1, XP_TO_LVL(p?.skills?.hitpoints ?? 0))
 // cloth survives the grade. Sharing the hue is a courtesy to citizens who talk
 // to each other, not a rule; the constitution says only that mastery is a fact
 // about XP and windows are invited to paint it.
+// §5m: nine crafts, nine colours. These were the eighteen old names, so the
+// lookup missed on every citizen and the cape fell to its fallback brown.
 const CAPE_COLORS = {
-  woodcutting: '#4fc247', mining: '#93aac6', fishing: '#3fa8e0',
-  cooking: '#d44a86', smithing: '#e8963a', firemaking: '#f4603a',
-  prayer: '#f6f0d8', magic: '#4fd0e0', ranged: '#9ec44a', farming: '#b8d84a',
-  fletching: '#d8b04a', attack: '#f0503e', defence: '#5f8fe0', hitpoints: '#d0d04a',
-  exploration: '#e0a860', brewing: '#a878e0',
+  woodcraft: '#4fc247', earthcraft: '#e8963a', shorecraft: '#3fa8e0',
+  hearthcraft: '#b8d84a', prowess: '#f0503e', marksmanship: '#9ec44a',
+  sorcery: '#4fd0e0', mourning: '#f6f0d8', wayfaring: '#e0a860',
 }
+// §4c-ii: THE CAPE IS THE GRADE, not a level.
+//
+// This read XP_TABLE[99], a whole level early, over eighteen retired skill
+// names, with gold trim for a second mastery and a radiant cape for all
+// eighteen. None of it could happen: §5k caps every skill outside the sworn
+// calling at seventy, so exactly one can reach a hundred, and §5x says a
+// hundred makes you ELIGIBLE rather than a master. You are not a master
+// until you have made one.
 function capeOf(p) {
-  const mastered = SKILL_ORDER.filter(sk => (p?.skills?.[sk] ?? 0) >= XP_TABLE[99])
-  if (!mastered.length) return null
+  const sworn = typeof p?.calling === 'string' ? SWORN_SKILL[p.calling] : null
+  if (!sworn || (p?.skills?.[sworn] ?? 0) < XP_TABLE[100]) return null
+  const raised = p?.raised ?? 0
   return {
-    colour: CAPE_COLORS[mastered[0]] ?? '#8a7340',
-    skill: mastered[0],          // the mark struck on the pennant
-    count: mastered.length,
-    trim: mastered.length >= 2,                 // gold trim for a second mastery
-    radiant: mastered.length >= SKILL_ORDER.length,   // and all eighteen
+    colour: CAPE_COLORS[sworn] ?? '#8a7340',
+    skill: sworn,                // the mark struck on the pennant
+    count: 1,
+    trim: raised >= 1,           // a master: somebody was raised to their own swearing
+    radiant: raised >= 3,        // every apprentice slot this world gives, spent
   }
 }
 
@@ -12863,7 +12897,7 @@ function buildMenu(px2, py2, target) {
       if (wt9?.charWood !== undefined) {
         const bark = (me.inventory ?? []).reduce((a, sl) => a + (sl?.item === 'ironbark' ? (sl.qty ?? 1) : 0), 0)
         const hot = (n.fuelUntil ?? 0) > (curState?.tick ?? 0)
-        const lv = XP_TO_LVL(me.skills?.firemaking ?? 0)
+        const lv = XP_TO_LVL(me.skills?.woodcraft ?? 0)
         items.push({
           label: !hot ? 'Char ironbark (the fire is cold)':
                lv < wt9.charLevel ? 'Char ironbark (needs firemaking ' + wt9.charLevel + ')':
@@ -12941,7 +12975,7 @@ function buildMenu(px2, py2, target) {
     items.push({ label: 'Strike it', run: go('attack', target.id, target.e.x, target.e.y) })
     { // \u00a76k: three sigils and the magic for it, and the fight simply stops
       const sig = (me.inventory ?? []).filter(sl => sl?.item === 'sigil').length
-      const lv2 = XP_TO_LVL(me.skills?.magic ?? 0)
+      const lv2 = XP_TO_LVL(me.skills?.sorcery ?? 0)
       items.push({ label: sig >= 3 ? 'Still it' : 'Still it (needs 3 sigils)',
                    dim: sig < 3 || lv2 < 2, run: () => {
                      send({ do: 'still', target: target.id })
@@ -12973,7 +13007,7 @@ function buildMenu(px2, py2, target) {
       const wand = me.equipment?.weapon?.item === 'wand'
       const sig = (me.inventory ?? []).some(sl => sl?.item === 'sigil')
       const near4 = Math.max(Math.abs(me.x - q.x), Math.abs(me.y - q.y)) <= 4
-      const lv = XP_TO_LVL(me.skills?.magic ?? 0)
+      const lv = XP_TO_LVL(me.skills?.sorcery ?? 0)
       const why = !wand ? 'needs a wand' : lv < 50 ? 'magic 50' : !sig ? 'needs a sigil' : !near4 ? 'too far' : null
       items.push({ label: why ? 'Mend them (' + why + ')' : 'Mend them',
                    dim: !!why,
@@ -13119,7 +13153,7 @@ function buildSlotMenu(px2, py2, i) {
     items.push({ label: 'Bury it', run: () => send({ do: 'bury', slot: i }) })
     // the engine is explicit: `make === 'arrows' && sl.item === 'bones'`
     // say what the bone will actually give: a fletcher of eighty gets eight
-    const fl2 = XP_TO_LVL(me.skills?.fletching ?? 0)
+    const fl2 = XP_TO_LVL(me.skills?.woodcraft ?? 0)
     const per2 = fl2 >= ARROW_MASTER ? ARROWS_MASTER : ARROWS_PER_BONE
     items.push({ label: 'Fletch arrows \u00b7 ' + per2,
                  run: () => send({ do: 'fletch', slot: i, make: 'arrows' }) })
@@ -13132,7 +13166,7 @@ function buildSlotMenu(px2, py2, i) {
     items.push({ label: 'Fletch a wand', run: () => send({ do: 'fletch', slot: i, make: 'wand' }) })
   }
   if (it === 'heartwood') {
-    const fl = XP_TO_LVL(me.skills?.fletching ?? 0)
+    const fl = XP_TO_LVL(me.skills?.woodcraft ?? 0)
     const n3 = (me.inventory ?? []).reduce((a, sl2) => a + (sl2?.item === 'heartwood' ? (sl2.qty ?? 1) : 0), 0)
     items.push({ label: fl >= 90 ? 'Fletch a heartwood bow' : 'Heartwood bow (fletching 90)',
                  dim: fl < 90 || n3 < 3,
@@ -13163,7 +13197,7 @@ function buildSlotMenu(px2, py2, i) {
   // `alchValue(it)` hid the row for the two things that pay nothing, so an
   // arrow could not be transmuted even for the practice.
   if (it in PRICES) {
-    const ml = XP_TO_LVL(me.skills?.magic ?? 0)
+    const ml = XP_TO_LVL(me.skills?.sorcery ?? 0)
     const paid = alchValue(it)     // one from the stack, never the stack
     items.push({
       label: ml < ALCH_REQ ? 'Transmute (magic ' + ALCH_REQ + ')':
@@ -13391,7 +13425,7 @@ function primaryClick(p, isRight) {
   }
   if (tgt.kind === 'node' && tgt.e?.type === 'magic-rock') {
     const me9 = myId && curState?.players?.[myId]
-    const lv9 = me9 ? XP_TO_LVL(me9.skills?.mining ?? 0) : 0
+    const lv9 = me9 ? XP_TO_LVL(me9.skills?.earthcraft ?? 0) : 0
     if (lv9 < MAGIC_ROCK_MINING) {
       say('The rock hums and your pick slides off it. Mining ' + MAGIC_ROCK_MINING
           + ' opens the magic-rocks of the Wilds: you have ' + lv9 + '.')
@@ -13843,7 +13877,7 @@ function onState(s, worldId, local) {
     // visible to everyone who can see them
     prevPlayers = {}
     for (const [pid2, q2] of Object.entries(s.players ?? {}))
-      prevPlayers[pid2] = { hp: q2.hp, magic: q2.skills?.magic ?? 0, deed: q2.deed }
+      prevPlayers[pid2] = { hp: q2.hp, magic: q2.skills?.sorcery ?? 0, deed: q2.deed }
   }
   pumpIntent()
 }

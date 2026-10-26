@@ -20,6 +20,29 @@ const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
 const TRADES = [...eng.match(/const SKILLS = \[([\s\S]*?)\];/)[1]
   .matchAll(/'([a-z]+)'/g)].map((m) => m[1])
 
+// §5m: AND NOT ONLY THIS CLIENT. The test below has held window-web clean for
+// months while `window-diablo` read five retired names and `window-3d` read a
+// sixth, because it only ever looked at one file. In diablo every skill name
+// in the file was a retired one, so `p.skills.woodcutting` was undefined
+// everywhere, which reads as nought: standing was nought for everybody, the
+// calling was always the first skill in the list, the cape could never appear
+// at all, and `maxHpOf` gave every citizen a frame of one.
+test('no window the router offers reads a skill the engine retired', () => {
+  const served = [...fs.readFileSync(path.join(root, 'serve.mjs'), 'utf8')
+    .matchAll(/sendFile\('\.\/(window-[a-z0-9-]+\.html)'/g)].map((m) => m[1])
+  assert.ok(served.length >= 6, `found ${served.length} window routes`)
+  const bad = []
+  for (const f of new Set(served)) {
+    const p2 = path.join(root, f)
+    if (!fs.existsSync(p2)) continue
+    // comments may name a retired skill to explain what was repealed
+    const lines = fs.readFileSync(p2, 'utf8').split('\n').filter((l) => !l.trim().startsWith('//'))
+    const read = new Set([...lines.join('\n').matchAll(/skills\??\.([a-z]+)/g)].map((m) => m[1]))
+    for (const sk of read) if (!TRADES.includes(sk)) bad.push(`${f} reads skills.${sk}`)
+  }
+  assert.deepEqual(bad, [], bad.join('\n'))
+})
+
 test('the client reads no skill the engine retired', () => {
   // §5m merged eighteen skills into nine. A client reading `skills.mining`
   // gets undefined, falls to level one, and the gate it guards can never open
@@ -43,10 +66,13 @@ test('every trade has its own cape colour', () => {
 
 test('the cape arrives at mastery, not a level early', () => {
   // §4b: mastery is one hundred. The last level alone is near a seventh of the
-  // whole ascent, so a cape at ninety-nine is very early indeed.
+  // whole ascent, so a cape at ninety-nine is very early indeed. §4c-ii then
+  // moved the test from "any skill at a hundred" to "the SWORN calling at a
+  // hundred", which is the only skill that can get there at all, so the shape
+  // of the comparison changed and the rule did not.
   const capeOf = win.match(/function capeOf[\s\S]*?\n\}/)[0]
-  assert.match(capeOf, /XP_TO_LVL\(xp\) >= 100/)
-  assert.equal(/>= 99\b/.test(capeOf), false)
+  assert.match(capeOf, /XP_TO_LVL\(p\.skills\?\.\[sworn\] \?\? 0\) < 100/)
+  assert.equal(/>= 99\b|< 99\b/.test(capeOf), false)
 })
 
 test('mounted means carrying and nothing else', () => {
@@ -1218,8 +1244,28 @@ test('a living citizen is drawn in the gear they are actually wearing', () => {
   }
 })
 
-// ---- THE CAPE IS THE ONLY THING MASTERY LOOKS LIKE ----
-test('a cape for every craft, and the two that say how many', () => {
+// ---- THE CAPE IS THE GRADE ----
+//
+// §4c-ii. The cape had three steps and two of them could never happen: §5k
+// caps every skill outside a citizen's sworn calling at CAP_OTHER, so exactly
+// one skill can ever reach a hundred, and the gold trim wanted a second
+// mastery while the radiant cape wanted nine. It also arrived at level one
+// hundred, which §5x says makes a citizen ELIGIBLE and not a master: you are
+// not a master until you have made one.
+test('exactly one skill can ever reach mastery', () => {
+  // the premise the whole section rests on, asked of the engine rather than
+  // believed: a sworn citizen's other eight crafts stop below a hundred
+  const p = { calling: 'forester', skills: Object.fromEntries(E.SKILLS.map((s) => [s, 0])) }
+  const own = E.SWORN.forester.skill
+  for (const sk of E.SKILLS) {
+    const ceil = E.xpCeiling(p, sk)
+    if (sk === own) { assert.equal(ceil, Infinity, 'the sworn calling must have no ceiling'); continue }
+    assert.ok(E.levelForXp(ceil) < E.MASTERY,
+      `${sk} can reach ${E.levelForXp(ceil)}, so a second mastery is possible after all`)
+  }
+})
+
+test('a cape for every craft, and it says which grade', () => {
   const blk = win.match(/const CAPE_COLORS = \{([\s\S]*?)\n\}/)[1]
   const keys = [...blk.matchAll(/^\s*([a-z]+):/gm)].map((m) => m[1])
   assert.deepEqual(keys.slice().sort(), [...E.SKILLS].sort(), 'a craft with no cape')
@@ -1227,12 +1273,34 @@ test('a cape for every craft, and the two that say how many', () => {
     .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
   const fn = code.slice(code.indexOf('function capeOf('))
   const body = fn.slice(0, fn.indexOf('\n}') + 2)
-  // mastery is a hundred, and the cape arrives there and not a level early
-  assert.match(body, />= 100/, 'the cape has drifted off mastery again')
-  assert.match(body, /trim: mastered\.length >= 2/, 'two masteries no longer show')
-  assert.match(body, new RegExp('radiant: mastered\\.length >= ' + E.SKILLS.length),
-    `the radiant cape must want all ${E.SKILLS.length} crafts`)
+  // the sworn calling's own skill, at mastery
+  assert.match(body, /SWORN_SKILL/, 'the cape no longer asks what the citizen swore to')
+  assert.match(body, new RegExp('< ' + E.MASTERY), 'the cape has drifted off mastery')
+  // and the two upper steps count what the world can actually count
+  assert.match(body, /p\.raised/, 'the trim is back on a second mastery, which cannot happen')
+  assert.match(body, /trim: raised >= CAPE_RAISED_MASTER/)
+  assert.match(body, /radiant: raised >= CAPE_RAISED_RADIANT/)
+  // §5x: one raised makes a master. Three is every apprentice slot this world
+  // gives, which APPRENTICE_MILESTONES sets at three.
+  const nums = win.match(/const CAPE_RAISED_MASTER = (\d+), CAPE_RAISED_RADIANT = (\d+)/)
+  assert.ok(nums, 'the two thresholds are gone or renamed')
+  assert.equal(Number(nums[1]), 1, 'one raised is what §5x says makes a master')
+  assert.equal(Number(nums[2]), E.APPRENTICE_MILESTONES.length,
+    'the radiant cape wants every apprentice slot the world gives')
   // and it hangs, so it sways: nothing loose in this window stands rigid
   const draw = code.slice(code.indexOf('if (o.cape) {'), code.indexOf('if (o.cape) {') + 700)
   assert.match(draw, /sway/, 'the cape has stopped moving')
+})
+
+test('the window and the engine agree which craft a calling masters', () => {
+  const blk = win.match(/const CALLINGS_OF = \{([\s\S]*?)\n\}/)[1]
+  const winOf = {}
+  for (const m of blk.matchAll(/([a-z]+): \[([^\]]*)\]/g))
+    for (const c of m[2].matchAll(/'([a-z]+)'/g)) winOf[c[1]] = m[1]
+  const bad = []
+  for (const [calling, v] of Object.entries(E.SWORN)) {
+    if (winOf[calling] !== v.skill) bad.push(`${calling}: engine ${v.skill}, window ${winOf[calling] ?? 'MISSING'}`)
+  }
+  for (const c of Object.keys(winOf)) if (!E.SWORN[c]) bad.push(`${c}: the window has it and the engine does not`)
+  assert.deepEqual(bad, [], bad.join('; '))
 })

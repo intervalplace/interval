@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
-`efe1eb77afb231f9…`.
+`1260b6053cd598f7…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 601 tests across:
+`node --test test/*.test.mjs`, 604 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -184,6 +184,15 @@ possible executions.
 - `windows.exist.test.mjs`, that every window the router offers is on disk,
   and that every one of them PARSES: four were blank pages when that check
   was written, for a ternary whose colon had ended up inside a comment
+- in `window.test.mjs`, §4c-ii the cape: that it is the GRADE and not a
+  level. Two of its three steps could never happen, because §5k caps every
+  skill outside a citizen's sworn calling at seventy, so exactly one can
+  reach a hundred; and it arrived at a hundred, which §5x says makes a
+  citizen eligible rather than a master. Also that no window the router
+  offers reads a skill the engine retired: that check had held window-web
+  clean for months while window-diablo read five retired names and had a
+  standing of nought, a cape that could never appear and a frame of one
+  for everybody
 - in `window.test.mjs`, that every word the engine lets a citizen take up is
   one this window lets them take up. The window writes that set out by hand
   and the engine DERIVES it, so it has gone stale three times: seven words,

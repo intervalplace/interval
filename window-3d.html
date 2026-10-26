@@ -5261,7 +5261,10 @@ function syncBeings(s, prev) {
   for (const [id, mb] of Object.entries(s.mobs)) place('mob', id, mb, prev?.mobs?.[id])
   for (const [id, m] of beings) if (!seen.has(id)) { scene.remove(m); beings.delete(id); mixers.delete(id) }
 }
-const effHp = (p) => Math.min(99, XP_LVL(p.skills?.hitpoints ?? 0))
+// §5j: THE FRAME IS FLAT AND IS NOT A SKILL. `hitpoints` was merged away
+// with the other nine, so this read undefined, called it nought, and every
+// citizen in this window had a frame of one.
+const effHp = (p) => p.maxHp ?? 64
 const lvlOf = (p) => standingOf(p)
 
 // ---- the same clock discipline as the reference window ----

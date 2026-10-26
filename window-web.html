@@ -5003,6 +5003,11 @@ const CALLINGS_OF = {
   wayfaring: ['cartographer', 'runner'],
   mourning: ['mourner'],
 }
+// §4c-ii: the other way round, because `capeOf` asks what a CALLING masters.
+// Derived from the table above rather than written twice, so a calling added
+// to one is in the other by construction.
+const SWORN_SKILL = Object.fromEntries(
+  Object.entries(CALLINGS_OF).flatMap(([skill, callings]) => callings.map((c) => [c, skill])))
 const SKILL_NOTE = {
   woodcraft: 'The axe, the bench and the fire. Fell, saw, fletch and light: one trade, because nobody fells a tree for the sake of holding logs.',
   earthcraft: 'The seam and the anvil. Ore has no use unmelted, and the one who went to the crags for it should not have to hand it over to make it useful.',
@@ -7751,18 +7756,48 @@ const CAPE_COLORS = {
   mourning: '#e8e4d0',      // bone
   wayfaring: '#c9a227',     // the road at dusk
 }
-function capeOf(p) { // mastery is a fact; the cape is what it looks like
-  // §4b: mastery is ONE HUNDRED. This read ninety-nine and put a cape on a
-  // citizen a whole level before they had earned it -- and the last level is
-  // near a seventh of the entire ascent, so the cape arrived a very long time
-  // early.
-  const mastered = Object.entries(p.skills).filter(([, xp]) => XP_TO_LVL(xp) >= 100)
-  if (!mastered.length) return null
-  mastered.sort((a, b) => b[1] - a[1])
+// §4c-ii: THE CAPE SAYS WHICH GRADE, AND TWO OF ITS THREE COULD NEVER HAPPEN.
+//
+// What was here: a cape for any skill at a hundred, gold trim for a SECOND
+// mastery, and a radiant cape for nine of them. Neither of the upper two can
+// occur. §5k caps every skill outside a citizen's sworn calling at seventy
+// (`CAP_OTHER`), and `validateState` refuses a state that breaks it, so
+// exactly one skill can ever reach a hundred. The gold trim and the radiant
+// cape were unreachable art, and SPEC §4c still described them as "a second
+// mastery" and "all seventeen", from before §5m merged eighteen skills into
+// nine.
+//
+// AND IT ARRIVED AT THE WRONG MOMENT. §5x: YOU ARE NOT A MASTER UNTIL YOU
+// HAVE MADE ONE. Reaching mastery makes a citizen ELIGIBLE; what makes them a
+// master is having raised somebody else to their own swearing, which is what
+// `masterOf` tests at six sites in the engine and what `gradeOf` returns
+// 'journeyman' instead of until it happens. A cape handed out at level one
+// hundred is the number rewarding itself, which is the one thing §5x was
+// written to stop.
+//
+// So the cape is the grade, in three steps the world already counts:
+//
+//   plain      a hundred in your sworn calling: the climb is done
+//   gold trim  you have raised one to their own swearing: a master
+//   radiant    you have raised three, which is every apprentice slot this
+//              world gives (APPRENTICE_MILESTONES 100/105/110) filled and
+//              spent, so it needs level one hundred and ten as well
+//
+// The climb still shows, because it is the longest thing anybody does here
+// and §4c is right that proof should be visible from a distance. What the
+// trim adds is the admission, which is the part that needs another person.
+const CAPE_RAISED_MASTER = 1, CAPE_RAISED_RADIANT = 3
+function capeOf(p) {
+  // the sworn calling's own skill, and nothing else: no other skill can pass
+  // seventy, so this is also the only one that could ever qualify
+  const sworn = typeof p.calling === 'string' ? SWORN_SKILL[p.calling] : null
+  if (!sworn) return null
+  if (XP_TO_LVL(p.skills?.[sworn] ?? 0) < 100) return null
+  const raised = p.raised ?? 0
   return {
-    color: CAPE_COLORS[mastered[0][0]] ?? '#c9a227',
-    trim: mastered.length >= 2,
-    radiant: mastered.length >= 9,
+    color: CAPE_COLORS[sworn] ?? '#c9a227',
+    trim: raised >= CAPE_RAISED_MASTER,
+    radiant: raised >= CAPE_RAISED_RADIANT,
   }
 }
 const isAwake = (p, tick) => p.action !== null || tick - (p.lastInput ?? 0) <= SLEEP_AFTER
