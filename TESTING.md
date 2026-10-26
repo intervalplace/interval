@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 598 tests across:
+`node --test test/*.test.mjs`, 601 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -184,6 +184,14 @@ possible executions.
 - `windows.exist.test.mjs`, that every window the router offers is on disk,
   and that every one of them PARSES: four were blank pages when that check
   was written, for a ternary whose colon had ended up inside a comment
+- in `window.test.mjs`, that every word the engine lets a citizen take up is
+  one this window lets them take up. The window writes that set out by hand
+  and the engine DERIVES it, so it has gone stale three times: seven words,
+  then twenty-five, then thirteen. A word missing from it cannot be worn at
+  all. And that a LIVING citizen is drawn in the gear they are wearing:
+  `headItem` and `bodyItem` were passed only to the falling citizen, so a
+  great helm, a shell helm, a king's shroud, a shell plate, a great plate or
+  any of the four barrow masks showed only as its wearer began to die
 - the island sweep's findings, in `window.test.mjs`: that a palisade joins
   a palisade (the neighbour index read one type and the branch served two,
   so a curtain wall drew as a row of separate posts), that a fence knows

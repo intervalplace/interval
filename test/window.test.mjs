@@ -1155,3 +1155,84 @@ test('a coast wears sand whichever way it faces', () => {
   const asked = (body.match(/if \(wet\(/g) ?? []).length
   assert.equal(asked, 4, `a side of the coast is unasked: ${asked} of 4`)
 })
+
+// ---- EVERYTHING THE ENGINE LETS YOU WEAR, THIS WINDOW LETS YOU WEAR ----
+//
+// `EQUIPPABLE` in window-web is a written-out copy of a set the engine
+// DERIVES (every smithing recipe, plus the handful that are fletched or
+// found), so it goes stale the moment anybody adds a recipe, and this world
+// adds recipes. Its own margin records it going stale twice -- seven words
+// the first time, twenty-five the second -- and both times the fix was a note
+// saying the list is "worth a check that runs rather than a comment that
+// asks", naming `check-equip.mjs`. That file has never existed. It had gone
+// stale a third time by thirteen more words when this test was written: all
+// four barrow masks, the torch, the great mell, the fire-siphon, the gold
+// chain, the bone staff and the four raw metals.
+//
+// A word that is not in that set cannot be worn from this window AT ALL: the
+// pack offers unmake, vault and drop instead, so a citizen holding a
+// hart-mask had no way to put it on.
+test('every word the engine lets you take up, this window lets you take up', () => {
+  const src = win.match(/const EQUIPPABLE = new Set\(\[([\s\S]*?)\]\)/)
+  assert.ok(src, 'the window’s equippable set is gone or renamed')
+  const held = new Set([...src[1].matchAll(/'([a-z0-9-]+)'/g)].map((m) => m[1]))
+  const engine = [...E.EQUIPPABLE].sort()
+  const lost = engine.filter((it) => !held.has(it))
+  assert.deepEqual(lost, [], `the engine lets you wear these and the window does not: ${lost.join(', ')}`)
+  const extra = [...held].filter((it) => !E.EQUIPPABLE.has(it)).sort()
+  assert.deepEqual(extra, [], `the window offers these and the engine refuses them: ${extra.join(', ')}`)
+})
+
+// ---- AND THE LIVING ARE DRAWN IN WHAT THEY ARE WEARING ----
+//
+// There are two `drawCitizen` calls: one for a citizen who is FALLING and one
+// for everybody else. `headItem` and `bodyItem` went onto the falling one and
+// not onto the other, and every drawing that reads them is on the head and
+// the body: the great helm, the shell helm, the king's shroud, the shell
+// plate, the great plate and the four barrow masks. So a citizen wearing any
+// of those was drawn as plain iron for as long as they were alive, and turned
+// into what they had been wearing the moment they began to die.
+//
+// The margin beside those two calls already records this exact mistake with
+// two OTHER fields, which is why it is a test now rather than a third note.
+test('a living citizen is drawn in the gear they are actually wearing', () => {
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  // every field the figure drawing reads off its options about worn gear
+  const draw = code.slice(code.indexOf('function drawCitizen'))
+  const reads = new Set([...draw.matchAll(/\bo\.(headItem|bodyItem|shield|legs|helm|plate|crown|cape)\b/g)]
+    .map((m) => m[1]))
+  assert.ok(reads.has('headItem') && reads.has('bodyItem'),
+    'the drawing has stopped asking what is actually worn')
+  // and both call sites must hand them over
+  // the CALLS, not the declaration: `function drawCitizen(X, Y, o)` matches
+  // the same text and hands over nothing, which is not a fault in it
+  const calls = [...code.matchAll(/(?<!function )drawCitizen\(/g)].map((m) => m.index)
+  assert.equal(calls.length, 2, `expected two drawCitizen calls, found ${calls.length}`)
+  for (const at of calls) {
+    const opts = code.slice(at, at + 3600)
+    for (const field of ['headItem', 'bodyItem', 'cape']) {
+      assert.ok(opts.includes(field + ':'),
+        `a drawCitizen call never passes ${field}, so that gear is invisible on whoever it draws`)
+    }
+  }
+})
+
+// ---- THE CAPE IS THE ONLY THING MASTERY LOOKS LIKE ----
+test('a cape for every craft, and the two that say how many', () => {
+  const blk = win.match(/const CAPE_COLORS = \{([\s\S]*?)\n\}/)[1]
+  const keys = [...blk.matchAll(/^\s*([a-z]+):/gm)].map((m) => m[1])
+  assert.deepEqual(keys.slice().sort(), [...E.SKILLS].sort(), 'a craft with no cape')
+  const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const fn = code.slice(code.indexOf('function capeOf('))
+  const body = fn.slice(0, fn.indexOf('\n}') + 2)
+  // mastery is a hundred, and the cape arrives there and not a level early
+  assert.match(body, />= 100/, 'the cape has drifted off mastery again')
+  assert.match(body, /trim: mastered\.length >= 2/, 'two masteries no longer show')
+  assert.match(body, new RegExp('radiant: mastered\\.length >= ' + E.SKILLS.length),
+    `the radiant cape must want all ${E.SKILLS.length} crafts`)
+  // and it hangs, so it sways: nothing loose in this window stands rigid
+  const draw = code.slice(code.indexOf('if (o.cape) {'), code.indexOf('if (o.cape) {') + 700)
+  assert.match(draw, /sway/, 'the cape has stopped moving')
+})

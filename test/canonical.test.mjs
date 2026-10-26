@@ -48,8 +48,14 @@ test('a persisted side of a table is exactly five keys', () => {
   const { gold, ...noGold } = whole
   assert.match(t(noGold), /malformed trade shape/)
   assert.match(t({ ...whole, items: [] }), /malformed trade goods/, 'one named good per named slot')
-  assert.match(t({ ...whole, with: alice.playerId.replace(/.$/, 'f').slice(0, 64) }),
-    /missing partner/)
+  // A STRANGER WHO IS NOT ANYBODY. This built one by changing alice's last
+  // character to 'f', which is alice herself one run in sixteen, because the
+  // identities are freshly generated and sometimes end in 'f' already. The
+  // test then asserted that a table with a real partner was missing one, and
+  // failed. Neither of these two can be all d's.
+  const nobody = 'd'.repeat(64)
+  assert.ok(nobody !== alice.playerId && nobody !== bob.playerId)
+  assert.match(t({ ...whole, with: nobody }), /missing partner/)
   assert.match(t({ ...whole, settled: 'yes' }), /settled or it is not/)
   assert.match(t({ ...whole, slots: [1, 0], items: [{ item: 'logs', qty: 1 }, { item: 'logs', qty: 1 }] }),
     /ascending and unique/)

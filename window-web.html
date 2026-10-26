@@ -4123,21 +4123,38 @@ const ICONS = new Proxy({}, { get: (t, item) => typeof item === 'string'
 // written list drift the moment anybody adds a recipe, and this world adds
 // recipes. Spelled out here in full, sorted, generated from the engine's own
 // derivation, and worth a check that runs rather than a comment that asks.
+// §7f-ii: AND IT WENT STALE A THIRD TIME, which is why it is a TEST now.
+//
+// The note above says the list is "worth a check that runs rather than a
+// comment that asks", and names `check-equip.mjs`. That file has never
+// existed. So nobody was holding the two lists together, and thirteen more
+// words had fallen out by the time anybody looked: all four barrow masks, the
+// torch, the great mell, the fire-siphon, the gold chain, the bone staff, and
+// the four raw metals the engine counts as weapons in their own right.
+//
+// A word that is not in this set cannot be worn from this window AT ALL. The
+// engine would take it; the pack offers a menu of unmake, vault and drop
+// instead, so a citizen holding a hart-mask had no way to put it on.
+//
+// `test/window.test.mjs` now compares this set against `E.EQUIPPABLE` on
+// every run, which is the check that was promised three times.
 const EQUIPPABLE = new Set([
-  'barb', 'bare-blade', 'bone-spear', 'cinder-crown', 'crossbow', 'dragonbow', 'gold-bar',
+  'barb', 'bare-blade', 'bone-spear', 'bone-staff', 'cinder-crown',
+  'crossbow', 'dragonbow', 'fire-siphon', 'gold-bar', 'gold-chain',
   'gold-helm', 'gold-legs', 'gold-plate', 'goo-staff', 'great-crossbow',
-  'great-hatchet', 'great-helm', 'great-pickaxe', 'great-plate',
-  'great-sword', 'handgonne', 'heartwood-bow', 'heartwood-rod',
-  'heartwood-staff', 'horn', 'horn-bow', 'iron-dagger', 'iron-hatchet',
-  'iron-helm', 'iron-javelin', 'iron-mell', 'iron-pickaxe', 'iron-plate',
-  'iron-shield', 'iron-spear', 'iron-sword', 'ironbark-rod', 'king-shroud',
-  'oak-rod', 'old-chain', 'rod', 'shell-helm', 'shell-plate', 'shot',
-  'sigil-bow', 'staff', 'quick-dagger', 'quick-flail', 'quick-hatchet',
-  'quick-helm', 'quick-ingot', 'quick-javelin', 'quick-mell', 'quick-pickaxe',
-  'quick-plate', 'quick-shield', 'quick-spear', 'quick-sword', 'steel-dagger',
-  'steel-hatchet', 'steel-helm', 'steel-javelin', 'steel-mell',
-  'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
-  'steel-sword', 'wand', 'wooden-bow'
+  'great-hatchet', 'great-helm', 'great-mell', 'great-pickaxe', 'great-plate',
+  'great-sword', 'handgonne', 'hare-mask', 'hart-mask', 'heartwood-bow',
+  'heartwood-rod', 'heartwood-staff', 'horn', 'horn-bow', 'iron',
+  'iron-dagger', 'iron-hatchet', 'iron-helm', 'iron-javelin', 'iron-mell',
+  'iron-pickaxe', 'iron-plate', 'iron-shield', 'iron-spear', 'iron-sword',
+  'ironbark-rod', 'king-shroud', 'oak-rod', 'old-chain', 'quick-alloy',
+  'quick-dagger', 'quick-flail', 'quick-grit', 'quick-hatchet', 'quick-helm',
+  'quick-ingot', 'quick-javelin', 'quick-mell', 'quick-pickaxe',
+  'quick-plate', 'quick-shield', 'quick-spear', 'quick-sword', 'raven-mask',
+  'rod', 'shell-helm', 'shell-plate', 'shot', 'sigil-bow', 'staff', 'steel',
+  'steel-dagger', 'steel-hatchet', 'steel-helm', 'steel-javelin',
+  'steel-mell', 'steel-pickaxe', 'steel-plate', 'steel-shield', 'steel-spear',
+  'steel-sword', 'torch', 'wand', 'wolf-mask', 'wooden-bow'
 ])
 // >>> CONSTITUTIONAL IDENTITY BLOCK (spec 4b, spec 10) character for
 // character the same in every window and in engine.js. test/identity.test.mjs
@@ -7693,6 +7710,36 @@ const SLEEP_AFTER = 500
 //
 // A cape says which mastery a citizen is wearing. It cannot do that if two
 // trades share an entry that only one of them reaches.
+// §7dp: THE FOUR BARROW MASKS. Taken off the barrow dead, worth no armour at
+// all, and the only thing they buy is being seen in one. Each is the animal's
+// own outline over the head: at forty pixels a silhouette is the whole of the
+// likeness, so the shape carries it and the colour only confirms.
+const MASKS = {
+  'hart-mask': {   // antlers, which is the one everybody will know at a glance
+    hide: '#8a6038', edge: '#4f361d', eye: '#120f0a',
+    face: [[14.6, 12], [14.2, 6], [17, 3.2], [23, 3.2], [25.8, 6], [25.4, 12], [20, 10.4]],
+    // kept inside the citizen's own tile: antlers that climbed out of it
+    // collided with the name plate hanging over every citizen's head
+    ears: [[12.4, -0.8, 3.2, 6.4], [24.4, -0.8, 3.2, 6.4],
+           [10.6, 2.6, 2.6, 4.6], [26.8, 2.6, 2.6, 4.6]],
+  },
+  'wolf-mask': {   // a long muzzle and two sharp ears
+    hide: '#6e6a63', edge: '#3a3733', eye: '#c9d44a',
+    face: [[14.4, 11.6], [14, 6.4], [20, 2.6], [26, 6.4], [25.6, 11.6], [20, 13.6]],
+    ears: [[13.4, 0.2, 4, 5.2], [22.6, 0.2, 4, 5.2]],
+    beak: [[17.8, 10.2], [22.2, 10.2], [21.2, 13.8], [18.8, 13.8]], beak_c: '#2e2b27',
+  },
+  'raven-mask': {  // a hood and a beak, and nothing else needed
+    hide: '#2b2a31', edge: '#15141a', eye: '#d9c24a',
+    face: [[14.6, 12], [14.6, 5.6], [20, 2.2], [25.4, 5.6], [25.4, 12], [20, 10.8]],
+    beak: [[19, 8.6], [24.4, 8.6], [27.4, 11.4], [19, 11.6]], beak_c: '#c08a24',
+  },
+  'hare-mask': {   // the two long ears do all the work
+    hide: '#b5a07c', edge: '#6e5e42', eye: '#7a2f2f',
+    face: [[15.2, 11.8], [15, 6.6], [20, 3.4], [25, 6.6], [24.8, 11.8], [20, 13.2]],
+    ears: [[15.4, -1.6, 3, 9.4], [21.6, -1.6, 3, 9.4]],
+  },
+}
 const CAPE_COLORS = {
   woodcraft: '#2f7d2f',     // the greenwood
   earthcraft: '#b06a2a',    // hot iron
@@ -10312,10 +10359,15 @@ function drawCitizen(X, Y, o) {
       cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(X + 22 + CF, Y + 18, 1.6, 10)
     } else {
     const shell9 = o.bodyItem === 'shell-plate', great9 = o.bodyItem === 'great-plate'
-    cx.fillStyle = great9 ? '#3c352e' : shell9 ? '#a8532c':
+    // §7f-ii: steel is not iron, on the body either. The whole steel tier was
+    // the same brown as the iron one, so a citizen who had spent a week
+    // getting out of iron looked exactly as they had the week before.
+    const steel9 = o.bodyItem === 'steel-plate'
+    cx.fillStyle = great9 ? '#3c352e' : shell9 ? '#a8532c' : steel9 ? '#9aa3ac':
       o.goldPlate ? '#e8b93a' : o.starPlate ? '#5cb8d9' : '#a3743a'
     cx.fillRect(X + 13.5, Y + 16.5, 13, 6.5)
     cx.fillStyle = great9 ? 'rgba(109,97,83,.9)' : shell9 ? 'rgba(255,220,190,.35)':
+      steel9 ? 'rgba(236,244,250,.5)':
       o.goldPlate ? 'rgba(255,244,190,.60)' : o.starPlate ? 'rgba(224,246,255,.45)' : 'rgba(255,255,255,.18)'
     cx.fillRect(X + 13.5, Y + 16.5, 13, 1.4)
     if (great9) {   // the seam it will give way along, breathing
@@ -10596,12 +10648,37 @@ function drawCitizen(X, Y, o) {
           [X + 25.5, Y + 5]], '#b8912f', '#7a5f1e')
     cx.fillStyle = 'rgba(14,12,10,.45)'; cx.fillRect(X + 15, Y + 3, 10, 2)  // tarnish
     cx.fillStyle = '#e6c25a'; cx.fillRect(X + 19.6, Y + 1.4, 0.9, 3)        // the glint
+  } else if (o.headItem && MASKS[o.headItem]) {
+    // §7dp: THE FOUR BARROW MASKS, which were drawn as a band of metal.
+    //
+    // They are not armour and the engine says so: they are left out of
+    // ARMOUR entirely, so `armourOf` reads them as zero and a mask soaks
+    // nothing. Wearing one costs you a helm, and being SEEN in it is the
+    // whole of what it buys -- which a window that drew it as an iron brow
+    // band gave you none of.
+    //
+    // A face, then: the animal's own shape over the head, with the eyes of
+    // the mask where the citizen's eyes would be. Four silhouettes, because
+    // at this size the outline is the only thing that carries.
+    const M = MASKS[o.headItem]
+    poly(M.face.map(([mx, my]) => [X + mx, Y + my]), M.hide, M.edge)
+    cx.fillStyle = M.eye
+    cx.fillRect(X + 17, Y + 7.6, 1.8, 1.8); cx.fillRect(X + 21.2, Y + 7.6, 1.8, 1.8)
+    if (M.ears) for (const [ex, ey, ew, eh] of M.ears) {
+      poly([[X + ex, Y + ey + eh], [X + ex + ew / 2, Y + ey], [X + ex + ew, Y + ey + eh]], M.hide, M.edge)
+    }
+    if (M.beak) poly(M.beak.map(([mx, my]) => [X + mx, Y + my]), M.beak_c ?? M.edge)
   } else if (o.helm) { // metal over the brow; the barber weeps
     const shellH = o.headItem === 'shell-helm', greatH = o.headItem === 'great-helm'
-    cx.fillStyle = greatH ? '#3c352e' : shellH ? '#a8532c':
+    // §7f-ii: steel is not iron. Both drew the same brown band, so the whole
+    // steel tier was invisible on a citizen: you could stand next to somebody
+    // in steel and see an iron helm.
+    const steelH = o.headItem === 'steel-helm'
+    cx.fillStyle = greatH ? '#3c352e' : shellH ? '#a8532c' : steelH ? '#9aa3ac':
       o.goldHelm ? '#e8b93a' : o.starHelm ? '#5cb8d9' : '#a3743a'
     cx.fillRect(X + 14.5, Y + 5, 11, 4.6)
     cx.fillStyle = greatH ? 'rgba(109,97,83,.9)' : shellH ? 'rgba(255,220,190,.35)':
+      steelH ? 'rgba(236,244,250,.55)':
       o.goldHelm ? 'rgba(255,244,190,.65)' : o.starHelm ? 'rgba(224,246,255,.5)' : 'rgba(255,255,255,.2)'
     cx.fillRect(X + 14.5, Y + 5, 11, 1.2)
     if (greatH) {   // §6bw: a slot to see through, and the seam beside it
@@ -14241,6 +14318,22 @@ function drawScene(now) {
       helm: !!p.equipment?.head && p.equipment?.head?.item !== 'cinder-crown', plate: !!p.equipment?.body,
       starHelm: p.equipment?.head?.item === 'quick-helm',
       starPlate: p.equipment?.body?.item === 'quick-plate',
+      // §7f-ii: AND WHAT IT ACTUALLY IS, ON THE BRANCH THAT DRAWS THE LIVING.
+      //
+      // The same fault as the note below, with two more fields and nobody
+      // noticing for longer. `headItem` and `bodyItem` went onto the FALLING
+      // citizen's options and not onto this one, and every drawing that reads
+      // them is here: the great helm, the shell helm, the king's shroud, the
+      // shell plate, the great plate and the four barrow masks. So a citizen
+      // wearing any of those was drawn as plain iron for as long as they were
+      // alive, and the moment they began to die they turned into what they
+      // had been wearing all along.
+      //
+      // The great helm is the clearest of them: it breathes an ember through
+      // its eye slot, which is the whole of its character, and the only
+      // citizen who ever showed it was a dead one.
+      headItem: p.equipment?.head?.item ?? null,
+      bodyItem: p.equipment?.body?.item ?? null,
       // §6da: the cinder-crown is its own head-branch, not a generic helm
       crown: p.equipment?.head?.item === 'cinder-crown',
       // 6ce: the off hand and the legs
