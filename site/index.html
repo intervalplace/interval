@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Interval: nobody can ban you, patch you, or switch you off</title>
 <meta name="description" content="A persistent world with no company behind it. The rules cannot change, no one can ban you, and there is no server to shut down. Play in your browser.">
-<link rel="stylesheet" href="/site/site.css"><link rel="stylesheet" href="/site/paper.css"><script src="/site/art.js" defer></script></head><body>
+<link rel="stylesheet" href="/site/site.css"><link rel="stylesheet" href="/site/paper.css"></head><body>
 <script src="/site/nav.js"></script>
 <div class="page"><main class="stone cover">
   <div class="torch l"></div><div class="torch r"></div>
@@ -87,30 +87,6 @@
       hands, and every window obeys it.</p>
   </div>
 
-  <!-- THE PLATE.
-     Everything above this is an argument, and an argument about a world is
-     still only an argument. The page had no world in it at all: an outline of
-     the island at the top and then six hundred words. `items.js` had been
-     loaded by this page for weeks and nothing on it used a single sprite.
-
-     So: a plate, the way a book has one. Every picture is drawn by the
-     window's own code, replayed into SVG by `site-art.mjs`, so what is
-     promised here is the thing you will be holding. It sits after the
-     argument and before the doors, because it is the answer to "yes, but
-     what IS it", asked at exactly the moment somebody is deciding. -->
-  <div class="plate">
-    <h3>A few of the things in it</h3>
-    <div class="plategrid" id="plategrid"></div>
-    <p class="platenote">Drawn by the window you are about to open. There are
-      a hundred and thirty-two things in the world and four of these take a
-      year.</p>
-  </div>
-
-  <div class="plate beastplate">
-    <h3>And a few of the things in it that are not</h3>
-    <div class="plategrid" id="beastgrid"></div>
-  </div>
-
   <!-- TWO DOORS, BECAUSE THERE ARE TWO.
      This was one big button and three paragraphs under it: the browser line,
      a line about the other windows, and a line about the download. The thing
@@ -173,24 +149,5 @@ poll()
 // A tick is a second, so a little under one keeps the number honest without
 // asking the node more often than it has anything new to say.
 setInterval(poll, 1200)
-</script>
-<script>
-// The plate's rows come from `site/art.js`, which is generated: adding a
-// thing to the plate is one line in `site-art.mjs` and a rebuild, never a
-// sprite pasted in here by hand.
-document.addEventListener('DOMContentLoaded', () => {
-  const A = window.INTERVAL_ART
-  if (!A) return
-  const fill = (id, rows, src) => {
-    const el = document.getElementById(id)
-    if (!el) return
-    el.innerHTML = rows.map(([word, note]) =>
-      '<figure><img src="' + src[word] + '" alt="' + word.replace(/-/g, ' ') + '">'
-      + '<figcaption><b>' + word.replace(/-/g, ' ') + '</b><span>' + note + '</span>'
-      + '</figcaption></figure>').join('')
-  }
-  fill('plategrid', A.plate, A.items)
-  fill('beastgrid', A.beastPlate, A.beasts)
-})
 </script>
 </body></html>

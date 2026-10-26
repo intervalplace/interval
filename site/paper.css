@@ -475,58 +475,6 @@ h2, h3 {
 .playsub.lesser { font-size: 12.5px; margin-top: 10px; }
 .playsub a, .lede a, .here a, .isnot a { color: var(--bk-brown); }
 
-/* ---- THE PLATE ----
- *
- * A book shows you the thing. Every picture in here is the window's own
- * drawing, replayed into SVG by `site-art.mjs`, so the page cannot promise a
- * sword that is not the sword. Set as a plate rather than as a gallery: a
- * ruled band, a caption under each, nothing that hovers or lifts.
- */
-.plate { margin: 34px 0 6px; }
-.plate h3 {
-  font-size: 12px;
-  letter-spacing: 2.4px;
-  text-transform: uppercase;
-  color: var(--bk-brown);
-  border-bottom: 1px solid rgba(138, 106, 34, .35);
-  padding-bottom: 5px;
-  margin: 0 0 16px;
-  font-weight: 600;
-}
-.plategrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px 14px;
-}
-.plategrid figure { margin: 0; display: flex; gap: 10px; align-items: flex-start; }
-.plategrid img {
-  width: 38px; height: 38px;
-  flex: none;
-  image-rendering: pixelated;
-  /* a plate's pictures sit ON the paper, so they take the paper's own slight
-   * warmth under them rather than a card */
-  background: rgba(176, 150, 102, .10);
-  border: 1px solid rgba(138, 106, 34, .22);
-  padding: 3px;
-}
-.plategrid figcaption { display: flex; flex-direction: column; line-height: 1.34; }
-.plategrid figcaption b {
-  font-variant: small-caps;
-  letter-spacing: .6px;
-  font-size: 15px;
-  color: var(--bk-ink);
-  font-weight: 600;
-}
-.plategrid figcaption span { font-size: 12.5px; color: var(--bk-quiet); }
-.platenote {
-  font-size: 12.5px;
-  color: var(--bk-quiet);
-  font-style: italic;
-  margin: 14px 0 0;
-}
-.beastplate { margin-top: 26px; }
-.beastplate .plategrid img { background: rgba(120, 100, 70, .13); }
-
 /* THE FOOT LINK nav.js appends, which site.css styles as a stone strip. */
 .foot, .foot a { color: var(--bk-quiet); }
 .foot { border: 0; background: none; }
@@ -553,7 +501,6 @@ h2, h3 {
   nav.stone { display: flex; flex-wrap: wrap; row-gap: 4px; }
   nav.stone a { padding: 0 9px; font-size: 10.5px; letter-spacing: 1.6px; }
   nav.stone a.here::after { left: 9px; right: 9px; }
-  .plategrid { grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 13px 10px; }
 }
 
 /* ---- A TABLE OF RANKS IS A LEDGER ----
