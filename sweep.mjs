@@ -240,9 +240,9 @@ world the generator builds: ${Object.keys(world.nodes).length} things standing a
 ${Object.keys(world.mobs).length} creatures. The view is the keyhole the game gives you,
 fourteen tiles over ten, so a town is several pictures.</p>
 ${Object.entries(bySettlement).map(([place, list]) => `
-<h2>${place} &mdash; ${list.length} ${list.length === 1 ? 'picture' : 'pictures'}</h2>
+<h2>${place}: ${list.length} ${list.length === 1 ? 'picture' : 'pictures'}</h2>
 <div class="row">${list.map((s) => `<div class="s"><img src="shots/${s.file}" loading="lazy">
   <div>${s.name}${s.note ? ' &middot; ' + s.note : ''} &middot; ${s.x},${s.y}</div></div>`).join('')}</div>`).join('')}
-`.replace(/&mdash;/g, ':')
+`
 writeFileSync(OUT + '/sweep.html', sheet)
 console.log('wrote ' + named.length + ' pictures and ' + OUT + '/sweep.html')

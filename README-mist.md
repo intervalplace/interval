@@ -492,7 +492,7 @@ a sword cuts shoulder to hip, each at its own speed and with its own noise.
 Bare hands get a short hook.
 
 **The bar is made at the furnace, the tool at the anvil.** The guide labelled
-every `SMITH_REQS` entry a *forge* &mdash; and all five `SMELTED` recipes have
+every `SMITH_REQS` entry a *forge*, and all five `SMELTED` recipes have
 one. So it was telling a citizen to make iron at an anvil that refuses it, and
 &sect;7p's whole point is that the anvil at Thornbury stands **238 tiles** from
 the furnace at Cragfoot. That is a long way to carry ore on a window's word.
@@ -502,13 +502,13 @@ says *smelt* where the engine says furnace.
 **And where a thing comes from when it is not made.** A guide that knows only the
 crafting tables knows half the world: a hollow bow is forged at woodcraft 12
 *and* carried by the gibbet-dead and skeleton-knights. `MOB_STATS` already
-carries every drop table and the pillar already served it &mdash; nothing was
+carries every drop table and the pillar already served it: nothing was
 missing but the question. Any item in your pack now offers *where it comes
 from*: which seams yield it, whether it is forged or smelted, which beasts carry
 it and how often, and which stall sells it and for how much.
 
 **The chime is window-web's, note for note.** C, E, G, then the octave held long
-with the fifth still ringing under it &mdash; the same five tones, the same
+with the fifth still ringing under it: the same five tones, the same
 triangle wave, the same eight-millisecond attack and exponential fall, which is
 what makes it a chime rather than a beep. Taken deliberately rather than
 re-invented: a person who has played this world in one window should recognise
@@ -519,10 +519,10 @@ only about a fact. `check-window-sound.mjs` reads the notes out of
 
 **A level takes the middle of the frame.** It used to be one grey line in the
 corner, in the same colour as everything else the feed says, gone in four
-seconds &mdash; and a level is the only thing in this world that is *permanent*.
+seconds, and a level is the only thing in this world that is *permanent*.
 Hours of a trade, and it never goes back down. It was being reported like a
 footstep. Now it is a plate in the centre with the skill and the new number, a
-ring of motes off the citizen, and &mdash; the part that matters &mdash; **what
+ring of motes off the citizen, and, the part that matters, **what
 it opened**, read off the same `NODE_GATE` / `WIELD_REQS` / `SMITH_REQS` the
 skill guide uses, so it cannot claim an unlock the world does not have. A level
 that opens nothing says what the next one opens instead, because otherwise the
@@ -532,8 +532,8 @@ banner is a number congratulating itself.
 tiles; everything else you know about where you are, you know by ear. A world
 where the wolves are silent is a world where the only warning is the one that
 arrives too late. Every one of the 24 beasts has a throat chosen by CHASSIS
-rather than by name &mdash; a growl, a roar, a shriek, a moan, a keen, a rattle,
-a hiss, a chitter, a caw, a snort, a bleat &mdash; each carrying its own distance
+rather than by name: a growl, a roar, a shriek, a moan, a keen, a rattle,
+a hiss, a chitter, a caw, a snort, a bleat, each carrying its own distance
 (a dragon is heard at sixteen tiles, a crab at six) and falling off with it. One
 voice at a time, nearest first, because a wood where every beast calls at once is
 noise and noise carries no information. And the dragon's breath is the only sound
@@ -548,7 +548,7 @@ crack of bone. Struck at distance, quieter.
 **And the deeds stopped borrowing.** Cooking was a hammer on an anvil; it is a
 sizzle now. Drinking pours, a mill grinds, a brewpot bubbles, a sawpit saws, an
 ossuary tolls, kindling catches, digging is soft, fletching is three strokes of a
-knife. 63 sounds, none of them sampled &mdash; all four oscillators and a bucket
+knife. 63 sounds, none of them sampled: all four oscillators and a bucket
 of noise, which is roughly what a disc had left after the textures.
 
 **The ground under your feet has a voice, and it is the ground you can SEE.**

@@ -1319,14 +1319,41 @@ test('the window and the engine agree which craft a calling masters', () => {
 // so an old client is REFUSED rather than desynced.
 test('the flat window can build every input a citizen may send', () => {
   const eng = fs.readFileSync(path.join(root, 'engine.js'), 'utf8')
-  const block = eng.slice(eng.indexOf('const INPUT_SCHEMAS'), eng.indexOf('function validateInputShape'))
-  // the schema table's own keys, at its own indent. `sig` and `tick` sit in
-  // the same object and are field validators rather than verbs.
-  const types = [...new Set([...block.matchAll(/^ {2}([a-z_]+):/gm)].map((m) => m[1]))]
+  // THE KEYS, BY COUNTING BRACES, NOT BY INDENT.
+  //
+  // This read `^ {2}([a-z_]+):` out of the schema table, which finds a key only
+  // when it begins a line -- and twenty-two of them share a line with another
+  // (`drop: { slot: T.slot }, eat: { slot: T.slot }, cook: ...`). So it found
+  // 69 of the 91 and the `assert.ok(types.length > 60)` guard waved it
+  // through. Everything it missed went unchecked, and `read_chart` was among
+  // them.
+  const i0 = eng.indexOf('const INPUT_SCHEMAS = {')
+  let depth = 0, close = -1
+  for (let i = eng.indexOf('{', i0); i < eng.length; i++) {
+    if (eng[i] === '{') depth++
+    else if (eng[i] === '}') { depth--; if (!depth) { close = i; break } }
+  }
+  assert.ok(close > i0, 'engine.js INPUT_SCHEMAS does not close')
+  // the keys at depth one: strip the nested shapes, then read what is left
+  const inner = eng.slice(eng.indexOf('{', i0) + 1, close)
+    .replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+  let flat = '', d2 = 0
+  for (const ch of inner) {
+    if (ch === '{' || ch === '[' || ch === '(') d2++
+    else if (ch === '}' || ch === ']' || ch === ')') d2--
+    else if (!d2) flat += ch
+  }
+  const types = [...new Set([...flat.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*:/g)].map((m) => m[1]))]
     .filter((t) => !['sig', 'tick'].includes(t))
-  assert.ok(types.length > 60, `found ${types.length} input types, which cannot be right`)
+  assert.ok(types.length > 85, `found ${types.length} input types, which cannot be right`)
   const NODES_BUSINESS = new Set(['archive', 'restore'])
-  const ALWAYS_REFUSED = new Set(['recall'])
+  // §6ch: `recall` can only ever fail now that the waystones are gone, and its
+  // schema is kept so an old client is REFUSED rather than desynced.
+  // §6ci: and `read_chart` applies nothing at all -- the engine's own margin
+  // says "a chart is read by a buyer, not by its holder. Nothing to apply." A
+  // citizen may send two deeds an interval, so a button for an input that does
+  // nothing would spend one of them on nothing.
+  const ALWAYS_REFUSED = new Set(['recall', 'read_chart'])
   const code = win.replace(/\/\*[\s\S]*?\*\//g, '')
     .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
   const built = new Set([...code.matchAll(/\{ type: '([a-z_]+)'/g)].map((m) => m[1]))
@@ -1491,4 +1518,44 @@ test('the nine fold away, and the pack does not', () => {
   assert.match(code, /let open2 = innerWidth > 900/, 'the fold no longer depends on the room there is')
   // the pack is never folded: it is the thing a citizen touches every few seconds
   assert.equal(/id="invbtn"/.test(win), false, 'the pack has been given a fold, which it must not have')
+})
+
+// §7d-iv, THE OTHER WAY ROUND: NO DRAWING IN THE CLICK HANDLER.
+//
+// This has now happened twice and in both directions. First five interaction
+// branches -- the furnace, the altar, the rockfall, the mill and the sawpit --
+// were written into `drawScene`, so every one of them ran its logic on every
+// animation frame and a citizen crashed the window by WALKING PAST a thing.
+// Then a DRAWING of a citizen's stall was pasted into the click handler, above
+// the branch that tends and buys from one: it filled rectangles with `cx` on a
+// click, matched first, and RETURNED, so every click on a stall painted
+// trestles into the frame and the whole menu below it was unreachable code.
+// A citizen could not buy from a stall and could not price their own.
+//
+// The two are one mistake with one tell: a canvas call in the click handler.
+test('the click handler draws nothing, and nothing it does is unreachable', () => {
+  const at = win.indexOf("cv.addEventListener('click'")
+  assert.ok(at > 0, 'window-web no longer has a canvas click handler')
+  // to the end of that listener, by counting braces from its opening
+  let depth = 0, end = at
+  for (let i = win.indexOf('{', at); i < win.length; i++) {
+    if (win[i] === '{') depth++
+    else if (win[i] === '}') { depth--; if (!depth) { end = i; break } }
+  }
+  const body = win.slice(at, end)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').map((l) => l.replace(/(^|[^:])\/\/.*$/, '$1')).join('\n')
+  const paints = [...body.matchAll(/\b(cx\.fill|cx\.stroke|cx\.drawImage|shadow\(|poly\()/g)]
+    .map((m) => m[1])
+  assert.deepEqual([...new Set(paints)], [],
+    `the click handler paints: ${[...new Set(paints)].join(', ')}. A drawing in here `
+    + 'matches first and returns, so every branch below it is unreachable.')
+  // and the same branch may not be OPENED twice: `if (n.type === 'market') {`
+  // appearing twice is exactly how the stall menu became unreachable, and a
+  // type may legitimately be tested many times in guards and compound
+  // conditions, so this matches the branch opening and nothing else.
+  const opens = [...body.matchAll(/if \(n\.type === '([a-z-]+)'\) \{/g)].map((m) => m[1])
+  const twice = [...new Set(opens.filter((t, i) => opens.indexOf(t) !== i))]
+  assert.deepEqual(twice, [],
+    `two branches open on the same node type, so the second is dead: ${twice.join(', ')}`)
 })

@@ -1,7 +1,7 @@
 # Interval. Testing & Freeze Evidence
 
 Release 1.0.5, protocol spec v1.05, consensus spec v1.10, rules hash
-`f77471b775cf70ce…`.
+`fd3ffda24bc7e76f…`.
 
 This document states exactly what is tested, with what inputs, for how
 long. Coverage is **finite and enumerated**, the claims below are about
@@ -10,7 +10,7 @@ possible executions.
 
 ## Unit + property suite (`npm test`)
 
-`node --test test/*.test.mjs`, 617 tests across:
+`node --test test/*.test.mjs`, 634 tests across:
 
 - `leak.test.mjs`, §21c: no write reaches the caller's state. Exercises the
   paths where one citizen touches another (striking, being hunted, trading,
@@ -206,7 +206,11 @@ possible executions.
   may send. Eight could not be built by any window the router offers: the
   two bridge verbs, the bellwork rope, the barrow hoard, the boat, the
   ossuary offering, the promise and the crushing floor. Each now has a
-  place it is pressed, and a test that it does.
+  place it is pressed, and a test that it does. The test itself was reading
+  the schema keys by INDENT, which finds a key only where it begins a line,
+  and twenty-two of the ninety-one share a line with another -- so it checked
+  sixty-nine and its own `length > 60` guard waved that through. It counts
+  braces now.
 - in `window.test.mjs`, that the drowned bell RISES as the town pulls. The
   engine has always had the work; the window drew a bar under a bell that
   hung in one place from the first pull to the last.
@@ -239,13 +243,60 @@ possible executions.
   from scraps of their id, and that a coast wears sand on all four sides.
   The slow half is `check-window-words.mjs`, which founds the whole island
   and reports every word in it the window names nowhere
+- in `window.test.mjs`, that the canvas click handler DRAWS nothing. This has
+  happened twice and in both directions. First five interaction branches (the
+  furnace, the altar, the rockfall, the mill and the sawpit) were written into
+  `drawScene`, so each ran its logic on every animation frame and a citizen
+  crashed the window by walking past a thing. Then a DRAWING of a citizen's
+  stall was pasted into the click handler above the branch that tends and buys
+  from one: it painted trestles on a click, matched first and returned, so the
+  whole menu below it was unreachable and a stall could be neither bought from
+  nor priced. One mistake, one tell: a canvas call where the clicks are
+- in `window.test.mjs`, that the anvil quotes the engine's price. The forge
+  table had drifted on TWENTY of fifty-eight recipes -- a quick-ingot at 20
+  quick-stone when the world wants 8 quick-grit, a great-sword at ten ingots
+  and twenty-six brimstone when it wants five quick-alloy and a haft, a
+  `steel-ingot` named in two recipes which is not a word this world has -- and
+  the furnace offered four of the engine's five smelts, missing the alloy the
+  whole great line is made of. The window now takes the ledgers from
+  /api/tables as well as carrying a generated fallback
+- `tables.test.mjs`, every constitutional table a window COPIES, against the
+  engine's own export, on every run. Neither window can import `engine.js`:
+  both are one file served to a browser with no build step, so the tables are
+  copies held honest by a note in the margin asking whoever changes the engine
+  to change the window too. That failed on four tables in a row and every
+  failure was invisible from the window: `PRICES` (window-photo held 77 of
+  105, and ten of its 77 were retired words), `MOB_STATS` (window-web knew
+  eleven of twenty-five creatures, so a barrow wight, a fen adder, a boar and
+  the gibbet king all drew a FULL health bar at every wound and nothing warned
+  a citizen they had been noticed), `EQUIPPABLE` (window-photo held seventeen
+  words of which FOURTEEN were retired, so a citizen there could put on three
+  of eighty things) and `CALLING_NAMES` (the bridge-keeper, who has a node and
+  a verb of his own and no name). It also checks the wire they come over: four
+  of those tables are Sets, `JSON.stringify(new Set())` is `{}`, and
+  /api/tables served all four whole -- so a window that trusted them would
+  have learned that nothing in the world can be worn
+- `photo.test.mjs`, whether a thumb can reach the world from the photo window.
+  It could BUILD 83 of the 88 inputs a citizen may send and could REACH four:
+  a beast to attack, a node to gather from, a pile to walk to, and ten verbs
+  in a pack sheet. Tapping another citizen did nothing whatever, because the
+  tap handler had no branch for `player` and the press fell through to the
+  ground behind them. The test slices the sheet section out of the window and
+  PRESSES it, which is the standing rule about testing through the window's
+  own interface: that every food can be eaten, that every equippable word can
+  be worn, that a two-handed weapon lowers the shield first and does it in two
+  inputs, that every node type in the world answers a tap, that the deeds
+  which happen at a place are reachable from that place, and that the anvil
+  offers exactly what the engine smiths and not what the furnace smelts
 - `site.test.mjs`, that the hiscores board's ranking and its label agree
 - `site.content.test.mjs`, the FACTS in the site's prose against the engine,
   and that every page the router offers loads only assets that are on disk
 - `prose.test.mjs`, the two rules nothing was enforcing: that
   `spec-conformance.mjs` passes (it was never run by anything, which is how
   fifteen divergences sat in the report unactioned), and that no long dash
-  survives anywhere this project writes
+  survives anywhere this project writes. It checked the character and the `\u`
+  escape, and there is a third spelling: the HTML entity, which had got five of
+  them past it. Found by looking, which is not how a rule stays kept
 - `engines.test.mjs`, two checks on the one thing in this project that is not
   exact arithmetic. The generator uses `Math.sin`, `Math.cos`, `Math.atan2` and
   `Math.hypot` in about fifty places, and ECMAScript does not require any of

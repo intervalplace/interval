@@ -1631,12 +1631,23 @@ const server = http.createServer((req, res) => {
       return json({
         specVersion: E.SPEC_VERSION, tickMs: E.TICK_MS, vigilTicks: E.VIGIL_TICKS,
         invSlots: E.INV_SLOTS, skills: E.SKILLS, equipSlots: E.EQUIP_SLOTS,
-        recipes: E.RECIPES, prices: E.PRICES, weapons: E.WEAPONS, smelted: E.SMELTED,
+        recipes: E.RECIPES, prices: E.PRICES, weapons: E.WEAPONS,
         smithReqs: E.SMITH_REQS, wieldReqs: E.WIELD_REQS, mobs: E.MOB_STATS,
-        // §7p: which recipes belong to the FURNACE and not the anvil
+        // §7f-viii: A SET DOES NOT SURVIVE JSON, AND FIVE OF THESE WERE SETS.
+        //
+        // `JSON.stringify(new Set(['a']))` is `{}`. So `items`, `equippable`,
+        // `stackable` and `twoHanded` went down the wire as empty objects --
+        // served, fetched, and worth nothing -- and a window that took them
+        // would have ended up knowing that NOTHING is equippable. The note at
+        // the top of this handler said "a Set does not survive JSON, so the
+        // tools become lists" and then did it for the tools alone.
+        //
+        // `smelted` was right only by accident: it appeared TWICE in this
+        // object, as a Set and then as a list, and the second one won.
         smelted: [...(E.SMELTED || [])],
-        items: E.ITEMS, equippable: E.EQUIPPABLE, stackable: E.STACKABLE,
-        armour: E.ARMOUR, twoHanded: E.TWO_HANDED, nodeTypes: E.NODE_TYPES,
+        items: [...(E.ITEMS || [])], equippable: [...(E.EQUIPPABLE || [])],
+        stackable: [...(E.STACKABLE || [])], twoHanded: [...(E.TWO_HANDED || [])],
+        armour: E.ARMOUR, nodeTypes: E.NODE_TYPES,
         keeperKinds: E.KEEPER_KINDS, stalls: E.STALL_SELLS,
         // §the callings: which trades a skill opens, what they are called, the
         // level they want, and the ceiling. A window may not invent a calling.

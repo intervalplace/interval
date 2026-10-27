@@ -4994,6 +4994,48 @@ let MASTERY_T = 100, APPR_SLOTS = 3, APPR_LAPSE = 43200, APPR_MILES = [100, 105,
     if (t.apprenticeSlots) APPR_SLOTS = t.apprenticeSlots
     if (t.apprenticeLapse) APPR_LAPSE = t.apprenticeLapse
     if (t.apprenticeMilestones) APPR_MILES = t.apprenticeMilestones
+    // §7f-viii: AND THE LEDGERS, which this window fetched and then ignored.
+    //
+    // `/api/tables` has served the recipes, the prices, the beasts and the
+    // gear straight out of the engine's exports for a long time, and window-
+    // mist takes them. This window read the callings and nothing else, so its
+    // own hand-copies were the only numbers it ever showed -- which is how the
+    // anvil came to quote twenty recipes wrong and the ledger to go two short.
+    //
+    // Each is REPLACED, not merged: a word the engine has dropped must leave,
+    // or the window goes on offering it. The copies below stay as what this
+    // window shows against a pillar too old to answer.
+    // AN OLDER PILLAR MUST NOT EMPTY THIS WINDOW.
+    //
+    // A pillar built before §7f-viii serves the Sets as `{}`, because that is
+    // what JSON does to a Set. Clearing a table and then filling it from an
+    // empty object would leave a citizen in a world where nothing can be worn
+    // and nothing can be made, and the throw would be swallowed by the catch
+    // below with the damage already done. So nothing is cleared until the
+    // replacement has been looked at and found to have something in it.
+    const swap = (into, from) => {
+      if (!from || typeof from !== 'object' || !Object.keys(from).length) return
+      for (const k of Object.keys(into)) delete into[k]
+      Object.assign(into, from)
+    }
+    const swapSet = (into, from) => {
+      if (!Array.isArray(from) || !from.length) return
+      into.clear()
+      for (const w of from) into.add(w)
+    }
+    swap(FORGE, t.recipes); swap(FORGE_REQ, t.smithReqs)
+    swap(PRICES, t.prices); swap(STALL_SELLS, t.stalls)
+    swapSet(SMELTED, t.smelted); swapSet(EQUIPPABLE, t.equippable)
+    swapSet(TWO_HANDED, t.twoHanded)
+    // the beasts come over under this window's older name for the one field
+    // it renames, which is the only difference between the two copies
+    if (t.mobs && Object.keys(t.mobs).length) {
+      for (const k of Object.keys(MOB_STATS)) delete MOB_STATS[k]
+      for (const [k, m] of Object.entries(t.mobs)) {
+        const { maxHealth, drops, ...rest } = m
+        MOB_STATS[k] = { maxHp: maxHealth, ...rest }
+      }
+    }
   } catch {}
 })()
 // §5k: the ceiling on this trade, for this citizen. Nothing unsworn passes
@@ -5093,23 +5135,45 @@ function callingOf(p) { // what the world calls this citizen, exactly as engine.
 // window cannot ask the world how hard a troll hits: the state carries a mob's
 // type and its current hp and nothing else. These are the real numbers, and
 // test/identity.test.mjs holds them to the engine's.
+// §7f-vi: EVERY BEAST IN THE WORLD, WITH THE ENGINE'S OWN NUMBERS.
+//
+// Regenerated from `E.MOB_STATS`. What was here knew eleven of the twenty-five
+// creatures the world stands up, and two of the eleven carried numbers the
+// engine has not had for a while. A beast missing from this table is not a
+// cosmetic gap: `mobMaxHp` falls back to 1, so its health bar is drawn full at
+// every wound, and `huntsMe` returns false, so NOTHING warns a citizen that it
+// has noticed them. The thirteen missing ones included the barrow wight, the
+// fen adder, the boar, the gibbet dead and the gibbet king: most of what is
+// actually dangerous on this island.
+//
+// `maxHp` is the engine's `maxHealth` under this window's older name, which is
+// the one rename in the copy. `drops` is left out: a window has no business
+// telling a citizen what will fall before it falls.
 const MOB_STATS = {
-  goblin:            { maxHp: 5,  atk: 1, def: 1, maxHit: 1, respawn: 16,  aggro: 3 },
-  wolf:              { maxHp: 8,  atk: 2, def: 2, maxHit: 2, respawn: 150, aggro: 5 },
-  troll:             { maxHp: 20, atk: 4, def: 4, maxHit: 3, respawn: 300, aggro: 4 },
-  bear:              { maxHp: 14, atk: 3, def: 3, maxHit: 2, respawn: 220, aggro: 3 },
-  'skeleton-knight': { maxHp: 18, atk: 5, def: 6, maxHit: 4, respawn: 120, aggro: 5 },
-  'siren':           { maxHp: 60, atk: 20, def: 20, maxHit: 6, respawn: 1200, aggro: 10, mirrors: true },
-  'great-spider':    { maxHp: 300, atk: 26, def: 18, maxHit: 9, respawn: 36000, aggro: 6, mends: 6 },
-  'shore-crab':      { maxHp: 90, atk: 8, def: 14, maxHit: 2, respawn: 90, aggro: 4, harmless: true },
-  sheep:             { maxHp: 40, atk: 2, def: 8, maxHit: 1, respawn: 120, harmless: true },
-  dragon:            { maxHp: 420, atk: 115, def: 24, maxHit: 28, respawn: 36000,
-                       aggro: 9, breath: 5 },
-  // §7cn: seven in the meres, sixty-four lives apiece, and then never again.
-  // `finite` is carried here so the window can draw the difference between a
-  // lamprey that is dead until it respawns and one that is DONE.
-  'mere-lamprey':    { maxHp: 44, atk: 62, def: 15, maxHit: 8, respawn: 400,
-                       aggro: 3, finite: 64 },
+  goblin:             { maxHp:      5, atk:   1, def:  1, maxHit:  1, respawn:    16, aggro:  3 },
+  'scree-imp':        { maxHp:      6, atk:   2, def:  3, maxHit:  1, respawn:    60, aggro:  2, harmless: true },
+  wolf:               { maxHp:      8, atk:   2, def:  2, maxHit:  2, respawn:   150, aggro:  5 },
+  troll:              { maxHp:     20, atk:   4, def:  4, maxHit:  3, respawn:   300, aggro:  4 },
+  bear:               { maxHp:     14, atk:   3, def:  3, maxHit:  2, respawn:   220, aggro:  3 },
+  'shore-crab':       { maxHp:     90, atk:   8, def: 14, maxHit:  2, respawn:    90, aggro:  4, every: 3, harmless: true },
+  dummy:              { maxHp: 100000, atk:   1, def:  1, maxHit:  0, respawn:     1, every: 8, harmless: true, dummy: true },
+  butt:               { maxHp: 100000, atk:   1, def:  1, maxHit:  0, respawn:     1, every: 8, harmless: true, dummy: true, ranged: true },
+  boar:               { maxHp:     55, atk:  16, def: 12, maxHit:  5, respawn:   110, aggro:  3, every: 3 },
+  'mountain-goat':    { maxHp:     45, atk:   3, def: 10, maxHit:  1, respawn:   100, every: 4, harmless: true },
+  'carrion-crow':     { maxHp:     14, atk:  10, def:  5, maxHit:  2, respawn:    70, aggro:  4, every: 2 },
+  'fen-adder':        { maxHp:     22, atk:  20, def:  6, maxHit:  6, respawn:    90, aggro:  2, every: 4 },
+  'gibbet-dead':      { maxHp:    120, atk:  40, def: 30, maxHit: 11, respawn:   300, aggro:  6, every: 4, hurls: 4, rooted: true },
+  quencher:           { maxHp:     60, atk:  30, def: 20, maxHit:  7, respawn:   220, aggro:  4, every: 3, unlit: true },
+  'barrow-wight':     { maxHp:     95, atk:  34, def: 26, maxHit:  9, respawn:   200, aggro:  5, every: 3, warded: true },
+  sheep:              { maxHp:     40, atk:   2, def:  8, maxHit:  1, respawn:   120, every: 4, harmless: true },
+  siren:              { maxHp:     60, atk:  20, def: 20, maxHit:  6, respawn:  1200, aggro: 10, every: 2, mirrors: true },
+  'great-spider':     { maxHp:    300, atk:  48, def: 18, maxHit: 18, respawn: 36000, aggro:  6, every: 3, mends: 6 },
+  dragon:             { maxHp:    420, atk: 115, def: 24, maxHit: 28, respawn: 43200, aggro:  9, every: 4, breath: 5, breathHit: 14, breathEvery: 5, meleeOnly: true },
+  'mere-lamprey':     { maxHp:     44, atk:  62, def: 15, maxHit:  8, respawn:   400, aggro:  3, every: 2, finite: 64 },
+  'skeleton-knight':  { maxHp:     18, atk:   5, def:  6, maxHit:  4, respawn:   120, aggro:  5 },
+  incursion:          { maxHp:    120, atk:  30, def:  8, maxHit:  4, respawn:     0, aggro:  6 },
+  risen:              { maxHp:     12, atk:  22, def:  3, maxHit:  5, respawn:     0, aggro:  6, summoned: true },
+  'gibbet-king':      { maxHp:    200, atk:  55, def: 16, maxHit: 22, respawn:  9000, aggro:  8, every: 4, raiseEvery: 5, raiseCap: 4, meleeOnly: true, raises: true },
 }
 // §6aa: THE COUNTRIES WHERE A BEAST WILL START SOMETHING. Character for
 // character from the engine, and it is the difference between a country you
@@ -5279,110 +5343,35 @@ const WEAPON_EVERY = {
 // wrong answer about a citizen's death and refused to let them haul goods the
 // engine would have taken. Nothing was mispriced; the entries simply were not
 // there, which is the failure mode a hand-copied table always has.
+//
+// §7f-vi: AND IT WENT STALE AGAIN, which is what a note saying "generated"
+// cannot stop. Two more goods had been added since -- the smoked eel and the
+// sapling -- and nothing noticed. `test/tables.test.mjs` now compares every
+// copied table in this window against the engine's own export on every run.
 const PRICES = {
-  "ale": 8,
-  "arrows": 1,
-  "barb": 260,
-  "bare-blade": 55,
-  "bone-spear": 900,
-  "bone-staff": 880,
-  "bones": 2,
-  "bread": 9,
-  "brimstone": 46,
-  "broth": 10,
-  "burnt-bread": 1,
-  "burnt-deep-fish": 1,
-  "burnt-eel": 1,
-  "charcoal": 12,
-  "chart": 180,
-  "charter": 240,
-  "coal": 12,
-  "cooked-deep-fish": 22,
-  "cooked-eel": 13,
-  "cooked-fish": 6,
-  "crab-shell": 12,
-  "deep-broth": 24,
-  "deep-fish": 11,
-  "dragon-bones": 500,
-  "eel": 7,
-  "fire-arrows": 12,
-  "fire-siphon": 1450,
-  "flour": 6,
-  "gold-bar": 320,
-  "gold-chain": 3900,
-  "gold-helm": 2800,
-  "gold-legs": 3400,
-  "gold-ore": 60,
-  "gold-plate": 4200,
-  "grain": 4,
-  "grave-silver": 700,
-  "great-hatchet": 520,
-  "great-mell": 5200,
-  "great-pickaxe": 520,
-  "gunpowder": 60,
-  "heartwood": 15,
-  "heartwood-bow": 540,
-  "heartwood-rod": 300,
-  "heartwood-staff": 495,
-  "hollow-bow": 45,
-  "holy-water": 90,
-  "horn-bow": 400,
-  "iron": 5,
-  "iron-dagger": 8,
-  "iron-hatchet": 10,
-  "iron-helm": 12,
-  "iron-javelin": 3,
-  "iron-mell": 22,
-  "iron-ore": 4,
-  "iron-pickaxe": 10,
-  "iron-plate": 30,
-  "iron-shield": 34,
-  "iron-spear": 14,
-  "iron-sword": 15,
-  "ironbark": 9,
-  "ironbark-rod": 120,
-  "king-shroud": 800,
-  "lamprey-spit": 90,
-  "logs": 2,
-  "quick-stone": 20,
-  "oak-logs": 6,
-  "oak-rod": 40,
-  "ore": 5,
-  "planks": 5,
-  "raw-fish": 3,
-  "rod": 10,
-  "salt-deep-fish": 30,
-  "salt-fish": 11,
-  "saltpetre": 14,
-  "seeds": 10,
-  "shell-helm": 26,
-  "shell-plate": 68,
-  "shot": 2,
-  "spade": 260,
-  "staff": 6,
-  "quick-hatchet": 315,
-  "quick-helm": 270,
-  "quick-ingot": 420,
-  "quick-javelin": 12,
-  "quick-mell": 720,
-  "quick-pickaxe": 315,
-  "quick-plate": 900,
-  "quick-shield": 640,
-  "quick-spear": 450,
-  "quick-sword": 540,
-  "steel-dagger": 40,
-  "steel-hatchet": 44,
-  "steel-helm": 45,
-  "steel-javelin": 6,
-  "steel-mell": 85,
-  "steel-pickaxe": 44,
-  "steel-plate": 110,
-  "steel-shield": 120,
-  "steel-spear": 48,
-  "steel-sword": 60,
-  "wand": 6,
-  "wooden-bow": 8,
-  "wool": 9
+  'iron-dagger': 8, 'iron-spear': 14, 'iron-mell': 22, 'horn-bow': 400,
+  'crab-shell': 12, wool: 9, logs: 2, ore: 5, 'raw-fish': 3, 'cooked-fish': 6, bones: 2,
+  arrows: 1, shot: 2, chart: 180, 'iron-shield': 34, 'steel-shield': 120,
+  'quick-shield': 640, 'gold-legs': 3400, 'quick-ingot': 420, 'gold-ore': 60,
+  'gold-bar': 320, 'gold-helm': 2800, 'gold-plate': 4200, ironbark: 9,
+  'great-hatchet': 520, 'great-pickaxe': 520, rod: 10, 'ironbark-rod': 120,
+  'heartwood-rod': 300, heartwood: 15, 'deep-fish': 11, 'cooked-deep-fish': 22,
+  'burnt-deep-fish': 1, 'fire-siphon': 1450, 'hollow-bow': 45, 'great-mell': 5200,
+  bread: 9, 'burnt-bread': 1, flour: 6, saltpetre: 14, gunpowder: 60, planks: 5,
+  'iron-ore': 4, 'holy-water': 90, 'grave-silver': 700, spade: 260, 'fire-arrows': 12,
+  'salt-fish': 11, 'salt-deep-fish': 30, 'gold-chain': 3900, 'bone-staff': 880,
+  charter: 240, 'bare-blade': 55, 'oak-logs': 6, coal: 12, charcoal: 12, brimstone: 46,
+  'iron-javelin': 3, 'steel-javelin': 6, 'quick-javelin': 12, eel: 7, 'cooked-eel': 13,
+  'smoked-eel': 30, 'burnt-eel': 1, iron: 5, 'steel-sword': 60, 'steel-helm': 45,
+  'steel-plate': 110, 'steel-dagger': 40, 'steel-spear': 48, 'steel-hatchet': 44,
+  'steel-pickaxe': 44, 'oak-rod': 40, 'deep-broth': 24, 'heartwood-bow': 540,
+  'quick-stone': 20, 'iron-sword': 15, 'iron-hatchet': 10, 'iron-pickaxe': 10,
+  'iron-helm': 12, 'iron-plate': 30, 'wooden-bow': 8, grain: 4, 'shell-helm': 26,
+  'shell-plate': 68, 'steel-mell': 85, 'quick-sword': 540, 'quick-helm': 270,
+  'quick-plate': 900, 'king-shroud': 800, 'quick-spear': 450, 'quick-mell': 720,
+  'quick-hatchet': 315, 'quick-pickaxe': 315, staff: 6, 'heartwood-staff': 495, wand: 6,
+  seeds: 10, sapling: 40, ale: 8, broth: 10, 'dragon-bones': 500, 'bone-spear': 900,
+  barb: 260, 'lamprey-spit': 90
 }
 
 
@@ -5637,6 +5626,21 @@ const EQUIP_SLOT_OF = (item) =>
 // and nothing was said. It also held three the engine does not: hollow-bow,
 // great-mell and fire-siphon, so taking one of those up lowered a shield that
 // could have stayed raised.
+// §6m-viii: THE LARDER, from engine.js HEALS. It is a table there for
+// exactly this reason: a chain of `item === ...` answers what a thing heals
+// and cannot answer which things ARE food, so both windows carried a guess of
+// three and the other seven were uneatable.
+const HEALS = {
+  'smoked-eel': 5, 'salt-fish': 4, 'salt-deep-fish': 8, 'cooked-fish': 6,
+  'cooked-eel': 7, 'cooked-deep-fish': 10, 'deep-broth': 8, 'broth': 5,
+  'bread': 7, 'ale': 4,
+}
+// and how fast it mends, which is the other half of what a food is
+const FEED_RATE = (it) => it === 'cooked-deep-fish' ? 3
+  : (it === 'cooked-fish' || it === 'cooked-eel' || it === 'bread') ? 2 : 1
+// the three a fire turns into food (engine isRawFood). The eel and the deep
+// fish were not here either, so neither could be cooked from the pack.
+const isRawFoodW = (it) => it === 'raw-fish' || it === 'deep-fish' || it === 'eel'
 const TWO_HANDED = new Set([
   'iron-spear', 'steel-spear', 'quick-spear', 'bone-spear', 'iron-mell', 'steel-mell',
   'quick-mell', 'great-sword', 'great-crossbow', 'quick-flail', 'old-chain', 'wooden-bow',
@@ -6834,27 +6838,47 @@ function nudgeIntent () {
 // A window that copies a table copies it at a MOMENT IN TIME. check-window.mjs
 // holds this one to the engine's now, so the next recipe cannot quietly land on
 // one side only.
+// §7f-viii: THE ANVIL QUOTED THE WRONG PRICE ON TWENTY RECIPES.
+//
+// This copy was taken when the quickmetal line was stones rather than grit,
+// and nothing has held it to the engine since: `check-window-tables.mjs`
+// checks window-MIST, which fetches /api/tables at boot; this window never
+// fetched anything and carried the copy alone.
+//
+// What a citizen saw: a quick-ingot quoted at 20 quick-stone when the world
+// wants 8 quick-grit; a great-sword at 10 ingots and 26 brimstone when it
+// wants 5 quick-alloy and a haft; a gold plate at 16 bars when it is 11; a
+// `steel-ingot` named in two recipes, which is not a word this world has. The
+// anvil was sending a citizen into the Wilds for the wrong thing, for hours.
+//
+// It is the whole table now, the smelted five and the stamped grit included,
+// because the furnace and the crushing floor read the same ledger and splitting
+// it by hand is how `hollow-bow` ended up on an anvil that refuses it. The
+// anvil shows what an anvil makes; see `SMELTED` below.
+//
+// Three things hold it now: it is generated, `loadRules` replaces every line
+// of it the moment the pillar answers, and test/tables.test.mjs compares it to
+// the engine on every run.
 const FORGE = {
-  "barb": {"lamprey-spit":2,"steel-ingot":1},
-  "bare-blade": {"steel-ingot":4,"ironbark":1},
+  "barb": {"lamprey-spit":2,"steel":1},
+  "bare-blade": {"steel":4,"ironbark":1},
   "bone-spear": {"dragon-bones":2,"ironbark":1},
-  "bone-staff": {"logs":2,"bones":12,"grave-silver":1},
+  "bone-staff": {"logs":2,"bones":8,"grave-silver":1},
   "crossbow": {"iron":2,"logs":2},
   "fire-siphon": {"steel":4,"brimstone":6,"ironbark":1},
   "gold-bar": {"gold-ore":5},
-  "gold-chain": {"gold-bar":12,"old-chain":1},
+  "gold-chain": {"gold-bar":10,"old-chain":1},
   "gold-helm": {"gold-bar":6},
   "gold-legs": {"gold-bar":8},
-  "gold-plate": {"gold-bar":16},
-  "great-crossbow": {"quick-ingot":7,"brimstone":20,"ironbark":1},
+  "gold-plate": {"gold-bar":11},
+  "great-crossbow": {"quick-alloy":4,"ironbark":1},
   "great-hatchet": {"quick-stone":2,"ironbark":2,"brimstone":1},
-  "great-helm": {"quick-ingot":4,"brimstone":12},
-  "great-mell": {"quick-ingot":11,"brimstone":24,"ironbark":1},
+  "great-helm": {"quick-alloy":2},
+  "great-mell": {"quick-alloy":6,"ironbark":1},
   "great-pickaxe": {"quick-stone":2,"ironbark":1,"brimstone":1},
-  "great-plate": {"quick-ingot":9,"brimstone":22},
-  "great-sword": {"quick-ingot":10,"brimstone":26,"ironbark":1},
-  "handgonne": {"iron":9,"ironbark":1,"brimstone":2},
-  "hollow-bow": {"bones":4,"logs":1},
+  "great-plate": {"quick-alloy":5},
+  "great-sword": {"quick-alloy":5,"ironbark":1},
+  "handgonne": {"iron":8,"ironbark":1,"brimstone":2},
   "iron": {"iron-ore":2},
   "iron-dagger": {"iron":1},
   "iron-hatchet": {"iron":1,"logs":1},
@@ -6866,22 +6890,24 @@ const FORGE = {
   "iron-shield": {"iron":4,"oak-logs":1},
   "iron-spear": {"iron":1,"logs":1},
   "iron-sword": {"iron":2},
+  "quick-alloy": {"quick-ingot":1,"brimstone":5},
+  "quick-dagger": {"quick-ingot":4},
+  "quick-flail": {"quick-ingot":8,"ironbark":1},
+  "quick-grit": {"quick-stone":5},
+  "quick-hatchet": {"quick-stone":2,"iron":1,"logs":1},
+  "quick-helm": {"quick-ingot":5},
+  "quick-ingot": {"quick-grit":8},
+  "quick-javelin": {"quick-ingot":1,"ironbark":1},
+  "quick-mell": {"quick-ingot":9,"ironbark":1},
+  "quick-pickaxe": {"quick-stone":2,"iron":1,"logs":1},
+  "quick-plate": {"quick-ingot":10},
+  "quick-shield": {"quick-ingot":7,"ironbark":1},
+  "quick-spear": {"quick-ingot":6,"ironbark":1},
+  "quick-sword": {"quick-ingot":6},
   "shell-helm": {"crab-shell":2,"iron":1},
   "shell-plate": {"crab-shell":4,"iron":2},
   "shot": {"iron":1,"gunpowder":1},
   "sigil-bow": {"horn-bow":1,"sigil":3},
-  "quick-dagger": {"quick-ingot":8},
-  "quick-flail": {"quick-ingot":15,"ironbark":1},
-  "quick-hatchet": {"quick-stone":2,"iron":1,"logs":1},
-  "quick-helm": {"quick-ingot":10},
-  "quick-ingot": {"quick-stone":20},
-  "quick-javelin": {"quick-ingot":1,"ironbark":1},
-  "quick-mell": {"quick-ingot":18,"ironbark":1},
-  "quick-pickaxe": {"quick-stone":2,"iron":1,"logs":1},
-  "quick-plate": {"quick-ingot":20},
-  "quick-shield": {"quick-ingot":14,"ironbark":1},
-  "quick-spear": {"quick-ingot":12,"ironbark":1},
-  "quick-sword": {"quick-ingot":12},
   "steel": {"iron":1},
   "steel-dagger": {"steel":1},
   "steel-hatchet": {"steel":1,"oak-logs":1},
@@ -6892,7 +6918,7 @@ const FORGE = {
   "steel-plate": {"steel":2},
   "steel-shield": {"steel":3,"ironbark":1},
   "steel-spear": {"steel":1,"oak-logs":1},
-  "steel-sword": {"steel":1}
+  "steel-sword": {"steel":1},
 }
 // character for character from engine SMITH_REQS
 // §6dj: generated from engine.js SMITH_REQS
@@ -6916,7 +6942,6 @@ const FORGE_REQ = {
   "great-plate": {"earthcraft":70,"sorcery":34},
   "great-sword": {"earthcraft":70,"sorcery":34},
   "handgonne": {"earthcraft":90},
-  "hollow-bow": {"woodcraft":12},
   "iron": {"earthcraft":1},
   "iron-dagger": {"earthcraft":1},
   "iron-hatchet": {"earthcraft":1},
@@ -6928,15 +6953,13 @@ const FORGE_REQ = {
   "iron-shield": {"earthcraft":12},
   "iron-spear": {"earthcraft":5},
   "iron-sword": {"earthcraft":10},
-  "shell-helm": {"earthcraft":22},
-  "shell-plate": {"earthcraft":26},
-  "shot": {"earthcraft":50},
-  "sigil-bow": {"earthcraft":12,"sorcery":25},
+  "quick-alloy": {"earthcraft":48,"sorcery":28},
   "quick-dagger": {"earthcraft":45,"sorcery":28},
   "quick-flail": {"earthcraft":50,"sorcery":29},
+  "quick-grit": {"earthcraft":42,"sorcery":22},
   "quick-hatchet": {"earthcraft":42,"sorcery":22},
   "quick-helm": {"earthcraft":40,"sorcery":20},
-  "quick-ingot": {"earthcraft":45},
+  "quick-ingot": {"earthcraft":45,"sorcery":25},
   "quick-javelin": {"earthcraft":46,"sorcery":26},
   "quick-mell": {"earthcraft":52,"sorcery":30},
   "quick-pickaxe": {"earthcraft":42,"sorcery":22},
@@ -6944,6 +6967,10 @@ const FORGE_REQ = {
   "quick-shield": {"earthcraft":48},
   "quick-spear": {"earthcraft":46,"sorcery":26},
   "quick-sword": {"earthcraft":45,"sorcery":25},
+  "shell-helm": {"earthcraft":22},
+  "shell-plate": {"earthcraft":26},
+  "shot": {"earthcraft":50},
+  "sigil-bow": {"earthcraft":12,"sorcery":25},
   "steel": {"earthcraft":30},
   "steel-dagger": {"earthcraft":25},
   "steel-hatchet": {"earthcraft":26},
@@ -6954,8 +6981,14 @@ const FORGE_REQ = {
   "steel-plate": {"earthcraft":38},
   "steel-shield": {"earthcraft":34},
   "steel-spear": {"earthcraft":28},
-  "steel-sword": {"earthcraft":32}
+  "steel-sword": {"earthcraft":32},
 }
+// §7p: which of them belong to the FURNACE rather than the anvil, and the
+// one that belongs to the crushing floor. The engine refuses a `smith` for any
+// of these and a `smelt` for anything that is not in SMELTED, so a window that
+// does not know the difference offers buttons that do nothing.
+const SMELTED = new Set(["iron", "steel", "quick-ingot", "quick-alloy", "gold-bar"])
+const STAMPED = new Set(['quick-grit'])
 // a log is a log (§6ad), so heartwood pays for anything logs pay for
 function forgeHave(me, item) {
   return me.inventory.reduce((a, sl) => {
@@ -7003,12 +7036,20 @@ function openForge(me) {
                  ['quickmetal', (k) => k.startsWith('quick-')],
                  ['great', (k) => k.startsWith('great-')],
                  ['gold', (k) => k.startsWith('gold-')]]
+  // §7p: AN ANVIL MAKES WHAT AN ANVIL MAKES. The ledger is the whole of
+  // the engine's RECIPES now, which is right -- it is one table in the engine
+  // and splitting it by hand is how a bow the anvil refuses ended up on it --
+  // so the five the FURNACE smelts and the one the crushing floor stamps are
+  // taken out here, where the anvil is being drawn. They are not missing: they
+  // are at the furnace and the stamp, which is where the engine put them.
+  const anvilMakes = (k) => !SMELTED.has(k) && !STAMPED.has(k)
   const claimed = new Set()
   const groups = tiers.map(([label, f]) => {
-    const keys = Object.keys(FORGE).filter(f); keys.forEach((k) => claimed.add(k))
+    const keys = Object.keys(FORGE).filter((k) => anvilMakes(k) && f(k))
+    keys.forEach((k) => claimed.add(k))
     return [label, keys]
   }).filter(([, keys]) => keys.length)
-  groups.push(['and the rest', Object.keys(FORGE).filter((k) => !claimed.has(k))])
+  groups.push(['and the rest', Object.keys(FORGE).filter((k) => anvilMakes(k) && !claimed.has(k))])
   let html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     + '<b style="color:#e2b63e">THE ANVIL</b>'
     + '<span id="forgex" style="cursor:pointer;color:#a89a7c;padding:0 6px">close</span></div>'
@@ -7414,6 +7455,10 @@ const CALLING_NAMES = {
   quarrier: 'the quarrier', watchman: 'the watchman', wizard: 'the wizard',
   fisher: 'the fisher', brewer: 'the brewer', mourner: 'the mourner',
   innkeeper: 'the innkeeper', collier: 'the collier', drover: 'the drover',
+  // the keeper who lifts the bar on the Millbrook bridge. He has a node, a
+  // verb and a line of his own, and the window had no name for him: the one
+  // calling missing from this copy, so he was drawn as nothing at all.
+  toll: 'the bridge-keeper',
   beekeeper: 'the beekeeper',
 }
 const CALLING_LINE_W = {
@@ -9131,7 +9176,10 @@ function _onState(s, worldId, local) {
     else send({ do: 'name', name: pendingName })
   }
   else if (me && intent?.kind === 'cookall') {
-    const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
+    // §6m-viii: the eel and the deep fish are raw food too, and this only
+    // ever looked for the shallow catch, so a fisher stood at a fire with a
+    // pack of eels and was told they had cooked everything they had.
+    const i = me.inventory.findIndex(sl => sl && isRawFoodW(sl.item))
     const fire = Object.values(s.nodes).find(n => (n.type === 'campfire' || n.type === 'fire')
       && Math.abs(me.x - n.x) + Math.abs(me.y - n.y) === 1)
     if (i === -1) { intent = null; feed("You've cooked everything you had.") }
@@ -9210,7 +9258,7 @@ function _onState(s, worldId, local) {
       else if (intent.kind === 'anvilgo') { smithBest(me); intent = null }
       else if (intent.kind === 'meet') { openTrade(intent.id); intent = null }
       else { // at the fire: start cooking if there's anything raw
-        const i = me.inventory.findIndex(sl => sl && sl.item === 'raw-fish')
+        const i = me.inventory.findIndex(sl => sl && isRawFoodW(sl.item))
         if (i !== -1) { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026') }
         else { feed('You have nothing to cook.'); intent = null }
       }
@@ -16977,19 +17025,26 @@ function invClick(i) {
     }
     send({ do: 'wield', slot: +i }); feed('You wield the ' + it.item.replace(/-/g, ' ') + '.')
   }
-  else if (it?.item === 'cooked-fish') {
+  // §6m-viii: AND THE OTHER SEVEN FOODS.
+  //
+  // This was three words -- cooked-fish, ale, broth -- and the engine's larder
+  // has TEN. A citizen carrying bread, a salted fish, a salted deep fish, a
+  // smoked eel, a cooked eel, a cooked deep fish or a deep broth fell through
+  // to the generic rows at the bottom, where the only things on offer were
+  // transmuting it and dropping it. The capstone of shorecraft could not be
+  // eaten in the window most citizens play in.
+  //
+  // `HEALS` is the engine's own table now (it was a ternary chain, which
+  // cannot answer "what IS food"), so this asks the larder instead of
+  // carrying a list.
+  else if (HEALS[it?.item]) {
     const foe = onACreature(meNow.action) ? meNow.action.mobId : null
     send({ do: 'eat', slot: +i })
-    if (foe) { intent = { kind: 'prowess', id: foe }; feed('You wolf it down and raise your sword again.') }
-    else feed('You eat the fish.')
+    if (foe) { intent = { kind: 'prowess', id: foe }; feed('You get it down and fight on.') }
+    else feed('You eat the ' + say1(it.item) + '. ' + HEALS[it.item] + ' back, '
+      + FEED_RATE(it.item) + ' an interval.')
   }
-  else if (it?.item === 'ale' || it?.item === 'broth') {
-    const foe = onACreature(meNow.action) ? meNow.action.mobId : null
-    send({ do: 'eat', slot: +i })
-    if (foe) { intent = { kind: 'prowess', id: foe }; feed('You down it and fight on.') }
-    else feed(it.item === 'ale' ? 'You drink the ale. Steadier now.' : 'You sip the broth. Warmth returns.')
-  }
-  else if (it?.item === 'raw-fish') { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
+  else if (isRawFoodW(it?.item)) { send({ do: 'cook', slot: +i }); feed('You attempt to cook\u2026') }
   else if (it) {
     // THE FALLBACK WAS A DROP, WHICH IS A STRANGE THING TO DO ON ONE CLICK.
     //
@@ -17425,22 +17480,12 @@ cv.addEventListener('click', (e) => {
         flashClick(n.x, n.y, false)
         return
       }
-      if (n.type === 'market') {
-        // A CITIZEN'S STALL: trestles, a cloth, a post with their mark, and
-        // whatever is actually on the shelf standing on the board.
-        shadow(X, Y, 11)
-        cx.fillStyle = '#4a3a24'
-        cx.fillRect(X + 7, Y + 20, 2.4, 8); cx.fillRect(X + 30, Y + 20, 2.4, 8)
-        poly([[X+4,Y+20],[X+20,Y+13],[X+36,Y+20],[X+20,Y+27]], '#7a6038', '#2e2414')
-        cx.fillStyle = '#4a3a20'; cx.fillRect(X + 4, Y + 20, 16, 5)
-        cx.fillStyle = '#3a2c18'; cx.fillRect(X + 20, Y + 20, 16, 5)
-        poly([[X+4,Y+20],[X+12,Y+16],[X+13,Y+23],[X+5,Y+26]], '#6a3030', '#331414')
-        cx.fillStyle = '#3a2f1e'; cx.fillRect(X + 32, Y + 2, 2.2, 18)
-        poly([[X+34,Y+2],[X+42,Y+4],[X+42,Y+10],[X+34,Y+8]], '#8a6a2a', '#3a2c12')
-        const g9 = n.shelf ? Object.keys(n.shelf)[0] : null
-        if (g9) { try { cx.drawImage(itemSprite(g9), X + 13, Y + 6, 16, 16) } catch {} }
-        return
-      }
+      // §7d-iv AGAIN, IN THE OTHER DIRECTION: a DRAWING of the stall was
+      // pasted in here, above the branch that tends and buys from one. It
+      // filled rectangles with `cx` on a click, matched first, and returned --
+      // so every click on a citizen's stall painted trestles into the frame
+      // and the whole menu below it was unreachable code. The drawing is in
+      // `drawScene` where it belongs and has been the whole time.
       if (n.type === 'market') {
         const meS = world.players[myId]
         const good = n.shelf ? Object.keys(n.shelf)[0] : null
@@ -17698,12 +17743,27 @@ cv.addEventListener('click', (e) => {
         // cannot make anything.
         const have = (it) => (meF.inventory || [])
           .reduce((t, sl) => t + (sl?.item === it ? (sl.qty ?? 1) : 0), 0)
-        const SMELTS = [
-          { r: 'iron',       needs: { 'iron-ore': 2 },     says: 'Two of ore run down into a bar.' },
-          { r: 'steel',      needs: { 'iron': 1 },         says: 'The bar goes back in, and comes out steel.' },
-          { r: 'quick-ingot', needs: { 'quick-stone': 20 }, says: 'Twenty stones, and one ingot of quickmetal.' },
-          { r: 'gold-bar',   needs: { 'gold-ore': 5 },     says: 'The gold runs.' },   // GOLD_ORE_PER_BAR
-        ]
+        // §7p: THE FURNACE READS THE LEDGER TOO.
+        //
+        // This was four recipes written out by hand and three of the four were
+        // wrong: a quick-ingot was quoted at 20 quick-stone when the engine
+        // wants 8 quick-grit off the crushing floor, and `quick-alloy` -- the
+        // fifth smelt, and the gate to the whole great line -- was not here at
+        // all. A citizen could not make an alloy from this window, and could
+        // not find out why.
+        //
+        // So the fire offers what the engine says is smelted, costed from the
+        // same FORGE table the anvil reads.
+        const SAYS = {
+          iron: 'Two of ore run down into a bar.',
+          steel: 'The bar goes back in, and comes out steel.',
+          'quick-ingot': 'The grit fuses. One ingot of quickmetal.',
+          'quick-alloy': 'The ingot takes the brimstone. This is what the great line is made of.',
+          'gold-bar': 'The gold runs.',
+        }
+        const SMELTS = [...SMELTED]
+          .filter((r) => FORGE[r])
+          .map((r) => ({ r, needs: FORGE[r], says: SAYS[r] ?? 'It runs.' }))
         const can = SMELTS.filter((sm) =>
           Object.entries(sm.needs).every(([it, q]) => have(it) >= q))
         if (can.length > 1) {
@@ -17720,10 +17780,11 @@ cv.addEventListener('click', (e) => {
         else {
           // §7cx: AND SAY THAT IT IS A JOB TWO PEOPLE DO.
           //
-          // A quick-ingot is twenty quick-stone, quick-stone does not stack, and
-          // the pack is twenty-eight -- so one ingot is one trip into the Wilds
-          // and back to this fire. A great mell is ELEVEN ingots: two hundred
-          // and twenty stones, eleven journeys.
+          // A quick-ingot is eight measures of grit, grit is one quick-stone
+          // crushed on the stamp, and quick-stone does not stack -- so an
+          // ingot is a trip into the Wilds, a stop at the crushing floor and a
+          // stop at this fire. The great line is made of ALLOYS, and an alloy
+          // is an ingot and five brimstone on top of that.
           //
           // The trade is already possible and nothing ever said so. A citizen
           // who mines in the Wilds and a citizen who can work the fire need
@@ -17733,17 +17794,26 @@ cv.addEventListener('click', (e) => {
           // the thing that mentions it.
           whoWorksHere(n)
         const sm = XP_TO_LVL(meF.skills?.earthcraft ?? 0)   // §5m: smithing is earthcraft
-          const stones = have('quick-stone')
-          if (stones >= 20 && sm < 45)
-            feed('You have the stones and not the craft, twenty make one ingot, and it '
-              + 'wants earthcraft 45. Somebody standing at this fire could smelt them for you.')
-          else if (sm >= 45 && stones < 20)
-            feed('You could work this fire and have nothing to put in it. Twenty quick-stone '
-              + 'make one quick-ingot, and they come out of the Wilds. Somebody who walks there '
-              + 'would carry them, if you smelted for them.')
+          const grit = have('quick-grit'), stones = have('quick-stone')
+          const needGrit = FORGE['quick-ingot']?.['quick-grit'] ?? 8
+          const sorc = XP_TO_LVL(meF.skills?.sorcery ?? 0)
+          const wantsSorc = FORGE_REQ['quick-ingot']?.sorcery ?? 0
+          if (grit >= needGrit && (sm < 45 || sorc < wantsSorc))
+            feed('You have the grit and not the craft: an ingot wants earthcraft 45 and '
+              + 'sorcery ' + wantsSorc + ', and you have ' + sm + ' and ' + sorc + '. '
+              + 'Somebody standing at this fire could smelt them for you.')
+          else if (sm >= 45 && grit < needGrit && stones > 0)
+            feed('Quick-stone, not grit. The crushing floor turns one stone into one measure, '
+              + 'and ' + needGrit + ' measures make an ingot.')
+          else if (sm >= 45 && grit < needGrit)
+            feed('You could work this fire and have nothing to put in it. ' + needGrit
+              + ' measures of quick-grit make an ingot, and the grit is crushed from stone '
+              + 'that comes out of the Wilds. Somebody who walks there would carry it, '
+              + 'if you smelted for them.')
           else
-            feed('It burns. Two of iron-ore make a bar, a bar makes steel, twenty quick-stone '
-              + 'make an ingot, five of gold-ore make gold. Or bring coal to keep it going.')
+            feed('It burns. Two of iron-ore make a bar, a bar makes steel, ' + needGrit
+              + ' quick-grit make an ingot, an ingot and brimstone make the alloy the great '
+              + 'line is forged from, five of gold-ore make gold. Or bring coal to keep it going.')
         }
         flashClick(n.x, n.y, false); return
       }
@@ -17955,7 +18025,7 @@ cv.addEventListener('click', (e) => {
       }
       if (n.type === 'campfire' || n.type === 'fire') {
         if (!adj(n)) { intent = { kind: 'gatherfire', id, msg: 'You warm your hands by the fire.' }; return }
-        const i = me.inventory.findIndex(s => s && s.item === 'raw-fish')
+        const i = me.inventory.findIndex(s => s && isRawFoodW(s.item))
         if (i !== -1) { intent = { kind: 'cookall' }; feed('You start cooking your catch\u2026') }
         else feed('You have nothing to cook.')
         return

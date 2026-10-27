@@ -57,6 +57,12 @@ test('the skill invariants hold (skill-check.mjs)', () => {
 // itself, which the first cut of it did.
 const DASH = String.fromCharCode(0x2014)
 const ESCAPED = String.fromCharCode(92) + 'u2014'
+// AND THE HTML ENTITY, which is a third way to write the same thing and was
+// not checked. It got four of them into window-photo and one into
+// window-grim3d, past the one test whose whole job is this rule, and they were
+// found by looking: which is not how a rule stays kept. Built from char codes
+// like the two above, so this file does not fail itself.
+const ENTITY = '&' + 'mdash' + String.fromCharCode(59)
 
 // `downloads/` holds a packaged client: a build artifact carrying a copy of
 // the engine and the bridge from whenever it was last cut. It is rebuilt from
@@ -81,7 +87,7 @@ test('nothing this project writes contains a long dash', () => {
     let t
     try { t = fs.readFileSync(p, 'utf8') } catch { continue }
     t.split('\n').forEach((l, i) => {
-      if (l.includes(DASH) || l.includes(ESCAPED)) {
+      if (l.includes(DASH) || l.includes(ESCAPED) || l.includes(ENTITY)) {
         bad.push(`${path.relative(root, p)}:${i + 1}: ${l.trim().slice(0, 80)}`)
       }
     })

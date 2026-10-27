@@ -2267,16 +2267,9 @@ const isRawFood = (item) => item === 'raw-fish' || item === 'deep-fish' || item 
 // occupies a slot of its own; a salted one is worth two less and STACKS, which
 // is the whole of the trade -- the same argument ale won against bread (16d).
 // A citizen crossing to the isle with an empty pack comes home with a column.
-const healOf = (item) => item === 'smoked-eel' ? HEAL_SMOKED_EEL
-  : item === 'salt-fish' ? HEAL_SALT_FISH
-  : item === 'salt-deep-fish' ? HEAL_SALT_DEEP
-  : item === 'cooked-fish' ? HEAL_FISH
-  : item === 'cooked-eel' ? HEAL_MID_FISH
-  : item === 'cooked-deep-fish' ? HEAL_DEEP_FISH
-  : item === 'deep-broth' ? HEAL_DEEP_BROTH
-  : item === 'broth' ? HEAL_BROTH
-  : item === 'bread' ? HEAL_BREAD
-  : item === 'ale' ? HEAL_ALE : 0;
+// §6m-viii: the larder is a TABLE now, declared where every number it names
+// is in scope. One larder, read here and exported for the windows.
+const healOf = (item) => HEALS[item] ?? 0;
 // §6m-vii: HOW FAST IT MENDS, which is the other half of what a food IS.
 //
 // A window alone made every food feel identical moment to moment: one hitpoint
@@ -2356,6 +2349,7 @@ const SEED_FROM_HARVEST = 1;
 const HEARTWOOD_FLETCH = 90;
 const XP_COOK_DEEP = 20;   // 6bf: flat. A deep fish is worth more; it does not TEACH more.
 const HEAL_BROTH = 5, HEAL_ALE = 4; // brewed restoration (v0.51)
+
 // §7i: THE LOAF. Seven, which is more than a cooked fish -- and it does NOT
 // stack, which is the whole design. Ale's value was never its five points; it
 // was that a citizen can carry twenty draughts in one slot and stay out all
@@ -2865,6 +2859,29 @@ const HOUSE_POT_XP = 1.05;   // §7j: the Lantern's five per cent
 // two eights would be sixteen against the cooked fish's ten, which would end
 // cooking as a trade. A deep fish makes ONE draught; there is no second in it.
 const HEAL_DEEP_BROTH = 8, DEEP_BROTH_BREW = 78;  // 6be: likewise, the brewer meets the fisher
+// §6m-viii: THE LARDER IS A TABLE, so a window can read it.
+//
+// This was a ternary chain, which is a perfectly good way to answer "what does
+// this heal" and no way at all to answer "what IS food". Both windows had to
+// guess, and both guessed the same three things -- cooked fish, ale, broth --
+// so a citizen carrying bread, a salted fish, a smoked eel, a cooked eel, a
+// cooked deep fish, a salted deep fish or a deep broth had SEVEN foods in
+// their pack and no way to eat any of them.
+//
+// The numbers are the ones that were in the chain, in the same order. `healOf`
+// reads the table, so there is one larder and not two.
+const HEALS = {
+  'smoked-eel': HEAL_SMOKED_EEL,
+  'salt-fish': HEAL_SALT_FISH,
+  'salt-deep-fish': HEAL_SALT_DEEP,
+  'cooked-fish': HEAL_FISH,
+  'cooked-eel': HEAL_MID_FISH,
+  'cooked-deep-fish': HEAL_DEEP_FISH,
+  'deep-broth': HEAL_DEEP_BROTH,
+  'broth': HEAL_BROTH,
+  'bread': HEAL_BREAD,
+  'ale': HEAL_ALE,
+};
 // AND WHAT A MASTER BREWER GETS, which was nothing at all.
 //
 // Brewing was the one skill in the world whose levels bought NOTHING: no gate
@@ -18680,4 +18697,7 @@ module.exports = {
   // question anybody asks of that path.
   livingRootOf, livingPathOf, provesLiving, recordDigest: _recordDigest, rootOfLeaves, pathInLeaves, provesDigest, EMPTY_ROOT,
   MASTERY, VIGIL_TICKS, SLEEP_AFTER, isAwake, effLevel, standingOf, callingOf, unaidedOf, WEAPONS, SWORN, SWEAR_LEVEL, SWEAR_COUNTRIES, maxHealth, callingHit, guardOf, armourOf, hitOf, accOf, STYLES, WIELD_REQS, countedSuccess, validateState, validateGenesis, validateImports, carriedFrom, validateInputShape, normalizeInput, slotOf, supportsWorldGenerator, minQuorumFor, maxByzantine, byzantineSafe, initCrypto, SKILLS, EQUIP_SLOTS, NODE_TYPES, INV_SLOTS, ITEMS, isValidName, cityRectOf, norwickRectOf, wildsRectOf, inCity, PRICES, inWilds, spawnOf, makeGenesis, newWorld, sameWorld, addPlayer, seatImport, landingVaultId, addNode, addMob, nextState, MOB_STATS, RECIPES, EQUIPPABLE,
+  // §6m-viii: the larder, so a window can tell food from goods rather than
+  // carrying a guess. healOf reads this table; it is not a second copy.
+  HEALS, healOf, FEED_RATE,
 };
